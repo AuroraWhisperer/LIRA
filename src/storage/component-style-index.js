@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
+const indexes = new Map();
 
 function unavailable(code = 'STYLE_LIBRARY_INDEX_UNAVAILABLE') {
   return Object.assign(new Error(code === 'STYLE_LIBRARY_INDEX_VERSION'
@@ -36,8 +37,28 @@ function atomicWrite(root, filename, text) {
 }
 
 function createComponentStyleIndex(root) {
+  root = path.resolve(root);
+  if (indexes.has(root)) return indexes.get(root);
   let backupCurrent = false;
   let recovery = null;
+  let cached;
+  function fingerprint() {
+    return ['index.json', 'index.backup.json'].map(filename => {
+      try {
+        const stat = fs.statSync(path.join(root, filename), { bigint: true });
+        return `${stat.ino}:${stat.size}:${stat.mtimeNs}:${stat.ctimeNs}`;
+      } catch (error) {
+        if (error.code === 'ENOENT') return 'missing';
+        throw unavailable();
+      }
+    }).join('|');
+  }
+  function remember(index) {
+    // Cache bookkeeping must not turn a committed write into an install rollback.
+    try { cached = backupCurrent ? { fingerprint: fingerprint(), index: structuredClone(index) } : null; }
+    catch { cached = null; }
+    return index;
+  }
   function load(filename) {
     try {
       const text = fs.readFileSync(path.join(root, filename), 'utf8');
@@ -59,10 +80,12 @@ function createComponentStyleIndex(root) {
       backupCurrent = true;
     } catch { backupCurrent = false; }
   }
-  return {
+  const owner = {
     read() {
+      if (cached && fingerprint() === cached.fingerprint) return structuredClone(cached.index);
+      cached = null;
       const primary = load('index.json');
-      if (primary.index) { mirror(primary.text); return primary.index; }
+      if (primary.index) { mirror(primary.text); return remember(primary.index); }
       const backup = load('index.backup.json');
       if (backup.index) {
         try {
@@ -73,7 +96,7 @@ function createComponentStyleIndex(root) {
         recovery = { source: 'backup', recoveredAt: Date.now() };
         // The primary has committed; a failed notice must not undo recovery.
         try { atomicWrite(root, 'index.recovery.json', JSON.stringify(recovery)); } catch { recovery.noticePersisted = false; }
-        return backup.index;
+        return remember(backup.index);
       }
       const installed = fs.existsSync(root) && fs.readdirSync(root).some(name => UUID.test(name));
       if (primary.missing && backup.missing && !installed) return { version: 1, packages: [] };
@@ -84,6 +107,7 @@ function createComponentStyleIndex(root) {
       atomicWrite(root, 'index.json', text);
       // A backup failure occurs after commit and must not trigger install rollback.
       mirror(text);
+      remember(JSON.parse(text));
     },
     integrity() {
       this.read();
@@ -93,6 +117,8 @@ function createComponentStyleIndex(root) {
       return { backupCurrent, recovery };
     },
   };
+  indexes.set(root, owner);
+  return owner;
 }
 
 module.exports = { createComponentStyleIndex, validateIndex };

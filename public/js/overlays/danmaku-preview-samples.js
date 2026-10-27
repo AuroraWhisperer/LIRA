@@ -100,6 +100,10 @@ export function createDanmakuPreviewItems(style = 'signal') {
       name: VIEWER_NAMES[tone][index % VIEWER_NAMES[tone].length], avatarUrl: AVATAR, message, price: SC_PRICES[index],
     }))),
   ];
+  if (style === 'twitter') return samples.map((item, index) => ({
+    ...item, uid: String(100000 + index), avatarUrl: item.avatarUrl || AVATAR,
+    roomGuardLevel: item.guardLevel || 0,
+  }));
   if (style === 'mist') return samples.map((item) => ({
     ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
   }));
@@ -107,7 +111,7 @@ export function createDanmakuPreviewItems(style = 'signal') {
     ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
     ...(index < 3 ? { onlineRank: index + 1 } : {}),
   }));
-  if (!['prismatic', 'snowfox'].includes(style)) return samples;
+  if (!['prismatic', 'snowfox', 'ripploid', 'flower-letter', 'notebook'].includes(style)) return samples;
   const palettes = {
     1: [50, '#A773F199', '#D47AFF'], 2: [38, '#4C7DFF99', '#58A1F8'],
     3: [28, '#3FB4F699', '#5FC7F4'], 0: [9, '#5762A799', '#5762A7'],

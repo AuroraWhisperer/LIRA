@@ -343,11 +343,11 @@ function createLicenseManager(options = {}) {
       throw new RemoteLicenseError('LICENSE_NOT_AUTHORIZED', 'LICENSE_NOT_AUTHORIZED');
   }
 
-  async function withAuthorizedToken(operation, attempt = 0, sanitize = true, acceptResult = (result) => result, signal) {
+  async function withAuthorizedToken(operation, { sanitize = true, acceptResult = (result) => result, signal } = {}) {
     // Token renewal stays inside one lifecycle; activation, blocking and
     // disposal invalidate its requests even when the same owner returns later.
     const context = captureAuthorizationContext();
-    return execute(attempt);
+    return execute(0);
 
     async function execute(currentAttempt) {
       signal?.throwIfAborted();
@@ -663,7 +663,7 @@ function createLicenseManager(options = {}) {
     remote,
     getAuthorizationGeneration: () => lifecycleGeneration,
     withAuthorizedToken,
-    withAuthorizedSecret: (operation, signal) => withAuthorizedToken(operation, 0, false, undefined, signal),
+    withAuthorizedSecret: (operation, signal) => withAuthorizedToken(operation, { sanitize: false, signal }),
     isDisposed: () => disposed,
     getOverlayOwner: () => JSON.stringify([identity?.streamerId, identity?.deviceId]),
     setProfile: (value) => {

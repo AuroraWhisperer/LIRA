@@ -4,6 +4,7 @@
 
 ## 历史报告
 
+- [当前工作树只读代码审计](2026-10-24-code-audit.md)（[审计提示词](2026-10-24-code-audit-prompt.md)）
 - [模块化与公共能力复用整改](2026-10-22-modularity-reuse-remediation.md)
 
 - [模块化与公共能力复用审计](2026-10-22-modularity-reuse-audit.md)（[审计提示词](2026-10-22-modularity-reuse-audit-prompt.md)）

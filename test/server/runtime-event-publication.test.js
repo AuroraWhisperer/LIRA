@@ -88,6 +88,38 @@ test('finalized gifts reach the danmaku topic and reconnect snapshot without a g
   assert.deepEqual(snapshots[0].danmakuFeed, [events[0].payload.item]);
 });
 
+test('superchat publication and retraction share the danmaku topic and reconnect snapshot', () => {
+  const { createDanmakuFeedBuffer } = require('../../src/bilibili/danmaku/feed-buffer');
+  const feed = createDanmakuFeedBuffer();
+  const events = [];
+  const transport = createRuntimeTransport({
+    defaultPort: 3000,
+    getHost: () => '127.0.0.1',
+    getStartedPort: () => 3000,
+    getSessionToken: () => 'test-session',
+    getState: () => ({}),
+    getSettings: () => ({}),
+    getDanmakuFeedBuffer: () => feed,
+    getWebSocketHub: () => ({ broadcast: (payload, options) => events.push({ payload, options }) }),
+  });
+  transport.publishDanmaku({
+    source: 'superchat', id: 'sc-1', userName: '晚风', message: '支持', price: 30,
+  });
+  assert.equal(events[0].payload.type, 'danmaku:message');
+  assert.equal(events[0].payload.item.kind, 'superchat');
+  assert.equal(events[0].payload.item.messageId, 'sc-1');
+  assert.deepEqual(events[0].options, { topic: 'danmaku' });
+  assert.equal(feed.getSnapshot()[0].kind, 'superchat');
+  transport.publishSuperChatDelete(['sc-1']);
+  transport.publishSuperChatDelete(['sc-1']);
+  assert.equal(events.length, 2, 'an already absent SC does not publish a duplicate retraction');
+  assert.deepEqual(events[1], {
+    payload: { type: 'danmaku:superchat-delete', messageIds: ['sc-1'] },
+    options: { topic: 'danmaku' },
+  });
+  assert.deepEqual(feed.getSnapshot(), []);
+});
+
 test('scene notifications select dynamic projections even with no ordinary WebSocket subscribers', t => {
   const hub = createWebSocketHub();
   t.after(() => hub.stop());

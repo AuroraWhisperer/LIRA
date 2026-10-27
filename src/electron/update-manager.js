@@ -70,7 +70,7 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
     setUpdateState(
       {
         status: 'available',
-        message: `发现新版本 ${info.version}，可以下载更新。`,
+        message: `发现新版本 ${info.version}，将自动下载。`,
         canDownload: true,
         canInstall: false,
         progress: null,
@@ -215,7 +215,7 @@ function installUpdate() {
   if (!updateState.canInstall) return updateState;
   setUpdateState({
     status: 'installing',
-    message: '正在重启并静默更新...',
+    message: '正在重启并安装更新…',
     canDownload: false,
     canInstall: false,
   });

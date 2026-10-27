@@ -75,6 +75,8 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
   let requested;
   const hints = [];
   const logs = [];
+  const published = [];
+  const retracted = [];
   t.mock.method(console, 'log', (...args) => logs.push(args));
   const client = createBilibiliClient('123', {
     isShuttingDown: () => false,
@@ -95,6 +97,8 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
     aiAssistant: { handleDanmaku() {} },
     danmakuSender: { send: async () => {} },
     broadcastSnapshot() {},
+    publishDanmaku: (item) => published.push(item),
+    publishSuperChatDelete: (ids) => retracted.push(ids),
     updateLiveStatus() {},
     bilibiliDiagnostics: { parsedGiftCount: 0 },
     bilibiliAuthCache: { cookieHeader: '', uid: 0 },
@@ -138,6 +142,7 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
       userName: 'Alice',
       message: '支持',
       price: 30,
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/sc.jpg',
     });
     assert.equal(gifts, 0);
     assert.equal(danmaku, 1);
@@ -145,6 +150,12 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
     assert.equal(requested.requesterMedalVerified, true);
     assert.equal(requested.currentRoomVerified, true);
     assert.equal(superChats, 1);
+    assert.equal(published.length, 2, 'the existing danmaku publication remains and SC is appended once');
+    assert.deepEqual(published.at(-1), {
+      id: 'sc-1', uid: '42', userName: 'Alice', message: '支持', price: 30,
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/sc.jpg',
+    });
+    assert.deepEqual(retracted, []);
     assert.equal(hints.length, 1);
     assert.equal(hints[0].name, 'Alice');
     assert.equal(client.diagnostics.parsedGiftCount, 0);
@@ -155,15 +166,17 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
   }
 });
 
-test('SC retraction broadcasts only a changed queue and stops during shutdown', () => {
+test('SC retraction removes public feed entries, broadcasts only a changed queue and stops during shutdown', () => {
   let shuttingDown = false;
   let changed = 1;
   const calls = [];
   const broadcasts = [];
+  const retracted = [];
   const client = createBilibiliClient('123', {
     isShuttingDown: () => shuttingDown,
     domainServices: { superChats: { retract(ids) { calls.push(ids); return changed; } } },
     broadcastSnapshot: (reason) => broadcasts.push(reason),
+    publishSuperChatDelete: (ids) => retracted.push(ids),
     updateLiveStatus() {},
     bilibiliDiagnostics: {},
     bilibiliAuthCache: { cookieHeader: '', uid: 0 },
@@ -176,6 +189,7 @@ test('SC retraction broadcasts only a changed queue and stops during shutdown', 
     client.handlers.onSuperChatDelete(['sc-2']);
     assert.deepEqual(calls, [['sc-1'], ['sc-1']]);
     assert.deepEqual(broadcasts, ['bilibili:superchat']);
+    assert.deepEqual(retracted, [['sc-1'], ['sc-1']]);
   } finally {
     client.stop();
   }

@@ -17,8 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
         ? { ...config, desktopLyricFontFamily: `${fontFamily}-${resource.id}` } : config);
     },
     onData(data) {
-      const timeline = data?.lyricTimeline || { lines: [] };
-      desktopLyricRenderer.updateLyricTimeline(timeline);
+      if (Object.hasOwn(data || {}, 'lyricTimeline')) {
+        desktopLyricRenderer.updateLyricTimeline(data.lyricTimeline || { lines: [] });
+      }
       desktopLyricRenderer.updateLyricState(data?.lyricState || { playing: false, lineText: '', words: [], currentMs: 0, status: 'idle' });
     },
   })) return;

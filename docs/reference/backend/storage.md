@@ -42,6 +42,10 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 汇总覆盖的贡献；同 epoch 重建保留，换 epoch、清空来源或删除许愿时清除对应贡献。
 日汇总不能还原升级前已物理删除的非整日明细，迁移不推测其数量。
 
+`gift-wish-store.countMany` 按相同起止时间分组，一次读取当前 retention 活动快照，
+每组分别聚合明细、完整日和按 wish_id 分组的非整日贡献；单项 count 复用该入口。
+长效条目的创建时间不同时仍保留独立窗口，不用统一日期替代精确起点。
+
 [gift-retention-store.js](../../../src/storage/gift-retention-store.js) 将页和检查点同事务提交，
 校验固定 epoch、revision、coverage、令牌及 projection generation；下载完成后原子
 切换活动快照。限流、断网和重启继续旧检查点，失败时原活动视图保持可用。
@@ -74,6 +78,8 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 
 `songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及分类，将稳定行对象传给音乐域计划器重新校验预览，然后执行该计划的 INSERT/UPDATE，整份替换计划还会 DELETE 未列出的歌曲。匹配歌曲保留 id 和引用；删除歌曲先解除 queue/requests 的 song_id 关联，保留点歌记录文本。保留独立分类目录；插入新分类、歌曲增删改、引用变更及云同步 pending 快照一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。
 
+`importRows`、`applyImportUpdate` 与 `replaceAll` 在各自事务内按分类名复用分类行；新分类只解析一次，映射不跨事务保存，失败回滚后下一批重新读取。歌曲 INSERT 与导入 UPDATE 复用连接上的预编译语句。批量入口不逐首读回已插入的歌曲，单首保存仍读取并返回完整行；不改变每首歌曲的写入、导入计数或同步 pending 的提交规则。
+
 导入数量只通过实时响应返回，包括新增、未改变、更新、新分类及替换时的删除数量；不再写入没有历史读取用途的 `import_batches`。旧表保留兼容，已有批次由保留期维护清空，不影响歌曲或当次导入结果。预览 token 含全部歌曲与分类内容、时间戳和导入选项（包括 replaceAll），不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
 
 ### 本地场景持久化
@@ -81,6 +87,8 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 文本框的用户上传图片由 [scene-text-images.js](../../../src/server/scene-text-images.js) 保存在 `dataDir/scene-text-images/`，属于持久素材，不进入可清理的礼物图片缓存。文件名由服务生成 UUID v4，扩展名仅 png/jpg/gif/webp；单文件上限 5 MiB，原字节保留动画，以同目录独占临时文件写入后重命名，失败清理临时文件。场景结构化 token 仅保存本地图片路径，不保存原始文件路径或二进制；删除 token 或放弃草稿不自动删除素材，防止破坏已发布场景的引用。当前没有自动清理策略；上传/读取权限见 [HTTP API](api.md#本地场景)。
 
 songDb 的 v8 迁移通过 `scene-migration.js` 新增 `component_scenes`，不改写旧表。列为 `id`、`owner_scope`、`draft_json`、`revision`、`published_json`、`published_version`、`capability_version`、`capability_hash`、`capability_encrypted`；按 owner_scope 建索引。草稿与发布 JSON 均限制为 256KiB。`scene-store.js` 用单条带归属和期望版本条件的 UPDATE/RETURNING 原子提交；失败不改变旧行。
+
+展示读口仅查询当前行的 `published_json`、`published_version` 和 `capability_hash`，不读取草稿与加密来源包。每个 store 最多保留 32 份按账号与场景区分的深冻结发布文档，只有实际 JSON 原文相同才复用解析与组件类型索引；外部写入、回滚恢复原文、删除均由下一次数据库读取识别。每次请求和 SSE 心跳仍重新核验 owner、token、版本及投影回执；异步展示完成后另行窄读当前 capability hash，认证结果不缓存。返回给展示调用方的公开文档是独立副本，不可污染内部缓存。
 
 v9 追加 `component_output_sizes`：主键 `(owner_scope, component_type)`，列 `width/height`
 为 32–7680 的像素尺寸；类型限 clock、queue、overtime、danmaku。旧数据库从空尺寸表升级，
@@ -120,7 +128,9 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 索引合同仍为 v1，无需迁移。`component-style-index.js` 在主索引提交后保存同内容的 `index.backup.json`；副本失败只报告恢复能力降级，不回滚已提交的安装。旧库首次读取会补齐副本。主索引缺失、损坏或结构无效时，从有效副本恢复；损坏原件保留为 `index.damaged-<UUID>.json`，`index.recovery.json` 记录恢复提示。两份均不可用时返回 503，不重建空库；高于当前支持版本的索引拒绝读取，不用旧副本降级。每包 `package.json` 是导入快照，后续参数以索引及其恢复副本为准。
 
-上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存。重新打开库时回收超过 24 小时、且未被本进程导入占用的暂存和索引临时文件；链接或被锁定文件保留。未登记的正式 UUID 目录保留供核对，不自动删除。
+同一素材根目录共享已验证的索引缓存。每次读取检查主索引与副本的文件身份、大小和纳秒修改/状态时间；未变化时返回独立副本，不再重复读取及解析 JSON。索引写入立即更新缓存，外部改动或文件缺失重新进入上述校验与恢复流程；副本降级期间继续尝试修复。
+
+上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存。打开库时回收超过 24 小时、且未被本进程导入占用的暂存和索引临时文件；同一目录每小时至多扫描一次，避免场景持续读取触发重复遍历。链接或被锁定文件保留。未登记的正式 UUID 目录保留供核对，不自动删除。
 
 相同作者 ID、版本、ZIP 摘要重复安装幂等，并能恢复该包或成员的 `removed` 状态，复用原安装 UUID 和资源；同 ID 同版本不同内容返回冲突，作者需提高版本。所有标准素材包（含单组件多变体包）安装时在一次索引提交中将同 packageId 的其他已安装版本设为 `removed`，包括旧客户端留下的并存版本。套装分类由未过滤的完整成员及同 packageId 历史记录推导，不新增持久化字段，旧成员被移除或新版减少组件类型都不会改变既有套装身份。
 
@@ -144,7 +154,9 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 ## 2. 数据目录布局(唯一成表处)
 
-豆包账号的加密 Cookie 快照新增于业务 `dataDir/doubao-auth/cookies.enc`；Chromium 分区仍位于独立 userData。加密不可用时仅用内存会话，不保存快照。格式与清理边界见 [桌面认证](../desktop/auth.md#16-豆包个人账号)。`ai_configuration` 的私有 `doubaoPreviousKeyOrigin` 配置行用于恢复 API 供应商时检查密钥 origin，详见 [AI 账号路由](ai.md#44-豆包个人账号实验性)。
+豆包账号的加密 Cookie 快照新增于业务 `dataDir/doubao-auth/cookies.enc`；Chromium 分区仍位于独立 userData。加密不可用时仅用内存会话，不保存快照。格式与清理边界见 [桌面认证](../desktop/auth.md#16-豆包个人账号)。`ai_configuration` 的私有 `doubaoPreviousKeyOrigin` 配置行供豆包与 ChatGPT 订阅共用，用于恢复 API 供应商时检查原密钥 origin，详见 [AI 订阅与账号路由](ai.md#45-chatgpt-订阅与-kimi-api)。
+
+ChatGPT 订阅复用 `ai_configuration`，不新增文件或 schema：`chatgptHostId` 是稳定本机标识，`chatgptAccounts` 为加密账号记录（`is_secret=1`），均由 AI 会话模块内部读写，不经公开配置接口。系统加密不可用时拒绝登录，无明文回退；退出删除当前账号令牌，保留注册映射。具体凭据与生命周期契约归 [AI 域](ai.md#45-chatgpt-订阅与-kimi-api) 所有。
 
 `dataDir` 解析顺序:`runtimeOptions.dataDir` → 环境变量 `SONG_PLUGIN_DATA_DIR` → 仓库根 `data/`([runtime-config.js](../../../src/server/runtime-config.js));Electron 打包版使用 `<安装目录>/data`，首次安装有 D 盘时默认 `D:\LIRA\data`，无 D 盘时跟随原默认安装位置；开发版继续使用仓库根 `data/`，升级保留与旧 AppData 兼容读取见 [desktop/main.md](../desktop/main.md) §3。
 
@@ -250,7 +262,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 | `import_batches`    | 兼容旧库的批量导入摘要                                       | 不再新增，已有行由保留期维护清空；导入结果仍正常返回 |
 | `theme_presets`     | 主题预设(外观键收成一行一套)                                 | name UNIQUE、scope、payload、is_builtin;idx(scope, sort_order, id)                                                                                                                                                                                                    |
 | `song_cooldowns` | 单首歌曲冷却，独立于队列与歌库 ID | `(owner_scope, song_key)` 复合主键、`accepted_at_ms`；与入队同事务写入，清空队列和歌库保留，清空全部数据删除；维护只删除严格早于最长支持期限 999 天的记录，保留边界和未来时间 |
-| `user_cooldowns`    | 用户点歌冷却(**重启后从 DB 恢复**,防绕过)                    | user_key PK、last_request_at、request_count                                                                                                                                                                                                                           |
+| `user_cooldowns`    | 用户点歌冷却(**重启后从 DB 恢复**,防绕过)                    | user_key PK（v2 键含可信 fanScope、身份类型和稳定 ID）、last_request_at、request_count；旧无 scope 键不由消息处理器消费；恢复只接受最近 24 小时且不晚于当前时间的行，未来行在读取/清理时丢弃                                                                                                                                                                                                                           |
 | `component_scenes` | 本地场景草稿、发布快照及来源凭据 | owner_scope 隔离、乐观 revision、加密 capability；完整列及删除语义见[本地场景持久化](#本地场景持久化) |
 | `component_output_sizes` | 按账号保存共享组件默认尺寸 | PK(owner_scope, component_type)、width/height；与发布快照原子提交 |
 | `component_canvas` | 固定组合直播源与最近应用的预设 | owner_scope PK、output_scene_id、可空 active_scene_id；沿用场景外键 |
@@ -415,15 +427,15 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 2. 若全部成功:删除与必需默认行均已提交，返回 `{ cleared: true, committed: [...], preserved: [...], deletedCounts: {...}, recreated: [...] }`
 3. 若任一 COMMIT 失败:立即停止,回滚失败库及所有尚未提交的库,返回 `{ ok: false, partial: true, committed: [...], failed: [...], rolledBack: [...], rollbackFailed: [...], deletedCounts: {...} }`
 
-部分失败时数据库处于**不一致状态**(部分库已清空、部分未清空),路由返回 HTTP 500 + `partial: true`,前端强制刷新页面并提示用户手动检查。若 `giftDb` 已提交当前投影重置，路由仍立即触发礼物 controller 重建，使本地礼物状态保持 partial，而不会继续宣称旧投影为 LIVE。
+部分失败时数据库可能处于**不一致状态**(部分库已清空、部分未清空),路由返回 HTTP 500 + `partial: true`,前端强制刷新页面并提示用户手动检查。若 `giftDb` 已提交当前投影重置，`runClearAll` 仍立即触发礼物 controller 重建，使本地礼物状态保持 partial，而不会继续宣称旧投影为 LIVE。
 
 ### 6.3 并发写入静默(Quiesce)
 
-清空全部前，[路由](../../../src/server/routes/data-routes.js)通过 [API 上下文](../../../src/server/api-context.js)调用真实领域服务的静默方法:
+清空全部的应用流程由 [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 的同步 `runClearAll` 拥有。[路由](../../../src/server/routes/data-routes.js)从 [API 上下文](../../../src/server/api-context.js)传入窄能力，运行时依次暂停写入、清库并恢复，全程不插入 `await`:
 
 - `context.gifts.pauseDetection()`:暂停本地检测、finalize 与消费重试，取消计时器且不强制 flush；暂停期间销毁也不 flush。远端实时/历史导入抛出 `GIFT_DETECTION_PAUSED`，使礼物与同步游标所属事务一起回滚，避免丢事件
 - `context.overtime.pauseRecovery()`:暂停礼物结算、后台补偿与倒计时归零写入，取消零点/重试计时器
-- 路由同时清理音乐 API 与歌词文件缓存；Electron 桌面端在成功响应后还会清理 QQ 音乐、网易云音乐会话缓存（不删除登录 Cookie）。
+- `runClearAll` 同时尽力清理音乐 API 与歌词文件缓存，失败不替换数据库结果；投影重建也尽力触发且不等待。Electron 桌面端在成功响应后还会清理 QQ 音乐、网易云音乐会话缓存（不删除登录 Cookie）。
 
 完全成功并重载已提交的默认状态后，先恢复加班机消费者，再恢复礼物检测器:
 
@@ -525,9 +537,11 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 
 普通歌库 CSV/XLSX 导入导出只处理歌曲，不携带设置、路径或账号私有键；主题预设只提取 [theme-store.js](../../../src/storage/theme-store.js) 的 scope 外观白名单，不是全 settings 备份。数据库清空矩阵显式保留 settings/theme_presets（包括路径与内部账号状态），不会恢复出厂设置；歌曲清空同时记录空待传快照，但保留其他账号的待传项。直接复制 SQLite 数据库会包含内部行和本机路径，不能等同于公开设置导出。
 
-其他 store 模块:`theme-store`(presets 增删改查/应用/内置播种)、`playback-store`(saveQueueState/loadQueueState/播放历史/收藏/歌单)、`cooldown-store`(`loadInto` 重启恢复 + `COOLDOWN_RETENTION_MS`)、`daily-bot-legacy-reader`(旧签到库及词库的只读兼容适配)、`gift-query-store`(当前 source 的历史、统计与 legacy 页面查询)。关闭时统一 `optimizeDatabases`(PRAGMA optimize)→ `closeDatabases`(见 [server-core.md](server-core.md) §6.2)。
+其他 store 模块:`theme-store`(presets 增删改查/应用/内置播种)、`playback-store`(saveQueueState/loadQueueState/播放历史/收藏/歌单)、`cooldown-store`(`loadInto` 重启恢复 + `COOLDOWN_RETENTION_MS`；恢复排除未来时间，`prune` 删除过期或未来行，内存读取遇到时钟回拨产生的未来值时丢弃该键)、`daily-bot-legacy-reader`(旧签到库及词库的只读兼容适配)、`gift-query-store`(当前 source 的历史、统计与 legacy 页面查询)。关闭时统一 `optimizeDatabases`(PRAGMA optimize)→ `closeDatabases`(见 [server-core.md](server-core.md) §6.2)。
 
 ## 8. 云端 scope 的本地落盘
+
+SongStore 的缓存变更令牌使用连接级 TEMP 触发器观测歌曲/分类表，外部连接提交以 `data_version` 兜底；不会给持久数据库新增表或触发器。清空、替换均沿用表内写操作，照常推进令牌；连接关闭时 TEMP 状态销毁，重开后重新建立。事务内读取不复用缓存，详见 [音乐服务](music/services.md)。
 
 SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新建与合并导入计入已有停用歌曲，并对新行按 `(name,artist)` 去重；替换检查替换后的数量。超限不改歌曲、分类、历史引用或导入批次；已有超限库仍可读取、编辑、删除，但不能继续新增，不会自动删歌。失败由调用方返回 `SONG_IMPORT_LIMIT_EXCEEDED`，成功路径沿用原有广播和同步。显式替换为上限内的完整快照仍可用于整理历史超量库。云端上传前对完整数组独立校验，历史超量返回 `TOO_MANY_SONGS`，不会截断上传；非数组仍为 `SONG_LIST_INVALID`。
 
@@ -562,6 +576,8 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `gift-query-store.js` 的 `readHistoryPage` 在同一事务内读取总数和页面，按连接保留最多 64 个筛选计数。缓存包含来源、全部筛选/时间参数，并以 `total_changes()`、`data_version`、`schema_version` 失效；任何同连接写入或外部提交均需重新计数，只在成功提交后发布缓存。`asOf` 不承诺排除回填，跨页版本改变时返回当前读快照的新总数。缓存随数据库连接释放，不跨连接复用。
 
+条件式历史扫描在同一读事务内核对 `contentRevision`，命中时不读总数或行。连接内临时表及触发器只追踪 `gift_events` 写入，普通同步状态更新不使记录版本失效；外部提交、schema 变化及可见时间上界对应的最后记录时间同时参与版本。每个 store 有独立实例标识，读取沿用独立读事务，调用时已有事务会拒绝；回滚和重开连接不会确认未提交内容。临时追踪不改变持久 schema 或迁移版本。
+
 粉丝列表在已有 scope 事务内先筛选档案文本、归档、收藏与资料缺失，再通过 `records.listForProfiles` / `statesForProfiles` 每批最多 500 个 ID 读取候选明细。返回按 profileId 分组的 Map，记录仍按 occurred_at DESC、id 排序；单次列表固定当前时间，会员过滤与灯牌全局排序在计算后执行。
 
 ## 礼物身份迁移 v10
@@ -576,4 +592,4 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 [src/fonts/font-library.js](../../../src/fonts/font-library.js) 拥有 `data/cache/fonts/`，路径由 `resolveDataPaths().fontsDir` 计算。它属于设备级可重建公共资源，与登录资料、用户上传素材和可执行安装文件分开；安装目录迁移沿用整个 data 根规则，升级不会重复下载。文件名为 `<SHA-256>.ttf` 或 `.woff2`；`index.json` 为 `{version:1,fonts:{<id>:{sha256,format}}}`，只保存已校验资源，无绝对路径或账号凭据。
 
-下载与索引均通过同目录独占临时文件写入后 rename。每个字体成功即保存，失败保留旧索引与旧文件；成功替换且索引写入后回收无人引用的旧文件，文件繁忙时保留待手工清理。启动按清单校验缓存，索引中断可从哈希文件恢复；取消下载不发布不完整字体。八款完整字体同时随安装包内置于 `resources/app.asar/public/fonts/`，正常首次离线无需创建缓存；删除旧字体缓存后可直接使用内置字库，不触发下载。只有相应内置资源和有效缓存均不可用时才尝试网络修复。来源、体积与安装资源位置见[字体说明](../../../public/fonts/README.md)。
+下载与索引均通过同目录独占临时文件写入后 rename。每个字体成功即保存，失败保留旧索引与旧文件；成功替换且索引写入后回收无人引用的旧文件，文件繁忙时保留待手工清理。启动按清单校验缓存，索引中断可从哈希文件恢复；取消下载不发布不完整字体。九款完整字体同时随安装包内置于 `resources/app.asar/public/fonts/`，正常首次离线无需创建缓存；删除旧字体缓存后可直接使用内置字库，不触发下载。只有相应内置资源和有效缓存均不可用时才尝试网络修复。来源、体积与安装资源位置见[字体说明](../../../public/fonts/README.md)。

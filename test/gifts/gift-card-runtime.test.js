@@ -339,3 +339,54 @@ test('export derives the merged snapshot before pagination while leaving selecte
   assert.equal(result.items[0].gift.guardLevel, 2);
   assert.deepEqual(items, before);
 });
+
+test('unchanged profile revisions transfer a 5000-row day once across twenty refreshes and retry missing avatars', async () => {
+  let revision = 'a'.repeat(64);
+  let transferred = 0;
+  let calls = 0;
+  let avatarAvailable = false;
+  const runtime = createGiftCardRuntime({
+    getGifts: () => ({ getViewRevision: () => 'a' }), now: () => time,
+    fetchPage: async (input) => {
+      calls++;
+      if (input.revision === revision) return page({ revision, unchanged: true, items: [] });
+      const start = input.cursor ? Number(input.cursor.slice(6)) + 1 : 0;
+      const items = Array.from({ length: Math.min(200, 5000 - start) }, (_, index) => ({ ...profile, eventId: `event-${start + index}` }));
+      transferred += items.length;
+      return page({ revision, items, nextCursor: start + items.length < 5000 ? items.at(-1).eventId : null });
+    },
+    ensureAvatar: async () => avatarAvailable ? avatar : '',
+  });
+  const first = await runtime.getProfiles();
+  for (let index = 1; index < 20; index++) {
+    const next = await runtime.getProfiles('a', first.contentRevision);
+    assert.equal(next.unchanged, true);
+    assert.deepEqual(next.items, []);
+  }
+  assert.equal(calls, 44);
+  assert.equal(transferred, 5000);
+  avatarAvailable = true;
+  const repaired = await runtime.getProfiles('a', first.contentRevision);
+  assert.equal(repaired.items[0].avatarUrl, avatar);
+  assert.notEqual(repaired.contentRevision, first.contentRevision);
+  assert.equal(first.items[0].avatarUrl, null);
+  revision = 'b'.repeat(64);
+  assert.equal((await runtime.getProfiles('a', repaired.contentRevision)).items.length, 5000);
+  assert.equal(transferred, 10000);
+});
+
+test('a changing revision across profile pages is never acknowledged as a complete snapshot', async () => {
+  const requests = [];
+  const runtime = createGiftCardRuntime({
+    getGifts: () => ({ getViewRevision: () => 'a' }), now: () => time,
+    fetchPage: async (input) => {
+      requests.push(input);
+      return input.cursor ? page({ revision: 'b'.repeat(64), items: [{ ...profile, eventId: 'two' }] })
+        : page({ revision: 'a'.repeat(64), nextCursor: 'one' });
+    },
+  });
+  await runtime.getProfiles();
+  await runtime.getProfiles();
+  assert.equal(requests.length, 4);
+  assert.ok(requests.every((input) => input.revision === undefined));
+});

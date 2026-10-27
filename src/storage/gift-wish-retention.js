@@ -60,17 +60,19 @@ function archiveWishContributions(db, sourceId, { syncEpoch, memberSnapshotId, e
   }
 }
 
-function readWishContributions(db, sourceId, wishId, start, end, { snapshot, window }) {
-  if (!snapshot || !wishId) return 0;
-  const params = [sourceId, wishId, snapshot.sync_epoch, start, end, snapshot.member_snapshot_id];
-  let sql = `c.source_id=? AND c.wish_id=? AND c.sync_epoch=? AND c.created_at>=? AND c.created_at<=?
+function readWishContributionCounts(db, sourceId, wishIds, start, end, { snapshot, window }) {
+  wishIds = [...new Set(wishIds.filter(Boolean))];
+  if (!snapshot || !wishIds.length) return new Map();
+  const params = [sourceId, ...wishIds, snapshot.sync_epoch, start, end, snapshot.member_snapshot_id];
+  let sql = `c.source_id=? AND c.wish_id IN (${wishIds.map(() => '?').join(',')}) AND c.sync_epoch=? AND c.created_at>=? AND c.created_at<=?
     AND NOT EXISTS (SELECT 1 FROM gift_events g JOIN gift_retention_members m ON m.event_id=g.id
       WHERE g.source_id=c.source_id AND g.platform_id=c.platform_id AND m.snapshot_id=?)`;
   if (window) {
     sql += ' AND NOT (c.created_at>=? AND c.created_at<?)';
     params.push(window.start, window.end);
   }
-  return Number(db.prepare(`SELECT COALESCE(SUM(num),0) AS count FROM gift_wish_contributions c WHERE ${sql}`).get(...params).count);
+  return new Map(db.prepare(`SELECT wish_id, SUM(num) AS count FROM gift_wish_contributions c
+    WHERE ${sql} GROUP BY wish_id`).all(...params).map((row) => [row.wish_id, Number(row.count)]));
 }
 
-module.exports = { wishMatch, archiveWishContributions, readWishContributions };
+module.exports = { wishMatch, archiveWishContributions, readWishContributionCounts };

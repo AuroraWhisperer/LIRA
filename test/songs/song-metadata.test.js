@@ -23,13 +23,30 @@ test('snapshot metadata reuses reads and invalidates for writes, rollback and de
     assert.equal(changed.songCount, 1);
     assert.ok(changed.tags.length > 0);
     assert.equal(read(), changed);
+    db.exec("INSERT INTO settings(key, value, updated_at) VALUES ('metadata-test', '{}', '')");
+    assert.equal(read(), changed, 'unrelated settings do not invalidate song metadata');
     db.exec('BEGIN');
     db.prepare("UPDATE songs SET tags = 'discarded'").run();
+    assert.deepEqual(read().tags, ['discarded']);
     db.exec('ROLLBACK');
     assert.deepEqual(read().tags, changed.tags);
     db.exec('DELETE FROM songs');
     assert.equal(read().songCount, 0);
     assert.deepEqual(read().tags, []);
+  } finally {
+    db.close();
+  }
+});
+
+test('metadata cannot reuse an uncommitted snapshot when rollback reuses a revision', () => {
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(SONG_SCHEMA);
+    const read = createSongMetadataReader(createSongStore(db));
+    db.exec("BEGIN; INSERT INTO songs(name, tags, created_at, updated_at) VALUES ('one', 'discarded', '', '')");
+    assert.deepEqual(read().tags, ['discarded']);
+    db.exec("ROLLBACK; BEGIN; INSERT INTO songs(name, tags, created_at, updated_at) VALUES ('two', 'kept', '', ''); COMMIT");
+    assert.deepEqual(read().tags, ['kept']);
   } finally {
     db.close();
   }

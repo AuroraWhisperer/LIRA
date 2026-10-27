@@ -79,10 +79,10 @@ export function createRenderer(deps) {
         control.textContent = importing ? '导入中…' : IMPORT_CONTROL_LABELS[id];
         control.setAttribute('aria-busy', String(importing));
         control.title = importing ? '正在读取点歌队列并匹配歌曲，请稍候'
-          : isWeSing ? '全民 K歌不支持导入点歌，请切换到 QQ 音乐或网易云音乐'
+          : isWeSing ? '全民 K 歌不支持导入点歌，请切换到 QQ 音乐或网易云音乐'
             : ONLINE_CONTROL_TITLES[id];
       } else if (isWeSing) {
-        control.title = '全民 K歌播放请在全民 K歌客户端中控制';
+        control.title = '全民 K 歌播放请在全民 K 歌客户端中控制';
       } else if (Object.hasOwn(ONLINE_CONTROL_TITLES, id)) {
         // Play and mode titles are dynamic and have already been restored by renderAll().
         control.title = ONLINE_CONTROL_TITLES[id];

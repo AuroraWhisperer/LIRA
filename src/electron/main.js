@@ -281,9 +281,9 @@ function requestDesktopClose() {
   const options = {
     type: 'question',
     title: '退出 LIRA',
-    message: '仍有本机画面正在使用，确定退出？',
+    message: '仍有浏览器源连接，确定退出？',
     detail: '退出后，连接中的本机画面将停止更新。',
-    buttons: ['继续使用', '退出 LIRA'],
+    buttons: ['取消退出', '退出 LIRA'],
     defaultId: 0,
     cancelId: 0,
     noLink: true,
@@ -570,6 +570,7 @@ async function startDesktopApp() {
     getClientTheme: clientAppearance.getThemeId,
     safeStorage,
     doubaoSession,
+    openAiLoginBrowser: (url) => shell.openExternal(url),
     appVersion: app.getVersion(),
     dynamicLotteryAuth: {
       getIdentity: () => dynamicLotteryAuth?.getIdentity(),

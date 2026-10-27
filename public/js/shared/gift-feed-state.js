@@ -29,11 +29,13 @@ export function createGiftFeedState() {
   };
 }
 
-export async function scanTodayGifts({ request, signal, day, onRevision }) {
+export async function scanTodayGifts({ request, signal, day, onRevision, previous }) {
   const items = new Map();
   let cursor = null;
   let viewRevision = null;
   let partial = true;
+  let contentRevision;
+  let consistent = true;
   do {
     const params = new URLSearchParams({
       range: 'today',
@@ -42,9 +44,11 @@ export async function scanTodayGifts({ request, signal, day, onRevision }) {
       limit: '100',
       sortField: 'created_at',
       sortDirection: 'asc',
+      conditional: '1',
     });
     if (cursor) params.set('cursor', cursor);
     if (viewRevision) params.set('viewRevision', viewRevision);
+    if (!cursor && previous?.day === day && previous.contentRevision) params.set('contentRevision', previous.contentRevision);
     const data = await request(`/api/gifts/history?${params}`, signal);
     if (!viewRevision) {
       viewRevision = data.viewRevision;
@@ -52,9 +56,14 @@ export async function scanTodayGifts({ request, signal, day, onRevision }) {
     }
     if (viewRevision !== data.viewRevision)
       throw Object.assign(new Error('礼物来源已变更'), { code: 'GIFT_VIEW_STALE' });
+    if (data.unchanged && !cursor && previous?.day === day && previous.viewRevision === viewRevision &&
+        previous.contentRevision === data.contentRevision) return { ...previous, partial: data.partial };
+    if (data.unchanged) throw Object.assign(new Error('礼物来源已变更'), { code: 'GIFT_VIEW_STALE' });
+    if (!cursor) contentRevision = data.contentRevision;
+    else if (contentRevision !== data.contentRevision) consistent = false;
     for (const item of data.items) items.set(item.eventId, item);
     partial = data.partial;
     cursor = data.nextCursor;
   } while (cursor);
-  return { items: [...items.values()], viewRevision, partial };
+  return { items: [...items.values()], viewRevision, partial, day, contentRevision: consistent ? contentRevision : undefined };
 }

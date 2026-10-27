@@ -15,6 +15,8 @@ function normalizeGiftCardProfilePage(value) {
     value.syncEpoch.length > 128 ||
     !Array.isArray(value.items) ||
     value.items.length > 200 ||
+    (value.revision !== undefined && (typeof value.revision !== 'string' || !/^[a-f0-9]{64}$/.test(value.revision))) ||
+    (value.unchanged !== undefined && (value.unchanged !== true || !value.revision || value.items.length || value.nextCursor !== null)) ||
     (value.nextCursor !== null && (typeof value.nextCursor !== 'string' || !eventIdPattern.test(value.nextCursor)))
   )
     throw invalid();
@@ -44,7 +46,8 @@ function normalizeGiftCardProfilePage(value) {
     };
   });
   if (value.nextCursor && (!items.length || items.at(-1).eventId !== value.nextCursor)) throw invalid();
-  return { day: value.day, syncEpoch: value.syncEpoch, items, nextCursor: value.nextCursor };
+  return { day: value.day, syncEpoch: value.syncEpoch, items, nextCursor: value.nextCursor,
+    ...(value.revision ? { revision: value.revision } : {}), ...(value.unchanged ? { unchanged: true } : {}) };
 }
 
 module.exports = { normalizeGiftCardProfilePage };

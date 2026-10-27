@@ -66,13 +66,11 @@ function handleDanmakuMessage(
   const identity = requesterIdentity(requester);
   const defaults = context.settingsStore.getDefaultSettings();
   const cooldownSeconds = userCooldownSeconds({ ...defaults, ...settings }, requester);
-  // UID keys remain compatible with persisted cooldowns; open_id is a separate namespace.
-  const cooldownKey = identity?.type === 'open_id' ? `open_id:${identity.uid}`
-    : identity?.uid || cleanText(userName) || 'anonymous';
-  if (context.cooldownStore?.pruneMap) {
-    context.cooldownStore.pruneMap(context.state.cooldownByUser);
-  }
-  const lastAt = context.state.cooldownByUser.get(cooldownKey) || 0;
+  // Scope and identity type are part of the key; legacy unscoped rows are never read here.
+  const cooldownKey = cooldownSeconds > 0 && identity
+    ? `v2:${JSON.stringify([fanScope || null, identity.type, identity.uid])}`
+    : null;
+  const lastAt = cooldownKey ? context.userRequestCooldown.getLastRequestAt(cooldownKey) : 0;
   const elapsedSeconds = (Date.now() - lastAt) / 1000;
   let queueItem;
   try {
@@ -139,25 +137,12 @@ function handleDanmakuMessage(
       code: error.code,
       command,
       autoReply: settings.enableRandomTagReply === 'true'
-        ? buildSongRequestAutoReply(error.message, { uid, name: userName }) : null,
+        ? buildSongRequestAutoReply(songRequestAutoReplyMessage(error, settings), { uid, name: userName }) : null,
     };
   }
 
-  const acceptedAt = Date.now();
-  // Keep insertion order aligned with last-request order for cheap head pruning.
-  context.state.cooldownByUser.delete(cooldownKey);
-  context.state.cooldownByUser.set(cooldownKey, acceptedAt);
-  // 内存 Map 是读路径，DB 只为重启后能恢复冷却；写失败不影响本次点歌
-  if (context.cooldownStore) {
-    try {
-      context.cooldownStore.touch(cooldownKey, {
-        uid,
-        userName,
-        at: acceptedAt,
-      });
-    } catch (error) {
-      console.warn(`[Cooldown] persist failed: key=${cooldownKey} error=${error.message}`);
-    }
+  if (cooldownKey) {
+    context.userRequestCooldown.recordAccepted(cooldownKey, { uid: identity.uid, userName });
   }
   return { accepted: true, command, queueItem };
 }
@@ -212,16 +197,33 @@ function logDanmakuCommand(danmaku, result) {
   console.log(formatBilibiliCommandLog(danmaku, result));
 }
 
+function songRequestAutoReplyMessage(error, settings) {
+  switch (error.code) {
+    case 'QUEUE_FULL':
+      return '点歌队列满啦，稍后再来试试～';
+    case 'SONG_NOT_IN_LIBRARY':
+      return '歌库里没找到这首，换一首试试～';
+    case 'SONG_ALREADY_QUEUED':
+      return '这首歌已经在队列里啦～';
+    case 'USER_QUEUE_FULL':
+      return `每人最多同时排队 ${settings.userQueueLimit} 首，等已点的歌完成后再点吧～`;
+    case 'REQUESTER_IDENTITY_REQUIRED':
+      return '暂时无法确认你的点歌身份，请稍后再点歌～';
+    default:
+      return error.message;
+  }
+}
+
 function buildRandomScopeAutoReply(scopeText, details = {}, target = {}) {
   const terms =
     Array.isArray(details.terms) && details.terms.length > 0 ? details.terms : parseRandomSongTerms(scopeText);
-  if (terms.length === 0) return buildSongRequestAutoReply('歌库里暂时没有可随机歌曲，请稍后再试。', target);
+  if (terms.length === 0) return buildSongRequestAutoReply('歌库里暂时没有可随机的歌曲，请稍后再试～', target);
 
   const scope = cleanText(scopeText);
   const message =
     terms.length === 1
-      ? `歌库里暂时没有「${terms[0]}」这一类歌曲，请换个条件试试。`
-      : `你输入的组合条件「${scope}」暂时没有匹配歌曲，请调整组合条件后再试。`;
+      ? `歌库里暂时没有「${terms[0]}」类歌曲，换个条件试试～`
+      : `暂时没有同时符合「${scope}」的歌曲，换个条件试试～`;
   return buildSongRequestAutoReply(message, target);
 }
 

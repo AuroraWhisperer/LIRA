@@ -21,6 +21,7 @@ body.is-preview {
 .canvas-settings .lira-color-control {
   --color-control-height: 34px;
   --color-control-surface: #fff;
+  --color-bg-primary: #fff;
   --color-control-border: #d9dfe6;
   --color-control-focus: #526b87;
   --radius-control: 5px;
@@ -28,6 +29,7 @@ body.is-preview {
   --text: #303942;
 }
 .canvas-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+.canvas-color-group { display: grid; align-content: start; gap: 10px; min-width: 0; }
 .canvas-fields [hidden] { display: none; }
 .canvas-actions { display: flex; gap: 6px; margin: 12px 0; }
 .canvas-settings button, .canvas-toolbar button { padding: 6px 8px; border: 1px solid #d9dfe6; border-radius: 5px; color: #4c5e70; background: #fff; font-size: 12px; }

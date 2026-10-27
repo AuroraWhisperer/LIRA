@@ -11,11 +11,11 @@ const routes = {
     sendJson(res, 200, { ok: true, data: context.bilibili.getLikeState() });
   },
 
-  async 'GET /api/bilibili/room/profile'(context, _request, res) {
+  async 'GET /api/bilibili/room/profile'(context, _request, res, project = (data) => data) {
     try {
       sendJson(res, 200, {
         ok: true,
-        data: await context.bilibili.getRoomProfile(),
+        data: project(await context.bilibili.getRoomProfile()),
       });
     } catch (_) {
       sendJson(res, 502, {

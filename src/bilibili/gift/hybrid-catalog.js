@@ -4,6 +4,7 @@ const { createRemoteGiftCatalogCache } = require('./remote-catalog-cache');
 const { mergeVariantRoomCatalog } = require('./variant-room-catalog');
 const { createRemoteGiftImageCache } = require('./remote-gift-image-cache');
 const { createGiftCatalogInitializer } = require('./gift-catalog-initializer');
+const { createHash } = require('node:crypto');
 
 const MAX_REMOTE_SEARCH_RESULTS = 100;
 
@@ -32,6 +33,8 @@ function createHybridGiftSaleCatalogService(options = {}) {
   let assetsUpdatedAt = '';
   let roomCache = null;
   let globalCache = null;
+  let artworkCache = null;
+  let globalContent = null;
   const getCustomBlindBoxes =
     typeof options.getBlindBoxCustomConfigV2 === 'function' ? options.getBlindBoxCustomConfigV2 : () => [];
   const remoteCatalog =
@@ -97,7 +100,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
     options.onUpdated?.(snapshot);
   });
 
-  function getSnapshot() {
+  function readRoomSnapshot() {
     const custom = getCustomBlindBoxes();
     const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), remoteImageCache?.getRevision?.(), JSON.stringify(custom)];
     const cacheable = local.getRevision && remoteCatalog.getRevision && (!remoteImageCache || remoteImageCache.getRevision);
@@ -106,8 +109,10 @@ function createHybridGiftSaleCatalogService(options = {}) {
       const snapshot = decorateWithCachedImages(mergeRoomCatalog(roomSnapshot, remoteCatalog.getSnapshot(), custom), remoteImageCache);
       roomCache = { key, snapshot: cloneRoomSnapshot(snapshot, true) };
     }
-    return structuredClone(roomCache.snapshot);
+    return roomCache.snapshot;
   }
+
+  function getSnapshot() { return structuredClone(readRoomSnapshot()); }
 
   async function refresh(options = {}) {
     if (roomRefreshPending) return roomRefreshPending;
@@ -144,11 +149,11 @@ function createHybridGiftSaleCatalogService(options = {}) {
     return serverSnapshot;
   }
 
-  function getGlobalSnapshot() {
+  function readGlobalSnapshot() {
     const key = [remoteCatalog.getRevision?.(), remoteImageCache?.getRevision?.(), assetsUpdatedAt];
     const cacheable = remoteCatalog.getRevision && (!remoteImageCache || remoteImageCache.getRevision);
     if (cacheable && globalCache && key.every((value, index) => value === globalCache.key[index])) {
-      return structuredClone(globalCache.snapshot);
+      return globalCache.snapshot;
     }
     const snapshot = remoteCatalog.getSnapshot();
     if (!snapshot) return null;
@@ -158,7 +163,28 @@ function createHybridGiftSaleCatalogService(options = {}) {
     }));
     const result = { ...snapshot, assetsUpdatedAt, count: gifts.length, gifts };
     if (cacheable) globalCache = { key, snapshot: result };
-    return structuredClone(result);
+    return result;
+  }
+
+  function getGlobalSnapshot({ conditional = false, contentRevision } = {}) {
+    const snapshot = readGlobalSnapshot();
+    if (!conditional || !snapshot) return structuredClone(snapshot);
+    if (globalContent?.snapshot !== snapshot) {
+      globalContent = { snapshot, revision: createHash('sha256').update(JSON.stringify(snapshot)).digest('hex') };
+    }
+    if (contentRevision === globalContent.revision) return { contentRevision, unchanged: true };
+    return { ...structuredClone(snapshot), contentRevision: globalContent.revision, unchanged: false };
+  }
+
+  function getArtworkResolver() {
+    const global = readGlobalSnapshot();
+    const room = readRoomSnapshot();
+    if (artworkCache?.global !== global || artworkCache?.room !== room) {
+      const paths = new Map([...(global?.gifts || []), ...room.gifts]
+        .map((gift) => [gift.variantId || String(gift.id), gift.imagePath]));
+      artworkCache = { global, room, resolve: (key) => paths.get(key) };
+    }
+    return artworkCache.resolve;
   }
 
   function searchLocal(value) {
@@ -205,6 +231,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
   return {
     getSnapshot,
     getGlobalSnapshot,
+    getArtworkResolver,
     getInitializationState: () =>
       giftCatalogInitializer?.getState?.() || {
         status: 'ready',

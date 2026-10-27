@@ -25,6 +25,40 @@ function createProviderTestRoute(provider) {
 }
 
 const routes = {
+  'GET /api/ai/chatgpt/status'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.ai.getChatGptStatus() });
+  },
+  async 'POST /api/ai/chatgpt/login'(context, request, res) {
+    try {
+      const body = await request.body();
+      if (body?.profileId !== undefined && (typeof body.profileId !== 'string' || body.profileId.length > 80)) throw new Error('账号标识无效。');
+      if (body?.newAccount !== undefined && typeof body.newAccount !== 'boolean') throw new Error('账号选择无效。');
+      sendJson(res, 200, { ok: true, data: await context.ai.openChatGptLogin({ profileId: body?.profileId, newAccount: body?.newAccount }) });
+    } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      sendJson(res, 400, { ok: false, code: error.code, error: error.message });
+    }
+  },
+  'POST /api/ai/chatgpt/cancel'(context, request, res) {
+    sendJson(res, 200, { ok: true, data: context.ai.cancelChatGptLogin() });
+  },
+  async 'POST /api/ai/chatgpt/select'(context, request, res) {
+    try {
+      const body = await request.body();
+      if (typeof body?.profileId !== 'string' || body.profileId.length > 80) throw new Error('账号标识无效。');
+      sendJson(res, 200, { ok: true, data: context.ai.selectChatGptAccount(body.profileId) });
+    } catch (error) {
+      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      sendJson(res, 400, { ok: false, code: error.code, error: error.message });
+    }
+  },
+  async 'POST /api/ai/chatgpt/logout'(context, request, res) {
+    try {
+      sendJson(res, 200, { ok: true, data: await context.ai.logoutChatGpt() });
+    } catch (error) {
+      sendJson(res, 400, { ok: false, code: error.code, error: 'ChatGPT 退出失败，请重试。' });
+    }
+  },
   'GET /api/ai/doubao/status'(context, request, res) {
     sendJson(res, 200, { ok: true, data: context.ai.getDoubaoStatus() });
   },
@@ -109,13 +143,18 @@ const routes = {
       const apiUrl = body?.apiUrl ?? '';
       const modelProvider = body?.modelProvider ?? '';
       const modelApiProtocol = body?.modelApiProtocol ?? '';
+      const modelAuthMode = body?.modelAuthMode ?? '';
       if (typeof apiKey !== 'string' || apiKey.length > 512) throw new Error('API Key 格式无效。');
       if (typeof apiUrl !== 'string' || apiUrl.length > 2048) throw new Error('API 请求地址格式无效。');
       if (typeof modelProvider !== 'string' || modelProvider.length > 32) throw new Error('模型供应商格式无效。');
       if (typeof modelApiProtocol !== 'string' || modelApiProtocol.length > 32) throw new Error('接口协议格式无效。');
+      if (typeof modelAuthMode !== 'string' || modelAuthMode.length > 32) throw new Error('接入方式无效。');
       const input = { apiKey: apiKey.trim(), apiUrl: apiUrl.trim() };
       const normalizedProvider = modelProvider.trim().toLowerCase();
       const normalizedProtocol = modelApiProtocol.trim().toLowerCase();
+      const normalizedAuthMode = modelAuthMode.trim().toLowerCase();
+      if (normalizedAuthMode && !ENUM_VALUES.modelAuthMode.has(normalizedAuthMode)) throw new Error('接入方式无效。');
+      if (normalizedAuthMode) input.modelAuthMode = normalizedAuthMode;
       if (normalizedProvider && !ENUM_VALUES.modelProvider.has(normalizedProvider)) {
         throw new Error('模型供应商格式无效。');
       }

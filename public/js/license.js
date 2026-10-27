@@ -64,7 +64,7 @@
     STREAMER_DISABLED: '当前主播账号已停用。',
     DEVICE_FINGERPRINT_MISMATCH: '当前电脑与已绑定设备不一致，请联系管理员。',
     SIGNATURE_INVALID: '本机设备密钥验证失败。',
-    DEVICE_NOT_FOUND: '本机设备登记不存在，需要重新激活。',
+    DEVICE_NOT_FOUND: '本机设备登记不存在，请使用短效登录码重新登录。',
     DEVICE_IDENTITY_AMBIGUOUS: '检测到多条相同电脑的历史记录，请联系管理员核对后重试。',
     PAIRING_CODE_ADMIN_ONLY: '请联系管理员下发新的短效登录码。',
     DEVICE_TOKEN_INVALID: '当前授权会话无效，请重新验证。',
@@ -79,11 +79,11 @@
     CHALLENGE_ALREADY_USED: '验证请求已被使用，请重试连接。',
     CHALLENGE_MISMATCH: '验证请求不匹配，请重试连接。',
     CHALLENGE_PROTOCOL_MISMATCH: '当前客户端授权协议与服务器不兼容，请更新 LIRA。',
-    TOO_MANY_PAIRING_CODE_REQUESTS: '新设备授权码生成过于频繁，请稍后再试。',
-    TOO_MANY_ACTIVE_PAIRING_CODES: '当前已有多张仍有效的新设备授权码，请先使用、撤销或等待过期。',
-    PAIRING_CODE_NOT_FOUND: '找不到这张新设备授权码。',
-    PAIRING_CODE_ALREADY_CONSUMED: '这张新设备授权码已使用或已撤销，不能再次操作。',
-    ACTIVATION_INPUT_INVALID: '请完整填写三个字段。',
+    TOO_MANY_PAIRING_CODE_REQUESTS: '短效登录码生成过于频繁，请稍后再试。',
+    TOO_MANY_ACTIVE_PAIRING_CODES: '当前已有多张仍有效的短效登录码，请先使用、撤销或等待过期。',
+    PAIRING_CODE_NOT_FOUND: '找不到这张短效登录码。',
+    PAIRING_CODE_ALREADY_CONSUMED: '这张短效登录码已使用或已撤销，不能再次操作。',
+    ACTIVATION_INPUT_INVALID: () => `请完整填写用户名、密码和${registration ? '注册激活码' : '短效登录码'}。`,
   };
 
   function setStatus(message, tone = '') {
@@ -172,7 +172,7 @@
     const isAuthorizing = state === 'authorizing' || busy;
     submitButton.disabled = isAuthorizing || !canActivate;
     retryButton.hidden = !(state === 'needs_connection' || state === 'blocked' || state === 'authorized');
-    retryButton.textContent = state === 'authorized' ? '继续准备' : '重试连接';
+    retryButton.textContent = state === 'authorized' ? '继续准备' : state === 'blocked' ? '重新验证' : '重试连接';
     retryButton.disabled = isAuthorizing;
     if (state === 'authorized') setStatus('本机授权已通过，可继续准备。', 'good');
     else if (state === 'checking') setStatus('正在检查本机设备授权…', 'loading');

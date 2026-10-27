@@ -224,6 +224,7 @@ class MessageHandlers {
       requesterGuardLevel: requester.guardLevel,
       requesterMedalName: requester.medalName,
       requesterMedalLevel: requester.medalLevel,
+      avatarUrl: requester.avatarUrl,
       currentRoomVerified: superChat.currentRoomVerified,
       source: 'superchat',
       messageTimestamp: superChat.messageTimestamp,

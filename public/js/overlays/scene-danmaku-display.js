@@ -1,13 +1,14 @@
 import { isFloatingDanmakuStyle, isRandomDanmakuStyle } from '../shared/danmaku-style-options.js';
 import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
-export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, status, getStyle, showEntryMessages = () => false }) {
+export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, status, getStyle, room = () => {}, showEntryMessages = () => false }) {
   let epoch = null;
   let session = null;
   let sequence = 0;
   function update(snapshot) {
     if (!snapshot) return;
     applyRoomGuardState(snapshot.state?.roomGuard);
+    room(snapshot.state?.roomGuard?.roomId || '');
     const nextSession = snapshot.status === 'connected' && snapshot.state?.liveStatus === 1
       ? snapshot.state.liveSessionId : null;
     if (snapshot.reset || snapshot.epoch !== epoch || nextSession !== session) {

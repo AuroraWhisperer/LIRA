@@ -100,6 +100,8 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ## 5. 音乐缓存(music-cache.js)
 
+目录账本最多 8 项，文件监听不保活进程，目录删除、统计、清空或淘汰时关闭对应监听。应用写入立即按实际文件大小计账；外部原地覆盖需文件事件到达后在下一次写入复核，或通过统计/容量淘汰的全量扫描收敛，不承诺跨进程同一事件循环内的同步容量一致性。
+
 磁盘 JSON 缓存,两目录两 TTL([storage.md](../storage.md) §2 有目录布局):
 
 | 常量                       | 值                                | 用途         | 出处                                                          |
@@ -113,7 +115,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `musicCacheKey(scope, payload)`        | `sha1(<scope>:<JSON.stringify(payload)>)` 十六进制([music-cache.js:12-16](../../../../src/music/music-cache.js#L12-L16))                                          |
 | `readMusicJsonCache(dir, key, ttlMs)`  | 读 `<key>.json`;`mtimeMs` 超 TTL 视为未命中;文件为 `{savedAt, data}` 信封,返回 `data`([music-cache.js:18-27](../../../../src/music/music-cache.js#L18-L27))       |
-| `writeMusicJsonCache(dir, key, data)`  | 写信封后扫描目录统计精确容量；仅超额时按 mtime 排序并从旧到新删除(**缓存失败绝不影响播放**,全 try/catch 吞掉)([music-cache.js:29-38](../../../../src/music/music-cache.js#L29-L38)) |
+| `writeMusicJsonCache(dir, key, data)`  | 首次扫描目录后按每次写入的实际字节数更新账本；目录变化重建，文件通知复核变动项；超额时全量复核实际 mtime/容量并从旧到新删除。统计、清空会丢弃账本；无法监听时保留逐次扫描。缓存失败不影响播放([music-cache.js](../../../../src/music/music-cache.js)) |
 | `clearMusicCache(apiDir, lyricDir)`    | 删两目录重建,返回 `{clearedBytes, clearedFiles, after}`([music-cache.js:66-77](../../../../src/music/music-cache.js#L66-L77))                                     |
 | `getMusicCacheStats(apiDir, lyricDir)` | `{api, lyrics, totalBytes, totalFiles}`([music-cache.js:79-86](../../../../src/music/music-cache.js#L79-L86))                                                     |
 
@@ -151,6 +153,8 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 缓存规则:仅 `personalized` 可缓存;`refresh === true` 或 `page > 1` **绕过缓存**;命中时返回 `{...cached, cached: true}`。`limit` clamp 1-5000 默认 100,`offset` ≥ 0,`page` clamp 1-50。
 
+`liked` 可携带一次加载专用的 `loadingSession`（最长 100 字符）。Provider 仅在同一会话中复用喜欢歌单定位；QQ 客户端接口返回完整歌单时复用该次结果分页，公开接口和网易云仍读取实际分页。不同加载使用不同会话，凭证改变或成功写歌单会清除会话；每个 Provider 最多保留 8 个会话、最长 5 分钟，不写磁盘，也不作为下一次刷新缓存。
+
 ### 6.3 歌词(`getMusicTrackLyricsWithCache`,[lyrics-service.js:119-129](../../../../src/music/lyrics-service.js#L119-L129))
 
 - 入参先过 `normalizeMusicTrackForProvider`(强制完整契约)
@@ -182,7 +186,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ### 7.2 分类与标签
 
-快照通过 `domainServices.songs.getMetadata()` 读取分类、标签和歌曲总数。`song-metadata.js` 按 SongStore 的 `getChangeToken()` 缓存这些查询结果；令牌组合本连接 `total_changes()` 与 `PRAGMA data_version`，同时识别其他 store 的写入、批量导入、清库及其他数据库连接提交。失效粒度为整个 songDb，非歌库写入也可能触发一次重读；无库变更的礼物快照复用结果。缓存只用于提交后的快照读取，不保存 SQLite statement 或原始行到跨层接口。
+快照通过 `domainServices.songs.getMetadata()` 读取分类、标签和歌曲总数。`song-metadata.js` 按 SongStore 的 `getChangeToken()` 缓存这些查询结果；连接级 TEMP 触发器只累计 `songs` / `song_categories` 写入，组合 `PRAGMA data_version` 识别其他连接提交。同连接 settings、queue 写入不使歌库缓存失效，直接 SQL、批量导入和清库仍可见；事务内读取不复用，避免回滚后版本复用造成旧快照。TEMP 状态随连接关闭销毁，不改变持久数据库格式。歌曲和标签排序复用相同 locale 的 `Intl.Collator`，排序规则不变。
 
 - `listCategories`:`sort_order ASC, name` 排序,`is_enabled` 布尔化(store 查询)
 - `ensureCategory(name)`:`INSERT OR 返回` 语义,新建时 `sort_order=0, is_enabled=1`(store 原子写入)
@@ -306,6 +310,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 `rankTrackCandidates` 排除 `null` 后按分数降序，同分优先未标记不可播的歌曲，其余保留 Provider 搜索返回的相关性顺序；全部不相关时返回空数组。`normalizeSongKey` 做 NFKC、大小写及标点空白归一化；`stripVersionAnnotations` 只删除包含已知版本类型的括号内容，保留 `Run (To You)` 等有意义的歌名部分。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
 
 ## 10. 随机点歌筛选(random-song-filter.js + tag-aliases.js)
+
+每次筛选先编译完整条件和空格子条件，语言/分类别名组只在模块初始化时归一化；每首歌曲的歌手、语言、分类字段只准备一次，再与所有条件比对。`describeRandomSongScope` 在同次扫描中累计各条件是否出现及是否由同一首歌满足全部条件，不再次筛选整份歌曲。匹配结果、顺序、分类停用和标签单向别名语义不变；不跨请求保存歌曲缓存。
 
 随机抽取在已有条件匹配后通过 `queueService.filterSongsByCooldown` 排除冷却项，再应用既有最近随机歌曲避让。条件无匹配仍返回空；有匹配但全部冷却抛 `SONG_COOLDOWN`，点歌桥生成专门回复。最终入队仍校验冷却。
 
@@ -433,7 +439,7 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 
 [external-client-lyrics.js](../../../../src/music/external-client-lyrics.js) 的 `createExternalClientLyricResolver({platform, getRegistry, lyricsService})` 只接受 qq 或 netease，并返回 `resolveLyrics({title, artists?, artist?, durationMs?, sourceTrackId?})`。网易云有可信数值曲目 ID 时直接取该曲歌词；没有 ID 时与 QQ 一样，在本平台按歌名、歌手搜索最多 20 个候选。候选必须属于本平台，且完整歌名规范化后相同，保留 Live、DJ 等版本信息；已知歌手时，按 `/` 拆分并排序后的完整歌手列表也必须相同。歌名与歌手均执行 NFKC 规范化、合并空白、去除首尾空白及忽略大小写。双方时长已知时相差不得超过 5 秒，合格候选按时长距离择近；没有准确候选则返回空，不跨平台兜底。歌词响应声明了其他平台或没有有效行时也返回空；请求失败交给采集器显示错误。
 
-外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；翻译和版本匹配取决于该平台返回内容。网易云优先真实 YRC，只有 LRC 时补估算逐字时间（§14.7），QQ 保持平台逐字数据。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能选词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
+外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；翻译和版本匹配取决于该平台返回内容。网易云优先真实 YRC，只有 LRC 时补估算逐字时间（§14.7），QQ 保持平台逐字数据。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能匹配歌词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
 
 ## 14. 歌词解析器(src/music/lyric-parser.js)
 

@@ -107,7 +107,7 @@ const COMPONENT_PORTS = Object.freeze({
   ...Object.fromEntries(Object.keys(SCENE_EXTRA_COMPONENTS).map((type) => [type, Object.freeze({
     normalizeConfig: (config) => normalizeSceneExtraConfig(type, config),
     getDefault: () => createSceneExtraDefaults(type),
-    getDisplay: (getState, _cloud, _request, getExtraDisplay) => getExtraDisplay?.(type, getState) ?? null,
+    getDisplay: (getState, _cloud, request, getExtraDisplay) => getExtraDisplay ? getExtraDisplay(type, getState, request) : null,
   })])),
   'text-box': Object.freeze({ normalizeConfig: normalizeTextBoxConfig, getDefault: createTextBoxDefaults }),
   browser: Object.freeze({ normalizeConfig: normalizeBrowserSourceConfig, getDefault: () => null }),
@@ -176,7 +176,7 @@ function createSceneComponentPorts({ getState, cloud, getExtraDisplay }) {
     for (const [type, port] of Object.entries(COMPONENT_PORTS)) {
       if (!types.includes(type) || !port.getDisplay) continue;
       const display = port.getDisplay(readState, cloud, request, getExtraDisplay);
-      if (display?.then) pending.push(display.then((value) => { data[type] = value; }));
+      if (display?.then) pending.push(display.then((value) => { if (value !== undefined) data[type] = value; }));
       else if (display !== undefined) data[type] = display;
     }
     return pending.length ? Promise.all(pending).then(() => data) : data;

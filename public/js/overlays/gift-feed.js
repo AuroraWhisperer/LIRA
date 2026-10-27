@@ -2,9 +2,10 @@ import {
   BANNER_HEIGHT,
   BANNER_GAP,
   createGiftBanner,
+  createGiftArtworkResolver,
   updateGiftBanner,
   fitGiftBannerNames,
-  loadGiftArtworkCatalog,
+  createGiftArtworkCatalogReader,
 } from '../shared/gift-banner.js';
 import {
   createGiftFeedState,
@@ -27,6 +28,8 @@ document.body.classList.toggle('gift-feed-preview', preview);
 status.hidden = !preview;
 let config = { thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 };
 let catalog = [];
+const readArtworkCatalog = createGiftArtworkCatalogReader();
+let artwork = createGiftArtworkResolver(catalog);
 let catalogVersion = 0;
 let rendered = new Map();
 let day = shanghaiToday();
@@ -45,6 +48,10 @@ let previousTime = null;
 let progress = 0;
 let componentItems = [];
 let componentPreview = false;
+let historySnapshot = null;
+let profileSnapshot = null;
+let cardSnapshot = null;
+let cardMinimum = null;
 
 async function request(url, signal) {
   // Browser sources may use a Chromium version without AbortSignal.any/timeout.
@@ -76,10 +83,10 @@ function render(retryAvatars = false) {
     const avatar = retryAvatars ? row?.node.querySelector('.gift-banner-avatar') : null;
     const retryAvatar = Boolean(avatar && item.gift.avatarUrl && avatar.getAttribute('src') !== avatar.dataset.source);
     if (!row) {
-      row = { signature, node: createGiftBanner(item, config, catalog, resolveAvatarUrl) };
+      row = { signature, node: createGiftBanner(item, config, artwork, resolveAvatarUrl) };
       fit.push(row.node);
     } else if (row.signature !== signature || retryAvatar) {
-      if (updateGiftBanner(row.node, item, config, catalog, retryAvatar, resolveAvatarUrl)) fit.push(row.node);
+      if (updateGiftBanner(row.node, item, config, artwork, retryAvatar, resolveAvatarUrl)) fit.push(row.node);
       row.signature = signature;
     }
     next.set(item.eventId, row);
@@ -115,6 +122,10 @@ function reset() {
   controller?.abort();
   pending = null;
   revision = null;
+  historySnapshot = null;
+  profileSnapshot = null;
+  cardSnapshot = null;
+  cardMinimum = null;
   settingsDirty = true;
   catalogDirty = true;
   state.replace([]);
@@ -125,6 +136,7 @@ function scheduleRefresh({ settings = false, catalog = false } = {}) {
   if (disposed || isComponentPreview()) return;
   settingsDirty ||= settings;
   catalogDirty ||= catalog;
+  if (document.hidden) return;
   if (scanning) {
     dirty = true;
     return;
@@ -137,7 +149,7 @@ function scheduleRefresh({ settings = false, catalog = false } = {}) {
 }
 
 async function refresh() {
-  if (disposed || scanning) return;
+  if (disposed || scanning || document.hidden) return;
   scanning = true;
   dirty = false;
   const readSettings = settingsDirty;
@@ -150,7 +162,7 @@ async function refresh() {
     const [nextConfig, nextCatalog] = await Promise.all([
       readSettings ? request('/api/gifts/display-settings', controller.signal) : config,
       readCatalog
-        ? loadGiftArtworkCatalog(controller.signal).catch(() => {
+        ? readArtworkCatalog(controller.signal).catch(() => {
             catalogDirty = true;
             return catalog;
           })
@@ -158,13 +170,17 @@ async function refresh() {
     ]);
     if (current !== generation) return;
     config = nextConfig;
-    if (catalog !== nextCatalog && JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
+    if (catalog !== nextCatalog) {
+      catalogVersion += 1;
+      artwork = createGiftArtworkResolver(nextCatalog);
+    }
     catalog = nextCatalog;
     render(true); // Refresh failed avatars as well as saved colors on static rows.
     const result = await scanTodayGifts({
       request,
       signal: controller.signal,
       day,
+      previous: historySnapshot,
       onRevision(next) {
         if (current !== generation) return;
         if (revision && revision !== next) {
@@ -176,17 +192,27 @@ async function refresh() {
       },
     });
     if (current !== generation) return;
-    const profiles = await request(
-      `/api/gifts/card-profiles?${new URLSearchParams({ viewRevision: revision })}`,
+    const profileQuery = new URLSearchParams({ viewRevision: revision });
+    if (profileSnapshot?.contentRevision) profileQuery.set('contentRevision', profileSnapshot.contentRevision);
+    let profiles = await request(
+      `/api/gifts/card-profiles?${profileQuery}`,
       controller.signal,
     );
     if (current !== generation) return;
     if (profiles.day !== day || profiles.viewRevision !== revision) {
       throw Object.assign(new Error('礼物来源或日期已变更'), { code: 'GIFT_VIEW_STALE' });
     }
-    const cards = buildGiftCards(result.items, { day, profiles: profiles.items });
+    if (profiles.unchanged) {
+      if (!profileSnapshot || profiles.contentRevision !== profileSnapshot.contentRevision ||
+          profileSnapshot.viewRevision !== revision || profileSnapshot.day !== day) {
+        throw Object.assign(new Error('礼物来源或日期已变更'), { code: 'GIFT_VIEW_STALE' });
+      }
+      profiles = { ...profiles, items: profileSnapshot.items };
+    }
+    const cards = cardSnapshot && historySnapshot?.items === result.items && profileSnapshot?.items === profiles.items
+      ? cardSnapshot : buildGiftCards(result.items, { day, profiles: profiles.items });
     const minimumCents = BigInt(config.minGiftAmountCents ?? 0);
-    pending =
+    if (cards !== cardSnapshot || minimumCents !== cardMinimum) pending =
       minimumCents === 0n
         ? cards
         : cards.filter((item) => {
@@ -196,7 +222,11 @@ async function refresh() {
                 : BigInt(item.cardTotalCents);
             return totalCents > minimumCents;
           });
-    if (state.count <= config.visibleRows || document.hidden) {
+    historySnapshot = result;
+    profileSnapshot = profiles;
+    cardSnapshot = cards;
+    cardMinimum = minimumCents;
+    if (pending && (state.count <= config.visibleRows || document.hidden)) {
       state.replace(pending);
       pending = null;
       render();
@@ -273,7 +303,10 @@ const component = mountSceneExtraClient('gift-feed', {
     componentItems = data?.items || [];
     componentPreview = data?.preview === true;
     const nextCatalog = data?.catalog || [];
-    if (JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) catalogVersion += 1;
+    if (JSON.stringify(catalog) !== JSON.stringify(nextCatalog)) {
+      catalogVersion += 1;
+      artwork = createGiftArtworkResolver(nextCatalog);
+    }
     catalog = nextCatalog;
     renderComponent();
   },

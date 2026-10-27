@@ -11,7 +11,7 @@ const {
   buildOutputReviewPrompt,
   parseSafetyReview,
 } = require('./safety');
-const { isAiReady, applyModelProviderPreset, assertSavedModelKeyOrigin } = require('./config');
+const { isAiReady, applyModelProviderPreset, assertSavedModelKeyOrigin, usesAccountModel } = require('./config');
 const { createOrderedAsyncCoordinator } = require('./async-coordinator');
 const { getQuotaToolNames } = require('./api-quota-store');
 const { resolvePersona } = require('./personas');
@@ -80,7 +80,7 @@ function createAiAssistantService(dependencies) {
       getKey: (item) => JSON.stringify([item.roomId, item.uid]),
       getConcurrency: () => store.getConfig().modelProvider === 'doubao' ? 1 : store.getConfig().generationConcurrency,
       onError(error, item) {
-        if (item.signal.aborted || isShutdownError(error) || ['DANMAKU_SESSION_CHANGED', 'DOUBAO_SESSION_CHANGED'].includes(error?.code)) return;
+        if (item.signal.aborted || isShutdownError(error) || ['DANMAKU_SESSION_CHANGED', 'DOUBAO_SESSION_CHANGED', 'AI_MODEL_SESSION_CHANGED'].includes(error?.code)) return;
         lastError = publicError(error);
         store.logRequest({
           uid: item.uid,
@@ -101,7 +101,8 @@ function createAiAssistantService(dependencies) {
     const previous = store.getConfig();
     const wasEnabled = previous.enabled;
     const config = store.updateConfig(changes);
-    const accountProviderChanged = previous.modelProvider !== config.modelProvider && [previous.modelProvider, config.modelProvider].includes('doubao');
+    const accountProviderChanged = (previous.modelProvider !== config.modelProvider || previous.modelAuthMode !== config.modelAuthMode)
+      && (usesAccountModel(previous) || usesAccountModel(config));
     if ((wasEnabled && config.enabled === false) || accountProviderChanged) {
       replyController.abort(accountProviderChanged ? codedError('DOUBAO_SESSION_CHANGED', '模型服务已切换。') : codedError('AI_DISABLED', 'AI 助手已关闭。'));
       const drain = coordinator.stop();
@@ -158,8 +159,10 @@ function createAiAssistantService(dependencies) {
     item.endConversation = /^(?:结束对话|清空对话)[。！!？?\s]*$/u.test(item.question);
     item.signal = AbortSignal.any([shutdownController.signal, replyController.signal]);
     item.replySession = captureReplySession?.();
-    if (store.getConfig().modelProvider === 'doubao') {
-      item.modelSessionRevision = deepseek.getSessionRevision?.();
+    const config = store.getConfig();
+    if (usesAccountModel(config)) {
+      item.modelSessionConfig = { modelProvider: config.modelProvider, modelAuthMode: config.modelAuthMode };
+      item.modelSessionRevision = deepseek.getSessionRevision?.(item.modelSessionConfig);
     }
     const accepted = coordinator.enqueue(item);
     if (accepted) handledCount += 1;
@@ -212,7 +215,7 @@ function createAiAssistantService(dependencies) {
       item.personaScope = JSON.stringify([item.roomId, persona.id, persona.prompt]);
       if (item.endConversation) {
         if (item.canRemember) store.clearContext(item.uid, item.personaScope);
-        return { text: '已结束这段对话，下次叫我会重新开始。', category: 'conversation_reset', usage, toolCalls: 0 };
+        return { text: '这段对话结束啦，下次叫我会重新开始～', category: 'conversation_reset', usage, toolCalls: 0 };
       }
       if (!Object.prototype.hasOwnProperty.call(item, 'conversationContext')) {
         item.conversationContext = item.canRemember ? normalizeConversationContext(store.getContext(item.uid, item.personaScope)) : null;
@@ -504,10 +507,11 @@ function createAiAssistantService(dependencies) {
       deepseekResponsesUrl: String(input.apiUrl || '').trim() || config.deepseekResponsesUrl,
       modelProvider: input.modelProvider || config.modelProvider,
       modelApiProtocol: input.modelApiProtocol || config.modelApiProtocol,
+      modelAuthMode: input.modelAuthMode || config.modelAuthMode,
     });
     // Account mode has no API destination. A temporary API probe must supply its
     // own key, or wait until switching back has validated the saved key origin.
-    assertSavedModelKeyOrigin(config.modelProvider === 'doubao' ? { ...config, deepseekResponsesUrl: '' } : config,
+    assertSavedModelKeyOrigin(usesAccountModel(config) ? { ...config, modelProvider: 'custom', deepseekResponsesUrl: '' } : config,
       requested, Boolean(explicitKey));
     return runDirectOperation(() =>
       deepseek.listModels({
@@ -515,6 +519,7 @@ function createAiAssistantService(dependencies) {
         responsesUrl: requested.deepseekResponsesUrl,
         modelProvider: requested.modelProvider,
         modelApiProtocol: requested.modelApiProtocol,
+        modelAuthMode: requested.modelAuthMode,
         requestTimeoutMs: config.requestTimeoutMs,
         signal: shutdownController.signal,
       }),
@@ -529,6 +534,7 @@ function createAiAssistantService(dependencies) {
       trigger: config.trigger,
       model: config.modelProvider === 'doubao' ? '豆包' : config.model,
       doubao: deepseek.getAccountStatus?.(),
+      chatgpt: deepseek.getSubscriptionStatus?.(),
       handledCount,
       lastError,
       apiUsage: quotaStore?.getAllUsage?.() || [],
@@ -555,8 +561,8 @@ function createAiAssistantService(dependencies) {
   function throwIfReplyCancelled(item) {
     throwIfShuttingDown();
     item.signal.throwIfAborted();
-    if (item.modelSessionRevision !== undefined && item.modelSessionRevision !== deepseek.getSessionRevision?.()) {
-      throw codedError('DOUBAO_SESSION_CHANGED', '豆包会话已变化，本次回复已取消。');
+    if (item.modelSessionRevision !== undefined && item.modelSessionRevision !== deepseek.getSessionRevision?.(item.modelSessionConfig)) {
+      throw codedError(item.modelSessionConfig?.modelProvider === 'doubao' ? 'DOUBAO_SESSION_CHANGED' : 'AI_MODEL_SESSION_CHANGED', 'AI 账号会话已变化，本次回复已取消。');
     }
   }
 

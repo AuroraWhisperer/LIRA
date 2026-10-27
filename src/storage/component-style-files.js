@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const activeImports = new Map();
+const lastPruned = new Map();
 function beginStyleFileUse(directory) { activeImports.set(directory, (activeImports.get(directory) || 0) + 1); }
 function endStyleFileUse(directory) {
   const count = activeImports.get(directory) || 0;
@@ -42,7 +43,10 @@ function listStyleFiles(directory, relative = '') {
 
 function pruneStyleTemporaryFiles(root, now = Date.now()) {
   if (!fs.existsSync(root)) return;
-  if (fs.lstatSync(root).isSymbolicLink()) throw fileError();
+  const rootStat = fs.lstatSync(root);
+  if (rootStat.isSymbolicLink()) throw fileError();
+  const previous = lastPruned.get(root);
+  if (previous?.ino === rootStat.ino && now >= previous.at && now - previous.at < 60 * 60 * 1000) return;
   for (const name of fs.readdirSync(root)) {
     if (!temporaryName.test(name)) continue;
     const target = path.join(root, name);
@@ -55,6 +59,7 @@ function pruneStyleTemporaryFiles(root, now = Date.now()) {
       fs.rmSync(target, { recursive: stat.isDirectory(), force: true });
     } catch { continue; }
   }
+  lastPruned.set(root, { ino: rootStat.ino, at: now });
 }
 
 module.exports = { activeImports, beginStyleFileUse, endStyleFileUse, PENDING_TTL_MS, listStyleFiles, pruneStyleTemporaryFiles, renameStyleDirectory };

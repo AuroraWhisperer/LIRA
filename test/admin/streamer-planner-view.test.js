@@ -36,6 +36,75 @@ function freeze(value) {
   return Object.freeze(value);
 }
 
+test('reused date formatters preserve current local dates after timezone changes', async t => {
+  const timezone = process.env.TZ;
+  t.after(() => {
+    if (timezone === undefined) delete process.env.TZ;
+    else process.env.TZ = timezone;
+  });
+  process.env.TZ = 'UTC';
+  const elements = new Map();
+  const now = '2026-10-24T00:00:00Z';
+  const { renderTodo } = await loadModuleExports(
+    path.resolve(__dirname, '../../public/js/admin/streamer-planner-view.js'), {
+      Date: class extends Date { constructor(...args) { super(...(args.length ? args : [now])); } },
+      document: { getElementById(id) { if (!elements.has(id)) elements.set(id, node()); return elements.get(id); },
+        createElement: node, createElementNS: (_, tag) => node(tag) },
+    });
+  const dates = ['2026-10-23T23:59:59Z', now, '2026-10-24T04:00:00Z'];
+  const view = { month: '2026-09', selectedDate: '2026-09-13', planner: { tasks: [], events: [],
+    notes: dates.map((createdAt, id) => ({ id, type: 'idea', body: 'note', createdAt })) } };
+  for (const zone of ['UTC', 'America/New_York', 'Pacific/Kiritimati']) {
+    process.env.TZ = zone;
+    renderTodo(view);
+    const format = (date, options) => new Intl.DateTimeFormat('zh-CN', options).format(new Date(date));
+    assert.equal(elements.get('plannerMonthLabel').textContent,
+      format('2026-09-01T12:00:00', { year: 'numeric', month: 'long' }));
+    assert.equal(elements.get('plannerAgendaTitle').textContent,
+      format('2026-09-13T12:00:00', { month: 'long', day: 'numeric', weekday: 'short' }));
+    assert.equal(elements.get('plannerTodayLabel').textContent,
+      format(now, { month: 'long', day: 'numeric', weekday: 'long' }));
+    for (const [index, date] of dates.toReversed().entries()) {
+      const label = elements.get('plannerNoteList').children[index].children[0].children[1].textContent;
+      assert.equal(label, format(date, { month: 'numeric', day: 'numeric' }));
+    }
+  }
+});
+
+test('planner indexes each detached event snapshot and task list once and reuses fixed date formatters', async () => {
+  const elements = new Map();
+  let formatterCount = 0;
+  const { renderTodoCalendar, renderTodoAgenda, renderTodoNotes } = await loadModuleExports(
+    path.resolve(__dirname, '../../public/js/admin/streamer-planner-view.js'), {
+      document: { getElementById(id) { if (!elements.has(id)) elements.set(id, node()); return elements.get(id); },
+        createElement: node, createElementNS: (_, tag) => node(tag) },
+      Intl: { DateTimeFormat: function(...args) { formatterCount++; return new Intl.DateTimeFormat(...args); } },
+    });
+  let dates = 0;
+  let taskIds = 0;
+  const view = { month: '2026-10', selectedDate: '2026-10-23', planner: {
+    events: Array.from({ length: 500 }, (_, i) => ({ id: `event-${i}`,
+      get date() { dates++; return '2026-10-23'; }, time: '', title: `event-${i}`, type: 'personal', readonly: true })),
+    tasks: Array.from({ length: 500 }, (_, i) => ({ get id() { taskIds++; return `task-${i}`; } })),
+    notes: Array.from({ length: 500 }, (_, i) => ({ id: `note-${i}`, body: `note-${i}`, type: 'idea',
+      promotedTaskId: i === 0 ? 'task-499' : 'removed-task', createdAt: '2026-10-23T12:00:00' })),
+  } };
+  renderTodoCalendar(view);
+  renderTodoAgenda(view);
+  assert.equal(dates, 1000, 'one grouping pass plus the visible agenda time elements');
+  assert.equal(elements.get('plannerMonthCount').textContent, '本月 500 项安排');
+  assert.equal(elements.get('plannerAgendaList').children[0].children[1].children[0].textContent, 'event-0');
+  assert.equal(elements.get('plannerAgendaList').children[499].children[1].children[0].textContent, 'event-499');
+  renderTodoNotes(view);
+  assert.equal(taskIds, 500);
+  assert.equal(elements.get('plannerNoteList').children.at(-1).children[2].children[0].disabled, true);
+  assert.equal(elements.get('plannerNoteList').children[0].children[2].children[0].disabled, false);
+  renderTodoNotes(view);
+  assert.equal(formatterCount, 4, 'formatters are initialized once, not once per note or render');
+  renderTodoCalendar({ ...view, planner: { ...view.planner, events: [{ date: '2026-11-01', time: '', title: 'new', type: 'work' }] } });
+  assert.equal(elements.get('plannerMonthCount').textContent, '本月 0 项安排');
+});
+
 test('planner renders frozen display data, ordered events and safe text while returning edit actions', async () => {
   const elements = new Map();
   function element(id) {

@@ -14,6 +14,7 @@ function createBilibiliClient(roomId, context) {
     danmakuSender,
     broadcastSnapshot,
     publishDanmaku,
+    publishSuperChatDelete,
     updateLiveStatus,
     bilibiliDiagnostics,
     bilibiliAuthCache,
@@ -125,6 +126,7 @@ function createBilibiliClient(roomId, context) {
       },
       onSuperChat: (superChat) => {
         if (isShuttingDown()) return;
+        publishDanmaku?.(superChat);
         try {
           const item = domainServices.superChats.add({
             platformId: superChat.id,
@@ -148,6 +150,7 @@ function createBilibiliClient(roomId, context) {
       },
       onSuperChatDelete: (platformIds) => {
         if (isShuttingDown()) return;
+        publishSuperChatDelete?.(platformIds);
         try {
           if (domainServices.superChats.retract(platformIds) > 0) broadcastSnapshot('bilibili:superchat');
         } catch {

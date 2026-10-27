@@ -38,7 +38,7 @@
 
 ### 1.3 服务构造时的恢复顺序
 
-运行中的“清空全部数据”成功后，`domain-services.data.clearAll()` 调用内部 `overtime.reloadState()`，重新读取已提交的状态并同步单调时钟锚点、归零与补偿定时器。后续暂停或礼物操作不能写回清空前的时间；存储失败或部分提交失败时不执行该重载。禁用默认行随 giftDb 事务提交，已有单例的 revision 在同一事务内递增而不归零，使现有 浏览器源连接接受清空快照及后续操作，并继续拒绝清空前晚到的 HTTP 状态；仅缺失单例时从 revision 0 创建。部分失败时路由保持后台结算/计时写入暂停；完整回滚时恢复当前请求取得的暂停，详见 [storage.md](storage.md#63-并发写入静默quiesce)。此操作不增加 HTTP/IPC 接口。
+运行中的“清空全部数据”成功后，`domain-services.data.clearAll()` 调用内部 `overtime.reloadState()`，重新读取已提交的状态并同步单调时钟锚点、归零与补偿定时器。后续暂停或礼物操作不能写回清空前的时间；存储失败或部分提交失败时不执行该重载。禁用默认行随 giftDb 事务提交，已有单例的 revision 在同一事务内递增而不归零，使现有 浏览器源连接接受清空快照及后续操作，并继续拒绝清空前晚到的 HTTP 状态；仅缺失单例时从 revision 0 创建。部分失败时 `data-maintenance-runtime.runClearAll()` 保持后台结算/计时写入暂停；完整回滚时恢复当前请求取得的暂停，详见 [storage.md](storage.md#63-并发写入静默quiesce)。此操作不增加 HTTP/IPC 接口。
 
 `createOvertimeService` 构造即执行两步恢复([overtime-service.js:27-35](../../../src/overtime/overtime-service.js#L27-L35)):
 

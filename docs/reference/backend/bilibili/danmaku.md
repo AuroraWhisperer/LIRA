@@ -12,8 +12,8 @@
 | ------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `onMessage(danmaku)`     | 每条实时弹幕、SC 命令文本、历史轮询命令                                               | `source:'danmaku'` 的实时消息先发布到有界弹幕流；随后交给 `games.handleDanmaku` 处理活动小游戏（你画我猜在作画阶段按完整答案计分），再进入 `messages.handleDanmaku` 点歌桥接 + 机器人链；点歌链 `accepted` 时 `broadcastSnapshot('bilibili:danmaku'/'bilibili:superchat')`([bilibili-client.js](../../../../src/server/bilibili-client.js)) |
 | `UserInfoService` 更新   | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知                                                                                                                                                                                                                                  |
-| `onSuperChat(superChat)` | 新增 SC 到达 | `superChats.add` 入库，成功则广播 `bilibili:superchat`；入库见 [gift.md](gift.md) §7 |
-| `onSuperChatDelete(platformIds)` | SC 平台下线 | `superChats.retract` 按平台 ID 删除内容并保留最小防重 ID；实际删除显示项才广播 `bilibili:superchat`，不触发新增或点歌命令 |
+| `onSuperChat(superChat)` | 新增 SC 到达 | 先 `publishDanmaku` 发布到公开弹幕流，再 `superChats.add` 入库，成功则广播 `bilibili:superchat`；入库见 [gift.md](gift.md) §7 |
+| `onSuperChatDelete(platformIds)` | SC 平台下线 | 先 `publishSuperChatDelete` 从公开弹幕流撤回，实际删除公开项才广播 `danmaku:superchat-delete`；随后 `superChats.retract` 按平台 ID 删除内容并保留最小防重 ID，实际删除显示项才广播 `bilibili:superchat`，不触发新增或点歌命令 |
 | `onStatus(liveStatus)`   | 连接状态变化                                                                          | `updateLiveStatus` 写入快照 `liveStatus` 字段([server.js:701](../../../../src/server.js#L701)、[server.js:714-720](../../../../src/server.js#L714-L720))                                                                                                                                                                                    |
 
 客户端构造时还注入 `diagnostics`（§8）与 `isCommandText`；礼物检测回调、动态命令前缀和原始礼物调试缓冲已删除。
@@ -92,9 +92,11 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 ### 4.1 实时弹幕流
 
-`createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`；`pushGift()` 接收已结算的 `detection_status:'final'` 礼物行，额外投影 `kind:'gift'`、`giftName`、`giftCount`，并提供 `送出 礼物名 × 数量` 的兼容文本。可用的非负有限 `total_price` 原值通过 `giftTotalPrice` 展示，单位为人民币元，已经是本组总额，不再次乘数量；缺失或非法金额省略。礼物数量必须为正安全整数，头像和身份未知时使用空值。两类消息共用连续编号和最近 50 条的上限，不暴露原始载荷、其他账本字段或单价。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
+`createDanmakuFeedBuffer().push()` 接收 `source:'danmaku'` 的实时消息，投影为公开字段 `{id,uid,name,message,avatarUrl,guardLevel,medalName,medalLevel,timestamp,emotes}`，并保留明确的 `isStreamer`。`source:'superchat'` 的 SC 也经 `push()` 发布，要求非空正文和正有限 `price`，额外公开 `kind:'superchat'`、实际 `price` 及由平台 ID 投影的可选 `messageId`，不重复进入点歌命令链。
 
-每条新消息由 `runtime-transport.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。礼物由现有 final 回调在快照发布前加入缓冲区，再向 `topic=danmaku` 发布同一消息；沿用礼物投影层的单次 final 交付，不依赖礼物特效框开关或金额门槛。头像和表情地址都只保留可信的 B 站 CDN HTTPS 地址，浏览器端统一通过现有 `/api/bilibili/avatar` 本地图片代理加载。
+`pushGift()` 接收已结算的 `detection_status:'final'` 礼物行，额外投影 `kind:'gift'`、`giftName`、`giftCount`，并提供 `送出 礼物名 × 数量` 的兼容文本。可用的非负有限 `total_price` 原值通过 `giftTotalPrice` 展示，单位为人民币元，已经是本组总额，不再次乘数量；缺失或非法金额省略。可选 `avatarUrl` 保留送礼头像，`giftGuardLevel` 表示本次购买的舰长／提督／总督而非当前房间身份；`giftImageUrl` 由现有礼物目录按礼物 ID 与 `gift_variant_id` 解析，只保留合法 B 站 CDN HTTPS 图片或安全 `/overtime-gift-images/` 路径。礼物数量必须为正安全整数，头像和身份未知时使用空值。三类消息共用连续编号和最近 50 条的上限，不暴露原始载荷、其他账本字段或单价。切换直播间时清空旧房间数据；`getSnapshot()` 返回防御性副本。
+
+每条新消息由 `runtime-transport.js` 广播 `danmaku:message`，完整有界列表同时进入全量快照的 `danmakuFeed` 字段。礼物由现有 final 回调在快照发布前加入缓冲区，再向 `topic=danmaku` 发布同一消息；沿用礼物投影层的单次 final 交付，不依赖礼物特效框开关或金额门槛。SC 新增在持久化前发布；`removeSuperChats(messageIds)` 从实时缓冲和后续快照移除匹配 `messageId` 的 SC，只有实际删除时才向同一 topic 广播 `{type:'danmaku:superchat-delete',messageIds}`，随后持久化撤回仍由原有服务拥有。头像和表情地址只保留可信的 B 站 CDN HTTPS 地址；头像可由浏览器直接加载，表情继续通过现有 `/api/bilibili/avatar` 本地图片代理加载。
 
 ### 4.2 直播间点赞状态
 
@@ -136,8 +138,8 @@ text.startsWith('点歌') || text.startsWith('随机')
 1. `source === 'superchat'` 且 `scSongRequestEnabled === 'false'` 时在解析前返回 `{accepted:false, reason:'SC 点歌已关闭。'}`，诊断为 `sc-song-requests-disabled`；不生成点歌回复、不写入队列或冷却。SC 留言由独立的 `onSuperChat` 路径照常接收。其他情况解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`
 2. `settings.paused === 'true'` → 拒绝
    普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
-3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。内存 `cooldownByUser` Map + `cooldownStore.touch` 持久化（DB 失败不阻断本次点歌）；UID 与 `open_id` 独立计时，启用间隔但缺少稳定身份时拒绝。
-4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的歌曲冷却、配额、用户黑名单及身份资格拒绝转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。
+3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。`src/music/user-request-cooldown.js` 由 `domainServices` 创建并持有，集中管理内存记录、24 小时过期清理、启动恢复及成功接纳后的 `cooldownStore.touch` 持久化（DB 失败保留内存记录并告警，不阻断本次点歌）；Bilibili 重连不重建冷却。消息处理器以 `v2:` + JSON `[fanScope || null, identity.type, identity.uid]` 构键，UID 与 `open_id`、不同主播作用域均独立；只有冷却大于 0 且稳定身份存在的成功接纳才写入，0 秒或无身份请求不生成昵称/匿名键。旧裸 UID、`open_id:` 或昵称记录不映射到新键、不对任何租户生效，保留至正常清理。启用间隔但缺少稳定身份时拒绝。完整清库在数据库全部提交成功后，依原运行状态重置顺序清空内存；数据库阶段部分失败不重置。
+4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的歌曲冷却、配额、用户黑名单及身份资格拒绝转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。队列已满、非歌库歌曲、重复歌曲、个人配额及身份确认的直播措辞在桥接层按错误码映射，不改变 `result.reason`、HTTP 响应或诊断使用的领域原文。
 5. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/分类,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
 6. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))
 7. 入队输入携带 `requesterName/requesterUid/requesterIdentityType/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`，以及内部 `viewerRequest` 与独立的 `requesterGuardVerified/requesterMedalVerified`。实时弹幕、SC、历史消息及桌面随机入口都转发 user-info 的当前房间证据；未知或外间身份不能满足资格。统一准入、事务配额及默认值见 [services.md](../music/services.md) §8.2 与 [storage.md](../storage.md) §7。
@@ -167,7 +169,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 
 ### 6.4 云端菜单的桌面命令投影
 
-[danmaku-menu.js](../../../../src/server/danmaku-menu.js) 从当前桌面状态生成可选的 `menuCommands: string[]` 云设置展示字段。弹幕监听关闭时为空；点歌未暂停时列出点歌与随机点歌；有启用的关键词规则时显示关键词回复提示；AI 仅在实际配置就绪时显示触发词；投票、评分和小游戏只在当前会话接受弹幕时列出，并标明「进行中」。菜单不列出没有弹幕命令的切歌、加班或自动播报功能。该字段保留旧客户端的读写兼容；当前云端菜单固定回复“签到、抽签、礼物特效、礼物查询、盲盒查询”，不再消费这组投影。投影不授予执行权限，也不证明客户端仍在线。
+[danmaku-menu.js](../../../../src/server/danmaku-menu.js) 从当前桌面状态生成可选的 `menuCommands: string[]` 云设置展示字段。弹幕监听关闭时为空；点歌未暂停时列出点歌与随机点歌；有启用的关键词规则时显示关键词回复提示；AI 仅在实际配置就绪时显示触发词；投票、评分和小游戏只在当前会话接受弹幕时列出，并标明「进行中」。菜单不列出没有弹幕命令的切歌、加班或自动播报功能。该字段保留旧客户端的读写兼容；当前云端菜单固定回复“签到、抽签、今日礼物、今日盲盒；礼物特效后接数字ID”，不再消费这组投影。投影不授予执行权限，也不证明客户端仍在线。
 
 [server.js](../../../../src/server.js) 组合根在完整设置快照和待传设置出口合入当前投影，不把菜单、AI 密钥、关键词回复正文或游戏内部状态持久化为同步设置。关键词设置和 AI 可用性/触发词变更沿用现有 settings 同步通知；游戏/互动广播在同轮变更合并后比较菜单，仅有实际变化时请求上传，无新增心跳。服务端返回的菜单字段不回写本地配置。
 
@@ -244,7 +246,7 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 不增加正文、用户 UID/昵称、Cookie、token 或原始认证包落盘。
 `commandRef` 的随机密钥不保存，跨进程或历史接口时间精度变化时不能据此合并。
 
-现场复现：安装包含此修改的版本，完成重新登录 → 刷新直播 → 发送一条歌库内且
+现场复现：安装包含此修改的版本，完成重新登录 → 重新连接直播间 → 发送一条歌库内且
 尚未入队的点歌，保留发送时间和软件显示结果。即使随后自行恢复，也从
 “工具箱 → 桌面更新 → 本地数据 → 日志目录”取对应时间的 `terminal.log`、`desktop.log` 及 `errors/` 中的错误记录，必要时包含 `.1`、`.2` 归档。
 日志按[桌面日志策略](../../desktop/main.md#8-日志)分流、轮转并淘汰旧记录；日志缺失不能单独证明平台没有发送，仍无浏览器源回执或自动上报。无需反复重启或手动清理日志来复现。

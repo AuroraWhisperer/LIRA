@@ -279,7 +279,7 @@ test('fullscreen track text and lyric highlights update only when their visible 
   player.lyricsContainer = { querySelectorAll: () => nodes, addEventListener() {} };
   player.updateLyricHighlight(0);
   for (let index = 0; index < 20; index++) player.updateLyricHighlight(0);
-  assert.equal(highlights, 2);
+  assert.equal(highlights, 1, 'initial highlight touches only the active row');
   player.updateLyricHighlight(1);
   assert.deepEqual(nodes.map(node => node.active), [false, true]);
   player.updateLyricHighlight(0);
@@ -291,6 +291,17 @@ test('fullscreen track text and lyric highlights update only when their visible 
   assert.deepEqual(nodes.map(node => node.active), [true, false], 'rebuilding translated lines invalidates the highlight');
   player.updateLyricHighlight(-1);
   assert.deepEqual(nodes.map(node => node.active), [false, false]);
+});
+
+test('fullscreen lyric lookup preserves boundaries and selects the last simultaneous line', async () => {
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'));
+  const player = new FullscreenPlayer();
+  const lines = [{ startMs: 1000 }, { startMs: 2000 }, { startMs: 2000 }, { startMs: 5000 }];
+  assert.equal(player.findCurrentLyricIndex(lines, 999), -1);
+  assert.equal(player.findCurrentLyricIndex(lines, 1000), 0);
+  assert.equal(player.findCurrentLyricIndex(lines, 2000), 2);
+  assert.equal(player.findCurrentLyricIndex(lines, 99999), 3);
+  assert.equal(player.findCurrentLyricIndex([], 1000), -1);
 });
 
 test('reopening fullscreen refreshes same-track lyrics and seek times without rebuilding unchanged lines', async () => {
@@ -428,7 +439,7 @@ test('fullscreen resets lyric mode before rendering a different track', async ()
 test('fullscreen lyrics use narrow apostrophes within English words without changing quotes or source data', async () => {
   const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'));
   const player = new FullscreenPlayer();
-  player.lyricsContainer = { innerHTML: '', addEventListener() {} };
+  player.lyricsContainer = { innerHTML: '', addEventListener() {}, querySelectorAll: () => [] };
   const line = {
     startMs: 1000,
     text: 'Cuz I’m on, don‘t stop, we＇re here. ‘你好’ “世界” <script>',
@@ -515,6 +526,33 @@ test('fullscreen lyric buttons switch mutually exclusively and close the active 
   assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), false);
   assert.equal(player.translationToggleBtn.classList.contains('mode-trans'), false);
   assert.equal(renderCount, 3);
+});
+
+test('fullscreen extra-lyric flags scan once per lyric array and refresh on replacement or empty lyrics', async () => {
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'));
+  const player = new FullscreenPlayer();
+  player.lyricTogglesEl = { style: {} };
+  player.romaToggleBtn = createLyricToggleButton();
+  player.translationToggleBtn = createLyricToggleButton();
+  player._updateLyricToggles(null);
+  assert.equal(player.lyricTogglesEl.style.display, 'none');
+  let reads = 0;
+  const lines = Array.from({ length: 500 }, () => ({
+    get translation() { reads++; return ''; },
+    get roma() { reads++; return ''; },
+  }));
+  const track = { id: 'same-track', lyrics: { lines } };
+  for (let update = 0; update < 100; update++) player._updateLyricToggles(track);
+  assert.equal(reads, 1000);
+  track.lyrics = { lines: [{ translation: '译文', roma: 'romaji' }] };
+  player._updateLyricToggles(track);
+  assert.equal(player.translationToggleBtn.style.display, 'grid');
+  assert.equal(player.romaToggleBtn.style.display, 'grid');
+  player.lyricMode = 'roma';
+  player._updateLyricToggles(track);
+  assert.equal(player.romaToggleBtn.classList.contains('mode-roma'), true);
+  player._updateLyricToggles({ id: 'other-track', lyrics: { lines: [] } });
+  assert.equal(player.lyricTogglesEl.style.display, 'none');
 });
 
 test('liked tracks continue past fifty full pages', async () => {

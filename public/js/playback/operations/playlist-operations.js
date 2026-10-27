@@ -231,7 +231,7 @@ export function createPlaylistOperations(deps) {
       const confirmed = await PlaybackComponents.showConfirmDialog({
         title: `添加到${platformLabel}歌单`,
         message: `确认将「${track.title || '当前歌曲'}」添加到「${playlist.title || playlist.id}」？`,
-        confirmText: '确定',
+        confirmText: '添加到歌单',
         cancelText: '取消',
       });
       if (!confirmed) return;

@@ -9,6 +9,45 @@ const { writeMusicPlaylistTracks } = require('../../src/music/lyrics-service');
 const COOKIE =
   'qqmusic_uin=123456; qqmusic_key=test-key; qm_keyst=test-client-key; qqmusic_guid=987654321; tmeLoginType=2';
 
+test('QQ liked pagination shares only one load and invalidates after writes or account changes', async () => {
+  let cookie = COOKIE;
+  const provider = new QQMusicProvider({ getAuthState: () => ({ loggedIn: true }), getCookieHeader: () => cookie });
+  let playlists = 0;
+  let details = 0;
+  provider.getLikedPlaylist = async () => { playlists++; return { id: '123' }; };
+  provider.requestMusicsClient = async () => {
+    details++;
+    return { code: 0, 'music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo': { code: 0, data: {
+      songlist: Array.from({ length: 250 }, (_, i) => ({ id: i + 1, mid: `song-${i}`, title: `Song ${i}`, singer: [] })),
+    } } };
+  };
+  const page = (offset, loadingSession = 'load-one') => provider.getLikedTracks({ limit: 100, offset, loadingSession });
+  assert.equal((await page(0)).length, 100);
+  assert.equal((await page(100))[0].sourceTrackId, 'song-100');
+  assert.equal((await page(200)).length, 50);
+  assert.deepEqual([playlists, details], [1, 1]);
+  await page(0, 'refresh');
+  assert.deepEqual([playlists, details], [2, 2]);
+  cookie = COOKIE.replace('123456', '789012');
+  await page(100);
+  assert.deepEqual([playlists, details], [3, 3]);
+  provider.addTracksToPlaylist = async () => ({ ok: true });
+  await writeMusicPlaylistTracks({ get: () => provider }, { platform: 'qq', tracks: [{ sourceTrackId: 'new' }] }, 'add');
+  await page(0);
+  assert.deepEqual([playlists, details], [4, 4]);
+});
+
+test('QQ public playlist fallback still requests each actual page', async () => {
+  const provider = createProvider();
+  provider.getLikedPlaylist = async () => ({ id: '123' });
+  provider.requestMusicsClient = async () => { throw new Error('client unavailable'); };
+  const offsets = [];
+  provider.requestJson = async (_url, params) => { offsets.push(params.song_begin); return { cdlist: [{ songlist: [] }] }; };
+  await provider.getLikedTracks({ limit: 100, offset: 0, loadingSession: 'public' });
+  await provider.getLikedTracks({ limit: 100, offset: 100, loadingSession: 'public' });
+  assert.deepEqual(offsets, ['0', '100']);
+});
+
 function createProvider() {
   return new QQMusicProvider({
     getAuthState: () => ({ loggedIn: true }),

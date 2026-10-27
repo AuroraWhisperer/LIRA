@@ -27,7 +27,7 @@ export class ProviderManager {
    */
   getSelectedSourceName() {
     if (!this.state) return '';
-    const map = { qq: 'QQ音乐', netease: '网易云音乐' };
+    const map = { qq: 'QQ 音乐', netease: '网易云音乐' };
     return map[this.state.selectedSource] || '';
   }
 

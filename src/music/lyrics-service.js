@@ -16,6 +16,7 @@ const { parseLyricResult } = require('./lyric-parser');
 const { AUTO_ACCEPT_SCORE, rankTrackCandidates } = require('./song-matcher');
 const { normalizeMusicPlatform } = require('./provider-registry');
 const { normalizeMusicTrackForProvider } = require('./track-contract');
+const { clearLikedTracksSessions } = require('./providers/liked-tracks-session');
 
 let compatibilityService = createLyricsService();
 
@@ -128,7 +129,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
     return {
       source: platform,
       action,
-      tracks: await provider.getLikedTracks({ limit, offset }),
+      tracks: await provider.getLikedTracks({ limit, offset, loadingSession: cleanText(input.loadingSession).slice(0, 100) }),
     };
   if (action === 'created-playlists') {
     const playlists = await provider.getCreatedPlaylists({ limit });
@@ -193,6 +194,7 @@ async function writeMusicPlaylistTracks(registry, body, operation) {
   const method = operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
   if (typeof provider[method] !== 'function') throw new Error('当前音乐 Provider 不支持修改歌单。');
   const result = await provider[method](playlist, tracks);
+  clearLikedTracksSessions(provider);
   return { source: platform, operation, playlist, result };
 }
 

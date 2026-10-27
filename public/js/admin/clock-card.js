@@ -66,8 +66,8 @@ function initClockCard() {
     try {
       const size = await readComponentOutputSize('clock').catch(() => null);
       await copyText(fixedUrl);
-      toast(size ? `时钟地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
-        : '时钟地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
+      toast(size ? `时钟浏览器源地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
+        : '时钟浏览器源地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
     }
     catch (error) { toast(error.message || '复制失败，请手动复制网址。'); }
   });

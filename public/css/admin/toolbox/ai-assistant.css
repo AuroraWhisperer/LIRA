@@ -139,6 +139,17 @@
   padding-top: var(--spacing-md);
   border-top: 1px solid var(--border);
 }
+.xiaomi-ai-access-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-sm) var(--spacing-md);
+}
+.xiaomi-ai-access-links a {
+  color: var(--accent);
+  font-size: var(--type-size-control);
+  text-underline-offset: 3px;
+}
 #xiaomiAiProtocolControl[hidden] + .xiaomi-ai-model-control {
   grid-column: 1 / -1;
 }

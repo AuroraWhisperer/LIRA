@@ -6,7 +6,7 @@
   container: gift-workspace / inline-size;
   align-content: start;
   gap: 14px;
-  height: calc(100vh - 58px - var(--player-dock-reserve, 96px));
+  height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 96px));
   padding: 16px 16px 4px;
   overflow-x: hidden;
   overflow-y: auto;
@@ -21,7 +21,7 @@
 }
 
 body.player-dock-expanded .gift-workspace {
-  height: calc(100vh - 58px - var(--player-dock-reserve, 218px));
+  height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 218px));
 }
 
 .gift-controls-grid {

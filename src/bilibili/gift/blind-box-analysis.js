@@ -10,10 +10,39 @@ const BLIND_BOX_ANALYSIS_SORTS = {
   boxes: new Set(['profit', 'boxCount', 'viewerCount', 'totalCost', 'totalValue']),
   records: new Set(['createdAt', 'profit', 'cost', 'value', 'num']),
 };
+const statsCache = new WeakMap();
 
-function getBlindBoxStats(context, { boxName = '' } = {}) {
+function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } = {}) {
+  if (!/^(?:-1|[0-9]|10)$/.test(String(top)) || ![true, false, '0', '1'].includes(hideLoss)) {
+    throw Object.assign(new Error('盲盒榜单参数无效。'), { code: 'INVALID_GIFT_STATS_OPTIONS' });
+  }
+  top = Number(top);
+  hideLoss = hideLoss === true || hideLoss === '1';
+  const project = (value) => {
+    let perUser = top === 0 ? [] : value.perUser;
+    if (hideLoss) perUser = perUser.filter((user) => user.totalProfit > 0);
+    if (top > 0) perUser = perUser.slice(0, top);
+    return structuredClone({ ...value, perUser });
+  };
+  boxName = cleanText(boxName);
+  const nowDate = new Date();
+  const source = resolveGiftSourceScope(context);
+  const revision = context.queryStore.getChangeToken?.();
+  const dayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
+  const dayEnd = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).getTime();
+  const key = revision == null || source.kind === 'unavailable' ? null
+    : JSON.stringify([source, revision, dayStart, dayEnd, boxName]);
+  const cached = statsCache.get(context);
+  if (key !== null && cached?.key === key) return project(cached.value);
+  const value = calculateBlindBoxStats(context, boxName, nowDate);
+  if (key !== null) statsCache.set(context, { key, value });
+  else statsCache.delete(context);
+  return project(value);
+}
+
+function calculateBlindBoxStats(context, boxName, nowDate) {
   const heartBoxOnly = cleanText(boxName) === '心动盲盒';
-  const { todayStart, rows: openings } = loadBlindBoxRows(context, { boxName, includeUnknownProfit: heartBoxOnly });
+  const { todayStart, rows: openings } = loadBlindBoxRows(context, { boxName, includeUnknownProfit: heartBoxOnly }, nowDate);
   const heartBoxProgress = heartBoxOnly ? summarizeHeartBoxProgress(openings) : null;
   const rows = heartBoxOnly ? openings.filter(row => row.blind_profit !== null) : openings;
   if (rows.length === 0) {
@@ -162,9 +191,8 @@ function getBlindBoxAnalysis(context, options = {}) {
   };
 }
 
-function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '', includeUnknownProfit = false } = {}) {
+function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '', includeUnknownProfit = false } = {}, nowDate = new Date()) {
   normalizeHistoryFilters({ startDate, endDate });
-  const nowDate = new Date();
   const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).toISOString();
   const today = [
     nowDate.getFullYear(),

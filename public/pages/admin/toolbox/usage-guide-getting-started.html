@@ -100,7 +100,7 @@
 <p>客户端没有切换或退出 LIRA 账号的按钮。要更换账号，先备份资料，再找管理员确认账号和设备如何处理。别直接删数据目录，也别复制别人的目录来换号；删本机文件不会清空服务器账本。</p></article></div>
 <h4 class="usage-guide-subsection-title" id="ug-connection">1.3 B 站登录与直播间</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head">
-<p><strong>大航海到期同步（可选）：</strong>在连接设置中选择账号来源。左侧已登录主播本人时，可直接复用；左侧使用机器人账号时，可单独登录直播间房主。第二个登录仅用于同步大航海到期日期，与弹幕、礼物和机器人账号隔离。先保存直播间号，再登录主播账号；之后在服务端主播中心总览查看七日内到期提醒。切回复用会移除单独保存的主播登录，详细用途可点设置项旁的问号。</p>
+<p><strong>大航海到期同步（可选）：</strong>在连接设置中选择账号来源。左侧登录的是主播本人账号时，可直接复用；左侧使用机器人账号时，可单独登录直播间房主账号。第二个登录仅用于同步大航海到期日期，与弹幕、礼物和机器人账号隔离。先保存直播间号，再登录主播账号；之后在服务端主播中心总览查看七日内到期提醒。切回复用会移除单独保存的主播登录，详细用途可点设置项旁的问号。</p>
 <h5 class="usage-guide-task-title"><strong>1.3.1 扫码登录、连接与刷新</strong></h5><span class="usage-guide-chip">直播必做</span>
 </div>
 
@@ -110,7 +110,7 @@
         </li>
 <li>在「连接你的 B 站直播间」里填你的直播间号，也可以直接粘贴直播间链接。</li>
 <li>
-          点<strong class="usage-guide-keyword">「保存设置」</strong>，等提示保存成功，再看一眼右上角的直播状态。连接异常会自动重试；若持续未恢复，可点右上角的<strong class="usage-guide-keyword">「刷新直播」</strong>。若提示登录失效，需要重新扫码登录。
+          点<strong class="usage-guide-keyword">「保存设置」</strong>，等提示保存成功，再看一眼右上角的直播状态。连接异常会自动重试；若持续未恢复，可点右上角的<strong class="usage-guide-keyword">「重新连接直播间」</strong>。若提示登录失效，需要重新扫码登录。
         </li>
 </ol>
 <figure class="usage-guide-figure">
@@ -140,7 +140,7 @@
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>1.4.2 关闭客户端后的运行范围</strong></h5></div>
 <p>
         礼物记录存在服务器上。自动答谢、弹幕查询礼物统计、签到机器人、抽签机器人、PK
-        对手信息播报、进场欢迎、完整匹配回复（完整触发词与菜单）、定时／随机弹幕都在服务器上运行。服务器弹幕姬也不需要客户端一直开着；固定回复中仅签到、抽签全天可用，其余项目仅直播中生效，下播保留开关。
+        对手信息播报、进场欢迎、完整匹配回复（完整触发词与菜单）、定时／随机弹幕都在服务器上运行。服务器弹幕姬也不需要客户端一直开着；固定回复中仅签到、抽签全天可用，其余项目仅直播中生效，下播后也会保留开关状态。
       </p>
 <p>
         这些功能要服务器和直播间都连着才能用。只关掉客户端，服务器上的功能不会停。想停止接收直播消息，就分别关掉弹幕姬的「监控弹幕」和礼物页的「监控礼物」，再确认设置已经同步。
@@ -178,7 +178,7 @@
 </article></div>
 <h4 class="usage-guide-subsection-title" id="ug-flow">1.6 开播检查与新手引导</h4>
 <p class="usage-guide-section-intro">
-    主界面顶部有五个页面：「点歌」「播放」「礼物」「组件」「百宝箱」。右上角简要显示已开播或未开播，点击状态可查看主播、直播间、弹幕和本机连接详情。旁边的刷新图标用于「刷新直播」，鼠标悬停可查看名称。
+    主界面顶部有五个页面：「点歌」「播放」「礼物」「组件」「百宝箱」。右上角简要显示已开播或未开播，点击状态可查看主播、直播间、弹幕和本机连接详情。旁边的刷新图标用于「重新连接直播间」，鼠标悬停可查看名称。
   </p>
 <figure class="usage-guide-figure">
 <img alt="LIRA 主界面，上方为点歌、播放、礼物、组件、百宝箱导航，下方为歌库与点歌队列" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/A/client-main-first-open.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
@@ -186,7 +186,7 @@
 </figure>
 <figure class="usage-guide-figure">
 <img alt="顶部五个页面、启用后的电音助手小图标、简短直播状态、刷新图标与窗口控制按钮" class="usage-guide-image" decoding="async" height="58" loading="lazy" src="/img/usage-guide/A/client-topbar-status.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>顶部：电音助手启用后显示在直播状态左侧；右侧的刷新图标用于「刷新直播」。</figcaption>
+<figcaption>顶部：电音助手启用后显示在直播状态左侧；右侧的刷新图标用于「重新连接直播间」。图中「刷新直播」现为「重新连接直播间」。</figcaption>
 </figure>
 <p>本机服务断连时，右上角显示「本机重连中」并弹出一次提示；提示消失后仍可点击状态查看详情。恢复连接后自动回到直播状态。正常未开播不使用警告色，接收弹幕也不代表已开播。</p>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head">
@@ -194,7 +194,7 @@
 </div>
 
 <p>第一次进主界面，会自动弹出新手引导，带你登录 B 站账号、连直播间、导入歌单、认识组件和画布、选音乐平台。引导会实际打开「组件」，介绍左侧六个组件的入口。</p>
-<p>照着气泡提示做完，再点「下一步」。跳过的步骤，用到之前要补上。走完引导不等于都设置好了。</p>
+<p>照着气泡提示做完，再点「下一步」。跳过的步骤，之后用到对应功能前要补上。走完引导不等于都设置好了。</p>
 <p>
       想再看一遍，点<strong class="usage-guide-keyword">「百宝箱 → 使用文档 → 重新查看新手引导」</strong>。
     </p>

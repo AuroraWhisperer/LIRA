@@ -12,28 +12,28 @@ const { createSceneOutputEvents } = require('./scene-output-events');
 const { createDisplayNotifications } = require('./display-notifications');
 const { readSceneSharedAppearances } = require('./scene-shared-appearance');
 
-function createSceneRuntime({ songDb, runtimeOptions, getState, getContext }) {
+function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
+  const getState = displayPorts.system.getState;
   const getOwner = runtimeOptions.getSceneOwner || (() => null);
   const demand = createDisplayDemand();
   const cloud = createCloudDisplayBuffer({ getOwner, onRead: demand.touch });
   const gifts = createSceneGiftEvents({ getOwner });
-  const getExtraDisplay = getContext ? createSceneExtraDisplay({ getContext, getOwner }) : () => null;
+  const getExtraDisplay = createSceneExtraDisplay({ displayPorts, getOwner });
   function notify({ invalidateTypes, ...change } = {}) {
     if (invalidateTypes) getExtraDisplay.invalidate?.(invalidateTypes);
     events.notify(change);
   }
   const service = createSceneService({ store: createSceneStore(songDb), getOwner,
-    getSharedAppearances: items => {
-      const context = getContext?.() || {};
-      return readSceneSharedAppearances({ ...context,
-        settings: context.settings || { get: () => getState().settings },
-        system: { getState, ...context.system }, readDanmakuDisplay: () => ({ config: cloud.getSettings() }) }, items);
-    },
+    getSharedAppearances: items => readSceneSharedAppearances({
+      settings: displayPorts.settings,
+      system: displayPorts.system,
+      readDanmakuDisplay: () => ({ config: cloud.getSettings() }),
+    }, items),
     onOutputChanged: notify,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
     ...createSceneComponentPorts({ getState, cloud,
-      getExtraDisplay: (type, readState) => ['gift-frame', 'guard-thanks'].includes(type)
-        ? gifts.getSnapshot(type) : getExtraDisplay(type, readState) }) });
+      getExtraDisplay: (type, readState, request) => ['gift-frame', 'guard-thanks'].includes(type)
+        ? gifts.getSnapshot(type) : getExtraDisplay(type, readState, request) }) });
   const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input) });
   const danmakuEvents = createDisplayNotifications({ getAccess() {
     const owner = getOwner();

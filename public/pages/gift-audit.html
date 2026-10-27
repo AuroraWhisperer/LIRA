@@ -32,7 +32,7 @@
           <button id="loadExampleBtn">📝 加载示例</button>
         </div>
         <div class="toolbar">
-          <label style="font-size: 0.8rem; color: var(--text2)">捕获时间</label>
+          <label style="font-size: 0.8rem; color: var(--text2)">气泡捕获时间</label>
           <input type="datetime-local" id="captureTime" style="width: 220px" />
         </div>
         <textarea
@@ -43,7 +43,7 @@
         ></textarea>
         <div class="toolbar">
           <button class="primary" id="parseAndCompareBtn">🔍 解析并对比</button>
-          <button id="clearAllBtn">🗑️ 清空</button>
+          <button id="clearAllBtn">🗑️ 清空气泡与对比结果</button>
           <button id="btnFetchServer">📡 拉取服务器礼物记录</button>
           <span id="serverStatus" class="hint"></span>
         </div>
@@ -66,7 +66,7 @@
       </div>
       <div class="stat-chip miss">
         <div class="val" id="statMiss">0</div>
-        <div class="lbl">⚠️ 仅气泡 (漏记)</div>
+        <div class="lbl">⚠️ 仅气泡（疑似漏记）</div>
       </div>
       <div class="stat-chip extra">
         <div class="val" id="statExtra">0</div>
@@ -164,8 +164,8 @@
       1. 在直播间页面按 <code>F12</code> 打开 DevTools<br />
       2. 用 Elements 面板找到 <code>.bubble-list</code> 元素（通常在 <code>#player-section</code> 内）<br />
       3. 右键 → <code>Copy → Copy outerHTML</code><br />
-      4. 粘贴到上方文本框，设置捕获时间，点击 <strong>解析并对比</strong><br />
-      5. <strong style="color: var(--red)">⚠️ 仅气泡</strong> = WebSocket 可能漏记的礼物；<strong
+      4. 粘贴到上方文本框，设置气泡捕获时间，点击 <strong>解析并对比</strong><br />
+      5. <strong style="color: var(--red)">⚠️ 仅气泡（疑似漏记）</strong> = WebSocket 可能漏记的礼物；<strong
         style="color: var(--green)"
         >✅ 双边匹配</strong
       >

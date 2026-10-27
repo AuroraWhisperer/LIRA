@@ -22,7 +22,7 @@ export function createWelcomeCustom({ documentRef, element, state, changed }) {
       const item = state.items[index];
       const row = documentRef.createElement('div');
       row.className = 'danmaku-welcome-custom-row';
-      for (const [key, title] of [['uid', 'B站 UID'], ['message', '欢迎词']]) {
+      for (const [key, title] of [['uid', 'B 站 UID'], ['message', '欢迎词']]) {
         const label = documentRef.createElement('label');
         const caption = documentRef.createElement('span');
         caption.textContent = title;
@@ -38,7 +38,7 @@ export function createWelcomeCustom({ documentRef, element, state, changed }) {
           input.pattern = '[1-9][0-9]{0,19}';
           input.placeholder = '填写用户 UID';
         } else {
-          input.maxLength = 160;
+          input.maxLength = 80;
           input.placeholder = '例如：欢迎 {username}，老朋友来啦～';
         }
         input.addEventListener('input', () => {

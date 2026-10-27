@@ -1,4 +1,5 @@
 'use strict';
+const { getLikedTracksSession } = require('./liked-tracks-session');
 
 const { readResponseText } = require('../../shared/response-body');
 
@@ -168,7 +169,8 @@ class NeteaseMusicProvider {
     await this.requireLogin('我喜欢需要先登录网易云音乐。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
-    const playlistId = await this.getLikedPlaylistId();
+    const session = await getLikedTracksSession(this, options.loadingSession);
+    const playlistId = session ? await (session.playlist ||= this.getLikedPlaylistId()) : await this.getLikedPlaylistId();
     return this.getPlaylistTracks(playlistId, { limit, offset });
   }
 

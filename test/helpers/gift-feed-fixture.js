@@ -56,7 +56,7 @@ function createGiftFeedFixture() {
               items: window.feedProfiles,
               partial: false,
             };
-          else if (url === '/api/overtime/gifts/catalog') data = { gifts: [] };
+          else if (url.startsWith('/api/overtime/gifts/catalog?')) data = { gifts: [] };
           else if (url.startsWith('/api/gifts/history?')) {
             window.feedScans += 1;
             data = { items: window.feedItems, viewRevision: window.feedRevision, nextCursor: null, partial: false };

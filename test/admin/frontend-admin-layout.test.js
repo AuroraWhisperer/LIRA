@@ -203,20 +203,13 @@ test('zoomed desktop routes keep scrolling below the titlebar and above the dock
   assert.match(narrow, /\.song-management-panel > \.tabs\s*\{[^}]*flex-wrap:\s*wrap/);
 });
 
-test('expanded toolbox navigation and planner lists retain visible scrolling affordances', () => {
+test('toolbox navigation and planner lists keep overflowing content scrollable', () => {
   const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
-  const expandedStyles = styles.replace(
-    /\.other-page\.sidebar-collapsed \.other-feature-sidebar(?:::-webkit-scrollbar)?\s*\{[^}]*\}/g,
-    '',
-  );
-  assert.doesNotMatch(
-    expandedStyles,
-    /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)[^{}]*\{[^}]*scrollbar-width:\s*none/,
-  );
-  assert.doesNotMatch(
-    expandedStyles,
-    /\.(?:other-feature-sidebar|streamer-planner|planner-note-list|planner-task-list)::-webkit-scrollbar[^{}]*\{[^}]*display:\s*none/,
-  );
+  for (const selector of ['other-feature-sidebar', 'planner-note-list', 'planner-task-list']) {
+    const rule = styles.match(new RegExp(`^\\s*\\.${selector}\\s*\\{[^}]*\\}`, 'm'))?.[0];
+    assert.ok(rule, `${selector} keeps its scrolling region`);
+    assert.match(rule, /overflow-y:\s*auto/);
+  }
 });
 
 async function createQueueWheelRuntime() {

@@ -540,6 +540,8 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await page.getByRole('button', { name: '解锁', exact: true }).waitFor();
   assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isDisabled(), true);
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true }).getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   await page.getByRole('button', { name: '锁定', exact: true }).waitFor();
   assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isEnabled(), true);
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('581');
@@ -548,6 +550,8 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).inputValue(), '670');
   assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).evaluate(input => input.checkValidity()), true);
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true }).getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   const added = new Set(['clock', 'queue']);
   for (const id of ['danmaku', 'overtime', 'queue', 'clock', 'queue']) {
     await choose(id);

@@ -32,7 +32,7 @@
 </details></article>
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.4 转转盘</strong></h5></div>
 <p>
-    转盘有自己的地址。填至少两个选项，给每项设份数，点「保存设置」后就能开始转。某项份数占总份数多少，抽中的概率就是多少。
+    转盘有自己的地址。填至少两个选项，给每项设份数，点「保存设置」后就能开始转。某项被抽中的概率，就是该项份数占总份数的比例。
   </p>
 <details class="usage-guide-foldout">
 <summary>查看转盘设置</summary>
@@ -44,7 +44,7 @@
 <article class="usage-guide-feature" id="ug-voting"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.4.5 弹幕投票</strong></h5></div>
 <p>打开「组件 → 弹幕投票」。投票和评分一次只能进行一场，输出地址见<a data-usage-guide-link href="#ug-vote-overlay">投票与评分画面</a>。</p>
 <p>
-<strong>弹幕投票：</strong>填投票主题（选填，最多 60 字符）和选项（每项最多 10 字符）。设好分钟、秒，或点一个时长预设，再点「开始投票」。观众按画面提示发选项。
+<strong>弹幕投票：</strong>填投票主题（选填，最多 60 字符）和选项（每项最多 10 字符）。设好投票时长（分钟和秒），或点一个时长预设，再点「开始投票」。观众按画面提示用弹幕发送选项。
     </p>
 <figure class="usage-guide-figure">
 <img alt="弹幕投票设置，有投票主题、投票选项、投票时长和开始投票按钮" class="usage-guide-image" decoding="async" height="696" loading="lazy" src="/img/usage-guide/E/toolbox-voting.webp" style="--usage-guide-image-width: 1426px" width="1426"/>
@@ -55,7 +55,7 @@
 <strong>观众评分：</strong>打开「组件 → 观众评分」，填主题，点「开始评分」。观众发 1–10
       的整数，平均分要等你结束后才公布。
     </p>
-<p>进行中可以看状态。投票到时自动结束，也可提前结束；评分点击「停止并公布平均分」后看结果。关闭结果后可开始另一场。</p>
+<p>进行中可以看状态。投票到设定时间后会自动结束，也可提前结束；评分时，点击「停止并公布平均分」后查看结果。关闭结果后可开始另一场。</p>
 <details class="usage-guide-foldout">
 <summary>查看评分设置</summary>
 <figure class="usage-guide-figure">
@@ -75,11 +75,11 @@
       选参与条件。动态可以按界面勾关注作者、点赞、转发等。视频只支持评论和关注，查不了视频的点赞和分享名单。勾选的条件要同时满足。
     </li>
 <li>
-      点「获取参与名单」，等勾选的名单全部拿完再开奖。只算点这个按钮之前发的评论。关注条件在开奖时才核对。
+      点「获取参与名单」，等勾选条件对应的名单都获取完，再开奖。只算点这个按钮之前发的评论。关注条件在开奖时才核对。
     </li>
-<li>看「中奖结果」和「开奖凭证」。需要留存时，请点击「复制中奖名单」保存所有页的中奖者，或保存结果截图。新建活动成功后清理已结束场次的名单和结果；启动 LIRA 时保留每个账号最新的一场及所有未结束活动，清理更早的已结束场次。「查看抽奖记录」只列出当前与未结束的抽奖，最多显示最近 50 场。</li>
+<li>看「中奖结果」和「开奖凭证」。需要留存时，请点击「复制中奖名单」，将所有分页的中奖者名单复制下来，或保存结果截图。新建活动成功后清理已结束场次的名单和结果；启动 LIRA 时保留每个账号最新的一场及所有未结束活动，清理更早的已结束场次。「查看抽奖记录」只列出当前与未结束的抽奖，最多显示最近 50 场。</li>
 </ol>
-<p>提示「B站限制了获取速度，请稍等」时，等它接着拿名单。名单没拿全会暂停，不会自己放宽你选的条件。</p>
+<p>提示「B 站限制了获取速度，请稍等」时，等它接着拿名单。名单没拿全会暂停，不会自己放宽你选的条件。</p>
 <figure class="usage-guide-figure">
 <img alt="动态抽奖页，上方是抽奖账号登录，下方是动态或视频链接、中奖人数和附加条件" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/dynamic-lottery-setup.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>先登录抽奖账号，再填抽奖设置。</figcaption>
@@ -107,6 +107,6 @@
 <div class="usage-guide-feature-list">
 <article class="usage-guide-feature" id="ug-pk-score">
 <div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.7.1 估算电池与金额</strong></h5></div>
-<p>打开「百宝箱 → 互动娱乐 → PK 算分」，输入需要的主播 PK 加分，即可查看所需电池、折合人民币和实际可得加分。默认非首胜、双倍时段开启；按本场情况选择首胜或关闭双倍。</p>
+<p>打开「百宝箱 → 互动娱乐 → PK 算分」，输入需要的主播 PK 加分，即可查看所需电池、折合人民币和实际可得加分。默认设置为非首胜，并开启双倍时段；按本场情况选择首胜或关闭双倍。</p>
 <p>换算按 10 电池 = 1 元；双倍时段每电池计 2 PK 条分，普通时段计 1 分，首胜不改变 PK 条的换算规则。主播加分按 PK 条得分 ÷ 50，首胜再乘 2，最后向下取整；所需电池向上取整。例如首胜且处于双倍时段，需要 239 分时按 2988 电池估算，可得加分仍为 239 分。下方列出每一步换算。</p>
 </article></div>

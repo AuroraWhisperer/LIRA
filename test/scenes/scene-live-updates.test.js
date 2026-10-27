@@ -6,11 +6,12 @@ const { randomUUID } = require('node:crypto');
 const { useSharedBrowser } = require('../helpers/shared-browser');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { createOverlayToken } = require('../../src/server/access-policy');
+const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 
 const openBrowserSession = useSharedBrowser();
 
-async function fixture(t, types = ['queue']) {
-  const runtime = await startCanvasOutputFixture({ notifications: true });
+async function fixture(t, types = ['queue'], extraContext) {
+  const runtime = await startCanvasOutputFixture({ notifications: true, extraContext });
   t.after(() => runtime.close());
   const browser = openBrowserSession();
   t.after(() => browser.close());
@@ -20,7 +21,7 @@ async function fixture(t, types = ['queue']) {
   page.on('pageerror', error => errors.push(error.message));
   t.after(() => assert.deepEqual(errors, []));
   const item = type => ({ id: randomUUID(), type, name: type, x: 0, y: 0, width: 640, height: 400,
-    visible: true, locked: false, appearance: { mode: 'independent', config: runtime.configs[type] } });
+    visible: true, locked: false, appearance: { mode: 'independent', config: runtime.configs[type] || createSceneExtraDefaults(type) } });
   const created = runtime.service.create({ title: 'Synthetic live updates', canvas: { width: 1280, height: 720 } });
   const saved = runtime.service.save({ id: created.document.id, expectedRevision: created.revision,
     document: { ...created.document, items: types.map(item) } });
@@ -47,6 +48,36 @@ async function openSubscribed(f) {
   await (await activeRead).finished();
   await f.page.frameLocator('iframe[title="queue"]').getByText('合成实时歌曲').waitFor();
 }
+
+test('mixed song and lyric frames keep their static content through state-only updates and reload', { timeout: 20000 }, async t => {
+  let songReads = 0;
+  const f = await fixture(t, ['songlist', 'lyrics'], { songs: { getChangeToken: () => 'one', list() {
+    songReads++; return [{ id: 1, name: '固定歌单内容', artist: '合成歌手' }];
+  } } });
+  f.runtime.lyricTimeline = { lines: [{ startMs: 0, endMs: 10000, text: '第一句' }, { startMs: 10000, endMs: 20000, text: '第二句' }] };
+  f.runtime.lyricState = { playing: false, currentMs: 0, lineText: '第一句', status: 'ready', generation: 1, sequence: 1 };
+  await f.page.goto(f.url);
+  const songs = f.page.frameLocator('iframe[title="songlist"]');
+  const lyrics = f.page.frameLocator('iframe[title="lyrics"]');
+  await songs.getByText('固定歌单内容', { exact: true }).first().waitFor();
+  await lyrics.getByText('第一句', { exact: true }).first().waitFor();
+  await f.page.waitForTimeout(250);
+  for (let index = 1; index <= 3; index++) {
+    const read = f.page.waitForResponse(responseFor('/api/scene/output', 1));
+    f.runtime.lyricState = { ...f.runtime.lyricState, currentMs: index * 100, sequence: index + 1 };
+    f.notify({ types: ['lyrics'] });
+    const payload = await (await read).json();
+    assert.equal(payload.data.data.songlist, undefined);
+    assert.equal(payload.data.data.lyrics.lyricTimeline, undefined);
+    assert.equal(payload.data.data.lyrics.lyricState.currentMs, index * 100);
+  }
+  await songs.getByText('固定歌单内容', { exact: true }).first().waitFor();
+  await lyrics.getByText('第一句', { exact: true }).first().waitFor();
+  assert.equal(songReads, 1);
+  await f.page.reload();
+  await songs.getByText('固定歌单内容', { exact: true }).first().waitFor();
+  await lyrics.getByText('第一句', { exact: true }).first().waitFor();
+});
 
 test('standalone danmaku shares notification delivery, preserves its URL and falls back after stream failure', { timeout: 20000 }, async t => {
   const f = await fixture(t);

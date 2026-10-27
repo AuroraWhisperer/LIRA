@@ -22,7 +22,7 @@
 <p>打开<strong class="usage-guide-keyword">「百宝箱 → 设置 → 内置播放器输出」</strong>，在「输出通道」里选择耳机、扬声器或声卡通道。默认选「系统默认输出」；看到「输出通道已切换并保存。」就设置好了，下次打开 LIRA 继续使用。</p>
 <p>这项设置控制 LIRA 内置播放器的声音。QQ 音乐和网易云音乐客户端仍在各自的设置里选择输出设备。</p>
 <p>列表按电脑实际设备和驱动显示。WASAPI、DirectSound、WaveOut 是不同的播放方式，同一声卡可能有多项；通常先用「系统默认输出」或 WASAPI。安装了 ASIO 驱动时也会出现对应选项，标为「连接待检查」的驱动要成功打开后才显示实际输出声道。接入声卡、安装驱动后点「刷新设备」，列表数量会随电脑变化。</p>
-<p>音频格式自动适配。麦克风、线路输入和声卡回送请到<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>选择。ASIO 播放不保证能被系统声音采集接住，需要声卡提供的硬件回送；想直接配合进程采集时优先使用 WASAPI。</p>
+<p>音频格式自动适配。麦克风、线路输入和声卡回送请到<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>选择。系统声音采集不一定能采到 ASIO 播放的声音；如需采集，需要声卡提供硬件回送。想直接配合进程采集时，优先使用 WASAPI。</p>
 <p>配合电音助手时，这里的输出通道与助手的「原声通道」选同一个设备，「最终输出」另选一个独立通道。处理内置播放时，要先关闭「当前歌曲」，再切换输出通道。具体步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
 <p>如果选中的设备被拔掉或暂时不可用，LIRA 会保留原选择并暂停播放。重新接好设备，或在这里换一个可用的输出通道后，再继续播放。</p>
 </article></div>
@@ -37,10 +37,10 @@
       打开<strong class="usage-guide-keyword">「百宝箱 → 桌面更新」</strong>，点<strong class="usage-guide-keyword">「检查并下载更新」</strong>。
     </li>
 <li>有新版本会自动开始下载，等待下载进度完成。下载失败时，可再次点击<strong class="usage-guide-keyword">「检查并下载更新」</strong>重试。</li>
-<li>下载完成后，点<strong class="usage-guide-keyword">「重启并更新」</strong>。</li>
+<li>下载完成后，点<strong class="usage-guide-keyword">「重启并安装更新」</strong>。</li>
 </ol>
 <p>
-    更新失败时，联系管理员取得新的安装包，按<a data-usage-guide-link href="#ug-reinstall">「更新、重新安装与卸载」</a>覆盖安装。
+    更新失败时，联系管理员取得新的安装包，按<a data-usage-guide-link href="#ug-reinstall">「更新、重装与卸载」</a>中的步骤覆盖安装。
   </p>
 <p>
     「启动时自动检查更新」只决定打开 LIRA 时是否检查；手动检查发现新版也会自动下载，下载完成后退出程序即安装。要反馈问题，点「日志目录」那一行的「打开目录」，错误记录在里面。别把「数据目录」当成日志目录。
@@ -58,7 +58,7 @@
 </figure>
 <figure class="usage-guide-figure">
 <img alt="更新下载完成后，桌面更新页显示重启并更新按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-ready.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>下载完成后，点「重启并更新」。</figcaption>
+<figcaption>下载完成后，点「重启并安装更新」。图中「重启并更新」现为「重启并安装更新」。</figcaption>
 </figure>
 </div>
 </details>

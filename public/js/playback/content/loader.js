@@ -31,6 +31,7 @@ export class ContentLoader {
     this._requestGeneration = 0;
     this._activeRequest = null;
     this._cacheRequestGenerations = new Map();
+    this._platformGenerations = new Map();
   }
 
   /**
@@ -55,6 +56,7 @@ export class ContentLoader {
       title: getHomeActionTitle(action),
       playlistId,
       platform,
+      platformGeneration: this._platformGenerations.get(platform) || 0,
       cacheKey,
       generation,
       homeGeneration: options.requestGeneration,
@@ -181,7 +183,7 @@ export class ContentLoader {
    */
   async _fetchByAction(request) {
     if (request.action === 'liked') {
-      return this._fetchLikedTracksAll(request.title, request.platform);
+      return this._fetchLikedTracksAll(request.title, request.platform, request.platformGeneration);
     }
     if (request.action === 'playlist-tracks') {
       return this._fetchPlaylistTracks(request.title, request.playlistId, request.platform);
@@ -232,25 +234,29 @@ export class ContentLoader {
    * @param {string} [platform] - 请求所属的平台
    * @returns {Promise<Object>} 加载结果
    */
-  async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '') {
+  async _fetchLikedTracksAll(title, platform = this.state?.selectedSource || '', platformGeneration = this._platformGenerations.get(platform) || 0) {
     const BATCH_SIZE = 100;
     let offset = 0;
     const allTracks = [];
     const seenPages = new Set();
+    const loadingSession = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
     while (true) {
+      if ((this._platformGenerations.get(platform) || 0) !== platformGeneration) break;
       const response = await fetch('/api/music/home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           platform,
           action: 'liked',
+          loadingSession,
           limit: BATCH_SIZE,
           offset: offset,
         }),
       });
 
       const payload = await this.readJsonResponse(response, '加载我喜欢失败');
+      if ((this._platformGenerations.get(platform) || 0) !== platformGeneration) break;
 
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || '加载我喜欢失败');
@@ -386,6 +392,7 @@ export class ContentLoader {
   }
 
   invalidatePlatform(platform) {
+    this._platformGenerations.set(platform, (this._platformGenerations.get(platform) || 0) + 1);
     const prefix = `${platform}:`;
     for (const key of this._cacheRequestGenerations.keys()) {
       if (key.startsWith(prefix)) this._cacheRequestGenerations.delete(key);

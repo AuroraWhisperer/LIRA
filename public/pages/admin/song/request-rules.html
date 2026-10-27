@@ -21,7 +21,7 @@
             </select>
           </label>
           <label>
-            只允许点歌库歌曲
+            只允许歌库歌曲
             <select id="onlyFromLibrary" data-dropdown-variant="settings">
               <option value="false">不限制</option>
               <option value="true">只允许歌库歌曲</option>
@@ -46,7 +46,7 @@
             <input id="queueLimit" type="number" min="1" max="300" />
           </label>
           <label>
-            <span>每人同时排队上限 <lira-help label="每人同时排队上限说明">0 表示不限制。按观众身份统计等待和 LIVE 歌曲，唱完或删除后释放名额。修改规则不会移除已排队的歌曲。</lira-help></span>
+            <span>每人同时排队上限 <lira-help label="每人同时排队上限说明">0 表示不限制。分别统计每位观众等待中的歌曲和 LIVE 歌曲，唱完或删除后释放名额。修改规则不会移除已排队的歌曲。</lira-help></span>
             <input id="userQueueLimit" type="number" min="0" max="300" step="1" value="0" required />
           </label>
           <div class="song-cooldown-setting">
@@ -68,7 +68,7 @@
         </div>
         <div class="song-request-rules song-board-section-body">
           <label>
-            <span>非大航海点歌间隔（秒） <lira-help label="非大航海点歌间隔说明">每位观众分别计时：同一观众成功点歌后，需等待设定秒数才能再次点歌，其他观众不受影响。填 0 表示不设间隔。大航海对应间隔留空时也沿用此值。</lira-help></span>
+            <span>非大航海点歌间隔（秒） <lira-help label="非大航海点歌间隔说明">每位观众单独计时：成功点歌后，需等待设定秒数才能再次点歌，其他观众不受影响。填 0 表示不设间隔；大航海对应间隔留空时也沿用此值。</lira-help></span>
             <input id="userCooldownSeconds" type="number" min="0" max="3600" />
           </label>
           <label>
@@ -91,7 +91,7 @@
         </div>
         <div class="song-request-rules song-request-eligibility song-board-section-body">
           <label>
-            <span>本直播间粉丝牌最低等级 <lira-help label="粉丝牌资格说明">0 表示不要求粉丝牌。设置后，观众须有本直播间对应等级的粉丝牌；其他直播间的牌子不计入。粉丝牌与大航海等级要求须同时满足。</lira-help></span>
+            <span>本直播间粉丝牌最低等级 <lira-help label="粉丝牌资格说明">0 表示不要求粉丝牌。设置后，观众须拥有本直播间的粉丝牌并达到所选等级；其他直播间的粉丝牌不计入。粉丝牌与大航海等级要求须同时满足。</lira-help></span>
             <input id="songRequestMinMedalLevel" type="number" min="0" max="100" step="1" value="0" required />
           </label>
           <label>
@@ -104,7 +104,7 @@
             </select>
           </label>
           <label>
-            <span>大航海免粉丝牌要求 <lira-help label="大航海免牌说明">开启后，本直播间有效大航海无需满足粉丝牌等级要求，仍须满足「大航海要求」。默认关闭。</lira-help></span>
+            <span>大航海免粉丝牌要求 <lira-help label="大航海免牌说明">开启后，本直播间的有效大航海用户无需满足粉丝牌等级要求，仍须满足「大航海要求」。默认关闭。</lira-help></span>
             <select id="songRequestGuardMedalBypass" data-dropdown-variant="settings">
               <option value="false">关闭</option>
               <option value="true">开启</option>
@@ -117,7 +117,7 @@
           <div class="song-board-section-title">
             <h3 id="songRequestBlacklistTitle" class="song-board-section-heading">
               点歌屏蔽词
-              <lira-help label="查看黑名单说明" tooltip-id="songRequestBlacklistHint"
+              <lira-help label="点歌屏蔽词说明" tooltip-id="songRequestBlacklistHint"
                 >仅拦截与词条完全一致的点歌内容，忽略首尾空格。例如 78 拦截「点歌78」，不拦截「点歌78号公路」。</lira-help
               >
             </h3>

@@ -7,6 +7,8 @@ const { createAiApiQuotaStore } = require('../ai/api-quota-store');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
 const { createDeepSeekClient } = require('../ai/deepseek-client');
 const { createDoubaoClient } = require('../ai/doubao-client');
+const { createChatGptSession } = require('../ai/chatgpt-session');
+const { createChatGptClient } = require('../ai/chatgpt-client');
 const { createAiRequestLogger } = require('../ai/request-logger');
 const { createQWeatherTool } = require('../ai/tools/qweather-tool');
 const { createAmapTool } = require('../ai/tools/amap-tool');
@@ -15,10 +17,11 @@ const { createAiAssistantService } = require('../ai/ai-assistant-service');
 const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifier');
 
 function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender }) {
-  const configStore = createAiConfigStore(
-    createAiStateStore(songDb),
-    runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
-  );
+  const persistence = createAiStateStore(songDb);
+  const secretCodec = runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage);
+  const configStore = createAiConfigStore(persistence, secretCodec);
+  const chatgptSession = createChatGptSession({ persistence, secretCodec,
+    openBrowser: runtimeOptions.openAiLoginBrowser, fetchImpl: runtimeOptions.fetchImpl });
   const quotaStore = createAiApiQuotaStore(songDb);
   const deliveryVerifier = createDanmakuDeliveryVerifier();
   const requestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ logDir: path.dirname(aiLogPath) });
@@ -31,6 +34,8 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
     quotaStore,
     deepseek: createDeepSeekClient({
       doubao,
+      chatgpt: createChatGptClient({ session: chatgptSession, fetchImpl: runtimeOptions.fetchImpl,
+        logEvent: (event) => requestLogger.log(event) }),
       fetchImpl: runtimeOptions.fetchImpl,
       logEvent: (event, options) => requestLogger.log(event, options),
     }),
@@ -59,7 +64,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
     if (shutdownPromise) return shutdownPromise;
     clearInterval(contextCleanupTimer);
     shutdownPromise = (async () => {
-      await service.shutdown();
+      await Promise.all([service.shutdown(), chatgptSession.shutdown()]);
       deliveryVerifier.dispose();
       await requestLogger.flush?.();
     })();
@@ -68,6 +73,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
 
   return {
     doubao,
+    chatgptSession,
     configStore,
     quotaStore,
     deliveryVerifier,

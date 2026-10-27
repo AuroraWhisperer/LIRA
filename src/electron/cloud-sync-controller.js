@@ -261,8 +261,12 @@ function createCloudSyncController(options = {}) {
         },
         onChange(event) {
           if (streamAbortController !== controller || controller.signal.aborted) return;
-          if (pendingSync || !hasNewCloudRevision(event)) return;
-          syncNow().catch((error) => {
+          if (!hasNewCloudRevision(event)) return;
+          if (pendingSync) {
+            mergePendingRevisions(pendingSync, event);
+            return;
+          }
+          syncNow(event).catch((error) => {
             void error;
           });
         },
@@ -510,17 +514,31 @@ function createCloudSyncController(options = {}) {
     }
   }
 
-  function syncNow() {
-    if (pendingSync) return pendingSync.promise;
+  function mergePendingRevisions(pending, event) {
+    for (const [scope, revision] of Object.entries(event?.scopes || {})) {
+      if (!VALID_SCOPES.has(scope) || !Number.isSafeInteger(Number(revision)) || Number(revision) < 0) continue;
+      pending.scopes[scope] = Math.max(pending.scopes[scope] ?? 0, Number(revision));
+    }
+  }
+
+  function syncNow(event) {
+    if (pendingSync) {
+      if (!event) pendingSync.force = true;
+      else mergePendingRevisions(pendingSync, event);
+      return pendingSync.promise;
+    }
     const work = {
       generation: lifecycleGeneration,
       accountKey,
       signal: requestController?.signal,
     };
-    const pending = {};
+    const pending = { force: !event, scopes: {} };
+    mergePendingRevisions(pending, event);
     pendingSync = pending;
     pending.promise = enqueue(() => {
       if (pendingSync === pending) pendingSync = null;
+      // An earlier upload/read may already have consumed this SSE revision.
+      if (!pending.force && !hasNewCloudRevision(pending)) return false;
       return runSync(work);
     });
     return pending.promise;

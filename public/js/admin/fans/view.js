@@ -78,7 +78,7 @@ export function renderPeople(profiles, selected, filtered, archived = false, exp
       const name = p.alias || p.platformName || '未命名档案';
       const platformName = p.alias && p.platformName && p.alias !== p.platformName ? p.platformName : '';
       const badge = !p.archived && badges.get(p.id)?.level === p.currentGuardLevel ? badges.get(p.id) : null;
-      const expiryTitle = badge ? `${levels[badge.level]}到期：${badge.days === 0 ? '今日到期' : `剩余${badge.days}天`}。来源：B站，更新于${new Date(expiry.observedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}（北京时间）。` : '';
+      const expiryTitle = badge ? `${levels[badge.level]}到期：${badge.days === 0 ? '今日到期' : `剩余${badge.days}天`}。来源：B 站，更新于${new Date(expiry.observedAt).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })}（北京时间）。` : '';
       return `<button type="button" class="fan-person ${selected === p.id ? 'is-selected' : ''}" data-fan-id="${attr(p.id)}" aria-pressed="${selected === p.id}">
     <span class="fan-person-copy"><span class="fan-person-line"><span class="fan-person-name"><strong class="fan-name" data-guard-level="${attr(p.currentGuardLevel || '')}" title="${attr(name + (platformName ? `（${platformName}）` : ''))}">${html(name)}${platformName ? `<wbr><span class="fan-person-platform-name">（${html(platformName)}）</span>` : ''}</strong>${p.favorite ? '<span class="fan-favorite-star" role="img" aria-label="特别关注" title="特别关注">★</span>' : ''}</span></span>
     ${p.summary || p.tags?.length ? `<span class="fan-person-summary">${html(p.summary || p.tags.slice(0, 2).join('、'))}</span>` : ''}
@@ -183,7 +183,7 @@ function membership(profile) {
   const summary = profile.membership;
   const accompany = profile.guardAccompany;
   const records = profile.records.filter((r) => r.kind === 'membership');
-  return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(summary, profile.guardRoster))}</h4>${button('new-membership', '编辑大航海')}</div>
+  return `<section class="fan-section"><div class="fan-section-title"><h4>${html(memberLabel(summary, profile.guardRoster))}</h4>${button('new-membership', '添加大航海记录')}</div>
     <dl class="fan-facts"><div><dt>B 站陪伴天数</dt><dd>${accompany ? `${accompany.days} 天 · 截至 ${html(dateLabel(accompany.observedAt))}${accompany.stale ? ' · 待更新' : ''}${accompany.inactive ? ' · 已暂停预计提醒' : ''}` : '暂未提取'}</dd></div>
     <div><dt>${summary.status === 'pending' ? '上次确认到期' : '到期日期'}</dt><dd>${summary.expiry ? html(summary.expiry.date) : '待补到期时间'}</dd></div>
     <div><dt>累计在舰${summary.status === 'pending' ? '（待核实）' : ''}</dt><dd>${summary.totalDays ?? '未知'}${summary.totalDays !== null ? ` 天 · 截至 ${html(summary.totalAsOf)}` : ''}</dd></div>

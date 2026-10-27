@@ -72,7 +72,7 @@ export function openComponentLibraryManager({ request = requestComponentStyles, 
     } catch (error) { if (!closed) status.textContent = error.message; }
     finally { setBusy(false); }
   });
-  button(actions, '恢复备份', () => { if (!busy) backupUpload.click(); });
+  button(actions, '从备份恢复为副本', () => { if (!busy) backupUpload.click(); });
 
   function setBusy(value) {
     busy = value;

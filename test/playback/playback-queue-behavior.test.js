@@ -7,6 +7,29 @@ const test = require('node:test');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+test('the published queue close action lets the first button click reopen the queue', async () => {
+  const app = await createPlaybackApp({ current: null, selectedSource: 'qq', mode: 'sequence', volume: 0.75 });
+  const getCloseQueuePopup = () => app.getCloseQueuePopup();
+  assert.equal(typeof getCloseQueuePopup(), 'function');
+  getCloseQueuePopup()(); // Admin can close dependent UI before playback initializes.
+  for (const id of ['queuePopup', 'queuePopupBackdrop', 'playbackQueueBtn']) {
+    const names = new Set();
+    app.element(id).classList = {
+      add: name => names.add(name),
+      remove: name => names.delete(name),
+      contains: name => names.has(name),
+    };
+  }
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQueueBtn', 'click');
+  assert.equal(app.element('queuePopup').classList.contains('open'), true);
+  getCloseQueuePopup()();
+  assert.equal(app.element('queuePopup').classList.contains('open'), false);
+  await app.emit('playbackQueueBtn', 'click');
+  assert.equal(app.element('queuePopup').classList.contains('open'), true);
+});
+
 test('clearing a partially published import preserves handled requests across restore', async (t) => {
   const waiting = [1, 2].map(id => ({ id, created_at: '2026-10-16T02:00:00Z', song_name: `request-${id}` }));
   const release = Promise.withResolvers();
@@ -49,7 +72,7 @@ test('pending matches remain visible before the first playable track is confirme
   await app.init();
   await flushAsyncWork();
   await app.emit('playbackQueueBtn', 'click');
-  assert.match(app.element('playbackQueueList').innerHTML, /等待核对的歌[\s\S]*下一首播放[\s\S]*跳过/);
+  assert.match(app.element('playbackQueueList').innerHTML, /等待核对的歌[\s\S]*设为下一首[\s\S]*跳过/);
   assert.doesNotMatch(app.element('playbackQueueList').innerHTML, /播放队列为空/);
 });
 

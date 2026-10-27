@@ -6,14 +6,15 @@ const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
 const { createAnsweringDeepseek, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 const { createDanmakuSenderService } = require('../../src/bilibili/danmaku/sender-service');
 
-test('Doubao account changes discard accepted replies and verification prevents new admissions', async t => {
+for (const config of [{ modelProvider: 'doubao' }, { modelProvider: 'openai', modelAuthMode: 'subscription', deepseekApiKey: '' }]) {
+test(`${config.modelProvider} account changes discard accepted replies and prevent new admissions`, async t => {
   let revision = 1;
   let ready = true;
   let generating = false;
   const pending = Promise.withResolvers();
   const sent = [];
   const service = createTestService({
-    config: { modelProvider: 'doubao' },
+    config,
     deepseek: {
       isReady: () => ready,
       getSessionRevision: () => revision,
@@ -37,6 +38,7 @@ test('Doubao account changes discard accepted replies and verification prevents 
   assert.deepEqual(sent, []);
   assert.equal(service.getStatus().lastError, '');
 });
+}
 
 test('switching into account mode cancels the previous provider generation', async t => {
   let signal;

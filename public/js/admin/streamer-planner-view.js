@@ -3,6 +3,11 @@
 import { NOTE_LABELS, EVENT_LABELS, getCalendarDays, toDateValue } from './streamer-planner-model.js';
 
 const byId = (id) => document.getElementById(id);
+const monthFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', timeZone: 'UTC' });
+const agendaFormat = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'short', timeZone: 'UTC' });
+const todayFormat = new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric', weekday: 'long', timeZone: 'UTC' });
+const noteFormat = new Intl.DateTimeFormat('zh-CN', { month: 'numeric', day: 'numeric', timeZone: 'UTC' });
+const calendarIndexes = new WeakMap();
 
 // Rendering consumes a detached snapshot; all edits are actions handled by streamer-planner.js.
 function createElement(tag, className = '', text = '') {
@@ -32,34 +37,48 @@ function iconButton(icon, label, action, id) {
   return button;
 }
 
-function formatDate(value, options) {
-  return new Intl.DateTimeFormat('zh-CN', options).format(new Date(`${value}T12:00:00`));
+function formatDate(value, formatter) {
+  // The input is already a local calendar date; UTC keeps reused formatters
+  // independent of the timezone that was active when this module loaded.
+  return formatter.format(new Date(`${value}T12:00:00Z`));
 }
 
-function eventsForDate(view, date) {
-  return view.planner.events.filter((event) => event.date === date).sort((a, b) => a.time.localeCompare(b.time));
+function calendarIndex(events) {
+  let index = calendarIndexes.get(events);
+  if (!index) {
+    index = { dates: new Map(), months: new Map() };
+    for (const event of events) {
+      const date = event.date;
+      if (!index.dates.has(date)) index.dates.set(date, []);
+      index.dates.get(date).push(event);
+      const month = date.slice(0, 7);
+      index.months.set(month, (index.months.get(month) || 0) + 1);
+    }
+    for (const events of index.dates.values()) events.sort((a, b) => a.time.localeCompare(b.time));
+    calendarIndexes.set(events, index);
+  }
+  return index;
 }
 
 export function renderTodoCalendar(view) {
-  byId('plannerMonthLabel').textContent = formatDate(`${view.month}-01`, {
-    year: 'numeric',
-    month: 'long',
-  });
+  const index = calendarIndex(view.planner.events);
+  const today = toDateValue();
+  byId('plannerMonthLabel').textContent = formatDate(`${view.month}-01`, monthFormat);
   byId('plannerMonthCount').textContent =
-    `本月 ${view.planner.events.filter((event) => event.date.startsWith(view.month)).length} 项安排`;
+    `本月 ${index.months.get(view.month) || 0} 项安排`;
   byId('plannerCalendarGrid').replaceChildren(
     ...getCalendarDays(view.month).map((day) => {
-      const events = eventsForDate(view, day.date);
+      const events = index.dates.get(day.date) || [];
       const button = createElement('button', 'planner-calendar-day');
       button.type = 'button';
       button.dataset.calendarDate = day.date;
       button.classList.toggle('is-outside', !day.isCurrentMonth);
-      button.classList.toggle('is-today', day.date === toDateValue());
+      button.classList.toggle('is-today', day.date === today);
       button.classList.toggle('is-selected', day.date === view.selectedDate);
       button.tabIndex = day.date === view.selectedDate ? 0 : -1;
       button.setAttribute('aria-pressed', String(day.date === view.selectedDate));
       button.setAttribute('aria-label', `${day.date}，${events.length} 项安排`);
-      if (day.date === toDateValue()) button.setAttribute('aria-current', 'date');
+      if (day.date === today) button.setAttribute('aria-current', 'date');
       button.append(createElement('span', 'planner-calendar-day-number', String(Number(day.date.slice(-2)))));
       if (events.length) {
         const event = events[0];
@@ -74,9 +93,9 @@ export function renderTodoCalendar(view) {
 
 export function renderTodoAgenda(view) {
   const date = view.selectedDate;
-  const events = eventsForDate(view, date);
+  const events = calendarIndex(view.planner.events).dates.get(date) || [];
   byId('plannerAgendaTitle').textContent =
-    `${date === toDateValue() ? '今天 · ' : ''}${formatDate(date, { month: 'long', day: 'numeric', weekday: 'short' })}`;
+    `${date === toDateValue() ? '今天 · ' : ''}${formatDate(date, agendaFormat)}`;
   byId('plannerAgendaCount').textContent = `${events.length} 项安排`;
   byId('plannerAgendaList').replaceChildren(
     ...(events.length
@@ -136,7 +155,7 @@ export function renderTodoTasks(view) {
   );
 }
 
-function renderNote(note, tasks) {
+function renderNote(note, taskIds) {
   const card = createElement('article', `planner-note-card note-${note.type}${note.pinned ? ' is-pinned' : ''}`);
   card.setAttribute('role', 'listitem');
   const head = createElement('div', 'planner-note-card-head');
@@ -146,17 +165,14 @@ function renderNote(note, tasks) {
     '',
     Number.isNaN(date.getTime())
       ? ''
-      : new Intl.DateTimeFormat('zh-CN', {
-          month: 'numeric',
-          day: 'numeric',
-        }).format(date),
+      : formatDate(toDateValue(date), noteFormat),
   );
   time.dateTime = note.createdAt;
   const pin = iconButton('pin', note.pinned ? '取消置顶' : '置顶备忘', 'notePin', note.id);
   pin.setAttribute('aria-pressed', String(note.pinned));
   head.append(createElement('span', 'planner-note-type', NOTE_LABELS[note.type]), time, pin);
   const actions = createElement('div', 'planner-note-card-actions');
-  const promoted = tasks.some((task) => task.id === note.promotedTaskId);
+  const promoted = taskIds.has(note.promotedTaskId);
   const promote = createElement('button', 'planner-note-promote', promoted ? '已加入待办' : '转为待办');
   promote.type = 'button';
   promote.dataset.notePromote = note.id;
@@ -173,21 +189,18 @@ function renderNote(note, tasks) {
 
 export function renderTodoNotes(view) {
   const notes = [...view.planner.notes].reverse().sort((a, b) => Number(b.pinned) - Number(a.pinned));
+  const taskIds = new Set(view.planner.tasks.map(task => task.id));
   byId('plannerNoteCount').textContent = `${notes.length} 条`;
   byId('plannerNoteList').replaceChildren(
     ...(notes.length
-      ? notes.map((note) => renderNote(note, view.planner.tasks))
+      ? notes.map((note) => renderNote(note, taskIds))
       : [createElement('p', 'planner-empty-state', '暂无备忘')]),
   );
 }
 
 export function renderTodo(view) {
   if (!byId('streamerPlanner')) return;
-  byId('plannerTodayLabel').textContent = formatDate(toDateValue(), {
-    month: 'long',
-    day: 'numeric',
-    weekday: 'long',
-  });
+  byId('plannerTodayLabel').textContent = formatDate(toDateValue(), todayFormat);
   const status = byId('plannerSaveState');
   status.textContent = view.readFailed
     ? '本机记录读取失败，已暂停写入'

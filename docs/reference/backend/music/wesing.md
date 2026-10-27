@@ -113,6 +113,8 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 
 ### 5.3 QRC 解密与解析(tryReadQrc / parseQrcDocument,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
+实体解码由 [qrc-xml-entities.js](../../../../src/music/qrc-xml-entities.js) 的 `decodeXmlEntities` 统一维护，与 QQ 音乐复用；`extractQrcLyricContent` 的提取规则仍由各自模块拥有。
+
 ```
 1. 读文件(≤4MB)→ 前 8 字节 ASCII 为 "[offset:" 时剥掉首个换行前的内容
 2. 剩余 payload 长度 % 8 !== 0 → 判非法
@@ -205,7 +207,7 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 
 流程:
 
-1. 每次解析读取最新偏好；智能选词开启时以 `Promise.allSettled` 并行查询 QQ、网易云，关闭时只查询首选平台。每平台搜索 `searchMusicTracks`（limit 20），由 `rankWeSingLyricTracks` 筛选：歌名经 NFKC、大小写、空白和引号归一化后，去括号内容的基础歌名必须一致；输入明确带括号版本时，完整歌名也必须一致；已知歌手必须命中歌手或括号别名，不能把子串当成歌手匹配。请求和候选均有时长时，误差不得超过 `MAX_DURATION_DISTANCE_MS = 5000`。不使用普通点歌对翻唱、Live、专辑的加减分。
+1. 每次解析读取最新偏好；智能匹配歌词开启时以 `Promise.allSettled` 并行查询 QQ、网易云，关闭时只查询首选平台。每平台搜索 `searchMusicTracks`（limit 20），由 `rankWeSingLyricTracks` 筛选：歌名经 NFKC、大小写、空白和引号归一化后，去括号内容的基础歌名必须一致；输入明确带括号版本时，完整歌名也必须一致；已知歌手必须命中歌手或括号别名，不能把子串当成歌手匹配。请求和候选均有时长时，误差不得超过 `MAX_DURATION_DISTANCE_MS = 5000`。不使用普通点歌对翻唱、Live、专辑的加减分。
 2. 平台内按时长距离从小到大取第一名（未知时长排后，同距离保留搜索顺序），读取其歌词，无行则弃。`selectBestLyricCandidate` 跨平台依次比较：时长距离 → `qualityScore`（1 + 有逐字词 + 有翻译）→ 歌词行数 → 首选平台。歌词完整度不能覆盖歌手、明确版本或时长匹配要求。
 3. 产出 `result`:`source`/`songMid`(取 track id)/`title`/`artists`/`durationMs = max(窗口时长, track 时长, 最后一行 endMs)`/`lines`
 4. 全部失败:有拒绝项则抛**第一个被拒绝项**的错误(`settled.find(status === 'rejected')`,供 weSingCapture 显示"在线歌词匹配失败"),否则 null

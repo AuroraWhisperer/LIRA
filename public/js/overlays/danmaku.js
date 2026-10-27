@@ -5,6 +5,7 @@ import { createComponentStyleEffects } from './component-style-effects.js';
 import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
+import { createTwitterRoomProfile } from './danmaku-twitter-profile.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { createOverlaySocket } from './socket-client.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
@@ -49,6 +50,11 @@ let currentFloatingDispersion = 50;
 let currentRandomPlacement = {};
 let effectConfig = {};
 let effects;
+const twitterProfile = createTwitterRoomProfile({
+  document,
+  resolveAvatarUrl: bilibiliAvatarSource,
+  loadProfile: loadTwitterRoomProfile,
+});
 function configureEffects(config) {
   effectConfig = config;
   effects?.update('danmaku', config);
@@ -67,11 +73,13 @@ document.addEventListener('DOMContentLoaded', () => {
       },
       showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true,
       clear: () => applyItems([]), append: appendItem, remove: removeSuperChats, status: setConnectionState, getStyle: () => currentOverlayStyle,
+      room: syncTwitterProfile,
       dispose() {
         window.removeEventListener('resize', syncRankedOverlayScale);
         if (renderFrame !== null) cancelAnimationFrame(renderFrame);
         feed?.destroy();
         effects?.dispose();
+        twitterProfile.dispose();
       },
     });
     return;
@@ -83,7 +91,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let sampleContentKey = '';
     let playNext;
     const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem, remove: removeSuperChats,
-      status: setConnectionState, getStyle: () => currentOverlayStyle, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
+      status: setConnectionState, getStyle: () => currentOverlayStyle, room: syncTwitterProfile, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
     initDanmakuPreview({
       initialStyle: params.get('style'),
       styleOptions: previewOptions,
@@ -121,6 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
             samples.find((item) => item.kind === 'gift' && !item.giftGuardLevel),
             samples.find((item) => item.giftGuardLevel === 3),
             samples.find((item) => item.kind === 'superchat')]
+          : style === 'twitter'
+          ? [samples.find((item) => !item.kind && !item.emotes),
+            samples.find((item) => item.kind === 'gift' && !item.giftGuardLevel),
+            samples.find((item) => item.giftGuardLevel === 3),
+            samples.find((item) => item.kind === 'superchat')]
           : style === 'prismatic'
           ? [samples.find((item) => Number(item.roomGuardLevel) === 3),
             samples.find((item) => item.id === 'preview-emote'), samples.find((item) => item.kind === 'gift')]
@@ -155,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
       feed?.destroy();
       feed = null;
       effects?.dispose();
+      twitterProfile.dispose();
       window.removeEventListener('pagehide', disposePreview);
       window.removeEventListener('lira:preview-dispose', disposePreview);
     };
@@ -190,6 +204,7 @@ function connectSocket() {
         return;
       }
       if (payload.type === 'danmaku:message' && payload.item) appendItem(payload.item);
+      if (payload.type === 'danmaku:superchat-delete') removeSuperChats(payload.messageIds);
     },
   });
   window.addEventListener('pagehide', disposeSocket, { once: true });
@@ -199,6 +214,26 @@ function connectSocket() {
 function disposeSocket() {
   socketController?.dispose();
   socketController = null;
+  twitterProfile.dispose();
+}
+
+function syncTwitterProfile(expectedRoomId) {
+  if (previewMode && !isSceneComponent()) {
+    twitterProfile.showPreview();
+    return;
+  }
+  twitterProfile.update(currentOverlayStyle, expectedRoomId ?? lastLiveStatus?.roomId);
+}
+
+async function loadTwitterRoomProfile({ signal }) {
+  const token = String(window.__API_TOKEN__ || '');
+  const response = await fetch('/api/bilibili/room/profile', {
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    credentials: 'omit', cache: 'no-store', signal,
+  });
+  const payload = await response.json();
+  if (!response.ok || !payload?.ok || !payload.data) throw new Error('ROOM_PROFILE_UNAVAILABLE');
+  return payload.data;
 }
 
 function applyItems(nextItems) {
@@ -229,6 +264,7 @@ function appendItem(item) {
 }
 
 function removeSuperChats(messageIds) {
+  if (!Array.isArray(messageIds)) return;
   const deleted = new Set(messageIds);
   const matches = (item) => item.kind === 'superchat' && deleted.has(item.messageId);
   const removedIds = items.filter(matches).map((item) => item.id);
@@ -268,15 +304,16 @@ function createOverlayFeed(style, durationSeconds) {
     autoScroll: false,
     resolveAvatarUrl: bilibiliAvatarSource,
     resolveEmoteUrl: bilibiliImageSource,
-    resolveGiftImageUrl: (value) =>
-      currentGiftImage === 'gift'
-        ? previewMode && DANMAKU_PREVIEW_GIFT_IMAGES.includes(value)
-          ? value
-          : bilibiliAvatarSource(value)
-        : '',
+    resolveGiftImageUrl: (value) => {
+      if (currentGiftImage !== 'gift') return '';
+      if (previewMode && DANMAKU_PREVIEW_GIFT_IMAGES.includes(value)) return value;
+      const source = String(value || '');
+      if (/^\/overtime-gift-images\/[a-z\d_-][a-z\d._-]*\.(?:png|jpe?g|gif|webp)$/iu.test(source) && !source.includes('..')) return source;
+      return bilibiliAvatarSource(value);
+    },
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
-    showGiftTotal: ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style),
+    showGiftTotal: ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox', 'ripploid', 'twitter', 'spooky'].includes(style),
   };
   if (isFloatingDanmakuStyle(style)) {
     options.layout = 'floating';
@@ -322,6 +359,7 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;
   if (changed || refreshPreview) createOverlayFeed(style, duration);
+  if (!isSceneComponent() && params.get('source') !== 'component') syncTwitterProfile();
   syncRankedOverlayScale();
 }
 
@@ -382,6 +420,7 @@ function applyLiveStatus(nextStatus) {
   if (nextStatus !== undefined) lastLiveStatus = nextStatus;
   const state = describeDanmakuConnection(lastLiveStatus, localSocketConnected);
   setConnectionState(state.text, state.connected);
+  if (!isSceneComponent() && params.get('source') !== 'component') syncTwitterProfile();
 }
 
 export function describeDanmakuConnection(liveStatus, localConnected) {

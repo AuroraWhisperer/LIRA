@@ -73,9 +73,9 @@ export function createRemotePreviewController(initial, send) {
     },
     receive(update) {
       if (stopped) return;
-      const nextKey = JSON.stringify(update.state);
+      const nextKey = update.state === undefined ? stateKey : JSON.stringify(update.state);
       const pendingCount = pending.length;
-      state = update.state;
+      if (update.state !== undefined) state = update.state;
       pending = pending.filter((command) => command.sequence === undefined || command.sequence > update.ack);
       if (nextKey === stateKey && pending.length === pendingCount) return;
       stateKey = nextKey;
@@ -92,6 +92,8 @@ export function createBrowserPreviewConnection({ id, token, component }) {
   let pendingSequence = 0;
   let controller;
   let display;
+  let stateRevision;
+  let displayRevision;
   let draftKey;
   let attachmentId;
   let focusId;
@@ -177,13 +179,17 @@ export function createBrowserPreviewConnection({ id, token, component }) {
     if (closed || polling) return;
     polling = true;
     try {
-      const update = await request({ action: 'read' });
+      const update = await request({ action: 'read', stateRevision, displayRevision });
       if (closed) return;
       draftKey = update.draftKey;
       controller.receive(update);
-      display = update.display;
-      applyRoomGuardState(display?.roomGuard);
-      for (const listener of displayListeners) listener(display);
+      stateRevision = update.stateRevision;
+      displayRevision = update.displayRevision;
+      if (Object.hasOwn(update, 'display')) {
+        display = update.display;
+        applyRoomGuardState(display?.roomGuard);
+        for (const listener of displayListeners) listener(display);
+      }
       if (update.focus && update.focus.id !== focusId && focusListener) {
         focusListener(update.focus);
         focusId = update.focus.id;
@@ -275,6 +281,8 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       }
       draftKey = initial.draftKey;
       controller = createRemotePreviewController(initial.state, send);
+      stateRevision = initial.stateRevision;
+      displayRevision = initial.displayRevision;
       display = initial.display;
       applyRoomGuardState(display?.roomGuard);
       timer = window.setTimeout(poll, 250);

@@ -27,6 +27,7 @@ export function openComponentPreview(selected = null) {
     connection.stopped = true;
     window.clearTimeout(connection.timer);
     connection.stopData?.();
+    connection.stopState?.();
     if (connection.session) void api('/api/component-preview', { action: 'revoke', id: connection.session.id },
       { notifyError: false, signal: AbortSignal.timeout(5000) }).catch(() => {});
     if (connection.opened) connection.options.onClose?.();
@@ -114,12 +115,20 @@ export function openComponentPreview(selected = null) {
   async function exchangeOnce(connection) {
     const { controller } = connection.options;
     if (closed || connection.stopped) return;
-    if (controller.getState().generation !== connection.generation) { close(); return; }
+    const state = connection.state || controller.getState();
+    if (state.generation !== connection.generation) { close(); return; }
     let received = false;
     try {
+      const display = displayOf(connection);
+      const stateKey = connection.stateKey ?? JSON.stringify(state);
+      const displayKey = JSON.stringify(display);
       const { data } = await post({ action: 'exchange', id: connection.session.id,
-        ack: connection.ack, state: controller.getState(), display: displayOf(connection) });
-      if (closed || controller.getState().generation !== connection.generation) { close(); return; }
+        ack: connection.ack, incremental: true,
+        ...(stateKey === connection.sentStateKey ? {} : { state }),
+        ...(displayKey === connection.sentDisplayKey ? {} : { display }) });
+      if (closed || (connection.state || controller.getState()).generation !== connection.generation) { close(); return; }
+      connection.sentStateKey = stateKey;
+      connection.sentDisplayKey = displayKey;
       received = true;
       connection.retryDelay = 1000;
       for (const command of data.commands) {
@@ -183,13 +192,21 @@ export function openComponentPreview(selected = null) {
         const connection = { options, generation: options.controller.getState().generation,
           ack: 0, display: null, timer: 0, retryDelay: 1000, opened: false };
         connections.push(connection);
+        connection.stopState = options.controller.subscribe?.((state) => {
+          connection.state = state;
+          connection.stateKey = JSON.stringify(state);
+        });
         connection.stopData = options.startActualData?.((data) => {
           if (options.id === 'canvas') connection.previewData = data.previewData;
           else connection.display = data;
         });
-        const response = await post({ action: 'open', component: options.id,
-          state: options.controller.getState(), display: displayOf(connection) });
+        const state = connection.state || options.controller.getState();
+        const display = displayOf(connection);
+        const stateKey = JSON.stringify(state), displayKey = JSON.stringify(display);
+        const response = await post({ action: 'open', component: options.id, state, display });
         connection.session = response.data;
+        connection.sentStateKey = stateKey;
+        connection.sentDisplayKey = displayKey;
         if (closed || options.controller.getState().generation !== connection.generation) {
           void post({ action: 'revoke', id: connection.session.id }).catch(() => {});
           close();

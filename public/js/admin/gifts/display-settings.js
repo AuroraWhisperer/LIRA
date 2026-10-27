@@ -3,6 +3,7 @@ import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
 import {
   createGiftBanner,
+  createGiftArtworkResolver,
   fitGiftBannerNames,
   GIFT_PALETTE,
   loadGiftArtworkCatalog,
@@ -16,7 +17,7 @@ export function createGiftDisplaySettings() {
     eventId: 'sample',
     gift: { giftId: '', giftName: '礼物', userName: '礼物样式预览', unitPrice: 1000, num: 1, guardLevel: null },
   };
-  let catalog = [];
+  let artwork = createGiftArtworkResolver([]);
   let sequence = 0;
   let saving = false;
   let previewVisible = false;
@@ -66,7 +67,7 @@ export function createGiftDisplaySettings() {
     if (thresholds.every((n) => Number.isSafeInteger(n) && n > 0)) {
       previewRoot.replaceChildren(
         ...GIFT_PALETTE.map(([start, end]) => {
-          const banner = createGiftBanner(sample, { ...draft, thresholds }, catalog);
+          const banner = createGiftBanner(sample, { ...draft, thresholds }, artwork);
           banner.style.setProperty('--gift-start', start);
           banner.style.setProperty('--gift-end', end);
           return banner;
@@ -151,7 +152,7 @@ export function createGiftDisplaySettings() {
     });
   });
   bindCopyUrl(get('giftFeedUrl'), {
-    onCopied: () => toast('本日礼物地址已复制'),
+    onCopied: () => toast('滚动礼物浏览器源地址已复制'),
     onError: error => { get('giftDisplayError').textContent = error.message; },
   });
   get('giftFeedPreviewBtn')?.addEventListener('click', () => openComponentPreview({ id: 'gift-feed' }));
@@ -180,7 +181,7 @@ export function createGiftDisplaySettings() {
       const nextCatalog = await loadGiftArtworkCatalog(AbortSignal.timeout(5000)).catch(() => []);
       if (current !== sequence) return;
       config = result.data;
-      catalog = nextCatalog;
+      artwork = createGiftArtworkResolver(nextCatalog);
       const url = `${localOverlayOrigin(location)}/gift-feed`;
       get('giftFeedUrl').textContent = url;
       get('giftDisplayError').textContent = '';

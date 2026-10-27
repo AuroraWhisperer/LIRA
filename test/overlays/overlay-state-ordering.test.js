@@ -282,34 +282,34 @@ test('blindbox applies WS settings without rebuilding unchanged data or acceptin
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.requests[0].resolve({ settings: { blindboxOverlayTitle: '旧标题' } });
   await flush();
-  assert.equal(f.requests.length, 3, 'settings changes also refresh filtered statistics');
-  f.requests[2].resolve(stats(5));
-  await pending;
+  assert.equal(f.requests.length, 2, 'settings refresh waits for the in-flight statistics request');
   f.requests[1].resolve(stats(-1));
   await flush();
+  assert.equal(f.element('blindboxSummary').writes, writes, 'invalidated statistics never render');
+  assert.equal(f.requests.length, 3, 'the pending refresh reads the latest statistics');
+  f.requests[2].resolve(stats(5));
+  await pending;
   assert.equal(f.element('blindboxTitle').textContent, '最新盲盒标题');
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.message(snapshot({}));
   assert.equal(f.element('blindboxTitle').textContent, '今日盲盒盈亏');
+  f.requests[3].resolve(stats(5));
+  await flush();
 });
 
-test('blindbox gift invalidation and newer HTTP statistics supersede older responses', async () => {
+test('blindbox gift invalidation queues fresh statistics and discards the in-flight response', async () => {
   const f = fixture('blindbox');
   f.context.connectSocket();
   const pending = f.context.loadStats();
   f.message(snapshot({}, 'bilibili:gift'));
-  f.requests[1].resolve(stats(20));
-  await flush();
+  assert.equal(f.requests.length, 1);
   f.requests[0].resolve(stats(-1));
+  await flush();
+  assert.equal(f.element('blindboxSummary').writes, 0, 'the response from before the gift must not render');
+  assert.equal(f.requests.length, 2);
+  f.requests[1].resolve(stats(20));
   await pending;
   assert.match(f.element('blindboxSummary').innerHTML, /\+¥20\.00/);
-  const older = f.context.loadStats();
-  const newer = f.context.loadStats();
-  f.requests[3].resolve(stats(30));
-  await newer;
-  f.requests[2].resolve(stats(-2));
-  await older;
-  assert.match(f.element('blindboxSummary').innerHTML, /\+¥30\.00/);
 });
 
 for (const name of ['games', 'wheel']) {

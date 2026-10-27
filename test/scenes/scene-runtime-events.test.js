@@ -10,12 +10,12 @@ const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrat
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 
-function fixture(t, getContext, getState = () => ({ settings: DEFAULT_SETTINGS })) {
+function fixture(t, ports = {}, getState = () => ({ settings: DEFAULT_SETTINGS })) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
   const state = { owner: { scope: 'synthetic-owner', epoch: 1 } };
-  const runtime = createSceneRuntime({ songDb: db, getContext, getState,
+  const runtime = createSceneRuntime({ songDb: db, displayPorts: { settings: { get: () => DEFAULT_SETTINGS }, system: { getState }, ...ports },
     runtimeOptions: { getSceneOwner: () => state.owner,
       sceneSecretCodec: { isAvailable: () => true,
         encrypt: value => Buffer.from(value).toString('base64'),
@@ -47,7 +47,7 @@ function response() {
   return res;
 }
 
-test('scene output shares one fresh local snapshot only across components that use it', async t => {
+test('scene output uses explicit read ports and shares a fresh local snapshot only where needed', async t => {
   let reads = 0;
   let lineText = '当前歌词';
   const getState = () => {
@@ -55,13 +55,15 @@ test('scene output shares one fresh local snapshot only across components that u
     return { settings: DEFAULT_SETTINGS, lyricState: { lineText, private: 'secret' }, lyricTimeline: { lines: [] },
       giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, private: 'secret' } };
   };
-  const { runtime } = fixture(t, () => ({ settings: { get: () => DEFAULT_SETTINGS }, system: { getState } }), getState);
-  for (const types of [['lyrics'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame']]) {
+  const { runtime } = fixture(t, { settings: { get: () => DEFAULT_SETTINGS }, system: { getState },
+    songs: { list: () => [{ id: 1, name: '公开歌曲', private: 'secret' }], getChangeToken: () => 1 } }, getState);
+  for (const types of [['lyrics'], ['songlist'], ['lyrics', 'songlist'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame']]) {
     const source = publish(runtime, types);
     reads = 0;
     const output = await runtime.service.getOutput(source);
     assert.equal(reads, types.some(type => ['lyrics', 'gift-sprint'].includes(type)) ? 1 : 0);
     assert.doesNotMatch(JSON.stringify(output.data), /secret|private/);
+    if (types.includes('songlist')) assert.equal(output.data.songlist.songs[0].name, '公开歌曲');
     if (types.includes('gift-sprint')) assert.deepEqual(output.data['gift-sprint'], { targetRmb: 1000, remainingCrystalBalls: 7 });
     if (types.includes('lyrics')) {
       assert.equal(output.data.lyrics.lyricState.lineText, lineText);
@@ -213,7 +215,7 @@ test('scene configuration notifications invalidate only requested slow projectio
   let reads = 0;
   const context = { gifts: { getViewRevision: () => 'same-revision' },
     giftWishes: { getSnapshot: async () => { reads++; return { items: [{ label }] }; } } };
-  const { runtime } = fixture(t, () => context);
+  const { runtime } = fixture(t, context);
   const source = publish(runtime, 'gift-wishes');
   const output = () => runtime.service.getOutput(source);
   assert.equal((await output()).data['gift-wishes'].items[0].label, '原许愿');

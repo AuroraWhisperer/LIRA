@@ -57,7 +57,7 @@ test('reading progress follows the chapter marker, ignores folded headings and r
   update(sections[0], 500, false);
   assert.equal(progress.attributes['aria-valuenow'], '50');
   assert.equal(detail.textContent, '1.1 安装');
-  assert.equal(nodes.get('.usage-guide-reading-remaining').textContent, '距下一章还剩 50%');
+  assert.equal(nodes.get('.usage-guide-reading-remaining').textContent, '本章还剩 50%');
 
   sections[1].top = 1250;
   update(sections[0], 500, false);
@@ -87,7 +87,7 @@ test('previous and next controls reuse chapter navigation and the last chapter c
 
   update(sections[2], 2300, false);
   assert.equal(next.disabled, true);
-  assert.equal(nodes.get('.usage-guide-reading-remaining').textContent, '距本章结束还剩 67%');
+  assert.equal(nodes.get('.usage-guide-reading-remaining').textContent, '本章还剩 67%');
   update(sections[2], 2500, true);
   assert.equal(nodes.get('.usage-guide-reading-track').attributes['aria-valuenow'], '100');
   assert.equal(nodes.get('.usage-guide-reading-remaining').textContent, '已到文档末尾');

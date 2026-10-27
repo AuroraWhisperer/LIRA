@@ -5,6 +5,8 @@
 
 const { now, cleanText, cleanTextPreserveLines, getInitial } = require('../shared/utils');
 const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('./song-import-schema');
+const songInitialCollator = new Intl.Collator('zh-Hans-CN');
+const songNameCollator = new Intl.Collator('zh-Hans-CN-u-co-pinyin');
 const { filterRandomSongCandidates, describeRandomSongScope, randomLanguageAliases } = require('./random-song-filter');
 const {
   splitSongLanguages,
@@ -77,9 +79,9 @@ function listSongs(
       return tagFilters.some((tag) => songTags.has(tag.toLocaleLowerCase()));
     })
     .sort((a, b) => {
-      const initialCompare = String(a.name_initial).localeCompare(String(b.name_initial), 'zh-Hans-CN');
+      const initialCompare = songInitialCollator.compare(String(a.name_initial), String(b.name_initial));
       if (initialCompare !== 0) return initialCompare;
-      return String(a.name).localeCompare(String(b.name), 'zh-Hans-CN-u-co-pinyin');
+      return songNameCollator.compare(String(a.name), String(b.name));
     })
     .map((row) => ({ ...row, is_enabled: Boolean(row.is_enabled) }));
 }
@@ -125,7 +127,7 @@ function listTags(store) {
   for (const row of store.listTagRows()) {
     for (const tag of splitSongTags(row.tags)) tags.add(tag);
   }
-  return Array.from(tags).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));
+  return Array.from(tags).sort(songInitialCollator.compare);
 }
 
 function ensureCategory(store, name) {

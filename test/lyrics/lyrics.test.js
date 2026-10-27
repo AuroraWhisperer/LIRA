@@ -7,9 +7,51 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseLyricResult, parseWordLyric } = require('../../src/music/lyric-parser');
 const { createLyricsService } = require('../../src/music/lyrics-service');
-const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
+const { musicCacheKey, writeMusicJsonCache, clearMusicCache, getMusicCacheStats } = require('../../src/music/music-cache');
 const { resolveMusicStream } = require('../../src/music/stream-resolver');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
+
+test('music cache reuses a directory inventory across writes and reconciles external additions', (t) => {
+  const directory = createScratchDirectory('music-cache-inventory-', t);
+  for (let i = 0; i < 100; i++) fs.writeFileSync(path.join(directory, `${i}.json`), '{}');
+  let scans = 0;
+  const originalRead = fs.readdirSync;
+  const read = t.mock.method(fs, 'readdirSync', (...args) => { scans++; return originalRead(...args); });
+  for (let i = 0; i < 20; i++) writeMusicJsonCache(directory, `new-${i}`, { text: 'lyric' });
+  assert.equal(scans, 1);
+  fs.writeFileSync(path.join(directory, 'external.json'), 'x'.repeat(10000));
+  writeMusicJsonCache(directory, 'last', { text: 'last' }, 500);
+  read.mock.restore();
+  const bytes = fs.readdirSync(directory).reduce((sum, name) => sum + fs.statSync(path.join(directory, name)).size, 0);
+  assert.ok(bytes <= 500);
+});
+
+test('music cache reconciles file events and closes watchers on clear without stale callback interference', (t) => {
+  const api = createScratchDirectory('music-cache-events-', t);
+  const lyrics = createScratchDirectory('music-cache-clear-', t);
+  const watchers = [];
+  t.mock.method(fs, 'watch', (_directory, options, callback) => {
+    assert.equal(options.persistent, false);
+    const watcher = { callback, closed: false, on(_event, handler) { this.error = handler; }, close() { this.closed = true; } };
+    watchers.push(watcher);
+    return watcher;
+  });
+  writeMusicJsonCache(api, 'external', { text: 'short' });
+  const first = watchers[0];
+  fs.writeFileSync(path.join(api, 'external.json'), 'x'.repeat(10000));
+  first.callback('change', 'external.json');
+  writeMusicJsonCache(api, 'fresh', { text: 'new' }, 500);
+  assert.equal(first.closed, true, 'budget reconciliation closes its old watcher');
+  assert.ok(getMusicCacheStats(api, lyrics).totalBytes <= 500);
+  writeMusicJsonCache(api, 'fresh', { text: 'newer' });
+  const current = watchers.at(-1);
+  first.error(new Error('late callback'));
+  assert.equal(current.closed, false);
+  writeMusicJsonCache(lyrics, 'lyric', { text: 'lyric' });
+  clearMusicCache(api, lyrics);
+  assert.ok(watchers.every(watcher => watcher.closed));
+  assert.equal(getMusicCacheStats(api, lyrics).totalBytes, 0);
+});
 
 test('music cache skips eviction sorting below its exact byte limit and evicts oldest files above it', (t) => {
   const directory = createScratchDirectory('music-cache-budget-', t);

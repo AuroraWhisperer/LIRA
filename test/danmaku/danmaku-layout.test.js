@@ -10,6 +10,7 @@ test('fixed defaults are bottom left; random regions fill the canvas', () => {
   assert.deepEqual(value.regions.bubble, { x: 40, y: 480, width: 570, height: 560 });
   assert.deepEqual(value.regions.minimal, { x: 40, y: 464, width: 588, height: 576 });
   assert.deepEqual(value.regions.identity, { x: 40, y: 424, width: 640, height: 616 });
+  assert.deepEqual(value.regions.twitter, { x: 40, y: 190, width: 530, height: 850 });
   for (const [style, region] of Object.entries(value.regions)) {
     if (layout.REGION_DEFAULTS[style]) {
       assert.equal(region.x, 40);
@@ -66,7 +67,7 @@ test('new default regions preserve previously saved dimensions', () => {
 });
 
 // Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic', 'harbor', 'snowfox', 'mist'];
+const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   for (const canvas of [undefined, { width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {

@@ -116,7 +116,7 @@
         <div class="danmaku-fixed-item" data-fixed-item="fortune">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”，同一天获得同一个结果，次日可重新抽取。开启后在云端运行，关闭客户端也不影响。</lira-help>
+              <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”时，当天重复抽取结果不变，次日可重新抽取。开启后在云端运行，关闭客户端也不影响。</lira-help>
             </div
             ><span class="danmaku-fixed-summary">收到“抽签”后回复每日一签</span
             ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
@@ -131,7 +131,7 @@
         <div class="danmaku-fixed-item" data-fixed-item="random">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌无匹配、歌曲冷却、队列已满、重复歌曲或仅歌库规则拦截时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
+              <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌没有匹配结果、歌曲仍在冷却、队列已满、歌曲重复，或点歌仅被歌库规则拦截时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
             </div
             ><span class="danmaku-fixed-summary">点歌未通过规则时自动回复</span
             ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
@@ -144,7 +144,7 @@
         <div class="danmaku-fixed-item" data-fixed-item="exact">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">单独发送完整触发词后回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表，已有系统指令优先。开启后在云端运行，每条回复都会 @ 发送弹幕的观众。</lira-help>
+              <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">观众发送的弹幕与触发词完全一致时，回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表；与系统指令重名时，系统指令优先。开启后在云端运行，每条回复都会 @ 触发观众。</lira-help>
             </div>
             <span class="danmaku-fixed-summary">完整匹配触发词后回复</span>
             <span id="danmakuExactState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
@@ -178,7 +178,7 @@
         <div class="danmaku-fixed-item" data-fixed-item="scheduled">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuScheduledTitle">定时／随机弹幕</strong><lira-help label="定时随机弹幕说明">直播中按固定秒数或随机秒数区间，从词库顺序或随机发送一条。启用后先等待一个间隔；停播、断线或关闭后停止，恢复时重新计时，不补发。开启后在云端运行。</lira-help>
+              <strong id="danmakuScheduledTitle">定时／随机弹幕</strong><lira-help label="定时随机弹幕说明">开启后在云端运行，直播中可按固定或随机时间间隔，从词库中按顺序或随机发送一条。首次发送前会先等待一个间隔；停播、断线或关闭功能后停止，恢复时重新计时，不补发。</lira-help>
             </div>
             <span id="danmakuScheduledSummary" class="danmaku-fixed-summary">直播中按间隔发送词库</span>
             <span id="danmakuScheduledState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
@@ -191,7 +191,7 @@
         <div id="danmakuQueryControls" class="danmaku-fixed-item danmaku-query-item" data-fixed-item="query">
           <div class="danmaku-fixed-copy">
             <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">通过弹幕查询礼物、盲盒或指定礼物的已记录统计。观众查询本人，主播查询全房；回复按账本动态生成。支持上月、去年和指定年月，开关与「礼物 → 弹幕查询」同步，关闭客户端后仍在云端运行。</lira-help>
+              <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">通过弹幕查询礼物或盲盒统计，也可按指定礼物单独查询。观众查询本人，主播查询全房；回复按账本动态生成。支持上月、去年和指定年月，开关与「礼物 → 弹幕查询」同步，关闭客户端后仍在云端运行。</lira-help>
             </div>
             <span class="danmaku-fixed-summary">礼物与盲盒统计 · 支持指定年月</span>
             <span id="danmakuQueryStatus" class="danmaku-fixed-note" role="status">正在读取云端状态…</span>
@@ -218,13 +218,13 @@
       <div id="danmakuSongReplyPanel" data-fixed-editor="random" hidden>
         <p class="hint">回复内容由系统根据点歌条件、歌曲和剩余时间生成，无需设置词库。以下为示例，发送时会自动 @ 发起点歌的观众。</p>
         <dl class="danmaku-song-reply-examples">
-          <div><dt>随机点歌无匹配</dt><dd>歌库里暂时没有「摇滚」这一类歌曲，请换个条件试试。</dd></div>
-          <div><dt>多个条件无匹配</dt><dd>你输入的组合条件「粤语＋民谣」暂时没有匹配歌曲，请调整组合条件后再试。</dd></div>
+          <div><dt>随机点歌无匹配</dt><dd>歌库里暂时没有「摇滚」类歌曲，换个条件试试～</dd></div>
+          <div><dt>多个条件无匹配</dt><dd>暂时没有同时符合「粤语＋民谣」的歌曲，换个条件试试～</dd></div>
           <div><dt>歌曲正在冷却</dt><dd>《晴天》冷却中，还需 2小时15分。<br />按自然日设置时：《晴天》冷却中，明天 00:00 后可再点。</dd></div>
           <div><dt>随机候选全部冷却</dt><dd>符合条件的歌曲都在冷却，请稍后再试。</dd></div>
-          <div><dt>队列已满</dt><dd>点歌队列已达到上限。</dd></div>
-          <div><dt>不允许重复点歌</dt><dd>队列里已经有这首歌。</dd></div>
-          <div><dt>只允许歌库歌曲</dt><dd>歌库里没有这首歌。</dd></div>
+          <div><dt>队列已满</dt><dd>点歌队列满啦，稍后再来试试～</dd></div>
+          <div><dt>不允许重复点歌</dt><dd>这首歌已经在队列里啦～</dd></div>
+          <div><dt>只允许歌库歌曲</dt><dd>歌库里没找到这首，换一首试试～</dd></div>
         </dl>
         <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，点歌规则仍然生效。点歌回复需保持客户端运行并登录直播账号。</p>
       </div>
@@ -235,7 +235,7 @@
             <span class="danmaku-blessing-index">内置</span>
             <div class="danmaku-custom-reply-fields">
               <label>触发词<input type="text" value="菜单" aria-label="内置回复的触发词" readonly /></label>
-              <label>回复内容<input type="text" value="签到、抽签、礼物特效、礼物查询、盲盒查询" aria-label="内置菜单的回复内容" readonly /></label>
+              <label>回复内容<input type="text" value="签到、抽签、今日礼物、今日盲盒；礼物特效后接数字ID" aria-label="内置菜单的回复内容" readonly /></label>
             </div>
           </div>
         </template>
@@ -273,7 +273,7 @@
             <div class="danmaku-welcome-library-heading">
               <label class="daily-library-search">搜索词库<input id="danmakuScheduledLibrarySearch" type="search" placeholder="查找文案" /></label>
               <span id="danmakuScheduledLibraryCount" class="hint">0 条</span>
-              <lira-help label="定时弹幕词库说明">初始词库内置 15 句参考 B 站官方说明与站内直播公告整理的文案，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 100 条，每条最多 120 字；保存后用于后续发送，空词库不会发送。</lira-help>
+              <lira-help label="定时弹幕词库说明">初始词库有 15 句文案，参考 B 站官方说明和站内直播公告整理，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 100 条，每条最多 120 字；保存后用于后续发送，空词库不会发送。</lira-help>
             </div>
             <div id="danmakuScheduledLibraryList" class="danmaku-blessing-list"></div>
             <div class="daily-library-list-actions">

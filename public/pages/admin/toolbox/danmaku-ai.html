@@ -25,7 +25,7 @@
     </div>
     <label class="switch-control"
       ><input id="xiaomiAiEnabled" type="checkbox" checked /><span class="switch-track"></span
-      ><span>启用 AI</span><lira-help>关闭并保存后立即取消排队、生成和未发送的回复；已发出的弹幕无法撤回。再次开启只处理新的触发弹幕，不补发旧回复。</lira-help></label
+      ><span>启用 AI</span><lira-help>关闭并保存后，立即取消正在排队、正在生成和尚未发送的回复；已发出的弹幕无法撤回。再次开启只处理新的触发弹幕，不补发旧回复。</lira-help></label
     >
   </div>
   <div class="xiaomi-ai-status-grid" aria-label="AI 互动助手状态">
@@ -42,8 +42,9 @@
           <label
             ><span>AI 平台 <lira-help>选择官方平台后，地址会自动填好。</lira-help></span>
             <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
-              <option value="auto">自动识别（兼容旧设置）</option>
+              <option value="auto">自动识别</option>
               <option value="deepseek">DeepSeek 官方</option>
+              <option value="kimi">Kimi / Moonshot 官方</option>
               <option value="openai">OpenAI 官方</option>
               <option value="anthropic">Claude 官方兼容</option>
               <option value="gemini">Gemini 官方兼容</option>
@@ -60,10 +61,39 @@
             >
           </div>
         </div>
+        <label id="xiaomiAiAuthModeControl" class="wide" hidden>
+          <span>接入方式</span>
+          <select id="xiaomiAiModelAuthMode" data-dropdown-variant="toolbox">
+            <option value="api">API Key（按 API 计费）</option>
+            <option value="subscription">ChatGPT 订阅（官方授权）</option>
+          </select>
+          <small>两种凭据分别保存，每次只使用所选方式；订阅额度不足时不会自动改用 API。</small>
+        </label>
+        <div id="xiaomiAiProviderAccess" class="wide" hidden>
+          <p id="xiaomiAiProviderAccessNote" class="hint"></p>
+          <div class="xiaomi-ai-connection-actions xiaomi-ai-access-links">
+            <a id="xiaomiAiApiConsole" target="_blank" rel="noopener noreferrer">打开官方 API 控制台</a>
+            <a id="xiaomiAiSubscriptionInfo" target="_blank" rel="noopener noreferrer" hidden>查看官方订阅说明</a>
+          </div>
+        </div>
+        <div id="xiaomiAiChatGptAccount" class="wide" hidden>
+          <label id="xiaomiAiChatGptProfileControl" hidden>ChatGPT 账号
+            <select id="xiaomiAiChatGptProfiles" aria-label="ChatGPT 账号"></select>
+          </label>
+          <p id="xiaomiAiChatGptState" class="hint" role="status" aria-live="polite">正在读取 ChatGPT 登录状态…</p>
+          <div class="xiaomi-ai-connection-actions xiaomi-ai-access-links">
+            <button id="xiaomiAiChatGptLogin" class="secondary" type="button">Continue with ChatGPT</button>
+            <button id="xiaomiAiChatGptAdd" class="secondary" type="button" hidden>添加账号</button>
+            <button id="xiaomiAiChatGptCancel" class="secondary" type="button" hidden>取消登录</button>
+            <button id="xiaomiAiChatGptLogout" class="secondary" type="button" hidden>退出当前账号</button>
+            <a href="https://chatgpt.com/settings/usage" target="_blank" rel="noopener noreferrer">管理订阅用量</a>
+          </div>
+          <small>在系统浏览器授权使用订阅，登录信息由本机系统加密保存。登录后获取模型，再测试连接。</small>
+        </div>
         <label id="xiaomiAiEndpointControl" class="wide"
           ><span
             >API 请求地址
-            <lira-help><span id="xiaomiAiEndpointHelp">接受服务根地址、v1 地址或完整接口地址。</span></lira-help></span
+            <lira-help><span id="xiaomiAiEndpointHelp">可填写服务根地址、v1 地址或完整接口地址。</span></lira-help></span
           ><input
             id="xiaomiAiDeepSeekUrl"
             type="url"
@@ -341,7 +371,7 @@
       <p id="xiaomiAiPersonaState" class="hint" role="status" aria-live="polite"></p>
       <div class="xiaomi-ai-persona-library-actions">
         <button id="xiaomiAiPersonaImport" class="secondary" type="button">导入角色包</button>
-        <button id="xiaomiAiPersonaExport" class="secondary" type="button">导出已保存预设</button>
+        <button id="xiaomiAiPersonaExport" class="secondary" type="button">导出当前预设</button>
         <button id="xiaomiAiPersonaCreate" class="secondary" type="button">另存为新预设</button>
         <button id="xiaomiAiPersonaReset" class="secondary" type="button">恢复默认</button>
         <button id="xiaomiAiPersonaDelete" class="secondary" type="button" disabled>删除预设</button>

@@ -29,34 +29,68 @@ export function giftExportPages(items, mode) {
   return pages;
 }
 
-export function resolveGiftArtwork(gift, catalog) {
+function guardArtwork(gift) {
   const purchasedGuardLevel =
     /^guard-([123])$/.exec(gift.giftId)?.[1] ||
     (gift.coinType === 'guard' ? ['总督', '提督', '舰长'].indexOf(gift.giftName) + 1 : 0);
-  if (purchasedGuardLevel) {
-    return getGuardIcon(purchasedGuardLevel);
+  return purchasedGuardLevel ? getGuardIcon(purchasedGuardLevel) : null;
+}
+
+const normalizeArtworkName = value => String(value || '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
+const artworkPath = path => /^\/overtime-gift-images\/[a-z0-9_-][a-z0-9._-]*\.webp$/i.test(path || '') && !path.includes('..')
+  ? path : GIFT_PLACEHOLDER;
+
+// Build once when a consumer accepts a new catalog snapshot. A raw mutable
+// array remains supported by resolveGiftArtwork for one-off callers.
+export function createGiftArtworkResolver(catalog = []) {
+  const variants = new Map();
+  const identities = new Map();
+  const add = (map, key, path) => map.set(key, map.has(key) ? null : path);
+  for (const entry of catalog) {
+    add(variants, entry.variantId || entry.giftIdentity?.variantId, entry.imagePath);
+    add(identities, JSON.stringify([String(entry.id), normalizeArtworkName(entry.name)]), entry.imagePath);
   }
-  const normalize = (value) =>
-    String(value || '')
-      .normalize('NFKC')
-      .replace(/\s+/gu, ' ')
-      .trim()
-      .toLowerCase();
+  return gift => guardArtwork(gift) || artworkPath(gift.giftVariantId
+    ? variants.get(gift.giftVariantId)
+    : identities.get(JSON.stringify([gift.giftId, normalizeArtworkName(gift.giftName)])));
+}
+
+export function resolveGiftArtwork(gift, catalog) {
+  if (typeof catalog === 'function') return catalog(gift);
+  const guard = guardArtwork(gift);
+  if (guard) return guard;
   const matches = catalog.filter((entry) =>
     gift.giftVariantId
       ? (entry.variantId || entry.giftIdentity?.variantId) === gift.giftVariantId
-      : String(entry.id) === gift.giftId && normalize(entry.name) === normalize(gift.giftName),
+      : String(entry.id) === gift.giftId && normalizeArtworkName(entry.name) === normalizeArtworkName(gift.giftName),
   );
   const path = matches.length === 1 ? matches[0].imagePath : '';
-  return /^\/overtime-gift-images\/[a-z0-9_-][a-z0-9._-]*\.webp$/i.test(path || '') && !path.includes('..')
-    ? path
-    : GIFT_PLACEHOLDER;
+  return artworkPath(path);
 }
 
 export async function loadGiftArtworkCatalog(signal) {
-  const response = await fetch('/api/overtime/gifts/catalog', { signal });
+  return (await requestGiftArtworkCatalog(signal))?.gifts || [];
+}
+
+export function createGiftArtworkCatalogReader() {
+  let contentRevision;
+  let catalog = [];
+  return async (signal) => {
+    const params = new URLSearchParams({ conditional: '1' });
+    if (contentRevision) params.set('contentRevision', contentRevision);
+    const snapshot = await requestGiftArtworkCatalog(signal, `?${params}`);
+    if (!snapshot?.unchanged) {
+      catalog = snapshot?.gifts || [];
+      contentRevision = snapshot?.contentRevision;
+    }
+    return catalog;
+  };
+}
+
+async function requestGiftArtworkCatalog(signal, query = '') {
+  const response = await fetch('/api/overtime/gifts/catalog' + query, { signal });
   if (!response.ok) throw new Error('礼物图片目录暂不可用');
-  return (await response.json()).data?.gifts || [];
+  return (await response.json()).data;
 }
 
 export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = giftAvatarSource) {

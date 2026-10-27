@@ -172,6 +172,36 @@ test('describes direct and alias terms against the song library', () => {
   assert.equal(description.hasCandidates, false);
 });
 
+test('random filtering compiles fixed aliases once instead of normalizing them per song', (t) => {
+  const songs = Array.from({ length: 5000 }, (_, index) => ({
+    name: `Song ${index}`, artist: '周杰伦', language: '国语', category_name: '流行', tags: '抒情',
+  }));
+  const lowerCase = String.prototype.toLocaleLowerCase;
+  let aliasNormalizations = 0;
+  t.mock.method(String.prototype, 'toLocaleLowerCase', function (...args) {
+    if (String(this) === 'japanese') aliasNormalizations++;
+    return lowerCase.apply(this, args);
+  });
+  assert.deepEqual(filterRandomSongCandidates(songs, '国语+周杰伦+抒情'), songs);
+  assert.equal(aliasNormalizations, 0, 'fixed alias groups were normalized at module initialization');
+});
+
+test('scope descriptions retain all unmatched terms and same-song AND semantics', () => {
+  const songs = [
+    { artist: 'A1 TRIP', language: 'English', tags: '抒情' },
+    { artist: 'B', category_name: 'rock', category_is_enabled: 0, tags: '情歌' },
+  ];
+  assert.deepEqual(describeRandomSongScope(songs, 'A1 TRIP+英语+情歌'), {
+    terms: ['A1 TRIP', '英语', '情歌'], unmatchedTerms: [], hasCandidates: true,
+  });
+  assert.deepEqual(describeRandomSongScope(songs, 'A1 TRIP+B+摇滚+治愈'), {
+    terms: ['A1 TRIP', 'B', '摇滚', '治愈'], unmatchedTerms: ['摇滚', '治愈'], hasCandidates: false,
+  });
+  assert.deepEqual(filterRandomSongCandidates([songs[1]], '抒情'), [], 'standard tags do not reverse-match viewer aliases');
+  assert.equal(describeRandomSongScope(songs, '').hasCandidates, true);
+  assert.equal(describeRandomSongScope([], '').hasCandidates, false);
+});
+
 test('song service only returns enabled library songs satisfying every term', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-random-filter-'));
   const databases = createDatabases({ dataDir });
@@ -234,26 +264,23 @@ test('danmaku song requests accept the song name with or without a separating sp
 
 test('ignores a random danmaku when no library song satisfies every term', () => {
   let added = false;
-  let persistedCooldown = false;
-  const state = { cooldownByUser: new Map() };
+  let recordedCooldown = false;
   const result = handleDanmakuMessage(
     {
       settings: () => ({ paused: 'false', userCooldownSeconds: '0' }),
       settingsStore: {
         getDefaultSettings: () => ({ userCooldownSeconds: '0' }),
       },
-      state,
+      userRequestCooldown: {
+        getLastRequestAt: () => 0,
+        recordAccepted() { recordedCooldown = true; },
+      },
       pickRandomSong(scopeText) {
         assert.equal(scopeText, '国语+周杰伦+摇滚');
         return null;
       },
       addQueueItem() {
         added = true;
-      },
-      cooldownStore: {
-        touch() {
-          persistedCooldown = true;
-        },
       },
     },
     {
@@ -266,8 +293,7 @@ test('ignores a random danmaku when no library song satisfies every term', () =>
   assert.equal(result.accepted, false);
   assert.match(result.reason, /全部条件/);
   assert.equal(added, false);
-  assert.equal(persistedCooldown, false);
-  assert.equal(state.cooldownByUser.size, 0);
+  assert.equal(recordedCooldown, false);
 });
 
 test('builds a direct mention auto-reply for a single unmatched random condition', () => {
@@ -281,7 +307,7 @@ test('builds a direct mention auto-reply for a single unmatched random condition
       settingsStore: {
         getDefaultSettings: () => ({ userCooldownSeconds: '0' }),
       },
-      state: { cooldownByUser: new Map() },
+      userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } },
       pickRandomSong: () => null,
       describeRandomSongScope: () => ({
         terms: ['摇滚'],
@@ -301,7 +327,7 @@ test('builds a direct mention auto-reply for a single unmatched random condition
 
   assert.equal(result.accepted, false);
   assert.deepEqual(result.autoReply, {
-    message: '歌库里暂时没有「摇滚」这一类歌曲，请换个条件试试。',
+    message: '歌库里暂时没有「摇滚」类歌曲，换个条件试试～',
     target: { uid: '123', name: 'Alice' },
   });
 });
@@ -314,7 +340,7 @@ test('builds a combination mention auto-reply and keeps it disabled by the switc
       enableRandomTagReply: 'false',
     }),
     settingsStore: { getDefaultSettings: () => ({ userCooldownSeconds: '0' }) },
-    state: { cooldownByUser: new Map() },
+    userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } },
     pickRandomSong: () => null,
     describeRandomSongScope: () => ({
       terms: ['国语', '摇滚'],
@@ -343,7 +369,7 @@ test('builds a combination mention auto-reply and keeps it disabled by the switc
     uid: '123',
   });
   assert.deepEqual(enabledResult.autoReply, {
-    message: '你输入的组合条件「国语+摇滚」暂时没有匹配歌曲，请调整组合条件后再试。',
+    message: '暂时没有同时符合「国语+摇滚」的歌曲，换个条件试试～',
     target: { uid: '123', name: 'Alice' },
   });
 });
@@ -369,7 +395,7 @@ test('failed random filters do not replace the latest mention target', () => {
         settingsStore: {
           getDefaultSettings: () => ({ userCooldownSeconds: '0' }),
         },
-        state: { cooldownByUser: new Map() },
+        userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } },
         pickRandomSong: () => null,
         addQueueItem() {
           assert.fail('a failed random filter must not create a request');

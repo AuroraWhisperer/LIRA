@@ -233,9 +233,9 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.locator('#playerFullscreen').evaluate(node => node.classList.contains('open')), false);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackPlayPause');
 
-  await page.getByRole('tab', { name: 'QQ音乐', exact: true }).press('ArrowRight');
+  await page.getByRole('tab', { name: 'QQ 音乐', exact: true }).press('ArrowRight');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackSourceNeteaseTab');
-  assert.equal(await page.getByRole('tab', { name: 'QQ音乐', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tab', { name: 'QQ 音乐', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Enter');
   assert.equal(await page.getByRole('tab', { name: '网易云音乐', exact: true }).getAttribute('aria-selected'), 'true');
   assert.equal(await page.getByRole('tabpanel', { name: '网易云音乐', exact: true }).count(), 1);
@@ -247,7 +247,7 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.locator('#playbackMusicWorkspace').isVisible(), false);
   assert.equal(await page.locator('#playbackSourceTabs').evaluate(node => node.inert), true);
   assert.equal(await page.locator('#playbackSourceTabs').isVisible(), true, 'Collapsed platform names remain visible as a summary.');
-  assert.deepEqual(await page.locator('.source-tab-label').allTextContents(), ['QQ音乐', '网易云音乐', '全民 K歌']);
+  assert.deepEqual(await page.locator('.source-tab-label').allTextContents(), ['QQ 音乐', '网易云音乐', '全民 K 歌']);
   assert.equal(await page.locator('.playback-navigation').evaluate(node => node.offsetHeight), musicNavigationHeight);
   await page.keyboard.press('Shift+Tab');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackMusicToggle');
@@ -260,16 +260,16 @@ test('shared controls compose with drawers, collapsible content and song tabs', 
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackSourceWeSingTab');
   assert.equal(await page.getByRole('tab', { name: '网易云音乐', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Space');
-  assert.equal(await page.getByRole('tab', { name: '全民 K歌', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tab', { name: '全民 K 歌', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('ArrowRight');
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackSourceQqTab');
-  assert.equal(await page.getByRole('tab', { name: '全民 K歌', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tab', { name: '全民 K 歌', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Enter');
-  assert.equal(await page.getByRole('tab', { name: 'QQ音乐', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tab', { name: 'QQ 音乐', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('ArrowLeft');
-  assert.equal(await page.getByRole('tab', { name: 'QQ音乐', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tab', { name: 'QQ 音乐', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Space');
-  assert.equal(await page.getByRole('tab', { name: '全民 K歌', exact: true }).getAttribute('aria-selected'), 'true');
+  assert.equal(await page.getByRole('tab', { name: '全民 K 歌', exact: true }).getAttribute('aria-selected'), 'true');
   await page.keyboard.press('Home');
   assert.equal(await page.locator('.source-tab[tabindex="0"]').count(), 1);
   assert.equal(await page.evaluate(() => document.activeElement.id), 'playbackSourceQqTab');

@@ -18,6 +18,7 @@ export function createStatePersistence(deps) {
   const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
   let playbackStateSaveTimer = null;
   let playbackStateSavePending = null;
+  let playbackStateSaveInFlight = null;
   let playbackStateSaveDirty = false;
   let snapshotSequence = 0;
   let completedSaveSequence = 0;
@@ -125,6 +126,10 @@ export function createStatePersistence(deps) {
   async function flushPlaybackStateSave() {
     const payload = takePendingPayload();
     if (!payload) return;
+    if (!playbackStateSaveInFlight ||
+      playbackStateSaveInFlight.snapshotVersion.sequence <= payload.snapshotVersion.sequence) {
+      playbackStateSaveInFlight = payload;
+    }
     try {
       const response = await fetch('/api/playback/queue-state', {
         method: 'POST',
@@ -136,6 +141,8 @@ export function createStatePersistence(deps) {
     } catch (_) {
       retainPendingPayload(payload);
       reportSaveResult(payload, false);
+    } finally {
+      if (playbackStateSaveInFlight === payload) playbackStateSaveInFlight = null;
     }
   }
 
@@ -173,14 +180,19 @@ export function createStatePersistence(deps) {
     return payload;
   }
 
+  function takeExplicitFlushPayload() {
+    if (!playbackStateSaveDirty && !playbackStateSavePending && playbackState.current) {
+      savePlaybackState();
+    }
+    if (playbackStateSaveDirty || playbackStateSavePending) return takePendingPayload();
+    return playbackStateSaveInFlight;
+  }
+
   /**
    * 在页面卸载时通过 IPC 和 HTTP 兜底通道提交同一份快照。
    */
   function flushPlaybackStateOnUnload() {
-    if (!playbackStateSaveDirty && !playbackStateSavePending && playbackState.current) {
-      savePlaybackState();
-    }
-    const payload = takePendingPayload();
+    const payload = takeExplicitFlushPayload();
     if (payload) sendUnloadSnapshot(payload);
   }
 
@@ -211,10 +223,7 @@ export function createStatePersistence(deps) {
 
   /** Electron 关闭服务前等待最后一份状态写入 SQLite。 */
   async function flushPlaybackStateForShutdown() {
-    if (!playbackStateSaveDirty && !playbackStateSavePending && playbackState.current) {
-      savePlaybackState();
-    }
-    const payload = takePendingPayload();
+    const payload = takeExplicitFlushPayload();
     if (!payload) return;
 
     if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {

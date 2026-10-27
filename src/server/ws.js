@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const { isUtf8 } = require('node:buffer');
 const { URL } = require('node:url');
 const { resolveRequestPrincipal } = require('./access-policy');
-const { projectWebSocketPayload } = require('./overlay-projection');
+const { getOverlayStateFields, projectWebSocketPayload } = require('./overlay-projection');
 
 const MAX_FRAME_BYTES = 256 * 1024; // 256 KB
 const MAX_MESSAGE_BYTES = 256 * 1024; // 256 KB across all fragments
@@ -96,7 +96,7 @@ function createWebSocketHub(options = {}) {
       !sendWebSocket(socket, {
         type: 'snapshot',
         reason: 'connect',
-        state: context.getState(),
+        state: readSnapshot(context, [socket]),
       })
     ) {
       dropSocket(socket);
@@ -346,19 +346,21 @@ function createWebSocketHub(options = {}) {
       const payload = {
         type: 'snapshot',
         reason: next.reason,
-        state: next.context.getState(),
+        state: readSnapshot(next.context, sockets),
       };
+      const frames = new Map();
       for (const socket of Array.from(sockets)) {
-        if (!sendWebSocket(socket, payload)) dropSocket(socket);
+        if (!sendWebSocket(socket, payload, frames)) dropSocket(socket);
       }
     });
   }
 
   function broadcast(payload, options = {}) {
     const topic = String(options.topic || '');
+    const frames = new Map();
     for (const socket of Array.from(sockets)) {
       if (topic && !socket._wsTopics?.has(topic)) continue;
-      if (!sendWebSocket(socket, payload)) dropSocket(socket);
+      if (!sendWebSocket(socket, payload, frames)) dropSocket(socket);
     }
   }
 
@@ -390,14 +392,34 @@ function createWebSocketHub(options = {}) {
   };
 }
 
-function sendWebSocket(socket, payload) {
+function readSnapshot(context, sockets) {
+  const fields = new Set();
+  for (const socket of sockets) {
+    if (socket._wsPrincipal?.type === 'admin') return context.getState();
+    const requested = getOverlayStateFields(socket._wsPrincipal?.scope);
+    if (requested === null) return context.getState();
+    for (const field of requested) fields.add(field);
+  }
+  return context.getState([...fields]);
+}
+
+function sendWebSocket(socket, payload, frames) {
   if (!socket._wsPrincipal) return false;
-  const projected = projectWebSocketPayload(socket._wsPrincipal, payload);
-  if (projected === null) return true;
-  return sendWebSocketFrame(socket, Buffer.from(JSON.stringify(projected)), 0x1);
+  const key = `${socket._wsPrincipal.type}:${socket._wsPrincipal.scope || ''}`;
+  let frame = frames?.get(key);
+  if (frame === undefined) {
+    const projected = projectWebSocketPayload(socket._wsPrincipal, payload);
+    frame = projected === null ? null : encodeWebSocketFrame(Buffer.from(JSON.stringify(projected)), 0x1);
+    frames?.set(key, frame);
+  }
+  return frame === null || writeWebSocketFrame(socket, frame);
 }
 
 function sendWebSocketFrame(socket, payload, opcode) {
+  return writeWebSocketFrame(socket, encodeWebSocketFrame(payload, opcode));
+}
+
+function encodeWebSocketFrame(payload, opcode) {
   const length = payload.length;
   let header;
   if (length < 126) {
@@ -413,7 +435,10 @@ function sendWebSocketFrame(socket, payload, opcode) {
     header[1] = 127;
     header.writeBigUInt64BE(BigInt(length), 2);
   }
-  const frame = Buffer.concat([header, payload]);
+  return Buffer.concat([header, payload]);
+}
+
+function writeWebSocketFrame(socket, frame) {
   const pendingBytes = Math.max(0, Number(socket.writableLength) || 0);
   const maxPendingBytes = Math.max(1, Number(socket._wsMaxPendingBytes) || MAX_PENDING_BYTES);
   if (socket.destroyed || pendingBytes + frame.length > maxPendingBytes) return false;
@@ -443,11 +468,12 @@ function handleWebSocketUpgrade(context, req, socket, head) {
 }
 
 function broadcastSnapshot(context, reason) {
-  const payload = { type: 'snapshot', reason, state: context.getState() };
   const sockets = context && context.state && context.state.sockets;
   if (!sockets) return;
+  const payload = { type: 'snapshot', reason, state: readSnapshot(context, sockets) };
+  const frames = new Map();
   for (const socket of Array.from(sockets)) {
-    sendWebSocket(socket, payload);
+    sendWebSocket(socket, payload, frames);
   }
 }
 

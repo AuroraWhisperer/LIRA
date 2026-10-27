@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="46" viewBox="0 60 1080 46" preserveAspectRatio="none"><defs>
+    <linearGradient id="flower-small-gift-paper" x2="0" y2="1"><stop stop-color="#e8d8c0"/><stop offset=".38" stop-color="#faf7f3"/><stop offset=".85" stop-color="#fff"/></linearGradient>
+    <linearGradient id="flower-small-gift-wash" x2="0" y2="1"><stop stop-color="#7d6456"/><stop offset=".2" stop-color="#7d6456"/><stop offset="1" stop-color="#cfc6bf"/></linearGradient>
+    <linearGradient id="flower-small-gift-base-wash" x2="0" y2="1"><stop stop-color="#8e826f"/><stop offset="1" stop-color="#cfc6bf"/></linearGradient>
+    <pattern id="flower-small-gift-stripe" width="52" height="106" patternUnits="userSpaceOnUse" patternTransform="translate(28 0) skewX(9)"><rect width="52" height="106" fill="url(#flower-small-gift-base-wash)"/><rect width="26" height="106" fill="url(#flower-small-gift-wash)"/></pattern>
+  </defs><rect x="41" y="3" width="996" height="90" rx="16" fill="url(#flower-small-gift-stripe)" stroke="#8b7d73" stroke-width="2.4"/>
+      <rect x="48" y="10" width="983" height="77" rx="15" fill="#fff9e7" stroke="#8d7b68" stroke-width="2"/>
+      <rect x="54" y="14" width="971" height="68" rx="16" fill="url(#flower-small-gift-paper)" stroke="#8b795e" stroke-width="2.6"/>
+      <path d="M49 3C54 23 46 47 48 70S44 86 47 93M61 3C56 26 62 52 57 75S61 89 59 93M48 76Q56 69 59 79Q53 89 48 76" fill="none" stroke="#8c7d62" stroke-width="1.2"/></svg>

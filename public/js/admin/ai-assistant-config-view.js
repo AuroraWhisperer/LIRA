@@ -1,9 +1,11 @@
 'use strict';
+import { isSubscriptionSelected, renderSubscriptionStatus } from './ai-assistant-subscription.js';
 
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
   trigger: ['xiaomiAiTrigger', 'value'],
   modelProvider: ['xiaomiAiModelProvider', 'value'],
+  modelAuthMode: ['xiaomiAiModelAuthMode', 'value'],
   deepseekResponsesUrl: ['xiaomiAiDeepSeekUrl', 'value'],
   modelApiProtocol: ['xiaomiAiModelApiProtocol', 'value'],
   deepseekApiKey: ['xiaomiAiDeepSeekKey', 'secret', 'hasDeepSeekApiKey'],
@@ -67,6 +69,7 @@ export function collectConfig() {
 }
 
 export function renderConfig(config, preservedFieldIds = new Set()) {
+  config = { modelAuthMode: 'api', ...config };
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element || preservedFieldIds.has(id)) continue;
@@ -98,6 +101,7 @@ export function renderConfigSummary(config, savedConfig = {}) {
     document.getElementById('xiaomiAiModelState').textContent = '豆包';
     renderDoubaoStatus(doubaoStatus);
   }
+  renderSubscriptionStatus();
 }
 
 export function renderToolSettings() {
@@ -120,7 +124,12 @@ export function renderProviderSelection(value, options = {}) {
   const config = value && typeof value === 'object' ? value : null;
   const provider = String(config?.modelProvider || value || 'auto');
   const accountMode = provider === 'doubao';
-  const official = ['deepseek', 'openai', 'anthropic', 'gemini'].includes(provider);
+  const official = ['deepseek', 'kimi', 'openai', 'anthropic', 'gemini'].includes(provider);
+  const authMode = document.getElementById('xiaomiAiModelAuthMode');
+  if (authMode && provider !== 'openai') authMode.value = 'api';
+  const authControl = document.getElementById('xiaomiAiAuthModeControl');
+  if (authControl) authControl.hidden = provider !== 'openai';
+  const subscription = isSubscriptionSelected();
   const endpointLocked = official || accountMode || options.keepEndpointLocked === true;
   const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
   const protocolInput = document.getElementById('xiaomiAiModelApiProtocol');
@@ -136,11 +145,11 @@ export function renderProviderSelection(value, options = {}) {
   if (protocolControl) protocolControl.hidden = official || accountMode;
   for (const id of ['xiaomiAiEndpointControl', 'xiaomiAiKeyControl', 'xiaomiAiModelControl', 'xiaomiAiCapabilitiesControl', 'xiaomiAiToolsControl']) {
     const element = document.getElementById(id);
-    if (element) element.hidden = accountMode;
+    if (element) element.hidden = accountMode || (subscription && ['xiaomiAiEndpointControl', 'xiaomiAiKeyControl'].includes(id));
   }
   for (const id of ['xiaomiAiDeepSeekKey', 'xiaomiAiModel', 'xiaomiAiFetchModelsBtn']) {
     const element = document.getElementById(id);
-    if (element) element.disabled = accountMode;
+    if (element) element.disabled = accountMode || (subscription && id === 'xiaomiAiDeepSeekKey');
   }
   const accountControl = document.getElementById('xiaomiAiDoubaoAccount');
   if (accountControl) accountControl.hidden = !accountMode;
@@ -148,6 +157,7 @@ export function renderProviderSelection(value, options = {}) {
   const labels = {
     auto: ['自动识别', '保留原有设置；首次设置时建议选择你使用的 AI 平台。'],
     deepseek: ['DeepSeek 官方', '地址会自动填好，可以调整思考强度。'],
+    kimi: ['Kimi 官方', '使用 Moonshot 开放平台 API，可获取账号可用的 Kimi 模型。'],
     openai: ['OpenAI 官方', '使用 OpenAI 官方服务，地址会自动填好。'],
     anthropic: ['Claude 官方兼容', '使用 Claude 官方兼容服务，部分功能不可用。'],
     gemini: ['Gemini 官方兼容', '使用 Gemini 官方兼容服务，可以调整思考强度。'],
@@ -159,8 +169,30 @@ export function renderProviderSelection(value, options = {}) {
   setText('xiaomiAiProviderNote', note);
   setText(
     'xiaomiAiEndpointHelp',
-    official ? '官方预设地址不可编辑；切换到自定义后可修改。' : '接受服务根地址、v1 地址或完整接口地址。',
+    official ? '官方预设地址不可编辑；切换到自定义后可修改。' : '可填写服务根地址、v1 地址或完整接口地址。',
   );
+  renderProviderAccess(provider, subscription);
+  renderSubscriptionStatus();
+}
+
+function renderProviderAccess(provider, subscription) {
+  const links = {
+    deepseek: ['https://platform.deepseek.com/api_keys', '', '使用开放平台 API Key；网页登录不会自动连接 LIRA。'],
+    kimi: ['https://platform.moonshot.cn/console/api-keys', 'https://www.kimi.com/en/help/kimi-code/membership-guide', '使用 Moonshot 开放平台密钥。Kimi 会员 / Kimi Code 订阅不用于这里的弹幕自动回复。'],
+    openai: ['https://platform.openai.com/api-keys', 'https://learn.chatgpt.com/docs/sign-in-with-chatgpt', '可选择 API 或 ChatGPT 订阅；订阅接入是否可用以官方授权结果为准。'],
+    anthropic: ['https://platform.claude.com/settings/keys', 'https://code.claude.com/docs/en/legal-and-compliance', 'Claude 订阅未开放此类应用内授权；这里使用 Claude API Key。'],
+    gemini: ['https://aistudio.google.com/apikey', 'https://ai.google.dev/gemini-api/docs/billing', '这里使用 Google AI Studio 的 API Key，按 API 项目权限与额度调用。'],
+  };
+  const panel = document.getElementById('xiaomiAiProviderAccess');
+  if (!panel) return;
+  const entry = links[provider];
+  panel.hidden = !entry || subscription;
+  if (!entry) return;
+  setText('xiaomiAiProviderAccessNote', entry[2]);
+  document.getElementById('xiaomiAiApiConsole').href = entry[0];
+  const info = document.getElementById('xiaomiAiSubscriptionInfo');
+  info.hidden = !entry[1];
+  info.href = entry[1];
 }
 
 function renderModelCapabilities(endpoint = {}) {
@@ -181,18 +213,21 @@ function renderModelCapabilities(endpoint = {}) {
   const reasoningControl = document.getElementById('xiaomiAiReasoningControl');
   const effortControl = document.getElementById('xiaomiAiReasoningEffortControl');
   const providerManaged = document.getElementById('xiaomiAiProviderManagedReasoning');
-  const configurableReasoning = ['effort', 'deepseek_effort', 'gemini_effort'].includes(reasoningMode);
+  const configurableReasoning = ['effort', 'deepseek_effort', 'gemini_effort', 'kimi_thinking'].includes(reasoningMode);
   if (reasoningControl) reasoningControl.hidden = !configurableReasoning;
-  if (effortControl) effortControl.hidden = !configurableReasoning;
+  if (effortControl) effortControl.hidden = !configurableReasoning || reasoningMode === 'kimi_thinking';
   if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed';
   setText('xiaomiAiReasoningLabel', '深度思考');
   if (reasoningMode === 'effort') {
     setText('xiaomiAiReasoningHelp', '开启后可选强度；「服务默认」沿用平台设置。');
   } else if (reasoningMode === 'deepseek_effort') {
-    setText('xiaomiAiReasoningHelp', '开启后可选强度。DeepSeek 支持低、高、最高，其他等级自动就近匹配。');
+    setText('xiaomiAiReasoningHelp', '开启后可选强度。DeepSeek 支持「低」「高」「最高」，选择其他等级时会自动匹配到最接近的等级。');
   } else if (reasoningMode === 'gemini_effort') {
-    setText('xiaomiAiReasoningHelp', '开启后可选最低至高；能否关闭思考取决于 Gemini 模型。');
+    setText('xiaomiAiReasoningHelp', '开启后可选择「最低」至「高」的思考强度；能否关闭思考取决于 Gemini 模型。');
+  } else if (reasoningMode === 'kimi_thinking') {
+    setText('xiaomiAiReasoningHelp', 'K2.5 / K2.6 可开关思考；K3 始终思考，关闭此选项时使用低强度。其他模型沿用平台默认。');
   }
+  if (isSubscriptionSelected()) setText('xiaomiAiReasoningHelp', 'ChatGPT 订阅关闭此选项时使用低强度；可用强度取决于所选模型。');
   syncReasoningEffortAvailability();
 }
 
@@ -212,6 +247,7 @@ export function renderStatus(status) {
   document.getElementById('xiaomiAiQueueState').textContent = String(status.queued || 0);
   if (status.lastError) document.getElementById('xiaomiAiSaveState').textContent = `最近错误：${status.lastError}`;
   if (status.doubao) renderDoubaoStatus(status.doubao);
+  if (status.chatgpt) renderSubscriptionStatus(status.chatgpt);
 }
 
 export function renderDoubaoStatus(status) {

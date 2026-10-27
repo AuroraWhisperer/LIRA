@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { decryptQrc } = require('qrc-decoder');
 const { parseLyricResult } = require('./lyric-parser');
+const { decodeXmlEntities } = require('./qrc-xml-entities');
 
 const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_LOG_SCAN_BYTES = 4 * 1024 * 1024;
@@ -293,17 +294,6 @@ function decodeJsonString(value) {
   } catch (_) {
     return String(value || '');
   }
-}
-
-function decodeXmlEntities(value) {
-  return String(value || '')
-    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(Number.parseInt(code, 16)))
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&amp;/g, '&');
 }
 
 module.exports = {

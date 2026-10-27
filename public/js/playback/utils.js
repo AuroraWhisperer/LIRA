@@ -301,6 +301,6 @@ export function getNextMode(currentMode) {
  */
 export function getSourceName(source) {
   if (source === 'netease') return '网易云音乐';
-  if (source === 'wesing') return '全民 K歌';
-  return 'QQ音乐';
+  if (source === 'wesing') return '全民 K 歌';
+  return 'QQ 音乐';
 }

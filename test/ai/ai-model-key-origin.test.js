@@ -58,6 +58,26 @@ function fixture(t, config = {}) {
   return { db, store, service, requests };
 }
 
+test('subscription and API credentials coexist without rebinding an API key across providers', t => {
+  const { store } = fixture(t, { modelProvider: 'kimi', deepseekApiKey: 'fixture-kimi-key' });
+  store.updateConfig({ modelProvider: 'openai', modelAuthMode: 'subscription' });
+  assert.equal(store.getConfig().deepseekApiKey, 'fixture-kimi-key');
+  assert.throws(() => store.updateConfig({ modelAuthMode: 'api' }), { code: 'AI_KEY_ORIGIN_CHANGED' });
+  store.updateConfig({ modelProvider: 'doubao' });
+  store.updateConfig({ modelProvider: 'kimi' });
+  assert.equal(store.getConfig().deepseekApiKey, 'fixture-kimi-key');
+  assert.equal(store.getConfig().modelAuthMode, 'api');
+  assert.equal(store.getConfig().deepseekResponsesUrl, 'https://api.moonshot.cn/v1');
+});
+
+test('OpenAI API key survives subscription switching and is reused only at its original origin', t => {
+  const { store } = fixture(t, { modelProvider: 'openai', deepseekApiKey: 'fixture-openai-key' });
+  store.updateConfig({ modelAuthMode: 'subscription' });
+  store.updateConfig({ modelAuthMode: 'api' });
+  assert.equal(store.getConfig().deepseekApiKey, 'fixture-openai-key');
+  assert.equal(store.getConfig().modelAuthMode, 'api');
+});
+
 test('Doubao preserves an official key origin across reload without replacing the saved custom endpoint', async (t) => {
   const { db, store } = fixture(t);
   store.updateConfig({ modelProvider: 'openai', deepseekApiKey: 'openai-test-key' });

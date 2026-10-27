@@ -86,7 +86,7 @@ export function renderComparison(results) {
           rowClass = '';
           break;
         case 'miss':
-          statusBadge = '<span class="badge badge-miss">⚠️ 仅气泡</span>';
+          statusBadge = '<span class="badge badge-miss">⚠️ 仅气泡（疑似漏记）</span>';
           rowClass = 'diff-highlight';
           break;
         case 'extra':

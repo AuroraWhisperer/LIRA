@@ -21,7 +21,7 @@ test('playback page offers a dedicated WeSing source and cache capture workspace
   const headerStyles = read('public', 'css', 'playback', 'header.css');
   const panelStyles = readCssBundle('public', 'css', 'playback', 'panels.css');
 
-  assert.match(html, /data-source="wesing"[\s\S]*全民 K歌/);
+  assert.match(html, /data-source="wesing"[\s\S]*全民 K 歌/);
   assert.match(html, /data-source="wesing"[\s\S]*src="\/img\/playback\/wesing-icon\.png"/);
   assert.match(html, /id="playbackWeSingView"/);
   assert.match(html, /id="weSingCachePath"/);
@@ -144,7 +144,7 @@ test('WeSing pushes only refresh the active provider when its health changes', a
 
   await app.emit('source-tab-wesing', 'click');
   await flushAsyncWork();
-  assert.equal(app.element('playbackSourceStatus').textContent, '已检测到全民 K歌');
+  assert.equal(app.element('playbackSourceStatus').textContent, '已检测到全民 K 歌');
   playerRenders = 0;
   for (let index = 0; index < 20; index++) {
     await app.emitWindow('app:wesing-state', { detail: {
@@ -156,7 +156,7 @@ test('WeSing pushes only refresh the active provider when its health changes', a
     platformDetected: false, status: 'inactive', message: '等待检测',
   } });
   assert.equal(playerRenders, 1);
-  assert.equal(app.element('playbackSourceStatus').textContent, '全民 K歌等待检测');
+  assert.equal(app.element('playbackSourceStatus').textContent, '全民 K 歌等待检测');
   assert.equal(app.element('playbackProviderHealth').textContent, '等待检测');
   assert.equal(app.resolveStreamRequestCount(), 0, 'status pushes do not request song quality or stream URLs');
 });

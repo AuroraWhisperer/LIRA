@@ -195,7 +195,7 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>
 - 校验 `response.code === 0 && req_0.code === 0 && req_0.data` 存在,否则抛"未返回完整歌词数据"
 - 解密(`decodeQQPlayableLyric`,[qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js)):
   - `data.crypt !== 1` → 直接 Base64 解码
-  - `crypt === 1` → 校验 hex 串:长度 `≤ 2*1024*1024`、`% 16 === 0`、仅 `[0-9a-f]`,任一不满足抛"无效的加密歌词";通过则 `decryptQrc(hex)` → `extractQrcLyricContent`(取 `<Lyric_1 LyricContent="..."/>` 属性,无 XML 包裹用原文)→ `decodeXmlEntities`(&#x/&#/&quot;/&apos;/&lt;/&gt;/&amp;)
+  - `crypt === 1` → 校验 hex 串:长度 `≤ 2*1024*1024`、`% 16 === 0`、仅 `[0-9a-f]`,任一不满足抛"无效的加密歌词";通过则 `decryptQrc(hex)` → `extractQrcLyricContent`(取 `<Lyric_1 LyricContent="..."/>` 属性,无 XML 包裹用原文)→ [qrc-xml-entities.js](../../../../src/music/qrc-xml-entities.js) 的 `decodeXmlEntities`(&#x/&#/&quot;/&apos;/&lt;/&gt;/&amp;)，与全民 K 歌复用同一实体解码顺序。
 - **注意**:翻译与罗马音同样按上述规则解密;`parseLyricResult(lyric, translation, lyric, roma)` 的**逐字歌词参数传入的是主歌词本身**([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 - 解析出的行数 > 0 即返回;否则抛"歌词无法解析"落入回退
 
@@ -243,6 +243,8 @@ GET https://u.y.qq.com/cgi-bin/musicu.fcg?data=<JSON>   (requestMusicu)
 - 响应路径 `data.songlist.data.{tracks|track_list|songlist}` → `mapQQSong`
 
 ### 7.7 我喜欢([qq-provider.js](../../../../src/music/providers/qq-provider.js))
+
+分页加载可使用 [音乐服务的加载会话](services.md)：同次加载仅定位一次喜欢歌单，客户端接口的完整返回在该会话内切片；公开接口仍按上游实际分页。
 
 1. `requireLogin('QQ 音乐”我喜欢”需要先登录。')`
 2. `getCreatedPlaylists({ limit: 50, includeLiked: true })`(includeLiked 缺省即不过滤)

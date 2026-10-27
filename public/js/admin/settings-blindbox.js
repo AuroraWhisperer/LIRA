@@ -227,7 +227,7 @@ export function createBlindboxSettings({
       });
     }
 
-    bindCopyUrl(documentRef.getElementById('blindboxOverlayUrl'), { onCopied: () => toast('投屏地址已复制') });
+    bindCopyUrl(documentRef.getElementById('blindboxOverlayUrl'), { onCopied: () => toast('盲盒浏览器源地址已复制') });
 
     documentRef.getElementById('blindboxPreviewBtn').addEventListener('click', () => {
       openComponentPreview({ id: 'blindbox' });

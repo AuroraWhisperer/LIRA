@@ -60,7 +60,7 @@ export function createSettingsOperations({
       title: '清空 SC 记录',
       message: '确认清空所有 SC（醒目留言）记录？',
       deletes: ['SC 记录'],
-      confirmLabel: '确认清空',
+      confirmLabel: '清空 SC 记录',
     });
     if (!confirmed) return;
     const response = await api('/api/database/clear-superchats', {
@@ -82,7 +82,7 @@ export function createSettingsOperations({
         '加班机规则、收藏与歌单',
         '粉丝档案、互动记录与提醒状态',
       ],
-      confirmLabel: '确认清空',
+      confirmLabel: '清空歌曲和使用记录',
     });
     if (!confirmed) return;
 
@@ -218,8 +218,8 @@ export function createSettingsOperations({
     if (!silent) {
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
-      button.setAttribute('aria-label', '正在刷新直播');
-      button.title = '正在刷新直播';
+      button.setAttribute('aria-label', '正在连接直播间');
+      button.title = '正在连接直播间';
     }
     try {
       const response = await fetchRef('/api/bilibili/reconnect', {
@@ -227,25 +227,25 @@ export function createSettingsOperations({
         headers: { 'Content-Type': 'application/json' },
         body: '{}',
       });
-      const payload = await readJsonResponse(response, '刷新直播失败');
+      const payload = await readJsonResponse(response, '重新连接直播间失败');
       const appState = getState()?.getAppState?.();
       if (payload.data?.liveStatus) {
         if (appState) appState.liveStatus = payload.data.liveStatus;
         getQueue()?.renderState?.(appState, getState()?.getSongs?.());
       }
       if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || `刷新直播失败（HTTP ${response.status}）`);
+        throw new Error(payload.error || `重新连接直播间失败（HTTP ${response.status}）`);
       }
       if (payload.data?.liveStatus) {
         if (!silent) showStackedToast({
           key: 'live-refresh-ok',
-          title: '直播状态已刷新',
+          title: '已重新连接直播间',
           message: payload.data.liveStatus.message || '弹幕连接已重新建立',
           className: 'admin-live-refresh-toast',
           duration: 2800,
         });
       } else {
-        throw new Error('刷新直播失败：服务未返回直播状态。');
+        throw new Error('重新连接直播间失败：服务未返回直播状态。');
       }
     } catch (error) {
       const customMessage = getForms()?.reconnectErrorMessage?.(error);
@@ -254,8 +254,8 @@ export function createSettingsOperations({
       if (!silent) {
         button.disabled = false;
         button.removeAttribute('aria-busy');
-        button.setAttribute('aria-label', '刷新直播');
-        button.title = '刷新直播';
+        button.setAttribute('aria-label', '重新连接直播间');
+        button.title = '重新连接直播间';
       }
     }
   }

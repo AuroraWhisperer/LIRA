@@ -14,6 +14,7 @@ import { createCanvasSharedAppearance } from './canvas-shared-appearance.js';
 import { SHARED_CONTROLLER_TYPES, hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
 import { toast } from '../shared/toast.js';
 import { componentFieldLabel } from './component-preview-panel.js';
+import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
 export function mountComponentPreviewCanvas(host, { components, canvasController, canvasConnection, selectedId, selectedSize, selectedItemId, source, recovery }) {
   const initial = canvasController?.getState().draft.document || {
@@ -148,8 +149,14 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     ...(canvasController ? [{ id: 'canvas', title: '直播场景', controller: canvasController }] : [])];
   const isDiscardTarget = ({ id }) => !canvasController || id === 'canvas' || sharedTypes.has(id);
   const restore = recovery ? button(applyActions, '恢复上次草稿', () => recovery.restore()) : null;
-  const discard = button(applyActions, '放弃修改', () => {
+  const discard = button(applyActions, '放弃修改', async () => {
     if (recovery?.getState().pending) { recovery.useCurrent(); return; }
+    const confirmed = await showConfirmationDialog({
+      title: '放弃未保存的修改？',
+      description: '将丢弃当前画布及相关组件未保存的修改，并读取最新保存的内容，无法撤销。',
+      variant: 'destructive', confirmLabel: '放弃修改', cancelLabel: '继续编辑', initialFocus: 'cancel',
+    });
+    if (!confirmed || closed) return;
     stage.cancelGesture();
     sharedAppearance.discardAll();
     for (const { controller } of controllers.filter(isDiscardTarget)) {

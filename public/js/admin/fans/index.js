@@ -47,6 +47,8 @@ function createFanUi() {
   let disposed = false;
   let searchTimer;
   let pollTimer;
+  let reminderRevision = 0;
+  let remindersLoadedRevision = -1;
   let reminderSummaryHidden = false;
   try {
     reminderSummaryHidden = window.localStorage?.getItem(REMINDER_SUMMARY_HIDDEN_KEY) === 'true';
@@ -226,7 +228,8 @@ function createFanUi() {
     if (changed) fitPeopleNames();
   }
 
-  async function load(open = false, background = false) {
+  async function load(open = false, background = false, refreshReminders = true) {
+    if (refreshReminders) reminderRevision++;
     const sequence = ++state.sequence;
     const observed = Date.parse(state.expiry.observedAt);
     const beijingDay = (time) => Math.floor((time + 8 * 3600000) / 86400000);
@@ -259,12 +262,14 @@ function createFanUi() {
     state.listStatus = 'ready';
     renderList();
     void refreshExpiry(sequence, payload);
-    await loadReminders();
+    if (remindersLoadedRevision !== reminderRevision) await loadReminders();
     return sequence === state.sequence;
   }
 
   async function loadReminders() {
+    const revision = reminderRevision;
     const items = await request('reminders');
+    remindersLoadedRevision = revision;
     const actionable = items.filter((item) => item.actionable);
     const summary = get('fanReminderSummary');
     summary.hidden = reminderSummaryHidden || !actionable.length;
@@ -408,7 +413,7 @@ function createFanUi() {
       get('fanSearch').value = '';
       for (const button of root.querySelectorAll('[data-fan-filter]'))
         button.setAttribute('aria-pressed', String(!button.dataset.fanFilter));
-      await load();
+      await load(false, false, false);
       return;
     }
     if (name === 'backup') {
@@ -429,11 +434,11 @@ function createFanUi() {
     }
     if (name === 'delete-all') {
       const confirmed = await dangerConfirm({
-        title: '清除全部档案',
+        title: '永久删除全部档案',
         message: '当前账号的全部档案（包括已归档和被屏蔽的档案）都会永久删除。建议先保存完整备份；清除后，未屏蔽的粉丝仍可在后续同步时重新建档。',
         deletes: ['全部粉丝档案', '档案内的手记与互动记录', '档案提醒状态'],
         keeps: ['原始礼物账本', '黑名单与档案设置', '现有恢复点'],
-        confirmLabel: '确认清除全部档案',
+        confirmLabel: '永久删除全部档案',
       });
       if (!confirmed) return;
       const result = await request('delete-all', { confirm: true });
@@ -557,14 +562,14 @@ function createFanUi() {
             'aria-pressed',
             String(button.dataset.fanFilter ? state.filters.includes(button.dataset.fanFilter) : !state.filters.length),
           );
-        await load();
+        await load(false, false, false);
       }
     })().catch((error) => showError(error));
   });
   get('fanSearch').addEventListener('input', () => {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      void load().catch((error) => showError(error));
+      void load(false, false, false).catch((error) => showError(error));
     }, 180);
   });
   get('fanRestoreFile').addEventListener('change', () => {

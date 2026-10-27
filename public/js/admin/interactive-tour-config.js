@@ -97,7 +97,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '让 LIRA 连接直播间',
     kicker: '第 4 步 · 刷新连接',
     content:
-      '保存直播间后，查看右上角的连接状态，点击可展开详情。连接异常时，点击旁边的<strong class="lira-tour-keyword">刷新图标（刷新直播）</strong>。需要弹幕或礼物功能时，分别到<strong class="lira-tour-keyword">「组件 → 弹幕姬」</strong>开启「监控弹幕」，到<strong class="lira-tour-keyword">「礼物」</strong>开启「监控礼物」；这两个开关会自动保存。',
+      '保存直播间后，查看右上角的连接状态，点击可展开详情。连接异常时，点击旁边的<strong class="lira-tour-keyword">刷新图标（重新连接直播间）</strong>。需要弹幕或礼物功能时，分别到<strong class="lira-tour-keyword">「组件 → 弹幕姬」</strong>开启「监控弹幕」，到<strong class="lira-tour-keyword">「礼物」</strong>开启「监控礼物」；这两个开关会自动保存。',
     note: '请按连接状态的文字提示处理。仍未连接时，检查 B 站账号和已保存的直播间号。',
     targetPage: 'songAssistantPage',
     targetTab: null,
@@ -152,7 +152,7 @@ export const TOUR_CONFIG_STEPS = [
     title: '选择平时听歌的平台',
     kicker: '第 8 步 · 选择音乐',
     content:
-      '现在已打开<strong class="lira-tour-keyword">「播放」</strong>页。先在左上方选择你平时使用的平台：QQ音乐、网易云音乐或全民 K 歌。使用 QQ音乐或网易云音乐时，点击右上方的<strong class="lira-tour-keyword">「登录」</strong>；使用全民 K 歌时，请先在全民 K 歌客户端登录。',
+      '现在已打开<strong class="lira-tour-keyword">「播放」</strong>页。先在左上方选择你平时使用的平台：QQ 音乐、网易云音乐或全民 K 歌。使用 QQ 音乐或网易云音乐时，点击右上方的<strong class="lira-tour-keyword">「登录」</strong>；使用全民 K 歌时，请先在全民 K 歌客户端登录。',
     note: '这一步只告诉你登录入口，不要求现在登录；选好后可以继续。',
     targetPage: 'playbackAssistantPage',
     targetTab: '[data-tab="playbackMusicWorkspace"]',

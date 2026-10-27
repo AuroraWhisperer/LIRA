@@ -12,6 +12,7 @@ const { createSongStore } = require('../../src/storage/song-store');
 const { createRequesterTargetStore } = require('../../src/storage/requester-target-store');
 const { migrateQueueHistory } = require('../../src/storage/queue-history-store');
 const { runMigrations } = require('../../src/storage/schema');
+const { createUserRequestCooldown } = require('../../src/music/user-request-cooldown');
 
 test('queue owner classifies expected request rejections without writing a request', () => {
   for (const [settings, count, duplicate, input, code] of [
@@ -30,7 +31,11 @@ test('queue owner classifies expected request rejections without writing a reque
 test('queue rejection codes reach HTTP and the existing optional danmaku reply', async () => {
   const { routes } = require('../../src/server/routes/queue-routes');
   const { handleDanmakuMessage } = require('../../src/bilibili/bilibili-message-handler');
-  for (const code of ['QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED']) {
+  for (const [code, reply] of [
+    ['QUEUE_FULL', '点歌队列满啦，稍后再来试试～'],
+    ['SONG_NOT_IN_LIBRARY', '歌库里没找到这首，换一首试试～'],
+    ['SONG_ALREADY_QUEUED', '这首歌已经在队列里啦～'],
+  ]) {
     const reject = () => { throw Object.assign(new Error('预期拒绝'), { code }); };
     const context = { queue: { add: reject, requestRandom: reject }, broadcastSnapshot() { assert.fail(); } };
     for (const route of ['POST /api/queue/add', 'POST /api/queue/random']) {
@@ -42,11 +47,13 @@ test('queue rejection codes reach HTTP and the existing optional danmaku reply',
     for (const enabled of ['true', 'false']) {
       const result = handleDanmakuMessage({
         settings: () => ({ enableRandomTagReply: enabled }), settingsStore: { getDefaultSettings: () => ({}) },
-        state: { cooldownByUser: new Map() }, addQueueItem: reject,
+        userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } }, addQueueItem: reject,
       }, { message: '点歌歌曲', uid: '1', userName: '观众' });
       assert.equal(result.accepted, false);
       assert.equal(result.code, code);
+      assert.equal(result.reason, '预期拒绝');
       assert.equal(Boolean(result.autoReply), enabled === 'true');
+      if (enabled === 'true') assert.equal(result.autoReply.message, reply);
     }
   }
 });
@@ -118,22 +125,25 @@ function historyFixture(t) {
   };
 }
 
+function requestCooldownKey(uid, identityType = 'uid', fanScope = null) {
+  return `v2:${JSON.stringify([fanScope, identityType, uid])}`;
+}
+
 function requestFixture(t, settings = {}) {
   const f = historyFixture(t);
   const { createCooldownStore } = require('../../src/storage/cooldown-store');
   const { handleDanmakuMessage } = require('../../src/bilibili/bilibili-message-handler');
   const cooldownStore = createCooldownStore(f.db.songDb);
-  const state = { cooldownByUser: new Map() };
+  const userRequestCooldown = createUserRequestCooldown(cooldownStore);
   Object.assign(f.settings, { userCooldownSeconds: '0', enableRandomTagReply: 'true', ...settings });
   const messageContext = {
     settings: f.context.settings,
     settingsStore: { getDefaultSettings: f.context.defaults },
-    state,
-    cooldownStore,
+    userRequestCooldown,
     addQueueItem: (input) => addQueueItem(f.context, input),
     pickRandomSong: () => ({ name: '随机歌曲', artist: '歌手' }),
   };
-  return { ...f, state, cooldownStore, request: (input = {}) => handleDanmakuMessage(messageContext, {
+  return { ...f, userRequestCooldown, request: (input = {}) => handleDanmakuMessage(messageContext, {
     message: '点歌测试歌曲', uid: '42', identityType: 'uid', userName: '观众', ...input,
   }) };
 }
@@ -154,7 +164,7 @@ test('disabling SC song requests keeps existing songs and ignores new SC command
   const existing = f.request({ uid: '7', source: 'superchat', isPinned: true }).queueItem;
   assert.ok(existing.id, 'missing setting preserves the existing SC behavior');
   f.settings.scSongRequestEnabled = 'false';
-  const cooldownsBefore = [...f.state.cooldownByUser];
+  const cooldownBefore = f.userRequestCooldown.getLastRequestAt(requestCooldownKey('7'));
   for (const message of ['点歌另一首', '随机点歌']) {
     const result = f.request({ message, source: 'superchat', isPinned: true });
     assert.equal(result.accepted, false);
@@ -165,7 +175,8 @@ test('disabling SC song requests keeps existing songs and ignores new SC command
   for (const table of ['queue', 'requests', 'user_cooldowns', 'song_cooldowns']) {
     assert.equal(f.count(table), 1, table);
   }
-  assert.deepEqual([...f.state.cooldownByUser], cooldownsBefore);
+  assert.equal(f.userRequestCooldown.getLastRequestAt(requestCooldownKey('7')), cooldownBefore);
+  assert.equal(f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42')), 0);
   assert.deepEqual(getQueueSnapshot(f.context).waiting.map((item) => item.id), [existing.id]);
   assert.equal(f.request({ message: '点歌另一首', source: 'danmaku' }).accepted, true);
   f.settings.scSongRequestEnabled = 'true';
@@ -177,14 +188,15 @@ test('per-user quota counts LIVE and pinned songs by stable identity, rolls back
   const first = f.request().queueItem;
   handleQueueAction(f.context, 'live', first.id);
   assert.equal(f.request({ message: '随机点歌', isPinned: true }).accepted, true);
-  const cooldownBefore = f.state.cooldownByUser.get('42');
+  const cooldownBefore = f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42'));
   const songCooldownsBefore = f.db.songDb.prepare('SELECT * FROM song_cooldowns').all();
   const rejected = f.request({ message: '点歌新歌', userName: '改名', source: 'superchat', isPinned: true });
   assert.equal(rejected.code, 'USER_QUEUE_FULL');
-  assert.match(rejected.autoReply.message, /最多同时排队 2 首/);
+  assert.equal(rejected.reason, '每人最多同时排队 2 首，请等待已点歌曲完成后再点歌。');
+  assert.equal(rejected.autoReply.message, '每人最多同时排队 2 首，等已点的歌完成后再点吧～');
   assert.equal(f.count('queue'), 2);
   assert.equal(f.count('requests'), 2);
-  assert.equal(f.state.cooldownByUser.get('42'), cooldownBefore);
+  assert.equal(f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42')), cooldownBefore);
   assert.deepEqual(f.db.songDb.prepare('SELECT * FROM song_cooldowns').all(), songCooldownsBefore);
   assert.equal(getQueueSnapshot(f.context).waiting[0].id, first.id, 'a refused SC cannot displace LIVE');
   assert.equal(f.request({ identityType: 'open_id' }).accepted, true, 'open_id and UID do not share a quota');
@@ -192,17 +204,39 @@ test('per-user quota counts LIVE and pinned songs by stable identity, rolls back
   handleQueueAction(f.context, 'done', first.id);
   assert.equal(f.request().accepted, true);
   f.context.store = createQueueStore(f.db.songDb);
-  f.state.cooldownByUser.clear();
-  f.cooldownStore.loadInto(f.state.cooldownByUser);
+  f.userRequestCooldown.reset();
+  f.userRequestCooldown.restore();
   assert.equal(f.request().code, 'USER_QUEUE_FULL', 'recreating the service cannot reset a persisted quota');
   handleQueueAction(f.context, 'clear');
   assert.equal(f.request().accepted, true);
 });
 
+test('user cooldowns are isolated by fan scope and survive restore without cross-scope reuse', (t) => {
+  const f = requestFixture(t, { userCooldownSeconds: '60' });
+  assert.equal(f.request({ fanScope: 'scope-a' }).accepted, true);
+  assert.equal(f.request({ fanScope: 'scope-b' }).accepted, true);
+  assert.match(f.request({ fanScope: 'scope-a' }).reason, /用户冷却中/);
+  f.userRequestCooldown.reset();
+  f.userRequestCooldown.restore();
+  assert.match(f.request({ fanScope: 'scope-b' }).reason, /用户冷却中/);
+  assert.equal(f.request({ uid: '43', fanScope: 'scope-b' }).accepted, true);
+});
+
+test('zero cooldown anonymous requests cannot collide with a later stable UID', (t) => {
+  const f = requestFixture(t, { userCooldownSeconds: '0' });
+  assert.equal(f.request({ uid: '', identityType: undefined, userName: '42', fanScope: 'scope-a' }).accepted, true);
+  assert.equal(f.count('user_cooldowns'), 0);
+  f.settings.userCooldownSeconds = '60';
+  assert.equal(f.request({ uid: '42', identityType: 'uid', fanScope: 'scope-a' }).accepted, true);
+});
+
 test('enabled quotas and cooldowns require stable identity without using display names', (t) => {
   const f = requestFixture(t, { userQueueLimit: '1' });
   for (const identity of [{ uid: '' }, { uid: 'not-a-uid' }, { uid: '123', identityType: 'unknown' }]) {
-    assert.equal(f.request(identity).code, 'REQUESTER_IDENTITY_REQUIRED');
+    const result = f.request(identity);
+    assert.equal(result.code, 'REQUESTER_IDENTITY_REQUIRED');
+    assert.equal(result.reason, '暂时无法确认你的点歌身份，请稍后再点歌。');
+    assert.equal(result.autoReply.message, '暂时无法确认你的点歌身份，请稍后再点歌～');
   }
   f.settings.userQueueLimit = '0';
   f.settings.userCooldownSeconds = '60';
@@ -284,8 +318,8 @@ test('each verified guard tier has an independent cooldown with empty inheritanc
   assert.equal(f.request(event).accepted, true);
   assert.equal(f.request({ ...event, identityType: 'open_id' }).accepted, true);
   assert.match(f.request({ ...event, userName: '改名' }).reason, /冷却中/);
-  f.state.cooldownByUser.clear();
-  f.cooldownStore.loadInto(f.state.cooldownByUser);
+  f.userRequestCooldown.reset();
+  f.userRequestCooldown.restore();
   assert.match(f.request(event).reason, /还需 60 秒/);
   assert.match(f.request({ ...event, identityType: 'open_id' }).reason, /还需 60 秒/);
 });

@@ -87,7 +87,7 @@ test('fixed feed removes selected SC nodes without rebuilding retained messages'
 
 test('ranked danmaku fits the shared horizontal inset without shrinking for height', async () => {
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
-    document: { addEventListener() {} },
+    document: { addEventListener() {}, getElementById() { return null; } },
     location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
     URL,
     URLSearchParams,

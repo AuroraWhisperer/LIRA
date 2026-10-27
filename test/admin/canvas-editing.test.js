@@ -116,9 +116,9 @@ test('canvas source address copies on click and dismisses outside, on Escape and
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const sceneCopy = page.getByRole('button', { name: '复制场景地址', exact: true });
   const componentCopy = page.getByRole('button', { name: '复制组件地址', exact: true });
-  const address = page.getByRole('button', { name: '复制直播源地址', exact: true });
+  const address = page.getByRole('button', { name: '复制浏览器源地址', exact: true });
   await sceneCopy.click();
-  await page.locator('.preview-canvas-status').filter({ hasText: '直播源地址已复制' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '地址已复制；浏览器源尺寸设为' }).waitFor();
   const sceneUrl = await address.textContent();
   assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), sceneUrl);
   await address.click();
@@ -136,7 +136,7 @@ test('canvas source address copies on click and dismisses outside, on Escape and
   await sceneCopy.click();
   await address.waitFor({ state: 'visible' });
   await componentCopy.click();
-  await page.locator('.preview-canvas-status').filter({ hasText: '单组件地址已复制' }).waitFor();
+  await page.locator('.preview-canvas-status').filter({ hasText: '地址已复制；浏览器源尺寸设为' }).waitFor();
   assert.notEqual(await address.textContent(), sceneUrl, 'The other copy button switches to its own source.');
   assert.equal(await page.evaluate(() => window.copiedSources.at(-1)), await address.textContent());
   await address.focus();

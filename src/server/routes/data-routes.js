@@ -3,6 +3,7 @@
 'use strict';
 
 const { sendJson } = require('../http-utils');
+const { runClearAll } = require('../data-maintenance-runtime');
 
 const prefixes = ['/api/database/'];
 
@@ -22,18 +23,6 @@ function clearRoute(clear, reason) {
     if (reason === 'database:clear') context.cloudSync?.request?.('songs');
     sendJson(res, 200, { ok: true, data: result });
   };
-}
-
-function resumeClearAllWriters(context, { gifts = true, overtime = true } = {}) {
-  try {
-    // 先准备结算消费者，再恢复可能立即派发礼物的检测器。
-    if (overtime) context.overtime.resumeRecovery();
-    if (gifts) context.gifts.resumeDetection();
-  } catch (error) {
-    context.gifts.pauseDetection();
-    context.overtime.pauseRecovery();
-    throw error;
-  }
 }
 
 async function clearGiftDatabases(context, request, res) {
@@ -102,52 +91,20 @@ const routes = {
       return;
     }
 
-    // 静默异步写入器，避免清空过程中的并发写入
-    const acquired = { gifts: false, overtime: false };
-    let result;
-    try {
-      acquired.gifts = context.gifts.pauseDetection() !== false;
-      acquired.overtime = context.overtime.pauseRecovery() !== false;
-      result = context.data.clearAll();
-    } catch (error) {
-      try {
-        resumeClearAllWriters(context, acquired);
-      } catch (resumeError) {
-        error.cause = resumeError;
-      }
-      throw error;
-    }
-
-    // 清空全部数据时同步清理音乐 API / 歌词缓存；缓存失败不影响数据库清理结果。
-    if (context.music && typeof context.music.clearCache === 'function') {
-      try {
-        context.music.clearCache();
-      } catch (_) {
-        /* cache cleanup is best-effort */
-      }
-    }
-
-    if (result.cleared && !result.partial) {
-      try {
-        resumeClearAllWriters(context);
-      } catch (error) {
-        result = {
-          ...result,
-          ok: false,
-          cleared: false,
-          partial: true,
-          phase: 'resume',
-          failed: [],
-          error: `数据已清空，但写入恢复失败：${error.message}`,
-        };
-      }
-    }
+    const result = runClearAll({
+      clearAll: () => context.data.clearAll(),
+      pauseGifts: () => context.gifts.pauseDetection(),
+      resumeGifts: () => context.gifts.resumeDetection(),
+      pauseOvertime: () => context.overtime.pauseRecovery(),
+      resumeOvertime: () => context.overtime.resumeRecovery(),
+      clearMusicCache: () => {
+        if (typeof context.music?.clearCache === 'function') context.music.clearCache();
+      },
+      rebuildGiftProjection: () => context.giftSync?.rebuild?.(),
+    });
 
     // 处理部分失败：跨库提交、回滚或运行状态恢复未完全成功。
     if (result.partial === true) {
-      if (result.giftProjectionReset && result.committed?.includes('giftDb')) {
-        triggerGiftRebuild(context);
-      }
       sendJson(res, 500, {
         ok: false,
         partial: true,
@@ -155,11 +112,6 @@ const routes = {
         data: result,
       });
       return;
-    }
-
-    // 成功后重建已清空的礼物投影
-    if (result.cleared) {
-      if (result.giftProjectionReset) triggerGiftRebuild(context);
     }
 
     context.broadcastSnapshot('database:clear-all');

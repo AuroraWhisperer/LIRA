@@ -3,6 +3,7 @@ import { createDisplaySource } from './display-source.js';
 export function createSceneSource({ sceneId, itemId, token, renderer, onError }) {
   return createDisplaySource({
     outputPath: '/api/scene/output', eventsPath: '/api/scene/events', token, renderer, onError,
+    conditionalData: true,
     getCursor: (output) => output.data?.danmaku,
     query() {
       const values = new URLSearchParams({ id: sceneId, version: renderer.getVersion() });

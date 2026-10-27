@@ -7,7 +7,7 @@
           <div id="playbackSourceTabs" class="source-tabs" role="tablist" aria-label="音乐播放平台">
             <button id="playbackSourceQqTab" class="source-tab active" type="button" data-source="qq" role="tab" aria-selected="true" aria-controls="playbackSourcePanel" tabindex="0">
               <img class="source-tab-icon" src="/img/playback/qqmusic-icon.webp" alt="" draggable="false" />
-              <span class="source-tab-label">QQ音乐</span>
+              <span class="source-tab-label">QQ 音乐</span>
               <span class="source-tab-separator" aria-hidden="true">·</span>
             </button>
             <button id="playbackSourceNeteaseTab" class="source-tab" type="button" data-source="netease" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1">
@@ -17,7 +17,7 @@
             </button>
             <button id="playbackSourceWeSingTab" class="source-tab" type="button" data-source="wesing" role="tab" aria-selected="false" aria-controls="playbackSourcePanel" tabindex="-1" title="切换为全民 K 歌播放源，会暂停当前 QQ / 网易云音乐">
               <img class="source-tab-icon" src="/img/playback/wesing-icon.png" alt="" draggable="false" />
-              <span class="source-tab-label">全民 K歌</span>
+              <span class="source-tab-label">全民 K 歌</span>
             </button>
           </div>
         </div>
@@ -25,10 +25,10 @@
       </div>
       <div class="playback-account-compact">
         <div class="playback-account-status">
-          <span id="playbackSourceStatus" class="pill warn">QQ音乐待登录</span>
+          <span id="playbackSourceStatus" class="pill warn">QQ 音乐待登录</span>
           <button id="playbackHealthBtn" type="button">检查音乐平台连接</button>
-          <button id="playbackClearCacheBtn" type="button">清理缓存</button>
-          <button id="playbackLoginBtn" type="button">登录QQ音乐</button>
+          <button id="playbackClearCacheBtn" type="button">清理全部音乐缓存</button>
+          <button id="playbackLoginBtn" type="button">登录 QQ 音乐</button>
           <button id="playbackLogoutBtn" class="danger" type="button" style="display: none">退出登录</button>
         </div>
         <div class="playback-status-row">
@@ -85,7 +85,7 @@
   <section id="playbackWeSingView" class="panel playback-wesing-panel" hidden>
     <div class="panel-header wesing-panel-heading">
       <div class="wesing-heading-copy">
-        <h2 class="ui-section-title">全民 K歌歌词</h2>
+        <h2 class="ui-section-title">全民 K 歌歌词</h2>
         <p class="hint">当前由全民 K 歌客户端控制播放。切入时会暂停 QQ / 网易云音乐，切回后需手动继续播放。</p>
       </div>
       <div class="actions">
@@ -170,7 +170,7 @@
         </div>
         <div class="wesing-offset-field">
           <div class="wesing-field-heading">
-            <span>全民 K 歌歌词时间调整 <lira-help>只调整全民 K 歌的歌词时间；浏览器源还会叠加“点歌 → 直播歌词”的画面时间偏移。首选歌词源和智能选词需在该页选择“全民 K 歌”后设置。</lira-help></span>
+            <span>全民 K 歌歌词时间调整 <lira-help>只调整全民 K 歌的歌词时间；浏览器源还会叠加“点歌 → 直播歌词”的画面时间偏移。首选歌词源和智能匹配歌词需在该页选择“全民 K 歌”后设置。</lira-help></span>
           </div>
           <div class="wesing-offset-control">
             <input
@@ -192,7 +192,7 @@
               aria-label="歌词时间调整"
               placeholder="0"
             />
-            <button id="weSingResetLyricOffsetBtn" type="button">重置</button>
+            <button id="weSingResetLyricOffsetBtn" type="button">偏移归零</button>
             <span>毫秒</span>
           </div>
         </div>

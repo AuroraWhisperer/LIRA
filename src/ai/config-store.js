@@ -7,6 +7,7 @@ const {
   MODEL_PROVIDER_PRESETS,
   assertSavedModelKeyOrigin,
   normalizeAiConfig,
+  usesAccountModel,
 } = require('./config');
 const { GENERAL_PROMPT, normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
 const { describeModelEndpoint } = require('./model-endpoint');
@@ -36,7 +37,7 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
         stored[row.key] = '';
       }
     }
-    if (!Object.hasOwn(stored, 'personaId') && rows.length) {
+    if (!Object.hasOwn(stored, 'personaId') && Object.keys(stored).length) {
       stored.personaId = stored.systemPrompt ? 'custom' : 'cat';
       // Preserve the previous tool defaults when reading an existing installation.
       for (const key of ['webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']) {
@@ -87,7 +88,7 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
     }).map(([provider, id]) => [provider, personaIds.has(id) ? id : 'general']));
     const updatedAt = new Date(now()).toISOString();
     const entries = [];
-    const keys = new Set([...Object.keys(changes), 'personaId', 'webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']);
+    const keys = new Set([...Object.keys(changes), 'modelAuthMode', 'personaId', 'webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']);
     for (const key of keys) {
       if (!(key in AI_CONFIG_DEFAULTS)) continue;
       if (
@@ -100,21 +101,21 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
       entries.push({ key, value: isSecret && value ? secretCodec.encrypt(value) : serializeValue(value), isSecret });
     }
     entries.push({ key: 'providerPersonaIds', value: JSON.stringify(nextProviderPersonaIds), isSecret: false });
-    // Account mode does not overwrite a previously saved manual endpoint.
+    // Account modes do not overwrite a previously saved manual endpoint.
     // Retain only the API key's origin so returning to its preset can safely
     // reuse the key even when that preset had no stored manual URL.
-    if (current.modelProvider !== 'doubao' && normalized.modelProvider === 'doubao') {
+    if (!usesAccountModel(current) && usesAccountModel(normalized)) {
       const origin = current.deepseekApiKey && current.deepseekResponsesUrl ? new URL(current.deepseekResponsesUrl).origin : '';
       entries.push({ key: 'doubaoPreviousKeyOrigin', value: origin, isSecret: false });
     }
-    if (current.modelProvider === 'doubao' && normalized.modelProvider !== 'doubao') {
+    if (usesAccountModel(current) && !usesAccountModel(normalized)) {
       entries.push({ key: 'doubaoPreviousKeyOrigin', value: '', isSecret: false });
     }
     let nextConfiguration;
     persistence.updateConfiguration(entries, updatedAt, rows => {
       // Leaving a preset may restore a stored custom URL hidden by the current preset.
       nextConfiguration = decodeConfiguration(rows);
-      assertSavedModelKeyOrigin(current.modelProvider === 'doubao' ? { ...current, deepseekResponsesUrl: accountKeyOrigin } : current,
+      assertSavedModelKeyOrigin(usesAccountModel(current) ? { ...current, modelProvider: 'custom', deepseekResponsesUrl: accountKeyOrigin } : current,
         nextConfiguration.config, Object.hasOwn(changes, 'deepseekApiKey'));
     });
     cached = nextConfiguration;

@@ -129,6 +129,29 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
     document.body.append(dialog); dialog.showModal();
     editor = { dispose: () => { if (!removing) dialog.close(); } };
   }
+  function confirmRemoveStyle(style) {
+    const dialog = previewElement('dialog', 'component-style-dialog'); dialog.setAttribute('aria-label', '删除样式');
+    const confirm = previewElement('button', 'danger', '删除样式'); const cancel = previewElement('button', 'secondary', '取消');
+    confirm.type = cancel.type = 'button'; cancel.autofocus = true;
+    const message = previewElement('p', 'hint'); message.setAttribute('role', 'status');
+    let removing = false;
+    cancel.addEventListener('click', () => dialog.close());
+    dialog.addEventListener('cancel', event => { if (removing) event.preventDefault(); });
+    confirm.addEventListener('click', async () => {
+      confirm.disabled = cancel.disabled = removing = true;
+      try {
+        await request('remove', { id: style.id, signal: requests.signal });
+        dialog.close(); await refresh(); report('已从样式库移除，现有场景仍可使用。');
+      } catch (error) { message.textContent = error.message; }
+      finally { confirm.disabled = cancel.disabled = removing = false; }
+    });
+    dialog.addEventListener('close', () => dialog.remove(), { once: true });
+    dialog.append(previewElement('h2', '', `删除「${style.name}」？`),
+      previewElement('p', '', '将从样式库移除；已有场景保留原效果。需要恢复时，可重新导入原素材文件。'),
+      confirm, cancel, message);
+    document.body.append(dialog); dialog.showModal();
+    editor = { dispose: () => dialog.close() };
+  }
   async function refresh() {
     const current = ++revision;
     try {
@@ -181,11 +204,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
         if (suite) continue;
         const remove = previewElement('button', 'component-style-delete', '×'); remove.type = 'button';
         remove.setAttribute('aria-label', `删除样式：${style.name}`); remove.title = `从样式库删除「${style.name}」，保留场景中已使用的组件`;
-        remove.addEventListener('click', async () => {
-          remove.disabled = true;
-          try { await request('remove', { id: style.id, signal: requests.signal }); await refresh(); report('已从样式库移除，现有场景仍可使用。'); }
-          catch (error) { report(error); remove.disabled = false; }
-        });
+        remove.addEventListener('click', () => confirmRemoveStyle(style));
         card.append(remove);
         }
       }

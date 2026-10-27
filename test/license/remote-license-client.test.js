@@ -444,7 +444,7 @@ test('gift history, clear, and epoch-aware recovery use fixed abortable Device e
   );
 });
 
-test('gift card profiles use a fixed authenticated endpoint and encode only the cursor', async () => {
+test('gift card profiles use a fixed authenticated endpoint and encode the cursor and optional revision', async () => {
   const requests = [];
   const client = createRemoteLicenseClient({
     baseUrl: 'https://review.example.test',
@@ -455,10 +455,12 @@ test('gift card profiles use a fixed authenticated endpoint and encode only the 
   });
   await client.getGiftCardProfiles(null, 'device-token');
   await client.getGiftCardProfiles('event:1&streamerId=other', 'device-token');
+  await client.getGiftCardProfiles(null, 'device-token', { revision: 'a'.repeat(64) });
   assert.equal(new URL(requests[0].url).search, '');
   const url = new URL(requests[1].url);
   assert.equal(url.pathname, '/api/device/gift-card-profiles');
   assert.deepEqual([...url.searchParams], [['cursor', 'event:1&streamerId=other']]);
+  assert.deepEqual([...new URL(requests[2].url).searchParams], [['revision', 'a'.repeat(64)]]);
   for (const { url: address, init } of requests) {
     assert.equal(init.method, 'GET');
     assert.equal(init.headers.Authorization, 'Bearer device-token');

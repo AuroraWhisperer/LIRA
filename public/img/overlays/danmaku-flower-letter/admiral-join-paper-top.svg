@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="60" viewBox="0 0 1080 60" preserveAspectRatio="none"><defs>
+    <linearGradient id="flower-admiral-join-paper" x2="0" y2="1"><stop stop-color="#e8d8c0"/><stop offset=".38" stop-color="#faf7f3"/><stop offset=".85" stop-color="#fff"/></linearGradient>
+    <linearGradient id="flower-admiral-join-wash" x2="0" y2="1"><stop stop-color="#c1bbe8"/><stop offset=".2" stop-color="#c1bbe8"/><stop offset="1" stop-color="#fffdfb"/></linearGradient>
+    <linearGradient id="flower-admiral-join-base-wash" x2="0" y2="1"><stop stop-color="#ece9fc"/><stop offset="1" stop-color="#fffdfb"/></linearGradient>
+    <pattern id="flower-admiral-join-stripe" width="30" height="314" patternUnits="userSpaceOnUse" patternTransform="skewX(9)"><rect width="30" height="314" fill="url(#flower-admiral-join-base-wash)"/><rect width="16" height="314" fill="url(#flower-admiral-join-wash)"/></pattern>
+  </defs><path d="M54 76Q53 54 84 48L528 1Q540-1 552 1L991 48Q1018 52 1018 77V271Q1018 291 997 291H75Q54 291 54 272Z" fill="#c1bbe8" stroke="#b3a2d9" stroke-width="3"/>
+      <path d="M58 77Q57 58 85 53L529 6Q540 3 552 6L990 53Q1013 57 1013 77V269Q1013 286 995 286H77Q59 286 59 269Z" fill="none" stroke="#fffbf3" stroke-width="2"/>
+      <rect x="64" y="68" width="945" height="214" rx="27" fill="url(#flower-admiral-join-paper)" stroke="#8c795c" stroke-width="3"/>
+      <path d="M54 171C95 189 375 218.5 536 256C697 218.5 977 189 1018 171V270Q1018 291 998 291H74Q54 291 54 270Z" fill="url(#flower-admiral-join-stripe)" stroke="#b3a2d9" stroke-width="3"/>
+      <path d="M59 180V270Q59 286 77 286H994Q1012 286 1012 269V180" fill="none" stroke="#fffdf8" stroke-width="2"/></svg>

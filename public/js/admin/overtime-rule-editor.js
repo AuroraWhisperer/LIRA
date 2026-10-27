@@ -193,7 +193,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const quantityName = `overtime-rule-quantity-${++ruleControlSequence}`;
     quantityOptions.append(
       createQuantityOption(quantityName, 'group', '按连击组', '同一次连击只结算一次', rule.quantityMode !== 'item'),
-      createQuantityOption(quantityName, 'item', '按具体数量', '数量 ×N 就结算 N 次', rule.quantityMode === 'item'),
+      createQuantityOption(quantityName, 'item', '按具体数量', '礼物数量为 N 时，就结算 N 次', rule.quantityMode === 'item'),
     );
     modeSection.append(modeOptions, quantityOptions);
     body.append(modeSection);

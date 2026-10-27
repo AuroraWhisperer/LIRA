@@ -89,6 +89,13 @@ function createRuntimeTransport({
     publishDanmakuItem(item);
   }
 
+  function publishSuperChatDelete(messageIds) {
+    const removed = getDanmakuFeedBuffer().removeSuperChats(messageIds);
+    if (removed.length) {
+      getWebSocketHub()?.broadcast({ type: 'danmaku:superchat-delete', messageIds: removed }, { topic: 'danmaku' });
+    }
+  }
+
   function publishDanmakuItem(item) {
     if (item) {
       getWebSocketHub()?.broadcast({ type: 'danmaku:message', item }, { topic: 'danmaku' });
@@ -117,6 +124,7 @@ function createRuntimeTransport({
     publishGiftCatalogUpdate,
     publishGiftEffect,
     publishDanmaku,
+    publishSuperChatDelete,
     publishOvertimeUpdate,
     servePageOrAsset,
   };

@@ -102,7 +102,7 @@ test('a retired plaintext snapshot is removed on persistence, restoration and lo
 test('unavailable encryption never falls back to plaintext or erases the live login', async (t) => {
   const f = fixture(t);
   f.disableEncryption();
-  await assert.rejects(f.auth.persistBilibiliCookieSnapshot(f.dataDir), /safeStorage/);
+  await assert.rejects(f.auth.persistBilibiliCookieSnapshot(f.dataDir), /加密存储不可用/);
   assert.equal(fs.existsSync(path.join(f.authDir, 'cookies.txt')), false);
   assert.equal(fs.existsSync(path.join(f.authDir, 'cookies.enc')), false);
   assert.equal((await f.auth.getBilibiliAuthState(f.dataDir)).loggedIn, true);

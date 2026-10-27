@@ -8,6 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-10-25-ai-subscription-kimi](2026-10-25-ai-subscription-kimi.md) | Awaiting Verification | Kimi API、ChatGPT 订阅与 API 共存、加密凭据和界面已实现；359 项相关回归、桌面夹具、语法/架构/文档检查通过。真实账号授权与模型回复待验，未构建安装包。 |
+| [2026-10-25-danmaku-twitter](2026-10-25-danmaku-twitter.md) | Awaiting Verification | 正式实施、公开礼物／SC 数据、精确房主资料能力、四类卡片与 SVG、注册预览、文档及合成播放已完成；203 项聚焦测试和语法／文档门禁通过。真实 B 站上游、OBS／哔哩哔哩直播姬及远程服务器验收待补。 |
 | [2026-10-20-native-playback-outputs](2026-10-20-native-playback-outputs.md) | Awaiting Verification | 实际接口/设备及 ASIO 驱动选择已接入；本机 9 个 Windows 输出、后台时钟及播放操作通过。本机 ASIO 驱动启动失败，外接声卡/硬件回送与听感待实机，安装包未更新。 |
 | [2026-10-20-audio-device-inputs](2026-10-20-audio-device-inputs.md) | Awaiting Verification | 已补齐 Windows 录音/回送输入、声道映射、格式适配和独立设备模式；原生及聚焦回归、隔离 Electron 已通过。外接声卡线路/硬件回送、听感、热拔插与直播软件实播待验，安装包未更新。 |
 | [2026-10-18-audio-assistant-isolation-diagnostics](2026-10-18-audio-assistant-isolation-diagnostics.md) | Awaiting Evidence | 已收到 Win10 + ROUTIST 的 v5 报告：枚举、静音及路由读回通过，播放器实际迁移未通过，停止恢复成功。待确认网易云默认/非独占输出后复测及实际播放验收；此前验证和安装版状态见计划。 |

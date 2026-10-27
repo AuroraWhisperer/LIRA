@@ -9,21 +9,22 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
   let disposed = false;
   let busy = false;
   let sourceButton = null;
+  let sourceName = '直播场景';
   const source = previewElement('button', 'copy-url preview-canvas-source');
   source.id = 'previewCanvasSource';
   source.hidden = true;
-  source.setAttribute('aria-label', '复制直播源地址');
+  source.setAttribute('aria-label', '复制浏览器源地址');
   const disposeSource = bindCopyUrl(source, {
-    onCopied: () => report('直播源地址已复制', 'success'),
+    onCopied: () => report(`${sourceName}浏览器源地址已复制`, 'success'),
     onError: error => report(error.message, 'error'),
   });
   const copy = previewElement('button', 'secondary preview-canvas-icon-button');
-  copy.title = '复制整个场景的直播源地址，应用修改后继续使用此地址';
+  copy.title = '复制整个场景的浏览器源地址，应用修改后继续使用此地址';
   copy.setAttribute('aria-label', '复制场景地址');
   copy.append(previewToolbarIcon('link'));
-  const copyComponent = previewElement('button', 'secondary', '组件地址');
+  const copyComponent = previewElement('button', 'secondary', '复制组件地址');
   copyComponent.setAttribute('aria-label', '复制组件地址');
-  copyComponent.title = '复制所选组件的直播源地址';
+  copyComponent.title = '复制所选组件的浏览器源地址';
   const apply = previewElement('button', 'primary', '保存并应用');
   copy.type = copyComponent.type = apply.type = 'button';
   sourceHost.append(source, copy, copyComponent);
@@ -57,7 +58,7 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
     if (busy || (action === 'publish' && !beforeApply())) return;
     busy = true;
     setBusy(true);
-    report(action === 'publish' ? '正在保存组件并更新直播源…' : '正在获取直播源地址…', 'info');
+    report(action === 'publish' ? '正在保存组件并更新直播源…' : '正在获取浏览器源地址…', 'info');
     try {
       if (action === 'publish') {
         await flushAppearance?.();
@@ -75,11 +76,12 @@ export function mountPreviewCanvasOutput({ sourceHost, applyHost, connection, co
         const url = item?.appearance.mode === 'shared'
           ? new URL(SCENE_COMPONENTS[item.type].sourceUrl, localOverlayOrigin()).href
           : sceneSourceUrl({ ...result, ...(item ? { item: item.id } : {}) });
+        sourceName = item ? item.name : '直播场景';
         source.textContent = url;
         showSource(item ? copyComponent : copy);
         await copyText(url);
         const size = sharedSource ? result.componentSizes?.[item.type] : item ? result.itemSizes?.[item.id] : result.canvas;
-        report(`${item ? '单组件地址已复制' : '直播源地址已复制'}${size ? `；请在 OBS 或直播姬中设置为 ${size.width} × ${size.height}` : '；请使用已发布画面的像素尺寸'}。之后保存并应用即可更新，无需重复导入。`, 'success');
+        report(`地址已复制；浏览器源尺寸设为 ${size ? `${size.width} × ${size.height}` : '已发布画面的像素尺寸'}。后续点击“保存并应用”即可，地址不变。`, 'success');
       } else report(() => controllers.some(({ controller }) => controller.getState().dirty)
         ? '本次已应用，新修改仍需保存' : '已保存并应用到直播源', 'success');
     } catch (error) {

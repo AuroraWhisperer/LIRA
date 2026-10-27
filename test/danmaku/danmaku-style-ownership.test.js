@@ -27,6 +27,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/starveil.css');",
     "@import url('./danmaku/superchat.css');",
     "@import url('./danmaku/moonlit.css');",
+    "@import url('./danmaku/flower-letter.css');",
     "@import url('./danmaku/floating.css');",
     "@import url('./danmaku/comet.css');",
     "@import url('./danmaku/motion.css');",
@@ -36,8 +37,12 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
     "@import url('./danmaku/sketch.css');",
     "@import url('./danmaku/prismatic.css');",
     "@import url('./danmaku/snowfox.css');",
+    "@import url('./danmaku/ripploid.css');",
     "@import url('./danmaku/harbor.css');",
     "@import url('./danmaku/mist.css');",
+    "@import url('./danmaku/twitter.css');",
+    "@import url('./danmaku/spooky.css');",
+    "@import url('./danmaku/notebook.css');",
     "@import url('./danmaku/random-entrance.css');",
     "@import url('./danmaku/preview.css');",
   ];
@@ -56,6 +61,7 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
       'cream',
       'glow',
       'motion',
+      'twitter',
     ].map((name) => [name, fs.readFileSync(path.join(styleRoot, 'danmaku', `${name}.css`), 'utf8')]),
   );
 
@@ -79,6 +85,10 @@ test('danmaku styles keep base, named style, and motion ownership', () => {
   assert.doesNotMatch(owners.outline, /@keyframes/);
   assert.match(owners.motion, /prefers-reduced-motion:\s*reduce/);
   assert.doesNotMatch(owners.motion, /body\[data-style=/);
+  assert.match(owners.twitter, /body\[data-style='twitter'\]/);
+  assert.match(owners.twitter, /data-live-entry/);
+  assert.match(owners.twitter, /prefers-reduced-motion:\s*reduce/);
+  assert.doesNotMatch(owners.twitter, /body\[data-style='ripploid'\]|url\(/);
   const giftAssets = new Set();
   for (const style of ['signal', 'minimal', 'ranked']) {
     const asset = owners[style].match(/url\('(\/img\/overlays\/danmaku-gifts\/[^']+)'\)/)[1];

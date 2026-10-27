@@ -41,7 +41,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **19 个字段**；overlay 不接收这个完整对象：
 
-`topic=danmaku` 仅选择高频 `danmaku:message` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅该增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js` 和 `test/transport/websocket-access-policy.test.js`。
+`topic=danmaku` 仅选择高频 `danmaku:message` 与 `danmaku:superchat-delete` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅这些增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js` 和 `test/transport/websocket-access-policy.test.js`。
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -63,7 +63,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `lyricTimeline`       | `lyricTimeline` 对象                       | 歌词时间轴(全曲),经 `normalizeLyricTimeline` 归一化                                                               |
 | `lyricSource` | `musicRuntime.getLyricSource()` | 实际输出来源、跟随偏好、正在播放的来源及 QQ / 网易云 / WeSing 采集状态，仅 Admin；见[音乐服务 §13](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs) |
 | `weSing`              | `weSingCapture.getStatus()`                | 全民K歌采集状态,见 [music/wesing.md](music/wesing.md)                                                             |
-| `danmakuFeed`         | `danmakuFeedBuffer.getSnapshot()`          | 当前直播间最近 50 条弹幕和已结算礼物提示的公开投影，含可选 B 站表情或礼物字段，见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1 |
+| `danmakuFeed`         | `danmakuFeedBuffer.getSnapshot()`          | 当前直播间最近 50 条普通弹幕、SC 和已结算礼物提示的公开投影，含可选 B 站表情、SC 金额／撤回 ID 或礼物字段，见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1 |
 
 快照全量替换语义与客户端指纹去重见 [frontend/comms.md](../frontend/comms.md)。
 
@@ -81,7 +81,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `gift-wishes` | `gifts.viewRevision` | 无专用事件；`gift:wishes` 快照 reason 通知重新读取整数进度 |
 | `gift-sprint` | `giftSprint.targetRmb/remainingCrystalBalls`；复用现有来源隔离的冲刺统计 | 无专用事件；初始及后续快照更新文字倒计数，不开放修改目标、重置或礼物明细 |
 | `lyrics` | 歌词展示设置、`lyricState`、`lyricTimeline` | `lyric-state`、`lyric-timeline` |
-| `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`，另需 topic 订阅 |
+| `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`、`danmaku:superchat-delete`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
 | `wheel` | 空 state | `wheel:update` |
 | `clock` | `overlay-projection.js` 的 clock 设置白名单，含 `clockMoonMode`、`clockMoonIntervalSeconds` 和 JSON 字符串 `clockStyleParameters`；不按前缀放行其他设置 | 无；通过 settings 快照更新 |
@@ -94,7 +94,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | 类型                  | 载荷                                                                                                                 | 触发点                                                                                                                                                                                                                                                                                                                                                             |
 | --------------------- | -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `snapshot`            | `{type, reason, state}`（Admin 完整状态；overlay 按 §2.1 投影）                                                                                 | 连接建立(`reason:'connect'`);业务变更广播                                                                                                                                                                                                                                                                                                                          |
-| `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 实时 B 站弹幕及已结算的礼物提示（公开字段见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1）；仅投递给订阅 `topic=danmaku` 的 Admin 或 danmaku scope，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
+| `danmaku:message`     | `{type:'danmaku:message', item}`                                                                                     | 实时 B 站普通弹幕、SC 及已结算的礼物提示（公开字段见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1）；仅投递给订阅 `topic=danmaku` 的 Admin 或 danmaku scope，重连后由 snapshot 中的 `danmakuFeed` 恢复                                                                                                                                                                                                                      |
+| `danmaku:superchat-delete` | `{type:'danmaku:superchat-delete', messageIds}`；仅含本次实际从公开 feed 删除的 SC 平台消息 ID | B 站 SC 下线时先从公开缓冲及后续快照撤回，再向订阅 `topic=danmaku` 的 Admin 或 danmaku scope 广播；重复或未找到的 ID 不发送，持久化撤回顺序见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1 |
 | `gift:frame` | `{type,eventId,giftEventId,giftId,giftName,num,totalPriceCents,userName,avatarUrl,themeId}`；头像缺失为空字符串，旧事件可省略；预览另含 `preview/previewSessionId`；`themeId` 为 `woodland-bloom`，旧 motionMode 不再生成/投影 | final 礼物达到林间花信配置阈值时广播，或管理页显式预览；由 `gift/frame-config.js` 生成，一笔礼物只产生一个事件，金额单位为人民币分；头像仅接受已知 HTTPS B 站 CDN URL，并投影至 gift-effects 与场景 |
 | `gift:guard-thanks` | `{type,eventId,giftEventId,tier,userName,months,avatarUrl,textMode,style}`；style 为 aurora/classic，预览另含 `preview` | final 大航海礼物按各风格的独立开关生成事件，或管理页显式预览；由 `gift/guard-thanks-config.js` 生成；实时事件 ID 含风格后缀，旧设置兼容与广播顺序见 [礼物契约](bilibili/gift.md)；gift-effects scope 保留 style，但不接收 `giftEventId` |
 | `gift:effect` | `{type,source,eventId,giftId,effect}`；effect 为播放素材和布局展示 DTO | 礼物特效发布；仅 Admin 与 gift-effects scope 接收 |
@@ -138,6 +139,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 [StateService](../../../public/js/admin/state.js) 对所有合法 snapshot 应用状态并更新各字段实时版本；`isSongsSnapshotReason` 实际接受 `songs:` 前缀和 `cloud:songs`，但生产者合法后缀仍以上表为准。`isGiftSnapshotReason` 只包含表中四个明确标注的值。其余 reason 不触发这两类额外副作用；视图由 changedKeys 渲染，不能把事件回调与完整重渲染等同。
 
 `createWebSocketHub.broadcastSnapshot` 在同一 microtask 窗口覆盖 `pendingSnapshot`，flush 时读取最新 `getState()`，**只保留最后一个 reason**，不保存 reason 数组。连接初始快照直接发送；兼容层导出的广播函数不经此合并。消费者不能假定每次业务操作都有一条 reason，也不能据此补造事件。相关证据：[websocket-transport.test.js](../../../test/transport/websocket-transport.test.js)、[admin-state-ordering.test.js](../../../test/admin/admin-state-ordering.test.js)、[runtime-event-publication.test.js](../../../test/server/runtime-event-publication.test.js)。
+
+只有 overlay 连接时，状态读取字段由同一投影 owner 的 schema 推导并合并，通过 `getState(fields)` 避免计算无关域；存在 Admin 或兼容旧专用 games 快照的连接时仍读完整状态。一次广播内按已认证 principal 类型/scope 复用投影、JSON 和帧，缓存不跨广播；每个 socket 独立执行订阅过滤、背压检查与失败清理。连接初始快照也按该连接 scope 选择读取字段，封套和字段投影契约保持不变。
 
 ### 3.2 `overtime:update` 的 reason 枚举
 

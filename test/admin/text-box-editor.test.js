@@ -382,7 +382,7 @@ test('scroll switches are exclusive and preserve long editable text and native u
   const editor = page.getByRole('textbox', { name: '文本框内容' });
   const horizontal = page.getByRole('switch', { name: '横向滚动' });
   const vertical = page.getByRole('switch', { name: '纵向滚动' });
-  const speed = page.getByRole('slider', { name: '滚动速率', exact: true });
+  const speed = page.getByRole('slider', { name: '滚动速度', exact: true });
   assert.equal(await horizontal.isChecked(), false);
   assert.equal(await vertical.isChecked(), false);
   assert.equal(await speed.inputValue(), '40');
@@ -390,7 +390,7 @@ test('scroll switches are exclusive and preserve long editable text and native u
   const help = page.getByRole('button', { name: '自动滚动说明' });
   await help.focus();
   assert.equal(await help.getAttribute('aria-expanded'), 'true');
-  assert.match(await page.getByRole('tooltip').textContent(), /一次启用一个方向/);
+  assert.match(await page.getByRole('tooltip').textContent(), /两个方向只能启用一个/);
   await help.press('Escape');
   assert.equal(await help.getAttribute('aria-expanded'), 'false');
   const text = '第一行公告\n第二行内容'.repeat(1000);

@@ -8,6 +8,11 @@ const REGION_DEFAULTS = Object.freeze({
   prismatic: [640, 720],
   harbor: [640, 720],
   snowfox: [640, 720],
+  ripploid: [520, 640],
+  twitter: [530, 850],
+  'flower-letter': [640, 850],
+  spooky: [530, 620],
+  notebook: [640, 720],
   starlight: [520, 640],
   moonlit: [640, 720],
   outline: null, mist: null, whiteframe: null, cream: null, glow: null, starveil: null, floating: null, comet: null,
@@ -51,7 +56,7 @@ function normalizeLayout(value) {
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
     || !regions || typeof regions !== 'object' || Array.isArray(regions)
     || Object.keys(regions).some((style) => !Object.hasOwn(REGION_DEFAULTS, style))
-    || Object.keys(REGION_DEFAULTS).some((style) => !['sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic', 'harbor', 'snowfox'].includes(style) && !Object.hasOwn(regions, style))) fail();
+    || Object.keys(REGION_DEFAULTS).some((style) => !['sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook'].includes(style) && !Object.hasOwn(regions, style))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
     const region = !Object.hasOwn(regions, style)

@@ -218,7 +218,7 @@ export function createGiftWishes() {
     get('giftWishStatus').textContent = status.join(' ');
     updateDraftPreview();
     get('giftWishEmpty').hidden = items.length > 0;
-    get('giftWishEmpty').textContent = `${{ long: '长效', day: '本日', session: '本场直播' }[period]}暂无许愿`;
+    get('giftWishEmpty').textContent = { long: '暂无长效许愿', day: '今日暂无许愿', session: '本场直播暂无许愿' }[period];
     const nextSignature = JSON.stringify(items);
     if (signature === nextSignature) return;
     signature = nextSignature;
@@ -245,7 +245,7 @@ export function createGiftWishes() {
         if (busy) return;
         if (remove.dataset.confirm !== 'true') {
           remove.dataset.confirm = 'true';
-          remove.textContent = '确认删除';
+          remove.textContent = '再次点击删除';
           return;
         }
         mutate('/api/gifts/wishes/delete', { id: wish.id }, '许愿已删除');
@@ -366,7 +366,7 @@ export function createGiftWishes() {
   });
   const url = `${localOverlayOrigin(location)}/gift-wishes`;
   get('giftWishUrl').textContent = url;
-  bindCopyUrl(get('giftWishUrl'), { onCopied: () => toast('许愿地址已复制'), onError: fail });
+  bindCopyUrl(get('giftWishUrl'), { onCopied: () => toast('许愿浏览器源地址已复制'), onError: fail });
   get('giftWishPreview').addEventListener('click', () => openComponentPreview({ id: 'gift-wishes' }));
   selectPeriod(period);
   const unsubscribe = eventBus.on(Events.STATE_LOADED, ({ state }) => {

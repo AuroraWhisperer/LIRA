@@ -126,13 +126,61 @@ test('blindbox filtering requests the selected box and hides losses only in winn
       return { json: async () => ({ ok: true, data: { summary: {}, perUser } }) };
     };
     await sandbox.loadStats();
-    assert.deepEqual(requests, [
-      '/api/gifts/blind-box-stats' + (search ? '?boxName=' + encodeURIComponent('心动盲盒') : ''),
-    ]);
+    assert.equal(requests.length, 1);
+    const query = new URLSearchParams(requests[0].split('?')[1]);
+    assert.equal(query.get('top'), '3');
+    assert.equal(query.get('hideLoss'), search ? '1' : '0');
+    assert.equal(query.get('boxName'), search ? '心动盲盒' : null);
     assert.match(elements.blindboxLeaderboard.innerHTML, /Winner/);
     assert.equal(elements.blindboxLeaderboard.innerHTML.includes('BreakEven'), search === '');
     assert.equal(elements.blindboxLeaderboard.innerHTML.includes('Loss'), search === '');
   }
+});
+
+test('changed leaderboard filters refresh even when a coalesced snapshot has another reason', async () => {
+  const { sandbox, elements } = createOverlay();
+  let onMessage;
+  sandbox.createOverlaySocket = (options) => { onMessage = options.onMessage; return { start() {} }; };
+  const requests = [];
+  sandbox.fetch = async url => {
+    requests.push(url);
+    return { json: async () => ({ ok: true, data: { summary: {},
+      perUser: Array.from({ length: 6 }, (_, index) => ({ userName: `User-${index}`, totalProfit: 1 })) } }) };
+  };
+  sandbox.connectSocket();
+  const snapshot = { type: 'snapshot', reason: 'lyrics',
+    state: { settings: { blindboxOverlayTop: '6', blindboxAutoPages: 'false' } } };
+  onMessage(snapshot);
+  await new Promise(setImmediate);
+  assert.equal(requests.length, 1);
+  assert.equal(new URLSearchParams(requests[0].split('?')[1]).get('top'), '6');
+  assert.match(elements.blindboxLeaderboard.innerHTML, /User-5/);
+  onMessage(snapshot);
+  assert.equal(requests.length, 1);
+});
+
+test('blindbox refreshes share one pending request and read the last dirty update', async () => {
+  const { sandbox, elements } = createOverlay();
+  const pending = [];
+  sandbox.fetch = () => new Promise((resolve) => pending.push(resolve));
+  const first = sandbox.loadStats();
+  for (let index = 0; index < 20; index++) assert.equal(sandbox.loadStats(), first);
+  assert.equal(pending.length, 1);
+  pending[0]({ json: async () => ({ ok: true, data: { summary: {}, perUser: [{ userName: 'Old', totalProfit: 1 }] } }) });
+  await new Promise(setImmediate);
+  assert.equal(pending.length, 2);
+  assert.doesNotMatch(elements.blindboxLeaderboard.innerHTML, /Old/);
+  pending[1]({ json: async () => ({ ok: true, data: { summary: {}, perUser: [{ userName: 'Latest', totalProfit: 2 }] } }) });
+  await first;
+  assert.match(elements.blindboxLeaderboard.innerHTML, /Latest/);
+});
+
+test('summary-only comparison ignores changes in unused ranking rows', () => {
+  const { sandbox, elements } = createOverlay('?top=0');
+  sandbox.render({ summary: { boxCount: 1 }, perUser: [{ userName: 'A', totalProfit: 1 }] });
+  elements.blindboxSummary.innerHTML = 'unchanged';
+  sandbox.render({ summary: { boxCount: 1 }, perUser: [{ userName: 'B', totalProfit: 2 }] });
+  assert.equal(elements.blindboxSummary.innerHTML, 'unchanged');
 });
 
 test('blindbox empty states distinguish unopened boxes from a filtered ranking without duplicate messages', () => {

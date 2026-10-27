@@ -24,7 +24,9 @@ const routes = {
 
   'GET /api/overtime/gifts': overtimeRoute((overtime) => overtime.getGiftCatalog()),
 
-  'GET /api/overtime/gifts/catalog': overtimeRoute((overtime) => overtime.getGlobalGiftCatalog()),
+  'GET /api/overtime/gifts/catalog': overtimeRoute((overtime, request) => overtime.getGlobalGiftCatalog({
+    conditional: request.query?.get('conditional') === '1', contentRevision: request.query?.get('contentRevision'),
+  })),
 
   'POST /api/overtime/gifts/refresh': overtimeRoute((overtime) =>
     overtime.refreshGiftCatalog({

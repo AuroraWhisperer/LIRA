@@ -98,7 +98,7 @@ function describeModelEndpoint(value, protocolPreference = 'auto', providerPrefe
   const configuredProvider = String(providerPreference || 'auto')
     .trim()
     .toLowerCase();
-  const provider = ['deepseek', 'openai', 'anthropic', 'gemini', 'custom'].includes(configuredProvider)
+  const provider = ['deepseek', 'kimi', 'openai', 'anthropic', 'gemini', 'custom'].includes(configuredProvider)
     ? configuredProvider
     : endpoint.officialDeepSeek
       ? 'deepseek'
@@ -110,6 +110,8 @@ function describeModelEndpoint(value, protocolPreference = 'auto', providerPrefe
     reasoningMode:
       provider === 'deepseek'
         ? 'deepseek_effort'
+        : provider === 'kimi'
+          ? 'kimi_thinking'
         : provider === 'gemini'
           ? 'gemini_effort'
           : endpoint.protocol === 'responses'

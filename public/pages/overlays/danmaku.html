@@ -5,7 +5,7 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>弹幕姬</title>
-    <link rel="stylesheet" href="/css/overlays/danmaku.css?v=20260901-01" />
+    <link rel="stylesheet" href="/css/overlays/danmaku.css?v=20261026-02" />
   </head>
   <body class="danmaku-overlay-body" data-style="signal">
     <aside id="danmakuPreviewControls" class="danmaku-preview-controls" aria-label="弹幕样式预览" hidden>
@@ -76,6 +76,26 @@
           <img src="/img/overlays/danmaku-previews/snowfox.png" alt="" />
           <span>雪狐物语<small>狐耳渐变气泡、雪屋留言，支持整条换色</small></span>
         </button>
+        <button type="button" data-preview-style="ripploid" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/ripploid.png" alt="" />
+          <span>RIPPLOID<small>票券、护照与撕裂卡带，支持事件分级换色</small></span>
+        </button>
+        <button type="button" data-preview-style="notebook" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/notebook.png" alt="" />
+          <span>手账风<small>便笺、胶带与分层入场，保留 B 站表情</small></span>
+        </button>
+        <button type="button" data-preview-style="spooky" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/spooky.png" alt="" />
+          <span>幽灵便笺<small>纸片、幽灵贴纸与 Chat Box</small></span>
+        </button>
+        <button type="button" data-preview-style="twitter" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/twitter.svg" alt="" />
+          <span>仿推特 3.0<small>白色社交卡片、房主资料与高清矢量操作区</small></span>
+        </button>
+        <button type="button" data-preview-style="flower-letter" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/flower-letter.png" alt="" />
+          <span>花与信笺<small>花叶信笺、邮戳与分层信封，默认悠哉字体</small></span>
+        </button>
       </div>
       <div class="danmaku-preview-choices" role="group" aria-label="区域随机弹幕">
         <h2>区域随机</h2>
@@ -135,14 +155,17 @@
         <label>字体<select id="previewFontFamily"><option value="default">样式默认</option><option value="sans">微软雅黑</option><option value="serif">宋体</option><option value="kai">楷体</option></select></label>
         <div class="canvas-fields">
           <label>画布字号<input id="previewFontSize" type="number" step="1" /></label>
-          <label><span id="previewTextColorLabel">正文颜色</span><input id="previewTextColor" type="color" /></label>
-          <label id="previewBubbleColorModeField" hidden>弹幕配色<select id="previewBubbleColorMode"><option value="default">默认配色</option><option value="custom">自定义配色</option></select></label>
+          <label id="previewTextColorModeField" hidden>正文配色<select id="previewTextColorMode"><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
+          <label id="previewTextColorField"><span id="previewTextColorLabel">正文颜色</span><input id="previewTextColor" type="color" /></label>
+          <label id="previewBubbleColorModeField" hidden><span id="previewBubbleColorLabel">弹幕配色</span><select id="previewBubbleColorMode"><option value="default">默认配色</option><option value="custom">自定义配色</option></select><small id="previewBubbleColorHint">默认按当前直播间身份配色。</small></label>
           <label id="previewBubbleColorField" hidden>自定义配色<input id="previewBubbleColor" type="color" value="#78a9d6" /></label>
           <label id="previewBackgroundField">背景不透明度<input id="previewBackgroundOpacity" type="number" min="0" max="100" step="1" /></label>
           <label id="previewGiftField">礼物图片<select id="previewGiftImage"><option value="theme">样式插画</option><option value="gift">礼物原图</option></select></label>
           <label id="previewMinGiftAmountField" hidden>弹幕礼物卡片最低金额（元）<input id="previewMinGiftAmount" type="number" min="0" max="100000" step="0.01" value="0" /></label>
           <label id="previewDirectionField">滚动方向<select id="previewScrollDirection"><option value="up">向上</option><option value="down">向下</option></select></label>
           <label id="previewEdgeFadeField">边缘处理<select id="previewEdgeFade"><option value="both">两端渐隐</option><option value="top">上边渐隐</option><option value="bottom">下边渐隐</option><option value="none">直接切断</option></select></label>
+          <label id="previewSpookyThemeField" hidden>便笺配色<select id="previewSpookyTheme"><option value="default">Default · 紫色</option><option value="autumn">Autumn · 秋日</option><option value="graveyard">Graveyard · 灰紫</option><option value="moonlight">Moonlight · 月光</option></select></label>
+          <label id="previewSpookyFrameField" hidden>Chat Box 外框<select id="previewSpookyFrame"><option value="show">显示</option><option value="hide">隐藏</option></select></label>
           <label id="previewDecorationShapeField" hidden>装饰图案<select id="previewDecorationShape"><option value="sparkle">四角星</option><option value="heart">爱心</option><option value="square">圆角方块</option><option value="star">五角星</option><option value="flower">小花</option><option value="moon">月牙</option><option value="bow">蝴蝶结</option></select></label>
           <label id="previewEntranceAnimationField" hidden>入场动画<select id="previewEntranceAnimation"><option value="fade">动画 1 · 渐显</option><option value="rise">动画 2 · 上浮弹入</option></select></label>
           <label id="previewSpeedField" hidden>飘动速度 <output id="previewFloatingSpeedValue" for="previewFloatingSpeed">50 · 1×</output><input id="previewFloatingSpeed" type="range" min="1" max="100" step="1" value="50" /></label>
@@ -151,7 +174,60 @@
           <label id="previewCenterBiasField" hidden>中心倾向<input id="previewCenterBias" type="number" min="1" max="50" step="1" value="1" /><small>1～50，越高越靠近中间。</small></label>
           <label id="previewDispersionField" hidden>离散程度<input id="previewDispersion" type="number" min="1" max="50" step="1" value="1" /><small>1～50，越高越倾向于远离上一条；受中心倾向和可用空间共同影响。</small></label>
         </div>
-        <button id="previewAppearanceReset" type="button">恢复当前样式参数</button>
+        <details id="previewRipploidColors" hidden>
+          <summary>RIPPLOID 事件配色</summary>
+          <p>聊天主色单独设置；礼物与 SC 按单条人民币金额分档，上舰按身份分档。</p>
+          <p><strong>普通礼物</strong></p>
+          <div class="canvas-fields">
+            <label>＜50 元<input id="previewGiftColor0" type="color" value="#f39749" /></label>
+            <label>50～＜100 元<input id="previewGiftColor50" type="color" value="#f39749" /></label>
+            <label>100～＜500 元<input id="previewGiftColor100" type="color" value="#f39749" /></label>
+            <label>500～＜1000 元<input id="previewGiftColor500" type="color" value="#f39749" /></label>
+            <label>1000～＜2000 元<input id="previewGiftColor1000" type="color" value="#f39749" /></label>
+            <label>≥2000 元<input id="previewGiftColor2000" type="color" value="#f39749" /></label>
+          </div>
+          <p><strong>大航海 / NEW MEMBER</strong></p>
+          <div class="canvas-fields">
+            <label>舰长<input id="previewGuardColorCaptain" type="color" value="#f39749" /></label>
+            <label>提督<input id="previewGuardColorAdmiral" type="color" value="#f39749" /></label>
+            <label>总督<input id="previewGuardColorGovernor" type="color" value="#f39749" /></label>
+          </div>
+          <p><strong>SC</strong></p>
+          <div class="canvas-fields">
+            <label>＜50 元<input id="previewSuperchatColor0" type="color" value="#f39749" /></label>
+            <label>50～＜100 元<input id="previewSuperchatColor50" type="color" value="#f39749" /></label>
+            <label>100～＜500 元<input id="previewSuperchatColor100" type="color" value="#f39749" /></label>
+            <label>500～＜1000 元<input id="previewSuperchatColor500" type="color" value="#f39749" /></label>
+            <label>1000～＜2000 元<input id="previewSuperchatColor1000" type="color" value="#f39749" /></label>
+            <label>≥2000 元<input id="previewSuperchatColor2000" type="color" value="#f39749" /></label>
+          </div>
+        </details>
+        <details id="previewSpookyColors" hidden><summary>背景与装饰配色</summary>
+          <p>礼物、上舰和 SC 共用事件卡底色。背景不透明度只影响底板和叠纸。</p>
+          <div class="canvas-fields">
+            <div class="canvas-color-group">
+              <label>外框底色<select id="previewSpookyFrameColorMode"><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
+              <label id="previewSpookyFrameColorField" hidden>自定义外框底色<input id="previewSpookyFrameColor" type="color" value="#2d204e" data-color-opacity="previewSpookyFrameOpacity" /></label>
+              <div><label for="previewSpookyFrameOpacity">外框不透明度（%）</label><input id="previewSpookyFrameOpacity" type="number" min="0" max="100" step="1" value="100" /></div>
+            </div>
+            <div class="canvas-color-group">
+              <label>消息底色<select id="previewSpookyMessageColorMode"><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
+              <label id="previewSpookyMessageColorField" hidden>自定义消息底色<input id="previewSpookyMessageColor" type="color" value="#2e154e" data-color-opacity="previewSpookyMessageOpacity" /></label>
+              <div><label for="previewSpookyMessageOpacity">消息不透明度（%）</label><input id="previewSpookyMessageOpacity" type="number" min="0" max="100" step="1" value="100" /></div>
+            </div>
+            <div class="canvas-color-group">
+              <label>事件卡底色<select id="previewSpookyEventColorMode"><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
+              <label id="previewSpookyEventColorField" hidden>自定义事件卡底色<input id="previewSpookyEventColor" type="color" value="#382459" data-color-opacity="previewSpookyEventOpacity" /></label>
+              <div><label for="previewSpookyEventOpacity">事件不透明度（%）</label><input id="previewSpookyEventOpacity" type="number" min="0" max="100" step="1" value="100" /></div>
+            </div>
+            <div class="canvas-color-group">
+              <label>装饰强调色<select id="previewSpookyAccentColorMode"><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
+              <label id="previewSpookyAccentColorField" hidden>自定义装饰强调色<input id="previewSpookyAccentColor" type="color" value="#9c62e4" /></label>
+            </div>
+          </div>
+          <button id="previewSpookyResetColors" type="button">恢复当前主题配色</button>
+        </details>
+        <button id="previewAppearanceReset" type="button">恢复当前样式默认参数</button>
       </section>
       <p class="danmaku-preview-note">本地示例每 1.5 秒一条，循环演示。修改仅为草稿，应用后更新直播画面。</p>
     </aside>
@@ -171,6 +247,13 @@
           </div>
           <div id="danmakuRegion" class="danmaku-region">
             <main class="danmaku-signal-stage">
+              <div class="spooky-frame" aria-hidden="true">
+                <span class="spooky-frame-paper"></span><span class="spooky-frame-paper second"></span>
+                <span class="spooky-frame-ribbon"></span>
+                <div class="spooky-frame-board"><div class="spooky-frame-outline">
+                  <span class="spooky-frame-web"></span><span class="spooky-frame-web"></span><span class="spooky-frame-web"></span><span class="spooky-frame-web"></span>
+                </div></div><span class="spooky-frame-title">CHAT</span>
+              </div>
               <header class="danmaku-signal-header" aria-label="弹幕接收状态">
                 <span class="danmaku-signal-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
                 <span class="danmaku-signal-copy">
@@ -179,6 +262,26 @@
                 </span>
                 <span id="danmakuMessageCount" class="danmaku-signal-count">00</span>
               </header>
+              <header class="twitter-profile" aria-label="当前直播间房主">
+                <span class="twitter-profile-avatar-shell" aria-hidden="true">
+                  <span id="twitterProfileAvatarFallback">房</span>
+                  <img id="twitterProfileAvatar" alt="" referrerpolicy="no-referrer" decoding="async" hidden />
+                </span>
+                <div class="twitter-profile-copy">
+                  <div class="twitter-profile-name-line">
+                    <strong id="twitterProfileName">当前房主</strong>
+                    <svg class="twitter-profile-verified" viewBox="0 0 24 24" aria-hidden="true">
+                      <circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"></circle>
+                      <path d="m7.5 12 3 3 6-6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
+                    </svg>
+                  </div>
+                  <div id="twitterProfileUid" class="twitter-profile-uid">@UID 等待读取</div>
+                </div>
+                <span class="twitter-profile-room">ROOM</span>
+              </header>
+              <nav class="twitter-tabs" aria-label="社交卡片标签">
+                <span class="is-active">帖子</span><span>回复</span><span>媒体</span><span>喜欢</span>
+              </nav>
               <section
                 id="danmakuFeed"
                 class="draw-danmaku-feed"
@@ -186,6 +289,18 @@
                 aria-live="polite"
                 aria-relevant="additions"
               ></section>
+              <footer class="twitter-composer" aria-label="弹幕输入栏装饰">
+                <svg class="twitter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7M15 3h6v6M10 14 21 3"></path>
+                </svg>
+                <svg class="twitter-icon" viewBox="0 0 24 24" aria-hidden="true">
+                  <circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"></path>
+                </svg>
+                <span class="twitter-composer-text">弹幕、礼物与醒目留言</span>
+                <svg class="twitter-icon twitter-composer-send" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m21 3-8.2 18-2.1-7.7L3 11.2 21 3Z"></path><path d="m10.7 13.3 4-4" fill="none" stroke="#fff" stroke-width="1.2"></path>
+                </svg>
+              </footer>
             </main>
           </div>
         </div>
@@ -195,6 +310,6 @@
       <div><p id="previewSaveState" role="status">本地草稿</p><small id="canvasSourceHint"></small></div>
       <button id="previewApply" type="button" disabled>应用到直播画面</button>
     </footer>
-    <script type="module" src="/js/overlays/danmaku.js?v=20260901-01"></script>
+    <script type="module" src="/js/overlays/danmaku.js?v=20261025-01"></script>
   </body>
 </html>

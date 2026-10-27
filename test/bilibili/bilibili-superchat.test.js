@@ -88,6 +88,7 @@ test('every SuperChat packet reaches the SC consumer; only fresh, unique command
     'every paid message is delivered, including duplicates and non-commands');
   assert.equal(f.superChats[0].userName, '观众123·资料', 'the SC uses the ingested identity');
   assert.equal(f.superChats[0].requesterGuardLevel, 2);
+  assert.equal(f.superChats[0].avatarUrl, 'https://i0.hdslb.com/bfs/face/sc.jpg');
   assert.equal(f.superChats[0].currentRoomVerified, true);
   assert.deepEqual([f.superChats[0].connectionGeneration, f.superChats[0].connectionAttempt, f.superChats[0].cmd],
     [4, 2, 'SUPER_CHAT_MESSAGE']);

@@ -15,9 +15,35 @@ function createSongStore(songDb) {
   if (!songDb || typeof songDb.prepare !== 'function') {
     throw new Error('songDb is required to create SongStore.');
   }
-  const changes = songDb.prepare('SELECT total_changes() AS count');
+  // Connection-local triggers observe every song writer without persisting schema changes.
+  songDb.exec(`
+    CREATE TEMP TABLE IF NOT EXISTS lira_song_revision (revision INTEGER NOT NULL);
+    INSERT INTO lira_song_revision SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM lira_song_revision);
+  `);
+  for (const table of ['songs', 'song_categories']) {
+    for (const operation of ['INSERT', 'UPDATE', 'DELETE']) {
+      songDb.exec(`CREATE TEMP TRIGGER IF NOT EXISTS lira_${table}_${operation}
+        AFTER ${operation} ON main.${table} BEGIN
+          UPDATE lira_song_revision SET revision = revision + 1;
+        END`);
+    }
+  }
+  const changes = songDb.prepare('SELECT revision FROM temp.lira_song_revision');
+  let transactionRead = 0;
   const dataVersion = songDb.prepare('PRAGMA data_version');
   const cloudSync = createCloudSongSyncStore(songDb);
+  const insertSong = songDb.prepare(`
+    INSERT INTO songs (
+      name, name_pinyin, name_initial, artist, category_id,
+      is_enabled, note, tags, language, source_platform, request_price, song_clip,
+      created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const updateImportedSong = songDb.prepare(`
+    UPDATE songs SET category_id = ?, is_enabled = ?, note = ?, tags = ?,
+      language = ?, source_platform = ?, request_price = ?, song_clip = ?, updated_at = ?
+    WHERE id = ?
+  `);
 
   function withTransaction(callback, { syncPending = false } = {}) {
     songDb.exec('BEGIN');
@@ -32,9 +58,12 @@ function createSongStore(songDb) {
     }
   }
 
-  function ensureCategoryWithinTransaction(name) {
-    const existing = songDb.prepare('SELECT * FROM song_categories WHERE name = ?').get(name);
-    if (existing) return existing;
+  function ensureCategoryWithinTransaction(name, categories) {
+    const existing = categories?.get(name) || songDb.prepare('SELECT * FROM song_categories WHERE name = ?').get(name);
+    if (existing) {
+      categories?.set(name, existing);
+      return existing;
+    }
 
     const createdAt = now();
     const result = songDb
@@ -45,39 +74,30 @@ function createSongStore(songDb) {
     `,
       )
       .run(name, createdAt, createdAt);
-    return songDb.prepare('SELECT * FROM song_categories WHERE id = ?').get(Number(result.lastInsertRowid));
+    const category = songDb.prepare('SELECT * FROM song_categories WHERE id = ?').get(Number(result.lastInsertRowid));
+    categories?.set(name, category);
+    return category;
   }
 
-  function insertSongWithinTransaction(song, createdAt = now(), categoryId) {
+  function insertSongWithinTransaction(song, createdAt, categoryId) {
     const initial = song.nameInitial || song.namePinyin || getInitial(song.name);
-    const resolvedCategoryId = categoryId ?? ensureCategoryWithinTransaction(song.categoryName || '默认').id;
-    songDb
-      .prepare(
-        `
-      INSERT INTO songs (
-        name, name_pinyin, name_initial, artist, category_id,
-        is_enabled, note, tags, language, source_platform, request_price, song_clip,
-        created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-      )
-      .run(
-        song.name,
-        initial,
-        initial,
-        song.artist || '',
-        resolvedCategoryId,
-        song.isEnabled ? 1 : 0,
-        song.note || '',
-        song.tags || '',
-        song.language || '',
-        song.sourcePlatform || '',
-        song.requestPrice || '',
-        song.songClip || '',
-        createdAt,
-        song.updatedAt || createdAt,
-      );
-    return songDb.prepare('SELECT * FROM songs WHERE id = last_insert_rowid()').get();
+    const result = insertSong.run(
+      song.name,
+      initial,
+      initial,
+      song.artist || '',
+      categoryId,
+      song.isEnabled ? 1 : 0,
+      song.note || '',
+      song.tags || '',
+      song.language || '',
+      song.sourcePlatform || '',
+      song.requestPrice || '',
+      song.songClip || '',
+      createdAt,
+      song.updatedAt || createdAt,
+    );
+    return Number(result.lastInsertRowid);
   }
 
   function readSongById(id) {
@@ -105,9 +125,9 @@ function createSongStore(songDb) {
 
   const store = {
     getChangeToken() {
-      // Include writes through other stores on this connection and commits
-      // from other connections (imports, cleanup and cloud replacement).
-      return `${changes.get().count}:${dataVersion.get().data_version}`;
+      // Never reuse an uncommitted snapshot: rollback can restore/reuse a revision.
+      const transaction = songDb.isTransaction ? `:transaction:${++transactionRead}` : '';
+      return `${changes.get().revision}:${dataVersion.get().data_version}${transaction}`;
     },
 
     saveSong(song) {
@@ -182,7 +202,7 @@ function createSongStore(songDb) {
             }
 
             assertSongImportLimit(store.countSongs() + 1);
-            return insertSongWithinTransaction({ ...song, categoryName }, updatedAt, category.id);
+            return readSongById(insertSongWithinTransaction({ ...song, categoryName }, updatedAt, category.id));
           },
           { syncPending: true },
         );
@@ -333,15 +353,16 @@ function createSongStore(songDb) {
           }
           assertSongImportLimit(existingRows.length + newRows.length);
           let createdCategories = 0;
-          const knownCategories = new Set(listCategoryRows().map((category) => category.name));
+          const categories = new Map(listCategoryRows().map((category) => [category.name, category]));
 
           for (const row of newRows) {
             const categoryName = row.categoryName || '默认';
-            if (!knownCategories.has(categoryName)) {
-              knownCategories.add(categoryName);
+            if (!categories.has(categoryName)) {
               createdCategories += 1;
             }
-            insertSongWithinTransaction({ ...row, categoryName });
+            const createdAt = now();
+            const category = ensureCategoryWithinTransaction(categoryName, categories);
+            insertSongWithinTransaction(row, createdAt, category.id);
             inserted += 1;
           }
 
@@ -357,38 +378,29 @@ function createSongStore(songDb) {
           const plan = buildPlan(store.listRows(), store.listCategories());
           const total = plan.rows.length - (plan.counts.deleted || 0);
           for (const id of plan.deletions) deleteSongWithinTransaction(id);
-          const knownCategories = new Set(listCategoryRows().map((row) => row.name));
+          const categories = new Map(listCategoryRows().map((row) => [row.name, row]));
           let createdCategories = 0;
           for (const { id, song } of plan.changes) {
             const categoryName = song.categoryName || '默认';
-            if (!knownCategories.has(categoryName)) {
-              knownCategories.add(categoryName);
+            if (!categories.has(categoryName)) {
               createdCategories += 1;
             }
-            const category = ensureCategoryWithinTransaction(categoryName);
+            const category = ensureCategoryWithinTransaction(categoryName, categories);
             if (id === undefined) {
               insertSongWithinTransaction(song, now(), category.id);
             } else {
-              songDb
-                .prepare(
-                  `
-              UPDATE songs SET category_id = ?, is_enabled = ?, note = ?, tags = ?,
-                language = ?, source_platform = ?, request_price = ?, song_clip = ?, updated_at = ?
-              WHERE id = ?
-            `,
-                )
-                .run(
-                  category.id,
-                  song.isEnabled ? 1 : 0,
-                  song.note,
-                  song.tags,
-                  song.language,
-                  song.sourcePlatform,
-                  song.requestPrice,
-                  song.songClip,
-                  now(),
-                  id,
-                );
+              updateImportedSong.run(
+                category.id,
+                song.isEnabled ? 1 : 0,
+                song.note,
+                song.tags,
+                song.language,
+                song.sourcePlatform,
+                song.requestPrice,
+                song.songClip,
+                now(),
+                id,
+              );
             }
           }
           return { total, ...plan.counts, createdCategories };
@@ -404,8 +416,13 @@ function createSongStore(songDb) {
         songDb.prepare('UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL').run();
         songDb.prepare('DELETE FROM songs').run();
         songDb.prepare('DELETE FROM song_categories').run();
-        ensureCategoryWithinTransaction('默认');
-        for (const row of rows) insertSongWithinTransaction(row);
+        const categories = new Map();
+        ensureCategoryWithinTransaction('默认', categories);
+        for (const row of rows) {
+          const createdAt = now();
+          const category = ensureCategoryWithinTransaction(row.categoryName || '默认', categories);
+          insertSongWithinTransaction(row, createdAt, category.id);
+        }
         return { count: rows.length };
       });
     },

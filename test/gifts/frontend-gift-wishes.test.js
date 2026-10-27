@@ -259,7 +259,7 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   assert.equal(await page.locator('#giftWishCards .wish-card-count').textContent(), '3');
   assert.equal(await page.evaluate(() => window.wishSaves[1].id), 'new');
   await page.getByRole('button', { name: '删除', exact: true }).click();
-  await page.getByRole('button', { name: '确认删除', exact: true }).click();
+  await page.getByRole('button', { name: '再次点击删除', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('giftWishEmpty').hidden === false);
   assert.equal(await page.locator('#giftWishCards .wish-card').count(), 0);
 });
@@ -273,7 +273,7 @@ test('period selection keeps the unified browser-source URL and canvas preview, 
   const url = await page.locator('#giftWishUrl').textContent();
   assert.match(url, /\/gift-wishes$/);
   await page.locator('#giftWishUrl').click();
-  assert.equal(await page.evaluate(() => window.messages.filter(message => message === '许愿地址已复制').length), 1);
+  assert.equal(await page.evaluate(() => window.messages.filter(message => message === '许愿浏览器源地址已复制').length), 1);
   for (const [period, label] of [['day', '本日'], ['session', '本场直播'], ['long', '长效']]) {
     await page.getByRole('button', { name: '许愿统计周期', exact: true }).click();
     await page.getByRole('option', { name: label, exact: true }).click();

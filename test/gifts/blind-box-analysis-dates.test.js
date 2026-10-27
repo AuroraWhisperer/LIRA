@@ -6,6 +6,116 @@ const { getBlindBoxAnalysis, getBlindBoxStats } = require('../../src/bilibili/gi
 const { routes } = require('../../src/server/routes/gift-routes');
 const { createFixture } = require('../helpers/gift-query-fixture');
 
+test('blind box snapshots reuse unchanged rows across lyric updates and invalidate for writes, source, filter and day', t => {
+  const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-18T12:00:00') });
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  fixture.insertGift(null, 'local', { cmd: 'SEND_GIFT', isBlindBox: true, blindBoxName: '心动盲盒',
+    blindBoxPrice: 9, totalPrice: 10, createdAt: new Date().toISOString() });
+  const rows = t.mock.method(fixture.context.queryStore, 'listBlindBoxRows');
+  let heartOnly = false;
+  const display = createSceneExtraDisplay({ displayPorts: {
+    gifts: { getBlindBoxStats: options => getBlindBoxStats(fixture.context, options) },
+    settings: { get: () => ({ blindboxHeartBoxOnly: String(heartOnly) }) },
+  } });
+  for (let i = 0; i < 20; i++) {
+    display('lyrics', () => ({ lyricState: { currentMs: i * 250 }, lyricTimeline: { lines: [] } }));
+    assert.equal(display('blindbox').summary.totalProfit, 1);
+  }
+  assert.equal(rows.mock.callCount(), 1);
+  fixture.giftDb.prepare('UPDATE gift_events SET blind_profit = 2').run();
+  assert.equal(display('blindbox').summary.totalProfit, 2);
+  assert.equal(rows.mock.callCount(), 2, 'in-place changes invalidate even with the same row count');
+  heartOnly = true;
+  assert.equal(display('blindbox').heartBoxProgress.openedSinceCastle, 1);
+  assert.equal(rows.mock.callCount(), 3);
+  fixture.setActiveSource(fixture.resolveSource('a'.repeat(64)).id);
+  assert.equal(display('blindbox').summary.boxCount, 0);
+  const emptyReads = rows.mock.callCount();
+  display('blindbox');
+  assert.equal(rows.mock.callCount(), emptyReads, 'empty results are reusable');
+  fixture.clearActiveSource();
+  assert.equal(display('blindbox').summary.boxCount, 1);
+  fixture.setActiveSource(1, { syncState: 'SOURCE_SWITCHING' });
+  assert.equal(display('blindbox').summary.boxCount, 0, 'unavailable source never exposes cached local data');
+  fixture.clearActiveSource();
+  assert.equal(display('blindbox').summary.boxCount, 1);
+  t.mock.timers.setTime(new Date('2026-09-19T12:00:00').getTime());
+  assert.equal(display('blindbox').summary.boxCount, 0);
+});
+
+test('blind box projections trim the cached leaderboard without changing totals or the full-list default', t => {
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  for (const [index, totalPrice] of [12, 10, 8].entries()) {
+    fixture.insertGift(null, `projection-${index}`, { cmd: 'SEND_GIFT', userId: String(index + 1),
+      userName: `User ${index}`, isBlindBox: true, blindBoxPrice: 9,
+      totalPrice, createdAt: new Date().toISOString() });
+  }
+  const reads = t.mock.method(fixture.context.queryStore, 'listBlindBoxRows');
+  const full = getBlindBoxStats(fixture.context);
+  assert.equal(full.perUser.length, 3);
+  const summary = getBlindBoxStats(fixture.context, { top: '0', hideLoss: '1' });
+  assert.deepEqual(summary.perUser, []);
+  assert.deepEqual(summary.summary, full.summary);
+  const top = getBlindBoxStats(fixture.context, { top: '1', hideLoss: '1' });
+  assert.deepEqual(top.perUser, full.perUser.filter(user => user.totalProfit > 0).slice(0, 1));
+  assert.deepEqual(getBlindBoxStats(fixture.context, { top: -1, hideLoss: true }).perUser,
+    full.perUser.filter(user => user.totalProfit > 0));
+  top.perUser[0].totalProfit = 999;
+  assert.deepEqual(getBlindBoxStats(fixture.context).perUser, full.perUser);
+  assert.equal(reads.mock.callCount(), 1);
+  for (const options of [{ top: 11 }, { top: '01' }, { hideLoss: 'true' }]) {
+    assert.throws(() => getBlindBoxStats(fixture.context, options), { code: 'INVALID_GIFT_STATS_OPTIONS' });
+  }
+});
+
+test('blind box cache rejects rolled-back values and observes other database connections', t => {
+  const { DatabaseSync } = require('node:sqlite');
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  fixture.insertGift(null, 'local', { cmd: 'SEND_GIFT', isBlindBox: true,
+    blindBoxPrice: 9, totalPrice: 10, createdAt: new Date().toISOString() });
+  const read = () => getBlindBoxStats(fixture.context);
+  const initial = read();
+  initial.summary.totalProfit = 500;
+  assert.equal(read().summary.totalProfit, 1, 'callers cannot mutate the cached result');
+  fixture.giftDb.exec('BEGIN');
+  fixture.giftDb.prepare('UPDATE gift_events SET blind_profit = 3').run();
+  assert.equal(read().summary.totalProfit, 3);
+  fixture.giftDb.exec('ROLLBACK');
+  assert.equal(read().summary.totalProfit, 1);
+  const second = new DatabaseSync(fixture.giftDb.prepare('PRAGMA database_list').get().file);
+  try { second.prepare('UPDATE gift_events SET blind_profit = 4').run(); }
+  finally { second.close(); }
+  assert.equal(read().summary.totalProfit, 4);
+});
+
+test('blind box cache follows changed local-day boundaries even when the date label stays the same', t => {
+  const timezone = process.env.TZ;
+  t.after(() => {
+    if (timezone === undefined) delete process.env.TZ;
+    else process.env.TZ = timezone;
+  });
+  process.env.TZ = 'UTC';
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-18T12:00:00Z') });
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  fixture.insertGift(null, 'early-local', { cmd: 'SEND_GIFT', isBlindBox: true,
+    blindBoxPrice: 9, totalPrice: 10, createdAt: '2026-09-18T01:00:00Z' });
+  const initial = getBlindBoxStats(fixture.context);
+  assert.equal(initial.summary.boxCount, 1);
+  const date = new Date().toDateString();
+  process.env.TZ = 'America/New_York';
+  assert.equal(new Date().toDateString(), date);
+  const current = getBlindBoxAnalysis(fixture.context);
+  assert.equal(current.summary.boxCount, 0);
+  const refreshed = getBlindBoxStats(fixture.context);
+  assert.equal(refreshed.today, current.today);
+  assert.deepEqual(refreshed.summary, current.summary);
+});
+
 function seed(t) {
   const fixture = createFixture();
   t.after(() => fixture.close());
@@ -132,13 +242,16 @@ test('local date bounds follow daylight saving changes instead of assuming 24 ho
   assert.equal(bounds.to, '2026-11-02T05:00:00.000Z');
 });
 
-test('analysis route passes dates through and returns 400 for invalid ranges', (t) => {
+test('analysis and stats routes pass filters through and return 400 for invalid options', (t) => {
   const fixture = seed(t);
-  const context = { gifts: { getBlindBoxAnalysis: (options) => getBlindBoxAnalysis(fixture.context, options) } };
-  function request(query) {
+  const context = { gifts: {
+    getBlindBoxAnalysis: (options) => getBlindBoxAnalysis(fixture.context, options),
+    getBlindBoxStats: (options) => getBlindBoxStats(fixture.context, options),
+  } };
+  function request(query, route = 'GET /api/gifts/blind-box-analysis') {
     let status;
     let payload;
-    routes['GET /api/gifts/blind-box-analysis'](
+    routes[route](
       context,
       { query: new URLSearchParams(query) },
       {
@@ -158,4 +271,10 @@ test('analysis route passes dates through and returns 400 for invalid ranges', (
   const invalid = request('startDate=2026-02-30');
   assert.equal(invalid.status, 400);
   assert.equal(invalid.payload.code, 'INVALID_GIFT_FILTER');
+  const summary = request('top=0&hideLoss=1', 'GET /api/gifts/blind-box-stats');
+  assert.equal(summary.status, 200);
+  assert.deepEqual(summary.payload.data.perUser, []);
+  const invalidTop = request('top=01', 'GET /api/gifts/blind-box-stats');
+  assert.equal(invalidTop.status, 400);
+  assert.equal(invalidTop.payload.code, 'INVALID_GIFT_STATS_OPTIONS');
 });

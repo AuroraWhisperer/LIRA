@@ -158,7 +158,7 @@ async function applyTime() {
       remainingSeconds: initialSeconds,
     });
     renderState(result.data);
-    toast('初始时间已设置，倒计时已重置并暂停');
+    toast('初始时长已设置，倒计时已重置并暂停');
   } catch (error) {
     showError(error);
   } finally {
@@ -223,8 +223,8 @@ async function copyOverlayUrl() {
   try {
     const size = await readComponentOutputSize('overtime').catch(() => null);
     await copyText(overlayUrl());
-    toast(size ? `地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
-      : '地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
+    toast(size ? `加班机浏览器源地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}`
+      : '加班机浏览器源地址已复制；需要固定宽高时，请在画布中调整后点击“保存并应用”。');
   } catch (error) {
     showError(error);
   }

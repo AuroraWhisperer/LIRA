@@ -45,7 +45,20 @@ test('canvas discard restores its shared and independent edits without clearing 
     .find(item => item.id === id).appearance.config.label, independentId), 'Local draft');
   await page.locator(`.preview-canvas-layer-select[data-item-id="${sharedId}"]`).click();
   await page.getByRole('button', { name: '移除组件', exact: true }).click();
+  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
+  const edited = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document);
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  const confirmation = page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true });
+  await confirmation.waitFor();
+  assert.match(await confirmation.textContent(), /丢弃.*未保存/);
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), edited);
+  await confirmation.getByRole('button', { name: '继续编辑', exact: true }).click();
+  await confirmation.waitFor({ state: 'detached' });
+  assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), edited);
+  assert.equal(await desktop.evaluate(() => window.controllers.clock.getState().draft.label), 'Local draft');
+  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await confirmation.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await confirmation.waitFor({ state: 'detached' });
   await desktop.waitForFunction(() => !window.controllers.canvas.getState().dirty && !window.controllers.clock.getState().dirty);
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().draft.overlayTitle), 'Keep unrelated work');
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);
@@ -395,7 +408,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.waitForFunction(() => window.copiedSource);
   const source = await page.evaluate(() => window.copiedSource);
-  const sourceBlock = page.getByRole('button', { name: '复制直播源地址', exact: true });
+  const sourceBlock = page.getByRole('button', { name: '复制浏览器源地址', exact: true });
   assert.equal(await sourceBlock.textContent(), source);
   const sourceBounds = await sourceBlock.boundingBox();
   assert.ok(sourceBounds.width >= 260 && sourceBounds.width <= 400, 'the popup keeps its own width outside the toolbar');
@@ -431,7 +444,7 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: '直播源地址已复制' }).waitFor();
+  await page.getByRole('status').filter({ hasText: '地址已复制；浏览器源尺寸设为' }).waitFor();
   assert.equal(await page.evaluate(() => window.copiedSource), source);
   await page.goto('about:blank');
   await desktop.evaluate(() => window.reopen());

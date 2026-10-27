@@ -109,7 +109,8 @@ test('shared local font library queries once for queue, desktop lyric and large 
 
 test('shared display fonts keep legacy selections without duplicate options or local-font queries', async () => {
   let queries = 0;
-  const faces = require('../../src/fonts/catalog.json').fonts.map(font => ({ family: font.family, status: 'loaded' }));
+  const fonts = require('../../src/fonts/catalog.json').fonts;
+  const faces = fonts.map(font => ({ family: font.family, status: 'loaded' }));
   faces.load = async descriptor => faces.filter(face => descriptor.includes(`"${face.family}"`));
   const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {
     document: { createElement: createNode, fonts: faces }, console,
@@ -122,8 +123,7 @@ test('shared display fonts keep legacy selections without duplicate options or l
     await new Promise(resolve => setImmediate(resolve));
     assert.equal(select.value, saved);
     const group = select.querySelector('optgroup[data-shared-fonts]');
-    assert.deepEqual(group.children.map(option => option.dataset.fontId),
-      ['maiyuan', 'kuaile', 'smiley', 'xiaolai', 'assorted', 'zhimangxing', 'mashanzheng', 'wenkai']);
+    assert.deepEqual(group.children.map(option => option.dataset.fontId), fonts.map(font => font.id));
     const selected = select.options.find(option => option.value === saved);
     let valueWrites = 0;
     Object.defineProperty(selected, 'value', {

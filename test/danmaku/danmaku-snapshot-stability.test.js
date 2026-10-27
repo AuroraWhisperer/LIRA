@@ -138,6 +138,9 @@ async function fixture({ scene = false } = {}) {
     append(item) {
       sockets.at(-1).emit('message', { data: JSON.stringify({ type: 'danmaku:message', item }) });
     },
+    deleteSuperChats(messageIds) {
+      sockets.at(-1).emit('message', { data: JSON.stringify({ type: 'danmaku:superchat-delete', messageIds }) });
+    },
     flush() {
       while (frames.size) {
         const callbacks = [...frames.values()];
@@ -192,6 +195,23 @@ test('unchanged snapshots preserve actual nodes and expiration timers in all nin
       assert.equal(f.root.children.length, 0, 'expired items must stay expired');
     }
   }
+});
+
+test('local SC deletion removes rendered and queued cards without rebuilding adjacent messages', async () => {
+  const f = await fixture();
+  const first = message('chat');
+  const retracted = message('sc-one', { kind: 'superchat', messageId: 'sc-1', price: 30 });
+  const queued = message('sc-two', { kind: 'superchat', messageId: 'sc-2', price: 50 });
+  f.snapshot([first, retracted]);
+  f.flush();
+  const retained = f.root.children[0];
+  const replacements = f.root.replacements;
+  f.append(queued);
+  f.deleteSuperChats(['sc-1', 'sc-2']);
+  f.deleteSuperChats(['sc-1']);
+  f.flush();
+  assert.deepEqual(f.root.children, [retained]);
+  assert.equal(f.root.replacements, replacements);
 });
 
 test('cloud SC deletion removes rendered and queued cards without rebuilding adjacent messages', async () => {

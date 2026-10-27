@@ -5,6 +5,7 @@ export const SHARED_FONTS = Object.freeze([
   { id: 'kuaile', family: 'Lira Kuaile', label: '站酷快乐体 · 俏皮手写', playerValue: 'kuaile' },
   { id: 'smiley', family: 'Lira Smiley', label: '得意黑 · 活泼醒目', playerValue: 'smiley' },
   { id: 'xiaolai', family: 'Lira Xiaolai', label: '小赖字体 · 软萌手写' },
+  { id: 'yozai', family: 'Lira Yozai', label: '悠哉字体 · 自然手写' },
   { id: 'assorted', family: 'Lira Assorted', label: '猫啃什锦黑 · 俏皮手绘' },
   { id: 'zhimangxing', family: 'Lira Zhimangxing', label: '志莽行 · 洒脱行书' },
   { id: 'mashanzheng', family: 'Lira Mashanzheng', label: '马善政 · 毛笔楷书' },

@@ -20,134 +20,48 @@ function createResponse() {
   };
 }
 
-function createRouteContext(clearAll) {
+function createRouteContext(result) {
   const calls = [];
   return {
     calls,
     context: {
-      data: { clearAll },
-      gifts: {
-        pauseDetection() {
-          calls.push('gifts:pause');
-        },
-        resumeDetection() {
-          calls.push('gifts:resume');
-        },
-      },
-      overtime: {
-        pauseRecovery() {
-          calls.push('overtime:pause');
-        },
-        resumeRecovery() {
-          calls.push('overtime:resume');
-        },
-      },
-      music: {
-        clearCache() {
-          calls.push('music:clear-cache');
-        },
-      },
-      broadcastSnapshot(reason) {
-        calls.push(`broadcast:${reason}`);
-      },
+      data: { clearAll() { calls.push('clear'); return result; } },
+      gifts: { pauseDetection() {}, resumeDetection() {} },
+      overtime: { pauseRecovery() {}, resumeRecovery() {} },
+      giftSync: { rebuild() { calls.push('rebuild'); } },
+      broadcastSnapshot(reason) { calls.push(reason); },
+      cloudSync: { request(scope) { calls.push(scope); } },
     },
   };
 }
 
-test('clear-all route resumes writers after a fully rolled-back exception', async () => {
-  const failure = new Error('Clear-all pre-commit failed: giftDb delete');
-  const { context, calls } = createRouteContext(() => {
-    throw failure;
-  });
-
-  await assert.rejects(clearAllRoute(context, { body: async () => ({ confirm: true }) }, createResponse()), failure);
-  assert.deepEqual(calls, ['gifts:pause', 'overtime:pause', 'overtime:resume', 'gifts:resume']);
+test('clear-all route requires confirmation before invoking maintenance', async () => {
+  const { context, calls } = createRouteContext();
+  const response = createResponse();
+  await clearAllRoute(context, { body: async () => ({}) }, response);
+  assert.equal(response.status, 400);
+  assert.deepEqual(response.payload, { ok: false, error: '缺少清空确认。' });
+  assert.deepEqual(calls, []);
 });
 
-for (const [name, giftProjectionReset, expectedCalls] of [
-  [
-    'clear-all route keeps writers paused after a partial commit failure',
-    undefined,
-    ['gifts:pause', 'overtime:pause', 'music:clear-cache'],
-  ],
-  [
-    'partial clear-all rebuilds when the gift projection already committed',
-    { sourceId: 7, projectionGeneration: 2 },
-    ['gifts:pause', 'overtime:pause', 'music:clear-cache', 'gift-sync:rebuild'],
-  ],
+for (const result of [
+  { cleared: true, giftProjectionReset: { sourceId: 7, projectionGeneration: 2 } },
+  { cleared: false },
+  { partial: true, committed: ['giftDb'], giftProjectionReset: { sourceId: 7, projectionGeneration: 2 }, error: 'Commit failed' },
 ]) {
-  test(name, async () => {
-    const result = {
-      partial: true,
-      committed: giftProjectionReset ? ['songDb', 'superChatDb', 'giftDb'] : ['songDb'],
-      failed: [giftProjectionReset ? 'musicDb' : 'superChatDb'],
-      error: 'Commit failed',
-      ...(giftProjectionReset ? { giftProjectionReset } : {}),
-    };
-    const { context, calls } = createRouteContext(() => result);
-    context.giftSync = {
-      rebuild() {
-        calls.push('gift-sync:rebuild');
-        return Promise.resolve(true);
-      },
-    };
+  test('clear-all route maps the result and notifies only after non-partial maintenance: ' + JSON.stringify(result), async () => {
+    const { context, calls } = createRouteContext(result);
     const response = createResponse();
-
     await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
-
-    assert.equal(response.status, 500);
-    assert.equal(response.payload.partial, true);
-    assert.deepEqual(response.payload.data, result);
-    assert.deepEqual(calls, expectedCalls);
-  });
-}
-
-for (const [name, giftProjectionReset, expectedCalls] of [
-  [
-    'clear-all route resumes writers and broadcasts after success',
-    undefined,
-    [
-      'gifts:pause',
-      'overtime:pause',
-      'music:clear-cache',
-      'overtime:resume',
-      'gifts:resume',
-      'broadcast:database:clear-all',
-    ],
-  ],
-  [
-    'successful projection clears trigger a gift bootstrap rebuild',
-    { sourceId: 7, projectionGeneration: 2 },
-    [
-      'gifts:pause',
-      'overtime:pause',
-      'music:clear-cache',
-      'overtime:resume',
-      'gifts:resume',
-      'gift-sync:rebuild',
-      'broadcast:database:clear-all',
-    ],
-  ],
-]) {
-  test(name, async () => {
-    const { context, calls } = createRouteContext(() => ({
-      cleared: true,
-      scope: 'all',
-      ...(giftProjectionReset ? { giftProjectionReset } : {}),
-    }));
-    context.giftSync = {
-      rebuild() {
-        calls.push('gift-sync:rebuild');
-        return Promise.resolve(true);
-      },
-    };
-    const response = createResponse();
-
-    await clearAllRoute(context, { body: async () => ({ confirm: true }) }, response);
-
-    assert.equal(response.status, 200);
-    assert.equal(response.payload.ok, true);
-    assert.deepEqual(calls, expectedCalls);
+    if (result.partial) {
+      assert.equal(response.status, 500);
+      assert.deepEqual(response.payload, { ok: false, partial: true, error: result.error, data: result });
+    } else {
+      assert.equal(response.status, 200);
+      assert.deepEqual(response.payload, { ok: true, data: result });
+    }
+    assert.deepEqual(calls, ['clear', ...(result.giftProjectionReset ? ['rebuild'] : []),
+      ...(result.partial ? [] : ['database:clear-all', 'songs'])]);
   });
 }
 

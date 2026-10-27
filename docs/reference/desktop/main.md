@@ -43,6 +43,8 @@
 
 豆包账号会话在 `createDesktopRuntime` 前由 main 创建并初始化，经 runtime options 注入 AI 域；退出时和其他认证 controller 一起先 `dispose()`、再等待 `whenIdle()`，终止本会话的请求及窗口。具体持久化与登录合同见 [auth.md](auth.md#16-豆包个人账号)。
 
+main 另将 `shell.openExternal` 以 `openAiLoginBrowser` 注入 AI runtime，供固定官方 ChatGPT OAuth 地址在系统浏览器授权。账号、加密存储、loopback 与关闭由 AI 域拥有，无新增 renderer IPC；见 [AI 订阅契约](../backend/ai.md#45-chatgpt-订阅与-kimi-api)。
+
 ## 礼物保留快照同步
 
 [remote-gift-retention.js](../../../src/electron/remote-gift-retention.js) 由既有
@@ -80,7 +82,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 不会持久化这份投影，也不会加入默认云同步上传键。云同步读取/写入回包和固定回复 IPC
 成功后立即更新投影，旧 revision 不能覆盖新结果；授权停止、切换账号会清空。
 已有签到、抽签和点歌命令优先；其余消息完整 trim 后命中“菜单”或精确触发词时返回
-`cloud-owned`，阻止本地关键词回复和 AI 再次回复。菜单固定回复“签到、抽签、礼物特效、礼物查询、盲盒查询”；菜单与精确自定义回复的每一段都通过 B 站原生回复关联原弹幕发送者，并为完整昵称预留长度。网络不可用时不会排队重放设置写入。
+`cloud-owned`，阻止本地关键词回复和 AI 再次回复。菜单固定回复“签到、抽签、今日礼物、今日盲盒；礼物特效后接数字ID”；菜单与精确自定义回复的每一段都通过 B 站原生回复关联原弹幕发送者，并为完整昵称预留长度。网络不可用时不会排队重放设置写入。
 回归见 [fixed-reply-settings-ipc.test.js](../../../test/bots/fixed-reply-settings-ipc.test.js)、
 [custom-reply-service.test.js](../../../test/bots/custom-reply-service.test.js) 与
 [cloud-fixed-reply-projection.test.js](../../../test/cloud-sync/cloud-fixed-reply-projection.test.js)。
@@ -250,6 +252,8 @@ IPC 通道定义见 [preload.md](preload.md)。
 - 系统唤醒时立即 heartbeat;若此前为 `NEEDS_CONNECTION`,则重新执行 challenge/verify
 
 ### 2.2 云端同步生命周期
+
+云端 SSE 通知合并各 scope 的最高 revision；排队任务执行前重新对照已接纳版本，上传响应或前一轮拉取已经覆盖的通知不再触发 GET。排队期间出现的其他 scope 或更高 revision 继续保留；显式同步、重连和兜底轮询仍强制核对，不能被自身上传回声的去重规则跳过。
 
 账号边界使用 `licenseManager.getCloudSyncIdentity()` 返回的已保存 `accountName` 和 `streamerId`，与认证服务器 origin 一起构成同步 owner；该方法仅供 main process 内部使用，不新增 IPC。控制器在首轮同步及身份变化时，先通过 runtime 的 `prepareCloudRoomAccount` 同步完成[房间归属事务](../backend/storage.md#8-云端-scope-的本地落盘)，再允许 HTTP/SSE。无有效身份或事务失败时不发请求；房间变化后配置本地 runtime 并广播 `cloud:settings`，不发 dirty 回声。同一 owner 的重启或临时授权中断保留房间，其他/未知 owner 的旧房间不能进入新账号的首次播种或 dirty 上传。没有已建立账号边界时的 settings mutation 不取得待上传归属。
 
@@ -469,7 +473,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 | 项        | 值                                                                                                                        | 出处                                                |
 | --------- | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| Electron  | `43.2.0`(devDependencies)                                                                                                 | [package.json](../../../package.json)        |
+| Electron  | `43.8.3`(devDependencies)                                                                                                 | [package.json](../../../package.json)        |
 | 构建/更新 | electron-builder 26.x + electron-updater 6.x;builder 与 publish 配置见 [../engineering/build.md](../engineering/build.md) | [package.json](../../../package.json) |
 
 窗口安全配置差异(sandbox 取向与各窗口形态对应):
@@ -490,6 +494,6 @@ ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection
 
 ## 共享字体初始化
 
-[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时调用本地 runtime 的 `initializeFontLibrary()`，与礼物目录初始化并行。八款共享字体随安装包内置，正常初始化只校验本地资源，首次离线可用，无字体下载进度；资源异常时保留原有修复进度与 toast，字体失败不阻塞桌面就绪条件，不重新统计礼物进度。
+[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时调用本地 runtime 的 `initializeFontLibrary()`，与礼物目录初始化并行。九款共享字体随安装包内置，正常初始化只校验本地资源，首次离线可用，无字体下载进度；资源异常时保留原有修复进度与 toast，字体失败不阻塞桌面就绪条件，不重新统计礼物进度。
 
 字体 owner 按随客户端发行的 JSON 校验有效旧缓存或内置 WOFF2。`src/server.js` 从自身模块位置解析 `public`，安装版读取 `resources/app.asar/public/fonts/`，不依赖启动工作目录、不向安装目录写缓存。内置资源与有效缓存均不可用时才沿用原下载修复路径：两路并发、每来源 5 分钟超时、Electron `net.fetch`、固定 HTTPS 来源及逐跳主机白名单、无凭据请求，不通过 LIRA Server；此异常路径仍依赖网络。关闭在 HTTP drain 前取消字体任务并等待写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。

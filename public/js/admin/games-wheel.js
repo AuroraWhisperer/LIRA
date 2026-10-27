@@ -12,7 +12,7 @@ let wheelRequest = 0;
 
 export function initWheelAdmin() {
   byId('wheelCardTrigger').addEventListener('click', toggleWheelDetails);
-  bindCopyUrl(byId('wheelOverlayUrl'), { onCopied: () => toast('转盘网页地址已复制'), onError: showError });
+  bindCopyUrl(byId('wheelOverlayUrl'), { onCopied: () => toast('转盘浏览器源地址已复制'), onError: showError });
   byId('wheelOpenUrlBtn').addEventListener('click', () => window.open(wheelOverlayUrl(), '_blank', 'noopener'));
   byId('wheelAddEntryBtn').addEventListener('click', addWheelEntry);
   byId('wheelSaveBtn').addEventListener('click', () => saveWheel().catch(showError));

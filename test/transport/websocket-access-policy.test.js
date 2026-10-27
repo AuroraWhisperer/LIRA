@@ -80,6 +80,61 @@ function overlayConnection(t, scope, { query = '', context = {}, headers = {} } 
   });
 }
 
+test('broadcasts read only active scopes and share encoded frames without sharing backpressure', async (t) => {
+  const { createOverlayToken } = require('../../src/server/access-policy');
+  const hub = createWebSocketHub();
+  const reads = [];
+  const context = { sessionToken: ADMIN_TOKEN, getState(fields) { reads.push(fields); return fullState; } };
+  const sockets = ['queue', 'queue', 'lyrics', 'queue'].map((scope) => {
+    const socket = new FakeSocket();
+    hub.handleUpgrade(context, {
+      url: `/ws?token=${createOverlayToken(ADMIN_TOKEN, scope)}`,
+      headers: { 'sec-websocket-key': 'synthetic-key', origin: 'null' },
+    }, socket);
+    return socket;
+  });
+  t.after(() => { hub.stop(); for (const socket of sockets) socket.destroy(); });
+  assert.deepEqual(reads[0], ['queue', 'superChats', 'roomGuard', 'settings']);
+  reads.length = 0;
+  for (const socket of sockets) socket.writes = [];
+  sockets[3].writableLength = 2 * 1024 * 1024;
+  hub.broadcastSnapshot(context, 'settings');
+  await new Promise(queueMicrotask);
+  assert.equal(reads.length, 1);
+  assert.deepEqual(new Set(reads[0]), new Set(['queue', 'superChats', 'roomGuard', 'settings', 'lyricState', 'lyricTimeline']));
+  assert.equal(sockets[0].writes[0], sockets[1].writes[0]);
+  assert.notEqual(sockets[0].writes[0], sockets[2].writes[0]);
+  assert.equal(sockets[3].destroyed, true);
+  assert.equal(sockets[0].destroyed, false);
+  assert.equal(JSON.stringify(messages(sockets[0])).includes('private-'), false);
+  for (const socket of sockets) socket.writes = [];
+  hub.broadcast({ type: 'shutdown', reason: 'test' });
+  assert.equal(sockets[0].writes[0], sockets[1].writes[0]);
+  assert.equal(sockets[3].writes.length, 0);
+});
+
+test('admin subscribers retain full reads alongside overlay subscribers', async (t) => {
+  const reads = [];
+  const { hub, socket } = connect(t, {
+    context: { sessionToken: ADMIN_TOKEN, getState(fields) { reads.push(fields); return fullState; } },
+    headers: { authorization: `Bearer ${ADMIN_TOKEN}` },
+  });
+  hub.broadcastSnapshot({ getState(fields) { reads.push(fields); return fullState; } }, 'settings');
+  await new Promise(queueMicrotask);
+  assert.deepEqual(reads, [undefined, undefined]);
+  assert.equal(messages(socket).at(-1).state.arbitrarySecret, 'private-root');
+});
+
+test('legacy game contexts retain their optional game snapshot when selecting state reads', (t) => {
+  const reads = [];
+  const { socket } = overlayConnection(t, 'games', { context: { getState(fields) {
+    reads.push(fields);
+    return { games: { game: 'number-bomb', state: { min: 1, max: 10 } } };
+  } } });
+  assert.deepEqual(reads, [undefined]);
+  assert.ok(Object.hasOwn(messages(socket)[0].state, 'games'));
+});
+
 test('a WebSocket context without an authentication owner fails closed', (t) => {
   const { socket } = connect(t);
   assert.match(String(socket.writes[0]), /401 Unauthorized/);

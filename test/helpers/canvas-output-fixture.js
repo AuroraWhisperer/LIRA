@@ -19,9 +19,9 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     overtime: { revision: 1, enabled: true, status: 'paused', effectiveRemainingMs: 120000,
       initialSeconds: 120, serverNowMs: Date.now(), rules: [], settlements: [], background: { path: '', fit: 'cover' } } };
   // The injected test codec handles synthetic data in an in-memory database only.
-  const sceneRuntime = createSceneRuntime({ songDb: db, getState: () => runtime,
-    getContext: () => ({ settings: { get: () => runtime.settings }, ...extraContext,
-      system: { dataDir, getState: () => runtime } }), runtimeOptions: {
+  const sceneRuntime = createSceneRuntime({ songDb: db,
+    displayPorts: { settings: { get: () => runtime.settings }, ...extraContext,
+      system: { dataDir, getState: () => runtime } }, runtimeOptions: {
     getSceneOwner: () => owner,
     sceneSecretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() } } });

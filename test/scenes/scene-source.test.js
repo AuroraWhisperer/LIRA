@@ -129,6 +129,22 @@ test('scene notifications parse chunks and CRLF, coalesce during reads and prese
   assert.equal(f.state.revocations, 0);
 });
 
+test('scene source acknowledges received data versions and clears them after output failure', async t => {
+  const f = await fixture(t);
+  assert.equal(f.outputs[0].url.searchParams.get('dataVersions'), '{}');
+  const versions = { songlist: 'songs-1', lyricTimeline: 'lyrics-1' };
+  f.reply(f.outputs[0], { ...data(), dataVersions: versions });
+  const stream = f.stream(); stream.send('data: ready\n\n'); await flush();
+  await f.advance(100);
+  assert.deepEqual(JSON.parse(f.outputs[1].url.searchParams.get('dataVersions')), versions);
+  f.reply(f.outputs[1], null, 503); await flush();
+  await f.advance(750);
+  assert.equal(f.outputs[2].url.searchParams.get('dataVersions'), '{}');
+  f.reply(f.outputs[2], data()); await flush();
+  stream.send('data: change\n\n'); await flush(); await f.advance(100);
+  assert.equal(f.outputs[3].url.searchParams.get('dataVersions'), '{}', 'old servers without versions remain compatible');
+});
+
 test('unavailable or saturated notification routes preserve healthy legacy output and 750ms fallback', async (t) => {
   for (const status of [401, 403, 404, 429, 503]) await t.test(`HTTP ${status}`, async (t) => {
     const f = await fixture(t, { autoOutput: true });

@@ -35,7 +35,7 @@ async function readNotifications(reader, receive, heartbeat) {
   }
 }
 
-export function createDisplaySource({ outputPath, eventsPath, query, token, renderer, getCursor, onError = () => {} }) {
+export function createDisplaySource({ outputPath, eventsPath, query, token, renderer, getCursor, conditionalData = false, onError = () => {} }) {
   let started = false;
   let stopped = false;
   let generation = 0;
@@ -51,6 +51,7 @@ export function createDisplaySource({ outputPath, eventsPath, query, token, rend
   let subscription = '';
   let reconnectTimer = null;
   let reconnectDelay = POLL_INTERVAL;
+  let dataVersions = {};
 
   function options(controller) {
     return { headers: { Authorization: `Bearer ${token}` }, credentials: 'omit', cache: 'no-store', signal: controller.signal };
@@ -88,6 +89,7 @@ export function createDisplaySource({ outputPath, eventsPath, query, token, rend
     reconnect();
   }
   function revoke() {
+    dataVersions = {};
     generation += 1;
     dirty = false;
     outputFailed = true;
@@ -112,6 +114,7 @@ export function createDisplaySource({ outputPath, eventsPath, query, token, rend
     try {
       const values = query();
       values.set('epoch', epoch); values.set('cursor', cursor);
+      if (conditionalData) values.set('dataVersions', JSON.stringify(dataVersions));
       const response = await fetch(`${outputPath}?${values}`, options(current.controller));
       if (!isCurrent()) return;
       if (current.controller.signal.aborted) throw new Error('Display request timed out');
@@ -120,11 +123,13 @@ export function createDisplaySource({ outputPath, eventsPath, query, token, rend
       if (!isCurrent()) return;
       if (current.controller.signal.aborted || !response.ok || !payload.ok) throw new Error('Display unavailable');
       renderer.update(payload.data);
+      if (conditionalData) dataVersions = payload.data.dataVersions || {};
       const cloud = getCursor(payload.data);
       if (cloud) { epoch = cloud.epoch; cursor = cloud.nextCursor; }
       outputFailed = false;
     } catch {
       if (isCurrent()) {
+        dataVersions = {};
         outputFailed = true;
         renderer.disconnect();
         onError();

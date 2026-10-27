@@ -3,7 +3,7 @@
     <section id="songBoardAppearance" class="song-board-section" aria-labelledby="songBoardAppearanceTitle">
       <h3 id="songBoardAppearanceTitle" class="song-board-section-heading">
         点歌板样式
-        <lira-help>共享主题参数（含标题）也用于启用主题跟随的展示板。</lira-help>
+        <lira-help>共享主题参数（含标题）也会应用到已开启主题跟随的展示板。</lira-help>
       </h3>
       <form id="themeForm" class="stack song-board-section-body">
         <!-- 风格选择器 — 始终可见 -->
@@ -38,7 +38,7 @@
         <fieldset id="queueFontArea" class="theme-section">
           <legend>字体设置</legend>
           <label>
-            <span>字体 <lira-help>仅应用于当前风格。可选择共享字体库或本机已安装字体，默认使用微软雅黑。</lira-help></span>
+            <span>字体 <lira-help>仅应用于当前风格。可选择共享字体库中的字体或本机已安装的字体，默认使用微软雅黑。</lira-help></span>
             <select id="overlayFontFamily" data-select-search data-select-font-preview data-dropdown-variant="settings">
               <option
                 value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
@@ -136,7 +136,7 @@
                 </select>
               </label>
               <label>
-                <span>点歌板滚动速率 <lira-help>1 最慢，100 最快。</lira-help></span>
+                <span>点歌板滚动速度 <lira-help>1 最慢，100 最快。</lira-help></span>
                 <span class="range-row">
                   <span class="range-track">
                     <input
@@ -149,7 +149,7 @@
                     />
                     <span class="range-endpoints" aria-hidden="true"> <span>慢</span><span>快</span> </span>
                   </span>
-                  <input id="queueScrollSpeed" type="number" aria-label="点歌板滚动速率" min="1" max="100" step="1" />
+                  <input id="queueScrollSpeed" type="number" aria-label="点歌板滚动速度" min="1" max="100" step="1" />
                 </span>
               </label>
             </div>
@@ -395,7 +395,7 @@
                 </select>
               </label>
               <label>
-                <span>上下滚动速率 <lira-help>1 最慢，100 最快；仅影响当前风格。</lira-help></span>
+                <span>上下滚动速度 <lira-help>1 最慢，100 最快；仅影响当前风格。</lira-help></span>
                 <span class="range-row">
                   <span class="range-track">
                     <input
@@ -411,7 +411,7 @@
                   <input
                     id="identityQueueScrollSpeed"
                     type="number"
-                    aria-label="上下滚动速率"
+                    aria-label="上下滚动速度"
                     min="1"
                     max="100"
                     step="1"
@@ -504,7 +504,7 @@
 
         <div class="queue-theme-footer">
           <div id="classicThemeActions" class="actions queue-theme-quick-actions">
-            <button id="quickBeautifyBtn" class="secondary" type="button">一键毛玻璃美化</button>
+            <button id="quickBeautifyBtn" class="secondary" type="button">应用毛玻璃预设</button>
             <button id="resetClassicTheme" type="button">恢复默认</button>
           </div>
           <div class="queue-theme-save-group">

@@ -3,6 +3,7 @@ import {
   BANNER_HEIGHT,
   BANNER_GAP,
   createGiftBanner,
+  createGiftArtworkResolver,
   giftExportPages,
   readyGiftImages,
 } from '../../shared/gift-banner.js';
@@ -16,6 +17,8 @@ export function createGiftExportPreview({ showPane }) {
   let attempted = false;
   let retry = false;
   let sequence = 0;
+  let artworkCatalog;
+  let artwork;
   const status = (text, state = '') => {
     get('giftExportStatus').textContent = text;
     get('giftExportStatus').dataset.state = state;
@@ -31,6 +34,10 @@ export function createGiftExportPreview({ showPane }) {
 
   async function render() {
     if (!task) return;
+    if (artworkCatalog !== task.snapshot.catalog) {
+      artworkCatalog = task.snapshot.catalog;
+      artwork = createGiftArtworkResolver(artworkCatalog);
+    }
     const pages = giftExportPages(task.snapshot.items, task.mode);
     page = Math.min(page, pages.length - 1);
     get('giftExportSummary').textContent =
@@ -45,7 +52,7 @@ export function createGiftExportPreview({ showPane }) {
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
     preview.replaceChildren(
-      ...pages[page].map((item) => createGiftBanner(item, task.snapshot.config, task.snapshot.catalog)),
+      ...pages[page].map((item) => createGiftBanner(item, task.snapshot.config, artwork)),
     );
     const width = Math.max(BANNER_WIDTH * 2, Math.ceil(preview.getBoundingClientRect().width * 2));
     get('giftExportFiles').textContent =
@@ -64,6 +71,7 @@ export function createGiftExportPreview({ showPane }) {
     sequence += 1;
     if (task) window.giftExport?.cancel(task.id);
     task = null;
+    artworkCatalog = artwork = null;
     running = false;
     configuring = false;
     showPane('list');

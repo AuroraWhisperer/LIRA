@@ -149,9 +149,11 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       } : {}) });
   }
 
-  function publicState(session) {
+  function publicState(session, { stateRevision, displayRevision } = {}) {
     return copy({ component: session.component, draftKey: session.draftKey,
-      state: session.state, display: session.display, ack: session.ack,
+      ...(stateRevision === session.stateRevision ? {} : { state: session.state }),
+      ...(displayRevision === session.displayRevision ? {} : { display: session.display }),
+      stateRevision: session.stateRevision, displayRevision: session.displayRevision, ack: session.ack,
       sequence: session.sequence, attachmentId: session.attachmentId || null,
       ...(session.focusRequest ? { focus: session.focusRequest.selection } : {}) });
   }
@@ -169,31 +171,34 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       scope, component, component === 'canvas' ? initial.saved.document?.id : null,
     ])).digest('hex');
     sessions.set(id, { component, draftKey, state: initial, display: copy(display), owner: owner(),
+      stateRevision: 1, displayRevision: 1,
       tokenHash: crypto.createHash('sha256').update(token).digest(), touched: now(), ack: 0, sequence: 0, commands: [] });
     return { id, token, draftKey };
   }
 
-  function exchange({ id, state, display = null, ack }) {
+  function exchange({ id, state, display, ack, incremental = false }) {
     const session = get(id);
-    const next = stateOf(state, session.component);
-    checkSize(display, 256 * 1024);
+    const hasState = state !== undefined || incremental !== true;
+    const hasDisplay = display !== undefined || incremental !== true;
+    const next = hasState ? stateOf(state, session.component) : session.state;
+    if (hasDisplay) checkSize(display ?? null, 256 * 1024);
     if (next.generation !== session.state.generation) {
       remove(id);
       fail(410, '配置来源已变化，请重新打开预览。');
     }
     if (!Number.isSafeInteger(ack) || ack < session.ack || ack > session.sequence) fail(400, '预览确认序号无效。');
-    session.state = next;
-    if (session.component === 'canvas') session.draftKey = crypto.createHash('sha256').update(JSON.stringify([
+    if (hasState) { session.state = next; session.stateRevision++; }
+    if (hasState && session.component === 'canvas') session.draftKey = crypto.createHash('sha256').update(JSON.stringify([
       getOwner()?.scope || anonymousScope, 'canvas', next.saved.document?.id,
     ])).digest('hex');
-    session.display = copy(display);
+    if (hasDisplay) { session.display = copy(display ?? null); session.displayRevision++; }
     session.ack = ack;
     session.commands = session.commands.filter((command) => command.sequence > ack);
     session.touched = now();
     return copy({ commands: session.commands, closed: session.closed === true });
   }
 
-  function browser({ id, action, change, baseItemIds, commandId, attachmentId, previousAttachmentId, focusId }, token) {
+  function browser({ id, action, change, baseItemIds, commandId, attachmentId, previousAttachmentId, focusId, stateRevision, displayRevision }, token) {
     const session = authenticate(id, token);
     // Keep at most one session per component so the original desktop can resume
     // after suspended timers. Browser capabilities cannot revive an idle lease.
@@ -232,7 +237,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         session.focusRequest.finish(true);
       }
       session.touched = now();
-      return publicState(session);
+      return publicState(session, { stateRevision, displayRevision });
     }
     if (!['edit', 'save', 'discard'].includes(action)
       && !(session.component === 'canvas' && ['publish', 'source', 'preset'].includes(action))) fail(400, '不支持的预览操作。');

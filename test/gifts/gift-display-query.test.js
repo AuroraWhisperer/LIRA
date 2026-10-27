@@ -3,6 +3,70 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createFixture } = require('../helpers/gift-query-fixture');
 const { getGiftHistory, getGiftSelection } = require('../../src/bilibili/gift/query-service');
+const { scanTodayGifts } = require('../../public/js/shared/gift-feed-state.js');
+
+test('conditional today scans read 5000 rows once and invalidate for time, source and row changes', async (t) => {
+  const fx = createFixture();
+  t.after(() => fx.close());
+  const source = fx.resolveSource('a'.repeat(64));
+  fx.setActiveSource(source.id);
+  fx.context.now = () => '2026-09-02T00:00:00.000Z';
+  fx.giftDb.exec('BEGIN');
+  for (let index = 0; index < 5000; index++) fx.insertGift(source.id, `event-${index}`, { createdAt: '2026-09-01T17:00:00.000Z' });
+  fx.insertGift(source.id, 'future', { createdAt: '2026-09-02T00:00:01.000Z' });
+  fx.giftDb.exec('COMMIT');
+  let requests = 0;
+  let transferred = 0;
+  const request = async (url) => {
+    requests++;
+    const options = Object.fromEntries(new URL(url, 'http://localhost').searchParams);
+    const result = getGiftHistory(fx.context, { ...options, conditional: true });
+    transferred += result.items.length;
+    return result;
+  };
+  const scan = (previous) => scanTodayGifts({ request, day: '2026-09-02', previous, onRevision() {} });
+  let result = await scan();
+  const first = result;
+  for (let index = 1; index < 20; index++) result = await scan(result);
+  assert.equal(result.items, first.items);
+  assert.equal(requests, 69);
+  assert.equal(transferred, 5000);
+  fx.giftDb.prepare('UPDATE gift_sync_state SET updated_at=? WHERE source_id=?').run('2026-09-02T00:00:00.500Z', source.id);
+  assert.equal((await scan(result)).items, result.items, 'sync bookkeeping does not change gift contents');
+  fx.context.now = () => '2026-09-02T00:00:02.000Z';
+  result = await scan(result);
+  assert.equal(result.items.length, 5001, 'the time boundary changes without a database write');
+  fx.giftDb.prepare("UPDATE gift_events SET user_name='changed' WHERE platform_id='lira-server:event-0'").run();
+  assert.equal((await scan(result)).items.find((item) => item.eventId === 'event-0').gift.userName, 'changed');
+  const other = fx.resolveSource('b'.repeat(64));
+  fx.setActiveSource(other.id);
+  assert.equal((await scan(result)).items.length, 0);
+});
+
+test('conditional history versions do not acknowledge rollback, external commits or reopened stores', (t) => {
+  const fx = createFixture();
+  t.after(() => fx.close());
+  const source = fx.resolveSource('a'.repeat(64));
+  fx.setActiveSource(source.id);
+  fx.insertGift(source.id, 'one');
+  const options = { range: 'all', conditional: true };
+  const first = getGiftHistory(fx.context, options);
+  const known = { ...options, contentRevision: first.contentRevision };
+  assert.equal(getGiftHistory(fx.context, known).unchanged, true);
+  fx.giftDb.exec('BEGIN');
+  fx.giftDb.exec("UPDATE gift_events SET user_name='rollback'");
+  assert.throws(() => getGiftHistory(fx.context, known), /transaction within a transaction/);
+  fx.giftDb.exec('ROLLBACK');
+  assert.equal(getGiftHistory(fx.context, known).unchanged, true);
+  const { DatabaseSync } = require('node:sqlite');
+  const external = new DatabaseSync(fx.giftDb.prepare('PRAGMA database_list').all().find(row => row.name === 'main').file);
+  try { external.exec("UPDATE gift_events SET user_name='external'"); }
+  finally { external.close(); }
+  assert.equal(getGiftHistory(fx.context, known).items[0].gift.userName, 'external');
+  const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
+  fx.context.queryStore = createGiftQueryStore(fx.giftDb);
+  assert.equal(getGiftHistory(fx.context, known).items.length, 1);
+});
 
 test('Shanghai dates, independent names and today cover the full ledger before pagination', (t) => {
   const fx = createFixture();

@@ -17,6 +17,8 @@ export class StateService {
     this.categories = [];
     this.songReloadTimer = null;
     this.songReloadVersion = 0;
+    this.songInvalidationVersion = 0;
+    this.pendingSongReload = null;
     this.readSongFilters = () => ({});
     this.stateReloadVersion = 0;
     this.pendingStateReload = null;
@@ -148,6 +150,10 @@ export class StateService {
    * 重新加载所有数据
    */
   async reloadAll() {
+    // A completed local mutation may have no WebSocket echo while disconnected.
+    this.songInvalidationVersion += 1;
+    clearTimeout(this.songReloadTimer);
+    this.songReloadTimer = null;
     await this.reloadState();
     await this.reloadSongs({ reloadState: false });
   }
@@ -196,7 +202,7 @@ export class StateService {
       next.overtime = previous.overtime;
     }
     const changedKeys = [...new Set([...Object.keys(previous), ...Object.keys(next)])].filter(
-      (key) => JSON.stringify(previous[key]) !== JSON.stringify(next[key]),
+      (key) => !sameSnapshotValue(previous[key], next[key]),
     );
     this.appState = next;
     if (changedKeys.includes('roomGuard')) applyRoomGuardState(next.roomGuard);
@@ -231,7 +237,8 @@ export class StateService {
    * 重新加载歌曲列表
    */
   async reloadSongs(options = {}) {
-    const requestVersion = ++this.songReloadVersion;
+    clearTimeout(this.songReloadTimer);
+    this.songReloadTimer = null;
     const filters = options.filters ?? this.readSongFilters();
     const params = new URLSearchParams();
     if (filters.query) params.set('query', filters.query);
@@ -245,6 +252,22 @@ export class StateService {
     }
     if (filters.enabledOnly === true) params.set('enabledOnly', 'true');
 
+    const key = params.toString();
+    const pending = this.pendingSongReload;
+    if (pending?.key === key && pending.invalidationVersion === this.songInvalidationVersion
+      && pending.reloadState === (options.reloadState === true)) return pending.promise;
+    const requestVersion = ++this.songReloadVersion;
+    const next = { key, invalidationVersion: this.songInvalidationVersion, reloadState: options.reloadState === true };
+    this.pendingSongReload = next;
+    next.promise = this.fetchSongs(params, options, requestVersion);
+    try {
+      return await next.promise;
+    } finally {
+      if (this.pendingSongReload === next) this.pendingSongReload = null;
+    }
+  }
+
+  async fetchSongs(params, options, requestVersion) {
     const response = await fetch(`/api/songs?${params}`);
     const payload = await response.json();
     // 只接纳最新请求，避免旧筛选结果覆盖当前列表。
@@ -252,7 +275,7 @@ export class StateService {
     if (!payload.ok) throw new Error(payload.error || '读取歌库失败');
 
     this.songs = payload.data || [];
-    if (options.reloadState !== false) {
+    if (options.reloadState === true) {
       await this.reloadState();
     }
     if (requestVersion !== this.songReloadVersion) return;
@@ -273,6 +296,7 @@ export class StateService {
    */
   scheduleSongReload() {
     if (this.shuttingDown) return;
+    this.songInvalidationVersion += 1;
     clearTimeout(this.songReloadTimer);
     this.songReloadTimer = setTimeout(() => {
       this.songReloadTimer = null;
@@ -352,6 +376,21 @@ export class StateService {
 
 function isRecord(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+// State consumers retain references, so compare current JSON values instead of
+// caching fingerprints that could outlive an in-place update.
+function sameSnapshotValue(previous, next) {
+  if (previous === next) return true;
+  if (previous === null || next === null || typeof previous !== 'object' || typeof next !== 'object') return false;
+  if (Array.isArray(previous) || Array.isArray(next)) {
+    return Array.isArray(previous) && Array.isArray(next) && previous.length === next.length &&
+      previous.every((value, index) => sameSnapshotValue(value, next[index]));
+  }
+  const previousKeys = Object.keys(previous).filter((key) => previous[key] !== undefined);
+  const nextKeys = Object.keys(next).filter((key) => next[key] !== undefined);
+  return previousKeys.length === nextKeys.length && previousKeys.every((key, index) =>
+    key === nextKeys[index] && sameSnapshotValue(previous[key], next[key]));
 }
 
 function isStateSnapshot(value) {

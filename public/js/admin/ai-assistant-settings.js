@@ -2,6 +2,7 @@
 import { showStackedToast } from '../shared/utils.js';
 import { publishAiAssistantSettings } from './legacy-admin-bridge.js';
 import { createPersonaControls } from './ai-assistant-personas.js';
+import { createSubscriptionControls } from './ai-assistant-subscription.js';
 
 import {
   readApi,
@@ -53,7 +54,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
   let modelRequestGeneration = 0;
-  const modelServiceFields = new Set(['xiaomiAiModelProvider', 'xiaomiAiDeepSeekUrl',
+  const modelServiceFields = new Set(['xiaomiAiModelProvider', 'xiaomiAiModelAuthMode', 'xiaomiAiDeepSeekUrl',
     'xiaomiAiModelApiProtocol', 'xiaomiAiDeepSeekKey']);
   const editedFieldIds = new Set();
   let personaControls;
@@ -187,7 +188,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
 
   providerInput?.addEventListener('change', () => {
     const endpointInput = document.getElementById('xiaomiAiDeepSeekUrl');
-    const official = ['deepseek', 'openai', 'anthropic', 'gemini', 'doubao'].includes(providerInput.value);
+    const official = ['deepseek', 'kimi', 'openai', 'anthropic', 'gemini', 'doubao'].includes(providerInput.value);
     restoreManualEndpointAfterProviderSave = !official && Boolean(endpointInput?.disabled);
     renderProviderSelection(providerInput.value, {
       keepEndpointLocked: restoreManualEndpointAfterProviderSave,
@@ -195,6 +196,12 @@ function init({ notify = showStackedToast, confirm } = {}) {
     invalidateModelLookup();
     if (personaControls.changeProvider()) editedFieldIds.add('xiaomiAiPersona');
     void refreshDoubaoStatus();
+    void subscriptionControls.refresh();
+  });
+  document.getElementById('xiaomiAiModelAuthMode')?.addEventListener('change', () => {
+    renderProviderSelection(providerInput.value);
+    invalidateModelLookup();
+    void subscriptionControls.refresh();
   });
 
   form.addEventListener('input', (event) => {
@@ -206,6 +213,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   });
 
   form.addEventListener('change', (event) => {
+    if (event.target.id === 'xiaomiAiChatGptProfiles') return;
     if (modelServiceFields.has(event.target.id)) invalidateModelLookup();
     if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id === 'xiaomiAiPersona' && !personaControls.changeSelection()) return;
@@ -298,11 +306,13 @@ function init({ notify = showStackedToast, confirm } = {}) {
   }
 
   function readModelService() {
-    const key = document.getElementById('xiaomiAiDeepSeekKey').value.trim();
+    const input = document.getElementById('xiaomiAiDeepSeekKey');
+    const key = input.disabled ? '' : input.value.trim();
     return {
       apiKey: key === '********' ? '' : key,
       apiUrl: document.getElementById('xiaomiAiDeepSeekUrl').value.trim(),
       modelProvider: providerInput?.value || 'auto',
+      modelAuthMode: document.getElementById('xiaomiAiModelAuthMode')?.value || 'api',
       modelApiProtocol: document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto',
     };
   }
@@ -312,7 +322,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     modelMenu.replaceChildren();
     closeModelMenu();
     setState(modelFetchState, '');
-    fetchModelsButton.disabled = false;
+    fetchModelsButton.disabled = providerInput?.value === 'doubao';
     fetchModelsButton.textContent = '获取模型';
   }
 
@@ -441,6 +451,12 @@ function init({ notify = showStackedToast, confirm } = {}) {
   }
 
   let doubaoRefreshPending = false;
+  const subscriptionControls = createSubscriptionControls({ readApi, onAccountChange: invalidateModelLookup,
+    async flushPendingSave() {
+      await initialLoadPromise;
+      return configLoaded && flushPendingSave();
+    },
+  });
   async function refreshDoubaoStatus() {
     if (providerInput?.value !== 'doubao' || doubaoRefreshPending) return;
     doubaoRefreshPending = true;
@@ -462,7 +478,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     });
   }
   if (typeof window?.addEventListener === 'function') {
-    const timer = setInterval(() => void refreshDoubaoStatus(), 3000);
+    const timer = setInterval(() => { void refreshDoubaoStatus(); void subscriptionControls.refresh(); }, 3000);
     window.addEventListener('pagehide', () => clearInterval(timer), { once: true });
   }
   initialLoadPromise = refreshConfig();

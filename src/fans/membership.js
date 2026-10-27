@@ -1,6 +1,7 @@
 'use strict';
 
 const { DAY_MS, dayOf, dayStart, dayIndex } = require('./dates');
+const { membershipMilestoneDates } = require('./membership-milestones');
 
 function unionIntervals(intervals) {
   const result = [];
@@ -71,7 +72,7 @@ function prepareMembership(records) {
   const pendingIds = pending.map((r) => r.id);
   const datePrecision = intervals.some((r) => r.record.data.precision === 'date');
 
-  return function summarizeAt(atValue = Date.now()) {
+  function summarizeAt(atValue = Date.now()) {
     const at = typeof atValue === 'number' ? atValue
       : /^\d{4}-\d{2}-\d{2}$/.test(atValue) ? dayStart(atValue) + DAY_MS - 1 : Date.parse(atValue);
     const today = dayOf(at);
@@ -140,7 +141,9 @@ function prepareMembership(records) {
       hasHistory: all.length > 0,
       datePrecision,
     };
-  };
+  }
+  summarizeAt.milestoneDates = (earliest, latest, now) => membershipMilestoneDates(merged, baselines, earliest, latest, now);
+  return summarizeAt;
 }
 
 function summarizeMembership(records, atValue = Date.now()) {

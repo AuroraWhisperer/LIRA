@@ -80,7 +80,7 @@ test('same viewer waits for delivery while another viewer may generate', async t
 });
 
 test('end command clears in queue order even when its confirmation never arrives', async t => {
-  const f = fixture(t, { waitForDelivery: async () => !f.delivered.at(-1).startsWith('已结束') });
+  const f = fixture(t, { waitForDelivery: async () => !f.delivered.at(-1).startsWith('这段对话结束啦') });
   f.ask('开始猜谜语');
   f.ask('结束对话！');
   f.ask('还记得吗');
@@ -88,7 +88,7 @@ test('end command clears in queue order even when its confirmation never arrives
   assert.equal(f.requests.length, 2);
   assert.equal(JSON.parse(f.requests[1].input).previousExchange, null);
   assert.notEqual(f.requests[0].conversationKey, f.requests[1].conversationKey);
-  assert.equal(f.delivered.filter(text => text.startsWith('已结束')).length, 3);
+  assert.equal(f.delivered.filter(text => text.startsWith('这段对话结束啦')).length, 3);
 });
 
 test('unidentified messages cannot share persistent memory through a nickname', async t => {

@@ -109,7 +109,7 @@ test('canvas management restores a backup and refreshes presets without replacin
     notifyInspection(); await inspectionHeld; await route.continue();
   }, { times: 1 });
   const chooser = page.waitForEvent('filechooser');
-  await manager.getByRole('button', { name: '恢复备份', exact: true }).click();
+  await manager.getByRole('button', { name: '从备份恢复为副本', exact: true }).click();
   await (await chooser).setFiles(backup);
   await inspectionStarted;
   try {
@@ -412,8 +412,20 @@ test('danmaku picker groups all sources by motion and preserves the selected sty
   assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await picker.locator('[data-category="danmaku"]').click();
-  await custom.getByRole('button', { name: '删除样式：测试弹幕样式', exact: true }).click();
+  const removeStyle = custom.getByRole('button', { name: '删除样式：测试弹幕样式', exact: true });
+  let removals = 0;
+  page.on('request', request => { if (new URL(request.url()).pathname.endsWith('/styles/remove')) removals += 1; });
+  await removeStyle.click();
+  const deletion = page.getByRole('dialog', { name: '删除样式', exact: true });
+  await deletion.getByText('删除「测试弹幕样式」？', { exact: true }).waitFor();
+  assert.equal(removals, 0, 'Opening confirmation must not delete the style.');
+  await deletion.getByRole('button', { name: '取消', exact: true }).click();
+  assert.equal(await custom.isVisible(), true);
+  assert.equal(removals, 0);
+  await removeStyle.click();
+  await deletion.getByRole('button', { name: '删除样式', exact: true }).click();
   await custom.waitFor({ state: 'detached' });
+  assert.equal(removals, 1, 'Confirming removes the style once.');
   assert.equal(await picker.locator('[data-picker-style="bubble"]').count(), 1, 'library refresh does not duplicate built-ins');
   assert.equal(fixture.service.list()[0].document.items[0].appearance.config.mediaStyle.id, imported.id);
   assert.deepEqual(errors, []);
@@ -493,6 +505,7 @@ test('local styles import, replace in place, publish and survive library removal
   assert.ok(bounds.text.y >= bounds.region.y && bounds.text.bottom <= bounds.region.bottom + 1);
   await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).click();
   await library.getByRole('button', { name: '删除样式：替换时钟', exact: true }).click();
+  await page.getByRole('dialog', { name: '删除样式', exact: true }).getByRole('button', { name: '删除样式', exact: true }).click();
   await library.getByRole('button', { name: '删除样式：替换时钟', exact: true }).waitFor({ state: 'hidden' });
   await library.getByRole('button', { name: '关闭', exact: true }).click();
   await output.reload();

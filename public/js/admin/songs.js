@@ -33,9 +33,6 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   let songTableBound = false;
   // 行内操作按最近一次渲染的歌库快照解析目标，与逐行绑定时的闭包一致。
   let renderedSongs = [];
-  const SONGS_PER_PAGE = 100;
-  let songPage = 0;
-  let renderedFilterKey = '';
   // 上一次完整歌库的 ID；新保存、尚未出现在列表里的歌曲不会被当成已删除。
   let completeSongIds = null;
 
@@ -290,9 +287,6 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     }
     renderedSongs = songs;
     bindSongTableActions();
-    const filterKey = JSON.stringify(readSongFilters());
-    if (filterKey !== renderedFilterKey) songPage = 0;
-    renderedFilterKey = filterKey;
     const filtered = ['songSearch', 'languageFilter', 'artistFilter'].some((id) => value(id))
       || value('enabledFilter') === 'true' || readSelectedCategories().length || readSelectedTags().length;
     if (!filtered) {
@@ -306,17 +300,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     renderLanguageFilter(songLanguages);
     renderArtistFilter(songArtists);
     renderTagFilter(songTags);
-    renderSongPage();
-  }
 
-  function renderSongPage() {
-    const songs = renderedSongs;
-    const pageCount = Math.max(1, Math.ceil(songs.length / SONGS_PER_PAGE));
-    songPage = Math.min(songPage, pageCount - 1);
-    document.getElementById('songLibraryPagination').hidden = pageCount === 1;
-    document.getElementById('songLibraryPreviousPage').disabled = songPage === 0;
-    document.getElementById('songLibraryNextPage').disabled = songPage === pageCount - 1;
-    document.getElementById('songLibraryPage').textContent = `第 ${songPage + 1} / ${pageCount} 页`;
     const table = document.getElementById('songsTable');
     const showNoteColumn = songs.some((song) => String(song.note || '').trim());
     document.getElementById('songNoteColumnHeader').hidden = !showNoteColumn;
@@ -329,7 +313,6 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
       return;
     }
     table.innerHTML = songs
-      .slice(songPage * SONGS_PER_PAGE, (songPage + 1) * SONGS_PER_PAGE)
       .map(
         (song) => `
       <tr>
@@ -388,16 +371,6 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
       const deleteButton = event.target.closest?.('[data-delete-song]');
       if (deleteButton) void deleteSongFromLibrary(deleteButton);
     });
-    for (const [id, direction] of [['songLibraryPreviousPage', -1], ['songLibraryNextPage', 1]]) {
-      document.getElementById(id).addEventListener('click', () => {
-        closeSongActionsMenus();
-        songPage += direction;
-        renderSongPage();
-        const scrollArea = table.closest('.table-wrap');
-        scrollArea.scrollTop = 0;
-        scrollArea.scrollIntoView({ block: 'start' });
-      });
-    }
   }
 
   async function loadSongForEdit(button) {

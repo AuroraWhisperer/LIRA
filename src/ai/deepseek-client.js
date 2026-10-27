@@ -3,7 +3,7 @@
 const crypto = require('node:crypto');
 const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
 const { describeModelEndpoint, resolveModelEndpoint, resolveModelsEndpoint } = require('./model-endpoint');
-const { applyModelProviderPreset } = require('./config');
+const { applyModelProviderPreset, usesSubscription } = require('./config');
 const { createDoubaoClient } = require('./doubao-client');
 
 function createDeepSeekClient(options = {}) {
@@ -11,11 +11,16 @@ function createDeepSeekClient(options = {}) {
   const logEvent = options.logEvent;
   const chatHistory = new Map();
   const doubao = options.doubao || createDoubaoClient();
+  const chatgpt = options.chatgpt;
 
   async function createResponse(request) {
     throwIfAborted(request.signal);
     const config = applyModelProviderPreset(request.config || {});
     if (config.modelProvider === 'doubao') return doubao.createResponse(request);
+    if (usesSubscription(config)) {
+      if (!chatgpt) throw createPublicError('CHATGPT_UNAVAILABLE', '请从 LIRA 桌面客户端连接 ChatGPT 订阅。');
+      return chatgpt.createResponse(request);
+    }
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
       throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
     }
@@ -74,6 +79,15 @@ function createDeepSeekClient(options = {}) {
       const reasoningEffort = toGeminiReasoningEffort(config.reasoningEffort);
       if (!config.reasoningEnabled) body.reasoning_effort = 'none';
       else if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    } else if (config.modelProvider === 'kimi') {
+      body.max_completion_tokens = body.max_tokens;
+      delete body.max_tokens;
+      if (/^kimi-k3(?:[.-]|$)/i.test(config.model)) {
+        body.reasoning_effort = config.reasoningEnabled ? toDeepSeekReasoningEffort(config.reasoningEffort) || 'low' : 'low';
+        body.max_completion_tokens = Math.max(4096, body.max_completion_tokens);
+      } else if (/^kimi-k2\.[56](?:[.-]|$)/i.test(config.model)) {
+        body.thinking = { type: config.reasoningEnabled ? 'enabled' : 'disabled' };
+      }
     }
     const tools = toChatTools(request.tools);
     if (tools.length) body.tools = tools;
@@ -87,7 +101,7 @@ function createDeepSeekClient(options = {}) {
       normalize: normalizeChatResponse,
       signal: request.signal,
     });
-    const assistantMessage = toAssistantHistoryMessage(result.rawMessage);
+    const assistantMessage = toAssistantHistoryMessage(result.rawMessage, config.modelProvider === 'kimi');
     const responseId = result.id || `chat_${crypto.randomUUID()}`;
     if (assistantMessage) rememberChatHistory(responseId, [...messages, assistantMessage]);
     if (previousId) chatHistory.delete(previousId);
@@ -189,6 +203,10 @@ function createDeepSeekClient(options = {}) {
 
   async function listModels(request = {}) {
     if (request.modelProvider === 'doubao') return { models: ['doubao'] };
+    if (usesSubscription(request)) {
+      if (!chatgpt) throw createPublicError('CHATGPT_UNAVAILABLE', '请从 LIRA 桌面客户端连接 ChatGPT 订阅。');
+      return chatgpt.listModels(request);
+    }
     const apiKey = String(request.apiKey || '').trim();
     const providerConfig = applyModelProviderPreset({
       modelProvider: request.modelProvider,
@@ -217,6 +235,10 @@ function createDeepSeekClient(options = {}) {
   async function testConnection(config = {}, options = {}) {
     config = applyModelProviderPreset(config);
     if (config.modelProvider === 'doubao') return doubao.testConnection(config, options);
+    if (usesSubscription(config)) {
+      const response = await createResponse({ config, input: '请简短回复：连接成功。', tools: [], signal: options.signal, purpose: 'connection_test' });
+      return { provider: 'openai', model: config.model, reply: response.text.slice(0, 200), endpointAdapted: false };
+    }
     if (!config.deepseekResponsesUrl) {
       throw createPublicError('DEEPSEEK_URL_MISSING', '请先填写模型服务 API 地址。');
     }
@@ -257,8 +279,10 @@ function createDeepSeekClient(options = {}) {
   return {
     createResponse, listModels, testConnection,
     getAccountStatus: () => doubao.getStatus(),
-    getSessionRevision: () => doubao.getSessionRevision(),
+    getSubscriptionStatus: () => chatgpt?.getStatus(),
+    getSessionRevision: (config) => usesSubscription(config) ? chatgpt?.getSessionRevision() : doubao.getSessionRevision(),
     isReady(config) {
+      if (usesSubscription(config)) return chatgpt?.getStatus().ready === true;
       if (config.modelProvider !== 'doubao') return true;
       const status = doubao.getStatus();
       return status.available && status.loggedIn && !status.needsVerification;
@@ -378,11 +402,12 @@ function toChatTools(tools) {
     });
 }
 
-function toAssistantHistoryMessage(message) {
+function toAssistantHistoryMessage(message, preserveReasoning = false) {
   if (!message || typeof message !== 'object') return null;
   const result = { role: 'assistant', content: message.content ?? null };
   if (Array.isArray(message.tool_calls) && message.tool_calls.length) {
     result.tool_calls = message.tool_calls;
+    if (preserveReasoning && typeof message.reasoning_content === 'string') result.reasoning_content = message.reasoning_content;
   }
   return result;
 }

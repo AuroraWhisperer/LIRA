@@ -14,11 +14,6 @@ const { createSongStore } = require('../../src/storage/song-store');
 const songService = require('../../src/music/song-service');
 const ROOT_DIR = path.join(__dirname, '../..');
 
-function paginationNodes() {
-  return Object.fromEntries(['songLibraryPagination', 'songLibraryPreviousPage', 'songLibraryNextPage', 'songLibraryPage']
-    .map((id) => [id, { addEventListener() {} }]));
-}
-
 async function loadCategoryFilterModule() {
   const filePath = path.join(__dirname, '../..', 'public', 'js', 'admin', 'song-category-filter.js');
   const context = vm.createContext({ console, document: {} });
@@ -303,7 +298,6 @@ test('song library table displays the escaped language column and spans empty re
   const columnCount = header.match(/<th\b/g).length;
 
   const elements = {
-    ...paginationNodes(),
     songsTable: { innerHTML: '', addEventListener() {} },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },
@@ -360,7 +354,6 @@ test('song library folds row actions into an accessible bordered menu', () => {
 
 test('song library hides the note column when every visible note is empty', async () => {
   const elements = {
-    ...paginationNodes(),
     songsTable: { innerHTML: '', addEventListener() {} },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },
@@ -414,7 +407,6 @@ test('song library hides the note column when every visible note is empty', asyn
 test('song deletion closes custom confirmation before deleting and refreshing', async () => {
   const tableHandlers = {};
   const elements = {
-    ...paginationNodes(),
     songsTable: { innerHTML: '', addEventListener(name, handler) { tableHandlers[name] = handler; } },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },

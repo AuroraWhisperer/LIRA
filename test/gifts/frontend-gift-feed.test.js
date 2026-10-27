@@ -40,6 +40,45 @@ async function observeFeed(page) {
   });
 }
 
+test('conditional refreshes preserve cards and still apply independently changed sender metadata and thresholds', async (t) => {
+  const page = await openFeed(t, { count: 2 });
+  await page.evaluate(() => {
+    const fetch = window.fetch;
+    window.contentVersion = 'a'.repeat(64);
+    window.profileVersion = 'first';
+    for (const item of window.feedItems) item.gift.createdAt = new Date().toISOString();
+    window.unchangedReads = 0;
+    window.fetch = async (url, options) => {
+      const response = await fetch(url, options);
+      if (!/\/api\/gifts\/(history|card-profiles)\?/.test(url)) return response;
+      const payload = await response.json();
+      const data = payload.data;
+      const query = new URL(url, location.href).searchParams;
+      data.contentRevision = url.includes('/history?') ? window.contentVersion : window.profileVersion;
+      if (query.get('contentRevision') === data.contentRevision) {
+        window.unchangedReads++;
+        data.unchanged = true; data.items = []; data.nextCursor = null;
+      }
+      return { ...response, json: async () => payload };
+    };
+  });
+  await refreshFeed(page, 'bilibili:gift');
+  await observeFeed(page);
+  await refreshFeed(page, 'bilibili:gift');
+  assert.equal(await page.evaluate(() => window.unchangedReads), 2);
+  assert.equal(await page.evaluate(() => window.savedRows.every((row, index) => row === document.getElementById('giftFeedStage').children[index])), true);
+  await page.evaluate(() => {
+    window.profileVersion = 'second';
+    window.feedProfiles = [{ eventId: '0', senderId: '123', userName: '更新后的观众', avatarUrl: null, guardLevel: 2,
+      createdAt: new Date().toISOString() }];
+  });
+  await refreshFeed(page, 'bilibili:gift');
+  await page.getByText('更新后的观众', { exact: true }).waitFor();
+  await page.evaluate(() => { window.feedConfig.minGiftAmountCents = 300; });
+  await refreshFeed(page, 'settings');
+  await page.waitForFunction(() => document.getElementById('giftFeedStage').children.length === 0);
+});
+
 for (const missingAbortMethods of [['any'], ['any', 'timeout']]) {
   test(`feed loads and scrolls without AbortSignal ${missingAbortMethods.join(' or ')}`, async (t) => {
     const page = await openFeed(t, { missingAbortMethods });
@@ -478,6 +517,27 @@ test('merged cards control the row threshold and update every sender card withou
     await page.evaluate(() => window.unchangedCard === document.getElementById('giftFeedStage').firstElementChild),
     true,
   );
+});
+
+test('hidden feeds defer reconciliation requests and immediately confirm resources when visible', async (t) => {
+  const page = await openFeed(t);
+  await page.clock.install();
+  await page.evaluate(() => {
+    window.feedRequests = [];
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.socketOptions.onMessage({ type: 'gift-catalog:update' });
+  });
+  await page.clock.runFor(31000);
+  assert.deepEqual(await page.evaluate(() => window.feedRequests), []);
+  await page.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  await page.clock.runFor(500);
+  const requests = await page.evaluate(() => window.feedRequests);
+  assert.equal(requests.filter(url => url.startsWith('/api/overtime/gifts/catalog?')).length, 1);
+  assert.equal(requests.filter(url => url === '/api/gifts/display-settings').length, 1);
 });
 
 test('hidden feeds resume from the same position without catching up elapsed hidden time', async (t) => {

@@ -28,6 +28,8 @@ function createGlobals(fetch) {
   const events = [];
   return {
     fetch,
+    setTimeout,
+    clearTimeout,
     location: { protocol: 'http:', host: 'localhost' },
     window: {
       dispatchEvent(event) {
@@ -219,7 +221,7 @@ for (const reloadState of [true, false]) {
       const initialSongs = [{ id: 0 }];
       const newerSongs = [{ id: 2 }];
       service.songs = initialSongs;
-      const options = reloadState ? undefined : { reloadState: false };
+      const options = { reloadState };
       const olderReload = service.reloadSongs(options);
       filters.query = 'newer';
       const newerReload = service.reloadSongs(options);
@@ -283,7 +285,7 @@ test('Admin does not emit an obsolete song update after waiting for application 
     stateStarted.resolve();
     return stateFinished.promise;
   };
-  const olderReload = service.reloadSongs();
+  const olderReload = service.reloadSongs({ reloadState: true });
   resolveSongs(requests[0], [{ id: 1 }]);
   await stateStarted.promise;
 

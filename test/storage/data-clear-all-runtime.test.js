@@ -2,17 +2,17 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 
-const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-clear-runtime-'));
+const root = createScratchDirectory('lira-clear-runtime-');
 const originalDataDir = process.env.SONG_PLUGIN_DATA_DIR;
 process.env.SONG_PLUGIN_DATA_DIR = root;
 test.after(() => {
   if (originalDataDir === undefined) delete process.env.SONG_PLUGIN_DATA_DIR;
   else process.env.SONG_PLUGIN_DATA_DIR = originalDataDir;
-  fs.rmSync(root, { recursive: true, force: true });
+  removeScratchDirectory(root);
 });
 
 const { createDatabases, closeDatabases } = require('../../src/storage/database');
@@ -36,6 +36,10 @@ function fixture(t) {
   const settingsStore = createSettingsStore(db.songDb);
   settingsStore.setSetting('enableGiftSprint', 'true');
   const services = createDomainServices({ db, settingsStore });
+  settingsStore.setSettings({ userCooldownSeconds: '60', allowDuplicate: 'true' });
+  const requestSong = () => services.messages.handleDanmaku({ message: '点歌测试', uid: '42', userName: '观众' });
+  assert.equal(requestSong().accepted, true);
+  assert.match(requestSong().reason, /用户冷却中/);
   services.songs.ensureCategory('保留分类');
   services.overtime.setTime({ remainingSeconds: 120 });
   services.overtime.act('enable');
@@ -71,7 +75,7 @@ function fixture(t) {
     services.overtime.dispose();
     closeDatabases(db);
   });
-  return { db, services, context, timers, broadcasts, syncs };
+  return { db, services, context, timers, broadcasts, syncs, requestSong };
 }
 
 function response() {
@@ -122,6 +126,7 @@ test('real runtime context exposes writer controls and resumes after successful 
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 200);
   assert.equal(res.payload.data.cleared, true);
+  assert.equal(f.requestSong().accepted, true, 'full database success resets the in-memory user cooldown');
   assert.equal(f.services.overtime.getSnapshot().enabled, false);
   assert.deepEqual(
     f.services.songs.listCategories().map((row) => row.name),
@@ -137,6 +142,7 @@ test('default insertion failure rolls back and resumes real writers', async (t) 
   f.db.giftDb.exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
     BEGIN SELECT RAISE(ABORT, 'default insert failed'); END`);
   await assert.rejects(clearAll(f.context, request(), response()), /pre-commit failed/);
+  assert.match(f.requestSong().reason, /用户冷却中/);
   assert.equal(f.services.overtime.getSnapshot().enabled, true);
   assert.deepEqual(
     f.services.songs.listCategories().map((row) => row.name),
@@ -159,6 +165,7 @@ test('partial commit keeps real timers and imports paused, including a failed re
   assert.equal(res.status, 500);
   assert.equal(res.payload.partial, true);
   assert.deepEqual(res.payload.data.committed, ['songDb', 'superChatDb', 'giftDb']);
+  assert.match(f.requestSong().reason, /用户冷却中/, 'partial commits preserve the in-memory cooldown');
   assert.equal(f.db.giftDb.prepare('SELECT enabled FROM overtime_machine_state').get().enabled, 0);
   assertPaused(f);
 
@@ -172,6 +179,7 @@ test('partial commit keeps real timers and imports paused, including a failed re
   const retried = response();
   await clearAll(f.context, request(), retried);
   assert.equal(retried.status, 200);
+  assert.equal(f.requestSong().accepted, true);
   assert.equal(importGift(f).detection_status, 'final');
 });
 
@@ -186,6 +194,7 @@ test('post-commit runtime reload failure returns partial and keeps writers pause
   assert.equal(res.payload.partial, true);
   assert.equal(res.payload.data.cleared, false);
   assert.equal(res.payload.data.phase, 'runtime-reset');
+  assert.match(f.requestSong().reason, /用户冷却中/, 'reload failed before reaching cooldown reset');
   assertPaused(f);
 });
 
@@ -200,6 +209,7 @@ test('writer resume failure returns partial and pauses both writers again', asyn
   assert.equal(res.payload.partial, true);
   assert.equal(res.payload.data.cleared, false);
   assert.equal(res.payload.data.phase, 'resume');
+  assert.equal(f.requestSong().accepted, true, 'database and runtime reset succeeded before writer recovery failed');
   assertPaused(f);
 });
 

@@ -1,4 +1,20 @@
 // Shared display contract; keep desktop/server browser and Node copies in sync.
+// RIPPLOID uses the existing SC price bands for its six gift/SC color tiers.
+const RIPPLOID_COLOR_DEFAULTS = Object.freeze({
+  giftColor0: '#f39749', giftColor50: '#f39749', giftColor100: '#f39749',
+  giftColor500: '#f39749', giftColor1000: '#f39749', giftColor2000: '#f39749',
+  guardColorCaptain: '#f39749', guardColorAdmiral: '#f39749', guardColorGovernor: '#f39749',
+  superchatColor0: '#f39749', superchatColor50: '#f39749', superchatColor100: '#f39749',
+  superchatColor500: '#f39749', superchatColor1000: '#f39749', superchatColor2000: '#f39749',
+});
+const SPOOKY_THEME_COLORS = Object.freeze({
+  default: { spookyFrameColor: '#2d204e', spookyMessageColor: '#2e154e', textColor: '#fce6fa', spookyEventColor: '#382459', spookyAccentColor: '#9c62e4' },
+  autumn: { spookyFrameColor: '#5b2d29', spookyMessageColor: '#592929', textColor: '#fff1d1', spookyEventColor: '#72362b', spookyAccentColor: '#c65c54' },
+  graveyard: { spookyFrameColor: '#322b3d', spookyMessageColor: '#2b2237', textColor: '#f3e9fa', spookyEventColor: '#3a3247', spookyAccentColor: '#8584b5' },
+  moonlight: { spookyFrameColor: '#25283e', spookyMessageColor: '#1a2038', textColor: '#edf0ff', spookyEventColor: '#2e3154', spookyAccentColor: '#7776d6' },
+});
+const SPOOKY_COLOR_KEYS = Object.freeze(Object.keys(SPOOKY_THEME_COLORS.default));
+const SPOOKY_OPACITY_KEYS = Object.freeze(['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity']);
 const DANMAKU_STYLE_OPTIONS = Object.freeze({
   bubble: {
     scrollDirection: true,
@@ -92,6 +108,53 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: false,
     bubbleColor: true,
     defaultTextColor: '#78a9d6',
+  },
+  ripploid: {
+    scrollDirection: true,
+    label: 'RIPPLOID',
+    minFontSize: 18,
+    maxFontSize: 48,
+    defaultFontSize: 24,
+    background: false,
+    giftImage: false,
+    bubbleColor: true,
+    ripploidColors: true,
+    defaultBubbleColor: '#eb945e',
+    defaultTextColor: '#f5f5f5',
+  },
+  notebook: {
+    scrollDirection: true, defaultEdgeFade: 'none', label: '手账风',
+    minFontSize: 18, maxFontSize: 48, defaultFontSize: 23,
+    background: false, giftImage: false, defaultTextColor: '#3e3e3d',
+  },
+  spooky: {
+    scrollDirection: true, defaultEdgeFade: 'none', label: '幽灵便笺',
+    minFontSize: 16, maxFontSize: 36, defaultFontSize: 20,
+    background: false, giftImage: false, spookyOptions: true,
+    defaultTextColor: '#fce6fa',
+  },
+  twitter: {
+    scrollDirection: true,
+    defaultEdgeFade: 'none',
+    label: '仿推特 3.0',
+    minFontSize: 18,
+    maxFontSize: 40,
+    defaultFontSize: 22,
+    background: false,
+    giftImage: true,
+    defaultTextColor: '#141414',
+  },
+  'flower-letter': {
+    scrollDirection: true,
+    defaultEdgeFade: 'none',
+    label: '花与信笺',
+    minFontSize: 18,
+    maxFontSize: 40,
+    defaultFontSize: 24,
+    defaultFontFamily: '"Lira Yozai"',
+    background: true,
+    giftImage: false,
+    defaultTextColor: '#766449',
   },
   starlight: {
     scrollDirection: true,
@@ -247,6 +310,15 @@ function normalizeStyleOptions(value) {
       else if (key === 'bubbleColor' && limits.bubbleColor && typeof item === 'string'
         && (item === 'default' || ([7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item))))
         normalized[key] = item.toLowerCase();
+      else if (limits.ripploidColors && Object.hasOwn(RIPPLOID_COLOR_DEFAULTS, key)
+        && typeof item === 'string' && /^#[0-9a-f]{6}$/i.test(item)) normalized[key] = item.toLowerCase();
+      else if (key === 'spookyTheme' && limits.spookyOptions
+        && ['default', 'autumn', 'graveyard', 'moonlight'].includes(item)) normalized[key] = item;
+      else if (key === 'spookyFrame' && limits.spookyOptions && ['show', 'hide'].includes(item)) normalized[key] = item;
+      else if (limits.spookyOptions && key !== 'textColor' && SPOOKY_COLOR_KEYS.includes(key) && typeof item === 'string'
+        && (item === 'default' || ([7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item)))) normalized[key] = item.toLowerCase();
+      else if (limits.spookyOptions && SPOOKY_OPACITY_KEYS.includes(key)
+        && Number.isInteger(item) && item >= 0 && item <= 100) normalized[key] = item;
       else if (key === 'minGiftAmount' && limits.minGiftAmount && Number.isFinite(item)
         && item >= 0 && item <= 100000 && Number(item.toFixed(2)) === item) normalized[key] = item;
       else fail();
@@ -259,12 +331,18 @@ function normalizeStyleOptions(value) {
 function styleOptionsFor(style, options = {}) {
   const defaults = {
     textColor: DANMAKU_STYLE_OPTIONS[style]?.defaultTextColor || '#eaf2ff',
-    fontFamily: 'default',
-    fontSize: 30,
+    fontFamily: DANMAKU_STYLE_OPTIONS[style]?.defaultFontFamily || 'default',
+    fontSize: DANMAKU_STYLE_OPTIONS[style]?.defaultFontSize || 30,
     ...(DANMAKU_STYLE_OPTIONS[style]?.minGiftAmount ? { minGiftAmount: 0 } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.bubbleColor ? { bubbleColor: 'default' } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.ripploidColors ? RIPPLOID_COLOR_DEFAULTS : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.decorationShape ? { decorationShape: 'sparkle' } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.entranceAnimation ? { entranceAnimation: 'fade' } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.spookyOptions ? {
+      spookyTheme: 'default', spookyFrame: 'show',
+      spookyFrameColor: 'default', spookyMessageColor: 'default', spookyEventColor: 'default', spookyAccentColor: 'default',
+      spookyFrameOpacity: 100, spookyMessageOpacity: 100, spookyEventOpacity: 100,
+    } : {}),
     backgroundOpacity: 100,
     giftImage: 'theme',
     scrollDirection: 'up',
@@ -279,12 +357,15 @@ function styleOptionsFor(style, options = {}) {
   } catch {
     resolved = defaults;
   }
+  if (style === 'spooky' && !Object.hasOwn(options[style] || {}, 'textColor')) {
+    resolved.textColor = SPOOKY_THEME_COLORS[resolved.spookyTheme].textColor;
+  }
   // Keep accepting legacy image options while these styles always show the gift itself.
-  if (['identity', 'transparent', 'outline', 'bubble', 'cream'].includes(style)) resolved.giftImage = 'gift';
+  if (['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter'].includes(style)) resolved.giftImage = 'gift';
   if (resolved.edgeFade === 'single') {
     resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
   }
   return resolved;
 }
 
-module.exports = { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, normalizeStyleOptions, styleOptionsFor };
+module.exports = { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, normalizeStyleOptions, styleOptionsFor };

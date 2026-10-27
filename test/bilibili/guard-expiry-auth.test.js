@@ -121,8 +121,8 @@ test('account requests preserve authorization and cancellation and identify olde
   const calls = [];
   const signal = new AbortController().signal;
   const remote = createRemoteCloudSync(async (...args) => { calls.push(args); return empty; });
-  const operations = createLicenseOperations({ remote, withAuthorizedToken: async (fn, _retry, _ready, _validate, received) => {
-    assert.equal(received, signal);
+  const operations = createLicenseOperations({ remote, withAuthorizedToken: async (fn, options) => {
+    assert.equal(options.signal, signal);
     return fn('device-token');
   } });
   await operations.getGuardExpiryAccountInternal({ signal });

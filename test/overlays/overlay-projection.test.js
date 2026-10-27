@@ -52,6 +52,10 @@ const item = {
   giftName: '花',
   giftCount: 2,
   giftTotalPrice: 12.5,
+  giftImageUrl: '/overtime-gift-images/synthetic.webp',
+  giftGuardLevel: 3,
+  price: 30,
+  messageId: 'sc-1',
   avatarUrl: 'https://i0.hdslb.com/avatar',
   emotes: [{ text: '[笑]', url: 'https://i0.hdslb.com/emote', kind: 'inline', width: 10, height: 10, secret }],
   secret,
@@ -244,8 +248,23 @@ test('WS event scope matrix strips nested extras while preserving display and dr
 
 test('danmaku gift totals survive both live events and reconnect snapshots', () => {
   const principal = { type: 'overlay', scope: 'danmaku' };
-  assert.equal(projectWebSocketPayload(principal, { type: 'danmaku:message', item }).item.giftTotalPrice, 12.5);
-  assert.equal(projectOverlayState('danmaku', state).danmakuFeed[0].giftTotalPrice, 12.5);
+  const live = projectWebSocketPayload(principal, { type: 'danmaku:message', item }).item;
+  assert.equal(live.giftTotalPrice, 12.5);
+  assert.equal(live.giftImageUrl, '/overtime-gift-images/synthetic.webp');
+  assert.equal(live.giftGuardLevel, 3);
+  assert.equal(live.price, 30);
+  assert.equal(live.messageId, 'sc-1');
+  assert.deepEqual(projectOverlayState('danmaku', state).danmakuFeed[0], live);
+});
+
+test('danmaku SC retractions stay scoped and contain only public platform IDs', () => {
+  const principal = { type: 'overlay', scope: 'danmaku' };
+  assert.deepEqual(projectWebSocketPayload(principal, {
+    type: 'danmaku:superchat-delete', messageIds: ['sc-1', '9007199254740993'], secret,
+  }), { type: 'danmaku:superchat-delete', messageIds: ['sc-1', '9007199254740993'] });
+  assert.equal(projectWebSocketPayload({ type: 'overlay', scope: 'queue' }, {
+    type: 'danmaku:superchat-delete', messageIds: ['sc-1'],
+  }), null);
 });
 
 test('emote kinds survive public live events and reconnect snapshots', () => {

@@ -17,7 +17,7 @@ const routes = {
   ...require('./gift-wish-routes').routes,
   async 'GET /api/gifts/card-profiles'(context, request, res) {
     try {
-      const data = await context.giftCards.getProfiles(request.query.get('viewRevision'));
+      const data = await context.giftCards.getProfiles(request.query.get('viewRevision'), request.query.get('contentRevision'));
       sendJson(res, 200, { ok: true, data });
     } catch (error) {
       if (!['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) throw error;
@@ -74,9 +74,15 @@ const routes = {
   },
 
   'GET /api/gifts/blind-box-stats'(context, request, res) {
-    const boxName = request.query.get('boxName') || '';
-    const stats = context.gifts.getBlindBoxStats({ boxName });
-    sendJson(res, 200, { ok: true, data: stats });
+    try {
+      const query = request.query;
+      const stats = context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '',
+        top: query.get('top') ?? -1, hideLoss: query.get('hideLoss') ?? false });
+      sendJson(res, 200, { ok: true, data: stats });
+    } catch (error) {
+      if (error.code !== 'INVALID_GIFT_STATS_OPTIONS') throw error;
+      sendJson(res, 400, { ok: false, code: error.code, error: error.message });
+    }
   },
 
   'GET /api/gifts/blind-box-analysis'(context, request, res) {
@@ -234,6 +240,8 @@ function sendGiftLedgerResponse(context, request, res, operation) {
             ...(query?.has?.('giftQuery') ? { giftQuery: query.get('giftQuery') } : {}),
             ...(query?.has?.('amountAbove') ? { amountAbove: query.get('amountAbove') } : {}),
             ...(query?.has?.('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
+            ...(query?.get?.('conditional') === '1' ? { conditional: true } : {}),
+            ...(query?.has?.('contentRevision') ? { contentRevision: query.get('contentRevision') } : {}),
             sortField: query?.has?.('sortField') ? query.get('sortField') : undefined,
             sortDirection: query?.has?.('sortDirection') ? query.get('sortDirection') : undefined,
           }

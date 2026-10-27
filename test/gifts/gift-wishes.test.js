@@ -105,6 +105,24 @@ function setup(t) {
   };
 }
 
+test('wishes with the same time window share ledger aggregation and one retention snapshot', async (t) => {
+  const f = setup(t);
+  for (let index = 0; index < 30; index++) f.add('day');
+  f.event('today', '2026-09-20T03:00:00Z', 3);
+  const prepare = f.fixture.giftDb.prepare;
+  let retentionReads = 0, aggregations = 0;
+  t.mock.method(f.fixture.giftDb, 'prepare', function (sql) {
+    if (sql.includes('FROM gift_retention_state r')) retentionReads++;
+    if (sql.includes('SUM(') && sql.includes('FROM gift_events g')) aggregations++;
+    return prepare.call(this, sql);
+  });
+  const snapshot = await f.service.getSnapshot();
+  assert.equal(snapshot.items.length, 30);
+  assert.ok(snapshot.items.every((item) => item.count === 3 && item.todayCount === 3));
+  assert.equal(retentionReads, 1);
+  assert.equal(aggregations, 1);
+});
+
 test('three periods count final integer quantities in their own windows and survive restart', async (t) => {
   const f = setup(t);
   migrateGiftWishes(f.fixture.giftDb);

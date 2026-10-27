@@ -49,7 +49,7 @@ export function initInteractions() {
   const url = `${localOverlayOrigin()}/interactions`;
   get('interactionsSourceUrl').textContent = url;
   get('interactionsUrl').addEventListener('click', () =>
-    copyText(url).then(() => toast('互动网页地址已复制')).catch(showError),
+    copyText(url).then(() => toast('互动浏览器源地址已复制')).catch(showError),
   );
   get('interactionsOpen').addEventListener('click', () => window.open(url, '_blank', 'noopener'));
   get('pollRule').textContent = POLL_RULE;

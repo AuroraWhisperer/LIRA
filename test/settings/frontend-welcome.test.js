@@ -509,6 +509,7 @@ test('user welcome rules save independently and preserve changes made during a w
   assert.equal(f.get('CustomEmpty').hidden, false);
   f.edit(0, '普通欢迎草稿');
   f.click('CustomAddBtn');
+  assert.equal(f.get('CustomList').children[0].children[1].children[1].maxLength, 80);
   f.customEdit(0, 'uid', '123456');
   f.customEdit(0, 'message', ' 老朋友 {username} 来啦 ');
   f.click('CustomSaveBtn');

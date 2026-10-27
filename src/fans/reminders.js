@@ -1,28 +1,30 @@
 'use strict';
 
-const { DAY_MS, dayOf, dayStart, addDays, daysBetween, anniversaryDate } = require('./dates');
+const { dayOf, addDays, daysBetween, anniversaryDate } = require('./dates');
 const { prepareMembership } = require('./membership');
+const { MEMBERSHIP_MILESTONES } = require('./membership-milestones');
 const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 
-function buildReminders(profile, records, states, now = Date.now(), settings = {}) {
+function buildReminders(profile, records, states, now = Date.now(), settings = {}, options = {}) {
   if (profile.archived) return [];
   const today = dayOf(now);
   const earliest = addDays(today, -7);
-  const latest = addDays(today, 366);
+  const horizon = addDays(today, 366);
+  const latest = addDays(today, options.daysAhead ?? 366);
   const year = Number(today.slice(0, 4));
   const statesByKey = new Map(states.map((state) => [state.key, state]));
   const result = [];
-  const summarize = prepareMembership(records);
-  const membership = summarize(now);
+  const summarize = options.summarize || prepareMembership(records);
+  const membership = options.membership || summarize(now);
   const accompany = getGuardAccompany(profile, now);
   const metricDays = (metric) => metric === 'accompany' ? accompany?.days : membership[`${metric}Days`];
 
   function add(key, date, title, basis, advance = 0, extra = {}) {
-    if (!date || date < earliest || date > latest) return;
     const state = statesByKey.get(key);
+    const isResolved = ['handled', 'ignored'].includes(state?.status);
+    if (!date || date < earliest || date > horizon || (date > latest && !isResolved)) return;
     const scheduled = addDays(date, -advance);
     const snoozed = state?.status === 'snoozed' && state.until > today;
-    const isResolved = ['handled', 'ignored'].includes(state?.status);
     result.push({
       key,
       profileId: profile.id,
@@ -150,17 +152,23 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
           .map((r) => r.data.asOf),
       );
     }
-    const previous = summarize(addDays(earliest, -1));
     const seen = new Set();
-    let last = previous;
-    const lastDay = dayStart(latest);
-    for (let time = dayStart(earliest); time <= lastDay; time += DAY_MS) {
-      const date = dayOf(time);
-      const current = summarize(date === today ? now : time + DAY_MS - 1);
+    // A revised baseline can move a handled milestone outside the short window.
+    // Re-resolve those saved dates when the shared result includes history.
+    const hasMilestoneHistory = states.some(state =>
+      /^(total|continuous):/.test(state.key) && ['handled', 'ignored'].includes(state.status));
+    const summaries = new Map([[today, membership]]);
+    function at(date) {
+      if (!summaries.has(date)) summaries.set(date, summarize(date));
+      return summaries.get(date);
+    }
+    for (const date of summarize.milestoneDates(earliest, hasMilestoneHistory ? horizon : latest, now)) {
+      const current = at(date);
+      const previous = at(addDays(date, -1));
       for (const type of ['total', 'continuous']) {
         const value = current[`${type}Days`];
-        const prior = last[`${type}Days`];
-        for (const threshold of [30, 100, 365]) {
+        const prior = previous[`${type}Days`];
+        for (const threshold of MEMBERSHIP_MILESTONES) {
           // A newly entered baseline establishes today's count, not the dates
           // when smaller milestones were reached in the unknown past.
           if (value > threshold && baselineDates[type].has(date)) continue;
@@ -179,7 +187,6 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
           );
         }
       }
-      last = current;
     }
   }
 

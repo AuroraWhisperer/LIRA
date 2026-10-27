@@ -10,6 +10,10 @@ const MODEL_PROVIDER_PRESETS = Object.freeze({
     url: 'https://api.deepseek.com',
     protocol: 'chat_completions',
   }),
+  kimi: Object.freeze({
+    url: 'https://api.moonshot.cn/v1',
+    protocol: 'chat_completions',
+  }),
   openai: Object.freeze({
     url: 'https://api.openai.com/v1',
     protocol: 'responses',
@@ -28,6 +32,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
   enabled: true,
   trigger: '',
   modelProvider: 'auto',
+  modelAuthMode: 'api',
   deepseekResponsesUrl: '',
   modelApiProtocol: 'auto',
   deepseekApiKey: '',
@@ -70,7 +75,8 @@ const BOOLEAN_KEYS = new Set([
 ]);
 
 const ENUM_VALUES = Object.freeze({
-  modelProvider: new Set(['auto', 'deepseek', 'openai', 'anthropic', 'gemini', 'custom', 'doubao']),
+  modelProvider: new Set(['auto', 'deepseek', 'kimi', 'openai', 'anthropic', 'gemini', 'custom', 'doubao']),
+  modelAuthMode: new Set(['api', 'subscription']),
   modelApiProtocol: new Set(['auto', 'responses', 'chat_completions']),
   reasoningEffort: new Set(['auto', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
 });
@@ -147,6 +153,7 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
   }
   if (Object.hasOwn(input, 'systemPrompt') && !Object.hasOwn(input, 'personaId')) result.personaId = 'custom';
   resolvePersona(result);
+  if (result.modelProvider !== 'openai') result.modelAuthMode = 'api';
   return applyModelProviderPreset(result);
 }
 
@@ -173,7 +180,7 @@ function validateHttpUrl(key, value) {
 }
 
 function assertSavedModelKeyOrigin(current, next, hasExplicitKey) {
-  if (next.modelProvider === 'doubao') return;
+  if (usesAccountModel(next)) return;
   if (hasExplicitKey || !current.deepseekApiKey) return;
   const previousUrl = applyModelProviderPreset(current).deepseekResponsesUrl;
   const nextUrl = applyModelProviderPreset(next).deepseekResponsesUrl;
@@ -187,9 +194,18 @@ function assertSavedModelKeyOrigin(current, next, hasExplicitKey) {
 
 function isAiReady(config) {
   if (config.modelProvider === 'doubao') return Boolean(config.enabled && config.trigger);
+  if (usesSubscription(config)) return Boolean(config.enabled && config.trigger && config.model);
   return Boolean(
     config.enabled && config.trigger && config.deepseekResponsesUrl && config.deepseekApiKey && config.model,
   );
+}
+
+function usesSubscription(config = {}) {
+  return config.modelProvider === 'openai' && config.modelAuthMode === 'subscription';
+}
+
+function usesAccountModel(config = {}) {
+  return config.modelProvider === 'doubao' || usesSubscription(config);
 }
 
 module.exports = {
@@ -202,4 +218,6 @@ module.exports = {
   assertSavedModelKeyOrigin,
   normalizeAiConfig,
   isAiReady,
+  usesSubscription,
+  usesAccountModel,
 };

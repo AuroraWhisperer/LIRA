@@ -250,6 +250,29 @@ async function archiveUi(t, storage = new Map()) {
   return ui;
 }
 
+test('search and filters refresh only the list while polling and explicit refresh still update reminders', async t => {
+  const ui = await archiveUi(t);
+  await ui.search('A');
+  await ui.click({ fanFilter: 'favorite' });
+  await ui.click({ fanAction: 'clear-filter' });
+  assert.equal(ui.listCalls().length, 3);
+  assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 0);
+  ui.poll();
+  await ui.flush();
+  assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 1);
+  await ui.click({ fanAction: 'refresh' });
+  assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 2);
+  const loading = deferred();
+  ui.handlers.set('open', async input => { await loading.promise; return ui.respond(input); });
+  ui.poll();
+  await ui.flush();
+  await ui.search('B');
+  assert.equal(ui.calls.filter(call => call.action === 'reminders').length, 3,
+    'a search superseding the list request must retain a pending reminder refresh');
+  loading.resolve();
+  await ui.flush();
+});
+
 test('fan polling pauses outside its main page and refreshes immediately on return', async (t) => {
   const ui = await archiveUi(t);
   const mainPage = ui.nodes.get('otherAssistantPage');

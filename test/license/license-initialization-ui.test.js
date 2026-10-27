@@ -80,9 +80,13 @@ test('authorization errors name the code for the selected registration or login 
   const page = await createPage({ licenseSnapshot: { state: 'needs_activation' } });
   page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_CODE_INVALID' });
   assert.match(page.get('licenseStatus').textContent, /^注册激活码无效/);
+  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_INPUT_INVALID' });
+  assert.equal(page.get('licenseStatus').textContent, '请完整填写用户名、密码和注册激活码。');
   page.click('licenseLoginMode');
   page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_CODE_EXPIRED' });
   assert.match(page.get('licenseStatus').textContent, /^此短效登录码已过期/);
+  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_INPUT_INVALID' });
+  assert.equal(page.get('licenseStatus').textContent, '请完整填写用户名、密码和短效登录码。');
   page.licenseChanged({ state: 'needs_activation', error: 'UNKNOWN_CODE' });
   assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
 });
@@ -281,7 +285,9 @@ test('late catalog results cannot replace login after returning or losing author
   page.catalogChanged({ status: 'running', percent: 5 });
   assert.equal(page.get('licenseLoginCard').hidden, false);
   assert.equal(page.get('giftCatalogInitializationCard').hidden, true);
-  assert.equal(page.get('licenseRetryBtn').textContent, '重试连接');
+  assert.equal(page.get('licenseRetryBtn').textContent, '重新验证');
   assert.match(page.get('licenseStatus').textContent, /授权.*撤销/);
   assert.equal(page.get('licenseStatus').className, 'license-status error');
+  page.licenseChanged({ state: 'needs_connection', error: 'NETWORK_UNAVAILABLE' });
+  assert.equal(page.get('licenseRetryBtn').textContent, '重试连接');
 });

@@ -3,8 +3,7 @@
 const { DAY_MS, dayStart, METRIC_KEYS } = require('../shared/gift-summary-contract');
 const { activeSnapshot } = require('./gift-retention-store');
 
-function retentionLedgerFilter(db, options, filter, { statistics = false } = {}) {
-  const snapshot = activeSnapshot(db, options.sourceId);
+function retentionLedgerFilter(db, options, filter, { statistics = false, snapshot = activeSnapshot(db, options.sourceId) } = {}) {
   if (!snapshot) return filter;
   filter.sql = filter.sql.replace("g.status = 'active'", "g.status IN ('active','retention-staged')");
   filter.sql += ' AND EXISTS (SELECT 1 FROM gift_retention_members m WHERE m.snapshot_id=? AND m.event_id=g.id)';
@@ -24,10 +23,9 @@ function summaryWindow(snapshot, { rangeStart, asOf }) {
   return { start: start === null ? null : new Date(start).toISOString(), end: new Date(end).toISOString() };
 }
 
-function statisticsFilter(db, options, filter) {
-  const snapshot = activeSnapshot(db, options.sourceId);
+function statisticsFilter(db, options, filter, snapshot = activeSnapshot(db, options.sourceId)) {
   const window = summaryWindow(snapshot, options);
-  retentionLedgerFilter(db, options, filter, { statistics: true });
+  retentionLedgerFilter(db, options, filter, { statistics: true, snapshot });
   if (window) {
     filter.sql += ` AND NOT (g.remote_final_cursor IS NOT NULL AND g.remote_final_cursor<=?
       AND g.created_at<?${window.start ? ' AND g.created_at>=?' : ''})`;

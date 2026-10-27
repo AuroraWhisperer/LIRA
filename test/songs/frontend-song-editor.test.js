@@ -69,7 +69,7 @@ test('song multiselects show union hints and retain independent category choices
   assert.equal(await page.locator('#tagFilterSummary').textContent(), '全部标签');
 });
 
-test('a large song library renders bounded pages and keeps page actions and filters consistent', async (t) => {
+test('a large song library renders every song and keeps delegated actions and filters consistent', async (t) => {
   const page = await open(t);
   await page.evaluate(() => {
     window.library = Array.from({ length: 5000 }, (_, index) => ({
@@ -77,10 +77,9 @@ test('a large song library renders bounded pages and keeps page actions and filt
     }));
     for (let count = 0; count < 3; count++) window.renderSongs(window.library);
   });
-  assert.equal(await page.locator('#songsTable tr').count(), 100);
-  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 1 / 50 页');
-  await page.locator('#songLibraryNextPage').click();
-  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 2 / 50 页');
+  assert.equal(await page.locator('#songsTable tr').count(), 5000);
+  assert.equal(await page.locator('#songLibraryPagination').count(), 0);
+  assert.equal(await page.locator('[data-edit-song="5000"]').count(), 1);
   assert.equal(await page.locator('[data-edit-song="101"]').count(), 1);
   await page.locator('[data-edit-song="101"]').dispatchEvent('click');
   await page.waitForFunction(() => document.getElementById('songId').value === '101');
@@ -94,18 +93,17 @@ test('a large song library renders bounded pages and keeps page actions and filt
     window.pendingSaves[0].resolve({ ok: true });
     window.renderSongs(window.library);
   });
-  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 2 / 50 页', 'refresh preserves the current page');
+  assert.equal(await page.locator('#songsTable tr').count(), 5000, 'refresh keeps the complete library');
   await page.locator('#songSearch').fill('歌曲 4001');
   await page.evaluate(() => window.renderSongs(window.library.slice(4000, 4001)));
   assert.equal(await page.locator('#songsTable tr').count(), 1);
   assert.equal(await page.locator('[data-edit-song="4001"]').count(), 1);
-  assert.equal(await page.locator('#songLibraryPagination').isVisible(), false);
   await page.locator('#songSearch').fill('');
   await page.evaluate(() => window.renderSongs(window.library));
-  assert.equal(await page.locator('#songLibraryPage').textContent(), '第 1 / 50 页');
+  assert.equal(await page.locator('#songsTable tr').count(), 5000);
 });
 
-test('deleting the only song on the last page returns to the preceding page', async (t) => {
+test('deleting the last song refreshes the complete library', async (t) => {
   const page = await open(t);
   await page.evaluate(() => {
     window.library = Array.from({ length: 201 }, (_, index) => ({ id: index + 1, name: `歌曲 ${index + 1}`, is_enabled: true }));
@@ -115,9 +113,7 @@ test('deleting the only song on the last page returns to the preceding page', as
     };
     window.renderSongs(window.library);
   });
-  await page.locator('#songLibraryNextPage').click();
-  await page.locator('#songLibraryNextPage').click();
-  assert.equal(await page.locator('#songsTable tr').count(), 1);
+  assert.equal(await page.locator('#songsTable tr').count(), 201);
   await page.locator('[data-delete-song="201"]').dispatchEvent('click');
   await page.getByRole('button', { name: '确认删除', exact: true }).click();
   await page.waitForFunction(() => window.pendingSaves.length === 1);
@@ -125,9 +121,9 @@ test('deleting the only song on the last page returns to the preceding page', as
     ['/api/songs/delete', '201'],
   ]);
   await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true }));
-  await page.waitForFunction(() => document.getElementById('songLibraryPage').textContent === '第 2 / 2 页');
-  assert.equal(await page.locator('#songsTable tr').count(), 100);
-  assert.equal(await page.locator('#songLibraryNextPage').isDisabled(), true);
+  await page.waitForFunction(() => document.querySelectorAll('#songsTable tr').length === 200);
+  assert.equal(await page.locator('[data-delete-song="201"]').count(), 0);
+  assert.equal(await page.locator('[data-edit-song="200"]').count(), 1);
 });
 
 for (const switchSong of [false, true]) test(`deleting the edited song ${switchSong ? 'preserves a later edit' : 'resets the editor'}`, async (t) => {

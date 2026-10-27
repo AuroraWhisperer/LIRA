@@ -20,7 +20,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
   help.setAttribute('label', '外观效果说明');
   const hint = previewElement('span', '', type === 'browser'
     ? '可调整整个网页的投影、发光、边框和变换；内部调色、文字和消息显示由原网页控制。'
-    : '仅调整当前样式。未开启的调整沿用原样式，强度设为 0 可关闭对应效果。');
+    : '仅调整当前样式。未开启的效果沿用原样式，强度设为 0 可关闭对应效果。');
   const status = previewElement('p', 'component-style-parameter-error');
   status.setAttribute('role', 'status'); status.hidden = true;
   help.append(hint); heading.append(help); root.append(heading);
@@ -112,7 +112,7 @@ export function mountStyleParameters(host, controller, type, { messageHost } = {
         : STYLE_PARAMETER_CAPABILITIES[type]?.[draft.style];
       const target = kind === 'text' ? '光影作用于文字。' : kind === 'moon' ? '光影和轮廓作用于月轮底板。'
         : ['panel', 'frame'].includes(kind) ? '光影和轮廓作用于卡片底板。' : '光影和轮廓作用于整体图案。';
-      hint.textContent = `${target}仅调整当前样式；未开启的调整沿用原样式，强度设为 0 可关闭对应效果。`;
+      hint.textContent = `${target}仅调整当前样式；未开启的效果沿用原样式，强度设为 0 可关闭对应效果。`;
     }
     advanced.hidden = !supported.some(name => STYLE_PARAMETER_GROUPS[name].advanced);
     for (const [name, view] of groups) {

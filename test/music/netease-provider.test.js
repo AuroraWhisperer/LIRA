@@ -12,6 +12,20 @@ function createProvider() {
   });
 }
 
+test('NetEase liked pagination resolves its playlist once per load while retaining real pages', async () => {
+  const provider = createProvider();
+  let lookups = 0;
+  const offsets = [];
+  provider.getLikedPlaylistId = async () => { lookups++; return '123'; };
+  provider.getPlaylistTracks = async (_id, options) => { offsets.push(options.offset); return []; };
+  await provider.getLikedTracks({ offset: 0, loadingSession: 'load' });
+  await provider.getLikedTracks({ offset: 100, loadingSession: 'load' });
+  assert.equal(lookups, 1);
+  assert.deepEqual(offsets, [0, 100]);
+  await provider.getLikedTracks({ offset: 0, loadingSession: 'refresh' });
+  assert.equal(lookups, 2);
+});
+
 test('NetEase stream requests read the current account cookie each time and honor upstream rights', async (t) => {
   let cookie = '';
   const requests = [];

@@ -487,7 +487,12 @@ test('adding a suite clock from the client synchronizes its instance before reus
   const desktop = await browser.newPage();
   const page = await browser.newPage();
   desktop.setDefaultTimeout(10000); page.setDefaultTimeout(10000);
+  const canvasOpened = desktop.waitForResponse(response => {
+    const body = response.request().postDataJSON();
+    return body?.action === 'open' && body.component === 'canvas';
+  });
   const url = await openCanvasDesktop(desktop, fixture);
+  const { data: { id: canvasSessionId } } = await (await canvasOpened).json();
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await desktop.evaluate(async html => {
@@ -501,12 +506,13 @@ test('adding a suite clock from the client synchronizes its instance before reus
   for (let count = 1; count <= 2; count += 1) {
     let release;
     const held = new Promise(resolve => { release = resolve; });
+    t.after(release);
     let observed;
     const inFlight = new Promise(resolve => { observed = resolve; });
     let intercepted = false;
     const intercept = async route => {
       const body = route.request().postDataJSON();
-      if (body.action !== 'exchange' || !body.state?.draft.document || intercepted) return route.fallback();
+      if (body.action !== 'exchange' || body.id !== canvasSessionId || intercepted) return route.fallback();
       intercepted = true;
       const response = await route.fetch({ headers: { ...route.request().headers(), Authorization: `Bearer ${fixture.token}` } });
       observed();

@@ -39,7 +39,9 @@ export const display = (() => {
         onCopied: async () => {
           const component = { queueUrl: 'queue', localDanmakuUrl: 'danmaku', liveClockUrl: 'clock', liveOvertimeUrl: 'overtime' }[button.dataset.copyUrl];
           const size = component ? await readComponentOutputSize(component).catch(() => null) : null;
-          toast(size ? `地址已复制；浏览器源尺寸设为 ${size.width} × ${size.height}` : '地址已复制');
+          const name = button.closest('.overlay-address-item')?.querySelector('.ui-card-title')?.firstChild.textContent.trim();
+          const message = name && !button.dataset.copyUrl.startsWith('web') ? `${name}浏览器源地址已复制` : '地址已复制';
+          toast(size ? `${message}；浏览器源尺寸设为 ${size.width} × ${size.height}` : message);
         },
         onError: (error, url) => {
           toast(error?.message || '复制失败，请手动复制地址');

@@ -9,6 +9,55 @@ const {
   DEFAULT_GIFT_DISPLAY,
 } = require('../../src/bilibili/gift/display-settings');
 
+test('conditional artwork reads reuse unchanged arrays and accept same-version image repairs', async () => {
+  const requests = [];
+  const responses = [
+    { version: '1', contentRevision: 'a'.repeat(64), gifts: [{ id: '1', imagePath: 'before.webp' }] },
+    { contentRevision: 'a'.repeat(64), unchanged: true },
+    { version: '1', contentRevision: 'b'.repeat(64), gifts: [{ id: '1', imagePath: 'after.webp' }] },
+  ];
+  const { createGiftArtworkCatalogReader } = await loadModuleExports(path.resolve('public/js/shared/gift-banner.js'), {
+    URLSearchParams,
+    fetch: async (url) => { requests.push(url); return { ok: true, json: async () => ({ data: responses.shift() }) }; },
+  });
+  const read = createGiftArtworkCatalogReader();
+  const first = await read();
+  assert.equal(await read(), first);
+  assert.equal(new URLSearchParams(requests[1].split('?')[1]).get('contentRevision'), 'a'.repeat(64));
+  const repaired = await read();
+  assert.notEqual(repaired, first);
+  assert.equal(repaired[0].imagePath, 'after.webp');
+});
+
+test('artwork resolvers index catalog snapshots once without changing ambiguity, guards or mutable array lookup', async () => {
+  const { createGiftArtworkResolver, resolveGiftArtwork } = await loadModuleExports(path.resolve('public/js/shared/gift-banner.js'));
+  let reads = 0;
+  const catalog = Array.from({ length: 5000 }, (_, id) => ({ get id() { reads++; return String(id); },
+    name: `gift-${id}`, imagePath: `/overtime-gift-images/gift-${id}.webp` }));
+  const resolve = createGiftArtworkResolver(catalog);
+  for (let id = 0; id < 100; id++) assert.equal(resolveGiftArtwork({ giftId: String(id), giftName: `gift-${id}` }, resolve),
+    `/overtime-gift-images/gift-${id}.webp`);
+  assert.equal(reads, 5000);
+  const entries = [
+    { id: '1', name: ' Ａ  B ', variantId: 'first', imagePath: '/overtime-gift-images/first.webp' },
+    { id: '1', name: 'a b', giftIdentity: { variantId: 'second' }, imagePath: '/overtime-gift-images/second.webp' },
+    { id: '2', name: 'bad', variantId: 'bad', imagePath: '/overtime-gift-images/../bad.webp' },
+  ];
+  const indexed = createGiftArtworkResolver(entries);
+  for (const gift of [{ giftId: '1', giftName: 'a b' }, { giftId: '1', giftName: 'a b', giftVariantId: 'second' },
+    { giftId: 'wrong', giftName: 'wrong', giftVariantId: 'first' }, { giftId: '2', giftName: 'bad' },
+    { giftId: 'guard-3', giftName: '舰长' }, { giftId: '1', giftName: 'a b', giftVariantId: 'missing' }]) {
+    assert.equal(indexed(gift), resolveGiftArtwork(gift, entries));
+  }
+  entries[0].imagePath = '/overtime-gift-images/updated.webp';
+  const gift = { giftId: '1', giftName: 'a b', giftVariantId: 'first' };
+  assert.equal(resolveGiftArtwork(gift, entries), '/overtime-gift-images/updated.webp');
+  assert.equal(indexed(gift), '/overtime-gift-images/first.webp', 'an accepted snapshot remains independent of caller mutation');
+  assert.equal(createGiftArtworkResolver(entries)(gift), '/overtime-gift-images/updated.webp');
+  entries.push({ ...entries[0], id: '3' });
+  assert.equal(createGiftArtworkResolver(entries)(gift), '/img/gift-placeholder.png', 'duplicate variants remain ambiguous');
+});
+
 test('feed speed maps linearly from five seconds to a tenth of a second per row', async () => {
   const { giftFeedRowDurationMs } = await loadModuleExports(path.resolve('public/js/shared/gift-feed-state.js'));
   assert.equal(giftFeedRowDurationMs(1), 5000);
@@ -166,4 +215,19 @@ test('feed scans every page, loops all events and keeps its current position on 
   state.replace([records[0]]);
   assert.equal(state.visible(3, true).length, 1);
   assert.equal(shanghaiToday(Date.parse('2026-09-17T16:00:00Z')), '2026-09-18');
+});
+
+test('feed does not acknowledge a content revision changed during pagination or reuse another day', async () => {
+  const { scanTodayGifts } = await loadModuleExports(path.resolve('public/js/shared/gift-feed-state.js'), { URLSearchParams });
+  const queries = [];
+  const scan = (previous, day = '2026-09-18') => scanTodayGifts({ day, previous, onRevision() {}, request: async (url) => {
+    const query = new URL(url, 'http://localhost').searchParams;
+    queries.push(query);
+    return { items: [{ eventId: query.has('cursor') ? 'two' : 'one' }], viewRevision: 'source',
+      contentRevision: query.has('cursor') ? 'b' : 'a', nextCursor: query.has('cursor') ? null : 'one' };
+  } });
+  const result = await scan();
+  assert.equal(result.contentRevision, undefined);
+  await scan({ ...result, contentRevision: 'a' }, '2026-09-19');
+  assert.ok(queries.every((query) => !query.has('contentRevision')));
 });

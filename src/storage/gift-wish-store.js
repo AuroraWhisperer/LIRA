@@ -1,7 +1,7 @@
 'use strict';
 
-const { statisticsFilter } = require('./gift-retention-queries');
-const { wishMatch, readWishContributions } = require('./gift-wish-retention');
+const { statisticsFilter, activeSnapshot } = require('./gift-retention-queries');
+const { wishMatch, readWishContributionCounts } = require('./gift-wish-retention');
 
 function createGiftWishStore(db) {
   const list = db.prepare('SELECT * FROM gift_wishes WHERE source_id = ? ORDER BY created_at, id');
@@ -23,24 +23,51 @@ function createGiftWishStore(db) {
       ended_at = excluded.ended_at, checked_at = excluded.checked_at`);
 
   function count(sourceId, wish, start, end) {
-    if (!start || !end || start > end) return 0;
-    const match = wishMatch(wish);
-    const filter = { sql: `g.source_id=? AND g.created_at>=? AND g.created_at<=?
-      AND g.status = 'active' AND g.detection_status='final'
-      AND g.num>0 AND g.num=CAST(g.num AS INTEGER) AND ${match.sql}`, params: [sourceId, start, end, ...match.params] };
-    const plan = statisticsFilter(db, { sourceId, rangeStart: start, asOf: end }, filter);
-    let count = Number(db.prepare(`SELECT COALESCE(SUM(g.num),0) AS count FROM gift_events g WHERE ${filter.sql}`).get(...filter.params).count);
-    if (plan.window) {
-      const { snapshot, window } = plan;
-      const summaryMatch = wishMatch(wish, true);
-      count += Number(db.prepare(`SELECT COALESCE(SUM(json_extract(s.metrics_json,'$.itemCount')),0) AS count
-        FROM gift_retention_days s WHERE s.source_id=? AND s.sync_epoch=? AND s.day_start>=? AND s.day_start<?
-        AND s.revision=(SELECT MAX(d.revision) FROM gift_retention_days d
-          WHERE d.source_id=s.source_id AND d.sync_epoch=s.sync_epoch AND d.day_start=s.day_start AND d.revision<=?)
-        AND ${summaryMatch.sql}`).get(sourceId, snapshot.sync_epoch, window.start, window.end,
-        snapshot.revision, ...summaryMatch.params).count);
+    return countMany(sourceId, [{ wish, start, end }])[0];
+  }
+
+  function countMany(sourceId, requests) {
+    const result = requests.map(() => 0);
+    const groups = new Map();
+    requests.forEach(({ wish, start, end }, index) => {
+      if (!start || !end || start > end) return;
+      const key = JSON.stringify([start, end]);
+      if (!groups.has(key)) groups.set(key, { start, end, entries: [] });
+      groups.get(key).entries.push({ wish, index });
+    });
+    if (!groups.size) return result;
+    const snapshot = activeSnapshot(db, sourceId);
+    for (const { start, end, entries } of groups.values()) {
+      const filter = { sql: `g.source_id=? AND g.created_at>=? AND g.created_at<=?
+        AND g.status = 'active' AND g.detection_status='final'
+        AND g.num>0 AND g.num=CAST(g.num AS INTEGER)`, params: [sourceId, start, end] };
+      const plan = statisticsFilter(db, { sourceId, rangeStart: start, asOf: end }, filter, snapshot);
+      const matches = entries.map(({ wish }) => wishMatch(wish));
+      if (matches.length === 1) {
+        filter.sql += ` AND (${matches[0].sql})`;
+        filter.params.push(...matches[0].params);
+      }
+      const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql} THEN g.num ELSE 0 END),0) AS c${index}`);
+      const counts = db.prepare(`SELECT ${sums.join(',')} FROM gift_events g WHERE ${filter.sql}`)
+        .get(...matches.flatMap((match) => match.params), ...filter.params);
+      let summaries = {};
+      if (plan.window) {
+        const { window } = plan;
+        const matches = entries.map(({ wish }) => wishMatch(wish, true));
+        const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql}
+          THEN json_extract(s.metrics_json,'$.itemCount') ELSE 0 END),0) AS c${index}`);
+        summaries = db.prepare(`SELECT ${sums.join(',')} FROM gift_retention_days s
+          WHERE s.source_id=? AND s.sync_epoch=? AND s.day_start>=? AND s.day_start<?
+          AND s.revision=(SELECT MAX(d.revision) FROM gift_retention_days d
+            WHERE d.source_id=s.source_id AND d.sync_epoch=s.sync_epoch AND d.day_start=s.day_start AND d.revision<=?)`)
+          .get(...matches.flatMap((match) => match.params), sourceId, snapshot.sync_epoch, window.start, window.end, snapshot.revision);
+      }
+      const contributions = readWishContributionCounts(db, sourceId, entries.map(({ wish }) => wish.id), start, end, plan);
+      entries.forEach(({ wish, index }, position) => {
+        result[index] = Number(counts[`c${position}`]) + Number(summaries[`c${position}`] || 0) + (contributions.get(wish.id) || 0);
+      });
     }
-    return count + readWishContributions(db, sourceId, wish.id, start, end, plan);
+    return result;
   }
 
   return {
@@ -85,6 +112,7 @@ function createGiftWishStore(db) {
       ),
     remove: (sourceId, id) => Number(remove.run(sourceId, id).changes),
     count,
+    countMany,
     readSession: (sourceId, roomId) => session.get(sourceId, roomId) || null,
     saveSession(sourceId, roomId, value) {
       saveSession.run(sourceId, roomId, value.started_at, value.ended_at, value.checked_at);

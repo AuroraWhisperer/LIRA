@@ -58,9 +58,9 @@ export function createPlaybackController(initialOptions = {}) {
   // ══════════════════════════════════════════════════════════════
   const value = Utils.value;
 
-  let toast = Utils.toast;
-  let showError = Utils.showError;
-  let readJsonResponse = Utils.readJsonResponse;
+  const toast = initialOptions.toast || Utils.toast;
+  const showError = initialOptions.showError || Utils.showError;
+  const readJsonResponse = initialOptions.readJsonResponse || Utils.readJsonResponse;
 
   // ══════════════════════════════════════════════════════════════
   // SECTION 2 — 配置常量
@@ -503,20 +503,11 @@ export function createPlaybackController(initialOptions = {}) {
     }
   }
 
-  function updateContext(options) {
-    if (!options) return;
-    if (options.toast) toast = options.toast;
-    if (options.showError) showError = options.showError;
-    if (options.readJsonResponse) readJsonResponse = options.readJsonResponse;
-  }
-
   // ══════════════════════════════════════════════════════════════
   // SECTION 14 — 公共 API
   // ══════════════════════════════════════════════════════════════
   return {
-    init: async (options) => {
-      updateContext(options);
-
+    init: async () => {
       weSingService.init(initialOptions.getWeSingState?.());
 
       await playbackInitializer.init(
@@ -526,6 +517,6 @@ export function createPlaybackController(initialOptions = {}) {
       );
     },
 
-    updateContext,
+    closeQueuePopup: () => homeHandler.closeQueuePopup(),
   };
 }

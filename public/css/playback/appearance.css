@@ -1,5 +1,13 @@
 @import url('../shared/display-fonts.css');
 
+.playback-page.active:has(> .player-appearance:not([hidden])) {
+  scrollbar-width: none;
+}
+
+.playback-page.active:has(> .player-appearance:not([hidden]))::-webkit-scrollbar {
+  display: none;
+}
+
 .player-appearance {
   padding: 12px 8px 28px;
 }

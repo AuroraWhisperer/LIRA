@@ -129,9 +129,9 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
   function stylesheet() {
     return fonts.flatMap(font => {
       const faces = bundled.has(font.id) && !installed[font.id]
-        ? font.bundled.map(file => ({ url: `/fonts/${file.path}`, unicodeRange: file.unicodeRange }))
+        ? font.bundled.map(file => ({ url: `/fonts/${file.path}`, weight: file.weight, unicodeRange: file.unicodeRange }))
         : installed[font.id] ? [{ url: `/font-library/${font.id}?v=${installed[font.id].sha256}` }] : [];
-      return faces.map(face => `@font-face {\n  font-family: '${font.family}';\n  src: url('${face.url}');\n  font-weight: 400;\n  font-style: normal;\n  font-display: swap;${face.unicodeRange ? `\n  unicode-range: ${face.unicodeRange};` : ''}\n}`);
+      return faces.map(face => `@font-face {\n  font-family: '${font.family}';\n  src: url('${face.url}');\n  font-weight: ${face.weight ?? 400};\n  font-style: normal;\n  font-display: swap;${face.unicodeRange ? `\n  unicode-range: ${face.unicodeRange};` : ''}\n}`);
     }).join('\n\n');
   }
 

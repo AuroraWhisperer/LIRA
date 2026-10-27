@@ -1,0 +1,218 @@
+body[data-style='notebook'] {
+  --danmaku-enter-animation: notebookEntry 740ms linear;
+  --danmaku-move-base-ms: 85;
+  --danmaku-move-max-ms: 85;
+  --danmaku-move-curve: 0, 0, 1, 1;
+  --danmaku-gift-art: none;
+  --notebook-font: 'Microsoft YaHei', Arial, sans-serif;
+}
+body[data-style='notebook'][data-custom-font='true'] { --notebook-font: var(--danmaku-custom-font); }
+body[data-style='notebook'] .danmaku-signal-header { display: none; }
+body[data-style='notebook'] .danmaku-signal-stage { padding: 12px; }
+body[data-style='notebook'] .draw-danmaku-feed { gap: 16px; padding: 12px 10px 12px; overflow: hidden; }
+body[data-style='notebook'] .draw-danmaku-item.notebook-item {
+  --nb-start: #f4f0e8; --nb-end: #f5f0ea; --nb-ink: #3e3e3d; --nb-name: #60655d; --nb-line: #d8d9ce;
+  --nb-tape: url('/img/overlays/danmaku-notebook/tape-ordinary.png');
+  --nb-frame: url('/img/overlays/danmaku-notebook/paper-frame-ordinary.png');
+  --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-ordinary.png');
+  position: relative; display: flex; align-items: flex-start; gap: .346154em;
+  width: max-content; max-width: min(100%,15.423077em); min-width: 0; min-height: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none; overflow: visible;
+  font: 700 var(--danmaku-font-size)/1.471154 var(--notebook-font);
+  color: var(--nb-ink); text-shadow: none; text-rendering: optimizeLegibility; animation: none;
+}
+body[data-style='notebook'] .notebook-item[data-live-entry] { animation: var(--danmaku-enter-animation); }
+body[data-style='notebook'] .draw-danmaku-item.notebook-item::after,
+body[data-style='notebook'] .draw-danmaku-item.notebook-item.is-gift::after { content: none; display: none; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='captain'] {
+  --nb-start: #fbf5ea; --nb-end: #dbe8f5; --nb-ink: #485361; --nb-name: #606f82; --nb-line: #d7e4e7;
+  --nb-tape: url('/img/overlays/danmaku-notebook/tape-captain.png');
+  --nb-frame: url('/img/overlays/danmaku-notebook/paper-frame-captain.png');
+  --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-captain.png');
+}
+body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] {
+  --nb-start: #fbf5e9; --nb-end: #e5ddf2; --nb-ink: #60517a; --nb-name: #77669b; --nb-line: #e1d9e9;
+  --nb-tape: url('/img/overlays/danmaku-notebook/tape-admiral.png');
+  --nb-frame: url('/img/overlays/danmaku-notebook/paper-frame-admiral.png');
+  --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-admiral.png');
+}
+body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] {
+  --nb-start: #fbf4ed; --nb-end: #f1d3dd; --nb-ink: #6f4146; --nb-name: #8b535b; --nb-line: #ead7db;
+  --nb-tape: url('/img/overlays/danmaku-notebook/tape-governor.png');
+  --nb-frame: url('/img/overlays/danmaku-notebook/paper-frame-governor.png');
+  --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-governor.png');
+}
+body[data-style='notebook'] .notebook-item .notebook-paper-float { position: relative; width: max-content; min-width: 0; max-width: min(13em,100%); }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat']:has(>.notebook-portrait-float)>.notebook-paper-float { max-width: min(13em,calc(100% - 2.423077em)); }
+body[data-style='notebook'] .notebook-item .notebook-paper { position: relative; isolation: isolate; will-change: transform; }
+body[data-style='notebook'] .notebook-item .notebook-paper-base {
+  position: absolute; inset: .021635em; z-index: -1; border-radius: .411058em;
+  background: linear-gradient(0deg, rgb(222 245 181 / 5%), transparent), linear-gradient(90deg,var(--nb-start),var(--nb-end));
+}
+body[data-style='notebook'] .notebook-item .notebook-paper-base::after {
+  content: ''; position: absolute; inset: -.108173em; border: .605769em solid transparent;
+  border-image: var(--nb-frame) 35 stretch; pointer-events: none;
+}
+body[data-style='notebook'] .notebook-item .notebook-tape {
+  position: absolute; left: .579808em; top: -.398077em; z-index: 2;
+  width: 1.609615em; height: .709615em; background: var(--nb-tape) center/100% 100% no-repeat;
+  pointer-events: none;
+}
+body[data-style='notebook'] .notebook-item .notebook-content { min-width: 0; padding: .519231em .653846em .5625em; }
+body[data-style='notebook'] .notebook-item .notebook-heading {
+  display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: .39375em;
+  min-height: 1.40625em; margin: 0; padding: 0 0 .05625em; border: 0; border-bottom: 1px dashed var(--nb-line);
+  font: 700 .769231em/1.35 var(--notebook-font); color: var(--nb-name); white-space: nowrap;
+}
+body[data-style='notebook'] .notebook-item .notebook-heading .notebook-name { min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; color: inherit; font: inherit; letter-spacing: 0; transform: translateY(-.084375em); }
+body[data-style='notebook'] .notebook-item .draw-danmaku-medal {
+  display: inline-flex; align-items: baseline; flex: none; gap: 0; margin: 0; padding: 0; border: 0;
+  background: none; box-shadow: none; color: #858b85; font: 700 .75em/1.275 var(--notebook-font);
+  letter-spacing: -.015em; transform: translateY(-.1125em);
+}
+body[data-style='notebook'] .notebook-item .draw-danmaku-medal :is(span,b) { margin: 0; padding: 0; color: inherit; background: none; font: inherit; }
+body[data-style='notebook'] .notebook-item .notebook-guard { flex: none; width: 1.294em; height: 1.519em; margin-block: -.225em; object-fit: contain; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] .notebook-guard { transform: translateY(.07875em); }
+body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] .notebook-guard { width: 1.0125em; height: 1.125em; margin-left: .225em; transform: translateY(-.1125em); }
+body[data-style='notebook'] .notebook-item[data-notebook-role='captain'] .notebook-guard { width: 1.2375em; height: 1.4625em; transform: translateY(-.05625em); }
+body[data-style='notebook'] .notebook-item .notebook-content .notebook-copy {
+  display: block; min-width: 0; margin: 0; padding: .238em 0 0; border: 0; background: none;
+  color: var(--nb-ink); font: inherit; line-height: 1.471154; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+body[data-style='notebook'][data-custom-text-color='true'] .notebook-item .notebook-content .notebook-copy { color: var(--danmaku-text-color); }
+body[data-style='notebook'] .notebook-item .draw-danmaku-text { font: inherit; }
+body[data-style='notebook'] .notebook-item .draw-danmaku-emote {
+  display: inline-block; width: auto; height: 1.5em; max-width: 100%; vertical-align: middle;
+  margin: 0; border: 0; object-fit: contain; filter: none; animation: none;
+}
+body[data-style='notebook'] .is-emote-only .draw-danmaku-emote {
+  width: auto; height: auto; max-width: 2.86em; max-height: 2.43em; aspect-ratio: var(--danmaku-emote-ratio, auto);
+}
+body[data-style='notebook'] .notebook-item .notebook-portrait-float {
+  position: relative; flex: none; width: 2.076923em; height: 2.076923em; z-index: 3;
+}
+body[data-style='notebook'] .notebook-item :is(.notebook-portrait-sway,.notebook-portrait-enter,.notebook-portrait-pulse) { width: 100%; height: 100%; transform-origin: 50% 50%; }
+body[data-style='notebook'] .draw-danmaku-item.notebook-item .notebook-avatar {
+  position: absolute; inset: .129808em; display: block;
+  width: calc(100% - .259616em); height: calc(100% - .259616em); min-width: 0; min-height: 0; align-self: stretch;
+  margin: 0; padding: 0; border: 0; border-radius: .29em; color: transparent; font: inherit; overflow: hidden; box-shadow: none; clip-path: none; mask: none;
+  background: #e4e8ef url('/img/overlays/danmaku-notebook/bilibili-noface.jpg') center/cover no-repeat;
+}
+body[data-style='notebook'] .notebook-item .notebook-avatar img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+body[data-style='notebook'] .notebook-item .notebook-avatar-frame {
+  position: absolute; inset: -.069231em; background: var(--nb-portrait) center/100% 100% no-repeat;
+  mask: url('/img/overlays/danmaku-notebook/avatar-border-mask.svg') center/100% 100% no-repeat;
+  pointer-events: none;
+}
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc'],[data-notebook-kind='member']) { width: min(100%,15.403846em); }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc'],[data-notebook-kind='member'])>.notebook-paper-float { width: 100%; max-width: 100%; }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-content { padding: 0 0 .605769em; }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-heading {
+  height: auto; min-height: 3em; padding: .5em .8em .5em 3.7em; flex-wrap: wrap; border-radius: .4em .4em 0 0;
+  font-size: .865385em; color: #526963; background: linear-gradient(100deg,#cce4dc,#edf1e7 70%,#f8f5eb);
+}
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-paper-base { background: #f8f5eb; border-radius: .346em; }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-paper-base::after { border-image-source: url('/img/overlays/danmaku-notebook/paper-frame-gift.png'); }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-copy { padding: .519231em .649038em 0; color: #414b4e; }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-portrait-float { position: absolute; left: .75em; top: .395em; font-size: .833333em; }
+body[data-style='notebook'] .notebook-item :is(.draw-danmaku-gift-copy,.draw-danmaku-gift-action,.draw-danmaku-gift-name,.draw-danmaku-gift-count) { display: inline; margin: 0; padding: 0; color: inherit; font: inherit; }
+body[data-style='notebook'] .notebook-item .notebook-amount { flex: none; margin-left: auto; padding: 0 .25em; border: 1px dotted #bec9b8; border-radius: 2px; color: #6e7e70; font: inherit; white-space: nowrap; rotate: -2deg; }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc'],[data-notebook-kind='member']) .notebook-tape { left: auto; right: .796154em; top: -.355em; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-content { min-height: 3.375em; padding: .432692em .605769em .475962em 3.548077em; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-heading { padding: 0; border: 0; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-copy { padding-top: .086538em; line-height: 1.298077; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-portrait-float { position: absolute; left: .605769em; top: .5625em; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-paper-base { overflow: hidden; background: #f6f2e9; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-paper-base::after { display: none; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-paper-base::before { content: ''; position: absolute; inset: 0 auto 0 0; width: .259615em; background: var(--nb-end); }
+body[data-style='notebook'] .notebook-item.notebook-no-avatar .notebook-heading { padding-left: .8em; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'].notebook-no-avatar .notebook-heading { padding-left: 0; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-content { padding-left: .605769em; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-heading { padding-left: 0; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'].notebook-no-avatar { max-width: min(100%,13em); }
+
+body[data-style='notebook'] .notebook-item .notebook-portrait-sway { animation: notebookAvatarSway 4233.333ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] :is(.notebook-paper-float,.notebook-portrait-float) { animation: notebookFloat 2333.333ms ease-in-out 500ms infinite both; }
+body[data-style='notebook'] .notebook-item:not(:last-child) :is(.notebook-paper-float,.notebook-portrait-float) { animation-play-state: paused; }
+body[data-style='notebook'] .notebook-item .notebook-portrait-pulse { scale: 1.0193; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='captain'] .notebook-portrait-pulse { animation: notebookCaptainPulse 4933.333ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] .notebook-portrait-pulse { animation: notebookAdmiralPulse 4100ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] .notebook-portrait-pulse { animation: notebookGovernorPulse 3300ms linear infinite; }
+body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-sway,
+body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-pulse { animation: none; scale: 1; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-portrait-enter { animation: notebookAvatarFade 500ms linear both, notebookAvatarRise 600ms ease-out both, notebookAvatarReturn 420ms linear both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { animation: notebookPaperEnter 450ms cubic-bezier(.22,1,.36,1) 150ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-heading { animation: notebookTextEnter 300ms ease-out 320ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-copy { animation: notebookTextEnter 320ms ease-out 420ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='gift'] .notebook-paper,
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='sc'] .notebook-paper { animation: notebookEventEnter 200ms ease-out both; }
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='member'] .notebook-paper { animation: notebookEventEnter 280ms ease-out 120ms both; }
+@keyframes notebookEntry { from, to { opacity: 1; } }
+@keyframes notebookFloat { 0%,100% { translate: 0 0; } 50% { translate: 0 -.173077em; } }
+@keyframes notebookAvatarFade { 0% { opacity: 0; } 20% { opacity: .746; } 40% { opacity: .949; } 60% { opacity: .99; } 100% { opacity: 1; } }
+@keyframes notebookAvatarRise { from { translate: 0 .173077em; } to { translate: 0 0; } }
+@keyframes notebookAvatarReturn { 0% { rotate: -3.05deg; } 25% { rotate: -1.831deg; } 50% { rotate: -.893deg; } 75% { rotate: -.262deg; } 100% { rotate: 0deg; } }
+@keyframes notebookPaperEnter { from { opacity: 0; transform: translateX(.432692em) rotate(3deg) scale(.975); } to { opacity: 1; transform: translateX(0) rotate(0deg) scale(1); } }
+@keyframes notebookTextEnter { from { opacity: 0; translate: 0 .259615em; } to { opacity: 1; translate: 0 0; } }
+@keyframes notebookEventEnter { from { opacity: 0; } to { opacity: 1; } }
+
+@keyframes notebookAvatarSway {
+  0% { rotate: -1.07000deg; translate: 0 0.059712em; }
+  6.25% { rotate: -1.55947deg; translate: 0 0.071214em; }
+  12.5% { rotate: -1.82827deg; translate: 0 0.077144em; }
+  18.75% { rotate: -1.83548deg; translate: 0 0.076600em; }
+  25% { rotate: -1.58000deg; translate: 0 0.069663em; }
+  31.25% { rotate: -1.10073deg; translate: 0 0.057392em; }
+  37.5% { rotate: -0.47062deg; translate: 0 0.041652em; }
+  43.75% { rotate: 0.21438deg; translate: 0 0.024842em; }
+  50% { rotate: 0.85000deg; translate: 0 0.009519em; }
+  56.25% { rotate: 1.33947deg; translate: 0 -0.001983em; }
+  62.5% { rotate: 1.60827deg; translate: 0 -0.007913em; }
+  68.75% { rotate: 1.61548deg; translate: 0 -0.007369em; }
+  75% { rotate: 1.36000deg; translate: 0 -0.000433em; }
+  81.25% { rotate: 0.88073deg; translate: 0 0.011839em; }
+  87.5% { rotate: 0.25062deg; translate: 0 0.027578em; }
+  93.75% { rotate: -0.43438deg; translate: 0 0.044389em; }
+  100% { rotate: -1.07000deg; translate: 0 0.059712em; }
+}
+
+@keyframes notebookCaptainPulse {
+  0% { scale: 1.025375; }
+  12.5% { scale: 1.018178; }
+  25% { scale: 1.011015; }
+  37.5% { scale: 1.008081; }
+  50% { scale: 1.011095; }
+  62.5% { scale: 1.018292; }
+  75% { scale: 1.025455; }
+  87.5% { scale: 1.028389; }
+  100% { scale: 1.025375; }
+}
+
+@keyframes notebookAdmiralPulse {
+  0% { scale: 1.019415; }
+  12.5% { scale: 1.005164; }
+  25% { scale: 1.000254; }
+  37.5% { scale: 1.007560; }
+  50% { scale: 1.022803; }
+  62.5% { scale: 1.037054; }
+  75% { scale: 1.041964; }
+  87.5% { scale: 1.034658; }
+  100% { scale: 1.019415; }
+}
+
+@keyframes notebookGovernorPulse {
+  0% { scale: 1.029324; }
+  12.5% { scale: 1.008210; }
+  25% { scale: 1.000152; }
+  37.5% { scale: 1.009869; }
+  50% { scale: 1.031670; }
+  62.5% { scale: 1.052784; }
+  75% { scale: 1.060842; }
+  87.5% { scale: 1.051125; }
+  100% { scale: 1.029324; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='notebook'] .notebook-item,
+  body[data-style='notebook'] .notebook-item * { animation: none !important; }
+}

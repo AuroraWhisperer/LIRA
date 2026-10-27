@@ -62,8 +62,8 @@ function createComponentWebPicker({ dialog, getWindow }) {
     if (!['auto', 'html', 'css'].includes(kind) || picking) throw Object.assign(new Error('请完成当前文件选择。'), { statusCode: 400 });
     picking = true;
     try {
-      const result = await dialog.showOpenDialog(getWindow(), { title: '选择样式文件',
-        properties: ['openFile'], filters: [{ name: '样式文件', extensions: kind === 'auto' ? SOURCE_EXTENSIONS : kind === 'html' ? ['html', 'htm'] : ['css'] }] });
+      const result = await dialog.showOpenDialog(getWindow(), { title: '选择组件素材文件',
+        properties: ['openFile'], filters: [{ name: '组件素材文件', extensions: kind === 'auto' ? SOURCE_EXTENSIONS : kind === 'html' ? ['html', 'htm'] : ['css'] }] });
       if (result.canceled || !result.filePaths?.[0]) return null;
       const selected = result.filePaths[0];
       const extension = path.extname(selected).slice(1).toLowerCase();

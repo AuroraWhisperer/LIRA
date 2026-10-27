@@ -16,7 +16,37 @@ function decodeScene(row) {
 }
 
 function createSceneStore(db) {
+  const publications = new Map();
+  function freezePublication(value) {
+    if (value && typeof value === 'object') {
+      for (const child of Object.values(value)) freezePublication(child);
+      Object.freeze(value);
+    }
+    return value;
+  }
   return {
+    getOutput(scope, id) {
+      const row = db.prepare(`SELECT published_json, published_version, capability_hash
+        FROM component_scenes WHERE owner_scope = ? AND id = ?`).get(scope, id);
+      const key = JSON.stringify([scope, id]);
+      let cached = publications.get(key);
+      if (!row) { publications.delete(key); return null; }
+      if (!cached || cached.json !== row.published_json) {
+        cached = { json: row.published_json,
+          document: row.published_json === null ? null : freezePublication(JSON.parse(row.published_json)) };
+        publications.delete(key);
+        publications.set(key, cached);
+        if (publications.size > 32) publications.delete(publications.keys().next().value);
+      }
+      return { publishedVersion: row.published_version, publishedDocument: cached.document,
+        capability: { hash: row.capability_hash } };
+    },
+
+    getOutputCapability(scope, id) {
+      const row = db.prepare('SELECT capability_hash FROM component_scenes WHERE owner_scope = ? AND id = ?').get(scope, id);
+      return row ? { hash: row.capability_hash } : null;
+    },
+
     bindCanvas(scope, id) {
       db.prepare(`INSERT INTO component_canvas (owner_scope, output_scene_id, active_scene_id)
         SELECT owner_scope, id, id FROM component_scenes WHERE owner_scope = ? AND id = ?

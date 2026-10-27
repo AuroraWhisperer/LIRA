@@ -164,7 +164,9 @@ function createServerRuntime(runtimeOptions = {}) {
       const settingsBootstrap = prepareSettingsBootstrap(db.songDb);
       settingsStore = settingsBootstrap.settingsStore;
       webSocketHub = wsTransport.createWebSocketHub();
-      danmakuFeedBuffer = createDanmakuFeedBuffer();
+      danmakuFeedBuffer = createDanmakuFeedBuffer({
+        resolveGiftImagePath: (...args) => domainServices?.overtimeGiftCatalog?.resolveGiftImagePath?.(...args),
+      });
       ({ games: gameSessionService, interactions: interactionSessionService } = createGameRuntime({
         broadcast: (payload) => {
           webSocketHub.broadcast(payload);
@@ -205,7 +207,27 @@ function createServerRuntime(runtimeOptions = {}) {
         onGiftFlushed: publishGiftFlushed,
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
-      sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, getState, getContext: () => createApiContext() });
+      const displayPorts = {
+        settings: { get: settingsStore.getSettings },
+        system: { dataDir: DATA_DIR, getState },
+        songs: { list: domainServices.songs.list, getChangeToken: domainServices.songs.getChangeToken },
+        gifts: {
+          getViewRevision: () => domainServices.gifts.getViewRevision(),
+          getHistory: (options) => domainServices.gifts.getHistory(options),
+          getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
+        },
+        giftCards: { getProfiles: giftRuntime.giftCards.getProfiles },
+        giftWishes: { getSnapshot: domainServices.giftWishes.getSnapshot },
+        games: { getSession: gameSessionService.getSession },
+        wheel: { getState: wheelSessionService.getState },
+        interactions: { getState: interactionSessionService.getState },
+        overtime: {
+          getGlobalGiftCatalog: typeof domainServices.overtimeGiftCatalog.getGlobalSnapshot === 'function'
+            ? domainServices.overtimeGiftCatalog.getGlobalSnapshot
+            : () => null,
+        },
+      };
+      sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, displayPorts });
       giftSyncStore = createGiftSyncStore({
         giftDb: db.giftDb,
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="166" viewBox="0 60 1080 166" preserveAspectRatio="none"><defs>
+    <linearGradient id="flower-fan-paper" x2="0" y2="1"><stop stop-color="#e8d8c0"/><stop offset=".38" stop-color="#faf7f3"/><stop offset=".85" stop-color="#fff"/></linearGradient>
+    <linearGradient id="flower-fan-wash" x2="0" y2="1"><stop stop-color="#6f9469"/><stop offset=".2" stop-color="#6f9469"/><stop offset="1" stop-color="#fffdfb"/></linearGradient>
+    <linearGradient id="flower-fan-base-wash" x2="0" y2="1"><stop stop-color="#c9e1c5"/><stop offset="1" stop-color="#fffdfb"/></linearGradient>
+    <pattern id="flower-fan-stripe" width="30" height="226" patternUnits="userSpaceOnUse" patternTransform="skewX(9)"><rect width="30" height="226" fill="url(#flower-fan-base-wash)"/><rect width="16" height="226" fill="url(#flower-fan-wash)"/></pattern>
+  </defs><rect x="38" y="4" width="996" height="193" rx="38" fill="url(#flower-fan-stripe)" stroke="#80ae69" stroke-width="3"/>
+      <rect x="43" y="9" width="986" height="183" rx="34" fill="none" stroke="#fffdf6" stroke-width="2"/>
+      <path d="M88 22H965Q1009 21 1009 52V145Q539 214 63 145V51Q62 22 88 22Z" fill="url(#flower-fan-paper)" stroke="#8e7c5f" stroke-width="3"/>
+      <path d="M87 27H965Q1003 27 1003 54V149Q540 218 69 149V54Q69 28 87 27Z" fill="none" stroke="#c3b39b" stroke-width="1.4"/></svg>

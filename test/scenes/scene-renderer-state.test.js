@@ -63,6 +63,26 @@ const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2,
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
 
+test('partial lyric ticks retain static data for new frames without resending it to active frames', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const doc = documentOf([item('songlist', 'independent', {}), item('lyrics', 'independent', {})]);
+  const songlist = { songs: [{ id: 1, name: '静态歌单' }] };
+  const lyricTimeline = { lines: [{ startMs: 0, text: '静态歌词' }] };
+  f.renderer.update({ version: 1, document: doc, data: { songlist, lyrics: { lyricTimeline, lyricState: { currentMs: 0 } } } });
+  const [songs, lyrics] = f.host.children[0].children;
+  f.complete(songs); f.complete(lyrics);
+  const messages = frame => f.messages.get(frame).filter(value => value.type === 'component-preview:data');
+  for (let index = 1; index < 100; index++) f.renderer.update({ version: 1, document: null, data: { lyrics: { lyricState: { currentMs: index } } } });
+  assert.equal(messages(songs).length, 1);
+  assert.equal(messages(lyrics).filter(message => message.data.lyricTimeline).length, 1);
+  assert.equal(messages(lyrics).at(-1).data.lyricState.currentMs, 99);
+  f.renderer.update({ version: 2, document: { ...doc, items: doc.items.map(value => ({ ...value, id: randomUUID() })) }, data: {} });
+  const replacements = f.host.children.at(-1).children;
+  replacements.forEach(f.complete);
+  assert.deepEqual(messages(replacements[0]).at(-1).data, songlist);
+  assert.deepEqual(messages(replacements[1]).at(-1).data, { lyricTimeline, lyricState: { currentMs: 99 } });
+});
+
 test('resource preparation retries the same style after a transient read failure', async () => {
   const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component-resource-style.js');
   const preset = COMPONENT_RESOURCE_PRESETS['nautical-guard-thanks'];

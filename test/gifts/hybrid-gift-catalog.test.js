@@ -45,6 +45,17 @@ test('hybrid memoization invalidates for local, remote, custom and image changes
   assert.equal(imageChecks, globalChecks);
   remoteRevision++;
   assert.equal(hybrid.getGlobalSnapshot().version, '1');
+  const resolver = hybrid.getArtworkResolver();
+  assert.equal(hybrid.getArtworkResolver(), resolver);
+  assert.equal(resolver('1'), 'image-1');
+  const conditional = hybrid.getGlobalSnapshot({ conditional: true });
+  assert.deepEqual(hybrid.getGlobalSnapshot({ conditional: true, contentRevision: conditional.contentRevision }),
+    { unchanged: true, contentRevision: conditional.contentRevision });
+  imageRevision++;
+  const repaired = hybrid.getGlobalSnapshot({ conditional: true, contentRevision: conditional.contentRevision });
+  assert.equal(repaired.version, conditional.version, 'image repair need not change the catalog version');
+  assert.notEqual(repaired.contentRevision, conditional.contentRevision);
+  assert.equal(hybrid.getArtworkResolver()('1'), 'image-2');
 });
 
 test('hybrid catalog keeps local room catalog primary and exposes remote search separately', async () => {

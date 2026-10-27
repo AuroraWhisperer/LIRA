@@ -32,7 +32,13 @@ async function handleOverlayApi(context, principal, request, res) {
       case '/api/songs':
         return reply(context.songs.list({ enabledOnly: true, categories: query.getAll('category') }));
       case '/api/gifts/blind-box-stats':
-        return reply(context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '' }));
+        try {
+          return reply(context.gifts.getBlindBoxStats({ boxName: query.get('boxName') || '',
+            top: query.get('top') ?? -1, hideLoss: query.get('hideLoss') ?? false }));
+        } catch (error) {
+          if (error.code !== 'INVALID_GIFT_STATS_OPTIONS') throw error;
+          return sendJson(res, 400, { ok: false, code: error.code, error: error.message });
+        }
       case '/api/gifts/display-settings':
         return reply(readGiftDisplaySettings(context.settings.get()));
       case '/api/gifts/wishes':
@@ -49,7 +55,7 @@ async function handleOverlayApi(context, principal, request, res) {
         }
       case '/api/gifts/card-profiles':
         try {
-          return reply(await context.giftCards.getProfiles(query.get('viewRevision')));
+          return reply(await context.giftCards.getProfiles(query.get('viewRevision'), query.get('contentRevision')));
         } catch (error) {
           if (['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) {
             return sendJson(res, 409, { ok: false, error: error.message, code: error.code });
@@ -69,6 +75,8 @@ async function handleOverlayApi(context, principal, request, res) {
               sortDirection: 'asc',
               cursor: query.get('cursor') || null,
               ...(query.has('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
+              ...(query.get('conditional') === '1' ? { conditional: true } : {}),
+              ...(query.has('contentRevision') ? { contentRevision: query.get('contentRevision') } : {}),
             }),
           );
         } catch (error) {
@@ -83,7 +91,9 @@ async function handleOverlayApi(context, principal, request, res) {
         }
       }
       case '/api/overtime/gifts/catalog':
-        return reply(context.overtime.getGlobalGiftCatalog());
+        return reply(context.overtime.getGlobalGiftCatalog({
+          conditional: query.get('conditional') === '1', contentRevision: query.get('contentRevision'),
+        }));
       case '/api/games/session':
         return reply(context.games.getSession());
       case '/api/games/winner-profile':
@@ -96,6 +106,10 @@ async function handleOverlayApi(context, principal, request, res) {
         return reply(getOpeningConfig(context));
       case '/api/bilibili/avatar':
         return bilibiliRoutes['GET /api/bilibili/avatar'](context, request, res);
+      case '/api/bilibili/room/profile':
+        return bilibiliRoutes['GET /api/bilibili/room/profile'](
+          context, request, res, (data) => projectOverlayResponse(principal.scope, pathName, data),
+        );
     }
   }
   if (method === 'POST') {

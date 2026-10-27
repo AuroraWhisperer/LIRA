@@ -78,14 +78,14 @@ test('canvas can reuse a configured desktop text box, customize the independent 
   assert.deepEqual((await readItems())[1].appearance.config.nodes.find(node => node.type === 'gift'), source.appearance.config.nodes[1]);
   await page.getByRole('switch', { name: '横向滚动', exact: true }).check();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollMode === 'horizontal');
-  await page.getByRole('slider', { name: '滚动速率', exact: true }).fill('85');
+  await page.getByRole('slider', { name: '滚动速度', exact: true }).fill('85');
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollSpeed === 85);
   await page.getByRole('switch', { name: '纵向滚动', exact: true }).check();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[1].appearance.config.scrollMode === 'vertical');
   assert.equal(await page.getByRole('switch', { name: '横向滚动', exact: true }).isChecked(), false);
   assert.equal((await readItems())[0].appearance.config.scrollMode, 'none', 'scrolling belongs to the selected instance');
   assert.equal((await readItems())[0].appearance.config.scrollSpeed, 40, 'speed belongs to the selected instance');
-  assert.equal(await page.getByRole('slider', { name: '滚动速率', exact: true }).inputValue(), '85');
+  assert.equal(await page.getByRole('slider', { name: '滚动速度', exact: true }).inputValue(), '85');
   await openTextBoxes();
   assert.equal(await picker.locator('[data-text-box-source]').count(), 2, 'reopening reads the current scene without duplicate cards');
   assert.match(await picker.locator(`[data-text-box-source="${copy.id}"] .text-box-content`).textContent(), /新的祝福/);

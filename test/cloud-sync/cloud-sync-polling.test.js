@@ -6,6 +6,63 @@ const { createHook } = require('node:async_hooks');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 const { createFixture, CLOUD_BLIND_BOX_CONFIG } = require('../helpers/cloud-sync-controller-fixture');
 
+test('an upload SSE echo before its response does not cause a redundant trailing read', async (t) => {
+  let reads = 0;
+  let revision = 2;
+  const fixture = createFixture({ licenseManager: {
+    async getCloudState() {
+      reads += 1;
+      return {
+        settings: { initialized: true, revision, values: { giftBlindBoxConfig: [] } },
+        songs: { initialized: true, revision: 3 },
+        bilibili: { initialized: false, revision: 0 },
+      };
+    },
+    async updateCloudSettings(values) {
+      revision = 5;
+      fixture.emitCloud({ scopes: { settings: revision } });
+      return { initialized: true, revision, values };
+    },
+  } });
+  t.after(() => fixture.controller.dispose());
+  await fixture.controller.start();
+  const before = reads;
+  fixture.emitLocal('settings');
+  await new Promise(setImmediate);
+  await fixture.controller.whenIdle();
+  assert.equal(reads - before, 1);
+});
+
+test('queued cloud events merge scopes and still fetch changes newer than the running read', async (t) => {
+  let release;
+  let reads = 0;
+  const state = (settings, songs) => ({
+    settings: { initialized: true, revision: settings, values: { giftBlindBoxConfig: [] } },
+    songs: { initialized: true, revision: songs },
+    bilibili: { initialized: false, revision: 0 },
+  });
+  const fixture = createFixture({ licenseManager: {
+    async getCloudState() {
+      reads += 1;
+      if (reads === 1) {
+        await new Promise((resolve) => { release = resolve; });
+        return state(2, 3);
+      }
+      return state(2, 9);
+    },
+    getCloudSongs: async () => ({ initialized: true, revision: reads === 1 ? 3 : 9, songs: [] }),
+  } });
+  t.after(() => fixture.controller.dispose());
+  const starting = fixture.controller.start();
+  await new Promise(setImmediate);
+  fixture.emitCloud({ scopes: { settings: 2 } });
+  fixture.emitCloud({ scopes: { songs: 9 } });
+  release();
+  await starting;
+  await fixture.controller.whenIdle();
+  assert.equal(reads, 2);
+});
+
 test('cloud notification bursts need at most one trailing sync while a read is pending', async (t) => {
   let reads = 0;
   let release;

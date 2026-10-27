@@ -17,6 +17,46 @@ async function fixture(t) {
   return { dataDir, store, pack, index: path.join(store.root, 'index.json'), backup: path.join(store.root, 'index.backup.json') };
 }
 
+test('reopened style stores reuse verified indexes and detect external edits without rescanning unchanged files', async t => {
+  const f = await fixture(t);
+  createComponentStyleStore(f.dataDir).read();
+  const reads = t.mock.method(fs, 'readFileSync');
+  const scans = t.mock.method(fs, 'readdirSync');
+  for (let i = 0; i < 20; i++) {
+    const value = createComponentStyleStore(f.dataDir).read();
+    value.packages[0].styles[0].config.label = '未提交的修改';
+  }
+  assert.equal(reads.mock.callCount(), 0);
+  assert.equal(scans.mock.callCount(), 0);
+  assert.equal(f.store.read().packages[0].styles[0].config.label, '初始');
+  const external = { version: 1, packages: [{ ...f.pack, styles: [{ ...f.pack.styles[0], config: { label: '外部编辑' } }] }] };
+  fs.writeFileSync(f.index, JSON.stringify(external));
+  assert.equal(f.store.read().packages[0].styles[0].config.label, '外部编辑');
+  assert.ok(reads.mock.callCount() >= 1);
+  fs.unlinkSync(f.backup);
+  assert.equal(f.store.integrity().backupCurrent, true);
+  assert.ok(fs.existsSync(f.backup));
+});
+
+test('temporary style cleanup is throttled and later reclaims expired files after their active import ends', async t => {
+  const { beginStyleFileUse, endStyleFileUse, pruneStyleTemporaryFiles } = require('../../src/storage/component-style-files');
+  const f = await fixture(t);
+  const pending = f.store.directory(randomUUID(), true);
+  fs.mkdirSync(pending);
+  const now = Date.now();
+  const hour = 60 * 60 * 1000;
+  fs.utimesSync(pending, new Date(now - 25 * hour), new Date(now - 25 * hour));
+  beginStyleFileUse(pending);
+  try {
+    pruneStyleTemporaryFiles(f.store.root, now + hour);
+    assert.ok(fs.existsSync(pending), 'active imports remain protected even when old');
+  } finally { endStyleFileUse(pending); }
+  pruneStyleTemporaryFiles(f.store.root, now + hour + 1);
+  assert.ok(fs.existsSync(pending), 'repeated reads do not rescan the same directory');
+  pruneStyleTemporaryFiles(f.store.root, now + 2 * hour + 1);
+  assert.equal(fs.existsSync(pending), false);
+});
+
 for (const failure of ['corrupt', 'missing', 'invalid-shape']) test(`library restores the latest committed parameters from its recovery copy (${failure})`, async t => {
   const f = await fixture(t);
   f.store.updateConfig(f.pack.styles[0].id, () => ({ label: '已经保存' }));

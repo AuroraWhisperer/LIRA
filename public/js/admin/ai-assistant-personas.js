@@ -47,7 +47,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
 
   function renderOptions(selected) {
     const entries = personas.filter((persona) => !persona.provider || persona.provider === currentProvider() || persona.id === selected);
-    entries.push({ id: '__new__', name: '自建人格…' });
+    entries.push({ id: '__new__', name: '新建预设…' });
     select.replaceChildren(...entries.map((persona) => {
       const option = document.createElement('option');
       option.value = persona.id;
@@ -165,7 +165,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
     link.click();
     link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    setState(state, '已导出保存过的预设，未保存的编辑不会包含在文件里。', 'good');
+    setState(state, '已导出当前预设的已保存内容。', 'good');
   }));
 
   async function runOperation(work, confirmation) {

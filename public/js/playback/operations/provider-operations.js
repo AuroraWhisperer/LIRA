@@ -210,17 +210,17 @@ export function createProviderOperations(deps) {
     const platform = playbackState.selectedSource;
     const sourceName = PlaybackUtils.getSourceName(platform);
     if (typeof utils.showStackedToast !== 'function') {
-      toast(`请先登录${sourceName}`);
+      toast(`请先登录 ${sourceName}`);
       return;
     }
 
     utils.showStackedToast({
       key: `playback-login-required:${platform}`,
-      title: `请先登录${sourceName}`,
+      title: `请先登录 ${sourceName}`,
       message: '登录后即可播放在线音乐',
       className: 'playback-login-toast',
       duration: 5200,
-      actionLabel: `登录${sourceName}`,
+      actionLabel: `登录 ${sourceName}`,
       onClick: () => loginSelectedMusicProvider(platform),
     });
   }

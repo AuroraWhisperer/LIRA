@@ -21,6 +21,80 @@ function documentFor(type, config = createSceneExtraDefaults(type)) {
       visible: true, locked: false, appearance: { mode: 'independent', config } }] };
 }
 
+test('conditional scene data prepares unchanged songs and lyric timelines once but keeps the playback clock live', t => {
+  let owner = { scope: 'a', epoch: 1 }, revision = 1, currentMs = 0;
+  let songReads = 0, lineReads = 0;
+  let timeline = { lines: Array.from({ length: 500 }, (_, index) => ({ startMs: index * 1000,
+    get text() { lineReads++; return `line-${index}`; } })) };
+  const songs = Array.from({ length: 5000 }, (_, id) => ({ id, name: `song-${id}` }));
+  const extra = createSceneExtraDisplay({ getOwner: () => owner, displayPorts: { songs: {
+    getChangeToken: () => revision, list() { songReads++; return songs; },
+  } } });
+  const ports = createSceneComponentPorts({ getExtraDisplay: extra,
+    getState: () => ({ lyricState: { currentMs }, lyricTimeline: timeline }) });
+  const firstVersions = { known: {}, current: {} };
+  const first = ports.getDisplayData(['songlist', 'lyrics'], { dataVersions: firstVersions });
+  assert.equal(first.songlist.songs.length, 5000);
+  assert.equal(first.lyrics.lyricTimeline.lines.length, 500);
+  first.songlist.songs[0].name = 'consumer mutation';
+  for (let index = 1; index < 100; index++) {
+    currentMs = index * 250;
+    const versions = { known: firstVersions.current, current: {} };
+    const data = ports.getDisplayData(['songlist', 'lyrics'], { dataVersions: versions });
+    assert.equal(Object.hasOwn(data, 'songlist'), false);
+    assert.equal(Object.hasOwn(data.lyrics, 'lyricTimeline'), false);
+    assert.equal(data.lyrics.lyricState.currentMs, currentMs);
+  }
+  assert.equal(songReads, 1);
+  assert.equal(lineReads, 500);
+  revision++;
+  timeline = { lines: [{ startMs: 0, text: 'changed' }] };
+  const changed = ports.getDisplayData(['songlist', 'lyrics'], { dataVersions: { known: firstVersions.current, current: {} } });
+  assert.equal(changed.songlist.songs[0].name, 'song-0');
+  assert.equal(changed.lyrics.lyricTimeline.lines[0].text, 'changed');
+  owner = { scope: 'b', epoch: 2 };
+  assert.ok(ports.getDisplayData(['songlist'], { dataVersions: { known: firstVersions.current, current: {} } }).songlist);
+  assert.ok(ports.getDisplayData(['lyrics'], {}).lyrics.lyricTimeline, 'legacy reads remain complete');
+});
+
+test('scene gift feeds reuse full scans, cards and catalog while checking independent profile changes', async () => {
+  let now = Date.parse('2026-09-19T08:00:00Z');
+  let historyReads = 0, catalogReads = 0, profileRevision = 'one';
+  const day = '2026-09-19';
+  const items = Array.from({ length: 5000 }, (_, index) => ({ eventId: `gift-${index}`,
+    gift: { userName: 'before', giftId: '1', giftName: 'gift', num: 1, unitPrice: 1, createdAt: '2026-09-19T01:00:00Z' } }));
+  const displayPorts = {
+    gifts: { getViewRevision: () => 'source', getHistory(options) {
+      historyReads++;
+      if (options.contentRevision === 'a'.repeat(64)) return { viewRevision: 'source', contentRevision: options.contentRevision, unchanged: true, items: [], nextCursor: null };
+      const offset = Number(options.cursor || 0);
+      return { viewRevision: 'source', contentRevision: 'a'.repeat(64), items: items.slice(offset, offset + 100),
+        nextCursor: offset + 100 < items.length ? String(offset + 100) : null };
+    } },
+    giftCards: { getProfiles: async () => ({ viewRevision: 'source', day, contentRevision: profileRevision,
+      items: items.map(item => ({ eventId: item.eventId, senderId: '123', userName: profileRevision, createdAt: item.gift.createdAt })) }) },
+    overtime: { getGlobalGiftCatalog() { catalogReads++; return { gifts: [] }; } },
+  };
+  const read = createSceneExtraDisplay({ displayPorts, getOwner: () => ({ scope: 'a', epoch: 1 }), now: () => now });
+  const versions = { known: {}, current: {} };
+  const first = await read('gift-feed', undefined, { dataVersions: versions });
+  assert.equal(first.items.length, 1);
+  assert.equal(first.items[0].gift.num, 5000);
+  for (let index = 1; index < 20; index++) {
+    now += 6000;
+    assert.equal(await read('gift-feed', undefined, { dataVersions: { known: versions.current, current: {} } }), undefined);
+  }
+  assert.equal(historyReads, 69);
+  assert.equal(catalogReads, 1);
+  assert.equal((await read('gift-feed')).items, first.items, 'legacy output reuses the prepared cards');
+  now += 6000; profileRevision = 'two';
+  const changed = await read('gift-feed', undefined, { dataVersions: { known: versions.current, current: {} } });
+  assert.equal(changed.items[0].gift.userName, 'two');
+  read.invalidate(['gift-feed']);
+  await read('gift-feed');
+  assert.equal(catalogReads, 2);
+});
+
 test('mixed lyric scenes reuse the song query until a write or owner change, without delaying lyrics', t => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
@@ -30,11 +104,11 @@ test('mixed lyric scenes reuse the song query until a write or owner change, wit
   let owner = { scope: 'streamer-a', epoch: 1 };
   let reads = 0;
   let currentMs = 100;
-  const context = { songs: {
+  const displayPorts = { songs: {
     getChangeToken: store.getChangeToken,
     list(options) { reads++; return listSongs(store, options); },
   } };
-  const display = createSceneExtraDisplay({ getContext: () => context, getOwner: () => owner });
+  const display = createSceneExtraDisplay({ displayPorts, getOwner: () => owner });
   const ports = createSceneComponentPorts({ getExtraDisplay: display,
     getState: () => ({ lyricState: { currentMs, playing: true }, lyricTimeline: { lines: [] } }) });
   const read = () => ports.getDisplayData(['songlist', 'lyrics'], {});
@@ -262,7 +336,7 @@ test('asynchronous output rejects account changes and source revocation before r
 test('sprint canvas projects only the existing countdown and templates contain no business state', () => {
   const { exportSceneTemplate, importSceneTemplate } = require('../../public/js/admin/scene-template.js');
   const state = { giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, receivedRmb: 300, private: 'hidden' } };
-  const display = createSceneExtraDisplay({ getContext: () => ({ system: { getState: () => state } }) });
+  const display = createSceneExtraDisplay({ displayPorts: { system: { getState: () => state } } });
   assert.deepEqual(display('gift-sprint'), { targetRmb: 1000, remainingCrystalBalls: 7 });
   state.giftSprint = null;
   assert.equal(display('gift-sprint'), null);
@@ -277,14 +351,14 @@ test('extra display projection excludes game secrets, keeps lyrics separate from
   const owner = { scope: 'a', epoch: 1 };
   let reads = 0;
   let revision = 'gift-a';
-  const context = {
+  const displayPorts = {
     system: { getState: () => ({ settings: { roomId: 'private' }, lyricState: { lineText: '真实歌词', playing: true, private: 'hidden' }, lyricTimeline: { lines: [] } }) },
     games: { getSession: () => ({ game: 'number-bomb', state: { min: 1, max: 100, secret: 32 }, token: 'hidden' }) },
     gifts: { getViewRevision: () => revision },
     settings: { get: () => ({ openingEnabled: 'true', openingStyle: 'pixel-cassette', openingTitle: '即将开播', secret: 'hidden' }) },
     giftWishes: { getSnapshot: async () => { reads++; return { items: [], guards: [{ name: 'private' }], sourceId: 1 }; } },
   };
-  const display = createSceneExtraDisplay({ getContext: () => context, getOwner: () => owner });
+  const display = createSceneExtraDisplay({ displayPorts, getOwner: () => owner });
   assert.equal(display('opening').style, 'pixel-cassette');
   assert.equal(display('opening').enabled, true);
   assert.equal(display('opening').title, '即将开播');
@@ -302,7 +376,7 @@ test('targeted display invalidation refreshes configuration immediately and an o
   let label = '原许愿';
   let reads = 0;
   let release;
-  const context = {
+  const displayPorts = {
     gifts: { getViewRevision: () => 'unchanged-gift-revision' },
     giftWishes: { getSnapshot() {
       reads++;
@@ -310,7 +384,7 @@ test('targeted display invalidation refreshes configuration immediately and an o
       return { items: [{ label }] };
     } },
   };
-  const display = createSceneExtraDisplay({ getContext: () => context, getOwner: () => ({ scope: 'owner', epoch: 1 }) });
+  const display = createSceneExtraDisplay({ displayPorts, getOwner: () => ({ scope: 'owner', epoch: 1 }) });
   const pending = display('gift-wishes');
   await Promise.resolve();
   label = '更新后许愿';

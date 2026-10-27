@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-label="仿推特 3.0 白色社交弹幕卡片预览">
+  <defs>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#18212b" flood-opacity=".14"/>
+    </filter>
+    <linearGradient id="preview-bg" x2="1" y2="1">
+      <stop stop-color="#eef3f7"/>
+      <stop offset="1" stop-color="#dce5eb"/>
+    </linearGradient>
+  </defs>
+  <rect width="320" height="200" rx="20" fill="url(#preview-bg)"/>
+  <g filter="url(#shadow)">
+    <rect x="54" y="18" width="212" height="168" rx="12" fill="#fff"/>
+  </g>
+  <circle cx="83" cy="34" r="22" fill="#d8e5ec" stroke="#fff" stroke-width="4"/>
+  <circle cx="83" cy="29" r="7" fill="#9eb7c5"/>
+  <path d="M69 46c2-9 26-9 28 0" fill="#9eb7c5"/>
+  <rect x="112" y="25" width="65" height="8" rx="4" fill="#292929"/>
+  <circle cx="184" cy="29" r="5" fill="#2f9bff"/>
+  <path d="m181.5 29 1.7 1.7 3.2-3.4" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+  <rect x="112" y="39" width="45" height="5" rx="2.5" fill="#b0b0b0"/>
+  <rect x="222" y="26" width="29" height="13" rx="3" fill="#fdfdfd" stroke="#e8e8e8"/>
+  <path d="M54 57h212M107 55v3m53-3v3m53-3v3" stroke="#ededed"/>
+  <path d="M142 56h36" stroke="#555" stroke-width="3" stroke-linecap="round"/>
+  <g>
+    <circle cx="77" cy="82" r="12" fill="#e5e5e5"/>
+    <rect x="98" y="72" width="55" height="7" rx="3.5" fill="#333"/>
+    <rect x="98" y="85" width="119" height="6" rx="3" fill="#c6c6c6"/>
+    <path d="M102 106h13m14 0h13m14 0h13m14 0h13" stroke="#7f8785" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <path d="M54 117h212" stroke="#efefef"/>
+  <g>
+    <circle cx="77" cy="140" r="12" fill="#e5e5e5"/>
+    <rect x="98" y="129" width="46" height="7" rx="3.5" fill="#333"/>
+    <circle cx="151" cy="132.5" r="5" fill="#a45cff"/>
+    <path d="m148.5 132.5 1.7 1.7 3.2-3.4" fill="none" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/>
+    <rect x="98" y="143" width="86" height="6" rx="3" fill="#c6c6c6"/>
+    <path d="m195 155 5-5 5 5m3 0 5-5 5 5m3 0 5-5 5 5" fill="none" stroke="#a45cff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M102 169h13m14 0h13m14 0h13m14 0h13" stroke="#7f8785" stroke-width="3" stroke-linecap="round"/>
+    <path d="M160 165c-5-4-8 4 0 10 8-6 5-14 0-10Z" fill="#d9094f"/>
+  </g>
+</svg>

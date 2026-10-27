@@ -92,6 +92,32 @@
       ]
     },
     {
+      "id": "yozai",
+      "family": "Lira Yozai",
+      "label": "悠哉字体",
+      "format": "ttf",
+      "sha256": "25071998a0fe6a72f54c235e714986d259633e5ff670b1a2b5e264387f3316ac",
+      "size": 15605374,
+      "sources": [
+        {
+          "url": "https://github.com/lxgw/yozai-font/releases/download/v0.868/Yozai-Regular.ttf",
+          "downloadSize": 15605374
+        }
+      ],
+      "bundled": [
+        {
+          "path": "library/yozai-regular.woff2",
+          "sha256": "17266b707eba2584a9c4d773489a17e113b9f1926300a25ed2fbd1f7d7c425e4",
+          "weight": 400
+        },
+        {
+          "path": "library/yozai-medium.woff2",
+          "sha256": "5492dfc65fe37e0b00c884be176cbcb786a4f38cff9d4035932228dba57fbf2a",
+          "weight": 500
+        }
+      ]
+    },
+    {
       "id": "assorted",
       "family": "Lira Assorted",
       "label": "猫啃什锦黑",

@@ -6,7 +6,7 @@ import { openComponentPreview } from '../component-preview-dialog.js';
 export function initGiftSprintOverlay() {
   const url = `${localOverlayOrigin(location)}/gift-sprint`;
   document.getElementById('giftSprintOverlayUrl').textContent = url;
-  bindCopyUrl(document.getElementById('giftSprintOverlayUrl'), { onCopied: () => toast('月底冲刺地址已复制') });
+  bindCopyUrl(document.getElementById('giftSprintOverlayUrl'), { onCopied: () => toast('月底冲刺浏览器源地址已复制') });
   document.getElementById('giftSprintPreview').addEventListener('click', () => {
     openComponentPreview({ id: 'gift-sprint' });
   });

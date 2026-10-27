@@ -6,6 +6,8 @@ const { createScratchDirectory, removeScratchDirectory } = require('../helpers/s
 const { createDatabases, closeDatabases, runAllMigrations, clearAllData } = require('../../src/storage/database');
 const { createQueueStore } = require('../../src/storage/queue-store');
 const { createSongStore } = require('../../src/storage/song-store');
+const { createCooldownStore } = require('../../src/storage/cooldown-store');
+const { createUserRequestCooldown } = require('../../src/music/user-request-cooldown');
 const queue = require('../../src/music/queue-service');
 const songs = require('../../src/music/song-service');
 const { handleDanmakuMessage } = require('../../src/bilibili/bilibili-message-handler');
@@ -33,7 +35,7 @@ function fixture(t, patch = {}) {
   const add = (input = {}) => queue.addQueueItem(context, { songName: '晴天', requesterName: '甲', ...input });
   const messageContext = {
     settings: context.settings, settingsStore: { getDefaultSettings: context.defaults },
-    state: { cooldownByUser: new Map() }, addQueueItem: add,
+    userRequestCooldown: createUserRequestCooldown(createCooldownStore(db.songDb)), addQueueItem: add,
     resolveSongRequest: (name) => songs.findUniqueSongNameMatch(songStore, name),
     pickRandomSong: (scopeText) => songs.pickRandomSong(songStore, scopeText,
       (candidates) => queue.filterSongsByCooldown(context, candidates)),
@@ -45,7 +47,7 @@ function fixture(t, patch = {}) {
     reopen() { closeDatabases(db); db = createDatabases({ dataDir: directory }); connect(); },
     saveSong: (song) => songs.saveSong(songStore, song),
     message: (message, uid = '2') => handleDanmakuMessage(messageContext, { message, uid, userName: '乙' }),
-    get userCooldowns() { return messageContext.state.cooldownByUser; },
+    get userCooldowns() { return messageContext.userRequestCooldown; },
   };
 }
 
@@ -58,7 +60,7 @@ test('cooldown starts at acceptance, is shared by viewers, and rejects without e
   assert.equal(rejected.autoReply.message, '《晴天》冷却中，还需 5小时。');
   assert.deepEqual(rejected.autoReply.target, { uid: '2', name: '乙' });
   assert.equal(f.context.store.countActive(), 1);
-  assert.equal(f.userCooldowns.size, 0);
+  assert.equal(f.userCooldowns.getLastRequestAt('2'), 0);
   f.settings.enableRandomTagReply = 'false';
   assert.equal(f.message('点歌晴天').autoReply, null);
   t.mock.timers.tick(5 * 60 * 60 * 1000 - 1);

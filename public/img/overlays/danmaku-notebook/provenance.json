@@ -1,0 +1,25 @@
+{
+  "reference": "https://www.bilibili.com/video/BV1Aw3V6zExv/",
+  "author": "兔宝的神奇口袋",
+  "referenceTitle": "手账风",
+  "method": "Separate decoration assets recovered from the public reference video and cover. Avatar centers are masked so real message avatars remain visible. Bilibili emote images are not bundled; the existing message renderer resolves live emote URLs.",
+  "files": [
+    "avatar-frame-ordinary.png",
+    "avatar-frame-captain.png",
+    "avatar-frame-admiral.png",
+    "avatar-frame-governor.png",
+    "badge-captain.png",
+    "badge-admiral.png",
+    "badge-governor.png",
+    "tape-ordinary.png",
+    "tape-captain.png",
+    "tape-admiral.png",
+    "tape-governor.png",
+    "paper-frame-ordinary.png",
+    "paper-frame-captain.png",
+    "paper-frame-admiral.png",
+    "paper-frame-governor.png",
+    "paper-frame-gift.png",
+    "bilibili-noface.jpg"
+  ]
+}

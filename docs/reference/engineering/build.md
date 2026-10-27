@@ -56,7 +56,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 模型资源统一使用 `vendor/lira.onnx`。构建只复制运行所需文件，不打包开发转换记录或本机路径，并清理旧构建中残留的记录及旧模型文件名。
 
-`npm run build:audio-assistant -- <vendor目录>` 使用本机 .NET SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，生成含 .NET 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 .NET 8、NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
+`npm run build:audio-assistant -- <vendor目录>` 使用根 `global.json` 固定的 .NET 10.0.402 SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，目标为 `net10.0-windows10.0.19041.0`，生成含 .NET 10 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。两个项目分别提交 `packages.lock.json`；构建入口先执行 `dotnet restore -r win-x64 --locked-mode`，再以 `--no-restore` publish，保证传递图可复核。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
 
 输出位于忽略的 `build/audio-assistant/`，构建中间产物位于 `tmp/audio-assistant-build/`。`build.extraResources` 将这一目录复制到安装资源的 `audio-assistant/`，排除 PDB；不打包试听 UI、样品设置、恢复记录、Python 环境或测试音频。构建前须准备完整 vendor 文件；核心职责见[原生核心说明](../../../native/audio-assistant/README.md)。发布前先完成原生资源构建与聚焦验证，再按[发布指南](../../../RELEASE_GUIDE.md)执行统一验证和安装器发布。
 
@@ -69,11 +69,14 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | dependencies    | `qrc-decoder`       | `1.0.2`    | QQ音乐 QRC 歌词 3DES 解密([package.json](../../../package.json)) |
 | dependencies    | `yauzl`            | `3.4.0`    | 有限体积、逐项读取本机素材 ZIP；精确锁定 |
 | dependencies    | `electron-updater`  | `^6.8.4`   | 应用内自动更新(运行时见 [desktop/update.md](../desktop/update.md))      |
-| devDependencies | `electron`          | `43.2.0`   | Electron 运行时,精确锁定([package.json](../../../package.json))  |
-| devDependencies | `electron-builder`  | `^26.11.1` | 打包器([package.json](../../../package.json))                    |
+| devDependencies | `electron`          | `43.8.3`   | Electron 运行时,精确锁定([package.json](../../../package.json))  |
+| devDependencies | `electron-builder`  | `^26.18.0` | 打包器([package.json](../../../package.json))                    |
+| devDependencies | `app-builder-lib`   | `26.18.0`  | 打包配置/NSIS 测试直接引用的 builder 实现；固定版本以覆盖 `out/*` 内部路径耦合 |
+| devDependencies | `builder-util`      | `26.16.0`  | 构建脚本与测试直接使用的架构枚举及日志工具                    |
+| devDependencies | `@electron/asar`    | `3.4.1`    | 打包依赖校验、资源完整性和 ASAR 测试直接使用                  |
 | devDependencies | `playwright`        | `^1.62.1`  | 开发期浏览器自动化工具;不随正式应用打包,包括其依赖 `playwright-core`      |
 
-**engines:`node >=24`**([package.json](../../../package.json))。运行时依赖 5 个,开发依赖 3 个;版本与依赖归类以 [package.json](../../../package.json) 为准。
+**engines:`node >=24`**([package.json](../../../package.json))。运行时依赖 5 个,开发依赖 6 个;版本与依赖归类以 [package.json](../../../package.json) 为准。`app-builder-lib/out/*` 属于 builder 内部路径，当前 packaging/installer/font 测试有意直接耦合；升级 builder 时必须运行这些 focused 测试，不能把传递安装视为项目未声明的隐式依赖。
 
 **npm overrides**([package.json](../../../package.json)):js-yaml 强制 `^4.3.2`，当前 [package-lock.json](../../../package-lock.json) 解析为 `4.3.2`。该覆盖约束作用于 electron-updater 与 electron-builder 的传递依赖；版本锁本身不代替依赖安全审计。
 
@@ -81,7 +84,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM、时钟裁剪字体和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
 
-共享库的 `public/fonts/{player,library,moonlit-wenkai}/*.woff2`（约 36.5 MiB）完整进入安装包，连同 `src/fonts/catalog.json`、OFL 许可及约 6 MiB 歌词多语言补字分发。安装后字体位于 `<安装目录>/resources/app.asar/public/fonts/`，通过 Electron 的 ASAR 文件读取和现有本地 HTTP 按需加载，首次使用无需联网或 VPN，也不注册系统字体；版本与许可见[字体说明](../../../public/fonts/README.md)。packaging-scope 测试验证打包过滤，bundled-fonts-electron 测试在含中文和空格的安装路径、不同工作目录、空缓存及禁止外网的条件下验证 ASAR 中八款字体的真实渲染。实际安装器压缩体积须重新构建后测量，不能将 WOFF2 总量直接等同于 EXE 增量。
+共享库的 `public/fonts/{player,library,moonlit-wenkai}/*.woff2`（约 50.5 MiB）完整进入安装包，连同 `src/fonts/catalog.json`、OFL 许可及约 6 MiB 歌词多语言补字分发。安装后字体位于 `<安装目录>/resources/app.asar/public/fonts/`，通过 Electron 的 ASAR 文件读取和现有本地 HTTP 按需加载，首次使用无需联网或 VPN，也不注册系统字体；版本与许可见[字体说明](../../../public/fonts/README.md)。packaging-scope 测试验证打包过滤，bundled-fonts-electron 测试在含中文和空格的安装路径、不同工作目录、空缓存及禁止外网的条件下验证 ASAR 中九款字体的真实渲染。实际安装器压缩体积须重新构建后测量，不能将 WOFF2 总量直接等同于 EXE 增量。
 
 全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
 

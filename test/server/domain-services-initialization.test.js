@@ -355,7 +355,7 @@ test('runtime state selection skips unrelated domains and preserves the complete
       return services;
     } },
     './server/scene-runtime': { createSceneRuntime(options) {
-      getState = options.getState;
+      getState = options.displayPorts.system.getState;
       return sceneModule.createSceneRuntime(options);
     } },
   });

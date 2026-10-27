@@ -80,7 +80,7 @@ const POINT = fields('x y');
 const EFFECT = fields('operation value');
 const DANMAKU_ITEM = {
   ...fields(
-    'id uid timestamp name message guardLevel medalName medalLevel isStreamer avatarUrl kind giftName giftCount giftTotalPrice',
+    'id uid timestamp name message guardLevel medalName medalLevel isStreamer avatarUrl kind giftName giftCount giftTotalPrice giftImageUrl giftGuardLevel price messageId',
   ),
   emotes: [fields('text url kind width height')],
 };
@@ -149,6 +149,7 @@ const INTERACTION = {
   },
 };
 const RESPONSE_SCHEMAS = {
+  danmaku: { '/api/bilibili/room/profile': fields('roomId uid name avatarUrl') },
   interactions: { '/api/interactions/session': INTERACTION },
   'gift-wishes': {
     '/api/gifts/wishes': {
@@ -176,7 +177,7 @@ const RESPONSE_SCHEMAS = {
       thresholds: [true],
     },
     '/api/gifts/history': {
-      ...fields('viewRevision nextCursor partial'),
+      ...fields('viewRevision nextCursor partial contentRevision unchanged'),
       items: [
         {
           ...fields('eventId artworkPath'),
@@ -185,10 +186,11 @@ const RESPONSE_SCHEMAS = {
       ],
     },
     '/api/gifts/card-profiles': {
-      ...fields('viewRevision day partial'),
+      ...fields('viewRevision day partial contentRevision unchanged'),
       items: [fields('eventId senderId userName avatarUrl guardLevel createdAt')],
     },
     '/api/overtime/gifts/catalog': {
+      ...fields('contentRevision unchanged'),
       gifts: [{ ...fields('id name variantId imagePath'), giftIdentity: fields('variantId') }],
     },
   },
@@ -211,6 +213,7 @@ const RESPONSE_SCHEMAS = {
 const EVENT_SCHEMAS = {
   'interaction:update': { scope: 'interactions', schema: { state: INTERACTION } },
   'danmaku:message': { scope: 'danmaku', schema: { item: DANMAKU_ITEM } },
+  'danmaku:superchat-delete': { scope: 'danmaku', schema: { messageIds: [true] } },
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
   'gift:frame': {
     scope: 'gift-effects',
@@ -284,10 +287,23 @@ function projectGameSession(session) {
   return result;
 }
 
+const ROOM_GUARD_SCOPES = new Set(['queue', 'overtime', 'danmaku', 'gift-feed', 'gift-wishes']);
+
+function getOverlayStateFields(scope) {
+  if (!Object.hasOwn(STATE_SCHEMAS, scope)) return [];
+  // Legacy dedicated game contexts may supply an optional whole games snapshot.
+  if (scope === 'games') return null;
+  return [
+    ...Object.keys(STATE_SCHEMAS[scope]),
+    ...(ROOM_GUARD_SCOPES.has(scope) ? ['roomGuard'] : []),
+    ...(SETTING_KEYS[scope] ? ['settings'] : []),
+  ];
+}
+
 function projectOverlayState(scope, state) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return null;
   const result = select(state || {}, STATE_SCHEMAS[scope]);
-  if (['queue', 'overtime', 'danmaku', 'gift-feed', 'gift-wishes'].includes(scope) && state?.roomGuard) {
+  if (ROOM_GUARD_SCOPES.has(scope) && state?.roomGuard) {
     result.roomGuard = select(state.roomGuard, fields('roomId count'));
   }
   if (SETTING_KEYS[scope]) result.settings = select(state?.settings || {}, SETTING_SCHEMAS[scope]);
@@ -358,4 +374,4 @@ function projectWebSocketPayload(principal, payload) {
   return event?.scope === scope ? { type: payload.type, ...select(payload, event.schema) } : null;
 }
 
-module.exports = { projectOverlayState, projectOverlayResponse, projectWebSocketPayload };
+module.exports = { getOverlayStateFields, projectOverlayState, projectOverlayResponse, projectWebSocketPayload };

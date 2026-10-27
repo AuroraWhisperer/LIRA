@@ -1,3 +1,5 @@
+import { SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS } from './danmaku-style-options.js';
+
 export function readAppearanceValue(key, rawValue, min, max) {
   if (key === 'minGiftAmount') {
     const value = Number(rawValue);
@@ -5,7 +7,7 @@ export function readAppearanceValue(key, rawValue, min, max) {
       || Number(value.toFixed(2)) !== value) throw new Error(`请输入 ${min}～${max} 元，最多两位小数。`);
     return value;
   }
-  if (!['fontSize', 'backgroundOpacity', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion'].includes(key)) return rawValue;
+  if (!['fontSize', 'backgroundOpacity', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion', ...SPOOKY_OPACITY_KEYS].includes(key)) return rawValue;
   const value = Number(rawValue);
   if (!Number.isInteger(value) || value < Number(min) || value > Number(max)) {
     throw new Error(`请输入 ${min}～${max} 之间的整数。`);
@@ -22,7 +24,10 @@ export function editStyleOption(draft, key, value) {
     key = 'speedPixelsPerSecond';
     value = floatingSpeedToPixelsPerSecond(value);
   }
-  return replaceStyleOptions(draft, { ...draft.styleOptions[draft.style], [key]: value });
+  const options = { ...draft.styleOptions[draft.style] };
+  if (value === undefined) delete options[key];
+  else options[key] = value;
+  return replaceStyleOptions(draft, options);
 }
 
 export function floatingSpeedToPixelsPerSecond(value) {
@@ -42,6 +47,12 @@ export function floatingSpeedLabel(speed) {
 
 export function resetStyleOptions(draft) {
   return replaceStyleOptions(draft, {});
+}
+
+export function resetSpookyColors(draft) {
+  const options = { ...draft.styleOptions[draft.style] };
+  for (const key of [...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS]) delete options[key];
+  return replaceStyleOptions(draft, options);
 }
 
 export function isValidFullscreenDuration(value) {

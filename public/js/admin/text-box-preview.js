@@ -40,7 +40,7 @@ export function createTextBoxPreview({ media } = {}) {
       }
       const scrolling = previewElement('section', 'text-box-settings-group text-box-scroll-settings');
       const scrollTitle = previewElement('h4', 'text-box-section-title', '自动滚动');
-      const scrollHelp = previewElement('lira-help', '', '横向单行向左，纵向保留换行向上；一次启用一个方向。两个都关闭时，文字静止。');
+      const scrollHelp = previewElement('lira-help', '', '横向滚动为单行向左，纵向滚动保留换行并向上；两个方向只能启用一个。都关闭时，文字保持静止。');
       scrollHelp.setAttribute('label', '自动滚动说明');
       scrollTitle.append(scrollHelp); scrolling.append(scrollTitle);
       const directions = previewElement('div', 'text-box-scroll-options');
@@ -57,14 +57,14 @@ export function createTextBoxPreview({ media } = {}) {
       }
       const speed = previewElement('div', 'text-box-scroll-speed');
       const speedHeading = previewElement('div', 'text-box-speed-heading');
-      const speedLabel = previewElement('span', '', '滚动速率');
+      const speedLabel = previewElement('span', '', '滚动速度');
       const speedHelp = previewElement('lira-help', '', '开启任一滚动方向后可调节。横向和纵向共用此速率，数值越大滚动越快；只影响预览和直播画面。');
-      speedHelp.setAttribute('label', '滚动速率说明');
+      speedHelp.setAttribute('label', '滚动速度说明');
       speedLabel.append(speedHelp);
       const speedValue = previewElement('output', 'text-box-speed-value');
       const slider = previewElement('input', 'parameter-range');
       slider.type = 'range'; slider.min = TEXT_BOX_SCROLL_SPEED.min; slider.max = TEXT_BOX_SCROLL_SPEED.max; slider.step = 1;
-      slider.setAttribute('aria-label', '滚动速率');
+      slider.setAttribute('aria-label', '滚动速度');
       slider.addEventListener('input', () => target.edit({ scrollSpeed: Number(slider.value) }));
       speedHeading.append(speedLabel, speedValue);
       speed.append(speedHeading, slider);

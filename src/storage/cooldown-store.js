@@ -12,17 +12,18 @@ function createCooldownStore(db) {
   return {
     /** 启动时把未过期的冷却记录读回内存 Map */
     loadInto(map) {
-      const threshold = Date.now() - COOLDOWN_RETENTION_MS;
+      const at = Date.now();
+      const threshold = at - COOLDOWN_RETENTION_MS;
       const rows = db
         .prepare(
           `
         SELECT user_key, last_request_at
         FROM user_cooldowns
-        WHERE last_request_at >= ?
+        WHERE last_request_at >= ? AND last_request_at <= ?
         ORDER BY last_request_at ASC
       `,
         )
-        .all(threshold);
+        .all(threshold, at);
       for (const row of rows) {
         map.set(row.user_key, Number(row.last_request_at) || 0);
       }
@@ -47,8 +48,10 @@ function createCooldownStore(db) {
     },
 
     prune(retentionMs = COOLDOWN_RETENTION_MS) {
-      const threshold = Date.now() - Math.max(0, Number(retentionMs) || 0);
-      const result = db.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ?').run(threshold);
+      const at = Date.now();
+      const threshold = at - Math.max(0, Number(retentionMs) || 0);
+      const result = db.prepare('DELETE FROM user_cooldowns WHERE last_request_at < ? OR last_request_at > ?')
+        .run(threshold, at);
       return Number(result.changes) || 0;
     },
 
@@ -57,6 +60,11 @@ function createCooldownStore(db) {
       const threshold = Number(at) - Math.max(0, Number(retentionMs) || 0);
       let removed = 0;
       for (const [key, lastAt] of map) {
+        if (Number(lastAt) > Number(at)) {
+          map.delete(key);
+          removed += 1;
+          continue;
+        }
         if (Number(lastAt) >= threshold) break;
         map.delete(key);
         removed += 1;

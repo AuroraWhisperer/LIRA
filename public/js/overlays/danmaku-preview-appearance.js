@@ -1,9 +1,10 @@
-import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { canvasContentScale } from './danmaku-canvas.js';
 import {
   readAppearanceValue,
   editStyleOption,
   resetStyleOptions,
+  resetSpookyColors,
   isValidFullscreenDuration,
   floatingSpeedFromPixelsPerSecond,
   floatingSpeedToPixelsPerSecond,
@@ -20,9 +21,16 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     edgeFade: byId('previewEdgeFade'),
     entranceAnimation: byId('previewEntranceAnimation'),
     decorationShape: byId('previewDecorationShape'),
+    spookyTheme: byId('previewSpookyTheme'), spookyFrame: byId('previewSpookyFrame'),
     floatingSpeed: byId('previewFloatingSpeed'), floatingDispersion: byId('previewFloatingDispersion'),
     centerBias: byId('previewCenterBias'), dispersion: byId('previewDispersion'),
   };
+  for (const key of Object.keys(RIPPLOID_COLOR_DEFAULTS)) {
+    fields[key] = byId(`preview${key[0].toUpperCase()}${key.slice(1)}`);
+  }
+  for (const key of [...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS]) {
+    fields[key] = byId(`preview${key[0].toUpperCase()}${key.slice(1)}`);
+  }
   fields.floatingSpeed.addEventListener('input', () => {
     byId('previewFloatingSpeedValue').textContent = floatingSpeedLabel(floatingSpeedToPixelsPerSecond(Number(fields.floatingSpeed.value)));
   });
@@ -48,6 +56,14 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     const value = byId('previewBubbleColorMode').value === 'default' ? 'default' : fields.bubbleColor.value;
     change(editStyleOption(getDraft(), 'bubbleColor', value));
   });
+  for (const key of SPOOKY_COLOR_KEYS) {
+    const name = key[0].toUpperCase() + key.slice(1);
+    byId(`preview${name}Mode`).addEventListener('change', () => {
+      const value = byId(`preview${name}Mode`).value === 'default' ? undefined : fields[key].value;
+      change(editStyleOption(getDraft(), key, value));
+    });
+  }
+  byId('previewSpookyResetColors').addEventListener('click', () => change(resetSpookyColors(getDraft())));
   byId('previewAppearanceReset').addEventListener('click', () => {
     change(resetStyleOptions(getDraft()));
   });
@@ -73,24 +89,50 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     const draft = getDraft();
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
-    byId('previewTextColorLabel').textContent = draft.style === 'sketch' ? '主题颜色' : '正文颜色';
+    const spooky = Boolean(limits.spookyOptions);
+    byId('previewTextColorLabel').textContent = draft.style === 'sketch' ? '主题颜色' : spooky ? '自定义正文颜色' : '正文颜色';
     const scale = canvasContentScale(draft.layout, draft.style);
     addFonts([{ value: options.fontFamily, label: options.fontFamily }]);
     for (const [key, control] of Object.entries(fields)) control.value = String(options[key]);
+    byId('previewTextColorModeField').hidden = !spooky;
+    byId('previewTextColorField').hidden = spooky && !Object.hasOwn(draft.styleOptions?.spooky || {}, 'textColor');
+    byId('previewSpookyColors').hidden = !spooky;
+    const themeColors = SPOOKY_THEME_COLORS[options.spookyTheme || 'default'];
+    for (const key of SPOOKY_COLOR_KEYS) {
+      const name = key[0].toUpperCase() + key.slice(1);
+      const custom = spooky && Object.hasOwn(draft.styleOptions?.spooky || {}, key) && options[key] !== 'default';
+      byId(`preview${name}Mode`).value = custom ? 'custom' : 'default';
+      if (key !== 'textColor') byId(`preview${name}Field`).hidden = !custom;
+      if (spooky) fields[key].value = custom ? options[key] : themeColors[key];
+    }
+    for (const key of SPOOKY_OPACITY_KEYS) fields[key].value = String(options[key] ?? 100);
+    byId('previewSpookyResetColors').disabled = ![...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS]
+      .some(key => Object.hasOwn(draft.styleOptions?.spooky || {}, key));
     const customBubbleColor = limits.bubbleColor && options.bubbleColor !== 'default';
+    const ripploid = draft.style === 'ripploid';
+    byId('previewBubbleColorLabel').textContent = ripploid ? '聊天主色' : '弹幕配色';
+    byId('previewBubbleColorHint').textContent = ripploid
+      ? '默认保留多色聊天装饰；自定义只统一聊天主色，事件颜色在下方独立设置。'
+      : '默认按当前直播间身份配色。';
     byId('previewBubbleColorModeField').hidden = !limits.bubbleColor;
     byId('previewBubbleColorMode').value = customBubbleColor ? 'custom' : 'default';
     byId('previewBubbleColorField').hidden = !customBubbleColor;
-    fields.bubbleColor.value = customBubbleColor ? options.bubbleColor : limits.defaultTextColor;
+    fields.bubbleColor.value = customBubbleColor ? options.bubbleColor : limits.defaultBubbleColor || limits.defaultTextColor;
+    byId('previewRipploidColors').hidden = !limits.ripploidColors;
+    for (const key of Object.keys(RIPPLOID_COLOR_DEFAULTS)) {
+      fields[key].value = options[key] || RIPPLOID_COLOR_DEFAULTS[key];
+    }
     fields.fontSize.value = String(Math.round(options.fontSize * scale));
     fields.fontSize.min = String(Math.ceil(limits.minFontSize * scale));
     fields.fontSize.max = String(Math.floor(limits.maxFontSize * scale));
     byId('previewBackgroundField').hidden = !limits.background;
-    byId('previewGiftField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline', 'bubble', 'cream'].includes(draft.style);
+    byId('previewGiftField').hidden = !limits.giftImage || ['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter'].includes(draft.style);
     byId('previewMinGiftAmountField').hidden = !limits.minGiftAmount;
     fields.minGiftAmount.value = String(options.minGiftAmount || 0);
     byId('previewDirectionField').hidden = !limits.scrollDirection;
     byId('previewEdgeFadeField').hidden = !limits.scrollDirection;
+    byId('previewSpookyThemeField').hidden = !limits.spookyOptions;
+    byId('previewSpookyFrameField').hidden = !limits.spookyOptions;
     byId('previewDecorationShapeField').hidden = !limits.decorationShape;
     fields.decorationShape.value = options.decorationShape || 'sparkle';
     byId('previewEntranceAnimationField').hidden = !limits.entranceAnimation;

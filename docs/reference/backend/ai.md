@@ -13,9 +13,9 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 | 事实       | 值                                                                                                                              | 出处                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | 角色人格 | `personas.js` 提供 `general`（无额外人格的通用）、`cat`（沿用结构化角色指南的橘猫）；`custom` 读取 `systemPrompt`，自建或导入包按 ID 选择；`{{name}}` 在生成时替换为 `trigger`，编辑/导出保留模板；小猫风格不写入公共底层规则 | [personas.js](../../../src/ai/personas.js)、[prompt.js](../../../src/ai/prompt.js) |
-| 模型后端   | 供应商可选自动识别、DeepSeek、OpenAI、Claude、Gemini、豆包账号或自定义；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js)                              |
+| 模型后端   | 供应商可选自动识别、DeepSeek、Kimi、OpenAI、Claude、Gemini、豆包账号或自定义；OpenAI 支持 API 与 ChatGPT 订阅两种接入；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js)                              |
 | 触发关键词 | 配置键 `trigger`,默认空字符串,1–12 字符;配置后消息中出现即触发                                                                  | [config.js](../../../src/ai/config.js)、[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)                  |
-| 就绪条件 | `isAiReady`：enabled 为真且 trigger 非空；API 模式另要求 URL、API Key、model 非空，豆包准入另检查已登录且无需验证 | [config.js](../../../src/ai/config.js)、[deepseek-client.js](../../../src/ai/deepseek-client.js) |
+| 就绪条件 | `isAiReady`：enabled 为真且 trigger 非空；API 模式另要求 URL、API Key、model 非空，豆包准入另检查已登录且无需验证；ChatGPT 订阅另要求 model、可用桌面加密与已授权的账号，无需 API Key | [config.js](../../../src/ai/config.js)、[deepseek-client.js](../../../src/ai/deepseek-client.js) |
 | 回复发送   | `sendReply` = `danmakuSender.send({…, waitForRateLimit: true})`,等待发送频率而非抛错                                            | [server.js:260](../../../src/server.js#L260)                                                                                |
 | 关闭时序   | 服务关闭第一步 `aiAssistant.shutdown()` → 协调器 stop,丢弃排队任务                                                              | [ai-assistant-service.js:289-291](../../../src/ai/ai-assistant-service.js#L289-L291)、[server-core.md](server-core.md) §6.2 |
 
@@ -37,7 +37,7 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 ## 3. 回复生成管线与协调器
 
-总开关关闭由 `PUT /api/ai/config` 经 [api-context.js](../../../src/server/api-context.js) 调用 `service.updateConfig()`，先完成配置验证和持久化，再同步取消当前任务轮次：清空等待/已生成未投递队列、中止模型/工具/送达确认，并停止剩余分段和重试。每个任务保留所属轮次的 signal，关开后迟到结果也不能复活；重开只接收新触发。已提交上游的弹幕发送无法撤回，后续发送前沿用 sender 的逐段检查。旧协调器 drain 结束即从跟踪集合删除，应用 shutdown 仍等待未完成的 drain；关闭 AI 不永久停止服务，也不取消连接测试、模型列表或手动弹幕。除进入/离开豆包账号模式外，普通配置修改与保存失败不取消现有任务。
+总开关关闭由 `PUT /api/ai/config` 经 [api-context.js](../../../src/server/api-context.js) 调用 `service.updateConfig()`，先完成配置验证和持久化，再同步取消当前任务轮次：清空等待/已生成未投递队列、中止模型/工具/送达确认，并停止剩余分段和重试。每个任务保留所属轮次的 signal，关开后迟到结果也不能复活；重开只接收新触发。已提交上游的弹幕发送无法撤回，后续发送前沿用 sender 的逐段检查。旧协调器 drain 结束即从跟踪集合删除，应用 shutdown 仍等待未完成的 drain；关闭 AI 不永久停止服务，也不取消连接测试、模型列表或手动弹幕。进入/离开账号模式（豆包或 ChatGPT 订阅）会取消旧任务，其他普通配置修改与保存失败不取消现有任务。账号切换/退出使会话代次失效，发送前也会检查，避免旧账号回复迟到。
 
 管理页总开关单独按操作顺序保存，其他字段草稿无效也能关闭；普通表单保存不携带 enabled，避免旧配置回执重新开启。相关回归见 [ai-assistant-lifecycle.test.js](../../../test/ai/ai-assistant-lifecycle.test.js)、[ai-routes.test.js](../../../test/ai/ai-routes.test.js) 和 [frontend-admin-ai-settings.test.js](../../../test/ai/frontend-admin-ai-settings.test.js)。
 
@@ -47,18 +47,18 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
 2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v7`，不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
-3. **输入安全审核**:先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。API 模式再交给 `buildInputReviewPrompt`，任务放在 `instructions`，待审 JSON 放在 `input`；未通过只返回固定 `SAFE_REFUSAL`。豆包账号模式保留本地检查，跳过此远程审核，直接进入生成以减少首字等待。
-4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史是同一观众当前会话的已交付问答，用于延续正常聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。API 输入审核与生成收到相同历史，详见 §3.3。
+3. **输入安全审核**:先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。API 与 ChatGPT 订阅模式再交给 `buildInputReviewPrompt`，任务放在 `instructions`，待审 JSON 放在 `input`；未通过只返回固定 `SAFE_REFUSAL`。豆包账号模式保留本地检查，跳过此远程审核，直接进入生成以减少首字等待。
+4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史是同一观众当前会话的已交付问答，用于延续正常聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。API 与 ChatGPT 订阅的输入审核、生成收到相同历史，详见 §3.3。
 5. **主生成**：`deepseek.createResponse` 的 `instructions` 先放公共事实/安全规则，再以单行 `JSON.stringify({ persona })` 传入角色风格资料，避免角色中的换行或标签拼接成额外指令段；已保存角色文本不变。实际可用工具、北京时间与发送预算由程序提供，多轮上下文用于理解当前活动与问题。见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)。不强制猫语、颜文字、固定推荐数量或非思考模式。
 6. **工具循环**:`response.functionCalls` 非空时执行工具(§5),结果以 `function_call_output` 回填并带 `previousResponseId` 续问;累计调用超过 `maxToolCalls`(默认 6)→ `TOOL_LIMIT`。
-7. **输出检查**:API 模式用 `buildOutputReviewPrompt` 分离审核指令与包含本次问题、同一份会话历史及 `candidateAnswer` 的 JSON；未通过则返回固定 `SAFE_REFUSAL`，通过时再次清理 `safeText` 或原答案。豆包账号模式跳过远程输出审核，对一次生成的完整文字执行 `cleanModelText` 与本地检查。所有模式本地检查失败均使用固定拒绝语；本地拒绝或模型返回指定的固定拒绝语均记 `category: 'safety'`，不写缓存或上下文，不提前把未检查的流式片段送入弹幕。
+7. **输出检查**:API 与 ChatGPT 订阅模式用 `buildOutputReviewPrompt` 分离审核指令与包含本次问题、同一份会话历史及 `candidateAnswer` 的 JSON；未通过则返回固定 `SAFE_REFUSAL`，通过时再次清理 `safeText` 或原答案。豆包账号模式跳过远程输出审核，对一次生成的完整文字执行 `cleanModelText` 与本地检查。所有模式本地检查失败均使用固定拒绝语；本地拒绝或模型返回指定的固定拒绝语均记 `category: 'safety'`，不写缓存或上下文，不提前把未检查的流式片段送入弹幕。
 8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写缓存、写 `ai_request_logs`；上下文仅在 FIFO 投递成功确认后提交最终答案（见步骤 2）(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
 
-长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都自动附加公共底层提示，角色资料仅用于名字、语气及普通互动偏好；发送时仍截断到预算。API 模式继续独立执行输入/输出审核；豆包用固定安全指令、本地输入/输出检查和无工具权限的单次生成。
+长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都自动附加公共底层提示，角色资料仅用于名字、语气及普通互动偏好；发送时仍截断到预算。API 与 ChatGPT 订阅模式继续独立执行输入/输出审核；豆包用固定安全指令、本地输入/输出检查和无工具权限的单次生成。
 
 共享规则要求先给核心答案，再补充说明；成语接龙轮到助手时，应接观众最新有效词并实际给出符合约定的新成语，不能复述原词或只报尾字便交回合。输出审核同时检查衔接与当前回合，不把正确新词改回观众原词；审核收到与生成相同的正文长度上限，压缩时优先保留答案。送达重试改用单条预算，见 §9.2。这些是生成与审核要求，不是确定性的成语库校验。
 
-主生成及工具后续请求的输出 token 上限按是否开启思考模式切换：`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`（[ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)）。输入、输出审核仅需短 JSON，固定 `REVIEW_OUTPUT_TOKENS = 384`，请求单独设 `reasoningEnabled: false`，避免思考内容耗尽审核输出额度；不修改已保存的思考设置，正式回答仍按用户设置执行（[runSafetyReview](../../../src/ai/ai-assistant-service.js)）。
+API 模式主生成及工具后续请求的输出 token 上限按是否开启思考模式切换：`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`（[ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)）。输入、输出审核仅需短 JSON，固定 `REVIEW_OUTPUT_TOKENS = 384`，请求单独设 `reasoningEnabled: false`，避免思考内容耗尽审核输出额度；不修改已保存的思考设置，正式回答仍按用户设置执行（[runSafetyReview](../../../src/ai/ai-assistant-service.js)）。
 
 ### 3.2 顺序协调器(createOrderedAsyncCoordinator)
 
@@ -142,7 +142,22 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 
 准入同时检查桌面可用、已登录和无需验证；豆包生成并发固定为 1。任务和缓存键保留会话代次，登录变化、退出或验证状态变化后的旧结果不得投递；切换进入/离开豆包取消旧供应商任务。`GET /api/ai/status` 附带公开 `doubao` 状态，端点合同见 [api.md](api.md#13-ai-域ai)。日志只写供应商、用途、耗时及安全错误等元数据，不写 Cookie、原始 SSE 或对话正文。
 
-配置保留原 API 设置。进入账号模式时，`ai_configuration` 的私有 `doubaoPreviousKeyOrigin` 行暂存原密钥的有效 origin（非秘密），既不通过配置 API 暴露也不接受客户端写入；退出账号模式仍校验原密钥不可跨 origin 复用，成功后清空该行。账号模式下临时获取其他 API 的模型列表必须显式提供 Key，或先保存切回原供应商；不能将隐藏的旧自定义地址视为现有密钥的来源。此行为不修改表结构。
+配置保留原 API Key。进入豆包或 ChatGPT 订阅账号模式时，`ai_configuration` 的私有 `doubaoPreviousKeyOrigin` 行暂存原密钥的有效 origin（非秘密），既不通过配置 API 暴露也不接受客户端写入；退出账号模式仍校验原密钥不可跨 origin 复用，成功后清空该行。账号模式下临时获取其他 API 的模型列表必须显式提供 Key，或先保存切回原供应商；不能将隐藏的旧自定义地址视为现有密钥的来源。此行为不修改表结构。
+
+### 4.5 ChatGPT 订阅与 Kimi API
+
+[chatgpt-oauth.js](../../../src/ai/chatgpt-oauth.js) 拥有官方 OAuth/OIDC，使用固定 issuer `https://auth.openai.com` 的 discovery、动态本地客户端、S256 PKCE、state、nonce 和 `127.0.0.1` 临时端口回调（5 分钟超时）。首次收到 client_id 先保存注册记录，再换取凭据；复登沿用注册并核对账号。通过 jose 校验签名、issuer、audience、exp、iat、sub、nonce；不读取其他客户端的登录文件，不接受前端 URL 或 token。
+
+[chatgpt-session.js](../../../src/ai/chatgpt-session.js) 拥有多账号、授权范围、串行刷新、退出和会话代次。
+复用 `ai_configuration`：`chatgptHostId` 保存稳定本机标识，`chatgptAccounts` 保存经 safeStorage codec 加密的账号/注册/令牌记录（is_secret=1）；两者都不在公开配置白名单内。无可用加密或桌面打开浏览器能力时拒绝登录，不做明文回退。只有授权 `chatgpt.tokens.use.direct` 才能推理；过期前串行刷新并替换凭据。退出先删除当前账号令牌、取消在途请求，再请求官方撤销；撤销未确认时提示用户，保留注册映射供复登，不影响其他账号及 API Key。切换和退出使旧请求失效，迟到刷新不能恢复已退出凭据。shutdown 关闭回调并等待在途工作。
+
+[chatgpt-client.js](../../../src/ai/chatgpt-client.js) 仅向固定公开 `https://api.openai.com/v1` 发送订阅 token。模型目录读取 `models[]` 中 visibility=list 的 slug 并保持官方顺序。推理使用 Responses 的 `store:false`、`stream:true` 和数组 input，不传订阅不支持的 max_output_tokens/previous_response_id；函数工具放入 lira namespace，工具续接在本地回放输入、函数调用和加密 reasoning，账号代次改变时清空。SSE 限 2 MiB，只有 response.completed 才返回完整结果；失败、额度不足或中断不发送部分回答，不自动回退到 API。人格、上下文、审核、工具与最终投递继续由原 service 执行；关闭思考使用 low，而非声称所有订阅模型可完全关闭推理。
+
+浏览器入口由 Electron main 注入 `openAiLoginBrowser`，runtime 负责组装和清理，无新增 renderer IPC。账号接口沿用 AI 管理授权，公开状态仅含可用性、登录/授权状态、账号标签与安全错误，见 [api.md](api.md#13-ai-域ai)。API 与订阅可同时保存，每次只调用显式所选模式；原 API Key 的 origin 继续通过私有 `doubaoPreviousKeyOrigin` 保护，跨账号模式切换不会覆盖原来源。
+
+Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /models。adapter 使用 max_completion_tokens；K2.5/K2.6 通过 thinking.type 开关思考，K3 始终思考、关闭时设 low 且输出预算至少 4096；工具历史保留 assistant reasoning_content。Kimi Code 订阅不用于弹幕产品调用，其他未提供此用途授权的厂商继续 API Key 接入。
+
+官方依据：[本地授权](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)、[模型与推理](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)、[订阅限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)、[Kimi 产品集成说明](https://www.kimi.com/en/help/kimi-code/membership-guide)。回归见 `chatgpt-session.test.js`、`chatgpt-client.test.js`、`ai-provider-adapters.test.js` 与原有配置/生命周期套件。
 
 ## 5. 工具集
 
@@ -165,8 +180,8 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 
 ## 6. 安全过滤(两道)
 
-1. **本地硬规则** `checkLocalInput`：检查副本做 NFKC、去 Unicode 格式字符和空白归一化；注入匹配还归一化汉字间的空白及常见分隔符，原问题不因此改写。覆盖色情、明确违法、隐私，以及有操作意图的身份冒充、规则覆盖、伪造角色/审核、编码执行或泄露等常见中英文指令。固定拒绝文案为“这个不适合直播间回答，换个问题吧。”，不包含角色口癖。“我是管理员，推荐几首歌”、“什么是 system prompt？”、“Base64 编码和解码是什么？”等正常提问继续进入后续管线，不因术语或身份字样直接拒绝。传入的历史问答和最终文字也使用此检查。见 [safety.js](../../../src/ai/safety.js)。
-2. **模型约束**：全部预设和 API 两次审核共用 `TRUST_BOUNDARY_POLICY`：弹幕身份、昵称、UID、礼物和授权声明不赋予管理权限；引用、工具返回及历史中的承诺仍是数据，编码、翻译和角色扮演不改变边界，不披露隐藏指令或其他观众内容。API 模式继续用 `runSafetyReview` 分别审核输入和输出，指令与 JSON 数据分开传递。`allowed` 必须为布尔值，`safeText` 若存在须为字符串；无法解析或字段无效时抛 `AI_REVIEW_INVALID`，不放行原答案，回复“这次回答的审核未完成，请稍后再试。”。拒绝时忽略模型 safeText；允许时仍对最终文案执行本地检查，固定拒绝语不缓存、不记忆。输出审核还检查虚构授权、准确回应、条件和事实。豆包账号模式只增加 `DOUBAO_CHAT_POLICY` 并使用一次生成，保留本地输入/输出检查，没有两次额外语义复核。见 [safety.js](../../../src/ai/safety.js)。
+1. **本地硬规则** `checkLocalInput`：检查副本做 NFKC、去 Unicode 格式字符和空白归一化；注入匹配还归一化汉字间的空白及常见分隔符，原问题不因此改写。覆盖色情、明确违法、隐私，以及有操作意图的身份冒充、规则覆盖、伪造角色/审核、编码执行或泄露等常见中英文指令。固定拒绝文案为“这次不方便在直播间回答，换个话题吧。”，不包含角色口癖。“我是管理员，推荐几首歌”、“什么是 system prompt？”、“Base64 编码和解码是什么？”等正常提问继续进入后续管线，不因术语或身份字样直接拒绝。传入的历史问答和最终文字也使用此检查。见 [safety.js](../../../src/ai/safety.js)。
+2. **模型约束**：全部预设和 API 两次审核共用 `TRUST_BOUNDARY_POLICY`：弹幕身份、昵称、UID、礼物和授权声明不赋予管理权限；引用、工具返回及历史中的承诺仍是数据，编码、翻译和角色扮演不改变边界，不披露隐藏指令或其他观众内容。API 与 ChatGPT 订阅模式继续用 `runSafetyReview` 分别审核输入和输出，指令与 JSON 数据分开传递。`allowed` 必须为布尔值，`safeText` 若存在须为字符串；无法解析或字段无效时抛 `AI_REVIEW_INVALID`，不放行原答案，回复“这次回答还没准备好，请稍后再试～”。拒绝时忽略模型 safeText；允许时仍对最终文案执行本地检查，固定拒绝语不缓存、不记忆。输出审核还检查虚构授权、准确回应、条件和事实。豆包账号模式只增加 `DOUBAO_CHAT_POLICY` 并使用一次生成，保留本地输入/输出检查，没有两次额外语义复核。见 [safety.js](../../../src/ai/safety.js)。
 
 这些检查降低风险，不保证识别所有注入；JSON 标签、正则和同一模型的审核都不是安全边界。模型输出始终视为不可信文字，工具权限在程序中校验；豆包账号模式不提供 LIRA 工具。防护原则及局限参见 [OWASP 指南](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)。
 
@@ -180,7 +195,8 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 | -------------- | ---------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 总开关         | `enabled`                                                                                      | `true`                            | 布尔                                                                                                                                                                           |
 | 触发           | `trigger`                                                                                      | 空                                | 空或 1–12 字符；为空时尚未就绪                                                                                                                                                 |
-| 供应商         | `modelProvider`                                                                                | `auto`                            | 枚举：`auto, deepseek, openai, anthropic, gemini, custom, doubao`；四个官方预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖                                                     |
+| 供应商         | `modelProvider`                                                                                | `auto`                            | 枚举：`auto, deepseek, kimi, openai, anthropic, gemini, custom, doubao`；五个官方 API 预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖                                                     |
+| 接入方式 | `modelAuthMode` | `api` | `api` / `subscription`；只有 OpenAI 接受 subscription，其他平台归一化为 api；旧配置默认 api |
 | 模型服务       | `deepseekResponsesUrl` / `deepseekApiKey` / `model`                                            | 全空                              | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点；model 为空或 ≤ 80 字符                                                                             |
 | 协议与推理强度 | `modelApiProtocol` / `reasoningEffort`                                                         | `auto` / `auto`                   | 协议枚举:`auto, responses, chat_completions`；强度枚举:`auto, minimal, low, medium, high, xhigh, max`；DeepSeek 官方把 `minimal→low`、`medium/high/xhigh→high`，保留 `low/max` |
 | 行为开关 | `webSearchEnabled` / `functionCallingEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | 全为 `false` | 新配置默认普通问答；工具和联网按 §5 显式启用，关闭总开关保留各工具配置 |

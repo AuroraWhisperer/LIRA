@@ -107,7 +107,7 @@ test('style preview holds each palette color, animates between them and loops', 
 
 test('gift feed settings save speed and remove the pause and low-power options', async (t) => {
   const page = await openSettings(t);
-  const speed = page.getByRole('spinbutton', { name: '滚动速率（1–50）', exact: true });
+  const speed = page.getByRole('spinbutton', { name: '滚动速度（1–50）', exact: true });
   const cancel = page.getByRole('button', { name: '取消修改', exact: true, includeHidden: true });
   assert.equal(await speed.inputValue(), '26');
   assert.equal(await cancel.isHidden(), true);
@@ -129,7 +129,7 @@ test('gift feed settings save speed and remove the pause and low-power options',
     scrollSpeed: 50,
     minGiftAmountCents: 0,
   });
-  await page.getByRole('button', { name: '恢复默认', exact: true }).click();
+  await page.getByRole('button', { name: '填入默认值', exact: true }).click();
   assert.equal(await speed.inputValue(), '12');
   assert.equal(await cancel.isVisible(), true);
   await cancel.click();
@@ -166,7 +166,7 @@ test('cancel appears for unsaved fields and hides when their saved values are re
 
 test('feed minimum accepts one decimal place, saves cents and restores saved or default amounts', async (t) => {
   const page = await openSettings(t);
-  const amount = page.getByRole('spinbutton', { name: '最小礼物金额（元）', exact: true });
+  const amount = page.getByRole('spinbutton', { name: '累计金额超过（元）', exact: true });
   assert.equal(await amount.inputValue(), '0');
   for (const invalid of ['', '-1', '0.01', '10.15']) {
     await amount.fill(invalid);
@@ -184,7 +184,7 @@ test('feed minimum accepts one decimal place, saves cents and restores saved or 
   await amount.fill('10.5');
   await page.getByRole('button', { name: '取消修改', exact: true }).click();
   assert.equal(await amount.inputValue(), '1.1');
-  await page.getByRole('button', { name: '恢复默认', exact: true }).click();
+  await page.getByRole('button', { name: '填入默认值', exact: true }).click();
   assert.equal(await amount.inputValue(), '0');
   assert.equal(await page.evaluate(() => window.savedDisplay.minGiftAmountCents), 110);
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
@@ -219,7 +219,7 @@ test('gift range endpoints synchronize both ways and save exact cent boundaries'
 test('defaults reset both range endpoints and cancelling discards the draft', async (t) => {
   const page = await openSettings(t, { tabs: true });
   await page.locator('#giftTierEnd0').fill('25');
-  await page.getByRole('button', { name: '恢复默认', exact: true }).click();
+  await page.getByRole('button', { name: '填入默认值', exact: true }).click();
   assert.deepEqual(
     await page.locator('[data-gift-boundary]').evaluateAll((inputs) => inputs.map((input) => input.value)),
     ['30', '30', '100', '100', '1000', '1000'],

@@ -120,7 +120,13 @@ async function fixture(t) {
       }),
     },
     overtime: { getGlobalGiftCatalog: () => ({ gifts: [{ id: 1, name: 'Gift', private: SECRET }] }) },
-    bilibili: { fetchAvatarImage: async () => ({ data: Buffer.from('image'), contentType: 'image/png' }) },
+    bilibili: {
+      fetchAvatarImage: async () => ({ data: Buffer.from('image'), contentType: 'image/png' }),
+      getRoomProfile: async () => ({
+        roomId: '123', uid: '456', name: '合成房主',
+        avatarUrl: 'https://i0.hdslb.com/bfs/face/owner.jpg', secret: SECRET,
+      }),
+    },
     games: {
       getSession: () => game,
       getWinnerProfile: async () => ({ avatarUrl: 'https://example.test/avatar', private: SECRET }),
@@ -354,6 +360,24 @@ test('allowed read APIs project data and force song visibility and today-only gi
   );
   assert.equal(avatar.status, 200);
   assert.equal(await avatar.text(), 'image');
+});
+
+test('danmaku overlay reads only the current room profile without client-selected identity', async (t) => {
+  const f = await fixture(t);
+  const token = createOverlayToken(ADMIN, 'danmaku');
+  const response = await f.request('/api/bilibili/room/profile?roomId=other&streamerId=other', token, {
+    headers: { Origin: 'null' },
+  });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    ok: true,
+    data: {
+      roomId: '123', uid: '456', name: '合成房主',
+      avatarUrl: 'https://i0.hdslb.com/bfs/face/owner.jpg',
+    },
+  });
+  assert.equal((await f.request('/api/bilibili/room/profile', createOverlayToken(ADMIN, 'queue'))).status, 403);
+  assert.equal((await f.request('/api/bilibili/room/profile', token, { method: 'POST', body: '{}' })).status, 403);
 });
 
 test('game and wheel display controls cannot start/configure games or invoke host answer actions', async (t) => {

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="60" viewBox="0 0 1080 60" preserveAspectRatio="none"><defs>
+    <linearGradient id="flower-gift-paper" x2="0" y2="1"><stop stop-color="#e8d8c0"/><stop offset=".38" stop-color="#faf7f3"/><stop offset=".85" stop-color="#fff"/></linearGradient>
+    <linearGradient id="flower-gift-wash" x2="0" y2="1"><stop stop-color="#f8d46d"/><stop offset=".55" stop-color="#f8d46d"/><stop offset="1" stop-color="#fff4cd"/></linearGradient>
+    <linearGradient id="flower-gift-base-wash" x2="0" y2="1"><stop stop-color="#ffecae"/><stop offset="1" stop-color="#fff4cd"/></linearGradient>
+    <pattern id="flower-gift-stripe" width="30" height="252" patternUnits="userSpaceOnUse" patternTransform="skewX(9)"><rect width="30" height="252" fill="url(#flower-gift-base-wash)"/><rect width="16" height="252" fill="url(#flower-gift-wash)"/></pattern>
+  </defs><rect x="32" y="4" width="1005" height="230" rx="26" fill="url(#flower-gift-paper)" stroke="#9b8664" stroke-width="3"/>
+      <rect x="37" y="9" width="995" height="220" rx="23" fill="none" stroke="#fffbed" stroke-width="2"/>
+      <path d="M21 127Q278 159 535 188Q792 159 1049 126V204Q1049 234 1019 234H51Q21 234 21 204Z" fill="url(#flower-gift-stripe)" stroke="#d6ae3b" stroke-width="3"/>
+      <path d="M27 137V204Q27 228 51 228H1019Q1043 228 1043 204V137" fill="none" stroke="#fff0b3" stroke-width="3"/></svg>

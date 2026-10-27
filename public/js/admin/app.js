@@ -279,12 +279,9 @@ function initPlaybackAssistant() {
   const playback = getLegacyAdminModules().playback;
   if (playback?.initPlaybackAssistant) {
     playback.initPlaybackAssistant({
-      getSongs: () => stateService.getSongs(),
       getWeSingState: () => stateService.getAppState()?.weSing,
-      reloadSongs: () => stateService.reloadSongs(),
       toast: Utils.toast,
       showError: Utils.showError,
-      api: Utils.api,
       readJsonResponse: Utils.readJsonResponse,
     });
   }

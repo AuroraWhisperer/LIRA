@@ -4,6 +4,34 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('../helpers/fan-profile-fixture');
 
+test('short reminder windows match the full prediction while avoiding distant membership summaries', (t) => {
+  const { buildReminders } = require('../../src/fans/reminders');
+  const { prepareMembership } = require('../../src/fans/membership');
+  const f = fanFixture(t);
+  const p = f.create({ birthday: { monthDay: '09-20' } });
+  f.record(p.id, 'membership', interval('2026-08-21', '2027-09-30'));
+  const records = f.store.records.list(SCOPE, p.id);
+  const full = buildReminders(p, records, [], Date.parse(NOW));
+  assert.ok(full.some(item => item.group === 'later'));
+  const summarize = prepareMembership(records);
+  let summaries = 0;
+  const short = buildReminders(p, records, [], Date.parse(NOW), {}, {
+    daysAhead: 7, summarize: Object.assign(at => { summaries++; return summarize(at); }, summarize),
+  });
+  assert.deepEqual(short, full.filter(item => item.group !== 'later'));
+  assert.equal(summaries, 2, 'today is also the day preceding the only candidate milestone');
+  assert.deepEqual(f.run('reminders'), short);
+  assert.deepEqual(f.run('list').profiles[0].nextReminder, short.find(item => ['today', 'week'].includes(item.group)));
+  assert.ok(f.run('calendar').every(item => item.date <= '2026-09-21'));
+  const future = full.find(item => item.metric === 'total' && item.threshold === 100);
+  const states = [{ ...future, status: 'handled' }];
+  assert.deepEqual(
+    buildReminders(p, records, states, Date.parse(NOW), {}, { daysAhead: 7 }),
+    buildReminders(p, records, states, Date.parse(NOW)).filter(item => item.group !== 'later'),
+    'handled future milestones retain their re-resolved history',
+  );
+});
+
 test('former names keep the latest three distinct names, support edits and survive restart and restore', (t) => {
   const f = fanFixture(t);
   const p = f.create();

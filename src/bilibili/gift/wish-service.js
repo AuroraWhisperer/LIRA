@@ -62,8 +62,12 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
     const asOf = new Date(timestamp).toISOString();
     const day = new Date(timestamp + 8 * 3600000).toISOString().slice(0, 10);
     const todayStart = shanghaiDayStart(day);
-    const artwork = new Map(catalogItems().map((gift) => [gift.variantId || String(gift.id), gift.imagePath]));
-    const items = store.list(source.sourceId).map((wish) => {
+    const artwork = catalog.getArtworkResolver?.() || (() => {
+      const paths = new Map(catalogItems().map((gift) => [gift.variantId || String(gift.id), gift.imagePath]));
+      return (key) => paths.get(key);
+    })();
+    const requests = [];
+    const wishes = store.list(source.sourceId).map((wish) => {
       let start;
       if (wish.period === 'long') {
         start = wish.created_at;
@@ -73,14 +77,21 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
         start = session.state === 'offline' || session.ended_at ? null : session.started_at;
       }
       const end = wish.period === 'session' && session.stale ? session.checked_at : asOf;
-      const count = store.count(source.sourceId, wish, start, end);
+      const countIndex = requests.push({ wish, start, end }) - 1;
+      const todayIndex = wish.period === 'day' ? countIndex : requests.push({ wish, start: todayStart, end: asOf }) - 1;
+      return { wish, start, countIndex, todayIndex };
+    });
+    const counts = store.countMany ? store.countMany(source.sourceId, requests)
+      : requests.map(({ wish, start, end }) => store.count(source.sourceId, wish, start, end));
+    const items = wishes.map(({ wish, start, countIndex, todayIndex }) => {
+      const count = counts[countIndex];
       return {
         id: wish.id,
         period: wish.period,
         giftId: wish.gift_id,
         giftName: wish.gift_name,
         giftCategory: wish.gift_category,
-        imagePath: artwork.get(wish.variant_id || wish.gift_id) || wish.image_path,
+        imagePath: artwork(wish.variant_id || wish.gift_id) || wish.image_path,
         target: wish.target,
         label: wish.label,
         displayStyle: wish.display_style,
@@ -92,7 +103,7 @@ function createGiftWishService({ store, gifts, catalog, getRoomId, now = Date.no
         textReceivedColor: wish.text_received_color,
         createdAt: wish.created_at,
         count,
-        todayCount: wish.period === 'day' ? count : store.count(source.sourceId, wish, todayStart, asOf),
+        todayCount: counts[todayIndex],
         remaining: Math.max(0, wish.target - count),
         completed: count >= wish.target,
         progress: Math.min(100, Math.floor((count / wish.target) * 100)),

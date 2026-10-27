@@ -8,6 +8,45 @@ const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('../helpers/ai-settings-fixture');
 
+test('subscription keeps API secrets separate and uses account status, model lookup and login actions', async () => {
+  const status = { available: true, pending: false, ready: true, loggedIn: true, activeId: 'account-1', profiles: [{ id: 'account-1', label: '测试账号 · 1', loggedIn: true }] };
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', modelAuthMode: 'subscription' }, request: (url) => {
+    if (url === '/api/ai/status') return aiResponse({ queued: 0, chatgpt: status });
+    if (url.startsWith('/api/ai/chatgpt/')) return aiResponse({ ...status, pending: url.endsWith('/login') });
+  } });
+  assert.equal(f.elements.get('xiaomiAiChatGptAccount').hidden, false);
+  assert.equal(f.elements.get('xiaomiAiEndpointControl').hidden, true);
+  assert.equal(f.elements.get('xiaomiAiKeyControl').hidden, true);
+  assert.equal(f.elements.get('xiaomiAiModelControl').hidden, false);
+  assert.equal(f.elements.get('xiaomiAiToolsControl').hidden, false);
+  f.elements.get('xiaomiAiDeepSeekKey').value = 'private-api-draft';
+  await f.fire('xiaomiAiFetchModelsBtn', 'click');
+  const lookup = JSON.parse(f.calls.find(call => call.url === '/api/ai/models').options.body);
+  assert.equal(lookup.modelAuthMode, 'subscription');
+  assert.equal(lookup.apiKey, '');
+  f.input('xiaomiAiTrigger', '助手');
+  await f.advance(700);
+  assert.equal(f.saves()[0].deepseekApiKey, undefined);
+  assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, 'private-api-draft');
+  await f.fire('xiaomiAiChatGptLogin', 'click');
+  assert.equal(f.elements.get('xiaomiAiChatGptLogin').disabled, true);
+  assert.equal(f.elements.get('xiaomiAiChatGptCancel').hidden, false);
+  f.elements.get('xiaomiAiForm').checkValidity = () => false;
+  await f.fire('xiaomiAiChatGptCancel', 'click');
+  assert.ok(f.calls.some(call => call.url === '/api/ai/chatgpt/cancel'));
+});
+
+test('Kimi presents API access and explains the separate coding subscription', async () => {
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'kimi', deepseekResponsesUrl: 'https://api.moonshot.cn/v1',
+    modelEndpoint: { webSearchMode: 'local_function', reasoningMode: 'kimi_thinking' } } });
+  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, true);
+  assert.equal(f.elements.get('xiaomiAiAuthModeControl').hidden, true);
+  assert.equal(f.elements.get('xiaomiAiChatGptAccount').hidden, true);
+  assert.match(f.elements.get('xiaomiAiProviderAccessNote').textContent, /Kimi Code/);
+  assert.equal(f.elements.get('xiaomiAiReasoningControl').hidden, false);
+  assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, true);
+});
+
 test('Doubao shows account actions, hides API inputs and preserves their drafts', async () => {
   const status = { available: true, loggedIn: true, needsVerification: true, encryptionAvailable: true };
   const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' },
@@ -73,6 +112,7 @@ test('AI initial load preserves edits and blocks saving before configuration arr
   assert.deepEqual(f.saves()[0], {
     trigger: '小米',
     modelProvider: 'custom',
+    modelAuthMode: 'api',
     modelApiProtocol: 'responses',
     deepseekResponsesUrl: edits.xiaomiAiDeepSeekUrl,
     deepseekApiKey: 'deepseek-secret',
@@ -615,6 +655,7 @@ test('AI model listing uses draft credentials and saves a selected model after r
     apiKey: 'deepseek-secret',
     apiUrl: 'https://api.deepseek.com/responses',
     modelProvider: 'custom',
+    modelAuthMode: 'api',
     modelApiProtocol: 'responses',
   });
   const menu = f.elements.get('xiaomiAiModelMenu');
@@ -702,7 +743,7 @@ test('AI DeepSeek preset locks the endpoint and shows local search and DeepSeek 
   assert.equal(elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
   assert.equal(elements.get('xiaomiAiWebSearchLabel').textContent, 'LIRA 联网搜索');
   assert.match(elements.get('xiaomiAiWebSearchHelp').textContent, /允许模型调用工具/);
-  assert.match(elements.get('xiaomiAiReasoningHelp').textContent, /DeepSeek 支持低、高、最高/);
+  assert.match(elements.get('xiaomiAiReasoningHelp').textContent, /DeepSeek 支持「低」「高」「最高」/);
   assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
   assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
   assert.equal(elements.get('xiaomiAiReasoningLabel').textContent, '深度思考');

@@ -6,7 +6,7 @@
           <legend>
             🔐 B 站账号登录
             <lira-help
-              >用于接收弹幕、礼物和机器人发言，可登录机器人账号。用哔哩哔哩 App 扫码后，填写直播间号并保存。服务端默认持续监控，关闭 LIRA 也会接收；可在弹幕姬和礼物页分别关闭。退出此账号会停止两项监控，请等待同步完成。</lira-help
+              >用于接收弹幕、礼物和机器人发言，可登录机器人账号。用哔哩哔哩 App 扫码后，填写直播间号并保存。服务端默认持续监控，关闭 LIRA 后仍会接收；可在弹幕姬和礼物页分别关闭。退出此账号会停止两项监控，请等待同步完成。</lira-help
             >
           </legend>
           <div class="bilibili-auth-row">
@@ -40,7 +40,7 @@
         <fieldset class="theme-section">
           <legend>
             连接你的 B 站直播间
-            <lira-help>请务必填写你自己的直播间房间号或链接，保存设置后显示房主资料。</lira-help>
+            <lira-help>请填写你自己的直播间号或链接，保存后会显示房主资料。</lira-help>
           </legend>
           <div class="bilibili-room-row" aria-live="polite">
             <span id="bilibiliRoomStatus" class="pill warn" style="padding: 2px 7px">未设置</span>
@@ -61,7 +61,7 @@
         <fieldset id="guardExpirySettings" class="theme-section guard-expiry-settings">
           <legend>
             大航海到期同步（可选）
-            <lira-help>仅用于同步大航海到期日期，在服务端主播中心总览查看。上方已登录房主账号时直接复用；使用机器人账号时，可单独登录房主。独立登录与上方账号隔离，不用于弹幕、礼物或机器人，退出也不影响上方账号。账号来源选择后立即保存；切回复用会移除独立登录。</lira-help>
+            <lira-help>仅用于同步大航海到期日期，可在服务端主播中心总览查看。上方登录的是房主账号时可直接复用；使用机器人账号时，可单独登录房主。独立登录与上方账号隔离，不用于弹幕、礼物或机器人，退出也不影响上方账号。账号来源选择后立即保存；切回「使用上方登录账号」会移除独立登录。</lira-help>
           </legend>
           <div class="bilibili-auth-row">
             <label for="guardExpirySource">账号来源</label>

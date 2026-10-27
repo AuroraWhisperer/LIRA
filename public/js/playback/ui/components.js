@@ -254,7 +254,7 @@ export function renderPendingRow(item, index) {
         <div class="meta">${escapeHtml(`候选：${track.title || ''} · ${PlaybackUtils.formatTrackMeta(track)} · ${item.score || 0} 分 · ${reasons || '无命中原因'}`)}</div>
       </div>
       <div class="queue-actions">
-        <button type="button" data-playback-pending-action="confirm" data-playback-pending-index="${index}">下一首播放</button>
+        <button type="button" data-playback-pending-action="confirm" data-playback-pending-index="${index}">设为下一首</button>
         <button type="button" data-playback-pending-action="ignore" data-playback-pending-index="${index}">跳过</button>
       </div>
     </div>

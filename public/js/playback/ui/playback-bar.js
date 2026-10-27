@@ -280,8 +280,8 @@ export class PlaybackBar {
     if (sourceStatus) {
       sourceStatus.textContent = isWeSing
         ? healthState?.platformDetected
-          ? '已检测到全民 K歌'
-          : '全民 K歌等待检测'
+          ? '已检测到全民 K 歌'
+          : '全民 K 歌等待检测'
         : loggedIn
           ? `${sourceName}已检测到登录`
           : `${sourceName}待登录`;
@@ -294,7 +294,7 @@ export class PlaybackBar {
     const logoutBtn = document.getElementById('playbackLogoutBtn');
     if (loginBtn && logoutBtn) {
       // 始终更新登录按钮文本，确保切换音乐源时文本正确
-      loginBtn.textContent = `登录${sourceName}`;
+      loginBtn.textContent = `登录 ${sourceName}`;
 
       const canLogin = !isWeSing && !loggedIn;
       const canLogout = !isWeSing && loggedIn;

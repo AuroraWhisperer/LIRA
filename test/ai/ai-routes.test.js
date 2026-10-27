@@ -30,6 +30,20 @@ test('AI route allowed keys come from the config contract', () => {
   assert.deepEqual([...ALLOWED_KEYS].sort(), Object.keys(AI_CONFIG_DEFAULTS).sort());
 });
 
+test('ChatGPT routes pass only account selections and reject invalid inputs before side effects', async () => {
+  let received;
+  const context = { ai: { openChatGptLogin: async input => { received = input; return { pending: true }; },
+    selectChatGptAccount: () => assert.fail('invalid selection must not reach the session') } };
+  const res = createResponseRecorder();
+  await routes['POST /api/ai/chatgpt/login'](context, { body: async () => ({ newAccount: true, url: 'https://attacker.test', token: 'do-not-accept' }) }, res);
+  assert.deepEqual(received, { profileId: undefined, newAccount: true });
+  assert.equal(JSON.parse(res.body).data.pending, true);
+  for (const profileId of [null, {}, 'x'.repeat(81)]) {
+    await routes['POST /api/ai/chatgpt/select'](context, { body: async () => ({ profileId }) }, res);
+    assert.equal(res.statusCode, 400);
+  }
+});
+
 test('Doubao account routes accept no credentials or navigation inputs and report desktop unavailability safely', async () => {
   const { createDoubaoClient } = require('../../src/ai/doubao-client');
   const client = createDoubaoClient();
@@ -48,7 +62,7 @@ test('Doubao account routes accept no credentials or navigation inputs and repor
   }
 });
 
-test('Doubao account HTTP routes receive the session through AI runtime composition', async (t) => {
+test('AI account HTTP routes use runtime composition and require admin authorization', async (t) => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
   let loggedIn = false;
@@ -103,6 +117,20 @@ test('Doubao account HTTP routes receive the session through AI runtime composit
   }
   assert.equal(openLogin.mock.callCount(), 1);
   assert.equal(logout.mock.callCount(), 1);
+  for (const route of Object.keys(routes).filter(key => key.includes('/chatgpt/'))) {
+    const [method, pathname] = route.split(' ');
+    const anonymous = await fetch(`${origin}${pathname}`, { method });
+    assert.equal(anonymous.status, 401, route);
+    await anonymous.arrayBuffer();
+  }
+  const headers = { Authorization: `Bearer ${sessionToken}` };
+  const status = await fetch(`${origin}/api/ai/chatgpt/status`, { headers });
+  assert.equal(status.status, 200);
+  assert.deepEqual((await status.json()).data, { available: false, pending: false, activeId: '', loggedIn: false,
+    ready: false, profiles: [], lastError: '' });
+  const login = await fetch(`${origin}/api/ai/chatgpt/login`, { method: 'POST', headers });
+  assert.equal(login.status, 400);
+  assert.equal((await login.json()).code, 'CHATGPT_UNAVAILABLE');
 });
 
 test('saving disabled through the config route aborts accepted work after committing the setting', async (t) => {
@@ -298,7 +326,7 @@ test('AI models route rejects an invalid temporary key before calling the servic
   assert.doesNotMatch(res.body, /xxxxxxxx/);
 });
 
-test('AI models route rejects unknown provider and protocol values', async () => {
+test('AI models route rejects invalid provider, protocol and authentication mode values', async () => {
   let called = false;
   const context = {
     ai: {
@@ -326,6 +354,11 @@ test('AI models route rejects unknown provider and protocol values', async () =>
     protocolRes,
   );
   assert.equal(protocolRes.statusCode, 400);
+  for (const modelAuthMode of ['unknown', false, 0, {}, 'x'.repeat(33)]) {
+    const authRes = createResponseRecorder();
+    await routes['POST /api/ai/models'](context, { body: async () => ({ modelAuthMode }) }, authRes);
+    assert.equal(authRes.statusCode, 400);
+  }
   assert.equal(called, false);
 });
 

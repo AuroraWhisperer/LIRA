@@ -1,6 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { useSharedBrowser } = require('../helpers/shared-browser');
@@ -9,6 +11,187 @@ const { DANMAKU_STYLE_OPTIONS } = require('../../src/shared/danmaku-style-option
 const openBrowserSession = useSharedBrowser();
 const styledMotion = Object.keys(DANMAKU_STYLE_OPTIONS)
   .filter(style => DANMAKU_STYLE_OPTIONS[style].scrollDirection && style !== 'moonlit');
+
+test('notebook pauses old paper independently, keeps emotes static and renders event avatars inside their frames', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'notebook');
+  await page.evaluate(() => {
+    feed.render([]);
+    feed.append({ id: 'notebook-chat', name: '观众', message: '[表情]', roomGuardLevel: 1,
+      avatarUrl: '/img/overlays/danmaku-notebook/bilibili-noface.jpg',
+      emotes: [{ text: '[表情]', url: '/img/overlays/danmaku-notebook/bilibili-noface.jpg', width: 180, height: 180 }] });
+  });
+  await page.waitForFunction(() => root.querySelector('.notebook-item') && !root.querySelector('[data-live-entry]'));
+  const before = await page.locator('.notebook-item').evaluate(node => {
+    const paper = node.querySelector('.notebook-paper-float');
+    const avatar = node.querySelector('.notebook-portrait-sway');
+    return { paperTime: paper.getAnimations()[0].currentTime, avatarTime: avatar.getAnimations()[0].currentTime,
+      emoteAnimations: node.querySelector('.draw-danmaku-emote').getAnimations().length,
+      paperState: getComputedStyle(paper).animationPlayState,
+      headingOpacity: getComputedStyle(node.querySelector('.notebook-heading')).opacity,
+      bodyOpacity: getComputedStyle(node.querySelector('.notebook-copy')).opacity };
+  });
+  assert.equal(before.paperState, 'running');
+  assert.equal(before.emoteAnimations, 0);
+  assert.equal(before.headingOpacity, '1');
+  assert.equal(before.bodyOpacity, '1');
+  await page.evaluate(() => feed.append({ id: 'notebook-gift', kind: 'gift', name: '送礼者',
+    giftName: '小花', giftCount: 2, giftTotalPrice: 9.9 }));
+  await page.waitForFunction(previous => root.querySelector('.notebook-portrait-sway').getAnimations()[0].currentTime > previous + 100, before.avatarTime);
+  const paused = await page.locator('.notebook-item').first().evaluate(node => ({
+    paperTime: node.querySelector('.notebook-paper-float').getAnimations()[0].currentTime,
+    state: getComputedStyle(node.querySelector('.notebook-paper-float')).animationPlayState,
+  }));
+  assert.equal(paused.state, 'paused');
+  await page.waitForFunction(() => !root.querySelector('[data-live-entry]'));
+  const settled = await page.evaluate(() => {
+    const old = root.querySelector('.notebook-item');
+    const gift = root.querySelector('[data-notebook-kind="gift"]');
+    const avatar = gift.querySelector('.notebook-avatar');
+    return { paperTime: old.querySelector('.notebook-paper-float').getAnimations()[0].currentTime,
+      giftDisplay: getComputedStyle(gift).display, giftBackground: getComputedStyle(gift).backgroundImage,
+      avatarFont: parseFloat(getComputedStyle(avatar).fontSize), avatarHeight: avatar.getBoundingClientRect().height,
+      amount: gift.querySelector('.notebook-amount').textContent };
+  });
+  assert.ok(Math.abs(settled.paperTime - paused.paperTime) < 2);
+  assert.equal(settled.giftDisplay, 'flex');
+  assert.equal(settled.giftBackground, 'none');
+  assert.ok(settled.avatarFont > 0);
+  assert.ok(settled.avatarHeight > 20);
+  assert.equal(settled.amount, 'CN¥9.9');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => root.getAnimations({ subtree: true }).length === 0);
+  const snapshot = await page.evaluate(() => {
+    feed.render([{ name: '重建快照', message: '直接显示完整正文。' }]);
+    return { entries: root.querySelectorAll('[data-live-entry]').length,
+      opacity: getComputedStyle(root.querySelector('.notebook-copy')).opacity };
+  });
+  assert.deepEqual(snapshot, { entries: 0, opacity: '1' });
+  const longNames = await page.evaluate(() => {
+    const name = '十六个汉字组成的最长直播观众昵称';
+    feed.render([{ name, message: '短正文', roomGuardLevel: 1 },
+      { kind: 'gift', name, giftName: '超长礼物名称也应该完整显示', giftCount: 99, giftTotalPrice: 123456.78 }]);
+    return [...root.querySelectorAll('.notebook-name')].map(node => ({ text: node.textContent,
+      overflow: getComputedStyle(node).textOverflow, clipped: node.scrollWidth > node.clientWidth + 1 }));
+  });
+  assert.equal(longNames.length, 2);
+  assert.ok(longNames.every(name => name.overflow !== 'ellipsis' && !name.clipped));
+});
+
+test('spooky palette fills have independent alpha without fading text, decorations or replaying messages', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'spooky');
+  const markup = fs.readFileSync(path.join(__dirname, '../../public/pages/overlays/danmaku.html'), 'utf8');
+  const result = await page.evaluate(async markup => {
+    const source = new DOMParser().parseFromString(markup, 'text/html');
+    const stage = document.querySelector('.danmaku-signal-stage');
+    stage.prepend(source.querySelector('.spooky-frame'));
+    Object.assign(stage.style, { width: '530px', height: '940px' });
+    feed.render([{ name: '聊天者', message: '文字保持清晰' },
+      { kind: 'gift', name: '送礼者', giftName: '小心心', giftCount: 2, giftTotalPrice: 10 },
+      { kind: 'superchat', name: '留言者', message: 'SC 正文独立于事件底色', price: 50 }]);
+    await new Promise(requestAnimationFrame);
+    const rows = Array.from(root.children);
+    const chat = root.querySelector('.spooky-copy').closest('.spooky-item');
+    const gift = root.querySelector('.is-gift');
+    const sc = root.querySelector('.spooky-sc');
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    const options = { spookyTheme: 'moonlight', textColor: '#efefef', spookyFrameColor: '#123456',
+      spookyMessageColor: '#234567', spookyEventColor: '#345678', spookyAccentColor: '#cc6600',
+      spookyFrameOpacity: 0, spookyMessageOpacity: 40, spookyEventOpacity: 75 };
+    applyStyleOptions(document, 'spooky', { spooky: options });
+    const context = document.createElement('canvas').getContext('2d');
+    function alpha(color) {
+      context.clearRect(0, 0, 1, 1); context.fillStyle = color; context.fillRect(0, 0, 1, 1);
+      return context.getImageData(0, 0, 1, 1).data[3];
+    }
+    function gradientAlphas(element) {
+      return getComputedStyle(element).backgroundImage.match(/color\([^)]*\)/g).map(alpha);
+    }
+    const custom = {
+      frame: gradientAlphas(stage.querySelector('.spooky-frame-board')),
+      framePaper: alpha(getComputedStyle(stage.querySelector('.spooky-frame-paper')).backgroundColor),
+      chat: gradientAlphas(chat.querySelector('.spooky-board')),
+      backPaper: gradientAlphas(chat.querySelector('.spooky-back-paper')),
+      frontPaper: alpha(getComputedStyle(chat.querySelector('.spooky-front-paper')).backgroundColor),
+      gift: alpha(getComputedStyle(gift.querySelector('.spooky-board')).backgroundColor),
+      sc: alpha(getComputedStyle(sc.querySelector('.spooky-board')).backgroundColor),
+      text: [chat.querySelector('.spooky-copy'), sc.querySelector('.spooky-sc-copy')].map(node => getComputedStyle(node).color),
+      opacity: [chat, chat.querySelector('.spooky-board'), chat.querySelector('.spooky-copy'), chat.querySelector('.spooky-sticker'), stage.querySelector('.spooky-frame-outline')].map(node => getComputedStyle(node).opacity),
+      accent: getComputedStyle(chat.querySelector('.spooky-star')).backgroundColor,
+    };
+    applyStyleOptions(document, 'spooky', { spooky: { spookyTheme: 'autumn' } });
+    return { custom, retained: rows.every((node, index) => root.children[index] === node),
+      replayed: rows.some(node => node.hasAttribute('data-live-entry')),
+      restoredInk: getComputedStyle(chat.querySelector('.spooky-copy')).color,
+      restoredChat: gradientAlphas(chat.querySelector('.spooky-board')),
+      restoredEvent: alpha(getComputedStyle(gift.querySelector('.spooky-board')).backgroundColor),
+      restoredFrame: gradientAlphas(stage.querySelector('.spooky-frame-board')) };
+  }, markup);
+  assert.deepEqual(result.custom.frame, [0, 0]);
+  assert.equal(result.custom.framePaper, 0);
+  assert.deepEqual(result.custom.chat, [102, 102]);
+  assert.deepEqual(result.custom.backPaper, [102, 102]);
+  assert.equal(result.custom.frontPaper, 102);
+  assert.equal(result.custom.gift, 191);
+  assert.equal(result.custom.sc, 191);
+  assert.deepEqual(result.custom.text, ['rgb(239, 239, 239)', 'rgb(239, 239, 239)']);
+  assert.ok(result.custom.opacity.every(value => value === '1'));
+  assert.notEqual(result.custom.accent, 'rgb(166, 187, 255)');
+  assert.equal(result.retained, true);
+  assert.equal(result.replayed, false);
+  assert.equal(result.restoredInk, 'rgb(255, 241, 209)');
+  assert.deepEqual(result.restoredChat, [255, 255]);
+  assert.equal(result.restoredEvent, 255);
+  assert.deepEqual(result.restoredFrame, [255, 255]);
+});
+
+test('spooky frame keeps stickers visible, uses its own ink, and fits a full-width long SC', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'spooky');
+  await page.setViewportSize({ width: 640, height: 700 });
+  const markup = fs.readFileSync(path.join(__dirname, '../../public/pages/overlays/danmaku.html'), 'utf8');
+  const result = await page.evaluate(async markup => {
+    const source = new DOMParser().parseFromString(markup, 'text/html');
+    const stage = document.querySelector('.danmaku-signal-stage');
+    stage.prepend(source.querySelector('.spooky-frame'));
+    Object.assign(stage.style, { width: '530px', height: '620px' });
+    feed.render([{ name: '真实昵称', message: '晚安', roomGuardLevel: 3 }]);
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    const name = root.querySelector('.spooky-name');
+    const sticker = root.querySelector('.spooky-sticker').getBoundingClientRect();
+    const ink = getComputedStyle(name).color;
+    const stickerInside = sticker.right <= root.getBoundingClientRect().right + .5;
+    const clip = getComputedStyle(root.firstElementChild).clipPath;
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    applyStyleOptions(document, 'spooky', { spooky: { fontFamily: '"Arial"' } });
+    const customNameFont = getComputedStyle(name).fontFamily;
+    const customCopyFont = getComputedStyle(root.querySelector('.spooky-copy')).fontFamily;
+    feed.render([{ kind: 'gift', name: '送礼者', giftName: '小心心', giftCount: 10, giftTotalPrice: 50 }]);
+    await new Promise(requestAnimationFrame);
+    const giftFont = parseFloat(getComputedStyle(root.querySelector('.spooky-event-copy')).fontSize);
+    const message = '把这首歌送给认真生活的大家，希望每个人都能有一个安静而温柔的夜晚。'.repeat(5);
+    feed.render([{ kind: 'superchat', name: '完整留言者', message, price: 50 }]);
+    await new Promise(requestAnimationFrame);
+    const top = root.getBoundingClientRect().top;
+    const sender = root.querySelector('.spooky-event-name').getBoundingClientRect();
+    const copy = root.querySelector('.spooky-sc-copy');
+    const copyClearOfSticker = copy.getBoundingClientRect().bottom <= root.querySelector('.spooky-sticker').getBoundingClientRect().top + .5;
+    return { ink, clip, stickerInside, customNameFont, customCopyFont, giftFont, senderInside: sender.top >= top - .5,
+      message: copy.textContent, expected: message, copyClearOfSticker, fullWidth: copy.parentElement.classList.contains('spooky-board'),
+      overflow: copy.scrollWidth - copy.clientWidth, frames: stage.querySelectorAll('.spooky-frame').length };
+  }, markup);
+  assert.equal(result.ink, 'rgb(252, 230, 250)');
+  assert.equal(result.clip, 'none');
+  assert.equal(result.stickerInside, true);
+  assert.match(result.customNameFont, /Arial/);
+  assert.match(result.customCopyFont, /Arial/);
+  assert.ok(result.giftFont <= 15, 'generic gift CSS must not enlarge this style’s event copy');
+  assert.equal(result.senderInside, true);
+  assert.equal(result.message, result.expected);
+  assert.equal(result.fullWidth, true);
+  assert.equal(result.copyClearOfSticker, true, 'the bat sticker must not cover the final SC line');
+  assert.ok(result.overflow <= 1);
+  assert.equal(result.frames, 1);
+});
 
 async function preview(t, direction, scale, style = 'moonlit') {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
@@ -253,3 +436,235 @@ for (const style of styledMotion) {
     });
   }
 }
+
+test('flower-letter grows paper without stretching flowers and retains real content during mixed arrivals', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'flower-letter');
+  await page.setViewportSize({ width: 640, height: 940 });
+  const result = await page.evaluate(async () => {
+    document.querySelector('.danmaku-signal-stage').style.height = '940px';
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    applyStyleOptions(document, 'flower-letter', {});
+    const base = { name: '真实昵称', timestamp: '2026-10-26T13:28:00+08:00', roomGuardLevel: 3, roomMedal: { name: '来信', level: 25 } };
+    feed.render([{ ...base, message: '短消息' }]);
+    await document.fonts.ready;
+    await new Promise(requestAnimationFrame);
+    const short = root.firstElementChild;
+    const shortHeight = short.offsetHeight;
+    const decorationHeight = short.querySelector('.flower-decoration').offsetHeight;
+    const message = '长消息会延展纸面，花叶保持比例。'.repeat(8);
+    feed.render([{ ...base, message }]);
+    await new Promise(requestAnimationFrame);
+    const long = root.firstElementChild;
+    const copy = long.querySelector('.flower-copy');
+    const longResult = { shortHeight, longHeight: long.offsetHeight, decorationHeight,
+      longDecorationHeight: long.querySelector('.flower-decoration').offsetHeight,
+      text: copy.textContent, expected: message,
+      clearOfSignature: copy.getBoundingClientRect().bottom < long.querySelector('.flower-signature').getBoundingClientRect().top,
+      font: getComputedStyle(copy).fontFamily };
+    feed.render([]);
+    const rows = [
+      { ...base, message: '混排[星]', emotes: [{ text: '[星]', url: '/img/overlays/danmaku-ranked/viewer.webp', kind: 'inline' }] },
+      { kind: 'gift', name: '送礼者', giftName: '小花花', giftCount: 5, giftTotalPrice: 0.5 },
+      { kind: 'gift', name: '免费礼物', giftName: '小心心', giftCount: 24, giftTotalPrice: 0 },
+      { kind: 'gift', name: '上舰者', giftGuardLevel: 1, giftCount: 1, guardAction: 'open' },
+      { kind: 'superchat', name: '留言者', price: 1000, message: '第一行\n第二行' },
+    ];
+    for (const row of rows) { feed.append(row); await new Promise(requestAnimationFrame); }
+    return { ...longResult, variants: Array.from(root.children).map(n => n.className),
+      emotes: root.querySelectorAll('.draw-danmaku-emote').length,
+      amounts: Array.from(root.querySelectorAll('.flower-price')).map(n => n.textContent),
+      duplicates: root.querySelectorAll('.flower-from').length,
+      badArtwork: Array.from(root.querySelectorAll('img.flower-paper,img.flower-decoration')).filter(n => n.complete && !n.naturalWidth).length };
+  });
+  assert.ok(result.longHeight > result.shortHeight);
+  assert.equal(result.decorationHeight, result.longDecorationHeight);
+  assert.equal(result.text, result.expected);
+  assert.equal(result.clearOfSignature, true);
+  assert.match(result.font, /Lira Yozai/);
+  assert.equal(result.emotes, 1);
+  assert.deepEqual(result.amounts, ['CN¥0.5', 'CN¥1,000']);
+  assert.equal(result.duplicates, 2);
+  assert.equal(result.badArtwork, 0);
+  assert.equal(result.variants.length, 5);
+  assert.ok(result.variants.some(value => value.includes('flower-small-gift')));
+  assert.ok(result.variants.some(value => value.includes('flower-join')));
+});
+
+test('twitter dense mixed arrivals preserve text, vectors and the social-card grid', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'twitter');
+  const longMessage = '长正文需要完整保留并且不能挤压相邻卡片。'.repeat(8) + '[合成表情]';
+  const result = await page.evaluate(async longCopy => {
+    feed.render([]);
+    const emote = { text: '[合成表情]', url: '/img/overlays/danmaku-ranked/viewer.webp', width: 20, height: 20 };
+    const samples = [
+      { id: 'long', name: '长文观众', message: longCopy, emotes: [emote] },
+      { id: 'repeat-one', name: '观众一', message: '重复文本' },
+      { id: 'gift', kind: 'gift', name: '礼物观众', giftName: '小花花', giftCount: 2, giftTotalPrice: 2 },
+      { id: 'guard', kind: 'gift', name: '提督观众', giftName: '提督', giftCount: 1, giftGuardLevel: 2 },
+      { id: 'sc', kind: 'superchat', name: '留言观众', price: 100, message: '完整醒目留言，保留原文。' },
+      { id: 'repeat-two', name: '观众二', message: '重复文本' },
+    ];
+    samples.forEach(item => feed.append(item));
+    await new Promise(requestAnimationFrame);
+    freezeMoves(120);
+    const old = Array.from(root.children);
+    const tops = old.map(node => node.getBoundingClientRect().top);
+    const text = old.map(node => node.textContent);
+    feed.append({ id: 'tail', name: '追加观众', message: '移动中继续追加。' });
+    await new Promise(requestAnimationFrame);
+    freezeMoves(0);
+    const cards = Array.from(root.children).map(node => {
+      const body = node.querySelector('.twitter-post-main');
+      const avatar = node.querySelector('.twitter-avatar');
+      const art = node.querySelector('.draw-danmaku-gift-art');
+      return {
+        kind: node.classList.contains('twitter-superchat') ? 'sc'
+          : node.classList.contains('twitter-guard') ? 'guard'
+            : node.classList.contains('twitter-gift') ? 'gift' : 'chat',
+        display: getComputedStyle(node).display,
+        zoom: Number.parseFloat(getComputedStyle(node).zoom) || 1,
+        width: node.getBoundingClientRect().width,
+        bodyOffset: body.getBoundingClientRect().left - node.getBoundingClientRect().left,
+        avatar: [avatar.offsetWidth, avatar.offsetHeight],
+        actions: node.querySelectorAll('.twitter-action-icon').length,
+        overflow: node.scrollWidth - node.clientWidth,
+        art: art ? [getComputedStyle(art).position, art.offsetWidth] : null,
+      };
+    });
+    const content = root.firstElementChild.querySelector('.twitter-post-content');
+    return {
+      cards,
+      rootWidth: root.clientWidth,
+      longText: Array.from(content.childNodes).map(node => node.tagName === 'IMG' ? node.alt : node.textContent).join(''),
+      emotes: content.querySelectorAll('.draw-danmaku-emote').length,
+      repeated: Array.from(root.querySelectorAll('.twitter-post-content'))
+        .filter(node => node.textContent === '重复文本').length,
+      maxDelta: Math.max(...old.map((node, index) => Math.abs(node.getBoundingClientRect().top - tops[index]))),
+      retained: old.every((node, index) => node.isConnected && node.textContent === text[index]),
+    };
+  }, longMessage);
+  assert.equal(result.cards.length, 7);
+  for (const card of result.cards) {
+    assert.equal(card.display, 'grid');
+    // Shared fitting may zoom an over-height card; its grid must scale with it.
+    assert.ok(Math.abs(card.width - result.rootWidth * card.zoom) < 0.1, JSON.stringify({ card, rootWidth: result.rootWidth }));
+    assert.ok(Math.abs(card.bodyOffset - 110 * card.zoom) < 0.1);
+    assert.deepEqual(card.avatar, [80, 80]);
+    assert.equal(card.actions, 4);
+    assert.ok(card.overflow <= 1);
+  }
+  assert.deepEqual(result.cards.find(card => card.kind === 'gift').art, ['static', 64]);
+  assert.deepEqual(result.cards.find(card => card.kind === 'guard').art, ['static', 84]);
+  assert.equal(result.longText, longMessage);
+  assert.equal(result.emotes, 1);
+  assert.equal(result.repeated, 2);
+  assert.ok(result.maxDelta < 0.1);
+  assert.equal(result.retained, true);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length));
+  await page.evaluate(() => feed.destroy());
+});
+test('RIPPLOID event roots retain their complete layer timelines', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'ripploid');
+  const events = [
+    [{ id: 'gift', kind: 'gift', name: '送礼观众', giftName: '友谊的大船', giftCount: 1, giftTotalPrice: 100 }, 2000],
+    [{ id: 'member', kind: 'gift', name: '新会员', giftGuardLevel: 2, giftName: '提督', giftTotalPrice: 1998 }, 1600],
+    [{ id: 'sc', kind: 'superchat', name: '留言观众', price: 100, message: '完整留言' }, 1900],
+  ];
+  for (const [item, expectedDuration] of events) {
+    const state = await page.evaluate(async item => {
+      feed.render([]);
+      feed.append(item);
+      await new Promise(requestAnimationFrame);
+      const card = root.firstElementChild;
+      const marker = card.getAnimations().find(animation => animation.animationName === 'ripploidMessageIn');
+      const layerCount = card.getAnimations({ subtree: true }).filter(animation => animation.animationName).length;
+      const duration = marker?.effect.getTiming().duration;
+      const liveBefore = card.hasAttribute('data-live-entry');
+      marker?.finish();
+      return { duration, layerCount, liveBefore };
+    }, item);
+    assert.equal(state.duration, expectedDuration, `${item.id} root marker matches its layer timeline`);
+    assert.ok(state.layerCount > 1, `${item.id} owns independent layer animations`);
+    assert.equal(state.liveBefore, true);
+    await page.waitForFunction(() => root.children.length === 1 &&
+      !root.firstElementChild.hasAttribute('data-live-entry') && !root.firstElementChild.getAnimations({ subtree: true }).length);
+  }
+  await page.evaluate(() => feed.destroy());
+});
+
+test('RIPPLOID cards share their right edge and decorations follow variable content height', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'ripploid');
+  const result = await page.evaluate(async () => {
+    const nextFrame = () => new Promise(requestAnimationFrame);
+    const bounds = element => {
+      if (!element) return null;
+      const rect = element.getBoundingClientRect();
+      return { right: rect.right, top: rect.top, height: rect.height, center: (rect.top + rect.bottom) / 2 };
+    };
+    const samples = [
+      { id: 'chat', name: '聊天观众', message: '晚上好', roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 },
+      { id: 'gift', kind: 'gift', name: '礼物观众', giftName: '友谊的大船', giftCount: 1, giftTotalPrice: 100 },
+      { id: 'member', kind: 'gift', name: '舰长观众', giftGuardLevel: 3, giftTotalPrice: 138 },
+      { id: 'sc', kind: 'superchat', name: '留言观众', price: 100, message: '完整留言' },
+    ];
+    const cards = [];
+    for (const item of samples) {
+      feed.render([item]);
+      await nextFrame();
+      const card = root.firstElementChild;
+      cards.push({
+        kind: card.classList.contains('ripploid-chat') ? 'chat'
+          : card.classList.contains('ripploid-gift') ? 'gift'
+            : card.classList.contains('ripploid-member') ? 'member' : 'superchat',
+        width: card.getBoundingClientRect().width,
+        root: bounds(card),
+        stage: bounds(card.querySelector('.ripploid-event-stage')),
+        ticket: bounds(card.querySelector('.ripploid-gift-ticket')),
+        avatar: bounds(card.querySelector('.ripploid-member-avatar-clip')),
+      });
+    }
+
+    const memberName = '一位名字特别长而且需要分成两行显示的舰长朋友';
+    feed.render([{ kind: 'gift', name: memberName, giftGuardLevel: 3, giftTotalPrice: 138 }]);
+    await nextFrame();
+    const name = root.querySelector('.ripploid-member-name');
+    const longName = {
+      text: name.textContent,
+      height: name.getBoundingClientRect().height,
+      lineHeight: parseFloat(getComputedStyle(name).lineHeight),
+    };
+
+    const chatItem = message => ({ name: '聊天观众', message, roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 });
+    const measureChat = () => ({
+      arrowCenter: bounds(root.querySelector('.ripploid-accent-arrow')).center,
+      medalCenter: bounds(root.querySelector('.draw-danmaku-medal')).center,
+      stemHeight: bounds(root.querySelector('.ripploid-accent-stem')).height,
+    });
+    feed.render([chatItem('一行正文')]);
+    await nextFrame();
+    const shortChat = measureChat();
+    feed.render([chatItem('正文增加一行以后，左侧线条应该继续延伸，箭头仍然指向当前房间灯牌。')]);
+    await nextFrame();
+    return { cards, memberName, longName, shortChat, longChat: measureChat() };
+  });
+
+  assert.ok(result.cards.every(card => Math.abs(card.width - 466) < 0.1));
+  for (const card of result.cards.filter(card => card.kind !== 'chat')) {
+    assert.ok(Math.abs(card.stage.right - card.root.right) < 0.1, `${card.kind} stage reaches the shared right edge`);
+    assert.ok(Math.abs(card.stage.height - card.root.height) < 0.1, `${card.kind} stage fills the card height`);
+  }
+  const member = result.cards.find(card => card.kind === 'member');
+  assert.ok(Math.abs(member.avatar.right - member.root.right) < 0.1);
+  const gift = result.cards.find(card => card.kind === 'gift');
+  assert.ok(Math.abs(gift.ticket.right - gift.root.right) < 0.1);
+  assert.ok(Math.abs(gift.ticket.top - gift.root.top) < 0.1, `ticket stays beside the gift main area: ${JSON.stringify(gift)}`);
+  assert.equal(result.longName.text, result.memberName);
+  assert.ok(result.longName.height > result.longName.lineHeight * 1.5);
+  assert.ok(result.longName.height <= result.longName.lineHeight * 2.1);
+  for (const chat of [result.shortChat, result.longChat]) {
+    assert.ok(Math.abs(chat.arrowCenter - chat.medalCenter) < 1, 'arrow points at the medal row');
+  }
+  assert.ok(result.longChat.stemHeight > result.shortChat.stemHeight + 10);
+  await page.evaluate(() => feed.destroy());
+});

@@ -43,7 +43,9 @@ test('sprint and blindbox have sibling component tabs, with sprint goal and canv
   assert.equal(await page.locator('#giftSprintForm').isVisible(), true);
   assert.equal(await page.locator('#giftSprintTargetRmb').count(), 1);
   await page.locator('#giftSprintOverlayUrl').click();
-  assert.equal(await page.evaluate(() => window.messages.filter(message => message === '月底冲刺地址已复制').length), 1);
+  const messages = await page.evaluate(() => window.messages);
+  assert.equal(messages.length, 1);
+  assert.match(messages[0], /月底冲刺.*已复制/);
   await page.locator('#giftSprintPreview').click();
   assert.equal(await page.evaluate(() => window.openedComponent), 'gift-sprint');
   assert.equal(await page.locator('#giftSprintOverlayUrl').textContent(), 'http://lira-ui.test/gift-sprint');

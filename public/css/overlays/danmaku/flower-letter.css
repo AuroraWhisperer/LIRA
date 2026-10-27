@@ -1,0 +1,144 @@
+/* 花与信笺：已认可的矢量复刻。只有纸面中段延展，花叶、邮戳及字形不拉伸。 */
+body[data-style='flower-letter'] {
+  --flower-font: 'Lira Yozai', KaiTi, serif;
+  --flower-ink: var(--danmaku-text-color, #766449);
+  --flower-type: calc(var(--danmaku-font-size, 24px) * 1.791666667);
+  --danmaku-enter-animation: flower-letter-entry 233ms ease-out;
+  --danmaku-move-base-ms: 240;
+  --danmaku-move-max-ms: 460;
+  --danmaku-move-curve: .22, .61, .36, 1;
+}
+body[data-style='flower-letter'][data-custom-font='true'] { --flower-font: var(--danmaku-custom-font); }
+body[data-style='flower-letter'] .danmaku-signal-header { display: none; }
+body[data-style='flower-letter'] .draw-danmaku-feed { gap: 13px; zoom: var(--ranked-scale); }
+body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item {
+  position: relative;
+  display: block;
+  width: 1080px;
+  min-width: 1080px;
+  max-width: 1080px;
+  min-height: var(--flower-base-height);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  clip-path: none;
+  overflow: visible;
+  isolation: isolate;
+  color: var(--flower-ink);
+  font: 400 var(--flower-type)/1.2 var(--flower-font);
+  zoom: .555555556;
+  animation: none;
+}
+body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item::after,
+body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item.is-gift::after { display: none; animation: none; }
+.flower-paper, .flower-decoration {
+  position: absolute;
+  left: 0;
+  width: 1080px;
+  pointer-events: none;
+}
+.flower-paper { z-index: 0; opacity: var(--danmaku-background-opacity, 1); }
+.flower-paper-top { top: 0; height: 60px; }
+.flower-paper-middle { top: 60px; bottom: var(--flower-bottom-height); height: calc(100% - var(--flower-base-height)); }
+.flower-paper-bottom { bottom: 0; height: var(--flower-bottom-height); }
+.flower-decoration { z-index: 3; bottom: 0; }
+.flower-ordinary .flower-decoration, .flower-small-gift .flower-decoration { top: 0; bottom: auto; }
+body[data-style='flower-letter'] .flower-letter-item .flower-content {
+  position: relative;
+  z-index: 4;
+  display: block;
+  min-width: 0;
+  min-height: var(--flower-base-height);
+  padding: 71px 194px 103.4px 84px;
+  color: inherit;
+  font: inherit;
+}
+body[data-style='flower-letter'] .flower-copy {
+  display: block;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: 500 1em/1.2 var(--flower-font);
+  -webkit-text-stroke: .25px currentColor;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body[data-style='flower-letter'] .flower-ordinary .flower-content { padding: 76px 194px 90.4px 176px; }
+.flower-greeting, .flower-signature {
+  position: absolute;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  white-space: nowrap;
+  font: 500 24px/1.2 var(--flower-font);
+}
+.flower-greeting { top: 32px; left: 84px; }
+.flower-signature { bottom: 64px; right: 90px; max-width: 880px; }
+.flower-ordinary .flower-greeting { top: 30px; left: 174px; right: 194px; font-size: 29px; }
+.flower-ordinary .flower-signature { bottom: 42px; }
+.flower-nickname { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.flower-greeting .flower-nickname, .flower-signature .flower-nickname { font-size: 28px; }
+.flower-time { font-size: 21px; font-weight: 400; flex: none; }
+.flower-medal { font-size: 25px; flex: none; }
+.flower-salutation { flex: none; }
+.flower-guard-icon { width: 32px; height: 32px; object-fit: contain; flex: none; align-self: center; }
+.flower-avatar, .flower-crest-avatar { position: absolute; overflow: hidden; background: #e5e6e6; }
+.flower-avatar { top: 34px; right: 84px; width: 77px; height: 72px; border-radius: 8px; }
+.flower-avatar-image, .flower-avatar-fallback { position: absolute; inset: 0; width: 100%; height: 100%; }
+.flower-avatar-image { object-fit: cover; }
+.flower-avatar-fallback { display: grid; place-items: center; font-size: 35px; color: #929690; }
+.flower-crest-avatar { bottom: 26px; left: 498px; width: 76px; height: 60px; mask: url('/img/overlays/danmaku-flower-letter/heart-mask.svg') center / 100% 100% no-repeat; }
+.flower-brush {
+  display: inline-block;
+  width: 55px;
+  height: 22px;
+  margin-left: 8px;
+  vertical-align: baseline;
+  background: currentColor;
+  clip-path: path('M3 12C8 7 12 8 18 11C24 14 33 3 49 2C58 2 59 7 52 10C38 13 31 16 24 20C16 24 15 15 8 17C3 20-1 17 3 12Z');
+}
+body[data-style='flower-letter'] .flower-content .draw-danmaku-emote {
+  display: inline-block;
+  width: auto;
+  height: 1.2em;
+  max-width: 100%;
+  margin: 0;
+  vertical-align: middle;
+  object-fit: contain;
+}
+body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-copy { height: 67.6px; }
+body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-content .draw-danmaku-emote { width: 150px; height: 150px; margin-top: -6px; }
+.flower-letter.is-emote-only .flower-content { min-height: 242px; }
+body[data-style='flower-letter'] .flower-gift .flower-content { padding: 55px 95px 145.4px 85px; }
+.flower-gift .flower-copy { text-align: center; }
+.flower-from { position: absolute; bottom: 43px; left: 61px; display: flex; gap: 6px; max-width: 410px; font-size: 31px; white-space: nowrap; }
+.flower-from .flower-nickname { font-weight: 500; }
+.flower-price { position: absolute; bottom: 36px; right: 105px; max-width: 420px; overflow: hidden; font-size: 43px; font-weight: 500; white-space: nowrap; }
+body[data-style='flower-letter'] .flower-superchat .flower-content { padding: 35px 80px 120.4px; }
+.flower-superchat .flower-from { bottom: 47px; }
+.flower-superchat .flower-price { right: 98px; bottom: 39px; }
+.flower-superchat .flower-crest-avatar { left: 504px; bottom: 27px; width: 74px; height: 58px; }
+body[data-style='flower-letter'] .flower-superchat:has(.flower-copy:empty) .flower-content { min-height: 207px; }
+body[data-style='flower-letter'] .flower-superchat:not(:has(.flower-copy:empty)) .flower-content { padding-bottom: 165.4px; }
+body[data-style='flower-letter'] .flower-join .flower-content { padding: 105px 125px 109.4px 115px; }
+body[data-style='flower-letter'] .flower-join .flower-copy { text-align: center; font-size: calc(var(--flower-type) * 1.930232558); }
+.flower-member-name { position: absolute; top: 50px; left: 372px; width: 326px; height: 51px; display: flex; gap: 5px; align-items: center; justify-content: center; padding: 0 10px; background: #796746; color: white; border-radius: 26px; font: 500 43px/1 var(--flower-font); white-space: nowrap; }
+.flower-member-name .flower-guard-icon { width: 35px; height: 35px; }
+.flower-join .flower-crest-avatar { left: 500px; bottom: 29px; width: 74px; height: 60px; }
+body[data-style='flower-letter'] .flower-join[data-flower-role='admiral'] .flower-content { padding-top: 106px; padding-bottom: 108.4px; }
+.flower-join[data-flower-role='governor'] .flower-content { translate: 6px; }
+body[data-style='flower-letter'] .flower-join[data-flower-role='captain'] .flower-content { padding: 118px 120px 130px; }
+.flower-join[data-flower-role='captain'] .flower-member-name { top: 47px; left: 292px; width: 488px; height: 64px; font-size: 52px; }
+body[data-style='flower-letter'] .flower-join[data-flower-role='captain'] .flower-copy { font-size: calc(var(--flower-type) * 2.558139535); }
+.flower-join[data-flower-role='captain'] .flower-crest-avatar { left: 477px; bottom: 29px; width: 122px; height: 84px; }
+body[data-style='flower-letter'] .flower-small-gift .flower-content { padding: 29px 80px 25.4px 206px; }
+body[data-style='flower-letter'] .flower-small-gift .flower-copy { display: flex; align-items: baseline; font-size: var(--flower-type); white-space: nowrap; -webkit-text-stroke: 0; }
+.flower-small-gift .flower-nickname { font-size: 25px; font-weight: 400; color: #766d5d; }
+.flower-small-gift .flower-gift-description { flex: none; }
+@keyframes flower-letter-entry { from { opacity: .8; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='flower-letter'] .flower-letter-item { animation: none !important; }
+}

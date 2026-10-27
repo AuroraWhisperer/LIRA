@@ -171,7 +171,7 @@ function snapshotFixture(t, { available = true } = {}) {
 
 test('music cookie snapshots are never written without safeStorage encryption', async (t) => {
   const { authManager, dataDir, snapshotPath } = snapshotFixture(t, { available: false });
-  await assert.rejects(authManager.persistMusicCookieSnapshot('qq', dataDir), /明文/);
+  await assert.rejects(authManager.persistMusicCookieSnapshot('qq', dataDir), /登录状态无法安全备份/);
   assert.equal(fs.existsSync(snapshotPath('qq')), false);
   assert.equal(fs.existsSync(path.join(dataDir, 'music-auth')), false);
 });

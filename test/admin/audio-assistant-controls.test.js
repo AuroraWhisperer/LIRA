@@ -186,7 +186,7 @@ test('music sources use readable names and hide unrecognized background apps wit
     { id: 'pid:4', name: 'WeSing · PID 4' },
   ]);
   assert.deepEqual(Array.from(options, ({ id, name }) => ({ id, name })), [
-    { id: 'auto', name: '自动识别正在播放的音乐（推荐）' },
+    { id: 'auto', name: '自动识别当前音乐（推荐）' },
     { id: 'file', name: '本地文件' },
     { id: 'input', name: '麦克风、线路或声卡回送' },
     { id: 'loopback', name: '播放设备里的声音' },
@@ -261,5 +261,5 @@ test('audio parameter queue reports failed changes before a caller starts playba
   assert.equal(await queue.flush(), true);
   assert.equal(formatAudioParameter('strength', 0), '原唱');
   assert.equal(formatAudioParameter('speedPercent', 150), '1.50×');
-  assert.equal(formatAudioParameter('semitones', -12), '-12 Key');
+  assert.equal(formatAudioParameter('semitones', -12), '-12 半音');
 });

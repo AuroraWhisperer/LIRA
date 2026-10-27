@@ -71,7 +71,7 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
     'scroll settings use the right column beside text layout controls');
   assert.ok(Math.abs(scrollBounds.y - layoutBounds.y) < 1,
     'both settings groups start on the same row');
-  const speed = desktop.getByRole('slider', { name: '滚动速率', exact: true });
+  const speed = desktop.getByRole('slider', { name: '滚动速度', exact: true });
   assert.equal(await speed.isDisabled(), true);
   await desktop.getByRole('switch', { name: '横向滚动', exact: true }).check({ force: true });
   await speed.fill('85');

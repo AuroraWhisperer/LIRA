@@ -5,8 +5,10 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-async function createFixture() {
+async function createFixture({ json = JSON } = {}) {
   const requests = [];
+  const urls = [];
+  const timers = new Map();
   const events = [];
   class Socket {
     constructor() {
@@ -25,6 +27,7 @@ async function createFixture() {
     },
   };
   const { StateService } = await loadModuleExports(path.resolve('public/js/admin/state.js'), {
+    JSON: json,
     window,
     location: { protocol: 'http:', host: '127.0.0.1:3000' },
     WebSocket: Socket,
@@ -34,14 +37,83 @@ async function createFixture() {
         this.detail = options.detail;
       }
     },
-    fetch: () => new Promise((resolve) => requests.push((data) => resolve({ json: async () => ({ ok: true, data }) }))),
-    setTimeout,
-    clearTimeout,
+    URLSearchParams,
+    fetch: (url) => {
+      urls.push(url);
+      return new Promise((resolve) => requests.push((data) => resolve({ json: async () => ({ ok: true, data }) })));
+    },
+    setTimeout(callback) { const id = {}; timers.set(id, callback); return id; },
+    clearTimeout(id) { timers.delete(id); },
   });
   const service = new StateService();
   service.connectSocket();
-  return { service, requests, events, eventBus: window.AdminApp.eventBus };
+  return { service, requests, urls, timers, events, eventBus: window.AdminApp.eventBus };
 }
+
+test('song filters only read songs and identical pending refreshes share a request', async () => {
+  const { service, requests, urls } = await createFixture();
+  const options = { filters: { query: 'example' } };
+  const first = service.reloadSongs(options);
+  const second = service.reloadSongs(options);
+  assert.deepEqual(urls, ['/api/songs?query=example']);
+  requests[0]([{ id: 1 }]);
+  await Promise.all([first, second]);
+  assert.equal(urls.length, 1);
+  assert.equal(service.getSongs()[0].id, 1);
+});
+
+test('snapshot comparison avoids serializing large fields and sees mutable and realtime updates', async () => {
+  let serialized = 0;
+  const { service, eventBus } = await createFixture({ json: { parse: JSON.parse,
+    stringify(value) { serialized++; return JSON.stringify(value); } } });
+  const changes = [];
+  eventBus.on('state:loaded', (payload) => changes.push(Array.from(payload.changedKeys)));
+  const snapshot = { settings: { roomId: '123' }, lyricTimeline: { lines: Array.from({ length: 2000 }, (_, i) => [i, '歌词']) } };
+  service.applySnapshot(snapshot);
+  service.applySnapshot(structuredClone(snapshot));
+  assert.equal(changes.length, 1);
+  service.getAppState().settings.roomId = 'local';
+  service.applySnapshot(structuredClone(snapshot));
+  assert.deepEqual(changes.at(-1), ['settings']);
+  service.applyRealtimeField('lyricTimeline', { lines: [[1, '更新']] });
+  service.applySnapshot(structuredClone(snapshot));
+  assert.deepEqual(changes.at(-1), ['lyricTimeline']);
+  assert.equal(serialized, 0);
+});
+
+test('mutation refresh consumes its queued song notification but preserves later invalidation', async () => {
+  const { service, requests, urls, timers } = await createFixture();
+  service.ws.receive({ type: 'snapshot', reason: 'songs:add', state: { categories: [] } });
+  const mutationRefresh = service.reloadAll();
+  requests[0]({ categories: [] });
+  await new Promise(setImmediate);
+  assert.equal(timers.size, 0);
+  assert.deepEqual(urls, ['/api/state', '/api/songs?']);
+  service.ws.receive({ type: 'snapshot', reason: 'cloud:songs', state: { categories: [] } });
+  const [id, refresh] = [...timers][0];
+  timers.delete(id);
+  refresh();
+  assert.equal(urls.length, 3);
+  requests[2]([{ id: 2 }]);
+  await new Promise(setImmediate);
+  requests[1]([{ id: 1 }]);
+  await mutationRefresh;
+  assert.equal(service.getSongs()[0].id, 2);
+});
+
+test('a mutation without a socket echo cannot reuse a pre-mutation song request', async () => {
+  const { service, requests, urls } = await createFixture();
+  const old = service.reloadSongs();
+  const mutationRefresh = service.reloadAll();
+  requests[1]({ categories: [] });
+  await new Promise(setImmediate);
+  assert.deepEqual(urls, ['/api/songs?', '/api/state', '/api/songs?']);
+  requests[2]([{ id: 2 }]);
+  await mutationRefresh;
+  requests[0]([{ id: 1 }]);
+  await old;
+  assert.equal(service.getSongs()[0].id, 2);
+});
 
 test('an older HTTP snapshot cannot replace a newer WebSocket snapshot', async () => {
   const { service, requests } = await createFixture();

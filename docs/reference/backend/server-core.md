@@ -121,6 +121,8 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 `server.js` 注入 getter，由 [runtime-api-context.js](../../../src/server/runtime-api-context.js) 的 `createRuntimeApiContextFactory` 在每次请求时读取当前运行时依赖，再由 [api-context.js](../../../src/server/api-context.js) 构建 Context。Context 按歌曲、礼物、播放、互动等领域分组，包含场景、动态抽奖、礼物卡片/心愿等端口；各组内部函数来自领域服务或显式注入的运行时组件。HTTP owner 另注入预览会话与场景可用性 getter，不把这些生命周期状态放到领域服务中。
 
+Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游戏和转盘服务创建后组装一次只读 `displayPorts`，交给 `scene-runtime.js` / `scene-extra-display.js`：设置读取、数据目录与状态读取、歌曲列表/版本、礼物版本/历史/盲盒统计、礼物卡片/心愿、小游戏/转盘/互动状态和全局礼物目录。共享外观读取使用其中的 settings/system 与 runtime 自有 cloud danmaku reader；外观写路由仍使用自己的 settings 写入上下文。Scene 不经 API Context 取回自身，也不取得 session token、音乐 registry 或 shutdown 能力。
+
 ### 4.3 静态页面服务与页面能力
 
 [page-assets.js](../../../src/server/page-assets.js) 的 `servePageOrAsset` 按 [access-policy.js](../../../src/server/access-policy.js) 固定页面表解析 scope；raw HTML、规范 URL 同权，大小写与文件路径按实际解析处理，路径必须留在 publicDir 内。禁止冒号文件别名，避免 Windows NTFS `::$DATA` 将 HTML 伪装成普通资源。

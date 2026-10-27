@@ -87,12 +87,13 @@ test('refresh keeps its icon while busy and restores the accessible label after 
   const work = operations.reconnectBilibili();
   assert.equal(button.disabled, true);
   assert.equal(button.attributes['aria-busy'], 'true');
+  assert.equal(button.attributes['aria-label'], '正在连接直播间');
   assert.equal(button.innerHTML, '<svg></svg>');
   rejectFetch(new Error('连接中断'));
   await work;
   assert.equal(button.disabled, false);
   assert.equal(button.attributes['aria-busy'], undefined);
-  assert.equal(button.attributes['aria-label'], '刷新直播');
+  assert.equal(button.attributes['aria-label'], '重新连接直播间');
   assert.equal(button.innerHTML, '<svg></svg>');
   assert.deepEqual(errors, ['连接中断']);
 });

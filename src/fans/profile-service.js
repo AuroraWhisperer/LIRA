@@ -3,8 +3,8 @@
 const { randomUUID } = require('node:crypto');
 const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
 const { DAY_MS, dayOf, addDays, zodiacFor } = require('./dates');
-const { summarizeMembership, membershipConflicts, cycleForNewRecord } = require('./membership');
-const { buildReminders } = require('./reminders');
+const { membershipConflicts, cycleForNewRecord } = require('./membership');
+const { createFanProfileProjection } = require('./profile-projection');
 const { createFanBackupService } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
@@ -13,6 +13,7 @@ const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 const { SONG_STATS_DAYS, recentSongCounts } = require('./song-summary');
 
 function createFanProfileService({ store, now = () => new Date().toISOString() }) {
+  const project = createFanProfileProjection();
   function requireProfile(scope, id) {
     const profile = store.get(scope, text(id, '档案 ID', 100));
     if (!profile) throw new Error('档案不存在或不属于当前账号。');
@@ -60,7 +61,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const profile = requireProfile(scope, id);
     store.records.pruneSongCounts(now(), scope, id);
     const records = store.records.list(scope, id);
-    const membership = summarizeMembership(records, now());
+    const { membership, reminders } = project(scope, profile, records, store.states(scope, id),
+      Date.parse(now()), store.getScope(scope), 366);
     const guardRoster = getGuardRoster(profile, records);
     const songs = records.filter((record) => record.kind === 'song' && record.data.count > 0);
     const preferences = records.filter((record) => record.kind === 'preference' && !record.data.archived);
@@ -98,7 +100,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         count: songCount,
         categories,
       },
-      reminders: buildReminders(profile, records, store.states(scope, id), Date.parse(now()), store.getScope(scope)),
+      reminders,
     };
   }
 
@@ -252,12 +254,12 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     return candidates
       .map((profile) => {
         const records = recordsByProfile.get(profile.id) || [];
-        const membership = summarizeMembership(records, at);
+        const { membership, reminders } = project(scope, profile, records, statesByProfile.get(profile.id) || [],
+          Date.parse(at), settings);
         const guardRoster = getGuardRoster(profile, records);
         const medalLevel = records
           .filter((r) => r.original.evidence === 'guard-roster')
           .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original.medalLevel;
-        const reminders = buildReminders(profile, records, statesByProfile.get(profile.id) || [], Date.parse(at), settings);
         return {
           ...profile,
           formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
@@ -380,14 +382,15 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         case 'reminders':
         case 'calendar': {
           const settings = store.getScope(scope);
-          const today = dayOf(now());
+          const at = Date.parse(now());
+          const today = dayOf(at);
           const profiles = store.list(scope).filter((profile) => !profile.archived);
           const ids = profiles.map((profile) => profile.id);
           const records = store.records.listForProfiles(scope, ids);
           const states = store.statesForProfiles(scope, ids);
-          const reminders = profiles.flatMap((profile) => buildReminders(
-            profile, records.get(profile.id) || [], states.get(profile.id) || [], Date.parse(now()), settings,
-          ));
+          const reminders = profiles.flatMap((profile) => project(
+            scope, profile, records.get(profile.id) || [], states.get(profile.id) || [], at, settings,
+          ).reminders);
           if (action === 'reminders') return reminders.filter((item) => item.group !== 'later');
           return reminders.filter((item) =>
             item.group !== 'history' && item.date >= today && addDays(item.date, -3) <= today &&

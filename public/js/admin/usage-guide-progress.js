@@ -56,7 +56,7 @@ export function initUsageGuideProgress(panel, sections, navigate, reduceMotionQu
       next.title = following ? `下一章：${following.title}` : '已是最后一章';
       next.setAttribute('aria-label', next.title);
       nextLabel.textContent = following ? '下一章' : '最后一章';
-      nextTitle.textContent = following ? following.title : '已到文档末章';
+      nextTitle.textContent = following ? following.title : '已是最后一章';
     }
     if (chapterChanged || heading !== lastHeading) {
       detail.textContent = heading ? heading.textContent.replace(/\s+/g, ' ').trim() : '章节概览';
@@ -70,9 +70,9 @@ export function initUsageGuideProgress(panel, sections, navigate, reduceMotionQu
       }
     }
     if (chapterChanged || value !== lastPercent) {
-      percent.textContent = `本章 ${value}%`;
+      percent.textContent = `本章进度 ${value}%`;
       remaining.textContent = value === 100 ? '已到文档末尾'
-        : following ? `距下一章还剩 ${100 - value}%` : `距本章结束还剩 ${100 - value}%`;
+        : `本章还剩 ${100 - value}%`;
       progress.setAttribute('aria-valuenow', String(value));
       progress.setAttribute('aria-valuetext', `${chapter.title}，${value}%`);
       fill.style.transitionDuration = chapterChanged ? '0ms' : '';

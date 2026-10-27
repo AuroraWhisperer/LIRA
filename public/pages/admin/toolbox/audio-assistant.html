@@ -47,7 +47,7 @@
           <label for="audioAssistantInputChannels">输入声道</label>
           <select id="audioAssistantInputChannels" data-audio-setting="inputChannels"><option value="auto">自动</option></select>
           <span id="audioAssistantInputFormat" class="hint"></span>
-          <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="inputMusic" /><span>音乐处理</span><lira-help label="音乐处理说明">输入的是歌曲时才开启，可使用声伴比例。麦克风默认保留人声；升降调和输出音量仍可使用。切换前先停止处理。</lira-help></label>
+          <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="inputMusic" /><span>音乐处理</span><lira-help label="音乐处理说明">输入内容为歌曲时再开启；开启后可调整人声 / 伴奏比例。麦克风默认保留人声；升降调和输出音量仍可使用。切换前先停止处理。</lira-help></label>
         </div>
         <div class="audio-assistant-now-playing">
           <span class="hint" data-audio-source-label>当前歌曲</span>
@@ -72,7 +72,7 @@
         <div class="audio-assistant-section-heading">
           <h3 id="audioAssistantSoundTitle">声音调节</h3>
           <div class="audio-assistant-sound-actions">
-            <button type="button" class="secondary" data-audio-action="reset">一键重置</button>
+            <button type="button" class="secondary" data-audio-action="reset" title="只重置声音参数，不改变音乐来源、设备和当前歌曲开关">重置声音参数</button>
             <label class="switch-control"><span data-audio-active-label>当前歌曲</span><input type="checkbox" data-audio-active aria-label="处理当前歌曲" aria-describedby="audioAssistantStatus" /><span class="switch-track"></span></label>
           </div>
         </div>

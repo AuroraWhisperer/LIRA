@@ -157,8 +157,8 @@ test('music login action and result remain bound to the prompted platform after 
     state.selectedSource = 'netease';
     await notifications[0].onClick();
     assert.deepEqual(requested, ['qq', 'qq']);
-    assert.match(notifications[0].title, /QQ音乐/);
-    assert.match(notifications[1].title, /QQ音乐/);
+    assert.match(notifications[0].title, /QQ 音乐/);
+    assert.match(notifications[1].title, /QQ 音乐/);
     assert.equal(notifications[1].type, auth === true ? 'success' : 'warning');
     assert.match(notifications[1].title, auth === true ? /已登录/ : auth === false ? /尚未完成/ : /暂时无法确认/);
     assert.equal(operations.getAuthState(), null, 'old prompt does not overwrite the newly selected platform');

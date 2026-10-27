@@ -4,6 +4,39 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
 
+test('Kimi preset discovers official models and keeps thinking content across tool calls', async () => {
+  const requests = [];
+  const client = createDeepSeekClient({ fetchImpl: async (url, options) => {
+    requests.push({ url: String(url), body: options.body && JSON.parse(options.body) });
+    if (!options.body) return jsonResponse({ data: [{ id: 'kimi-k2.6' }] });
+    return jsonResponse({ id: `kimi-${requests.length}`, choices: [{ message: requests.length === 2
+      ? { content: null, reasoning_content: 'fixture thinking', tool_calls: [{ id: 'call-1', type: 'function', function: { name: 'get_time', arguments: '{}' } }] }
+      : { content: '你好' } }] });
+  } });
+  const config = { modelProvider: 'kimi', model: 'kimi-k2.6', deepseekApiKey: 'fixture-key', reasoningEnabled: true };
+  assert.deepEqual(await client.listModels({ ...config, apiKey: 'fixture-key' }), { models: ['kimi-k2.6'] });
+  const response = await client.createResponse({ config, input: '几点了' });
+  await client.createResponse({ config, previousResponseId: response.id, input: [{ type: 'function_call_output', call_id: 'call-1', output: '10:00' }] });
+  assert.equal(requests[0].url, 'https://api.moonshot.cn/v1/models');
+  assert.equal(requests[1].url, 'https://api.moonshot.cn/v1/chat/completions');
+  assert.deepEqual(requests[1].body.thinking, { type: 'enabled' });
+  assert.equal(requests[1].body.max_tokens, undefined);
+  assert.ok(requests[1].body.max_completion_tokens >= 64);
+  assert.equal(requests[2].body.messages.at(-2).reasoning_content, 'fixture thinking');
+});
+
+test('Kimi K3 review and connection requests use low thinking with enough generation budget', async () => {
+  let body;
+  const client = createDeepSeekClient({ fetchImpl: async (_url, options) => {
+    body = JSON.parse(options.body);
+    return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+  } });
+  await client.testConnection({ modelProvider: 'kimi', model: 'kimi-k3', deepseekApiKey: 'fixture-key', reasoningEnabled: false });
+  assert.equal(body.thinking, undefined);
+  assert.equal(body.reasoning_effort, 'low');
+  assert.equal(body.max_completion_tokens, 4096);
+});
+
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
     status,

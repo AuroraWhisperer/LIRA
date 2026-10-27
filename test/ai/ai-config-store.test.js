@@ -209,6 +209,7 @@ test('AI config applies server-owned official provider presets', () => {
   });
   const cases = [
     ['deepseek', 'https://api.deepseek.com', 'chat_completions', 'deepseek', 'deepseek_effort'],
+    ['kimi', 'https://api.moonshot.cn/v1', 'chat_completions', 'kimi', 'kimi_thinking'],
     ['openai', 'https://api.openai.com/v1', 'responses', 'openai', 'effort'],
     ['anthropic', 'https://api.anthropic.com/v1', 'chat_completions', 'anthropic', 'provider_managed'],
     [

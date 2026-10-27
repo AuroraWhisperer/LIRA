@@ -38,7 +38,7 @@ test('all shared fonts render offline from ASAR in a custom installation path wi
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
-  await page.waitForFunction(() => document.querySelectorAll('[data-font-id]').length === 8);
+  await page.waitForFunction(count => document.querySelectorAll('[data-font-id]').length === count, fonts.length);
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('DOM.enable');
   await cdp.send('CSS.enable');
@@ -52,7 +52,7 @@ test('all shared fonts render offline from ASAR in a custom installation path wi
     assert.ok(rendered.length && rendered.every(face => face.isCustomFont), `${font.id}: ${JSON.stringify(rendered)}`);
     renderedFamilies.add(rendered.map(face => face.familyName).join(','));
   }
-  assert.equal(renderedFamilies.size, 8, 'Every choice uses a different font, not a common fallback.');
+  assert.equal(renderedFamilies.size, fonts.length, 'Every choice uses a different font, not a common fallback.');
   const result = await app.evaluate(() => global.bundledFontsTest);
   assert.equal(result.state.status, 'ready');
   assert.equal(result.state.total, 0);

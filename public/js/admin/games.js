@@ -25,7 +25,7 @@ export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
   byId('gamesOverlayUrl').textContent = overlayBaseUrl();
-  bindCopyUrl(byId('gamesOverlayUrl'), { onCopied: () => toast('游戏网页地址已复制'), onError: showError });
+  bindCopyUrl(byId('gamesOverlayUrl'), { onCopied: () => toast('游戏浏览器源地址已复制'), onError: showError });
   byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
   byId('gamesRefreshViewersBtn').addEventListener('click', () => {
     requestViewerRefresh({ notify: true }).catch(showError);

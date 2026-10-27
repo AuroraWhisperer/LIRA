@@ -7,6 +7,69 @@ const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
 
+test('spooky client and cloned canvas panels share palette overrides, independent alpha and scoped restore', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async (html) => {
+    document.body.innerHTML = html;
+    document.getElementById('liveDanmakuFeature').hidden = false;
+    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    const { cloneComponentPanel } = await import('/js/admin/component-preview-panel.js');
+    const listeners = new Set();
+    window.paletteEdits = [];
+    window.paletteState = { loaded: true, draft: { style: 'spooky', fullscreenDurationSeconds: 6,
+      styleOptions: { spooky: { fontSize: 24, spookyTheme: 'autumn', spookyFrame: 'hide' }, signal: { textColor: '#abcdef' } },
+    } };
+    const controller = {
+      getState: () => window.paletteState,
+      edit: patch => { window.paletteEdits.push(patch); Object.assign(window.paletteState.draft, patch); listeners.forEach(listener => listener(window.paletteState)); },
+      subscribe: listener => { listeners.add(listener); listener(window.paletteState); return () => listeners.delete(listener); },
+    };
+    window.paletteController = controller;
+    window.paletteBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
+    const clone = cloneComponentPanel(document.querySelector('.danmaku-parameters'), 'canvas');
+    document.body.append(clone);
+    window.canvasPaletteBinding = bindDanmakuParameters(clone, controller, message => window.messages.push(message));
+    document.querySelectorAll('.danmaku-advanced').forEach(details => { details.open = true; });
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  assert.equal(await page.locator('#danmakuTextColorField').isVisible(), false);
+  assert.equal(await page.locator('#danmakuSpookyMessageOpacity').isVisible(), true, 'alpha is available while color follows the theme');
+  for (const [key, value] of [['SpookyFrameColor', '#123456'], ['SpookyMessageColor', '#234567'], ['SpookyEventColor', '#345678'], ['SpookyAccentColor', '#456789'], ['TextColor', '#fce6fa']]) {
+    await page.locator(`#danmaku${key}Mode`).selectOption('custom');
+    await page.locator(`#danmaku${key}`).evaluate((input, color) => {
+      input.value = color; input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, value);
+    assert.equal(await page.locator(`#canvas-danmaku${key}`).inputValue(), value);
+  }
+  await page.evaluate(() => { window.paletteEdits = []; });
+  const alpha = page.locator('#danmakuSpookyMessageOpacity');
+  await alpha.evaluate(input => { input.value = '40'; input.dispatchEvent(new Event('input', { bubbles: true })); });
+  assert.equal(await page.evaluate(() => window.paletteEdits.length), 0);
+  await alpha.dispatchEvent('change');
+  assert.equal(await page.evaluate(() => window.paletteEdits.length), 1);
+  assert.equal(await page.locator('#canvas-danmakuSpookyMessageOpacity').inputValue(), '40');
+  await page.locator('#danmakuSpookyTheme').selectOption('moonlight');
+  assert.equal(await page.locator('#danmakuTextColor').inputValue(), '#fce6fa');
+  assert.equal(await page.locator('#danmakuSpookyMessageColor').inputValue(), '#234567');
+  await page.locator('#canvas-danmakuSpookyMessageColorMode').selectOption('default');
+  const options = await page.evaluate(() => window.paletteState.draft.styleOptions.spooky);
+  assert.equal(Object.hasOwn(options, 'spookyMessageColor'), false);
+  assert.equal(options.spookyMessageOpacity, 40);
+  assert.equal(await page.locator('#danmakuSpookyMessageColorField').isVisible(), false);
+  assert.equal(await alpha.isVisible(), true, 'alpha stays available after following the theme again');
+  await page.locator('#canvas-danmakuSpookyResetColors').click();
+  assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions), {
+    spooky: { fontSize: 24, spookyTheme: 'moonlight', spookyFrame: 'hide' }, signal: { textColor: '#abcdef' },
+  });
+  assert.equal(await page.locator('#danmakuTextColorMode').inputValue(), 'default');
+  assert.equal(await alpha.inputValue(), '100');
+  assert.equal(await page.locator('#danmakuSpookyResetColors').isDisabled(), true);
+  await page.evaluate(() => window.paletteController.edit({ style: 'signal' }));
+  assert.equal(await page.locator('#danmakuSpookyColors').isVisible(), false);
+  assert.equal(await page.locator('#danmakuTextColorField').isVisible(), true);
+  assert.deepEqual(await page.evaluate(() => window.messages), []);
+  await page.evaluate(() => { window.paletteBinding.dispose(); window.canvasPaletteBinding.dispose(); });
+});
+
 test('snowfox palette controls update the shared draft and restore identity colors', async (t) => {
   const page = await fixture(t, 'danmaku');
   await page.evaluate(async (html) => {
@@ -38,6 +101,57 @@ test('snowfox palette controls update the shared draft and restore identity colo
   assert.equal(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox.bubbleColor), 'default');
   await page.locator('#danmakuResetParameters').click();
   assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox), {});
+  assert.deepEqual(await page.evaluate(() => window.messages), []);
+  await page.evaluate(() => window.paletteBinding.dispose());
+});
+
+test('RIPPLOID colors edit independently, switch styles safely and reset only their own draft', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async (html) => {
+    document.body.innerHTML = html;
+    document.getElementById('liveDanmakuFeature').hidden = false;
+    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    const listeners = new Set();
+    window.paletteState = { loaded: true, draft: {
+      style: 'ripploid',
+      styleOptions: { ripploid: { giftColor50: '#123456' }, snowfox: { bubbleColor: '#ba739c' } },
+      fullscreenDurationSeconds: 6,
+    } };
+    const controller = {
+      getState: () => window.paletteState,
+      edit: patch => {
+        Object.assign(window.paletteState.draft, patch);
+        listeners.forEach(listener => listener(window.paletteState));
+      },
+      subscribe: listener => { listeners.add(listener); listener(window.paletteState); return () => listeners.delete(listener); },
+    };
+    window.paletteController = controller;
+    window.paletteBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
+    document.querySelector('.danmaku-advanced').open = true;
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  assert.equal(await page.locator('#danmakuBubbleColorLabel').textContent(), '聊天主色');
+  assert.equal(await page.locator('#danmakuRipploidColors').isVisible(), true);
+  assert.equal(await page.locator('#danmakuRipploidColors input[type="color"]').count(), 15);
+  assert.equal(await page.locator('#danmakuGiftColor50').inputValue(), '#123456');
+  assert.equal(await page.locator('#danmakuGiftColor0').inputValue(), '#f39749');
+  for (const [id, value] of [['danmakuGiftColor50', '#a1b2c3'], ['danmakuGuardColorAdmiral', '#654321'], ['danmakuSuperchatColor2000', '#abcdef']]) {
+    await page.locator(`#${id}`).evaluate((input, color) => {
+      input.value = color;
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    }, value);
+  }
+  assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions.ripploid), {
+    giftColor50: '#a1b2c3', guardColorAdmiral: '#654321', superchatColor2000: '#abcdef',
+  });
+  await page.locator('#danmakuBubbleColorMode').selectOption('custom');
+  assert.equal(await page.evaluate(() => window.paletteState.draft.styleOptions.ripploid.bubbleColor), '#eb945e');
+  await page.evaluate(() => window.paletteController.edit({ style: 'snowfox' }));
+  assert.equal(await page.locator('#danmakuRipploidColors').isVisible(), false);
+  assert.equal(await page.locator('#danmakuBubbleColorLabel').textContent(), '弹幕配色');
+  await page.evaluate(() => window.paletteController.edit({ style: 'ripploid' }));
+  await page.locator('#danmakuResetParameters').click();
+  assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions.ripploid), {});
+  assert.deepEqual(await page.evaluate(() => window.paletteState.draft.styleOptions.snowfox), { bubbleColor: '#ba739c' });
   assert.deepEqual(await page.evaluate(() => window.messages), []);
   await page.evaluate(() => window.paletteBinding.dispose());
 });

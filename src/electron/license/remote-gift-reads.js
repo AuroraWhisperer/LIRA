@@ -24,8 +24,11 @@ function createRemoteGiftReads(request) {
       return read(`/api/device/gift-history${query.size ? `?${query}` : ''}`, token, options.signal, headers);
     },
     getGiftCardProfiles(cursor, token, options = {}) {
+      const query = new URLSearchParams();
+      if (cursor) query.set('cursor', cursor);
+      if (options.revision) query.set('revision', options.revision);
       return read(
-        `/api/device/gift-card-profiles${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        `/api/device/gift-card-profiles${query.size ? `?${query}` : ''}`,
         token,
         options.signal,
       );

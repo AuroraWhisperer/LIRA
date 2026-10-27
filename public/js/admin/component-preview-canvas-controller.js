@@ -60,7 +60,7 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       const id = dto.document.id;
       let revision = dto.revision;
       let stale = false;
-      const conflictMessage = '场景已在其他入口更新，草稿已保留。点击“放弃修改”可读取最新场景。';
+      const conflictMessage = '场景已在其他入口更新，草稿已保留。点击“放弃修改”将丢弃本地未保存的修改，并读取最新场景。';
       const configController = createComponentConfigController({
         initial: { document: dto.document },
         read: async () => {

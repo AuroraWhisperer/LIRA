@@ -12,6 +12,33 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
 
+test('incremental preview heartbeats retain bodies and conditional reads keep acknowledgements and leases', () => {
+  let now = 0;
+  const sessions = createComponentPreviewSessions({ now: () => now });
+  const session = sessions.open({ component: 'clock', state: state(), display: { value: 1 } });
+  const read = (known = {}) => sessions.browser({ id: session.id, action: 'read', ...known }, session.token);
+  const initial = read();
+  const versions = { stateRevision: initial.stateRevision, displayRevision: initial.displayRevision };
+  for (let index = 0; index < 4; index++) {
+    now += SESSION_TTL_MS - 1;
+    sessions.exchange({ id: session.id, ack: 0, incremental: true });
+    const update = read(versions);
+    assert.equal(Object.hasOwn(update, 'state'), false);
+    assert.equal(Object.hasOwn(update, 'display'), false);
+    assert.equal(update.ack, 0);
+  }
+  sessions.exchange({ id: session.id, ack: 0, incremental: true, display: { value: 2 } });
+  const changedDisplay = read(versions);
+  assert.equal(Object.hasOwn(changedDisplay, 'state'), false);
+  assert.deepEqual(changedDisplay.display, { value: 2 });
+  sessions.exchange({ id: session.id, ack: 0, incremental: true, state: state({ label: 'changed' }) });
+  const changedState = read({ stateRevision: initial.stateRevision, displayRevision: changedDisplay.displayRevision });
+  assert.equal(changedState.state.draft.label, 'changed');
+  assert.equal(Object.hasOwn(changedState, 'display'), false);
+  assert.deepEqual(read().display, { value: 2 }, 'legacy reads still receive complete bodies');
+  assert.throws(() => sessions.exchange({ id: session.id, ack: 0 }), { statusCode: 400 });
+});
+
 test('canvas edit baselines are bounded UUID metadata and remain optional for older clients', () => {
   const sessions = createComponentPreviewSessions();
   const document = { id: randomUUID(), items: [] };

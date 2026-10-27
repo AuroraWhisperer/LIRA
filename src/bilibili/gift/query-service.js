@@ -84,6 +84,10 @@ function getGiftHistory(context, options = {}) {
     viewRevision,
   });
   const asOf = cursor?.asOf || resolveAsOf(context);
+  if (options.contentRevision !== undefined &&
+      (typeof options.contentRevision !== 'string' || !/^[a-f0-9]{64}$/.test(options.contentRevision))) {
+    throw queryError('INVALID_GIFT_FILTER', '礼物内容版本无效。');
+  }
   const historyOptions = {
     sourceId: activeSource.sourceId,
     query,
@@ -93,17 +97,22 @@ function getGiftHistory(context, options = {}) {
     cursor,
     sortField,
     sortDirection,
+    conditional: options.conditional === true,
+    contentRevision: options.contentRevision,
+    viewRevision,
   };
-  const { total, rows } = queryStore.readHistoryPage({
+  const { total, rows, contentRevision, unchanged } = queryStore.readHistoryPage({
     ...historyOptions,
     limit: limit + 1,
   });
+  if (unchanged) return { viewRevision, contentRevision, unchanged: true, items: [], nextCursor: null, ...buildSyncMetadata(activeSource) };
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
   const last = pageRows.at(-1);
 
   return {
     viewRevision,
+    ...(contentRevision ? { contentRevision } : {}),
     retention: queryStore.getRetention?.(activeSource.sourceId) || null,
     ...filters,
     asOf,

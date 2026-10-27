@@ -227,8 +227,9 @@ export const todo = (() => {
   function selectDate(date, focus = false) {
     moduleState.selectedDate = date;
     moduleState.month = date.slice(0, 7);
-    renderTodoCalendar(viewSnapshot());
-    renderTodoAgenda(viewSnapshot());
+    const view = viewSnapshot();
+    renderTodoCalendar(view);
+    renderTodoAgenda(view);
     if (focus) byId('plannerCalendarGrid').querySelector('[aria-pressed="true"]')?.focus();
   }
 
@@ -461,8 +462,9 @@ export const todo = (() => {
     fanCalendar = createFanCalendar({
       isVisible: () => !panel.hidden,
       onChange: () => {
-        renderTodoCalendar(viewSnapshot());
-        renderTodoAgenda(viewSnapshot());
+        const view = viewSnapshot();
+        renderTodoCalendar(view);
+        renderTodoAgenda(view);
       },
     });
     const observer = new MutationObserver(() => {

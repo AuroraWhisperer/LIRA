@@ -46,7 +46,8 @@ function createRuntimeApiContextFactory(options = {}) {
         getLikeState: bilibiliRuntime.getLikeState,
         requestRandomSong: bilibiliRuntime.requestRandomSong,
       },
-      ai: { configStore: aiRuntime.configStore, service: aiRuntime.service, doubao: aiRuntime.doubao },
+      ai: { configStore: aiRuntime.configStore, service: aiRuntime.service, doubao: aiRuntime.doubao,
+        chatgptSession: aiRuntime.chatgptSession },
       games: {
         service: options.getGameSessionService(),
         listOnlineViewers: bilibiliRuntime.getViewerCandidates,

@@ -10,6 +10,23 @@ const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-ca
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('account invalidation stops liked pagination after the outstanding page', async () => {
+  let resolvePage;
+  let requests = 0;
+  const { ContentLoader } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/content/loader.js'), {
+    fetch() { requests++; return new Promise(resolve => { resolvePage = resolve; }); },
+  });
+  const cache = new Map();
+  const loader = new ContentLoader({ state: { selectedSource: 'qq' }, cacheManager: cache,
+    readJsonResponse: async result => result.payload });
+  const pending = loader.loadHomeContent('liked');
+  loader.invalidatePlatform('qq');
+  resolvePage(response({ ok: true, data: { tracks: Array.from({ length: 100 }, (_, i) => ({ id: String(i) })) } }));
+  assert.equal((await pending).stale, true);
+  assert.equal(requests, 1);
+  assert.equal(cache.size, 0);
+});
+
 test('playlist refresh bypasses old backend entries and caches an empty result after removal', async (t) => {
   const apiCacheDir = createScratchDirectory('playlist-refresh-', t);
   const service = createLyricsService({ apiCacheDir });

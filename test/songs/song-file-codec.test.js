@@ -66,9 +66,9 @@ test('song workbook codec uses the default column order and exports the stored s
 
 test('song service persists workbook metadata columns and preserves them on edit', () => {
   const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
   const songStore = createSongStore(db);
   try {
-    db.exec(SONG_SCHEMA);
     const rows = parseSongsFromXlsx(
       buildSongsWorkbook([
         {

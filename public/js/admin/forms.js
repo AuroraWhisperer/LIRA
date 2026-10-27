@@ -354,12 +354,12 @@ export class FormsService {
   reconnectErrorMessage(error) {
     const text = String((error && error.message) || error || '');
     if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
-      return '刷新直播失败：本地服务未响应，请重启 LIRA 后再试。';
+      return '重新连接直播间失败：本地服务未响应，请重启 LIRA 后再试。';
     }
     if (/Unexpected end of JSON input|非 JSON/i.test(text)) {
       return text;
     }
-    return text || '刷新直播失败，请稍后重试。';
+    return text || '重新连接直播间失败，请稍后重试。';
   }
 }
 

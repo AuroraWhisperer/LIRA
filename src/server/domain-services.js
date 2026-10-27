@@ -7,6 +7,7 @@ const retention = require('../storage/retention');
 const { createPlaybackStore } = require('../storage/playback-store');
 const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
+const { createUserRequestCooldown } = require('../music/user-request-cooldown');
 const { createDailyBotLegacyReader } = require('../storage/daily-bot-legacy-reader');
 const { createQueueStore } = require('../storage/queue-store');
 const { createFanProfileStore } = require('../storage/fan-profile-store');
@@ -44,6 +45,7 @@ function createDomainServices(options) {
   const songStore = createSongStore(db.songDb);
   const cloudSongSync = createCloudSongSyncStore(db.songDb);
   const cooldownStore = createCooldownStore(db.songDb);
+  const userRequestCooldown = createUserRequestCooldown(cooldownStore);
   const playbackStore = createPlaybackStore(db.musicDb);
   const themeStore = createThemeStore(db.songDb, settingsStore);
   const requesterTargets = createRequesterTargetStore(db.songDb);
@@ -58,14 +60,11 @@ function createDomainServices(options) {
     settings: () => settingsStore.getSettings(),
   });
 
-  const state = {
-    cooldownByUser: new Map(),
-  };
   // schema 版本只在启动迁移时变化，运行时缓存避免每次 /api/health 重算 5 个 SELECT。
   let schemaVersionsCache = null;
 
   // 冷却记录重启后从 DB 恢复，避免观众靠重启绕过冷却
-  const restoredCooldowns = cooldownStore.loadInto(state.cooldownByUser);
+  const restoredCooldowns = userRequestCooldown.restore();
   if (restoredCooldowns > 0) {
     console.log(`[Startup] restored ${restoredCooldowns} user cooldown record(s).`);
   }
@@ -219,8 +218,7 @@ function createDomainServices(options) {
             settingsStore: {
               getDefaultSettings: () => settingsStore.getDefaultSettings(),
             },
-            cooldownStore,
-            state,
+            userRequestCooldown,
             addQueueItem: queue.add,
             resolveSongRequest: songs.findUniqueNameMatch,
             // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
@@ -271,7 +269,7 @@ function createDomainServices(options) {
         if (result.cleared === true && !result.partial) {
           try {
             overtime.reloadState();
-            state.cooldownByUser.clear();
+            userRequestCooldown.reset();
             songs.ensureCategory('默认');
             queue.ensureUnified();
           } catch (error) {
@@ -306,7 +304,6 @@ function createDomainServices(options) {
     };
 
     return {
-      state,
       songs,
       queue,
       fans,

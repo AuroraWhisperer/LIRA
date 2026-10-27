@@ -30,11 +30,11 @@ function createLicenseOperations(options = {}) {
     const pending = { generation };
     pending.promise = withAuthorizedToken(
       (token) => remote.profile(token),
-      0,
-      true,
-      (result) => {
-        options.setProfile(result);
-        return options.getSnapshot();
+      {
+        acceptResult: (result) => {
+          options.setProfile(result);
+          return options.getSnapshot();
+        },
       },
     ).finally(() => {
       if (pendingProfile === pending) pendingProfile = null;
@@ -45,7 +45,7 @@ function createLicenseOperations(options = {}) {
 
   async function getCloudState(requestOptions = {}) {
     return withAuthorizedToken(
-      (token) => remote.getCloudState(token, requestOptions), 0, true, undefined, requestOptions.signal,
+      (token) => remote.getCloudState(token, requestOptions), { signal: requestOptions.signal },
     );
   }
 
@@ -154,15 +154,12 @@ function createLicenseOperations(options = {}) {
         assertOwner();
         return result;
       },
-      0,
-      true,
-      undefined,
-      signal,
+      { signal },
     );
   }
 
   async function watchCloudStateChangesInternal(options = {}) {
-    return withAuthorizedToken((token) => remote.watchCloudStateChanges(token, options), 0, false, undefined, options.signal);
+    return withAuthorizedToken((token) => remote.watchCloudStateChanges(token, options), { sanitize: false, signal: options.signal });
   }
 
   async function getGiftEventsInternal(input = {}) {
@@ -190,10 +187,7 @@ function createLicenseOperations(options = {}) {
           throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', { retryable: true });
         }
       },
-      0,
-      false,
-      undefined,
-      input.signal,
+      { sanitize: false, signal: input.signal },
     );
   }
 
@@ -213,10 +207,7 @@ function createLicenseOperations(options = {}) {
           throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效响应。', { retryable: true });
         }
       },
-      0,
-      false,
-      undefined,
-      input.signal,
+      { sanitize: false, signal: input.signal },
     );
   }
 
@@ -229,7 +220,7 @@ function createLicenseOperations(options = {}) {
       const result = await remote.getGiftSummaries(input, token);
       try { return normalizeGiftSummaryPage(result); }
       catch { throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效汇总。', { retryable: true }); }
-    }, 0, false, undefined, input.signal);
+    }, { sanitize: false, signal: input.signal });
   }
 
   async function clearGiftHistoryInternal(input = {}) {
@@ -262,15 +253,12 @@ function createLicenseOperations(options = {}) {
           syncEpoch,
         };
       },
-      0,
-      false,
-      undefined,
-      input.signal,
+      { sanitize: false, signal: input.signal },
     );
   }
 
   async function watchGiftEventsInternal(options = {}) {
-    return withAuthorizedToken((token) => remote.watchGiftEvents(token, options), 0, false, undefined, options.signal);
+    return withAuthorizedToken((token) => remote.watchGiftEvents(token, options), { sanitize: false, signal: options.signal });
   }
 
   async function updateCloudSettings(settings, requestOptions = {}) {
@@ -278,7 +266,7 @@ function createLicenseOperations(options = {}) {
       throw new RemoteLicenseError('INVALID_SYNC_SETTINGS', '云端同步设置格式无效。');
     }
     return withAuthorizedToken(
-      (token) => remote.updateCloudSettings(settings, token, requestOptions), 0, true, undefined, requestOptions.signal,
+      (token) => remote.updateCloudSettings(settings, token, requestOptions), { signal: requestOptions.signal },
     );
   }
 
@@ -295,7 +283,7 @@ function createLicenseOperations(options = {}) {
         }
         throw error;
       }
-    }, 0, true, undefined, requestOptions.signal);
+    }, { signal: requestOptions.signal });
   }
 
   async function setBilibiliCredentialsInternal(cookie, requestOptions = {}) {
@@ -304,13 +292,13 @@ function createLicenseOperations(options = {}) {
       throw new RemoteLicenseError('BILIBILI_CREDENTIALS_INVALID', '直播账号登录凭据无效。');
     }
     return withAuthorizedToken(
-      (token) => remote.setBilibiliCredentials(value, token, requestOptions), 0, true, undefined, requestOptions.signal,
+      (token) => remote.setBilibiliCredentials(value, token, requestOptions), { signal: requestOptions.signal },
     );
   }
 
   async function clearBilibiliCredentialsInternal(requestOptions = {}) {
     return withAuthorizedToken(
-      (token) => remote.clearBilibiliCredentials(token, requestOptions), 0, true, undefined, requestOptions.signal,
+      (token) => remote.clearBilibiliCredentials(token, requestOptions), { signal: requestOptions.signal },
     );
   }
 
@@ -324,21 +312,21 @@ function createLicenseOperations(options = {}) {
     }
     return withAuthorizedToken(
       (token) => remote.syncSongs(snapshot, token, requestOptions),
-      0,
-      true,
-      (result) => {
-        if (result?.ok !== true || result.count !== snapshot.length) {
-          throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效的歌库同步确认。', { retryable: true });
-        }
-        return result;
+      {
+        acceptResult: (result) => {
+          if (result?.ok !== true || result.count !== snapshot.length) {
+            throw new RemoteLicenseError('INVALID_RESPONSE', '授权服务器返回无效的歌库同步确认。', { retryable: true });
+          }
+          return result;
+        },
+        signal: requestOptions.signal,
       },
-      requestOptions.signal,
     );
   }
 
   async function getCloudSongs(requestOptions = {}) {
     return withAuthorizedToken(
-      (token) => remote.getCloudSongs(token, requestOptions), 0, true, undefined, requestOptions.signal,
+      (token) => remote.getCloudSongs(token, requestOptions), { signal: requestOptions.signal },
     );
   }
 
@@ -406,15 +394,13 @@ function createLicenseOperations(options = {}) {
       guardExpiryRequest((token) => remote.clearGuardExpiryAccount(token, requestOptions), requestOptions),
     getGiftCardProfilesInternal: (input = {}) =>
       withAuthorizedToken(
-        (token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal }), 0, true, undefined, input.signal,
+        (token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal,
+          ...(input.revision ? { revision: input.revision } : {}) }), { signal: input.signal },
       ),
     getFanFactsInternal: (input = {}) =>
       withAuthorizedToken(
         (token) => remote.getFanFacts(input.after || 0, input.epoch, token, { signal: input.signal }),
-        0,
-        true,
-        undefined,
-        input.signal,
+        { signal: input.signal },
       ),
     clearBilibiliCredentialsInternal,
     clearGiftHistoryInternal,

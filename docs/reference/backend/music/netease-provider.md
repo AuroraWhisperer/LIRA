@@ -172,6 +172,8 @@ GET https://music.163.com/api/personalized/newsong?limit=100
 
 ### 7.7 我喜欢([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
+分页加载可使用 [音乐服务的加载会话](services.md) 复用本次喜欢歌单定位，歌曲仍按上游实际分页读取。
+
 组合流程:
 
 1. `requireLogin('我喜欢需要先登录网易云音乐。')`

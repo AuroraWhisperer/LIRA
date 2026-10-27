@@ -203,7 +203,7 @@ function renderGame(nextSession) {
 
 function renderBomb(state) {
   byId('bombHint').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}先选一个数字`;
-  byId('bombHistory').textContent = state.lastGuess ? `上次：${state.lastGuess}` : '尚未落子';
+  byId('bombHistory').textContent = state.lastGuess ? `上次：${state.lastGuess}` : '尚未选数';
   const key = JSON.stringify([state.min, state.max, state.lastGuess, Boolean(state.winner), state.turn]);
   if (key === bombBoardKey) return;
   bombBoardKey = key;
@@ -475,7 +475,7 @@ function setGameResultActionsPending(pending, action = '') {
   exitButton.disabled = pending;
   nextButton.disabled = pending || session?.restartBlocked === true;
   nextButton.title = session?.restartBlocked ? '请先结束投票或评分' : '';
-  exitButton.textContent = pending && action === 'stop' ? '退出中…' : '退出';
+  exitButton.textContent = pending && action === 'stop' ? '正在结束…' : '结束游戏';
   nextButton.textContent = pending && action === 'restart' ? '开局中…' : '下一局';
 }
 

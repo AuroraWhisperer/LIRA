@@ -1,6 +1,7 @@
 'use strict';
 
 const { QQMusicStreamProvider } = require('./qq-provider-streams');
+const { getLikedTracksSession } = require('./liked-tracks-session');
 const {
   buildGuid,
   calcQQGtk,
@@ -220,8 +221,9 @@ class QQMusicProvider extends QQMusicStreamProvider {
     await this.requireLogin('QQ 音乐”我喜欢”需要先登录。');
     const limit = clampInteger(options.limit, 1, 5000, 200);
     const offset = clampInteger(options.offset, 0, 200000, 0);
-    const liked = await this.getLikedPlaylist();
-    return this.getPlaylistTracks(liked.id, { limit, offset });
+    const session = await getLikedTracksSession(this, options.loadingSession);
+    const liked = session ? await (session.playlist ||= this.getLikedPlaylist()) : await this.getLikedPlaylist();
+    return this.getPlaylistTracks(liked.id, { limit, offset, likedSession: session });
   }
 
   async getLikedPlaylist() {
@@ -415,6 +417,9 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const uin = extractUin(cookieHeader) || '0';
     if (hasQQMusicAuthCookie(cookieHeader)) {
       try {
+        if (options.likedSession?.songs) {
+          return options.likedSession.songs.slice(offset, offset + limit).map(mapQQSong).filter(Boolean);
+        }
         const callKey = 'music.srfDissInfo.DissInfoForPc.uniform_get_Dissinfo';
         const data = await this.requestMusicsClient({
           [callKey]: {
@@ -429,6 +434,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
         });
         const moduleData = readQQModuleData(data, callKey, '读取歌单详情');
         const songlist = Array.isArray(moduleData.songlist) ? moduleData.songlist : [];
+        if (options.likedSession) options.likedSession.songs = songlist;
         return songlist
           .slice(offset, offset + limit)
           .map(mapQQSong)

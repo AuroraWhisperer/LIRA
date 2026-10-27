@@ -165,7 +165,7 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   }
   assert.equal(await app.evaluate(() => global.canvasTest.backupDownload), 'completed');
   const chooser = page.waitForEvent('filechooser');
-  await manager.getByRole('button', { name: '恢复备份', exact: true }).click();
+  await manager.getByRole('button', { name: '从备份恢复为副本', exact: true }).click();
   await (await chooser).setFiles(backupFile);
   await manager.getByText(/备份包含 1 个素材包、2 份/).waitFor();
   await manager.getByRole('button', { name: '确认', exact: true }).click();

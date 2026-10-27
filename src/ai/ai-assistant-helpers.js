@@ -122,14 +122,14 @@ function publicError(error) {
 
 function failureReply(error) {
   const code = String(error?.code || '');
-  if (code === 'AI_REVIEW_INVALID') return '这次回答的审核未完成，请稍后再试。';
+  if (code === 'AI_REVIEW_INVALID') return '这次回答还没准备好，请稍后再试～';
   if (code === 'UPSTREAM_TIMEOUT') return '查询超时了，稍后再试一次～';
   if (code.startsWith('WEB_SEARCH_')) return '联网搜索暂时失败，换个关键词或稍后再问我～';
-  if (code === 'AMAP_NOT_CONFIGURED') return '路线服务还没配置好，请先接入地图服务。';
-  if (code === 'QWEATHER_NOT_CONFIGURED') return '天气服务还没配置好，请先接入天气服务。';
-  if (code === 'AI_NOT_CONFIGURED') return 'AI 服务还没配置好，请先检查接口地址和 Key。';
-  if (code.startsWith('QWEATHER_')) return '天气服务暂时没返回结果，换个城市再问我～';
-  if (code.startsWith('AMAP_')) return '路线数据没返回完整，换个地点或方式再问我～';
+  if (code === 'AMAP_NOT_CONFIGURED') return '路线查询暂时不可用，换个问题问我吧～';
+  if (code === 'QWEATHER_NOT_CONFIGURED') return '天气查询暂时不可用，换个问题问我吧～';
+  if (code === 'AI_NOT_CONFIGURED') return 'AI 助手暂时不可用，请稍后再来问我～';
+  if (code.startsWith('QWEATHER_')) return '天气暂时没查到，换个城市再问我～';
+  if (code.startsWith('AMAP_')) return '路线暂时没查全，换个地点或方式再问我～';
   return '这次查询没完成，换个问法或稍后再试～';
 }
 

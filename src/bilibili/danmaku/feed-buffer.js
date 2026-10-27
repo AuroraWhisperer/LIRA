@@ -1,6 +1,9 @@
 'use strict';
 
 const { normalizeBilibiliImageUrl } = require('../parsers/danmaku-parser');
+const { resolveGuardTier } = require('../gift/guard-thanks-config');
+
+const GUARD_LEVEL_BY_TIER = Object.freeze({ governor: 1, admiral: 2, captain: 3 });
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -23,7 +26,10 @@ function createDanmakuFeedBuffer(options = {}) {
 
   function push(danmaku = {}) {
     const message = String(danmaku.message || '').trim();
-    if (!message) return null;
+    const price = Number(danmaku.price);
+    const isSuperChat = danmaku.source === 'superchat';
+    if (!message || isSuperChat && (!Number.isFinite(price) || price <= 0)) return null;
+    const messageId = String(danmaku.id || '').trim();
     const item = {
       id: nextId,
       uid: String(danmaku.uid || '').trim(),
@@ -36,6 +42,7 @@ function createDanmakuFeedBuffer(options = {}) {
       timestamp: normalizeTimestamp(danmaku.messageTimestamp ?? danmaku.timestamp),
       emotes: normalizeEmotes(danmaku.emotes),
       ...(danmaku.isStreamer === true ? { isStreamer: true } : {}),
+      ...(isSuperChat ? { kind: 'superchat', price, ...(messageId ? { messageId } : {}) } : {}),
     };
     return appendItem(item);
   }
@@ -44,13 +51,14 @@ function createDanmakuFeedBuffer(options = {}) {
     const giftCount = Number(gift.num);
     if (gift.detection_status !== 'final' || !Number.isSafeInteger(giftCount) || giftCount <= 0) return null;
     const giftName = String(gift.gift_name || '礼物').trim() || '礼物';
+    const giftGuardLevel = GUARD_LEVEL_BY_TIER[resolveGuardTier(gift)] || 0;
     return appendItem({
       id: nextId,
       uid: String(gift.uid || '').trim(),
       name: String(gift.user_name || '观众').trim() || '观众',
       message: `送出 ${giftName} × ${giftCount}`,
-      avatarUrl: '',
-      guardLevel: 0,
+      avatarUrl: normalizeBilibiliImageUrl(gift.avatar_url ?? gift.avatarUrl),
+      guardLevel: normalizeGuardLevel(gift.guard_level ?? gift.guardLevel),
       medalName: '',
       medalLevel: 0,
       timestamp: normalizeTimestamp(gift.finalized_at_ms),
@@ -58,8 +66,39 @@ function createDanmakuFeedBuffer(options = {}) {
       kind: 'gift',
       giftName,
       giftCount,
+      giftImageUrl: resolveGiftImage(gift),
+      ...(giftGuardLevel ? { giftGuardLevel } : {}),
       ...(Number.isFinite(gift.total_price) && gift.total_price >= 0 ? { giftTotalPrice: gift.total_price } : {}),
     });
+  }
+
+  function resolveGiftImage(gift) {
+    if (typeof options.resolveGiftImagePath !== 'function') return '';
+    try {
+      const variantId = String(gift.gift_variant_id || '').trim();
+      const imagePath = options.resolveGiftImagePath(gift.gift_id ?? gift.giftId, '', {
+        giftIdentity: variantId ? { variantId } : {},
+      });
+      const source = String(imagePath || '').trim();
+      if (/^\/overtime-gift-images\/[a-z\d_-][a-z\d._-]*\.(?:png|jpe?g|gif|webp)$/iu.test(source) && !source.includes('..')) {
+        return source;
+      }
+      return normalizeBilibiliImageUrl(source);
+    } catch {
+      return '';
+    }
+  }
+
+  function removeSuperChats(messageIds) {
+    const deleted = new Set((Array.isArray(messageIds) ? messageIds : []).map((value) => String(value || '').trim()).filter(Boolean));
+    if (!deleted.size) return [];
+    const removed = [];
+    items = items.filter((item) => {
+      if (item.kind !== 'superchat' || !deleted.has(item.messageId)) return true;
+      removed.push(item.messageId);
+      return false;
+    });
+    return removed;
   }
 
   function appendItem(item) {
@@ -77,7 +116,7 @@ function createDanmakuFeedBuffer(options = {}) {
     items = [];
   }
 
-  return { setRoom, push, pushGift, getSnapshot, clear };
+  return { setRoom, push, pushGift, removeSuperChats, getSnapshot, clear };
 }
 
 function normalizeEmotes(value) {

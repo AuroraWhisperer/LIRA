@@ -125,7 +125,12 @@ test('danmaku feed buffer keeps the latest 50 messages by default', () => {
 });
 
 test('finalized gifts share the public feed without exposing ledger fields', () => {
-  const feed = createDanmakuFeedBuffer({ limit: 2 });
+  const resolutions = [];
+  const feed = createDanmakuFeedBuffer({ limit: 2,
+    resolveGiftImagePath: (...args) => {
+      resolutions.push(args);
+      return '/overtime-gift-images/synthetic-flower.webp';
+    } });
   feed.setRoom('100');
   feed.push({ name: '观众', message: '好听' });
   const gift = feed.pushGift({
@@ -134,6 +139,10 @@ test('finalized gifts share the public feed without exposing ledger fields', () 
     uid: '42',
     user_name: '晚风',
     gift_name: '小花花',
+    gift_id: 10,
+    gift_variant_id: 'synthetic-flower-variant',
+    avatar_url: 'https://i0.hdslb.com/bfs/face/viewer.jpg',
+    guard_level: 3,
     num: 10,
     total_price: 100,
     source_event_id: 'private-ledger-id',
@@ -146,6 +155,10 @@ test('finalized gifts share the public feed without exposing ledger fields', () 
   assert.equal(gift.giftName, '小花花');
   assert.equal(gift.giftCount, 10);
   assert.equal(gift.giftTotalPrice, 100, 'the finalized total is not multiplied by quantity again');
+  assert.equal(gift.avatarUrl, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
+  assert.equal(gift.guardLevel, 3);
+  assert.equal(gift.giftImageUrl, '/overtime-gift-images/synthetic-flower.webp');
+  assert.deepEqual(resolutions, [[10, '', { giftIdentity: { variantId: 'synthetic-flower-variant' } }]]);
   for (const field of ['total_price', 'source_event_id', 'raw_data', 'detection_status']) {
     assert.equal(Object.hasOwn(gift, field), false);
   }
@@ -184,4 +197,45 @@ test('gift totals preserve RMB decimals and omit unavailable amounts', () => {
       false,
     );
   }
+});
+
+test('guard purchases expose their bought tier and reject unsafe artwork without inventing an action', () => {
+  const feed = createDanmakuFeedBuffer({
+    resolveGiftImagePath: () => 'https://evil.test/private.webp',
+  });
+  const gift = feed.pushGift({
+    detection_status: 'final', gift_id: 10003, gift_name: '舰长', num: 1,
+    avatar_url: 'https://i0.hdslb.com/bfs/face/captain.jpg', guard_level: 3,
+    guard_action: 'renew', raw_data: 'private',
+  });
+  assert.equal(gift.kind, 'gift');
+  assert.equal(gift.giftGuardLevel, 3);
+  assert.equal(gift.avatarUrl, 'https://i0.hdslb.com/bfs/face/captain.jpg');
+  assert.equal(gift.giftImageUrl, '');
+  assert.equal(Object.hasOwn(gift, 'guardAction'), false);
+  assert.equal(Object.hasOwn(gift, 'guardAccompanyDays'), false);
+  assert.equal(Object.hasOwn(gift, 'raw_data'), false);
+});
+
+test('superchat publication preserves display identity and retracts only matching feed entries', () => {
+  const feed = createDanmakuFeedBuffer();
+  feed.push({ userName: '甲', message: '普通弹幕' });
+  const item = feed.push({
+    source: 'superchat', id: '9007199254740993', uid: '42', userName: '晚风', message: '支持主播',
+    price: 30, avatarUrl: 'https://i0.hdslb.com/bfs/face/sc.jpg', requesterGuardLevel: 2,
+    requesterMedalName: '本房牌', requesterMedalLevel: 21, messageTimestamp: 2000,
+    raw_data: 'private',
+  });
+  assert.equal(item.kind, 'superchat');
+  assert.equal(item.price, 30);
+  assert.equal(item.messageId, '9007199254740993');
+  assert.equal(item.avatarUrl, 'https://i0.hdslb.com/bfs/face/sc.jpg');
+  assert.equal(item.guardLevel, 2);
+  assert.equal(item.medalName, '本房牌');
+  assert.equal(Object.hasOwn(item, 'raw_data'), false);
+  assert.equal(feed.push({ source: 'superchat', message: '无金额', price: 0 }), null);
+  assert.deepEqual(feed.removeSuperChats(['missing']), []);
+  assert.deepEqual(feed.removeSuperChats(['9007199254740993']), ['9007199254740993']);
+  assert.deepEqual(feed.getSnapshot().map((entry) => entry.message), ['普通弹幕']);
+  assert.deepEqual(feed.removeSuperChats(['9007199254740993']), []);
 });

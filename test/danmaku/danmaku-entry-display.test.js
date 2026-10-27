@@ -24,6 +24,16 @@ test('mist scene output includes SC and forwards its deletion; existing random a
   }
 });
 
+test('scene room identity comes only from authorized room state and clears while offline', () => {
+  const rooms = [];
+  const display = createSceneDanmakuDisplay({ clear() {}, append() {}, status() {}, getStyle: () => 'twitter',
+    room: (roomId) => rooms.push(roomId) });
+  const state = { liveStatus: 1, liveSessionId: 'live', roomGuard: { roomId: '123' } };
+  display.update({ status: 'connected', epoch: 'one', state, events: [] });
+  display.update({ status: 'offline', epoch: 'one', events: [] });
+  assert.deepEqual(rooms, ['123', '']);
+});
+
 test('entry events cross the display buffer only within the active session and opt in per component', () => {
   const buffer = createCloudDisplayBuffer({ getOwner: () => ({ scope: 'tenant', epoch: 1 }) });
   const envelope = { ownerScope: 'tenant', authorizationEpoch: 1, connectionEpoch: 'connection', status: 'connected' };

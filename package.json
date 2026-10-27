@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "5.6.4",
+  "version": "5.6.5",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -41,12 +41,16 @@
     "@clamber_l/crypto": "0.1.12",
     "@jixun/qmweb-sign": "2.0.3",
     "electron-updater": "^6.8.4",
+    "jose": "6.2.13",
     "qrc-decoder": "1.0.2",
     "yauzl": "3.4.0"
   },
   "devDependencies": {
-    "electron": "43.2.0",
-    "electron-builder": "^26.11.1",
+    "@electron/asar": "3.4.1",
+    "app-builder-lib": "26.18.0",
+    "builder-util": "26.16.0",
+    "electron": "43.8.3",
+    "electron-builder": "^26.18.0",
     "playwright": "^1.62.1"
   },
   "build": {

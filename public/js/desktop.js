@@ -407,7 +407,7 @@
     if (installButton) {
       installButton.hidden = !showInstall;
       installButton.disabled = !state.canInstall || isInstalling;
-      installButton.textContent = isInstalling ? '正在重启...' : '重启并更新';
+      installButton.textContent = isInstalling ? '正在重启并安装更新…' : '重启并安装更新';
     }
   }
 
@@ -454,7 +454,7 @@
       variant: 'caution',
       title: '现在重启并安装更新？',
       description: '应用会退出并安装已下载的新版本。建议确认直播间暂时不需要操作后再继续。',
-      confirmLabel: '重启并更新',
+      confirmLabel: '重启并安装更新',
       initialFocus: 'cancel',
     });
   }

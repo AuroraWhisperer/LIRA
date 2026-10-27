@@ -418,7 +418,7 @@ function initStartAnimation() {
     }
   });
 
-  bindCopyUrl(document.getElementById('openingCopyUrl'), { onCopied: () => toast('固定开播动画地址已复制') });
+  bindCopyUrl(document.getElementById('openingCopyUrl'), { onCopied: () => toast('开播动画浏览器源地址已复制') });
   setSaveState('auto');
   render();
   loadSavedConfig();

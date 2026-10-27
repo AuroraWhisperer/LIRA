@@ -7,6 +7,13 @@ const contract = require('../../src/shared/danmaku-style-options');
 const { createFakeDocument } = require('../helpers/fake-dom');
 
 // Expected per-style controls. Font family, size and text color apply to every style.
+const RIPPLOID_COLOR_KEYS = [
+  'giftColor0', 'giftColor50', 'giftColor100', 'giftColor500', 'giftColor1000', 'giftColor2000',
+  'guardColorCaptain', 'guardColorAdmiral', 'guardColorGovernor',
+  'superchatColor0', 'superchatColor50', 'superchatColor100', 'superchatColor500', 'superchatColor1000', 'superchatColor2000',
+];
+const SPOOKY_COLOR_KEYS = ['spookyFrameColor', 'spookyMessageColor', 'spookyEventColor', 'spookyAccentColor'];
+const SPOOKY_OPACITY_KEYS = ['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity'];
 const CONTROLS = {
   harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
   bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
@@ -18,6 +25,11 @@ const CONTROLS = {
   sketch: ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   prismatic: ['scrollDirection', 'edgeFade'],
   snowfox: ['scrollDirection', 'edgeFade', 'bubbleColor'],
+  ripploid: ['scrollDirection', 'edgeFade', 'bubbleColor', ...RIPPLOID_COLOR_KEYS],
+  twitter: ['scrollDirection', 'edgeFade', 'giftImage'],
+  'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
+  notebook: ['scrollDirection', 'edgeFade'],
+  spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
   starlight: ['scrollDirection', 'edgeFade', 'decorationShape'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   outline: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
@@ -30,6 +42,8 @@ const CONTROLS = {
   glow: ['centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
 };
 const CONTROL_VALUES = {
+  spookyTheme: { valid: ['default', 'autumn', 'graveyard', 'moonlight'], invalid: ['purple', '', null, true, 1], fallback: 'default', optional: true },
+  spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], fallback: 'show', optional: true },
   decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], fallback: 'sparkle', optional: true },
   entranceAnimation: { valid: ['fade', 'rise'], invalid: ['slide', 'RISE', '', null, true, 1, {}], fallback: 'fade', optional: true },
   floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], fallback: 50, optional: true },
@@ -47,6 +61,20 @@ const CONTROL_VALUES = {
   },
   centerBias: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], fallback: 1, optional: true },
   dispersion: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], fallback: 1, optional: true },
+};
+for (const key of RIPPLOID_COLOR_KEYS) {
+  CONTROL_VALUES[key] = {
+    valid: ['#a1b2c3'],
+    invalid: ['', 'red', '#abc', '#a1b2c380', '#a1b2c3\n', null, 1, undefined],
+    fallback: '#f39749',
+    optional: true,
+  };
+}
+for (const key of SPOOKY_COLOR_KEYS) CONTROL_VALUES[key] = {
+  valid: ['default', '#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], fallback: 'default', optional: true,
+};
+for (const key of SPOOKY_OPACITY_KEYS) CONTROL_VALUES[key] = {
+  valid: [0, 50, 100], invalid: [-1, 101, 50.5, '50', null, true], fallback: 100, optional: true,
 };
 
 test('each style accepts exactly its own controls with bounded values and defaults', () => {
@@ -71,9 +99,87 @@ test('each style accepts exactly its own controls with bounded values and defaul
   }
 });
 
+test('RIPPLOID resolves its own font default and independent event color variables', async () => {
+  assert.deepEqual(contract.RIPPLOID_COLOR_DEFAULTS, Object.fromEntries(RIPPLOID_COLOR_KEYS.map((key) => [key, '#f39749'])));
+  assert.equal(contract.styleOptionsFor('ripploid').fontSize, 24);
+  assert.deepEqual(contract.normalizeStyleOptions({ ripploid: { giftColor50: '#AaBbCc' } }), {
+    ripploid: { giftColor50: '#aabbcc' },
+  });
+  for (const key of RIPPLOID_COLOR_KEYS) {
+    assert.equal(Object.hasOwn(contract.styleOptionsFor('snowfox'), key), false);
+  }
+  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
+  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const document = {
+    documentElement: { style: { setProperty(key, value) { this[key] = value; } } },
+    body: { dataset: {} },
+  };
+  const saved = { ripploid: { giftColor50: '#123456', guardColorAdmiral: '#654321', superchatColor2000: '#abcdef' } };
+  browser.applyStyleOptions(document, 'ripploid', saved);
+  const root = document.documentElement.style;
+  assert.equal(root['--ripploid-gift-color50'], '#123456');
+  assert.equal(root['--ripploid-guard-color-admiral'], '#654321');
+  assert.equal(root['--ripploid-superchat-color2000'], '#abcdef');
+  assert.equal(root['--ripploid-gift-color0'], '#f39749');
+  assert.equal(root['--danmaku-font-size'], '24px');
+  assert.equal(document.body.dataset.customSize, 'false');
+  browser.applyStyleOptions(document, 'ripploid', { ripploid: { fontSize: 30 } });
+  assert.equal(document.body.dataset.customSize, 'true');
+  browser.applyStyleOptions(document, 'snowfox', {});
+  for (const key of RIPPLOID_COLOR_KEYS) {
+    const suffix = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+    assert.equal(root[`--ripploid-${suffix}`], '', `${key} is cleared outside RIPPLOID`);
+  }
+});
+
+test('flower-letter defaults to the accepted Yozai font without changing other themes', () => {
+  const options = contract.styleOptionsFor('flower-letter');
+  assert.equal(options.fontFamily, '"Lira Yozai"');
+  assert.equal(options.fontSize, 24);
+  assert.equal(options.edgeFade, 'none');
+  assert.equal(options.textColor, '#766449');
+  assert.equal(contract.styleOptionsFor('signal').fontFamily, 'default');
+  assert.equal(contract.styleOptionsFor('flower-letter', { 'flower-letter': { fontFamily: 'sans' } }).fontFamily, 'sans');
+});
+
+test('Twitter defaults to its reference-sized type, original gifts and hard panel edges', () => {
+  const options = contract.styleOptionsFor('twitter');
+  assert.equal(options.fontSize, 22);
+  assert.equal(options.giftImage, 'gift');
+  assert.equal(options.edgeFade, 'none');
+  assert.equal(options.textColor, '#141414');
+  assert.deepEqual(contract.normalizeStyleOptions({ twitter: { giftImage: 'theme' } }), {
+    twitter: { giftImage: 'theme' },
+  });
+});
+
+test('spooky follows theme ink, preserves explicit overrides and clears renderer variables outside the style', async () => {
+  const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
+  const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
+  const root = document.documentElement.style;
+  for (const [theme, ink] of [['default', '#fce6fa'], ['autumn', '#fff1d1'], ['graveyard', '#f3e9fa'], ['moonlight', '#edf0ff']]) {
+    browser.applyStyleOptions(document, 'spooky', { spooky: { spookyTheme: theme } });
+    assert.equal(root['--danmaku-text-color'], ink);
+    assert.equal(document.body.dataset.customTextColor, 'false');
+    const explicit = { spooky: { spookyTheme: theme, textColor: '#fce6fa', spookyMessageColor: '#123456', spookyFrameOpacity: 0, spookyMessageOpacity: 35, spookyEventOpacity: 75, spookyAccentColor: '#abcdef' } };
+    const options = browser.applyStyleOptions(document, 'spooky', explicit);
+    assert.equal(options.textColor, '#fce6fa', 'an explicit default-colored override must survive theme changes');
+    assert.equal(document.body.dataset.customTextColor, 'true');
+    assert.equal(root['--spooky-custom-message-color'], '#123456');
+    assert.equal(root['--spooky-frame-weight'], '0%');
+    assert.equal(root['--spooky-message-weight'], '35%');
+    assert.equal(root['--spooky-event-weight'], '75%');
+    assert.equal(document.body.dataset.spookyCustomAccent, 'true');
+  }
+  browser.applyStyleOptions(document, 'signal', {});
+  for (const layer of ['frame', 'message', 'event', 'accent']) assert.equal(root[`--spooky-custom-${layer}-color`], '');
+  assert.equal(root['--spooky-custom-message-right'], '');
+  assert.equal(document.body.dataset.spookyCustomAccent, 'false');
+});
+
 test('styles without gift artwork always use real gift images while accepting legacy saved options', () => {
   assert.equal(contract.DANMAKU_STYLE_OPTIONS.identity.label, '灵动弹幕');
-  for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream']) {
+  for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']) {
     for (const options of [{}, { giftImage: 'theme' }, { giftImage: 'gift' }]) {
       assert.deepEqual(contract.normalizeStyleOptions({ [style]: options }), { [style]: options });
       assert.equal(contract.styleOptionsFor(style, { [style]: options }).giftImage, 'gift');
@@ -111,7 +217,7 @@ test('edge fading keeps theme defaults, applies overrides and clears on other la
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
   for (const [style, controls] of Object.entries(CONTROLS)) {
     if (controls.includes('edgeFade')) {
-      const fallback = style === 'prismatic' ? 'both' : 'top';
+      const fallback = style === 'prismatic' ? 'both' : ['twitter', 'spooky', 'flower-letter', 'notebook'].includes(style) ? 'none' : 'top';
       assert.equal(contract.styleOptionsFor(style).edgeFade, fallback);
       for (const scrollDirection of ['up', 'down']) {
         for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
@@ -122,7 +228,7 @@ test('edge fading keeps theme defaults, applies overrides and clears on other la
           assert.equal(document.body.dataset.edgeFade, expected);
         }
         browser.applyStyleOptions(document, style, { [style]: { scrollDirection } });
-        assert.equal(document.body.dataset.edgeFade, style === 'prismatic' ? 'both' : scrollDirection === 'down' ? 'bottom' : 'top');
+        assert.equal(document.body.dataset.edgeFade, style === 'prismatic' ? 'both' : ['twitter', 'spooky', 'flower-letter', 'notebook'].includes(style) ? 'none' : scrollDirection === 'down' ? 'bottom' : 'top');
       }
       browser.applyStyleOptions(document, style, { [style]: {} });
       assert.equal(document.body.dataset.edgeFade, fallback);
@@ -224,6 +330,10 @@ test('browser and privileged display contracts stay identical', async () => {
   const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   assert.deepEqual(browser.DANMAKU_STYLE_OPTIONS, contract.DANMAKU_STYLE_OPTIONS);
   assert.deepEqual(browser.DANMAKU_FONTS, contract.DANMAKU_FONTS);
+  assert.deepEqual(browser.RIPPLOID_COLOR_DEFAULTS, contract.RIPPLOID_COLOR_DEFAULTS);
+  assert.deepEqual(browser.SPOOKY_THEME_COLORS, contract.SPOOKY_THEME_COLORS);
+  assert.deepEqual(browser.SPOOKY_COLOR_KEYS, contract.SPOOKY_COLOR_KEYS);
+  assert.deepEqual(browser.SPOOKY_OPACITY_KEYS, contract.SPOOKY_OPACITY_KEYS);
   assert.equal(browser.normalizeStyleOptions.toString(), contract.normalizeStyleOptions.toString());
   assert.equal(browser.styleOptionsFor.toString(), contract.styleOptionsFor.toString());
 });

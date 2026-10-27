@@ -87,6 +87,26 @@ function fixture(t, persistent = false) {
   };
 }
 
+test('static data acknowledgements are optional, bounded and cannot bypass scene authorization or publication changes', t => {
+  const f = fixture(t);
+  f.ports.getDisplayData = (_types, request) => {
+    if (request.dataVersions) request.dataVersions.current.songlist = 'current';
+    return { known: request.dataVersions?.known || null };
+  };
+  const service = createSceneService(f.ports);
+  const created = service.create({ title: 'versions', canvas: { width: 1280, height: 720 } });
+  service.publish({ id: created.document.id, expectedRevision: created.revision });
+  const source = service.getSource(created.document.id);
+  const input = { ...source, version: 1 };
+  assert.equal(service.getOutput(input).dataVersions, undefined);
+  assert.deepEqual(service.getOutput({ ...input, dataVersions: { songlist: 'current' } }).data.known, { songlist: 'current' });
+  assert.deepEqual(service.getOutput({ ...input, version: 0, dataVersions: { songlist: 'current' } }).data.known, {});
+  for (const dataVersions of ['{', 'x'.repeat(1025), '[]', '{"private":"secret"}', '{"songlist":1}']) {
+    assert.throws(() => service.getOutput({ ...input, dataVersions }), { code: 'SCENE_INVALID_DATA_VERSION' });
+  }
+  assert.throws(() => service.getOutput({ ...input, token: 'bad', dataVersions: { songlist: 'current' } }));
+});
+
 function create(service) {
   return service.create({ title: '场景', canvas: { width: 1920, height: 1080 } });
 }
@@ -94,6 +114,54 @@ function create(service) {
 function saveItems(service, created, items) {
   return service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document, items } });
 }
+
+test('output authorization rechecks current capability without reparsing drafts or unchanged publications', t => {
+  const f = fixture(t);
+  const saved = saveItems(f.service, create(f.service), [item('clock')]);
+  const id = saved.document.id;
+  f.service.publish({ id, expectedRevision: saved.revision });
+  const source = f.service.getSource(id);
+  const published = f.db.prepare('SELECT published_json FROM component_scenes WHERE id = ?').get(id).published_json;
+  const parse = JSON.parse;
+  let parses = 0;
+  t.mock.method(JSON, 'parse', (text, ...args) => { if (text === published) parses++; return parse(text, ...args); });
+  const prepare = f.db.prepare.bind(f.db);
+  const reads = [];
+  t.mock.method(f.db, 'prepare', sql => { reads.push(sql); return prepare(sql); });
+  for (let n = 0; n < 240; n++) f.service.getOutputAccess({ ...source, version: 1 });
+  for (let n = 0; n < 20; n++) assert.equal(f.service.getOutput({ ...source, version: 1 }).document, null);
+  assert.equal(parses, 1);
+  assert.equal(reads.length, 280, 'each access still reads current authority, with an extra post-display check');
+  assert.ok(reads.every(sql => !/draft_json|encrypted|SELECT \*/.test(sql)));
+  const output = f.service.getOutput({ ...source, version: 0 });
+  output.document.items[0].appearance.config.color = 'caller mutation';
+  assert.equal(f.service.getOutput({ ...source, version: 0 }).document.items[0].appearance.config.color, 'white');
+  assert.throws(() => { f.store.getOutput(f.state.owner.scope, id).publishedDocument.title = 'corrupt'; }, TypeError);
+  f.db.prepare('UPDATE component_scenes SET capability_hash = ? WHERE id = ?').run('0'.repeat(64), id);
+  expectError(() => f.service.getOutputAccess({ ...source, version: 1 }), 'SCENE_ACCESS_DENIED', 403);
+});
+
+test('publication reuse follows actual stored JSON through rollback, external writes and deletion', t => {
+  const f = fixture(t, true);
+  const saved = saveItems(f.service, create(f.service), [item('clock')]);
+  const id = saved.document.id;
+  f.service.publish({ id, expectedRevision: saved.revision });
+  const source = f.service.getSource(id);
+  const read = () => f.service.getOutput({ ...source, version: 0 });
+  const initial = read().document;
+  f.db.exec('BEGIN');
+  f.db.prepare('UPDATE component_scenes SET published_json = ? WHERE id = ?').run(JSON.stringify({ ...initial, title: 'uncommitted' }), id);
+  assert.equal(read().document.title, 'uncommitted');
+  f.db.exec('ROLLBACK');
+  assert.equal(read().document.title, initial.title);
+  const second = new DatabaseSync(f.db.prepare('PRAGMA database_list').get().file);
+  try {
+    second.prepare('UPDATE component_scenes SET published_json = ? WHERE id = ?').run(JSON.stringify({ ...initial, title: 'external' }), id);
+    assert.equal(read().document.title, 'external', 'same version with different stored content invalidates the parsed snapshot');
+    second.prepare('DELETE FROM component_scenes WHERE id = ?').run(id);
+    expectError(read, 'SCENE_NOT_FOUND', 404);
+  } finally { second.close(); }
+});
 
 test('deleting surplus presets preserves live output and rejects stale or foreign scenes', t => {
   const f = fixture(t, true);

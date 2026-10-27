@@ -43,6 +43,39 @@ test('legacy and previewed imports return their counts without accumulating unus
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM import_batches').get().n, 0);
 });
 
+for (const operation of ['importRows', 'applyImportUpdate', 'replaceAll']) {
+  test(`${operation} resolves categories by batch and does not read back every inserted song`, (t) => {
+    const { db, store, preview, apply } = fixture(t);
+    const rows = Array.from({ length: 5000 }, (_, index) => ({
+      name: `批量歌曲 ${index}`, categoryName: `分类 ${index % 5}`, isEnabled: true,
+    }));
+    const input = { rows };
+    const plan = operation === 'applyImportUpdate' ? preview(input) : null;
+    const prepare = db.prepare.bind(db);
+    const reads = [];
+    let preparations = 0;
+    db.prepare = (sql) => {
+      preparations++;
+      const statement = prepare(sql);
+      if (/^\s*SELECT\b/i.test(sql)) {
+        for (const method of ['get', 'all']) {
+          const read = statement[method].bind(statement);
+          statement[method] = (...args) => { reads.push(sql); return read(...args); };
+        }
+      }
+      return statement;
+    };
+    const result = plan ? apply(input, plan) : store[operation](rows);
+    assert.equal(result.inserted ?? result.count, 5000);
+    assert.ok(reads.length <= 14, `expected batch reads, got ${reads.length}`);
+    assert.ok(preparations < 30, `expected reused write statements, got ${preparations}`);
+    assert.ok(!reads.some(sql => /SELECT \* FROM songs WHERE/.test(sql)), 'batch callers do not need individual inserted rows');
+    assert.equal(store.countSongs(), 5000);
+    assert.equal(store.listRows().filter(song => song.category_name === '分类 0').length, 1000);
+    assert.equal(store.listCategories().filter(category => category.name.startsWith('分类 ')).length, 5);
+  });
+}
+
 test('replacement uses the complete table, clears old fields and preserves matched IDs and request history', (t) => {
   const { db, store, save, preview, apply } = fixture(t);
   db.exec('PRAGMA foreign_keys = ON');

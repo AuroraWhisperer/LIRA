@@ -10,8 +10,14 @@ const { checkNativePlayback } = require('../test/desktop/playback-output-native-
 const root = path.resolve(__dirname, '..');
 const output = path.join(root, 'tmp/audio-assistant-native-checks');
 const scratch = path.join(root, 'tmp/audio-assistant-native-build');
-const published = spawnSync('dotnet', ['publish', path.join(root, 'test/desktop/audio-assistant-native/NativeChecks.csproj'),
-  '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '-o', output,
+const project = path.join(root, 'test/desktop/audio-assistant-native/NativeChecks.csproj');
+const restore = spawnSync('dotnet', ['restore', project, '-r', 'win-x64', '--locked-mode',
+  `-p:BaseIntermediateOutputPath=${path.join(scratch, 'obj')}${path.sep}`,
+  `-p:BaseOutputPath=${path.join(scratch, 'bin')}${path.sep}`], { stdio: 'inherit', windowsHide: true });
+if (restore.error) throw restore.error;
+if (restore.status !== 0) process.exit(restore.status || 1);
+const published = spawnSync('dotnet', ['publish', project,
+  '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore', '-o', output,
   `-p:BaseIntermediateOutputPath=${path.join(scratch, 'obj')}${path.sep}`,
   `-p:BaseOutputPath=${path.join(scratch, 'bin')}${path.sep}`], { stdio: 'inherit', windowsHide: true });
 if (published.error) throw published.error;

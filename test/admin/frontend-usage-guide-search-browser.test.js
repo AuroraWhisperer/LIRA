@@ -46,7 +46,7 @@ test('search navigation follows a matching passage late in an article or in a se
   const page = await setup(t);
   for (const [query, container] of [
     ['只能用英文字母', '#ug-login p'],
-    ['使用另外的链接', '#ug-scene-guide > p'],
+    ['使用另一个链接', '#ug-scene-guide > p'],
   ]) {
     await page.locator('#usageGuideSearchInput').fill(query);
     await page.locator('.usage-guide-search-result').first().click();

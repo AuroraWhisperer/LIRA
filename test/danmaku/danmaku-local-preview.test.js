@@ -5,7 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
+const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 const randomStyles = ['outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle) {
@@ -217,7 +217,7 @@ test('all local styles replay every example through the live feed without connec
       assert.deepEqual(Array.from(items.filter((item) => item.giftGuardLevel), (item) => item.giftGuardLevel).sort(), [1, 2, 3]);
     }
     assert.equal(items.find((item) => item.kind === 'gift' && item.giftCount === 10).giftTotalPrice, 1);
-    assert.equal(f.options.at(-1).showGiftTotal, ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox'].includes(style));
+    assert.equal(f.options.at(-1).showGiftTotal, ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox', 'ripploid', 'twitter', 'spooky'].includes(style));
     assert.ok(items.every((item) => !item.id.startsWith('preview-thanks')));
     assert.equal(f.options.at(-1).resolveEmoteUrl(members[0].emotes[0].url), '/img/overlays/danmaku-previews/dacall.png');
     const superChats = items.filter((item) => item.kind === 'superchat');
@@ -235,6 +235,20 @@ test('all local styles replay every example through the live feed without connec
       assert.equal(f.options.at(-1).showAvatar, ['cream', 'mist'].includes(style));
     }
   }
+});
+
+test('Twitter preview opens with chat, gift, membership and SC and uses only a synthetic room owner', async () => {
+  const f = await fixture('?preview=1&style=twitter');
+  f.advanceMessages(3);
+  assert.deepEqual(f.appends.map((item) => item.kind || 'chat'), ['chat', 'gift', 'gift', 'superchat']);
+  assert.equal(f.appends[1].giftGuardLevel, undefined);
+  assert.equal(f.appends[2].giftGuardLevel, 3);
+  assert.equal(f.node('twitterProfileName').textContent, '合成房主');
+  assert.equal(f.node('twitterProfileUid').textContent, '@UID 10001');
+  assert.equal(f.node('twitterProfileAvatar').src, '/img/overlays/danmaku-ranked/viewer.webp');
+  assert.equal(f.options.at(-1).resolveGiftImageUrl(f.appends[1].giftImageUrl), f.appends[1].giftImageUrl);
+  assert.equal(f.options.at(-1).showGiftTotal, true);
+  f.pagehide();
 });
 
 test('prismatic preview preserves its opening sequence and room identities for a complete round', async () => {
@@ -376,7 +390,42 @@ test('local preview applies per-style parameters without external image requests
   assert.equal(f.document.body.dataset.scrollDirection, 'up');
 });
 
-for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream']) test(`${style} preview resolves matching local WebP gifts even with legacy theme options`, async () => {
+test('RIPPLOID preview edits independent tier colors without replaying or leaking them', async () => {
+  const f = await fixture('?preview=1&style=ripploid');
+  assert.equal(f.node('previewRipploidColors').hidden, false);
+  assert.equal(f.node('previewBubbleColorLabel').textContent, '聊天主色');
+  assert.equal(f.node('previewFontSize').value, '24');
+  assert.equal(f.document.body.dataset.customSize, 'false');
+  const originalFeed = f.options.at(-1);
+  const appendCount = f.appends.length;
+  for (const [id, key, variable, value] of [
+    ['previewGiftColor50', 'giftColor50', '--ripploid-gift-color50', '#123456'],
+    ['previewGuardColorAdmiral', 'guardColorAdmiral', '--ripploid-guard-color-admiral', '#654321'],
+    ['previewSuperchatColor2000', 'superchatColor2000', '--ripploid-superchat-color2000', '#abcdef'],
+  ]) {
+    const control = f.node(id);
+    control.value = value;
+    control.events.change();
+    assert.equal(f.history.state.danmakuStyleOptions.ripploid[key], value);
+    assert.equal(f.node('root').style[variable], value);
+    assert.equal(f.options.at(-1), originalFeed);
+    assert.equal(f.appends.length, appendCount);
+  }
+  f.node('previewBubbleColorMode').value = 'custom';
+  f.node('previewBubbleColorMode').events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.ripploid.bubbleColor, '#eb945e');
+  f.node('snowfox').events.click();
+  assert.equal(f.node('previewRipploidColors').hidden, true);
+  assert.equal(f.node('root').style['--ripploid-gift-color50'], '');
+  f.node('ripploid').events.click();
+  assert.equal(f.node('previewGiftColor50').value, '#123456');
+  f.node('previewAppearanceReset').events.click();
+  assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions.ripploid)), {});
+  assert.equal(f.node('root').style['--ripploid-gift-color50'], '#f39749');
+  f.pagehide();
+});
+
+for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']) test(`${style} preview resolves matching local WebP gifts even with legacy theme options`, async () => {
   const options = { [style]: { giftImage: 'theme' } };
   const f = await fixture(`?preview=1&style=${style}&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
   assert.equal(f.node('previewGiftField').hidden, true);
@@ -423,6 +472,49 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
   assert.equal(fontSize.value, '80');
   assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
   assert.match(f.node('previewSaveState').textContent, /请输入 36～96 之间的整数/);
+});
+
+test('spooky preview preserves custom colors across themes and restores only palette overrides', async () => {
+  const f = await fixture('?preview=1&style=spooky');
+  const change = (id, value) => {
+    const control = f.node(id);
+    if (id.endsWith('Opacity')) { control.min = '0'; control.max = '100'; }
+    control.value = value; control.events.change(); f.flushFrames();
+  };
+  const saved = () => JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions));
+  assert.equal(f.node('previewTextColorMode').value, 'default');
+  assert.equal(f.node('previewTextColorField').hidden, true);
+  change('previewFontSize', '24');
+  change('previewSpookyFrame', 'hide');
+  for (const [key, value] of [['SpookyFrameColor', '#123456'], ['SpookyMessageColor', '#234567'], ['SpookyEventColor', '#345678'], ['SpookyAccentColor', '#456789'], ['TextColor', '#fce6fa']]) {
+    change(`preview${key}Mode`, 'custom');
+    change(`preview${key}`, value);
+  }
+  for (const [key, value] of [['SpookyFrameOpacity', '0'], ['SpookyMessageOpacity', '40'], ['SpookyEventOpacity', '75']]) change(`preview${key}`, value);
+  const renders = f.renders.length;
+  const timers = [...f.timeouts.keys()];
+  change('previewSpookyTheme', 'autumn');
+  assert.equal(saved().spooky.textColor, '#fce6fa');
+  assert.equal(saved().spooky.spookyMessageColor, '#234567');
+  assert.equal(saved().spooky.spookyFrameOpacity, 0);
+  change('previewSpookyMessageColorMode', 'default');
+  assert.equal(Object.hasOwn(saved().spooky, 'spookyMessageColor'), false);
+  assert.equal(saved().spooky.spookyMessageOpacity, 40, 'following a theme color preserves independent alpha');
+  assert.equal(f.node('previewSpookyMessageColor').value, '#592929');
+  change('previewSpookyEventOpacity', '101');
+  assert.equal(saved().spooky.spookyEventOpacity, 75, 'out-of-range alpha is rejected');
+  f.node('signal').events.click();
+  change('previewTextColor', '#abcdef');
+  f.node('spooky').events.click();
+  const layout = JSON.stringify(f.history.state.danmakuLayout);
+  f.node('previewSpookyResetColors').events.click();
+  assert.deepEqual(saved(), { spooky: { fontSize: 24, spookyFrame: 'hide', spookyTheme: 'autumn' }, signal: { textColor: '#abcdef' } });
+  assert.equal(f.node('previewTextColor').value, '#fff1d1');
+  assert.equal(f.node('previewTextColorMode').value, 'default');
+  assert.equal(JSON.stringify(f.history.state.danmakuLayout), layout);
+  assert.equal(f.node('previewSpookyResetColors').disabled, true);
+  assert.equal(f.renders.length, renders + 2, 'only the two explicit style switches restart playback');
+  assert.equal(timers.length, f.timeouts.size);
 });
 
 test('preview edge fading edits and resets each fixed style without leaking to random layouts', async () => {

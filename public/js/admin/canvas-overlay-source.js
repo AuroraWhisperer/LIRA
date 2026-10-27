@@ -54,7 +54,7 @@ export function initCanvasOverlaySource() {
         status.textContent = sourceSize
           ? `地址已复制；请在 OBS 或直播姬中设置为 ${sourceSize.width} × ${sourceSize.height}。`
           : '地址已复制。';
-        toast('直播场景地址已复制');
+        toast('直播场景浏览器源地址已复制');
       }
     },
     onError: (error, url) => {

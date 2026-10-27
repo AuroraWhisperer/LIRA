@@ -4,16 +4,16 @@ import { createAudioFeedback, formatAudioStatus } from './audio-assistant-feedba
 import { withPlaybackOutputLocked } from '../playback/features/output-device.js';
 
 const FIELDS = [
-  { key: 'strength', label: '声伴比例', min: -100, max: 100, value: 80, presets: [[-100, '人声'], [0, '原唱'], [100, '伴奏']], help: '调整歌声与伴奏的比例，去人声后可能仍有少量歌声。全民 K 歌如果播放的是伴奏，就不用再去人声，选「原唱」即可保留原来的伴奏；仍可单独升降调。' },
-  { key: 'speedPercent', label: '变速', min: 50, max: 200, value: 100, unit: '%', presets: [[50, '0.5×'], [100, '正常'], [150, '1.5×'], [200, '2.0×']], help: '100% 为正常速度。LIRA 内置播放和本地歌曲可调 0.5–2 倍，保持调性；开启「当前歌曲」后生效。外部播放器实时采集固定原速。' },
-  { key: 'semitones', label: '升降调', min: -12, max: 12, value: 0, presets: [[-12, '−12'], [-6, '−6'], [0, '原调'], [6, '+6'], [12, '+12']], help: '每 1 Key 为一个半音；调整音高不会改变速度。' },
+  { key: 'strength', label: '人声 / 伴奏比例', min: -100, max: 100, value: 80, presets: [[-100, '人声'], [0, '原唱'], [100, '伴奏']], help: '调整歌声与伴奏的比例，去人声后仍可能残留少量歌声。如果全民 K 歌播放的已经是伴奏，无需再去人声，选择「原唱」即可；仍可单独升降调。' },
+  { key: 'speedPercent', label: '变速', min: 50, max: 200, value: 100, unit: '%', presets: [[50, '0.5×'], [100, '正常'], [150, '1.5×'], [200, '2.0×']], help: '100% 为正常速度。LIRA 内置播放和本地歌曲可调 0.5–2 倍，保持调性；开启「当前歌曲」后生效。实时采集外部播放器时固定为原速。' },
+  { key: 'semitones', label: '升降调', min: -12, max: 12, value: 0, presets: [[-12, '−12'], [-6, '−6'], [0, '原调'], [6, '+6'], [12, '+12']], help: '每调整 1 格就改变 1 个半音；只改变音高，不影响速度。' },
   { key: 'volume', label: '输出音量', min: 0, max: 200, value: 70, presets: [], help: '0% 为静音，100% 为原音量，最高 200%。超过 100% 会放大，较响的歌曲可能失真。' },
 ];
 
 export function formatAudioParameter(key, value) {
   if (key === 'strength') return value === 0 ? '原唱' : `${value < 0 ? '人声' : '伴奏'} ${Math.abs(value)}%`;
   if (key === 'speedPercent') return `${(value / 100).toFixed(2)}×`;
-  if (key === 'semitones') return `${value > 0 ? '+' : ''}${value} Key`;
+  if (key === 'semitones') return `${value > 0 ? '+' : ''}${value} 半音`;
   return `${value}%`;
 }
 
@@ -75,7 +75,7 @@ export function getAudioSourceOptions(apps = [], selected = 'auto') {
     return [{ id: app.id, name: title && !/^PID \d+$/.test(title) && title !== name && title !== process ? `${name} · ${title}` : name }];
   });
   return [
-    { id: 'auto', name: '自动识别正在播放的音乐（推荐）' },
+    { id: 'auto', name: '自动识别当前音乐（推荐）' },
     { id: 'file', name: '本地文件' },
     { id: 'input', name: '麦克风、线路或声卡回送' },
     { id: 'loopback', name: '播放设备里的声音' },

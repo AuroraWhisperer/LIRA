@@ -21,7 +21,7 @@ test('expiry badge and guard icon share the row side while preserving wrapping n
   assert.match(markup, /fan-person-copy/);
   assert.match(markup, /&lt;很长的称呼&gt;/);
   assert.match(markup, /fan-person-badges[\s\S]*fan-expiry-badge[\s\S]*剩0天[\s\S]*data-guard-icon="3"/);
-  assert.match(markup, /舰长到期：今日到期。来源：B站/);
+  assert.match(markup, /舰长到期：今日到期。来源：B 站/);
   assert.doesNotMatch(view.renderPeople([profile], null, false), /fan-expiry-badge/);
   assert.match(view.renderPeople([profile], null, false), /data-guard-icon="3"/);
   for (const changed of [{ ...profile, archived: true }, { ...profile, currentGuardLevel: 2 }])
@@ -184,7 +184,7 @@ test('daily update settings default off and return the selected value with the t
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
   const description = forms.settingsForm({});
   assert.match(description.fields, /<lira-help label="日历自动提示说明">/);
-  assert.match(description.fields, /目标日前 3 天/);
+  assert.match(description.fields, /提前 3 天显示在工作台日历的目标日期上/);
   assert.match(description.fields, /修改或清除日期会自动更新/);
   assert.match(description.fields, /12:10/);
   assert.doesNotMatch(description.fields, /name="autoSyncGuardRoster"[^>]*checked/);

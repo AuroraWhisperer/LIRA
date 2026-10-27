@@ -78,6 +78,8 @@ export class FullscreenPlayer {
     this.lyricsInitialized = false;
     this.lastActiveLyricIndex = -1;
     this.highlightedLyricIndex = null;
+    this.lyricNodes = null;
+    this._extraLyricLines = undefined;
     this.lyricOffsetMs = 0;
     this.lyricMode = 'none'; // 'none' | 'trans' | 'roma'
     this._lastLyricTrackId = null;
@@ -158,6 +160,7 @@ export class FullscreenPlayer {
       this._lastLyricTrackId = lyricTrackId;
       this.setManualBrowsing(false);
       if (this.lyricsContainer) this.lyricsContainer.innerHTML = '';
+      this.lyricNodes = null;
       this.lastActiveLyricIndex = -1;
     }
 
@@ -266,6 +269,7 @@ export class FullscreenPlayer {
         this.lyricsContainer.innerHTML = '<div class="player-fs-lyrics-empty">暂无歌词</div>';
       }
       this.lastActiveLyricIndex = -1;
+      this.lyricNodes = null;
       return;
     }
 
@@ -275,7 +279,7 @@ export class FullscreenPlayer {
     const currentIndex = this.findCurrentLyricIndex(lines, currentMs);
 
     // 重新渲染（仅在歌词变化时）
-    const existingCount = this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').length;
+    const existingCount = this.lyricNodes?.length || 0;
     if (lyricsChanged || existingCount !== lines.length) {
       this.renderLyricLines(lines);
       this.lastActiveLyricIndex = -1; // 歌词列表变化，重置索引以触发初始滚动
@@ -299,14 +303,14 @@ export class FullscreenPlayer {
    * @returns {number} 当前行索引
    */
   findCurrentLyricIndex(lines, currentMs) {
-    let currentIndex = -1;
-    for (let i = lines.length - 1; i >= 0; i--) {
-      if (lines[i].startMs <= currentMs) {
-        currentIndex = i;
-        break;
-      }
+    let low = 0;
+    let high = lines.length;
+    while (low < high) {
+      const middle = (low + high) >>> 1;
+      if (lines[middle].startMs <= currentMs) low = middle + 1;
+      else high = middle;
     }
-    return currentIndex;
+    return low - 1;
   }
 
   /**
@@ -338,6 +342,7 @@ export class FullscreenPlayer {
     `,
       )
       .join('');
+    this.lyricNodes = this.lyricsContainer.querySelectorAll('.player-fs-lyric-line');
 
     // 绑定点击事件（仅一次）
     if (!this.lyricsInitialized) {
@@ -353,9 +358,9 @@ export class FullscreenPlayer {
   updateLyricHighlight(currentIndex) {
     if (!this.lyricsContainer || this.highlightedLyricIndex === currentIndex) return;
 
-    this.lyricsContainer.querySelectorAll('.player-fs-lyric-line').forEach((el, i) => {
-      el.classList.toggle('active', i === currentIndex);
-    });
+    this.lyricNodes ||= this.lyricsContainer.querySelectorAll('.player-fs-lyric-line');
+    this.lyricNodes[this.highlightedLyricIndex]?.classList.toggle('active', false);
+    this.lyricNodes[currentIndex]?.classList.toggle('active', true);
     this.highlightedLyricIndex = currentIndex;
   }
 
@@ -432,14 +437,18 @@ export class FullscreenPlayer {
   _updateLyricToggles(track) {
     if (!this.lyricTogglesEl) return;
 
-    const lines = track && track.lyrics && Array.isArray(track.lyrics.lines) ? track.lyrics.lines : [];
-
-    const hasTranslation = lines.some((line) => line.translation);
-    const hasRoma = lines.some((line) => line.roma);
+    const lines = track && track.lyrics && Array.isArray(track.lyrics.lines) ? track.lyrics.lines : null;
+    if (this._extraLyricLines === lines) {
+      this._updateLyricToggleButtons();
+      return;
+    }
+    this._extraLyricLines = lines;
+    const hasTranslation = Boolean(lines?.some((line) => line.translation));
+    const hasRoma = Boolean(lines?.some((line) => line.roma));
     const hasAnyExtra = hasTranslation || hasRoma;
 
     // 有额外歌词数据就显示按钮
-    const hasLyrics = lines.length > 0;
+    const hasLyrics = lines?.length > 0;
     this.lyricTogglesEl.style.display = hasLyrics && hasAnyExtra ? 'flex' : 'none';
 
     if (this.romaToggleBtn) this.romaToggleBtn.style.display = hasRoma ? 'grid' : 'none';

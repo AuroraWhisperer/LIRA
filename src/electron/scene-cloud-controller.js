@@ -2,7 +2,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { readBoundedSse, parseEventBlock } = require('../shared/bounded-sse-reader');
-const { isDnsHostname } = require('../shared/remote-url-policy');
+const { isDnsHostname, normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
 const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../shared/danmaku-style-options');
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 const { normalizeLayout } = require('../shared/danmaku-layout');
@@ -13,12 +13,11 @@ function getSceneOwner(licenseManager) {
     const identity = licenseManager.getCloudSyncIdentity();
     if (!['string', 'number'].includes(typeof identity?.streamerId) || !String(identity.streamerId).trim()) return null;
     if (typeof identity.streamerId === 'number' && (!Number.isSafeInteger(identity.streamerId) || identity.streamerId <= 0)) return null;
-    const url = new URL(licenseManager.getRemoteBaseUrl());
-    if (url.protocol !== 'https:' || !isDnsHostname(url.hostname) || url.username || url.password ||
-        url.pathname !== '/' || url.search || url.hash) return null;
+    const origin = normalizeRemoteRootOrigin(licenseManager.getRemoteBaseUrl());
+    if (!origin) return null;
     const epoch = licenseManager.getAuthorizationEpoch();
     if (!Number.isSafeInteger(epoch) || epoch < 0) return null;
-    return { scope: JSON.stringify([url.origin, String(identity.streamerId)]), epoch };
+    return { scope: JSON.stringify([origin, String(identity.streamerId)]), epoch };
   } catch {
     return null;
   }

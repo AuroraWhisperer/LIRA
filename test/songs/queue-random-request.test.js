@@ -187,7 +187,7 @@ test('same-account renewal and reconnect preserve a random request and later swi
   assert.equal(f.rows.length, 1);
   assert.equal(f.rows[0].requesterUid, '42');
   assert.equal(f.rows[0].requesterGuardLevel, 3);
-  assert.equal(f.cooldown.size, 1);
+  assert.equal(f.cooldown.size, 0, 'zero cooldown does not persist a request timestamp');
   f.setAccount(84);
   f.setRoom('200');
   assert.equal(f.rows.length, 1);
@@ -263,7 +263,10 @@ async function randomFixture(t) {
   const domain = {
     settings: settingsStore.getSettings,
     settingsStore: { getDefaultSettings: () => ({ userCooldownSeconds: '0' }) },
-    state: { cooldownByUser: cooldown },
+    userRequestCooldown: {
+      getLastRequestAt: (key) => cooldown.get(key) || 0,
+      recordAccepted: (key) => cooldown.set(key, Date.now()),
+    },
     pickRandomSong: () => ({ name: '测试歌曲', artist: '测试歌手' }),
     addQueueItem: (input) => addQueueItem({
       settings: settingsStore.getSettings,

@@ -117,7 +117,7 @@ async function persistMusicCookieSnapshot(platform, dataDir) {
   };
 
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('safeStorage 当前不可用，已保留 Electron partition Cookie，但不会写入明文快照。');
+    throw new Error('系统加密存储不可用，登录状态无法安全备份；本次登录仅保留在当前应用中。');
   }
 
   const authDir = getMusicAuthDir(dataDir);

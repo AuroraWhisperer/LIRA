@@ -37,7 +37,7 @@ test('acknowledging an unchanged edit notifies and completes flush without a sta
   controller.receive({ state: state(), ack: 0 });
   assert.equal(flushed, false);
   assert.equal(notifications, 2);
-  controller.receive({ state: state(), ack: 1 });
+  controller.receive({ ack: 1 });
   await flushing;
   assert.equal(flushed, true);
   assert.equal(notifications, 3);

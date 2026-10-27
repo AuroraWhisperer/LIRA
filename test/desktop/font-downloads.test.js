@@ -25,7 +25,7 @@ async function fixture(t, fonts, fetch) {
 }
 
 test('font manifest pins complete fonts and development copies without a LIRA origin', async () => {
-  assert.equal(catalog.length, 8);
+  assert.equal(catalog.length, 9);
   for (const font of catalog) {
     assert.match(font.sha256, /^[a-f0-9]{64}$/);
     assert.ok(font.size < 32 * 1024 * 1024);
@@ -65,7 +65,7 @@ test('first download is single-flight with two workers; subsequent startup uses 
   assert.equal(requests, 4);
 });
 
-test('all eight bundled fonts initialize on a clean offline install without downloads or a cache', async t => {
+test('all shared fonts initialize on a clean offline install without downloads or a cache', async t => {
   const { options, directory } = await fixture(t, catalog);
   let requests = 0;
   const library = createFontLibrary({ ...options, publicDir: path.resolve(__dirname, '../../public'),
@@ -79,6 +79,8 @@ test('all eight bundled fonts initialize on a clean offline install without down
     assert.ok(library.stylesheet().includes(`font-family: '${font.family}'`), font.id);
     for (const file of font.bundled) assert.ok(library.stylesheet().includes(`/fonts/${file.path}`), file.path);
   }
+  assert.match(library.stylesheet(), /font-family: 'Lira Yozai';\s+src: url\('\/fonts\/library\/yozai-regular\.woff2'\);\s+font-weight: 400;/);
+  assert.match(library.stylesheet(), /font-family: 'Lira Yozai';\s+src: url\('\/fonts\/library\/yozai-medium\.woff2'\);\s+font-weight: 500;/);
   await assert.rejects(fs.access(directory), { code: 'ENOENT' });
 });
 

@@ -38,6 +38,15 @@ test('the shared font library loads complete display faces on demand in each ren
       const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#sample' });
       const { fonts: rendered } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
       assert.ok(rendered.length > 0 && rendered.every(font => font.isCustomFont), JSON.stringify(rendered));
+      if (font.id === 'yozai') {
+        await page.evaluate(async font => {
+          document.getElementById('sample').style.fontWeight = '500';
+          await document.fonts.load(`500 32px ${font.value}`, '清风月光');
+        }, font);
+        const { fonts: medium } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+        assert.ok(medium.some(face => face.isCustomFont && face.postScriptName === 'Yozai-Medium'), JSON.stringify(medium));
+        await page.evaluate(() => { document.getElementById('sample').style.fontWeight = '400'; });
+      }
     }
     const fontRequests = requests.filter(url => /\/fonts\//.test(url));
     assert.equal(new Set(fontRequests).size, fontRequests.length, 'Shared imports do not duplicate font downloads.');

@@ -248,6 +248,47 @@ test('unload sends its actual snapshot synchronously without awaiting a session 
   assert.equal(app.calls.ipc[0].currentTime, 17);
 });
 
+for (const flush of ['flushPlaybackStateOnUnload', 'flushPlaybackStateForShutdown']) {
+  test(`${flush} reuses an in-flight empty-current snapshot before a failed ordinary save`, async (t) => {
+    const { store } = fixture(t);
+    const ordinaryRequest = deferred();
+    t.after(() => ordinaryRequest.resolve());
+    const app = await sender(store, {
+      beforeHttp: async () => {
+        await ordinaryRequest.promise;
+        throw new Error('ordinary save cancelled');
+      },
+    });
+    app.state.current = null;
+    app.state.normalQueue = [{ id: 'in-flight-empty', source: 'qq', title: 'In-flight queue' }];
+    app.persistence.savePlaybackState();
+    const ordinarySave = app.persistence.flushPlaybackStateSave();
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(app.calls.http.length, 1);
+
+    await app.persistence[flush]();
+    await app.settle();
+    assert.equal(app.calls.ipc.length, 1);
+    assert.equal(app.calls.ipc[0].current, null);
+    assert.equal(app.calls.ipc[0].normalQueue[0].id, 'in-flight-empty');
+    assert.equal(app.calls.ipc[0].snapshotVersion.sequence, 1);
+    if (flush === 'flushPlaybackStateOnUnload') {
+      assert.equal(app.calls.beacon.length, 1);
+      assert.deepEqual(
+        app.calls.beacon[0].payload.snapshotVersion,
+        JSON.parse(JSON.stringify(app.calls.ipc[0].snapshotVersion)),
+      );
+    }
+    assert.equal(store.getQueueState().payload.normalQueue[0].id, 'in-flight-empty');
+
+    ordinaryRequest.resolve();
+    await ordinarySave;
+    await app.settle();
+    assert.equal(store.getQueueState().payload.normalQueue[0].id, 'in-flight-empty');
+    assert.equal(store.getQueueState().payload.snapshotVersion.sequence, 1);
+  });
+}
+
 test('late HTTP cannot overwrite the newer shared IPC/beacon unload snapshot', async (t) => {
   const { db, store } = fixture(t);
   const oldHttp = deferred();

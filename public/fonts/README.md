@@ -5,14 +5,14 @@
 | 字体 | 资源与来源 |
 | --- | --- |
 | 荆南麦圆、站酷快乐体、得意黑、小赖字体、猫啃什锦黑 | [原有五款字库](player/README.md)；完整 WOFF2 随安装包分发，所有组件共同使用 |
-| 志莽行、马善政 | [艺术字体](library/README.md)，从歌词试验中提取完整字库；得意黑直接复用，不重复保存 |
+| 志莽行、马善政、悠哉 | [艺术字体](library/README.md)，完整字库；悠哉包含普通 400 与中等 500 两个字重；得意黑直接复用，不重复保存 |
 | 霞鹜文楷 Light | [文楷分片](moonlit-wenkai/README.md)，共享库与外部资源样式共用来源 |
 
-八款完整字体随安装包内置，首次使用无需访问 GitHub、jsDelivr 或使用 VPN。安装后位于 `<安装目录>/resources/app.asar/public/fonts/` 的 `player/`、`library/`、`moonlit-wenkai/`；Electron 从 ASAR 中读取资源，经现有本地 HTTP 提供给客户端和浏览器源，不依赖启动工作目录，也不写入安装目录或注册 Windows 系统字体。文楷全部 23 个分片共同保留完整字符覆盖。
+九款完整字体随安装包内置，首次使用无需访问 GitHub、jsDelivr 或使用 VPN。安装后位于 `<安装目录>/resources/app.asar/public/fonts/` 的 `player/`、`library/`、`moonlit-wenkai/`；Electron 从 ASAR 中读取资源，经现有本地 HTTP 提供给客户端和浏览器源，不依赖启动工作目录，也不写入安装目录或注册 Windows 系统字体。文楷全部 23 个分片共同保留完整字符覆盖。
 
 `css/shared/display-fonts.css` 是统一样式入口，由本地 HTTP 根据已就绪资源提供。启动按 [JSON 清单](../../src/fonts/catalog.json) 校验内置文件或兼容的旧缓存；正常首次启动零字体下载、无需字体缓存目录。全部使用 `font-display: swap`，直播渲染页按实际使用加载；字体选择器先从本地资源加载菜单预览字形，确认解码成功后才列为可选字体，尚未就绪的已有选择保留并标记「未就绪」。艺术字体缺字仍由原有回退链补齐，不保证全部 Unicode。
 
-八款字体 WOFF2 合计约 36.5 MiB，连同 OFL 许可随软件更新；约 6 MiB 多语言补字与小型固定标题字库也继续内置。原有下载缓存与修复入口保留兼容，仅在对应内置资源和有效缓存均缺失或损坏时尝试固定版本来源；修复下载仍依赖网络，不作为正常使用前提。`shared/font-library-loader.js` 在状态就绪后刷新样式，桌面使用现有 IPC，浏览器源只在修复下载进行中轮询；已打开浏览器源遇到修复失败后需手动刷新重试结果。缓存位置见[存储参考](../../docs/reference/backend/storage.md#共享字体缓存)，本地资源读取见[HTTP 参考](../../docs/reference/backend/api.md#共享字体资源)。
+九款字体 WOFF2 合计约 50.5 MiB，连同 OFL 许可随软件更新；约 6 MiB 多语言补字与小型固定标题字库也继续内置。原有下载缓存与修复入口保留兼容，仅在对应内置资源和有效缓存均缺失或损坏时尝试固定版本来源；修复下载仍依赖网络，不作为正常使用前提。`shared/font-library-loader.js` 在状态就绪后刷新样式，桌面使用现有 IPC，浏览器源只在修复下载进行中轮询；已打开浏览器源遇到修复失败后需手动刷新重试结果。缓存位置见[存储参考](../../docs/reference/backend/storage.md#共享字体缓存)，本地资源读取见[HTTP 参考](../../docs/reference/backend/api.md#共享字体资源)。
 
 新选择使用单个带双引号的 CSS 字体族；旧播放器 `maiyuan`/`kuaile`/`smiley` ID 和未加引号的旧字体名原样保留，不迁移持久化数据。场景参数继续限制原有字体名长度。资源样式中的文楷仍映射到资源包版本专用名称，旧 ZIP 的独立字体副本仍可使用。
 

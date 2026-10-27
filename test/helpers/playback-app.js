@@ -294,12 +294,16 @@ async function createPlaybackApp(initialState, options = {}) {
   window.AdminApp.utils.logoutConfirm = async () => true;
 
   return {
-    init() {
+    init(options = {}) {
       return window.AdminApp.playback.initPlaybackAssistant({
         readJsonResponse: window.AdminApp.utils.readJsonResponse,
         showError: window.AdminApp.utils.showError,
         toast: window.AdminApp.utils.toast,
+        ...options,
       });
+    },
+    getCloseQueuePopup() {
+      return window.AdminApp.playback.closeQueuePopup;
     },
     element(id) {
       return document.getElementById(id);

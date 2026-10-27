@@ -322,6 +322,8 @@ test('revoked refresh retains unsaved layout and parameters, and reopening resto
   await width.fill('888');
   await width.press('Tab');
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true }).getByRole('button', { name: '放弃修改', exact: true }).click();
+  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.includes('777 ×'));
   await reopen();
   await page.locator('.preview-canvas-layer-select').click();

@@ -105,7 +105,7 @@ test('fixed danmaku overlay subscribes with the encoded token and renders snapsh
 
 test('fixed danmaku overlay derives its label from Bilibili live status', async () => {
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
-    document: { addEventListener() {} },
+    document: { addEventListener() {}, getElementById() { return null; } },
     location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
     URL,
     URLSearchParams,

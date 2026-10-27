@@ -13,6 +13,9 @@ import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 let state = null;
 let stateRevision = 0;
 let statsRevision = 0;
+let statsPending = null;
+let statsDirty = false;
+let statsDisposed = false;
 let lastStats = null;
 let lastContentKey = null;
 let socketController = null;
@@ -108,18 +111,27 @@ async function loadStateThenStats() {
   await loadStats();
 }
 
-async function loadStats() {
-  const revision = ++statsRevision;
-  try {
-    const boxFilter = HEART_BOX_ONLY ? '?boxName=' + encodeURIComponent('心动盲盒') : '';
-    const response = await fetch('/api/gifts/blind-box-stats' + boxFilter);
-    const payload = await response.json();
-    if (payload.ok && revision === statsRevision) {
-      render(payload.data);
+function loadStats() {
+  if (statsDisposed) return Promise.resolve();
+  statsRevision += 1;
+  statsDirty = true;
+  if (statsPending) return statsPending;
+  statsPending = (async () => {
+    while (statsDirty && !statsDisposed) {
+      statsDirty = false;
+      const revision = statsRevision;
+      try {
+        const query = new URLSearchParams({ top: String(TOP_N), hideLoss: HIDE_LOSS ? '1' : '0' });
+        if (HEART_BOX_ONLY) query.set('boxName', '心动盲盒');
+        const response = await fetch('/api/gifts/blind-box-stats?' + query);
+        const payload = await response.json();
+        if (payload.ok && revision === statsRevision) render(payload.data);
+      } catch (error) {
+        console.warn('[overlay-blindbox] loadStats failed:', error.message || error);
+      }
     }
-  } catch (error) {
-    console.warn('[overlay-blindbox] loadStats failed:', error.message || error);
-  }
+  })().finally(() => { statsPending = null; });
+  return statsPending;
 }
 
 function connectSocket() {
@@ -130,15 +142,16 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
+      let filtersChanged = false;
       if (payload.state) {
         stateRevision += 1;
         state = payload.state;
-        receiveAppearance();
+        filtersChanged = receiveAppearance();
         render(lastStats);
       }
       // 礼物相关更新时刷新统计数据
       const reason = payload.reason || '';
-      if (reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect' || reason === 'settings') {
+      if (filtersChanged || reason.startsWith('bilibili:gift') || reason === 'gift:sprint:reset' || reason === 'connect' || reason === 'settings') {
         loadStats();
       }
     },
@@ -147,6 +160,8 @@ function connectSocket() {
 }
 
 function disposeSocket() {
+  statsDisposed = true;
+  statsDirty = false;
   stateRevision += 1;
   statsRevision += 1;
   clearInterval(refreshTimer);
@@ -158,6 +173,7 @@ function disposeSocket() {
 }
 
 function receiveAppearance() {
+  const previousTop = TOP_N, previousHideLoss = HIDE_LOSS, previousHeartBox = HEART_BOX_ONLY;
   const settings = state?.settings || {};
   if (param('top', 't') === null && settings.blindboxOverlayTop !== undefined) {
     TOP_N = Math.max(-1, Math.min(10, Number(settings.blindboxOverlayTop)));
@@ -180,6 +196,7 @@ function receiveAppearance() {
   panel?.classList.toggle('no-scroll', NO_SCROLL);
   panel?.classList.toggle('winners-only', WINNERS_ONLY);
   panel?.classList.toggle('summary-only', SUMMARY_ONLY);
+  return previousTop !== TOP_N || previousHideLoss !== HIDE_LOSS || previousHeartBox !== HEART_BOX_ONLY;
 }
 
 function render(stats) {
@@ -201,7 +218,7 @@ function render(stats) {
   const { summary, perUser } = stats;
 
   // 过滤和排序
-  let users = Array.isArray(perUser) ? [...perUser] : [];
+  let users = !SUMMARY_ONLY && Array.isArray(perUser) ? [...perUser] : [];
   if (HIDE_LOSS) {
     users = users.filter((u) => u.totalProfit > 0);
   }

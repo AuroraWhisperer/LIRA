@@ -360,7 +360,7 @@ html.admin-starting .status-strip {
 
 html.admin-starting .admin-startup-status {
   position: fixed;
-  inset: 58px 0 0;
+  inset: var(--topbar-height, 58px) 0 0;
   display: grid;
   place-content: center;
   place-items: center;

@@ -13,6 +13,18 @@ class FakeNode {
     this.attributes = {};
     this.listeners = {};
     this.className = '';
+    this.classList = {
+      add: (...names) => {
+        const classes = new Set(this.className.split(' ').filter(Boolean));
+        names.forEach((name) => classes.add(name));
+        this.className = [...classes].join(' ');
+      },
+      remove: (...names) => {
+        const removed = new Set(names);
+        this.className = this.className.split(' ').filter((name) => name && !removed.has(name)).join(' ');
+      },
+      contains: (name) => this.className.split(' ').includes(name),
+    };
     this.textContent = '';
     this.parent = null;
     this.style = {
@@ -114,6 +126,7 @@ function findAllByClass(root, className) {
 function createFakeDocument() {
   return {
     createElement: (tag) => new FakeNode(tag),
+    createElementNS: (_namespace, tag) => new FakeNode(tag),
     createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
   };
 }

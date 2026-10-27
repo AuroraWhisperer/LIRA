@@ -59,10 +59,11 @@
 
 /* 音乐分组在同一条导航内展开，滑块跟随现有平台选中状态。 */
 .playback-navigation {
-  --playback-switch-motion: 560ms cubic-bezier(0.4, 0, 0.2, 1);
-  --playback-switch-fade: 260ms ease;
+  --playback-switch-motion: 420ms cubic-bezier(0.22, 1, 0.36, 1);
+  --playback-switch-fade: 180ms ease-out;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  /* 两端轨道总权重保持为 4，让栏宽与文字变换沿同一进度移动。 */
+  grid-template-columns: minmax(0, 2fr) minmax(0, 2fr);
   flex: 0 1 680px;
   width: 100%;
   gap: 6px;
@@ -94,7 +95,8 @@
   white-space: nowrap;
   font-weight: var(--type-weight-semibold);
   box-shadow: none;
-  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+  transition: background-color 160ms ease, color 160ms ease, opacity 160ms ease,
+    box-shadow var(--playback-switch-fade);
 }
 
 .playback-navigation .playback-workspace-button:hover {

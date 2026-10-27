@@ -239,9 +239,10 @@ test('gift card profiles retain sender evidence and reject replies after authori
     assert.equal(cursor, 'event:1');
     assert.equal(token, 'token');
     assert.equal(options.signal, signal);
+    assert.equal(options.revision, 'a'.repeat(64));
     return result;
   };
-  assert.deepEqual(await manager.getGiftCardProfilesInternal({ cursor: 'event:1', signal }), result);
+  assert.deepEqual(await manager.getGiftCardProfilesInternal({ cursor: 'event:1', signal, revision: 'a'.repeat(64) }), result);
   let resolve;
   let started;
   const ready = new Promise((done) => {
@@ -340,6 +341,20 @@ test('protected remote responses cannot echo credentials across the renderer bou
     nested: { safe: 'keep' },
   });
   manager.dispose();
+});
+
+test('internal credential reads preserve raw secrets and cancellation options', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  const signal = new AbortController().signal;
+  const credentials = { initialized: true, cookie: 'SESSDATA=synthetic', revision: 4 };
+  remote.getBilibiliCredentials = async (token, options) => {
+    assert.equal(token, 'token');
+    assert.equal(options.signal, signal);
+    return credentials;
+  };
+  assert.equal(await manager.getBilibiliCredentialsInternal({ signal }), credentials);
 });
 
 test('song background upload validates size and filename before authorization request', async () => {

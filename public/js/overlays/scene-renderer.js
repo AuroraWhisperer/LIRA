@@ -224,7 +224,9 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
           gap: Boolean(cloud.gap || !reset && previous.gap || events.length > MAX_PENDING_EVENTS),
           events: events.slice(-MAX_PENDING_EVENTS) };
       } else pendingDanmaku = null;
-      latestData = { ...giftDisplay.withoutEvents(values), ...(cloud ? { danmaku: { ...cloud, reset: false, events: [] } } : {}) };
+      latestData = { ...latestData, ...giftDisplay.withoutEvents(values),
+        ...(values.lyrics ? { lyrics: { ...latestData.lyrics, ...values.lyrics } } : {}),
+        ...(cloud ? { danmaku: { ...cloud, reset: false, events: [] } } : {}) };
       if (response.document) prepare(response.document, response.version, response.projection);
     },
     disconnect() {

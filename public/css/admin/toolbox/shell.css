@@ -18,7 +18,7 @@
   display: grid;
   grid-template-columns: 264px minmax(0, 1fr);
   gap: 16px 8px;
-  height: calc(100vh - 58px - var(--player-dock-reserve, 96px));
+  height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 96px));
   min-height: 0;
   padding: 12px 12px 0;
   overflow: hidden;
@@ -30,7 +30,7 @@
 }
 
 body.player-dock-expanded .other-workspace {
-  height: calc(100vh - 58px - var(--player-dock-reserve, 218px));
+  height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 218px));
 }
 
 .other-feature-sidebar,

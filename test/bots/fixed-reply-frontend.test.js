@@ -63,7 +63,7 @@ test('query replies have a separate entry after the existing eight and exact edi
   assert.equal(await page.locator('#danmakuFixedEditorTitle').innerText(), '完整匹配回复');
   const builtIn = page.locator('#danmakuExactReplyList .danmaku-custom-reply-row').first();
   assert.equal(await builtIn.locator('input').first().inputValue(), '菜单');
-  assert.equal(await builtIn.locator('input').nth(1).inputValue(), '签到、抽签、礼物特效、礼物查询、盲盒查询');
+  assert.equal(await builtIn.locator('input').nth(1).inputValue(), '签到、抽签、今日礼物、今日盲盒；礼物特效后接数字ID');
   assert.equal(await builtIn.locator('input[readonly]').count(), 2);
   assert.equal(await builtIn.locator('button').count(), 0);
   assert.equal(await page.locator('#danmakuExactReplyCount').innerText(), '1 条');

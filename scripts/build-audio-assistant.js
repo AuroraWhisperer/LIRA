@@ -14,9 +14,14 @@ const assets = ['qq-split.onnx', 'rubberband-x64.dll',
 for (const name of assets) {
   if (!fs.existsSync(path.join(vendor, name))) throw new Error(`缺少本机音频资源：${path.join(vendor, name)}`);
 }
-fs.mkdirSync(scratch, { recursive: true });
-const result = spawnSync('dotnet', ['publish', path.join(root, 'native/audio-assistant/AudioAssistant.csproj'),
-  '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '-o', output,
+const project = path.join(root, 'native/audio-assistant/AudioAssistant.csproj');
+const restore = spawnSync('dotnet', ['restore', project, '-r', 'win-x64', '--locked-mode',
+  `-p:BaseIntermediateOutputPath=${path.join(scratch, 'obj')}${path.sep}`,
+  `-p:BaseOutputPath=${path.join(scratch, 'bin')}${path.sep}`], { stdio: 'inherit', windowsHide: true });
+if (restore.error) throw restore.error;
+if (restore.status !== 0) process.exit(restore.status || 1);
+const result = spawnSync('dotnet', ['publish', project,
+  '-c', 'Release', '-r', 'win-x64', '--self-contained', 'true', '--no-restore', '-o', output,
   `-p:BaseIntermediateOutputPath=${path.join(scratch, 'obj')}${path.sep}`,
   `-p:BaseOutputPath=${path.join(scratch, 'bin')}${path.sep}`], { stdio: 'inherit', windowsHide: true });
 if (result.error) throw result.error;

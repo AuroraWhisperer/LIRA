@@ -223,7 +223,7 @@ test('Bilibili settings expose account controls and explain confirmed stop actio
   assert.match(help, /可登录机器人账号/);
   assert.match(help, /扫码后，填写直播间号并保存/);
   assert.match(help, /服务端默认持续监控/);
-  assert.match(help, /关闭 LIRA 也会接收/);
+  assert.match(help, /关闭 LIRA 后仍会接收/);
   assert.match(help, /在弹幕姬和礼物页分别关闭/);
   assert.match(help, /退出此账号会停止两项监控/);
   assert.match(help, /等待同步完成/);

@@ -81,10 +81,10 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?,selectedItemId?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；同一 canvas 及成员凭据复用一个 key，更新最近组件/实例选择和尺寸；无 canvas 时保留按选择分配的兼容入口 |
 | `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize,selectedItemId?}`，只返回绑定的有效会话与当前有效选择；不续活闲置租约；未知或失效入口为 410 |
 | `focus` | 管理身份；`{key}`，再次验证短入口及其全部成员 | `{focused}`；锚定会话当前 attachment 经 read 确认定位才为 true；无页面、两秒超时、被更新请求取代或会话结束时为 false。定位请求不排入配置命令，不修改持久化状态 |
-| `exchange` | 管理身份；`{id,state,display?,ack}` | `{commands:[{sequence,action,change?,baseItemIds?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
+| `exchange` | 管理身份；`{id,state,display?,ack}`；可选 `incremental:true` 时允许省略未变化的 state/display，省略表示保留 | `{commands:[{sequence,action,change?,baseItemIds?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
-| `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state,display,ack,sequence,attachmentId,focus?}`，attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
-| `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
+| `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?,stateRevision?,displayRevision?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state?,display?,stateRevision,displayRevision,ack,sequence,attachmentId,focus?}`；请求 revision 与当前值相等时仅省略对应主体，不带 revision 时返回完整主体。attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
+| `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同完整 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
 | `detach` | 当前会话 Bearer；`{id,attachmentId}`，必须匹配最后接管的页面 | `{}`；释放页面并立即结束待确认 focus，保留会话、草稿及已接受命令；同一页面重复释放幂等，迟到旧页面不能释放新页面。已释放标识仅保留为下次 attach 的比较基线，不能继续操作或恢复自身接管 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键。baseItemIds 仅允许 canvas 文档 edit，为编辑前已知的 UUID 列表 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准。可选 baseItemIds 经 exchange 原样转发，桌面应用文档时保留当前场景中不在此基线和提交文档中的新增图层；已知图层删除仍生效。旧请求保持原替换语义，基线不持久化 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
@@ -132,7 +132,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds,canvas,itemSizes}`，取已发布版本；canvas 为 `{width,height}`（未发布为 null），itemSizes 按实例 ID 映射 `{width,height}`；仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
-| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances}`；相同发布版本 document 为 null，appearances 仍按已发布 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
+| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?,dataVersions?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances,dataVersions?}`；相同发布版本 document 为 null，appearances 仍按已发布 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
 | `GET /api/scene/events` | `id,version,item?,projection?` 查询；场景 Bearer | `text/event-stream`，仅通知 `ready` / `change` / `revoked` 与注释心跳；数据仍从 output 读取；本地运行时最多四条连接，超限 429 |
 | `OPTIONS /api/scene/events` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
@@ -140,7 +140,9 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 
 输出中的 `projection` 是服务进程签发的类型投影回执，绑定已认证 owner scope/epoch、sceneId、来源 capability、item 选择及发布版本；不含实时数据或来源 token，不独立授予访问能力。父页面在整套 renderer 成功提交时同时记录 version/projection，后续请求携带该 active 回执。服务端仅合并最新文档与已验证 active 回执的类型集合，新版移除某类组件但准备失败时旧版仍获得更新；成功切换后旧类型随回执替换而释放。伪造、跨账号/场景/实例、版本不匹配、轮换或服务重启后的回执返回 403，父页清空旧版与回执后重新读取当前版。省略 projection 的旧客户端沿用仅投影最新文档的行为。没有历史文档缓存或无限版本保留。
 
-上述响应均禁止缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、Authorization 请求头和省略凭据模式，不接受查询参数中的 token。流绑定当前 owner scope/epoch、sceneId、capability 和可选 item，复用 output 的 active projection 验证；成功发布/轮换或对应类型的运行时变化触发通知，40ms 合并突发变化。每次通知及每秒心跳都复核访问和 HTTP server 的实际 license/lifecycle；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流。消息不含组件数据、外部 URL 或业务事件 ID；慢客户端被关闭，shutdown 在 inflight drain 前释放所有流。
+可选 `dataVersions` 为最长 1024 字符的 JSON 对象，仅接受 `songlist`、`lyricTimeline`、`gift-feed` 键及 1–128 字符的字母、数字、下划线或连字符版本值。首次传 `{}`，成功接收后回传响应中的版本；已确认且未变化的 `data.songlist`、`data.lyrics.lyricTimeline` 或 `data['gift-feed']` 省略，播放状态仍更新。发布版本不匹配时忽略旧确认；版本不提供权限，仍逐次执行原授权和投影检查。非法值返回 `400 SCENE_INVALID_DATA_VERSION`。旧请求不带此参数时始终返回完整数据，也不增加 `dataVersions` 响应字段。父页保留已接收静态内容供换版准备使用，输出失败或撤销清除确认后重新读取。
+
+上述响应均禁止 HTTP 缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、Authorization 请求头和省略凭据模式，不接受查询参数中的 token。流绑定当前 owner scope/epoch、sceneId、capability 和可选 item，复用 output 的 active projection 验证；成功发布/轮换或对应类型的运行时变化触发通知，40ms 合并突发变化。每次通知及每秒心跳都复核访问和 HTTP server 的实际 license/lifecycle；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流。消息不含组件数据、外部 URL 或业务事件 ID；慢客户端被关闭，shutdown 在 inflight drain 前释放所有流。
 
 客户端输出读取不重叠，请求开始至少间隔 100ms；通知正常时每五秒补读检查，断线、未实现或超出连接上限时回退为响应结束后约 750ms 重读，并有限退避重连。通知接口初次 HTTP 失败本身不清空有效输出；明确的 `revoked` 或 output 授权失败才撤销。提交新 renderer 版本/回执后重开通知订阅，准备失败继续订阅旧版所需类型。云事件仍提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
 
@@ -206,18 +208,23 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 | lyrics / gift-sprint | 无额外 REST | 专用推送与快照字段见 [ws.md](ws.md) |
 | gift-effects | `GET /api/bilibili/avatar` | 仅通过既有受限 B 站头像代理读取送礼头像；无礼物历史或管理接口权限，专用推送见 [ws.md](ws.md) |
 | songlist | `GET /api/songs` | 服务端强制 enabledOnly，仅 category 展示过滤；不返回文件路径、禁用歌或导入元数据 |
-| blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName，仅公开统计字段 |
-| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；只允许 cursor/viewRevision；card-profiles 只转发 viewRevision，返回当日 eventId、senderId 与昵称/头像/等级证据，禁止客户端选择旧日期、来源或其他用户过滤 |
+| blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName/top/hideLoss，仅公开统计字段 |
+| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；仅转发 cursor/viewRevision 及可选 conditional/contentRevision；card-profiles 转发 viewRevision/contentRevision，返回当日 eventId、senderId 与昵称/头像/等级证据或未变化确认，禁止客户端选择旧日期、来源或其他用户过滤 |
 | gift-export | `GET /api/bilibili/avatar` | 导出数据由 main 注入冻结快照；没有历史、selection 或导出 IPC 权限 |
 | gift-wishes | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口；无来源 ID、送礼人或管理写权限 |
 | interactions | `GET /api/interactions/session` | 只读投票/评分公开结果；禁止写入与 host-state |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
-| danmaku | `GET /api/bilibili/avatar`、`GET /api/danmaku/display`、`GET /api/danmaku/events`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；display 返回当前账号的规范化外观及展示投影；events 仅发送变更通知；size 只读本 scope 尺寸 |
+| danmaku | `GET /api/bilibili/avatar`、`GET /api/bilibili/room/profile`、`GET /api/danmaku/display`、`GET /api/danmaku/events`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；room/profile 只读服务端当前配置房间的房主资料，投影仅 `roomId/uid/name/avatarUrl`，不接受页面指定房间或主播身份；display 返回当前账号的规范化外观及展示投影；events 仅发送变更通知；size 只读本 scope 尺寸 |
 | wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
 | opening | `GET /api/opening/config` | 仅文案、展示参数、当前媒体 URL |
 | clock | `GET /api/clock/config`、`GET /api/component/size` | 仅时钟显示参数及本 scope 尺寸 |
 
 HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：预检仅对上表已知方法/路径开放 Authorization/Content-Type，实际请求再校验有效 scope；管理凭据对此来源一律拒绝。仅上述路径的实际错误响应允许页面读取，以便旧凭据收到 401 后刷新，不返回额外状态。没有 `Access-Control-Allow-Credentials`。
+
+`GET /api/overtime/gifts/catalog` 默认仍返回完整目录。可选 `conditional=1`
+时附带 `contentRevision` 与 `unchanged:false`；带回相同 contentRevision 时仅返回
+`{contentRevision,unchanged:true}`。摘要覆盖实际目录和图片路径等返回内容，同一
+catalog version 的图片修复也会改变摘要。gift-feed scope 仅投影展示目录及这两个字段。
 
 `GET /api/danmaku/display?epoch=…&cursor=…` 由 [danmaku-display-routes.js](../../../src/server/routes/danmaku-display-routes.js) 处理，供本机独立地址 `/danmaku?source=component` 使用。响应 `{ok:true,data:{config,data}}`，其中 `config` 为已保存的 `{style,fullscreenDurationSeconds,styleOptions,layout,styleParameters?}`，可选 styleParameters 按 danmaku 类型校验，配置尚未取得时为 `null`；内层 `data` 是已有云展示缓冲的 `{epoch,status,state,nextCursor,reset,gap,events}`。读口由 `scene-runtime` 复用当前账号的同一缓冲，不创建场景或第二条上游连接。首次/无效 cursor/切账号按已有缓冲契约 reset，不重放旧直播消息。每次读取 `no-store`，未就绪端口为 503；匿名为 401，其他 overlay scope、管理凭据配 opaque Origin 或写方法均被拒绝。固定页仍只注入 danmaku 展示凭据，不能读取管理配置。
 
@@ -463,7 +470,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `POST /api/music/resolve-stream`          | `{track, forceRefresh?}`(`forceRefresh: true` 跳过缓存)                                                                                                                                                                                                                       | 解析后播放流信息                                                                          | 400/501 |
 | `GET /api/music/qq-encrypted-stream`      | `id` + session token;支持浏览器 `Range`                                                                                                                                                                                                                                       | 服务端短期 QMC2 解密的 FLAC/Ogg 播放流                                                    | 404/416/502                                           |
 | `POST /api/music/search`                  | `{platform?`(默认 `netease`), `keyword                                                                                                                                                                                                                                        | query                                                                                     | songName`(必填,截断 120 字符), `limit`(1–30,默认 20)} | `{source, keyword, tracks}`                                | 501、400(缺关键词)                            |
-| `POST /api/music/home`                    | `{platform?`, `action?`(`personalized`(默认)/`playlist-tracks`/`daily`/`radio`/`liked`/`created-playlists`/`collected-playlists`/`recent`), `limit`(1–5000,默认 100), `offset`, `page`(1–50), `playlistId?`, `refresh?`, `track?`(仅 `created-playlists` 附带时标注歌单归属)} | 首页/歌单内容(`personalized`/`playlist-tracks` 走 5 分钟 API 缓存,`daily`/`radio` 不缓存) | 501、400                                              |
+| `POST /api/music/home`                    | `{platform?`, `action?`(`personalized`(默认)/`playlist-tracks`/`daily`/`radio`/`liked`/`created-playlists`/`collected-playlists`/`recent`), `limit`(1–5000,默认 100), `offset`, `page`(1–50), `playlistId?`, `refresh?`, `loadingSession?`(仅 liked，同次分页复用，最长100字符), `track?`(仅 `created-playlists` 附带时标注歌单归属)} | 首页/歌单内容(`personalized` 走 5 分钟 API 缓存；歌单详情直接读取 Provider；liked 会话内复用见 [音乐服务](music/services.md)) | 501、400                                              |
 | `POST /api/music/playlists/tracks/add`    | `{platform                                                                                                                                                                                                                                                                    | source?`(默认 `qq`), `playlist: {id                                                       | tid, dirId?, title                                    | dirName?(截断 200)}`, `tracks[]`(**≤ 100 条**,空数组报错)} | `{source, operation:'add', playlist, result}` | 501、400(`缺少要修改的音乐歌曲。`) |
 | `POST /api/music/playlists/tracks/remove` | 同上(`tracks` ≤ 100)                                                                                                                                                                                                                                                          | `{source, operation:'remove', playlist, result}`                                          | 501、400                                              |
 | `POST /api/music/lyrics`                  | `{track}`(经 `normalizeMusicTrackForProvider` 归一化;命中 30 天歌词缓存时附 `cached: true`)                                                                                                                                                                                   | 歌词数据                                                                                  | 400/501 |
@@ -622,12 +629,12 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
 | `GET /api/gifts/effects/resolve` | 查询参数 `giftId`（1–12 位正整数） | 解析可播放的 MP4 全屏特效，返回 `{giftId,effect}` | 400（ID 无效）、404（无可播放特效） |
 | `POST /api/gifts/effects/preview` | `{giftId}`（1–12 位正整数） | 返回 `{giftId,effect}`，并广播 `gift:effect` 预览（`eventId:0,preview:true`） | 400（ID 无效）、404（无可播放特效） |
-| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；禁止 `sourceId/source_id` | 当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态 | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
+| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；可选 `conditional=1/contentRevision` 用于完整扫描后的内容确认；禁止 `sourceId/source_id` | 默认返回当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态。条件读取增加 contentRevision，匹配时只返回 unchanged、空 items/nextCursor 与同步状态，详见 [礼物参考](bilibili/gift.md) | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
-| `GET /api/gifts/card-profiles` | 可选 `viewRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial`；items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时遍历服务端分页并验证来源、日期和同步代次；离线或旧服务器只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
+| `GET /api/gifts/card-profiles` | 可选 `viewRevision/contentRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial/contentRevision`；匹配内容版本时返回空 items 和 `unchanged:true`。完整 items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时验证服务端分页的来源、日期和同步代次，支持版本的服务端只在变化时重新翻页；不可用时只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
 | `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0 | 读取/保存本地礼物展示配置，保存后广播刷新；速率线性对应每行 5–0.1 秒，默认 12（每行 3.9 秒）。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
 | `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
-| `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`                                                                                                           | 今日盲盒汇总、排行及 `heartBoxProgress`                                            | —                                   |
+| `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`、`top?`（-1 全榜、0 汇总、1–10 前 N）、`hideLoss?`（0/1，默认 0） | 今日盲盒汇总、排行及 `heartBoxProgress`；先过滤非盈利用户再 top，汇总值不变；非法参数返回 `400 INVALID_GIFT_STATS_OPTIONS` | — |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`)、`startDate?/endDate?`(本机日期 YYYY-MM-DD，含首尾两天；只给一端为单日，都省略为今天) | 当前授权来源的盲盒开盒分析；`dateRange` 返回生效日期，`today` 仍为本机当天零点 | 400(日期无效或逆序) |
 | `GET /api/gifts/search`             | 查询参数:`from?`、`to?`、`limit?`(**1–500**,默认 100)                                                                         | 时间范围检索结果                                    | —                                   |
 | `POST /api/gifts/frame/preview`     | `{userName?, giftName?, num?, themeId?}`；themeId 仅支持 `woodland-bloom`（默认），num 默认 1 | 广播 `gift:frame` 预览事件，不读取实时开关/阈值；不再需要金额（内部占位 1 分且不展示），旧金额若提供仍须大于 0，旧 motionMode 忽略 | 400(数量、主题或显式旧金额无效) |
@@ -775,7 +782,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 - 数据库处于不一致状态,建议用户手动清理或恢复备份
 
 **静默协调(Quiesce)**:
-清空全部前路由经 `api-context` 调用真实领域服务；暂停端口缺失会在清库前报错:
+清空全部由 [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 的同步 `runClearAll` 协调；路由从 `api-context` 传入清库、暂停/恢复、缓存清理和投影重建能力，仅保留确认校验、HTTP 映射及非 partial 结果后的广播/云同步。暂停端口缺失会在清库前报错:
 
 - `context.gifts.pauseDetection()`:停止检测、finalize 与消费重试；远端导入抛出 `GIFT_DETECTION_PAUSED`，避免同步游标越过未写入的记录
 - `context.overtime.pauseRecovery()`:停止结算补偿与倒计时归零写入
@@ -792,7 +799,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 > 模块文件:[src/server/routes/ai-routes.js](../../../src/server/routes/ai-routes.js)
 > 前缀:`/api/ai`
 
-`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, functionCallingEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt, personaId, personaPacks`;`modelProvider` 固定枚举为 `auto, deepseek, openai, anthropic, gemini, custom, doubao`，官方预设的地址与协议由服务端强制；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
+`ALLOWED_KEYS`([ai-routes.js:7-15](../../../src/server/routes/ai-routes.js#L7-L15)):`enabled, trigger, modelProvider, modelAuthMode, deepseekResponsesUrl, modelApiProtocol, deepseekApiKey, model, webSearchEnabled, functionCallingEnabled, reasoningEnabled, reasoningEffort, qweatherApiHost, qweatherApiKey, amapApiHost, amapApiKey, weatherEnabled, placesEnabled, routesEnabled, replyMaxChars, generationConcurrency, queueLimit, sendIntervalMs, userCooldownSeconds, roomLimitPerMinute, requestTimeoutMs, maxToolCalls, cacheTtlSeconds, contextTtlSeconds, systemPrompt, personaId, personaPacks`;`modelProvider` 固定枚举为 `auto, deepseek, kimi, openai, anthropic, gemini, custom, doubao`，官方预设的地址与协议由服务端强制；modelAuthMode 为 api/subscription，仅 OpenAI 支持 subscription，其他平台归一化为 api；密钥键 `SECRET_KEYS = {deepseekApiKey, qweatherApiKey, amapApiKey}` 与 settings 隔离存 `ai_configuration` 表(见 [storage.md](storage.md) §3.1)。
 
 **密钥字段安全契约**:GET 响应与 PUT 响应均**不回显密钥明文**;GET 返回 `has*ApiKey` 布尔标志(`hasDeepSeekApiKey, hasQWeatherApiKey, hasAmapApiKey`),密钥字段本身**不出现**在响应中;PUT 请求时传 `''` 跳过更新(保留现值)、传非空字符串更新、传 `null` 清空。前端密码框不回填已保存密钥，保持为空；提交时空值及旧版 `'********'` 遮罩均跳过。
 
@@ -803,11 +810,23 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `GET /api/ai/config`         | 无                                                                                                       | AI 配置(`getPublicConfig()`):完整密钥及原始 `personaPacks` 不出现，角色通过 `personas` 列表返回；包含 `has*ApiKey`、只读 `deepseekApiKeyPreview` / `qweatherApiKeyPreview` / `amapApiKeyPreview`（前 6 位加掩码，短密钥全掩码，见 [AI 密钥契约](ai.md#72-密钥加密与访问控制)）、只读 `providerPersonaIds`（各平台上次人格 ID）与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}` | —                                           |
 | `PUT /api/ai/config`         | body:仅 `ALLOWED_KEYS` 子集生效(其余忽略);密钥键传 `''` 跳过、传 `null` 置空                             | 更新后的配置(同 GET,密钥不回显)                                                                                                            | 400(`AI 配置无效。`)                        |
 | `GET /api/ai/status`         | 无                                                                                                       | AI 运行状态                                                                                                                                | —                                           |
-| `POST /api/ai/models`        | `{apiKey?, apiUrl?, modelProvider?, modelApiProtocol?}`；Key ≤ 512、URL ≤ 2048、两个枚举字段各 ≤ 32 字符 | 当前模型服务的模型列表；官方供应商忽略 `apiUrl`/协议覆盖                                                                                   | 400(字段、枚举或上游响应无效)               |
-| `POST /api/ai/test`          | 无                                                                                                       | DeepSeek 连通性测试                                                                                                                        | **502**(`{ok:false, error}`)                |
+| `POST /api/ai/models`        | `{apiKey?, apiUrl?, modelProvider?, modelApiProtocol?, modelAuthMode?}`；Key ≤ 512、URL ≤ 2048、三个枚举字段各 ≤ 32 字符 | 当前所选 API 或订阅的模型列表（订阅不使用 apiKey）；官方供应商忽略 `apiUrl`/协议覆盖                                                                                   | 400(字段、枚举或上游响应无效)               |
+| `POST /api/ai/test`          | 无                                                                                                       | 当前模型服务连通性测试                                                                                                                        | **502**(`{ok:false, error}`)                |
 | `POST /api/ai/test/deepseek` | 无                                                                                                       | 该 Provider 连接测试                                                                                                                       | **502** `{ok:false, code(≤80 字符), error}` |
 | `POST /api/ai/test/qweather` | 无                                                                                                       | 同上(和风天气)                                                                                                                             | 502                                         |
 | `POST /api/ai/test/amap`     | 无                                                                                                       | 同上(高德地图)                                                                                                                             | 502                                         |
+
+ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、access/refresh token；登录参数仅传账号 ID 和是否新建。公开状态为 `{available,pending,activeId,loggedIn,ready,profiles:[{id,label,loggedIn}],lastError}`，`GET /api/ai/status` 的 chatgpt 字段也使用此形状，不暴露注册 ID、subject 或令牌。详见 [AI 订阅契约](ai.md#45-chatgpt-订阅与-kimi-api)。
+
+| 端点 | 请求 | 响应(data) | 错误 |
+| --- | --- | --- | --- |
+| `GET /api/ai/chatgpt/status` | 无 | 公开账号状态 | — |
+| `POST /api/ai/chatgpt/login` | `{profileId?,newAccount?}`；ID 为字符串 ≤80，newAccount 为布尔 | 系统浏览器发起授权后的状态；异步等待回调，轮询状态获取结果 | 400 |
+| `POST /api/ai/chatgpt/cancel` | 无 | 取消本次登录后的状态 | — |
+| `POST /api/ai/chatgpt/select` | `{profileId}`，字符串 ≤80 | 切换当前账号，旧请求失效 | 400 |
+| `POST /api/ai/chatgpt/logout` | 无 | 清除当前凭据并请求远端撤销后的状态 | 400 |
+
+订阅连接测试复用 `POST /api/ai/test/deepseek`。失败使用安全的 CHATGPT_* 错误码，额度不足和授权失效都不切到 API；退出/切换不会改变已保存 API Key。订阅令牌和内部存储键不通过配置接口读写。
 
 豆包账号端点沿用现有 AI 管理授权，不接受 URL、脚本或 Cookie。状态只包含四个 boolean：`available`、`loggedIn`、`needsVerification`、`encryptionAvailable`；`GET /api/ai/status` 的 `doubao` 字段也使用此形状。账号不可用等错误使用安全的 `DOUBAO_*` 错误码，不回传底层异常或凭据。
 
@@ -840,7 +859,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /api/bilibili/avatar?url={https图片地址}` | 仅接受 `https://*.hdslb.com/*`，沿用 session token                                                        | Node 后端代取头像或弹幕表情并以内联图片返回，浏览器缓存 1 小时；保留既有 `avatar` 路径名以兼容旧消费者                                    | 400、502                                                                                                                                                                         |
 | `GET /api/bilibili/auth/state`                 | 无                                                                                                        | 登录状态 `{loggedIn, uid, message}`;非 Electron 环境返回 `{loggedIn:false, uid:0, message:'Bilibili 登录仅在 Electron 桌面环境中可用。'}` | 500                                                                                                                                                                              |
-| `GET /api/bilibili/room/profile`               | 无；只查询当前已保存的直播间，沿用管理身份认证 | 房主资料 `{roomId, uid, name, avatarUrl}`，`roomId` 为解析后的房间号；未设置房间时字段为空，头像仍通过既有代理加载 | 502（房间解析失败；可选用户资料不可用时保留房间号和已知房主昵称） |
+| `GET /api/bilibili/room/profile`               | 无；只查询当前已保存的直播间。管理身份或 danmaku overlay 凭据可读，后者不接受以查询参数指定房间或主播 | 房主资料 `{roomId, uid, name, avatarUrl}`，`roomId` 为解析后的房间号；未设置房间时字段为空，头像仍通过既有代理加载；overlay 响应只投影这四个字段 | 502（房间解析失败；可选用户资料不可用时保留房间号和已知房主昵称） |
 | `GET /api/bilibili/likes/state` | 无；沿用本机管理身份，匿名及 overlay 凭据不可读 | `{roomId,count,updatedAt,connected}`：最近收到的房间累计点赞数及本机 ISO 接收时间；未收到有效推送或未连接时数值和时间为 `null`。只读内存，不调用上游 | 通用认证/授权错误 |
 | `POST /api/bilibili/reconnect`                 | 无                                                                                                        | 手动重连结果;失败时同步更新 `liveStatus`                                                                                                  | **500** `{ok:false, error, detail, data:{liveStatus}}`                                                                                                                           |
 | `GET /api/bilibili/danmaku/state`              | 无                                                                                                        | 弹幕发送器状态 + 设置 `checkinBlessings/fortunePool/customReplyRules`                                                                     | 500                                                                                                                                                                              |
@@ -894,4 +913,4 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 [font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 静态资源路径提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们与静态字体一样是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不发起下载。CSS 只声明已可用的字体，资源缺失立即 404，不等待网络下载；未知 ID 返回 404，非 GET/HEAD 返回 405。字体返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，所有响应 `Cache-Control: no-store`。状态只包含 `{status,completed,completedAt}`，无路径、账号或下载地址。
 
-八款完整字库及校验清单随客户端发行；正常安装的 CSS 引用包内 `/fonts/` 静态资源，首次使用不访问外网，也不从 LIRA Server 获取字体内容。旧下载缓存端点保留兼容；生命周期与用户进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#共享字体缓存)。
+九款完整字库及校验清单随客户端发行；正常安装的 CSS 引用包内 `/fonts/` 静态资源，首次使用不访问外网，也不从 LIRA Server 获取字体内容。旧下载缓存端点保留兼容；生命周期与用户进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#共享字体缓存)。

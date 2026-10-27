@@ -65,6 +65,16 @@ test('preview pool includes inline emotes, mixed text, stickers and distinct gif
   assert.deepEqual(new Set(guards.map(item => item.guardAction)), new Set(['open', 'renew']));
 });
 
+test('notebook preview provides current-room guard and medal fields for every identity', () => {
+  const samples = createDanmakuPreviewItems('notebook');
+  assert.deepEqual([...new Set(samples.map(item => item.roomGuardLevel))].sort(), [0, 1, 2, 3]);
+  assert.ok(samples.every(item => item.avatarUrl));
+  const fan = samples.find(item => item.medalLevel);
+  assert.equal(fan.roomMedal.name, fan.medalName);
+  assert.ok(fan.roomMedal.level > 0);
+  assert.ok(samples.some(item => item.emotes?.length));
+});
+
 test('preview instances do not share mutable messages, emotes or room medals', () => {
   const first = createDanmakuPreviewItems('prismatic');
   const second = createDanmakuPreviewItems('prismatic');
