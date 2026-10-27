@@ -260,7 +260,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | `rules`    | 规则集替换                             |
 | `finished` | 倒计时自然归零定时器触发               |
 
-快照侧:`state.overtime`(17 字段之一,生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`gifts.getStatus()`:`coreActive/consumers/pendingCount`,[projection-service.js](../../../src/bilibili/gift/projection-service.js))在每次连接与业务变更时全量下发。
+快照侧:`state.overtime`(生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`gifts.getStatus()`:`coreActive/consumers/pendingCount`,[projection-service.js](../../../src/bilibili/gift/projection-service.js))在每次连接与业务变更时全量下发。
 
 增量消息形态(逐字契约见 [ws.md](ws.md) §3.2;`state` 含 `effectiveRemainingMs/serverNowMs/status/revision`,配置或规则变化时另带完整 `background/rules`):
 

@@ -30,7 +30,7 @@
 | -------- | -------------------------------------------------------------------------------- |
 | 语言     | 零框架 Vanilla JS(ES Modules + Classic Scripts),无构建工具、无 TypeScript        |
 | 样式     | 原生 CSS,按目录拆分,无预处理器                                                   |
-| 实时通道 | WebSocket 全量快照(见 [comms.md](comms.md)、[ws.md](../backend/ws.md))           |
+| 实时通道 | WebSocket 按权限投影的快照及领域增量消息(见 [comms.md](comms.md)、[ws.md](../backend/ws.md))           |
 | 命令通道 | `fetch('/api/...')`(见 [comms.md](comms.md)、[api.md](../backend/api.md))        |
 | 模块形态 | ES Module 带 `.js` 后缀的显式导入；既有全局兼容集中在 `legacy-admin-bridge.js`，不作为新模块注册方式 |
 
@@ -57,7 +57,7 @@
 
 ### 1.2 组件工作区的桌面尺度
 
-「组件」在 [live-components.css](../../../public/css/admin/live-components.css) 内消费并局部细化上述语义 token；适用于组件设置页，礼物姬下的四个功能各有独立页面，不改变 OBS/哔哩哔哩直播姬中的输出字号、素材比例或用户配置。颜色、圆角、禁用与焦点状态沿用客户端主题。侧栏负责标识当前页，右侧直接呈现操作与设置，不重复页名或功能介绍；内容左边线、控件高度与分区层级保持一致。
+「组件」在 [live-components.css](../../../public/css/admin/live-components.css) 内消费并局部细化上述语义 token；适用于组件设置页，礼物姬下的全屏礼物感谢、滚动礼物、礼物许愿、月底冲刺、盲盒盈亏榜和大航海感谢各有独立页面，不改变 OBS/哔哩哔哩直播姬中的输出字号、素材比例或用户配置。颜色、圆角、禁用与焦点状态沿用客户端主题。侧栏负责标识当前页，右侧直接呈现操作与设置，不重复页名或功能介绍；内容左边线、控件高度与分区层级保持一致。
 
 桌面双栏布局中，左侧「组件」标题与底部「打开画布」「素材管理」「使用指南」固定在侧栏两端，仅中间组件列表独立滚动，隐藏列表滚动条。「使用指南」打开使用文档并通过现有目录导航定位到第 5 章「场景与素材」开头。
 
@@ -318,7 +318,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `css/styles-base.css`                | 设计系统:CSS 变量、重置、按钮/表单基类、spacing/radius/shadow 令牌                                                                                                                    |
 | `css/styles-admin.css`               | 管理后台顶层样式(引用 admin/ 子目录)                                                                                                                                                  |
 | `css/styles-playback.css`            | 播放助手顶层样式(引用 playback/ 子目录)                                                                                                                                               |
-| `css/components/parameter-range.css` | 可复用参数滑块：`parameter-range` 为克制的天蓝默认款，按语义追加 `--tempo`（圆角方块）/`--scale`（圆环）/`--intensity`（短胶囊）/`--centered`（纵向椭圆）修饰类；不接管播放 seek/音量 |
+| `css/components/parameter-range.css` | 原生参数滑块统一使用客户端控制色、4px 轨道和18px 圆形滑块；`--centered` 保留正负区间填充，`data-range-scale="balanced"` 保留中心映射；不接管播放 seek/音量 |
 | `css/components/color-control.css` | 公共颜色控件与选色弹层：整条可点击，棋盘格色块、HEX 和当前不透明度；支持色相、RGB、HEX、A 百分比及取色。沿用主题令牌，`--color-control-height` 对齐邻近控件（默认 36px） |
 | `css/components/contextual-help.css` | Admin `<lira-help>` 的统一问号与顶层说明样式；只允许按视口空间切换上下位置，不提供页面级视觉变体                                                                                      |
 | `css/admin/*.css`                    | 管理后台分模块:workspace/layout/tabs/toasts/modals/collapsible/gifts/blindbox-analysis/overtime/toolbox/song-filters/desktop-lyric-preview/responsive                          |
@@ -328,7 +328,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `css/overlays/overtime.css`          | 加班机叠加层(cq 单位 + 容器查询,见 [overlays.md](overlays.md) §4)                                                                                                                     |
 | `css/overlays/clock.css` | 萌时钟各样式的 CSS 入口，包含纯时间极简样式与 reduced-motion 降级 |
 | `css/admin/workspace/song.css`      | 按原顺序导入 `song-management.css` 的歌曲资料与导入/云库表单、`song-layout.css` 的队列和工作区布局 |
-| `css/overlays/desktop.css`           | 保留桌面样式入口，依次导入滚动条及 `css/desktop/theme.css`、`update.css`、`shell.css`；分别拥有暖金主题、更新/支持页和退出屏/标题栏/工作区布局 |
+| `css/overlays/desktop.css` | 桌面样式入口，组合滚动条、`css/desktop/theme.css`、`update.css`、`shell.css`；主题色板按客户端选择生效，更新/支持页与桌面壳布局分别维护 |
 
 ## 6. 静态资源
 

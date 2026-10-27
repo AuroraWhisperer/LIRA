@@ -102,6 +102,7 @@ function createDomainServices(options) {
   const queue = {
     getSnapshot: () => queueService.getQueueSnapshot(queueContext),
     add: (input) => queueService.addQueueItem(queueContext, input),
+    cancel: (input) => queueService.cancelQueueItem(queueContext, input),
     handleAction: (action, id) => queueService.handleQueueAction(queueContext, action, id),
     ensureUnified: () => queueService.ensureUnifiedQueue(queueContext),
   };
@@ -220,6 +221,7 @@ function createDomainServices(options) {
             },
             userRequestCooldown,
             addQueueItem: queue.add,
+            cancelQueueItem: queue.cancel,
             resolveSongRequest: songs.findUniqueNameMatch,
             // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
             pickRandomSong: songs.pickRandom,

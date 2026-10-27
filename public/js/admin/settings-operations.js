@@ -2,6 +2,23 @@
 
 import { clearSuperChatUndo } from './queue.js';
 
+async function finishReconnectAnimation(button) {
+  const icon = button.querySelector('svg');
+  const spin = icon.getAnimations().find((animation) => animation.animationName === 'topbar-refresh-spin');
+  if (!spin) return;
+  const duration = spin.effect.getTiming().duration;
+  const turn = (spin.currentTime / duration) % 1;
+  // The two arrows have the same silhouette every half turn.
+  const endTurn = Math.ceil(turn * 2) / 2;
+  const settle = icon.animate([
+    { transform: `rotate(${turn * 360}deg)` },
+    { transform: `rotate(${endTurn * 360}deg)` },
+  ], { duration: Math.min(240, (endTurn - turn) * duration), easing: 'ease-out' });
+  spin.cancel();
+  await settle.finished.catch(() => {});
+  settle.cancel();
+}
+
 function reloadAfterPartialClearAll(response, { alertRef, locationRef }) {
   if (response?.partial !== true) return false;
   const committed = response.data?.committed || [];
@@ -215,6 +232,7 @@ export function createSettingsOperations({
 
   async function reconnectBilibili({ silent = false } = {}) {
     const button = documentRef.getElementById('reconnectBtn');
+    let reconnectedStatus;
     if (!silent) {
       button.disabled = true;
       button.setAttribute('aria-busy', 'true');
@@ -237,13 +255,7 @@ export function createSettingsOperations({
         throw new Error(payload.error || `重新连接直播间失败（HTTP ${response.status}）`);
       }
       if (payload.data?.liveStatus) {
-        if (!silent) showStackedToast({
-          key: 'live-refresh-ok',
-          title: '已重新连接直播间',
-          message: payload.data.liveStatus.message || '弹幕连接已重新建立',
-          className: 'admin-live-refresh-toast',
-          duration: 2800,
-        });
+        reconnectedStatus = payload.data.liveStatus;
       } else {
         throw new Error('重新连接直播间失败：服务未返回直播状态。');
       }
@@ -252,10 +264,19 @@ export function createSettingsOperations({
       if (!silent) toast(customMessage || error.message || String(error), { type: 'error' });
     } finally {
       if (!silent) {
+        await finishReconnectAnimation(button);
         button.disabled = false;
         button.removeAttribute('aria-busy');
         button.setAttribute('aria-label', '重新连接直播间');
         button.title = '重新连接直播间';
+        if (reconnectedStatus) showStackedToast({
+          key: 'live-refresh-ok',
+          type: 'success',
+          message: `已重新连接直播间\n${reconnectedStatus.message || '弹幕连接已重新建立'}`,
+          className: 'admin-live-refresh-toast',
+          duration: 2800,
+          update: true,
+        });
       }
     }
   }

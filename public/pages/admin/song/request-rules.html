@@ -21,6 +21,13 @@
             </select>
           </label>
           <label>
+            <span>允许观众取消点歌 <lira-help label="允许观众取消点歌说明">默认开启。观众发送「取消点歌」可取消本人最后一首仍在点歌板上的歌，发送「取消点歌 歌名」可按完整歌名取消本人的歌。关闭后两种取消指令均不生效，主播仍可手动删除队列歌曲。</lira-help></span>
+            <select id="songRequestCancelEnabled" data-dropdown-variant="settings" aria-label="允许观众取消点歌">
+              <option value="true">开启 · 允许取消</option>
+              <option value="false">关闭 · 禁止取消</option>
+            </select>
+          </label>
+          <label>
             只允许歌库歌曲
             <select id="onlyFromLibrary" data-dropdown-variant="settings">
               <option value="false">不限制</option>

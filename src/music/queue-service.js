@@ -82,6 +82,21 @@ function filterSongsByCooldown(context, songs) {
   return songs.filter((song) => songCooldownUntil(settings, previous.get(songCooldownKey(song.name, song.artist))) <= at);
 }
 
+function cancelQueueItem(context, input) {
+  const identity = requesterIdentity(input);
+  if (!identity) return null;
+
+  const songName = cleanText(input.songName);
+  const item = context.store.listActive()
+    .filter((row) => row.requester_uid === identity.uid && row.requester_identity_type === identity.type
+      && (!songName || row.song_name === songName))
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id)[0];
+  if (!item) return null;
+
+  context.store.setStatus(item.id, 'deleted', now());
+  return item;
+}
+
 function handleQueueAction(context, action, rawId) {
   const id = Number(rawId);
   const updatedAt = now();
@@ -129,6 +144,7 @@ module.exports = {
   isQueueRequestRejection,
   addQueueItem,
   filterSongsByCooldown,
+  cancelQueueItem,
   handleQueueAction,
   getQueueSnapshot,
   ensureUnifiedQueue,

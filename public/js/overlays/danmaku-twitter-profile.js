@@ -70,7 +70,7 @@ export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) 
     const displayName = String(profile?.name || '').trim() || '当前房主';
     const displayUid = String(profile?.uid || '').trim();
     name.textContent = displayName;
-    uid.textContent = displayUid ? `@UID ${displayUid}` : `@UID ${pendingText || '等待读取'}`;
+    uid.textContent = `@${displayUid || pendingText || '等待读取'}`;
     fallback.textContent = Array.from(displayName)[0] || '房';
     renderAvatar(profile?.avatarUrl, displayName);
   }

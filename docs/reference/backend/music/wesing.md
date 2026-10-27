@@ -271,7 +271,7 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 | `onState(state)`       | `{type:'wesing-state', state}`;且 active 且有 `lyricState` 时同步为全局 `lyricState` 并广播 `{type:'lyric-state', state}`([music-runtime.js](../../../../src/server/music-runtime.js)) |
 | `onTimeline(timeline)` | `timeline.active` 时经 `publishLyricTimeline` 归一化后广播 `{type:'lyric-timeline', timeline}`([music-runtime.js](../../../../src/server/music-runtime.js))                            |
 
-消息契约归属 [ws.md](../ws.md) §3;快照 17 字段中的 `weSing` 取 `weSingCapture.getStatus()`([music-runtime.js](../../../../src/server/music-runtime.js))。
+消息契约归属 [ws.md](../ws.md) §3;管理快照中的 `weSing` 取 `weSingCapture.getStatus()`([music-runtime.js](../../../../src/server/music-runtime.js))。
 
 本地端点前缀为 `/api/music/wesing/*`(端点清单与请求体见 [api.md](../api.md) 的 wesing-routes 节,此处不枚举):全部路由转发到 `context.weSing` 门面([api-context.js](../../../../src/server/api-context.js)),统一 `{ok, data}` 包装、业务失败回 400;`configure`/`offset` 在门面内完成设置持久化(§9.1 的 save 回调),`active`/`refresh` 直接透传采集器。
 

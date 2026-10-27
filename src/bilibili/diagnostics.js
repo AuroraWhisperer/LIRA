@@ -32,13 +32,13 @@ function summarizeConnectionAuth(auth = {}) {
 
 function songRequestSummary(danmaku = {}) {
   const message = String(danmaku.message || '').trim();
-  if (!message.startsWith('点歌') && !message.startsWith('随机')) return null;
+  if (!message.startsWith('点歌') && !message.startsWith('随机点歌') && !message.startsWith('取消点歌')) return null;
   return {
     commandRef: createHmac('sha256', commandReferenceKey)
       .update(JSON.stringify([String(danmaku.uid || ''), message, danmaku.messageTimestamp || 0]))
       .digest('hex')
       .slice(0, 16),
-    commandType: message.startsWith('点歌') ? 'request' : 'random',
+    commandType: message.startsWith('取消点歌') ? 'cancel' : message.startsWith('点歌') ? 'request' : 'random',
     source: ['danmaku', 'history', 'superchat', 'client'].includes(danmaku.source) ? danmaku.source : 'danmaku',
     messageTimestamp: Number(danmaku.messageTimestamp) || 0,
     messageLength: message.length,
@@ -57,6 +57,8 @@ function logSongRequest(event, danmaku, details = {}) {
 function songRequestReason(reason) {
   const text = String(reason || '');
   if (/不是点歌指令/.test(text)) return 'not-a-song-command';
+  if (/没有找到你点的待处理歌曲/.test(text)) return 'no-own-song-request';
+  if (/观众取消点歌已关闭/.test(text)) return 'song-request-cancel-disabled';
   if (/SC 点歌已关闭/.test(text)) return 'sc-song-requests-disabled';
   if (/暂停接收点歌/.test(text)) return 'requests-paused';
   if (/点歌内容命中黑名单/.test(text)) return 'song-request-blacklisted';

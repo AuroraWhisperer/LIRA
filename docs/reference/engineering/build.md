@@ -8,13 +8,13 @@
 
 | script                | 命令                                                                                                                                                              | 说明                                                                                                         |
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `start`               | `node src/server.js`                                                                                                                                              | 纯 Web 模式:仅启动 HTTP 服务,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
+| `start`               | `node src/server.js`                                                                                                                                              | 本地 Node 调试入口：同进程运行 HTTP/WS 与本地领域服务，管理页仍需有效凭据,进程模型见 [backend/server-core.md](../backend/server-core.md)                  |
 | `desktop`             | `electron .`                                                                                                                                                      | 桌面模式:Electron 壳与 HTTP 服务同进程                                                                       |
 | `check`               | `node scripts/check-js.js`                                                                                                                                        | 全量 JS 语法覆盖，逐文件复用；支持 `--plan` / `--force`（见 [test.md](test.md) §3） |
 | `test` | `node scripts/run-tests.js` | 递归收集业务目录中的测试；默认文件并发取 8 与可用 CPU 数的较小值，支持依赖组、目录和 `--file` 路径/通配符筛选，显式 `--test-concurrency` 替换该默认值(见 [test.md](test.md)) |
 | `test:admin` | 具体文件清单见 [package.json](../../../package.json) 的 `scripts.test:admin` | 固定管理页组合、外壳、AI、弹幕与加班机回归；显式启用 ESM VM 模块 |
 | `verify:docs`         | `node --test test/engineering/governance-docs.test.js`                                                                                                                        | 治理文件、路由表、规格索引和范围内 Markdown 链接检查                                                         |
-| `verify:architecture` | `node --experimental-vm-modules --test test/engineering/module-boundaries.test.js test/engineering/esm-module-boundaries.test.js test/engineering/modularity-size.test.js`                                                         | 模块边界、遗留债务预算和前端 ESM 边界检查                                                                    |
+| `verify:architecture` | `node --experimental-vm-modules --test test/engineering/module-boundaries.test.js test/engineering/esm-module-boundaries.test.js test/engineering/modularity-size.test.js`                                                         | 模块依赖、遗留全局/SQL 边界与前端 ESM 检查；文件规模按 ADR-0023 提示，不执行旧行数预算                                                                    |
 | `verify:quick`        | `npm run verify:docs && npm run check && npm run verify:architecture`                                                                                             | 日常评审前快速门禁:文档 → 语法 → 架构                                                                        |
 | `verify:contracts` | `node scripts/verify-server-contract.js` | 核对固定服务器提交和 fixture SHA-256；支持 `LIRA_SERVER_ROOT` |
 | `verify:roundtrip` | `node scripts/verify-song-roundtrip.cjs` | 固定服务器真实 HTTP 歌库往返；两仓需安装依赖 |
@@ -66,6 +66,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | --------------- | ------------------- | ---------- | ----------------------------------------------------------------------- |
 | dependencies    | `@clamber_l/crypto` | `0.1.12`   | QQ音乐加密音频解码                                                      |
 | dependencies    | `@jixun/qmweb-sign` | `2.0.3`    | QQ音乐 zzcSign 请求签名([package.json](../../../package.json))   |
+| dependencies    | `jose` | `6.2.13` | ChatGPT 订阅登录的 OIDC/JWT 签名、issuer、audience 与声明校验；见 [AI 账号接入](../backend/ai.md#45-chatgpt-订阅与-kimi-api) |
 | dependencies    | `qrc-decoder`       | `1.0.2`    | QQ音乐 QRC 歌词 3DES 解密([package.json](../../../package.json)) |
 | dependencies    | `yauzl`            | `3.4.0`    | 有限体积、逐项读取本机素材 ZIP；精确锁定 |
 | dependencies    | `electron-updater`  | `^6.8.4`   | 应用内自动更新(运行时见 [desktop/update.md](../desktop/update.md))      |
@@ -76,7 +77,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | devDependencies | `@electron/asar`    | `3.4.1`    | 打包依赖校验、资源完整性和 ASAR 测试直接使用                  |
 | devDependencies | `playwright`        | `^1.62.1`  | 开发期浏览器自动化工具;不随正式应用打包,包括其依赖 `playwright-core`      |
 
-**engines:`node >=24`**([package.json](../../../package.json))。运行时依赖 5 个,开发依赖 6 个;版本与依赖归类以 [package.json](../../../package.json) 为准。`app-builder-lib/out/*` 属于 builder 内部路径，当前 packaging/installer/font 测试有意直接耦合；升级 builder 时必须运行这些 focused 测试，不能把传递安装视为项目未声明的隐式依赖。
+**engines:`node >=24`**([package.json](../../../package.json))。版本与依赖归类以 [package.json](../../../package.json) 为准。`app-builder-lib/out/*` 属于 builder 内部路径，当前 packaging/installer/font 测试有意直接耦合；升级 builder 时必须运行这些 focused 测试，不能把传递安装视为项目未声明的隐式依赖。
 
 **npm overrides**([package.json](../../../package.json)):js-yaml 强制 `^4.3.2`，当前 [package-lock.json](../../../package-lock.json) 解析为 `4.3.2`。该覆盖约束作用于 electron-updater 与 electron-builder 的传递依赖；版本锁本身不代替依赖安全审计。
 
@@ -199,7 +200,7 @@ flowchart LR
 
 | 模式     | 入口                   | ELECTRON_DESKTOP | 进程                          | 认证与功能                                                                                                                                            |
 | -------- | ---------------------- | ---------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node 调试 | `npm start`            | 未设             | 仅 HTTP Server                | 管理 HTML/API 仍需有效管理凭据；没有 preload、safeStorage、Cookie 注入和主进程远端代理。不是匿名完整 Web 管理产品；入口与凭据来源见 [pages.md](../frontend/pages.md) §2 |
+| Node 调试 | `npm start`            | 未设             | Node HTTP/WS 与本地领域服务同进程 | 管理 HTML/API 仍需有效管理凭据；没有 preload、safeStorage、Cookie 注入和主进程远端代理。不是匿名完整 Web 管理产品；入口与凭据来源见 [pages.md](../frontend/pages.md) §2 |
 | 桌面     | `npm run desktop`      | `'1'`            | Electron main + Server 同进程 | 完整:分区登录、Cookie 注入、自动更新                                                                                                                  |
 | 开发桌面 | `electron .`(直接运行) | `'1'`            | 同上                          | 同上;未打包环境下调试桌面功能                                                                                                                         |
 

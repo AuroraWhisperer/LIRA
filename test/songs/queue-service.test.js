@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { addQueueItem, handleQueueAction, getQueueSnapshot, ensureUnifiedQueue } = require('../../src/music/queue-service');
+const { addQueueItem, cancelQueueItem, handleQueueAction, getQueueSnapshot, ensureUnifiedQueue } = require('../../src/music/queue-service');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createQueueStore } = require('../../src/storage/queue-store');
 const { createSongStore } = require('../../src/storage/song-store');
@@ -141,12 +141,163 @@ function requestFixture(t, settings = {}) {
     settingsStore: { getDefaultSettings: f.context.defaults },
     userRequestCooldown,
     addQueueItem: (input) => addQueueItem(f.context, input),
+    cancelQueueItem: (input) => cancelQueueItem(f.context, input),
     pickRandomSong: () => ({ name: '随机歌曲', artist: '歌手' }),
   };
   return { ...f, userRequestCooldown, request: (input = {}) => handleDanmakuMessage(messageContext, {
     message: '点歌测试歌曲', uid: '42', identityType: 'uid', userName: '观众', ...input,
   }) };
 }
+
+test('cancelling without a title removes the latest own active request by request time, regardless of queue order', (t) => {
+  const f = requestFixture(t);
+  const at = Date.parse('2026-10-27T04:00:00Z');
+  const first = f.request({ message: '点歌第一首', messageTimestamp: at }).queueItem;
+  handleQueueAction(f.context, 'live', first.id);
+  const latest = f.request({ message: '随机点歌', messageTimestamp: at + 2000, isPinned: true }).queueItem;
+  const delayed = f.request({ message: '点歌延迟到达', messageTimestamp: at + 1000 }).queueItem;
+  const other = f.request({ message: '点歌别人的歌', uid: '43', messageTimestamp: at + 3000 }).queueItem;
+
+  for (const expected of [latest, delayed, first]) {
+    const result = f.request({ message: '  取消点歌  ', userName: '改过的昵称' });
+    assert.equal(result.accepted, true);
+    assert.deepEqual(result.command, { type: 'cancel', songName: '' });
+    assert.equal(result.queueItem.id, expected.id);
+  }
+  assert.deepEqual(getQueueSnapshot(f.context).waiting.map((item) => item.id), [other.id]);
+  assert.equal(f.count('requests'), 1);
+  assert.equal(f.request({ message: '取消点歌' }).accepted, false);
+  assert.equal(f.count('queue'), 1, 'exhausting own requests must leave another viewer\'s request intact');
+});
+
+test('cancelling by full title removes only the latest own matching song and leaves newer different titles intact', (t) => {
+  const f = requestFixture(t);
+  const messageTimestamp = '2026-10-27T04:00:00Z';
+  const first = f.request({ message: '点歌晴天', messageTimestamp }).queueItem;
+  const duplicate = f.request({ message: '点歌晴天', messageTimestamp }).queueItem;
+  const newer = f.request({ message: '点歌另一首', messageTimestamp: '2026-10-27T04:01:00Z' }).queueItem;
+  const other = f.request({ message: '点歌晴天', uid: '43', messageTimestamp: '2026-10-27T04:02:00Z' }).queueItem;
+  assert.equal(f.request({ message: '取消点歌 晴' }).accepted, false, 'partial titles must not remove another song');
+  const result = f.request({ message: '取消点歌 晴天' });
+  assert.equal(result.accepted, true);
+  assert.equal(result.queueItem.id, duplicate.id, 'equal request times use the later ID');
+  assert.equal(f.request({ message: '取消点歌晴天' }).queueItem.id, first.id);
+  assert.equal(f.request({ message: '取消点歌 晴天' }).accepted, false);
+  assert.deepEqual(getQueueSnapshot(f.context).waiting.map((item) => item.id), [newer.id, other.id]);
+});
+
+test('cancellation requires the same stable identity and never authorizes by nickname', (t) => {
+  const f = requestFixture(t);
+  const own = f.request({ userName: '同名观众' }).queueItem;
+  const openId = f.request({ identityType: 'open_id', userName: '同名观众' }).queueItem;
+  const other = f.request({ uid: '43', userName: '同名观众' }).queueItem;
+  const anonymous = f.request({ uid: '', identityType: undefined, userName: '同名观众' }).queueItem;
+  for (const input of [{ uid: '' }, { uid: 'not-a-uid' }, { identityType: 'unknown' }, { uid: '44' }]) {
+    assert.equal(f.request({ message: '取消点歌 测试歌曲', userName: '同名观众', ...input }).accepted, false);
+    assert.equal(f.count('queue'), 4);
+  }
+  assert.equal(f.request({ message: '取消点歌', userName: '新昵称' }).queueItem.id, own.id);
+  assert.equal(f.request({ message: '取消点歌' }).accepted, false, 'UID cannot cancel an equal open_id');
+  assert.equal(f.request({ message: '取消点歌', identityType: 'open_id' }).queueItem.id, openId.id);
+  assert.deepEqual(getQueueSnapshot(f.context).waiting.map((item) => item.id), [other.id, anonymous.id]);
+});
+
+test('cancellation works while paused or restricted and preserves user and song cooldowns', (t) => {
+  const f = requestFixture(t, { userCooldownSeconds: '60', userQueueLimit: '1', queueLimit: '1',
+    songCooldownMode: 'hours', songCooldownValue: '1' });
+  const item = f.request().queueItem;
+  const beforeUserCooldown = f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42'));
+  const beforeSongCooldowns = f.db.songDb.prepare('SELECT * FROM song_cooldowns').all();
+  Object.assign(f.settings, { paused: 'true', songRequestGuardLevel: '1', songRequestMinMedalLevel: '30',
+    songRequestUserBlacklist: JSON.stringify([{ uid: '42', expiresAt: 0 }]) });
+  assert.equal(f.request({ message: '取消点歌' }).queueItem.id, item.id);
+  assert.equal(f.count('queue'), 0);
+  assert.equal(f.count('requests'), 0);
+  assert.equal(f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42')), beforeUserCooldown);
+  assert.deepEqual(f.db.songDb.prepare('SELECT * FROM song_cooldowns').all(), beforeSongCooldowns);
+  f.settings.paused = 'false';
+  assert.match(f.request().reason, /用户冷却中/, 'cancelling does not reset the request interval');
+});
+
+test('cancellation switch rejects both commands without mutating requests or cooldowns and can be re-enabled', (t) => {
+  const f = requestFixture(t, { userCooldownSeconds: '60' });
+  const item = f.request().queueItem;
+  const beforeCooldown = f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42'));
+  const beforeQueue = getQueueSnapshot(f.context);
+  f.settings.songRequestCancelEnabled = 'false';
+  for (const message of ['取消点歌', '取消点歌 测试歌曲']) {
+    const result = f.request({ message });
+    assert.equal(result.accepted, false);
+    assert.equal(result.command.type, 'cancel');
+    assert.equal(result.reason, '观众取消点歌已关闭。');
+    assert.equal(result.autoReply, undefined);
+    assert.deepEqual(getQueueSnapshot(f.context), beforeQueue);
+    assert.equal(f.count('requests'), 1);
+    assert.equal(f.userRequestCooldown.getLastRequestAt(requestCooldownKey('42')), beforeCooldown);
+  }
+  f.settings.songRequestCancelEnabled = 'true';
+  assert.equal(f.request({ message: '取消点歌 测试歌曲' }).queueItem.id, item.id);
+  assert.equal(f.count('queue'), 0);
+});
+
+test('realtime and history cancellation share deduplication and broadcast each actual queue removal once', async (t) => {
+  const { createSettingsStore } = require('../../src/storage/settings-store');
+  const { createDomainServices } = require('../../src/server/domain-services');
+  const { createBilibiliClient } = require('../../src/server/bilibili-client');
+  t.mock.method(console, 'info', () => {});
+  t.mock.method(console, 'log', () => {});
+  const f = historyFixture(t);
+  const settingsStore = createSettingsStore(f.db.songDb);
+  for (const [key, value] of Object.entries({ onlyFromLibrary: 'false', allowDuplicate: 'true', userCooldownSeconds: '0' })) {
+    settingsStore.setSetting(key, value);
+  }
+  const services = createDomainServices({ db: f.db, settingsStore });
+  const broadcasts = [];
+  const client = createBilibiliClient('123', {
+    isShuttingDown: () => false,
+    aiDanmakuDeliveryVerifier: { observe() {} },
+    domainServices: services,
+    aiAssistant: { handleDanmaku() {} },
+    broadcastSnapshot: (reason) => broadcasts.push({ reason, queue: services.queue.getSnapshot() }),
+    updateLiveStatus() {},
+    bilibiliDiagnostics: {},
+    bilibiliAuthCache: {},
+  });
+  try {
+    client.stopped = false;
+    client.userInfoService.setRoom({ roomId: '123', ownerUid: '456' });
+    client.roomRunContext = client.userInfoService.beginRoomRun();
+    client.messageHandlers.updateRoomRunContext(client.roomRunContext);
+    const at = Date.now();
+    const own = ['保留', '按名取消', '最后点的'].map((title, index) => services.messages.handleDanmaku({
+      message: `点歌 ${title}`, uid: '42', userName: '同名观众', messageTimestamp: at - 3000 + index * 1000,
+    }).queueItem);
+    const other = services.messages.handleDanmaku({
+      message: '点歌 按名取消', uid: '43', userName: '同名观众', messageTimestamp: at,
+    }).queueItem;
+    const packet = { cmd: 'DANMU_MSG', info: [[0, 0, 0, 0, at], '取消点歌', [42, '同名观众']] };
+    client.messageHandlers.handleDanmaku(packet);
+    client.messageHandlers.handleDanmaku(packet);
+    assert.equal(broadcasts.length, 1);
+    assert.deepEqual(broadcasts[0].queue.waiting.map((item) => item.id), [own[0].id, own[1].id, other.id]);
+
+    t.mock.method(client.apiClient, 'fetchHistory', async () => ({ room: [
+      { text: '取消点歌', uid: 42, nickname: '同名观众', timeline: at - 60000 },
+      { text: '取消点歌', uid: 42, nickname: '同名观众', timeline: at },
+      { text: '取消点歌 按名取消', uid: 42, nickname: '新昵称', timeline: at + 1000 },
+    ] }));
+    await client.historyPoller.pollHistory(client.roomRunContext);
+    await client.historyPoller.pollHistory(client.roomRunContext);
+    assert.deepEqual(broadcasts.map((item) => item.reason), ['bilibili:danmaku', 'bilibili:danmaku']);
+    assert.deepEqual(services.queue.getSnapshot().waiting.map((item) => item.id), [own[0].id, other.id]);
+    assert.equal(f.count('requests'), 2);
+  } finally {
+    client.stop();
+    services.gifts.dispose();
+    services.overtime.dispose();
+    services.superChats.dispose();
+  }
+});
 
 test('request controls default to unrestricted and manual library insertion keeps its existing authority', (t) => {
   const f = requestFixture(t);

@@ -148,7 +148,7 @@ body[data-style='spooky'] .spooky-item .spooky-event-copy .draw-danmaku-gift-amo
 body[data-style='spooky'] .spooky-item .spooky-event-copy :is(.draw-danmaku-gift-count,.draw-danmaku-gift-name,.draw-danmaku-gift-action,.draw-danmaku-gift-copy) { font: inherit; color: inherit; }
 body[data-style='spooky'] .spooky-sc .spooky-board { padding: .85em 1.2em 1.8em; }
 .spooky-sc .spooky-event-head { min-height: 3.5em; padding-left: 6.75em; }
-.spooky-sc-copy { margin-top: .75em; }
+body[data-style='spooky'] .spooky-sc-copy { margin-top: .75em; }
 body[data-style='spooky'] .spooky-notice .spooky-copy { font-size: .8em; }
 .spooky-notice :is(.spooky-web,.spooky-sticker,.spooky-twinkle) { display: none; }
 .spooky-notice .spooky-board { min-height: 0; padding-block: .45em; }

@@ -29,20 +29,20 @@
 | 形态          | 入口                                                                                                               | 说明                                                                                 |
 | ------------- | ------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | 独立服务      | `npm start` → [src/server.js](../../../src/server.js)(`require.main === module` 分支)                              | 本地调试入口；管理 HTML/API 仍需管理凭据，无 Electron preload、分区登录、safeStorage 和 Cookie 注入                            |
-| Electron 内嵌 | `npm run desktop` → [src/electron/main.js](../../../src/electron/main.js) 内 `require('../server')` **同进程**调用 | 桌面模式下服务与 Electron main 共享一个进程,见 [desktop/main.md](../desktop/main.md) |
+| Electron 内嵌 | `npm run desktop` → [entry.js](../../../src/electron/entry.js) → [main.js](../../../src/electron/main.js) 内 `require('../server')` **同进程**调用 | 桌面模式下服务与 Electron main 共享一个进程,见 [desktop/main.md](../desktop/main.md) |
 
-核心入口是工厂函数 `createServerRuntime(runtimeOptions)`([server.js:43](../../../src/server.js#L43)),返回 `{ start, stop, setPreShutdownHook, persistPlaybackSnapshot, getApiToken, getSetting }`。文件底部另有一套兼容层单例,由 [compatibility-runtime.js](../../../src/server/compatibility-runtime.js) 适配旧调用方 `startServer()`/`shutdownApplication()` 等顶层导出。
+核心入口是 [server.js](../../../src/server.js) 的工厂函数 `createServerRuntime(runtimeOptions)`；返回独立运行时实例，包含 `start`、`stop`、`setPreShutdownHook`、`persistPlaybackSnapshot`、`getApiToken` 等生命周期与桌面接入方法。文件底部由 [compatibility-runtime.js](../../../src/server/compatibility-runtime.js) 适配旧调用方的 `startServer()` / `shutdownApplication()` 等顶层导出，同样调用该工厂。
 
 ## 2. 端口与监听
 
 | 事实         | 值                                                                                                      | 出处                                                             |
 | ------------ | ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 默认端口     | `START_PORT = 3000`                                                                                     | [server.js:32](../../../src/server.js#L32)                       |
-| 默认主机     | `127.0.0.1`(`localhost` 归一化为 `127.0.0.1`,见 `normalizeServerHost`)                                  | [server.js:38-40](../../../src/server.js#L38-L40)                |
-| **主机验证** | **仅接受 `127.0.0.1` 或 `localhost`;拒绝 `0.0.0.0`、LAN 地址、任意主机名**(见 `validateServerHost`)     | [server.js:42-49](../../../src/server.js#L42-L49)                |
-| 监听方式     | `lifecycle.listenExactly` — **精确端口,失败即报错**(不做回退)                                           | [lifecycle.js:31-47](../../../src/server/lifecycle.js#L31-L47)   |
-| 回退辅助     | `listenWithFallback` 扫描 `startPort..startPort+19`,仅独立/兼容模式可用                                 | [lifecycle.js:13-29](../../../src/server/lifecycle.js#L13-L29)   |
-| 端口冲突处理 | 启动前 `cleanupOwnPortOccupant`:验证当前连接归属后关闭**上一个本服务实例**,再绑定 | [lifecycle.js:65-111](../../../src/server/lifecycle.js#L65-L111) |
+| 默认端口 | `START_PORT = 3000` | [server.js](../../../src/server.js) |
+| 默认主机 | `127.0.0.1`；`localhost` 经 `normalizeServerHost` 归一化 | [runtime-config.js](../../../src/server/runtime-config.js) |
+| **主机验证** | `validateServerHost` 仅接受 `127.0.0.1` 或 `localhost`；拒绝非环回地址及其他主机名 | [runtime-config.js](../../../src/server/runtime-config.js) |
+| 监听方式 | `lifecycle.listenExactly` 绑定指定端口，失败即报错；桌面、Node 调试与兼容入口均走此路径 | [server.js](../../../src/server.js)、[lifecycle.js](../../../src/server/lifecycle.js) |
+| 回退辅助 | `listenWithFallback` 是仍导出的独立辅助函数：扫描 `startPort..startPort+19`，`startPort=0` 时由系统分配；当前运行时启动不调用它 | [lifecycle.js](../../../src/server/lifecycle.js)、[server-lifecycle.test.js](../../../test/server/server-lifecycle.test.js) |
+| 端口冲突处理 | 启动前 `cleanupOwnPortOccupant` 验证当前连接归属后请求旧实例关闭，再绑定精确端口 | [lifecycle.js](../../../src/server/lifecycle.js) |
 
 `SERVICE_ID = 'lira'` 仅为公开服务标记，不构成身份证明。旧实例清理由 [lifecycle.js](../../../src/server/lifecycle.js) 编排，[local-instance.js](../../../src/server/local-instance.js) 拥有验证与连接：无凭据 GET health，发送 32 字节随机挑战；ready 实例返回 session token 的 HMAC-SHA256，固定域与实际监听端口绑定。客户端验证后，只有同一条 TCP socket 才能写入 Bearer 并 POST shutdown；断开、重连和重定向不转交令牌，响应上限 16 KiB、每次 HTTP 交换总期限 1 秒。
 
@@ -139,7 +139,7 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 
 ## 5. 领域服务装配
 
-`createDomainServices({ db, settingsStore, giftEffectResolver, onGiftFlushed, onOvertimeUpdate })`([domain-services.js:22](../../../src/server/domain-services.js#L22))是唯一领域服务组装点,产出:
+[domain-services.js](../../../src/server/domain-services.js) 的 `createDomainServices` 组合本地领域服务并注入各自的存储端口，主要产出：
 
 | 领域                                                     | 组成                                                      | 详情文档                                   |
 | -------------------------------------------------------- | --------------------------------------------------------- | ------------------------------------------ |
@@ -148,14 +148,17 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 | `gifts`                                                  | gift-service + 消费者注册表(加班机消费者)                 | [bilibili/gift.md](bilibili/gift.md)       |
 | `overtime`                                               | `createOvertimeService({store, onUpdate})`               | [overtime.md](overtime.md)                 |
 | `superChats`                                             | superchat-service                                         | [bilibili/gift.md](bilibili/gift.md)       |
-| `messages`                                               | bilibili-message-handler + checkin/fortune/customReply 链 | [bilibili/danmaku.md](bilibili/danmaku.md) |
-| `checkins / fortunes / customReplies / requesterTargets` | 弹幕机器人四件套                                          | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `messages` | 本地点歌/关键词命令编排；签到、抽签命令返回 `cloud-owned`，交由服务器执行 | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `customReplies / requesterTargets` | 本地关键词回复与点歌目标识别 | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `dailyBotLegacy` | 旧签到/抽签数据只读导出，供显式迁移；不执行机器人 | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `fans` | 本地粉丝档案与点歌事实消费 | [storage.md](storage.md) |
+| `giftWishes / overtimeGiftCatalog` | 本地礼物许愿与加班机使用的礼物目录 | [bilibili/gift.md](bilibili/gift.md)、[overtime.md](overtime.md) |
 | `data`                                                   | 清库/保留策略入口(database + retention)                   | [storage.md](storage.md)                   |
 | `playback / theme / cooldowns`                           | playback-store / theme-store / cooldown-store             | [storage.md](storage.md)                   |
 
 **启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `ensureCategory('默认')` → `queue.ensureUnified()` → `startRetentionMaintenance()`。保留期维护立即检查一次，之后每小时检查；每次读取最新设置，仅在 `autoRetentionOnStartup==='true'` 时执行，失败只记录警告，不阻断启动或后续维护。未完成点歌沿用数据库中的 ID、置顶和排队顺序，历史 `current` 态归位为 `waiting`；重启不清空队列，完成与清空由显式队列操作决定。客户端原始礼物检测与修复实现已删除，旧本地礼物不再重新解析或合并。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
 
-**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、DeepSeek 客户端、工具、投递校验与请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`，本地 `onGift → gifts.add()` 记账入口已移除；弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 `D:/Work/lira-server` 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。本地客户端启停跟随 `danmakuMonitoringEnabled`（兼容旧数据 `enableBilibili`），`giftMonitoringEnabled` 单独控制云端礼物入口。两项默认开启；存储与云同步将旧总开关维护为两项逻辑或，旧的明确停用会保留。服务端仅切换通道时原地更新 `RoomMonitor`，两项都关闭才停止共享连接；已接受礼物仍完成结算。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
+**运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、统一模型入口、豆包适配器、ChatGPT 会话与客户端、工具、上下文清理、投递校验及请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`，本地 `onGift → gifts.add()` 记账入口已移除；弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 LIRA Server 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。本地客户端启停跟随 `danmakuMonitoringEnabled`（兼容旧数据 `enableBilibili`），`giftMonitoringEnabled` 单独控制云端礼物入口。两项默认开启；存储与云同步将旧总开关维护为两项逻辑或，旧的明确停用会保留。服务端仅切换通道时原地更新 `RoomMonitor`，两项都关闭才停止共享连接；已接受礼物仍完成结算。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 

@@ -56,14 +56,13 @@ test('account entry switches labels and clears credentials without changing the 
   const get = page.getElementById;
   get('licensePassword').value = VALID_PASSWORD;
   get('licenseRegisterMode').listeners.get('click')();
-  assert.equal(get('licenseHeading').textContent, '注册 LIRA');
+  assert.equal(get('licenseRegisterMode').getAttribute('aria-pressed'), 'true');
   assert.equal(get('licenseCodeLabel').textContent, '注册激活码');
   assert.equal(get('licensePassword').getAttribute('autocomplete'), 'new-password');
   assert.equal(get('licensePassword').value, '');
   assert.equal(get('licenseActivationCode').value, '');
   assert.equal(get('licenseAccountName').value, 'test-account');
   get('licenseLoginMode').listeners.get('click')();
-  assert.equal(get('licenseHeading').textContent, '登录 LIRA');
   assert.equal(get('licenseCodeLabel').textContent, '短效登录码');
   assert.equal(get('licensePassword').getAttribute('autocomplete'), 'current-password');
   assert.equal(get('licenseLoginMode').getAttribute('aria-pressed'), 'true');

@@ -50,8 +50,11 @@ test('diagnostic projections exclude credentials, viewer identity and message te
   const summary = songRequestSummary(input);
   assert.equal(summary.commandRef, songRequestSummary(input).commandRef);
   assert.notEqual(summary.commandRef, songRequestSummary({ ...input, message: '点歌 另一首' }).commandRef);
-  assert.equal(songRequestSummary({ ...input, message: '普通聊天正文' }), null);
+  for (const message of ['普通聊天正文', '随机', '随机xx', '随机 xx']) {
+    assert.equal(songRequestSummary({ ...input, message }), null, message);
+  }
   assert.equal(songRequestSummary({ ...input, userName: '私**称' }).nameMasked, true);
+  assert.equal(songRequestSummary({ ...input, message: '取消点歌' }).commandType, 'cancel');
   const auth = summarizeConnectionAuth({
     cookieHeader: 'SESSDATA=synthetic-session; bili_jct=synthetic-csrf; DedeUserID=912345678',
     uid: 912345678,
@@ -162,6 +165,8 @@ test('history sampling reports stale/duplicate commands without repeating idle s
 test('queue refusal codes preserve useful distinctions without echoing request text', () => {
   for (const [reason, code] of [
     ['不是点歌指令。', 'not-a-song-command'],
+    ['没有找到你点的待处理歌曲。', 'no-own-song-request'],
+    ['观众取消点歌已关闭。', 'song-request-cancel-disabled'],
     ['SC 点歌已关闭。', 'sc-song-requests-disabled'],
     ['用户冷却中，还需 10 秒。', 'user-cooldown'],
     ['你目前已被限制点歌。', 'requester-blacklisted'],

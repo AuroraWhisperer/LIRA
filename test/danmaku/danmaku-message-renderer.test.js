@@ -310,27 +310,59 @@ test('snowfox gift, SC and membership each render one distinct card with origina
   assert.equal(findAllByClass(sc, 'sc-avatar').length, 1);
 });
 
-test('RIPPLOID chat uses only current-room medal and guard badges with safe message content', async () => {
+test('RIPPLOID chat combines current-room medal, honor level and guard badges with safe message content', async () => {
   const render = await createRenderer({ style: 'ripploid' });
   const item = { ...EMOTE_CHAT, medalName: '旧灯牌', medalLevel: 40, guardLevel: 3, honorLevel: 99,
     roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 };
   const root = render(item);
   assert.ok(root.className.includes('ripploid-chat'));
-  assert.equal(findAllByClass(root, 'draw-danmaku-badge').length, 2);
+  assert.equal(findAllByClass(root, 'draw-danmaku-badge').length, 3);
   assert.deepEqual(findByClass(root, 'draw-danmaku-medal').children.map((node) => node.textContent), ['BCBCB', '·', '22']);
-  assert.equal(findByClass(root, 'ripploid-guard-label').textContent, '总督');
+  assert.equal(findByClass(root, 'draw-danmaku-medal').getAttribute('title'), '当前直播间灯牌：BCBCB 22级');
+  assert.equal(findByClass(root, 'ripploid-honor-label').textContent, 'UL99');
+  assert.equal(findByClass(root, 'ripploid-honor-badge').getAttribute('title'), '荣耀等级 99');
+  assert.equal(findByClass(root, 'ripploid-guard-label').textContent, 'GOVERNOR');
+  assert.equal(findByClass(root, 'draw-danmaku-guard').getAttribute('title'), '当前直播间大航海：总督');
+  const badges = findByClass(root, 'ripploid-badges').children;
+  assert.equal(badges[0], findByClass(root, 'draw-danmaku-medal'));
+  assert.equal(badges[1], findByClass(root, 'ripploid-honor-badge'));
+  assert.equal(badges[2], findByClass(root, 'draw-danmaku-guard'));
   assert.equal(findByClass(root, 'ripploid-username-base').textContent, EMOTE_CHAT.name);
   assert.equal(findByClass(root, 'draw-danmaku-text').textContent, '你好');
   assert.equal(findAllByClass(root, 'draw-danmaku-emote').length, 1);
   assert.equal(findByClass(root, 'draw-danmaku-medal').children.length, 3);
-  assert.ok(!allNodes(root).some((node) => /旧灯牌|UL99/.test(node.textContent || '')));
-  for (const [roomGuardLevel, label] of [[2, '提督'], [3, '舰长']]) {
+  assert.ok(!allNodes(root).some((node) => /旧灯牌/.test(node.textContent || '')));
+  for (const [roomGuardLevel, label] of [[2, 'ADMIRAL'], [3, 'CAPTAIN']]) {
     assert.equal(findByClass(render({ ...item, roomGuardLevel }), 'ripploid-guard-label').textContent, label);
   }
-  const legacy = render({ name: '<b>观众</b>', message: '原文', medalName: '其他房间', medalLevel: 40, guardLevel: 1 });
+  const legacy = render({ name: '<b>观众</b>', message: '原文', medalName: '其他房间', medalLevel: 40, guardLevel: 1, userLevel: 22, level: 30 });
   assert.equal(findAllByClass(legacy, 'draw-danmaku-badge').length, 0);
   assert.equal(findByClass(legacy, 'ripploid-username-base').textContent, '<b>观众</b>');
   assert.equal(findByClass(legacy, 'ripploid-username-base').children.length, 0);
+});
+
+test('RIPPLOID hides each missing identity badge independently without an empty badge row', async () => {
+  const render = await createRenderer({ style: 'ripploid' });
+  for (let combination = 0; combination < 8; combination += 1) {
+    const medal = Boolean(combination & 1);
+    const honor = Boolean(combination & 2);
+    const guard = Boolean(combination & 4);
+    const root = render({ name: '观众', message: '原文',
+      roomMedal: medal ? { name: 'BCBCB', level: 22 } : undefined,
+      honorLevel: honor ? 22 : 0, roomGuardLevel: guard ? 1 : 0 });
+    assert.equal(Boolean(findByClass(root, 'draw-danmaku-medal')), medal);
+    assert.equal(Boolean(findByClass(root, 'ripploid-honor-badge')), honor);
+    assert.equal(Boolean(findByClass(root, 'draw-danmaku-guard')), guard);
+    assert.equal(findAllByClass(root, 'draw-danmaku-badge').length, Number(medal) + Number(honor) + Number(guard));
+    assert.equal(Boolean(findByClass(root, 'ripploid-badges')), combination !== 0);
+    assert.equal(findByClass(root, 'ripploid-username-base').textContent, '观众');
+  }
+  for (const honorLevel of [undefined, null, -1, 1.5, '22', NaN]) {
+    const root = render({ name: '观众', message: '原文', honorLevel, roomGuardLevel: 3,
+      roomMedal: { name: 'BCBCB', level: 22 } });
+    assert.equal(findByClass(root, 'ripploid-honor-badge'), undefined);
+    assert.equal(findAllByClass(root, 'draw-danmaku-badge').length, 2);
+  }
 });
 
 test('RIPPLOID gift tickets preserve sender, gift, count and settled total with per-event tiers', async () => {
@@ -341,7 +373,7 @@ test('RIPPLOID gift tickets preserve sender, gift, count and settled total with 
   assert.ok(gift.className.includes('ripploid-gift'));
   assert.equal(findByClass(gift, 'ripploid-gift-name').textContent, item.giftName);
   assert.equal(findByClass(gift, 'ripploid-gift-name').children.length, 0);
-  assert.equal(findByClass(gift, 'ripploid-gift-count').textContent, '× 510');
+  assert.equal(findByClass(gift, 'ripploid-gift-count').textContent, '×510');
   assert.equal(findByClass(gift, 'ripploid-gift-price-value').textContent, '2,992');
   assert.equal(findByClass(gift, 'ripploid-ticket-signature').textContent, item.name);
   assert.equal(findByClass(gift, 'draw-danmaku-gift'), undefined);
@@ -352,6 +384,24 @@ test('RIPPLOID gift tickets preserve sender, gift, count and settled total with 
     assert.equal(render({ ...item, giftTotalPrice }).style['--ripploid-event-accent'], `var(--ripploid-gift-color${tier})`);
   }
   assert.equal(findByClass(render({ ...item, giftTotalPrice: undefined }), 'ripploid-gift-price-value').textContent, '—');
+});
+
+test('RIPPLOID system and entry messages keep their text in one safe status row', async () => {
+  const render = await createRenderer({ style: 'ripploid' });
+  for (const kind of ['system', 'entry']) {
+    const root = render({ kind, name: '<b>观众</b>', message: '<script>原始通知</script>', roomGuardLevel: 1 });
+    assert.ok(root.className.includes('ripploid-system'));
+    assert.ok(!root.className.includes('ripploid-chat'));
+    assert.equal(findAllByClass(root, 'draw-danmaku-identity').length, 0);
+    assert.equal(findAllByClass(root, 'draw-danmaku-badge').length, 0);
+    const copy = findByClass(root, 'ripploid-system-copy');
+    assert.equal(copy.children.length, 2);
+    assert.equal(copy.children[1].textContent, '<script>原始通知</script>');
+    assert.equal(copy.children[1].children.length, 0);
+    const label = findByClass(root, 'ripploid-system-label');
+    assert.equal(label.textContent, kind === 'entry' ? '[进房]：<b>观众</b> ' : '[系统]：');
+    assert.equal(label.children.length, 0);
+  }
 });
 
 test('RIPPLOID memberships use the purchased rank, resolved avatar and no invented renewal facts', async () => {
@@ -394,10 +444,17 @@ test('RIPPLOID SC keeps the exact original and uses its own amount tier instead 
   assert.equal(findByClass(root, 'sc-name').textContent, '<b>留言人</b>');
   assert.equal(findByClass(root, 'sc-value').textContent, '100.5');
   assert.equal(findByClass(root, 'sc-currency').textContent, 'RMB');
-  assert.deepEqual(findByClass(root, 'sc-money').children.map((node) => node.className), ['sc-value', 'sc-currency']);
+  assert.deepEqual(findByClass(root, 'sc-money').children.map((node) => node.getAttribute('class') || node.className), ['sc-value', 'sc-currency', 'ripploid-sc-amount-ring']);
   assert.equal(findByClass(root, 'ripploid-sc-title-outline').textContent, 'SC 100.5RMB');
   assert.equal(root.style['--ripploid-event-accent'], 'var(--ripploid-superchat-color100)');
   assert.equal(findAllByClass(root, 'sc-avatar').length, 0);
+  const another = render({ kind: 'superchat', name: '另一位观众', message: '第二张留言卡', price: 50 });
+  const title = findByClass(root, 'ripploid-sc-transition-title');
+  const anotherTitle = findByClass(another, 'ripploid-sc-transition-title');
+  assert.notEqual(title.style.clipPath, anotherTitle.style.clipPath, 'simultaneous cards must not share another card’s tear');
+  const definitions = allNodes(root).find(node => node.tag === 'defs');
+  assert.equal(title.style.clipPath, `url(#${definitions.children[0].id})`);
+  assert.equal(title.style.mask, `url(#${definitions.children[1].id})`);
   for (const [price, tier] of [[2, 0], [50, 50], [100, 100], [500, 500], [1000, 1000], [2000, 2000]]) {
     assert.equal(render({ kind: 'superchat', name: '观众', message: '原文', price }).style['--ripploid-event-accent'],
       `var(--ripploid-superchat-color${tier})`);
@@ -415,6 +472,8 @@ test('Twitter chat uses current-room SVG verification, safe emotes and four vect
     assert.equal(findByClass(root, 'draw-danmaku-text').textContent, '你好');
     assert.equal(findAllByClass(root, 'draw-danmaku-emote').length, 1);
     assert.equal(findAllByClass(root, 'twitter-verified').length, roomGuardLevel ? 1 : 0);
+    assert.equal(findByClass(root, 'twitter-meta').textContent,
+      `@${{ 0: 'Spectator', 1: 'Governor', 2: 'Admiral', 3: 'Captain' }[roomGuardLevel]}`);
     assert.equal(findByClass(root, 'draw-danmaku-avatar').className.includes('twitter-avatar'), true);
     assert.equal(findAllByClass(root, 'twitter-action').length, 4);
     for (const action of findAllByClass(root, 'twitter-action')) {
@@ -439,6 +498,9 @@ test('Twitter gifts preserve artwork and settled totals; memberships use purchas
   assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 3');
   assert.equal(findByClass(gift, 'draw-danmaku-gift-amount').textContent, '¥12.5');
   assert.equal(findByClass(gift, 'draw-danmaku-gift-art').children[0].src, item.giftImageUrl);
+  assert.equal(findAllByClass(gift, 'twitter-gift-panel').length, 1);
+  assert.equal(findAllByClass(gift, 'twitter-gift-total').length, 1);
+  assert.equal(findByClass(gift, 'twitter-meta').textContent, '@Gift');
   assert.equal(findByClass(gift, 'twitter-guard-steps'), undefined);
   for (const [giftGuardLevel, role, color] of [
     [3, '舰长', 'var(--guard-captain)'], [2, '提督', 'var(--guard-admiral)'], [1, '总督', 'var(--guard-governor)'],
@@ -468,7 +530,7 @@ test('Twitter SC keeps its exact message, amount, avatar and current-room identi
   assert.equal(findByClass(root, 'sc-copy').textContent, message);
   assert.equal(findByClass(root, 'sc-copy').children.length, 0);
   assert.equal(findByClass(root, 'sc-value').textContent, '30.5');
-  assert.equal(findByClass(root, 'sc-avatar').children[0].src, '/resolved/sc.png');
+  assert.equal(findByClass(root, 'twitter-avatar-image').children[0].src, '/resolved/sc.png');
   assert.equal(findAllByClass(root, 'twitter-verified').length, 1);
   assert.equal(findAllByClass(root, 'twitter-action').length, 4);
 });

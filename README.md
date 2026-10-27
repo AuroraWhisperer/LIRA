@@ -29,6 +29,7 @@ In the current client, the LIRA server handles account/device authorization, opt
 
 - `点歌 晴天` — request a song via danmaku, with fuzzy matching
 - `随机点歌` — random pick from the library, filterable by artist, category, language
+- `取消点歌` / `取消点歌 晴天` — cancel your latest queued request, or your latest request with that full title; other viewers' songs stay in place
 - Manual queue management: add, skip, pin, clear
 - Floating notification on successful request
 

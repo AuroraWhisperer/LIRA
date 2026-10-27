@@ -1,5 +1,5 @@
 import { mountStyleParameters } from './component-style-parameters.js';
-import { DANMAKU_STYLE_OPTIONS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { readAppearanceValue, editStyleOption, resetStyleOptions, resetSpookyColors, isValidFullscreenDuration,
   floatingSpeedFromPixelsPerSecond, floatingSpeedToPixelsPerSecond, floatingSpeedLabel } from '../shared/danmaku-appearance-draft.js';
 import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
@@ -10,12 +10,17 @@ import { enhanceColorControls } from '../shared/color-control.js';
 export function bindDanmakuParameters(root, controller, onError) {
   enhanceColorControls(root);
   const node = (id) => componentField(root, id);
-  const controls = Object.fromEntries(['minGiftAmount', 'fontFamily', 'fontSize', 'bubbleColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'entranceAnimation', 'decorationShape', 'spookyTheme', 'spookyFrame', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS, ...Object.keys(RIPPLOID_COLOR_DEFAULTS)]
+  const controls = Object.fromEntries(['minGiftAmount', 'composerText', 'fontFamily', 'fontSize', 'bubbleColor', 'backgroundOpacity', 'giftImage', 'scrollDirection', 'edgeFade', 'entranceAnimation', 'decorationShape', 'spookyTheme', 'spookyFrame', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS, ...Object.keys(RIPPLOID_COLOR_DEFAULTS), ...Object.keys(TWITTER_LAYOUT_DEFAULTS), ...Object.keys(TWITTER_COLOR_DEFAULTS)]
     .map((key) => [key, node(`danmaku${key[0].toUpperCase()}${key.slice(1)}`)]));
   const unregisterFont = registerFontSelect(controls.fontFamily);
   const ranges = ['backgroundOpacity', 'floatingSpeed', 'floatingDispersion', 'centerBias', 'dispersion', ...SPOOKY_OPACITY_KEYS];
   ranges.forEach((key) => initParameterRanges(controls[key]));
   let renderedStyle;
+
+  function renderComposerTextCount() {
+    node('danmakuComposerTextCount').textContent = `${inspectComposerText(controls.composerText.value).length}/${TWITTER_COMPOSER_TEXT_MAX_LENGTH}`;
+  }
+  controls.composerText.addEventListener('input', renderComposerTextCount);
 
   function renderRangeValue(key, speed) {
     const value = controls[key].value;
@@ -31,6 +36,17 @@ export function bindDanmakuParameters(root, controller, onError) {
     const limits = DANMAKU_STYLE_OPTIONS[draft.style];
     const options = styleOptionsFor(draft.style, draft.styleOptions);
     const supported = Object.hasOwn(draft, 'styleOptions');
+    node('danmakuComposerTextField').hidden = !limits.composerText || options.twitterComposer === 'hide';
+    syncComponentFieldValue(controls.composerText, options.composerText || '', force);
+    renderComposerTextCount();
+    for (const [key, fallback] of Object.entries(TWITTER_LAYOUT_DEFAULTS)) {
+      node(`danmaku${key[0].toUpperCase()}${key.slice(1)}Field`).hidden = !limits.twitterOptions;
+      syncComponentFieldValue(controls[key], options[key] || fallback, force);
+    }
+    node('danmakuTwitterColors').hidden = !limits.twitterOptions;
+    for (const [key, fallback] of Object.entries(TWITTER_COLOR_DEFAULTS)) {
+      syncComponentFieldValue(controls[key], options[key] || fallback, force);
+    }
     node('danmakuParametersTitle').textContent = `参数调节 · ${limits.label}`;
     node('danmakuParametersHint').textContent = !loaded ? '登录并读取配置后可调节参数。'
       : !supported ? '当前服务暂不支持参数调节，请联系管理员。' : '';

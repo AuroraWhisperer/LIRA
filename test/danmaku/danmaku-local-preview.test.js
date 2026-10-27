@@ -244,7 +244,7 @@ test('Twitter preview opens with chat, gift, membership and SC and uses only a s
   assert.equal(f.appends[1].giftGuardLevel, undefined);
   assert.equal(f.appends[2].giftGuardLevel, 3);
   assert.equal(f.node('twitterProfileName').textContent, '合成房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@UID 10001');
+  assert.equal(f.node('twitterProfileUid').textContent, '@10001');
   assert.equal(f.node('twitterProfileAvatar').src, '/img/overlays/danmaku-ranked/viewer.webp');
   assert.equal(f.options.at(-1).resolveGiftImageUrl(f.appends[1].giftImageUrl), f.appends[1].giftImageUrl);
   assert.equal(f.options.at(-1).showGiftTotal, true);
@@ -365,6 +365,63 @@ test('appearance edits preserve current messages and playback timing while expli
     assert.equal(f.timeouts.size, 1);
     f.pagehide();
   }
+});
+
+test('Twitter footer preview edits literal Unicode text, rejects overlong values and restores the default', async () => {
+  const f = await fixture('?preview=1&style=twitter');
+  assert.equal(f.node('previewComposerTextField').hidden, false);
+  assert.equal(f.node('twitterComposerText').textContent, '欢迎来到直播间 ✨');
+  const control = f.node('previewComposerText');
+  control.value = '<b>你好</b> 👨‍👩‍👧‍👦';
+  control.events.input();
+  assert.equal(f.node('previewComposerTextCount').textContent, '11/20');
+  const before = f.appends.length;
+  control.events.change();
+  assert.equal(f.node('twitterComposerText').textContent, '<b>你好</b> 👨‍👩‍👧‍👦');
+  assert.equal(f.appends.length, before, 'editing a footer must not restart message playback');
+  control.value = '字'.repeat(21);
+  control.events.change();
+  assert.equal(f.node('twitterComposerText').textContent, '<b>你好</b> 👨‍👩‍👧‍👦');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(f.node('twitterComposerText').textContent, '欢迎来到直播间 ✨');
+  f.node('previewComposerText').value = '中英 Hello ♥';
+  f.node('previewComposerText').events.change();
+  f.node('signal').events.click();
+  assert.equal(f.node('previewComposerTextField').hidden, true);
+  f.node('twitter').events.click();
+  assert.equal(f.node('twitterComposerText').textContent, '中英 Hello ♥');
+  f.pagehide();
+});
+
+test('Twitter preview layout and event colors edit in place and restore only its own options', async () => {
+  const f = await fixture('?preview=1&style=twitter');
+  const messages = f.appends.length;
+  const renders = f.renders.length;
+  const change = (id, value) => { f.node(id).value = value; f.node(id).events.change(); };
+  change('previewTwitterHeader', 'hide');
+  change('previewTwitterComposer', 'hide');
+  change('previewTwitterActions', 'hide');
+  change('previewTwitterColor50', '#12345680');
+  assert.equal(f.document.body.dataset.twitterHeader, 'hide');
+  assert.equal(f.node('previewComposerTextField').hidden, true);
+  assert.equal(f.node('root').style['--twitter-event-color-50'], '#12345680');
+  assert.equal(f.appends.length, messages);
+  assert.equal(f.renders.length, renders);
+  f.node('signal').events.click();
+  assert.equal(f.node('previewTwitterHeaderField').hidden, true);
+  assert.equal(f.node('previewTwitterColors').hidden, true);
+  assert.equal(f.node('root').style['--twitter-event-color-50'], '');
+  change('previewFontSize', '36');
+  f.node('twitter').events.click();
+  assert.equal(f.node('previewTwitterColor50').value, '#12345680');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(f.node('previewTwitterHeader').value, 'show');
+  assert.equal(f.node('previewTwitterComposer').value, 'show');
+  assert.equal(f.node('previewTwitterActions').value, 'show');
+  assert.equal(f.node('previewTwitterColor50').value, '#f9c844');
+  f.node('signal').events.click();
+  assert.equal(f.node('previewFontSize').value, '36');
+  f.pagehide();
 });
 
 test('local preview applies per-style parameters without external image requests', async () => {

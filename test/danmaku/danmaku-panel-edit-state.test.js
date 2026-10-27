@@ -2,10 +2,187 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
+
+async function twitterStage(t) {
+  const page = await fixture(t, 'danmaku');
+  await page.route('**/css/**', route => route.fulfill({ status: 200, contentType: 'text/css',
+    body: fs.readFileSync(path.join(__dirname, '../../public', new URL(route.request().url()).pathname.slice(1)), 'utf8') }));
+  const source = fs.readFileSync(path.join(__dirname, '../../public/pages/overlays/danmaku.html'), 'utf8');
+  const stage = source.match(/<main class="danmaku-signal-stage">[\s\S]*?<\/main>/)[0];
+  await page.evaluate(html => {
+    document.body.innerHTML = html;
+    document.body.dataset.style = 'twitter';
+    document.querySelector('.danmaku-signal-stage').style.cssText = 'width:530px;height:850px';
+  }, stage);
+  await page.addStyleTag({ url: '/css/overlays/danmaku.css' });
+  return page;
+}
+
+test('Twitter footer keeps twenty wide symbols complete and grows only when wrapping needs space', async t => {
+  const page = await twitterStage(t);
+  const rows = await page.evaluate(async () => {
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    await document.fonts.ready;
+    return ['欢迎来到直播间 ✨', '字'.repeat(20), 'W'.repeat(20), '👨‍👩‍👧‍👦'.repeat(20), '🎉'.repeat(20), '🇨🇳'.repeat(20)].map(text => {
+      applyStyleOptions(document, 'twitter', { twitter: { composerText: text } });
+      const node = document.getElementById('twitterComposerText');
+      return { text: node.textContent, width: node.clientWidth, scrollWidth: node.scrollWidth,
+        height: node.clientHeight, scrollHeight: node.scrollHeight,
+        footerHeight: node.closest('.twitter-composer').offsetHeight };
+    });
+  });
+  assert.equal(rows[0].footerHeight, 68, 'the default keeps the reference footer size');
+  for (const row of rows) {
+    assert.ok(row.scrollWidth <= row.width + 1, `no clipped glyphs: ${row.text}`);
+    assert.ok(row.scrollHeight <= row.height + 1, `no clipped lines: ${row.text}`);
+    assert.ok(row.footerHeight >= 68);
+  }
+  assert.ok(rows.some(row => row.height > rows[0].height), `wide text wraps without squeezing its glyphs: ${JSON.stringify(rows)}`);
+});
+
+test('Twitter layout switches reclaim their rows and tier colors update existing gifts and SC', async t => {
+  const page = await twitterStage(t);
+  const result = await page.evaluate(async () => {
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
+    const render = createDanmakuMessageRenderer({ document, style: 'twitter', classNames: DEFAULT_DANMAKU_CLASSES,
+      showAvatar: true, showGiftTotal: true });
+    const feed = document.getElementById('danmakuFeed');
+    const prices = [1, 49.99, 50, 99.99, 100, 999.99, 1000, 2000];
+    feed.replaceChildren(...prices.flatMap(price => [
+      render({ kind: 'gift', name: '送礼观众', giftName: '小花花', giftCount: 10, giftTotalPrice: price }),
+      render({ kind: 'superchat', name: '留言观众', price, message: '完整的 SC 留言。' }),
+    ]));
+    const cards = [...feed.children];
+    const layouts = [];
+    for (const twitterHeader of ['show', 'hide']) {
+      for (const twitterComposer of ['show', 'hide']) {
+        for (const twitterActions of ['show', 'hide']) {
+          applyStyleOptions(document, 'twitter', { twitter: { twitterHeader, twitterComposer, twitterActions } });
+          const stage = document.querySelector('.danmaku-signal-stage').getBoundingClientRect();
+          const box = feed.getBoundingClientRect();
+          layouts.push({ twitterHeader, twitterComposer, twitterActions, top: box.top - stage.top,
+            bottom: box.bottom - stage.top, height: box.height, postHeight: cards[0].getBoundingClientRect().height,
+            profile: getComputedStyle(document.querySelector('.twitter-profile')).display,
+            tabs: getComputedStyle(document.querySelector('.twitter-tabs')).display,
+            footer: getComputedStyle(document.querySelector('.twitter-composer')).display,
+            actions: getComputedStyle(cards[0].querySelector('.twitter-actions')).display });
+        }
+      }
+    }
+    const colors = () => cards.map(card => getComputedStyle(card.querySelector('.twitter-gift-panel, .sc-copy')).backgroundColor);
+    applyStyleOptions(document, 'twitter', { twitter: {
+      twitterColor0: '#112233', twitterColor50: '#223344', twitterColor100: '#334455', twitterColor1000: '#445566',
+    } });
+    const custom = colors();
+    const retained = cards.every((card, index) => feed.children[index] === card);
+    applyStyleOptions(document, 'twitter', {});
+    return { layouts, custom, restored: colors(), retained };
+  });
+  const defaultPost = result.layouts[0].postHeight;
+  for (const layout of result.layouts) {
+    const top = layout.twitterHeader === 'show' ? 192 : 0;
+    const bottom = layout.twitterComposer === 'show' ? 782 : 850;
+    assert.equal(layout.top, top, JSON.stringify(layout));
+    assert.equal(layout.bottom, bottom, JSON.stringify(layout));
+    assert.equal(layout.height, bottom - top);
+    assert.equal(layout.profile === 'none', layout.twitterHeader === 'hide');
+    assert.equal(layout.tabs === 'none', layout.twitterHeader === 'hide');
+    assert.equal(layout.footer === 'none', layout.twitterComposer === 'hide');
+    assert.equal(layout.actions === 'none', layout.twitterActions === 'hide');
+    if (layout.twitterActions === 'hide') assert.ok(layout.postHeight < defaultPost);
+  }
+  const bands = [0, 0, 1, 1, 2, 2, 3, 3];
+  assert.deepEqual(result.custom, bands.flatMap(index => Array(2).fill([
+    'rgb(17, 34, 51)', 'rgb(34, 51, 68)', 'rgb(51, 68, 85)', 'rgb(68, 85, 102)',
+  ][index])));
+  assert.deepEqual(result.restored, bands.flatMap(index => Array(2).fill([
+    'rgb(64, 154, 250)', 'rgb(249, 200, 68)', 'rgb(248, 146, 96)', 'rgb(239, 66, 96)',
+  ][index])));
+  assert.equal(result.retained, true, 'color edits retain the displayed message nodes');
+});
+
+test('Twitter client and canvas panels share layout, event colors and visible-character footer limits', async t => {
+  const page = await fixture(t, 'danmaku');
+  await page.evaluate(async html => {
+    document.body.innerHTML = html;
+    document.getElementById('liveDanmakuFeature').hidden = false;
+    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    const { cloneComponentPanel } = await import('/js/admin/component-preview-panel.js');
+    const listeners = new Set();
+    window.footerState = { loaded: true, draft: { style: 'twitter', fullscreenDurationSeconds: 6,
+      styleOptions: { twitter: { composerText: '原有提示' }, signal: { fontSize: 32 } } } };
+    window.footerController = {
+      getState: () => footerState,
+      edit: patch => { Object.assign(footerState.draft, patch); listeners.forEach(listener => listener(footerState)); },
+      subscribe: listener => { listeners.add(listener); listener(footerState); return () => listeners.delete(listener); },
+    };
+    window.footerBinding = bindDanmakuParameters(document.body, footerController, message => messages.push(message));
+    const clone = cloneComponentPanel(document.querySelector('.danmaku-parameters'), 'canvas');
+    document.body.append(clone);
+    window.canvasFooterBinding = bindDanmakuParameters(clone, footerController, message => messages.push(message));
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  const input = page.locator('#danmakuComposerText');
+  const canvasInput = page.locator('#canvas-danmakuComposerText');
+  assert.equal(await input.isVisible(), true);
+  assert.equal(await canvasInput.inputValue(), '原有提示');
+  const text = '你好 Hello! 👨‍👩‍👧‍👦';
+  await input.fill(text);
+  assert.equal(await page.locator('#danmakuComposerTextCount').textContent(), '11/20');
+  await input.dispatchEvent('change');
+  assert.equal(await canvasInput.inputValue(), text);
+  await canvasInput.fill('字'.repeat(20));
+  await canvasInput.dispatchEvent('change');
+  assert.equal(await input.inputValue(), '字'.repeat(20));
+  await canvasInput.fill('字'.repeat(21));
+  assert.equal(await page.locator('#canvas-danmakuComposerTextCount').textContent(), '21/20');
+  await canvasInput.dispatchEvent('change');
+  assert.equal(await page.evaluate(() => footerState.draft.styleOptions.twitter.composerText), '字'.repeat(20));
+  assert.equal(await canvasInput.inputValue(), '字'.repeat(20));
+  assert.deepEqual(await page.evaluate(() => messages), ['底部提示文字最多 20 个字。']);
+  await page.locator('#danmakuTwitterHeader').selectOption('hide');
+  assert.equal(await page.locator('#canvas-danmakuTwitterHeader').inputValue(), 'hide');
+  await page.locator('#canvas-danmakuTwitterActions').selectOption('hide');
+  assert.equal(await page.locator('#danmakuTwitterActions').inputValue(), 'hide');
+  await page.locator('#danmakuTwitterComposer').selectOption('hide');
+  assert.equal(await canvasInput.isVisible(), false);
+  assert.equal(await page.evaluate(() => footerState.draft.styleOptions.twitter.composerText), '字'.repeat(20));
+  await page.locator('#canvas-danmakuTwitterComposer').selectOption('show');
+  assert.equal(await input.inputValue(), '字'.repeat(20));
+  await page.locator('details.danmaku-advanced').evaluateAll(nodes => nodes.forEach(node => { node.open = true; }));
+  assert.equal(await page.locator('#danmakuTwitterColor0').isVisible(), true);
+  await page.locator('#danmakuTwitterColor0').evaluate(node => {
+    node.value = '#12345680'; node.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  assert.equal(await page.locator('#canvas-danmakuTwitterColor0').evaluate(node => node.value), '#12345680');
+  await page.locator('#canvas-danmakuTwitterColor1000').evaluate(node => {
+    node.value = '#aabbcc'; node.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  assert.equal(await page.locator('#danmakuTwitterColor1000').inputValue(), '#aabbcc');
+  await page.evaluate(() => footerController.edit({ style: 'signal' }));
+  assert.equal(await input.isVisible(), false);
+  assert.equal(await canvasInput.isVisible(), false);
+  assert.equal(await page.locator('#danmakuTwitterHeader').isVisible(), false);
+  assert.equal(await page.locator('#canvas-danmakuTwitterColors').isVisible(), false);
+  await page.evaluate(() => footerController.edit({ style: 'twitter' }));
+  await canvasInput.fill('');
+  await canvasInput.dispatchEvent('change');
+  assert.deepEqual(await page.evaluate(() => footerState.draft.styleOptions), { twitter: {
+    twitterHeader: 'hide', twitterActions: 'hide', twitterComposer: 'show', twitterColor0: '#12345680', twitterColor1000: '#aabbcc',
+  }, signal: { fontSize: 32 } });
+  assert.equal(await input.inputValue(), '欢迎来到直播间 ✨');
+  await page.locator('#canvas-danmakuResetParameters').click();
+  assert.deepEqual(await page.evaluate(() => footerState.draft.styleOptions), { twitter: {}, signal: { fontSize: 32 } });
+  for (const key of ['Header', 'Composer', 'Actions']) assert.equal(await page.locator(`#danmakuTwitter${key}`).inputValue(), 'show');
+  assert.equal(await page.locator('#danmakuTwitterColor0').inputValue(), '#409afa');
+  await page.evaluate(() => { footerBinding.dispose(); canvasFooterBinding.dispose(); });
+});
 
 test('spooky client and cloned canvas panels share palette overrides, independent alpha and scoped restore', async (t) => {
   const page = await fixture(t, 'danmaku');

@@ -2,6 +2,8 @@
 
 本目录保留有日期和基线的调查、设计建议、审查与验证证据。报告不是活动计划，文内“当前”“待办”均按其记录时点解读；后续处理以 [计划索引](../../specs/plans/README.md) 和 [未结项台账](../../specs/plans/open-items.md) 为入口。事实参考见 [技术参考](../reference/README.md)，接受的需求和决策分别见规格与 ADR。
 
+已被当前指南或实现参考替代、没有其他维护材料引用的六份旧布局、控件、素材包和文档整理报告已移到仓库 `tmp/docs-alignment-2026-10-27/retired/docs/reports/`。该任务目录的 `README.md` 记录逐份替代依据，`moves.json` 记录原路径和校验摘要；原文保留。仍有关联决策、未结项或独立审查价值的报告继续在此维护。
+
 ## 历史报告
 
 - [当前工作树只读代码审计](2026-10-24-code-audit.md)（[审计提示词](2026-10-24-code-audit-prompt.md)）
@@ -17,8 +19,6 @@
 - [客户端与服务器通讯：合并、精炼与复用审查](2026-10-10-client-server-communication-review.md)
 - [AI 互动助手：回答限制调查与角色包实施记录](2026-10-09-ai-assistant-personas-and-tools.md)
 - [当前代码与技术文档一致性审查](2026-10-07-code-document-alignment.md)
-- [LIRA 套装包与第三方素材导入：调研及设计报告](2026-10-06-component-packages-design.md)
-- [基础 UI 组件审查与修复](2026-10-04-shared-ui-audit.md)
 - [客户端第二轮优化审查提示词](2026-10-03-client-round-two-optimization-prompt.md)
 - [客户端第二轮优化审查：冗余、复用与运行开销](2026-10-03-client-round-two-optimization-review.md)
 - [客户端三主题：边界、使用体验与实现风险审查](2026-10-02-client-theme-design-review.md)
@@ -29,19 +29,15 @@
 - [客户端格式化与 800 行文件审查报告](2026-09-13-client-format-and-size-review.md)
 - [客户端 600–800 行与超 800 行模块化复审报告](2026-09-13-client-modularity-reassessment.md)
 - [LIRA 客户端礼物界面：布局与使用频率评审报告](2026-09-14-gift-interface-layout-review.md)
-- [礼物页「月底冲刺 × 盲盒盈亏榜」并列布局与美化报告](2026-09-14-gift-sprint-blindbox-layout-design.md)
 - [LIRA 日志容量与有效信息专项复查报告](2026-09-14-log-volume-and-signal-report.md)
 - [LIRA Toast 全量审查与修改建议](2026-09-14-toast-review.md)
-- [LIRA 客户端滚动条审查与设计建议](2026-09-15-client-scrollbar-audit.md)
 - [本日礼物循环展示与图片导出：调研及设计建议](2026-09-15-live-gift-display-and-export-research.md)
 - [LIRA 客户端与服务器架构审查报告](2026-09-16-client-server-architecture-audit.md)
 - [签到与抽签机器人云端运行设计报告](2026-09-18-cloud-checkin-fortune-design.md)
 - [LIRA 粉丝档案：调研报告与功能设计建议](2026-09-18-fan-profile-research-and-design.md)
 - [数据库查询优化与首次历史同步修改报告](2026-09-19-database-query-and-history-sync-plan.md)
-- [LIRA 滑块样式统一简报](2026-09-19-parameter-slider-review.md)
 - [客户端与服务器代码复用、模块边界三轮审查](2026-09-21-client-server-reuse-modularity-audit.md)
 - [客户端与服务器测试整理审查及实施记录](2026-09-21-test-suite-maintenance-audit.md)
 - [使用文档补充方案审阅（2026-09-22）](2026-09-22-usage-guide-review.md)
 - [客户端文档遗留事项核验](2026-09-26-client-documentation-open-items.md)
-- [架构与技术文档更新审查](2026-09-28-architecture-technical-docs-audit.md)
 - [客户端主题配色与公共样式调研](2026-09-28-client-theme-research.md)

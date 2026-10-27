@@ -231,9 +231,10 @@ test('spooky frame keeps stickers visible, uses its own ink, and fits a full-wid
     const top = root.getBoundingClientRect().top;
     const sender = root.querySelector('.spooky-event-name').getBoundingClientRect();
     const copy = root.querySelector('.spooky-sc-copy');
+    const copyClearOfPortrait = copy.getBoundingClientRect().top >= root.querySelector('.spooky-portrait').getBoundingClientRect().bottom;
     const copyClearOfSticker = copy.getBoundingClientRect().bottom <= root.querySelector('.spooky-sticker').getBoundingClientRect().top + .5;
     return { ink, clip, stickerInside, frameLayout, customNameFont, customCopyFont, giftFont, senderInside: sender.top >= top - .5,
-      message: copy.textContent, expected: message, copyClearOfSticker, fullWidth: copy.parentElement.classList.contains('spooky-board'),
+      message: copy.textContent, expected: message, copyClearOfPortrait, copyClearOfSticker, fullWidth: copy.parentElement.classList.contains('spooky-board'),
       overflow: copy.scrollWidth - copy.clientWidth, frames: stage.querySelectorAll('.spooky-frame').length };
   }, markup);
   assert.equal(result.ink, 'rgb(252, 230, 250)');
@@ -246,6 +247,7 @@ test('spooky frame keeps stickers visible, uses its own ink, and fits a full-wid
   assert.equal(result.senderInside, true);
   assert.equal(result.message, result.expected);
   assert.equal(result.fullWidth, true);
+  assert.equal(result.copyClearOfPortrait, true, 'the SC body must start below the rotated portrait');
   assert.equal(result.copyClearOfSticker, true, 'the bat sticker must not cover the final SC line');
   assert.ok(result.overflow <= 1);
   assert.equal(result.frames, 1);
@@ -655,24 +657,61 @@ test('twitter dense mixed arrivals preserve text, vectors and the social-card gr
     // Shared fitting may zoom an over-height card; its grid must scale with it.
     assert.ok(Math.abs(card.width - result.rootWidth * card.zoom) < 0.1, JSON.stringify({ card, rootWidth: result.rootWidth }));
     assert.ok(Math.abs(card.bodyOffset - 110 * card.zoom) < 0.1);
-    assert.deepEqual(card.avatar, [80, 80]);
+    assert.deepEqual(card.avatar, [76, 76]);
     assert.equal(card.actions, 4);
     assert.ok(card.overflow <= 1);
   }
-  assert.deepEqual(result.cards.find(card => card.kind === 'gift').art, ['static', 64]);
-  assert.deepEqual(result.cards.find(card => card.kind === 'guard').art, ['static', 84]);
+  assert.deepEqual(result.cards.find(card => card.kind === 'gift').art, ['static', 0]);
+  assert.equal(result.cards.find(card => card.kind === 'guard').art, null, 'membership artwork is drawn as the staircase');
   assert.equal(result.longText, longMessage);
   assert.equal(result.emotes, 1);
   assert.equal(result.repeated, 2);
-  assert.ok(result.maxDelta < 0.1);
+  assert.ok(result.maxDelta < 0.1, `interrupted Twitter rows moved ${result.maxDelta}px before the new motion began`);
   assert.equal(result.retained, true);
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length));
   await page.evaluate(() => feed.destroy());
 });
+test('Twitter gift captions center without empty artwork and retain a centered group when artwork loads', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'twitter');
+  const result = await page.evaluate(async () => {
+    feed.destroy();
+    const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
+    const render = createDanmakuMessageRenderer({ document, style: 'twitter',
+      classNames: DEFAULT_DANMAKU_CLASSES, showGiftTotal: true, resolveGiftImageUrl: value => value });
+    root.replaceChildren(...[
+      {},
+      { giftImageUrl: '/img/overlays/danmaku-previews/gifts/flower.webp' },
+      { giftImageUrl: '/img/overlays/danmaku-previews/gifts/missing-twitter-test.webp' },
+    ].map(item => render({ kind: 'gift', name: '送礼观众', giftName: '小花花', giftCount: 10,
+      giftTotalPrice: 1, ...item })));
+    await Promise.all([...root.querySelectorAll('img')].map(image => image.decode().catch(() => {})));
+    await new Promise(requestAnimationFrame);
+    return [...root.querySelectorAll('.twitter-gift-panel')].map(panel => {
+      const art = panel.querySelector('.draw-danmaku-gift-art');
+      const copy = panel.querySelector('.draw-danmaku-gift-copy').getBoundingClientRect();
+      const frame = panel.getBoundingClientRect();
+      const image = art.getBoundingClientRect();
+      return { artWidth: image.width, images: art.children.length, loaded: art.classList.contains('has-image'),
+        textOffset: (copy.left + copy.right - frame.left - frame.right) / 2,
+        groupOffset: (image.left + copy.right - frame.left - frame.right) / 2 };
+    });
+  });
+  for (const card of [result[0], result[2]]) {
+    assert.equal(card.images, 0);
+    assert.equal(card.artWidth, 0, 'absent or failed images do not reserve a blank slot');
+    assert.ok(Math.abs(card.textOffset) < 0.1, JSON.stringify(card));
+  }
+  assert.equal(result[1].loaded, true);
+  assert.equal(result[1].artWidth, 40);
+  assert.ok(Math.abs(result[1].groupOffset) < 0.1, JSON.stringify(result[1]));
+});
+
 test('RIPPLOID event roots retain their complete layer timelines', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 1, 'ripploid');
   const events = [
+    [{ id: 'entry', kind: 'entry', name: '路过观众', message: '进入了直播间' }, 600],
+    [{ id: 'system', kind: 'system', name: 'LIRA', message: '预览已连接' }, 600],
     [{ id: 'gift', kind: 'gift', name: '送礼观众', giftName: '友谊的大船', giftCount: 1, giftTotalPrice: 100 }, 2000],
     [{ id: 'member', kind: 'gift', name: '新会员', giftGuardLevel: 2, giftName: '提督', giftTotalPrice: 1998 }, 1600],
     [{ id: 'sc', kind: 'superchat', name: '留言观众', price: 100, message: '完整留言' }, 1900],
@@ -687,12 +726,26 @@ test('RIPPLOID event roots retain their complete layer timelines', { timeout: 15
       const layerCount = card.getAnimations({ subtree: true }).filter(animation => animation.animationName).length;
       const duration = marker?.effect.getTiming().duration;
       const liveBefore = card.hasAttribute('data-live-entry');
+      const wipe = card.querySelector('.ripploid-event-wipe');
+      const wipeLeft = [];
+      if (wipe) {
+        const animation = wipe.getAnimations()[0];
+        animation.pause();
+        for (const time of [200, 350, 500]) {
+          animation.currentTime = time;
+          const parts = getComputedStyle(wipe).clipPath.slice(6, -1).split(/\s+/);
+          wipeLeft.push(parseFloat(parts[3] ?? parts[1] ?? parts[0]));
+        }
+      }
       marker?.finish();
-      return { duration, layerCount, liveBefore };
+      return { duration, layerCount, liveBefore, wipeLeft };
     }, item);
     assert.equal(state.duration, expectedDuration, `${item.id} root marker matches its layer timeline`);
     assert.ok(state.layerCount > 1, `${item.id} owns independent layer animations`);
     assert.equal(state.liveBefore, true);
+    if (state.wipeLeft.length) {
+      assert.ok(state.wipeLeft[0] < state.wipeLeft[1] && state.wipeLeft[1] < state.wipeLeft[2], 'the orange wipe keeps travelling across the stage');
+    }
     await page.waitForFunction(() => root.children.length === 1 &&
       !root.firstElementChild.hasAttribute('data-live-entry') && !root.firstElementChild.getAnimations({ subtree: true }).length);
   }
@@ -708,7 +761,7 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
     const bounds = element => {
       if (!element) return null;
       const rect = element.getBoundingClientRect();
-      return { right: rect.right, top: rect.top, height: rect.height, center: (rect.top + rect.bottom) / 2 };
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, height: rect.height, center: (rect.top + rect.bottom) / 2 };
     };
     const samples = [
       { id: 'chat', name: '聊天观众', message: '晚上好', roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 },
@@ -717,10 +770,28 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
       { id: 'sc', kind: 'superchat', name: '留言观众', price: 100, message: '完整留言' },
     ];
     const cards = [];
+    let giftDetails;
+    let amountDetails;
     for (const item of samples) {
       feed.render([item]);
       await nextFrame();
       const card = root.firstElementChild;
+      if (item.kind === 'superchat') {
+        amountDetails = { amount: bounds(card.querySelector('.ripploid-sc-amount')), ring: bounds(card.querySelector('.ripploid-sc-amount-ring')) };
+      }
+      if (item.kind === 'gift' && !item.giftGuardLevel) {
+        const ticket = card.querySelector('.ripploid-gift-ticket');
+        const frame = card.querySelector('.ripploid-gift-name-frame');
+        const chevrons = card.querySelector('.ripploid-gift-chevrons');
+        giftDetails = {
+          frameClip: getComputedStyle(frame).clipPath,
+          frame: bounds(frame), chevrons: bounds(chevrons),
+          ticket: bounds(ticket), signature: bounds(ticket.querySelector('.ripploid-ticket-signature')),
+          barcode: bounds(ticket.querySelector('.ripploid-ticket-barcode')),
+          unitFont: getComputedStyle(card.querySelector('.ripploid-gift-price-unit')).fontSize,
+          valueFont: getComputedStyle(card.querySelector('.ripploid-gift-price-value')).fontSize,
+        };
+      }
       cards.push({
         kind: card.classList.contains('ripploid-chat') ? 'chat'
           : card.classList.contains('ripploid-gift') ? 'gift'
@@ -754,7 +825,7 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
     const shortChat = measureChat();
     feed.render([chatItem('正文增加一行以后，左侧线条应该继续延伸，箭头仍然指向当前房间灯牌。')]);
     await nextFrame();
-    return { cards, feedWidth: root.getBoundingClientRect().width, memberName, longName, shortChat, longChat: measureChat() };
+    return { cards, giftDetails, amountDetails, feedWidth: root.getBoundingClientRect().width, memberName, longName, shortChat, longChat: measureChat() };
   });
 
   assert.equal(result.feedWidth, 496);
@@ -768,6 +839,12 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
   const gift = result.cards.find(card => card.kind === 'gift');
   assert.ok(Math.abs(gift.ticket.right - gift.root.right) < 0.1);
   assert.ok(Math.abs(gift.ticket.top - gift.root.top) < 0.1, `ticket stays beside the gift main area: ${JSON.stringify(gift)}`);
+  assert.equal(result.giftDetails.frameClip, 'none', 'the name frame must not clip its external double chevron');
+  assert.ok(result.giftDetails.chevrons.left >= result.giftDetails.frame.right);
+  assert.ok(result.giftDetails.barcode.top >= result.giftDetails.signature.bottom);
+  assert.ok(result.giftDetails.barcode.bottom < result.giftDetails.ticket.bottom);
+  assert.equal(result.giftDetails.unitFont, result.giftDetails.valueFont, 'RMB belongs to the same amount line');
+  assert.ok(Math.abs(result.amountDetails.ring.center - result.amountDetails.amount.center) < 5, 'the amount annotation stays around its value');
   assert.equal(result.longName.text, result.memberName);
   assert.ok(result.longName.height > result.longName.lineHeight * 1.5);
   assert.ok(result.longName.height <= result.longName.lineHeight * 2.1);
@@ -778,11 +855,117 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
   await page.evaluate(() => feed.destroy());
 });
 
+test('Twitter reveals a loading skeleton before content and staggered actions, then completes its like burst', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 0.925, 'twitter');
+  await page.evaluate(async () => {
+    document.querySelector('.danmaku-signal-stage').style.gridTemplateRows = 'minmax(0, 1fr)';
+    feed.render([]);
+    feed.append({ name: '合成观众', message: '文字在原位显现，表情保持完整。' });
+    await new Promise(requestAnimationFrame);
+    window.seekTwitter = time => {
+      for (const animation of root.getAnimations({ subtree: true })) {
+        animation.pause();
+        animation.currentTime = animation.animationName ? time : animation.effect.getTiming().duration;
+      }
+      const row = root.lastElementChild;
+      const css = selector => getComputedStyle(row.querySelector(selector));
+      return {
+        height: row.offsetHeight,
+        avatar: Number(css('.twitter-avatar-image').opacity),
+        copy: Number(css('.twitter-post-content').opacity),
+        actions: Array.from(row.querySelectorAll('.twitter-action'), node => Number(getComputedStyle(node).opacity)),
+        fill: css('.twitter-action-heart .twitter-action-icon').fill,
+        ring: Number(css('.twitter-like-ring').opacity),
+        burst: Number(css('.twitter-like-burst').opacity),
+        skeleton: Number(getComputedStyle(row.querySelector('.twitter-avatar'), '::after').opacity),
+      };
+    };
+  });
+  const loading = await page.evaluate(() => seekTwitter(250));
+  assert.equal(loading.avatar, 0);
+  assert.equal(loading.copy, 0);
+  assert.equal(loading.skeleton, 1);
+  assert.deepEqual(loading.actions, [0, 0, 0, 0]);
+  const reveal = await page.evaluate(() => seekTwitter(500));
+  assert.ok(reveal.copy > 0 && reveal.copy < 1);
+  assert.ok(reveal.avatar > 0 && reveal.avatar < 1);
+  assert.ok(reveal.actions[0] > reveal.actions[1] && reveal.actions[1] > reveal.actions[2]);
+  assert.equal(reveal.actions[3], 0);
+  assert.equal(reveal.ring, 0, 'the delayed ring must not appear with the action outline');
+  const outline = await page.evaluate(() => seekTwitter(750));
+  assert.equal(outline.copy, 1);
+  assert.deepEqual(outline.actions, [1, 1, 1, 1]);
+  assert.equal(outline.fill, 'rgba(0, 0, 0, 0)');
+  const burst = await page.evaluate(() => seekTwitter(900));
+  assert.ok(burst.burst > 0);
+  const ring = await page.evaluate(() => seekTwitter(950));
+  assert.ok(ring.ring > 0 && ring.burst === 0);
+  const complete = await page.evaluate(() => seekTwitter(1233));
+  assert.equal(complete.fill, 'rgb(217, 9, 79)');
+  assert.equal(complete.ring, 0);
+  assert.equal(complete.burst, 0);
+  assert.equal(complete.height, loading.height, 'internal reveals never resize the post');
+  const content = page.locator('.twitter-post-main');
+  const lastFrame = await content.screenshot({ animations: 'allow' });
+  await page.evaluate(() => root.firstElementChild.getAnimations().find(animation => animation.animationName === 'twitterPostShell').finish());
+  await page.waitForFunction(() => !root.querySelector('[data-live-entry]'));
+  assert.ok((await content.screenshot()).equals(lastFrame), 'settling must not change the text rasterization');
+});
+
+test('Twitter fits complete wide and tall emotes, wraps repeated stickers and keeps actions below their content', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'twitter');
+  const result = await page.evaluate(async () => {
+    document.querySelector('.danmaku-signal-stage').style.cssText = 'width:530px;height:850px;grid-template-rows:minmax(0,1fr)';
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    applyStyleOptions(document, 'twitter', {});
+    const emote = (text, width, height) => ({ text, width, height, kind: 'sticker',
+      url: `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><rect x="1" y="1" width="${width - 2}" height="${height - 2}" fill="#facf79" stroke="#c74a60" stroke-width="2"/></svg>`)}` });
+    const emotes = [emote('[宽]', 1200, 100), emote('[长]', 80, 480), emote('[方]', 120, 120)];
+    const items = [
+      { id: 'wide', name: '宽表情', message: '[宽]', emotes },
+      { id: 'tall', name: '高表情', message: '[长]', emotes },
+      { id: 'wrapped', name: '多个表情', message: '[方]'.repeat(9), emotes },
+      { id: 'mixed', name: '混排', message: '文字[宽]和表情都要完整显示。', emotes },
+    ];
+    const results = [];
+    for (const item of items) {
+      feed.render([item]);
+      const beforeDecode = root.firstElementChild.offsetHeight;
+      await Promise.all(Array.from(root.querySelectorAll('img'), image => image.decode()));
+      await new Promise(requestAnimationFrame);
+      const row = root.firstElementChild;
+      const copy = row.querySelector('.twitter-post-content').getBoundingClientRect();
+      const actions = row.querySelector('.twitter-actions').getBoundingClientRect();
+      const images = Array.from(row.querySelectorAll('.draw-danmaku-emote'), image => {
+        const rect = image.getBoundingClientRect();
+        return { left: rect.left, right: rect.right, bottom: rect.bottom, top: rect.top,
+          ratio: rect.width / rect.height, naturalRatio: image.naturalWidth / image.naturalHeight };
+      });
+      results.push({ id: item.id, images, copy: copy.toJSON(), actions: actions.toJSON(),
+        heightChange: row.offsetHeight - beforeDecode, overflow: row.scrollWidth - row.clientWidth });
+    }
+    return results;
+  });
+  for (const row of result) {
+    assert.ok(row.overflow <= 1, row.id);
+    assert.equal(row.heightChange, 0, `${row.id} reserves its image dimensions before decoding`);
+    for (const image of row.images) {
+      assert.ok(Math.abs(image.ratio - image.naturalRatio) < 0.02, `${row.id} preserves the full image aspect ratio`);
+      assert.ok(image.left >= row.copy.left - 0.1 && image.right <= row.copy.right + 0.1, `${row.id} fits the complete image in the text column`);
+      assert.ok(image.bottom <= row.actions.top, `${row.id} stays above the action row`);
+    }
+  }
+  const wrapped = result.find(row => row.id === 'wrapped');
+  assert.equal(wrapped.images.length, 9);
+  assert.ok(wrapped.images.at(-1).top > wrapped.images[0].top, 'repeated stickers grow the post onto a second line');
+});
+
 test('RIPPLOID entrance keeps alpha timing and painted text stable when its timeline ends', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 0.925, 'ripploid');
   const state = await page.evaluate(async () => {
     feed.render([]);
-    feed.append({ name: '清晰文字', message: '好耶！线条保持自然。' });
+    feed.append({ name: '清晰文字', message: '好耶！线条保持自然。', honorLevel: 22,
+      roomMedal: { name: 'BCBCB', level: 22 }, roomGuardLevel: 1 });
     await new Promise(requestAnimationFrame);
     const card = root.firstElementChild;
     const animations = card.getAnimations({ subtree: true });
@@ -792,9 +975,12 @@ test('RIPPLOID entrance keeps alpha timing and painted text stable when its time
     }
     const opacity = Number(getComputedStyle(card.querySelector('.ripploid-copy-wrap > p')).opacity);
     for (const animation of animations) if (animation.animationName) animation.currentTime = 699;
-    return { opacity };
+    return { opacity, stroke: getComputedStyle(card.querySelector('.ripploid-copy-wrap > p')).webkitTextStrokeWidth,
+      honorAnimation: animations.some(animation => animation.animationName === 'ripploidHonorBadge') };
   });
   assert.ok(Math.abs(state.opacity - 0.5) < 0.01, 'the original body fade still interpolates halfway');
+  assert.equal(state.stroke, '0px', 'dark outlines must not cut through the serif hairlines');
+  assert.equal(state.honorAnimation, true, 'the honor badge joins the chat entrance');
   const card = page.locator('.ripploid-chat');
   const before = await card.screenshot();
   await card.evaluate(node => node.getAnimations().find(animation => animation.animationName === 'ripploidMessageIn').finish());
@@ -816,6 +1002,9 @@ test('RIPPLOID entrance keeps alpha timing and painted text stable when its time
       }
     }, { item, duration });
     const eventCard = page.locator('.ripploid-event-root');
+    if (item.kind === 'superchat') {
+      assert.equal(await eventCard.locator('.sc-copy').evaluate(node => getComputedStyle(node).webkitTextStrokeWidth), '0px');
+    }
     const lastFrame = await eventCard.screenshot();
     await eventCard.evaluate(node => node.getAnimations().find(animation => animation.animationName === 'ripploidMessageIn').finish());
     await page.waitForFunction(() => !root.querySelector('[data-live-entry]'));

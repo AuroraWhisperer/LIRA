@@ -99,6 +99,7 @@ export function createSettingsForm({
       const updates = {
         paused: value('paused'),
         scSongRequestEnabled: value('scSongRequestEnabled'),
+        songRequestCancelEnabled: value('songRequestCancelEnabled'),
         queueLimit: value('queueLimit'),
         userCooldownSeconds: value('userCooldownSeconds'),
         userQueueLimit: value('userQueueLimit'),

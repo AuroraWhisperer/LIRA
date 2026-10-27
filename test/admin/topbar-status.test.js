@@ -5,6 +5,15 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+function createReconnectButton(icon = { getAnimations: () => [] }) {
+  return {
+    innerHTML: '<svg></svg>', attributes: {},
+    querySelector: () => icon,
+    setAttribute(key, value) { this.attributes[key] = value; },
+    removeAttribute(key) { delete this.attributes[key]; },
+  };
+}
+
 test('compact live status distinguishes live, offline, delayed reception and unknown state', async () => {
   const { projectTopbarStatus: project } = await loadModuleExports(path.resolve('public/js/admin/live-status-presentation.js'));
   for (const message of [
@@ -71,11 +80,7 @@ test('one status survives live snapshots during disconnect, deduplicates toast a
 });
 
 test('refresh keeps its icon while busy and restores the accessible label after failure', async () => {
-  const button = {
-    innerHTML: '<svg></svg>', attributes: {},
-    setAttribute(key, value) { this.attributes[key] = value; },
-    removeAttribute(key) { delete this.attributes[key]; },
-  };
+  const button = createReconnectButton();
   let rejectFetch;
   const errors = [];
   const { createSettingsOperations } = await loadModuleExports(path.resolve('public/js/admin/settings-operations.js'));
@@ -96,4 +101,72 @@ test('refresh keeps its icon while busy and restores the accessible label after 
   assert.equal(button.attributes['aria-label'], '重新连接直播间');
   assert.equal(button.innerHTML, '<svg></svg>');
   assert.deepEqual(errors, ['连接中断']);
+});
+
+test('refresh settles forward before reporting success with the shared compact feedback', async () => {
+  let finish;
+  let started;
+  const settling = new Promise((resolve) => { started = resolve; });
+  const finished = new Promise((resolve) => { finish = resolve; });
+  let spinCancelled = false;
+  let settleCancelled = false;
+  const icon = {
+    getAnimations: () => [{
+      animationName: 'topbar-refresh-spin', currentTime: 675,
+      effect: { getTiming: () => ({ duration: 900 }) },
+      cancel() { spinCancelled = true; },
+    }],
+    animate(frames, timing) {
+      assert.equal(frames[0].transform, 'rotate(270deg)');
+      assert.equal(frames[1].transform, 'rotate(360deg)');
+      assert.equal(timing.duration, 225);
+      started();
+      return { finished, cancel() { settleCancelled = true; } };
+    },
+  };
+  const button = createReconnectButton(icon);
+  const results = [];
+  const { createSettingsOperations } = await loadModuleExports(path.resolve('public/js/admin/settings-operations.js'));
+  const operations = createSettingsOperations({
+    documentRef: { getElementById: () => button },
+    fetchRef: async () => ({ ok: true }),
+    readJsonResponse: async () => ({ ok: true, data: { liveStatus: { message: '未开播，历史消息监听中' } } }),
+    getState: () => null, getQueue: () => null,
+    showStackedToast: (result) => results.push(result),
+  });
+  const work = operations.reconnectBilibili();
+  await settling;
+  assert.equal(spinCancelled, true);
+  assert.equal(button.disabled, true);
+  assert.equal(results.length, 0, 'success waits for the icon to settle');
+  finish();
+  await work;
+  assert.equal(settleCancelled, true);
+  assert.equal(button.disabled, false);
+  assert.equal(button.attributes['aria-busy'], undefined);
+  assert.equal(results.length, 1);
+  assert.equal(results[0].type, 'success');
+  assert.equal(results[0].title, undefined, 'the shared compact toast supplies the success icon');
+  assert.equal(results[0].message, '已重新连接直播间\n未开播，历史消息监听中');
+  assert.equal(results[0].key, 'live-refresh-ok');
+  assert.equal(results[0].update, true, 'repeated refreshes update one result');
+});
+
+test('refresh without an active animation restores immediately and does not report missing status as success', async () => {
+  const button = createReconnectButton();
+  const errors = [];
+  const results = [];
+  const { createSettingsOperations } = await loadModuleExports(path.resolve('public/js/admin/settings-operations.js'));
+  const operations = createSettingsOperations({
+    documentRef: { getElementById: () => button },
+    fetchRef: async () => ({ ok: true }),
+    readJsonResponse: async () => ({ ok: true, data: {} }),
+    getState: () => null, getForms: () => null,
+    toast: (message) => errors.push(message), showStackedToast: (result) => results.push(result),
+  });
+  await operations.reconnectBilibili();
+  assert.equal(button.disabled, false);
+  assert.equal(button.attributes['aria-busy'], undefined);
+  assert.deepEqual(errors, ['重新连接直播间失败：服务未返回直播状态。']);
+  assert.equal(results.length, 0);
 });

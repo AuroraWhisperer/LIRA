@@ -6,7 +6,7 @@
 
 | 文档                                                           | 内容                                                                                      |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| [server-core.md](backend/server-core.md)                       | HTTP 服务核心与进程生命周期:端口、环境变量、请求管线、token 注入、启动/关闭时序           |
+| [server-core.md](backend/server-core.md)                       | 本地 HTTP/WS 与生命周期：端口、环境变量、请求管线、管理认证/展示凭据及启动关闭次序           |
 | [ws.md](backend/ws.md)                                         | WebSocket 传输(手写 RFC 6455)、管理快照契约、消息类型与广播原因全集                       |
 | [api.md](backend/api.md)                                       | **本地 HTTP API 端点全量注册表**:方法、路径与领域契约                                         |
 | [storage.md](backend/storage.md)                               | 存储层:数据目录、SQLite 表与迁移系统、保留策略、设置分组与存储约定                     |
@@ -35,7 +35,7 @@
 
 | 文档                             | 内容                                                                  |
 | -------------------------------- | --------------------------------------------------------------------- |
-| [main.md](desktop/main.md)       | 主进程:窗口、单实例、userData、`local-media://`、请求头伪装、关闭握手 |
+| [main.md](desktop/main.md)       | 主进程：窗口、会话、数据路径、本地媒体、原生音频助手/播放输出与关闭握手 |
 | [windows.md](desktop/windows.md) | 辅助窗口:音乐登录窗、B站登录窗                                |
 | [auth.md](desktop/auth.md)       | 登录与会话:分区模型、登录 URL、Cookie 加密快照与注入契约              |
 | [preload.md](desktop/preload.md) | IPC 注册表、contextBridge 桥与调用方地图            |
@@ -45,7 +45,7 @@
 
 | 文档                                                         | 内容                                                               |
 | ------------------------------------------------------------ | ------------------------------------------------------------------ |
-| [build.md](engineering/build.md)                             | npm scripts、依赖清单、electron-builder 配置、发布流水线、运行模式 |
+| [build.md](engineering/build.md)                             | npm scripts、JS 与原生音频依赖、electron-builder 配置、发布流水线与运行模式 |
 | [test.md](engineering/test.md)                               | node:test 测试体系、覆盖地图、分层验证、静态检查与诊断脚本         |
 | [code-signing.md](engineering/code-signing.md) | 已有签名/验签工具契约、当前接入状态与限制 |
 | [modularity-standard.md](../architecture/engineering/modularity-standard.md) | 模块边界、组合根、持久化端口、共享工具和架构适应度函数的强制规范   |

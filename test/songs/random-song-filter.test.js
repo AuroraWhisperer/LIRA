@@ -12,6 +12,7 @@ const {
 } = require('../../src/music/random-song-filter');
 const songService = require('../../src/music/song-service');
 const { handleDanmakuMessage, parseDanmakuCommand } = require('../../src/bilibili/bilibili-message-handler');
+const { isBilibiliCommandText } = require('../../src/bilibili/danmaku/command-text');
 const { createRequesterTargetStore } = require('../../src/storage/requester-target-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createSongStore } = require('../../src/storage/song-store');
@@ -250,10 +251,25 @@ test('song service only returns enabled library songs satisfying every term', ()
 });
 
 test('danmaku bridge passes combined terms through unchanged', () => {
-  assert.deepEqual(parseDanmakuCommand('随机点歌 国语+周杰伦+抒情', {}), {
-    type: 'random',
-    scopeText: '国语+周杰伦+抒情',
-  });
+  for (const message of ['随机点歌 国语+周杰伦+抒情', '随机点歌国语+周杰伦+抒情']) {
+    assert.equal(isBilibiliCommandText(message), true);
+    assert.deepEqual(parseDanmakuCommand(message, {}), {
+      type: 'random',
+      scopeText: '国语+周杰伦+抒情',
+    });
+  }
+  assert.deepEqual(parseDanmakuCommand('随机点歌', {}), { type: 'random', scopeText: '' });
+});
+
+test('ordinary random text does not trigger song requests or unmatched replies', () => {
+  for (const message of ['随机', '随机xx', '随机 xx', '随机：＋ -—英文', '随机 点歌']) {
+    assert.equal(isBilibiliCommandText(message), false, message);
+    assert.equal(parseDanmakuCommand(message, {}), null, message);
+    assert.deepEqual(handleDanmakuMessage(
+      { settings: () => ({ enableRandomTagReply: 'true' }) },
+      { message, userName: 'Alice', uid: '123' },
+    ), { accepted: false, reason: '不是点歌指令。' }, message);
+  }
 });
 
 test('danmaku song requests accept the song name with or without a separating space', () => {

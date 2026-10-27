@@ -274,6 +274,12 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 - `getQueueSnapshot`([queue-service.js](../../../../src/music/queue-service.js)):返回 **`{ current: null, waiting: [...] }`**——`current` 恒为 null,前端自行消费(与 WS 快照 `queue` 字段一一对应,见 [ws.md](../ws.md) §2);waiting 排序同 `next`,并 LEFT JOIN `requests.message AS request_message`
 - 启动调用 `ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))，仅将历史 `current` 态归位为 `waiting`；未完成点歌的 ID、内容、时间、LIVE 与置顶标记保留，已完成/删除/跳过的项不恢复。只有显式完成或清空操作改变相应状态（调用点见 [server-core.md](../server-core.md) §5 启动修复链）。
 
+### 8.5 cancelQueueItem(context, input)
+
+观众取消点歌复用 [song-request-policy.js](../../../../src/music/song-request-policy.js) 的稳定身份校验，同时匹配队列的 `requester_uid` 与 `requester_identity_type`；UID 与 `open_id` 分开，昵称不能证明归属，缺少可识别身份或未找到本人活跃项时返回 `null`。只处理 `current` / `waiting`，包含本人置顶和 LIVE 项。
+
+`songName` 为空时选择本人点歌时间（`created_at`）最新的一首；指定歌名时按清洗后的完整歌名精确匹配，只在本人同名歌曲中选择最新一首，同一时间以较大 ID 优先，不受置顶或身份排序影响。成功复用 `setStatus(id, 'deleted', now())` 原子移除队列与原始点歌记录，返回被移除的项；释放排队名额，保留已有观众间隔、歌曲冷却、随机避重历史与粉丝档案累计结果。不新增数据库字段或 HTTP 入口；弹幕桥接行为见 [danmaku.md](../bilibili/danmaku.md#53-handledanmakumessage-处理链)。
+
 ## 9. 歌曲匹配(song-matcher.js)
 
 **打分模型**，用于点歌导入播放器及匹配诊断。WeSing 在线兜底使用独立的版本/时长匹配规则(见 [wesing.md](wesing.md) §7)。

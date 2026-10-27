@@ -14,6 +14,8 @@ const RIPPLOID_COLOR_KEYS = [
 ];
 const SPOOKY_COLOR_KEYS = ['spookyFrameColor', 'spookyMessageColor', 'spookyEventColor', 'spookyAccentColor'];
 const SPOOKY_OPACITY_KEYS = ['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity'];
+const TWITTER_LAYOUT_KEYS = ['twitterHeader', 'twitterComposer', 'twitterActions'];
+const TWITTER_COLORS = { twitterColor0: '#409afa', twitterColor50: '#f9c844', twitterColor100: '#f89260', twitterColor1000: '#ef4260' };
 const CONTROLS = {
   harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
   bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
@@ -26,7 +28,7 @@ const CONTROLS = {
   prismatic: ['scrollDirection', 'edgeFade'],
   snowfox: ['scrollDirection', 'edgeFade', 'bubbleColor'],
   ripploid: ['scrollDirection', 'edgeFade', 'bubbleColor', ...RIPPLOID_COLOR_KEYS],
-  twitter: ['scrollDirection', 'edgeFade', 'giftImage'],
+  twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...Object.keys(TWITTER_COLORS)],
   'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   notebook: ['scrollDirection', 'edgeFade'],
   spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
@@ -42,6 +44,11 @@ const CONTROLS = {
   glow: ['centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
 };
 const CONTROL_VALUES = {
+  composerText: {
+    valid: ['欢迎来到直播间 ✨', '中文 English #😊', '字'.repeat(20), '👨‍👩‍👧‍👦'.repeat(20)],
+    invalid: ['字'.repeat(21), '👨‍👩‍👧‍👦'.repeat(21), 'a\nb', 'a\u0000b', null, 1, true, {}],
+    fallback: '欢迎来到直播间 ✨', optional: true,
+  },
   spookyTheme: { valid: ['default', 'autumn', 'graveyard', 'moonlight'], invalid: ['purple', '', null, true, 1], fallback: 'default', optional: true },
   spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], fallback: 'show', optional: true },
   decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], fallback: 'sparkle', optional: true },
@@ -75,6 +82,12 @@ for (const key of SPOOKY_COLOR_KEYS) CONTROL_VALUES[key] = {
 };
 for (const key of SPOOKY_OPACITY_KEYS) CONTROL_VALUES[key] = {
   valid: [0, 50, 100], invalid: [-1, 101, 50.5, '50', null, true], fallback: 100, optional: true,
+};
+for (const key of TWITTER_LAYOUT_KEYS) CONTROL_VALUES[key] = {
+  valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], fallback: 'show', optional: true,
+};
+for (const [key, fallback] of Object.entries(TWITTER_COLORS)) CONTROL_VALUES[key] = {
+  valid: ['#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], fallback, optional: true,
 };
 
 test('each style accepts exactly its own controls with bounded values and defaults', () => {
@@ -151,6 +164,41 @@ test('Twitter defaults to its reference-sized type, original gifts and hard pane
   assert.deepEqual(contract.normalizeStyleOptions({ twitter: { giftImage: 'theme' } }), {
     twitter: { giftImage: 'theme' },
   });
+});
+
+test('Twitter layout and event palette apply to existing content and clear outside the style', async () => {
+  const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
+  const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
+  const options = { twitterHeader: 'hide', twitterComposer: 'hide', twitterActions: 'hide', twitterColor50: '#ABCDEF80' };
+  assert.deepEqual(contract.normalizeStyleOptions({ twitter: options }), { twitter: { ...options, twitterColor50: '#abcdef80' } });
+  browser.applyStyleOptions(document, 'twitter', { twitter: options });
+  for (const key of TWITTER_LAYOUT_KEYS) assert.equal(document.body.dataset[key], 'hide');
+  assert.equal(document.documentElement.style['--twitter-event-color-50'], '#abcdef80');
+  assert.equal(document.documentElement.style['--twitter-event-color-0'], '#409afa');
+  browser.applyStyleOptions(document, 'signal', {});
+  for (const key of TWITTER_LAYOUT_KEYS) assert.equal(document.body.dataset[key], 'show');
+  for (const tier of [0, 50, 100, 1000]) assert.equal(document.documentElement.style[`--twitter-event-color-${tier}`], '');
+  browser.applyStyleOptions(document, 'twitter', {});
+  for (const [key, color] of Object.entries(TWITTER_COLORS)) {
+    assert.equal(document.documentElement.style[`--twitter-event-color-${key.replace('twitterColor', '')}`], color);
+  }
+});
+
+test('Twitter composer text counts visible characters, normalizes Unicode and restores its default when blank', async () => {
+  assert.deepEqual(contract.inspectComposerText(' e\u0301 ✨ 👨‍👩‍👧‍👦 '), { text: 'é ✨ 👨‍👩‍👧‍👦', length: 5, error: '' });
+  assert.deepEqual(contract.normalizeStyleOptions({ twitter: { composerText: '  中英 Hello!  ' } }), {
+    twitter: { composerText: '中英 Hello!' },
+  });
+  assert.deepEqual(contract.normalizeStyleOptions({ twitter: { composerText: '   ' } }), { twitter: {} });
+  assert.equal(contract.styleOptionsFor('twitter', { twitter: { composerText: '' } }).composerText, contract.TWITTER_COMPOSER_TEXT_DEFAULT);
+  const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
+  const node = { textContent: '', children: [] };
+  const document = { body: { dataset: {} }, documentElement: { style: { setProperty() {} } }, getElementById: () => node };
+  browser.applyStyleOptions(document, 'twitter', { twitter: { composerText: '<b>你好</b>' } });
+  assert.equal(node.textContent, '<b>你好</b>');
+  assert.equal(node.children.length, 0);
+  browser.applyStyleOptions(document, 'twitter', {});
+  assert.equal(node.textContent, contract.TWITTER_COMPOSER_TEXT_DEFAULT);
 });
 
 test('spooky follows theme ink, preserves explicit overrides and clears renderer variables outside the style', async () => {
@@ -334,6 +382,8 @@ test('browser and privileged display contracts stay identical', async () => {
   assert.deepEqual(browser.SPOOKY_THEME_COLORS, contract.SPOOKY_THEME_COLORS);
   assert.deepEqual(browser.SPOOKY_COLOR_KEYS, contract.SPOOKY_COLOR_KEYS);
   assert.deepEqual(browser.SPOOKY_OPACITY_KEYS, contract.SPOOKY_OPACITY_KEYS);
+  assert.deepEqual(browser.TWITTER_LAYOUT_DEFAULTS, contract.TWITTER_LAYOUT_DEFAULTS);
+  assert.deepEqual(browser.TWITTER_COLOR_DEFAULTS, contract.TWITTER_COLOR_DEFAULTS);
   assert.equal(browser.normalizeStyleOptions.toString(), contract.normalizeStyleOptions.toString());
   assert.equal(browser.styleOptionsFor.toString(), contract.styleOptionsFor.toString());
 });

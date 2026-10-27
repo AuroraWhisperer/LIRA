@@ -8,7 +8,7 @@
 
 ## 1. 概览与触发链
 
-AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默认使用通用助手；小猫是可切换的内置角色，角色包仅改变身份和语气。普通问答不依赖天气或地图服务。弹幕消息经 [server.js:611-631](../../../src/server.js#L611-L631) 的 `onMessage` 回调进入:`aiDanmakuDeliveryVerifier.observe(danmaku)`(投递验证,见 §9)→ 常规弹幕机器人链 → `aiAssistant.handleDanmaku({message, userName, uid, roomId})`。返回值被忽略(fire-and-forget),机器人异步排队生成并发送回复。
+AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫等角色包只改变身份和语气。普通问答不依赖天气或地图服务。[server/bilibili-client.js](../../../src/server/bilibili-client.js) 的 `onMessage` 先发布弹幕并交给 `aiDanmakuDeliveryVerifier.observe(danmaku)`（投递验证，见 §9），再处理小游戏与本地命令。命令结果为 `cloud-owned` 时提前返回；其余消息调用 `aiAssistant.handleDanmaku`，传入房间、消息、用户身份和回复会话捕获函数，异步排队生成并发送回复。`server.js` 只负责把 AI runtime 与该消息入口接线。
 
 | 事实       | 值                                                                                                                              | 出处                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
@@ -16,8 +16,8 @@ AI 弹幕姬是一个由模型服务驱动的通用互动助手；新配置默�
 | 模型后端   | 供应商可选自动识别、DeepSeek、Kimi、OpenAI、Claude、Gemini、豆包账号或自定义；OpenAI 支持 API 与 ChatGPT 订阅两种接入；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js)                              |
 | 触发关键词 | 配置键 `trigger`,默认空字符串,1–12 字符;配置后消息中出现即触发                                                                  | [config.js](../../../src/ai/config.js)、[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)                  |
 | 就绪条件 | `isAiReady`：enabled 为真且 trigger 非空；API 模式另要求 URL、API Key、model 非空，豆包准入另检查已登录且无需验证；ChatGPT 订阅另要求 model、可用桌面加密与已授权的账号，无需 API Key | [config.js](../../../src/ai/config.js)、[deepseek-client.js](../../../src/ai/deepseek-client.js) |
-| 回复发送   | `sendReply` = `danmakuSender.send({…, waitForRateLimit: true})`,等待发送频率而非抛错                                            | [server.js:260](../../../src/server.js#L260)                                                                                |
-| 关闭时序   | 服务关闭第一步 `aiAssistant.shutdown()` → 协调器 stop,丢弃排队任务                                                              | [ai-assistant-service.js:289-291](../../../src/ai/ai-assistant-service.js#L289-L291)、[server-core.md](server-core.md) §6.2 |
+| 回复发送 | `buildAiRuntime` 注入 `sendReply`，调用 `danmakuSender.send({…, waitForRateLimit: true})`，等待发送频率 | [ai-runtime.js](../../../src/server/ai-runtime.js) |
+| 关闭时序 | `aiRuntime.shutdown()` 清理上下文定时器，并行等待助手与 ChatGPT 会话关闭，随后释放投递验证器并刷新日志；在 HTTP drain 后、数据库关闭前执行 | [ai-runtime.js](../../../src/server/ai-runtime.js)、[server-core.md](server-core.md) §6.2 |
 
 ## 2. 弹幕准入链(handleDanmaku)
 
@@ -337,4 +337,4 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 | 模型空回复/截断   | `DEEPSEEK_OUTPUT_TRUNCATED` / `DEEPSEEK_INVALID_RESPONSE` 按失败文案回复                                                                                                                                                                                                                                                      |
 | 弹幕未完整送达    | 送达验证 10 秒超时 → 按原问题生成单条精简回复后重发，最多 3 次（含首次）；仍失败记 `delivery` 失败                                                                                                                                                                                                                              |
 | 密钥缺失/不可加密 | 独立模式写入密钥抛错(§7.2);未配置时 `handleDanmaku` 直接 `disabled_or_unconfigured`                                                                                                                                                                                                                                           |
-| 服务关闭          | `aiRuntime.shutdown()` 单飞:停止准入并触发 `AI_SHUTDOWN`，丢弃未开始任务，等待 active generation/current delivery/direct provider 操作；取消后不再发送/重试或写 context/cache/audit，最后 dispose delivery verifier 并 flush `ai.log`。已开始的外部弹幕发送只能等待完成，不能撤回。见 [server-core.md](server-core.md) §6.2。 |
+| 服务关闭          | `aiRuntime.shutdown()` 单飞:停止准入并触发 `AI_SHUTDOWN`，丢弃未开始任务，等待 active generation/current delivery/direct provider 操作；取消后不再发送/重试或写 context/cache/audit，同时关闭 ChatGPT 会话与 OAuth 回调，最后 dispose delivery verifier 并 flush 请求日志（当前分流目录见 §8）。已开始的外部弹幕发送只能等待完成，不能撤回。见 [server-core.md](server-core.md) §6.2。 |

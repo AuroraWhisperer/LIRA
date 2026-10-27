@@ -110,8 +110,15 @@ body.desktop-shell .status-strip {
   outline-offset: 2px;
 }
 
+#reconnectBtn[aria-busy='true'] {
+  color: var(--primary);
+  background: var(--color-primary-light);
+  opacity: 1;
+  cursor: progress;
+}
+
 #reconnectBtn[aria-busy='true'] svg {
-  animation: topbar-refresh-spin 1s linear infinite;
+  animation: topbar-refresh-spin 900ms linear infinite;
 }
 
 @keyframes topbar-refresh-spin {

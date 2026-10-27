@@ -310,11 +310,12 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 键/组 | 接受输入与存储形态 |
 | --- | --- |
-| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`scSongRequestEnabled`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
+| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`scSongRequestEnabled`、`songRequestCancelEnabled`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
 | `queueLimit` / `userCooldownSeconds` | number 或十进制数字字符串（可首尾空白）；整数分别 1–300 / 0–3600，存规范十进制字符串；不接受指数/小数/符号形式的字符串 |
 | `songCooldownMode` / `songCooldownValue` | 模式严格为 `off/hours/days`；数值接受 1–999 的整数或十进制整数字符串，存规范字符串；非法批次不写入。云端同步新增可选字段，旧快照省略时保留本地值 |
 | `guardPriorityEnabled` | 默认关闭；按账号同步的可选字段，旧快照省略保留本地值；保存后重排现有等待队列，具体顺序见 [音乐服务](music/services.md#83-handlequeueactioncontext-action-rawidqueue-servicejs) |
 | `scSongRequestEnabled` | 默认开启；按账号同步的可选 boolean 字段，旧快照省略保留本地值。关闭时 SC 仅作留言，不解析普通或随机点歌、不入点歌队列和点歌板、不消耗点歌冷却；已有队列不变 |
+| `songRequestCancelEnabled` | 默认开启；按账号同步的可选 boolean 字段，旧快照省略保留本地值。关闭时拒绝观众的两种取消点歌指令，已有队列与主播手动删除不受影响 |
 | `userQueueLimit` | 0–300 的整数或十进制整数字符串，默认 0（不限制单人活跃点歌数） |
 | `userCooldownCaptainSeconds` / `userCooldownAdmiralSeconds` / `userCooldownGovernorSeconds` | 精确空串表示沿用通用用户间隔（默认）；否则接受 0–3600 的整数或十进制整数字符串，0 明确不限制，空白串无效 |
 | `songRequestMinMedalLevel` / `songRequestGuardLevel` / `songRequestGuardMedalBypass` | 粉丝牌要求为 0–100（默认 0 不限）；大航海要求为 0 不限、3 舰长及以上、2 提督及以上、1 总督；前两项接受整数或十进制整数字符串。免牌开关默认 false，接受既有兼容 boolean 标量，只免粉丝牌、不免大航海等级要求 |

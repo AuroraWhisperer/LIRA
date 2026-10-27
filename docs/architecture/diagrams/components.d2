@@ -12,17 +12,23 @@ renderer: {
 }
 bridge: {label: "Renderer preload · contextBridge\n受限 IPC 交给 main 校验来源"; link: ../../reference/desktop/preload.md}
 desktop: {
-  label: "Electron main · 同进程内嵌本地模块化单体"
+  label: "桌面宿主与原生子进程"
   style.fill: "#eaf2f8"
-  main: {label: "主进程远端控制器\n设备会话 · SSE / pull / history 恢复"; link: ../../reference/desktop/main.md}
+  main: {label: "Electron main\n设备会话 / 远端同步 / 音频生命周期"; link: ../../reference/desktop/main.md}
   backend: {
-    label: "本地 Node HTTP 运行时 · 环回监听"
+    label: "本地 Node HTTP 运行时 · 与 main 同进程 · 环回监听"
     style.fill: "#f8f9f9"
     transport: {label: "本地 HTTP / WebSocket\n管理凭据与展示 scope 分离"; link: ../../reference/backend/server-core.md}
     bili: {label: "本地 Bilibili 输入\n弹幕 · 点歌 · SC · 用户信息 · 互动"; link: ../../reference/backend/bilibili/danmaku.md}
     local: {label: "本地领域服务\n音乐 / 队列 / 互动 / 加班机"; link: ../../reference/backend/music/services.md}
     projection: {label: "本地礼物投影与幂等消费\n无本地原始礼物检测器"; link: ../../reference/backend/bilibili/gift.md}
     store: {label: "客户端 SQLite\n本地业务数据 · 按来源隔离的礼物投影"; shape: cylinder; link: ../../reference/backend/storage.md}
+  }
+  native: {
+    label: "C# / .NET · 独立进程 · 按需启动"
+    style.fill: "#f4ecf7"
+    assistant: {label: "电音助手\n采集 / 分离 / 变调 / 恢复守护"; link: ../../reference/desktop/main.md}
+    playback: {label: "播放输出\n接收 renderer 解码后的 PCM"; link: ../../reference/frontend/playback.md}
   }
 }
 server: {
@@ -37,6 +43,8 @@ bilibili: {label: "Bilibili\n直播 HTTP / WebSocket"; style.fill: "#f4ecf7"}
 
 renderer -> bridge: "受限桥方法"
 bridge -> desktop.main: "main handler"
+desktop.main <-> desktop.native.assistant: "管道命令 / 状态"
+desktop.main <-> desktop.native.playback: "管道命令 / PCM / 状态"
 desktop.main -> server.device: "Device API 请求 / 建立 SSE"
 server.device -> desktop.main: "SSE 事件 / pull 与 history 响应"
 server.device <-> server.domains: "主播范围内的调用与事件"

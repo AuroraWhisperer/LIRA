@@ -2,7 +2,7 @@
 # 渲染: d2 --pad 24 overview.d2 overview.svg
 # PNG: 用已有 Playwright Chromium 加载生成的 SVG，viewport 取根 viewBox 宽高，白底截图。
 # D2 0.7.1 内置 PNG 驱动下载已失效；SVG 不依赖该驱动。
-# 当前实现总览；共享源码分发仍为 ADR-0020 提案，不属于本图已部署能力。
+# 当前实现总览；ADR-0020 已接受并实施公共消息渲染核心的固定源码快照，双方独立发布。
 direction: right
 root: {label: "LIRA\nElectron 桌面为主要产品"; shape: oval; style.fill: "#d6eaf8"}
 root -> local
@@ -27,9 +27,11 @@ desktop: {label: "Electron main"; style.fill: "#eaf2f8"}
 desktop -> bridge
 desktop -> auth
 desktop -> lifecycle
+desktop -> audio
 bridge: {label: "受限 IPC → main → Device API\nSSE / pull → 本地 SQLite 投影 → HTTP / WS"; link: ../../reference/desktop/preload.md}
 auth: {label: "设备身份与 Cookie 分区\n凭据保护 / 主窗口请求认证"; link: ../../reference/desktop/auth.md}
 lifecycle: {label: "窗口 / 本地媒体 / 更新 / 退出"; link: ../../reference/desktop/main.md}
+audio: {label: "C# / .NET 原生音频工作程序\n助手与播放输出分开进程 · 管道通信"; link: ../../reference/desktop/main.md}
 
 remote: {label: "LIRA Server\n独立服务器边界"; style.fill: "#e8f8f5"}
 remote -> gift
@@ -43,9 +45,11 @@ frontend: {label: "Vanilla JS / 原生 CSS\n无前端构建步骤"; style.fill: 
 frontend -> admin
 frontend -> player
 frontend -> overlays
+frontend -> sharedRenderer
 admin: {label: "Admin ESM\n常驻入口 / 按需工具 / 状态渲染 owner"; link: ../../reference/frontend/app.md}
 player: {label: "播放助手\n状态机 / 音源 / 队列持久化"; link: ../../reference/frontend/playback.md}
 overlays: {label: "本地展示页与网页源\n具体用途以页面入口表为准"; link: ../../reference/frontend/pages.md}
+sharedRenderer: {label: "公共弹幕消息渲染核心\n服务器维护 · 客户端固定源码快照"; link: ../adr/0020-shared-danmaku-source.md}
 
 engineering: {label: "工程与运行"; style.fill: "#f2f3f4"}
 engineering -> modes

@@ -1,6 +1,11 @@
-import { SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS } from './danmaku-style-options.js';
+import { SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText } from './danmaku-style-options.js';
 
 export function readAppearanceValue(key, rawValue, min, max) {
+  if (key === 'composerText') {
+    const { text, error } = inspectComposerText(rawValue);
+    if (error) throw new Error(error);
+    return text || undefined;
+  }
   if (key === 'minGiftAmount') {
     const value = Number(rawValue);
     if (!rawValue.trim() || !Number.isFinite(value) || value < Number(min) || value > Number(max)

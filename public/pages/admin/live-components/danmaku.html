@@ -184,6 +184,22 @@
                 disabled
               />
             </label>
+            <label id="danmakuTwitterHeaderField" class="danmaku-parameter-field" for="danmakuTwitterHeader" hidden>
+              <span><strong>顶部资料区<lira-help label="顶部资料区说明">房主头像、名称、账号和帖子标签栏。</lira-help></strong></span>
+              <select id="danmakuTwitterHeader" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
+            </label>
+            <label id="danmakuTwitterComposerField" class="danmaku-parameter-field" for="danmakuTwitterComposer" hidden>
+              <span><strong>底部提示栏</strong></span>
+              <select id="danmakuTwitterComposer" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
+            </label>
+            <label id="danmakuTwitterActionsField" class="danmaku-parameter-field" for="danmakuTwitterActions" hidden>
+              <span><strong>操作图标行<lira-help label="操作图标行说明">评论、转发、爱心和分享装饰。隐藏可留出更多消息空间。</lira-help></strong></span>
+              <select id="danmakuTwitterActions" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
+            </label>
+            <label id="danmakuComposerTextField" class="danmaku-parameter-field" for="danmakuComposerText" hidden>
+              <span><strong>底部提示文字<lira-help label="底部提示文字说明"><span id="danmakuComposerTextHint">最多 20 个字，支持中文、英文、符号和表情；表情按 1 个字计数，留空恢复默认。</span></lira-help></strong><output id="danmakuComposerTextCount" for="danmakuComposerText">0/20</output></span>
+              <input id="danmakuComposerText" type="text" placeholder="欢迎来到直播间 ✨" aria-describedby="danmakuComposerTextHint" disabled />
+            </label>
             <label id="danmakuTextColorModeField" class="danmaku-parameter-field" for="danmakuTextColorMode" hidden><span><strong>正文配色</strong></span><select id="danmakuTextColorMode" disabled><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
             <label id="danmakuTextColorField" class="danmaku-parameter-field" for="danmakuTextColor">
               <span><strong id="danmakuTextColorLabel">正文颜色</strong></span>
@@ -283,6 +299,16 @@
               </svg>
             </summary>
             <div class="danmaku-advanced-body">
+              <section id="danmakuTwitterColors" class="danmaku-advanced-section" aria-labelledby="danmakuTwitterColorsTitle" hidden>
+                <h6 id="danmakuTwitterColorsTitle">礼物与 SC 配色</h6>
+                <p class="hint">按单次人民币金额分档，礼物与 SC 共用这四档配色；上舰保留身份配色。</p>
+                <div class="danmaku-parameter-grid">
+                  <label class="danmaku-parameter-field" for="danmakuTwitterColor0"><span><strong>＜50 元</strong></span><input id="danmakuTwitterColor0" type="color" value="#409afa" disabled /></label>
+                  <label class="danmaku-parameter-field" for="danmakuTwitterColor50"><span><strong>50～99.99 元</strong></span><input id="danmakuTwitterColor50" type="color" value="#f9c844" disabled /></label>
+                  <label class="danmaku-parameter-field" for="danmakuTwitterColor100"><span><strong>100～999.99 元</strong></span><input id="danmakuTwitterColor100" type="color" value="#f89260" disabled /></label>
+                  <label class="danmaku-parameter-field" for="danmakuTwitterColor1000"><span><strong>≥1000 元</strong></span><input id="danmakuTwitterColor1000" type="color" value="#ef4260" disabled /></label>
+                </div>
+              </section>
               <section id="danmakuSpookyColors" class="danmaku-advanced-section" aria-labelledby="danmakuSpookyColorsTitle" hidden>
                 <h6 id="danmakuSpookyColorsTitle">背景与装饰配色</h6>
                 <p class="hint">礼物、上舰和 SC 共用事件卡底色。背景不透明度只影响底板和背衬纸片；文字、贴纸与边线保持清晰。</p>

@@ -41,6 +41,21 @@ function handleDanmakuMessage(
     return { accepted: false, reason: '不是点歌指令。' };
   }
 
+  const requesterIdentityType = identityType || (/^[1-9]\d{0,24}$/.test(cleanText(uid)) ? 'uid' : undefined);
+  if (command.type === 'cancel') {
+    if (settings.songRequestCancelEnabled === 'false') {
+      return { accepted: false, reason: '观众取消点歌已关闭。', command };
+    }
+    const queueItem = context.cancelQueueItem({
+      songName: command.songName,
+      requesterUid: uid,
+      requesterIdentityType,
+    });
+    return queueItem
+      ? { accepted: true, command, queueItem }
+      : { accepted: false, reason: '没有找到你点的待处理歌曲。', command };
+  }
+
   if (settings.paused === 'true') {
     return { accepted: false, reason: '当前已暂停接收点歌。', command };
   }
@@ -54,7 +69,7 @@ function handleDanmakuMessage(
 
   const requester = {
     requesterUid: uid,
-    requesterIdentityType: identityType || (/^[1-9]\d{0,24}$/.test(cleanText(uid)) ? 'uid' : undefined),
+    requesterIdentityType,
     requesterGuardLevel,
     requesterMedalName,
     requesterMedalLevel,
@@ -153,25 +168,15 @@ function parseDanmakuCommand(message, settings) {
   const text = cleanText(message);
   if (!text) return null;
 
+  if (text.startsWith('取消点歌')) {
+    return { type: 'cancel', songName: cleanText(text.slice('取消点歌'.length)) };
+  }
+
   if (text.startsWith('随机点歌')) {
     return {
       type: 'random',
       scopeText: normalizeRandomScopeText(text.slice('随机点歌'.length)),
     };
-  }
-
-  if (text.startsWith('随机 ')) {
-    return {
-      type: 'random',
-      scopeText: normalizeRandomScopeText(text.slice('随机 '.length)),
-    };
-  }
-
-  if (text.startsWith('随机') && text !== '随机') {
-    const scopeText = normalizeRandomScopeText(text.slice('随机'.length));
-    if (scopeText && scopeText !== '点歌') {
-      return { type: 'random', scopeText };
-    }
   }
 
   if (!text.startsWith('点歌')) {
@@ -187,7 +192,7 @@ function parseDanmakuCommand(message, settings) {
 
 function logDanmakuCommand(danmaku, result) {
   const message = cleanText(danmaku.message);
-  if (!message.startsWith('点歌') && !message.startsWith('随机')) return;
+  if (!message.startsWith('点歌') && !message.startsWith('随机点歌') && !message.startsWith('取消点歌')) return;
   logSongRequest('command-result', danmaku, {
     status: result?.accepted ? 'accepted' : 'ignored',
     ...(result?.accepted

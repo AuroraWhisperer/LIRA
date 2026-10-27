@@ -15,6 +15,12 @@ const SPOOKY_THEME_COLORS = Object.freeze({
 });
 const SPOOKY_COLOR_KEYS = Object.freeze(Object.keys(SPOOKY_THEME_COLORS.default));
 const SPOOKY_OPACITY_KEYS = Object.freeze(['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity']);
+const TWITTER_COMPOSER_TEXT_DEFAULT = '欢迎来到直播间 ✨';
+const TWITTER_COMPOSER_TEXT_MAX_LENGTH = 20;
+const TWITTER_LAYOUT_DEFAULTS = Object.freeze({ twitterHeader: 'show', twitterComposer: 'show', twitterActions: 'show' });
+const TWITTER_COLOR_DEFAULTS = Object.freeze({
+  twitterColor0: '#409afa', twitterColor50: '#f9c844', twitterColor100: '#f89260', twitterColor1000: '#ef4260',
+});
 const DANMAKU_STYLE_OPTIONS = Object.freeze({
   bubble: {
     scrollDirection: true,
@@ -135,6 +141,8 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   twitter: {
     scrollDirection: true,
+    composerText: true,
+    twitterOptions: true,
     defaultEdgeFade: 'none',
     label: '仿推特 3.0',
     minFontSize: 18,
@@ -260,6 +268,15 @@ const DANMAKU_FONTS = Object.freeze({
   kai: "'KaiTi', 'STKaiti', serif",
 });
 
+function inspectComposerText(value) {
+  const text = typeof value === 'string' ? value.trim().normalize('NFC') : '';
+  const length = Array.from(new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(text)).length;
+  const error = typeof value !== 'string' ? '请输入文字。'
+    : /[\p{Cc}\p{Zl}\p{Zp}]/u.test(value) ? '底部提示文字不能包含换行或控制字符。'
+      : length > TWITTER_COMPOSER_TEXT_MAX_LENGTH ? `底部提示文字最多 ${TWITTER_COMPOSER_TEXT_MAX_LENGTH} 个字。` : '';
+  return { text, length, error };
+}
+
 function normalizeStyleOptions(value) {
   const fail = () => {
     throw Object.assign(new Error('INVALID_OVERLAY_OPTIONS'), { code: 'INVALID_OVERLAY_OPTIONS' });
@@ -293,6 +310,15 @@ function normalizeStyleOptions(value) {
       else if (key === 'backgroundOpacity' && limits.background && Number.isInteger(item) && item >= 0 && item <= 100)
         normalized[key] = item;
       else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
+      else if (key === 'composerText' && limits.composerText && typeof item === 'string') {
+        const inspected = inspectComposerText(item);
+        if (inspected.error) fail();
+        if (inspected.text) normalized[key] = inspected.text;
+      }
+      else if (limits.twitterOptions && Object.hasOwn(TWITTER_LAYOUT_DEFAULTS, key) && ['show', 'hide'].includes(item))
+        normalized[key] = item;
+      else if (limits.twitterOptions && Object.hasOwn(TWITTER_COLOR_DEFAULTS, key)
+        && typeof item === 'string' && [7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item)) normalized[key] = item.toLowerCase();
       else if (key === 'decorationShape' && limits.decorationShape
         && ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'].includes(item)) normalized[key] = item;
       else if (key === 'entranceAnimation' && limits.entranceAnimation && ['fade', 'rise'].includes(item))
@@ -334,6 +360,8 @@ function styleOptionsFor(style, options = {}) {
     fontFamily: DANMAKU_STYLE_OPTIONS[style]?.defaultFontFamily || 'default',
     fontSize: DANMAKU_STYLE_OPTIONS[style]?.defaultFontSize || 30,
     ...(DANMAKU_STYLE_OPTIONS[style]?.minGiftAmount ? { minGiftAmount: 0 } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.composerText ? { composerText: TWITTER_COMPOSER_TEXT_DEFAULT } : {}),
+    ...(DANMAKU_STYLE_OPTIONS[style]?.twitterOptions ? { ...TWITTER_LAYOUT_DEFAULTS, ...TWITTER_COLOR_DEFAULTS } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.bubbleColor ? { bubbleColor: 'default' } : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.ripploidColors ? RIPPLOID_COLOR_DEFAULTS : {}),
     ...(DANMAKU_STYLE_OPTIONS[style]?.decorationShape ? { decorationShape: 'sparkle' } : {}),
@@ -368,7 +396,7 @@ function styleOptionsFor(style, options = {}) {
   return resolved;
 }
 
-export { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, normalizeStyleOptions, styleOptionsFor };
+export { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_DEFAULT, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, normalizeStyleOptions, styleOptionsFor };
 
 export function isRandomDanmakuStyle(style) {
   return DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random';
@@ -380,6 +408,8 @@ export function isFloatingDanmakuStyle(style) {
 
 export function applyStyleOptions(document, style, allOptions) {
   const options = styleOptionsFor(style, allOptions);
+  const composer = style === 'twitter' ? document.getElementById?.('twitterComposerText') : null;
+  if (composer) composer.textContent = options.composerText;
   document.body.dataset.scrollDirection = options.scrollDirection;
   document.body.dataset.edgeFade = options.edgeFade || 'none';
   document.body.dataset.entranceAnimation = options.entranceAnimation || 'fade';
@@ -387,6 +417,10 @@ export function applyStyleOptions(document, style, allOptions) {
   document.body.dataset.spookyTheme = options.spookyTheme || 'default';
   document.body.dataset.spookyFrame = options.spookyFrame || 'show';
   const root = document.documentElement.style;
+  for (const key of Object.keys(TWITTER_LAYOUT_DEFAULTS)) document.body.dataset[key] = options[key] || 'show';
+  for (const key of Object.keys(TWITTER_COLOR_DEFAULTS)) {
+    root.setProperty(`--twitter-event-color-${key.replace('twitterColor', '')}`, options[key] || '');
+  }
   root.setProperty('--danmaku-bubble-color', options.bubbleColor && options.bubbleColor !== 'default' ? options.bubbleColor : '');
   root.setProperty('--danmaku-text-color', options.textColor);
   for (const key of Object.keys(RIPPLOID_COLOR_DEFAULTS)) {

@@ -93,12 +93,3 @@ test('resolved admin styles keep one toast foundation and all moved consumers', 
     assert.match(styles, new RegExp(`\\${selector}\\s*\\{`), selector);
   }
 });
-
-test('live refresh toast keeps a resolvable image', () => {
-  const livePath = path.join(ROOT_DIR, 'public', 'css', 'admin', 'toasts', 'live.css');
-  const liveStyles = fs.readFileSync(livePath, 'utf8');
-  const assetReference = liveStyles.match(/url\(['"]([^'"]*live-refresh-icon\.webp)['"]\)/)?.[1];
-
-  assert.ok(assetReference, 'live refresh image reference should remain defined');
-  assert.equal(fs.existsSync(path.resolve(path.dirname(livePath), assetReference)), true);
-});

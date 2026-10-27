@@ -41,7 +41,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **19 个字段**；overlay 不接收这个完整对象：
 
-`topic=danmaku` 仅选择高频 `danmaku:message` 与 `danmaku:superchat-delete` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅这些增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js` 和 `test/transport/websocket-access-policy.test.js`。
+`topic=danmaku` 仅选择高频 `danmaku:message` 与 `danmaku:superchat-delete` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅这些增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js`。
 
 | 字段                  | 生产者                                     | 内容概述                                                                                                          |
 | --------------------- | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
@@ -53,9 +53,9 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `blindBoxMapping` | `blindBoxMappingState` | 当前盲盒映射配置与同步状态 |
 | `overtime`            | `domainServices.overtime.getSnapshot()`    | 加班机状态,见 [overtime.md](overtime.md)                                                                          |
 | `settings`            | `settingsStore.getSettings()`              | 全部设置键值,见 [storage.md](storage.md)                                                                          |
-| `categories`          | `domainServices.songs.listCategories()`    | 歌曲分类                                                                                                          |
-| `tags`                | `domainServices.songs.listTags()`          | 歌曲标签                                                                                                          |
-| `songCount`           | `domainServices.songs.count()`             | 曲库歌曲总数                                                                                                      |
+| `categories`          | `domainServices.songs.getMetadata()`    | 歌曲分类                                                                                                          |
+| `tags`                | `domainServices.songs.getMetadata()`          | 歌曲标签                                                                                                          |
+| `songCount`           | `domainServices.songs.getMetadata()`             | 曲库歌曲总数                                                                                                      |
 | `roomGuard` | `bilibiliRuntime.getRoomGuardState()` | 当前配置直播间的 `{ roomId, count }`；人数未知为 `null`，变化原因 `bilibili:room-guard` |
 | `liveStatus`          | `liveStatus` 对象                          | 直播间连接状态(`connected/enabled/roomId/mode/message/updatedAt`)                                                 |
 | `bilibiliDiagnostics` | `bilibiliDiagnostics` 对象                 | Bilibili 诊断信息(最近包/命令/礼物时间戳、解析计数等),见 [bilibili/danmaku.md](bilibili/danmaku.md)               |

@@ -34,7 +34,7 @@ test('Twitter preview uses a synthetic owner and preserves its text fallback on 
   f.profile.showPreview();
   assert.equal(loads, 0);
   assert.equal(f.node('twitterProfileName').textContent, '合成房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@UID 10001');
+  assert.equal(f.node('twitterProfileUid').textContent, '@10001');
   const avatar = f.node('twitterProfileAvatar');
   assert.equal(avatar.src, '/resolved/img/overlays/danmaku-ranked/viewer.webp');
   avatar.onload();
@@ -64,14 +64,14 @@ test('room profile requests invalidate stale work and never show another room id
   requests[1].resolve({ roomId: '100', uid: 'other', name: '其他房主', avatarUrl: '/other.png', secret: 'private' });
   await Promise.resolve();
   assert.equal(f.node('twitterProfileName').textContent, '当前房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@UID 等待当前房间');
+  assert.equal(f.node('twitterProfileUid').textContent, '@等待当前房间');
   assert.equal(f.node('twitterProfileAvatarFallback').hidden, false);
 
   f.profile.update('twitter', '300');
   requests[2].resolve({ roomId: '300', uid: '456', name: '合成房主', avatarUrl: '/owner.png', secret: 'private' });
   await Promise.resolve();
   assert.equal(f.node('twitterProfileName').textContent, '合成房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@UID 456');
+  assert.equal(f.node('twitterProfileUid').textContent, '@456');
   assert.equal(f.node('twitterProfileAvatar').src, '/resolved/owner.png');
   f.profile.update('signal', '300');
   f.profile.update('twitter', '400');

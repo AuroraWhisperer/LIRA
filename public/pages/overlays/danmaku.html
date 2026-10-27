@@ -154,6 +154,9 @@
         <h2 id="appearanceTitle">样式参数</h2>
         <label>字体<select id="previewFontFamily"><option value="default">样式默认</option><option value="sans">微软雅黑</option><option value="serif">宋体</option><option value="kai">楷体</option></select></label>
         <div class="canvas-fields">
+          <label id="previewTwitterHeaderField" hidden>顶部资料区<select id="previewTwitterHeader"><option value="show">显示</option><option value="hide">隐藏</option></select></label>
+          <label id="previewTwitterComposerField" hidden>底部提示栏<select id="previewTwitterComposer"><option value="show">显示</option><option value="hide">隐藏</option></select></label>
+          <label id="previewTwitterActionsField" hidden>操作图标行<select id="previewTwitterActions"><option value="show">显示</option><option value="hide">隐藏</option></select></label>
           <label>画布字号<input id="previewFontSize" type="number" step="1" /></label>
           <label id="previewTextColorModeField" hidden>正文配色<select id="previewTextColorMode"><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
           <label id="previewTextColorField"><span id="previewTextColorLabel">正文颜色</span><input id="previewTextColor" type="color" /></label>
@@ -161,6 +164,7 @@
           <label id="previewBubbleColorField" hidden>自定义配色<input id="previewBubbleColor" type="color" value="#78a9d6" /></label>
           <label id="previewBackgroundField">背景不透明度<input id="previewBackgroundOpacity" type="number" min="0" max="100" step="1" /></label>
           <label id="previewGiftField">礼物图片<select id="previewGiftImage"><option value="theme">样式插画</option><option value="gift">礼物原图</option></select></label>
+          <label id="previewComposerTextField" hidden>底部提示文字 <output id="previewComposerTextCount" for="previewComposerText">0/20</output><input id="previewComposerText" type="text" placeholder="欢迎来到直播间 ✨" /><small>最多 20 个字，支持中英、符号和表情；表情计 1 个字，留空恢复默认。</small></label>
           <label id="previewMinGiftAmountField" hidden>弹幕礼物卡片最低金额（元）<input id="previewMinGiftAmount" type="number" min="0" max="100000" step="0.01" value="0" /></label>
           <label id="previewDirectionField">滚动方向<select id="previewScrollDirection"><option value="up">向上</option><option value="down">向下</option></select></label>
           <label id="previewEdgeFadeField">边缘处理<select id="previewEdgeFade"><option value="both">两端渐隐</option><option value="top">上边渐隐</option><option value="bottom">下边渐隐</option><option value="none">直接切断</option></select></label>
@@ -174,6 +178,16 @@
           <label id="previewCenterBiasField" hidden>中心倾向<input id="previewCenterBias" type="number" min="1" max="50" step="1" value="1" /><small>1～50，越高越靠近中间。</small></label>
           <label id="previewDispersionField" hidden>离散程度<input id="previewDispersion" type="number" min="1" max="50" step="1" value="1" /><small>1～50，越高越倾向于远离上一条；受中心倾向和可用空间共同影响。</small></label>
         </div>
+        <details id="previewTwitterColors" hidden>
+          <summary>礼物与 SC 配色</summary>
+          <p>按单次人民币金额分档，上舰保留身份配色。</p>
+          <div class="canvas-fields">
+            <label>＜50 元<input id="previewTwitterColor0" type="color" value="#409afa" /></label>
+            <label>50～99.99 元<input id="previewTwitterColor50" type="color" value="#f9c844" /></label>
+            <label>100～999.99 元<input id="previewTwitterColor100" type="color" value="#f89260" /></label>
+            <label>≥1000 元<input id="previewTwitterColor1000" type="color" value="#ef4260" /></label>
+          </div>
+        </details>
         <details id="previewRipploidColors" hidden>
           <summary>RIPPLOID 事件配色</summary>
           <p>聊天主色单独设置；礼物与 SC 按单条人民币金额分档，上舰按身份分档。</p>
@@ -271,13 +285,13 @@
                   <div class="twitter-profile-name-line">
                     <strong id="twitterProfileName">当前房主</strong>
                     <svg class="twitter-profile-verified" viewBox="0 0 24 24" aria-hidden="true">
-                      <circle cx="12" cy="12" r="10" fill="currentColor" stroke="none"></circle>
+                      <path d="m23 12-2.44-2.79.34-3.69-3.61-.82L15.4 1.5 12 2.96 8.6 1.5 6.71 4.69 3.1 5.5l.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.82L8.6 22.5 12 21.03l3.4 1.46 1.89-3.19 3.61-.82-.34-3.69Z" fill="currentColor" stroke="none"></path>
                       <path d="m7.5 12 3 3 6-6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path>
                     </svg>
                   </div>
-                  <div id="twitterProfileUid" class="twitter-profile-uid">@UID 等待读取</div>
+                  <div id="twitterProfileUid" class="twitter-profile-uid">@等待读取</div>
                 </div>
-                <span class="twitter-profile-room">ROOM</span>
+                <span class="twitter-profile-follow" aria-hidden="true">Followed</span>
               </header>
               <nav class="twitter-tabs" aria-label="社交卡片标签">
                 <span class="is-active">帖子</span><span>回复</span><span>媒体</span><span>喜欢</span>
@@ -291,12 +305,12 @@
               ></section>
               <footer class="twitter-composer" aria-label="弹幕输入栏装饰">
                 <svg class="twitter-icon" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M20 12v7a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7M15 3h6v6M10 14 21 3"></path>
+                  <path d="m3 3 8 .2 10 10-8 8L3 11Z"></path><circle cx="7.5" cy="7.5" r="1"></circle>
                 </svg>
                 <svg class="twitter-icon" viewBox="0 0 24 24" aria-hidden="true">
                   <circle cx="12" cy="12" r="9"></circle><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"></path>
                 </svg>
-                <span class="twitter-composer-text">弹幕、礼物与醒目留言</span>
+                <span id="twitterComposerText" class="twitter-composer-text">欢迎来到直播间 ✨</span>
                 <svg class="twitter-icon twitter-composer-send" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="m21 3-8.2 18-2.1-7.7L3 11.2 21 3Z"></path><path d="m10.7 13.3 4-4" fill="none" stroke="#fff" stroke-width="1.2"></path>
                 </svg>

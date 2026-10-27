@@ -3,6 +3,7 @@ const GUARD_LABELS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
 const GUARD_SCRIPT = Object.freeze({ 1: 'Governor', 2: 'Admiral', 3: 'Captain' });
 const GUARD_COLOR = Object.freeze({ 1: 'governor', 2: 'admiral', 3: 'captain' });
 const PRICE_TIERS = Object.freeze([0, 50, 100, 500, 1000, 2000]);
+let scTransitionSequence = 0;
 const DEFAULT_CLASS_NAMES = Object.freeze({
   identity: 'draw-danmaku-identity',
   badge: 'draw-danmaku-badge',
@@ -94,6 +95,7 @@ function createMedalBadge(document, medal, classNames) {
   const medalName = String(medal?.name || '').trim();
   if (!medalName || !Number.isSafeInteger(medal?.level) || medal.level <= 0) return null;
   const badge = ornament(document, `${classNames.badge} ${classNames.medal}`);
+  badge.setAttribute('title', `当前直播间灯牌：${medalName} ${medal.level}级`);
   const name = ornament(document, 'draw-danmaku-medal-name');
   name.textContent = medalName;
   const separator = hidden(ornament(document, 'ripploid-medal-separator'));
@@ -104,12 +106,21 @@ function createMedalBadge(document, medal, classNames) {
 }
 
 function createGuardBadge(document, guardLevel, classNames) {
-  const label = GUARD_LABELS[Number(guardLevel)];
+  const label = GUARD_SCRIPT[Number(guardLevel)]?.toUpperCase();
   if (!label) return null;
   const badge = ornament(document, `${classNames.badge} ${classNames.guard}`);
+  badge.setAttribute('title', `当前直播间大航海：${GUARD_LABELS[Number(guardLevel)]}`);
   const text = ornament(document, 'ripploid-guard-label');
   text.textContent = label;
   badge.append(createGuardAnchor(document), text);
+  return badge;
+}
+
+function createHonorBadge(document, honorLevel, classNames) {
+  if (!Number.isSafeInteger(honorLevel) || honorLevel <= 0) return null;
+  const badge = ornament(document, `${classNames.badge} ripploid-honor-badge`);
+  badge.setAttribute('title', `荣耀等级 ${honorLevel}`);
+  badge.append(node(document, 'span', 'ripploid-honor-label', `UL${honorLevel}`));
   return badge;
 }
 
@@ -118,8 +129,10 @@ export function createRipploidIdentity(document, item, name, classNames = DEFAUL
   if (item.kind !== 'gift') {
     const badges = node(document, 'div', 'ripploid-badges');
     const medal = createMedalBadge(document, item.roomMedal, classNames);
+    const honor = createHonorBadge(document, item.honorLevel, classNames);
     const guard = createGuardBadge(document, item.roomGuardLevel, classNames);
     if (medal) badges.append(medal);
+    if (honor) badges.append(honor);
     if (guard) badges.append(guard);
     if (badges.children.length) identity.append(badges);
   }
@@ -151,6 +164,48 @@ function createEventWipe(document) {
   return hidden(ornament(document, 'ripploid-event-wipe'));
 }
 
+function createGiftPriceIcon(document) {
+  const icon = hidden(svgNode(document, 'svg', { class: 'ripploid-gift-price-icon', viewBox: '0 0 12 12' }));
+  icon.append(
+    svgNode(document, 'rect', { width: '12', height: '12', fill: 'currentColor' }),
+    svgNode(document, 'path', { d: 'M2.2 6.9 C3.1 4.7 5.7 5.8 6.1 3.4 C8.1 2.5 10.1 3.7 9.1 5.9 C8.2 8.1 4.5 9.8 2.2 6.9 Z', fill: '#262522' }),
+  );
+  return icon;
+}
+
+function createGiftFooterMarks(document) {
+  const marks = hidden(svgNode(document, 'svg', { class: 'ripploid-gift-more', viewBox: '0 0 26 12' }));
+  marks.append(
+    svgNode(document, 'path', { d: 'M6 1.5 L8.8 3 L7.1 3.9 M9.3 4.5 L9.2 7.8 L7.5 7 M6.6 9.5 L3.5 9.4 L4 7.8 M2.1 7.3 L1.9 4.2 L3.6 4.8 M3.2 2.3 L6.1 1.2 L6.1 3', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.4', 'stroke-linejoin': 'round' }),
+    svgNode(document, 'circle', { cx: '20', cy: '6', r: '4.1', fill: 'none', stroke: 'currentColor', 'stroke-width': '.8' }),
+    svgNode(document, 'path', { d: 'M20 1.9 A4.1 4.1 0 0 0 20 10.1 Z', fill: 'currentColor' }),
+  );
+  return marks;
+}
+
+function createTicketBarcode(document) {
+  const barcode = hidden(node(document, 'div', 'ripploid-ticket-barcode'));
+  const artwork = svgNode(document, 'svg', { viewBox: '0 0 100 24', preserveAspectRatio: 'none' });
+  const widths = [2, 1, 1, 2, 3, 1, 1, 1, 2, 2, 1, 1, 3, 2, 1, 1, 2, 1, 1, 2, 3, 1, 2, 1, 1, 1, 3, 2, 2, 1, 1, 2, 1, 1, 3, 1, 2, 2, 1, 1, 2, 1, 3, 1, 1, 2, 2, 1, 1, 1, 2, 1, 3, 1, 1, 1, 2, 1, 1, 2, 3];
+  let x = 0;
+  widths.forEach((width, index) => {
+    if (index % 2 === 0) artwork.append(svgNode(document, 'rect', { x: String(x), width: String(width), height: '24', fill: 'currentColor' }));
+    x += width;
+  });
+  artwork.setAttribute('viewBox', `0 0 ${x} 24`);
+  barcode.append(artwork);
+  return barcode;
+}
+
+function decorateRipploidSystem(document, bubble, item, { body, message }) {
+  bubble.classList.add('ripploid-system');
+  const label = node(document, 'span', 'ripploid-system-label', item.kind === 'entry' ? `[进房]：${item.name || '观众'} ` : '[系统]：');
+  const copy = node(document, 'div', 'ripploid-system-copy');
+  copy.append(label, message);
+  body.replaceChildren(copy);
+  bubble.append(hidden(ornament(document, 'ripploid-system-wipe')));
+}
+
 function decorateRipploidGift(document, bubble, item, { body }) {
   const name = String(item.name || '观众').trim() || '观众';
   const giftName = String(item.giftName || '礼物').trim() || '礼物';
@@ -165,27 +220,35 @@ function decorateRipploidGift(document, bubble, item, { body }) {
   const nameCopy = node(document, 'div', 'ripploid-gift-name-copy');
   const giftTitle = node(document, 'strong', 'ripploid-gift-name', giftName);
   nameCopy.append(giftTitle);
-  if (giftCount) nameCopy.append(node(document, 'span', 'ripploid-gift-count', `× ${giftCount}`));
+  if (giftCount) nameCopy.append(node(document, 'span', 'ripploid-gift-count', `×${giftCount}`));
   nameFrame.append(nameCopy, hidden(ornament(document, 'ripploid-gift-chevrons')));
   const price = node(document, 'div', 'ripploid-gift-price');
-  price.append(hidden(ornament(document, 'ripploid-gift-price-icon')));
+  price.append(createGiftPriceIcon(document));
   price.append(node(document, 'span', 'ripploid-gift-price-value', formatAmount(item.giftTotalPrice)));
-  price.append(node(document, 'span', 'ripploid-gift-price-unit', 'RMB'));
-  main.append(nameFrame, price, hidden(ornament(document, 'ripploid-gift-more')));
+  const unit = node(document, 'span', 'ripploid-gift-price-unit');
+  unit.append(node(document, 'span', 'ripploid-gift-price-unit-text', 'RMB'), hidden(ornament(document, 'ripploid-gift-price-scramble')));
+  price.append(unit);
+  main.append(nameFrame, price, createGiftFooterMarks(document));
 
   const ticket = node(document, 'div', 'ripploid-gift-ticket');
-  ticket.append(node(document, 'strong', 'ripploid-ticket-title', 'GIFT TICKET'));
+  const title = node(document, 'strong', 'ripploid-ticket-title');
+  title.append(node(document, 'span', '', 'GIFT'), node(document, 'span', '', 'TICKET'));
+  ticket.append(title);
   const from = node(document, 'div', 'ripploid-ticket-from');
-  from.append(node(document, 'small', 'ripploid-ticket-from-label', '# FROM'));
+  from.append(node(document, 'small', 'ripploid-ticket-from-label', '» FROM'));
   const signature = node(document, 'div', 'ripploid-ticket-signature', name);
   from.append(signature);
-  ticket.append(from, hidden(ornament(document, 'ripploid-ticket-barcode')));
+  ticket.append(from, createTicketBarcode(document));
   body.replaceChildren(main, ticket);
   bubble.append(createEventWipe(document));
 }
 
 export function decorateRipploidMessage(document, bubble, item, { identity, body, message, classNames }) {
   const classes = classNames || { ...DEFAULT_CLASS_NAMES, identity: identity.className };
+  if (item.kind === 'entry' || item.kind === 'system') {
+    decorateRipploidSystem(document, bubble, item, { body, message });
+    return;
+  }
   if (item.kind === 'gift') {
     decorateRipploidGift(document, bubble, item, { body });
     return;
@@ -227,7 +290,9 @@ export function createRipploidGuardCard(document, item, classNames, resolveAvata
 
   const sender = node(document, 'div', 'ripploid-member-sender');
   const emblem = hidden(ornament(document, 'ripploid-member-emblem'));
-  emblem.append(createGuardAnchor(document));
+  const emblemBorder = svgNode(document, 'svg', { class: 'ripploid-member-emblem-border', viewBox: '0 0 27 30' });
+  emblemBorder.append(svgNode(document, 'polygon', { points: '13.5,1 25.2,7.8 25.2,22.2 13.5,29 1.8,22.2 1.8,7.8', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.1' }));
+  emblem.append(emblemBorder, createGuardAnchor(document));
   sender.append(
     emblem,
     hidden(ornament(document, 'ripploid-member-mini-badge')),
@@ -280,11 +345,17 @@ export function createRipploidSuperChat(document, root, card, { item, name, pric
     node(document, 'span', 'sc-currency', 'RMB'),
   );
   amount.classList.add('ripploid-sc-amount');
+  const amountRing = hidden(svgNode(document, 'svg', { class: 'ripploid-sc-amount-ring', viewBox: '0 0 76 25', preserveAspectRatio: 'none' }));
+  amountRing.append(svgNode(document, 'path', { d: 'M3 13 C2 1 66 0 72 11 C78 25 11 28 3 13 M8 4 C29 -1 65 5 74 13', fill: 'none', stroke: 'currentColor', 'stroke-width': '1.2' }));
+  amount.append(amountRing);
   const footer = node(document, 'footer', 'ripploid-sc-footer');
   footer.append(node(document, 'span', 'ripploid-sc-footer-copy', 'SC / MESSAGE'), amount);
   stable.append(header, panel, footer);
 
   const transition = hidden(node(document, 'div', 'ripploid-sc-transition'));
+  const sequence = ++scTransitionSequence;
+  const titleClipId = `ripploid-sc-title-clip-${sequence}`;
+  const titleMaskId = `ripploid-sc-title-mask-${sequence}`;
   const artwork = svgNode(document, 'svg', {
     class: 'ripploid-sc-tear-art',
     viewBox: '0 0 1000 240',
@@ -306,7 +377,22 @@ export function createRipploidSuperChat(document, root, card, { item, name, pric
       d: 'M0 160 C25 148 44 210 90 178 C132 148 142 82 185 110 C232 140 244 214 285 192 C330 168 346 124 390 146 C436 168 452 224 495 196 C542 166 560 106 610 130 C660 154 682 214 730 184 C780 154 802 94 845 122 C892 150 916 204 950 178 C974 160 988 150 1000 156 L1000 280 L0 280 Z',
     }),
   );
+  // Reuse the animated artwork so the title stays on the orange paper through both tears.
+  const definitions = svgNode(document, 'defs', {});
+  const titleClip = svgNode(document, 'clipPath', { id: titleClipId, clipPathUnits: 'objectBoundingBox' });
+  titleClip.append(svgNode(document, 'path', { class: 'ripploid-sc-tear-fill', transform: 'scale(.001 .004166667)' }));
+  const titleMask = svgNode(document, 'mask', { id: titleMaskId, x: '0', y: '0', width: '1', height: '1', maskUnits: 'objectBoundingBox', maskContentUnits: 'objectBoundingBox' });
+  const silhouetteMask = svgNode(document, 'g', { transform: 'scale(.001 .004166667)' });
+  silhouetteMask.append(svgNode(document, 'path', { class: 'ripploid-sc-silhouette', style: 'filter:brightness(0)' }));
+  titleMask.append(
+    svgNode(document, 'rect', { width: '1', height: '1', fill: '#fff' }),
+    silhouetteMask,
+  );
+  definitions.append(titleClip, titleMask);
+  artwork.append(definitions);
   const title = node(document, 'div', 'ripploid-sc-transition-title');
+  title.style.clipPath = `url(#${titleClipId})`;
+  title.style.mask = `url(#${titleMaskId})`;
   title.append(
     node(document, 'span', 'ripploid-sc-title-outline', `SC ${price}RMB`),
     node(document, 'span', 'ripploid-sc-title-fill', `SC ${price}RMB`),

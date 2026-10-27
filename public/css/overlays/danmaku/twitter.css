@@ -1,4 +1,15 @@
-/* 仿推特 3.0：白色社交资料卡；共享 feed 负责位移、测量和淘汰。 */
+/* BV1fr421c7t4: measured at 235 × 379, rendered in the 530 × 850 canvas. */
+@property --twitter-layer-opacity {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+@property --twitter-layer-transform {
+  syntax: '<transform-list>';
+  inherits: false;
+  initial-value: translate(0);
+}
+
 .twitter-profile,
 .twitter-tabs,
 .twitter-composer {
@@ -7,24 +18,37 @@
 
 body[data-style='twitter'] {
   color-scheme: light;
-  --twitter-surface: #ffffff;
   --twitter-ink: #141414;
-  --twitter-meta: #a4a4a4;
+  --twitter-meta: #737373;
   --twitter-action: #7f8785;
   --twitter-like: #d9094f;
+  --twitter-skeleton: #e4e4e4;
+  --twitter-profile-height: 142px;
+  --twitter-tabs-height: 50px;
+  --twitter-composer-height: minmax(68px, auto);
+  --twitter-panel-top: 40px;
 }
-
 body[data-style='twitter'] .danmaku-signal-stage {
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  position: relative;
+  grid-template-rows: var(--twitter-profile-height) var(--twitter-tabs-height) minmax(0, 1fr) var(--twitter-composer-height);
   align-content: stretch;
   gap: 0;
   padding: 0;
   overflow: visible;
   border-radius: 18px;
   color: var(--twitter-ink);
-  background: var(--twitter-surface);
-  box-shadow: 0 5px 18px rgb(0 0 0 / 10%);
-  font-family: Arial, 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  background: transparent;
+  box-shadow: none;
+  font-family: Arial, var(--danmaku-ui-font);
+}
+body[data-style='twitter'] .danmaku-signal-stage::before {
+  position: absolute;
+  z-index: 0;
+  inset: var(--twitter-panel-top) 0 0;
+  border-radius: 22px 22px 18px 18px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgb(0 0 0 / 8%);
+  content: '';
 }
 body[data-style='twitter'] .danmaku-signal-header {
   display: none;
@@ -33,32 +57,31 @@ body[data-style='twitter'] .twitter-profile {
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) auto;
-  gap: 14px;
+  grid-row: 1;
+  grid-template-columns: 116px minmax(0, 1fr) 98px;
+  gap: 17px;
   align-items: center;
-  height: 104px;
-  padding: 0 22px;
+  padding: 12px 27px 12px 24px;
 }
 .twitter-profile-avatar-shell {
   position: relative;
   display: grid;
   place-items: center;
-  width: 100px;
-  height: 100px;
+  width: 116px;
+  height: 116px;
   margin-top: 0;
   overflow: hidden;
-  border: 5px solid #fff;
+  border: 4px solid #fff;
   border-radius: 50%;
-  background: #f0f1f2;
-  box-shadow: 0 2px 8px rgb(0 0 0 / 8%);
   color: #777;
+  background: #f0f1f2;
+  box-shadow: 0 2px 7px rgb(0 0 0 / 8%);
   font-size: 32px;
   font-weight: 700;
 }
 .twitter-profile-avatar-shell img {
   position: absolute;
   inset: 0;
-  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
@@ -68,18 +91,18 @@ body[data-style='twitter'] .twitter-profile {
 }
 .twitter-profile-copy {
   min-width: 0;
-  padding-top: 12px;
+  padding-top: 30px;
 }
 .twitter-profile-name-line {
   display: flex;
-  gap: 7px;
+  gap: 5px;
   align-items: center;
   min-width: 0;
 }
 .twitter-profile-name-line strong {
   overflow: hidden;
   font-size: 24px;
-  line-height: 1.35;
+  line-height: 30px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -90,37 +113,34 @@ body[data-style='twitter'] .twitter-profile {
   color: #1c9fd4;
 }
 .twitter-profile-uid {
-  margin-top: 3px;
   overflow: hidden;
-  color: #858585;
-  font-size: 14px;
-  line-height: 1.4;
+  color: var(--twitter-meta);
+  font-size: 18px;
+  line-height: 24px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.twitter-profile-room {
-  align-self: start;
-  min-width: 82px;
-  margin-top: 23px;
-  padding: 7px 10px;
-  border: 1px solid #ececec;
-  border-radius: 7px;
-  color: #a0a0a0;
-  background: #fdfdfd;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .12em;
+.twitter-profile-follow {
+  margin-top: 22px;
+  padding: 7px 8px;
+  border: 1px solid #dedede;
+  border-radius: 5px;
+  color: #b8b8b8;
+  background: #fff;
+  font-size: 14px;
+  line-height: 20px;
   text-align: center;
 }
 body[data-style='twitter'] .twitter-tabs {
+  z-index: 2;
   display: grid;
+  grid-row: 2;
   grid-template-columns: repeat(4, 1fr);
-  height: 50px;
   border-bottom: 1px solid #efefef;
-  color: #c7c7c7;
+  color: var(--twitter-meta);
   background: #fff;
   font-size: 16px;
-  line-height: 48px;
+  line-height: 46px;
   text-align: center;
 }
 .twitter-tabs span {
@@ -132,20 +152,23 @@ body[data-style='twitter'] .twitter-tabs {
 }
 .twitter-tabs .is-active::after {
   position: absolute;
-  right: 34px;
+  right: calc(50% - 19px);
   bottom: 0;
-  left: 34px;
-  height: 4px;
-  border-radius: 4px;
-  background: #555;
+  left: calc(50% - 19px);
+  height: 3px;
+  border-radius: 3px;
+  background: #51b3d3;
   content: '';
 }
 
 body[data-style='twitter'] .draw-danmaku-feed {
-  --danmaku-enter-animation: twitterPostShell 1100ms linear both;
-  --danmaku-move-base-ms: 360;
-  --danmaku-move-max-ms: 700;
-  --danmaku-move-curve: .3, .1, .2, 1;
+  position: relative;
+  z-index: 1;
+  grid-row: 3;
+  --danmaku-enter-animation: twitterPostShell 1267ms linear both;
+  --danmaku-move-base-ms: 100;
+  --danmaku-move-max-ms: 100;
+  --danmaku-move-curve: .3333, .3333, .6667, .9104;
   gap: 0;
   padding: 0;
   overflow: hidden;
@@ -156,14 +179,15 @@ body[data-style='twitter'] .draw-danmaku-item.twitter-post {
   display: grid;
   grid-template-areas: none;
   grid-template-columns: 94px minmax(0, 1fr);
+  grid-template-rows: minmax(62px, auto) auto;
   gap: 0;
   align-items: start;
   flex-shrink: 0;
   width: 100%;
   min-width: 0;
   max-width: 100%;
-  min-height: 180px;
-  padding: 18px 18px 14px 16px;
+  min-height: 134px;
+  padding: 14px 20px 16px 16px;
   overflow: visible;
   border: 0;
   border-bottom: 1px solid #efefef;
@@ -177,93 +201,102 @@ body[data-style='twitter'] .draw-danmaku-item.twitter-post {
   animation: none;
 }
 body[data-style='twitter'] .draw-danmaku-item::after {
-  display: none;
+  display: none !important;
 }
 body[data-style='twitter'] .twitter-post .draw-danmaku-avatar {
   position: relative;
-  grid-area: auto;
+  grid-area: 1 / 1 / 3 / 2;
   align-self: start;
   display: grid;
   place-items: center;
-  width: 80px;
-  height: 80px;
+  width: 76px;
+  height: 76px;
   margin: 0;
   overflow: hidden;
   border: 0;
   border-radius: 50%;
-  color: #737373;
-  background: #f0f1f2;
+  color: #9b9f9e;
+  background: #edf0ef;
   clip-path: none;
   mask: none;
   font-size: 27px;
   font-weight: 700;
 }
+.twitter-avatar-image {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
 body[data-style='twitter'] .draw-danmaku-avatar img {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
   object-fit: cover;
 }
 body[data-style='twitter'] .twitter-post .twitter-post-main {
   position: relative;
-  grid-area: auto;
+  grid-area: 1 / 2;
   display: block;
   width: auto;
   min-width: 0;
   min-height: 0;
   max-width: none;
-  padding: 0 2px 0 0;
+  padding: 0;
   border: 0;
   border-radius: 0;
   background: transparent;
   box-shadow: none;
   text-shadow: none;
 }
-body[data-style='twitter'] .twitter-name-line {
+body[data-style='twitter'] .twitter-post .twitter-name-line {
   position: relative;
   display: flex;
   flex-wrap: nowrap;
-  gap: 7px;
+  gap: 8px;
   align-items: center;
-  min-height: 30px;
-  padding-right: 22px;
+  min-height: 32px;
+  padding-right: 26px;
 }
 body[data-style='twitter'] .twitter-post strong.twitter-name {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 52%;
+  max-width: 100%;
   overflow: hidden;
   color: var(--twitter-ink);
-  font-size: 22px;
+  font-family: inherit;
+  font-size: 24px;
   font-weight: 700;
-  line-height: 1.35;
+  line-height: 32px;
   letter-spacing: 0;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .twitter-verified {
+  align-self: center;
   flex: 0 0 auto;
   width: 19px;
   height: 19px;
   color: var(--twitter-guard-color, #1c9fd4);
+  stroke: none;
 }
 body[data-style='twitter'] .twitter-meta {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-width: 0;
+  max-width: 65%;
   overflow: hidden;
   color: var(--twitter-meta);
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 32px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 body[data-style='twitter'] .twitter-chevron {
   position: absolute;
-  top: 19px;
-  right: 18px;
-  width: 21px;
-  height: 21px;
+  top: 18px;
+  right: 20px;
+  width: 20px;
+  height: 20px;
   color: #b9b9b9;
 }
 .twitter-icon {
@@ -275,48 +308,102 @@ body[data-style='twitter'] .twitter-chevron {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.twitter-verified {
-  stroke: none;
+.twitter-content {
+  position: relative;
+  min-width: 0;
+}
+.twitter-event-loading {
+  display: none;
 }
 body[data-style='twitter'] .draw-danmaku-body p.twitter-post-content {
-  margin: 7px 0 0;
-  color: var(--twitter-ink);
+  margin: 0;
+  padding: 0;
+  color: var(--danmaku-text-color, var(--twitter-ink));
   font-size: var(--danmaku-font-size);
   font-weight: 600;
-  line-height: 1.48;
+  line-height: 1.45;
   letter-spacing: 0;
-  white-space: normal;
+  white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+/* Natural aspect ratio and flow height keep wide, tall and wrapped emotes whole. */
 body[data-style='twitter'] .draw-danmaku-emote {
-  height: 1.2em;
+  width: min(calc(100% - .16em), calc(1.3em * var(--danmaku-emote-ratio, 1)));
+  height: auto;
+  max-width: calc(100% - .16em);
+  max-height: 1.3em;
+  aspect-ratio: var(--danmaku-emote-ratio, auto);
+  object-fit: contain;
   filter: none;
   vertical-align: -.2em;
 }
 body[data-style='twitter'] .draw-danmaku-item.is-emote-only .draw-danmaku-emote {
-  height: 3.6em;
+  width: min(calc(100% - 4px), calc(3em * var(--danmaku-emote-ratio, 1)));
+  height: auto;
+  max-width: calc(100% - 4px);
+  max-height: 3em;
+  margin: 3px 4px 0 0;
+  vertical-align: middle;
 }
 
 body[data-style='twitter'] .draw-danmaku-body p.draw-danmaku-gift {
-  display: grid;
-  grid-template-columns: 72px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
+  display: block;
   width: 100%;
   max-width: 100%;
-  margin-top: 10px;
+  margin: 7px 0 0;
   padding: 0;
   color: var(--twitter-ink);
   background: transparent;
   box-shadow: none;
   text-shadow: none;
 }
+.twitter-gift-total {
+  display: block;
+  margin: 0 0 10px;
+  font-size: var(--danmaku-font-size);
+  font-weight: 600;
+  line-height: 1.45;
+}
+body[data-style='twitter'] .twitter-post .draw-danmaku-gift-amount,
+body[data-style='twitter'] .sc-twitter .sc-money {
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+}
+body[data-style='twitter'] .sc-twitter .sc-currency {
+  font-size: 1em;
+}
+.twitter-gift-panel,
+body[data-style='twitter'] .sc-twitter p.sc-copy {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  min-height: 54px;
+  padding: 10px 14px;
+  border: 4px solid #fff;
+  border-radius: 13px;
+  outline: 1px solid #dedede;
+  color: #fff;
+  background: var(--twitter-event-color);
+  font-weight: 600;
+  text-align: center;
+}
+body[data-style='twitter'] .sc-twitter p.sc-copy {
+  display: block;
+}
 body[data-style='twitter'] .twitter-post .draw-danmaku-gift-art {
   position: static;
-  width: 64px;
-  height: 64px;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   transform: none;
   background: none;
+}
+body[data-style='twitter'] .twitter-post .draw-danmaku-gift-art:empty {
+  display: none;
 }
 body[data-style='twitter'] .draw-danmaku-gift-art img {
   display: block;
@@ -327,129 +414,139 @@ body[data-style='twitter'] .draw-danmaku-gift-art img {
 body[data-style='twitter'] .twitter-post .draw-danmaku-gift-copy {
   display: flex;
   flex-wrap: wrap;
-  gap: 3px 8px;
+  gap: 0 4px;
   align-items: baseline;
+  justify-content: center;
   min-width: 0;
 }
-body[data-style='twitter'] .twitter-post .draw-danmaku-gift-action {
-  color: #737373;
-  font-size: 17px;
-  font-weight: 500;
+body[data-style='twitter'] .twitter-post :is(.draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count) {
+  color: inherit;
+  font: inherit;
   letter-spacing: 0;
+  white-space: normal;
 }
-body[data-style='twitter'] .twitter-post .draw-danmaku-gift-name,
-body[data-style='twitter'] .twitter-post .draw-danmaku-gift-count,
-body[data-style='twitter'] .twitter-post .draw-danmaku-gift-amount {
-  color: var(--twitter-ink);
-  font-size: var(--danmaku-font-size);
-  line-height: 1.35;
+body[data-style='twitter'] .twitter-guard .draw-danmaku-gift-copy {
+  justify-content: start;
 }
-body[data-style='twitter'] .twitter-post .draw-danmaku-gift-amount {
-  font-family: var(--danmaku-num-font);
-  white-space: nowrap;
-}
-body[data-style='twitter'] .twitter-guard .draw-danmaku-body p.draw-danmaku-gift {
-  grid-template-columns: 92px minmax(0, 1fr) auto;
-}
-body[data-style='twitter'] .twitter-guard .draw-danmaku-gift-art {
-  width: 84px;
-  height: 84px;
+body[data-style='twitter'] .twitter-guard .draw-danmaku-gift-amount {
+  display: none;
 }
 .twitter-guard-steps {
+  position: relative;
   display: flex;
+  gap: 12px;
   align-items: center;
-  justify-content: space-between;
-  min-height: 82px;
-  margin-top: 13px;
-  padding: 15px 18px;
-  border-radius: 12px;
+  justify-content: end;
+  height: 124px;
+  margin-top: 12px;
+  padding: 16px 14px;
+  overflow: hidden;
+  border: 1px solid #ededed;
+  border-radius: 9px;
   color: var(--twitter-guard-color);
-  background: color-mix(in srgb, currentColor 8%, #fff);
+  background: #fff;
 }
 .twitter-guard-label {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: .14em;
+  position: relative;
+  font-size: 14px;
+  font-weight: 700;
 }
 .twitter-guard-step-icons {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  height: 52px;
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 50%;
 }
 .twitter-guard-step {
-  display: block;
-  width: 30px;
-  height: 38px;
+  position: absolute;
+  bottom: -7px;
+  left: 0;
+  width: 112px;
+  height: 112px;
 }
-.twitter-guard-step-1 { margin-top: 14px; }
-.twitter-guard-step-2 { margin-top: 7px; }
+.twitter-guard-step-2 {
+  left: 45px;
+  bottom: -20px;
+  width: 92px;
+  height: 92px;
+  opacity: .5;
+}
+.twitter-guard-step-3 {
+  left: 92px;
+  bottom: -24px;
+  width: 65px;
+  height: 65px;
+  opacity: .22;
+}
 .twitter-step-icon {
-  width: 30px;
+  width: 100%;
+  height: 100%;
+  stroke: none;
+}
+.twitter-guard-seal {
+  display: grid;
+  place-items: center;
+  width: 38px;
   height: 38px;
-  stroke-width: 2.2;
+  padding: 10px;
+  border: 5px double color-mix(in srgb, currentColor 22%, white);
+  border-radius: 50%;
+  background: color-mix(in srgb, currentColor 10%, white);
 }
 body[data-style='twitter'] .draw-danmaku-body p.twitter-guard-companion {
   margin: 7px 0 0;
-  color: #8a8a8a;
+  color: var(--twitter-meta);
   font-size: 14px;
   font-weight: 400;
 }
 
-body[data-style='twitter'] .sc-twitter > .sc-money {
-  display: inline-flex;
-  gap: 3px;
-  align-items: baseline;
-  margin: 11px 0 0;
-  padding: 6px 12px;
-  border-radius: 999px;
-  color: var(--sc-accent);
-  background: var(--sc-surface);
-  font-family: var(--danmaku-num-font);
-  font-size: 20px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-body[data-style='twitter'] .sc-twitter .sc-currency {
-  font-size: 14px;
-}
 body[data-style='twitter'] .twitter-actions {
   display: grid;
-  grid-column: 2;
+  grid-area: 2 / 2;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   align-items: center;
-  width: 100%;
-  height: 36px;
-  margin-top: 12px;
+  width: calc(100% - 8px);
+  height: 30px;
+  margin-top: 17px;
   color: var(--twitter-action);
 }
 .twitter-action {
   position: relative;
   display: block;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
   transform-origin: center;
 }
 .twitter-action-icon {
   position: relative;
+  left: -3px;
   z-index: 2;
-  width: 34px;
-  height: 34px;
+  width: 28px;
+  height: 28px;
 }
 .twitter-action-heart {
   color: var(--twitter-like);
 }
 .twitter-action-heart .twitter-action-icon {
+  width: 26px;
+  height: 26px;
+  margin: 1px;
   fill: currentColor;
+  stroke: transparent;
 }
+.twitter-like-burst,
 .twitter-like-ring {
   position: absolute;
   z-index: 3;
-  inset: 2px;
-  border: 3px solid #a45bd8;
+  inset: -4px -1px -4px -7px;
   border-radius: 50%;
   opacity: 0;
   pointer-events: none;
+}
+.twitter-like-burst {
+  background: #cc4c93;
+}
+.twitter-like-ring {
+  border: 3px solid #c790d9;
 }
 .twitter-like-particles {
   position: absolute;
@@ -460,135 +557,216 @@ body[data-style='twitter'] .twitter-actions {
 }
 .twitter-like-particles i {
   position: absolute;
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
   border-radius: 50%;
   background: #8c8c8c;
 }
 .twitter-like-particles i:nth-child(1) { left: 0; top: -7px; }
-.twitter-like-particles i:nth-child(2) { left: 25px; top: -8px; }
-.twitter-like-particles i:nth-child(3) { left: -8px; top: 19px; }
-.twitter-like-particles i:nth-child(4) { left: 32px; top: 22px; }
-.twitter-like-particles i:nth-child(5) { left: 5px; top: 36px; }
-.twitter-like-particles i:nth-child(6) { left: 27px; top: 38px; }
+.twitter-like-particles i:nth-child(2) { left: 22px; top: -8px; }
+.twitter-like-particles i:nth-child(3) { left: -8px; top: 16px; }
+.twitter-like-particles i:nth-child(4) { left: 29px; top: 19px; }
+.twitter-like-particles i:nth-child(5) { left: 3px; top: 32px; }
+.twitter-like-particles i:nth-child(6) { left: 24px; top: 34px; }
 
 body[data-style='twitter'] .twitter-composer {
+  z-index: 2;
   display: grid;
-  grid-template-columns: 30px 30px minmax(0, 1fr) 34px;
+  grid-row: 4;
+  grid-template-columns: 34px 34px minmax(0, 1fr) 42px;
   gap: 12px;
   align-items: center;
-  min-height: 66px;
-  padding: 12px 20px;
+  padding: 12px 18px;
   border-top: 1px solid #efefef;
   border-radius: 0 0 18px 18px;
-  color: #b1b1b1;
+  color: var(--twitter-meta);
   background: #fff;
-  font-size: 15px;
+  font-size: 16px;
 }
 .twitter-composer .twitter-icon {
   width: 28px;
   height: 28px;
+  padding: 6px;
+  box-sizing: content-box;
+  border-radius: 50%;
   color: #a5aaa8;
+  background: #f8f8f8;
 }
 .twitter-composer-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
-.twitter-composer-send {
-  color: #1c9fd4 !important;
+.twitter-composer .twitter-composer-send {
+  width: 26px;
+  height: 26px;
+  padding: 8px;
+  color: #fff;
   fill: currentColor;
   stroke: none;
+  background: #1eadd7;
 }
 body[data-style='twitter'] .draw-danmaku-empty {
   align-self: end;
   width: 100%;
   padding: 30px 18px;
-  color: #a4a4a4;
+  color: var(--twitter-meta);
   background: #fff;
   clip-path: none;
-  font: 400 16px/1.5 Arial, 'Microsoft YaHei UI', sans-serif;
+  font: 400 16px/1.5 Arial, sans-serif;
   letter-spacing: 0;
 }
 
-/* Only live appends receive data-live-entry; snapshots remain fully settled. */
-body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-avatar {
-  animation: twitterAvatarIn 600ms ease-out both;
+body[data-style='twitter'][data-twitter-header='hide'] {
+  --twitter-profile-height: 0px;
+  --twitter-tabs-height: 0px;
+  --twitter-panel-top: 0px;
 }
+body[data-style='twitter'][data-twitter-header='hide'] :is(.twitter-profile, .twitter-tabs),
+body[data-style='twitter'][data-twitter-composer='hide'] .twitter-composer,
+body[data-style='twitter'][data-twitter-actions='hide'] .twitter-actions {
+  display: none;
+}
+body[data-style='twitter'][data-twitter-composer='hide'] {
+  --twitter-composer-height: 0px;
+}
+body[data-style='twitter'][data-twitter-header='hide'] .draw-danmaku-feed {
+  border-top-left-radius: 22px;
+  border-top-right-radius: 22px;
+}
+body[data-style='twitter'][data-twitter-composer='hide'] .draw-danmaku-feed {
+  border-bottom-left-radius: 18px;
+  border-bottom-right-radius: 18px;
+}
+body[data-style='twitter'][data-twitter-actions='hide'] .twitter-post {
+  grid-template-rows: minmax(76px, auto);
+  min-height: 106px;
+}
+body[data-style='twitter'][data-twitter-actions='hide'] .twitter-avatar {
+  grid-row: 1;
+}
+
+/* Relative to arrival: shift 0–100; reveal 400–633; actions 333–733; like 833–1200 ms. */
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-avatar::after {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  background: #ededed;
+  background: var(--twitter-skeleton);
+  opacity: var(--twitter-layer-opacity);
   content: '';
-  animation: twitterSkeletonOut 560ms ease-out both;
+  animation: twitterSkeletonOut 233ms 400ms linear both;
+}
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-avatar-image {
+  opacity: var(--twitter-layer-opacity);
+  animation: twitterContentIn 233ms 400ms linear both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-name-line > * {
-  animation: twitterContentIn 520ms 260ms ease-out both;
+  opacity: var(--twitter-layer-opacity);
+  animation: twitterContentIn 167ms 433ms linear both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-name-line::before {
   position: absolute;
-  top: 7px;
+  top: 5px;
   left: 0;
-  width: 148px;
-  height: 17px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #ededed 0 68%, transparent 68% 76%, #f3f3f3 76%);
+  width: calc(100% - 28px);
+  height: 20px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--twitter-skeleton) 0 80%, transparent 80% 83%, var(--twitter-skeleton) 83%);
+  opacity: var(--twitter-layer-opacity);
   content: '';
-  animation: twitterSkeletonOut 580ms 80ms ease-out both;
+  animation: twitterSkeletonOut 167ms 433ms linear both;
 }
-body[data-style='twitter'] .twitter-post[data-live-entry] :is(.twitter-post-content, .twitter-guard-steps, .twitter-guard-companion, .sc-money) {
-  animation: twitterContentIn 560ms 330ms ease-out both;
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-content > :not(.twitter-event-loading) {
+  opacity: var(--twitter-layer-opacity);
+  animation: twitterContentIn 200ms 400ms linear both;
+}
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-event-loading {
+  position: absolute;
+  inset: 42px 0 0;
+  display: grid;
+  place-items: center;
+  min-height: 54px;
+  border: 1px solid #ededed;
+  border-radius: 9px;
+  background: #fff;
+  opacity: var(--twitter-layer-opacity);
+  animation: twitterSkeletonOut 200ms 400ms linear both;
+}
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-event-loading::before {
+  position: absolute;
+  top: -34px;
+  left: 0;
+  width: 50%;
+  height: 19px;
+  background: var(--twitter-skeleton);
+  content: '';
+}
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #e7eff0;
+  border-top-color: #399ab4;
+  border-radius: 50%;
+  transform: var(--twitter-layer-transform);
+  animation: twitterLoadingTurn 700ms linear infinite;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action {
-  animation: twitterActionIn 400ms 300ms cubic-bezier(.2, .8, .2, 1) both;
+  opacity: var(--twitter-layer-opacity);
+  transform: var(--twitter-layer-transform);
+  animation: twitterActionIn 200ms 333ms cubic-bezier(.18, .7, .2, 1) both;
 }
-body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(2) { animation-delay: 370ms; }
-body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(3) { animation-delay: 440ms; }
-body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(4) { animation-delay: 510ms; }
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(2) { animation-delay: 400ms; }
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(3) { animation-delay: 467ms; }
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(4) { animation-delay: 533ms; }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action-heart .twitter-action-icon {
-  animation: twitterHeartIn 500ms 570ms ease-out both;
+  transform: var(--twitter-layer-transform);
+  animation: twitterHeartIn 1200ms linear both;
+}
+body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-burst {
+  opacity: var(--twitter-layer-opacity);
+  transform: var(--twitter-layer-transform);
+  animation: twitterLikeBurst 100ms 833ms linear both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-ring {
-  animation: twitterLikeRing 330ms 650ms ease-out both;
+  opacity: var(--twitter-layer-opacity);
+  transform: var(--twitter-layer-transform);
+  animation: twitterLikeRing 200ms 900ms ease-out both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-particles {
-  animation: twitterLikeParticles 360ms 700ms ease-out both;
+  opacity: var(--twitter-layer-opacity);
+  transform: var(--twitter-layer-transform);
+  animation: twitterLikeParticles 233ms 967ms ease-out both;
 }
 
-@keyframes twitterPostShell {
-  0% { opacity: 0; }
-  8%, 100% { opacity: 1; }
-}
-@keyframes twitterAvatarIn {
-  0%, 35% { opacity: 0; transform: scale(.92); }
-  100% { opacity: 1; transform: scale(1); }
-}
-@keyframes twitterContentIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes twitterSkeletonOut {
-  0%, 55% { opacity: 1; }
-  100% { opacity: 0; }
-}
+@keyframes twitterPostShell { from, to { --twitter-timeline: 1; } }
+@keyframes twitterContentIn { from { --twitter-layer-opacity: 0; } to { --twitter-layer-opacity: 1; } }
+@keyframes twitterSkeletonOut { from { --twitter-layer-opacity: 1; } to { --twitter-layer-opacity: 0; } }
+@keyframes twitterLoadingTurn { from { --twitter-layer-transform: rotate(0deg); } to { --twitter-layer-transform: rotate(360deg); } }
 @keyframes twitterActionIn {
-  from { opacity: 0; transform: translateY(18px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { --twitter-layer-opacity: 0; --twitter-layer-transform: translateY(34px); }
+  to { --twitter-layer-opacity: 1; --twitter-layer-transform: translateY(0); }
 }
 @keyframes twitterHeartIn {
-  0% { color: var(--twitter-action); fill: transparent; transform: scale(.78); }
-  45% { color: #a45bd8; fill: #a45bd8; transform: scale(1.14); }
-  100% { color: var(--twitter-like); fill: currentColor; transform: scale(1); }
+  0%, 80.5% { color: var(--twitter-action); fill: transparent; stroke: currentColor; --twitter-layer-transform: scale(1); }
+  80.6% { color: var(--twitter-action); fill: transparent; stroke: currentColor; --twitter-layer-transform: scale(.6); }
+  83.3%, 100% { color: var(--twitter-like); fill: currentColor; stroke: transparent; --twitter-layer-transform: scale(1); }
+}
+@keyframes twitterLikeBurst {
+  0% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(.3); }
+  33% { --twitter-layer-opacity: 1; --twitter-layer-transform: scale(1); }
+  67% { --twitter-layer-opacity: 1; --twitter-layer-transform: scale(1.15); }
+  100% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(1.35); }
 }
 @keyframes twitterLikeRing {
-  0% { opacity: .9; transform: scale(.55); }
-  100% { opacity: 0; transform: scale(1.45); }
+  0% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(.65); }
+  5% { --twitter-layer-opacity: .8; }
+  100% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(1.55); }
 }
 @keyframes twitterLikeParticles {
-  0% { opacity: 0; transform: scale(.65); }
-  35% { opacity: .85; }
-  100% { opacity: 0; transform: scale(1.2); }
+  0% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(.65); }
+  25% { --twitter-layer-opacity: .8; }
+  100% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(1.3); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -598,14 +776,8 @@ body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-particle
   body[data-style='twitter'] .twitter-post[data-live-entry] *::after {
     animation: none !important;
   }
-  body[data-style='twitter'] .twitter-post[data-live-entry] :is(.twitter-avatar, .twitter-name-line > *, .twitter-post-content, .twitter-action) {
-    opacity: 1;
-    transform: none;
-  }
   body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-avatar::after,
-  body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-name-line::before,
-  body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-ring,
-  body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-particles {
+  body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-name-line::before {
     display: none;
   }
 }

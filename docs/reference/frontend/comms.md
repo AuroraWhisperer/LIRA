@@ -2,7 +2,7 @@
 
 > 涉及文件:[shared/utils.js](../../../public/js/shared/utils.js)、[shared/event-bus.js](../../../public/js/shared/event-bus.js)、[admin/state.js](../../../public/js/admin/state.js)、[admin/overtime.js](../../../public/js/admin/overtime.js)、[desktop.js](../../../public/js/desktop.js)、[overlays/queue.js](../../../public/js/overlays/queue.js)、[src/server/http-utils.js](../../../src/server/http-utils.js)
 
-本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照 17 字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
+本文档描述前端与后端/桌面层的**通信客户端行为**。传输层实现、快照字段、消息类型全集归 [ws.md](../backend/ws.md) 所有;端点清单归 [api.md](../backend/api.md) 所有;IPC 通道注册表归 [desktop/preload.md](../desktop/preload.md) 所有。
 
 ## 1. 管理身份与展示页能力
 
@@ -30,7 +30,7 @@
 
 | 函数                                                                                              | 用途                                                                                                                       |
 | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `api(url, body, {notifyError=true, signal}={})`                                                     | POST JSON 便捷封装:自动 `Content-Type: application/json` + Bearer 头;HTTP 失败或 `!payload.ok` 抛错;按 notifyError 决定是否提示后再抛 |
+| `api(url, body, {notifyError=true, signal}={})`                                                     | POST JSON 便捷封装：设置 `Content-Type: application/json`；仅存在本页 `__API_TOKEN__` 时补 Bearer，Admin 认证由 main 加头;HTTP 失败或 `!payload.ok` 抛错;按 notifyError 决定是否提示后再抛 |
 | `readJsonResponse(response, fallbackMessage)`                                                     | 统一响应解析:空响应→`{}`;非 JSON→带 HTTP 状态码与内容预览的报错;正常→`JSON.parse`                                          |
 | `showError(error)` / `toast(message)` / `showStackedToast(options)`                               | 错误与提示:全局 `#toast` 容器,支持 key 去重、点击回调、礼物通知最多 6 条上限                                               |
 | `escapeHtml` / `escapeAttr`                                                                       | 渲染前转义(所有模板插值必须经此)                                                                                           |
@@ -52,9 +52,9 @@
 
 Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HTTP 只接受最新发起请求的结果，并保留请求发起之后被实时消息更新的字段；未被实时更新的字段仍可由 HTTP 补齐。全量快照同时遵守歌词 generation/sequence 与同一连接内加班机 revision 的排序规则；重连的 connect 快照可接纳服务重启后的较低加班机 revision。`STATE_LOADED` 附带变化的顶层字段 `changedKeys`，完全相同的快照不触发视图刷新，设置事件仅在 settings 实际变化时派发。传输快照与 HTTP 响应形状不变。
 
-- 全量状态:`GET /api/state`(快照 17 字段,见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
+- 全量状态:`GET /api/state`(字段及各 scope 投影见 [ws.md](../backend/ws.md) §2),管理页 `StateService.reloadState()`、叠加层 `loadState()` 首屏都用它兜底(WS 未连上时保证可渲染)。
 - 歌库:`GET /api/songs?query=&category=&language=&artist=&tag=&enabledOnly=`([state.js:128-155](../../../public/js/admin/state.js#L128-L155))。
-- **乐观 UI**:管理页所有变更操作(POST 后)立即调用 `reloadState()/reloadAll()` 重取,不等待 WS 广播;快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
+- **变更后的刷新**：管理操作按各自 owner 通过 `reloadState()/reloadAll()` 或 WS 接收结果，带草稿的表单仍由 controller 合并；快照到达后对歌库相关变更做 **240ms 防抖**重载(`scheduleSongReload`,合并短时间内多次快照,[state.js:160-165](../../../public/js/admin/state.js#L160-L165));播放页则是本地状态先行 + `savePlaybackState()` 落盘(见 [playback.md](playback.md) §6)。
 - **错误呈现分工**:表单/操作类错误 → `showError`(toast);`reconnectBilibili` 等直接 fetch 的调用自己解析 `{ok}` 信封并处理 404/网络类错误。歌词状态上报失败保持静默；播放队列保存失败保留最新待存快照，连续两次失败提示暂勿关闭 LIRA，之后保存成功再提示恢复，详见 [播放持久化](playback.md#6-状态持久化play_queue_state)。
 
 **礼物数据边界:** 服务端权威礼物由 Electron main 的 `remote-gift-controller` 通过独立 DeviceBearer SSE 与 final cursor pull 接收；main 完成校验、恢复和幂等投影后，renderer 只消费本地 `/api/state`、历史接口与 WebSocket `gift:frame`/snapshot。renderer 不直接订阅远端礼物流、不持有 Device token；可见身份字段按本地接口的授权投影提供。符合条件的连续 SSE final 已能与游标原子提交，HTTP pull 仍负责 bootstrap、断线/缺口恢复和周期核对，具体资格及失败处理见 [main.md §2.3](../desktop/main.md#23-服务端权威礼物接收生命周期) 与 [ADR-0021](../../architecture/adr/0021-atomic-live-gift-progress.md)。

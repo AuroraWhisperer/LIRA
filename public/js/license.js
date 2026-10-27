@@ -124,11 +124,6 @@
     loginModeButton?.setAttribute('aria-pressed', String(!registration));
     registerModeButton?.setAttribute('aria-pressed', String(registration));
     for (const [id, value] of [
-      ['licenseHeading', registration ? '注册 LIRA' : '登录 LIRA'],
-      [
-        'licenseModeDescription',
-        registration ? '创建账号并授权这台电脑' : '重装或使用新电脑，请向管理员获取短效登录码',
-      ],
       ['licenseCodeLabel', registration ? '注册激活码' : '短效登录码'],
       [
         'licenseCodeHelp',

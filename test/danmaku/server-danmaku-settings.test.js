@@ -61,6 +61,7 @@ async function fixture() {
     'outline',
     'cream',
     'glow',
+    'twitter',
   ].map((style) => {
     const button = node(style);
     button.dataset.danmakuStyle = style;
@@ -240,7 +241,18 @@ test('appearance drafts belong to each style and apply together without leaking 
   assert.equal(f.node('danmakuEntranceAnimationField').hidden, false);
   assert.equal(f.node('danmakuEntranceAnimation').value, 'fade');
   change('danmakuEntranceAnimation', 'rise');
+  f.click('twitter');
+  assert.equal(f.node('danmakuComposerTextField').hidden, false);
+  change('danmakuComposerText', '欢迎 ♥ Hello');
+  change('danmakuTwitterHeader', 'hide');
+  change('danmakuTwitterComposer', 'hide');
+  change('danmakuTwitterActions', 'hide');
+  change('danmakuTwitterColor0', '#12345680');
+  change('danmakuTwitterColor50', '#234567');
+  change('danmakuTwitterColor100', '#345678');
+  change('danmakuTwitterColor1000', '#456789');
   f.click('signal');
+  assert.equal(f.node('danmakuComposerTextField').hidden, true);
   assert.equal(f.node('danmakuEntranceAnimationField').hidden, true);
   assert.equal(f.node('danmakuTextColor').value, '#aabbcc');
   assert.equal(f.node('danmakuFontSize').value, '42');
@@ -258,6 +270,8 @@ test('appearance drafts belong to each style and apply together without leaking 
     },
     minimal: { fontSize: 24 },
     glow: { entranceAnimation: 'rise' },
+    twitter: { composerText: '欢迎 ♥ Hello', twitterHeader: 'hide', twitterComposer: 'hide', twitterActions: 'hide',
+      twitterColor0: '#12345680', twitterColor50: '#234567', twitterColor100: '#345678', twitterColor1000: '#456789' },
   };
   assert.deepEqual(JSON.parse(JSON.stringify(f.editors.at(-1).draft.styleOptions)), expected);
   assert.equal(f.writes.length, 0);

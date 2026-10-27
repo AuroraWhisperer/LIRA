@@ -12,7 +12,8 @@ function isBilibiliCommandText(message, customMatcher = null) {
   const text = cleanText(message);
   return (
     text.startsWith('点歌') ||
-    text.startsWith('随机') ||
+    text.startsWith('随机点歌') ||
+    text.startsWith('取消点歌') ||
     Boolean(dailyBotCommand(text)) ||
     (typeof customMatcher === 'function' && customMatcher(text) === true)
   );

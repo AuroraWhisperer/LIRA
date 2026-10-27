@@ -25,6 +25,7 @@ test('connection and song request forms save independently and preserve pending 
     roomId: '123',
     paused: 'true',
     scSongRequestEnabled: 'false',
+    songRequestCancelEnabled: 'false',
     queueLimit: '30',
     userCooldownSeconds: '60',
     userQueueLimit: '2',

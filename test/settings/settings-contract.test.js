@@ -49,11 +49,13 @@ test('new request controls default to no additional restrictions and synchronize
   const { SONG_REQUEST_CONTROL_DEFAULTS, SONG_REQUEST_CONTROL_KEYS } = require('../../src/shared/song-request-settings');
   const { serializeCloudSettings, normalizeCloudSettingsSnapshot } = require('../../src/server/settings-contract');
   assert.equal(f.store.getSettings().scSongRequestEnabled, 'true');
+  assert.equal(f.store.getSettings().songRequestCancelEnabled, 'true');
   for (const [key, value] of Object.entries(SONG_REQUEST_CONTROL_DEFAULTS)) {
     assert.equal(f.store.getSettings()[key], value);
   }
   const patch = {
     scSongRequestEnabled: false,
+    songRequestCancelEnabled: false,
     userQueueLimit: ' 02 ', userCooldownCaptainSeconds: '', userCooldownAdmiralSeconds: 0,
     userCooldownGovernorSeconds: '0030', songRequestMinMedalLevel: 5, songRequestGuardLevel: 3,
     songRequestGuardMedalBypass: true,
@@ -70,6 +72,8 @@ test('new request controls default to no additional restrictions and synchronize
   assert.equal(normalizeCloudSettingsSnapshot(cloud).userCooldownCaptainSeconds, '');
   assert.equal(normalizeCloudSettingsSnapshot(cloud).userCooldownAdmiralSeconds, '0');
   assert.equal(saved.scSongRequestEnabled, 'false');
+  assert.equal(saved.songRequestCancelEnabled, 'false');
+  assert.equal(normalizeCloudSettingsSnapshot(cloud).songRequestCancelEnabled, 'false');
   assert.equal(normalizeCloudSettingsSnapshot(cloud).scSongRequestEnabled, 'false');
   for (const key of SONG_REQUEST_CONTROL_KEYS) delete cloud[key];
   f.store.setSettings(normalizeCloudSettingsSnapshot(cloud));
@@ -82,6 +86,7 @@ test('request control limits reject invalid batches without saving or requesting
   const f = fixture(t);
   const cases = {
     scSongRequestEnabled: [null, [], {}, 'TRUE', ' false ', 2],
+    songRequestCancelEnabled: [null, [], {}, 'TRUE', ' false ', 2],
     userQueueLimit: [-1, 301, '', ' ', true, null, [], {}, 1.5, '1e2'],
     userCooldownCaptainSeconds: [-1, 3601, ' ', null, [], false, 0.5],
     userCooldownAdmiralSeconds: [-1, 'NaN'],

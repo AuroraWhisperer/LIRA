@@ -1,4 +1,4 @@
-import { DANMAKU_STYLE_OPTIONS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, isRandomDanmakuStyle, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { canvasContentScale } from './danmaku-canvas.js';
 import {
   readAppearanceValue,
@@ -18,6 +18,7 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     textColor: byId('previewTextColor'), bubbleColor: byId('previewBubbleColor'), backgroundOpacity: byId('previewBackgroundOpacity'),
     giftImage: byId('previewGiftImage'), scrollDirection: byId('previewScrollDirection'),
     minGiftAmount: byId('previewMinGiftAmount'),
+    composerText: byId('previewComposerText'),
     edgeFade: byId('previewEdgeFade'),
     entranceAnimation: byId('previewEntranceAnimation'),
     decorationShape: byId('previewDecorationShape'),
@@ -25,12 +26,16 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     floatingSpeed: byId('previewFloatingSpeed'), floatingDispersion: byId('previewFloatingDispersion'),
     centerBias: byId('previewCenterBias'), dispersion: byId('previewDispersion'),
   };
-  for (const key of Object.keys(RIPPLOID_COLOR_DEFAULTS)) {
+  for (const key of [...Object.keys(RIPPLOID_COLOR_DEFAULTS), ...Object.keys(TWITTER_LAYOUT_DEFAULTS), ...Object.keys(TWITTER_COLOR_DEFAULTS)]) {
     fields[key] = byId(`preview${key[0].toUpperCase()}${key.slice(1)}`);
   }
   for (const key of [...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS]) {
     fields[key] = byId(`preview${key[0].toUpperCase()}${key.slice(1)}`);
   }
+  function renderComposerTextCount() {
+    byId('previewComposerTextCount').textContent = `${inspectComposerText(fields.composerText.value).length}/${TWITTER_COMPOSER_TEXT_MAX_LENGTH}`;
+  }
+  fields.composerText.addEventListener('input', renderComposerTextCount);
   fields.floatingSpeed.addEventListener('input', () => {
     byId('previewFloatingSpeedValue').textContent = floatingSpeedLabel(floatingSpeedToPixelsPerSecond(Number(fields.floatingSpeed.value)));
   });
@@ -94,6 +99,15 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     const scale = canvasContentScale(draft.layout, draft.style);
     addFonts([{ value: options.fontFamily, label: options.fontFamily }]);
     for (const [key, control] of Object.entries(fields)) control.value = String(options[key]);
+    byId('previewComposerTextField').hidden = !limits.composerText || options.twitterComposer === 'hide';
+    fields.composerText.value = options.composerText || '';
+    renderComposerTextCount();
+    for (const [key, fallback] of Object.entries(TWITTER_LAYOUT_DEFAULTS)) {
+      byId(`preview${key[0].toUpperCase()}${key.slice(1)}Field`).hidden = !limits.twitterOptions;
+      fields[key].value = options[key] || fallback;
+    }
+    byId('previewTwitterColors').hidden = !limits.twitterOptions;
+    for (const [key, fallback] of Object.entries(TWITTER_COLOR_DEFAULTS)) fields[key].value = options[key] || fallback;
     byId('previewTextColorModeField').hidden = !spooky;
     byId('previewTextColorField').hidden = spooky && !Object.hasOwn(draft.styleOptions?.spooky || {}, 'textColor');
     byId('previewSpookyColors').hidden = !spooky;
