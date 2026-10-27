@@ -1,3 +1,20 @@
+/* Paint animated layers at the canvas scale instead of resampling compositor textures. */
+@property --spooky-layer-opacity {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
+}
+@property --spooky-layer-x {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+@property --spooky-layer-rotate {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
 @font-face {
   font-family: 'Spooky Nunito';
   src: url('/fonts/spooky/nunito-500.ttf') format('truetype');
@@ -58,7 +75,7 @@ body[data-style='spooky'][data-spooky-custom-accent='true'] {
   --spooky-edge: color-mix(in srgb,var(--spooky-custom-accent-color) 45%,white);
 }
 body[data-style='spooky'] .danmaku-signal-stage {
-  position: relative; isolation: isolate; padding: 153px 41px 44px 57px;
+  position: relative; isolation: isolate; padding: 93px 41px 33px 57px;
 }
 body[data-style='spooky'] .danmaku-signal-header { display: none; }
 body[data-style='spooky'] .spooky-frame {
@@ -73,7 +90,7 @@ body[data-style='spooky'] .spooky-frame {
 .spooky-frame-web:nth-child(2) { left: auto; right: 0; transform: scaleX(-1); }
 .spooky-frame-web:nth-child(3) { top: auto; bottom: 0; transform: scaleY(-1); }
 .spooky-frame-web:nth-child(4) { left: auto; right: 0; top: auto; bottom: 0; transform: scale(-1); }
-.spooky-frame-title { position: absolute; inset: 74px 0 auto; text-align: center; font: 700 11px/1 'Spooky Nunito', sans-serif; letter-spacing: 2.6px; color: var(--spooky-ink); }
+.spooky-frame-title { position: absolute; inset: 24px 0 auto; text-align: center; font: 700 11px/1 'Spooky Nunito', sans-serif; letter-spacing: 2.6px; color: var(--spooky-ink); }
 .spooky-frame-title::after { content: '•••'; display: block; margin-top: 11px; font-size: 8px; letter-spacing: 5px; color: var(--spooky-paper); }
 body[data-style='spooky'][data-spooky-frame='hide'] .spooky-frame { display: none; }
 body[data-style='spooky'][data-spooky-frame='hide'] .danmaku-signal-stage { padding: 28px 42px; }
@@ -109,7 +126,7 @@ body[data-style='spooky'] :is(.spooky-copy,.spooky-sc-copy) { position: relative
 body[data-style='spooky'][data-custom-text-color='true'] :is(.spooky-copy,.spooky-sc-copy) { color: var(--danmaku-text-color); }
 .spooky-event { margin-top: 8px; margin-bottom: 4px; }
 body[data-style='spooky'] .spooky-item.spooky-event { --spooky-card-weight: var(--spooky-event-weight,100%); }
-body[data-style='spooky'] .spooky-event .spooky-board { min-height: 4.2em; padding: .85em 1.5em .85em 7.95em; background: color-mix(in srgb,var(--spooky-custom-event-color,var(--spooky-alert)) var(--spooky-card-weight),transparent); }
+body[data-style='spooky'] .spooky-event .spooky-board { min-height: 4.2em; padding: .85em 1.5em .85em 7.95em; background: color-mix(in srgb,var(--spooky-custom-event-color,var(--spooky-alert)) var(--spooky-card-weight),transparent); clip-path: inset(0 -25px -25px -15px); }
 .spooky-event .spooky-web { width: 4.35em; max-height: 6.5em; opacity: .9; mask-image: url('/img/overlays/danmaku-spooky/alert-web.svg'); }
 .spooky-event .spooky-front-paper { left: 45%; background: color-mix(in srgb,color-mix(in srgb,var(--spooky-custom-event-color,var(--spooky-right)) 85%,var(--spooky-paper)) var(--spooky-card-weight),transparent); }
 .spooky-event .spooky-star { top: 15px; left: 14px; background: var(--spooky-paper); }
@@ -136,19 +153,21 @@ body[data-style='spooky'] .spooky-notice .spooky-copy { font-size: .8em; }
 .spooky-notice :is(.spooky-web,.spooky-sticker,.spooky-twinkle) { display: none; }
 .spooky-notice .spooky-board { min-height: 0; padding-block: .45em; }
 body[data-style='spooky'] .draw-danmaku-emote { width: 1.5em; height: 1.5em; vertical-align: middle; }
+body[data-style='spooky'] .spooky-item[data-live-entry],
+body[data-style='spooky'] .spooky-item[data-live-entry] :is(.spooky-identity,.spooky-board,.spooky-back-paper,.spooky-sticker,.spooky-portrait,.spooky-event-head) { opacity: var(--spooky-layer-opacity); }
 body[data-style='spooky'] .spooky-item[data-live-entry] .spooky-identity { animation: spookyFade 360ms ease-out both; }
 body[data-style='spooky'] .spooky-item[data-live-entry] .spooky-board { animation: spookyFade 650ms 120ms ease-out both; }
-body[data-style='spooky'] .spooky-item[data-live-entry] .spooky-back-paper { animation: spookyPaperEnter 600ms 320ms ease-out both; }
-body[data-style='spooky'] .spooky-item[data-live-entry] .spooky-sticker { animation: spookyStickerEnter 660ms 260ms ease-out both; }
-body[data-style='spooky'] .spooky-event[data-live-entry] .spooky-portrait { animation: spookyPortraitEnter 900ms ease-out both; }
+body[data-style='spooky'] .spooky-item[data-live-entry] .spooky-back-paper { translate: var(--spooky-layer-x) 0; animation: spookyPaperEnter 600ms 320ms ease-out both; }
+body[data-style='spooky'] .spooky-item[data-live-entry] .spooky-sticker { rotate: var(--spooky-layer-rotate); animation: spookyStickerEnter 660ms 260ms ease-out both; }
+body[data-style='spooky'] .spooky-event[data-live-entry] .spooky-portrait { rotate: var(--spooky-layer-rotate); animation: spookyPortraitEnter 900ms ease-out both; }
 body[data-style='spooky'] .spooky-event[data-live-entry] .spooky-board { animation: spookyExpand 900ms 180ms ease-out both; }
 body[data-style='spooky'] .spooky-event[data-live-entry] .spooky-event-head { animation: spookyFade 500ms 700ms ease-out both; }
-@keyframes spookyEntry { from { opacity: .15; } 20%,to { opacity: 1; } }
-@keyframes spookyFade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes spookyPaperEnter { from { opacity: 0; translate: -12px 0; } to { opacity: 1; translate: 0 0; } }
-@keyframes spookyStickerEnter { from { opacity: 0; rotate: -9deg; } to { opacity: 1; rotate: 0deg; } }
-@keyframes spookyPortraitEnter { from { opacity: 0; rotate: -20deg; } to { opacity: 1; rotate: 0deg; } }
-@keyframes spookyExpand { from { opacity: 0; clip-path: inset(0 calc(100% - 95px) 0 0); } to { opacity: 1; clip-path: inset(0 -25px -25px -15px); } }
+@keyframes spookyEntry { from { --spooky-layer-opacity: .15; } 20%,to { --spooky-layer-opacity: 1; } }
+@keyframes spookyFade { from { --spooky-layer-opacity: 0; } to { --spooky-layer-opacity: 1; } }
+@keyframes spookyPaperEnter { from { --spooky-layer-opacity: 0; --spooky-layer-x: -12px; } to { --spooky-layer-opacity: 1; --spooky-layer-x: 0px; } }
+@keyframes spookyStickerEnter { from { --spooky-layer-opacity: 0; --spooky-layer-rotate: -9deg; } to { --spooky-layer-opacity: 1; --spooky-layer-rotate: 0deg; } }
+@keyframes spookyPortraitEnter { from { --spooky-layer-opacity: 0; --spooky-layer-rotate: -20deg; } to { --spooky-layer-opacity: 1; --spooky-layer-rotate: 0deg; } }
+@keyframes spookyExpand { from { --spooky-layer-opacity: 0; clip-path: inset(0 calc(100% - 95px) 0 0); } to { --spooky-layer-opacity: 1; clip-path: inset(0 -25px -25px -15px); } }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='spooky'] .spooky-item, body[data-style='spooky'] .spooky-item * { animation: none !important; }
 }

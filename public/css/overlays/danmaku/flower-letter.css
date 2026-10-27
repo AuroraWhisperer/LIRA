@@ -2,7 +2,7 @@
 body[data-style='flower-letter'] {
   --flower-font: 'Lira Yozai', KaiTi, serif;
   --flower-ink: var(--danmaku-text-color, #766449);
-  --flower-type: calc(var(--danmaku-font-size, 24px) * 1.791666667);
+  --flower-type: calc(var(--danmaku-font-size, 24px) * 1.652314815);
   --danmaku-enter-animation: flower-letter-entry 233ms ease-out;
   --danmaku-move-base-ms: 240;
   --danmaku-move-max-ms: 460;
@@ -10,13 +10,14 @@ body[data-style='flower-letter'] {
 }
 body[data-style='flower-letter'][data-custom-font='true'] { --flower-font: var(--danmaku-custom-font); }
 body[data-style='flower-letter'] .danmaku-signal-header { display: none; }
-body[data-style='flower-letter'] .draw-danmaku-feed { gap: 13px; zoom: var(--ranked-scale); }
+body[data-style='flower-letter'] .danmaku-signal-stage { padding-inline: 0; }
+body[data-style='flower-letter'] .draw-danmaku-feed { align-items: center; gap: 13px; zoom: var(--ranked-scale); }
 body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item {
   position: relative;
   display: block;
-  width: 1080px;
-  min-width: 1080px;
-  max-width: 1080px;
+  width: 996px;
+  min-width: 996px;
+  max-width: 996px;
   min-height: var(--flower-base-height);
   margin: 0;
   padding: 0;
@@ -29,14 +30,15 @@ body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item {
   isolation: isolate;
   color: var(--flower-ink);
   font: 400 var(--flower-type)/1.2 var(--flower-font);
-  zoom: .555555556;
+  /* Measure the visible paper; transparent artwork margins must not trigger feed shrinking. */
+  zoom: calc(600 / 996);
   animation: none;
 }
 body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item::after,
 body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item.is-gift::after { display: none; animation: none; }
 .flower-paper, .flower-decoration {
   position: absolute;
-  left: 0;
+  left: -38px;
   width: 1080px;
   pointer-events: none;
 }
@@ -48,8 +50,10 @@ body[data-style='flower-letter'] .draw-danmaku-item.flower-letter-item.is-gift::
 .flower-ordinary .flower-decoration, .flower-small-gift .flower-decoration { top: 0; bottom: auto; }
 body[data-style='flower-letter'] .flower-letter-item .flower-content {
   position: relative;
+  left: -38px;
   z-index: 4;
   display: block;
+  width: 1080px;
   min-width: 0;
   min-height: var(--flower-base-height);
   padding: 71px 194px 103.4px 84px;
@@ -109,8 +113,8 @@ body[data-style='flower-letter'] .flower-content .draw-danmaku-emote {
   vertical-align: middle;
   object-fit: contain;
 }
-body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-copy { height: 67.6px; }
-body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-content .draw-danmaku-emote { width: 150px; height: 150px; margin-top: -6px; }
+body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-copy { min-height: 150px; }
+body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-content .draw-danmaku-emote { width: 150px; height: 150px; }
 .flower-letter.is-emote-only .flower-content { min-height: 242px; }
 body[data-style='flower-letter'] .flower-gift .flower-content { padding: 55px 95px 145.4px 85px; }
 .flower-gift .flower-copy { text-align: center; }

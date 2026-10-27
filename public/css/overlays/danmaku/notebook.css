@@ -16,7 +16,7 @@ body[data-style='notebook'] .draw-danmaku-item.notebook-item {
   --nb-frame: url('/img/overlays/danmaku-notebook/paper-frame-ordinary.png');
   --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-ordinary.png');
   position: relative; display: flex; align-items: flex-start; gap: .346154em;
-  width: max-content; max-width: min(100%,15.423077em); min-width: 0; min-height: 0; margin: 0; padding: 0;
+  width: max-content; max-width: 100%; min-width: 0; min-height: 0; margin: 0; padding: 0;
   border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none; overflow: visible;
   font: 700 var(--danmaku-font-size)/1.471154 var(--notebook-font);
   color: var(--nb-ink); text-shadow: none; text-rendering: optimizeLegibility; animation: none;
@@ -42,8 +42,7 @@ body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] {
   --nb-frame: url('/img/overlays/danmaku-notebook/paper-frame-governor.png');
   --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-governor.png');
 }
-body[data-style='notebook'] .notebook-item .notebook-paper-float { position: relative; width: max-content; min-width: 0; max-width: min(13em,100%); }
-body[data-style='notebook'] .notebook-item[data-notebook-kind='chat']:has(>.notebook-portrait-float)>.notebook-paper-float { max-width: min(13em,calc(100% - 2.423077em)); }
+body[data-style='notebook'] .notebook-item .notebook-paper-float { position: relative; flex: 1; min-width: 0; max-width: 100%; }
 body[data-style='notebook'] .notebook-item .notebook-paper { position: relative; isolation: isolate; will-change: transform; }
 body[data-style='notebook'] .notebook-item .notebook-paper-base {
   position: absolute; inset: .021635em; z-index: -1; border-radius: .411058em;
@@ -58,7 +57,7 @@ body[data-style='notebook'] .notebook-item .notebook-tape {
   width: 1.609615em; height: .709615em; background: var(--nb-tape) center/100% 100% no-repeat;
   pointer-events: none;
 }
-body[data-style='notebook'] .notebook-item .notebook-content { min-width: 0; padding: .519231em .653846em .5625em; }
+body[data-style='notebook'] .notebook-item .notebook-content { min-width: 0; padding: .519231em .875em .5625em; }
 body[data-style='notebook'] .notebook-item .notebook-heading {
   display: flex; align-items: center; justify-content: flex-start; flex-wrap: nowrap; gap: .39375em;
   min-height: 1.40625em; margin: 0; padding: 0 0 .05625em; border: 0; border-bottom: 1px dashed var(--nb-line);
@@ -104,8 +103,8 @@ body[data-style='notebook'] .notebook-item .notebook-avatar-frame {
   mask: url('/img/overlays/danmaku-notebook/avatar-border-mask.svg') center/100% 100% no-repeat;
   pointer-events: none;
 }
-body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc'],[data-notebook-kind='member']) { width: min(100%,15.403846em); }
-body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc'],[data-notebook-kind='member'])>.notebook-paper-float { width: 100%; max-width: 100%; }
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc'],[data-notebook-kind='member']) { width: 100%; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='gift'] .notebook-copy { text-align: center; }
 body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-content { padding: 0 0 .605769em; }
 body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'],[data-notebook-kind='sc']) .notebook-heading {
   height: auto; min-height: 3em; padding: .5em .8em .5em 3.7em; flex-wrap: wrap; border-radius: .4em .4em 0 0;
@@ -129,7 +128,6 @@ body[data-style='notebook'] .notebook-item.notebook-no-avatar .notebook-heading 
 body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'].notebook-no-avatar .notebook-heading { padding-left: 0; }
 body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-content { padding-left: .605769em; }
 body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-heading { padding-left: 0; }
-body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'].notebook-no-avatar { max-width: min(100%,13em); }
 
 body[data-style='notebook'] .notebook-item .notebook-portrait-sway { animation: notebookAvatarSway 4233.333ms linear infinite; }
 body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] :is(.notebook-paper-float,.notebook-portrait-float) { animation: notebookFloat 2333.333ms ease-in-out 500ms infinite both; }

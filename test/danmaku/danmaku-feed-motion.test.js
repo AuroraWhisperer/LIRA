@@ -77,6 +77,58 @@ test('notebook pauses old paper independently, keeps emotes static and renders e
   assert.ok(longNames.every(name => name.overflow !== 'ellipsis' && !name.clipped));
 });
 
+test('spooky preserves fades and finishes without a raster change inside a scaled canvas iframe', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'spooky');
+  await page.setViewportSize({ width: 640, height: 700 });
+  await page.evaluate(async () => {
+    feed.destroy();
+    const frame = document.createElement('iframe');
+    frame.style.cssText = 'width:530px;height:620px;border:0;transform:scale(.925);transform-origin:top left';
+    const loaded = new Promise(resolve => frame.addEventListener('load', resolve, { once: true }));
+    frame.src = location.href;
+    document.body.replaceChildren(frame);
+    await loaded;
+  });
+  const frame = page.frames().find(candidate => candidate.parentFrame());
+  await frame.evaluate(async () => {
+    Object.assign(document.querySelector('.danmaku-signal-stage').style, { width: '530px', height: '620px' });
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    applyStyleOptions(document, 'spooky', {});
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    window.root = document.getElementById('feed');
+    window.feed = createDanmakuFeed(root, { style: 'spooky', offscreenViewports: 0, autoScroll: false });
+  });
+  const clip = await page.locator('iframe').boundingBox();
+  for (const item of [
+    { name: '聊天者', message: '好耶！今天的歌很好听～' },
+    { kind: 'gift', name: '送礼者', giftName: '小花花', giftCount: 10, giftTotalPrice: 1 },
+    { kind: 'gift', name: '上舰者', giftGuardLevel: 1, giftCount: 1, giftTotalPrice: 19998 },
+    { kind: 'superchat', name: '留言者', message: '长留言也应该在纸张展开时保持清晰。'.repeat(3), price: 50 },
+  ]) {
+    const state = await frame.evaluate(async item => {
+      feed.render([]);
+      feed.append(item);
+      await document.fonts.ready;
+      await new Promise(requestAnimationFrame);
+      const animations = root.getAnimations({ subtree: true });
+      for (const animation of animations) {
+        animation.pause();
+        animation.currentTime = animation.animationName ? 430 : animation.effect.getTiming().duration;
+      }
+      const opacity = Number(getComputedStyle(root.querySelector('.spooky-board')).opacity);
+      const duration = root.firstElementChild.getAnimations().find(animation => animation.animationName === 'spookyEntry').effect.getTiming().duration;
+      for (const animation of animations) if (animation.animationName) animation.currentTime = 1249;
+      return { opacity, duration };
+    }, item);
+    assert.equal(state.duration, 1250, 'the complete decoration timeline is retained');
+    assert.ok(Math.abs(state.opacity - (item.kind ? 0.416 : 0.66)) < 0.01, 'the original panel fade still interpolates');
+    const before = await page.screenshot({ clip });
+    await frame.evaluate(() => root.firstElementChild.getAnimations().find(animation => animation.animationName === 'spookyEntry').finish());
+    await frame.waitForFunction(() => !root.querySelector('[data-live-entry]'));
+    assert.ok((await page.screenshot({ clip })).equals(before), `${item.giftGuardLevel ? 'guard' : item.kind || 'chat'} must not sharpen only when its entrance ends`);
+  }
+});
+
 test('spooky palette fills have independent alpha without fading text, decorations or replaying messages', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 1, 'spooky');
   const markup = fs.readFileSync(path.join(__dirname, '../../public/pages/overlays/danmaku.html'), 'utf8');
@@ -158,6 +210,11 @@ test('spooky frame keeps stickers visible, uses its own ink, and fits a full-wid
     await new Promise(requestAnimationFrame);
     const name = root.querySelector('.spooky-name');
     const sticker = root.querySelector('.spooky-sticker').getBoundingClientRect();
+    const feedBounds = root.getBoundingClientRect();
+    const outline = stage.querySelector('.spooky-frame-outline').getBoundingClientRect();
+    const title = stage.querySelector('.spooky-frame-title').getBoundingClientRect();
+    const frameLayout = { headerHeight: feedBounds.top - outline.top, bottomGap: outline.bottom - feedBounds.bottom,
+      feedHeight: feedBounds.height, titleClear: title.top >= outline.top && title.bottom < feedBounds.top };
     const ink = getComputedStyle(name).color;
     const stickerInside = sticker.right <= root.getBoundingClientRect().right + .5;
     const clip = getComputedStyle(root.firstElementChild).clipPath;
@@ -175,13 +232,14 @@ test('spooky frame keeps stickers visible, uses its own ink, and fits a full-wid
     const sender = root.querySelector('.spooky-event-name').getBoundingClientRect();
     const copy = root.querySelector('.spooky-sc-copy');
     const copyClearOfSticker = copy.getBoundingClientRect().bottom <= root.querySelector('.spooky-sticker').getBoundingClientRect().top + .5;
-    return { ink, clip, stickerInside, customNameFont, customCopyFont, giftFont, senderInside: sender.top >= top - .5,
+    return { ink, clip, stickerInside, frameLayout, customNameFont, customCopyFont, giftFont, senderInside: sender.top >= top - .5,
       message: copy.textContent, expected: message, copyClearOfSticker, fullWidth: copy.parentElement.classList.contains('spooky-board'),
       overflow: copy.scrollWidth - copy.clientWidth, frames: stage.querySelectorAll('.spooky-frame').length };
   }, markup);
   assert.equal(result.ink, 'rgb(252, 230, 250)');
   assert.equal(result.clip, 'none');
   assert.equal(result.stickerInside, true);
+  assert.deepEqual(result.frameLayout, { headerHeight: 60, bottomGap: 0, feedHeight: 494, titleClear: true });
   assert.match(result.customNameFont, /Arial/);
   assert.match(result.customCopyFont, /Arial/);
   assert.ok(result.giftFont <= 15, 'generic gift CSS must not enlarge this style’s event copy');
@@ -437,6 +495,41 @@ for (const style of styledMotion) {
   }
 }
 
+test('flower-letter large stickers expand the paper and remain above its signature', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'flower-letter');
+  await page.setViewportSize({ width: 640, height: 940 });
+  const result = await page.evaluate(async () => {
+    document.querySelector('.danmaku-signal-stage').style.height = '940px';
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    applyStyleOptions(document, 'flower-letter', {});
+    const emote = { text: '[打call]', url: '/img/overlays/danmaku-previews/dacall.png', kind: 'sticker' };
+    feed.render([
+      { name: '普通观众', message: emote.text, emotes: [emote] },
+      { name: '舰长观众', roomGuardLevel: 3, message: emote.text, emotes: [emote] },
+      { name: '行内表情', message: `好听${emote.text}`, emotes: [{ ...emote, kind: 'inline' }] },
+    ]);
+    await document.fonts.ready;
+    await Promise.all(Array.from(root.querySelectorAll('img'), image => image.decode()));
+    await new Promise(requestAnimationFrame);
+    return Array.from(root.children, card => {
+      const copy = card.querySelector('.flower-copy').getBoundingClientRect();
+      const emote = card.querySelector('.draw-danmaku-emote').getBoundingClientRect();
+      const signature = card.querySelector('.flower-signature').getBoundingClientRect();
+      return { large: card.classList.contains('is-emote-only'), height: emote.height,
+        contained: emote.top >= copy.top - 0.1 && emote.bottom <= copy.bottom + 0.1,
+        clearOfSignature: emote.bottom < signature.top };
+    });
+  });
+  assert.equal(result.length, 3);
+  for (const sticker of result.slice(0, 2)) {
+    assert.equal(sticker.large, true);
+    assert.equal(sticker.contained, true, 'the body reserves the complete sticker height');
+    assert.equal(sticker.clearOfSignature, true, 'the sticker stays clear of the signature');
+    assert.ok(sticker.height > result[2].height * 2.5, 'large stickers retain their size');
+  }
+  assert.equal(result[2].large, false);
+});
+
 test('flower-letter grows paper without stretching flowers and retains real content during mixed arrivals', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 1, 'flower-letter');
   await page.setViewportSize({ width: 640, height: 940 });
@@ -451,12 +544,21 @@ test('flower-letter grows paper without stretching flowers and retains real cont
     const short = root.firstElementChild;
     const shortHeight = short.offsetHeight;
     const decorationHeight = short.querySelector('.flower-decoration').offsetHeight;
+    const stageBounds = document.querySelector('.danmaku-signal-stage').getBoundingClientRect();
+    const cardBounds = short.getBoundingClientRect();
+    const lettering = document.createElement('span');
+    lettering.style.cssText = 'position:absolute;width:1em;height:1em';
+    short.querySelector('.flower-copy').append(lettering);
+    const letteringWidth = lettering.getBoundingClientRect().width;
+    lettering.remove();
     const message = '长消息会延展纸面，花叶保持比例。'.repeat(8);
     feed.render([{ ...base, message }]);
     await new Promise(requestAnimationFrame);
     const long = root.firstElementChild;
     const copy = long.querySelector('.flower-copy');
     const longResult = { shortHeight, longHeight: long.offsetHeight, decorationHeight,
+      stageWidth: stageBounds.width, cardWidth: cardBounds.width, letteringWidth,
+      centerOffset: (cardBounds.left + cardBounds.right - stageBounds.left - stageBounds.right) / 2,
       longDecorationHeight: long.querySelector('.flower-decoration').offsetHeight,
       text: copy.textContent, expected: message,
       clearOfSignature: copy.getBoundingClientRect().bottom < long.querySelector('.flower-signature').getBoundingClientRect().top,
@@ -476,6 +578,10 @@ test('flower-letter grows paper without stretching flowers and retains real cont
       duplicates: root.querySelectorAll('.flower-from').length,
       badArtwork: Array.from(root.querySelectorAll('img.flower-paper,img.flower-decoration')).filter(n => n.complete && !n.naturalWidth).length };
   });
+  assert.ok(Math.abs(result.stageWidth - result.cardWidth - 40) < 0.1,
+    'the visible paper leaves only 20px on either side of the default region');
+  assert.ok(Math.abs(result.centerOffset) < 0.1, 'the visible paper is horizontally centered');
+  assert.ok(Math.abs(result.letteringWidth - 24) < 0.2, 'widening the paper preserves the displayed font size');
   assert.ok(result.longHeight > result.shortHeight);
   assert.equal(result.decorationHeight, result.longDecorationHeight);
   assert.equal(result.text, result.expected);
@@ -596,6 +702,8 @@ test('RIPPLOID event roots retain their complete layer timelines', { timeout: 15
 test('RIPPLOID cards share their right edge and decorations follow variable content height', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 1, 'ripploid');
   const result = await page.evaluate(async () => {
+    Object.assign(document.querySelector('.danmaku-signal-stage').style, { width: '520px', height: '640px' });
+    root.style.setProperty('--danmaku-superchat-scale', String(496 / 460));
     const nextFrame = () => new Promise(requestAnimationFrame);
     const bounds = element => {
       if (!element) return null;
@@ -646,10 +754,11 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
     const shortChat = measureChat();
     feed.render([chatItem('正文增加一行以后，左侧线条应该继续延伸，箭头仍然指向当前房间灯牌。')]);
     await nextFrame();
-    return { cards, memberName, longName, shortChat, longChat: measureChat() };
+    return { cards, feedWidth: root.getBoundingClientRect().width, memberName, longName, shortChat, longChat: measureChat() };
   });
 
-  assert.ok(result.cards.every(card => Math.abs(card.width - 466) < 0.1));
+  assert.equal(result.feedWidth, 496);
+  assert.ok(result.cards.every(card => Math.abs(card.width - result.feedWidth) < 0.1));
   for (const card of result.cards.filter(card => card.kind !== 'chat')) {
     assert.ok(Math.abs(card.stage.right - card.root.right) < 0.1, `${card.kind} stage reaches the shared right edge`);
     assert.ok(Math.abs(card.stage.height - card.root.height) < 0.1, `${card.kind} stage fills the card height`);
@@ -666,5 +775,51 @@ test('RIPPLOID cards share their right edge and decorations follow variable cont
     assert.ok(Math.abs(chat.arrowCenter - chat.medalCenter) < 1, 'arrow points at the medal row');
   }
   assert.ok(result.longChat.stemHeight > result.shortChat.stemHeight + 10);
+  await page.evaluate(() => feed.destroy());
+});
+
+test('RIPPLOID entrance keeps alpha timing and painted text stable when its timeline ends', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 0.925, 'ripploid');
+  const state = await page.evaluate(async () => {
+    feed.render([]);
+    feed.append({ name: '清晰文字', message: '好耶！线条保持自然。' });
+    await new Promise(requestAnimationFrame);
+    const card = root.firstElementChild;
+    const animations = card.getAnimations({ subtree: true });
+    for (const animation of animations) {
+      animation.pause();
+      animation.currentTime = animation.animationName ? 300.3 : 600;
+    }
+    const opacity = Number(getComputedStyle(card.querySelector('.ripploid-copy-wrap > p')).opacity);
+    for (const animation of animations) if (animation.animationName) animation.currentTime = 699;
+    return { opacity };
+  });
+  assert.ok(Math.abs(state.opacity - 0.5) < 0.01, 'the original body fade still interpolates halfway');
+  const card = page.locator('.ripploid-chat');
+  const before = await card.screenshot();
+  await card.evaluate(node => node.getAnimations().find(animation => animation.animationName === 'ripploidMessageIn').finish());
+  await page.waitForFunction(() => !root.querySelector('[data-live-entry]'));
+  const after = await card.screenshot();
+  assert.ok(after.equals(before), 'finishing the entrance must not change text or hairline rasterization');
+  for (const [item, duration] of [
+    [{ kind: 'gift', name: '礼物观众', giftName: '友谊的大船', giftCount: 2, giftTotalPrice: 100 }, 2000],
+    [{ kind: 'gift', name: '舰长观众', giftGuardLevel: 3, giftTotalPrice: 138 }, 1600],
+    [{ kind: 'superchat', name: '留言观众', message: '完整留言也保持清晰。', price: 100 }, 1900],
+  ]) {
+    await page.evaluate(async ({ item, duration }) => {
+      feed.render([]);
+      feed.append(item);
+      await new Promise(requestAnimationFrame);
+      for (const animation of root.getAnimations({ subtree: true })) {
+        animation.pause();
+        animation.currentTime = animation.animationName ? duration - 1 : 600;
+      }
+    }, { item, duration });
+    const eventCard = page.locator('.ripploid-event-root');
+    const lastFrame = await eventCard.screenshot();
+    await eventCard.evaluate(node => node.getAnimations().find(animation => animation.animationName === 'ripploidMessageIn').finish());
+    await page.waitForFunction(() => !root.querySelector('[data-live-entry]'));
+    assert.ok((await eventCard.screenshot()).equals(lastFrame), `${item.giftGuardLevel ? 'member' : item.kind} finishes without raster changes`);
+  }
   await page.evaluate(() => feed.destroy());
 });

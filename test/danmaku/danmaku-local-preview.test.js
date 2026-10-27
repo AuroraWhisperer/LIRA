@@ -282,7 +282,7 @@ test('preview mixes every sample at varied intervals, reshuffles each round and 
   assert.equal(f.renders.at(-1).length, 0, 'examples must arrive incrementally instead of as a snapshot');
   assert.equal(f.appends.length, 1);
   assert.equal(f.timeouts.size, 1);
-  f.advance(799);
+  f.advance(1599);
   assert.equal(f.appends.length, 1);
   f.advanceMessages(1);
   assert.equal(f.appends.length, 2);
@@ -297,7 +297,7 @@ test('preview mixes every sample at varied intervals, reshuffles each round and 
   assert.deepEqual(new Set(kinds), new Set(['chat', 'gift', 'superchat']));
   assert.ok(kinds.some((kind, index) => kind === 'superchat' && kinds[index + 1] === 'chat'));
   const delays = f.appendTimes.slice(1).map((time, index) => time - f.appendTimes[index]);
-  assert.ok(delays.every((delay) => delay >= 800 && delay <= 2200));
+  assert.ok(delays.every((delay) => delay >= 1600 && delay <= 4400));
   assert.ok(new Set(delays).size > 1, 'arrivals must vary rather than use a fixed interval');
   assert.equal(new Set(f.appends.map((item) => item.id)).size, sampleCount * 2);
   assert.ok(f.appends.every((item) => Number.isFinite(item.timestamp) && item.timestamp > 0));
