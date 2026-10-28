@@ -61,6 +61,45 @@ test('license manager exposes authenticated overlay operations without leaking b
   }
 });
 
+test('ordinary overlay reads coalesce per authorization while abortable stream reads remain independent', async () => {
+  let owner = 'first';
+  let generation = 1;
+  const calls = [];
+  const operations = createLicenseOperations({
+    remote: { getOverlaySettings: (_token, options) => {
+      const deferred = Promise.withResolvers();
+      calls.push({ ...deferred, options });
+      return deferred.promise;
+    } },
+    getOverlayOwner: () => owner,
+    getAuthorizationGeneration: () => generation,
+    isDisposed: () => false,
+    withAuthorizedToken: operation => operation('token'),
+  });
+  const first = operations.getOverlaySettings();
+  assert.equal(operations.getOverlaySettings(), first);
+  const signal = new AbortController().signal;
+  const stream = operations.getOverlaySettings({ signal });
+  assert.equal(calls.length, 2);
+  assert.equal(calls[1].options.signal, signal);
+  calls[0].resolve({ style: 'signal' });
+  calls[1].resolve({ style: 'signal' });
+  await Promise.all([first, stream]);
+
+  const failed = assert.rejects(operations.getOverlaySettings(), /unavailable/);
+  calls[2].reject(new Error('unavailable'));
+  await failed;
+  const old = operations.getOverlaySettings();
+  generation += 1;
+  owner = 'second';
+  const next = operations.getOverlaySettings();
+  calls[3].resolve({ style: 'signal' });
+  await assert.rejects(old, { code: 'LICENSE_NOT_AUTHORIZED' });
+  assert.equal(operations.getOverlaySettings(), next, 'old completion does not clear the new read');
+  calls[4].resolve({ style: 'spooky' });
+  assert.deepEqual(await next, { style: 'spooky' });
+});
+
 test('overlay operations reject late responses and retry callbacks after ownership changes', async () => {
   let owner = 'one';
   let resolve, retryOperation;

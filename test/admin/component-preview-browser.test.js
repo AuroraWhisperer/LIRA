@@ -580,17 +580,13 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
     await page.getByRole('spinbutton', { name, exact: true }).fill(value);
     if (name === '画布宽度') {
       const overtime = page.locator('.scene-editor-item[data-component="overtime"]');
-      const height = await overtime.evaluate(node => node.style.height);
-      const resized = await overtime.evaluate(async node => {
-        window.dispatchEvent(new MessageEvent('message', {
-          source: node.querySelector('iframe').contentWindow,
-          origin: 'null',
-          data: { type: 'component-preview:resize', size: { width: node.offsetWidth, height: node.offsetHeight + 31 } },
-        }));
-        await new Promise(requestAnimationFrame);
-        return node.style.height;
-      });
-      assert.notEqual(resized, height);
+      const height = await overtime.evaluate(node => node.offsetHeight);
+      // Change real content so its ResizeObserver cannot overwrite a synthetic size with the old height.
+      await overtime.frameLocator('iframe').locator('.overtime-foreground').evaluate((node, height) => {
+        node.style.minHeight = `${height + 31}px`;
+      }, height);
+      await page.waitForFunction(expected => document.querySelector('.scene-editor-item[data-component="overtime"]').offsetHeight === expected, height + 31);
+      assert.equal(await overtime.evaluate(node => node.offsetHeight), height + 31);
       assert.equal(await page.getByRole('spinbutton', { name, exact: true }).inputValue(), value);
     }
     await page.getByRole('spinbutton', { name, exact: true }).press('Tab');

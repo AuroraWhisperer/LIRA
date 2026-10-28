@@ -583,6 +583,7 @@ async function startDesktopApp() {
     },
     getFanScope: () => fanScopeFor(licenseManager),
     getSceneOwner: () => getSceneOwner(licenseManager),
+    loadDanmakuAppearance: () => licenseManager.getOverlaySettings(),
     getPreviewOwner: () => getComponentPreviewOwner(licenseManager),
     onPhase: (phase, durationMs, extra) =>
       writeLog('lifecycle', {
@@ -704,6 +705,7 @@ async function startDesktopApp() {
     licenseManager,
     subscribeDemand: (listener) => lifecycleState.runtime.subscribeSceneCloudDemand(listener),
     publish: (update) => lifecycleState.runtime.receiveSceneCloud(update),
+    publishSettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),
   });
   sceneCloudController.start();
   fanProfileController = createFanProfileController({

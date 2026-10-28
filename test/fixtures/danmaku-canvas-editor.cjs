@@ -24,6 +24,8 @@ async function run() {
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { readSceneSharedAppearances } = require('../../src/server/scene-shared-appearance');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
+  const { createDanmakuAppearance } = require('../../src/server/danmaku-appearance');
+  const { createDanmakuAppearanceStore, migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
   const { getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
   const { HEARTBEAT_INTERVAL_MS } = require('../../src/electron/license/license-runtime-policy');
   const { createHarness } = require('../helpers/license-manager-harness');
@@ -53,23 +55,30 @@ async function run() {
   const hub = createWebSocketHub({ closeTimeoutMs: 20 });
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
-  const db = new DatabaseSync(':memory:');
+  const db = new DatabaseSync(path.join(directory, 'canvas-test.db'));
   migrateScenes(db);
   migrateComponentOutputSizes(db);
   migrateCanvasPresets(db);
   migrateSceneDeletion(db);
+  migrateDanmakuAppearance(db);
+  const appearance = createDanmakuAppearance({ store: createDanmakuAppearanceStore(db),
+    getOwner: () => getComponentPreviewOwner(manager), loadLegacy: async () => saved });
+  const danmakuAppearance = { read: appearance.read, save(input) {
+    global.canvasTest.attempts += 1;
+    if (global.canvasTest.failNext) { global.canvasTest.failNext = false; throw new Error('Synthetic local write failure'); }
+    const result = appearance.save(input);
+    global.canvasTest.writes.push(input.config);
+    return result;
+  } };
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
     getSharedAppearances: items => readSceneSharedAppearances({ settings: { get: () => openingSettings },
-      system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: saved }) }, items),
+      system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: appearance.getSettings() }) }, items),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
-    ...createSceneComponentPorts({ getState: () => ({ settings: openingSettings }), cloud: { getSettings: () => {
-      const { style, fullscreenDurationSeconds, styleOptions, layout, styleParameters } = saved;
-      return { style, fullscreenDurationSeconds, styleOptions, layout, ...(styleParameters ? { styleParameters } : {}) };
-    } } }) });
+    ...createSceneComponentPorts({ getState: () => ({ settings: openingSettings }), getDanmakuConfig: appearance.getSettings }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
     openingSettings,
-    saved: () => saved, scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku'),
+    saved: () => appearance.getSettings(), scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku'),
     authorization: () => ({ epoch: manager.getAuthorizationEpoch(), generation: manager.getAuthorizationGeneration() }),
     async renewAuthorization() {
       const task = [...licenseTasks].find(({ delay }) => delay !== HEARTBEAT_INTERVAL_MS);
@@ -87,7 +96,7 @@ async function run() {
     inflightTracker: { run: (fn) => fn() }, getSettings: () => openingSettings,
     getWebSocketHub: () => hub,
     getWebSocketContext: base => ({ sessionToken: token, allowedOrigins: [base], getState }),
-    createApiContext: () => ({ sessionToken: token, scenes, settings: { get: () => openingSettings, defaults: DEFAULT_SETTINGS,
+    createApiContext: () => ({ sessionToken: token, scenes, danmakuAppearance, settings: { get: () => openingSettings, defaults: DEFAULT_SETTINGS,
       set(key, value) { openingSettings[key] = value; },
       setMany(patch) { Object.assign(openingSettings, patch); return Object.keys(patch); } },
       bilibili: { configure() {} }, broadcastSnapshot(reason) { hub.broadcastSnapshot({ getState }, reason); },
@@ -98,7 +107,7 @@ async function run() {
         res.end(`import { initDanmakuOverlaySettings } from './danmaku-overlay-settings.js';
           import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
           import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
-          import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
+          import { waitForAuthorizedAccountInitialization } from './authorized-account.js';
           import { initCanvasOverlaySource } from './canvas-overlay-source.js';
           const panel = document.getElementById('liveDanmakuFeature');
           const sources = document.getElementById('overlayPage');
@@ -113,7 +122,7 @@ async function run() {
           elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));
           initDanmakuOverlaySettings(elements, () => {});
           setComponentPreviewPreparation(async () => {
-            await waitForServerOverlayUrlInitialization();
+            await waitForAuthorizedAccountInitialization();
             return prepareComponentPreviewCanvas(getComponentPreviews());
           });
           initCanvasOverlaySource();`);
@@ -142,13 +151,7 @@ async function run() {
       ...manager,
       getProfile: async () => ({ state: 'authorized', streamer }),
       getOverlaySettings: async () => saved,
-      updateOverlaySettings: async (value) => {
-        global.canvasTest.attempts += 1;
-        if (global.canvasTest.failNext) { global.canvasTest.failNext = false; throw new Error('NETWORK_UNAVAILABLE'); }
-        saved = { ...saved, ...value };
-        global.canvasTest.writes.push(value);
-        return saved;
-      },
+      updateOverlaySettings: async () => { throw new Error('Appearance must be saved locally.'); },
     },
   });
   app.once('before-quit', () => { manager.dispose(); auth.dispose(); hub.stop(); server.closeAllConnections(); server.close(); db.close(); });

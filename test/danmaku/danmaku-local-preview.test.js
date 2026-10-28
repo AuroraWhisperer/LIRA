@@ -3,38 +3,15 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
 const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 const randomStyles = ['outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle) {
-  const nodes = new Map();
-  const node = (id) => {
-    if (!nodes.has(id))
-      nodes.set(id, {
-        textContent: '',
-        hidden: true,
-        dataset: {},
-        options: [],
-        append(option) { this.options.push(option); },
-        events: {},
-        clientWidth: 1000,
-        clientHeight: 800,
-        style: {
-          setProperty(name, value) {
-            this[name] = value;
-          },
-        },
-        setAttribute(name, value) {
-          this[name] = value;
-        },
-        addEventListener(name, handler) {
-          this.events[name] = handler;
-        },
-      });
-    return nodes.get(id);
-  };
+  const document = createParameterDocument();
+  const node = document.getElementById;
   const buttons = [...styles, 'floating', 'comet'].map((style) => {
     const button = node(style);
     button.dataset.previewStyle = style;
@@ -43,22 +20,13 @@ async function fixture(search = '?preview=1', savedStyle) {
   });
   node('danmakuPreviewControls').querySelectorAll = (selector) => selector === '[data-preview-style]' ? buttons : [];
   const listeners = {};
-  const document = {
-    hidden: false,
-    getElementById: node,
-    createElement: () => ({}),
-    addEventListener(name, handler) {
-      listeners[name] = handler;
-    },
-    removeEventListener(name, handler) {
-      if (listeners[name] === handler) delete listeners[name];
-    },
-    documentElement: node('root'),
-    body: { dataset: {}, classList: { add() {}, toggle() {} } },
-  };
+  document.hidden = false;
+  document.addEventListener = (name, handler) => { listeners[name] = handler; };
+  document.removeEventListener = (name, handler) => { if (listeners[name] === handler) delete listeners[name]; };
+  document.documentElement = node('root');
   const location = new URL(`http://127.0.0.1:3000/danmaku${search}`);
   const history = {
-    state: savedStyle ? { danmakuPreviewStyle: savedStyle } : null,
+    state: typeof savedStyle === 'object' ? savedStyle : savedStyle ? { danmakuPreviewStyle: savedStyle } : null,
     replaceState(state, _title, url) {
       this.state = state;
       location.href = new URL(url, location).href;
@@ -138,6 +106,7 @@ async function fixture(search = '?preview=1', savedStyle) {
     cancelAnimationFrame: (id) => frames.delete(id),
   });
   const read = (file) => fs.readFileSync(path.join(__dirname, '../../public/js/overlays', file), 'utf8');
+  if (history.state) history.state = vm.runInContext(`JSON.parse(${JSON.stringify(JSON.stringify(history.state))})`, context);
   context.window.parent = context.window;
   document.defaultView = context.window;
   const module = new vm.SourceTextModule(read('danmaku.js'), { context, identifier: path.resolve(__dirname, '../../public/js/overlays/danmaku.js') });
@@ -176,6 +145,30 @@ async function fixture(search = '?preview=1', savedStyle) {
     setHidden(hidden) { document.hidden = hidden; listeners.visibilitychange?.(); },
     pagehide: () => windowListeners.get('pagehide').forEach((handler) => handler()) };
 }
+
+test('standalone parameters retain per-style lifetimes and effect history through switch, reset and reload', async () => {
+  const effects = { outline: { showEntryMessages: true }, cream: { showEntryMessages: false } };
+  const f = await fixture('?preview=1&style=outline&fullscreenDurationSeconds=12', { danmakuStyleParameters: effects });
+  assert.equal(f.node('previewDuration').value, '12');
+  assert.equal(f.node('previewAppearanceReset').disabled, false);
+  const change = value => { f.node('previewDuration').value = value; f.node('previewDuration').events.change(); };
+  change('3');
+  assert.equal(f.options.at(-1).itemLifetimeMs, 3000);
+  f.node('cream').events.click();
+  assert.equal(f.node('previewDuration').value, '12');
+  change('9');
+  assert.equal(f.options.at(-1).itemLifetimeMs, 9000);
+  f.node('outline').events.click();
+  assert.equal(f.node('previewDuration').value, '3');
+  f.node('previewAppearanceReset').events.click();
+  assert.equal(f.options.at(-1).itemLifetimeMs, 6000);
+  assert.equal(f.history.state.danmakuStyleOptions.cream.durationSeconds, 9);
+  assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleParameters)), effects);
+  const restored = await fixture('?preview=1', f.history.state);
+  assert.equal(restored.node('previewDuration').value, '6');
+  assert.equal(restored.history.state.danmakuStyleOptions.cream.durationSeconds, 9);
+  assert.deepEqual(JSON.parse(JSON.stringify(restored.history.state.danmakuStyleParameters)), effects);
+});
 
 test('all local styles replay every example through the live feed without connecting', async () => {
   const f = await fixture('?preview=1&style=cream&fullscreenDurationSeconds=12');

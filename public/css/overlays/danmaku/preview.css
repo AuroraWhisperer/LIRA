@@ -31,6 +31,18 @@ body.is-preview {
 .canvas-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
 .canvas-color-group { display: grid; align-content: start; gap: 10px; min-width: 0; }
 .canvas-fields [hidden] { display: none; }
+#previewParameterFields {
+  --color-text-primary: #303942;
+  --color-text-secondary: #6b747e;
+  --color-border-light: #e2e5e8;
+  --color-border-focus: #526b87;
+  --color-danger: #a43232;
+}
+#previewParameterFields > details > summary { padding: 10px 0; cursor: pointer; }
+#previewParameterFields h3 { margin: 14px 0 10px; font-size: 13px; }
+.canvas-settings .danmaku-parameter-field > span { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.canvas-settings .component-parameter-toggle { display: flex; grid-column: 1 / -1; }
+.canvas-settings .component-parameter-toggle input { flex: none; width: 16px; height: 16px; padding: 0; margin: 0; }
 .canvas-actions { display: flex; gap: 6px; margin: 12px 0; }
 .canvas-settings button, .canvas-toolbar button { padding: 6px 8px; border: 1px solid #d9dfe6; border-radius: 5px; color: #4c5e70; background: #fff; font-size: 12px; }
 .danmaku-preview-choices { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }

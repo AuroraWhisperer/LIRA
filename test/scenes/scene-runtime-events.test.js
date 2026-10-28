@@ -8,12 +8,14 @@ const test = require('node:test');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+const { migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 
 function fixture(t, ports = {}, getState = () => ({ settings: DEFAULT_SETTINGS })) {
   const db = new DatabaseSync(':memory:');
   migrateScenes(db);
   migrateComponentOutputSizes(db); migrateCanvasPresets(db); migrateSceneDeletion(db);
+  migrateDanmakuAppearance(db);
   const state = { owner: { scope: 'synthetic-owner', epoch: 1 } };
   const runtime = createSceneRuntime({ songDb: db, displayPorts: { settings: { get: () => DEFAULT_SETTINGS }, system: { getState }, ...ports },
     runtimeOptions: { getSceneOwner: () => state.owner,
@@ -143,6 +145,8 @@ test('standalone notifications isolate account changes and release streams on sh
 test('scene runtime notifies accepted cloud and gift changes only, preserving their return values', t => {
   const { runtime, state } = fixture(t);
   const changes = [];
+  runtime.receiveCloudSettings({ ownerScope: state.owner.scope, authorizationEpoch: 1,
+    settings: { style: 'spooky', fullscreenDurationSeconds: 6 } });
   t.mock.method(runtime.events, 'notify', change => changes.push(change));
   const update = { ownerScope: state.owner.scope, authorizationEpoch: 1, connectionEpoch: 'connection-1', status: 'connecting' };
   assert.equal(runtime.receiveCloud({ ...update, authorizationEpoch: 0 }), false);
@@ -152,7 +156,7 @@ test('scene runtime notifies accepted cloud and gift changes only, preserving th
     state: 'running', liveStatus: 1, liveSessionId: 'live-1', confirmationMessage: '开播' } }), true);
   assert.deepEqual(changes.splice(0), [{ types: ['danmaku'] }, { types: ['danmaku'] }]);
   const display = runtime.readDanmakuDisplay({});
-  assert.equal(display.config.style, 'bubble');
+  assert.equal(display.config.style, 'spooky', 'Remote event appearance cannot replace the local profile.');
   assert.equal(display.data.status, 'connected');
   assert.deepEqual(Object.keys(display).sort(), ['config', 'data']);
   const event = { type: 'danmaku', liveSessionId: 'live-1', message: '当前事件' };

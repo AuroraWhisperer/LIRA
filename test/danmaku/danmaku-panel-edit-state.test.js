@@ -468,6 +468,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
     }
     window.requests = [];
     window.opened = [];
+    window.appearanceConfig = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {} };
     window.open = (url) => window.opened.push(url);
     window.AdminApp = { utils: { toast: (message) => window.messages.push(message) } };
     window.liraLicense = {
@@ -478,18 +479,14 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
           songPageUrl: 'https://lira-ui.test/',
         },
       }),
-      getOverlaySettings: async () => ({
-        ok: true,
-        style: 'signal',
-        fullscreenDurationSeconds: 6,
-        overlayUrl: 'https://lira-ui.test/overlay/syntheticKey_123',
-      }),
     };
     window.fetch = async (url, options) => {
       const body = options?.body ? JSON.parse(options.body) : null;
       window.requests.push({ url, body });
       let data;
-      if (url === '/api/bilibili/danmaku/state') {
+      if (url === '/api/danmaku/appearance') {
+        data = { binding: 'synthetic-appearance', config: window.appearanceConfig };
+      } else if (url === '/api/bilibili/danmaku/state') {
         data = {
           loggedIn: true,
           accountName: '测试账号',
@@ -509,7 +506,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
       } else {
         throw new Error(`Unexpected danmaku fetch: ${url}`);
       }
-      return { ok: true, json: async () => ({ ok: true, data }) };
+      return { ok: true, json: async () => ({ ok: true, data }), text: async () => JSON.stringify({ ok: true, data }) };
     };
     await import('/js/admin/danmaku-tool.js');
     window.AdminApp.danmakuTool.init();
@@ -520,8 +517,9 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   assert.equal(await page.locator('#danmakuAccountState').textContent(), '测试账号');
   assert.equal(await page.locator('#danmakuRoomState').textContent(), '测试直播间');
   assert.equal(await page.locator('#danmakuToolStatus').textContent(), '可发送，监听已连接');
+  await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   await page.locator('#danmakuRefreshBtn').click();
-  assert.equal(await page.evaluate(() => window.requests.length), 2);
+  assert.equal(await page.evaluate(() => window.requests.filter(request => request.url === '/api/bilibili/danmaku/state').length), 2);
   assert.equal(await page.locator('#danmakuAutoBtn').isEnabled(), true);
   await page.locator('#danmakuMessage').fill('测试弹幕');
   assert.equal(await page.locator('#danmakuCounter').textContent(), '4 字');
@@ -629,8 +627,7 @@ test('danmaku panel initializes every shipped style and keeps existing controls 
   assert.equal(await visibleGroups.getAttribute('id'), 'danmakuFixedStyles');
   assert.equal(await page.locator('[data-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
   await page.evaluate(() => {
-    window.liraLicense.getOverlaySettings = async () => ({ ok: true, style: 'cream', fullscreenDurationSeconds: 6,
-      overlayUrl: 'https://lira-ui.test/overlay/syntheticKey_123' });
+    window.appearanceConfig = { style: 'cream', fullscreenDurationSeconds: 6, styleOptions: {} };
   });
   await page.locator('#danmakuReloadOverlayBtn').click();
   await page.waitForFunction(() => !document.getElementById('danmakuRandomStyles').hidden);

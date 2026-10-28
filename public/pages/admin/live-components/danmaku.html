@@ -11,20 +11,15 @@
             <span class="switch-track" aria-hidden="true"></span>
           </label>
         </div>
-        <div class="danmaku-overlay-link">
-          <button id="danmakuOverlayUrl" type="button" class="copy-url" aria-label="复制弹幕直播画面链接" disabled></button>
-          <div class="danmaku-overlay-actions">
-            <button id="danmakuOpenOverlayBtn" class="secondary" type="button" disabled>打开网页</button>
-          </div>
-        </div>
         <div class="danmaku-overlay-actions">
-          <!-- One filled action per view: 应用到直播画面 stays primary; preview and copy are secondary. -->
+          <!-- The save action stays primary; preview is secondary. -->
           <button id="danmakuPreviewOverlayBtn" class="secondary component-icon-button" type="button">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
             预览与调整
           </button>
         </div>
       </div>
+      <p class="hint">外观保存在本机，同款参数会更新已发布场景。请在场景编辑器中选择样式、调整位置和尺寸，并使用场景地址添加到 OBS 或直播姬。</p>
       <section class="danmaku-settings-block" aria-labelledby="danmakuAppearanceTitle">
         <div class="danmaku-style-picker">
           <div class="danmaku-style-heading">
@@ -155,246 +150,7 @@
             <button id="danmakuResetParameters" class="secondary" type="button" disabled>恢复默认</button>
           </div>
           <p id="danmakuParametersHint" class="hint" hidden></p>
-          <div class="danmaku-parameter-grid">
-            <label class="danmaku-parameter-field" for="danmakuFontFamily">
-              <span><strong>字体<lira-help label="字体说明">共享字体库随 LIRA 提供；本机字体需在直播软件所在电脑安装。</lira-help></strong></span>
-              <select id="danmakuFontFamily" data-select-search data-select-font-preview disabled>
-                <optgroup label="推荐字体">
-                  <option value='"Microsoft YaHei UI"'>微软雅黑</option>
-                  <option value='"SimHei"'>黑体</option>
-                  <option value='"SimSun"'>宋体</option>
-                  <option value='"KaiTi"'>楷体</option>
-                  <option value='"YouYuan"'>幼圆</option>
-                  <option value='"Noto Sans SC"'>思源黑体</option>
-                  <option value='"PingFang SC"'>苹方</option>
-                </optgroup>
-              </select>
-            </label>
-            <label class="danmaku-parameter-field" for="danmakuFontSize">
-              <span><strong>正文字号<lira-help label="正文字号说明"><span id="danmakuFontSizeHint">18～48 px</span></lira-help></strong></span>
-              <input
-                id="danmakuFontSize"
-                type="number"
-                min="18"
-                max="48"
-                step="1"
-                value="30"
-                inputmode="numeric"
-                aria-describedby="danmakuFontSizeHint"
-                disabled
-              />
-            </label>
-            <label id="danmakuTwitterHeaderField" class="danmaku-parameter-field" for="danmakuTwitterHeader" hidden>
-              <span><strong>顶部资料区<lira-help label="顶部资料区说明">房主头像、名称、账号和帖子标签栏。</lira-help></strong></span>
-              <select id="danmakuTwitterHeader" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
-            </label>
-            <label id="danmakuTwitterComposerField" class="danmaku-parameter-field" for="danmakuTwitterComposer" hidden>
-              <span><strong>底部提示栏</strong></span>
-              <select id="danmakuTwitterComposer" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
-            </label>
-            <label id="danmakuTwitterActionsField" class="danmaku-parameter-field" for="danmakuTwitterActions" hidden>
-              <span><strong>操作图标行<lira-help label="操作图标行说明">评论、转发、爱心和分享装饰。隐藏可留出更多消息空间。</lira-help></strong></span>
-              <select id="danmakuTwitterActions" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
-            </label>
-            <label id="danmakuComposerTextField" class="danmaku-parameter-field" for="danmakuComposerText" hidden>
-              <span><strong>底部提示文字<lira-help label="底部提示文字说明"><span id="danmakuComposerTextHint">最多 20 个字，支持中文、英文、符号和表情；表情按 1 个字计数，留空恢复默认。</span></lira-help></strong><output id="danmakuComposerTextCount" for="danmakuComposerText">0/20</output></span>
-              <input id="danmakuComposerText" type="text" placeholder="欢迎来到直播间 ✨" aria-describedby="danmakuComposerTextHint" disabled />
-            </label>
-            <label id="danmakuTextColorModeField" class="danmaku-parameter-field" for="danmakuTextColorMode" hidden><span><strong>正文配色</strong></span><select id="danmakuTextColorMode" disabled><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
-            <label id="danmakuTextColorField" class="danmaku-parameter-field" for="danmakuTextColor">
-              <span><strong id="danmakuTextColorLabel">正文颜色</strong></span>
-              <input id="danmakuTextColor" type="color" value="#eaf2ff" disabled />
-            </label>
-            <label id="danmakuBubbleColorModeField" class="danmaku-parameter-field" for="danmakuBubbleColorMode" hidden>
-              <span><strong><span id="danmakuBubbleColorLabel">弹幕配色</span><lira-help label="弹幕配色说明"><span id="danmakuBubbleColorHint">默认按当前直播间身份配色。自定义配色会同时改变普通弹幕的姓名条、边框、头像圈、正文和浅色底，SC、礼物与上舰保留原配色。</span></lira-help></strong></span>
-              <select id="danmakuBubbleColorMode" disabled><option value="default">默认配色</option><option value="custom">自定义配色</option></select>
-            </label>
-            <label id="danmakuBubbleColorField" class="danmaku-parameter-field" for="danmakuBubbleColor" hidden>
-              <span><strong>自定义配色</strong></span>
-              <input id="danmakuBubbleColor" type="color" value="#78a9d6" disabled />
-            </label>
-            <label id="danmakuBackgroundOpacityField" class="danmaku-parameter-field" for="danmakuBackgroundOpacity">
-              <span
-                ><strong>背景不透明度</strong>
-                <output id="danmakuBackgroundOpacityValue" for="danmakuBackgroundOpacity">100%</output></span
-              >
-              <input
-                id="danmakuBackgroundOpacity"
-                class="parameter-range"
-                type="range"
-                min="0"
-                max="100"
-                step="1"
-                value="100"
-                disabled
-              />
-            </label>
-            <label id="danmakuSpeedField" class="danmaku-parameter-field" for="danmakuFloatingSpeed" hidden>
-              <span><strong>飘动速度<lira-help label="飘动速度说明">1～100，默认 50 为原速；1 为原速的三分之一，100 为原速的三倍。超出新刻度范围的旧速度会保留并标为「旧值」，手动调节后按新刻度保存。</lira-help></strong><output id="danmakuFloatingSpeedValue" for="danmakuFloatingSpeed">50 · 1×</output></span>
-              <input id="danmakuFloatingSpeed" class="parameter-range" type="range" min="1" max="100" step="1" value="50" disabled />
-            </label>
-            <label id="danmakuFloatingDispersionField" class="danmaku-parameter-field" for="danmakuFloatingDispersion" hidden>
-              <span><strong>分散程度<lira-help label="分散程度说明">1～100，默认 50。数值越大，新弹幕越倾向于远离画面中的其他弹幕；设为 100 时，会在整个高度内尽量分散，包括最上方和最下方。拥挤时以可用空间为准，已显示弹幕不换位置。</lira-help></strong><output id="danmakuFloatingDispersionValue" for="danmakuFloatingDispersion">50</output></span>
-              <input id="danmakuFloatingDispersion" class="parameter-range" type="range" min="1" max="100" step="1" value="50" disabled />
-            </label>
-            <label id="danmakuScrollDirectionField" class="danmaku-parameter-field" for="danmakuScrollDirection">
-              <span><strong>滚动方向</strong></span>
-              <select id="danmakuScrollDirection" disabled>
-                <option value="up">从下向上（新弹幕在底部）</option>
-                <option value="down">从上向下（新弹幕在顶部）</option>
-              </select>
-            </label>
-            <label id="danmakuEdgeFadeField" class="danmaku-parameter-field" for="danmakuEdgeFade">
-              <span><strong>边缘处理<lira-help label="边缘处理说明">可选择上下两端、仅上边或仅下边渐隐；选定的边缘不随滚动方向改变。</lira-help></strong></span>
-              <select id="danmakuEdgeFade" disabled>
-                <option value="both">两端渐隐</option>
-                <option value="top">上边渐隐</option>
-                <option value="bottom">下边渐隐</option>
-                <option value="none">直接切断</option>
-              </select>
-            </label>
-            <label id="danmakuSpookyThemeField" class="danmaku-parameter-field" for="danmakuSpookyTheme" hidden>
-              <span><strong>便笺配色</strong></span><select id="danmakuSpookyTheme" disabled><option value="default">Default · 紫色</option><option value="autumn">Autumn · 秋日</option><option value="graveyard">Graveyard · 灰紫</option><option value="moonlight">Moonlight · 月光</option></select>
-            </label>
-            <label id="danmakuSpookyFrameField" class="danmaku-parameter-field" for="danmakuSpookyFrame" hidden>
-              <span><strong>Chat Box 外框</strong></span><select id="danmakuSpookyFrame" disabled><option value="show">显示</option><option value="hide">隐藏</option></select>
-            </label>
-            <label id="danmakuDecorationShapeField" class="danmaku-parameter-field" for="danmakuDecorationShape" hidden>
-              <span>装饰图案 <lira-help label="装饰图案动画说明">每种图案搭配自己的轻动画，切换图案即可预览。</lira-help></span>
-              <select id="danmakuDecorationShape" aria-label="装饰图案" disabled>
-                <option value="sparkle">四角星</option>
-                <option value="heart">爱心</option>
-                <option value="square">圆角方块</option>
-                <option value="star">五角星</option>
-                <option value="flower">小花</option>
-                <option value="moon">月牙</option>
-                <option value="bow">蝴蝶结</option>
-              </select>
-            </label>
-            <label id="danmakuEntranceAnimationField" class="danmaku-parameter-field" for="danmakuEntranceAnimation" hidden>
-              <span><strong>入场动画</strong></span>
-              <select id="danmakuEntranceAnimation" disabled>
-                <option value="fade">动画 1 · 渐显</option>
-                <option value="rise">动画 2 · 上浮弹入</option>
-              </select>
-            </label>
-            <label id="danmakuFullscreenDurationField" class="danmaku-fullscreen-duration danmaku-parameter-field" hidden>
-              <span><strong>停留（秒）</strong></span>
-              <input
-                id="danmakuFullscreenDurationSeconds"
-                type="number"
-                min="2"
-                max="30"
-                step="1"
-                value="6"
-                inputmode="numeric"
-              />
-            </label>
-          </div>
-          <details class="danmaku-advanced">
-            <summary>
-              <strong>高级参数</strong>
-              <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-                <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </summary>
-            <div class="danmaku-advanced-body">
-              <section id="danmakuTwitterColors" class="danmaku-advanced-section" aria-labelledby="danmakuTwitterColorsTitle" hidden>
-                <h6 id="danmakuTwitterColorsTitle">礼物与 SC 配色</h6>
-                <p class="hint">按单次人民币金额分档，礼物与 SC 共用这四档配色；上舰保留身份配色。</p>
-                <div class="danmaku-parameter-grid">
-                  <label class="danmaku-parameter-field" for="danmakuTwitterColor0"><span><strong>＜50 元</strong></span><input id="danmakuTwitterColor0" type="color" value="#409afa" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuTwitterColor50"><span><strong>50～99.99 元</strong></span><input id="danmakuTwitterColor50" type="color" value="#f9c844" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuTwitterColor100"><span><strong>100～999.99 元</strong></span><input id="danmakuTwitterColor100" type="color" value="#f89260" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuTwitterColor1000"><span><strong>≥1000 元</strong></span><input id="danmakuTwitterColor1000" type="color" value="#ef4260" disabled /></label>
-                </div>
-              </section>
-              <section id="danmakuSpookyColors" class="danmaku-advanced-section" aria-labelledby="danmakuSpookyColorsTitle" hidden>
-                <h6 id="danmakuSpookyColorsTitle">背景与装饰配色</h6>
-                <p class="hint">礼物、上舰和 SC 共用事件卡底色。背景不透明度只影响底板和背衬纸片；文字、贴纸与边线保持清晰。</p>
-                <div class="danmaku-parameter-grid">
-                  <div class="danmaku-advanced-section">
-                    <label class="danmaku-parameter-field" for="danmakuSpookyFrameColorMode"><span><strong>外框底色</strong></span><select id="danmakuSpookyFrameColorMode" disabled><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
-                    <label id="danmakuSpookyFrameColorField" class="danmaku-parameter-field" for="danmakuSpookyFrameColor" hidden><span><strong>自定义外框底色</strong></span><input id="danmakuSpookyFrameColor" type="color" value="#2d204e" data-color-opacity="danmakuSpookyFrameOpacity" disabled /></label>
-                    <div class="danmaku-parameter-field"><span><label for="danmakuSpookyFrameOpacity"><strong>外框不透明度</strong></label><output id="danmakuSpookyFrameOpacityValue" for="danmakuSpookyFrameOpacity">100%</output></span><input id="danmakuSpookyFrameOpacity" class="parameter-range" type="range" min="0" max="100" step="1" value="100" disabled /></div>
-                  </div>
-                  <div class="danmaku-advanced-section">
-                    <label class="danmaku-parameter-field" for="danmakuSpookyMessageColorMode"><span><strong>消息底色</strong></span><select id="danmakuSpookyMessageColorMode" disabled><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
-                    <label id="danmakuSpookyMessageColorField" class="danmaku-parameter-field" for="danmakuSpookyMessageColor" hidden><span><strong>自定义消息底色</strong></span><input id="danmakuSpookyMessageColor" type="color" value="#2e154e" data-color-opacity="danmakuSpookyMessageOpacity" disabled /></label>
-                    <div class="danmaku-parameter-field"><span><label for="danmakuSpookyMessageOpacity"><strong>消息不透明度</strong></label><output id="danmakuSpookyMessageOpacityValue" for="danmakuSpookyMessageOpacity">100%</output></span><input id="danmakuSpookyMessageOpacity" class="parameter-range" type="range" min="0" max="100" step="1" value="100" disabled /></div>
-                  </div>
-                  <div class="danmaku-advanced-section">
-                    <label class="danmaku-parameter-field" for="danmakuSpookyEventColorMode"><span><strong>事件卡底色</strong></span><select id="danmakuSpookyEventColorMode" disabled><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
-                    <label id="danmakuSpookyEventColorField" class="danmaku-parameter-field" for="danmakuSpookyEventColor" hidden><span><strong>自定义事件卡底色</strong></span><input id="danmakuSpookyEventColor" type="color" value="#382459" data-color-opacity="danmakuSpookyEventOpacity" disabled /></label>
-                    <div class="danmaku-parameter-field"><span><label for="danmakuSpookyEventOpacity"><strong>事件不透明度</strong></label><output id="danmakuSpookyEventOpacityValue" for="danmakuSpookyEventOpacity">100%</output></span><input id="danmakuSpookyEventOpacity" class="parameter-range" type="range" min="0" max="100" step="1" value="100" disabled /></div>
-                  </div>
-                  <div class="danmaku-advanced-section">
-                    <label class="danmaku-parameter-field" for="danmakuSpookyAccentColorMode"><span><strong>装饰强调色</strong></span><select id="danmakuSpookyAccentColorMode" disabled><option value="default">跟随主题</option><option value="custom">自定义</option></select></label>
-                    <label id="danmakuSpookyAccentColorField" class="danmaku-parameter-field" for="danmakuSpookyAccentColor" hidden><span><strong>自定义装饰强调色</strong></span><input id="danmakuSpookyAccentColor" type="color" value="#9c62e4" disabled /></label>
-                  </div>
-                </div>
-                <button id="danmakuSpookyResetColors" class="secondary" type="button" disabled>恢复当前主题配色</button>
-              </section>
-              <section class="danmaku-advanced-section" aria-labelledby="danmakuMessageOptionsTitle">
-                <h6 id="danmakuMessageOptionsTitle">消息显示</h6>
-                <div id="danmakuMessageOptions" class="danmaku-parameter-grid danmaku-message-options">
-                  <label id="danmakuMinGiftAmountField" class="danmaku-parameter-field" for="danmakuMinGiftAmount" hidden>
-                    <span><strong>弹幕礼物卡片最低金额<lira-help label="弹幕礼物卡片最低金额说明">单位为人民币元，0 表示不过滤。按每条礼物消息的总金额判断，等于门槛也会显示；上舰也按此门槛判断，SC 不受影响。全屏礼物感谢另行设置。</lira-help></strong></span>
-                    <input id="danmakuMinGiftAmount" type="number" min="0" max="100000" step="0.01" value="0" disabled />
-                  </label>
-                  <label id="danmakuGiftImageField" class="danmaku-parameter-field" for="danmakuGiftImage">
-                    <span><strong>礼物通知图片<lira-help label="礼物通知图片说明">原图不可用时显示样式插画。</lira-help></strong></span>
-                    <select id="danmakuGiftImage" disabled>
-                      <option value="theme">样式插画</option>
-                      <option value="gift">礼物原图</option>
-                    </select>
-                  </label>
-                </div>
-              </section>
-              <section id="danmakuRipploidColors" class="danmaku-advanced-section" aria-labelledby="danmakuRipploidColorsTitle" hidden>
-                <h6 id="danmakuRipploidColorsTitle">RIPPLOID 事件配色</h6>
-                <p class="hint">普通聊天使用上方“聊天主色”。礼物与 SC 按单条人民币金额分档，上舰按身份分档；各档可独立调色。</p>
-                <p class="hint"><strong>普通礼物</strong></p>
-                <div class="danmaku-parameter-grid">
-                  <label class="danmaku-parameter-field" for="danmakuGiftColor0"><span><strong>＜50 元</strong></span><input id="danmakuGiftColor0" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGiftColor50"><span><strong>50～＜100 元</strong></span><input id="danmakuGiftColor50" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGiftColor100"><span><strong>100～＜500 元</strong></span><input id="danmakuGiftColor100" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGiftColor500"><span><strong>500～＜1000 元</strong></span><input id="danmakuGiftColor500" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGiftColor1000"><span><strong>1000～＜2000 元</strong></span><input id="danmakuGiftColor1000" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGiftColor2000"><span><strong>≥2000 元</strong></span><input id="danmakuGiftColor2000" type="color" value="#f39749" disabled /></label>
-                </div>
-                <p class="hint"><strong>大航海 / NEW MEMBER</strong></p>
-                <div class="danmaku-parameter-grid">
-                  <label class="danmaku-parameter-field" for="danmakuGuardColorCaptain"><span><strong>舰长</strong></span><input id="danmakuGuardColorCaptain" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGuardColorAdmiral"><span><strong>提督</strong></span><input id="danmakuGuardColorAdmiral" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuGuardColorGovernor"><span><strong>总督</strong></span><input id="danmakuGuardColorGovernor" type="color" value="#f39749" disabled /></label>
-                </div>
-                <p class="hint"><strong>SC</strong></p>
-                <div class="danmaku-parameter-grid">
-                  <label class="danmaku-parameter-field" for="danmakuSuperchatColor0"><span><strong>＜50 元</strong></span><input id="danmakuSuperchatColor0" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuSuperchatColor50"><span><strong>50～＜100 元</strong></span><input id="danmakuSuperchatColor50" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuSuperchatColor100"><span><strong>100～＜500 元</strong></span><input id="danmakuSuperchatColor100" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuSuperchatColor500"><span><strong>500～＜1000 元</strong></span><input id="danmakuSuperchatColor500" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuSuperchatColor1000"><span><strong>1000～＜2000 元</strong></span><input id="danmakuSuperchatColor1000" type="color" value="#f39749" disabled /></label>
-                  <label class="danmaku-parameter-field" for="danmakuSuperchatColor2000"><span><strong>≥2000 元</strong></span><input id="danmakuSuperchatColor2000" type="color" value="#f39749" disabled /></label>
-                </div>
-              </section>
-              <section id="danmakuDistributionOptions" class="danmaku-advanced-section" aria-labelledby="danmakuDistributionTitle" hidden>
-                <h6 id="danmakuDistributionTitle">随机分布</h6>
-                <div class="danmaku-parameter-grid">
-                  <label id="danmakuCenterBiasField" class="danmaku-parameter-field" for="danmakuCenterBias" hidden>
-                    <span><strong>中心倾向<lira-help label="中心倾向说明">1～50，数值越高，越容易出现在区域中间，越少出现在边缘和角落；1 为均匀随机。</lira-help></strong><output id="danmakuCenterBiasValue" for="danmakuCenterBias">1</output></span>
-                    <input id="danmakuCenterBias" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
-                  </label>
-                  <label id="danmakuDispersionField" class="danmaku-parameter-field" for="danmakuDispersion" hidden>
-                    <span><strong>离散程度<lira-help label="离散程度说明">1～50，数值越高，新弹幕越倾向于远离上一条弹幕（按中心点直线距离）。与中心倾向共同生效，并受可用空间限制。</lira-help></strong><output id="danmakuDispersionValue" for="danmakuDispersion">1</output></span>
-                    <input id="danmakuDispersion" class="parameter-range" type="range" min="1" max="50" step="1" value="1" disabled />
-                  </label>
-                </div>
-              </section>
-              <div id="danmakuAppearanceEffects"></div>
-            </div>
-          </details>
+          <div id="danmakuParameterFields"></div>
         </section>
         <details
           id="danmakuOverlayFilters"
@@ -497,7 +253,7 @@
           <div class="danmaku-overlay-actions">
             <button id="danmakuReloadOverlayBtn" class="secondary" type="button" disabled>重新读取</button>
             <button id="danmakuDiscardOverlayBtn" class="secondary" type="button" disabled>放弃未保存修改</button>
-            <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>应用到直播画面</button>
+            <button id="danmakuApplyOverlayBtn" class="primary" type="button" disabled>保存外观</button>
           </div>
         </div>
       </section>

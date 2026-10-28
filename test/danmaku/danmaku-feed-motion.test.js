@@ -79,6 +79,9 @@ test('notebook pauses old paper independently, keeps emotes static and renders e
 
 test('spooky preserves fades and finishes without a raster change inside a scaled canvas iframe', { timeout: 15000 }, async t => {
   const page = await preview(t, 'up', 1, 'spooky');
+  // Exercise the animation-to-static paint handoff with delayed renderer work.
+  const session = await page.context().newCDPSession(page);
+  await session.send('Emulation.setCPUThrottlingRate', { rate: 6 });
   await page.setViewportSize({ width: 640, height: 700 });
   await page.evaluate(async () => {
     feed.destroy();
@@ -118,6 +121,7 @@ test('spooky preserves fades and finishes without a raster change inside a scale
       const opacity = Number(getComputedStyle(root.querySelector('.spooky-board')).opacity);
       const duration = root.firstElementChild.getAnimations().find(animation => animation.animationName === 'spookyEntry').effect.getTiming().duration;
       for (const animation of animations) if (animation.animationName) animation.currentTime = 1249;
+      await Promise.all(animations.map(animation => animation.ready));
       return { opacity, duration };
     }, item);
     assert.equal(state.duration, 1250, 'the complete decoration timeline is retained');

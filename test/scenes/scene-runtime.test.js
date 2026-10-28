@@ -215,6 +215,7 @@ test('runtime gift preview broadcasts reach only their independent scene project
 
 test('runtime cloud ingress projects current-owner events and fences owner changes and revoked sources', async (t) => {
   const { runtime, request, state } = await fixture(t);
+  await request('/api/danmaku/appearance');
   const owner = state.owner;
   const update = (status, event) => runtime.receiveSceneCloud({ ownerScope: owner.scope,
     authorizationEpoch: owner.epoch, connectionEpoch: 'connection-1', status, ...(event ? { event } : {}) });
@@ -239,6 +240,15 @@ test('runtime cloud ingress projects current-owner events and fences owner chang
   assert.deepEqual(displayed.data.danmaku.events, [event]);
   assert.equal(displayed.data.danmaku.nextCursor, 1);
 
+  const appearance = await request('/api/danmaku/appearance');
+  await request('/api/danmaku/appearance', { body: { ...appearance,
+    config: { ...appearance.config, style: 'spooky', styleOptions: { signal: { fontSize: 36 } } } } });
+  const refreshed = await request(outputRoute + `&version=1&epoch=${initial.data.danmaku.epoch}&cursor=1`, { token: source.token });
+  assert.equal(refreshed.document, null, 'Saving parameters does not republish scene geometry or style selection.');
+  assert.equal(refreshed.appearances[saved.document.items[0].id].styleOptions.signal.fontSize, 36);
+  assert.equal(refreshed.data.danmaku.epoch, displayed.data.danmaku.epoch);
+  assert.deepEqual(refreshed.data.danmaku.events, [], 'Changing appearance does not replay consumed events.');
+
   state.owner = { scope: '["https://scene.test","streamer-2"]', epoch: 2 };
   assert.equal(update('connected', event), false);
   assert.deepEqual(await request('/api/scenes/list'), []);
@@ -258,6 +268,27 @@ test('runtime cloud ingress projects current-owner events and fences owner chang
   assert.equal(loggedOut.code, 'SCENE_OWNER_REQUIRED');
 });
 
+test('local appearance survives restart, rejects stale owners and remains inaccessible to overlay capabilities', async t => {
+  const f = await fixture(t);
+  const initial = await f.request('/api/danmaku/appearance');
+  const saved = await f.request('/api/danmaku/appearance', { body: { ...initial,
+    config: { ...initial.config, style: 'spooky', styleOptions: { spooky: { fontSize: 36 } } } } });
+  const token = createOverlayToken(f.runtime.getApiToken(), 'danmaku');
+  await f.request('/api/danmaku/appearance', { token, status: 403 });
+  await f.request('/api/danmaku/appearance', { token, body: saved, status: 403 });
+  await f.request('/api/danmaku/appearance', { body: { ...saved, config: { ...saved.config, style: 'invalid' } }, status: 400 });
+  assert.deepEqual(await f.request('/api/danmaku/appearance'), saved);
+  await f.restart();
+  assert.deepEqual(await f.request('/api/danmaku/appearance'), saved);
+  const owner = f.state.owner;
+  f.state.owner = { scope: 'another-account', epoch: 2 };
+  await f.request('/api/danmaku/appearance', { body: saved, status: 409 });
+  assert.equal((await f.request('/api/danmaku/appearance')).config.style, 'signal');
+  f.state.owner = { ...owner, epoch: 3 };
+  assert.equal((await f.request('/api/danmaku/appearance')).config.style, 'spooky');
+  await f.request('/api/danmaku/appearance', { body: saved, status: 409 });
+});
+
 test('standalone danmaku reads the shared cloud projection without a scene and keeps page capability isolation', async (t) => {
   const { runtime, request, state } = await fixture(t);
   const token = createOverlayToken(runtime.getApiToken(), 'danmaku');
@@ -268,11 +299,12 @@ test('standalone danmaku reads the shared cloud projection without a scene and k
   const initial = await request('/api/danmaku/display', { token });
   assert.equal(initial.config, null);
   assert.equal(initial.data.status, 'offline');
+  await request('/api/danmaku/appearance');
   update('connecting');
   update('connected', { type: 'overlay-state', style: 'bubble', state: 'running', liveStatus: 1,
     liveSessionId: 'live-standalone', confirmationMessage: '开播', privateToken: 'private-sentinel' });
   const ready = await request('/api/danmaku/display', { token });
-  assert.equal(ready.config.style, 'bubble');
+  assert.equal(ready.config.style, 'signal', 'Live events do not override local appearance.');
   update('connected', { type: 'danmaku', liveSessionId: 'live-standalone', name: '观众', message: '独立组件', privateToken: 'private-sentinel' });
   const route = `/api/danmaku/display?epoch=${ready.data.epoch}&cursor=${ready.data.nextCursor}`;
   const live = await request(route, { token });

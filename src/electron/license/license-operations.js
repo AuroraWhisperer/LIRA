@@ -23,6 +23,7 @@ function createLicenseOperations(options = {}) {
   const withAuthorizedToken = options.withAuthorizedToken;
   const withAuthorizedSecret = options.withAuthorizedSecret;
   let pendingProfile = null;
+  let pendingOverlaySettings = null;
 
   function getProfile() {
     const generation = options.getAuthorizationGeneration();
@@ -49,8 +50,21 @@ function createLicenseOperations(options = {}) {
     );
   }
 
-  async function getOverlaySettings(requestOptions = {}) {
-    return overlayOperation((token) => remote.getOverlaySettings(token, requestOptions), requestOptions.signal);
+  function getOverlaySettings(requestOptions = {}) {
+    const read = () => overlayOperation((token) => remote.getOverlaySettings(token, requestOptions), requestOptions.signal);
+    // The event subscriber owns its abort signal; only ordinary reads share work.
+    if (requestOptions.signal) return read();
+    const owner = options.getOverlayOwner();
+    const generation = options.getAuthorizationGeneration();
+    if (pendingOverlaySettings?.owner === owner && pendingOverlaySettings.generation === generation) {
+      return pendingOverlaySettings.promise;
+    }
+    const pending = { owner, generation };
+    pending.promise = read().finally(() => {
+      if (pendingOverlaySettings === pending) pendingOverlaySettings = null;
+    });
+    pendingOverlaySettings = pending;
+    return pending.promise;
   }
 
   async function updateOverlaySettings(settings) {

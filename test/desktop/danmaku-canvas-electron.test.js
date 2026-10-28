@@ -28,7 +28,7 @@ test('starlight decoration controls persist through desktop and canvas with a di
   assert.equal(await desktopShape.count(), 1);
   assert.deepEqual(await desktopShape.locator('option').evaluateAll(nodes => nodes.map(node => node.value)), shapes);
   await desktopShape.selectOption('heart');
-  await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
+  await desktop.getByRole('button', { name: '保存外观', exact: true }).click();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 星语' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.starlight.decorationShape), 'heart');
   await desktop.reload();
@@ -98,7 +98,7 @@ test('harbor gift threshold is edited, saved and restored through the authorized
   await desktop.locator('.danmaku-advanced > summary').click();
   await desktop.locator('#danmakuMinGiftAmount').fill('9.99');
   await desktop.locator('#danmakuMinGiftAmount').press('Tab');
-  await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
+  await desktop.getByRole('button', { name: '保存外观', exact: true }).click();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 对白' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.harbor.minGiftAmount), 9.99);
   await desktop.reload();
@@ -126,7 +126,7 @@ test('prismatic can be selected, saved, previewed and reopened through the deskt
   await desktop.locator('[data-danmaku-style="prismatic"]').click();
   assert.equal(await desktop.locator('#danmakuEdgeFade').inputValue(), 'both');
   await desktop.locator('#danmakuEdgeFade').selectOption('bottom');
-  await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
+  await desktop.getByRole('button', { name: '保存外观', exact: true }).click();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 流霞' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'prismatic');
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.prismatic.edgeFade), 'bottom');
@@ -300,10 +300,12 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   const save = page.getByRole('button', { name: '保存并应用', exact: true });
   const saveState = page.locator('.preview-canvas-status');
   await save.click();
-  await saveState.filter({ hasText: '无法连接服务器' }).waitFor();
+  await saveState.filter({ hasText: '弹幕外观暂时无法读取或保存' }).waitFor();
   assert.equal(await number('宽度'), 987);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
+  await page.waitForFunction(() => [...document.querySelectorAll('button')]
+    .some(button => button.textContent.trim() === '保存并应用' && !button.disabled));
   assert.equal(await save.isEnabled(), true);
   assert.equal(await app.evaluate(() => global.canvasTest.componentSize()), null);
   assert.equal(await desktop.locator('#copyLiveCanvasUrl').isDisabled(), true);
@@ -371,6 +373,8 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   await reopened.getByRole('button', { name: '随机弹幕', exact: true }).click();
   await reopened.locator('[data-picker-style="outline"]').click();
   assert.equal(await reopened.locator('[data-preview-field="danmakuFullscreenDurationSeconds"]').isVisible(), true);
+  await reopened.locator('[data-preview-field="danmakuFullscreenDurationSeconds"]').fill('3');
+  await reopened.locator('[data-preview-field="danmakuFullscreenDurationSeconds"]').press('Tab');
   assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBias"]').isHidden(), true);
   await reopened.locator('.danmaku-advanced > summary').click();
   for (const [name, value] of [['CenterBias', '42'], ['Dispersion', '37']]) {
@@ -383,15 +387,17 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   }
   await reopened.getByRole('button', { name: '保存并应用', exact: true }).click();
   await reopened.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-  assert.deepEqual(await app.evaluate(() => global.canvasTest.saved().styleOptions.outline), { centerBias: 42, dispersion: 37 });
+  assert.deepEqual(await app.evaluate(() => global.canvasTest.saved().styleOptions.outline), { durationSeconds: 3, centerBias: 42, dispersion: 37 });
   await reopened.reload();
   await reopened.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
   await reopened.locator('.preview-canvas-layer-select').first().click();
   assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBias"]').inputValue(), '42');
   assert.equal(await reopened.locator('[data-preview-field="danmakuDispersion"]').inputValue(), '37');
+  assert.equal(await reopened.locator('[data-preview-field="danmakuFullscreenDurationSeconds"]').inputValue(), '3');
   await reopened.locator('[data-preview-field="danmakuResetParameters"]').click();
   assert.equal(await reopened.locator('[data-preview-field="danmakuCenterBias"]').inputValue(), '1');
   assert.equal(await reopened.locator('[data-preview-field="danmakuDispersion"]').inputValue(), '1');
+  assert.equal(await reopened.locator('[data-preview-field="danmakuFullscreenDurationSeconds"]').inputValue(), '6');
   assert.deepEqual(errors, []);
 });
 

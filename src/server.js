@@ -332,6 +332,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getScenes: () => sceneRuntime?.service,
     getSceneEvents: () => sceneRuntime?.events,
     getDanmakuDisplay: () => sceneRuntime?.readDanmakuDisplay,
+    getDanmakuAppearance: () => sceneRuntime?.appearance,
     getDanmakuEvents: () => sceneRuntime?.danmakuEvents,
     getMusicRuntime: () => musicRuntime,
     getBilibiliRuntime: () => bilibiliRuntime,

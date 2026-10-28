@@ -3,9 +3,6 @@
 const { randomUUID } = require('node:crypto');
 const { readBoundedSse, parseEventBlock } = require('../shared/bounded-sse-reader');
 const { isDnsHostname, normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
-const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../shared/danmaku-style-options');
-const { normalizeStyleParameters } = require('../shared/component-style-parameters');
-const { normalizeLayout } = require('../shared/danmaku-layout');
 
 function getSceneOwner(licenseManager) {
   try {
@@ -35,7 +32,7 @@ function getComponentPreviewOwner(licenseManager) {
   }
 }
 
-function createSceneCloudController({ licenseManager, publish, subscribeDemand, fetchImpl = fetch, timers = globalThis }) {
+function createSceneCloudController({ licenseManager, publish, publishSettings, subscribeDemand, fetchImpl = fetch, timers = globalThis }) {
   let started = false;
   let disposed = false;
   let unsubscribe = null;
@@ -143,6 +140,7 @@ function createSceneCloudController({ licenseManager, publish, subscribeDemand, 
       const settings = await licenseManager.getOverlaySettings({ signal: captured.controller.signal });
       if (!active(captured)) return;
       const url = streamUrl(settings?.overlayUrl);
+      publishSettings?.({ ownerScope: captured.ownerScope, authorizationEpoch: captured.authorizationEpoch, settings });
       const response = await fetchImpl(url, {
         method: 'GET',
         headers: { Accept: 'text/event-stream' },
@@ -298,19 +296,6 @@ function roomMedal(value) {
   return result;
 }
 
-function appearance(value) {
-  requireValid(Object.hasOwn(DANMAKU_STYLE_OPTIONS, value.style));
-  return {
-    style: value.style,
-    ...(value.fullscreenDurationSeconds === undefined ? {} : {
-      fullscreenDurationSeconds: integer(value.fullscreenDurationSeconds, 2, 30),
-    }),
-    ...(value.styleParameters === undefined ? {} : { styleParameters: normalizeStyleParameters('danmaku', value.styleParameters) }),
-    ...(value.styleOptions === undefined ? {} : { styleOptions: normalizeStyleOptions(value.styleOptions) }),
-    ...(value.layout === undefined ? {} : { layout: normalizeLayout(value.layout) }),
-  };
-}
-
 function roomGuardState(value) {
   requireValid(value && typeof value === 'object' && !Array.isArray(value));
   requireValid(typeof value.roomId === 'string' && /^(?:[1-9]\d{0,19})?$/.test(value.roomId));
@@ -327,10 +312,10 @@ function displayEvent(value) {
     const confirmationMessage = value.confirmationMessage === null ? null : text(value.confirmationMessage, 200);
     requireValid((liveSessionId === null) === (confirmationMessage === null));
     requireValid(liveSessionId === null || value.liveStatus === 1);
-    return { type, ...appearance(value), state: value.state, liveStatus: value.liveStatus, liveSessionId, confirmationMessage,
+    return { type, state: value.state, liveStatus: value.liveStatus, liveSessionId, confirmationMessage,
       ...(value.roomGuard === undefined ? {} : { roomGuard: roomGuardState(value.roomGuard) }) };
   }
-  if (type === 'overlay-settings') return { type, ...appearance(value), timestamp: timestamp(value.timestamp) };
+  if (type === 'overlay-settings') return { type, timestamp: timestamp(value.timestamp) };
   if (type === 'room-guard') return { type, ...roomGuardState(value), timestamp: timestamp(value.timestamp) };
   requireValid(['live-started', 'live-ended', 'danmaku', 'gift', 'superchat', 'superchat-delete', 'entry'].includes(type));
   const result = { type, liveSessionId: text(value.liveSessionId, 128), timestamp: timestamp(value.timestamp) };

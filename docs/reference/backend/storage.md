@@ -84,6 +84,12 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 
 ### 本地场景持久化
 
+songDb v17 通过 `migrateDanmakuAppearance` 追加 `danmaku_appearances(owner_scope, config_json)`。
+`danmaku-appearance-store.js` 按授权 Server origin + streamerId 存取单份完整外观 JSON，最大 256 KiB；
+独立于全局 settings 和场景草稿，单行 upsert 原子提交。首次成功读取迁入旧远端配置，
+失败不写默认值，已有本地行不再接受远端覆盖。重启及切回账号读取各自配置，
+退出账号不删除记录；本地 API 的授权 generation binding 不进入持久格式。
+
 文本框的用户上传图片由 [scene-text-images.js](../../../src/server/scene-text-images.js) 保存在 `dataDir/scene-text-images/`，属于持久素材，不进入可清理的礼物图片缓存。文件名由服务生成 UUID v4，扩展名仅 png/jpg/gif/webp；单文件上限 5 MiB，原字节保留动画，以同目录独占临时文件写入后重命名，失败清理临时文件。场景结构化 token 仅保存本地图片路径，不保存原始文件路径或二进制；删除 token 或放弃草稿不自动删除素材，防止破坏已发布场景的引用。当前没有自动清理策略；上传/读取权限见 [HTTP API](api.md#本地场景)。
 
 songDb 的 v8 迁移通过 `scene-migration.js` 新增 `component_scenes`，不改写旧表。列为 `id`、`owner_scope`、`draft_json`、`revision`、`published_json`、`published_version`、`capability_version`、`capability_hash`、`capability_encrypted`；按 owner_scope 建索引。草稿与发布 JSON 均限制为 256KiB。`scene-store.js` 用单条带归属和期望版本条件的 UPDATE/RETURNING 原子提交；失败不改变旧行。

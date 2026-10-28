@@ -155,8 +155,8 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     setComponentPreviewPreparation(() => prepareComponentPreviewCanvas(getComponentPreviews()));
     const { initCanvasOverlaySource } = await import('/js/admin/canvas-overlay-source.js');
     initCanvasOverlaySource();
-    const { waitForServerOverlayUrlInitialization } = await import('/js/admin/server-overlay-url.js');
-    await waitForServerOverlayUrlInitialization();
+    const { waitForAuthorizedAccountInitialization } = await import('/js/admin/authorized-account.js');
+    await waitForAuthorizedAccountInitialization();
   })()`);
   await waitFor(() => admin.webContents.executeJavaScript("document.getElementById('liveCanvasUrl').textContent.includes('请先编辑场景')"));
   assert.equal(await admin.webContents.executeJavaScript("document.getElementById('copyLiveCanvasUrl').disabled"), true);

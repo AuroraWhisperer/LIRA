@@ -29,7 +29,7 @@ test('snowfox palette saves, reopens and restores identity colors through the de
   await desktop.locator('#danmakuBubbleColor').click();
   await desktop.getByRole('textbox', { name: '十六进制颜色', exact: true }).fill('#ba739c');
   await desktop.getByRole('button', { name: '完成', exact: true }).click();
-  await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
+  await desktop.getByRole('button', { name: '保存外观', exact: true }).click();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 雪狐物语' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.snowfox.bubbleColor), '#ba739c');
   await desktop.reload();

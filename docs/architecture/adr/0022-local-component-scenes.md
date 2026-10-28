@@ -14,6 +14,23 @@ Add a scene service/store inside the existing modular monolith. Scene publicatio
 
 Main consumes the existing trusted cloud public-overlay SSE once per authorized owner. No new Server endpoint is required. Cloud capabilities stay in main; current owner comes from authorized Server identity. No local sample or Bilibili feed substitutes for cloud overlay events.
 
+The user's 2026-10-28 confirmation moves danmaku appearance to one local profile
+per authorized Server origin + streamerId. The existing configuration controller
+uses a local management API and the existing scene notification mechanism. A new
+songDb migration adds the profile table; the first successful read imports the old
+remote settings once, without copying appearance into every scene. Failed or stale
+imports do not write defaults. Later remote appearance events never replace local
+parameters or gate valid live events. Local writes bind the desktop authorization
+generation, preserving drafts through token renewal while rejecting a different
+account or login lifecycle. Published scenes retain their layout and selected style
+and receive current shared parameters without replaying messages.
+
+New styles, fonts and resources are delivered with the desktop. Legacy remote
+overlay pages and their HTTP/IPC contracts remain compatible, with no new requirement
+to mirror local styles. The existing shared renderer-core source lock is unchanged.
+This removes the remote style-version dependency; local output still requires the
+desktop running and profiles do not automatically follow the account to another computer.
+
 Persist the local scene capability as hash plus a safeStorage-encrypted, owner-bound package. It is accepted only by the exact scene output and notification HTTP routes, not general HTTP/WS authorization. Defaults remain owned by their existing components.
 
 The user's 2026-10-08 shared-parameter requirement supersedes freezing shared
@@ -21,8 +38,9 @@ appearance values at publication. Desktop saved settings take precedence over
 old scene copies. The existing component/settings owners and resource-style
 library supply an allowlisted live appearance projection by published item ID.
 The editor uses the same sources for all instances of a style; clock profiles and
-opening media stay separated by style. Desktop cloud/IPC writes retain their
-existing controller authority. Local display fields use the current attached
+opening media stay separated by style. Component writes retain their existing
+controller authority; danmaku uses the local management API described above.
+Local display fields use the current attached
 canvas capability, with Origin checks and reauthorization after reading bodies.
 Saved appearance updates reach existing output frames without publishing draft
 geometry or replaying events. Scene-only fields, layout, style selection and
@@ -69,6 +87,8 @@ the generic WebSocket principal nor the remote Server contract.
 flowchart LR
   Admin["Desktop scene editor"] --> Scene["Scene service + store"]
   Defaults["Existing component owners"] --> Scene
+  Appearance["Local account appearance"] --> Scene
+  Admin --> Appearance
   Cloud["Cloud overlay SSE"] --> Main["Authorized main subscriber"]
   Main --> Scene
   Scene --> Output["Scene-scoped HTTP output"]

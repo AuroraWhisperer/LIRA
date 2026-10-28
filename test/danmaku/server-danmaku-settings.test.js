@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
+const { createParameterDocument } = require('../helpers/parameter-dom');
 
 const source = (file) => fs.readFileSync(path.join(__dirname, '../../public/js/admin', file), 'utf8');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
@@ -11,35 +12,15 @@ const saved = (style = 'signal', duration = 6, overlayUrl = url) => ({
   ok: true,
   style,
   fullscreenDurationSeconds: duration,
+  styleOptions: {},
   overlayUrl,
 });
 
 async function fixture() {
-  const nodes = new Map();
-  const node = (key) => {
-    if (!nodes.has(key))
-      nodes.set(key, {
-        ownerDocument: document,
-        value: '',
-        textContent: '',
-        disabled: false,
-        hidden: false,
-        dataset: {},
-        classList: { add() {} },
-        events: {},
-        closest(selector) { return selector === '.danmaku-parameters' ? node('parameters') : null; },
-        addEventListener(name, listener) {
-          this.events[name] = listener;
-        },
-        setAttribute(name, value) {
-          this[name] = value;
-        },
-      });
-    return nodes.get(key);
-  };
-  const document = { activeElement: null, querySelectorAll: () => [], getElementById: (id) => node({
-    danmakuFullscreenDurationSeconds: 'fullscreenDuration', danmakuFullscreenDurationField: 'fullscreenDurationField',
-  }[id] || id) };
+  const document = createParameterDocument();
+  const node = key => document.getElementById({
+    fullscreenDuration: 'danmakuFullscreenDurationSeconds', fullscreenDurationField: 'danmakuFullscreenDurationField',
+  }[key] || key);
   const elements = Object.fromEntries(
     [
       'overlayUrl',
@@ -71,19 +52,25 @@ async function fixture() {
   const reads = [],
     writes = [],
     opened = [],
-    copied = [];
-  const bridge = {
-    getOverlaySettings: () => new Promise((resolve, reject) => reads.push({ resolve, reject })),
-    updateOverlaySettings: (parameters) =>
+    copied = [],
+    notifications = [];
+  const localResponse = (value) => {
+    if (!value.ok) throw new Error(value.error);
+    const { ok, overlayUrl, ...config } = value;
+    return { binding: overlayUrl, config };
+  };
+  const localApi = {
+    readDanmakuAppearance: () => new Promise((resolve, reject) => reads.push({ resolve, reject })).then(localResponse),
+    saveDanmakuAppearance: ({ binding, config: parameters }) =>
       new Promise((resolve, reject) =>
-        writes.push({ parameters: JSON.parse(JSON.stringify(parameters)), resolve, reject }),
-      ),
+        writes.push({ binding, parameters: JSON.parse(JSON.stringify(parameters)), resolve, reject }),
+      ).then(localResponse),
   };
   const context = vm.createContext({
     URL,
     URLSearchParams,
     document,
-    window: { liraLicense: bridge, open: (...args) => opened.push(args) },
+    window: { liraLicense: new Proxy({}, { get() { throw new Error('The appearance UI must not use remote settings IPC.'); } }), open: (...args) => opened.push(args) },
   });
   const editors = [];
   const module = new vm.SourceTextModule(source('danmaku-overlay-settings.js'), {
@@ -93,6 +80,13 @@ async function fixture() {
   await module.link((specifier, parent) => {
     const filename = path.resolve(path.dirname(parent.identifier), specifier);
     if (modules.has(filename)) return modules.get(filename);
+    if (filename.endsWith('danmaku-appearance-api.js')) {
+      const api = new vm.SyntheticModule(Object.keys(localApi), function () {
+        for (const [name, fn] of Object.entries(localApi)) this.setExport(name, fn);
+      }, { context });
+      modules.set(filename, api);
+      return api;
+    }
     if (filename === path.resolve(__dirname, '../../public/js/shared/font-library.js')) {
       const fonts = new vm.SyntheticModule(['registerFontSelect', 'ensureSavedFontOption'], function () {
         this.setExport('registerFontSelect', () => () => {});
@@ -101,17 +95,17 @@ async function fixture() {
       modules.set(filename, fonts);
       return fonts;
     }
-    if (filename === path.resolve(__dirname, '../../public/js/admin/component-style-parameters.js')) {
+    if (filename === path.resolve(__dirname, '../../public/js/shared/component-style-parameter-view.js')) {
       const effects = new vm.SyntheticModule(['mountStyleParameters'], function () {
         this.setExport('mountStyleParameters', () => ({ dispose() {} }));
       }, { context });
       modules.set(filename, effects);
       return effects;
     }
-    const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'server-overlay-url.js'].includes(path.basename(filename))
+    const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'authorized-account.js'].includes(path.basename(filename))
       ? new vm.SourceTextModule(fs.readFileSync(filename, 'utf8'), { context, identifier: filename })
       : new vm.SyntheticModule(
-          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin', 'toast'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeServerOverlayUrl'],
+          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin', 'toast'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeAuthorizedAccount'],
           function () {
             if (specifier.includes('utils')) {
               this.setExport('copyText', async (value) => copied.push(value));
@@ -126,7 +120,7 @@ async function fixture() {
                 return { close() {} };
               });
             } else
-              this.setExport('observeServerOverlayUrl', (callback) => {
+              this.setExport('observeAuthorizedAccount', (callback) => {
                 observer = callback;
                 callback(url);
               });
@@ -137,13 +131,15 @@ async function fixture() {
     return dependency;
   });
   await module.evaluate();
-  module.namespace.initDanmakuOverlaySettings(elements, () => {});
+  module.namespace.initDanmakuOverlaySettings(elements, (message, options) => notifications.push({ message, options }));
+  elements.fullscreenDuration = node('fullscreenDuration');
+  elements.fullscreenDurationField = node('fullscreenDurationField');
   const click = (key) => node(key).events.click();
   const duration = (value) => {
     elements.fullscreenDuration.value = value;
     elements.fullscreenDuration.events.change();
   };
-  return { elements, node, reads, writes, opened, copied, editors, click, duration, account: (value) => observer(value) };
+  return { elements, node, reads, writes, opened, copied, editors, notifications, click, duration, account: (value) => observer(value) };
 }
 
 test('server link uses the authorized configured public origin, including its port', async () => {
@@ -175,20 +171,20 @@ test('edits and local preview do not write until explicit apply; late save prese
   f.duration('12');
   f.click('previewOverlayButton');
   assert.equal(f.editors[0].draft.style, 'outline');
-  assert.equal(f.editors[0].draft.fullscreenDurationSeconds, 12);
+  assert.equal(f.editors[0].draft.styleOptions.outline.durationSeconds, 12);
   assert.equal(f.opened.length, 0);
   assert.equal(f.writes.length, 0);
   const first = f.click('danmakuApplyOverlayBtn');
   void f.click('danmakuApplyOverlayBtn');
   assert.equal(f.writes.length, 1);
-  assert.deepEqual(f.writes[0].parameters, { style: 'outline', fullscreenDurationSeconds: 12 });
+  assert.deepEqual(f.writes[0].parameters, { style: 'outline', fullscreenDurationSeconds: 6, styleOptions: { outline: { durationSeconds: 12 } } });
   f.click('identity');
-  f.writes[0].resolve(saved('outline', 12));
+  f.writes[0].resolve({ ...saved('outline'), styleOptions: f.writes[0].parameters.styleOptions });
   await first;
   assert.match(f.elements.styleChip.textContent, /待应用.*灵动弹幕/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
   const next = f.click('danmakuApplyOverlayBtn');
-  f.writes[1].resolve(saved('identity', 12));
+  f.writes[1].resolve({ ...saved('identity'), styleOptions: f.writes[1].parameters.styleOptions });
   await next;
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
 });
@@ -202,11 +198,42 @@ test('failed apply and invalid durations retain the editable draft', async () =>
   f.duration('31');
   assert.equal(f.elements.fullscreenDuration.value, '12');
   const pending = f.click('danmakuApplyOverlayBtn');
-  f.writes[0].resolve({ ok: false, error: 'NETWORK_UNAVAILABLE' });
+  f.writes[0].resolve({ ok: false, error: '本机保存失败，请稍后重试。' });
   await pending;
-  assert.match(f.elements.styleSaveState.textContent, /应用失败.*草稿已保留/);
+  assert.match(f.elements.styleSaveState.textContent, /草稿已保留.*本机保存失败/);
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
   assert.match(f.elements.styleChip.textContent, /一纸素笺/);
+});
+
+test('local validation and ownership rejections retain the draft for retry', async () => {
+  const f = await fixture();
+  f.reads[0].resolve(saved());
+  await flush();
+  f.click('twitter');
+  for (const [error, message] of [
+    ['弹幕外观参数无效。', /参数无效/],
+    ['账号授权已变化，请重新读取后保存。', /账号授权已变化/],
+    ['本机保存失败，请稍后重试。', /请稍后重试/],
+  ]) {
+    const pending = f.click('danmakuApplyOverlayBtn');
+    f.writes.at(-1).resolve({ ok: false, error });
+    await pending;
+    const notice = f.notifications.at(-1);
+    assert.match(notice.message, message);
+    assert.equal(notice.options.type, 'error');
+    assert.equal(f.writes.at(-1).parameters.style, 'twitter');
+    assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
+    assert.match(f.elements.styleSaveState.textContent, /草稿已保留/);
+  }
+});
+
+test('an initial settings read failure is not presented as a failed apply or a retained draft', async () => {
+  const f = await fixture();
+  f.reads[0].resolve({ ok: false, error: '弹幕外观读取失败' });
+  await flush();
+  assert.match(f.elements.styleSaveState.textContent, /弹幕外观读取失败/);
+  assert.doesNotMatch(f.elements.styleSaveState.textContent, /应用失败|草稿已保留|保存/);
+  assert.equal(f.writes.length, 0);
 });
 
 test('appearance drafts belong to each style and apply together without leaking to the old server', async () => {
@@ -297,7 +324,7 @@ test('appearance drafts belong to each style and apply together without leaking 
   assert.equal(f.node('danmakuEntranceAnimation').disabled, true);
 });
 
-test('canvas drafts apply through the existing save path and remain when an old server drops layout', async () => {
+test('canvas drafts use local persistence and remain after a rejected write', async () => {
   const f = await fixture();
   f.reads[0].resolve({ ...saved(), styleOptions: {}, layout: null });
   await flush();
@@ -309,26 +336,27 @@ test('canvas drafts apply through the existing save path and remain when an old 
   assert.equal(f.writes.length, 0);
   const pending = f.editors[0].onApply();
   assert.deepEqual(f.writes[0].parameters.layout, layout);
-  f.writes[0].resolve({ ...saved(), styleOptions: {} });
+  f.writes[0].reject(new Error('本机保存失败'));
   await pending;
-  assert.match(f.elements.styleSaveState.textContent, /草稿已保留.*未保存画布/);
+  assert.match(f.elements.styleSaveState.textContent, /草稿已保留.*本机保存失败/);
   const retry = f.editors[0].onApply();
   f.writes[1].resolve({ ...saved(), styleOptions: {}, layout });
   await retry;
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
 });
 
-test('older servers keep style editing available and explain unsupported appearance controls', async () => {
+test('local defaults keep all supported appearance controls available', async () => {
   const f = await fixture();
-  f.reads[0].resolve(saved());
+  const legacy = saved();
+  f.reads[0].resolve(legacy);
   await flush();
-  assert.equal(f.node('danmakuFontSize').disabled, true);
-  assert.match(f.node('danmakuParametersHint').textContent, /暂不支持参数调节.*联系管理员/);
-  assert.equal(f.node('danmakuScrollDirection').disabled, true);
+  assert.equal(f.node('danmakuFontSize').disabled, false);
+  assert.equal(f.node('danmakuScrollDirection').disabled, false);
   f.click('outline');
   assert.equal(f.elements.fullscreenDuration.disabled, false);
+  assert.match(f.elements.styleChip.textContent, /待应用.*一纸素笺/);
   f.click('glow');
-  assert.equal(f.node('danmakuEntranceAnimation').disabled, true);
+  assert.equal(f.node('danmakuEntranceAnimation').disabled, false);
 });
 
 for (const [style, label] of [
@@ -346,11 +374,11 @@ for (const [style, label] of [
     assert.match(f.elements.styleChip.textContent, new RegExp(`待应用.*${label}`));
     f.click('previewOverlayButton');
     assert.equal(f.editors[0].draft.style, style);
-    assert.equal(f.editors[0].draft.fullscreenDurationSeconds, 9);
+    assert.equal(f.editors[0].draft.styleOptions[style].durationSeconds, 9);
     assert.equal(f.writes.length, 0);
     const pending = f.click('danmakuApplyOverlayBtn');
-    assert.deepEqual(f.writes[0].parameters, { style, fullscreenDurationSeconds: 9 });
-    f.writes[0].resolve(saved(style, 9));
+    assert.deepEqual(f.writes[0].parameters, { style, fullscreenDurationSeconds: 6, styleOptions: { [style]: { durationSeconds: 9 } } });
+    f.writes[0].resolve({ ...saved(style), styleOptions: f.writes[0].parameters.styleOptions });
     await pending;
     assert.match(f.elements.styleChip.textContent, new RegExp(`已应用样式.*${label}`));
     assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
@@ -374,28 +402,22 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   assert.match(f.elements.styleChip.textContent, /待应用.*留白/);
   const pending = f.click('danmakuApplyOverlayBtn');
   f.account('');
-  assert.equal(f.elements.overlayUrl.textContent, '登录 LIRA 后显示直播画面链接');
-  assert.equal(f.elements.overlayUrl.disabled, true);
+  assert.match(f.elements.styleSaveState.textContent, /请先连接/);
   const nextUrl = 'https://other.example.test/overlay/syntheticKey_123';
   f.account(nextUrl);
   f.reads[2].resolve(saved('ranked', 8, nextUrl));
   await flush();
   f.writes[0].resolve(saved('transparent'));
   await pending;
-  assert.equal(f.elements.overlayUrl.textContent, nextUrl);
   assert.match(f.elements.styleChip.textContent, /已应用样式.*经典样式/);
+  f.click('outline');
   assert.equal(f.elements.fullscreenDuration.value, '8');
 });
 
-test('copy and open use the server; preview is available locally without authorization', async () => {
+test('local preview is available without authorization and the appearance panel exposes no old source link', async () => {
   const f = await fixture();
-  await f.click('overlayUrl');
-  f.click('openOverlayButton');
-  assert.deepEqual(f.copied, [url]);
-  assert.equal(f.opened[0][0], url);
+  assert.doesNotMatch(source('danmaku-overlay-settings.js'), /getOverlaySettings|updateOverlaySettings|bindCopyUrl|window\.open/);
   f.account('');
-  assert.equal(f.elements.overlayUrl.disabled, true);
-  assert.equal(f.elements.openOverlayButton.disabled, true);
   assert.equal(f.elements.previewOverlayButton.disabled, false);
   f.click('previewOverlayButton');
   assert.equal(f.editors.at(-1).canApply, false);

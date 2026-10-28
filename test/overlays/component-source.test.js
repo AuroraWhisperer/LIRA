@@ -30,8 +30,8 @@ test('standalone component sources load saved styles and live data without a can
   await pages.danmaku.waitForFunction(() => document.body.dataset.style === 'signal' && document.body.classList.contains('has-layout'));
   fixture.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '独立观众', message: '独立组件的实时弹幕' });
   await pages.danmaku.getByText('独立组件的实时弹幕').waitFor();
-  const state = await fetch(`${fixture.origin}/api/danmaku/display`, { headers: { Authorization: `Bearer ${fixture.token}` } }).then(r => r.json());
-  fixture.updateCloud({ type: 'overlay-settings', ...state.data.config, style: 'bubble' });
+  const state = await fixture.appearance.read();
+  fixture.appearance.save({ ...state, config: { ...state.config, style: 'bubble' } });
   await pages.danmaku.waitForFunction(() => document.body.dataset.style === 'bubble');
   fixture.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '独立观众', message: '保存样式后继续接收' });
   await pages.danmaku.getByText('保存样式后继续接收').waitFor();

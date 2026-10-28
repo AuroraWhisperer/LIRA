@@ -38,3 +38,11 @@ test can verify them. Do not add wildcards or volatile inventory counts.
 
 If a task spans routes, identify the contract and state owner for each route.
 Do not create a new shared owner merely because several consumers change.
+
+## 弹幕外观与事件的交付边界
+
+新流程为 B 站 → Server 事件 → Electron 单一按需订阅 → 本地场景输出。外观由 `src/server/danmaku-appearance.js` 和账号隔离的本地 store 拥有，场景负责布局与样式选择，公共 feed 负责事件生命周期。新增本地样式只需同步客户端 Node／浏览器校验、参数控件、渲染与资源，不要求镜像服务器样式或 OpenAPI。
+
+验证桌面显式保存、重启恢复、账号切换与迟到请求、多个场景共享参数、保存不重播，以及本地场景实际渲染。仅预览通过不算交付；不得重新接回远端样式 PUT 来绕过本地 owner。首次升级承接旧配置，之后服务器外观快照不得覆盖本地值；未知云端样式不能阻断合法事件。
+
+旧 `/overlay/<token>` 及其保存接口保留兼容，独立维护其部署能力。只有需求明确修改远端事件或旧服务器源时，才同时修改相应 Server 协议与测试。ADR-0020 的公共 renderer core 来源锁不变，不扩展成所有样式的强制镜像。完成报告区分源码验证、客户端打包与实际运行版本。

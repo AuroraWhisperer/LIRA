@@ -44,7 +44,7 @@ import { formsService } from './forms.js';
 import { initQueueForm } from './queue.js';
 import { createAdminStateRenderer, renderConnectionStatus } from './state-renderer.js';
 import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
-import { waitForServerOverlayUrlInitialization } from './server-overlay-url.js';
+import { waitForAuthorizedAccountInitialization } from './authorized-account.js';
 import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
 
 let toolboxRecovery = null;
@@ -176,7 +176,7 @@ async function initializeApp() {
     const [clock, overtime] = await Promise.all([import('./clock-card.js'), import('./overtime.js')]);
     clock.initClockCard();
     overtime.initOvertime(stateService.getAppState());
-    await waitForServerOverlayUrlInitialization();
+    await waitForAuthorizedAccountInitialization();
     return prepareComponentPreviewCanvas(getComponentPreviews());
   });
   initComponentStyleLibraries();

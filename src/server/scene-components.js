@@ -101,7 +101,7 @@ const COMPONENT_PORTS = Object.freeze({
           layout: normalizeLayout(config.layout) || createLayout() };
       } catch { throw invalidConfig(); }
     },
-    getDefault: (state, cloud) => cloud.getSettings(),
+    getDefault: (_state, _cloud, getDanmakuConfig) => getDanmakuConfig(),
     getDisplay: (_getState, cloud, request) => cloud.getSnapshot(request),
   }),
   ...Object.fromEntries(Object.keys(SCENE_EXTRA_COMPONENTS).map((type) => [type, Object.freeze({
@@ -152,11 +152,11 @@ function normalizeSceneConfig(type, config) {
   return COMPONENT_PORTS[type].normalizeConfig(config);
 }
 
-function createSceneComponentPorts({ getState, cloud, getExtraDisplay }) {
+function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtraDisplay }) {
   function getDefaultConfig(type) {
     if (typeof type !== 'string' || !Object.hasOwn(COMPONENT_PORTS, type)) throw invalidConfig();
     const state = getState(type === 'clock' || type === 'queue' ? ['settings'] : type === 'overtime' ? ['overtime'] : []);
-    const config = COMPONENT_PORTS[type].getDefault(state, cloud);
+    const config = COMPONENT_PORTS[type].getDefault(state, cloud, getDanmakuConfig);
     if (!config) throw new SceneError('SCENE_DEFAULT_UNAVAILABLE', 503, '请等待组件默认配置读取完成后再发布。');
     return normalizeSceneConfig(type, config);
   }

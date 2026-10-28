@@ -102,7 +102,7 @@ test('foreign epochs and malformed cursors reset without treating missing/boolea
   assert.deepEqual(foreign.events, []);
 });
 
-test('logout and same-owner authorization renewal clear appearance, state and event buffers', () => {
+test('logout and same-owner authorization renewal clear state and event buffers', () => {
   const fixture = bufferFixture();
   const initial = fixture.connect();
   fixture.update('connected', gift());
@@ -110,17 +110,14 @@ test('logout and same-owner authorization renewal clear appearance, state and ev
   const loggedOut = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 0 });
   assert.equal(loggedOut.status, 'offline');
   assert.equal(loggedOut.state, null);
-  assert.equal(fixture.buffer.getSettings(), null);
   assert.equal(fixture.update('connected', gift(), { ownerScope: 'scope-a', authorizationEpoch: 1 }), false);
   fixture.setOwner({ scope: 'scope-a', epoch: 2 });
   const renewed = fixture.buffer.getSnapshot();
   assert.notEqual(renewed.epoch, initial.epoch);
   assert.equal(fixture.update('connected', liveState(), { authorizationEpoch: 1 }), false);
-  assert.equal(fixture.buffer.getSettings(), null);
   fixture.connect('connection-b');
   fixture.setOwner({ scope: 'scope-b', epoch: 2 });
   assert.equal(fixture.buffer.getSnapshot().state, null);
-  assert.equal(fixture.buffer.getSettings(), null);
 });
 
 test('new connection requires state and ignores stale connection events or disconnects', () => {
@@ -166,13 +163,12 @@ test('live-session boundaries reset cursors and reject duplicate starts, wrong e
   assert.equal(fixture.update('connected', gift('new', 'session-b')), true);
 });
 
-test('only display fields leave the buffer, snapshots and appearance cannot mutate internal state', () => {
+test('only event fields leave the buffer and snapshots cannot mutate internal state', () => {
   const fixture = bufferFixture();
   fixture.update('connecting');
   const state = { ...liveState(), token: 'PRIVATE', raw: { cookie: 'PRIVATE' }, styleOptions: { signal: { fontSize: 30 } } };
   assert.equal(fixture.update('connected', state), true);
   state.styleOptions.signal.fontSize = 40;
-  assert.equal(fixture.buffer.getSettings().styleOptions.signal.fontSize, 30);
   const initial = fixture.buffer.getSnapshot();
   fixture.update('connected', { ...gift(), honorLevel: 45, avatarUrl: 'https://i0.hdslb.com/face.png', giftGuardLevel: 3,
     uid: 'PRIVATE', capability: 'PRIVATE', raw: { cookie: 'PRIVATE' } });
@@ -199,17 +195,15 @@ test('only display fields leave the buffer, snapshots and appearance cannot muta
   snapshot.events[1].emotes[0].url = 'changed';
   snapshot.events[1].roomMedal.name = 'changed';
   snapshot.state.confirmationMessage = 'changed';
-  const settings = fixture.buffer.getSettings();
-  settings.styleOptions.signal.fontSize = 48;
   const again = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 0 });
   assert.equal(again.events[0].giftName, '灯牌');
   assert.equal(again.events[1].emotes[0].url, 'https://i0.hdslb.com/emote.png');
   assert.equal(again.events[1].roomMedal.name, '当前房间');
   assert.equal(again.state.confirmationMessage, '开播');
-  assert.equal(fixture.buffer.getSettings().styleOptions.signal.fontSize, 30);
+  assert.equal(Object.hasOwn(again.state, 'styleOptions'), false);
 });
 
-test('cloud appearance update changes only the default cache, not state epoch or event cursor', () => {
+test('cloud appearance fields are ignored without changing state epoch or event cursor', () => {
   const fixture = bufferFixture();
   const initial = fixture.connect();
   fixture.update('connected', gift());
@@ -220,10 +214,8 @@ test('cloud appearance update changes only the default cache, not state epoch or
   assert.equal(after.epoch, before.epoch);
   assert.equal(after.nextCursor, before.nextCursor);
   assert.deepEqual(after.events, [gift()]);
-  assert.equal(fixture.buffer.getSettings().style, 'glow');
-  assert.equal(fixture.update('connected', { type: 'overlay-settings', style: 'signal', styleOptions: { signal: { cookie: 'PRIVATE' } } }), false);
-  assert.equal(fixture.buffer.getSettings().style, 'glow');
-  assert.doesNotMatch(JSON.stringify(fixture.buffer.getSettings()), /PRIVATE/);
+  assert.equal(fixture.update('connected', { type: 'overlay-settings', style: 'unknown', styleOptions: { signal: { cookie: 'PRIVATE' } } }), true);
+  assert.doesNotMatch(JSON.stringify(fixture.buffer.getSnapshot()), /PRIVATE|styleOptions/);
 });
 
 test('SC deletion is an ordered session-scoped cursor event with a defensive ID list', () => {
@@ -262,7 +254,8 @@ function componentFixture() {
   };
   const cloudFixture = bufferFixture();
   let reads = 0;
-  const ports = createSceneComponentPorts({ getState: () => { reads++; return state; }, cloud: cloudFixture.buffer });
+  const ports = createSceneComponentPorts({ getState: () => { reads++; return state; }, cloud: cloudFixture.buffer,
+    getDanmakuConfig: () => state.appearance });
   return { ports, cloudFixture, get state() { return state; }, setState(value) { state = value; }, get reads() { return reads; } };
 }
 
@@ -286,7 +279,7 @@ test('display projection includes only requested types and required display fiel
   assert.deepEqual(fixture.ports.getDisplayData([], {}), {});
 });
 
-test('component defaults are complete isolated appearance copies and cloud unavailable fails explicitly', () => {
+test('component defaults are complete isolated copies from the local appearance owner', () => {
   const fixture = componentFixture();
   assert.deepEqual(fixture.ports.getDefaultConfig('clock'), getClockConfig(fixture.state.settings));
   const queue = fixture.ports.getDefaultConfig('queue');
@@ -297,13 +290,14 @@ test('component defaults are complete isolated appearance copies and cloud unava
   assert.deepEqual(fixture.ports.getDefaultConfig('overtime'), { path: '', fit: 'contain' });
   assert.throws(() => fixture.ports.getDefaultConfig('danmaku'), { code: 'SCENE_DEFAULT_UNAVAILABLE', statusCode: 503 });
   fixture.cloudFixture.connect();
+  fixture.state.appearance = { style: 'signal', fullscreenDurationSeconds: 6, layout: null };
   const danmaku = fixture.ports.getDefaultConfig('danmaku');
   assert.equal(danmaku.style, 'signal');
   assert.equal(danmaku.fullscreenDurationSeconds, 6);
   assert.deepEqual(danmaku.layout, createLayout());
   fixture.cloudFixture.update('connected', { type: 'overlay-settings', style: 'glow', timestamp });
   assert.equal(danmaku.style, 'signal');
-  assert.equal(fixture.ports.getDefaultConfig('danmaku').style, 'glow');
+  assert.equal(fixture.ports.getDefaultConfig('danmaku').style, 'signal');
   assert.throws(() => fixture.ports.getDefaultConfig('private'), { code: 'INVALID_SCENE_CONFIG' });
 });
 

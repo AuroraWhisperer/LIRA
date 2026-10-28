@@ -137,7 +137,7 @@ test('fan cascade indexes upgrade without ANALYZE and preserve scope data', (t) 
   assert.match(plan, /SEARCH fan_records USING COVERING INDEX idx_fan_records_profile_id \(profile_id=\?\)/u);
   assert.match(plan, /SEARCH fan_reminder_states USING COVERING INDEX idx_fan_reminder_states_profile_id \(profile_id=\?\)/u);
   assert.doesNotMatch(plan, /SCAN fan_(records|reminder_states)/u);
-  assert.equal(schema.getSchemaVersion(db, 'song_db'), 16);
+  assert.equal(schema.getSchemaVersion(db, 'song_db'), 17);
   db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run('first');
   for (const [i, table] of tables.entries()) {
     assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),

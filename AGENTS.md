@@ -222,6 +222,13 @@ Each style owns its entrance and movement design; the shared feed owns layout,
 interruption, removal and cleanup. Verify changed motion in actual playback,
 including dense arrivals and text stability, rather than relying on code alone.
 
+Danmaku appearance is owned by the authorized account's local desktop store;
+the server supplies events through the existing shared subscription. Follow the
+[delivery boundary](docs/architecture/engineering/ai-workflow.md#弹幕外观与事件的交付边界).
+Verify desktop saving and local scene output together. A new local style does not
+require a server renderer or mirrored style schema; legacy server sources retain
+their own compatibility contract.
+
 For a small UI change, one targeted runtime inspection is normally enough when
 code alone cannot establish the result. Verify what the task actually changes.
 

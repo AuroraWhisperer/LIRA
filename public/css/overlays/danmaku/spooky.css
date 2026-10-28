@@ -106,13 +106,14 @@ body[data-style='spooky'] .draw-danmaku-item.spooky-item {
 body[data-style='spooky'] .draw-danmaku-item.spooky-item::after,
 body[data-style='spooky'] .draw-danmaku-item.spooky-item.is-gift::after { display: none; content: none; animation: none; }
 body[data-style='spooky'] .spooky-identity { display: flex; align-items: center; gap: .5em; margin: 0 0 .5em -.65em; padding: 0; min-height: 0; color: var(--spooky-ink); font: 700 .65em/1.4 var(--spooky-font); letter-spacing: .06em; white-space: nowrap; }
-body.has-layout[data-style='spooky'] .spooky-name, .spooky-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spooky-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body.has-layout[data-style='spooky'] .spooky-name { overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
 body[data-style='spooky'] .spooky-identity .spooky-name { color: var(--spooky-ink); font: inherit; letter-spacing: inherit; }
 .spooky-name-dots { flex: none; color: var(--spooky-paper); font-size: .75em; letter-spacing: .3em; }
 .spooky-role { flex: none; color: var(--spooky-muted); font-size: .95em; }
 .spooky-role::before { content: '•'; margin-right: .5em; color: var(--spooky-paper); }
 .spooky-stack { position: relative; max-width: 100%; }
-.spooky-back-paper { position: absolute; z-index: -2; inset: 9px 13px -2px 9px; border-radius: 6px; background: linear-gradient(90deg,color-mix(in srgb,var(--spooky-decor-light) var(--spooky-card-weight),transparent),color-mix(in srgb,var(--spooky-paper) var(--spooky-card-weight),transparent)); transform: rotate(1.15deg); transform-origin: 0 100%; }
+.spooky-back-paper { position: absolute; z-index: -2; inset: 9px 13px -2px 9px; border-radius: 6px; background: linear-gradient(90deg,color-mix(in srgb,var(--spooky-decor-light) var(--spooky-card-weight),transparent),color-mix(in srgb,var(--spooky-paper) var(--spooky-card-weight),transparent)); will-change: transform; transform: rotate(1.15deg); transform-origin: 0 100%; }
 .spooky-item[data-spooky-guard='true'] .spooky-back-paper { background: color-mix(in srgb,var(--spooky-decor-light) var(--spooky-card-weight),transparent); }
 body[data-style='spooky'] .spooky-board { display: block; position: relative; min-width: 0; min-height: 2.7em; margin: 0; padding: .7em 1.85em .7em 1.2em; border: 0; border-radius: 6px; color: inherit; background: linear-gradient(104deg,color-mix(in srgb,var(--spooky-custom-message-color,var(--spooky-left)) var(--spooky-card-weight),transparent),color-mix(in srgb,var(--spooky-custom-message-right,var(--spooky-right)) var(--spooky-card-weight),transparent)); box-shadow: none; overflow: visible; }
 .spooky-front-paper { position: absolute; z-index: 0; inset: auto 60px 0 48%; height: 18px; background: color-mix(in srgb,color-mix(in srgb,var(--spooky-custom-message-color,var(--spooky-left)) 90%,var(--spooky-paper)) var(--spooky-card-weight),transparent); mask: url('/img/overlays/danmaku-spooky/dark-paper.svg') 0 0/100% 100%; }

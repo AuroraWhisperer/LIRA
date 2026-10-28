@@ -3,6 +3,7 @@
 const { DatabaseSync } = require('node:sqlite');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
+const { migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { createLayout } = require('../../src/shared/danmaku-layout');
@@ -13,6 +14,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
   migrateScenes(db);
   migrateComponentOutputSizes(db);
   migrateCanvasPresets(db); migrateSceneDeletion(db);
+  migrateDanmakuAppearance(db);
   const owner = { scope: 'synthetic-canvas-owner', epoch: 1 };
   const runtime = { settings: { ...DEFAULT_SETTINGS }, queue: { current: null,
     waiting: [{ id: 1, song_name: '合成实时歌曲', requester: '合成观众' }] }, superChats: [],
@@ -23,16 +25,18 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     displayPorts: { settings: { get: () => runtime.settings }, ...extraContext,
       system: { dataDir, getState: () => runtime } }, runtimeOptions: {
     getSceneOwner: () => owner,
+    loadDanmakuAppearance: async () => ({ style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: createLayout() }),
     sceneSecretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() } } });
   const { service } = sceneRuntime;
+  await sceneRuntime.appearance.read();
   const updateCloud = (event, status = 'connected') => sceneRuntime.receiveCloud({ ownerScope: owner.scope,
     authorizationEpoch: owner.epoch, connectionEpoch: 'synthetic-connection', status, ...(event ? { event } : {}) });
   updateCloud(null, 'connecting');
   updateCloud({ type: 'overlay-state', style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {},
     layout: createLayout(), state: 'running', liveStatus: 1, liveSessionId: 'synthetic-live', confirmationMessage: '合成开播确认' });
   const ports = createSceneComponentPorts({ getState: () => runtime,
-    cloud: { getSettings: () => sceneRuntime.readDanmakuDisplay().config } });
+    getDanmakuConfig: sceneRuntime.appearance.getSettings });
   const configs = Object.fromEntries(['clock', 'queue', 'danmaku', 'overtime'].map(id => [id, ports.getDefaultConfig(id)]));
   let failPublish = false;
   const scenes = { ...service, publish(body) {
@@ -54,7 +58,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     danmakuEvents: notifications ? sceneRuntime.danmakuEvents : undefined,
     readDanmakuDisplay: sceneRuntime.readDanmakuDisplay,
     parentHtml: '<!doctype html><html><body></body></html>' });
-  return { ...server, service, runtime, owner, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,
+  return { ...server, service, runtime, owner, appearance: sceneRuntime.appearance, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,
     configs,
     failPublication(value) { failPublish = value; },
     async close() { sceneRuntime.dispose(); await server.close(); db.close(); },

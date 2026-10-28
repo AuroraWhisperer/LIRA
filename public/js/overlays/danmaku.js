@@ -104,9 +104,9 @@ document.addEventListener('DOMContentLoaded', () => {
       renderData: sceneDisplay.update,
       renderSamples(style, options, duration, layout, config = { style }, restart = false) {
         effectConfig = config;
-        const appearance = styleOptionsFor(style, options);
+        const appearance = styleOptionsFor(style, options, duration);
         const nextContentKey = JSON.stringify([style, appearance.giftImage, appearance.minGiftAmount,
-          appearance.scrollDirection, isRandomDanmakuStyle(style) ? duration : null,
+          appearance.scrollDirection, appearance.durationSeconds,
           styleParametersFor(config).showEntryMessages === true]);
         if (!restart && playNext && sampleContentKey === nextContentKey) {
           applyConfiguration(style, duration, options);
@@ -340,8 +340,9 @@ function normalizeFullscreenDuration(value) {
 
 function applyConfiguration(styleValue, durationValue, styleOptions = {}, refreshPreview = false) {
   const style = OVERLAY_STYLES.has(styleValue) ? styleValue : 'signal';
-  const duration = normalizeFullscreenDuration(durationValue);
-  const appearance = applyStyleOptions(document, style, styleOptions);
+  const legacyDuration = normalizeFullscreenDuration(durationValue);
+  const appearance = applyStyleOptions(document, style, styleOptions, legacyDuration);
+  const duration = appearance.durationSeconds ?? legacyDuration;
   const changed =
     style !== currentOverlayStyle ||
     appearance.giftImage !== currentGiftImage ||

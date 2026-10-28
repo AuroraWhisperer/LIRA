@@ -1,25 +1,12 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
-const { DANMAKU_STYLE_OPTIONS, normalizeStyleOptions } = require('../shared/danmaku-style-options');
-const { normalizeStyleParameters } = require('../shared/component-style-parameters');
-const { normalizeLayout } = require('../shared/danmaku-layout');
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 function pick(value, fields) {
   return Object.fromEntries(fields.split(' ').filter((key) => Object.hasOwn(value, key) &&
     (value[key] === null || ['string', 'boolean'].includes(typeof value[key]) || Number.isFinite(value[key])))
     .map((key) => [key, value[key]]));
-}
-
-function appearance(event) {
-  const duration = event.fullscreenDurationSeconds ?? 6;
-  if (!Object.hasOwn(DANMAKU_STYLE_OPTIONS, event.style) || !Number.isInteger(duration) || duration < 2 || duration > 30) return null;
-  try {
-    return { style: event.style, fullscreenDurationSeconds: duration,
-      ...(event.styleParameters === undefined ? {} : { styleParameters: normalizeStyleParameters('danmaku', event.styleParameters) }),
-      styleOptions: normalizeStyleOptions(event.styleOptions ?? {}), layout: normalizeLayout(event.layout ?? null) };
-  } catch { return null; }
 }
 
 function displayEvent(event) {
@@ -49,7 +36,6 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
   let connectionEpoch = null;
   let status = 'offline';
   let state = null;
-  let settings = null;
   let cursor = 0;
   let events = [];
   function reset() {
@@ -64,7 +50,6 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
       owner = current ? { ...current } : null;
       connectionEpoch = null;
       status = 'offline';
-      settings = null;
       reset();
     }
     return current;
@@ -92,15 +77,12 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     if (!event || typeof event !== 'object') return false;
     if (!state && event.type !== 'overlay-state') return false;
     if (state && event.type === 'overlay-state') return false;
-    if (event.type === 'overlay-state' || event.type === 'overlay-settings') {
-      const nextSettings = appearance(event);
-      if (!nextSettings) return false;
-      if (event.type === 'overlay-state' && (!['stopped', 'starting', 'waiting-live', 'connecting', 'running', 'reconnecting', 'error'].includes(event.state)
+    if (event.type === 'overlay-state') {
+      if (!['stopped', 'starting', 'waiting-live', 'connecting', 'running', 'reconnecting', 'error'].includes(event.state)
         || ![null, 0, 1].includes(event.liveStatus)
         || !(event.liveSessionId === null && event.confirmationMessage === null
           || typeof event.liveSessionId === 'string' && event.liveSessionId && event.liveStatus === 1
-          && typeof event.confirmationMessage === 'string' && event.confirmationMessage))) return false;
-      settings = nextSettings;
+          && typeof event.confirmationMessage === 'string' && event.confirmationMessage)) return false;
     }
     if (event.type === 'overlay-state') {
       reset();
@@ -143,15 +125,7 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     return { epoch, status, state: clone(state), nextCursor: cursor, reset: resetRequired, gap,
       events: resetRequired ? [] : events.filter((entry) => entry.cursor > requestedCursor).map((entry) => clone(entry.event)) };
   }
-  function receiveSettings(update) {
-    const current = syncOwner();
-    if (!current || update?.ownerScope !== current.scope || update.authorizationEpoch !== current.epoch) return false;
-    const next = appearance(update.settings);
-    if (!next) return false;
-    settings = next;
-    return true;
-  }
-  return { receive, receiveSettings, getSnapshot, getSettings() { syncOwner(); onRead(); return clone(settings); } };
+  return { receive, getSnapshot };
 }
 
 function isSuperChatMessageId(value) {

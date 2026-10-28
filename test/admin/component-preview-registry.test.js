@@ -60,7 +60,7 @@ async function loadOwner(filename, overrides = {}) {
       return { dispose() {} };
     } },
     './danmaku-parameter-view.js': { bindDanmakuParameters: () => ({ dispose() {} }) },
-    './server-overlay-url.js': { observeServerOverlayUrl() {} },
+    './authorized-account.js': { observeAuthorizedAccount() {} },
     ...overrides,
   };
   const stubs = new Map(Object.entries(replacements).map(([name, exports]) => [path.resolve(adminPath, name), exports]));
@@ -210,7 +210,7 @@ test('overtime descriptions isolate demo closures, share appearance drafts and r
 test('danmaku registers its shared controller and keeps account reset and single-dialog close behavior', async () => {
   let accountChanged;
   const fixture = await loadOwner('danmaku-overlay-settings.js', {
-    './server-overlay-url.js': { observeServerOverlayUrl: (listener) => { accountChanged = listener; } },
+    './authorized-account.js': { observeAuthorizedAccount: (listener) => { accountChanged = listener; } },
   });
   const elements = Object.fromEntries(['overlayUrl', 'styleChip', 'styleSaveState', 'copyOverlayUrlButton',
     'openOverlayButton', 'previewOverlayButton'].map((name) => [name, createNode()]));

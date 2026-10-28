@@ -34,16 +34,17 @@ const CONTROLS = {
   spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
   starlight: ['scrollDirection', 'edgeFade', 'decorationShape'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  outline: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
-  whiteframe: ['centerBias', 'dispersion', 'entranceAnimation'],
-  mist: ['centerBias', 'dispersion', 'backgroundOpacity'],
-  cream: ['centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
+  outline: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
+  whiteframe: ['durationSeconds', 'centerBias', 'dispersion', 'entranceAnimation'],
+  mist: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity'],
+  cream: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
   floating: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
   comet: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
-  starveil: ['centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
-  glow: ['centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
+  starveil: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
+  glow: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
 };
 const CONTROL_VALUES = {
+  durationSeconds: { valid: [2, 6, 30], invalid: [1, 31, 6.5, '6', null, true], fallback: 6, optional: true },
   composerText: {
     valid: ['欢迎来到直播间 ✨', '中文 English #😊', '字'.repeat(20), '👨‍👩‍👧‍👦'.repeat(20)],
     invalid: ['字'.repeat(21), '👨‍👩‍👧‍👦'.repeat(21), 'a\nb', 'a\u0000b', null, 1, true, {}],
@@ -110,6 +111,22 @@ test('each style accepts exactly its own controls with bounded values and defaul
         assert.equal(contract.styleOptionsFor(style)[control], fallback, `${style} ${control}`);
     }
   }
+});
+
+test('random lifetimes retain legacy values until edited and reset only the selected style', async () => {
+  const { editStyleOption, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
+  const legacy = { style: 'outline', fullscreenDurationSeconds: 12, styleOptions: { signal: { fontSize: 32 } } };
+  assert.equal(contract.styleOptionsFor('outline', legacy.styleOptions, legacy.fullscreenDurationSeconds).durationSeconds, 12);
+  const edited = editStyleOption(legacy, 'durationSeconds', 3);
+  assert.equal(edited.fullscreenDurationSeconds, 12);
+  assert.equal(contract.styleOptionsFor('outline', edited.styleOptions, 12).durationSeconds, 3);
+  assert.equal(contract.styleOptionsFor('cream', edited.styleOptions, 12).durationSeconds, 12);
+  const other = editStyleOption({ ...edited, style: 'cream' }, 'durationSeconds', 9);
+  const reset = resetStyleOptions({ ...other, style: 'outline' });
+  assert.equal(contract.styleOptionsFor('outline', reset.styleOptions, 12).durationSeconds, 6);
+  assert.equal(contract.styleOptionsFor('cream', reset.styleOptions, 12).durationSeconds, 9);
+  assert.deepEqual(reset.styleOptions.signal, { fontSize: 32 });
+  assert.deepEqual(legacy.styleOptions, { signal: { fontSize: 32 } });
 });
 
 test('RIPPLOID resolves its own font default and independent event color variables', async () => {
@@ -371,21 +388,10 @@ test('per-style display limits validate before accepting any options', () => {
   }
 });
 
-// normalizeStyleOptions only reads the two constants, so this parity check makes the browser copy
-// behave exactly like the privileged one; the validation tests below exercise the privileged copy once.
-test('browser and privileged display contracts stay identical', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
-  assert.deepEqual(browser.DANMAKU_STYLE_OPTIONS, contract.DANMAKU_STYLE_OPTIONS);
-  assert.deepEqual(browser.DANMAKU_FONTS, contract.DANMAKU_FONTS);
-  assert.deepEqual(browser.RIPPLOID_COLOR_DEFAULTS, contract.RIPPLOID_COLOR_DEFAULTS);
-  assert.deepEqual(browser.SPOOKY_THEME_COLORS, contract.SPOOKY_THEME_COLORS);
-  assert.deepEqual(browser.SPOOKY_COLOR_KEYS, contract.SPOOKY_COLOR_KEYS);
-  assert.deepEqual(browser.SPOOKY_OPACITY_KEYS, contract.SPOOKY_OPACITY_KEYS);
-  assert.deepEqual(browser.TWITTER_LAYOUT_DEFAULTS, contract.TWITTER_LAYOUT_DEFAULTS);
-  assert.deepEqual(browser.TWITTER_COLOR_DEFAULTS, contract.TWITTER_COLOR_DEFAULTS);
-  assert.equal(browser.normalizeStyleOptions.toString(), contract.normalizeStyleOptions.toString());
-  assert.equal(browser.styleOptionsFor.toString(), contract.styleOptionsFor.toString());
+test('browser field definitions generate the exact privileged display contract', () => {
+  const { styleOptionsNodeSource } = require('../../scripts/sync-danmaku-style-options.cjs');
+  const node = fs.readFileSync(path.join(__dirname, '../../src/shared/danmaku-style-options.js'), 'utf8');
+  assert.equal(node.replace(/\r\n/g, '\n'), styleOptionsNodeSource());
 });
 
 test('local font families round-trip safely and render as a single quoted family', async () => {

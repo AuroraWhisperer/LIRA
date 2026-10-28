@@ -30,7 +30,7 @@ test('notebook selects, saves, reopens and shares the real renderer with the des
   assert.equal(await desktop.locator('#danmakuFontSize').inputValue(), '23');
   await desktop.locator('#danmakuFontSize').fill('24');
   await desktop.locator('#danmakuFontSize').press('Tab');
-  await desktop.getByRole('button', { name: '应用到直播画面', exact: true }).click();
+  await desktop.getByRole('button', { name: '保存外观', exact: true }).click();
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 手账风' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'notebook');
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.notebook.fontSize), 24);

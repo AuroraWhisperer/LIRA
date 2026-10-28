@@ -5,6 +5,7 @@ import { initRegionEditor } from './danmaku-region-editor.js';
 import { initPreviewAppearance } from './danmaku-preview-appearance.js';
 import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
 import { enhanceColorControls } from '../shared/color-control.js';
+import { normalizeStyleParameters } from '../shared/component-style-parameters.js';
 
 function initComponentCanvas({ initialStyle, styleOptions, duration, renderSamples, renderConfiguration, renderData }) {
   const host = document.getElementById('danmakuCanvasHost');
@@ -72,6 +73,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   let draft = {
     style: initialStyle || savedHistory.danmakuPreviewStyle || 'signal',
     styleOptions: styleOptions || {},
+    styleParameters: normalizeStyleParameters('danmaku', savedHistory.danmakuStyleParameters || {}),
     fullscreenDurationSeconds: Number(duration) || 6,
     layout: normalizeLayout(savedHistory.danmakuLayout ?? null) || createLayout(),
   };
@@ -116,7 +118,8 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
     if (refreshSamples) renderSamples(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds, draft.layout, draft);
     if (historyAvailable) try {
       window.history.replaceState({ ...savedHistory, danmakuPreviewStyle: draft.style,
-        danmakuStyleOptions: draft.styleOptions, danmakuDuration: draft.fullscreenDurationSeconds, danmakuLayout: draft.layout },
+        danmakuStyleOptions: draft.styleOptions, danmakuStyleParameters: draft.styleParameters,
+        danmakuDuration: draft.fullscreenDurationSeconds, danmakuLayout: draft.layout },
       '', `${window.location.pathname}?preview=1`);
     } catch { historyAvailable = false; }
   }
@@ -192,7 +195,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
     apply.textContent = saving ? '正在应用…' : '应用到直播画面';
   };
   window.addEventListener('message', receive);
-  window.addEventListener('pagehide', () => { observer.disconnect(); window.removeEventListener('message', receive); }, { once: true });
+  window.addEventListener('pagehide', () => { appearance.dispose(); observer.disconnect(); window.removeEventListener('message', receive); }, { once: true });
   document.addEventListener('keydown', (event) => { if (event.key === 'Escape') send('danmaku-editor:close'); });
   status.textContent = embedded ? '正在读取草稿…' : '本地预览；请从客户端打开场景编辑器以应用修改。';
   render();

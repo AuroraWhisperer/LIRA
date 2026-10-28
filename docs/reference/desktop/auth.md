@@ -258,7 +258,9 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 
 同一生命周期内的正常 token 续期保持请求有效，已失效 token 的调用仍可共享一次重新验证，并只向同主体重试一次。公开的 authorization epoch 仍在每次成功认证时更新，供既有消费者使用，不承担这个允许续期的请求代际职责。迟到成功以既有 `LICENSE_NOT_AUTHORIZED` 拒绝；迟到错误可返回原调用方，但不再清空或阻断新会话。`getProfile` 在通用层校验及敏感字段清洗后同步提交，避免后续异步恢复旧资料。
 
-画布预览通过仅供主进程读取的 `getAuthorizationGeneration()` 绑定上述登录生命周期，正常 token 续期不会撤销正在编辑的连接。`getComponentPreviewOwner` 仍校验当前授权、服务器 origin 与 streamerId；重新登录、激活/换账号、阻断清理及 dispose 后旧连接失效。该读取方法不进入 preload/IPC，也不改变其他消费者的 authorization epoch 契约。预览中继及页面接管规则见 [预览 API](../backend/api.md#浏览器组件预览)。
+本机弹幕外观首次承接与旧地址读取共享同一主体、授权 generation 下尚未完成的 `getOverlaySettings()` 请求，完成或失败即释放，不缓存已完成结果。携带 AbortSignal 的事件订阅读取独立执行，保留其取消与重连生命周期；写入不合并。服务器事件仍由 main 的共享订阅接收。
+
+画布预览和本机弹幕外观写入通过仅供主进程读取的 `getAuthorizationGeneration()` 绑定上述登录生命周期，正常 token 续期不会撤销正在编辑的连接。`getComponentPreviewOwner` 仍校验当前授权、服务器 origin 与 streamerId；重新登录、激活/换账号、阻断清理及 dispose 后旧连接失效。该读取方法不进入 preload/IPC，也不改变其他消费者的 authorization epoch 契约。预览中继及页面接管规则见 [预览 API](../backend/api.md#浏览器组件预览)。
 
 每日机器人页面上下文同样绑定 `getAuthorizationGeneration()`，正常 token 续期保留草稿和待重试回执；同账号重新登录、换账号、撤销仍使旧上下文失效。其 action 和错误合同见 [preload.md](preload.md#4-每日机器人-action)。
 

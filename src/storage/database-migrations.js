@@ -17,6 +17,7 @@ const { migrateFanSongRetention } = require('./fan-song-migration');
 const { migrateFanRosterObservations } = require('./fan-roster-observation-migration');
 const { migrateSuperChatReceipts } = require('./superchat-receipt-migration');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('./scene-migration');
+const { migrateDanmakuAppearance } = require('./danmaku-appearance-store');
 
 // ── 迁移注册表 ──
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
@@ -123,6 +124,8 @@ function runAllMigrations(databases, options = {}) {
           CREATE UNIQUE INDEX idx_queue_single_live ON queue(is_live) WHERE is_live = 1;
         `);
       },
+      // v17：弹幕外观按授权账号在本机持久化。
+      migrateDanmakuAppearance,
     ]),
   );
 

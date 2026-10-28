@@ -39,7 +39,8 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
   assert.match(overlay, /aria-labelledby="liveDanmakuFeatureTab"/, 'the sidebar tab names the overlay panel');
   assert.doesNotMatch(overlay, /<lira-help label="弹幕(?:链接|预览)说明"/);
   assert.doesNotMatch(overlay, /id="danmakuCopyOverlayUrlBtn"/);
-  for (const id of ['danmakuOverlayUrl', 'danmakuOpenOverlayBtn', 'danmakuPreviewOverlayBtn',
+  assert.doesNotMatch(overlay, /id="danmakuOverlayUrl"|id="danmakuOpenOverlayBtn"/);
+  for (const id of ['danmakuPreviewOverlayBtn',
     'danmakuApplyOverlayBtn', 'danmakuReloadOverlayBtn']) {
     assert.equal(html.split(`id="${id}"`).length, 2, `${id} is one unique entry`);
   }
@@ -55,8 +56,8 @@ test('danmaku tool separates the fixed live overlay from the sender and reply gr
     assert.match(html, new RegExp(`<section\\b[^>]*id="${panel}"[^>]*role="tabpanel"[^>]*aria-labelledby="${tab}"`));
   }
   assert.match(html, /id="danmakuStyleSaveState"[^>]+role="status"[^>]+aria-live="polite"[^>]*><\/p>/);
-  assert.match(html, /id="danmakuFullscreenDurationSeconds"[^>]+type="number"[^>]+min="2"[^>]+max="30"[^>]+step="1"/);
-  assert.match(html, /id="danmakuFullscreenDurationField"[^>]+hidden/);
+  assert.equal(html.split('id="danmakuParameterFields"').length, 2, 'one shared parameter mount owns generated controls');
+  assert.doesNotMatch(html, /id="danmakuFullscreenDurationSeconds"/, 'parameter definitions are not duplicated in static markup');
   assert.doesNotMatch(html, /id="danmakuStylePreview(?:Frame)?"/);
 
   const styleSectionStart = html.indexOf('class="danmaku-feature-section danmaku-style-section"');

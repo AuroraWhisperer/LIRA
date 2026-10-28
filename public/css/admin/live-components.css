@@ -289,18 +289,6 @@
   padding-right: 16px;
   border-right: 1px solid var(--border);
 }
-.live-components-page .danmaku-style-tools .danmaku-overlay-link {
-  display: flex;
-  flex: 1 1 340px;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-.live-components-page .danmaku-style-tools .danmaku-overlay-link .copy-url {
-  flex: 1;
-  --copy-url-width: 0px;
-  min-width: 100px;
-}
 .live-components-page .danmaku-style-heading {
   display: flex;
   align-items: center;

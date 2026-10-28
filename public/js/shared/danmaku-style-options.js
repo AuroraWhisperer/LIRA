@@ -1,4 +1,4 @@
-// Shared display contract; keep desktop/server browser and Node copies in sync.
+// Edit this contract; sync-danmaku-style-options.cjs generates the local Node mirror.
 // RIPPLOID uses the existing SC price bands for its six gift/SC color tiers.
 const RIPPLOID_COLOR_DEFAULTS = Object.freeze({
   giftColor0: '#f39749', giftColor50: '#f39749', giftColor100: '#f39749',
@@ -268,9 +268,70 @@ const DANMAKU_FONTS = Object.freeze({
   kai: "'KaiTi', 'STKaiti', serif",
 });
 
+// One field contract feeds validation and every parameter editor. Groups only change presentation.
+const DANMAKU_OPTION_FIELDS = Object.freeze({
+  fontFamily: { label: '字体', type: 'font', default: 'default', defaultKey: 'defaultFontFamily' },
+  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize' },
+  textColor: { label: '正文颜色', type: 'color', alpha: true, default: '#eaf2ff', defaultKey: 'defaultTextColor' },
+  backgroundOpacity: { label: '背景不透明度', type: 'number', input: 'range', min: 0, max: 100, default: 100, capability: 'background', unit: '%' },
+  scrollDirection: { label: '滚动方向', type: 'select', default: 'up', capability: 'scrollDirection', choices: [['up', '从下向上（新弹幕在底部）'], ['down', '从上向下（新弹幕在顶部）']] },
+  edgeFade: { label: '边缘处理', type: 'select', default: 'single', defaultKey: 'defaultEdgeFade', capability: 'scrollDirection', legacy: ['single'],
+    help: '可选择上下两端、仅上边或仅下边渐隐；选定的边缘不随滚动方向改变。',
+    choices: [['both', '两端渐隐'], ['top', '上边渐隐'], ['bottom', '下边渐隐'], ['none', '直接切断']] },
+  durationSeconds: { label: '停留（秒）', type: 'number', min: 2, max: 30, default: 6, layout: 'fullscreen-random', control: 'fullscreenDurationSeconds' },
+  speedPixelsPerSecond: { label: '飘动速度', type: 'number', input: 'range', min: 20, max: 600, default: 120, capability: 'speed', control: 'floatingSpeed',
+    help: '1～100，默认 50 为原速；1 为原速的三分之一，100 为原速的三倍。超出刻度范围的旧速度会保留，手动调节后按新刻度保存。' },
+  floatingDispersion: { label: '分散程度', type: 'number', input: 'range', min: 1, max: 100, default: 50, layout: 'floating',
+    help: '数值越大，新弹幕越倾向于远离画面中的其他弹幕。拥挤时以可用空间为准，已显示弹幕不换位置。' },
+  bubbleColor: { label: '弹幕配色', type: 'color', alpha: true, allowDefault: true, default: 'default', capability: 'bubbleColor' },
+  giftImage: { label: '礼物图片', type: 'select', default: 'theme', capability: 'giftImage', choices: [['theme', '样式插画'], ['gift', '真实礼物图片']], group: 'message' },
+  minGiftAmount: { label: '弹幕礼物卡片最低金额', type: 'number', min: 0, max: 100000, step: 0.01, default: 0, capability: 'minGiftAmount', group: 'message',
+    help: '按单条已结算人民币总额筛选，包含上舰。0 显示全部；SC 不受影响。' },
+  composerText: { label: '底部提示文字', type: 'text', default: TWITTER_COMPOSER_TEXT_DEFAULT, capability: 'composerText', maxLength: TWITTER_COMPOSER_TEXT_MAX_LENGTH },
+  ...Object.fromEntries(Object.entries(TWITTER_LAYOUT_DEFAULTS).map(([key, value], index) => [key, {
+    label: ['顶部资料区', '底部提示栏', '操作图标行'][index], type: 'select', default: value, capability: 'twitterOptions', choices: [['show', '显示'], ['hide', '隐藏']],
+  }])),
+  ...Object.fromEntries(Object.entries(TWITTER_COLOR_DEFAULTS).map(([key, value], index) => [key, {
+    label: ['＜50 元', '50～99.99 元', '100～999.99 元', '≥1000 元'][index], type: 'color', alpha: true, default: value, capability: 'twitterOptions', group: 'twitterColors',
+  }])),
+  spookyTheme: { label: '便笺配色', type: 'select', default: 'default', capability: 'spookyOptions', choices: [['default', 'Default · 紫色'], ['autumn', 'Autumn · 秋日'], ['graveyard', 'Graveyard · 灰紫'], ['moonlight', 'Moonlight · 月光']] },
+  spookyFrame: { label: 'Chat Box 外框', type: 'select', default: 'show', capability: 'spookyOptions', choices: [['show', '显示'], ['hide', '隐藏']] },
+  ...Object.fromEntries(SPOOKY_COLOR_KEYS.filter(key => key !== 'textColor').map((key, index) => [key, {
+    label: ['外框底色', '消息底色', '事件卡底色', '装饰强调色'][index], type: 'color', alpha: true, allowDefault: true, default: 'default', capability: 'spookyOptions', group: 'spookyColors',
+  }])),
+  ...Object.fromEntries(SPOOKY_OPACITY_KEYS.map((key, index) => [key, {
+    label: ['外框不透明度', '消息不透明度', '事件不透明度'][index], type: 'number', input: 'range', min: 0, max: 100, default: 100, unit: '%', capability: 'spookyOptions', group: 'spookyColors',
+  }])),
+  ...Object.fromEntries(Object.entries(RIPPLOID_COLOR_DEFAULTS).map(([key, value], index) => [key, {
+    label: key.startsWith('guard') ? ['舰长', '提督', '总督'][index - 6]
+      : ['＜50 元', '50～＜100 元', '100～＜500 元', '500～＜1000 元', '1000～＜2000 元', '≥2000 元'][index < 6 ? index : index - 9],
+    type: 'color', default: value, capability: 'ripploidColors',
+    group: key.startsWith('gift') ? 'ripploidGift' : key.startsWith('guard') ? 'ripploidGuard' : 'ripploidSuperchat',
+  }])),
+  decorationShape: { label: '装饰图案', type: 'select', default: 'sparkle', capability: 'decorationShape', help: '每种图案搭配自己的轻动画，切换图案即可预览。',
+    choices: [['sparkle', '四角星'], ['heart', '爱心'], ['square', '圆角方块'], ['star', '五角星'], ['flower', '小花'], ['moon', '月牙'], ['bow', '蝴蝶结']] },
+  entranceAnimation: { label: '入场动画', type: 'select', default: 'fade', capability: 'entranceAnimation', choices: [['fade', '动画 1 · 渐显'], ['rise', '动画 2 · 上浮弹入']] },
+  centerBias: { label: '中心倾向', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'distribution' },
+  dispersion: { label: '离散程度', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'distribution' },
+});
+const REAL_GIFT_STYLES = Object.freeze(['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']);
+const STYLE_OPTION_FIELDS = Object.fromEntries(Object.entries(DANMAKU_STYLE_OPTIONS).map(([style, limits]) => [style,
+  Object.fromEntries(Object.entries(DANMAKU_OPTION_FIELDS)
+    .filter(([, field]) => (!field.capability || limits[field.capability]) && (!field.layout || limits.layout === field.layout))
+    .map(([key, field]) => [key, Object.freeze({ ...field,
+      default: limits[field.defaultKey] ?? field.default,
+      ...(field.minKey ? { min: limits[field.minKey], max: limits[field.maxKey] } : {}),
+    })])),
+]));
+
+function styleOptionFields(style) {
+  return STYLE_OPTION_FIELDS[style] || {};
+}
+
+const composerSegments = new Intl.Segmenter('zh', { granularity: 'grapheme' });
 function inspectComposerText(value) {
   const text = typeof value === 'string' ? value.trim().normalize('NFC') : '';
-  const length = Array.from(new Intl.Segmenter('zh', { granularity: 'grapheme' }).segment(text)).length;
+  const length = Array.from(composerSegments.segment(text)).length;
   const error = typeof value !== 'string' ? '请输入文字。'
     : /[\p{Cc}\p{Zl}\p{Zp}]/u.test(value) ? '底部提示文字不能包含换行或控制字符。'
       : length > TWITTER_COMPOSER_TEXT_MAX_LENGTH ? `底部提示文字最多 ${TWITTER_COMPOSER_TEXT_MAX_LENGTH} 个字。` : '';
@@ -278,107 +339,54 @@ function inspectComposerText(value) {
 }
 
 function normalizeStyleOptions(value) {
-  const fail = () => {
-    throw Object.assign(new Error('INVALID_OVERLAY_OPTIONS'), { code: 'INVALID_OVERLAY_OPTIONS' });
-  };
+  const fail = () => { throw Object.assign(new Error('INVALID_OVERLAY_OPTIONS'), { code: 'INVALID_OVERLAY_OPTIONS' }); };
   if (!value || typeof value !== 'object' || Array.isArray(value)) fail();
   const result = {};
   for (const [style, options] of Object.entries(value)) {
-    if (
-      !Object.hasOwn(DANMAKU_STYLE_OPTIONS, style) ||
-      !options ||
-      typeof options !== 'object' ||
-      Array.isArray(options)
-    )
-      fail();
-    const limits = DANMAKU_STYLE_OPTIONS[style];
+    if (!Object.hasOwn(DANMAKU_STYLE_OPTIONS, style) || !options || typeof options !== 'object' || Array.isArray(options)) fail();
+    const fields = styleOptionFields(style);
     const normalized = {};
     for (const [key, item] of Object.entries(options)) {
-      if (
-        key === 'fontFamily' &&
-        typeof item === 'string' &&
-        (Object.hasOwn(DANMAKU_FONTS, item) ||
-          (item.length <= 402 &&
-            /^"(?:[^"\\\u0000-\u001f\u007f]|\\["\\])+"$/u.test(item) &&
-            !/[\u0000-\u001f\u007f]|^"\s*"$/u.test(item)))
-      )
+      if (!Object.hasOwn(fields, key)) fail();
+      const field = fields[key];
+      if (field.type === 'number') {
+        if (!Number.isFinite(item) || item < field.min || item > field.max
+          || (field.step === 0.01 ? Number(item.toFixed(2)) !== item : !Number.isInteger(item))) fail();
         normalized[key] = item;
-      else if (key === 'textColor' && typeof item === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item) && [7, 9].includes(item.length))
+      } else if (field.type === 'select') {
+        if (!field.choices.some(([value]) => value === item) && !field.legacy?.includes(item)) fail();
+        normalized[key] = item;
+      } else if (field.type === 'color') {
+        const color = typeof item === 'string' && (item.length === 7 || field.alpha && item.length === 9)
+          && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item);
+        if (!color && !(field.allowDefault && item === 'default')) fail();
         normalized[key] = item.toLowerCase();
-      else if (key === 'fontSize' && Number.isInteger(item) && item >= limits.minFontSize && item <= limits.maxFontSize)
+      } else if (field.type === 'font') {
+        if (typeof item !== 'string' || !(Object.hasOwn(DANMAKU_FONTS, item) || item.length <= 402
+          && /^"(?:[^"\\\u0000-\u001f\u007f]|\\["\\])+"$/u.test(item)
+          && !/[\u0000-\u001f\u007f]|^"\s*"$/u.test(item))) fail();
         normalized[key] = item;
-      else if (key === 'backgroundOpacity' && limits.background && Number.isInteger(item) && item >= 0 && item <= 100)
-        normalized[key] = item;
-      else if (key === 'giftImage' && limits.giftImage && ['theme', 'gift'].includes(item)) normalized[key] = item;
-      else if (key === 'composerText' && limits.composerText && typeof item === 'string') {
+      } else if (field.type === 'text') {
         const inspected = inspectComposerText(item);
         if (inspected.error) fail();
         if (inspected.text) normalized[key] = inspected.text;
       }
-      else if (limits.twitterOptions && Object.hasOwn(TWITTER_LAYOUT_DEFAULTS, key) && ['show', 'hide'].includes(item))
-        normalized[key] = item;
-      else if (limits.twitterOptions && Object.hasOwn(TWITTER_COLOR_DEFAULTS, key)
-        && typeof item === 'string' && [7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item)) normalized[key] = item.toLowerCase();
-      else if (key === 'decorationShape' && limits.decorationShape
-        && ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'].includes(item)) normalized[key] = item;
-      else if (key === 'entranceAnimation' && limits.entranceAnimation && ['fade', 'rise'].includes(item))
-        normalized[key] = item;
-      else if (key === 'scrollDirection' && limits.scrollDirection && ['up', 'down'].includes(item))
-        normalized[key] = item;
-      else if (key === 'edgeFade' && limits.scrollDirection && ['both', 'top', 'bottom', 'single', 'none'].includes(item))
-        normalized[key] = item;
-      else if (key === 'speedPixelsPerSecond' && limits.speed && Number.isInteger(item) && item >= 20 && item <= 600)
-        normalized[key] = item;
-      else if (key === 'floatingDispersion' && limits.layout === 'floating'
-        && Number.isInteger(item) && item >= 1 && item <= 100) normalized[key] = item;
-      else if (['centerBias', 'dispersion'].includes(key) && limits.layout === 'fullscreen-random'
-        && Number.isInteger(item) && item >= 1 && item <= 50) normalized[key] = item;
-      else if (key === 'bubbleColor' && limits.bubbleColor && typeof item === 'string'
-        && (item === 'default' || ([7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item))))
-        normalized[key] = item.toLowerCase();
-      else if (limits.ripploidColors && Object.hasOwn(RIPPLOID_COLOR_DEFAULTS, key)
-        && typeof item === 'string' && /^#[0-9a-f]{6}$/i.test(item)) normalized[key] = item.toLowerCase();
-      else if (key === 'spookyTheme' && limits.spookyOptions
-        && ['default', 'autumn', 'graveyard', 'moonlight'].includes(item)) normalized[key] = item;
-      else if (key === 'spookyFrame' && limits.spookyOptions && ['show', 'hide'].includes(item)) normalized[key] = item;
-      else if (limits.spookyOptions && key !== 'textColor' && SPOOKY_COLOR_KEYS.includes(key) && typeof item === 'string'
-        && (item === 'default' || ([7, 9].includes(item.length) && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(item)))) normalized[key] = item.toLowerCase();
-      else if (limits.spookyOptions && SPOOKY_OPACITY_KEYS.includes(key)
-        && Number.isInteger(item) && item >= 0 && item <= 100) normalized[key] = item;
-      else if (key === 'minGiftAmount' && limits.minGiftAmount && Number.isFinite(item)
-        && item >= 0 && item <= 100000 && Number(item.toFixed(2)) === item) normalized[key] = item;
-      else fail();
     }
     result[style] = normalized;
   }
   return result;
 }
-
-function styleOptionsFor(style, options = {}) {
+function styleOptionsFor(style, options = {}, legacyDurationSeconds = 6) {
+  const fields = styleOptionFields(style);
   const defaults = {
-    textColor: DANMAKU_STYLE_OPTIONS[style]?.defaultTextColor || '#eaf2ff',
-    fontFamily: DANMAKU_STYLE_OPTIONS[style]?.defaultFontFamily || 'default',
-    fontSize: DANMAKU_STYLE_OPTIONS[style]?.defaultFontSize || 30,
-    ...(DANMAKU_STYLE_OPTIONS[style]?.minGiftAmount ? { minGiftAmount: 0 } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.composerText ? { composerText: TWITTER_COMPOSER_TEXT_DEFAULT } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.twitterOptions ? { ...TWITTER_LAYOUT_DEFAULTS, ...TWITTER_COLOR_DEFAULTS } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.bubbleColor ? { bubbleColor: 'default' } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.ripploidColors ? RIPPLOID_COLOR_DEFAULTS : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.decorationShape ? { decorationShape: 'sparkle' } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.entranceAnimation ? { entranceAnimation: 'fade' } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.spookyOptions ? {
-      spookyTheme: 'default', spookyFrame: 'show',
-      spookyFrameColor: 'default', spookyMessageColor: 'default', spookyEventColor: 'default', spookyAccentColor: 'default',
-      spookyFrameOpacity: 100, spookyMessageOpacity: 100, spookyEventOpacity: 100,
-    } : {}),
-    backgroundOpacity: 100,
-    giftImage: 'theme',
-    scrollDirection: 'up',
-    ...(DANMAKU_STYLE_OPTIONS[style]?.scrollDirection
-      ? { edgeFade: DANMAKU_STYLE_OPTIONS[style].defaultEdgeFade || 'single' } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random' ? { centerBias: 1, dispersion: 1 } : {}),
-    ...(DANMAKU_STYLE_OPTIONS[style]?.speed ? { speedPixelsPerSecond: 120, floatingDispersion: 50 } : {}),
+    textColor: '#eaf2ff', fontFamily: 'default', fontSize: 30,
+    backgroundOpacity: 100, giftImage: 'theme', scrollDirection: 'up',
+    ...Object.fromEntries(Object.entries(fields).map(([key, field]) => [key, field.default])),
   };
+  if (fields.durationSeconds && Number.isInteger(legacyDurationSeconds)
+    && legacyDurationSeconds >= fields.durationSeconds.min && legacyDurationSeconds <= fields.durationSeconds.max) {
+    defaults.durationSeconds = legacyDurationSeconds;
+  }
   let resolved = defaults;
   try {
     resolved = { ...defaults, ...normalizeStyleOptions({ [style]: options[style] || {} })[style] };
@@ -389,14 +397,14 @@ function styleOptionsFor(style, options = {}) {
     resolved.textColor = SPOOKY_THEME_COLORS[resolved.spookyTheme].textColor;
   }
   // Keep accepting legacy image options while these styles always show the gift itself.
-  if (['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter'].includes(style)) resolved.giftImage = 'gift';
+  if (REAL_GIFT_STYLES.includes(style)) resolved.giftImage = 'gift';
   if (resolved.edgeFade === 'single') {
     resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
   }
   return resolved;
 }
 
-export { DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_DEFAULT, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, normalizeStyleOptions, styleOptionsFor };
+export { DANMAKU_OPTION_FIELDS, REAL_GIFT_STYLES, styleOptionFields, DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_DEFAULT, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, normalizeStyleOptions, styleOptionsFor };
 
 export function isRandomDanmakuStyle(style) {
   return DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random';
@@ -406,8 +414,8 @@ export function isFloatingDanmakuStyle(style) {
   return DANMAKU_STYLE_OPTIONS[style]?.layout === 'floating';
 }
 
-export function applyStyleOptions(document, style, allOptions) {
-  const options = styleOptionsFor(style, allOptions);
+export function applyStyleOptions(document, style, allOptions, legacyDurationSeconds) {
+  const options = styleOptionsFor(style, allOptions, legacyDurationSeconds);
   const composer = style === 'twitter' ? document.getElementById?.('twitterComposerText') : null;
   if (composer) composer.textContent = options.composerText;
   document.body.dataset.scrollDirection = options.scrollDirection;

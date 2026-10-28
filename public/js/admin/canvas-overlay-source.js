@@ -2,7 +2,7 @@ import { toast } from '../shared/utils.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { requestScene } from './scene-api.js';
-import { observeServerOverlayUrl } from './server-overlay-url.js';
+import { observeAuthorizedAccount } from './authorized-account.js';
 import { sceneSourceUrl } from './scene-source-url.js';
 import { eventBus } from '../shared/event-bus.js';
 
@@ -39,7 +39,7 @@ export function initCanvasOverlaySource() {
       status.textContent = error.message;
     }
   }
-  const stop = observeServerOverlayUrl(refresh);
+  const stop = observeAuthorizedAccount(refresh);
   const stopPublication = eventBus.on('scene:published', refresh);
   const tab = document.querySelector('[data-tab="overlayPage"]');
   tab.addEventListener('click', refresh);

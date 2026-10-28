@@ -38,6 +38,7 @@ function createApiContext(options) {
     scenes: options.scenes,
     sceneEvents: options.sceneEvents,
     readDanmakuDisplay: options.readDanmakuDisplay,
+    danmakuAppearance: options.danmakuAppearance,
     danmakuEvents: options.danmakuEvents,
     maxBodyBytes,
     sessionToken,

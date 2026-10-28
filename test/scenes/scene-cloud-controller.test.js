@@ -10,7 +10,7 @@ const OVERLAY_URL = 'https://stream.example.test/overlay/abcdefghijklmnop';
 const TIMESTAMP = '2026-09-30T08:00:00.000Z';
 const SUPERCHAT_ID = 'a'.repeat(64);
 const state = (liveSessionId = 'session-a') => ({
-  type: 'overlay-state', style: 'signal', state: 'running', liveStatus: liveSessionId ? 1 : 0,
+  type: 'overlay-state', state: 'running', liveStatus: liveSessionId ? 1 : 0,
   liveSessionId, confirmationMessage: liveSessionId ? '开始直播' : null,
 });
 const gift = (liveSessionId = 'session-a') => ({
@@ -144,7 +144,6 @@ test('idle desktops make no upstream requests and active readers share one cance
   assert.equal(idle.status, 'offline');
   assert.equal(idle.state, null);
   assert.deepEqual(idle.events, []);
-  assert.equal(buffer.getSettings().style, 'signal', 'Idle cleanup retains appearance settings.');
   assert.equal(env.tasks.size, 0, 'No retries remain when the display is unused.');
   env.demand(true);
   await flush();
@@ -206,7 +205,7 @@ test('one public connection preserves split UTF-8/CRLF events and strips non-dis
   assert.equal(JSON.stringify(env.updates).includes('PRIVATE'), false);
 });
 
-test('all eight protocol types keep live-session ordering and only appearance allowlists', async (t) => {
+test('protocol types keep live-session ordering and omit remote appearance', async (t) => {
   const env = fixture(t);
   env.controller.start();
   await flush();
@@ -230,7 +229,21 @@ test('all eight protocol types keep live-session ordering and only appearance al
   ];
   for (const event of events) source.send({ ...event, overlayUrl: OVERLAY_URL, accessToken: 'PRIVATE' });
   await flush();
+  events[6] = { type: 'overlay-settings', timestamp: TIMESTAMP };
   assert.deepEqual(env.events(), events);
+});
+
+test('unknown or malformed legacy appearance cannot block valid live events', async t => {
+  const env = fixture(t);
+  env.controller.start();
+  await flush();
+  env.streams[0].send({ ...state(), style: 'future-server-style', layout: 'unknown', styleOptions: { token: 'PRIVATE' } });
+  env.streams[0].send({ type: 'overlay-settings', style: 'unknown', styleParameters: 'invalid', timestamp: TIMESTAMP });
+  env.streams[0].send(gift());
+  await flush();
+  assert.deepEqual(env.events(), [state(), { type: 'overlay-settings', timestamp: TIMESTAMP }, gift()]);
+  assert.equal(env.updates.at(-1).status, 'connected');
+  assert.equal(env.requests.length, 1);
 });
 
 test('SC deletion keeps anonymous IDs, ignores another session and strips private fields', async (t) => {
@@ -330,7 +343,6 @@ for (const [name, events] of [
   ['inconsistent confirmation', [{ ...state(), confirmationMessage: null }]],
   ['event after live-ended', [state(), { type: 'live-ended', liveSessionId: 'session-a', timestamp: TIMESTAMP }, gift()]],
   ['private event type', [state(), { type: 'gift-event', cookie: 'PRIVATE' }]],
-  ['invalid appearance', [state(), { type: 'overlay-settings', style: 'signal', timestamp: TIMESTAMP, styleOptions: { signal: { token: 'PRIVATE' } } }]],
   ['invalid nested image', [state(), { ...gift(), giftImageUrl: 'https://user:PRIVATE@i0.hdslb.com/image.png' }]],
   ['invalid gift avatar', [state(), { ...gift(), avatarUrl: 'https://untrusted.test/image.png' }]],
   ['invalid purchased rank', [state(), { ...gift(), giftGuardLevel: 4 }]],
@@ -676,7 +688,6 @@ test('publish DTO drives the real cloud buffer, resets on stop and never replays
   env.streams[0].send(gift());
   await flush();
   assert.deepEqual(buffer.getSnapshot({ epoch: before.epoch, cursor: 0 }).events, [gift()]);
-  assert.equal(buffer.getSettings().style, 'signal');
   env.controller.stop();
   await env.controller.whenIdle();
   const stopped = buffer.getSnapshot({ epoch: before.epoch, cursor: 0 });

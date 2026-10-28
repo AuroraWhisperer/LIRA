@@ -1,13 +1,12 @@
-import { bindCopyUrl } from '../shared/copy-url.js';
 import { createDanmakuPreview, openDanmakuCanvas } from './danmaku-canvas-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
-import { observeServerOverlayUrl } from './server-overlay-url.js';
+import { observeAuthorizedAccount } from './authorized-account.js';
+import { readDanmakuAppearance, saveDanmakuAppearance } from './danmaku-appearance-api.js';
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import { isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js';
 import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
-import { normalizeStyleParameters } from '../shared/component-style-parameters.js';
 
 function bindStyleGroups() {
   const groups = ['Fixed', 'Random', 'Floating'].map((name) => ({
@@ -43,48 +42,38 @@ function bindStyleGroups() {
 }
 
 export function initDanmakuOverlaySettings(elements, toast) {
-  let overlayUrl = '';
+  let account = '';
+  let binding = '';
   let canvasEditor = null;
-  const bridge = window.liraLicense;
   const applyButton = document.getElementById('danmakuApplyOverlayBtn');
   const reloadButton = document.getElementById('danmakuReloadOverlayBtn');
   const discardButton = document.getElementById('danmakuDiscardOverlayBtn');
   const showStyleGroup = bindStyleGroups();
   let displayedStyle;
 
-  function settingsFrom(response, expectedUrl) {
-    if (!response?.ok) throw new Error(response?.error === 'NETWORK_UNAVAILABLE'
-      ? '无法连接服务器，请稍后重试。' : '暂时无法读取弹幕姬设置，请稍后重试；仍有问题时联系管理员。');
-    if (!Object.hasOwn(DANMAKU_STYLE_OPTIONS, response.style)
-      || !isValidFullscreenDuration(response.fullscreenDurationSeconds) || response.overlayUrl !== expectedUrl) {
-      throw new Error('服务器返回的弹幕姬配置无效。');
+  function settingsFrom(response) {
+    if (typeof response?.binding !== 'string' || !response.binding
+      || !Object.hasOwn(DANMAKU_STYLE_OPTIONS, response.config?.style)
+      || !isValidFullscreenDuration(response.config?.fullscreenDurationSeconds)) {
+      throw new Error('本机弹幕外观配置无效，请重新读取。');
     }
-    return { style: response.style, fullscreenDurationSeconds: response.fullscreenDurationSeconds,
-      ...(response.styleParameters === undefined ? {} : { styleParameters: response.styleParameters }),
-      ...(response.styleOptions === undefined ? {} : { styleOptions: response.styleOptions }),
-      ...(response.layout === undefined ? {} : { layout: response.layout }) };
+    return response.config;
   }
 
   const controller = createComponentConfigController({
     initial: { style: 'signal', fullscreenDurationSeconds: 6 },
     read: async () => {
-      const expectedUrl = overlayUrl;
-      return settingsFrom(await bridge.getOverlaySettings(), expectedUrl);
+      const expectedAccount = account;
+      const response = await readDanmakuAppearance();
+      const config = settingsFrom(response);
+      if (account === expectedAccount) binding = response.binding;
+      return config;
     },
     persist: async (submitted) => {
-      const expectedUrl = overlayUrl;
-      const saved = settingsFrom(await bridge.updateOverlaySettings(submitted), expectedUrl);
-      if (Object.hasOwn(submitted, 'styleOptions') && !Object.hasOwn(saved, 'styleOptions')) {
-        throw new Error('服务器未保存样式参数，请联系管理员处理后重试。');
-      }
-      if (Object.hasOwn(submitted, 'styleParameters') && Object.entries(normalizeStyleParameters('danmaku', submitted.styleParameters))
-        .some(([style, parameters]) => JSON.stringify(saved.styleParameters?.[style]) !== JSON.stringify(parameters))) {
-        throw new Error('服务器未完整保存效果参数，请联系管理员处理后重试。');
-      }
-      if (Object.hasOwn(submitted, 'layout') && !Object.hasOwn(saved, 'layout')) {
-        throw new Error('服务器未保存画布，请联系管理员处理后重试。');
-      }
-      return saved;
+      const expectedBinding = binding;
+      const response = await saveDanmakuAppearance({ binding: expectedBinding, config: submitted });
+      if (response?.binding !== expectedBinding) throw new Error('账号授权已变化，请重新读取后重试。');
+      return settingsFrom(response);
     },
   });
   registerComponentPreview('danmaku', () => createDanmakuPreview({ controller }));
@@ -94,7 +83,6 @@ export function initDanmakuOverlaySettings(elements, toast) {
       showStyleGroup(draft.style);
       displayedStyle = draft.style;
     }
-    elements.overlayUrl.textContent = overlayUrl || '登录 LIRA 后显示直播画面链接';
     for (const button of elements.styleButtons) {
       button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
       button.disabled = !loaded;
@@ -102,13 +90,11 @@ export function initDanmakuOverlaySettings(elements, toast) {
     elements.styleChip.textContent = loaded
       ? `${dirty ? '待应用' : '已应用样式'} · ${DANMAKU_STYLE_OPTIONS[draft.style].label}`
       : loading ? '正在读取样式' : '尚未读取样式';
-    elements.styleSaveState.textContent = !overlayUrl ? '请先连接已授权的 LIRA 账号。'
-      : state.error ? `应用失败，草稿已保留：${state.error}` : componentSaveMessage(state);
-    for (const button of [elements.overlayUrl, elements.openOverlayButton]) button.disabled = !overlayUrl;
+    elements.styleSaveState.textContent = !account ? '请先连接已授权的 LIRA 账号。' : componentSaveMessage(state);
     elements.previewOverlayButton.disabled = false;
     applyButton.disabled = !loaded || !dirty || saving;
-    applyButton.textContent = saving ? '正在应用…' : '应用到直播画面';
-    reloadButton.disabled = !overlayUrl || loading || saving;
+    applyButton.textContent = saving ? '正在保存…' : '保存外观';
+    reloadButton.disabled = !account || loading || saving;
     if (discardButton) discardButton.disabled = !dirty || saving;
   });
   bindDanmakuParameters(document, controller, (message) => { elements.styleSaveState.textContent = message; });
@@ -121,25 +107,18 @@ export function initDanmakuOverlaySettings(elements, toast) {
   }
   applyButton.addEventListener('click', () => saveComponentWithFeedback(controller, '弹幕姬样式', toast));
   discardButton?.addEventListener('click', () => controller.discard());
-  reloadButton.addEventListener('click', () => { if (overlayUrl) return controller.reload(); });
-  bindCopyUrl(elements.overlayUrl, {
-    getUrl: () => overlayUrl,
-    onCopied: () => toast('弹幕姬直播画面链接已复制'),
-    onError: error => toast(error.message || '复制链接失败'),
-  });
-  elements.openOverlayButton.addEventListener('click', () => {
-    if (overlayUrl) window.open(overlayUrl, '_blank', 'noopener');
-  });
+  reloadButton.addEventListener('click', () => { if (account) return controller.reload(); });
   elements.previewOverlayButton.addEventListener('click', () => {
     canvasEditor = openDanmakuCanvas({ controller });
   });
-  observeServerOverlayUrl((url) => {
-    if (url === overlayUrl) return;
+  observeAuthorizedAccount((next) => {
+    if (next === account) return;
     canvasEditor?.close();
     canvasEditor = null;
-    overlayUrl = url;
+    account = next;
+    binding = '';
     controller.reset();
-    if (url) void controller.reload();
+    if (account) void controller.reload();
   });
   return controller;
 }

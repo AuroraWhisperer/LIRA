@@ -228,13 +228,9 @@ function getElements() {
     accountState: document.getElementById('danmakuAccountState'),
     roomState: document.getElementById('danmakuRoomState'),
     refreshButton: document.getElementById('danmakuRefreshBtn'),
-    overlayUrl: document.getElementById('danmakuOverlayUrl'),
-    openOverlayButton: document.getElementById('danmakuOpenOverlayBtn'),
     previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
     styleChip: document.getElementById('danmakuStyleChip'),
     styleSaveState: document.getElementById('danmakuStyleSaveState'),
-    fullscreenDurationField: document.getElementById('danmakuFullscreenDurationField'),
-    fullscreenDuration: document.getElementById('danmakuFullscreenDurationSeconds'),
     resultState: document.getElementById('danmakuSendResult'),
   };
   elements.styleButtons = Array.from(document.querySelectorAll('[data-danmaku-style]'));

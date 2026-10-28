@@ -232,6 +232,17 @@ catalog version 的图片修复也会改变摘要。gift-feed scope 仅投影展
 
 ---
 
+## 本机弹幕外观管理
+
+`GET /api/danmaku/appearance` 与 `POST /api/danmaku/appearance` 由
+[danmaku-display-routes.js](../../../src/server/routes/danmaku-display-routes.js) 提供，仅管理身份可调用，
+overlay／场景 capability 无权调用。GET 返回 `{ok:true,data:{binding,config}}`；首次读取按当前授权账号承接旧远端外观，
+后续直接读取本地库。POST 接收 GET 所得 `{binding,config}`，完整校验后原子替换当前账号的外观。
+`config` 只接受 `style/fullscreenDurationSeconds/styleOptions/styleParameters/layout`，复用现有样式、参数与画布校验。
+binding 仅用于比对当前主进程提供的账号及授权 generation，不能选择写入账号。
+非法参数 400、旧 binding 409、未授权账号 423、读取／存储暂不可用 503；失败保留旧值。
+响应 `no-store`，成功写入通过已有场景及弹幕通知更新共享外观，不改场景版本或事件游标。
+
 ## 0.1 LIRA Server 设备授权域(song-page background)
 
 > 远端模块:lira-server 的设备路由;桌面端通过 [remote-license-client.js](../../../src/electron/license/remote-license-client.js) 调用。服务地址由 `LIRA_LICENSE_API_BASE` 配置,发布版默认 `https://api.lirahub.cn`。

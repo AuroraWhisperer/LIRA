@@ -153,7 +153,7 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
       renderConnectionStatus: (state) => connectionStates.push(state),
     },
     './component-preview-registry.js': { setComponentPreviewPreparation: noop, getComponentPreviews: () => [] },
-    './server-overlay-url.js': { waitForServerOverlayUrlInitialization: async () => {} },
+    './authorized-account.js': { waitForAuthorizedAccountInitialization: async () => {} },
     './component-preview-canvas-controller.js': { prepareComponentPreviewCanvas: noop },
     './component-style-client.js': { initComponentStyleLibraries: noop },
   };

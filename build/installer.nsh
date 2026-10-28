@@ -39,6 +39,18 @@ ManifestDPIAware true
   !include "installer-directory.nsh"
 !macroend
 
+!macro licensePage
+  ; Decline starts selected; Next stays disabled until the user accepts.
+  !define MUI_PAGE_HEADER_TEXT "用户协议"
+  !define MUI_PAGE_HEADER_SUBTEXT "安装 LIRA 前，请仔细阅读下面的协议。"
+  !define MUI_LICENSEPAGE_TEXT_TOP "滚动鼠标或按 Page Down 键可以查看全部内容。"
+  !define MUI_LICENSEPAGE_TEXT_BOTTOM "选中“我已阅读并同意以上协议”才能继续安装；不同意的话，可以点“取消”退出。"
+  !define MUI_LICENSEPAGE_RADIOBUTTONS
+  !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_ACCEPT "我已阅读并同意以上协议(&A)"
+  !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_DECLINE "我不同意(&D)"
+  !insertmacro MUI_PAGE_LICENSE "${BUILD_RESOURCES_DIR}\user-agreement.txt"
+!macroend
+
 !macro customHeader
   !include "installer-process.nsh"
   !ifndef BUILD_UNINSTALLER
