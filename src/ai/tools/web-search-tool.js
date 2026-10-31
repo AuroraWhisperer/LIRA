@@ -71,15 +71,18 @@ function readTag(value, tag) {
 }
 
 function decodeXml(value) {
-  return String(value || '')
-    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&apos;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code)))
-    .replace(/&#x([\da-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)));
+  const entities = { lt: '<', gt: '>', quot: '"', apos: "'", amp: '&' };
+  return String(value || '').replace(
+    /<!\[CDATA\[([\s\S]*?)\]\]>|&(?:(lt|gt|quot|apos|amp)|#(x[\da-f]+|\d+));/gi,
+    (entity, cdata, name, numeric) => {
+      if (cdata !== undefined) return cdata;
+      if (name) return entities[name] ?? entity;
+      const code = /^x/i.test(numeric) ? parseInt(numeric.slice(1), 16) : Number(numeric);
+      return code > 0 && code <= 0x10ffff && !(code >= 0xd800 && code <= 0xdfff)
+        ? String.fromCodePoint(code)
+        : entity;
+    },
+  );
 }
 
 module.exports = { createWebSearchTool, parseRssResults };

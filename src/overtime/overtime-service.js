@@ -175,8 +175,7 @@ function createOvertimeService(options = {}) {
     const rules = validateRules(migrateRuleImages(input), {
       allowedRemoteImageOrigins: options.allowedRemoteImageOrigins,
     });
-    store.replaceRules(rules, toIso(now()));
-    commit('rules', materialize());
+    commit('rules', materialize(), { rules });
     return getSnapshot();
   }
 
@@ -452,7 +451,8 @@ function createOvertimeService(options = {}) {
       updatedAt: toIso(now()),
     };
     const nextMonotonicAnchorMs = monotonicNow();
-    if (options.ignorePending) store.saveStateAndIgnorePending(committedState);
+    if (options.rules) store.replaceRulesAndState(options.rules, committedState);
+    else if (options.ignorePending) store.saveStateAndIgnorePending(committedState);
     else store.saveState(committedState);
     state = committedState;
     monotonicAnchorMs = nextMonotonicAnchorMs;

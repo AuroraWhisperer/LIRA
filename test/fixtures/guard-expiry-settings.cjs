@@ -10,6 +10,7 @@ async function run() {
   const fs = require('node:fs');
   const path = require('node:path');
   const { app, BrowserWindow, session, ipcMain } = require('electron');
+  app.disableHardwareAcceleration();
   const { createHttpServer } = require('../../src/server/http-server');
   const { servePageOrAsset } = require('../../src/server/page-assets');
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
@@ -88,7 +89,7 @@ async function run() {
   const origin = `http://127.0.0.1:${server.address().port}`;
   if ((await fetch(`${origin}/admin`)).status !== 401) throw new Error('Desktop authorization required.');
   const window = new BrowserWindow({ width: 1440, height: 900, show: false,
-    webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false } });
+    webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } });
   const desktopAuth = createDesktopRequestAuth({ desktopSession: session.defaultSession,
     getMainWindow: () => window, getBaseUrl: () => origin, getToken: () => token });
   configureMediaRequestHeaders(session.defaultSession, {}, desktopAuth);

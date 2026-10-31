@@ -25,7 +25,7 @@
 - [x] Server：`node scripts/run-with-node.cjs --require ./test/support/test-mode.cjs --test test/cloud-state-sync.test.js test/settings-input-contract.test.js test/cloud-sync-http.test.js`。
 - [x] 同步消费者：`node --experimental-vm-modules --test test/cloud-sync/cloud-sync-controller.test.js test/cloud-sync/cloud-runtime-sync.test.js`。
 - [x] Server `npm run docs:check`；复用现有隔离桌面检查方式验证开关位置、默认值、保存及回填；不控制用户运行中的应用。
-- [ ] Live `npm run verify:docs` 全部通过：已运行，9/10 通过；另一份并行计划 `2026-10-27-ripploid-reference.md` 缺少 Status 字段使计划索引门禁失败，不修改该任务的工作。其余文档/接口/链接检查通过。
+- [x] Live `npm run verify:docs`：2026-10-28 复核为 10/10 通过，原并行 RIPPLOID 计划缺少 Status 的阻断已消失。
 - [x] 两仓审阅任务 diff、`git diff --check` 与状态，确认临时文件仅在 tmp、没有敏感或运行数据进入 diff。
 
 ## 失败处理与完成条件

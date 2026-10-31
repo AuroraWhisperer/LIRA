@@ -3,6 +3,36 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
+test('optional admin launcher handles asynchronous spawn failure and stays disabled by default', () => {
+  const fs = require('node:fs');
+  const vm = require('node:vm');
+  const { EventEmitter } = require('node:events');
+  const child = new EventEmitter();
+  let spawns = 0;
+  let unrefs = 0;
+  child.unref = () => { unrefs++; };
+  const messages = [];
+  const processStub = { env: {}, platform: 'win32' };
+  const moduleStub = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(require.resolve('../../src/server/admin-launcher'), 'utf8'), {
+    module: moduleStub,
+    process: processStub,
+    require: () => ({ spawn() { spawns++; return child; } }),
+    console: { log: (message) => messages.push(message), warn: (message) => messages.push(message) },
+  });
+  moduleStub.exports.openAdminPageIfNeeded('http://127.0.0.1:5000');
+  assert.equal(spawns, 0);
+  processStub.env.AUTO_OPEN_ADMIN = '1';
+  moduleStub.exports.openAdminPageIfNeeded('http://127.0.0.1:5000');
+  assert.equal(spawns, 1);
+  assert.equal(unrefs, 1);
+  assert.doesNotThrow(() => child.emit('error', new Error('spawn cmd ENOENT')));
+  assert.deepEqual(messages, [
+    'Open admin page manually: http://127.0.0.1:5000/admin',
+    'Could not open browser automatically: spawn cmd ENOENT',
+  ]);
+});
+
 test('server compatibility wrappers reuse one runtime and preserve stop defaults', async () => {
   const { createServerCompatibility } = require('../../src/server/compatibility-runtime');
   const calls = [];

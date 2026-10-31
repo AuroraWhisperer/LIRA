@@ -74,12 +74,16 @@ export function createOvertimeRuleEffectEditor({
     const displayInput = documentRef.createElement('input');
     const maxDisplayTextLength = getLimits().maxDisplayTextLength;
     displayInput.type = 'text';
-    displayInput.maxLength = maxDisplayTextLength;
     displayInput.value = String(rule.displayText || '');
     displayInput.placeholder = `最多 ${maxDisplayTextLength} 个字符`;
     displayInput.autocomplete = 'off';
     displayInput.dataset.displayText = 'true';
     displayInput.setAttribute('aria-label', `文字展板内容，最多 ${maxDisplayTextLength} 个字符`);
+    const validateDisplayText = () => displayInput.setCustomValidity(
+      Array.from(displayInput.value.trim()).length > maxDisplayTextLength ? `最多填写 ${maxDisplayTextLength} 个字符。` : '',
+    );
+    displayInput.addEventListener('input', (event) => { if (!event.isComposing) validateDisplayText(); });
+    displayInput.addEventListener('compositionend', validateDisplayText);
     displayLabel.append(displayCaption, displayInput);
     displayPanel.append(displayLabel);
 
@@ -182,6 +186,11 @@ export function createOvertimeRuleEffectEditor({
       createDurationPart('minutes', '分钟', values.minutes, 59),
       createDurationPart('seconds', '秒', values.seconds, 59),
     );
+    if (values.hours > 999) {
+      fieldset.dataset.preservedSeconds = String(absoluteSeconds);
+      for (const input of fieldset.querySelectorAll('input')) input.readOnly = true;
+      legend.textContent = '已保存时长（超出编辑范围，原值保留）';
+    }
     return fieldset;
   }
 

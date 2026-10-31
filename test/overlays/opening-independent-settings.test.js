@@ -105,7 +105,7 @@ test('pixel music upload and removal never replace the classic music slot', asyn
   fs.mkdirSync(path.join(dataDir, 'opening-music'));
   fs.writeFileSync(path.join(dataDir, 'opening-music/classic.mp3'), 'classic');
   const values = { ...DEFAULT_SETTINGS, openingAudioFile: 'classic.mp3', openingAudioName: '经典音乐' };
-  const context = { system: { dataDir }, settings: { get: () => values, set: (key, value) => { values[key] = value; } }, broadcastSnapshot() {} };
+  const context = { system: { dataDir }, settings: { get: () => values, setMany: patch => Object.assign(values, patch) }, broadcastSnapshot() {} };
   const req = Readable.from([Buffer.from('--test\r\nContent-Disposition: form-data; name="file"; filename="pixel.mp3"\r\nContent-Type: audio/mpeg\r\n\r\npixel\r\n--test--\r\n')]);
   req.headers = { 'content-type': 'multipart/form-data; boundary=test' };
   let payload;

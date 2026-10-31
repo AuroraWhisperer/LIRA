@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { registerBilibiliIpc } = require('../../src/electron/ipc/bilibili-ipc');
 const { registerMusicIpc } = require('../../src/electron/ipc/music-ipc');
-const { registerUpdateIpc } = require('../../src/electron/ipc/update-ipc');
+const { registerDesktopShellIpc } = require('../../src/electron/ipc/desktop-shell-ipc');
 
 const BASE_URL = 'http://127.0.0.1:31001';
 
@@ -49,7 +49,7 @@ function fixture(register, channel, options = {}) {
 for (const [register, channel, allowLicense] of [
   [registerBilibiliIpc, 'bilibili:get-auth-state', false],
   [registerMusicIpc, 'music:get-auth-state', false],
-  [registerUpdateIpc, 'desktop:check-for-updates', true],
+  [registerDesktopShellIpc, 'desktop:check-for-updates', true],
 ]) {
   test(`${channel} keeps legal pages and rejects other windows, frames and origins`, async () => {
     const f = fixture(register, channel);
@@ -108,7 +108,7 @@ for (const channel of ['desktop:open-data-dir', 'desktop:open-log-dir']) {
     let result = '文件不存在';
     let directory = 'D:/synthetic-lira-directory';
     const calls = [];
-    const f = fixture(registerUpdateIpc, channel, {
+    const f = fixture(registerDesktopShellIpc, channel, {
       getDataDir: () => directory,
       getLogDir: () => directory,
       shell: { openPath: async (value) => { calls.push(value); return result; } },
@@ -131,7 +131,7 @@ for (const channel of ['desktop:get-resource-integrity-state', 'desktop:check-re
       calls += 1;
       return state;
     };
-    const f = fixture(registerUpdateIpc, channel, { resourceIntegrity: { getState: action, check: action } });
+    const f = fixture(registerDesktopShellIpc, channel, { resourceIntegrity: { getState: action, check: action } });
     assert.deepEqual(f.invoke(f.event), state);
     for (const arg of ['C:/secret', {}, undefined])
       assert.deepEqual(f.invoke(f.event, arg), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });

@@ -359,3 +359,11 @@ test('web search rejects empty or failed responses clearly', async () => {
   await assert.rejects(tool.search({}, { query: 'test' }), (error) => error.code === 'WEB_SEARCH_FAILED');
   assert.deepEqual(parseRssResults('<rss><channel /></rss>'), []);
 });
+
+test('web search decodes entities once and keeps invalid numeric entities from dropping later results', () => {
+  const results = parseRssResults('<rss><channel><item><title>literal &amp;#1114112; &#1114112; &#xD800;</title><link>https://example.test/one</link><description>&#65; &#x1f600; &amp;lt;</description></item><item><title><![CDATA[raw &amp; text]]></title><link>https://example.test/two</link></item></channel></rss>');
+  assert.equal(results.length, 2);
+  assert.equal(results[0].title, 'literal &#1114112; &#1114112; &#xD800;');
+  assert.equal(results[0].snippet, 'A 😀 &lt;');
+  assert.equal(results[1].title, 'raw &amp; text');
+});

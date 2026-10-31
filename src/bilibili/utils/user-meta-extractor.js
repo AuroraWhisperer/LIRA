@@ -2,7 +2,7 @@
 
 const { cleanText, normalizePositiveInteger, readObjectValue } = require('../../shared/utils');
 const { normalizeGuardLevel } = require('../../shared/bilibili-value-contract');
-const { normalizeBilibiliAvatarUrl } = require('../parsers/danmaku-parser');
+const { normalizeBilibiliAvatarUrl, parseDanmakuOptions } = require('../parsers/danmaku-parser');
 
 // ---------------------------------------------------------------------------
 // User metadata extraction utilities
@@ -35,7 +35,7 @@ function readFirstObject(value, keys) {
 function extractBilibiliDanmakuUserMeta(info, roomOwnerUid = '') {
   const medalInfo = Array.isArray(info) ? info[3] : null;
   const danmakuOptions = Array.isArray(info) && Array.isArray(info[0]) ? info[0][15] : null;
-  const userInfo = readFirstObject(danmakuOptions, ['user']);
+  const userInfo = readFirstObject(parseDanmakuOptions(danmakuOptions), ['user']);
   const userMedalInfo = readFirstObject(userInfo, ['medal']);
   const userGuardInfo = readFirstObject(userInfo, ['guard']);
   const currentMedalInfo = selectCurrentRoomMedalInfo([medalInfo, userMedalInfo], roomOwnerUid);

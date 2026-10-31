@@ -1,4 +1,5 @@
-const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '完整匹配回复', diy: '关键词回复', welcome: '进场欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单' };
+const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '完整匹配回复', diy: '关键词回复', welcome: '进场欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单', thanks: '礼物答谢文案' };
+const QUERY_LIST_HELP = '开启「查询回复」后，在直播间发送清单中的弹幕，系统会根据已保存的送礼记录自动回复。观众查询自己的记录，主播查询整个直播间的记录。所有时间均按北京时间计算。时间后面可以加“的”，例如“今天的礼物”。这里只展示指令用法，无需编辑或保存。';
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {
   const root = documentRef.querySelector?.('.danmaku-fixed-reply-section');
@@ -13,6 +14,12 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
     active = key;
     heading.hidden = !key;
     title.textContent = TITLES[key] || '';
+    if (key === 'query') {
+      const help = documentRef.createElement('lira-help');
+      help.setAttribute('label', '查询回复指令使用说明');
+      help.textContent = QUERY_LIST_HELP;
+      title.append(help);
+    }
     tabs.hidden = key !== 'welcome';
     documentRef.getElementById('danmakuWelcomeRefreshBtn').hidden = key !== 'welcome';
     for (const panel of panels) {
@@ -75,11 +82,12 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
     let page = 0;
     const search = listId === 'danmakuQueryReplyList' ? documentRef.getElementById('danmakuQueryReplySearch') : null;
     const empty = listId === 'danmakuQueryReplyList' ? documentRef.getElementById('danmakuQuerySearchEmpty') : null;
+    const isQuery = listId === 'danmakuQueryReplyList';
     const render = () => {
       const query = search?.value.trim().toLocaleLowerCase() || '';
-      const allRows = [...list.children];
+      const allRows = isQuery ? [...list.querySelectorAll('.danmaku-query-reply-row')] : [...list.children];
       const rows = allRows.filter((row) => {
-        const text = [row.textContent, ...[...row.querySelectorAll('input')].map((input) => input.value)].join(' ');
+        const text = [row.textContent, row.dataset.search, ...[...row.querySelectorAll('input')].map((input) => input.value)].join(' ');
         return text.toLocaleLowerCase().includes(query);
       }),
         pages = Math.max(1, Math.ceil(rows.length / 6));
@@ -88,6 +96,11 @@ export function initFixedReplyEditor({ documentRef = globalThis.document, window
       rows.forEach((row, index) => {
         row.hidden = Math.floor(index / 6) !== page;
       });
+      if (isQuery) {
+        for (const group of list.querySelectorAll('.danmaku-query-reply-group')) {
+          group.hidden = ![...group.querySelectorAll('.danmaku-query-reply-row')].some((row) => !row.hidden);
+        }
+      }
       pager.hidden = pages <= 1;
       previous.disabled = page === 0;
       next.disabled = page === pages - 1;

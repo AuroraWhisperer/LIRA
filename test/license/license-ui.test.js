@@ -228,3 +228,44 @@ test('account settings page has no device-management controls', () => {
   assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
   assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);
 });
+
+test('account settings agreement dialog reads the shared text once and closes', async () => {
+  const dialog = Object.assign(controlElement(), {
+    open: false,
+    showModal() {
+      this.open = true;
+    },
+    close() {
+      this.open = false;
+    },
+  });
+  const content = Object.assign(controlElement(), { scrollTop: 120 });
+  const elements = new Map([
+    ['licenseAgreementOpen', controlElement()],
+    ['licenseAgreementDialog', dialog],
+    ['licenseAgreementContent', content],
+    ['licenseAgreementClose', controlElement()],
+  ]);
+  const requests = [];
+  const agreement = 'LIRA 用户协议与隐私说明\n\n更新日期：2026 年 10 月 27 日';
+  const { initLicenseAgreement } = await loadModuleExports(path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'));
+  initLicenseAgreement({
+    documentRef: { getElementById: (id) => elements.get(id) || null },
+    fetchRef: async (url) => {
+      requests.push(url);
+      return new Response(agreement, { status: 200 });
+    },
+  });
+
+  await elements.get('licenseAgreementOpen').events.click();
+  assert.equal(dialog.open, true);
+  assert.equal(content.scrollTop, 0);
+  assert.equal(content.textContent, agreement);
+  assert.deepEqual(requests, ['/pages/admin/toolbox/user-agreement.txt']);
+  elements.get('licenseAgreementClose').events.click();
+  assert.equal(dialog.open, false);
+
+  await elements.get('licenseAgreementOpen').events.click();
+  assert.equal(dialog.open, true);
+  assert.equal(requests.length, 1, 'reopening reuses the already loaded agreement');
+});

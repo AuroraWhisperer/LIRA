@@ -78,13 +78,13 @@ body[data-style='identity']
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 body[data-style='identity'] .draw-danmaku-avatar {
-  /* 脱离行高计算，方形头像随正文增高，到上限后停留在右上角。 */
+  /* 头像保持默认尺寸，正文增高时仍停留在右上角。 */
   position: absolute;
   grid-area: avatar;
   top: 0;
   right: 0;
   width: auto;
-  height: 100%;
+  height: var(--identity-card-min-height);
   max-height: var(--identity-avatar-max-size);
   aspect-ratio: 1;
   min-width: 0;

@@ -37,7 +37,6 @@ export function initInteractionAppearance() {
   }
   function fill(settings) {
     const appearance = readInteractionAppearance(settings);
-    saved = appearance;
     for (const [key, input] of Object.entries(controls)) {
       if (input.type === 'checkbox') input.checked = appearance[key] === 'true';
       else input.value = appearance[key];
@@ -100,7 +99,8 @@ export function initInteractionAppearance() {
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || '读取失败');
       if (disposed) return;
-      fill(payload.data.settings);
+      saved = readInteractionAppearance(payload.data.settings);
+      fill(saved);
       loaded = true;
       dirty = false;
       apply.disabled = true;
@@ -129,7 +129,8 @@ export function initInteractionAppearance() {
       const patch = Object.fromEntries(Object.entries(draft()).filter(([key, value]) => value !== saved[key]));
       const response = await api('/api/settings', patch, { notifyError: false });
       if (disposed) return;
-      fill(response.data.settings);
+      saved = readInteractionAppearance(response.data.settings);
+      fill(saved);
       dirty = false;
       status.textContent = '已应用';
     } catch (error) {

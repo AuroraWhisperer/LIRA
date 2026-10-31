@@ -2,6 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const path = require('node:path');
+const { createParameterDocument } = require('../helpers/parameter-dom');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const {
   INTERACTION_APPEARANCE_DEFAULTS,
   normalizeInteractionAppearanceValue,
@@ -10,6 +13,54 @@ const {
 } = require('../../public/js/shared/interaction-appearance.js');
 const { projectOverlayState, projectWebSocketPayload } = require('../../src/server/overlay-projection');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
+
+test('reset appearance submits defaults against the last saved settings', async () => {
+  const document = createParameterDocument();
+  const window = new EventTarget();
+  const defaults = INTERACTION_APPEARANCE_DEFAULTS;
+  let saved = { ...defaults, interactionTextColor: '#ff0000', interactionFontSize: '24' };
+  const writes = [];
+  for (const key of Object.keys(defaults)) {
+    document.getElementById(key).type = key.startsWith('interactionShow') ? 'checkbox' : 'text';
+  }
+  for (const key of ['interactionPreviewTitle', 'interactionPreviewParticipants']) {
+    document.getElementById(key).parentElement = {};
+  }
+  const { initInteractionAppearance } = await loadModuleExports(
+    path.resolve(__dirname, '../../public/js/admin/interaction-appearance.js'), {
+      document, window,
+      MutationObserver: class { observe() {} disconnect() {} },
+      fetch: async (_url, options = {}) => {
+        if (options.method === 'POST') {
+          const patch = JSON.parse(options.body);
+          writes.push(patch);
+          saved = { ...saved, ...patch };
+        }
+        const payload = { ok: true, data: { settings: { ...saved } } };
+        return { ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) };
+      },
+    },
+  );
+  initInteractionAppearance();
+  await new Promise(setImmediate);
+  try {
+    document.getElementById('interactionAppearanceReset').events.click();
+    assert.equal(document.getElementById('interactionTextColor').value, defaults.interactionTextColor);
+    assert.equal(saved.interactionTextColor, '#ff0000', 'Reset edits a draft until applied');
+    await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
+    assert.equal(writes[0].interactionTextColor, defaults.interactionTextColor);
+    assert.equal(writes[0].interactionFontSize, defaults.interactionFontSize);
+    assert.equal(saved.interactionTextColor, defaults.interactionTextColor);
+    assert.equal(saved.interactionFontSize, defaults.interactionFontSize);
+    assert.equal(document.getElementById('interactionAppearanceStatus').textContent, '已应用');
+    document.getElementById('interactionTextColor').value = '#123456';
+    document.getElementById('interactionAppearanceForm').events.input();
+    await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
+    assert.deepEqual(writes[1], { interactionTextColor: '#123456' });
+  } finally {
+    window.dispatchEvent(new Event('app:shutdown'));
+  }
+});
 
 test('appearance accepts plain text and exact colors, with bounded opacity and safe fallback', () => {
   for (const [key, value] of Object.entries(INTERACTION_APPEARANCE_DEFAULTS))

@@ -84,8 +84,9 @@ async function capture(page, baseUrl, shot) {
 async function main() {
   const { chromium } = require('playwright');
   const fixture = await require('./web-fixture.cjs').start();
-  const browser = await chromium.launch();
+  let browser;
   try {
+    browser = await chromium.launch();
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
     const selected = process.argv
       .find((arg) => arg.startsWith('--only='))
@@ -96,9 +97,12 @@ async function main() {
       console.log('[ok]', JSON.stringify(await capture(page, fixture.baseUrl, shot)));
     }
   } finally {
-    await browser.close();
-    fixture.server.closeAllConnections();
-    await new Promise((resolve) => fixture.server.close(resolve));
+    try {
+      if (browser) await browser.close();
+    } finally {
+      fixture.server.closeAllConnections();
+      await new Promise((resolve) => fixture.server.close(resolve));
+    }
   }
 }
 

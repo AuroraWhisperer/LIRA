@@ -28,7 +28,7 @@ function createTestService(overrides = {}) {
   };
   const service = createAiAssistantService({
     store,
-    deepseek: overrides.deepseek || {
+    modelClient: overrides.modelClient || {
       createResponse: async () => ({
         text: 'ok',
         functionCalls: [],
@@ -51,7 +51,7 @@ function createTestService(overrides = {}) {
   return { ...service, handleDanmaku: danmaku => service.handleDanmaku({ roomId: 'test-room', ...danmaku }) };
 }
 
-function createAnsweringDeepseek(nextAnswer) {
+function createAnsweringModelClient(nextAnswer) {
   return {
     async createResponse(request) {
       if (request.purpose === 'generation' || request.purpose === 'tool_followup') {
@@ -76,7 +76,7 @@ async function waitUntil(predicate, timeoutMs = 1000) {
 }
 
 module.exports = {
-  createAnsweringDeepseek,
+  createAnsweringModelClient,
   createTestService,
   waitUntil,
 };

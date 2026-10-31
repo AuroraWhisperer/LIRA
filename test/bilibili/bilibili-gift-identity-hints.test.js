@@ -122,16 +122,15 @@ test('local message handling only ingests user hints even if a caller supplies a
   assert.equal(handler.handleGift, undefined);
 });
 
-test('guard toast source supports option and top-level variants without replacing zero', () => {
+test('guard toast excludes only an explicit duplicate option source', () => {
   for (const data of [
     { option: { source: 2 } },
-    { source: 2 },
-    { source: '2' },
-    { option: { source: null }, source: 2 },
+    { option: { source: '2' } },
   ]) {
     assert.equal(isBilibiliDuplicateGuardToast({ cmd: 'USER_TOAST_MSG_V2', data }), true);
   }
-  for (const data of [{}, { option: { source: 0 }, source: 2 }, { option: { source: 1 }, source: 2 }]) {
+  for (const data of [{}, { source: 2 }, { source: '2' }, { option: { source: null }, source: 2 },
+    { option: { source: '' }, source: 2 }, { option: { source: 0 }, source: 2 }, { option: { source: 1 }, source: 2 }]) {
     assert.equal(isBilibiliDuplicateGuardToast({ cmd: 'USER_TOAST_MSG_V2', data }), false);
   }
   assert.equal(isBilibiliDuplicateGuardToast({ cmd: 'GUARD_BUY', data: { source: 2 } }), false);

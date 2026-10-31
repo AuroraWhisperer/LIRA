@@ -91,3 +91,42 @@ test('audio worklet sends interleaved stereo while native output is active and n
   assert.ok(rendered.every(channel => channel.every(sample => sample === .25)));
   assert.equal(messages.length, 1);
 });
+
+test('pause and disposal during AudioContext resume cancel the pending native open', async () => {
+  const { createNativeOutput } = await loadModuleExports(path.resolve('public/js/playback/features/native-output.js'), { setTimeout, clearTimeout });
+  for (const cancel of ['pause', 'dispose']) {
+    const resumed = Promise.withResolvers();
+    const enteredResume = Promise.withResolvers();
+    const calls = [];
+    const audio = new EventTarget();
+    Object.assign(audio, { paused: false, ended: false });
+    class Context {
+      audioWorklet = { addModule: async () => {} };
+      destination = {};
+      createMediaElementSource() { return { connect() {}, disconnect() {} }; }
+      setSinkId = async () => {};
+      resume = async () => { enteredResume.resolve(); await resumed.promise; };
+      close = async () => {};
+    }
+    class Worklet {
+      port = { postMessage() {}, close() {} };
+      connect() {}
+      disconnect() {}
+    }
+    const output = createNativeOutput(audio, { AudioContextClass: Context, WorkletNodeClass: Worklet,
+      onFault: assert.fail, bridge: {
+        onFault() { return () => {}; },
+        async invoke(request) { calls.push(request.op); return { ok: true, data: { stream: 1 } }; },
+      },
+    });
+    const selection = output.select('wasapi:test');
+    await enteredResume.promise;
+    if (cancel === 'dispose') output.dispose();
+    else { audio.paused = true; audio.dispatchEvent(new Event('pause')); }
+    resumed.resolve();
+    await selection;
+    assert.deepEqual(calls, ['stop'], cancel);
+    assert.equal(output.currentId, '');
+    output.dispose();
+  }
+});

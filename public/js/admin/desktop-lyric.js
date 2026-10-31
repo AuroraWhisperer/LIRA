@@ -140,7 +140,7 @@ export function createDesktopLyric({
     };
 
     window.addEventListener('app:settings-state', (event) => {
-      loadWeSingLyricSettings(event.detail);
+      if (!settingsLoaded || (!dirty && !saving)) loadWeSingLyricSettings(event.detail);
       if (!settingsLoaded) {
         settingsLoaded = true;
         loadDesktopLyricSettings(event.detail);

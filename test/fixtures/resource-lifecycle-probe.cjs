@@ -83,7 +83,7 @@ async function run(mediaOnly = false) {
       show: false,
       width: 960,
       height: 540,
-      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, backgroundThrottling: false },
+      webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, offscreen: true, backgroundThrottling: false },
     });
     windows.add(win);
     win.once('closed', () => windows.delete(win));

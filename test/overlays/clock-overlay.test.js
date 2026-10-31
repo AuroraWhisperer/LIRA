@@ -209,7 +209,7 @@ test('live components compose the named clock card with fixed URL and custom con
   assert.match(script, /button\.disabled = !loaded/);
   assert.match(script, /control\.disabled = !loaded/);
   assert.match(panel, /<label\b(?=[^>]*\sid="clockCustomLabelField")(?=[^>]*\sfor="clockCustomLabel")[^>]*>/);
-  assert.match(styles, /aspect-ratio:\s*240\s*\/\s*400/);
+  assert.match(styles, /\.clock-preview-canvas iframe\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;/);
 });
 
 test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {

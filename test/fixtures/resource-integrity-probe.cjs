@@ -7,7 +7,7 @@ const http = require('node:http');
 const path = require('node:path');
 const assert = require('node:assert/strict');
 const { createResourceIntegrityManager } = require('../../src/electron/resource-integrity-manager');
-const { registerUpdateIpc } = require('../../src/electron/ipc/update-ipc');
+const { registerDesktopShellIpc } = require('../../src/electron/ipc/desktop-shell-ipc');
 
 const directory = process.argv[2];
 app.setPath('userData', path.join(directory, 'user-data'));
@@ -68,7 +68,7 @@ async function run() {
       if (window && !window.isDestroyed()) window.webContents.send('desktop:resource-integrity-state', state);
     },
   });
-  registerUpdateIpc({
+  registerDesktopShellIpc({
     ipcMain,
     app,
     resourceIntegrity: manager,

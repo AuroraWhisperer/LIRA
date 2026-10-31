@@ -256,7 +256,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 ### 6.3 礼物类命令路由
 
-`USER_TOAST_MSG_V2` 的重复提示判定先读 `option.source`，仅缺失/null 时回退顶层 `data.source`；显式 0 保留，数值或字符串 2 均识别为附带提示。该判定用于身份解析，不构成礼物结算或去重账本变更。
+`USER_TOAST_MSG_V2` 仅在 `option.source` 为数值或字符串 2 时识别为附带提示；缺失、null、空串和 0 均保留，不回退顶层 `data.source`。该判定用于身份解析，不构成礼物结算或去重账本变更。
 
 [gift-command-utils.js](../../../../src/bilibili/parsers/gift-command-utils.js) 识别 SEND_GIFT、BLIND_GIFT、COMBO_SEND、GUARD_BUY、USER_TOAST_MSG 和开放平台 SEND_GIFT/GUARD 前缀。`isBilibiliGiftLikeCommand` 也识别含 GIFT/COMBO/GUARD 的命令，排除 COMBO_END、GIFT_STAR_PROCESS、WIDGET_GIFT_STAR_PROCESS。它只用于路由身份提示及显式诊断抓包，不生成礼物记录；已删除动态检测前缀注册。
 
@@ -264,7 +264,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 `MessageHandlers.handleIdentityMessage` 调用 [extractBilibiliGiftIdentity](../../../../src/bilibili/users/gift-identity-hints.js)，把 `{uid, name, avatarUrl, roomIdentity?}` 交给用户信息服务。JSON 身份读取支持 sender_uinfo/user_info 的 base 与消息根字段；SEND_GIFT_V2 只读取 §5.3 的发送者字段。
 
-仅 USER_TOAST_MSG 的等级或舰队名称可形成已验证的本房间大航海提示。GUARD_BUY 和 USER_TOAST_MSG_V2 的 source=2 附带消息会被忽略；普通送礼包不能据其中的 guard_level 提升房间身份。后续身份合并、头像校验和连接代次隔离仍由用户信息服务负责。
+仅 USER_TOAST_MSG 的等级或舰队名称可形成已验证的本房间大航海提示。GUARD_BUY 不进入本地身份提示；USER_TOAST_MSG_V2 仅在 `option.source=2` 时作为附带提示忽略。普通送礼包不能据其中的 guard_level 提升房间身份。后续身份合并、头像校验和连接代次隔离仍由用户信息服务负责。
 
 该路径没有礼物数量/金额计算、付费判定、平台 ID 生成、盲盒匹配、礼物日志或 onGift 记账回调。服务器结果经独立投影器导入，见 [gift.md](gift.md) §2/§6.1。
 

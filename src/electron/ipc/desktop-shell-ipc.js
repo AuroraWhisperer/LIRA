@@ -2,7 +2,7 @@
 
 const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 
-function registerUpdateIpc({
+function registerDesktopShellIpc({
   ipcMain,
   app,
   shell,
@@ -95,4 +95,4 @@ function registerUpdateIpc({
   });
 }
 
-module.exports = { registerUpdateIpc };
+module.exports = { registerDesktopShellIpc };

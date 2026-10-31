@@ -15,7 +15,7 @@ internal sealed class DeviceCapture : IDisposable
   {
     try
     {
-      device = AudioDevices.OpenInput(deviceId, loopback);
+      device = AudioDevices.OpenEndpoint(deviceId, loopback ? DataFlow.Render : DataFlow.Capture);
       Initialize(loopback ? new WasapiLoopbackCapture(device) : new WasapiCapture(device, true, 30), channels);
     }
     catch { Dispose(); throw; }

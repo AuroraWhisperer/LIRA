@@ -123,6 +123,9 @@ test('danmaku metadata ignores a worn medal that belongs to another room', () =>
     medalLevel: 0,
     currentRoomVerified: true,
   });
+  const objectMetadata = extractBilibiliDanmakuUserMeta(info, 456);
+  info[0][15] = JSON.stringify(info[0][15]);
+  assert.deepEqual(extractBilibiliDanmakuUserMeta(info, 456), objectMetadata);
 });
 
 test('danmaku metadata keeps the current-room medal when nested worn medal belongs elsewhere', () => {

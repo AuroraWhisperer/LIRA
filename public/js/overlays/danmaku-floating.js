@@ -98,7 +98,7 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     }
   }
 
-  function append(item) {
+  function add(item) {
     if (item?.kind === 'superchat') return;
     if (!entries.length) root.replaceChildren();
     const node = createMessage(item, sequence++);
@@ -108,7 +108,17 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     root.append(node);
     observer?.observe(node);
     while (entries.length > maxItems) remove(entries[0]);
-    layout();
+    return true;
+  }
+
+  function append(item) {
+    if (add(item)) layout();
+  }
+
+  function appendBatch(items) {
+    let added = false;
+    for (const item of items) if (add(item)) added = true;
+    if (added) layout();
   }
 
   function clear() {
@@ -120,9 +130,10 @@ export function createFloatingDanmakuFeed(root, options = {}) {
 
   return {
     append,
+    appendBatch,
     render(items) {
       clear();
-      (Array.isArray(items) ? items : []).filter((item) => item?.kind !== 'superchat').slice(-maxItems).forEach(append);
+      appendBatch((Array.isArray(items) ? items : []).filter((item) => item?.kind !== 'superchat').slice(-maxItems));
     },
     setSpeedPixelsPerSecond(value) {
       speed = value;

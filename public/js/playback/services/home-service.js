@@ -267,7 +267,7 @@ export class HomeService {
    * 应用后台刷新结果（由 ContentLoader.onBackgroundUpdate 触发）
    * @param {{items, itemType, action}} update
    */
-  _applyBackgroundUpdate(update) {
+  applyBackgroundUpdate(update) {
     if (
       (update.requestGeneration !== undefined && update.requestGeneration !== this._requestGeneration) ||
       (update.platform && update.platform !== this.state?.selectedSource)

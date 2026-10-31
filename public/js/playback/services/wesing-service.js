@@ -51,6 +51,7 @@ export class WeSingService {
     this.activationQueue = Promise.resolve();
     this.lyricRenderer = null;
     this.pendingLyricOffsetMs = null;
+    this.lyricOffsetRevision = 0;
     this.cachePathDraft = null;
   }
 
@@ -70,6 +71,7 @@ export class WeSingService {
     const offsetRange = document.getElementById('weSingLyricOffsetMs');
     const offsetNumber = document.getElementById('weSingLyricOffsetMsNumber');
     offsetRange?.addEventListener('input', () => {
+      this.lyricOffsetRevision++;
       this.pendingLyricOffsetMs = Number(offsetRange.value);
       if (offsetNumber) offsetNumber.value = offsetRange.value;
     });
@@ -77,6 +79,7 @@ export class WeSingService {
       void this.saveLyricOffset(offsetRange.value);
     });
     offsetNumber?.addEventListener('input', () => {
+      this.lyricOffsetRevision++;
       const offsetMs = parseLyricOffset(offsetNumber.value);
       if (offsetRange && offsetMs !== null) {
         this.pendingLyricOffsetMs = offsetMs;
@@ -170,6 +173,7 @@ export class WeSingService {
   }
 
   async saveLyricOffset(rawValue) {
+    const revision = ++this.lyricOffsetRevision;
     const offsetMs = parseLyricOffset(rawValue);
     if (offsetMs === null) {
       this.pendingLyricOffsetMs = null;
@@ -184,11 +188,13 @@ export class WeSingService {
         method: 'POST',
         body: { offsetMs },
       });
-      this.applyStatus(data);
+      if (revision !== this.lyricOffsetRevision) return;
       this.pendingLyricOffsetMs = null;
+      this.applyStatus(data);
       this.renderOffsetInputs(true);
       this.toast(`全民歌词偏移已设为 ${formatSignedMilliseconds(offsetMs)}`);
     } catch (error) {
+      if (revision !== this.lyricOffsetRevision) return;
       this.pendingLyricOffsetMs = null;
       this.renderOffsetInputs(true);
       this.showError(error);

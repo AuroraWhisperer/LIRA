@@ -130,7 +130,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 - 一个 `gift_events.id` 就是一次连击最终封账后的礼物组,也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`quantityMode='group'` 时整组执行一次规则；`quantityMode='item'` 时按封账数量 `num` 执行对应次数。
 - 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态,重复包、迟到包、数量继续增长都不再修改(`isComplete`,[overtime-store.js](../../../src/storage/overtime-store.js))。
-- **服务器收尾**：平台结束标记和 5 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
+- **服务器收尾**：平台结束标记和 6 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
 - **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js](../../../src/storage/overtime-store.js))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
 
 同一启用轮次内，已经收到但尚未结算的礼物继续保留资格；切换账号、直播间或 active source 不会自动结束本轮，也不取消旧来源的待结算工作。收到 final 或补偿恢复后，符合本轮资格的礼物仍结算到本地同一个计时器。`disable` 才结束本轮并忽略 pending；再次 `enable` 递增 epoch，旧轮礼物不再补算。启停不清零已累计时间，恢复初始时间仍由独立的 `reset` 操作完成。此约定仅针对本轮已接收的礼物，不改变历史同步的消费者资格或终态幂等规则。
@@ -194,7 +194,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 ## 4. 规则与时间盲盒
 
-规则表 `overtime_gift_rules`(`gift_id` PK)由 `POST /api/overtime/rules` **整表原子替换**(`replaceRules` 在单个 `BEGIN IMMEDIATE` 事务内 DELETE + 批量 INSERT,[overtime-store.js](../../../src/storage/overtime-store.js));读取按 `sort_order, gift_id` 排序([overtime-store.js](../../../src/storage/overtime-store.js)),快照 `rules` 字段返回**全部**规则(含停用)。
+规则表 `overtime_gift_rules`（主键为 `(gift_id, gift_identity_key)`，并保存对应身份 JSON）由 `POST /api/overtime/rules` **整表原子替换**；`replaceRulesAndState` 在单个 `BEGIN IMMEDIATE` 事务内 DELETE、批量 INSERT 并保存递增后的机器 revision。全部提交后才切换内存状态和通知消费者，失败保留旧规则、revision 及通知状态。读取按 `sort_order, gift_id` 排序([overtime-store.js](../../../src/storage/overtime-store.js))，快照 `rules` 字段返回**全部**规则(含停用)。
 
 ### 4.1 校验常量
 

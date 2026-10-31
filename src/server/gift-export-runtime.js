@@ -4,6 +4,7 @@ const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings')
 const { buildGiftCards } = require('../../public/js/shared/gift-card-model.js');
 const { createGiftCardRuntime } = require('./gift-card-runtime');
 
+// Local gift facade for source selection, sync callbacks, shared cards and export preparation/settings.
 function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnapshot, giftCards, getUserAvatar }) {
   let sync = {};
   const cards =

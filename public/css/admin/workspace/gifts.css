@@ -51,7 +51,7 @@ body.player-dock-expanded .gift-workspace {
   border-left: 1px solid var(--color-border-light);
 }
 
-.gift-interaction-summary:has(#giftInteractionStatus[hidden]) {
+.gift-interaction-summary:has(#giftInteractionRefresh[hidden]) {
   display: none;
 }
 

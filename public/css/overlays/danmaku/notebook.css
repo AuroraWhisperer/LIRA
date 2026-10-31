@@ -18,7 +18,8 @@ body[data-style='notebook'] .draw-danmaku-item.notebook-item {
   position: relative; display: flex; align-items: flex-start; gap: .346154em;
   width: max-content; max-width: 100%; min-width: 0; min-height: 0; margin: 0; padding: 0;
   border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none; overflow: visible;
-  font: 700 var(--danmaku-font-size)/1.471154 var(--notebook-font);
+  /* Paper, portraits and heading keep the style's default scale. */
+  font: 700 23px/1.471154 var(--notebook-font);
   color: var(--nb-ink); text-shadow: none; text-rendering: optimizeLegibility; animation: none;
 }
 body[data-style='notebook'] .notebook-item[data-live-entry] { animation: var(--danmaku-enter-animation); }
@@ -76,7 +77,7 @@ body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] .notebo
 body[data-style='notebook'] .notebook-item[data-notebook-role='captain'] .notebook-guard { width: 1.2375em; height: 1.4625em; transform: translateY(-.05625em); }
 body[data-style='notebook'] .notebook-item .notebook-content .notebook-copy {
   display: block; min-width: 0; margin: 0; padding: .238em 0 0; border: 0; background: none;
-  color: var(--nb-ink); font: inherit; line-height: 1.471154; white-space: pre-wrap; overflow-wrap: anywhere;
+  color: var(--nb-ink); font: inherit; font-size: var(--danmaku-font-size); line-height: 1.471154; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 body[data-style='notebook'][data-custom-text-color='true'] .notebook-item .notebook-content .notebook-copy { color: var(--danmaku-text-color); }
 body[data-style='notebook'] .notebook-item .draw-danmaku-text { font: inherit; }

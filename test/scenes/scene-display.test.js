@@ -130,6 +130,8 @@ test('new connection requires state and ignores stale connection events or disco
   const reconnect = fixture.buffer.getSnapshot();
   assert.equal(reconnect.status, 'connecting');
   assert.notEqual(reconnect.epoch, initial.epoch);
+  assert.equal(fixture.update('connecting', null, { connectionEpoch: 'connection-b' }), false);
+  assert.deepEqual(fixture.buffer.getSnapshot(), reconnect);
   assert.equal(fixture.update('connected', gift()), false);
   assert.equal(fixture.update('offline'), false);
   assert.equal(fixture.update('connected', gift(), { connectionEpoch: 'connection-b' }), false);
@@ -138,6 +140,8 @@ test('new connection requires state and ignores stale connection events or disco
   const disconnected = fixture.buffer.getSnapshot();
   assert.equal(disconnected.status, 'offline');
   assert.equal(disconnected.state, null);
+  assert.equal(fixture.update('offline', null, { connectionEpoch: 'connection-b' }), false);
+  assert.deepEqual(fixture.buffer.getSnapshot(), disconnected);
   assert.equal(fixture.update('connected', liveState(), { connectionEpoch: 'connection-b' }), false);
 });
 
@@ -171,6 +175,7 @@ test('only event fields leave the buffer and snapshots cannot mutate internal st
   state.styleOptions.signal.fontSize = 40;
   const initial = fixture.buffer.getSnapshot();
   fixture.update('connected', { ...gift(), honorLevel: 45, avatarUrl: 'https://i0.hdslb.com/face.png', giftGuardLevel: 3,
+    guardAction: 'renew', guardAccompanyDays: 360,
     uid: 'PRIVATE', capability: 'PRIVATE', raw: { cookie: 'PRIVATE' } });
   fixture.update('connected', { type: 'danmaku', liveSessionId: 'session-a', timestamp, name: '观众', message: '内容',
     avatarUrl: '', medalName: '', medalLevel: 0, guardLevel: 0, isStreamer: true,
@@ -186,6 +191,8 @@ test('only event fields leave the buffer and snapshots cannot mutate internal st
   assert.equal(snapshot.events[0].honorLevel, 45);
   assert.equal(snapshot.events[0].avatarUrl, 'https://i0.hdslb.com/face.png');
   assert.equal(snapshot.events[0].giftGuardLevel, 3);
+  assert.equal(snapshot.events[0].guardAction, 'renew');
+  assert.equal(snapshot.events[0].guardAccompanyDays, 360);
   assert.equal(snapshot.events[1].honorLevel, 32);
   assert.equal(snapshot.events[1].roomGuardLevel, 3);
   assert.deepEqual(snapshot.events[1].roomMedal, { name: '当前房间', level: 28, guardLevel: 3, isLight: true,

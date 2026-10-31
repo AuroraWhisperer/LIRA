@@ -70,6 +70,21 @@ test('opening source follows the saved style unless its URL explicitly overrides
   }
 });
 
+test('moonlit text preserves an explicit empty value while missing values keep defaults', async () => {
+  const { mergeConfig } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/overlays/opening.js'), { URLSearchParams },
+  );
+  const merge = value => mergeConfig(value, {}, new URLSearchParams());
+  const defaults = merge({ style: 'moonlit-fan' });
+  const empty = merge({ style: 'moonlit-fan', title: '', subtitle: '  ', footer: '' });
+  for (const field of ['title', 'subtitle', 'footer']) {
+    assert.equal(empty[field], '');
+    assert.ok(defaults[field]);
+  }
+  assert.equal(merge({ style: 'moonlit-fan', title: ' 新标题 ' }).title, '新标题');
+  assert.equal(merge({ style: 'classic', title: '' }).title, merge({ style: 'classic' }).title);
+});
+
 test('pixel rendering owns one animation loop and releases it on hide, style switch and disposal', async () => {
   const callbacks = new Map();
   let id = 0;

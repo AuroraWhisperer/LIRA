@@ -8,7 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
-| [2026-10-27-song-request-cancel-switch](2026-10-27-song-request-cancel-switch.md) | Awaiting Verification | 开关、默认值、持久化、隔离 Electron 与 116 项相关测试通过，Server 文档 57 项通过；Live 文档门禁被并行 RIPPLOID 计划缺少状态阻断。 |
+| [2026-10-31-test-correctness-remediation](2026-10-31-test-correctness-remediation.md) | In Progress | 核对双端测试的规范、预期、夹具、异步隔离和分组，修正确认问题并验证；不以放宽断言获得全绿。 |
+| [2026-10-27-song-request-cancel-switch](2026-10-27-song-request-cancel-switch.md) | Awaiting Verification | 开关、默认值、持久化、隔离 Electron 与 116 项相关测试通过，Server 文档 57 项通过；2026-10-28 Live 文档门禁 10/10 通过，原 RIPPLOID 状态阻断已消失。跨设备同步的配套 Server 部署与真实环境验收待核。 |
 | [2026-10-25-ai-subscription-kimi](2026-10-25-ai-subscription-kimi.md) | Awaiting Verification | Kimi API、ChatGPT 订阅与 API 共存、加密凭据和界面已实现；359 项相关回归、桌面夹具、语法/架构/文档检查通过。真实账号授权与模型回复待验，未构建安装包。 |
 | [2026-10-25-danmaku-twitter](2026-10-25-danmaku-twitter.md) | Awaiting Verification | 已按原片 30fps 校正并完整显示表情；客户端与画布新增三个版式开关、四档礼物／SC 配色及不透明度。参数、保存与动效等 83 项聚焦测试及文档门禁通过，连续播放修改保留已有消息；原计划的真实 B 站上游、OBS／哔哩哔哩直播姬及远程服务器验收仍待补。 |
 | [2026-10-20-native-playback-outputs](2026-10-20-native-playback-outputs.md) | Awaiting Verification | 实际接口/设备及 ASIO 驱动选择已接入；本机 9 个 Windows 输出、后台时钟及播放操作通过。本机 ASIO 驱动启动失败，外接声卡/硬件回送与听感待实机，安装包未更新。 |
@@ -18,7 +19,7 @@
 | [2026-10-16-audio-assistant-model](2026-10-16-audio-assistant-model.md) | Paused | 10 月 17 日分离模型已更新原入口；15 组 PCM、20 秒静音、17 项路由、8 项歌曲及完整 DSP 检查通过。用户确认 QQ《咏春》和网易云外放正常，耳机按用户要求稍后再测。 |
 | [2026-10-16-audio-assistant-output-isolation](2026-10-16-audio-assistant-output-isolation.md) | Paused | QQ / 网易云实际外放已验收，网易云切歌自动恢复原声通过；保留当前使用版与用户设置，剩余新模型耳机输出、设备选择及恢复按用户要求稍后验证。 |
 | [2026-10-15-ai-conversation-continuity](2026-10-15-ai-conversation-continuity.md) | Awaiting Verification | 多轮历史、同观众串行、空闲清理和设置已完成；294 项相关测试、隔离 Electron、子代理验收及 DeepSeek 10 回合真实互动通过。豆包官网可聊天，但 adapter 经实际 207 秒间隔仍被验证拒绝；真实多轮待网页接入恢复后补验，安装版未更新。 |
-| [2026-10-15-random-danmaku-entrance](2026-10-15-random-danmaku-entrance.md) | Awaiting Verification | 尺寸、两种入场动画及客户端/画布 UI 已完成，214 项相关测试与隔离 Electron/浏览器验收通过；Server 并行修改使验证记录失效，文档门禁被盲盒 ADR-0102 冲突及豆包计划状态不同步阻断，待外部修改收束后复验。未打包或部署。 |
+| [2026-10-15-random-danmaku-entrance](2026-10-15-random-danmaku-entrance.md) | Awaiting Verification | 尺寸、两种入场动画及客户端/画布 UI 已完成，214 项相关测试与隔离 Electron/浏览器验收通过；2026-10-28 Live 文档门禁 10/10、Server 文档与契约门禁 58/58 通过，原 ADR 与计划状态阻断已消失。真实 B 站上游、OBS／哔哩哔哩直播姬及远程服务器验收仍待补，未打包或部署。 |
 | [2026-10-15-wesing-audio-diagnostics](2026-10-15-wesing-audio-diagnostics.md) | Awaiting Verification | 已修复非默认输出设备识别，加入播放诊断；报告按英文用途和本机时间命名，导出到日志文件夹。157 项相关回归、隔离 Electron、本机 COM、文档/架构/固定版本契约通过。待主播更新后实播验收，安装包未构建或发布。 |
 | [2026-10-14-netease-independent-clock](2026-10-14-netease-independent-clock.md) | Awaiting Verification | 实机外置采集、会员完整播放已验收。所有播放器共享的换句首字延迟已修复，91 项相关回归、架构/指南/文档及 Electron 延迟状态对照通过。安装包未更新，更新后的持续实播与特定模式验收仍待完成。 |
 | [2026-10-13-doubao-conversation-isolation](2026-10-13-doubao-conversation-isolation.md) | Awaiting Verification | 观众会话隔离与过期新建已完成本地验证；新增全部预设共享的身份/指令边界、JSON 风格资料及本地拦截，保留正常问题和豆包单次生成。AI/指南 277 项、架构 27 项及语法检查通过；真实私人对话隔离、模型防护效果及约 1 秒首字仍待更新后验收，未构建安装包。 |

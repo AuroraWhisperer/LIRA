@@ -1,57 +1,124 @@
 // Display examples only; command parsing and statistics remain server-owned.
-const QUERY_PERIODS = [
-  ['今天', '当天', ['今日']],
-  ['昨天', '前一天', ['昨日']],
-  ['本周', '本周一开始的一周', ['这周']],
-  ['本月', '当月', ['这个月']],
-  ['上月', '前一个月', ['上个月']],
-  ['今年', '当年'],
-  ['去年', '前一年'],
-  ['累计', '全部已记录时间', ['历史']],
-  ['x月', '当年 x 月', [], 'x 替换为 1—12 的月份，支持两位月份；未写年份时，按发送指令时的北京时间年份查询'],
-  ['2026年', '2026 年', [], '年份可换成其他四位年份，例如“2025年”'],
-  ['2026年x月', '2026 年 x 月', [], '年份可换成其他四位年份；x 替换为 1—12 的月份，支持两位月份'],
+const COMMON_PERIODS = [
+  { label: '今天', aliases: ['今日'] },
+  { label: '昨天', aliases: ['昨日'] },
+  { label: '本周', aliases: ['这周'], note: '从周一开始' },
+  { label: '本月', aliases: ['这个月'] },
+  { label: '上月', aliases: ['上个月'] },
+  { label: '今年' },
+  { label: '去年' },
+  { label: '累计', aliases: ['历史'], note: '全部已记录时间' },
 ];
 
-const QUERY_REPLIES = [
-  ...QUERY_PERIODS.flatMap(([period, label, aliases = [], note = '']) => ['礼物', '盲盒'].map((object) => {
-    const variants = aliases.map((alias) => `${alias}${object}`);
-    if (period === '累计' && object === '盲盒') variants.push('全部盲盒');
-    return {
-      trigger: `${period}${object}`,
-      reply: `动态查询${label}的${object}记录，回复统计结果。`,
-      note: [variants.length ? `也可用${variants.map((alias) => `“${alias}”`).join('、')}` : '', note,
-        `时间后可加“的”，例如“${period}的${object}”。`].filter(Boolean).join('；'),
-    };
-  })),
-  { trigger: '本月 礼物名称', reply: '查询指定礼物或盲盒名称的统计结果。', note: '名称须与礼物目录完整一致，适用上述所有时间写法。' },
+const TIME_PERIODS = [
+  { label: '指定月份', prefix: 'x月', search: '两位月份 未写年份 今年' },
+  { label: '指定年份', prefix: '2026年', search: '四位年份' },
+  { label: '指定年月', prefix: '2026年x月', search: '两位月份 四位年份' },
 ];
+
+function periodRule(period) {
+  const prefix = period.prefix || period.label;
+  const aliases = period.aliases || [];
+  const blindAliases = aliases.map((alias) => `${alias}盲盒`);
+  if (period.label === '累计') blindAliases.push('全部盲盒');
+  return {
+    ...period,
+    gift: `${prefix}礼物`,
+    blind: `${prefix}盲盒`,
+    giftAliases: aliases.map((alias) => `${alias}礼物`),
+    blindAliases,
+  };
+}
+
+const QUERY_GROUPS = [
+  { title: '常用查询', rules: COMMON_PERIODS.map(periodRule) },
+  {
+    title: '指定时间',
+    helpLabel: '指定时间写法说明',
+    help: '“x”代表月份，请换成 1—12 的数字。例如“3月礼物”表示查询今年 3 月，“03月礼物”也可以；不写年份时，按今年查询。“2026”是年份示例，可以换成其他四位年份，例如“2025年礼物”或“2025年3月盲盒”。',
+    rules: TIME_PERIODS.map(periodRule),
+  },
+  {
+    title: '按名称查询',
+    helpLabel: '按名称查询说明',
+    help: '把“礼物名称”替换成礼物或盲盒的完整名称，不能只填简称。“本月”也可以换成上面的其他时间，例如“今天”“今年”或“2026年3月”。',
+    rules: [{ label: '指令示例', gift: '本月 礼物名称', giftAliases: [], blindAliases: [], search: '完整名称 礼物名称 盲盒名称' }],
+  },
+];
+
+function createCommandCell(documentRef, command, aliases, kind) {
+  const cell = documentRef.createElement('div');
+  cell.className = 'danmaku-query-reply-command';
+  const text = documentRef.createElement('span');
+  text.className = 'danmaku-query-command-text';
+  text.textContent = command;
+  text.setAttribute('aria-label', `${kind}：${command}`);
+  cell.append(text);
+  if (aliases.length) {
+    const alias = documentRef.createElement('small');
+    alias.className = 'hint danmaku-query-reply-alias';
+    alias.textContent = `也可：${aliases.join('、')}`;
+    cell.append(alias);
+  }
+  return cell;
+}
+
+function createRow(documentRef, rule) {
+  const row = documentRef.createElement('div');
+  row.className = 'danmaku-custom-reply-row danmaku-query-reply-row';
+  row.dataset.search = [rule.search, ...rule.giftAliases, ...rule.blindAliases].filter(Boolean).join(' ');
+  const period = documentRef.createElement('div');
+  period.className = 'danmaku-query-reply-period';
+  const label = documentRef.createElement('span');
+  label.textContent = rule.label;
+  period.append(label);
+  if (rule.note) {
+    const note = documentRef.createElement('small');
+    note.className = 'hint';
+    note.textContent = rule.note;
+    period.append(note);
+  }
+  const gift = createCommandCell(documentRef, rule.gift, rule.giftAliases, rule.blind ? '礼物指令' : '名称查询指令');
+  row.append(period, gift);
+  if (rule.blind) {
+    row.append(createCommandCell(documentRef, rule.blind, rule.blindAliases, '盲盒指令'));
+  } else {
+    gift.classList.add('danmaku-query-reply-name-command');
+  }
+  return row;
+}
 
 export function initDanmakuQueryReplies({ documentRef = globalThis.document } = {}) {
   const list = documentRef.getElementById('danmakuQueryReplyList');
   if (!list) return;
-  const rows = QUERY_REPLIES.map((rule) => {
-    const row = documentRef.createElement('div');
-    row.className = 'danmaku-custom-reply-row danmaku-query-reply-row';
-    const fields = documentRef.createElement('div');
-    fields.className = 'danmaku-custom-reply-fields';
-    for (const [field, text] of [['trigger', '弹幕指令'], ['reply', '回复说明']]) {
-      const label = documentRef.createElement('label');
-      label.textContent = text;
-      const input = documentRef.createElement('input');
-      input.type = 'text';
-      input.readOnly = true;
-      input.value = rule[field];
-      input.setAttribute('aria-label', `${rule.trigger}的${text}`);
-      label.append(input);
-      fields.append(label);
+  const groups = QUERY_GROUPS.map((group) => {
+    const section = documentRef.createElement('section');
+    section.className = 'danmaku-query-reply-group';
+    const heading = documentRef.createElement('h5');
+    heading.className = 'danmaku-query-reply-heading';
+    const title = documentRef.createElement('span');
+    title.textContent = group.title;
+    heading.append(title);
+    if (group.help) {
+      const help = documentRef.createElement('lira-help');
+      help.setAttribute('label', group.helpLabel);
+      help.textContent = group.help;
+      heading.append(help);
     }
-    const note = documentRef.createElement('small');
-    note.className = 'hint danmaku-query-reply-note';
-    note.textContent = rule.note;
-    fields.append(note);
-    row.append(fields);
-    return row;
+    section.append(heading);
+    if (group.title !== '按名称查询') {
+      const columns = documentRef.createElement('div');
+      columns.className = 'danmaku-query-reply-columns danmaku-query-reply-column-head';
+      columns.setAttribute('aria-hidden', 'true');
+      for (const text of ['查询时间', '礼物指令', '盲盒指令']) {
+        const label = documentRef.createElement('span');
+        label.textContent = text;
+        columns.append(label);
+      }
+      section.append(columns);
+    }
+    section.append(...group.rules.map((rule) => createRow(documentRef, rule)));
+    return section;
   });
-  list.replaceChildren(...rows);
+  list.replaceChildren(...groups);
 }

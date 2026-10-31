@@ -1,5 +1,8 @@
 .license-account-panel {
-  gap: 16px;
+  width: 100%;
+  max-width: 960px;
+  margin-inline: auto;
+  gap: 12px;
 }
 
 .license-account-header,
@@ -93,53 +96,34 @@
   color: var(--text);
 }
 
-.license-account-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  border-color: var(--border);
-  background: var(--color-bg-tertiary);
+.license-account-links {
+  padding-block: 4px;
 }
 
-.license-account-note-icon {
+.license-account-link-row {
   display: grid;
-  flex: 0 0 28px;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--color-primary-light);
-  color: var(--primary-strong);
-  font-weight: var(--type-weight-bold);
+  grid-template-columns: minmax(190px, 0.9fr) minmax(0, 1.25fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 66px;
+  padding: 10px 0;
 }
 
-.license-account-note strong {
-  display: block;
-  margin-bottom: 4px;
-  color: var(--text);
+.license-account-link-row + .license-account-link-row {
+  border-top: 1px solid var(--color-border-light);
 }
 
-.license-account-note p {
-  color: var(--muted);
+.license-account-link-row h3 {
+  font-size: var(--type-size-section-title);
 }
 
-.license-website-copy {
-  display: grid;
-  min-width: 0;
-  gap: 4px;
-}
-
-.license-website-row p {
+.license-account-link-row p {
   color: var(--muted);
   font-size: var(--type-size-caption);
 }
 
-.license-website-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  line-height: 1.8;
+.license-account-link-row :is(a, button) {
+  white-space: nowrap;
 }
 
 .license-website-link {
@@ -160,8 +144,66 @@
   border-radius: 2px;
 }
 
+.license-agreement-dialog {
+  width: min(680px, calc(100vw - 48px));
+  max-height: calc(100vh - 64px);
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-floating);
+}
+
+.license-agreement-dialog::backdrop {
+  background: var(--color-bg-overlay-light);
+}
+
+.license-agreement-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.license-agreement-header h2 {
+  margin: 0;
+  font-size: var(--type-size-section-title);
+}
+
+.license-agreement-header button {
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  font-size: 20px;
+}
+
+.license-agreement-content {
+  height: min(540px, calc(100vh - 150px));
+  padding: 18px 22px 24px;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  outline-offset: -3px;
+  white-space: pre-wrap;
+  font-size: var(--type-size-caption);
+  line-height: 1.8;
+}
+
+@media (max-width: 700px) {
+  .license-account-link-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .license-account-link-row p {
+    grid-row: 2;
+    grid-column: 1 / -1;
+  }
+}
+
 @media (max-width: 560px) {
-  .license-website-row,
   .license-account-header,
   .license-account-card-heading {
     align-items: flex-start;

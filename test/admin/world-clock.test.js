@@ -3,6 +3,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
+const fs = require('node:fs');
+const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 let CITIES, DEFAULT_IDS, matchesCity, clockAt, dayDifference, sunDirection, isDaylight, layoutCityLabels;
@@ -109,6 +111,42 @@ test('expanded catalog covers domestic and international cities and disambiguate
   assert.ok(lasVegas.some(city => city.region === 'Nevada' && city.zone === 'America/Los_Angeles'));
   assert.ok(lasVegas.some(city => city.region === 'New Mexico' && city.zone === 'America/Denver'));
   assert.equal(CITIES.filter(city => matchesCity(city, 'this-city-does-not-exist')).length, 0);
+});
+
+test('Prague and Macau retain stable catalog IDs with their own seasonal clocks', () => {
+  const winter = new Date('2026-01-15T12:00:00Z');
+  const summer = new Date('2026-07-15T12:00:00Z');
+  for (const [id, name, zone, hours] of [
+    ['ne-1159151359', '布拉格', 'Europe/Prague', ['13', '14']],
+    ['ne-1159149085', '澳门', 'Asia/Macau', ['20', '20']],
+  ]) {
+    const city = CITIES.find(value => value.id === id);
+    assert.ok(matchesCity(city, name));
+    assert.equal(city.zone, zone);
+    assert.equal(clockAt(city.zone, winter).hour, hours[0]);
+    assert.equal(clockAt(city.zone, summer).hour, hours[1]);
+  }
+});
+
+test('catalog generation corrects known erroneous source fallback zones before writing tuples', () => {
+  const generator = path.resolve(__dirname, '../../scripts/generate-world-clock-cities.js');
+  const places = [
+    { NE_ID: 1159151359, ISO_A2: 'CZ', NAME: 'Prague', TIMEZONE: 'America/Chicago', LATITUDE: 50.085283, LONGITUDE: 14.464034 },
+    { NE_ID: 1159149085, ISO_A2: 'MO', NAME: 'Macau', TIMEZONE: 'America/Fortaleza', LATITUDE: 22.202998, LONGITUDE: 113.545048 },
+  ];
+  let generated;
+  vm.runInNewContext(fs.readFileSync(generator, 'utf8'), {
+    __dirname: path.dirname(generator), process: { argv: ['node', generator, 'places', 'geonames'] }, console: { log() {} },
+    require(name) {
+      if (name !== 'node:fs') return require(name);
+      return { readFileSync: file => file === 'places' ? JSON.stringify({ features: places.map(properties => ({ properties })) }) : '',
+        writeFileSync: (_file, value) => { generated = value; } };
+    },
+  });
+  const rows = JSON.parse(generated.slice(generated.indexOf('export const CITY_CATALOG = [') + 'export const CITY_CATALOG = '.length)
+    .trim().replace(/;$/, '').replace(/,\s*]$/, ']'));
+  assert.equal(rows.find(row => row[0] === 'ne-1159151359')[4], 'Europe/Prague');
+  assert.equal(rows.find(row => row[0] === 'ne-1159149085')[4], 'Asia/Macau');
 });
 
 test('day/night approximation puts Greenwich in daylight at equinox noon', () => {

@@ -6,6 +6,8 @@
 
 ## 历史报告
 
+- [客户端与服务器持续代码审计及复核修复结果](2026-10-29-full-stack-audit.md)（[审计提示词](2026-10-29-full-stack-audit-prompt.md)）
+- [客户端架构与命名审查及整改结果](2026-10-28-client-architecture-naming-review.md)（[审查提示词](2026-10-28-client-architecture-naming-review-prompt.md)）
 - [当前工作树只读代码审计](2026-10-24-code-audit.md)（[审计提示词](2026-10-24-code-audit-prompt.md)）
 - [模块化与公共能力复用整改](2026-10-22-modularity-reuse-remediation.md)
 

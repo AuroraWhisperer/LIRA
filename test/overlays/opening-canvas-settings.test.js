@@ -122,7 +122,7 @@ for (const [kind, name, bytes] of [['character', 'avatar.png', png], ['music', '
     req.headers = { authorization: `Bearer ${opened.token}`, 'content-type': 'multipart/form-data; boundary=test' };
     const res = { setHeader() {}, writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
     const pending = handleCanvasOpening({ componentPreviews: sessions, system: { dataDir }, settings: {
-      set() { assert.fail('A revoked upload cannot change settings'); },
+      setMany() { assert.fail('A revoked upload cannot change settings'); },
     } }, req, res, new URL(`http://localhost/api/component-preview/opening/${kind}?id=${opened.id}&attachmentId=${attachmentId}&style=pixel-cassette`));
     req.write(`--test\r\nContent-Disposition: form-data; name="file"; filename="${name}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
     sessions.revoke(opened.id);

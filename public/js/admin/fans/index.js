@@ -488,11 +488,14 @@ function createFanUi() {
       return;
     }
     if (name.startsWith('resolve-')) {
-      state.profile = await request('resolve-membership', {
-        profileId: state.profile.id,
+      const profile = state.profile;
+      const selection = state.selection;
+      const saved = await request('resolve-membership', {
+        profileId: profile.id,
         id: element.dataset.recordId,
         choice: name.slice(8),
       });
+      if (selection === state.selection && state.profile?.id === profile.id) state.profile = saved;
     } else if (name === 'archive') {
       const profile = state.profile;
       const selection = state.selection;

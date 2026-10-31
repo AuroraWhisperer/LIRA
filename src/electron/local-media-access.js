@@ -9,7 +9,7 @@ const ALLOWED_AUDIO_EXTENSIONS = new Set(['.mp3', '.flac', '.wav', '.aac', '.ogg
 function createLocalMediaAccess(dataDir) {
   const dataRoot = path.resolve(dataDir);
   const accessFilePath = path.join(dataRoot, ACCESS_FILE_NAME);
-  const allowedPaths = loadAllowedPaths(accessFilePath);
+  let allowedPaths = loadAllowedPaths(accessFilePath);
 
   function isAllowed(filePath) {
     try {
@@ -39,14 +39,11 @@ function createLocalMediaAccess(dataDir) {
         // Skip inaccessible paths or symlink resolution failures
       }
     }
-    let changed = false;
-    for (const resolved of resolvedPaths) {
-      if (!allowedPaths.has(resolved)) {
-        allowedPaths.add(resolved);
-        changed = true;
-      }
+    const nextPaths = new Set([...allowedPaths, ...resolvedPaths]);
+    if (nextPaths.size !== allowedPaths.size) {
+      persistAllowedPaths(accessFilePath, nextPaths);
+      allowedPaths = nextPaths;
     }
-    if (changed) persistAllowedPaths(accessFilePath, allowedPaths);
     return resolvedPaths;
   }
 
@@ -57,6 +54,8 @@ function createLocalMediaAccess(dataDir) {
   return { allowPath, allowPaths, isAllowed, getAllowedPaths };
 }
 
+// Shared by desktop IPC, permissions and media adapters; compares origins only.
+// Callers retain their own window/frame, route and permission checks.
 function hasExactOrigin(candidateUrl, expectedUrl) {
   try {
     return new URL(candidateUrl).origin === new URL(expectedUrl).origin;

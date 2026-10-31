@@ -13,8 +13,13 @@ async function editorFixture(t) {
     document.body.append(panel);
     window.writes = [];
     window.queryWrites = [];
-    window.queryState = { ok: true, status: 'confirmed', values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
+    const { DEFAULT_GIFT_THANKS_TEMPLATES } = await import('/js/shared/gift-thanks-templates.js');
+    window.queryState = { ok: true, status: 'confirmed', templates: { ...DEFAULT_GIFT_THANKS_TEMPLATES },
+      values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
+    window.templateWrites = [];
     const giftListeners = new Set();
+    const accountListeners = new Set();
+    window.changeAccount = state => accountListeners.forEach(listener => listener(state));
     window.changeGiftState = (state) => giftListeners.forEach((listener) => listener(state));
     window.remote = {
       ok: true, customExactReplyEnabled: false, customExactReplies: [{ trigger: '歌单', reply: '发送 点歌 歌名' }],
@@ -23,13 +28,21 @@ async function editorFixture(t) {
     };
     const bridge = {
       getState: async () => ({ state: 'authorized', streamer: { accountName: 'one' } }),
-      onStateChanged(fn) { window.changeAccount = fn; return () => {}; },
+      onStateChanged(fn) { accountListeners.add(fn); return () => accountListeners.delete(fn); },
       getFixedReplySettings: async () => structuredClone(window.remote),
       getGiftInteractionState: async () => structuredClone(window.queryState),
       onGiftInteractionStateChanged(fn) { giftListeners.add(fn); return () => giftListeners.delete(fn); },
       async setGiftInteraction(key, enabled) {
         window.queryWrites.push({ key, enabled });
         window.queryState.values[key] = enabled;
+        window.changeGiftState(structuredClone(window.queryState));
+        return structuredClone(window.queryState);
+      },
+      async setGiftThanksTemplates(templates) {
+        window.templateWrites.push(structuredClone(templates));
+        if (window.holdThanksSave) await new Promise(resolve => { window.finishThanksSave = resolve; });
+        if (window.failThanksSave) return { ...structuredClone(window.queryState), ok: false };
+        window.queryState.templates = structuredClone(templates);
         window.changeGiftState(structuredClone(window.queryState));
         return structuredClone(window.queryState);
       },
@@ -46,19 +59,21 @@ async function editorFixture(t) {
     const { initFixedReplyEditor } = await import('/js/admin/danmaku-fixed-replies.js');
     const { initDanmakuQueryReplies } = await import('/js/admin/danmaku-query-replies.js');
     const { initGiftInteractionControls } = await import('/js/admin/gifts/interaction-controls.js');
+    const { initDanmakuGiftThanks } = await import('/js/admin/danmaku-gift-thanks.js');
     window.fixed = initDanmakuCloudReplies({ bridge });
     initDanmakuQueryReplies();
-    initGiftInteractionControls({ bridge, surface: 'danmaku', notify: () => {} });
+    const thanks = initDanmakuGiftThanks({ bridge });
+    initGiftInteractionControls({ bridge, surface: 'danmaku', notify: () => {}, onState: thanks.updateState });
     initFixedReplyEditor();
   }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'));
   await page.waitForFunction(() => !document.getElementById('danmakuExactReplyToggle').disabled);
   return page;
 }
 
-test('query replies have a separate entry after the existing eight and exact editor saves only full-match rules', async (t) => {
+test('query and thanks share the final row and exact editor saves only full-match rules', async (t) => {
   const page = await editorFixture(t);
   assert.deepEqual(await page.locator('[data-fixed-item]').evaluateAll((items) => items.map((item) => item.dataset.fixedItem)),
-    ['checkin', 'fortune', 'welcome', 'random', 'exact', 'diy', 'pk', 'scheduled', 'query']);
+    ['checkin', 'fortune', 'welcome', 'random', 'exact', 'diy', 'pk', 'scheduled', 'query', 'thanks']);
   await page.getByRole('button', { name: '编辑完整匹配回复', exact: true }).click();
   assert.equal(await page.locator('#danmakuFixedEditorTitle').innerText(), '完整匹配回复');
   const builtIn = page.locator('#danmakuExactReplyList .danmaku-custom-reply-row').first();
@@ -94,32 +109,36 @@ test('query library uses month placeholders and year syntax, filters locally and
   }, readAdminFragmentHtml('pages/admin/gifts/page.html'));
   await page.getByRole('button', { name: '查看查询回复指令清单' }).click();
   const list = page.locator('#danmakuQueryReplyList');
-  const triggers = await list.locator('input').evaluateAll((inputs) => inputs.filter((_input, index) => index % 2 === 0).map((input) => input.value));
+  const triggers = await list.locator('.danmaku-query-command-text').allTextContents();
   for (const period of ['今天', '昨天', '本周', '本月', '上月', '今年', '去年', '累计',
     'x月', '2026年', '2026年x月']) {
     for (const object of ['礼物', '盲盒']) assert.ok(triggers.includes(`${period}${object}`));
   }
   assert.equal(triggers.length, 23);
   assert.equal(triggers.some((trigger) => /\d月/.test(trigger)), false);
-  assert.equal(await list.locator('input:not([readonly])').count(), 0);
+  assert.equal(await list.locator('.danmaku-query-reply-row').count(), 12);
+  assert.equal(await list.locator('.danmaku-query-reply-group').count(), 3);
+  assert.equal(await list.locator('input').count(), 0);
+  assert.equal(await page.locator('#danmakuFixedEditorHeading lira-help').count(), 1);
+  assert.equal(await list.locator('lira-help').count(), 2);
   assert.equal(await page.locator('#danmakuQueryRepliesPanel button.primary').count(), 0);
   await page.getByLabel('查找指令').fill('本月盲盒');
   assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 1);
-  assert.equal(await list.locator('.danmaku-query-reply-row:visible input').first().inputValue(), '本月盲盒');
+  assert.deepEqual(await list.locator('.danmaku-query-reply-row:visible .danmaku-query-command-text').allTextContents(),
+    ['本月礼物', '本月盲盒']);
   for (const [alias, trigger] of [
     ['今日礼物', '今天礼物'], ['昨日盲盒', '昨天盲盒'], ['这周礼物', '本周礼物'],
     ['这个月盲盒', '本月盲盒'], ['上个月礼物', '上月礼物'], ['历史礼物', '累计礼物'],
     ['全部盲盒', '累计盲盒'], ['x月礼物', 'x月礼物'], ['2026年x月盲盒', '2026年x月盲盒'],
   ]) {
     await page.getByLabel('查找指令').fill(alias);
-    assert.ok((await list.locator('.danmaku-query-reply-row:visible input').evaluateAll(
-      (inputs) => inputs.map((input) => input.value),
-    )).includes(trigger), `${alias} should find ${trigger}`);
+    assert.ok((await list.locator('.danmaku-query-reply-row:visible .danmaku-query-command-text').allTextContents())
+      .includes(trigger), `${alias} should find ${trigger}`);
   }
   await page.getByLabel('查找指令').fill('2026年');
-  assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 4);
+  assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 2);
   await page.getByLabel('查找指令').fill('两位月份');
-  assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 4);
+  assert.equal(await list.locator('.danmaku-query-reply-row:visible').count(), 2);
   await page.getByLabel('查找指令').fill('不存在的词条');
   assert.equal(await page.locator('#danmakuQuerySearchEmpty').isVisible(), true);
   await page.getByLabel('查找指令').fill('');
@@ -138,6 +157,90 @@ test('query library uses month placeholders and year syntax, filters locally and
   ]);
   assert.equal(await page.locator('#danmakuQueryToggle').isChecked(), false);
   assert.equal(await page.locator('#giftAutoThanksEnabled').isChecked(), true);
+  await page.locator('#danmakuGiftThanksToggle').uncheck();
+  await page.waitForFunction(() => !document.getElementById('giftAutoThanksEnabled').checked);
+  assert.equal(await page.locator('#danmakuQueryToggle').isChecked(), false);
+  await page.locator('#giftAutoThanksEnabled').check();
+  await page.waitForFunction(() => document.getElementById('danmakuGiftThanksToggle').checked);
+  assert.deepEqual((await page.evaluate(() => window.queryWrites)).slice(2), [
+    { key: 'giftAutoThanksEnabled', enabled: false }, { key: 'giftAutoThanksEnabled', enabled: true },
+  ]);
+});
+
+test('thanks edits use atomic Chinese parameters, native undo, safe paste and live examples', async (t) => {
+  const page = await editorFixture(t);
+  await page.getByRole('button', { name: '编辑礼物答谢文案' }).click();
+  const editor = page.getByRole('textbox', { name: '礼物答谢', exact: true });
+  const preview = page.locator('#danmakuThanksgiftPreview');
+  assert.equal(await editor.locator('[contenteditable="false"]').count(), 3);
+  assert.equal(await preview.textContent(), '感谢小明投喂人气票×1；共1电池');
+  await editor.evaluate(node => {
+    const range = document.createRange();
+    range.selectNodeContents(node.firstChild);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    node.focus();
+  });
+  await page.keyboard.insertText('谢谢');
+  assert.equal(await preview.textContent(), '谢谢小明投喂人气票×1；共1电池');
+  await editor.locator('[data-thanks-token="{称呼}"]').click();
+  await page.keyboard.press('Backspace');
+  assert.equal(await page.locator('#danmakuGiftThanksSave').isDisabled(), true);
+  await page.getByRole('group', { name: '插入礼物答谢参数', exact: true }).getByRole('button', { name: '观众称呼', exact: true }).click();
+  assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').count(), 1);
+  await editor.press('Control+z');
+  assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').count(), 0);
+  await editor.press('Control+Shift+z');
+  assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').count(), 1);
+  await page.keyboard.insertText('呀');
+  assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').textContent(), '观众称呼');
+  await editor.press('Control+z');
+  await page.getByLabel('礼物答谢预览示例').selectOption('free');
+  assert.equal(await preview.textContent(), '谢谢小明投喂辣条×5');
+  await page.getByLabel('礼物答谢预览示例').selectOption('blind');
+  assert.match(await preview.textContent(), /舰长 小明.*开出30电池（\+10电池）/);
+  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor();
+  assert.equal((await page.evaluate(() => window.templateWrites[0])).gift, '谢谢{称呼}投喂{礼物}；{金额}');
+  assert.equal(await page.evaluate(() => window.queryState.values.giftAutoThanksEnabled), true);
+  assert.deepEqual(await page.evaluate(() => window.queryWrites), []);
+  await editor.evaluate(node => {
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    const clipboard = new DataTransfer();
+    clipboard.setData('text/plain', '<img src=x>感谢{称呼}投喂{礼物}；{金额}');
+    clipboard.setData('text/html', '<img src=x onerror="throw new Error(\'unsafe\')">');
+    node.dispatchEvent(new ClipboardEvent('paste', { clipboardData: clipboard, bubbles: true, cancelable: true }));
+  });
+  assert.equal(await editor.locator('img').count(), 0);
+  assert.equal(await editor.locator('[data-thanks-token]').count(), 3);
+  assert.match(await editor.textContent(), /^<img src=x>/);
+  await page.getByRole('button', { name: '恢复默认文案' }).click();
+  assert.equal(await page.evaluate(() => window.templateWrites.length), 1);
+  assert.equal(await page.locator('#danmakuGiftThanksSave').isDisabled(), false);
+  await editor.fill('长'.repeat(70) + '{称呼}{礼物}{金额}');
+  assert.equal(await page.locator('#danmakuGiftThanksSave').isDisabled(), true);
+  assert.match(await preview.textContent(), /缩短过长的文字/);
+});
+
+test('thanks drafts survive a failed save and account changes discard the prior account draft', async (t) => {
+  const page = await editorFixture(t);
+  await page.getByRole('button', { name: '编辑礼物答谢文案' }).click();
+  const editor = page.getByRole('textbox', { name: '礼物答谢', exact: true });
+  await editor.fill('谢谢{称呼}支持{礼物}；{金额}');
+  await page.evaluate(() => { window.failThanksSave = true; });
+  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '草稿已保留' }).waitFor();
+  assert.equal(await editor.textContent(), '谢谢{称呼}支持{礼物}；{金额}');
+  await page.evaluate(() => { window.failThanksSave = false; window.holdThanksSave = true; });
+  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
+  await page.waitForFunction(() => typeof window.finishThanksSave === 'function');
+  await page.evaluate(() => { window.changeAccount({ state: 'unauthorized' }); window.finishThanksSave(); });
+  assert.doesNotMatch(await editor.textContent(), /谢谢|支持/);
+  assert.equal(await editor.getAttribute('contenteditable'), 'false');
 });
 
 test('timer interval and selection modes save together; invalid ranges and failures retain the draft', async (t) => {

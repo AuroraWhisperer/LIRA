@@ -49,6 +49,52 @@ function response() {
   return res;
 }
 
+test('scene danmaku projects only the matching local room profile and rechecks owner after a read', async t => {
+  let roomId = '1234', calls = 0, release;
+  const getState = () => ({ liveStatus: { roomId } });
+  const { runtime, state } = fixture(t, { bilibili: { getRoomProfile() {
+    calls++;
+    return new Promise(resolve => { release = resolve; });
+  } } }, getState);
+  const update = { ownerScope: state.owner.scope, authorizationEpoch: 1, connectionEpoch: 'profile-connection', status: 'connecting' };
+  runtime.receiveCloud(update);
+  runtime.receiveCloud({ ...update, status: 'connected', event: { type: 'overlay-state', state: 'running', liveStatus: 1,
+    liveSessionId: 'live', confirmationMessage: '开播', roomGuard: { roomId } } });
+  const created = runtime.service.create({ title: '房主资料', canvas: { width: 1920, height: 1080 } });
+  const saved = runtime.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [{ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
+      width: 600, height: 800, visible: true, locked: false, appearance: { mode: 'independent',
+        config: { style: 'twitter', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null } } }] } });
+  runtime.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const source = runtime.service.getSource(saved.document.id);
+  const first = runtime.service.getOutput(source);
+  const second = runtime.service.getOutput(source);
+  assert.equal(first.data.danmaku.roomProfile, null, 'Profile loading never delays event delivery');
+  assert.equal(second.data.danmaku.roomProfile, null);
+  await Promise.resolve();
+  assert.equal(calls, 1);
+  release({ roomId, uid: 'owner', name: '当前房主', avatarUrl: '', cookie: 'PRIVATE' });
+  await new Promise(setImmediate);
+  for (const output of [runtime.service.getOutput(source), runtime.service.getOutput(source)]) {
+    assert.deepEqual(output.data.danmaku.roomProfile, { roomId, uid: 'owner', name: '当前房主', avatarUrl: '' });
+    assert.doesNotMatch(JSON.stringify(output.data), /PRIVATE|cookie/);
+  }
+  roomId = '5678';
+  assert.equal((await runtime.service.getOutput(source)).data.danmaku.roomProfile, null);
+  assert.equal(calls, 1);
+  state.owner = { ...state.owner, epoch: 2 };
+  roomId = '1234';
+  runtime.receiveCloud({ ...update, authorizationEpoch: 2, connectionEpoch: 'profile-next', status: 'connecting' });
+  runtime.receiveCloud({ ...update, authorizationEpoch: 2, connectionEpoch: 'profile-next', status: 'connected',
+    event: { type: 'overlay-state', state: 'running', liveStatus: 1, liveSessionId: 'next', confirmationMessage: '开播', roomGuard: { roomId } } });
+  runtime.service.getOutput(source);
+  await Promise.resolve();
+  roomId = '5678';
+  release({ roomId: '1234', uid: 'late', name: '迟到房主' });
+  await new Promise(setImmediate);
+  assert.equal(runtime.service.getOutput(source).data.danmaku.roomProfile, null);
+});
+
 test('scene output uses explicit read ports and shares a fresh local snapshot only where needed', async t => {
   let reads = 0;
   let lineText = '当前歌词';

@@ -2,11 +2,11 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
+const { createModelClient } = require('../../src/ai/model-client');
 
 test('Kimi preset discovers official models and keeps thinking content across tool calls', async () => {
   const requests = [];
-  const client = createDeepSeekClient({ fetchImpl: async (url, options) => {
+  const client = createModelClient({ fetchImpl: async (url, options) => {
     requests.push({ url: String(url), body: options.body && JSON.parse(options.body) });
     if (!options.body) return jsonResponse({ data: [{ id: 'kimi-k2.6' }] });
     return jsonResponse({ id: `kimi-${requests.length}`, choices: [{ message: requests.length === 2
@@ -27,15 +27,33 @@ test('Kimi preset discovers official models and keeps thinking content across to
 
 test('Kimi K3 review and connection requests use low thinking with enough generation budget', async () => {
   let body;
-  const client = createDeepSeekClient({ fetchImpl: async (_url, options) => {
+  const client = createModelClient({ fetchImpl: async (_url, options) => {
     body = JSON.parse(options.body);
     return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
   } });
-  await client.testConnection({ modelProvider: 'kimi', model: 'kimi-k3', deepseekApiKey: 'fixture-key', reasoningEnabled: false });
+  const result = await client.testConnection({ modelProvider: 'kimi', model: 'kimi-k3', deepseekApiKey: 'fixture-key', reasoningEnabled: false });
+  assert.equal(result.provider, 'kimi');
   assert.equal(body.thinking, undefined);
   assert.equal(body.reasoning_effort, 'low');
   assert.equal(body.max_completion_tokens, 4096);
 });
+
+for (const { name, modelProvider, responsesUrl, provider } of [
+  { name: 'automatic official DeepSeek', modelProvider: 'auto', responsesUrl: 'https://api.deepseek.com', provider: 'deepseek' },
+  { name: 'automatic third-party', modelProvider: 'auto', responsesUrl: 'https://models.example.test/v1/responses', provider: 'custom' },
+  { name: 'explicit custom', modelProvider: 'custom', responsesUrl: 'https://models.example.test/v1/responses', provider: 'custom' },
+]) {
+  test(`${name} connection test reports the resolved provider`, async () => {
+    const client = createModelClient({ fetchImpl: async () => jsonResponse({
+      output_text: 'ok', choices: [{ message: { content: 'ok' } }],
+    }) });
+    const result = await client.testConnection({ modelProvider, model: 'fixture-model',
+      deepseekResponsesUrl: responsesUrl, deepseekApiKey: 'fixture-key', reasoningEnabled: false });
+    assert.equal(result.provider, provider);
+    assert.equal(result.model, 'fixture-model');
+    assert.equal(result.reply, 'ok');
+  });
+}
 
 function jsonResponse(payload, status = 200) {
   return new Response(JSON.stringify(payload), {
@@ -46,7 +64,7 @@ function jsonResponse(payload, status = 200) {
 
 test('DeepSeek client sends Responses request with hosted search and no reasoning effort', async () => {
   let captured;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       captured = { url: String(url), options, body: JSON.parse(options.body) };
       return jsonResponse({
@@ -80,7 +98,7 @@ for (const code of ['AI_SHUTDOWN', 'AI_DISABLED']) test(`DeepSeek preserves ${co
   const shutdownError = new Error('AI service is shutting down.');
   shutdownError.code = code;
   const logs = [];
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     logEvent: event => logs.push(event),
     fetchImpl: async (_url, options) =>
       new Promise((resolve, reject) => {
@@ -105,7 +123,7 @@ for (const code of ['AI_SHUTDOWN', 'AI_DISABLED']) test(`DeepSeek preserves ${co
 });
 
 test('DeepSeek client parses function calls from Responses output', async () => {
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () =>
       jsonResponse({
         id: 'resp_tool',
@@ -138,7 +156,7 @@ test('DeepSeek client parses function calls from Responses output', async () => 
 
 test('DeepSeek official base uses Chat Completions for connection tests and normal requests', async () => {
   const requests = [];
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       requests.push({ url: String(url), body: JSON.parse(options.body) });
       if (requests.length === 1) {
@@ -230,7 +248,7 @@ test('DeepSeek official base uses Chat Completions for connection tests and norm
 
 test('DeepSeek official Chat Completions URL remains usable and carries tool results forward', async () => {
   const requests = [];
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       requests.push({ url: String(url), body: JSON.parse(options.body) });
       if (requests.length === 1) {
@@ -307,7 +325,7 @@ test('DeepSeek official Chat Completions URL remains usable and carries tool res
 
 test('DeepSeek official Chat enables thinking and sends the selected reasoning effort', async () => {
   let capturedBody;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (_url, options) => {
       capturedBody = JSON.parse(options.body);
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
@@ -332,7 +350,7 @@ test('DeepSeek official Chat enables thinking and sends the selected reasoning e
 
 test('DeepSeek official Responses API uses its root path and mapped reasoning effort', async () => {
   let captured;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ id: 'resp_ds', output_text: 'ok' });
@@ -394,7 +412,7 @@ for (const scenario of [
 ]) {
   test(`${scenario.name} provider preset fixes its official endpoint and reasoning mapping`, async () => {
     let captured;
-    const client = createDeepSeekClient({
+    const client = createModelClient({
       fetchImpl: async (url, options) => {
         captured = { url: String(url), body: JSON.parse(options.body) };
         return jsonResponse(scenario.response);

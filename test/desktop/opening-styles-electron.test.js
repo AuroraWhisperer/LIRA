@@ -119,7 +119,7 @@ test('desktop opening styles share one picker and retain their own settings and 
     return (await prepareComponentPreviews()).find(entry => entry.id === 'canvas')?.controller.getState().draft.document.items
       .some(item => item.type === 'opening' && item.appearance.config.title === '花汀独立文案');
   });
-  await page.reload();
+  await page.reload({ waitUntil: 'domcontentloaded' });
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   await mount();
   await pixel.click();

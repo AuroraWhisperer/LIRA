@@ -12,6 +12,8 @@
 
 设备输入由 `DeviceCapture` 负责，录音端点与播放端点回送复用现有 WASAPI 共享路径。按实际输入格式转换、映射声道后进入现有处理核心；设备模式默认不做音乐分离、不触碰播放器隔离路由。来源、回送限制和退出行为见[桌面生命周期](../../docs/reference/desktop/main.md#电音助手生命周期)。`DeviceInputChecks` 使用合成 PCM 检查声道、格式转换、旧设置兼容和回送冲突，不录制用户输入。
 
+`AudioDevices.OpenEndpoint(id, flow)` 解析活动端点并校验方向：录音使用 `DataFlow.Capture`，回送与播放输出使用 `DataFlow.Render`；`DescribeInput` 继续封装输入格式读取。方向不符时拒绝端点，错误提示区分请求的输入/输出设备。`DeviceInputChecks` 在存在活动端点时只读检查这两种方向及错误提示，不启动录制。
+
 ## 验证
 
 `test/desktop/audio-assistant-native/NativeChecks.cs` 迁入原样品的 DSP 行为检查，覆盖精确直通、音高/速度/时长、连续调参、短尾及切歌/换播放器检测。测试工程直接编译这里的源码，资源来自已构建的 `build/audio-assistant/vendor`；构建中间产物与输出放入仓库 `tmp/`。原生恢复检查覆盖安全延期、真实失败、守护身份、记录保留、安装维护退出和状态变化。Electron 的隔离验证使用生成的静音 WAV，不录制用户歌曲，也不修改用户播放器或设备路由。

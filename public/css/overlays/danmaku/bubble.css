@@ -206,7 +206,7 @@ body[data-style='bubble'] .is-gift .draw-danmaku-gift-count {
 }
 
 /* Custom background strength leaves text and images opaque. */
-body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift) {
+body[data-custom-background='true'][data-style='bubble'] .draw-danmaku-item:not(.is-gift):not(.is-superchat) {
   background:
     linear-gradient(
       135deg,

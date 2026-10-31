@@ -328,15 +328,18 @@ function init({ notify = showStackedToast, confirm } = {}) {
 
   fetchModelsButton.addEventListener('click', async () => {
     const generation = ++modelRequestGeneration;
-    const service = JSON.stringify(readModelService());
-    const isCurrent = () => generation === modelRequestGeneration && service === JSON.stringify(readModelService());
+    const service = readModelService();
+    // Credential edits advance the generation; committing that same draft only clears its input.
+    const signature = JSON.stringify({ ...service, apiKey: '' });
+    const isCurrent = () => generation === modelRequestGeneration
+      && signature === JSON.stringify({ ...readModelService(), apiKey: '' });
     fetchModelsButton.disabled = true;
     fetchModelsButton.textContent = '获取中…';
     setState(modelFetchState, '正在从当前模型服务获取可用模型…');
     try {
       const result = await readApi('/api/ai/models', {
         method: 'POST',
-        body: service,
+        body: JSON.stringify(service),
       });
       if (!isCurrent()) return;
       const models = Array.isArray(result.models) ? result.models : [];

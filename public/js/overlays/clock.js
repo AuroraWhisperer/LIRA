@@ -186,7 +186,8 @@ async function initClock() {
   const completeQuery = ['style', 'date', 'seconds', 'format'].every((key) => params.has(key));
   const componentPreview = isComponentPreview();
   const effects = componentPreview ? null : createComponentStyleEffects(document);
-  const editingPreview = componentPreview && !isSceneComponent();
+  const containedPreview = componentPreview && params.get('previewFit') === 'contain';
+  const editingPreview = componentPreview && !isSceneComponent() && !containedPreview;
   const legacyPreview = window.parent !== window && completeQuery;
   let config = mergeClockConfig(null, queryConfig, params);
   let stateRevision = 0;
@@ -243,6 +244,10 @@ async function initClock() {
     card.style.setProperty('--clock-offset-x', `${-bounds.x}px`);
     card.style.setProperty('--clock-offset-y', `${-bounds.y}px`);
     card.style.setProperty('--clock-scale', String(scale));
+    if (containedPreview) {
+      card.style.left = `${Math.max(0, (viewport.width - CLOCK_FRAME_GUTTER - bounds.width * scale) / 2)}px`;
+      card.style.top = `${Math.max(0, (viewport.height - CLOCK_FRAME_GUTTER - bounds.height * scale) / 2)}px`;
+    }
     const size = { width: Math.round(viewport.width), contentWidth: Math.round(contentWidth),
       height: Math.ceil(bounds.height * scale + CLOCK_FRAME_GUTTER) };
     const key = JSON.stringify(size);

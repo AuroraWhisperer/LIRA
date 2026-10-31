@@ -42,6 +42,7 @@ function initClockCard() {
     if (!preview.getAttribute('src')) {
       const url = new URL(buildClockUrl(new URL('/clock', location.href).href, state.draft));
       url.searchParams.set('componentPreview', '1');
+      url.searchParams.set('previewFit', 'contain');
       preview.src = url.href;
     } else {
       preview.contentWindow?.postMessage({ type: 'component-preview:config', config: state.draft }, '*');

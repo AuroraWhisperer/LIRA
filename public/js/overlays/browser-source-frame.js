@@ -1,6 +1,6 @@
-import { createComponentStyleEffects } from '../overlays/component-style-effects.js';
-import { styleParametersFor } from './component-style-parameters.js';
-import { normalizeBrowserSourceConfig } from './scene-browser-source.js';
+import { createComponentStyleEffects } from './component-style-effects.js';
+import { styleParametersFor } from '../shared/component-style-parameters.js';
+import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 
 const frameEffects = new WeakMap();
 

@@ -304,6 +304,7 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
   );
   const savedConfigs = [];
+  let saveGate = null;
   let listRenders = 0;
   const settings = createBlindboxSettings({
     documentRef: { getElementById: (id) => elements.get(id) || null, createElement: () => makeElement() },
@@ -312,7 +313,8 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     toast() {},
     saveSettings: async (config) => {
       savedConfigs.push(config);
-      throw new Error('offline');
+      if (!saveGate) throw new Error('offline');
+      await saveGate.promise;
     },
     getGifts: () => ({
       renderBlindBoxList() {
@@ -354,4 +356,16 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   editable.listeners.get('input')();
   await assert.rejects(elements.get('giftBlindBoxSaveBtn').listeners.get('click')(), /offline/);
   assert.equal(savedConfigs.at(-1).giftBlindBoxCustomConfigV2, '[]');
+
+  saveGate = Promise.withResolvers();
+  editable.value = '[{"name":"submitted"}]';
+  const saving = elements.get('giftBlindBoxSaveBtn').listeners.get('click')();
+  editable.value = '[{"name":"newer draft"}]';
+  editable.listeners.get('input')();
+  saveGate.resolve();
+  await saving;
+  assert.equal(editable.dataset.dirty, 'true', 'a late success must not release newer draft protection');
+  assert.equal(editable.value, '[{"name":"newer draft"}]');
+  await elements.get('giftBlindBoxSaveBtn').listeners.get('click')();
+  assert.equal(editable.dataset.dirty, 'false', 'an unchanged successful submission releases protection');
 });

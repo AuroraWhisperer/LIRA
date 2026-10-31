@@ -4,6 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { NeteaseMusicProvider } = require('../../src/music/providers/netease-provider');
 const { getMusicHomeContent, writeMusicPlaylistTracks } = require('../../src/music/lyrics-service');
+const path = require('node:path');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 function createProvider() {
   return new NeteaseMusicProvider({
@@ -56,6 +58,67 @@ test('NetEase stream requests read the current account cookie each time and hono
   assert.equal(member.trial, false);
   assert.equal(member.quality, 'lossless');
   assert.equal(changedAccount.trial, true);
+});
+
+test('NetEase liked pages slice one track-ID snapshot and read details in its order', async () => {
+  const provider = createProvider();
+  const requests = [];
+  provider.getLikedPlaylistId = async () => '123';
+  provider.requestJson = async (pathname, params) => {
+    requests.push({ pathname, params });
+    if (pathname === '/api/v6/playlist/detail') {
+      return { playlist: { trackCount: 205, trackIds: Array.from({ length: 205 }, (_, index) => ({ id: index + 1 })),
+        tracks: [{ id: 1, name: 'Repeated first page' }] } };
+    }
+    assert.equal(pathname, '/api/song/detail');
+    return { songs: JSON.parse(params.ids).reverse().map(id => ({ id, name: `Song ${id}`, album: { picUrl: 'https://example.test/art.jpg' } })) };
+  };
+  const pages = [];
+  for (const offset of [0, 100, 200, 300]) {
+    pages.push(await provider.getLikedTracks({ limit: 100, offset, loadingSession: 'current-load' }));
+  }
+  assert.deepEqual(pages.map(page => page.length), [100, 100, 5, 0]);
+  assert.deepEqual(pages.flat().map(track => track.sourceTrackId), Array.from({ length: 205 }, (_, index) => String(index + 1)));
+  assert.equal(requests.filter(request => request.pathname === '/api/v6/playlist/detail').length, 1);
+  assert.deepEqual(requests[0].params, { id: '123', n: '0', s: '0' });
+  assert.equal(requests.filter(request => request.pathname === '/api/song/detail').length, 3);
+  await provider.getLikedTracks({ limit: 100, loadingSession: 'fresh-load' });
+  assert.equal(requests.filter(request => request.pathname === '/api/v6/playlist/detail').length, 2);
+});
+
+test('NetEase playlist loading rejects incomplete indices and missing song details', async () => {
+  const provider = createProvider();
+  for (const playlist of [{ trackCount: 200, tracks: [{ id: 1 }] }, { trackCount: 200, trackIds: [] }]) {
+    provider.requestJson = async () => ({ playlist });
+    await assert.rejects(provider.getPlaylistTracks('123'), /完整曲目索引/);
+  }
+  provider.requestJson = async pathname => pathname === '/api/v6/playlist/detail'
+    ? { playlist: { trackCount: 2, trackIds: [{ id: 1 }, { id: 2 }] } }
+    : { songs: [{ id: 1, name: 'First' }] };
+  await assert.rejects(provider.getPlaylistTracks('123'), /加载未完成/);
+});
+
+test('NetEase full liked loading displays and caches every page beyond the repeated upstream first page', async () => {
+  const provider = createProvider();
+  provider.getLikedPlaylistId = async () => '123';
+  const ids = Array.from({ length: 205 }, (_, index) => index + 1);
+  provider.requestJson = async (pathname, params) => pathname === '/api/v6/playlist/detail'
+    ? { playlist: { trackCount: ids.length, trackIds: ids.map(id => ({ id })), tracks: ids.slice(0, 100).map(id => ({ id })) } }
+    : { songs: JSON.parse(params.ids).map(id => ({ id, name: `Song ${id}`, album: { picUrl: 'https://example.test/cover.jpg' } })) };
+  const cache = new Map();
+  const { ContentLoader } = await loadModuleExports(path.resolve(__dirname, '../../public/js/playback/content/loader.js'), {
+    fetch: async (url, options) => {
+      assert.equal(url, '/api/music/home');
+      const data = await getMusicHomeContent({ get: () => provider }, JSON.parse(options.body));
+      return { ok: true, json: async () => ({ ok: true, data }) };
+    },
+  });
+  const loader = new ContentLoader({ state: { selectedSource: 'netease' }, cacheManager: cache });
+  const result = await loader.loadHomeContent('liked');
+  assert.equal(result.items.length, 205);
+  assert.deepEqual(Array.from(result.items, track => track.sourceTrackId), ids.map(String));
+  assert.equal(cache.get('netease:liked').items.length, 205);
+  assert.equal(result.stale, undefined);
 });
 
 test('Netease provider requests and aligns translated and romanized lyrics', async () => {

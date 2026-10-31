@@ -77,7 +77,14 @@ export function createMediaDecoration() {
         art = createMediaElement(style, { loop: true }); source = style.src;
         loading = new AbortController();
         document.body.prepend(art);
-        if (style.kind === 'video') void art.play().catch(() => { art.muted = true; void art.play().catch(() => { art.dataset.playbackFailed = 'true'; }); });
+        if (style.kind === 'video') {
+          const playing = art;
+          void playing.play().catch(() => {
+            if (art !== playing) return;
+            playing.muted = true;
+            void playing.play().catch(() => { if (art === playing) playing.dataset.playbackFailed = 'true'; });
+          });
+        }
       }
       if (art.tagName === 'VIDEO') { art.volume = style.volume; art.muted = style.volume === 0; }
       content = target[1] ? document.querySelector(target[1]) : null;

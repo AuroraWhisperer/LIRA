@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
+const { createModelClient } = require('../../src/ai/model-client');
 const { createQWeatherTool } = require('../../src/ai/tools/qweather-tool');
 const { createAmapTool } = require('../../src/ai/tools/amap-tool');
 
@@ -16,7 +16,7 @@ function jsonResponse(payload, status = 200) {
 for (const protocol of ['responses', 'chat_completions']) {
   test(`plain ${protocol} requests omit tool fields for models without tool support`, async () => {
     let body;
-    const client = createDeepSeekClient({
+    const client = createModelClient({
       fetchImpl: async (_url, options) => {
         body = JSON.parse(options.body);
         return jsonResponse(protocol === 'responses'
@@ -42,7 +42,7 @@ for (const protocol of ['responses', 'chat_completions']) {
 }
 
 test('DeepSeek reports a length-truncated empty Chat Completions response precisely', async () => {
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () =>
       jsonResponse({
         choices: [
@@ -70,7 +70,7 @@ test('DeepSeek reports a length-truncated empty Chat Completions response precis
 });
 
 test('DeepSeek reports an incomplete Responses API output precisely', async () => {
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () =>
       jsonResponse({
         id: 'resp_incomplete',
@@ -97,7 +97,7 @@ test('DeepSeek reports an incomplete Responses API output precisely', async () =
 });
 
 test('DeepSeek reports truncated Responses tool arguments precisely', async () => {
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () =>
       jsonResponse({
         status: 'incomplete',
@@ -129,7 +129,7 @@ test('DeepSeek reports truncated Responses tool arguments precisely', async () =
 
 test('DeepSeek success logs retain metrics without request or response content', async () => {
   const events = [];
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     logEvent: async (event) => events.push(event),
     fetchImpl: async () =>
       jsonResponse({
@@ -166,7 +166,7 @@ test('DeepSeek success logs retain metrics without request or response content',
 });
 
 test('DeepSeek reports length-truncated tool arguments instead of generic invalid JSON', async () => {
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () =>
       jsonResponse({
         choices: [
@@ -207,7 +207,7 @@ test('DeepSeek reports length-truncated tool arguments instead of generic invali
 
 test('DeepSeek chat adapter exposes web search as a local function tool', async () => {
   let body;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       body = JSON.parse(options.body);
       return jsonResponse({
@@ -253,7 +253,7 @@ test('DeepSeek chat adapter exposes web search as a local function tool', async 
 
 test('DeepSeek client emits one metadata-only success event', async () => {
   const events = [];
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () => jsonResponse({ id: 'resp_1', output_text: 'ok' }),
     logEvent: async (event, options) => events.push({ event, options }),
   });
@@ -286,7 +286,7 @@ test('DeepSeek client emits one metadata-only success event', async () => {
 
 test('DeepSeek client emits one safe failure event at the owning boundary', async () => {
   const events = [];
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async () => jsonResponse({ error: { code: 'UPSTREAM_DOWN', detail: 'PRIVATE RESPONSE BODY' } }, 502),
     logEvent: async (event) => events.push(event),
   });
@@ -315,9 +315,9 @@ test('DeepSeek client emits one safe failure event at the owning boundary', asyn
   );
 });
 
-test('DeepSeek connection test keeps a complete Responses API URL unchanged', async () => {
+test('model connection test keeps a complete custom Responses API URL unchanged', async () => {
   let capturedUrl;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url) => {
       capturedUrl = String(url);
       return jsonResponse({ id: 'resp_1', output_text: 'ok' });
@@ -333,7 +333,7 @@ test('DeepSeek connection test keeps a complete Responses API URL unchanged', as
 
   assert.equal(capturedUrl, 'https://gateway.example.test/responses');
   assert.deepEqual(result, {
-    provider: 'deepseek',
+    provider: 'custom',
     model: 'custom-model',
     reply: 'ok',
     endpointAdapted: false,
@@ -342,7 +342,7 @@ test('DeepSeek connection test keeps a complete Responses API URL unchanged', as
 
 test('model client derives and sanitizes model listings from the configured API', async () => {
   let captured;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       captured = { url: String(url), options };
       return jsonResponse({

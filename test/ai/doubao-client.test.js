@@ -8,7 +8,7 @@ const { requestDoubaoText } = require('../../src/electron/doubao-page');
 const { createDoubaoClient, parseDoubaoReply, readDoubaoConversation } = require('../../src/ai/doubao-client');
 const { normalizeAiConfig, isAiReady } = require('../../src/ai/config');
 const { buildTools } = require('../../src/ai/prompt');
-const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
+const { createModelClient } = require('../../src/ai/model-client');
 
 function event(type, data) {
   return `event: ${type}\ndata: ${JSON.stringify(data)}\n\n`;
@@ -141,7 +141,7 @@ test('Doubao pauses ordinary calls for verification and permits only an explicit
 });
 
 test('the shared model entry routes account chat without invoking an API transport', async () => {
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: () => assert.fail('account mode must never send an API key'),
     doubao: {
       createResponse: async request => ({ text: request.input, functionCalls: [] }),
@@ -154,5 +154,5 @@ test('the shared model entry routes account chat without invoking an API transpo
   assert.equal((await client.testConnection(config)).reply, '连接成功');
   assert.equal(client.isReady(config), false);
   assert.deepEqual(await client.listModels(config), { models: ['doubao'] });
-  await assert.rejects(createDeepSeekClient().testConnection(config), { code: 'DOUBAO_DESKTOP_REQUIRED' });
+  await assert.rejects(createModelClient().testConnection(config), { code: 'DOUBAO_DESKTOP_REQUIRED' });
 });

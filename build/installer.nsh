@@ -48,7 +48,7 @@ ManifestDPIAware true
   !define MUI_LICENSEPAGE_RADIOBUTTONS
   !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_ACCEPT "我已阅读并同意以上协议(&A)"
   !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_DECLINE "我不同意(&D)"
-  !insertmacro MUI_PAGE_LICENSE "${BUILD_RESOURCES_DIR}\user-agreement.txt"
+  !insertmacro MUI_PAGE_LICENSE "${BUILD_RESOURCES_DIR}\..\public\pages\admin\toolbox\user-agreement.txt"
 !macroend
 
 !macro customHeader

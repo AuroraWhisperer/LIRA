@@ -308,7 +308,7 @@ async function checkLegacyIpc(results) {
   const { ipcMain } = electron;
   const { registerMusicIpc } = require('../../src/electron/ipc/music-ipc');
   const { registerBilibiliIpc } = require('../../src/electron/ipc/bilibili-ipc');
-  const { registerUpdateIpc } = require('../../src/electron/ipc/update-ipc');
+  const { registerDesktopShellIpc } = require('../../src/electron/ipc/desktop-shell-ipc');
   const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'text/html');
     res.end(
@@ -342,7 +342,7 @@ async function checkLegacyIpc(results) {
   };
   registerMusicIpc(dependencies);
   registerBilibiliIpc(dependencies);
-  registerUpdateIpc(dependencies);
+  registerDesktopShellIpc(dependencies);
   const owned = [];
   function windowFor(partition) {
     const window = new BrowserWindow({

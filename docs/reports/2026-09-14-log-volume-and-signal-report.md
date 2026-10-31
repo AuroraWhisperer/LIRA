@@ -43,9 +43,9 @@
 
 | 来源和证据 | 实际行为 | 建议 |
 | --- | --- | --- |
-| [礼物广播](../../src/server/runtime-transport.js)、A1 前的 `src/server/runtime-reporting.js`、[通知调用](../../public/js/admin/gifts/notification.js)、[展示 IPC](../../src/electron/ipc/update-ipc.js) | final 广播输出明细；展示通知再经 IPC 同时 console.log 和 writeLog，Electron 中可能形成广播 1 条、展示 2 条。明细还重复记录已有礼物数据 | 正常改为广播/符合展示条件/已发起展示/失败的窗口计数；有限内存只保留阶段摘要，不复制礼物正文。一次 final 不保证必然对应一次通知，统计要保留“未启用/不满足条件”等原因 |
+| [礼物广播](../../src/server/runtime-transport.js)、A1 前的 `src/server/runtime-reporting.js`、[通知调用](../../public/js/admin/gifts/notification.js)、[展示 IPC](../../src/electron/ipc/desktop-shell-ipc.js) | final 广播输出明细；展示通知再经 IPC 同时 console.log 和 writeLog，Electron 中可能形成广播 1 条、展示 2 条。明细还重复记录已有礼物数据 | 正常改为广播/符合展示条件/已发起展示/失败的窗口计数；有限内存只保留阶段摘要，不复制礼物正文。一次 final 不保证必然对应一次通知，统计要保留“未启用/不满足条件”等原因 |
 | [全屏歌词](../../public/js/playback/ui/fullscreen.js)、[播放渲染](../../public/js/playback/core/renderer.js) | 歌词行变化时输出索引和正文，滚动时再输出位置；每次 renderPlayback 也有 console | 取消正常逐行/逐渲染输出；只保留播放状态转换、慢操作和实际失败。当前主要在 renderer console，**尚不能等同为磁盘增长**，以后统一捕获时不能全量接进文件 |
-| [AI 请求链](../../src/ai/deepseek-client.js)、[AI logger](../../src/ai/request-logger.js) | 成功调用通常记录 request、response、normalized_response；response 同时含 rawText 和 payload，另有请求与标准化结果；使用多行漂亮 JSON | 成功主要按 provider/model/purpose 汇总调用数、耗时、token 用量；失败保留安全错误。移除请求/响应正文及重复表示，不依赖截断来保护隐私 |
+| [AI 请求链](../../src/ai/model-client.js)、[AI logger](../../src/ai/request-logger.js) | 成功调用通常记录 request、response、normalized_response；response 同时含 rawText 和 payload，另有请求与标准化结果；使用多行漂亮 JSON | 成功主要按 provider/model/purpose 汇总调用数、耗时、token 用量；失败保留安全错误。移除请求/响应正文及重复表示，不依赖截断来保护隐私 |
 | [桌面 logger](../../src/electron/desktop-logger.js)、[terminal 镜像](../../src/electron/terminal-log.js) | 同步逐条 append，未限制整条/文件/目录容量；terminal 包裹所有五种 console 方法 | 在输出前完成分级、准入和字节检查；有界异步写入，所有普通 console 经过同一策略 |
 | [cloud sync](../../src/electron/cloud-sync-controller.js) | 定时、重连和状态通知的若干 catch 使用 `void error` | 保持正常无变化轮询安静；真正同步失败要在拥有上下文的边界记首次失败/重复次数/恢复。不能把“没有打印错误”当成“没有失败” |
 | [服务器连接](../../../lira-server/src/modules/bilibili/room-monitor.js) | 正常心跳没有逐条打印；认证超时可能产生 timeout、通用 error、close、reconnect 等相关日志 | 保留正常安静行为；失败按连接尝试/故障时段关联，一份根错误及后续状态/重试摘要，避免按捕获点重复算故障 |

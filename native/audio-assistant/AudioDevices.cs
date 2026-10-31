@@ -78,19 +78,19 @@ internal static class AudioDevices
     }).ToList();
   }
 
-  public static MMDevice OpenInput(string id, bool loopback)
+  public static MMDevice OpenEndpoint(string id, DataFlow flow)
   {
     using var enumerator = new MMDeviceEnumerator();
-    var flow = loopback ? DataFlow.Render : DataFlow.Capture;
     var device = id.Length == 0 ? enumerator.GetDefaultAudioEndpoint(flow, Role.Multimedia) : enumerator.GetDevice(id);
     if (device.State == DeviceState.Active && device.DataFlow == flow) return device;
     device.Dispose();
-    throw new InvalidOperationException("输入设备不可用，请检查连接后重新选择。");
+    throw new InvalidOperationException(flow == DataFlow.Render
+      ? "输出设备不可用，请检查连接后重新选择。" : "输入设备不可用，请检查连接后重新选择。");
   }
 
   public static AudioInputDevice DescribeInput(string id, bool loopback)
   {
-    using var device = OpenInput(id, loopback);
+    using var device = OpenEndpoint(id, loopback ? DataFlow.Render : DataFlow.Capture);
     var format = device.AudioClient.MixFormat;
     return new(device.ID, device.FriendlyName, format.Channels, format.SampleRate, format.BitsPerSample);
   }

@@ -16,7 +16,10 @@
     <section id="licenseAccountDevice" class="license-account-card" hidden aria-labelledby="licenseAccountTitle">
       <div class="license-account-card-heading">
         <div>
-          <h3 id="licenseAccountTitle" class="ui-section-title">LIRA 账号</h3>
+          <h3 id="licenseAccountTitle" class="ui-section-title">
+            LIRA 账号
+            <lira-help label="密码找回说明">忘记 LIRA 密码：请联系管理员重置。B 站账号密码请通过 B 站找回。</lira-help>
+          </h3>
         </div>
         <span class="pill good">已授权</span>
       </div>
@@ -72,46 +75,38 @@
       <p id="playbackOutputFeedback" class="hint" role="status" aria-live="polite"></p>
     </section>
 
-    <section class="license-account-card" aria-labelledby="licenseWebsitesTitle">
-      <div class="license-website-row">
-        <div class="license-website-copy">
-          <h3 id="licenseWebsitesTitle" class="ui-section-title">LIRA 官网</h3>
-          <p>了解 LIRA，请访问官方网站。</p>
-        </div>
+    <section class="license-account-card license-account-links" aria-label="网站、账号与协议">
+      <div class="license-account-link-row">
+        <h3 id="licenseWebsitesTitle" class="ui-section-title">LIRA 官网</h3>
+        <p>产品信息与使用指南</p>
         <a class="license-website-link" href="https://lirahub.cn/" target="_blank" rel="noopener noreferrer"
-          >访问 lirahub.cn <span aria-hidden="true">↗</span></a
+          >lirahub.cn <span aria-hidden="true">↗</span></a
         >
       </div>
-    </section>
-
-    <section class="license-account-card" aria-labelledby="licenseAccountLoginTitle">
-      <div class="license-website-row">
-        <div class="license-website-copy">
-          <h3 id="licenseAccountLoginTitle" class="ui-section-title">网页主播中心</h3>
-          <p>使用 LIRA 账号登录，管理网页歌单等云端功能。</p>
-        </div>
+      <div class="license-account-link-row">
+        <h3 id="licenseAccountLoginTitle" class="ui-section-title">网页主播中心</h3>
+        <p>管理网页歌单与云端数据</p>
         <a class="license-website-link" href="https://admin.lirahub.cn/" target="_blank" rel="noopener noreferrer"
-          >打开网页主播中心 <span aria-hidden="true">↗</span></a
+          >打开 <span aria-hidden="true">↗</span></a
         >
       </div>
-    </section>
-
-    <section class="license-account-card" aria-labelledby="bilibiliSettingsLinkTitle">
-      <div class="license-website-row">
-        <div class="license-website-copy">
-          <h3 id="bilibiliSettingsLinkTitle" class="ui-section-title">B 站账号与直播间</h3>
-          <p>扫码登录 B 站、修改直播间号，请前往「点歌 → 账号登录」。</p>
-        </div>
-        <button type="button" class="secondary" data-main-page-link="songAssistantPage" data-song-tab-target="settingsPage">打开账号登录</button>
+      <div class="license-account-link-row">
+        <h3 id="bilibiliSettingsLinkTitle" class="ui-section-title">B 站账号与直播间</h3>
+        <p>扫码登录、修改直播间号</p>
+        <button type="button" class="secondary" data-main-page-link="songAssistantPage" data-song-tab-target="settingsPage">前往登录</button>
       </div>
-    </section>
-
-    <section class="license-account-card license-account-note" aria-label="密码帮助">
-      <span class="license-account-note-icon" aria-hidden="true">?</span>
-      <div>
-        <strong>忘记 LIRA 密码？</strong>
-        <p>请联系管理员重置 LIRA 账号密码；B 站账号请通过 B 站找回。</p>
+      <div class="license-account-link-row">
+        <h3 id="licenseAgreementTitle" class="ui-section-title">用户协议与隐私说明</h3>
+        <p>查看安装时同意的协议</p>
+        <button id="licenseAgreementOpen" type="button" class="secondary" aria-haspopup="dialog" aria-controls="licenseAgreementDialog">查看协议</button>
       </div>
     </section>
   </div>
+  <dialog id="licenseAgreementDialog" class="license-agreement-dialog" aria-labelledby="licenseAgreementDialogTitle">
+    <div class="license-agreement-header">
+      <h2 id="licenseAgreementDialogTitle">LIRA 用户协议与隐私说明</h2>
+      <button id="licenseAgreementClose" type="button" class="icon" aria-label="关闭用户协议">×</button>
+    </div>
+    <div id="licenseAgreementContent" class="license-agreement-content" tabindex="0">正在读取…</div>
+  </dialog>
 </section>

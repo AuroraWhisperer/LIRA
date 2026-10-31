@@ -34,9 +34,10 @@ test('notebook selects, saves, reopens and shares the real renderer with the des
   await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 手账风' }).waitFor();
   assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'notebook');
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.notebook.fontSize), 24);
-  await desktop.reload();
+  await desktop.reload({ waitUntil: 'domcontentloaded' });
   await desktop.locator('[data-danmaku-style="notebook"][aria-pressed="true"]').waitFor();
   assert.equal(await desktop.locator('#danmakuFontSize').inputValue(), '24');
+  await desktop.locator('[data-danmaku-style="notebook"] img').evaluate(image => image.decode());
   assert.equal(await desktop.locator('[data-danmaku-style="notebook"] img').evaluate(n => n.complete && n.naturalWidth > 0), true);
   await desktop.screenshot({ path: path.join(evidence, 'electron-style-selection.png') });
 
@@ -73,7 +74,7 @@ test('notebook selects, saves, reopens and shares the real renderer with the des
     settled();
   }));
   await page.screenshot({ path: path.join(evidence, 'electron-canvas-preview.png') });
-  await desktop.reload();
+  await desktop.reload({ waitUntil: 'domcontentloaded' });
   await desktop.locator('[data-danmaku-style="notebook"][aria-pressed="true"]').waitFor();
   assert.equal(await desktop.locator('#danmakuFontSize').inputValue(), '26');
   assert.deepEqual(errors, []);

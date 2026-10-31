@@ -38,7 +38,7 @@ body[data-style='mist'] .draw-danmaku-item.is-superchat {
   visibility: hidden;
   zoom: 1;
   color: #fff;
-  font: 700 var(--danmaku-font-size, 30px)/1.45 var(--danmaku-custom-font, var(--danmaku-ui-font));
+  font: 700 30px/1.45 var(--danmaku-custom-font, var(--danmaku-ui-font));
   letter-spacing: 0.035em;
   text-shadow: 0 1px 3px rgb(25 55 47 / 80%);
   animation: mistMessageIn 280ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -119,6 +119,7 @@ body[data-style='mist'] .draw-danmaku-body > p {
   margin: 0;
   color: inherit;
   font: inherit;
+  font-size: var(--danmaku-font-size);
   text-align: center;
   text-shadow: inherit;
   white-space: pre-wrap;
@@ -175,6 +176,7 @@ body[data-style='mist'] .is-gift .draw-danmaku-gift {
   color: inherit;
   background: transparent;
   font: inherit;
+  font-size: var(--danmaku-font-size);
   text-shadow: inherit;
   text-align: left;
 }
@@ -195,7 +197,7 @@ body[data-style='mist'] .is-gift :is(.draw-danmaku-gift-action, .draw-danmaku-gi
 body[data-style='mist'] .is-gift .draw-danmaku-gift-amount {
   position: static;
   color: #dbebe6;
-  font: 500 0.86em/1.1 var(--danmaku-num-font);
+  font: 500 25.8px/1.1 var(--danmaku-num-font);
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
@@ -206,7 +208,7 @@ body[data-style='mist'] .is-gift .draw-danmaku-identity {
   border-radius: 2em;
   color: var(--mist-deep);
   background: #f5fcf9;
-  font-size: 0.64em;
+  font-size: 19.2px;
   text-shadow: none;
 }
 body[data-style='mist'] .is-gift .draw-danmaku-identity::before { display: none; }
@@ -247,7 +249,7 @@ body[data-style='mist'] [data-room-guard='1'] .mist-guard-seal {
 body[data-style='mist'] .mist-guard-title {
   grid-column: 1 / -1;
   margin: 0;
-  font-size: 1.15em;
+  font-size: calc(var(--danmaku-font-size) * 1.15);
   font-weight: 700;
   overflow-wrap: anywhere;
 }
@@ -282,7 +284,7 @@ body[data-style='mist'] .sc-mist-head {
 }
 body[data-style='mist'] .sc-name { font: 700 0.7em/1.5 var(--danmaku-ui-font); }
 body[data-style='mist'] .sc-money { max-width: 5em; font-size: 0.9em; white-space: normal; overflow-wrap: anywhere; }
-body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep); font: 600 1em/1.65 var(--danmaku-custom-font, var(--danmaku-ui-font)); }
+body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep); font: 600 var(--danmaku-font-size)/1.65 var(--danmaku-custom-font, var(--danmaku-ui-font)); }
 @keyframes mistMessageIn {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }

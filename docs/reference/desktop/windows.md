@@ -33,7 +33,7 @@
 
 与音乐登录窗的差异:
 
-- **关闭快照**:`closed` 时执行 `persistBilibiliCookieSnapshot(dataDir)`(含明文导出逻辑,见 [auth.md](auth.md) §6)并取回最新 auth state,一并 resolve([bilibili-login-window.js:98-117](../../../src/electron/bilibili-login-window.js#L98-L117))。
+- **关闭快照**:`closed` 时执行 `persistBilibiliCookieSnapshot(dataDir)`，仅写入 safeStorage 加密快照，并按 [auth.md](auth.md) §6 清理旧 `cookies.txt`，不导出明文；随后取回最新 auth state，一并 resolve([bilibili-login-window.js:98-117](../../../src/electron/bilibili-login-window.js#L98-L117))。
 - **防重入**:`loginCheckInFlight`(检测在飞时不重复发起)与 `loginCloseRequested`(已请求关闭后不再触发)两道守卫保护自动关闭检测([bilibili-login-window.js:57-58](../../../src/electron/bilibili-login-window.js#L57-L58)、[68-83](../../../src/electron/bilibili-login-window.js#L68-L83))。
 - **加载失败处理**:`loadURL` 失败时清理监听并 `destroy()` 窗口,异常上抛给 IPC 调用方([bilibili-login-window.js:119-125](../../../src/electron/bilibili-login-window.js#L119-L125))。
 

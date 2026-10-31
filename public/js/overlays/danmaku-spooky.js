@@ -1,5 +1,50 @@
+import { parseHexColor } from '../shared/color-value.js';
+
 const ART = '/img/overlays/danmaku-spooky/';
 const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+
+// Match color-mix(in srgb), including premultiplied alpha for translucent colors.
+function mixColor(first, second, weight) {
+  const firstAlpha = first.alpha * weight;
+  const secondAlpha = second.alpha * (1 - weight);
+  const alpha = firstAlpha + secondAlpha;
+  const channel = key => alpha ? (first[key] * firstAlpha + second[key] * secondAlpha) / alpha : 0;
+  return { r: channel('r'), g: channel('g'), b: channel('b'), alpha };
+}
+
+export function applySpookyColorFallback(document) {
+  const view = document.defaultView;
+  if (view?.CSS?.supports('color', 'color-mix(in srgb, black, white)') !== false) return;
+  const style = view.getComputedStyle(document.body);
+  const color = name => parseHexColor(style.getPropertyValue(`--spooky-${name}`).trim());
+  const setColor = (name, value, opacity = 1) => document.documentElement.style.setProperty(
+    `--spooky-fallback-${name}`, `rgba(${value.r}, ${value.g}, ${value.b}, ${value.alpha * opacity})`,
+  );
+  const paper = color('paper');
+  const accent = color('custom-accent-color');
+  const light = accent ? mixColor(accent, parseHexColor('#ffffff'), .55) : color('light');
+  const frame = color('custom-frame-color') || color('frame');
+  const message = color('custom-message-color') || color('left');
+  const messageRight = color('custom-message-color') ? mixColor(message, parseHexColor('#000000'), .65) : color('right');
+  const event = color('custom-event-color') || color('alert');
+  const frameOpacity = parseFloat(style.getPropertyValue('--spooky-frame-weight')) / 100;
+  const messageOpacity = parseFloat(style.getPropertyValue('--spooky-message-weight')) / 100;
+  const eventOpacity = parseFloat(style.getPropertyValue('--spooky-event-weight')) / 100;
+
+  setColor('decor-light', light);
+  setColor('edge', accent ? mixColor(accent, parseHexColor('#ffffff'), .45) : color('edge'));
+  for (const [layer, opacity] of [['frame', frameOpacity], ['message', messageOpacity], ['event', eventOpacity]]) {
+    setColor(`${layer}-paper-light`, light, opacity);
+    setColor(`${layer}-paper`, paper, opacity);
+  }
+  setColor('frame-start', mixColor(frame, paper, .92), frameOpacity);
+  setColor('frame-end', frame, frameOpacity);
+  setColor('message-start', message, messageOpacity);
+  setColor('message-end', messageRight, messageOpacity);
+  setColor('message-front', mixColor(message, paper, .9), messageOpacity);
+  setColor('event', event, eventOpacity);
+  setColor('event-front', mixColor(color('custom-event-color') || color('right'), paper, .85), eventOpacity);
+}
 
 function node(document, tag, className, text) {
   const element = document.createElement(tag);

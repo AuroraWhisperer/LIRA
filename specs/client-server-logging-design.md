@@ -38,7 +38,7 @@
 ### 2.1 现有目录的准确含义
 
 - **已安装客户端**：`<LIRA.exe 所在目录>/logs/{desktop.log,terminal.log,ai.log}`。当前实现按安装目录解析，不能套用通用 Electron 默认路径，把它误写成 `%APPDATA%/LIRA/logs`。
-- **当前客户端开发工作区**：`D:/Work/Live/logs/`；独立后端 AI 路径随其 `dataDir` 的父目录解析。
+- **客户端开发环境**：`<客户端仓库>/logs/`；独立后端 AI 路径随其 `dataDir` 的父目录解析。
 - **服务器**：已核实程序在 `/www/wwwroot/lira-server`，logger 只写 console；PM2 的实际应用文件为 `/root/.pm2/logs/lira-server-out-0.log`、`lira-server-error-0.log`，守护事件另在 `/root/.pm2/pm2.log`。当前项目 logs 及拟议的 `/var/log/lira-server` 均不存在；其他部署仍按其有效 PM2 配置解析路径。[PM2 官方说明](https://pm2.keymetrics.io/docs/usage/log-management/)
 - **Nginx**：已核实实际访问日志为 `/var/log/nginx/lirahub.cn.access.log`，LIRA 站点配置在 `/www/server/panel/vhost/nginx/lirahub.cn.conf`；目前继承 `/www/wwwlogs/nginx_error.log crit`，没有专用 LIRA error 文件。
 - **安装失败**：已有安装迁移错误文件 `%TEMP%/LIRA-install-error.txt`；`collect-install-diagnostics.ps1` 汇总相关 Windows 事件、安装包校验等，TXT 输出到脚本旁，写入失败则回退临时目录。它与应用运行日志分开。
@@ -46,7 +46,7 @@
 
 ### 2.2 现状证据
 
-客户端：[桌面 logger](../src/electron/desktop-logger.js)、[终端镜像](../src/electron/terminal-log.js)、[AI logger](../src/ai/request-logger.js)、[AI 内容记录](../src/ai/deepseek-client.js)、[页面 logger](../public/js/shared/logger.js)、[路径解析](../src/electron/desktop-user-data.js)、[共享目录](../src/shared/data-paths.js)、[独立后端配置](../src/server/runtime-config.js)、[截图页面](../public/pages/admin/toolbox/desktop-update.html)、[按钮接线](../public/js/desktop.js)、[IPC](../src/electron/ipc/update-ipc.js)、[安装诊断](../scripts/collect-install-diagnostics.ps1)。
+客户端：[桌面 logger](../src/electron/desktop-logger.js)、[终端镜像](../src/electron/terminal-log.js)、[AI logger](../src/ai/request-logger.js)、[AI 内容记录](../src/ai/model-client.js)、[页面 logger](../public/js/shared/logger.js)、[路径解析](../src/electron/desktop-user-data.js)、[共享目录](../src/shared/data-paths.js)、[独立后端配置](../src/server/runtime-config.js)、[截图页面](../public/pages/admin/toolbox/desktop-update.html)、[按钮接线](../public/js/desktop.js)、[IPC](../src/electron/ipc/desktop-shell-ipc.js)、[安装诊断](../scripts/collect-install-diagnostics.ps1)。
 
 服务器链接指向相邻工作区：[logger](../../lira-server/src/lib/logger.js)、[HTTP/启动/退出](../../lira-server/src/app.js)、[审计写入](../../lira-server/src/lib/audit.js)、[审计查询](../../lira-server/src/modules/admin/audit-logs.js)、[Admin 页面](../../lira-server/public/admin/index.html)、[PM2 配置](../../lira-server/ecosystem.config.cjs)、[Nginx 示例](../../lira-server/nginx/lirahub.cn.conf.example)、[B 站连接](../../lira-server/src/modules/bilibili/room-monitor.js)。
 
@@ -136,7 +136,7 @@
 
 ### 4.1 客户端
 
-继续使用当前解析得到的 `<安装目录>/logs/`；开发环境是 `D:/Work/Live/logs/`。
+继续使用当前解析得到的 `<安装目录>/logs/`；开发环境使用 `<客户端仓库>/logs/`。
 
 ```text
 <安装目录>/

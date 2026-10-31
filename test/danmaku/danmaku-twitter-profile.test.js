@@ -28,6 +28,17 @@ function deferred() {
   return { promise, resolve, reject };
 }
 
+test('authorized scene projection updates its owner without HTTP and rejects mismatched rooms', async () => {
+  const f = await fixture(() => assert.fail('Scene frames must never fetch a room profile'));
+  f.profile.update('twitter', '100', { roomId: '100', uid: '456', name: '本房房主' });
+  assert.equal(f.node('twitterProfileName').textContent, '本房房主');
+  f.profile.update('twitter', '100', { roomId: '200', uid: 'private', name: '其他房主' });
+  assert.equal(f.node('twitterProfileName').textContent, '当前房主');
+  f.profile.update('twitter', '100', null);
+  assert.equal(f.node('twitterProfileUid').textContent, '@等待当前房间');
+  f.profile.dispose();
+});
+
 test('Twitter preview uses a synthetic owner and preserves its text fallback on avatar failure', async () => {
   let loads = 0;
   const f = await fixture(() => { loads += 1; });

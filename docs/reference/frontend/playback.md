@@ -25,7 +25,7 @@ js/playback.js          兼容层,仅 import playback/index.js
 | `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler / output-device | UI 操作处理器与本机音频输出,注入渲染回调与队列回调                                                                                                                |
 | `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations                                                                                       | 横切操作:登录登出、状态持久化、收藏/歌单、缓存统计                                                                                                  |
 | `ui/`         | index / components / playback-bar / queue-popup / drawer / fullscreen                                                                                                  | `UIRenderer` + 各 UI 组件(DOM 渲染主控)                                                                                                             |
-| `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService._applyBackgroundUpdate` 更新并 toast)                 |
+| `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService.applyBackgroundUpdate` 更新并 toast)                 |
 | `local/`      | manager                                                                                                                                                                | 本地音频文件(选择/最近历史/URL 解析)                                                                                                                |
 | `cache/`      | manager                                                                                                                                                                | "我喜欢"/歌单 24h localStorage 缓存(`playbackCache:` 前缀,内存→localStorage 两级,过期失效,登录态变化清缓存)                                         |
 | —             | config.js / utils.js                                                                                                                                                   | 配置常量(§2);工具(轨道归一化/序列化/洗牌/本地判定/URL 可用性/时长与元数据格式化/封面渲染/背景主题选取 `pickBackgroundTheme`)                        |
@@ -35,6 +35,8 @@ js/playback.js          兼容层,仅 import playback/index.js
 `initPlaybackAssistant(options)` 首次创建控制器时固定 `toast`、`showError`、`readJsonResponse`（未提供时使用共享 Utils），在构造子模块之前完成注入；后续初始化不替换依赖。首次提供的 `getWeSingState` 保留为 getter，每次初始化读取当前状态。`closeQueuePopup` 委托既有队列 UI 关闭逻辑，统一更新 DOM、打开状态和焦点；初始化前调用为空操作，供 Admin 收起播放器时晚绑定使用。
 
 ## 2. 播放主流程
+
+歌词加载绑定本次播放和歌词请求代次；A→B→A 后旧 A 的失败或成功不能覆盖新 A 的歌词或发布空时间轴。同曲手动刷新也只接受最后一次请求。全民 K 歌偏移编辑使用独立草稿修订，旧保存确认或失败不清除保存期间的新输入；新输入仍需后续 change 提交。
 
 ```
 搜索/点歌匹配/歌单/电台 ──→ queueManager 入队(startCollection/insertTracksNext/appendTracks)

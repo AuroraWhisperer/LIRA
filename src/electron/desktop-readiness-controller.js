@@ -29,7 +29,7 @@ function createDesktopReadinessController({
   function resumeAuthorizedWork(startup) {
     runtime.initializeFontLibrary?.()?.catch?.(error => writeLog('font-library', error));
     const generation = recoveryGeneration;
-    const authorizationEpoch = licenseManager.getAuthorizationEpoch?.();
+    const authorizationGeneration = licenseManager.getAuthorizationGeneration();
     // Source switching must freeze before waiting for cloud restoration.
     const giftStart = remoteGiftController?.start();
     const cloudReady = startup
@@ -39,7 +39,7 @@ function createDesktopReadinessController({
       if (
         active &&
         generation === recoveryGeneration &&
-        authorizationEpoch === licenseManager.getAuthorizationEpoch?.() &&
+        authorizationGeneration === licenseManager.getAuthorizationGeneration() &&
         licenseManager.getState() === LicenseState.AUTHORIZED
       ) {
         return runtime.resumeAuthorizedWork?.();

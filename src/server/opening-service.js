@@ -32,15 +32,19 @@ function resolveOpeningMediaSlot(kind, style = DEFAULT_OPENING_STYLE) {
 
 function saveOpeningMedia({ settings, system, broadcastSnapshot }, slot, upload) {
   const fileName = saveOpeningMediaFile(system.dataDir, slot.kind, upload);
-  settings.set(`${slot.settingPrefix}File`, fileName);
-  settings.set(`${slot.settingPrefix}Name`, upload.name);
+  settings.setMany({
+    [`${slot.settingPrefix}File`]: fileName,
+    [`${slot.settingPrefix}Name`]: upload.name,
+  });
   broadcastSnapshot('settings');
   return getOpeningConfig({ settings, system });
 }
 
 function clearOpeningMedia({ settings, system, broadcastSnapshot }, slot) {
-  settings.set(`${slot.settingPrefix}File`, '');
-  settings.set(`${slot.settingPrefix}Name`, '');
+  settings.setMany({
+    [`${slot.settingPrefix}File`]: '',
+    [`${slot.settingPrefix}Name`]: '',
+  });
   broadcastSnapshot('settings');
   return getOpeningConfig({ settings, system });
 }

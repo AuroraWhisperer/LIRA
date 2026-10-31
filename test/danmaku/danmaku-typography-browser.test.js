@@ -7,6 +7,33 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
+test('custom bubble background leaves a standalone Super Chat shell unchanged', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <div id="chat" class="draw-danmaku-item">普通弹幕</div>
+    <div id="sc" class="draw-danmaku-item is-superchat">SC</div>` });
+  t.after(() => fixture.close());
+  const session = openBrowserSession();
+  t.after(() => session.close());
+  const page = await session.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const styles = await page.evaluate(() => {
+    document.body.dataset.style = 'bubble';
+    const read = () => Object.fromEntries(['chat', 'sc'].map(id => {
+      const css = getComputedStyle(document.getElementById(id));
+      return [id, { image: css.backgroundImage, color: css.backgroundColor }];
+    }));
+    const before = read();
+    document.body.dataset.customBackground = 'true';
+    document.documentElement.style.setProperty('--danmaku-background-opacity', '0.5');
+    return { before, after: read() };
+  });
+  assert.deepEqual(styles.after.sc, styles.before.sc);
+  assert.notDeepEqual(styles.after.chat, styles.before.chat);
+});
+
 test('notebook chat fits its content while event cards fill the region and center only regular gift thanks', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
@@ -96,7 +123,7 @@ test('notebook chat fits its content while event cards fill the region and cente
   }
 });
 
-test('each style scales its text with font settings and explicit canvas scaling', async t => {
+test('each style changes body text independently of identity and artwork while retaining canvas scaling', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
     <style>.danmaku-signal-stage { transition: none !important; }</style>
@@ -120,13 +147,16 @@ test('each style scales its text with font settings and explicit canvas scaling'
     for (const [style, limits] of Object.entries(DANMAKU_STYLE_OPTIONS)) {
       document.body.dataset.style = style;
       const render = createDanmakuMessageRenderer({ document, style, classNames: DEFAULT_DANMAKU_CLASSES });
+      const sender = { name: '观众', roomGuardLevel: 3, honorLevel: 20, roomMedal: { name: '粉丝牌', level: 12 } };
       const messages = [
-        { name: '观众', message: '正文大小' },
-        { kind: 'gift', name: '观众', giftName: '礼物', giftCount: 2, giftTotalPrice: 30 },
+        { ...sender, message: '正文大小' },
+        { ...sender, kind: 'gift', giftName: '礼物', giftCount: 2, giftTotalPrice: 30 },
       ];
       const hasSuperchat = limits.scrollDirection || style === 'mist';
-      if (hasSuperchat) messages.push({ kind: 'superchat', name: '观众', message: '留言大小', price: 30 });
-      for (const fontSize of [limits.minFontSize, limits.maxFontSize]) {
+      if (hasSuperchat) messages.push({ ...sender, kind: 'superchat', message: '留言大小', price: 30 });
+      messages.push({ ...sender, kind: 'gift', giftGuardLevel: 3, guardAction: 'open', giftCount: 1 });
+      messages.push({ ...sender, message: '行内[星]', emotes: [{ text: '[星]', url: '/img/overlays/danmaku-notebook/bilibili-noface.jpg', kind: 'inline' }] });
+      for (const fontSize of [limits.defaultFontSize || 30, limits.minFontSize, limits.maxFontSize]) {
         applyStyleOptions(document, style, { [style]: { fontSize } });
         root.replaceChildren(...messages.map(render));
         const cards = Array.from(root.children);
@@ -157,6 +187,21 @@ test('each style scales its text with font settings and explicit canvas scaling'
             results.push({ style, fontSize, scale, kind, width: probe.getBoundingClientRect().width });
             probe.remove();
           }
+          const emote = cards.at(-1).querySelector('.draw-danmaku-emote');
+          results.push({ style, fontSize, scale, kind: 'emote', width: emote.getBoundingClientRect().height });
+          const names = root.querySelectorAll('.draw-danmaku-identity strong, .sc-name, .spooky-event-name, .flower-nickname, .prismatic-guard-name, .mist-guard-name, .harbor-guard-name, .snowfox-member-name');
+          const artwork = root.querySelectorAll('.draw-danmaku-avatar, .sc-avatar, .spooky-portrait, .spooky-sticker, .notebook-avatar-frame, .notebook-tape, .harbor-avatar-frame, .prismatic-honor, .prismatic-guard, .notebook-guard, .snowfox-guard');
+          const badges = root.querySelectorAll('.draw-danmaku-medal, .prismatic-medal, .snowfox-medal');
+          const amounts = root.querySelectorAll('.sc-money, .draw-danmaku-gift-amount, .spooky-sc .spooky-event-copy, .notebook-amount, .twitter-gift-total, .flower-price');
+          const identity = [...names, ...badges, ...amounts].map(node => {
+            const css = getComputedStyle(node);
+            return node.getClientRects().length && css.display !== 'none' ? css.fontSize : null;
+          });
+          const decorations = [...artwork].map(node => {
+            const css = getComputedStyle(node);
+            return node.getClientRects().length && css.display !== 'none' ? [css.width, css.height] : null;
+          });
+          results.push({ style, fontSize, scale, kind: 'identity', identity, decorations });
         }
       }
     }
@@ -166,11 +211,19 @@ test('each style scales its text with font settings and explicit canvas scaling'
   for (const result of measurements) {
     const { style, fontSize, scale, kind, width } = result;
     const key = `${style}:${kind}`;
+    if (kind === 'identity') {
+      const identityKey = `${key}:${scale}`;
+      if (!baselines.has(identityKey)) baselines.set(identityKey, result);
+      const baseline = baselines.get(identityKey);
+      assert.deepEqual(result.identity, baseline.identity, `${style}: body size must preserve sender, badge and amount typography`);
+      assert.deepEqual(result.decorations, baseline.decorations, `${style}: body size must preserve avatars, frames and artwork`);
+      continue;
+    }
     assert.ok(Number.isFinite(width) && width > 0, `${key} renders visible text`);
     const nativeLettering = style === 'flower-letter'
       || kind === 'superchat' && ['ripploid', 'notebook'].includes(style)
       || kind === 'gift' && ['ripploid', 'spooky'].includes(style);
-    if (!nativeLettering) {
+    if (!nativeLettering && kind !== 'emote') {
       assert.ok(Math.abs(width - fontSize * scale) <= 0.1, JSON.stringify(result));
     }
     if (!baselines.has(key)) baselines.set(key, result);

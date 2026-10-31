@@ -1,4 +1,5 @@
 using System.Text.Json;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 using NAudio.Wave.SampleProviders;
 
@@ -9,6 +10,7 @@ internal static class DeviceInputChecks
     CheckChannels();
     CheckFormats();
     CheckCaptureLifecycle();
+    CheckEndpointDirections();
     var asio = PlaybackOutputs.ParseAsio("Test%20Driver%7CPort|2");
     if (asio.Driver != "Test Driver|Port" || asio.Offset != 2) throw new Exception("ASIO IDs must preserve driver identity and channel offset.");
     foreach (string invalid in new[] { "driver|-1", "driver|1", "driver|128", "driver|2|4", "driver|invalid" })
@@ -71,6 +73,25 @@ internal static class DeviceInputChecks
       Environment.SetEnvironmentVariable("LIRA_AUDIO_DATA_DIR", previous);
       if (Path.GetDirectoryName(root) != Path.GetFullPath(scratch)) throw new Exception("Unsafe fixture cleanup path.");
       Directory.Delete(root, true);
+    }
+  }
+
+  static void CheckEndpointDirections()
+  {
+    foreach (var flow in new[] { DataFlow.Capture, DataFlow.Render })
+    {
+      var endpoints = flow == DataFlow.Capture ? AudioDevices.Inputs() : AudioDevices.Outputs();
+      if (endpoints.Count == 0) continue;
+      using var endpoint = AudioDevices.OpenEndpoint(endpoints[0].Id, flow);
+      if (endpoint.DataFlow != flow) throw new Exception("Opening an endpoint must preserve its direction.");
+      var opposite = flow == DataFlow.Capture ? DataFlow.Render : DataFlow.Capture;
+      try
+      {
+        using var wrongDirection = AudioDevices.OpenEndpoint(endpoint.ID, opposite);
+        throw new Exception("An endpoint with the wrong direction must be rejected.");
+      }
+      catch (InvalidOperationException error) when (error.Message.StartsWith(
+        opposite == DataFlow.Render ? "输出设备" : "输入设备", StringComparison.Ordinal)) { }
     }
   }
 

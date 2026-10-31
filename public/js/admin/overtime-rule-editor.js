@@ -326,17 +326,20 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
 
   return {
     reselectGift(row, gift) {
-      row.dataset.giftId = String(gift.id);
-      row.dataset.giftName = gift.name;
-      row.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);
-      row.dataset.imagePath = gift.imagePath || '';
-      setGiftImage(row.querySelector('.overtime-rule-gift img'), gift.imagePath);
-      row.querySelector('.overtime-rule-identity strong').textContent = gift.name;
-      row.querySelector('[data-gift-binding]').textContent = gift.giftIdentity
+      const target = Array.from(root.children).find((candidate) => candidate === row
+        || (candidate.dataset.giftId === row.dataset.giftId && candidate.dataset.giftIdentity === row.dataset.giftIdentity));
+      if (!target) return null;
+      target.dataset.giftId = String(gift.id);
+      target.dataset.giftName = gift.name;
+      target.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);
+      target.dataset.imagePath = gift.imagePath || '';
+      setGiftImage(target.querySelector('.overtime-rule-gift img'), gift.imagePath);
+      target.querySelector('.overtime-rule-identity strong').textContent = gift.name;
+      target.querySelector('[data-gift-binding]').textContent = gift.giftIdentity
         ? describeBinding(gift.id, gift.giftIdentity)
         : '';
       markDirty();
-      return row;
+      return target;
     },
     readRules: () => readRules(root, getLimits()),
     renderRules,

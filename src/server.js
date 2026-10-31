@@ -208,6 +208,7 @@ function createServerRuntime(runtimeOptions = {}) {
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
       const displayPorts = {
+        bilibili: { getRoomProfile: () => bilibiliRuntime.getRoomProfile() },
         settings: { get: settingsStore.getSettings },
         system: { dataDir: DATA_DIR, getState },
         songs: { list: domainServices.songs.list, getChangeToken: domainServices.songs.getChangeToken },

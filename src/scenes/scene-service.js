@@ -376,7 +376,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
           }
           const outputDocument = version === record.publishedVersion ? null
             : structuredClone(browserSources.decodeDocument(document, owner.scope));
-          const appearances = getSharedAppearances?.(document.items);
+          const appearances = getSharedAppearances?.(document.items.filter(item => item.visible));
           assertCurrent();
           return {
             sceneId: id,

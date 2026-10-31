@@ -13,6 +13,7 @@ function createHarness({ ready = true, authorized = true, initializeFontLibrary 
   const catalogListeners = new Set();
   let state = authorized ? LicenseState.AUTHORIZED : LicenseState.NEEDS_ACTIVATION;
   let epoch = 1;
+  let generation = 1;
   let lastLicenseListener;
   let lastCatalogListener;
   const controller = createDesktopReadinessController({
@@ -29,6 +30,7 @@ function createHarness({ ready = true, authorized = true, initializeFontLibrary 
     licenseManager: {
       getState: () => state,
       getAuthorizationEpoch: () => epoch,
+      getAuthorizationGeneration: () => generation,
       onStateChanged(listener) {
         lastLicenseListener = listener;
         licenseListeners.add(listener);
@@ -75,8 +77,10 @@ function createHarness({ ready = true, authorized = true, initializeFontLibrary 
     change(next) {
       state = next;
       epoch++;
+      generation++;
       for (const listener of licenseListeners) listener({ state });
     },
+    renew() { epoch++; },
     ready() {
       ready = true;
       for (const listener of catalogListeners) listener({ status: 'ready' });
@@ -94,6 +98,17 @@ test('startup freezes gift source before cloud restore and resumes only after re
   h.controller.start();
   h.controller.start();
   assert.deepEqual(h.calls, [['gifts:start'], ['cloud:start'], ['catalog', 'authorized-startup']]);
+  h.cloud.resolve();
+  await h.cloud.promise;
+  await Promise.resolve();
+  assert.equal(h.calls.filter(([call]) => call === 'resume').length, 1);
+  h.controller.dispose();
+});
+
+test('same-owner token renewal during cloud restore preserves authorized recovery', async () => {
+  const h = createHarness();
+  h.controller.start();
+  h.renew();
   h.cloud.resolve();
   await h.cloud.promise;
   await Promise.resolve();

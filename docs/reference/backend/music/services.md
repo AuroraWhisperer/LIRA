@@ -197,9 +197,9 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 旧 JSON/XLSX 导入现在也遵守最终完整歌库容量约束，去重与超限原子拒绝由 [SongStore](../storage.md) 拥有；失败不广播或请求云同步。旧入口没有额外限制重复原始行数量，显式更新导入的输入行限制仍按其独立契约执行。
 
-- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 将有效行与 `import_batches` 写入同一事务,失败 `ROLLBACK`
+- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 在单个事务中写入有效歌曲和新分类，失败 `ROLLBACK`，不新增 `import_batches` 记录
 - 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新分类计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
-- 结束写 `import_batches` 批次记录;返回 `{total, inserted, duplicate, failed, createdCategories, failures}`
+- 返回 `{total, inserted, duplicate, failed, createdCategories, failures}`；导入计数只通过当次响应返回，不在结束时写入批次记录
 
 云端快照与表格导入是不同契约：上传边界 [mapSongForSync](../../../../src/electron/license/license-response-utils.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载由 `replaceCloudSongs` 将 canonical 字段映射回本地模型。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 的表格导入别名继续使用各自契约。跨端字段与配套升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)。
 
@@ -359,7 +359,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 函数                         | 行为                                                                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析(`readZipFiles`):定位 `xl/worksheets/sheet\d+.xml`、读 `sharedStrings.xml`、`parseWorksheetXml`;表头检测 = 任一行单元格命中别名;默认新增模式无表头按导出列序解析、丢弃空歌名行；`preserveMissing:true` 预览导入保留无歌名的非空行交由预览报无效，保留缺列语义且无表头要求完整十列。 |
+| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`；表头检测为任一行单元格命中别名，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
 | `buildSongsCsv(rows, options?)` | 表头 + `csvCell` 转义逐行；`template:true` 使用模板表头，下载模板传入空 rows |
 | `buildSongsWorkbook(rows, options?)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)；`template:true` 使用模板表头及标签列宽，下载模板传入空 rows |
 | `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
@@ -370,7 +370,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ## 12. 请求者定位(storage/requester-target-store.js)
 
-`createRequesterTargetStore(songDb).getLatestRandomRequester()`([requester-target-store.js:5-25](../../../../src/storage/requester-target-store.js#L5-L25)):查 `requests` 表最近一条 `source='random' 或 'random:%'` 且 uid 或 name 非空的行,返回 `{uid, name, source, createdAt}`;供弹幕机器人把随机点歌结果回复给触发者(见 [bilibili/danmaku.md](../bilibili/danmaku.md))。
+`createRequesterTargetStore(songDb).getLatestRandomRequester()`([requester-target-store.js](../../../../src/storage/requester-target-store.js)):查 `random_request_history` 表中 uid 或 name 非空的最近一条随机点歌记录，按 `created_at`、`request_id` 倒序，返回 `{uid, name, source, createdAt}`；供弹幕机器人把随机点歌结果回复给触发者(见 [bilibili/danmaku.md](../bilibili/danmaku.md))。
 
 ## 13. 歌词状态与时间轴(lyric-state.js / lyric-timeline.js)
 

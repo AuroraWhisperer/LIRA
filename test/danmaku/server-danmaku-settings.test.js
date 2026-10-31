@@ -205,6 +205,23 @@ test('failed apply and invalid durations retain the editable draft', async () =>
   assert.match(f.elements.styleChip.textContent, /一纸素笺/);
 });
 
+test('a same-account relogin rejects the old read binding before subsequent saves', async () => {
+  const f = await fixture();
+  f.account('');
+  f.account(url);
+  const currentBinding = 'current-login-binding';
+  f.reads[1].resolve(saved('signal', 6, currentBinding));
+  await flush();
+  f.reads[0].resolve(saved('bubble', 6, 'previous-login-binding'));
+  await flush();
+  f.click('twitter');
+  const saving = f.click('danmakuApplyOverlayBtn');
+  assert.equal(f.writes[0].binding, currentBinding);
+  f.writes[0].resolve(saved('twitter', 6, currentBinding));
+  await saving;
+  assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
+});
+
 test('local validation and ownership rejections retain the draft for retry', async () => {
   const f = await fixture();
   f.reads[0].resolve(saved());

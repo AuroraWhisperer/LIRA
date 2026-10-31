@@ -8,11 +8,13 @@ const { createDom } = require('../helpers/toast-dom');
 
 async function createEditor(savedValue = '') {
   const { documentRef } = createDom();
+  const draftEvents = [];
   const createElement = documentRef.createElement;
   documentRef.createElement = (tag) => {
     const node = createElement(tag);
     node.dataset = {};
     node.value = '';
+    node.dispatchEvent = (event) => draftEvents.push({ type: event.type, bubbles: event.bubbles });
     Object.defineProperty(node, 'nextElementSibling', {
       get() {
         const siblings = this.parentNode?.children || [];
@@ -26,7 +28,7 @@ async function createEditor(savedValue = '') {
     elements.set(`songRequestBlacklist${suffix}`, documentRef.createElement('div'));
   }
   documentRef.getElementById = (id) => elements.get(id);
-  const { createSongRequestBlacklist } = await loadModuleExports(path.resolve('public/js/admin/song-request-blacklist.js'));
+  const { createSongRequestBlacklist } = await loadModuleExports(path.resolve('public/js/admin/song-request-blacklist.js'), { Event });
   const editor = createSongRequestBlacklist({
     documentRef,
     getState: () => ({ getAppState: () => ({ settings: { songRequestBlacklist: savedValue } }) }),
@@ -34,6 +36,7 @@ async function createEditor(savedValue = '') {
   editor.init();
   return {
     editor,
+    draftEvents,
     documentRef,
     field: elements.get('songRequestBlacklist'),
     list: elements.get('songRequestBlacklistWords'),
@@ -110,4 +113,12 @@ test('Enter adds an entry without submitting the form, while IME confirmation do
   assert.equal(list.children.length, 2);
   assert.equal(prevented, true);
   assert.equal(documentRef.activeElement, list.children[1].children[0]);
+});
+
+test('deleting a saved word notifies the form of its unsaved draft', async () => {
+  const ui = await createEditor('first\nsecond');
+  ui.list.children[0].children[1].fire('click');
+  assert.equal(ui.field.value, 'second');
+  assert.equal(ui.field.dataset.dirty, 'true');
+  assert.deepEqual(ui.draftEvents, [{ type: 'input', bubbles: true }]);
 });

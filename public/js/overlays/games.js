@@ -283,7 +283,7 @@ function renderDrawGuess(state, redraw = true) {
   drawController?.setToolsEnabled(state.phase === 'drawing');
   if (state.phase === 'round-result')
     byId('gameTurn').textContent = state.answerRevealed ? '答案已公布 · 等待下一题' : '时间到 · 等待主播公布答案';
-  else if (state.phase === 'finished') byId('gameTurn').textContent = '五局结束 · 最终排行';
+  else if (state.phase === 'finished') byId('gameTurn').textContent = `${state.totalRounds} 局结束 · 最终排行`;
   else drawController?.updateCountdown();
 }
 

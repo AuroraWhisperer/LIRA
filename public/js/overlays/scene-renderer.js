@@ -1,6 +1,6 @@
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createSceneGiftDisplay } from './scene-gift-display.js';
-import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../shared/browser-source-frame.js';
+import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from './browser-source-frame.js';
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { componentCssRendererUrl } from '../shared/component-css-style.js';
 const MAX_PENDING_EVENTS = 200;

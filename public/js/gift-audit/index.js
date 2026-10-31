@@ -18,8 +18,10 @@ let reconnectTimer = null;
 let fallbackTimer = null;
 
 function mergeServerGifts(gifts) {
+  const cachedIds = new Set(serverGiftCache.map((gift) => gift.id));
   for (const gift of gifts) {
-    if (!serverGiftCache.find((cachedGift) => cachedGift.id === gift.id)) {
+    if (!cachedIds.has(gift.id)) {
+      cachedIds.add(gift.id);
       serverGiftCache.push(gift);
     }
   }

@@ -1,6 +1,7 @@
 'use strict';
 
 const zlib = require('node:zlib');
+const path = require('node:path');
 const { cleanText } = require('./utils');
 
 // Import budgets, independent of ZIP metadata. Optional limits only tighten them.
@@ -62,8 +63,40 @@ function decodeXmlCodePoint(codePoint) {
 }
 
 function getXmlAttr(attrs, name) {
-  const match = String(attrs || '').match(new RegExp(`${name}="([^"]*)"`, 'i'));
-  return match ? unescapeXml(match[1]) : '';
+  const match = String(attrs || '').match(new RegExp(`(?:^|\\s)${name}\\s*=\\s*(["'])([\\s\\S]*?)\\1`, 'i'));
+  return match ? unescapeXml(match[2]) : '';
+}
+
+function readWorkbookFiles(buffer) {
+  let fallbackWorksheet = '';
+  const metadata = readZipFiles(buffer, { selectEntry(name) {
+    if (!fallbackWorksheet && /^xl\/worksheets\/sheet\d+\.xml$/i.test(name)) fallbackWorksheet = name;
+    return name === 'xl/workbook.xml' || name === 'xl/_rels/workbook.xml.rels';
+  } });
+  let worksheetEntry = fallbackWorksheet;
+  if (metadata.size) {
+    const sheet = metadata.get('xl/workbook.xml')?.match(/<(?:[\w.-]+:)?sheet\b([^>]*)>/i);
+    const id = sheet && getXmlAttr(sheet[1], '[\\w.-]+:id');
+    let target = '';
+    for (const relation of (metadata.get('xl/_rels/workbook.xml.rels') || '').matchAll(/<(?:[\w.-]+:)?Relationship\b([^>]*)>/gi)) {
+      if (getXmlAttr(relation[1], 'Id') !== id) continue;
+      if (!getXmlAttr(relation[1], 'Type').endsWith('/worksheet') || getXmlAttr(relation[1], 'TargetMode') === 'External') break;
+      target = getXmlAttr(relation[1], 'Target');
+      break;
+    }
+    if (!target || /[:\\]/.test(target)) throw new Error('Excel 工作簿首个工作表的引用无效。');
+    worksheetEntry = path.posix.normalize(target.startsWith('/') ? target.slice(1) : `xl/${target}`);
+    if (!worksheetEntry.startsWith('xl/')) throw new Error('Excel 工作表引用超出工作簿范围。');
+  }
+  if (!worksheetEntry) throw new Error('Excel 文件里没有找到工作表。');
+  const metadataBytes = [...metadata.values()].reduce((total, text) => total + Buffer.byteLength(text), 0);
+  checkBudget(metadataBytes + 1, XLSX_LIMITS.totalBytes, 'workbook metadata');
+  const files = readZipFiles(buffer, {
+    selectEntry: (name) => name === worksheetEntry || name === 'xl/sharedStrings.xml',
+    limits: { totalBytes: XLSX_LIMITS.totalBytes - metadataBytes },
+  });
+  if (!files.has(worksheetEntry)) throw new Error('Excel 工作簿引用的工作表不存在。');
+  return { worksheet: files.get(worksheetEntry), sharedStrings: files.get('xl/sharedStrings.xml') || '' };
 }
 
 function columnName(index) {
@@ -435,4 +468,5 @@ module.exports = {
   parseSharedStrings,
   parseWorksheetXml,
   readZipFiles,
+  readWorkbookFiles,
 };

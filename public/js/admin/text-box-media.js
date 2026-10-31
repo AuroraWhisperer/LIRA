@@ -30,7 +30,7 @@ const KAOMOJI = {
 };
 
 export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedia, onError }) {
-  const requests = new AbortController();
+  let requests = new AbortController();
   let selectedGift;
   let uploading = false;
   let disabled = false;
@@ -89,11 +89,14 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
     if (!['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(file.type)) { onError(new Error('请选择 PNG、JPEG、GIF 或 WebP 图片。')); return; }
     if (file.size > 5 * 1024 * 1024) { onError(new Error('图片不能超过 5 MB，请压缩后重新上传。')); return; }
     uploading = true; uploadButton.disabled = true; uploadButton.textContent = '上传中…';
+    const submitted = requests;
     try {
-      const result = await request('image', { file, signal: requests.signal });
-      if (!requests.signal.aborted && !disabled) composer.insertNode({ type: 'image', name: file.name.slice(0, 200), src: result.imagePath });
-    } catch (error) { if (!requests.signal.aborted) onError(error); }
-    finally { uploading = false; uploadButton.disabled = disabled; uploadButton.textContent = '上传图片'; }
+      const result = await request('image', { file, signal: submitted.signal });
+      if (!submitted.signal.aborted && !disabled) composer.insertNode({ type: 'image', name: file.name.slice(0, 200), src: result.imagePath });
+    } catch (error) { if (!submitted.signal.aborted) onError(error); }
+    finally {
+      if (submitted === requests) { uploading = false; uploadButton.disabled = disabled; uploadButton.textContent = '上传图片'; }
+    }
   });
   const faces = previewElement('div', 'text-box-faces'); faces.hidden = true;
   const tabs = previewElement('div', 'text-box-face-tabs');
@@ -110,6 +113,10 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
   const hint = previewElement('p', 'text-box-upload-hint', 'PNG / JPEG / GIF / WebP · 单张 ≤ 5 MB · 动图会保留');
   host.append(tools, giftRow, upload, faces, hint);
   return {
+    cancelPending() {
+      requests.abort(); requests = new AbortController();
+      uploading = false; uploadButton.disabled = disabled; uploadButton.textContent = '上传图片';
+    },
     setDisabled(value) {
       disabled = value;
       for (const input of [...tools.querySelectorAll('button'), ...giftRow.querySelectorAll('button'), ...faces.querySelectorAll('button')]) input.disabled = value;

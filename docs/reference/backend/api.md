@@ -49,7 +49,7 @@ ZIP 的 `target` 缺失或无效返回 400 并提示重新选择导入入口；�
 
 `GET/HEAD /component-web/<包 UUID>/<原相对路径>` 匿名读取已导入网页资源，保留 Host 校验，无目录枚举；按扩展名设置 MIME、nosniff、CORS `*`、immutable 缓存和 no-referrer。HTML/HTM/SVG 响应强制 `sandbox allow-scripts; object-src 'none'; form-action 'none'`，不给管理凭据、桌面桥或 same-origin 权限；脚本仍可访问作者外部服务，须遵守服务自身的 Origin/登录约束。其他 HTTP 方法返回 405，非法/缺失资源为 404。
 
-API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身份缺失，403 为权限或 Origin 无效，404 为样式不存在，409 为同版本不同内容或画布接管冲突，410 为会话失效，413 为流体积超限，503 为会话暂不可用。JSON 操作体不超过 4 KiB。单素材上限 512 MiB；ZIP 上限 1 GiB，展开总量 2 GiB、256 条目、64 样式；清单及单份说明各 256 KiB。CRC、解压长度、路径、重复文件名、链接、加密和媒体签名均需校验。普通媒体只允许 PNG/JPEG/GIF/WebP/MP4/WebM；ZIP 另允许每份不超过 1 MiB 的 SVG/WOFF2 资源、根清单及 TXT/MD 说明。schemaVersion 1 保持兼容；2 允许受信预设资源型样式，必须声明该预设的完整资源映射且格式匹配；不执行包内脚本。
+API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身份缺失，403 为权限或 Origin 无效，404 为样式不存在，409 为同版本不同内容或画布接管冲突，410 为会话失效，413 为流体积超限，503 为会话暂不可用。未单列的 JSON 操作体不超过 4 KiB；inventory、cleanup 和 config 为 64 KiB。单素材上限 512 MiB；ZIP 上限 1 GiB，展开总量 2 GiB、256 条目、64 样式；清单及单份说明各 256 KiB。CRC、解压长度、路径、重复文件名、链接、加密和媒体签名均需校验。普通媒体只允许 PNG/JPEG/GIF/WebP/MP4/WebM；ZIP 另允许每份不超过 1 MiB 的 SVG/WOFF2 资源、根清单及 TXT/MD 说明。schemaVersion 1 保持兼容；2 允许受信预设资源型样式，必须声明该预设的完整资源映射且格式匹配；不执行包内脚本。
 
 `GET/HEAD /component-media/<包 UUID>/<SHA-256>.<扩展名>` 提供匿名本机媒体读取，保留原 Host 闸门；严格匹配路径，拒绝链接及非普通文件。支持单段 byte Range（206/416）、正确 MIME、nosniff、immutable 缓存和浏览器源所需 CORS。SVG 额外使用 `sandbox; default-src 'none'; style-src 'unsafe-inline'` CSP，禁止导航执行脚本或请求外部资源；WOFF2 使用 font/woff2。素材没有目录枚举接口。持久化见[存储合同](storage.md#本地组件样式库)，清单格式见[作者指南](../../guides/component-style-packages.md)。
 
@@ -132,7 +132,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds,canvas,itemSizes}`，取已发布版本；canvas 为 `{width,height}`（未发布为 null），itemSizes 按实例 ID 映射 `{width,height}`；仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
-| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?,dataVersions?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances,dataVersions?}`；相同发布版本 document 为 null，appearances 仍按已发布 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，移至原点并使用保存宽高；凭据权限仍属于整个场景 |
+| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?,dataVersions?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances,dataVersions?}`；相同发布版本 document 为 null，appearances 仍按已发布可见 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，强制可见、移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
 | `GET /api/scene/events` | `id,version,item?,projection?` 查询；场景 Bearer | `text/event-stream`，仅通知 `ready` / `change` / `revoked` 与注释心跳；数据仍从 output 读取；本地运行时最多四条连接，超限 429 |
 | `OPTIONS /api/scene/events` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
@@ -145,6 +145,8 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 上述响应均禁止 HTTP 缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、Authorization 请求头和省略凭据模式，不接受查询参数中的 token。流绑定当前 owner scope/epoch、sceneId、capability 和可选 item，复用 output 的 active projection 验证；成功发布/轮换或对应类型的运行时变化触发通知，40ms 合并突发变化。每次通知及每秒心跳都复核访问和 HTTP server 的实际 license/lifecycle；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流。消息不含组件数据、外部 URL 或业务事件 ID；慢客户端被关闭，shutdown 在 inflight drain 前释放所有流。
 
 客户端输出读取不重叠，请求开始至少间隔 100ms；通知正常时每五秒补读检查，断线、未实现或超出连接上限时回退为响应结束后约 750ms 重读，并有限退避重连。通知接口初次 HTTP 失败本身不清空有效输出；明确的 `revoked` 或 output 授权失败才撤销。提交新 renderer 版本/回执后重开通知订阅，准备失败继续订阅旧版所需类型。云事件仍提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+
+`data.danmaku.roomProfile` 为 `{roomId,uid,name,avatarUrl}` 或 `null`，仅投影与当前授权账号代次、云端 roomGuard 及本地已连接房间一致的房主资料。资料异步读取与30秒缓存不阻断事件；房间/账号切换及读取失败返回中性空值，过期读取不能通知或覆盖新上下文。场景子页直接消费该投影，不获得管理凭据，也不自行调用房主资料 HTTP 接口。
 
 `gift-feed` / `gift-wishes` 的展示读取通过真实礼物门面获取 `viewRevision`，缓存按账号、revision 和日期失效。许愿配置变化另清除 gift-wishes 缓存，礼物目录更新清除这两类缓存，随后通知对应类型；失效前的慢读取不能覆盖新缓存。礼物来源尚不可用或正在切换时，相关 `data[type]` 为 `null`，不让整个场景输出失败；来源恢复后重新读取当前 revision 的投影。
 
@@ -171,7 +173,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 
 | 事实            | 值                                                                                                                                  | 出处                                                             |
 | --------------- | ----------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| 模块注册        | `ROUTE_MODULES` 数组按序 require **19 个路由模块**,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)           | [api-routes.js](../../../src/server/api-routes.js)   |
+| 模块注册        | `ROUTE_MODULES` 数组按序 require 各路由模块,每个模块导出 `prefixes[]` 与 `routes` 映射(`"METHOD /path"` → handler)                    | [api-routes.js](../../../src/server/api-routes.js)   |
 | 匹配顺序        | 按模块顺序做前缀匹配(`pathName.startsWith(prefix)`);**先注册的模块优先**,因此 `/api/music/wesing/*` 归属 WeSing 模块而非 music 模块 | [api-routes.js:29-39](../../../src/server/api-routes.js#L29-L39) |
 | 405 与 404 区分 | 模块前缀命中但路径没有对应方法时,`findRoute` 置 `pathExists` → **405**;任何模块前缀都不命中 → **404**                               | [api-routes.js:34-38](../../../src/server/api-routes.js#L34-L38) |
 | 请求体惰性读取  | `createBodyReader` 只在 handler 真正调用 `request.body()` 时读一次 JSON(GET 请求不读 body)                                          | [api-routes.js:42-48](../../../src/server/api-routes.js#L42-L48) |
@@ -373,7 +375,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `POST /api/opening/character`   | `multipart/form-data`，字段 `file`；内容 ≤ 16 MB，扩展名限 `.png/.jpg/.jpeg/.webp` 且必须匹配图片签名 | 保存至 data 目录下 `opening-character/` 并将其设为当前人物图                                                                                                                  | 400(缺少、不支持或签名不匹配)、413(请求体超限) |
 | `DELETE /api/opening/character` | 无                                                                                                    | 清除当前人物图选择，回到无人物图状态；保留已上传文件                                                                                                                           | —                                              |
 
-上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。`/api/opening/*` 写接口仅管理身份可用；opening 页面能力只能读取裁剪后的配置。
+上传文件使用随机文件名；音频和人物图分别只允许当前设置指向的文件通过 `/opening-media/` 与 `/opening-character/` 读取，原始文件名仅作为界面显示文本。每次选择或清除将文件键与显示名称在同一设置事务中提交，成功后才广播；事务失败保留原选择及名称。文件发布与设置不是跨资源事务，失败后可能保留未选中的上传文件。`/api/opening/*` 写接口仅管理身份可用；opening 页面能力只能读取裁剪后的配置。
 
 人物图上传与清除可携带查询参数 `style=pixel-cassette`，操作动画 2 独立的头像；省略或指定 `classic`
 仍操作经典舞台人物图，非法样式返回 400。两种样式的素材互不覆盖，未上传时均为空。
@@ -533,7 +535,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 > 模块文件:[src/server/routes/theme-routes.js](../../../src/server/routes/theme-routes.js)
 > 前缀:`/api/theme/`
 
-全部端点经 `themeRoute` 包装:抛错统一回 **400**。应用预设会写回 settings,故附带快照广播。
+全部端点经 `themeRoute` 包装:抛错统一回 **400**。应用预设只提取其 scope 允许的键，在同一设置事务中写回 settings；任一写入失败则整体回滚，成功后才附带快照广播。
 
 | 端点                             | 请求                                                                                | 响应(data)                                          | 错误码                                                  |
 | -------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------- | ------------------------------------------------------- |
@@ -683,7 +685,8 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 | 字段                        | 规则                                                                                                                                                                                               |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `giftId`(必填)              | 字符串,≤ 100 字符,**数组内不可重复**                                                                                                                                                               |
+| `giftId`(必填)              | 字符串,≤ 100 字符；`(giftId, giftIdentity.variantId)` 组合在数组内不可重复，不同变体可共用平台礼物 ID                                                                                     |
+| `giftIdentity`              | 可选的完整礼物身份；`variantId` 参与上述唯一性校验，缺省按空变体处理                                                                                                                        |
 | `giftName`                  | ≤ 100 字符                                                                                                                                                                                         |
 | `imagePath`                 | 新规则非空时使用 `/overtime-gift-images/<basename>` 或 `/img/admin/gifts/`、`/img/overtime-machine/` 内置路径；桌面远程目录可另使用已配置 HTTPS DNS origin 下的 `/gift-media/images/<basename>` URL；旧 `/img/bilibili-gifts/...` 仅作兼容迁移路径 |
 | `mode`(必填)                | `fixed`、`random` 或 `display`                                                                                                                                                                     |
@@ -874,10 +877,12 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 | `GET /api/bilibili/room/profile`               | 无；只查询当前已保存的直播间。管理身份或 danmaku overlay 凭据可读，后者不接受以查询参数指定房间或主播 | 房主资料 `{roomId, uid, name, avatarUrl}`，`roomId` 为解析后的房间号；未设置房间时字段为空，头像仍通过既有代理加载；overlay 响应只投影这四个字段 | 502（房间解析失败；可选用户资料不可用时保留房间号和已知房主昵称） |
 | `GET /api/bilibili/likes/state` | 无；沿用本机管理身份，匿名及 overlay 凭据不可读 | `{roomId,count,updatedAt,connected}`：最近收到的房间累计点赞数及本机 ISO 接收时间；未收到有效推送或未连接时数值和时间为 `null`。只读内存，不调用上游 | 通用认证/授权错误 |
 | `POST /api/bilibili/reconnect`                 | 无                                                                                                        | 手动重连结果;失败时同步更新 `liveStatus`                                                                                                  | **500** `{ok:false, error, detail, data:{liveStatus}}`                                                                                                                           |
-| `GET /api/bilibili/danmaku/state`              | 无                                                                                                        | 弹幕发送器状态 + 设置 `checkinBlessings/fortunePool/customReplyRules`                                                                     | 500                                                                                                                                                                              |
-| `POST /api/bilibili/danmaku/send`              | `{message`(**必填**,去空格后非空,否则 400 `弹幕内容不能为空。`), `mentionRequester?`(`true` 时@点歌观众)} | 发送结果                                                                                                                                  | 400、**502**(`{ok:false, error, detail}`,error 为 `publicDanmakuSendErrorMessage` 的人话文案:频率限制/未登录/房间号不对/风控 code=-352/拦截 code=-412/参数 code=-400/网络异常等) |
+| `GET /api/bilibili/danmaku/state`              | 无 | 弹幕发送器状态（含 `sendSession:string`）+ 设置 `checkinBlessings/fortunePool/customReplyRules` | 500 |
+| `POST /api/bilibili/danmaku/send`              | `{message`(**必填**,去空格后非空,否则 400 `弹幕内容不能为空。`), `mentionRequester?`(`true` 时@点歌观众), `sendSession?`（自动批次使用读取状态时返回的非空字符串）} | 发送结果 | 400、**502**(`{ok:false, error, detail}`，人话文案覆盖频率限制、未登录、房间错误、风控、网络异常及自动发送会话失效) |
 
 行为文档:[bilibili/danmaku.md](bilibili/danmaku.md)。
+
+`sendSession` 绑定发送账号与房间的当前运行代次，用于防止自动批次在上下文切换后向新目标续发；它不是认证凭据，接口仍执行原有管理授权。发送 owner 在入队及异步边界核对，失效或无效值触发内部 `DANMAKU_SESSION_CHANGED`，HTTP 仍沿用 502 的 `{ok:false,error,detail}`，提示确认目标后重试。旧调用省略此字段时保留手动发送行为。
 
 # 小游戏 API
 

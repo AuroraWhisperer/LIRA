@@ -6,6 +6,46 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const entry = (file) => path.join(__dirname, '../../public/js/playback', file);
 
+test('lyric results retain their request generation when playback returns to the same song', async () => {
+  const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
+  const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));
+  const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+  const state = createInitialState();
+  const requests = [];
+  const publications = [];
+  const controls = createPlaybackControls({
+    playbackState: state,
+    stateActions: createPlaybackStateActions(state),
+    lyricService: { loadLyrics: track => new Promise(resolve => requests.push({ track, resolve })) },
+    syncPlaybackLyricWindow: () => publications.push(state.current.lyrics),
+  });
+  state.current = { id: 'a', source: 'qq' };
+  const firstA = controls.loadPlaybackLyrics(state.current);
+  controls.invalidatePlaybackRequests();
+  state.current = { id: 'b', source: 'qq' };
+  const oldB = controls.loadPlaybackLyrics(state.current);
+  controls.invalidatePlaybackRequests();
+  state.current = { id: 'a', source: 'qq' };
+  const currentA = controls.loadPlaybackLyrics(state.current);
+  const lyrics = { lines: [{ text: 'Current A' }] };
+  requests[2].resolve(lyrics);
+  await currentA;
+  requests[0].resolve(null);
+  requests[1].resolve({ lines: [{ text: 'Old B' }] });
+  await Promise.all([firstA, oldB]);
+  assert.equal(state.current.lyrics, lyrics);
+  assert.deepEqual(publications, [lyrics]);
+  const olderReload = controls.loadPlaybackLyrics(state.current);
+  const newerReload = controls.loadPlaybackLyrics(state.current);
+  const latest = { lines: [{ text: 'Refreshed A' }] };
+  requests[4].resolve(latest);
+  await newerReload;
+  requests[3].resolve(null);
+  await olderReload;
+  assert.equal(state.current.lyrics, latest);
+  assert.deepEqual(publications, [lyrics, latest]);
+});
+
 test('forgetting provider streams covers every playable collection while retaining other providers and lyrics', async () => {
   const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));
   const { createInitialState } = await loadModuleExports(entry('state/manager.js'));

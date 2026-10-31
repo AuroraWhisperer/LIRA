@@ -30,6 +30,56 @@ function oldRequest(f, input = {}, scope = null) {
   );
 }
 
+test('restore normalizes identities and rejects malformed suppression keys before writing a snapshot', (t) => {
+  const f = fanFixture(t);
+  const profile = f.create();
+  const original = f.run('backup');
+  const snapshots = () => f.db.songDb.prepare('SELECT COUNT(*) AS count FROM fan_restore_snapshots').get().count;
+  const before = snapshots();
+  const identityBackup = structuredClone(original);
+  identityBackup.profiles[0].identity.value = ` ${IDENTITY.value} `;
+  const identityPlan = f.run('preview-restore', { backup: identityBackup });
+  assert.equal(identityPlan.added, 0);
+  assert.equal(identityPlan.updated, 1);
+  for (const key of ['invalid-json', 'null', '{}', '["bilibili","uid"]', '["bilibili","uid","00123"]', '["bilibili","uid","123","extra"]']) {
+    const backup = { ...original, suppressions: [key] };
+    assert.throws(() => f.run('preview-restore', { backup }), /抑制标记无效/);
+    assert.throws(() => f.run('restore', { backup, conflicts: 'replace' }), /抑制标记无效/);
+  }
+  assert.equal(snapshots(), before);
+  assert.deepEqual(f.detail(profile.id).identity, IDENTITY);
+  assert.deepEqual(f.run('suppression-list'), []);
+  f.run('restore', { backup: identityBackup, ...identityPlan, conflicts: 'replace' });
+  assert.deepEqual(f.detail(profile.id).identity, IDENTITY);
+  assert.equal(f.run('backup').profiles.length, 1);
+  const backup = { ...original, suppressions: [JSON.stringify(['bilibili', 'uid', ' 123 '])] };
+  const plan = f.run('preview-restore', { backup });
+  f.run('restore', { backup, ...plan, conflicts: 'keep' });
+  assert.deepEqual(f.run('suppression-list')[0].identity, ['bilibili', 'uid', '123']);
+});
+
+test('restoring a legacy local snapshot uses the same normalized identities as its preview', t => {
+  const f = fanFixture(t);
+  const profile = f.create();
+  const backup = f.run('backup');
+  backup.profiles[0].identity.value = ` ${IDENTITY.value} `;
+  backup.suppressions = [JSON.stringify(['bilibili', 'uid', ' 999 '])];
+  const snapshotId = f.store.snapshot(SCOPE, backup, NOW);
+  const plan = f.run('preview-snapshot', { snapshotId });
+  f.run('restore-snapshot', { snapshotId, confirm: true, ...plan });
+  assert.deepEqual(f.detail(profile.id).identity, IDENTITY);
+  assert.deepEqual(f.run('suppression-list')[0].identity, ['bilibili', 'uid', '999']);
+  f.restart();
+  assert.deepEqual(f.detail(profile.id).identity, IDENTITY);
+  assert.equal(f.run('backup').profiles.length, 1);
+  const malformed = { ...f.run('backup'), suppressions: ['invalid-json'] };
+  const badSnapshotId = f.store.snapshot(SCOPE, malformed, NOW);
+  const before = f.run('snapshots').length;
+  assert.throws(() => f.run('restore-snapshot', { snapshotId: badSnapshotId, confirm: true }), /抑制标记无效/);
+  assert.deepEqual(f.detail(profile.id).identity, IDENTITY);
+  assert.equal(f.run('snapshots').length, before);
+});
+
 test('A29: complete restore preserves song summaries, other record evidence and handled reminder state', (t) => {
   const f = fanFixture(t);
   const p = f.create({ notes: '私密备份备注', birthday: { monthDay: '09-18' } });

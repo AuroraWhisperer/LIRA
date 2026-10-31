@@ -214,7 +214,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   let selected = SHOTS.filter((shot) => !shot.skip);
   if (options.group) selected = selected.filter((s) => s.group === options.group);
-  if (options.only) selected = SHOTS.filter((s) => options.only.includes(s.id));
+  if (options.only) selected = selected.filter((s) => options.only.includes(s.id));
 
   if (options.list) {
     for (const shot of SHOTS) {

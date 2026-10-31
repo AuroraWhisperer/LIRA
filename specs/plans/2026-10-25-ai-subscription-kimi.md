@@ -18,7 +18,7 @@ AI 互动助手增加 Kimi 官方 API，以及官方支持的 ChatGPT 订阅授�
 ## 当前行为与所有权
 
 - `src/ai/config.js` / `config-store.js` 拥有平台预设、设置与 API 密钥来源保护。
-- `src/ai/deepseek-client.js` 是统一模型出口，现有豆包独立账号模式；`ai-assistant-service.js` 拥有审核、工具、排队与交付。
+- `src/ai/model-client.js` 是统一模型出口，现有豆包独立账号模式；`ai-assistant-service.js` 拥有审核、工具、排队与交付。
 - `src/server/ai-runtime.js` 装配，`api-context.js` / `routes/ai-routes.js` 提供已鉴权管理接口。
 - `public/js/admin/ai-assistant-{settings,config-view}.js` 与 `danmaku-ai.html` 拥有配置交互。
 - 技术契约：`docs/reference/backend/{ai,api,storage}.md`；用户指导：`docs/guides/third-party-api-support.md`、`usage-guide-ai.html`。

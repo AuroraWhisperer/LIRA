@@ -648,6 +648,39 @@ const libraries = [
   },
 ];
 
+test('CustomReply skips unchanged clean loads and reloads after saving or resetting', async (t) => {
+  const page = await fixture(t, 'libraries');
+  const result = await page.evaluate(async (library) => {
+    for (const id of library.ids.map(suffix => `danmaku${library.name}${suffix}`).concat(library.extraIds)) {
+      const node = document.createElement(/Btn$/.test(id) ? 'button' : /Input$/.test(id) ? 'input' : 'div');
+      node.id = id;
+      document.body.append(node);
+    }
+    const { createCustomReplyEditor } = await import('/js/admin/danmaku-libraries.js');
+    const editor = createCustomReplyEditor({ document, saveSetting: window.saveSetting, toast() {} });
+    const rawValue = JSON.stringify(library.initial);
+    const list = document.getElementById('danmakuCustomReplyList');
+    editor.load(rawValue);
+    const firstRow = list.firstElementChild;
+    editor.load(rawValue);
+    const retained = list.firstElementChild === firstRow;
+
+    const input = list.querySelector('input');
+    input.value = 'B';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    document.getElementById('danmakuCustomReplySaveBtn').click();
+    window.pendingSaves[0].resolve();
+    await Promise.resolve();
+    const saved = list.querySelector('input').value;
+    editor.load(rawValue);
+    const reloaded = list.querySelector('input').value;
+    editor.reset();
+    editor.load(rawValue);
+    return { retained, saved, reloaded, reset: list.querySelector('input').value, count: list.children.length };
+  }, libraries[0]);
+  assert.deepEqual(result, { retained: true, saved: 'B', reloaded: 'A', reset: 'A', count: 2 });
+});
+
 for (const library of libraries) {
   for (const result of [
     'success-edit',

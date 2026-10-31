@@ -26,12 +26,14 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
   let editRevision = 0;
   let saving = false;
   let generation = 0;
+  let loadedValue;
 
   const setStatus = (text, kind = '') => {
     elements.status.textContent = text;
     elements.status.className = `hint${kind ? ` ${kind}` : ''}`;
   };
   const markDirty = () => {
+    loadedValue = undefined;
     editRevision += 1;
     dirty = true;
     elements.saveButton.disabled = saving;
@@ -141,6 +143,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
   return {
     reset() {
       generation += 1;
+      loadedValue = undefined;
       items = [];
       dirty = saving = false;
       editRevision = 0;
@@ -151,9 +154,12 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
     },
     load(rawValue) {
       if (dirty || saving) return;
-      items = parseJsonArray(rawValue)
+      const value = String(rawValue || '[]');
+      if (value === loadedValue) return;
+      items = parseJsonArray(value)
         .map(exact ? (item) => ({ keyword: item.keyword, reply: item.reply }) : normalizeCustomReply)
         .filter((item) => item.keyword && item.reply);
+      loadedValue = value;
       render();
       elements.saveButton.disabled = true;
       setStatus(`已读取 ${items.length} 条`, 'good');

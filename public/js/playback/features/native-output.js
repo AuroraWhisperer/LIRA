@@ -78,6 +78,7 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
       await context.setSinkId('');
       if (request !== epoch || disposed) return;
       await context.resume();
+      if (request !== epoch || disposed) return;
       const result = await bridge.invoke({ op: 'open', value: { deviceId: selectedId } });
       if (request !== epoch || disposed) return;
       if (!result.ok) throw new Error(result.error);

@@ -5,7 +5,7 @@ const { createAiConfigStore } = require('../ai/config-store');
 const { createAiStateStore } = require('../storage/ai-state-store');
 const { createAiApiQuotaStore } = require('../ai/api-quota-store');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
-const { createDeepSeekClient } = require('../ai/deepseek-client');
+const { createModelClient } = require('../ai/model-client');
 const { createDoubaoClient } = require('../ai/doubao-client');
 const { createChatGptSession } = require('../ai/chatgpt-session');
 const { createChatGptClient } = require('../ai/chatgpt-client');
@@ -32,7 +32,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
   const service = createAiAssistantService({
     store: configStore,
     quotaStore,
-    deepseek: createDeepSeekClient({
+    modelClient: createModelClient({
       doubao,
       chatgpt: createChatGptClient({ session: chatgptSession, fetchImpl: runtimeOptions.fetchImpl,
         logEvent: (event) => requestLogger.log(event) }),

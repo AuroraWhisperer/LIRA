@@ -171,7 +171,7 @@ class NeteaseMusicProvider {
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const session = await getLikedTracksSession(this, options.loadingSession);
     const playlistId = session ? await (session.playlist ||= this.getLikedPlaylistId()) : await this.getLikedPlaylistId();
-    return this.getPlaylistTracks(playlistId, { limit, offset });
+    return this.getPlaylistTracks(playlistId, { limit, offset, session });
   }
 
   async getLikedPlaylistId() {
@@ -225,13 +225,26 @@ class NeteaseMusicProvider {
     if (!id) throw new Error('缺少网易云歌单 ID。');
     const limit = clampInteger(options.limit, 1, 5000, 1000);
     const offset = clampInteger(options.offset, 0, 200000, 0);
-    const data = await this.requestJson('/api/v6/playlist/detail', {
-      id,
-      n: String(limit),
-      s: String(offset),
-    });
-    const tracks = data && data.playlist && Array.isArray(data.playlist.tracks) ? data.playlist.tracks : [];
-    return this.mapTracksWithArtwork(tracks);
+    const readPlaylist = () => this.requestJson('/api/v6/playlist/detail', { id, n: '0', s: '0' });
+    const data = options.session
+      ? await (options.session.playlistDetails ||= readPlaylist())
+      : await readPlaylist();
+    const playlist = data?.playlist || {};
+    if (!Array.isArray(playlist.trackIds)) {
+      const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
+      if (Number(playlist.trackCount) > tracks.length) throw new Error('网易云歌单未返回完整曲目索引，请重试。');
+      return this.mapTracksWithArtwork(tracks.slice(offset, offset + limit));
+    }
+    if (Number(playlist.trackCount) > playlist.trackIds.length) throw new Error('网易云歌单未返回完整曲目索引，请重试。');
+    const ids = playlist.trackIds.slice(offset, offset + limit).map((item) => String(item?.id ?? item));
+    if (ids.some((trackId) => !/^\d+$/.test(trackId))) throw new Error('网易云歌单曲目 ID 无效。');
+    const songs = new Map();
+    for (let index = 0; index < ids.length; index += 100) {
+      const detail = await this.requestJson('/api/song/detail', { ids: JSON.stringify(ids.slice(index, index + 100)) });
+      for (const song of Array.isArray(detail?.songs) ? detail.songs : []) songs.set(String(song.id), song);
+    }
+    if (ids.some((trackId) => !songs.has(trackId))) throw new Error('网易云歌单部分曲目未返回，加载未完成，请重试。');
+    return this.mapTracksWithArtwork(ids.map((trackId) => songs.get(trackId)));
   }
 
   async playlistContainsTrack(playlistId, track) {

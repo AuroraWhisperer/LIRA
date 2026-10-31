@@ -49,7 +49,8 @@ function createDanmakuAppearance({ store, getOwner, loadLegacy, onChanged = () =
   async function read() {
     const current = owner();
     const binding = bindingOf(current);
-    if (!store.get(current.scope)) {
+    const config = store.get(current.scope);
+    if (!config) {
       if (!pending.has(binding)) {
         const operation = (async () => {
           const settings = await loadLegacy();
@@ -63,7 +64,7 @@ function createDanmakuAppearance({ store, getOwner, loadLegacy, onChanged = () =
       await pending.get(binding);
     }
     assertBinding(binding);
-    return { binding, config: store.get(current.scope) };
+    return { binding, config: config || store.get(current.scope) };
   }
 
   function save(input) {

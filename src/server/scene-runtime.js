@@ -13,6 +13,7 @@ const { createDisplayNotifications } = require('./display-notifications');
 const { readSceneSharedAppearances } = require('./scene-shared-appearance');
 const { createDanmakuAppearanceStore } = require('../storage/danmaku-appearance-store');
 const { createDanmakuAppearance } = require('./danmaku-appearance');
+const { projectOverlayResponse } = require('./overlay-projection');
 
 function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
   const getState = displayPorts.system.getState;
@@ -20,6 +21,29 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
   const getAppearanceOwner = runtimeOptions.getPreviewOwner || getOwner;
   const demand = createDisplayDemand();
   const cloud = createCloudDisplayBuffer({ getOwner, onRead: demand.touch });
+  let roomProfileCache;
+  const sceneCloud = { getSnapshot(request) {
+    const snapshot = cloud.getSnapshot(request);
+    const roomId = String(snapshot.state?.roomGuard?.roomId || '');
+    const currentKey = () => {
+      const owner = getOwner();
+      const localRoomId = String(getState(['liveStatus']).liveStatus?.roomId || '');
+      return owner && roomId && localRoomId === roomId ? JSON.stringify([owner.scope, owner.epoch, roomId]) : '';
+    };
+    const key = currentKey();
+    if (!key || !displayPorts.bilibili?.getRoomProfile) return { ...snapshot, roomProfile: null };
+    if (roomProfileCache?.key !== key || !roomProfileCache.pending && Date.now() - roomProfileCache.at >= 30000) {
+      const entry = { key, pending: true, at: Date.now() };
+      void Promise.resolve().then(() => displayPorts.bilibili.getRoomProfile()).then(profile =>
+        String(profile?.roomId || '') === roomId ? projectOverlayResponse('danmaku', '/api/bilibili/room/profile', profile) : null,
+      ).catch(() => null).then(profile => {
+        entry.pending = false; entry.at = Date.now(); entry.value = profile;
+        if (roomProfileCache === entry && currentKey() === key) events.notify({ types: ['danmaku'] });
+      });
+      roomProfileCache = entry;
+    }
+    return { ...snapshot, roomProfile: roomProfileCache.value ?? null };
+  } };
   const appearance = createDanmakuAppearance({ store: createDanmakuAppearanceStore(songDb), getOwner: getAppearanceOwner,
     loadLegacy: runtimeOptions.loadDanmakuAppearance || (async () => ({ style: 'signal', fullscreenDurationSeconds: 6 })),
     onChanged: () => {
@@ -40,7 +64,7 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
     }, items),
     onOutputChanged: notify,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
-    ...createSceneComponentPorts({ getState, cloud, getDanmakuConfig: () => {
+    ...createSceneComponentPorts({ getState, cloud: sceneCloud, getDanmakuConfig: () => {
       const config = appearance.getSettings();
       if (!config) demand.touch();
       return config;

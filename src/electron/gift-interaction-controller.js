@@ -1,27 +1,29 @@
 'use strict';
 
 const GIFT_INTERACTION_KEYS = ['giftAutoThanksEnabled', 'giftStatsQueryEnabled'];
+const { normalizeGiftThanksTemplates } = require('../../public/js/shared/gift-thanks-templates.js');
 
 function emptyState() {
   return { values: { giftAutoThanksEnabled: false, giftStatsQueryEnabled: false },
-    status: 'unconfirmed', error: null };
+    templates: null, status: 'unconfirmed', error: null };
 }
 
 function assertGiftInteractionResult(result) {
   if (result?.ok === false || !GIFT_INTERACTION_KEYS.every(key => typeof result?.values?.[key] === 'boolean')) {
     throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
   }
+  if (Object.hasOwn(result.values, 'giftThanksTemplates')) normalizeGiftThanksTemplates(result.values.giftThanksTemplates);
 }
 
 // The sync owner supplies its existing account fence and serial queue. This
-// controller owns only the two interaction flags and their pending UI state.
+// controller owns the interaction flags, thanks templates and their pending UI state.
 function createGiftInteractionController({ prepareWork, enqueue, write, isCurrent, refresh }) {
   let state = emptyState();
   let saving = false;
   const listeners = new Set();
 
   function getState() {
-    return { ...state, values: { ...state.values } };
+    return { ...state, values: { ...state.values }, templates: state.templates ? { ...state.templates } : null };
   }
 
   function publish(patch) {
@@ -31,6 +33,7 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
 
   function confirmState(values) {
     publish({ values: Object.fromEntries(GIFT_INTERACTION_KEYS.map(key => [key, values?.[key] === true])),
+      templates: values?.giftThanksTemplates ? normalizeGiftThanksTemplates(values.giftThanksTemplates) : null,
       status: saving ? 'pending' : 'confirmed', error: null });
   }
 
@@ -45,6 +48,17 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
       || typeof intent.enabled !== 'boolean') {
       throw Object.assign(new Error(), { code: 'INVALID_GIFT_INTERACTION' });
     }
+    return persist(intent, values => values[intent.key] === intent.enabled);
+  }
+
+  async function setTemplates(value) {
+    const templates = normalizeGiftThanksTemplates(value);
+    if (!state.templates) throw Object.assign(new Error(), { code: 'GIFT_THANKS_UNSUPPORTED' });
+    return persist({ key: 'giftThanksTemplates', value: templates }, values =>
+      JSON.stringify(values.giftThanksTemplates) === JSON.stringify(templates));
+  }
+
+  async function persist(intent, matches) {
     if (saving) throw Object.assign(new Error(), { code: 'GIFT_INTERACTION_PENDING' });
     const work = prepareWork();
     if (!work) {
@@ -59,7 +73,7 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
         if (!isCurrent(work)) return { ok: false, ...getState() };
         saving = false;
         confirmState(values);
-        const matched = values[intent.key] === intent.enabled;
+        const matched = matches(values);
         return { ...getState(), ok: matched, error: matched ? null : 'CLOUD_SETTINGS_CHANGED' };
       } catch (error) {
         saving = false;
@@ -72,7 +86,7 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
   }
 
   return {
-    getState, set, confirmState, fail,
+    getState, set, setTemplates, confirmState, fail,
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
     async refresh() {
       // The sync owner fences refresh errors against account and lifecycle changes.
@@ -80,7 +94,7 @@ function createGiftInteractionController({ prepareWork, enqueue, write, isCurren
       return getState();
     },
     reset() { publish(emptyState()); },
-    stop() { publish({ status: 'unconfirmed' }); },
+    stop() { publish({ status: 'unconfirmed', templates: null }); },
     dispose() { listeners.clear(); },
   };
 }

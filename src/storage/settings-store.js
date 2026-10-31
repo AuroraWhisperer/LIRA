@@ -33,6 +33,7 @@ function bootstrapSettingsStore(db) {
     const queueSpeedVersion = read.get('queueScrollSpeedRangeVersion')?.value;
     const fontSizeVersion = read.get('queueFontSizeRangeVersion')?.value;
     const styleVersion = read.get('queueStyleSettingsVersion')?.value;
+    const identityRuleDefaultsVersion = read.get('identityRuleDefaultsVersion')?.value;
     const songSpeedVersion = read.get('songScrollSpeedRangeVersion')?.value;
     const songSpeed = read.get('scrollSeconds');
     // Migrate only persisted legacy fonts, before inserting current defaults.
@@ -47,7 +48,10 @@ function bootstrapSettingsStore(db) {
       settingsMigrations.migrateSongScrollSpeedSetting(db, songSpeedVersion);
     }
     settingsMigrations.migrateQueueStyleSettings(db, styleVersion);
-    settingsMigrations.clearLegacyIdentityRuleDefaults(db);
+    if (identityRuleDefaultsVersion !== '1') {
+      if (styleVersion !== '1') settingsMigrations.clearLegacyIdentityRuleDefaults(db);
+      settingsStore.setSetting('identityRuleDefaultsVersion', '1');
+    }
     settingsMigrations.migrateBlindBoxConfig(db);
     settingsStore.setSetting('openingEnabled', 'false');
     db.exec('COMMIT');

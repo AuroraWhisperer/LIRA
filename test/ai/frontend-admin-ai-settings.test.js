@@ -645,6 +645,24 @@ test('a failed model lookup cannot replace the current service status', async ()
   assert.equal(f.elements.get('xiaomiAiFetchModelsBtn').disabled, false);
 });
 
+for (const resultsFirst of [false, true]) {
+  test(`committing the same credential preserves model ${resultsFirst ? 'options' : 'lookup'}`, async () => {
+    const lookup = Promise.withResolvers();
+    const f = await createAiSettingsFixture({ request: url => url === '/api/ai/models' ? lookup.promise : undefined });
+    f.input('xiaomiAiDeepSeekKey', 'new-synthetic-key');
+    const loading = f.fire('xiaomiAiFetchModelsBtn', 'click');
+    if (resultsFirst) { lookup.resolve(aiResponse({ models: ['first', 'second'] })); await loading; }
+    await f.advance(700);
+    assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, '', 'committed plaintext is still cleared');
+    if (!resultsFirst) { lookup.resolve(aiResponse({ models: ['first', 'second'] })); await loading; }
+    const menu = f.elements.get('xiaomiAiModelMenu');
+    assert.equal(menu.children.length, 2);
+    menu.children[1].listeners.click();
+    assert.equal(f.elements.get('xiaomiAiModel').value, 'second');
+    assert.equal(menu.hidden, true);
+  });
+}
+
 test('AI model listing uses draft credentials and saves a selected model after reopening the menu', async () => {
   const f = await createAiSettingsFixture();
   f.input('xiaomiAiDeepSeekKey', 'deepseek-secret');

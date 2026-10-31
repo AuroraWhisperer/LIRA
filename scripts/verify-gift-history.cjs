@@ -25,10 +25,25 @@ const sessionToken = randomBytes(32).toString('hex');
 const fixture = createFixture({ scratchDir: root });
 const source = fixture.resolveSource('a'.repeat(64));
 fixture.setActiveSource(source.id, { syncState: 'LIVE', partial: false, dirty: false, epochValidated: true });
-fixture.context.now = () => new Date().toISOString();
+const fixtureNow = Date.parse('2026-10-15T04:00:00.000Z'); // Noon in the fixture's UTC+8 day.
+function installFixtureClock(epoch) {
+  const NativeDate = Date;
+  const startedAt = NativeDate.now();
+  globalThis.Date = class FixtureDate extends NativeDate {
+    constructor(...args) {
+      super(...(args.length ? args : [FixtureDate.now()]));
+    }
+    static now() {
+      return epoch + NativeDate.now() - startedAt;
+    }
+  };
+}
+installFixtureClock(fixtureNow);
+const fixtureClockScript = `<script>(${installFixtureClock.toString()})(${fixtureNow});</script>`;
+fixture.context.now = () => new Date(fixtureNow).toISOString();
 for (let i = 0; i < 105; i++)
   fixture.insertGift(source.id, `fixture-${i}`, {
-    createdAt: new Date(Date.now() - (105 - i) * 1000).toISOString(),
+    createdAt: new Date(fixtureNow - (105 - i) * 1000).toISOString(),
     userName: i % 2 ? '小明' : '长昵称测试用户',
     giftName: i % 2 ? '小花花' : '测试礼物',
     unitPrice: i === 104 ? 100.01 : 100,
@@ -40,6 +55,7 @@ const settingsFragment = fs.readFileSync(path.join(publicDir, 'pages/admin/toolb
 const shellStart = fs.readFileSync(path.join(publicDir, 'pages/admin/shell-start.html'), 'utf8');
 const shell = `${shellStart.slice(0, shellStart.indexOf('</header>') + '</header>'.length).replace('<body>', '<body class="desktop-shell">')}
 <button id="giftHistoryOpenBtn">全部礼物流水</button>${fragment}${settingsFragment}</main>
+${fixtureClockScript}
 <script type="module">import { initGiftHistoryDrawer } from '/js/admin/gifts/history.js'; initGiftHistoryDrawer(); document.documentElement.classList.remove('admin-starting'); window.fixtureReady = true;</script></body></html>`;
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://localhost');
@@ -67,6 +83,15 @@ const server = http.createServer(async (req, res) => {
       res.setHeader('Content-Type', 'text/html');
       return res.end(shell);
     }
+    if (url.pathname === '/gift-feed') {
+      const end = res.end;
+      res.end = function (content, ...args) {
+        if (content && res.getHeader('Content-Type')?.startsWith('text/html')) {
+          content = Buffer.from(content.toString().replace('</head>', `${fixtureClockScript}</head>`));
+        }
+        return end.call(this, content, ...args);
+      };
+    }
     servePageOrAsset(publicDir, req, res, url, sessionToken);
   } catch (error) {
     json({ ok: false, code: error.code, error: error.message }, 400);
@@ -88,7 +113,7 @@ const socketContext = {
   gifts: { getHistory: (query) => getGiftHistory(fixture.context, query) },
   giftCards: { getProfiles: () => ({
     viewRevision: getGiftViewRevision(fixture.context),
-    day: new Date(Date.now() + 28800000).toISOString().slice(0, 10), items: [], partial: false,
+    day: new Date(fixtureNow + 28800000).toISOString().slice(0, 10), items: [], partial: false,
   }) },
   overtime: { getGlobalGiftCatalog: () => ({ gifts: [] }) },
 };

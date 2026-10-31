@@ -172,6 +172,11 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
     }
   }
   assert.equal(requests.length, 2, 'each click sends exactly one move');
+  for (const totalRounds of [1, 5, 12]) {
+    receive('draw-guess', { phase: 'finished', round: totalRounds, totalRounds,
+      correct: [], scores: [], answerRevealed: true, revealedAnswer: '苹果' });
+    assert.equal(nodes.get('gameTurn').textContent, `${totalRounds} 局结束 · 最终排行`);
+  }
 });
 
 test('draw guess danmaku feed bounds retained nodes and follows the latest message', async () => {

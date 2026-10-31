@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { AI_CONFIG_DEFAULTS } = require('../../src/ai/config');
-const { createAnsweringDeepseek, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { createAnsweringModelClient, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 const { createDanmakuSenderService } = require('../../src/bilibili/danmaku/sender-service');
 
 for (const config of [{ modelProvider: 'doubao' }, { modelProvider: 'openai', modelAuthMode: 'subscription', deepseekApiKey: '' }]) {
@@ -15,7 +15,7 @@ test(`${config.modelProvider} account changes discard accepted replies and preve
   const sent = [];
   const service = createTestService({
     config,
-    deepseek: {
+    modelClient: {
       isReady: () => ready,
       getSessionRevision: () => revision,
       async createResponse(request) {
@@ -42,7 +42,7 @@ test(`${config.modelProvider} account changes discard accepted replies and preve
 
 test('switching into account mode cancels the previous provider generation', async t => {
   let signal;
-  const service = createTestService({ deepseek: {
+  const service = createTestService({ modelClient: {
     createResponse(request) {
       signal = request.signal;
       return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
@@ -64,7 +64,7 @@ test('disabling AI clears waiting and ready replies, aborts generation, and reop
   let oldSignal;
   const service = createTestService({
     config: { generationConcurrency: 2 },
-    deepseek: { async createResponse(request) {
+    modelClient: { async createResponse(request) {
       if (request.purpose !== 'generation') return { text: '{"allowed":true}', functionCalls: [], usage: {} };
       generated.push(request.input);
       if (generated.length === 1 || generated.length === 3) {
@@ -101,7 +101,7 @@ test('disabling during delivery confirmation cancels retries without recording a
   let generations = 0;
   const service = createTestService({
     store: { logRequest: entry => audit.push(entry) },
-    deepseek: createAnsweringDeepseek(() => `answer-${++generations}`),
+    modelClient: createAnsweringModelClient(() => `answer-${++generations}`),
     sendReply: async value => { sent.push(value.message); return { messages: [value.message] }; },
     waitForDelivery: async ({ signal }) => {
       if (confirmation) return true;
@@ -134,7 +134,7 @@ test('disabling between actual sender chunks keeps the sent part and cancels the
     log() {},
   });
   const service = createTestService({
-    deepseek: createAnsweringDeepseek(() => '回答'.repeat(40)),
+    modelClient: createAnsweringModelClient(() => '回答'.repeat(40)),
     sendReply: sender.send,
   });
   t.after(async () => { betweenChunks.resolve(); await service.shutdown(); });
@@ -154,7 +154,7 @@ test('unrelated config updates and failed disabling do not cancel an accepted re
   let signal;
   const service = createTestService({
     store: { updateConfig(changes) { if (changes.enabled === false) throw new Error('Synthetic save failure'); return changes; } },
-    deepseek: { async createResponse(request) {
+    modelClient: { async createResponse(request) {
       signal = request.signal;
       if (request.purpose === 'generation') await pending.promise;
       return { text: request.purpose === 'generation' ? '正常回答' : '{"allowed":true}', functionCalls: [], usage: {} };
@@ -175,7 +175,7 @@ test('unrelated config updates and failed disabling do not cancel an accepted re
 test('provider connection tests dispatch with the saved private configuration', async () => {
   const received = [];
   const service = createTestService({
-    deepseek: {
+    modelClient: {
       async testConnection(config) {
         received.push(['deepseek', config.deepseekApiKey]);
         return { provider: 'deepseek' };
@@ -226,7 +226,7 @@ test('shutdown aborts and drains active generation without writes or delivery', 
       setContext: () => writes.push('context'),
       logRequest: () => writes.push('audit'),
     },
-    deepseek: {
+    modelClient: {
       async createResponse(request) {
         requestSignal = request.signal;
         return new Promise((resolve, reject) => {
@@ -268,7 +268,7 @@ test('shutdown aborts and drains active generation without writes or delivery', 
 test('shutdown aborts and waits for direct provider operations', async () => {
   let requestSignal;
   const service = createTestService({
-    deepseek: {
+    modelClient: {
       async listModels(request) {
         requestSignal = request.signal;
         return new Promise((resolve, reject) => {
@@ -297,7 +297,7 @@ test('shutdown releases delivery confirmation without retrying or logging a fail
   let deliverySignal;
   const service = createTestService({
     store: { logRequest: (entry) => audits.push(entry) },
-    deepseek: createAnsweringDeepseek(() => `answer-${++answerCount}`),
+    modelClient: createAnsweringModelClient(() => `answer-${++answerCount}`),
     sendReply: async (value) => {
       deliveries.push(value.message);
       return {
@@ -345,7 +345,7 @@ test('reply cache separates viewers and their conversation context', async (t) =
       getContext: (uid) => contexts.get(uid) || null,
       setContext: (uid, value) => contexts.set(uid, value),
     },
-    deepseek: {
+    modelClient: {
       async createResponse(request) {
         if (request.purpose !== 'generation') {
           return {
@@ -401,7 +401,7 @@ test('reply cache reuses identical input but invalidates the old policy, changed
       getCache: key => ['reply-v4', 'reply-v5'].includes(JSON.parse(key)[0]) ? { text: '旧策略缓存回答' } : cache.get(key),
       setCache: (key, value) => cache.set(key, value),
     },
-    deepseek: {
+    modelClient: {
       async createResponse(request) {
         if (request.purpose !== 'generation') {
           return {

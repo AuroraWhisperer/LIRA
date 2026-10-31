@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const { createFixture } = require('../helpers/overtime-service-fixture');
+const { createFixture, fixedRule } = require('../helpers/overtime-service-fixture');
 const { createOvertimeStore } = require('../../src/storage/overtime-store');
 
 test('enable epochs advance only on disabled to enabled transitions', () => {
@@ -22,6 +22,38 @@ test('enable epochs advance only on disabled to enabled transitions', () => {
     service.act('enable');
     assert.equal(service.getCurrentEpoch(), 2);
     assert.equal(service.getSnapshot().status, 'paused');
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('rule replacement and revision commit atomically before notifying consumers', () => {
+  const fixture = createFixture();
+  const updates = [];
+  const service = fixture.createService({ onUpdate: (update) => updates.push(update) });
+  try {
+    service.setTime({ remainingSeconds: 60 });
+    service.act('enable');
+    service.replaceRules([fixedRule('gift-a', 10)]);
+    const before = service.getSnapshot();
+    updates.length = 0;
+    fixture.db.giftDb.exec(`CREATE TEMP TRIGGER fail_rule_state BEFORE UPDATE ON overtime_machine_state
+      BEGIN SELECT RAISE(ABORT, 'state save failed'); END;`);
+    assert.throws(() => service.replaceRules([fixedRule('gift-a', 120)]), /state save failed/);
+    assert.deepEqual(service.getSnapshot(), before);
+    assert.equal(fixture.db.giftDb.prepare('SELECT fixed_seconds FROM overtime_gift_rules').get().fixed_seconds, 10);
+    assert.equal(fixture.db.giftDb.prepare('SELECT revision FROM overtime_machine_state').get().revision, before.revision);
+    assert.deepEqual(updates, []);
+    fixture.db.giftDb.exec('DROP TRIGGER fail_rule_state');
+    service.finalizeGift(fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 70_000);
+    const revision = service.getSnapshot().revision;
+    updates.length = 0;
+    const after = service.replaceRules([fixedRule('gift-a', 120)]);
+    assert.equal(after.revision, revision + 1);
+    assert.equal(after.rules[0].fixedSeconds, 120);
+    assert.deepEqual(updates.map(({ reason }) => reason), ['rules']);
   } finally {
     service.dispose();
     fixture.close();

@@ -304,9 +304,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await number('宽度'), 987);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
-  await page.waitForFunction(() => [...document.querySelectorAll('button')]
-    .some(button => button.textContent.trim() === '保存并应用' && !button.disabled));
-  assert.equal(await save.isEnabled(), true);
+  await save.click({ trial: true });
   assert.equal(await app.evaluate(() => global.canvasTest.componentSize()), null);
   assert.equal(await desktop.locator('#copyLiveCanvasUrl').isDisabled(), true);
   await save.click();

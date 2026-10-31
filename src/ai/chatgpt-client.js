@@ -3,7 +3,7 @@
 const { randomUUID } = require('node:crypto');
 const { createPublicError, createRequestSignal } = require('./http-client');
 const { readResponseText } = require('../shared/response-body');
-const { normalizeResponse } = require('./deepseek-client');
+const { normalizeResponse } = require('./model-client');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const MAX_BYTES = 2 * 1024 * 1024;

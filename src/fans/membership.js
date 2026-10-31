@@ -13,10 +13,6 @@ function unionIntervals(intervals) {
   return result;
 }
 
-function coveredDays(intervals, at, after = '') {
-  return countCoveredDays(prepareIntervals(intervals), at, after ? dayIndex(dayStart(after)) : -Infinity);
-}
-
 function prepareIntervals(intervals) {
   return unionIntervals(intervals).map((item) => ({
     ...item,
@@ -208,6 +204,5 @@ module.exports = {
   prepareMembership,
   membershipConflicts,
   cycleForNewRecord,
-  coveredDays,
   unionIntervals,
 };

@@ -7,7 +7,7 @@ const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
 const { createAiAssistantService } = require('../../src/ai/ai-assistant-service');
-const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
+const { createModelClient } = require('../../src/ai/model-client');
 const { routes } = require('../../src/server/routes/ai-routes');
 
 function fixture(t, config = {}) {
@@ -29,7 +29,7 @@ function fixture(t, config = {}) {
   const requests = [];
   const service = createAiAssistantService({
     store,
-    deepseek: createDeepSeekClient({
+    modelClient: createModelClient({
       fetchImpl: async (url, options) => {
         requests.push({ url: String(url), headers: options.headers });
         return new Response(

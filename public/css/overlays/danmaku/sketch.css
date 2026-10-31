@@ -35,7 +35,7 @@ body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item {
   background: transparent;
   box-shadow: none;
   clip-path: none;
-  font-size: var(--danmaku-font-size);
+  font-size: 30px;
   color: var(--sketch-line);
   animation: none;
   zoom: 1;
@@ -91,7 +91,7 @@ body[data-style='sketch'] .sc-copy {
   border-radius: 36px 7px 36px 7px;
   background: linear-gradient(90deg, transparent 5%, var(--sketch-paper) 10%, var(--sketch-paper) 90%, transparent 95%) center / 100% calc(100% - 30px) no-repeat;
   color: var(--sketch-ink);
-  font-size: 1em;
+  font-size: var(--danmaku-font-size);
   font-weight: 700;
   line-height: 1.5;
   letter-spacing: .08em;
@@ -109,6 +109,7 @@ body[data-style='sketch'] .sketch-ornaments {
   inset: 0;
   pointer-events: none;
   color: var(--sketch-line);
+  font-size: 30px;
   filter: drop-shadow(0 0 2px var(--sketch-glow));
 }
 body[data-style='sketch'] .sketch-ornaments i {
@@ -213,7 +214,7 @@ body[data-style='sketch'] .draw-danmaku-item.is-gift .draw-danmaku-gift {
   padding: .2em 2.4em 0 0;
   color: var(--sketch-line);
   background: transparent;
-  font-size: 1em;
+  font-size: var(--danmaku-font-size);
 }
 body[data-style='sketch'] .is-gift .draw-danmaku-gift-copy { flex-wrap: wrap; gap: .15em; }
 body[data-style='sketch'] .is-gift .draw-danmaku-gift-name,

@@ -99,7 +99,7 @@ export function createPlaybackController(initialOptions = {}) {
   function applyBackgroundHomeUpdate(update) {
     if (homeService.getHomeState().action !== update.action) return;
     if (playbackState.selectedSource !== update.platform) return;
-    if (!homeService._applyBackgroundUpdate(update)) return;
+    if (!homeService.applyBackgroundUpdate(update)) return;
     renderPlaybackHomeResults(update.action, update.title);
     toast(HomeService.getActionName(update.action) + '已自动更新');
   }

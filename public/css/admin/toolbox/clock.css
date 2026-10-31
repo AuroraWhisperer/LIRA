@@ -34,7 +34,7 @@
 .clock-preview-canvas {
   display: grid;
   place-items: center;
-  min-height: 220px;
+  height: 220px;
   padding: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -53,21 +53,19 @@
   background-size: 20px 20px;
 }
 
+.clock-preview-canvas:has(iframe:is([data-clock-style='digital'], [data-clock-style='minimal'], [data-clock-style='orbit'])) {
+  background-color: #303741;
+  background-image: conic-gradient(#ffffff0d 25%, transparent 0 50%, #ffffff0d 0 75%, transparent 0);
+}
+
 .clock-preview-canvas iframe {
   display: block;
-  width: min(100%, 590px);
-  aspect-ratio: 580 / 210;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
   border: 0;
   background: transparent;
-}
-
-.clock-preview-canvas iframe[data-clock-style='timeline-vertical'] {
-  width: min(100%, 120px);
-  aspect-ratio: 240 / 400;
-}
-
-.clock-preview-canvas iframe[data-clock-style='moonlit-fan'] {
-  aspect-ratio: 580 / 380;
 }
 
 .clock-style-swatch.is-moonlit-fan img {
@@ -463,7 +461,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .clock-preview-canvas {
-    min-height: 170px;
+    height: 170px;
     padding: 10px;
   }
 }

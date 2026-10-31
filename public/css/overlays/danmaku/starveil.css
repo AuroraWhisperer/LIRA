@@ -81,7 +81,7 @@ body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-identity {
 }
 body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-identity strong {
   color: var(--starveil-ink);
-  font: 600 calc(var(--danmaku-font-size) * 0.78)/1.35 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', 'Songti SC', serif;
+  font: 600 23.4px/1.35 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', 'Songti SC', serif;
   letter-spacing: 0.06em;
   white-space: normal;
   overflow-wrap: anywhere;

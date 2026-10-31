@@ -80,7 +80,7 @@ function createCloudSyncController(options = {}) {
       const pending = getPendingSettings(work.accountKey);
       // Omit the untouched flag: the server preserves its current value.
       const result = await uploadSettings(
-        { ...settingsUploadValues(pending), [intent.key]: intent.enabled },
+        { ...settingsUploadValues(pending), [intent.key]: intent.key === 'giftThanksTemplates' ? intent.value : intent.enabled },
         pending, dirtyGeneration, work,
       );
       if (!isCurrent(work)) return null;
@@ -641,6 +641,7 @@ function createCloudSyncController(options = {}) {
     onGiftInteractionStateChanged: giftInteraction.subscribe,
     refreshGiftInteractionState: giftInteraction.refresh,
     setGiftInteraction: giftInteraction.set,
+    setGiftThanksTemplates: giftInteraction.setTemplates,
     markDirty,
     start,
     stop,

@@ -60,6 +60,7 @@ const groups = {
     'overlays/background-filters',
     'overlays/component-style-effects',
     'overlays/text-box-scroll',
+    'overtime/overtime-rule-editor-browser',
     'scenes/scene-live-updates',
     'scenes/scene-renderer',
     'playback/playback-drawer-browser',

@@ -2,7 +2,7 @@ import { mountStyleParameters } from './component-style-parameters.js';
 import { previewElement } from './component-preview-surface.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { BROWSER_SOURCE_DEFAULTS, normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
-import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../shared/browser-source-frame.js';
+import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../overlays/browser-source-frame.js';
 import { isComponentWebSource } from '../shared/component-css-style.js';
 
 export function mountBrowserSourceFields(host, config = BROWSER_SOURCE_DEFAULTS, onChange) {

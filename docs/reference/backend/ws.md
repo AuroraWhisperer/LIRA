@@ -123,13 +123,15 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `songs:save`、`songs:delete`、`songs:toggle`、`songs:import`、`songs:import-xlsx` | [song-routes.js](../../../src/server/routes/song-routes.js) mutation 成功；CSV/兼容导入复用 import | 合并调度歌库重载 |
 | `cloud:songs` / `cloud:settings` | [server.js](../../../src/server.js) 远端快照写入本地 owner 后 | songs 调度歌库重载；settings 仅状态应用 |
 | `queue:add` | [queue-routes.js](../../../src/server/routes/queue-routes.js) 手动/随机点歌成功 | 仅状态应用 |
-| `queue:${action}` | 同路由 handleAction 返回后；action 仅 `next/clear/pin/unpin/delete/done/skip`，校验 owner 为 [queue-service.js](../../../src/music/queue-service.js) | 仅状态应用 |
-| `superchat:${action}` | [superchat-routes.js](../../../src/server/routes/superchat-routes.js) 成功后；仅 `assist/unassist/delete`，owner 为 [superchat-service.js](../../../src/bilibili/superchat-service.js) | 仅状态应用 |
+| `queue:${action}` | 同路由 handleAction 返回后；action 仅 `next/clear/pin/unpin/delete/done/skip/live/unlive`，校验 owner 为 [queue-service.js](../../../src/music/queue-service.js) | 仅状态应用 |
+| `superchat:${action}` | [superchat-routes.js](../../../src/server/routes/superchat-routes.js) 成功后；仅 `assist/unassist/delete/undo`，owner 为 [superchat-service.js](../../../src/bilibili/superchat-service.js) | 仅状态应用 |
 | `bilibili:danmaku` / `bilibili:superchat` | [bilibili-client.js](../../../src/server/bilibili-client.js) 本地消息被接受或 SC 入账后 | 仅状态应用；overlay 自有 reason 筛选见 [overlays.md](../frontend/overlays.md) |
 | `bilibili:gift` | [runtime-transport.js](../../../src/server/runtime-transport.js) `publishGiftFlushed`；另独立广播全屏礼物感谢和弹幕提示 | 发出 `Events.GIFT_RECEIVED` |
 | `live:status` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新直播状态后 | 仅状态应用 |
+| `bilibili:room-guard` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新房间大航海人数后 | 仅状态应用 |
 | `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 来源 viewEpoch 变化，或退出 SOURCE_SWITCHING | 仅状态应用，不自动伪造礼物收到通知 |
 | `gift:wishes` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 非 getSnapshot 动作成功 | 仅状态应用 |
+| `component:styles` | [component-style-routes.js](../../../src/server/routes/component-style-routes.js) 组件样式配置成功后 | 仅状态应用 |
 | `gift:sprint:reset` | gift-routes 重置冲刺后 | 仅状态应用 |
 | `gift:clear-recent` | gift-routes 清除最近显示后 | 发出 `Events.GIFT_RECEIVED` |
 | `database:clear`、`database:clear-superchats`、`database:clear-playback` | [data-routes.js](../../../src/server/routes/data-routes.js) 的 `clearRoute` 成功；各常量固定映射歌库/SC/播放器清理，不是任意动态后缀 | 仅状态应用；clear 路由另请求 songs 云同步 |

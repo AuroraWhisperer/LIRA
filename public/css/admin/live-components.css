@@ -791,7 +791,7 @@
 }
 
 .live-components-page .clock-preview-canvas {
-  min-height: 192px;
+  height: 192px;
 }
 
 .live-components-page .clock-parameter-section {

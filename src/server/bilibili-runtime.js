@@ -75,6 +75,11 @@ function createBilibiliRuntime(options) {
     async getRoom() {
       return { roomId: getConfiguredRoomId() };
     },
+    getSessionKey: () => JSON.stringify([
+      stopped, authFailureRevision,
+      authProvider?.getIdentityRevision?.() ?? authProvider?.getSessionRevision?.(),
+      settingsStore.getRoomRevision?.(), getConfiguredRoomId(),
+    ]),
     getLiveStatus: () => liveStatus,
     getMentionTarget: () => domainServices.requesterTargets.getLatestRandomRequester(),
     getAutoReplyEnabled: () => settingsStore.getSettings().enableRandomTagReply === 'true',

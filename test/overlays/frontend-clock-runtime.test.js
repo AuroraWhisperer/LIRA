@@ -68,6 +68,56 @@ test('shared clock preview uses only parent messages and disposes its timer', as
   assert.equal(dom.document.listeners.has('visibilitychange'), false);
 });
 
+test('contained clock preview fits and centers each style without retaining the previous scale', async () => {
+  const dom = createClockDom();
+  dom.window.innerWidth = 270;
+  dom.window.innerHeight = 166;
+  const messages = [];
+  dom.window.parent.postMessage = message => messages.push(message);
+  const card = dom.document.getElementById('clockCard');
+  const layouts = {
+    peach: { width: 560, height: 190 },
+    'timeline-vertical': { width: 48, height: 300 },
+    digital: { width: 400, height: 90 },
+    'moonlit-fan': { width: 560, height: 360 },
+  };
+  card.querySelectorAll = () => [{ getBoundingClientRect() {
+    const layout = layouts[card.dataset.clockStyle];
+    const scale = Number(card.style.getPropertyValue('--clock-scale')) || 1;
+    return { left: 0, top: 0, right: layout.width * scale, bottom: layout.height * scale,
+      width: layout.width * scale, height: layout.height * scale };
+  } }];
+  await loadModuleExports(entry('overlays', 'clock.js'), {
+    ...dom, URL, URLSearchParams,
+    location: new URL('http://127.0.0.1:3000/clock?componentPreview=1&previewFit=contain'),
+    fetch: () => assert.fail('preview must not read live settings'),
+  });
+  function assertFit() {
+    const scale = Number(card.style.getPropertyValue('--clock-scale'));
+    const layout = layouts[card.dataset.clockStyle];
+    for (const [axis, offset] of [['width', 'left'], ['height', 'top']]) {
+      const available = dom.window[axis === 'width' ? 'innerWidth' : 'innerHeight'] - 8;
+      const extent = layout[axis] * scale;
+      const margin = Number.parseFloat(card.style[offset]);
+      assert.ok(extent > 0 && extent <= available + 0.01, `${card.dataset.clockStyle} fits ${axis}`);
+      assert.ok(Math.abs(available - extent - margin * 2) < 0.01, `${card.dataset.clockStyle} centers ${axis}`);
+    }
+  }
+  for (const style of ['peach', 'timeline-vertical', 'digital', 'moonlit-fan', 'peach']) {
+    dom.window.listeners.get('message')({ source: dom.window.parent, origin: 'http://127.0.0.1:3000',
+      data: { type: 'component-preview:config', config: { style } } });
+    assertFit();
+  }
+  dom.window.innerWidth = 200;
+  dom.window.innerHeight = 100;
+  dom.window.listeners.get('resize')();
+  assertFit();
+  assert.equal(messages.some(message => message.type === 'component-preview:resize'), false);
+  assert.equal(dom.timers.size, 1);
+  dom.window.listeners.get('pagehide')();
+  assert.equal(dom.timers.size, 0);
+});
+
 function createClockDom() {
   const nodes = new Map();
   const timers = new Map();
@@ -224,6 +274,7 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(navigations, 1);
   assert.equal(new URL(source).origin, 'http://localhost:3000');
   assert.equal(new URL(source).searchParams.get('style'), 'digital');
+  assert.equal(new URL(source).searchParams.get('previewFit'), 'contain');
   assert.equal(dom.document.getElementById('clockFixedUrl').textContent, 'http://127.0.0.1:3000/clock');
   assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
 

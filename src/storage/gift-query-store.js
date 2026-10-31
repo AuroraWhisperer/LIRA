@@ -267,50 +267,42 @@ function createGiftQueryStore(giftDb) {
       const options = { sourceId, query, rangeStart, asOf, range };
       const filter = buildLedgerFilter(options);
       const plan = statisticsFilter(giftDb, options, filter);
-      const summaryRow = giftDb
-        .prepare(
-          `
-          SELECT
-            ${GIFT_METRICS_SQL}
-          FROM gift_events g
-          WHERE ${filter.sql}
-        `,
+      const bucketExpression = range === 'all'
+        ? "strftime('%Y-%m', g.created_at, '+8 hours')"
+        : "strftime('%Y-%m-%d', g.created_at, '+8 hours')";
+      // Reuse the filtered rows while keeping each SQL aggregate independent.
+      const rows = giftDb.prepare(`
+        WITH matching_gifts AS MATERIALIZED (
+          SELECT g.gift_id, g.gift_name, g.created_at, g.num, g.total_price,
+            g.is_blind_box, g.blind_box_price, g.unit_price
+          FROM gift_events g WHERE ${filter.sql}
         )
-        .get(...filter.params);
-      const topRows = giftDb
-        .prepare(
-          `
-          SELECT
-            canonicalGiftId(g.gift_id) AS giftId,
-            canonicalGiftText(g.gift_name) AS giftName,
-            ${GIFT_METRICS_SQL}
-          FROM gift_events g
-          WHERE ${filter.sql}
+        SELECT 'summary' AS resultType, NULL AS giftId, NULL AS giftName, NULL AS bucketKey,
+          ${GIFT_METRICS_SQL} FROM matching_gifts g
+        UNION ALL
+        SELECT 'top', canonicalGiftId(g.gift_id), canonicalGiftText(g.gift_name), NULL,
+          ${GIFT_METRICS_SQL} FROM matching_gifts g
           GROUP BY canonicalGiftId(g.gift_id), canonicalGiftText(g.gift_name)
-        `,
-        )
-        .all(...filter.params);
-      const bucketExpression =
-        range === 'all'
-          ? "strftime('%Y-%m', g.created_at, '+8 hours')"
-          : "strftime('%Y-%m-%d', g.created_at, '+8 hours')";
-      const bucketRows = giftDb
-        .prepare(
-          `
-          SELECT
-            ${bucketExpression} AS bucketKey,
-            ${GIFT_METRICS_SQL}
-          FROM gift_events g
-          WHERE ${filter.sql}
-          GROUP BY bucketKey
-          ORDER BY bucketKey ASC
-        `,
-        )
-        .all(...filter.params)
-        .map(({ bucketKey, ...row }) => ({
-          bucketStart: shanghaiBucketStart(bucketKey),
-          ...row,
-        }));
+        UNION ALL
+        SELECT 'bucket', NULL, NULL, ${bucketExpression} AS bucketKey,
+          ${GIFT_METRICS_SQL} FROM matching_gifts g GROUP BY bucketKey
+      `).all(...filter.params);
+      let summaryRow;
+      const topRows = [];
+      const bucketRows = [];
+      for (const row of rows) {
+        const { resultType, bucketKey } = row;
+        delete row.resultType;
+        delete row.bucketKey;
+        if (resultType !== 'top') {
+          delete row.giftId;
+          delete row.giftName;
+        }
+        if (resultType === 'summary') summaryRow = row;
+        else if (resultType === 'top') topRows.push(row);
+        else bucketRows.push({ bucketStart: shanghaiBucketStart(bucketKey), ...row });
+      }
+      bucketRows.sort((left, right) => compareText(left.bucketStart, right.bucketStart));
       const result = mergeSummaryStatistics(giftDb, options, plan, { summaryRow, topRows, bucketRows });
       result.topRows.sort(compareTopGifts);
       result.topRows = result.topRows.slice(0, MAX_TOP_GIFTS);

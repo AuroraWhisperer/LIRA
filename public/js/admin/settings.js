@@ -18,7 +18,7 @@ import { createBlindboxSettings } from './settings-blindbox.js';
 import { createSettingsForm } from './settings-form.js';
 import { createSongRequestBlacklist } from './song-request-blacklist.js';
 import { createSongRequestUserBlacklist } from './song-request-user-blacklist.js';
-import { initLicenseAccountDevice as initLicenseAccountDeviceImpl } from './settings-license.js';
+import { initLicenseAccountDevice as initLicenseAccountDeviceImpl, initLicenseAgreement } from './settings-license.js';
 import { createSettingsOperations } from './settings-operations.js';
 import { createBilibiliRoomProfile } from './settings-room-profile.js';
 import { initGuardExpirySettings } from './settings-guard-expiry.js';
@@ -118,7 +118,10 @@ export function initBilibiliAuth() {
   });
 }
 
-export const initSettingsForm = settingsForm.init;
+export const initSettingsForm = () => {
+  initLicenseAgreement({ documentRef, fetchRef });
+  return settingsForm.init();
+};
 export const collectSettings = settingsForm.collectSettings;
 export const initLicenseAccountDevice = () =>
   initLicenseAccountDeviceImpl({

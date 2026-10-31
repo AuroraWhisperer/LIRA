@@ -88,7 +88,8 @@ export function createTextBoxPreview({ media } = {}) {
         slider.setAttribute('aria-valuetext', speedValue.value);
         refreshParameterRange(slider);
       });
-      return { dispose() { stop(); composer.dispose(); assets.dispose(); disposeParameterRanges(settings); settings.remove(); content.remove(); } };
+      return { cancelPendingMedia() { assets.cancelPending(); },
+        dispose() { stop(); composer.dispose(); assets.dispose(); disposeParameterRanges(settings); settings.remove(); content.remove(); } };
     },
   };
 }

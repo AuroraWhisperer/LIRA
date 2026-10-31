@@ -171,7 +171,11 @@ export function initTextBoxes() {
     if (!canvas || busy) return;
     busy = true; busyMessage = '正在放弃修改…'; render();
     try {
-      if (await confirmSceneAction('discard')) { status.classList.remove('text-box-error'); canvas.controller.discard(); }
+      if (await confirmSceneAction('discard')) {
+        status.classList.remove('text-box-error');
+        panel?.cancelPendingMedia();
+        canvas.controller.discard();
+      }
     } catch (error) { fail(error); }
     finally { busy = false; render(); }
   });

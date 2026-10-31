@@ -112,16 +112,8 @@
 .danmaku-fixed-open[aria-expanded='true'] svg {
   transform: rotate(180deg);
 }
-.daily-bot-cloud-status {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 8px 16px;
-  padding: 12px 8px 0;
-}
-.daily-bot-cloud-status > p {
-  min-width: 0;
-  flex: 1;
+#dailyBotStatus:empty {
+  display: none;
 }
 #dailyBotRefresh {
   margin-left: auto;
@@ -291,15 +283,146 @@
 .danmaku-fixed-reply-section .danmaku-custom-reply-fields {
   gap: 12px;
 }
-.danmaku-query-item {
-  grid-column: 1 / -1;
+.danmaku-thanks-toolbar,
+.danmaku-thanks-insert {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.danmaku-thanks-toolbar > p {
+  flex: 1;
+}
+.danmaku-thanks-templates {
+  display: grid;
+  gap: 24px;
+  margin-block: 20px;
+}
+.danmaku-thanks-template {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+.danmaku-thanks-insert button,
+.danmaku-thanks-token {
+  border: 1px solid color-mix(in srgb, var(--accent) 36%, var(--border));
+  border-radius: var(--radius-control);
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  font-size: 13px;
+}
+.danmaku-thanks-insert button {
+  padding: 4px 10px;
+}
+.danmaku-thanks-text {
+  min-height: 76px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--text);
+  line-height: 2;
+  overflow-wrap: anywhere;
+  cursor: text;
+}
+.danmaku-thanks-text[aria-disabled='true'] {
+  cursor: default;
+  opacity: var(--opacity-disabled, 0.6);
+}
+.danmaku-thanks-text:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.danmaku-thanks-text[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+.danmaku-thanks-token {
+  display: inline-block;
+  margin-inline: 3px;
+  padding: 0 6px;
+  line-height: 1.7;
+  white-space: nowrap;
+  user-select: all;
+}
+.danmaku-thanks-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  border-radius: var(--radius-control);
+  background: var(--surface-2);
+}
+.danmaku-thanks-preview output {
+  flex-basis: 100%;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+.danmaku-fixed-reply-section .danmaku-thanks-preview select {
+  width: auto;
+  min-width: 130px;
+  max-width: 100%;
+}
+.danmaku-query-reply-group + .danmaku-query-reply-group {
+  border-top: 1px solid var(--fixed-divider);
+}
+.danmaku-query-reply-heading {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--fixed-editor-surface);
+  color: var(--danmaku-heading-color);
+  font-size: 14px;
+  font-weight: 600;
+}
+.danmaku-query-reply-columns,
+.danmaku-custom-reply-row.danmaku-query-reply-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.7fr) repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.danmaku-query-reply-column-head {
+  padding: 6px 12px;
+  border-top: 1px solid var(--fixed-divider);
+  color: var(--muted);
+  font-size: 12px;
+}
+.danmaku-query-reply-column-head + .danmaku-query-reply-row {
+  border-top: 1px solid var(--fixed-divider);
 }
 .danmaku-custom-reply-row.danmaku-query-reply-row {
-  grid-template-columns: minmax(0, 1fr);
-  padding-inline: 12px;
+  align-items: start;
+  padding: 12px;
 }
-.danmaku-query-reply-note {
-  grid-column: 1 / -1;
+.danmaku-query-reply-period,
+.danmaku-query-reply-command {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.danmaku-query-reply-period {
+  font-weight: 600;
+}
+.danmaku-query-reply-period .hint {
+  font-weight: 400;
+}
+.danmaku-query-command-text {
+  display: inline-flex;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 3px 8px;
+  border: 1px solid var(--fixed-divider);
+  border-radius: var(--radius-control);
+  background: var(--fixed-editor-surface);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.danmaku-query-reply-name-command {
+  grid-column: 2 / -1;
 }
 #danmakuQueryRepliesPanel .daily-library-search {
   margin-block: 12px;

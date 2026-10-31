@@ -43,6 +43,7 @@ function bindStyleGroups() {
 
 export function initDanmakuOverlaySettings(elements, toast) {
   let account = '';
+  let accountGeneration = 0;
   let binding = '';
   let canvasEditor = null;
   const applyButton = document.getElementById('danmakuApplyOverlayBtn');
@@ -63,10 +64,10 @@ export function initDanmakuOverlaySettings(elements, toast) {
   const controller = createComponentConfigController({
     initial: { style: 'signal', fullscreenDurationSeconds: 6 },
     read: async () => {
-      const expectedAccount = account;
+      const expectedGeneration = accountGeneration;
       const response = await readDanmakuAppearance();
       const config = settingsFrom(response);
-      if (account === expectedAccount) binding = response.binding;
+      if (accountGeneration === expectedGeneration) binding = response.binding;
       return config;
     },
     persist: async (submitted) => {
@@ -116,6 +117,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
     canvasEditor?.close();
     canvasEditor = null;
     account = next;
+    accountGeneration += 1;
     binding = '';
     controller.reset();
     if (account) void controller.reload();

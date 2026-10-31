@@ -72,9 +72,3 @@ export function createFontLibraryToast({ window: windowRef = globalThis.window,
 
   return { init, handleState, dispose };
 }
-
-export function initFontLibraryToast() {
-  const controller = createFontLibraryToast();
-  void controller.init();
-  return controller;
-}

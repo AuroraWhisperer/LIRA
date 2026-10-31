@@ -43,10 +43,12 @@ async function mount(t, nodes = []) {
     };
     window.mountComposer();
     window.mediaCalls = [];
+    window.pendingUploads = [];
     window.media = mountTextBoxMedia(document.querySelector('#host'), { composer: window.composer,
       onError(error) { window.failures.push(error.message); },
       async request(kind, options) {
         window.mediaCalls.push({ kind, source: options.source, name: options.file?.name });
+        if (kind === 'image' && window.deferUploads) return new Promise((resolve, reject) => window.pendingUploads.push({ resolve, reject, signal: options.signal }));
         if (kind === 'image') return { imagePath: '/scene-text-images/11111111-1111-4111-8111-111111111111.gif' };
         return { gifts: [{ id: 123, name: '测试礼物', imagePath: '/img/gift-placeholder.png', giftCategory: 'normal' }] };
       },
@@ -76,6 +78,26 @@ const readText = async page => (await read(page)).filter(node => node.type === '
 function letters(nodes) {
   return nodes.filter(node => node.type === 'text').flatMap(node => Array.from(node.text, text => ({ ...node, text })));
 }
+
+test('discard cancels old uploads while a new upload can still update the current draft', async t => {
+  const page = await mount(t, [{ type: 'text', text: '保留' }]);
+  await page.evaluate(() => { window.deferUploads = true; });
+  const upload = page.locator('input[type=file]');
+  const file = { name: 'test.png', mimeType: 'image/png', buffer: Buffer.from('synthetic') };
+  await upload.setInputFiles(file);
+  await page.waitForFunction(() => window.pendingUploads.length === 1);
+  await page.evaluate(() => window.media.cancelPending());
+  await upload.setInputFiles(file);
+  await page.waitForFunction(() => window.pendingUploads.length === 2);
+  assert.equal(await page.getByRole('button', { name: '上传中…' }).isDisabled(), true);
+  await page.evaluate(() => window.pendingUploads[0].resolve({ imagePath: '/scene-text-images/11111111-1111-4111-8111-111111111111.png' }));
+  assert.equal((await read(page)).filter(node => node.type === 'image').length, 0);
+  assert.equal(await page.getByRole('button', { name: '上传中…' }).isDisabled(), true);
+  await page.evaluate(() => window.pendingUploads[1].resolve({ imagePath: '/scene-text-images/22222222-2222-4222-8222-222222222222.png' }));
+  await page.waitForFunction(() => window.config.nodes.some(node => node.type === 'image'));
+  assert.equal((await read(page)).find(node => node.type === 'image').src, '/scene-text-images/22222222-2222-4222-8222-222222222222.png');
+  assert.deepEqual(await page.evaluate(() => window.failures), []);
+});
 
 test('Chinese multiline input, empty trailing lines, undo/redo and plain paste keep content intact', async (t) => {
   const page = await mount(t);

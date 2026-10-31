@@ -6,6 +6,7 @@ import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
 import { createTwitterRoomProfile } from './danmaku-twitter-profile.js';
+import { applySpookyColorFallback } from './danmaku-spooky.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { createOverlaySocket } from './socket-client.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
@@ -23,6 +24,7 @@ const GIFT_CARD_WIDTH = 460;
 const MAX_GIFT_SCALE = 1.5;
 const params = new URLSearchParams(location.search);
 const previewMode = params.get('preview') === '1';
+const legacySource = !previewMode && params.get('source') !== 'component';
 let previewHistory = null;
 if (previewMode) {
   try { previewHistory = window.history.state || {}; } catch { previewHistory = {}; }
@@ -50,6 +52,7 @@ let currentFloatingDispersion = 50;
 let currentRandomPlacement = {};
 let effectConfig = {};
 let effects;
+let legacyConfiguration = null;
 const twitterProfile = createTwitterRoomProfile({
   document,
   resolveAvatarUrl: bilibiliAvatarSource,
@@ -217,12 +220,13 @@ function disposeSocket() {
   twitterProfile.dispose();
 }
 
-function syncTwitterProfile(expectedRoomId) {
+function syncTwitterProfile(expectedRoomId, projectedProfile) {
   if (previewMode && !isSceneComponent()) {
     twitterProfile.showPreview();
     return;
   }
-  twitterProfile.update(currentOverlayStyle, expectedRoomId ?? lastLiveStatus?.roomId);
+  twitterProfile.update(currentOverlayStyle, expectedRoomId ?? lastLiveStatus?.roomId,
+    isSceneComponent() ? projectedProfile ?? null : undefined);
 }
 
 async function loadTwitterRoomProfile({ signal }) {
@@ -248,6 +252,11 @@ function applyItems(nextItems) {
     .slice(-MAX_ITEMS);
   // items already includes queued increments; leave their animation frame intact.
   if (!feedNeedsRender && JSON.stringify(normalizedItems) === JSON.stringify(items)) return;
+  if (legacySource && !feedNeedsRender && normalizedItems.length > items.length
+    && items.every((item, index) => JSON.stringify(item) === JSON.stringify(normalizedItems[index]))) {
+    normalizedItems.slice(items.length).forEach(appendItem);
+    return;
+  }
   if (renderFrame !== null) cancelAnimationFrame(renderFrame);
   pendingItems = [];
   renderFrame = null;
@@ -279,7 +288,8 @@ function flushPendingItems() {
   const nextItems = pendingItems;
   pendingItems = [];
   renderFrame = null;
-  nextItems.forEach((item) => feed.append(item));
+  if (feed.appendBatch) feed.appendBatch(nextItems);
+  else nextItems.forEach((item) => feed.append(item));
   renderMessageCount();
 }
 
@@ -341,6 +351,11 @@ function normalizeFullscreenDuration(value) {
 function applyConfiguration(styleValue, durationValue, styleOptions = {}, refreshPreview = false) {
   const style = OVERLAY_STYLES.has(styleValue) ? styleValue : 'signal';
   const legacyDuration = normalizeFullscreenDuration(durationValue);
+  if (legacySource && !refreshPreview) {
+    const configuration = JSON.stringify([style, styleOptionsFor(style, styleOptions, legacyDuration)]);
+    if (configuration === legacyConfiguration) return;
+    legacyConfiguration = configuration;
+  }
   const appearance = applyStyleOptions(document, style, styleOptions, legacyDuration);
   const duration = appearance.durationSeconds ?? legacyDuration;
   const changed =
@@ -359,6 +374,7 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   if (isFloatingDanmakuStyle(style)) feed?.setFloatingDispersion?.(currentFloatingDispersion);
   if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;
+  if (style === 'spooky') applySpookyColorFallback(document);
   if (changed || refreshPreview) createOverlayFeed(style, duration);
   if (!isSceneComponent() && params.get('source') !== 'component') syncTwitterProfile();
   syncRankedOverlayScale();

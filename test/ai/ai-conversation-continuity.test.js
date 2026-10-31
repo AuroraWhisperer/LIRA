@@ -20,7 +20,7 @@ function fixture(t, options = {}) {
   const delivered = [];
   const service = createAiAssistantService({
     store: { ...store, getConfig: () => ({ ...config }) },
-    deepseek: { async createResponse(request) {
+    modelClient: { async createResponse(request) {
       requests.push(request);
       return options.respond ? options.respond(request) : { text: `答${requests.length}`, functionCalls: [], usage: {} };
     } },

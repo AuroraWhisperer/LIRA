@@ -21,6 +21,10 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
   const addButton = documentRef.getElementById('songRequestUserBlacklistAdd');
   let rows = [];
 
+  function readExpiry(row) {
+    return row.expiry.value === row.savedExpiryText ? row.savedExpiresAt : dateTimeTimestamp(row.expiry.value);
+  }
+
   function updateLabels() {
     empty.hidden = rows.length > 0;
     table.hidden = rows.length === 0;
@@ -31,16 +35,16 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
       row.name.setAttribute('aria-label', `用户 ${index + 1} 的备注昵称`);
       row.expiry.setAttribute('aria-label', `用户 ${index + 1} 的到期时间，留空永久`);
       row.remove.setAttribute('aria-label', `删除用户 ${index + 1}`);
-      const expiresAt = dateTimeTimestamp(row.expiry.value);
+      const expiresAt = readExpiry(row);
       row.status.textContent = !expiresAt ? '永久' : expiresAt <= Date.now() ? '已过期' : '限时';
     });
   }
 
   function updateDraft() {
-    field.value = JSON.stringify(rows.map(({ uid, name, expiry }) => ({
-      uid: uid.value.trim(),
-      name: name.value.trim(),
-      expiresAt: dateTimeTimestamp(expiry.value),
+    field.value = JSON.stringify(rows.map((row) => ({
+      uid: row.uid.value.trim(),
+      name: row.name.value.trim(),
+      expiresAt: readExpiry(row),
     })));
     field.dataset.preserveDirty = 'true';
     field.dataset.dirty = 'true';
@@ -76,7 +80,7 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     remove.type = 'button';
     remove.className = 'secondary';
     remove.textContent = '删除';
-    const row = { uid, name, expiry, status, remove };
+    const row = { uid, name, expiry, status, remove, savedExpiresAt: entry.expiresAt || 0, savedExpiryText: expiry.value };
     for (const input of [uid, name, expiry]) input.addEventListener('input', updateDraft);
     remove.addEventListener('click', () => {
       const index = rows.indexOf(row);
@@ -103,7 +107,7 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     const entries = JSON.parse(rawValue || '[]');
     const unchanged = entries.length === rows.length && entries.every((entry, index) => (
       entry.uid === rows[index].uid.value && (entry.name || '') === rows[index].name.value
-      && (entry.expiresAt || 0) === dateTimeTimestamp(rows[index].expiry.value)
+      && (entry.expiresAt || 0) === readExpiry(rows[index])
     ));
     field.value = rawValue;
     if (!unchanged) {

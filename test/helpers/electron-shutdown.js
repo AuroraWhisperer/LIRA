@@ -421,7 +421,7 @@ function createShutdownHarness(options = {}) {
       },
     },
     './terminal-log': { installTerminalLog() {} },
-    './ipc/update-ipc': require('../../src/electron/ipc/update-ipc'),
+    './ipc/desktop-shell-ipc': require('../../src/electron/ipc/desktop-shell-ipc'),
     './ipc/music-ipc': { registerMusicIpc() {} },
     './ipc/bilibili-ipc': { registerBilibiliIpc() {} },
     './ipc/license-ipc': { registerLicenseIpc() {} },

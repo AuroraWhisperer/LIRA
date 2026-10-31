@@ -115,6 +115,32 @@ function saveItems(service, created, items) {
   return service.save({ id: created.document.id, expectedRevision: created.revision, document: { ...created.document, items } });
 }
 
+test('output appearance projection skips hidden items and restores them for component output or republication', t => {
+  const f = fixture(t);
+  const projected = [];
+  const service = createSceneService({ ...f.ports, getSharedAppearances(items) {
+    projected.push(items);
+    return Object.fromEntries(items.map(entry => [entry.id, { color: f.state.color }]));
+  } });
+  const visible = item('clock');
+  const hidden = item('danmaku', { visible: false });
+  const saved = saveItems(service, create(service), [visible, hidden]);
+  const id = saved.document.id;
+  service.publish({ id, expectedRevision: saved.revision });
+  const source = service.getSource(id);
+  assert.deepEqual(service.getOutput(source).appearances, { [visible.id]: { color: 'white' } });
+  assert.deepEqual(projected.at(-1).map(entry => entry.id), [visible.id]);
+  const component = service.getOutput({ ...source, item: hidden.id });
+  assert.deepEqual(component.appearances, { [hidden.id]: { color: 'white' } });
+  assert.equal(projected.at(-1)[0].visible, true);
+  assert.equal(component.document.items[0].visible, true);
+  const shown = saveItems(service, saved, [visible, { ...hidden, visible: true }]);
+  service.publish({ id, expectedRevision: shown.revision });
+  f.state.color = 'black';
+  assert.deepEqual(service.getOutput({ ...source, version: 1 }).appearances,
+    { [visible.id]: { color: 'black' }, [hidden.id]: { color: 'black' } });
+});
+
 test('output authorization rechecks current capability without reparsing drafts or unchanged publications', t => {
   const f = fixture(t);
   const saved = saveItems(f.service, create(f.service), [item('clock')]);

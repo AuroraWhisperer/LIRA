@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createAnsweringDeepseek, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
+const { createAnsweringModelClient, createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 const { splitDanmakuEveryMentionMessage } = require('../../src/bilibili/danmaku/sender-service');
 const { getReplyLengthBudget } = require('../../src/ai/ai-assistant-helpers');
 
@@ -11,7 +11,7 @@ test('generation may finish out of order but delivery remains FIFO', async () =>
   const pendingAnswers = new Map();
   const service = createTestService({
     config: { generationConcurrency: 2, userCooldownSeconds: 5 },
-    deepseek: {
+    modelClient: {
       async createResponse(request) {
         if (request.purpose === 'input_review' || request.purpose === 'output_review')
           return {
@@ -136,7 +136,7 @@ for (const scenario of [
     let answerCount = 0;
     const service = createTestService({
       config: { trigger: 'AI' },
-      deepseek: createAnsweringDeepseek(() => `${scenario.prefix}-${++answerCount}`),
+      modelClient: createAnsweringModelClient(() => `${scenario.prefix}-${++answerCount}`),
       sendReply: async (value) => {
         deliveries.push(value.message);
         return {
@@ -180,7 +180,7 @@ test('missing reply chunks retry in one message with the original question and c
       getContext: () => previous,
       setContext: (_uid, context) => contexts.push(context),
     },
-    deepseek: { async createResponse(request) {
+    modelClient: { async createResponse(request) {
       requests.push(request);
       return { text: request.purpose === 'generation' ? answer : '{"allowed":true}', functionCalls: [], usage: {} };
     } },
@@ -229,7 +229,7 @@ function orderFixture(t, overrides = {}) {
       getCache: overrides.getCache || (() => null),
       setCache() {},
     },
-    deepseek: {
+    modelClient: {
       async createResponse(request) {
         if (request.purpose !== 'generation') return { text: '{"allowed":true}', usage: {}, functionCalls: [] };
         return new Promise((resolve) =>

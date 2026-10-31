@@ -111,6 +111,8 @@ test('spooky preserves fades and finishes without a raster change inside a scale
     const state = await frame.evaluate(async item => {
       feed.render([]);
       feed.append(item);
+      // Freeze the entrance before font loading can outlast its timeline.
+      for (const animation of root.getAnimations({ subtree: true })) animation.pause();
       await document.fonts.ready;
       await new Promise(requestAnimationFrame);
       const animations = root.getAnimations({ subtree: true });
@@ -198,6 +200,67 @@ test('spooky palette fills have independent alpha without fading text, decoratio
   assert.deepEqual(result.restoredChat, [255, 255]);
   assert.equal(result.restoredEvent, 255);
   assert.deepEqual(result.restoredFrame, [255, 255]);
+});
+
+test('spooky legacy color fallback preserves theme gradients, translucent custom colors and independent fill alpha', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'spooky');
+  const markup = fs.readFileSync(path.join(__dirname, '../../public/pages/overlays/danmaku.html'), 'utf8');
+  const css = fs.readFileSync(path.join(__dirname, '../../public/css/overlays/danmaku/spooky.css'), 'utf8');
+  const result = await page.evaluate(async ({ markup, css }) => {
+    const stage = document.querySelector('.danmaku-signal-stage');
+    stage.prepend(new DOMParser().parseFromString(markup, 'text/html').querySelector('.spooky-frame'));
+    stage.style.height = '1200px';
+    feed.render([{ name: '聊天者', message: '普通纸片' },
+      { name: '舰长', message: '舰长纸片', roomGuardLevel: 3 },
+      { kind: 'gift', name: '送礼者', giftName: '小心心', giftCount: 2 },
+      { kind: 'superchat', name: '留言者', message: '留言纸片', price: 50 }]);
+    const rows = Array.from(root.children);
+    const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    const { applySpookyColorFallback } = await import('/js/overlays/danmaku-spooky.js');
+    const fallback = document.createElement('style');
+    fallback.textContent = css.replace('@supports not (color: color-mix(', '@supports (color: color-mix(');
+    document.head.append(fallback);
+    const supports = CSS.supports;
+    const context = document.createElement('canvas').getContext('2d');
+    const colors = () => Array.from(stage.querySelectorAll('.spooky-frame-paper,.spooky-frame-board,.spooky-frame-outline,.spooky-back-paper,.spooky-front-paper,.spooky-board,.spooky-star,.spooky-web,.spooky-copy,.spooky-sc-copy'))
+      .flatMap(node => {
+        const computed = getComputedStyle(node);
+        return [computed.backgroundColor, computed.backgroundImage, computed.color]
+          .flatMap(value => value.match(/(?:color|rgba?)\([^)]*\)/g) || []);
+      }).map(value => {
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = value;
+        context.fillRect(0, 0, 1, 1);
+        return Array.from(context.getImageData(0, 0, 1, 1).data);
+      });
+    const custom = { spookyFrameColor: '#12345680', spookyMessageColor: '#23456799',
+      spookyEventColor: '#34567866', spookyAccentColor: '#cc660080',
+      spookyFrameOpacity: 60, spookyMessageOpacity: 40, spookyEventOpacity: 75 };
+    const differences = [];
+    try {
+      for (const spookyTheme of ['default', 'autumn', 'graveyard', 'moonlight']) {
+        for (const overrides of [custom, { ...custom, spookyAccentColor: '#ff000000', spookyMessageOpacity: 0 }, {}]) {
+          fallback.sheet.disabled = true;
+          applyStyleOptions(document, 'spooky', { spooky: { spookyTheme, ...overrides } });
+          const expected = colors();
+          CSS.supports = () => false;
+          fallback.sheet.disabled = false;
+          applySpookyColorFallback(document);
+          const actual = colors();
+          differences.push({ count: actual.length === expected.length,
+            max: Math.max(...actual.flatMap((color, index) => color.map((channel, offset) => Math.abs(channel - expected[index][offset])))) });
+        }
+      }
+      return { differences, retained: rows.every((node, index) => root.children[index] === node),
+        replayed: rows.some(node => node.hasAttribute('data-live-entry')) };
+    } finally {
+      CSS.supports = supports;
+      fallback.remove();
+    }
+  }, { markup, css });
+  assert.ok(result.differences.every(({ count, max }) => count && max <= 1), JSON.stringify(result.differences));
+  assert.equal(result.retained, true);
+  assert.equal(result.replayed, false);
 });
 
 test('spooky frame keeps stickers visible, uses its own ink, and fits a full-width long SC', { timeout: 15000 }, async t => {

@@ -1,5 +1,3 @@
-export const COMPONENT_WEB_PREFIX = '/component-web/';
-
 export function isComponentWebSource(value) {
   if (typeof value !== 'string' || !/^\/component-web\/[a-f0-9-]{36}\/.+/.test(value) || /[?#\\\u0000-\u001f]/.test(value)) return false;
   try {

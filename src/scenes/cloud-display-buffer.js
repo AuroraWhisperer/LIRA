@@ -13,7 +13,7 @@ function displayEvent(event) {
   if (event.type === 'superchat-delete') return { ...pick(event, 'type liveSessionId timestamp'), messageIds: [...event.messageIds] };
   const result = pick(event, 'type liveSessionId timestamp name');
   if (event.type === 'entry') return { ...result, ...pick(event, 'guardLevel') };
-  if (event.type === 'gift') return { ...result, ...pick(event, 'giftName giftCount giftTotalPrice giftImageUrl avatarUrl giftGuardLevel honorLevel') };
+  if (event.type === 'gift') return { ...result, ...pick(event, 'giftName giftCount giftTotalPrice giftImageUrl avatarUrl giftGuardLevel guardAction guardAccompanyDays honorLevel') };
   Object.assign(result, pick(event, 'message avatarUrl'));
   if (event.type === 'superchat') {
     Object.assign(result, pick(event, 'price messageId'));
@@ -60,7 +60,7 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
       || typeof update.connectionEpoch !== 'string' || !update.connectionEpoch || update.connectionEpoch.length > 128
       || !['connecting', 'connected', 'offline'].includes(update.status)) return false;
     if (update.status === 'connecting') {
-      if (connectionEpoch === update.connectionEpoch) return status === 'connecting';
+      if (connectionEpoch === update.connectionEpoch) return false;
       connectionEpoch = update.connectionEpoch;
       status = 'connecting';
       reset();
@@ -68,7 +68,8 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     }
     if (connectionEpoch !== update.connectionEpoch) return false;
     if (update.status === 'offline') {
-      if (status !== 'offline') reset();
+      if (status === 'offline') return false;
+      reset();
       status = 'offline';
       return true;
     }

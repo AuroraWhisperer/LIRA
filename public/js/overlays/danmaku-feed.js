@@ -315,16 +315,22 @@ export function createDanmakuFeed(root, options = {}) {
       (entry.item.kind === 'gift' && [1, 2, 3].includes(entry.item.giftGuardLevel)))) {
       // Full-width cards reflow at a smaller type size instead of narrowing the panel.
       node.style.setProperty('font-size', '');
+      node.style.setProperty('--danmaku-font-size', '');
       if (availableHeight > 0 && node.offsetHeight > availableHeight) {
+        const computed = globalThis.getComputedStyle?.(node);
+        const baseSize = Number.parseFloat(computed?.fontSize) || 0;
+        const bodySize = Number.parseFloat(computed?.getPropertyValue('--danmaku-font-size')) || baseSize;
         let low = 0;
-        let high = Number.parseFloat(globalThis.getComputedStyle?.(node)?.fontSize) || 0;
+        let high = baseSize;
         for (let attempt = 0; attempt < 8 && high > 0; attempt += 1) {
           const size = (low + high) / 2;
           node.style.setProperty('font-size', `${size}px`);
+          node.style.setProperty('--danmaku-font-size', `${bodySize * size / baseSize}px`);
           if (node.offsetHeight <= availableHeight - 1) low = size;
           else high = size;
         }
         node.style.setProperty('font-size', `${low}px`);
+        if (baseSize > 0) node.style.setProperty('--danmaku-font-size', `${bodySize * low / baseSize}px`);
       }
     }
     const zoom = Number.parseFloat(globalThis.getComputedStyle?.(node)?.zoom) || 1;

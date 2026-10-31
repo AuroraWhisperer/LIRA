@@ -32,9 +32,9 @@
 
 ### B1. 统计查询进一步优化与主线程预算验证
 
-- 待做：测量 summary/top gifts/time buckets 的重复扫描及合成大数据下的主线程停顿，再确定必要的优化。
-- 前提：仍属 proposal；只有优化后仍超预算，才考虑有界只读 worker，不无条件引入新执行架构。
-- 来源：[查询与首次同步报告](../../docs/reports/2026-09-19-database-query-and-history-sync-plan.md) §3.1、§9.4。
+- 待做：在桌面实际统计链路验证主线程停顿与预算。2026-10-28 已将 summary/top gifts/time buckets 共用筛选行，隔离 SQLite 的合成对照结果一致且成本下降；这不等于 Electron 实际预算达标。
+- 前提：进一步执行架构仍属 proposal；只有优化后仍超预算，才考虑有界只读 worker，不无条件引入新执行架构。
+- 来源：[查询与首次同步报告](../../docs/reports/2026-09-19-database-query-and-history-sync-plan.md) §3.1、§9.4；[2026-10-28 优化与验证](archive/2026-10-28-code-efficiency.md)。
 
 ### B2. 首次礼物历史恢复的确认/暂停与实时增量解耦
 

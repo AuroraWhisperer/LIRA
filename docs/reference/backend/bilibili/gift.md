@@ -164,7 +164,7 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 ## 6.1 服务器权威礼物与客户端投影
 
-原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 5 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
+原始 B 站包的解析、平台身份去重、连击累计、盲盒价值覆盖和 6 秒静默收尾由 `D:/Work/lira-server` 的每主播 `RoomMonitor`/`gift-detector` 独占。该服务器把 final 行与 delivery cursor 在同一个 SQLite 事务中提交,再通过按 `streamerId` 分桶的内存 broker 加速在线设备投递;旧历史行保留但不会生成新的 delivery cursor。
 
 Electron 只在 main process 使用授权 DeviceBearer 请求远端礼物接口。wire 校验和内部 canonical 对象由 [processed-gift-contract.js](../../../../src/shared/processed-gift-contract.js) 分层维护：`validateGiftDisplayWire` 先拒绝未知/缺失字段，再由 `canonicalizeGiftDisplay` 处理文本、时间、金额和内部派生值。
 
@@ -213,4 +213,4 @@ live 事件严格为 `{eventId,cursor,phase,gift}`；eventId 为1–64字符，�
 capability 缺失时继续接收兼容 live final，但状态固定为 `LEGACY_PARTIAL`。capability 存在时，控制器处于干净 `LIVE`、bootstrap 已完成、SSE epoch 已验证且 cursor 连续时，`final` 事件通过既有 `gift-sync-store.commitCatchUpPage` 将礼物和 cursor 一起提交，提交后才分发消费者，不再逐条触发 GET；当前有效连接的已提交 cursor 直接忽略。写入失败不推进游标并转入补拉。启动、重连、缺口与每 10 秒的兜底核对继续使用 epoch-aware cursor pull；实时提交不推迟兜底期限，也不刷新 HTTP 验证时间。初始化、已有恢复、乱序、断线或 epoch 未验证时只走 pull/rebuild；所有远程任务使用 source/auth/controller/projection 四字段 fence。礼物明细、搜索和统计只读 Electron main 选定的 active source，renderer 不能提交 `sourceId`。
 
 
-§9 记录已存在的 bootstrap、事务恢复、连续 cursor 与四字段 fence，不将所有历史下载增强标为完成。[2026-09-26 未结项报告](../../../reports/2026-09-26-client-documentation-open-items.md) 仍将首次历史下载确认、进度/暂停/继续、实时与可选历史分离、服务器共享并发/字节预算列为剩余范围；设计建议见 [查询与历史同步报告](../../../reports/2026-09-19-database-query-and-history-sync-plan.md)。当前缺投影会按既有协议 bootstrap，不能承诺“未经确认绝不下载历史”或“暂停历史仍可独立实时收礼”。规格状态仍为 Accepted，不由这次文档修订改写。
+§9 记录现有的 bootstrap、事务恢复、连续 cursor 与四字段 fence，不代表所有历史下载增强均已完成。决策状态保持 Accepted，交付状态由[规格索引](../../../../specs/README.md)维护，当前为 Implemented。首次历史下载确认、进度/暂停/继续、实时与可选历史分离，以及服务器共享并发/字节预算见[未结项台账](../../../../specs/plans/open-items.md) B2/B3；最大租户脱敏数据集性能证据见[投影同步计划](../../../../specs/plans/2026-09-01-gift-ledger-projection-sync.md)。当前缺投影会按既有协议 bootstrap，不能承诺“未经确认绝不下载历史”或“暂停历史仍可独立实时收礼”。

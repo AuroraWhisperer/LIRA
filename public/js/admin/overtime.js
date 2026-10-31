@@ -26,6 +26,7 @@ const giftPicker = createOvertimeGiftPicker({
   getLiveStatus: () => catalogLiveStatus,
   onSelect(gift, previousRow) {
     const row = previousRow ? ruleEditor.reselectGift(previousRow, gift) : ruleEditor.createRule(gift);
+    if (!row) { toast('原规则已删除或变更，请重新选择要修改的规则。', { type: 'warn' }); return; }
     row.scrollIntoView({ block: 'nearest' });
     toast(previousRow ? `已选择 ${gift.name}，原规则设置已保留` : `已添加 ${gift.name}`);
   },

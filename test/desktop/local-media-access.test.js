@@ -31,6 +31,34 @@ test('explicit local media access survives a cold start and remains path-specifi
   assert.equal(coldStart.isAllowed(selectedPath), true);
   assert.equal(coldStart.isAllowed(siblingPath), false);
 });
+
+test('failed allowlist persistence keeps memory unchanged and retries the same file', (t) => {
+  const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
+  const root = createScratchDirectory('local-media-retry-');
+  t.after(() => removeScratchDirectory(root));
+  const selected = path.join(root, 'selected.mp3');
+  const existing = path.join(root, 'existing.mp3');
+  fs.writeFileSync(selected, 'audio');
+  fs.writeFileSync(existing, 'audio');
+  const access = createLocalMediaAccess(root);
+  access.allowPath(existing);
+  const write = fs.writeFileSync;
+  let fail = true;
+  t.mock.method(fs, 'writeFileSync', (...args) => {
+    if (fail && args[0] === path.join(root, 'local-media-access.json')) {
+      fail = false;
+      throw new Error('temporary write failure');
+    }
+    return write(...args);
+  });
+  assert.throws(() => access.allowPath(selected), /temporary write failure/);
+  assert.equal(access.isAllowed(selected), false);
+  assert.equal(access.isAllowed(existing), true);
+  access.allowPath(selected);
+  const cold = createLocalMediaAccess(root);
+  assert.equal(cold.isAllowed(selected), true);
+  assert.equal(cold.isAllowed(existing), true);
+});
 test('dataDir files are not implicitly allowed (security: no privilege escalation)', (t) => {
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'song-request-local-media-'));
   t.after(() => fs.rmSync(tempRoot, { recursive: true, force: true }));

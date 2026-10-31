@@ -174,7 +174,7 @@ for (const change of ['disconnect', 'account']) {
   }
 }
 
-async function createSessionFixture(t, deepseek, waitForDelivery) {
+async function createSessionFixture(t, modelClient, waitForDelivery) {
   const network = t.mock.method(globalThis, 'fetch', () => {
     throw new Error('Unexpected external request in AI session test');
   });
@@ -228,7 +228,7 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
     getAuthState: async () => ({ ...account }),
     getSessionRevision: () => account.revision,
   });
-  const model = deepseek || {
+  const model = modelClient || {
     async createResponse(request) {
       return {
         text: request.purpose === 'generation' ? '正常回复。' : '{"allowed":true,"safeText":""}',
@@ -239,7 +239,7 @@ async function createSessionFixture(t, deepseek, waitForDelivery) {
   };
   service = createTestService({
     store: { setContext: (...args) => contexts.push(args) },
-    deepseek: {
+    modelClient: {
       createResponse(request) {
         if (request.purpose === 'generation') generations.push(request);
         return model.createResponse(request);

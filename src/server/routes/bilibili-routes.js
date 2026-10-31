@@ -119,6 +119,7 @@ const routes = {
       const result = await context.bilibili.sendDanmaku({
         message,
         mentionRequester: body && body.mentionRequester === true,
+        ...(body?.sendSession === undefined ? {} : { sendSession: body.sendSession }),
       });
       sendJson(res, 200, { ok: true, data: result });
     } catch (error) {
@@ -134,6 +135,7 @@ const routes = {
 };
 
 function publicDanmakuSendErrorMessage(error) {
+  if (error?.code === 'DANMAKU_SESSION_CHANGED') return '直播账号或房间已变更，已停止剩余自动发送，请确认目标后重试。';
   const message = error && error.message ? error.message : String(error || '');
   let friendly = '发送失败：直播平台没有接收这条弹幕，请稍后再试。';
   if (/发送过于频繁/.test(message)) {

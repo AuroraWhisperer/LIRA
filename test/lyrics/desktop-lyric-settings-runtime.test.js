@@ -415,13 +415,12 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(Object.hasOwn(apiCalls[0].body, 'desktopLyricFallbackFontFamily'), false,
     'Changing visible settings must not overwrite the retired fallback field.');
 
-  windowListeners.get('app:settings-state')({
-    detail: {
-      ...values,
-      weSingLyricSource: 'qq',
-      weSingSmartLyricMatch: 'false',
-    },
-  });
+  lyricSourceInputs[0].checked = false;
+  lyricSourceInputs[1].checked = true;
+  smartLyricMatch.checked = false;
+  listeners.get('change')();
+  windowListeners.get('app:settings-state')({ detail: { ...values,
+    weSingLyricSource: 'netease', weSingSmartLyricMatch: 'true' } });
   assert.equal(lyricSourceInputs[0].checked, false);
   assert.equal(lyricSourceInputs[1].checked, true);
   assert.equal(smartLyricMatch.checked, false);

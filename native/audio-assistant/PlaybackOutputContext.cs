@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Runtime.InteropServices;
+using NAudio.CoreAudioApi;
 using NAudio.Wave;
 
 internal sealed class PlaybackOutputContext : ApplicationContext
@@ -19,7 +20,7 @@ internal sealed class PlaybackOutputContext : ApplicationContext
     timer.Tick += (_, _) => {
       if (installationExit.WaitOne(0)) { Close(); return; }
       if (output == null || backend == "asio") return;
-      try { using var device = AudioDevices.OpenInput(endpointId, true); }
+      try { using var device = AudioDevices.OpenEndpoint(endpointId, DataFlow.Render); }
       catch { Fault("输出设备已断开，请重新选择。"); }
     };
     timer.Start();

@@ -19,23 +19,28 @@ export function initGiftInteractionControls({
   bridge = windowRef?.liraLicense,
   notify = toast,
   surface = 'gifts',
+  onState = () => {},
 } = {}) {
   const queryView = surface === 'danmaku';
-  const keys = queryView ? ['giftStatsQueryEnabled'] : KEYS;
+  const keys = queryView ? ['giftStatsQueryEnabled', 'giftAutoThanksEnabled'] : KEYS;
   const panel = documentRef?.getElementById(queryView ? 'danmakuQueryControls' : 'giftInteractionControls');
   if (!panel || !bridge?.getGiftInteractionState || !bridge?.setGiftInteraction) return () => {};
-  const inputs = keys.map((key) => documentRef.getElementById(queryView ? 'danmakuQueryToggle' : key));
+  const inputs = keys.map((key) => documentRef.getElementById(queryView
+    ? key === 'giftStatsQueryEnabled' ? 'danmakuQueryToggle' : 'danmakuGiftThanksToggle' : key));
   const status = documentRef.getElementById(queryView ? 'danmakuQueryStatus' : 'giftInteractionStatus');
+  const thanksStatus = queryView ? documentRef.getElementById('danmakuGiftThanksStatus') : null;
   const retry = documentRef.getElementById(queryView ? 'dailyBotRefresh' : 'giftInteractionRefresh');
   let state = { values: {}, status: 'unconfirmed' };
   let saving = false;
   let disposed = false;
   let eventVersion = 0;
+  let refreshCompleted = false;
   panel.hidden = false;
 
   function render(snapshot) {
     if (disposed) return;
     state = snapshot;
+    onState(saving ? { ...snapshot, status: 'pending' } : snapshot);
     for (let index = 0; index < keys.length; index += 1) {
       inputs[index].checked = state.values?.[keys[index]] === true;
       inputs[index].disabled = saving || state.status === 'pending';
@@ -46,9 +51,13 @@ export function initGiftInteractionControls({
         : state.status === 'confirmed'
           ? '已同步到服务器'
           : ERRORS[state.error] || '状态未确认，请刷新核对。';
-    status.hidden = state.status === 'confirmed' && !saving;
-    if (!queryView) {
-      retry.hidden = state.status === 'confirmed';
+    if (queryView) {
+      status.hidden = state.status === 'confirmed' && !saving;
+      thanksStatus.textContent = status.textContent;
+      thanksStatus.hidden = status.hidden;
+    } else {
+      status.hidden = true;
+      retry.hidden = !refreshCompleted || state.status !== 'unconfirmed' || saving;
       retry.disabled = saving || state.status === 'pending';
       retry.title = status.textContent;
     }
@@ -58,9 +67,19 @@ export function initGiftInteractionControls({
     const version = eventVersion;
     try {
       const snapshot = await bridge.getGiftInteractionState();
-      if (version === eventVersion) render(snapshot);
+      if (version === eventVersion) {
+        refreshCompleted = true;
+        render(snapshot);
+        if (!queryView && snapshot.status === 'unconfirmed') {
+          notify(ERRORS[snapshot.error] || '状态未确认，请刷新核对。');
+        }
+      }
     } catch {
-      if (version === eventVersion) render({ ...state, status: 'unconfirmed' });
+      if (version === eventVersion) {
+        refreshCompleted = true;
+        render({ ...state, status: 'unconfirmed' });
+        if (!queryView) notify('状态未确认，请刷新核对。');
+      }
     }
   }
 
@@ -101,6 +120,7 @@ export function initGiftInteractionControls({
           ? '关闭还没同步，服务器可能仍在运行。'
           : ERRORS[result.error] || '设置尚未确认，请刷新核对后重试。';
       status.textContent = message;
+      if (thanksStatus) thanksStatus.textContent = message;
       if (!queryView) retry.title = message;
       notify(message);
     }

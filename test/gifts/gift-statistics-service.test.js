@@ -77,6 +77,12 @@ test('statistics use cents, canonical rows, active source and completeness state
     assert.equal(boxOnly.summary.eventCount, 2);
     assert.equal(boxOnly.summary.totalPriceCents, 550);
 
+    const empty = getGiftStatistics(fixture.context, { query: '不存在的礼物', range: 'all' });
+    assert.equal(empty.summary.eventCount, 0);
+    assert.equal(empty.summary.totalPriceCents, 0);
+    assert.deepEqual(empty.topGifts, []);
+    assert.deepEqual(empty.timeSeries, []);
+
     fixture.setActiveSource(sourceA.id, {
       syncState: 'OFFLINE',
       partial: true,
@@ -192,6 +198,17 @@ test('all-time statistics retain only the latest 240 Shanghai month buckets', ()
         'totalPriceCents',
       ].sort(),
     );
+
+    fixture.insertGift(source.id, 'before-midnight', { createdAt: '2026-08-31T15:59:59.999Z' });
+    fixture.insertGift(source.id, 'at-midnight', { createdAt: '2026-08-31T16:00:00.000Z' });
+    fixture.insertGift(source.id, 'as-of', { createdAt: '2026-09-02T00:00:00.000Z' });
+    const recent = getGiftStatistics(fixture.context, { range: '30d' });
+    assert.equal(recent.summary.eventCount, 3);
+    assert.deepEqual(recent.timeSeries.map(({ bucketStart }) => bucketStart), [
+      '2026-08-14T16:00:00.000Z',
+      '2026-08-30T16:00:00.000Z',
+      '2026-08-31T16:00:00.000Z',
+    ]);
   } finally {
     fixture.close();
   }

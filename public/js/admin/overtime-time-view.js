@@ -82,20 +82,29 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
 
   function renderDurationSelectors(seconds) {
     const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
-    setValueUnlessFocused('overtimeInitialHours', String(Math.floor(totalMinutes / 60)));
+    const hours = Math.floor(totalMinutes / 60);
+    const selector = byId?.('overtimeInitialHours');
+    if (selector) {
+      for (const option of selector.querySelectorAll('[data-preserved-hours]')) option.remove();
+      if (hours > 999) {
+        appendOption(selector, String(hours), `${hours} 小时（已保存）`);
+        selector.lastElementChild.dataset.preservedHours = 'true';
+      }
+    }
+    setValueUnlessFocused('overtimeInitialHours', String(hours));
     setValueUnlessFocused('overtimeInitialMinutes', String(totalMinutes % 60));
   }
 
   function parseInitialDuration(value) {
     const serverLimits = getServerLimits();
     const text = String(value || '').trim();
-    const match = text.match(/^(\d{1,3}):(\d{2})$/);
+    const match = text.match(/^(\d+):(\d{2})$/);
     if (!match) throw new Error('初始时长格式应为 HHH:MM。');
     const hours = Number(match[1]);
     const minutes = Number(match[2]);
     if (minutes > 59) throw new Error('分钟必须小于 60。');
     const seconds = (hours * 60 + minutes) * 60;
-    if (seconds > serverLimits.maxSeconds) {
+    if (!Number.isSafeInteger(seconds) || seconds > serverLimits.maxSeconds) {
       throw new Error(`初始时长不能超过 ${formatMaxSeconds(serverLimits.maxSeconds)}。`);
     }
     return seconds;

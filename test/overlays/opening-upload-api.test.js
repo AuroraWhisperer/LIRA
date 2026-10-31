@@ -33,8 +33,8 @@ test('opening music uploads stay inside the configured data directory', async ()
     get() {
       return { ...this.values };
     },
-    set(key, value) {
-      this.values[key] = value;
+    setMany(values) {
+      Object.assign(this.values, values);
     },
   };
   const context = { system: { dataDir }, settings, broadcastSnapshot() {} };
@@ -102,8 +102,8 @@ test('opening character uploads validate image signatures and stay inside the da
     get() {
       return { ...this.values };
     },
-    set(key, value) {
-      this.values[key] = value;
+    setMany(values) {
+      Object.assign(this.values, values);
     },
   };
   const context = { system: { dataDir }, settings, broadcastSnapshot() {} };

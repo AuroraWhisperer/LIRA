@@ -194,6 +194,8 @@ body.player-dock-expanded .other-workspace {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  opacity: 1;
+  transition: opacity 160ms ease var(--other-sidebar-label-delay);
 }
 
 .other-feature-group-heading strong {
@@ -231,7 +233,7 @@ body.player-dock-expanded .other-workspace {
   opacity: 0.62;
   transition:
     transform var(--other-group-duration) var(--other-sidebar-easing),
-    opacity 140ms ease;
+    opacity 140ms ease var(--other-sidebar-label-delay);
 }
 
 .other-feature-group-heading[aria-expanded='false'] {
@@ -393,10 +395,21 @@ body.player-dock-expanded .other-workspace {
   margin: 8px 10px 6px;
   padding: 0;
   overflow: hidden;
-  color: transparent;
+  /* Disabled headings are separators here, so keep the global disabled fill out. */
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
   cursor: default;
   pointer-events: none;
   opacity: 1;
+}
+
+@media (min-width: 901px) {
+  .other-page.sidebar-collapsed .other-feature-group-heading > * {
+    opacity: 0;
+    transition-duration: 90ms;
+    transition-delay: 0ms;
+  }
 }
 
 .other-page.sidebar-collapsed .other-feature-group-heading:first-child {
@@ -407,6 +420,8 @@ body.player-dock-expanded .other-workspace {
 
 @media (prefers-reduced-motion: reduce) {
   .other-feature-group-heading,
+  .other-feature-group-heading strong,
+  .other-feature-group-heading small,
   .other-feature-group-arrow {
     transition: none;
   }

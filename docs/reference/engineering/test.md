@@ -102,7 +102,9 @@ npm test -- --file=test/gifts/frontend-blindbox-overlay.test.js --file=test/ui/f
 
 浏览器测试不因存放在 `admin/` 或 `scenes/` 而成为 offline；经 helper 间接启动 Chromium 的文件同样必须登记到 browser。同一文件的多个浏览器用例用 [shared-browser.js](../../../test/helpers/shared-browser.js) 共用一个 Chromium，每个用例使用独立 context；只在用例需要独立进程状态时自行启动浏览器。桌面测试统一经 [shared-electron.js](../../../test/helpers/shared-electron.js) 的 `launchElectron` 启动 Playwright 的 Electron 宿主：它在传给被测应用的进程环境里删除 `ELECTRON_RUN_AS_NODE`，该变量会让 Electron 以纯 Node 启动、握手永不完成，表现为整组桌面用例只报 `Process failed to launch!`。该变量只影响这一个被测进程，直接以 Node 方式启动 Electron 的测试（如 build-integrity）仍自行管理环境。contracts 组只放必须读取锁定服务器 fixture 的用例，同文件中不依赖 fixture 的用例拆到离线文件，避免被服务器检出版本锁住。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
 
-并发运行的界面测试须区分页面导航、模块就绪和业务操作：Electron 窗口创建不代表 `/admin` 已加载；画布发布前须等待组件自动尺寸回传到草稿，否则迟到的尺寸会形成真实的未保存修改。等待明确状态，保留发布与草稿断言。
+并发运行的界面测试须区分页面导航、模块就绪和业务操作：Electron 窗口创建不代表 `/admin` 已加载；只验证重载后业务状态时，等待 `domcontentloaded` 后继续等待目标组件就绪，避免无关图片阻塞整页 `load`；需要检查图片时等待该图解码。画布发布前须等待组件自动尺寸回传到草稿，否则迟到的尺寸会形成真实的未保存修改。保存失败后的重试准备使用目标按钮的 `click({ trial: true })` 检查真实可操作性，避免在两次异步读取间把瞬时 `disabled` 快照当成稳定结果；继续保留失败、重试与发布结果断言。等待明确状态，保留发布与草稿断言。
+
+Windows 发布环境的隐藏 Electron 夹具使用 `offscreen: true`、`backgroundThrottling: false` 初始化渲染表面，保留真实 preload、IPC 与沙箱，无需显示测试窗口。三个交互夹具（自动回复编辑器、弹幕画布编辑器和到期设置）在 `app.whenReady()` 前关闭硬件加速，使用软件离屏渲染，避免多个隐藏 GPU 表面并发时的随机停顿；资源与媒体生命周期探针保留硬件加速，继续检查 WebGL 和 GPU 资源释放。仅关闭后台限流时，未初始化原生表面的隐藏窗口仍可能停在低帧率，导致操作稳定性、导航或媒体等待超时。动画像素回归先暂停入场，再等待字体和布局就绪，避免异步准备期间完整时间轴已经结束。不得以延长等待、降低整套并发或移除断言代替这些准备条件。
 
 [指南布局回归](../../../test/admin/usage-guide-layout-browser.test.js) 通过真实目录导航等待正文定位完成，再确认目标段落位于阅读标记处并检查侧栏切换；不要在同一帧开关延迟渲染后假定滚动已经稳定。[资源生命周期探针](../../../test/fixtures/resource-lifecycle-probe.cjs) 在窗口、媒体和 WebSocket 释放断言完成后保留一个未发送请求的 HTTP 连接，验证测试服务器关闭时主动释放自己的连接；仅调用 `server.close()` 会等待这类预连接，导致探针迟迟不能写出结果。该清理不替代前面的应用资源释放断言。
 

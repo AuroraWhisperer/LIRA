@@ -64,12 +64,11 @@ export function initDanmakuCloudReplies({
       library.load(schedule.messages);
       timingFields();
     }
-    exactState.textContent = `${saved.customExactReplies.length} 条自定义 · ${saved.customExactReplyEnabled ? '已开启' : '已关闭'}`;
+    exactState.textContent = `${saved.customExactReplies.length} 条自定义`;
     get('danmakuScheduledSummary').textContent = schedule.mode === 'random'
       ? `随机 ${schedule.minSeconds}–${schedule.maxSeconds} 秒 · ${schedule.messages.length} 条`
       : `每 ${schedule.intervalSeconds} 秒 · ${schedule.messages.length} 条`;
-    scheduledState.textContent = !schedule.messages.length ? '添加词库后才会发送'
-      : saved.scheduledDanmakuEnabled ? '已开启 · 仅直播中发送' : '已关闭';
+    scheduledState.textContent = !schedule.messages.length ? '添加词库后才会发送' : '';
   }
 
   function failure(result) {

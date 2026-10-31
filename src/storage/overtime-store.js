@@ -78,7 +78,7 @@ function createOvertimeStore(giftDb) {
       .map(normalizeRule);
   }
 
-  function replaceRules(rules, updatedAt) {
+  function replaceRulesAndState(rules, state) {
     const insert = giftDb.prepare(`
       INSERT INTO overtime_gift_rules (
         gift_identity_key, gift_identity_json,
@@ -116,9 +116,10 @@ function createOvertimeStore(giftDb) {
                 }),
           rule.enabled ? 1 : 0,
           rule.sortOrder,
-          updatedAt,
+          state.updatedAt,
         );
       }
+      saveState(state);
     });
   }
 
@@ -402,7 +403,7 @@ function createOvertimeStore(giftDb) {
     saveState,
     saveStateAndIgnorePending,
     listRules,
-    replaceRules,
+    replaceRulesAndState,
     observeGift,
     settleFinal,
     recordFailure,

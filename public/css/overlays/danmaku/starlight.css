@@ -150,7 +150,7 @@ body[data-style='starlight'] .draw-danmaku-identity strong,
 body[data-style='starlight'] .is-gift .draw-danmaku-identity strong,
 body[data-style='starlight'] .sc-name {
   color: var(--starlight-ink);
-  font: 700 calc(var(--danmaku-font-size) * .75)/1.35 var(--danmaku-ui-font);
+  font: 700 22.5px/1.35 var(--danmaku-ui-font);
   letter-spacing: .07em;
   white-space: normal;
   overflow-wrap: anywhere;
@@ -263,7 +263,7 @@ body[data-style='starlight'] .sc-money {
   align-self: center;
   padding-left: 30px;
   color: var(--starlight-ink);
-  font: 700 calc(var(--danmaku-font-size) * 1.1)/1.2 'Segoe UI', var(--danmaku-ui-font);
+  font: 700 33px/1.2 'Segoe UI', var(--danmaku-ui-font);
   font-variant-numeric: tabular-nums;
   letter-spacing: .07em;
   white-space: nowrap;

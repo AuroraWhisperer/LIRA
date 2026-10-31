@@ -128,6 +128,28 @@ test('song workbook codec parses namespace-prefixed worksheet tags', () => {
   assert.equal(normalizeImportedSongRow(row).name, 'Namespaced song');
 });
 
+test('song import follows workbook sheet order regardless of ZIP order and rejects external references', () => {
+  const first = 'xl/worksheets/sheet1.xml';
+  const second = 'xl/worksheets/sheet2.xml';
+  const parts = readZipFiles(buildSongsWorkbook([{ name: '旧表歌曲' }]));
+  parts.set(second, readZipFiles(buildSongsWorkbook([{ name: '当前歌库歌曲' }])).get(first));
+  parts.set('xl/workbook.xml', parts.get('xl/workbook.xml').replace(/<sheets>.*?<\/sheets>/s,
+    '<sheets><sheet name="当前歌库" sheetId="2" r:id="rId3"/><sheet name="旧表" sheetId="1" r:id="rId1"/></sheets>'));
+  const relations = parts.get('xl/_rels/workbook.xml.rels').replace('</Relationships>',
+    '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet2.xml"/></Relationships>');
+  parts.set('xl/_rels/workbook.xml.rels', relations);
+  for (const entries of [[...parts], [...parts].reverse()]) {
+    const buffer = createZip(entries);
+    for (const preserveMissing of [false, true]) {
+      assert.equal(parseSongsFromXlsx(buffer, { preserveMissing })[0]['歌曲名字'], '当前歌库歌曲');
+    }
+  }
+  for (const target of ['TargetMode="External" Target="https://example.test/sheet.xml"', 'Target="../../outside.xml"', 'Target="worksheets/missing.xml"']) {
+    parts.set('xl/_rels/workbook.xml.rels', relations.replace('Target="worksheets/sheet2.xml"', target));
+    assert.throws(() => parseSongsFromXlsx(createZip([...parts])), /Excel/);
+  }
+});
+
 test('song CSV protects formula prefixes and leading whitespace/control characters', () => {
   const { parseDelimited } = loadCsvParser();
   const inputs = [

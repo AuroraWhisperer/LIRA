@@ -45,6 +45,8 @@ const rows = [];
 const locations = new Map();
 const populations = new Map();
 let missingZones = 0;
+// Correct erroneous fallback zones in this Natural Earth snapshot using IANA zone1970.tab.
+const correctedZones = new Map([[1159151359, 'Europe/Prague'], [1159149085, 'Asia/Macau']]);
 
 // Choose a stable ID for source duplicates before sorting the results by population.
 places.sort((a, b) => Number(existingIds.has(b.NE_ID)) - Number(existingIds.has(a.NE_ID)) || a.NE_ID - b.NE_ID);
@@ -54,7 +56,8 @@ for (const place of places) {
   const geo = match && match[8] === place.ISO_A2
     && Math.abs(Number(match[4]) - place.LATITUDE) < 1
     && Math.abs(Number(match[5]) - place.LONGITUDE) < 1 ? match : null;
-  const zone = place.ISO_A2 === 'CN' ? 'Asia/Shanghai' : clean(geo?.[17]) || clean(place.TIMEZONE);
+  const zone = correctedZones.get(place.NE_ID)
+    || (place.ISO_A2 === 'CN' ? 'Asia/Shanghai' : clean(geo?.[17]) || clean(place.TIMEZONE));
   if (!zone) { missingZones++; continue; }
   try { new Intl.DateTimeFormat('en', { timeZone: zone }); }
   catch { missingZones++; continue; }

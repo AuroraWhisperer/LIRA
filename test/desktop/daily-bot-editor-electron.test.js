@@ -20,6 +20,9 @@ test('daily libraries use the authenticated desktop bridge, retain cache across 
   page.setDefaultTimeout(7000);
   await page.waitForURL('**/admin');
   assert.equal((await fetch(page.url())).status, 401);
+  await page.waitForFunction(() => !document.getElementById('dailyBotRefresh').disabled);
+  assert.equal(await page.locator('.danmaku-fixed-reply-section > .danmaku-section-heading #dailyBotRefresh').isVisible(), true);
+  assert.equal(await page.locator('#dailyBotStatus').isVisible(), false);
   await page.getByRole('button', { name: '编辑签到词库', exact: true }).click();
   await page.locator('#dailyLibraryCount').filter({ hasText: '30 条' }).waitFor();
   const field = page.getByRole('textbox', { name: '第 1 条祝福语', exact: true });

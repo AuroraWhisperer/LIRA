@@ -145,7 +145,7 @@ test('saving disabled through the config route aborts accepted work after commit
     model: 'test-model',
   });
   let signal;
-  const service = createTestService({ store, deepseek: { createResponse(request) {
+  const service = createTestService({ store, modelClient: { createResponse(request) {
     signal = request.signal;
     return new Promise((resolve, reject) => signal.addEventListener('abort', () => reject(signal.reason), { once: true }));
   } }, sendReply() { assert.fail('disabled work must never send'); } });

@@ -10,6 +10,7 @@ async function run() {
   const fs = require('node:fs');
   const path = require('node:path');
   const { app, BrowserWindow, session, ipcMain } = require('electron');
+  app.disableHardwareAcceleration();
   const { createHttpServer } = require('../../src/server/http-server');
   const { servePageOrAsset } = require('../../src/server/page-assets');
   const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
@@ -20,6 +21,7 @@ async function run() {
   const { createDailyBotController } = require('../../src/electron/daily-bot-controller');
   const { digest } = require('../../src/shared/daily-bot-contract');
   const { CHECKIN_BLESSINGS, FORTUNES } = require('../../src/shared/bot-defaults');
+  const { DEFAULT_GIFT_THANKS_TEMPLATES } = require('../../public/js/shared/gift-thanks-templates.js');
   const root = path.resolve(__dirname, '../..');
   const directory = path.resolve(process.argv[2]);
   if (path.dirname(directory) !== path.join(root, 'tmp')) throw new Error('Expected an isolated tmp directory.');
@@ -53,7 +55,9 @@ async function run() {
     userWelcomeMessages: [],
   };
   global.dailyLibraryTest.welcomeSettings = welcomeSettings;
-  const giftState = { ok: true, status: 'confirmed', values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
+  const giftState = { ok: true, status: 'confirmed', templates: { ...DEFAULT_GIFT_THANKS_TEMPLATES },
+    values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
+  const giftListeners = new Set();
   global.dailyLibraryTest.giftState = giftState;
   const manager = {
     getState: () => snapshot.state,
@@ -139,7 +143,9 @@ async function run() {
           document.body.replaceChildren(panel);
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           initDanmakuDailyBots(); initDanmakuCloudReplies(); initDanmakuQueryReplies(); initDanmakuWelcome();
-          initGiftInteractionControls({ surface: 'danmaku' }); initFixedReplyEditor();`);
+          const { initDanmakuGiftThanks } = await import('/js/admin/danmaku-gift-thanks.js');
+          const thanks = initDanmakuGiftThanks();
+          initGiftInteractionControls({ surface: 'danmaku', onState: thanks.updateState }); initFixedReplyEditor();`);
         return;
       }
       if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
@@ -151,7 +157,7 @@ async function run() {
   if ((await fetch(`${origin}/admin`)).status !== 401) throw new Error('Admin must require desktop authorization.');
   const window = new BrowserWindow({ width: 1440, height: 1000, show: false,
     webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false,
-      backgroundThrottling: process.argv[3] !== 'ai-personas' } });
+      offscreen: true, backgroundThrottling: false } });
   const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession,
     getMainWindow: () => window, getBaseUrl: () => origin, getToken: () => token });
   configureMediaRequestHeaders(session.defaultSession, {}, auth);
@@ -164,10 +170,21 @@ async function run() {
     controller: {
       refreshGiftInteractionState: async () => structuredClone(giftState),
       getGiftInteractionState: () => structuredClone(giftState),
-      onGiftInteractionStateChanged: () => () => {},
+      onGiftInteractionStateChanged: listener => { giftListeners.add(listener); return () => giftListeners.delete(listener); },
       async setGiftInteraction({ key, enabled }) {
         global.dailyLibraryTest.requests.push({ operation: 'gift-interaction', key, enabled });
         giftState.values[key] = enabled;
+        giftListeners.forEach(listener => listener(structuredClone(giftState)));
+        return structuredClone(giftState);
+      },
+      async setGiftThanksTemplates(templates) {
+        global.dailyLibraryTest.requests.push({ operation: 'gift-thanks-templates', templates });
+        if (global.dailyLibraryTest.failNext) {
+          global.dailyLibraryTest.failNext = false;
+          return { ...structuredClone(giftState), ok: false, status: 'unconfirmed', error: 'CLOUD_SYNC_FAILED' };
+        }
+        giftState.templates = structuredClone(templates);
+        giftListeners.forEach(listener => listener(structuredClone(giftState)));
         return structuredClone(giftState);
       },
     } });

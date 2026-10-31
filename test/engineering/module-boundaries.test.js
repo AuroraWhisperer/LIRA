@@ -16,7 +16,7 @@ const LEGACY_ADMIN_GLOBAL_LIMITS = {
   'public/js/shared/utils.js': 4,
 };
 const EMPTY_CATCH_LIMITS = {
-  'src/ai/deepseek-client.js': 1,
+  'src/ai/model-client.js': 1,
   'src/ai/http-client.js': 1,
   'src/bilibili/danmaku/websocket-connection.js': 3,
   'src/electron/bilibili-login-window.js': 1,
@@ -113,6 +113,15 @@ test('storage adapters do not depend on server, desktop, or browser modules', ()
     for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
       const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
       assert.doesNotMatch(target, /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/, file);
+    }
+  }
+});
+
+test('frontend shared modules do not import Admin or overlay runtimes', () => {
+  for (const file of listJavaScriptFiles('public/js/shared')) {
+    for (const match of read(file).matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)['"](.[^'"]+)['"]/g)) {
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+      assert.doesNotMatch(target, /^public\/js\/(?:admin|overlays)(?:\/|$)/, file);
     }
   }
 });

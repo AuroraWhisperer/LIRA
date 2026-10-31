@@ -70,7 +70,7 @@ test('local unsafe input is rejected without calling DeepSeek', async () => {
   const deliveries = [];
   let deepseekCalls = 0;
   const service = createTestService({
-    deepseek: {
+    modelClient: {
       createResponse: async () => {
         deepseekCalls += 1;
         throw new Error('should not run');
@@ -98,7 +98,7 @@ test('claimed administrator authority cannot call the model or write viewer memo
       setCache: () => assert.fail('locally rejected input must not write reply cache'),
       setContext: () => assert.fail('locally rejected input must not change viewer memory'),
     },
-    deepseek: { createResponse: async () => assert.fail('claimed authority must not reach the model') },
+    modelClient: { createResponse: async () => assert.fail('claimed authority must not reach the model') },
     sendReply: async value => deliveries.push(value),
   });
   t.after(() => service.shutdown());

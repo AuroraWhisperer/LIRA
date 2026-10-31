@@ -23,7 +23,7 @@ body[data-style='prismatic'] .draw-danmaku-item:not(.is-superchat) {
   background: transparent;
   box-shadow: none;
   clip-path: none;
-  font-size: var(--danmaku-font-size);
+  font-size: 30px;
 }
 body[data-style='prismatic'] .draw-danmaku-item::after { display: none; }
 body[data-style='prismatic'] .draw-danmaku-avatar {
@@ -110,12 +110,12 @@ body[data-style='prismatic'] .draw-danmaku-body > p {
   position: relative;
   width: fit-content;
   max-width: 100%;
-  margin: 0 0 0 0.35em;
+  margin: 0 0 0 10.5px;
   padding: 0.32em 0.95em 0.38em;
   border-radius: 0 1.25em 1.25em;
   color: var(--prismatic-ink);
   background: #fff;
-  font-size: inherit;
+  font-size: var(--danmaku-font-size);
   font-weight: 600;
   line-height: 1.4;
   white-space: pre-wrap;
@@ -141,7 +141,7 @@ body[data-style='prismatic'] .draw-danmaku-item.is-gift {
   padding: 0.25em 0.75em;
   border-radius: 1.2em;
   background: #fff;
-  font-size: calc(var(--danmaku-font-size) * 0.78);
+  font-size: 23.4px;
 }
 body[data-style='prismatic'] .draw-danmaku-item.is-gift .draw-danmaku-body {
   display: flex;
@@ -197,7 +197,7 @@ body[data-style='prismatic'] .draw-danmaku-item.is-gift .draw-danmaku-gift-amoun
 body[data-style='prismatic'] .draw-danmaku-item:is(.is-guard-thanks, .is-superchat) {
   width: 100%;
   max-width: 100%;
-  font-size: calc(var(--danmaku-font-size) * 0.85);
+  font-size: 25.5px;
 }
 body[data-style='prismatic'] :is(.prismatic-guard-card, .sc-prismatic) {
   width: 100%;
@@ -264,7 +264,7 @@ body[data-style='prismatic'] .prismatic-guard-name {
 body[data-style='prismatic'] .prismatic-guard-copy {
   margin: 0;
   color: inherit;
-  font-size: 1em;
+  font-size: calc(var(--danmaku-font-size) * .85);
   font-weight: 600;
   line-height: 1.5;
   overflow-wrap: anywhere;
@@ -287,7 +287,7 @@ body[data-style='prismatic'] .prismatic-guard-amount {
 }
 body[data-style='prismatic'] .draw-danmaku-item.is-superchat {
   padding: 0;
-  font-size: var(--danmaku-font-size);
+  font-size: 30px;
   zoom: 1;
 }
 body[data-style='prismatic'] .sc-prismatic {
@@ -327,7 +327,7 @@ body[data-style='prismatic'] .sc-prismatic .sc-currency { margin: 0; font-size: 
 body[data-style='prismatic'] .sc-prismatic .sc-copy {
   padding: 0.7em 1em 0.8em;
   color: inherit;
-  font-size: 1em;
+  font-size: var(--danmaku-font-size);
   font-weight: 600;
   line-height: 1.5;
 }

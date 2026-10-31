@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { fanFixture, IDENTITY } = require('../helpers/fan-profile-fixture');
+const { fanFixture, IDENTITY, interval } = require('../helpers/fan-profile-fixture');
 const { createDom, createClock } = require('../helpers/toast-dom');
 
 const ROOT = path.join(__dirname, '../..');
@@ -639,6 +639,30 @@ test('pending details and archive saves cannot replace a newer scope or selectio
   assert.match(ui.detail(), /归档观众B/);
   assert.doesNotMatch(ui.detail(), /当前观众A/);
 });
+
+for (const navigation of ['back-list', 'archived']) {
+  test(`membership resolution cannot reopen a detail after ${navigation}`, async (t) => {
+    const ui = await archiveUi(t);
+    ui.f.record(ui.a.id, 'membership', interval('2026-09-01', '2026-12-31'));
+    ui.f.consume([{ id: 'late-resolution', kind: 'membership',
+      membership: interval('2026-09-01', '2026-11-30', { evidenceVerified: true }) }]);
+    const record = ui.f.detail(ui.a.id).records.find(item => item.data.decision === 'pending');
+    await ui.click({ fanId: ui.a.id });
+    const gate = deferred();
+    ui.handlers.set('resolve-membership', async (input) => {
+      const result = ui.respond(input);
+      await gate.promise;
+      return result;
+    });
+    await ui.click({ fanAction: 'resolve-adopt', recordId: record.id });
+    await ui.click({ fanAction: navigation });
+    const detail = ui.detail();
+    gate.resolve();
+    await ui.flush();
+    assert.equal(ui.detail(), detail);
+    assert.equal(ui.f.detail(ui.a.id).membership.pending.length, 0, 'the original resolution remains committed');
+  });
+}
 
 test('archive invalidates a pending refresh of the same profile without cancelling another selection', async (t) => {
   for (const sameProfile of [true, false]) {

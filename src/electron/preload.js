@@ -142,6 +142,7 @@ contextBridge.exposeInMainWorld('guardExpiryAuth', {
 contextBridge.exposeInMainWorld('liraLicense', {
   getGiftInteractionState: () => ipcRenderer.invoke('license:get-gift-interaction-state'),
   setGiftInteraction: (key, enabled) => ipcRenderer.invoke('license:set-gift-interaction', { key, enabled }),
+  setGiftThanksTemplates: (templates) => ipcRenderer.invoke('license:set-gift-thanks-templates', templates),
   onGiftInteractionStateChanged: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const listener = (_event, state) => callback(state);

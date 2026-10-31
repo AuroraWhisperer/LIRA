@@ -6,7 +6,7 @@ const { describeModelEndpoint, resolveModelEndpoint, resolveModelsEndpoint } = r
 const { applyModelProviderPreset, usesSubscription } = require('./config');
 const { createDoubaoClient } = require('./doubao-client');
 
-function createDeepSeekClient(options = {}) {
+function createModelClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const logEvent = options.logEvent;
   const chatHistory = new Map();
@@ -269,7 +269,7 @@ function createDeepSeekClient(options = {}) {
       throw createPublicError('DEEPSEEK_INVALID_RESPONSE', '模型服务返回了空响应。');
     }
     return {
-      provider: 'deepseek',
+      provider: describeModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol, config.modelProvider).provider,
       model: config.model,
       reply: responseText.slice(0, 200),
       endpointAdapted: testEndpoint.adapted,
@@ -461,4 +461,4 @@ function isAuthenticationError(error) {
   return /(?:^|_)(?:401|403|AUTH|AUTHENTICATION|UNAUTHORIZED|INVALID_API_KEY)(?:$|_)/i.test(String(error?.code || ''));
 }
 
-module.exports = { createDeepSeekClient, normalizeResponse };
+module.exports = { createModelClient, normalizeResponse };

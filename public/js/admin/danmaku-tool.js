@@ -13,12 +13,14 @@ import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
 import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
 import { initDanmakuQueryReplies } from './danmaku-query-replies.js';
 import { initGiftInteractionControls } from './gifts/interaction-controls.js';
+import { initDanmakuGiftThanks } from './danmaku-gift-thanks.js';
 import { isLiveStatusDegraded } from './live-status-presentation.js';
 
 let initialized = false;
 let refreshState = null;
 let autoBotRunning = false;
 let autoBotController = null;
+let autoBotContext = null;
 let dailyBots = null;
 
 const wait = (ms, signal) => new Promise((resolve) => {
@@ -58,7 +60,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   const pk = initDanmakuPkReport({ toast });
   const cloudReplies = initDanmakuCloudReplies({ toast });
   initDanmakuQueryReplies();
-  initGiftInteractionControls({ surface: 'danmaku', notify: toast });
+  const thanks = initDanmakuGiftThanks({ toast });
+  initGiftInteractionControls({ surface: 'danmaku', notify: toast, onState: thanks?.updateState });
   document.getElementById('dailyBotRefresh')?.addEventListener('click', () => {
     void welcome?.refresh();
     void pk?.refresh();
@@ -74,6 +77,11 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     elements.resultState.textContent = text;
     elements.resultState.className = `danmaku-send-result${kind ? ` ${kind}` : ''}`;
   };
+  const stopObsoleteBatch = () => {
+    if (!autoBotRunning) return;
+    autoBotController?.abort();
+    setResult('直播账号或房间已变更，已停止剩余自动发送，请确认目标后重试。', 'warn');
+  };
 
   refreshState = async ({ reconnectIfDisconnected = false } = {}) => {
     elements.refreshButton.disabled = true;
@@ -81,6 +89,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await readApiResponse(response, '获取发送状态失败');
       let state = payload.data || {};
+      if (autoBotContext && state.sendSession !== autoBotContext.sendSession) stopObsoleteBatch();
       const monitoringEnabled = document.getElementById('danmakuMonitoringEnabled')?.checked;
       if (reconnectIfDisconnected && !state.connected && state.roomId && monitoringEnabled !== false) {
         await reconnectBilibili?.({ silent: true });
@@ -106,7 +115,15 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   elements.message.addEventListener('keydown', (event) => {
     if (event.key === 'Enter' && event.ctrlKey) elements.form.requestSubmit();
   });
-  document.addEventListener('app:bilibili-auth-changed', () => refreshState());
+  document.addEventListener('app:bilibili-auth-changed', () => {
+    stopObsoleteBatch();
+    void refreshState();
+  });
+  window.addEventListener('app:settings-state', (event) => {
+    if (autoBotContext && event.detail?.roomId !== undefined && String(event.detail.roomId) !== autoBotContext.roomId) {
+      stopObsoleteBatch();
+    }
+  });
   elements.refreshButton.addEventListener('click', refreshState);
   bindSettingToggle(elements.replyToggle, {
     key: 'enableRandomTagReply',
@@ -182,6 +199,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
         toast(state.unavailableReason || '当前无法发送弹幕');
         return;
       }
+      if (typeof state.sendSession !== 'string' || !state.sendSession) throw new Error('发送会话无效，请刷新后重试。');
+      autoBotContext = { sendSession: state.sendSession, roomId: String(state.roomId) };
       const queue = [...Array(10).fill('钓鱼'), ...Array(5).fill('打劫')];
       toast(`开始自动发送：钓鱼 ×10、打劫 ×5，每 5 秒一条（共 ${queue.length} 条）`);
       for (let index = 0; index < queue.length; index += 1) {
@@ -191,7 +210,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
         const sendResponse = await fetch('/api/bilibili/danmaku/send', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, sendSession: state.sendSession }),
         });
         const sendPayload = await sendResponse.json();
         if (!sendResponse.ok || !sendPayload.ok) throw new Error(sendPayload.error || '发送弹幕失败');
@@ -208,6 +227,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     } finally {
       autoBotRunning = false;
       autoBotController = null;
+      autoBotContext = null;
       elements.autoButton.textContent = '自动钓鱼/打劫（15 条）';
       elements.autoButton.title = '自动发送 钓鱼×10、打劫×5，每 5 秒一条';
       await refreshState();

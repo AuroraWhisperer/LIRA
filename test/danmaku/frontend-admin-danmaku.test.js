@@ -36,6 +36,7 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
         accountUid: 123,
         accountName: '测试账号',
         roomId: 456,
+        sendSession: 'synthetic-session',
         roomName: '测试直播间',
         canSend: true,
         connected: true,
@@ -58,7 +59,7 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
         window.danmakuRequests.push(url);
         return {
           ok: true,
-          json: async () => ({ ok: true, data: window.danmakuState }),
+          json: async () => ({ ok: true, data: structuredClone(window.danmakuState) }),
         };
       };
       await import('/js/admin/danmaku-tool.js');
@@ -147,6 +148,63 @@ test('automatic sending stops during the five-second wait and sends no remaining
   await page.clock.runFor(10000);
   assert.deepEqual(await page.evaluate(() => window.autoMessages), ['钓鱼']);
   assert.match(await page.locator('#danmakuSendResult').textContent(), /已停止后续/);
+});
+
+for (const change of ['account', 'room', 'unannounced-room']) {
+  test(`automatic sending stops when its ${change} context changes`, async t => {
+    const page = await createDanmakuPage(t);
+    await page.clock.install();
+    await page.evaluate(() => {
+      const read = window.fetch;
+      window.autoMessages = [];
+      window.fetch = async (url, options) => {
+        if (url !== '/api/bilibili/danmaku/send') return read(url);
+        const body = JSON.parse(options.body);
+        if (body.sendSession !== window.danmakuState.sendSession) {
+          return { ok: false, json: async () => ({ ok: false, error: '直播账号或房间已变更，已停止剩余自动发送。' }) };
+        }
+        window.autoMessages.push(body);
+        return { ok: true, json: async () => ({ ok: true, data: {} }) };
+      };
+    });
+    await page.locator('#danmakuAutoBtn').click();
+    await page.waitForFunction(() => window.autoMessages.length === 1);
+    await page.evaluate(change => {
+      window.danmakuState.sendSession = 'changed-session';
+      if (change === 'account') {
+        window.danmakuState.accountUid = 999;
+        document.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
+      } else {
+        window.danmakuState.roomId = 999;
+        if (change === 'room') window.dispatchEvent(new CustomEvent('app:settings-state', { detail: { roomId: '999' } }));
+      }
+    }, change);
+    await page.clock.runFor(10000);
+    await page.waitForFunction(() => document.getElementById('danmakuAutoBtn').textContent === '自动钓鱼/打劫（15 条）');
+    assert.deepEqual(await page.evaluate(() => window.autoMessages), [{ message: '钓鱼', sendSession: 'synthetic-session' }]);
+    assert.match(await page.locator('#danmakuSendResult').textContent(), /已变更.*已停止/);
+  });
+}
+
+test('automatic sending completes its fifteen messages with the original session assertion', async t => {
+  const page = await createDanmakuPage(t);
+  await page.clock.install();
+  await page.evaluate(() => {
+    const read = window.fetch;
+    window.autoMessages = [];
+    window.fetch = async (url, options) => {
+      if (url !== '/api/bilibili/danmaku/send') return read(url);
+      window.autoMessages.push(JSON.parse(options.body));
+      return { ok: true, json: async () => ({ ok: true, data: {} }) };
+    };
+  });
+  await page.locator('#danmakuAutoBtn').click();
+  await page.waitForFunction(() => window.autoMessages.length === 1);
+  await page.clock.runFor(70000);
+  await page.waitForFunction(() => document.getElementById('danmakuSendResult').textContent.includes('自动发送完成'));
+  const messages = await page.evaluate(() => window.autoMessages);
+  assert.deepEqual(messages.map(message => message.message), [...Array(10).fill('钓鱼'), ...Array(5).fill('打劫')]);
+  assert.ok(messages.every(message => message.sendSession === 'synthetic-session'));
 });
 
 test('automatic refresh stays quiet and skips disabled monitoring or an unset room', async (t) => {

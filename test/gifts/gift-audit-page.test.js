@@ -108,7 +108,7 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
       type: 'snapshot',
       state: {
         ...state,
-        gifts: { recent: [gift, { ...gift, id: 'gift-2', gift_name: '辣条' }] },
+        gifts: { recent: [gift, { ...gift, id: 'gift-2', gift_name: '辣条' }, { ...gift, id: 'gift-2', gift_name: '重复记录' }] },
       },
     }),
   });
@@ -119,6 +119,7 @@ test('gift audit consumes snapshot.state while the WebSocket remains open', asyn
   assert.equal(getElement('statServer').textContent, 2);
   assert.match(getElement('comparisonBody').innerHTML, /小花花/);
   assert.match(getElement('comparisonBody').innerHTML, /辣条/);
+  assert.doesNotMatch(getElement('comparisonBody').innerHTML, /重复记录/);
   assert.equal(fetchCount, 1, 'open WebSocket snapshots populate the cache without HTTP refresh');
 });
 

@@ -18,6 +18,43 @@ const openBrowserSession = useSharedBrowser();
 const textBoxItem = (config, x = 0) => ({ id: randomUUID(), type: 'text-box', name: '文本框', x, y: 0, width: 640, height: 180,
   visible: true, locked: false, appearance: { mode: 'independent', config } });
 
+test('normal Twitter scene receives the matching public room profile through its credential-free frame', { timeout: 15000 }, async t => {
+  let calls = 0;
+  const fixture = await startCanvasOutputFixture({ extraContext: { bilibili: { async getRoomProfile() {
+    calls++;
+    return { roomId: '1234', uid: '900001', name: '合成房主', avatarUrl: '', cookie: 'PRIVATE' };
+  } } } });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  fixture.runtime.liveStatus = { roomId: '1234' };
+  fixture.updateCloud({ type: 'room-guard', roomId: '1234', count: 2 });
+  const created = fixture.service.create({ title: '房主资料', canvas: { width: 800, height: 900 } });
+  const saved = fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [{ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
+      width: 800, height: 900, visible: true, locked: false,
+      appearance: { mode: 'independent', config: { ...fixture.configs.danmaku, style: 'twitter' } } }] } });
+  fixture.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const source = fixture.service.getSource(saved.document.id);
+  const page = await session.newPage();
+  const errors = [], profileRequests = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('request', request => { if (request.url().includes('/api/bilibili/room/profile')) profileRequests.push(request.url()); });
+  const url = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.locator('.scene-version:not(.is-staging)').waitFor();
+  const child = page.frames().find(frame => new URL(frame.url()).pathname === '/danmaku');
+  await child.locator('#twitterProfileName').filter({ hasText: '合成房主' }).waitFor();
+  assert.equal(await child.locator('#twitterProfileUid').textContent(), '@900001');
+  assert.equal(await child.evaluate(() => Boolean(window.__API_TOKEN__)), false);
+  assert.equal(calls, 1);
+  assert.deepEqual(profileRequests, []);
+  assert.deepEqual(errors, []);
+  fixture.runtime.liveStatus = { roomId: '5678' };
+  fixture.notify({ types: ['danmaku'] });
+  await child.locator('#twitterProfileUid').filter({ hasText: '@等待当前房间' }).waitFor();
+});
+
 test('scene output becomes ready when hidden child animation frames are paused', { timeout: 15000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   const browser = openBrowserSession();

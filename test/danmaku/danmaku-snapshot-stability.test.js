@@ -9,7 +9,12 @@ class Node {
   constructor(tagName = '') {
     this.tagName = tagName.toUpperCase();
     this.children = [];
-    this.dataset = {};
+    this.datasetWrites = 0;
+    this.dataset = new Proxy({}, { set: (target, key, value) => {
+      this.datasetWrites += 1;
+      target[key] = value;
+      return true;
+    } });
     this.className = '';
     this.textContent = '';
     this.clientWidth = 1280;
@@ -17,9 +22,13 @@ class Node {
     this.offsetWidth = 120;
     this.offsetHeight = 42;
     this.replacements = 0;
+    this.styleWrites = 0;
     const values = new Map();
     this.style = {
-      setProperty: (key, value) => values.set(key, value),
+      setProperty: (key, value) => {
+        if (!key.startsWith('--bilibili-guard-')) this.styleWrites += 1;
+        values.set(key, value);
+      },
       getPropertyValue: (key) => values.get(key),
     };
     this.classList = { add() {}, toggle() {} };
@@ -71,6 +80,8 @@ async function fixture({ scene = false } = {}) {
     }
   }
   const listeners = new Map();
+  const body = new Node('body');
+  const documentElement = new Node('html');
   const location = { search: scene ? '?preview=1&componentPreview=1&sceneComponent=1' : '',
     pathname: '/danmaku', href: 'http://127.0.0.1:3000/danmaku', protocol: 'http:', host: '127.0.0.1:3000' };
   const window = { innerWidth: 1280, __API_TOKEN__: 'synthetic-token', parent: { postMessage() {} },
@@ -80,8 +91,8 @@ async function fixture({ scene = false } = {}) {
   await loadModuleExports(path.resolve(__dirname, '../../public/js/overlays/danmaku.js'), {
     document: {
       defaultView: window,
-      body: new Node('body'),
-      documentElement: new Node('html'),
+      body,
+      documentElement,
       getElementById: element,
       addEventListener: (_, callback) => {
         ready = callback;
@@ -122,6 +133,7 @@ async function fixture({ scene = false } = {}) {
     timers,
     frames,
     sockets,
+    configurationWrites: () => body.datasetWrites + documentElement.datasetWrites + documentElement.styleWrites,
     sceneSnapshot(data) { return sendScene({ type: 'component-preview:data', data }); },
     snapshot(items, style = 'signal', duration = 6) {
       sockets.at(-1).emit('message', {
@@ -195,6 +207,29 @@ test('unchanged snapshots preserve actual nodes and expiration timers in all nin
       assert.equal(f.root.children.length, 0, 'expired items must stay expired');
     }
   }
+});
+
+test('legacy tail snapshots append without rebuilding nodes, restarting timers or rewriting appearance', async () => {
+  const f = await fixture();
+  const first = message('one');
+  const second = message('two', { timestamp: 11000 });
+  f.snapshot([first], 'outline');
+  f.flush();
+  const retained = f.root.children[0];
+  const replacements = f.root.replacements;
+  const firstTimer = [...f.timers.keys()][0];
+  const writes = f.configurationWrites();
+  f.advance(1000);
+  f.snapshot([first, second], 'outline');
+  f.append(second);
+  f.flush();
+  assert.equal(f.root.children[0], retained);
+  assert.equal(f.root.children.length, 2);
+  assert.equal(f.root.replacements, replacements);
+  assert.equal(f.configurationWrites(), writes);
+  assert.ok(f.timers.has(firstTimer));
+  f.advance(5000);
+  assert.equal(f.root.children.length, 1, 'the first card retains its original expiration');
 });
 
 test('local SC deletion removes rendered and queued cards without rebuilding adjacent messages', async () => {

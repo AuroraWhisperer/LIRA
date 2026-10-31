@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createChatGptClient } = require('../../src/ai/chatgpt-client');
-const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
+const { createModelClient } = require('../../src/ai/model-client');
 
 function stream(events) {
   const bytes = Buffer.from(events.map(event => `data: ${JSON.stringify(event)}\r\n\r\n`).join(''));
@@ -23,7 +23,7 @@ function fixture(fetchImpl) {
     withAccessToken: async work => work('subscription-token', controller.signal) };
   const logs = [];
   const chatgpt = createChatGptClient({ session, fetchImpl, logEvent: event => logs.push(event) });
-  const client = createDeepSeekClient({ chatgpt, fetchImpl: () => assert.fail('subscription must not fall back to API') });
+  const client = createModelClient({ chatgpt, fetchImpl: () => assert.fail('subscription must not fall back to API') });
   return { client, logs, session };
 }
 

@@ -1,7 +1,7 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
-const { profilePatch, identityKey, timestamp, recordData } = require('./validation');
+const { profilePatch, identity, identityKey, timestamp, recordData } = require('./validation');
 const { DAY_MS, dateValue, dayStart } = require('./dates');
 const { normalizeGuardAccompany, accompanySettings } = require('./guard-accompany');
 const { validateSongSummary } = require('./song-summary');
@@ -39,10 +39,12 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     const sourceKeys = new Set();
     accompanySettings(input.settings);
     const identityKeys = new Set();
+    const profiles = [];
     for (const profile of input.profiles) {
       if (typeof profile.id !== 'string' || profileIds.has(profile.id)) throw new Error('备份中有重复或无效档案。');
       profileIds.add(profile.id);
       const patch = profilePatch(profile);
+      profiles.push({ ...profile, identity: patch.identity });
       if (profile.guardAccompany != null && !normalizeGuardAccompany(profile.guardAccompany))
         throw new Error('备份中的平台陪伴天数无效。');
       if (profile.guardRoster !== undefined && profile.guardRoster !== null) {
@@ -84,9 +86,21 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
           throw new Error('备份提醒状态无效。');
       }
     }
-    if (input.suppressions.some((key) => typeof key !== 'string' || key.length > 300))
-      throw new Error('备份抑制标记无效。');
-    return input;
+    const suppressions = [];
+    for (const key of input.suppressions) {
+      let parts;
+      try {
+        if (typeof key !== 'string' || key.length > 300) throw new Error();
+        parts = JSON.parse(key);
+        if (!Array.isArray(parts) || parts.length !== 3) throw new Error();
+        const value = identity({ platform: parts[0], type: parts[1], value: parts[2] });
+        if (!value) throw new Error();
+        suppressions.push(identityKey(value));
+      } catch (_) {
+        throw new Error('备份抑制标记无效。');
+      }
+    }
+    return { ...input, profiles, suppressions };
   }
 
   function preview(scope, input) {
@@ -124,8 +138,8 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
     ) {
       throw new Error('恢复预览已变化，请重新核对并选择冲突处理方式。');
     }
+    const value = validateBackup(scope, input.backup);
     const snapshotId = store.snapshot(scope, backup(scope), now());
-    const value = input.backup;
     for (const profile of value.profiles) {
       const conflict = plan.conflicts.find((item) => item.incomingId === profile.id);
       if (conflict && input.conflicts === 'keep') continue;
@@ -237,7 +251,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   }
 
   function restoreSnapshot(scope, input) {
-    const value = store.getSnapshot(scope, input.snapshotId);
+    const value = validateBackup(scope, store.getSnapshot(scope, input.snapshotId));
     const plan = preview(scope, { backup: value });
     if (input.confirm !== true || input.digest !== plan.digest || input.currentDigest !== plan.currentDigest) {
       throw new Error('恢复点预览已变化，请重新确认。');

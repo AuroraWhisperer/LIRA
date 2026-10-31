@@ -60,7 +60,7 @@ const { createDesktopRequestAuth } = require('./desktop-request-auth');
 const updateMgr = require('./update-manager');
 const playbackFlush = require('./playback-flush');
 const { installTerminalLog } = require('./terminal-log');
-const { registerUpdateIpc } = require('./ipc/update-ipc');
+const { registerDesktopShellIpc } = require('./ipc/desktop-shell-ipc');
 const { createDesktopResourceIntegrity } = require('./desktop-resource-integrity');
 const { registerMusicIpc } = require('./ipc/music-ipc');
 const { registerBilibiliIpc } = require('./ipc/bilibili-ipc');
@@ -447,7 +447,7 @@ async function startDesktopApp() {
     getMainWindow: () => windowState.main,
     getDesktopBaseUrl: () => windowState.baseUrl,
   });
-  registerUpdateIpc({
+  registerDesktopShellIpc({
     ipcMain,
     app,
     shell,

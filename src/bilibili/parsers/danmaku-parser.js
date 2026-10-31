@@ -106,6 +106,7 @@ function normalizeBilibiliImageUrl(value) {
 }
 
 module.exports = {
+  parseDanmakuOptions,
   extractBilibiliDanmakuTimestamp,
   extractBilibiliDanmakuAvatarUrl,
   extractBilibiliDanmakuEmotes,

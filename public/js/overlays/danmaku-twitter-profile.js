@@ -24,13 +24,21 @@ export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) 
     render(PREVIEW_PROFILE);
   }
 
-  function update(style, expectedRoomId) {
+  function update(style, expectedRoomId, projectedProfile) {
     if (disposed) return;
     if (style !== 'twitter') {
       if (key) clear();
       return;
     }
     const roomId = String(expectedRoomId || '').trim();
+    if (projectedProfile !== undefined) {
+      const nextKey = `projected:${roomId}:${JSON.stringify(projectedProfile)}`;
+      if (key === nextKey) return;
+      invalidate();
+      key = nextKey;
+      render(roomId && String(projectedProfile?.roomId || '').trim() === roomId ? projectedProfile : null, '等待当前房间');
+      return;
+    }
     const nextKey = `room:${roomId}`;
     if (key === nextKey) return;
     invalidate();

@@ -10,6 +10,7 @@ async function run() {
   const path = require('node:path');
   const fs = require('node:fs');
   const { app, BrowserWindow, session, ipcMain, dialog } = require('electron');
+  app.disableHardwareAcceleration();
   const { createComponentWebPicker } = require('../../src/electron/component-web-picker');
   const { createHttpServer } = require('../../src/server/http-server');
   const { createWebSocketHub } = require('../../src/server/ws');
@@ -140,7 +141,7 @@ async function run() {
   if ((await fetch(`${origin}/danmaku?preview=1&componentPreview=1`)).status !== 200) throw new Error('Preview route unavailable.');
   if ((await fetch(`${origin}/admin`)).status !== 401) throw new Error('Admin route must require desktop auth.');
   const window = new BrowserWindow({ width: 1440, height: 960, show: false,
-    webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, backgroundThrottling: false } });
+    webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } });
   const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession, getMainWindow: () => window,
     getBaseUrl: () => origin, getToken: () => token });
   configureMediaRequestHeaders(session.defaultSession, {}, auth);

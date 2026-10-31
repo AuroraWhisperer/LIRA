@@ -195,9 +195,10 @@ export function createBlindboxSettings({
         invalid('giftBlindBoxCustomConfigV2', '盲盒配置 JSON 格式错误：' + error.message);
         return;
       }
+      const submittedText = textarea.value;
       textarea.dataset.dirty = 'true';
       await saveSettings({ giftBlindBoxCustomConfigV2: raw });
-      textarea.dataset.dirty = 'false';
+      if (textarea.value === submittedText) textarea.dataset.dirty = 'false';
       toast('自定义盲盒已保存，等待服务器确认');
       renderBlindboxList();
       await getState()?.reloadState?.();

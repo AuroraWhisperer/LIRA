@@ -7,6 +7,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { createCloudSyncController } = require('../../src/electron/cloud-sync-controller');
 const { registerGiftInteractionIpc } = require('../../src/electron/ipc/gift-interaction-ipc');
+const { DEFAULT_GIFT_THANKS_TEMPLATES } = require('../../public/js/shared/gift-thanks-templates.js');
 
 const KEYS = ['giftAutoThanksEnabled', 'giftStatsQueryEnabled'];
 const flags = (thanks = false, query = false) => ({ giftAutoThanksEnabled: thanks, giftStatsQueryEnabled: query });
@@ -240,6 +241,28 @@ test('refresh reports current errors but ignores failures after account change o
   }
 });
 
+test('thanks templates share the account queue without changing either switch and reject old servers', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  await assert.rejects(f.controller.setGiftThanksTemplates(DEFAULT_GIFT_THANKS_TEMPLATES), { code: 'GIFT_THANKS_UNSUPPORTED' });
+  f.setCloud({ giftThanksTemplates: DEFAULT_GIFT_THANKS_TEMPLATES });
+  await f.controller.refreshGiftInteractionState();
+  const templates = { ...DEFAULT_GIFT_THANKS_TEMPLATES, gift: '谢谢{称呼}投喂{礼物}；{金额}' };
+  const saved = await f.controller.setGiftThanksTemplates(templates);
+  assert.equal(saved.ok, true);
+  assert.deepEqual(saved.templates, templates);
+  assert.deepEqual(saved.values, flags());
+  assert.deepEqual(f.calls.at(-1).giftThanksTemplates, templates);
+  assert.equal(Object.hasOwn(f.calls.at(-1), 'giftAutoThanksEnabled'), false);
+  assert.equal(Object.hasOwn(f.calls.at(-1), 'giftStatsQueryEnabled'), false);
+  const copy = f.controller.getGiftInteractionState();
+  copy.templates.gift = 'mutated';
+  assert.deepEqual(f.controller.getGiftInteractionState().templates, templates);
+  await assert.rejects(f.controller.setGiftThanksTemplates({ ...templates, gift: 'missing tokens' }), { code: 'INVALID_GIFT_THANKS_TEMPLATES' });
+  f.controller.stop();
+  assert.equal(f.controller.getGiftInteractionState().templates, null);
+});
+
 test('IPC checks exact frame and origin, sanitizes responses/events and removes handlers', async () => {
   const handlers = new Map();
   const frame = { url: 'http://127.0.0.1:3000/admin' };
@@ -252,6 +275,8 @@ test('IPC checks exact frame and origin, sanitizes responses/events and removes 
     controller: {
       refreshGiftInteractionState: async () => state,
       setGiftInteraction: async () => state,
+      setGiftThanksTemplates: async () => state,
+      getGiftInteractionState: () => state,
       onGiftInteractionStateChanged: (listener) => {
         changed = listener;
         return () => {
@@ -273,6 +298,11 @@ test('IPC checks exact frame and origin, sanitizes responses/events and removes 
     frame.url = 'http://127.0.0.1:3000/admin';
   }
   changed(state);
+  assert.doesNotMatch(JSON.stringify(sent), /cookie|token|secret/);
+  changed({ ...state, templates: { ...DEFAULT_GIFT_THANKS_TEMPLATES, cookie: 'secret' } });
+  assert.equal(sent.at(-1)[1].templates, null);
+  assert.equal(sent.at(-1)[1].error, 'INVALID_RESPONSE');
+  assert.equal(sent.at(-1)[1].status, 'unconfirmed');
   assert.doesNotMatch(JSON.stringify(sent), /cookie|token|secret/);
   dispose();
   assert.equal(handlers.size, 0);
@@ -299,6 +329,8 @@ test('preload exposes explicit boolean intents and removable state subscription 
     JSON.stringify(calls[0]),
     JSON.stringify(['license:set-gift-interaction', { key: KEYS[1], enabled: true }]),
   );
+  bridge.setGiftThanksTemplates(DEFAULT_GIFT_THANKS_TEMPLATES);
+  assert.equal(JSON.stringify(calls[1]), JSON.stringify(['license:set-gift-thanks-templates', DEFAULT_GIFT_THANKS_TEMPLATES]));
   const unsubscribe = bridge.onGiftInteractionStateChanged(() => {});
   assert.equal(listeners.size, 1);
   unsubscribe();
@@ -379,10 +411,12 @@ test('renderer keeps logged-out control clickable, distinct errors, pending roll
   const ui = await uiFixture();
   assert.equal(ui.elements[KEYS[0]].disabled, false);
   assert.equal(ui.elements.giftInteractionStatus.hidden, true);
+  assert.equal(ui.elements.giftInteractionRefresh.hidden, true);
   await ui.click(KEYS[0], true);
   assert.equal(ui.toasts.at(-1), '请先登录 B 站，再同步到服务器。');
   assert.equal(ui.elements[KEYS[0]].checked, false);
-  assert.equal(ui.elements.giftInteractionStatus.hidden, false);
+  assert.equal(ui.elements.giftInteractionStatus.hidden, true);
+  assert.equal(ui.elements.giftInteractionRefresh.hidden, false);
   for (const [error, message] of [
     ['BILIBILI_CREDENTIALS_INVALID', 'B 站登录已失效，请重新登录并同步。'],
     ['BILIBILI_ACCOUNT_CHECK_FAILED', 'B 站登录验证超时，请稍后再试。'],
@@ -397,17 +431,34 @@ test('renderer keeps logged-out control clickable, distinct errors, pending roll
   await ui.click(KEYS[0], false);
   assert.equal(ui.elements[KEYS[0]].checked, true);
   assert.equal(ui.elements[KEYS[1]].disabled, true);
-  assert.equal(ui.elements.giftInteractionStatus.hidden, false);
-  assert.equal(ui.elements.giftInteractionStatus.textContent, '正在同步，等待服务器确认…');
+  assert.equal(ui.elements.giftInteractionStatus.hidden, true);
+  assert.equal(ui.elements.giftInteractionRefresh.hidden, true);
   pending.resolve({ ok: false, status: 'unconfirmed', values: flags(true, true) });
   await new Promise(setImmediate);
   assert.equal(ui.toasts.at(-1), '关闭还没同步，服务器可能仍在运行。');
+  assert.equal(ui.elements.giftInteractionStatus.hidden, true);
+  assert.equal(ui.elements.giftInteractionRefresh.hidden, false);
   ui.emit({ status: 'confirmed', values: flags() });
   assert.equal(ui.elements[KEYS[0]].checked, false);
   assert.equal(ui.elements[KEYS[1]].checked, false);
   assert.equal(ui.elements.giftInteractionStatus.hidden, true);
+  assert.equal(ui.elements.giftInteractionRefresh.hidden, true);
   ui.dispose();
   assert.equal(ui.elements[KEYS[0]].listeners.size, 0);
+});
+
+test('gift refresh failures use a toast and expose only the retry action', async () => {
+  const ui = await uiFixture();
+  ui.bridge.getGiftInteractionState = async () => ({
+    status: 'unconfirmed',
+    values: flags(),
+    error: 'BILIBILI_LOGIN_REQUIRED',
+  });
+  await ui.elements.giftInteractionRefresh.listeners.get('click')();
+  assert.equal(ui.elements.giftInteractionStatus.hidden, true);
+  assert.equal(ui.elements.giftInteractionRefresh.hidden, false);
+  assert.equal(ui.toasts.at(-1), '请先登录 B 站，再同步到服务器。');
+  ui.dispose();
 });
 
 test('renderer preserves a newer account snapshot when an older change response arrives', async () => {

@@ -40,7 +40,7 @@
 | --- | --- | --- | --- |
 | [main-window-ipc.js](../../../src/electron/ipc/main-window-ipc.js)：music、playback、playback-output、bilibili、audio-assistant、desktop 资源检查与客户端外观 | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [screen-color-picker.js](../../../src/electron/screen-color-picker.js)：桌面全屏取色，复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
-| [update-ipc.js](../../../src/electron/ipc/update-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
+| [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)：其余 desktop | 必须 | 必须 | 上述路径加 `/license` |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |
 | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js)：复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
@@ -57,7 +57,7 @@
 
 ### 2.1 songAssistantDesktop
 
-Owner 为 [update-ipc.js](../../../src/electron/ipc/update-ipc.js)，客户端外观由 [client-appearance-ipc.js](../../../src/electron/ipc/client-appearance-ipc.js) 拥有。直接消费者是 [desktop.js](../../../public/js/desktop.js) 的更新/目录入口与窗口控件，以及 [settings-operations.js](../../../public/js/admin/settings-operations.js)；资源检查也由桌面 UI 消费。
+Owner 为 [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)，客户端外观由 [client-appearance-ipc.js](../../../src/electron/ipc/client-appearance-ipc.js) 拥有。直接消费者是 [desktop.js](../../../public/js/desktop.js) 的更新/目录入口与窗口控件，以及 [settings-operations.js](../../../public/js/admin/settings-operations.js)；资源检查也由桌面 UI 消费。
 
 | 通道 | 桥方法与输入 | 成功返回 / 公开失败 |
 | --- | --- | --- |
@@ -159,6 +159,7 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:delete-song-page-background` | `deleteSongPageBackground()` | BackgroundResponse，background 可 null | 同上 |
 | `license:get-gift-interaction-state` | `getGiftInteractionState()` | GiftInteractionSnapshot | [interaction-controls.js](../../../public/js/admin/gifts/interaction-controls.js) |
 | `license:set-gift-interaction` | `setGiftInteraction(key,enabled)` → `{key,enabled}`，拒绝额外字段 | GiftInteractionSnapshot；INVALID_GIFT_INTERACTION / GIFT_INTERACTION_PENDING / CLOUD_SYNC_FAILED | 同上 |
+| `license:set-gift-thanks-templates` | `setGiftThanksTemplates({gift,guard})`，只接受两份受限纯文本模板 | GiftInteractionSnapshot；INVALID_GIFT_THANKS_TEMPLATES / GIFT_THANKS_UNSUPPORTED / GIFT_INTERACTION_PENDING / CLOUD_SYNC_FAILED | [danmaku-gift-thanks.js](../../../public/js/admin/danmaku-gift-thanks.js) |
 
 共享 DTO 与约束：
 
@@ -183,7 +184,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 - **欢迎配置**：V1 非空 patch 只含 enabled(boolean)/messages；词库 1–30 条，每条非空且 ≤80 Unicode code point，禁止控制字符，随后 trim。V2 的 enabled/greetingEnabled/attentionEnabled/rareNamePinyinEnabled 为 boolean；welcomeDelaySeconds=0–300、greetingDelaySeconds=1–600、welcomeMinHonorLevel/greetingMinHonorLevel=0–999、attentionMinHonorLevel=1–999，均为整数；messages/greetingMessages/attentionWelcomeMessages/attentionGreetingMessages 沿用词库规则。完整响应要求所有字段，关闭 welcome 时不能开启 greeting/attention，greeting 开启时 delay 必须大于 welcome delay。校验和 fieldErrors 白名单见 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)，并发草稿见 [main.md](main.md#服务器进场欢迎设置)。
 - **SongPublic**：只复制 [license-songs-ipc.js](../../../src/electron/ipc/license-songs-ipc.js) 的 `SONG_PUBLIC_FIELDS`（ID、标题/名称、歌手、分类、tags、语言、来源、备注、价格、片段、启用、排序、时间及其兼容别名）；值仅 null/string/boolean/有限 number，字符串截断 4096，不透传对象或数组。
 - **BackgroundResponse**：`{ok,background:null或{url?,previewUrl?,bytes?,updatedAt?}}`；相对 url 与可信 HTTPS previewUrl 均经过清洗，不返回凭据 query。previewUrl 由 main 基于可信服务 origin 解析，renderer 不指定远端地址。
-- **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},status,error}`，两个值均 boolean；status=confirmed/pending/unconfirmed，error 为代码或 null。key 仅这两个开关，enabled 严格 boolean；owner 为 [gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 和 cloud-sync-controller。意图并入已有同步队列，省略另一开关以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
+- **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},templates,status,error}`，两个开关均 boolean；templates 为 `{gift,guard}` 或 null（尚未确认或旧服务不支持）；status=confirmed/pending/unconfirmed，error 为代码或 null。开关 key 仅这两个名称，enabled 严格 boolean。模板各为单行非空纯文本、最多 120 Unicode 字符，`{称呼}`、`{礼物}`、`{金额}` 各一次，禁止未知或残缺标记、额外字段及控制字符，校验由 [gift-thanks-templates.js](../../../public/js/shared/gift-thanks-templates.js) 统一实现。owner 为 [gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 和 cloud-sync-controller；意图并入已有同步队列，省略未修改字段以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
 
 ### 2.5 dailyBots、fanProfiles 与 giftExport
 

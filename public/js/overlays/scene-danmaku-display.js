@@ -8,7 +8,7 @@ export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, st
   function update(snapshot) {
     if (!snapshot) return;
     applyRoomGuardState(snapshot.state?.roomGuard);
-    room(snapshot.state?.roomGuard?.roomId || '');
+    room(snapshot.state?.roomGuard?.roomId || '', snapshot.roomProfile ?? null);
     const nextSession = snapshot.status === 'connected' && snapshot.state?.liveStatus === 1
       ? snapshot.state.liveSessionId : null;
     if (snapshot.reset || snapshot.epoch !== epoch || nextSession !== session) {

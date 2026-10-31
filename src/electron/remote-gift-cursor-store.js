@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
 
+// Legacy JSON persistence only. Production cursors are committed by storage/gift-sync-store.js in SQLite.
 const CURSOR_FILE_NAME = 'remote-gift-cursor.json';
 const MAX_CURSOR_FILE_BYTES = 4096;
 
@@ -68,6 +69,7 @@ function createRemoteGiftCursorStore(options = {}) {
   return { filePath, load, save };
 }
 
+// Active source identity contract, still used by the controller. Keep these versioned hash inputs stable.
 function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
   const accountName = String(streamer?.accountName || '')
     .trim()

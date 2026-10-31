@@ -196,6 +196,45 @@ test('WeSing lyric-offset preview survives older live status while saving', asyn
   assert.equal(number.value, '700');
 });
 
+for (const outcome of ['success', 'failure']) {
+  test(`WeSing offset ${outcome} from an older save preserves the newer input`, async () => {
+    const nodes = new Map();
+    for (const id of ['weSingLyricOffsetMs', 'weSingLyricOffsetMsNumber']) {
+      nodes.set(id, { value: '0', min: '-3000', max: '3000', style: { setProperty() {} },
+        listeners: {}, addEventListener(type, handler) { this.listeners[type] = handler; } });
+    }
+    const { WeSingService } = await loadModuleExports(
+      path.join(ROOT_DIR, 'public/js/playback/services/wesing-service.js'),
+      { document: { activeElement: null, getElementById: id => nodes.get(id) || null },
+        window: { addEventListener() {} }, performance: { now: () => 0 } },
+    );
+    const errors = [];
+    const service = new WeSingService({ showError: error => errors.push(error) });
+    const requests = [];
+    service.request = (_url, { body }) => new Promise((resolve, reject) => requests.push({ ...body, resolve, reject }));
+    service.init({ lyricOffsetMs: 0 });
+    const number = nodes.get('weSingLyricOffsetMsNumber');
+    number.value = '100';
+    number.listeners.input();
+    number.listeners.change();
+    number.value = '700';
+    number.listeners.input();
+    if (outcome === 'success') requests[0].resolve({ lyricOffsetMs: 100 });
+    else requests[0].reject(new Error('old save failed'));
+    await new Promise(setImmediate);
+    assert.equal(number.value, '700');
+    assert.equal(service.pendingLyricOffsetMs, 700);
+    assert.equal(errors.length, 0);
+    number.listeners.change();
+    assert.deepEqual(requests.map(request => request.offsetMs), [100, 700]);
+    requests[1].resolve({ lyricOffsetMs: 700 });
+    await new Promise(setImmediate);
+    assert.equal(number.value, '700');
+    assert.equal(service.pendingLyricOffsetMs, null);
+    assert.equal(service.status.lyricOffsetMs, 700);
+  });
+}
+
 test('WeSing cache path preserves unsaved edits and explains how to recover missing detection', async () => {
   const listeners = new Map();
   const input = { value: '', addEventListener: (type, callback) => listeners.set(type, callback) };

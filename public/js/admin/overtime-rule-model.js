@@ -103,6 +103,8 @@ function readEffect(root) {
     if (!Number.isSafeInteger(value) || value < 2) throw new Error('倍数应填写大于等于 2 的整数。');
     return { operation, value };
   }
+  const preserved = root.querySelector('[data-preserved-seconds]');
+  if (preserved) return { operation, value: Number(preserved.dataset.preservedSeconds) };
   const hours = readDurationPart(root, 'hours', '小时', 999);
   const minutes = readDurationPart(root, 'minutes', '分钟', 59);
   const seconds = readDurationPart(root, 'seconds', '秒', 59);

@@ -247,7 +247,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 
 业务表见下表，各库另有一张 `schema_version`。文件常量 `DB_FILE_NAMES`、五个既有库的 DDL 与抽奖库 DDL 分别位于 [database.js](../../../src/storage/database.js)、[schema.js](../../../src/storage/schema.js) 和 [dynamic-lottery-schema.js](../../../src/storage/dynamic-lottery-schema.js)。
 
-### 3.1 song-request-data.db(点歌库,26 表)
+### 3.1 song-request-data.db(点歌库,27 表)
 
 其中七张粉丝档案相关表（含 v14 名单模板）见本节前的专表；其余表如下。
 
@@ -272,6 +272,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 | `component_scenes` | 本地场景草稿、发布快照及来源凭据 | owner_scope 隔离、乐观 revision、加密 capability；完整列及删除语义见[本地场景持久化](#本地场景持久化) |
 | `component_output_sizes` | 按账号保存共享组件默认尺寸 | PK(owner_scope, component_type)、width/height；与发布快照原子提交 |
 | `component_canvas` | 固定组合直播源与最近应用的预设 | owner_scope PK、output_scene_id、可空 active_scene_id；沿用场景外键 |
+| `danmaku_appearances` | 当前授权账号的本地弹幕完整外观 | owner_scope PK、config_json；单份 JSON 最大 256 KiB，独立于全局 settings 与场景草稿 |
 
 ### 3.2 super-chat-data.db(醒目留言库,2 表)
 
@@ -284,7 +285,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 
 历史数据由 `migrateLegacySuperChatsToDedicatedDatabase` 从 songDb 旧表迁移后删表([legacy-superchat-migration.js](../../../src/storage/legacy-superchat-migration.js))。旧表的 `deleted` 行同样只转移 ID，已存在防重 ID 的消息不会因迁移重试恢复内容。
 
-### 3.3 gift-data.db(礼物库,16 表，含上文礼物保留表)
+### 3.3 gift-data.db(礼物库,17 表，含上文礼物保留表)
 
 | 表                       | 用途                                                                 | 关键列/索引                                                                                                                                                                                                                         |
 | ------------------------ | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -292,7 +293,7 @@ v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-m
 | `gift_events`            | 礼物事件 + **共享检测账本**(见 [bilibili/gift.md](bilibili/gift.md)) | 业务列 + `source_id` + 检测列；可空 `blind_box_id` 保存服务端确认的盒子礼物 ID，旧/未知来源保持 `NULL`；legacy 身份索引 `(platform_id, uid)`，远端幂等索引 `(source_id, platform_id, cmd)`，来源/时间复合索引 |
 | `gift_sync_state`        | 每个来源的投影恢复状态                                             | `source_id` PK、epoch/final cursor、bootstrap token/锚点、`projection_generation`、最后验证时间                                                                                                                                     |
 | `overtime_machine_state` | 加班机单例状态                                                       | **id=1 CHECK 单行**;enabled/enable_epoch/initial_seconds/remaining_ms/anchor_at_ms/status(paused\|running\|finished)/background_path/background_fit(cover\|contain\|fill)/revision,见 [overtime.md](overtime.md)                    |
-| `overtime_gift_rules`    | 加班机礼物规则                                                       | gift_id PK、mode(fixed\|random\|display)、fixed_seconds、outcomes_json、enabled、sort_order；display 文字与数量模式存于 outcomes_json                                                                                               |
+| `overtime_gift_rules`    | 加班机礼物规则                                                       | `(gift_id, gift_identity_key)` 复合主键、gift_identity_json、mode(fixed\|random\|display)、fixed_seconds、outcomes_json、enabled、sort_order；display 文字与数量模式存于 outcomes_json |
 | `overtime_settlements`   | 结算流水(幂等)                                                       | gift_event_id **UNIQUE**、status(pending\|applied\|ignored)、rule_snapshot_json、requested/applied_delta_seconds、settle_after_ms、retry_count;idx(status, settle_after_ms)、idx(status, id DESC)                                   |
 | `gift_wishes` | 礼物许愿定义 | id PK、source_id FK、period(long/day/session)、礼物/variant 身份、类别、展示图片、整数 target、说明与创建时间、display_style（默认 card）、text_template（默认空）、text_image_position（默认 none）、text_image_format（默认 animated）、text_pending_color / text_received_color（默认空字符串，使用共享文字渲染器默认色）、text_runs（JSON 数组文本，默认 `[]`，保存与模板一致的分段格式）；来源/创建时间索引 |
 | `gift_wish_sessions` | 最近确认的直播窗口 | source_id PK/FK、room_id、started_at、可空 ended_at、checked_at；按房间和当前来源读取；ended_at 记录下播前最后确认仍在直播的时间以关闭旧窗口，不代表实际下播时间 |
@@ -351,7 +352,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v16 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引；v16 无损追加 queue.is_live 和 idx_queue_single_live 部分唯一索引 |
+| songDb      | `song_db`       | v1-v17 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引；v16 无损追加 queue.is_live 和 idx_queue_single_live 部分唯一索引；v17 新增 danmaku_appearances，按授权账号在本机保存完整弹幕外观 |
 | superChatDb | `super_chat_db` | v1-v2 | v1 基线；v2 新增最小防重 ID，删除旧 deleted 内容并覆盖后续删除路径 |
 | giftDb      | `gift_db`       | v1-v20 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引；v19 幂等增加许愿 `text_runs`，旧模板、图片位置、身份与进度保持不变；v20 增加许愿非整日精确贡献（见上文） |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
@@ -364,7 +365,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 ## 5. 数据保留策略(Retention)
 
-[src/storage/retention.js](../../../src/storage/retention.js):默认策略 `DEFAULT_POLICY` = 礼物原始报文 30 天清文本(保留解析结果)、礼物事件永久保留、点歌流水按天清理默认禁用、冷却记录 1 天。SC 按天策略默认 `0` 仅表示仍在显示的 `active/assisted` 项不自动过期；删除或撤回后立即删除内容，只留防重 ID。点歌终态流水仍随队列立即删除，不受按天策略控制；活动队列始终保留。settings 键 → policy 翻译见 `readRetentionPolicy`(giftRawJsonRetentionDays 等,§7)。
+[src/storage/retention.js](../../../src/storage/retention.js):默认策略 `DEFAULT_POLICY` = 礼物原始报文 30 天清文本(保留解析结果)、旧通用礼物事件按天清理默认禁用(`giftEventRetentionDays=0`)、点歌流水按天清理默认禁用、冷却记录 1 天。关闭旧通用清理不等于禁止所有礼物回收：服务器投影明细只由上文专用保留路径在汇总覆盖且本地消费者终态后回收，不能概括为永久保留。SC 按天策略默认 `0` 仅表示仍在显示的 `active/assisted` 项不自动过期；删除或撤回后立即删除内容，只留防重 ID。点歌终态流水仍随队列立即删除，不受按天策略控制；活动队列始终保留。settings 键 → policy 翻译见 `readRetentionPolicy`(giftRawJsonRetentionDays 等,§7)。
 
 - AI 请求审计通过 `aiRequestLogRetentionDays` 配置（默认 `30` 天，`0` 禁用），由 `readRetentionPolicy` 转为 `aiRequestLogDays`。`ai_request_logs.created_at` 为毫秒时间戳，严格早于期限才删除；配置、黑名单、API 配额、缓存和上下文不参与此项清理。
 - API 配额 SQL 由 [ai-api-usage-store.js](../../../src/storage/ai-api-usage-store.js) 拥有；AI 配额域在初始化和跨月访问时传入上月边界，回收更早计数，保留当月预算及未来月份。该生命周期不依赖审计保留开关。
@@ -528,6 +529,8 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 
 ### 7.3 启动迁移、清理与导入导出
 
+旧身份规则默认文案清理由 `identityRuleDefaultsVersion=1` 标记一次性完成；已有 `queueStyleSettingsVersion=1` 的已迁移库只补清理标记，不删除当前文案。标记与其余启动设置迁移在同一事务提交，失败可重试；后续启动不因文本恰好等于旧默认值而再次删除。
+
 [settings-migrations.js](../../../src/storage/settings-migrations.js) 是转换 owner；bootstrap 在插入默认值**之前**读取旧版本，以免默认检查点掩盖待迁移数据。以下检查点不是 schema_version：
 
 | 检查点 / 条件 | 转换与兼容 |
@@ -582,6 +585,8 @@ gift v12 的 `idx_gift_events_source_recent` 按 `(source_id, datetime(created_a
 gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_asc` 分别按 `(source_id, created_at DESC, id DESC)` / `(source_id, created_at ASC, id DESC)` 索引 final、`status IN ('active','retention-staged')`、`total_price > 0`、`num >= 1` 的记录。活动保留快照的两个状态共用连续时间顺序，无须先扫描两段状态再整段排序，也不依赖 ANALYZE；查询仍检查活动快照成员与 detail_start，同时间仍按 ID 降序。
 
 `gift-query-store.js` 的 `readHistoryPage` 在同一事务内读取总数和页面，按连接保留最多 64 个筛选计数。缓存包含来源、全部筛选/时间参数，并以 `total_changes()`、`data_version`、`schema_version` 失效；任何同连接写入或外部提交均需重新计数，只在成功提交后发布缓存。`asOf` 不承诺排除回填，跨页版本改变时返回当前读快照的新总数。缓存随数据库连接释放，不跨连接复用。
+
+`readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，再分别按总计、礼物身份和北京时间分桶聚合，保留各组原有金额与数量计算。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
 
 条件式历史扫描在同一读事务内核对 `contentRevision`，命中时不读总数或行。连接内临时表及触发器只追踪 `gift_events` 写入，普通同步状态更新不使记录版本失效；外部提交、schema 变化及可见时间上界对应的最后记录时间同时参与版本。每个 store 有独立实例标识，读取沿用独立读事务，调用时已有事务会拒绝；回滚和重开连接不会确认未提交内容。临时追踪不改变持久 schema 或迁移版本。
 

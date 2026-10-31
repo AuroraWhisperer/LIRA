@@ -47,7 +47,7 @@ const REPLY_ECHO_TTL_MS = 60000;
 function createAiAssistantService(dependencies) {
   const {
     store,
-    deepseek,
+    modelClient,
     tools,
     sendReply,
     waitForDelivery,
@@ -117,7 +117,7 @@ function createAiAssistantService(dependencies) {
   function handleDanmaku(danmaku = {}) {
     if (shuttingDown) return { accepted: false, reason: 'stopped' };
     const config = store.getConfig();
-    if (!isAiReady(config) || deepseek.isReady?.(config) === false) return { accepted: false, reason: 'disabled_or_unconfigured' };
+    if (!isAiReady(config) || modelClient.isReady?.(config) === false) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
     const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
     pruneReplyEchoes();
@@ -162,7 +162,7 @@ function createAiAssistantService(dependencies) {
     const config = store.getConfig();
     if (usesAccountModel(config)) {
       item.modelSessionConfig = { modelProvider: config.modelProvider, modelAuthMode: config.modelAuthMode };
-      item.modelSessionRevision = deepseek.getSessionRevision?.(item.modelSessionConfig);
+      item.modelSessionRevision = modelClient.getSessionRevision?.(item.modelSessionConfig);
     }
     const accepted = coordinator.enqueue(item);
     if (accepted) handledCount += 1;
@@ -251,7 +251,7 @@ function createAiAssistantService(dependencies) {
       const currentTime = getCurrentTime({}, { now: new Date(now()) }).formatted;
       const replyBudget = getReplyLengthBudget(item.userName, config.replyMaxChars);
       const replyLimit = options.singleMessage ? replyBudget.oneMessage : replyBudget.threeMessages;
-      let response = await deepseek.createResponse({
+      let response = await modelClient.createResponse({
         config,
         instructions: buildReplyInstructions(
           persona.prompt,
@@ -286,7 +286,7 @@ function createAiAssistantService(dependencies) {
           });
           toolCallCount += 1;
         }
-        response = await deepseek.createResponse({
+        response = await modelClient.createResponse({
           config,
           instructions: buildReplyInstructions(
             persona.prompt,
@@ -370,7 +370,7 @@ function createAiAssistantService(dependencies) {
   }
 
   async function runSafetyReview(config, prompt, usage, purpose, signal) {
-    const response = await deepseek.createResponse({
+    const response = await modelClient.createResponse({
       config: { ...config, reasoningEnabled: false },
       instructions: prompt.instructions,
       input: prompt.input,
@@ -482,7 +482,7 @@ function createAiAssistantService(dependencies) {
   async function testConfiguration() {
     const config = store.getConfig();
     return runDirectOperation(() =>
-      deepseek.testConnection(config, {
+      modelClient.testConnection(config, {
         signal: shutdownController.signal,
       }),
     );
@@ -492,7 +492,7 @@ function createAiAssistantService(dependencies) {
     const config = store.getConfig();
     return runDirectOperation(() => {
       const options = { signal: shutdownController.signal };
-      if (provider === 'deepseek') return deepseek.testConnection(config, options);
+      if (provider === 'deepseek') return modelClient.testConnection(config, options);
       if (provider === 'qweather') return tools.qweather.testConnection(config, options);
       if (provider === 'amap') return tools.amap.testConnection(config, options);
       throw codedError('AI_PROVIDER_UNKNOWN', '不支持该连接测试。');
@@ -514,7 +514,7 @@ function createAiAssistantService(dependencies) {
     assertSavedModelKeyOrigin(usesAccountModel(config) ? { ...config, modelProvider: 'custom', deepseekResponsesUrl: '' } : config,
       requested, Boolean(explicitKey));
     return runDirectOperation(() =>
-      deepseek.listModels({
+      modelClient.listModels({
         apiKey: explicitKey || config.deepseekApiKey,
         responsesUrl: requested.deepseekResponsesUrl,
         modelProvider: requested.modelProvider,
@@ -530,11 +530,11 @@ function createAiAssistantService(dependencies) {
     const config = store.getConfig();
     return {
       enabled: config.enabled,
-      ready: isAiReady(config) && deepseek.isReady?.(config) !== false,
+      ready: isAiReady(config) && modelClient.isReady?.(config) !== false,
       trigger: config.trigger,
       model: config.modelProvider === 'doubao' ? '豆包' : config.model,
-      doubao: deepseek.getAccountStatus?.(),
-      chatgpt: deepseek.getSubscriptionStatus?.(),
+      doubao: modelClient.getAccountStatus?.(),
+      chatgpt: modelClient.getSubscriptionStatus?.(),
       handledCount,
       lastError,
       apiUsage: quotaStore?.getAllUsage?.() || [],
@@ -561,7 +561,7 @@ function createAiAssistantService(dependencies) {
   function throwIfReplyCancelled(item) {
     throwIfShuttingDown();
     item.signal.throwIfAborted();
-    if (item.modelSessionRevision !== undefined && item.modelSessionRevision !== deepseek.getSessionRevision?.(item.modelSessionConfig)) {
+    if (item.modelSessionRevision !== undefined && item.modelSessionRevision !== modelClient.getSessionRevision?.(item.modelSessionConfig)) {
       throw codedError(item.modelSessionConfig?.modelProvider === 'doubao' ? 'DOUBAO_SESSION_CHANGED' : 'AI_MODEL_SESSION_CHANGED', 'AI 账号会话已变化，本次回复已取消。');
     }
   }

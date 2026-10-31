@@ -6,7 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { registerUpdateIpc } = require('../../src/electron/ipc/update-ipc');
+const { registerDesktopShellIpc } = require('../../src/electron/ipc/desktop-shell-ipc');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
@@ -20,7 +20,7 @@ test('desktop keeps the gift display bridge as a no-op compatibility channel', a
   const mainFrame = { url: `${baseUrl}/admin` };
   const webContents = { mainFrame };
   const window = { webContents, isDestroyed: () => false };
-  registerUpdateIpc({
+  registerDesktopShellIpc({
     ipcMain: { handle: (channel, handler) => handlers.set(channel, handler) },
     getMainWindow: () => window,
     getDesktopBaseUrl: () => baseUrl,

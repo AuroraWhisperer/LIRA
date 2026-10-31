@@ -181,12 +181,6 @@ export function createGiftCatalogUpdateToast(dependencies = {}) {
   return { init, handleState, dispose, getNode };
 }
 
-export function initGiftCatalogUpdateToast(dependencies = {}) {
-  const controller = createGiftCatalogUpdateToast(dependencies);
-  void controller.init();
-  return controller;
-}
-
 function safeCount(value) {
   const number = Number(value);
   return Number.isSafeInteger(number) && number >= 0 ? number : 0;

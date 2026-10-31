@@ -121,3 +121,18 @@ test('user editor shows the saved list limit and restores add after deleting an 
   assert.equal(ui.row(0).uid.getAttribute('aria-label'), '用户 1 的 B 站 UID');
   assert.equal(ui.row(0).remove.getAttribute('aria-label'), '删除用户 1');
 });
+
+test('unrelated edits preserve the second occurrence of a daylight-saving local time', async (t) => {
+  const originalTimezone = process.env.TZ;
+  t.after(() => { if (originalTimezone === undefined) delete process.env.TZ; else process.env.TZ = originalTimezone; });
+  process.env.TZ = 'America/New_York';
+  const expiresAt = Date.parse('2026-11-01T06:30:00Z');
+  const ui = await createEditor([{ uid: '12', expiresAt }, { uid: '34', expiresAt: 0 }]);
+  assert.equal(new Date(ui.row(0).expiry.value).getTime(), expiresAt - 3600000, 'the local string is ambiguous');
+  ui.row(1).name.value = 'new note';
+  ui.row(1).name.fire('input');
+  assert.equal(JSON.parse(ui.field.value)[0].expiresAt, expiresAt);
+  ui.row(0).expiry.value = '2026-11-01T03:30';
+  ui.row(0).expiry.fire('input');
+  assert.equal(JSON.parse(ui.field.value)[0].expiresAt, Date.parse('2026-11-01T08:30:00Z'));
+});

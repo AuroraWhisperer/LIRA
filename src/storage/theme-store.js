@@ -185,13 +185,13 @@ function createThemeStore(db, settingsStore) {
       const preset = this.get(id);
       if (!preset) throw new Error('预设不存在。');
       const allowed = new Set(keysForScope(preset.scope));
-      const applied = [];
+      const values = {};
       for (const [key, value] of Object.entries(preset.payload || {})) {
         if (!allowed.has(key)) continue;
-        settingsStore.setSetting(key, String(value));
-        applied.push(key);
+        values[key] = String(value);
       }
-      return { preset, appliedKeys: applied };
+      settingsStore.setSettings(values);
+      return { preset, appliedKeys: Object.keys(values) };
     },
 
     remove(id) {

@@ -55,12 +55,17 @@ async function fixture(height = 500) {
   let time = 10000;
   let sequence = 0;
   const timers = new Map(), animations = [];
+  const measurements = { width: 0, height: 0 };
   const document = { defaultView: {
     getComputedStyle: () => ({ getPropertyValue: () => '0' }),
     addEventListener() {}, removeEventListener() {},
   }, createElement(tag) {
     const node = new FakeNode(tag);
-    Object.assign(node, { ownerDocument: document, offsetWidth: 200, offsetHeight: 100 });
+    node.ownerDocument = document;
+    Object.defineProperties(node, {
+      offsetWidth: { get() { measurements.width += 1; return 200; } },
+      offsetHeight: { get() { measurements.height += 1; return 100; } },
+    });
     node.animate = (frames, timing) => {
       const animation = { frames, timing, cancelled: false, cancel() { this.cancelled = true; } };
       animations.push(animation);
@@ -78,7 +83,7 @@ async function fixture(height = 500) {
     scheduleTimeout(callback, delay) { const id = ++sequence; timers.set(id, { callback, at: time + delay }); return id; },
     cancelTimeout(id) { timers.delete(id); },
   });
-  return { feed, root, animations, timers, append() { feed.append({ id: String(++sequence), name: '测试观众', message: '测试弹幕', timestamp: time }); },
+  return { feed, root, animations, timers, measurements, append() { feed.append({ id: String(++sequence), name: '测试观众', message: '测试弹幕', timestamp: time }); },
     advance(duration) {
       const end = time + duration;
       while (true) {
@@ -111,9 +116,28 @@ test('live updates keep positions and animations continuous; disposal cancels al
   assert.ok(f.animations.every(animation => animation.cancelled));
 });
 
+test('batched arrivals measure the bounded feed once and retain existing animations', async () => {
+  const f = await fixture(10000);
+  for (let index = 0; index < 50; index += 1) f.append();
+  const retained = f.root.children.slice(10);
+  const animations = retained.map(node => node.animation);
+  f.measurements.width = 0;
+  f.measurements.height = 0;
+  f.feed.appendBatch(Array.from({ length: 10 }, (_, index) => ({
+    id: `batch-${index}`, name: '合成观众', message: `同批消息 ${index}`, timestamp: 10000,
+  })));
+  assert.equal(f.root.children.length, 50);
+  assert.deepEqual(f.root.children.slice(0, 40), retained);
+  assert.deepEqual(retained.map(node => node.animation), animations);
+  assert.deepEqual(f.measurements, { width: 50, height: 50 });
+  assert.ok(f.root.children.every(node => node.style.visibility === 'visible'));
+  f.feed.destroy();
+  assert.equal(f.timers.size, 0);
+});
+
 test('full-height cards wait for space, expire their bounded wait and clear pending timers', async () => {
   const f = await fixture(100);
-  f.append(); f.append();
+  f.feed.appendBatch([1, 2].map(id => ({ id: String(id), name: '合成观众', message: '同批等待', timestamp: 10000 })));
   assert.equal(f.root.children[1].style.visibility, 'hidden');
   f.advance(1800);
   assert.equal(f.root.children[1].style.visibility, 'visible');

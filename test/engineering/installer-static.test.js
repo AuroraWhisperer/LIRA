@@ -39,11 +39,11 @@ test('the installer agreement page starts declined and owns the builder license 
   const root = path.join(__dirname, '../..');
   const installer = fs.readFileSync(path.join(root, 'build', 'installer.nsh'), 'utf8');
   const page = installer.match(/!macro licensePage\b[\s\S]*?!macroend/)?.[0] ?? '';
-  const agreement = fs.readFileSync(path.join(root, 'build', 'user-agreement.txt'));
+  const agreement = fs.readFileSync(path.join(root, 'public', 'pages', 'admin', 'toolbox', 'user-agreement.txt'));
   const { build } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 
   assert.match(page, /!define MUI_LICENSEPAGE_RADIOBUTTONS\s/);
-  assert.match(page, /!insertmacro MUI_PAGE_LICENSE "\$\{BUILD_RESOURCES_DIR\}\\user-agreement\.txt"/);
+  assert.match(page, /!insertmacro MUI_PAGE_LICENSE "\$\{BUILD_RESOURCES_DIR\}\\\.\.\\public\\pages\\admin\\toolbox\\user-agreement\.txt"/);
   // makensis reads a BOM-less UTF-8 text file with the system code page.
   assert.deepEqual([...agreement.subarray(0, 3)], [0xef, 0xbb, 0xbf]);
   // A builder license option or file would generate a second licensePage macro.

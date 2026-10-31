@@ -360,7 +360,7 @@ body[data-style='twitter'] .draw-danmaku-body p.draw-danmaku-gift {
 .twitter-gift-total {
   display: block;
   margin: 0 0 10px;
-  font-size: var(--danmaku-font-size);
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.45;
 }

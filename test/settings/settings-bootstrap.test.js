@@ -87,6 +87,32 @@ test('new and already migrated settings remain stable on repeated startup', (t) 
   assert.equal(state.value('scrollSeconds'), '45');
 });
 
+test('legacy rule cleanup runs once and preserves current user text across restarts', (t) => {
+  for (const values of [{}, { queueStyleSettingsVersion: '1' }]) {
+    const state = fixture(t, values);
+    const store = prepareSettingsBootstrap(state.db).settingsStore;
+    store.setSetting('overlayRule3', '同一观众 10 秒冷却');
+    store.setSetting('overlayRule4', '按队列顺序演唱');
+    state.reopen();
+    prepareSettingsBootstrap(state.db);
+    assert.equal(state.value('identityRuleDefaultsVersion'), '1');
+    assert.equal(state.value('overlayRule3'), '同一观众 10 秒冷却');
+    assert.equal(state.value('overlayRule4'), '按队列顺序演唱');
+  }
+  const upgraded = fixture(t, { queueStyleSettingsVersion: '1', overlayRule3: '同一观众 10 秒冷却' });
+  prepareSettingsBootstrap(upgraded.db);
+  assert.equal(upgraded.value('overlayRule3'), '同一观众 10 秒冷却');
+  const legacy = fixture(t, { overlayRule3: '同一观众 10 秒冷却' });
+  legacy.db.exec(`CREATE TRIGGER fail_rule_checkpoint BEFORE INSERT ON settings
+    WHEN NEW.key = 'identityRuleDefaultsVersion' BEGIN SELECT RAISE(ABORT, 'checkpoint failed'); END;`);
+  assert.throws(() => prepareSettingsBootstrap(legacy.db), /checkpoint failed/);
+  assert.equal(legacy.value('overlayRule3'), '同一观众 10 秒冷却');
+  assert.equal(legacy.value('identityRuleDefaultsVersion'), undefined);
+  legacy.db.exec('DROP TRIGGER fail_rule_checkpoint');
+  prepareSettingsBootstrap(legacy.db);
+  assert.equal(legacy.value('overlayRule3'), '');
+});
+
 test('startup preserves saved song-board sizes, including the former default', (t) => {
   const state = fixture(t, { songBoardFontSize: '16' });
   prepareSettingsBootstrap(state.db);

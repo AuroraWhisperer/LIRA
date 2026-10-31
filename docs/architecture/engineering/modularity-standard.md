@@ -144,7 +144,7 @@ Status meanings:
 | `MOD-STORAGE-002`     | Stores own transaction boundaries                             | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
 | `MOD-ADMIN-001`       | New Admin code does not add global-state access               | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
 | `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries                | Incrementally Enforced | `test/engineering/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
-| `MOD-SHARED-001`      | Shared utilities remain domain-neutral                        | Migration Target       | Selected regression assertions                                                                                                                                                   |
+| `MOD-SHARED-001`      | Shared utilities remain domain-neutral                        | Migration Target       | Frontend shared-to-Admin/overlay import guard plus selected regression assertions |
 | `MOD-CONTRACT-001`    | Public contracts remain compatible by default                 | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
 | `MOD-SIZE-001`        | Review file size by source kind, responsibility and purpose | Review Required | `scripts/check-modularity.js` reports advisory size signals; `test/engineering/modularity-size.test.js` verifies counting and reporting, not semantic cohesion |
 | `MOD-FUNCTION-001`    | Long or complex functions need semantic decomposition review  | Migration Target       | Named debt and next-change triggers in [modularity-debt.md](modularity-debt.md); no repository-wide function metric gate                                                         |
@@ -156,10 +156,8 @@ Review-only or partial coverage must not be labeled `Enforced`.
 For a boundary change:
 
 1. Add a focused failing structural or unit regression when practical.
-2. Run the affected module tests.
-3. Run `npm run check`.
-4. Run `npm run verify:architecture`.
-5. Run `npm test` before completion.
+2. Run the affected module tests and the architecture checks relevant to the changed boundary.
+3. Add syntax, quick, or full suites only when the changed contracts and consumer blast radius justify them. Follow the [root risk-based verification rules](../../../AGENTS.md#bug-fixing-and-verification); there is no mandatory escalation sequence.
 
 Compatibility coverage should include the changed part of each relevant public
 contract:
@@ -302,7 +300,9 @@ repository as free of coupling or asynchronous defects.
    current change.
 6. Update the owning architecture document. Record an important dependency
    direction change in an ADR.
-7. Run focused, quick, and full verification in increasing scope.
+7. Verify proportionately to the changed contracts and consumers, following the
+   [root risk-based rules](../../../AGENTS.md#bug-fixing-and-verification).
+   Focused, quick, and full suites are options, not a mandatory sequence.
 
 Do not opportunistically reorder, reformat, or migrate unrelated modules.
 

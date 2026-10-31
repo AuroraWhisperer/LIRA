@@ -22,6 +22,7 @@ export function createSongRequestBlacklist({ documentRef, getState }) {
     field.dataset.preserveDirty = 'true';
     field.dataset.dirty = 'true';
     updateLabels();
+    field.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   function appendWord(word) {

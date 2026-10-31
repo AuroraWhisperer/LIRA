@@ -172,7 +172,7 @@ GET https://music.163.com/api/personalized/newsong?limit=100
 
 ### 7.7 我喜欢([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
-分页加载可使用 [音乐服务的加载会话](services.md) 复用本次喜欢歌单定位，歌曲仍按上游实际分页读取。
+分页加载可使用 [音乐服务的加载会话](services.md) 复用本次喜欢歌单定位及完整曲目 ID 快照；在 Provider 中按 `offset/limit` 切片后读取详情，不依赖歌单详情接口的 `s` 参数分页。账号 Cookie 变化或新加载会话不复用旧快照。
 
 组合流程:
 
@@ -204,10 +204,12 @@ GET https://music.163.com/api/user/playlist?uid=<userId>&limit=<1-500 默认200>
 ### 7.9 歌单详情([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 
 ```
-GET https://music.163.com/api/v6/playlist/detail?id=<歌单ID>&n=<1-5000 默认1000>&s=<0-200000 默认0>
+GET https://music.163.com/api/v6/playlist/detail?id=<歌单ID>&n=0&s=0
+GET https://music.163.com/api/song/detail?ids=<当前页曲目ID JSON数组，每批最多100个>
 ```
 
-- 响应 `data.playlist.tracks[]` → `mapNeteaseSong`;无需登录(公开歌单)
+- 按 `data.playlist.trackIds[]` 的顺序切片 `offset/limit`，每批最多 100 个 ID 读取详情，再按原 ID 顺序组装；无需登录即可读取公开歌单。`limit` clamp 1–5000 默认1000，`offset` clamp 0–200000。
+- 若没有曲目 ID 数组，仅在返回的 `tracks[]` 已覆盖声明总数时按完整列表本地切片；索引不足、ID 无效或所需详情缺失会报错，不把不完整页写成正常完成结果。
 - **成员检测** `playlistContainsTrack(playlistId, track)`([netease-provider.js](../../../../src/music/providers/netease-provider.js)):同端点 `n=0&s=0` 拉**轻量列表** `data.playlist.trackIds[]`(每项 `item.id || item`),存在 `trackIds` 数组即线性比较;接口不返回 `trackIds` 时回退全量拉 5000 首再比对——这是"歌单是否已含此歌"的唯一判定点,供收藏/去重标注用
 
 ### 7.10 最近播放([netease-provider.js](../../../../src/music/providers/netease-provider.js))

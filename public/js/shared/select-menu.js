@@ -326,6 +326,10 @@ function enhanceSelect(select) {
   });
   menu.addEventListener('keydown', (event) => {
     const options = getEnabledOptions(menu);
+    if (event.target === search && event.key === 'Enter') {
+      event.preventDefault();
+      return;
+    }
     if (event.target === search && !['ArrowDown', 'ArrowUp', 'Escape', 'Tab'].includes(event.key)) return;
     const current = options.indexOf(document.activeElement);
     if (event.key === 'ArrowDown' || event.key === 'ArrowRight') {

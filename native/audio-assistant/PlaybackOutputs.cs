@@ -51,7 +51,7 @@ internal static class PlaybackOutputs
       return ("asio", endpoint);
     }
     if (endpoint == "default") endpoint = AudioDevices.DefaultOutputId();
-    using var device = AudioDevices.OpenInput(endpoint, true);
+    using var device = AudioDevices.OpenEndpoint(endpoint, DataFlow.Render);
     return (id[..separator], device.ID);
   }
 
@@ -84,7 +84,7 @@ internal static class PlaybackOutputs
         AsioPorts[driver] = ports;
         return player;
       }
-      using var device = AudioDevices.OpenInput(endpointId, true);
+      using var device = AudioDevices.OpenEndpoint(endpointId, DataFlow.Render);
       player = backend switch {
         "wasapi" => new WasapiOut(device, AudioClientShareMode.Shared, true, 80),
         "directsound" => new DirectSoundPlayer(Guid.Parse(device.Properties[PropertyKeys.PKEY_AudioEndpoint_GUID].Value.ToString()!)),

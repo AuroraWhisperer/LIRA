@@ -10,6 +10,7 @@ function createDanmakuSenderService(dependencies) {
   const {
     getAuth,
     getRoom,
+    getSessionKey = () => '',
     getLiveStatus,
     getMentionTarget,
     getAutoReplyEnabled = () => false,
@@ -31,6 +32,7 @@ function createDanmakuSenderService(dependencies) {
   };
 
   async function getState() {
+    const sendSession = getSessionKey();
     const [auth, room, target] = await Promise.all([getAuth(), getRoom(), getMentionTarget()]);
     const live = getLiveStatus();
     const loggedIn = Boolean(auth && auth.loggedIn && auth.cookieHeader);
@@ -40,6 +42,7 @@ function createDanmakuSenderService(dependencies) {
       accountUid: Number(auth && auth.uid) || 0,
       accountName: '',
       roomId,
+      sendSession,
       roomName: cleanText(live && live.ownerName),
       connected: Boolean(live && live.connected),
       liveMessage: String((live && live.message) || ''),
@@ -102,6 +105,16 @@ function createDanmakuSenderService(dependencies) {
   }
 
   function send(input) {
+    if (input.sendSession !== undefined) {
+      const expectedSession = input.sendSession;
+      const assertCurrent = input.assertSessionCurrent;
+      input = { ...input, assertSessionCurrent(auth) {
+        if (typeof expectedSession !== 'string' || !expectedSession || expectedSession !== getSessionKey()) {
+          throw Object.assign(new Error('直播账号或房间已变更，已取消本次自动发送。'), { code: 'DANMAKU_SESSION_CHANGED' });
+        }
+        assertCurrent?.(auth);
+      } };
+    }
     // Rate checks and every chunk belong to the same serialized operation.
     const operation = sendChain.then(() => sendNow(input));
     sendChain = operation.catch(() => {});

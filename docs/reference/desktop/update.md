@@ -70,7 +70,7 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 ## 4. IPC 与 UI 同步
 
-通道、桥方法和方向只在 [preload.md](preload.md#21-songassistantdesktop) 维护；handler 由 [update-ipc.js](../../../src/electron/ipc/update-ipc.js) 注册。状态推送与错误处理由 [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `sendUpdateState` / `setUpdateError` 持有。
+通道、桥方法和方向只在 [preload.md](preload.md#21-songassistantdesktop) 维护；handler 由 [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js) 注册。状态推送与错误处理由 [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `sendUpdateState` / `setUpdateError` 持有。
 
 状态载荷沿用 §2 的对象，`version` 是当前应用版本，`progress` 随状态取值：
 

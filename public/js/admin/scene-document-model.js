@@ -27,8 +27,9 @@ export function createSceneDocumentModel(document) {
     const draft = clone(base);
     const result = mutator(draft);
     const next = result === undefined ? draft : result;
+    const previousItems = new Map(base.items.map((item) => [item.id, item]));
     for (const item of next.items) {
-      const previous = base.items.find((entry) => entry.id === item.id);
+      const previous = previousItems.get(item.id);
       if (!previous || item.width === previous.width && item.height === previous.height) continue;
       clampSceneItemPosition(item, next.canvas);
       if (item.appearance.mode !== 'shared') continue;

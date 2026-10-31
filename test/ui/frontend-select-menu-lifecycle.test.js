@@ -234,6 +234,11 @@ test('searchable font selects filter groups without changing selection and suppo
   assert.equal(options[1].hidden, false);
   assert.equal(options[1].style.fontFamily, '"得意黑"');
   assert.equal(select.value, 'maiyuan', 'filtering preserves the saved selection');
+  let searchEnterPrevented = false;
+  fire(menu, 'keydown', { target: search, key: 'Enter', preventDefault() { searchEnterPrevented = true; } });
+  assert.equal(searchEnterPrevented, true, 'search confirmation must not submit the surrounding form');
+  assert.equal(select.value, 'maiyuan');
+  assert.equal(menu.hidden, false);
   fire(menu, 'keydown', { target: search, key: ' ' });
   fire(menu, 'keydown', { target: search, key: 'Home' });
   assert.equal(f.document.activeElement, search, 'space and caret keys stay in the input');

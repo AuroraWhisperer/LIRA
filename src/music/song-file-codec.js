@@ -5,7 +5,7 @@ const {
   escapeXml,
   columnName,
   createZip,
-  readZipFiles,
+  readWorkbookFiles,
   parseSharedStrings,
   parseWorksheetXml,
 } = require('../shared/xlsx-codec');
@@ -13,20 +13,9 @@ const { SONG_EXPORT_HEADERS, SONG_TEMPLATE_HEADERS, SONG_IMPORT_ALIASES, firstVa
 
 function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   if (!buffer.length) throw new Error('Excel 文件为空。');
-  let worksheetEntry = '';
-  const files = readZipFiles(buffer, {
-    selectEntry(name) {
-      if (name === 'xl/sharedStrings.xml') return true;
-      if (!worksheetEntry && /^xl\/worksheets\/sheet\d+\.xml$/i.test(name)) {
-        worksheetEntry = name;
-        return true;
-      }
-      return false;
-    },
-  });
-  if (!worksheetEntry) throw new Error('Excel 文件里没有找到工作表。');
-  const sharedStrings = parseSharedStrings(files.get('xl/sharedStrings.xml') || '');
-  const table = parseWorksheetXml(files.get(worksheetEntry), sharedStrings);
+  const files = readWorkbookFiles(buffer);
+  const sharedStrings = parseSharedStrings(files.sharedStrings);
+  const table = parseWorksheetXml(files.worksheet, sharedStrings);
   if (table.length === 0) return [];
   const header = table[0].map((cell) => cleanText(cell));
   const allAliases = Object.values(SONG_IMPORT_ALIASES).flat();

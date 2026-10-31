@@ -271,7 +271,7 @@ const DANMAKU_FONTS = Object.freeze({
 // One field contract feeds validation and every parameter editor. Groups only change presentation.
 const DANMAKU_OPTION_FIELDS = Object.freeze({
   fontFamily: { label: '字体', type: 'font', default: 'default', defaultKey: 'defaultFontFamily' },
-  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize' },
+  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize', help: '调整正文和行内表情，气泡随内容自动增高。头像、头像框、昵称、徽章和装饰保持本款尺寸；礼物及上舰文案保留各款排版比例。需要整套放大或缩小，请在画布中缩放组件。' },
   textColor: { label: '正文颜色', type: 'color', alpha: true, default: '#eaf2ff', defaultKey: 'defaultTextColor' },
   backgroundOpacity: { label: '背景不透明度', type: 'number', input: 'range', min: 0, max: 100, default: 100, capability: 'background', unit: '%' },
   scrollDirection: { label: '滚动方向', type: 'select', default: 'up', capability: 'scrollDirection', choices: [['up', '从下向上（新弹幕在底部）'], ['down', '从上向下（新弹幕在顶部）']] },

@@ -293,14 +293,16 @@ function mergeConfig(
   const style = normalizeStyle(params.has('style') ? query.style : remoteSource.style);
   const source = { ...remoteSource, ...remoteSource.styles?.[style], enabled: remoteSource.enabled };
   const defaults = style === 'moonlit-fan' ? { ...DEFAULTS, ...MOONLIT_OPENING_DEFAULTS } : DEFAULTS;
+  const textWithDefault = (key) => style === 'moonlit-fan' && typeof source[key] === 'string'
+    ? cleanText(source[key], MAX_LENGTHS[key]) : cleanText(source[key], MAX_LENGTHS[key]) || defaults[key];
   const merged = { ...DEFAULTS, ...source, ...query };
   if (!params.has('enabled')) merged.enabled = Boolean(source.enabled ?? DEFAULTS.enabled);
   merged.style = normalizeStyle(params.has('style') ? query.style : source.style);
-  if (!params.has('title')) merged.title = cleanText(source.title, MAX_LENGTHS.title) || defaults.title;
-  if (!params.has('subtitle')) merged.subtitle = cleanText(source.subtitle, MAX_LENGTHS.subtitle) || defaults.subtitle;
+  if (!params.has('title')) merged.title = textWithDefault('title');
+  if (!params.has('subtitle')) merged.subtitle = textWithDefault('subtitle');
   if (!params.has('name')) merged.name = cleanText(source.name, MAX_LENGTHS.name);
   if (!params.has('footer')) merged.footer = style === 'moonlit-fan'
-    ? cleanText(source.footer, MAX_LENGTHS.footer) || defaults.footer : normalizeFooter(source.footer);
+    ? textWithDefault('footer') : normalizeFooter(source.footer);
   if (!params.has('quality'))
     merged.quality = Object.hasOwn(QUALITY_LIMITS, source.quality) ? source.quality : DEFAULTS.quality;
   merged.trackMotion = normalizeTrackMotion(params.has('trackMotion') ? query.trackMotion : source.trackMotion);

@@ -171,9 +171,9 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 3. `listenExactly` 绑定精确端口，phase 进入 `starting`;此时仅最小 `/api/health` 可用，其余请求返回 503。
 4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认分类、队列清理和 retention。
 5. 生成 `sessionToken`,写入 `.session-token` 与 `.server-runtime.json`，原子切换 phase 为 `ready`。
-6. `AUTO_OPEN_ADMIN=1` 时打开管理页；最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物功能。礼物服务只创建服务器结果投影器，本地消息不再注册礼物记账回调，仅保留用户身份提示。
+6. `AUTO_OPEN_ADMIN=1` 时尝试打开管理页；启动浏览器的同步异常和子进程异步 `error` 都只记录手动打开提示，不中断服务。最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物功能。礼物服务只创建服务器结果投影器，本地消息不再注册礼物记账回调，仅保留用户身份提示。
 
-启动失败时按已创建资源逆序停止 runtime、关闭数据库、关闭 listener，再删除本实例拥有的 token/runtime 文件并重抛。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
+启动失败时先进入 `quiescing`，删除本实例拥有的 token/runtime 文件并清空内存 `sessionToken`，随后清理已创建的 runtime、数据库和 listener，再复位启动状态并重抛原始错误。`startPromise` 单飞(重复调用返回同一 Promise);`isShuttingDown` 期间拒绝新启动。
 
 `disposeApplication` 首先撤销保留期维护 timer，再按既有资源顺序逐步清理，每一步单独捕获并记录失败，后续步骤仍继续，包括数据库关闭。启动失败清理中的领域异常不会覆盖最初的启动错误，也不会阻止 listener 关闭与 `startPromise` 复位；清理完成后允许重新启动。失败的资源关闭为 best-effort，不宣称一个抛错的资源自身已成功释放。
 
@@ -199,7 +199,7 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 ## 7. 会话凭据与页面能力
 
 - 每次启动随机生成管理 sessionToken，落盘 `data/.session-token`（0600），关闭时删除；不传给 renderer、HTML、URL 或其他 Electron 窗口。
-- 13 个页面能力为 `ov1:<scope>:<HMAC-SHA256>`，签名绑定本次运行密钥与固定命名空间，scope 来自服务端白名单。验证采用恒定时间比较，重启后全部旧能力失效。持有某页能力不能更改 scope 或调用管理接口。
+- 每个已登记的 overlay scope 使用 `ov1:<scope>:<HMAC-SHA256>` 形式的页面能力，签名绑定本次运行密钥与固定命名空间，scope 来自服务端白名单。验证采用恒定时间比较，重启后全部旧能力失效。持有某页能力不能更改 scope 或调用管理接口。
 - 本机页面 URL 保持匿名可打开，因此能访问相应页面的客户端可取得该页公开展示/互动能力；此机制不声称识别主播本人。游戏停止/重开、落子/绘画和转盘抽取继续可用，权限清单见 [api.md](api.md)，WS 出口见 [ws.md](ws.md)。
 - `GET /api/health` 匿名仅返回 `{serviceId,phase}`；仅有效管理凭据可读取 ready 诊断详情，overlay 凭据不行。合法 `X-Lira-Instance-Challenge`（64 位小写十六进制）可在 ready 阶段取得绑定运行密钥/端口/挑战的 `instanceProof`，证明本身不能授权 API。starting/quiescing 不返回证明，不访问未就绪或关闭的数据库。
 

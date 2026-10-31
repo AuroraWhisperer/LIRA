@@ -1,21 +1,30 @@
 'use strict';
 
 const { hasExactOrigin } = require('../local-media-access');
+const { normalizeGiftThanksTemplates } = require('../../../public/js/shared/gift-thanks-templates.js');
 
 function sanitizeState(state = {}) {
+  let templates = null;
+  let invalidTemplates = false;
+  try {
+    if (state.templates) templates = normalizeGiftThanksTemplates(state.templates);
+  } catch {
+    invalidTemplates = true;
+  }
   return {
-    ok: state.ok !== false,
+    ok: state.ok !== false && !invalidTemplates,
     values: {
       giftAutoThanksEnabled: state.values?.giftAutoThanksEnabled === true,
       giftStatsQueryEnabled: state.values?.giftStatsQueryEnabled === true,
     },
-    status: ['confirmed', 'pending'].includes(state.status) ? state.status : 'unconfirmed',
-    error: /^[A-Z][A-Z0-9_]{0,63}$/.test(state.error || '') ? state.error : null,
+    templates,
+    status: invalidTemplates ? 'unconfirmed' : ['confirmed', 'pending'].includes(state.status) ? state.status : 'unconfirmed',
+    error: invalidTemplates ? 'INVALID_RESPONSE' : /^[A-Z][A-Z0-9_]{0,63}$/.test(state.error || '') ? state.error : null,
   };
 }
 
 function registerGiftInteractionIpc({ ipcMain, controller, getMainWindow, getDesktopBaseUrl }) {
-  const channels = ['license:get-gift-interaction-state', 'license:set-gift-interaction'];
+  const channels = ['license:get-gift-interaction-state', 'license:set-gift-interaction', 'license:set-gift-thanks-templates'];
   for (const channel of channels) {
     ipcMain.handle(channel, async (event, intent) => {
       const window = getMainWindow();
@@ -30,7 +39,9 @@ function registerGiftInteractionIpc({ ipcMain, controller, getMainWindow, getDes
       }
       try {
         return sanitizeState(
-          channel === channels[0]
+          channel === channels[2]
+            ? await controller.setGiftThanksTemplates(normalizeGiftThanksTemplates(intent))
+            : channel === channels[0]
             ? await controller.refreshGiftInteractionState()
             : await controller.setGiftInteraction(intent),
         );
@@ -38,7 +49,7 @@ function registerGiftInteractionIpc({ ipcMain, controller, getMainWindow, getDes
         return sanitizeState({
           ...controller.getGiftInteractionState(),
           ok: false,
-          error: ['INVALID_GIFT_INTERACTION', 'GIFT_INTERACTION_PENDING'].includes(error?.code)
+          error: ['INVALID_GIFT_INTERACTION', 'GIFT_INTERACTION_PENDING', 'INVALID_GIFT_THANKS_TEMPLATES', 'GIFT_THANKS_UNSUPPORTED'].includes(error?.code)
             ? error.code
             : 'CLOUD_SYNC_FAILED',
         });

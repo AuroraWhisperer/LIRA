@@ -35,6 +35,7 @@ export function createPlaybackControls(deps) {
     });
   const queueManager = deps.queueManager || new QueueManager({ state: playbackState });
   let playRequestGeneration = 0;
+  let lyricRequestGeneration = 0;
   let audioRequestGeneration = 0;
   let playRequestSource = null;
 
@@ -200,7 +201,10 @@ export function createPlaybackControls(deps) {
 
   async function loadPlaybackLyrics(track) {
     if (!track) return;
+    const request = ++lyricRequestGeneration;
+    const playbackRequest = playRequestGeneration;
     const lyrics = await lyricService.loadLyrics(track);
+    if (request !== lyricRequestGeneration || !isCurrentPlaybackRequest(playbackRequest, track)) return;
     if (stateActions.setLyrics(track.id, lyrics)) {
       syncPlaybackLyricWindow(true);
     }

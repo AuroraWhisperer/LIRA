@@ -8,8 +8,7 @@ function isBilibiliDuplicateGuardToast(packet) {
   if (!cmd.startsWith('USER_TOAST_MSG_V2')) return false;
   const data = packet && packet.data && typeof packet.data === 'object' ? packet.data : {};
   const option = readFirstObject(data, ['option']) || {};
-  const source = option.source ?? data.source;
-  return Number(source) === 2;
+  return Number(option.source) === 2;
 }
 
 function isBilibiliGiftCommand(cmd) {

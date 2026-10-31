@@ -63,6 +63,36 @@ const connected = events => ({ status: 'connected', epoch: 'one', nextCursor: 2,
 const sceneData = events => ({ danmaku: connected(events) });
 const outputDoc = () => documentOf([item('danmaku', 'independent', { style: 'signal' })]);
 
+test('obsolete autoplay failures cannot mute a replacement decoration or access cleared media', async () => {
+  const videos = [];
+  const style = { setProperty() {}, removeProperty() {} };
+  const document = { documentElement: { style, dataset: {} }, querySelector: () => null,
+    head: { append() {} }, body: { prepend() {} }, createElement(tag) {
+      const node = { tagName: tag.toUpperCase(), dataset: {}, remove() {}, removeAttribute() {}, pause() {}, load() {},
+        plays: [], play() { return new Promise((resolve, reject) => node.plays.push({ resolve, reject })); } };
+      if (tag === 'video') videos.push(node);
+      return node;
+    } };
+  const { createMediaDecoration } = await load('overlays/component-media.js', { document, location: { pathname: '/background' }, AbortController });
+  const decoration = createMediaDecoration();
+  const config = char => ({ mediaStyle: { id: randomUUID(), kind: 'video', width: 640, height: 480, volume: 0.5,
+    src: `/component-media/${randomUUID()}/${char.repeat(64)}.webm` } });
+  decoration.update(config('a'));
+  decoration.update(config('b'));
+  videos[0].plays[0].reject(new Error('obsolete'));
+  await Promise.resolve();
+  assert.equal(videos[1].muted, false);
+  assert.equal(videos[1].plays.length, 1);
+  videos[1].plays[0].reject(new Error('autoplay denied'));
+  await Promise.resolve();
+  assert.equal(videos[1].muted, true);
+  assert.equal(videos[1].plays.length, 2);
+  decoration.dispose();
+  videos[1].plays[1].reject(new Error('cleared'));
+  await Promise.resolve();
+  assert.equal(videos[1].dataset.playbackFailed, undefined);
+});
+
 test('partial lyric ticks retain static data for new frames without resending it to active frames', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
   const doc = documentOf([item('songlist', 'independent', {}), item('lyrics', 'independent', {})]);

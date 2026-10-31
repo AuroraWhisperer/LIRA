@@ -33,7 +33,7 @@ test('Bilibili account changes reconnect the existing listener once without reco
     './settings-form.js': { createSettingsForm: () => ({}) },
     './song-request-blacklist.js': { createSongRequestBlacklist: noop },
     './song-request-user-blacklist.js': { createSongRequestUserBlacklist: noop },
-    './settings-license.js': { initLicenseAccountDevice: noop },
+    './settings-license.js': { initLicenseAccountDevice: noop, initLicenseAgreement: noop },
     './settings-operations.js': {
       createSettingsOperations: () => ({ reconnectBilibili: options => reconnects.push({ ...options }) }),
     },

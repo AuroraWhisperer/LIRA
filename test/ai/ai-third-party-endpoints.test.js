@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createDeepSeekClient } = require('../../src/ai/deepseek-client');
+const { createModelClient } = require('../../src/ai/model-client');
 
 function jsonResponse(payload, status = 200) {
   return {
@@ -19,7 +19,7 @@ for (const [configuredUrl, expectedUrl] of [
 ]) {
   test(`third-party OpenAI base ${configuredUrl} uses Chat Completions`, async () => {
     let captured;
-    const client = createDeepSeekClient({
+    const client = createModelClient({
       fetchImpl: async (url, options) => {
         captured = { url: String(url), body: JSON.parse(options.body) };
         return jsonResponse({
@@ -68,7 +68,7 @@ for (const [configuredUrl, expectedUrl] of [
 
 test('complete third-party Chat Completions URL remains unchanged', async () => {
   let capturedUrl;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url) => {
       capturedUrl = String(url);
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
@@ -89,7 +89,7 @@ test('complete third-party Chat Completions URL remains unchanged', async () => 
 
 test('third-party site root derives the conventional v1 models endpoint', async () => {
   let capturedUrl;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url) => {
       capturedUrl = String(url);
       return jsonResponse({ data: [{ id: 'custom-model' }] });
@@ -108,7 +108,7 @@ test('third-party site root derives the conventional v1 models endpoint', async 
 
 test('explicit Responses protocol adapts a third-party root and sends reasoning effort', async () => {
   let captured;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ id: 'resp_custom', output_text: 'ok' });
@@ -137,7 +137,7 @@ test('explicit Responses protocol adapts a third-party root and sends reasoning 
 
 test('explicit Chat Completions protocol adapts a third-party root without reasoning fields', async () => {
   let captured;
-  const client = createDeepSeekClient({
+  const client = createModelClient({
     fetchImpl: async (url, options) => {
       captured = { url: String(url), body: JSON.parse(options.body) };
       return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
