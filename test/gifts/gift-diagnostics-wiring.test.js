@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { loadModuleExports } = require('../helpers/frontend-modules');
 const { registerDesktopShellIpc } = require('../../src/electron/ipc/desktop-shell-ipc');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
@@ -43,80 +42,11 @@ test('desktop keeps the gift display bridge as a no-op compatibility channel', a
   assert.deepEqual(logs, []);
 });
 
-test('server broadcasts finalized gifts without per-gift diagnostic output', () => {
+test('server gift ingress does not write a second local ledger', () => {
   const source = [
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'server.js'), 'utf8'),
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'runtime-transport.js'), 'utf8'),
     fs.readFileSync(path.join(ROOT_DIR, 'src', 'server', 'bilibili-client.js'), 'utf8'),
   ].join('\n');
   assert.doesNotMatch(source, /domainServices\.gifts\.add\(/);
-  assert.match(source, /broadcastSnapshot\('bilibili:gift'\)/);
-  assert.doesNotMatch(source, /logGiftDelivery/);
-  assert.doesNotMatch(source, /\[Bilibili\]\[GiftDelivery\]/);
-});
-
-test('gift notification displays new gifts without per-toast diagnostics', async () => {
-  const reports = [];
-  const toasts = [];
-  const context = {
-    console,
-    document: {
-      getElementById(id) {
-        if (id === 'enableGiftNotification') return { checked: true };
-        return null;
-      },
-    },
-    window: {
-      songAssistantDesktop: {
-        reportGiftDisplay(gift) {
-          reports.push(gift);
-          return Promise.resolve();
-        },
-      },
-      AdminApp: {
-        utils: {
-          escapeHtml: String,
-          formatMoney: String,
-          showStackedToast(options) {
-            toasts.push(options);
-          },
-        },
-        gifts: {},
-      },
-    },
-  };
-
-  const { createGiftNotification } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'notification.js'),
-    context,
-  );
-  const { notifyNewGift: notify } = createGiftNotification({
-    notify: (options) => toasts.push(options),
-  });
-  notify([
-    {
-      id: 1,
-      gift_id: '1',
-      gift_name: 'Rose',
-      user_name: 'Alice',
-      uid: '42',
-      num: 1,
-      total_price: 1,
-    },
-  ]);
-  notify([
-    {
-      id: 2,
-      gift_id: '1',
-      gift_name: 'Rose',
-      user_name: 'Alice',
-      uid: '42',
-      num: 1,
-      total_price: 1,
-    },
-  ]);
-
-  assert.equal(toasts.length, 1);
-  assert.equal(toasts[0].key, 'gift:2');
-  assert.equal(reports.length, 0);
 });

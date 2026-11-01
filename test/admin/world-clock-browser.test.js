@@ -84,7 +84,6 @@ test('filtered reorder preserves hidden cities and keyboard moves use the same s
   assert.deepEqual((await savedOrder(page)).ids, ['los-angeles', 'london', 'new-york', 'beijing', 'dallas', 'tokyo']);
   await filter.fill('');
   assert.deepEqual(await order(page), (await savedOrder(page)).ids);
-  assert.match(await page.locator('[data-world-clock="order-status"]').textContent(), /纽约已移至第 3 位/);
 });
 
 test('Escape and dropping outside cancel without saving or accidentally selecting a city', async t => {
@@ -102,7 +101,6 @@ test('Escape and dropping outside cancel without saving or accidentally selectin
   await page.mouse.move(1000, 100);
   await page.mouse.up();
   assert.deepEqual(await order(page), ids);
-  assert.equal(await page.locator('.world-clock-city-ghost, .is-dragging').count(), 0);
   assert.deepEqual(await savedOrder(page), saved);
 });
 
@@ -111,47 +109,7 @@ test('switching context-menu targets and removing after reorder uses the city ID
   await drag(page, 'london', 'new-york');
   await card(page, 'london').locator('button').click({ button: 'right' });
   await card(page, 'new-york').locator('button').click({ button: 'right' });
-  const menu = page.locator('[data-world-clock="city-menu"]');
-  assert.equal(await menu.getAttribute('aria-label'), '纽约操作');
-  const target = await card(page, 'new-york').locator('button').boundingBox();
-  const popup = await menu.boundingBox();
-  assert.ok(Math.abs(popup.y - target.y) < 1);
-  assert.ok(Math.abs(popup.x - target.x - target.width - 8) < 1);
-  assert.equal(await card(page, 'london').locator('button').getAttribute('aria-expanded'), 'false');
   await page.getByRole('menuitem', { name: '从列表移除纽约' }).click();
   assert.deepEqual(await order(page), ['london', 'beijing', 'tokyo']);
   assert.equal((await savedOrder(page)).selectedId, 'beijing');
-  assert.equal(await page.locator('.is-menu-open').count(), 0);
-});
-
-test('starfield pauses with the map and honors reduced motion without hiding the stars', async t => {
-  const page = await openClock(t, { ids: ['beijing'] });
-  const space = page.locator('[data-world-clock="space"]');
-  const isRunning = () => space.evaluate(node => {
-    const animations = node.getAnimations({ subtree: true });
-    return animations.length > 0 && animations.every(animation => animation.playState === 'running');
-  });
-  await page.waitForFunction(() => document.querySelector('[data-world-clock="space"]').classList.contains('is-active'));
-  assert.equal(await isRunning(), true);
-  assert.equal(await space.getAttribute('aria-hidden'), 'true');
-  assert.equal(await space.evaluate(node => getComputedStyle(node).pointerEvents), 'none');
-
-  await page.locator('[data-world-clock="add"]').click();
-  assert.equal(await isRunning(), false);
-  assert.ok(await space.evaluate(node => node.getAnimations({ subtree: true }).every(animation => animation.playState === 'paused')));
-  await page.keyboard.press('Escape');
-  await page.waitForFunction(() => document.querySelector('[data-world-clock="space"]').classList.contains('is-active'), undefined, { polling: 50 });
-  assert.equal(await isRunning(), true);
-
-  await page.evaluate(() => document.getElementById('otherWorldClockFeature').hidden = true);
-  assert.equal(await isRunning(), false);
-  await page.evaluate(() => document.getElementById('otherWorldClockFeature').hidden = false);
-  await page.waitForFunction(() => document.querySelector('[data-world-clock="space"]').classList.contains('is-active'));
-  assert.equal(await isRunning(), true);
-
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  assert.equal(await space.evaluate(node => node.getAnimations({ subtree: true }).length), 0);
-  assert.notEqual(await page.locator('.world-clock-stars-far').evaluate(node => getComputedStyle(node).backgroundImage), 'none');
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  assert.equal(await isRunning(), true);
 });

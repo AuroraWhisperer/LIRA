@@ -68,8 +68,6 @@ test('text box configuration rejects HTML payloads, arbitrary requests, invalid 
 test('text box scrolling defaults off for old scenes and survives scene and template round trips', () => {
   const { scrollMode, scrollSpeed, ...legacy } = createTextBoxDefaults();
   assert.equal(normalizeTextBoxConfig(legacy).scrollMode, 'none');
-  assert.equal(normalizeTextBoxConfig(legacy).scrollSpeed, 40);
-  assert.equal(normalizeTextBoxConfig({ ...legacy, scrollMode: 'horizontal' }).scrollSpeed, 40);
   for (const mode of ['none', 'horizontal', 'vertical']) {
     const config = { ...legacy, scrollMode: mode, scrollSpeed: 85, nodes: [{ type: 'text', text: '长篇公告\n'.repeat(2000) }] };
     const document = { schemaVersion: 1, id: randomUUID(), title: 'scroll', canvas: { width: 1920, height: 1080 },

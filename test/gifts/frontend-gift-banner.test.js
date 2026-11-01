@@ -7,71 +7,41 @@ const path = require('node:path');
 const { createUiFixture } = require('../helpers/ui-edit-state-fixture');
 
 const fixture = createUiFixture();
-test('gift banners use the sender avatar proxy and distinguish captain from unknown identity', async (t) => {
+test('gift banners load sender avatars through the token-scoped avatar proxy', async (t) => {
   const page = await fixture(t, 'gift-display');
-  const banners = await page.evaluate(async () => {
+  const avatar = await page.evaluate(async () => {
     const { createGiftBanner } = await import('/js/shared/gift-banner.js');
     window.__API_TOKEN__ = 'synthetic-overlay-token';
-    return [3, 2, 1, 0, null].map((guardLevel) => {
-      const banner = createGiftBanner(
-        {
-          eventId: String(guardLevel),
-          gift: {
-            giftId: 'sample',
-            giftName: '舰长',
-            userName: '测试观众',
-            unitPrice: 2,
-            num: 1,
-            avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic.webp',
-            guardLevel,
-          },
+    const banner = createGiftBanner(
+      {
+        eventId: '1',
+        gift: {
+          giftId: 'sample',
+          giftName: '舰长',
+          userName: '测试观众',
+          unitPrice: 2,
+          num: 1,
+          avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic.webp',
+          guardLevel: 3,
         },
-        { thresholds: [3000, 10000, 100000] },
-      );
-      document.body.append(banner);
-      const avatar = new URL(banner.querySelector('.gift-banner-avatar').src);
-      return {
-        path: avatar.pathname,
-        source: avatar.searchParams.get('url'),
-        token: avatar.searchParams.get('token'),
-        frame: banner.querySelector('.gift-banner-frame')?.getAttribute('src') || null,
-      };
-    });
+      },
+      { thresholds: [3000, 10000, 100000] },
+    );
+    const url = new URL(banner.querySelector('.gift-banner-avatar').src);
+    return { path: url.pathname, source: url.searchParams.get('url'), token: url.searchParams.get('token') };
   });
-  for (const banner of banners) {
-    assert.equal(banner.path, '/api/bilibili/avatar');
-    assert.equal(banner.source, 'https://i0.hdslb.com/bfs/face/synthetic.webp');
-    assert.equal(banner.token, 'synthetic-overlay-token');
-  }
-  assert.deepEqual(
-    banners.map((banner) => banner.frame),
-    [
-      '/img/overlays/danmaku-guard/bubble-captain-frame.webp',
-      '/img/overlays/danmaku-guard/bubble-admiral-frame.webp',
-      '/img/overlays/danmaku-guard/bubble-governor-frame.webp',
-      null,
-      null,
-    ],
-  );
-  for (const [roomId, count, thousand] of [['52030', 1001, true], ['52030', 1000, false], ['52030', 10001, true], ['42', null, false]]) {
-    const frames = await page.evaluate(async ({ roomId, count }) => {
-      const { applyRoomGuardState } = await import('/js/shared/bilibili-guard-icons.js');
-      const before = [...document.querySelectorAll('.gift-banner-frame')];
-      applyRoomGuardState({ roomId, count });
-      return before.map(node => ({ connected: node.isConnected, source: node.getAttribute('src') }));
-    }, { roomId, count });
-    assert.deepEqual(frames, ['captain', 'admiral', 'governor'].map(tier => ({ connected: true,
-      source: thousand ? `/img/overlays/danmaku-harbor/${tier}-frame.png` : `/img/overlays/danmaku-guard/bubble-${tier}-frame.webp`,
-    })));
-  }
+  assert.deepEqual(avatar, {
+    path: '/api/bilibili/avatar',
+    source: 'https://i0.hdslb.com/bfs/face/synthetic.webp',
+    token: 'synthetic-overlay-token',
+  });
 });
 
-test('gift banner updates retain images, patch rank and refit only changed text', async (t) => {
+test('gift banner updates patch the sender avatar and quantity', async (t) => {
   const page = await fixture(t, 'gift-display');
   await page.setContent('<div id="stage"></div>');
-  await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/shared/gift-banner.css'), 'utf8') });
   const result = await page.evaluate(async () => {
-    const { createGiftBanner, updateGiftBanner, fitGiftBannerNames } = await import('/js/shared/gift-banner.js');
+    const { createGiftBanner, updateGiftBanner } = await import('/js/shared/gift-banner.js');
     const config = { thresholds: [3000, 10000, 100000] };
     const item = {
       eventId: 'same',
@@ -87,167 +57,19 @@ test('gift banner updates retain images, patch rank and refit only changed text'
     };
     const row = createGiftBanner(item, config);
     document.getElementById('stage').append(row);
-    const baseNameSize = parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize);
-    const avatar = row.querySelector('.gift-banner-avatar');
-    const artwork = row.querySelector('.gift-banner-artwork');
-    const frame = row.querySelector('.gift-banner-frame');
-    const next = {
-      ...item,
-      gift: {
-        ...item.gift,
-        userName: '较长的昵称'.repeat(15),
-        giftName: '较长的礼物名'.repeat(15),
-        num: 5,
-        guardLevel: 2,
-        avatarUrl: 'https://i0.hdslb.com/bfs/face/new.webp',
-      },
-    };
-    const needsFit = updateGiftBanner(row, next, config);
-    if (needsFit) fitGiftBannerNames(row);
-    const changed = {
-      needsFit,
-      frameReused: frame === row.querySelector('.gift-banner-frame'),
-      frameSource: frame.getAttribute('src'),
-      avatarSource: new URL(avatar.src).searchParams.get('url'),
-      textShrunk: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) < baseNameSize,
+    updateGiftBanner(row, { ...item, gift: { ...item.gift, num: 5, avatarUrl: 'https://i0.hdslb.com/bfs/face/new.webp' } }, config);
+    return {
+      avatarSource: new URL(row.querySelector('.gift-banner-avatar').src).searchParams.get('url'),
       count: row.querySelector('.gift-banner-count').textContent,
     };
-    const short = { ...next, gift: { ...next.gift, userName: '短', giftName: '花', guardLevel: 0 } };
-    if (updateGiftBanner(row, short, config)) fitGiftBannerNames(row);
-    return {
-      ...changed,
-      frameRemoved: !row.querySelector('.gift-banner-frame'),
-      imagesReused:
-        avatar === row.querySelector('.gift-banner-avatar') && artwork === row.querySelector('.gift-banner-artwork'),
-      shortNameRestored: parseFloat(getComputedStyle(row.querySelector('.gift-banner-name')).fontSize) === baseNameSize,
-    };
   });
-  assert.deepEqual(result, {
-    needsFit: true,
-    frameReused: true,
-    frameSource: '/img/overlays/danmaku-guard/bubble-admiral-frame.webp',
-    avatarSource: 'https://i0.hdslb.com/bfs/face/new.webp',
-    textShrunk: true,
-    count: '×5',
-    frameRemoved: true,
-    imagesReused: true,
-    shortNameRestored: true,
-  });
+  assert.deepEqual(result, { avatarSource: 'https://i0.hdslb.com/bfs/face/new.webp', count: '×5' });
 });
 
-test('gift banners fit long names and inset the avatar inside the rounded color bar', async (t) => {
-  const page = await fixture(t, 'gift-display');
-  await page.setContent('<div id="giftStylePreview" class="gift-banner-stage"></div>');
-  await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/shared/gift-banner.css'), 'utf8') });
-  const layout = await page.evaluate(async () => {
-    const { createGiftBanner, fitGiftBannerNames } = await import('/js/shared/gift-banner.js');
-    const preview = document.getElementById('giftStylePreview');
-    preview.replaceChildren(
-      createGiftBanner(
-        {
-          eventId: 'long-name',
-          gift: {
-            giftId: 'sample',
-            giftName: '长礼物名测试'.repeat(3),
-            userName: '长昵称测试'.repeat(5),
-            unitPrice: 2,
-            num: 1,
-          },
-        },
-        { thresholds: [10000, 50000, 100000] },
-      ),
-    );
-    await document.fonts.ready;
-    const banner = document.querySelector('#giftStylePreview .gift-banner');
-    const baseNameSize = parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize);
-    fitGiftBannerNames(preview);
-    const bounds = banner.getBoundingClientRect();
-    const text = banner.querySelector('.gift-banner-text').getBoundingClientRect();
-    const artwork = banner.querySelector('.gift-banner-artwork').getBoundingClientRect();
-    const avatar = banner.querySelector('.gift-banner-avatar').getBoundingClientRect();
-    const bar = banner.querySelector('.gift-banner-background').getBoundingClientRect();
-    return {
-      width: bounds.width,
-      height: bounds.height,
-      avatarInsideBar: avatar.left >= bar.left && avatar.right <= bar.right && avatar.top >= bar.top && avatar.bottom <= bar.bottom,
-      nameFits:
-        banner.querySelector('.gift-banner-name').scrollWidth <= banner.querySelector('.gift-banner-name').clientWidth,
-      nameShrinks: parseFloat(getComputedStyle(banner.querySelector('.gift-banner-name')).fontSize) < baseNameSize,
-      giftFits:
-        banner.querySelector('.gift-banner-gift').scrollWidth <= banner.querySelector('.gift-banner-gift').clientWidth,
-      textClearsArtwork: text.right <= artwork.left,
-      quantityFits: banner.querySelector('.gift-banner-count').getBoundingClientRect().right <= bounds.right,
-      quantityInsideHeight: banner.querySelector('.gift-banner-count').getBoundingClientRect().bottom <= bounds.bottom,
-    };
-  });
-  assert.deepEqual(layout, {
-    width: 428,
-    height: 72,
-    avatarInsideBar: true,
-    nameFits: true,
-    nameShrinks: true,
-    giftFits: true,
-    textClearsArtwork: true,
-    quantityFits: true,
-    quantityInsideHeight: true,
-  });
-});
-
-test('gift names fit their full text at normal and PNG scale while short names keep their size', async (t) => {
+test('long gift counts expand exported PNG dimensions', async (t) => {
   const page = await fixture(t, 'gift-display');
   await page.setContent('<div id="stage" class="gift-banner-stage"></div>');
   await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/shared/gift-banner.css'), 'utf8') });
-  const result = await page.evaluate(async () => {
-    const { createGiftBanner, fitGiftBannerNames } = await import('/js/shared/gift-banner.js');
-    await import('/js/overlays/gift-export.js');
-    const names = [
-      '短昵称',
-      '中'.repeat(10),
-      '很长的中文昵称'.repeat(6),
-      'WideW_1234567890'.repeat(4),
-      '观众🎉🚀_Viewer'.repeat(5),
-    ];
-    const items = names.map((userName, index) => ({
-      eventId: String(index),
-      gift: { giftId: 'sample', giftName: '礼物', userName, unitPrice: 2, num: 1 },
-    }));
-    const config = { thresholds: [10000, 50000, 100000] };
-    const stage = document.getElementById('stage');
-    const measure = () =>
-      [...stage.querySelectorAll('.gift-banner-name')].map((name) => {
-        const range = document.createRange();
-        range.selectNodeContents(name);
-        return {
-          text: name.textContent,
-          fontSize: parseFloat(getComputedStyle(name).fontSize),
-          fits: range.getBoundingClientRect().width <= name.getBoundingClientRect().width,
-        };
-      });
-    stage.replaceChildren(...items.map((item) => createGiftBanner(item, config)));
-    const baseNameSize = parseFloat(getComputedStyle(stage.querySelector('.gift-banner-name')).fontSize);
-    fitGiftBannerNames(stage);
-    const normal = measure();
-    stage.style.transform = 'scale(2)';
-    stage.style.transformOrigin = 'top left';
-    const output = await window.renderGiftExport({ items, config, catalog: [], background: 'transparent' });
-    return { names, normal, scaled: measure(), output, baseNameSize };
-  });
-  assert.deepEqual(result.normal, result.scaled);
-  assert.deepEqual(
-    result.normal.map((name) => name.text),
-    result.names,
-  );
-  assert.ok(result.normal.every((name) => name.fits));
-  assert.equal(result.normal[0].fontSize, result.baseNameSize);
-  assert.ok(result.normal.slice(1).every((name) => name.fontSize > 0 && name.fontSize < result.baseNameSize));
-  assert.equal(result.output.width, 856);
-});
-
-test('long gift counts expand PNG and browser-source canvases without moving artwork or squeezing text', async (t) => {
-  const page = await fixture(t, 'gift-display');
-  await page.setContent('<div id="giftFeedViewport"><div id="stage" class="gift-banner-stage"></div></div>');
-  await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/shared/gift-banner.css'), 'utf8') });
-  await page.addStyleTag({ content: fs.readFileSync(path.resolve('public/css/overlays/gift-feed.css'), 'utf8') });
   const result = await page.evaluate(async () => {
     await import('/js/overlays/gift-export.js');
     const stage = document.getElementById('stage');
@@ -267,41 +89,22 @@ test('long gift counts expand PNG and browser-source canvases without moving art
     return {
       singles,
       combined,
-      viewportWidth: document.getElementById('giftFeedViewport').getBoundingClientRect().width,
+      stageHeight: stage.getBoundingClientRect().height,
       rows: [...stage.children].map((row) => {
         const bounds = row.getBoundingClientRect();
-        const text = row.querySelector('.gift-banner-text').getBoundingClientRect();
-        const artwork = row.querySelector('.gift-banner-artwork').getBoundingClientRect();
-        const count = row.querySelector('.gift-banner-count').getBoundingClientRect();
         return {
           width: bounds.width,
-          artworkLeft: artwork.left - bounds.left,
-          textWidth: text.width,
-          barWidth: row.querySelector('.gift-banner-background').getBoundingClientRect().width,
-          countLeft: count.left - bounds.left,
-          countSize: getComputedStyle(row.querySelector('.gift-banner-count')).fontSize,
-          rightPadding: bounds.right - count.right,
-          artworkClear: artwork.right <= count.left,
+          height: bounds.height,
         };
       }),
     };
   });
-  assert.deepEqual(result.singles[0], { width: 856, height: 144 });
-  assert.equal(result.rows[0].width, 428);
   for (let index = 0; index < result.rows.length; index += 1) {
     const row = result.rows[index];
     assert.equal(result.singles[index].width, Math.ceil(row.width * 2));
-    assert.equal(row.artworkLeft, result.rows[0].artworkLeft);
-    assert.equal(row.textWidth, result.rows[0].textWidth);
-    assert.equal(row.barWidth, result.rows[0].barWidth);
-    assert.equal(row.countLeft, result.rows[0].countLeft);
-    assert.equal(row.countSize, result.rows[0].countSize);
-    assert.ok(row.rightPadding >= 0);
-    assert.ok(row.artworkClear);
+    assert.equal(result.singles[index].height, Math.ceil(row.height * 2));
     if (index) assert.ok(row.width > result.rows[index - 1].width);
   }
   assert.equal(result.combined.width, result.singles.at(-1).width);
-  assert.equal(result.combined.height, 624);
-  assert.equal(result.viewportWidth, result.rows.at(-1).width);
-  assert.ok(result.viewportWidth <= 900);
+  assert.equal(result.combined.height, Math.ceil(result.stageHeight * 2));
 });

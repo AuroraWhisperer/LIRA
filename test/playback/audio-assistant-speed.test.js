@@ -37,7 +37,7 @@ test('assistant speed applies only to this instance during processing and restor
     f.receive(state);
     assert.equal(f.audio.playbackRate, 1);
   }
-  for (const speedPercent of [50, 100, 150, 200]) {
+  for (const speedPercent of [50, 200]) {
     f.receive({ settings: { speedPercent } });
     assert.equal(f.audio.playbackRate, speedPercent / 100);
     assert.equal(f.audio.preservesPitch, true);

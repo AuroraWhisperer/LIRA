@@ -8,7 +8,7 @@ function unavailable(statusCode = 503) {
   });
 }
 
-function createDisplayNotifications({ getAccess, createError = unavailable, heartbeatMs = 1000, coalesceMs = 40, maxStreams = 4 }) {
+function createDisplayNotifications({ getAccess, onActivity = () => {}, createError = unavailable, heartbeatMs = 1000, coalesceMs = 40, maxStreams = 4 }) {
   const streams = new Set();
   let heartbeat = null;
   let disposed = false;
@@ -51,14 +51,17 @@ function createDisplayNotifications({ getAccess, createError = unavailable, hear
     }
   }
 
-  function write(stream, text) {
+  function write(stream, text, access) {
     if (!streams.has(stream)) return false;
     if (stream.res.destroyed || stream.res.writableEnded) {
       remove(stream);
       return false;
     }
     try {
-      if (stream.res.write(text) !== false) return true;
+      if (stream.res.write(text) !== false) {
+        if (access) onActivity(access);
+        return true;
+      }
     } catch {
       close(stream, true);
       return false;
@@ -86,7 +89,7 @@ function createDisplayNotifications({ getAccess, createError = unavailable, hear
     const access = revalidate(stream);
     if (!access || !pending) return;
     if (pending.all || access.version !== stream.version || access.types.some((type) => pending.types.has(type))) {
-      if (write(stream, 'data: change\n\n')) stream.version = access.version;
+      if (write(stream, 'data: change\n\n', access)) stream.version = access.version;
     }
   }
 
@@ -96,8 +99,8 @@ function createDisplayNotifications({ getAccess, createError = unavailable, hear
       if (!access) continue;
       if (access.version !== stream.version) {
         clearPending(stream);
-        if (write(stream, 'data: change\n\n')) stream.version = access.version;
-      } else write(stream, ': heartbeat\n\n');
+        if (write(stream, 'data: change\n\n', access)) stream.version = access.version;
+      } else write(stream, ': heartbeat\n\n', access);
     }
   }
 
@@ -115,7 +118,7 @@ function createDisplayNotifications({ getAccess, createError = unavailable, hear
     res.on('error', stream.onError);
     try {
       res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store' });
-      write(stream, 'data: ready\n\n');
+      write(stream, 'data: ready\n\n', access);
     } catch {
       close(stream, true);
     }

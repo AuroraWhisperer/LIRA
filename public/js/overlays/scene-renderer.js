@@ -236,6 +236,9 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       const resets = Object.fromEntries(Object.entries(SCENE_COMPONENTS)
         .filter(([, component]) => component.disconnectedData)
         .map(([type, component]) => [type, component.disconnectedData()]));
+      if (latestData.danmaku?.epoch) {
+        resets.danmaku = { ...latestData.danmaku, status: 'offline', reset: false, events: [] };
+      }
       latestData = { ...latestData, ...resets };
       data(active, resets);
     },

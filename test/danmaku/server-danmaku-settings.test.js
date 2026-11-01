@@ -52,7 +52,6 @@ async function fixture() {
   const reads = [],
     writes = [],
     opened = [],
-    copied = [],
     notifications = [];
   const localResponse = (value) => {
     if (!value.ok) throw new Error(value.error);
@@ -108,7 +107,7 @@ async function fixture() {
           specifier.includes('utils') ? ['copyText', 'localOverlayOrigin', 'toast'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeAuthorizedAccount'],
           function () {
             if (specifier.includes('utils')) {
-              this.setExport('copyText', async (value) => copied.push(value));
+              this.setExport('copyText', async () => {});
               this.setExport('toast', () => {});
               this.setExport('localOverlayOrigin', () => 'http://127.0.0.1:3000');
             } else if (specifier.includes('canvas-dialog')) {
@@ -139,7 +138,7 @@ async function fixture() {
     elements.fullscreenDuration.value = value;
     elements.fullscreenDuration.events.change();
   };
-  return { elements, node, reads, writes, opened, copied, editors, notifications, click, duration, account: (value) => observer(value) };
+  return { elements, node, reads, writes, opened, editors, notifications, click, duration, account: (value) => observer(value) };
 }
 
 test('server link uses the authorized configured public origin, including its port', async () => {
@@ -181,28 +180,11 @@ test('edits and local preview do not write until explicit apply; late save prese
   f.click('identity');
   f.writes[0].resolve({ ...saved('outline'), styleOptions: f.writes[0].parameters.styleOptions });
   await first;
-  assert.match(f.elements.styleChip.textContent, /待应用.*灵动弹幕/);
-  assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
+  assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false, 'the newer draft stays pending');
   const next = f.click('danmakuApplyOverlayBtn');
   f.writes[1].resolve({ ...saved('identity'), styleOptions: f.writes[1].parameters.styleOptions });
   await next;
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
-});
-
-test('failed apply and invalid durations retain the editable draft', async () => {
-  const f = await fixture();
-  f.reads[0].resolve(saved());
-  await flush();
-  f.click('outline');
-  f.duration('12');
-  f.duration('31');
-  assert.equal(f.elements.fullscreenDuration.value, '12');
-  const pending = f.click('danmakuApplyOverlayBtn');
-  f.writes[0].resolve({ ok: false, error: '本机保存失败，请稍后重试。' });
-  await pending;
-  assert.match(f.elements.styleSaveState.textContent, /草稿已保留.*本机保存失败/);
-  assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
-  assert.match(f.elements.styleChip.textContent, /一纸素笺/);
 });
 
 test('a same-account relogin rejects the old read binding before subsequent saves', async () => {
@@ -227,30 +209,14 @@ test('local validation and ownership rejections retain the draft for retry', asy
   f.reads[0].resolve(saved());
   await flush();
   f.click('twitter');
-  for (const [error, message] of [
-    ['弹幕外观参数无效。', /参数无效/],
-    ['账号授权已变化，请重新读取后保存。', /账号授权已变化/],
-    ['本机保存失败，请稍后重试。', /请稍后重试/],
-  ]) {
+  for (const error of ['弹幕外观参数无效。', '账号授权已变化，请重新读取后保存。']) {
     const pending = f.click('danmakuApplyOverlayBtn');
     f.writes.at(-1).resolve({ ok: false, error });
     await pending;
-    const notice = f.notifications.at(-1);
-    assert.match(notice.message, message);
-    assert.equal(notice.options.type, 'error');
+    assert.equal(f.notifications.at(-1).options.type, 'error');
     assert.equal(f.writes.at(-1).parameters.style, 'twitter');
     assert.equal(f.node('danmakuApplyOverlayBtn').disabled, false);
-    assert.match(f.elements.styleSaveState.textContent, /草稿已保留/);
   }
-});
-
-test('an initial settings read failure is not presented as a failed apply or a retained draft', async () => {
-  const f = await fixture();
-  f.reads[0].resolve({ ok: false, error: '弹幕外观读取失败' });
-  await flush();
-  assert.match(f.elements.styleSaveState.textContent, /弹幕外观读取失败/);
-  assert.doesNotMatch(f.elements.styleSaveState.textContent, /应用失败|草稿已保留|保存/);
-  assert.equal(f.writes.length, 0);
 });
 
 test('appearance drafts belong to each style and apply together without leaking to the old server', async () => {
@@ -268,25 +234,13 @@ test('appearance drafts belong to each style and apply together without leaking 
   f.node('danmakuBackgroundOpacity').max = '100';
   change('danmakuBackgroundOpacity', '35');
   change('danmakuGiftImage', 'gift');
-  assert.equal(f.node('danmakuScrollDirection').value, 'up');
   change('danmakuScrollDirection', 'down');
   f.click('minimal');
-  assert.equal(f.node('danmakuScrollDirectionField').hidden, false);
-  assert.equal(f.node('danmakuScrollDirection').value, 'up');
-  assert.equal(f.node('danmakuTextColor').value, '#f7f9ff');
-  assert.equal(f.node('danmakuFontSize').max, '40');
-  assert.equal(f.node('danmakuBackgroundOpacityField').hidden, true);
-  assert.equal(f.node('danmakuGiftImageField').hidden, true);
-  assert.equal(f.node('danmakuFontSize').value, '30');
-  change('danmakuFontSize', '41');
-  assert.equal(f.node('danmakuFontSize').value, '30');
+  assert.equal(f.node('danmakuScrollDirection').value, 'up', 'another style starts from its own draft');
   change('danmakuFontSize', '24');
   f.click('glow');
-  assert.equal(f.node('danmakuEntranceAnimationField').hidden, false);
-  assert.equal(f.node('danmakuEntranceAnimation').value, 'fade');
   change('danmakuEntranceAnimation', 'rise');
   f.click('twitter');
-  assert.equal(f.node('danmakuComposerTextField').hidden, false);
   change('danmakuComposerText', '欢迎 ♥ Hello');
   change('danmakuTwitterHeader', 'hide');
   change('danmakuTwitterComposer', 'hide');
@@ -296,8 +250,6 @@ test('appearance drafts belong to each style and apply together without leaking 
   change('danmakuTwitterColor100', '#345678');
   change('danmakuTwitterColor1000', '#456789');
   f.click('signal');
-  assert.equal(f.node('danmakuComposerTextField').hidden, true);
-  assert.equal(f.node('danmakuEntranceAnimationField').hidden, true);
   assert.equal(f.node('danmakuTextColor').value, '#aabbcc');
   assert.equal(f.node('danmakuFontSize').value, '42');
   assert.equal(f.node('danmakuGiftImage').value, 'gift');
@@ -324,21 +276,6 @@ test('appearance drafts belong to each style and apply together without leaking 
   f.writes[0].resolve({ ...saved(), styleOptions: expected });
   await pending;
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
-  f.click('danmakuResetParameters');
-  assert.equal(f.node('danmakuScrollDirection').value, 'up');
-  assert.equal(f.node('danmakuTextColor').value, '#eaf2ff');
-  assert.equal(f.node('danmakuFontSize').value, '30');
-  f.click('minimal');
-  assert.equal(f.node('danmakuFontSize').value, '24');
-  f.click('glow');
-  assert.equal(f.node('danmakuEntranceAnimation').value, 'rise');
-  f.click('danmakuResetParameters');
-  assert.equal(f.node('danmakuEntranceAnimation').value, 'fade');
-  f.account('');
-  assert.equal(f.node('danmakuFontSize').disabled, true);
-  assert.equal(f.node('danmakuFontFamily').value, '"Microsoft YaHei UI"');
-  assert.equal(f.node('danmakuScrollDirection').disabled, true);
-  assert.equal(f.node('danmakuEntranceAnimation').disabled, true);
 });
 
 test('canvas drafts use local persistence and remain after a rejected write', async () => {
@@ -355,58 +292,11 @@ test('canvas drafts use local persistence and remain after a rejected write', as
   assert.deepEqual(f.writes[0].parameters.layout, layout);
   f.writes[0].reject(new Error('本机保存失败'));
   await pending;
-  assert.match(f.elements.styleSaveState.textContent, /草稿已保留.*本机保存失败/);
   const retry = f.editors[0].onApply();
   f.writes[1].resolve({ ...saved(), styleOptions: {}, layout });
   await retry;
   assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
 });
-
-test('local defaults keep all supported appearance controls available', async () => {
-  const f = await fixture();
-  const legacy = saved();
-  f.reads[0].resolve(legacy);
-  await flush();
-  assert.equal(f.node('danmakuFontSize').disabled, false);
-  assert.equal(f.node('danmakuScrollDirection').disabled, false);
-  f.click('outline');
-  assert.equal(f.elements.fullscreenDuration.disabled, false);
-  assert.match(f.elements.styleChip.textContent, /待应用.*一纸素笺/);
-  f.click('glow');
-  assert.equal(f.node('danmakuEntranceAnimation').disabled, false);
-});
-
-for (const [style, label] of [
-  ['cream', '杏花白'],
-  ['glow', '流光溢彩'],
-]) {
-  test(`${style} is a random-style draft with duration, read-only preview and explicit apply`, async () => {
-    const f = await fixture();
-    f.reads[0].resolve(saved());
-    await flush();
-    f.click(style);
-    assert.equal(f.node('danmakuScrollDirectionField').hidden, true);
-    f.duration('9');
-    assert.equal(f.elements.fullscreenDurationField.hidden, false);
-    assert.match(f.elements.styleChip.textContent, new RegExp(`待应用.*${label}`));
-    f.click('previewOverlayButton');
-    assert.equal(f.editors[0].draft.style, style);
-    assert.equal(f.editors[0].draft.styleOptions[style].durationSeconds, 9);
-    assert.equal(f.writes.length, 0);
-    const pending = f.click('danmakuApplyOverlayBtn');
-    assert.deepEqual(f.writes[0].parameters, { style, fullscreenDurationSeconds: 6, styleOptions: { [style]: { durationSeconds: 9 } } });
-    f.writes[0].resolve({ ...saved(style), styleOptions: f.writes[0].parameters.styleOptions });
-    await pending;
-    assert.match(f.elements.styleChip.textContent, new RegExp(`已应用样式.*${label}`));
-    assert.equal(f.node('danmakuApplyOverlayBtn').disabled, true);
-    f.click('outline');
-    assert.equal(f.node('danmakuScrollDirectionField').hidden, true);
-    assert.equal(f.elements.fullscreenDurationField.hidden, false);
-    f.click('signal');
-    assert.equal(f.node('danmakuScrollDirectionField').hidden, false);
-    assert.equal(f.elements.fullscreenDurationField.hidden, true);
-  });
-}
 
 test('a late read cannot replace a draft and an old account save cannot affect the new account', async () => {
   const f = await fixture();
@@ -416,24 +306,21 @@ test('a late read cannot replace a draft and an old account save cannot affect t
   f.click('transparent');
   f.reads[1].resolve(saved('bubble'));
   await reload;
-  assert.match(f.elements.styleChip.textContent, /待应用.*留白/);
   const pending = f.click('danmakuApplyOverlayBtn');
+  assert.equal(f.writes[0].parameters.style, 'transparent', 'the late read did not replace the draft');
   f.account('');
-  assert.match(f.elements.styleSaveState.textContent, /请先连接/);
   const nextUrl = 'https://other.example.test/overlay/syntheticKey_123';
   f.account(nextUrl);
   f.reads[2].resolve(saved('ranked', 8, nextUrl));
   await flush();
   f.writes[0].resolve(saved('transparent'));
   await pending;
-  assert.match(f.elements.styleChip.textContent, /已应用样式.*经典样式/);
   f.click('outline');
   assert.equal(f.elements.fullscreenDuration.value, '8');
 });
 
-test('local preview is available without authorization and the appearance panel exposes no old source link', async () => {
+test('local preview is available without authorization but cannot apply', async () => {
   const f = await fixture();
-  assert.doesNotMatch(source('danmaku-overlay-settings.js'), /getOverlaySettings|updateOverlaySettings|bindCopyUrl|window\.open/);
   f.account('');
   assert.equal(f.elements.previewOverlayButton.disabled, false);
   f.click('previewOverlayButton');

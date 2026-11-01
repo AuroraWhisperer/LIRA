@@ -242,11 +242,20 @@ test('local date bounds follow daylight saving changes instead of assuming 24 ho
   assert.equal(bounds.to, '2026-11-02T05:00:00.000Z');
 });
 
-test('analysis and stats routes pass filters through and return 400 for invalid options', (t) => {
-  const fixture = seed(t);
+test('analysis and stats routes pass filters through and return 400 for invalid options', () => {
+  const calls = [];
+  let failure;
   const context = { gifts: {
-    getBlindBoxAnalysis: (options) => getBlindBoxAnalysis(fixture.context, options),
-    getBlindBoxStats: (options) => getBlindBoxStats(fixture.context, options),
+    getBlindBoxAnalysis(options) {
+      calls.push(options);
+      if (failure) throw failure;
+      return { summary: { boxCount: 2 } };
+    },
+    getBlindBoxStats(options) {
+      calls.push(options);
+      if (failure) throw failure;
+      return { perUser: [] };
+    },
   } };
   function request(query, route = 'GET /api/gifts/blind-box-analysis') {
     let status;
@@ -268,12 +277,20 @@ test('analysis and stats routes pass filters through and return 400 for invalid 
   const result = request('startDate=2026-08-31&endDate=2026-09-01');
   assert.equal(result.status, 200);
   assert.equal(result.payload.data.summary.boxCount, 2);
+  assert.deepEqual(calls.at(-1), {
+    startDate: '2026-08-31', endDate: '2026-09-01', viewer: '', box: '', view: 'users',
+    page: '1', limit: '25', sort: '', direction: 'desc',
+  });
+  failure = Object.assign(new Error('Invalid date'), { code: 'INVALID_GIFT_FILTER' });
   const invalid = request('startDate=2026-02-30');
   assert.equal(invalid.status, 400);
   assert.equal(invalid.payload.code, 'INVALID_GIFT_FILTER');
+  failure = null;
   const summary = request('top=0&hideLoss=1', 'GET /api/gifts/blind-box-stats');
   assert.equal(summary.status, 200);
   assert.deepEqual(summary.payload.data.perUser, []);
+  assert.deepEqual(calls.at(-1), { boxName: '', top: '0', hideLoss: '1' });
+  failure = Object.assign(new Error('Invalid top'), { code: 'INVALID_GIFT_STATS_OPTIONS' });
   const invalidTop = request('top=01', 'GET /api/gifts/blind-box-stats');
   assert.equal(invalidTop.status, 400);
   assert.equal(invalidTop.payload.code, 'INVALID_GIFT_STATS_OPTIONS');

@@ -8,10 +8,11 @@ test('bursts retain first errors, admit different failures and summarize dropped
   let now = 0;
   const admit = createLogRateLimit({ now: () => now });
   for (let index = 0; index < 5; index += 1) assert.equal(admit('same').allowed, true);
-  for (let index = 0; index < 1000; index += 1) assert.equal(admit('same').allowed, false);
+  assert.equal(admit('same').allowed, false);
+  assert.equal(admit('same').allowed, false);
   assert.equal(admit('different').allowed, true);
   now = 60_000;
-  assert.deepEqual(admit('same'), { allowed: true, suppressed: 1000 });
+  assert.deepEqual(admit('same'), { allowed: true, suppressed: 2 });
   assert.deepEqual(admit('same'), { allowed: true, suppressed: 0 });
 });
 

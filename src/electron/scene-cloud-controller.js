@@ -12,7 +12,8 @@ function getSceneOwner(licenseManager) {
     if (typeof identity.streamerId === 'number' && (!Number.isSafeInteger(identity.streamerId) || identity.streamerId <= 0)) return null;
     const origin = normalizeRemoteRootOrigin(licenseManager.getRemoteBaseUrl());
     if (!origin) return null;
-    const epoch = licenseManager.getAuthorizationEpoch();
+    // Background token renewal keeps the same authorized display lifecycle.
+    const epoch = licenseManager.getAuthorizationGeneration();
     if (!Number.isSafeInteger(epoch) || epoch < 0) return null;
     return { scope: JSON.stringify([origin, String(identity.streamerId)]), epoch };
   } catch {
@@ -21,18 +22,10 @@ function getSceneOwner(licenseManager) {
 }
 
 function getComponentPreviewOwner(licenseManager) {
-  const owner = getSceneOwner(licenseManager);
-  if (!owner) return null;
-  try {
-    // Editing survives token renewal, but never a new authorization lifecycle.
-    const epoch = licenseManager.getAuthorizationGeneration();
-    return Number.isSafeInteger(epoch) && epoch >= 0 ? { ...owner, epoch } : null;
-  } catch {
-    return null;
-  }
+  return getSceneOwner(licenseManager);
 }
 
-function createSceneCloudController({ licenseManager, publish, publishSettings, subscribeDemand, fetchImpl = fetch, timers = globalThis }) {
+function createSceneCloudController({ licenseManager, publish, publishSettings, subscribeDemand, writeLog = () => {}, fetchImpl = fetch, timers = globalThis }) {
   let started = false;
   let disposed = false;
   let unsubscribe = null;
@@ -92,6 +85,8 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
     const next = demanded ? context() : null;
     if (current && matches(current, next)) return;
     const previous = current;
+    if (previous) writeLog('scene-cloud', { event: 'stopped',
+      reason: !demanded ? 'DISPLAY_IDLE' : next ? 'OWNER_CHANGED' : 'AUTHORIZATION_UNAVAILABLE' });
     cancel();
     retryDelay = 1000;
     if (next) connect(next);
@@ -101,6 +96,7 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
   function connect(owner) {
     const captured = { ...owner, connectionEpoch: randomUUID(), controller: new AbortController(), timeout: null };
     current = captured;
+    writeLog('scene-cloud', { event: 'connecting' });
     update(captured, 'connecting');
     if (active(captured)) {
       const operation = consume(captured);
@@ -109,14 +105,16 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
     }
   }
 
-  function deadline(captured, delay) {
+  function deadline(captured, delay, reason) {
     timers.clearTimeout(captured.timeout);
-    captured.timeout = timers.setTimeout(() => disconnect(captured), delay);
+    captured.timeout = timers.setTimeout(() => disconnect(captured, reason), delay);
     captured.timeout?.unref?.();
   }
 
-  function disconnect(captured) {
+  function disconnect(captured, reason, status) {
     if (!active(captured)) return;
+    writeLog('scene-cloud-error', { reason, retryDelayMs: retryDelay,
+      ...(Number.isInteger(status) ? { status } : {}) });
     update(captured, 'offline');
     timers.clearTimeout(captured.timeout);
     captured.controller.abort();
@@ -135,12 +133,16 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
   async function consume(captured) {
     let initialized = false;
     let liveSessionId = null;
-    deadline(captured, 15000);
+    let failure = 'SETTINGS_UNAVAILABLE';
+    let status;
+    deadline(captured, 15000, 'INITIAL_STATE_TIMEOUT');
     try {
       const settings = await licenseManager.getOverlaySettings({ signal: captured.controller.signal });
       if (!active(captured)) return;
+      failure = 'INVALID_OVERLAY_URL';
       const url = streamUrl(settings?.overlayUrl);
       publishSettings?.({ ownerScope: captured.ownerScope, authorizationEpoch: captured.authorizationEpoch, settings });
+      failure = 'NETWORK_ERROR';
       const response = await fetchImpl(url, {
         method: 'GET',
         headers: { Accept: 'text/event-stream' },
@@ -150,6 +152,8 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
         cache: 'no-store',
         signal: captured.controller.signal,
       });
+      status = response.status;
+      failure = response.ok ? 'INVALID_STREAM_RESPONSE' : 'HTTP_ERROR';
       if (!active(captured) || !response.ok || response.redirected ||
           (response.url && response.url !== url) ||
           !/^text\/event-stream(?:\s*;|$)/iu.test(response.headers?.get('content-type') || '') ||
@@ -157,6 +161,7 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
         await response.body?.cancel?.();
         throw new Error('INVALID_STREAM');
       }
+      failure = 'STREAM_READ_FAILED';
       await readBoundedSse(response, {
         signal: captured.controller.signal,
         createLimitError: () => new Error('EVENT_TOO_LARGE'),
@@ -165,7 +170,7 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
           if (!active(captured)) return;
           const { eventName, data } = parseEventBlock(block);
           if (!eventName && !data) {
-            if (initialized) deadline(captured, 45000);
+            if (initialized) deadline(captured, 45000, 'HEARTBEAT_TIMEOUT');
             return;
           }
           requireValid(eventName === 'overlay-event' && data);
@@ -175,6 +180,7 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
             initialized = true;
             liveSessionId = event.liveSessionId;
             retryDelay = 1000;
+            writeLog('scene-cloud', { event: 'connected' });
           } else {
             requireValid(event.type !== 'overlay-state');
             if (event.type === 'live-started') {
@@ -186,15 +192,19 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
               if (event.type === 'live-ended') liveSessionId = null;
             }
           }
-          deadline(captured, 45000);
+          deadline(captured, 45000, 'HEARTBEAT_TIMEOUT');
           update(captured, 'connected', event);
         },
       });
-    } catch {
-      disconnect(captured);
+    } catch (error) {
+      if (failure === 'STREAM_READ_FAILED') {
+        if (error?.message === 'INVALID_OVERLAY_EVENT' || error?.message === 'EVENT_TOO_LARGE') failure = error.message;
+        else if (error instanceof SyntaxError) failure = 'INVALID_EVENT_JSON';
+      }
+      disconnect(captured, failure, status);
       return;
     }
-    disconnect(captured);
+    disconnect(captured, 'STREAM_ENDED', status);
   }
 
   function start() {
@@ -216,6 +226,7 @@ function createSceneCloudController({ licenseManager, publish, publishSettings, 
     unsubscribeDemand = null;
     demanded = false;
     const previous = current;
+    if (previous) writeLog('scene-cloud', { event: 'stopped', reason: 'APP_STOPPED' });
     cancel();
     offline(previous);
   }

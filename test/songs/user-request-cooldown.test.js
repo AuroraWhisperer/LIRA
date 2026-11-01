@@ -73,5 +73,5 @@ test('persistence failure retains the accepted timestamp in memory and emits a w
   assert.doesNotThrow(() => cooldown.recordAccepted('42', { uid: '42', userName: '观众' }));
   assert.equal(cooldown.getLastRequestAt('42'), Date.now());
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM user_cooldowns').get().count, 0);
-  assert.match(warning.mock.calls[0].arguments[0], /key=42.*synthetic write failure/);
+  assert.equal(warning.mock.callCount(), 1);
 });

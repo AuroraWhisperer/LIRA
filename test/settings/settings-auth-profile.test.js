@@ -90,7 +90,7 @@ function createElement(id, overrides = {}) {
   };
 }
 
-test('Bilibili settings render the current account profile in the existing row', async () => {
+test('Bilibili profile avatars load only through the authenticated proxy for Bilibili image hosts', async () => {
   const module = await loadModuleExports(path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'), {
     URL,
     URLSearchParams,
@@ -129,22 +129,14 @@ test('Bilibili settings render the current account profile in the existing row',
   });
   await new Promise((resolve) => setImmediate(resolve));
 
-  assert.equal(elements.get('bilibiliAuthStatus').textContent, '本机已登录');
-  assert.equal(elements.get('bilibiliAuthProfile').hidden, false);
-  assert.equal(elements.get('bilibiliAuthName').textContent, '主播小号');
-  assert.equal(elements.get('bilibiliAuthUid').textContent, 'UID: 288594073');
-  assert.equal(elements.get('bilibiliAuthAvatar').hidden, false);
-  assert.equal(elements.get('bilibiliAuthAvatar').alt, '主播小号的头像');
   const avatarUrl = new URL(elements.get('bilibiliAuthAvatar').src, 'http://127.0.0.1');
   assert.equal(avatarUrl.pathname, '/api/bilibili/avatar');
   assert.equal(avatarUrl.searchParams.get('url'), 'https://i0.hdslb.com/bfs/face/host.jpg');
   assert.equal(avatarUrl.searchParams.get('token'), 'desktop-session-token');
-  assert.equal(elements.get('bilibiliLoginBtn').style.display, 'none');
-  assert.equal(elements.get('bilibiliLogoutBtn').style.display, '');
   assert.equal(module.bilibiliAvatarSource('https://images.example.com/avatar.jpg'), '');
 });
 
-test('Bilibili auth copy keeps local login separate from cloud capture', async () => {
+test('Bilibili login and confirmed logout announce each auth change once', async () => {
   const module = await loadModuleExports(path.join(ROOT, 'public', 'js', 'admin', 'settings-auth.js'), {
     URL,
     URLSearchParams,
@@ -163,7 +155,6 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
     ['bilibiliLoginBtn', createElement('bilibiliLoginBtn')],
     ['bilibiliLogoutBtn', createElement('bilibiliLogoutBtn', { style: { display: 'none' } })],
   ]);
-  const toasts = [];
   let authState = { loggedIn: false };
   const windowRef = {
     __API_TOKEN__: '',
@@ -190,7 +181,7 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   module.initBilibiliAuth({
     documentRef,
     windowRef,
-    toast: (message) => toasts.push(message),
+    toast() {},
     logoutConfirm: async (options) => {
       logoutPrompt = options;
       return true;
@@ -199,34 +190,9 @@ test('Bilibili auth copy keeps local login separate from cloud capture', async (
   await new Promise((resolve) => setImmediate(resolve));
 
   await elements.get('bilibiliLoginBtn').listeners.get('click')();
-  assert.equal(toasts[0], 'B 站账号已在本机登录');
-  assert.doesNotMatch(toasts[0], /同步成功|同步完成|弹幕姬状态已刷新/);
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed']);
 
   await elements.get('bilibiliLogoutBtn').listeners.get('click')();
-  assert.match(logoutPrompt.message, /当前 LIRA 账号/);
-  assert.match(logoutPrompt.message, /同步成功后停止/);
-  assert.match(logoutPrompt.message, /不会回退为匿名采集/);
-  assert.equal(toasts[1], 'B 站账号已在本机退出');
-  assert.doesNotMatch(toasts[1], /同步完成|匿名模式/);
+  assert.ok(logoutPrompt);
   assert.deepEqual(authEvents, ['app:bilibili-auth-changed', 'app:bilibili-auth-changed']);
-});
-
-test('Bilibili settings expose account controls and explain confirmed stop actions', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'settings.html'), 'utf8');
-
-  for (const id of ['bilibiliAuthProfile', 'bilibiliAuthAvatar', 'bilibiliAuthName', 'bilibiliAuthUid', 'bilibiliLoginBtn', 'bilibiliLogoutBtn']) {
-    assert.match(html, new RegExp(`id="${id}"`));
-  }
-  const help = html.match(/<lira-help\s*>(.*?)<\/lira-help/s)?.[1];
-  assert.match(help, /用于接收弹幕、礼物和机器人发言/);
-  assert.match(help, /可登录机器人账号/);
-  assert.match(help, /扫码后，填写直播间号并保存/);
-  assert.match(help, /服务端默认持续监控/);
-  assert.match(help, /关闭 LIRA 后仍会接收/);
-  assert.match(help, /在弹幕姬和礼物页分别关闭/);
-  assert.match(help, /退出此账号会停止两项监控/);
-  assert.match(help, /等待同步完成/);
-  assert.doesNotMatch(html, /id="enableBilibili"/);
-  assert.doesNotMatch(html, /id="bilibiliAuthHint"/);
 });

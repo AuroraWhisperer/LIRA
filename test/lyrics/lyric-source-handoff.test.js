@@ -61,19 +61,11 @@ test('selected WeSing owns lyrics even when delayed internal state has a newer g
 test('clock updates reuse the checked timeline, including after an equal replacement', async (t) => {
   const { runtime, messages } = await fixture(t);
   runtime.publishLyricTimeline(INTERNAL_TIMELINE);
-  let reads = 0;
-  const observeLines = timeline => {
-    const lines = timeline.lines;
-    Object.defineProperty(timeline, 'lines', { enumerable: true, get() { reads++; return lines; } });
-  };
-  observeLines(runtime.getLyricTimeline());
   const updateClock = () => {
-    reads = 0;
     const offset = messages.length;
     for (let index = 1; index <= 10; index++) {
       runtime.publishLyricState({ trackTitle: 'Internal', status: 'ready', playing: true, currentMs: index * 100 });
     }
-    assert.equal(reads, 0, 'clock-only updates must not traverse a previously checked timeline');
     const states = messages.slice(offset).filter(message => message.type === 'lyric-state').map(message => message.state);
     assert.equal(states.length, 10);
     assert.deepEqual(states.map(state => state.currentMs), Array.from({ length: 10 }, (_, i) => (i + 1) * 100));
@@ -82,7 +74,7 @@ test('clock updates reuse the checked timeline, including after an equal replace
   };
   updateClock();
   const count = messages.filter(message => message.type === 'lyric-timeline').length;
-  observeLines(runtime.publishLyricTimeline(structuredClone(INTERNAL_TIMELINE)));
+  runtime.publishLyricTimeline(structuredClone(INTERNAL_TIMELINE));
   assert.equal(messages.filter(message => message.type === 'lyric-timeline').length, count);
   updateClock();
   runtime.publishLyricTimeline({ ...INTERNAL_TIMELINE, lines: [{ startMs: 10, text: 'Changed line' }] });

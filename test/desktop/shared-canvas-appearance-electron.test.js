@@ -84,7 +84,6 @@ test('desktop and canvas share local settings and imported resources across inst
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');
   await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
   await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-  await canvas.screenshot({ path: path.join(root, 'tmp/shared-canvas-appearance.png'), fullPage: true });
   await canvas.reload();
   await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '航海旗帜' }).click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');

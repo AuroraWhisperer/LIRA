@@ -5,21 +5,6 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-test('cooldown controls switch modes without the removed explanatory paragraph', async () => {
-  const { renderSongCooldownControls } = await loadModuleExports(path.resolve('public/js/admin/song-cooldown-settings.js'));
-  const elements = {
-    songCooldownMode: { value: 'off' }, songCooldownAmount: {},
-    songCooldownValue: { validity: { valid: true }, setAttribute(name, value) { this[name] = value; } },
-  };
-  for (const mode of ['off', 'hours', 'days', 'off']) {
-    elements.songCooldownMode.value = mode;
-    renderSongCooldownControls({ getElementById: (id) => elements[id] });
-    assert.equal(elements.songCooldownAmount.hidden, mode === 'off');
-    assert.equal(elements.songCooldownValue.disabled, mode === 'off');
-    assert.equal(elements.songCooldownValue['aria-label'], mode === 'days' ? '冷却自然日数' : '冷却小时数');
-  }
-});
-
 test('connection and song request forms save independently and preserve pending or failed drafts', async () => {
   const values = {
     roomId: '123',

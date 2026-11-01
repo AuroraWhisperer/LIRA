@@ -2,11 +2,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
-const { pathToFileURL } = require('node:url');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 test('provider state stays scoped to its source when checks finish out of order', async () => {
   const authRequests = new Map();
@@ -22,7 +20,9 @@ test('provider state stays scoped to its source when checks finish out of order'
       },
     },
   };
-  const ProviderManager = await loadProviderManager({ window });
+  const { ProviderManager } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/playback/provider/manager.js'), { window },
+  );
   const manager = new ProviderManager({ state });
 
   const qqRefresh = Promise.all([
@@ -61,18 +61,3 @@ test('provider state stays scoped to its source when checks finish out of order'
   assert.equal(manager.authState.platform, 'netease');
   assert.equal(manager.providerHealth.source, 'netease');
 });
-
-async function loadProviderManager(sandbox) {
-  const context = vm.createContext({ console, encodeURIComponent, ...sandbox });
-  const filePath = path.join(__dirname, '../..', 'public', 'js', 'playback', 'provider', 'manager.js');
-  const identifier = pathToFileURL(filePath).href;
-  const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
-    context,
-    identifier,
-  });
-  await module.link(() => {
-    throw new Error('ProviderManager should not import dependencies.');
-  });
-  await module.evaluate();
-  return module.namespace.ProviderManager;
-}

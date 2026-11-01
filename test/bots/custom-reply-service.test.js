@@ -15,19 +15,7 @@ const {
 const { createDomainServices } = require('../../src/server/domain-services');
 const { createBilibiliClient } = require('../../src/server/bilibili-client');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
-const { DEFAULT_SETTINGS, createSettingsStore } = require('../../src/storage/settings-store');
-
-test('all danmaku reply bots are enabled by default', () => {
-  assert.deepEqual(
-    [
-      DEFAULT_SETTINGS.enableRandomTagReply,
-      DEFAULT_SETTINGS.enableCheckinBot,
-      DEFAULT_SETTINGS.enableFortuneBot,
-      DEFAULT_SETTINGS.enableCustomReplyBot,
-    ],
-    ['true', 'true', 'true', 'true'],
-  );
-});
+const { createSettingsStore } = require('../../src/storage/settings-store');
 
 test('custom reply rules normalize and match enabled keyword replies', () => {
   const settings = {

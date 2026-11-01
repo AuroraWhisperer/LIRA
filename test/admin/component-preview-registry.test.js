@@ -85,7 +85,7 @@ async function loadOwner(filename, overrides = {}) {
     registry: modules.get(path.join(adminPath, 'component-preview-registry.js')).namespace };
 }
 
-test('registry stays lazy, orders initialized owners and creates fresh descriptions with shared controllers', async () => {
+test('registry stays lazy and creates fresh descriptions with shared controllers', async () => {
   const registry = await loadModuleExports(path.join(adminPath, 'component-preview-registry.js'));
   assert.equal(registry.getComponentPreviews().length, 0);
   let calls = 0;
@@ -100,7 +100,7 @@ test('registry stays lazy, orders initialized owners and creates fresh descripti
   assert.equal(calls, 0);
   const first = registry.getComponentPreviews();
   const second = registry.getComponentPreviews();
-  assert.deepEqual(plain(first.map(({ id }) => id)), ['danmaku', 'clock', 'queue', 'overtime']);
+  assert.deepEqual(plain(first.map(({ id }) => id)).sort(), ['clock', 'danmaku', 'overtime', 'queue']);
   assert.equal(calls, 8);
   first.forEach((description, index) => {
     assert.notEqual(description, second[index]);

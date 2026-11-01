@@ -48,6 +48,6 @@ test('standalone component sources load saved styles and live data without a can
   await pages.danmaku.getByText('刷新后仍能接收').waitFor();
   fixture.updateCloud(null, 'offline');
   await pages.danmaku.getByText('等待直播数据', { exact: true }).waitFor({ state: 'attached' });
-  assert.equal(await pages.danmaku.getByText('刷新后仍能接收').count(), 0);
+  assert.equal(await pages.danmaku.getByText('刷新后仍能接收').count(), 1);
   assert.deepEqual(fixture.service.list(), []);
 });

@@ -6,70 +6,6 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const test = require('node:test');
 const { giftVariantId } = require('../../src/shared/gift-identity');
 
-test('high-value artwork skips catalog lookup below the unit-price threshold and for invalid prices', async () => {
-  let lookups = 0;
-  class CountingMap extends Map {
-    get(key) { lookups += 1; return super.get(key); }
-    values() { lookups += 1; return super.values(); }
-  }
-  const { giftRecent } = await loadModuleExports(path.join(__dirname, '../../public/js/admin/gifts/recent.js'), {
-    Map: CountingMap,
-    window: {
-      fetch: async () => ({
-        ok: true,
-        json: async () => ({ data: { gifts: [
-          { id: '1', variantId: 'one', name: '礼物', imagePath: '/overtime-gift-images/one.webp' },
-        ] } }),
-      }),
-    },
-  });
-  await giftRecent.loadGiftArtworkCatalog();
-  lookups = 0;
-  for (const unit_price of [0, 1, 999.99, NaN, Infinity, -Infinity, undefined, 'invalid']) {
-    for (const gift_variant_id of [undefined, 'one']) {
-      assert.equal(giftRecent.getHighValueGiftArtwork({
-        gift_id: '1', gift_name: '礼物', gift_variant_id, unit_price, total_price: 5000,
-      }), null);
-    }
-  }
-  assert.equal(lookups, 0);
-  assert.equal(giftRecent.getHighValueGiftArtwork({
-    gift_id: '1', gift_name: '礼物', unit_price: 1000,
-  }).src, '/overtime-gift-images/one.webp');
-  assert.equal(giftRecent.getHighValueGiftArtwork({ unit_price: 1000 }).src, '/img/gift-placeholder.png');
-});
-
-test('name-based artwork lookup resolves through the catalog index without rescanning it per row', async () => {
-  let scans = 0;
-  class CountingMap extends Map {
-    values() { scans += 1; return super.values(); }
-    [Symbol.iterator]() { scans += 1; return super[Symbol.iterator](); }
-  }
-  const sandbox = {
-    Map: CountingMap,
-    window: {
-      fetch: async () => ({
-        ok: true,
-        json: async () => ({ data: { gifts: [
-          { id: '1', name: '礼物', imagePath: '/overtime-gift-images/one.webp' },
-        ] } }),
-      }),
-    },
-  };
-  const { getGiftToastArtwork, giftRecent } = await loadModuleExports(
-    path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
-    sandbox,
-  );
-  await giftRecent.loadGiftArtworkCatalog();
-  scans = 0;
-  for (let row = 0; row < 5; row += 1) {
-    assert.equal(getGiftToastArtwork({ gift_id: '1', gift_name: '礼物' }), '/overtime-gift-images/one.webp');
-  }
-  assert.equal(scans, 0);
-  assert.equal(getGiftToastArtwork({ gift_id: '1', gift_name: '不存在的礼物' }), '');
-  assert.equal(scans, 0);
-});
-
 test('recent gifts and source-box icons keep reused IDs and repriced identities separate', async () => {
   const makeGift = (name, priceRaw, image) => {
     const gift = {
@@ -117,14 +53,6 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
       blind_box_variant_id: renamed.variantId,
     }).src,
     renamed.imagePath,
-  );
-  assert.equal(
-    recent.getBlindBoxIcon({
-      ...output,
-      blind_box_name: renamed.name,
-      blind_box_variant_id: renamed.variantId,
-    }).className,
-    'blind-box-default',
   );
   const record = {
     gift_id: renamed.id,

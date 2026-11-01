@@ -70,12 +70,8 @@ function createShutdownHarness(options = {}) {
   let startPromise;
   let runtimeOpen = false;
   let requestRestart;
-  const unmodelledDependencies = [];
   let runtimeOptions;
-  let runtimeStartOptions;
   const safeStorage = { synthetic: 'safe-storage' };
-  let publishSceneCloud;
-  const sceneUpdates = [];
 
   const app = Object.assign(new EventEmitter(), {
     isPackaged: false,
@@ -142,8 +138,7 @@ function createShutdownHarness(options = {}) {
 
   const runtime = {
     hasActiveOverlayConnections: () => options.hasActiveOverlayConnections?.() || false,
-    start(startOptions) {
-      runtimeStartOptions = startOptions;
+    start() {
       calls.push('runtime:start');
       runtimeOpen = true;
       startPromise = Promise.resolve(options.runtimeStart?.promise).then(() => ({
@@ -164,10 +159,7 @@ function createShutdownHarness(options = {}) {
       preShutdownHook = hook;
     },
     onGiftCatalogInitializationStateChanged() {},
-    receiveSceneCloud(update) {
-      assert.equal(runtimeOpen, true);
-      sceneUpdates.push(update);
-    },
+    receiveSceneCloud() {},
   };
   const licenseManager = {
     bootstrap: () => options.licenseBootstrap?.promise,
@@ -264,8 +256,8 @@ function createShutdownHarness(options = {}) {
       createDesktopAuthController: () => ({
         dispose: () => calls.push('auth:dispose'),
         whenIdle: () => options.authIdle?.promise,
-        restoreMusicCookieSnapshots: () => options.musicRestore?.promise,
-        restoreBilibiliCookieSnapshot: () => options.bilibiliRestore?.promise,
+        restoreMusicCookieSnapshots: () => {},
+        restoreBilibiliCookieSnapshot: () => {},
       }),
     },
     './doubao-session': {
@@ -358,12 +350,11 @@ function createShutdownHarness(options = {}) {
     './scene-cloud-controller': {
       getSceneOwner(manager) {
         assert.equal(manager, licenseManager);
-        return options.sceneOwner || null;
+        return null;
       },
-      createSceneCloudController({ licenseManager: manager, publish }) {
+      createSceneCloudController({ licenseManager: manager }) {
         assert.equal(manager, licenseManager);
         calls.push('scene:create');
-        publishSceneCloud = publish;
         if (options.sceneController) return options.sceneController;
         return {
           ...controller('scene', { promise: options.sceneIdle?.promise }),
@@ -454,7 +445,6 @@ function createShutdownHarness(options = {}) {
     {
       require(id) {
         if (Object.hasOwn(modules, id)) return modules[id];
-        unmodelledDependencies.push(id);
         return createInertModule();
       },
       __dirname: path.dirname(MAIN_PATH),
@@ -491,17 +481,11 @@ function createShutdownHarness(options = {}) {
     cloudIdle,
     backendStop,
     startupErrors,
-    unmodelledDependencies,
     storageCalls,
     powerMonitor,
     handlers,
-    sceneUpdates,
-    publishSceneCloud: (update) => publishSceneCloud(update),
     get runtimeOptions() {
       return runtimeOptions;
-    },
-    get runtimeStartOptions() {
-      return runtimeStartOptions;
     },
     safeStorage,
     quit,

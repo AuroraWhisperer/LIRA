@@ -92,13 +92,9 @@ test('license IPC validates song background payloads at the process boundary', a
 
 // Response allowlists, URL and error sanitizing, and gift catalog IPC: test/license/license-ipc.test.js.
 
-test('song background panel and preload preserve the background IPC contract', async () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'song', 'import-export.html'), 'utf8');
+test('song background preload preserves the typed IPC payload', async () => {
   const preload = fs.readFileSync(path.join(ROOT, 'src', 'electron', 'preload.js'), 'utf8');
 
-  assert.match(html, /id="licenseSongBackground"/);
-  assert.match(html, /id="licenseSongBgPreview"/);
-  assert.match(html, /id="licenseSongBgFile"/);
   const bridges = new Map();
   const calls = [];
   const response = { ok: true, background: null };

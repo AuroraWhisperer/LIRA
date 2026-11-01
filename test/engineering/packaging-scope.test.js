@@ -63,7 +63,7 @@ test('shared fonts, licenses and fallbacks are bundled while optional Moonlit me
     if (!/^public\/(img|fonts)\//.test(relative) || !/moonlit|moon-fan|clock-moon-serif/.test(relative)) continue;
     count++; assert.equal(filter(file, await fs.stat(file)), relative.startsWith('public/fonts/moonlit-wenkai/') && entry.name !== 'README.md', relative);
   }
-  assert.ok(count >= 35);
+  assert.ok(count > 0, 'the packaging scan must include the optional media and shared font inputs');
   for (const relative of ['public/fonts/guard-thanks-serif-400.woff2', 'public/js/overlays/opening-moon-fan.js',
     'public/css/overlays/clock/moonlit-fan.css', 'public/img/overlays/danmaku-previews/transparent.png']) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), true, relative);

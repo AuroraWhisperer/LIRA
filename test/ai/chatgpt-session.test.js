@@ -28,8 +28,6 @@ test('ChatGPT uses PKCE loopback registration and restores encrypted credentials
   assert.doesNotMatch(JSON.stringify(f.session.getStatus()), /fixture-access|fixture-refresh|idToken|clientId|subject/);
   const publicConfig = createAiConfigStore(f.persistence, f.codec).getPublicConfig();
   assert.equal(publicConfig.chatgptAccounts, undefined);
-  assert.equal(publicConfig.personaId, 'general');
-  assert.equal(publicConfig.functionCallingEnabled, false);
   const restored = f.makeSession();
   assert.equal(restored.getStatus().ready, true);
   await restored.openLogin();

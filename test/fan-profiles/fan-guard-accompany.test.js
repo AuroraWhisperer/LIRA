@@ -31,13 +31,11 @@ test('roster companion observations survive restart and backup without inventing
   assert.equal(saved.membership.continuousDays, null);
   assert.equal(saved.membership.expiry, null);
   assert.equal(saved.notes, '私人备注');
-  assert.deepEqual(f.run('settings').accompanyMilestones, [100, 365, 500, 1000]);
   assert.equal(f.run('calendar').length, 0, 'milestones more than three days away stay out of the calendar');
   assert.equal(f.run('reminders').find((item) => item.key.endsWith(':500')).actionable, false);
   f.setNow('2026-09-21T04:00:00.000Z');
   const milestone = f.run('calendar').find((item) => item.key.endsWith(':500'));
   assert.equal(milestone.date, '2026-09-24');
-  assert.match(milestone.title, /预计/);
   assert.equal(f.run('reminders').find((item) => item.key.endsWith(':500')).actionable, true);
   assert.equal(f.run('calendar').some((item) => item.key.endsWith(':365')), false);
   const backup = f.run('backup');

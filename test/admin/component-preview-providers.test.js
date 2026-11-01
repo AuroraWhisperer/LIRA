@@ -77,47 +77,43 @@ test('wish previews fall back to the room cache and explain an empty catalog', a
   }
 });
 
-for (const [type, file, startName, url] of [
-  ['games', 'games-canvas-data.js', 'startGamesCanvasData', '/api/games/session'],
-  ['opening', 'opening-canvas-data.js', 'startOpeningCanvasData', '/api/opening/config'],
-]) {
-  test(type + ' canvas data shares requests, clears failures and cancels late replies', async () => {
-    const timers = new Map();
-    const reads = [];
-    const emitted = [];
-    let items = [];
-    let finish;
-    let reject;
-    const api = await loadModuleExports(path.join(adminPath, file), {
-      AbortController,
-      window: { setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } },
-      fetch(url, options) { reads.push({ url, options }); return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
-    });
-    const stop = api[startName]({ getState: () => ({ draft: { document: { items } } }) }, value => emitted.push(value));
-    const latest = () => type === 'games' ? emitted.at(-1).previewData.games.session : emitted.at(-1).previewData.opening;
-    assert.equal(reads.length, 0);
-    assert.equal(latest(), null);
-    items = [{ type }, { type }];
-    const refresh = timers.get(1)();
-    assert.equal(reads.length, 1, 'Multiple layers share a single request.');
-    assert.equal(reads[0].url, url);
-    finish({ ok: true, json: async () => ({ ok: true, data: { marker: 10 } }) });
-    await refresh;
-    assert.equal(latest().marker, 10);
-    const failed = timers.get(1)();
-    reject(new Error('Unavailable'));
-    await failed;
-    assert.equal(latest(), null, 'Failed reads clear stale display data.');
-    const pending = timers.get(1)();
-    const count = emitted.length;
-    stop();
-    assert.equal(reads.at(-1).options.signal.aborted, true);
-    finish({ ok: true, json: async () => ({ ok: true, data: { marker: 20 } }) });
-    await pending;
-    assert.equal(emitted.length, count, 'A late reply cannot restore a disposed preview.');
-    assert.equal(timers.size, 0);
+// Games and opening previews share startCanvasDataPolling; games represents the shared poller.
+test('canvas data shares requests, clears failures and cancels late replies', async () => {
+  const timers = new Map();
+  const reads = [];
+  const emitted = [];
+  let items = [];
+  let finish;
+  let reject;
+  const api = await loadModuleExports(path.join(adminPath, 'games-canvas-data.js'), {
+    AbortController,
+    window: { setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } },
+    fetch(url, options) { reads.push({ url, options }); return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
   });
-}
+  const stop = api.startGamesCanvasData({ getState: () => ({ draft: { document: { items } } }) }, value => emitted.push(value));
+  const latest = () => emitted.at(-1).previewData.games.session;
+  assert.equal(reads.length, 0);
+  assert.equal(latest(), null);
+  items = [{ type: 'games' }, { type: 'games' }];
+  const refresh = timers.get(1)();
+  assert.equal(reads.length, 1, 'Multiple layers share a single request.');
+  assert.equal(reads[0].url, '/api/games/session');
+  finish({ ok: true, json: async () => ({ ok: true, data: { marker: 10 } }) });
+  await refresh;
+  assert.equal(latest().marker, 10);
+  const failed = timers.get(1)();
+  reject(new Error('Unavailable'));
+  await failed;
+  assert.equal(latest(), null, 'Failed reads clear stale display data.');
+  const pending = timers.get(1)();
+  const count = emitted.length;
+  stop();
+  assert.equal(reads.at(-1).options.signal.aborted, true);
+  finish({ ok: true, json: async () => ({ ok: true, data: { marker: 20 } }) });
+  await pending;
+  assert.equal(emitted.length, count, 'A late reply cannot restore a disposed preview.');
+  assert.equal(timers.size, 0);
+});
 
 function createNode() {
   const fields = new Map();

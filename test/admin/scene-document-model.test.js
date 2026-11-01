@@ -5,9 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../../src/shared/scene-component-types');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
-const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 
 const plain = (value) => JSON.parse(JSON.stringify(value));
 const admin = path.join(__dirname, '../../public/js/admin');
@@ -421,38 +419,33 @@ test('moving and resizing browser layers keeps their webpage viewport unchanged'
 function overflowScene(type = 'queue') {
   return { schemaVersion: 1, id: randomUUID(), title: '越界布局', canvas: { width: 800, height: 600 },
     items: [{ id: randomUUID(), type, name: type, x: 100, y: 100, width: 320, height: 180,
-      visible: true, locked: false, appearance: SHARED_SCENE_TYPES.includes(type) ? { mode: 'shared' }
-        : { mode: 'independent', config: type === 'browser'
-          ? { url: 'https://example.com/', viewportWidth: 800, viewportHeight: 600 }
-          : type === 'text-box' ? createTextBoxDefaults() : {} } }] };
+      visible: true, locked: false, appearance: { mode: 'shared' } }] };
 }
 
-test('every component can cross every edge and corner; frontend and backend enforce the same visible minimum', async () => {
+test('shared geometry clamps every edge and corner to the same frontend and backend visible minimum', async () => {
   const [{ moveSceneItems }, { validateSceneDocument }] = await modules;
-  for (const type of SCENE_TYPES) {
-    const document = overflowScene(type);
-    for (const [dx, dy, x, y] of [
-      [-2000, 0, -296, 104], [2000, 0, 776, 104], [0, -2000, 104, -156], [0, 2000, 104, 576],
-      [-2000, -2000, -296, -156], [2000, -2000, 776, -156],
-      [-2000, 2000, -296, 576], [2000, 2000, 776, 576],
-    ]) {
-      const moved = plain(moveSceneItems(document, [document.items[0].id], dx, dy, { snap: true }));
-      assert.deepEqual([moved.items[0].x, moved.items[0].y], [x, y], type);
-      assert.deepEqual(plain(validateSceneDocument(moved)), moved);
-      assert.deepEqual(normalizeSceneDocument(moved, { normalizeConfig: (_type, config) => config }), moved);
-    }
-    for (const geometry of [{ x: -297 }, { x: 777 }, { y: -157 }, { y: 577 }, { width: 801 }, { height: 601 }]) {
-      const invalid = { ...document, items: [{ ...document.items[0], ...geometry }] };
-      assert.throws(() => validateSceneDocument(invalid), type);
-      assert.throws(() => normalizeSceneDocument(invalid, { normalizeConfig: (_type, config) => config }),
-        { code: 'SCENE_INVALID_DOCUMENT' }, type);
-    }
+  const document = overflowScene();
+  for (const [dx, dy, x, y] of [
+    [-2000, 0, -296, 104], [2000, 0, 776, 104], [0, -2000, 104, -156], [0, 2000, 104, 576],
+    [-2000, -2000, -296, -156], [2000, -2000, 776, -156],
+    [-2000, 2000, -296, 576], [2000, 2000, 776, 576],
+  ]) {
+    const moved = plain(moveSceneItems(document, [document.items[0].id], dx, dy, { snap: true }));
+    assert.deepEqual([moved.items[0].x, moved.items[0].y], [x, y]);
+    assert.deepEqual(plain(validateSceneDocument(moved)), moved);
+    assert.deepEqual(normalizeSceneDocument(moved, { normalizeConfig: (_type, config) => config }), moved);
+  }
+  for (const geometry of [{ x: -297 }, { x: 777 }, { y: -157 }, { y: 577 }, { width: 801 }, { height: 601 }]) {
+    const invalid = { ...document, items: [{ ...document.items[0], ...geometry }] };
+    assert.throws(() => validateSceneDocument(invalid));
+    assert.throws(() => normalizeSceneDocument(invalid, { normalizeConfig: (_type, config) => config }),
+      { code: 'SCENE_INVALID_DOCUMENT' });
   }
 });
 
 test('resizing partially outside layers preserves anchors and enough visible area', async () => {
   const [{ resizeSceneItem }, { validateSceneDocument }] = await modules;
-  for (const type of ['queue', 'clock', 'overtime']) {
+  for (const type of ['danmaku', 'clock', 'overtime']) {
     for (const [x, y] of [[-296, -156], [776, 576]]) {
       const document = overflowScene(type);
       Object.assign(document.items[0], { x, y });

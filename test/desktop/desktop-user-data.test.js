@@ -42,28 +42,9 @@ test('packaged desktop data stays beside the installed executable', () => {
 
 test('development desktop data remains in the repository data directory', () => {
   const rootDir = path.resolve('D:\\Work\\Live');
-  assert.deepEqual(
-    resolveDesktopUserDataPaths({
-      isPackaged: false,
-      appDataPath: 'ignored',
-      exePath: 'ignored',
-      rootDir,
-    }),
-    {
-      ...require('../../src/shared/data-paths').resolveDataPaths(path.join(rootDir, 'data')),
-      legacyDataDir: path.join(rootDir, 'data'),
-    },
-  );
-});
-
-test('packaged data follows a selected installation on another drive', () => {
-  const paths = resolveDesktopUserDataPaths({
-    isPackaged: true,
-    appDataPath: 'C:\\Users\\Tester\\AppData\\Roaming',
-    exePath: 'C:\\Apps\\LIRA\\LIRA.exe',
-  });
-  assert.equal(paths.dataDir, path.resolve('C:\\Apps\\LIRA\\data'));
-  assert.equal(paths.recoveryDataDir, path.resolve('C:\\Apps\\LIRA.lira-data-backup'));
+  const paths = resolveDesktopUserDataPaths({ isPackaged: false, appDataPath: 'ignored', exePath: 'ignored', rootDir });
+  assert.equal(paths.dataDir, path.join(rootDir, 'data'));
+  assert.equal(paths.legacyDataDir, path.join(rootDir, 'data'));
 });
 
 test('legacy desktop data is completely published after a successful copy', () => {

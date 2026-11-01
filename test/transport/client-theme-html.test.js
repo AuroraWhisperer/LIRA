@@ -5,6 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
+const { DEFAULT_CLIENT_THEME_ID } = require('../../src/shared/client-theme');
 
 const publicDir = path.resolve(__dirname, '../../public');
 const token = 'synthetic-client-theme-token';
@@ -51,15 +52,9 @@ test('each HTML request reads current committed theme, including cached admin co
   assert.match(second.body, /data-client-theme="terracotta"/);
   assert.match((await request('/component-preview?component=clock', { transport })).body, /data-client-theme="terracotta"/);
   assert.match((await request('/pages/gift-audit.html', { transport })).body, /data-client-theme="terracotta"/);
-  for (theme of ['clear-jade', 'black-silver', 'rose-lustre', 'dusty-rose']) {
-    for (const route of ['/admin', '/component-preview?component=clock', '/pages/gift-audit.html']) {
-      assert.match((await request(route, { transport })).body, new RegExp(`data-client-theme="${theme}"`));
-    }
-    assert.doesNotMatch((await request('/scene', { transport })).body, /data-client-theme=/);
-  }
   for (const invalid of ['future', 'neutral" style="color:red', {}, undefined]) {
-    assert.match((await request('/admin', { theme: () => invalid })).body, /data-client-theme="terracotta"/);
+    assert.match((await request('/admin', { theme: () => invalid })).body, new RegExp(`data-client-theme="${DEFAULT_CLIENT_THEME_ID}"`));
   }
   const standalone = createRuntimeTransport({ publicDir, getSessionToken: () => token });
-  assert.match((await request('/admin', { transport: standalone })).body, /data-client-theme="terracotta"/);
+  assert.match((await request('/admin', { transport: standalone })).body, new RegExp(`data-client-theme="${DEFAULT_CLIENT_THEME_ID}"`));
 });

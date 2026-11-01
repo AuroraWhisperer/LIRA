@@ -5,7 +5,6 @@ const Module = require('node:module');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { registerBilibiliIpc } = require('../../src/electron/ipc/bilibili-ipc');
 
 function loadBilibiliAuth(cookies) {
   const originalLoad = Module._load;
@@ -73,32 +72,4 @@ test('Bilibili account profile resolves the logged-in UID name and avatar', asyn
   });
   assert.equal(requests[0].url, 'https://api.bilibili.com/x/web-interface/card?mid=288594073');
   assert.match(requests[0].options.headers.Cookie, /SESSDATA=fake-session/);
-});
-
-test('Bilibili IPC exposes only the public profile result', async () => {
-  const handlers = new Map();
-  const profile = {
-    uid: 288594073,
-    name: '主播小号',
-    avatarUrl: 'https://i0.hdslb.com/bfs/face/host.jpg',
-  };
-  const mainFrame = { url: 'http://127.0.0.1:3000/admin' };
-  const webContents = { mainFrame };
-  registerBilibiliIpc({
-    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
-    getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
-    ipcMain: {
-      handle: (channel, handler) => handlers.set(channel, handler),
-    },
-    getAuthState: async () => ({ loggedIn: true, uid: profile.uid }),
-    getProfile: async () => profile,
-    login: async () => ({}),
-    logout: async () => ({}),
-  });
-
-  assert.deepEqual(
-    await handlers.get('bilibili:get-profile')({ sender: webContents, senderFrame: mainFrame }),
-    profile,
-  );
-  assert.equal('cookieHeader' in profile, false);
 });

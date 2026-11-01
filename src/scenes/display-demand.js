@@ -2,8 +2,8 @@
 
 const IDLE_TIMEOUT_MS = 15000;
 
-// Reads renew one shared lease. The grace period covers the five-second health
-// check and short page reloads without keeping an unused upstream stream alive.
+// Reads and validated display heartbeats renew one shared lease. The grace
+// period covers short reloads without keeping an unused upstream stream alive.
 function createDisplayDemand({ now = Date.now, timers = globalThis } = {}) {
   const listeners = new Set();
   let active = false;

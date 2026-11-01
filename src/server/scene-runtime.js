@@ -71,12 +71,13 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
     },
       getExtraDisplay: (type, readState, request) => ['gift-frame', 'guard-thanks'].includes(type)
         ? gifts.getSnapshot(type) : getExtraDisplay(type, readState, request) }) });
-  const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input) });
+  const renewDemand = ({ types }) => { if (types.includes('danmaku')) demand.touch(); };
+  const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input), onActivity: renewDemand });
   const danmakuEvents = createDisplayNotifications({ getAccess() {
     const owner = getOwner();
     if (!owner) throw Object.assign(new Error('Display owner unavailable'), { statusCode: 423 });
     return { binding: JSON.stringify([owner.scope, owner.epoch]), version: 0, types: ['danmaku'] };
-  } });
+  }, onActivity: renewDemand });
   return { service, events, danmakuEvents, appearance, notify, subscribeCloudDemand: demand.subscribe,
     dispose() { events.dispose(); danmakuEvents.dispose(); demand.dispose(); },
     receiveCloud(update) {

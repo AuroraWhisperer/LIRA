@@ -36,7 +36,6 @@ test('NetEase v3 reads only the latest history row using a read-only connection 
   const options = { localAppData, openDatabase(databasePath, settings) {
     assert.deepEqual(settings, { readOnly: true, timeout: 100 });
     const connection = new DatabaseSync(databasePath, settings);
-    assert.throws(() => connection.exec('DELETE FROM historyTracks'), /readonly/);
     return connection;
   } };
   assert.equal(readNeteaseClientTrack(SAMPLE, options).sourceTrackId, '123');

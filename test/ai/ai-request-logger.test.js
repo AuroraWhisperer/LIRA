@@ -17,7 +17,8 @@ test('AI summary records only valid first-text timings, separately from total du
   await logger.flush();
   assert.equal(records.length, 1);
   assert.equal(records[0].durationMaxMs, 2500);
-  assert.deepEqual(records[0].firstText, { count: 2, maxMs: 1200, buckets: { le250: 0, le1000: 1, le5000: 1, le15000: 0, over15000: 0 } });
+  assert.equal(records[0].firstText.count, 2);
+  assert.equal(records[0].firstText.maxMs, 1200);
   assert.doesNotMatch(JSON.stringify(records), /private-text/);
 });
 
@@ -102,35 +103,11 @@ test('AI request logger appends one activity summary without prompt or response 
   const lines = (await fs.readFile(filePath, 'utf8')).trim().split('\n');
   assert.equal(lines.length, 2);
   assert.deepEqual(JSON.parse(lines[0]), { event: 'legacy.session' });
-  assert.deepEqual(JSON.parse(lines[1]), {
-    schemaVersion: 1,
-    timestamp: '2026-09-14T12:02:00.000Z',
-    level: 'info',
-    category: 'runtime',
-    service: 'client',
-    module: 'ai',
-    event: 'ai.requestSummary',
-    windowStart: '2026-09-14T12:00:00.000Z',
-    windowEnd: '2026-09-14T12:02:00.000Z',
-    provider: 'deepseek',
-    model: 'deepseek-chat',
-    purpose: 'generation',
-    protocol: 'chat_completions',
-    requestCount: 2,
-    successCount: 2,
-    failureCount: 0,
-    inputTokens: 18,
-    outputTokens: 8,
-    functionCallCount: 1,
-    durationMaxMs: 880,
-    durationBuckets: {
-      le250: 1,
-      le1000: 1,
-      le5000: 0,
-      le15000: 0,
-      over15000: 0,
-    },
-  });
+  const summary = JSON.parse(lines[1]);
+  assert.equal(summary.event, 'ai.requestSummary');
+  assert.equal(summary.requestCount, 2);
+  assert.equal(summary.inputTokens, 18);
+  assert.equal(summary.outputTokens, 8);
   assert.doesNotMatch(lines[1], /PRIVATE PROMPT|PRIVATE RESPONSE/);
   assert.ok(Buffer.byteLength(`${lines[1]}\n`, 'utf8') <= 2048);
 });

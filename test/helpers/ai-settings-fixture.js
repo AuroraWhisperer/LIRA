@@ -105,7 +105,6 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     elements.set(id, element);
   }
   const calls = [];
-  const toasts = [];
   const timers = new Map();
   let clock = 0;
   let timerId = 0;
@@ -147,13 +146,12 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       clearTimeout: (id) => timers.delete(id),
     },
   );
-  api.init({ notify: (value) => toasts.push(value), confirm });
+  api.init({ notify: () => {}, confirm });
   await flushAiTasks();
 
   return {
     elements,
     calls,
-    toasts,
     publicConfig,
     downloads,
     api,

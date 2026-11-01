@@ -11,9 +11,8 @@ const openingRoutes = require('../../src/server/routes/opening-routes');
 const { getMusicDir, getCharacterDir } = require('../../src/server/opening-media-store');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
-test('opening music uploads stay inside the configured data directory', async () => {
-  const dataDir = createScratchDirectory('lira-opening-test-');
-  const settings = {
+function createOpeningSettings() {
+  return {
     values: {
       openingEnabled: 'true',
       openingTitle: '',
@@ -37,6 +36,11 @@ test('opening music uploads stay inside the configured data directory', async ()
       Object.assign(this.values, values);
     },
   };
+}
+
+test('opening music uploads stay inside the configured data directory', async () => {
+  const dataDir = createScratchDirectory('lira-opening-test-');
+  const settings = createOpeningSettings();
   const context = { system: { dataDir }, settings, broadcastSnapshot() {} };
   const boundary = 'opening-test-boundary';
   const crlf = '\r\n';
@@ -82,30 +86,7 @@ test('opening music uploads stay inside the configured data directory', async ()
 
 test('opening character uploads validate image signatures and stay inside the data directory', async () => {
   const dataDir = createScratchDirectory('lira-opening-character-test-');
-  const settings = {
-    values: {
-      openingEnabled: 'true',
-      openingTitle: '',
-      openingSubtitle: '',
-      openingName: '',
-      openingFooter: '',
-      openingQuality: 'normal',
-      openingTrackMotion: 'heart',
-      openingShowNotes: 'true',
-      openingShowEq: 'true',
-      openingAudioFile: '',
-      openingAudioName: '',
-      openingAudioVolume: '0.35',
-      openingCharacterFile: '',
-      openingCharacterName: '',
-    },
-    get() {
-      return { ...this.values };
-    },
-    setMany(values) {
-      Object.assign(this.values, values);
-    },
-  };
+  const settings = createOpeningSettings();
   const context = { system: { dataDir }, settings, broadcastSnapshot() {} };
   const makeRequest = (name, content) => {
     const boundary = 'opening-character-test-boundary';

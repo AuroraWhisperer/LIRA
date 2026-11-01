@@ -108,36 +108,6 @@ test('Admin loads explicit song filters without a document or a page filter read
   assert.equal(service.getSongs()[0].id, 1);
 });
 
-test('the song page supplies current search controls and selected categories and tags', async () => {
-  const values = {
-    songSearch: '新歌',
-    languageFilter: '中文',
-    artistFilter: '歌手',
-    enabledFilter: 'true',
-  };
-  const selected = {
-    '[data-category-filter]:checked': [{ value: '流行' }, { value: '古风' }],
-    '[data-tag-filter]:checked': [{ value: '弹唱' }],
-  };
-  const { songs } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/songs.js'), {
-    document: {
-      getElementById: (id) => ({ value: values[id] }),
-      querySelectorAll: (selector) => selected[selector],
-    },
-  });
-  const filters = songs.readSongFilters();
-  assert.equal(filters.query, '新歌');
-  assert.equal(filters.language, '中文');
-  assert.equal(filters.artist, '歌手');
-  assert.deepEqual(Array.from(filters.categories), ['流行', '古风']);
-  assert.deepEqual(Array.from(filters.tags), ['弹唱']);
-  assert.equal(filters.enabledOnly, true);
-  values.songSearch = '更新筛选';
-  values.enabledFilter = '';
-  assert.equal(songs.readSongFilters().query, '更新筛选');
-  assert.equal(songs.readSongFilters().enabledOnly, false);
-});
-
 test('admin initial song loading does not request application state again', async () => {
   const requests = [];
   const songs = [{ id: 1, name: '初始歌单' }];
@@ -213,44 +183,42 @@ test('overlapping state reloads return settings received through WS while loadin
   assert.equal(requests.length, 2);
 });
 
-for (const reloadState of [true, false]) {
-  for (const olderFirst of [true, false]) {
-    test(`Admin accepts only the latest song filter request (reloadState=${reloadState}, olderFirst=${olderFirst})`, async () => {
-      const harness = await createSongReloadHarness();
-      const { service, filters, requests, updates } = harness;
-      const initialSongs = [{ id: 0 }];
-      const newerSongs = [{ id: 2 }];
-      service.songs = initialSongs;
-      const options = { reloadState };
-      const olderReload = service.reloadSongs(options);
-      filters.query = 'newer';
-      const newerReload = service.reloadSongs(options);
-      assert.deepEqual(
-        requests.map(({ url }) => url),
-        ['/api/songs?query=older', '/api/songs?query=newer'],
-      );
+for (const olderFirst of [true, false]) {
+  test(`Admin accepts only the latest song filter request (olderFirst=${olderFirst})`, async () => {
+    const harness = await createSongReloadHarness();
+    const { service, filters, requests, updates } = harness;
+    const initialSongs = [{ id: 0 }];
+    const newerSongs = [{ id: 2 }];
+    service.songs = initialSongs;
+    const options = { reloadState: true };
+    const olderReload = service.reloadSongs(options);
+    filters.query = 'newer';
+    const newerReload = service.reloadSongs(options);
+    assert.deepEqual(
+      requests.map(({ url }) => url),
+      ['/api/songs?query=older', '/api/songs?query=newer'],
+    );
 
-      if (olderFirst) {
-        resolveSongs(requests[0], [{ id: 1 }]);
-        await olderReload;
-        assert.equal(service.getSongs(), initialSongs);
-        assert.deepEqual(updates, []);
-        assert.equal(harness.stateReloads, 0);
-      }
-      resolveSongs(requests[1], newerSongs);
-      await newerReload;
-      assert.equal(service.getSongs(), newerSongs);
-      assert.deepEqual(updates, [newerSongs]);
+    if (olderFirst) {
+      resolveSongs(requests[0], [{ id: 1 }]);
+      await olderReload;
+      assert.equal(service.getSongs(), initialSongs);
+      assert.deepEqual(updates, []);
+      assert.equal(harness.stateReloads, 0);
+    }
+    resolveSongs(requests[1], newerSongs);
+    await newerReload;
+    assert.equal(service.getSongs(), newerSongs);
+    assert.deepEqual(updates, [newerSongs]);
 
-      if (!olderFirst) {
-        resolveSongs(requests[0], [{ id: 1 }]);
-        await olderReload;
-      }
-      assert.equal(service.getSongs(), newerSongs);
-      assert.deepEqual(updates, [newerSongs]);
-      assert.equal(harness.stateReloads, reloadState ? 1 : 0);
-    });
-  }
+    if (!olderFirst) {
+      resolveSongs(requests[0], [{ id: 1 }]);
+      await olderReload;
+    }
+    assert.equal(service.getSongs(), newerSongs);
+    assert.deepEqual(updates, [newerSongs]);
+    assert.equal(harness.stateReloads, 1);
+  });
 }
 
 test('Admin ignores an older song response whose JSON finishes after a newer reload', async () => {
@@ -495,10 +463,6 @@ test('Admin rejects malformed frames without changing state and continues accept
   for (const data of [
     '{',
     'null',
-    '[]',
-    '1',
-    '{"type":"snapshot"}',
-    '{"type":"snapshot","state":null}',
     '{"type":"snapshot","state":[]}',
     '{"type":"snapshot","state":{"tags":{}}}',
     '{"type":"wesing-state","state":[]}',

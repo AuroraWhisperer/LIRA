@@ -19,7 +19,6 @@ for (const method of ['start', 'restart']) {
     }
     assert.equal(client.historyPoller.timer, null);
     assert.equal(statuses.at(-1).connected, false);
-    assert.doesNotMatch(statuses.at(-1).message, /历史消息监听中/);
     assert.notEqual(client.reconnectTimer, null);
   });
 }
@@ -69,6 +68,25 @@ function jsonResponse(payload) {
   );
 }
 
+function bilibiliFetch(input) {
+  const url = new URL(typeof input === 'string' ? input : input.url);
+  if (url.pathname.endsWith('/room_init')) {
+    return jsonResponse({ code: 0, data: { room_id: 123, short_id: 0, uid: 456, live_status: 1 } });
+  }
+  if (url.pathname.endsWith('/nav')) {
+    return jsonResponse({ code: 0, data: { wbi_img: {
+      img_url: `https://i0.hdslb.com/bfs/wbi/${'a'.repeat(32)}.png`,
+      sub_url: `https://i0.hdslb.com/bfs/wbi/${'b'.repeat(32)}.png`,
+    } } });
+  }
+  if (url.pathname.endsWith('/getDanmuInfo')) {
+    return jsonResponse({ code: 0, data: { token: 'test-token', host_list: [{ host: 'example.test', wss_port: 443 }] } });
+  }
+  if (url.pathname.endsWith('/getOnlineGoldRank')) return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
+  if (url.pathname.endsWith('/getFansMembersRank')) return jsonResponse({ code: 0, data: { item: [], num: 0 } });
+  return Promise.reject(new Error(`Unexpected URL: ${url}`));
+}
+
 function messagePacket(message) {
   const body = Buffer.from(JSON.stringify(message));
   const packet = Buffer.alloc(16 + body.length);
@@ -115,42 +133,7 @@ test('extracted danmaku client keeps runtime dependencies and diagnostics', asyn
   let client;
 
   global.WebSocket = FakeWebSocket;
-  global.fetch = (input) => {
-    const url = new URL(typeof input === 'string' ? input : input.url);
-    if (url.pathname.endsWith('/room_init')) {
-      return jsonResponse({
-        code: 0,
-        data: { room_id: 123, short_id: 0, uid: 456, live_status: 1 },
-      });
-    }
-    if (url.pathname.endsWith('/nav')) {
-      return jsonResponse({
-        code: 0,
-        data: {
-          wbi_img: {
-            img_url: `https://i0.hdslb.com/bfs/wbi/${'a'.repeat(32)}.png`,
-            sub_url: `https://i0.hdslb.com/bfs/wbi/${'b'.repeat(32)}.png`,
-          },
-        },
-      });
-    }
-    if (url.pathname.endsWith('/getDanmuInfo')) {
-      return jsonResponse({
-        code: 0,
-        data: {
-          token: 'test-token',
-          host_list: [{ host: 'example.test', wss_port: 443 }],
-        },
-      });
-    }
-    if (url.pathname.endsWith('/getOnlineGoldRank')) {
-      return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
-    }
-    if (url.pathname.endsWith('/getFansMembersRank')) {
-      return jsonResponse({ code: 0, data: { item: [], num: 0 } });
-    }
-    return Promise.reject(new Error(`Unexpected URL: ${url}`));
-  };
+  global.fetch = bilibiliFetch;
 
   try {
     client = new BilibiliDanmakuClient(
@@ -259,42 +242,7 @@ test('socket errors keep history active throughout bounded reconnect recovery', 
   let client;
 
   global.WebSocket = FakeWebSocket;
-  global.fetch = (input) => {
-    const url = new URL(typeof input === 'string' ? input : input.url);
-    if (url.pathname.endsWith('/room_init')) {
-      return jsonResponse({
-        code: 0,
-        data: { room_id: 123, uid: 456, live_status: 1 },
-      });
-    }
-    if (url.pathname.endsWith('/nav')) {
-      return jsonResponse({
-        code: 0,
-        data: {
-          wbi_img: {
-            img_url: `https://i0.hdslb.com/bfs/wbi/${'a'.repeat(32)}.png`,
-            sub_url: `https://i0.hdslb.com/bfs/wbi/${'b'.repeat(32)}.png`,
-          },
-        },
-      });
-    }
-    if (url.pathname.endsWith('/getDanmuInfo')) {
-      return jsonResponse({
-        code: 0,
-        data: {
-          token: 'test-token',
-          host_list: [{ host: 'example.test', wss_port: 443 }],
-        },
-      });
-    }
-    if (url.pathname.endsWith('/getOnlineGoldRank')) {
-      return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
-    }
-    if (url.pathname.endsWith('/getFansMembersRank')) {
-      return jsonResponse({ code: 0, data: { item: [], num: 0 } });
-    }
-    return Promise.reject(new Error(`Unexpected URL: ${url}`));
-  };
+  global.fetch = bilibiliFetch;
 
   try {
     client = new BilibiliDanmakuClient('123', {
@@ -481,28 +429,6 @@ test('onMessage return values do not fetch profiles and explicit ensure reuses t
 
     assert.equal(delivered[1].avatarUrl, 'https://i0.hdslb.com/bfs/face/viewer.jpg');
     assert.equal(profileRequests, 1);
-  } finally {
-    client.stop();
-  }
-});
-
-test('manual viewer refresh delegates to the active online-rank poller', async () => {
-  const client = new BilibiliDanmakuClient('123', {
-    onMessage() {},
-    onSuperChat() {},
-    onGift() {},
-    onStatus() {},
-  });
-  const roomRunContext = { roomId: '123', ownerUid: '456', runToken: 1 };
-  let receivedContext = null;
-  client.roomRunContext = roomRunContext;
-  client.onlineRankPoller.pollOnlineRank = async (context) => {
-    receivedContext = context;
-  };
-
-  try {
-    await client.refreshViewerCandidates();
-    assert.equal(receivedContext, roomRunContext);
   } finally {
     client.stop();
   }

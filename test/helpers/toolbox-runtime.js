@@ -151,7 +151,6 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
     root,
     headings,
     buttons,
-    panels,
     sidebarToggle,
     stored,
     dispatchWindowEvent(type, detail) {

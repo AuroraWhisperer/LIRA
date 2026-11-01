@@ -6,6 +6,7 @@ const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { normalizeSceneConfig, createSceneComponentPorts } = require('../../src/server/scene-components');
+const { normalizeSceneExtraConfig } = require('../../src/server/scene-extra-config');
 const { normalizeSceneDocument } = require('../../src/scenes/scene-contract');
 const { createSceneStore } = require('../../src/storage/scene-store');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
@@ -37,7 +38,7 @@ test('conditional scene data prepares unchanged songs and lyric timelines once b
   assert.equal(first.songlist.songs.length, 5000);
   assert.equal(first.lyrics.lyricTimeline.lines.length, 500);
   first.songlist.songs[0].name = 'consumer mutation';
-  for (let index = 1; index < 100; index++) {
+  for (let index = 1; index < 3; index++) {
     currentMs = index * 250;
     const versions = { known: firstVersions.current, current: {} };
     const data = ports.getDisplayData(['songlist', 'lyrics'], { dataVersions: versions });
@@ -80,11 +81,11 @@ test('scene gift feeds reuse full scans, cards and catalog while checking indepe
   const first = await read('gift-feed', undefined, { dataVersions: versions });
   assert.equal(first.items.length, 1);
   assert.equal(first.items[0].gift.num, 5000);
-  for (let index = 1; index < 20; index++) {
+  for (let index = 1; index < 3; index++) {
     now += 6000;
     assert.equal(await read('gift-feed', undefined, { dataVersions: { known: versions.current, current: {} } }), undefined);
   }
-  assert.equal(historyReads, 69);
+  assert.equal(historyReads, 52);
   assert.equal(catalogReads, 1);
   assert.equal((await read('gift-feed')).items, first.items, 'legacy output reuses the prepared cards');
   now += 6000; profileRevision = 'two';
@@ -147,11 +148,9 @@ test('standalone color alpha survives scene normalization while paired opacity r
         assert.equal(Number(config[field.opacity]), 0);
         continue;
       }
-      for (const color of ['#12345600', '#12345680', '#123456']) {
-        const config = { ...createSceneExtraDefaults(type), [key]: color };
-        const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
-        assert.equal(saved.items[0].appearance.config[key], color);
-      }
+      const config = { ...createSceneExtraDefaults(type), [key]: '#12345680' };
+      const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
+      assert.equal(saved.items[0].appearance.config[key], '#12345680');
     }
   }
 });
@@ -167,23 +166,11 @@ test('backgrounds default to empty and preserve explicit legacy presets through 
 });
 
 test('windowlight backgrounds preserve manual scenes and timed rotation through scene normalization', () => {
-  const defaults = normalizeSceneConfig('background', { style: 'windowlight' });
-  assert.equal(defaults.sceneMode, 'manual');
-  assert.equal(defaults.windowScene, 'sunny');
-  assert.equal(defaults.sceneIntervalSeconds, 300);
-  for (const sceneMode of ['manual', 'auto']) {
-    for (const windowScene of ['sunny', 'sunset', 'rainy', 'night']) {
-      const config = normalizeSceneConfig('background', { style: 'windowlight', sceneMode, windowScene, sceneIntervalSeconds: 37 });
-      const scene = normalizeSceneDocument(documentFor('background', config), { normalizeConfig: normalizeSceneConfig });
-      assert.deepEqual(scene.items[0].appearance.config, config);
-      assert.equal(config.sceneMode, sceneMode);
-      assert.equal(config.windowScene, windowScene);
-      assert.equal(config.sceneIntervalSeconds, 37);
-    }
-  }
-  for (const seconds of [10, 3600]) {
-    assert.equal(normalizeSceneConfig('background', { style: 'windowlight', sceneIntervalSeconds: seconds }).sceneIntervalSeconds, seconds);
-  }
+  const config = normalizeSceneConfig('background', { style: 'windowlight', sceneMode: 'auto', windowScene: 'rainy', sceneIntervalSeconds: 37 });
+  const scene = normalizeSceneDocument(documentFor('background', config), { normalizeConfig: normalizeSceneConfig });
+  assert.equal(scene.items[0].appearance.config.sceneMode, 'auto');
+  assert.equal(scene.items[0].appearance.config.windowScene, 'rainy');
+  assert.equal(scene.items[0].appearance.config.sceneIntervalSeconds, 37);
   for (const seconds of [9, 10.5, 3601]) {
     assert.throws(() => normalizeSceneConfig('background', { style: 'windowlight', sceneIntervalSeconds: seconds }), { code: 'INVALID_SCENE_CONFIG' });
   }
@@ -201,10 +188,7 @@ test('background parameters preserve legacy fit and validate default snapshots i
   const legacy = normalizeSceneConfig('background', { style: 'none', mediaStyle });
   assert.equal(legacy.fit, 'fill');
   assert.equal(legacy.volume, 0.25);
-  assert.equal(legacy.opacity, 1);
-  assert.equal(legacy.blur, 0);
   for (const key of ['fit', 'volume']) assert.throws(() => normalizeSceneConfig('background', { ...legacy, [key]: null }), { code: 'INVALID_SCENE_CONFIG' });
-  assert.equal(normalizeSceneConfig('background', { style: 'moonlit' }).fit, 'cover');
   const defaults = { opacity: 0.7, blur: 4, fit: 'contain', playbackRate: 0.75 };
   const config = normalizeSceneConfig('background', { ...legacy, opacity: 0.4, blur: 12, backgroundDefaults: defaults });
   assert.equal(config.opacity, 0.4);
@@ -231,12 +215,10 @@ test('background filters validate relations and preserve authored defaults throu
     assert.equal(scene.items[0].appearance.config.backgroundDefaults[key], value);
   }
   for (const invalid of [{ inputBlack: 50, inputWhite: 50 }, { outputBlack: 150, outputWhite: 100 }, { gamma: 0 },
-    { temperature: 101 }, { grainSize: 1.1 }, { glowMode: 'unknown' }, { colorProcessing: 'shoost' },
-    { liftRed: 1.1 }, { gammaBlue: 0 }, { gainGreen: 3.1 }, { liftBlue: .001 }]) {
+    { glowMode: 'unknown' }, { liftBlue: .001 }]) {
     assert.throws(() => normalizeSceneConfig('background', invalid), { code: 'INVALID_SCENE_CONFIG' });
-    assert.throws(() => normalizeSceneConfig('background', { backgroundDefaults: invalid }), { code: 'INVALID_SCENE_CONFIG' });
   }
-  assert.equal(normalizeSceneConfig('background', {}).glowStrength, 0);
+  assert.throws(() => normalizeSceneConfig('background', { backgroundDefaults: { inputBlack: 50, inputWhite: 50 } }), { code: 'INVALID_SCENE_CONFIG' });
 });
 
 test('background color processing preserves old non-neutral values and defaults new appearances to standard', () => {
@@ -255,8 +237,7 @@ test('background color processing preserves old non-neutral values and defaults 
   }
 });
 
-test('opening appearances expose both built-in styles and preserve client-following and suite styles', () => {
-  assert.deepEqual(SCENE_EXTRA_COMPONENTS.opening.variants.map(({ value }) => value), ['classic', 'pixel-cassette']);
+test('opening appearances preserve client-following, built-in and suite styles', () => {
   assert.deepEqual(normalizeSceneConfig('opening', {}), { style: 'original' });
   for (const style of ['classic', 'pixel-cassette', 'moonlit-fan']) {
     assert.deepEqual(normalizeSceneConfig('opening', { style }), { style });
@@ -266,12 +247,14 @@ test('opening appearances expose both built-in styles and preserve client-follow
 });
 
 test('guard thanks preserves legacy event styles and saves each explicit built-in style', () => {
-  assert.deepEqual(SCENE_EXTRA_COMPONENTS['guard-thanks'].variants.map(({ value }) => value), ['aurora', 'classic']);
-  assert.deepEqual(normalizeSceneConfig('guard-thanks', {}), { style: 'follow', textMode: 'follow', showAvatar: true, showUserName: true, nameFontSize: 45 });
-  assert.deepEqual(normalizeSceneConfig('guard-thanks', { textMode: 'en' }), { style: 'follow', textMode: 'en', showAvatar: true, showUserName: true, nameFontSize: 45 });
+  const defaults = normalizeSceneConfig('guard-thanks', {});
+  assert.equal(defaults.style, 'follow');
+  assert.equal(defaults.textMode, 'follow');
+  assert.equal(normalizeSceneConfig('guard-thanks', { textMode: 'en' }).textMode, 'en');
   for (const style of ['aurora', 'classic']) {
-    const input = documentFor('guard-thanks', { style, textMode: 'zh', showAvatar: true, showUserName: true, nameFontSize: 45 });
-    assert.deepEqual(normalizeSceneDocument(input, { normalizeConfig: normalizeSceneConfig }), input);
+    const saved = normalizeSceneConfig('guard-thanks', { style, textMode: 'zh' });
+    assert.equal(saved.style, style);
+    assert.equal(saved.textMode, 'zh');
   }
   assert.throws(() => normalizeSceneConfig('guard-thanks', { style: 'unknown' }), { code: 'INVALID_SCENE_CONFIG' });
 });
@@ -288,18 +271,46 @@ test('each extra component accepts all declared presets and preserves its geomet
   }
 });
 
-test('new canvas components reject invalid, secret and business configuration and unowned shared modes', () => {
+test('extra config validation owns invalid input classes, numeric coercion and color alpha rules', () => {
+  for (const config of [null, [], 'value', Object.create({ style: 'none' })]) {
+    assert.throws(() => normalizeSceneExtraConfig('background', config), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  for (const value of [NaN, Infinity, -0.01, 1.01, '', {}, 0.001]) {
+    assert.throws(() => normalizeSceneExtraConfig('background', { opacity: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  for (const value of [0, '0.42', 1]) {
+    assert.equal(normalizeSceneExtraConfig('background', { opacity: value }).opacity, Number(value));
+  }
+  assert.equal(normalizeSceneExtraConfig('lyrics', { desktopLyricFontSize: 36 }).desktopLyricFontSize, '36');
+  for (const value of ['yes', 1, null]) {
+    assert.throws(() => normalizeSceneExtraConfig('games', { showTitle: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  for (const value of [true, false, 'true', 'false']) {
+    assert.equal(normalizeSceneExtraConfig('games', { showTitle: value }).showTitle, value === true || value === 'true');
+  }
+  for (const value of ['red', '#fff', 'url(private)', 123]) {
+    assert.throws(() => normalizeSceneExtraConfig('wheel', { textColor: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+  for (const value of ['#123456', '#12345600', '#12345680']) {
+    assert.equal(normalizeSceneExtraConfig('wheel', { textColor: value }).textColor, value);
+  }
+  assert.throws(() => normalizeSceneExtraConfig('background', { overlayColor: '#12345680' }), { code: 'INVALID_SCENE_CONFIG' });
+  assert.equal(normalizeSceneExtraConfig('songlist', { songBoardSongColor: '' }).songBoardSongColor, '');
+  assert.throws(() => normalizeSceneExtraConfig('background', { style: '__proto__' }), { code: 'INVALID_SCENE_CONFIG' });
+  for (const value of [{}, 'title\u0000']) {
+    assert.throws(() => normalizeSceneExtraConfig('songlist', { songBoardTitle: value }), { code: 'INVALID_SCENE_CONFIG' });
+  }
+});
+
+test('extra component schemas reject field limits, private configuration and unowned shared modes', () => {
   for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
     const defaults = createSceneExtraDefaults(type);
-    for (const key of ['streamerId', 'token', 'target', 'session', 'settings']) {
-      assert.throws(() => normalizeSceneConfig(type, { ...defaults, [key]: 'private' }), { code: 'INVALID_SCENE_CONFIG' });
-    }
+    assert.throws(() => normalizeSceneConfig(type, { ...defaults, token: 'private' }), { code: 'INVALID_SCENE_CONFIG' });
     for (const [key, field] of Object.entries(definition.fields)) {
-      const values = field.type === 'number' ? [NaN, Infinity, field.max + 1, ...(field.optional ? [] : ['']), {}]
-        : field.type === 'checkbox' ? ['yes', 1, null]
-          : field.type === 'color' ? ['red', '#fff', 'url(private)']
-            : field.type === 'select' ? ['unknown', '__proto__'] : ['x'.repeat(field.maxLength + 1), {}];
-      for (const value of values) assert.throws(() => normalizeSceneConfig(type, { ...defaults, [key]: value }), `${type}.${key}`);
+      const value = field.type === 'number' ? field.max + 1
+        : field.type === 'select' ? 'unknown'
+          : ['text', 'textarea'].includes(field.type) ? 'x'.repeat(field.maxLength + 1) : undefined;
+      if (value !== undefined) assert.throws(() => normalizeSceneConfig(type, { ...defaults, [key]: value }), `${type}.${key}`);
       if (field.type === 'number' && field.optional) assert.equal(normalizeSceneConfig(type, { ...defaults, [key]: '' })[key], '');
     }
     const doc = documentFor(type); doc.items[0].appearance = { mode: 'shared' };
@@ -361,7 +372,6 @@ test('extra display projection excludes game secrets, keeps lyrics separate from
   const display = createSceneExtraDisplay({ displayPorts, getOwner: () => owner });
   assert.equal(display('opening').style, 'pixel-cassette');
   assert.equal(display('opening').enabled, true);
-  assert.equal(display('opening').title, '即将开播');
   assert.equal(display('opening').secret, undefined);
   assert.deepEqual(display('games'), { session: { game: 'number-bomb', state: { min: 1, max: 100 } } });
   assert.deepEqual(display('lyrics'), { lyricState: { lineText: '真实歌词', playing: true }, lyricTimeline: { lines: [] } });

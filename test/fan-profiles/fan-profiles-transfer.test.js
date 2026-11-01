@@ -117,9 +117,6 @@ test('A29: complete restore preserves song summaries, other record evidence and 
   assert.equal(restored.records.find((r) => r.id === note.id).original.body, '原始内容');
   assert.equal(restored.records.find((r) => r.id === note.id).revisions.length, 1);
   assert.deepEqual(restored.songs[0].data, song.data);
-  assert.equal(restored.songs[0].data.count, 2);
-  assert.deepEqual(restored.songs[0].data.recentDates, ['2026-09-18', '2026-09-17']);
-  assert.equal(restored.songs[0].data.note, '喜欢现场版');
   assert.deepEqual(restored.songs[0].original, {});
   assert.deepEqual(restored.songs[0].revisions, []);
   assert.equal(restored.membership.totalDays, 18);

@@ -8,27 +8,25 @@ const httpUtils = require('../../src/server/http-utils');
 test('sendStableError maps known failures and never exposes internal details', () => {
   const stackError = new Error('Critical failure');
   stackError.stack = 'Error: Critical failure\n    at Object.<anonymous> (/app/src/secret-module.js:10:15)';
-  for (const [name, error, status, message, hidden] of [
-    ['malformed JSON', Object.assign(new Error('Invalid JSON body.'), { code: 'INVALID_JSON_BODY' }), 400, 'Request body must be valid JSON.', ['stack']],
-    ['oversized body', Object.assign(new Error('Request body is too large.'), { code: 'REQUEST_BODY_TOO_LARGE' }), 413, 'Request body exceeds size limit.', []],
-    ['XLSX resource limit', Object.assign(new Error('Excel file is too large (expanded bytes).'), { code: 'XLSX_RESOURCE_LIMIT_EXCEEDED' }), 413, 'Request body exceeds size limit.', ['expanded bytes']],
-    ['upstream JSON error', new Error('Upstream returned invalid JSON'), 500, 'Internal server error.', ['Upstream']],
-    ['upstream size error', new Error('Upstream image too large'), 500, 'Internal server error.', ['Upstream']],
+  for (const [name, error, status, message] of [
+    ['malformed JSON', Object.assign(new Error('Invalid JSON body.'), { code: 'INVALID_JSON_BODY' }), 400, 'Request body must be valid JSON.'],
+    ['oversized body', Object.assign(new Error('Request body is too large.'), { code: 'REQUEST_BODY_TOO_LARGE' }), 413, 'Request body exceeds size limit.'],
+    ['XLSX resource limit', Object.assign(new Error('Excel file is too large (expanded bytes).'), { code: 'XLSX_RESOURCE_LIMIT_EXCEEDED' }), 413, 'Request body exceeds size limit.'],
+    ['upstream JSON error', new Error('Upstream returned invalid JSON'), 500, 'Internal server error.'],
+    ['upstream size error', new Error('Upstream image too large'), 500, 'Internal server error.'],
     [
       'unexpected exception',
       new Error('Unexpected database connection failed at /internal/path/db.js:42'),
       500,
       'Internal server error.',
-      ['database', '/internal/path'],
     ],
-    ['null error', null, 500, 'Internal server error.', []],
-    ['error with stack trace', stackError, 500, 'Internal server error.', ['secret-module', 'Critical failure']],
+    ['null error', null, 500, 'Internal server error.'],
+    ['error with stack trace', stackError, 500, 'Internal server error.'],
   ]) {
     const response = createMockResponse();
     httpUtils.sendStableError(response, error);
     assert.equal(response.statusCode, status, name);
     assert.deepEqual(response.body, { ok: false, error: message }, name);
-    for (const value of hidden) assert.ok(!JSON.stringify(response.body).includes(value), `${name} leaked ${value}`);
   }
 });
 

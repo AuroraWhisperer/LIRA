@@ -26,8 +26,7 @@ test('a burst of correct guesses publishes one canvas-free patch per message wit
     service.start({ game: 'draw-guess' });
     updates = 0;
     for (let index = 0; index < 1000; index++) {
-      const result = service.handleDanmaku({ uid: String(index + 1), userName: `Viewer ${index}`, message: '猫' });
-      assert.equal(result.accepted, true);
+      service.handleDanmaku({ uid: String(index + 1), userName: `Viewer ${index}`, message: '猫' });
     }
     assert.equal(updates, 1000, 'each accepted message publishes chat and scores together');
     assert.equal(latest.type, 'game:patch');
@@ -144,17 +143,18 @@ test('viewer expiry keeps a refreshed UID and uses elapsed time through a wall c
   f.service.dispose();
 });
 
-for (const hours of [12, 24, 168]) {
-  test(`viewer resources cover only the recent ten-minute window after ${hours} virtual hours`, () => {
-    const f = measuredGameService();
-    for (let minute = 0; minute < hours * 60; minute++) {
-      f.service.handleDanmaku({ uid: String(minute + 1), userName: `Viewer ${minute}` });
-      assert.ok(f.retained <= 11);
-      f.advance(60_000);
-    }
-    assert.equal(f.service.listViewers().length, 10);
-    assert.equal(f.retained, 10);
-    assert.ok(f.visits <= 2 * hours * 60 + 11);
-    f.service.dispose();
-  });
-}
+test('viewer resources cover only the recent ten-minute window through a week of activity', () => {
+  const f = measuredGameService();
+  const minutes = 168 * 60;
+  let peakRetained = 0;
+  for (let minute = 0; minute < minutes; minute++) {
+    f.service.handleDanmaku({ uid: String(minute + 1), userName: `Viewer ${minute}` });
+    peakRetained = Math.max(peakRetained, f.retained);
+    f.advance(60_000);
+  }
+  assert.ok(peakRetained <= 11, `retained at most ${peakRetained} viewers`);
+  assert.equal(f.service.listViewers().length, 10);
+  assert.equal(f.retained, 10);
+  assert.ok(f.visits <= 2 * minutes + 11);
+  f.service.dispose();
+});

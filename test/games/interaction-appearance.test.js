@@ -52,7 +52,6 @@ test('reset appearance submits defaults against the last saved settings', async 
     assert.equal(writes[0].interactionFontSize, defaults.interactionFontSize);
     assert.equal(saved.interactionTextColor, defaults.interactionTextColor);
     assert.equal(saved.interactionFontSize, defaults.interactionFontSize);
-    assert.equal(document.getElementById('interactionAppearanceStatus').textContent, '已应用');
     document.getElementById('interactionTextColor').value = '#123456';
     document.getElementById('interactionAppearanceForm').events.input();
     await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });

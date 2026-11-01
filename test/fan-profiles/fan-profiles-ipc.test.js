@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { fanScopeFor } = require('../../src/electron/fan-profile-controller');
-const { fixture, deferred, ORIGIN, SCOPE_A, SCOPE_B } = require('../helpers/fan-profile-controller-fixture');
+const { fixture, deferred, SCOPE_A, SCOPE_B } = require('../helpers/fan-profile-controller-fixture');
 
 test('fan scope uses authenticated origin and stable streamer identity only', (t) => {
   const f = fixture(t);
@@ -33,53 +33,15 @@ test('read-only fan calendar uses the authenticated scope without accepting a ca
   assert.equal(f.calls.execute.at(-1).scope, SCOPE_B);
 });
 
-test('fan IPC admits only the actual main frame at the exact desktop origin and allowed admin paths', (t) => {
+test('fan IPC applies the shared source policy before reading profiles', (t) => {
   const f = fixture(t);
-  for (const pathname of ['/', '/admin', '/settings', '/songs']) {
-    f.frame.url = `${ORIGIN}${pathname}?desktop=1#fan-profiles`;
-    const result = f.invoke({ action: 'open' });
-    assert.equal(result.ok, true);
-    assert.ok(result.contextId);
-    assert.equal(result.data.profiles[0].alias, '小海');
-  }
-  assert.equal(f.calls.execute.length, 4);
-  assert.equal(
-    f.calls.execute.every((call) => call.scope === SCOPE_A && call.action === 'list'),
-    true,
-  );
-});
-
-test('fan IPC rejects iframes, other windows and missing or destroyed main windows before reading data', (t) => {
-  const f = fixture(t);
-  for (const event of [{}, { ...f.event, sender: {} }, { ...f.event, senderFrame: { url: f.frame.url } }]) {
-    assert.deepEqual(f.invoke({ action: 'open' }, event), { ok: false, error: 'IPC_SOURCE_INVALID' });
-  }
-  f.window.isDestroyed = () => true;
-  assert.equal(f.invoke({ action: 'open' }).error, 'IPC_SOURCE_INVALID');
-  f.setWindow(null);
-  assert.equal(f.invoke({ action: 'open' }).error, 'IPC_SOURCE_INVALID');
+  assert.deepEqual(f.invoke({ action: 'open' }, {}), { ok: false, error: 'IPC_SOURCE_INVALID' });
   assert.equal(f.calls.execute.length, 0);
-});
-
-test('fan IPC rejects overlays, origin lookalikes, other ports and non-admin navigation', (t) => {
-  const f = fixture(t);
-  for (const url of [
-    `${ORIGIN}/song-board`,
-    `${ORIGIN}/overlay`,
-    `${ORIGIN}/admin/extra`,
-    `${ORIGIN}/public/pages/admin/index.html`,
-    'http://127.0.0.1:3001/admin',
-    'http://localhost:3000/admin',
-    'https://127.0.0.1:3000/admin',
-    'http://127.0.0.1.attacker.example:3000/admin',
-    'https://lira.example/admin',
-    'file:///admin',
-    'not-a-url',
-  ]) {
-    f.frame.url = url;
-    assert.deepEqual(f.invoke({ action: 'open' }), { ok: false, error: 'IPC_SOURCE_INVALID' }, url);
-  }
-  assert.equal(f.calls.execute.length, 0);
+  const opened = f.invoke({ action: 'open' });
+  assert.equal(opened.ok, true);
+  assert.ok(opened.contextId);
+  assert.equal(f.calls.execute.at(-1).scope, SCOPE_A);
+  assert.equal(f.calls.execute.at(-1).action, 'list');
 });
 
 test('fan IPC rejects unauthenticated access and old contexts after streamer or origin changes', async (t) => {
@@ -204,5 +166,4 @@ test('fan IPC uses main-process scope despite renderer-supplied owner fields and
   const failed = f.invoke({ action: 'save', contextId: opened.contextId });
   assert.equal(failed.ok, false);
   assert.equal(failed.error.includes('fictional-secret'), false);
-  assert.match(failed.error, /尚未保存/);
 });

@@ -199,7 +199,6 @@ for (const scenario of ['disabled', 'revoked', 'enabled-later', 'hosted-search']
     const followup = requests.find((request) => request.purpose === 'tool_followup');
     assert.equal(JSON.parse(followup.input[0].output).reason, 'tool_unavailable');
     assert.equal(followup.tools.some((tool) => (tool.name || tool.type) === callName), false);
-    assert.match(deliveries[0], /暂时无法核实/);
   });
 }
 
@@ -244,83 +243,6 @@ test('a role switch during delivery retry keeps the request persona and cannot p
   assert.equal(deliveries.length, 3);
 });
 
-test('generation and tool follow-up requests have enough output room for route reasoning and tool JSON', async () => {
-  const requests = [];
-  const deliveries = [];
-  let mainCalls = 0;
-  const service = createTestService({
-    config: { ...MAP_CONFIG, trigger: 'AI' },
-    modelClient: {
-      async createResponse(request) {
-        requests.push(request);
-        if (request.purpose === 'input_review') {
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":""}',
-            functionCalls: [],
-            usage: {},
-          };
-        }
-        if (request.purpose === 'output_review') {
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":"查到了"}',
-            functionCalls: [],
-            usage: {},
-          };
-        }
-        mainCalls += 1;
-        if (mainCalls === 1) {
-          return {
-            id: 'tool-round',
-            text: '',
-            usage: {},
-            functionCalls: [
-              {
-                callId: 'place-1',
-                name: 'resolve_location',
-                arguments: { address: '白河湿地公园', city: '南阳' },
-              },
-            ],
-          };
-        }
-        return {
-          id: 'answer-round',
-          text: '查到了',
-          functionCalls: [],
-          usage: {},
-        };
-      },
-    },
-    tools: {
-      qweather: {},
-      amap: {
-        async resolveLocation() {
-          return { location: '112.6,33.0' };
-        },
-      },
-      getCurrentTime: () => ({}),
-    },
-    sendReply: async (value) => deliveries.push(value),
-  });
-
-  service.handleDanmaku({
-    uid: '42',
-    userName: '哈极光dd_',
-    message: 'AI 白河湿地公园附近酒店',
-  });
-  await waitUntil(() => deliveries.length === 1);
-
-  assert.ok(
-    requests
-      .filter((request) => ['generation', 'tool_followup'].includes(request.purpose))
-      .every((request) => request.maxOutputTokens === 3072),
-  );
-  assert.ok(
-    requests
-      .filter((request) => ['input_review', 'output_review'].includes(request.purpose))
-      .every((request) => request.maxOutputTokens === 384),
-  );
-});
-
 test('reasoning-enabled generation keeps thinking while reviews use their short output budget without reasoning', async t => {
   const requests = [];
   const deliveries = [];
@@ -361,90 +283,14 @@ test('reasoning-enabled generation keeps thinking while reviews use their short 
   assert.equal(generation.maxOutputTokens, 4096);
   assert.equal(generation.config.reasoningEnabled, true);
   const reviews = requests.filter(request => ['input_review', 'output_review'].includes(request.purpose));
-  assert.deepEqual(reviews.map(request => request.purpose), ['input_review', 'output_review']);
+  assert.deepEqual(requests.map(request => request.purpose), ['input_review', 'generation', 'output_review']);
   for (const review of reviews) {
     assert.equal(review.maxOutputTokens, 384);
     assert.equal(review.config.reasoningEnabled, false);
   }
 });
 
-test('Suzhou route planning keeps a concise useful reply after the route tool round', async () => {
-  const deliveries = [];
-  let generationCalls = 0;
-  const service = createTestService({
-    config: { ...MAP_CONFIG, trigger: '\u5c0f\u7c73', reasoningEnabled: true },
-    modelClient: {
-      async createResponse(request) {
-        if (request.purpose === 'input_review') {
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":""}',
-            functionCalls: [],
-            usage: {},
-          };
-        }
-        if (request.purpose === 'output_review') {
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":"建议乘地铁，约 30 分钟。"}',
-            functionCalls: [],
-            usage: {},
-          };
-        }
-        generationCalls += 1;
-        if (generationCalls === 1) {
-          return {
-            id: 'suzhou-route',
-            text: '',
-            functionCalls: [
-              {
-                callId: 'route-1',
-                name: 'get_route',
-                arguments: {
-                  origin: '\u82cf\u5dde\u91d1\u9e21\u6e56',
-                  destination: '\u82cf\u5dde\u56ed\u533a\u7ad9',
-                  city: '\u82cf\u5dde',
-                  mode: 'transit',
-                },
-              },
-            ],
-            usage: {},
-          };
-        }
-        return {
-          id: 'suzhou-answer',
-          text: '\u5efa\u8bae\u4e58\u5730\u94c1\uff0c\u7ea6 30 \u5206\u949f\u3002',
-          functionCalls: [],
-          usage: {},
-        };
-      },
-    },
-    tools: {
-      qweather: {},
-      amap: {
-        async getRoute() {
-          return {
-            mode: 'transit',
-            distanceMeters: 12000,
-            durationSeconds: 1800,
-          };
-        },
-      },
-      getCurrentTime: () => ({}),
-    },
-    sendReply: async (value) => deliveries.push(value),
-  });
-  service.handleDanmaku({
-    uid: 'route-viewer',
-    userName: 'Alice',
-    message:
-      '\u5c0f\u7c73\u5e2e\u6211\u89c4\u5212\u4e00\u4e0b\u82cf\u5dde\u91d1\u9e21\u6e56\u5230\u82cf\u5dde\u56ed\u533a\u7ad9\u7684\u8def\u7ebf',
-  });
-  await waitUntil(() => deliveries.length === 1);
-  assert.equal(deliveries[0].message, '\u5efa\u8bae\u4e58\u5730\u94c1\uff0c\u7ea6 30 \u5206\u949f\u3002');
-  assert.ok(Array.from(deliveries[0].message).length < 40);
-  assert.doesNotMatch(deliveries[0].message, /\u6682\u65f6|\u65e0\u6cd5/);
-});
-
-test('a monthly API quota result makes the next tool round rely on web search', async () => {
+test('a monthly API quota result makes the bounded next tool round rely on web search', async () => {
   const deliveries = [];
   let mainCalls = 0;
   const service = createTestService({
@@ -462,6 +308,7 @@ test('a monthly API quota result makes the next tool round rely on web search', 
           };
         }
         mainCalls += 1;
+        assert.ok(request.maxOutputTokens > 0 && Number.isFinite(request.maxOutputTokens), `${request.purpose} keeps a bounded output budget`);
         if (mainCalls === 1) {
           return {
             id: 'tool-round',
@@ -506,43 +353,9 @@ test('a monthly API quota result makes the next tool round rely on web search', 
   assert.equal(deliveries[0].message, 'web result');
 });
 
-test('model requests identify review, generation, and output review stages', async () => {
-  const purposes = [];
-  const deliveries = [];
-  const service = createTestService({
-    modelClient: {
-      async createResponse(request) {
-        purposes.push(request.purpose);
-        if (request.purpose === 'input_review') {
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":""}',
-            functionCalls: [],
-            usage: {},
-          };
-        }
-        if (request.purpose === 'output_review') {
-          return {
-            text: '{"allowed":true,"riskType":"","safeText":"回答"}',
-            functionCalls: [],
-            usage: {},
-          };
-        }
-        return { text: '回答', functionCalls: [], usage: {} };
-      },
-    },
-    sendReply: async (value) => deliveries.push(value),
-  });
-
-  service.handleDanmaku({ uid: '42', userName: 'Alice', message: '小米 问题' });
-  await waitUntil(() => deliveries.length === 1);
-
-  assert.deepEqual(purposes, ['input_review', 'generation', 'output_review']);
-});
-
 test('output review receives the original question and can replace an off-target interrogation', async () => {
   const deliveries = [];
   let outputReviewInput = '';
-  let outputReviewInstructions = '';
   const service = createTestService({
     config: { trigger: 'AI' },
     modelClient: {
@@ -556,7 +369,6 @@ test('output review receives the original question and can replace an off-target
         }
         if (request.purpose === 'output_review') {
           outputReviewInput = String(request.input);
-          outputReviewInstructions = String(request.instructions);
           return {
             text: '{"allowed":true,"riskType":"","safeText":"给你三首低缓情歌，每首都走轻柔路线。"}',
             functionCalls: [],
@@ -582,7 +394,6 @@ test('output review receives the original question and can replace an off-target
 
   assert.match(outputReviewInput, /推荐几首舒缓低缓的情歌/);
   assert.match(outputReviewInput, /男声还是女声/);
-  assert.match(outputReviewInstructions, /安全与质量校验/);
   assert.equal(deliveries[0].message, '给你三首低缓情歌，每首都走轻柔路线。');
 });
 

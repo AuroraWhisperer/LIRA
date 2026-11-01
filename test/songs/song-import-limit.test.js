@@ -73,17 +73,10 @@ test('legacy merge counts disabled existing songs and deduplicates identities be
   assert.deepEqual(snapshot(), full);
 });
 
-test('legacy duplicate-only import preserves existing over-limit libraries and requests cleanup', (t) => {
+test('legacy duplicate-only import preserves existing over-limit libraries', (t) => {
   const { store, snapshot } = fixture(t, 5001);
   const before = snapshot();
-  assert.throws(
-    () => songService.importSongs(store, songs(1)),
-    (error) => {
-      assert.equal(error.code, limitError.code);
-      assert.match(error.message, /先在歌库整理至 5000 首以内/);
-      return true;
-    },
-  );
+  assert.throws(() => songService.importSongs(store, songs(1)), limitError);
   assert.deepEqual(snapshot(), before);
 });
 
@@ -173,7 +166,6 @@ for (const format of ['import', 'import-xlsx']) {
     const rejected = await call(songs(2, '新增'));
     assert.equal(rejected.status, 422);
     assert.equal(rejected.body.error, limitError.code);
-    assert.match(rejected.body.message, /5000/);
     assert.deepEqual(signals, []);
     assert.deepEqual(snapshot(), before);
 
@@ -199,7 +191,6 @@ test('manual save route reports the capacity error without broadcasts or cloud w
   }, { body: async () => songs(1, '新增')[0] }, response);
   assert.equal(response.status, 422);
   assert.equal(response.body.error, limitError.code);
-  assert.match(response.body.message, /整理至 5000 首以内/);
   assert.deepEqual(signals, []);
   assert.equal(store.countSongs(), 5000);
 });

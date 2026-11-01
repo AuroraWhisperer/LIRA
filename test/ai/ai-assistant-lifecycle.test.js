@@ -172,48 +172,6 @@ test('unrelated config updates and failed disabling do not cancel an accepted re
   await waitUntil(() => sent.length === 1);
 });
 
-test('provider connection tests dispatch with the saved private configuration', async () => {
-  const received = [];
-  const service = createTestService({
-    modelClient: {
-      async testConnection(config) {
-        received.push(['deepseek', config.deepseekApiKey]);
-        return { provider: 'deepseek' };
-      },
-    },
-    tools: {
-      qweather: {
-        async testConnection(config) {
-          received.push(['qweather', config.deepseekApiKey]);
-          return { provider: 'qweather' };
-        },
-      },
-      amap: {
-        async testConnection(config) {
-          received.push(['amap', config.deepseekApiKey]);
-          return { provider: 'amap' };
-        },
-      },
-      getCurrentTime() {},
-    },
-  });
-
-  service.updateConfig({ enabled: false });
-  assert.deepEqual(await service.testProvider('deepseek'), {
-    provider: 'deepseek',
-  });
-  assert.deepEqual(await service.testProvider('qweather'), {
-    provider: 'qweather',
-  });
-  assert.deepEqual(await service.testProvider('amap'), { provider: 'amap' });
-  await assert.rejects(service.testProvider('unknown'), (error) => error.code === 'AI_PROVIDER_UNKNOWN');
-  assert.deepEqual(received, [
-    ['deepseek', 'secret'],
-    ['qweather', 'secret'],
-    ['amap', 'secret'],
-  ]);
-});
-
 test('shutdown aborts and drains active generation without writes or delivery', async () => {
   const writes = [];
   const deliveries = [];

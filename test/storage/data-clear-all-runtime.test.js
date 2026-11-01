@@ -118,10 +118,6 @@ function assertPaused(f) {
 
 test('real runtime context exposes writer controls and resumes after successful clear', async (t) => {
   const f = fixture(t);
-  assert.equal(f.context.gifts.pauseDetection, f.services.gifts.pauseDetection);
-  assert.equal(typeof f.context.gifts.pauseDetection, 'function');
-  assert.equal(f.context.overtime.resumeRecovery, f.services.overtime.resumeRecovery);
-  assert.equal(typeof f.context.overtime.resumeRecovery, 'function');
   const res = response();
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 200);

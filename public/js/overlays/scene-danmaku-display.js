@@ -9,17 +9,21 @@ export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, st
     if (!snapshot) return;
     applyRoomGuardState(snapshot.state?.roomGuard);
     room(snapshot.state?.roomGuard?.roomId || '', snapshot.roomProfile ?? null);
-    const nextSession = snapshot.status === 'connected' && snapshot.state?.liveStatus === 1
+    const liveState = snapshot.status === 'connected' && [0, 1].includes(snapshot.state?.liveStatus);
+    const nextSession = liveState && snapshot.state.liveStatus === 1
       ? snapshot.state.liveSessionId : null;
-    if (snapshot.reset || snapshot.epoch !== epoch || nextSession !== session) {
+    // Cursor resets recover delivery; only owner/session changes clear visible history.
+    const changed = snapshot.epoch !== epoch || liveState && nextSession !== session;
+    if (changed) {
       clear();
       if (nextSession && snapshot.state.confirmationMessage) append({ id: `scene-confirm-${++sequence}`,
         kind: 'system', name: 'LIRA SYSTEM', message: snapshot.state.confirmationMessage, timestamp: Date.now() });
     }
     epoch = snapshot.epoch;
-    session = nextSession;
-    status(snapshot.gap ? '消息有缺口 · 已从当前直播继续' : session ? '直播中 · 弹幕接收中' : '等待直播数据', Boolean(session));
-    if (!session) return;
+    if (changed || liveState) session = nextSession;
+    const receiving = Boolean(nextSession);
+    status(snapshot.gap && receiving ? '消息有缺口 · 已从当前直播继续' : receiving ? '直播中 · 弹幕接收中' : '等待直播数据', receiving);
+    if (!receiving) return;
     for (const event of snapshot.events || []) {
       if (event.liveSessionId !== session) continue;
       if (event.type === 'superchat-delete') {

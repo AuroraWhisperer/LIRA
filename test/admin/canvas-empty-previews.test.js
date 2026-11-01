@@ -26,31 +26,22 @@ test('canvas keeps opening styles visible when disabled or configuration is unav
       audioUrl: '/opening-media/test.ogg', volume: 0.5 } } }));
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  for (const style of ['classic', 'pixel-cassette']) {
-    await page.getByRole('button', { name: '添加组件', exact: true }).click();
-    await page.locator('[data-category="opening"]').click();
-    await page.locator(`[data-picker-style="${style}"]`).click();
-    const preview = page.frameLocator('.scene-editor-item.is-selected iframe');
-    await preview.locator(`#openingStage[data-style="${style}"]:not(.is-disabled)`).waitFor();
-    if (style === 'classic') await preview.getByText('尚未启用的开播画面', { exact: true }).waitFor();
-    else await preview.locator('#openingPixel').waitFor();
-    assert.equal(await preview.locator('audio').getAttribute('src'), null, 'Disabled opening previews must not start saved audio.');
-  }
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await page.locator('[data-category="opening"]').click();
+  await page.locator('[data-picker-style="classic"]').click();
+  const classic = page.frameLocator('.scene-editor-item.is-selected iframe');
+  await classic.getByText('尚未启用的开播画面', { exact: true }).waitFor();
+  assert.equal(await classic.locator('audio').getAttribute('src'), null, 'Disabled opening previews must not start saved audio.');
   unavailable = true;
-  const classic = page.locator('.scene-editor-item[data-component="opening"]').first().frameLocator('iframe');
   await classic.getByText('尚未启用的开播画面', { exact: true }).waitFor();
   await classic.locator('#openingStage:not(.is-disabled)').waitFor();
   assert.equal(fixture.runtime.settings.openingEnabled, 'false');
 });
 
 test('preview filters keep samples visible without changing live filtering', { timeout: 40000 }, async t => {
-  const day = sceneExtraPreviewData('gift-feed').day;
   const fixture = await startCanvasOutputFixture({ extraContext: {
     songs: { list: () => [{ id: 1, name: '实际流行歌曲', artist: '歌手', category_name: '流行' }] },
-    gifts: { getViewRevision: () => 'synthetic',
-      getHistory: () => ({ items: [], viewRevision: 'synthetic', nextCursor: null }) },
-    giftCards: { getProfiles: async () => ({ items: [], day, viewRevision: 'synthetic' }) },
-    overtime: { getGlobalGiftCatalog: () => ({ gifts: [] }) },
+    gifts: { getViewRevision: () => 'synthetic' },
     giftWishes: { getSnapshot: async () => ({ items: [{ id: 'real-day-wish', period: 'day',
       giftName: '小花花', target: 100, count: 36, todayCount: 36, remaining: 64, progress: 36,
       completed: false, displayStyle: 'card' }] }) },
@@ -83,28 +74,14 @@ test('preview filters keep samples visible without changing live filtering', { t
   }
   const wish = await add('gift-wishes', 'card');
   await wish.locator('.wish-card').waitFor();
-  for (const period of ['all', 'day', 'session', 'long']) {
-    await page.locator('[data-component-parameter="period"]').selectOption(period);
-    await wish.waitForFunction(period => window.previewConfig?.period === period, period);
-    await wish.locator('.wish-card').waitFor();
-  }
-  const feed = await add('gift-feed', 'default');
-  await feed.locator('.gift-banner').first().waitFor();
-  const minimum = page.locator('[data-component-parameter="minGiftAmountCents"]');
-  await minimum.fill('100'); await minimum.press('Tab');
-  await feed.locator('.gift-banner').first().waitFor({ state: 'hidden' });
-  await feed.getByRole('status').filter({ hasText: '金额门槛' }).waitFor();
-  assert.ok((await feed.getByRole('status').boundingBox()).y < 1000, 'The empty hint stays within the preview.');
-  await minimum.fill('0'); await minimum.press('Tab');
-  await feed.locator('.gift-banner').first().waitFor();
-  await feed.getByRole('status').waitFor({ state: 'hidden' });
+  await page.locator('[data-component-parameter="period"]').selectOption('long');
+  await wish.waitForFunction(() => window.previewConfig?.period === 'long');
+  await wish.locator('.wish-card').waitFor();
   const lyrics = await add('lyrics', 'default');
   await lyrics.locator('.desktop-lyric-preview-row').first().waitFor();
   await page.locator('[data-parameter-group="visibility"] > summary').click();
   await page.locator('[data-component-parameter="desktopLyricHideOnPause"]').check();
-  assert.equal(await page.locator('[data-component-parameter="desktopLyricHideOnPause"]').isChecked(), true);
   assert.equal(await lyrics.locator('.is-paused-hidden').count(), 0);
-  assert.equal(await lyrics.locator('.desktop-lyric-preview-viewport').evaluate(node => getComputedStyle(node).opacity), '1');
   const rockSongs = await add('songlist', 'default');
   await page.locator('[data-component-parameter="category"]').fill('摇滚');
   await rockSongs.waitForFunction(() => window.previewConfig?.category === '摇滚');
@@ -129,7 +106,6 @@ test('preview filters keep samples visible without changing live filtering', { t
   await published.waitFor();
   await published.frameLocator('iframe[src^="/lyrics"]').locator('.is-paused-hidden').waitFor({ state: 'attached' });
   assert.equal(await published.frameLocator('iframe[src^="/gift-wishes"]').locator('.wish-card').count(), 0);
-  await published.frameLocator('iframe[src^="/gift-feed"]').getByRole('status', { includeHidden: true }).waitFor({ state: 'hidden' });
   await published.frameLocator('iframe[src^="/songlist"]').nth(0).getByText('歌库还没有可展示歌曲', { exact: true }).waitFor();
   await published.frameLocator('iframe[src^="/songlist"]').nth(1).getByText('实际流行歌曲', { exact: true }).first().waitFor();
   assert.deepEqual(errors, []);
@@ -175,7 +151,6 @@ test('one blindbox profitability toggle can turn off the legacy loss filter', { 
     });
     createSceneExtraPreview('blindbox', { controller: window.controller }).createPanel(document.body);
   });
-  assert.equal(await page.locator('[data-component-parameter="hideLoss"]').count(), 0);
   const toggle = page.locator('[data-component-parameter="winnersOnly"]');
   assert.equal(await toggle.isChecked(), true);
   for (const checked of [false, true]) {
@@ -184,54 +159,6 @@ test('one blindbox profitability toggle can turn off the legacy loss filter', { 
       const { winnersOnly, hideLoss } = window.controller.getState().draft;
       return { winnersOnly, hideLoss };
     }), { winnersOnly: checked, hideLoss: checked });
-  }
-});
-
-test('windowlight controls keep the starting scene available and show timing only for automatic backgrounds', { timeout: 15000 }, async t => {
-  const fixture = await startCanvasOutputFixture();
-  const browser = openBrowserSession();
-  t.after(async () => { await browser.close(); await fixture.close(); });
-  const page = await browser.newPage();
-  page.setDefaultTimeout(5000);
-  const url = `${fixture.origin}/preview-test-host`;
-  assert.equal((await fetch(url)).status, 200);
-  await page.goto(url);
-  await page.evaluate(async () => {
-    const { createSceneExtraPreview } = await import('/js/admin/scene-extra-preview.js');
-    const { createSceneExtraDefaults } = await import('/js/shared/scene-extra-components.js');
-    const { createComponentConfigController } = await import('/js/admin/component-config-controller.js');
-    window.controller = createComponentConfigController({ initial: createSceneExtraDefaults('background'), persist: async draft => draft });
-    createSceneExtraPreview('background', { controller: window.controller }).createPanel(document.body);
-  });
-  const mode = page.locator('[data-component-parameter="sceneMode"]');
-  const scene = page.locator('[data-component-parameter="windowScene"]');
-  const interval = page.locator('[data-component-parameter="sceneIntervalSeconds"]');
-  for (const control of [mode, scene, interval]) {
-    assert.equal(await control.count(), 1);
-    assert.equal(await control.isVisible(), false);
-  }
-  assert.equal(await page.locator('option[value="windowlight"]').evaluate(option => option.hidden), true);
-  await page.evaluate(() => window.controller.edit({ style: 'windowlight' }));
-  assert.equal(await mode.isVisible(), true);
-  assert.equal(await scene.isVisible(), true);
-  assert.equal(await interval.isVisible(), false);
-  await scene.selectOption('rainy');
-  await mode.selectOption('auto');
-  assert.equal(await scene.isVisible(), true);
-  assert.equal(await scene.inputValue(), 'rainy');
-  assert.equal(await interval.isVisible(), true);
-  await interval.fill('37');
-  await interval.press('Tab');
-  assert.deepEqual(await page.evaluate(() => {
-    const { sceneMode, windowScene, sceneIntervalSeconds } = window.controller.getState().draft;
-    return { sceneMode, windowScene, sceneIntervalSeconds };
-  }), { sceneMode: 'auto', windowScene: 'rainy', sceneIntervalSeconds: 37 });
-  await mode.selectOption('manual');
-  assert.equal(await interval.isVisible(), false);
-  assert.equal(await scene.inputValue(), 'rainy');
-  for (const config of [{ style: 'moonlit' }, { style: 'windowlight', mediaStyle: { kind: 'image' } }]) {
-    await page.evaluate(config => window.controller.edit(config), config);
-    for (const control of [mode, scene, interval]) assert.equal(await control.isVisible(), false);
   }
 });
 

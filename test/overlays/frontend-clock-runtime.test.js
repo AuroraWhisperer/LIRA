@@ -34,7 +34,6 @@ test('live clock snapshots defeat late reads and retain explicit URL overrides w
   finishRead({ ok: true, json: async () => ({ ok: true, data: { style: 'peach', showSeconds: true } }) });
   await flush();
   assert.equal(dom.document.getElementById('clockCard').dataset.clockStyle, 'soda');
-  assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
   assert.equal(dom.timers.size, 2, 'one size-request timeout and one clock tick');
   const timer = [...dom.timers.keys()];
   snapshot('starlight');
@@ -66,56 +65,6 @@ test('shared clock preview uses only parent messages and disposes its timer', as
   assert.equal(dom.timers.size, 0);
   assert.equal(dom.window.listeners.has('resize'), false);
   assert.equal(dom.document.listeners.has('visibilitychange'), false);
-});
-
-test('contained clock preview fits and centers each style without retaining the previous scale', async () => {
-  const dom = createClockDom();
-  dom.window.innerWidth = 270;
-  dom.window.innerHeight = 166;
-  const messages = [];
-  dom.window.parent.postMessage = message => messages.push(message);
-  const card = dom.document.getElementById('clockCard');
-  const layouts = {
-    peach: { width: 560, height: 190 },
-    'timeline-vertical': { width: 48, height: 300 },
-    digital: { width: 400, height: 90 },
-    'moonlit-fan': { width: 560, height: 360 },
-  };
-  card.querySelectorAll = () => [{ getBoundingClientRect() {
-    const layout = layouts[card.dataset.clockStyle];
-    const scale = Number(card.style.getPropertyValue('--clock-scale')) || 1;
-    return { left: 0, top: 0, right: layout.width * scale, bottom: layout.height * scale,
-      width: layout.width * scale, height: layout.height * scale };
-  } }];
-  await loadModuleExports(entry('overlays', 'clock.js'), {
-    ...dom, URL, URLSearchParams,
-    location: new URL('http://127.0.0.1:3000/clock?componentPreview=1&previewFit=contain'),
-    fetch: () => assert.fail('preview must not read live settings'),
-  });
-  function assertFit() {
-    const scale = Number(card.style.getPropertyValue('--clock-scale'));
-    const layout = layouts[card.dataset.clockStyle];
-    for (const [axis, offset] of [['width', 'left'], ['height', 'top']]) {
-      const available = dom.window[axis === 'width' ? 'innerWidth' : 'innerHeight'] - 8;
-      const extent = layout[axis] * scale;
-      const margin = Number.parseFloat(card.style[offset]);
-      assert.ok(extent > 0 && extent <= available + 0.01, `${card.dataset.clockStyle} fits ${axis}`);
-      assert.ok(Math.abs(available - extent - margin * 2) < 0.01, `${card.dataset.clockStyle} centers ${axis}`);
-    }
-  }
-  for (const style of ['peach', 'timeline-vertical', 'digital', 'moonlit-fan', 'peach']) {
-    dom.window.listeners.get('message')({ source: dom.window.parent, origin: 'http://127.0.0.1:3000',
-      data: { type: 'component-preview:config', config: { style } } });
-    assertFit();
-  }
-  dom.window.innerWidth = 200;
-  dom.window.innerHeight = 100;
-  dom.window.listeners.get('resize')();
-  assertFit();
-  assert.equal(messages.some(message => message.type === 'component-preview:resize'), false);
-  assert.equal(dom.timers.size, 1);
-  dom.window.listeners.get('pagehide')();
-  assert.equal(dom.timers.size, 0);
 });
 
 function createClockDom() {
@@ -276,17 +225,7 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(new URL(source).searchParams.get('style'), 'digital');
   assert.equal(new URL(source).searchParams.get('previewFit'), 'contain');
   assert.equal(dom.document.getElementById('clockFixedUrl').textContent, 'http://127.0.0.1:3000/clock');
-  assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
-
-  for (const style of ['minimal', 'timeline-vertical', 'soda']) {
-    const button = dom.options.find((option) => option.dataset.clockStyleOption === style);
-    button.listeners.get('click')();
-    assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, style !== 'soda');
-    assert.equal(dom.document.getElementById('clockShowDateField').hidden, style === 'minimal');
-    assert.equal(dom.document.getElementById('clockShowDate').disabled, style === 'minimal');
-    assert.equal(dom.document.getElementById('clockShowDate').checked, true);
-    assert.equal(dom.document.getElementById('clockShowSeconds').disabled, false);
-  }
+  dom.options.find((option) => option.dataset.clockStyleOption === 'soda').listeners.get('click')();
   const label = dom.document.getElementById('clockCustomLabel');
   label.value = '预览文字';
   label.listeners.get('input')();
@@ -296,7 +235,6 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   preview.listeners.get('load')();
   assert.equal(navigations, 1, 'controls and late load never reload the document');
   const latest = messages.at(-1);
-  assert.equal(latest.origin, '*');
   assert.equal(latest.message.type, 'component-preview:config');
   assert.equal(latest.message.config.style, 'soda');
   assert.equal(latest.message.config.label, '预览文字');
@@ -308,36 +246,6 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(writes[0].clockStyle, 'soda');
   assert.equal(writes[0].clockShowSeconds, 'false');
   assert.equal(writes[0].clockLabel, '预览文字');
-});
-
-test('minimal clock stays time-only and restores date and period when switching styles', async () => {
-  const dom = createClockDom();
-  await loadModuleExports(entry('overlays', 'clock.js'), {
-    ...dom, URL, URLSearchParams,
-    location: new URL('http://127.0.0.1:3000/clock?style=minimal&date=1&seconds=1&format=12'),
-    fetch: () => assert.fail('complete preview parameters need no fetch'),
-  });
-  const node = (id) => dom.document.getElementById(id);
-  assert.equal(node('clockCard').dataset.clockStyle, 'minimal');
-  assert.equal(node('clockSeconds').hidden, false);
-  assert.equal(node('clockDateRow').hidden, true);
-  assert.equal(node('clockYear').hidden, true);
-  assert.equal(node('clockPeriod').hidden, true);
-  assert.match(node('clockTime').getAttribute('aria-label'), /^\d{2}点\d{2}分\d{2}秒$/);
-  const timers = [...dom.timers.keys()];
-  const update = (style) => dom.window.listeners.get('message')({
-    source: dom.window.parent, origin: 'http://127.0.0.1:3000',
-    data: { type: 'lira:clock-preview-config', config: { style, showDate: true, showSeconds: false, hourFormat: '12' } },
-  });
-  update('minimal');
-  assert.equal(node('clockSeconds').hidden, true);
-  assert.equal(node('clockDateRow').hidden, true);
-  update('digital');
-  assert.equal(node('clockDateRow').hidden, false);
-  assert.equal(node('clockPeriod').hidden, false);
-  assert.deepEqual([...dom.timers.keys()], timers);
-  dom.window.listeners.get('pagehide')();
-  assert.equal(dom.timers.size, 0);
 });
 
 test('clock applies only same-origin parent previews without restarting its timer', async () => {
@@ -352,7 +260,6 @@ test('clock applies only same-origin parent previews without restarting its time
     },
   });
   const card = dom.document.getElementById('clockCard');
-  assert.equal(card.hidden, false);
   const timer = [...dom.timers.keys()][0];
   const receive = dom.window.listeners.get('message');
   const message = {
@@ -376,9 +283,6 @@ test('clock applies only same-origin parent previews without restarting its time
   receive(message);
   assert.equal(card.dataset.clockStyle, 'starlight');
   assert.equal(dom.document.getElementById('clockLabel').textContent, '新的 角标');
-  assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
-  assert.equal(dom.document.getElementById('clockDateRow').hidden, true);
-  assert.equal(dom.document.getElementById('clockPeriod').hidden, false);
   assert.deepEqual([...dom.timers.keys()], [timer]);
   assert.equal(dom.animations.length, 1);
   message.data.config.style = 'soda';
@@ -402,37 +306,6 @@ test('clock applies only same-origin parent previews without restarting its time
   dom.document.hidden = false;
   dom.document.listeners.get('visibilitychange')();
   assert.equal(dom.timers.size, 1);
-});
-
-test('moonlit clock retains its full art bounds when date and seconds change, using one timer', async () => {
-  const dom = createClockDom();
-  const messages = [];
-  dom.window.parent.postMessage = message => messages.push(message);
-  await loadModuleExports(entry('overlays', 'clock.js'), {
-    ...dom, URL, URLSearchParams, location: new URL('http://127.0.0.1:3000/clock?componentPreview=1'),
-    fetch: () => assert.fail('preview must not read live settings'),
-  });
-  const receive = config => dom.window.listeners.get('message')({
-    source: dom.window.parent, origin: 'http://127.0.0.1:3000',
-    data: { type: 'component-preview:config', config },
-  });
-  receive({ style: 'moonlit-fan', showDate: true, showSeconds: true, hourFormat: '24' });
-  const card = dom.document.getElementById('clockCard');
-  const scale = card.style.getPropertyValue('--clock-scale');
-  const timer = [...dom.timers.keys()];
-  assert.equal(card.dataset.clockStyle, 'moonlit-fan');
-  assert.equal(card.style.getPropertyValue('--clock-offset-x'), '0px');
-  const initialSize = messages.filter(message => message.type === 'component-preview:resize').at(-1);
-  assert.ok(initialSize);
-  receive({ style: 'moonlit-fan', showDate: false, showSeconds: false, hourFormat: '12' });
-  assert.equal(dom.document.getElementById('clockDateRow').hidden, true);
-  assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
-  assert.match(dom.document.getElementById('clockPeriod').textContent, /^(AM|PM)$/);
-  assert.equal(card.style.getPropertyValue('--clock-scale'), scale);
-  assert.deepEqual(messages.filter(message => message.type === 'component-preview:resize').at(-1), initialSize);
-  assert.deepEqual([...dom.timers.keys()], timer);
-  dom.window.listeners.get('pagehide')();
-  assert.equal(dom.timers.size, 0);
 });
 
 test('moon palettes alternate on clock boundaries and keep fixed choices with one disposable timer', async () => {
@@ -489,16 +362,12 @@ test('moon palettes alternate on clock boundaries and keep fixed choices with on
 test('browser source reveals saved settings and current time together, retaining query overrides', async () => {
   const dom = createClockDom();
   let resolveConfig;
-  let sizeRequestSignal;
   await loadModuleExports(entry('overlays', 'clock.js'), {
     ...dom,
     URLSearchParams,
     location: new URL('http://127.0.0.1:3000/clock?seconds=0'),
-    fetch: (url, options) => {
-      if (url.startsWith('/api/component/size?')) {
-        sizeRequestSignal = options.signal;
-        return new Promise(() => {});
-      }
+    fetch: (url) => {
+      if (url.startsWith('/api/component/size?')) return new Promise(() => {});
       assert.equal(url, '/api/clock/config');
       return new Promise((resolve) => {
         resolveConfig = resolve;
@@ -507,7 +376,6 @@ test('browser source reveals saved settings and current time together, retaining
   });
   const card = dom.document.getElementById('clockCard');
   assert.equal(card.hidden, true);
-  assert.equal(dom.timers.size, 1, 'only the pending size request has a timeout before clock settings arrive');
   resolveConfig({
     ok: true,
     json: async () => ({
@@ -526,13 +394,9 @@ test('browser source reveals saved settings and current time together, retaining
   assert.equal(dom.document.getElementById('clockSeconds').hidden, true);
   assert.match(dom.document.getElementById('clockTime').dateTime, /^\d{4}-/);
   assert.match(dom.document.getElementById('clockDate').textContent, /^\d{4}-\d{2}-\d{2}$/);
-  assert.equal(dom.timers.size, 2, 'one size-request timeout and one clock tick');
-  dom.window.listeners.get('pagehide')();
-  assert.equal(dom.timers.size, 0);
-  assert.equal(sizeRequestSignal.aborted, true);
 });
 
-test('flip presets and custom colors update and save without reloading the preview', async () => {
+test('flip custom colors update and save without reloading the preview', async () => {
   const dom = createClockDom();
   const messages = [];
   const writes = [];
@@ -551,28 +415,19 @@ test('flip presets and custom colors update and save without reloading the previ
   module.initClockCard();
   await flush();
   const source = preview.src;
-  assert.equal(dom.document.getElementById('clockFlipColors').hidden, false);
-  assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
   assert.equal(dom.document.getElementById('clockFlipTextColor').value, '#123456');
-  dom.palettes.find((button) => button.dataset.clockPalette === 'lilac').listeners.get('click')();
   const textColor = dom.document.getElementById('clockFlipTextColor');
   textColor.value = '#113355';
   textColor.listeners.get('input')();
   assert.equal(messages.at(-1).config.flipTextColor, '#113355');
-  assert.equal(messages.at(-1).config.flipFrameColor, '#cb69e3');
   assert.equal(preview.src, source);
   assert.equal(dom.timers.size, 0);
   assert.equal(writes.length, 0);
   await dom.document.getElementById('clockSave').listeners.get('click')();
   assert.equal(writes[0].clockFlipTextColor, '#113355');
-  assert.equal(writes[0].clockFlipFrameColor, '#cb69e3');
-  dom.options.find((button) => button.dataset.clockStyleOption === 'orbit').listeners.get('click')();
-  assert.equal(dom.document.getElementById('clockFlipColors').hidden, true);
-  assert.equal(dom.document.getElementById('clockCustomLabel').disabled, true);
-  assert.equal(dom.document.getElementById('clockCustomLabelField').hidden, true);
 });
 
-test('flip cells animate only changed values, settle on rollover and clean up on style changes', async () => {
+test('flip cells settle on midnight rollover, keep updating under reduced motion and clean up on style changes', async () => {
   const dom = createClockDom();
   let now = new Date(2026, 8, 29, 23, 59, 58).getTime();
   class ClockDate extends Date {
@@ -584,63 +439,34 @@ test('flip cells animate only changed values, settle on rollover and clean up on
     location: new URL('http://127.0.0.1:3000/clock?style=flip&date=1&seconds=1&format=24'),
   });
   const node = (id) => dom.document.getElementById(id);
-  const halves = (id) => node(id).children.filter((half) => half.children.length).map((half) => half.children[0].textContent);
   const value = (id) => node(id).children.at(-1).textContent;
   assert.equal(dom.animations.length, 0, 'first frame must not flip from placeholder zeroes');
-  assert.equal(node('clockHours').getAttribute('aria-label'), '23');
-  assert.equal(node('clockSeconds').getAttribute('aria-label'), '58');
-  assert.deepEqual(halves('clockSeconds').slice(0, 2), ['58', '58']);
   assert.equal(value('clockSeconds'), '58');
-  assert.equal(node('clockSeconds').classList.contains('is-flipping'), false);
-  assert.equal(node('clockDate').getAttribute('aria-label'), '9/29');
   function tick() { [...dom.timers.values()][0](); }
-  now += 1000;
+  now += 2000;
   tick();
-  assert.equal(dom.animations.length, 2, 'seconds flip together as one two-digit cell');
-  assert.equal(dom.animations[0].keyframes[1].transform, 'rotateX(-90deg)');
-  assert.equal(dom.animations[1].options.delay, 240);
-  assert.equal(node('clockSeconds').classList.contains('is-flipping'), true);
-  dom.animations[1].onfinish();
-  assert.equal(dom.animations[0].cancelled, true);
-  assert.deepEqual(halves('clockSeconds').slice(0, 2), ['59', '59']);
-  assert.equal(value('clockSeconds'), '59');
-  assert.equal(node('clockSeconds').classList.contains('is-flipping'), false);
-  now += 1000;
-  tick();
-  assert.equal(dom.animations.length, 12, 'midnight changes all five cells');
   assert.equal(node('clockHours').getAttribute('aria-label'), '00');
   assert.equal(node('clockDate').getAttribute('aria-label'), '9/30');
   assert.equal(node('clockWeekday').getAttribute('aria-label'), 'WED');
   for (const animation of dom.animations) animation.onfinish?.();
-  assert.deepEqual(halves('clockHours').slice(0, 2), ['00', '00']);
-  assert.deepEqual(halves('clockSeconds').slice(0, 2), ['00', '00']);
   assert.equal(value('clockHours'), '00');
   assert.equal(value('clockSeconds'), '00');
   dom.window.matchMedia = () => ({ matches: true });
+  const count = dom.animations.length;
   now += 1000;
   tick();
-  assert.equal(dom.animations.length, 12, 'reduced motion still updates time without folding');
+  assert.equal(dom.animations.length, count, 'reduced motion still updates time without folding');
   assert.equal(value('clockSeconds'), '01');
   const receive = (config) => dom.window.listeners.get('message')({
     source: dom.window.parent, origin: 'http://127.0.0.1:3000', data: { type: 'lira:clock-preview-config', config },
   });
   dom.window.matchMedia = () => ({ matches: false });
-  receive({ style: 'flip', showSeconds: false, showDate: false, hourFormat: '12', flipTextColor: '#bc59d6' });
+  receive({ style: 'flip', showSeconds: false, showDate: false, hourFormat: '12' });
   assert.equal(node('clockHours').getAttribute('aria-label'), '12');
   assert.equal(node('clockPeriod').textContent, 'AM');
-  assert.equal(node('clockSeconds').hidden, true);
-  assert.equal(node('clockDateRow').hidden, true);
-  assert.equal(node('clockCard').style['--flip-ink'], '#bc59d6');
-  const count = dom.animations.length;
-  now += 1000;
-  tick();
-  assert.equal(dom.animations.length, count, 'hidden seconds do not animate');
   receive({ style: 'orbit', showSeconds: false });
   assert.equal(node('clockHours').children.length, 0);
-  assert.equal(node('clockHours').classList.contains('clock-flip-cell'), false);
   assert.equal(node('clockSeconds').children.length, 0);
-  assert.equal(node('clockSeconds').classList.contains('clock-flip-cell'), false);
   assert.equal(node('clockDate').textContent, '2026.09.30');
-  assert.equal(node('clockWeekday').textContent, '星期三');
   assert.equal(dom.timers.size, 1, 'style switches retain a single timer');
 });

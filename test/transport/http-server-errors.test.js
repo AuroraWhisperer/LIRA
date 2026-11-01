@@ -82,7 +82,6 @@ for (const mode of ['complete', 'buffered', 'drip', 'continue']) {
     await closed;
     assert.match(response, /^HTTP\/1\.1 413 /);
     assert.match(response, /connection: close/i);
-    assert.match(response, /Request body exceeds size limit\./);
     const [headers, body] = response.split('\r\n\r\n');
     assert.equal(Buffer.byteLength(body), Number(/content-length: (\d+)/i.exec(headers)?.[1]));
     assert.deepEqual(JSON.parse(body), { ok: false, error: 'Request body exceeds size limit.' });

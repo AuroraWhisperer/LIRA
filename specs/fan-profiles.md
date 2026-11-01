@@ -49,7 +49,7 @@
 
 songDb v13 在同一迁移事务内转换已有点歌、将自动恢复快照裁剪为每 scope 两份并转换为 version 2。活动 `requests` 用 `fan_recorded` 防止重复累计；处理完成、跳过、移除或清空时，队列行与对应原始流水一起删除。启动迁移也删除旧终态及无活动队列的流水，不据此补建档案记录。随机点歌仅保留最近 10 首及最近可识别点歌人的最小缓存，最多 11 行，继续支持避重和回复对象选择。
 
-本轮用户确认替代首发 A23 的逐次歌曲修订、A26 的独立原始点歌快照保留，以及 A29 的旧流水导入入口；非点歌修订、成功入队原子归档、完整备份恢复与归属隔离继续适用。测试入口为 `test/fan-profiles/fan-song-retention.test.js`、`fan-profiles-music.test.js`、`fan-profiles-transfer.test.js`、`fan-profiles-merge.test.js` 与 `frontend-fan-profiles-view.test.js`。
+本轮用户确认替代首发 A23 的逐次歌曲修订、A26 的独立原始点歌快照保留，以及 A29 的旧流水导入入口；非点歌修订、成功入队原子归档、完整备份恢复与归属隔离继续适用。测试入口为 `test/fan-profiles/fan-song-retention.test.js`、`fan-profiles-music.test.js`、`fan-profiles-transfer.test.js`、`fan-profiles-merge.test.js`；`frontend-fan-profiles-view.test.js` 只承接点歌摘要的文本转义与偏好可编辑，摘要排版以实际查看验收。
 
 ### 名单展示（2026-09-19）
 

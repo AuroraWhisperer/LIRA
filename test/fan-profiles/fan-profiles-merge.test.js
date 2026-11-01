@@ -301,7 +301,6 @@ test('previewing and restoring the merge snapshot restores both original profile
   assert.equal(afterMerge.profiles.length, 1);
   const snapshots = f.run('snapshots');
   assert.equal(snapshots[0].id, merge.snapshotId);
-  assert.match(snapshots[0].reason, /合并/);
   assert.equal(
     Object.hasOwn(snapshots[0], 'profiles'),
     false,

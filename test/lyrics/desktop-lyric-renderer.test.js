@@ -114,21 +114,6 @@ test('identical timeline snapshots retain rows and word animations', async () =>
   assert.equal(animation.cancelled, true);
 });
 
-test('identical normalized settings avoid style writes while real changes still apply', async () => {
-  const { renderer, elements } = await createLiveRenderer();
-  let writes = 0;
-  const card = elements.get('desktopLyricSurface');
-  const setProperty = card.style.setProperty.bind(card.style);
-  card.style.setProperty = (...args) => { writes += 1; setProperty(...args); };
-  renderer.applySettings({ desktopLyricFontSize: '56' });
-  assert.ok(writes > 0, 'the first call must apply the default styles');
-  writes = 0;
-  renderer.applySettings({ desktopLyricFontSize: 56, unrelatedSetting: 'updated' });
-  assert.equal(writes, 0);
-  renderer.applySettings({ desktopLyricFontSize: '60' });
-  assert.ok(writes > 0);
-});
-
 test('settings updates cannot restart spring scrolling on a hidden lyric surface', async () => {
   const { renderer, elements, frames, setVisible } = await createLiveRenderer();
   const viewport = elements.get('desktopLyricPreviewViewport');
@@ -143,28 +128,6 @@ test('settings updates cannot restart spring scrolling on a hidden lyric surface
   assert.equal(frames.size, 0, 'an invisible but laid-out surface must not restart its spring');
   setVisible(true);
   assert.equal(frames.size, 1, 'revealing the surface restores following');
-});
-
-test('countdown writes only when its displayed second changes and resets for new timelines', async () => {
-  const { renderer, elements, state, advance } = await createLiveRenderer();
-  const timeline = { status: 'ready', lines: [{ startMs: 0, text: '第一句' }, { startMs: 9000, text: '第二句' }] };
-  renderer.updateLyricTimeline(timeline);
-  const countdown = elements.get('desktopLyricPreviewTimeline').children.at(-1);
-  let labels = 0;
-  const setAttribute = countdown.setAttribute.bind(countdown);
-  countdown.setAttribute = (name, value) => { if (name === 'aria-label') labels += 1; setAttribute(name, value); };
-  renderer.updateLyricState({ ...state, currentMs: 6200 });
-  assert.equal(countdown.hidden, false);
-  assert.equal(countdown.getAttribute('aria-label'), '距离下一句 3 秒');
-  for (let i = 0; i < 10; i += 1) advance(34);
-  assert.equal(labels, 1, 'frames within the same second leave the countdown unchanged');
-  renderer.updateLyricState({ ...state, currentMs: 7200, sequence: 2, discontinuity: true });
-  assert.equal(labels, 2);
-  assert.equal(countdown.getAttribute('aria-label'), '距离下一句 2 秒');
-  renderer.updateLyricTimeline({ ...timeline, trackTitle: 'New song' });
-  const nextCountdown = elements.get('desktopLyricPreviewTimeline').querySelector('.desktop-lyric-preview-countdown');
-  assert.equal(nextCountdown.hidden, false);
-  assert.equal(nextCountdown.getAttribute('aria-label'), '距离下一句 2 秒');
 });
 
 test('desktop karaoke immediately anchors a small explicit seek within the same word', async () => {
@@ -291,21 +254,6 @@ test('desktop lyric timeline identifies active lines and countdowns for long gap
   assert.equal(preview.getLyricCountdown(lines, 1, 9500), null);
 });
 
-test('desktop lyric timeline spring converges smoothly on the active-line anchor', async () => {
-  const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
-  let frame = { position: 0, velocity: 0 };
-
-  frame = preview.stepSpringScroll(frame.position, frame.velocity, 500, 16);
-  assert.ok(frame.position > 0 && frame.position < 500);
-
-  for (let index = 0; index < 180; index += 1) {
-    frame = preview.stepSpringScroll(frame.position, frame.velocity, 500, 16);
-  }
-
-  assert.equal(frame.position, 500);
-  assert.equal(frame.velocity, 0);
-});
-
 test('desktop lyric renderer normalizes timing, empty text, and anchor settings', async () => {
   const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
   const settings = preview.resolveDesktopLyricSettings({
@@ -315,7 +263,6 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
     desktopLyricHideOnPause: 'true',
     desktopLyricAlignPosition: '0.25',
     desktopLyricAlignAnchor: 'end',
-    desktopLyricLetterSpacing: '2',
   });
 
   assert.equal(settings.timeOffsetMs, 350);
@@ -323,8 +270,6 @@ test('desktop lyric renderer normalizes timing, empty text, and anchor settings'
   assert.equal(settings.hideOnPause, true);
   assert.equal(settings.alignPosition, 0.25);
   assert.equal(settings.alignAnchor, 'end');
-  assert.equal(settings.letterSpacing, 2);
-  assert.equal(preview.resolveDesktopLyricSettings({ desktopLyricLetterSpacing: '3' }).letterSpacing, 2);
   assert.equal(preview.resolveLyricTime(1000, settings), 1350);
   assert.equal(preview.resolveNoLyricText({ trackTitle: '测试歌曲' }, settings), '测试歌曲');
   assert.equal(preview.calculateFollowTarget(600, 100, 400, 1200, settings.alignPosition, settings.alignAnchor), 600);

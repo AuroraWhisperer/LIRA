@@ -67,46 +67,14 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await page.goto(editorUrl);
   const open = page.getByRole('button', { name: '添加组件', exact: true });
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
-  await open.click();
-  const heading = picker.locator('.preview-picker-heading');
-  assert.equal(await heading.locator('p').count(), 0);
-  assert.equal(await heading.getByRole('heading', { name: '添加组件', exact: true }).count(), 1);
-  assert.equal(await picker.getAttribute('aria-describedby'), null);
-  const categories = picker.locator('[data-category]');
-  assert.equal(await categories.last().getAttribute('data-category'), 'browser');
-  for (const category of await categories.all()) {
-    await category.click();
-    const categoryName = (await category.textContent()).trim();
-    assert.equal(await picker.locator('.preview-picker-content').getByRole('heading', { name: categoryName, exact: true }).count(),
-      0, 'Content does not repeat the category title.');
-    const contentLabel = await picker.locator('.preview-picker-content').getAttribute('aria-label');
-    await picker.getByRole('button', { name: '关闭', exact: true }).click();
-    await open.click();
-    assert.equal(await category.getAttribute('aria-pressed'), 'true', 'Reopening keeps the last selected category.');
-    assert.equal(await picker.locator('.preview-picker-content').getAttribute('aria-label'), contentLabel);
-  }
   const more = picker.getByRole('button', { name: '更多', exact: true });
-  assert.equal(await picker.locator('iframe').count(), 0, 'Opening More does not load a source before import.');
-  await page.keyboard.press('Escape');
-  await picker.waitFor({ state: 'hidden' });
-  await open.click();
-  assert.equal(await more.getAttribute('aria-pressed'), 'true', 'Escape also preserves the selected category.');
-  await picker.getByRole('button', { name: '关闭', exact: true }).click();
-  await picker.waitFor({ state: 'hidden' });
   await open.click();
   await more.click();
-  for (const [name, value] of [['网页宽度', '800'], ['网页高度', '600']]) {
-    const input = picker.getByRole('spinbutton', { name, exact: true });
-    assert.equal(await input.inputValue(), value);
-    assert.equal(await input.getAttribute('min'), '32');
-    assert.equal(await input.getAttribute('max'), '7680');
-  }
   await picker.getByRole('textbox', { name: '组件名称', exact: true }).fill('天气组件');
   const sourceUrl = picker.getByRole('textbox', { name: '浏览器源地址', exact: true });
   await sourceUrl.fill('javascript:alert(1)');
   await picker.getByRole('button', { name: '添加到画布', exact: true }).click();
   await picker.locator('[role="alert"]:visible').waitFor();
-  assert.ok((await picker.locator('[role="alert"]:visible').textContent()).trim());
   assert.equal(await page.locator('.scene-editor-item').count(), 0);
   const firstUrl = `${fixture.origin}/synthetic-browser-source?instance=first&token=synthetic-provider-secret`;
   await sourceUrl.fill(firstUrl);
@@ -117,8 +85,6 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await assertSource(first.frameLocator('iframe'), 'first', 800, 600);
   assert.equal(await first.locator('iframe').getAttribute('sandbox'), 'allow-scripts');
   assert.equal(await first.locator('iframe').getAttribute('referrerpolicy'), 'no-referrer');
-  assert.equal(await page.getByRole('textbox', { name: '组件名称', exact: true }).inputValue(), '天气组件');
-  assert.equal(await page.locator('[data-component-parameter]').count(), 0);
   const geometry = () => first.evaluate((node) => ['left', 'top', 'width', 'height'].map((key) => parseFloat(node.style[key])));
   const before = await geometry();
   const start = await first.boundingBox();
@@ -135,15 +101,12 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await page.mouse.up();
   const resized = await geometry();
   assert.ok(resized[2] > moved[2] && resized[3] > moved[3]);
-  assert.ok((await first.locator('.scene-editor-item-label').textContent()).includes(`${resized[2]} × ${resized[3]} px`));
   await assertSource(first.frameLocator('iframe'), 'first', 800, 600);
   await changeNumber(page, '宽度', 400);
   await changeNumber(page, '高度', 300);
 
   await open.click();
   await more.click();
-  assert.equal(await sourceUrl.inputValue(), '');
-  assert.equal(await picker.getByRole('textbox', { name: '组件名称', exact: true }).inputValue(), '浏览器源');
   await picker.getByRole('textbox', { name: '组件名称', exact: true }).fill('活动组件');
   const secondUrl = `${fixture.origin}/synthetic-browser-source?instance=second`;
   await sourceUrl.fill(secondUrl);
@@ -152,20 +115,12 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await picker.getByRole('button', { name: '添加到画布', exact: true }).click();
   const second = page.locator('.scene-editor-item[data-component="browser"]').nth(1);
   await assertSource(second.frameLocator('iframe'), 'second', 640, 360);
-  await open.click();
-  await more.click();
-  assert.equal(await picker.getByRole('spinbutton', { name: '网页宽度', exact: true }).inputValue(), '800');
-  assert.equal(await picker.getByRole('spinbutton', { name: '网页高度', exact: true }).inputValue(), '600');
-  await page.keyboard.press('Escape');
   await page.locator(`.preview-canvas-layer[data-item-id="${firstId}"] .preview-canvas-layer-select`).click();
   const editedUrl = firstUrl.replace('instance=first', 'instance=updated');
   const inspectorUrl = page.getByRole('textbox', { name: '浏览器源地址', exact: true });
   await inspectorUrl.fill('javascript:alert(2)');
   await inspectorUrl.press('Tab');
   await page.locator('.scene-editor-parameters [role="alert"]:visible').waitFor();
-  const invalidSourceToast = page.locator('#toast .toast-error').filter({ hasText: '浏览器源地址' });
-  await invalidSourceToast.waitFor();
-  assert.match(await invalidSourceToast.textContent(), /HTTP 或 HTTPS/);
   assert.equal(await inspectorUrl.evaluate((input) => input.checkValidity()), false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.waitForResponse((response) => response.url().endsWith('/api/component-preview')

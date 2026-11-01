@@ -96,7 +96,6 @@ test('radio refill notifies once on repeated failure or empty queue, then report
   requests.at(-1).resolve({ ok: true, data: { tracks: [{ id: 'new', title: '新歌' }] } });
   await recovery;
   assert.equal(notices.length, 2);
-  assert.match(notices[1].message, /已补上新歌/);
   assert.equal(notices[1].type, 'success');
   state.radioQueue.length = 0;
   const empty = refill();

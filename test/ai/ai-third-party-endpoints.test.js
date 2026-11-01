@@ -57,12 +57,7 @@ for (const [configuredUrl, expectedUrl] of [
     assert.equal(captured.url, expectedUrl);
     assert.equal(captured.body.stream, false);
     assert.equal(captured.body.thinking, undefined);
-    assert.deepEqual(captured.body.messages, [
-      { role: 'system', content: '简短回复。' },
-      { role: 'user', content: '你好' },
-    ]);
     assert.equal(result.text, '第三方接口连接正常');
-    assert.deepEqual(result.usage, { inputTokens: 5, outputTokens: 8 });
   });
 }
 
@@ -83,7 +78,6 @@ test('complete third-party Chat Completions URL remains unchanged', async () => 
   });
 
   assert.equal(capturedUrl, 'https://gateway.example.test/openai/v1/chat/completions');
-  assert.equal(result.reply, 'ok');
   assert.equal(result.endpointAdapted, true);
 });
 

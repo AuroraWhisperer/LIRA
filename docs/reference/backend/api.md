@@ -140,11 +140,17 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 
 输出中的 `projection` 是服务进程签发的类型投影回执，绑定已认证 owner scope/epoch、sceneId、来源 capability、item 选择及发布版本；不含实时数据或来源 token，不独立授予访问能力。父页面在整套 renderer 成功提交时同时记录 version/projection，后续请求携带该 active 回执。服务端仅合并最新文档与已验证 active 回执的类型集合，新版移除某类组件但准备失败时旧版仍获得更新；成功切换后旧类型随回执替换而释放。伪造、跨账号/场景/实例、版本不匹配、轮换或服务重启后的回执返回 403，父页清空旧版与回执后重新读取当前版。省略 projection 的旧客户端沿用仅投影最新文档的行为。没有历史文档缓存或无限版本保留。
 
+这里的展示 owner epoch 取主进程当前授权的生命周期 generation，普通后台 token 续期不改变它，也不撤销来源、回执或重建云弹幕连接。换账号、换服务器、重新授权、退出及当前授权失效仍终止旧来源；敏感远端请求继续使用授权管理器原有 token epoch 和校验，不因展示身份稳定而放宽。
+
 可选 `dataVersions` 为最长 1024 字符的 JSON 对象，仅接受 `songlist`、`lyricTimeline`、`gift-feed` 键及 1–128 字符的字母、数字、下划线或连字符版本值。首次传 `{}`，成功接收后回传响应中的版本；已确认且未变化的 `data.songlist`、`data.lyrics.lyricTimeline` 或 `data['gift-feed']` 省略，播放状态仍更新。发布版本不匹配时忽略旧确认；版本不提供权限，仍逐次执行原授权和投影检查。非法值返回 `400 SCENE_INVALID_DATA_VERSION`。旧请求不带此参数时始终返回完整数据，也不增加 `dataVersions` 响应字段。父页保留已接收静态内容供换版准备使用，输出失败或撤销清除确认后重新读取。
 
 上述响应均禁止 HTTP 缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、Authorization 请求头和省略凭据模式，不接受查询参数中的 token。流绑定当前 owner scope/epoch、sceneId、capability 和可选 item，复用 output 的 active projection 验证；成功发布/轮换或对应类型的运行时变化触发通知，40ms 合并突发变化。每次通知及每秒心跳都复核访问和 HTTP server 的实际 license/lifecycle；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流。消息不含组件数据、外部 URL 或业务事件 ID；慢客户端被关闭，shutdown 在 inflight drain 前释放所有流。
 
+含弹幕的有效来源在成功发送 `ready/change` 或心跳时续期同一展示需求；页面读取因计时延迟暂停时，健康通知流仍维持云消息连接。独立 `/api/danmaku/events` 使用相同规则；其他类型场景、撤销通知及失败写入不续期。没有读取及有效通知活动后，沿用 15 秒宽限释放共享云连接，不增加额外连接或心跳。
+
 客户端输出读取不重叠，请求开始至少间隔 100ms；通知正常时每五秒补读检查，断线、未实现或超出连接上限时回退为响应结束后约 750ms 重读，并有限退避重连。通知接口初次 HTTP 失败本身不清空有效输出；明确的 `revoked` 或 output 授权失败才撤销。提交新 renderer 版本/回执后重开通知订阅，准备失败继续订阅旧版所需类型。云事件仍提供本地缓冲 `epoch/nextCursor/reset/gap/events`，不提供服务端历史重放。
+
+云弹幕的展示 `epoch` 按授权账号及直播场次隔离，不随同场 SSE 重连改变；每次连接仍使用独立的连接代次拒绝旧回调，并须先取得合法 `overlay-state` 才能交付事件。短暂断线的 `status` 为 `offline/connecting`、`state` 为 null，未交付事件清除，游标推进并以 `gap/reset` 报告中断；恢复到同一场次时保留展示 epoch。`reset` 同时用于首次/无效游标与窗口缺口，只重建读取基线，不单独要求删除已显示弹幕。授权账号/代次或确认的直播场次改变时更换展示 epoch；确认下播、明确撤销及授权失败仍清空画面。独立弹幕链接复用同一规则。
 
 `data.danmaku.roomProfile` 为 `{roomId,uid,name,avatarUrl}` 或 `null`，仅投影与当前授权账号代次、云端 roomGuard 及本地已连接房间一致的房主资料。资料异步读取与30秒缓存不阻断事件；房间/账号切换及读取失败返回中性空值，过期读取不能通知或覆盖新上下文。场景子页直接消费该投影，不获得管理凭据，也不自行调用房主资料 HTTP 接口。
 

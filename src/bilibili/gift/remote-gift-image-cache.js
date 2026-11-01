@@ -424,7 +424,13 @@ function writeAtomic(filePath, bytes) {
   );
   try {
     fs.writeFileSync(tempPath, bytes, { flag: 'wx', mode: 0o600 });
-    fs.renameSync(tempPath, filePath);
+    for (let attempt = 0; ; attempt++) {
+      try { fs.renameSync(tempPath, filePath); break; }
+      catch (error) {
+        if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
+      }
+    }
   } finally {
     if (fs.existsSync(tempPath)) fs.rmSync(tempPath, { force: true });
   }

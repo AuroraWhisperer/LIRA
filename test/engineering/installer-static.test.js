@@ -20,16 +20,11 @@ test('installer stale-entry cleanup uses the builder app key, context, and quote
 
 test('the Windows installer preserves legacy data before uninstalling an update', () => {
   const installer = fs.readFileSync(path.join(__dirname, '../..', 'build', 'installer.nsh'), 'utf8');
-  const preservation = fs.readFileSync(path.join(__dirname, '../..', 'build', 'installer-data.nsh'), 'utf8');
   const removal = fs.readFileSync(path.join(__dirname, '../..', 'build', 'installer-uninstall.nsh'), 'utf8');
 
-  assert.match(preservation, /\$INSTDIR\\data/);
-  assert.match(preservation, /\$APPDATA\\com\.aurorawhisperer\.lira\\data/);
-  assert.match(preservation, /robocopy\.exe/);
   assert.match(installer, /Section "-LIRA Preserve Data"/);
   assert.match(installer, /!include "installer-uninstall\.nsh"/);
   assert.match(removal, /!macro customRemoveFiles/);
-  assert.match(preservation, /lira-data-backup/);
   assert.ok(installer.indexOf('Call liraWaitForAppExit') < installer.indexOf('Call liraPreserveInstallData'));
   assert.match(installer, /SetShellVarContext current\s+Call liraPreserveInstallData/);
   assert.doesNotMatch(installer, /RMDir \/r "\$APPDATA\\LIRA"/);

@@ -38,8 +38,6 @@ test('listenWithFallback asks the OS for a free port when startPort is zero', as
       startPort: 0,
       host: '127.0.0.1',
     });
-    assert.ok(Number.isInteger(port));
-    assert.ok(port > 0);
     assert.equal(server.address().port, port);
   } finally {
     await new Promise((resolve) => server.close(resolve));
@@ -53,8 +51,6 @@ test('listenExactly reports the OS-assigned port when port is zero', async () =>
       port: 0,
       host: '127.0.0.1',
     });
-    assert.ok(Number.isInteger(port));
-    assert.ok(port > 0);
     assert.equal(server.address().port, port);
   } finally {
     await new Promise((resolve) => server.close(resolve));

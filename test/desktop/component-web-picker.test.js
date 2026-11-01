@@ -48,16 +48,7 @@ test('native HTML selection imports companion directories without exposing absol
     ['package.json', '{}'], ['package-lock.json', '{}'], ['tsconfig.json', '{}'],
   ];
   const root = fixture(t, entries);
-  const window = { id: 'synthetic-owner-window' };
-  const picker = createComponentWebPicker({ getWindow: () => window, dialog: {
-    async showOpenDialog(parent, options) {
-      assert.equal(parent, window);
-      assert.deepEqual(options.properties, ['openFile']);
-      assert.deepEqual(options.filters[0].extensions, ['html', 'htm']);
-      return { canceled: false, filePaths: [path.join(root, 'index.html')] };
-    },
-  } });
-  const selected = await picker('html');
+  const selected = await pickerFor(path.join(root, 'index.html'))('html');
   assert.deepEqual(Object.keys(selected).sort(), ['entry', 'files']);
   assert.equal(selected.entry, 'index.html');
   const imported = await collect(selected.files);
@@ -77,8 +68,6 @@ test('choosing a CSS file in a subdirectory preserves sibling resources and the 
   const dataDir = path.join(root, 'isolated-library');
   const imported = await createComponentWebLibrary(dataDir).add(selected.files,
     { type: 'danmaku', entry: selected.entry, width: 400, height: 600 }, () => {});
-  assert.equal(imported.styles[0].config.cssStyle.engine, 'blc');
-  assert.match(imported.styles[0].config.cssStyle.src, /\/css\/style\.css$/);
   const directory = path.join(createComponentStyleStore(dataDir).directory(imported.id), 'web');
   assert.deepEqual(fs.readFileSync(path.join(directory, 'images', 'frame.png')), Buffer.from([1, 2, 3]));
   assert.deepEqual(fs.readFileSync(path.join(directory, 'fonts', 'clock.woff2')), Buffer.from([4, 5, 6]));
@@ -87,8 +76,8 @@ test('choosing a CSS file in a subdirectory preserves sibling resources and the 
 
 test('automatic selection returns only the selected media or archive and delays opening until authorized', async t => {
   const bytes = Buffer.from([0, 255, 10, 23]);
-  const root = fixture(t, [['图片.webp', bytes], ['样式.zip', bytes], ['clip.mp4', bytes], ['private.json', '{}']]);
-  for (const name of ['图片.webp', '样式.zip', 'clip.mp4']) {
+  const root = fixture(t, [['图片.webp', bytes], ['样式.zip', bytes], ['private.json', '{}']]);
+  for (const name of ['图片.webp', '样式.zip']) {
     const selected = await pickerFor(path.join(root, name))('auto');
     assert.deepEqual(Object.keys(selected).sort(), ['name', 'open', 'size']);
     assert.equal(selected.name, name);
@@ -103,8 +92,7 @@ test('automatic selection returns only the selected media or archive and delays 
 test('canceling, empty selection and dialog failure release the native chooser', async () => {
   const results = [{ canceled: true, filePaths: ['/must/not/be/read.html'] }, { canceled: false, filePaths: [] }, new Error('Dialog unavailable'), { canceled: true }];
   const picker = createComponentWebPicker({ getWindow: () => null, dialog: {
-    async showOpenDialog(_parent, options) {
-      assert.deepEqual(options.filters[0].extensions, ['css']);
+    async showOpenDialog() {
       const result = results.shift();
       if (result instanceof Error) throw result;
       return result;

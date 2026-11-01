@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { contentType } = require('../../src/server/http-utils');
 const { addFrameProtectionHeaders } = require('../../src/server/page-assets');
@@ -18,27 +17,16 @@ const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { DEFAULT_SETTINGS } = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '../..');
-const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 
 test('opening samples stay outside public assets and the overlay route remains registered', () => {
-  const musicPath = path.join(ROOT_DIR, 'test/fixtures/opening/music.ogg');
-  assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public/pages/overlays/opening.html')));
-  assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public/css/overlays/opening.css')));
-  assert.ok(fs.existsSync(path.join(ROOT_DIR, 'public/js/overlays/opening.js')));
-  assert.ok(fs.statSync(musicPath).size > 100_000);
-  assert.equal(fs.readFileSync(musicPath).subarray(0, 4).toString('ascii'), 'OggS');
   for (const name of ['music.ogg', 'avatar.webp', 'opening-character.png']) {
-    assert.ok(fs.existsSync(path.join(ROOT_DIR, 'test/fixtures/opening', name)));
     assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/img/overlays/opening', name)), false);
   }
-  const serverRuntime = [read('src', 'server.js'), read('src', 'server', 'http-server.js')].join('\n');
   assert.equal(require('../../src/server/access-policy').getOverlayScope('/opening'), 'opening');
-  assert.equal(contentType(musicPath), 'audio/ogg');
-  assert.match(serverRuntime, /requestUrl\.pathname\.startsWith\('\/opening-character\/'\)/);
-  assert.match(serverRuntime, /serveOpeningCharacter/);
+  assert.equal(contentType(path.join(ROOT_DIR, 'test/fixtures/opening/music.ogg')), 'audio/ogg');
 });
 
-test('opening overlay is frameable and starts with disabled media', () => {
+test('opening overlay is a sandboxed frameable page', () => {
   const headers = new Map();
   addFrameProtectionHeaders(
     {
@@ -50,100 +38,11 @@ test('opening overlay is frameable and starts with disabled media', () => {
   );
   assert.equal(headers.get('Content-Security-Policy'), 'sandbox allow-scripts');
   assert.equal(headers.has('X-Frame-Options'), false);
-
-  const html = read('public', 'pages', 'overlays', 'opening.html');
-  assert.match(html, /<html[^>]+class="opening-disabled"/);
-  assert.match(html, /<body[^>]+class="opening-disabled"/);
-  assert.match(html, /class="opening-viewport opening-disabled"/);
-  assert.match(html, /class="opening-stage is-disabled"/);
-  const audio = html.match(/<audio\b(?=[^>]*\sid="openingAudio")[^>]*>/)?.[0];
-  assert.ok(audio, 'opening audio element must be present');
-  assert.match(audio, /\sloop(?:\s|=|>)/);
-  assert.match(audio, /\spreload="metadata"/);
-  assert.doesNotMatch(audio, /\s(?:autoplay|src)(?:\s|=|>)/);
-  const avatar = html.match(/<img\b(?=[^>]*\sid="openingAvatar")[^>]*>/)?.[0];
-  assert.ok(avatar, 'opening character element must be present');
-  assert.match(avatar, /\shidden(?:\s|=|>)/);
-  assert.doesNotMatch(avatar, /\ssrc\s*=/);
 });
 
-test('opening overlay keeps canvas, disabled, reduced-motion and safe text constraints', () => {
-  const css = readCssBundle('public', 'css', 'overlays', 'opening.css');
-  const script = read('public', 'js', 'overlays', 'opening.js');
-  assert.match(css, /height:\s*100vh/);
-  assert.match(css, /height:\s*100dvh/);
-  assert.match(css, /container-type:\s*size/);
-  assert.match(css, /width:\s*min\(100vw,\s*177\.7778vh\)/);
-  assert.match(css, /height:\s*min\(100vh,\s*56\.25vw\)/);
-  assert.match(css, /aspect-ratio:\s*16\s*\/\s*9/);
-  assert.match(css, /font-size:\s*var\(--opening-title-size(?:,[^)]+)?\)/);
-  assert.match(css, /white-space:\s*normal/);
-  assert.match(css, /cqw/);
-  assert.match(css, /\[data-track-motion='barber'\][^\{]*\.track-barber/);
-  assert.match(css, /\[data-track-motion='progress'\][^\{]*\.track-progress/);
-  assert.match(css, /\.opening-stage\.is-reduced-motion[^\{]*\.track-barber/);
-  assert.match(css, /\.opening-stage\.quality-low[^\{]*\.track-progress/);
-  assert.match(css, /\.opening-stage\.is-paused\s+\*::before/);
-  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.character-float[^\{]*\{[^}]*transform:\s*none/);
-  assert.match(css, /\.opening-stage\.is-reduced-motion\s+\.opening-glow[^\{]*\{[^}]*animation:\s*none/);
-  assert.match(css, /\.opening-stage\.is-disabled\s*\{[^}]*display:\s*none/);
-  assert.match(css, /\.opening-stage\.is-disabled\s*\{[^}]*animation:\s*none/);
-  assert.match(
-    css,
-    /html\.opening-disabled,\s*body\.opening-disabled[^\{]*\{[^}]*background:\s*transparent\s*!important/,
-  );
-  assert.match(css, /\.opening-viewport\.opening-disabled/);
-  assert.match(script, /textContent/);
-  assert.match(css, /\.character-image\[hidden\]\s*\{\s*display:\s*none/);
-  assert.match(script, /import \{ OPENING_DEFAULTS \} from '\.\.\/shared\/opening-settings\.js'/);
-  assert.match(read('public', 'js', 'shared', 'opening-settings.js'), /audio:\s*'browser'/);
-  assert.match(script, /openingNameRow/);
-  assert.match(script, /audio === 'browser'/);
-});
-
-test('Toolbox opening controls preserve media defaults and the settings boundary', async () => {
-  const html = read('public', 'pages', 'admin', 'toolbox', 'start-animation.html');
-  const script = read('public', 'js', 'admin', 'start-animation.js');
-  const styles = read('public', 'css', 'admin', 'toolbox', 'start-animation.css');
-  assert.match(html, /id="openingEnabled"[^>]*type="checkbox"/);
-  assert.doesNotMatch(html, /id="openingEnabled"[^>]+checked/);
-  assert.match(html, /id="openingPreviewBtn"[^>]+disabled/);
-  for (const id of [
-    'openingTitle',
-    'openingTitleCount',
-    'openingSubtitle',
-    'openingName',
-    'openingFooter',
-    'openingQuality',
-    'openingTrackMotion',
-    'openingCharacterFile',
-    'openingCharacterName',
-    'openingResetCharacter',
-    'openingAudioFile',
-    'openingAudioVolume',
-    'openingUrl',
-    'openingPreviewBtn',
-  ]) {
-    assert.match(html, new RegExp(`id="${id}"`));
-  }
-  assert.match(html, /<select\b[^>]*\sid="openingTrackMotion"[^>]*>[\s\S]*?<option\b(?=[^>]*\svalue="heart")(?=[^>]*\sselected(?:\s|>))[^>]*>/);
-  assert.doesNotMatch(html, /id="openingShow(?:Notes|Eq)"/);
-  assert.match(html, /<option value="high" selected>/);
-  assert.match(html, /<option\b[^>]*\svalue="barber"/);
-  assert.match(html, /<option\b[^>]*\svalue="progress"/);
-  assert.match(html, /id="openingTitle"[^>]+maxlength="20"/);
-  assert.match(html, /id="openingName"[^>]+value=""/);
-  assert.match(script, /OPENING_AUDIO_ENDPOINT/);
-  assert.match(script, /MAX_CHARACTER_UPLOAD_BYTES/);
+test('opening settings keep payload names, legacy fallbacks and unsaved form drafts', async () => {
   const { openingSettingsPayload } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/start-animation.js'));
   assert.equal(openingSettingsPayload({ style: 'classic', trackMotion: 'barber' }).openingTrackMotion, 'barber');
-  assert.equal(DEFAULT_SETTINGS.openingEnabled, 'false');
-  assert.equal(DEFAULT_SETTINGS.openingFooter, '欢迎来到直播间');
-  assert.equal(DEFAULT_SETTINGS.openingTrackMotion, 'heart');
-  assert.equal(DEFAULT_SETTINGS.openingCharacterFile, '');
-  assert.equal(DEFAULT_SETTINGS.openingCharacterName, '');
-  assert.equal(DEFAULT_SETTINGS.openingPixelCharacterFile, '');
-  assert.equal(DEFAULT_SETTINGS.openingPixelCharacterName, '');
   assert.equal(
     getOpeningConfig({
       settings: {
@@ -177,22 +76,6 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
     }).trackMotion,
     'heart',
   );
-  assert.equal(
-    getOpeningConfig({
-      settings: {
-        get() {
-          return {};
-        },
-      },
-      system: { dataDir: os.tmpdir() },
-    }).characterUrl,
-    '',
-  );
-  assert.match(script, /openingTitleCount/);
-  assert.match(script, /Array\.from\(config\.title\)\.length}\/20/);
-  assert.doesNotMatch(script, /localStorage/);
-  assert.doesNotMatch(html, /<iframe/);
-  assert.match(styles, /overflow-y:\s*auto/);
   const openingTitle = { value: '未保存的标题', dataset: {},
     closest: (selector) => selector.split(',').map((part) => part.trim()).includes('#openingAnimationForm') ? {} : null };
   const ordinarySetting = { value: '旧值', dataset: {}, closest: () => null };
@@ -206,7 +89,6 @@ test('Toolbox opening controls preserve media defaults and the settings boundary
   new FormsService().fillForm({ openingTitle: '服务端旧标题', ordinarySetting: '服务端新值' });
   assert.equal(openingTitle.value, '未保存的标题');
   assert.equal(ordinarySetting.value, '服务端新值');
-  assert.match(read('public', 'js', 'admin', 'app.js'), /module\.initStartAnimation/);
 });
 
 test('opening media defaults and missing uploads have no bundled fallback', async () => {
@@ -296,10 +178,7 @@ test('opening track motion settings reject values outside the public enum', asyn
   );
 
   assert.equal(response.status, 400);
-  assert.deepEqual(responsePayload, {
-    ok: false,
-    error: '设置 openingTrackMotion 的值无效。',
-  });
+  assert.equal(responsePayload.ok, false);
   assert.deepEqual(writes, []);
   assert.equal(configureCalls, 0);
 

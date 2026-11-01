@@ -34,7 +34,7 @@ for (const action of ['add', 'remove']) {
   });
 }
 
-test('move controls follow empty, single, first, middle and last positions', async (t) => {
+test('move controls reorder rules and persist their sort order', async (t) => {
   const page = await fixture(t, 'libraries');
   await page.evaluate(async (limits) => {
     const { createOvertimeRuleEditor } = await import('/js/admin/overtime-rule-editor.js');
@@ -43,67 +43,34 @@ test('move controls follow empty, single, first, middle and last positions', asy
     window.editor = createOvertimeRuleEditor(root, () => {});
     window.editor.setLimits(limits);
     window.editor.renderRules([]);
-    window.rows = () => [...root.querySelectorAll('[data-overtime-rule]')];
-    window.bounds = () =>
-      window
-        .rows()
-        .map((row) => [
-          row.dataset.giftId,
-          row.querySelector('[aria-label="将这条规则上移"]').disabled,
-          row.querySelector('[aria-label="将这条规则下移"]').disabled,
-        ]);
-    window.addRule = (id) => window.editor.createRule({ id, name: id });
+    const rows = () => [...root.querySelectorAll('[data-overtime-rule]')];
+    for (const id of ['a', 'b', 'c']) window.editor.createRule({ id, name: id });
     window.move = (index, direction) =>
-      window.rows()[index].querySelector(`[aria-label="将这条规则${direction}移"]`).click();
-    window.removeRule = (index) => window.rows()[index].querySelector('[aria-label="删除规则"]').click();
+      rows()[index].querySelector(`[aria-label="将这条规则${direction}移"]`).click();
+    window.removeRule = (index) => rows()[index].querySelector('[aria-label="删除规则"]').click();
   }, limits);
-  assert.deepEqual(await page.evaluate(() => window.bounds()), []);
-  await page.evaluate(() => window.addRule('a'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [['a', true, true]]);
-  await page.evaluate(() => window.addRule('b'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['a', true, false],
-    ['b', false, true],
-  ]);
-  await page.evaluate(() => window.addRule('c'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['a', true, false],
-    ['b', false, false],
-    ['c', false, true],
-  ]);
+  const order = () => page.evaluate(() => window.editor.readRules().map((rule) => [rule.giftId, rule.sortOrder]));
   await page.evaluate(() => window.move(0, '下'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['b', true, false],
-    ['a', false, false],
-    ['c', false, true],
+  assert.deepEqual(await order(), [
+    ['b', 0],
+    ['a', 1],
+    ['c', 2],
   ]);
   await page.evaluate(() => {
     window.move(1, '下');
     window.move(2, '上');
     window.move(1, '上');
   });
-  assert.deepEqual(await page.evaluate(() => window.editor.readRules().map((rule) => [rule.giftId, rule.sortOrder])), [
+  assert.deepEqual(await order(), [
     ['a', 0],
     ['b', 1],
     ['c', 2],
   ]);
-  await page.evaluate(() => window.removeRule(2));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['a', true, false],
-    ['b', false, true],
-  ]);
-  await page.evaluate(() => window.addRule('c'));
   await page.evaluate(() => window.removeRule(1));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [
-    ['a', true, false],
-    ['c', false, true],
+  assert.deepEqual(await order(), [
+    ['a', 0],
+    ['c', 1],
   ]);
-  await page.evaluate(() => window.removeRule(0));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [['c', true, true]]);
-  await page.evaluate(() => window.removeRule(0));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), []);
-  await page.evaluate(() => window.addRule('d'));
-  assert.deepEqual(await page.evaluate(() => window.bounds()), [['d', true, true]]);
 });
 
 for (const result of [

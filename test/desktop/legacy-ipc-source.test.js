@@ -5,6 +5,7 @@ const test = require('node:test');
 const { registerBilibiliIpc } = require('../../src/electron/ipc/bilibili-ipc');
 const { registerMusicIpc } = require('../../src/electron/ipc/music-ipc');
 const { registerDesktopShellIpc } = require('../../src/electron/ipc/desktop-shell-ipc');
+const { createMainWindowIpcRegistrar } = require('../../src/electron/ipc/main-window-ipc');
 
 const BASE_URL = 'http://127.0.0.1:31001';
 
@@ -46,13 +47,13 @@ function fixture(register, channel, options = {}) {
   };
 }
 
-for (const [register, channel, allowLicense] of [
-  [registerBilibiliIpc, 'bilibili:get-auth-state', false],
-  [registerMusicIpc, 'music:get-auth-state', false],
-  [registerDesktopShellIpc, 'desktop:check-for-updates', true],
-]) {
-  test(`${channel} keeps legal pages and rejects other windows, frames and origins`, async () => {
-    const f = fixture(register, channel);
+for (const allowLicense of [false, true]) {
+  test(`main-window registrar checks frame identity, exact origin and page scope (license=${allowLicense})`, async () => {
+    let mainWindow;
+    const f = fixture(options => {
+      mainWindow = options.getMainWindow();
+      return createMainWindowIpcRegistrar({ ...options, getMainWindow: () => mainWindow, allowLicense })('policy:test', options.getAuthState);
+    }, 'policy:test');
     assert.deepEqual(await f.invoke(f.event, 'qq'), { marker: 'authorized-result' });
     const rejected = [
       undefined,
@@ -67,6 +68,10 @@ for (const [register, channel, allowLicense] of [
       'http://127.0.0.1:31002/admin',
       `${BASE_URL}/clock`,
       'file:///admin',
+      'not a URL',
+      'http://localhost:31001/admin',
+      'http://127.0.0.1.evil.example:31001/admin',
+      'http://127.0.0.1:31001@evil.example/admin',
     ]) {
       f.mainFrame.url = url;
       assert.deepEqual(await f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
@@ -85,43 +90,46 @@ for (const [register, channel, allowLicense] of [
     assert.deepEqual(await f.invoke(f.event), { marker: 'authorized-result' });
     f.window.isDestroyed = () => true;
     assert.deepEqual(await f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
+    mainWindow = null;
+    assert.deepEqual(await f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
   });
 
-  test(`every channel registered alongside ${channel} rejects an unauthorized caller before side effects`, async () => {
+}
+
+for (const [register, channel, allowLicense] of [
+  [registerBilibiliIpc, 'bilibili:get-auth-state', false],
+  [registerMusicIpc, 'music:get-auth-state', false],
+  [registerDesktopShellIpc, 'desktop:check-for-updates', true],
+]) {
+  test(`every channel alongside ${channel} uses the shared source policy before side effects`, async () => {
     const f = fixture(register, channel);
     for (const [name, handler] of f.handlers) {
       assert.deepEqual(await handler(undefined), { ok: false, error: 'IPC_SOURCE_INVALID' }, name);
     }
     assert.equal(f.calls(), 0);
+    assert.deepEqual(await f.invoke(f.event, 'qq'), { marker: 'authorized-result' });
+    f.mainFrame.url = `${BASE_URL}/license`;
+    assert.deepEqual(await f.invoke(f.event, 'qq'),
+      allowLicense ? { marker: 'authorized-result' } : { ok: false, error: 'IPC_SOURCE_INVALID' });
   });
 }
 
-test('authorized playback save and shutdown acknowledgement keep their existing return values', async () => {
-  const f = fixture(registerMusicIpc, 'playback:save-state');
-  assert.deepEqual(await f.invoke(f.event, { clientId: 'test', payload: {} }), { marker: 'authorized-result' });
-  assert.deepEqual(await f.handlers.get('playback:flush-ack')(f.event), { ok: true });
-  assert.equal(f.calls(), 2);
+test('desktop:open-data-dir rejects shell error strings so the renderer can report failure', async () => {
+  let result = '文件不存在';
+  let directory = 'D:/synthetic-lira-directory';
+  const calls = [];
+  const f = fixture(registerDesktopShellIpc, 'desktop:open-data-dir', {
+    getDataDir: () => directory,
+    shell: { openPath: async (value) => { calls.push(value); return result; } },
+  });
+  await assert.rejects(f.invoke(f.event), /文件不存在/);
+  result = '';
+  assert.equal(await f.invoke(f.event), '');
+  assert.deepEqual(calls, [directory, directory]);
+  directory = '';
+  await assert.rejects(f.invoke(f.event));
+  assert.equal(calls.length, 2);
 });
-
-for (const channel of ['desktop:open-data-dir', 'desktop:open-log-dir']) {
-  test(`${channel} rejects shell error strings so the renderer can report failure`, async () => {
-    let result = '文件不存在';
-    let directory = 'D:/synthetic-lira-directory';
-    const calls = [];
-    const f = fixture(registerDesktopShellIpc, channel, {
-      getDataDir: () => directory,
-      getLogDir: () => directory,
-      shell: { openPath: async (value) => { calls.push(value); return result; } },
-    });
-    await assert.rejects(f.invoke(f.event), /文件不存在/);
-    result = '';
-    assert.equal(await f.invoke(f.event), '');
-    assert.deepEqual(calls, [directory, directory]);
-    directory = '';
-    await assert.rejects(f.invoke(f.event), /目录尚未就绪/);
-    assert.equal(calls.length, 2);
-  });
-}
 
 for (const channel of ['desktop:get-resource-integrity-state', 'desktop:check-resource-integrity']) {
   test(`${channel} permits only the main admin frame and rejects all arguments`, () => {
@@ -135,23 +143,8 @@ for (const channel of ['desktop:get-resource-integrity-state', 'desktop:check-re
     assert.deepEqual(f.invoke(f.event), state);
     for (const arg of ['C:/secret', {}, undefined])
       assert.deepEqual(f.invoke(f.event, arg), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
-    for (const event of [
-      undefined,
-      {},
-      { ...f.event, sender: {} },
-      { ...f.event, senderFrame: { url: f.mainFrame.url } },
-    ]) {
-      assert.deepEqual(f.invoke(event), { ok: false, error: 'IPC_SOURCE_INVALID' });
-    }
-    for (const url of [
-      `${BASE_URL}/license`,
-      `${BASE_URL}/clock`,
-      'http://127.0.0.1:31002/admin',
-      'https://example.com/admin',
-    ]) {
-      f.mainFrame.url = url;
-      assert.deepEqual(f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
-    }
+    f.mainFrame.url = `${BASE_URL}/license`;
+    assert.deepEqual(f.invoke(f.event), { ok: false, error: 'IPC_SOURCE_INVALID' });
     assert.equal(calls, 1);
   });
 }

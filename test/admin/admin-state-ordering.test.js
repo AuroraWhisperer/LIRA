@@ -199,6 +199,30 @@ test('gift-only snapshots do not redispatch unchanged settings', async () => {
   assert.deepEqual(Array.from(changes[1]), ['gifts']);
 });
 
+test('gift events are forwarded only for gift snapshot reasons', async () => {
+  const { service, eventBus } = await createFixture();
+  const reasons = [];
+  eventBus.on('gift:received', (payload) => reasons.push(payload.reason));
+  for (const reason of [
+    'bilibili:gift', 'gift:clear-recent', 'database:clear-gifts', 'database:clear-all',
+    'connect', 'cloud:songs', 'settings:update', 'gift:unknown', undefined,
+  ]) {
+    service.ws.receive({ type: 'snapshot', reason, state: { gifts: { recent: [] } } });
+  }
+  assert.deepEqual(reasons, ['bilibili:gift', 'gift:clear-recent', 'database:clear-gifts', 'database:clear-all']);
+});
+
+test('catalog changes forward new asset revisions once and reject unversioned frames', async () => {
+  const { service, eventBus } = await createFixture();
+  const updates = [];
+  eventBus.on('gift:catalog_updated', ({ snapshot }) => updates.push(snapshot.assetsUpdatedAt));
+  const snapshot = { version: 'catalog-1', gifts: [{ id: '1', imagePath: '/gift.webp' }], assetsUpdatedAt: 'assets-1' };
+  for (const current of [{ gifts: [] }, snapshot, snapshot, { ...snapshot, assetsUpdatedAt: 'assets-2' }]) {
+    service.ws.receive({ type: 'gift-catalog:update', snapshot: current });
+  }
+  assert.deepEqual(updates, ['assets-1', 'assets-2']);
+});
+
 test('a reconnect snapshot accepts restarted overtime without letting old HTTP restore the previous server', async () => {
   const { service, requests } = await createFixture();
   service.ws.receive({ type: 'overtime:update', state: { revision: 90 } });

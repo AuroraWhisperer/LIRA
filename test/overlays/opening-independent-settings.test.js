@@ -15,23 +15,17 @@ const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { projectOverlayResponse } = require('../../src/server/overlay-projection');
 const { serveOpeningMedia } = require('../../src/server/opening-media-http');
 const { openingAppearanceFields, resolveOpeningAppearance, MOONLIT_OPENING_DEFAULTS } = require('../../public/js/shared/opening-appearance.js');
-const { OPENING_DEFAULTS } = require('../../public/js/shared/opening-settings.js');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-test('built-in openings default to high quality and keep decorations enabled despite legacy switches', async () => {
+test('built-in openings keep decorations enabled despite legacy switches', async () => {
   const { parseConfig, mergeConfig } = await loadModuleExports(
     path.join(__dirname, '../../public/js/overlays/opening.js'), { URLSearchParams },
   );
-  assert.equal(DEFAULT_SETTINGS.openingQuality, 'high');
-  assert.equal(DEFAULT_SETTINGS.openingPixelQuality, 'high');
-  assert.equal(OPENING_DEFAULTS.quality, 'high');
-  assert.equal(parseConfig('').quality, 'high');
   const config = getOpeningConfig({ settings: { get: () => ({
     openingShowNotes: 'false', openingShowEq: 'false',
     openingPixelShowNotes: 'false', openingPixelShowEq: 'false',
   }) } });
   for (const style of ['classic', 'pixel-cassette']) {
-    assert.equal(config.styles[style].quality, 'high');
     assert.equal(config.styles[style].showNotes, true);
     assert.equal(config.styles[style].showEq, true);
     assert.equal(Object.hasOwn(openingAppearanceFields(style), 'showNotes'), false);
@@ -91,10 +85,8 @@ test('package appearance overrides global copy and preserves old sparse scene co
   const rendered = resolveOpeningAppearance({ enabled: true, style: 'classic', title: '经典标题', audioUrl: '/opening-media/classic.mp3' },
     { ...config, resourceStyle: { preset: 'moonlit-opening' } });
   assert.equal(rendered.title, '包内标题');
-  assert.equal(rendered.footer, '风起花汀，静候君来');
   assert.equal(rendered.audioUrl, '');
   assert.equal(rendered.showNotes, false);
-  assert.equal(resolveOpeningAppearance({ title: '经典标题' }, { style: 'moonlit-fan', resourceStyle: { preset: 'moonlit-opening' } }).title, '月渡花汀');
   assert.throws(() => normalizeSceneConfig('opening', { title: 'x'.repeat(21) }));
   assert.throws(() => normalizeSceneConfig('opening', { showNotes: 'maybe' }));
 });

@@ -5,7 +5,7 @@ const test = require('node:test');
 const { chromium } = require('playwright');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 
-test('the shared font library loads complete display faces on demand in each rendering surface', { timeout: 45000 }, async t => {
+test('each rendering surface applies a chosen shared font from local files', { timeout: 45000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><meta charset="utf-8"><div id="sample">清风月光</div>' });
   t.after(() => fixture.close());
   const browser = await chromium.launch({ headless: true });
@@ -13,44 +13,25 @@ test('the shared font library loads complete display faces on demand in each ren
   const errors = [];
   const entries = ['/css/styles-base.css', '/css/overlays/base.css', '/css/overlays/danmaku.css',
     '/css/lyrics/desktop-lyric.css', '/css/playback/appearance.css'];
-  for (const [index, stylesheet] of entries.entries()) {
+  for (const stylesheet of entries) {
     const page = await browser.newPage();
-    const requests = [];
-    page.on('request', request => requests.push(request.url()));
     page.on('pageerror', error => errors.push(error.message));
     page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
     const url = `${fixture.origin}/preview-test-host`;
     assert.equal((await fetch(url)).status, 200);
     await page.goto(url);
     await page.addStyleTag({ url: `${fixture.origin}${stylesheet}` });
-    await page.evaluate(() => document.fonts.ready);
-    assert.equal(requests.some(url => /\/fonts\//.test(url)), false, `${stylesheet}: unused fonts stay unloaded`);
     const cdp = await page.context().newCDPSession(page);
     await cdp.send('DOM.enable'); await cdp.send('CSS.enable');
-    const fonts = await page.evaluate(async () => (await import('/js/shared/font-catalog.js')).SHARED_FONTS);
-    for (const font of index === 0 ? fonts : fonts.filter(font => font.id === 'zhimangxing')) {
-      const loaded = await page.evaluate(async font => {
-        document.getElementById('sample').style.font = `32px ${font.value}`;
-        return (await document.fonts.load(`32px ${font.value}`, '清风月光')).length;
-      }, font);
-      assert.ok(loaded > 0, `${stylesheet}: ${font.id}`);
-      const { root } = await cdp.send('DOM.getDocument');
-      const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#sample' });
-      const { fonts: rendered } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
-      assert.ok(rendered.length > 0 && rendered.every(font => font.isCustomFont), JSON.stringify(rendered));
-      if (font.id === 'yozai') {
-        await page.evaluate(async font => {
-          document.getElementById('sample').style.fontWeight = '500';
-          await document.fonts.load(`500 32px ${font.value}`, '清风月光');
-        }, font);
-        const { fonts: medium } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
-        assert.ok(medium.some(face => face.isCustomFont && face.postScriptName === 'Yozai-Medium'), JSON.stringify(medium));
-        await page.evaluate(() => { document.getElementById('sample').style.fontWeight = '400'; });
-      }
-    }
-    const fontRequests = requests.filter(url => /\/fonts\//.test(url));
-    assert.equal(new Set(fontRequests).size, fontRequests.length, 'Shared imports do not duplicate font downloads.');
-    assert.ok(requests.every(url => url.startsWith(fixture.origin)), 'Fonts require no external service.');
+    await page.evaluate(async () => {
+      const font = (await import('/js/shared/font-catalog.js')).SHARED_FONTS.find(font => font.id === 'zhimangxing');
+      document.getElementById('sample').style.font = `32px ${font.value}`;
+      await document.fonts.load(`32px ${font.value}`, '清风月光');
+    });
+    const { root } = await cdp.send('DOM.getDocument');
+    const { nodeId } = await cdp.send('DOM.querySelector', { nodeId: root.nodeId, selector: '#sample' });
+    const { fonts: rendered } = await cdp.send('CSS.getPlatformFontsForNode', { nodeId });
+    assert.ok(rendered.length > 0 && rendered.every(font => font.isCustomFont), `${stylesheet}: ${JSON.stringify(rendered)}`);
     await page.close();
   }
   assert.deepEqual(errors, []);

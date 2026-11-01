@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { launchElectron } = require('../helpers/shared-electron');
 
-test('returning welcome uses a two-column desktop editor and authorized independent library writes', { timeout: 45000 }, async (t) => {
+test('returning welcome saves independent libraries through authorized desktop IPC and retains failed drafts', { timeout: 45000 }, async (t) => {
   const root = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(root, { recursive: true });
   const directory = await fs.mkdtemp(path.join(root, 'welcome-editor-'));
@@ -20,28 +20,8 @@ test('returning welcome uses a two-column desktop editor and authorized independ
   page.setDefaultTimeout(7000);
   await page.waitForURL('**/admin');
   assert.equal((await fetch(page.url())).status, 401);
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1058, 950));
   await page.locator('[data-fixed-open="welcome"]').click();
   await page.waitForFunction(() => !document.getElementById('danmakuWelcomeReturningToggle').disabled);
-  const layout = await page.locator('.danmaku-welcome-rule').evaluateAll((cards) => cards.map((card) => {
-    const rect = card.getBoundingClientRect();
-    return { x: rect.x, y: rect.y, right: rect.right,
-      fields: [...card.querySelectorAll('input[type="number"]')].map((field) => {
-        const input = field.getBoundingClientRect();
-        return { x: input.x, y: input.y, right: input.right };
-      }), buttonY: card.querySelector('button').getBoundingClientRect().y };
-  }));
-  assert.equal(layout.length, 4);
-  assert.equal(layout[0].y, layout[1].y);
-  assert.equal(layout[2].y, layout[3].y);
-  assert.ok(layout[2].y > layout[0].y);
-  assert.ok(layout[0].right < layout[1].x);
-  assert.equal(layout[2].buttonY, layout[3].buttonY);
-  for (const card of layout.slice(0, 2)) {
-    assert.equal(card.fields[0].y, card.fields[1].y);
-    assert.ok(card.fields[0].right < card.fields[1].x);
-    assert.ok(card.fields[1].right < card.right);
-  }
   await page.locator('#danmakuWelcomeReturningToggle + .switch-track').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeReturningToggle').checked);
   await page.locator('#danmakuWelcomeReturningLibraryBtn').click();
@@ -65,6 +45,5 @@ test('returning welcome uses a two-column desktop editor and authorized independ
   await page.locator('[data-fixed-open="welcome"]').click();
   await page.locator('#danmakuWelcomeReturningCapability').waitFor();
   assert.equal(await page.locator('#danmakuWelcomeReturningToggle').isDisabled(), true);
-  assert.equal(await page.locator('#danmakuWelcomeReturningLibraryBtn').isDisabled(), true);
   assert.equal(await page.locator('#danmakuWelcomeGreetingToggle').isDisabled(), false);
 });

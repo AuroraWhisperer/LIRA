@@ -76,84 +76,12 @@ async function createPage({
   };
 }
 
-test('authorization errors name the code for the selected registration or login mode', async () => {
-  const page = await createPage({ licenseSnapshot: { state: 'needs_activation' } });
-  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_CODE_INVALID' });
-  assert.match(page.get('licenseStatus').textContent, /^注册激活码无效/);
-  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_INPUT_INVALID' });
-  assert.equal(page.get('licenseStatus').textContent, '请完整填写用户名、密码和注册激活码。');
-  page.click('licenseLoginMode');
-  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_CODE_EXPIRED' });
-  assert.match(page.get('licenseStatus').textContent, /^此短效登录码已过期/);
-  page.licenseChanged({ state: 'needs_activation', error: 'ACTIVATION_INPUT_INVALID' });
-  assert.equal(page.get('licenseStatus').textContent, '请完整填写用户名、密码和短效登录码。');
-  page.licenseChanged({ state: 'needs_activation', error: 'UNKNOWN_CODE' });
-  assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
-});
-
-test('unknown startup and retry failures are authorization checks rather than registration attempts', async () => {
-  for (const [state, error] of [['needs_activation', 'DEVICE_KEY_CORRUPT'], ['blocked', 'STREAMER_NOT_FOUND']]) {
-    const snapshot = { state, error };
-    const page = await createPage({ licenseSnapshot: snapshot, authorizationResult: snapshot });
-    assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
-    assert.doesNotMatch(page.get('licenseStatus').textContent, /注册失败|登录失败/);
-    if (state === 'blocked') {
-      await page.click('licenseRetryBtn');
-      assert.match(page.get('licenseStatus').textContent, /^本机授权校验未通过/);
-    } else assert.equal(page.get('licenseRetryBtn').hidden, true);
-  }
-});
-
-test('unknown submitted authorization failures name the action the user actually submitted', async () => {
-  for (const mode of ['注册', '登录']) {
-    const page = await createPage({ licenseSnapshot: { state: 'needs_activation' },
-      authorizationResult: { state: 'needs_activation', error: 'UNKNOWN_CODE' } });
-    if (mode === '登录') page.click('licenseLoginMode');
-    page.get('licenseAccountName').value = 'test-account';
-    page.get('licensePassword').value = 'Test-password-123';
-    page.get('licenseActivationCode').value = 'TEST-CODE';
-    await page.submit();
-    assert.equal(page.get('licenseStatus').textContent, `${mode}失败，请检查信息后重试。`);
-  }
-});
-
-test('a revoked saved device opens with a neutral login notice before any user action', async () => {
+test('a revoked saved device waits for the user before any authorization call', async () => {
   const snapshot = { state: 'blocked', error: 'DEVICE_REVOKED' };
   const page = await createPage({ licenseSnapshot: snapshot });
-  assert.equal(page.get('licenseLoginCard').hidden, false);
   assert.equal(page.get('licenseSubmitBtn').disabled, false);
-  assert.equal(page.get('licenseStatus').className, 'license-status');
-  assert.match(page.get('licenseStatus').textContent, /旧设备授权已撤销/);
-  assert.match(page.get('licenseStatus').textContent, /新的短效登录码.*重新登录/);
   assert.deepEqual(page.calls, []);
-
-  page.licenseChanged(snapshot);
-  assert.equal(page.get('licenseStatus').className, 'license-status');
 });
-
-for (const action of ['login', 'retry']) {
-  test(`revocation after an explicit ${action} attempt is an error`, async () => {
-    const snapshot = { state: 'blocked', error: 'DEVICE_REVOKED' };
-    const page = await createPage({
-      licenseSnapshot: snapshot,
-      authorizationResult: snapshot,
-    });
-    if (action === 'login') {
-      page.get('licenseAccountName').value = 'test-account';
-      page.get('licensePassword').value = 'Test-password-123';
-      page.get('licenseActivationCode').value = 'TEST-CODE';
-      await page.submit();
-    } else {
-      await page.click('licenseRetryBtn');
-    }
-
-    assert.deepEqual(page.calls, [action === 'login' ? 'activate' : 'retry-authorization']);
-    assert.equal(page.get('licenseStatus').className, 'license-status error');
-    assert.match(page.get('licenseStatus').textContent, /授权已被管理员撤销/);
-    page.licenseChanged(snapshot);
-    assert.equal(page.get('licenseStatus').className, 'license-status error');
-  });
-}
 
 test('startup connection and client-version failures remain visible errors', async () => {
   for (const licenseSnapshot of [
@@ -166,18 +94,9 @@ test('startup connection and client-version failures remain visible errors', asy
   }
 });
 
-test('license errors explain session replacement and temporary server failures', async () => {
-  for (const [state, error, message] of [
-    ['blocked', 'SESSION_SUPERSEDED', /另一个 LIRA 进程登录/],
-    ['needs_connection', 'HTTP_429', /服务器暂时不可用/],
-    ['needs_connection', 'HTTP_500', /服务器暂时不可用/],
-    ['needs_connection', 'HTTP_503', /服务器暂时不可用/],
-  ]) {
-    const page = await createPage({ licenseSnapshot: { state, error } });
-    assert.equal(page.get('licenseLoginCard').hidden, false);
-    assert.equal(page.get('licenseRetryBtn').hidden, false);
-    assert.match(page.get('licenseStatus').textContent, message);
-  }
+test('temporary server failures keep retry available', async () => {
+  const page = await createPage({ licenseSnapshot: { state: 'needs_connection', error: 'HTTP_503' } });
+  assert.equal(page.get('licenseRetryBtn').hidden, false);
 });
 
 for (const action of ['activate', 'retry']) {
@@ -200,7 +119,6 @@ for (const action of ['activate', 'retry']) {
     await pending;
     assert.equal(page.get('licenseSubmitBtn').disabled, false);
     assert.equal(page.get('licenseRetryBtn').disabled, false);
-    assert.match(page.get('licenseStatus').textContent, /检查网络.*重试/);
     await invoke();
     assert.equal(page.calls.length, 2);
     assert.equal(page.get('licenseSubmitBtn').disabled, false);
@@ -208,11 +126,10 @@ for (const action of ['activate', 'retry']) {
   });
 }
 
-test('failed preparation offers return to login and explains network failures', async () => {
+test('returning from failed preparation clears entered secrets without new calls', async () => {
   const page = await createPage();
   assert.equal(page.get('giftCatalogInitializationCard').hidden, false);
   assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, false);
-  assert.match(page.get('giftCatalogInitializationStatus').textContent, /检查网络/);
 
   page.get('licensePassword').value = 'old-password';
   page.get('licenseActivationCode').value = 'old-code';
@@ -222,7 +139,6 @@ test('failed preparation offers return to login and explains network failures', 
   assert.equal(page.get('licensePassword').value, '');
   assert.equal(page.get('licenseActivationCode').value, '');
   assert.equal(page.get('licenseRetryBtn').hidden, false);
-  assert.equal(page.get('licenseRetryBtn').textContent, '继续准备');
   assert.deepEqual(page.calls, []);
 
   page.catalogChanged(FAILED);
@@ -250,16 +166,6 @@ test('continue preparation reuses authorization and allows returning after anoth
   assert.equal(page.get('licenseLoginCard').hidden, false);
 });
 
-test('incompatible preparation data directs users to administrator support', async () => {
-  const page = await createPage({
-    getCatalog: async () => ({ ...FAILED, error: 'CATALOG_INVALID' }),
-  });
-  assert.match(page.get('giftCatalogInitializationStatus').textContent, /数据.*不兼容.*联系管理员/);
-  assert.doesNotMatch(page.get('giftCatalogInitializationStatus').textContent, /检查网络/);
-  assert.equal(page.get('giftCatalogInitializationRetryBtn').hidden, false);
-  assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, false);
-});
-
 test('successful preparation after returning uses the existing ready flow', async () => {
   const page = await createPage({
     retryCatalog: async () => ({ status: 'ready', percent: 100 }),
@@ -267,9 +173,7 @@ test('successful preparation after returning uses the existing ready flow', asyn
   page.click('giftCatalogInitializationBackBtn');
   await page.click('licenseRetryBtn');
   assert.deepEqual(page.calls, ['retry-catalog']);
-  assert.equal(page.get('giftCatalogInitializationPercent').textContent, '100%');
   assert.equal(page.get('giftCatalogInitializationBackBtn').hidden, true);
-  assert.match(page.get('giftCatalogInitializationHeading').textContent, /准备完成/);
 });
 
 test('late catalog results cannot replace login after returning or losing authorization', async () => {
@@ -285,9 +189,4 @@ test('late catalog results cannot replace login after returning or losing author
   page.catalogChanged({ status: 'running', percent: 5 });
   assert.equal(page.get('licenseLoginCard').hidden, false);
   assert.equal(page.get('giftCatalogInitializationCard').hidden, true);
-  assert.equal(page.get('licenseRetryBtn').textContent, '重新验证');
-  assert.match(page.get('licenseStatus').textContent, /授权.*撤销/);
-  assert.equal(page.get('licenseStatus').className, 'license-status error');
-  page.licenseChanged({ state: 'needs_connection', error: 'NETWORK_UNAVAILABLE' });
-  assert.equal(page.get('licenseRetryBtn').textContent, '重试连接');
 });

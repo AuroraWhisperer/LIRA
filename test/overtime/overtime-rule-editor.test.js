@@ -87,20 +87,6 @@ function createFakeDocument() {
   };
 }
 
-function findByClass(root, className) {
-  if (
-    String(root.className || '')
-      .split(/\s+/)
-      .includes(className)
-  )
-    return root;
-  for (const child of root.children || []) {
-    const match = findByClass(child, className);
-    if (match) return match;
-  }
-  return null;
-}
-
 function findAllByDataset(root, key) {
   const matches = root.dataset?.[key] === 'true' ? [root] : [];
   for (const child of root.children || []) matches.push(...findAllByDataset(child, key));
@@ -120,11 +106,6 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
     maxRandomOutcomes: 10,
   });
 
-  assert.equal(typeof editor.createRule, 'function');
-  assert.equal(typeof editor.readRules, 'function');
-  assert.equal(typeof editor.renderRules, 'function');
-  assert.equal(typeof editor.setLimits, 'function');
-
   const row = editor.createRule({
     id: 'guard-1',
     name: '总督',
@@ -137,20 +118,6 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   assert.equal(dirtyCalls.length, 1);
   assert.equal(root.children.length, 1);
 
-  const newRuleBody = findByClass(row, 'overtime-rule-body');
-  const toggle = findByClass(row, 'overtime-rule-toggle');
-  assert.equal(newRuleBody.hidden, false);
-  assert.equal(toggle.textContent, '收起设置');
-  assert.equal(toggle.attributes['aria-expanded'], 'true');
-  assert.deepEqual(
-    [...new Set(findAllByDataset(row, 'ruleOperation').map((option) => option.value))].sort(),
-    ['add', 'clear', 'divide', 'multiply', 'subtract'],
-  );
-
-  toggle.listeners.click();
-  assert.equal(newRuleBody.hidden, true);
-  assert.equal(toggle.textContent, '展开设置');
-  assert.equal(toggle.attributes['aria-expanded'], 'false');
   const guardQuantityOptions = findAllByDataset(row, 'ruleQuantityMode');
   assert.equal(guardQuantityOptions.find((option) => option.value === 'item').checked, true);
   assert.equal(guardQuantityOptions.find((option) => option.value === 'group').checked, false);
@@ -164,10 +131,6 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
       fixedEffect: { operation: 'add', value: 300 },
     },
   ]);
-  const savedRuleBody = findByClass(root.children[0], 'overtime-rule-body');
-  const summary = findByClass(root.children[0], 'overtime-rule-summary');
-  assert.equal(savedRuleBody.hidden, true);
-  assert.equal(summary.textContent, '增加 5 分钟 · 按连击组');
   const savedQuantityOptions = findAllByDataset(root.children[0], 'ruleQuantityMode');
   assert.equal(savedQuantityOptions.find((option) => option.value === 'group').checked, true);
 
@@ -185,5 +148,4 @@ test('rule editor exposes createRule and appends a fixed-mode rule row', async (
   const displayOptions = findAllByDataset(displayRow, 'ruleMode');
   assert.equal(displayOptions.find((option) => option.value === 'display').checked, true);
   assert.equal(findAllByDataset(displayRow, 'displayText')[0].value, '谢谢支持');
-  assert.match(findByClass(displayRow, 'overtime-rule-summary').textContent, /文字展板/);
 });

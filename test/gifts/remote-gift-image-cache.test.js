@@ -36,6 +36,62 @@ test('catalog image revisions invalidate on downloads and recheck external file 
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
 });
 
+test('repairs corrupt images after transient atomic replacement failures', async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(__dirname, '../../tmp/gift-image-replacement-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  let downloads = 0;
+  const cache = createRemoteGiftImageCache({ dataDir, imageBaseUrl: 'https://api.example.test',
+    fetch: async () => { downloads += 1; return new Response(webpBytes()); }, logger: QUIET_LOGGER });
+  const imagePath = path.join(cache.cacheDir, 'image.webp');
+  fs.writeFileSync(imagePath, 'invalid');
+  const revision = cache.getRevision();
+  const rename = fs.renameSync;
+  let attempts = 0;
+  t.mock.method(fs, 'renameSync', (source, destination) => {
+    if (destination === imagePath && ++attempts <= 2) {
+      assert.equal(fs.readFileSync(imagePath, 'utf8'), 'invalid');
+      throw Object.assign(new Error('Replacement temporarily locked'), { code: attempts === 1 ? 'EPERM' : 'EBUSY' });
+    }
+    return rename(source, destination);
+  });
+
+  assert.equal(await cache.cacheGiftImage({ id: '1', imagePath: 'https://api.example.test/gift-media/images/image.webp' }),
+    '/overtime-gift-images/image.webp');
+  assert.equal(attempts, 3);
+  assert.equal(downloads, 1);
+  assert.deepEqual(fs.readFileSync(imagePath), webpBytes());
+  assert.notEqual(cache.getRevision(), revision);
+  assert.deepEqual(fs.readdirSync(cache.cacheDir), ['image.webp']);
+});
+
+test('preserves the last image index when atomic replacement remains unavailable', async (t) => {
+  const dataDir = fs.mkdtempSync(path.join(__dirname, '../../tmp/gift-image-index-replacement-'));
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const cache = createRemoteGiftImageCache({ dataDir, imageBaseUrl: 'https://api.example.test',
+    fetch: async () => new Response(webpBytes()), logger: QUIET_LOGGER });
+  const first = { id: '1', name: 'First gift', priceRaw: 100, coinType: 'gold', bagGift: false,
+    sourceUrl: 'https://i0.hdslb.com/bfs/live/first.webp' };
+  await cache.cacheGiftImage(first);
+  const indexPath = path.join(cache.cacheDir, 'index.json');
+  const previousIndex = fs.readFileSync(indexPath);
+  const rename = fs.renameSync;
+  let attempts = 0;
+  t.mock.method(fs, 'renameSync', (source, destination) => {
+    if (destination === indexPath) {
+      attempts += 1;
+      throw Object.assign(new Error('Replacement remains locked'), { code: 'EPERM' });
+    }
+    return rename(source, destination);
+  });
+
+  await assert.rejects(cache.cacheGiftImage({ ...first, id: '2', sourceUrl: 'https://i0.hdslb.com/bfs/live/second.webp' }),
+    { code: 'EPERM' });
+  assert.equal(attempts, 5);
+  assert.deepEqual(fs.readFileSync(indexPath), previousIndex);
+  assert.ok(cache.getCachedGiftImagePath(first));
+  assert.equal(fs.readdirSync(cache.cacheDir).some(name => name.includes('.tmp-')), false);
+});
+
 test('downloads configured server images into a reusable local cache', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-remote-gift-images-'));
   try {

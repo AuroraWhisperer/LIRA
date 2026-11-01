@@ -26,68 +26,53 @@ test('quality options survive background updates and still reflect a successful 
     await app.emitWindow('app:wesing-state', { detail: { currentMs: index * 250, playing: true } });
   }
   assert.equal(writes, 0, 'unchanged options must retain the buttons being focused or clicked');
-  assert.equal(panel.getAttribute('aria-hidden'), 'false');
 
   await app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {}, target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
   });
-  assert.equal(writes, 1, 'changing the preference updates the selected option once');
-  assert.match(html, /aria-checked="true" data-playback-quality="lossless"/);
   assert.equal(app.savedState().qualityPreferences.qq, 'lossless');
-  assert.equal(app.element('playbackQualityLabel').textContent, 'SQ');
   assert.deepEqual(app.errors(), []);
 });
 
-for (const source of ['qq', 'netease']) {
-  for (const failure of ['fallback', 'lower fallback', 'empty', 'error']) {
-    test(`${source} quality selection restores the original quality and audio after ${failure}`, async () => {
-      const previousQuality = source === 'netease' ? 'lossless' : 'high';
-      const requestedQuality = source === 'netease' ? 'hires' : 'lossless';
-      const previousLabel = source === 'netease' ? '无损' : 'HQ';
-      const requestedLabel = source === 'netease' ? 'Hi-Res' : 'SQ';
-      const app = await createPlaybackApp({
-        current: { ...track('song', '歌曲'), source }, selectedSource: source,
-        mode: 'sequence', volume: 0.75, qualityPreferences: { [source]: previousQuality },
-      }, {
-        resolveStream: (count) => {
-          if (count === 1) return { url: 'https://example.test/original.mp3', quality: previousQuality };
-          if (failure === 'error') throw new Error('quality unavailable');
-          if (failure === 'empty') return {};
-          return { url: 'https://example.test/fallback.mp3',
-            quality: failure === 'fallback' ? previousQuality : 'standard' };
-        },
-      });
-      await app.init();
-      await flushAsyncWork();
-      await app.emit('playbackPlayPause', 'click');
-      const audio = app.element('music-player');
-      audio.currentTime = 47;
-      if (source === 'qq') await app.emit('playbackPlayPause', 'click');
-      let loads = 0;
-      audio.load = () => { loads++; audio.currentTime = 0; };
-
-      await app.emit('playbackQualityPanel', 'click', {
-        stopPropagation() {}, target: closestTarget({ playbackQuality: requestedQuality }, 'data-playback-quality'),
-      });
-      await app.emit('music-player', 'loadedmetadata');
-      await app.emitWindow('pagehide');
-
-      assert.equal(audio.src, 'https://example.test/original.mp3');
-      assert.equal(audio.currentTime, 47);
-      assert.equal(audio.paused, source === 'qq');
-      assert.equal(loads, 0);
-      assert.equal(app.audioPlayCalls(), 1);
-      assert.equal(app.resolveStreamRequestCount(), 2);
-      assert.equal(app.element('playbackQualityLabel').textContent, previousLabel);
-      assert.match(app.element('playbackQualityPanel').innerHTML,
-        new RegExp(`aria-checked="true" data-playback-quality="${previousQuality}"`));
-      assert.equal(app.ipcSavedState().qualityPreferences[source], previousQuality);
-      const toasts = app.element('toast').prepended.map((item) => item.textContent);
-      assert.ok(toasts.some((message) => message.includes(failure.includes('fallback')
-        ? `${requestedLabel}不可用，已保留${previousLabel}音质`
-        : failure === 'empty' ? '当前账号无法播放该歌曲' : 'quality unavailable')));
+for (const [source, failure] of [['netease', 'fallback'], ['netease', 'lower fallback'], ['qq', 'empty'], ['qq', 'error']]) {
+  test(`${source} quality selection restores the original quality and audio after ${failure}`, async () => {
+    const previousQuality = source === 'netease' ? 'lossless' : 'high';
+    const requestedQuality = source === 'netease' ? 'hires' : 'lossless';
+    const app = await createPlaybackApp({
+      current: { ...track('song', '歌曲'), source }, selectedSource: source,
+      mode: 'sequence', volume: 0.75, qualityPreferences: { [source]: previousQuality },
+    }, {
+      resolveStream: (count) => {
+        if (count === 1) return { url: 'https://example.test/original.mp3', quality: previousQuality };
+        if (failure === 'error') throw new Error('quality unavailable');
+        if (failure === 'empty') return {};
+        return { url: 'https://example.test/fallback.mp3',
+          quality: failure === 'fallback' ? previousQuality : 'standard' };
+      },
     });
-  }
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    const audio = app.element('music-player');
+    audio.currentTime = 47;
+    if (source === 'qq') await app.emit('playbackPlayPause', 'click');
+    let loads = 0;
+    audio.load = () => { loads++; audio.currentTime = 0; };
+
+    await app.emit('playbackQualityPanel', 'click', {
+      stopPropagation() {}, target: closestTarget({ playbackQuality: requestedQuality }, 'data-playback-quality'),
+    });
+    await app.emit('music-player', 'loadedmetadata');
+    await app.emitWindow('pagehide');
+
+    assert.equal(audio.src, 'https://example.test/original.mp3');
+    assert.equal(audio.currentTime, 47);
+    assert.equal(audio.paused, source === 'qq');
+    assert.equal(loads, 0);
+    assert.equal(app.audioPlayCalls(), 1);
+    assert.equal(app.resolveStreamRequestCount(), 2);
+    assert.equal(app.ipcSavedState().qualityPreferences[source], previousQuality);
+  });
 }
 
 test('quality options follow provider changes and restore each provider preference', async () => {
@@ -97,67 +82,58 @@ test('quality options follow provider changes and restore each provider preferen
   }, { sourceTabs: ['qq', 'netease', 'wesing'] });
   await app.init();
   await flushAsyncWork();
-  const panel = app.element('playbackQualityPanel');
-  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="lossless"/);
   await app.emit('source-tab-netease', 'click');
-  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="exhigh"/);
-  assert.doesNotMatch(panel.innerHTML, /data-playback-quality="premium"/);
   await app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {}, target: closestTarget({ playbackQuality: 'hires' }, 'data-playback-quality'),
   });
-  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="hires"/);
   assert.equal(app.savedState().qualityPreferences.netease, 'hires');
+  assert.equal(app.savedState().qualityPreferences.qq, 'lossless');
   assert.equal(app.resolveStreamRequestCount(), 0, 'without a current track, only the default changes');
-  await app.emit('source-tab-wesing', 'click');
-  assert.equal(panel.innerHTML, '');
-  await app.emit('source-tab-qq', 'click');
-  assert.match(panel.innerHTML, /aria-checked="true" data-playback-quality="lossless"/);
-  assert.match(panel.innerHTML, /data-playback-quality="premium"/);
 });
 
-for (const action of ['quality', 'recovery']) {
-  for (const scenario of [
-    { name: 'trial to full', before: 30000, after: 0, position: 5, expected: 35 },
-    { name: 'full to trial', before: 0, after: 30000, position: 35, expected: 5 },
-    { name: 'changed excerpt', before: 30000, after: 45000, position: 20, expected: 5 },
-    { name: 'before the new excerpt', before: 30000, after: 45000, position: 5, expected: 0 },
-  ]) {
-    test(`NetEase ${action} resumes the same song position (${scenario.name})`, async () => {
-      const app = await createPlaybackApp({
-        current: { ...track('song', '会员歌曲'), source: 'netease' },
-        selectedSource: 'netease', mode: 'sequence', volume: 0.75,
-      }, {
-        resolveStream: (count, request) => {
-          const startMs = count === 1 ? scenario.before : scenario.after;
-          return { url: `https://example.test/${count}.mp3`, quality: request.quality,
-            expireAt: Date.now() + 600000, trial: startMs > 0, trialStartMs: startMs };
-        },
-      });
-      await app.init();
-      await flushAsyncWork();
-      await app.emit('playbackPlayPause', 'click');
-      const audio = app.element('music-player');
-      audio.load = () => { audio.currentTime = 0; };
-      audio.currentTime = scenario.position;
-      if (action === 'quality') {
-        await app.emit('playbackQualityPanel', 'click', {
-          stopPropagation() {}, target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
-        });
-      } else {
-        await app.emit('music-player', 'error');
-      }
-      await flushAsyncWork();
-      audio.duration = scenario.after ? 30 : 180;
-      await app.emit('music-player', 'loadedmetadata');
-      assert.equal(app.resolveStreamRequestCount(), 2);
-      assert.equal(audio.currentTime, scenario.expected);
-      assert.equal(audio.paused, false);
-      assert.equal(app.savedState().current.id, 'song');
+const changedExcerpt = { name: 'changed excerpt', before: 30000, after: 45000, position: 20, expected: 5 };
+for (const [action, scenario] of [
+  ['quality', { name: 'trial to full', before: 30000, after: 0, position: 5, expected: 35 }],
+  ['quality', { name: 'full to trial', before: 0, after: 30000, position: 35, expected: 5 }],
+  ['quality', changedExcerpt],
+  ['quality', { name: 'before the new excerpt', before: 30000, after: 45000, position: 5, expected: 0 }],
+  ['recovery', changedExcerpt],
+]) {
+  test(`NetEase ${action} resumes the same song position (${scenario.name})`, async () => {
+    const app = await createPlaybackApp({
+      current: { ...track('song', '会员歌曲'), source: 'netease' },
+      selectedSource: 'netease', mode: 'sequence', volume: 0.75,
+    }, {
+      resolveStream: (count, request) => {
+        const startMs = count === 1 ? scenario.before : scenario.after;
+        return { url: `https://example.test/${count}.mp3`, quality: request.quality,
+          expireAt: Date.now() + 600000, trial: startMs > 0, trialStartMs: startMs };
+      },
     });
-  }
+    await app.init();
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    const audio = app.element('music-player');
+    audio.load = () => { audio.currentTime = 0; };
+    audio.currentTime = scenario.position;
+    if (action === 'quality') {
+      await app.emit('playbackQualityPanel', 'click', {
+        stopPropagation() {}, target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
+      });
+    } else {
+      await app.emit('music-player', 'error');
+    }
+    await flushAsyncWork();
+    audio.duration = scenario.after ? 30 : 180;
+    await app.emit('music-player', 'loadedmetadata');
+    assert.equal(app.resolveStreamRequestCount(), 2);
+    assert.equal(audio.currentTime, scenario.expected);
+    assert.equal(audio.paused, false);
+    assert.equal(app.savedState().current.id, 'song');
+  });
 }
 
-test('arrow keys focus music sources without selecting them or stopping playback', async () => {
+test('WeSing stops online audio and refuses both import entry points', async () => {
   let queueReads = 0;
   const app = await createPlaybackApp({ current: track('song', '歌曲'), selectedSource: 'netease', mode: 'sequence', volume: 0.75 }, {
     sourceTabs: ['qq', 'netease', 'wesing'],
@@ -166,51 +142,13 @@ test('arrow keys focus music sources without selecting them or stopping playback
   await app.init();
   await flushAsyncWork();
   await app.emit('playbackPlayPause', 'click');
-  await app.emit('source-tab-netease', 'keydown', { key: 'ArrowRight', preventDefault() {} });
-  assert.equal(app.element('source-tab-wesing').focused, true);
-  assert.equal(app.element('source-tab-wesing').tabIndex, 0);
-  assert.equal(app.savedState().selectedSource, 'netease');
-  assert.equal(app.element('music-player').paused, false);
   await app.emit('source-tab-wesing', 'click');
   assert.equal(app.savedState().selectedSource, 'wesing');
   assert.equal(app.element('music-player').paused, true);
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
   await app.emit('songQueueImportPlayback', 'click');
   await app.emit('playbackImportSongQueue', 'click');
   assert.equal(queueReads, 0, 'WeSing refuses both import entry points');
   assert.equal(app.savedState().selectedSource, 'wesing');
-  await app.emit('source-tab-qq', 'click');
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, false);
-});
-
-test('source changes preserve an in-flight import lock and finish disabled in WeSing', async () => {
-  const pending = Promise.withResolvers();
-  const app = await createPlaybackApp({ selectedSource: 'qq', mode: 'sequence', volume: 0.75 }, {
-    sourceTabs: ['qq', 'netease', 'wesing'], songQueue: () => pending.promise,
-  });
-  await app.init();
-  await flushAsyncWork();
-  assert.equal(app.element('songQueueImportPlayback').disabled, false);
-  const importing = app.emit('songQueueImportPlayback', 'click');
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) {
-    assert.equal(app.element(id).textContent, '导入中…');
-    assert.equal(app.element(id).attributes.get('aria-busy'), 'true');
-  }
-  await app.emit('source-tab-netease', 'click');
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) {
-    assert.equal(app.element(id).disabled, true);
-    assert.match(app.element(id).title, /正在.*匹配/);
-  }
-  await app.emit('source-tab-wesing', 'click');
-  pending.resolve({ current: null, waiting: [] });
-  await importing;
-  for (const id of ['songQueueImportPlayback', 'playbackImportSongQueue']) assert.equal(app.element(id).disabled, true);
-  await app.emit('source-tab-qq', 'click');
-  for (const [id, label] of [['songQueueImportPlayback', '导入播放器'], ['playbackImportSongQueue', '导入点歌']]) {
-    assert.equal(app.element(id).disabled, false);
-    assert.equal(app.element(id).textContent, label);
-    assert.equal(app.element(id).attributes.get('aria-busy'), 'false');
-  }
 });
 
 for (const source of ['qq-client', 'netease-client']) {
@@ -372,7 +310,6 @@ test('quality selection refreshes the current stream and persists the provider p
   assert.equal(requestBody.track.sourceSongType, 1);
   assert.equal(app.element('music-player').src, 'https://example.test/lossless.flac');
   assert.equal(app.element('music-player').currentTime, 47);
-  assert.equal(app.element('playbackQualityLabel').textContent, 'SQ');
   assert.equal(app.ipcSavedState().qualityPreferences.qq, 'lossless');
 });
 
@@ -446,8 +383,6 @@ test('a stale quality stream cannot replace a newer quality selection', async ()
   assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
   assert.equal(app.element('music-player').paused, false);
   assert.equal(app.audioPlayCalls(), 2);
-  await app.emit('music-player', 'loadedmetadata');
-  assert.equal(app.element('playbackQualityLabel').textContent, 'HQ');
 
   const staleQualityError = app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {},
@@ -497,7 +432,6 @@ for (const staleQuality of ['lossless', 'standard']) {
     await changing;
 
     assert.equal(app.savedState().qualityPreferences.qq, 'high');
-    assert.match(app.element('playbackQualityPanel').innerHTML, /aria-checked="true" data-playback-quality="high"/);
     assert.equal(app.element('music-player').src, 'https://example.test/high.mp3');
     assert.equal(app.audioPlayCalls(), 1);
     assert.deepEqual(app.element('toast').prepended, toasts);

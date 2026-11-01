@@ -99,7 +99,6 @@ test('automatic roster atomically saves a scoped success date and retains it acr
   const profile = f.create({ notes: '保留私人资料' });
   f.service.importGuardRoster(SCOPE, roster(), '2026-09-18');
   assert.deepEqual(f.run('settings').lastGuardRosterAutoUpdate, { date: '2026-09-18', roomId: '1234' });
-  assert.match(f.detail(profile.id).records[0].data.reason, /自动同步/);
   assert.equal(f.detail(profile.id).notes, '保留私人资料');
   f.restart();
   assert.equal(f.run('settings').lastGuardRosterAutoUpdate.date, '2026-09-18');

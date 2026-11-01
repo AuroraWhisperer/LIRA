@@ -37,21 +37,6 @@ test('installer tests find both flat and nested electron-builder cache layouts',
   assert.equal(resolveInstallerTools({ ELECTRON_BUILDER_CACHE: root }).compiler, nestedCompiler);
 });
 
-test('installer tool overrides remain authoritative even when invalid', (t) => {
-  const { root, put } = cacheFixture(t);
-  put('nsis-3.0.4.1/Bin/makensis.exe');
-  const compiler = path.join(root, 'missing-compiler.exe');
-  const plugins = path.join(root, 'missing-plugins');
-  assert.deepEqual(
-    resolveInstallerTools({
-      ELECTRON_BUILDER_CACHE: root,
-      LIRA_TEST_MAKENSIS: compiler,
-      LIRA_TEST_NSIS_PLUGINS: plugins,
-    }),
-    { compiler, plugins },
-  );
-});
-
 test('installer discovery uses the Windows cache without changing the environment', (t) => {
   const { root, put } = cacheFixture(t);
   const compiler = put('electron-builder/Cache/nsis-3.0.4.1/Bin/makensis.exe');

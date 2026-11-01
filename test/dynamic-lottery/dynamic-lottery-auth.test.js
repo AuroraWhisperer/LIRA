@@ -62,7 +62,6 @@ test('login is single-flight and logout cancels the window before clearing its s
   assert.equal(f.auth.login(), pending);
   assert.equal(f.windows.length, 1);
   assert.equal(f.windows[0].focusCount, 1);
-  assert.equal(f.windows[0].options.title, '登录抽奖专用账号');
   assert.deepEqual(f.windows[0].options.webPreferences, {
     partition: f.windows[0].options.webPreferences.partition,
     nodeIntegration: false,

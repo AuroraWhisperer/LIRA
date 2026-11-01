@@ -137,7 +137,8 @@ test('only authenticated streams consume slots and a closed connection releases 
 
 for (const binding of ['another-owner:1:capability', 'owner:2:capability', 'owner:1:rotated']) {
   test(`scene streams revoke when their immutable binding changes to ${binding}`, (t) => {
-    const { events, state, open } = fixture(t);
+    let activities = 0;
+    const { events, state, open } = fixture(t, { onActivity: () => { activities++; } });
     const res = open();
     state.binding = binding;
     events.notify({ id: 'scene-a' });
@@ -146,6 +147,7 @@ for (const binding of ['another-owner:1:capability', 'owner:2:capability', 'owne
     assert.equal(res.writableEnded, true);
     assert.equal(res.listenerCount('close'), 0);
     assert.equal(res.listenerCount('error'), 0);
+    assert.equal(activities, 1, 'The revocation write must not renew an expired display lease.');
   });
 }
 
@@ -220,13 +222,15 @@ for (const failure of ['backpressure', 'write-error', 'response-error']) {
 }
 
 test('initial write failure releases the stream and all timers', (t) => {
-  const { events, state, getStatus, open } = fixture(t, { maxStreams: 1 });
+  let activities = 0;
+  const { events, state, getStatus, open } = fixture(t, { maxStreams: 1, onActivity: () => { activities++; } });
   const res = new Response();
   res.acceptWrite = false;
   events.open(res, { id: 'scene-a' }, getStatus);
   assert.equal(res.destroyed, true);
   t.mock.timers.tick(10000);
   assert.equal(state.reads, 1);
+  assert.equal(activities, 0, 'Failed stream writes must not keep an unused source alive.');
   assert.equal(open().messages()[0], 'data: ready\n\n');
 });
 

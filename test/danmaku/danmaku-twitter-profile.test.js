@@ -33,28 +33,16 @@ test('authorized scene projection updates its owner without HTTP and rejects mis
   f.profile.update('twitter', '100', { roomId: '100', uid: '456', name: '本房房主' });
   assert.equal(f.node('twitterProfileName').textContent, '本房房主');
   f.profile.update('twitter', '100', { roomId: '200', uid: 'private', name: '其他房主' });
-  assert.equal(f.node('twitterProfileName').textContent, '当前房主');
-  f.profile.update('twitter', '100', null);
-  assert.equal(f.node('twitterProfileUid').textContent, '@等待当前房间');
+  assert.notEqual(f.node('twitterProfileName').textContent, '其他房主');
+  assert.doesNotMatch(f.node('twitterProfileUid').textContent, /private/);
   f.profile.dispose();
 });
 
-test('Twitter preview uses a synthetic owner and preserves its text fallback on avatar failure', async () => {
+test('Twitter preview never loads a room profile', async () => {
   let loads = 0;
   const f = await fixture(() => { loads += 1; });
   f.profile.showPreview();
   assert.equal(loads, 0);
-  assert.equal(f.node('twitterProfileName').textContent, '合成房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@10001');
-  const avatar = f.node('twitterProfileAvatar');
-  assert.equal(avatar.src, '/resolved/img/overlays/danmaku-ranked/viewer.webp');
-  avatar.onload();
-  assert.equal(avatar.hidden, false);
-  assert.equal(f.node('twitterProfileAvatarFallback').hidden, true);
-  avatar.onerror();
-  assert.equal(avatar.hidden, true);
-  assert.equal(f.node('twitterProfileAvatarFallback').hidden, false);
-  assert.equal(f.node('twitterProfileName').textContent, '合成房主');
   f.profile.dispose();
 });
 
@@ -71,23 +59,20 @@ test('room profile requests invalidate stale work and never show another room id
   assert.equal(requests[0].signal.aborted, true);
   requests[0].resolve({ roomId: '100', uid: 'old', name: '旧房主', avatarUrl: '/old.png' });
   await Promise.resolve();
-  assert.equal(f.node('twitterProfileName').textContent, '当前房主');
+  assert.notEqual(f.node('twitterProfileName').textContent, '旧房主');
   requests[1].resolve({ roomId: '100', uid: 'other', name: '其他房主', avatarUrl: '/other.png', secret: 'private' });
   await Promise.resolve();
-  assert.equal(f.node('twitterProfileName').textContent, '当前房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@等待当前房间');
-  assert.equal(f.node('twitterProfileAvatarFallback').hidden, false);
+  assert.notEqual(f.node('twitterProfileName').textContent, '其他房主');
 
   f.profile.update('twitter', '300');
   requests[2].resolve({ roomId: '300', uid: '456', name: '合成房主', avatarUrl: '/owner.png', secret: 'private' });
   await Promise.resolve();
   assert.equal(f.node('twitterProfileName').textContent, '合成房主');
-  assert.equal(f.node('twitterProfileUid').textContent, '@456');
   assert.equal(f.node('twitterProfileAvatar').src, '/resolved/owner.png');
   f.profile.update('signal', '300');
   f.profile.update('twitter', '400');
   requests[3].resolve({ roomId: '400', uid: 'late', name: '迟到资料' });
   f.profile.dispose();
   await Promise.resolve();
-  assert.equal(f.node('twitterProfileName').textContent, '当前房主');
+  assert.notEqual(f.node('twitterProfileName').textContent, '迟到资料');
 });

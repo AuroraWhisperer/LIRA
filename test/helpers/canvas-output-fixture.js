@@ -30,8 +30,8 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
       decrypt: value => Buffer.from(value, 'base64').toString() } } });
   const { service } = sceneRuntime;
   await sceneRuntime.appearance.read();
-  const updateCloud = (event, status = 'connected') => sceneRuntime.receiveCloud({ ownerScope: owner.scope,
-    authorizationEpoch: owner.epoch, connectionEpoch: 'synthetic-connection', status, ...(event ? { event } : {}) });
+  const updateCloud = (event, status = 'connected', connectionEpoch = 'synthetic-connection') => sceneRuntime.receiveCloud({ ownerScope: owner.scope,
+    authorizationEpoch: owner.epoch, connectionEpoch, status, ...(event ? { event } : {}) });
   updateCloud(null, 'connecting');
   updateCloud({ type: 'overlay-state', style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {},
     layout: createLayout(), state: 'running', liveStatus: 1, liveSessionId: 'synthetic-live', confirmationMessage: '合成开播确认' });

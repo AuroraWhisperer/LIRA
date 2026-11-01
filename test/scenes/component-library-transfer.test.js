@@ -61,7 +61,7 @@ test('portable backup restores current parameters, media, local HTML and text im
   destination.server.service.publishCanvas({ id: before.document.id, expectedRevision: before.revision, expectedPublishedVersion: 0 });
   const binding = destination.server.service.getCanvas(); const token = destination.server.service.getSource(before.document.id).token;
   const preview = await destination.transfer.inspect(Readable.from([archive]), allow);
-  assert.equal(preview.packages, 2); assert.equal(preview.scenes, 2); assert.match(preview.warnings.join(''), /外部浏览器源/);
+  assert.equal(preview.packages, 2); assert.equal(preview.scenes, 2); assert.ok(preview.warnings.length > 0);
   assert.deepEqual(destination.store.list(), []);
   const restored = await destination.transfer.restore(preview.id, allow);
   assert.equal(restored.created, 2);

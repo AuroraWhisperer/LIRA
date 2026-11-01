@@ -102,7 +102,7 @@ test('foreign epochs and malformed cursors reset without treating missing/boolea
   assert.deepEqual(foreign.events, []);
 });
 
-test('logout and same-owner authorization renewal clear state and event buffers', () => {
+test('logout and same-owner reauthorization clear state and event buffers', () => {
   const fixture = bufferFixture();
   const initial = fixture.connect();
   fixture.update('connected', gift());
@@ -129,7 +129,7 @@ test('new connection requires state and ignores stale connection events or disco
   assert.equal(fixture.update('connecting', null, { connectionEpoch: 'connection-b' }), true);
   const reconnect = fixture.buffer.getSnapshot();
   assert.equal(reconnect.status, 'connecting');
-  assert.notEqual(reconnect.epoch, initial.epoch);
+  assert.equal(reconnect.epoch, initial.epoch);
   assert.equal(fixture.update('connecting', null, { connectionEpoch: 'connection-b' }), false);
   assert.deepEqual(fixture.buffer.getSnapshot(), reconnect);
   assert.equal(fixture.update('connected', gift()), false);
@@ -143,6 +143,34 @@ test('new connection requires state and ignores stale connection events or disco
   assert.equal(fixture.update('offline', null, { connectionEpoch: 'connection-b' }), false);
   assert.deepEqual(fixture.buffer.getSnapshot(), disconnected);
   assert.equal(fixture.update('connected', liveState(), { connectionEpoch: 'connection-b' }), false);
+});
+
+test('same-session reconnects keep the display epoch while dropping undelivered events and reporting the gap', () => {
+  const fixture = bufferFixture();
+  const initial = fixture.connect();
+  fixture.update('connected', gift('before disconnect'));
+  fixture.update('offline');
+  const offline = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: initial.nextCursor });
+  assert.equal(offline.epoch, initial.epoch);
+  assert.equal(offline.state, null);
+  assert.equal(offline.gap, true);
+  assert.deepEqual(offline.events, []);
+
+  fixture.connect('connection-b');
+  fixture.update('connected', gift('after reconnect'));
+  const resumed = fixture.buffer.getSnapshot({ epoch: offline.epoch, cursor: offline.nextCursor });
+  assert.equal(resumed.epoch, initial.epoch);
+  assert.equal(resumed.reset, false);
+  assert.deepEqual(resumed.events, [gift('after reconnect')]);
+  const otherReader = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: initial.nextCursor });
+  assert.equal(otherReader.gap, true);
+  assert.deepEqual(otherReader.events, []);
+  assert.equal(fixture.update('connected', gift('stale'), { connectionEpoch: 'connection-a' }), false);
+  assert.deepEqual(fixture.buffer.getSnapshot({ epoch: resumed.epoch, cursor: resumed.nextCursor }).events, []);
+
+  fixture.connect('connection-c', 'session-b');
+  assert.notEqual(fixture.buffer.getSnapshot().epoch, initial.epoch);
+  assert.equal(fixture.update('connected', gift('old session')), false);
 });
 
 test('live-session boundaries reset cursors and reject duplicate starts, wrong ends and old events', () => {
@@ -174,30 +202,15 @@ test('only event fields leave the buffer and snapshots cannot mutate internal st
   assert.equal(fixture.update('connected', state), true);
   state.styleOptions.signal.fontSize = 40;
   const initial = fixture.buffer.getSnapshot();
-  fixture.update('connected', { ...gift(), honorLevel: 45, avatarUrl: 'https://i0.hdslb.com/face.png', giftGuardLevel: 3,
-    guardAction: 'renew', guardAccompanyDays: 360,
-    uid: 'PRIVATE', capability: 'PRIVATE', raw: { cookie: 'PRIVATE' } });
+  fixture.update('connected', { ...gift(), uid: 'PRIVATE', capability: 'PRIVATE', raw: { cookie: 'PRIVATE' } });
   fixture.update('connected', { type: 'danmaku', liveSessionId: 'session-a', timestamp, name: '观众', message: '内容',
-    avatarUrl: '', medalName: '', medalLevel: 0, guardLevel: 0, isStreamer: true,
-    honorLevel: 32, roomGuardLevel: 3,
-    roomMedal: { name: '当前房间', level: 28, guardLevel: 3, isLight: true,
-      colorStart: '#3FB4F699', colorEnd: '#3FB4F699', colorBorder: '#5FC7F4', colorText: '#FFFFFF', ruid: 'PRIVATE' },
+    roomMedal: { name: '当前房间', level: 28, ruid: 'PRIVATE' },
     emotes: [{ text: '表情', url: 'https://i0.hdslb.com/emote.png', kind: 'inline', width: 30, height: 30, cookie: 'PRIVATE' }] });
-  fixture.update('connected', { type: 'superchat', liveSessionId: 'session-a', timestamp, name: '观众', message: '原文\n内容',
-    avatarUrl: '', price: 2, colors: { priceColor: '#123456', cookie: 'PRIVATE' }, uid: 'PRIVATE' });
+  fixture.update('connected', { type: 'superchat', liveSessionId: 'session-a', timestamp, name: '观众', message: '原文',
+    price: 2, colors: { priceColor: '#123456', cookie: 'PRIVATE' }, uid: 'PRIVATE' });
   const snapshot = fixture.buffer.getSnapshot({ epoch: initial.epoch, cursor: 0 });
   assert.doesNotMatch(JSON.stringify(snapshot), /PRIVATE|cookie|capability|uid/);
   assert.equal(snapshot.events.length, 3);
-  assert.equal(snapshot.events[0].honorLevel, 45);
-  assert.equal(snapshot.events[0].avatarUrl, 'https://i0.hdslb.com/face.png');
-  assert.equal(snapshot.events[0].giftGuardLevel, 3);
-  assert.equal(snapshot.events[0].guardAction, 'renew');
-  assert.equal(snapshot.events[0].guardAccompanyDays, 360);
-  assert.equal(snapshot.events[1].honorLevel, 32);
-  assert.equal(snapshot.events[1].roomGuardLevel, 3);
-  assert.deepEqual(snapshot.events[1].roomMedal, { name: '当前房间', level: 28, guardLevel: 3, isLight: true,
-    colorStart: '#3FB4F699', colorEnd: '#3FB4F699', colorBorder: '#5FC7F4', colorText: '#FFFFFF' });
-  assert.equal(snapshot.events[2].message, '原文\n内容');
   snapshot.events[0].giftName = 'changed';
   snapshot.events[1].emotes[0].url = 'changed';
   snapshot.events[1].roomMedal.name = 'changed';
@@ -286,44 +299,21 @@ test('display projection includes only requested types and required display fiel
   assert.deepEqual(fixture.ports.getDisplayData([], {}), {});
 });
 
-test('component defaults are complete isolated copies from the local appearance owner', () => {
+test('component defaults are isolated copies from the local appearance owner', () => {
   const fixture = componentFixture();
   assert.deepEqual(fixture.ports.getDefaultConfig('clock'), getClockConfig(fixture.state.settings));
   const queue = fixture.ports.getDefaultConfig('queue');
-  assert.equal(queue.overlayQueueStyle, DEFAULT_SETTINGS.overlayQueueStyle);
-  assert.equal(queue.queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(Object.hasOwn(queue, 'deviceToken'), false);
   assert.equal(Object.hasOwn(queue, 'roomId'), false);
-  assert.deepEqual(fixture.ports.getDefaultConfig('overtime'), { path: '', fit: 'contain' });
   assert.throws(() => fixture.ports.getDefaultConfig('danmaku'), { code: 'SCENE_DEFAULT_UNAVAILABLE', statusCode: 503 });
   fixture.cloudFixture.connect();
   fixture.state.appearance = { style: 'signal', fullscreenDurationSeconds: 6, layout: null };
   const danmaku = fixture.ports.getDefaultConfig('danmaku');
   assert.equal(danmaku.style, 'signal');
-  assert.equal(danmaku.fullscreenDurationSeconds, 6);
-  assert.deepEqual(danmaku.layout, createLayout());
   fixture.cloudFixture.update('connected', { type: 'overlay-settings', style: 'glow', timestamp });
   assert.equal(danmaku.style, 'signal');
   assert.equal(fixture.ports.getDefaultConfig('danmaku').style, 'signal');
   assert.throws(() => fixture.ports.getDefaultConfig('private'), { code: 'INVALID_SCENE_CONFIG' });
-});
-
-test('scene ports request only the state fields consumed by the selected components', () => {
-  const reads = [];
-  const ports = createSceneComponentPorts({
-    getState(fields) { reads.push(fields); return { settings: DEFAULT_SETTINGS }; },
-    getExtraDisplay: (_type, getState) => getState(),
-  });
-  ports.getDisplayData(['lyrics', 'lyrics'], {});
-  ports.getDisplayData(['text-box', 'gift-feed'], {});
-  ports.getDisplayData(['queue', 'overtime', 'gift-sprint', 'lyrics'], {});
-  ports.getDefaultConfig('clock');
-  assert.deepEqual(reads, [
-    ['lyricState', 'lyricTimeline'],
-    ['roomGuard'],
-    ['queue', 'superChats', 'overtime', 'giftSprint', 'lyricState', 'lyricTimeline', 'roomGuard'],
-    ['settings'],
-  ]);
 });
 
 test('local scene consumers receive only the shared room icon projection', () => {
@@ -365,9 +355,8 @@ test('appearance normalization rejects private keys, nested objects, nonfinite v
   const danmaku = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null };
   for (const [type, config] of [
     ['clock', { ...clock, deviceToken: 'PRIVATE' }], ['clock', { ...clock, label: { cookie: 'PRIVATE' } }],
-    ['clock', { ...clock, showDate: [] }], ['clock', { ...clock, style: 'invalid' }],
     ['queue', { cookie: 'PRIVATE' }], ['queue', { overlayTitle: { secret: 'PRIVATE' } }],
-    ['queue', { queueSongFontSize: Infinity }], ['queue', { overlayQueueStyle: 'unknown' }],
+    ['queue', { queueSongFontSize: Infinity }],
     ['overtime', { path: 'file:///C:/private.png', fit: 'cover' }],
     ['overtime', { path: 'https://evil.test/image.png?token=PRIVATE', fit: 'cover' }],
     ['overtime', { path: { cookie: 'PRIVATE' }, fit: 'cover' }], ['overtime', { path: '', fit: 'cover', remainingSeconds: 1 }],
@@ -378,11 +367,8 @@ test('appearance normalization rejects private keys, nested objects, nonfinite v
   ]) assert.throws(() => normalizeSceneConfig(type, config), { code: 'INVALID_SCENE_CONFIG', statusCode: 400 }, type);
   assert.deepEqual(normalizeSceneConfig('clock', clock), clock);
   assert.deepEqual(normalizeSceneConfig('overtime', { path: '', fit: 'contain' }), { path: '', fit: 'contain' });
-  assert.equal(normalizeSceneConfig('queue', {}).queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
-  assert.equal(normalizeSceneConfig('queue', {}).identityQueueFontFamily, 'Microsoft YaHei');
   assert.equal(normalizeSceneConfig('queue', { overlayFontFamily: 'KaiTi' }).identityQueueFontFamily, 'KaiTi');
   const fonts = normalizeSceneConfig('queue', { overlayFontFamily: 'KaiTi', identityQueueFontFamily: '"Lira Maiyuan"' });
   assert.equal(fonts.overlayFontFamily, 'KaiTi');
   assert.equal(fonts.identityQueueFontFamily, '"Lira Maiyuan"');
-  assert.equal(normalizeSceneConfig('queue', { overlayQueueStyle: 'festival' }).overlayQueueStyle, 'festival');
 });

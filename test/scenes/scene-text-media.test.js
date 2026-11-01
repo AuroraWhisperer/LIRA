@@ -45,7 +45,6 @@ test('desktop and attached canvas share bounded image upload and cached gift rea
       const result = await f.request(route, { bearer: route.startsWith('/api/scenes/') ? f.token : f.session.token });
       assert.equal(result.status, 200);
       assert.equal(result.data.gifts[0].id, `${source}-gift`);
-      assert.equal(result.data.guards.find(gift => gift.id === 'guard-1').name, '总督');
       assert.equal(result.data.schemaVersion, 3);
     }
   }

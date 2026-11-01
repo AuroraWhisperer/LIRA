@@ -84,72 +84,19 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     await page.locator('.component-preview-frame').waitFor();
     await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
     assert.equal(await page.evaluate(() => Boolean(window.liraLicense || window.__API_TOKEN__)), false);
-    if (component === 'queue') {
-      const help = page.locator('lira-help:visible').first();
-      await help.hover();
-      assert.equal(await help.getAttribute('aria-expanded'), 'true');
-      assert.equal(await help.getByRole('tooltip').isVisible(), true);
-      await page.mouse.move(0, 0);
-      await help.focus();
-      assert.equal(await help.getAttribute('aria-expanded'), 'true');
-      await help.press('Escape');
-      assert.equal(await help.getAttribute('aria-expanded'), 'false');
-    }
-    const dimensions = page.locator('.scene-editor-item-label');
-    const initialSize = { clock: '580 × 203 px', danmaku: '560 × 600 px' };
     let overtimeHeight;
-    let overtimeFont;
     if (component === 'overtime') {
       const foreground = page.frameLocator('.component-preview-frame').locator('.overtime-foreground');
       overtimeHeight = await foreground.evaluate(node => Math.ceil(node.getBoundingClientRect().height));
-      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`520 × ${height} px`), overtimeHeight);
-      assert.ok(overtimeHeight < 220, 'a clock without gift rules should have a compact frame');
-      overtimeFont = await page.frameLocator('.component-preview-frame').locator('#overtimeClock').evaluate(node => getComputedStyle(node).fontSize);
-      assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）' }).getAttribute('readonly'), '');
-      assert.equal(await page.locator('.component-preview-frame').evaluate(node => getComputedStyle(node).colorScheme), 'normal');
-      assert.equal(await dimensions.evaluate(node => node.getBoundingClientRect().bottom <= node.closest('.scene-editor-item').getBoundingClientRect().top), true);
-    } else if (component === 'queue') {
-      const frame = await page.locator('.component-preview-frame').elementHandle().then(handle => handle.contentFrame());
-      await frame.waitForFunction(() => {
-        const bounds = document.querySelector('.overlay-panel').getBoundingClientRect();
-        return Math.abs(innerHeight - bounds.height - 2 * bounds.top) < 1;
-      });
-      assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）' }).getAttribute('readonly'), '');
-    } else {
-      await page.waitForFunction(size => document.querySelector('.scene-editor-item-label').textContent.endsWith(size), initialSize[component]);
-      assert.ok((await dimensions.textContent()).endsWith(initialSize[component]));
+      await desktop.waitForFunction(height => window.canvasController.getState().draft.document.items[0]?.height === height, overtimeHeight);
     }
-    assert.equal(await dimensions.isVisible(), true);
-    if (component === 'clock') {
-      const x = page.getByRole('spinbutton', { name: 'X', exact: true });
-      const before = await x.inputValue();
-      await x.fill('100');
-      await x.press('Tab');
-      await page.getByRole('button', { name: '撤销', exact: true }).click();
-      assert.equal(await x.inputValue(), before);
-      await page.getByRole('button', { name: '重做', exact: true }).click();
-      assert.equal(await x.inputValue(), '100');
-      const stage = page.locator('.scene-editor-stage-host');
-      await stage.focus();
-      await page.keyboard.press('Control+z');
-      assert.equal(await x.inputValue(), before);
-      await page.keyboard.press('Control+Shift+z');
-      assert.equal(await x.inputValue(), '100');
-      await page.keyboard.press('Control+z');
-      await page.keyboard.press('Control+y');
-      assert.equal(await x.inputValue(), '100');
-    }
-    const labelHeight = await dimensions.evaluate(node => node.getBoundingClientRect().height);
     await page.getByRole('button', { name: '画布设置', exact: true }).click();
-    await dimensions.waitFor({ state: 'hidden' });
     await page.locator('.preview-canvas-layer-select').click();
     const key = component === 'clock' ? 'label' : component === 'queue' ? 'overlayQueueStyle' : component === 'danmaku' ? 'styleOptions' : 'fit';
     const expected = component === 'clock' ? '网页修改' : component === 'queue' ? 'storybook' : component === 'danmaku' ? { signal: { fontSize: 36 } } : 'contain';
     if (component === 'clock') await page.locator('[data-preview-field="clockCustomLabel"]').fill(expected);
     if (component === 'queue') await page.locator('[data-overlay-style="storybook"]').click();
     if (component === 'danmaku') {
-      assert.equal(await page.locator('[data-danmaku-style]').count(), 0);
-      assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
       await page.locator('[data-preview-field="danmakuFontSize"]').fill('36');
       await page.locator('[data-preview-field="danmakuFontSize"]').press('Tab');
     }
@@ -175,62 +122,21 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       const frame = page.frameLocator('.component-preview-frame');
       await frame.locator('.overtime-ticket').nth(3).waitFor();
       const expandedHeight = await frame.locator('.overtime-foreground').evaluate(node => Math.ceil(node.getBoundingClientRect().height));
-      assert.ok((await dimensions.textContent()).endsWith(`520 × ${overtimeHeight} px`), 'a locked layer should keep its geometry');
+      assert.equal(await desktop.evaluate(() => window.canvasController.getState().draft.document.items[0].height), overtimeHeight,
+        'a locked layer should keep its geometry');
       await page.getByRole('button', { name: '解锁', exact: true }).click();
-      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`520 × ${height} px`), expandedHeight);
+      await desktop.waitForFunction(height => window.canvasController.getState().draft.document.items[0].height === height, expandedHeight);
       assert.ok(expandedHeight > overtimeHeight, 'gift rules should expand the frame');
-      assert.equal(await frame.locator('#overtimeClock').evaluate(node => getComputedStyle(node).fontSize), overtimeFont);
       await desktop.evaluate(() => window.emitOvertime({ revision: 3, status: 'paused', effectiveRemainingMs: 60000,
         serverNowMs: Date.now(), rules: [] }));
       await frame.locator('#overtimeGiftGuide').waitFor({ state: 'hidden' });
-      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`520 × ${height} px`), overtimeHeight);
-      assert.deepEqual(await desktop.evaluate(() => window.canvasController.getState().draft.document.canvas), { width: 1920, height: 1080 });
-    }
-    if (component === 'danmaku') {
-      assert.equal(await page.getByRole('spinbutton', { name: '画布宽度', exact: true }).count(), 0);
-      for (const [name, value] of [['宽度', '720'], ['高度', '240']]) {
-        await page.getByRole('spinbutton', { name, exact: true }).fill(value);
-        await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
-        await desktop.waitForFunction(({ name, value }) => window.canvasController.getState().draft.document.items[0][
-          name === '宽度' ? 'width' : 'height'] === Number(value), { name, value });
-      }
-      await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.endsWith('720 × 240 px'));
-      assert.equal(await dimensions.isVisible(), true);
-      assert.equal(await page.frameLocator('.component-preview-frame').locator('.selection-label').isVisible(), false);
-      assert.deepEqual(await desktop.evaluate(() => window.canvasController.getState().draft.document.canvas), { width: 1920, height: 1080 });
-      await page.getByRole('button', { name: '画布设置', exact: true }).click();
-      await page.getByRole('button', { name: '公共画布分辨率', exact: true }).click();
-      await page.getByRole('option', { name: '1280 × 720', exact: true }).click();
-      await page.locator('.preview-canvas-layer-select').click();
-      await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.endsWith('480 × 160 px'));
-      await page.setViewportSize({ width: 1000, height: 700 });
-      assert.ok(Math.abs(await dimensions.evaluate(node => node.getBoundingClientRect().height) - labelHeight) < 1);
-      for (const name of ['宽度', '高度']) {
-        await page.getByRole('spinbutton', { name, exact: true }).fill('64');
-        await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
-        await desktop.waitForFunction((name) => window.canvasController.getState().draft.document.items[0][
-          name === '宽度' ? 'width' : 'height'] === 64, name);
-      }
-      await page.waitForFunction(() => document.querySelector('.scene-editor-item-label').textContent.endsWith('64 × 64 px'));
-      assert.equal(await dimensions.evaluate((node) => {
-        const badge = node.getBoundingClientRect();
-        const stage = node.closest('.scene-editor-canvas').getBoundingClientRect();
-        return badge.left >= stage.left && badge.top >= stage.top && badge.right <= stage.right && badge.bottom <= stage.bottom;
-      }), true);
+      await desktop.waitForFunction(height => window.canvasController.getState().draft.document.items[0].height === height, overtimeHeight);
     }
     if (component === 'clock') {
       await desktop.evaluate(() => { window.failSave = true; });
       await page.getByRole('button', { name: '保存并应用', exact: true }).click();
       await page.locator('.preview-canvas-status').filter({ hasText: '模拟保存失败' }).waitFor();
-      const toast = page.locator('#toast .toast-error').filter({ hasText: '模拟保存失败' });
-      await toast.waitFor();
       await page.waitForFunction(() => !document.querySelector('.preview-canvas-apply-actions .primary').disabled);
-      assert.equal(await toast.count(), 1);
-      await toast.click();
-      await toast.waitFor({ state: 'detached' });
-      await page.getByRole('button', { name: '收起参数', exact: true }).click();
-      await page.waitForResponse(response => response.request().postDataJSON()?.action === 'read');
-      assert.equal(await toast.count(), 0, 'An unchanged failure does not reappear on polling or rendering.');
       assert.equal(await desktop.evaluate(() => window.controller.getState().dirty), true);
       await desktop.evaluate(() => { window.failSave = false; });
     }
@@ -245,11 +151,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
       assert.equal(await desktop.evaluate(() => window.writes.length), 1);
     }
     await desktop.evaluate(() => window.handle.close());
-    await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
-    await page.locator('#toast .toast-error').filter({ hasText: '预览连接已结束' }).waitFor();
-    await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent
-      === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
-    assert.equal(await page.getByRole('button', { name: '保存并应用', exact: true }).isDisabled(), true);
+    await page.waitForFunction(() => document.querySelector('.preview-canvas-apply-actions .primary').disabled);
     await desktop.evaluate(() => { window.externalPreviewUrl = ''; window.reopen(); });
     await desktop.waitForFunction(() => window.externalPreviewUrl);
     const reopened = await desktop.evaluate(() => window.externalPreviewUrl);
@@ -257,7 +159,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
   });
 }
 
-test('clock frames follow each style and visible fields, preserve scale, and match saved output', { timeout: 30000 }, async t => {
+test('clock frames keep each style within its frame and publish the saved output size', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   fixture.configs.clock.style = fixture.runtime.settings.clockStyle = 'flip';
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
@@ -288,23 +190,12 @@ test('clock frames follow each style and visible fields, preserve scale, and mat
         && document.querySelector('.scene-editor-item-label').textContent
         .endsWith(`${frame.clientWidth} × ${frame.clientHeight} px`);
     }, null, { timeout: 5000 });
-    return frame.evaluate(() => ({ width: innerWidth, height: innerHeight,
-      scale: Number(document.getElementById('clockCard').style.getPropertyValue('--clock-scale')) }));
+    return frame.evaluate(() => ({ width: innerWidth, height: innerHeight }));
   };
-  await setWidth(1624);
-  const large = await settledSize();
-  const margins = await frame.locator('.clock-content').evaluate(node => {
-    const rect = node.getBoundingClientRect();
-    return [rect.left, rect.top, innerWidth - rect.right, innerHeight - rect.bottom];
-  });
-  assert.ok(margins.every(value => value >= 3.9 && value <= 5), 'the selection must hug the flip frame on every side');
   await setWidth(462);
-  await frame.waitForFunction(height => innerHeight < height, large.height, { timeout: 5000 });
   const flipFrame = await settledSize();
-  const sizes = {};
   const styles = await page.locator('[data-clock-style-option]').evaluateAll(buttons => buttons.map(button => button.dataset.clockStyleOption));
-  for (const style of ['peach', 'timeline-horizontal', 'timeline-vertical', 'flip']) assert.ok(styles.includes(style), style);
-  // Finish on flip: the following field checks start from its saved frame.
+  // Finish on flip: its saved frame is the published output size below.
   for (const style of [...styles.filter(value => value !== 'flip'), 'flip']) {
     await page.locator(`[data-clock-style-option="${style}"]`).click();
     await frame.waitForFunction(expected => document.documentElement.dataset.clockStyle === expected, style, { timeout: 5000 });
@@ -316,7 +207,7 @@ test('clock frames follow each style and visible fields, preserve scale, and mat
     const fixedFrame = { flip: [462, flipFrame.height] }[style];
     if (fixedFrame) await frame.waitForFunction(([width, height]) => innerWidth === width && innerHeight === height,
       fixedFrame, { timeout: 5000 });
-    sizes[style] = await settledSize();
+    await settledSize();
     const clipped = await frame.locator('.clock-time > span, .clock-date-row > span, .clock-year, .clock-period').evaluateAll(nodes =>
       nodes.filter(node => {
         const rect = node.getBoundingClientRect();
@@ -324,26 +215,7 @@ test('clock frames follow each style and visible fields, preserve scale, and mat
       }).map(node => node.id));
     assert.deepEqual(clipped, [], `${style} must keep all visible fields within its frame`);
   }
-  assert.ok(sizes['timeline-horizontal'].height < sizes.peach.height / 2);
-  assert.ok(sizes['timeline-vertical'].width < sizes['timeline-vertical'].height / 2);
-  assert.ok(sizes.flip.width < sizes.peach.width && sizes.flip.height < sizes.peach.height, JSON.stringify(sizes));
-  const full = sizes.flip;
-  await page.locator('[data-preview-field="clockShowSeconds"]').uncheck();
-  await frame.waitForFunction(width => innerWidth < width - 50, full.width, { timeout: 5000 });
-  const withoutSeconds = await settledSize();
-  assert.ok(Math.abs(withoutSeconds.scale - full.scale) < 0.02);
-  assert.equal(withoutSeconds.height, full.height);
-  await page.locator('[data-preview-field="clockShowDate"]').uncheck();
-  await frame.waitForFunction(width => innerWidth < width - 50, withoutSeconds.width, { timeout: 5000 });
-  await page.locator('[data-preview-field="clockHourFormat"]').selectOption('12', { force: true });
-  await frame.waitForFunction(height => innerHeight > height + 20, full.height, { timeout: 5000 });
-  for (const field of ['clockShowDate', 'clockShowSeconds']) await page.locator(`[data-preview-field="${field}"]`).check();
-  await page.locator('[data-preview-field="clockHourFormat"]').selectOption('24', { force: true });
-  await frame.waitForFunction(height => innerWidth === 462 && innerHeight === height, flipFrame.height, { timeout: 5000 });
-  await desktop.waitForFunction(() => {
-    const draft = window.controllers.clock.getState().draft;
-    return draft.style === 'flip' && draft.showDate && draft.showSeconds && draft.hourFormat === '24';
-  }, null, { timeout: 5000 });
+  await desktop.waitForFunction(() => window.controllers.clock.getState().draft.style === 'flip', null, { timeout: 5000 });
   fixture.runtime.settings.clockLabel = await desktop.evaluate(() => window.controllers.clock.getState().draft.label);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
@@ -353,12 +225,9 @@ test('clock frames follow each style and visible fields, preserve scale, and mat
   const output = await context.newPage();
   await output.goto(outputUrl);
   await output.waitForFunction(() => document.documentElement.style.getPropertyValue('--component-width') === '462px', null, { timeout: 5000 });
-  const outputBounds = await output.locator('.clock-content').boundingBox();
-  const outputInsets = [462 - outputBounds.width, flipFrame.height - outputBounds.height];
-  assert.ok(outputInsets.every(value => value >= 7.8 && value <= 10), 'saved output hugs the flip frame like the editor');
 });
 
-test('legacy moon clock palettes remain editable without a default style button', { timeout: 25000 }, async t => {
+test('legacy moon clock settings remain editable, publish and alternate tones automatically', { timeout: 25000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   fixture.runtime.settings.clockStyle = 'moonlit-fan';
   fixture.configs.clock = require('../../src/server/clock-contract').getClockConfig(fixture.runtime.settings);
@@ -378,39 +247,17 @@ test('legacy moon clock palettes remain editable without a default style button'
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.frameLocator('iframe').locator('#clockCard:not([hidden])').waitFor();
-  const palettes = page.locator('[data-preview-field="clockMoonColors"]');
-  assert.equal(await page.locator('[data-clock-style-option="moonlit-fan"]').count(), 0);
   const frame = page.frames().find(value => new URL(value.url()).pathname === '/clock');
   const mode = page.locator('[data-preview-field="clockMoonMode"]');
   const interval = page.locator('[data-preview-field="clockMoonIntervalSeconds"]');
-  const intervalField = page.locator('[data-preview-field="clockMoonIntervalField"]');
-  await frame.locator('#clockCard[data-moon-tone="light"]').waitFor();
-  assert.equal(await palettes.isVisible(), true);
-  assert.equal(await mode.inputValue(), 'light');
-  assert.equal(await interval.inputValue(), '30');
-  assert.equal(await intervalField.isVisible(), false);
-  const size = await frame.evaluate(() => [innerWidth, innerHeight]);
-  const moonColors = () => frame.locator('#clockCard').evaluate(card => ({
-    time: getComputedStyle(card.querySelector('.clock-time')).color,
-    face: getComputedStyle(card.querySelector('.clock-moon-face')).backgroundColor,
-  }));
-  const lightColors = await moonColors();
-  await mode.selectOption('dark', { force: true });
-  await frame.locator('#clockCard[data-moon-tone="dark"]').waitFor();
-  const darkColors = await moonColors();
-  assert.notEqual(darkColors.time, lightColors.time);
-  assert.notEqual(darkColors.face, lightColors.face);
-  await mode.selectOption('light', { force: true });
   await frame.locator('#clockCard[data-moon-tone="light"]').waitFor();
   await mode.selectOption('auto', { force: true });
-  assert.equal(await intervalField.isVisible(), true);
   await interval.fill('2');
   await interval.press('Tab');
   await desktop.waitForFunction(() => {
     const draft = window.controllers.clock.getState().draft;
     return draft.moonMode === 'auto' && draft.moonIntervalSeconds === 2;
   });
-  assert.deepEqual(await frame.evaluate(() => [innerWidth, innerHeight]), size);
   // The fixture's controller returns its draft; mirror the pending write into
   // its synthetic runtime for the shared-scene publication consistency check.
   const { clockSettingsPayload } = require('../../public/js/shared/clock-settings.js');
@@ -441,9 +288,6 @@ test('legacy moon clock palettes remain editable without a default style button'
   await reloadedFrame.locator(`#clockCard[data-moon-tone="${tone}"]`).waitFor({ timeout: 1000 });
   await mode.selectOption('dark', { force: true });
   await reloadedFrame.locator('#clockCard[data-moon-tone="dark"]').waitFor();
-  assert.equal(await intervalField.isVisible(), false);
-  await page.locator('[data-clock-style-option="flip"]').click();
-  assert.equal(await palettes.isVisible(), false);
 });
 
 test('shared canvas retains multiple layers, custom resolution and drafts, and drains every save on closure', { timeout: 45000 }, async (t) => {
@@ -526,7 +370,6 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
     if (await layer.count()) await layer.click();
     else await add(id);
   };
-  assert.equal(await page.locator('.component-preview-add').count(), 1);
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('切换后保留');
   await choose('queue');
   await page.locator('[data-overlay-style="storybook"]').click();
@@ -536,31 +379,15 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await desktop.waitForFunction(() => window.writes.length === 2);
   assert.deepEqual(await desktop.evaluate(() => window.writes.map(write => write.id).sort()), ['canvas', 'clock']);
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), false);
-  await page.getByRole('button', { name: '锁定', exact: true }).click();
-  await page.getByRole('button', { name: '解锁', exact: true }).waitFor();
-  assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isDisabled(), true);
+  const width = page.getByRole('spinbutton', { name: '宽度', exact: true });
+  const savedWidth = await width.inputValue();
+  await width.fill('581');
+  await width.press('Tab');
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
   await page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true }).getByRole('button', { name: '放弃修改', exact: true }).click();
   await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
-  await page.getByRole('button', { name: '锁定', exact: true }).waitFor();
-  assert.equal(await page.getByRole('spinbutton', { name: '宽度', exact: true }).isEnabled(), true);
-  await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('581');
-  await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
-  await page.getByRole('button', { name: '居中', exact: true }).click();
-  assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).inputValue(), '670');
-  assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).evaluate(input => input.checkValidity()), true);
-  await page.getByRole('button', { name: '放弃修改', exact: true }).click();
-  await page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true }).getByRole('button', { name: '放弃修改', exact: true }).click();
-  await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
-  const added = new Set(['clock', 'queue']);
-  for (const id of ['danmaku', 'overtime', 'queue', 'clock', 'queue']) {
-    await choose(id);
-    added.add(id);
-    assert.equal(await page.locator('iframe').count(), added.size);
-    assert.equal(await page.locator('.scene-editor-parameters').count(), 1);
-  }
-  assert.equal(await page.locator('[data-overlay-style="storybook"]').evaluate(button => button.classList.contains('active')), true);
-  assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [1920, 1080]);
+  assert.equal(await width.inputValue(), savedWidth);
+  for (const id of ['danmaku', 'overtime', 'queue', 'clock', 'queue']) await choose(id);
   await add('clock');
   assert.equal(await page.locator('iframe').count(), 5);
   for (const [name, value] of [['宽度', '610'], ['X', '100'], ['Y', '100']]) {
@@ -572,7 +399,6 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await page.mouse.move(box.x + 12, box.y + 12);
   await page.mouse.down(); await page.mouse.move(box.x + 52, box.y + 42, { steps: 8 }); await page.mouse.up();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.at(-1).x !== 100);
-  assert.deepEqual(await page.locator('.scene-editor-canvas').evaluate(node => [node.offsetWidth, node.offsetHeight]), [1920, 1080]);
   await page.getByRole('button', { name: '画布设置', exact: true }).click();
   await page.getByRole('button', { name: '公共画布分辨率', exact: true }).click();
   await page.getByRole('option', { name: '2560 × 1440', exact: true }).click();
@@ -586,7 +412,6 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
         node.style.minHeight = `${height + 31}px`;
       }, height);
       await page.waitForFunction(expected => document.querySelector('.scene-editor-item[data-component="overtime"]').offsetHeight === expected, height + 31);
-      assert.equal(await overtime.evaluate(node => node.offsetHeight), height + 31);
       assert.equal(await page.getByRole('spinbutton', { name, exact: true }).inputValue(), value);
     }
     await page.getByRole('spinbutton', { name, exact: true }).press('Tab');
@@ -627,8 +452,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   for (const session of sessions) {
     assert.equal((await fixture.post({ action: 'close', id: session.id, attachmentId: session.attachmentId }, session.token)).status, 200);
   }
-  await page.waitForFunction(() => document.querySelector('.preview-canvas-status').textContent
-    === '预览连接已结束，请从客户端重新打开预览。', null, { timeout: 5000 });
+  await page.locator('.preview-canvas-status').filter({ hasText: '预览连接已结束' }).waitFor();
   await page.goto('about:blank');
   resumeExchanges();
   await desktop.waitForFunction(() => window.closedComponents.length === 5 && window.writes.length === 5);

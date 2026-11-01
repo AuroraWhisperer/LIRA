@@ -44,7 +44,7 @@
 | [interactive-tour.css](../../../public/css/admin/toolbox/interactive-tour.css) | 遮罩、高亮、提示框与状态样式 |
 | [app.js](../../../public/js/admin/app.js) | 管理页初始化和首次自动打开 |
 | [usage-guide.js](../../../public/js/admin/usage-guide.js) | 手动重新打开入口 |
-| [interactive-tour.test.js](../../../test/admin/interactive-tour.test.js) | 首次展示、手动重开、定位、目标配置与样式回归 |
+| [interactive-tour.test.js](../../../test/admin/interactive-tour.test.js) | 首次展示、版本变化不重开、手动重开与房间/直播步骤完成；定位与样式以实际查看验收 |
 | [frontend-admin-startup.test.js](../../../test/admin/frontend-admin-startup.test.js) | 初始数据、主题和桌面控制的启动顺序 |
 
 验证命令：`node --experimental-vm-modules --test test/admin/interactive-tour.test.js test/admin/frontend-admin-startup.test.js`。真实登录仍要求 Electron 的正常授权环境，普通浏览器不能验证桌面登录能力。

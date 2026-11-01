@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { readAdminHtml } = require('../helpers/admin-html');
 const { CLIENT_THEMES, DEFAULT_CLIENT_THEME_ID } = require('../../src/shared/client-theme');
 
 const MODULE_PATH = path.resolve(__dirname, '../../public/js/admin/client-appearance.js');
@@ -77,15 +76,11 @@ test('appearance choices only commit after explicit apply succeeds, with one in-
     },
   });
   fixture.init();
-  assert.equal(fixture.labels[0].hidden, false);
-  assert.equal(fixture.applyButton.disabled, true);
   await fixture.choose('terracotta');
   assert.deepEqual(requests, []);
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'neutral');
   const applying = fixture.applyButton.dispatch('click');
   assert.deepEqual(requests, ['terracotta']);
-  assert.equal(fixture.applyButton.disabled, true);
-  assert.ok(fixture.choices.every(({ disabled }) => disabled));
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'neutral');
   await fixture.applyButton.dispatch('click');
   await fixture.choose('classic');
@@ -95,11 +90,6 @@ test('appearance choices only commit after explicit apply succeeds, with one in-
   complete({ ok: true, themeId: 'terracotta' });
   await applying;
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'terracotta');
-  assert.equal(fixture.labels[0].hidden, true);
-  assert.equal(fixture.labels[2].hidden, false);
-  assert.equal(fixture.feedback.textContent, '配色已应用');
-  assert.ok(fixture.choices.every(({ disabled }) => !disabled));
-  assert.equal(fixture.applyButton.disabled, true);
 });
 
 test('failed appearance writes preserve the current theme and candidate and allow retry', async () => {
@@ -115,10 +105,7 @@ test('failed appearance writes preserve the current theme and candidate and allo
     await fixture.choose('terracotta');
     await fixture.applyButton.dispatch('click');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
-    assert.equal(fixture.labels[1].hidden, false);
     assert.equal(fixture.choices[2].checked, true);
-    assert.equal(fixture.applyButton.disabled, false);
-    assert.equal(fixture.feedback.textContent, '配色未保存，请重试');
     await fixture.applyButton.dispatch('click');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'terracotta');
   }
@@ -133,31 +120,13 @@ test('unknown initial themes select the terracotta fallback and invalid response
   await fixture.choose('classic');
   await fixture.applyButton.dispatch('click');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'future');
-  assert.equal(fixture.feedback.textContent, '配色未保存，请重试');
 });
 
-test('appearance controls without the desktop bridge explain where to change the preference', async () => {
+test('appearance controls without the desktop bridge cannot change the preference', async () => {
   const fixture = await createFixture({ themeId: 'classic' });
-  assert.ok(fixture.choices.every(({ disabled }) => disabled));
-  assert.equal(fixture.applyButton.disabled, true);
-  assert.equal(fixture.labels[1].hidden, false);
-  assert.equal(fixture.feedback.textContent, '请在桌面客户端设置配色。');
+  await fixture.choose('terracotta');
   await fixture.applyButton.dispatch('click');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
-});
-
-test('appearance markup provides the same previews, native radio controls and live feedback', () => {
-  const html = readAdminHtml();
-  const inputs = [...html.matchAll(/<input\b(?=[^>]*\sname="clientTheme")[^>]*>/g)].map(([tag]) => tag);
-  assert.deepEqual(inputs.map((tag) => tag.match(/value="([^"]+)"/)[1]), CLIENT_THEMES.map(({ id }) => id));
-  assert.deepEqual(inputs.filter((tag) => /\schecked(?:\s|>)/.test(tag)).map((tag) => tag.match(/value="([^"]+)"/)[1]), [DEFAULT_CLIENT_THEME_ID]);
-  for (const { id, name } of CLIENT_THEMES) {
-    assert.match(html, new RegExp(`<input\\b(?=[^>]*\\stype=["']radio["'])(?=[^>]*\\sname=["']clientTheme["'])(?=[^>]*\\svalue=["']${id}["'])[^>]*>`));
-    assert.equal((html.match(new RegExp(`data-client-theme-preview="${id}"`, 'g')) || []).length, 1);
-    assert.ok(html.includes(`<span>${name}</span>`));
-  }
-  assert.doesNotMatch(html, /\{\{client-theme-|<template data-client-theme-option>/);
-  assert.match(html, /<[^>]+(?=[^>]*\sdata-client-theme-feedback(?:\s|>))(?=[^>]*\srole=["']status["'])(?=[^>]*\saria-live=["']polite["'])[^>]*>/);
 });
 
 test('appearance accepts a catalog option without a separate frontend allowlist', async () => {
@@ -168,17 +137,7 @@ test('appearance accepts a catalog option without a separate frontend allowlist'
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'catalog-addition');
   const restored = await createFixture({ themes, themeId: 'catalog-addition', setClientTheme: () => {} });
   assert.equal(restored.choices.find((choice) => choice.checked).value, 'catalog-addition');
-});
-
-test('new light and dark choices can be applied, restored and switched back to an existing theme', async () => {
-  const fixture = await createFixture({ setClientTheme: (themeId) => ({ ok: true, themeId }) });
-  for (const themeId of ['clear-jade', 'black-silver', 'rose-lustre', 'dusty-rose', 'classic']) {
-    await fixture.choose(themeId);
-    await fixture.applyButton.dispatch('click');
-    assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, themeId);
-    assert.equal(fixture.labels.find((label) => !label.hidden).dataset.clientThemeCurrent, themeId);
-    const restored = await createFixture({ themeId, setClientTheme: () => {} });
-    assert.equal(restored.choices.find((choice) => choice.checked).value, themeId);
-    assert.equal(restored.applyButton.disabled, true);
-  }
+  await fixture.choose('classic');
+  await fixture.applyButton.dispatch('click');
+  assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
 });

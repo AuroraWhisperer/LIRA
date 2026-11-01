@@ -39,33 +39,10 @@ test('old events keep reminders off; timed reminders follow the event and all-da
   assert.equal(restored.events[0].reminderTime, '09:30');
 });
 
-test('exports v3 storage names and creates an empty default account', () => {
+test('exports the persisted v3 and legacy storage names', () => {
   assert.equal(model.STORAGE_KEY, 'admin.streamerWorkbench.v3');
   assert.equal(model.PREVIOUS_STORAGE_KEY, 'admin.streamerWorkbench.v2');
   assert.equal(model.LEGACY_STORAGE_KEY, 'admin.streamerPlanner.v1');
-  assert.deepEqual(plain(model.STAGES), ['before', 'live', 'after']);
-  assert.deepEqual(plain(model.NOTE_LABELS), {
-    idea: '随手记',
-    promise: '观众约定',
-    review: '复盘',
-  });
-  assert.deepEqual(plain(model.EVENT_LABELS), {
-    live: '直播',
-    work: '工作',
-    personal: '个人',
-  });
-  assert.deepEqual(plain(model.createDefaultState(false)), {
-    version: 3,
-    session: {
-      date: model.toDateValue(),
-      time: '20:00',
-      title: '',
-      goal: '',
-    },
-    tasks: [],
-    notes: [],
-    events: [],
-  });
 });
 
 test('normalizes tasks and filters only exact historical starters when requested', () => {

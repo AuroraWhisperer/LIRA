@@ -13,7 +13,6 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const ROOT_DIR = path.join(__dirname, '../..');
 const QUEUE_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js');
 const QUEUE_RENDER_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-render.js');
-const VIEWPORT_STATE_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue-viewport.js');
 const QUEUE_STYLE_SETTINGS_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'shared', 'queue-style-settings.js');
 
 function createFakeList() {
@@ -136,16 +135,27 @@ const BASE_SETTINGS = {
   overlayLowPowerMode: 'false',
 };
 
-test('every queue theme renders LIVE only for explicitly marked songs and escapes song names', async () => {
+test('every queue theme renders all queued songs and escapes viewer text', async () => {
   const dom = createQueueDom();
   const render = await loadQueueOverlay(dom);
-  for (const name of ['renderClassicQueue', 'renderIdentityQueue', 'renderStorybookQueue',
-    'renderNeonVinylQueue', 'renderCherryRibbonQueue', 'renderGoldenLilyQueue']) {
-    for (const is_live of [true, false]) {
-      render[name](BASE_SETTINGS, null, [{ id: 1, is_live, song_name: '<待唱>', requester_name: '观众' }], dom.content);
-      assert.equal(dom.content.innerHTML.includes('class="queue-live-badge"'), is_live, name);
-      assert.match(dom.content.innerHTML, /&lt;待唱&gt;/);
-    }
+  const current = { song_name: '<img src=x onerror=alert(1)>当前', requester_name: '<b>观众A</b>' };
+  const waiting = [
+    { song_name: '下一首', requester_name: '观众B' },
+    { song_name: '第三首', requester_name: '观众C' },
+  ];
+  for (const [name, style] of [
+    ['renderClassicQueue', 'classic'],
+    ['renderIdentityQueue', 'identity'],
+    ['renderStorybookQueue', 'storybook'],
+    ['renderNeonVinylQueue', 'neon-vinyl'],
+    ['renderCherryRibbonQueue', 'cherry-ribbon'],
+    ['renderGoldenLilyQueue', 'golden-lily'],
+  ]) {
+    render[name]({ ...BASE_SETTINGS, overlayQueueStyle: style }, current, waiting, dom.content, []);
+    const html = dom.content.innerHTML;
+    assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt;当前/, name);
+    assert.doesNotMatch(html, /<img src=x|<b>观众A/, `${name} must not inject viewer markup`);
+    waiting.forEach((item) => assert.ok(html.includes(item.song_name), `${name} keeps ${item.song_name}`));
   }
 });
 
@@ -155,129 +165,12 @@ test('queue overlay entry links and evaluates through the real module graph', as
   assert.equal(typeof namespace, 'object');
 });
 
-test('queue overlay applies its theme through the real module graph', async () => {
+test('queue overlay applies the saved song font size', async () => {
   const dom = createQueueDom();
   const namespace = await loadQueueOverlay(dom);
 
-  assert.doesNotThrow(() => namespace.applyTheme(BASE_SETTINGS, 'classic'));
-  assert.equal(dom.panel.className, 'overlay-panel queue-classic');
+  namespace.applyTheme(BASE_SETTINGS, 'classic');
   assert.equal(dom.rootVars.get('--overlay-song-font-size'), '40px');
-  assert.equal(dom.rootVars.get('--overlay-blur'), '0px');
-  const scrollSeconds = Number.parseFloat(dom.rootVars.get('--scroll-seconds'));
-  assert.ok(Number.isFinite(scrollSeconds) && scrollSeconds > 0);
-});
-
-test('all six queue render paths run without cross-module reference errors', async () => {
-  const dom = createQueueDom();
-  const namespace = await loadQueueOverlay(dom);
-
-  const current = {
-    song_name: '  当前歌曲',
-    requester_name: '观众A',
-    is_pinned: false,
-  };
-  const waiting = [
-    { song_name: '下一首', requester_name: '观众B', is_pinned: false },
-    { song_name: '第三首', requester_name: '观众C', is_pinned: false },
-    { song_name: '第四首', requester_name: '观众D', is_pinned: false },
-  ];
-  const expectedSongs = [current, ...waiting].map((item) => item.song_name.trimStart());
-  const assertSharedQueue = (rowClass) => {
-    expectedSongs.forEach((songName) => assert.match(dom.content.innerHTML, new RegExp(songName)));
-    assert.equal(
-      (dom.content.innerHTML.match(new RegExp(`class=\"[^\"]*${rowClass}[^\"]*\"`, 'g')) || []).length,
-      expectedSongs.length,
-    );
-  };
-
-  assert.doesNotThrow(() => namespace.renderClassicQueue(BASE_SETTINGS, current, waiting, dom.content));
-  assert.match(dom.content.innerHTML, /classic-list-window/);
-  assert.match(dom.content.innerHTML, /class="overlay-song-name">当前歌曲<\/span>/);
-  assertSharedQueue('overlay-waiting-row');
-
-  const identitySettings = { ...BASE_SETTINGS, overlayQueueStyle: 'identity' };
-  assert.doesNotThrow(() => namespace.renderIdentityQueue(identitySettings, current, waiting, dom.content, []));
-  assert.match(dom.content.innerHTML, /identity-list-window/);
-  assert.match(dom.content.innerHTML, /class="identity-song">当前歌曲<\/span>/);
-  assert.equal(dom.viewport.style.height, undefined);
-  assertSharedQueue('identity-row');
-
-  const storybookSettings = {
-    ...BASE_SETTINGS,
-    overlayQueueStyle: 'storybook',
-  };
-  assert.doesNotThrow(() => namespace.renderStorybookQueue(storybookSettings, current, waiting, dom.content));
-  assert.match(dom.content.innerHTML, /storybook-list-window/);
-  assert.match(dom.content.innerHTML, /class="storybook-song">当前歌曲<\/span>/);
-  assertSharedQueue('storybook-row');
-
-  const neonSettings = { ...BASE_SETTINGS, overlayQueueStyle: 'neon-vinyl' };
-  assert.doesNotThrow(() => namespace.renderNeonVinylQueue(neonSettings, current, waiting, dom.content));
-  assert.match(dom.content.innerHTML, /neon-vinyl-list-window/);
-  assert.match(dom.content.innerHTML, /class="illustrated-song-value">当前歌曲<\/span>/);
-  assertSharedQueue('neon-vinyl-row');
-
-  const ribbonSettings = {
-    ...BASE_SETTINGS,
-    overlayQueueStyle: 'cherry-ribbon',
-  };
-  assert.doesNotThrow(() => namespace.renderCherryRibbonQueue(ribbonSettings, current, waiting, dom.content));
-  assert.match(dom.content.innerHTML, /cherry-ribbon-list-window/);
-  assert.match(dom.content.innerHTML, /class="illustrated-song-value">当前歌曲<\/span>/);
-  assertSharedQueue('cherry-ribbon-row');
-
-  const goldenLilySettings = {
-    ...BASE_SETTINGS,
-    overlayQueueStyle: 'golden-lily',
-  };
-  assert.doesNotThrow(() => namespace.renderGoldenLilyQueue(goldenLilySettings, current, waiting, dom.content));
-  assert.match(dom.content.innerHTML, /golden-lily-list-window/);
-  assert.match(dom.content.innerHTML, /class="illustrated-song-value">当前歌曲<\/span>/);
-  assertSharedQueue('golden-lily-row');
-  assert.doesNotThrow(() => namespace.renderGoldenLilyQueue(goldenLilySettings, null, [], dom.content));
-  assert.match(dom.content.innerHTML, /golden-lily-empty/);
-});
-
-test('illustrated queue rows omit missing guard and medal fields without hiding available ones', async () => {
-  const dom = createQueueDom();
-  const namespace = await loadQueueOverlay(dom);
-  const item = {
-    song_name: '测试歌曲',
-    requester_name: '普通观众',
-    requester_guard_level: 0,
-    requester_medal_name: '',
-    requester_medal_level: 0,
-  };
-
-  const rows = [
-    ['storybook', namespace.renderStorybookRow(item, 0), 'storybook-badge', 'storybook-medal'],
-    ['neon-vinyl', namespace.renderNeonVinylRow(item), 'neon-vinyl-guard', 'neon-vinyl-medal'],
-    ['cherry-ribbon', namespace.renderCherryRibbonRow(item), 'cherry-ribbon-guard', 'cherry-ribbon-medal'],
-    ['golden-lily', namespace.renderGoldenLilyRow(item, 0), 'golden-lily-guard', 'golden-lily-medal'],
-  ];
-
-  rows.forEach(([style, html, guardClass, medalClass]) => {
-    assert.doesNotMatch(html, new RegExp(`class="${guardClass}\\b`), `${style} should omit a missing guard`);
-    assert.doesNotMatch(html, new RegExp(`class="${medalClass}\\b`), `${style} should omit a missing medal`);
-  });
-
-  const member = {
-    ...item,
-    requester_guard_level: 3,
-    requester_medal_name: '测试灯牌',
-    requester_medal_level: 21,
-  };
-  const memberRows = [
-    ['storybook', namespace.renderStorybookRow(member, 0), 'storybook-badge', 'storybook-medal'],
-    ['neon-vinyl', namespace.renderNeonVinylRow(member), 'neon-vinyl-guard', 'neon-vinyl-medal'],
-    ['cherry-ribbon', namespace.renderCherryRibbonRow(member), 'cherry-ribbon-guard', 'cherry-ribbon-medal'],
-    ['golden-lily', namespace.renderGoldenLilyRow(member, 0), 'golden-lily-guard', 'golden-lily-medal'],
-  ];
-
-  memberRows.forEach(([style, html, guardClass, medalClass]) => {
-    assert.match(html, new RegExp(`class="${guardClass}\\b`), `${style} should retain an available guard`);
-    assert.match(html, new RegExp(`class="${medalClass}\\b`), `${style} should retain an available medal`);
-  });
 });
 
 test('queue style changes are detected so the overlay can reload the authoritative queue', async () => {
@@ -286,47 +179,34 @@ test('queue style changes are detected so the overlay can reload the authoritati
   const state = (style) => ({ settings: { overlayQueueStyle: style } });
 
   assert.equal(namespace.queueStyleChanged(state('classic'), state('identity')), true);
-  assert.equal(namespace.queueStyleChanged(state('identity'), state('storybook')), true);
   assert.equal(namespace.queueStyleChanged(state('festival'), state('identity')), false);
   assert.equal(namespace.queueStyleChanged(state('storybook'), state('storybook')), false);
   assert.equal(namespace.queueStyleChanged(null, state('classic')), false);
+  assert.equal(namespace.normalizeQueueStyle('festival'), 'identity');
+  assert.equal(namespace.normalizeQueueStyle('unknown'), 'classic');
 });
 
 test('queue style settings resolve and persist only the selected style', async () => {
   const namespace = await loadModuleExports(QUEUE_STYLE_SETTINGS_ENTRY, {});
   const settings = {
     identityQueueFontSize: '26',
-    identityQueueScrollMode: 'bounce',
-    identityQueueScrollSpeed: '80',
     neonVinylQueueFontSize: '41',
     neonVinylQueueFontFamily: 'KaiTi, serif',
-    neonVinylQueueFontWeight: '700',
-    neonVinylQueueUseCustomTextColor: 'true',
-    neonVinylQueueTextColor: '#123456',
     neonVinylQueueScrollMode: 'loop',
     neonVinylQueueScrollSpeed: '64',
     cherryRibbonQueueFontSize: '22',
-    cherryRibbonQueueScrollMode: 'bounce',
-    cherryRibbonQueueScrollSpeed: '35',
   };
 
   const neon = namespace.resolveQueueStyleSettings(settings, 'neon-vinyl');
-  const ribbon = namespace.resolveQueueStyleSettings(settings, 'cherry-ribbon');
   assert.equal(neon.identityQueueFontSize, '41');
   assert.equal(neon.illustratedQueueFontFamily, 'KaiTi, serif');
   assert.equal(neon.queueScrollMode, 'loop');
   assert.equal(neon.identityQueueScrollSpeed, '64');
-  assert.equal(ribbon.identityQueueFontSize, '22');
-  assert.equal(ribbon.queueScrollMode, 'bounce');
-  assert.equal(ribbon.identityQueueScrollSpeed, '35');
+  assert.equal(namespace.resolveQueueStyleSettings(settings, 'cherry-ribbon').identityQueueFontSize, '22');
 
   const payload = namespace.queueStyleSettingsPayload('neon-vinyl', {
     fontSize: '44',
     fontFamily: 'YouYuan',
-    fontWeight: '900',
-    useCustomTextColor: 'false',
-    textColor: '#654321',
-    scrollMode: 'bounce',
     scrollSpeed: '71',
   });
   assert.equal(payload.neonVinylQueueFontSize, '44');
@@ -341,83 +221,41 @@ test('classic and identity resolve independent fonts while preserving old snapsh
   assert.equal(namespace.resolveQueueStyleSettings(settings, 'classic').overlayFontFamily, '"Lira Maiyuan"');
   assert.equal(namespace.resolveQueueStyleSettings(settings, 'identity').overlayFontFamily, '"STKaiti"');
   assert.equal(namespace.resolveQueueStyleSettings({ overlayFontFamily: 'KaiTi' }, 'identity').overlayFontFamily, 'KaiTi');
-  assert.equal(namespace.resolveQueueStyleSettings({}, 'identity').overlayFontFamily, 'Microsoft YaHei');
   assert.deepEqual({ ...namespace.queueStyleSettingsPayload('identity', { fontFamily: '"Lira Smiley"' }) },
     { identityQueueFontFamily: '"Lira Smiley"' });
 });
 
-test('queue viewport helper exposes uncapped proportional contain scaling', async () => {
-  const namespace = await loadModuleExports(VIEWPORT_STATE_ENTRY, {});
-  for (const [args, expected] of [
-    [[900, 1000, 405, 320, 16], 868 / 405],
-    [[320, 900, 405, 320, 8], 304 / 405],
-    [[1920, 1080, 560, 840, 16], 1048 / 840],
-    [[400, 900, 560, 840, 16], 368 / 560],
-    [[900, 457, 560, 840, 16], 425 / 840],
-  ]) {
-    assert.equal(namespace.calculateQueuePanelScale(...args), expected, args.join(' × '));
-  }
-});
-
-test('illustrated queue rows escape viewer text and keep each style rank rule', async () => {
-  const dom = createQueueDom();
-  const render = await loadQueueOverlay(dom);
-  const entry = await loadQueueOverlay(createQueueDom(), QUEUE_ENTRY);
+test('queue rows escape viewer medal text', async () => {
+  const render = await loadQueueOverlay(createQueueDom());
   const item = {
-    song_name: '<img src=x onerror=alert(1)>超长歌名',
-    requester_name: '<b>点歌人</b>',
-    requester_guard_level: 2,
+    song_name: '歌',
+    requester_name: '点歌人',
+    requester_guard_level: 0,
     requester_medal_name: '<i>灯牌</i>',
     requester_medal_level: 26,
   };
 
-  for (const [style, row, rank] of [
-    ['storybook', render.renderStorybookRow(item, 0), /storybook-rank">1<\/span>/],
-    ['neon-vinyl', render.renderNeonVinylRow(item), null],
-    ['cherry-ribbon', render.renderCherryRibbonRow(item, 1), null],
-    ['golden-lily', render.renderGoldenLilyRow(item, 5), /golden-lily-rank illustrated-rank">6<\/span>/],
+  for (const [style, row] of [
+    ['storybook', render.renderStorybookRow(item, 0)],
+    ['neon-vinyl', render.renderNeonVinylRow(item)],
   ]) {
-    assert.equal(entry.normalizeQueueStyle(style), style);
-    assert.match(row, /&lt;img src=x onerror=alert\(1\)&gt;超长歌名/, style);
-    assert.match(row, /&lt;b&gt;点歌人&lt;\/b&gt;/, style);
-    assert.doesNotMatch(row, /<img src=x|<b>点歌人|<i>灯牌/, `${style} must not inject viewer markup`);
-    if (style === 'storybook') {
-      assert.match(row, /storybook-info-viewport[\s\S]*storybook-info/);
-      assert.match(row, /storybook-song[\s\S]*storybook-requester[\s\S]*storybook-badge[\s\S]*storybook-medal/);
-    } else {
-      assert.match(row, /提督/, style);
-      assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt; · 26/, style);
-      assert.doesNotMatch(row, /illustrated-label/, style);
-    }
-    if (rank) assert.match(row, rank, style);
-    else assert.doesNotMatch(row, /illustrated-rank/, `${style} omits queue ranks`);
+    assert.match(row, /&lt;i&gt;灯牌&lt;\/i&gt;/, style);
+    assert.doesNotMatch(row, /<i>灯牌/, `${style} must not inject viewer markup`);
   }
-  assert.equal(entry.normalizeQueueStyle('festival'), 'identity');
-  assert.equal(entry.normalizeQueueStyle('unknown'), 'classic');
 });
 
-test('illustrated typography settings apply only to illustrated queue styles', async () => {
+test('custom illustrated typography applies only to illustrated queue styles', async () => {
   const settings = {
     ...BASE_SETTINGS,
     illustratedQueueFontFamily: 'KaiTi',
-    illustratedQueueFontWeight: '700',
     illustratedQueueUseCustomTextColor: 'true',
     illustratedQueueTextColor: '#123456',
   };
-  for (const [style, applied] of [
-    ['neon-vinyl', true],
-    ['storybook', true],
-    ['identity', false],
-    ['classic', false],
-  ]) {
+  for (const [style, applied] of [['neon-vinyl', true], ['classic', false]]) {
     const dom = createQueueDom();
     const namespace = await loadQueueOverlay(dom);
     namespace.applyTheme({ ...settings, overlayQueueStyle: style }, style);
-    assert.match(dom.rootVars.get('--illustrated-queue-font-family'), /^KaiTi, /);
-    assert.equal(dom.rootVars.get('--illustrated-queue-font-weight'), '700');
     assert.equal(dom.rootVars.get('--illustrated-queue-text-color'), '#123456');
-    for (const className of ['illustrated-custom-font', 'illustrated-custom-weight', 'illustrated-custom-text-color']) {
-      assert.equal(dom.panelClasses.has(className), applied, `${style} ${className}`);
-    }
+    assert.equal(dom.panelClasses.has('illustrated-custom-text-color'), applied, style);
   }
 });

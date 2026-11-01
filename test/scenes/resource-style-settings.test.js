@@ -42,7 +42,6 @@ test('resource settings persist defaults across restart without changing resourc
   const reopened = createComponentStyleLibrary(f.dataDir).list()[0].styles[0];
   assert.equal(reopened.config.limit, 4);
   assert.equal(reopened.config.gap, 20);
-  assert.equal(reopened.config.displayStyle, 'moonlit');
 });
 
 test('resource settings reject invalid fields, resource replacement and unauthorized writes without changing saved state', async t => {

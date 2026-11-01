@@ -34,8 +34,11 @@ export function initDanmakuComponentSource({ configure, clear, append, remove, s
         }
         display.update(data);
       },
-      revoke() { configuration = null; configKey = ''; },
-      disconnect() { display.update({ status: 'offline', epoch: null, reset: true, events: [] }); },
+      revoke() {
+        configuration = null; configKey = '';
+        display.update({ status: 'offline', epoch: null, reset: true, events: [] });
+      },
+      disconnect() { status('连接中断 · 正在重连', false); },
     },
   });
   window.addEventListener('pagehide', () => {

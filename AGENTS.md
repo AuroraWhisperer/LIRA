@@ -243,9 +243,17 @@ For a bug: confirm the smallest useful reproduction when practical, fix the
 owning cause, re-run the focused reproduction or test, and expand only if the
 result suggests wider impact.
 
-Do not require a new regression test for every trivial fix when existing evidence
-is sufficient. Add or update a test when it materially protects the behavior,
-captures a non-obvious regression, or is required by an existing contract.
+Keep or add automation only when the failure matters and the test adds useful
+confidence beyond existing checks at a reasonable maintenance cost. A possible
+failure, documented value, changed file or new function alone is insufficient.
+Prefer a focused business behavior over a test for every method, field or control;
+simple forwarding and static UI inventories usually need no separate test.
+Apply the [test selection rules](docs/reference/engineering/test.md#何时新增或修改测试).
+
+Ordinary layout, spacing, colors, decorative markup, copy order, and animation
+curves do not require automated cases, assertions, or replacement screenshots.
+Keep checks for concrete functional effects such as blocked interaction, lost
+content, accessibility, saved settings, or required export dimensions.
 
 Before adding coverage, search the owning suite for existing cases, helpers, and
 fixtures. Prefer reusing or extending matching coverage; add a new case only for

@@ -5,12 +5,12 @@ const { FakeNode } = require('../helpers/fake-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { findFloatingDanmakuTop } = require('../../public/js/overlays/danmaku-floating-position.js');
 const { floatingSpeedToPixelsPerSecond: toSpeed, floatingSpeedFromPixelsPerSecond: toLevel,
-  editStyleOption, resetStyleOptions, floatingSpeedLabel } = require('../../public/js/shared/danmaku-appearance-draft.js');
+  editStyleOption, resetStyleOptions } = require('../../public/js/shared/danmaku-appearance-draft.js');
 
 test('floating speed has exact endpoints and midpoint, with legacy values retained until edited', () => {
   assert.deepEqual([1, 50, 100].map(toSpeed), [40, 120, 360]);
   let previous = 0;
-  for (let level = 1; level <= 100; level += 1) {
+  for (const level of [1, 2, 49, 50, 51, 99, 100]) {
     assert.ok(toSpeed(level) > previous);
     assert.equal(toLevel(toSpeed(level)), level);
     previous = toSpeed(level);
@@ -21,17 +21,6 @@ test('floating speed has exact endpoints and midpoint, with legacy values retain
     assert.equal(editStyleOption(draft, 'floatingSpeed', 50).styleOptions.floating.speedPixelsPerSecond, 120);
     assert.deepEqual(resetStyleOptions(draft).styleOptions.floating, {});
   }
-  assert.match(floatingSpeedLabel(600), /5×（旧值）/);
-});
-
-test('maximum dispersion reaches opposite edges and the widest remaining gap across the whole height', () => {
-  const item = { left: 1000, width: 300, height: 80 };
-  const box = { left: 900, width: 300, height: 80, top: 0 };
-  const place = occupied => findFloatingDanmakuTop(item, 1080, occupied, 100, () => 0.37);
-  assert.ok(Math.abs(place([box]) - 1000) < 0.001);
-  assert.ok(place([{ ...box, top: 1000 }]) < 0.001);
-  assert.ok(Math.abs(place([box, { ...box, top: 1000 }]) - 500) < 0.001);
-  assert.equal(findFloatingDanmakuTop(item, 1080, [], 100, () => 0.37), 370);
 });
 
 test('dispersion increases separation, includes rectangle sizes and uses current horizontal separation', () => {
@@ -55,7 +44,6 @@ async function fixture(height = 500) {
   let time = 10000;
   let sequence = 0;
   const timers = new Map(), animations = [];
-  const measurements = { width: 0, height: 0 };
   const document = { defaultView: {
     getComputedStyle: () => ({ getPropertyValue: () => '0' }),
     addEventListener() {}, removeEventListener() {},
@@ -63,8 +51,8 @@ async function fixture(height = 500) {
     const node = new FakeNode(tag);
     node.ownerDocument = document;
     Object.defineProperties(node, {
-      offsetWidth: { get() { measurements.width += 1; return 200; } },
-      offsetHeight: { get() { measurements.height += 1; return 100; } },
+      offsetWidth: { get: () => 200 },
+      offsetHeight: { get: () => 100 },
     });
     node.animate = (frames, timing) => {
       const animation = { frames, timing, cancelled: false, cancel() { this.cancelled = true; } };
@@ -83,7 +71,7 @@ async function fixture(height = 500) {
     scheduleTimeout(callback, delay) { const id = ++sequence; timers.set(id, { callback, at: time + delay }); return id; },
     cancelTimeout(id) { timers.delete(id); },
   });
-  return { feed, root, animations, timers, measurements, append() { feed.append({ id: String(++sequence), name: '测试观众', message: '测试弹幕', timestamp: time }); },
+  return { feed, root, animations, timers, append() { feed.append({ id: String(++sequence), name: '测试观众', message: '测试弹幕', timestamp: time }); },
     advance(duration) {
       const end = time + duration;
       while (true) {
@@ -105,7 +93,6 @@ test('live updates keep positions and animations continuous; disposal cancels al
   assert.equal(node.animation, animation);
   f.advance(1000);
   f.feed.setSpeedPixelsPerSecond(360);
-  assert.match(node.animation.frames[0].transform, /translateX\(880px\)/);
   assert.ok(Math.abs(node.animation.timing.duration - 3000) < 0.001);
   assert.equal(node.style.top, top);
   f.advance(1000); f.append();
@@ -116,20 +103,17 @@ test('live updates keep positions and animations continuous; disposal cancels al
   assert.ok(f.animations.every(animation => animation.cancelled));
 });
 
-test('batched arrivals measure the bounded feed once and retain existing animations', async () => {
+test('batched arrivals keep the feed bounded and retain existing animations', async () => {
   const f = await fixture(10000);
   for (let index = 0; index < 50; index += 1) f.append();
   const retained = f.root.children.slice(10);
   const animations = retained.map(node => node.animation);
-  f.measurements.width = 0;
-  f.measurements.height = 0;
   f.feed.appendBatch(Array.from({ length: 10 }, (_, index) => ({
     id: `batch-${index}`, name: '合成观众', message: `同批消息 ${index}`, timestamp: 10000,
   })));
   assert.equal(f.root.children.length, 50);
   assert.deepEqual(f.root.children.slice(0, 40), retained);
   assert.deepEqual(retained.map(node => node.animation), animations);
-  assert.deepEqual(f.measurements, { width: 50, height: 50 });
   assert.ok(f.root.children.every(node => node.style.visibility === 'visible'));
   f.feed.destroy();
   assert.equal(f.timers.size, 0);

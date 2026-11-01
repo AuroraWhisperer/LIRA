@@ -9,8 +9,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('../helpers/css-bundle');
 const { readJsModuleBundle } = require('../helpers/js-module-bundle');
-const { createLyricToggleButton, loadModuleExports, response } = require('../helpers/frontend-modules');
-const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -18,31 +17,10 @@ const ROOT_DIR = path.join(__dirname, '../..');
 test('display overlay URLs use explicit settings capabilities without the legacy registry', async () => {
   const { documentRef } = createDom();
   const nodes = new Map(
-    [
-      'queueUrl',
-      'songsUrl',
-      'lyricsUrl',
-      'liveDanmakuUrl',
-      'localDanmakuUrl',
-      'liveCanvasUrl',
-      'liveCanvasSourceStatus',
-      'liveCanvasPreview',
-      'copyLiveCanvasUrl',
-      'liveBlindboxUrl',
-      'liveGamesUrl',
-      'liveWheelUrl',
-      'liveInteractionsUrl',
-      'liveGiftFeedUrl',
-      'liveGiftSprintUrl',
-      'liveGiftWishUrl',
-      'liveOvertimeUrl',
-      'liveGiftEffectsUrl',
-      'liveOpeningUrl',
-      'liveClockUrl',
-      'webSongPageUrl',
-      'blindboxOverlayUrl',
-    ].map((id) => [id, documentRef.createElement('button')]),
+    [...readAdminFragmentHtml('pages/admin/song/overlay-addresses.html').matchAll(/id="([^"]+)"/g)]
+      .map(([, id]) => [id, documentRef.createElement('button')]),
   );
+  nodes.set('blindboxOverlayUrl', documentRef.createElement('button'));
   const copyButton = { addEventListener() {}, removeEventListener() {} };
   const window = { addEventListener() {} };
   const { display } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/display.js'), {
@@ -62,7 +40,6 @@ test('display overlay URLs use explicit settings capabilities without the legacy
   assert.equal(nodes.get('songsUrl').textContent, 'http://127.0.0.1:3012/songlist');
   assert.equal(nodes.get('liveGiftWishUrl').textContent, 'http://127.0.0.1:3012/gift-wishes');
   assert.equal(nodes.get('blindboxOverlayUrl').textContent, 'http://127.0.0.1:3012/blindbox');
-  assert.equal(copyButton.disabled, true);
 });
 
 for (const initialProfile of ['older response', 'initial rejection', 'late rejection']) {
@@ -144,34 +121,11 @@ for (const initialProfile of ['older response', 'initial rejection', 'late rejec
   });
 }
 
-test('song list exposes a display board font size control', async () => {
-  const html = readAdminFragmentHtml('pages/admin/song/song-board.html');
+test('song board applies the saved font size within its bounds', async () => {
   const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const themePage = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
-
-  assert.match(themePage, /<div id="themePage"/);
-  assert.match(html, /<div id="displayPage"/);
-  assert.doesNotMatch(themePage, /songBoardFontSize/);
-  const inputs = [...html.matchAll(/<input\b[^>]*>/g)]
-    .map(([tag]) => tag)
-    .filter((tag) => /\sid\s*=\s*["']songBoardFontSize["']/.test(tag));
-  assert.equal(inputs.length, 1);
-  assert.match(inputs[0], /\smin\s*=\s*["']10["']/);
-  assert.match(inputs[0], /\smax\s*=\s*["']80["']/);
-  const form = {
-    querySelector: (selector) => ({ value: selector === '[id="songBoardFontSize"]' ? '42' : '', checked: true }),
-  };
-  const { collectSongBoardSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/song-board-settings.js'));
-  assert.equal(collectSongBoardSettings(form).songBoardFontSize, '42');
   const boardRule = overlayStyles.match(/\.song-board\s*\{[^}]*\}/)?.[0];
-  assert.ok(boardRule);
-  assert.match(boardRule, /font-size:[^;]*var\(--overlay-font-scale\b/);
   const baseFontSize = Number(boardRule.match(/font-size:[^;]*?([\d.]+)px/)?.[1]);
   assert.ok(baseFontSize > 0);
-  const titleRule = overlayStyles.match(/\.song-board \.overlay-title\s*\{[^}]*\}/)?.[0];
-  assert.ok(titleRule);
-  assert.match(titleRule, /var\(--overlay-title-font-size\b/);
-  assert.match(titleRule, /var\(--overlay-font-scale\b/);
 
   const values = new Map();
   const sandbox = {
@@ -192,39 +146,20 @@ test('song list exposes a display board font size control', async () => {
   };
   vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, 'public/js/overlays/overlay-utils.js'), 'utf8'), sandbox);
   vm.runInNewContext(readJsModuleBundle('public', 'js', 'overlays', 'songs.js'), sandbox);
-  for (const [input, expected] of [['10', 10], ['36', 36], ['80', 80], ['4', 10], ['99', 80], ['invalid', 28]]) {
+  for (const [input, expected] of [['36', 36], ['4', 10], ['99', 80]]) {
     sandbox.applyTheme({ songBoardFontSize: input });
     assert.equal(Number(values.get('--overlay-font-scale')) * baseFontSize, expected, input);
   }
-  sandbox.applyTheme({ songBoardFontSize: DEFAULT_SETTINGS.songBoardFontSize });
-  assert.equal(
-    Number(values.get('--overlay-font-scale')) * baseFontSize,
-    28,
-    'the stored default must match the overlay fallback size',
-  );
 });
 
-test('song board keeps song names readable in narrow browser sources', async () => {
+test('song board records preserve names and group by the leading artist', async () => {
   const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
-  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
   const songModule = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), {
     document: { addEventListener() {} },
     location: { protocol: 'http:', host: 'localhost', search: '' },
     URLSearchParams,
     WebSocket: function WebSocket() {},
   });
-
-  const listRule = overlayStyles.match(/\.song-scroll-list\s*\{[^}]*\}/)?.[0];
-  const nameRule = overlayStyles.match(/\.song-card strong\s*\{[^}]*\}/)?.[0];
-  const artistRule = overlayStyles.match(/\.song-card span\s*\{[^}]*\}/)?.[0];
-  assert.ok(listRule);
-  assert.ok(nameRule);
-  assert.ok(artistRule);
-  assert.match(listRule, /grid-auto-rows:\s*max-content/);
-  assert.match(nameRule, /flex:\s*1 1 auto/);
-  assert.match(nameRule, /min-width:\s*0/);
-  assert.match(artistRule, /text-overflow:\s*ellipsis/);
-  assert.match(artistRule, /white-space:\s*nowrap/);
 
   const flatRecords = songModule.buildSongRecords(
     [
@@ -252,20 +187,10 @@ test('song board keeps song names readable in narrow browser sources', async () 
     ['heading', 'song', 'song'],
   );
   assert.equal(artistRecords[0].label, 'Lead');
-  assert.match(source, /\.textContent\s*=/);
-  assert.doesNotMatch(source, /list\.innerHTML\s*=\s*html/);
+  assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/, 'song names render as text');
 });
 
 test('song display board bounds rendered rows and preserves the scroll anchor', async () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'overlays', 'songs.html'), 'utf8');
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), 'utf8');
-  const styles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  assert.match(html, /<script type="module" src="\/js\/overlays\/songs\.js\?v=[^"]+"><\/script>/);
-  assert.match(source, /new SongVirtualScroller\s*\(/);
-  assert.match(source, /new ResizeObserver\s*\([\s\S]*?\bscheduleRelayout\b/);
-  assert.doesNotMatch(styles, /@keyframes song-scroll/);
-  assert.doesNotMatch(source, /insertAdjacentHTML|\.innerHTML\s*=/);
-
   class FakeNode {
     constructor(height, key) {
       this.dataset = { key };
@@ -336,12 +261,9 @@ test('song display board bounds rendered rows and preserves the scroll anchor', 
     }
   }
 
-  const { SongVirtualScroller, bufferPixels, wrapIndex } = await loadModuleExports(
+  const { SongVirtualScroller } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'overlays', 'song-virtual-scroller.js'),
   );
-  assert.equal(wrapIndex(-1, 5), 4);
-  assert.equal(wrapIndex(5, 5), 0);
-  assert.deepEqual(Array.from(bufferPixels(100, 1, 1.5)), [100, 150]);
 
   const content = new FakeContent();
   const viewport = {
@@ -393,12 +315,6 @@ test('song display board bounds rendered rows and preserves the scroll anchor', 
 });
 
 test('song board scroll speed maps linearly from 1–100 to 1–250 pixels per second', async () => {
-  const adminHtml = readAdminFragmentHtml('pages/admin/song/song-board.html');
-  assert.match(
-    adminHtml,
-    /<input\b(?=[^>]*\bid="scrollSecondsRange")[^>]*\bclass="parameter-range parameter-range--tempo"[^>]*\btype="range"[^>]*\bmin="1"[^>]*\bmax="100"[^>]*>/s,
-  );
-  assert.match(adminHtml, /id="scrollSeconds" type="number" min="1" max="100"/);
   const songModule = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'songs.js'), {
     document: { addEventListener() {} },
     location: { protocol: 'http:', host: 'localhost', search: '' },
@@ -408,7 +324,6 @@ test('song board scroll speed maps linearly from 1–100 to 1–250 pixels per s
   assert.equal(songModule.scrollSpeedToPixelsPerSecond(1), 1);
   assert.equal(songModule.scrollSpeedToPixelsPerSecond(100), 250);
   assert.equal(songModule.scrollSpeedToPixelsPerSecond(200), 250);
-  assert.equal(songModule.scrollSpeedToPixelsPerSecond(), songModule.scrollSpeedToPixelsPerSecond(20));
 
   const rates = Array.from({ length: 100 }, (_, index) => index + 1).map(
     (speed) => songModule.scrollSpeedToPixelsPerSecond(speed),

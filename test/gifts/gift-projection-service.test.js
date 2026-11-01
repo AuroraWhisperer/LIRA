@@ -226,7 +226,7 @@ test('a transient database read failure during consumer retry is contained and r
     projection.importProcessedEvent(makeProcessedGiftEvent(), sourceId);
     assert.equal(attempts, 1);
     failRead = true;
-    assert.doesNotThrow(() => clock.advance(1000));
+    clock.advance(1000);
     assert.equal(attempts, 1);
     failRead = false;
     clock.advance(2000);
@@ -281,7 +281,7 @@ test('optional display v1 survives projection and repeated final deliveries with
   assert.equal(history.items[0].gift.avatarUrl, event.gift.display.avatarUrl);
   const old = structuredClone(event);
   delete old.gift.display;
-  assert.doesNotThrow(() => normalizeProcessedGiftEvent(old));
+  normalizeProcessedGiftEvent(old);
   for (const display of [
     { ...event.gift.display, version: 2 },
     { ...event.gift.display, guardLevel: 4 },

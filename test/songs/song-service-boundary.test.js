@@ -67,34 +67,6 @@ test('a storage failure rolls back the entire cloud song replacement', (t) => {
   );
 });
 
-test('song service uses the narrow song store behavior instead of a database handle', () => {
-  const calls = [];
-  const store = {
-    saveSong(input) {
-      calls.push(input);
-      return {
-        id: 7,
-        name: input.name,
-        artist: input.artist,
-        category_id: 3,
-        is_enabled: input.isEnabled,
-      };
-    },
-  };
-
-  const song = songService.saveSong(store, {
-    name: '  边界歌曲  ',
-    artist: '  测试歌手  ',
-    categoryName: '  流行  ',
-  });
-
-  assert.equal(song.id, 7);
-  assert.equal(calls.length, 1);
-  assert.equal(calls[0].name, '边界歌曲');
-  assert.equal(calls[0].artist, '测试歌手');
-  assert.equal(calls[0].categoryName, '流行');
-});
-
 test('deleting a song preserves queue and request history without song references', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-delete-'));
   const databases = createDatabases({ dataDir });

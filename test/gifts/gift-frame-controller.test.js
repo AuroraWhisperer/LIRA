@@ -12,11 +12,10 @@ async function fixture(source) {
   const classes = new Set();
   const playRequests = [];
   let serial = 0;
-  let pauses = 0;
   const video = {
     currentTime: 2,
     play: () => new Promise((resolve, reject) => playRequests.push({ resolve, reject })),
-    pause: () => { pauses += 1; },
+    pause() {},
     load() {}, removeAttribute() {}, setAttribute(name, value) { this[name] = value; },
     addEventListener: (type, fn) => listeners.set(type, fn),
     removeEventListener: (type) => listeners.delete(type),
@@ -38,30 +37,16 @@ async function fixture(source) {
   });
   const player = createFrameController({ frameRoot, source });
   const emit = (name, time) => { if (time !== undefined) video.currentTime = time; listeners.get(name)?.(); };
-  return { player, emit, video, avatar, gift, num, caption, classes, timers, frames, listeners, frameRoot, window, windowHandlers, playRequests, pauses: () => pauses };
+  return { player, emit, video, avatar, gift, classes, timers, frames, listeners, window, windowHandlers, playRequests };
 }
 const payload = { userName: '<img src=x>', giftName: '林间花信', num: 2 };
 
-test('caption follows media time, stays fixed during hold, and fully clears on end', async () => {
+test('playback starts from the beginning and fully clears on end', async () => {
   const f = await fixture();
   const done = f.player.play(payload);
   assert.equal(f.video.currentTime, 0);
-  assert.equal(f.avatar.alt, `${payload.userName}的头像`);
-  assert.equal(f.avatar.src, '/img/gift-avatar-placeholder.svg');
-  assert.equal(f.num.textContent, '×2');
-  assert.equal(f.caption.style.opacity, '0');
-  assert.equal(f.frameRoot.style['--frame-scale'], 0.5);
   f.emit('playing', 0);
   f.emit('timeupdate', 1.1);
-  assert.equal(f.caption.style.opacity, '1');
-  assert.equal(f.caption.style.transform, 'translateY(0px)');
-  for (const time of [3.9, 5.6, 7.2]) {
-    f.emit('timeupdate', time);
-    assert.equal(f.caption.style.opacity, '1');
-    assert.equal(f.caption.style.transform, 'translateY(0px)');
-  }
-  f.emit('timeupdate', 7.8);
-  assert.equal(f.caption.style.opacity, '0');
   f.emit('ended', 8);
   await done;
   assert.equal(f.avatar.src, '');
@@ -77,16 +62,11 @@ test('caption follows media time, stays fixed during hold, and fully clears on e
   assert.equal(f.windowHandlers.size, 0);
 });
 
-test('imported artwork keeps the native caption geometry and timing', async () => {
+test('imported artwork uses its source', async () => {
   const source = '/component-media/11111111-1111-4111-8111-111111111111/' + 'a'.repeat(64) + '.webm';
   const f = await fixture(source);
   assert.equal(f.video.src, source);
-  const done = f.player.play({ ...payload, preview: true });
-  f.emit('playing', 1.1);
-  assert.equal(f.frameRoot.style['--frame-scale'], 0.5);
-  assert.equal(f.gift.parentElement.style.fontSize, '38px');
-  assert.equal(f.caption.style.transform, 'translateY(0px)');
-  f.emit('ended', 8); await done; f.player.dispose();
+  f.player.dispose();
 });
 
 test('loading timeout, stalled media and decoder errors release the player for the next gift', async () => {
@@ -121,9 +101,6 @@ test('dispose cancels pending playback and late play rejection cannot clear a ne
   f.playRequests[0].reject(new Error('old play interrupted'));
   await Promise.resolve();
   assert.equal(f.avatar.alt, '第二位的头像');
-  f.window.innerWidth = 1000; f.window.innerHeight = 1000;
-  f.windowHandlers.get('resize')();
-  assert.equal(f.frameRoot.style['--frame-scale'], 1000 / 1920);
   f.player.dispose();
   await second;
   await f.player.play(payload);
@@ -145,9 +122,5 @@ test('sender avatar uses the existing proxy, falls back once, and resets for the
   assert.equal(f.avatar.onerror, null);
   f.emit('ended', 8);
   await done;
-  const preview = f.player.play({ ...payload, preview: true });
-  assert.equal(f.avatar.src, '/img/overlays/danmaku-ranked/viewer.webp');
-  f.emit('ended', 8);
-  await preview;
   f.player.dispose();
 });

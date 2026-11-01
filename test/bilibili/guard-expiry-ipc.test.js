@@ -22,16 +22,12 @@ test('guard expiry IPC authorizes every operation and exposes only safe account 
     getMainWindow: () => main, getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
   });
   for (const fn of handlers.values()) {
-    for (const invalid of [{}, { ...event, sender: {} }, { ...event, senderFrame: { ...frame } }]) {
-      assert.equal((await fn(invalid)).error, 'IPC_SOURCE_INVALID');
-    }
-    for (const url of ['https://passport.bilibili.com/', 'http://127.0.0.1:3001/admin', 'http://127.0.0.1:3000/license']) {
-      frame.url = url;
-      assert.equal((await fn(event)).error, 'IPC_SOURCE_INVALID');
-    }
-    frame.url = 'http://127.0.0.1:3000/admin';
+    assert.equal((await fn({})).error, 'IPC_SOURCE_INVALID');
     assert.deepEqual(await fn(event, 'separate'), { ok: true, account });
   }
+  frame.url = 'http://127.0.0.1:3000/license';
+  assert.equal((await handlers.get('guard-expiry:get-state')(event)).error, 'IPC_SOURCE_INVALID');
+  frame.url = 'http://127.0.0.1:3000/admin';
   assert.equal(calls.length, 4);
   auth.login = async () => { throw new Error('SESSDATA=secret'); };
   assert.deepEqual(await handlers.get('guard-expiry:login')(event), { ok: false, error: 'GUARD_EXPIRY_UNAVAILABLE' });

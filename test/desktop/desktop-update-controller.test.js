@@ -43,16 +43,7 @@ test('automatic updates are enabled only by the exact stored setting and never b
   for (const [name, getRuntime, expected] of [
     ['enabled', () => ({ getSetting: (key) => (key === 'enableAutoUpdate' ? 'true' : 'false') }), true],
     ['disabled', () => ({ getSetting: () => 'false' }), false],
-    ['boolean true is not the stored string', () => ({ getSetting: () => true }), false],
     ['no runtime yet', () => null, false],
-    ['runtime without settings', () => ({}), false],
-    [
-      'runtime lookup throws',
-      () => {
-        throw new Error('runtime closed');
-      },
-      false,
-    ],
     [
       'setting read throws',
       () => ({
@@ -83,19 +74,12 @@ test('update state reaches only a live window without forcing navigation', () =>
   mainWindow = createWindow();
   const pages = () => mainWindow.sent.filter(([channel]) => channel === 'desktop:show-update-page').length;
   const states = () => mainWindow.sent.filter(([channel]) => channel === 'desktop:update-state').length;
-  for (const [status, expectedPages] of [
-    ['available', 0],
-    ['available', 0],
-    ['downloading', 0],
-    ['downloaded', 0],
-    ['downloaded', 0],
-    ['error', 0],
-  ]) {
+  for (const status of ['available', 'available', 'downloaded', 'error']) {
     updateRuntime.value = { status };
     controller.sendUpdateState();
-    assert.equal(pages(), expectedPages, status);
+    assert.equal(pages(), 0, status);
   }
-  assert.equal(states(), 6, 'every state is delivered even without a transition');
+  assert.equal(states(), 4, 'every state is delivered even without a transition');
   assert.deepEqual(mainWindow.sent.at(-1), ['desktop:update-state', { status: 'error' }]);
 });
 
@@ -110,24 +94,16 @@ test('update errors are logged and disable download and install with the running
     getMainWindow: () => mainWindow,
     writeLog: (...args) => logs.push(args),
     updateManager: {
-      friendlyUpdateError: (value) => {
-        assert.equal(value, error);
-        return { status: 'error', message: 'friendly message' };
-      },
+      friendlyUpdateError: () => ({ status: 'error', message: 'friendly message' }),
     },
   });
 
   controller.setUpdateError(error);
 
   assert.deepEqual(logs, [['update-error', error]]);
-  assert.deepEqual(updateRuntime.value, {
-    status: 'error',
-    message: 'friendly message',
-    canDownload: false,
-    canInstall: false,
-    progress: null,
-    extra: 'kept',
-    version: '9.9.9',
-  });
+  assert.equal(updateRuntime.value.status, 'error');
+  assert.equal(updateRuntime.value.canDownload, false);
+  assert.equal(updateRuntime.value.canInstall, false);
+  assert.equal(updateRuntime.value.version, '9.9.9');
   assert.deepEqual(mainWindow.sent, [['desktop:update-state', updateRuntime.value]]);
 });

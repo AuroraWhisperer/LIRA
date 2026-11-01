@@ -302,9 +302,6 @@ async function createPlaybackApp(initialState, options = {}) {
         ...options,
       });
     },
-    getCloseQueuePopup() {
-      return window.AdminApp.playback.closeQueuePopup;
-    },
     element(id) {
       return document.getElementById(id);
     },

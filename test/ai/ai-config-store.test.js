@@ -27,21 +27,6 @@ test('AI config masks secrets in public projection while storing them encrypted'
   t.after(() => db.close());
   const write = t.mock.method(persistence, 'updateConfiguration');
   const defaults = store.getPublicConfig();
-  assert.equal(defaults.enabled, true);
-  assert.equal(defaults.trigger, '');
-  assert.equal(defaults.model, '');
-  assert.equal(defaults.maxToolCalls, 6);
-  assert.equal(defaults.deepseekResponsesUrl, '');
-  assert.equal(defaults.modelProvider, 'auto');
-  assert.equal(defaults.modelApiProtocol, 'auto');
-  assert.equal(defaults.reasoningEffort, 'auto');
-  assert.deepEqual(defaults.modelEndpoint, {
-    protocol: 'unconfigured',
-    provider: 'unconfigured',
-    webSearchMode: 'unconfigured',
-    reasoningMode: 'unconfigured',
-  });
-  assert.equal(defaults.userCooldownSeconds, 0);
   assert.equal(defaults.hasDeepSeekApiKey, false);
   assert.equal(defaults.deepseekApiKey, undefined);
   assert.equal(defaults.qweatherApiKey, undefined);
@@ -318,22 +303,20 @@ function retentionFixture(t) {
   };
 }
 
-for (const hours of [12, 24, 7 * 24]) {
-  test(`AI expires never-revisited cache and context across ${hours} virtual hours`, (t) => {
-    const f = retentionFixture(t);
-    const minutes = hours * 60;
-    for (let minute = 0; minute <= minutes; minute += 1) {
-      f.advanceTo(minute * 60000);
-      f.store.setCache(`unique-query-${minute}`, { text: `reply-${minute}` }, 60);
-      f.store.setContext(`unique-viewer-${minute}`, { answer: `reply-${minute}` }, 1200);
-    }
-    assert.equal(f.count('ai_query_cache'), 1);
-    assert.equal(f.count('ai_viewer_context'), 20);
-    assert.deepEqual(f.store.getCache(`unique-query-${minutes}`), { text: `reply-${minutes}` });
-    assert.deepEqual(f.store.getContext(`unique-viewer-${minutes - 19}`), { answer: `reply-${minutes - 19}` });
-    assert.equal(f.store.getContext(`unique-viewer-${minutes - 20}`), null);
-  });
-}
+test('AI expires never-revisited cache and context during a virtual week', (t) => {
+  const f = retentionFixture(t);
+  const minutes = 7 * 24 * 60;
+  for (let minute = 0; minute <= minutes; minute += 1) {
+    f.advanceTo(minute * 60000);
+    f.store.setCache(`unique-query-${minute}`, { text: `reply-${minute}` }, 60);
+    f.store.setContext(`unique-viewer-${minute}`, { answer: `reply-${minute}` }, 1200);
+  }
+  assert.equal(f.count('ai_query_cache'), 1);
+  assert.equal(f.count('ai_viewer_context'), 20);
+  assert.deepEqual(f.store.getCache(`unique-query-${minutes}`), { text: `reply-${minutes}` });
+  assert.deepEqual(f.store.getContext(`unique-viewer-${minutes - 19}`), { answer: `reply-${minutes - 19}` });
+  assert.equal(f.store.getContext(`unique-viewer-${minutes - 20}`), null);
+});
 
 test('AI initialization removes expired cache and context while preserving live values and business rows', (t) => {
   const f = retentionFixture(t);

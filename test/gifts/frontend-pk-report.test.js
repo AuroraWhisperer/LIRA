@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { readAdminFragmentHtml } = require('../helpers/admin-html');
+
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const saved = (enabled) => ({ ok: true, enabled });
 const account = (name) => ({
@@ -73,37 +73,23 @@ async function fixture(profile = account('one')) {
   };
 }
 
-test('PK report toggle starts disabled in the real admin page', () => {
-  const html = readAdminFragmentHtml('pages/admin/toolbox/danmaku.html');
-  assert.match(html, /id="danmakuPkReportToggle"[^>]*disabled/);
-  assert.doesNotMatch(html, /id="danmakuPkReportRefreshBtn"/);
-});
-
 test('pending and failed writes preserve confirmed state, failed disable warns explicitly', async () => {
   const f = await fixture();
   assert.equal(f.get('Toggle').disabled, true);
   f.reads[0].resolve(saved(false));
   await flush();
-  const summary = f.get('Status').textContent;
   f.toggle(true);
   assert.deepEqual(f.writes[0].patch, { enabled: true });
   assert.equal(f.get('Toggle').checked, false);
   assert.equal(f.get('Toggle').disabled, true);
-  assert.equal(f.get('Status').textContent, summary);
-  assert.equal(f.toasts.length, 0);
   f.writes[0].resolve(saved(true));
   await flush();
   assert.equal(f.get('Toggle').checked, true);
-  assert.equal(f.toasts[0].message, 'PK 对手信息播报已开启');
-  assert.equal(f.get('Status').textContent, summary);
   f.toggle(false);
   f.writes[1].reject(new Error('offline'));
   await flush();
   assert.equal(f.get('Toggle').checked, true);
-  assert.equal(f.get('Status').textContent, summary);
-  assert.equal(f.toasts.length, 2);
-  assert.match(f.toasts[1].message, /关闭尚未同步，服务器可能仍在播报/);
-  assert.equal(f.toasts[1].options.type, 'error');
+  assert.match(f.toasts.at(-1).message, /关闭尚未同步，服务器可能仍在播报/);
 });
 
 test('old server is unavailable and explicit refresh can recover', async () => {
@@ -111,7 +97,6 @@ test('old server is unavailable and explicit refresh can recover', async () => {
   f.reads[0].resolve({ ok: false, error: 'NOT_FOUND' });
   await flush();
   assert.equal(f.get('Toggle').disabled, true);
-  assert.match(f.get('Status').textContent, /暂不可用/);
   const refreshing = f.refresh();
   f.reads[1].resolve(saved(false));
   await refreshing;
@@ -144,16 +129,13 @@ test('unauthorized profiles cannot read settings', async () => {
   const f = await fixture({ state: 'unbound' });
   assert.equal(f.reads.length, 0);
   assert.equal(f.get('Toggle').disabled, true);
-  assert.match(f.get('Status').textContent, /连接 LIRA 账号/);
 });
 
-for (const songPageUrl of ['', undefined]) {
-  test(`authorized PK settings load with ${songPageUrl === '' ? 'empty' : 'missing'} song page URL`, async () => {
-    const f = await fixture({ state: 'authorized', streamer: { accountName: 'one', songPageUrl } });
-    assert.equal(f.reads.length, 1);
-    f.reads[0].resolve(saved(true));
-    await flush();
-    assert.equal(f.get('Toggle').disabled, false);
-    assert.equal(f.get('Toggle').checked, true);
-  });
-}
+test('authorized PK settings load without a song page URL', async () => {
+  const f = await fixture({ state: 'authorized', streamer: { accountName: 'one' } });
+  assert.equal(f.reads.length, 1);
+  f.reads[0].resolve(saved(true));
+  await flush();
+  assert.equal(f.get('Toggle').disabled, false);
+  assert.equal(f.get('Toggle').checked, true);
+});

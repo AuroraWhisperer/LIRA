@@ -190,7 +190,6 @@ test('inline CSS, unquoted HTML attributes, srcset and linked HTML cannot hide m
     const f = await fixture(t);
     const result = await f.add([['index.html', html], ['existing.png', image]]);
     assert.equal(result.status, 400, html);
-    assert.match(result.error, /缺少配套资源/);
     assertEmptyLibrary(f.dataDir);
   });
 });

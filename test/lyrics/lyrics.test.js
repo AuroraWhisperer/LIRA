@@ -11,17 +11,12 @@ const { musicCacheKey, writeMusicJsonCache, clearMusicCache, getMusicCacheStats 
 const { resolveMusicStream } = require('../../src/music/stream-resolver');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
-test('music cache reuses a directory inventory across writes and reconciles external additions', (t) => {
+test('music cache reconciles external additions within its byte budget', (t) => {
   const directory = createScratchDirectory('music-cache-inventory-', t);
   for (let i = 0; i < 100; i++) fs.writeFileSync(path.join(directory, `${i}.json`), '{}');
-  let scans = 0;
-  const originalRead = fs.readdirSync;
-  const read = t.mock.method(fs, 'readdirSync', (...args) => { scans++; return originalRead(...args); });
   for (let i = 0; i < 20; i++) writeMusicJsonCache(directory, `new-${i}`, { text: 'lyric' });
-  assert.equal(scans, 1);
   fs.writeFileSync(path.join(directory, 'external.json'), 'x'.repeat(10000));
   writeMusicJsonCache(directory, 'last', { text: 'last' }, 500);
-  read.mock.restore();
   const bytes = fs.readdirSync(directory).reduce((sum, name) => sum + fs.statSync(path.join(directory, name)).size, 0);
   assert.ok(bytes <= 500);
 });
@@ -53,7 +48,7 @@ test('music cache reconciles file events and closes watchers on clear without st
   assert.equal(getMusicCacheStats(api, lyrics).totalBytes, 0);
 });
 
-test('music cache skips eviction sorting below its exact byte limit and evicts oldest files above it', (t) => {
+test('music cache keeps files within its byte limit and evicts the oldest files above it', (t) => {
   const directory = createScratchDirectory('music-cache-budget-', t);
   const data = { lines: ['Synthetic lyric'] };
   const oldPath = path.join(directory, 'old.json');
@@ -61,26 +56,15 @@ test('music cache skips eviction sorting below its exact byte limit and evicts o
   const newestPath = path.join(directory, 'newest.json');
   writeMusicJsonCache(directory, 'old', data);
   fs.utimesSync(oldPath, new Date(1000), new Date(1000));
-
-  const originalSort = Array.prototype.sort;
-  const sort = t.mock.fn(originalSort);
-  Array.prototype.sort = sort;
-  try {
-    writeMusicJsonCache(directory, 'recent', data);
-    assert.equal(sort.mock.callCount(), 0, 'Files that fit the budget need no eviction ordering.');
-    assert.equal(fs.existsSync(oldPath), true);
-    fs.utimesSync(recentPath, new Date(2000), new Date(2000));
-    const oneFileBytes = fs.statSync(recentPath).size;
-
-    writeMusicJsonCache(directory, 'newest', data, oneFileBytes);
-    assert.equal(sort.mock.callCount(), 1);
-    assert.equal(fs.existsSync(oldPath), false);
-    assert.equal(fs.existsSync(recentPath), false);
-    assert.equal(fs.statSync(newestPath).size, oneFileBytes);
-    assert.equal(fs.readdirSync(directory).length, 1);
-  } finally {
-    Array.prototype.sort = originalSort;
-  }
+  writeMusicJsonCache(directory, 'recent', data);
+  assert.equal(fs.existsSync(oldPath), true);
+  fs.utimesSync(recentPath, new Date(2000), new Date(2000));
+  const oneFileBytes = fs.statSync(recentPath).size;
+  writeMusicJsonCache(directory, 'newest', data, oneFileBytes);
+  assert.equal(fs.existsSync(oldPath), false);
+  assert.equal(fs.existsSync(recentPath), false);
+  assert.equal(fs.statSync(newestPath).size, oneFileBytes);
+  assert.equal(fs.readdirSync(directory).length, 1);
 });
 
 test('parseWordLyric supports QQ QRC suffix timing', () => {

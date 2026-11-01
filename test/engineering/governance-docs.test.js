@@ -285,9 +285,10 @@ test('relative Markdown links in governance and current documentation resolve', 
   assertNoFindings(findings);
 });
 
-test('relative document links resolve across current and historical documentation', () => {
+test('relative document links outside the current governance scope resolve', () => {
   const findings = [];
-  for (const file of [...markdownFiles('docs'), ...markdownFiles('specs')]) {
+  const checked = new Set(LINK_CHECK_FILES);
+  for (const file of [...markdownFiles('docs'), ...markdownFiles('specs')].filter(file => !checked.has(file))) {
     const source = markdownProse(read(file));
     for (const match of source.matchAll(/!?\[[^\]]*\]\(([^)]+)\)/g)) {
       const target = match[1].replace(/^<|>$/g, '').split('#', 1)[0];

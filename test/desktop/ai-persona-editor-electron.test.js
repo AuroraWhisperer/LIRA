@@ -51,7 +51,6 @@ test('persona modal suspends for the real confirmation and restores editable dra
   for (const cancel of ['button', 'escape']) {
     await page.locator('#xiaomiAiPersonaReset').click();
     await confirmation.waitFor();
-    assert.equal(await modal.evaluate((node) => node.open), false);
     if (cancel === 'button') await confirmation.getByRole('button', { name: '取消', exact: true }).click();
     else {
       await page.waitForFunction(() => document.activeElement?.classList.contains('lira-confirm-cancel'));

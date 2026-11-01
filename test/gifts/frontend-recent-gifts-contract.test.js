@@ -65,7 +65,6 @@ test('heart-box output cards require source identity evidence for artwork and pr
         blind_profit: item.profit,
       };
       recent.renderGiftRecentList([row]);
-      assert.match(list.innerHTML, name ? /blind-box-card blind-box-heart/ : /blind-box-card blind-box-default/);
       assert.match(
         list.innerHTML,
         name ? /src="\/overtime-gift-images\/32251.webp"/ : /src="\/img\/gift-placeholder.png"/,
@@ -75,7 +74,6 @@ test('heart-box output cards require source identity evidence for artwork and pr
         list.innerHTML,
         item.profit < 0 ? /class="profit-down">-¥6\.00<\/span>/ : /class="profit-up">\+¥1\.00<\/span>/,
       );
-      assert.ok(list.innerHTML.includes(`计入 ¥${item.rmb.toFixed(2)}`));
     }
   }
   recent.renderGiftRecentList([

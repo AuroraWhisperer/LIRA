@@ -119,7 +119,9 @@ boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账�
 
 礼物 SSE 的原始 JSON 只在 `license/remote-license-client.js` 通过 `normalizeProcessedGiftEvent` 执行严格 wire 字段校验；回调传递的是含整数分派生字段的 canonical event。`remote-gift-controller.js` 使用 `canonicalizeProcessedGiftEvent` 处理该内部对象，不能再次用 wire 字段白名单拒绝这些派生字段；合法且连续的 final 仍走即时 importer，再按游标对账。
 
-`scene-cloud-controller.js` 的云弹幕连接由 `scene-runtime` 的共享展示需求驱动：读取弹幕投影或默认外观续期，最后一次读取后 15 秒自动停止；重新读取后在授权有效时恢复。多个本机来源仍共用一条连接，停止时清理读取、超时和退避并清空旧实时事件。设置读取的取消信号贯通授权等待和远端 GET；退出时可及时结束当前调用，继续既有的 runtime 停止和播放状态 flush 顺序。`license-overlay-ipc.js` 把已校验的设置读取/保存结果连同请求前捕获的 owner scope/epoch 回填场景外观缓存；缓冲拒绝旧账号结果，不需要常开云 SSE 才能保存样式。原 IPC 返回值和渲染进程权限不变。
+`scene-cloud-controller.js` 的云弹幕连接由 `scene-runtime` 的共享展示需求驱动：读取弹幕投影或默认外观，以及含弹幕的有效本机通知流成功发送 ready/change/心跳时续期；最后一次读取或有效通知活动后 15 秒自动停止，重新使用时在授权有效下恢复。页面读取暂停而通知流仍健康时不主动断开；其他类型场景、撤销和失败写入不续期。多个本机来源仍共用一条连接，停止时清理读取、超时和退避并清空旧实时事件。展示 owner 使用 `getAuthorizationGeneration()` 的当前授权生命周期，普通 token 续期不重连或清空；退出、失效、重新授权及账号/服务器变化仍终止旧上下文，授权管理器的 token epoch 契约不变。设置读取的取消信号贯通授权等待和远端 GET；退出时可及时结束当前调用，继续既有的 runtime 停止和播放状态 flush 顺序。`license-overlay-ipc.js` 把已校验的设置读取/保存结果连同请求前捕获的 owner scope/epoch 回填场景外观缓存；缓冲拒绝旧账号结果，不需要常开云 SSE 才能保存样式。原 IPC 返回值和渲染进程权限不变。
+
+主进程将云弹幕 `connecting/connected/stopped` 写入现有 `desktop.log`，主动停止区分 `DISPLAY_IDLE`、`OWNER_CHANGED`、`AUTHORIZATION_UNAVAILABLE` 与 `APP_STOPPED`。异常进入现有 `errors/desktop.log` 的 `scene-cloud-error`：区分设置读取、非法来源、网络请求、HTTP 错误、错误响应、流读取/结束、事件格式/大小、首次状态超时与心跳超时；附数字 HTTP status（已取得时）和本次重试等待，不记录 URL、原始错误/响应、正文、凭据或账号身份。首次状态仍限 15 秒，已初始化流仍限 45 秒静默，重连退避仍为 1–30 秒。
 
 云弹幕订阅携带 `superchatDelete=1`，保留 SC 可选的本场匿名 `messageId`，旧服务器无 ID 的消息继续显示。`scene-cloud-controller.js` 校验 `superchat-delete` 的 1–128 个唯一小写 64 位 hex ID；初始化前或格式错误的事件仍关闭连接，初始化后其他场次的撤回直接忽略。同场撤回作为增量事件进入 `cloud-display-buffer.js`，消费者按序应用并移除对应 SC，后续快照与样式重建不会复活它们；不进入本地结算或点歌流程。
 
@@ -446,7 +448,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 `requestPlaybackFlush`([playback-flush.js:5-27](../../../src/electron/playback-flush.js#L5-L27))为单飞握手:存在 pending flush 时新请求立即完成;主窗口已销毁则 `{status:'skipped'}`;`acknowledgePlaybackFlush`([playback-flush.js:29-33](../../../src/electron/playback-flush.js#L29-L33))由 `playback:flush-ack` handler 调用。渲染进程侧行为见 [preload.md](preload.md) §3。
 
-`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/desktop-shell-ipc.js) 只记录请求并 `await requestRestart()`，回调由 main 注入；通道无参数、成功结果为 `undefined`。连续重启至多安排一次 relaunch；退出先到则后续重启仍只退出，重启先到则后续退出仍按重启终结。安装更新继续委托 updater，不走此重启 IPC：`desktop-update-controller.installUpdate` 在 canInstall 时先等待 `resourceIntegrity.stop('UPDATE_INSTALLING')`，再由 `update-manager` 释放单实例锁并调用 `quitAndInstall(true,true)`；触发的应用 before-quit 仍走上述受控关闭。此路径不能写成手工 app.relaunch，也不能把资源检查停止等同于全部数据库已排空。证据入口：[electron-shutdown.test.js](../../../test/desktop/electron-shutdown.test.js)、[resource-lifecycle-electron.test.js](../../../test/desktop/resource-lifecycle-electron.test.js)。
+`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/desktop-shell-ipc.js) 只记录请求并 `await requestRestart()`，回调由 main 注入；通道无参数、成功结果为 `undefined`。连续重启至多安排一次 relaunch；退出先到则后续重启仍只退出，重启先到则后续退出仍按重启终结。安装更新继续委托 updater，不走此重启 IPC：`desktop-update-controller.installUpdate` 在 canInstall 时先等待 `resourceIntegrity.stop('UPDATE_INSTALLING')`，再由 `update-manager` 释放单实例锁并调用 `quitAndInstall(true,true)`；触发的应用 before-quit 仍走上述受控关闭。此路径不能写成手工 app.relaunch，也不能把资源检查停止等同于全部数据库已排空。证据入口：[desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)（安装前先停止资源检查）、[electron-shutdown.test.js](../../../test/desktop/electron-shutdown.test.js)（受控关闭顺序）、[resource-lifecycle-electron.test.js](../../../test/desktop/resource-lifecycle-electron.test.js)。
 
 ## 8. 日志
 

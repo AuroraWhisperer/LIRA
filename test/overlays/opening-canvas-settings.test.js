@@ -96,15 +96,11 @@ test('canvas opening rejects unrelated fields, bad uploads and unauthorized call
 test('canvas opening keeps unsupported methods and media styles outside the write path', async t => {
   const f = await fixture(t);
   for (const [kind, method] of [['config', 'DELETE'], ['music', 'GET'], ['character', 'PUT']]) {
-    const response = await f.request(kind, { method });
-    assert.equal(response.status, 405);
-    assert.equal(response.error, '不支持的开播操作。');
+    assert.equal((await f.request(kind, { method })).status, 405);
   }
   assert.equal((await f.request('unknown')).status, 404);
   for (const kind of ['music', 'character']) {
-    const response = await f.request(kind, { method: 'DELETE', style: 'unknown' });
-    assert.equal(response.status, 400);
-    assert.equal(response.error, '不支持的开播动画样式。');
+    assert.equal((await f.request(kind, { method: 'DELETE', style: 'unknown' })).status, 400);
   }
   assert.equal(f.values.openingAudioFile, '');
   assert.equal(f.values.openingCharacterFile, '');

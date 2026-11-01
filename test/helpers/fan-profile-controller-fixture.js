@@ -146,11 +146,10 @@ function fixture(t, options = {}) {
   const handlers = new Map();
   const frame = { url: `${ORIGIN}/admin?desktop=1` };
   const window = { isDestroyed: () => false, webContents: { mainFrame: frame } };
-  let mainWindow = window;
   const disposeIpc = registerFanProfileIpc({
     ipcMain: { handle: (name, handler) => handlers.set(name, handler), removeHandler: (name) => handlers.delete(name) },
     controller,
-    getMainWindow: () => mainWindow,
+    getMainWindow: () => window,
     getDesktopBaseUrl: () => ORIGIN,
   });
   const event = { sender: window.webContents, senderFrame: frame };
@@ -169,14 +168,8 @@ function fixture(t, options = {}) {
     service,
     controller,
     handlers,
-    frame,
-    window,
-    event,
     invoke,
     disposeIpc,
-    setWindow: (value) => {
-      mainWindow = value;
-    },
     listeners,
     emit: () => {
       for (const listener of listeners) listener();
@@ -184,4 +177,4 @@ function fixture(t, options = {}) {
   };
 }
 
-module.exports = { fixture, deferred, ORIGIN, SCOPE_A, SCOPE_B };
+module.exports = { fixture, deferred, SCOPE_A, SCOPE_B };

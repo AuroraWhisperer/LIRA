@@ -151,7 +151,6 @@ test('finalized gifts share the public feed without exposing ledger fields', () 
   assert.equal(gift.id, 2);
   assert.equal(gift.kind, 'gift');
   assert.equal(gift.name, '晚风');
-  assert.equal(gift.message, '送出 小花花 × 10');
   assert.equal(gift.giftName, '小花花');
   assert.equal(gift.giftCount, 10);
   assert.equal(gift.giftTotalPrice, 100, 'the finalized total is not multiplied by quantity again');

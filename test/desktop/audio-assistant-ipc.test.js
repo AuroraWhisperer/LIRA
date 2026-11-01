@@ -41,13 +41,8 @@ test('audio IPC is restricted to the authorized main frame and selected local au
     shell: { openExternal: async (url) => calls.push(['external', url]) },
   });
   const invoke = handlers.get('audio-assistant:invoke');
-  for (const invalid of [{}, { ...event, sender: {} }, { ...event, senderFrame: { ...frame } }])
-    assert.equal((await invoke(invalid, { op: 'get' })).error, 'IPC_SOURCE_INVALID');
-  for (const url of ['https://example.com/admin', 'http://127.0.0.1:3456/overlay', 'http://localhost:3456/admin']) {
-    frame.url = url;
-    assert.equal((await invoke(event, { op: 'get' })).error, 'IPC_SOURCE_INVALID');
-  }
-  frame.url = 'http://127.0.0.1:3456/admin';
+  // The shared source matrix is owned by legacy-ipc-source.test.js.
+  assert.equal((await invoke({ ...event, senderFrame: { ...frame } }, { op: 'get' })).error, 'IPC_SOURCE_INVALID');
   assert.equal((await invoke(event, { op: 'file', value: 'private.txt' })).ok, false);
   for (const request of [{ op: 'start', value: 1 }, { op: 'close' }, { op: 'get', command: 'arbitrary' }, { op: 'configure', value: { volume: 201 } }])
     assert.equal((await invoke(event, request)).ok, false);

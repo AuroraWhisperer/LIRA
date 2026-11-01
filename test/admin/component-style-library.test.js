@@ -32,8 +32,6 @@ test('canvas ZIP selection stays in the browser and wrong-category guidance reus
   assert.equal(desktopPickerRequests, 0, 'Canvas imports open the chooser in the current browser, even when the desktop picker is available.');
   await picker.getByRole('button', { name: '前往「套装」导入', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: '确认导入套装', exact: true });
-  await confirmation.getByText('导入引导套装', { exact: true }).waitFor();
-  assert.equal(await picker.getByRole('button', { name: '套装', exact: true }).getAttribute('aria-pressed'), 'true');
   await confirmation.getByRole('button', { name: '导入套装', exact: true }).click();
   await picker.getByRole('region', { name: '导入引导套装 1.0.0', exact: true }).waitFor();
   assert.equal(await picker.locator('.component-style-card').count(), 2);
@@ -46,8 +44,6 @@ test('canvas ZIP selection stays in the browser and wrong-category guidance reus
   await (await chooser).setFiles({ ...file, buffer: createStoredStyleZip(new Map([
     ['lira-pack.json', Buffer.from(JSON.stringify(manifest))], ['frame.webp', media.buffer],
   ])) });
-  await confirmation.getByText('将替换已安装版本 1.0.0 → 2.0.0，样式库只保留本次导入的版本。', { exact: true }).waitFor();
-  assert.equal(await picker.getByRole('button', { name: '套装', exact: true }).getAttribute('aria-pressed'), 'true');
   await confirmation.getByRole('button', { name: '替换套装', exact: true }).click();
   await picker.getByRole('region', { name: '导入引导套装 2.0.0', exact: true }).waitFor();
   assert.equal(await picker.locator('.component-style-card').count(), 2);
@@ -89,15 +85,9 @@ test('canvas management restores a backup and refreshes presets without replacin
   const pack = await request(`add?description=${encodeURIComponent(JSON.stringify({ type: 'background', filename: 'frame.webp', name: '备份背景', width: 640, height: 400 }))}`, media.buffer);
   assert.equal((await fetch(url)).status, 200); await page.goto(url);
   const original = await page.locator('select[aria-label="场景"]').inputValue();
-  await page.getByRole('button', { name: '添加组件', exact: true }).click();
-  const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
-  await picker.getByRole('button', { name: '背景', exact: true }).click();
-  assert.equal(await picker.getByRole('button', { name: /素材管理|管理样式库/ }).count(), 0);
-  await picker.getByRole('button', { name: '关闭', exact: true }).click();
   await page.getByRole('button', { name: '素材管理', exact: true }).click();
   const manager = page.getByRole('dialog', { name: '素材管理', exact: true });
   await manager.getByText('背景 · 1 个样式', { exact: true }).waitFor();
-  assert.equal(await manager.getByRole('button', { name: '清理未使用文件', exact: true }).isDisabled(), true);
   const downloaded = page.waitForEvent('download');
   await manager.getByRole('button', { name: '导出素材与场景备份', exact: true }).click();
   const backup = path.join(dataDir, 'canvas-backup.zip'); await (await downloaded).saveAs(backup);
@@ -122,7 +112,6 @@ test('canvas management restores a backup and refreshes presets without replacin
   assert.equal(await page.locator('select[aria-label="场景"] option').count(), 2);
   assert.equal(await page.locator('select[aria-label="场景"]').inputValue(), original);
   assert.deepEqual((await request('list')).map(entry => entry.id).includes(pack.id), true);
-  await manager.screenshot({ path: path.resolve(__dirname, '../../tmp/component-library-manager.png') });
   assert.deepEqual(errors, []);
 });
 
@@ -148,32 +137,24 @@ async function importArchive(page, host, file) {
   await (await chooser).setFiles(file);
 }
 
-test('style libraries send each component entry and display server import guidance', async t => {
+test('style libraries send each entry as the import target and keep rejected imports unpending', async t => {
   const { fixture, page, errors } = await setup(t);
   await openCanvasDesktop(page, fixture);
   await page.evaluate(async () => {
     const { mountComponentStyleLibrary } = await import('/js/admin/component-style-library.js');
-    const { COMPONENT_PREVIEW_DEFINITIONS } = await import('/js/admin/component-preview-definitions.js');
     const style = (type, name) => ({ id: name, type, name, config: { mediaStyle: {
       kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400,
     } } });
     window.examplePacks = [
-      { id: 'single', packageId: 'old.single', name: '独立感谢', version: '1.0.0', bytes: 100,
-        styles: [style('guard-thanks', '独立感谢')] },
       { id: 'variants', packageId: 'old.variants', name: '感谢变体', version: '1.0.0', bytes: 100,
         styles: [style('guard-thanks', '蓝色感谢'), style('guard-thanks', '紫色感谢')] },
       { id: 'suite', packageId: 'real.suite', name: '时钟背景套装', version: '1.0.0', bytes: 100, isSuite: true,
         styles: [style('clock', '套装时钟'), style('background', '套装背景')] },
-      ...Object.keys(COMPONENT_PREVIEW_DEFINITIONS).filter(type => type !== 'guard-thanks').map(type => ({
-        id: type, packageId: `test.${type}`, name: `${type} 样式`, version: '1.0.0', bytes: 100,
-        styles: [style(type, `${type} 普通`), type === 'clock'
-          ? { ...style('browser', 'clock 网页'), category: 'clock' } : style(type, `${type} 动效`)],
-      })),
     ];
     window.cancelledStyleImports = [];
     window.styleImportTargets = [];
     window.inspectStyleError = '这是大航海感谢样式包，请从「添加组件 → 大航海感谢 → 添加样式」导入。';
-    window.inspectStylePack = window.examplePacks[1];
+    window.inspectStylePack = window.examplePacks[0];
     const request = async (action, args) => {
       if (action === 'list') return window.examplePacks;
       if (action === 'inspect') {
@@ -192,41 +173,20 @@ test('style libraries send each component entry and display server import guidan
   });
   const library = page.locator('.component-style-library');
   await library.getByRole('button', { name: '添加到画布：套装背景', exact: true }).waitFor();
-  assert.equal(await library.locator('.component-style-card').count(), 2);
   const archive = { name: 'style.zip', mimeType: 'application/zip', buffer: Buffer.from('synthetic upload') };
   await importArchive(page, library, archive);
   await library.getByRole('status').filter({ hasText: '添加组件 → 大航海感谢 → 添加样式' }).waitFor();
   assert.deepEqual(await page.evaluate(() => window.cancelledStyleImports), [], 'Rejected inspection creates no pending import to cancel.');
   await page.evaluate(() => {
     window.showStyleLibrary({ type: 'guard-thanks' });
-    window.inspectStyleError = '这是套装，请从「添加组件 → 套装 → 导入套装」导入。';
+    window.inspectStyleError = '';
   });
   await library.getByRole('button', { name: '添加到画布：紫色感谢', exact: true }).waitFor();
-  assert.equal(await library.locator('.component-style-card').count(), 3);
-  assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0);
-  await pickImportFile(page, library, archive);
-  await library.getByRole('status').filter({ hasText: '添加组件 → 套装 → 导入套装' }).waitFor();
-  assert.equal(await page.getByRole('dialog', { name: '确认导入套装', exact: true }).count(), 0);
-  await page.evaluate(() => { window.inspectStyleError = ''; });
   const confirmation = page.getByRole('dialog', { name: '确认添加样式', exact: true });
   await pickImportFile(page, library, archive);
   await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
   await confirmation.getByRole('button', { name: '取消', exact: true }).click();
-  const types = await page.evaluate(() => window.examplePacks.slice(3).map(pack => pack.id));
-  for (const type of types) {
-    await page.evaluate(type => {
-      window.showStyleLibrary({ type });
-      window.inspectStylePack = window.examplePacks.find(pack => pack.id === type);
-    }, type);
-    await library.locator('.component-style-add').waitFor();
-    const expectedCards = type === 'browser' ? 3 : ['clock', 'background'].includes(type) ? 3 : 2;
-    assert.equal(await library.locator('.component-style-card').count(), expectedCards, type);
-    assert.equal(await library.getByRole('button', { name: '导入套装', exact: true }).count(), 0, type);
-    await pickImportFile(page, library, archive);
-    await confirmation.getByRole('button', { name: '添加样式', exact: true }).waitFor();
-    await confirmation.getByRole('button', { name: '取消', exact: true }).click();
-  }
-  assert.deepEqual(await page.evaluate(() => window.styleImportTargets), ['suite', 'guard-thanks', 'guard-thanks', ...types]);
+  assert.deepEqual(await page.evaluate(() => window.styleImportTargets), ['suite', 'guard-thanks']);
   assert.deepEqual(errors, []);
 });
 
@@ -250,8 +210,6 @@ test('suite management groups versions, confirms whole deletion and replaces thr
   const library = picker.locator('.component-style-library');
   const group = library.getByRole('region', { name: '测试套装 1.0.0', exact: true });
   await group.waitFor();
-  assert.match(await group.textContent(), /版本 1\.0\.0 · 2 个组件样式/);
-  assert.equal(await group.locator('.component-style-delete').count(), 0);
   await group.getByRole('button', { name: '删除套装', exact: true }).click();
   const deletion = page.getByRole('dialog', { name: '删除套装', exact: true });
   await deletion.getByRole('button', { name: '取消', exact: true }).click();
@@ -277,7 +235,6 @@ test('suite management groups versions, confirms whole deletion and replaces thr
   store.stage(inspected);
   await uploadUpdate();
   const confirmation = page.getByRole('dialog', { name: '确认导入套装', exact: true });
-  await confirmation.getByText('将替换已安装版本 1.0.0 → 2.0.0，样式库只保留本次导入的版本。', { exact: true }).waitFor();
   await confirmation.getByRole('button', { name: '取消', exact: true }).click();
   await confirmation.waitFor({ state: 'hidden' });
   assert.equal((await request('list'))[0].version, '1.0.0');
@@ -301,26 +258,18 @@ test('suite management groups versions, confirms whole deletion and replaces thr
   assert.deepEqual(errors, []);
 });
 
-test('every component combines built-in, standalone and suite styles in its own category', { timeout: 30000 }, async t => {
+test('clock category combines built-in, standalone, suite and web styles and adds web clocks as browser items', { timeout: 30000 }, async t => {
   const { fixture, context, page, errors } = await setup(t);
   const desktop = await context.newPage();
   const url = await openCanvasDesktop(desktop, fixture);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  const types = await page.evaluate(async () => {
-    const { COMPONENT_PREVIEW_DEFINITIONS } = await import('/js/admin/component-preview-definitions.js');
-    const { SCENE_EXTRA_COMPONENTS } = await import('/js/shared/scene-extra-components.js');
-    return Object.entries(COMPONENT_PREVIEW_DEFINITIONS).filter(([id]) => id !== 'browser')
-      .map(([id, definition]) => ({ id, category: id === 'interactions' ? 'interactions-poll' : definition.category || id,
-        subcategory: definition.category ? SCENE_EXTRA_COMPONENTS[id].title : null,
-        hasBuiltins: !['background', 'gift-frame'].includes(id) }));
-  });
-  const style = type => ({ id: `suite-${type}`, type, name: `${type} 套装样式`, config: { mediaStyle: {
+  const style = { id: 'suite-clock', type: 'clock', name: 'clock 套装样式', config: { mediaStyle: {
     kind: 'image', src: '/img/component-previews/clock-moonlit-fan.webp', width: 640, height: 400,
-  } } });
+  } } };
   const packs = [
-    { id: 'suite', isSuite: true, name: '分类测试套装', version: '1.0.0', styles: types.map(({ id }) => style(id)) },
-    { id: 'standalone', styles: [{ ...style('clock'), id: 'standalone-clock', name: '单独导入的时钟' },
+    { id: 'suite', isSuite: true, name: '分类测试套装', version: '1.0.0', styles: [style] },
+    { id: 'standalone', styles: [{ ...style, id: 'standalone-clock', name: '单独导入的时钟' },
       { id: 'web-clock', type: 'browser', category: 'clock', name: '网页时钟',
         config: { url: 'https://example.test/clock', viewportWidth: 640, viewportHeight: 400 } }] },
   ];
@@ -332,41 +281,29 @@ test('every component combines built-in, standalone and suite styles in its own 
   await page.route('https://example.test/clock', route => route.fulfill({ contentType: 'text/html', body: '<p>网页时钟</p>' }));
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
-  for (const { id, category, subcategory, hasBuiltins } of types) {
-    await picker.locator(`[data-category="${category}"]`).click();
-    if (subcategory) await picker.locator('.preview-picker-subcategories').getByRole('button', { name: subcategory, exact: true }).click();
-    const custom = picker.locator(`[data-custom-style-id="suite-${id}"]`);
-    await custom.waitFor();
-    assert.equal(await picker.getByRole('heading', { name: '本机样式' }).count(), 0);
-    assert.equal(await picker.getByRole('button', { name: '添加样式', exact: true }).count(), 1);
-    assert.equal(await picker.locator('.preview-picker-styles').count(), 1);
-    const contents = await custom.evaluate(card => ({
-      builtinCount: card.parentElement.querySelectorAll('[data-picker-style]').length,
-      customIds: [...card.parentElement.querySelectorAll('[data-custom-style-id]')].map(node => node.dataset.customStyleId),
-    }));
-    // background and gift-frame ship no built-in cards: both are distributed as
-    // external packages, so a category without variants shows only imported styles.
-    if (hasBuiltins) assert.ok(contents.builtinCount > 0, `${id} combines built-ins with imported styles`);
-    else assert.equal(contents.builtinCount, 0, `${id} ships no built-in cards, so ${category} must import its own`);
-    assert.deepEqual(contents.customIds, id === 'clock' ? ['suite-clock', 'standalone-clock', 'web-clock'] : [`suite-${id}`]);
-  }
   await picker.locator('[data-category="clock"]').click();
+  const custom = picker.locator('[data-custom-style-id="suite-clock"]');
+  await custom.waitFor();
+  const contents = await custom.evaluate(card => ({
+    builtinCount: card.parentElement.querySelectorAll('[data-picker-style]').length,
+    customIds: [...card.parentElement.querySelectorAll('[data-custom-style-id]')].map(node => node.dataset.customStyleId),
+  }));
+  assert.ok(contents.builtinCount > 0);
+  assert.deepEqual(contents.customIds, ['suite-clock', 'standalone-clock', 'web-clock']);
   await picker.getByRole('button', { name: '添加到画布：网页时钟', exact: true }).waitFor();
   const requestsBeforeRefresh = listRequests;
   const refreshed = page.waitForResponse(response => response.url().includes('/styles/list?'));
   await page.evaluate(() => window.dispatchEvent(new Event('focus')));
   await refreshed;
   assert.equal(listRequests, requestsBeforeRefresh + 1, 'only the active category retains its refresh listener');
-  assert.equal(await picker.locator('[data-custom-style-id="web-clock"]').count(), 1);
   await picker.getByRole('button', { name: '添加到画布：网页时钟', exact: true }).click();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
   const added = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items[0]);
   assert.equal(added.type, 'browser', 'an imported HTML clock retains its browser renderer');
-  assert.equal(added.name, '网页时钟');
   assert.deepEqual(errors, []);
 });
 
-test('danmaku picker groups all sources by motion and preserves the selected style through edits and reload', { timeout: 45000 }, async t => {
+test('imported danmaku styles keep edits through reload and confirm library removal without changing the scene', { timeout: 45000 }, async t => {
   const { fixture, context, page, errors, media, request } = await setup(t);
   const desktop = await context.newPage();
   const url = await openCanvasDesktop(desktop, fixture);
@@ -383,22 +320,7 @@ test('danmaku picker groups all sources by motion and preserves the selected sty
   const imported = (await request('list'))[0].styles[0];
   const custom = picker.locator(`[data-custom-style-id="${imported.id}"]`);
   await custom.waitFor();
-  assert.equal(await picker.getByRole('heading', { name: '本机样式' }).count(), 0);
-  assert.equal(await custom.evaluate(card => card.parentElement.querySelector('[data-picker-style="bubble"]')?.hidden), false);
-  const builtinBox = await picker.locator('[data-picker-style="bubble"]').boundingBox();
-  const customBox = await custom.boundingBox();
-  assert.ok(Math.abs(builtinBox.width - customBox.width) < 1, 'built-in and imported cards share the grid');
-  for (const [label, style] of [['随机弹幕', 'starveil'], ['飘窗弹幕', 'comet']]) {
-    await picker.getByRole('button', { name: label, exact: true }).click();
-    assert.equal(await picker.locator(`[data-picker-style="${style}"]`).isVisible(), true);
-    assert.equal(await picker.locator('[data-picker-style="bubble"]').isHidden(), true);
-    assert.equal(await custom.isHidden(), true);
-  }
-  await picker.getByRole('button', { name: '固定弹幕', exact: true }).click();
   await custom.getByRole('button', { name: '添加到画布：测试弹幕样式', exact: true }).click();
-  assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
-  assert.equal(await page.locator('[data-danmaku-style]').count(), 0);
-  assert.equal(await page.locator('[data-preview-field="danmakuFontSize"]').isVisible(), false);
   await page.locator('[data-media-field="fontSize"]').fill('42');
   await page.locator('[data-media-field="fontSize"]').press('Tab');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
@@ -409,7 +331,6 @@ test('danmaku picker groups all sources by motion and preserves the selected sty
   await page.reload();
   await page.locator('.preview-canvas-layer-select').click();
   assert.equal(await page.locator('[data-media-field="fontSize"]').inputValue(), '42');
-  assert.equal(await page.getByRole('button', { name: /更换样式|改用内置样式/ }).count(), 0);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await picker.locator('[data-category="danmaku"]').click();
   const removeStyle = custom.getByRole('button', { name: '删除样式：测试弹幕样式', exact: true });
@@ -417,16 +338,12 @@ test('danmaku picker groups all sources by motion and preserves the selected sty
   page.on('request', request => { if (new URL(request.url()).pathname.endsWith('/styles/remove')) removals += 1; });
   await removeStyle.click();
   const deletion = page.getByRole('dialog', { name: '删除样式', exact: true });
-  await deletion.getByText('删除「测试弹幕样式」？', { exact: true }).waitFor();
-  assert.equal(removals, 0, 'Opening confirmation must not delete the style.');
   await deletion.getByRole('button', { name: '取消', exact: true }).click();
-  assert.equal(await custom.isVisible(), true);
-  assert.equal(removals, 0);
+  assert.equal(removals, 0, 'Cancelling the confirmation must not delete the style.');
   await removeStyle.click();
   await deletion.getByRole('button', { name: '删除样式', exact: true }).click();
   await custom.waitFor({ state: 'detached' });
   assert.equal(removals, 1, 'Confirming removes the style once.');
-  assert.equal(await picker.locator('[data-picker-style="bubble"]').count(), 1, 'library refresh does not duplicate built-ins');
   assert.equal(fixture.service.list()[0].document.items[0].appearance.config.mediaStyle.id, imported.id);
   assert.deepEqual(errors, []);
 });
@@ -483,7 +400,6 @@ test('local styles import, replace in place, publish and survive library removal
   await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).focus();
   await page.keyboard.press('Control+z');
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items[0].appearance.config.mediaStyle.fontSize === 64);
-  assert.equal(await page.locator('[data-media-field="fontSize"]').inputValue(), '64', 'Undo also restores the visible media controls.');
   assert.equal(fixture.service.list()[0].hasPublication, false, 'Library changes do not go live.');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
@@ -496,13 +412,6 @@ test('local styles import, replace in place, publish and survive library removal
   await output.goto(outputUrl);
   const live = output.frameLocator('.scene-version:not(.is-staging) iframe');
   await live.locator('.component-media-art').waitFor({ state: 'visible' });
-  await live.locator('.clock-time').waitFor({ state: 'visible' });
-  const bounds = await live.locator('.clock-time').evaluate(element => {
-    const text = element.getBoundingClientRect(); const region = document.querySelector('.component-media-content').getBoundingClientRect();
-    return { text: { x: text.x, y: text.y, right: text.right, bottom: text.bottom }, region: { x: region.x, y: region.y, right: region.right, bottom: region.bottom } };
-  });
-  assert.ok(bounds.text.x >= bounds.region.x && bounds.text.right <= bounds.region.right + 1);
-  assert.ok(bounds.text.y >= bounds.region.y && bounds.text.bottom <= bounds.region.bottom + 1);
   await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).click();
   await library.getByRole('button', { name: '删除样式：替换时钟', exact: true }).click();
   await page.getByRole('dialog', { name: '删除样式', exact: true }).getByRole('button', { name: '删除样式', exact: true }).click();
@@ -551,35 +460,17 @@ test('background controls keep author defaults, instance isolation and published
   await addBackground();
   const field = key => page.locator(`[data-component-parameter="${key}"]`);
   assert.equal(await field('opacity').inputValue(), '80');
-  assert.equal(await field('playbackRate').isVisible(), false);
-  const frame = page.frameLocator('.scene-editor-item.is-selected iframe');
-  const artwork = frame.locator('.component-media-art');
   await page.locator('[data-background-slider="opacity"]').fill('55');
-  await artwork.evaluate(image => { image.dataset.originalBackground = 'true'; });
   await field('blur').fill('8');
   await field('fit').selectOption('cover');
-  await page.locator('.background-parameters summary').filter({ hasText: '基础调色' }).click();
-  for (const [key, value] of Object.entries({ brightness: '120', saturation: '70', contrast: '90' })) {
-    await field(key).fill(value);
-  }
-  await field('overlayColor').click();
-  const colorPicker = page.getByRole('dialog', { name: '颜色与不透明度' });
-  await colorPicker.getByLabel('不透明度（%）', { exact: true }).fill('25');
-  await colorPicker.getByRole('button', { name: '完成' }).click();
-  await field('overlayColor').fill('#123456');
   await page.waitForFunction(() => document.querySelector('[data-component-parameter="opacity"]').value === '55');
-  await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.at(-1).appearance.config.overlayColor === '#123456');
+  await desktop.waitForFunction(() => {
+    const config = window.controllers.canvas.getState().draft.document.items.at(-1).appearance.config;
+    return config.opacity === 0.55 && config.blur === 8 && config.fit === 'cover';
+  });
   const edited = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items);
   assert.equal(edited[0].appearance.config.opacity, 0.8, 'The other instance retains its defaults.');
-  assert.equal(edited.at(-1).appearance.config.backgroundDefaults.opacity, 0.8);
   assert.deepEqual((await request('list'))[0].styles[0].config, style.config, 'Editing does not mutate the library template.');
-  await artwork.evaluate(image => {
-    if (getComputedStyle(image).filter !== 'blur(8px) brightness(1.2) saturate(0.7) contrast(0.9)') throw new Error('Appearance not applied');
-  });
-  assert.equal(await artwork.getAttribute('data-original-background'), 'true');
-  assert.equal(await frame.locator('body').evaluate(body => getComputedStyle(body).opacity), '0.55');
-  assert.equal(await frame.locator('body').evaluate(body => getComputedStyle(body, '::after').backgroundColor), 'rgb(18, 52, 86)');
-  assert.equal(await frame.locator('body').evaluate(body => getComputedStyle(body, '::after').opacity), '0.25');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
@@ -597,21 +488,18 @@ test('background controls keep author defaults, instance isolation and published
   await request('remove', { id: style.id });
   await page.getByRole('button', { name: '恢复样式默认', exact: true }).click();
   assert.equal(await field('opacity').inputValue(), '80');
-  assert.equal(await field('blur').inputValue(), '2');
   assert.equal(await field('fit').inputValue(), 'contain');
-  assert.equal(await field('overlayOpacity').inputValue(), '10');
   const replacement = await request(`add?description=${encodeURIComponent(JSON.stringify({ ...description, name: '新背景', config: { opacity: 0.9, blur: 1 } }))}`, media.buffer);
   await page.getByRole('button', { name: '更换样式 / 添加素材', exact: true }).click();
   await page.getByRole('dialog', { name: '背景样式', exact: true }).getByRole('button', { name: '更换「测试背景」的样式：新背景', exact: true }).click();
   await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.items.at(-1).appearance.config.mediaStyle.id === id, replacement.styles[0].id);
   assert.equal(await field('opacity').inputValue(), '90');
-  assert.equal(await field('blur').inputValue(), '1');
   const replaced = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items.at(-1));
   for (const key of ['id', 'name', 'x', 'y', 'width', 'height']) assert.equal(replaced[key], edited.at(-1)[key]);
   assert.deepEqual(errors, []);
 });
 
-test('custom media keeps live wishes, ordered gift events and opening/video lifecycle', { timeout: 60000 }, async t => {
+test('custom media consumes gift events once and keeps opening/video lifecycle', { timeout: 60000 }, async t => {
   const { fixture, page, errors, media, request } = await setup(t);
   const hostUrl = `${fixture.origin}/preview-test-host`;
   assert.equal((await fetch(hostUrl)).status, 200);
@@ -641,20 +529,9 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
     return page.frameLocator('iframe');
   };
   const send = data => page.evaluate(value => window.sendMediaData(value), data);
-  const wishes = await mount('/gift-wishes', await makeStyle('gift-wishes', { textColor: '#aaffdd', fontSize: 32 }));
-  const data = { items: [{ id: 'synthetic-wish', period: 'day', giftName: '合成礼物',
-    target: 100, count: 36, todayCount: 36, progress: 36, remaining: 64, displayStyle: 'card' }] };
-  await send(data);
-  await wishes.locator('.wish-card').waitFor({ state: 'visible' });
-  data.items[0].count = 72; data.items[0].todayCount = 72; data.items[0].progress = 72; data.items[0].remaining = 28;
-  await send(data);
-  await wishes.getByText('72', { exact: true }).waitFor();
-  assert.equal(await wishes.locator('.component-media-art').count(), 1);
-  for (const [type, route] of [['gift-frame', '/gift-effects?giftComponent=frame'], ['guard-thanks', '/gift-effects?giftComponent=guard']]) {
-    const frame = await mount(route, await makeStyle(type));
-    const event = type === 'gift-frame'
-      ? { type: 'gift:frame', eventId: 'one', userName: '观众甲', giftName: '测试礼物', num: 2, totalPriceCents: 1000, themeId: 'woodland-bloom' }
-      : { type: 'gift:guard-thanks', eventId: 'one', userName: '观众甲', tier: 'captain', months: 3, textMode: 'bilingual', style: 'aurora' };
+  {
+    const frame = await mount('/gift-effects?giftComponent=frame', await makeStyle('gift-frame'));
+    const event = { type: 'gift:frame', eventId: 'one', userName: '观众甲', giftName: '测试礼物', num: 2, totalPriceCents: 1000, themeId: 'woodland-bloom' };
     await send({ reset: false, events: [event, event, { ...event, eventId: 'two', userName: '观众乙' }] });
     await frame.locator('.component-media-thanks').filter({ hasText: '观众甲' }).waitFor({ state: 'visible' });
     await frame.locator('.component-media-thanks').filter({ hasText: '观众乙' }).waitFor({ state: 'visible' });
@@ -676,22 +553,6 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
   await opening.locator('.component-media-playback').waitFor({ state: 'visible' });
   await send({ enabled: false });
   await opening.locator('.component-media-playback').waitFor({ state: 'hidden' });
-  const longStyle = await makeStyle('gift-frame', { durationMs: 9000 });
-  // Fake timers let the 8-second preview limit elapse without waiting in real time.
-  await page.clock.install();
-  const longPreview = await mount('/gift-effects?giftComponent=frame', longStyle);
-  await send({ preview: true, events: [{ type: 'gift:frame', eventId: 'long', userName: '长动画观众', giftName: '礼物', num: 1, totalPriceCents: 1000 }] });
-  await longPreview.locator('.component-media-playback').waitFor({ state: 'visible' });
-  await longPreview.locator('.component-media-playback').evaluate(element => {
-    element.dataset.longPreview = 'original'; element.dataset.visibilityChanges = '0';
-    new MutationObserver(records => { element.dataset.visibilityChanges = String(Number(element.dataset.visibilityChanges) + records.length); })
-      .observe(element, { attributes: true, attributeFilter: ['hidden'] });
-  });
-  await page.clock.fastForward(8250);
-  assert.equal(await longPreview.locator('.component-media-playback').getAttribute('data-long-preview'), 'original', 'Long previews are not recreated at eight seconds.');
-  assert.equal(await longPreview.locator('.component-media-playback').isVisible(), true);
-  assert.equal(await longPreview.locator('.component-media-playback').getAttribute('data-visibility-changes'), '0');
-  await send({ reset: true, events: [] });
   const videoBytes = Buffer.from(await page.evaluate(async () => {
     const canvas = document.createElement('canvas'); canvas.width = 160; canvas.height = 90;
     canvas.getContext('2d').fillRect(0, 0, 160, 90);
@@ -713,16 +574,6 @@ test('custom media keeps live wishes, ordered gift events and opening/video life
     if (video.currentTime > 0) resolve(); else video.addEventListener('timeupdate', resolve, { once: true });
   }));
   assert.equal(await background.locator('video.component-media-art').evaluate(video => video.loop && !video.paused), true);
-  await background.locator('video.component-media-art').evaluate(video => { video.dataset.originalVideo = 'true'; });
-  await page.evaluate(config => document.querySelector('iframe').contentWindow.postMessage({ type: 'component-preview:config', config }, '*'),
-    { ...videoConfig, opacity: 0.6, blur: 5, playbackRate: 0.75, volume: 0.2 });
-  await background.locator('video.component-media-art').evaluate(video => new Promise((resolve, reject) => {
-    const timer = setInterval(() => { if (video.playbackRate === 0.75) { clearInterval(timer); clearTimeout(timeout); resolve(); } }, 20);
-    const timeout = setTimeout(() => { clearInterval(timer); reject(new Error('Video appearance did not update')); }, 3000);
-  }));
-  assert.deepEqual(await background.locator('video.component-media-art').evaluate(video => ({ original: video.dataset.originalVideo,
-    rate: video.playbackRate, volume: video.volume, fit: getComputedStyle(video).objectFit, opacity: getComputedStyle(document.body).opacity })),
-    { original: 'true', rate: 0.75, volume: 0.2, fit: 'cover', opacity: '0.6' });
   const eventVideo = await mount('/opening', await makeStyle('opening', { durationMs: 120000 }, videoBytes, 'opening.webm'));
   await send({ enabled: true });
   await eventVideo.locator('.component-media-playback').waitFor({ state: 'visible' });

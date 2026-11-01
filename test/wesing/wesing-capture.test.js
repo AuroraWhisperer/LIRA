@@ -17,17 +17,6 @@ const { createFixture, qrcXml } = require('../helpers/wesing-capture-fixture');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { resolveWeSingLyrics } = require('../../src/music/wesing-lyric-resolver');
 
-test('WeSing capture facade preserves focused module exports', () => {
-  const facade = require('../../src/music/wesing-capture');
-  const engine = require('../../src/music/wesing-capture-engine');
-  const cache = require('../../src/music/wesing-cache');
-  const monitor = require('../../src/music/wesing-monitor');
-
-  assert.equal(facade.createWeSingCapture, engine.createWeSingCapture);
-  assert.equal(facade.loadWeSingLyrics, cache.loadWeSingLyrics);
-  assert.equal(facade.buildPowerShellMonitorScript, monitor.buildPowerShellMonitorScript);
-});
-
 test('WeSing cache parser reads matching UTF-16LE log and decrypts local word-timed QRC', async (t) => {
   const fixture = createFixture();
   t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));

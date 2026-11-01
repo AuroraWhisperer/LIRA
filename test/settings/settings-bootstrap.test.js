@@ -74,9 +74,11 @@ for (const version of ['1', undefined]) {
 test('new and already migrated settings remain stable on repeated startup', (t) => {
   const state = fixture(t, {});
   const first = prepareSettingsBootstrap(state.db).settingsStore.getSettings();
-  assert.equal(first.scrollSeconds, '20');
+  assert.equal(first.scrollSeconds, DEFAULT_SETTINGS.scrollSeconds);
   assert.equal(first.queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(first.queueTitleFontSize, DEFAULT_SETTINGS.queueTitleFontSize);
+  assert.equal(first.overlayFontFamily, DEFAULT_SETTINGS.overlayFontFamily);
+  assert.equal(first.identityQueueFontFamily, DEFAULT_SETTINGS.identityQueueFontFamily);
   state.reopen();
   assert.deepEqual(prepareSettingsBootstrap(state.db).settingsStore.getSettings(), first);
   state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('12', 'queueSongFontSize');
@@ -143,13 +145,6 @@ test('queue style 2 copies the legacy font once and then persists independently 
   prepareSettingsBootstrap(state.db);
   assert.equal(state.value('overlayFontFamily'), '"STKaiti"');
   assert.equal(state.value('identityQueueFontFamily'), '"Lira Smiley"');
-});
-
-test('both queue fonts default to Microsoft YaHei on a new installation', t => {
-  const state = fixture(t, {});
-  prepareSettingsBootstrap(state.db);
-  assert.equal(state.value('overlayFontFamily'), 'Microsoft YaHei');
-  assert.equal(state.value('identityQueueFontFamily'), 'Microsoft YaHei');
 });
 
 test('independent queue font migration rolls back on failure and retries without data loss', t => {

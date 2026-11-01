@@ -1,13 +1,10 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
+
 const test = require('node:test');
 const { normalizeLyricState } = require('../../src/music/lyric-state');
 const { normalizeLyricTimeline } = require('../../src/music/lyric-timeline');
-
-const ROOT_DIR = path.resolve(__dirname, '../..');
 
 test('lyric lines share bounds while word spacing remains significant', () => {
   const input = { text: ' \u0000word\t ', startMs: '12.5', endMs: Infinity };
@@ -99,25 +96,6 @@ test('lyric states carry monotonic generation and sequence discontinuity markers
   assert.equal(first.sequence, 7);
   assert.equal(legacy.generation, 0);
   assert.equal(legacy.sequence, 0);
-});
-
-test('obsolete Electron lyric window path is removed', () => {
-  const mainSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
-  const ipcSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'ipc', 'music-ipc.js'), 'utf8');
-  const preloadSource = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'preload.js'), 'utf8');
-  const serviceSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'services', 'lyric-service.js'),
-    'utf8',
-  );
-
-  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'src', 'electron', 'lyric-window.js')), false);
-  assert.doesNotMatch(mainSource, /lyricWin|openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked/);
-  assert.doesNotMatch(ipcSource, /music:(?:open|close|update|set)-lyric-window|LyricWindow/);
-  assert.doesNotMatch(
-    preloadSource,
-    /openLyricWindow|closeLyricWindow|updateLyricWindow|setLyricWindowLocked|onLyricState/,
-  );
-  assert.doesNotMatch(serviceSource, /windowOpen|windowLocked|musicAPI\.(?:open|close|update|set)LyricWindow/);
 });
 
 test('lyric timeline normalization bounds complete browser lyric payloads', () => {

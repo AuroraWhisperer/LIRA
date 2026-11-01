@@ -51,52 +51,22 @@ test('redaction or disk failures never fall back to raw console arguments', (t) 
   assert.match(output.join('\n'), /\[REDACTED\]/);
 });
 
-test('preserves prior content and excludes ordinary info/debug output', () => {
+test('preserves prior content and excludes ordinary info/debug output', (t) => {
   const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-terminal-log-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  for (const method of ['log', 'info', 'debug', 'warn', 'error']) t.mock.method(console, method, () => {});
   const filePath = path.join(directory, 'terminal.log');
-  const originalLog = console.log;
-  const originalInfo = console.info;
-  const originalDebug = console.debug;
-  const originalWarn = console.warn;
-  const originalError = console.error;
-  let restore;
-
-  try {
-    fs.writeFileSync(filePath, 'old session\n', 'utf8');
-    restore = installTerminalLog(filePath, {
-      runId: 'run-test',
-      pid: 1234,
-      processType: 'browser',
-      now: () => '2026-08-03T15:07:34.288Z',
-      nextSequence: (() => {
-        let sequence = 0;
-        return () => {
-          sequence += 1;
-          return sequence;
-        };
-      })(),
-    });
-    console.log('hello %s', 'world');
-    console.info({ ready: true });
-    console.debug('debug line');
-    console.warn('warning line');
-    console.error('error line');
-
-    assert.equal(
-      fs.readFileSync(filePath, 'utf8') + fs.readFileSync(path.join(directory, 'errors', 'terminal.log'), 'utf8'),
-      'old session\n' +
-        '[2026-08-03T15:07:34.288Z] [run=run-test seq=1 pid=1234 type=browser] [terminal:warn] warning line\n' +
-        '[2026-08-03T15:07:34.288Z] [run=run-test seq=2 pid=1234 type=browser] [terminal:error] error line\n',
-    );
-  } finally {
-    restore?.();
-    console.log = originalLog;
-    console.info = originalInfo;
-    console.debug = originalDebug;
-    console.warn = originalWarn;
-    console.error = originalError;
-    fs.rmSync(directory, { recursive: true, force: true });
-  }
+  fs.writeFileSync(filePath, 'old session\n', 'utf8');
+  t.after(installTerminalLog(filePath, { runId: 'run-test' }));
+  console.log('hello %s', 'world');
+  console.info({ ready: true });
+  console.debug('debug line');
+  console.warn('warning line');
+  console.error('error line');
+  const content = fs.readFileSync(filePath, 'utf8') + fs.readFileSync(path.join(directory, 'errors', 'terminal.log'), 'utf8');
+  assert.ok(content.startsWith('old session\n'));
+  assert.match(content, /warning line[^]*error line/);
+  assert.doesNotMatch(content, /hello world|ready|debug line/);
 });
 
 test('persists selected Bilibili diagnostics and restores the info console', (t) => {

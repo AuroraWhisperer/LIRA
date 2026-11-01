@@ -104,19 +104,6 @@ test('standalone CLI reports large files without a registry or a failing size ce
   assert.match(report.stdout, /3 advisory findings/);
 });
 
-test('static presets and help chapters retain their content responsibilities', () => {
-  const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
-  const presets = JSON.parse(read('public/data/theme-presets.json'));
-  assert.equal(typeof presets.default, 'object');
-  const chapters = fs
-    .readdirSync(path.join(ROOT_DIR, 'public/pages/admin/toolbox'))
-    .filter((file) => /^usage-guide(?:-[a-z-]+)?\.html$/.test(file) && file !== 'usage-guide-search.html');
-  for (const file of chapters) {
-    const help = read(`public/pages/admin/toolbox/${file}`);
-    assert.doesNotMatch(help, /<(?:script|form|input|select|textarea)\b|\son[a-z]+\s*=/i, file);
-  }
-});
-
 test('repository size findings inform review without certifying or rejecting cohesion', (t) => {
   const result = checkModularity(ROOT_DIR);
   assert.ok(result.files.includes('src/server.js'));

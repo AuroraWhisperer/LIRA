@@ -29,7 +29,7 @@ async function fixture(t, types = ['queue'], extraContext) {
   const source = runtime.service.getSource(saved.document.id);
   const url = `${runtime.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(url)).status, 200);
-  return { ...runtime, page, saved, source, url, item };
+  return { ...runtime, page, url };
 }
 
 function responseFor(pathname, version) {
@@ -140,36 +140,56 @@ test('scene notifications update live queue and cloud data without idle polling 
   assert.equal(new URL(reads.at(-1).url()).searchParams.has('projection'), true);
 });
 
-test('notification subscriptions retain failed-publication consumers then advance and revoke with the renderer', { timeout: 25000 }, async t => {
-  const f = await fixture(t);
-  await openSubscribed(f);
-  const old = f.page.frames().find(frame => new URL(frame.url()).pathname === '/queue');
-  await f.page.route('**/clock?*', route => route.fulfill({ contentType: 'text/html',
-    body: `<script>
-      addEventListener('message', ({ data }) => {
-        if (data.type === 'component-preview:init') parent.postMessage({
-          type: 'component-preview:status', configuration: data.configuration,
-        }, '*');
-      });
-      parent.postMessage({ type: 'component-preview:ready' }, '*');
-    </script>` }));
-  const next = f.service.save({ id: f.source.id, expectedRevision: f.saved.revision,
-    document: { ...f.saved.document, items: [f.item('clock')] } });
-  f.service.publish({ id: f.source.id, expectedRevision: next.revision });
-  await f.page.waitForFunction(() => document.getElementById('sceneStatus').textContent.includes('新版准备失败'));
-  const retainedRead = f.page.waitForResponse(responseFor('/api/scene/output', 1));
-  f.runtime.queue.waiting[0].song_name = '旧版仍收到通知';
-  f.notify({ types: ['queue'] });
-  await retainedRead;
-  await old.getByText('旧版仍收到通知').waitFor();
-  await f.page.locator('.scene-version.is-staging').waitFor({ state: 'detached' });
-  await f.page.unroute('**/clock?*');
-  const committed = f.page.waitForResponse(responseFor('/api/scene/events', 2));
-  f.notify({ id: f.source.id });
-  await committed;
-  await f.page.frameLocator('.scene-version:not(.is-staging) iframe').locator('#clockCard').waitFor();
-  assert.equal(old.isDetached(), true);
-  f.service.rotate(f.source.id);
-  await f.page.waitForFunction(() => document.querySelectorAll('iframe').length === 0);
-  assert.equal(await f.page.locator('#sceneStatus').isVisible(), true);
-});
+for (const mode of ['standalone', 'scene']) {
+  test(`${mode} danmaku retains existing nodes through temporary output and cloud failures`, { timeout: 20000 }, async t => {
+    const f = await fixture(t, ['danmaku']);
+    const standalone = mode === 'standalone';
+    const pathname = standalone ? '/api/danmaku/display' : '/api/scene/output';
+    const url = standalone ? `${f.origin}/danmaku?source=component` : f.url;
+    assert.equal((await fetch(url)).status, 200);
+    await f.page.goto(url);
+    const display = standalone ? f.page : f.page.frameLocator('iframe[title="danmaku"]');
+    await display.getByText('合成开播确认').waitFor();
+    f.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '故障前的弹幕', emotes: [] });
+    const retained = await display.getByText('故障前的弹幕', { exact: true }).elementHandle();
+    let restore;
+    const recovered = new Promise(resolve => { restore = resolve; });
+    t.after(() => restore());
+    let reads = 0;
+    const pattern = `**${pathname}?*`;
+    await f.page.route(pattern, async route => {
+      reads += 1;
+      if (reads === 1) await route.fulfill({ status: 503, contentType: 'application/json', body: '{"ok":false}' });
+      else { await recovered; await route.continue(); }
+    });
+    const failure = f.page.waitForResponse(response => new URL(response.url()).pathname === pathname && response.status() === 503);
+    f.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '读取中断', emotes: [] });
+    await failure;
+    await display.locator('body:not(.is-connected)').waitFor();
+    assert.equal(await retained.evaluate(node => node.isConnected), true);
+    restore();
+    await display.locator('body.is-connected').waitFor();
+    assert.equal(await retained.evaluate(node => node.isConnected), true);
+    assert.equal(await display.getByText('合成开播确认', { exact: true }).count(), 1);
+    f.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '故障恢复后的弹幕', emotes: [] });
+    await display.getByText('故障恢复后的弹幕', { exact: true }).waitFor();
+    assert.equal(await display.getByText('故障恢复后的弹幕', { exact: true }).count(), 1);
+    assert.equal(await retained.evaluate(node => node.isConnected), true);
+    await f.page.unroute(pattern);
+    f.updateCloud(null, 'offline');
+    await display.locator('body:not(.is-connected)').waitFor();
+    assert.equal(await retained.evaluate(node => node.isConnected), true);
+    f.updateCloud(null, 'connecting', 'reconnected');
+    f.updateCloud({ type: 'overlay-state', state: 'running', liveStatus: 1, liveSessionId: 'synthetic-live',
+      confirmationMessage: '合成开播确认' }, 'connected', 'reconnected');
+    await display.locator('body.is-connected').waitFor();
+    assert.equal(await retained.evaluate(node => node.isConnected), true);
+    assert.equal(await display.getByText('合成开播确认', { exact: true }).count(), 1);
+    f.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', message: '重连后的弹幕', emotes: [] }, 'connected', 'reconnected');
+    await display.getByText('重连后的弹幕', { exact: true }).waitFor();
+    assert.equal(await display.getByText('重连后的弹幕', { exact: true }).count(), 1);
+    f.updateCloud({ type: 'live-ended', liveSessionId: 'synthetic-live' }, 'connected', 'reconnected');
+    await display.getByText('故障前的弹幕', { exact: true }).waitFor({ state: 'detached' });
+    assert.equal(await display.getByText('合成开播确认', { exact: true }).count(), 0);
+  });
+}

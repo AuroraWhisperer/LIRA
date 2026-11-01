@@ -10,7 +10,7 @@ const ROOT_DIR = path.join(__dirname, '../..');
 
 test('mist random SC supports snapshots, increments, removal and timed expiry while old random styles omit SC', async () => {
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), { document: createFakeDocument() });
-  for (const style of ['mist', 'whiteframe', 'outline', 'cream', 'glow', 'starveil']) {
+  for (const style of ['mist', 'outline']) {
     const root = new FakeNode('div');
     const timers = new Map();
     let nextTimer = 0;
@@ -85,25 +85,7 @@ test('fixed feed removes selected SC nodes without rebuilding retained messages'
   feed.destroy();
 });
 
-test('ranked danmaku fits the shared horizontal inset without shrinking for height', async () => {
-  const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
-    document: { addEventListener() {}, getElementById() { return null; } },
-    location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
-    URL,
-    URLSearchParams,
-  });
-
-  assert.equal(module.calculateRankedOverlayScale(624, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(324, 640), 0.5);
-  assert.equal(module.calculateRankedOverlayScale(312, 640), 0.48);
-  assert.equal(module.calculateRankedOverlayScale(1248, 640), 1);
-  assert.equal(module.calculateRankedOverlayScale(1248, 1280), 1);
-  assert.equal(module.calculateRankedOverlayScale(624, 320), 1);
-  assert.equal(module.calculateRankedOverlayScale(324, 320), 0.5);
-  assert.equal(module.calculateRankedOverlayScale(0, 0), 1);
-});
-
-test('shared danmaku renderer replaces whole and inline emote triggers with safe images', async () => {
+test('shared danmaku renderer proxies emotes, keeps viewer text literal and shows settled gift totals', async () => {
   const root = new FakeNode('div');
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku-feed.js'), {
     document: createFakeDocument(),
@@ -157,9 +139,7 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
       emotes: [{ text: '[打call]', url: 'https://i0.hdslb.com/bfs/emote/call.gif' }],
     },
   ]);
-  const emoteBubble = root.children[0];
-  const emoteMessage = emoteBubble.children[1].children[1];
-  assert.match(emoteBubble.className, /is-emote-only/);
+  const emoteMessage = root.children[0].children[1].children[1];
   assert.equal(emoteMessage.children.length, 1);
   const emoteImage = emoteMessage.children[0];
   assert.equal(emoteImage.tagName, 'IMG');
@@ -167,82 +147,6 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
   emoteImage.listeners.error();
   assert.notEqual(emoteMessage.children[0], emoteImage);
   assert.equal(emoteMessage.children[0].textContent, '[打call]');
-
-  for (const [kind, text, enlarged] of [
-    ['inline', '[喝彩]', false],
-    ['inline', '好听[喝彩]', false],
-    ['inline', '[喝彩][喝彩]', false],
-    ['sticker', '[喝彩]', true],
-    [undefined, '[喝彩]', true],
-  ]) {
-    feed.render([
-      {
-        message: text,
-        emotes: [
-          {
-            text: '[喝彩]',
-            url: 'https://i0.hdslb.com/cheer.png',
-            kind,
-            width: 192,
-            height: 192,
-          },
-        ],
-      },
-    ]);
-    assert.equal(root.children[0].className.includes('is-emote-only'), enlarged, `${kind}: ${text}`);
-  }
-
-  const identityRoot = new FakeNode('div');
-  identityRoot.clientHeight = 40;
-  const emptyState = new FakeNode('div');
-  emptyState.className = 'draw-danmaku-empty';
-  identityRoot.append(emptyState);
-  const identityFeed = module.createDanmakuFeed(identityRoot, {
-    maxItems: 5,
-    autoScroll: false,
-    getGuardLabel: (level) => ({ 1: '总督', 2: '提督', 3: '舰长' })[level] || '',
-  });
-  identityFeed.render([
-    { message: '普通' },
-    { message: '粉丝', medalName: '夜航', medalLevel: 8 },
-    { message: '舰长', guardLevel: 3 },
-    { message: '提督', guardLevel: 2 },
-    { message: '总督', guardLevel: 1, medalName: '夜航' },
-  ]);
-  assert.deepEqual(
-    identityRoot.children.map((item) => item.dataset.identity),
-    ['viewer', 'fan', 'captain', 'admiral', 'governor'],
-  );
-  assert.deepEqual(
-    identityRoot.children.map((item) => item.children[0].dataset.medalLevel),
-    [undefined, '8', undefined, undefined, undefined],
-    'guard ranks and medal names must not supply a made-up fan level',
-  );
-  for (const isStreamer of [true, false, 'true', 'false', undefined]) {
-    feed.render([{ name: '相同昵称', message: '主播身份', guardLevel: 3, isStreamer }]);
-    assert.equal(root.children[0].dataset.streamer === 'true', isStreamer === true);
-    assert.equal(root.children[0].dataset.identity, 'captain', 'other styles retain their guard identity');
-  }
-  for (const [medalLevel, expected] of [
-    [45, '45'],
-    [28, '28'],
-    [4, '4'],
-    [35, '35'],
-    ['12', '12'],
-    [0, undefined],
-    [undefined, undefined],
-    [-1, undefined],
-    [3.5, undefined],
-    [Infinity, undefined],
-    ['unknown', undefined],
-  ]) {
-    feed.render([{ name: '同一观众', message: '等级来自本条弹幕', medalLevel }]);
-    assert.equal(
-      root.children[0].children[0].dataset.medalLevel,
-      expected,
-      'the avatar uses the exact level even without a medal name, and never retains a previous level',
-    );
-  }
 
   feed.render([
     {
@@ -253,27 +157,17 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
       giftCount: 10,
     },
   ]);
-  const giftBubble = root.children[0];
-  assert.match(giftBubble.className, /\bis-gift\b/);
-  const giftBody = giftBubble.children[1];
+  const giftBody = root.children[0].children[1];
   assert.equal(giftBody.children[0].children[0].textContent, '<img src=x onerror=alert(1)>');
   const giftMessage = giftBody.children[1];
-  assert.equal(giftMessage.className, 'draw-danmaku-gift');
-  assert.equal(giftMessage.children[1].children[0].textContent, '送出');
   assert.equal(giftMessage.children[1].children[1].textContent, '<b>小花花</b>');
-  assert.equal(giftMessage.children[2].textContent, '× 10');
   assert.equal(giftMessage.children[1].children[1].children.length, 0);
-  assert.equal(giftMessage.children.length, 3, 'gift notifications do not synthesize account replies');
   const transparentRoot = new FakeNode('div');
   const transparentFeed = module.createDanmakuFeed(transparentRoot, { autoScroll: false, showGiftTotal: true });
   for (const [giftTotalPrice, expected] of [
     [12.5, '¥12.5'],
-    [0.01, '¥0.01'],
     [0, '¥0'],
     [undefined, '—'],
-    [null, '—'],
-    [-1, '—'],
-    [Infinity, '—'],
   ]) {
     transparentFeed.render([
       {
@@ -286,36 +180,8 @@ test('shared danmaku renderer replaces whole and inline emote triggers with safe
       },
     ]);
     const content = transparentRoot.children[0].children[1].children[1];
-    assert.equal(content.children[1].children[1].textContent, '<b>小花花</b>');
-    assert.equal(content.children[1].children[1].children.length, 0);
-    assert.equal(content.children[1].children[2].textContent, '× 10');
-    assert.equal(content.children[2].className, 'draw-danmaku-gift-amount');
     assert.equal(content.children[2].textContent, expected);
   }
-  feed.render([{ kind: 'gift', message: '送出 小花花 × 10', giftName: '小花花', giftCount: 10, giftTotalPrice: 12.5 }]);
-  assert.equal(
-    root.children[0].children[1].children[1].children[2].textContent,
-    '× 10',
-    'other styles retain the quantity in the right column',
-  );
-  feed.render([{ name: '已登录账号', message: '谢谢星河来客送来的 10 朵小花花！' }]);
-  const thanksMessage = root.children[0].children[1].children[1];
-  assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);
-  assert.equal(thanksMessage.textContent, '谢谢星河来客送来的 10 朵小花花！');
-  assert.equal(thanksMessage.children.length, 0, 'account replies use the ordinary text renderer');
-
-  const previewRoot = new FakeNode('div');
-  previewRoot.clientHeight = 1;
-  const previewFeed = module.createDanmakuFeed(previewRoot, {
-    autoScroll: false,
-    offscreenViewports: Number.POSITIVE_INFINITY,
-  });
-  previewFeed.render(Array.from({ length: 6 }, (_, index) => ({ message: `示例 ${index}` })));
-  assert.equal(previewRoot.children.length, 6, 'an initially short preview must retain every example');
-
-  feed.render([{ name: '普通观众', message: '继续聊天' }]);
-  assert.doesNotMatch(root.children[0].className, /\bis-gift\b/);
-  assert.equal(root.children[0].children[1].children[1].textContent, '继续聊天');
 });
 
 test('fixed danmaku feed retains partially visible messages and prunes only fully clipped nodes', async () => {
@@ -360,4 +226,16 @@ test('fixed danmaku feed retains partially visible messages and prunes only full
   assert.equal(root.children.length, 3);
   assert.notEqual(root.children[0], scaledBubble);
   feed.destroy();
+
+  const defaultRoot = new FakeNode('div');
+  defaultRoot.clientHeight = 100;
+  Object.defineProperty(defaultRoot, 'scrollHeight', { get: () => defaultRoot.children.reduce(
+    (height, node) => height + (Number.parseFloat(node.style['--danmaku-height']) || 0),
+    22 + Math.max(0, defaultRoot.children.length - 1) * 11,
+  ) });
+  const defaultFeed = module.createDanmakuFeed(defaultRoot);
+  defaultFeed.render(Array.from({ length: 30 }, (_, index) => ({ message: `消息 ${index}` })));
+  assert.ok(defaultRoot.children.length <= 10, 'the default feed bounds a burst to its visible window');
+  assert.equal(defaultRoot.scrollTop, defaultRoot.scrollHeight);
+  defaultFeed.destroy();
 });

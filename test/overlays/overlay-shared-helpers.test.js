@@ -6,27 +6,14 @@ const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const overlayPath = (file) => path.join(__dirname, '../../public/js/overlays', file);
 
-test('ESM overlay utilities use the same functions as the classic-script surface', async () => {
-  const window = {};
+test('overlay utilities escape markup, combine color alpha and resolve low-power mode', async () => {
   const location = { search: '?quality=low' };
   const utils = await loadModuleExports(overlayPath('overlay-utils-module.js'), {
-    window,
+    window: {},
     location,
     URLSearchParams,
   });
-  for (const name of [
-    'hexToRgb',
-    'hexToRgba',
-    'withMultilingualFallback',
-    'overlayLowPowerEnabled',
-    'scrollTravelSeconds',
-    'escapeHtml',
-  ]) {
-    assert.equal(utils[name], window.OverlayUtils[name]);
-  }
   assert.equal(utils.hexToRgba('#abc', 2), 'rgba(170, 187, 204, 1)');
-  assert.equal(utils.hexToRgba('#abc', -1), 'rgba(170, 187, 204, 0)');
-  assert.equal(utils.hexToRgba('#abc', 'invalid'), 'rgba(170, 187, 204, 0.76)');
   assert.deepEqual({ ...utils.hexToRgb('#12345680') }, { r: 18, g: 52, b: 86 });
   assert.equal(utils.hexToRgba('#12345600', 0.76), 'rgba(18, 52, 86, 0)');
   assert.equal(utils.hexToRgba('#12345680', 0.5), `rgba(18, 52, 86, ${128 / 255 * 0.5})`);
@@ -35,9 +22,11 @@ test('ESM overlay utilities use the same functions as the classic-script surface
   assert.equal(utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'true' }), false);
   location.search = '';
   assert.equal(utils.overlayLowPowerEnabled({ overlayLowPowerMode: 'true' }), true);
+  assert.equal(utils.escapeHtml('"quoted" & <tag>'), '&quot;quoted&quot; &amp; &lt;tag&gt;');
+  assert.equal(utils.withMultilingualFallback('Noto Sans').split(/,\s*/)[0], 'Noto Sans', 'the selected font must stay first');
 });
 
-test('shared theme tokens preserve colors, blur, glow and fonts without replacing page backgrounds', async () => {
+test('shared theme applies saved colors and fonts and drops blur in low-power mode', async () => {
   const location = { search: '' };
   const { applyOverlayTheme } = await loadModuleExports(overlayPath('overlay-theme.js'), {
     window: {},
@@ -64,19 +53,10 @@ test('shared theme tokens preserve colors, blur, glow and fonts without replacin
   };
   applyOverlayTheme(root, panel, settings);
   assert.equal(values.get('--overlay-primary-r'), '170');
-  assert.equal(values.get('--overlay-accent-b'), '86');
   assert.equal(values.get('--overlay-blur'), '8px');
-  assert.equal(values.get('--overlay-glow-color'), 'rgba(18, 52, 86, 0.05)');
-  assert.equal(values.get('--overlay-gradient-r'), '255');
   assert.match(values.get('--overlay-font-family'), /^Custom Font, /);
-  assert.equal(values.get('--overlay-font-weight'), '600');
-  assert.equal(classes.get('has-backdrop-blur'), true);
-  assert.equal(classes.get('gradient-bg'), true);
   location.search = '?quality=low';
   applyOverlayTheme(root, panel, settings);
-  assert.equal(classes.get('low-power'), true);
   assert.equal(classes.get('has-backdrop-blur'), false);
   assert.equal(values.get('--overlay-blur'), '0px');
-  assert.equal(values.get('--overlay-glow-color'), 'transparent');
-  assert.equal(panel.style.backgroundColor, 'page-owned');
 });

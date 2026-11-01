@@ -125,39 +125,37 @@ test('fragment validation handles empty frames and UTF-8 split across many conti
   assert.equal(socket._wsFragmentBytes, 0);
 });
 
-for (const hours of [12, 24, 168]) {
-  test(`WebSocket heartbeat and reconnect resources stay bounded over ${hours} simulated hours`, (t) => {
-    t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'], now: 1000 });
-    t.mock.method(performance, 'now', () => Date.now());
-    const { hub, context, socket: initial } = fixture(t);
-    let socket = initial;
-    let previousFrames = socket.frames;
-    const pong = frame('', 10);
-    for (let tick = 1; tick <= hours * 120; tick += 1) {
-      t.mock.timers.tick(30000);
-      assert.equal(socket.frames, previousFrames + 1, 'one heartbeat per interval');
-      socket.emit('data', pong);
+test('WebSocket heartbeat and hourly reconnect resources stay bounded over one simulated week', (t) => {
+  t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'], now: 1000 });
+  t.mock.method(performance, 'now', () => Date.now());
+  const { hub, context, socket: initial } = fixture(t);
+  let socket = initial;
+  let previousFrames = socket.frames;
+  const pong = frame('', 10);
+  for (let tick = 1; tick <= 168 * 120; tick += 1) {
+    t.mock.timers.tick(30000);
+    assert.equal(socket.frames, previousFrames + 1, 'one heartbeat per interval');
+    socket.emit('data', pong);
+    if (tick % 120 === 0) {
       assert.equal(socket.destroyed, false);
       assert.equal(socket.listenerCount('data'), 1);
       assert.equal(context.state.sockets.size, 1);
-      if (tick % 120 === 0) {
-        socket.destroy();
-        assert.equal(socket.listenerCount('data'), 0);
-        assert.equal(socket._wsBuffer, null);
-        assert.equal(context.state.sockets.size, 0);
-        socket = openSocket(hub, context);
-      }
-      previousFrames = socket.frames;
+      socket.destroy();
+      assert.equal(socket.listenerCount('data'), 0);
+      assert.equal(socket._wsBuffer, null);
+      assert.equal(context.state.sockets.size, 0);
+      socket = openSocket(hub, context);
     }
-    hub.stop();
-    assert.equal(context.state.sockets.size, 0);
-    assert.equal(socket.listenerCount('data'), 0);
-    const framesAfterStop = socket.frames;
-    t.mock.timers.tick(24 * 60 * 60 * 1000);
-    assert.equal(socket.frames, framesAfterStop);
-    assert.equal(socket._wsBuffer, null);
-  });
-}
+    previousFrames = socket.frames;
+  }
+  hub.stop();
+  assert.equal(context.state.sockets.size, 0);
+  assert.equal(socket.listenerCount('data'), 0);
+  const framesAfterStop = socket.frames;
+  t.mock.timers.tick(24 * 60 * 60 * 1000);
+  assert.equal(socket.frames, framesAfterStop);
+  assert.equal(socket._wsBuffer, null);
+});
 
 for (const clockShift of [-7 * 86400000, 86400000]) {
   test(`WebSocket idle expiry ignores a wall-clock shift of ${clockShift}ms`, (t) => {

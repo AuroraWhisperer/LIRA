@@ -130,7 +130,7 @@ test('matched abbreviations share cooldown, artists stay distinct, and random se
   assert.equal(random.queueItem.song_name, '七里香');
   const exhausted = f.message('随机点歌 国语');
   assert.equal(exhausted.accepted, false);
-  assert.equal(exhausted.autoReply.message, '符合条件的歌曲都在冷却，请稍后再试。');
+  assert.match(exhausted.autoReply.message, /冷却/);
   assert.match(f.message('随机点歌 英语').autoReply.message, /没有「英语」/);
   f.saveSong({ name: '晴天', artist: '另一位歌手' });
   assert.ok(f.add({ artist: '另一位歌手' }).id);

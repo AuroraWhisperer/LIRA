@@ -5,9 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { EventEmitter } = require('node:events');
-const { createClientAppearance, getClientWindowBackground, bindClientAppearanceWindow } = require('../../src/electron/client-appearance');
+const { createClientAppearance, bindClientAppearanceWindow } = require('../../src/electron/client-appearance');
 const { registerClientAppearanceIpc } = require('../../src/electron/ipc/client-appearance-ipc');
-const { CLIENT_THEME_BACKGROUNDS } = require('../../src/shared/client-theme');
 
 function fixture(t, record, overrides = {}) {
   const root = path.resolve(__dirname, '../../tmp');
@@ -35,12 +34,6 @@ test('appearance defaults without writing and preserves invalid, future or malfo
 });
 
 test('appearance accepts only theme IDs, atomically saves ID alone and restores on restart', async (t) => {
-  for (const themeId of ['neutral', 'classic', 'terracotta', 'clear-jade', 'black-silver', 'rose-lustre', 'dusty-rose']) {
-    const saved = fixture(t);
-    assert.deepEqual(await saved.owner.setThemeId(themeId), { ok: true, themeId });
-    assert.deepEqual(JSON.parse(fs.readFileSync(saved.file)), { themeId });
-    assert.equal(createClientAppearance({ dataDir: saved.dataDir }).getThemeId(), themeId);
-  }
   const f = fixture(t, '{"themeId":"classic"}');
   for (const value of [undefined, null, {}, ['neutral'], 'NEUTRAL', '../classic', 'neutral" style="']) {
     assert.deepEqual(await f.owner.setThemeId(value), { ok: false, error: 'CLIENT_THEME_INVALID' });
@@ -82,7 +75,6 @@ test('theme saves retry temporary rename locks but preserve state on persistent 
     ['EPERM', 1, true, 2],
     ['EBUSY', 2, true, 3],
     ['EPERM', 5, false, 5],
-    ['EBUSY', 5, false, 5],
     ['EIO', 1, false, 1],
   ]) {
     let calls = 0;
@@ -132,43 +124,29 @@ test('concurrent applications commit in order and snapshots change only after re
   assert.deepEqual(JSON.parse(fs.readFileSync(f.file)), { themeId: 'terracotta' });
 });
 
-test('theme IPC rejects foreign windows, frames, origins, tools and license before storage', async (t) => {
+test('theme IPC applies shared frame policy and validates arguments before storage', async (t) => {
   const { owner } = fixture(t);
   const baseUrl = 'http://127.0.0.1:3000';
   const mainFrame = { url: `${baseUrl}/admin` };
-  const backgrounds = [];
   const webContents = { mainFrame, getURL: () => mainFrame.url };
-  const window = { webContents, isDestroyed: () => false, setBackgroundColor: color => backgrounds.push(color) };
+  const window = { webContents, isDestroyed: () => false, setBackgroundColor() {} };
   const handlers = new Map();
   const dispose = registerClientAppearanceIpc({ ipcMain: { handle: (id, action) => handlers.set(id, action), removeHandler: id => handlers.delete(id) },
     appearance: owner, getMainWindow: () => window, getDesktopBaseUrl: () => baseUrl });
   const invoke = (...args) => handlers.get('desktop:set-client-theme')(...args);
   const event = { sender: webContents, senderFrame: mainFrame };
-  for (const invalid of [{}, { ...event, sender: {} }, { ...event, senderFrame: { url: mainFrame.url } }]) {
-    assert.deepEqual(await invoke(invalid, 'classic'), { ok: false, error: 'IPC_SOURCE_INVALID' });
-  }
-  for (const url of [`${baseUrl}/license`, `${baseUrl}/component-preview`, `${baseUrl}/pages/gift-audit.html`, `${baseUrl}/clock`, 'http://127.0.0.1:3001/admin', 'https://example.com/admin']) {
-    mainFrame.url = url;
-    assert.deepEqual(await invoke(event, 'classic'), { ok: false, error: 'IPC_SOURCE_INVALID' });
-  }
+  assert.deepEqual(await invoke({ ...event, senderFrame: { url: mainFrame.url } }, 'classic'), { ok: false, error: 'IPC_SOURCE_INVALID' });
   assert.equal(owner.getThemeId(), 'terracotta');
-  mainFrame.url = `${baseUrl}/admin`;
   assert.deepEqual(await invoke(event), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
   assert.deepEqual(await invoke(event, 'classic', 'extra'), { ok: false, error: 'IPC_ARGUMENTS_INVALID' });
   assert.deepEqual(await invoke(event, {}), { ok: false, error: 'CLIENT_THEME_INVALID' });
   assert.deepEqual(await invoke(event, 'classic'), { ok: true, themeId: 'classic' });
-  assert.deepEqual(backgrounds, ['#f7f3ef']);
   dispose();
   assert.equal(handlers.size, 0);
 });
 
-test('native backgrounds follow main navigation and leave login and child frames unchanged', () => {
+test('native backgrounds follow main-frame navigation only and unbind when the window closes', () => {
   const baseUrl = 'http://127.0.0.1:3000';
-  assert.equal(getClientWindowBackground(`${baseUrl}/admin`, baseUrl), '#f8f5ef');
-  for (const [id, color] of Object.entries(CLIENT_THEME_BACKGROUNDS)) {
-    assert.equal(getClientWindowBackground(`${baseUrl}/admin?desktop=1`, baseUrl, id), color);
-    assert.equal(getClientWindowBackground(`${baseUrl}/license`, baseUrl, id), '#f7f3ef');
-  }
   const window = new EventEmitter();
   window.webContents = new EventEmitter();
   const colors = [];

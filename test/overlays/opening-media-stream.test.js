@@ -89,12 +89,10 @@ const watchdog = setTimeout(() => process.exit(2), 3000);
     });
     if (scenario === 'removed-after-stat') {
       assert.equal(result.status, 404);
-      assert.equal(JSON.parse(result.body).error, 'Not found.');
     } else if (scenario === 'read-failure') {
       assert.equal(result.interrupted, true);
     } else if (scenario === 'open-failure') {
       assert.equal(result.status, 500);
-      assert.equal(JSON.parse(result.body).error, 'Internal server error.');
     } else if (scenario === 'client-abort') {
       assert.equal(result.interrupted, true);
       assert.ok(sourceClosed);

@@ -56,7 +56,7 @@ test('overtime clock schedules work only for displayed-value boundaries while ru
   await page.evaluate(({ remaining }) => {
     window.socketOptions.onMessage({
       type: 'snapshot',
-      state: { overtime: { revision: 1, status: 'running', effectiveRemainingMs: remaining, serverNowMs: Date.now(), rules: [] } },
+      state: { overtime: { revision: 1, status: 'running', effectiveRemainingMs: remaining + 5_000, serverNowMs: Date.now() - 5_000, rules: [] } },
     });
     const schedule = window.setTimeout;
     window.clockTimers = 0;
@@ -109,4 +109,40 @@ test('overtime clock schedules work only for displayed-value boundaries while ru
   assert.equal(await clock(), '1天 00:01');
   await page.clock.runFor(1_000);
   assert.equal(await clock(), '1天 00:00');
+});
+
+test('overtime adjustment bursts keep bounded playback and combine overflow into its net result', async t => {
+  const page = await fixture(t, 'overlay');
+  await page.clock.install();
+  await page.evaluate(() => {
+    const schedule = window.setTimeout;
+    const cancel = window.clearTimeout;
+    window.adjustmentTimeouts = new Map();
+    window.setTimeout = (callback, delay, ...args) => {
+      const timer = schedule(() => {
+        window.adjustmentTimeouts.delete(timer);
+        callback(...args);
+      }, delay);
+      window.adjustmentTimeouts.set(timer, Date.now() + delay);
+      return timer;
+    };
+    window.clearTimeout = timer => {
+      window.adjustmentTimeouts.delete(timer);
+      cancel(timer);
+    };
+    for (let revision = 1; revision <= 10; revision++) {
+      window.socketOptions.onMessage({ type: 'overtime:update',
+        state: { revision, status: 'paused', effectiveRemainingMs: 60_000, rules: [] },
+        adjustment: { giftId: 'burst', giftName: `礼物${revision}`, quantity: 2,
+          applicationCount: 2, appliedDeltaSeconds: 2 } });
+    }
+  });
+  const stage = page.locator('#overtimeAdjustmentStage');
+  const advance = async () => page.clock.runFor(await page.evaluate(() =>
+    Math.min(...window.adjustmentTimeouts.values()) - Date.now()));
+  assert.match(await stage.textContent(), /礼物1 ×2按数量结算 2 次/);
+  for (let completed = 0; completed < 5; completed++) await advance();
+  assert.match(await stage.textContent(), /连续礼物 · 净变化\+00:00:10/);
+  await advance();
+  assert.equal(await stage.textContent(), '');
 });

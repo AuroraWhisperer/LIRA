@@ -84,11 +84,14 @@ test('title formatting and artist case do not outrank the requested singer', () 
 });
 
 test('version keywords do not penalize ordinary words containing the same letters', () => {
+  const baseline = matchMusicTrackCandidates({
+    songName: 'Song', artist: '歌手', candidates: [{ title: 'Song', artists: ['歌手'], album: 'Song' }],
+  }).results[0].score;
   for (const title of ['Alive', 'Discover', 'Adjective']) {
     const { results } = matchMusicTrackCandidates({
       songName: title, artist: '歌手', candidates: [{ title, artists: ['歌手'], album: title }],
     });
-    assert.equal(results[0].score, 90, title);
+    assert.equal(results[0].score, baseline, title);
     assert.equal(results[0].autoAccept, true, title);
   }
 });

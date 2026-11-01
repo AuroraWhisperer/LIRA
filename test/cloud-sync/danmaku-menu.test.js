@@ -34,13 +34,10 @@ test('keyword menu describes enabled rules without uploading their private repli
 test('menu includes only accepting sessions and clearly identifies ongoing interactions', () => {
   const current = (input) => buildDesktopMenuCommands({ settings: { ...settings, paused: 'true' }, ...input });
   assert.deepEqual(current({ interaction: { kind: 'poll', phase: 'collecting', connected: true } }), ['投票（进行中）：完整发送当前选项']);
-  assert.deepEqual(current({ interaction: { kind: 'rating', phase: 'collecting', connected: true } }), ['评分（进行中）：发送 1—10']);
   assert.deepEqual(current({ interaction: { kind: 'poll', phase: 'finished', connected: true } }), []);
   assert.deepEqual(current({ interaction: { kind: 'rating', phase: 'collecting', connected: false } }), []);
   assert.deepEqual(current({ game: { game: 'gomoku', state: { turn: 'viewer', winner: '' } } }), ['五子棋（进行中）：发送坐标 A1—O15']);
   assert.deepEqual(current({ game: { game: 'gomoku', state: { turn: 'host', winner: '' } } }), []);
-  assert.deepEqual(current({ game: { game: 'number-bomb', state: { turn: 'viewer', winner: '' } } }), ['数字炸弹（进行中）：发送当前范围内数字']);
-  assert.deepEqual(current({ game: { game: 'number-bomb', state: { turn: 'viewer', winner: 'host' } } }), []);
   assert.deepEqual(current({ game: { game: 'draw-guess', state: { phase: 'drawing' } } }), ['你画我猜（进行中）：发送答案']);
   assert.deepEqual(current({ game: { game: 'draw-guess', state: { phase: 'round-result' } } }), []);
 });

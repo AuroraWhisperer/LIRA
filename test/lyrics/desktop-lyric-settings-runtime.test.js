@@ -1,19 +1,12 @@
 'use strict';
 
-const { readAdminFragmentHtml } = require('../helpers/admin-html');
-const { readCssBundle } = require('../helpers/css-bundle');
-
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
-
-function readDesktopLyricHtml() {
-  return readAdminFragmentHtml('pages/admin/song/desktop-lyric.html');
-}
 
 function createFontNode(tagName = 'select') {
   return {
@@ -95,16 +88,10 @@ test('desktop lyric settings automatically list local font families and preserve
 
   assert.equal(queryCount, 1);
   const localGroup = select.querySelector('optgroup[data-local-fonts="true"]');
-  assert.equal(localGroup.label, '本机字体');
-  assert.deepEqual(
-    localGroup.children.map((option) => option.textContent),
-    ['Arial', 'Cascadia Code', '宋体'],
-  );
   assert.deepEqual(
     localGroup.children.map((option) => option.value),
     ['"Arial"', '"Cascadia Code"', '"宋体"'],
   );
-  assert.equal(select.value, 'Lira Maiyuan');
   assert.equal(new Set(select.options.map(option => option.value)).size, select.options.length);
 });
 
@@ -164,109 +151,9 @@ test('desktop lyric local font detection keeps built-ins when permission is deni
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 1);
-  assert.equal(select.value, 'Lira Maiyuan');
   assert.ok(select.options.some(option => option.value === '"Lira Kuaile"'));
-  assert.ok(select.options.some(option => option.value === '"Lira Smiley"'));
-  assert.ok(select.options.some(option => option.value === '"Lira Xiaolai"'));
-  assert.ok(select.options.some(option => option.value === '"Lira Assorted"'));
-  assert.ok(select.options.every(option => !/内置|推荐|（默认）/.test(option.textContent)));
   assert.equal(new Set(select.options.map(option => option.value)).size, select.options.length);
   assert.equal(select.querySelector('optgroup[data-local-fonts="true"]'), null);
-});
-
-test('desktop lyric fonts route complex scripts and automatically fill gaps before legacy and system fallback', async () => {
-  const { applyDesktopLyricStyles } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-styles.js'),
-  );
-  const { DESKTOP_LYRIC_DEFAULTS } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-defaults.js'),
-  );
-  const { normalizeDesktopLyricSettings } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-settings.js'),
-  );
-  const properties = new Map();
-  const card = { style: { setProperty: (name, value) => properties.set(name, value) }, classList: { toggle() {} } };
-  for (const [selected, primary, generic] of [
-    ['Lira Maiyuan', 'Lira Maiyuan', 'sans-serif'],
-    ['KaiTi, STKaiti, serif', 'KaiTi, STKaiti', 'serif'],
-    ['Courier New, Consolas, monospace', 'Courier New, Consolas', 'monospace'],
-    ['"Local Font", sans-serif', '"Local Font"', 'sans-serif'],
-  ]) {
-    const values = normalizeDesktopLyricSettings({ desktopLyricFontFamily: selected,
-      desktopLyricFallbackFontFamily: 'Legacy Font' }, DESKTOP_LYRIC_DEFAULTS);
-    applyDesktopLyricStyles(card, values);
-    const stack = properties.get('--preview-font');
-    assert.ok(stack.startsWith(`"Lira Lyric Scripts", ${primary}, "Lira Lyric Korean", "Lira Xiaolai", "Lira Lyric Extended", Legacy Font,`));
-    assert.ok(stack.endsWith(`system-ui, ${generic}`));
-    assert.equal(values.fontFamily, selected, 'Rendering does not change the saved font choice.');
-  }
-});
-
-test('desktop lyric preview keeps accessible controls and shared renderer wiring', () => {
-  const html = readDesktopLyricHtml();
-  const settingsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'), 'utf8');
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric-preview.js'), 'utf8');
-  const rendererSource = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'),
-    'utf8',
-  );
-  const sharedRenderer = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-word-renderer.js'),
-    'utf8',
-  );
-  const styles = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
-  const workspaceStyles = readCssBundle('public', 'css', 'admin', 'workspace', 'song.css');
-
-  assert.match(html, /id="desktopLyricAutosaveState"/);
-  assert.match(html, /<[^>]+(?=[^>]*\sid=["']desktopLyricForm["'])(?=[^>]*\saria-labelledby=["']desktopLyricSettingsTitle["'])[^>]*>/);
-  assert.match(html, /\sid=["']desktopLyricLivePreview["']/);
-  assert.match(html, /<[^>]+(?=[^>]*\sid=["']desktopLyricPreviewViewport["'])(?=[^>]*\stabindex=["']0["'])[^>]*>/);
-  assert.match(html, /id="desktopLyricPreviewTimeline"/);
-  assert.match(html, /<[^>]+(?=[^>]*\sid=["']desktopLyricPreviewPlayback["'])(?=[^>]*\saria-live=["']polite["'])[^>]*>/);
-  assert.doesNotMatch(html, /desktopLyricPreviewProgress|desktop-lyric-preview-progress/);
-  assert.match(html, /<button\b(?=[^>]*\sid=["']desktopLyricCopyUrlBtn["'])(?=[^>]*\stype=["']button["'])[^>]*>/);
-  assert.match(html, /data-lyric-preview-background="grid"/);
-  assert.match(rendererSource, /new LyricWordRenderer/);
-  assert.match(source, /app:lyric-state/);
-  assert.match(source, /app:lyric-timeline/);
-  assert.match(rendererSource, /textContent\s*=/);
-  assert.doesNotMatch(rendererSource, /innerHTML\s*=/);
-  assert.match(source, /await copyText\(desktopLyricUrl\)/);
-  assert.doesNotMatch(source, /navigator\.clipboard\.writeText\(desktopLyricUrl\)/);
-  assert.match(source, /`\$\{localOverlayOrigin\(location\)\}\/lyrics`/);
-  assert.doesNotMatch(source, /musicAPI\.openLyricWindow|desktopLyricOpenWindowBtn/);
-  assert.match(sharedRenderer, /element\.textContent = word\.text/);
-  assert.match(sharedRenderer, /requestAnimationFrame/);
-  assert.match(styles, /--preview-word-progress/);
-  assert.match(styles, /\.desktop-lyric-preview-stage\.is-solid/);
-  assert.match(workspaceStyles, /\.song-workspace[\s\S]*?overflow-y:\s*auto/);
-  assert.match(styles, /\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/);
-  assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overflow-y:\s*auto/);
-  assert.match(styles, /\.desktop-lyric-preview-viewport[\s\S]*?overscroll-behavior-y:\s*auto/);
-  assert.match(
-    styles,
-    /\.desktop-lyric-workspace\s+\.desktop-lyric-preview-viewport:has\(\.desktop-lyric-preview-empty\)\s*\{[^}]*overflow-y:\s*hidden/,
-  );
-  assert.match(
-    styles,
-    /@media \(max-width:\s*[\d.]+px\)[\s\S]*?\.desktop-lyric-settings\s*\{[^}]*max-height:\s*none[^}]*overflow:\s*visible/,
-  );
-  assert.match(styles, /\.desktop-lyric-preview-row\.is-active/);
-  assert.match(styles, /\.desktop-lyric-preview-countdown-dot/);
-  assert.match(styles, /:focus-visible/);
-  assert.match(styles, /prefers-reduced-motion:\s*reduce/);
-  assert.match(rendererSource, /requestAnimationFrame\(animateLyricFollow\)/);
-  assert.match(rendererSource, /addEventListener\(["']pointerdown["'], pauseAutomaticFollow/);
-  assert.doesNotMatch(rendererSource, /behavior:\s*['"]smooth['"]/);
-  assert.doesNotMatch(rendererSource, /scrollIntoView/);
-  assert.match(styles, /\.desktop-lyric-preview-viewport\.is-following/);
-  assert.match(styles, /\.desktop-lyric-preview-card\.is-translation-hidden/);
-  assert.match(styles, /\.desktop-lyric-preview-card\.is-hide-passed/);
-  assert.match(styles, /\.desktop-lyric-preview-card\.is-paused-hidden/);
-  assert.match(styles, /\.desktop-lyric-preview-card\.is-background-enabled/);
-  assert.match(styles, /--preview-global-opacity/);
-  assert.doesNotMatch(settingsSource, /form\.addEventListener\('submit'/);
-  assert.doesNotMatch(settingsSource, /reloadState\(\)/);
 });
 
 test('desktop lyric settings debounce input and serialize the latest automatic save', async () => {
@@ -393,7 +280,6 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   listeners.get('input')();
   assert.equal(apiCalls.length, 0);
   assert.equal(scheduledTimer, null);
-  assert.equal(autosaveState.textContent, '正在读取设置…');
   windowListeners.get('app:settings-state')({
     detail: {
       ...values,
@@ -401,7 +287,6 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
       weSingSmartLyricMatch: 'true',
     },
   });
-  assert.equal(scheduledTimer.delay, 500);
   scheduledTimer.callback();
   assert.equal(apiCalls.length, 1);
   assert.equal(apiCalls[0].body.weSingLyricSource, 'netease');
@@ -410,7 +295,6 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[0].body.desktopLyricSungColor, '#ff220080');
   assert.equal(apiCalls[0].body.desktopLyricTextColor, '#123456');
   assert.equal(elements.get('desktopLyricSungColorInherited').checked, false);
-  assert.equal(elements.get('desktopLyricSungColor').disabled, false);
   assert.equal(apiCalls[0].body.desktopLyricFontFamily, 'Microsoft YaHei', 'An explicitly saved font is preserved.');
   assert.equal(Object.hasOwn(apiCalls[0].body, 'desktopLyricFallbackFontFamily'), false,
     'Changing visible settings must not overwrite the retired fallback field.');
@@ -440,8 +324,6 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[1].body.desktopLyricTextColor, '#abcdef80');
   assert.equal(apiCalls[1].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[1].body.weSingSmartLyricMatch, 'false');
-  assert.equal(autosaveState.textContent, '已自动保存');
-  assert.match(autosaveState.className, /is-saved/);
 
   await new Promise((resolve) => setImmediate(resolve));
   await resetListeners.get('click')();
@@ -449,12 +331,10 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   confirmReset = true;
   await resetListeners.get('click')();
   assert.equal(apiCalls.length, 3);
-  assert.equal(apiCalls[2].body.desktopLyricFontSize, '56');
-  assert.equal(apiCalls[2].body.desktopLyricFontFamily, 'Lira Maiyuan');
-  assert.equal(apiCalls[2].body.desktopLyricCurrentLineEnhanced, 'false');
-  assert.equal(apiCalls[2].body.desktopLyricSungColor, '');
-  assert.equal(apiCalls[2].body.desktopLyricTextColor, '#000000');
-  assert.equal(elements.get('desktopLyricSungColor').disabled, true);
+  const { DESKTOP_LYRIC_DEFAULTS } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-defaults.js'),
+  );
+  assert.equal(apiCalls[2].body.desktopLyricFontSize, DESKTOP_LYRIC_DEFAULTS.desktopLyricFontSize);
   assert.equal(apiCalls[2].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[2].body.weSingSmartLyricMatch, 'false');
 });

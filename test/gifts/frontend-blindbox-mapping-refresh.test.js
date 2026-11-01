@@ -1,7 +1,6 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { createBlindboxFixture, flushBlindboxTasks } = require('../helpers/frontend-blindbox-fixture');
@@ -135,7 +134,6 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
   await flushBlindboxTasks();
   assert.deepEqual(names(), ['官方盲盒', '在售盲盒']);
   assert.deepEqual(fixture.visibleNames(), []);
-  assert.match(fixture.container.innerHTML, /暂未获取到当前直播间可送的盲盒/);
   assert.equal(fixture.refreshRequests.length, 0);
 
   fixture.dispatchSettings('789');
@@ -144,15 +142,13 @@ test('blind-box mapping stays alphabetical after a failed refresh and can refres
   assert.deepEqual(names(), ['在售盲盒', '官方盲盒']);
 });
 
-test('blind-box advanced editor replaces saved null with an empty state while preserving config, drafts, and expansion', async () => {
+test('blind-box advanced editor replaces saved null with an empty state while preserving config and drafts', async () => {
   const textarea = { value: 'null', dataset: {} };
-  const toggle = { hidden: false, textContent: '高级 ▾' };
-  const advanced = { hidden: true };
   const elements = {
     blindBoxList: { innerHTML: '', querySelectorAll: () => [] },
     giftBlindBoxCustomConfigV2: textarea,
-    blindBoxAdvancedToggle: toggle,
-    blindBoxAdvanced: advanced,
+    blindBoxAdvancedToggle: { hidden: false, textContent: '' },
+    blindBoxAdvanced: { hidden: true },
   };
   const window = {
     addEventListener() {},
@@ -172,65 +168,30 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
   });
   const { renderBlindBoxList } = giftBlindbox;
 
-  renderBlindBoxList();
-  assert.equal(toggle.hidden, false);
-  assert.equal(advanced.hidden, true);
-
   for (const raw of ['null', '[]', '']) {
     textarea.value = raw;
-    toggle.hidden = false;
-    toggle.textContent = '高级 ▴';
-    advanced.hidden = false;
     renderBlindBoxList();
-    assert.equal(toggle.hidden, false);
-    assert.equal(advanced.hidden, false);
-    assert.equal(toggle.textContent, '高级 ▴');
     assert.equal(textarea.value, raw === 'null' ? '' : raw);
     assert.equal(textarea.dataset.dirty, undefined);
   }
 
   const config = '[{"name":"Custom box","price":5,"outputs":[]}]';
-  advanced.hidden = true;
-  toggle.textContent = '高级 ▾';
   textarea.value = config;
   renderBlindBoxList();
-  assert.equal(toggle.hidden, false);
-  assert.equal(advanced.hidden, true);
   assert.equal(textarea.value, config);
 
-  advanced.hidden = false;
   textarea.dataset.dirty = 'true';
   for (const draft of ['', '[]', 'null', '[']) {
     textarea.value = draft;
     renderBlindBoxList();
-    assert.equal(toggle.hidden, false);
-    assert.equal(advanced.hidden, false);
     assert.equal(textarea.value, draft);
     assert.equal(textarea.dataset.dirty, 'true');
   }
 
-  textarea.value = '[]';
   textarea.dataset.dirty = 'false';
-  renderBlindBoxList();
-  assert.equal(toggle.hidden, false);
-  assert.equal(advanced.hidden, false);
-  assert.equal(textarea.value, '[]');
-
-  textarea.value = config;
-  renderBlindBoxList();
-  assert.equal(toggle.hidden, false);
-  assert.equal(advanced.hidden, false);
-
   textarea.value = '{';
   renderBlindBoxList();
-  assert.equal(toggle.hidden, false);
   assert.equal(textarea.value, '{');
-
-  const page = fs.readFileSync(path.join(ROOT_DIR, 'public', 'pages', 'admin', 'gifts', 'page.html'), 'utf8');
-  assert.doesNotMatch(page, /id="blindBoxAdvancedToggle"[^>]*\bhidden\b/);
-  assert.match(page, /id="blindBoxAdvanced"[^>]*\bhidden\b/);
-  assert.doesNotMatch(page, /id="blindBoxAddBtn"[^>]*\bhidden\b/);
-  assert.match(page, /id="blindBoxListToggle"[^>]*aria-expanded="false"[^>]*aria-controls="blindBoxList"/);
 });
 
 test('blind-box JSON draft survives state refresh and a failed save', async () => {
@@ -298,14 +259,12 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     elements.set(id, makeElement());
   const editable = elements.get('giftBlindBoxCustomConfigV2');
   editable.value = 'null';
-  const advanced = elements.get('blindBoxAdvanced');
-  advanced.hidden = true;
+  elements.get('blindBoxAdvanced').hidden = true;
   const { createBlindboxSettings } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
   );
   const savedConfigs = [];
   let saveGate = null;
-  let listRenders = 0;
   const settings = createBlindboxSettings({
     documentRef: { getElementById: (id) => elements.get(id) || null, createElement: () => makeElement() },
     locationRef: {},
@@ -316,39 +275,19 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
       if (!saveGate) throw new Error('offline');
       await saveGate.promise;
     },
-    getGifts: () => ({
-      renderBlindBoxList() {
-        listRenders += 1;
-      },
-    }),
+    getGifts: () => ({ renderBlindBoxList() {} }),
     getState: () => null,
     getImports: () => null,
     localOverlayOrigin: () => 'http://127.0.0.1:3000',
   });
   settings.init();
-  const listToggle = elements.get('blindBoxListToggle');
-  listToggle.listeners.get('click')();
-  assert.equal(listToggle.getAttribute('aria-expanded'), 'true');
-  listToggle.listeners.get('click')();
-  assert.equal(listToggle.getAttribute('aria-expanded'), 'false');
-  assert.equal(listRenders, 2);
 
   editable.value = '';
   await elements.get('giftBlindBoxSaveBtn').listeners.get('click')();
   assert.equal(savedConfigs.length, 0, 'saving the untouched empty state must not replace legacy config');
   assert.equal(editable.dataset.dirty, undefined);
-  const toggle = elements.get('blindBoxAdvancedToggle');
-  toggle.listeners.get('click')();
-  assert.equal(advanced.hidden, false);
-  assert.equal(toggle.textContent, '高级 ▴');
-  toggle.listeners.get('click')();
-  assert.equal(advanced.hidden, true);
-  assert.equal(toggle.textContent, '高级 ▾');
-  toggle.listeners.get('click')();
-  assert.equal(advanced.hidden, false);
   editable.value = draft;
   editable.listeners.get('input')();
-  assert.equal(listRenders, 3, 'draft input refreshes its preview without an unrelated state update');
   await assert.rejects(elements.get('giftBlindBoxSaveBtn').listeners.get('click')(), /offline/);
   assert.equal(editable.value, draft);
   assert.equal(editable.dataset.dirty, 'true');

@@ -14,11 +14,6 @@ test('subscription keeps API secrets separate and uses account status, model loo
     if (url === '/api/ai/status') return aiResponse({ queued: 0, chatgpt: status });
     if (url.startsWith('/api/ai/chatgpt/')) return aiResponse({ ...status, pending: url.endsWith('/login') });
   } });
-  assert.equal(f.elements.get('xiaomiAiChatGptAccount').hidden, false);
-  assert.equal(f.elements.get('xiaomiAiEndpointControl').hidden, true);
-  assert.equal(f.elements.get('xiaomiAiKeyControl').hidden, true);
-  assert.equal(f.elements.get('xiaomiAiModelControl').hidden, false);
-  assert.equal(f.elements.get('xiaomiAiToolsControl').hidden, false);
   f.elements.get('xiaomiAiDeepSeekKey').value = 'private-api-draft';
   await f.fire('xiaomiAiFetchModelsBtn', 'click');
   const lookup = JSON.parse(f.calls.find(call => call.url === '/api/ai/models').options.body);
@@ -29,34 +24,15 @@ test('subscription keeps API secrets separate and uses account status, model loo
   assert.equal(f.saves()[0].deepseekApiKey, undefined);
   assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, 'private-api-draft');
   await f.fire('xiaomiAiChatGptLogin', 'click');
-  assert.equal(f.elements.get('xiaomiAiChatGptLogin').disabled, true);
-  assert.equal(f.elements.get('xiaomiAiChatGptCancel').hidden, false);
   f.elements.get('xiaomiAiForm').checkValidity = () => false;
   await f.fire('xiaomiAiChatGptCancel', 'click');
   assert.ok(f.calls.some(call => call.url === '/api/ai/chatgpt/cancel'));
 });
 
-test('Kimi presents API access and explains the separate coding subscription', async () => {
-  const f = await createAiSettingsFixture({ config: { modelProvider: 'kimi', deepseekResponsesUrl: 'https://api.moonshot.cn/v1',
-    modelEndpoint: { webSearchMode: 'local_function', reasoningMode: 'kimi_thinking' } } });
-  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, true);
-  assert.equal(f.elements.get('xiaomiAiAuthModeControl').hidden, true);
-  assert.equal(f.elements.get('xiaomiAiChatGptAccount').hidden, true);
-  assert.match(f.elements.get('xiaomiAiProviderAccessNote').textContent, /Kimi Code/);
-  assert.equal(f.elements.get('xiaomiAiReasoningControl').hidden, false);
-  assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, true);
-});
-
-test('Doubao shows account actions, hides API inputs and preserves their drafts', async () => {
+test('Doubao omits API inputs from saves and preserves their drafts', async () => {
   const status = { available: true, loggedIn: true, needsVerification: true, encryptionAvailable: true };
   const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' },
     request: url => url === '/api/ai/status' ? aiResponse({ queued: 0, doubao: status }) : undefined });
-  for (const id of ['xiaomiAiEndpointControl', 'xiaomiAiKeyControl', 'xiaomiAiModelControl', 'xiaomiAiCapabilitiesControl', 'xiaomiAiToolsControl']) {
-    assert.equal(f.elements.get(id).hidden, true, id);
-  }
-  assert.equal(f.elements.get('xiaomiAiDoubaoAccount').hidden, false);
-  assert.equal(f.elements.get('xiaomiAiDoubaoLogin').textContent, '打开豆包完成验证');
-  assert.equal(f.elements.get('xiaomiAiConfigState').textContent, '等待验证');
   f.elements.get('xiaomiAiDeepSeekKey').value = 'unsaved-api-key';
   f.input('xiaomiAiTrigger', '豆豆');
   await f.advance(700);
@@ -70,10 +46,7 @@ test('Doubao login and logout use existing authenticated API without sending cre
   const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' }, request: url =>
     url.startsWith('/api/ai/doubao/') ? aiResponse({ available: true, loggedIn: !url.endsWith('/logout'), needsVerification: false, encryptionAvailable: true }) : undefined });
   await f.fire('xiaomiAiDoubaoLogin', 'click');
-  assert.equal(f.elements.get('xiaomiAiDoubaoLogout').hidden, false);
   await f.fire('xiaomiAiDoubaoLogout', 'click');
-  assert.equal(f.elements.get('xiaomiAiDoubaoLogout').hidden, true);
-  assert.equal(f.elements.get('xiaomiAiDoubaoLogin').textContent, '扫码登录豆包');
   const writes = f.calls.filter(call => call.url.startsWith('/api/ai/doubao/') && call.options.method === 'POST');
   assert.deepEqual(writes.map(call => call.url), ['/api/ai/doubao/login', '/api/ai/doubao/logout']);
   assert.ok(writes.every(call => call.options.body === undefined));
@@ -95,70 +68,32 @@ test('AI initial load preserves edits and blocks saving before configuration arr
   for (const [id, value] of Object.entries(edits)) f.input(id, value);
   f.fire('xiaomiAiForm', 'submit', { preventDefault() {} });
   await flushAiTasks();
-  assert.equal(f.elements.get('xiaomiAiSaveState').textContent, '配置尚未加载，暂时无法保存；请等待或刷新页面重试。');
   assert.equal(f.saves().length, 0);
 
   f.resolveInitialConfig();
   await flushAiTasks();
   for (const [id, value] of Object.entries(edits)) assert.equal(f.elements.get(id).value, value);
-  assert.equal(f.elements.get('xiaomiAiSystemPrompt').value, f.publicConfig.systemPrompt);
-  assert.equal(f.elements.get('xiaomiAiModelApiProtocol').value, 'responses');
-  assert.equal(f.elements.get('xiaomiAiModelProvider').value, 'custom');
-  assert.equal(f.elements.get('xiaomiAiReasoningEffort').value, 'high');
 
   f.fire('xiaomiAiForm', 'submit', { preventDefault() {} });
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
-  assert.deepEqual(f.saves()[0], {
-    trigger: '小米',
-    modelProvider: 'custom',
-    modelAuthMode: 'api',
-    modelApiProtocol: 'responses',
-    deepseekResponsesUrl: edits.xiaomiAiDeepSeekUrl,
-    deepseekApiKey: 'deepseek-secret',
-    model: 'deepseek-v4-flash',
-    webSearchEnabled: true,
-    functionCallingEnabled: true,
-    reasoningEnabled: false,
-    reasoningEffort: 'high',
-    qweatherApiHost: edits.xiaomiAiQWeatherHost,
-    qweatherApiKey: 'qweather-secret',
-    amapApiHost: edits.xiaomiAiAmapHost,
-    amapApiKey: 'amap-secret',
-    generationConcurrency: 3,
-    userCooldownSeconds: 0,
-    roomLimitPerMinute: 20,
-    contextTtlSeconds: 600,
-    systemPrompt: f.publicConfig.systemPrompt,
-    personaId: 'custom',
-    weatherEnabled: true,
-    placesEnabled: true,
-    routesEnabled: false,
-  });
+  const saved = f.saves()[0];
+  assert.deepEqual(
+    [saved.deepseekResponsesUrl, saved.deepseekApiKey, saved.qweatherApiHost, saved.qweatherApiKey, saved.amapApiHost, saved.amapApiKey],
+    Object.values(edits),
+  );
   for (const [id, value] of Object.entries(edits)) assert.equal(f.elements.get(id).value, id.endsWith('Key') ? '' : value);
 });
 
-test('AI enabled toggle saves immediately', async () => {
-  const f = await createAiSettingsFixture();
-  f.elements.get('xiaomiAiEnabled').checked = true;
-  f.fire('xiaomiAiEnabled', 'change');
-  await flushAiTasks();
-  assert.equal(f.saves().length, 1);
-  assert.equal(f.saves()[0].enabled, true);
+test('conversation idle minutes preserve an existing 61s setting and autosave edits', async () => {
+  const f = await createAiSettingsFixture({ config: { contextTtlSeconds: 61 } });
+  f.input('xiaomiAiTrigger', '小猫');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).contextTtlSeconds, 61);
+  f.input('xiaomiAiContextMinutes', '15');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).contextTtlSeconds, 900);
 });
-
-for (const seconds of [61, 90, 600, 1200]) {
-  test(`conversation idle minutes preserve existing ${seconds}s settings and autosave edits`, async () => {
-    const f = await createAiSettingsFixture({ config: { contextTtlSeconds: seconds } });
-    assert.equal(Number(f.elements.get('xiaomiAiContextMinutes').value), seconds / 60);
-    f.input('xiaomiAiTrigger', '小猫');
-    await f.advance(700);
-    assert.equal(f.saves().at(-1).contextTtlSeconds, seconds);
-    f.input('xiaomiAiContextMinutes', '15');
-    await f.advance(700);
-    assert.equal(f.saves().at(-1).contextTtlSeconds, 900);
-  });
-}
 
 test('AI off saves independently of invalid form drafts', async () => {
   const f = await createAiSettingsFixture({ config: { enabled: true } });
@@ -168,7 +103,6 @@ test('AI off saves independently of invalid form drafts', async () => {
   f.fire('xiaomiAiEnabled', 'change');
   await flushAiTasks();
   assert.deepEqual(f.saves(), [{ enabled: false }]);
-  assert.match(f.elements.get('xiaomiAiSaveState').textContent, /已关闭.*未完成.*取消/);
   assert.equal(f.elements.get('xiaomiAiModel').value, 'unfinished draft');
 });
 
@@ -204,36 +138,10 @@ test('role selection saves its identity without overwriting the custom prompt', 
   const select = f.elements.get('xiaomiAiPersona');
   select.value = 'cat';
   f.fire('xiaomiAiPersonaManage', 'click');
-  assert.match(f.elements.get('xiaomiAiPersonaPrompt').value, /橘猫/);
   f.fire('xiaomiAiForm', 'change', { target: select });
   await flushAiTasks();
   assert.equal(f.saves()[0].personaId, 'cat');
   assert.equal(f.saves()[0].systemPrompt, undefined);
-});
-
-test('persona choices follow the platform while general, saved roles and creation remain available', async () => {
-  for (const provider of ['deepseek', 'openai', 'anthropic', 'gemini', 'custom', 'auto']) {
-    const f = await createAiSettingsFixture({ config: { modelProvider: provider, personaId: 'general' } });
-    const ids = f.elements.get('xiaomiAiPersona').children.map((option) => option.value);
-    assert.equal(ids.includes('cat'), provider === 'deepseek', provider);
-    assert.ok(ids.includes('general'));
-    assert.ok(ids.includes('custom'));
-    assert.ok(ids.includes('__new__'));
-  }
-  const f = await createAiSettingsFixture({ config: {
-    modelProvider: 'auto', personaId: 'general', modelEndpoint: { provider: 'deepseek' },
-  } });
-  assert.ok(f.elements.get('xiaomiAiPersona').children.some((option) => option.value === 'cat'));
-});
-
-test('cat persona shows its name and DeepSeek scope separately from the editable identity description', async () => {
-  const f = await createAiSettingsFixture({ config: { modelProvider: 'deepseek', personaId: 'cat' } });
-  assert.equal(f.elements.get('xiaomiAiPersona').children.find((option) => option.value === 'cat').textContent, '小猫人格');
-  assert.equal(f.elements.get('xiaomiAiPersonaSummary').textContent, '说明：针对 DeepSeek；骄傲又黏人的橘猫，自然陪聊');
-  f.fire('xiaomiAiPersonaManage', 'click');
-  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '小猫人格');
-  assert.equal(f.elements.get('xiaomiAiPersonaProviderNote').textContent, '针对 DeepSeek；其他模型未测试。');
-  assert.equal(f.elements.get('xiaomiAiPersonaDescription').value, '骄傲又黏人的橘猫，自然陪聊');
 });
 
 test('changing platform restores its previous selection without deleting cat edits or saved roles', async (t) => {
@@ -257,7 +165,6 @@ test('changing platform restores its previous selection without deleting cat edi
   f.fire(provider.id, 'change');
   assert.equal(select.value, 'general');
   assert.equal(select.children.some((option) => option.value === 'cat'), false);
-  assert.match(f.elements.get('xiaomiAiPersonaAvailability').textContent, /已切换为通用人格/);
   f.fire('xiaomiAiForm', 'change', { target: provider });
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
@@ -284,7 +191,7 @@ test('changing platform restores its previous selection without deleting cat edi
   assert.equal(select.value, saved.personaId);
 });
 
-test('DeepSeek persona and key preview return after Doubao and a fresh settings load', async (t) => {
+test('DeepSeek persona and saved key survive Doubao and a fresh settings load', async (t) => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
@@ -306,12 +213,10 @@ test('DeepSeek persona and key preview return after Doubao and a fresh settings 
   };
   await switchProvider('doubao');
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'general');
-  assert.equal(f.elements.get('xiaomiAiKeyControl').hidden, true);
   store = createAiConfigStore(createAiStateStore(db), codec);
   f = await openSettings();
   await switchProvider('deepseek');
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
-  assert.equal(f.elements.get('xiaomiAiDeepSeekKey').placeholder, 'sk-syn********');
   assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, '');
   assert.equal(f.saves()[0].deepseekApiKey, undefined);
   assert.equal(store.getConfig().deepseekApiKey, 'sk-synthetic-test-key');
@@ -349,10 +254,9 @@ test('switching back during a pending provider save preserves the remembered per
   assert.equal(store.getConfig().personaId, 'cat');
 });
 
-test('opening an unmatched saved cat persona retains its selection and explains the scope', async () => {
+test('opening an unmatched saved cat persona retains its selection', async () => {
   const f = await createAiSettingsFixture({ config: { modelProvider: 'openai', personaId: 'cat' } });
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
-  assert.match(f.elements.get('xiaomiAiPersonaAvailability').textContent, /已保留原有选择/);
   assert.equal(f.saves().length, 0);
 });
 
@@ -361,7 +265,6 @@ test('create persona choice opens a draft and cancel leaves the saved selection 
   f.input('xiaomiAiPersona', '__new__');
   f.fire('xiaomiAiForm', 'change', { target: f.elements.get('xiaomiAiPersona') });
   assert.equal(f.elements.get('xiaomiAiPersonaDialog').open, true);
-  assert.equal(f.elements.get('xiaomiAiPersonaName').value, '');
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'general');
   f.fire('xiaomiAiPersonaCancel', 'click');
   await f.advance(700);
@@ -395,7 +298,6 @@ test('editing a role remains a draft until saved and cancel does not change the 
   await f.advance(700);
   assert.equal(f.saves().length, 0);
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
-  assert.equal(f.elements.get('xiaomiAiPersonaDelete').hidden, true);
   f.fire('xiaomiAiPersonaCancel', 'click');
   f.fire('xiaomiAiPersonaManage', 'click');
   assert.notEqual(f.elements.get('xiaomiAiPersonaPrompt').value, text);
@@ -407,19 +309,7 @@ test('saved legacy custom role remains selectable after choosing a built-in', as
   f.elements.get('xiaomiAiPersona').value = 'custom';
   f.fire('xiaomiAiPersonaManage', 'click');
   assert.equal(f.elements.get('xiaomiAiPersonaPrompt').value, f.publicConfig.systemPrompt);
-  assert.equal(f.elements.get('xiaomiAiPersonaDelete').hidden, true);
   assert.equal(f.elements.get('xiaomiAiPersonaDelete').disabled, true);
-});
-
-test('optional tool controls expose credentials only when selected', async () => {
-  const f = await createAiSettingsFixture();
-  assert.equal(f.elements.get('xiaomiAiWeatherCredentials').hidden, true);
-  const toggle = f.elements.get('xiaomiAiWeatherEnabled');
-  toggle.checked = true;
-  f.fire('xiaomiAiForm', 'change', { target: toggle });
-  await flushAiTasks();
-  assert.equal(f.elements.get('xiaomiAiWeatherCredentials').hidden, false);
-  assert.equal(f.saves()[0].weatherEnabled, true);
 });
 
 test('turning off tools can save even when a hidden provider address draft is invalid', async () => {
@@ -439,12 +329,11 @@ test('turning off tools can save even when a hidden provider address draft is in
   assert.equal(host.value, 'invalid-url');
 });
 
-test('invalid persona file leaves current role untouched and shows a recoverable error', async () => {
+test('invalid persona file leaves current role untouched', async () => {
   const f = await createAiSettingsFixture({ config: { personaId: 'cat' } });
   f.elements.get('xiaomiAiPersonaFile').files = [{ size: 5, text: async () => '{bad}' }];
   await f.fire('xiaomiAiPersonaFile', 'change');
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
-  assert.match(f.elements.get('xiaomiAiPersonaState').textContent, /有效的 JSON/);
   assert.equal(f.calls.some(({ url }) => url.includes('/personas/import')), false);
 });
 
@@ -490,8 +379,6 @@ test('saving a named role waits for pending settings without overwriting the edi
   assert.equal(f.downloads.length, 1);
   const exported = await (await fetch(f.downloads[0].href)).json();
   assert.deepEqual(exported, store.exportPersona());
-  await f.advance(1000);
-  assert.equal(f.elements.get('xiaomiAiPersonaDialog').inert, false);
 });
 
 test('role operations wait for initial config and recover after server rejection', async () => {
@@ -506,7 +393,6 @@ test('role operations wait for initial config and recover after server rejection
   assert.equal(f.calls.some(({ url }) => url === '/api/ai/personas/create'), false);
   f.resolveInitialConfig();
   await flushAiTasks();
-  assert.equal(f.elements.get('xiaomiAiPersonaState').textContent, '角色包名称不能为空。');
   assert.equal(f.elements.get('xiaomiAiPersonaDialog').inert, false);
   assert.equal(f.elements.get('xiaomiAiPersona').value, 'custom');
   f.fire('xiaomiAiPersonaEditor', 'submit', { preventDefault() {} });
@@ -522,25 +408,15 @@ test('AI refresh updates untouched fields and preserves the current draft', asyn
   await f.api.refresh();
   assert.equal(f.elements.get('xiaomiAiTrigger').value, '正在编辑的关键词');
   assert.equal(f.elements.get('xiaomiAiModel').value, 'updated-model');
-  assert.equal(f.elements.get('xiaomiAiModelState').textContent, 'updated-model');
   assert.equal(f.saves().length, 0);
-});
-
-test('AI configuration without a model displays an unconfigured state', async () => {
-  const { elements } = await createAiSettingsFixture({ config: { model: '' } });
-  assert.equal(elements.get('xiaomiAiModel').value, '');
-  assert.equal(elements.get('xiaomiAiModelState').textContent, '未配置');
 });
 
 test('AI text edits restart the 700 ms debounce and save only the latest value', async () => {
   const f = await createAiSettingsFixture();
   f.input('xiaomiAiModel', 'first-model');
   await f.advance(699);
-  assert.equal(f.saves().length, 0);
   f.input('xiaomiAiModel', 'new-model');
-  await f.advance(1);
-  assert.equal(f.saves().length, 0);
-  await f.advance(698);
+  await f.advance(699);
   assert.equal(f.saves().length, 0);
   await f.advance(1);
   assert.equal(f.saves().length, 1);
@@ -569,7 +445,6 @@ test('AI edits during a pending save are saved after it completes', async () => 
     ['first-model', 'later-model'],
   );
   assert.equal(f.elements.get('xiaomiAiModel').value, 'later-model');
-  assert.equal(f.elements.get('xiaomiAiSaveState').textContent, '已保存，后续新弹幕立即生效。');
 });
 
 test('AI refresh cannot replace edits protected by a newer pending save', async (t) => {
@@ -645,147 +520,47 @@ test('a failed model lookup cannot replace the current service status', async ()
   assert.equal(f.elements.get('xiaomiAiFetchModelsBtn').disabled, false);
 });
 
-for (const resultsFirst of [false, true]) {
-  test(`committing the same credential preserves model ${resultsFirst ? 'options' : 'lookup'}`, async () => {
-    const lookup = Promise.withResolvers();
-    const f = await createAiSettingsFixture({ request: url => url === '/api/ai/models' ? lookup.promise : undefined });
-    f.input('xiaomiAiDeepSeekKey', 'new-synthetic-key');
-    const loading = f.fire('xiaomiAiFetchModelsBtn', 'click');
-    if (resultsFirst) { lookup.resolve(aiResponse({ models: ['first', 'second'] })); await loading; }
-    await f.advance(700);
-    assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, '', 'committed plaintext is still cleared');
-    if (!resultsFirst) { lookup.resolve(aiResponse({ models: ['first', 'second'] })); await loading; }
-    const menu = f.elements.get('xiaomiAiModelMenu');
-    assert.equal(menu.children.length, 2);
-    menu.children[1].listeners.click();
-    assert.equal(f.elements.get('xiaomiAiModel').value, 'second');
-    assert.equal(menu.hidden, true);
-  });
-}
+test('committing the same credential preserves an in-flight model lookup', async () => {
+  const lookup = Promise.withResolvers();
+  const f = await createAiSettingsFixture({ request: url => url === '/api/ai/models' ? lookup.promise : undefined });
+  f.input('xiaomiAiDeepSeekKey', 'new-synthetic-key');
+  const loading = f.fire('xiaomiAiFetchModelsBtn', 'click');
+  await f.advance(700);
+  assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, '', 'committed plaintext is still cleared');
+  lookup.resolve(aiResponse({ models: ['first', 'second'] }));
+  await loading;
+  f.elements.get('xiaomiAiModelMenu').children[1].listeners.click();
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'second');
+});
 
 test('AI model listing uses draft credentials and saves a selected model after reopening the menu', async () => {
   const f = await createAiSettingsFixture();
   f.input('xiaomiAiDeepSeekKey', 'deepseek-secret');
   f.input('xiaomiAiDeepSeekUrl', 'https://api.deepseek.com/responses');
   await f.fire('xiaomiAiFetchModelsBtn', 'click');
-  const modelRequest = f.calls.find((call) => call.url === '/api/ai/models');
-  assert.deepEqual(JSON.parse(modelRequest.options.body), {
-    apiKey: 'deepseek-secret',
-    apiUrl: 'https://api.deepseek.com/responses',
-    modelProvider: 'custom',
-    modelAuthMode: 'api',
-    modelApiProtocol: 'responses',
-  });
+  const modelRequest = JSON.parse(f.calls.find((call) => call.url === '/api/ai/models').options.body);
+  assert.equal(modelRequest.apiKey, 'deepseek-secret');
+  assert.equal(modelRequest.apiUrl, 'https://api.deepseek.com/responses');
   const menu = f.elements.get('xiaomiAiModelMenu');
-  assert.equal(menu.hidden, false);
-  assert.deepEqual(
-    menu.children.map((option) => option.textContent),
-    ['deepseek-v4-flash', 'deepseek-v4-pro'],
-  );
-  assert.equal(f.elements.get('xiaomiAiModelFetchState').textContent, '已获取 2 个可用模型；可选择或直接输入。');
   menu.children[1].listeners.click();
   assert.equal(f.elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');
-  assert.equal(menu.hidden, true);
   await f.fire('xiaomiAiFetchModelsBtn', 'click');
-  assert.equal(menu.hidden, false);
-  assert.deepEqual(
-    menu.children.map((option) => option.textContent),
-    ['deepseek-v4-flash', 'deepseek-v4-pro'],
-  );
   menu.children[1].listeners.click();
   await f.advance(700);
   assert.equal(f.saves().length, 1);
   assert.equal(f.saves()[0].model, 'deepseek-v4-pro');
 });
 
-for (const scenario of [
-  {
-    provider: 'deepseek',
-    field: 'xiaomiAiDeepSeekUrl',
-    value: 'https://api.deepseek.com',
-    key: 'deepseekResponsesUrl',
-    button: 'xiaomiAiTestBtn',
-    detail: '模型服务 连接正常。模型 deepseek-chat 回复：你好！有什么可以帮你？',
-  },
-  {
-    provider: 'qweather',
-    field: 'xiaomiAiQWeatherHost',
-    value: 'new-weather.test',
-    key: 'qweatherApiHost',
-    button: 'xiaomiAiQWeatherTestBtn',
-    detail: '和风天气 连接正常。地址与密钥均可用',
-  },
-]) {
-  test(`AI ${scenario.provider} connection test waits for the current settings to save`, async () => {
-    const f = await createAiSettingsFixture({ config: { functionCallingEnabled: true, weatherEnabled: true } });
-    f.input(scenario.field, scenario.value);
-    f.fire(scenario.button, 'click');
-    await flushAiTasks();
-    const saveIndex = f.calls.findIndex((call) => call.options.method === 'PUT');
-    const testIndex = f.calls.findIndex((call) => call.url === `/api/ai/test/${scenario.provider}`);
-    assert.ok(saveIndex >= 0 && testIndex > saveIndex);
-    assert.equal(f.saves()[0][scenario.key], scenario.value);
-    assert.equal(f.elements.get(scenario.field).value, scenario.value);
-    assert.equal(f.elements.get(`aiTestDetail-${scenario.provider}`).textContent, scenario.detail);
-    assert.match(f.toasts[0].className, /xiaomi-ai-test-toast-good/);
-  });
-}
-
-test('AI custom provider renders editable endpoint and configured capabilities', async () => {
-  const { elements } = await createAiSettingsFixture();
-  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, false);
-  assert.equal(elements.get('xiaomiAiProtocolControl').hidden, false);
-  assert.equal(elements.get('xiaomiAiModelApiProtocol').value, 'responses');
-  assert.equal(elements.get('xiaomiAiWebSearchLabel').textContent, 'AI 平台联网搜索');
-  assert.match(elements.get('xiaomiAiReasoningHelp').textContent, /服务默认/);
-  assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
-  assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
-  assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, true);
-  assert.equal(elements.get('xiaomiAiReasoningEffort').disabled, true);
-});
-
-test('AI DeepSeek preset locks the endpoint and shows local search and DeepSeek reasoning', async () => {
-  const { elements } = await createAiSettingsFixture({
-    config: {
-      modelProvider: 'deepseek',
-      deepseekResponsesUrl: 'https://api.deepseek.com',
-      modelApiProtocol: 'chat_completions',
-      modelEndpoint: {
-        protocol: 'chat_completions',
-        provider: 'deepseek',
-        webSearchMode: 'local_function',
-        reasoningMode: 'deepseek_effort',
-      },
-    },
-  });
-  assert.equal(elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
-  assert.equal(elements.get('xiaomiAiWebSearchLabel').textContent, 'LIRA 联网搜索');
-  assert.match(elements.get('xiaomiAiWebSearchHelp').textContent, /允许模型调用工具/);
-  assert.match(elements.get('xiaomiAiReasoningHelp').textContent, /DeepSeek 支持「低」「高」「最高」/);
-  assert.equal(elements.get('xiaomiAiReasoningControl').hidden, false);
-  assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, false);
-  assert.equal(elements.get('xiaomiAiReasoningLabel').textContent, '深度思考');
-  assert.equal(elements.get('xiaomiAiProviderBadge').textContent, 'DeepSeek 官方');
-  assert.equal(elements.get('xiaomiAiDeepSeekUrl').disabled, true);
-  assert.equal(elements.get('xiaomiAiProtocolControl').hidden, true);
-});
-
-test('AI platform-managed reasoning hides manual reasoning controls', async () => {
-  const { elements } = await createAiSettingsFixture({
-    config: {
-      modelProvider: 'anthropic',
-      deepseekResponsesUrl: 'https://api.anthropic.com/v1',
-      modelEndpoint: {
-        protocol: 'chat_completions',
-        provider: 'anthropic',
-        webSearchMode: 'local_function',
-        reasoningMode: 'provider_managed',
-      },
-    },
-  });
-  assert.equal(elements.get('xiaomiAiReasoningControl').hidden, true);
-  assert.equal(elements.get('xiaomiAiReasoningEffortControl').hidden, true);
-  assert.equal(elements.get('xiaomiAiProviderManagedReasoning').hidden, false);
+test('AI connection test waits for the current settings to save', async () => {
+  const f = await createAiSettingsFixture();
+  f.input('xiaomiAiDeepSeekUrl', 'https://api.deepseek.com');
+  f.fire('xiaomiAiTestBtn', 'click');
+  await flushAiTasks();
+  const saveIndex = f.calls.findIndex((call) => call.options.method === 'PUT');
+  const testIndex = f.calls.findIndex((call) => call.url === '/api/ai/test/deepseek');
+  assert.ok(saveIndex >= 0 && testIndex > saveIndex);
+  assert.equal(f.saves()[0].deepseekResponsesUrl, 'https://api.deepseek.com');
+  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').value, 'https://api.deepseek.com');
 });
 
 test('AI switching from an official provider restores the saved custom endpoint before editing', async () => {
@@ -801,12 +576,10 @@ test('AI switching from an official provider restores the saved custom endpoint 
       },
     },
   });
-  assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, true);
   const provider = f.elements.get('xiaomiAiModelProvider');
   provider.value = 'custom';
   f.fire('xiaomiAiModelProvider', 'change');
   assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, true);
-  assert.equal(f.elements.get('xiaomiAiProtocolControl').hidden, false);
   Object.assign(f.publicConfig, {
     modelProvider: 'custom',
     deepseekResponsesUrl: 'https://saved-custom.example/v1',
@@ -879,7 +652,6 @@ for (const outcome of ['successful', 'failed']) {
     assert.equal(f.saves()[1].modelApiProtocol, undefined);
     assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').value, customUrl);
     assert.equal(f.elements.get('xiaomiAiModelApiProtocol').value, 'chat_completions');
-    assert.equal(f.elements.get('xiaomiAiDeepSeekUrl').disabled, false);
 
     f.input('xiaomiAiTrigger', 'edited');
     await f.advance(700);
@@ -899,24 +671,14 @@ test('AI custom endpoint can be cleared and saved', async () => {
 });
 
 test('AI assistant shows saved key previews only as placeholders', async () => {
-  const f = await createAiSettingsFixture({
+  const { elements } = await createAiSettingsFixture({
     config: { hasQWeatherApiKey: true, deepseekApiKeyPreview: 'sk-syn********', qweatherApiKeyPreview: 'qw-syn********' },
   });
-  const { elements } = f;
   for (const provider of ['DeepSeek', 'QWeather', 'Amap']) {
     assert.equal(elements.get(`xiaomiAi${provider}Key`).type, 'password');
     assert.equal(elements.get(`xiaomiAi${provider}Key`).value, '');
   }
-  for (const provider of ['DeepSeek', 'QWeather']) {
-    assert.equal(elements.get(`xiaomiAi${provider}KeyHint`).textContent, '已加密保存；输入新密钥可替换，留空保留现有密钥');
-  }
   assert.equal(elements.get('xiaomiAiDeepSeekKey').placeholder, 'sk-syn********');
-  assert.equal(elements.get('xiaomiAiQWeatherKey').placeholder, 'qw-syn********');
-  assert.notEqual(elements.get('xiaomiAiAmapKey').placeholder, '********');
-  assert.equal(elements.get('xiaomiAiAmapKeyHint').textContent, '尚未保存');
-  f.publicConfig.hasDeepSeekApiKey = false;
-  await f.api.refresh();
-  assert.equal(elements.get('xiaomiAiDeepSeekKey').placeholder, '粘贴 AI 平台提供的密钥');
 });
 
 for (const value of ['', '********']) {

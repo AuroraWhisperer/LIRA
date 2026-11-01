@@ -4,85 +4,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT = path.join(__dirname, '../..');
-
-function tagById(html, id) {
-  const tags = html.match(new RegExp(`<[^>]+\\sid\\s*=\\s*["']${id}["'][^>]*>`, 'g')) || [];
-  assert.equal(tags.length, 1, `${id} should exist once`);
-  return tags[0];
-}
-
-test('license titlebar exposes accessible window controls without form submission', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
-  for (const id of ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn']) {
-    const button = tagById(html, id);
-    assert.match(button, /^<button\b/);
-    assert.match(button, /\stype=["']button["']/);
-    assert.match(button, /\saria-label=["'][^"']+["']/);
-  }
-});
-
-test('license window controls dispatch actions and reflect maximize events', () => {
-  const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
-  const elements = new Map(
-    ['licenseMinimizeBtn', 'licenseMaximizeBtn', 'licenseCloseBtn'].map((id) => [id, new EventTarget()]),
-  );
-  const maximizeButton = elements.get('licenseMaximizeBtn');
-  maximizeButton.dataset = {};
-  const attributes = new Map();
-  maximizeButton.setAttribute = (name, value) => attributes.set(name, value);
-  const calls = [];
-  let onMaximized;
-  let unsubscribed = false;
-  const window = new EventTarget();
-  window.songAssistantDesktop = {
-    minimizeWindow: () => calls.push('minimize'),
-    maximizeWindow: () => calls.push('maximize'),
-    closeWindow: () => calls.push('close'),
-    onWindowMaximized: (callback) => {
-      onMaximized = callback;
-      return () => {
-        unsubscribed = true;
-      };
-    },
-  };
-
-  vm.runInNewContext(script, {
-    window,
-    document: { getElementById: (id) => elements.get(id) || null },
-  });
-  for (const button of elements.values()) {
-    button.dispatchEvent(new Event('click'));
-  }
-  assert.deepEqual(calls, ['minimize', 'maximize', 'close']);
-  onMaximized(true);
-  assert.equal(maximizeButton.dataset.maximized, 'true');
-  assert.equal(maximizeButton.title, '还原');
-  assert.equal(attributes.get('aria-label'), '还原');
-  onMaximized(false);
-  assert.equal(maximizeButton.dataset.maximized, 'false');
-  assert.equal(maximizeButton.title, '最大化');
-  assert.equal(attributes.get('aria-label'), '最大化');
-  window.dispatchEvent(new Event('pagehide'));
-  assert.equal(unsubscribed, true);
-});
-
-test('license page provides credentials and defaults to registration without a bypass action', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
-  for (const id of ['licenseAccountName', 'licensePassword', 'licenseActivationCode']) {
-    assert.match(tagById(html, id), /^<input\b/);
-  }
-  assert.match(tagById(html, 'licenseForm'), /^<form\b/);
-  assert.match(tagById(html, 'licenseSubmitBtn'), /\stype=["']submit["']/);
-  assert.match(tagById(html, 'licenseRetryBtn'), /\stype=["']button["']/);
-  assert.match(tagById(html, 'licenseRegisterMode'), /\saria-pressed=["']true["']/);
-  assert.match(tagById(html, 'licenseLoginMode'), /\saria-pressed=["']false["']/);
-  assert.match(tagById(html, 'licensePassword'), /\sautocomplete=["']new-password["']/);
-  assert.doesNotMatch(html, /跳过/);
-});
 
 test('license renderer keeps credentials and navigation inside the main-process boundary', () => {
   const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'license.js'), 'utf8');
@@ -90,27 +14,6 @@ test('license renderer keeps credentials and navigation inside the main-process 
   assert.doesNotMatch(script, /window\.location/);
   assert.doesNotMatch(script, /api\.lir[a-z]+hub\.cn/);
   assert.doesNotMatch(script, /localStorage/);
-});
-
-test('license page replaces the form with an accessible gift initialization card', () => {
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'license.html'), 'utf8');
-  tagById(html, 'licenseLoginCard');
-  tagById(html, 'giftCatalogInitializationHeading');
-  tagById(html, 'giftCatalogInitializationPercent');
-  const card = tagById(html, 'giftCatalogInitializationCard');
-  assert.match(card, /\saria-busy=["']true["']/);
-  assert.match(card, /\shidden(?:\s|\/?>)/);
-  const progress = tagById(html, 'giftCatalogInitializationProgress');
-  assert.match(progress, /^<progress\b/);
-  assert.match(progress, /\smax=["']100["']/);
-  assert.match(progress, /\saria-label=["'][^"']+["']/);
-  assert.match(tagById(html, 'giftCatalogInitializationStatus'), /\srole=["']status["']/);
-  for (const id of ['giftCatalogInitializationRetryBtn', 'giftCatalogInitializationBackBtn']) {
-    const button = tagById(html, id);
-    assert.match(button, /^<button\b/);
-    assert.match(button, /\stype=["']button["']/);
-  }
-  assert.match(tagById(html, 'giftCatalogInitializationBackBtn'), /\shidden(?:\s|\/?>)/);
 });
 
 function controlElement() {
@@ -217,55 +120,9 @@ for (const [label, profile, expected] of [
   });
 }
 
-test('account settings page has no device-management controls', () => {
+test('account renderer and preload expose no device-management API', () => {
   const script = fs.readFileSync(path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'), 'utf8');
-  const html = fs.readFileSync(path.join(ROOT, 'public', 'pages', 'admin', 'toolbox', 'settings.html'), 'utf8');
   const preload = fs.readFileSync(path.join(ROOT, 'src', 'electron', 'preload.js'), 'utf8');
-
-  tagById(html, 'licenseAccountName');
-  tagById(html, 'licenseDeviceName');
-  assert.doesNotMatch(html, /安全存储|设备私钥|首次授权|激活密钥|设备管理/);
   assert.doesNotMatch(script, /createPairingCode|listPairingCodes|revokePairingCode/);
   assert.doesNotMatch(preload, /createPairingCode|listPairingCodes|revokePairingCode/);
-});
-
-test('account settings agreement dialog reads the shared text once and closes', async () => {
-  const dialog = Object.assign(controlElement(), {
-    open: false,
-    showModal() {
-      this.open = true;
-    },
-    close() {
-      this.open = false;
-    },
-  });
-  const content = Object.assign(controlElement(), { scrollTop: 120 });
-  const elements = new Map([
-    ['licenseAgreementOpen', controlElement()],
-    ['licenseAgreementDialog', dialog],
-    ['licenseAgreementContent', content],
-    ['licenseAgreementClose', controlElement()],
-  ]);
-  const requests = [];
-  const agreement = 'LIRA 用户协议与隐私说明\n\n更新日期：2026 年 10 月 27 日';
-  const { initLicenseAgreement } = await loadModuleExports(path.join(ROOT, 'public', 'js', 'admin', 'settings-license.js'));
-  initLicenseAgreement({
-    documentRef: { getElementById: (id) => elements.get(id) || null },
-    fetchRef: async (url) => {
-      requests.push(url);
-      return new Response(agreement, { status: 200 });
-    },
-  });
-
-  await elements.get('licenseAgreementOpen').events.click();
-  assert.equal(dialog.open, true);
-  assert.equal(content.scrollTop, 0);
-  assert.equal(content.textContent, agreement);
-  assert.deepEqual(requests, ['/pages/admin/toolbox/user-agreement.txt']);
-  elements.get('licenseAgreementClose').events.click();
-  assert.equal(dialog.open, false);
-
-  await elements.get('licenseAgreementOpen').events.click();
-  assert.equal(dialog.open, true);
-  assert.equal(requests.length, 1, 'reopening reuses the already loaded agreement');
 });

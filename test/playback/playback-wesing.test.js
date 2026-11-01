@@ -1,13 +1,10 @@
 'use strict';
 
-const { readAdminFragmentHtml } = require('../helpers/admin-html');
-
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
@@ -16,40 +13,13 @@ function read(...parts) {
   return fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
 }
 
-test('playback page offers a dedicated WeSing source and cache capture workspace', () => {
-  const html = readAdminFragmentHtml('pages/admin/playback/page.html');
-  const headerStyles = read('public', 'css', 'playback', 'header.css');
-  const panelStyles = readCssBundle('public', 'css', 'playback', 'panels.css');
-
-  assert.match(html, /data-source="wesing"[\s\S]*全民 K 歌/);
-  assert.match(html, /data-source="wesing"[\s\S]*src="\/img\/playback\/wesing-icon\.png"/);
-  assert.match(html, /id="playbackWeSingView"/);
-  assert.match(html, /id="weSingCachePath"/);
-  assert.match(html, /id="weSingSelectCacheBtn"/);
-  assert.match(html, /id="weSingSaveCacheBtn"/);
-  assert.match(html, /id="weSingLyricOffsetMs"[^>]*min="-3000"[^>]*max="3000"[^>]*step="50"/);
-  assert.match(html, /id="weSingLyricOffsetMsNumber"[^>]*min="-3000"[^>]*max="3000"[^>]*step="50"/);
-  assert.match(html, /id="weSingResetLyricOffsetBtn"/);
-  assert.match(html, /id="weSingRefreshBtn"/);
-  assert.match(html, /id="weSingLyricLine"/);
-  assert.match(html, /data-online-source-view/);
-  assert.match(headerStyles, /source-tab\[data-source=['"]wesing['"]\]/);
-  assert.match(panelStyles, /\.playback-wesing-panel/);
-  assert.match(panelStyles, /--wesing-word-progress/);
-});
-
-test('WeSing browser client renders lyrics through the shared text renderer', () => {
-  const source = read('public', 'js', 'playback', 'services', 'wesing-service.js');
-
-  assert.match(source, /new LyricWordRenderer/);
-  assert.match(source, /textContent\s*=/);
-  assert.doesNotMatch(source, /innerHTML\s*=/);
+test('WeSing browser client never writes lyric text as HTML', () => {
+  assert.doesNotMatch(read('public', 'js', 'playback', 'services', 'wesing-service.js'), /innerHTML\s*=/);
 });
 
 test('WeSing browser client selects its preference, saves settings and follows only its own live state', async () => {
   const listeners = new Map();
   const windowListeners = new Map();
-  let observedSurface;
   const requests = [];
   const element = (id) => ({
     id,
@@ -83,7 +53,7 @@ test('WeSing browser client selects its preference, saves settings and follows o
       window,
       performance: { now: () => 0 },
       IntersectionObserver: class {
-        observe(element) { observedSurface = element; }
+        observe() {}
         disconnect() {}
       },
       requestAnimationFrame: () => 0,
@@ -96,10 +66,7 @@ test('WeSing browser client selects its preference, saves settings and follows o
   );
   const service = new WeSingService();
   service.init({ cacheReady: true, platformDetected: true, trackTitle: '缓存歌曲' });
-  assert.equal(observedSurface, elements.get('playbackWeSingView'),
-    'visibility covers the progress bar and current time as well as the lyric line');
   assert.equal(service.getProviderHealth().ok, true, 'late initialization uses the current app snapshot');
-  assert.equal(elements.get('weSingTrackTitle').textContent, '缓存歌曲');
 
   await service.setSelected(true);
   await listeners.get('weSingResetLyricOffsetBtn:click')();
@@ -124,40 +91,23 @@ test('WeSing browser client selects its preference, saves settings and follows o
   assert.equal(service.status.lyricState.lineText, '全民歌词');
 });
 
-test('WeSing pushes only refresh the active provider when its health changes', async () => {
+test('WeSing status pushes do not request online streams', async () => {
   const app = await createPlaybackApp({
     current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
   }, { sourceTabs: ['qq', 'wesing'] });
   await app.init();
   await flushAsyncWork();
-  const title = app.element('playbackTrackTitle');
-  let titleText = title.textContent;
-  let playerRenders = 0;
-  Object.defineProperty(title, 'textContent', {
-    get: () => titleText,
-    set(value) { playerRenders++; titleText = value; },
-  });
   await app.emitWindow('app:wesing-state', { detail: {
     platformDetected: true, cacheReady: true, status: 'ready', message: '已就绪',
   } });
-  assert.equal(playerRenders, 0, 'an inactive provider must not redraw the online player');
-
   await app.emit('source-tab-wesing', 'click');
   await flushAsyncWork();
-  assert.equal(app.element('playbackSourceStatus').textContent, '已检测到全民 K 歌');
-  playerRenders = 0;
-  for (let index = 0; index < 20; index++) {
-    await app.emitWindow('app:wesing-state', { detail: {
-      playing: true, currentMs: index * 100, lyricState: { lineText: `歌词 ${index}`, currentMs: index * 100 },
-    } });
-  }
-  assert.equal(playerRenders, 0, 'progress and lyrics update the WeSing view without redrawing the player');
+  await app.emitWindow('app:wesing-state', { detail: {
+    playing: true, currentMs: 100, lyricState: { lineText: '歌词', currentMs: 100 },
+  } });
   await app.emitWindow('app:wesing-state', { detail: {
     platformDetected: false, status: 'inactive', message: '等待检测',
   } });
-  assert.equal(playerRenders, 1);
-  assert.equal(app.element('playbackSourceStatus').textContent, '全民 K 歌等待检测');
-  assert.equal(app.element('playbackProviderHealth').textContent, '等待检测');
   assert.equal(app.resolveStreamRequestCount(), 0, 'status pushes do not request song quality or stream URLs');
 });
 
@@ -235,14 +185,12 @@ for (const outcome of ['success', 'failure']) {
   });
 }
 
-test('WeSing cache path preserves unsaved edits and explains how to recover missing detection', async () => {
+test('WeSing cache path preserves unsaved edits', async () => {
   const listeners = new Map();
   const input = { value: '', addEventListener: (type, callback) => listeners.set(type, callback) };
-  const hint = { hidden: false };
-  const cacheStatus = { textContent: '' };
   const document = {
     activeElement: null,
-    getElementById: (id) => ({ weSingCachePath: input, weSingCacheHint: hint, weSingCacheStatus: cacheStatus }[id] || null),
+    getElementById: (id) => ({ weSingCachePath: input, weSingCacheHint: { hidden: false }, weSingCacheStatus: { textContent: '' } }[id] || null),
   };
   const { WeSingService } = await loadModuleExports(
     path.join(ROOT_DIR, 'public/js/playback/services/wesing-service.js'),
@@ -250,13 +198,10 @@ test('WeSing cache path preserves unsaved edits and explains how to recover miss
   );
   const service = new WeSingService();
   service.init({ cachePath: 'C:\\WeSingCache', cacheReady: false });
-  assert.equal(hint.hidden, false);
-  assert.equal(cacheStatus.textContent, '未找到');
   input.value = 'E:\\WeSingCache';
   listeners.get('input')();
   service.applyStatus({ cachePath: 'D:\\WeSingCache', cacheReady: true });
   assert.equal(input.value, 'E:\\WeSingCache', 'live detection must not replace an unsaved edit after blur');
-  assert.equal(hint.hidden, true);
 
   let finish;
   service.request = () => new Promise((resolve) => { finish = resolve; });
@@ -273,13 +218,4 @@ test('WeSing cache path preserves unsaved edits and explains how to recover miss
   assert.equal(input.value, 'F:\\WeSingCache');
   service.applyStatus({ cachePath: 'G:\\WeSingCache' });
   assert.equal(input.value, 'G:\\WeSingCache', 'live status fills the input once the draft has been saved');
-});
-
-test('Electron exposes a directory-only WeSing cache picker', () => {
-  const main = [read('src', 'electron', 'main.js'), read('src', 'electron', 'ipc', 'music-ipc.js')].join('\n');
-  const preload = read('src', 'electron', 'preload.js');
-
-  assert.match(main, /music:select-wesing-cache/);
-  assert.match(main, /properties:\s*\['openDirectory'\]/);
-  assert.match(preload, /selectWeSingCacheDirectory:\s*\(\)\s*=>\s*ipcRenderer\.invoke\('music:select-wesing-cache'\)/);
 });

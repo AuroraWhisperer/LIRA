@@ -146,7 +146,7 @@
 | 源码基线复核 | 1,490 个源码/测试/页面/样式文件与读取时的摘要一致；本轮仅新增两份文档并修改报告索引 |
 | 最终差异检查 | `git diff --check` 通过；检查本次文档内容与 `git status --short`，原有改动保留 |
 
-**已有失败：** [ui-surface.test.js](../../test/ui/ui-surface.test.js#L40) 的 Toast 标题断言要求 `font-size: var(--type-size-card-title)`，当前 [toasts/system.css](../../public/css/admin/toasts/system.css#L101) 为 `calc(var(--type-size-card-title) + 2px)`。该 CSS 在任务开始就有未提交改动；测试与样式均与本轮源码基线一致。这是当前工作区已有不一致，没有为了审查变绿改测试或回退样式，不能据此推断应撤回用户的字号调整。
+**已有失败：** `test/ui/ui-surface.test.js:40` 的 Toast 标题断言要求 `font-size: var(--type-size-card-title)`，当前 [toasts/system.css](../../public/css/admin/toasts/system.css#L101) 为 `calc(var(--type-size-card-title) + 2px)`。该 CSS 在任务开始就有未提交改动；测试与样式均与本轮源码基线一致。这是当前工作区已有不一致，没有为了审查变绿改测试或回退样式，不能据此推断应撤回用户的字号调整。
 
 首组实际命令：
 

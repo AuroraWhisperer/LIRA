@@ -38,6 +38,7 @@ function stream() {
 
 function fixture(t, options = {}) {
   const updates = [];
+  const logs = [];
   const requests = [];
   const streams = [];
   const listeners = new Set();
@@ -45,7 +46,7 @@ function fixture(t, options = {}) {
   const tasks = new Map();
   let timerId = 0;
   let settingsReads = 0;
-  const identity = { authorized: true, streamerId: 7, epoch: 1, origin: 'https://api.example.test' };
+  const identity = { authorized: true, streamerId: 7, epoch: 1, generation: 1, origin: 'https://api.example.test' };
   const licenseManager = {
     isAuthorized: () => identity.authorized,
     getCloudSyncIdentity: () => {
@@ -55,6 +56,10 @@ function fixture(t, options = {}) {
     getAuthorizationEpoch: () => {
       assert.equal(identity.authorized, true);
       return identity.epoch;
+    },
+    getAuthorizationGeneration: () => {
+      assert.equal(identity.authorized, true);
+      return identity.generation;
     },
     getRemoteBaseUrl: () => identity.origin,
     getOverlaySettings: (requestOptions) => {
@@ -66,6 +71,7 @@ function fixture(t, options = {}) {
   };
   const controller = createSceneCloudController({
     licenseManager,
+    writeLog: (scope, data) => logs.push({ scope, ...data }),
     subscribeDemand(listener) {
       demandListeners.add(listener);
       listener(options.demanded !== false);
@@ -86,7 +92,7 @@ function fixture(t, options = {}) {
   });
   t.after(() => controller.stop());
   return {
-    controller, updates, requests, streams, identity, listeners, tasks, demandListeners,
+    controller, updates, logs, requests, streams, identity, listeners, tasks, demandListeners,
     demand(active) { for (const listener of demandListeners) listener(active); },
     get settingsReads() { return settingsReads; },
     events: () => updates.filter((update) => update.event).map((update) => update.event),
@@ -117,11 +123,11 @@ test('cloud ingress validates room guard snapshots and updates without requiring
 
 test('idle desktops make no upstream requests and active readers share one cancellable connection', async (t) => {
   const buffer = createCloudDisplayBuffer({ getOwner: () => ({
-    scope: '["https://api.example.test","7"]', epoch: env.identity.epoch,
+    scope: '["https://api.example.test","7"]', epoch: env.identity.generation,
   }) });
   const env = fixture(t, { demanded: false, onPublish: update => buffer.receive(update) });
   env.controller.start();
-  env.change({ epoch: 2 });
+  env.change({ epoch: 2, generation: 2 });
   await flush();
   assert.equal(env.settingsReads, 0);
   assert.equal(env.requests.length, 0);
@@ -176,6 +182,51 @@ test('demand ending during settings lookup discards the late result and cancels 
   env.demand(true);
   await flush();
   assert.equal(env.requests.length, 1, 'Demand cannot bypass authorization.');
+});
+
+test('token renewal without a state notification keeps the same message connection', async t => {
+  const env = fixture(t);
+  env.controller.start();
+  await flush();
+  const request = env.requests[0];
+  env.streams[0].send(state());
+  await flush();
+  env.identity.epoch += 1;
+  env.streams[0].send(gift());
+  await flush();
+  assert.equal(env.requests.length, 1);
+  assert.equal(request.init.signal.aborted, false);
+  assert.deepEqual(env.events(), [state(), gift()]);
+  assert.deepEqual(env.logs.map(entry => entry.event), ['connecting', 'connected']);
+});
+
+test('connection diagnostics separate idle, timeout, HTTP and protocol failures without logging secrets', async t => {
+  const idle = fixture(t);
+  idle.controller.start();
+  await flush();
+  idle.demand(false);
+  assert.equal(idle.logs.at(-1).reason, 'DISPLAY_IDLE');
+  assert.equal(idle.logs.some(entry => entry.scope === 'scene-cloud-error'), false);
+
+  const timedOut = fixture(t);
+  timedOut.controller.start();
+  await flush();
+  timedOut.fire(15000);
+  await flush();
+  assert.deepEqual(timedOut.logs.at(-1), { scope: 'scene-cloud-error', reason: 'INITIAL_STATE_TIMEOUT', retryDelayMs: 1000 });
+
+  const http = fixture(t, { fetchImpl: async () => new Response('PRIVATE HTTP BODY', { status: 503 }) });
+  http.controller.start();
+  await flush();
+  assert.deepEqual(http.logs.at(-1), { scope: 'scene-cloud-error', reason: 'HTTP_ERROR', retryDelayMs: 1000, status: 503 });
+
+  const invalid = fixture(t);
+  invalid.controller.start();
+  await flush();
+  invalid.streams[0].bytes(Buffer.from('event: overlay-event\ndata: PRIVATE JSON\n\n'));
+  await flush();
+  assert.equal(invalid.logs.at(-1).reason, 'INVALID_EVENT_JSON');
+  assert.doesNotMatch(JSON.stringify([idle.logs, timedOut.logs, http.logs, invalid.logs]), /PRIVATE|https:|token=|cookie/i);
 });
 
 test('one public connection preserves split UTF-8/CRLF events and strips non-display fields', async (t) => {
@@ -289,8 +340,8 @@ test('prismatic identity passes only official display fields without reusing an 
 });
 
 for (const patch of [
-  { onlineRank: 0 }, { onlineRank: 4 }, { onlineRank: '1' },
-  { honorLevel: 0 }, { honorLevel: Number.MAX_SAFE_INTEGER + 1 }, { roomGuardLevel: 4 },
+  { onlineRank: 4 }, { onlineRank: '1' },
+  { honorLevel: Number.MAX_SAFE_INTEGER + 1 }, { roomGuardLevel: 4 },
   { roomMedal: null },
   { roomMedal: { name: '粉丝团', level: 1, guardLevel: 3, isLight: 1 } },
   { roomMedal: { name: '粉丝团', level: 1, guardLevel: 3, isLight: true, colorStart: 'url(https://x.test)' } },
@@ -348,7 +399,6 @@ for (const [name, events] of [
   ['invalid purchased rank', [state(), { ...gift(), giftGuardLevel: 4 }]],
   ['invalid guard action', [state(), { ...gift(), giftGuardLevel: 3, guardAction: 'guess' }]],
   ['invalid companion days', [state(), { ...gift(), giftGuardLevel: 3, guardAccompanyDays: -1 }]],
-  ['fractional companion days', [state(), { ...gift(), giftGuardLevel: 3, guardAccompanyDays: 1.5 }]],
   ['guard metadata on ordinary gift', [state(), { ...gift(), guardAccompanyDays: 360 }]],
   ['raw SC ID', [state(), { type: 'superchat', liveSessionId: 'session-a', timestamp: TIMESTAMP,
     name: '留言人', message: '合成', price: 30, avatarUrl: '', messageId: '123' }]],
@@ -372,12 +422,12 @@ for (const [name, events] of [
   });
 }
 
-test('identity/server/authorization epoch changes abort old streams; logout clears and stops retries', async (t) => {
+test('identity/server/authorization lifecycle changes abort old streams; logout clears and stops retries', async (t) => {
   const env = fixture(t);
   env.controller.start();
   await flush();
   const epochs = new Set();
-  for (const patch of [{ streamerId: 8 }, { origin: 'https://other.example.test' }, { epoch: 2 }]) {
+  for (const patch of [{ streamerId: 8 }, { origin: 'https://other.example.test' }, { epoch: 2, generation: 2 }]) {
     const previous = env.streams.at(-1);
     previous.send(state());
     await flush();
@@ -398,7 +448,7 @@ test('identity/server/authorization epoch changes abort old streams; logout clea
   assert.deepEqual(Object.keys(env.updates.at(-1)).sort(), ['authorizationEpoch', 'connectionEpoch', 'ownerScope', 'status']);
   assert.equal(env.updates.at(-1).ownerScope, null);
   assert.equal(env.updates.at(-1).authorizationEpoch, null);
-  env.change({ authorized: true, epoch: 3 });
+  env.change({ authorized: true, epoch: 3, generation: 3 });
   await flush();
   assert.equal(env.requests.length, 5);
   env.change({});
@@ -412,7 +462,7 @@ test('late settings and fetch responses cannot publish into replacement accounts
   const response = new Promise((resolve) => { resolveResponse = resolve; });
   const env = fixture(t, { getSettings: () => settings, fetchImpl: () => response });
   env.controller.start();
-  env.change({ streamerId: 8, epoch: 2 });
+  env.change({ streamerId: 8, epoch: 2, generation: 2 });
   settings = Promise.resolve({ overlayUrl: OVERLAY_URL });
   resolveSettings({ overlayUrl: OVERLAY_URL });
   await flush();
@@ -476,6 +526,7 @@ test('retries use bounded backoff and stalled first-state/idle reads are aborted
   env.fire(45000);
   await flush();
   assert.equal(env.updates.at(-1).status, 'offline');
+  assert.equal(env.logs.at(-1).reason, 'HEARTBEAT_TIMEOUT');
   env.fire(1000);
   await flush();
   assert.equal(env.updates.at(-1).status, 'connecting');
@@ -495,6 +546,7 @@ for (const invalidUrl of [
     await flush();
     assert.equal(env.requests.length, 0);
     assert.equal(env.updates.at(-1).status, 'offline');
+    assert.equal(env.logs.at(-1).reason, 'INVALID_OVERLAY_URL');
     assert.equal(JSON.stringify(env.updates).includes('PRIVATE'), false);
   });
 }
@@ -528,7 +580,9 @@ test('network and stream failures never publish error messages or token URLs', a
   failed.controller.start();
   await flush();
   assert.equal(failed.updates.at(-1).status, 'offline');
-  assert.doesNotMatch(JSON.stringify([...env.updates, ...failed.updates]), /PRIVATE_FAILURE|abcdefghijklmnop|overlay\//);
+  assert.equal(env.logs.at(-1).reason, 'STREAM_READ_FAILED');
+  assert.equal(failed.logs.at(-1).reason, 'NETWORK_ERROR');
+  assert.doesNotMatch(JSON.stringify([...env.updates, ...failed.updates, ...env.logs, ...failed.logs]), /PRIVATE_FAILURE|abcdefghijklmnop|overlay\//);
 });
 
 test('UTF-8 oversized unfinished event is cancelled without delivery; many bounded events in one chunk succeed', async (t) => {
@@ -577,11 +631,11 @@ test('trusted owner canonicalizes origin and never reads identity/epoch while un
     isAuthorized: () => true,
     getCloudSyncIdentity: () => ({ streamerId: 7 }),
     getRemoteBaseUrl: () => 'https://API.example.test:443/',
-    getAuthorizationEpoch: () => 9,
+    getAuthorizationGeneration: () => 9,
   };
   assert.deepEqual(getSceneOwner(manager), { scope: '["https://api.example.test","7"]', epoch: 9 });
   manager.isAuthorized = () => false;
-  manager.getAuthorizationEpoch = () => assert.fail('unauthorized epoch read');
+  manager.getAuthorizationGeneration = () => assert.fail('unauthorized generation read');
   manager.getCloudSyncIdentity = () => assert.fail('unauthorized identity read');
   assert.equal(getSceneOwner(manager), null);
 });
@@ -589,7 +643,7 @@ test('trusted owner canonicalizes origin and never reads identity/epoch while un
 test('trusted owner fails closed during startup and for malformed license manager state', () => {
   const valid = {
     isAuthorized: () => true, getCloudSyncIdentity: () => ({ streamerId: '7' }),
-    getRemoteBaseUrl: () => 'https://api.example.test', getAuthorizationEpoch: () => 1,
+    getRemoteBaseUrl: () => 'https://api.example.test', getAuthorizationGeneration: () => 1,
   };
   for (const manager of [null, undefined, {}, { isAuthorized: true },
     { ...valid, isAuthorized: () => { throw new Error('startup'); } },
@@ -598,7 +652,7 @@ test('trusted owner fails closed during startup and for malformed license manage
     { ...valid, getCloudSyncIdentity: () => ({ streamerId: NaN }) },
     { ...valid, getRemoteBaseUrl: () => 'invalid' },
     { ...valid, getRemoteBaseUrl: () => 'https://user:secret@api.example.test' },
-    { ...valid, getAuthorizationEpoch: () => undefined },
+    { ...valid, getAuthorizationGeneration: () => undefined },
   ]) assert.equal(getSceneOwner(manager), null);
 });
 
@@ -699,7 +753,7 @@ test('publish DTO drives the real cloud buffer, resets on stop and never replays
 
 test('account replacement during a single received chunk cannot publish remaining old events', async (t) => {
   const env = fixture(t, { onPublish(update) {
-    if (update.event?.type === 'overlay-state') env.change({ streamerId: 8, epoch: 2 });
+    if (update.event?.type === 'overlay-state') env.change({ streamerId: 8, epoch: 2, generation: 2 });
   } });
   env.controller.start();
   await flush();

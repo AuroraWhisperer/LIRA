@@ -255,7 +255,7 @@ test('closing a preview rejects its in-flight preparation', async (t) => {
   await assert.rejects(pending, /取消/);
 });
 
-test('export IPC rejects remote pages, secondary windows and child frames', async () => {
+test('export channels use the shared source policy and cancel only when their owner navigates', async () => {
   const handlers = new Map();
   const frame = { url: 'http://127.0.0.1:3000/admin' };
   const contents = Object.assign(new (require('node:events').EventEmitter)(), { mainFrame: frame });
@@ -281,19 +281,19 @@ test('export IPC rejects remote pages, secondary windows and child frames', asyn
     getMainWindow: () => window,
     getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
   });
+  // The registrar owns the origin/frame matrix; every consumer channel must use it.
+  for (const [channel, invoke] of handlers) {
+    assert.equal((await invoke(undefined, {})).error, 'IPC_SOURCE_INVALID', channel);
+  }
+  assert.equal(called, 0);
   for (const channel of ['prepare', 'settings']) {
     const invoke = handlers.get(`gift-export:${channel}`);
-    frame.url = 'http://127.0.0.1:3000/admin';
     assert.equal((await invoke({ sender: contents, senderFrame: frame }, {})).ok, true);
-    for (const event of [
-      { sender: {}, senderFrame: frame },
-      { sender: contents, senderFrame: { ...frame } },
-    ])
-      assert.equal((await invoke(event, {})).error, 'IPC_SOURCE_INVALID');
-    frame.url = 'https://evil.invalid/admin';
-    assert.equal((await invoke({ sender: contents, senderFrame: frame }, {})).error, 'IPC_SOURCE_INVALID');
-    frame.url = 'http://127.0.0.1:3000/gift-export';
-    assert.equal((await invoke({ sender: contents, senderFrame: frame }, {})).error, 'IPC_SOURCE_INVALID');
+  }
+  for (const page of ['license', 'gift-export']) {
+    frame.url = `http://127.0.0.1:3000/${page}`;
+    assert.equal((await handlers.get('gift-export:prepare')({ sender: contents, senderFrame: frame }, {})).error,
+      'IPC_SOURCE_INVALID', page);
   }
   assert.equal(called, 2);
   contents.emit('did-start-navigation', {}, '/', true, true);

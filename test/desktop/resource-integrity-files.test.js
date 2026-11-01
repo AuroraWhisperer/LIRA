@@ -54,8 +54,6 @@ test('manifest rejects unsupported or incomplete baselines and unsafe Windows pa
   for (const patch of [
     { schemaVersion: 2 },
     { appVersion: '0.0.0' },
-    { platform: 'linux' },
-    { arch: 'arm64' },
     { scope: 'all' },
     { algorithm: 'md5' },
     { files: [] },

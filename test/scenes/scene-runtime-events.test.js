@@ -130,6 +130,7 @@ test('cloud demand follows display reads, leaves other scenes idle and expires a
   runtime.subscribeCloudDemand(active => changes.push(active));
   const clock = publish(runtime, 'clock');
   runtime.service.getOutput(clock);
+  runtime.events.open(response(), clock, () => 200);
   assert.deepEqual(changes, [false]);
   runtime.readDanmakuDisplay({});
   runtime.readDanmakuDisplay({});
@@ -143,6 +144,36 @@ test('cloud demand follows display reads, leaves other scenes idle and expires a
   runtime.dispose();
   assert.deepEqual(changes, [false, true, false, true, false]);
 });
+
+for (const mode of ['standalone', 'scene']) {
+  test(`${mode} notification heartbeats retain cloud demand when page reads pause`, t => {
+    t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'] });
+    const { runtime } = fixture(t);
+    const changes = [];
+    runtime.subscribeCloudDemand(active => changes.push(active));
+    const res = response();
+    if (mode === 'standalone') runtime.danmakuEvents.open(res, { id: 'danmaku' }, () => 200);
+    else {
+      const created = runtime.service.create({ title: '仍在使用的弹幕', canvas: { width: 1280, height: 720 } });
+      const saved = runtime.service.save({ id: created.document.id, expectedRevision: created.revision,
+        document: { ...created.document, items: [{ id: randomUUID(), type: 'danmaku', name: '弹幕',
+          x: 0, y: 0, width: 640, height: 400, visible: true, locked: false,
+          appearance: { mode: 'independent', config: { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null } } }] } });
+      runtime.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+      runtime.events.open(res, runtime.service.getSource(created.document.id), () => 200);
+    }
+    runtime.readDanmakuDisplay({});
+    for (let seconds = 0; seconds < 60; seconds++) t.mock.timers.tick(1000);
+    assert.equal(res.writableEnded, false);
+    assert.equal(res.writes.at(-1), ': heartbeat\n\n');
+    assert.deepEqual(changes, [false, true]);
+    res.end();
+    t.mock.timers.tick(14999);
+    assert.deepEqual(changes, [false, true]);
+    t.mock.timers.tick(1);
+    assert.deepEqual(changes, [false, true, false]);
+  });
+}
 
 test('saved overlay settings remain available without a live connection and reject old owners', t => {
   const { runtime, state } = fixture(t);

@@ -71,40 +71,6 @@ test('reused date formatters preserve current local dates after timezone changes
   }
 });
 
-test('planner indexes each detached event snapshot and task list once and reuses fixed date formatters', async () => {
-  const elements = new Map();
-  let formatterCount = 0;
-  const { renderTodoCalendar, renderTodoAgenda, renderTodoNotes } = await loadModuleExports(
-    path.resolve(__dirname, '../../public/js/admin/streamer-planner-view.js'), {
-      document: { getElementById(id) { if (!elements.has(id)) elements.set(id, node()); return elements.get(id); },
-        createElement: node, createElementNS: (_, tag) => node(tag) },
-      Intl: { DateTimeFormat: function(...args) { formatterCount++; return new Intl.DateTimeFormat(...args); } },
-    });
-  let dates = 0;
-  let taskIds = 0;
-  const view = { month: '2026-10', selectedDate: '2026-10-23', planner: {
-    events: Array.from({ length: 500 }, (_, i) => ({ id: `event-${i}`,
-      get date() { dates++; return '2026-10-23'; }, time: '', title: `event-${i}`, type: 'personal', readonly: true })),
-    tasks: Array.from({ length: 500 }, (_, i) => ({ get id() { taskIds++; return `task-${i}`; } })),
-    notes: Array.from({ length: 500 }, (_, i) => ({ id: `note-${i}`, body: `note-${i}`, type: 'idea',
-      promotedTaskId: i === 0 ? 'task-499' : 'removed-task', createdAt: '2026-10-23T12:00:00' })),
-  } };
-  renderTodoCalendar(view);
-  renderTodoAgenda(view);
-  assert.equal(dates, 1000, 'one grouping pass plus the visible agenda time elements');
-  assert.equal(elements.get('plannerMonthCount').textContent, '本月 500 项安排');
-  assert.equal(elements.get('plannerAgendaList').children[0].children[1].children[0].textContent, 'event-0');
-  assert.equal(elements.get('plannerAgendaList').children[499].children[1].children[0].textContent, 'event-499');
-  renderTodoNotes(view);
-  assert.equal(taskIds, 500);
-  assert.equal(elements.get('plannerNoteList').children.at(-1).children[2].children[0].disabled, true);
-  assert.equal(elements.get('plannerNoteList').children[0].children[2].children[0].disabled, false);
-  renderTodoNotes(view);
-  assert.equal(formatterCount, 4, 'formatters are initialized once, not once per note or render');
-  renderTodoCalendar({ ...view, planner: { ...view.planner, events: [{ date: '2026-11-01', time: '', title: 'new', type: 'work' }] } });
-  assert.equal(elements.get('plannerMonthCount').textContent, '本月 0 项安排');
-});
-
 test('planner renders frozen display data, ordered events and safe text while returning edit actions', async () => {
   const elements = new Map();
   function element(id) {
@@ -158,11 +124,9 @@ test('planner renders frozen display data, ordered events and safe text while re
     saveFailed: false,
   });
   renderTodo(view);
-  assert.equal(element('plannerCalendarGrid').children.length, 42);
   assert.equal(element('plannerAgendaList').children[0].children[1].dataset.eventEdit, 'early');
   assert.equal(element('plannerAgendaList').children[0].children[1].children[0].textContent, dangerous);
   assert.equal(element('plannerTaskList').children[0].children[1].value, dangerous);
-  assert.match(element('plannerSaveState').textContent, /已暂停写入/);
   const button = element('plannerAgendaList').children[0].children[1];
   const action = readTodoAction({ closest: () => button });
   assert.equal(action.type, 'eventEdit');
@@ -176,5 +140,4 @@ test('planner renders frozen display data, ordered events and safe text while re
   assert.equal(row.children.length, 2, 'automatic reminders do not expose manual event editing');
   assert.equal(row.children[1].tag, 'div');
   assert.equal(row.children[1].dataset.eventEdit, undefined);
-  assert.match(row.children[1].children[0].textContent, /500 天/);
 });

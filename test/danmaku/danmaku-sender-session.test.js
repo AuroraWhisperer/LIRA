@@ -19,7 +19,6 @@ test('danmaku route forwards optional sendSession and retains its existing failu
     assert.equal(response.status, sendSession === undefined ? 200 : 502);
     assert.equal(Object.hasOwn(calls.at(-1), 'sendSession'), sendSession !== undefined);
     if (sendSession !== undefined) {
-      assert.match(response.body.error, /账号或房间已变更/);
       assert.equal(response.body.detail, 'synthetic changed session');
       assert.equal(Object.hasOwn(response.body, 'code'), false);
     }

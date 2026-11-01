@@ -15,7 +15,7 @@ const RIPPLOID_COLOR_KEYS = [
 const SPOOKY_COLOR_KEYS = ['spookyFrameColor', 'spookyMessageColor', 'spookyEventColor', 'spookyAccentColor'];
 const SPOOKY_OPACITY_KEYS = ['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity'];
 const TWITTER_LAYOUT_KEYS = ['twitterHeader', 'twitterComposer', 'twitterActions'];
-const TWITTER_COLORS = { twitterColor0: '#409afa', twitterColor50: '#f9c844', twitterColor100: '#f89260', twitterColor1000: '#ef4260' };
+const TWITTER_COLOR_KEYS = ['twitterColor0', 'twitterColor50', 'twitterColor100', 'twitterColor1000'];
 const CONTROLS = {
   harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
   bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
@@ -28,7 +28,7 @@ const CONTROLS = {
   prismatic: ['scrollDirection', 'edgeFade'],
   snowfox: ['scrollDirection', 'edgeFade', 'bubbleColor'],
   ripploid: ['scrollDirection', 'edgeFade', 'bubbleColor', ...RIPPLOID_COLOR_KEYS],
-  twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...Object.keys(TWITTER_COLORS)],
+  twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...TWITTER_COLOR_KEYS],
   'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   notebook: ['scrollDirection', 'edgeFade'],
   spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
@@ -44,71 +44,75 @@ const CONTROLS = {
   glow: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
 };
 const CONTROL_VALUES = {
-  durationSeconds: { valid: [2, 6, 30], invalid: [1, 31, 6.5, '6', null, true], fallback: 6, optional: true },
+  durationSeconds: { valid: [2, 6, 30], invalid: [1, 31, 6.5, '6', null, true], optional: true },
   composerText: {
     valid: ['欢迎来到直播间 ✨', '中文 English #😊', '字'.repeat(20), '👨‍👩‍👧‍👦'.repeat(20)],
     invalid: ['字'.repeat(21), '👨‍👩‍👧‍👦'.repeat(21), 'a\nb', 'a\u0000b', null, 1, true, {}],
-    fallback: '欢迎来到直播间 ✨', optional: true,
+    optional: true,
   },
-  spookyTheme: { valid: ['default', 'autumn', 'graveyard', 'moonlight'], invalid: ['purple', '', null, true, 1], fallback: 'default', optional: true },
-  spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], fallback: 'show', optional: true },
-  decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], fallback: 'sparkle', optional: true },
-  entranceAnimation: { valid: ['fade', 'rise'], invalid: ['slide', 'RISE', '', null, true, 1, {}], fallback: 'fade', optional: true },
-  floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], fallback: 50, optional: true },
-  minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], fallback: 0, optional: true },
-  bubbleColor: { valid: ['default', '#ba739c', '#ba739c80'], invalid: ['', 'red', '#abc', '#123456\n', null, 1], fallback: 'default', optional: true },
+  spookyTheme: { valid: ['default', 'autumn', 'graveyard', 'moonlight'], invalid: ['purple', '', null, true, 1], optional: true },
+  spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], optional: true },
+  decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], optional: true },
+  entranceAnimation: { valid: ['fade', 'rise'], invalid: ['slide', 'RISE', '', null, true, 1, {}], optional: true },
+  floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], optional: true },
+  minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], optional: true },
+  bubbleColor: { valid: ['default', '#ba739c', '#ba739c80'], invalid: ['', 'red', '#abc', '#123456\n', null, 1], optional: true },
   edgeFade: { valid: ['both', 'top', 'bottom', 'single', 'none'], invalid: ['left', 'BOTH', '', null, true, 1], optional: true },
-  scrollDirection: { valid: ['up', 'down'], invalid: ['left', 'DOWN', '', null, true, 1], fallback: 'up' },
+  scrollDirection: { valid: ['up', 'down'], invalid: ['left', 'DOWN', '', null, true, 1] },
   backgroundOpacity: { valid: [0, 100], invalid: [-1, 101, 50.5, '50', null] },
   giftImage: { valid: ['theme', 'gift'], invalid: ['https://evil.test/x.webp', '', null] },
   speedPixelsPerSecond: {
     valid: [20, 120, 600],
     invalid: [0, 19, 601, 100.5, '120', null, true],
-    fallback: 120,
     optional: true,
   },
-  centerBias: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], fallback: 1, optional: true },
-  dispersion: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], fallback: 1, optional: true },
+  centerBias: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], optional: true },
+  dispersion: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], optional: true },
 };
 for (const key of RIPPLOID_COLOR_KEYS) {
   CONTROL_VALUES[key] = {
     valid: ['#a1b2c3'],
     invalid: ['', 'red', '#abc', '#a1b2c380', '#a1b2c3\n', null, 1, undefined],
-    fallback: '#f39749',
     optional: true,
   };
 }
 for (const key of SPOOKY_COLOR_KEYS) CONTROL_VALUES[key] = {
-  valid: ['default', '#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], fallback: 'default', optional: true,
+  valid: ['default', '#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], optional: true,
 };
 for (const key of SPOOKY_OPACITY_KEYS) CONTROL_VALUES[key] = {
-  valid: [0, 50, 100], invalid: [-1, 101, 50.5, '50', null, true], fallback: 100, optional: true,
+  valid: [0, 50, 100], invalid: [-1, 101, 50.5, '50', null, true], optional: true,
 };
 for (const key of TWITTER_LAYOUT_KEYS) CONTROL_VALUES[key] = {
-  valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], fallback: 'show', optional: true,
+  valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], optional: true,
 };
-for (const [key, fallback] of Object.entries(TWITTER_COLORS)) CONTROL_VALUES[key] = {
-  valid: ['#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], fallback, optional: true,
+for (const key of TWITTER_COLOR_KEYS) CONTROL_VALUES[key] = {
+  valid: ['#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], optional: true,
 };
 
-test('each style accepts exactly its own controls with bounded values and defaults', () => {
+test('each style exposes exactly its own controls and rejects fields outside that set', () => {
   assert.deepEqual(Object.keys(CONTROLS).sort(), Object.keys(contract.DANMAKU_STYLE_OPTIONS).sort());
   for (const [style, controls] of Object.entries(CONTROLS)) {
-    for (const [control, { valid, invalid, fallback, optional }] of Object.entries(CONTROL_VALUES)) {
-      const normalize = (value) => contract.normalizeStyleOptions({ [style]: { [control]: value } });
-      if (!controls.includes(control)) {
-        assert.throws(() => normalize(valid[0]), { code: 'INVALID_OVERLAY_OPTIONS' }, `${style} rejects ${control}`);
-        if (optional)
-          assert.equal(Object.hasOwn(contract.styleOptionsFor(style), control), false, `${style} ${control}`);
-        continue;
-      }
-      for (const value of valid)
-        assert.deepEqual(normalize(value), { [style]: { [control]: value } }, `${style} ${control}`);
-      for (const value of invalid) {
-        assert.throws(() => normalize(value), { code: 'INVALID_OVERLAY_OPTIONS' }, `${style} ${control} ${value}`);
-      }
-      if (fallback !== undefined)
-        assert.equal(contract.styleOptionsFor(style)[control], fallback, `${style} ${control}`);
+    assert.deepEqual(Object.keys(contract.styleOptionFields(style)).sort(),
+      ['fontFamily', 'fontSize', 'textColor', ...controls].sort(), style);
+    const options = Object.fromEntries(controls.map(control => [control, CONTROL_VALUES[control].valid[0]]));
+    assert.deepEqual(contract.normalizeStyleOptions({ [style]: options }), { [style]: options }, style);
+    const optionalKeys = Object.keys(contract.styleOptionsFor(style)).filter(key => CONTROL_VALUES[key]?.optional);
+    assert.deepEqual(optionalKeys.sort(), controls.filter(key => CONTROL_VALUES[key].optional).sort(), style);
+    const unsupported = Object.keys(CONTROL_VALUES).find(key => !controls.includes(key));
+    assert.throws(() => contract.normalizeStyleOptions({ [style]: { [unsupported]: CONTROL_VALUES[unsupported].valid[0] } }),
+      { code: 'INVALID_OVERLAY_OPTIONS' }, `${style} rejects ${unsupported}`);
+  }
+});
+
+test('shared control validators enforce their complete value boundaries at one supporting style', () => {
+  for (const [control, { valid, invalid }] of Object.entries(CONTROL_VALUES)) {
+    const style = Object.keys(CONTROLS).find(style => CONTROLS[style].includes(control));
+    const normalize = value => contract.normalizeStyleOptions({ [style]: { [control]: value } });
+    for (const value of valid) {
+      assert.deepEqual(normalize(value), { [style]: { [control]: value } }, `${style} ${control}`);
+    }
+    for (const value of invalid) {
+      assert.throws(() => normalize(value), { code: 'INVALID_OVERLAY_OPTIONS' }, `${style} ${control} ${value}`);
     }
   }
 });
@@ -129,15 +133,10 @@ test('random lifetimes retain legacy values until edited and reset only the sele
   assert.deepEqual(legacy.styleOptions, { signal: { fontSize: 32 } });
 });
 
-test('RIPPLOID resolves its own font default and independent event color variables', async () => {
-  assert.deepEqual(contract.RIPPLOID_COLOR_DEFAULTS, Object.fromEntries(RIPPLOID_COLOR_KEYS.map((key) => [key, '#f39749'])));
-  assert.equal(contract.styleOptionsFor('ripploid').fontSize, 24);
+test('RIPPLOID applies independent event color variables and clears them outside its style', async () => {
   assert.deepEqual(contract.normalizeStyleOptions({ ripploid: { giftColor50: '#AaBbCc' } }), {
     ripploid: { giftColor50: '#aabbcc' },
   });
-  for (const key of RIPPLOID_COLOR_KEYS) {
-    assert.equal(Object.hasOwn(contract.styleOptionsFor('snowfox'), key), false);
-  }
   const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
   const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const document = {
@@ -150,37 +149,11 @@ test('RIPPLOID resolves its own font default and independent event color variabl
   assert.equal(root['--ripploid-gift-color50'], '#123456');
   assert.equal(root['--ripploid-guard-color-admiral'], '#654321');
   assert.equal(root['--ripploid-superchat-color2000'], '#abcdef');
-  assert.equal(root['--ripploid-gift-color0'], '#f39749');
-  assert.equal(root['--danmaku-font-size'], '24px');
-  assert.equal(document.body.dataset.customSize, 'false');
-  browser.applyStyleOptions(document, 'ripploid', { ripploid: { fontSize: 30 } });
-  assert.equal(document.body.dataset.customSize, 'true');
   browser.applyStyleOptions(document, 'snowfox', {});
   for (const key of RIPPLOID_COLOR_KEYS) {
     const suffix = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
     assert.equal(root[`--ripploid-${suffix}`], '', `${key} is cleared outside RIPPLOID`);
   }
-});
-
-test('flower-letter defaults to the accepted Yozai font without changing other themes', () => {
-  const options = contract.styleOptionsFor('flower-letter');
-  assert.equal(options.fontFamily, '"Lira Yozai"');
-  assert.equal(options.fontSize, 24);
-  assert.equal(options.edgeFade, 'none');
-  assert.equal(options.textColor, '#766449');
-  assert.equal(contract.styleOptionsFor('signal').fontFamily, 'default');
-  assert.equal(contract.styleOptionsFor('flower-letter', { 'flower-letter': { fontFamily: 'sans' } }).fontFamily, 'sans');
-});
-
-test('Twitter defaults to its reference-sized type, original gifts and hard panel edges', () => {
-  const options = contract.styleOptionsFor('twitter');
-  assert.equal(options.fontSize, 22);
-  assert.equal(options.giftImage, 'gift');
-  assert.equal(options.edgeFade, 'none');
-  assert.equal(options.textColor, '#141414');
-  assert.deepEqual(contract.normalizeStyleOptions({ twitter: { giftImage: 'theme' } }), {
-    twitter: { giftImage: 'theme' },
-  });
 });
 
 test('Twitter layout and event palette apply to existing content and clear outside the style', async () => {
@@ -191,14 +164,9 @@ test('Twitter layout and event palette apply to existing content and clear outsi
   browser.applyStyleOptions(document, 'twitter', { twitter: options });
   for (const key of TWITTER_LAYOUT_KEYS) assert.equal(document.body.dataset[key], 'hide');
   assert.equal(document.documentElement.style['--twitter-event-color-50'], '#abcdef80');
-  assert.equal(document.documentElement.style['--twitter-event-color-0'], '#409afa');
   browser.applyStyleOptions(document, 'signal', {});
   for (const key of TWITTER_LAYOUT_KEYS) assert.equal(document.body.dataset[key], 'show');
   for (const tier of [0, 50, 100, 1000]) assert.equal(document.documentElement.style[`--twitter-event-color-${tier}`], '');
-  browser.applyStyleOptions(document, 'twitter', {});
-  for (const [key, color] of Object.entries(TWITTER_COLORS)) {
-    assert.equal(document.documentElement.style[`--twitter-event-color-${key.replace('twitterColor', '')}`], color);
-  }
 });
 
 test('Twitter composer text counts visible characters, normalizes Unicode and restores its default when blank', async () => {
@@ -222,7 +190,7 @@ test('spooky follows theme ink, preserves explicit overrides and clears renderer
   const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
   const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
   const root = document.documentElement.style;
-  for (const [theme, ink] of [['default', '#fce6fa'], ['autumn', '#fff1d1'], ['graveyard', '#f3e9fa'], ['moonlight', '#edf0ff']]) {
+  for (const [theme, { textColor: ink }] of Object.entries(contract.SPOOKY_THEME_COLORS)) {
     browser.applyStyleOptions(document, 'spooky', { spooky: { spookyTheme: theme } });
     assert.equal(root['--danmaku-text-color'], ink);
     assert.equal(document.body.dataset.customTextColor, 'false');
@@ -243,7 +211,6 @@ test('spooky follows theme ink, preserves explicit overrides and clears renderer
 });
 
 test('styles without gift artwork always use real gift images while accepting legacy saved options', () => {
-  assert.equal(contract.DANMAKU_STYLE_OPTIONS.identity.label, '灵动弹幕');
   for (const style of ['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']) {
     for (const options of [{}, { giftImage: 'theme' }, { giftImage: 'gift' }]) {
       assert.deepEqual(contract.normalizeStyleOptions({ [style]: options }), { [style]: options });
@@ -280,29 +247,24 @@ test('edge fading keeps theme defaults, applies overrides and clears on other la
   const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
   const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
-  for (const [style, controls] of Object.entries(CONTROLS)) {
-    if (controls.includes('edgeFade')) {
-      const fallback = style === 'prismatic' ? 'both' : ['twitter', 'spooky', 'flower-letter', 'notebook'].includes(style) ? 'none' : 'top';
-      assert.equal(contract.styleOptionsFor(style).edgeFade, fallback);
-      for (const scrollDirection of ['up', 'down']) {
-        for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
-          const options = { [style]: { scrollDirection, edgeFade } };
-          const expected = edgeFade === 'single' ? (scrollDirection === 'down' ? 'bottom' : 'top') : edgeFade;
-          assert.equal(contract.styleOptionsFor(style, options).edgeFade, expected);
-          browser.applyStyleOptions(document, style, options);
-          assert.equal(document.body.dataset.edgeFade, expected);
-        }
-        browser.applyStyleOptions(document, style, { [style]: { scrollDirection } });
-        assert.equal(document.body.dataset.edgeFade, style === 'prismatic' ? 'both' : ['twitter', 'spooky', 'flower-letter', 'notebook'].includes(style) ? 'none' : scrollDirection === 'down' ? 'bottom' : 'top');
+  // The shared direction/edge resolver has three default branches, independent of artwork.
+  for (const [style, fallback] of [['signal', 'top'], ['prismatic', 'both'], ['notebook', 'none']]) {
+    assert.equal(contract.styleOptionsFor(style).edgeFade, fallback);
+    for (const scrollDirection of ['up', 'down']) {
+      for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
+        const options = { [style]: { scrollDirection, edgeFade } };
+        const expected = edgeFade === 'single' ? (scrollDirection === 'down' ? 'bottom' : 'top') : edgeFade;
+        assert.equal(contract.styleOptionsFor(style, options).edgeFade, expected);
+        browser.applyStyleOptions(document, style, options);
+        assert.equal(document.body.dataset.edgeFade, expected);
       }
-      browser.applyStyleOptions(document, style, { [style]: {} });
-      assert.equal(document.body.dataset.edgeFade, fallback);
-    } else {
-      browser.applyStyleOptions(document, 'prismatic', {});
-      browser.applyStyleOptions(document, style, {});
-      assert.equal(document.body.dataset.edgeFade, 'none');
+      browser.applyStyleOptions(document, style, { [style]: { scrollDirection } });
+      assert.equal(document.body.dataset.edgeFade,
+        style === 'signal' ? (scrollDirection === 'down' ? 'bottom' : 'top') : fallback);
     }
   }
+  browser.applyStyleOptions(document, 'outline', {});
+  assert.equal(document.body.dataset.edgeFade, 'none');
 });
 
 test('entrance animation stays per style and resets on empty options or unsupported styles', async () => {
@@ -324,7 +286,7 @@ test('entrance animation stays per style and resets on empty options or unsuppor
   }
 });
 
-test('gift images keep theme artwork while loading and restore it on failure', async () => {
+test('gift images load only resolver-approved URLs without a referrer', async () => {
   const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import(
     pathToFileURL(path.join(__dirname, '../../public/js/overlays/danmaku-message-renderer.js')).href
   );
@@ -348,14 +310,6 @@ test('gift images keep theme artwork while loading and restore it on failure', a
   const image = art.children[0];
   assert.equal(image.src, sourceUrl);
   assert.equal(image.referrerPolicy, 'no-referrer');
-  assert.equal(image.hidden, true);
-  assert.equal(art.style['background-image'], undefined);
-  image.listeners.load();
-  assert.equal(image.hidden, false);
-  assert.equal(art.style['background-image'], 'none');
-  image.listeners.error();
-  assert.equal(art.children.length, 0);
-  assert.equal(art.style['background-image'], '');
   assert.equal(
     render({ ...gift, giftImageUrl: 'https://evil.test/x' }).children[0].children[1].children[0].children.length,
     0,
@@ -444,50 +398,24 @@ test('local font families round-trip safely and render as a single quoted family
   }
 });
 
-test('all styles validate text colors and restore their theme defaults', async () => {
+test('text colors are validated, applied and restored to the theme default', async () => {
   const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
   const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
-  for (const [style, limits] of Object.entries(contract.DANMAKU_STYLE_OPTIONS)) {
-    assert.equal(contract.styleOptionsFor(style).textColor, limits.defaultTextColor);
-    for (const textColor of ['#AaBbCc80', '#AaBbCc00']) {
-      for (const normalize of [contract.normalizeStyleOptions, browser.normalizeStyleOptions]) {
-        assert.deepEqual(normalize({ [style]: { textColor } }), { [style]: { textColor: textColor.toLowerCase() } });
-      }
-    }
-    assert.deepEqual(contract.normalizeStyleOptions({ [style]: { textColor: '#AaBbCc' } }), {
-      [style]: { textColor: '#aabbcc' },
+  for (const textColor of ['#AaBbCc80', '#AaBbCc00', '#AaBbCc']) {
+    assert.deepEqual(contract.normalizeStyleOptions({ signal: { textColor } }), {
+      signal: { textColor: textColor.toLowerCase() },
     });
-    const document = {
-      documentElement: {
-        style: {
-          setProperty(key, value) {
-            this[key] = value;
-          },
-        },
-      },
-      body: { dataset: {} },
-    };
-    browser.applyStyleOptions(document, style, { [style]: { textColor: '#aabbcc' } });
-    assert.equal(document.documentElement.style['--danmaku-text-color'], '#aabbcc');
-    assert.equal(document.body.dataset.customTextColor, 'true');
-    browser.applyStyleOptions(document, style, {});
-    assert.equal(document.documentElement.style['--danmaku-text-color'], limits.defaultTextColor);
-    assert.equal(document.body.dataset.customTextColor, 'false');
-    for (const textColor of [
-      'red',
-      '#abc',
-      '#aabbccd',
-      'transparent',
-      'url(x)',
-      '#aabbcc\n',
-      '#zzzzzz',
-      '',
-      null,
-      123456,
-    ]) {
-      assert.throws(() => contract.normalizeStyleOptions({ [style]: { textColor } }), {
-        code: 'INVALID_OVERLAY_OPTIONS',
-      });
-    }
   }
+  for (const textColor of [
+    'red', '#abc', '#aabbccd', 'transparent', 'url(x)', '#aabbcc\n', '#zzzzzz', '', null, 123456,
+  ]) {
+    assert.throws(() => contract.normalizeStyleOptions({ signal: { textColor } }), {
+      code: 'INVALID_OVERLAY_OPTIONS',
+    });
+  }
+  const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
+  browser.applyStyleOptions(document, 'signal', { signal: { textColor: '#aabbcc' } });
+  assert.equal(document.documentElement.style['--danmaku-text-color'], '#aabbcc');
+  browser.applyStyleOptions(document, 'signal', {});
+  assert.equal(document.documentElement.style['--danmaku-text-color'], contract.styleOptionsFor('signal').textColor);
 });

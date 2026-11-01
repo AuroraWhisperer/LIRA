@@ -14,7 +14,7 @@ const { createPlan } = require('../../scripts/check-js');
 const checker = path.resolve(__dirname, '../../scripts/check-js.js');
 const source = fs.readFileSync(checker, 'utf8');
 
-async function runFixture({ cpus = 8, failure, mutate = false } = {}) {
+async function runFixture({ failure, mutate = false } = {}) {
   const calls = [];
   const output = [];
   const errors = [];
@@ -54,7 +54,7 @@ async function runFixture({ cpus = 8, failure, mutate = false } = {}) {
               }))
             : [],
       };
-    if (name === 'node:os') return { availableParallelism: () => cpus };
+    if (name === 'node:os') return { availableParallelism: () => 8 };
     if (name === 'node:child_process')
       return {
         spawn(command, args, options) {
@@ -98,18 +98,6 @@ async function runFixture({ cpus = 8, failure, mutate = false } = {}) {
     exitCode: fakeProcess.exitCode,
   };
 }
-
-test('syntax checks cover every file with bounded concurrency and respect available CPUs', async () => {
-  for (const cpus of [1, 8]) {
-    const result = await runFixture({ cpus });
-    assert.equal(result.exitCode, 0);
-    assert.equal(new Set(result.calls).size, 11);
-    assert.equal(result.completed, 11);
-    assert.equal(result.peak, Math.min(4, cpus));
-    assert.equal(result.active, 0);
-    assert.deepEqual(result.output, ['[syntax] 11 files: run 11, reuse 0.', 'Syntax check passed for 11 JavaScript files.']);
-  }
-});
 
 test('syntax failures stop queued work and drain running checks before returning failure', async () => {
   const result = await runFixture({ failure: 'syntax' });

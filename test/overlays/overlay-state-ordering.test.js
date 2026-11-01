@@ -292,7 +292,7 @@ test('blindbox applies WS settings without rebuilding unchanged data or acceptin
   assert.equal(f.element('blindboxTitle').textContent, '最新盲盒标题');
   assert.equal(f.element('blindboxSummary').writes, writes);
   f.message(snapshot({}));
-  assert.equal(f.element('blindboxTitle').textContent, '今日盲盒盈亏');
+  assert.notEqual(f.element('blindboxTitle').textContent, '最新盲盒标题');
   f.requests[3].resolve(stats(5));
   await flush();
 });

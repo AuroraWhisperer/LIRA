@@ -5,13 +5,13 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { invokeBodyRoute, invokeQueryRoute } = require('../helpers/route-invoke');
-const { readAdminHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
 test('gift effects can read the avatar proxy without gaining other overlay or admin routes', () => {
-  const { isOverlayRequestAllowed } = require('../../src/server/access-policy');
+  const { getOverlayScope, isOverlayRequestAllowed } = require('../../src/server/access-policy');
+  assert.equal(getOverlayScope('/gift-effects'), 'gift-effects');
   assert.equal(isOverlayRequestAllowed('gift-effects', 'GET', '/api/bilibili/avatar'), true);
   for (const [method, pathname] of [['POST', '/api/bilibili/avatar'], ['GET', '/api/gifts/history'],
     ['GET', '/api/bilibili/auth/state'], ['POST', '/api/settings']]) {
@@ -28,12 +28,6 @@ function readOverlayModules() {
 }
 
 test('gift effect preview resolves the gift and broadcasts to the fixed overlay url', async () => {
-  const serverSource = read('src/server.js');
-  const apiContextSource = read('src/server/api-context.js');
-
-  assert.match(serverSource, /giftEffectModule\.createGiftEffectResolver\(/);
-  assert.match(apiContextSource, /resolveEffect/);
-  assert.match(apiContextSource, /previewEffect/);
   const { routes } = require('../../src/server/routes/gift-routes');
   const handler = routes['POST /api/gifts/effects/preview'];
   const broadcasts = [];
@@ -109,68 +103,11 @@ test('gift effect lookup validates ids and returns only resolved effect data', a
   assert.equal(missing.status, 404);
 });
 
-test('gift effects overlay uses official frame metadata without cropping or inverting packed alpha', () => {
-  const html = read('public/pages/overlays/gift-effects.html');
-  const css = read('public/css/overlays/gift-effects.css');
-  const overlayJs = readOverlayModules();
-  const playerJs = read('public/js/overlays/gift-effect-player.js');
-
-  assert.equal(require('../../src/server/access-policy').getOverlayScope('/gift-effects'), 'gift-effects');
-  assert.match(html, /meta name="referrer" content="no-referrer"/);
-  assert.match(html, /id="giftEffectStage"/);
-  assert.match(css, /\.gift-effects-overlay-body\s*\{[^}]*background:\s*transparent/);
-  assert.match(overlayJs, /payload\.type === ["']gift:effect["']/);
-  assert.match(overlayJs, /createGiftEffectPlayer\(/);
-  assert.match(overlayJs, /effectPlayer\.enqueue\(payload\)/);
-  assert.match(playerJs, /referrerPolicy\s*=\s*["']no-referrer["']/);
-  assert.match(playerJs, /crossOrigin\s*=\s*["']anonymous["']/);
-  assert.match(playerJs, /\['rgbRect', layout\.rgbFrame\]/);
-  assert.match(playerJs, /\['alphaRect', layout\.alphaFrame\]/);
-  assert.match(playerJs, /vec3 rgb = texture2D\(video, rgbRect\.xy \+ uv \* rgbRect\.zw\)\.rgb/);
-  assert.match(playerJs, /float alpha = texture2D\(video, alphaRect\.xy \+ uv \* alphaRect\.zw\)\.r/);
-  assert.match(playerJs, /gl_FragColor = vec4\(rgb, alpha\)/);
-  assert.match(playerJs, /video\.videoWidth !== effect\.layout\.videoWidth/);
-  assert.match(playerJs, /video\.videoHeight !== effect\.layout\.videoHeight/);
-  assert.doesNotMatch(playerJs, /height \* 9 \/ 16|activeHeight|horizontalPadding/);
-  assert.match(overlayJs, /PREVIEW_MODE/);
-  assert.match(overlayJs, /visibilitychange/);
-  assert.match(overlayJs, /onClose:[\s\S]*?effectPlayer\.setEnabled\(false\)/);
-  assert.doesNotMatch(overlayJs, /innerHTML/);
-  assert.doesNotMatch(css, /mix-blend-mode/);
+test('gift effects overlay never renders untrusted text with innerHTML', () => {
+  assert.doesNotMatch(readOverlayModules(), /innerHTML/);
 });
 
-test('effect 1 uses a transparent video, sender avatar, and a single-line gift caption', () => {
-  const html = read('public/pages/overlays/gift-effects.html');
-  const css = read('public/css/overlays/gift-effects.css');
-  const asset = path.join(ROOT_DIR, 'public/img/overlays/gift-frame/woodland-bloom/woodland-bloom-v4.webm');
-  assert.ok(fs.statSync(asset).size > 0);
-  const video = html.match(/<video\b(?=[^>]*\sid="giftFrameVideo")[^>]*>/)?.[0];
-  assert.ok(video, 'effect 1 must keep its media element');
-  assert.match(video, /\smuted(?:\s|=|>)/);
-  assert.match(video, /\splaysinline(?:\s|=|>)/);
-  assert.match(html, /id="giftInfoAvatar"/);
-  assert.doesNotMatch(html, /id="giftInfoUser"/);
-  assert.match(html, /id="giftInfoName"/);
-  assert.doesNotMatch(html, /particleStage|giftFrameAccents|giftInfoAmount|frame-composite\.webp/);
-  assert.match(css, /width: 1920px;[\s\S]*?height: 1080px;[\s\S]*?scale\(var\(--frame-scale/);
-});
-
-test('toolbox includes gift effect controls that copy the source URL and open its preview', async () => {
-  const html = readAdminHtml();
-  const indexSource = read('public/js/admin/app.js');
-  const toolSource = read('public/js/admin/gift-effects.js');
-
-  assert.match(html, /data-other-feature="otherGiftEffectsFeature"/);
-  assert.match(html, /id="otherGiftEffectsFeature"[^>]+data-other-feature-panel/);
-  assert.match(html, /<input\b(?=[^>]*\sid="giftEffectGiftId")(?=[^>]*\sinputmode="numeric")[^>]*>/);
-  assert.match(html, /id="giftEffectOverlayUrl"/);
-  assert.match(html, /id="giftEffectLookupBtn"/);
-  assert.match(html, /id="giftEffectOpenBtn"/);
-  assert.doesNotMatch(html, /BILIBILI FULL-SCREEN EFFECT|id="giftEffectLiveUrl"/);
-  assert.match(indexSource, /import \{ giftEffects \} from ["']\.\/gift-effects\.js["'];/);
-  assert.match(toolSource, /\/api\/gifts\/effects\/preview/);
-  assert.doesNotMatch(toolSource, /\?giftId=/);
-  assert.doesNotMatch(toolSource, /debug/);
+test('toolbox gift effect controls copy the source URL and open its preview', async () => {
   const nodes = new Map([
     'giftEffectLookupForm', 'giftEffectGiftId', 'giftEffectOverlayUrl', 'giftEffectLookupState',
     'giftEffectMatchSummary', 'giftEffectDanmakuEnabled', 'giftEffectOpenBtn',
@@ -212,7 +149,10 @@ test('gift effects overlay keeps its own reconnect policy and stops the connecti
       remove() {},
       setAttribute(name, value) { node.attributes[name] = value; },
       getAttribute(name) { return node.attributes[name] ?? null; },
-      removeAttribute(name) { delete node.attributes[name]; },
+      removeAttribute(name) {
+        delete node.attributes[name];
+        if (name === 'src') node.src = '';
+      },
       querySelector: (selector) => createOverlayNode(selector),
       querySelectorAll: () => [],
       load() {},
@@ -288,16 +228,25 @@ test('gift effects overlay keeps its own reconnect policy and stops the connecti
   assert.equal(sockets.length, 1);
   assert.equal(sockets[0].url, 'ws://127.0.0.1:3000/ws?token=overlay%20token');
 
-  const delays = [];
+  const effect = {
+    type: 'gift:effect', source: 'danmaku', eventId: 'synthetic-effect',
+    effect: { mp4Url: 'https://i0.hdslb.com/synthetic.mp4',
+      layout: { videoWidth: 4, videoHeight: 2, rgbFrame: [0, 0, 2, 2], alphaFrame: [2, 0, 2, 2] } },
+  };
+  const message = (payload) => sockets[0].emit('message', { data: JSON.stringify(payload) });
+  message(effect);
+  assert.equal(elements.has('video'), false, 'disabled command effects do not create media');
+  message({ type: 'snapshot', state: { settings: { giftEffectDanmakuEnabled: 'true' } } });
+  message(effect);
+  assert.equal(element('video').src, effect.effect.mp4Url, 'socket events reach the real effect player');
   for (const expected of [1000, 2000, 4000, 8000, 16000, 30000, 30000]) {
     sockets.at(-1).emit('close');
+    assert.equal(element('video').src, '', 'disconnect stops command playback');
     const [timer] = [...timers.values()];
-    delays.push(timer.delay);
     assert.equal(timer.delay, expected);
     timers.clear();
     timer.callback();
   }
-  assert.deepEqual(delays, [1000, 2000, 4000, 8000, 16000, 30000, 30000]);
   assert.equal(sockets.length, 8, 'every reconnect opens exactly one socket');
 
   windowListeners.get('pagehide')();

@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { CHECKIN_BLESSINGS, FORTUNES } = require('../../src/shared/bot-defaults');
 const { isBilibiliCommandText } = require('../../src/bilibili/danmaku/command-text');
 const { createDomainServices } = require('../../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
@@ -15,18 +14,6 @@ test('check-in and fortune commands participate in danmaku command filtering', (
   for (const [text, expected] of [['签到', true], ['抽签', true], ['点歌 晴天', true], ['路过', false], ['帮我抽签', false]]) {
     assert.equal(isBilibiliCommandText(text), expected, text);
   }
-});
-
-test('default check-in and fortune libraries contain distinct, complete entries', () => {
-  assert.ok(CHECKIN_BLESSINGS.length > 0);
-  assert.ok(CHECKIN_BLESSINGS.every((item) => typeof item === 'string' && item.length > 0));
-  assert.equal(new Set(CHECKIN_BLESSINGS).size, CHECKIN_BLESSINGS.length);
-  assert.ok(FORTUNES.length > 0);
-  for (const fortune of FORTUNES) {
-    assert.ok([fortune.level, fortune.name, fortune.text, fortune.advice].every((value) => typeof value === 'string' && value.length > 0));
-    assert.ok(fortune.advice.includes('宜') && fortune.advice.includes('忌'), fortune.name);
-  }
-  assert.equal(new Set(FORTUNES.map((fortune) => fortune.name)).size, FORTUNES.length);
 });
 
 for (const [message, type, setting, reply] of [

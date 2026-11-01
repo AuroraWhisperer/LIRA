@@ -7,7 +7,7 @@ const { createSceneDanmakuDisplay } = require('../../public/js/overlays/scene-da
 const { createCloudDisplayBuffer } = require('../../src/scenes/cloud-display-buffer');
 
 test('mist scene output includes SC and forwards its deletion; existing random and floating styles omit SC', () => {
-  for (const style of ['mist', 'whiteframe', 'outline', 'cream', 'glow', 'starveil', 'floating', 'comet']) {
+  for (const style of ['mist', 'outline', 'floating']) {
     const items = [];
     const deleted = [];
     const display = createSceneDanmakuDisplay({ clear() {}, append: item => items.push(item),
@@ -47,15 +47,12 @@ test('entry events cross the display buffer only within the active session and o
   const snapshot = buffer.getSnapshot({ epoch: cursor.epoch, cursor: cursor.nextCursor });
   assert.equal(snapshot.events.length, 1);
   assert.equal(snapshot.events[0].uid, undefined);
-  for (const style of ['signal', 'glow', 'floating']) {
-    for (const enabled of [false, true]) {
-      const items = [];
-      const display = createSceneDanmakuDisplay({ clear: () => { items.length = 0; }, append: item => items.push(item),
-        status() {}, getStyle: () => style, showEntryMessages: () => enabled });
-      display.update(snapshot);
-      assert.equal(items.filter(item => item.kind === 'entry').length, Number(enabled));
-      if (enabled) assert.equal(items.at(-1).message, '进入了直播间');
-    }
+  for (const enabled of [false, true]) {
+    const items = [];
+    const display = createSceneDanmakuDisplay({ clear: () => { items.length = 0; }, append: item => items.push(item),
+      status() {}, getStyle: () => 'signal', showEntryMessages: () => enabled });
+    display.update(snapshot);
+    assert.equal(items.filter(item => item.kind === 'entry').length, Number(enabled));
   }
   assert.deepEqual(buffer.getSnapshot().events, [], 'new viewers do not replay buffered entrances');
 });
@@ -72,7 +69,37 @@ test('scene display retains session boundaries and filters gifts/SC without simu
   assert.equal(items.length, 2);
   assert.equal(items[1].message, '送出 花 × 2');
   display.update({ ...state, status: 'offline' });
+  assert.equal(items.length, 2);
+  display.update({ ...state, state: { liveStatus: 0, liveSessionId: null } });
   assert.equal(items.length, 0);
+});
+
+test('temporary disconnects and cursor gaps retain messages without repeating the live confirmation', () => {
+  const items = [];
+  const statuses = [];
+  const display = createSceneDanmakuDisplay({ clear() { items.length = 0; }, append: item => items.push(item),
+    status: (text, connected) => statuses.push(connected), getStyle: () => 'signal' });
+  const snapshot = { status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播' } };
+  display.update({ ...snapshot, events: [{ type: 'danmaku', liveSessionId: 'live', message: '保留已有弹幕' }] });
+  const retained = [...items];
+  display.update({ status: 'offline', epoch: 'one', reset: true, gap: true, state: null, events: [] });
+  assert.deepEqual(items, retained);
+  assert.equal(statuses.at(-1), false);
+  display.update({ status: 'connecting', epoch: 'one', state: null, events: [] });
+  display.update({ ...snapshot, state: { liveStatus: null, liveSessionId: null }, events: [] });
+  assert.deepEqual(items, retained);
+  assert.equal(statuses.at(-1), false);
+  display.update({ ...snapshot, reset: true, gap: true, events: [] });
+  assert.deepEqual(items, retained);
+  assert.equal(statuses.at(-1), true);
+  display.update({ ...snapshot, events: [{ type: 'danmaku', liveSessionId: 'live', message: '恢复后的新弹幕' }] });
+  assert.deepEqual(items.slice(0, -1), retained);
+  assert.equal(items.at(-1).message, '恢复后的新弹幕');
+  display.update({ ...snapshot, epoch: 'other-owner', reset: true, events: [] });
+  assert.equal(items.length, 1);
+  assert.equal(items[0].kind, 'system');
+  display.update({ status: 'offline', epoch: null, reset: true, events: [] });
+  assert.deepEqual(items, []);
 });
 
 test('scene SC deletion targets only current-session SC without replaying confirmation or entries', () => {

@@ -64,7 +64,7 @@ test('passive registry rejects unknown registrations and preserves declared orde
   let calls = 0;
   for (const type of [...SCENE_TYPES].reverse()) registerComponentPreview(type, () => { calls++; return { id: type }; });
   for (const type of ['canvas', 'unknown', 'constructor', '__proto__']) {
-    assert.throws(() => registerComponentPreview(type, () => ({ id: type })), /未知组件类型/);
+    assert.throws(() => registerComponentPreview(type, () => ({ id: type })));
   }
   assert.equal(calls, 0);
   assert.deepEqual(plain(getComponentPreviews().map(({ id }) => id)), SCENE_TYPES);

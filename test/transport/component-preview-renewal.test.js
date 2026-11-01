@@ -5,7 +5,7 @@ const test = require('node:test');
 const { createHarness } = require('../helpers/license-manager-harness');
 const { RemoteLicenseError } = require('../../src/electron/license/remote-license-client');
 const { HEARTBEAT_INTERVAL_MS } = require('../../src/electron/license/license-runtime-policy');
-const { getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
+const { getSceneOwner, getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
 const { createComponentPreviewSessions } = require('../../src/server/component-preview-sessions');
 
 async function fixture(t) {
@@ -49,6 +49,18 @@ test('background token renewal retains preview links, pending edits and the desk
   const next = { ...state, draft: { label: 'unfinished' }, dirty: true };
   sessions.exchange({ id: session.id, state: next, ack: edit.sequence });
   assert.equal(sessions.browser({ id: session.id, action: 'read' }, session.token).state.draft.label, 'unfinished');
+});
+
+test('normal background token renewal preserves the live display owner', async t => {
+  const { manager, renew } = await fixture(t);
+  const before = getSceneOwner(manager);
+  const tokenEpoch = manager.getAuthorizationEpoch();
+  await renew();
+  await renew();
+  assert.equal(manager.getAuthorizationEpoch(), tokenEpoch + 2);
+  assert.deepEqual(getSceneOwner(manager), before);
+  await manager.bootstrap();
+  assert.notDeepEqual(getSceneOwner(manager), before, 'Explicit authorization replacement still ends the prior display lifecycle.');
 });
 
 for (const action of ['reauthorize', 'switch-account', 'revoke', 'dispose']) {

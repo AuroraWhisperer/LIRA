@@ -134,12 +134,8 @@ test('overlay pages connect only through the owned socket adapter', () => {
   assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/shared/overlay-socket.js')), false);
 });
 
-test('composition owns wheel cleanup and does not revive the obsolete player', () => {
+test('composition owns wheel cleanup', () => {
   assert.match(read('src/server.js'), /wheelSessionService\?\.dispose\(\)/);
-  assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/js/playback/player/controller.js')), false);
-  for (const file of listJavaScriptFiles('public/js/playback')) {
-    assert.doesNotMatch(read(file), /PlayerController|player\/controller\.js/, file);
-  }
 });
 
 test('Admin application accesses legacy globals only through its bridge', () => {

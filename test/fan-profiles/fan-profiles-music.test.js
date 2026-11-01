@@ -88,10 +88,6 @@ test('song category statistics count arbitrary valid names as ordinary keys', (t
   const stats = f.detail(p.id).musicStats;
   assert.equal(stats.count, 5);
   assert.equal(Object.hasOwn(stats.categories, '__proto__'), true);
-  assert.equal(stats.categories.__proto__, 2);
-  assert.equal(stats.categories.constructor, 1);
-  assert.equal(stats.categories.toString, 1);
-  assert.equal(stats.categories['粤语'], 1);
   assert.deepEqual(
     JSON.parse(JSON.stringify(stats.categories)),
     JSON.parse('{"__proto__":2,"constructor":1,"toString":1,"粤语":1}'),
@@ -302,9 +298,6 @@ test('queue completion preserves the aggregate and manual note without saving qu
   assert.equal(queue.context.store.completeNext(changedAt), true);
   const processed = f.detail(p.id).songs[0];
   assert.deepEqual(processed, initial);
-  assert.equal(processed.data.note, '保留的人工说明');
-  assert.deepEqual(processed.original, {});
-  assert.deepEqual(processed.revisions, []);
   assert.equal(queue.context.store.completeNext(changedAt), false);
   f.service.archiveAccepted(SCOPE, callback);
   assert.equal(f.db.songDb.prepare('SELECT COUNT(*) AS n FROM requests').get().n, 0);

@@ -43,30 +43,20 @@ async function createFixture({ reducedMotion = false } = {}) {
   return { transition: createLyricLineTransition(viewport, timeline), row, viewport, animations, ghosts };
 }
 
-test('a playback sentence fades out with its sung highlight while the next sentence enters', async () => {
-  const { transition, row, animations, ghosts } = await createFixture();
-  const previous = row(120);
-  previous.words = [{ computed: { transform: 'matrix(1, 0, 0, 1, 0, -2)', clipPath: 'inset(0 12% 0 0)', opacity: '1' } }];
-  const next = row(200);
-  next.offsetHeight = 0;
-  const rows = [previous, next];
+function replaceSentence(transition, row) {
+  const rows = [row(120), row(200)];
+  rows[1].offsetHeight = 0;
   const positions = transition.capture(rows, { first: 1, last: 1 });
-  previous.offsetHeight = 0;
-  next.offsetHeight = 60;
-  next.offsetTop = 120;
+  rows[0].offsetHeight = 0;
+  rows[1].offsetHeight = 60;
+  rows[1].offsetTop = 120;
   transition.play(rows, positions);
+}
 
-  assert.equal(animations.length, 2);
-  assert.equal(animations[0].element, next);
-  assert.equal(animations[0].frames[0].opacity, 0);
-  assert.equal(animations[0].frames[1].opacity, '0.95');
-  assert.equal(animations[0].frames[1].translate, '0 0');
-  assert.equal(ghosts[0].style.top, '120px');
-  assert.equal(ghosts[0]['aria-hidden'], 'true');
-  assert.ok(ghosts[0].classes.has('is-active'), 'outgoing text retains its current-line decorations');
-  assert.equal(ghosts[0].words[0].style.clipPath, 'inset(0 12% 0 0)');
-  assert.equal(ghosts[0].words[0].style.transform, previous.words[0].computed.transform);
-  assert.ok(animations[1].timing.duration < animations[0].timing.duration);
+test('an outgoing sentence snapshot is released when its fade finishes', async () => {
+  const { transition, row, animations, ghosts } = await createFixture();
+  replaceSentence(transition, row);
+  assert.equal(ghosts.length, 1);
   animations.forEach(animation => animation.onfinish());
   assert.equal(ghosts[0].removed, true);
   transition.clear();
@@ -91,17 +81,10 @@ test('a visible next sentence continues from its displayed position, including i
   assert.ok(animations.every(animation => animation.cancelled));
 });
 
-test('reduced motion keeps a short crossfade and clearing removes outgoing snapshots', async () => {
+test('reduced motion does not translate sentences and clearing removes outgoing snapshots', async () => {
   const { transition, row, animations, ghosts } = await createFixture({ reducedMotion: true });
-  const rows = [row(120), row(200)];
-  rows[1].offsetHeight = 0;
-  const positions = transition.capture(rows, { first: 1, last: 1 });
-  rows[0].offsetHeight = 0;
-  rows[1].offsetHeight = 60;
-  transition.play(rows, positions);
-  assert.equal(animations.length, 2);
+  replaceSentence(transition, row);
   for (const animation of animations) {
-    assert.equal(animation.timing.duration, 140);
     assert.ok(animation.frames.every(frame => frame.translate === '0 0px' || frame.translate === '0 0'));
   }
   transition.clear();

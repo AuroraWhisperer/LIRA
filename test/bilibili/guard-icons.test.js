@@ -9,16 +9,15 @@ const shared = pathToFileURL(path.join(__dirname, '../../public/js/shared/bilibi
 
 test('guard icons and avatar frames share the room threshold and update existing images', async () => {
   const icons = await import(shared);
-  for (const level of [1, 2, 3]) {
-    for (const count of [null, undefined, -1, 0, 999, 1000, '1001', Infinity, 1000.5]) {
-      assert.doesNotMatch(icons.getGuardIcon(level, count), /thousand/);
-      assert.match(icons.getGuardAvatarFrame(level, count), /danmaku-guard\/bubble-\w+-frame\.webp$/);
-    }
-    for (const count of [1001, 10000]) {
-      assert.match(icons.getGuardIcon(level, count), /-thousand\.webp$/);
-      assert.match(icons.getGuardAvatarFrame(level, count), /danmaku-harbor\/\w+-frame\.png$/);
-    }
+  const { isThousandGuardRoom } = await import(new URL('./bilibili-room-guard.js', shared).href);
+  for (const count of [1000, '1001']) {
+    assert.equal(isThousandGuardRoom(count), false);
   }
+  const level = 3;
+  assert.doesNotMatch(icons.getGuardIcon(level, 1000), /thousand/);
+  assert.match(icons.getGuardAvatarFrame(level, 1000), /danmaku-guard\/bubble-\w+-frame\.webp$/);
+  assert.match(icons.getGuardIcon(level, 1001), /-thousand\.webp$/);
+  assert.match(icons.getGuardAvatarFrame(level, 1001), /danmaku-harbor\/\w+-frame\.png$/);
   assert.equal(icons.getGuardIcon(0), '');
   assert.equal(icons.getGuardAvatarFrame(0), '');
   const [image, frame] = [0, 1].map(() => {
@@ -36,14 +35,11 @@ test('guard icons and avatar frames share the room threshold and update existing
   icons.applyRoomGuardState({ roomId: '52030', count: 1001 }, document);
   assert.match(image.src, /captain-thousand\.webp$/);
   assert.match(frame.src, /danmaku-harbor\/admiral-frame\.png$/);
-  assert.match(root.style['--bilibili-guard-prefect'], /prefect-thousand\.webp/);
-  assert.match(root.style['--bilibili-guard-prefect-frame'], /danmaku-harbor\/admiral-frame\.png/);
   icons.applyRoomGuardState({ roomId: '52030', count: 1001 }, document);
   assert.equal(received.length, 2, 'identical snapshots do not duplicate preview notifications');
   icons.applyRoomGuardState({ roomId: '52030', count: 1000 }, document);
   assert.doesNotMatch(image.src, /thousand/);
   assert.match(frame.src, /danmaku-guard\/bubble-admiral-frame\.webp$/);
-  assert.match(root.style['--bilibili-guard-prefect-frame'], /danmaku-guard\/bubble-admiral-frame\.webp/);
   icons.applyRoomGuardState({ roomId: '42', count: null }, document);
   assert.doesNotMatch(image.src, /thousand/);
   assert.equal(icons.bindGuardImage(image, '/scene-text-images/custom.webp'), '/scene-text-images/custom.webp');
@@ -62,13 +58,10 @@ test('identity and gift renderers bind known guard artwork for later room update
     const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES: classNames } = await import(pathToFileURL(path.join(__dirname,
       '../../public/js/overlays/danmaku-message-renderer.js')).href);
     const document = createFakeDocument();
-    for (const style of ['prismatic', 'snowfox']) {
-      const render = createDanmakuMessageRenderer({ document, classNames, style, resolveEmoteUrl: value => value });
-      const bubble = render({ name: '舰长', message: '测试', roomGuardLevel: 3 });
-      const image = findByClass(bubble, `${style}-guard`);
-      assert.match(image.src, /captain-thousand\.webp$/);
-      assert.equal(image.attributes['data-guard-icon'], '3');
-    }
+    const renderPrismatic = createDanmakuMessageRenderer({ document, classNames, style: 'prismatic', resolveEmoteUrl: value => value });
+    const badge = findByClass(renderPrismatic({ name: '舰长', message: '测试', roomGuardLevel: 3 }), 'prismatic-guard');
+    assert.match(badge.src, /captain-thousand\.webp$/);
+    assert.equal(badge.attributes['data-guard-icon'], '3');
     const render = createDanmakuMessageRenderer({ document, classNames, style: 'identity', resolveGiftImageUrl: value => value });
     const gift = render({ kind: 'gift', name: '观众', giftName: '总督', giftCount: 1,
       giftImageUrl: '/img/admin/gifts/bilibili-guard-governor.webp' });

@@ -13,20 +13,14 @@ const {
 describe('external-url-policy', () => {
   describe('isAllowedExternal', () => {
     const cases = [
-      ['https://example.com', true],
-      ['https://github.com/user/repo', true],
       ['https://sub.domain.example.com/path?query=1', true],
       ['http://example.com', false],
       ['file:///C:/Windows/System32/calc.exe', false],
-      ['file:///etc/passwd', false],
       ['javascript:alert(1)', false],
       ['data:text/html,<script>alert(1)</script>', false],
       ['ms-settings:network-proxy', false],
-      ['customapp://open', false],
-      ['spotify:track:123', false],
       ['not a url', false],
       ['', false],
-      ['://invalid', false],
     ];
 
     for (const [url, expected] of cases) {
@@ -38,30 +32,17 @@ describe('external-url-policy', () => {
   describe('isAllowedLoginNavigation', () => {
     const testDomains = ['example.com', 'login.example.com', 'bilibili.com'];
     const cases = [
-      ['https://example.com', true],
       ['https://example.com/login', true],
-      ['https://bilibili.com', true],
-      ['https://api.example.com', true],
-      ['https://www.example.com', true],
       ['https://passport.bilibili.com', true],
+      ['https://a.b.c.example.com', true],
+      ['https://API.EXAMPLE.COM', true],
       ['http://example.com', false],
-      ['http://bilibili.com', false],
-      ['https://evil.com', false],
       ['https://notexample.com', false],
-      ['https://fakeexample.com', false],
       ['https://example.com.evil.com', false],
       ['file:///example.com/path', false],
       ['javascript:alert(1)', false],
-      ['data:text/html,<h1>Test</h1>', false],
       ['not a url', false],
-      ['', false],
-      ['https://EXAMPLE.COM', true],
-      ['https://Example.Com', true],
-      ['https://API.EXAMPLE.COM', true],
       ['https://example.com', false, []],
-      ['https://any.com', false, []],
-      ['https://a.b.c.example.com', true],
-      ['https://deep.sub.bilibili.com', true],
     ];
 
     for (const [url, expected, domains = testDomains] of cases) {

@@ -36,13 +36,22 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
   let connectionEpoch = null;
   let status = 'offline';
   let state = null;
+  let liveSessionId = null;
   let cursor = 0;
+  let gapCursor = 0;
   let events = [];
   function reset() {
     epoch = randomUUID();
     cursor = 0;
     events = [];
     state = null;
+    liveSessionId = null;
+    gapCursor = 0;
+  }
+  function interrupt() {
+    if (state) gapCursor = ++cursor;
+    state = null;
+    events = [];
   }
   function syncOwner() {
     const current = getOwner();
@@ -62,14 +71,14 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     if (update.status === 'connecting') {
       if (connectionEpoch === update.connectionEpoch) return false;
       connectionEpoch = update.connectionEpoch;
+      interrupt();
       status = 'connecting';
-      reset();
       return true;
     }
     if (connectionEpoch !== update.connectionEpoch) return false;
     if (update.status === 'offline') {
       if (status === 'offline') return false;
-      reset();
+      interrupt();
       status = 'offline';
       return true;
     }
@@ -86,7 +95,8 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
           && typeof event.confirmationMessage === 'string' && event.confirmationMessage)) return false;
     }
     if (event.type === 'overlay-state') {
-      reset();
+      if (event.liveStatus !== null && event.liveSessionId !== liveSessionId) reset();
+      if (event.liveStatus !== null) liveSessionId = event.liveSessionId;
       state = pick(event, 'type state liveStatus liveSessionId confirmationMessage');
       if (event.roomGuard) state.roomGuard = pick(event.roomGuard, 'roomId count');
     } else if (event.type === 'room-guard') {
@@ -95,7 +105,8 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
       if (state.liveSessionId || typeof event.liveSessionId !== 'string' || !event.liveSessionId
         || typeof event.message !== 'string' || !event.message) return false;
       const roomGuard = state.roomGuard;
-      reset();
+      if (event.liveSessionId !== liveSessionId) reset();
+      liveSessionId = event.liveSessionId;
       state = { type: 'overlay-state', liveStatus: 1, liveSessionId: event.liveSessionId,
         confirmationMessage: event.message, state: 'running', roomGuard };
     } else if (event.type === 'live-ended') {
@@ -121,7 +132,8 @@ function createCloudDisplayBuffer({ getOwner, onRead = () => {} }) {
     const requestedCursor = Number(request.cursor);
     const validCursor = (typeof request.cursor === 'number' || typeof request.cursor === 'string' && /^(0|[1-9]\d*)$/.test(request.cursor))
       && Number.isSafeInteger(requestedCursor) && requestedCursor >= 0 && requestedCursor <= cursor;
-    const gap = request.epoch === epoch && validCursor && events.length > 0 && requestedCursor < events[0].cursor - 1;
+    const gap = request.epoch === epoch && validCursor
+      && (requestedCursor < gapCursor || events.length > 0 && requestedCursor < events[0].cursor - 1);
     const resetRequired = request.epoch !== epoch || !validCursor || gap;
     return { epoch, status, state: clone(state), nextCursor: cursor, reset: resetRequired, gap,
       events: resetRequired ? [] : events.filter((entry) => entry.cursor > requestedCursor).map((entry) => clone(entry.event)) };

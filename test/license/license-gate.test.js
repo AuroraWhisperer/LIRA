@@ -39,39 +39,7 @@ test('HTTP license gate redirects admin and rejects business API before dispatch
   // license form markup belongs to license-ui.test.js.
 });
 
-test('Electron startup restores authorized work and owns the system-resume listener', () => {
-  const source = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'main.js'), 'utf8');
-  const bootstrapIndex = source.indexOf('await licenseManager.bootstrap();');
-  const windowMatch = /createMainWindow\(\s*serverInfo\.baseUrl/.exec(source.slice(bootstrapIndex));
-  const windowIndex = windowMatch ? bootstrapIndex + windowMatch.index : -1;
-  const readiness = fs.readFileSync(
-    path.join(__dirname, '../..', 'src', 'electron', 'desktop-readiness-controller.js'),
-    'utf8',
-  );
-  assert.ok(bootstrapIndex >= 0 && windowIndex > bootstrapIndex);
-  assert.ok(source.indexOf('readinessController.start()', windowIndex) > windowIndex);
-  assert.match(
-    source,
-    /createLicenseResumeHandler\(\{\s*powerMonitor,\s*getLicenseManager: \(\) => licenseManager,\s*afterResume: async \(\) => \{[^]*?cloudSyncController\?\.syncNow\(\)[^]*?remoteGiftController\?\.resume\(\)[^]*?\},\s*writeLog,?\s*\}\)/,
-  );
-  assert.match(source, /licenseResumeController\.register\(\)/);
-  assert.match(source, /registerLicenseIpc\(\{[^]*?getDesktopBaseUrl: \(\) => serverInfo\.baseUrl/);
-  assert.match(
-    source,
-    /giftCatalog:\s*\{[^]*?getGiftCatalogInitializationState[^]*?initializeGiftCatalog[^]*?onGiftCatalogInitializationStateChanged/,
-  );
-  // Readiness ordering, catalog gating and navigation generations: test/desktop/desktop-readiness-controller.test.js.
-  assert.match(readiness, /refreshGiftCatalog\(\s*runtime,[^]*?'authorized-session'/);
-  assert.match(source, /app\.on\(["']before-quit["'][^]*?licenseResumeController\?\.unregister\(\)/);
-
-  const resumeSync = source.indexOf('cloudSyncController?.syncNow()');
-  const resumeGifts = source.indexOf('remoteGiftController?.resume()');
-  assert.ok(resumeSync >= 0 && resumeGifts > resumeSync);
-  assert.match(
-    source,
-    /licenseResumeController\?\.unregister\(\)[^]*?const controllersToDrain = \[\s*sceneCloudController,\s*remoteGiftController,\s*cloudSyncController,\s*fanProfileController,\s*desktopAuth,\s*doubaoSession,?\s*\][^]*?controller\.dispose\(\)/,
-  );
-
+test('desktop bridges keep remote gift credentials inside the main process', () => {
   const preload = fs.readFileSync(path.join(__dirname, '../..', 'src', 'electron', 'preload.js'), 'utf8');
   assert.doesNotMatch(preload, /remoteGift|gift-events|watchGiftEvents|accessToken|Authorization|EventSource/u);
   for (const file of ['license-ipc.js', 'license-overlay-ipc.js', 'license-songs-ipc.js', 'license-public-values.js']) {

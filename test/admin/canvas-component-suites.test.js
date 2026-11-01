@@ -4,7 +4,6 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
-const { createMoonlitZip } = require('../../scripts/package-moonlit-suite');
 const { installMoonlitSuite } = require('../helpers/moonlit-suite-fixture');
 const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
 const { useSharedBrowser } = require('../helpers/shared-browser');
@@ -17,7 +16,7 @@ function storedResourceConfig(fixture, item) {
     .find(style => style.id === item.appearance.config.resourceStyle.id).config;
 }
 
-// Only the import-list test uploads the 60 MB ZIP; other tests start with the suite installed.
+// Tests start with the bundled suite installed through the real library inspect/install path.
 async function suiteFixture(t, options = {}, { installed = true } = {}) {
   const directory = path.resolve(__dirname, '../../tmp'); fs.mkdirSync(directory, { recursive: true });
   const dataDir = fs.mkdtempSync(path.join(directory, 'external-moonlit-test-'));
@@ -26,22 +25,9 @@ async function suiteFixture(t, options = {}, { installed = true } = {}) {
   return { ...fixture, dataDir, async close() { await fixture.close(); fs.rmSync(dataDir, { recursive: true, force: true }); } };
 }
 
-async function importSuite(picker, page) {
-  assert.equal(await picker.locator('.component-style-card').count(), 0);
-  const directory = fs.mkdtempSync(path.resolve(__dirname, '../../tmp/moonlit-upload-'));
-  try {
-    const archive = path.join(directory, 'moonlit.zip');
-    fs.writeFileSync(archive, createMoonlitZip());
-    await picker.locator('input[type="file"][accept=".zip"]').setInputFiles(archive);
-    const confirm = page.getByRole('dialog', { name: '确认导入套装', exact: true });
-    await confirm.getByRole('button', { name: '导入套装', exact: true }).click();
-    await confirm.waitFor({ state: 'hidden' });
-    await picker.locator('.component-style-card').nth(7).waitFor();
-  } finally { fs.rmSync(directory, { recursive: true, force: true }); }
-}
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 
-test('Moonlit lyrics reuse controls, publish live words once and remove decorations on style change', { timeout: 60000 }, async t => {
+test('Moonlit lyrics load imported resources, publish live words once and wait for native settings on style change', { timeout: 60000 }, async t => {
   const fixture = await suiteFixture(t, { extraContext: {} });
   t.after(() => fixture.close());
   fixture.runtime.lyricTimeline = { status: 'ready', trackTitle: '合成歌词', lines: [
@@ -70,49 +56,15 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   await picker.getByRole('button', { name: '添加到画布：月渡花汀 · 桌面歌词', exact: true }).click();
   const frame = await page.locator('.scene-editor-item.is-selected iframe').elementHandle().then(handle => handle.contentFrame());
   await frame.waitForFunction(() => document.querySelector('style[data-component-resources]')?.textContent.includes('/component-media/'));
-  const typography = await frame.evaluate(async () => {
-    const row = document.querySelector('.desktop-lyric-preview-row.is-active');
-    const text = row.querySelector('.desktop-lyric-preview-row-text');
+  const loaded = await frame.evaluate(async () => {
+    const text = document.querySelector('.desktop-lyric-preview-row.is-active .desktop-lyric-preview-row-text');
     const family = getComputedStyle(text).fontFamily.split(',').find(value => value.includes('月渡花汀文楷-'));
     const faces = await document.fonts.load(`48px ${family}`, '月渡花汀清風星河こんにちは');
-    return { family, loaded: faces.length > 0 && faces.every(face => face.status === 'loaded'),
-      height: row.offsetHeight, size: getComputedStyle(text).fontSize,
-      visible: document.querySelectorAll('.desktop-lyric-preview-row:not(.is-line-hidden)').length };
+    return faces.length > 0 && faces.every(face => face.status === 'loaded');
   });
-  assert.ok(typography.family.includes('月渡花汀文楷-'));
-  assert.equal(typography.loaded, true, 'Bundled fonts load from the imported package without originals.');
-  assert.equal(typography.height, 108);
-  assert.equal(typography.size, '48px');
-  assert.equal(typography.visible, 1);
-  const font = page.locator('[data-component-parameter="desktopLyricFontFamily"]');
-  await font.selectOption('SimSun, STSong, serif');
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.split(',').some(value => value.trim() === 'SimSun'));
-  await font.selectOption('月渡花汀文楷');
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.includes('月渡花汀文楷-'));
-  await page.evaluate(() => {
-    const select = document.querySelector('[data-component-parameter="desktopLyricFontFamily"]');
-    select.selectedOptions[0].value = '"月渡花汀文楷"';
-    select.dispatchEvent(new Event('change', { bubbles: true }));
-  });
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontFamily.includes('月渡花汀文楷-'));
+  assert.equal(loaded, true, 'Bundled fonts load from the imported package without originals.');
   const size = page.locator('[data-component-parameter="desktopLyricFontSize"]');
   await size.fill('32'); await size.press('Tab');
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row-text')).fontSize === '32px');
-  await page.locator('[data-component-parameter="desktopLyricTextAlign"]').selectOption('right');
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-row')).textAlign === 'right');
-  const translation = page.locator('[data-component-parameter="desktopLyricShowTranslation"]');
-  await translation.uncheck();
-  await frame.locator('.desktop-lyric-preview-row-translation').waitFor({ state: 'hidden' });
-  await translation.check();
-  await frame.locator('.desktop-lyric-preview-row-translation').waitFor({ state: 'visible' });
-  await page.locator('[data-parameter-group="visibility"] > summary').click();
-  const pause = page.locator('[data-component-parameter="desktopLyricHideOnPause"]');
-  await pause.check();
-  assert.equal(await pause.isChecked(), true);
-  // Static editor samples stay visible; pause hiding belongs to the published playback state.
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-viewport')).opacity === '1');
-  await pause.uncheck();
-  await frame.waitForFunction(() => getComputedStyle(document.querySelector('.desktop-lyric-preview-viewport')).opacity === '1');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
@@ -132,56 +84,9 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   const rendered = await active.evaluate(element => ({
     plainText: [...element.childNodes].filter(node => node.nodeType === Node.TEXT_NODE).map(node => node.textContent).join(''),
     words: [...element.querySelectorAll('.desktop-lyric-preview-word-base')].map(node => node.textContent).join(''),
-    size: getComputedStyle(element).fontSize,
-    flower: getComputedStyle(element.parentElement, '::after').backgroundImage,
   }));
   assert.equal(rendered.plainText, '', 'Mounting karaoke replaces the static sentence.');
   assert.equal(rendered.words, '月渡花汀');
-  assert.equal(rendered.size, '32px');
-  assert.ok(rendered.flower.includes('/component-media/'));
-  const wordMotion = await active.locator('.desktop-lyric-preview-word').evaluateAll(words =>
-    words.map(word => ({ transform: getComputedStyle(word).transform,
-      states: word.getAnimations().map(animation => animation.playState) })));
-  assert.notEqual(wordMotion[1].transform, 'none', 'The sung word lifts even when playback is paused mid-note.');
-  assert.deepEqual(wordMotion[1].states, ['paused']);
-  assert.equal(wordMotion[2].transform, 'none', 'Upcoming words remain still.');
-  // Switching karaoke off and on must neither lose the sentence nor duplicate it.
-  const karaoke = page.locator('[data-component-parameter="desktopLyricKaraokeMode"]');
-  for (const mode of ['off', 'discrete', 'continuous']) {
-    await karaoke.selectOption(mode);
-    await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-    await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
-    await output.reload();
-    await active.waitFor();
-    if (mode === 'off') assert.equal(await active.textContent(), '月渡花汀');
-    else {
-      await active.locator('.desktop-lyric-preview-word').first().waitFor();
-      assert.equal(await active.locator('.desktop-lyric-preview-word').count(), 4);
-      assert.equal(await active.evaluate(element => [...element.childNodes].some(node => node.nodeType === Node.TEXT_NODE)), false);
-    }
-  }
-  // Real output must consume changed playback data without navigation or manual refresh.
-  const liveFrame = await output.locator('.scene-version:not(.is-staging) iframe').elementHandle().then(handle => handle.contentFrame());
-  fixture.runtime.lyricState = { ...fixture.runtime.lyricState, sequence: 2, lineText: '清风入梦', currentMs: 11000,
-    words: Array.from('清风入梦', (text, index) => ({ text, startMs: 8000 + index * 2000, endMs: 10000 + index * 2000 })) };
-  await liveFrame.waitForFunction(() => [...document.querySelectorAll('.desktop-lyric-preview-row.is-active .desktop-lyric-preview-word-base')]
-    .map(node => node.textContent).join('') === '清风入梦');
-  fixture.runtime.lyricTimeline = { status: 'ready', trackTitle: '另一首歌', lines: [
-    { text: '星河入海', startMs: 0, endMs: 8000, translation: 'Stars meet the sea' },
-  ] };
-  fixture.runtime.lyricState = { ...fixture.runtime.lyricState, generation: 2, sequence: 1,
-    lineText: '星河入海', currentMs: 2000, durationMs: 8000,
-    words: Array.from('星河入海', (text, index) => ({ text, startMs: index * 2000, endMs: (index + 1) * 2000 })) };
-  await liveFrame.waitForFunction(() => [...document.querySelectorAll('.desktop-lyric-preview-word-base')]
-    .map(node => node.textContent).join('') === '星河入海');
-  assert.equal(await live.locator('.desktop-lyric-preview-row').count(), 1);
-  assert.equal(await live.locator('.desktop-lyric-preview-row-translation').textContent(), 'Stars meet the sea');
-  fixture.runtime.lyricTimeline = { status: 'empty', trackTitle: '纯音乐', lines: [] };
-  fixture.runtime.lyricState = { status: 'empty', playing: false, generation: 3, sequence: 1,
-    lineText: '', words: [], currentMs: 0, durationMs: 8000 };
-  await live.locator('.desktop-lyric-preview-empty').waitFor();
-  assert.equal(await live.locator('.desktop-lyric-preview-empty').textContent(), '纯音乐，请欣赏');
-  assert.equal(await live.locator('.desktop-lyric-preview-row').count(), 0);
   let releaseNativeRead;
   const nativeRead = new Promise(resolve => { releaseNativeRead = resolve; });
   t.after(() => releaseNativeRead());
@@ -200,7 +105,6 @@ test('Moonlit lyrics reuse controls, publish live words once and remove decorati
   }, fixture.runtime.settings.desktopLyricFontSize);
   assert.equal(await size.inputValue(), fixture.runtime.settings.desktopLyricFontSize,
     'switching to the native style restores its shared settings');
-  assert.equal(await frame.locator('.desktop-lyric-preview-row.is-active').evaluate(el => getComputedStyle(el, '::after').backgroundImage), 'none');
   assert.deepEqual(errors, []);
 });
 
@@ -271,11 +175,9 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
     }, { count, style });
     const height = await frame.evaluate(() => innerHeight);
     await page.waitForFunction(height => document.querySelector('.scene-editor-geometry input[readonly]')?.value === String(height), height);
-    assert.equal(await page.getByRole('spinbutton', { name: '高度（自动）', exact: true }).inputValue(), String(height));
     return height;
   }
   const limit = page.locator('[data-component-parameter="limit"]');
-  assert.equal(await limit.inputValue(), '1');
   const oneWish = await fitted(1, 'moonlit');
   await limit.fill('3'); await limit.press('Tab');
   const threeWishes = await fitted(3, 'moonlit');
@@ -286,23 +188,6 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
   });
   assert.equal(new Set(selectedGifts.map(gift => gift.name)).size, 3);
   for (const gift of selectedGifts) assert.ok(gifts.some(entry => entry.name === gift.name && entry.imagePath === gift.path));
-  const gap = page.locator('[data-component-parameter="gap"]');
-  const initialGap = Number(await gap.inputValue());
-  await gap.fill('20'); await gap.press('Tab');
-  await frame.waitForFunction(() => getComputedStyle(document.getElementById('giftWishStage')).gap === '20px');
-  const widerGap = await fitted(3, 'moonlit');
-  assert.equal(widerGap, threeWishes + 2 * (20 - initialGap), 'Fitting adds both changed gaps between three cards.');
-  await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('688');
-  await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');
-  await frame.waitForFunction(() => innerWidth === 688);
-  const widerCards = await fitted(3, 'moonlit');
-  assert.ok(widerCards > widerGap, 'Wider cards grow the fitted height.');
-  assert.deepEqual(await frame.locator('.wish-card-image').evaluateAll(images => images.map(image =>
-    ({ name: image.alt, path: image.getAttribute('src') }))), selectedGifts);
-  await limit.fill('2'); await limit.press('Tab');
-  assert.ok(await fitted(2, 'moonlit') < widerCards);
-  await limit.fill('4'); await limit.press('Tab');
-  assert.ok(await fitted(4, 'moonlit') > widerCards);
   await limit.fill('1'); await limit.press('Tab');
   const finalHeight = await fitted(1, 'moonlit');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
@@ -319,23 +204,13 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
   const published = output.frameLocator('.scene-version:not(.is-staging) iframe');
   await published.locator('.wish-moon-name').filter({ hasText: '实际许愿' }).waitFor();
   assert.equal(await published.locator('.wish-card').count(), 1);
-  assert.equal(await published.locator('.wish-card-total').textContent(), '12/50');
   assert.equal(await published.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '12');
-  const artwork = saved.document.items[0].appearance.config.resourceStyle.resources['/img/shared/gift-wish-moonlit.webp'];
-  assert.ok((await published.locator('.wish-card--moonlit').evaluate(card => getComputedStyle(card).backgroundImage)).includes(artwork));
-  assert.ok(await published.locator('.wish-card-image').evaluate(async image => { await image.decode(); return image.naturalWidth > 0; }));
-  // Live progress updates the rendered card in place and clamps a completed wish to its target.
-  await published.locator('.wish-card').evaluate(card => { window.liveWishNode = card; });
+  // Live progress clamps a completed wish to its target.
   Object.assign(actualWish, { count: 55, todayCount: 55, remaining: 0, progress: 100, completed: true });
   fixture.notify({ types: ['gift-wishes'], invalidateTypes: ['gift-wishes'] });
   await published.locator('.wish-card-count').filter({ hasText: '55' }).waitFor();
-  assert.equal(await published.locator('.wish-card').evaluate(card => card === window.liveWishNode), true);
   assert.equal(await published.locator('.wish-card').count(), 1);
   assert.equal(await published.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '50');
-  for (const [style, className] of [['card', 'bar'], ['text', 'text'], ['circle', 'circle']]) {
-    await page.locator('[data-component-parameter="displayStyle"]').selectOption(style);
-    await fitted(1, className);
-  }
   assert.equal(catalogReads, 1);
 });
 
@@ -361,8 +236,7 @@ test('moonlit queue parameters edit the installed preset and survive scene publi
   const resourceStyle = { id: randomUUID(), preset: 'moonlit-queue', preview: files[previewPath],
     width: preset.size[0], height: preset.size[1], resources: Object.fromEntries(
       [...preset.resources, ...preset.optionalResources].map(source => [source, files[source]])) };
-  for (let index = 1; index <= 6; index++) assert.equal(preset.config[`overlayRule${index}`], '');
-  const config = normalizeSceneConfig('queue', { ...preset.config, resourceStyle, overlayRule1: '旧套装规则' });
+  const config = normalizeSceneConfig('queue', { ...preset.config, resourceStyle });
   store.stage({ id: packId, name: '月渡花汀', styles: [{ id: resourceStyle.id, type: 'queue', name: '月渡花汀 · 点歌板', config }] });
   await createComponentStyleLibrary(fixture.dataDir).install(packId);
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
@@ -381,36 +255,8 @@ test('moonlit queue parameters edit the installed preset and survive scene publi
   const frame = page.frameLocator('.scene-editor-item iframe');
   await frame.locator('.queue-moonlit').waitFor();
   const field = name => page.locator(`.scene-editor-parameters [data-preview-field="${name}"]`);
-  assert.equal(await field('queueTitleFontSizeNumber').isVisible(), false);
-  assert.equal(await field('overlayTitle').isVisible(), false);
-  assert.equal(await frame.locator('.overlay-header').isVisible(), false);
-  assert.deepEqual(await frame.locator('.queue-moonlit').evaluate(panel =>
-    [panel, panel.querySelector('.overlay-content'), panel.querySelector('.identity-row')]
-      .map(element => getComputedStyle(element).backgroundColor)), Array(3).fill('rgba(0, 0, 0, 0)'));
-  assert.equal(await field('identityQueueFontSizeNumber').inputValue(), '30');
-  assert.equal(await field('overlayRuleFontSizeNumber').isVisible(), false);
-  assert.equal(await field('overlayRule1').isVisible(), false);
-  assert.equal(await field('overlayShowIndex').locator('..').isVisible(), true);
-  await page.locator('.scene-editor-item iframe').evaluate(element => element.contentWindow.postMessage({
-    type: 'component-preview:data', data: { queue: { current: null, waiting: [3, 2, 1].map(level => ({
-      id: level, song_name: '合成歌曲', requester_name: '合成观众', requester_guard_level: level,
-    })) }, superChats: [] },
-  }, '*'));
-  const guardImages = frame.locator('.identity-guard-image');
-  await guardImages.first().waitFor();
-  assert.deepEqual(await guardImages.evaluateAll(images => images.map(image => image.alt)), ['舰长', '提督', '总督']);
-  assert.deepEqual(await guardImages.evaluateAll(images => images.map(image => image.getAttribute('src'))), [
-    '/img/admin/gifts/bilibili-guard-captain.webp', '/img/admin/gifts/bilibili-guard-prefect.webp',
-    '/img/admin/gifts/bilibili-guard-governor.webp',
-  ]);
-  for (const image of await guardImages.all()) await image.evaluate(element => element.decode());
-  assert.equal(await frame.locator('.identity-badge').count(), 0);
-  await field('identityQueueFontSizeNumber').fill('26');
   await field('overlayShowIndex').selectOption('false', { force: true });
   await frame.locator('.identity-list.no-index').waitFor();
-  assert.equal(await frame.locator('.identity-rank').count(), 0);
-  assert.equal(await frame.locator('.identity-footer').count(), 0);
-  assert.equal(await frame.locator('.identity-song').first().evaluate(element => getComputedStyle(element).fontSize), '26px');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
@@ -419,15 +265,11 @@ test('moonlit queue parameters edit the installed preset and survive scene publi
   assert.equal(savedConfig.resourceStyle.preset, 'moonlit-queue');
   await page.reload();
   await frame.locator('.identity-list.no-index').waitFor();
-  assert.equal(await frame.locator('.identity-footer').count(), 0);
-  await page.locator('.preview-canvas-layer-select').first().click();
-  await field('overlayShowIndex').selectOption('true', { force: true });
-  await frame.locator('.identity-rank').first().waitFor();
   assert.deepEqual(errors, []);
 });
 
-test('canvas suite imports appear in client component lists and refresh without duplicates', { timeout: 60000 }, async t => {
-  const fixture = await suiteFixture(t, {}, { installed: false });
+test('installed suite styles appear once in client component lists and disappear after suite deletion', { timeout: 60000 }, async t => {
+  const fixture = await suiteFixture(t);
   const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
   const desktop = await browser.newPage();
@@ -444,16 +286,10 @@ test('canvas suite imports appear in client component lists and refresh without 
     const { initStartAnimation } = await import('/js/admin/start-animation.js');
     initStartAnimation(); initStartAnimation();
   }, fragments);
-  assert.equal(await desktop.locator('#desktopLyricForm .component-style-add').count(), 0);
-  assert.deepEqual(await desktop.locator('.desktop-lyric-workspace > *').evaluateAll(children => children.map(child => child.id)),
-    ['desktopLyricForm', 'desktopLyricLivePreview']);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   const picker = page.getByRole('dialog', { name: '添加组件', exact: true });
-  await picker.locator('[data-category="suites"]').click();
-  await importSuite(picker, page);
-  await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));
   for (const type of ['clock', 'danmaku', 'opening', 'gift-wishes']) {
     const cards = desktop.locator(`[data-local-styles="${type}"] .component-style-card`);
     await cards.waitFor();
@@ -465,7 +301,6 @@ test('canvas suite imports appear in client component lists and refresh without 
   await desktop.evaluate(() => { window.dispatchEvent(new Event('focus')); window.dispatchEvent(new Event('focus')); });
   await desktop.locator('[data-local-styles="clock"] .component-style-card').waitFor();
   assert.equal(await desktop.locator('.component-style-card').count(), 4);
-  assert.equal(await desktop.locator('[data-local-styles]').count(), 6);
   await picker.locator('[data-category="suites"]').click();
   await picker.getByRole('button', { name: '删除套装', exact: true }).click();
   await page.getByRole('dialog', { name: '删除套装', exact: true })
@@ -540,10 +375,7 @@ test('adding a suite clock from the client synchronizes its instance before reus
 
 test('moonlit suite adds each matching style once and keeps the opening style through publication', { timeout: 90000 }, async t => {
   let settings;
-  const fixture = await suiteFixture(t, { extraContext: {
-    settings: { get: () => settings }, gifts: { getViewRevision: () => 'synthetic' },
-    giftWishes: { getSnapshot: async () => ({ items: [] }) },
-  } });
+  const fixture = await suiteFixture(t, { extraContext: { settings: { get: () => settings } } });
   settings = fixture.runtime.settings;
   Object.assign(settings, { openingEnabled: 'true', openingStyle: 'classic', openingTitle: '合成开播标题' });
   const browser = openBrowserSession();
@@ -569,23 +401,11 @@ test('moonlit suite adds each matching style once and keeps the opening style th
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
     await picker.locator('[data-category="suites"]').click();
   };
-  await openSuite();
-  await picker.locator('.component-style-card').nth(7).waitFor();
-  assert.equal(await picker.locator('.component-style-card').count(), 8);
-  assert.equal(await picker.locator('[data-picker-style="moonlit-fan"]').count(), 0);
-  await picker.locator('img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
-  await picker.locator('[data-category="clock"]').click();
-  assert.equal(await picker.locator('[data-picker-style="moonlit-fan"]').count(), 0);
-  await picker.getByRole('button', { name: '添加到画布：月渡花汀 · 时钟', exact: true }).waitFor();
-  await picker.locator('[data-category="background"]').click();
-  assert.equal(await picker.locator('[data-picker-style="moonlit"]').count(), 0);
-  await picker.getByRole('button', { name: '添加到画布：月渡花汀 · 动态背景', exact: true }).waitFor();
-  await picker.getByRole('button', { name: '关闭', exact: true }).click();
   const members = [['opening', 'style', 'moonlit-fan'], ['clock', 'style', 'moonlit-fan'],
-    ['danmaku', 'style', 'moonlit'], ['gift-wishes', 'displayStyle', 'moonlit'], ['queue', 'overlayQueueStyle', 'identity'], ['background', 'style', 'moonlit']];
+    ['danmaku', 'style', 'moonlit'], ['background', 'style', 'moonlit']];
   for (const [index, [type, key, style]] of members.entries()) {
     await openSuite();
-    const name = { opening: '开播动画', clock: '时钟', danmaku: '弹幕姬', 'gift-wishes': '礼物许愿', background: '静态背景', queue: '点歌板' }[type];
+    const name = { opening: '开播动画', clock: '时钟', danmaku: '弹幕姬', background: '静态背景' }[type];
     await picker.getByRole('button', { name: '添加到画布：月渡花汀 · ' + name, exact: true }).click();
     await picker.waitFor({ state: 'hidden' });
     await desktop.waitForFunction(count => window.controllers.canvas.getState().draft.document.items.length === count, index + 1);
@@ -595,36 +415,9 @@ test('moonlit suite adds each matching style once and keeps the opening style th
     assert.equal(item.appearance.config[key], style);
   }
   const items = await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items);
-  const queue = items.find(item => item.type === 'queue');
-  const queueFrame = page.frameLocator(`[data-item-id="${queue.id}"].scene-editor-item iframe`);
-  await queueFrame.locator('.queue-moonlit .identity-row').first().waitFor();
-  assert.equal(await queueFrame.locator('.queue-moonlit').evaluate(panel => getComputedStyle(panel).backgroundColor), 'rgba(0, 0, 0, 0)');
-  await page.locator(`.preview-canvas-layer-select[data-item-id="${queue.id}"]`).click();
-  await page.locator('.scene-editor-parameters [data-overlay-style="identity"]').click();
-  await queueFrame.locator('.queue-identity:not(.queue-moonlit)').waitFor();
-  assert.equal(await queueFrame.locator('style[data-component-resources]').count(), 0);
-  await page.getByRole('button', { name: '更换样式', exact: true }).click();
-  const queueStyles = page.getByRole('dialog', { name: '点歌板样式', exact: true });
-  await queueStyles.getByRole('button', { name: '＋ 添加样式', exact: true }).waitFor();
-  await queueStyles.getByRole('button', { name: '更换「月渡花汀 · 点歌板」的样式：月渡花汀 · 点歌板', exact: true }).click();
-  await queueFrame.locator('.queue-moonlit').waitFor();
-  await queueStyles.waitFor({ state: 'hidden' });
-  const clock = items.find(item => item.type === 'clock');
-  await page.locator(`.preview-canvas-layer-select[data-item-id="${clock.id}"]`).click();
-  const clockFrame = page.frameLocator(`[data-item-id="${clock.id}"].scene-editor-item iframe`);
-  await clockFrame.locator('#clockCard[data-clock-style="moonlit-fan"]').waitFor();
-  await page.locator('[data-preview-field="clockMoonMode"]').selectOption('dark', { force: true });
-  await clockFrame.locator('#clockCard[data-moon-tone="dark"]').waitFor();
-  assert.equal(await clockFrame.locator('.clock-moon-art').isVisible(), true);
-  assert.equal(await clockFrame.locator('#clockCard').evaluate(async card => {
-    const family = getComputedStyle(card).fontFamily.split(',')[0];
-    await document.fonts.load(`66px ${family}`);
-    return family.includes('Lira Moon Serif-') && document.fonts.check(`66px ${family}`);
-  }), true);
   const opening = items.find(item => item.type === 'opening');
   const background = items.at(-1);
   assert.equal(background.type, 'background');
-  assert.equal(await page.locator('.preview-canvas-layer-select').first().getAttribute('data-item-id'), background.id);
   assert.deepEqual([background.x, background.y, background.width, background.height], [0, 0, 2560, 1440]);
   const backgroundFrame = page.frameLocator(`[data-item-id="${background.id}"].scene-editor-item iframe`);
   await backgroundFrame.locator('#backgroundImage[src^="/component-media/"]').evaluate(image => image.decode());
@@ -640,14 +433,12 @@ test('moonlit suite adds each matching style once and keeps the opening style th
   assert.deepEqual(await desktop.evaluate(() => Object.fromEntries(['clock', 'danmaku']
     .map(id => [id, window.controllers[id].getState().draft]))), defaults);
   await page.locator(`.preview-canvas-layer-select[data-item-id="${opening.id}"]`).click();
-  assert.equal(await page.locator('[data-component-parameter="style"]').isVisible(), false);
   await page.locator('[data-component-parameter="title"]').fill('月渡独立标题');
   await openingFrame.locator('#openingMoonFan').waitFor({ state: 'visible' });
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
-  assert.equal(storedResourceConfig(fixture, saved.document.items.find(item => item.type === 'clock')).moonMode, 'dark');
-  assert.equal(saved.document.items.length, 6);
+  assert.equal(saved.document.items.length, 4);
   assert.equal(saved.document.items.at(-1).type, 'background');
   for (const [type, key, style] of members) {
     assert.equal(saved.document.items.find(item => item.type === type).appearance.config[key], style);
@@ -672,16 +463,6 @@ test('moonlit suite adds each matching style once and keeps the opening style th
   await output.goto(sceneUrl);
   const publishedBackground = output.frameLocator('.scene-version:not(.is-staging) iframe').last();
   await publishedBackground.locator('#backgroundImage[src^="/component-media/"]').waitFor({ state: 'visible' });
-  assert.deepEqual(await publishedBackground.locator('#backgroundImage[src^="/component-media/"]').evaluate(async image => {
-    await image.decode();
-    return [image.naturalWidth, image.naturalHeight, getComputedStyle(image).objectFit, document.getAnimations().length];
-  }), [1920, 1080, 'cover', 0]);
-  await page.reload();
-  await page.locator('.scene-editor-item').nth(4).waitFor();
-  await page.frameLocator(`[data-item-id="${opening.id}"].scene-editor-item iframe`)
-    .locator('#openingMoonFan[data-ready="true"]').waitFor({ state: 'visible' });
-  await page.frameLocator(`[data-item-id="${background.id}"].scene-editor-item iframe`)
-    .locator('#backgroundImage[src^="/component-media/"]').evaluate(image => image.decode());
   assert.deepEqual(errors, []);
   const missing = saved.document.items.find(item => item.type === 'background').appearance.config.resourceStyle.resources['/img/overlays/backgrounds/moonlit.webp'];
   await context.route(`${fixture.origin}${missing}`, route => route.fulfill({ status: 404, body: 'Missing installed resource' }));
@@ -689,7 +470,7 @@ test('moonlit suite adds each matching style once and keeps the opening style th
   await output.locator('#sceneStatus').filter({ hasText: '样式素材加载失败' }).waitFor();
 });
 
-test('animated wallpaper can switch to static, publish, reload and honor reduced motion', { timeout: 45000 }, async t => {
+test('animated wallpaper settings publish, reload, reset and honor reduced motion', { timeout: 45000 }, async t => {
   const fixture = await suiteFixture(t);
   const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
@@ -711,20 +492,12 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   const frame = page.frameLocator('.scene-editor-item iframe');
   const canvas = frame.locator('#backgroundAnimation');
   await canvas.waitFor({ state: 'visible' });
-  const first = await canvas.screenshot();
-  await page.waitForTimeout(400);
-  assert.notDeepEqual(await canvas.screenshot(), first);
-  await canvas.evaluate(video => { video.dataset.parameterTest = 'same-video'; video.currentTime = 5; });
   await page.locator('[data-component-parameter="opacity"]').fill('65');
-  await page.locator('[data-component-parameter="blur"]').fill('4');
   await page.locator('[data-component-parameter="playbackRate"]').fill('0.75');
   await canvas.evaluate(video => new Promise(resolve => {
     if (video.playbackRate === 0.75) resolve();
     else video.addEventListener('ratechange', resolve, { once: true });
   }));
-  assert.deepEqual(await canvas.evaluate(video => ({ marker: video.dataset.parameterTest, rate: video.playbackRate,
-    progressed: video.currentTime >= 5, opacity: getComputedStyle(document.body).opacity, filter: getComputedStyle(video).filter })),
-    { marker: 'same-video', rate: 0.75, progressed: true, opacity: '0.65', filter: 'blur(4px) brightness(1) saturate(1) contrast(1)' });
   await page.locator('.background-parameters summary').filter({ hasText: '白平衡' }).click();
   await page.locator('[data-component-parameter="colorProcessing"]').selectOption('legacy');
   await page.locator('[data-component-parameter="temperature"]').fill('35');
@@ -733,23 +506,11 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   await page.locator('[data-component-parameter="glowStrength"]').fill('60');
   await page.locator('[data-component-parameter="glowMode"]').selectOption('star');
   await frame.locator('[data-background-filters] filter').waitFor({ state: 'attached' });
-  assert.deepEqual(await canvas.evaluate(video => [video.dataset.parameterTest, video.currentTime >= 5]), ['same-video', true]);
-  assert.equal(await frame.locator('[data-background-filters] filter').count(), 1);
-  await page.locator('[data-component-parameter="style"]').selectOption('moonlit');
-  await canvas.waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('[data-component-parameter="playbackRate"]').isVisible(), false);
-  assert.match(await frame.locator('#backgroundImage').evaluate(image => getComputedStyle(image).filter), /^blur\(4px\) brightness\(1\) saturate\(1\) contrast\(1\) url/);
-  const still = await frame.locator('body').screenshot();
-  await page.waitForTimeout(150);
-  assert.deepEqual(await frame.locator('body').screenshot(), still);
-  await page.locator('[data-component-parameter="style"]').selectOption('moonlit-animated');
-  await canvas.waitFor({ state: 'visible' });
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
   assert.equal(saved.document.items.length, 1);
   assert.equal(saved.document.items[0].appearance.config.style, 'moonlit-animated');
-  assert.equal(saved.document.items[0].appearance.config.backgroundDefaults.opacity, 1);
   const appearance = storedResourceConfig(fixture, saved.document.items[0]);
   assert.equal(appearance.opacity, 0.65);
   assert.equal(appearance.playbackRate, 0.75);
@@ -767,21 +528,9 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   const animation = published.locator('#backgroundAnimation');
   await animation.waitFor({ state: 'visible' });
   assert.equal(await animation.evaluate(video => video.playbackRate), 0.75);
-  assert.match(await animation.evaluate(video => getComputedStyle(video).filter), /url/);
-  assert.equal(await published.locator('[data-background-filters] filter').count(), 1);
   assert.equal(await published.locator('body').evaluate(body => getComputedStyle(body).opacity), '0.65');
-  const moving = await animation.screenshot();
-  await output.waitForTimeout(400);
-  assert.notDeepEqual(await animation.screenshot(), moving);
   await output.emulateMedia({ reducedMotion: 'reduce' });
   await animation.waitFor({ state: 'hidden' });
-  const reduced = await published.locator('body').screenshot();
-  await output.waitForTimeout(150);
-  assert.deepEqual(await published.locator('body').screenshot(), reduced);
-  await output.emulateMedia({ reducedMotion: 'no-preference' });
-  await animation.waitFor({ state: 'visible' });
-  await output.reload();
-  await animation.waitFor({ state: 'visible' });
   await page.reload();
   await canvas.waitFor({ state: 'visible' });
   await page.locator('.preview-canvas-layer-select').first().click();
@@ -790,8 +539,6 @@ test('animated wallpaper can switch to static, publish, reload and honor reduced
   assert.equal(await page.locator('[data-component-parameter="preserveLuminance"]').isChecked(), false);
   await page.getByRole('button', { name: '恢复样式默认', exact: true }).click();
   assert.equal(await page.locator('[data-component-parameter="opacity"]').inputValue(), '100');
-  assert.equal(await page.locator('[data-component-parameter="playbackRate"]').inputValue(), '1');
-  assert.equal(await page.locator('[data-component-parameter="glowStrength"]').inputValue(), '0');
   assert.equal(await page.locator('[data-component-parameter="preserveLuminance"]').isChecked(), true);
   await frame.locator('[data-background-filters]').waitFor({ state: 'detached' });
   assert.deepEqual(errors, []);

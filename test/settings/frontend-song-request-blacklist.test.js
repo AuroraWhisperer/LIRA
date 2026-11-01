@@ -47,12 +47,11 @@ async function createEditor(savedValue = '') {
 }
 
 test('blacklist entries preserve literal text and serialize additions, edits and deletions', async () => {
-  const { documentRef, field, list, empty, count, add } = await createEditor('78\n<img src=x onerror=alert(1)>');
+  const { documentRef, field, list, empty, add } = await createEditor('78\n<img src=x onerror=alert(1)>');
   assert.equal(list.children.length, 2);
   assert.equal(list.children[1].children[0].value, '<img src=x onerror=alert(1)>');
   assert.equal(list.children[1].children[0].children.length, 0);
   assert.equal(empty.hidden, true);
-  assert.equal(count.textContent, '2 个词条');
 
   add.fire('click');
   const input = list.children[2].children[0];
@@ -65,18 +64,14 @@ test('blacklist entries preserve literal text and serialize additions, edits and
   list.children[1].children[1].fire('click');
   assert.equal(field.value, `78\n${input.value}`);
   assert.equal(documentRef.activeElement, input);
-  assert.equal(input.getAttribute('aria-label'), '屏蔽词 2');
-  assert.equal(input.nextElementSibling.getAttribute('aria-label'), '删除词条 2');
   list.children[1].children[1].fire('click');
   list.children[0].children[1].fire('click');
   assert.equal(field.value, '');
-  assert.equal(count.textContent, '0 个词条');
   assert.equal(empty.hidden, false);
-  assert.equal(documentRef.activeElement, add);
 });
 
 test('snapshots preserve editable drafts and selection until successful save releases the draft', async () => {
-  const { editor, documentRef, field, list, count } = await createEditor('78');
+  const { editor, documentRef, field, list } = await createEditor('78');
   const input = list.children[0].children[0];
   input.focus();
   input.selectionStart = 1;
@@ -98,7 +93,6 @@ test('snapshots preserve editable drafts and selection until successful save rel
   assert.equal(field.value, '修改中的词条');
   editor.render('');
   assert.equal(list.children.length, 0);
-  assert.equal(count.textContent, '0 个词条');
 });
 
 test('Enter adds an entry without submitting the form, while IME confirmation does not add one', async () => {

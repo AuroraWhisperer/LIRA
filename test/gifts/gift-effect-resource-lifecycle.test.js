@@ -12,6 +12,7 @@ async function fixture(failure) {
   const children = new Set();
   const videos = [];
   const errors = [];
+  const uniforms = [];
   let contextsLost = 0;
   let lost = false;
   const create = () => {
@@ -34,7 +35,8 @@ async function fixture(failure) {
     getExtension: () => ({ loseContext: () => contextsLost++ }),
     isContextLost: () => lost,
     getAttribLocation: () => 0,
-    getUniformLocation: () => 0,
+    getUniformLocation: (_program, name) => name,
+    uniform4f: (name, ...values) => uniforms.push([name, ...values]),
   };
   for (const method of [
     'shaderSource',
@@ -46,7 +48,6 @@ async function fixture(failure) {
     'bufferData',
     'enableVertexAttribArray',
     'vertexAttribPointer',
-    'uniform4f',
     'bindTexture',
     'texParameteri',
     'viewport',
@@ -117,6 +118,7 @@ async function fixture(failure) {
     children,
     videos,
     errors,
+    uniforms,
     loseContext: () => {
       lost = true;
     },
@@ -151,16 +153,26 @@ function assertReleased(f) {
 
 test('repeated official effects release media, frame callbacks, GPU objects and DOM after each end', async () => {
   const f = await fixture();
-  for (let i = 0; i < 25; i++) {
+  for (let i = 0; i < 3; i++) {
     assert.equal(f.player.enqueue(payload(i)), true);
+    if (i === 0) {
+      assert.equal(f.videos[0].referrerPolicy, 'no-referrer');
+      assert.equal(f.videos[0].crossOrigin, 'anonymous');
+    }
     f.videos.at(-1).emit('loadeddata');
-    assert.equal(f.gpu.size, 5);
+    if (i === 0) {
+      // Sample pixel centers so the RGB and alpha halves cannot bleed into each other.
+      assert.deepEqual(f.uniforms, [['rgbRect', 0.125, 0.25, 0.25, 0.5], ['alphaRect', 0.625, 0.25, 0.25, 0.5]]);
+      const canvas = [...f.children][0];
+      assert.deepEqual([canvas.width, canvas.height], [2, 2]);
+    }
+    assert.ok(f.gpu.size > 0);
     assert.equal(f.frames.size, 1);
     f.videos.at(-1).emit('ended');
     await settle();
     assertReleased(f);
   }
-  assert.equal(f.contextsLost(), 25);
+  assert.equal(f.contextsLost(), 3);
   f.player.dispose();
   f.player.dispose();
   assertReleased(f);

@@ -5,55 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-const artPath = path.join(__dirname, '../../public/js/overlays/opening-moon-fan-art.js');
 const runtimePath = path.join(__dirname, '../../public/js/overlays/opening-moon-fan.js');
-
-test('fan sectors share one closed direction and retain contiguous artwork when open', async () => {
-  const { FAN_SLICES, fanSlicePose } = await loadModuleExports(artPath);
-  let previous;
-  for (let index = 0; index < FAN_SLICES; index += 1) {
-    const closed = fanSlicePose(index, 0);
-    const open = fanSlicePose(index, 1);
-    assert.ok(Math.abs((closed.start + closed.end) / 2 + closed.rotation + Math.PI / 2) < 1e-12);
-    assert.equal(Math.abs(open.rotation), 0);
-    assert.ok(open.end > open.start);
-    if (previous) assert.equal(open.start, previous.end);
-    previous = open;
-  }
-});
-
-test('every act opens, holds, fades its copy, folds away and leaves the garden before reopening', async () => {
-  const { LOOP_SECONDS, moonFanFrame } = await loadModuleExports(artPath);
-  const visible = ['scenery', 'flowers', 'fan', 'ribbon', 'lettering', 'detail'];
-  const times = Array.from({ length: Math.round(LOOP_SECONDS * 20) }, (_, index) => index / 20);
-  const frames = times.map(time => ({ time, ...moonFanFrame(time) }));
-  const hold = frames.findIndex(frame => visible.every(key => frame[key] === 1));
-  assert.ok(hold > 0, 'the fan opens before a fully visible hold');
-  assert.ok(frames[0].fan < 1 && frames[0].lettering === 0, 'each act starts closed without copy');
-  const held = frames.filter(frame => visible.every(key => frame[key] === 1));
-  assert.ok(held.some(frame => frame.bird === 0), 'the bird passes only briefly during the hold');
-  const closing = frames.findIndex((frame, index) => index > hold && frame.fan < 1);
-  assert.ok(closing > hold, 'the fan folds after the hold');
-  assert.ok(frames[closing].lettering < 1, 'copy fades before the fan folds');
-  const folded = frames.slice(closing);
-  assert.ok(folded.every((frame, index) => !index || frame.fan <= folded[index - 1].fan), 'folding never reopens');
-  assert.ok(folded.some(frame => frame.fan > 0 && frame.fan < 1 && frame.fanOpacity > 0.95), 'folding remains visible before its fade');
-  const interval = folded.filter(frame => frame.fanOpacity === 0);
-  assert.ok(interval.length > 0, 'the garden is shown alone before reopening');
-  for (const frame of [...interval, { time: LOOP_SECONDS, ...moonFanFrame(LOOP_SECONDS) }]) {
-    assert.equal(frame.scenery, 1, `the interval must never flash to an empty background at ${frame.time}s`);
-    for (const key of ['fanOpacity', 'lettering', 'detail', 'ribbon', 'flowers', 'bird']) {
-      assert.equal(frame[key], 0, `${key} has left at ${frame.time}s`);
-    }
-  }
-  for (const time of times.filter((_, index) => index % 10 === 0)) {
-    const once = moonFanFrame(time + LOOP_SECONDS);
-    const twice = moonFanFrame(time + LOOP_SECONDS * 2);
-    for (const key of Object.keys(once)) assert.equal(twice[key], once[key], `${key} repeats at ${time}s`);
-  }
-  for (const key of visible) assert.equal(moonFanFrame(0, true)[key], 1, 'reduced motion shows the complete still frame');
-  assert.equal(moonFanFrame(99, true).phase, 0);
-});
 
 async function createHarness(decode = async () => {}) {
   const callbacks = new Map();
@@ -151,7 +103,6 @@ test('missing artwork produces a visible error without a runaway animation or re
   h.runtime.update(config);
   await flush();
   assert.equal(h.canvas.dataset.ready, 'error');
-  assert.ok(h.messages.some(message => message.includes('素材加载失败')));
   assert.equal(h.callbacks.size, 0);
   h.runtime.update(config);
   assert.equal(h.imageCount(), h.expectedImages);

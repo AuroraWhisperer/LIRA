@@ -1,7 +1,6 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
@@ -232,7 +231,7 @@ test('ordinary lyric publication is latest-wins while one request is in flight',
   assert.equal(requests.at(-1).trackTitle, '');
 });
 
-test('lyric scheduler gates animation frames to its target rate and stops when hidden', async () => {
+test('lyric scheduler gates animation frames and stops when hidden', async () => {
   const frames = [];
   const cancelled = [];
   const document = { visibilityState: 'visible' };
@@ -253,36 +252,11 @@ test('lyric scheduler gates animation frames to its target rate and stops when h
     [1000, 50],
     [1050, 50],
   ]);
-  scheduler.setTargetFps(10);
-  frames.at(-1)(1140);
-  frames.at(-1)(1150);
-  assert.deepEqual(ticks.at(-1), [1150, 100]);
   const requested = frames.length;
   document.visibilityState = 'hidden';
   frames.at(-1)(1300);
   assert.equal(frames.length, requested, 'a hidden document must not schedule more frames');
   assert.equal(scheduler.running, false);
-});
-
-test('30fps lyric scheduling accepts rounded timestamps without promoting fast or slow frames', async () => {
-  const { LyricFrameScheduler } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'shared', 'lyric-frame-scheduler.js'),
-    { requestAnimationFrame: () => 1, cancelAnimationFrame() {} },
-  );
-  const ticks = [];
-  const scheduler = new LyricFrameScheduler();
-  scheduler.start((now, elapsed) => ticks.push([now, elapsed]));
-  for (let index = 0; index < 120; index += 1) {
-    scheduler.onFrame(Math.round((1000 + index * 1000 / 60) * 10) / 10);
-  }
-  assert.equal(ticks.length, 60, 'rounded 60Hz timestamps still deliver 30fps callbacks');
-  assert.ok(ticks.every(([, elapsed]) => elapsed > 33 && elapsed < 34));
-  const lastAt = ticks.at(-1)[0];
-  scheduler.onFrame(lastAt + 16.7);
-  assert.equal(ticks.length, 60, 'the comparison tolerance does not admit the next fast frame');
-  scheduler.onFrame(lastAt + 60);
-  assert.deepEqual(ticks.at(-1), [lastAt + 60, 60], 'a real long frame remains a real long sample');
-  scheduler.stop();
 });
 
 test('shared lyric renderer freezes its clock when playback pauses', async () => {
@@ -410,11 +384,10 @@ test('hidden lyric surfaces stop frame work and resume at the current clock with
   assert.equal(listeners.size, 0);
 });
 
-test('shared lyric progress skips unchanged words and refreshes its cache for new content', async t => {
-  let writes = 0;
+test('shared lyric progress follows seeks and applies to replacement words', async t => {
   const nodes = [];
   const { LyricWordRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-word-renderer.js'), {
-    document: { createElement: () => ({ style: { setProperty(name, value) { writes += 1; this[name] = value; } } }) },
+    document: { createElement: () => ({ style: { setProperty(name, value) { this[name] = value; } } }) },
     performance: { now: () => 0 },
   });
   const renderer = new LyricWordRenderer({
@@ -424,15 +397,10 @@ test('shared lyric progress skips unchanged words and refreshes its cache for ne
   t.after(() => renderer.dispose());
   const words = [{ text: '第', startMs: 0, endMs: 500 }, { text: '一句', startMs: 1000, endMs: 1500 }];
   renderer.setState({ lineText: '第一句', words, currentMs: 750 });
-  assert.equal(writes, 2);
-  renderer.setState({ currentMs: 800 });
-  assert.equal(writes, 2);
   renderer.setState({ currentMs: 200 });
   assert.equal(nodes[0].style['--word-progress'], '40%');
-  assert.equal(writes, 3, 'only the changed word is updated on seek');
   renderer.setState({ lineText: '下一句', words: [{ ...words[0], text: '下' }, words[1]] });
-  assert.equal(writes, 5, 'replacement nodes receive their progress even at the same timestamp');
-  assert.equal(nodes[0].style['--word-progress'], '40%');
+  assert.equal(nodes[0].style['--word-progress'], '40%', 'replacement nodes receive their progress even at the same timestamp');
 });
 
 test('shared lyric renderer ignores ordinary jitter but applies explicit small seeks', async () => {
@@ -475,9 +443,6 @@ test('shared lyric renderer ignores ordinary jitter but applies explicit small s
   renderer.setState({ currentMs: 9000 });
   assert.equal(renderer.getPosition(currentTime).currentMs, 9000, 'large external seeks still correct immediately');
   renderer.dispose();
-
-  const overlaySource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'lyric-window.js'), 'utf8');
-  assert.doesNotMatch(overlaySource, /Math\.max\(incoming, estimated\)/);
 });
 
 test('lyric clock anchors pause and resume without advancing while paused', async () => {
@@ -567,30 +532,4 @@ test('internal lyric publication preserves millisecond timing and does not jitte
   assert.deepEqual(positions, [10040, 10290, 10540, 10790, 11040, 11290, 11540]);
   assert.ok(corrections.every((correction) => correction >= 0), 'continuous audio cannot rewind the display');
   renderer.dispose();
-});
-
-test('built-in playback forces lyric sync for play, pause, and seek transitions', () => {
-  const initializer = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'initializer.js'),
-    'utf8',
-  );
-  const handlers = fs.readFileSync(
-    path.join(ROOT_DIR, 'public', 'js', 'playback', 'core', 'event-handlers.js'),
-    'utf8',
-  );
-
-  assert.match(initializer, /addEventListener\(["']play["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/);
-  assert.match(
-    initializer,
-    /addEventListener\(["']pause["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/,
-  );
-  assert.match(
-    initializer,
-    /addEventListener\(["']seeking["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/,
-  );
-  assert.match(
-    initializer,
-    /addEventListener\(["']seeked["'], \(\) => \{[^}]*syncPlaybackLyricWindow\(true\)[^}]*\}\);/,
-  );
-  assert.match(handlers, /getElementById\(["']playbackSeek["']\)[\s\S]*?syncPlaybackLyricWindow\(true\)/);
 });

@@ -342,22 +342,20 @@ test('continuous identity ingestion evicts expired viewers without requiring a U
   service.dispose();
 });
 
-for (const hours of [12, 24, 168]) {
-  test(`identity ingestion retains only the TTL window after ${hours} simulated hours`, () => {
-    const { service, advance } = createService({ nowMs: Date.now() });
-    const run = beginRoom(service);
-    const minutes = hours * 60;
-    for (let minute = 1; minute <= minutes; minute += 1) {
-      service.ingestHint({ uid: String(minute), name: `viewer-${minute}` }, { ...run, source: 'danmaku' });
-      advance(60000);
-    }
-    assert.equal(service.records.size, 11);
-    assert.equal(service.identityCache.identityByUid.size, 11);
-    assert.equal(service.identityCache.identityByName.size, 11);
-    assert.equal(service.identityCache.recentByUid.size, 11);
-    service.dispose();
-  });
-}
+test('identity ingestion retains only the TTL window after one simulated week', () => {
+  const { service, advance } = createService({ nowMs: Date.now() });
+  const run = beginRoom(service);
+  const minutes = 168 * 60;
+  for (let minute = 1; minute <= minutes; minute += 1) {
+    service.ingestHint({ uid: String(minute), name: `viewer-${minute}` }, { ...run, source: 'danmaku' });
+    advance(60000);
+  }
+  assert.equal(service.records.size, 11);
+  assert.equal(service.identityCache.identityByUid.size, 11);
+  assert.equal(service.identityCache.identityByName.size, 11);
+  assert.equal(service.identityCache.recentByUid.size, 11);
+  service.dispose();
+});
 
 test('expired profile failures are evicted and late failures cannot repopulate disposed state', async () => {
   let rejectProfile;

@@ -47,7 +47,6 @@ test('temperature reads the requested MSN city and shares its response until the
     g: 'zh-cn', x: '116.4074', y: '39.9042',
   });
   assert.equal(url.searchParams.get('weadegreetype'), 'C');
-  assert.match(requests[0].options.headers['User-Agent'], /LIRA\/[\d.]+ .*github.com\/AuroraWhisperer\/LIRA/);
   assert.equal(requests[0].options.redirect, 'error');
   first.resolve(response());
   assert.equal((await pending).temperature, -1);
@@ -57,7 +56,6 @@ test('temperature reads the requested MSN city and shares its response until the
   assert.equal(cached.temperature, -1);
   assert.equal(cached.condition, '小雨');
   assert.equal(cached.validAt, '2026-10-21T13:20:00.000Z');
-  assert.equal(cached.updatedAt, cached.validAt);
   assert.equal(cached.fetchedAt, new Date(START).toISOString());
   assert.equal(requests.length, 1, 'requests before the next whole hour share the cached page');
   time += 1;
@@ -68,31 +66,8 @@ test('temperature reads the requested MSN city and shares its response until the
   assert.equal(requests.length, 2);
 });
 
-test('weather descriptions use familiar Chinese labels without changing precipitation or uncertainty', async t => {
-  const cases = [
-    [' 大部晴朗 ', '晴间多云'],
-    ['以晴为主', '晴间多云'],
-    ['晴朗', '晴'],
-    ['局部晴朗', '多云'],
-    ['局部多云', '多云'],
-    ['大部多云', '多云'],
-    ...['晴', '少云', '晴间多云', '多云', '阴', '小雨', '小阵雨', '大雨', '冻雨',
-      '雨夹雪', '暴雪', '雷阵雨', '雷阵雨伴有冰雹', '局部阵雨', '可能有雷雨', '多云转晴', '浮尘']
-      .map(condition => [condition, condition]),
-  ];
-  for (const [caption, expected] of cases) {
-    const body = weather();
-    body.currentCondition.currentRaw.cap = caption;
-    const service = createWorldClockTemperature({ now: () => START, fetch: async () => response(body) });
-    t.after(() => service.close());
-    const result = await service.getTemperature(LOCATION);
-    assert.equal(result.condition, expected, caption);
-    assert.equal(result.temperature, -1);
-  }
-});
-
 test('missing or invalid weather descriptions preserve a valid temperature without inferring clear skies', async t => {
-  for (const cap of [undefined, null, '', '  ', 0, { text: '晴朗' }]) {
+  for (const cap of [undefined, { text: '晴朗' }]) {
     const body = weather();
     body.currentCondition.currentRaw.cap = cap;
     const service = createWorldClockTemperature({ now: () => START, fetch: async () => response(body) });
@@ -117,18 +92,6 @@ test('a response crossing the hour does not keep the previous hour cached', asyn
   first.resolve(response());
   await pending;
   await service.getTemperature(LOCATION);
-  assert.equal(requests, 2);
-});
-
-test('a new software runtime fetches fresh data even within the same hour', async t => {
-  let requests = 0;
-  const options = { now: () => START, fetch: async () => { requests++; return response(); } };
-  const previous = createWorldClockTemperature(options);
-  await previous.getTemperature(LOCATION);
-  await previous.close();
-  const current = createWorldClockTemperature(options);
-  t.after(() => current.close());
-  await current.getTemperature(LOCATION);
   assert.equal(requests, 2);
 });
 

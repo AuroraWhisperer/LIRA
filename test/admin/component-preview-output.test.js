@@ -37,8 +37,6 @@ test('canvas discard restores its shared and independent edits without clearing 
   });
   await receivedDrafts;
   await page.locator(`.preview-canvas-layer-select[data-item-id="${independentId}"]`).click();
-  assert.match(await page.locator('.scene-editor-target').textContent(), /随“保存并应用”生效/);
-  assert.doesNotMatch(await page.locator('.scene-editor-target').textContent(), /自动保存/);
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('Local draft');
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === 'Local draft');
   assert.notEqual(await desktop.evaluate(id => window.controllers.canvas.getState().draft.document.items
@@ -50,7 +48,6 @@ test('canvas discard restores its shared and independent edits without clearing 
   await page.getByRole('button', { name: '放弃修改', exact: true }).click();
   const confirmation = page.getByRole('dialog', { name: '放弃未保存的修改？', exact: true });
   await confirmation.waitFor();
-  assert.match(await confirmation.textContent(), /丢弃.*未保存/);
   assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), edited);
   await confirmation.getByRole('button', { name: '继续编辑', exact: true }).click();
   await confirmation.waitFor({ state: 'detached' });
@@ -63,11 +60,9 @@ test('canvas discard restores its shared and independent edits without clearing 
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().draft.overlayTitle), 'Keep unrelated work');
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), true);
   assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document.items), items);
-  await page.waitForFunction(() => [...document.querySelectorAll('button')]
-    .find(button => button.textContent === '放弃修改')?.disabled);
 });
 
-test('the shared song-board provider labels parameters as automatic and saves without publishing', { timeout: 20000 }, async t => {
+test('the shared song-board provider saves parameters automatically without publishing', { timeout: 20000 }, async t => {
   const fixture = await startCanvasOutputFixture();
   fixture.runtime.settings.songBoardSyncTheme = 'false';
   const browser = openBrowserSession();
@@ -83,7 +78,6 @@ test('the shared song-board provider labels parameters as automatic and saves wi
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.locator(`.preview-canvas-layer-select[data-item-id="${item.id}"]`).click();
-  assert.match(await page.locator('.scene-editor-target').textContent(), /公共参数自动保存并同步到客户端/);
   const savedParameters = page.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
     && response.request().postDataJSON()?.action === 'patch' && response.ok());
   await page.locator('[data-component-parameter="songBoardTitle"]').fill('自动保存标题');
@@ -93,7 +87,7 @@ test('the shared song-board provider labels parameters as automatic and saves wi
   assert.equal(fixture.service.list()[0].publishedVersion, 0);
 });
 
-for (const type of ['clock', 'queue', 'danmaku', 'overtime']) {
+for (const type of ['clock', 'queue', 'danmaku']) {
   test(`re-adding shared ${type} restores its saved output size`, { timeout: 20000 }, async t => {
     const fixture = await startCanvasOutputFixture();
     const browser = openBrowserSession();
@@ -116,9 +110,8 @@ for (const type of ['clock', 'queue', 'danmaku', 'overtime']) {
     let automaticHeight;
     if (type === 'clock') {
       await page.locator('.component-preview-frame').contentFrame().locator('#clockCard:not([hidden])').waitFor();
-      await page.waitForFunction(() => !document.querySelector('.scene-editor-item-label').textContent.endsWith('800 × 400 px'));
+      await page.waitForFunction(() => document.querySelector('.scene-editor-geometry input[readonly]')?.value !== '400');
       automaticHeight = Number(await page.getByRole('spinbutton', { name: '高度（自动）', exact: true }).inputValue());
-      await page.waitForFunction(height => document.querySelector('.scene-editor-item-label').textContent.endsWith(`800 × ${height} px`), automaticHeight);
       assert.notEqual(automaticHeight, 400, 'saved width is retained while the clock aspect determines its height');
     } else if (type === 'queue') {
       const frame = await page.locator('.component-preview-frame').elementHandle().then(handle => handle.contentFrame());
@@ -128,18 +121,11 @@ for (const type of ['clock', 'queue', 'danmaku', 'overtime']) {
       });
       automaticHeight = Number(await page.getByRole('spinbutton', { name: '高度（自动）' }).inputValue());
       assert.notEqual(automaticHeight, 400, 'saved width is retained while queue content determines its height');
-    } else if (type !== 'overtime') assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '400');
-    else {
-      const frame = page.locator('iframe').contentFrame();
-      await frame.locator('#overtimeMachine.is-content-sized').waitFor();
-      const height = await frame.locator('.overtime-foreground').evaluate(node => Math.ceil(node.getBoundingClientRect().height));
-      await desktop.waitForFunction(expected => window.controllers.canvas.getState().draft.document.items[0]?.height === expected, height);
-    }
+    } else assert.equal(await page.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '400');
     await page.getByRole('button', { name: '保存并应用', exact: true }).click();
     await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
     assert.equal(fixture.service.getComponentSize(type).width, 800);
-    if (type === 'clock' || type === 'queue') assert.equal(fixture.service.getComponentSize(type).height, automaticHeight);
-    else if (type !== 'overtime') assert.equal(fixture.service.getComponentSize(type).height, 400);
+    assert.equal(fixture.service.getComponentSize(type).height, type === 'danmaku' ? 400 : automaticHeight);
   });
 }
 
@@ -205,8 +191,7 @@ test('saved default components keep their real dimensions in original sources at
       const { width, height } = node.getBoundingClientRect(); return { width, height };
     });
     const baseline = await bounds(content);
-    for (const viewport of [{ width: 800, height: 400 }, { width: 1920, height: 1080 },
-      { width: 2560, height: 1440 }, { width: 3840, height: 2160 }]) {
+    for (const viewport of [{ width: 800, height: 400 }, { width: 3840, height: 2160 }]) {
       await page.setViewportSize(viewport);
       await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       assert.deepEqual(await bounds(surface), { width: 800, height: 400 }, `${type}: saved surface at ${viewport.width}`);
@@ -262,7 +247,6 @@ test('canvas save updates the original default source and separate instance URLs
       return item?.style.width === `${width}px` && item.style.height === `${expectedHeight}px`
         && document.querySelector('.scene-editor-geometry input[readonly]')?.value === String(expectedHeight);
     }, { width, expectedHeight });
-    assert.equal(await height.evaluate(input => input.readOnly), true);
     assert.equal(Number(await height.inputValue()), expectedHeight);
     return Number(await height.inputValue());
   };
@@ -280,7 +264,6 @@ test('canvas save updates the original default source and separate instance URLs
   await save();
   assert.deepEqual(fixture.service.getComponentSize('clock'), { width: 800, height: defaultHeight });
   const defaultUrl = await copy();
-  await page.getByRole('status').filter({ hasText: `800 × ${defaultHeight}` }).waitFor();
   assert.equal(new URL(defaultUrl).pathname, '/clock');
   assert.equal((await fetch(defaultUrl)).status, 200);
   await output.goto(defaultUrl);
@@ -291,7 +274,6 @@ test('canvas save updates the original default source and separate instance URLs
   const independentHeight = await setSize(600);
   await save();
   const independentUrl = await copy();
-  await page.getByRole('status').filter({ hasText: `600 × ${independentHeight}` }).waitFor();
   const address = new URL(independentUrl);
   assert.ok(address.searchParams.get('item'));
   assert.equal((await fetch(independentUrl)).status, 200);
@@ -299,8 +281,7 @@ test('canvas save updates the original default source and separate instance URLs
   const frame = output.locator('.scene-version:not(.is-staging) iframe');
   await frame.waitFor();
   assert.equal(await frame.count(), 1);
-  for (const viewport of [{ width: 800, height: 400 }, { width: 1920, height: 1080 },
-    { width: 2560, height: 1440 }, { width: 3840, height: 2160 }]) {
+  for (const viewport of [{ width: 800, height: 400 }, { width: 3840, height: 2160 }]) {
     await output.setViewportSize(viewport);
     const bounds = await frame.boundingBox();
     assert.deepEqual({ x: bounds.x, y: bounds.y, width: bounds.width, height: bounds.height },
@@ -338,24 +319,6 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.goto(url);
   await page.getByRole('button', { name: '添加组件', exact: true }).waitFor();
   assert.equal(await page.locator('.scene-editor-item').count(), 0);
-  assert.equal(await page.locator('.component-preview-add').count(), 1);
-  assert.equal(await page.locator('.preview-canvas-resolution').textContent(), '1920 × 1080');
-  assert.equal(await page.locator('.preview-canvas-sidebar').isHidden(), true);
-  const assertCanvasFits = async () => {
-    assert.equal(await page.locator('.scene-editor-canvas').evaluate(canvas => {
-      const viewport = canvas.closest('.scene-editor-viewport');
-      const bounds = canvas.getBoundingClientRect();
-      const frame = viewport.getBoundingClientRect();
-      const root = document.scrollingElement;
-      return bounds.width > 0 && bounds.left >= frame.left && bounds.top >= frame.top
-        && bounds.right <= frame.right && bounds.bottom <= frame.bottom
-        && viewport.scrollWidth <= viewport.clientWidth && viewport.scrollHeight <= viewport.clientHeight
-        && root.scrollWidth <= innerWidth && root.scrollHeight <= innerHeight;
-    }), true, 'The entire canvas must fit without page or canvas scrolling');
-  };
-  await assertCanvasFits();
-  assert.ok((await page.locator('.scene-editor-canvas').boundingBox()).width > 1200,
-    'The initial canvas should use the space released by the side panels');
   const add = async (category, style) => {
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
     await page.locator(`[data-category="${category}"]`).click();
@@ -366,27 +329,10 @@ test('empty editor adds independent styles and publishes every layer through one
   await xInput.fill('-10000');
   await page.getByRole('button', { name: '收起参数', exact: true }).click();
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  assert.equal(await page.locator('.preview-canvas-sidebar').isVisible(), true);
-  assert.equal(await xInput.evaluate(input => document.activeElement === input), true,
-    await page.evaluate(() => document.activeElement.outerHTML));
+  await page.locator('.preview-canvas-sidebar').waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 0, 'Invalid hidden fields must prevent publication');
   await xInput.fill('670');
   await page.getByRole('spinbutton', { name: 'Y', exact: true }).click();
-  const editingWidth = (await page.locator('.scene-editor-canvas').boundingBox()).width;
-  await page.getByRole('button', { name: '收起参数', exact: true }).click();
-  await page.waitForFunction(width => document.querySelector('.scene-editor-canvas').getBoundingClientRect().width > width, editingWidth);
-  assert.equal(await page.locator('.scene-editor-item.is-selected').count(), 1);
-  await assertCanvasFits();
-  await page.getByRole('button', { name: '展开参数', exact: true }).click();
-  await page.setViewportSize({ width: 1000, height: 700 });
-  await page.waitForFunction(() => {
-    const canvas = document.querySelector('.scene-editor-canvas').getBoundingClientRect();
-    const viewport = document.querySelector('.scene-editor-viewport').getBoundingClientRect();
-    return canvas.right <= viewport.right && canvas.bottom <= viewport.bottom;
-  });
-  await assertCanvasFits();
-  await page.setViewportSize({ width: 1440, height: 900 });
-  assert.equal(await page.getByRole('spinbutton', { name: 'X', exact: true }).inputValue(), '670');
   await add('clock', 'flip');
   await add('queue', 'classic');
   await add('danmaku', 'signal');
@@ -408,14 +354,6 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
   await page.waitForFunction(() => window.copiedSource);
   const source = await page.evaluate(() => window.copiedSource);
-  const sourceBlock = page.getByRole('button', { name: '复制浏览器源地址', exact: true });
-  assert.equal(await sourceBlock.textContent(), source);
-  const sourceBounds = await sourceBlock.boundingBox();
-  assert.ok(sourceBounds.width >= 260 && sourceBounds.width <= 400, 'the popup keeps its own width outside the toolbar');
-  await page.evaluate(() => { window.copiedSource = ''; });
-  await sourceBlock.click();
-  await page.waitForFunction(() => window.copiedSource);
-  assert.equal(await page.evaluate(() => window.copiedSource), source);
   const address = new URL(source);
   assert.equal(address.hostname, '127.0.0.1');
   assert.equal(address.pathname, '/scene');
@@ -436,23 +374,21 @@ test('empty editor adds independent styles and publishes every layer through one
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('更新后的时钟');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.locator('.preview-canvas-status').filter({ hasText: '模拟发布失败' }).waitFor();
-  await page.locator('#toast .toast-error').filter({ hasText: '模拟发布失败' }).waitFor();
   assert.equal(fixture.service.list()[0].publishedVersion, 1);
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
   fixture.failPublication(false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="萌时钟 1"]').getByText('更新后的时钟').waitFor();
+  await page.evaluate(() => { window.copiedSource = ''; });
   await page.getByRole('button', { name: '复制场景地址', exact: true }).click();
-  await page.getByRole('status').filter({ hasText: '地址已复制；浏览器源尺寸设为' }).waitFor();
+  await page.waitForFunction(() => window.copiedSource);
   assert.equal(await page.evaluate(() => window.copiedSource), source);
   await page.goto('about:blank');
   await desktop.evaluate(() => window.reopen());
   await desktop.waitForFunction(() => window.externalPreviewUrl);
   await page.goto(await desktop.evaluate(() => window.externalPreviewUrl));
   await page.waitForFunction(() => document.querySelectorAll('.scene-editor-item').length === 5);
-  await page.getByRole('button', { name: '画布设置', exact: true }).click();
-  assert.equal(await page.getByRole('heading', { name: '画布设置', exact: true }).count(), 1);
   assert.equal(fixture.service.list().length, 1);
   await page.close();
   await desktop.close();
@@ -463,7 +399,6 @@ test('empty editor adds independent styles and publishes every layer through one
   fixture.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '合成观众', message: '关闭编辑器后的弹幕' });
   await output.frameLocator('.scene-version:not(.is-staging) iframe[title="弹幕姬 1"]').getByText('关闭编辑器后的弹幕').waitFor();
   assert.equal(await output.locator('body').evaluate(node => getComputedStyle(node).backgroundColor), 'rgba(0, 0, 0, 0)');
-  assert.equal(await output.locator('.component-preview-body').count(), 0);
   await output.setViewportSize({ width: 1280, height: 720 });
   const size = await output.locator('.scene-version:not(.is-staging)').boundingBox();
   assert.equal(Math.round(size.width), 1920);

@@ -81,7 +81,7 @@ flowchart LR
 ## Verification
 
 - `node --experimental-vm-modules --test test/ai/*.test.js`；涉及 runtime/ingress 的已有 test 文件按 owner 增补。
-- `node --test test/desktop/doubao-session-electron.test.js` 检查默认 TTL 和会话边界；只有修改 Electron 代码才扩展对应生命周期测试。
+- `node --test test/desktop/doubao-session-electron.test.js` 检查显式 TTL 和会话边界，默认 TTL 由 `test/ai/doubao-client.test.js` 承接；只有修改 Electron 代码才扩展对应生命周期测试。
 - `node --experimental-vm-modules --test test/admin/frontend-usage-guide.test.js`。
 - `npm run verify:docs`、`npm run verify:architecture`；受影响 JS 语法检查和 `git diff --check`。不运行无关全仓套件。
 - 按 playwright-interactive 技能在隔离 Electron fixture 检查实际表单和自动保存；普通浏览器不能证明桌面授权。

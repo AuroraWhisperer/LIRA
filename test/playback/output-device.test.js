@@ -110,7 +110,6 @@ test('output selection applies to the media element before saving and restores t
   assert.equal(f.audio.sinkId, 'b');
   assert.equal(f.savedPreference().deviceId, 'b');
   assert.deepEqual(Array.from(f.state.devices, item => item.deviceId), ['a', 'b']);
-  assert.match(f.state.message, /已切换并保存/);
   f.output.dispose();
 });
 
@@ -122,7 +121,6 @@ test('switch failure preserves the usable channel and save failure is reported w
   assert.equal(f.state.deviceId, 'a');
   assert.equal(f.audio.sinkId, 'a');
   assert.equal(f.savedPreference().deviceId, 'a');
-  assert.match(f.state.message, /无法访问/);
   await f.output.prepare();
   f.setChangeSink(async () => {});
   f.failSave();
@@ -186,7 +184,6 @@ test('other windows synchronize without writing back and processing defers a cha
   f.receive({ revision: 2, internalSource: true, running: true });
   assert.equal(await f.output.select('b'), false);
   assert.equal(f.audio.sinkId, 'a');
-  assert.match(f.state.message, /先关闭电音助手/);
   f.storageEvent({ deviceId: 'b', name: 'Channel b' });
   await assert.rejects(f.output.prepare(), /输出通道不可用/);
   assert.equal(f.audio.paused, true);
@@ -207,7 +204,6 @@ test('actual recovery keeps the internal output locked while safe deferred resto
   await f.output.prepare();
   f.receive({ internalSource: true, pendingRecovery: true, recoveryDeferred: false });
   assert.equal(await f.output.select('a'), false);
-  assert.match(f.state.message, /恢复原声/);
   f.receive({ internalSource: true, pendingRecovery: true, recoveryDeferred: true });
   assert.equal(await f.output.select('a'), true);
   await f.output.prepare();

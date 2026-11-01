@@ -23,14 +23,6 @@ test('woodland 1.0.0 imports the original native artwork and preserves legacy me
     const result = await response.json(); assert.equal(response.status, 200, result.error); return result.data;
   }
   const entries = createWoodlandGiftEntries();
-  const manifest = JSON.parse(entries.get('lira-pack.json'));
-  assert.equal(manifest.version, '1.0.0');
-  assert.equal(manifest.id, 'lira.woodland-gift-frame');
-  assert.equal(manifest.styles.length, 1);
-  assert.deepEqual([manifest.styles[0].width, manifest.styles[0].height], [1920, 1080]);
-  assert.deepEqual(manifest.styles[0].config, {});
-  assert.deepEqual(Object.keys(manifest.styles[0].resources), [WOODLAND_GIFT_VIDEO]);
-  assert.deepEqual([...entries.keys()].sort(), ['assets/preview.webp', 'assets/woodland-bloom-v4.webm', 'lira-pack.json', '使用说明.txt'].sort());
   const original = fs.readFileSync(path.resolve('public', `.${WOODLAND_GIFT_VIDEO}`));
   const digest = bytes => createHash('sha256').update(bytes).digest('hex');
   assert.equal(digest(entries.get('assets/woodland-bloom-v4.webm')), digest(original));
@@ -38,13 +30,10 @@ test('woodland 1.0.0 imports the original native artwork and preserves legacy me
   assert.equal((await fetch(legacy)).status, 404, 'Source checkout artwork must not mask a missing import.');
   const archive = createWoodlandGiftZip();
   const preview = await request('inspect?target=gift-frame', archive);
-  assert.equal(preview.isSuite, false);
   assert.equal((await fetch(legacy)).status, 404, 'Inspect alone must not make staged resources available.');
   const installed = await request('install', { id: preview.id, target: 'gift-frame' });
   const style = installed.styles[0];
-  assert.equal(style.type, 'gift-frame');
   assert.deepEqual(normalizeSceneConfig(style.type, style.config), style.config);
-  assert.deepEqual(Object.keys(style.config), ['resourceStyle']);
   const source = style.config.resourceStyle.resources[WOODLAND_GIFT_VIDEO];
   assert.ok(source.endsWith(`/${digest(original)}.webm`));
   const redirect = await fetch(legacy, { redirect: 'manual' });

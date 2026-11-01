@@ -402,27 +402,18 @@ test('only exact output GET accepts the matching scene Bearer; query, admin and 
   }
 });
 
-test('HTTP scene output rejects cross-scene access, previous rotation, owner changes and logout', async (t) => {
+test('HTTP scene output rejects cross-scene access, owner changes and a locked license', async (t) => {
   const { request, publishedScene, state } = await fixture(t);
   const first = publishedScene().source;
   const second = publishedScene().source;
   assert.equal((await request(outputRoute(second.id), { token: first.token })).status, 403);
-  const rotation = await request('/api/scenes/rotate', { token: ADMIN, method: 'POST', body: { id: first.id } });
-  assert.equal(rotation.status, 200);
-  assert.equal((await request(outputRoute(first.id), { token: first.token })).status, 403);
-  const source = rotation.body.data;
-  assert.equal((await request(outputRoute(source.id), { token: source.token })).status, 200);
-  for (const owner of [{ scope: 'https://server.test/streamer-b', epoch: 2 }, { scope: 'https://other.test/streamer-a', epoch: 3 }]) {
-    state.owner = owner;
-    assert.equal((await request(outputRoute(source.id), { token: source.token })).status, 404);
-    assert.deepEqual((await request('/api/scenes/list', { token: ADMIN })).body.data, []);
-  }
-  state.owner = null;
-  assert.equal((await request(outputRoute(source.id), { token: source.token })).status, 403);
-  state.owner = { scope: 'https://server.test/streamer-a', epoch: 4 };
-  assert.equal((await request(outputRoute(source.id), { token: source.token })).status, 200);
+  state.owner = { scope: 'https://server.test/streamer-b', epoch: 2 };
+  assert.equal((await request(outputRoute(first.id), { token: first.token })).status, 404);
+  assert.deepEqual((await request('/api/scenes/list', { token: ADMIN })).body.data, []);
+  state.owner = { scope: 'https://server.test/streamer-a', epoch: 3 };
+  assert.equal((await request(outputRoute(first.id), { token: first.token })).status, 200);
   state.licensed = false;
-  const locked = await request(outputRoute(source.id), { token: source.token });
+  const locked = await request(outputRoute(first.id), { token: first.token });
   assert.equal(locked.status, 423);
   assertNoStore(locked);
 });

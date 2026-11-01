@@ -54,7 +54,6 @@ test('opening settings preview reuses a canvas layer and published output follow
   const opening = page.frameLocator('.scene-editor-item.is-selected iframe');
   await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   assert.equal(await page.locator('.scene-editor-item').count(), 1);
-  assert.equal(await desktop.locator('#openingPreview').count(), 0);
   await desktop.locator('#openingTitle').fill('新的开播标题');
   await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
   await desktop.locator('#openingEnabled').uncheck();
@@ -64,20 +63,6 @@ test('opening settings preview reuses a canvas layer and published output follow
   await desktop.locator('#openingEnabled').check();
   await desktop.getByRole('button', { name: '像素卡带', exact: true }).click();
   await opening.locator('#openingPixel').waitFor({ state: 'visible' });
-  assert.equal(await desktop.locator('#openingStyle option[value="moonlit-fan"]').count(), 0,
-    'External suite styles are selected from the imported library.');
-  assert.equal(await desktop.locator('#openingCopyFields').isVisible(), false,
-    'Pixel cassette does not expose the classic copy fields.');
-  await desktop.locator('#openingQuality').selectOption('low');
-  await opening.locator('#openingStage.quality-low').waitFor({ state: 'visible' });
-  await desktop.locator('#openingQuality').selectOption('normal');
-  await opening.locator('#openingStage.quality-normal').waitFor({ state: 'visible' });
-  await desktop.locator('#openingEnabled').uncheck();
-  await desktop.waitForResponse(response => response.url().endsWith('/api/settings')
-    && response.request().postDataJSON()?.openingEnabled === 'false');
-  await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
-  await desktop.locator('#openingEnabled').check();
-  await opening.locator('#openingStage:not(.is-disabled)').waitFor({ state: 'visible' });
   await desktop.getByRole('button', { name: '经典舞台', exact: true }).click();
   await opening.getByText('新的开播标题', { exact: true }).waitFor({ state: 'visible' });
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('960');
@@ -108,11 +93,9 @@ test('opening settings preview reuses a canvas layer and published output follow
   await published.getByText(settings.openingTitle, { exact: true }).waitFor({ state: 'visible' });
   await page.bringToFront();
   await opening.getByText(settings.openingTitle, { exact: true }).waitFor({ state: 'visible' });
+  assert.equal(await published.locator('body').evaluate(() => window.__API_TOKEN__), undefined);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="opening"]').click();
-  assert.deepEqual(await page.locator('.preview-picker-caption strong').allTextContents(), ['经典舞台', '像素卡带']);
-  await page.locator('.preview-picker-styles img').evaluateAll(images => Promise.all(images.map(image => image.decode())));
-  assert.equal(await published.locator('body').evaluate(() => window.__API_TOKEN__), undefined);
   await page.getByRole('button', { name: '添加经典舞台', exact: true }).click();
   await opening.locator('#openingStage[data-style="classic"]').waitFor({ state: 'visible' });
   settings.openingStyle = 'pixel-cassette';

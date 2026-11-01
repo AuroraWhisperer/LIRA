@@ -17,7 +17,7 @@ test('overlay IPC forwards sanitized settings with the captured owner for idle s
     safeHandle: (name, handler) => handlers.set(name, handler),
     licenseManager: {
       isAuthorized: () => true, getCloudSyncIdentity: () => ({ streamerId: 7 }),
-      getRemoteBaseUrl: () => 'https://api.example.test', getAuthorizationEpoch: () => epoch,
+      getRemoteBaseUrl: () => 'https://api.example.test', getAuthorizationGeneration: () => epoch,
       getOverlaySettings: () => new Promise(done => { resolve = done; }),
       updateOverlaySettings: async () => settings,
     },
@@ -179,12 +179,6 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
   assert.deepEqual(await read(event), expected);
   assert.deepEqual(await update(event, reply), expected);
   assert.deepEqual(writes, [{ style: 'outline', fullscreenDurationSeconds: 12 }]);
-  for (const style of ['cream', 'glow']) {
-    reply = { ...reply, style };
-    assert.deepEqual(await read(event), { ...expected, style });
-    assert.deepEqual(await update(event, reply), { ...expected, style });
-    assert.deepEqual(writes.at(-1), { style, fullscreenDurationSeconds: 12 });
-  }
   for (const overlayUrl of [
     'https://test.example/overlay',
     'https://test.example/overlay/short',

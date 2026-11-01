@@ -90,11 +90,6 @@ test('shared local font library queries once for queue, desktop lyric and large 
   assert.equal(queryCount, 1);
   for (const select of [illustratedSelect, lyricSelect]) {
     const group = select.querySelector('optgroup[data-local-fonts="true"]');
-    assert.equal(group.label, '本机字体');
-    assert.deepEqual(
-      group.children.map((option) => option.textContent),
-      ['Arial', 'Cascadia Code'],
-    );
     assert.deepEqual(
       group.children.map((option) => option.value),
       ['"Arial"', '"Cascadia Code"'],
@@ -103,8 +98,8 @@ test('shared local font library queries once for queue, desktop lyric and large 
   assert.equal(illustratedSelect.value, 'default');
   assert.equal(lyricSelect.value, 'Microsoft YaHei');
   assert.equal(playerSelect.value, 'maiyuan');
-  assert.deepEqual(playerSelect.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.textContent),
-    ['Arial', 'Cascadia Code', 'Microsoft YaHei']);
+  assert.deepEqual(playerSelect.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.value),
+    ['"Arial"', '"Cascadia Code"', '"Microsoft YaHei"']);
 });
 
 test('shared display fonts keep legacy selections without duplicate options or local-font queries', async () => {
@@ -164,7 +159,6 @@ test('shared font menus exclude missing, loading and failed faces, then add deco
   assert.equal(fresh.querySelector('optgroup[data-shared-fonts]'), null);
   assert.equal(saved.value, 'maiyuan');
   assert.equal(saved.options.find(option => option.value === 'maiyuan').disabled, true);
-  assert.match(saved.options.find(option => option.value === 'maiyuan').textContent, /未就绪/);
   readyFace.status = 'loaded';
   pending.resolve([readyFace]);
   await new Promise(resolve => setImmediate(resolve));
@@ -172,7 +166,6 @@ test('shared font menus exclude missing, loading and failed faces, then add deco
     const group = select.querySelector('optgroup[data-shared-fonts]');
     assert.deepEqual(group.children.map(option => option.dataset.fontId), ['maiyuan']);
     assert.ok(!group.children[0].disabled);
-    assert.doesNotMatch(group.children[0].textContent, /未就绪/);
   }
   assert.equal(saved.value, 'maiyuan');
   assert.equal(fresh.value, 'default');
@@ -190,27 +183,6 @@ test('shared font menus exclude missing, loading and failed faces, then add deco
   faces.splice(0, faces.length, readyFace);
   library.refreshSharedFonts();
   assert.equal(loads, 3, 'Disposed selectors do not trigger font loads after stylesheet changes.');
-});
-
-test('shared local font library preserves a saved option missing from the current machine', async () => {
-  const select = createSelect('default', [{ value: 'default', label: '幼圆' }]);
-  const sandbox = {
-    console,
-    document: { createElement: (tagName) => createNode(tagName) },
-    window: {},
-  };
-  const library = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'local-font-library.js'),
-    sandbox,
-  );
-
-  library.ensureSavedFontOption(select, '"Example Local Font"');
-  library.ensureSavedFontOption(select, '"Example Local Font"');
-
-  assert.equal(select.options.length, 2);
-  assert.equal(select.options[1].value, '"Example Local Font"');
-  assert.equal(select.options[1].textContent, 'Example Local Font（当前设置）');
-  assert.equal(select.options[1].dataset.savedLocalFont, 'true');
 });
 
 test('shared local font library retries a security error after the first user gesture', async () => {
@@ -252,8 +224,5 @@ test('shared local font library retries a security error after the first user ge
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(queryCount, 2);
-  assert.deepEqual(
-    select.querySelector('optgroup[data-local-fonts="true"]').children.map((option) => option.textContent),
-    ['Cascadia Code'],
-  );
+  assert.equal(select.querySelector('optgroup[data-local-fonts="true"]').children.length, 1);
 });

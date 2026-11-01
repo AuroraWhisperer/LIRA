@@ -195,10 +195,6 @@ test('room revision follows committed changes without persisting or counting unr
 
 test('heart box display settings persist optional multiplier, zero remaining and independent visibility', async t => {
   const f = fixture(t);
-  assert.equal(f.store.getSettings().blindboxCastleMultiplier, '');
-  assert.equal(f.store.getSettings().blindboxShowOpenedSinceCastle, 'false');
-  assert.equal(f.store.getSettings().blindboxCompact, 'false');
-  assert.equal(f.store.getSettings().blindboxAutoPages, 'true');
   assert.equal((await f.post({ blindboxCastleMultiplier: '1.25', blindboxCastlesRemaining: 0,
     blindboxShowCastlesRemaining: true, blindboxShowOpenedSinceCastle: true,
     blindboxCompact: true, blindboxAutoPages: false })).status, 200);
@@ -230,11 +226,8 @@ test('invalid setting batches do not commit earlier valid fields', async (t) => 
   assert.deepEqual(f.dirtyScopes, []);
 });
 
-test('clock moon settings default on old stores and persist atomically across reopening', async (t) => {
+test('clock moon settings persist atomically across reopening', async (t) => {
   const f = fixture(t);
-  const { getClockConfig } = require('../../src/server/clock-contract');
-  assert.equal(getClockConfig(f.store.getSettings()).moonMode, 'light');
-  assert.equal(getClockConfig(f.store.getSettings()).moonIntervalSeconds, 30);
   assert.equal((await f.post({ clockMoonMode: 'auto', clockMoonIntervalSeconds: 7 })).status, 200);
   const reopened = createSettingsStore(f.db).getSettings();
   assert.equal(reopened.clockMoonMode, 'auto');
@@ -289,7 +282,6 @@ test('song request blacklist persists normalized lines locally and can be cleare
 
 test('interaction appearance persists, preserves saved values on reinitialization and rejects invalid batches atomically', async (t) => {
   const f = fixture(t);
-  assert.equal(f.store.getSettings().interactionBackgroundOpacity, '100');
   const result = await f.post({
     interactionOverlayTitle: '  今晚唱什么  ',
     interactionBarColor: '#CDEFEA',

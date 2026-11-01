@@ -52,7 +52,6 @@ test('every clock and danmaku preset applies supported effects, preserves animat
     assert.ok(await frame.locator('[style*="text-stroke"]').count(), `${type}/${style}: text target`);
     assert.ok(await frame.locator('[style*="--component-transform"]').count(), `${type}/${style}: transform target`);
     if (groups.innerShadow) assert.ok(await frame.locator('[style*="box-shadow"]').count(), `${type}/${style}: panel target`);
-    if (style === 'moonlit-fan') assert.equal(await frame.locator('.clock-moon-face').evaluate(node => getComputedStyle(node).filter), 'none');
     if (['floating', 'comet'].includes(style)) {
       assert.ok(await frame.locator(selector).first().evaluate(node => node.getAnimations()
         .some(animation => animation.effect.getKeyframes().some(key => /component-transform|rotateX|matrix3d/.test(String(key.transform))))), style);

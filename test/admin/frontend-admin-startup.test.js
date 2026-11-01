@@ -43,6 +43,9 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
   const listeners = new Map();
   const connectionStates = [];
   const toolboxOptions = [];
+  const featureInitializations = [];
+  const toolboxBindings = [];
+  const preferenceWrites = [];
   const songFilters = { query: 'current page filter' };
   let readSongFilters;
   let start;
@@ -69,10 +72,11 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
           listeners.get(name).push(listener);
         },
       },
-      Events: {},
+      Events: { STATE_LOADED: 'state:loaded', SONG_UPDATED: 'song:updated' },
     },
     '../shared/logger.js': { logger: { debug: noop, error: noop } },
-    '../shared/utils.js': { showError: (error) => errors.push(error), showConfirmationDialog: confirm },
+    '../shared/utils.js': { showError: (error) => errors.push(error), showConfirmationDialog: confirm,
+      api: (url, body) => { preferenceWrites.push({ url, body }); } },
     '../shared/theme.js': {
       theme: {},
       loadThemeConfig: () => {
@@ -82,7 +86,7 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     },
     '../shared/parameter-range.js': { initParameterRanges: noop },
     '../shared/color-control.js': { enhanceColorControls: noop },
-    '../shared/select-menu.js': { enhanceSelects: noop },
+    '../shared/select-menu.js': { enhanceSelects: () => featureInitializations.push('select-controls') },
     './legacy-admin-bridge.js': {
       getLegacyAdminModules: () => modules,
       publishNavigation: noop,
@@ -123,12 +127,13 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
       },
     },
     './queue.js': { initQueueForm: noop },
-    './songs.js': { songs: { initSongForm: noop, readSongFilters: () => songFilters, renderSongs: noop } },
+    './songs.js': { songs: { initSongForm: noop, readSongFilters: () => songFilters,
+      renderSongs: noop } },
     './metrics.js': { metrics: { initPerformanceMonitor: noop } },
-    './streamer-planner.js': { todo: { init: noop } },
+    './streamer-planner.js': { todo: { init: () => featureInitializations.push('planner') } },
     './gift-effects.js': { giftEffects: { init: noop } },
     './toolbox-navigation.js': {
-      other: { initOtherPage: noop, selectFeatureById: noop },
+      other: { initOtherPage: (options) => toolboxBindings.push(options), selectFeatureById: noop },
       createFeatureNavigation: () => ({ initOtherPage: noop }),
     },
     './danmaku-tool.js': { danmakuTool: {} },
@@ -139,7 +144,7 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     './playback-output-settings.js': { initPlaybackOutputSettings: noop },
     './audio-assistant.js': { initAudioAssistant: noop },
     './topbar-status.js': { initTopbarStatus: noop },
-    './world-clock/index.js': { initWorldClock: noop },
+    './world-clock/index.js': { initWorldClock: () => featureInitializations.push('world-clock') },
     './settings.js': {
       settings: {
         initSettingsForm: () => calls.push('settings'),
@@ -149,7 +154,7 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     './theme.js': { theme: { initThemeForm: () => calls.push('theme-form'), renderPresetCards: noop } },
     './display.js': { display: { initDisplayForm: () => calls.push('display-form'), initOverlayUrls: noop } },
     './state-renderer.js': {
-      createAdminStateRenderer: noop,
+      createAdminStateRenderer: ({ renderGifts }) => ({ state, changedKeys }) => renderGifts(state, changedKeys),
       renderConnectionStatus: (state) => connectionStates.push(state),
     },
     './component-preview-registry.js': { setComponentPreviewPreparation: noop, getComponentPreviews: () => [] },
@@ -172,7 +177,8 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     );
   });
   await entry.evaluate();
-  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions };
+  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions,
+    featureInitializations, toolboxBindings, preferenceWrites };
 }
 
 test('toolbox initialization recovery reloads only after confirmation and keeps the failure visible', async () => {
@@ -186,9 +192,6 @@ test('toolbox initialization recovery reloads only after confirmation and keeps 
   const first = fixture.toolboxOptions[0].onInitError(error);
   const overlapping = fixture.toolboxOptions[1].onInitError(error);
   assert.equal(dialogs.length, 1);
-  assert.match(dialogs[0].options.message, /clock editor failed/);
-  assert.match(dialogs[0].options.message, /未保存.*丢失/);
-  assert.equal(dialogs[0].options.confirmLabel, '重新加载管理页');
   assert.deepEqual(fixture.calls, []);
   dialogs[0].resolve(false);
   await Promise.all([first, overlapping]);
@@ -200,45 +203,38 @@ test('toolbox initialization recovery reloads only after confirmation and keeps 
   assert.deepEqual(fixture.calls, ['reload']);
 });
 
-test('desktop first paint applies body styling before admin modules load', () => {
-  const html = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/shell-start.html'), 'utf8');
-  const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)];
-  for (const search of ['?desktop=1', '']) {
-    const rootClasses = new Set();
-    const bodyClasses = new Set();
-    const document = {
-      documentElement: {
-        classList: {
-          add: (...names) => names.forEach((name) => rootClasses.add(name)),
-          contains: (name) => rootClasses.has(name),
-        },
-      },
-      body: null,
-    };
-    const context = vm.createContext({ document, location: { search }, URLSearchParams });
-    vm.runInContext(scripts[0][1], context);
-    document.body = { classList: { add: (name) => bodyClasses.add(name) } };
-    vm.runInContext(scripts[1][1], context);
-    assert.equal(rootClasses.has('admin-starting'), search === '?desktop=1');
-    assert.equal(bodyClasses.has('desktop-shell'), search === '?desktop=1');
-  }
-});
-
 test('desktop startup waits for theme and initial data while initializing window and workspace controls early', async () => {
   const fixture = await createStartupFixture();
   assert.deepEqual(fixture.calls, [], 'interactive documents must wait for DOMContentLoaded');
   const starting = fixture.start();
-  assert.deepEqual(fixture.calls, ['desktop', 'settings', 'workspace', 'theme']);
+  assert.deepEqual([...fixture.calls].sort(), ['desktop', 'settings', 'theme', 'workspace']);
   assert.equal(fixture.classes.has('admin-starting'), true);
   fixture.theme.resolve();
   await fixture.dataRequested.promise;
   assert.deepEqual(fixture.calls.slice(4).sort(), ['display-form', 'theme-form']);
+  assert.deepEqual(fixture.featureInitializations.sort(), ['planner', 'select-controls', 'world-clock']);
   assert.deepEqual(fixture.connectionStates, ['connected', 'disconnected', 'shutdown']);
   assert.equal(fixture.classes.has('admin-starting'), true);
   fixture.data.resolve();
   await starting;
   assert.equal(fixture.classes.has('admin-starting'), false);
   assert.deepEqual(fixture.errors, []);
+});
+
+test('toolbox preference callbacks persist only the corresponding settings fields', async () => {
+  const fixture = await createStartupFixture();
+  const starting = fixture.start();
+  fixture.theme.resolve();
+  await fixture.dataRequested.promise;
+  fixture.data.resolve();
+  await starting;
+  assert.deepEqual(fixture.preferenceWrites, []);
+  fixture.toolboxBindings[0].persistSidebarCollapsed(true);
+  fixture.toolboxBindings[0].persistCollapsedFeatureGroups(['streamer-work']);
+  assert.deepEqual(JSON.parse(JSON.stringify(fixture.preferenceWrites)), [
+    { url: '/api/settings', body: { toolboxSidebarCollapsed: 'true' } },
+    { url: '/api/settings', body: { toolboxCollapsedFeatureGroups: '["streamer-work"]' } },
+  ]);
 });
 
 test('failed initial state loading exits the startup screen and reports the error', async () => {

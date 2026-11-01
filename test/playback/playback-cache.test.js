@@ -2,11 +2,9 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
-const { pathToFileURL } = require('node:url');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 test('personal playlist cache survives a restart for up to twenty-four hours', async () => {
   const values = new Map();
@@ -101,16 +99,6 @@ for (const hours of [12, 24, 168]) {
   });
 }
 
-async function loadCacheManager(globals) {
-  const filePath = path.join(__dirname, '../..', 'public', 'js', 'playback', 'cache', 'manager.js');
-  const context = vm.createContext({ console, ...globals });
-  const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
-    context,
-    identifier: pathToFileURL(filePath).href,
-  });
-  await module.link(() => {
-    throw new Error('CacheManager should not import dependencies.');
-  });
-  await module.evaluate();
-  return module.namespace;
+function loadCacheManager(globals) {
+  return loadModuleExports(path.join(__dirname, '../../public/js/playback/cache/manager.js'), globals);
 }

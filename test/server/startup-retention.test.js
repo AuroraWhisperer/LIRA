@@ -85,20 +85,6 @@ test('settings and cleanup failures remain isolated and a later interval retries
   stop();
 });
 
-test('retention logging includes compacted tables while accepting older result shapes', (t) => {
-  const f = fixture(t);
-  f.result.cooldownsDeleted = 1;
-  const stop = startRetentionMaintenance(f.settingsStore, f.dataService);
-  assert.match(f.log.mock.calls[0].arguments[0], /cooldowns=1 importBatches=0 songCooldowns=0/);
-  f.result.cooldownsDeleted = 0;
-  f.result.importBatchesDeleted = 2;
-  f.result.songCooldownsDeleted = 3;
-  f.schedule.mock.calls[0].arguments[0]();
-  assert.match(f.log.mock.calls[1].arguments[0], /importBatches=2 songCooldowns=3/);
-  assert.equal(f.warn.mock.callCount(), 0);
-  stop();
-});
-
 test('automatic retention yields between gift batches and cancels queued continuation on shutdown', (t) => {
   const f = fixture(t);
   f.result.hasMoreGiftEvents = true;

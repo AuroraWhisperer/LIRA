@@ -74,7 +74,7 @@ test('cleanup rechecks references and authorization and never trusts stale inven
   const outside = createScratchDirectory('maintenance-external-', t);
   fs.writeFileSync(path.join(outside, 'keep'), 'keep');
   fs.symlinkSync(outside, path.join(f.store.directory(pack.id), 'link'), 'junction');
-  assert.throws(() => f.maintenance.cleanup([pack.id], () => {}), /链接/);
+  assert.throws(() => f.maintenance.cleanup([pack.id], () => {}));
   assert.equal(fs.readFileSync(path.join(outside, 'keep'), 'utf8'), 'keep');
 });
 

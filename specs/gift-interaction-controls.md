@@ -75,5 +75,5 @@ sync/isolation and Electron shutdown tests protect surrounding behavior. Real
 upstream login, live sending and the server's own reset/gate implementation are
 verified in the server repository, not inferred from these client mocks.
 `test/bots/fixed-reply-frontend.test.js` and
-`test/desktop/fixed-reply-editor-electron.test.js` verify token editing, previews,
-failure/account drafts, the two-column layout and authorized desktop saving.
+`test/desktop/fixed-reply-editor-electron.test.js` verify token editing,
+failure/account drafts and authorized desktop saving; previews and layout are checked by viewing.

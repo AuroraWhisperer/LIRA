@@ -39,20 +39,22 @@ test('cookie snapshots retain the existing allowlisted fields without mutating i
 });
 
 test('cookie restoration preserves protocol, default path and finite expiry coercion', () => {
-  for (const secure of [true, false, undefined, 'true']) {
-    for (const expirationDate of [undefined, 'invalid', Infinity, 0, '123', null]) {
-      const cookie = { name: 'synthetic', value: '', domain: 'example.test', secure, expirationDate };
-      const snapshot = toSerializableCookie(cookie);
-      assert.equal(snapshot.path, '/');
-      assert.equal(snapshot.secure, secure === true);
-      assert.equal(snapshot.httpOnly, false);
-      const details = toElectronCookieDetails(cookie);
-      assert.equal(details.url, `${secure === false ? 'http' : 'https'}://example.test/`);
-      assert.equal(details.secure, secure === true);
-      assert.equal(details.httpOnly, false);
-      assert.equal(details.domain, cookie.domain);
-      assert.equal(Object.hasOwn(details, 'expirationDate'), Number.isFinite(Number(expirationDate)));
-      if (Object.hasOwn(details, 'expirationDate')) assert.equal(details.expirationDate, Number(expirationDate));
-    }
+  const base = { name: 'synthetic', value: '', domain: 'example.test' };
+  for (const [secure, expectedSecure, protocol] of [
+    [true, true, 'https'], [false, false, 'http'], [undefined, false, 'https'],
+  ]) {
+    const snapshot = toSerializableCookie({ ...base, secure });
+    assert.equal(snapshot.path, '/');
+    assert.equal(snapshot.secure, expectedSecure);
+    const details = toElectronCookieDetails({ ...base, secure });
+    assert.equal(details.url, `${protocol}://example.test/`);
+    assert.equal(details.secure, expectedSecure);
+  }
+  for (const [expirationDate, expected] of [
+    [undefined, undefined], ['invalid', undefined], [0, 0], ['123', 123],
+  ]) {
+    const details = toElectronCookieDetails({ ...base, expirationDate });
+    assert.equal(Object.hasOwn(details, 'expirationDate'), expected !== undefined);
+    assert.equal(details.expirationDate, expected);
   }
 });

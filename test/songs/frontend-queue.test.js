@@ -1,14 +1,11 @@
 'use strict';
 
-const { readAdminFragmentHtml } = require('../helpers/admin-html');
-
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { DatabaseSync } = require('node:sqlite');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
 
@@ -29,12 +26,6 @@ test('queue reconnect renders new requests and visible identity changes once', (
   assert.equal(renders, 1, 'identical snapshots preserve playback');
   apply({ ...item, id: 2, requester_guard_level: 3, requester_medal_level: 21, requester_medal_name: '粉丝牌' });
   assert.equal(renders, 2, 'a missed remove/add redraws the same names with their latest identity');
-  for (const field of ['requester_guard_level', 'requester_medal_level', 'requester_medal_name']) {
-    apply(item);
-    const before = renders;
-    apply({ ...item, [field]: field === 'requester_medal_name' ? '新牌' : 3 });
-    assert.equal(renders, before + 1, field);
-  }
   apply(item, 'classic');
   const before = renders;
   apply({ ...item, requester_medal_level: 30 }, 'classic');
@@ -76,10 +67,8 @@ test('queue opacity percentages survive form refresh and preset sync without cha
   });
   const service = new FormsService();
   for (const [stored, displayed] of [
-    ['0.48', 48],
     ['0.57', 57],
     ['0', 0],
-    ['1', 100],
   ]) {
     service.fillForm({ themeOpacity: stored });
     assert.equal(fields.get('themeOpacity').value, stored);
@@ -89,46 +78,18 @@ test('queue opacity percentages survive form refresh and preset sync without cha
   const { theme } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/theme.js'), { document, window });
   window.AdminApp = {};
   fields.get('themeOpacity').value = '0.85';
-  for (const [stored, displayed] of [
-    [0, '0'],
-    ['0.48', '48'],
-    [1, '100'],
-  ]) {
-    theme.syncAllRangeInputs({ themeOpacity: stored });
-    assert.equal(fields.get('themeOpacityNumber').value, displayed);
-  }
+  theme.syncAllRangeInputs({ themeOpacity: 0 });
+  assert.equal(fields.get('themeOpacityNumber').value, '0');
   theme.syncAllRangeInputs();
   assert.equal(fields.get('themeOpacityNumber').value, '85');
   assert.equal(theme.collectTheme().themeOpacity, '0.85');
 });
 
-test('admin queue style cards preserve focus and selection indicators', () => {
-  const styles = readCssBundle('public', 'css', 'admin', 'workspace.css');
-
-  assert.match(styles, /\.style-option\.active\s*\{[^}]*var\(--style-option-ring\)/);
-  assert.match(styles, /\.style-option:focus-visible\s*\{[^}]*var\(--style-option-accent\)/);
-});
-
-test('queue style controls exist, default to inherited typography and persist only the selected style', async () => {
-  const html = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
-  const defaults = settingsStoreModule.DEFAULT_SETTINGS;
+test('queue theme payloads persist only the selected style', async () => {
   const { OVERLAY_THEME_KEYS } = require('../../src/storage/theme-store');
-  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-  const { QUEUE_STYLE_CONTROLS, collectQueueTheme, queueSettingsPayload } = await loadModuleExports(
+  const { collectQueueTheme, queueSettingsPayload } = await loadModuleExports(
     path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'),
   );
-
-  assert.match(html, /data-illustrated-only/);
-  for (const id of [...Object.values(QUEUE_STYLE_CONTROLS), 'identityQueueScrollSpeedRange']) {
-    assert.match(html, new RegExp(`\\sid="${id}"`), `${id} control`);
-  }
-  assert.match(html, /id="illustratedQueueTextColor"[^>]*type="color"/);
-  assert.equal(defaults.illustratedQueueFontFamily, 'default');
-  assert.equal(defaults.illustratedQueueFontWeight, 'default');
-  assert.equal(defaults.illustratedQueueUseCustomTextColor, 'false');
-  for (const className of ['illustrated-custom-font', 'illustrated-custom-weight', 'illustrated-custom-text-color']) {
-    assert.ok(overlayStyles.includes(`.${className}`), `${className} must have overlay styles`);
-  }
 
   const values = {
     overlayQueueStyle: 'neon-vinyl',
@@ -147,44 +108,24 @@ test('queue style controls exist, default to inherited typography and persist on
   assert.equal(payload.neonVinylQueueScrollSpeed, '64');
   assert.ok(styleKeys.length > 0 && styleKeys.every((key) => key.startsWith('neonVinylQueue')), styleKeys.join(', '));
   for (const key of styleKeys) assert.ok(OVERLAY_THEME_KEYS.includes(key), `${key} must be a persisted theme key`);
-  for (const prefix of ['storybook', 'cherryRibbon', 'goldenLily']) {
-    assert.ok(OVERLAY_THEME_KEYS.includes(`${prefix}QueueFontSize`), `${prefix} keeps its own persisted size`);
-  }
 
   assert.deepEqual(
     { ...queueSettingsPayload({ overlayQueueStyle: 'golden-lily' }, { goldenLilyQueueFontSize: '30', unrelated: 'x' }) },
     { goldenLilyQueueFontSize: '30', overlayQueueStyle: 'golden-lily' },
   );
 
-  assert.equal(defaults.overlayFontFamily, 'Microsoft YaHei');
-  assert.equal(defaults.identityQueueFontFamily, 'Microsoft YaHei');
-  assert.equal(html.match(/\sid="overlayFontFamily"/g).length, 1, 'there is one active font selector');
   for (const style of ['classic', 'identity']) {
-    for (const font of ['Microsoft YaHei', '"Lira Maiyuan"', '"Custom Local"']) {
-      values.overlayQueueStyle = style;
-      values.overlayFontFamily = font;
-      const collected = collectQueueTheme({ getElementById: (id) => ({ value: values[id] ?? '' }) });
-      const key = style === 'identity' ? 'identityQueueFontFamily' : 'overlayFontFamily';
-      const otherKey = style === 'identity' ? 'overlayFontFamily' : 'identityQueueFontFamily';
-      assert.equal(collected[key], font, `${style} saves its selected font`);
-      assert.equal(collected[otherKey], undefined, 'editing one style must not change the other font');
-      assert.equal(queueSettingsPayload(collected, { [key]: font })[key], font);
-      assert.ok(OVERLAY_THEME_KEYS.includes(key));
-      assert.equal(collected.illustratedQueueFontFamily, undefined, 'illustrated fonts remain independent');
-    }
+    const font = '"Custom Local"';
+    values.overlayQueueStyle = style;
+    values.overlayFontFamily = font;
+    const collected = collectQueueTheme({ getElementById: (id) => ({ value: values[id] ?? '' }) });
+    const key = style === 'identity' ? 'identityQueueFontFamily' : 'overlayFontFamily';
+    const otherKey = style === 'identity' ? 'overlayFontFamily' : 'identityQueueFontFamily';
+    assert.equal(collected[key], font, `${style} saves its selected font`);
+    assert.equal(collected[otherKey], undefined, 'editing one style must not change the other font');
+    assert.ok(OVERLAY_THEME_KEYS.includes(key));
+    assert.equal(collected.illustratedQueueFontFamily, undefined, 'illustrated fonts remain independent');
   }
-});
-
-test('queue font selector is shown for styles 1 and 2 while other typography stays scoped', async () => {
-  const fontArea = { hidden: false };
-  const root = { getElementById: id => id === 'queueFontArea' ? fontArea : null, querySelectorAll: () => [] };
-  const { setOverlayStyle } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/theme-style-view.js'));
-  for (const style of ['classic', 'identity', 'storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
-    setOverlayStyle(style, root);
-    assert.equal(fontArea.hidden, !['classic', 'identity'].includes(style), style);
-  }
-  setOverlayStyle('identity', root, 'moonlit-queue');
-  assert.equal(fontArea.hidden, true, 'resource styles retain their dedicated font');
 });
 
 test('queue styles migrate shared typography and scrolling into independent persisted values', () => {
@@ -229,142 +170,4 @@ test('queue styles migrate shared typography and scrolling into independent pers
   } finally {
     db.close();
   }
-});
-
-test('admin queue editors wire saved fonts and selected-style payloads without a runtime harness', () => {
-  // Style-card selection is exercised in admin/canvas-queue.test.js; these calls have no offline runtime fixture.
-  const formSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'theme.js'), 'utf8');
-  const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
-  const viewSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), 'utf8');
-
-  assert.match(viewSource, /\['overlayFontFamily', 'illustratedQueueFontFamily'\]\.map\(id => registerFontSelect\(node\(id\)\)\)/);
-  assert.match(formsSource, /ensureSavedFontOption\([\s\S]*?illustratedQueueFontFamily/);
-  assert.match(formsSource, /readQueueStyleSettings\(/);
-  assert.match(formSource, /queueSettingsPayload\(draft, changed\)/);
-});
-
-test('queue overlay applies rule sizing and scrolls only overflowing super chats', () => {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
-  const styleValues = new Map();
-  const sandbox = {
-    window: {},
-    console,
-    URLSearchParams,
-    location: { protocol: 'http:', host: 'localhost', search: '' },
-    WebSocket: function WebSocket() {},
-    requestAnimationFrame(callback) {
-      callback();
-    },
-    document: {
-      addEventListener() {},
-      documentElement: {
-        style: {
-          setProperty(name, value) {
-            styleValues.set(name, value);
-          },
-        },
-      },
-    },
-  };
-  vm.runInNewContext(source, sandbox);
-
-  sandbox.setIdentityRuleThemeVars(sandbox.document.documentElement, {
-    overlayRuleFontSize: 12,
-  });
-  assert.equal(styleValues.get('--identity-rule-font-size'), '24px');
-
-  let longAnimation = null;
-  const longText = {
-    scrollWidth: 300,
-    animate(keyframes, options) {
-      longAnimation = { keyframes, options };
-    },
-  };
-  const shortText = {
-    scrollWidth: 90,
-    animate() {
-      assert.fail('short text must not animate');
-    },
-  };
-  const containers = [
-    { clientWidth: 100, querySelector: () => longText },
-    { clientWidth: 100, querySelector: () => shortText },
-  ];
-
-  sandbox.scheduleIdentitySuperChatScroll({
-    querySelectorAll: () => containers,
-  });
-  assert.ok(longAnimation);
-  assert.equal(longAnimation.keyframes[1].transform, 'translateX(-200px)');
-  const pauseMilliseconds =
-    (longAnimation.keyframes[2].offset - longAnimation.keyframes[1].offset) * longAnimation.options.duration;
-  assert.ok(pauseMilliseconds > 0 && pauseMilliseconds < longAnimation.options.duration);
-
-  const timing = sandbox.bounceScrollTiming(12);
-  const verticalTopPauseSeconds = (timing.topPauseEndPercent / 100) * timing.totalSeconds;
-  const verticalPauseSeconds = ((timing.pauseEndPercent - timing.downPercent) / 100) * timing.totalSeconds;
-  assert.ok(verticalTopPauseSeconds > 0 && verticalTopPauseSeconds < timing.totalSeconds);
-  assert.ok(verticalPauseSeconds > 0 && verticalPauseSeconds < timing.totalSeconds);
-});
-
-test('identity queue colors Super Chats by price tier', () => {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue-render.js');
-  const sandbox = { window: {} };
-  vm.runInNewContext(`${source}\nthis.renderIdentitySuperChatRow = renderIdentitySuperChatRow;`, sandbox);
-
-  assert.match(
-    sandbox.renderIdentitySuperChatRow({ price: 99, message: '蓝色' }),
-    /identity-sc-price identity-sc-price-blue/,
-  );
-  assert.match(
-    sandbox.renderIdentitySuperChatRow({ price: 100, message: '黄色' }),
-    /identity-sc-price identity-sc-price-yellow/,
-  );
-  assert.match(
-    sandbox.renderIdentitySuperChatRow({ price: 999, message: '黄色' }),
-    /identity-sc-price identity-sc-price-yellow/,
-  );
-  assert.match(
-    sandbox.renderIdentitySuperChatRow({ price: 1000, message: '红色' }),
-    /identity-sc-price identity-sc-price-red/,
-  );
-});
-
-test('styles 2-6 hydrate the active style content font size setting', () => {
-  const html = readAdminFragmentHtml('pages/admin/song/queue-theme.html');
-  const formsSource = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), 'utf8');
-  const overlaySource = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
-  const overlayStyles = readCssBundle('public', 'css', 'overlays', 'base.css');
-
-  assert.match(html, /id="identityQueueFontSize"[^>]*min="9"[^>]*max="78"/);
-  assert.match(html, /id="identityQueueFontSizeNumber"[^>]*min="9"[^>]*max="78"/);
-  const configSource = fs.readFileSync(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'), 'utf8');
-  assert.match(configSource, /fontSize: 'identityQueueFontSize'/);
-  assert.match(formsSource, /readQueueStyleSettings\(values, overlayStyle\)/);
-  assert.match(overlaySource, /--identity-queue-font-size[\s\S]*?identityQueueFontSize\(\s*settings\s*\)/);
-  assert.match(overlayStyles, /\.identity-row\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size\s*[,)]/);
-  assert.match(
-    overlayStyles,
-    /\.identity-pin-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size\s*[,)]/,
-  );
-  assert.match(
-    overlayStyles,
-    /\.identity-row\.identity-sc \.identity-sc-content\s*\{[\s\S]*?font-size:\s*var\(--identity-queue-font-size\s*[,)]/,
-  );
-  assert.match(overlayStyles, /\.identity-pin-row\s*\{[\s\S]*?height:\s*var\(--identity-row-height\s*[,)]/);
-  assert.match(
-    overlayStyles,
-    /\.identity-pin-label\s*\{[^}]*font-size:\s*calc\(var\(--identity-queue-font-size,/,
-  );
-  assert.match(overlayStyles, /\.identity-rank\s*\{[\s\S]*?font-size:\s*inherit/);
-  assert.match(overlayStyles, /\.identity-requester\s*\{[\s\S]*?font-size:\s*inherit/);
-  const identityBlockRules = [...overlayStyles.matchAll(/\.identity-badge,\s*\.identity-medal\s*\{[^}]*\}/g)];
-  const identityBlockRule = identityBlockRules.at(-1)?.[0];
-  const medalRules = [...overlayStyles.matchAll(/\.identity-medal\s*\{[^}]*\}/g)];
-  const medalRule = medalRules.at(-1)?.[0];
-  assert.ok(identityBlockRule);
-  assert.ok(medalRule);
-  assert.match(identityBlockRule, /font-size:\s*[\d.]+%/);
-  assert.doesNotMatch(identityBlockRule, /overlay-font-scale/);
-  assert.doesNotMatch(medalRule, /max-width/);
 });

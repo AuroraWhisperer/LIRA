@@ -131,7 +131,7 @@ CSS 拆分复用现有 `@import` 机制，不新增构建步骤。首批仍从�
 | 文件                                                                      | 行数 | 已确认的主题边界                                                                                              | 建议拆法                                                                                                                                                |
 | ------------------------------------------------------------------------- | ---: | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | [test/frontend-gifts.test.js](../../test/gifts/frontend-gifts.test.js)             | 2408 | 礼物历史抽屉、盲盒统计与配置、近期礼物卡片、盲盒 OBS 展示等混在一起。                                         | 历史、盲盒管理、近期卡片、盲盒 overlay 分组；先核对已有 `frontend-gift-history-recovery`、`frontend-gift-catalog-update` 等测试，避免平行复制相同夹具。 |
-| [test/frontend-admin-shell.test.js](../../test/admin/frontend-admin-shell.test.js) | 2008 | Shell 初始化与导航之外，还覆盖使用文档目录、硬件摘要、播放器 dock、队列布局和主题加载。                       | 原文件保留 Shell/导航/生命周期断言；使用文档、播放器布局、主题等回到对应主题测试。使用文档自己的 fixture 随其测试一起移动。                             |
+| `test/frontend-admin-shell.test.js` | 2008 | Shell 初始化与导航之外，还覆盖使用文档目录、硬件摘要、播放器 dock、队列布局和主题加载。                       | 原文件保留 Shell/导航/生命周期断言；使用文档、播放器布局、主题等回到对应主题测试。使用文档自己的 fixture 随其测试一起移动。                             |
 | [test/frontend-queue.test.js](../../test/songs/frontend-queue.test.js)             | 1936 | 队列皮肤和滚动之外，约第 1221 行开始的一组断言专门测试加班机控制台及规则编辑器。                              | 优先迁走加班机断言到现有加班机编辑器/选礼测试或独立前端加班机测试；剩余队列用例再按“样式设置”和“滚动布局”归组，不对每种皮肤各建一个文件。               |
 | [test/desktop-lyrics.test.js](../../test/lyrics/desktop-lyrics.test.js)             | 1718 | 同时覆盖后端时间轴约束、管理页设置、字体权限、播放发布顺序，以及共享渲染器的时钟/动画。                       | 按时间轴契约、管理页设置、播放同步、渲染器划分。保留跨层一致性用例，检查现有 `lyrics`、`lyric-performance` 测试的覆盖，避免遗漏或重复。                 |
 | [test/frontend-admin-ai.test.js](../../test/ai/frontend-admin-ai.test.js)       | 1430 | 名称是 AI，但前段还有通用模块装载、参数控件、弹幕连接/发送状态；后段是 AI 自动保存、provider 能力与密钥掩码。 | 通用 Shell/参数控件、弹幕工具和 AI 表单分别归属；AI 表单 fixture 留在 AI 测试，不制作全局可变 mock 容器。                                               |
@@ -170,7 +170,7 @@ CSS 拆分复用现有 `@import` 机制，不新增构建步骤。首批仍从�
 | [test/processed-gift-import.test.js](../../test/gifts/processed-gift-import.test.js)   | 1190 | 对同一礼物导入链路验证 wire 拒绝、来源、历史/实时差异和原子性；保留完整导入契约，避免把跨层验证拆成彼此不覆盖的单元断言。       |
 | [test/remote-catalog-cache.test.js](../../test/gifts/remote-catalog-cache.test.js)     | 1040 | 远端校验、持久化快照、失败回退和 room/hybrid 场景共同保护目录接入结果；当前先保留，后续若目录 owner 再分化才跟随迁移测试。      |
 | [test/remote-gift-controller.test.js](../../test/gifts/remote-gift-controller.test.js) | 1333 | 共享包含 source/auth/controller/projection 四重校验的同步 fixture；本次建议生产代码只提取纯规则，完整控制器行为测试应继续保留。 |
-| [test/toolbox-sidebar.test.js](../../test/admin/toolbox-sidebar.test.js)               |  975 | 核心围绕侧栏分组、持久化、导航、隐藏与展开的一套 DOM runtime；少量面板映射断言用于验证导航目标，没有必要逐面板分散夹具。        |
+| `test/toolbox-sidebar.test.js`               |  975 | 核心围绕侧栏分组、持久化、导航、隐藏与展开的一套 DOM runtime；少量面板映射断言用于验证导航目标，没有必要逐面板分散夹具。        |
 | [test/wesing-capture.test.js](../../test/wesing/wesing-capture.test.js)                 |  817 | 单一采集门面的日志、QRC、播放时钟和重采集流程，只超出 17 行；现有边界已经足够清晰。                                             |
 
 ## 6. 后续实施顺序

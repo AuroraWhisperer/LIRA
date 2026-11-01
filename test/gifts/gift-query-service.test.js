@@ -47,14 +47,9 @@ test('history query accepts only 1-100 normalized Unicode code points', () => {
       epochValidated: true,
     });
 
-    assert.doesNotThrow(() => getGiftHistory(fixture.context, { range: 'all' }));
+    getGiftHistory(fixture.context, { range: 'all' });
     for (const query of ['a'.repeat(100), '\ud83c\udf81'.repeat(100)]) {
-      assert.doesNotThrow(() =>
-        getGiftHistory(fixture.context, {
-          query,
-          range: 'all',
-        }),
-      );
+      getGiftHistory(fixture.context, { query, range: 'all' });
     }
     for (const query of ['', ' \t ', 'a'.repeat(101), '\ud83c\udf81'.repeat(101)]) {
       assert.throws(
@@ -285,16 +280,14 @@ test('history sorting is deterministic across keyset pages with stable totals', 
       sortDirection: 'asc',
     });
     assert.ok(longPage.nextCursor.length > 1024);
-    assert.doesNotThrow(() =>
-      getGiftHistory(fixture.context, {
-        query: longUnicode,
-        range: 'all',
-        limit: 1,
-        cursor: longPage.nextCursor,
-        sortField: 'gift_name',
-        sortDirection: 'asc',
-      }),
-    );
+    getGiftHistory(fixture.context, {
+      query: longUnicode,
+      range: 'all',
+      limit: 1,
+      cursor: longPage.nextCursor,
+      sortField: 'gift_name',
+      sortDirection: 'asc',
+    });
 
     const sorted = getGiftHistory(fixture.context, {
       range: 'all',

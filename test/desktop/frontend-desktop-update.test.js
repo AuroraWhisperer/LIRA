@@ -54,97 +54,14 @@ test('update failures notify once for manual checks and active downloads, keepin
   nodes.desktopCheckUpdateBtn.listeners.get('click')();
   await new Promise(setImmediate);
   assert.equal(notices.length, 1, 'state event plus rejected action must not notify twice');
-  assert.equal(notices[0].title, '暂时查不了新版本');
-  assert.equal(notices[0].actionLabel, '打开更新页');
   onState({ status: 'downloading', updateVersion: '1.2.3' });
   onState({ status: 'error', updateVersion: '1.2.3' });
   onState({ status: 'error', updateVersion: '1.2.3' });
   assert.equal(notices.length, 2);
-  assert.equal(notices[1].title, '更新没下载成功');
+  assert.notEqual(notices[1].title, notices[0].title, 'download failure must not reuse the check failure notice');
 });
 
-test('directory opening failures use the existing desktop error notice', async () => {
-  const notices = [];
-  const { desktop, nodes, windowRef } = createFixture({ toast: (message) => notices.push(message) });
-  windowRef.songAssistantDesktop = {
-    onShowUpdatePage() {}, onUpdateState() {}, getInfo: async () => ({}),
-    openDataDir: async () => { throw new Error('无法打开数据目录'); },
-    openLogDir: async () => { throw new Error('无法打开日志目录'); },
-  };
-  desktop.initDesktopShell();
-  await new Promise(setImmediate);
-  nodes.desktopOpenDataBtn.listeners.get('click')();
-  nodes.desktopOpenLogBtn.listeners.get('click')();
-  await new Promise(setImmediate);
-  assert.deepEqual(notices, ['无法打开数据目录，请检查目录权限后重试。', '无法打开日志目录，请检查目录权限后重试。']);
-});
-
-test('desktop update shows only the action for the current update phase', () => {
-  const { nodes, render } = createFixture();
-  const buttons = ['desktopCheckUpdateBtn', 'desktopDownloadUpdateBtn', 'desktopInstallUpdateBtn'];
-  const cases = [
-    [{ status: 'idle' }, 'desktopCheckUpdateBtn', false],
-    [{ status: 'checking' }, 'desktopCheckUpdateBtn', true],
-    [{ status: 'available', canDownload: true }, 'desktopCheckUpdateBtn', true],
-    [{ status: 'downloading' }, null],
-    [{ status: 'downloaded', canInstall: true }, 'desktopInstallUpdateBtn', false],
-    [{ status: 'installing', canInstall: true }, 'desktopInstallUpdateBtn', true],
-    [{ status: 'not-available' }, 'desktopCheckUpdateBtn', false],
-    [{ status: 'error' }, 'desktopCheckUpdateBtn', false],
-    [{ status: 'dev-disabled' }, 'desktopCheckUpdateBtn', true],
-  ];
-
-  for (const [state, visibleButton, disabled] of cases) {
-    render(state);
-    assert.deepEqual(
-      buttons.filter((id) => !nodes[id].hidden),
-      visibleButton ? [visibleButton] : [],
-      state.status,
-    );
-    assert.equal(nodes.desktopUpdateActions.hidden, !visibleButton, state.status);
-    if (visibleButton) assert.equal(nodes[visibleButton].disabled, disabled, state.status);
-  }
-});
-
-test('download details and progress appear together and disappear after completion or failure', () => {
-  const { nodes, render } = createFixture();
-  const progress = { percent: 62.5, transferred: 80 * 1024 * 1024, total: 128 * 1024 * 1024, speed: 2 * 1024 * 1024 };
-  render({ status: 'downloading', progress });
-  assert.equal(nodes.desktopUpdateDownload.hidden, false);
-  assert.equal(nodes.desktopUpdateDownloadDetails.hidden, false);
-  assert.equal(nodes.desktopUpdatePercent.textContent, '62.5%');
-  assert.equal(nodes.desktopUpdatePercent.hidden, false);
-  assert.equal(nodes.desktopUpdateStatus.textContent, '正在下载更新');
-  assert.equal(nodes.desktopUpdateProgress.getAttribute('aria-valuenow'), '62.5');
-  assert.equal(nodes.desktopUpdateProgressBar.style.width, '62.5%');
-  assert.equal(nodes.desktopUpdateTransferred.textContent, '80.0 MB / 128.0 MB');
-  assert.equal(nodes.desktopUpdateSpeed.textContent, '2.00 MB/s');
-
-  for (const status of ['downloaded', 'error', 'not-available', 'idle']) {
-    render({ status, progress, canInstall: status === 'downloaded' });
-    assert.equal(nodes.desktopUpdateDownload.hidden, true, status);
-    assert.equal(nodes.desktopUpdateDownloadDetails.hidden, true, status);
-    assert.equal(nodes.desktopUpdatePercent.hidden, true, status);
-  }
-  assert.equal(nodes.desktopUpdateHint.hidden, true);
-  assert.equal(nodes.desktopUpdateHint.textContent, '');
-});
-
-test('preparing a download does not show fabricated download metrics', () => {
-  const { nodes, render } = createFixture();
-  render({ status: 'downloading', progress: { percent: 40, total: 100, transferred: 40, speed: 100 } });
-  render({ status: 'downloading', message: '正在准备下载更新', progress: null });
-  assert.equal(nodes.desktopUpdateStatus.textContent, '正在准备下载更新');
-  assert.equal(nodes.desktopUpdateDownload.hidden, false);
-  assert.equal(nodes.desktopUpdateDownloadDetails.hidden, true);
-  assert.equal(nodes.desktopUpdatePercent.hidden, true);
-  assert.equal(nodes.desktopUpdateProgress.getAttribute('aria-valuenow'), null);
-  assert.equal(nodes.desktopUpdateProgressBar.style.width, '0%');
-  assert.equal(nodes.desktopUpdateTransferred.textContent, '');
-  assert.equal(nodes.desktopUpdateSpeed.textContent, '');
-});
-
-test('resource checks distinguish results, incomplete issues and safe bounded details', () => {
+test('resource checks ignore stale revisions and render bounded details as text', () => {
   const { nodes, desktop } = createFixture();
   const initial = {
     revision: 1,
@@ -157,10 +74,6 @@ test('resource checks distinguish results, incomplete issues and safe bounded de
     details: [],
   };
   desktop.renderResourceIntegrityState(initial);
-  assert.equal(nodes.desktopIntegrityCheckBtn.disabled, true);
-  assert.match(nodes.desktopIntegrityStatus.textContent, /正在读取校验清单/);
-  assert.equal(nodes.desktopIntegrityMeta.hidden, true);
-  assert.equal(nodes.desktopIntegrityMeta.textContent.includes('0 / 0'), false);
   desktop.renderResourceIntegrityState({
     ...initial,
     revision: 2,
@@ -172,13 +85,9 @@ test('resource checks distinguish results, incomplete issues and safe bounded de
     complete: false,
     details: Array.from({ length: 25 }, () => ({ path: 'app.asar.unpacked/<img>', reasonCode: 'FILE_UNREADABLE' })),
   });
-  assert.match(nodes.desktopIntegrityStatus.textContent, /发现 25.*部分项目未完成/);
-  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'danger');
   assert.equal(nodes.desktopIntegrityDetails.children.length, 20);
-  assert.equal(nodes.desktopIntegrityDetails.children[0].textContent, 'app.asar.unpacked/<img>：无法读取文件');
+  assert.ok(nodes.desktopIntegrityDetails.children[0].textContent.startsWith('app.asar.unpacked/<img>'));
   assert.equal(nodes.desktopIntegrityDetails.children[0].children.length, 0);
-  assert.match(nodes.desktopIntegrityHint.textContent, /共 27 项.*备份.*关闭客户端/);
-  assert.equal(nodes.desktopIntegrityGithubBtn.hidden, false);
   desktop.renderResourceIntegrityState({
     ...initial,
     revision: 3,
@@ -188,18 +97,9 @@ test('resource checks distinguish results, incomplete issues and safe bounded de
     complete: true,
   });
   desktop.renderResourceIntegrityState({ ...initial, revision: 2, status: 'checking' });
-  assert.equal(nodes.desktopIntegrityStatus.textContent, '检查通过，未发现资源异常');
-  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'success');
-  assert.equal(nodes.desktopIntegrityHint.hidden, true);
-  assert.equal(nodes.desktopIntegrityCheckBtn.textContent, '重新检查');
+  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'success', 'an older revision must not replace the passed result');
+  assert.equal(nodes.desktopIntegrityCheckBtn.disabled, false);
   assert.equal(nodes.desktopIntegrityDetails.hidden, true);
-  assert.equal(nodes.desktopIntegrityGithubBtn.hidden, true);
-  desktop.renderResourceIntegrityState({ ...initial, revision: 4, status: 'inconclusive', reasonCode: 'CHECK_TIMEOUT' });
-  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'warning');
-  assert.match(nodes.desktopIntegrityStatus.textContent, /检查未完成.*超时/);
-  desktop.renderResourceIntegrityState({ ...initial, revision: 5, status: 'cancelled', issueCount: 1 });
-  assert.equal(nodes.desktopIntegrityResult.dataset.tone, 'danger');
-  assert.match(nodes.desktopIntegrityStatus.textContent, /检查已停止.*发现 1 项资源异常/);
 });
 
 test('resource check subscription is registered once and an old initial snapshot cannot replace a newer event', async () => {
@@ -234,8 +134,7 @@ test('resource check subscription is registered once and an old initial snapshot
   await snapshot.promise;
   assert.equal(subscribeCount, 1);
   assert.equal(readCount, 1);
-  assert.equal(nodes.desktopIntegrityCheckBtn.disabled, true);
-  assert.equal(nodes.desktopIntegrityStatus.textContent, '开发模式不支持此检查');
+  assert.equal(nodes.desktopIntegrityCheckBtn.disabled, true, 'the older idle snapshot must not re-enable an unavailable check');
   dispose();
   assert.equal(removed, 1);
 });

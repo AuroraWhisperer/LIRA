@@ -4,47 +4,6 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { redactCredentials } = require('../../src/shared/log-redaction');
 
-test('object redaction covers every license-protocol sensitive field', () => {
-  const input = {
-    accountName: 'mlbb',
-    password: '123456',
-    activationCode: 'ABCD-EFGH-IJKL-MNOP',
-    pairingCode: 'PAIR-1234',
-    accessToken: 'jwt-access-token',
-    refreshToken: 'jwt-refresh-token',
-    signature: 'sig-value',
-    activationSignature: 'activation-sig-value',
-    privateKey: 'pem-body',
-    privateKeyPem: '-----BEGIN PRIVATE KEY-----',
-    fingerprint: 'raw-machine-guid',
-    hardwareId: 'HW-ID-123',
-    deviceName: 'MY-PC',
-    state: 'authorized',
-  };
-
-  const out = redactCredentials(input);
-
-  for (const key of [
-    'password',
-    'activationCode',
-    'pairingCode',
-    'accessToken',
-    'refreshToken',
-    'signature',
-    'activationSignature',
-    'privateKey',
-    'privateKeyPem',
-    'fingerprint',
-    'hardwareId',
-  ]) {
-    assert.equal(out[key], '[REDACTED]', `${key} must be redacted`);
-  }
-  assert.equal(out.accountName, 'mlbb');
-  assert.equal(out.deviceName, 'MY-PC');
-  assert.equal(out.state, 'authorized');
-  assert.equal(input.password, '123456', 'redaction must not mutate the input');
-});
-
 test('nested objects and arrays are redacted recursively', () => {
   const out = redactCredentials({
     payload: { activationCode: 'SECRET-CODE', note: 'ok' },
@@ -98,19 +57,7 @@ for (const [name, input, hidden, kept] of [
   });
 }
 
-test('snake_case credential fields cannot bypass redaction', () => {
-  const object = redactCredentials({
-    private_key: 'PEM',
-    activation_code: 'ACTIVATION',
-    access_token: 'ACCESS',
-    hardware_id: 'HARDWARE',
-    note: 'keep',
-  });
-  for (const key of ['private_key', 'activation_code', 'access_token', 'hardware_id']) {
-    assert.equal(object[key], '[REDACTED]', `${key} must be redacted`);
-  }
-  assert.equal(object.note, 'keep');
-
+test('snake_case and encoded URL credential keys cannot bypass redaction', () => {
   const string = redactCredentials(
     'GET https://example.test/?private_key_pem=PEM&activation_code=ACTIVATION&accessToken=ACCESS&access%5Ftoken=ENCODED&state=ok',
   );

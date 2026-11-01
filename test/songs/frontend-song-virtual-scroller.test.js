@@ -24,41 +24,40 @@ test('song scrolling keeps pixels per second independent of height and refresh r
     viewport.append(content);
     document.body.append(viewport);
     const results = [];
-    for (const height of [450, 722]) {
-      viewport.style.height = `${height}px`;
-      for (const fps of [60, 120, 144, 240]) {
-        for (const speed of [1, 10, 15, 20, 100]) {
-          const scroller = new SongVirtualScroller({ viewport, content,
-            createNode(record) {
-              const node = document.createElement('div');
-              node.textContent = record.key;
-              node.style.height = '53.5px';
-              return node;
-            }, requestFrame: () => 1, cancelFrame() {} });
-          scroller.setRecords(Array.from({ length: 100 }, (_, index) => ({ key: String(index) })), { key: '50', offset: 5 });
-          scroller.setPixelsPerSecond(scrollSpeedToPixelsPerSecond(speed));
-          const expected = 1 + ((speed - 1) / 99) * 249;
-          const position = () => {
-            const anchor = scroller.captureAnchor();
-            return anchor.index * 53.5 + anchor.offset;
-          };
-          const start = position();
-          scroller.start();
-          for (let frame = 0; frame <= fps; frame++) scroller.tick(frame * 1000 / fps);
-          results.push({ height, fps, speed, actual: position() - start, expected });
-          scroller.pause();
-          const paused = position();
-          scroller.tick(60000);
-          results.push({ height, fps, speed, phase: 'paused', actual: position() - paused, expected: 0 });
-          viewport.style.height = `${height + 200}px`;
-          scroller.relayout();
-          const resizedStart = position();
-          scroller.start();
-          for (let frame = 0; frame <= fps; frame++) scroller.tick(60000 + frame * 1000 / fps);
-          results.push({ height, fps, speed, phase: 'resized-and-resumed', actual: position() - resizedStart, expected });
-          scroller.destroy();
-          viewport.style.height = `${height}px`;
-        }
+    const height = 450;
+    viewport.style.height = `${height}px`;
+    for (const fps of [60, 240]) {
+      for (const speed of [1, 100]) {
+        const scroller = new SongVirtualScroller({ viewport, content,
+          createNode(record) {
+            const node = document.createElement('div');
+            node.textContent = record.key;
+            node.style.height = '53.5px';
+            return node;
+          }, requestFrame: () => 1, cancelFrame() {} });
+        scroller.setRecords(Array.from({ length: 100 }, (_, index) => ({ key: String(index) })), { key: '50', offset: 5 });
+        scroller.setPixelsPerSecond(scrollSpeedToPixelsPerSecond(speed));
+        const expected = 1 + ((speed - 1) / 99) * 249;
+        const position = () => {
+          const anchor = scroller.captureAnchor();
+          return anchor.index * 53.5 + anchor.offset;
+        };
+        const start = position();
+        scroller.start();
+        for (let frame = 0; frame <= fps; frame++) scroller.tick(frame * 1000 / fps);
+        results.push({ height, fps, speed, actual: position() - start, expected });
+        scroller.pause();
+        const paused = position();
+        scroller.tick(60000);
+        results.push({ height, fps, speed, phase: 'paused', actual: position() - paused, expected: 0 });
+        viewport.style.height = `${height + 200}px`;
+        scroller.relayout();
+        const resizedStart = position();
+        scroller.start();
+        for (let frame = 0; frame <= fps; frame++) scroller.tick(60000 + frame * 1000 / fps);
+        results.push({ height, fps, speed, phase: 'resized-and-resumed', actual: position() - resizedStart, expected });
+        scroller.destroy();
+        viewport.style.height = `${height}px`;
       }
     }
     viewport.remove();

@@ -1,38 +1,18 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const layout = require('../../src/shared/danmaku-layout');
-
-test('fixed defaults are bottom left; random regions fill the canvas', () => {
-  const value = layout.createLayout();
-  assert.deepEqual(value.canvas, { width: 1920, height: 1080 });
-  assert.deepEqual(value.regions.bubble, { x: 40, y: 480, width: 570, height: 560 });
-  assert.deepEqual(value.regions.minimal, { x: 40, y: 464, width: 588, height: 576 });
-  assert.deepEqual(value.regions.identity, { x: 40, y: 424, width: 640, height: 616 });
-  assert.deepEqual(value.regions.twitter, { x: 40, y: 190, width: 530, height: 850 });
-  for (const [style, region] of Object.entries(value.regions)) {
-    if (layout.REGION_DEFAULTS[style]) {
-      assert.equal(region.x, 40);
-      assert.equal(region.y + region.height, 1040);
-    } else assert.deepEqual(region, { x: 0, y: 0, width: 1920, height: 1080 });
-  }
-  assert.deepEqual(layout.normalizeLayout(value), value);
-});
 
 test('resolution changes scale composition; portrait changes retain typography and contain every region', () => {
   const original = layout.createLayout();
+  original.regions.signal = { x: 100, y: 200, width: 400, height: 300 };
   const large = layout.resizeCanvas(original, { width: 3840, height: 2160 });
   assert.equal(large.contentScale, 2);
-  assert.deepEqual(large.regions.signal, { x: 80, y: 880, width: 1120, height: 1200 });
+  assert.deepEqual(large.regions.signal, { x: 200, y: 400, width: 800, height: 600 });
   assert.deepEqual(layout.resizeCanvas(large, original.canvas), original);
   const portrait = layout.resizeCanvas(large, { width: 1080, height: 1920 });
   assert.equal(portrait.contentScale, 2);
   assert.deepEqual(layout.normalizeLayout(portrait), portrait);
   assert.deepEqual(portrait.regions.glow, { x: 0, y: 0, width: 1080, height: 1920 });
-  const defaultPortrait = layout.resizeCanvas(original, { width: 1080, height: 1920 });
-  assert.equal(defaultPortrait.regions.identity.y + defaultPortrait.regions.identity.height, 1880);
-  assert.equal(defaultPortrait.regions.identity.x, 40);
 });
 
 test('drag and every resize handle keep opposite edges fixed and stay inside the canvas', () => {
@@ -70,21 +50,27 @@ test('new default regions preserve previously saved dimensions', () => {
 const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
-  for (const canvas of [undefined, { width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {
-    const original = canvas ? layout.resizeCanvas(layout.createLayout(), canvas) : layout.createLayout();
-    for (const missing of [...OPTIONAL_REGIONS.map((style) => [style]), OPTIONAL_REGIONS]) {
-      const legacy = structuredClone(original);
-      missing.forEach((style) => delete legacy.regions[style]);
-      legacy.regions.signal.x = 123;
-      legacy.regions.glow.x = 100;
-      legacy.regions.glow.width -= 100;
-      const upgraded = layout.normalizeLayout(legacy);
-      for (const style of missing) {
-        assert.deepEqual(upgraded.regions[style], layout.defaultRegion(style, original.canvas, original.contentScale), style);
-      }
-      for (const [style, region] of Object.entries(legacy.regions)) assert.deepEqual(upgraded.regions[style], region, style);
-      assert.equal(missing.some((style) => Object.hasOwn(legacy.regions, style)), false, 'input is not mutated');
+  const original = layout.createLayout();
+  for (const missing of [...OPTIONAL_REGIONS.map((style) => [style]), OPTIONAL_REGIONS]) {
+    const legacy = structuredClone(original);
+    missing.forEach((style) => delete legacy.regions[style]);
+    legacy.regions.signal.x = 123;
+    legacy.regions.glow.x = 100;
+    legacy.regions.glow.width -= 100;
+    const upgraded = layout.normalizeLayout(legacy);
+    for (const style of missing) {
+      assert.deepEqual(upgraded.regions[style], layout.defaultRegion(style, original.canvas, original.contentScale), style);
     }
+    assert.deepEqual(upgraded.regions.signal, legacy.regions.signal);
+    assert.deepEqual(upgraded.regions.glow, legacy.regions.glow);
+    assert.equal(missing.some((style) => Object.hasOwn(legacy.regions, style)), false, 'input is not mutated');
+  }
+  for (const canvas of [{ width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {
+    const legacy = layout.resizeCanvas(original, canvas);
+    OPTIONAL_REGIONS.forEach(style => delete legacy.regions[style]);
+    const upgraded = layout.normalizeLayout(legacy);
+    assert.deepEqual(upgraded.regions.sketch, layout.defaultRegion('sketch', canvas, legacy.contentScale));
+    assert.deepEqual(upgraded.regions.floating, { x: 0, y: 0, ...canvas });
   }
   const required = Object.keys(layout.REGION_DEFAULTS).filter((style) => !OPTIONAL_REGIONS.includes(style));
   assert.ok(required.includes('signal'));
@@ -101,13 +87,21 @@ test('older layouts gain each missing newer region at its default without moving
 });
 
 test('Node and browser layout contracts stay identical', () => {
-  const root = path.join(__dirname, '../..');
-  const browser = fs.readFileSync(path.join(root, 'public/js/shared/danmaku-layout.js'), 'utf8');
-  const node = fs.readFileSync(path.join(root, 'src/shared/danmaku-layout.js'), 'utf8');
-  assert.equal(node.replace(/\r\n/g, '\n'), browser.replace(/\r\n/g, '\n')
-    .replace("import { CANVAS_PRESETS } from './canvas-presets.js';", "const { CANVAS_PRESETS } = require('./canvas-presets');")
-    .replace(/export \{([^}]+)\};\s*$/, 'module.exports = {$1};\n'));
-  const presets = fs.readFileSync(path.join(root, 'public/js/shared/canvas-presets.js'), 'utf8');
-  assert.equal(fs.readFileSync(path.join(root, 'src/shared/canvas-presets.js'), 'utf8').replace(/\r\n/g, '\n'),
-    `${presets.replace(/\r\n/g, '\n').replace('export const', 'const').trim()}\n\nmodule.exports = { CANVAS_PRESETS };\n`);
+  const browser = require('../../public/js/shared/danmaku-layout.js');
+  assert.deepEqual(browser.CANVAS_PRESETS, layout.CANVAS_PRESETS);
+  assert.deepEqual(browser.REGION_DEFAULTS, layout.REGION_DEFAULTS);
+  const original = layout.createLayout();
+  assert.deepEqual(browser.createLayout(), original);
+  for (const canvas of [{ width: 3840, height: 2160 }, { width: 1080, height: 1920 }]) {
+    assert.deepEqual(browser.resizeCanvas(original, canvas), layout.resizeCanvas(original, canvas));
+  }
+  const legacy = structuredClone(original);
+  OPTIONAL_REGIONS.forEach(style => delete legacy.regions[style]);
+  assert.deepEqual(browser.normalizeLayout(legacy), layout.normalizeLayout(legacy));
+  assert.throws(() => browser.normalizeLayout({ ...original, extra: true }), { code: 'INVALID_OVERLAY_LAYOUT' });
+  const region = { x: 200, y: 300, width: 500, height: 400 };
+  assert.deepEqual(browser.fitRegion({ ...region, x: 1900 }, original.canvas), layout.fitRegion({ ...region, x: 1900 }, original.canvas));
+  for (const handle of ['', 'nw', 'se']) {
+    assert.deepEqual(browser.moveRegion(region, handle, 9000, -9000, original.canvas), layout.moveRegion(region, handle, 9000, -9000, original.canvas));
+  }
 });

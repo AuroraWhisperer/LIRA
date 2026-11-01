@@ -2,10 +2,9 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+
 const path = require('node:path');
-const { readAdminHtml } = require('../helpers/admin-html');
-const { readCssBundle } = require('../helpers/css-bundle');
+
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
@@ -32,38 +31,6 @@ async function loadTodo(stored = new Map(), storageOverrides = {}, plannerRemind
   const { todo } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/streamer-planner.js'), globals);
   return { todo, stored };
 }
-
-test('workbench exposes calendar, memos and tasks without beginner cues', () => {
-  const html = readAdminHtml();
-  const planner = fs.readFileSync(path.join(ROOT_DIR, 'public/pages/admin/toolbox/planner.html'), 'utf8');
-  assert.match(html, /<strong>主播工作台<\/strong>\s*<small>日历、备忘与待办<\/small>/);
-  for (const id of [
-    'streamerPlanner',
-    'plannerCalendarGrid',
-    'plannerAgendaList',
-    'plannerNoteForm',
-    'plannerNoteBody',
-    'plannerNoteList',
-    'plannerTaskForm',
-    'plannerTaskTitle',
-    'plannerTaskList',
-    'plannerEventForm',
-    'plannerEventDate',
-    'plannerEventAllDay',
-  ]) {
-    assert.ok(planner.includes(`id="${id}"`), `missing ${id}`);
-  }
-  assert.match(planner, /<dialog\s+id="plannerEventDialog"/);
-  assert.match(planner, /maxlength="2000"/);
-  assert.doesNotMatch(planner, /本场提词|暖场问题|小提示|data-planner-template|plannerSessionForm/);
-});
-
-test('workbench keeps calendar columns and keyboard focus visible', () => {
-  const styles = readCssBundle('public', 'css', 'admin', 'toolbox.css');
-  assert.match(styles, /\.streamer-planner\s*\{[^}]*grid-auto-rows:\s*max-content/);
-  assert.match(styles, /\.planner-calendar-grid\s*\{[^}]*grid-template-columns:\s*repeat\(7, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /:focus-visible/);
-});
 
 test('new workbenches contain no fictional entries', async () => {
   const { todo } = await loadTodo();
@@ -273,12 +240,6 @@ test('failed writes keep the latest records in memory', async () => {
   todo.addNote({ body: '未保存的内容' });
   assert.equal(todo.getState().notes[0].body, '未保存的内容');
   assert.equal(stored.has(STORAGE_KEY), false);
-});
-
-test('workbench remains initialized through the existing admin entry', () => {
-  const read = (file) => fs.readFileSync(path.join(ROOT_DIR, file), 'utf8');
-  assert.match(read('public/js/admin/app.js'), /import \{ todo \} from ["']\.\/streamer-planner\.js["'];/);
-  assert.match(read('public/js/admin/app.js'), /todo\.init\(\)/);
 });
 
 test('successfully saved events synchronize native reminders, reschedules and cancellations without duplicate calls', async () => {

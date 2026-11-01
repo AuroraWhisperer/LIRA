@@ -703,6 +703,7 @@ async function startDesktopApp() {
   });
   sceneCloudController = createSceneCloudController({
     licenseManager,
+    writeLog,
     subscribeDemand: (listener) => lifecycleState.runtime.subscribeSceneCloudDemand(listener),
     publish: (update) => lifecycleState.runtime.receiveSceneCloud(update),
     publishSettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),

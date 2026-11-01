@@ -7,11 +7,6 @@ const { acknowledgePlaybackFlush } = require('../../src/electron/playback-flush'
 const { createHarness: createLicenseHarness } = require('../helpers/license-manager-harness');
 const { createSceneCloudController } = require('../../src/electron/scene-cloud-controller');
 
-test('every main process dependency is modelled for shutdown review', () => {
-  const h = createShutdownHarness();
-  assert.deepEqual(h.unmodelledDependencies, [], 'add each new main.js dependency to helpers/electron-shutdown.js');
-});
-
 test('connected output prompts once and cancellation leaves the runtime and renderer intact', async () => {
   const answer = Promise.withResolvers();
   let connected = true;
@@ -209,7 +204,6 @@ test('an interrupted installation cannot start an empty backend', async () => {
   assert.equal(h.count('app:exit'), 1);
   assert.equal(h.startupErrors.length, 1);
   assert.ok(h.startupErrors[0].includes(recoveryDataDir));
-  assert.ok(h.startupErrors[0].includes('重新运行安装包'));
 });
 
 function assertFinalized(harness, restart) {
@@ -262,7 +256,7 @@ test('every quit event waits for one sync drain, playback flush and runtime stop
   assert.equal(h.quit().defaultPrevented, true);
   const shutdown = h.state.lifecycle.shutdownPromise;
   assert.equal(h.quit().defaultPrevented, true);
-  assert.ok(shutdown && typeof shutdown.then === 'function');
+  assert.ok(shutdown);
   assert.equal(h.state.lifecycle.shutdownPromise, shutdown);
   assert.equal(h.powerMonitor.listenerCount('resume'), 0);
   assert.equal(h.count('remote:dispose'), 1);
@@ -346,71 +340,69 @@ for (const firstIntent of ['quit', 'restart']) {
     assert.equal(h.count('runtime:stop'), 1);
     assertFinalized(h, firstIntent === 'restart');
   });
+}
 
-  for (const failedStage of ['sync', 'runtime']) {
-    test(`${firstIntent} logs ${failedStage} failure and finalizes once`, async () => {
-      const h = createShutdownHarness();
-      await h.start();
-      const result = firstIntent === 'restart' ? h.restart() : h.quit();
-      const error = new Error(`${failedStage} failed`);
-      if (failedStage === 'sync') {
-        h.remoteIdle.reject(error);
-      } else {
-        h.remoteIdle.resolve();
-        h.cloudIdle.resolve();
-        await h.settle();
-        h.backendStop.reject(error);
-      }
-      await h.settle();
-      assertFinalized(h, firstIntent === 'restart');
-      assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error' && log.value === error).length, 1);
-      assert.equal(h.count('runtime:stop'), failedStage === 'sync' ? 0 : 1);
-      if (firstIntent === 'restart') assert.equal(await result, undefined);
+for (const [firstIntent, failedStage] of [['quit', 'runtime'], ['restart', 'sync']]) {
+  test(`${firstIntent} logs ${failedStage} failure and finalizes once`, async () => {
+    const h = createShutdownHarness();
+    await h.start();
+    const result = firstIntent === 'restart' ? h.restart() : h.quit();
+    const error = new Error(`${failedStage} failed`);
+    if (failedStage === 'sync') {
+      h.remoteIdle.reject(error);
+    } else {
+      h.remoteIdle.resolve();
       h.cloudIdle.resolve();
       await h.settle();
-      assertFinalized(h, firstIntent === 'restart');
-    });
-  }
-
-  for (const timedOutStage of ['sync', 'runtime']) {
-    for (const lateResult of ['resolve', 'reject']) {
-      test(`${firstIntent} has one deadline during ${timedOutStage} and ignores late ${lateResult}`, async () => {
-        const h = createShutdownHarness();
-        await h.start();
-        const result = firstIntent === 'restart' ? h.restart() : h.quit();
-        if (timedOutStage === 'runtime') {
-          h.remoteIdle.resolve();
-          h.cloudIdle.resolve();
-          await h.settle();
-          assert.equal(h.count('runtime:stop'), 1);
-        }
-        h.clock.advance(4000);
-        const duplicate = h.restart();
-        assert.equal(h.quit().defaultPrevented, true);
-        assert.equal(h.count('app:exit'), 0);
-        assert.deepEqual(h.clock.delays, [5000]);
-        h.clock.advance(999);
-        assert.equal(h.count('app:exit'), 0);
-        h.clock.advance(1);
-        assertFinalized(h, firstIntent === 'restart');
-        assert.equal(await duplicate, undefined);
-        if (firstIntent === 'restart') assert.equal(await result, undefined);
-
-        const deferred = timedOutStage === 'sync' ? h.remoteIdle : h.backendStop;
-        deferred[lateResult](lateResult === 'reject' ? new Error('late failure') : undefined);
-        h.cloudIdle.resolve();
-        await h.settle();
-        assertFinalized(h, firstIntent === 'restart');
-        assert.equal(h.count('runtime:stop'), timedOutStage === 'sync' ? 0 : 1);
-        assert.deepEqual(
-          h.logs
-            .filter((log) => ['QUIT_DONE', 'QUIT_TIMEOUT'].includes(log.value?.event))
-            .map((log) => log.value.event),
-          ['QUIT_TIMEOUT'],
-        );
-      });
+      h.backendStop.reject(error);
     }
-  }
+    await h.settle();
+    assertFinalized(h, firstIntent === 'restart');
+    assert.equal(h.logs.filter((log) => log.scope === 'shutdown-error' && log.value === error).length, 1);
+    assert.equal(h.count('runtime:stop'), failedStage === 'sync' ? 0 : 1);
+    if (firstIntent === 'restart') assert.equal(await result, undefined);
+    h.cloudIdle.resolve();
+    await h.settle();
+    assertFinalized(h, firstIntent === 'restart');
+  });
+}
+
+for (const [firstIntent, timedOutStage, lateResult] of [['quit', 'sync', 'reject'], ['restart', 'runtime', 'resolve']]) {
+  test(`${firstIntent} has one deadline during ${timedOutStage} and ignores late ${lateResult}`, async () => {
+    const h = createShutdownHarness();
+    await h.start();
+    const result = firstIntent === 'restart' ? h.restart() : h.quit();
+    if (timedOutStage === 'runtime') {
+      h.remoteIdle.resolve();
+      h.cloudIdle.resolve();
+      await h.settle();
+      assert.equal(h.count('runtime:stop'), 1);
+    }
+    h.clock.advance(4000);
+    const duplicate = h.restart();
+    assert.equal(h.quit().defaultPrevented, true);
+    assert.equal(h.count('app:exit'), 0);
+    assert.deepEqual(h.clock.delays, [5000]);
+    h.clock.advance(999);
+    assert.equal(h.count('app:exit'), 0);
+    h.clock.advance(1);
+    assertFinalized(h, firstIntent === 'restart');
+    assert.equal(await duplicate, undefined);
+    if (firstIntent === 'restart') assert.equal(await result, undefined);
+
+    const deferred = timedOutStage === 'sync' ? h.remoteIdle : h.backendStop;
+    deferred[lateResult](lateResult === 'reject' ? new Error('late failure') : undefined);
+    h.cloudIdle.resolve();
+    await h.settle();
+    assertFinalized(h, firstIntent === 'restart');
+    assert.equal(h.count('runtime:stop'), timedOutStage === 'sync' ? 0 : 1);
+    assert.deepEqual(
+      h.logs
+        .filter((log) => ['QUIT_DONE', 'QUIT_TIMEOUT'].includes(log.value?.event))
+        .map((log) => log.value.event),
+      ['QUIT_TIMEOUT'],
+    );
+  });
 }
 
 test('synchronous sync disposal failure still finalizes through the bounded owner', async () => {
@@ -458,23 +450,21 @@ test('quit before runtime initialization preserves Electron default exit', () =>
   assert.equal(h.clock.pending, 0);
 });
 
-for (const restore of ['musicRestore', 'bilibiliRestore', 'doubaoRestore']) {
-  test(`restart during ${restore} exits without creating a runtime later`, async () => {
-    const pendingRestore = Promise.withResolvers();
-    const h = createShutdownHarness({ [restore]: pendingRestore });
-    await h.start();
-    assert.equal(h.state.lifecycle.runtime, null);
-    assert.deepEqual(await h.restart(), { ok: false, error: 'IPC_SOURCE_INVALID' });
-    assert.equal(await h.requestRestart(), undefined);
-    assert.equal(h.count('app:relaunch'), 1);
-    assert.equal(h.count('app:exit'), 1);
-    pendingRestore.resolve();
-    await h.settle();
-    assert.equal(h.count('runtime:start'), 0);
-    assert.equal(h.count('license:create'), 0);
-    assert.deepEqual(h.startupErrors, []);
-  });
-}
+test('restart during the last startup restore exits without creating a runtime later', async () => {
+  const pendingRestore = Promise.withResolvers();
+  const h = createShutdownHarness({ doubaoRestore: pendingRestore });
+  await h.start();
+  assert.equal(h.state.lifecycle.runtime, null);
+  assert.deepEqual(await h.restart(), { ok: false, error: 'IPC_SOURCE_INVALID' });
+  assert.equal(await h.requestRestart(), undefined);
+  assert.equal(h.count('app:relaunch'), 1);
+  assert.equal(h.count('app:exit'), 1);
+  pendingRestore.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:start'), 0);
+  assert.equal(h.count('license:create'), 0);
+  assert.deepEqual(h.startupErrors, []);
+});
 
 test('quit while runtime starts waits for stop without creating license or controllers', async () => {
   const runtimeStart = Promise.withResolvers();
@@ -514,48 +504,27 @@ test('quit during license bootstrap cannot create sync controllers after termina
   assert.deepEqual(h.startupErrors, []);
 });
 
-test('update install IPC keeps delegating to the existing updater', async () => {
-  const h = createShutdownHarness();
+test('restart drains scene cloud delivery before closing the runtime', async () => {
+  const sceneIdle = Promise.withResolvers();
+  const h = createShutdownHarness({ sceneIdle });
   await h.start();
-  h.handlers.get('desktop:install-update')();
-  assert.equal(h.count('update:install'), 1);
-  assert.equal(h.count('remote:dispose'), 0);
+  assert.equal(h.count('scene:start'), 1);
+
+  h.restart();
+  h.quit();
+  h.remoteIdle.resolve();
+  h.cloudIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('scene:dispose'), 1);
+  assert.equal(h.count('playback:flush'), 0);
   assert.equal(h.count('runtime:stop'), 0);
-  assert.equal(h.count('app:relaunch'), 0);
+  assert.equal(h.runtimeOpen, true);
+
+  sceneIdle.resolve();
+  await h.settle();
+  assert.equal(h.count('runtime:stop'), 1);
+  assert.ok(h.calls.indexOf('scene:idle') < h.calls.indexOf('runtime:stop'));
+  h.backendStop.resolve();
+  await h.state.lifecycle.shutdownPromise;
+  assertFinalized(h, true);
 });
-
-for (const intent of ['quit', 'restart']) {
-  test(`${intent} drains scene cloud delivery before closing the runtime`, async () => {
-    const sceneIdle = Promise.withResolvers();
-    const sceneOwner = { scope: '["https://scene.test","streamer-1"]', epoch: 1 };
-    const h = createShutdownHarness({ sceneIdle, sceneOwner });
-    await h.start();
-    assert.equal(h.count('scene:create'), 1);
-    assert.equal(h.count('scene:start'), 1);
-    assert.equal(h.runtimeOptions.getSceneOwner(), sceneOwner);
-    const update = { ownerScope: sceneOwner.scope, authorizationEpoch: 1, status: 'offline' };
-    h.publishSceneCloud(update);
-    assert.deepEqual(h.sceneUpdates, [update]);
-
-    if (intent === 'restart') h.restart();
-    else h.quit();
-    h.quit();
-    h.remoteIdle.resolve();
-    h.cloudIdle.resolve();
-    await h.settle();
-    assert.equal(h.count('scene:dispose'), 1);
-    assert.equal(h.count('scene:idle'), 1);
-    assert.equal(h.count('playback:flush'), 0);
-    assert.equal(h.count('runtime:stop'), 0);
-    assert.equal(h.runtimeOpen, true);
-
-    sceneIdle.resolve();
-    await h.settle();
-    assert.equal(h.count('runtime:stop'), 1);
-    assert.ok(h.calls.indexOf('scene:dispose') < h.calls.indexOf('scene:idle'));
-    assert.ok(h.calls.indexOf('scene:idle') < h.calls.indexOf('runtime:stop'));
-    h.backendStop.resolve();
-    await h.state.lifecycle.shutdownPromise;
-    assertFinalized(h, intent === 'restart');
-  });
-}

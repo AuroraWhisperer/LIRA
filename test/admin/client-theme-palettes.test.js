@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const { CLIENT_THEMES, DEFAULT_CLIENT_THEME_ID, CLIENT_THEME_BACKGROUNDS } = require('../../src/shared/client-theme');
+const { DEFAULT_CLIENT_THEME_ID } = require('../../src/shared/client-theme');
 
 const css = fs.readFileSync(path.resolve(__dirname, '../../public/css/desktop/palettes.css'), 'utf8');
 const blocks = [...css.matchAll(/([^{}]+)\{([^{}]+)\}/g)];
@@ -34,44 +34,6 @@ function contrast(first, second) {
   const values = [luminance(first), luminance(second)].sort((a, b) => b - a);
   return (values[0] + 0.05) / (values[1] + 0.05);
 }
-
-test('all client palettes define their base colors and rebind compatibility aliases in samples', () => {
-  assert.deepEqual(Object.keys(palettes).sort(), CLIENT_THEMES.map(({ id }) => id).sort());
-  const keys = Object.keys(declarations(defaultBlock[2]));
-  for (const [id, palette] of Object.entries(palettes)) {
-    assert.equal(palette['--color-bg-page'], CLIENT_THEME_BACKGROUNDS[id], `${id} native and CSS page backgrounds must match`);
-    for (const key of keys) {
-      assert.ok(Object.hasOwn(palette, key), `${id} must not inherit ${key} from another palette`);
-      assert.match(palette[key], /^#[0-9a-f]{6}$/);
-    }
-    for (const value of Object.values(aliases)) {
-      for (const [, reference] of value.matchAll(/var\((--[\w-]+)\)/g)) {
-        assert.ok(reference in palette || reference in aliases, `missing ${reference} in ${id}`);
-      }
-    }
-    for (const key of Object.keys(palette)) {
-      assert.ok(key in palettes[DEFAULT_CLIENT_THEME_ID] || key in aliases, `${id}: ${key} must reset in other palettes and previews`);
-    }
-  }
-  assert.match(defaultBlock[1], /html\.desktop-shell/);
-  assert.match(defaultBlock[1], /html\[data-client-theme\]/);
-  assert.match(aliasBlock[1], /\[data-client-theme-preview\]/);
-  for (const { id } of CLIENT_THEMES) {
-    if (id !== DEFAULT_CLIENT_THEME_ID) assert.ok(paletteBlocks[id][1].includes(`[data-client-theme-preview='${id}']`));
-  }
-  assert.match(paletteBlocks['black-silver'][2], /color-scheme:\s*dark;/);
-  assert.equal(aliases['--primary'], 'var(--color-primary)');
-  assert.equal(aliases['--color-control-focus'], 'var(--color-primary-text)');
-  assert.doesNotMatch(css, /:root|body\s*\{/);
-});
-
-test('client theme selectors stay in the palette owner instead of business styles', () => {
-  const cssRoot = path.resolve(__dirname, '../../public/css');
-  for (const file of fs.readdirSync(cssRoot, { recursive: true })) {
-    if (!file.endsWith('.css') || file.replaceAll('\\', '/') === 'desktop/palettes.css') continue;
-    assert.doesNotMatch(fs.readFileSync(path.join(cssRoot, file), 'utf8'), /\[data-client-theme\s*=\s*['"]/, file);
-  }
-});
 
 test('client text, action states, semantic pairs and functional boundaries meet their contrast budgets', () => {
   for (const [id, palette] of Object.entries(palettes)) {

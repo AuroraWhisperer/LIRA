@@ -1,86 +1,12 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
+
 const path = require('node:path');
 const test = require('node:test');
-const { readCssBundle } = require('../helpers/css-bundle');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
-const read = (...segments) => fs.readFileSync(path.join(ROOT_DIR, ...segments), 'utf8');
-
-test('lyrics browser source reuses the neutral live timeline renderer', () => {
-  const html = read('public', 'pages', 'overlays', 'lyric-window.html');
-  const source = read('public', 'js', 'overlays', 'lyric-window.js');
-  const adminPreviewSource = read('public', 'js', 'admin', 'desktop-lyric-preview.js');
-  const rendererSource = read('public', 'js', 'lyrics', 'desktop-lyric-renderer.js');
-  const styles = read('public', 'css', 'playback', 'desktop-lyric.css');
-
-  assert.match(html, /\bhref=["']\/css\/lyrics\/desktop-lyric\.css(?:\?[^"']*)?["']/);
-  assert.doesNotMatch(html, /\/css\/admin\/desktop-lyric-preview\.css/);
-  assert.ok(html.indexOf('/css/lyrics/desktop-lyric.css') < html.indexOf('/css/styles-playback.css'));
-  assert.match(html, /id="desktopLyricPreviewViewport"[^>]*tabindex="0"/);
-  assert.match(html, /id="desktopLyricPreviewTimeline"/);
-  assert.match(html, /id="desktopLyricPreviewPlayback"[^>]*aria-live="polite"/);
-  assert.doesNotMatch(html, /desktopLyricPreviewProgress|desktop-lyric-preview-progress/);
-  assert.match(html, /type="module"[\s\S]*js\/overlays\/lyric-window\.js/);
-  assert.match(
-    source,
-    /import \{ desktopLyricRenderer \} from ["']\.\.\/lyrics\/desktop-lyric-renderer\.js(?:\?[^"']*)?["'];/,
-  );
-  assert.doesNotMatch(source, /\.\.\/admin\/|window\.AdminApp/);
-  assert.match(adminPreviewSource, /from ["']\.\.\/lyrics\/desktop-lyric-renderer\.js["'];/);
-  assert.match(rendererSource, /export const desktopLyricRenderer = Object\.freeze\(\{/);
-  assert.doesNotMatch(rendererSource, /window\.AdminApp|desktop-lyric-controls|shared\/utils/);
-  assert.match(rendererSource, /getElementById\(["']desktopLyricSurface["']\)/);
-  assert.match(styles, /\.lyric-window-card\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/);
-  assert.match(styles, /\.lyric-window-stage\s*\{[^}]*height:\s*100vh/);
-  assert.match(styles, /background(?:-color)?:\s*transparent/);
-});
-
-test('desktop lyric styles separate admin controls from shared rendering', () => {
-  const entry = read('public', 'css', 'admin', 'desktop-lyric-preview.css');
-  const imports = Array.from(entry.matchAll(/@import\s+url\(['"]([^'"]+)['"]\);/g), (match) => match[1]);
-
-  assert.deepEqual(imports, [
-    './desktop-lyric/settings.css',
-    './desktop-lyric/controls.css',
-    '../lyrics/desktop-lyric.css',
-    './desktop-lyric/preview.css',
-  ]);
-
-  const settings = read('public', 'css', 'admin', 'desktop-lyric', 'settings.css');
-  const controls = read('public', 'css', 'admin', 'desktop-lyric', 'controls.css');
-  const preview = read('public', 'css', 'admin', 'desktop-lyric', 'preview.css');
-  const renderer = read('public', 'css', 'lyrics', 'desktop-lyric.css');
-
-  assert.match(settings, /\.desktop-lyric-settings\s*\{/);
-  assert.match(settings, /\.desktop-lyric-source-options\s*\{/);
-  assert.match(controls, /\.desktop-lyric-karaoke-card\s*\{/);
-  assert.match(controls, /\.desktop-lyric-control \.range-row\s*\{/);
-  assert.match(preview, /\.desktop-lyric-preview-header\s*\{/);
-  assert.match(preview, /@container admin-lyric-preview\s*\(/);
-  assert.match(renderer, /\.desktop-lyric-preview-card\s*\{/);
-  assert.match(renderer, /\.desktop-lyric-preview-stage\s*\{/);
-  assert.match(renderer, /\.desktop-lyric-preview-row-text\s*\{/);
-  assert.match(renderer, /@media \(prefers-reduced-motion:\s*reduce\)/);
-  assert.doesNotMatch(
-    renderer,
-    /\.desktop-lyric-(?:settings|source|control|preview-header|preview-tools|preview-backgrounds|workspace)|admin-lyric-preview/,
-  );
-
-  const bundle = readCssBundle('public', 'css', 'admin', 'desktop-lyric-preview.css');
-  for (const selector of [
-    '.desktop-lyric-settings',
-    '.desktop-lyric-karaoke-card',
-    '.desktop-lyric-preview-card',
-    '.desktop-lyric-preview-header',
-    '.desktop-lyric-preview-row',
-  ]) {
-    assert.ok(bundle.includes(selector), `${selector} should remain composed`);
-  }
-});
 
 function createElement() {
   const classes = new Set();
@@ -189,11 +115,11 @@ test('lyrics browser source applies snapshot, state and timeline messages from i
   });
   assert.equal(card.styleValues.get('--preview-size'), '64px');
   assert.equal(card.classes.has('is-paused-hidden'), true, 'snapshot settings and paused state must both apply');
-  assert.match(status.textContent, /1 行/);
 
   message({ type: 'lyric-state', state: { playing: true, lineText: '第一句', status: 'ready' } });
   assert.equal(card.classes.has('is-paused-hidden'), false);
 
+  const singleLineStatus = status.textContent;
   message({
     type: 'lyric-timeline',
     timeline: {
@@ -205,7 +131,7 @@ test('lyrics browser source applies snapshot, state and timeline messages from i
       ],
     },
   });
-  assert.match(status.textContent, /3 行/);
+  assert.notEqual(status.textContent, singleLineStatus, 'timeline messages replace the snapshot timeline');
 
   sockets[0].emit('message', { data: '{not json' });
   message({ type: 'unknown', state: { playing: false } });

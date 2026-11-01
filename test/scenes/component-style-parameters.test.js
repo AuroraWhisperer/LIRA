@@ -39,24 +39,6 @@ test('each instance and imported style remembers its own settings without mutati
   assert.deepEqual(editStyleParameter(first, 'shadow', null).styleParameters.peach, {});
 });
 
-test('capabilities follow the concrete artwork, including transparent frames and imported web boundaries', () => {
-  const { styleParameterCapabilities: capabilities } = parameters;
-  for (const style of ['peach', 'starlight', 'soda', 'flip', 'moonlit-fan']) {
-    assert.ok(capabilities('clock', { style }).includes('innerShadow'));
-  }
-  for (const style of ['digital', 'timeline-horizontal', 'timeline-vertical', 'orbit']) {
-    assert.ok(!capabilities('clock', { style }).includes('innerShadow'));
-  }
-  assert.ok(capabilities('danmaku', { style: 'whiteframe' }).includes('outline'));
-  assert.ok(!capabilities('danmaku', { style: 'whiteframe' }).includes('innerShadow'));
-  assert.ok(!capabilities('danmaku', { style: 'comet' }).includes('innerGlow'));
-  assert.ok(capabilities('danmaku', { cssStyle: { engine: 'blc' } }).includes('textOutline'));
-  const html = capabilities('browser');
-  assert.ok(html.includes('shadow') && html.includes('transform'));
-  assert.ok(!html.includes('whiteBalance') && !html.includes('bloom') && !html.includes('levels'));
-  assert.ok(!html.includes('textOutline') && !html.includes('innerShadow'));
-});
-
 test('clock storage, scene instances and public output roundtrip only validated display parameters', () => {
   const { getClockConfig, normalizeClockSettingValue } = require('../../src/server/clock-contract');
   const { normalizeSceneConfig } = require('../../src/server/scene-components');

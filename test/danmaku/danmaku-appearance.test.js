@@ -32,11 +32,9 @@ test('legacy settings initialize once; local profiles survive repeated migration
     settings: { style: 'signal', fullscreenDurationSeconds: 6 } }), false);
   migrateDanmakuAppearance(f.db);
   const restartedStore = createDanmakuAppearanceStore(f.db);
-  const get = t.mock.method(restartedStore, 'get');
   const restarted = createDanmakuAppearance({ store: restartedStore, getOwner: () => f.state.owner,
     loadLegacy: () => { throw new Error('Existing local appearance must not read the server.'); } });
   assert.deepEqual(await restarted.read(), next);
-  assert.equal(get.mock.callCount(), 1, 'an existing local profile needs only one store read');
   assert.equal(reads, 1);
   assert.equal(f.state.changes, 2);
 });

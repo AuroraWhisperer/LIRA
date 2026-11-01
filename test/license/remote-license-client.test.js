@@ -264,24 +264,7 @@ test('remote client reads the public flat gift catalog with conditional etag req
   assert.equal(requests[1].init.headers.Authorization, undefined);
 });
 
-test('gift catalog accepts large resource responses without raising auth response limits', async () => {
-  const body = JSON.stringify({
-    ok: true,
-    variants: [],
-    padding: 'x'.repeat(2 * 1024 * 1024),
-  });
-  const client = createRemoteLicenseClient({
-    baseUrl: 'https://synthetic-api.example',
-    fetchImpl: async () => new Response(body),
-  });
-
-  assert.equal((await client.getGiftCatalog()).padding.length, 2 * 1024 * 1024);
-  await assert.rejects(client.heartbeat('test-token'), {
-    code: 'RESPONSE_TOO_LARGE',
-  });
-});
-
-test('gift catalog growth beyond 8 MiB remains within its independent response budget', async () => {
+test('gift catalog growth beyond 8 MiB does not raise the independent auth response budget', async () => {
   const body = JSON.stringify({
     ok: true,
     padding: '礼'.repeat(3 * 1024 * 1024),
@@ -294,6 +277,9 @@ test('gift catalog growth beyond 8 MiB remains within its independent response b
   assert.ok(Buffer.byteLength(body, 'utf8') > 8 * 1024 * 1024);
   const catalog = await client.getGiftCatalog();
   assert.equal(catalog.padding, '礼'.repeat(3 * 1024 * 1024));
+  await assert.rejects(client.heartbeat('test-token'), {
+    code: 'RESPONSE_TOO_LARGE',
+  });
 });
 
 test('cloud sync client keeps settings and Bilibili credentials on fixed Device endpoints', async () => {

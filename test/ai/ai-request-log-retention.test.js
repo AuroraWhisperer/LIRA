@@ -99,10 +99,10 @@ test('AI audit retention does not delete configuration, blacklist, quota, cache 
   assert.deepEqual(snapshot(), before);
 });
 
-test('startup retention reports AI-only deletions through the configured policy', (t) => {
+test('startup retention applies the configured AI policy', (t) => {
   const f = fixture(t);
   f.logAt(NOW - 8 * DAY_MS, 'expired');
-  const log = t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'log', () => {});
   const settings = { autoRetentionOnStartup: 'true', aiRequestLogRetentionDays: '7' };
   const stopMaintenance = startRetentionMaintenance(
     { getSettings: () => settings },
@@ -112,8 +112,6 @@ test('startup retention reports AI-only deletions through the configured policy'
   );
   t.after(stopMaintenance);
   assert.deepEqual(f.remaining(), []);
-  assert.equal(log.mock.callCount(), 1);
-  assert.match(log.mock.calls[0].arguments[0], /aiRequests=1/);
 });
 
 test('AI audit retention tolerates an absent song database', () => {

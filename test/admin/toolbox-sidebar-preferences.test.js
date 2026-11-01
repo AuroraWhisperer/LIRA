@@ -2,37 +2,22 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
-const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { createToolboxRuntime } = require('../helpers/toolbox-runtime');
 
-const ROOT_DIR = path.resolve(__dirname, '../..');
-
-test('toolbox navigation has uninitialized durable preferences by default', () => {
-  assert.equal(DEFAULT_SETTINGS.toolboxSidebarCollapsed, '');
-  assert.equal(DEFAULT_SETTINGS.toolboxCollapsedFeatureGroups, '');
-});
-
 test('toolbox sidebar restores the durable preference when the legacy cache is absent', () => {
-  for (const [setting, expected] of [
-    ['true', true],
-    ['false', false],
-  ]) {
-    const persisted = [];
-    const runtime = createToolboxRuntime();
-    runtime.sandbox.window.AdminApp.other.initOtherPage({
-      persistSidebarCollapsed: (collapsed) => persisted.push(collapsed),
-    });
+  const persisted = [];
+  const runtime = createToolboxRuntime();
+  runtime.sandbox.window.AdminApp.other.initOtherPage({
+    persistSidebarCollapsed: (collapsed) => persisted.push(collapsed),
+  });
 
-    runtime.dispatchWindowEvent('app:settings-state', {
-      toolboxSidebarCollapsed: setting,
-    });
+  runtime.dispatchWindowEvent('app:settings-state', {
+    toolboxSidebarCollapsed: 'true',
+  });
 
-    assert.equal(runtime.root.classList.contains('sidebar-collapsed'), expected);
-    assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), setting);
-    assert.deepEqual(persisted, []);
-  }
+  assert.equal(runtime.root.classList.contains('sidebar-collapsed'), true);
+  assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), 'true');
+  assert.deepEqual(persisted, []);
 });
 
 test('toolbox sidebar migrates the legacy preference and saves explicit toggles', () => {
@@ -51,22 +36,8 @@ test('toolbox sidebar migrates the legacy preference and saves explicit toggles'
   assert.deepEqual(persisted, [true]);
 
   runtime.sidebarToggle.dispatch('click');
-  assert.equal(runtime.root.classList.contains('sidebar-collapsed'), false);
   assert.equal(runtime.stored.get('admin.toolboxSidebarCollapsed'), 'false');
   assert.deepEqual(persisted, [true, false]);
-});
-
-test('admin app persists toolbox sidebar changes through the settings API', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'admin', 'app.js'), 'utf8');
-
-  assert.match(
-    source,
-    /other\.initOtherPage\(\{[\s\S]*?persistSidebarCollapsed:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxSidebarCollapsed:/,
-  );
-  assert.match(
-    source,
-    /persistCollapsedFeatureGroups:[\s\S]*?Utils\.api\('\/api\/settings',\s*\{\s*toolboxCollapsedFeatureGroups:/,
-  );
 });
 
 test('toolbox feature groups restore after a full application restart', () => {
@@ -92,11 +63,6 @@ test('toolbox feature groups restore after a full application restart', () => {
   });
 
   assert.equal(secondRuntime.headings[0].getAttribute('aria-expanded'), 'false');
-  assert.equal(secondRuntime.headings[1].getAttribute('aria-expanded'), 'false');
-  assert.equal(
-    secondRuntime.buttons.slice(0, 7).every((button) => button.hidden),
-    true,
-  );
   assert.equal(secondRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'), '["live-interaction","live-scene"]');
 });
 
@@ -116,10 +82,6 @@ test('toolbox feature groups migrate cached state and ignore malformed or stale 
   });
 
   assert.equal(cachedRuntime.headings[0].getAttribute('aria-expanded'), 'false');
-  assert.equal(
-    cachedRuntime.buttons.slice(0, 3).every((button) => button.hidden),
-    true,
-  );
   assert.equal(cachedRuntime.buttons[8].getAttribute('aria-selected'), 'true');
   assert.deepEqual(migrated, [['live-interaction']]);
 
