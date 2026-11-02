@@ -1,4 +1,4 @@
-const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '完整匹配回复', diy: '关键词回复', welcome: '进场欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单', thanks: '礼物答谢文案' };
+const TITLES = { checkin: '签到祝福词库', fortune: '抽签词库', random: '点歌回复说明', exact: '完整匹配回复', diy: '关键词回复', welcome: '进场欢迎', pk: 'PK 播报与欢迎', scheduled: '定时／随机弹幕', query: '查询回复指令清单', thanks: '礼物答谢文案' };
 const QUERY_LIST_HELP = '开启「查询回复」后，在直播间发送清单中的弹幕，系统会根据已保存的送礼记录自动回复。观众查询自己的记录，主播查询整个直播间的记录。所有时间均按北京时间计算。时间后面可以加“的”，例如“今天的礼物”。这里只展示指令用法，无需编辑或保存。';
 
 export function initFixedReplyEditor({ documentRef = globalThis.document, windowRef = globalThis.window } = {}) {

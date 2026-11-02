@@ -445,6 +445,32 @@ test('shared lyric renderer ignores ordinary jitter but applies explicit small s
   renderer.dispose();
 });
 
+test('lyric clock keeps advancing through repeated playing positions and accepts fresh corrections', async () => {
+  let now = 0;
+  const { LyricClock } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-clock.js'));
+  const clock = new LyricClock({ now: () => now });
+  const state = { currentMs: 15000, durationMs: 180000, playing: true };
+  clock.setState(state);
+  for (const elapsed of [500, 500, 1000, 2000]) {
+    now += elapsed;
+    clock.setState(state);
+    assert.equal(clock.getPosition().currentMs, 15000 + now, 'a repeated position must not replay the same word');
+  }
+
+  now += 500;
+  clock.setState({ ...state, currentMs: 19450 });
+  assert.equal(clock.getPosition().currentMs, 19500, 'a recovered sample within tolerance keeps the clock continuous');
+  now += 500;
+  clock.setState({ ...state, currentMs: 18000 });
+  assert.equal(clock.getPosition().currentMs, 18000, 'a changed position still allows an external backward seek');
+  now += 500;
+  clock.setState({ ...state, currentMs: 18000 });
+  assert.equal(clock.getPosition().currentMs, 18500, 'repeated samples after a seek must not replay the seek');
+  clock.setState({ ...state, currentMs: 18000 }, { discontinuity: true });
+  assert.equal(clock.getPosition().currentMs, 18000, 'an explicit seek can target the last sampled position');
+  clock.dispose();
+});
+
 test('lyric clock anchors pause and resume without advancing while paused', async () => {
   let now = 1000;
   const { LyricClock } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/lyric-clock.js'));

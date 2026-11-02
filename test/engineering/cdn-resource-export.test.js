@@ -7,7 +7,37 @@ const { createHash } = require('node:crypto');
 const test = require('node:test');
 const yauzl = require('yauzl');
 const { collectCdnResources, exportCdnResources } = require('../../scripts/export-cdn-resources');
-const { createResourcePackages, packagePath } = require('../../src/resources/resource-packages');
+const { isLegacyResource, createResourcePackages, packagePath } = require('../../src/resources/resource-packages');
+const { fonts } = require('../../src/fonts/catalog.json');
+
+async function resourceFixture(t) {
+  const scratch = path.resolve(__dirname, '../../tmp/cdn-export-tests');
+  await fs.mkdir(scratch, { recursive: true });
+  const directory = await fs.mkdtemp(path.join(scratch, 'export-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const publicDir = path.join(directory, 'public');
+  for (const file of require('../../src/resources/catalog.json').files) {
+    const filename = path.join(publicDir, file.path);
+    await fs.mkdir(path.dirname(filename), { recursive: true });
+    await fs.writeFile(filename, file.path);
+  }
+  return { directory, publicDir };
+}
+
+test('unrelated font binaries and large artwork cannot silently enter the CDN inventory', async t => {
+  const { publicDir } = await resourceFixture(t);
+  await fs.writeFile(path.join(publicDir, 'fonts/unregistered.woff2'), 'unused font');
+  await fs.writeFile(path.join(publicDir, 'img/unreferenced.png'), Buffer.alloc(10 * 1024 * 1024 + 1));
+  const actual = collectCdnResources(publicDir);
+  assert.equal(actual.some(file => file.path === 'fonts/unregistered.woff2'), false);
+  assert.equal(actual.some(file => file.path === 'img/unreferenced.png'), false);
+});
+
+test('an export fails when a declared shared resource is absent', async t => {
+  const { publicDir } = await resourceFixture(t);
+  await fs.unlink(path.join(publicDir, 'img/admin/world-clock/earth-day-8k.png'));
+  assert.throws(() => collectCdnResources(publicDir), { code: 'ENOENT' });
+});
 
 test('the baseline inventory includes complete fonts and large images while tiny title subsets stay bundled', () => {
   const actual = collectCdnResources(path.resolve(__dirname, '../../public'));
@@ -22,28 +52,38 @@ test('the baseline inventory includes complete fonts and large images while tiny
   assert.equal(packages.some(resource => ['lyric-fallbacks', 'style-fonts'].includes(resource.id)), false);
 });
 
-test('export merges font files into named ZIPs and keeps images independent without old staging files', async t => {
-  const scratch = path.resolve(__dirname, '../../tmp/cdn-export-tests');
-  await fs.mkdir(scratch, { recursive: true });
-  const directory = await fs.mkdtemp(path.join(scratch, 'export-'));
-  t.after(() => fs.rm(directory, { recursive: true, force: true }));
-  await fs.mkdir(path.join(directory, 'public/fonts'), { recursive: true });
-  await fs.mkdir(path.join(directory, 'public/img'), { recursive: true });
-  await fs.writeFile(path.join(directory, 'public/fonts/test.woff2'), 'font bytes');
+test('startup inventory covers shared fonts and never duplicates imported style imagery', () => {
+  const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component-resource-style.js');
+  const startup = require('../../src/resources/catalog.json').files.filter(file => !isLegacyResource(file.path));
+  const sharedFonts = new Set(fonts.flatMap(font => font.bundled.map(file => `fonts/${file.path}`)));
+  assert.deepEqual(new Set(startup.filter(file => file.path.startsWith('fonts/')).map(file => file.path)), sharedFonts);
+  const importedImages = new Set(Object.values(COMPONENT_RESOURCE_PRESETS).flatMap(preset =>
+    [...preset.resources, ...(preset.optionalResources || [])].filter(name => name.startsWith('/img/'))));
+  for (const file of startup) assert.equal(importedImages.has(`/${file.path}`), false,
+    `${file.path} belongs to an imported style, not every client startup`);
+  assert.ok(startup.some(file => file.path === 'img/admin/world-clock/earth-day-8k.png'));
+});
+
+test('export preserves named packages and legacy inventory without old staging files', async t => {
+  const { directory } = await resourceFixture(t);
   await fs.writeFile(path.join(directory, 'public/fonts/OFL.txt'), 'font license');
-  await fs.writeFile(path.join(directory, 'public/img/large.png'), Buffer.alloc(10 * 1024 * 1024 + 1, 7));
-  await fs.writeFile(path.join(directory, 'public/img/threshold.png'), Buffer.alloc(10 * 1024 * 1024, 1));
   const oldOutput = path.join(directory, 'tmp/cdn-resources/upload/resources');
   for (const name of ['licenses/OFL.txt', 'objects/old.woff2']) {
     await fs.mkdir(path.dirname(path.join(oldOutput, name)), { recursive: true });
     await fs.writeFile(path.join(oldOutput, name), 'previous export');
   }
   const result = exportCdnResources({ rootDir: directory });
-  assert.equal(result.fonts, 1);
-  assert.equal(result.images, 1);
-  assert.equal(result.downloads, 2);
+  assert.equal(result.fonts, new Set(fonts.flatMap(font => font.bundled.map(file => file.path))).size);
+  assert.equal(result.images, 4, 'The export retains three images required by released clients.');
+  assert.equal(result.downloads, fonts.length + 4);
+  assert.equal(result.startupDownloads, fonts.length + 1);
   const manifest = JSON.parse(await fs.readFile(result.manifestPath, 'utf8'));
   assert.equal(manifest.version, 2);
+  const legacyPackages = manifest.packages.filter(resource => resource.id.startsWith('img/overlays/guard-nautical/'));
+  assert.equal(legacyPackages.length, 3);
+  assert.equal(result.compatibilityDownloadBytes, legacyPackages.reduce((sum, resource) => sum + resource.size, 0));
+  assert.equal(result.startupDownloadBytes + result.compatibilityDownloadBytes,
+    manifest.packages.reduce((sum, resource) => sum + resource.size, 0));
   const definitions = new Map(createResourcePackages(manifest.files).map(resource => [resource.id, resource]));
   for (const resource of manifest.packages) {
     const definition = definitions.get(resource.id);
@@ -52,7 +92,7 @@ test('export merges font files into named ZIPs and keeps images independent with
     assert.equal(bytes.length, resource.size);
     assert.equal(createHash('sha256').update(bytes).digest('hex'), resource.sha256);
     if (definition.archive) {
-      assert.match(filename, /^resources\/fonts\/直播组件专用字体-[a-f0-9]{12}\.zip$/);
+      assert.match(filename, /^resources\/fonts\/.+-[a-f0-9]{12}\.zip$/);
       const fontZip = await yauzl.fromBufferPromise(bytes, { lazyEntries: true });
       const members = [];
       try {
@@ -64,7 +104,7 @@ test('export merges font files into named ZIPs and keeps images independent with
         }
       } finally { fontZip.close(); }
       assert.deepEqual(members, resource.files);
-    } else assert.match(filename, /^resources\/images\/large-[a-f0-9]{12}\.png$/);
+    } else assert.match(filename, /^resources\/images\/.+-[a-f0-9]{12}\.(png|webp)$/);
   }
   await assert.rejects(fs.access(path.join(oldOutput, 'licenses')), { code: 'ENOENT' });
   await assert.rejects(fs.access(path.join(oldOutput, 'objects')), { code: 'ENOENT' });
@@ -72,7 +112,7 @@ test('export merges font files into named ZIPs and keeps images independent with
   const zip = await yauzl.fromBufferPromise(await fs.readFile(result.archivePath), { lazyEntries: true });
   const names = [];
   try { for await (const entry of zip.eachEntry()) names.push(entry.fileName); } finally { zip.close(); }
-  assert.equal(names.length, 3);
+  assert.equal(names.length, result.downloads + 1);
   assert.ok(names.includes('resources/manifest.json'));
   assert.equal(names.some(name => name.startsWith('resources/licenses/')), false);
 });

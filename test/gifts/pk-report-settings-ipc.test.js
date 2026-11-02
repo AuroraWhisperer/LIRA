@@ -75,4 +75,23 @@ test('PK IPC rejects foreign windows/invalid inputs and strips unsolicited serve
   assert.deepEqual(writes, [{ enabled: true }]);
   response = { enabled: true };
   assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  const extended = {
+    ok: true, enabled: true, reportEnabled: true, visitorWelcomeEnabled: false,
+    visitorWelcomeDelaySeconds: 5, visitorWelcomeMessages: ['欢迎 {username} 从对面来串门～'],
+  };
+  response = { ...extended, cookie: 'private', streamerId: 2 };
+  assert.deepEqual(await read(event), extended);
+  const patch = { reportEnabled: false, visitorWelcomeEnabled: true, visitorWelcomeDelaySeconds: 0,
+    visitorWelcomeMessages: [' 欢迎 {username} 来串门 '] };
+  assert.deepEqual(await write(event, patch), extended);
+  assert.deepEqual(writes.at(-1), { ...patch, visitorWelcomeMessages: ['欢迎 {username} 来串门'] });
+  const before = writes.length;
+  for (const invalid of [
+    { reportEnabled: 1 }, { visitorWelcomeDelaySeconds: -1 },
+    { visitorWelcomeDelaySeconds: 301 }, { visitorWelcomeDelaySeconds: 1.5 }, { visitorWelcomeDelaySeconds: '5' },
+    { visitorWelcomeMessages: [] },
+  ]) assert.equal((await write(event, invalid)).error, 'INVALID_PK_REPORT_SETTINGS');
+  assert.equal(writes.length, before);
+  response = { ...fixture.response, reportEnabled: true };
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
 });

@@ -181,6 +181,22 @@ partitions, secret protection, log redaction, and `local-media://` origin checks
 
 Changing one of these boundaries is not a Small task.
 
+### Resource Delivery And Recurring Requests
+
+- Declare the consumer and delivery owner before adding startup downloads. File
+  size, extension, or presence in a directory does not prove shared use. Follow
+  the [resource admission rules](docs/guides/cdn-resources.md#资源准入与防回归).
+- When moving assets into imported styles, update startup selection and failure
+  accounting together. Keep required shared resources complete and preserve
+  released-client manifests and cached URLs until their compatibility is retired.
+- For polling, subscriptions, retries, and downloads, distinguish local work from
+  server/CDN traffic. Reuse the owning connection/task, cache and cancellation;
+  bound retries without removing data reconciliation or integrity checks.
+- Verify changed request behavior with relevant cold/warm-cache, update, failure
+  and offline cases, including actual request counts or bytes. Inventory checks
+  need independent consumer/ownership evidence; comparing a scanner only with its
+  own generated catalog cannot establish that downloads are necessary or complete.
+
 ### Server-Assisted Evolution
 
 Server-assisted work extends the modular monolith; it does not by itself justify
@@ -254,6 +270,12 @@ Ordinary layout, spacing, colors, decorative markup, copy order, and animation
 curves do not require automated cases, assertions, or replacement screenshots.
 Keep checks for concrete functional effects such as blocked interaction, lost
 content, accessibility, saved settings, or required export dimensions.
+Likewise do not add assertions on exact UI or log wording, default-value
+snapshots, whole-object comparisons where a few fields matter, equivalent inputs
+of one branch, source-text scans outside security and architecture gates, or
+browser/Electron reruns of rules a Node test already proves. Check the
+[do-not-add list](docs/reference/engineering/test.md#不新增的测试与断言) and
+its exceptions before adding a case or assertion.
 
 Before adding coverage, search the owning suite for existing cases, helpers, and
 fixtures. Prefer reusing or extending matching coverage; add a new case only for

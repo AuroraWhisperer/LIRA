@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { chooseGameWord } = require('../helpers/draw-guess');
 const { projectWebSocketPayload } = require('../../src/server/overlay-projection');
 
 function fixture(t) {
@@ -17,6 +18,7 @@ function fixture(t) {
   });
   t.after(() => games.dispose());
   games.start({ game: 'draw-guess', totalRounds: 2 });
+  chooseGameWord(games);
   return { games, events };
 }
 
@@ -25,10 +27,11 @@ test('chat and late avatars never transmit unchanged canvas or repeated chat his
   games.draw({ action: 'append', clientId: 'p', strokeId: 's', color: '#222034', width: 4,
     points: [{ x: 0.1, y: 0.1 }] });
   events.length = 0;
+  const revision = games.getSession().eventRevision;
   for (let i = 0; i < 510; i += 1) games.handleDanmaku({ uid: '1', userName: 'A', message: String(i) });
   assert.equal(events.length, 510);
   assert.ok(events.every((event) => event.type === 'game:patch' && event.item && !event.state && !event.session));
-  assert.ok(events.every((event, i) => event.eventRevision === i + 3));
+  assert.ok(events.every((event, i) => event.eventRevision === revision + i + 1));
   assert.equal(JSON.stringify(events).includes('strokes'), false);
   const snapshot = games.getSession();
   assert.equal(snapshot.danmaku.length, 500);

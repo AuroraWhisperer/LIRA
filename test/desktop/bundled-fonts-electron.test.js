@@ -37,7 +37,9 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
     assert.deepEqual(extractFile(archive, path.join('public/fonts', name)), await fs.readFile(path.join(root, 'public/fonts', name)));
   const cwd = path.join(appOutDir, 'unrelated-working-directory');
   await fs.mkdir(cwd);
-  exportCdnResources({ outputDir: path.join(appOutDir, 'cdn') });
+  const exported = exportCdnResources({ outputDir: path.join(appOutDir, 'cdn') });
+  assert.deepEqual(JSON.parse(await fs.readFile(exported.manifestPath, 'utf8')),
+    require('../../src/resources/catalog.json'), 'Published package names, hashes and legacy entries remain compatible.');
   app = await launchElectron({ cwd, args: [path.join(root, 'test/fixtures/bundled-fonts.cjs'), appOutDir, archive], timeout: 15000 });
   let page = await app.firstWindow();
   const errors = [];
@@ -62,9 +64,8 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
   assert.equal(renderedFamilies.size, fonts.length, 'Every choice uses a different font, not a common fallback.');
   const result = await app.evaluate(() => ({ ...global.cdnResourcesTest }));
   assert.equal(result.state.status, 'ready');
-  const packages = require('../../src/resources/catalog.json').packages;
-  assert.equal(result.state.total, packages.length);
-  assert.equal(result.downloads, packages.length);
+  assert.equal(result.state.total, fonts.length + 1, 'Shared fonts and the map are complete without imported style artwork.');
+  assert.equal(result.downloads, fonts.length + 1);
   assert.equal(result.checks, 1);
   assert.deepEqual(result.externalRequests, []);
   assert.equal(result.publicDir, path.join(archive, 'public'));

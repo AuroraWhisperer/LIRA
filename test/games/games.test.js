@@ -6,6 +6,7 @@ const { createNumberBombState, guessNumber, publicNumberBombState } = require('.
 const { createGomokuState, parseCoordinate, placeStone } = require('../../src/games/gomoku');
 const {
   applyDrawOperation,
+  chooseDrawGuessWord,
   createDrawGuessState,
   finishRound,
   publicDrawGuessState,
@@ -13,6 +14,79 @@ const {
   submitGuess,
 } = require('../../src/games/draw-guess');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { chooseGameWord } = require('../helpers/draw-guess');
+
+function createDrawingState(options) {
+  return chooseDrawGuessWord(createDrawGuessState(options), options.words[0].word, options.nowMs).state;
+}
+
+test('draw guess waits for a private host choice before drawing, scoring or starting its clock', (t) => {
+  let now = 1000;
+  const timers = [];
+  const events = [];
+  const service = createGameSessionService({
+    drawGuessWords: [
+      { word: '苹果', categoryId: 'food', category: '食物' },
+      { word: '月亮', categoryId: 'nature', category: '自然' },
+    ],
+    monotonicNow: () => now,
+    setTimeout: (callback, delay) => { timers.push({ callback, delay }); return timers.length; },
+    clearTimeout() {},
+    broadcast: (event) => events.push(event),
+  });
+  t.after(() => service.dispose());
+  const started = service.start({ game: 'draw-guess', categoryIds: ['nature'], roundDurationSeconds: 30 });
+  assert.equal(started.state.phase, 'choosing');
+  assert.equal(service.getHostState().word, '');
+  assert.deepEqual(service.getHostState().choices, [{ word: '月亮', categoryId: 'nature', category: '自然' }]);
+  now += 600000;
+  assert.equal(service.getSession().state.phase, 'choosing');
+  assert.equal(service.getSession().state.remainingMs, 0);
+  assert.equal(timers.length, 0);
+  assert.equal(service.draw({ action: 'clear', clientId: 'host' }).accepted, false);
+  assert.equal(service.handleDanmaku({ uid: '1', message: '月亮' }).accepted, false);
+  assert.deepEqual(service.getSession().state.scores, []);
+  const value = { action: 'choose-word', word: '月亮', sessionId: started.sessionId, round: 1 };
+  assert.equal(service.move({ value }, 'viewer').accepted, false);
+  for (const invalid of [{ word: '苹果' }, { sessionId: 'old' }, { round: 2 }]) {
+    assert.equal(service.move({ value: { ...value, ...invalid } }).accepted, false);
+  }
+  const chosen = service.move({ value });
+  assert.equal(chosen.accepted, true);
+  assert.equal(chosen.session.state.phase, 'drawing');
+  assert.equal(chosen.session.state.remainingMs, 30000);
+  assert.equal(timers.at(-1).delay, 30000);
+  assert.equal(service.getHostState().word, '月亮');
+  assert.deepEqual(service.getHostState().choices, []);
+  assert.equal(service.move({ value }).accepted, false);
+  for (const event of events.filter((item) => item.type === 'game:update')) {
+    assert.equal(JSON.stringify(event.session.state).includes('月亮'), false);
+  }
+  assert.equal(JSON.stringify(chosen.session.state).includes('choices'), false);
+  assert.equal(service.handleDanmaku({ uid: '1', message: '月亮' }).accepted, true);
+});
+
+test('draw guess asks again between rounds and only reuses words after exhausting the pool', (t) => {
+  const service = createGameSessionService({
+    drawGuessWords: [{ word: '苹果', category: '食物' }, { word: '月亮', category: '自然' }],
+    monotonicNow: () => 0,
+  });
+  t.after(() => service.dispose());
+  const start = service.start({ game: 'draw-guess', totalRounds: 3 });
+  const choose = (word, round) => service.move({ value: { action: 'choose-word', word, round, sessionId: start.sessionId } });
+  assert.equal(choose('月亮', 1).accepted, true);
+  for (const [round, word, nextWords] of [[1, '苹果', ['苹果']], [2, '月亮', ['苹果', '月亮']]]) {
+    service.move({ action: 'finish-round' });
+    service.move({ action: 'reveal-answer' });
+    const next = service.move({ action: 'next-round' });
+    assert.equal(next.session.state.phase, 'choosing');
+    assert.equal(next.session.state.round, round + 1);
+    assert.deepEqual(service.getHostState().choices.map((entry) => entry.word), nextWords);
+    assert.equal(service.getHostState().word, '');
+    assert.equal(choose(word, round).accepted, false, 'a delayed choice cannot start another round');
+    assert.equal(choose(word, round + 1).accepted, true);
+  }
+});
 
 test('number bomb narrows range and alternates players without exposing bomb', () => {
   const state = createNumberBombState(() => 0.69);
@@ -115,7 +189,7 @@ test('finished game can restart with the same player configuration', () => {
 });
 
 test('draw guess hides the answer while drawing and reveals it after the round', () => {
-  const state = createDrawGuessState({
+  const state = createDrawingState({
     words: [{ word: '苹果', category: '食物', aliases: ['蘋果'] }],
     random: () => 0,
     nowMs: 1000,
@@ -140,7 +214,7 @@ test('draw guess hides the answer while drawing and reveals it after the round',
 });
 
 test('draw guess accepts bounded round and duration settings', () => {
-  const state = createDrawGuessState({
+  const state = createDrawingState({
     words: [{ word: '苹果', category: '食物' }],
     totalRounds: 12,
     roundDurationSeconds: 300,
@@ -179,7 +253,7 @@ test('draw guess only selects words from requested categories and rejects invali
 });
 
 test('draw guess awards 10, 7, 5, then 3 points and scores each uid once per round', () => {
-  let state = createDrawGuessState({
+  let state = createDrawingState({
     words: [{ word: '冰淇淋', category: '食物', aliases: ['冰激凌'] }],
     random: () => 0,
     nowMs: 0,
@@ -214,7 +288,7 @@ test('draw guess completes after the configured number of rounds and ranks total
     { word: '苹果', category: '食物' },
     { word: '月亮', category: '自然' },
   ];
-  let state = createDrawGuessState({
+  let state = createDrawingState({
     words,
     totalRounds: 2,
     random: () => 0,
@@ -223,6 +297,7 @@ test('draw guess completes after the configured number of rounds and ranks total
   state = submitGuess(state, { uid: '1', userName: 'Alice', message: '苹果' }, 1).state;
   state = finishRound(state, 2);
   state = startNextRound(state, { random: () => 0, nowMs: 3 });
+  state = chooseDrawGuessWord(state, '月亮', 3).state;
   state = submitGuess(state, { uid: '2', userName: 'Bob', message: '月亮' }, 4).state;
   state = submitGuess(state, { uid: '1', userName: 'Alice', message: '月亮' }, 5).state;
   state = finishRound(state, 6);
@@ -238,7 +313,7 @@ test('draw guess completes after the configured number of rounds and ranks total
 });
 
 test('draw guess validates incremental canvas operations and supports clearing', () => {
-  let state = createDrawGuessState({
+  let state = createDrawingState({
     words: [{ word: '苹果', category: '食物' }],
     random: () => 0,
     nowMs: 0,
@@ -280,7 +355,7 @@ test('draw guess validates incremental canvas operations and supports clearing',
 });
 
 test('draw guess undoes the latest stroke and rejects an empty undo', () => {
-  let state = createDrawGuessState({
+  let state = createDrawingState({
     words: [{ word: '苹果', category: '食物' }],
     random: () => 0,
     nowMs: 0,
@@ -346,6 +421,7 @@ test('game session keeps draw guess secret, scores danmaku and publishes drawing
     wallNow: () => 1000,
   });
   const started = service.start({ game: 'draw-guess', mode: 'multi' });
+  chooseGameWord(service);
 
   assert.equal(started.game, 'draw-guess');
   assert.equal(JSON.stringify(started).includes('苹果'), false);
@@ -394,6 +470,7 @@ test('game session publishes an undo operation for the latest draw stroke', () =
     monotonicNow: () => 0,
   });
   service.start({ game: 'draw-guess' });
+  chooseGameWord(service);
   service.draw({
     action: 'append',
     clientId: 'page-1',
@@ -489,6 +566,7 @@ test('game session ends draw guess rounds on one server-owned timer and disposes
     },
   });
   service.start({ game: 'draw-guess', mode: 'multi' });
+  chooseGameWord(service);
   assert.equal(typeof timerCallback, 'function');
 
   nowMs += 90000;
@@ -516,6 +594,7 @@ test('draw guess keeps post-timeout danmaku without awarding points until answer
     clearTimeout() {},
   });
   service.start({ game: 'draw-guess' });
+  chooseGameWord(service);
   nowMs = 90000;
   timerCallback();
   service.handleDanmaku({ uid: 'late', userName: '晚到观众', message: '苹果' });
@@ -544,6 +623,7 @@ test('game session schedules draw guess with the selected duration', () => {
     totalRounds: 8,
     roundDurationSeconds: 120,
   });
+  chooseGameWord(service);
 
   assert.equal(session.state.totalRounds, 8);
   assert.equal(session.state.roundDurationMs, 120000);

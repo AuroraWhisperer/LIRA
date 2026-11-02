@@ -3,12 +3,24 @@
 const path = require('node:path');
 const { fonts } = require('../fonts/catalog.json');
 
-const IMAGE_NAMES = {
+const SHARED_IMAGE_NAMES = {
   'img/admin/world-clock/earth-day-8k.png': '世界地图-8K',
+};
+// Released clients still need these CDN entries. Current styles use their imported ZIP instead.
+const LEGACY_IMAGE_NAMES = {
   'img/overlays/guard-nautical/admiral.webp': '航海旗帜-提督',
   'img/overlays/guard-nautical/captain.webp': '航海旗帜-舰长',
   'img/overlays/guard-nautical/governor.webp': '航海旗帜-总督',
 };
+const IMAGE_NAMES = { ...SHARED_IMAGE_NAMES, ...LEGACY_IMAGE_NAMES };
+const CDN_RESOURCE_PATHS = Object.freeze([
+  ...fonts.flatMap(font => font.bundled.map(file => `fonts/${file.path}`)),
+  ...Object.keys(IMAGE_NAMES),
+]);
+
+function isLegacyResource(name) {
+  return Object.hasOwn(LEGACY_IMAGE_NAMES, name);
+}
 
 function createResourcePackages(files) {
   const remaining = new Map(files.map(file => [file.path, file]));
@@ -33,4 +45,4 @@ function packagePath(resource) {
   return `${resource.archive ? 'fonts' : 'images'}/${resource.label}-${resource.sha256.slice(0, 12)}${extension}`;
 }
 
-module.exports = { createResourcePackages, packagePath };
+module.exports = { CDN_RESOURCE_PATHS, isLegacyResource, createResourcePackages, packagePath };

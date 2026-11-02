@@ -896,16 +896,16 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 
 `GET /api/games/viewers` 先按需触发一次在线榜拉取，再返回当前在线快照中的直播间观众候选；
 `GET /api/games/draw-guess/categories` 返回固定题库的分类摘要 `[{id,label,count}]`，不返回具体词条；当前内置 9 类、每类 100 词，共 900 个规范化后不重复的可画词条；
-`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置；你画我猜在作画阶段不会返回题词或别名）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
-`GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,categoryIds,phase,round,totalRounds}`，供 Admin 私下显示题词并恢复本场所选分类；它仅接受管理身份，games 页面能力由服务端拒绝访问；
+`GET /api/games/session` 返回当前公开游戏状态（数字炸弹不会返回炸弹位置；你画我猜在选词和作画阶段不会返回题词、别名或可选词表）；胜利后附加临时 `winner:{role:'host'|'viewer',uid,name}`，仅用于胜利展示；
+`GET /api/games/host-state` 返回你画我猜主持状态 `{game,word,category,categoryIds,phase,round,totalRounds,choices}`，供 Admin 私下选词、显示题词并恢复本场所选分类；`choosing` 阶段 `word` 为空，`choices:[{word,categoryId,category}]` 包含本场分类内尚未使用的全部题词，题池耗尽后可再次选择，其他阶段 `choices` 为空数组；它仅接受管理身份，games 页面能力由服务端拒绝访问；
 `GET /api/games/winner-profile` 按当前会话的 `winner` 临时查询 Bilibili 头像，返回 `{avatarUrl,name}`，没有胜者或查询失败时字段为空，不写入存储；`/games` 把该地址和你画我猜弹幕头像统一交给 `GET /api/bilibili/avatar` 代取，因此数字炸弹、五子棋结算与画猜消息不直接加载 CDN HTTPS；
-`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话；`draw-guess` 还可接受整数 `totalRounds`（1–12）、`roundDurationSeconds`（15–300）和分类 ID 数组 `categoryIds`。轮数与时长缺失或越界时分别回退为 5 和 90；`categoryIds` 缺失时使用全部分类，显式空数组、未知分类或非法 ID 返回 400，重复 ID 会去重，只有所选分类进入本场随机题池。`game` 为 `number-bomb|gomoku|draw-guess`；也接受 `{action:"stop"}` 结束会话，或在数字炸弹/五子棋结算后接受 `{action:"restart"}`，按相同游戏、模式和指定观众原子重开下一局。未结算时重开返回 409；已有会话时普通开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
-`POST /api/games/session/move` 接受主播的 `{value}` 落子；仅管理身份的你画我猜控制使用 `{value:{action:'finish-round'|'reveal-answer'|'next-round'}}` 结束作画、公布答案或开始下一题。时间到后会进入待公布状态，`reveal-answer` 前公开状态不含答案且弹幕仍会被收集但不计分；
+`POST /api/games/session` 接受 `{game, mode, targetUid, targetName}` 开始会话；`draw-guess` 还可接受整数 `totalRounds`（1–12）、`roundDurationSeconds`（15–300）和分类 ID 数组 `categoryIds`。轮数与时长缺失或越界时分别回退为 5 和 90；`categoryIds` 缺失时使用全部分类，显式空数组、未知分类或非法 ID 返回 400，重复 ID 会去重，只有所选分类进入本场选词范围；创建会话先进入 `choosing`，等待主播选词，不启动本局倒计时。`game` 为 `number-bomb|gomoku|draw-guess`；也接受 `{action:"stop"}` 结束会话，或在数字炸弹/五子棋结算后接受 `{action:"restart"}`，按相同游戏、模式和指定观众原子重开下一局。未结算时重开返回 409；已有会话时普通开始请求返回 **409** `{ok:false,error:'已有游戏正在进行，请先结束当前游戏。'}`，不会覆盖旧会话；
+`POST /api/games/session/move` 接受主播的 `{value}` 落子；仅管理身份的你画我猜控制使用 `{value:{action:'choose-word',word,sessionId,round}}` 选定题词，或 `{value:{action:'finish-round'|'reveal-answer'|'next-round'}}` 结束作画、公布答案或准备下一题。选词必须匹配当前会话、局次和服务端可用题池，失败返回 400；成功进入 `drawing` 并启动完整的本局倒计时，重复确认被拒绝。`next-round` 清空上一题画布并进入 `choosing`，保留总积分。时间到后会进入待公布状态，`reveal-answer` 前公开状态不含答案且弹幕仍会被收集但不计分；
 `POST /api/games/session/draw` 接受 `{action:'append',clientId,strokeId,color,width,points:[{x,y}]}`、`{action:'clear',clientId}` 或 `{action:'undo',clientId}`。撤销由服务端按当前最后一笔决定，并在广播中带回被撤销的 `strokeId`；服务端只允许固定颜色/笔宽、1–32 个归一化坐标、最多 160 笔和每局 6000 个坐标，成功返回 `{revision}` 并广播 `game:draw`。没有可撤销笔画时返回稳定的 400 错误。沿用 `{ok,data}` 信封；管理身份拥有完整操作，展示页能力遵循 §0.0 限制。
 
-你画我猜为内存会话，默认五局、每局 90 秒，允许配置 1–12 局和每局 15–300 秒；固定题库由 `src/games/draw-guess-words.js` 拥有，题目可带 `|` 分隔的等价答案，但分类摘要不会暴露这些词条。服务端单计时器到时结束作画并等待主播公布答案。会话公开状态保留本局开始后收到的弹幕（最多 500 条，含 uid、昵称、内容和可选头像地址），直到会话结束；观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分，时间到后不再计分。
+你画我猜为内存会话，默认五局、每局 90 秒，允许配置 1–12 局和每局 15–300 秒；固定题库由 `src/games/draw-guess-words.js` 拥有，题目可带 `|` 分隔的等价答案，但分类摘要不会暴露这些词条。每局由主播从管理端选词窗选定题词，确认前不作画、不计时、不计分；服务端单计时器从确认时起运行，到时结束作画并等待主播公布答案。会话公开状态保留本局开始后收到的弹幕（最多 500 条，含 uid、昵称、内容和可选头像地址），直到会话结束；观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分，时间到后不再计分。
 
-常规猜题消息完成计分后只发布一次包含新弹幕与最终得分的 `game:update`；错误答案仍更新聊天。游戏候选观众缓存按单调时钟保留最近十分钟，刷新 UID 时调整内部过期顺序，公开 `uid/name/lastSeenAt` 字段不变。
+常规猜题消息完成计分后只发布一次包含新弹幕与最终得分的 `game:patch`；错误答案仍更新聊天。选词确认与下一局准备分别发布完整 `game:update`，公开状态不含可选词表。游戏候选观众缓存按单调时钟保留最近十分钟，刷新 UID 时调整内部过期顺序，公开 `uid/name/lastSeenAt` 字段不变。
 
 ## 独立转盘 API
 
@@ -936,4 +936,4 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 
 [font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不启动下载。CSS 只声明已可用的字体，旧字体 ID 缓存缺失立即 404，未知 ID 返回 404，非 GET/HEAD 返回 405。旧字体缓存返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，响应 `Cache-Control: no-store`。状态保持 `{status,completed,completedAt}`，无路径、账号或下载地址。
 
-[resource-assets.js](../../../src/server/resource-assets.js) 保留资源清单中 `/fonts/...` 与四张大图的原 URL，通过本机公共缓存响应 GET/HEAD，设置真实 MIME、Content-Length、CORS、nosniff 和 no-store。字体 CSS 的摘要查询参数可选取同一资源的已缓存版本。若首次图片请求到达时已有下载进行中，可等待该任务完成再读取；HTTP 请求自身不发起 CDN 检查或下载。资源仍不可用时返回 404，非 GET/HEAD 返回 405。共享完整字体与大图不进入安装包，两个固定标题裁剪字体随安装包提供；CDN 下载及进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#公共资源缓存)。
+[resource-assets.js](../../../src/server/resource-assets.js) 保留资源清单中 `/fonts/...`、世界地图与三张旧航海旗帜的原 URL，通过本机公共缓存响应 GET/HEAD，设置真实 MIME、Content-Length、CORS、nosniff 和 no-store。旗帜 URL 只兼容已有资源，当前样式使用导入 ZIP 的 `component-media` 地址，启动不再下载或更新这三张公共图片。字体 CSS 的摘要查询参数可选取同一资源的已缓存版本。若首次图片请求到达时已有下载进行中，可等待该任务完成再读取；HTTP 请求自身不发起 CDN 检查或下载。资源仍不可用时返回 404，非 GET/HEAD 返回 405。共享完整字体与大图不进入安装包，两个固定标题裁剪字体随安装包提供；CDN 下载及进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#公共资源缓存)。

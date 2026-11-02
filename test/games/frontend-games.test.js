@@ -332,4 +332,11 @@ test('host words follow the current round and ignore late reads after a round ch
   listeners.get('app:game-update')({ detail: session(1, 'game-two') });
   reads.shift()(word(1, '新比赛')); await flush();
   assert.equal(node('drawHostWord').textContent, '新比赛');
+  const choosing = session(1, 'game-two');
+  choosing.state.phase = 'choosing';
+  listeners.get('app:game-update')({ detail: choosing });
+  listeners.get('app:game-update')({ detail: session(1, 'game-two') });
+  reads.pop()(word(1, '已选题词')); await flush();
+  reads.shift()({ game: 'draw-guess', phase: 'choosing', round: 1, choices: [] }); await flush();
+  assert.equal(node('drawHostWord').textContent, '已选题词', 'a late choice list cannot replace the selected word in the same round');
 });

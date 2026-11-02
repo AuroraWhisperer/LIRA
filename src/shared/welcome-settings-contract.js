@@ -108,4 +108,4 @@ function sanitizeWelcomeV2(value) {
   }
 }
 
-module.exports = { welcomeV2Parameters, sanitizeWelcomeV2, sanitizeWelcomeFieldErrors };
+module.exports = { welcomeV2Parameters, sanitizeWelcomeV2, sanitizeWelcomeFieldErrors, normalizeWelcomeMessages };

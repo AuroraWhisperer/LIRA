@@ -102,7 +102,7 @@
 
 .license-account-link-row {
   display: grid;
-  grid-template-columns: minmax(190px, 0.9fr) minmax(0, 1.25fr) auto;
+  grid-template-columns: minmax(190px, 0.9fr) minmax(0, 1.25fr) 128px;
   align-items: center;
   gap: 16px;
   min-height: 66px;
@@ -122,26 +122,33 @@
   font-size: var(--type-size-caption);
 }
 
-.license-account-link-row :is(a, button) {
+.license-account-link-row .license-account-link-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-sizing: border-box;
+  min-height: 36px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+  line-height: 20px;
+  text-decoration: none;
   white-space: nowrap;
 }
 
-.license-website-link {
-  flex-shrink: 0;
-  color: var(--primary);
-  font-weight: var(--type-weight-bold);
-  text-decoration: underline;
-  text-underline-offset: 4px;
+.license-account-link-action:hover {
+  border-color: var(--color-border-strong);
+  background: var(--color-bg-tertiary);
 }
 
-.license-website-link:hover {
-  color: var(--primary-strong);
-}
-
-.license-website-link:focus-visible {
+.license-account-link-action:focus-visible {
   outline: 2px solid var(--color-control-focus);
-  outline-offset: 4px;
-  border-radius: 2px;
+  outline-offset: 2px;
 }
 
 .license-agreement-dialog {
@@ -194,7 +201,7 @@
 
 @media (max-width: 700px) {
   .license-account-link-row {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) 128px;
   }
 
   .license-account-link-row p {

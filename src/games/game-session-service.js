@@ -12,7 +12,6 @@ function createGameSessionService(options = {}) {
   const wallNow = typeof options.wallNow === 'function' ? options.wallNow : Date.now;
   const scheduleTimeout = typeof options.setTimeout === 'function' ? options.setTimeout : setTimeout;
   const cancelTimeout = typeof options.clearTimeout === 'function' ? options.clearTimeout : clearTimeout;
-  const random = typeof options.random === 'function' ? options.random : Math.random;
   const viewers = new Map();
   let session = null;
   let viewer = null;
@@ -81,8 +80,6 @@ function createGameSessionService(options = {}) {
                 categoryIds: input.categoryIds,
                 totalRounds: input.totalRounds,
                 roundDurationSeconds: input.roundDurationSeconds,
-                random,
-                nowMs: monotonicNow(),
               })
             : numberBomb.createNumberBombState(),
     };
@@ -275,6 +272,18 @@ function createGameSessionService(options = {}) {
   function controlDrawGuess(input, player) {
     if (player !== 'host') return { accepted: false, reason: '只有主播可以控制回合。' };
     const action = String(input.value?.action || input.action || '').trim();
+    if (action === 'choose-word') {
+      const choice = input.value || input;
+      if (choice.sessionId !== session.sessionId || choice.round !== session.state.round) {
+        return { accepted: false, reason: '选词所属回合已经结束，请重新选择。' };
+      }
+      const result = drawGuess.chooseDrawGuessWord(session.state, choice.word, monotonicNow());
+      if (!result.accepted) return result;
+      session.state = result.state;
+      scheduleDrawGuessTimer();
+      publish(true);
+      return { accepted: true, session: publicSessionRaw() };
+    }
     if (action === 'finish-round') {
       if (session.state.phase !== 'drawing') return { accepted: false, reason: '当前回合已经结束。' };
       finishDrawGuessRound({ reveal: false, deferFinal: true });
@@ -303,10 +312,7 @@ function createGameSessionService(options = {}) {
     if (action === 'next-round') {
       if (session.state.phase !== 'round-result' || !session.state.answerRevealed)
         return { accepted: false, reason: '请先公布答案。' };
-      session.state = drawGuess.startNextRound(session.state, {
-        random,
-        nowMs: monotonicNow(),
-      });
+      session.state = drawGuess.startNextRound(session.state);
       scheduleDrawGuessTimer();
       publish(true);
       return {

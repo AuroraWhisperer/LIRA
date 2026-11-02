@@ -17,7 +17,11 @@ const publicDir = path.resolve(__dirname, '../public');
 const complete = composeAdminHtml(publicDir);
 const start = complete.indexOf('id="otherDanmakuFeature"');
 const begin = complete.search(/<section\s+class="danmaku-feature-section danmaku-fixed-reply-section"/);
-const end = complete.slice(begin).search(/\r?\n  <\/div>\r?\n<\/section>/);
+let depth = 0, end = 0;
+for (const match of complete.slice(begin).matchAll(/<\/?section\b[^>]*>/g)) {
+  depth += match[0].startsWith('</') ? -1 : 1;
+  if (depth === 0) { end = match.index + match[0].length; break; }
+}
 const fixed = complete.slice(begin, begin + end);
 let settings = {
   schemaVersion: 2,
@@ -39,6 +43,11 @@ let legacy = false,
   failWrite = false,
   win;
 const writes = [];
+let pkSettings = {
+  ok: true, enabled: false, reportEnabled: true, visitorWelcomeEnabled: false,
+  visitorWelcomeDelaySeconds: 5, visitorWelcomeMessages: ['欢迎 {username} 从对面来串门～'],
+};
+const pkWrites = [];
 const profile = {
   state: 'authorized',
   streamer: { accountName: 'synthetic', songPageUrl: 'https://synthetic.example.test' },
@@ -85,7 +94,7 @@ const server = http.createServer((req, res) => {
 const evaluate = (code) => win.webContents.executeJavaScript(code);
 const wait = (expression) =>
   evaluate(
-    `(async () => { const until=Date.now()+8000; while (!(${expression})) { if(Date.now()>until) throw Error('UI condition timed out'); await new Promise(r=>setTimeout(r,20)); } })()`,
+    `(async () => { const until=Date.now()+8000; while (!(${expression})) { if(Date.now()>until) throw Error(${JSON.stringify('UI condition timed out: ' + expression)}); await new Promise(r=>setTimeout(r,20)); } })()`,
   );
 const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
 const input = (id, value) =>
@@ -140,6 +149,9 @@ async function run() {
       backgroundThrottling: false,
     },
   });
+  win.webContents.on('console-message', (event) => {
+    if (event.level === 'error') console.error('renderer:', event.message);
+  });
   registerLicenseIpc({
     ipcMain,
     getMainWindow: () => win,
@@ -152,7 +164,13 @@ async function run() {
       onStateChanged: () => () => {},
       getWelcomeSettingsV2: async () =>
         legacy ? { schemaVersion: 1, enabled: settings.enabled, messages: settings.messages } : settings,
-      getPkReportSettings: async () => ({ ok: true, enabled: false }),
+      getPkReportSettings: async () => legacy ? { ok: true, enabled: pkSettings.enabled } : pkSettings,
+      updatePkReportSettings: async (patch) => {
+        if (failWrite) throw Object.assign(Error(), { code: 'NETWORK_UNAVAILABLE' });
+        pkWrites.push(patch);
+        pkSettings = { ...pkSettings, ...patch };
+        return pkSettings;
+      },
       updateWelcomeSettingsV2: async (patch) => {
         if (failWrite) throw Object.assign(Error(), { code: 'NETWORK_UNAVAILABLE' });
         writes.push(patch);
@@ -172,6 +190,34 @@ async function run() {
   assert.equal(await evaluate('document.getElementById("danmakuWelcomePinyinToggle").getClientRects().length'), 0);
   assert.equal(await evaluate('document.querySelectorAll(".switch-caption").length'), 0);
   await capture('collapsed');
+  await click('[data-fixed-open="pk"]');
+  await wait('!document.getElementById("danmakuPkReportToggle").disabled');
+  await click('#danmakuPkReportToggle');
+  await wait('document.getElementById("danmakuPkReportToggle").checked && !document.getElementById("danmakuPkReportToggle").disabled');
+  await click('#danmakuPkReportReportToggle');
+  await wait('!document.getElementById("danmakuPkReportReportToggle").disabled');
+  await click('#danmakuPkReportVisitorToggle');
+  await wait('!document.getElementById("danmakuPkReportVisitorToggle").disabled');
+  await input('danmakuPkReportDelay', '8');
+  await input('danmakuPkReportInput', '欢迎 {username} 来坐坐～');
+  await click('#danmakuPkReportAddBtn');
+  await click('[data-fixed-open="welcome"]');
+  await click('[data-fixed-open="pk"]');
+  assert.equal(await evaluate('document.getElementById("danmakuPkReportDelay").value'), '8');
+  await click('#danmakuPkReportSaveBtn');
+  await wait('document.getElementById("danmakuPkReportSaveBtn").disabled && !document.getElementById("danmakuPkReportToggle").disabled');
+  assert.deepEqual(pkWrites.at(-1), { visitorWelcomeDelaySeconds: 8,
+    visitorWelcomeMessages: ['欢迎 {username} 从对面来串门～', '欢迎 {username} 来坐坐～'] });
+  await win.loadURL(origin + '/admin?desktop=1');
+  await wait('window.fixtureReady && !document.getElementById("danmakuPkReportToggle").disabled');
+  await click('[data-fixed-open="pk"]');
+  assert.equal(await evaluate('document.getElementById("danmakuPkReportDelay").value'), '8');
+  assert.equal(await evaluate('document.querySelectorAll("#danmakuPkReportList input").length'), 2);
+  assert.equal(await evaluate('document.getElementById("danmakuPkReportReportToggle").checked'), false);
+  assert.equal(await evaluate('document.getElementById("danmakuPkReportVisitorToggle").checked'), true);
+  await evaluate('document.getElementById("danmakuFixedEditorHeading").scrollIntoView({block:"start"})');
+  await capture('pk');
+  await click('#danmakuFixedEditorClose');
   await click('[data-fixed-open="welcome"]');
   const expanded = await geometry();
   assert.deepEqual(expanded.visible, ['welcome']);
@@ -290,14 +336,21 @@ async function run() {
       expanded,
       screenshots: output,
       checks:
-        'real Electron/IPC, one retained editor, keyboard and disabled state, local and server drafts, pagination counts, responsive widths, 200% zoom, invalid input, independent pinyin toggle, single success/error toast, unconfirmed close, legacy capability',
+        'real Electron/IPC, one retained editor, PK master/subswitches and welcome settings save/readback, keyboard and disabled state, local and server drafts, pagination counts, responsive widths, 200% zoom, invalid input, independent pinyin toggle, single success/error toast, unconfirmed close, legacy capability',
     }),
   );
 }
 run().then(
   () => finish(0),
-  (error) => {
+  async (error) => {
     console.error(error);
+    if (win && !win.isDestroyed()) console.error(await evaluate(`JSON.stringify({
+      ready: window.fixtureReady,
+      welcome: document.getElementById('danmakuWelcomeStatus')?.textContent,
+      overview: document.getElementById('danmakuWelcomeOverviewStatus')?.textContent,
+      pk: document.getElementById('danmakuPkReportStatus')?.textContent,
+      toasts: window.fixtureToasts
+    })`));
     finish(1);
   },
 );

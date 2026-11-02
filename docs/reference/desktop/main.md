@@ -87,27 +87,42 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 [custom-reply-service.test.js](../../../test/bots/custom-reply-service.test.js) 与
 [cloud-fixed-reply-projection.test.js](../../../test/cloud-sync/cloud-fixed-reply-projection.test.js)。
 
-## PK 对手信息播报
+## PK 播报与欢迎
 
-`liraLicense.getPkReportSettings()` / `updatePkReportSettings({ enabled })`
+`liraLicense.getPkReportSettings()` / `updatePkReportSettings(patch)`
 通过固定 `license:get-pk-report-settings` / `license:update-pk-report-settings`
-调用 DeviceBearer 的 `GET/PUT /api/device/pk-report-settings`。IPC 只允许唯一的
-boolean enabled 输入，结果只投影 `{ ok: true, enabled }`。main 的账号 owner
+调用 DeviceBearer 的 `GET/PUT /api/device/pk-report-settings`。IPC 只允许非空已知字段 patch：
+`enabled`、`reportEnabled`、`visitorWelcomeEnabled` 为 boolean，
+`visitorWelcomeDelaySeconds` 为 0–300 整数，`visitorWelcomeMessages` 沿用欢迎词库的
+1–30 条、每条 1–80 Unicode 字符、无控制字符及 trim 规则。
+[pk-report-settings-contract.js](../../../src/shared/pk-report-settings-contract.js) 统一校验并只投影白名单字段。
+旧服务器仅返回 `{ ok: true, enabled }` 时保留原总开关，新增编辑控件禁用并提示更新服务器；
+只出现部分新增字段或字段类型错误的响应拒绝确认。main 的账号 owner
 检查覆盖异步结果和认证重试；Renderer 不接触凭据或选择租户/发送房间。
 
-固定回复中的“PK 对手信息播报”默认关闭，服务端持久化独立设置。同步中和失败时
+固定回复中的“PK 播报与欢迎”沿用默认关闭的 `enabled` 总开关，服务端持久化独立设置。
+`reportEnabled` 默认 true，保留旧开场播报意愿；`visitorWelcomeEnabled` 默认 false。
+总开关关闭时停止两项功能，保留子开关和欢迎设置；子开关各自只提交一个字段。
+欢迎延时默认 5 秒，词库默认 `欢迎 {username} 从对面来串门～`；延时和词库共用一个独立草稿域，
+点击“保存欢迎设置”只提交这两个字段。读取和开关操作保留草稿，保存期间继续编辑以代次保护，
+失败保留草稿，账号切换清空草稿和未添加文案。同步中和失败时
 保持最近确认状态，关闭失败显示“关闭尚未同步，服务器可能仍在播报”；不离线重放。
 账号切换清空旧状态并忽略迟到结果；旧服务器显示暂不可用，允许刷新。退出客户端
 不关闭云端开关。第一版播报大航海/高能榜及榜内身份，受限或跨页标注本次可见；
 金额档位按用户确认的 1 元＝10 贡献值估算，百元/千元/万元档互不重叠，
-只展示正人数；说明中明确贡献值估算。客户端不实现取数、统计或发送。
+只展示正人数；说明中明确贡献值估算。串门欢迎仅在 PK 期间对进入本直播间的观众生效，
+服务器复用对手在线榜中取得的 UID 和来访者佩戴的对手粉丝牌推断归属，不增加对面直播间连接或轮询。
+它独立于普通进场欢迎的开关和荣耀门槛，经既有欢迎流程、冷却和发送队列处理，同次进场不重复欢迎；
+延时不证明观众仍在房间。客户端不实现取数、统计、识别或发送。
 
 服务器权威合同：lira-server `docs/protocol/pk-opponent-report.md` 和 Device OpenAPI。
 共享示例为服务器 `docs/protocol/fixtures/pk-report-settings.json`，客户端通过
 `server-contract.lock.json` 和 `readServerFixture` 校验提交与 SHA-256 后消费；验收
 `test/gifts/pk-report-settings-ipc.test.js` / `test/gifts/pk-report-settings-owner.test.js` / `test/gifts/frontend-pk-report.test.js` 覆盖认证通路、
-非法 IPC、最小响应、切账号、同步失败和页面释放。UI 使用
-`public/js/admin/danmaku-pk-report.js` 和同名 fixed-reply fragment。
+非法 IPC、最小响应、新增字段校验、切账号、同步失败、草稿保护和页面释放。UI 使用
+`public/js/admin/danmaku-pk-report.js`、`danmaku-pk-report-switch.html` 和
+`danmaku-pk-report-settings.html`；设置区接入既有单活动编辑器。Electron 合成交互和保存读回复用
+`scripts/verify-welcome-settings.cjs`。
 
 > 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
@@ -171,7 +186,7 @@ V2 的 `userWelcomeMessages` 通过同一 IPC/API 按精确 B 站 UID 保存个�
 草稿，切账号清空所有草稿/未添加输入并忽略旧响应。延时不证明观众仍在房间。
 
 固定回复前四行按两列排列：签到/抽签、欢迎/点歌回复、自定义回复/关键词回复、PK/定时随机弹幕；查询回复独立放在最后一行。「清单」按常用时间、指定时间和名称分组，并排展示礼物与盲盒指令，详细规则收进问号说明，开关和礼物页共用 `giftStatsQueryEnabled` 与原有受限 IPC。标题、问号与开关就近排列。点歌回复保留共享问号，并复用“说明”按钮展开系统生成的无匹配／冷却回复示例，无需词库；PK 播报说明使用共享问号。PK 状态保留在总览，手动重读并入底部统一“刷新云端状态”（同时读取签到/抽签、欢迎、PK、查询和新增回复设置）。
-`danmaku-fixed-replies.js` 协调点歌回复说明、欢迎、两类自定义回复、定时弹幕、签到与抽签的单个活动编辑器，
+`danmaku-fixed-replies.js` 协调点歌回复说明、欢迎、PK 播报与欢迎、两类自定义回复、定时弹幕、签到与抽签的单个活动编辑器，
 切换时只隐藏、不卸载编辑区。欢迎参数与词库位于同一编辑器；
 `danmaku-welcome-custom.js` 拥有词库视图中的用户规则列表和分页。每项欢迎规则将标题/开关、
 参数和对应词库入口就近分组。首次欢迎、二次问候、重点关注、久别重逢四卡按两列两行排列，
@@ -498,6 +513,6 @@ ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection
 
 ## 共享字体初始化
 
-[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时沿用 runtime 的 `initializeFontLibrary()` 入口，启动公共资源检查，与礼物目录初始化并行。每个 runtime 只检查一次 CDN 清单，授权状态重复通知不重复检查；明确重试可再次检查。共享完整字体和大图不再随安装包分发，首次补齐需要联网；两个微型标题裁剪字库仍随安装包提供。只有实际缺失或变化的资源才显示下载进度，检查及零下载结果静默；资源失败不阻塞桌面就绪条件，也不重新统计礼物进度。
+[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时沿用 runtime 的 `initializeFontLibrary()` 入口，启动公共资源检查，与礼物目录初始化并行。每个 runtime 只检查一次 CDN 清单，授权状态重复通知不重复检查；明确重试可再次检查。启动补齐共享完整字体与世界地图；三张航海旗帜只保留旧 CDN 清单及缓存读取兼容，当前样式从导入 ZIP 读取，不再公共预下载。共享完整字体和地图不随安装包分发，首次补齐需要联网；两个微型标题裁剪字库仍随安装包提供。只有实际缺失或变化的共享资源才显示下载进度，检查及零下载结果静默；资源失败不阻塞桌面就绪条件，也不重新统计礼物进度。
 
 公共资源 owner 为 [resource-library.js](../../../src/resources/resource-library.js)，字体库负责字体 CSS 与旧字体缓存兼容。`src/server.js` 装配 owner，沿用 Electron `net.fetch`；CDN origin 由可信配置确定，无凭据、禁止重定向、清单 15 秒超时、字体包/图片 5 分钟超时，两路并发并限制每秒最多 8 次请求。更新清单 v2 声明原文件及字体包的大小、摘要和条目；下载按本机批准的字体归组和具名图片计算地址，不可指定任意 URL 或磁盘路径。字体包先整体校验，再验证所需文件并自动解包，同一包的新缓存索引一起发布，临时 ZIP 用后删除；仍可读取旧 v1 清单。首次准备页和 Admin 共用进度控制器，下载按字节显示；原目录 HTTP URL 读取已校验缓存，首次图像请求可等待当前下载，不发起额外资源同步。关闭在 HTTP drain 前取消任务并等待临时文件与索引写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。

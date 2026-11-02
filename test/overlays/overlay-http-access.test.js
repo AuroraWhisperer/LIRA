@@ -395,7 +395,7 @@ test('game and wheel display controls cannot start/configure games or invoke hos
   }
   for (const value of [42, 'H8'])
     assert.equal((await post('/api/games/session/move', { value, role: 'admin' })).status, 200);
-  for (const action of ['finish-round', 'reveal-answer', 'next-round']) {
+  for (const action of ['choose-word', 'finish-round', 'reveal-answer', 'next-round']) {
     assert.equal((await post('/api/games/session/move', { value: { action } })).status, 403);
     assert.equal((await post('/api/games/session/draw', { action })).status, 403);
   }

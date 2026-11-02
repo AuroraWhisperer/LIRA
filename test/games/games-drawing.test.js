@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { chooseGameWord } = require('../helpers/draw-guess');
 const { routes } = require('../../src/server/routes/game-routes');
 
 async function createDrawingFixture(t) {
@@ -24,6 +25,7 @@ async function createDrawingFixture(t) {
   });
   t.after(() => games.dispose());
   games.start({ game: 'draw-guess' });
+  chooseGameWord(games);
   for (const [index, color] of ['#222034', '#ef476f'].entries()) {
     assert.equal(
       games.draw({

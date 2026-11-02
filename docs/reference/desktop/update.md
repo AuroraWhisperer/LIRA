@@ -41,7 +41,7 @@ checking ──无新版本──▶ not-available
 
 ## 3. 运行时配置与事件
 
-Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP executor，只在首次创建下载 helper 前将应用适配器的 `baseCachePath` 改为 `<安装目录>/updates`；实际缓存为其下的 `lira-updater/`。安装器成功后也将当前安装包留在此处，并移除 builder 在系统用户缓存中暂存的当前安装包。更新源使用 package.json 的首个 generic provider（`https://assets.lirahub.cn/downloads/`），安装包为同目录的 `lira-setup.exe`。运行时显式设置相同 feed，应用标识、摘要校验和自动下载/退出安装策略保持原有契约。
+Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP executor，只在首次创建下载 helper 前将应用适配器的 `baseCachePath` 改为 `<安装目录>/updates`；实际缓存为其下的 `lira-updater/`。安装器成功后也将当前安装包留在此处，并移除 builder 在系统用户缓存中暂存的当前安装包。构建时由 package.json 的首个 generic provider（`https://assets.lirahub.cn/downloads/`）生成 `resources/app-update.yml`，安装包为同目录的 `lira-setup.exe`。运行时由 electron-updater 读取该文件，不读取打包后已剥离的 package.json `build` 字段，也不再调用 `setFeedURL` 覆盖；应用标识、摘要校验和自动下载/退出安装策略保持原有契约。
 
 缓存根通过 `desktop-user-data.js` 按实际可执行文件位置解析，开发版按仓库根解析；不依赖迁移后的 Chromium `userData`，因此浏览器目录调整不会把更新文件写进 `data`。
 

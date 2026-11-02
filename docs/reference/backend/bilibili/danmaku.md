@@ -14,6 +14,7 @@
 | `UserInfoService` 更新   | 业务明确需要资料时调用 `ensure(uid, { fields })`；头像补全不由 `onMessage` 返回值触发 | 画猜在缺头像时显式调用窄 resolver，再由 `games.updateDanmakuAvatar` 回填；service 负责去重、合并和更新通知                                                                                                                                                                                                                                  |
 | `onSuperChat(superChat)` | 新增 SC 到达 | 先 `publishDanmaku` 发布到公开弹幕流，再 `superChats.add` 入库，成功则广播 `bilibili:superchat`；入库见 [gift.md](gift.md) §7 |
 | `onSuperChatDelete(platformIds)` | SC 平台下线 | 先 `publishSuperChatDelete` 从公开弹幕流撤回，实际删除公开项才广播 `danmaku:superchat-delete`；随后 `superChats.retract` 按平台 ID 删除内容并保留最小防重 ID，实际删除显示项才广播 `bilibili:superchat`，不触发新增或点歌命令 |
+| `onLiveLottery(event)` | 已鉴权长连接收到红包 / 天选消息 | 独立交给运行时活动订阅者；字段见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)，使用见 §4.3 |
 | `onStatus(liveStatus)`   | 连接状态变化                                                                          | `updateLiveStatus` 写入快照 `liveStatus` 字段（[bilibili-client.js](../../../../src/server/bilibili-client.js) 接收回调，[bilibili-runtime.js](../../../../src/server/bilibili-runtime.js) 更新状态）                                                                                                                                                                                    |
 
 客户端构造时还注入 `diagnostics`（§8）与 `isCommandText`；礼物检测回调、动态命令前缀和原始礼物调试缓冲已删除。
@@ -80,7 +81,7 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 ## 4. 消息管道(MessageHandlers)
 
-`handlePackets(buffer)` 更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按命令分发弹幕、SC 新增/下线、礼物身份或点赞状态；精确命令与冒号后缀规则见 [protocol.md](protocol.md) §6。命令消费使用可捕获窗口和去重，具体路径如下：
+`handlePackets(buffer)` 更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按命令分发弹幕、SC 新增/下线、礼物身份、点赞状态或红包/天选事件；精确命令与冒号后缀规则见 [protocol.md](protocol.md) §6。命令消费使用可捕获窗口和去重，具体路径如下：
 
 **弹幕**(`handleDanmaku`,[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)):仅命令文本参与窗口校验与去重;`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`([message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247))。
 
@@ -103,6 +104,25 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 `MessageHandlers` 拥有当前点赞总数快照，字段及清理规则见 [protocol.md](protocol.md#65-直播间累计点赞)。`BilibiliDanmakuClient.getLikeState()` 返回 `{roomId,count,updatedAt,connected}`：`roomId` 优先为解析后的长房号；`connected` 仅表示当前 WebSocket 已打开且平台鉴权通过，历史弹幕轮询不算已连接。未连接或已停止时隐藏数值和时间；连接正常但尚未收到有效推送时，二者也为 `null`，未知不等于 0。
 
 本机 `bilibili-runtime.getLikeState()` 只读取当前配置房间的客户端；换房或没有客户端时返回配置房号、两个 `null` 和 `connected:false`。两层 API context 透传至管理接口 `GET /api/bilibili/likes/state`（响应见 [api.md](../api.md#14-bilibili-域bilibili)），读取不发上游请求。监听沿用现有弹幕监听开关与长连接，状态仅存于客户端内存；没有新增数据库、远程 LIRA Server 接口、广播或展示组件。
+
+### 4.3 直播红包与天选订阅
+
+[bilibili-runtime.js](../../../../src/server/bilibili-runtime.js) 提供 `subscribeLiveLottery(listener)`，返回取消订阅函数。沿用当前配置房间的弹幕监听开关、登录态及已鉴权 WebSocket，不增加连接或轮询。`BilibiliDanmakuClient` 的直接使用者也可传入 `handlers.onLiveLottery`；重放或其他模块可独立调用[纯解析函数](../../../../src/bilibili/parsers/live-lottery-parser.js)，输入及字段唯一合同见 [protocol.md §6.6](protocol.md#66-直播红包与天选事件)。
+
+```js
+const unsubscribe = bilibiliRuntime.subscribeLiveLottery((event) => {
+  // 处理器由消费模块实现；跨房公告可按 event.roomId/sourceRoomId 过滤。
+  if (event.kind === 'anchor-lottery') handleAnchorLottery(event);
+  else handleRedPocket(event);
+});
+
+// 消费模块销毁时取消订阅。
+unsubscribe();
+```
+
+运行时订阅跨客户端重连保留，取消订阅后停止交付，运行时停止时清空。旧客户端、账号切换前的客户端、已关闭监听及与当前配置不符的房间不能继续发布。每个订阅者获得独立深拷贝；同步异常和异步拒绝只记录不含载荷的告警，不阻断其他订阅者或后续消息。
+
+这是连接期间的新事件流，没有当前活动查询、连接前历史补齐、断线补发或平台消息去重；`new`、`start`、`end` 和 `award` 是不同消息，消费方如需业务幂等应按自身职责处理。活动只在进程内交付，不进入点歌、礼物记账、SC 或公开弹幕展示管线，不新增 HTTP/WS/IPC、数据库、界面、自动参与或领取能力。真实活动推送仍需直播现场核验，协议与运行时测试分别见 [bilibili-live-lottery.test.js](../../../../test/bilibili/bilibili-live-lottery.test.js) 和 [bilibili-runtime.test.js](../../../../test/bilibili/bilibili-runtime.test.js)。
 
 ## 5. 命令解析与点歌桥接
 

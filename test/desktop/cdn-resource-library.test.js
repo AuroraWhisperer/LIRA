@@ -133,6 +133,55 @@ test('named font packages merge downloads, stay quiet unchanged, and update only
   assert.equal((await fs.readdir(path.join(f.dataDir, 'cache/resources'))).some(name => /\.(tmp|zip)$/.test(name)), false);
 });
 
+test('startup skips imported nautical artwork while shared resources still download, repair and reopen offline', async t => {
+  const font = 'fonts/one.woff2';
+  const map = 'img/admin/world-clock/earth-day-8k.png';
+  const flags = ['captain', 'admiral', 'governor'].map(tier => `img/overlays/guard-nautical/${tier}.webp`);
+  const contents = { [font]: Buffer.from('font'), [map]: Buffer.from('map'),
+    ...Object.fromEntries(flags.map(name => [name, Buffer.from(name)])) };
+  const f = await fixture(t, contents);
+  f.publishPackages();
+  const library = f.create();
+  const first = await library.initialize();
+  assert.equal(first.status, 'ready');
+  assert.equal(first.total, 2);
+  assert.equal(f.requests.length, 3, 'Only the manifest, shared font and map are requested.');
+  assert.equal(f.requests.some(request => decodeURIComponent(request.url).includes('航海旗帜')), false);
+  for (const name of [font, map]) assert.deepEqual(await fs.readFile(library.resolveAsset(name)), contents[name]);
+  for (const name of flags) assert.equal(library.resolveAsset(name), null);
+
+  await fs.writeFile(library.resolveAsset(font), Buffer.alloc(contents[font].length));
+  const repaired = await library.initialize({ force: true });
+  assert.equal(repaired.total, 1, 'A damaged shared font is still repaired without fetching optional artwork.');
+  assert.equal(f.requests.length, 5);
+  assert.deepEqual(await fs.readFile(library.resolveAsset(font)), contents[font]);
+  f.offline();
+  const restored = f.create();
+  const cached = await restored.initialize();
+  assert.equal(cached.status, 'ready', 'Absent legacy artwork is not a missing current resource.');
+  assert.equal(cached.total, 0);
+  assert.equal(f.requests.length, 6);
+  for (const name of [font, map]) assert.deepEqual(await fs.readFile(restored.resolveAsset(name)), contents[name]);
+});
+
+test('previously cached nautical URLs remain readable without redownloading legacy updates', async t => {
+  const name = 'img/overlays/guard-nautical/captain.webp';
+  const original = Buffer.from('previously cached animation');
+  const f = await fixture(t, { [name]: original });
+  const directory = path.join(f.dataDir, 'cache/resources');
+  await fs.mkdir(directory, { recursive: true });
+  await fs.writeFile(path.join(directory, `${digest(original)}.webp`), original);
+  await fs.writeFile(path.join(directory, 'index.json'), JSON.stringify({ version: 1,
+    files: { [name]: { size: original.length, sha256: digest(original) } } }));
+  f.update(name, Buffer.from('a newer legacy animation'));
+  f.publishPackages();
+  const library = f.create();
+  assert.equal((await library.initialize()).status, 'ready');
+  assert.equal(f.requests.length, 1, 'Checking the shared manifest must not refresh package-owned artwork.');
+  assert.deepEqual(await fs.readFile(library.resolveAsset(name)), original);
+  assert.deepEqual(await fs.readFile(library.resolveAsset(name, digest(original))), original);
+});
+
 test('a bad ZIP member preserves the old font versions and a retry repairs the package', async t => {
   const contents = { 'fonts/one.woff2': Buffer.from('old first'), 'fonts/two.woff2': Buffer.from('old second') };
   const f = await fixture(t, contents);

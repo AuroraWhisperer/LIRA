@@ -49,23 +49,21 @@ Var liraUiFinishIcon
     FunctionEnd
     !define MUI_FINISHPAGE_RUN
     !define MUI_FINISHPAGE_RUN_FUNCTION StartApp
+    !define MUI_FINISHPAGE_RUN_TEXT "立即启动 LIRA(&R)"
   !endif
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW liraShowInstallFinish
-  !define MUI_FINISHPAGE_TITLE "安装完成"
-  !define MUI_FINISHPAGE_TEXT "LIRA 已安装完成。$\r$\n点击“完成”退出安装向导。"
+  !define MUI_FINISHPAGE_TITLE "LIRA 安装完成"
+  !define MUI_FINISHPAGE_TEXT "一切就绪。$\r$\n点击“完成”关闭安装向导。"
   !insertmacro MUI_PAGE_FINISH
 !macroend
 
 !macro liraInstallerUi
   SetFont "Microsoft YaHei UI" 9
 
-  Function liraInitInstallerUi
-    System::Store "S"
-    System::Call 'user32::GetDpiForWindow(p $HWNDPARENT) i .r0'
-    StrCpy $liraUiDpi $0
-    IntOp $1 $0 * 640
+  Function liraResizeInstaller
+    IntOp $1 $liraUiDpi * $liraUiWidth
     IntOp $1 $1 / 96
-    IntOp $2 $0 * 400
+    IntOp $2 $liraUiDpi * $liraUiHeight
     IntOp $2 $2 / 96
     System::Call 'user32::GetWindowRect(p $HWNDPARENT, @r3)'
     System::Call '*$3(i .r4, i .r5, i .r6, i .r7)'
@@ -82,6 +80,15 @@ Var liraUiFinishIcon
     IntOp $liraUiWidth $1 / $liraUiDpi
     IntOp $2 $2 * 96
     IntOp $liraUiHeight $2 / $liraUiDpi
+  FunctionEnd
+
+  Function liraInitInstallerUi
+    System::Store "S"
+    System::Call 'user32::GetDpiForWindow(p $HWNDPARENT) i .r0'
+    StrCpy $liraUiDpi $0
+    StrCpy $liraUiWidth 640
+    StrCpy $liraUiHeight 400
+    Call liraResizeInstaller
 
     IntOp $0 $liraUiWidth - 100
     !insertmacro liraPlaceItem $HWNDPARENT 1034 0 0 $liraUiWidth 66
@@ -98,6 +105,14 @@ Var liraUiFinishIcon
     IntOp $0 $liraUiWidth - 48
     IntOp $1 $liraUiHeight - 148
     !insertmacro liraPlaceItem $HWNDPARENT 1018 24 84 $0 $1
+    Call liraLayoutInstallerFooter
+    CreateFont $liraUiBrandingFont "Microsoft YaHei UI" 8
+    SendMessage $mui.Branding.Text ${WM_SETFONT} $liraUiBrandingFont 0
+    SendMessage $mui.Branding.Background ${WM_SETFONT} $liraUiBrandingFont 0
+    System::Store "L"
+  FunctionEnd
+
+  Function liraLayoutInstallerFooter
     IntOp $1 $liraUiHeight - 40
     !insertmacro liraPlaceItem $HWNDPARENT 1044 0 0 $liraUiWidth $1
     !insertmacro liraPlaceItem $HWNDPARENT 1045 0 $1 $liraUiWidth 1
@@ -106,9 +121,6 @@ Var liraUiFinishIcon
     IntOp $1 $liraUiHeight - 55
     !insertmacro liraPlaceItem $HWNDPARENT 1028 16 $1 $0 12
     !insertmacro liraPlaceItem $HWNDPARENT 1256 16 $1 $0 12
-    CreateFont $liraUiBrandingFont "Microsoft YaHei UI" 8
-    SendMessage $mui.Branding.Text ${WM_SETFONT} $liraUiBrandingFont 0
-    SendMessage $mui.Branding.Background ${WM_SETFONT} $liraUiBrandingFont 0
     IntOp $1 $liraUiHeight - 32
     IntOp $0 $liraUiWidth - 264
     !insertmacro liraPlaceItem $HWNDPARENT 3 $0 $1 80 24
@@ -116,7 +128,6 @@ Var liraUiFinishIcon
     !insertmacro liraPlaceItem $HWNDPARENT 1 $0 $1 80 24
     IntOp $0 $liraUiWidth - 96
     !insertmacro liraPlaceItem $HWNDPARENT 2 $0 $1 80 24
-    System::Store "L"
   FunctionEnd
 
   Function liraPrepareInstallerPage
@@ -181,6 +192,17 @@ Var liraUiFinishIcon
 
   Function liraShowInstallFinish
     System::Store "S"
+    StrCpy $liraUiWidth 560
+    StrCpy $liraUiHeight 280
+    Call liraResizeInstaller
+    Call liraLayoutInstallerFooter
+    GetDlgItem $0 $HWNDPARENT 3
+    ShowWindow $0 ${SW_HIDE}
+    GetDlgItem $0 $HWNDPARENT 2
+    ShowWindow $0 ${SW_HIDE}
+    IntOp $0 $liraUiWidth - 112
+    IntOp $1 $liraUiHeight - 33
+    !insertmacro liraPlaceItem $HWNDPARENT 1 $0 $1 88 26
     IntOp $0 $liraUiHeight - 40
     !insertmacro liraPlaceControl $mui.FinishPage 0 0 $liraUiWidth $0
     ShowWindow $mui.FinishPage.Image ${SW_HIDE}
@@ -188,18 +210,24 @@ Var liraUiFinishIcon
     Pop $liraUiFinishIcon
     SendMessage $mui.Header.Image ${STM_GETICON} 0 0 $0
     SendMessage $liraUiFinishIcon ${STM_SETICON} $0 0
-    !insertmacro liraPlaceControl $liraUiFinishIcon 24 30 32 32
+    !insertmacro liraPlaceControl $liraUiFinishIcon 32 44 32 32
+    CreateFont $0 "Microsoft YaHei UI" 15 600
+    SendMessage $mui.FinishPage.Title ${WM_SETFONT} $0 0
+    System::Call 'gdi32::DeleteObject(p $mui.FinishPage.Title.Font)'
+    StrCpy $mui.FinishPage.Title.Font $0
+    SetCtlColors $mui.FinishPage.Title "1F2937" "FFFFFF"
+    SetCtlColors $mui.FinishPage.Text "4B5563" "FFFFFF"
     IntOp $0 $liraUiWidth - 112
-    !insertmacro liraPlaceControl $mui.FinishPage.Title 84 32 $0 40
-    !insertmacro liraPlaceControl $mui.FinishPage.Text 84 94 $0 56
+    !insertmacro liraPlaceControl $mui.FinishPage.Title 84 40 $0 36
+    !insertmacro liraPlaceControl $mui.FinishPage.Text 84 88 $0 44
     !ifndef MUI_FINISHPAGE_NOREBOOTSUPPORT
       ${If} ${RebootFlag}
-        !insertmacro liraPlaceControl $mui.FinishPage.RebootNow 84 170 $0 22
-        !insertmacro liraPlaceControl $mui.FinishPage.RebootLater 84 200 $0 22
+        !insertmacro liraPlaceControl $mui.FinishPage.RebootNow 84 140 $0 22
+        !insertmacro liraPlaceControl $mui.FinishPage.RebootLater 84 168 $0 22
       ${EndIf}
     !endif
     !ifdef MUI_FINISHPAGE_RUN_VARIABLES
-      !insertmacro liraPlaceControl $mui.FinishPage.Run 84 170 $0 22
+      !insertmacro liraPlaceControl $mui.FinishPage.Run 84 144 $0 22
     !endif
     System::Store "L"
   FunctionEnd

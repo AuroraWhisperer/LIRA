@@ -38,6 +38,7 @@ function createBilibiliRuntime(options) {
   let lastRealtimeRoom = '';
   let lastRealtimeInput = '';
   const realtimeListeners = new Set();
+  const liveLotteryListeners = new Set();
   const userInfoService = new UserInfoService({
     profileProvider: {
       async fetchProfile(uid) {
@@ -298,6 +299,20 @@ function createBilibiliRuntime(options) {
         onRealtimeDanmaku: (event) => {
           if (isCurrent()) for (const listener of realtimeListeners) listener(event);
         },
+        onLiveLottery: (event) => {
+          for (const listener of liveLotteryListeners) {
+            const settings = settingsStore.getSettings();
+            if (!isCurrent() || roomId !== getConfiguredRoomId() ||
+              (settings.danmakuMonitoringEnabled ?? settings.enableBilibili) !== 'true') return;
+            try {
+              Promise.resolve(listener(structuredClone(event))).catch(() => {
+                console.warn('[Bilibili] live lottery listener failed');
+              });
+            } catch {
+              console.warn('[Bilibili] live lottery listener failed');
+            }
+          }
+        },
         bilibiliDiagnostics: diagnostics,
         bilibiliAuthCache: authCache,
         bilibiliClientGeneration: generation,
@@ -401,6 +416,7 @@ function createBilibiliRuntime(options) {
     roomGuard.stop();
     disconnect();
     realtimeListeners.clear();
+    liveLotteryListeners.clear();
     userInfoService.dispose();
   }
 
@@ -431,6 +447,10 @@ function createBilibiliRuntime(options) {
     subscribeRealtime(listener) {
       realtimeListeners.add(listener);
       return () => realtimeListeners.delete(listener);
+    },
+    subscribeLiveLottery(listener) {
+      liveLotteryListeners.add(listener);
+      return () => liveLotteryListeners.delete(listener);
     },
     configure,
     disconnect,

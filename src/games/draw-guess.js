@@ -29,24 +29,22 @@ function createDrawGuessState(options = {}) {
   const totalRounds = normalizeTotalRounds(options.totalRounds);
   const roundDurationSeconds = normalizeRoundDurationSeconds(options.roundDurationSeconds);
   const roundDurationMs = roundDurationSeconds * 1000;
-  const nowMs = normalizeNow(options.nowMs);
-  const selected = selectWord(words, [], options.random);
   return {
-    phase: 'drawing',
+    phase: 'choosing',
     round: 1,
     totalRounds,
     roundDurationMs,
     words,
     categoryIds: requestedCategoryIds || [...new Set(words.map((entry) => entry.categoryId).filter(Boolean))],
-    usedWords: [selected.word],
-    answer: selected.word,
-    answerAliases: selected.aliases,
-    category: selected.category,
-    wordLength: Array.from(selected.word).length,
+    usedWords: [],
+    answer: '',
+    answerAliases: [],
+    category: '',
+    wordLength: 0,
     revealedAnswer: '',
     answerRevealed: false,
-    roundStartedAtMs: nowMs,
-    roundDeadlineMs: nowMs + roundDurationMs,
+    roundStartedAtMs: null,
+    roundDeadlineMs: null,
     correct: [],
     scores: [],
     canvas: createCanvasState(),
@@ -107,26 +105,44 @@ function revealAnswer(state) {
   };
 }
 
-function startNextRound(state, options = {}) {
+function startNextRound(state) {
   if (!state || state.phase !== 'round-result' || state.round >= state.totalRounds) return state;
-  const nowMs = normalizeNow(options.nowMs);
-  const selected = selectWord(state.words, state.usedWords, options.random);
   return {
     ...state,
-    phase: 'drawing',
+    phase: 'choosing',
     round: state.round + 1,
-    usedWords: [...state.usedWords, selected.word],
-    answer: selected.word,
-    answerAliases: selected.aliases,
-    category: selected.category,
-    wordLength: Array.from(selected.word).length,
+    answer: '',
+    answerAliases: [],
+    category: '',
+    wordLength: 0,
     revealedAnswer: '',
     answerRevealed: false,
-    roundStartedAtMs: nowMs,
-    roundDeadlineMs: nowMs + state.roundDurationMs,
+    roundStartedAtMs: null,
+    roundDeadlineMs: null,
     roundFinishedAtMs: null,
     correct: [],
     canvas: createCanvasState(),
+  };
+}
+
+function chooseDrawGuessWord(state, word, nowMs = 0) {
+  if (!state || state.phase !== 'choosing') return reject('当前不在选词阶段。', state);
+  const selected = availableWords(state).find((entry) => entry.word === word);
+  if (!selected) return reject('请选择本轮可用词库中的题词。', state);
+  const now = normalizeNow(nowMs);
+  return {
+    accepted: true,
+    state: {
+      ...state,
+      phase: 'drawing',
+      usedWords: [...state.usedWords, selected.word],
+      answer: selected.word,
+      answerAliases: selected.aliases,
+      category: selected.category,
+      wordLength: Array.from(selected.word).length,
+      roundStartedAtMs: now,
+      roundDeadlineMs: now + state.roundDurationMs,
+    },
   };
 }
 
@@ -257,6 +273,9 @@ function getHostDrawGuessState(state) {
     round: state.round,
     totalRounds: state.totalRounds,
     categoryIds: [...state.categoryIds],
+    choices: state.phase === 'choosing'
+      ? availableWords(state).map(({ word, categoryId, category }) => ({ word, categoryId, category }))
+      : [],
   };
 }
 
@@ -317,12 +336,9 @@ function normalizeCategoryIds(value, words) {
   return categoryIds;
 }
 
-function selectWord(words, usedWords, random = Math.random) {
-  const available = words.filter((entry) => !usedWords.includes(entry.word));
-  const pool = available.length ? available : words;
-  const sample = Number(random());
-  const index = Number.isFinite(sample) ? Math.min(pool.length - 1, Math.max(0, Math.floor(sample * pool.length))) : 0;
-  return pool[index];
+function availableWords(state) {
+  const available = state.words.filter((entry) => !state.usedWords.includes(entry.word));
+  return available.length ? available : state.words;
 }
 
 function updateScores(scores, award) {
@@ -416,6 +432,7 @@ module.exports = {
   MIN_TOTAL_ROUNDS,
   ROUND_DURATION_MS,
   applyDrawOperation,
+  chooseDrawGuessWord,
   createDrawGuessState,
   finishRound,
   getDrawGuessCategories,

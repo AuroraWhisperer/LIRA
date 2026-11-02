@@ -4,6 +4,9 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
 const path = require('node:path');
+const fs = require('node:fs');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { build, ...packagedMetadata } = require('../../package.json');
 
 function loadUpdateManager(t) {
   const Module = require('node:module');
@@ -20,6 +23,7 @@ function loadUpdateManager(t) {
   t.mock.method(Module, '_load', function (request, parent, isMain) {
     if (request === 'electron') return { app };
     if (request === 'electron-updater') return { autoUpdater: updater };
+    if (request === '../../package.json' && parent.filename === modulePath) return packagedMetadata;
     return originalLoad.call(this, request, parent, isMain);
   });
   delete require.cache[modulePath];
@@ -33,9 +37,9 @@ function loadUpdateManager(t) {
   return { manager, updater, states };
 }
 
-test('updates use the configured CDN generic feed and preserve automatic full downloads', t => {
+test('packaged startup leaves the update feed to app-update.yml and preserves automatic full downloads', t => {
   const { updater } = loadUpdateManager(t);
-  assert.deepEqual(updater.feed, { provider: 'generic', url: 'https://assets.lirahub.cn/downloads/' });
+  assert.equal(updater.feed, undefined);
   assert.equal(updater.autoDownload, true);
   assert.equal(updater.autoInstallOnAppQuit, true);
   assert.equal(updater.allowPrerelease, false);
@@ -85,25 +89,31 @@ test('installation clears downloaded progress while preserving the update versio
 });
 
 test(
-  'Windows updater keeps its HTTP executor while caching on the installation drive',
+  'Windows updater reads packaged configuration without build metadata and keeps its HTTP executor and installation-drive cache',
   {
     skip: process.platform !== 'win32',
   },
-  async () => {
+  async (t) => {
     const Module = require('node:module');
     const originalLoad = Module._load;
     const modulePath = require.resolve('../../src/electron/update-manager');
     const updaterPath = require.resolve('electron-updater');
+    const cachedModule = require.cache[modulePath];
     const cachedUpdater = require.cache[updaterPath];
+    const directory = createScratchDirectory('packaged-updater-', t);
+    const configFile = path.join(directory, 'app-update.yml');
+    fs.writeFileSync(configFile, JSON.stringify({ ...build.publish[0], updaterCacheDirName: 'lira-updater' }));
     const app = Object.assign(new EventEmitter(), {
       getVersion: () => '4.1.0',
       getName: () => 'LIRA',
       getPath: (name) => (name === 'exe' ? 'D:\\Apps\\LIRA\\LIRA.exe' : 'D:\\Apps\\LIRA\\data\\browser'),
       isPackaged: true,
+      whenReady: async () => {},
     });
     try {
       Module._load = function (request, parent, isMain) {
         if (request === 'electron') return { app };
+        if (request === '../../package.json' && parent.filename === modulePath) return packagedMetadata;
         return originalLoad.call(this, request, parent, isMain);
       };
       delete require.cache[updaterPath];
@@ -111,30 +121,29 @@ test(
       require(modulePath).configureAutoUpdater({});
       const updater = require('electron-updater').autoUpdater;
       assert.equal(updater.httpExecutor.constructor.name, 'ElectronHttpExecutor');
-      const provider = await updater.clientPromise;
+      updater.updateConfigPath = configFile;
+      updater.stagingUserIdPromise = { value: Promise.resolve('fixture-staging-id') };
       const requested = [];
       const sha512 = Buffer.alloc(64, 7).toString('base64');
-      provider.httpRequest = async url => {
-        requested.push(url);
+      updater.httpExecutor.request = async options => {
+        requested.push(new URL(options.path, `${options.protocol}//${options.hostname}`));
         return `version: 4.1.1\nfiles:\n  - url: lira-setup.exe\n    sha512: ${sha512}\n    size: 123\n`;
       };
-      const info = await provider.getLatestVersion();
+      const { info, provider } = await updater.getUpdateInfoAndProvider();
       assert.equal(requested.length, 1);
       assert.equal(requested[0].origin, 'https://assets.lirahub.cn');
       assert.equal(requested[0].pathname, '/downloads/latest.yml');
       const files = provider.resolveFiles(info);
       assert.equal(files[0].url.href, 'https://assets.lirahub.cn/downloads/lira-setup.exe');
       assert.equal(files[0].info.sha512, sha512);
-      // Resolve the actual library download helper without disk or network access.
-      updater.configOnDisk = {
-        value: Promise.resolve({ updaterCacheDirName: 'lira-updater' }),
-      };
+      // Resolve the actual download helper using the same packaged configuration.
       updater.logger = null;
       const helper = await updater.getOrCreateDownloadHelper();
       assert.equal(helper.cacheDir, path.join('D:\\Apps\\LIRA', 'updates', 'lira-updater'));
     } finally {
       delete require.cache[modulePath];
       delete require.cache[updaterPath];
+      if (cachedModule) require.cache[modulePath] = cachedModule;
       if (cachedUpdater) require.cache[updaterPath] = cachedUpdater;
       Module._load = originalLoad;
     }

@@ -37,6 +37,9 @@ function createBilibiliClient(roomId, context) {
       onRealtimeStatus: () => {
         if (!isShuttingDown()) context.onRealtimeStatus?.();
       },
+      onLiveLottery: (event) => {
+        if (!isShuttingDown()) context.onLiveLottery?.(event);
+      },
       onMessage: (danmaku) => {
         if (isShuttingDown()) return false;
         let stage = 'dispatch';

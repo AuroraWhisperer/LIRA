@@ -17,6 +17,7 @@
 - 同一观众每局只能得分一次；五局结束后按总分、首猜次数、最后得分时间排序。
 - 不新增数据库、设置键、进程、端口、运行时依赖或页面入口。
 - 内置词库按 9 个可画主题分类，每类 100 词；主播在 Admin 开局前至少选择一类，未显式传递分类的旧调用保持全选行为。
+- 每局开局和下一题先进入 `choosing`，由主播在客户端现有主题的选词窗中从所选分类挑选题词，确认后进入 `drawing`；等待时网页显示「主播正在挑选」，不作画、不计时、不计分。题池未耗尽前不重复，耗尽后允许再次选择。
 
 ## Non-goals
 
@@ -28,10 +29,10 @@
 ## Architecture
 
 - Backend owner: `src/games/draw-guess-words.js` 负责分类词库内容，`src/games/draw-guess.js` 负责分类筛选、答案规范化、回合、计分、公开状态和绘画输入限制；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
-- HTTP contract: `GET /api/games/draw-guess/categories` 只返回分类 ID、名称和词数；`GET /api/games/host-state` 返回主持人私有题词与本场分类选择；`POST /api/games/session` 可接收分类 ID 数组；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收结束作画、公布答案和开始下一题操作。
+- HTTP contract: `GET /api/games/draw-guess/categories` 只返回分类 ID、名称和词数；`GET /api/games/host-state` 返回主持人私有题词、本场分类选择及选词阶段的全部可用词；`POST /api/games/session` 可接收分类 ID 数组；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收带 `word/sessionId/round` 的 `choose-word` 确认，以及结束作画、公布答案和准备下一题操作。
 - WebSocket contract: `game:update` 建立完整公开会话；`game:patch` 只传新增弹幕、头像补充或不含画布的回合状态；`game:draw` 传画笔操作。恢复顺序及字段由 [WebSocket 契约](../docs/reference/backend/ws.md) 维护。
 - Frontend owner: `public/js/admin/games.js` 管理第四张卡片、私有题词和回合控制；`public/js/overlays/games.js` 在 `/games` 上提供主播画布并同步给其它浏览器源实例。
-- Timer authority: 服务端维护单个回合截止计时器；客户端只根据 `remainingMs` 和 `serverNowMs` 插值显示。回合时长来自主播的开局配置，非法值回退为 90 秒。
+- Timer authority: 服务端维护单个回合截止计时器；确认题词时才启动；客户端只根据 `remainingMs` 和 `serverNowMs` 插值显示。回合时长来自主播的开局配置，非法值回退为 90 秒。
 
 ## Security
 
@@ -55,7 +56,7 @@
 2. 开始你画我猜时若游戏 1 或 2 正在运行，服务端返回 409 且不覆盖旧会话；反向开始游戏 1 或 2 也同样被拒绝。
 3. 主播在 `/games` 画板产生的笔画实时出现在另一 `/games` 实例，刷新后可从公开会话恢复完整画布。
 4. 作画阶段公开状态只包含类别、字数、回合、倒计时、答对名单、积分榜和画布，不包含答案或别名。
-5. 管理页私有主持区显示当前题词，并可结束本局、开始下一题和结束整场。
+5. 开始或下一题后，客户端自动弹出沿用现有主题的选词窗，按分类列出全部可用题词，可搜索、选定并确认；未确认时网页显示「主播正在挑选」且本局尚未计时。关闭选词窗后可继续挑选，刷新客户端可恢复当前局的可选词表；确认失败保留选择并可重试。确认后私有主持区显示题词，可结束本局、公布答案、准备下一题或结束整场；过期会话/局次的选择不生效。
 6. 观众弹幕完整命中答案后按 10/7/5/3 得分，同一 UID 每局只得分一次；非命中、无 UID 和非作画阶段不计分。
 7. 每局按开局配置的 15–300 秒由服务端自动结束作画但不自动揭晓；主播单独点击公布答案后才公开答案，期间仍捕捉弹幕但不计分；最后一局公布答案后公开状态展示最终排行。
 8. 清空画布和增量笔画均经过服务端验证与上限保护，非法请求返回稳定的 400 错误。

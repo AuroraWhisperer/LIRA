@@ -29,7 +29,6 @@ export function renderTextBox(host, input, { editable = false, singleLine = fals
       else image.src = node.src;
       span.append(image);
       if (editable) {
-        span.style.fontSize = '14px';
         const label = document.createElement('span');
         label.textContent = `${node.type === 'gift' ? '礼物图片' : '图片'}·${node.name}`;
         span.append(label);

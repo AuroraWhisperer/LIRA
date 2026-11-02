@@ -309,10 +309,10 @@
   border-radius: var(--radius-control);
   color: var(--text);
   background: color-mix(in srgb, var(--accent) 12%, var(--surface));
-  font-size: 13px;
 }
 .danmaku-thanks-insert button {
   padding: 4px 10px;
+  font-size: 13px;
 }
 .danmaku-thanks-text {
   min-height: 76px;
@@ -338,6 +338,7 @@
 }
 .danmaku-thanks-token {
   display: inline-block;
+  font: inherit;
   margin-inline: 3px;
   padding: 0 6px;
   line-height: 1.7;
@@ -459,7 +460,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
 }
-.danmaku-welcome-rule:first-child .danmaku-welcome-rule-heading::after {
+#danmakuWelcomePanel .danmaku-welcome-rule:first-child .danmaku-welcome-rule-heading::after {
   content: '随总开关';
   padding: 2px 8px;
   border-radius: var(--radius-xl);
@@ -640,14 +641,17 @@
 #danmakuWelcomeCount {
   font-variant-numeric: tabular-nums;
 }
-#danmakuWelcomeLibraries {
+#danmakuWelcomeLibraries,
+#danmakuPkReportPanel {
   display: grid;
   gap: 12px;
 }
-#danmakuWelcomeLibraries > .danmaku-blessing-add-row {
+#danmakuWelcomeLibraries > .danmaku-blessing-add-row,
+#danmakuPkReportPanel > .danmaku-blessing-add-row {
   grid-template-columns: minmax(0, 1fr) auto;
 }
-#danmakuWelcomeAddBtn {
+#danmakuWelcomeAddBtn,
+#danmakuPkReportAddBtn {
   white-space: nowrap;
 }
 .danmaku-welcome-custom {

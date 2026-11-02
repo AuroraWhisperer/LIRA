@@ -16,6 +16,7 @@ export class LyricClock {
       updatedAt: this.now(),
     };
     this.hasState = false;
+    this.lastSampleMs = null;
   }
 
   setState(nextState = {}, options = {}) {
@@ -27,8 +28,10 @@ export class LyricClock {
     const playbackRate = numberValue(nextState.playbackRate, 1) > 0 ? numberValue(nextState.playbackRate, 1) : 1;
     const discontinuity = options.force === true || options.discontinuity === true;
     const drift = incomingCurrentMs - previous.currentMs;
+    // Repeated positions carry no new timing evidence; replaying them rewinds each poll.
+    const positionChanged = incomingCurrentMs !== this.lastSampleMs;
     const shouldAnchor = !this.hasState || discontinuity || !playing || playing !== this.state.playing
-      || playbackRate !== this.state.playbackRate || Math.abs(drift) > this.driftThresholdMs;
+      || playbackRate !== this.state.playbackRate || (positionChanged && Math.abs(drift) > this.driftThresholdMs);
     const currentMs = shouldAnchor ? incomingCurrentMs : previous.currentMs;
 
     this.state = {
@@ -46,6 +49,7 @@ export class LyricClock {
       updatedAt: now,
     };
     this.hasState = true;
+    this.lastSampleMs = incomingCurrentMs;
     return this.getPosition(now);
   }
 

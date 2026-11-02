@@ -269,9 +269,12 @@ function renderDrawGuess(state, redraw = true) {
   );
   byId('drawMeta').textContent = '';
   byId('drawRoundLabel').textContent = `第 ${state.round} / ${state.totalRounds} 局`;
-  if (state.phase !== 'drawing') byId('drawCountdown').textContent = '00:00';
+  if (state.phase !== 'drawing') byId('drawCountdown').textContent = state.phase === 'choosing' ? '--:--' : '00:00';
   byId('drawClue').textContent =
-    state.phase === 'drawing' ? `${state.wordLength} 个字` : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
+    state.phase === 'choosing' ? '等待主播选词'
+      : state.phase === 'drawing' ? `${state.wordLength} 个字` : `答案 · ${state.revealedAnswer || '等待揭晓'}`;
+  byId('drawWordWaiting').hidden = state.phase !== 'choosing';
+  byId('drawClueHint').textContent = state.phase === 'choosing' ? '主播选定后开始计时' : '输入答案即可抢答';
   drawController?.scheduleDrawDanmakuRender(session.danmaku || []);
   byId('drawCorrectCount').textContent = `${state.correct.length} 人答对`;
   renderDrawScoreboard(state.scores || []);
@@ -281,7 +284,8 @@ function renderDrawGuess(state, redraw = true) {
   result.hidden = state.phase === 'drawing' || !state.answerRevealed;
   byId('drawRevealedAnswer').textContent = state.revealedAnswer || '';
   drawController?.setToolsEnabled(state.phase === 'drawing');
-  if (state.phase === 'round-result')
+  if (state.phase === 'choosing') byId('gameTurn').textContent = '主播正在挑选 · 选定后开始';
+  else if (state.phase === 'round-result')
     byId('gameTurn').textContent = state.answerRevealed ? '答案已公布 · 等待下一题' : '时间到 · 等待主播公布答案';
   else if (state.phase === 'finished') byId('gameTurn').textContent = `${state.totalRounds} 局结束 · 最终排行`;
   else drawController?.updateCountdown();

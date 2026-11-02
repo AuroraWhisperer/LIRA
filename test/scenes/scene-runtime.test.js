@@ -361,6 +361,10 @@ test('runtime scene streams notify game updates, drawing operations and round pa
     await expectEvent('ready');
     const started = await request('/api/games/session', { body: { game: 'draw-guess', totalRounds: 2 } });
     await expectEvent('change');
+    const hostState = await request('/api/games/host-state');
+    await request('/api/games/session/move', { body: { value: { action: 'choose-word',
+      word: hostState.choices[0].word, sessionId: started.sessionId, round: 1 } } });
+    await expectEvent('change');
     assert.equal((await session()).state.phase, 'drawing');
     await request('/api/games/session/draw', { body: { action: 'append', clientId: 'scene-test', strokeId: 'stroke-1',
       sessionId: started.sessionId, round: 1, color: '#222034', width: 4, points: [{ x: 0.1, y: 0.1 }] } });

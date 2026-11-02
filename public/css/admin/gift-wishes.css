@@ -108,8 +108,10 @@
   background: var(--surface);
   color: var(--text);
   caret-color: var(--color-control-accent);
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
   font-size: 24px;
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -134,16 +136,13 @@
   color: var(--color-text-selection-text);
 }
 .gift-wish-text-token {
-  -webkit-text-stroke: 0;
   display: inline-block;
   padding: 0 6px;
   margin: 0 2px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   color: var(--primary-strong);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.7;
+  font: inherit;
   vertical-align: baseline;
   user-select: all;
   cursor: pointer;

@@ -204,6 +204,7 @@ sequence:     发送固定 1
 | SC 命令为 `SUPER_CHAT_MESSAGE` / `SUPER_CHAT_MESSAGE_JPN` | 新增 SC | `onSuperChat` + 命令文本二次分发 `onMessage(source:'superchat')` |
 | SC 命令为 `SUPER_CHAT_MESSAGE_DELETE` | SC 下线 | 独立 `onSuperChatDelete(platformIds)`，不进入新增或命令消费 |
 | `isBilibiliGiftLikeCommand(cmd)` | 发送者身份（见 §6.4） | `handleIdentityMessage` → 用户信息服务 |
+| §6.6 的红包 / 天选命令 | 活动信息 | 已鉴权长连接经独立解析器触发 `onLiveLottery(event)` |
 | 其他                               | —                      | 仅记诊断,跳过                                                    |
 
 ### 6.1 弹幕(DANMU_MSG)
@@ -273,6 +274,36 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 `LIKE_INFO_V3_UPDATE.data.click_count` 是平台推送的房间累计总数快照。仅接受非负安全整数，直接覆盖上次值；重复值不相加，0 和下降值均有效。`LIKE_INFO_V3_CLICK` 是个人互动提示，不参与总数计算，也不据此统计点赞人数。非法值不改变已有快照。
 
 `MessageHandlers` 只保留 `{count,updatedAt}`，`updatedAt` 是本机收到有效更新时的 ISO 时间。初始化、连接代次/连接尝试切换、销毁以及 `LIVE`/`PREPARING` 时清空为两个 `null`。本地读取合同见 [danmaku.md](danmaku.md#42-直播间点赞状态)。这是最近一次上游快照；不保证 B 站何时推送或按哪一时点归零，不按收到的提示自行累加本场总数。
+
+### 6.6 直播红包与天选事件
+
+[live-lottery-parser.js](../../../../src/bilibili/parsers/live-lottery-parser.js) 导出纯函数 `extractBilibiliLiveLotteryEvents(message, {roomId})`，输入为帧解码后的单条 JSON 消息，返回事件数组。命令去掉冒号后缀后精确匹配；未知命令、无效数据、不能确定房间的消息及没有有效活动 ID 的开始/结束/开奖消息返回空数组。ID 接受正安全整数或正十进制字符串，输出字符串；不把已丢失精度的数字转换成另一个活动或用户 ID。
+
+| 上游命令 | `kind` | `phase` |
+| --- | --- | --- |
+| `ANCHOR_LOT_START` / `ANCHOR_LOT_END` / `ANCHOR_LOT_AWARD` | `anchor-lottery` | `start` / `end` / `award` |
+| `RED_POCKET_START` | `red-pocket` | `start` |
+| `POPULARITY_RED_POCKET_NEW` / `POPULARITY_RED_POCKET_V2_NEW` | `red-pocket` | `new` |
+| `POPULARITY_RED_POCKET_START` / `POPULARITY_RED_POCKET_V2_START` | `red-pocket` | `start` |
+| `POPULARITY_RED_POCKET_WINNER_LIST` / `POPULARITY_RED_POCKET_V2_WINNER_LIST` | `red-pocket` | `award` |
+
+`new` 是新红包/排队提示，可能只有发送者和等待数量，此时 `id` 为空字符串，不能当作已经开放参与。天选 `end` 表示参与结束，结果通过独立 `award` 消息读取。红包 `start` 支持单对象、数组及 `{list:[...]}` / `{lot_info:[...]}` 队列，每个活动分别生成事件。
+
+| 事件字段 | 合同 |
+| --- | --- |
+| `kind` / `phase` / `command` | 活动类别、消息阶段及去掉冒号后缀的命令 |
+| `id` | 天选 `data.id`；红包 `data.lot_id`，普通红包回退 `data.id`；预告可能未知 |
+| `roomId` | 活动数据显式的 `room_id` / `roomid`，缺失时采用调用方房号 |
+| `sourceRoomId` | 调用方传入的订阅房号；未提供时为空字符串。显式活动房号可能不同，不把跨房公告改写成本房活动 |
+| `sender` | 红包发送者 `{uid,userName,isMystery}`，未知为 `null`；优先使用 `sender_uinfo` / `sender_info` |
+| `winners` | 开奖消息中的中奖者数组；每项为 `{uid,userName,isMystery,giftId,giftCount,awardName,awardType}`，未知文本/ID 为空字符串，未知数量/类型为 `null` |
+| `data` | 本活动上游数据的独立深拷贝，完整保留奖品、参与条件、时间、金额单位和未解释字段，不做货币换算 |
+
+天选可从 `data.award_name/award_num` 读取奖品，从 `require_type/require_value/require_text/join_type/danmu/gift_id/gift_num` 读取平台提供的参与条件，`time` 是剩余秒数。红包奖品在 `data.awards`，参与条件在 `join_requirement/danmu`，`start_time/end_time` 保留上游 Unix 秒；普通红包另保留 `remain_time/new_message`。字段缺失表示该条推送没有提供，不补造默认条件或时间，也不据此断言当前账号具备参与资格。
+
+天选中奖者读取 `award_users`，红包读取 `winner_info`，均优先采用 `uinfo.uid/base.name`，保留神秘身份标记。红包 `version>0` 的数组行按 `[uid,name,bagId,giftId,isMystery,...,uinfo]` 读取身份，以 `awards[giftId]` 补充奖品信息，按平台逐礼物行格式将 `giftCount` 设为 1；对象行读取自身字段。不会改写原数组或因某一无效行丢弃其他中奖者。天选公共奖品信息仍从活动 `data` 读取。
+
+协议核对：2026-11-02 读取的 [B 站直播页线上脚本](https://s1.hdslb.com/bfs/static/blive/blfe-live-room/static/js/app.def5abc442f569d5ad25.js) 包含上述天选、普通红包、`V2` 命令及新版身份/中奖行处理；旧版红包字段同时参照仓库[消息流资料](../../../bilibili-live-api/message_stream.md#直播间发红包弹幕)。核对确认的是平台代码中的协议处理，未用真实账号捕获活动推送；当日匿名 `getLotteryInfoWeb` 请求返回业务码 `-352`，未据此新增或承诺 HTTP 活动快照。离线合成消息覆盖见 [bilibili-live-lottery.test.js](../../../../test/bilibili/bilibili-live-lottery.test.js)。运行时调用与交付边界见 [danmaku.md §4.3](danmaku.md#43-直播红包与天选订阅)。
 
 ## 7. 参数归属
 

@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { chooseGameWord } = require('../helpers/draw-guess');
 
 test('streamer danmaku and automatic replies cannot join or take a viewer turn', (t) => {
   t.mock.method(Math, 'random', () => 0.69);
@@ -47,6 +48,7 @@ test('streamer draw-guess messages remain visible but never score or enter viewe
   });
   try {
     service.start({ game: 'draw-guess' });
+    chooseGameWord(service);
     assert.equal(
       service.handleDanmaku({
         uid: 'host',

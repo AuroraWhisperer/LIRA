@@ -11,6 +11,7 @@ const {
   projectOverlayResponse,
   projectWebSocketPayload,
 } = require('../../src/server/overlay-projection');
+const { chooseGameWord } = require('../helpers/draw-guess');
 
 const scopes = [
   'queue',
@@ -296,6 +297,7 @@ test('game HTTP and WS projections hide unrevealed answers independently of the 
       revealedAnswer: secret,
       answerRevealed: false,
       categoryIds: [secret],
+      choices: [{ word: secret, categoryId: secret, category: secret }],
       correct: [{ name: '观众', rank: 1, points: 3, secret }],
       scores: [{ name: '观众', score: 3, secret }],
       canvas: {
@@ -502,6 +504,9 @@ test('real game owner retains moves, canvas recovery, results and restart throug
     assert.equal(project().state.turn, 'viewer');
     service.stop();
     service.start({ game: 'draw-guess' });
+    assert.equal(project().state.phase, 'choosing');
+    assert.doesNotMatch(JSON.stringify(project()), /独立答案|choices/);
+    chooseGameWord(service, '独立答案');
     assert.equal(service.getHostState().word, '独立答案');
     assert.doesNotMatch(JSON.stringify(project()), /独立答案/);
     const operation = {

@@ -501,10 +501,16 @@ test('wish selection formatting preserves tokens and survives saving', async t =
   await page.locator('.gift-wish-option').click();
   await page.getByRole('radio', { name: '文字版', exact: true }).check();
   const editor = page.locator('#giftWishTextEditor');
+  const tokenStyles = () => editor.locator('[data-wish-token]').evaluateAll(tokens => tokens.map(token => {
+    const style = getComputedStyle(token);
+    return [style.fontSize, style.fontWeight, style.fontStyle, style.textDecorationLine];
+  }));
   await editor.focus();
   await page.keyboard.press('Control+a');
   await page.getByRole('toolbar', { name: '文字格式' }).waitFor();
   await page.locator('.rich-text-font-family').selectOption('"Lira Xiaolai"');
+  await page.getByRole('button', { name: '加粗 (Ctrl+B)', exact: true }).click();
+  await page.getByRole('button', { name: '斜体 (Ctrl+I)', exact: true }).click();
   await page.getByRole('button', { name: '下划线 (Ctrl+U)', exact: true }).click();
   await page.locator('.rich-text-font-size').selectOption('40');
   const template = '许愿{礼物}（{已收}/{目标}）';
@@ -512,12 +518,21 @@ test('wish selection formatting preserves tokens and survives saving', async t =
   const output = page.locator('#giftWishDraftPreview .wish-card-text-run').first();
   assert.match(await output.evaluate(node => getComputedStyle(node).fontFamily), /Lira Xiaolai/);
   assert.equal(await output.evaluate(node => getComputedStyle(node).fontSize), '40px');
+  assert.deepEqual(await tokenStyles(), Array(3).fill(['40px', '400', 'italic', 'underline']));
+  assert.deepEqual(await output.evaluate(node => {
+    const style = getComputedStyle(node);
+    return [style.fontWeight, style.fontStyle, style.textDecorationLine];
+  }), ['400', 'italic', 'underline']);
+  assert.ok(await editor.locator('[data-wish-token]').evaluateAll(tokens =>
+    tokens.every(token => getComputedStyle(token).fontFamily.includes('Lira Xiaolai'))));
   await page.locator('#giftWishSave').click();
   const saved = await page.evaluate(() => window.wishSaves[0]);
   assert.equal(saved.textTemplate, template);
   assert.equal(saved.textRuns.map(run => run.text).join(''), template);
-  assert.ok(saved.textRuns.every(run => run.fontFamily === '"Lira Xiaolai"' && run.underline && run.fontSize === 40 && !run.color));
+  assert.ok(saved.textRuns.every(run => run.fontFamily === '"Lira Xiaolai"' && run.bold === false
+    && run.italic && run.underline && run.fontSize === 40 && !run.color));
   await page.getByRole('button', { name: '编辑', exact: true }).click();
+  assert.deepEqual(await tokenStyles(), Array(3).fill(['40px', '400', 'italic', 'underline']));
   await editor.focus();
   await page.keyboard.press('Control+a');
   await page.getByRole('toolbar', { name: '文字格式' }).waitFor();
@@ -527,6 +542,40 @@ test('wish selection formatting preserves tokens and survives saving', async t =
   assert.equal(await editor.locator('[data-wish-token]').count(), 3);
   await page.locator('#giftWishSave').click();
   assert.ok((await page.evaluate(() => window.wishSaves[1].textRuns)).every(run => Object.keys(run).length === 1));
+});
+
+test('wish token insertion and plain paste inherit the caret formatting', async t => {
+  const page = await open(t);
+  await page.addStyleTag({ content: fs.readFileSync('public/css/admin/gift-wishes.css', 'utf8') });
+  await page.getByRole('radio', { name: '文字版', exact: true }).check();
+  const editor = page.locator('#giftWishTextEditor');
+  await editor.fill('许愿');
+  await page.keyboard.press('Control+a');
+  await page.getByRole('toolbar', { name: '文字格式' }).waitFor();
+  await page.locator('.rich-text-font-size').selectOption('40');
+  await page.getByRole('button', { name: '斜体 (Ctrl+I)', exact: true }).click();
+  await page.keyboard.press('ArrowRight');
+  await page.getByRole('button', { name: '插入礼物名称', exact: true }).click();
+  const token = editor.locator('[data-wish-token]');
+  assert.deepEqual(await token.evaluate(node => {
+    const style = getComputedStyle(node);
+    return [style.fontSize, style.fontStyle];
+  }), ['40px', 'italic']);
+  await editor.evaluate(node => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', '加油\n继续');
+    node.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+  });
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '许愿{礼物}加油\n继续');
+  const preview = page.locator('#giftWishDraftPreview .wish-card-text-run');
+  assert.ok(await preview.evaluateAll(nodes => nodes.every(node => {
+    const style = getComputedStyle(node);
+    return style.fontSize === '40px' && style.fontStyle === 'italic';
+  })));
+  await page.keyboard.press('Control+z');
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '许愿{礼物}');
+  await page.keyboard.press('Control+Shift+z');
+  assert.equal(await page.locator('#giftWishTextTemplate').inputValue(), '许愿{礼物}加油\n继续');
 });
 
 test('formatting one wish line preserves unselected lines and line breaks', async t => {

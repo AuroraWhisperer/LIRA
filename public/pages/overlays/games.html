@@ -40,7 +40,7 @@
             <div class="draw-clue-card">
               <span>直播间线索</span>
               <strong id="drawClue">等待开局</strong>
-              <small>输入答案即可抢答</small>
+              <small id="drawClueHint">输入答案即可抢答</small>
             </div>
             <section class="draw-score-section" aria-labelledby="drawScoreTitle">
               <div class="draw-panel-heading">
@@ -65,6 +65,10 @@
                   height="720"
                   aria-label="主播绘画画布"
                 ></canvas>
+                <div id="drawWordWaiting" class="draw-round-result" role="status" hidden>
+                  <strong>主播正在挑选</strong>
+                  <span>选好题词后，本局即将开始</span>
+                </div>
                 <div id="drawRoundResult" class="draw-round-result" hidden>
                   <span>本局答案</span>
                   <strong id="drawRevealedAnswer"></strong>

@@ -7,6 +7,7 @@ const { createRequire } = require('node:module');
 const test = require('node:test');
 const vm = require('node:vm');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { chooseGameWord } = require('../helpers/draw-guess');
 
 test('a burst of correct guesses publishes one canvas-free patch per message without dropping scores', () => {
   let updates = 0;
@@ -24,6 +25,7 @@ test('a burst of correct guesses publishes one canvas-free patch per message wit
   });
   try {
     service.start({ game: 'draw-guess' });
+    chooseGameWord(service);
     updates = 0;
     for (let index = 0; index < 1000; index++) {
       service.handleDanmaku({ uid: String(index + 1), userName: `Viewer ${index}`, message: '猫' });

@@ -273,6 +273,75 @@ test('like state follows the configured room and is unavailable after disconnect
   assert.deepEqual(fixture.runtime.getLikeState(), { ...unknown, roomId: '456' });
 });
 
+test('lottery subscriptions survive replacement and reject disabled, obsolete and unsubscribed deliveries', async (t) => {
+  t.mock.method(console, 'info', () => {});
+  const fixture = createReplacementFixture();
+  t.after(() => fixture.runtime.stop());
+  const events = [];
+  const unsubscribe = fixture.runtime.subscribeLiveLottery(event => events.push(event));
+  await fixture.runtime.reconnect();
+  const original = fixture.clients[0];
+  const event = { kind: 'anchor-lottery', phase: 'start', id: '1', data: { award_name: '测试奖品' } };
+  original.context.onLiveLottery(event);
+  assert.equal(events.length, 1);
+  fixture.runtime.configure();
+  original.context.onLiveLottery(event);
+  assert.equal(events.length, 2);
+
+  fixture.settings.roomId = '456';
+  original.context.onLiveLottery(event);
+  assert.equal(events.length, 2);
+  await fixture.runtime.reconnect();
+  original.context.onLiveLottery(event);
+  assert.equal(events.length, 2);
+  const current = fixture.clients[1];
+  current.context.onLiveLottery(event);
+  assert.equal(events.length, 3);
+  fixture.settings.enableBilibili = 'false';
+  current.context.onLiveLottery(event);
+  assert.equal(events.length, 3);
+  fixture.settings.enableBilibili = 'true';
+  unsubscribe();
+  current.context.onLiveLottery(event);
+  assert.equal(events.length, 3);
+  fixture.runtime.subscribeLiveLottery(next => events.push(next));
+  fixture.runtime.disconnect();
+  current.context.onLiveLottery(event);
+  assert.equal(events.length, 3);
+});
+
+test('lottery subscribers receive independent data and failures do not block other consumers', async (t) => {
+  t.mock.method(console, 'info', () => {});
+  const warnings = [];
+  t.mock.method(console, 'warn', line => warnings.push(line));
+  const fixture = createReplacementFixture();
+  t.after(() => fixture.runtime.stop());
+  await fixture.runtime.reconnect();
+  fixture.runtime.subscribeLiveLottery(event => { event.data.award_name = 'changed'; });
+  fixture.runtime.subscribeLiveLottery(() => { throw new Error('private payload'); });
+  fixture.runtime.subscribeLiveLottery(async () => { throw new Error('private payload'); });
+  const received = [];
+  fixture.runtime.subscribeLiveLottery(event => received.push(event));
+  const event = { id: '1', data: { award_name: '测试奖品' } };
+  fixture.clients[0].context.onLiveLottery(event);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(received, [event]);
+  assert.equal(event.data.award_name, '测试奖品');
+  assert.ok(warnings.every(line => !line.includes('private payload')));
+});
+
+test('a lottery consumer disconnecting the session prevents further delivery from that session', async (t) => {
+  t.mock.method(console, 'info', () => {});
+  const fixture = createReplacementFixture();
+  t.after(() => fixture.runtime.stop());
+  await fixture.runtime.reconnect();
+  fixture.runtime.subscribeLiveLottery(() => fixture.runtime.disconnect());
+  let received = 0;
+  fixture.runtime.subscribeLiveLottery(() => { received++; });
+  fixture.clients[0].context.onLiveLottery({ id: '1' });
+  assert.equal(received, 0);
+});
+
 function createReplacementFixture(options = {}) {
   const settings = { roomId: '123', enableBilibili: 'true' };
   const clients = [];

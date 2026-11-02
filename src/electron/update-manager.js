@@ -5,7 +5,6 @@
 const { app } = require('electron');
 const path = require('node:path');
 const { resolveDesktopUserDataPaths } = require('./desktop-user-data');
-const { build } = require('../../package.json');
 
 // 延迟加载 autoUpdater 避免在 app ready 之前初始化
 let autoUpdater = null;
@@ -47,7 +46,7 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   const configuredUpdater = updater || getAutoUpdater();
   const log = typeof writeLog === 'function' ? writeLog : () => {};
 
-  configuredUpdater.setFeedURL(build.publish[0]);
+  // electron-builder writes the packaged feed to resources/app-update.yml.
   configuredUpdater.autoDownload = true;
   configuredUpdater.autoInstallOnAppQuit = true;
   configuredUpdater.allowPrerelease = false;

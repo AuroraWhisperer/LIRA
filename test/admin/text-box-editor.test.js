@@ -248,6 +248,40 @@ test('formatting a selection across different marks retains each mark and suppor
   assert.deepEqual(marks(await read(page)), expectedMarks);
 });
 
+test('editable media uses the output font size and scales with selected text', async t => {
+  const page = await mount(t, [{ type: 'text', text: '图片说明' },
+    { type: 'gift', name: '舰长', src: '/img/admin/gifts/bilibili-guard-captain.webp' },
+    { type: 'image', name: '图片', src: '/scene-text-images/11111111-1111-4111-8111-111111111111.gif', fontSize: 64 }]);
+  const sizes = () => page.evaluate(async () => {
+    const { renderTextBox } = await import('/js/shared/text-box-renderer.js');
+    const output = document.createElement('div');
+    document.body.append(output);
+    renderTextBox(output, window.config);
+    const size = node => getComputedStyle(node).fontSize;
+    const result = {
+      editor: [...window.composer.editor.querySelectorAll('[data-text-box-node]')].map(size),
+      output: [...output.querySelectorAll('.text-box-token')].map(size),
+      images: [...window.composer.editor.querySelectorAll('img')].map(image => getComputedStyle(image).height),
+      outputImages: [...output.querySelectorAll('img')].map(image => getComputedStyle(image).height),
+    };
+    output.remove();
+    return result;
+  });
+  const initial = await sizes();
+  assert.equal(initial.editor[1], '64px');
+  assert.deepEqual(initial.editor, initial.output);
+  assert.deepEqual(initial.images, initial.outputImages);
+  await page.locator('.text-box-editor').focus();
+  await page.keyboard.press('Control+a');
+  await page.locator('.rich-text-font-size').selectOption('40');
+  const changed = await sizes();
+  assert.deepEqual(changed.editor, ['40px', '40px']);
+  assert.deepEqual(changed.editor, changed.output);
+  assert.deepEqual(changed.images, changed.outputImages);
+  await page.keyboard.press('Control+z');
+  assert.deepEqual((await sizes()).editor, initial.editor);
+});
+
 test('gift chips are indivisible, removable with undo, and media inserts preserve images and kaomoji', async (t) => {
   const page = await mount(t, [{ type: 'text', text: '开头' }]);
   await selectText(page, '开头', 2, 2);

@@ -7,6 +7,7 @@ const bilibiliHelpers = require('../helpers');
 const { SUPER_CHAT_PIN_THRESHOLD } = require('../superchat-service');
 const { extractBilibiliGiftIdentity } = require('../users/gift-identity-hints');
 const { extractBilibiliSuperChatDeleteIds } = require('../parsers/superchat-parser');
+const { extractBilibiliLiveLotteryEvents } = require('../parsers/live-lottery-parser');
 const { isBilibiliCommandText } = require('./command-text');
 const { cleanText, now, timestampToIso } = require('../../shared/utils');
 const { logBilibiliDiagnostic, logSongRequest } = require('../diagnostics');
@@ -87,6 +88,10 @@ class MessageHandlers {
         this.handleSuperChat(message);
       } else if (packetParser.isBilibiliGiftLikeCommand(message.cmd)) {
         this.handleIdentityMessage(message);
+      } else if (ingress?.authenticated === true && this.handlers.onLiveLottery) {
+        for (const event of extractBilibiliLiveLotteryEvents(message, { roomId: ingress.roomId })) {
+          this.handlers.onLiveLottery(event);
+        }
       }
     }
   }

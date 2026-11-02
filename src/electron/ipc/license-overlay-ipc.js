@@ -15,6 +15,7 @@ const {
   sanitizeWelcomeV2,
 } = require('../../shared/welcome-settings-contract');
 const { sanitizePublicUrl } = require('./license-public-values');
+const { pkReportParameters, sanitizePkReportSettings } = require('../../shared/pk-report-settings-contract');
 const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
 
 function registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings }) {
@@ -95,25 +96,6 @@ function welcomeParameters(value) {
     ...(Object.hasOwn(value, 'enabled') ? { enabled: value.enabled } : {}),
     ...(Object.hasOwn(value, 'messages') ? { messages: value.messages.map((item) => item.trim()) } : {}),
   };
-}
-
-function pkReportParameters(value) {
-  if (
-    !value ||
-    typeof value !== 'object' ||
-    Array.isArray(value) ||
-    Object.keys(value).length !== 1 ||
-    typeof value.enabled !== 'boolean'
-  ) {
-    throw Object.assign(new Error(), { code: 'INVALID_PK_REPORT_SETTINGS' });
-  }
-  return { enabled: value.enabled };
-}
-
-function sanitizePkReportSettings(value) {
-  if (value?.ok !== true || typeof value.enabled !== 'boolean')
-    throw Object.assign(new Error(), { code: 'INVALID_RESPONSE' });
-  return { ok: true, enabled: value.enabled };
 }
 
 function sanitizeWelcomeSettings(value) {

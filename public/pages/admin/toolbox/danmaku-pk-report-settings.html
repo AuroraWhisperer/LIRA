@@ -1,0 +1,37 @@
+<section id="danmakuPkReportPanel" data-fixed-editor="pk" hidden aria-label="PK 播报与欢迎设置">
+  <p id="danmakuPkReportCapability" class="hint" role="status" hidden>当前服务器暂不支持分项设置和串门欢迎，请更新服务器；原有 PK 播报总开关仍可使用。</p>
+  <div class="danmaku-welcome-rules">
+    <div class="danmaku-welcome-rule">
+      <div class="danmaku-welcome-rule-heading">
+        <strong id="danmakuPkReportReportTitle">对手信息播报<lira-help label="对手信息播报说明">PK 开始时播报对手的大航海和在线榜概况，中途开启不补播。榜单可能不全；金额按当前贡献值估算（1 元＝10 贡献值），三个档位不重复统计。</lira-help></strong>
+        <label class="switch-control"><input id="danmakuPkReportReportToggle" type="checkbox" aria-labelledby="danmakuPkReportReportTitle" disabled /><span class="switch-track"></span></label>
+      </div>
+      <p class="hint">沿用原来的 PK 开场播报，可与串门欢迎分别开启。</p>
+    </div>
+    <div class="danmaku-welcome-rule">
+      <div class="danmaku-welcome-rule-heading">
+        <strong id="danmakuPkReportVisitorTitle">对面观众进场欢迎<lira-help label="对面观众进场欢迎说明">仅在 PK 期间，按对手在线榜中已取得的 UID 或观众佩戴的对手粉丝牌识别，收到进入本直播间的事件后欢迎。属于归属推断，可能漏报或误判。独立于普通进场欢迎的开关和荣耀门槛，同一次进场不会重复欢迎；延时不能证明观众仍在房间。</lira-help></strong>
+        <label class="switch-control"><input id="danmakuPkReportVisitorToggle" type="checkbox" aria-labelledby="danmakuPkReportVisitorTitle" disabled /><span class="switch-track"></span></label>
+      </div>
+      <label class="danmaku-welcome-field"><span>进场后</span><input id="danmakuPkReportDelay" type="number" min="0" max="300" step="1" value="5" aria-label="串门欢迎延时秒数" aria-describedby="danmakuPkReportDelayError" disabled /><span>秒</span><span id="danmakuPkReportDelayError" class="danmaku-field-error" role="alert" hidden></span></label>
+      <p class="hint">0 秒表示立即处理，默认 5 秒；实际发送还受排队和冷却限制。</p>
+    </div>
+  </div>
+  <div class="danmaku-welcome-library-heading">
+    <span class="danmaku-welcome-library-label"><strong>串门欢迎词库</strong><lira-help label="串门欢迎词库说明">随机选用一条，{username} 代表观众昵称，未填写时也会补上。支持 1～30 条，每条 1～80 字且不能换行。默认：欢迎 {username} 从对面来串门～。</lira-help></span>
+    <span id="danmakuPkReportCount" class="hint">未读取</span>
+  </div>
+  <div id="danmakuPkReportList" class="danmaku-blessing-list" aria-live="polite"></div>
+  <div id="danmakuPkReportPagination" class="danmaku-library-pagination" hidden>
+    <button id="danmakuPkReportPrevPage" class="ghost" type="button">上一页</button><span id="danmakuPkReportPageLabel" class="hint"></span><button id="danmakuPkReportNextPage" class="ghost" type="button">下一页</button>
+  </div>
+  <div class="danmaku-blessing-add-row">
+    <input id="danmakuPkReportInput" type="text" maxlength="80" placeholder="欢迎 {username} 从对面来串门～" aria-label="新增串门欢迎词" disabled />
+    <button id="danmakuPkReportAddBtn" class="secondary" type="button" disabled>添加文案</button>
+  </div>
+  <div class="danmaku-blessing-actions">
+    <span id="danmakuPkReportSaveStatus" class="hint" role="status"></span>
+    <button id="danmakuPkReportDiscardBtn" class="secondary" type="button" disabled>放弃修改</button>
+    <button id="danmakuPkReportSaveBtn" class="primary" type="button" disabled>保存欢迎设置</button>
+  </div>
+</section>

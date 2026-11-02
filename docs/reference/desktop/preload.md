@@ -145,8 +145,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:update-welcome-settings` | `updateWelcomeSettings(patch)` | 同上；INVALID_WELCOME_SETTINGS / INVALID_WELCOME_MESSAGES | 同上 |
 | `license:get-welcome-settings-v2` | `getWelcomeSettingsV2()` | 完整 V2 配置和 schemaVersion:2；仅明确 404 回落 V1 投影 schemaVersion:1 | danmaku-welcome |
 | `license:update-welcome-settings-v2` | `updateWelcomeSettingsV2(patch)` | 完整 V2 配置，不降级重放；可带 fieldErrors | 同上 |
-| `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled:boolean}` | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
-| `license:update-pk-report-settings` | `updatePkReportSettings({enabled})`，严格 boolean、唯一字段 | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
+| `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled,reportEnabled,visitorWelcomeEnabled,visitorWelcomeDelaySeconds,visitorWelcomeMessages}`；旧服务器只返回 enabled | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
+| `license:update-pk-report-settings` | `updatePkReportSettings(patch)`，仅允许 PK 总开关、两项子开关、欢迎延时和词库的非空 patch | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
 | `license:get-fixed-reply-settings` | `getFixedReplySettings()` | `{ok:true,customExactReplyEnabled,customExactReplies,scheduledDanmakuEnabled,scheduledDanmaku}`；FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 弹幕互动固定回复 |
 | `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅上述四个配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
 | `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000；与自动同步串行，保留传入快照语义。统一在授权歌库 owner 按归一化后的完整 `{songs}` JSON 的 UTF-8 字节检查 ≤5 MiB | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / PAYLOAD_TOO_LARGE | 兼容入口 |

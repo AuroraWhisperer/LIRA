@@ -604,6 +604,8 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 [src/resources/resource-library.js](../../../src/resources/resource-library.js) 拥有 `data/cache/resources/`，在现有设备 data 根下保存可重建的字体与大图。数据目录迁移和升级沿用既有 data 根规则；资源与账号资料、用户导入套装和安装文件分开。对象文件名是 `<SHA-256>.<原扩展名>`；`index.json` 为 `{version:1,files:{<public相对路径>:{sha256,size}}}`，只记录已发布的资源，无绝对路径、CDN 凭据或账号信息。
 
+`resource-packages.js` 声明当前共享图片与旧客户端兼容图片，共享字体来自字体目录。当前启动下载、更新比较和缺失统计只针对共享资源；航海旗帜的三张兼容图片继续校验并提供已有缓存，但不因缺失或 CDN 版本变化发起下载。当前旗帜样式完整读取导入 ZIP 的 `component-media` 资源。导出仍保留旧客户端所需的清单与文件，准入和防回归见 [CDN 分发指南](../../guides/cdn-resources.md#资源准入与防回归)。
+
 启动先校验缓存大小和摘要，再检查远程清单；缺失或损坏的索引可从当前清单对应的完整哈希文件恢复。下载写入同目录独占 `.tmp` 文件，流式校验大小和摘要。完整字体按实际字体名称合并同款分片、字重及语种分支后以 ZIP 下载，标题小字库留在安装包；字体包完整验证后按条目校验并恢复所需原文件，再串行原子提交索引。只允许清单列出的条目，未知客户端资源可忽略但不写盘；拒绝重复、加密、意外路径、大小或摘要不符。临时 ZIP 在解包成功、失败或取消后删除。失败保留旧索引和旧资源，不启用半文件；下一次只补齐未完成的字体包或图片，不提供单文件字节断点续传。旧摘要文件保留供已打开的版本化资源 URL 使用。
 
 清单 v2 为 `{version:2,files:[{path,size,sha256,label}],packages:[{id,size,sha256,files:[path]}]}`。原文件只接受客户端批准的字体和栅格图片路径；下载包的归组与名称由 `resource-packages.js` 定义，原文件和下载包分别最多 512 项、单项 128 MiB、声明总量 512 MiB，清单整体最大 1 MiB。CDN 根 origin 来自可信启动配置，远程 URL 由批准的字体/图片名称、包摘要前 12 位和扩展名计算，位于 `resources/fonts/` 或 `resources/images/`；不接受远程 URL、脚本或磁盘路径。仍兼容 v1 清单的 `resources/objects/<SHA-256>.<扩展名>` 下载，本地索引格式保持 v1。旧的仅 v1 客户端不能读取 v2 清单。上传步骤见[CDN 分发指南](../../guides/cdn-resources.md)。

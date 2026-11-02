@@ -7,6 +7,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 const { resolveDataPaths } = require('../shared/data-paths');
 const { resolveCdnOrigin, readManifest, validateManifest, objectName, downloadResource } = require('./resource-download');
 const { extractResourcePackage } = require('./resource-archive');
+const { isLegacyResource } = require('./resource-packages');
 const catalog = require('./catalog.json');
 
 function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetch = globalThis.fetch,
@@ -15,6 +16,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
   const directory = path.join(resolveDataPaths(dataDir).cacheDir, 'resources');
   const indexPath = path.join(directory, 'index.json');
   const allowed = new Map(files.map(file => [file.path, file]));
+  const sharedFiles = files.filter(file => !isLegacyResource(file.path));
   const available = new Map();
   const listeners = new Set();
   let installed = readIndex();
@@ -109,7 +111,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
       await scan(signal);
       await requestSlot(signal);
       const manifest = await readManifest({ origin, fetch, signal, timeoutMs: manifestTimeoutMs });
-      const { downloads } = validateManifest(manifest, files);
+      const { downloads } = validateManifest(manifest, sharedFiles);
       const needsFile = file => {
         const ready = available.get(file.path)?.file;
         return !ready || ready.sha256 !== file.sha256 || ready.size !== file.size;
@@ -166,7 +168,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
       signal.throwIfAborted();
       return publish({ status: state.failed ? 'error' : 'ready', currentFont: '', completedAt: new Date().toISOString() });
     })().catch(() => {
-      const missing = files.filter(file => !available.has(file.path)).length;
+      const missing = sharedFiles.filter(file => !available.has(file.path)).length;
       return publish({ status: closed ? 'idle' : missing || state.total ? 'error' : 'ready', currentFont: '',
         ...(state.total ? {} : { total: missing, completed: missing, failed: missing }),
         completedAt: state.total || missing ? new Date().toISOString() : '' });

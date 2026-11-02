@@ -161,7 +161,7 @@
                   <div>
                     <span>题目范围</span>
                     <strong id="drawWordLibraryTitle"
-                      >本场词库 <lira-help>每类 100 个词条；可多选，开局后锁定。</lira-help></strong
+                      >本场词库 <lira-help>每类 100 个词条；可多选，开局后锁定。每局由主播从所选分类中挑选题词。</lira-help></strong
                     >
                     <small id="drawWordCategoryStatus" role="status" aria-live="polite">正在读取分类…</small>
                   </div>
@@ -176,7 +176,7 @@
                 <div class="draw-host-copy">
                   <span>仅主播可见 · 不会出现在游戏网页</span>
                   <strong id="drawHostTitle">本局题词</strong>
-                  <p id="drawHostWord">开始游戏后显示题词</p>
+                  <p id="drawHostWord">开始游戏后选择题词</p>
                 </div>
                 <div class="draw-host-meta">
                   <span id="drawHostRound">等待开局</span>
@@ -190,11 +190,12 @@
               </p>
               <div class="game-card-actions draw-actions">
                 <button class="primary" type="button" data-start-game="draw-guess">开始你画我猜</button>
+                <button id="drawOpenWordPickerBtn" class="primary" type="button" hidden>挑选题词</button>
                 <button id="drawFinishRoundBtn" class="secondary" type="button" disabled>结束作画</button>
                 <button id="drawRevealAnswerBtn" class="primary" type="button" disabled>公布答案</button>
                 <button id="drawNextRoundBtn" class="secondary" type="button" disabled>开始下一题</button>
                 <span id="drawHostStatus" class="draw-host-status" role="status" aria-live="polite"
-                  >开始游戏后即可作画</span
+                  >开始后挑选题词，确认后开始计时</span
                 >
               </div>
             </div>
@@ -202,6 +203,27 @@
         </article>
       </section>
     </section>
+    <dialog id="drawWordPicker" class="draw-word-picker" aria-labelledby="drawWordPickerTitle" aria-describedby="drawWordPickerHelp">
+      <header class="draw-word-picker-heading">
+        <div>
+          <h2 id="drawWordPickerTitle">选择本局题词</h2>
+          <p id="drawWordPickerMeta"></p>
+        </div>
+        <button id="drawWordPickerClose" class="secondary" type="button">稍后挑选</button>
+      </header>
+      <p id="drawWordPickerHelp">题词仅主播可见，确认后才开始计时。已用题词会在本场词库用完后重新出现。</p>
+      <label class="draw-word-search" for="drawWordSearch">搜索题词或分类
+        <input id="drawWordSearch" type="search" placeholder="输入关键词，或直接浏览下方词库" autocomplete="off" />
+      </label>
+      <div id="drawWordChoices" class="draw-word-choices"></div>
+      <footer class="draw-word-picker-actions">
+        <div>
+          <span id="drawWordSelection" role="status" aria-live="polite">请选择一个题词</span>
+          <p id="drawWordPickerError" class="draw-word-picker-error" role="alert" hidden></p>
+        </div>
+        <button id="drawChooseWordBtn" class="primary" type="button" disabled>选定并开始作画</button>
+      </footer>
+    </dialog>
 
     <section class="games-category games-category-wheel" aria-labelledby="wheelCategoryTitle">
       <header class="games-category-header">

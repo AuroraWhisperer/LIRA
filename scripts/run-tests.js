@@ -41,6 +41,7 @@ const groups = {
     'danmaku/danmaku-feed-motion',
     'danmaku/danmaku-typography-browser',
     'games/frontend-wheel-draft',
+    'games/frontend-draw-guess',
     'games/frontend-interactions',
     'gifts/frontend-gift-banner',
     'gifts/frontend-gift-display-settings',

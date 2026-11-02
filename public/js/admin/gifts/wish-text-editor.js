@@ -29,6 +29,8 @@ function createContent(value, tokenLabels, runs = []) {
       token.dataset.wishToken = part;
       token.dataset.wishFormat = JSON.stringify(format);
       token.textContent = tokenLabels[part];
+      applyTextStyle(token, format, WISH_TEXT_DEFAULTS);
+      token.style.color = format.color || '';
       content.append(token);
     }
   }
@@ -187,10 +189,18 @@ export function createWishTextEditor(editor, input) {
     if (disabled()) return;
     restoreSelection();
     const range = expandTokens(currentRange());
+    let source = range.startContainer;
+    if (source.nodeType === Node.ELEMENT_NODE) {
+      source = source.childNodes[range.startOffset] || source.childNodes[range.startOffset - 1] || source;
+    }
+    const element = source.nodeType === Node.TEXT_NODE ? source.parentElement : source;
+    const format = element.dataset.wishToken
+      ? JSON.parse(element.dataset.wishFormat || '{}') : readTextStyle(element, editor, getConfig());
     selectRange(range);
     // Native editing commands keep typing, chip insertion and paste in Chromium's undo history.
     // HTML is built only from text nodes and the fixed token vocabulary above.
-    document.execCommand('insertHTML', false, createContent(value.replace(/\r\n?/g, '\n'), tokenLabels).innerHTML);
+    document.execCommand('insertHTML', false, createContent('', tokenLabels,
+      [{ text: value.replace(/\r\n?/g, '\n'), ...format }]).innerHTML);
   }
 
   listen('input', () => { if (!applying) sync(); });

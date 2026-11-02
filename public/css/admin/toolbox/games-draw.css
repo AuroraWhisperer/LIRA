@@ -292,3 +292,85 @@
   color: var(--muted);
   font-size: var(--type-size-caption);
 }
+
+.draw-word-picker {
+  width: min(760px, calc(100% - 40px));
+  height: min(720px, calc(100% - 48px));
+  max-height: calc(100% - 48px);
+  padding: 24px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-dialog);
+}
+.draw-word-picker[open] {
+  display: grid;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  gap: 16px;
+}
+.draw-word-picker::backdrop {
+  background: var(--color-bg-overlay-light);
+}
+.draw-word-picker-heading,
+.draw-word-picker-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.draw-word-picker-heading h2 {
+  margin: 0 0 4px;
+  font-size: var(--type-size-section-title);
+}
+.draw-word-picker-heading p,
+.draw-word-picker > p {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+.draw-word-search {
+  display: grid;
+  gap: 6px;
+  font-size: var(--type-size-control);
+}
+.draw-word-choices {
+  min-height: 140px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.draw-word-group + .draw-word-group {
+  margin-top: 20px;
+}
+.draw-word-group h3 {
+  margin: 0 0 8px;
+  font-size: var(--type-size-control);
+}
+.draw-word-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: 8px;
+}
+.draw-word-grid button {
+  min-width: 0;
+  padding: 8px;
+  overflow-wrap: anywhere;
+}
+.draw-word-grid button[aria-pressed='true'] {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--color-primary-light);
+}
+.draw-word-picker-actions {
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border-light);
+}
+.draw-word-picker-actions span {
+  font-size: var(--type-size-control);
+}
+.draw-word-picker-error {
+  margin: 4px 0 0;
+  color: var(--danger);
+  font-size: var(--type-size-caption);
+}

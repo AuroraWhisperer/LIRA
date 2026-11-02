@@ -5,6 +5,7 @@ import { api, localOverlayOrigin, readJsonResponse, showError, toast } from '../
 import { bindCopyUrl } from '../shared/copy-url.js';
 import { createInteractionClient } from '../shared/interaction-client.js';
 import { initWheelAdmin } from './games-wheel.js';
+import { createDrawWordPicker } from './games-word-picker.js';
 
 let initialized = false;
 let interactionCollecting = false;
@@ -18,12 +19,23 @@ let activeDrawCategoryIds = null;
 let viewerRefreshPromise = null;
 let lastLiveConnectionKey = '';
 let panelDataStale = false;
+let drawWordPicker = null;
 
 const VIEWER_REFRESH_RETRY_DELAYS_MS = [250, 500, 1000, 2000];
 
 export function initGames() {
   if (initialized || !document.getElementById('gamesAdminPanel')) return;
   initialized = true;
+  drawWordPicker = createDrawWordPicker({
+    async onChoose(value) {
+      const result = await api('/api/games/session/move', { value }, { notifyError: false });
+      if (activeGameSession?.sessionId !== value.sessionId || activeGameSession?.state?.round !== value.round) return;
+      if (result.data.eventRevision >= activeGameSession.eventRevision) renderSession(result.data);
+      await refreshHostState().catch(reportPanelRefreshFailure);
+      toast('题词已选定，开始作画');
+    },
+  });
+  byId('drawOpenWordPickerBtn').addEventListener('click', () => refreshHostState().then(() => drawWordPicker.open()).catch(showError));
   byId('gamesOverlayUrl').textContent = overlayBaseUrl();
   bindCopyUrl(byId('gamesOverlayUrl'), { onCopied: () => toast('游戏浏览器源地址已复制'), onError: showError });
   byId('gamesOpenOverlayBtn').addEventListener('click', () => window.open(overlayBaseUrl(), '_blank', 'noopener'));
@@ -179,10 +191,11 @@ async function refreshHostState() {
   const request = ++hostStateRequest;
   const sessionId = activeGameSession?.sessionId;
   const round = activeGameSession?.state?.round;
+  const phase = activeGameSession?.state?.phase;
   if (activeGameSession?.game !== 'draw-guess') return;
   const response = await fetch('/api/games/host-state', { cache: 'no-store' });
   const payload = await readJsonResponse(response, '读取你画我猜题词失败');
-  if (request !== hostStateRequest || sessionId !== activeGameSession?.sessionId || round !== activeGameSession?.state?.round) return;
+  if (request !== hostStateRequest || sessionId !== activeGameSession?.sessionId || round !== activeGameSession?.state?.round || phase !== activeGameSession?.state?.phase) return;
   if (!payload.ok) throw new Error(payload.error || '读取你画我猜题词失败');
   if (payload.data?.game !== 'draw-guess' || payload.data.round !== round) return;
   renderHostState(payload.data);
@@ -280,7 +293,7 @@ async function startGame(game) {
     renderSession(result.data);
     await refreshHostState();
     setDrawDetails(true);
-    toast('你画我猜已开始');
+    toast('请选择本局题词');
     return;
   }
   const isBomb = game === 'number-bomb';
@@ -309,7 +322,7 @@ async function controlDrawRound(action) {
   renderSession(result.data);
   await refreshHostState();
   toast(
-    action === 'finish-round' ? '作画已结束，请公布答案' : action === 'reveal-answer' ? '答案已公布' : '下一题已开始',
+    action === 'finish-round' ? '作画已结束，请公布答案' : action === 'reveal-answer' ? '答案已公布' : '请选择下一题的题词',
   );
 }
 
@@ -326,11 +339,14 @@ function setDrawDetails(expanded) {
 }
 
 function renderSession(session) {
-  if (session?.sessionId !== activeGameSession?.sessionId || session?.state?.round !== activeGameSession?.state?.round) {
+  if (session?.sessionId !== activeGameSession?.sessionId || session?.state?.round !== activeGameSession?.state?.round || session?.state?.phase !== activeGameSession?.state?.phase) {
     hostStateRequest += 1;
-    byId('drawHostWord').textContent = session?.game === 'draw-guess' ? '正在读取题词…' : '开始游戏后显示题词';
+    byId('drawHostWord').textContent = session?.game === 'draw-guess'
+      ? session.state.phase === 'choosing' ? '请选择本局题词' : '正在读取题词…'
+      : '开始游戏后选择题词';
   }
   activeGameSession = session || null;
+  drawWordPicker?.sync(activeGameSession);
   syncDrawClockTimer();
   const stop = byId('gamesStopBtn');
   stop.disabled = !session;
@@ -355,6 +371,7 @@ function sessionStatusText(session) {
   if (!session) return '当前没有进行中的游戏';
   const gameName = session.game === 'gomoku' ? '五子棋' : session.game === 'draw-guess' ? '你画我猜' : '数字炸弹';
   const opponent = session.mode === 'multi' ? '不限观众' : session.targetName || '指定观众';
+  if (session.game === 'draw-guess' && session.state.phase === 'choosing') return '你画我猜 · 等待主播挑选题词';
   return `${gameName}进行中 · ${opponent}`;
 }
 
@@ -381,6 +398,7 @@ function clearPanelRefreshFailure() {
 function renderDrawSession(session) {
   const drawSession = session?.game === 'draw-guess' ? session : null;
   const state = drawSession?.state;
+  byId('drawOpenWordPickerBtn').hidden = state?.phase !== 'choosing';
   byId('drawFinishRoundBtn').disabled = state?.phase !== 'drawing';
   byId('drawRevealAnswerBtn').disabled = state?.phase !== 'round-result' || Boolean(state.answerRevealed);
   byId('drawNextRoundBtn').disabled = state?.phase !== 'round-result' || !state.answerRevealed;
@@ -388,7 +406,7 @@ function renderDrawSession(session) {
     drawClock = null;
     byId('drawCardStatus').textContent = '自定义赛制 · 1–12 局 · 15–300 秒';
     byId('drawHostRound').textContent = '等待开局';
-    byId('drawHostStatus').textContent = '开始游戏后即可作画';
+    byId('drawHostStatus').textContent = '开始后挑选题词，确认后开始计时';
     byId('drawHostClock').textContent = '01:30';
     return;
   }
@@ -399,9 +417,14 @@ function renderDrawSession(session) {
     remainingMs: Number(state.remainingMs) || 0,
     receivedAt: performance.now(),
   };
-  byId('drawHostRound').textContent =
-    `第 ${state.round} / ${state.totalRounds} 局 · ${state.category} · ${state.wordLength} 个字`;
-  if (state.phase === 'drawing') {
+  byId('drawHostRound').textContent = state.phase === 'choosing'
+    ? `第 ${state.round} / ${state.totalRounds} 局 · 等待选词`
+    : `第 ${state.round} / ${state.totalRounds} 局 · ${state.category} · ${state.wordLength} 个字`;
+  if (state.phase === 'choosing') {
+    byId('drawHostClock').textContent = '--:--';
+    byId('drawCardStatus').textContent = `第 ${state.round} 局 · 等待主播挑选题词`;
+    byId('drawHostStatus').textContent = '在选词窗中确认题词后，网页画板和倒计时自动开始';
+  } else if (state.phase === 'drawing') {
     byId('drawCardStatus').textContent = `第 ${state.round} 局进行中 · ${state.correct.length} 人答对`;
     byId('drawHostStatus').textContent = '请在游戏网页作画，题词仅在这里显示';
   } else if (state.phase === 'round-result') {
@@ -430,7 +453,10 @@ function renderHostState(state) {
     });
     updateDrawCategoryStatus();
   }
-  byId('drawHostWord').textContent = visible ? state.word : '开始游戏后显示题词';
+  byId('drawHostWord').textContent = visible
+    ? state.phase === 'choosing' ? '请选择本局题词' : state.word
+    : '开始游戏后选择题词';
+  drawWordPicker?.sync(activeGameSession, visible ? state : null);
 }
 
 function updateDrawClock() {
