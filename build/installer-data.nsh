@@ -59,6 +59,9 @@ Function liraPreserveInstallData
     DetailPrint "正在备份本地数据，请稍候…"
     SetDetailsPrint lastused
     IfSilent liraPrepareCopy
+    ${If} ${isUpdated}
+      Goto liraPrepareCopy
+    ${EndIf}
     Banner::show /NOUNLOAD /set 76 "正在更新 LIRA" "正在保留本地数据，请稍候…"
     StrCpy $liraDataBanner "1"
   liraPrepareCopy:

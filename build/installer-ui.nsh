@@ -9,6 +9,23 @@ Var liraUiPageHeight
 Var liraUiBrandingFont
 Var liraUiFinishIcon
 
+!macro liraInitUpdateProgress
+  ${If} ${isUpdated}
+    SetSilent normal
+    SetAutoClose true
+  ${EndIf}
+!macroend
+
+!macro liraFinishUpdate
+  ${If} ${isUpdated}
+    ${If} ${isForceRun}
+      HideWindow
+      !insertmacro StartApp
+    ${EndIf}
+    Abort
+  ${EndIf}
+!macroend
+
 ; Coordinates are logical pixels; font sizes remain native point sizes.
 !macro liraPlaceControl HANDLE X Y WIDTH HEIGHT
   IntOp $R5 ${X} * $liraUiDpi
@@ -29,6 +46,13 @@ Var liraUiFinishIcon
 
 !macro customInstallMode
   !ifndef BUILD_UNINSTALLER
+    ${If} ${isUpdated}
+      ${If} $installMode == "all"
+        StrCpy $isForceMachineInstall "1"
+      ${Else}
+        StrCpy $isForceCurrentInstall "1"
+      ${EndIf}
+    ${EndIf}
     !define MUI_PAGE_CUSTOMFUNCTION_SHOW liraShowInstallMode
   !endif
 !macroend
@@ -51,6 +75,7 @@ Var liraUiFinishIcon
     !define MUI_FINISHPAGE_RUN_FUNCTION StartApp
     !define MUI_FINISHPAGE_RUN_TEXT "立即启动 LIRA(&R)"
   !endif
+  !define MUI_PAGE_CUSTOMFUNCTION_PRE liraSkipUpdateFinish
   !define MUI_PAGE_CUSTOMFUNCTION_SHOW liraShowInstallFinish
   !define MUI_FINISHPAGE_TITLE "LIRA 安装完成"
   !define MUI_FINISHPAGE_TEXT "一切就绪。$\r$\n点击“完成”关闭安装向导。"
@@ -59,6 +84,10 @@ Var liraUiFinishIcon
 
 !macro liraInstallerUi
   SetFont "Microsoft YaHei UI" 9
+
+  Function liraSkipUpdateFinish
+    !insertmacro liraFinishUpdate
+  FunctionEnd
 
   Function liraResizeInstaller
     IntOp $1 $liraUiDpi * $liraUiWidth
@@ -180,6 +209,14 @@ Var liraUiFinishIcon
 
   Function liraShowInstallProgress
     System::Store "S"
+    ${If} ${isUpdated}
+      SendMessage $HWNDPARENT ${WM_SETTEXT} 0 "STR:LIRA 正在更新"
+      ${If} ${isForceRun}
+        !insertmacro MUI_HEADER_TEXT "正在更新 LIRA" "更新完成后将自动关闭此窗口并启动 LIRA，请稍候。"
+      ${Else}
+        !insertmacro MUI_HEADER_TEXT "正在更新 LIRA" "更新完成后将自动关闭此窗口，请稍候。"
+      ${EndIf}
+    ${EndIf}
     StrCpy $liraUiPage $mui.InstFilesPage
     Call liraPrepareInstallerPage
     !insertmacro liraPlaceItem $liraUiPage 1006 0 8 $liraUiPageWidth 20

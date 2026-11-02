@@ -41,7 +41,7 @@ checking ──无新版本──▶ not-available
 
 ## 3. 运行时配置与事件
 
-Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP executor，只在首次创建下载 helper 前将应用适配器的 `baseCachePath` 改为 `<安装目录>/updates`；实际缓存为其下的 `lira-updater/`。安装器成功后也将当前安装包留在此处，并移除 builder 在系统用户缓存中暂存的当前安装包。构建时由 package.json 的首个 generic provider（`https://assets.lirahub.cn/downloads/`）生成 `resources/app-update.yml`，安装包为同目录的 `lira-setup.exe`。运行时由 electron-updater 读取该文件，不读取打包后已剥离的 package.json `build` 字段，也不再调用 `setFeedURL` 覆盖；应用标识、摘要校验和自动下载/退出安装策略保持原有契约。
+Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP executor，只在首次创建下载 helper 前将应用适配器的 `baseCachePath` 改为 `<安装目录>/updates`；实际缓存为其下的 `lira-updater/`。安装器成功后也将当前安装包留在此处，并移除 builder 在系统用户缓存中暂存的当前安装包。构建时由 package.json 的首个 generic provider（`https://assets.lirahub.cn/downloads/`）生成 `resources/app-update.yml`，安装包由同目录 `latest.yml` 指定，正常构建为 `lira-setup-{version}.exe`。运行时由 electron-updater 读取该文件，不读取打包后已剥离的 package.json `build` 字段，也不再调用 `setFeedURL` 覆盖；应用标识、摘要校验和自动下载/退出安装策略保持原有契约。
 
 缓存根通过 `desktop-user-data.js` 按实际可执行文件位置解析，开发版按仓库根解析；不依赖迁移后的 Chromium `userData`，因此浏览器目录调整不会把更新文件写进 `data`。
 
@@ -80,9 +80,9 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 形状出处 [update-manager.js:81-95](../../../src/electron/update-manager.js#L81-L95)。前端消费由 [desktop.js](../../../public/js/desktop.js) 的更新状态订阅负责。
 
-更新状态只通过 `desktop:update-state` 投递，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应已有 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段显示准备下载，不展示需要用户点击才下载的假象；下载完成提示退出安装，应用内使用指南提供 CDN 官方安装包链接，资源检查保留官方项目页面入口。
+更新状态只通过 `desktop:update-state` 投递，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应已有 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段显示准备下载，不展示需要用户点击才下载的假象；下载完成提示退出安装，应用内使用指南提供 `https://lirahub.cn/download/client` 官方下载入口，由服务器按同一清单跳转，资源检查保留官方项目页面入口。
 
-`installUpdate()`([update-manager.js:150-159](../../../src/electron/update-manager.js#L150-L159)):仅 `canInstall` 放行;置 `installing` → `app.releaseSingleInstanceLock()`(允许新实例启动)→ `autoUpdater.quitAndInstall(true, true)`(静默安装 + 装后启动)。
+`installUpdate()`([update-manager.js](../../../src/electron/update-manager.js)):仅 `canInstall` 放行；置 `installing` → `app.releaseSingleInstanceLock()`（允许新实例启动）→ `autoUpdater.quitAndInstall(true, true)`。updater 仍传递 `/S --updated --force-run`；新版 NSIS 安装器识别 `--updated` 后切换为可见的自动安装，直接显示真实进度与等待退出、备份、安装、恢复等阶段，不再要求选择安装范围、目录或点击完成。成功后窗口自动关闭，沿用普通用户启动与 `--updated` 参数；仅带 `--force-run` 时重新启动 LIRA。普通退出触发的自动安装也显示进度，但完成后保持应用关闭。安装器细节见 [build.md §6](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。
 
 `electron-updater` 启动安装程序后、调用 `app.quit()` 前发出 Electron 原生
 `before-quit-for-update`。主进程监听此事件，直接进入已有的受控关闭流程；即使本机来源
@@ -90,18 +90,19 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 ## 5. friendlyUpdateError 映射
 
-`friendlyUpdateError(error)`([update-manager.js:161-173](../../../src/electron/update-manager.js#L161-L173))按错误文本正则归类(唯一成表处):
+`friendlyUpdateError(error)`（[update-manager.js](../../../src/electron/update-manager.js)）按错误文本正则归类（唯一成表处）：
 
 | 匹配                                                                                                                               | status          | 用户文案                                                   |
 | ---------------------------------------------------------------------------------------------------------------------------------- | --------------- | ---------------------------------------------------------- |
 | `404` + `latest.yml` / `ERR_UPDATER_CHANNEL_FILE_NOT_FOUND`                                                                                  | `error` | 更新清单暂不可用，请稍后再试。                  |
+| 其他 `404`                                                                                                                         | `error`         | 更新包暂不可用（HTTP 404），请稍后重试或反馈发布者。 |
 | `checksum mismatch` / `sha512` / `sha256` / `hash mismatch`                                                                        | `error`         | 更新包校验失败，请重新检查并下载更新。 |
 | `ENOTFOUND` / `ECONNRESET` / `ETIMEDOUT` / `EAI_AGAIN` / `ERR_CONNECTION` / `ERR_NETWORK` / `ERR_INTERNET` / `network` / `timeout` | `error`         | 暂时无法连接更新服务，请稍后再试。                  |
-| 其他                                                                                                                               | `error`         | 暂时无法检查更新,详细原因已写入日志。                      |
+| 其他                                                                                                                               | `error`         | 更新失败，详细原因已写入错误日志。                      |
 
-消费点:autoUpdater `error` 事件与 `checkForUpdates`/`downloadUpdate` 的 catch 均走该映射([update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105)、[115-148](../../../src/electron/update-manager.js#L115-L148))；桌面控制器的 `setUpdateError` 同样调用并下推状态。
+消费点：[update-manager.js](../../../src/electron/update-manager.js) 的 `handleUpdateError` 统一处理 autoUpdater `error` 事件与 `checkForUpdates`/`downloadUpdate` 的 catch；[桌面控制器](../../../src/electron/desktop-update-controller.js)的 `setUpdateError` 同样调用该映射并下推状态。
 
-更新器先发出 error 事件、随后拒绝操作 Promise 时，两条路径保持相同的 status/message；失败和安装状态清空旧下载进度。聚焦回归见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
+更新器的 error 事件与操作 Promise 的拒绝统一记录错误并下推状态；同一次操作中同一错误对象只记录一次，重新检查或下载时重新计数。只拒绝 Promise、未发出 error 事件的失败也会记录。错误详情通过桌面日志器写入 `logs/errors/desktop.log`，保留原始错误及堆栈；页面提示该相对位置，「日志目录」按钮仍打开 `logs/`。失败和安装状态清空旧下载进度。聚焦回归见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
 
 ## 6. 完整性验证与代码签名
 

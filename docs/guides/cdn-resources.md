@@ -67,7 +67,7 @@ https://assets.lirahub.cn/resources/manifest.json
 ```text
 lirahub/
 ├─ downloads/
-│  ├─ lira-setup.exe
+│  ├─ lira-setup-5.7.8.exe
 │  └─ latest.yml
 └─ resources/
    ├─ fonts/
@@ -75,12 +75,12 @@ lirahub/
    └─ manifest.json
 ```
 
-手动下载地址为 `https://assets.lirahub.cn/downloads/lira-setup.exe`。客户端自动更新先读取 `https://assets.lirahub.cn/downloads/latest.yml`，比较版本号，再下载清单声明的同一安装包并校验 SHA-512。只有 EXE、没有 `latest.yml` 时，手动下载可用，自动版本检查会报「更新清单暂不可用」。
+手动下载入口为 `https://lirahub.cn/download/client`，服务器在点击时读取 `https://assets.lirahub.cn/downloads/latest.yml`，再跳转到清单 `path` 声明的安装包。客户端自动更新读取同一清单，比较版本号，再下载并校验 SHA-512。两边都不扫描目录或按文件数量猜测最新版；没有可用清单时，官网入口返回暂不可用，客户端会报「更新清单暂不可用」。服务器入口的配置与部署验收由服务器仓库 `docs/operations/client-download.md` 维护。
 
 每次正常构建仍生成 `release/lira-setup-X.Y.Z.exe`、`release/lira-setup-X.Y.Z.exe.blockmap` 和 `release/latest.yml`，GitHub 按原文件名发布，清单引用带版本号的安装包。发布流程与 v5.7.4 相同；发布任务在 GitHub 附件上传成功后结束，多吉云由维护者自行手动同步。
 
-上传多吉云时，维护者自行把同次构建的安装包副本重命名为 `lira-setup.exe`；同时在 `latest.yml` 的上传副本中，将 `files[].url` 和 `path` 对应的安装包文件名改为 `lira-setup.exe`，保留 `version`、`sha512`、`size` 等原有值。GitHub 使用的原文件和原清单保持带版本号。先上传安装包，最后上传匹配的清单副本；整包下载不依赖 blockmap，无需将它上传 CDN。不能只给旧 EXE 改文件名就宣称为新版本。
+上传多吉云时，直接上传同次构建的 `lira-setup-X.Y.Z.exe` 和原始 `latest.yml`，无需重命名安装包，也无需改清单。先上传安装包并确认对应 URL 返回 200，最后覆盖清单；保留 `version`、`files[].url`、`path`、`sha512`、`size` 的原始匹配关系。整包下载不依赖 blockmap，无需将它上传 CDN。新版本验收成功后再清理旧的带版本号安装包，不能先删旧包造成发布窗口内下载中断。旧客户端帮助仍可能引用固定的 `lira-setup.exe`，不要随本次切换删除该兼容文件。
 
-为 `/downloads/latest.yml` 和 `/downloads/lira-setup.exe` 两个固定路径配置不缓存规则，优先于全部文件规则；更换后刷新已有 CDN 缓存。不要混用不同构建的 EXE 和清单，否则摘要校验会阻止安装。字体和图片使用内容版本文件名，仍可长缓存。
+只需为持续覆盖的 `/downloads/latest.yml` 配置 CDN 不缓存规则，优先于全部文件规则，并设置 `Cache-Control: no-store`；修改规则、响应头或覆盖清单后刷新已有 CDN 缓存，包括此前的 404。带版本号的 EXE 发布后不再覆盖，可以正常缓存；`Content-Type` 使用 `application/octet-stream`，`Content-Disposition` 的附件名使用实际带版本号的文件名，不把 EXE 的附件头复制给清单。兼容固定文件如仍原地覆盖，也继续保持不缓存。不要混用不同构建的 EXE 和清单，否则摘要校验会阻止安装。字体和图片的缓存策略保持原有规则。
 
 更新地址修改随下一次客户端构建生效。已经安装或上传的旧 EXE 保留其原来的更新配置；若要切换这些客户端，应先安装包含 CDN feed 配置的新客户端。构建和发布要求见[发布指南](../../RELEASE_GUIDE.md)与[构建参考](../reference/engineering/build.md)。

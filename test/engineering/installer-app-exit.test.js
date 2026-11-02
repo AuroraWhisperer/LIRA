@@ -38,6 +38,7 @@ test(
       'other-directory-prefix',
       'windowless',
       'silent-exit',
+      'visible-update',
       'silent-timeout',
       'failed-process-check',
       'audio-approved',
@@ -73,7 +74,8 @@ test(
         const appFile = path.join(appDirectory, appName);
         const silent = scenario.startsWith('silent-') || scenario.startsWith('audio-silent');
         const legacyAudio = scenario === 'audio-legacy' || scenario === 'audio-silent-timeout';
-        const exitsSilently = scenario === 'silent-exit';
+        const visibleUpdate = scenario === 'visible-update';
+        const exitsSilently = scenario === 'silent-exit' || visibleUpdate;
         let holder;
         let secondHolder;
 
@@ -132,9 +134,11 @@ test(
             'Unicode true',
             'Name "LIRA isolated close test"',
             'RequestExecutionLevel user',
+            '!include LogicLib.nsh',
             `OutFile "${quote(path.join(root, 'installer.exe'))}"`,
             `!addplugindir /x86-unicode "${quote(plugins)}"`,
             '!define VERSION "fixture"',
+            `!define isUpdated "1 = ${visibleUpdate ? '1' : '0'}"`,
             `!define APP_EXECUTABLE_FILENAME "${audio ? 'desktop-' : ''}${appName}"`,
             `!define FIXTURE_APPDATA "${quote(path.join(root, 'roaming'))}"`,
             `!define FIXTURE_TEMP "${quote(root)}"`,
@@ -246,7 +250,7 @@ test(
             installer.once('error', reject);
             installer.once('close', resolve);
           });
-          const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit',
+          const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit', 'visible-update',
             'audio-approved', 'audio-selected-directory', 'audio-silent', 'audio-multiple'].includes(scenario);
           const report = path.join(root, 'LIRA-install-error.txt');
           assert.equal(
@@ -265,13 +269,13 @@ test(
           const responses = fs.existsSync(prompts) ? fs.readFileSync(prompts, 'utf8').trim().split('\r\n') : [];
           assert.deepEqual(
             responses,
-            scenario === 'audio-legacy' ? ['audio-retry'] : silent || unrelated || noApp || checkFails || audio
+            scenario === 'audio-legacy' ? ['audio-retry'] : silent || visibleUpdate || unrelated || noApp || checkFails || audio
               ? []
               : ['approved', 'selected-directory', 'cancelled'].includes(scenario)
                 ? ['confirm']
                 : ['confirm', 'retry'],
           );
-          if (scenario === 'cancelled' || unrelated || noApp || (silent && !audio) || windowless || checkFails || legacyAudio) {
+          if (scenario === 'cancelled' || unrelated || noApp || ((silent || visibleUpdate) && !audio) || windowless || checkFails || legacyAudio) {
             assert.equal(fs.existsSync(requests), false, 'no close request should be sent');
           } else {
             const received = fs.readFileSync(requests, 'utf8').trim().split('\r\n');

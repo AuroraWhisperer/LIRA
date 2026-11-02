@@ -109,6 +109,7 @@ const groups = {
     'engineering/installer-directory',
     'engineering/installer-migration',
     'engineering/installer-uninstall',
+    'engineering/installer-update',
   ],
   contracts: [
     'bots/daily-bot-controller',

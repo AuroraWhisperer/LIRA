@@ -24,8 +24,13 @@ Function ${LIRA_PROCESS_PREFIX}liraEnsureAppExited
     StrCpy $R5 "无法确认 LIRA 是否退出，进程检查返回码：$R0。"
     Return
   liraAppStillRunning:
-    ; Silent updates must let Electron finish its own cleanup.
+    ; Updates must let Electron finish its own cleanup, including visible updates.
     IfSilent liraWaitForExitPoll
+    !ifndef BUILD_UNINSTALLER
+      ${If} ${isUpdated}
+        Goto liraWaitForExitPoll
+      ${EndIf}
+    !endif
     StrCmp $R3 0 0 liraWaitForExitPoll
     MessageBox MB_OKCANCEL|MB_ICONEXCLAMATION "LIRA 正在运行。将自动关闭此安装目录的 LIRA，然后继续${LIRA_PROCESS_ACTION}。$\r$\n$\r$\n播放和直播互动将暂时中断。点击“确定”继续，或点击“取消”稍后处理。" /SD IDCANCEL IDOK liraCloseRunningApp
   liraCancelInstall:

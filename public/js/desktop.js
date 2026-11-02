@@ -424,7 +424,7 @@
   function desktopUpdateHintText(state) {
     if (state.status === 'downloaded') return '退出程序时会安装更新，建议在直播结束后重启。';
     if (state.status === 'dev-disabled') return '开发模式不支持更新，请使用安装版。';
-    if (state.status === 'error') return '可重新检查更新，或打开日志目录查看详情。';
+    if (state.status === 'error') return '可重新检查更新；详细错误见「日志目录」中的 errors/desktop.log。';
     return '';
   }
 
@@ -453,7 +453,7 @@
     return utils.showConfirmationDialog({
       variant: 'caution',
       title: '现在重启并安装更新？',
-      description: '应用会退出并安装已下载的新版本。建议确认直播间暂时不需要操作后再继续。',
+      description: '应用会退出并显示更新安装进度，完成后自动关闭进度窗口并重新启动 LIRA。建议确认直播间暂时不需要操作后再继续。',
       confirmLabel: '重启并安装更新',
       initialFocus: 'cancel',
     });

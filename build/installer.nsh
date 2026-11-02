@@ -20,6 +20,7 @@ ManifestDPIAware true
 !macroend
 
 !macro customInit
+  !insertmacro liraInitUpdateProgress
   Call liraSelectDefaultDirectory
   ; Only inspect this app's key in electron-builder's selected install context.
   ; Its UninstallString is a quoted executable followed by install-mode arguments.
@@ -127,6 +128,9 @@ ManifestDPIAware true
       ${AndIfNot} ${UAC_IsAdmin}
         Goto liraPreservationDeferred
       ${EndIf}
+      SetDetailsPrint textonly
+      DetailPrint "正在等待 LIRA 退出，请稍候…"
+      SetDetailsPrint listonly
       Call liraWaitForAppExit
       SetDetailsPrint textonly
       DetailPrint "正在准备安装 LIRA，请稍候…"

@@ -40,11 +40,14 @@ let updateState = {
 let lastProgressTime = 0;
 let lastTransferred = 0;
 let _onStateChange = null;
+let _writeLog = () => {};
+let lastUpdateError = null;
 
 function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   _onStateChange = onStateChange || null;
   const configuredUpdater = updater || getAutoUpdater();
   const log = typeof writeLog === 'function' ? writeLog : () => {};
+  _writeLog = log;
 
   // electron-builder writes the packaged feed to resources/app-update.yml.
   configuredUpdater.autoDownload = true;
@@ -141,18 +144,18 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
     );
   });
 
-  configuredUpdater.on('error', (error) => {
-    log('update-error', error);
-    const friendly = friendlyUpdateError(error);
-    setUpdateState(
-      {
-        status: friendly.status,
-        message: friendly.message,
-        canDownload: false,
-        canInstall: false,
-      },
-      onStateChange,
-    );
+  configuredUpdater.on('error', handleUpdateError);
+}
+
+function handleUpdateError(error) {
+  if (error !== lastUpdateError) {
+    _writeLog('update-error', error);
+    lastUpdateError = error;
+  }
+  setUpdateState({
+    ...friendlyUpdateError(error),
+    canDownload: false,
+    canInstall: false,
   });
 }
 
@@ -176,20 +179,18 @@ async function checkForUpdates() {
     });
     return updateState;
   }
+  lastUpdateError = null;
   try {
     await getAutoUpdater().checkForUpdates();
   } catch (error) {
-    setUpdateState({
-      ...friendlyUpdateError(error),
-      canDownload: false,
-      canInstall: false,
-    });
+    handleUpdateError(error);
   }
   return updateState;
 }
 
 async function downloadUpdate() {
   if (!app.isPackaged) return checkForUpdates();
+  lastUpdateError = null;
   // 重置下载速度计算
   lastProgressTime = 0;
   lastTransferred = 0;
@@ -203,11 +204,7 @@ async function downloadUpdate() {
   try {
     await getAutoUpdater().downloadUpdate();
   } catch (error) {
-    setUpdateState({
-      ...friendlyUpdateError(error),
-      canDownload: false,
-      canInstall: false,
-    });
+    handleUpdateError(error);
   }
   return updateState;
 }
@@ -233,6 +230,12 @@ function friendlyUpdateError(error) {
       message: '更新清单暂不可用，请稍后再试。',
     };
   }
+  if (/\b404\b/.test(text)) {
+    return {
+      status: 'error',
+      message: '更新包暂不可用（HTTP 404），请稍后重试或反馈发布者。',
+    };
+  }
   if (/checksum mismatch|sha512|sha256|hash mismatch/i.test(text)) {
     return {
       status: 'error',
@@ -245,7 +248,7 @@ function friendlyUpdateError(error) {
       message: '暂时无法连接更新服务，请稍后再试。',
     };
   }
-  return { status: 'error', message: '暂时无法检查更新，详细原因已写入日志。' };
+  return { status: 'error', message: '更新失败，详细原因已写入错误日志。' };
 }
 
 module.exports = {

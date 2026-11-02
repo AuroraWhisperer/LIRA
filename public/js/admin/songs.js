@@ -327,11 +327,10 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
         ${showNoteColumn ? `<td>${escapeHtml(song.note || '')}</td>` : ''}
         <td class="song-actions-cell">
           <div class="song-actions-menu">
-            <button class="song-actions-trigger" type="button" data-song-actions-toggle="${song.id}" title="更多操作" aria-label="展开歌曲操作" aria-haspopup="menu" aria-expanded="false" aria-controls="song-actions-${song.id}">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true" focusable="false">
-                <circle cx="4" cy="10" r="1.5" />
-                <circle cx="10" cy="10" r="1.5" />
-                <circle cx="16" cy="10" r="1.5" />
+            <button class="song-actions-trigger" type="button" data-song-actions-toggle="${song.id}" title="更多操作" aria-label="更多歌曲操作" aria-haspopup="menu" aria-expanded="false" aria-controls="song-actions-${song.id}">
+              <span>更多</span>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+                <path d="m3 4.5 3 3 3-3" />
               </svg>
             </button>
             <div id="song-actions-${song.id}" class="song-actions-list" role="menu" aria-label="歌曲操作" popover="manual" hidden>
