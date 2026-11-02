@@ -1,6 +1,6 @@
 'use strict';
 
-const { execFileSync, spawnSync } = require('node:child_process');
+const { execFile, execFileSync, spawnSync } = require('node:child_process');
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const net = require('node:net');
@@ -64,7 +64,7 @@ async function main() {
   let missing = await findMissingAssets(verifiedDigests);
   let lastPublishError = null;
   for (let attempt = 1; attempt <= MAX_PUBLISH_ATTEMPTS; attempt += 1) {
-    // A changed artifact requires a fresh invocation and validation, never an upload retry.
+    // A changed artifact requires a fresh invocation and validation, never a publish retry.
     for (const [name, digest] of verifiedDigests) {
       if ((await fileDigest(path.join(OUTPUT_DIR, name))) !== digest)
         throw new Error('Verified release artifacts changed before upload.');
@@ -72,27 +72,19 @@ async function main() {
     if (attempt === 1) {
       if (ensureCleanEnoughGitState() !== head) throw new Error('Release source changed during the build.');
       ensureTag(head);
-      ensureGithubRelease();
     }
-    if (missing.length === 0) {
-      log(`All expected assets uploaded: ${EXPECTED_ASSETS.join(', ')}`);
-      return;
-    }
-    log(`Verified artifact upload attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
+    log(`Verified release publication attempt ${attempt}/${MAX_PUBLISH_ATTEMPTS}`);
     try {
-      run('gh', [
-        'release',
-        'upload',
-        TAG,
-        ...missing.map((name) => path.join(OUTPUT_DIR, name)),
-        '--repo',
-        `${OWNER}/${REPO}`,
-        '--clobber',
-      ]);
+      ensureGithubRelease();
+      if (missing.length === 0) {
+        log(`All expected assets uploaded: ${EXPECTED_ASSETS.join(', ')}`);
+        return;
+      }
+      await uploadAssets(missing);
       lastPublishError = null;
     } catch (error) {
       lastPublishError = error;
-      log(`Artifact upload failed: ${error.message}`);
+      log(`Release publication failed: ${error.message}`);
     }
 
     for (const [name, digest] of verifiedDigests) {
@@ -319,6 +311,47 @@ function proxyEnv(baseEnv) {
     HTTP_PROXY: proxyUrl,
     http_proxy: proxyUrl,
   };
+}
+
+async function uploadAssets(names) {
+  const args = ['release', 'upload', TAG, ...names.map((name) => path.join(OUTPUT_DIR, name)),
+    '--repo', `${OWNER}/${REPO}`, '--clobber'];
+  log(`$ gh ${args.join(' ')}`);
+  const env = proxyEnv({ ...process.env, ELECTRON_SKIP_BINARY_DOWNLOAD: '1' });
+  const startedAt = Date.now();
+  let interval;
+  try {
+    const result = await new Promise((resolve) => {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000);
+        log(`Waiting for GitHub upload confirmation (${elapsed}s elapsed): ${names.join(', ')}`);
+      }, 15000);
+      execFile('gh', args, {
+        cwd: ROOT_DIR,
+        encoding: 'buffer',
+        maxBuffer: 64 * 1024 * 1024,
+        shell: false,
+        windowsHide: true,
+        env,
+      }, (error, stdout, stderr) => resolve({
+        error,
+        status: error ? (typeof error.code === 'number' ? error.code : error.status ?? null) : 0,
+        signal: error?.signal,
+        stdout,
+        stderr,
+      }));
+    });
+    checkCommandResult(result, 'gh', env);
+    if (result.stdout?.length) log(result.stdout.toString().trimEnd());
+    if (result.stderr?.length) log(result.stderr.toString().trimEnd());
+  } catch (error) {
+    const sanitized = sanitizeCommandError(error, env);
+    if (sanitized.stdout) log(sanitized.stdout.trimEnd());
+    if (sanitized.stderr) log(sanitized.stderr.trimEnd());
+    throw sanitized;
+  } finally {
+    clearInterval(interval);
+  }
 }
 
 function run(command, args) {

@@ -94,7 +94,22 @@ cached 5.7.5 body with `X-Cache-Lookup: Cache Hit`, while a noCache query return
 5.7.7, also cached. Both lacked `Cache-Control: no-store`. The versioned 5.7.7 EXE
 still returned 404. This establishes inconsistent cached manifest delivery and
 the missing named installer; the historical app logs alone cannot identify its
-exact received remote version. Remaining external acceptance: upload the original
-versioned EXE, disable and refresh manifest caching, deploy the server route, and
-verify live 302/download and the installed client's update. No cloud objects,
-installed apps, branches, commits or deployments were changed.
+exact received remote version. These were the external delivery gaps at that
+time; current acceptance follows below. No cloud objects, installed apps,
+branches, commits or deployments were changed during that investigation.
+
+### 2026-11-03 delivery recheck
+
+The public manifest now returns 5.7.8 with `Cache-Control: no-store`, and both
+installer fields name `lira-setup-5.7.8.exe`. A complete 172,392,634-byte download
+matches the manifest SHA-512 and the published installer. The website download
+entry returns an uncached 302 to that same file. The installed application's
+package metadata is also 5.7.8 and retains the generic CDN feed. The earlier
+missing-file/cache/website deployment observations are historical, not current
+blockers; this recheck did not upload files or deploy the server.
+
+The installed error log confirms a 5.7.7 installer 404 on 2026-11-02 at 22:05
+Asia/Shanghai, followed by a successful 5.7.7 download at 22:09. The current
+installed version alone does not prove whether the later 5.7.8 installation used
+automatic update or a manual installer. Remaining acceptance is an observed
+old-client check/download/install/relaunch cycle; preserve that distinction.

@@ -14,10 +14,17 @@ function fixture(options = {}) {
   const cleaned = [];
   const logs = [];
   const reads = [];
+  const intervals = new Map();
+  const pendingUploads = [];
+  let elapsedMs = 0;
+  let markUploadStarted;
+  const uploadStarted = new Promise((resolve) => { markUploadStarted = resolve; });
   const assetNames = ['setup-1.0.0.exe', 'setup-1.0.0.exe.blockmap', 'latest.yml'];
   const uploaded = new Set(options.existingAssets || []);
   const staleAssets = new Set(options.staleAssetNames || []);
   let uploadAttempts = 0;
+  let createAttempts = 0;
+  let releaseExists = options.releaseMissing !== true;
   let built = false;
   let verified = false;
   const head = 'a'.repeat(40);
@@ -51,6 +58,7 @@ function fixture(options = {}) {
     mkdtempSync() {
       return path.join(__dirname, `../fixture-verify-${commands.length}`);
     },
+    writeFileSync() {},
     rmSync(directory) {
       cleaned.push(directory);
     },
@@ -59,7 +67,9 @@ function fixture(options = {}) {
     commands.push([command, ...args]);
     commandOptions.push({ command, ...executionOptions });
     if (options.childOutput && executionOptions.stdio === 'inherit') logs.push(options.childOutput);
-    if (options.childError && (options.failCommand || 'npx') === command) {
+    const failsCommand = options.failCommand === 'upload'
+      ? command === 'gh' && args[1] === 'upload' : (options.failCommand || 'npx') === command;
+    if (options.childError && failsCommand) {
       if (!executionOptions.stdio) logs.push(options.childError.stderr.toString());
       throw options.childError;
     }
@@ -83,6 +93,14 @@ function fixture(options = {}) {
       built = true;
     }
     if (command === 'gh' && args[0] === 'auth' && options.tokenMissing) return Buffer.from('');
+    if (command === 'gh' && args[0] === 'release' && args[1] === 'view' && !releaseExists)
+      throw new Error('fixture release not found');
+    if (command === 'gh' && args[0] === 'release' && args[1] === 'create') {
+      createAttempts += 1;
+      if (options.createResponseLost) releaseExists = true;
+      if (createAttempts <= (options.createFailures || 0)) throw new Error('fixture release creation EOF');
+      releaseExists = true;
+    }
     if (command === 'gh' && args[1] === 'upload') {
       uploadAttempts += 1;
       const names = args.slice(3, args.indexOf('--repo')).map((filename) => path.basename(filename));
@@ -98,6 +116,7 @@ function fixture(options = {}) {
     }
     if (command === 'gh' && args[0] === 'api') {
       if (options.apiFails) throw new Error('fixture API unavailable');
+      if (!releaseExists) throw new Error('fixture release not found');
       return Buffer.from(
         JSON.stringify({
           assets: assetNames.filter((name) => uploaded.has(name)).map((name) => ({
@@ -126,6 +145,20 @@ function fixture(options = {}) {
     if (name === 'node:child_process')
       return {
         execFileSync,
+        execFile(command, args, executionOptions, callback) {
+          const complete = () => {
+            try {
+              // execFile pipes both outputs into its callback, even without an explicit stdio option.
+              callback(null, execFileSync(command, args, { ...executionOptions, stdio: ['ignore', 'pipe', 'pipe'] }),
+                Buffer.from(options.childOutput ? `synthetic warning ${options.childOutput}` : ''));
+            } catch (error) {
+              callback(error, error.stdout, error.stderr);
+            }
+          };
+          markUploadStarted();
+          if (options.deferUpload) pendingUploads.push(complete);
+          else queueMicrotask(complete);
+        },
         spawnSync(command, args, executionOptions) {
           try {
             return {
@@ -153,6 +186,15 @@ function fixture(options = {}) {
       module,
       __dirname: path.dirname(filename),
       Buffer,
+      Date: { now: () => elapsedMs },
+      setInterval(callback, interval) {
+        const handle = Symbol('interval');
+        intervals.set(handle, { callback, interval, next: elapsedMs + interval });
+        return handle;
+      },
+      clearInterval(handle) {
+        intervals.delete(handle);
+      },
       process: {
         platform: 'win32',
         env: {
@@ -175,7 +217,20 @@ function fixture(options = {}) {
     },
     { filename },
   );
-  return { publisher: module.exports, commands, commandOptions, cleaned, logs, reads };
+  return {
+    publisher: module.exports, commands, commandOptions, cleaned, logs, reads, uploadStarted,
+    activeIntervals: () => intervals.size,
+    completeUpload: () => pendingUploads.shift()(),
+    advanceTime(ms) {
+      elapsedMs += ms;
+      for (const timer of intervals.values()) {
+        if (timer.next <= elapsedMs) {
+          timer.callback();
+          timer.next = elapsedMs + timer.interval;
+        }
+      }
+    },
+  };
 }
 
 test('importing the release script does not build, tag, or publish', async () => {
@@ -274,6 +329,44 @@ test('upload retries never rebuild the already verified artifact set', async () 
   assert.equal(f.commands.filter(([command]) => command === 'npx').length, 1);
   assert.equal(f.commands.filter(([command]) => command === 'verify-installer').length, 1);
   assert.equal(f.commands.filter((entry) => entry[2] === 'upload').length, 3);
+  assert.equal(f.activeIntervals(), 0);
+});
+
+test('pending uploads report elapsed waiting time and stop reporting after completion', async () => {
+  const f = fixture({ deferUpload: true });
+  const running = f.publisher.main();
+  const first = await Promise.race([running.then(() => 'completed'), f.uploadStarted.then(() => 'uploading')]);
+  assert.equal(first, 'uploading');
+  const before = f.logs.length;
+  f.advanceTime(15000);
+  assert.equal(f.logs.length, before + 1);
+  assert.match(f.logs.at(-1), /15s/);
+  assert.match(f.logs.at(-1), /setup-1\.0\.0\.exe/);
+  f.completeUpload();
+  await running;
+  const completed = f.logs.length;
+  f.advanceTime(15000);
+  assert.equal(f.logs.length, completed);
+  assert.equal(f.activeIntervals(), 0);
+});
+
+test('release creation retries reuse verified artifacts and recover a lost creation response', async () => {
+  for (const createResponseLost of [false, true]) {
+    const f = fixture({ releaseMissing: true, createFailures: 1, createResponseLost });
+    await f.publisher.main();
+    assert.equal(f.commands.filter(([command]) => command === 'npx').length, 1);
+    assert.equal(f.commands.filter(([command]) => command === 'verify-installer').length, 1);
+    assert.equal(f.commands.filter((entry) => entry[2] === 'create').length, createResponseLost ? 1 : 2);
+    assert.equal(f.commands.filter((entry) => entry[2] === 'upload').length, 1);
+  }
+});
+
+test('persistent release creation failure stops without uploading or claiming completion', async () => {
+  const f = fixture({ releaseMissing: true, createFailures: Infinity });
+  await assert.rejects(f.publisher.main(), /incomplete/);
+  assert.equal(f.commands.filter((entry) => entry[2] === 'create').length, 3);
+  assert.equal(f.commands.some((entry) => entry[2] === 'upload'), false);
+  assert.equal(f.logs.some((line) => line.includes('All expected assets uploaded')), false);
 });
 
 test('partial upload retries send only assets whose remote content is unconfirmed', async () => {
@@ -373,7 +466,7 @@ test('release proxy logging strips userinfo including username-only and encoded 
   }
 });
 
-for (const command of ['git', 'npm', 'npx']) {
+for (const command of ['git', 'npm', 'npx', 'upload']) {
   test(`release sanitizes ${command} failure output and the final thrown error`, async () => {
     const password = 'syntheticCertPassword';
     const proxy = 'http://syntheticUser:syntheticProxyPassword@proxy.invalid:7890';

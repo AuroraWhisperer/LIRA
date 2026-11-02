@@ -153,7 +153,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 被 `nsis.include` 引用([package.json](../../../package.json)),在标准 NSIS 流程上追加:
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
-- [installer-ui.nsh](../../../build/installer-ui.nsh) 负责安装向导的窗口与各页排版：协议、安装范围、目录和进度页外框为 640 × 400 逻辑像素（16:10），完成页收紧为 560 × 280，按当前 DPI 换算并保持窗口中心。统一使用微软雅黑 UI，正文和按钮为 9pt，普通页标题为 10pt 加粗，版本信息为 8pt；完成页为 15pt 半粗标题，LIRA 图标、正文与启动选项组成紧凑内容区，底部仅显示“完成”，隐藏已禁用的“上一步”和“取消”。目录页继续使用原来的路径选择与更新跳页逻辑，完成页保留“立即启动 LIRA”复选框、需重启时的选项、以普通用户身份启动及 `--updated` 参数的传递。
+- [installer-ui.nsh](../../../build/installer-ui.nsh) 负责安装向导的窗口与各页排版：协议、安装范围、目录和进度页外框为 640 × 480 逻辑像素（4:3），完成页收紧为 480 × 360（4:3），按当前 DPI 换算并保持窗口中心。统一使用微软雅黑 UI，正文和按钮为 9pt，普通页标题为 10pt 加粗，版本信息为 8pt；完成页为 15pt 半粗标题，LIRA 图标、正文与启动选项组成紧凑内容区，底部仅显示“完成”，隐藏已禁用的“上一步”和“取消”。目录页继续使用原来的路径选择与更新跳页逻辑，完成页保留“立即启动 LIRA”复选框、需重启时的选项、以普通用户身份启动及 `--updated` 参数的传递。
 - `customInit`([installer.nsh](../../../build/installer.nsh))初始化更新进度显示、选择默认目录并检查本应用在当前安装上下文中的卸载项；仅在带引号的卸载程序路径明确不存在时删除该项，不遍历其他应用。首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时保留 builder 默认目录；升级沿用本机已有路径，不限制盘符。[installer-directory.nsh](../../../build/installer-directory.nsh) 在安装模式切换后的目录页再次应用默认值，保留 builder 的更新跳页行为。命令行 `/D` 和目录页的显式选择优先。
 - `--updated` 更新由 [installer-ui.nsh](../../../build/installer-ui.nsh) 的 `liraInitUpdateProgress` 将 `/S` 切为可见自动安装：使用原有安装范围跳过选择页，协议与目录沿用 builder 的跳页逻辑，显示原生文件进度和等待退出、备份、安装、恢复等阶段。更新成功自动关闭，完成页 pre 回调仅在 `--force-run` 时通过 builder 的普通用户启动宏打开新版；普通退出自动安装后不重新启动。错误继续显示原有安全停止提示，不进入成功启动。独立 `/S`（不带 `--updated`）和手动安装向导保持原有行为。原生回归：[installer-update.test.js](../../../test/engineering/installer-update.test.js)。
 - 安装向导第一页是「用户协议与隐私说明」：`licensePage`([installer.nsh](../../../build/installer.nsh))占用 builder 的许可页宏，以单选按钮显示 [user-agreement.txt](../../../public/pages/admin/toolbox/user-agreement.txt)。正文分为使用条款和隐私说明。`liraShowAgreement` 隐藏重复的上下提示，将原生 RichEdit 阅读区扩展至同意选项上方，按当前 DPI 测量间距，使用微软雅黑 UI 字体并增加内边距；保留自动换行、原生纵向滚动和键盘阅读。客户端「百宝箱 → 设置 → 用户协议与隐私说明」读取同一静态文件，安装后不复制或另维护第二份协议正文。“我不同意”默认选中，选择同意前“下一步”保持禁用，不同意只能取消安装。builder 在该页前插入 `skipPageIfUpdated`，`--updated` 自动更新跳过此页；`/S` 静默安装不显示向导页。协议文件须保留 UTF-8 BOM，否则 makensis 按系统代码页读取；CRLF 与 LF 换行显示一致。不要设置 `nsis.license`，也不要在 `build/` 放 `license*` / `eula*` 文件，否则 builder 会再生成一个 `licensePage` 宏；[静态测试](../../../test/engineering/installer-static.test.js)检查这些约束。
@@ -172,9 +172,9 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 3. 只构建一次：`electron-builder --win nsis --x64 --publish never --config scripts/release-builder-config.js --config.electronDist=node_modules/electron/dist`。发布专用配置继承 package.json 的 build，仅将 `artifactBuildCompleted` 设为 null，由发布入口接管最终资源验证。普通 `dist:win` / `dist:win:local` 继续使用原钩子。构建失败直接停止，不根据旧附件判定成功。
 4. `afterPack` 删除 default_app.asar，先验证实际 app.asar 的生产依赖链，再按构建上下文版本/平台/架构生成资源清单；发生签名时 `afterSign` 重算最终资源。无签名构建不依赖 afterSign。
 5. 发布入口记录 exe、exe.blockmap、latest.yml 的 SHA-256，完整校验最终 NSIS exe 一次。随后复核全部文件摘要，确保产物未变；验证失败或产物改变不创建新标签、Release 或上传附件。
-6. 构建/验证后再次核验工作区、HEAD 和标签；只有一致才创建并推送标签，随后创建或复用 GitHub Release。标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
+6. 构建/验证后再次核验工作区、HEAD 和标签；只有一致才创建并推送标签，随后在发布重试流程中创建或复用 GitHub Release。每轮先查询 Release，创建请求失败或响应丢失后可在下一轮复用已创建的 Release。标题使用当前版本，正文来自 UPDATE.md 的对应版本小节，经临时 notes 文件传入。
 7. 首次上传前及每轮上传后核对远端名称、字节数和已验证的 SHA-256；远端无摘要时下载至独立临时目录计算并清理。本地对比复用固定摘要，上传前后仍复核全部本地文件，变化立即中止。
-8. 最多三次调用 `gh release upload --clobber`，仅上传缺失或未确认一致的附件。命令失败也核对已完成的附件；若远端全部一致可恢复成功，否则只补传剩余附件。无法确认的附件不得判成功，重试耗尽报错；重试不重新构建。
+8. 创建/复用 Release 与 `gh release upload --clobber` 共用最多三轮发布恢复，仅上传缺失或未确认一致的附件。命令失败也核对已完成的附件；若远端全部一致可恢复成功，否则只补传剩余附件。无法确认的附件不得判成功，重试耗尽报错；重试不重新构建。上传使用异步子进程，等待期间每 15 秒报告耗时和待确认文件，不推测字节进度；完成或失败均清理计时器，并保留输出脱敏。
 
 ```mermaid
 flowchart LR
@@ -187,7 +187,7 @@ flowchart LR
   F -->|普通 dist| G[artifactBuildCompleted: 验证安装器资源]
   F -->|release:win| H[固定摘要 / 完整验证安装器一次]
   H --> I[复核文件与 Git 状态 / 推送标签]
-  I --> J[按附件上传重试 / 本地与远端摘要核验]
+  I --> J[创建与上传重试 / 本地与远端摘要核验]
 ```
 
 资源摘要证明应用文件与随包清单一致；发布者签名验证是独立保证。`afterSign` hook 存在不代表正式证书配置或签名安装验收已完成，当前签名状态仍见 §12。

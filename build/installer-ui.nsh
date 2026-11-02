@@ -116,7 +116,7 @@ Var liraUiFinishIcon
     System::Call 'user32::GetDpiForWindow(p $HWNDPARENT) i .r0'
     StrCpy $liraUiDpi $0
     StrCpy $liraUiWidth 640
-    StrCpy $liraUiHeight 400
+    StrCpy $liraUiHeight 480
     Call liraResizeInstaller
 
     IntOp $0 $liraUiWidth - 100
@@ -229,8 +229,8 @@ Var liraUiFinishIcon
 
   Function liraShowInstallFinish
     System::Store "S"
-    StrCpy $liraUiWidth 560
-    StrCpy $liraUiHeight 280
+    StrCpy $liraUiWidth 480
+    StrCpy $liraUiHeight 360
     Call liraResizeInstaller
     Call liraLayoutInstallerFooter
     GetDlgItem $0 $HWNDPARENT 3

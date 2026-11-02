@@ -8,8 +8,8 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
-| [2026-11-02-update-install-progress](2026-11-02-update-install-progress.md) | Awaiting Verification | 原生进度、自动关闭和启动意图已实现；隔离进度/布局、受控退出及数据保护回归通过，待重建安装包后的旧版客户端真实升级验收。 |
-| [2026-11-02-client-download-manifest](2026-11-02-client-download-manifest.md) | Awaiting Verification | 官网固定入口、桌面帮助及原名包流程已实现；19 项 Node、28 项首页浏览器、双端文档门禁通过。线上清单仍有 5.7.5/5.7.7 缓存分歧，带版本号 5.7.7 EXE 为 404；待上传、刷新清单缓存与服务器部署验收。 |
+| [2026-11-02-update-install-progress](2026-11-02-update-install-progress.md) | Awaiting Verification | 5.7.8 正式安装包已构建并通过完整资源验包，原生进度、自动关闭、启动意图与数据保护回归通过；旧版客户端触发真实升级的端到端验收待补。 |
+| [2026-11-02-client-download-manifest](2026-11-02-client-download-manifest.md) | Awaiting Verification | 2026-11-03 已核实线上 5.7.8 清单禁止缓存、原名安装包完整下载及 SHA-512 匹配、官网 302 正确，本机安装目录为 5.7.8；旧版客户端自动更新端到端验收待补。 |
 | [2026-11-02-cdn-client-resources](2026-11-02-cdn-client-resources.md) | Awaiting Verification | CDN 17 个包及 60 个资源完整下载校验通过，安装包 255,567,366 字节与本机 5.7.4 摘要一致；内置更新源已切到 CDN，51 项聚焦检查与语法/文档/架构门禁通过。更新清单已上传，真实 Electron 更新器读取 5.7.4 及匹配摘要通过；待重新构建客户端使更新源切换进入安装包。 |
 | [2026-10-31-test-correctness-remediation](2026-10-31-test-correctness-remediation.md) | In Progress | 核对双端测试的规范、预期、夹具、异步隔离和分组，修正确认问题并验证；不以放宽断言获得全绿。 |
 | [2026-10-27-song-request-cancel-switch](2026-10-27-song-request-cancel-switch.md) | Awaiting Verification | 开关、默认值、持久化、隔离 Electron 与 116 项相关测试通过，Server 文档 57 项通过；2026-10-28 Live 文档门禁 10/10 通过，原 RIPPLOID 状态阻断已消失。跨设备同步的配套 Server 部署与真实环境验收待核。 |

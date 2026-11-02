@@ -67,7 +67,7 @@ https://assets.lirahub.cn/resources/manifest.json
 ```text
 lirahub/
 ├─ downloads/
-│  ├─ lira-setup-5.7.8.exe
+│  ├─ lira-setup-6.0.0.exe
 │  └─ latest.yml
 └─ resources/
    ├─ fonts/
