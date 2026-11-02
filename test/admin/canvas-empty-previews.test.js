@@ -242,7 +242,7 @@ test('imported danmaku renews samples after CSS exit animations without leaking 
     const config = { cssStyle: { id: '12345678-1234-4234-8234-123456789abc', src, engine, width: 480, height: 640 } };
     const frame = await openSurface(page, fixture, { type: 'danmaku', config, url: '/imported-danmaku?componentPreview=1' });
     const selector = engine === 'blc' ? '.danmaku-item' : '#items > *';
-    const sampleCount = createDanmakuPreviewItems().length;
+    const sampleCount = createDanmakuPreviewItems().length + 1;
     await frame.waitForFunction(({ selector, sampleCount }) => document.querySelectorAll(selector).length === sampleCount &&
       [...document.querySelectorAll(selector)].every(node => getComputedStyle(node).opacity === '0'), { selector, sampleCount });
     await frame.waitForFunction(({ selector, sampleCount }) => document.querySelectorAll(selector).length > sampleCount &&

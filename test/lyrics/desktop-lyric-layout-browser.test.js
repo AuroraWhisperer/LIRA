@@ -193,3 +193,96 @@ test('karaoke colors update both modes independently and restore each style when
   assert.equal(await page.locator('.desktop-lyric-preview-row.is-active .desktop-lyric-preview-row-text')
     .evaluate(element => getComputedStyle(element).color), 'rgb(18, 52, 86)');
 });
+
+test('long interludes use the finished line without moving the next lyric in limited-line modes', async t => {
+  const page = await openRenderer(t);
+  await page.setViewportSize({ width: 960, height: 360 });
+  await page.evaluate(() => {
+    const text = '上一句已经唱完';
+    window.testLyricRenderer.applySettings({ desktopLyricVisibleLines: '2', desktopLyricHideOnPause: 'false' });
+    window.testLyricRenderer.updateLyricTimeline({ status: 'ready', lines: [
+      { startMs: 0, endMs: 12000, text, words: [{ text, startMs: 0, endMs: 3000 }] },
+      { startMs: 12000, endMs: 15000, text: '下一句准备开始' },
+    ] });
+  });
+  const seek = currentMs => page.evaluate(currentMs => {
+    window.testLyricRenderer.updateLyricState({ currentMs, durationMs: 20000, status: 'ready', playing: false,
+      generation: 1, sequence: ++window.testLyricSequence, discontinuity: true });
+  }, currentMs);
+  const nextRow = page.locator('[data-lyric-index="1"]');
+  const countdown = page.locator('.desktop-lyric-preview-countdown');
+  await seek(8000);
+  await page.evaluate(async () => { await document.fonts.ready; await new Promise(requestAnimationFrame); });
+  const before = await nextRow.boundingBox();
+  await seek(9000);
+  assert.equal(await countdown.isVisible(), true);
+  assert.equal(await countdown.locator('..').getAttribute('data-lyric-index'), '0');
+  assert.equal(await page.locator('.desktop-lyric-preview-row:visible').count(), 2);
+  assert.ok(Math.abs((await nextRow.boundingBox()).y - before.y) < 1, 'the upcoming lyric must not jump when dots appear');
+  assert.equal(await page.locator('[data-lyric-index="0"] .desktop-lyric-preview-row-text').isVisible(), false);
+
+  await seek(4000);
+  assert.equal(await countdown.isVisible(), false);
+  assert.equal(await page.locator('[data-lyric-index="0"] .desktop-lyric-preview-row-text').isVisible(), true);
+  await page.evaluate(() => window.testLyricRenderer.applySettings({ desktopLyricVisibleLines: '1' }));
+  await seek(9500);
+  assert.equal(await countdown.isVisible(), true);
+  assert.equal(await page.locator('.desktop-lyric-preview-row:visible').count(), 1);
+  await seek(12000);
+  assert.equal(await countdown.isVisible(), false);
+  assert.equal(await page.locator('.desktop-lyric-preview-row.is-interlude').count(), 0);
+
+  await page.evaluate(() => window.testLyricRenderer.applySettings({ desktopLyricVisibleLines: '0' }));
+  await seek(9000);
+  assert.equal(await countdown.locator('..').getAttribute('id'), 'desktopLyricPreviewTimeline');
+  assert.equal(await countdown.isVisible(), true);
+  assert.equal(await countdown.count(), 1);
+});
+
+test('single and freshly laid out long lyrics follow the selected vertical anchor', async t => {
+  const page = await openRenderer(t);
+  await page.setViewportSize({ width: 960, height: 540 });
+  const text = '这一刻让所有温柔的歌声陪着你穿过漫长夜晚';
+  for (const desktopLyricVisibleLines of ['1', '0']) {
+    await render(page, text, [...text], { desktopLyricVisibleLines, desktopLyricTextAlign: 'center',
+      desktopLyricFontSize: '48', desktopLyricAlignPosition: '0.5' });
+    await page.waitForFunction(() => {
+      const viewport = document.getElementById('desktopLyricPreviewViewport').getBoundingClientRect();
+      const row = document.querySelector('.desktop-lyric-preview-row.is-active').getBoundingClientRect();
+      return Math.abs(row.top + row.height / 2 - viewport.top - viewport.height / 2) < 1;
+    }, null, { timeout: 3000 });
+  }
+});
+
+test('preview backgrounds contrast with the selected text while the output stays transparent', async t => {
+  const page = await openRenderer(t);
+  for (const color of ['#000000', '#ffffff']) {
+    await page.evaluate(color => window.testLyricRenderer.applySettings({ desktopLyricTextColor: color }), color);
+    assert.equal(await page.locator('#desktopLyricPreviewStage').evaluate(element => getComputedStyle(element).backgroundColor),
+      'rgba(0, 0, 0, 0)');
+  }
+  await page.evaluate(() => {
+    document.getElementById('desktopLyricSurface').classList.remove('lyric-window-card');
+    document.getElementById('desktopLyricPreviewStage').classList.remove('lyric-window-stage');
+  });
+  const luminance = rgb => {
+    const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map(value => {
+      const channel = value / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  for (const [color, foreground] of [['#000000', 0], ['#ffffff', 1]]) {
+    for (const solid of [false, true]) {
+      const background = await page.evaluate(({ color, solid }) => {
+        window.testLyricRenderer.applySettings({ desktopLyricTextColor: color });
+        const stage = document.getElementById('desktopLyricPreviewStage');
+        stage.classList.toggle('is-solid', solid);
+        return getComputedStyle(stage).backgroundColor;
+      }, { color, solid });
+      const light = luminance(background);
+      assert.ok((Math.max(light, foreground) + 0.05) / (Math.min(light, foreground) + 0.05) > 7,
+        `${color} lyrics must remain readable on the ${solid ? 'solid' : 'checker'} preview`);
+    }
+  }
+});

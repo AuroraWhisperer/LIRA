@@ -160,7 +160,7 @@
   border-radius: inherit;
   background: transparent;
   text-align: left;
-  cursor: grab;
+  cursor: default;
   touch-action: none;
   user-select: none;
 }

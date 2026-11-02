@@ -612,4 +612,4 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 [src/fonts/font-library.js](../../../src/fonts/font-library.js) 保留旧 `data/cache/fonts/` 的只读兼容，路径由 `resolveDataPaths().fontsDir` 计算。文件名为 `<SHA-256>.ttf` 或 `.woff2`；旧 `index.json` 为 `{version:1,fonts:{<id>:{sha256,format}}}`。已缓存字体在新版公共资源下载期间仍可通过旧字体 ID 路由使用；正常桌面启动由上述公共资源 owner 统一检查和下载，不再写入第二份字体缓存。
 
-旧独立字体适配器仍供开发和兼容调用使用，保留固定来源修复及临时文件原子写入规则；它不承担当前桌面的 CDN 资源同步。字体来源、体积与首次联网要求见[字体说明](../../../public/fonts/README.md)。
+旧独立字体适配器仍供开发和兼容调用使用，保留固定来源修复及临时文件原子写入规则；缓存或索引替换遇到 `EPERM` / `EBUSY` 时，只对同一临时文件最多重试四次，累计等待 500 ms，不重新下载，持续失败保留已提交文件并清理临时文件。它不承担当前桌面的 CDN 资源同步。字体来源、体积与首次联网要求见[字体说明](../../../public/fonts/README.md)。

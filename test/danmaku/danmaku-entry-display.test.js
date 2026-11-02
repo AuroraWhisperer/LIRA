@@ -34,25 +34,41 @@ test('scene room identity comes only from authorized room state and clears while
   assert.deepEqual(rooms, ['123', '']);
 });
 
-test('entry events cross the display buffer only within the active session and opt in per component', () => {
+test('welcome echoes cross the display buffer and opt in per component without hiding ordinary chat', () => {
   const buffer = createCloudDisplayBuffer({ getOwner: () => ({ scope: 'tenant', epoch: 1 }) });
   const envelope = { ownerScope: 'tenant', authorizationEpoch: 1, connectionEpoch: 'connection', status: 'connected' };
   buffer.receive({ ...envelope, status: 'connecting' });
   buffer.receive({ ...envelope, event: { type: 'overlay-state', style: 'signal', liveStatus: 1, state: 'running',
     liveSessionId: 'session', confirmationMessage: '开始' } });
   const cursor = buffer.getSnapshot();
-  const event = { type: 'entry', name: '新观众', guardLevel: 3, liveSessionId: 'session', timestamp: new Date().toISOString(), uid: 'private' };
+  const event = { type: 'danmaku', name: '欢迎机器人', message: '欢迎 新观众 来到直播间～', isWelcome: true,
+    liveSessionId: 'session', timestamp: new Date().toISOString(), uid: 'private' };
   assert.equal(buffer.receive({ ...envelope, event: { ...event, liveSessionId: 'old' } }), false);
   assert.equal(buffer.receive({ ...envelope, event }), true);
+  for (const other of [
+    { ...event, isWelcome: false, name: '普通观众' },
+    { type: 'gift', giftName: '花', giftCount: 2 },
+    { type: 'superchat', message: 'SC', price: 30 },
+    { type: 'entry', name: '原始进房提示', guardLevel: 3 },
+  ]) buffer.receive({ ...envelope, event: { ...other, liveSessionId: 'session' } });
   const snapshot = buffer.getSnapshot({ epoch: cursor.epoch, cursor: cursor.nextCursor });
-  assert.equal(snapshot.events.length, 1);
+  assert.equal(snapshot.events.length, 5);
   assert.equal(snapshot.events[0].uid, undefined);
-  for (const enabled of [false, true]) {
+  assert.equal(snapshot.events[0].isWelcome, true);
+  for (const enabled of [undefined, false, true]) {
     const items = [];
+    let visible = enabled;
     const display = createSceneDanmakuDisplay({ clear: () => { items.length = 0; }, append: item => items.push(item),
-      status() {}, getStyle: () => 'signal', showEntryMessages: () => enabled });
+      status() {}, getStyle: () => 'signal', showWelcomeMessages: enabled === undefined ? undefined : () => visible });
     display.update(snapshot);
-    assert.equal(items.filter(item => item.kind === 'entry').length, Number(enabled));
+    assert.equal(items.filter(item => item.isWelcome).length, Number(enabled !== false));
+    assert.equal(items.some(item => item.kind === 'entry'), false);
+    assert.deepEqual(items.filter(item => !item.isWelcome).map(item => item.kind), ['system', 'danmaku', 'gift', 'superchat']);
+    if (enabled !== undefined) {
+      visible = !enabled;
+      display.update({ ...snapshot, events: [event] });
+      assert.equal(items.filter(item => item.isWelcome).length, 1, 'subsequent echoes use the current toggle');
+    }
   }
   assert.deepEqual(buffer.getSnapshot().events, [], 'new viewers do not replay buffered entrances');
 });
@@ -110,12 +126,12 @@ test('scene SC deletion targets only current-session SC without replaying confir
     clear() { items = []; clears += 1; },
     append(item) { items.push(item); },
     remove(ids) { items = items.filter(item => item.kind !== 'superchat' || !ids.includes(item.messageId)); },
-    status() {}, getStyle: () => 'signal', showEntryMessages: () => true,
+    status() {}, getStyle: () => 'signal', showWelcomeMessages: () => true,
   });
   const snapshot = { status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播' } };
   display.update({ ...snapshot, events: [
     { type: 'danmaku', liveSessionId: 'live', message: '聊天' },
-    { type: 'entry', liveSessionId: 'live', name: '新观众' },
+    { type: 'danmaku', liveSessionId: 'live', name: '机器人', message: '欢迎新观众', isWelcome: true },
     { type: 'superchat', liveSessionId: 'live', message: '撤下', messageId },
     { type: 'superchat', liveSessionId: 'live', message: '旧服务端没有 ID' },
   ] });
@@ -128,8 +144,9 @@ test('scene SC deletion targets only current-session SC without replaying confir
   assert.equal(clears, 1);
 });
 
-test('both imported CSS chat engines remove only matching SC DOM nodes', async () => {
-  for (const engine of ['blc', 'blivechat']) {
+test('both imported CSS chat engines apply welcome visibility and remove only matching SC DOM nodes', async () => {
+  for (const [engine, enabled] of [['blc', undefined], ['blc', false], ['blc', true],
+    ['blivechat', undefined], ['blivechat', false], ['blivechat', true]]) {
     const createNode = (tag) => {
       const node = new FakeNode(tag);
       Object.defineProperty(node, 'parentElement', { get: () => node.parent });
@@ -150,16 +167,20 @@ test('both imported CSS chat engines remove only matching SC DOM nodes', async (
       clearTimeout() {},
     });
     const send = data => listeners.get('message')({ source: window.parent, origin: 'http://127.0.0.1:3000', data });
-    await send({ type: 'component-preview:init', config: { cssStyle: { engine } } });
+    const id = '12345678-1234-1234-1234-123456789abc';
+    await send({ type: 'component-preview:init', config: { cssStyle: { engine, id },
+      ...(enabled === undefined ? {} : { styleParameters: { [`css:${id}`]: { showEntryMessages: enabled } } }) } });
     const messageId = 'a'.repeat(64);
     const snapshot = { status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播' } };
     await send({ type: 'component-preview:data', data: { ...snapshot, events: [
       { type: 'danmaku', liveSessionId: 'live', message: '聊天' },
+      { type: 'danmaku', liveSessionId: 'live', name: '机器人', message: '欢迎新观众', isWelcome: true },
+      { type: 'entry', liveSessionId: 'live', name: '原始进房提示' },
       { type: 'superchat', liveSessionId: 'live', message: '撤下', messageId, price: 30 },
       { type: 'superchat', liveSessionId: 'live', message: '旧服务器 SC', price: 30 },
     ] } });
     const items = allNodes(host).find(node => node.className === 'danmaku-list' || node.id === 'items');
-    assert.equal(items.children.length, 4, engine);
+    assert.equal(items.children.length, 4 + Number(enabled !== false), engine);
     const retained = items.children.filter(node => node.dataset.superchatMessageId !== messageId);
     const deletion = { type: 'superchat-delete', liveSessionId: 'live', messageIds: [messageId] };
     await send({ type: 'component-preview:data', data: { ...snapshot, events: [deletion, deletion] } });

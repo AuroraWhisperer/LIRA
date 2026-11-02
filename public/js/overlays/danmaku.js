@@ -1,6 +1,6 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
-import { createDanmakuPreviewItems, DANMAKU_PREVIEW_ENTRY, DANMAKU_PREVIEW_GIFT_IMAGES } from './danmaku-preview-samples.js';
+import { createDanmakuPreviewItems, DANMAKU_PREVIEW_WELCOME, DANMAKU_PREVIEW_GIFT_IMAGES } from './danmaku-preview-samples.js';
 import { createComponentStyleEffects } from './component-style-effects.js';
 import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true);
         configureEffects(config);
       },
-      showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true,
+      showWelcomeMessages: () => styleParametersFor(effectConfig).showEntryMessages !== false,
       clear: () => applyItems([]), append: appendItem, remove: removeSuperChats, status: setConnectionState, getStyle: () => currentOverlayStyle,
       room: syncTwitterProfile,
       dispose() {
@@ -94,7 +94,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let sampleContentKey = '';
     let playNext;
     const sceneDisplay = createSceneDanmakuDisplay({ clear: () => applyItems([]), append: appendItem, remove: removeSuperChats,
-      status: setConnectionState, getStyle: () => currentOverlayStyle, room: syncTwitterProfile, showEntryMessages: () => styleParametersFor(effectConfig).showEntryMessages === true });
+      status: setConnectionState, getStyle: () => currentOverlayStyle, room: syncTwitterProfile, showWelcomeMessages: () => styleParametersFor(effectConfig).showEntryMessages !== false });
     initDanmakuPreview({
       initialStyle: params.get('style'),
       styleOptions: previewOptions,
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const appearance = styleOptionsFor(style, options, duration);
         const nextContentKey = JSON.stringify([style, appearance.giftImage, appearance.minGiftAmount,
           appearance.scrollDirection, appearance.durationSeconds,
-          styleParametersFor(config).showEntryMessages === true]);
+          styleParametersFor(config).showEntryMessages !== false]);
         if (!restart && playNext && sampleContentKey === nextContentKey) {
           applyConfiguration(style, duration, options);
           configureEffects(config);
@@ -119,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         sampleContentKey = nextContentKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
           style === 'mist' || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
-        if (styleParametersFor(config).showEntryMessages) samples.push({ ...DANMAKU_PREVIEW_ENTRY });
+        if (styleParametersFor(config).showEntryMessages !== false) samples.push({ ...DANMAKU_PREVIEW_WELCOME });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
         configureEffects(config);

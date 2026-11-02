@@ -3,6 +3,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
+const { setTimeout: delay } = require('node:timers/promises');
 const { resolveDataPaths } = require('../shared/data-paths');
 const { downloadFont, sha256, isFont } = require('./font-download');
 const catalog = require('./catalog.json');
@@ -173,7 +174,13 @@ async function atomicWrite(filename, bytes) {
   const temporary = `${filename}.${crypto.randomUUID()}.tmp`;
   try {
     await fs.promises.writeFile(temporary, bytes, { flag: 'wx' });
-    await fs.promises.rename(temporary, filename);
+    for (let attempt = 0; ; attempt++) {
+      try { await fs.promises.rename(temporary, filename); break; }
+      catch (error) {
+        if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
+        await delay(50 * (attempt + 1));
+      }
+    }
   } finally {
     await fs.promises.rm(temporary, { force: true });
   }

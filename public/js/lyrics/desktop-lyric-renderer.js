@@ -52,6 +52,7 @@ let timelineElement = null;
 let viewport = null;
 let countdownElement = null;
 let countdownSignature = '';
+let countdownRow = null;
 let rowElements = [];
 let activeIndex = -1;
 let activeWordIndex = -1;
@@ -129,6 +130,12 @@ function init() {
   });
   window.addEventListener('resize', followActiveLyric);
   document.fonts?.addEventListener?.('loadingdone', followActiveLyric);
+  if (typeof ResizeObserver === 'function') {
+    // Auto-sized rows and the desktop preview can settle after the first layout pass.
+    const layoutObserver = new ResizeObserver(followActiveLyric);
+    layoutObserver.observe(viewport);
+    layoutObserver.observe(timelineElement);
+  }
   return true;
 }
 
@@ -177,6 +184,7 @@ function renderTimeline() {
   rowElements = [];
   countdownElement = null;
   countdownSignature = '';
+  countdownRow = null;
   activeIndex = -1;
   stopFollowAnimation();
   followPosition = viewport?.scrollTop || 0;
@@ -184,6 +192,8 @@ function renderTimeline() {
   resetActiveWords();
 
   if (!latestTimeline.lines.length) {
+    timelineElement.style.paddingBlockStart = '';
+    timelineElement.style.paddingBlockEnd = '';
     const empty = document.createElement('div');
     empty.className = 'desktop-lyric-preview-empty';
     empty.textContent = timelineFallback(latestTimeline, currentDisplaySettings);
@@ -352,16 +362,25 @@ function applyVisibleLineWindow() {
 function updateCountdown(currentMs) {
   if (!countdownElement || !timelineElement) return;
   const countdown = getLyricCountdown(latestTimeline.lines, activeIndex, currentMs);
-  const signature = countdown ? `${countdown.nextIndex}:${countdown.seconds}` : '';
+  const signature = countdown ? `${countdown.nextIndex}:${countdown.seconds}:${currentDisplaySettings.visibleLines}` : '';
   if (signature === countdownSignature) return;
   countdownSignature = signature;
+  const targetRow = countdown && currentDisplaySettings.visibleLines > 0 ? rowElements[activeIndex] : null;
+  if (countdownRow !== targetRow) {
+    countdownRow?.classList.remove('is-interlude');
+    countdownRow = targetRow;
+    if (countdownRow) {
+      countdownRow.appendChild(countdownElement);
+      countdownRow.classList.add('is-interlude');
+    }
+  }
   if (!countdown) {
     countdownElement.hidden = true;
     return;
   }
 
   const nextRow = rowElements[countdown.nextIndex];
-  if (nextRow && countdownElement.nextElementSibling !== nextRow) {
+  if (!countdownRow && nextRow && countdownElement.nextElementSibling !== nextRow) {
     timelineElement.insertBefore(countdownElement, nextRow);
   }
   countdownElement.hidden = false;
@@ -371,12 +390,15 @@ function updateCountdown(currentMs) {
     dot.classList.toggle('is-active', index === activeDot);
     dot.classList.toggle('is-elapsed', index < activeDot);
   });
+  if (activeIndex < 0) followActiveLyric();
 }
 
 function followActiveLyric() {
-  if (renderer?.isVisible() === false || activeIndex < 0 || Date.now() < manualFollowUntil) return;
-  const activeRow = rowElements[activeIndex];
+  if (renderer?.isVisible() === false || Date.now() < manualFollowUntil) return;
+  const activeRow = rowElements[activeIndex] || (countdownElement?.hidden === false ? countdownElement : null);
   if (!activeRow || !viewport || viewport.clientHeight <= 0) return;
+  timelineElement.style.paddingBlockStart = `${viewport.clientHeight * currentDisplaySettings.alignPosition}px`;
+  timelineElement.style.paddingBlockEnd = `${viewport.clientHeight * (1 - currentDisplaySettings.alignPosition)}px`;
   followTarget = calculateFollowTarget(
     activeRow.offsetTop,
     activeRow.offsetHeight,

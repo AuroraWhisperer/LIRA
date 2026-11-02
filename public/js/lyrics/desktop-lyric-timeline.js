@@ -53,8 +53,15 @@ export function getLyricCountdown(lines, currentIndex, currentMs) {
   const nextLine = lines[nextIndex];
   if (!nextLine) return null;
   const nextStartMs = finiteNumber(nextLine.startMs, 0);
-  const previousStartMs = currentIndex >= 0 ? finiteNumber(lines[currentIndex]?.startMs, 0) : 0;
-  const gapMs = nextStartMs - previousStartMs;
+  const previousLine = lines[currentIndex];
+  const previousStartMs = finiteNumber(previousLine?.startMs, 0);
+  const wordEndMs = Array.isArray(previousLine?.words) ? previousLine.words.reduce((endMs, word) =>
+    String(word.text || '').trim() ? Math.max(endMs, finiteNumber(word.endMs, 0)) : endMs, 0) : 0;
+  // LRC often borrows the next line's start as its end; supplied word timing is more precise.
+  const previousEndMs = currentIndex < 0 ? 0
+    : wordEndMs > previousStartMs ? wordEndMs : finiteNumber(previousLine?.endMs, previousStartMs);
+  if (currentIndex >= 0 && previousEndMs <= previousStartMs) return null;
+  const gapMs = nextStartMs - previousEndMs;
   const remainingMs = nextStartMs - Math.max(0, finiteNumber(currentMs, 0));
   if (gapMs < COUNTDOWN_MIN_GAP_MS || remainingMs <= 0 || remainingMs > COUNTDOWN_WINDOW_MS) {
     return null;

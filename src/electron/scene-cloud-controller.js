@@ -375,6 +375,10 @@ function displayEvent(value) {
     return result;
   }
   result.guardLevel = integer(value.guardLevel, 0, 3);
+  if (value.isWelcome !== undefined) {
+    requireValid(typeof value.isWelcome === 'boolean');
+    result.isWelcome = value.isWelcome;
+  }
   result.medalName = text(value.medalName, 32, 0);
   result.medalLevel = integer(value.medalLevel, 0);
   if (value.honorLevel !== undefined) result.honorLevel = integer(value.honorLevel, 1);

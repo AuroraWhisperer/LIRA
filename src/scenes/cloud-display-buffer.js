@@ -19,6 +19,7 @@ function displayEvent(event) {
     Object.assign(result, pick(event, 'price messageId'));
     if (event.colors && typeof event.colors === 'object') result.colors = pick(event.colors, 'backgroundColor accentColor priceColor');
   } else {
+    if (typeof event.isWelcome === 'boolean') result.isWelcome = event.isWelcome;
     Object.assign(result, pick(event, 'guardLevel medalName medalLevel isStreamer honorLevel roomGuardLevel'));
     if (event.roomMedal && typeof event.roomMedal === 'object' && !Array.isArray(event.roomMedal)) {
       result.roomMedal = pick(event.roomMedal, 'name level guardLevel isLight colorStart colorEnd colorBorder colorText');

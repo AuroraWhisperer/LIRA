@@ -51,8 +51,8 @@ const VIEWER_NAMES = {
   everyday: ['阿哲', '想吃火锅不想洗碗', '摸鱼小王_233', 'bili_804672193', '下班以后只想窝在沙发上听两首老歌', 'LateNightFM_2026'],
 };
 
-export const DANMAKU_PREVIEW_ENTRY = Object.freeze({
-  id: 'preview-entry', kind: 'entry', name: '路过的咸鱼_07', message: '进入了直播间',
+export const DANMAKU_PREVIEW_WELCOME = Object.freeze({
+  id: 'preview-welcome', kind: 'danmaku', name: 'LIRA 机器人', message: '欢迎 路过的咸鱼_07 来到直播间～', isWelcome: true,
 });
 
 // Amounts are synthetic RMB totals for layout coverage, not a current price list.

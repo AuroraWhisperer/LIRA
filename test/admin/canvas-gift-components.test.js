@@ -198,7 +198,10 @@ test('gift settings open separate canvas layers that save, preview and receive o
   assert.equal(await guardPreview.locator('.gt-name').textContent(), '星河旅人');
   assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), beforeGuardPreview,
     'previewing a guard tier, viewer and month count does not edit the scene');
+  const textModeSaved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/component-preview/appearance'
+    && response.request().postDataJSON()?.patch?.textMode === 'en' && response.status() === 200);
   await page.locator('[data-component-parameter="textMode"]').selectOption('en');
+  await textModeSaved;
   await guardPreview.locator('.gt-card[data-tier="governor"][data-lang="en"]').waitFor();
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).fill('640');
   await page.getByRole('spinbutton', { name: '宽度', exact: true }).press('Tab');

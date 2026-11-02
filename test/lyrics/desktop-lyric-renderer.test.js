@@ -241,7 +241,7 @@ test('continuous karaoke line changes preserve every past lyric as plain text', 
 test('desktop lyric timeline identifies active lines and countdowns for long gaps', async () => {
   const preview = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-renderer.js'));
   const lines = [
-    { startMs: 0, text: '出品：骁Studio' },
+    { startMs: 0, endMs: 2000, text: '出品：骁Studio' },
     { startMs: 9000, text: '请原谅我的词穷' },
     { startMs: 12000, text: '再见都哽在喉咙' },
   ];
@@ -252,6 +252,35 @@ test('desktop lyric timeline identifies active lines and countdowns for long gap
   assert.deepEqual({ ...preview.getLyricCountdown(lines, 0, 7200) }, { nextIndex: 1, seconds: 2 });
   assert.equal(preview.getLyricCountdown(lines, 0, 4000), null);
   assert.equal(preview.getLyricCountdown(lines, 1, 9500), null);
+});
+
+test('countdown measures silence after the final sung word, not time spent singing', async () => {
+  const { getLyricCountdown } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-timeline.js'));
+  const next = { startMs: 12000, text: '啊' };
+  for (const line of [
+    { startMs: 0, endMs: 11800, text: '长句仍在唱' },
+    { startMs: 0, endMs: 3000, text: '拖长的尾音', words: [{ text: '音', startMs: 3000, endMs: 11800 }] },
+    { startMs: 0, endMs: 6500, text: '短暂换气' },
+    { startMs: 0, text: '只有开始时间' },
+    { startMs: 0, endMs: 0, text: '没有有效的结束时间' },
+    { startMs: 0, endMs: 12000, text: '普通歌词按下一句推算结束时间' },
+  ]) {
+    assert.equal(getLyricCountdown([line, next], 0, 9500), null, line.text);
+  }
+  const line = { startMs: 0, endMs: 12000, text: '已经唱完',
+    words: [{ text: '已经', startMs: 0, endMs: 2500 }, { text: '唱完', startMs: 2500, endMs: 6000 }] };
+  assert.deepEqual({ ...getLyricCountdown([line, next], 0, 9000) }, { nextIndex: 1, seconds: 3 });
+  assert.equal(getLyricCountdown([line, next], 0, 8999), null);
+  assert.equal(getLyricCountdown([line, next], 0, 12000), null);
+});
+
+test('countdown preserves the final three seconds of a long intro', async () => {
+  const { getLyricCountdown } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-timeline.js'));
+  const lines = [{ startMs: 10000, text: '第一句' }];
+  assert.equal(getLyricCountdown(lines, -1, 6000), null);
+  assert.deepEqual({ ...getLyricCountdown(lines, -1, 7000) }, { nextIndex: 0, seconds: 3 });
+  assert.deepEqual({ ...getLyricCountdown(lines, -1, 9500) }, { nextIndex: 0, seconds: 1 });
+  assert.equal(getLyricCountdown([{ startMs: 2000, text: '短前奏' }], -1, 1000), null);
 });
 
 test('desktop lyric renderer normalizes timing, empty text, and anchor settings', async () => {

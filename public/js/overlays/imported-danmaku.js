@@ -1,7 +1,7 @@
 import { createComponentPreviewClient, isSceneComponent } from './component-preview-client.js';
 import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { createSceneDanmakuDisplay } from './scene-danmaku-display.js';
-import { createDanmakuPreviewItems, DANMAKU_PREVIEW_ENTRY } from './danmaku-preview-samples.js';
+import { createDanmakuPreviewItems, DANMAKU_PREVIEW_WELCOME } from './danmaku-preview-samples.js';
 
 const host = document.getElementById('app');
 let engine = '';
@@ -78,10 +78,10 @@ function removeSuperChats(messageIds) {
     if (deleted.has(row.dataset.superchatMessageId)) row.remove();
   }
 }
-const display = createSceneDanmakuDisplay({ clear: () => items?.replaceChildren(), append, remove: removeSuperChats, status() {}, getStyle: () => 'transparent', showEntryMessages: () => styleParametersFor(currentConfig).showEntryMessages === true });
+const display = createSceneDanmakuDisplay({ clear: () => items?.replaceChildren(), append, remove: removeSuperChats, status() {}, getStyle: () => 'transparent', showWelcomeMessages: () => styleParametersFor(currentConfig).showEntryMessages !== false });
 function samples() {
-  return styleParametersFor(currentConfig).showEntryMessages
-    ? [...previewMessages, { ...DANMAKU_PREVIEW_ENTRY }] : previewMessages;
+  return styleParametersFor(currentConfig).showEntryMessages !== false
+    ? [...previewMessages, { ...DANMAKU_PREVIEW_WELCOME }] : previewMessages;
 }
 function playSample() {
   clearTimeout(previewTimer);

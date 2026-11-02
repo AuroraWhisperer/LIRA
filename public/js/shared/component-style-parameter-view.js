@@ -98,7 +98,8 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
     entryLabel = previewElement('label', 'component-parameter-toggle');
     entry = previewElement('input'); entry.type = 'checkbox'; entry.dataset.showEntryMessages = '';
     entry.addEventListener('change', () => change('showEntryMessages', entry.checked));
-    entryLabel.append(entry, document.createTextNode('显示进房消息'));
+    entryLabel.title = '关闭后，机器人欢迎仍会发送至 B 站，仅不在弹幕姬显示。';
+    entryLabel.append(entry, document.createTextNode('显示机器人欢迎弹幕'));
     (messageHost || root).append(entryLabel);
   }
   const reset = previewElement('button', 'secondary', '恢复当前样式效果'); reset.type = 'button';
@@ -136,7 +137,7 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
         if (slider) { syncComponentFieldValue(slider, values[key], force); refreshParameterRange(slider); }
       }
     }
-    if (entry) { entry.checked = parameters.showEntryMessages === true; entry.disabled = !loaded; }
+    if (entry) { entry.checked = parameters.showEntryMessages !== false; entry.disabled = !loaded; }
     reset.disabled = !loaded || !Object.keys(parameters).length;
   });
   return { dispose() { stop(); disposeParameterRanges(root); entryLabel?.remove(); root.remove(); } };

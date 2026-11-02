@@ -84,6 +84,10 @@
   box-shadow: none;
 }
 
+.lyric-window-card .desktop-lyric-preview-countdown-dot.is-active {
+  background: var(--preview-sung-color, var(--moonlit-gold));
+}
+
 .lyric-window-card .desktop-lyric-preview-empty {
   color: var(--preview-color);
   font-family: var(--preview-font);

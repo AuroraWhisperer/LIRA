@@ -64,6 +64,58 @@ test('first download is single-flight with two workers; subsequent startup uses 
   assert.equal(requests, 4);
 });
 
+for (const code of ['EPERM', 'EBUSY']) test(`font index replacement recovers from ${code} without downloading again`, async t => {
+  let requests = 0; let blocked = 0; let replacements = 0;
+  const { library, directory } = await fixture(t, ['one', 'two'].map(id => entry(id)), async url => {
+    requests++;
+    return new Response(bytes(url.split('/').at(-1)));
+  });
+  const rename = fs.rename;
+  const temporaryFiles = new Set();
+  t.mock.method(fs, 'rename', async (source, target) => {
+    if (target === path.join(directory, 'index.json') && replacements++ > 0 && blocked < 2) {
+      blocked++; temporaryFiles.add(source);
+      throw Object.assign(new Error('Synthetic temporary index lock'), { code });
+    }
+    return rename(source, target);
+  });
+  assert.equal((await library.initialize()).status, 'ready');
+  assert.equal(blocked, 2);
+  assert.equal(temporaryFiles.size, 1);
+  assert.equal(requests, 2);
+  assert.deepEqual(Object.keys(JSON.parse(await fs.readFile(path.join(directory, 'index.json'))).fonts).sort(), ['one', 'two']);
+  assert.equal((await fs.readdir(directory)).some(file => file.endsWith('.tmp')), false);
+});
+
+test('persistent font index locks keep the old index and allow a later cached retry', async t => {
+  const { library, options, directory } = await fixture(t, [entry('one')], async () => new Response(bytes('one')));
+  await library.initialize();
+  const indexPath = path.join(directory, 'index.json');
+  const previous = await fs.readFile(indexPath, 'utf8');
+  let requests = 0; let attempts = 0;
+  const updated = entry('one', bytes('updated'));
+  const next = createFontLibrary({ ...options, fonts: [updated], fetch: async () => { requests++; return new Response(bytes('updated')); } });
+  t.after(() => next.close());
+  const rename = fs.rename;
+  const temporaryFiles = new Set();
+  const locked = t.mock.method(fs, 'rename', async (source, target) => {
+    if (target === indexPath) {
+      attempts++; temporaryFiles.add(source);
+      throw Object.assign(new Error('Synthetic persistent index lock'), { code: 'EPERM' });
+    }
+    return rename(source, target);
+  });
+  assert.equal((await next.initialize()).status, 'error');
+  assert.equal(attempts, 5);
+  assert.equal(temporaryFiles.size, 1);
+  assert.equal(await fs.readFile(indexPath, 'utf8'), previous);
+  assert.deepEqual((await library.readFont('one')).bytes, bytes('one'));
+  assert.equal((await fs.readdir(directory)).some(file => file.endsWith('.tmp')), false);
+  locked.mock.restore();
+  assert.equal((await next.initialize()).status, 'ready');
+  assert.equal(requests, 1);
+});
+
 test('all shared fonts initialize on a clean offline install without downloads or a cache', async t => {
   const { options, directory } = await fixture(t, catalog);
   let requests = 0;

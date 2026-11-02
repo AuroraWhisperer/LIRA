@@ -167,6 +167,24 @@ test('standalone parameters retain per-style lifetimes and effect history throug
   assert.deepEqual(JSON.parse(JSON.stringify(restored.history.state.danmakuStyleParameters)), effects);
 });
 
+test('preview welcome toggle adds only a simulated robot welcome instead of an entrance notice', async () => {
+  for (const enabled of [undefined, false, true]) {
+    const f = await fixture('?preview=1&style=signal', {
+      danmakuStyleParameters: { signal: { showEntryMessages: enabled } },
+    });
+    f.advanceMessages(createDanmakuPreviewItems().length);
+    assert.equal(f.appends.some(item => item.isWelcome === true), enabled !== false);
+    assert.equal(f.appends.some(item => item.kind === 'entry'), false);
+    if (enabled !== false) {
+      const welcome = f.appends.find(item => item.isWelcome);
+      assert.equal(welcome.kind, 'danmaku');
+      assert.equal(welcome.name, 'LIRA 机器人');
+      assert.equal(welcome.message, '欢迎 路过的咸鱼_07 来到直播间～');
+    }
+    f.pagehide();
+  }
+});
+
 test('preview plays every sample once per round with one timer and stops on close', async () => {
   const f = await fixture();
   assert.equal(f.renders.at(-1).length, 0, 'examples must arrive incrementally instead of as a snapshot');
@@ -176,7 +194,7 @@ test('preview plays every sample once per round with one timer and stops on clos
   assert.equal(f.appends.length, 1);
   f.advanceMessages(1);
   assert.equal(f.appends.length, 2);
-  const sampleCount = createDanmakuPreviewItems().length;
+  const sampleCount = createDanmakuPreviewItems().length + 1;
   f.advanceMessages(sampleCount * 2 - 2);
   const firstRound = f.appends.slice(0, sampleCount).map((item) => item.id.replace(/-\d+$/u, ''));
   const secondRound = f.appends.slice(sampleCount).map((item) => item.id.replace(/-\d+$/u, ''));
