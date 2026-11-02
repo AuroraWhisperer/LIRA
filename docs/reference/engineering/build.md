@@ -133,8 +133,8 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |
-| `lira-setup.exe`          | NSIS 安装包,发布时的上传主产物           |
-| `lira-setup.exe.blockmap` | 构建块映射（当前整包下载不依赖它）      |
+| `lira-setup-{version}.exe`          | NSIS 安装包,发布时的上传主产物           |
+| `lira-setup-{version}.exe.blockmap` | 构建块映射（当前整包下载不依赖它）      |
 | `latest.yml`                        | 更新清单,electron-updater 的版本比对依据 |
 | `win-unpacked/`                     | 未打包目录(本地运行/调试)                |
 
@@ -226,7 +226,7 @@ flowchart LR
 
 ## 11. 自动更新
 
-运行时依赖 `electron-updater` ^6.8.4(见 §2)。构建先生成 generic CDN feed 的 `latest.yml`，版本来自当前构建，安装包路径固定为 `lira-setup.exe`，保留 SHA-512 和大小校验。`release:win` 仍由 gh 归档到 GitHub；CDN 另行上传同次构建的 `release/lira-setup.exe`，最后上传 `release/latest.yml`，操作见[CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。更新 feed 切换只对重新构建的客户端生效，现有安装包不会随源码改动而改变。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
+运行时依赖 `electron-updater` ^6.8.4(见 §2)。构建生成带版本号的 `lira-setup-{version}.exe`、块映射及引用同名安装包的 `latest.yml`，保留 SHA-512 和大小校验；`release:win` 沿用原流程将这三个文件上传 GitHub。客户端使用 generic CDN feed，维护者在上传多吉云时自行把安装包副本改为固定名称，并同步修改清单副本中的文件路径，操作见[CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。更新 feed 切换只对重新构建的客户端生效，现有安装包不会随源码改动而改变。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
 
 ## 12. Windows 代码签名
 

@@ -260,7 +260,8 @@ test('afterPack refuses an incomplete production dependency graph before generat
 
 test('all Windows build commands disable direct publishing and share the final installer gate', async () => {
   assert.deepEqual(pkg.build.publish[0], { provider: 'generic', url: 'https://assets.lirahub.cn/downloads/' });
-  assert.equal(pkg.build.nsis.artifactName, 'lira-setup.${ext}');
+  assert.equal(pkg.build.nsis.artifactName, 'lira-setup-${version}.${ext}');
+  assert.equal(pkg.build.artifactName, pkg.build.nsis.artifactName);
   assert.match(pkg.scripts['dist:win'], /--publish never/);
   assert.match(pkg.scripts['dist:win:local'], /--publish never/);
   assert.equal(pkg.build.artifactBuildCompleted, 'scripts/verify-client-installer.js');

@@ -67,7 +67,9 @@ lirahub/
 
 手动下载地址为 `https://assets.lirahub.cn/downloads/lira-setup.exe`。客户端自动更新先读取 `https://assets.lirahub.cn/downloads/latest.yml`，比较版本号，再下载清单声明的同一安装包并校验 SHA-512。只有 EXE、没有 `latest.yml` 时，手动下载可用，自动版本检查会报「更新清单暂不可用」。
 
-每次正常构建生成 `release/lira-setup.exe`、`release/lira-setup.exe.blockmap` 和 `release/latest.yml`。先上传安装包，再上传同次构建的清单；整包下载不依赖 blockmap，无需将它上传 CDN。版本号仍来自当前构建，不能只给旧 EXE 改文件名就宣称为新版本。GitHub Release 作为发布归档保留；发布任务在 GitHub 附件上传成功后结束，多吉云由维护者自行手动同步。
+每次正常构建仍生成 `release/lira-setup-X.Y.Z.exe`、`release/lira-setup-X.Y.Z.exe.blockmap` 和 `release/latest.yml`，GitHub 按原文件名发布，清单引用带版本号的安装包。发布流程与 v5.7.4 相同；发布任务在 GitHub 附件上传成功后结束，多吉云由维护者自行手动同步。
+
+上传多吉云时，维护者自行把同次构建的安装包副本重命名为 `lira-setup.exe`；同时在 `latest.yml` 的上传副本中，将 `files[].url` 和 `path` 对应的安装包文件名改为 `lira-setup.exe`，保留 `version`、`sha512`、`size` 等原有值。GitHub 使用的原文件和原清单保持带版本号。先上传安装包，最后上传匹配的清单副本；整包下载不依赖 blockmap，无需将它上传 CDN。不能只给旧 EXE 改文件名就宣称为新版本。
 
 为 `/downloads/latest.yml` 和 `/downloads/lira-setup.exe` 两个固定路径配置不缓存规则，优先于全部文件规则；更换后刷新已有 CDN 缓存。不要混用不同构建的 EXE 和清单，否则摘要校验会阻止安装。字体和图片使用内容版本文件名，仍可长缓存。
 

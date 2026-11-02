@@ -57,7 +57,7 @@
   "build": {
     "appId": "com.aurorawhisperer.lira",
     "productName": "LIRA",
-    "artifactName": "lira-setup.${ext}",
+    "artifactName": "lira-setup-${version}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"
@@ -148,7 +148,7 @@
       ]
     },
     "nsis": {
-      "artifactName": "lira-setup.${ext}",
+      "artifactName": "lira-setup-${version}.${ext}",
       "include": "build/installer.nsh",
       "oneClick": false,
       "perMachine": false,

@@ -48,10 +48,6 @@ npm run release:win
 
 脚本先检查凭据与版本标签冲突，在构建和一次完整安装包验证通过后创建并推送版本标签，再创建或复用 Release，只上传缺失或内容不一致的附件。输出 `All expected assets uploaded` 且正常退出即完成，无需再人工检查附件完整性。实现细节见[构建与发布参考](docs/reference/engineering/build.md#7-发布流程scriptspublish-releasejs)。
 
-GitHub 附件上传成功即完成本指南的发布任务。多吉云 CDN 由维护者自行手动同步，发布任务不主动操作控制台、上传文件或询问是否同步。
-
-手动同步时，先把同次构建的 `release/lira-setup.exe` 上传到多吉云 `lirahub/downloads/`，最后上传 `release/latest.yml`；两个固定地址均配置不缓存并刷新旧缓存。不要只替换安装包或复用旧清单，SHA-512 必须与实际安装包一致。操作与路径见[CDN 分发指南](docs/guides/cdn-resources.md#客户端安装包与自动更新)。
-
 ## 失败处理与可选设置
 
 - **未登录 GitHub**：执行 `gh auth login` 后重跑。
