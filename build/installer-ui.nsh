@@ -20,7 +20,7 @@ Var liraUiFinishIcon
   ${If} ${isUpdated}
     ${If} ${isForceRun}
       HideWindow
-      !insertmacro StartApp
+      Call StartApp
     ${EndIf}
     Abort
   ${EndIf}
