@@ -57,6 +57,7 @@ function syncSelectedState(state) {
   trigger.setAttribute('aria-disabled', String(select.disabled));
   trigger.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选择');
   state.optionsRoot.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选项');
+  if (select.disabled) closeMenu(state, { restoreFocus: false });
 
   menu.querySelectorAll('[role="option"]').forEach((optionNode) => {
     const isSelected =
@@ -137,7 +138,7 @@ function closeOpenMenus(except) {
 }
 
 function selectOption(state, optionNode) {
-  if (!optionNode || optionNode.getAttribute('aria-disabled') === 'true') return;
+  if (state.select.disabled || !optionNode || optionNode.getAttribute('aria-disabled') === 'true') return;
   const nextIndex = Number(optionNode.dataset.index);
   const changed = state.select.selectedIndex !== nextIndex;
   state.select.selectedIndex = nextIndex;

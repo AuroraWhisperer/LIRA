@@ -50,7 +50,7 @@
       checkButton.addEventListener('click', () => {
         renderDesktopUpdateState({
           status: 'checking',
-          message: '正在连接 GitHub 检查新版本...',
+          message: '正在连接更新服务检查新版本...',
           canDownload: false,
           canInstall: false,
           progress: null,
@@ -430,11 +430,11 @@
 
   function desktopActionErrorMessage(error) {
     const text = String((error && error.message) || error || '');
-    if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
-      return '当前 GitHub Releases 里还没有可用更新包。';
+    if (/\b404\b/.test(text) && /latest\.yml|ERR_UPDATER_CHANNEL_FILE_NOT_FOUND/i.test(text)) {
+      return '更新清单暂不可用，请稍后再试。';
     }
     if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|network|timeout/i.test(text)) {
-      return '暂时无法连接 GitHub 更新服务，请稍后再试。';
+      return '暂时无法连接更新服务，请稍后再试。';
     }
     return '操作失败，详细原因已写入日志。';
   }

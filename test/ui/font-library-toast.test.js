@@ -32,9 +32,24 @@ test('font toast is silent for unchanged cache and updates the same node for pro
   assert.equal(container.children[0], node);
   assert.match(node.textContent, /3 \/ 8/);
   controller.handleState({ status: 'ready', total: 8, completed: 8, completedAt: 'done' });
-  assert.match(node.textContent, /字体更新完成/);
+  assert.match(node.textContent, /资源更新完成/);
   controller.handleState({ status: 'ready', total: 8, completed: 8, completedAt: 'done' });
   assert.equal(container.children.length, 1);
+  controller.dispose();
+});
+
+test('resource toast uses byte progress for large files and stays silent while checking', async () => {
+  const { controller, container } = await fixture();
+  controller.handleState({ status: 'checking', total: 0 });
+  controller.handleState({ status: 'error', total: 0 });
+  assert.equal(container.children.length, 0);
+  controller.handleState({ status: 'downloading', total: 62, completed: 58,
+    totalBytes: 100 * 1024 * 1024, downloadedBytes: 25 * 1024 * 1024, currentFont: '世界地图高清底图' });
+  const node = container.children[0];
+  assert.match(node.textContent, /25%.*25.0 MB \/ 100.0 MB.*世界地图/);
+  const progress = node.children[0].children.find(child => child.tagName === 'progress');
+  assert.equal(progress.max, 100 * 1024 * 1024);
+  assert.equal(progress.value, 25 * 1024 * 1024);
   controller.dispose();
 });
 

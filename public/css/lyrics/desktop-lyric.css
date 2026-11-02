@@ -1,5 +1,4 @@
 @import url('../shared/display-fonts.css');
-@import url('./font-fallbacks.css');
 
 .desktop-lyric-preview-card {
   --preview-font: 'Lira Lyric Scripts', 'Lira Maiyuan', 'Lira Lyric Korean', 'Lira Xiaolai', 'Lira Lyric Extended', system-ui, sans-serif;
@@ -262,7 +261,7 @@
 
 .desktop-lyric-preview-row-text {
   overflow-wrap: anywhere;
-  font-size: min(var(--preview-size), 3.8vw);
+  font-size: var(--preview-size);
   font-weight: var(--preview-weight);
   letter-spacing: var(--preview-letter-spacing);
   paint-order: stroke fill;
@@ -332,7 +331,7 @@
 .desktop-lyric-preview-row-roma {
   margin-top: 3px;
   color: var(--preview-color);
-  font-size: min(var(--preview-translation-size), 3.4vw);
+  font-size: var(--preview-translation-size);
   font-weight: 700;
   letter-spacing: var(--preview-letter-spacing);
   opacity: var(--preview-translation-opacity);
@@ -341,7 +340,7 @@
 }
 
 .desktop-lyric-preview-row-roma {
-  font-size: min(calc(var(--preview-translation-size) * 0.86), 3vw);
+  font-size: calc(var(--preview-translation-size) * 0.86);
   font-weight: 500;
   letter-spacing: 0.02em;
   opacity: 0.55;

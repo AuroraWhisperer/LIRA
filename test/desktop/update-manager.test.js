@@ -10,7 +10,7 @@ function loadUpdateManager(t) {
   const originalLoad = Module._load;
   const modulePath = require.resolve('../../src/electron/update-manager');
   const cachedModule = require.cache[modulePath];
-  const updater = Object.assign(new EventEmitter(), { app: {}, quitAndInstall() {} });
+  const updater = Object.assign(new EventEmitter(), { app: {}, setFeedURL(options) { this.feed = options; }, quitAndInstall() {} });
   const app = {
     getVersion: () => '5.2.7',
     getPath: () => path.resolve('tmp/updater-test/LIRA.exe'),
@@ -33,17 +33,27 @@ function loadUpdateManager(t) {
   return { manager, updater, states };
 }
 
+test('updates use the configured CDN generic feed and preserve automatic full downloads', t => {
+  const { updater } = loadUpdateManager(t);
+  assert.deepEqual(updater.feed, { provider: 'generic', url: 'https://assets.lirahub.cn/downloads/' });
+  assert.equal(updater.autoDownload, true);
+  assert.equal(updater.autoInstallOnAppQuit, true);
+  assert.equal(updater.allowPrerelease, false);
+  assert.equal(updater.disableDifferentialDownload, true);
+});
+
 for (const operation of ['checkForUpdates', 'downloadUpdate']) {
-  test(`${operation} preserves the missing-release classification when the updater emits and rejects`, async (t) => {
+  test(`${operation} reports a missing CDN manifest as an error when the updater emits and rejects`, async (t) => {
     const { manager, updater, states } = loadUpdateManager(t);
     updater[operation] = async () => {
-      const error = new Error('404 https://github.com/example/releases/latest.yml');
+      const error = new Error('404 https://assets.lirahub.cn/downloads/latest.yml');
       updater.emit('error', error);
       throw error;
     };
     const state = await manager[operation]();
-    assert.equal(state.status, 'not-available');
-    assert.equal(states.at(-1).status, 'not-available');
+    assert.equal(state.status, 'error');
+    assert.equal(states.at(-1).status, 'error');
+    assert.match(state.message, /更新清单/);
     assert.equal(state.canDownload, false);
     assert.equal(state.canInstall, false);
   });
@@ -101,6 +111,20 @@ test(
       require(modulePath).configureAutoUpdater({});
       const updater = require('electron-updater').autoUpdater;
       assert.equal(updater.httpExecutor.constructor.name, 'ElectronHttpExecutor');
+      const provider = await updater.clientPromise;
+      const requested = [];
+      const sha512 = Buffer.alloc(64, 7).toString('base64');
+      provider.httpRequest = async url => {
+        requested.push(url);
+        return `version: 4.1.1\nfiles:\n  - url: lira-setup.exe\n    sha512: ${sha512}\n    size: 123\n`;
+      };
+      const info = await provider.getLatestVersion();
+      assert.equal(requested.length, 1);
+      assert.equal(requested[0].origin, 'https://assets.lirahub.cn');
+      assert.equal(requested[0].pathname, '/downloads/latest.yml');
+      const files = provider.resolveFiles(info);
+      assert.equal(files[0].url.href, 'https://assets.lirahub.cn/downloads/lira-setup.exe');
+      assert.equal(files[0].info.sha512, sha512);
       // Resolve the actual library download helper without disk or network access.
       updater.configOnDisk = {
         value: Promise.resolve({ updaterCacheDirName: 'lira-updater' }),

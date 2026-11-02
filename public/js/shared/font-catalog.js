@@ -1,5 +1,5 @@
-// Complete display fonts bundled for offline use. Restricted title subsets and script fallbacks
-// belong to their renderers and are not general-purpose font choices.
+// Complete fonts shared by all components after local resource initialization.
+// Restricted title subsets stay with their renderers and outside the shared menu.
 export const SHARED_FONTS = Object.freeze([
   { id: 'maiyuan', family: 'Lira Maiyuan', label: '荆南麦圆 · 圆润可爱', playerValue: 'maiyuan' },
   { id: 'kuaile', family: 'Lira Kuaile', label: '站酷快乐体 · 俏皮手写', playerValue: 'kuaile' },
@@ -10,6 +10,10 @@ export const SHARED_FONTS = Object.freeze([
   { id: 'zhimangxing', family: 'Lira Zhimangxing', label: '志莽行 · 洒脱行书' },
   { id: 'mashanzheng', family: 'Lira Mashanzheng', label: '马善政 · 毛笔楷书' },
   { id: 'wenkai', family: '月渡花汀文楷', label: '霞鹜文楷 · 清雅手写' },
+  { id: 'nunito', family: 'Spooky Nunito', label: 'Nunito · 圆润西文', sample: 'Nunito' },
+  { id: 'gowun-dodum', family: 'Lira Gowun Dodum', label: 'Gowun Dodum · 韩文圆体', sample: '한글' },
+  { id: 'noto-sans', family: 'Lira Noto Sans', label: 'Noto Sans · 多语种黑体', sample: 'Noto Sans' },
+  { id: 'noto-serif-tibetan', family: 'Lira Noto Serif Tibetan', label: 'Noto Serif Tibetan · 藏文衬线', sample: 'བོད་ཡིག' },
 ].map(font => Object.freeze({ ...font, value: `"${font.family}"` })));
 
 export function findSharedFont(value) {

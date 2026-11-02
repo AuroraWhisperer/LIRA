@@ -1,10 +1,11 @@
 // 编写人：Aurora
-// GitHub 自动更新管理。
+// CDN 自动更新管理。
 'use strict';
 
 const { app } = require('electron');
 const path = require('node:path');
 const { resolveDesktopUserDataPaths } = require('./desktop-user-data');
+const { build } = require('../../package.json');
 
 // 延迟加载 autoUpdater 避免在 app ready 之前初始化
 let autoUpdater = null;
@@ -46,6 +47,7 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   const configuredUpdater = updater || getAutoUpdater();
   const log = typeof writeLog === 'function' ? writeLog : () => {};
 
+  configuredUpdater.setFeedURL(build.publish[0]);
   configuredUpdater.autoDownload = true;
   configuredUpdater.autoInstallOnAppQuit = true;
   configuredUpdater.allowPrerelease = false;
@@ -56,7 +58,7 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
     setUpdateState(
       {
         status: 'checking',
-        message: '正在连接 GitHub 检查新版本...',
+        message: '正在连接更新服务检查新版本...',
         canDownload: false,
         canInstall: false,
         progress: null,
@@ -169,7 +171,7 @@ async function checkForUpdates() {
   if (!app.isPackaged) {
     setUpdateState({
       status: 'dev-disabled',
-      message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
+      message: '开发模式不检查更新；打包安装后自动启用。',
       canDownload: false,
       canInstall: false,
     });
@@ -194,7 +196,7 @@ async function downloadUpdate() {
   lastTransferred = 0;
   setUpdateState({
     status: 'downloading',
-    message: '正在准备下载 GitHub 最新安装包...',
+    message: '正在准备下载最新安装包...',
     canDownload: false,
     canInstall: false,
     progress: null,
@@ -226,22 +228,22 @@ function installUpdate() {
 
 function friendlyUpdateError(error) {
   const text = `${error && error.message ? error.message : ''}\n${String(error || '')}`;
-  if (/\b404\b/.test(text) && /releases\.atom|latest\.yml|github/i.test(text)) {
+  if (/\b404\b/.test(text) && /latest\.yml|ERR_UPDATER_CHANNEL_FILE_NOT_FOUND/i.test(text)) {
     return {
-      status: 'not-available',
-      message: '当前 GitHub Releases 里还没有可用更新包。',
+      status: 'error',
+      message: '更新清单暂不可用，请稍后再试。',
     };
   }
   if (/checksum mismatch|sha512|sha256|hash mismatch/i.test(text)) {
     return {
       status: 'error',
-      message: '更新包校验失败，请前往 GitHub Releases 手动下载最新安装包。',
+      message: '更新包校验失败，请重新检查并下载更新。',
     };
   }
   if (/ENOTFOUND|ECONNRESET|ETIMEDOUT|EAI_AGAIN|ERR_CONNECTION|ERR_NETWORK|ERR_INTERNET|network|timeout/i.test(text)) {
     return {
       status: 'error',
-      message: '暂时无法连接 GitHub 更新服务，请稍后再试。',
+      message: '暂时无法连接更新服务，请稍后再试。',
     };
   }
   return { status: 'error', message: '暂时无法检查更新，详细原因已写入日志。' };

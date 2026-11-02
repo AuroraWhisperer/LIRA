@@ -29,7 +29,7 @@ export function refreshSharedFonts() {
     if (!faces.length) continue;
     // Let the browser resolve the current CSS face, including Unicode subsets.
     // A fallback-only result must never count as an available shared font.
-    void document.fonts.load(`16px ${font.value}`, font.label).then(loaded => {
+    void document.fonts.load(`16px ${font.value}`, font.sample || font.label).then(loaded => {
       if (fontReadiness.get(font.id) !== readiness) return;
       readiness.ready = loaded.length > 0 && loaded.every(face => face.status === 'loaded');
       refreshRegisteredSelects();

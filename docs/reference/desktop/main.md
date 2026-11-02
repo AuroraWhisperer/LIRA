@@ -498,6 +498,6 @@ ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection
 
 ## 共享字体初始化
 
-[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时调用本地 runtime 的 `initializeFontLibrary()`，与礼物目录初始化并行。九款共享字体随安装包内置，正常初始化只校验本地资源，首次离线可用，无字体下载进度；资源异常时保留原有修复进度与 toast，字体失败不阻塞桌面就绪条件，不重新统计礼物进度。
+[desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时沿用 runtime 的 `initializeFontLibrary()` 入口，启动公共资源检查，与礼物目录初始化并行。每个 runtime 只检查一次 CDN 清单，授权状态重复通知不重复检查；明确重试可再次检查。共享完整字体和大图不再随安装包分发，首次补齐需要联网；两个微型标题裁剪字库仍随安装包提供。只有实际缺失或变化的资源才显示下载进度，检查及零下载结果静默；资源失败不阻塞桌面就绪条件，也不重新统计礼物进度。
 
-字体 owner 按随客户端发行的 JSON 校验有效旧缓存或内置 WOFF2。`src/server.js` 从自身模块位置解析 `public`，安装版读取 `resources/app.asar/public/fonts/`，不依赖启动工作目录、不向安装目录写缓存。内置资源与有效缓存均不可用时才沿用原下载修复路径：两路并发、每来源 5 分钟超时、Electron `net.fetch`、固定 HTTPS 来源及逐跳主机白名单、无凭据请求，不通过 LIRA Server；此异常路径仍依赖网络。关闭在 HTTP drain 前取消字体任务并等待写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。
+公共资源 owner 为 [resource-library.js](../../../src/resources/resource-library.js)，字体库负责字体 CSS 与旧字体缓存兼容。`src/server.js` 装配 owner，沿用 Electron `net.fetch`；CDN origin 由可信配置确定，无凭据、禁止重定向、清单 15 秒超时、字体包/图片 5 分钟超时，两路并发并限制每秒最多 8 次请求。更新清单 v2 声明原文件及字体包的大小、摘要和条目；下载按本机批准的字体归组和具名图片计算地址，不可指定任意 URL 或磁盘路径。字体包先整体校验，再验证所需文件并自动解包，同一包的新缓存索引一起发布，临时 ZIP 用后删除；仍可读取旧 v1 清单。首次准备页和 Admin 共用进度控制器，下载按字节显示；原目录 HTTP URL 读取已校验缓存，首次图像请求可等待当前下载，不发起额外资源同步。关闭在 HTTP drain 前取消任务并等待临时文件与索引写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。

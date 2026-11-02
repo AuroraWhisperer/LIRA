@@ -30,12 +30,12 @@ const CONTROLS = {
   ripploid: ['scrollDirection', 'edgeFade', 'bubbleColor', ...RIPPLOID_COLOR_KEYS],
   twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...TWITTER_COLOR_KEYS],
   'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
-  notebook: ['scrollDirection', 'edgeFade'],
+  notebook: ['scrollDirection', 'edgeFade', 'ambientMotion'],
   spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
-  starlight: ['scrollDirection', 'edgeFade', 'decorationShape'],
+  starlight: ['scrollDirection', 'edgeFade', 'decorationShape', 'ambientMotion'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   outline: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
-  whiteframe: ['durationSeconds', 'centerBias', 'dispersion', 'entranceAnimation'],
+  whiteframe: ['durationSeconds', 'centerBias', 'dispersion', 'entranceAnimation', 'bubbleColor'],
   mist: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity'],
   cream: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
   floating: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
@@ -53,6 +53,7 @@ const CONTROL_VALUES = {
   spookyTheme: { valid: ['default', 'autumn', 'graveyard', 'moonlight'], invalid: ['purple', '', null, true, 1], optional: true },
   spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], optional: true },
   decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], optional: true },
+  ambientMotion: { valid: ['on', 'off'], invalid: ['static', '', null, true, 1], optional: true },
   entranceAnimation: { valid: ['fade', 'rise'], invalid: ['slide', 'RISE', '', null, true, 1, {}], optional: true },
   floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], optional: true },
   minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], optional: true },
@@ -284,6 +285,31 @@ test('entrance animation stays per style and resets on empty options or unsuppor
     browser.applyStyleOptions(document, style, { [style]: {} });
     assert.equal(document.body.dataset.entranceAnimation, 'fade');
   }
+});
+
+test('border color and ambient motion retain per-style drafts and clear on switch or reset', async () => {
+  const { applyStyleOptions } = await import('../../public/js/shared/danmaku-style-options.js');
+  const { editStyleOption, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
+  const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
+  const draft = { style: 'whiteframe', styleOptions: contract.normalizeStyleOptions({
+    whiteframe: { bubbleColor: '#ABCDEF80' }, notebook: { ambientMotion: 'off' }, starlight: { ambientMotion: 'on' },
+  }) };
+  applyStyleOptions(document, 'whiteframe', draft.styleOptions);
+  assert.equal(document.documentElement.style['--danmaku-bubble-color'], '#abcdef80');
+  applyStyleOptions(document, 'notebook', draft.styleOptions);
+  assert.equal(document.documentElement.style['--danmaku-bubble-color'], '');
+  assert.equal(document.body.dataset.ambientMotion, 'off');
+  applyStyleOptions(document, 'starlight', draft.styleOptions);
+  assert.equal(document.body.dataset.ambientMotion, 'on');
+  const edited = editStyleOption({ ...draft, style: 'starlight' }, 'ambientMotion', 'off');
+  const reset = resetStyleOptions(edited);
+  assert.deepEqual(reset.styleOptions, { ...draft.styleOptions, starlight: {} });
+  applyStyleOptions(document, 'starlight', reset.styleOptions);
+  assert.equal(document.body.dataset.ambientMotion, 'on');
+  applyStyleOptions(document, 'signal', draft.styleOptions);
+  assert.equal(document.body.dataset.ambientMotion, 'on');
+  applyStyleOptions(document, 'whiteframe', resetStyleOptions(draft).styleOptions);
+  assert.equal(document.documentElement.style['--danmaku-bubble-color'], '');
 });
 
 test('gift images load only resolver-approved URLs without a referrer', async () => {

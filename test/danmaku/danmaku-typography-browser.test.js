@@ -7,7 +7,7 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
-test('each style applies chosen text sizes through canvas scaling', async t => {
+test('each style applies chosen text sizes and fonts through canvas scaling', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
     <style>.danmaku-signal-stage { transition: none !important; }</style>
@@ -39,7 +39,7 @@ test('each style applies chosen text sizes through canvas scaling', async t => {
       const hasSuperchat = limits.scrollDirection || style === 'mist';
       if (hasSuperchat) messages.push({ ...sender, kind: 'superchat', message: '留言大小', price: 30 });
       for (const fontSize of [limits.minFontSize, limits.maxFontSize]) {
-        applyStyleOptions(document, style, { [style]: { fontSize } });
+        applyStyleOptions(document, style, { [style]: { fontSize, fontFamily: '"Georgia"' } });
         root.replaceChildren(...messages.map(render));
         const cards = Array.from(root.children);
         const paragraph = (card, text) => Array.from(card.querySelectorAll('p')).find(node => node.textContent === text);
@@ -66,7 +66,10 @@ test('each style applies chosen text sizes through canvas scaling', async t => {
             const probe = document.createElement('span');
             probe.style.cssText = 'position:absolute;display:block;width:1em;height:1em;padding:0;border:0';
             node.append(probe);
-            results.push({ style, fontSize, scale, kind, width: probe.getBoundingClientRect().width });
+            results.push({ style, fontSize, scale, kind, width: probe.getBoundingClientRect().width,
+              family: getComputedStyle(node).fontFamily,
+              ...(kind === 'superchat' && ['snowfox', 'moonlit'].includes(style)
+                ? { nameFamily: getComputedStyle(cards[2].querySelector('.sc-name')).fontFamily } : {}) });
             probe.remove();
           }
         }
@@ -79,6 +82,8 @@ test('each style applies chosen text sizes through canvas scaling', async t => {
     const { style, fontSize, scale, kind, width } = result;
     const key = `${style}:${kind}`;
     assert.ok(Number.isFinite(width) && width > 0, `${key} renders visible text`);
+    if (style !== 'ripploid' || kind !== 'gift') assert.match(result.family, /Georgia/, `${key} applies the selected font`);
+    if (result.nameFamily) assert.match(result.nameFamily, /Georgia/, `${key} sender applies the selected font`);
     const nativeLettering = style === 'flower-letter'
       || kind === 'superchat' && ['ripploid', 'notebook'].includes(style)
       || kind === 'gift' && ['ripploid', 'spooky'].includes(style);

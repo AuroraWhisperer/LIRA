@@ -15,7 +15,9 @@ The matching ranges are declared in `public/css/lyrics/moonlit-font.css`.
 The glyph drawings are unchanged. The subset's internal family is renamed to
 `Lira Moon WenKai`; its CSS name is `月渡花汀文楷`. Light outlines are exposed as
 weight 400 to use the existing desktop lyric controls' normal weight. Copyright
-and license name records are retained. All 23 subsets are bundled inside the installed
-application's `resources/app.asar/public/fonts/moonlit-wenkai/` for offline use,
-and remain available to external Moonlit ZIP assets. Existing resource packs retain
+and license name records are retained. All 23 subsets are delivered in one named
+font ZIP through the client's CDN synchronization, verified and automatically
+extracted to its data cache. Local HTTP keeps
+the original `/fonts/moonlit-wenkai/` URLs available, including for external Moonlit
+ZIP assets. Existing resource packs retain
 version-scoped font names. Windows installation is unnecessary; see the [shared library](../README.md).

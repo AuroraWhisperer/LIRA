@@ -6,8 +6,10 @@ function publicFontState(snapshot = {}) {
   const count = value => Number.isSafeInteger(value) && value >= 0 ? value : 0;
   const total = count(snapshot.total);
   const completed = Math.min(count(snapshot.completed), total);
+  const totalBytes = count(snapshot.totalBytes);
   return { status: STATUSES.has(snapshot.status) ? snapshot.status : 'idle', total, completed,
     failed: Math.min(count(snapshot.failed), completed),
+    totalBytes, downloadedBytes: Math.min(count(snapshot.downloadedBytes), totalBytes),
     currentFont: String(snapshot.currentFont || '').slice(0, 100),
     completedAt: String(snapshot.completedAt || '').slice(0, 32) };
 }

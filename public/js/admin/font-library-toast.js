@@ -1,5 +1,6 @@
 import { getToastStack } from '../shared/toast.js';
 import { eventBus as defaultEventBus } from '../shared/event-bus.js';
+import { formatBytes } from '../shared/display-format.js';
 
 export function createFontLibraryToast({ window: windowRef = globalThis.window,
   document: documentRef = globalThis.document, bridge = windowRef?.liraLicense,
@@ -18,18 +19,22 @@ export function createFontLibraryToast({ window: windowRef = globalThis.window,
     if (!['downloading', 'ready', 'error'].includes(state.status)) return;
     const done = state.status !== 'downloading';
     if (done && state.completedAt && lastCompletedAt === state.completedAt) return;
-    if (state.status === 'ready' && !state.total && !handle) return;
+    if (done && !state.total && !handle) return;
     const container = documentRef.getElementById('toast');
     if (!container) return;
     if (done) {
       lastCompletedAt = state.completedAt || String(Date.now());
     }
     const failed = state.status === 'error';
+    const total = state.totalBytes || state.total || 1;
+    const completed = state.totalBytes ? state.downloadedBytes || 0 : state.completed || 0;
+    const byteProgress = state.totalBytes
+      ? `${Math.floor(completed / total * 100)}% · ${formatBytes(completed)} / ${formatBytes(total)} · ` : '';
     const stack = getToastStack({ container, document: documentRef, window: windowRef });
     handle = stack.show({ key: 'font-library-update', update: true,
-      title: failed ? '部分字体暂未下载' : done ? '字体更新完成' : '正在下载字体',
-      message: failed ? '已下载的字体仍可使用，可重试或下次启动时继续。'
-        : `已完成 ${state.completed || 0} / ${state.total || 0}${state.currentFont ? ` · ${state.currentFont}` : ''}`,
+      title: failed ? '部分资源暂未下载' : done ? '资源更新完成' : '正在下载字体和图片',
+      message: failed ? '已缓存的资源仍可使用，可重试或下次启动时继续。'
+        : `${byteProgress}已完成 ${state.completed || 0} / ${state.total || 0}${state.currentFont ? ` · ${state.currentFont}` : ''}`,
       type: failed ? 'warning' : done ? 'success' : 'info',
       duration: done ? 5000 : 0,
       className: 'font-library-update-toast',
@@ -41,9 +46,9 @@ export function createFontLibraryToast({ window: windowRef = globalThis.window,
     });
     if (!done) {
       const progress = documentRef.createElement('progress');
-      progress.max = state.total || 1;
-      progress.value = state.completed || 0;
-      progress.setAttribute('aria-label', '字体下载进度');
+      progress.max = total;
+      progress.value = completed;
+      progress.setAttribute('aria-label', '资源下载进度');
       handle.node.children[0].append(progress);
       stack.refresh();
     }

@@ -91,6 +91,40 @@ async function render(page, text, tokens, settings) {
   }, { text, tokens, settings });
 }
 
+test('configured lyric sizes remain exact in a narrow output and the client preview', async t => {
+  const page = await openRenderer(t);
+  await page.setViewportSize({ width: 720, height: 800 });
+  for (const surface of ['output', 'preview']) {
+    if (surface === 'preview') {
+      await page.addStyleTag({ url: `${fixture.origin}/css/admin/desktop-lyric-preview.css` });
+      await page.evaluate(() => {
+        document.body.className = 'desktop-lyric-workspace';
+        const card = document.getElementById('desktopLyricSurface');
+        card.classList.remove('lyric-window-card');
+        card.style.width = '480px';
+        document.getElementById('desktopLyricPreviewStage').classList.remove('lyric-window-stage');
+      });
+    }
+    for (const fontSize of [24, 56, 72]) {
+      const actual = await page.evaluate(async fontSize => {
+        const renderer = window.testLyricRenderer;
+        renderer.applySettings({ desktopLyricFontSize: String(fontSize), desktopLyricTranslationScale: '0.5',
+          desktopLyricHideOnPause: 'false', desktopLyricShowRoma: 'true' });
+        renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0,
+          text: '字号来自设置', translation: 'The selected size', roma: 'Selected size' }] });
+        await document.fonts.ready;
+        return ['text', 'translation', 'roma'].map(kind => parseFloat(getComputedStyle(
+          document.querySelector(`.desktop-lyric-preview-row-${kind}`),
+        ).fontSize));
+      }, fontSize);
+      for (const [index, expected] of [fontSize, fontSize * 0.5, fontSize * 0.5 * 0.86].entries()) {
+        assert.ok(Math.abs(actual[index] - expected) < 0.01,
+          `${surface}/${fontSize}px: text ${index} rendered at ${actual[index]}px instead of ${expected}px`);
+      }
+    }
+  }
+});
+
 async function measure(page) {
   return page.locator('.desktop-lyric-preview-row').evaluateAll(rows => rows.map(row => {
     const text = row.querySelector('.desktop-lyric-preview-row-text');

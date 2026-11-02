@@ -85,6 +85,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (type === 'background' && Object.hasOwn(BACKGROUND_FIELDS, key)) continue;
         // Keep the legacy config key, but don't offer a color the song board doesn't render.
         if (type === 'songlist' && key === 'songBoardThemePrimary') continue;
+        // Interaction output stays transparent; saved background keys remain compatible.
+        if (type === 'interactions' && ['interactionBackgroundColor', 'interactionBackgroundOpacity'].includes(key)) continue;
         if (type === 'blindbox' && key === 'hideLoss') continue;
         // Preserve the legacy setting in saved scenes; font fallback is automatic now.
         if (type === 'lyrics' && key === 'desktopLyricFallbackFontFamily') continue;

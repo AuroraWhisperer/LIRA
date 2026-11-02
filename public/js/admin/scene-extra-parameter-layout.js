@@ -39,8 +39,8 @@ const PARAMETER_GROUPS = {
   interactions: [
     ['content', '内容与参与', ['kind', 'interactionOverlayTitle', 'interactionOverlayHint', 'interactionRatingRules',
       'interactionShowStatus', 'interactionShowParticipants']],
-    ['appearance', '外观设置', ['interactionFontSize', 'interactionTextColor', 'interactionBackgroundColor',
-      'interactionBackgroundOpacity', 'interactionOverallOpacity', 'interactionBarColor', 'interactionTrackColor', 'interactionCornerRadius']],
+    ['appearance', '外观设置', ['interactionFontSize', 'interactionTextColor', 'interactionOverallOpacity',
+      'interactionBarColor', 'interactionTrackColor', 'interactionCornerRadius']],
   ],
   'gift-feed': [
     ['display', '显示设置', ['visibleRows', 'scrollSpeed', 'minGiftAmountCents']],

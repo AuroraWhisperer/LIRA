@@ -105,17 +105,51 @@ async function createFixture() {
   return { document, form, Select, observers, enhanceSelects, deliver, flushTimers };
 }
 
-test('enhanced selects mirror the disabled state on their visible trigger', async () => {
+test('enhanced selects close when disabled, reject pending choices and work after re-enabling', async () => {
   const f = await createFixture();
   const select = new f.Select();
+  for (const [value, textContent] of [['shared', '使用上方登录账号'], ['separate', '单独登录主播账号']]) {
+    const option = f.document.createElement('option');
+    Object.assign(option, { value, textContent, disabled: false });
+    select.append(option);
+    select.options.push(option);
+  }
+  select.value = 'shared';
   select.disabled = true;
   f.form.append(select);
   f.enhanceSelects(select);
-  const [, trigger] = select.parentNode.children;
+  const [, trigger, menu] = select.parentNode.children;
+  const observer = f.observers.find((item) => item.target === select);
+  const fire = (node, type, extra = {}) => node.dispatchEvent({ type, target: node, preventDefault() {}, ...extra });
+  let changes = 0;
+  select.addEventListener('change', () => { changes++; });
   assert.equal(trigger.disabled, true);
   select.disabled = false;
-  f.observers.find((observer) => observer.target === select).callback();
+  observer.callback();
   assert.equal(trigger.disabled, false);
+  fire(trigger, 'click');
+  assert.equal(menu.hidden, false);
+  const other = menu.querySelectorAll('[role="option"]')[1];
+  select.disabled = true;
+  fire(other, 'click');
+  assert.equal(select.value, 'shared', 'a pending click must respect the native disabled state before observation');
+  other.focus();
+  fire(menu, 'keydown', { key: 'Enter' });
+  assert.equal(select.value, 'shared', 'keyboard choice must respect the native disabled state before observation');
+  observer.callback();
+  assert.equal(trigger.disabled, true);
+  assert.equal(trigger.getAttribute('aria-expanded'), 'false');
+  assert.equal(menu.hidden, true, 'a disabled select must not leave an interactive option panel open');
+  assert.equal(changes, 0);
+  select.disabled = false;
+  observer.callback();
+  assert.equal(trigger.disabled, false);
+  fire(trigger, 'click');
+  assert.equal(menu.hidden, false);
+  fire(menu.querySelectorAll('[role="option"]')[1], 'click');
+  assert.equal(select.value, 'separate');
+  assert.equal(changes, 1);
+  assert.equal(menu.hidden, true);
 });
 
 test('selects notify consumers once per opening, including keyboard opening, without polling or changing the value', async () => {

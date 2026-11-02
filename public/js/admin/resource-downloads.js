@@ -1,5 +1,6 @@
 import { createFontLibraryToast } from './font-library-toast.js';
 import { createGiftCatalogUpdateToast } from './gifts/catalog-update-toast.js';
+import { formatBytes } from '../shared/display-format.js';
 
 // Share the existing progress subscriptions; downloads remain owned by the desktop services.
 export function createResourceDownloads({ window: windowRef = globalThis.window,
@@ -35,13 +36,15 @@ export function createResourceDownloads({ window: windowRef = globalThis.window,
       row.hidden = !isDownloading(state);
       region.hidden = rows.every(item => item.hidden);
       if (row.hidden) return;
-      const total = state.total || 0;
-      const completed = state.completed || 0;
+      const total = state.totalBytes || state.total || 0;
+      const completed = state.totalBytes ? state.downloadedBytes || 0 : state.completed || 0;
       percent.textContent = total ? `${Math.floor(completed / total * 100)}%` : '准备下载';
       progress.max = total || 1;
       if (total) progress.value = completed;
       else progress.removeAttribute('value');
-      details.textContent = [total ? `已处理 ${completed} / ${total}` : '', state.currentFont,
+      progress.setAttribute('aria-label', `${label}下载进度（按${state.totalBytes ? '字节' : '文件数'}）`);
+      details.textContent = [total ? state.totalBytes ? `${formatBytes(completed)} / ${formatBytes(total)} · 已处理 ${state.completed || 0} / ${state.total || 0}`
+        : `已处理 ${completed} / ${total}` : '', state.currentFont,
         state.failed ? `失败 ${state.failed}` : ''].filter(Boolean).join(' · ');
       details.hidden = !details.textContent;
     };
@@ -50,7 +53,7 @@ export function createResourceDownloads({ window: windowRef = globalThis.window,
   async function init() {
     if (initialized || disposed || !region || !container) return;
     initialized = true;
-    const fonts = createTask('共享字体', state => state.status === 'downloading');
+    const fonts = createTask('字体与图片', state => state.status === 'downloading');
     const gifts = createTask('礼物图片', state =>
       ['running', 'updating'].includes(state.status) && state.phase === 'images');
     controllers.push(

@@ -72,7 +72,7 @@ body[data-style='whiteframe'] .is-gift .draw-danmaku-gift-copy {
   width: 100%;
   margin: 0;
   padding: 0.42em 1.8em;
-  border: 2px solid rgb(255 255 255 / 85%);
+  border: 2px solid var(--danmaku-bubble-color, rgb(255 255 255 / 85%));
   border-radius: 0.65em;
   color: inherit;
   background: transparent;

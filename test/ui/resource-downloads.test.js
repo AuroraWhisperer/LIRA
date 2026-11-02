@@ -95,3 +95,12 @@ test('opening during a download renders the current snapshot without waiting for
   assert.match(list.children[0].textContent, /50%/);
   controller.dispose();
 });
+
+test('large resource progress uses received bytes rather than completed file count', async () => {
+  const { controller, list } = await fixture({ fontSnapshot: { status: 'downloading', total: 62, completed: 58,
+    totalBytes: 100 * 1024 * 1024, downloadedBytes: 25 * 1024 * 1024 } });
+  await controller.init();
+  assert.match(list.children[0].textContent, /25%.*25.0 MB \/ 100.0 MB/);
+  assert.equal(list.children[0].children[1].value, 25 * 1024 * 1024);
+  controller.dispose();
+});

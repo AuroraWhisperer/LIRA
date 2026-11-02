@@ -239,7 +239,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 `gifts/catalog-update-toast.js` 经 Admin 入口的 [resource-downloads.js](../../../public/js/admin/resource-downloads.js) 初始化，订阅既有授权目录进度桥，以单条 toast 原位显示后续图片下载的开始、已处理数量、完成或失败，完成后自动移除；首次初始化、目录检查和零下载更新不提示。订阅后再读取当前状态，较新的事件优先；本次后台更新在页面加载前已完成时也能显示结果。关闭页面或应用时清理订阅和计时器。进度字段由 [desktop/preload.md](../desktop/preload.md) 定义。
 
-`resource-downloads.js` 在「百宝箱 → 桌面更新」的版本更新区下方呈现「正在下载」。字体和礼物图片各一行，共享各自 toast 控制器的状态订阅，不重复查询或启动下载；字体处于 downloading、礼物处于 running/updating 的 images 阶段时才显示。进度条及百分比按已处理文件数 / 总文件数计算，向下取整；总数未知时显示不定进度和“准备下载”。点击关闭 toast 或切换面板不影响进度；页面初始化读取当前快照，较新事件优先。任务完成或失败后隐藏对应行，无下载时整个区域隐藏，不保留历史；失败仍使用原有 toast 提示和重试入口。软件版本更新继续使用原有字节进度与操作区。
+`resource-downloads.js` 在「百宝箱 → 桌面更新」的版本更新区下方呈现「正在下载」。字体与公共图片合为一行，礼物图片独立一行，共享各自 toast 控制器的状态订阅，不重复查询或启动下载；公共资源处于 downloading、礼物处于 running/updating 的 images 阶段时才显示。公共资源进度按接收的字体包或图片字节计算，完成数按字体包或图片统计，保留当前名称；礼物图片沿用文件数进度。总数未知时显示不定进度和“准备下载”。检查和零下载结果不提示；任务完成或失败后隐藏对应行，无下载时整个区域隐藏，不保留历史。首次准备页通过 `license-resource-downloads.js` 复用同一公共资源 toast 和进度订阅。页面初始化读取当前快照，较新事件优先，关闭页面清理订阅但不取消主进程下载。软件版本更新继续使用原有字节进度与操作区。
 
 ## 3. 启动时序
 
@@ -473,6 +473,6 @@ AI 模型列表由 `ai-assistant-settings.js` 绑定查询时的服务、地址�
 
 ## 字体下载进度
 
-[font-library-toast.js](../../../public/js/admin/font-library-toast.js) 订阅字体 IPC 状态，复用公共 toast 栈，以 `font-library-update` 独立 key 原位更新进度，与礼物图片 toast 同时堆叠。九款完整共享字体随安装包内置，正常首次使用及完整缓存检查不提示下载；内置资源和有效缓存均不可用时，原有修复下载失败仍提供“重试”，退出页面释放订阅。字体可用性由独立的 [font-library-loader.js](../../../public/js/shared/font-library-loader.js) 刷新共享样式，修复下载不等待渲染请求。字体目录和选择值保持不变；共享字库不需要本机字体授权。
+[font-library-toast.js](../../../public/js/admin/font-library-toast.js) 沿用既有字体 IPC 通道订阅公共资源状态，复用 toast 栈，以 `font-library-update` 独立 key 原位更新字体与大图的字节进度，与礼物图片 toast 同时堆叠。首次补齐需要联网，有缺失或更新时显示下载；检查和零下载结果静默，失败提供“重试”，退出页面释放订阅。字体可用性由独立的 [font-library-loader.js](../../../public/js/shared/font-library-loader.js) 刷新共享样式，共享字体 CSS 只发布已就绪字体；首次大图可等待正在进行的后台下载。字体目录和选择值保持不变；共享字库不需要本机字体授权。
 
 [font-library.js](../../../public/js/shared/font-library.js) 只把已发布本地字体、且通过 `document.fonts.load` 完成菜单预览字形解码的字体加入共享选项；没有匹配 FontFace、仍在加载、加载失败或仅有系统回退时不列入。已保存的不可用共享字体保留原值，显示「未就绪」禁用占位，不写回替代字体；就绪后原位恢复可选项。注册的选择器共享每组 FontFace 的加载结果，卸载选择器时取消注册；本机字体仍独立枚举。样式加载器在最新样式加载成功后直接调用 `refreshSharedFonts()`，仅为已注册的选择器重新确认字体并刷新菜单，保持预览模块独立于管理页事件总线；过期加载不能覆盖较新状态，失败的样式不替换已有可用样式。菜单刷新沿用 select-menu 的选项观察机制，不派发用户 change 事件。

@@ -934,6 +934,6 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 
 ## 共享字体资源
 
-[font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 静态资源路径提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们与静态字体一样是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不发起下载。CSS 只声明已可用的字体，资源缺失立即 404，不等待网络下载；未知 ID 返回 404，非 GET/HEAD 返回 405。字体返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，所有响应 `Cache-Control: no-store`。状态只包含 `{status,completed,completedAt}`，无路径、账号或下载地址。
+[font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不启动下载。CSS 只声明已可用的字体，旧字体 ID 缓存缺失立即 404，未知 ID 返回 404，非 GET/HEAD 返回 405。旧字体缓存返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，响应 `Cache-Control: no-store`。状态保持 `{status,completed,completedAt}`，无路径、账号或下载地址。
 
-九款完整字库及校验清单随客户端发行；正常安装的 CSS 引用包内 `/fonts/` 静态资源，首次使用不访问外网，也不从 LIRA Server 获取字体内容。旧下载缓存端点保留兼容；生命周期与用户进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#共享字体缓存)。
+[resource-assets.js](../../../src/server/resource-assets.js) 保留资源清单中 `/fonts/...` 与四张大图的原 URL，通过本机公共缓存响应 GET/HEAD，设置真实 MIME、Content-Length、CORS、nosniff 和 no-store。字体 CSS 的摘要查询参数可选取同一资源的已缓存版本。若首次图片请求到达时已有下载进行中，可等待该任务完成再读取；HTTP 请求自身不发起 CDN 检查或下载。资源仍不可用时返回 404，非 GET/HEAD 返回 405。共享完整字体与大图不进入安装包，两个固定标题裁剪字体随安装包提供；CDN 下载及进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#公共资源缓存)。

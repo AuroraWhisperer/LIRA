@@ -6,7 +6,7 @@ async function serveFontAsset(library, req, res, url) {
   const stylesheet = url.pathname === '/css/shared/display-fonts.css';
   const status = url.pathname === '/font-library/status';
   const match = /^\/font-library\/([a-z0-9-]+)$/.exec(url.pathname);
-  if (!library || !stylesheet && !match) return false;
+  if (!library || !stylesheet && !status && !match) return false;
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('X-Content-Type-Options', 'nosniff');

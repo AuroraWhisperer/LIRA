@@ -653,7 +653,7 @@ async function startDesktopApp() {
     },
     fontLibrary: {
       getState: () => lifecycleState.runtime.getFontLibraryState(),
-      initialize: () => lifecycleState.runtime.initializeFontLibrary(),
+      initialize: () => lifecycleState.runtime.initializeFontLibrary({ force: true }),
       onStateChanged: listener => lifecycleState.runtime.onFontLibraryStateChanged(listener),
     },
     getMainWindow: () => windowState.main,

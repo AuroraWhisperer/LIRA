@@ -6,9 +6,10 @@ const { chromium } = require('playwright');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
 
 test('song board parameters reach the canvas renderer and persist into the live source', { timeout: 30000 }, async t => {
-  const fixture = await startCanvasOutputFixture({ extraContext: { songs: { list: () => [
+  const songs = [
     { id: 1, name: '真实歌曲', artist: '真实歌手', category_name: '流行', name_initial: 'Z', language: '国语' },
-  ] } } });
+  ];
+  const fixture = await startCanvasOutputFixture({ extraContext: { songs: { list: () => songs } } });
   const browser = await chromium.launch({ headless: true });
   const desktop = await browser.newPage();
   const page = await browser.newPage();
@@ -88,4 +89,22 @@ test('song board parameters reach the canvas renderer and persist into the live 
     const style = getComputedStyle(node);
     return { size: style.fontSize, weight: style.fontWeight, color: style.color };
   }), { size: '36px', weight: '400', color: 'rgb(18, 52, 86)' });
+
+  const standalone = await browser.newPage();
+  standalone.on('pageerror', error => errors.push(error.message));
+  await standalone.route('**/api/state', route => route.fulfill({ json: { ok: true, data: fixture.runtime } }));
+  await standalone.route('**/api/songs?*', route => route.fulfill({ json: { ok: true, data: songs } }));
+  const standaloneUrl = `${fixture.origin}/songlist`;
+  assert.equal((await fetch(standaloneUrl)).status, 200);
+  for (const [size, songSize, sync, expected] of [
+    ['16', '20', 'false', '20px'], ['16', '60', 'false', '60px'],
+    ['28', '36', 'false', '63px'], ['28', '60', 'true', '28px'],
+  ]) {
+    Object.assign(fixture.runtime.settings, { songBoardFontSize: size,
+      songBoardSongFontSize: songSize, songBoardSyncTheme: sync });
+    await standalone.goto(standaloneUrl);
+    await standalone.locator('.song-card strong').first().waitFor();
+    assert.equal(await standalone.locator('.song-card strong').first().evaluate(node => getComputedStyle(node).fontSize),
+      expected, `standalone song size ${songSize}, board size ${size}, theme sync ${sync}`);
+  }
 });

@@ -76,7 +76,11 @@ test('all shared fonts initialize on a clean offline install without downloads o
   assert.equal(requests, 0);
   for (const font of catalog) {
     assert.ok(library.stylesheet().includes(`font-family: '${font.family}'`), font.id);
-    for (const file of font.bundled) assert.ok(library.stylesheet().includes(`/fonts/${file.path}`), file.path);
+    for (const file of font.bundled) {
+      assert.ok(library.stylesheet().includes(`/fonts/${file.path}`), file.path);
+      for (const alias of file.aliases || [])
+        assert.ok(library.stylesheet().includes(`font-family: '${alias}'`), alias);
+    }
   }
   await assert.rejects(fs.access(directory), { code: 'ENOENT' });
 });

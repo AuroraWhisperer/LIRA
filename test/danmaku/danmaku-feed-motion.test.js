@@ -54,6 +54,50 @@ async function preview(t, direction, scale, style = 'moonlit') {
   return page;
 }
 
+for (const style of ['starlight', 'notebook']) {
+  test(`${style} can stop ambient loops while new messages keep their entrance and movement`, { timeout: 15000 }, async t => {
+    const page = await preview(t, 'down', 1, style);
+    const stopped = await page.evaluate(async style => {
+      const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+      const loops = () => document.getAnimations().filter(animation => animation.effect.getTiming().iterations === Infinity);
+      const before = loops().length;
+      const nodes = Array.from(root.children);
+      applyStyleOptions(document, style, { [style]: { ambientMotion: 'off' } });
+      return { before, after: loops().length, keptNodes: nodes.every(node => node.isConnected) };
+    }, style);
+    assert.ok(stopped.before > 0, 'the default style has ambient animation');
+    assert.equal(stopped.after, 0, 'all ambient layers stop');
+    assert.equal(stopped.keptNodes, true, 'changing ambient motion preserves messages');
+    await page.evaluate(async () => {
+      feed.append({ name: '新消息', roomGuardLevel: 3, message: '纸张和装饰静止，入场与滚动继续。' });
+      await new Promise(requestAnimationFrame);
+    });
+    await page.waitForFunction(() => root.lastElementChild.hasAttribute('data-live-entry'));
+    const entering = await page.evaluate(() => {
+      const animations = document.getAnimations();
+      return {
+        entrance: root.lastElementChild.getAnimations().some(animation => Boolean(animation.animationName)),
+        movement: animations.some(animation => !animation.animationName),
+        loops: animations.filter(animation => animation.effect.getTiming().iterations === Infinity).length,
+      };
+    });
+    assert.equal(entering.entrance, true);
+    assert.equal(entering.movement, true);
+    assert.equal(entering.loops, 0);
+    await page.waitForFunction(() => document.getAnimations().length === 0);
+    assert.equal(await page.evaluate(() => root.lastElementChild.textContent.includes('纸张和装饰静止，入场与滚动继续。')), true);
+    await page.evaluate(async style => {
+      const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+      applyStyleOptions(document, style, {});
+    }, style);
+    assert.ok(await page.evaluate(() => document.getAnimations().some(animation => animation.effect.getTiming().iterations === Infinity)),
+      'restoring defaults resumes ambient animation');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.waitForFunction(() => document.getAnimations().length === 0);
+    await page.evaluate(() => feed.destroy());
+  });
+}
+
 for (const [direction, scale] of [['up', 1], ['down', 0.63]]) {
   test(`moonlit ${direction} at ${scale} preserves visible rows and interrupted spacing`, { timeout: 15000 }, async t => {
     const page = await preview(t, direction, scale);

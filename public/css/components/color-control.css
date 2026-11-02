@@ -110,7 +110,7 @@
 }
 .lira-color-picker label { display: grid; gap: 5px; margin: 0; color: inherit; font-size: 12px; }
 .lira-color-picker :is(.lira-color-hue-label, .lira-color-opacity-label) { grid-template-columns: 60px 1fr; align-items: center; margin-bottom: 12px; }
-.lira-color-picker input[type='range'] { appearance: none; width: 100%; min-width: 0; height: 12px; margin: 0; padding: 0; border: 0; border-radius: 3px; }
+.lira-color-picker input[type='range'] { appearance: none; width: 100%; min-width: 0; height: 12px; margin: 0; padding: 0; border: 0; border-radius: 999px; }
 .lira-color-hue { background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
 .lira-color-opacity { background: linear-gradient(to right, transparent, var(--picker-color)), repeating-conic-gradient(var(--color-bg-primary) 0 25%, var(--border) 0 50%) 0 / 8px 8px; }
 .lira-color-picker input[type='range']::-webkit-slider-thumb { appearance: none; width: 16px; height: 16px; border: 2px solid var(--text); border-radius: 50%; background: var(--color-bg-primary); cursor: pointer; }

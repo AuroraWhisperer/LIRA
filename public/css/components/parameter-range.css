@@ -14,6 +14,29 @@ input.parameter-range[type='range'] {
   --parameter-range-origin-start: 9px;
   --parameter-range-origin-length: 0px;
   --parameter-range-zero-position: 9px;
+  --parameter-range-rail-start: var(--parameter-range-track-inset);
+  --parameter-range-rail-length: var(--parameter-range-track-length);
+  --parameter-range-active-start: var(--parameter-range-track-inset);
+  --parameter-range-active-length: var(--parameter-range-fill-length);
+  /* 圆帽与直段分别绘制，保留原生滑块行程和完整点击区域。 */
+  --parameter-range-fill-background:
+    radial-gradient(circle closest-side, var(--parameter-range-accent) 100%, transparent 100%)
+      var(--parameter-range-active-start) center / var(--parameter-range-track-height) var(--parameter-range-track-height) no-repeat,
+    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent))
+      calc(var(--parameter-range-active-start) + var(--parameter-range-track-height) / 2) center /
+      max(0px, calc(var(--parameter-range-active-length) - var(--parameter-range-track-height))) var(--parameter-range-track-height) no-repeat,
+    radial-gradient(circle closest-side, var(--parameter-range-accent) 100%, transparent 100%)
+      calc(var(--parameter-range-active-start) + var(--parameter-range-active-length) - var(--parameter-range-track-height)) center /
+      var(--parameter-range-track-height) var(--parameter-range-track-height) no-repeat;
+  --parameter-range-track-background:
+    radial-gradient(circle closest-side, var(--parameter-range-track) 100%, transparent 100%)
+      var(--parameter-range-rail-start) center / var(--parameter-range-track-height) var(--parameter-range-track-height) no-repeat,
+    linear-gradient(var(--parameter-range-track), var(--parameter-range-track))
+      calc(var(--parameter-range-rail-start) + var(--parameter-range-track-height) / 2) center /
+      max(0px, calc(var(--parameter-range-rail-length) - var(--parameter-range-track-height))) var(--parameter-range-track-height) no-repeat,
+    radial-gradient(circle closest-side, var(--parameter-range-track) 100%, transparent 100%)
+      calc(var(--parameter-range-rail-start) + var(--parameter-range-rail-length) - var(--parameter-range-track-height)) center /
+      var(--parameter-range-track-height) var(--parameter-range-track-height) no-repeat;
   width: 100%;
   height: 36px;
   margin: 0;
@@ -21,11 +44,7 @@ input.parameter-range[type='range'] {
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  background:
-    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent)) var(--parameter-range-track-inset)
-      center / var(--parameter-range-fill-length) var(--parameter-range-track-height) no-repeat,
-    linear-gradient(var(--parameter-range-track), var(--parameter-range-track)) var(--parameter-range-track-inset)
-      center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
+  background: var(--parameter-range-fill-background), var(--parameter-range-track-background);
   border: 0;
   border-radius: 4px;
 }
@@ -97,13 +116,13 @@ input.parameter-range[data-range-scale='balanced']::-moz-range-thumb {
 
 /* 正负偏移沿用统一外观，以零点标记和双向填充表达数值方向。 */
 input.parameter-range--centered[type='range'] {
+  --parameter-range-active-start: var(--parameter-range-origin-start);
+  --parameter-range-active-length: var(--parameter-range-origin-length);
   background:
-    linear-gradient(var(--parameter-range-accent), var(--parameter-range-accent)) var(--parameter-range-origin-start)
-      center / var(--parameter-range-origin-length) var(--parameter-range-track-height) no-repeat,
+    var(--parameter-range-fill-background),
     linear-gradient(var(--muted, #66625c), var(--muted, #66625c)) calc(var(--parameter-range-zero-position) - 1px)
       center / 2px 10px no-repeat,
-    linear-gradient(var(--parameter-range-track), var(--parameter-range-track)) var(--parameter-range-track-inset)
-      center / var(--parameter-range-track-length) var(--parameter-range-track-height) no-repeat;
+    var(--parameter-range-track-background);
 }
 
 input.parameter-range[type='range']:disabled {

@@ -197,7 +197,10 @@ export function mountDanmakuParameters(host, controller, {
         view.mode.value = custom ? 'custom' : 'default';
         view.mode.disabled = !loaded || !supported;
       }
-      if (key === 'bubbleColor') view.modeView.title.textContent = draft.style === 'ripploid' ? '聊天主色' : definition.label;
+      if (key === 'bubbleColor') {
+        view.modeView.title.textContent = draft.style === 'ripploid' ? '聊天主色' : draft.style === 'whiteframe' ? '边框颜色' : definition.label;
+        view.title.textContent = draft.style === 'whiteframe' ? '自定义边框颜色' : `自定义${definition.label}`;
+      }
       if (key === 'textColor') view.title.textContent = draft.style === 'sketch' ? '主题颜色' : spooky ? '自定义正文颜色' : definition.label;
       let value = options[key] ?? definition.default;
       if (definition.type === 'color' && !custom && hasMode) value = spooky

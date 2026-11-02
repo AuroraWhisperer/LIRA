@@ -1,12 +1,12 @@
-# 歌词自动补字资源
+# 共享多语言字体与歌词补字
 
-这些字体不作为用户选项出现。歌词设置只选择风格，预览、画布和直播输出由同一字体链自动补字。
+这些完整字体以 Noto Sans、Gowun Dodum 和 Noto Serif Tibetan 登记到共享字体库，其他组件也可选择使用。Noto Sans 包含本目录的 20 个无衬线语种分支；韩文与藏文各自独立。歌词预览、画布和直播输出继续由同一字体链自动补字，无需单独选择备用字体。
 
-全部来自 [Google Fonts](https://github.com/google/fonts/tree/e9678a5385322c63730122ba464765baad83cfd8) 的固定版本，按 SIL Open Font License 1.1 随应用分发；每个字体的原始许可保存在同目录。
+全部来自 [Google Fonts](https://github.com/google/fonts/tree/e9678a5385322c63730122ba464765baad83cfd8) 的固定版本，按 SIL Open Font License 1.1 分发；每个字体的原始许可保存在同目录。字体二进制首次从 CDN 补齐，此后使用本机缓存；分发流程见[共享字体库](../README.md)。
 
 仅用 fontTools 将完整上游 TTF 压缩成 WOFF2，没有裁剪字符、改名字或改字形；cmap、GSUB、GPOS、GDEF、name 和 fvar 与源文件逐表校验一致。可变字重保留原始范围。
 
-`css/lyrics/font-fallbacks.css` 使用 `unicode-range` 按文字加载资源，不依赖运行时外网。`Lira Lyric Scripts` 优先为连写与组合文字提供完整字形；`Lira Lyric Korean` 在所选字体之后补充韩文，`Lira Lyric Extended` 在小赖字体之后补充其他字母。韩文使用独立字体族，确保单字重与可变字体在加粗时都能参与补字。其余缺字仍由系统字体处理，不宣称覆盖全部 Unicode 或所有历史文字。
+`css/shared/display-fonts.css` 统一声明共享字体与歌词兼容别名，使用 `unicode-range` 按文字加载资源，不依赖运行时外网；旧 `css/lyrics/font-fallbacks.css` 仅转入这一共享入口。`Lira Lyric Scripts` 优先为连写与组合文字提供完整字形；`Lira Lyric Korean` 在所选字体之后补充韩文，`Lira Lyric Extended` 在小赖字体之后补充其他字母。韩文使用独立字体族，确保单字重与可变字体在加粗时都能参与补字。其余缺字仍由系统字体处理，不宣称覆盖全部 Unicode 或所有历史文字。
 
 歌词字体链与兼容行为见[直播歌词合同](../../../docs/reference/frontend/overlays.md#6-直播歌词页lyrics)；风格字体见[播放器与直播歌词字体](../player/README.md)。
 

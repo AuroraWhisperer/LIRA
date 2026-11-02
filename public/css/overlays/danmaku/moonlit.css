@@ -274,6 +274,9 @@ body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift, .sc-copy) {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+body[data-style='moonlit'][data-custom-font='true'] .moonlit-scroll :is(.sc-name, .sc-copy) {
+  font-family: var(--danmaku-custom-font);
+}
 body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-gift-copy {
   display: flex;
   align-items: baseline;

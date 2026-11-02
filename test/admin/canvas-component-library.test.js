@@ -33,6 +33,8 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   };
   const fixture = await startCanvasOutputFixture({ extraContext });
   Object.assign(fixture.runtime, data.lyrics);
+  const legacyInteractionBackground = { interactionBackgroundColor: '#123456', interactionBackgroundOpacity: '35' };
+  Object.assign(fixture.runtime.settings, legacyInteractionBackground);
   const browser = openBrowserSession();
   const desktop = await browser.newPage();
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
@@ -76,6 +78,12 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     const preview = page.frameLocator('.scene-editor-item.is-selected iframe');
     await preview.locator(previews[variant] || previews[type]).first().waitFor({ state: 'visible' });
     if (type === 'songlist') await page.locator('[data-component-parameter="songBoardSyncTheme"]').uncheck();
+    if (type === 'interactions') {
+      for (const key of Object.keys(legacyInteractionBackground)) {
+        assert.equal(await page.locator(`[data-component-parameter="${key}"]`).count(), 0,
+          'Transparent interaction output does not offer unused legacy background controls.');
+      }
+    }
     const input = page.locator(`[data-component-parameter="${key}"]`);
     await input.fill(value); await input.press('Tab');
     for (const [name, size] of [['宽度', '400'], ['高度', '300']]) {
@@ -95,6 +103,9 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     if (item.type === 'interactions') assert.equal(item.appearance.config.kind, cases[index][2]);
     const shared = createSceneSharedAppearance({ settings: { get: () => fixture.runtime.settings }, system: {} })
       .read(item.type, item.appearance.config);
+    if (item.type === 'interactions') {
+      for (const [key, value] of Object.entries(legacyInteractionBackground)) assert.equal(shared[key], value);
+    }
     assert.equal(String({ ...item.appearance.config, ...shared }[cases[index][3]]), cases[index][4]);
     assert.equal(item.appearance.mode, 'independent');
     assert.equal(item.width, 400);

@@ -131,7 +131,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   notebook: {
     scrollDirection: true, defaultEdgeFade: 'none', label: '手账风',
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 23,
-    background: false, giftImage: false, defaultTextColor: '#3e3e3d',
+    background: false, giftImage: false, ambientMotion: true, defaultTextColor: '#3e3e3d',
   },
   spooky: {
     scrollDirection: true, defaultEdgeFade: 'none', label: '幽灵便笺',
@@ -167,6 +167,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   starlight: {
     scrollDirection: true,
     decorationShape: true,
+    ambientMotion: true,
     label: '星语',
     minFontSize: 18,
     maxFontSize: 48,
@@ -204,6 +205,8 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   whiteframe: {
     layout: 'fullscreen-random',
     entranceAnimation: true,
+    bubbleColor: true,
+    defaultBubbleColor: '#ffffffd9',
     label: '白描',
     minFontSize: 18,
     maxFontSize: 40,
@@ -310,6 +313,8 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   }])),
   decorationShape: { label: '装饰图案', type: 'select', default: 'sparkle', capability: 'decorationShape', help: '每种图案搭配自己的轻动画，切换图案即可预览。',
     choices: [['sparkle', '四角星'], ['heart', '爱心'], ['square', '圆角方块'], ['star', '五角星'], ['flower', '小花'], ['moon', '月牙'], ['bow', '蝴蝶结']] },
+  ambientMotion: { label: '持续动画', type: 'select', default: 'on', capability: 'ambientMotion', choices: [['on', '开启'], ['off', '关闭']],
+    help: '控制图案、纸张或头像的循环动作，保留新弹幕入场和列表滚动。' },
   entranceAnimation: { label: '入场动画', type: 'select', default: 'fade', capability: 'entranceAnimation', choices: [['fade', '动画 1 · 渐显'], ['rise', '动画 2 · 上浮弹入']] },
   centerBias: { label: '中心倾向', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'distribution' },
   dispersion: { label: '离散程度', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'distribution' },

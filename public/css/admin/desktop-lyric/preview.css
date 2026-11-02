@@ -75,18 +75,6 @@
   padding-block: 24px;
 }
 
-.desktop-lyric-workspace .desktop-lyric-preview-row-text {
-  font-size: min(calc(var(--preview-size) * 0.9), 8.5cqi);
-}
-
-.desktop-lyric-workspace .desktop-lyric-preview-row-translation {
-  font-size: min(calc(var(--preview-translation-size) * 0.9), 7cqi);
-}
-
-.desktop-lyric-workspace .desktop-lyric-preview-row-roma {
-  font-size: min(calc(var(--preview-translation-size) * 0.86 * 0.9), 6cqi);
-}
-
 .desktop-lyric-workspace .desktop-lyric-preview-empty {
   font-size: 13.5px;
 }

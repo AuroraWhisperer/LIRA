@@ -258,18 +258,15 @@
 }
 
 .desktop-lyric-settings input.parameter-range[type='range'] {
-  background-position-x: 0, 0;
-  background-size:
-    calc(var(--parameter-range-fill-length) + var(--parameter-range-track-inset)) var(--parameter-range-track-height),
-    100% var(--parameter-range-track-height);
+  --parameter-range-rail-start: 0px;
+  --parameter-range-rail-length: calc(var(--parameter-range-track-length) + var(--parameter-range-thumb-size));
+  --parameter-range-active-start: 0px;
+  --parameter-range-active-length: calc(var(--parameter-range-fill-length) + var(--parameter-range-track-inset));
 }
 
 .desktop-lyric-settings input.parameter-range--centered[type='range'] {
-  background-position-x: var(--parameter-range-origin-start), calc(var(--parameter-range-zero-position) - 1px), 0;
-  background-size:
-    var(--parameter-range-origin-length) var(--parameter-range-track-height),
-    2px 10px,
-    100% var(--parameter-range-track-height);
+  --parameter-range-active-start: var(--parameter-range-origin-start);
+  --parameter-range-active-length: var(--parameter-range-origin-length);
 }
 
 .desktop-lyric-control .range-row {

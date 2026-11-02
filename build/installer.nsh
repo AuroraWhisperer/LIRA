@@ -1,6 +1,9 @@
 ManifestDPIAware true
 
 !include "installer-uninstall.nsh"
+!ifndef BUILD_UNINSTALLER
+  !include "installer-ui.nsh"
+!endif
 
 !macro customCheckAppRunning
   !ifdef BUILD_UNINSTALLER
@@ -40,20 +43,70 @@ ManifestDPIAware true
 !macroend
 
 !macro licensePage
+  Var liraAgreementFont
+
   ; Decline starts selected; Next stays disabled until the user accepts.
-  !define MUI_PAGE_HEADER_TEXT "用户协议"
-  !define MUI_PAGE_HEADER_SUBTEXT "安装 LIRA 前，请仔细阅读下面的协议。"
-  !define MUI_LICENSEPAGE_TEXT_TOP "滚动鼠标或按 Page Down 键可以查看全部内容。"
-  !define MUI_LICENSEPAGE_TEXT_BOTTOM "选中“我已阅读并同意以上协议”才能继续安装；不同意的话，可以点“取消”退出。"
+  !define MUI_PAGE_HEADER_TEXT "用户协议与隐私说明"
+  !define MUI_PAGE_HEADER_SUBTEXT "请阅读以下内容，同意后继续安装。"
+  !define MUI_LICENSEPAGE_TEXT_TOP ""
+  !define MUI_LICENSEPAGE_TEXT_BOTTOM ""
+  !define MUI_PAGE_CUSTOMFUNCTION_SHOW liraShowAgreement
   !define MUI_LICENSEPAGE_RADIOBUTTONS
   !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_ACCEPT "我已阅读并同意以上协议(&A)"
   !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_DECLINE "我不同意(&D)"
   !insertmacro MUI_PAGE_LICENSE "${BUILD_RESOURCES_DIR}\..\public\pages\admin\toolbox\user-agreement.txt"
+
+  Function liraShowAgreement
+    Call liraLayoutAgreement
+    Push $0
+    Push $1
+    Push $2
+    Push $3
+    Push $4
+    Push $5
+
+    ShowWindow $mui.LicensePage.TopText ${SW_HIDE}
+    ShowWindow $mui.LicensePage.Text ${SW_HIDE}
+    StrCmp $liraAgreementFont "" 0 liraAgreementFontReady
+    CreateFont $liraAgreementFont "Microsoft YaHei UI" 9
+    liraAgreementFontReady:
+      SendMessage $mui.LicensePage.LicenseText ${WM_SETFONT} $liraAgreementFont 0
+
+    ; Use the space above the consent controls, measured in the current DPI.
+    GetDlgItem $0 $mui.LicensePage 1034
+    System::Call '*(i, i, i, i) p .r1'
+    System::Call 'user32::GetWindowRect(p r0, p r1)'
+    System::Call 'user32::MapWindowPoints(p 0, p $mui.LicensePage, p r1, i 2)'
+    System::Call '*$1(i .r2, i .r3, i .r4, i .r5)'
+    IntOp $5 $5 - $3
+    IntOp $5 $5 / 2
+    IntOp $3 $3 - $5
+    IntOp $4 $4 - $2
+    System::Call 'user32::SetWindowPos(p $mui.LicensePage.LicenseText, p 0, i r2, i 0, i r4, i r3, i 0x14)'
+
+    ; Keep native word wrapping and scrolling, with an inset around the text.
+    System::Call 'user32::GetClientRect(p $mui.LicensePage.LicenseText, p r1)'
+    System::Call '*$1(i, i, i .r4, i .r3)'
+    IntOp $4 $4 - $5
+    IntOp $3 $3 - $5
+    System::Call '*$1(i r5, i r5, i r4, i r3)'
+    SendMessage $mui.LicensePage.LicenseText ${EM_SETRECT} 0 $1
+    System::Free $1
+    System::Call 'user32::SetFocus(p $mui.LicensePage.LicenseText)'
+
+    Pop $5
+    Pop $4
+    Pop $3
+    Pop $2
+    Pop $1
+    Pop $0
+  FunctionEnd
 !macroend
 
 !macro customHeader
   !include "installer-process.nsh"
   !ifndef BUILD_UNINSTALLER
+    !insertmacro liraInstallerUi
     !include "installer-data.nsh"
     Function liraSelectDefaultDirectory
       ReadRegStr $liraPreviousInstallDir SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"

@@ -47,7 +47,7 @@ test('Playwright remains available only as a development dependency', () => {
   assert.equal(lock.packages['node_modules/playwright-core'].dev, true);
 });
 
-test('shared fonts, licenses and fallbacks are bundled while optional Moonlit media stays external', async () => {
+test('CDN font binaries and large images stay external while font catalogs and licenses remain bundled', async () => {
   const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
   const projectDir = path.resolve(__dirname, '../..');
   const output = path.join(projectDir, 'tmp/moonlit-packaging-match');
@@ -61,22 +61,28 @@ test('shared fonts, licenses and fallbacks are bundled while optional Moonlit me
     const file = path.join(entry.parentPath, entry.name);
     const relative = path.relative(projectDir, file).replaceAll('\\', '/');
     if (!/^public\/(img|fonts)\//.test(relative) || !/moonlit|moon-fan|clock-moon-serif/.test(relative)) continue;
-    count++; assert.equal(filter(file, await fs.stat(file)), relative.startsWith('public/fonts/moonlit-wenkai/') && entry.name !== 'README.md', relative);
+    count++; assert.equal(filter(file, await fs.stat(file)), relative === 'public/fonts/clock-moon-serif-400.woff2'
+      || relative.startsWith('public/fonts/moonlit-wenkai/') && entry.name.endsWith('.txt'), relative);
   }
   assert.ok(count > 0, 'the packaging scan must include the optional media and shared font inputs');
-  for (const relative of ['public/fonts/guard-thanks-serif-400.woff2', 'public/js/overlays/opening-moon-fan.js',
+  for (const relative of ['public/js/overlays/opening-moon-fan.js',
     'public/css/overlays/clock/moonlit-fan.css', 'public/img/overlays/danmaku-previews/transparent.png']) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), true, relative);
   }
   for (const directory of ['player', 'library']) {
     for (const name of await fs.readdir(path.join(projectDir, 'public/fonts', directory))) {
       const file = path.join(projectDir, 'public/fonts', directory, name);
-      assert.equal(filter(file, await fs.stat(file)), name !== 'README.md', file);
+      assert.equal(filter(file, await fs.stat(file)), name.endsWith('.txt'), file);
     }
   }
-  for (const relative of ['src/fonts/catalog.json', 'public/fonts/lyrics-fallback/gowundodum.woff2']) {
+  for (const relative of ['src/fonts/catalog.json', 'src/resources/catalog.json', 'public/fonts/lyrics-fallback/notosans-OFL.txt',
+    'public/fonts/clock-moon-serif-400.woff2', 'public/fonts/guard-thanks-serif-400.woff2']) {
     const file = path.join(projectDir, relative);
     assert.equal(filter(file, await fs.stat(file)), true, relative);
+  }
+  for (const entry of require('../../src/resources/catalog.json').files) {
+    const filename = path.join(projectDir, 'public', entry.path);
+    assert.equal(filter(filename, await fs.stat(filename)), false, entry.path);
   }
 });
 
@@ -253,6 +259,8 @@ test('afterPack refuses an incomplete production dependency graph before generat
 });
 
 test('all Windows build commands disable direct publishing and share the final installer gate', async () => {
+  assert.deepEqual(pkg.build.publish[0], { provider: 'generic', url: 'https://assets.lirahub.cn/downloads/' });
+  assert.equal(pkg.build.nsis.artifactName, 'lira-setup.${ext}');
   assert.match(pkg.scripts['dist:win'], /--publish never/);
   assert.match(pkg.scripts['dist:win:local'], /--publish never/);
   assert.equal(pkg.build.artifactBuildCompleted, 'scripts/verify-client-installer.js');

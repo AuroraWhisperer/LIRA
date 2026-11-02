@@ -17,6 +17,7 @@ const { createRuntimeApiContextFactory } = require('./server/runtime-api-context
 const { resolveServerRuntimeConfig, validateServerHost } = require('./server/runtime-config');
 const { createRuntimeTransport } = require('./server/runtime-transport');
 const { createFontLibrary } = require('./fonts/font-library');
+const { createResourceLibrary } = require('./resources/resource-library');
 const { startRetentionMaintenance } = require('./server/startup-retention');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
@@ -73,6 +74,7 @@ function createServerRuntime(runtimeOptions = {}) {
   let giftEffectResolver = null;
   let domainServices = null;
   let fontLibrary = null;
+  let resourceLibrary = null;
   let worldClock = null;
   let sceneRuntime = null;
   let giftSyncStore = null;
@@ -121,6 +123,7 @@ function createServerRuntime(runtimeOptions = {}) {
   } = createRuntimeTransport({
     publicDir: PUBLIC_DIR,
     getFontLibrary: () => fontLibrary,
+    getResourceLibrary: () => resourceLibrary,
     defaultPort: START_PORT,
     getHost: () => HOST,
     getStartedPort: () => startedPort,
@@ -157,7 +160,9 @@ function createServerRuntime(runtimeOptions = {}) {
         auth: runtimeOptions.dynamicLotteryAuth,
       });
       fs.mkdirSync(OPENING_MUSIC_DIR, { recursive: true });
-      fontLibrary = createFontLibrary({ dataDir: DATA_DIR, publicDir: PUBLIC_DIR, fetch: runtimeOptions.fontFetch });
+      resourceLibrary = createResourceLibrary({ dataDir: DATA_DIR, publicDir: PUBLIC_DIR,
+        fetch: runtimeOptions.resourceFetch || runtimeOptions.fontFetch, cdnBaseUrl: runtimeOptions.resourceCdnBase });
+      fontLibrary = createFontLibrary({ dataDir: DATA_DIR, publicDir: PUBLIC_DIR, resources: resourceLibrary });
       worldClock = createWorldClockTemperature({ fetch: runtimeOptions.worldClockFetch });
       reportPhase('database-init', Date.now() - phaseStartedAt);
       phaseStartedAt = Date.now();
@@ -518,6 +523,7 @@ function createServerRuntime(runtimeOptions = {}) {
       }
 
       musicRuntime?.weSingCapture.cancelDiagnostics();
+      await resourceLibrary?.close();
       await fontLibrary?.close();
       await worldClock?.close();
       await inflightTracker.drain();
@@ -545,6 +551,7 @@ function createServerRuntime(runtimeOptions = {}) {
 
   async function disposeApplication(options = {}) {
     const steps = [
+      ['resources', () => resourceLibrary?.close()],
       ['fonts', () => fontLibrary?.close()],
       ['world clock', () => worldClock?.close()],
       ['retention', () => stopRetentionMaintenance?.()],
@@ -585,6 +592,7 @@ function createServerRuntime(runtimeOptions = {}) {
     giftEffectResolver = null;
     domainServices = null;
     fontLibrary = null;
+    resourceLibrary = null;
     worldClock = null;
     sceneRuntime = null;
     giftSyncStore = null;
@@ -814,7 +822,7 @@ function createServerRuntime(runtimeOptions = {}) {
   return {
     start: startServer,
     stop: shutdownApplication,
-    initializeFontLibrary: () => fontLibrary?.initialize(),
+    initializeFontLibrary: options => fontLibrary?.initialize(options),
     getFontLibraryState: () => fontLibrary?.getState() || { status: 'idle' },
     onFontLibraryStateChanged: listener => fontLibrary?.onStateChanged(listener) || (() => {}),
     setPreShutdownHook,

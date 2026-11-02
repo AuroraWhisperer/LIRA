@@ -139,6 +139,7 @@ body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] .notebo
 body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] .notebook-portrait-pulse { animation: notebookGovernorPulse 3300ms linear infinite; }
 body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-sway,
 body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-pulse { animation: none; scale: 1; }
+body[data-style='notebook'][data-ambient-motion='off'] .notebook-item :is(.notebook-paper-float,.notebook-portrait-float,.notebook-portrait-sway,.notebook-portrait-pulse) { animation: none; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-portrait-enter { animation: notebookAvatarFade 500ms linear both, notebookAvatarRise 600ms ease-out both, notebookAvatarReturn 420ms linear both; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { animation: notebookPaperEnter 450ms cubic-bezier(.22,1,.36,1) 150ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-heading { animation: notebookTextEnter 300ms ease-out 320ms both; }

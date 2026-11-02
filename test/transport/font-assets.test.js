@@ -7,6 +7,8 @@ const test = require('node:test');
 const { createFontLibrary } = require('../../src/fonts/font-library');
 const { fonts } = require('../../src/fonts/catalog.json');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+const { createResourceLibrary } = require('../../src/resources/resource-library');
+const { sha256 } = require('../../src/fonts/font-download');
 
 test('cold font HTTP never blocks rendering, then serves verified fonts with HEAD/CORS', async t => {
   const scratch = path.resolve(__dirname, '../../tmp/font-tests');
@@ -42,4 +44,47 @@ test('cold font HTTP never blocks rendering, then serves verified fonts with HEA
   assert.equal((await fetch(`${fixture.origin}/font-library/unknown`)).status, 404);
   assert.equal((await fetch(`${fixture.origin}/font-library/%2e%2e%2findex.json`)).status, 404);
   assert.equal((await fetch(`${fixture.origin}/admin`)).status, 401);
+});
+
+test('CDN fonts and a cold image keep their original local URLs and never expose cache paths', async t => {
+  const scratch = path.resolve(__dirname, '../../tmp/font-tests');
+  await fs.mkdir(scratch, { recursive: true });
+  const dataDir = await fs.mkdtemp(path.join(scratch, 'resources-http-'));
+  t.after(() => fs.rm(dataDir, { recursive: true, force: true }));
+  const font = fonts.find(font => font.id === 'smiley');
+  const fontPath = `fonts/${font.bundled[0].path}`;
+  const bytes = await fs.readFile(path.resolve(__dirname, '../../public', fontPath));
+  const image = Buffer.from('a deterministic image fixture');
+  const files = [{ path: fontPath, size: bytes.length, sha256: sha256(bytes) },
+    { path: 'img/test-map.png', size: image.length, sha256: sha256(image) }];
+  const gate = Promise.withResolvers();
+  let requests = 0;
+  const resources = createResourceLibrary({ dataDir, publicDir: dataDir, files, fetch: async url => {
+    requests++;
+    if (url.endsWith('/manifest.json')) return Response.json({ version: 1, files });
+    await gate.promise;
+    return new Response(url.endsWith('.png') ? image : bytes);
+  } });
+  t.after(() => resources.close());
+  const library = createFontLibrary({ dataDir, publicDir: dataDir, fonts: [font], resources });
+  t.after(() => library.close());
+  const fixture = await startComponentPreviewServer({ fontLibrary: library, resourceLibrary: resources });
+  t.after(() => fixture.close());
+  const initializing = library.initialize();
+  const pendingImage = fetch(`${fixture.origin}/img/test-map.png`);
+  gate.resolve();
+  assert.equal((await initializing).status, 'ready');
+  assert.deepEqual(Buffer.from(await (await pendingImage).arrayBuffer()), image);
+  const response = await fetch(`${fixture.origin}/${fontPath}`);
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'font/woff2');
+  assert.equal(response.headers.get('access-control-allow-origin'), '*');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+  const css = await (await fetch(`${fixture.origin}/css/shared/display-fonts.css`)).text();
+  assert.ok(css.includes(`/${fontPath}?v=${sha256(bytes)}`));
+  const head = await fetch(`${fixture.origin}/img/test-map.png`, { method: 'HEAD' });
+  assert.equal(head.status, 200);
+  assert.equal(Number(head.headers.get('content-length')), image.length);
+  assert.equal((await head.arrayBuffer()).byteLength, 0);
+  assert.equal(requests, 3, 'Local requests share the startup downloads.');
 });

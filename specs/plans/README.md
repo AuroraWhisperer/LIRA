@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-11-02-cdn-client-resources](2026-11-02-cdn-client-resources.md) | Awaiting Verification | CDN 17 个包及 60 个资源完整下载校验通过，安装包 255,567,366 字节与本机 5.7.4 摘要一致；内置更新源已切到 CDN，51 项聚焦检查与语法/文档/架构门禁通过。更新清单已上传，真实 Electron 更新器读取 5.7.4 及匹配摘要通过；待重新构建客户端使更新源切换进入安装包。 |
 | [2026-10-31-test-correctness-remediation](2026-10-31-test-correctness-remediation.md) | In Progress | 核对双端测试的规范、预期、夹具、异步隔离和分组，修正确认问题并验证；不以放宽断言获得全绿。 |
 | [2026-10-27-song-request-cancel-switch](2026-10-27-song-request-cancel-switch.md) | Awaiting Verification | 开关、默认值、持久化、隔离 Electron 与 116 项相关测试通过，Server 文档 57 项通过；2026-10-28 Live 文档门禁 10/10 通过，原 RIPPLOID 状态阻断已消失。跨设备同步的配套 Server 部署与真实环境验收待核。 |
 | [2026-10-25-ai-subscription-kimi](2026-10-25-ai-subscription-kimi.md) | Awaiting Verification | Kimi API、ChatGPT 订阅与 API 共存、加密凭据和界面已实现；359 项相关回归、桌面夹具、语法/架构/文档检查通过。真实账号授权与模型回复待验，未构建安装包。 |

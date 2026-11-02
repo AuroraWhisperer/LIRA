@@ -144,8 +144,9 @@ test('standalone color alpha survives scene normalization while paired opacity r
       if (field.type !== 'color') continue;
       if (field.opacity) {
         const config = normalizeSceneConfig(type, { ...createSceneExtraDefaults(type), [key]: '#123456', [field.opacity]: 0 });
-        assert.equal(config[key], '#123456');
-        assert.equal(Number(config[field.opacity]), 0);
+        const saved = normalizeSceneDocument(documentFor(type, config), { normalizeConfig: normalizeSceneConfig });
+        assert.equal(saved.items[0].appearance.config[key], '#123456');
+        assert.equal(Number(saved.items[0].appearance.config[field.opacity]), 0);
         continue;
       }
       const config = { ...createSceneExtraDefaults(type), [key]: '#12345680' };

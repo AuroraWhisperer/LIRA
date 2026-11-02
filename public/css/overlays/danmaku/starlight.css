@@ -341,6 +341,9 @@ body[data-style='starlight'][data-custom-font='true'] :is(.draw-danmaku-identity
   50% { transform: rotate(10deg) scaleX(1); }
   75% { transform: rotate(-6deg) scaleX(.94); }
 }
+body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
+body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }
+
 @media (prefers-reduced-motion: reduce) {
   body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
   body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }

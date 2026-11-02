@@ -326,14 +326,22 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
   observer.observe(playerRoot);
   const background = playerRoot.querySelector('.player-fs-bg');
   const previewBackground = canvas.querySelector('.player-fs-bg');
-  const backgroundObserver = new MutationObserver(() => {
+  const vinylDisc = playerRoot.querySelector('.player-fs-vinyl-disc');
+  const previewVinylDisc = canvas.querySelector('.player-fs-vinyl-disc');
+  const tonearm = playerRoot.querySelector('.player-fs-tonearm');
+  const previewTonearm = canvas.querySelector('.player-fs-tonearm');
+  const visualObserver = new MutationObserver(() => {
     previewBackground.className = background.className;
     previewBackground.style.cssText = background.style.cssText;
+    previewVinylDisc.className = vinylDisc.className;
+    previewTonearm.className = tonearm.className;
   });
-  backgroundObserver.observe(background, { attributes: true, attributeFilter: ['class', 'style'] });
+  visualObserver.observe(background, { attributes: true, attributeFilter: ['class', 'style'] });
+  visualObserver.observe(vinylDisc, { attributes: true, attributeFilter: ['class'] });
+  visualObserver.observe(tonearm, { attributes: true, attributeFilter: ['class'] });
   window.addEventListener('pagehide', () => {
     observer.disconnect();
-    backgroundObserver.disconnect();
+    visualObserver.disconnect();
     clearTimeout(layoutTimer);
     unregisterFonts.forEach((unregister) => unregister?.());
     documentRef.fonts?.removeEventListener('loadingdone', refreshTypography);

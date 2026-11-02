@@ -1,0 +1,546 @@
+{
+  "version": 2,
+  "files": [
+    {
+      "path": "fonts/library/mashanzheng.woff2",
+      "size": 3250688,
+      "sha256": "c7d3694525df10a332b01c185b147ccd20e8084ba194747b79dad16be3db4d23",
+      "label": "字体 · mashanzheng.woff2"
+    },
+    {
+      "path": "fonts/library/yozai-medium.woff2",
+      "size": 7322548,
+      "sha256": "5492dfc65fe37e0b00c884be176cbcb786a4f38cff9d4035932228dba57fbf2a",
+      "label": "字体 · yozai-medium.woff2"
+    },
+    {
+      "path": "fonts/library/yozai-regular.woff2",
+      "size": 7347896,
+      "sha256": "17266b707eba2584a9c4d773489a17e113b9f1926300a25ed2fbd1f7d7c425e4",
+      "label": "字体 · yozai-regular.woff2"
+    },
+    {
+      "path": "fonts/library/zhimangxing.woff2",
+      "size": 2301224,
+      "sha256": "9cd493650f11ecaf40c5291db897ddbe1dd0422bec81e7fc87ebc1726db0de2a",
+      "label": "字体 · zhimangxing.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/gowundodum.woff2",
+      "size": 445600,
+      "sha256": "d592c6efb811af0a573ebcb96772d21b7c0627da5dfc54f9507012016bbfd6d8",
+      "label": "字体 · gowundodum.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosans.woff2",
+      "size": 890572,
+      "sha256": "53208f9765e482324820264bba9f20d66e95de569d3acbe65aeb4e05fa0aa40e",
+      "label": "字体 · notosans.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansarabic.woff2",
+      "size": 362304,
+      "sha256": "0f7be8450855fa4161cbe008cfb278656f5cb1ee655358de7386156d35458112",
+      "label": "字体 · notosansarabic.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansarmenian.woff2",
+      "size": 112460,
+      "sha256": "b1d1348e69aa3b5e5fc809035fec387d8f4278b34ebd2fdc01f3635ae27b48e2",
+      "label": "字体 · notosansarmenian.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansbengali.woff2",
+      "size": 244148,
+      "sha256": "a700833ffb2216b50a56f58eb42fe241c343a53dbaae6f9993ef78177eb8d940",
+      "label": "字体 · notosansbengali.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansdevanagari.woff2",
+      "size": 264140,
+      "sha256": "63c47e0e3412d9dd6f52f57cde45e6bb1b52837ea2a7f7272ebaadf0e23ccfa0",
+      "label": "字体 · notosansdevanagari.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansethiopic.woff2",
+      "size": 398496,
+      "sha256": "d6541a57946ddb65ffd3a5408a1b3c40cda0d91d156a1fe43ff3cf6cec9e9870",
+      "label": "字体 · notosansethiopic.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansgeorgian.woff2",
+      "size": 127780,
+      "sha256": "1f817650b64e10329a067ea8940c8bb620fd726f42791ed1e360d05e38ea2ce9",
+      "label": "字体 · notosansgeorgian.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansgujarati.woff2",
+      "size": 249440,
+      "sha256": "a6055153c8926c938b27ec012d9b26375cc6fcf321b54e32d8e3c1274e510e16",
+      "label": "字体 · notosansgujarati.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansgurmukhi.woff2",
+      "size": 131676,
+      "sha256": "6029b3b661c568b11652be47f8bbaeae4f4368407d5a707bce6f7e3aebe166d1",
+      "label": "字体 · notosansgurmukhi.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanshebrew.woff2",
+      "size": 58740,
+      "sha256": "e0cf41f0b3eaefb34086adf235245e475a5eeb53a7c3cff363570932ec1f89a1",
+      "label": "字体 · notosanshebrew.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanskannada.woff2",
+      "size": 232412,
+      "sha256": "4117e9360436698805e81359467f33fb45ef0c6313b638a348207411aedeb7fc",
+      "label": "字体 · notosanskannada.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanskhmer.woff2",
+      "size": 130792,
+      "sha256": "4b2ee178e4c0057890572b4cfbc4b73de5cf72e02edc0a61d7bd35bca184ef7e",
+      "label": "字体 · notosanskhmer.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanslao.woff2",
+      "size": 93260,
+      "sha256": "ee500590331d9a5f97163474bf1cede0ce28320ff94872f3fa2adc11183d1eb2",
+      "label": "字体 · notosanslao.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansmalayalam.woff2",
+      "size": 218900,
+      "sha256": "ab11b832baec51eaa2101a8cf00c5c45665eaa2bc238690078d6c04e381a1a29",
+      "label": "字体 · notosansmalayalam.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansmyanmar.woff2",
+      "size": 360036,
+      "sha256": "92d61bb15f407b2589dd8e8e7cff913319743025992b7b5624cd4f8c0a5d3478",
+      "label": "字体 · notosansmyanmar.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansoriya.woff2",
+      "size": 231792,
+      "sha256": "192ce7c2e7f15d1cbe78cde18b7dbe013a2a2671c235e03053734dda0e6b0653",
+      "label": "字体 · notosansoriya.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanssinhala.woff2",
+      "size": 297096,
+      "sha256": "c97a203b08d547ba98da2e34ee8f7a5156135d374bd955b55aa1282c37b82975",
+      "label": "字体 · notosanssinhala.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanstamil.woff2",
+      "size": 157676,
+      "sha256": "2c3a02462cb6ff75a2848cd076200e5541c7f7d92a60259abdfa907c15ddd99f",
+      "label": "字体 · notosanstamil.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosanstelugu.woff2",
+      "size": 299088,
+      "sha256": "1475236834b1558762ac41c8636152ff201ccdcec6371a230ab5a3e85bca0fb5",
+      "label": "字体 · notosanstelugu.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notosansthai.woff2",
+      "size": 108088,
+      "sha256": "61b98de8f43336734d88c62574fe4b707342650b86b94bb04e873afa0f70db7a",
+      "label": "字体 · notosansthai.woff2"
+    },
+    {
+      "path": "fonts/lyrics-fallback/notoseriftibetan.woff2",
+      "size": 774300,
+      "sha256": "16749cdd3898b00edd3ae307aac5d268dd7ae9d250816f0179ff9120b9e8e537",
+      "label": "字体 · notoseriftibetan.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-00.woff2",
+      "size": 119736,
+      "sha256": "70fcc3997ac18fdb12e0bc7d1249663c0831cc6f93e69e6cd50fb528dc11cb6b",
+      "label": "字体 · wenkai-00.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-01.woff2",
+      "size": 273048,
+      "sha256": "335d3d1da2019cc002b51722b4f766bf248875ad4493932878eb7926588fda03",
+      "label": "字体 · wenkai-01.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-02.woff2",
+      "size": 670416,
+      "sha256": "31da0feb868629ecf096e0bde21b2407a9c1d9a1825b7c4d61c2c068550ae676",
+      "label": "字体 · wenkai-02.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-03.woff2",
+      "size": 701820,
+      "sha256": "e139eb9d94dd101c2456048d572f308a78d7a49e635c2acf6a4fdca051f1d82d",
+      "label": "字体 · wenkai-03.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-04.woff2",
+      "size": 793920,
+      "sha256": "0376252376b6811e7b764d21eb7e201210a6182d1ee1d209f9eeb43b7942d8af",
+      "label": "字体 · wenkai-04.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-05.woff2",
+      "size": 555228,
+      "sha256": "73950991fc96ec865e42b08d8aaeb1d6eadd1b18eefdcef4baf3f59150c2d09e",
+      "label": "字体 · wenkai-05.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-06.woff2",
+      "size": 633276,
+      "sha256": "7df2d2dea986785698879c5a19ae4b455ec430d88006de6b698431f0f4a5a3df",
+      "label": "字体 · wenkai-06.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-07.woff2",
+      "size": 633720,
+      "sha256": "33dfa626115051bb648f0b1aa6ba3c8bbcc05c71553149529720087b82f3ec75",
+      "label": "字体 · wenkai-07.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-08.woff2",
+      "size": 667040,
+      "sha256": "fa85f2764a3a0b95a27443fce4cc7aefe445427d14f64170b3538d76b481650f",
+      "label": "字体 · wenkai-08.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-09.woff2",
+      "size": 663128,
+      "sha256": "cc332f8f69e55aae0928c969ace7f76bae6da4a5a5b72a45cac1273d846210d5",
+      "label": "字体 · wenkai-09.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-10.woff2",
+      "size": 676768,
+      "sha256": "974be82ecab748b0b99042984f819077308c78869e4381620bcad72e8e476525",
+      "label": "字体 · wenkai-10.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-11.woff2",
+      "size": 661236,
+      "sha256": "08b3d29a7a83c66512c60fa76396bd4489e2e37304bbecd06c3d5abc395f9070",
+      "label": "字体 · wenkai-11.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-12.woff2",
+      "size": 740860,
+      "sha256": "2005912f1082a5adcb60c926834e3c6172a58e427c20b3c9ac0c610b3e35024a",
+      "label": "字体 · wenkai-12.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-13.woff2",
+      "size": 697728,
+      "sha256": "fdc97a771b35ce802d1594b9c4d402a3ccee3ba949cd1d9b78908fd5b75bc1d0",
+      "label": "字体 · wenkai-13.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-14.woff2",
+      "size": 741192,
+      "sha256": "a657681e2516a817d8a5584d65f764082a196f11fc30a80a2e4e4d375cb2fb9a",
+      "label": "字体 · wenkai-14.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-15.woff2",
+      "size": 395444,
+      "sha256": "0d48b6906c0470bdbb8940daa578239e81b9be03f3d27e96e5c143619db8a5aa",
+      "label": "字体 · wenkai-15.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-16.woff2",
+      "size": 66228,
+      "sha256": "a19c3a5b3d0f891b99188778c8b6927e5c1cfcd9607f2c8aa1c75d3928b1e11e",
+      "label": "字体 · wenkai-16.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-17.woff2",
+      "size": 66468,
+      "sha256": "e984efc63f0b6695afa6b13e17e7b3e6d2e140a02921f7430cb3ffa1968261dd",
+      "label": "字体 · wenkai-17.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-18.woff2",
+      "size": 65932,
+      "sha256": "4649fde06e28542d7b3a3bb3b6d1b71488ed89c2ffdb6f78780f97e0c08353f7",
+      "label": "字体 · wenkai-18.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-19.woff2",
+      "size": 66432,
+      "sha256": "ef8492dbef4f646e0805fc02e11a2e6df1ec4feaf4821df8ebdf42e73e0822f6",
+      "label": "字体 · wenkai-19.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-20.woff2",
+      "size": 157908,
+      "sha256": "c1ca4be1668ed23df79f87324e506d25d5779b366d8af473be1d8c138fbcee16",
+      "label": "字体 · wenkai-20.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-21.woff2",
+      "size": 565544,
+      "sha256": "2b878d631f1e57a2f005f65ce628bcb6794e1fb343a1d226e99119c6911de046",
+      "label": "字体 · wenkai-21.woff2"
+    },
+    {
+      "path": "fonts/moonlit-wenkai/wenkai-22.woff2",
+      "size": 519444,
+      "sha256": "e50fa2a45621e5667decb02b131c1956daa764a24dfaccd229b11fa88fdc2fb0",
+      "label": "字体 · wenkai-22.woff2"
+    },
+    {
+      "path": "fonts/player/assorted.woff2",
+      "size": 4864348,
+      "sha256": "8423638361bf42d33a196390ebc907b0605db432c60cc881bbb2c3b9665d7063",
+      "label": "字体 · assorted.woff2"
+    },
+    {
+      "path": "fonts/player/kuaile.woff2",
+      "size": 871928,
+      "sha256": "c6fc388b486afb363e00420540b56079561e4b46eba4c0d09a65b999bd0235e0",
+      "label": "字体 · kuaile.woff2"
+    },
+    {
+      "path": "fonts/player/maiyuan.woff2",
+      "size": 2876872,
+      "sha256": "00bb811406e2a37423a962c73d6a3b855071f565153d024136c8eda3d38fe5e0",
+      "label": "字体 · maiyuan.woff2"
+    },
+    {
+      "path": "fonts/player/smiley.woff2",
+      "size": 1150924,
+      "sha256": "731f22973349404b15a88a99ef3b5dd4104c0965c23b7e485c1f11e84fea99e2",
+      "label": "字体 · smiley.woff2"
+    },
+    {
+      "path": "fonts/player/xiaolai.woff2",
+      "size": 11826424,
+      "sha256": "f93a1d734a2a42acb63aebef76c663bf8e6be9f8be646497d3bd4707142cdc63",
+      "label": "字体 · xiaolai.woff2"
+    },
+    {
+      "path": "fonts/spooky/nunito-500.ttf",
+      "size": 125652,
+      "sha256": "ceb6eec0a584cae83e8f3ab868e2f03977b38ff6e78632bc8a7ec69dcf9f7c18",
+      "label": "字体 · nunito-500.ttf"
+    },
+    {
+      "path": "fonts/spooky/nunito-700.ttf",
+      "size": 125464,
+      "sha256": "1a025dfce6e6e03bbe31ba82277ec5ed96df8b8dd58b3df6267269490b90b1dc",
+      "label": "字体 · nunito-700.ttf"
+    },
+    {
+      "path": "img/admin/world-clock/earth-day-8k.png",
+      "size": 24147269,
+      "sha256": "aaddcd967a9f09fb2d7ef50ff452bebfcf10192c520465d5eb1ad8446c716e98",
+      "label": "世界地图高清底图"
+    },
+    {
+      "path": "img/overlays/guard-nautical/admiral.webp",
+      "size": 20862318,
+      "sha256": "8343c8f7bbbb323fd1615046454e1ed47cced9c51a71df407c23758bd05d4dfb",
+      "label": "航海旗帜 · 提督"
+    },
+    {
+      "path": "img/overlays/guard-nautical/captain.webp",
+      "size": 19687540,
+      "sha256": "83b7a7d49c0e4558640359774938053bf93a27041371b1576b5d291e31680f58",
+      "label": "航海旗帜 · 舰长"
+    },
+    {
+      "path": "img/overlays/guard-nautical/governor.webp",
+      "size": 20830270,
+      "sha256": "af431f30b489ba07821e8b6e4ed50724e6c0a857e45fe86e97e4447ea94f8640",
+      "label": "航海旗帜 · 总督"
+    }
+  ],
+  "packages": [
+    {
+      "id": "maiyuan",
+      "size": 2877022,
+      "sha256": "8906f80fb67d6f89bacd7b264d82cb26d0577b59a1938378ecc98a00d16134ff",
+      "files": [
+        "fonts/player/maiyuan.woff2"
+      ]
+    },
+    {
+      "id": "kuaile",
+      "size": 872076,
+      "sha256": "6a0bb44c0c7010c269c04d69e03b7edf7abfd55dd8e34fc18841c0f0995fd2ee",
+      "files": [
+        "fonts/player/kuaile.woff2"
+      ]
+    },
+    {
+      "id": "smiley",
+      "size": 1151072,
+      "sha256": "3af8adec6c0d101db08ed9179ab0375dd095f4b914f0649fcd07525dded48552",
+      "files": [
+        "fonts/player/smiley.woff2"
+      ]
+    },
+    {
+      "id": "xiaolai",
+      "size": 11826574,
+      "sha256": "618c5d54a16e90abb5135370e05cdcd964d4f5a59c339ab81e5c20883bc1065a",
+      "files": [
+        "fonts/player/xiaolai.woff2"
+      ]
+    },
+    {
+      "id": "yozai",
+      "size": 14670748,
+      "sha256": "d37c073923dbcb1997ae6bb16d7fffa1e3c1700e2b81568a686769750187063f",
+      "files": [
+        "fonts/library/yozai-regular.woff2",
+        "fonts/library/yozai-medium.woff2"
+      ]
+    },
+    {
+      "id": "assorted",
+      "size": 4864500,
+      "sha256": "4dd66e8f6fe2b6216b01cca3de3ff2cff00e575b498229183548555a6c287876",
+      "files": [
+        "fonts/player/assorted.woff2"
+      ]
+    },
+    {
+      "id": "zhimangxing",
+      "size": 2301384,
+      "sha256": "32e9e02c7ff55ff72562e9de90f8a681e3556769588ed0ad854ea0a83817215c",
+      "files": [
+        "fonts/library/zhimangxing.woff2"
+      ]
+    },
+    {
+      "id": "mashanzheng",
+      "size": 3250848,
+      "sha256": "a385a252ff90c937b3076e2a8b0e6dac257e5eabe2ae53e89c978ec74444a313",
+      "files": [
+        "fonts/library/mashanzheng.woff2"
+      ]
+    },
+    {
+      "id": "wenkai",
+      "size": 11135942,
+      "sha256": "dfcd2d813f19cddd6fd4b93980f5bf4d519d10cad3762474e1706d4df7f7c827",
+      "files": [
+        "fonts/moonlit-wenkai/wenkai-00.woff2",
+        "fonts/moonlit-wenkai/wenkai-01.woff2",
+        "fonts/moonlit-wenkai/wenkai-02.woff2",
+        "fonts/moonlit-wenkai/wenkai-03.woff2",
+        "fonts/moonlit-wenkai/wenkai-04.woff2",
+        "fonts/moonlit-wenkai/wenkai-05.woff2",
+        "fonts/moonlit-wenkai/wenkai-06.woff2",
+        "fonts/moonlit-wenkai/wenkai-07.woff2",
+        "fonts/moonlit-wenkai/wenkai-08.woff2",
+        "fonts/moonlit-wenkai/wenkai-09.woff2",
+        "fonts/moonlit-wenkai/wenkai-10.woff2",
+        "fonts/moonlit-wenkai/wenkai-11.woff2",
+        "fonts/moonlit-wenkai/wenkai-12.woff2",
+        "fonts/moonlit-wenkai/wenkai-13.woff2",
+        "fonts/moonlit-wenkai/wenkai-14.woff2",
+        "fonts/moonlit-wenkai/wenkai-15.woff2",
+        "fonts/moonlit-wenkai/wenkai-16.woff2",
+        "fonts/moonlit-wenkai/wenkai-17.woff2",
+        "fonts/moonlit-wenkai/wenkai-18.woff2",
+        "fonts/moonlit-wenkai/wenkai-19.woff2",
+        "fonts/moonlit-wenkai/wenkai-20.woff2",
+        "fonts/moonlit-wenkai/wenkai-21.woff2",
+        "fonts/moonlit-wenkai/wenkai-22.woff2"
+      ]
+    },
+    {
+      "id": "nunito",
+      "size": 251398,
+      "sha256": "8abba6146ecce0844289d971249583217d6473b16e4c8e081a1b6f3a01af9cea",
+      "files": [
+        "fonts/spooky/nunito-500.ttf",
+        "fonts/spooky/nunito-700.ttf"
+      ]
+    },
+    {
+      "id": "gowun-dodum",
+      "size": 445774,
+      "sha256": "07163891298811938fcc75adb41738dc3443d25ba6f58e5d3e0f8eca7a1ff66c",
+      "files": [
+        "fonts/lyrics-fallback/gowundodum.woff2"
+      ]
+    },
+    {
+      "id": "noto-sans",
+      "size": 4972132,
+      "sha256": "24dc7d7459203a27f766d1f063bfbf377f55027e3fe0df9e8cd1186740ce4061",
+      "files": [
+        "fonts/lyrics-fallback/notosans.woff2",
+        "fonts/lyrics-fallback/notosansarmenian.woff2",
+        "fonts/lyrics-fallback/notosansgeorgian.woff2",
+        "fonts/lyrics-fallback/notosansethiopic.woff2",
+        "fonts/lyrics-fallback/notosansarabic.woff2",
+        "fonts/lyrics-fallback/notosanshebrew.woff2",
+        "fonts/lyrics-fallback/notosansdevanagari.woff2",
+        "fonts/lyrics-fallback/notosansbengali.woff2",
+        "fonts/lyrics-fallback/notosansgurmukhi.woff2",
+        "fonts/lyrics-fallback/notosansgujarati.woff2",
+        "fonts/lyrics-fallback/notosansoriya.woff2",
+        "fonts/lyrics-fallback/notosanstamil.woff2",
+        "fonts/lyrics-fallback/notosanstelugu.woff2",
+        "fonts/lyrics-fallback/notosanskannada.woff2",
+        "fonts/lyrics-fallback/notosansmalayalam.woff2",
+        "fonts/lyrics-fallback/notosanssinhala.woff2",
+        "fonts/lyrics-fallback/notosansthai.woff2",
+        "fonts/lyrics-fallback/notosanslao.woff2",
+        "fonts/lyrics-fallback/notosansmyanmar.woff2",
+        "fonts/lyrics-fallback/notosanskhmer.woff2"
+      ]
+    },
+    {
+      "id": "noto-serif-tibetan",
+      "size": 774486,
+      "sha256": "05af61fac61742b929198823a766a31e482d65c8aa332553f124bf17ff3f4649",
+      "files": [
+        "fonts/lyrics-fallback/notoseriftibetan.woff2"
+      ]
+    },
+    {
+      "id": "img/admin/world-clock/earth-day-8k.png",
+      "size": 24147269,
+      "sha256": "aaddcd967a9f09fb2d7ef50ff452bebfcf10192c520465d5eb1ad8446c716e98",
+      "files": [
+        "img/admin/world-clock/earth-day-8k.png"
+      ]
+    },
+    {
+      "id": "img/overlays/guard-nautical/admiral.webp",
+      "size": 20862318,
+      "sha256": "8343c8f7bbbb323fd1615046454e1ed47cced9c51a71df407c23758bd05d4dfb",
+      "files": [
+        "img/overlays/guard-nautical/admiral.webp"
+      ]
+    },
+    {
+      "id": "img/overlays/guard-nautical/captain.webp",
+      "size": 19687540,
+      "sha256": "83b7a7d49c0e4558640359774938053bf93a27041371b1576b5d291e31680f58",
+      "files": [
+        "img/overlays/guard-nautical/captain.webp"
+      ]
+    },
+    {
+      "id": "img/overlays/guard-nautical/governor.webp",
+      "size": 20830270,
+      "sha256": "af431f30b489ba07821e8b6e4ed50724e6c0a857e45fe86e97e4447ea94f8640",
+      "files": [
+        "img/overlays/guard-nautical/governor.webp"
+      ]
+    }
+  ]
+}

@@ -7,7 +7,7 @@ const { resolveDataPaths } = require('../shared/data-paths');
 const { downloadFont, sha256, isFont } = require('./font-download');
 const catalog = require('./catalog.json');
 
-function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, timeoutMs } = {}) {
+function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, timeoutMs, resources } = {}) {
   const directory = resolveDataPaths(dataDir).fontsDir;
   const indexPath = path.join(directory, 'index.json');
   const installed = readIndex(indexPath, fonts);
@@ -21,7 +21,7 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
   let state = { status: 'idle', total: 0, completed: 0, failed: 0, currentFont: '', completedAt: '' };
 
   const filename = entry => path.join(directory, `${entry.sha256}.${entry.format}`);
-  const getState = () => ({ ...state });
+  const getState = () => resources ? resources.getState() : ({ ...state });
   function publish(patch) {
     state = { ...state, ...patch };
     if (!closed) for (const listener of listeners) {
@@ -60,7 +60,8 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
     return write;
   }
 
-  function initialize() {
+  function initialize(options) {
+    if (resources) return resources.initialize(options);
     if (closed) return Promise.resolve(getState());
     if (pending) return pending;
     controller = new AbortController();
@@ -128,10 +129,15 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
 
   function stylesheet() {
     return fonts.flatMap(font => {
-      const faces = bundled.has(font.id) && !installed[font.id]
-        ? font.bundled.map(file => ({ url: `/fonts/${file.path}`, weight: file.weight, unicodeRange: file.unicodeRange }))
-        : installed[font.id] ? [{ url: `/font-library/${font.id}?v=${installed[font.id].sha256}` }] : [];
-      return faces.map(face => `@font-face {\n  font-family: '${font.family}';\n  src: url('${face.url}');\n  font-weight: ${face.weight ?? 400};\n  font-style: normal;\n  font-display: swap;${face.unicodeRange ? `\n  unicode-range: ${face.unicodeRange};` : ''}\n}`);
+      const cachedFaces = resources && resources.getState().status !== 'idle';
+      const ready = cachedFaces ? font.bundled.length > 0 && font.bundled.every(file => resources.resolveAsset(`fonts/${file.path}`))
+        : bundled.has(font.id) && !installed[font.id];
+      const faces = ready ? font.bundled.map(file => ({
+        url: `/fonts/${file.path}${cachedFaces ? `?v=${resources.assetHash(`fonts/${file.path}`)}` : ''}`,
+        weight: file.weight, unicodeRange: file.unicodeRange, aliases: file.aliases,
+      })) : installed[font.id] ? [{ url: `/font-library/${font.id}?v=${installed[font.id].sha256}` }] : [];
+      return faces.flatMap(face => [font.family, ...(face.aliases || [])].map(family =>
+        `@font-face {\n  font-family: '${family}';\n  src: url('${face.url}');\n  font-weight: ${face.weight ?? 400};\n  font-style: normal;\n  font-display: swap;${face.unicodeRange ? `\n  unicode-range: ${face.unicodeRange};` : ''}\n}`));
     }).join('\n\n');
   }
 
@@ -143,7 +149,10 @@ function createFontLibrary({ dataDir, publicDir, fonts = catalog.fonts, fetch, t
   }
 
   return { initialize, getState, readFont, stylesheet, close,
-    onStateChanged(listener) { listeners.add(listener); return () => listeners.delete(listener); } };
+    onStateChanged(listener) {
+      if (resources) return resources.onStateChanged(listener);
+      listeners.add(listener); return () => listeners.delete(listener);
+    } };
 }
 
 function readIndex(filename, fonts) {

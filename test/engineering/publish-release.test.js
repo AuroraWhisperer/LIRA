@@ -27,7 +27,8 @@ function fixture(options = {}) {
   const pkg = {
     version: '1.0.0',
     build: {
-      publish: [{ owner: 'fixture', repo: 'fixture' }],
+      publish: [{ provider: 'generic', url: 'https://assets.example.com/downloads/' },
+        { provider: 'github', owner: 'fixture', repo: 'fixture' }],
       directories: { output: 'release' },
       nsis: { artifactName: 'setup-${version}.${ext}' },
     },
@@ -259,6 +260,8 @@ test('validation occurs before any upload, and failed or changed artifacts are n
   await f.publisher.main();
   const build = f.commands.find(([command]) => command === 'npx');
   assert.equal(build[build.indexOf('--publish') + 1], 'never');
+  const upload = f.commands.find(([command, action, operation]) => command === 'gh' && action === 'release' && operation === 'upload');
+  assert.equal(upload[upload.indexOf('--repo') + 1], 'fixture/fixture', 'The generic update feed must not replace the GitHub publication target.');
   assert.ok(
     f.commands.findIndex(([command]) => command === 'verify-installer') <
       f.commands.findIndex((entry) => entry[2] === 'upload'),

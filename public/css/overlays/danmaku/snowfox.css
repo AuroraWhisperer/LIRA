@@ -174,6 +174,9 @@ body[data-style='snowfox'] .sc-snowfox .sc-name { min-width: 0; flex: 1 1 8em; f
 body[data-style='snowfox'] .sc-snowfox .sc-money { flex: 0 0 auto; margin-left: auto; padding: 0 0.12em; border: 1px solid #f7ffff9c; border-radius: 0.12em; font-size: 0.86em; white-space: nowrap; }
 body[data-style='snowfox'] .sc-snowfox .sc-currency { font-size: 1em; margin: 0; }
 body[data-style='snowfox'] .sc-snowfox .sc-copy { margin: 0; padding: 0.16em 54px 0.22em 20.4px; background: #18324665; font-size: var(--danmaku-font-size); white-space: pre-wrap; overflow-wrap: anywhere; }
+body[data-style='snowfox'][data-custom-font='true'] .sc-snowfox :is(.sc-name, .sc-copy) {
+  font-family: var(--danmaku-custom-font);
+}
 body[data-style='snowfox'] .sc-avatar {
   position: absolute;
   top: auto;

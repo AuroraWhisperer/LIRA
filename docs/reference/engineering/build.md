@@ -83,9 +83,9 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ## 3. electron-builder 配置(唯一成表处)
 
-本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM、时钟裁剪字体和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
+本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM 和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
 
-共享库的 `public/fonts/{player,library,moonlit-wenkai}/*.woff2`（约 50.5 MiB）完整进入安装包，连同 `src/fonts/catalog.json`、OFL 许可及约 6 MiB 歌词多语言补字分发。安装后字体位于 `<安装目录>/resources/app.asar/public/fonts/`，通过 Electron 的 ASAR 文件读取和现有本地 HTTP 按需加载，首次使用无需联网或 VPN，也不注册系统字体；版本与许可见[字体说明](../../../public/fonts/README.md)。packaging-scope 测试验证打包过滤，bundled-fonts-electron 测试在含中文和空格的安装路径、不同工作目录、空缓存及禁止外网的条件下验证 ASAR 中九款字体的真实渲染。实际安装器压缩体积须重新构建后测量，不能将 WOFF2 总量直接等同于 EXE 增量。
+`public/fonts/` 下共享完整字库的 WOFF2、TTF、OTF 不进入安装包；`clock-moon-serif-400.woff2` 和 `guard-thanks-serif-400.woff2` 两个标题裁剪字体（共 6,524 字节）保留在包内。世界地图 8K PNG 也从 `build.files` 排除；三张超过 10 MiB 的航海旗帜沿用该目录的既有排除规则。字体目录、公共资源路径清单及小型 OFL 许可继续打包。`npm run export:resources` 更新 `src/resources/catalog.json` 并生成按字体名称归组的 ZIP、具名图片、更新清单与上传总 ZIP；操作见 [CDN 资源分发](../../guides/cdn-resources.md)。首次补齐需要联网，后续由主进程检查更新并使用设备缓存，通过原本地 HTTP 路径供客户端和浏览器源读取。packaging-scope 验证全部清单二进制均被排除；bundled-fonts-electron 在含中文和空格的安装路径、仅保留两个标题字体的 ASAR、真实 preload 与 IPC 下验证下载进度、13 款共享字体和 8K 地图，再关闭重开验证断网缓存与静默结果。原始大小见[字体说明](../../../public/fonts/README.md)，实际 EXE 压缩体积仍须重新构建后测量。
 
 全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
 
@@ -109,7 +109,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | `nsis.shortcutName` / `uninstallDisplayName`             | LIRA                                                          | [package.json](../../../package.json) | 快捷方式与卸载显示名                                                                   |
 | `nsis.createDesktopShortcut` / `createStartMenuShortcut` | `true`                                                        | [package.json](../../../package.json) | 桌面 + 开始菜单快捷方式                                                                |
 | `nsis.include`                                           | `build/installer.nsh`                                         | [package.json](../../../package.json)        | 自定义 NSIS 宏(见 §6)                                                                  |
-| `publish`                                                | GitHub `AuroraWhisperer/LIRA`,`releaseType: release`          | [package.json](../../../package.json) | electron-updater 更新源与发布脚本读取                                                  |
+| `publish`                                                | 首个 generic 为 `https://assets.lirahub.cn/downloads/`；GitHub `AuroraWhisperer/LIRA` 保留 `releaseType: release`          | [package.json](../../../package.json) | generic 供 electron-updater 使用；发布脚本按 provider 显式选择 GitHub                                                  |
 
 `artifactName` 在顶层 `build` 与 `build.nsis` 各声明一次([package.json](../../../package.json));发布脚本按 `build.nsis.artifactName` 计算产物文件名([publish-release.js:14-16](../../../scripts/publish-release.js#L14-L16))。
 
@@ -133,8 +133,8 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |
-| `lira-setup-{version}.exe`          | NSIS 安装包,发布时的上传主产物           |
-| `lira-setup-{version}.exe.blockmap` | 差分更新块映射(electron-updater 用)      |
+| `lira-setup.exe`          | NSIS 安装包,发布时的上传主产物           |
+| `lira-setup.exe.blockmap` | 构建块映射（当前整包下载不依赖它）      |
 | `latest.yml`                        | 更新清单,electron-updater 的版本比对依据 |
 | `win-unpacked/`                     | 未打包目录(本地运行/调试)                |
 
@@ -153,8 +153,9 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 被 `nsis.include` 引用([package.json](../../../package.json)),在标准 NSIS 流程上追加:
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
+- [installer-ui.nsh](../../../build/installer-ui.nsh) 负责安装向导的窗口与各页排版：外框固定为 640 × 400 逻辑像素（16:10），按当前 DPI 换算，不通过改变字体来撑大窗口。统一使用微软雅黑 UI，正文和按钮为 9pt，页标题为 10pt 加粗，版本信息为 8pt；完成页保留 12pt 标题，并用 LIRA 图标替代默认侧栏图。协议、安装范围、目录、进度和完成页分别布局，底部导航位置保持一致。目录页继续使用原来的路径选择与更新跳页逻辑，完成页保留以普通用户身份启动及 `--updated` 参数的传递。
 - `customInit`([installer.nsh](../../../build/installer.nsh))只选择默认目录并检查本应用在当前安装上下文中的卸载项；仅在带引号的卸载程序路径明确不存在时删除该项，不遍历其他应用。首次安装有 D 盘时默认 `D:\LIRA`，无 D 盘时保留 builder 默认目录；升级沿用本机已有路径，不限制盘符。[installer-directory.nsh](../../../build/installer-directory.nsh) 在安装模式切换后的目录页再次应用默认值，保留 builder 的更新跳页行为。命令行 `/D` 和目录页的显式选择优先。
-- 安装向导第一页是用户协议：`licensePage`([installer.nsh](../../../build/installer.nsh))占用 builder 的许可页宏，以单选按钮显示 [user-agreement.txt](../../../public/pages/admin/toolbox/user-agreement.txt)。客户端「百宝箱 → 设置 → 用户协议与隐私说明」读取同一静态文件，安装后不复制或另维护第二份协议正文。“我不同意”默认选中，选择同意前“下一步”保持禁用，不同意只能取消安装。builder 在该页前插入 `skipPageIfUpdated`，`--updated` 自动更新跳过此页；`/S` 静默安装不显示向导页。协议文件须保留 UTF-8 BOM，否则 makensis 按系统代码页读取；CRLF 与 LF 换行显示一致。不要设置 `nsis.license`，也不要在 `build/` 放 `license*` / `eula*` 文件，否则 builder 会再生成一个 `licensePage` 宏；[静态测试](../../../test/engineering/installer-static.test.js)检查这些约束。
+- 安装向导第一页是「用户协议与隐私说明」：`licensePage`([installer.nsh](../../../build/installer.nsh))占用 builder 的许可页宏，以单选按钮显示 [user-agreement.txt](../../../public/pages/admin/toolbox/user-agreement.txt)。正文分为使用条款和隐私说明。`liraShowAgreement` 隐藏重复的上下提示，将原生 RichEdit 阅读区扩展至同意选项上方，按当前 DPI 测量间距，使用微软雅黑 UI 字体并增加内边距；保留自动换行、原生纵向滚动和键盘阅读。客户端「百宝箱 → 设置 → 用户协议与隐私说明」读取同一静态文件，安装后不复制或另维护第二份协议正文。“我不同意”默认选中，选择同意前“下一步”保持禁用，不同意只能取消安装。builder 在该页前插入 `skipPageIfUpdated`，`--updated` 自动更新跳过此页；`/S` 静默安装不显示向导页。协议文件须保留 UTF-8 BOM，否则 makensis 按系统代码页读取；CRLF 与 LF 换行显示一致。不要设置 `nsis.license`，也不要在 `build/` 放 `license*` / `eula*` 文件，否则 builder 会再生成一个 `licensePage` 宏；[静态测试](../../../test/engineering/installer-static.test.js)检查这些约束。
 - [installer-process.nsh](../../../build/installer-process.nsh) 拥有安装与卸载共用的进程检查，`customCheckAppRunning` 接入 builder 流程。按可执行文件完整路径核对旧安装目录和所选目录；其他目录的同名程序不阻塞，也不会收到关闭请求。进程存在但无法核实路径时停止，不把检查失败当作已经退出。交互操作先征求关闭确认，再向对应窗口发送正常关闭请求；等待约 10 秒仍未退出时，提示可能有启动失败后的后台残留，显示相关目录，允许重试或取消。静默操作只等待主程序自行退出，超时中止。主程序退出后，两种模式均检查 `resources/audio-assistant/LiraAudioAssistant.exe`，向核实归属的 PID 发送安装退出事件，等待音频进程安全释放文件和恢复记录后才备份/卸载。旧助手不支持事件或恢复未完成时，约 10 秒后准确提示电音助手仍在运行，旧版本可重启电脑后直接安装；静默操作返回失败。等待按经过时间计量，重试重新计时，不强制终止进程。音频维护退出语义见[桌面生命周期](../desktop/main.md#电音助手生命周期)。
 - [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认退出，再用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。返回码 0–7 才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。备份及残留 `.partial` 的清理复用 `liraRemoveTree`，只移除目录链接本身，不跟随目标。升级时 `customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。
 - [installer-uninstall.nsh](../../../build/installer-uninstall.nsh) 拥有普通卸载选项和删除策略。普通卸载自动清理 `logs/`、`updates/`，完整保留 `data/`；“同时删除用户数据”默认不勾选。安装模式选定且程序退出后，勾选者需再次确认，默认回答“否”，拒绝确认会保留数据并继续卸载。确认后清理当前安装数据及当前用户的 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`，避免重装导入旧资料；手工/安装恢复备份及云端资料保留。静默卸载不删除数据，`--updated` 升级始终保留全部运行目录。删除前拒绝空路径、磁盘根（包括 NSIS 去掉尾斜杠后的裸盘符）与安装目录链接；递归清理只移除链接本身，不跟随目标，失败返回非零并留下卸载程序用于重试。[原生卸载回归](../../../test/engineering/installer-uninstall.test.js) 在隔离目录编译真实卸载页，覆盖默认保留、确认删除、静默/升级、目录链接和失败路径。
@@ -225,7 +226,7 @@ flowchart LR
 
 ## 11. 自动更新
 
-运行时依赖 `electron-updater` ^6.8.4(见 §2);更新清单即 §7 上传的 `latest.yml`。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
+运行时依赖 `electron-updater` ^6.8.4(见 §2)。构建先生成 generic CDN feed 的 `latest.yml`，版本来自当前构建，安装包路径固定为 `lira-setup.exe`，保留 SHA-512 和大小校验。`release:win` 仍由 gh 归档到 GitHub；CDN 另行上传同次构建的 `release/lira-setup.exe`，最后上传 `release/latest.yml`，操作见[CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。更新 feed 切换只对重新构建的客户端生效，现有安装包不会随源码改动而改变。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
 
 ## 12. Windows 代码签名
 
