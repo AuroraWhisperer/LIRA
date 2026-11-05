@@ -380,10 +380,21 @@
   font-size: 13px;
 }
 
+.lira-select-searchable:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.lira-select-searchable > [role='listbox'] {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: inherit;
+}
+
 .lira-select-searchable .lira-select-search {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex: 0 0 auto;
   width: 100%;
   margin-bottom: 6px;
   background: var(--select-surface);

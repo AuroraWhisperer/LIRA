@@ -176,6 +176,41 @@ test('moonlit bounds bursts and finishes active movement when reduced motion is 
   assert.equal(await page.evaluate(() => document.getAnimations().length), 0);
 });
 
+for (const [direction, scale] of [['up', 1], ['down', 0.63]]) {
+  test(`continuous ${direction} arrivals release exited rows without disturbing visible messages`, { timeout: 15000 }, async t => {
+    const page = await preview(t, direction, scale, 'christmas-letter');
+    const result = await page.evaluate(async direction => {
+      feed.destroy();
+      const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+      feed = createDanmakuFeed(root, { style: 'christmas-letter', offscreenViewports: 0, autoScroll: false, maxItems: 50 });
+      let removed = 0, retainedExited = 0;
+      const changes = [];
+      for (let index = 0; index < 30; index += 1) {
+        freezeMoves(150);
+        const area = root.getBoundingClientRect();
+        const previous = Array.from(root.children).map(node => ({ node, rect: node.getBoundingClientRect() }));
+        const visible = previous.filter(({ rect }) => rect.bottom > area.top && rect.top < area.bottom);
+        // Leave a whole card's clearance so decorative overflow cannot count as exited.
+        const gone = previous.filter(({ rect }) => direction === 'up'
+          ? rect.bottom + rect.height < area.top : rect.top - rect.height > area.bottom);
+        feed.append({ id: `dense-${index}`, name: '连续观众', message: '密集消息保持顺畅' });
+        await new Promise(requestAnimationFrame);
+        freezeMoves(0);
+        removed += previous.filter(({ node }) => !node.isConnected).length;
+        retainedExited += gone.filter(({ node }) => node.isConnected).length;
+        changes.push(...visible.map(({ node, rect }) => ({ connected: node.isConnected,
+          delta: node.getBoundingClientRect().top - rect.top })));
+      }
+      feed.destroy();
+      return { removed, retainedExited, changes };
+    }, direction);
+    assert.ok(result.removed > 0, 'the continuous stream releases old rows before reaching the item limit');
+    assert.equal(result.retainedExited, 0, 'release fully exited rows while newer rows are still moving');
+    assert.ok(result.changes.every(row => row.connected && Math.abs(row.delta) < 0.5 * scale),
+      'retain visible rows at their current positions when pruning and retargeting');
+  });
+}
+
 // Direction and canvas scale are shared feed branches covered by moonlit above;
 // one representative combination checks each style's own motion CSS.
 for (const style of styledMotion) {
@@ -207,7 +242,8 @@ for (const style of styledMotion) {
     const interrupted = await page.evaluate(async () => {
       freezeMoves(120);
       const nodes = Array.from(root.children);
-      const tops = nodes.map(node => node.getBoundingClientRect().top);
+      const before = nodes.map(node => node.getBoundingClientRect());
+      const viewport = root.getBoundingClientRect();
       const entrances = nodes.flatMap(node => node.getAnimations()).filter(animation => animation.animationName);
       feed.append({ id: 'new-gift', kind: 'gift', name: '星河', giftName: '小花花', giftCount: 3, giftTotalPrice: 15 });
       await new Promise(requestAnimationFrame);
@@ -222,11 +258,14 @@ for (const style of styledMotion) {
         return { top: rect.top, bottom: rect.bottom };
       }).sort((a, b) => a.top - b.top);
       return {
-        deltas: nodes.map((node, i) => node.getBoundingClientRect().top - tops[i]),
+        deltas: nodes.flatMap((node, i) => node.isConnected ? [node.getBoundingClientRect().top - before[i].top] : []),
+        removedVisible: nodes.some((node, i) => !node.isConnected
+          && before[i].bottom > viewport.top && before[i].top < viewport.bottom),
         entranceTimes: entrances.map(animation => animation.currentTime),
         gaps: boxes.slice(1).map((box, i) => box.top - boxes[i].bottom),
       };
     });
+    assert.equal(interrupted.removedVisible, false, 'retargeting never removes a visible message');
     assert.ok(interrupted.deltas.every(delta => Math.abs(delta) < 0.5 * scale), `retargeting stays within layout rounding: ${interrupted.deltas}`);
     assert.ok(interrupted.entranceTimes.every(time => time === 120), 'retargeting does not restart or cancel an entrance');
     assert.ok(interrupted.gaps.every(gap => gap >= -0.2), 'different-height arrivals never cross other cards');

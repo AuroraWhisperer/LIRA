@@ -317,7 +317,7 @@ test('pinyin saves independently of invalid parameter drafts and rolls back a fa
   await flush();
   assert.equal(f.get('PinyinToggle').checked, true);
   assert.equal(f.get('PinyinToggle').disabled, false);
-  assert.equal(f.toastOptions[1].type, 'error');
+  assert.equal(f.toastOptions.at(-1).type, 'error');
 });
 
 test('suggestions only edit the draft; enabling atomically includes parameters and leaves libraries dirty', async () => {

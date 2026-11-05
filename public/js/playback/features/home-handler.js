@@ -30,19 +30,24 @@ export function createHomeHandler(deps) {
       save: savePlaybackState,
       render: renderPlayback,
     });
+  let dismissTrackMenu = null;
+  let trackMenuTimer = null;
 
   // === Drawer 管理 ===
   function openPlaybackDrawer(title, subtitle, loading, loadingHint = '') {
+    closeTrackMenu();
     uiRenderer.getDrawer().open(title, subtitle, loading, loadingHint);
   }
 
   function closePlaybackDrawer() {
+    closeTrackMenu();
     uiRenderer.getDrawer().close();
     homeService.clearHomeState();
     homeService.clearHistory();
   }
 
   function playbackDrawerGoBack() {
+    closeTrackMenu();
     const previous = homeService.goBack();
     if (previous) {
       renderPlaybackHomeResults(previous.action, previous.title);
@@ -240,6 +245,13 @@ export function createHomeHandler(deps) {
   }
 
   // === 轨道菜单 ===
+  function closeTrackMenu(restoreFocus = false) {
+    clearTimeout(trackMenuTimer);
+    trackMenuTimer = null;
+    dismissTrackMenu?.(restoreFocus);
+    dismissTrackMenu = null;
+  }
+
   function toggleTrackMenu(index) {
     const menu = document.querySelector(`[data-playback-home-track-menu-for="${index}"]`);
     if (!menu) return;
@@ -247,6 +259,7 @@ export function createHomeHandler(deps) {
     const menuButton = document.querySelector(`[data-playback-home-track-menu-index="${index}"]`);
 
     const isHidden = menu.hasAttribute('hidden');
+    closeTrackMenu();
 
     document.querySelectorAll('.track-menu').forEach((m) => {
       if (m !== menu) {
@@ -259,15 +272,18 @@ export function createHomeHandler(deps) {
       menu.removeAttribute('hidden');
       menuButton?.setAttribute('aria-expanded', 'true');
       menu.querySelector('[role="menuitem"]')?.focus();
-      setTimeout(() => {
-        const closeMenu = (event) => {
-          if (!event.target.closest('.track-menu-wrapper')) {
-            menu.setAttribute('hidden', '');
-            menuButton?.setAttribute('aria-expanded', 'false');
-            document.removeEventListener('click', closeMenu);
-          }
-        };
-        document.addEventListener('click', closeMenu);
+      const outsideClick = (event) => {
+        if (!event.target.closest('.track-menu-wrapper')) closeTrackMenu();
+      };
+      dismissTrackMenu = (restoreFocus) => {
+        menu.setAttribute('hidden', '');
+        menuButton?.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('click', outsideClick);
+        if (restoreFocus) menuButton?.focus();
+      };
+      trackMenuTimer = setTimeout(() => {
+        trackMenuTimer = null;
+        document.addEventListener('click', outsideClick);
       }, 0);
     } else {
       menu.setAttribute('hidden', '');
@@ -346,5 +362,6 @@ export function createHomeHandler(deps) {
     handlePlaybackHomeBulkAction,
     handlePlaybackHomeTrackAction,
     toggleTrackMenu,
+    closeTrackMenu,
   };
 }

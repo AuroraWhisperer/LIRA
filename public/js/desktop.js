@@ -91,7 +91,6 @@
           if (autoUpdateLabel) {
             autoUpdateLabel.textContent = enabled ? '已开启' : '已关闭';
           }
-          toast(enabled ? '启动时自动检查已开启' : '启动时自动检查已关闭');
           // 通知主进程
           if (desktop.setAutoUpdate) {
             desktop.setAutoUpdate(enabled);

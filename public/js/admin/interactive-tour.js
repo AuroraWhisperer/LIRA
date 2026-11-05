@@ -5,7 +5,6 @@
  * 自动切换到目标功能位置，高亮目标元素，等待用户完成真实操作
  */
 
-import { toast as defaultToast } from '../shared/utils.js';
 import {
   TOUR_CONFIG_VERSION,
   TOUR_CONFIG_COMPLETION_CHECK_INTERVAL_MS,
@@ -27,7 +26,6 @@ const TOUR_COMPLETED_KEY = 'liraTourCompleted';
 export function createInteractiveTourController(deps = {}) {
   const document = deps.document || globalThis.document;
   const window = deps.window || globalThis.window || {};
-  const toast = deps.toast || defaultToast;
 
   const container = document.createElement('div');
   container.className = 'lira-tour';
@@ -444,7 +442,6 @@ export function createInteractiveTourController(deps = {}) {
     container.classList.remove('has-target');
 
     if (completed) {
-      toast('引导已完成');
       localStorage.setItem(TOUR_COMPLETED_KEY, String(TOUR_VERSION));
     }
   }
@@ -502,7 +499,6 @@ export function initInteractiveTour(deps = {}) {
   controller = createInteractiveTourController({
     document,
     window,
-    toast: defaultToast,
     ...deps,
   });
   return controller;

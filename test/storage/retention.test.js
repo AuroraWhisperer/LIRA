@@ -6,13 +6,27 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
-const { applyRetentionPolicies } = require('../../src/storage/retention');
+const { applyRetentionPolicies, getRetentionStats } = require('../../src/storage/retention');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 
 const NOW = Date.parse('2026-09-30T00:00:00.000Z');
 const DAY = 24 * 60 * 60 * 1000;
 const daysAgo = (days) => new Date(NOW - days * DAY).toISOString();
+
+test('raw gift statistics count UTF-8 bytes rather than Unicode characters', (t) => {
+  const giftDb = new DatabaseSync(':memory:');
+  t.after(() => giftDb.close());
+  giftDb.exec('CREATE TABLE gift_events (raw_json TEXT, created_at TEXT)');
+  const raw = JSON.stringify({ gift: '测试礼物', user: '观众😀' });
+  const insert = giftDb.prepare('INSERT INTO gift_events VALUES (?, ?)');
+  insert.run(raw, daysAgo(1));
+  insert.run('', daysAgo(1));
+  assert.deepEqual(getRetentionStats({ giftDb }).giftRawJson, {
+    rows: 1,
+    bytes: Buffer.byteLength(raw, 'utf8'),
+  });
+});
 
 test('manual retention yields between bounded batches and keeps its original policy and cutoff', async () => {
   const { routes } = require('../../src/server/routes/data-routes');

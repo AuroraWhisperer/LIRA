@@ -47,8 +47,10 @@ test('repairs corrupt images after transient atomic replacement failures', async
   const revision = cache.getRevision();
   const rename = fs.renameSync;
   let attempts = 0;
+  let retryYielded = false;
   t.mock.method(fs, 'renameSync', (source, destination) => {
     if (destination === imagePath && ++attempts <= 2) {
+      if (attempts === 1) setImmediate(() => { retryYielded = true; });
       assert.equal(fs.readFileSync(imagePath, 'utf8'), 'invalid');
       throw Object.assign(new Error('Replacement temporarily locked'), { code: attempts === 1 ? 'EPERM' : 'EBUSY' });
     }
@@ -58,6 +60,7 @@ test('repairs corrupt images after transient atomic replacement failures', async
   assert.equal(await cache.cacheGiftImage({ id: '1', imagePath: 'https://api.example.test/gift-media/images/image.webp' }),
     '/overtime-gift-images/image.webp');
   assert.equal(attempts, 3);
+  assert.equal(retryYielded, true, 'atomic replacement retries let the event loop continue');
   assert.equal(downloads, 1);
   assert.deepEqual(fs.readFileSync(imagePath), webpBytes());
   assert.notEqual(cache.getRevision(), revision);
@@ -89,6 +92,35 @@ test('preserves the last image index when atomic replacement remains unavailable
   assert.equal(attempts, 5);
   assert.deepEqual(fs.readFileSync(indexPath), previousIndex);
   assert.ok(cache.getCachedGiftImagePath(first));
+  assert.equal(fs.readdirSync(cache.cacheDir).some(name => name.includes('.tmp-')), false);
+});
+
+test('serializes image index commits while a concurrent image finishes during a retry', async (t) => {
+  const { createScratchDirectory } = require('../helpers/scratch-directory');
+  const dataDir = createScratchDirectory('gift-image-index-concurrent-', t);
+  const cache = createRemoteGiftImageCache({ dataDir, imageBaseUrl: 'https://api.example.test',
+    fetch: async () => new Response(webpBytes()), logger: QUIET_LOGGER });
+  const first = { id: '1', name: 'First', priceRaw: 100, coinType: 'gold', bagGift: false,
+    sourceUrl: 'https://i0.hdslb.com/bfs/live/first.webp' };
+  const second = { ...first, id: '2', sourceUrl: 'https://i0.hdslb.com/bfs/live/second.webp' };
+  const indexPath = path.join(cache.cacheDir, 'index.json');
+  let onLocked;
+  const locked = new Promise(resolve => { onLocked = resolve; });
+  const rename = fs.renameSync;
+  let attempts = 0;
+  t.mock.method(fs, 'renameSync', (source, destination) => {
+    if (destination === indexPath && ++attempts === 1) {
+      onLocked();
+      throw Object.assign(new Error('Index temporarily locked'), { code: 'EBUSY' });
+    }
+    return rename(source, destination);
+  });
+  const firstWrite = cache.cacheGiftImage(first);
+  await locked;
+  const [firstPath, secondPath] = await Promise.all([firstWrite, cache.cacheGiftImage(second)]);
+  const images = Object.values(JSON.parse(fs.readFileSync(indexPath, 'utf8')).images);
+  assert.ok(images.includes(path.posix.basename(firstPath)));
+  assert.ok(images.includes(path.posix.basename(secondPath)));
   assert.equal(fs.readdirSync(cache.cacheDir).some(name => name.includes('.tmp-')), false);
 });
 

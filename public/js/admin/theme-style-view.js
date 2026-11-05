@@ -26,7 +26,7 @@ export function setOverlayStyle(style, root = document, resourcePreset) {
   const illustratedDefaults = ILLUSTRATED_DEFAULT_LABELS[nextStyle] || ILLUSTRATED_DEFAULT_LABELS.storybook;
   const fontFamilyDefault = componentField(root, 'illustratedQueueFontFamily')?.querySelector('option[value="default"]');
   const fontWeightDefault = componentField(root, 'illustratedQueueFontWeight')?.querySelector('option[value="default"]');
-  if (fontFamilyDefault) fontFamilyDefault.textContent = illustratedDefaults.fontFamily;
+  if (fontFamilyDefault) fontFamilyDefault.textContent = `使用样式字体（${illustratedDefaults.fontFamily}）`;
   if (fontWeightDefault) fontWeightDefault.textContent = `样式默认（${illustratedDefaults.fontWeight}）`;
   root.querySelectorAll('[data-overlay-style]').forEach((button) => {
     button.classList.toggle('active', button.dataset.overlayStyle === nextStyle);

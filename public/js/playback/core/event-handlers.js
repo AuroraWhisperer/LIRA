@@ -52,6 +52,7 @@ export function createEventHandlers(deps) {
     handlePlaybackHomeBulkAction,
     loadPlaybackPlaylistTracks,
     toggleTrackMenu,
+    closeTrackMenu,
     handlePlaybackHomeTrackAction,
     handlePlaybackSearchAction,
     takePlaybackQueueTrack,
@@ -205,12 +206,9 @@ export function createEventHandlers(deps) {
         items[nextIndex]?.focus();
       } else if (event.key === 'Escape') {
         event.preventDefault();
-        menu.hidden = true;
-        document.querySelector(`[aria-controls="${menu.id}"]`)?.focus();
-        document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+        closeTrackMenu(true);
       } else if (event.key === 'Tab') {
-        menu.hidden = true;
-        document.querySelector(`[aria-controls="${menu.id}"]`)?.setAttribute('aria-expanded', 'false');
+        closeTrackMenu();
       }
     });
   }

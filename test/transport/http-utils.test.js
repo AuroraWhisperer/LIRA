@@ -28,6 +28,13 @@ test('sendStableError maps known failures and never exposes internal details', (
     assert.equal(response.statusCode, status, name);
     assert.deepEqual(response.body, { ok: false, error: message }, name);
   }
+  const response = createMockResponse();
+  httpUtils.sendStableError(response, Object.assign(new Error('internal lyric parser detail'), {
+    code: 'LYRIC_EXPANSION_LIMIT', statusCode: 400,
+  }));
+  assert.equal(response.statusCode, 400);
+  assert.equal(response.body.code, 'LYRIC_EXPANSION_LIMIT');
+  assert.equal(response.body.error.includes('internal lyric parser detail'), false);
 });
 
 test('readJsonBody enforces the byte limit and JSON syntax and treats an empty body as an object', async () => {

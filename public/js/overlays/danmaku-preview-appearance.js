@@ -18,5 +18,5 @@ export function initPreviewAppearance({ getDraft, change, error }) {
     fontScale: draft => canvasContentScale(draft.layout, draft.style),
   });
   return { render: () => listeners.forEach(listener => listener(controller.getState())),
-    addFonts: controls.addFonts, dispose: controls.dispose };
+    dispose: controls.dispose };
 }

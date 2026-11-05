@@ -417,7 +417,7 @@ export const todo = (() => {
       confirmLabel: '删除日程',
     });
     if (confirmed) removeEvent(eventId);
-    else openEvent(eventId);
+    else byId('plannerEventDialog').showModal();
   }
 
   function init() {

@@ -273,7 +273,6 @@ export function initDanmakuWelcome({
       accept(isV2() ? response : { ...response, schemaVersion: 1 }, submitted);
       if (switchKey) {
         displayNotice('');
-        toast(`${switchTitle}已${settings[switchKey] ? '开启' : '关闭'}${domains.includes('parameters') ? '，参数已保存' : ''}`);
         return;
       }
       const libraryKey = domains.find((key) => LIBRARIES[key]);
@@ -286,7 +285,6 @@ export function initDanmakuWelcome({
               ? `已保存 ${settings.userWelcomeMessages.length} 位用户的欢迎词`
               : '参数已保存',
       );
-      toast(status.textContent);
     } catch (error) {
       if (requested !== generation || disposed) return;
       const closing = Object.keys(SWITCHES).some((key) => patch[key] === false);

@@ -7,8 +7,61 @@ const { loadModuleExports, response } = require('../helpers/frontend-modules');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { createLyricsService } = require('../../src/music/lyrics-service');
 const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
+const { createDom, createClock } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+
+test('track menus release their outside listener on button, keyboard and drawer closure', async () => {
+  const { documentRef: document } = createDom();
+  const clock = createClock();
+  const body = document.createElement('div');
+  const menu = document.createElement('div');
+  const button = document.createElement('button');
+  const item = document.createElement('button');
+  menu.id = 'track-menu';
+  menu.hasAttribute = name => menu.attributes.has(name);
+  menu.setAttribute('hidden', '');
+  Object.defineProperty(menu, 'hidden', {
+    get: () => menu.attributes.has('hidden'),
+    set: value => value ? menu.setAttribute('hidden', '') : menu.removeAttribute('hidden'),
+  });
+  menu.querySelector = () => item;
+  menu.querySelectorAll = () => [item];
+  item.closest = selector => selector === '.track-menu' ? menu : null;
+  document.getElementById = id => id === 'playbackDrawerBody' ? body : null;
+  document.querySelectorAll = selector => selector === '.track-menu' ? [menu] : [];
+  document.querySelector = selector => selector.includes('track-menu-for') ? menu
+    : selector.includes('track-menu-index') || selector.startsWith('[aria-controls=') ? button : null;
+  const listeners = new Set();
+  document.addEventListener = (type, listener) => { if (type === 'click') listeners.add(listener); };
+  document.removeEventListener = (type, listener) => { if (type === 'click') listeners.delete(listener); };
+  const globals = { document, window: {}, ...clock };
+  const { createHomeHandler } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/features/home-handler.js'), globals);
+  const { createEventHandlers } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/core/event-handlers.js'), globals);
+  const owner = createHomeHandler({ playbackState: {}, homeService: { clearHomeState() {}, clearHistory() {} },
+    uiRenderer: { getDrawer: () => ({ close() {} }) } });
+  createEventHandlers({ playbackState: {}, getPlaybackAudio: () => null,
+    toggleTrackMenu: owner.toggleTrackMenu, closeTrackMenu: owner.closeTrackMenu }).setupEventHandlers();
+  const baseline = listeners.size;
+  for (const close of ['button', 'Escape', 'Tab', 'drawer', 'outside']) {
+    for (let cycle = 0; cycle < 10; cycle++) {
+      owner.toggleTrackMenu(0);
+      clock.tick(0);
+      assert.equal(menu.hidden, false);
+      if (close === 'button') owner.toggleTrackMenu(0);
+      else if (close === 'drawer') owner.closePlaybackDrawer();
+      else if (close === 'outside') {
+        for (const listener of [...listeners]) listener({ target: { closest: () => null } });
+      } else body.fire('keydown', { target: item, key: close, preventDefault() {} });
+      assert.equal(menu.hidden, true);
+      assert.equal(listeners.size, baseline, `listeners after ${close}`);
+    }
+  }
+  owner.toggleTrackMenu(0);
+  owner.closePlaybackDrawer();
+  clock.tick(0);
+  assert.equal(listeners.size, baseline, 'closing before listener installation cancels it');
+});
 
 test('account invalidation stops liked pagination after the outstanding page', async () => {
   let resolvePage;

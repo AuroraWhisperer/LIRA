@@ -109,16 +109,15 @@ export function initDanmakuCloudReplies({
     }
   }
 
-  for (const [toggle, key, name] of [
-    [exactToggle, 'customExactReplyEnabled', '完整匹配回复'],
-    [scheduledToggle, 'scheduledDanmakuEnabled', '定时／随机弹幕'],
+  for (const [toggle, key] of [
+    [exactToggle, 'customExactReplyEnabled'],
+    [scheduledToggle, 'scheduledDanmakuEnabled'],
   ]) {
     toggle.addEventListener('change', async () => {
       const value = toggle.checked;
       const requested = generation;
       try {
         await sync({ [key]: value });
-        if (generation === requested && !disposed) toast(`${name}已${value ? '开启' : '关闭'}`);
       } catch (error) {
         if (generation === requested && !disposed) toast(error.message, { type: 'error' });
       }
@@ -164,7 +163,6 @@ export function initDanmakuCloudReplies({
       render();
       controls();
       saveState.textContent = '已保存到云端';
-      toast('定时／随机弹幕设置已保存');
     } catch (error) {
       if (generation === requested && !disposed) saveState.textContent = `保存失败，草稿已保留。${error.message}`;
     }

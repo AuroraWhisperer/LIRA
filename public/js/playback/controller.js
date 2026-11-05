@@ -101,7 +101,6 @@ export function createPlaybackController(initialOptions = {}) {
     if (playbackState.selectedSource !== update.platform) return;
     if (!homeService.applyBackgroundUpdate(update)) return;
     renderPlaybackHomeResults(update.action, update.title);
-    toast(HomeService.getActionName(update.action) + '已自动更新');
   }
 
   const contentLoader = new ContentLoader({
@@ -469,6 +468,7 @@ export function createPlaybackController(initialOptions = {}) {
     handlePlaybackHomeBulkAction,
     loadPlaybackPlaylistTracks,
     toggleTrackMenu: (index) => homeHandler.toggleTrackMenu(index),
+    closeTrackMenu: (restoreFocus) => homeHandler.closeTrackMenu(restoreFocus),
     handlePlaybackHomeTrackAction,
     handlePlaybackSearchAction,
     takePlaybackQueueTrack,

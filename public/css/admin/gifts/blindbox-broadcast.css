@@ -5,6 +5,7 @@
 
 .gift-blindbox-broadcast-panel > .panel-header {
   padding: 0 0 16px;
+  border-bottom-color: var(--color-border-light, var(--border));
 }
 
 .blindbox-builder {

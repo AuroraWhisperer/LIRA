@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
 
 const API_URL = 'https://api.bilibili.com/';
 const KEY_COOKIES = ['DedeUserID', 'SESSDATA', 'bili_jct'];
@@ -44,12 +45,21 @@ function normalizeCookie(cookie) {
   };
 }
 
-function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId }) {
-  const scopeKey = crypto.createHash('sha256').update(streamerId).digest('hex');
+function lotteryAccountScope(serverOrigin, streamerId) {
+  const origin = normalizeRemoteRootOrigin(serverOrigin);
+  if (!origin || typeof streamerId !== 'string' || !streamerId) throw new TypeError('Lottery account scope is required.');
+  return `lottery-v2:${crypto.createHash('sha256').update(JSON.stringify([origin, streamerId])).digest('hex')}`;
+}
+
+function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId, serverOrigin }) {
+  serverOrigin = normalizeRemoteRootOrigin(serverOrigin);
+  const scopeKey = lotteryAccountScope(serverOrigin, streamerId).replace(':', '-');
   const partition = `persist:bilibili-dynamic-lottery-${scopeKey}`;
   const loginSession = session.fromPartition(partition);
   const directory = path.join(dataDir, 'dynamic-lottery-auth', scopeKey);
   const snapshotPath = path.join(directory, 'cookies.enc');
+  const legacyKey = crypto.createHash('sha256').update(streamerId).digest('hex');
+  const legacySnapshotPath = path.join(dataDir, 'dynamic-lottery-auth', legacyKey, 'cookies.enc');
 
   async function getCookies() {
     const cookies = await loginSession.cookies.get({ url: API_URL });
@@ -71,7 +81,7 @@ function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId }) {
   async function persist() {
     if (!safeStorage.isEncryptionAvailable()) throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
     const cookies = await getCookies();
-    const payload = JSON.stringify({ version: 1, streamerId, cookies });
+    const payload = JSON.stringify({ version: 2, serverOrigin, streamerId, cookies });
     const encrypted = safeStorage.encryptString(payload);
     fs.mkdirSync(directory, { recursive: true });
     const temporaryPath = `${snapshotPath}.tmp`;
@@ -89,7 +99,7 @@ function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId }) {
     if (!safeStorage.isEncryptionAvailable()) throw authError('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
     try {
       const payload = JSON.parse(safeStorage.decryptString(fs.readFileSync(snapshotPath)));
-      if (payload.version !== 1 || payload.streamerId !== streamerId || !Array.isArray(payload.cookies)) {
+      if (payload.version !== 2 || payload.serverOrigin !== serverOrigin || payload.streamerId !== streamerId || !Array.isArray(payload.cookies)) {
         throw authError('LOTTERY_AUTH_RESTORE_FAILED');
       }
       for (const cookie of payload.cookies.map(normalizeCookie).filter(Boolean)) {
@@ -110,7 +120,8 @@ function createLotteryAuthStore({ session, safeStorage, dataDir, streamerId }) {
     await loginSession.cookies.flushStore();
   }
 
-  return { partition, getAuthState, getCookieHeader, persist, restore, clear };
+  return { partition, getAuthState, getCookieHeader, persist, restore, clear,
+    hasLegacySnapshot: () => fs.existsSync(legacySnapshotPath) };
 }
 
-module.exports = { createLotteryAuthStore };
+module.exports = { createLotteryAuthStore, lotteryAccountScope };

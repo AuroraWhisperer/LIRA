@@ -23,6 +23,8 @@ test('compact live status distinguishes live, offline, delayed reception and unk
   assert.equal(new Set([delayed.label, offline.label, live.label]).size, 3);
   assert.notEqual(project({ connected: true, enabled: true, message: '已连接' }).label, live.label);
   assert.equal(project({ connected: false, enabled: true, message: '已开播，正在重连礼物监听' }).tone, 'warn');
+  const failed = { connected: false, enabled: true, message: '直播间不存在，请检查直播间号' };
+  assert.ok(project(failed).detail.includes(failed.message), 'connection failures retain their diagnostic reason');
 });
 
 test('one status survives live snapshots during disconnect, deduplicates toast and restores after reconnect', async () => {

@@ -221,9 +221,6 @@ export function createPlaybackControls(deps) {
     if (!audio || !track || track.source !== source) {
       stateActions.setQuality(source, normalizedQuality);
       stateActions.commit();
-      toast(
-        `${PlaybackUtils.getSourceName(source)}默认音质已设为${PlaybackUtils.getQualityLabel(source, normalizedQuality)}`,
-      );
       return;
     }
 
@@ -270,10 +267,6 @@ export function createPlaybackControls(deps) {
         if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
         await audio.play();
       }
-
-      if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
-
-      toast(`已切换到${PlaybackUtils.getQualityLabel(source, normalizedQuality)}音质`);
     } catch (error) {
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       audioRequestGeneration = requestGeneration;

@@ -103,6 +103,7 @@ function syncDraftField(node, effect) {
 }
 
 async function saveSettings(effect) {
+  if (savingFields.has(effect.enabledKey)) return;
   const { enabled, threshold, status } = effect.ids;
   const amount = Number(document.getElementById(threshold).value);
   if (!Number.isFinite(amount) || amount < 0) {
@@ -115,6 +116,7 @@ async function saveSettings(effect) {
   };
   const values = { ...submitted, [effect.thresholdKey]: amount.toFixed(2) };
   for (const key of Object.keys(submitted)) savingFields.add(key);
+  document.getElementById(effect.ids.save).disabled = true;
   try {
     await api('/api/settings', values, { notifyError: false });
     currentSettings = { ...currentSettings, ...values };
@@ -127,12 +129,13 @@ async function saveSettings(effect) {
       ? `${effect.label}设置已保存，刚才的新修改还没保存。`
       : `${effect.label}设置已保存。`;
     setStatus(status, message, 'success');
-    toast(message, { type: 'success' });
+    if (draftFields.size) toast(message, { type: 'success' });
   } catch (_) {
     const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
     setStatus(status, message, 'error');
     toast(message, { type: 'error' });
   } finally {
+    document.getElementById(effect.ids.save).disabled = false;
     for (const key of Object.keys(submitted)) {
       savingFields.delete(key);
       syncDraftField(document.getElementById(key), effect);

@@ -132,7 +132,7 @@ async function saveSettings(effect) {
     const message = dirty ? `${effect.label}设置已保存，刚才的新修改还没保存。`
       : `${effect.label}设置已保存，${submitted[enabledKey] === 'true' ? '已启用' : '已关闭'}。`;
     setStatus(effect, message, 'success');
-    toast(message, { type: 'success' });
+    if (dirty) toast(message, { type: 'success' });
   } catch (_) {
     const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
     setStatus(effect, message, 'error');

@@ -102,3 +102,46 @@ for (const hours of [12, 24, 168]) {
 function loadCacheManager(globals) {
   return loadModuleExports(path.join(__dirname, '../../public/js/playback/cache/manager.js'), globals);
 }
+
+function storageFixture(quota = Infinity) {
+  const values = new Map([['playbackOutput:v1', 'saved preference']]);
+  return { values, localStorage: {
+    get length() { return values.size; },
+    key: index => [...values.keys()][index] ?? null,
+    getItem: key => values.get(key) ?? null,
+    removeItem: key => values.delete(key),
+    setItem(key, value) {
+      const next = new Map(values).set(key, String(value));
+      if ([...next].reduce((sum, [k, v]) => sum + (k.length + v.length) * 2, 0) > quota) {
+        throw new Error('QuotaExceededError');
+      }
+      values.set(key, String(value));
+    },
+  } };
+}
+
+test('persistent playlist caches stay bounded and expire across restart without revisiting old keys', async () => {
+  const { values, localStorage } = storageFixture();
+  let now = 1000;
+  const { CacheManager } = await loadCacheManager({ localStorage,
+    Date: class extends Date { static now() { return now; } } });
+  const cache = new CacheManager();
+  for (let index = 0; index < 100; index++) cache.set(`qq:playlist-tracks:${index}`, { title: '歌'.repeat(20000) });
+  const entries = [...values].filter(([key]) => key.startsWith('playbackCache:v2:'));
+  assert.ok(entries.length <= 64);
+  assert.ok(entries.reduce((sum, [key, raw]) => sum + (key.length + raw.length) * 2, 0) <= 2 * 1024 * 1024);
+  now += 25 * 3600000;
+  new CacheManager();
+  assert.deepEqual([...values.keys()], ['playbackOutput:v1']);
+  assert.equal(values.get('playbackOutput:v1'), 'saved preference');
+});
+
+test('quota recovery reclaims only playlist caches and retries the current write', async () => {
+  const { values, localStorage } = storageFixture(1800);
+  const { CacheManager } = await loadCacheManager({ localStorage });
+  const cache = new CacheManager();
+  cache.set('qq:playlist-tracks:old', { title: '歌'.repeat(350) });
+  cache.set('qq:playlist-tracks:new', { title: '歌'.repeat(500) });
+  assert.ok(values.has('playbackCache:v2:qq:playlist-tracks:new'));
+  assert.equal(values.get('playbackOutput:v1'), 'saved preference');
+});

@@ -123,7 +123,12 @@ export function initComponentStyleLibraries() {
         if (wishes && !style.config.resourceStyle) previewWish(style);
         else if (!hasResourceSettings(style)) return addStyleToCanvas(style);
       },
-      renderList({ cards }) {
+      renderList({ cards, add }) {
+        if (type === 'danmaku') {
+          add.className = 'secondary';
+          add.textContent = '添加样式';
+          host.closest('dialog').querySelector('.danmaku-library-actions').append(add);
+        }
         for (const { style, card } of cards) {
           const button = card.querySelector('.component-style-select');
           if (wishes) {

@@ -148,7 +148,7 @@ test('roster notices separate success, skips and lookup failures and omit empty 
   assert.equal(offRoster.length, 2);
 });
 
-test('global fan update polling separates result types and stops after pagehide', async () => {
+test('global fan update polling reports incomplete or failed updates and stops after pagehide', async () => {
   const { initFanProfileAutoUpdate } = await loadModuleExports(
     path.join(ROOT, 'public/js/admin/fans/automatic-update.js'),
   );
@@ -172,18 +172,18 @@ test('global fan update polling separates result types and stops after pagehide'
   };
   const ui = initFanProfileAutoUpdate({ windowRef, notify: (message, options) => notices.push({ message, options }) });
   await new Promise(setImmediate);
-  assert.equal(notices.length, 1);
+  assert.equal(notices.length, 0);
   result = { ok: true, data: null };
   await ui.poll();
-  assert.equal(notices.length, 1);
+  assert.equal(notices.length, 0);
   result = { ok: true, data: { reason: 'startup', status: 'success', roomId: '1234', total: 4, created: 0, updated: 3, skipped: 1,
     skippedDetails: [{ rank: '2', reason: 'hidden-identity' }],
     profileRefresh: { updated: 2, failed: 1, skipped: 0 } } };
   await ui.poll();
-  assert.deepEqual(notices.slice(1).map((notice) => notice.options?.type), ['success', 'info', 'warning']);
+  assert.deepEqual(notices.map((notice) => notice.options?.type), ['info', 'warning']);
   result = { ok: true, data: { reason: 'startup', status: 'error', error: '请检查网络' } };
   await ui.poll();
-  assert.equal(notices[4].options.type, 'error');
+  assert.equal(notices[2].options.type, 'error');
   let complete;
   windowRef.fanProfiles.invoke = () =>
     new Promise((resolve) => {
@@ -193,7 +193,7 @@ test('global fan update polling separates result types and stops after pagehide'
   listeners.get('pagehide')();
   complete(result);
   await pending;
-  assert.equal(notices.length, 5);
+  assert.equal(notices.length, 3);
   assert.equal(cleared, true);
   assert.equal(listeners.size, 0);
 });

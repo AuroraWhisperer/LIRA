@@ -153,7 +153,7 @@ export const giftAnalysis = (() => {
     renderViewControls();
     renderTable(data.items || [], data.hasArchivedDetails === true);
     renderPagination(data.pagination || {});
-    renderContext(data.hasArchivedDetails === true);
+    renderContext(data.hasArchivedDetails === true, data.hasLegacyArchivedDates === true);
     const results = document.querySelector('.blind-analysis-results');
     results?.setAttribute('aria-busy', 'false');
   }
@@ -284,9 +284,11 @@ export const giftAnalysis = (() => {
     if (get('blindBoxAnalysisNext')) get('blindBoxAnalysisNext').disabled = page >= totalPages;
   }
 
-  function renderContext(hasArchivedDetails) {
+  function renderContext(hasArchivedDetails, hasLegacyArchivedDates) {
     setText('blindBoxAnalysisTitle', state.dateRange ? '盲盒分析' : '今日盲盒分析');
-    setText('blindBoxAnalysisUpdated', hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '刚刚更新');
+    setText('blindBoxAnalysisUpdated', hasLegacyArchivedDates
+      ? '含旧版历史汇总，单日统计可能存在时区偏差'
+      : hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '刚刚更新');
   }
 
   function renderLoading() {

@@ -47,7 +47,7 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
         SELECT id
         FROM super_chats
         WHERE (platform_id != '' AND platform_id = ?)
-           OR (platform_id = '' AND ? != '' AND uid = ? AND message = ? AND created_at = ?)
+           OR (platform_id = '' AND ? != '' AND uid = ? AND message = ? AND created_at = ? AND price = ?)
         LIMIT 1
       `,
         )
@@ -57,6 +57,7 @@ function migrateLegacySuperChatsToDedicatedDatabase(songDb, superChatDb) {
           cleanText(row.uid),
           cleanText(row.message),
           cleanText(row.created_at),
+          normalizeSuperChatPrice(row.price),
         );
       if (existing) continue;
 

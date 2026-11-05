@@ -183,7 +183,6 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
           fullscreenDurationSeconds: incoming.fullscreenDurationSeconds,
           layout: normalizeLayout(incoming.layout ?? null) || createLayout() };
       } catch { return; }
-      appearance.addFonts(data.fonts || []);
       canApply = data.canApply === true;
       status.textContent = canApply ? '调整后点击应用，更新直播画面。' : data.message;
       render();

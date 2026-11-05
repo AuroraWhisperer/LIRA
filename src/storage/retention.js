@@ -208,7 +208,7 @@ function rawJsonStats(db) {
     const row = db
       .prepare(
         `
-      SELECT COUNT(*) AS rows, SUM(LENGTH(raw_json)) AS bytes
+      SELECT COUNT(*) AS rows, SUM(LENGTH(CAST(raw_json AS BLOB))) AS bytes
       FROM gift_events WHERE raw_json != ''
     `,
       )

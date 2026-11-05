@@ -77,6 +77,7 @@ function createFanUi() {
   const transfer = createFanTransferUi({
     request,
     openForm,
+    beginIntent: formEditor.beginIntent,
     getProfile: () => state.profile,
     onProfile: receiveProfile,
     onReset: async () => {
@@ -101,6 +102,7 @@ function createFanUi() {
     }
     if (action !== 'open' && state.contextId !== contextId) throw new Error('登录状态已变化，请重新打开粉丝档案。');
     if (action === 'open' && state.contextId && state.contextId !== result.contextId) {
+      formEditor.invalidate();
       state.profile = null;
       state.selection++;
       state.tab = 'overview';
@@ -551,6 +553,7 @@ function createFanUi() {
         state.tab = element.dataset.fanTab;
         renderSelected();
       } else if (element.dataset.fanPage) {
+        if (state.page !== element.dataset.fanPage) formEditor.invalidate();
         state.page = element.dataset.fanPage;
         showPage();
       } else if ('fanFilter' in element.dataset) {
@@ -581,6 +584,7 @@ function createFanUi() {
     if (file) void transfer.restoreFile(file).catch((error) => showError(error));
   });
   const refreshVisible = () => {
+    if (!isVisible()) formEditor.invalidate();
     if (isVisible())
       void load(true)
         .then(() => {

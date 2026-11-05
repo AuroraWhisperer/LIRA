@@ -307,23 +307,21 @@ async function startGame(game) {
     targetName: mode === 'multi' ? '直播间观众' : option?.dataset.name || '',
   });
   renderSession(result.data);
-  toast(`${game === 'gomoku' ? '五子棋' : '数字炸弹'}已开始`);
 }
 
 async function stopGame() {
   await api('/api/games/session', { action: 'stop' });
   renderSession(null);
   renderHostState(null);
-  toast('游戏已结束');
 }
 
 async function controlDrawRound(action) {
   const result = await api('/api/games/session/move', { value: { action } });
   renderSession(result.data);
   await refreshHostState();
-  toast(
-    action === 'finish-round' ? '作画已结束，请公布答案' : action === 'reveal-answer' ? '答案已公布' : '请选择下一题的题词',
-  );
+  if (action !== 'reveal-answer') {
+    toast(action === 'finish-round' ? '作画已结束，请公布答案' : '请选择下一题的题词');
+  }
 }
 
 function toggleDrawDetails() {

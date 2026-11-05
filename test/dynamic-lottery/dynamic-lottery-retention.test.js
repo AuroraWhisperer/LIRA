@@ -8,6 +8,7 @@ const { commentRecord, openLotteryDatabase } = require('../helpers/dynamic-lotte
 const { createDynamicLotteryStore } = require('../../src/storage/dynamic-lottery-store');
 const { createLotteryDrawStore } = require('../../src/storage/dynamic-lottery-draw-store');
 const { createDynamicLotteryRuntime } = require('../../src/server/dynamic-lottery-runtime');
+const { lotteryAccountScope } = require('../../src/electron/dynamic-lottery-auth-store');
 
 function task(store, id, streamerId = 'streamer-1', nowMs = 1_000) {
   return store.createTask({
@@ -145,9 +146,10 @@ test('restart cleanup follows the default selected task and preserves paused pro
   assert.equal(runtime.getState().task.id, current.id, 'equal dates use the same descending ID tie break as the UI');
   assert.deepEqual(runtime.getState().result, expectedResult);
   assert.equal(store.getTask(old.id), null);
-  assert.equal(store.getTask(otherOld.id), null, 'a newer unfinished task supersedes the old finished result');
+  assert.ok(store.getTask(otherOld.id), 'maintenance leaves an unselected account untouched');
   streamerId = 'streamer-2';
   assert.equal(runtime.getState().task.status, 'paused');
+  assert.equal(store.getTask(otherOld.id), null, 'a newer unfinished task supersedes the old result only after selecting its owner');
   assert.deepEqual(drawStore.getRound(otherCurrent.id).order, expectedOrder);
   assert.equal(store.pruneCompletedHistory(), 0);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM lottery_events WHERE event_type = 'create-retired'").get().n, 2);
@@ -160,6 +162,39 @@ test('restart cleanup follows the default selected task and preserves paused pro
   assert.deepEqual(store.findCreateReceipt('streamer-1', old.requestId), { inputSignature: 'signature-a-old' });
   assert.throws(() => task(store, old.id), { code: 'LOTTERY_TASK_CLEARED' });
   assert.equal(store.pruneCompletedHistory(), 0);
+});
+
+test('server account scopes isolate history and leave legacy tasks outside automatic recovery and pruning', async t => {
+  const db = openLotteryDatabase();
+  const store = createDynamicLotteryStore(db);
+  const drawStore = createLotteryDrawStore(db);
+  const legacyOld = task(store, 'legacy-old', '1');
+  const legacyLatest = task(store, 'legacy-latest', '1', 2_000);
+  const legacyRunning = task(store, 'legacy-running', '1', 3_000);
+  finish(store, drawStore, legacyOld);
+  finish(store, drawStore, legacyLatest);
+  store.beginScan({ id: 'legacy-scan', taskId: legacyRunning.id, sessionEpoch: 1, sources: ['comment'], startedAtMs: 4_000 });
+  const serverA = lotteryAccountScope('https://server-a.example.test', '1');
+  const serverB = lotteryAccountScope('https://server-b.example.test', '1');
+  const saved = task(store, 'server-a-result', serverA);
+  finish(store, drawStore, saved);
+  let scope = serverA;
+  const runtime = createDynamicLotteryRuntime({ db,
+    auth: { getIdentity: () => ({ streamerId: scope, authorizationEpoch: 1 }), getContext: () => { throw new Error('must stay offline'); } },
+    fetchImpl: () => { throw new Error('must not fetch'); },
+  });
+  t.after(async () => { await runtime.dispose(); db.close(); });
+  assert.equal(runtime.getState().result.winners.length, 1);
+  scope = serverB;
+  assert.equal(runtime.getState().tasks.length, 0);
+  assert.throws(() => runtime.getState({ taskId: saved.id }), { code: 'LOTTERY_TASK_NOT_FOUND' });
+  assert.throws(() => runtime.getState({ taskId: legacyOld.id }), { code: 'LOTTERY_TASK_NOT_FOUND' });
+  assert.equal(store.getTask(legacyOld.id).status, 'completed');
+  assert.equal(drawStore.getResult(legacyOld.id).winners.length, 1);
+  assert.equal(store.getTask(legacyRunning.id).status, 'collecting');
+  assert.equal(store.getActiveScan(legacyRunning.id).status, 'running');
+  scope = serverA;
+  assert.equal(runtime.getState().task.id, saved.id);
 });
 
 test('cleanup and creation roll back together if evidence deletion or request receipt persistence fails', (t) => {

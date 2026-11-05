@@ -292,7 +292,7 @@ function feedbackFixture(extra = {}) {
   }) };
 }
 
-test('component saves report failures, preserve later edits and ignore reset sessions', async () => {
+test('component saves stay quiet on success, report failures, preserve later edits and ignore reset sessions', async () => {
   const f = feedbackFixture();
   const { createComponentConfigController } = await f.load('admin/component-config-controller.js');
   const { saveComponentWithFeedback } = await f.load('admin/component-save-feedback.js');
@@ -317,9 +317,14 @@ test('component saves report failures, preserve later edits and ignore reset ses
   await success;
   assert.equal(f.container.children.length, 1);
   f.clock.tick(10000);
+  const completed = saveComponentWithFeedback(controller, '点歌板主题');
+  write.resolve({ size: 28 });
+  await completed;
+  assert.equal(f.container.children.length, 0, 'completed saves use the inline state');
+  controller.edit({ size: 32 });
   const reset = saveComponentWithFeedback(controller, '点歌板主题');
   controller.reset();
-  write.resolve({ size: 28 });
+  write.resolve({ size: 32 });
   await reset;
   assert.equal(f.container.children.length, 0, 'a previous session cannot announce success');
 });

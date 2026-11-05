@@ -270,6 +270,21 @@ test('QQ provider falls back to the legacy lyric endpoint', async () => {
   }
 });
 
+test('QQ lyric expansion errors retain their client error contract through fallback and HTTP', async () => {
+  const { routes } = require('../../src/server/routes/music-routes');
+  const provider = createProvider();
+  const lyric = Buffer.from('[00:01]'.repeat(512) + 'x'.repeat(4096)).toString('base64');
+  provider.requestMusicu = async () => ({ code: 0, req_0: { code: 0, data: { lyric } } });
+  provider.requestJson = async () => ({ lyric });
+  const track = { sourceTrackId: 'synthetic-mid', sourceSongId: 123, title: 'Synthetic song' };
+  const response = { writeHead(status) { this.status = status; }, end(text) { this.body = JSON.parse(text); } };
+  await routes['POST /api/music/lyrics']({ music: { lyrics: {
+    getMusicTrackLyrics: () => provider.getLyrics(track),
+  } } }, { body: async () => ({ track }) }, response);
+  assert.equal(response.status, 400);
+  assert.equal(response.body.code, 'LYRIC_EXPANSION_LIMIT');
+});
+
 test('QQ provider recovers a missing numeric song ID before requesting rich lyrics', async () => {
   const originalFetch = global.fetch;
   const urls = [];

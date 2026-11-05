@@ -2,7 +2,6 @@ import { validMessages } from './danmaku-welcome-model.js';
 
 const SWITCHES = { enabled: 'Toggle', reportEnabled: 'ReportToggle', visitorWelcomeEnabled: 'VisitorToggle' };
 const EXTENSION_FIELDS = ['reportEnabled', 'visitorWelcomeEnabled', 'visitorWelcomeDelaySeconds', 'visitorWelcomeMessages'];
-const SWITCH_TITLES = { enabled: 'PK 播报与欢迎', reportEnabled: '对手信息播报', visitorWelcomeEnabled: '对面观众进场欢迎' };
 
 function confirmed(result) {
   if (result?.ok !== true || typeof result.enabled !== 'boolean') throw new Error();
@@ -115,7 +114,7 @@ export function initDanmakuPkReport({
       notice = '';
       if (writing) {
         const key = Object.keys(SWITCHES).find((field) => field in patch);
-        toast(key ? SWITCH_TITLES[key] + '已' + (settings[key] ? '开启' : '关闭') : '串门欢迎设置已保存');
+        if (!key) toast('串门欢迎设置已保存');
       }
     } catch {
       if (disposed || generation !== requested) return;

@@ -212,15 +212,15 @@ function createLotteryDrawStore(db) {
     };
   }
 
-  function recoverInterrupted(nowMs) {
+  function recoverInterrupted(nowMs, streamerId) {
     transaction(db, () => {
       db.prepare(
-        "UPDATE lottery_rounds SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'drawing'",
-      ).run(nowMs);
-      db.prepare("UPDATE lottery_orders SET status = 'paused', updated_at_ms = ? WHERE status = 'drawing'").run(nowMs);
+        "UPDATE lottery_rounds SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'drawing' AND task_id IN (SELECT id FROM lottery_tasks WHERE streamer_id = ?)",
+      ).run(nowMs, streamerId);
+      db.prepare("UPDATE lottery_orders SET status = 'paused', updated_at_ms = ? WHERE status = 'drawing' AND round_id IN (SELECT id FROM lottery_rounds WHERE task_id IN (SELECT id FROM lottery_tasks WHERE streamer_id = ?))").run(nowMs, streamerId);
       db.prepare(
-        "UPDATE lottery_tasks SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'drawing'",
-      ).run(nowMs);
+        "UPDATE lottery_tasks SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'drawing' AND streamer_id = ?",
+      ).run(nowMs, streamerId);
     });
   }
 

@@ -51,6 +51,15 @@ are retained separately: `gift_stats_eligible`, sprint resets, user/box analysis
 and pending overtime retain their existing semantics. Importing or archiving must
 not trigger gifts, thanks, overtime, wishes or other live actions for historical-only records. A locally accepted progress group is completed by the existing final importer only after activation, retaining its original eligibility.
 
+Local blind-box archives preserve the original event instant so natural-day
+queries in the computer's timezone keep the same result after pruning or a
+timezone change. giftDb v21 adds nullable `occurred_at`; new groups include that
+instant in their identity. Earlier Beijing-day buckets remain intact with NULL
+event time: their deleted intraday distribution cannot be reconstructed. Queries
+that include these legacy buckets expose `hasLegacyArchivedDates` and the UI
+identifies the possible single-day timezone discrepancy. Server daily summaries
+continue using their existing Shanghai-day contract.
+
 Source-less and unidentified legacy records are not assigned to a current source
 or deleted by this policy. Super Chat, fans, check-in and guard expiry retain
 their original domain lifecycles.

@@ -70,8 +70,9 @@ async function open(t) {
           });
         data = { id: 'new' };
       } else if (url === '/api/gifts/wishes/delete') {
-        window.wishDeleted.push(JSON.parse(options.body));
-        window.wishData.items = [];
+        const body = JSON.parse(options.body);
+        window.wishDeleted.push(body);
+        window.wishData.items = window.wishData.items.filter(item => item.id !== body.id);
         data = { removed: true };
       } else throw new Error(`Unexpected fetch: ${url}`);
       return { ok: true, json: async () => ({ ok: true, data }) };
@@ -282,6 +283,30 @@ test('wish drafts survive cancelled item and period changes and discard only aft
   await page.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   assert.equal(await page.locator('#giftWishPeriod').inputValue(), 'day');
   assert.equal(await page.locator('#giftWishLabel').inputValue(), '');
+});
+
+test('deleting another wish preserves the current draft and its editing identity', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    window.wishData.items = ['one', 'two'].map(id => ({
+      id, period: 'long', giftId: id, giftName: id, target: 10, count: 0,
+      todayCount: 0, label: '', displayStyle: 'card', giftCategory: 'directGift',
+    }));
+  });
+  await page.locator('#giftWishesRefresh').click();
+  await page.locator('#giftWishCards').getByRole('button', { name: '编辑', exact: true }).first().click();
+  await page.locator('#giftWishTarget').fill('25');
+  await page.locator('#giftWishLabel').fill('未保存的备注');
+  await page.locator('#giftWishCards').getByRole('button', { name: '删除', exact: true }).nth(1).click();
+  await page.getByRole('button', { name: '再次点击删除', exact: true }).click();
+  await page.waitForFunction(() => window.wishData.items.length === 1 && !document.getElementById('giftWishFields').disabled);
+  assert.equal(await page.locator('#giftWishTarget').inputValue(), '25');
+  assert.equal(await page.locator('#giftWishLabel').inputValue(), '未保存的备注');
+  assert.equal(await page.locator('#giftWishSelectedName').textContent(), 'one');
+  await page.locator('#giftWishSave').click();
+  await page.waitForFunction(() => window.wishSaves.length === 1);
+  assert.equal(await page.evaluate(() => window.wishSaves[0].id), 'one');
+  assert.equal(await page.evaluate(() => window.wishDeleted[0].id), 'two');
 });
 
 test('picker marks unresolved room gifts as unavailable until their identity is synced', async (t) => {

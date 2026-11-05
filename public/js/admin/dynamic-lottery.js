@@ -9,6 +9,7 @@ const ERROR_MESSAGES = {
   LOTTERY_AUTH_BUSY: '账号操作正在进行，请稍后重试。',
   LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE: '系统加密存储不可用，无法保存登录。请重启软件后重试。',
   LOTTERY_AUTH_RESTORE_FAILED: '未能恢复抽奖登录，请退出此账号后重新登录。',
+  LOTTERY_AUTH_RELOGIN_REQUIRED: '旧版抽奖数据缺少服务器归属，已保留且未自动关联。请重新登录抽奖账号。',
 };
 
 export function initDynamicLottery({

@@ -92,6 +92,29 @@ test('saving woodland does not resubmit retired ribbon settings', async () => {
   await save;
 });
 
+test('a pending gift-frame save blocks a second submission and preserves the next draft', async () => {
+  const { node, requests, render, edit } = await createFixture();
+  render({ giftFrameThresholdRmb: '20.00', giftFrameEnabled: 'true' });
+  edit('giftFrameThresholdRmb', '25');
+  const first = node('giftFrameSaveBtn').handlers.get('click')();
+  edit('giftFrameThresholdRmb', '30');
+  const duplicate = node('giftFrameSaveBtn').handlers.get('click')();
+  assert.equal(requests.length, 1);
+  await duplicate;
+  assert.equal(node('giftFrameSaveBtn').disabled, true);
+  render({ giftFrameThresholdRmb: '25.00', giftFrameEnabled: 'true' });
+  requests[0].resolve();
+  await first;
+  assert.equal(node('giftFrameThresholdRmb').value, '30');
+  assert.equal(node('giftFrameThresholdRmb').dataset.dirty, 'true');
+  const second = node('giftFrameSaveBtn').handlers.get('click')();
+  render({ giftFrameThresholdRmb: '30.00', giftFrameEnabled: 'true' });
+  requests[1].resolve();
+  await second;
+  assert.equal(node('giftFrameThresholdRmb').dataset.dirty, 'false');
+  assert.equal(node('giftFrameSaveBtn').disabled, false);
+});
+
 test('reverting to the saved setting clears dirty state, except while that value is being replaced', async () => {
   const { node, requests, render, edit } = await createFixture();
   render({ giftFrameThresholdRmb: '20.00', giftFrameEnabled: 'false' });

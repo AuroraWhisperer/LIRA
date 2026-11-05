@@ -2,9 +2,10 @@ import { STYLE_PARAMETER_CAPABILITIES, styleParametersFor } from '../shared/comp
 import { componentEffectProfiles, createEffectFilters, effectColor, effectTransform } from './component-effect-filters.js';
 
 const CLOCK_TEXT = '.clock-time > span, .clock-flip-value, .clock-flip-half > span, .clock-date-row > span, .clock-label, .clock-period, .clock-year';
-const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount';
+const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount, .window-role, .window-event, .window-amount, .sinking-event-label, .sinking-amount';
 const SURFACES = {
   comic: '.comic-ink',
+  window: '.window-frame',
   mist: '.draw-danmaku-body, .mist-guard-card, .sc-mist',
   ranked: '.draw-danmaku-body > p', cream: '.draw-danmaku-body',
   glow: '.draw-danmaku-body > p', starveil: '.draw-danmaku-body > p, .draw-danmaku-gift-copy',
@@ -166,7 +167,7 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
     }
     for (const item of document.querySelectorAll('#danmakuFeed > .draw-danmaku-item')) {
       const surface = ['panel', 'frame'].includes(kind)
-        ? item.classList.contains('is-superchat') ? '.sc-message'
+        ? config.style === 'window' ? SURFACES.window : item.classList.contains('is-superchat') ? '.sc-message'
           : config.style === 'glow' && item.classList.contains('is-gift') ? ':self' : SURFACES[config.style] || ':self' : null;
       applyRoot(item, surface, kind === 'art', kind === 'text');
     }

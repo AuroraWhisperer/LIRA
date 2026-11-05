@@ -49,6 +49,7 @@ let currentGiftImage = 'theme';
 let currentMinGiftAmount = 0;
 let currentSpeedPixelsPerSecond = 120;
 let currentFloatingDispersion = 50;
+let currentSinkingOptions = {};
 let currentRandomPlacement = {};
 let currentRandomExpiration = {};
 let effectConfig = {};
@@ -118,7 +119,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sampleContentKey = nextContentKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
-          ['mist', 'comic'].includes(style) || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
+          ['mist', 'comic', 'window', 'sinking'].includes(style) || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
         if (styleParametersFor(config).showEntryMessages !== false) samples.push({ ...DANMAKU_PREVIEW_WELCOME });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
@@ -310,6 +311,7 @@ function createOverlayFeed(style, durationSeconds) {
     style,
     maxItems: MAX_ITEMS,
     minGiftAmount: currentMinGiftAmount,
+    sinkingOptions: currentSinkingOptions,
     offscreenViewports: 0,
     autoScroll: false,
     resolveAvatarUrl: bilibiliAvatarSource,
@@ -373,6 +375,8 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   feed?.setExpirationOptions?.(currentRandomExpiration);
   currentSpeedPixelsPerSecond = appearance.speedPixelsPerSecond || 120;
   currentFloatingDispersion = appearance.floatingDispersion ?? 50;
+  currentSinkingOptions = appearance;
+  if (style === 'sinking') feed?.setSinkingOptions?.(currentSinkingOptions);
   if (isFloatingDanmakuStyle(style)) feed?.setFloatingDispersion?.(currentFloatingDispersion);
   if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;

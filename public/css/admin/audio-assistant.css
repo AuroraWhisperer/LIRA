@@ -425,6 +425,7 @@
 }
 
 .audio-assistant-panel {
+  --primary: var(--color-primary-text);
   position: fixed;
   inset: auto;
   width: min(340px, calc(100vw - 24px));
@@ -432,10 +433,11 @@
   margin: 0;
   padding: 0;
   overflow: auto;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: var(--radius-xl);
   color: var(--text);
-  background: var(--surface);
+  background: var(--color-quick-panel-surface, var(--color-floating-surface));
+  box-shadow: var(--shadow-floating);
   font-family: var(--font-ui);
   -webkit-app-region: no-drag;
 }

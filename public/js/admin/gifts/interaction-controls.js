@@ -112,9 +112,7 @@ export function initGiftInteractionControls({
       return;
     }
     render(result);
-    if (result.ok && result.status === 'confirmed' && result.values?.[keys[index]] === enabled) {
-      notify(enabled ? '已开启，服务器会持续运行。' : '已关闭并同步到服务器。');
-    } else {
+    if (!result.ok || result.status !== 'confirmed' || result.values?.[keys[index]] !== enabled) {
       const message =
         !enabled && result.status !== 'confirmed'
           ? '关闭还没同步，服务器可能仍在运行。'

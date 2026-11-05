@@ -12,6 +12,12 @@ function createFontNode(tagName = 'select') {
   return {
     tagName: tagName.toUpperCase(), children: [], dataset: {}, value: '', textContent: '',
     prepend(child) { child.parentNode = this; this.children.unshift(child); },
+    insertBefore(child, reference) {
+      child.remove();
+      child.parentNode = this;
+      this.children.splice(reference ? this.children.indexOf(reference) : this.children.length, 0, child);
+      return child;
+    },
     appendChild(child) { child.parentNode = this; this.children.push(child); return child; },
     replaceChildren(...children) {
       this.children = []; children.forEach(child => this.appendChild(child));
@@ -21,7 +27,8 @@ function createFontNode(tagName = 'select') {
       if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(child => child !== this);
     },
     querySelector(selector) {
-      const key = selector.includes('data-local-fonts') ? 'localFonts' : 'sharedFonts';
+      const key = selector.includes('data-local-fonts') ? 'localFonts'
+        : selector.includes('data-saved-fonts') ? 'savedFonts' : 'sharedFonts';
       return this.children.find(child => child.dataset[key] === 'true') || null;
     },
     get options() { return this.children.flatMap(child => child.tagName === 'OPTGROUP' ? child.children : [child]); },

@@ -81,6 +81,41 @@ test('fan editor keeps the next confirmation step open and submits its current d
   assert.equal(ui.editor.open, false);
 });
 
+for (const wait of ['file', 'preview']) {
+  test(`a late restore ${wait} cannot replace a newer fan editor draft`, async (t) => {
+    const ui = await editorUi(t);
+    const { createFanTransferUi } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/transfer-ui.js'));
+    const file = Promise.withResolvers();
+    const preview = Promise.withResolvers();
+    const transfer = createFanTransferUi({
+      openForm: ui.controller.open,
+      beginIntent: ui.controller.beginIntent,
+      request: () => preview.promise,
+    });
+    const restoring = transfer.restoreFile({ size: 2, text: () => wait === 'file' ? file.promise : Promise.resolve('{}') });
+    await new Promise(setImmediate);
+    ui.controller.open({ title: '新建档案', fields: '<textarea>尚未保存的备注</textarea>' }, async () => {});
+    file.resolve('{}');
+    preview.resolve({ added: 1, updated: 0, digest: 'backup', currentDigest: 'current' });
+    await restoring;
+    assert.equal(ui.nodes.get('fanEditorTitle').textContent, '新建档案');
+    assert.match(ui.nodes.get('fanEditorFields').innerHTML, /尚未保存的备注/);
+  });
+}
+
+test('a current restore preview opens the existing confirmation form', async t => {
+  const ui = await editorUi(t);
+  const { createFanTransferUi } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/transfer-ui.js'));
+  const transfer = createFanTransferUi({
+    openForm: ui.controller.open,
+    beginIntent: ui.controller.beginIntent,
+    request: async () => ({ added: 1, updated: 0, digest: 'backup', currentDigest: 'current' }),
+  });
+  await transfer.restoreFile({ size: 2, text: async () => '{}' });
+  assert.equal(ui.editor.open, true);
+  assert.equal(ui.nodes.get('fanSaveButton').textContent, '确认恢复');
+});
+
 function deferred() {
   let resolve;
   const promise = new Promise((done) => {

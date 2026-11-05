@@ -193,12 +193,14 @@ export function initTextBoxes() {
   });
   get('copy').addEventListener('click', async () => {
     if (!canvas || !current()) return;
+    const itemId = selected;
+    const name = current().name;
     try {
       const source = await canvas.source();
-      if (!source.itemIds?.includes(selected)) throw new Error('请先保存并应用这个文本框，再复制地址。');
-      await copyText(sceneSourceUrl({ ...source, item: selected }));
-      const size = source.itemSizes?.[selected];
-      status.classList.remove('text-box-error'); status.textContent = `已复制此文本框的直播地址${size ? `；浏览器源尺寸设为 ${size.width} × ${size.height}` : ''}`;
+      if (!source.itemIds?.includes(itemId)) throw new Error('请先保存并应用这个文本框，再复制地址。');
+      const size = source.itemSizes?.[itemId];
+      await copyText(sceneSourceUrl({ ...source, item: itemId }));
+      status.classList.remove('text-box-error'); status.textContent = `已复制「${name}」的直播地址${size ? `；浏览器源尺寸设为 ${size.width} × ${size.height}` : ''}`;
     } catch (error) { fail(error); }
   });
   async function load() {

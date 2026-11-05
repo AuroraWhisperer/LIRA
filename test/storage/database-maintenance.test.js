@@ -6,6 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const {
   DB_FILE_NAMES,
   clearAllData,
@@ -149,7 +150,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       assert.deepEqual(getSchemaVersions(databases), {
         songDb: 17,
         superChatDb: 2,
-        giftDb: 20,
+        giftDb: 21,
         musicDb: 1,
         checkinDb: 1,
         lotteryDb: 2,
@@ -419,6 +420,29 @@ function readSuperChats(databases) {
 }
 
 const LEGACY_SC_TIME = '2026-01-02T03:04:05.000Z';
+
+test('legacy SuperChats retain different amounts without platform IDs in either order and on retry', () => {
+  for (const prices of [[30, 50], [50, 30]]) {
+    const dataDir = createScratchDirectory('legacy-sc-amounts-');
+    let databases;
+    const rows = [...prices, prices[0]].map((price) => ({
+      uid: '3', message: 'same-second message', price, createdAt: LEGACY_SC_TIME,
+    }));
+    try {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        createLegacySuperChatTable(dataDir, rows);
+        databases = createDatabases({ dataDir });
+        assert.equal(hasLegacySuperChatTable(databases), false);
+        assert.deepEqual(readSuperChats(databases).map((row) => row.price).sort((a, b) => a - b), [30, 50]);
+        closeDatabases(databases);
+        databases = null;
+      }
+    } finally {
+      if (databases) closeDatabases(databases);
+      removeScratchDirectory(dataDir);
+    }
+  }
+});
 
 test('legacy song-database SuperChats move once, deduplicate and drop the old table', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-legacy-sc-'));

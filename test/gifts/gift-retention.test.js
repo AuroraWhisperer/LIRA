@@ -16,6 +16,9 @@ const { cleanupGiftRetentionBatch } = require('../../src/storage/gift-retention-
 const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
 const { DatabaseSync } = require('node:sqlite');
 const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
+const schema = require('../../src/storage/schema');
+const { runAllMigrations } = require('../../src/storage/database-migrations');
+const { getBlindBoxAnalysis } = require('../../src/bilibili/gift/blind-box-analysis');
 
 const NOW = '2026-10-12T04:00:00.000Z';
 const BEFORE = '2026-10-11T16:00:00.000Z';
@@ -67,6 +70,64 @@ function stage(f, summaryPage = summary(), records) {
   f.retention.summaryPage({ ...f.scope(), full: true, page: summaryPage });
   f.retention.historyPage({ ...f.scope(), pageToken: summaryPage.historyPageToken, page: history(records) });
 }
+
+test('local blind-box archives preserve each local date before and after pruning and timezone changes', (t) => {
+  const originalTimezone = process.env.TZ;
+  t.after(() => {
+    if (originalTimezone === undefined) delete process.env.TZ;
+    else process.env.TZ = originalTimezone;
+  });
+  const f = fixture(t);
+  f.setActiveSource(f.source.id);
+  for (const [index, createdAt] of ['2026-01-01T20:00:00.000Z', '2026-01-02T08:00:00.000Z'].entries()) {
+    f.insertGift(f.source.id, `timezone-${index}`, {
+      createdAt, isBlindBox: true, blindBoxName: '测试盒', blindBoxPrice: 0.5,
+    });
+  }
+  f.giftDb.prepare('UPDATE gift_events SET gift_stats_delivered=1 WHERE source_id=?').run(f.source.id);
+  const timezones = ['UTC', 'America/New_York', 'Asia/Shanghai'];
+  const readDays = () => ['2026-01-01', '2026-01-02'].map((date) =>
+    getBlindBoxAnalysis(f.context, { startDate: date, endDate: date }).summary);
+  const before = timezones.map((timezone) => {
+    process.env.TZ = timezone;
+    return readDays();
+  });
+  const archivedDay = { ...row(), dayStart: '2026-01-01T16:00:00.000Z' };
+  Object.assign(archivedDay.dimensions, { isBlindBox: true, blindBoxName: '测试盒', blindBoxUnitPriceCents: 50 });
+  archivedDay.groupKey = groupKey(archivedDay.dimensions);
+  Object.assign(archivedDay.metrics, { blindBoxEventCount: 2, blindBoxPriceCents: 100, blindBoxValueCents: 200,
+    blindProfitCents: 100, blindItemCount: 2, knownCostValueCents: 200 });
+  stage(f, summary({ rows: [archivedDay] }));
+  f.retention.activate(f.scope());
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 2);
+  for (const [index, timezone] of timezones.entries()) {
+    process.env.TZ = timezone;
+    assert.deepEqual(readDays(), before[index], timezone);
+  }
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 0);
+});
+
+test('the exact archive migration preserves old day buckets and reports their date precision limitation', (t) => {
+  const run = schema.runMigrations;
+  const legacy = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
+    run(db, key, key === 'gift_db' ? steps.slice(0, 20) : steps));
+  let f;
+  try { f = fixture(t); }
+  finally { legacy.mock.restore(); }
+  f.setActiveSource(f.source.id);
+  const dimensions = JSON.stringify({ uid: '', user_name: '观众', gift_id: 'gift-1', gift_name: '礼物',
+    blind_box_id: null, blind_box_name: '测试盒', unit_price: 1, known_cost: true });
+  f.giftDb.prepare('INSERT INTO gift_local_archives VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(f.source.id, DAY, 'legacy-bucket', dimensions, 2, 2, 200, 100, OLD);
+  runAllMigrations(f.databases);
+  runAllMigrations(f.databases);
+  const saved = f.giftDb.prepare('SELECT * FROM gift_local_archives').get();
+  assert.equal(saved.occurred_at, null);
+  assert.equal(saved.event_count, 2);
+  const result = getBlindBoxAnalysis(f.context, { startDate: '2025-12-31', endDate: '2026-01-02' });
+  assert.equal(result.summary.boxCount, 2);
+  assert.equal(result.hasLegacyArchivedDates, true);
+});
 
 function addWish(f, id, period, createdAt) {
   f.giftDb.prepare(`INSERT INTO gift_wishes

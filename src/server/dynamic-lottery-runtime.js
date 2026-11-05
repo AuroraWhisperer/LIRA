@@ -29,13 +29,21 @@ function createDynamicLotteryRuntime({ db, auth, fetchImpl = globalThis.fetch })
   };
   const store = createDynamicLotteryStore(db);
   const drawStore = createLotteryDrawStore(db);
-  try {
-    store.recoverInterrupted(clock.nowMs());
-    drawStore.recoverInterrupted(clock.nowMs());
-    store.pruneCompletedHistory();
-  } catch {
-    // Isolate the optional database; do not expose SQLite paths or user data.
-    return unavailableRuntime('LOTTERY_STORAGE_UNAVAILABLE');
+  let recoveredScope = null;
+  function getIdentity() {
+    const identity = auth.getIdentity();
+    if (identity?.streamerId && identity.streamerId !== recoveredScope) {
+      try {
+        store.recoverInterrupted(clock.nowMs(), identity.streamerId);
+        drawStore.recoverInterrupted(clock.nowMs(), identity.streamerId);
+        store.pruneCompletedHistory(identity.streamerId);
+        recoveredScope = identity.streamerId;
+      } catch {
+        // Never maintain legacy data whose server ownership is unknown.
+        throw lotteryError('LOTTERY_STORAGE_UNAVAILABLE');
+      }
+    }
+    return identity;
   }
   const scheduler = createRequestScheduler({
     fetchImpl,
@@ -46,7 +54,7 @@ function createDynamicLotteryRuntime({ db, auth, fetchImpl = globalThis.fetch })
     store,
     drawStore,
     clock,
-    getIdentity: auth.getIdentity,
+    getIdentity,
     getContext: auth.getContext,
     request: scheduler.request,
     resumeRequests: scheduler.resume,

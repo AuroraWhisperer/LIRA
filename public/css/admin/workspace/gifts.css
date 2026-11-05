@@ -88,7 +88,7 @@ body.player-dock-expanded .gift-workspace {
 .gift-page .panel-body .gift-cards {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .gift-workspace .panel,

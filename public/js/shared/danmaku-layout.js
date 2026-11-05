@@ -3,6 +3,7 @@ import { CANVAS_PRESETS } from './canvas-presets.js';
 // Display contract mirrored by the desktop main process and the server.
 const REGION_DEFAULTS = Object.freeze({
   startrail: null,
+  sinking: null,
   bubble: [570, 560], signal: [560, 600], minimal: [588, 576],
   ranked: [640, 640], transparent: [520, 540], identity: [640, 616],
   sketch: [680, 720],
@@ -19,6 +20,7 @@ const REGION_DEFAULTS = Object.freeze({
   starlight: [520, 640],
   moonlit: [640, 720],
   comic: null,
+  window: null,
   outline: null, mist: null, whiteframe: null, cream: null, glow: null, starveil: null, floating: null, comet: null, aurora: null,
 });
 
@@ -60,7 +62,7 @@ function normalizeLayout(value) {
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
     || !regions || typeof regions !== 'object' || Array.isArray(regions)
     || Object.keys(regions).some((style) => !Object.hasOwn(REGION_DEFAULTS, style))
-    || Object.keys(REGION_DEFAULTS).some((style) => !['comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'].includes(style) && !Object.hasOwn(regions, style))) fail();
+    || Object.keys(REGION_DEFAULTS).some((style) => !['sinking', 'window', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'].includes(style) && !Object.hasOwn(regions, style))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
     const region = !Object.hasOwn(regions, style)

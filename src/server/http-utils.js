@@ -153,6 +153,15 @@ function validateOrigin(req, allowedOrigins) {
  */
 function sendStableError(res, error) {
   // Input owners identify malformed JSON and exceeded resource budgets with stable codes.
+  if (error?.code === 'LYRIC_EXPANSION_LIMIT') {
+    sendJson(res, 400, {
+      ok: false,
+      code: 'LYRIC_EXPANSION_LIMIT',
+      error: '歌词展开后超过允许的行数或文本总量，请减少重复时间戳或歌词内容。',
+    });
+    return;
+  }
+
   if (error?.code === 'INVALID_JSON_BODY') {
     sendJson(res, 400, {
       ok: false,

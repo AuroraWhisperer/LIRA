@@ -344,6 +344,13 @@ test('style library combines filters and keeps only confirmed recent styles for 
   const save = page.locator('#danmakuApplyOverlayBtn');
   const library = page.locator('#danmakuStyleLibrary');
   await page.locator('#danmakuAllStylesBtn').click();
+  await page.locator('[data-style-filter-group="motion"] [data-filter-value="true"]').click();
+  assert.equal(await library.locator('[data-danmaku-style="ripploid"]').isVisible(), true, 'Layered entry is style motion.');
+  assert.equal(await library.locator('[data-danmaku-style="bubble"]').isVisible(), false, 'Whole-card entry alone is not style motion.');
+  await page.locator('[data-style-filter-group="motion"] [data-filter-value="false"]').click();
+  assert.equal(await library.locator('[data-danmaku-style="ripploid"]').isVisible(), false);
+  assert.equal(await library.locator('[data-danmaku-style="floating"]').isVisible(), true, 'Travel alone is not style motion.');
+  await page.locator('#danmakuClearStyleFilters').click();
   await page.locator('[data-style-filter-group="holiday"] [data-filter-value="true"]').click();
   assert.equal(await library.locator('[data-danmaku-style="christmas"]').isVisible(), true);
   await page.locator('[data-style-filter-group="layout"] [data-filter-value="floating"]').click();

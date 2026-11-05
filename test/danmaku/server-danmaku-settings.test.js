@@ -245,6 +245,10 @@ test('appearance drafts belong to each style and apply together without leaking 
     f.node(id).value = value;
     f.node(id).events[event]();
   };
+  change('danmakuFontFamily', 'serif');
+  assert.equal(f.node('danmakuFontFamily').value, 'serif', 'Keep the selected font mode after rendering the draft.');
+  change('danmakuFontFamily', 'default');
+  assert.equal(f.node('danmakuFontFamily').value, 'default', 'Following the style must remain selectable after a custom font.');
   change('danmakuFontSize', '42');
   change('danmakuFontFamily', '"Cascadia Code"');
   change('danmakuTextColor', '#aabbcc');

@@ -187,6 +187,7 @@ function getBlindBoxAnalysis(context, options = {}) {
     direction,
     items: allItems.slice(start, start + limit),
     ...(filteredRows.some((row) => row.archived) ? { hasArchivedDetails: true } : {}),
+    ...(filteredRows.some((row) => row.legacyArchivedDate) ? { hasLegacyArchivedDates: true } : {}),
     pagination: { page, limit, total, totalPages },
   };
 }

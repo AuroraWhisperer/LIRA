@@ -3,7 +3,7 @@ import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gi
 import { setGiftImage } from '../shared/gift-image-fallback.js';
 import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 import { createGiftPickerButton } from './gifts/picker-option.js';
-import { api, readJsonResponse, showError, toast } from '../shared/utils.js';
+import { api, readJsonResponse, showError } from '../shared/utils.js';
 
 const GUARD_GIFTS = [
   {
@@ -49,14 +49,13 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
     applyGiftCatalog(payload.data);
   }
 
-  async function refreshGiftCatalog({ notify = true } = {}) {
+  async function refreshGiftCatalog() {
     if (catalogRefreshing) return;
     catalogRefreshing = true;
     syncCatalogRefreshButton();
     try {
       const result = await api('/api/overtime/gifts/refresh', {});
       applyGiftCatalog(result.data);
-      if (notify) toast(`已刷新 ${giftCatalogSnapshot.count} 个在售礼物`);
     } catch (error) {
       showError(error);
     } finally {
@@ -206,7 +205,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
     // Refresh the room's live sale list whenever the picker opens. The backend
     // coalesces/throttles requests, so repeated opens do not spam Bilibili, while
     // a changed room is picked up without requiring a separate button click.
-    void refreshGiftCatalog({ notify: false });
+    void refreshGiftCatalog();
   }
 
   function handleGiftSearchInput() {

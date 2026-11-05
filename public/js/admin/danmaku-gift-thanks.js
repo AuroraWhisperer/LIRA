@@ -123,7 +123,6 @@ export function initDanmakuGiftThanks({
       saved = { ...templates };
       dirty = false;
       status.textContent = '文案已保存到云端';
-      toast('礼物答谢文案已保存');
     } catch (error) {
       if (!disposed && requested === generation) {
         status.textContent = error.message || '保存失败，草稿已保留。';

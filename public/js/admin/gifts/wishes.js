@@ -248,7 +248,7 @@ export function createGiftWishes() {
           remove.textContent = '再次点击删除';
           return;
         }
-        mutate('/api/gifts/wishes/delete', { id: wish.id }, '许愿已删除');
+        mutate('/api/gifts/wishes/delete', { id: wish.id }, '许愿已删除', editing === wish.id);
       });
       actions.append(modify, remove);
       wrapper.append(actions);
@@ -268,7 +268,7 @@ export function createGiftWishes() {
     render();
   }
 
-  async function mutate(path, body, message) {
+  async function mutate(path, body, message, reset = true) {
     if (busy || !snapshot) return;
     busy = true;
     setEditorDisabled(true);
@@ -278,7 +278,7 @@ export function createGiftWishes() {
         ...body,
         viewRevision: snapshot.viewRevision,
       });
-      resetEditor();
+      if (reset) resetEditor();
       toast(message);
       await feed.refresh();
     } catch (error) {

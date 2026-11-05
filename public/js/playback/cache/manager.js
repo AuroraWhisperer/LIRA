@@ -9,6 +9,8 @@ const CACHE_PREFIX = 'playbackCache:v2:';
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000;
 const MAX_MEMORY_ENTRIES = 64;
 const MAX_MEMORY_BYTES = 8 * 1024 * 1024;
+const MAX_PERSISTENT_ENTRIES = 64;
+const MAX_PERSISTENT_BYTES = 2 * 1024 * 1024;
 
 /**
  * 缓存管理器
@@ -20,6 +22,11 @@ export class CacheManager {
   constructor() {
     /** @type {Map<string, {data: any, timestamp: number}>} */
     this._mem = new Map();
+    try {
+      this._trimPersistent();
+    } catch (error) {
+      console.warn('[CacheManager] localStorage cleanup failed:', error.message);
+    }
   }
 
   /**
@@ -78,10 +85,56 @@ export class CacheManager {
         this.remove(key);
         return;
       }
-      localStorage.setItem(CACHE_PREFIX + key, raw);
+      const storageKey = CACHE_PREFIX + key;
+      const bytes = (storageKey.length + raw.length) * 2;
+      if (bytes > MAX_PERSISTENT_BYTES) {
+        localStorage.removeItem(storageKey);
+        return;
+      }
+      this._trimPersistent(storageKey, bytes);
+      try {
+        localStorage.setItem(storageKey, raw);
+      } catch (_) {
+        this._trimPersistent(storageKey, bytes, true);
+        localStorage.setItem(storageKey, raw);
+      }
     } catch (error) {
-      // localStorage 满了就只保留内存缓存，不影响功能
+      // 回收自己的缓存后仍写入失败时，保留内存缓存。
       console.warn('[CacheManager] localStorage write failed:', error.message);
+    }
+  }
+
+  _trimPersistent(reservedKey = '', reservedBytes = 0, reclaim = false) {
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(CACHE_PREFIX)) keys.push(key);
+    }
+    const entries = [];
+    let bytes = reservedBytes;
+    for (const key of keys) {
+      const raw = localStorage.getItem(key);
+      let timestamp;
+      try { timestamp = JSON.parse(raw)?.timestamp; } catch (_) {
+        localStorage.removeItem(key);
+        continue;
+      }
+      if (key === reservedKey || !Number.isFinite(timestamp) || Date.now() - timestamp >= DEFAULT_TTL_MS) {
+        localStorage.removeItem(key);
+      } else {
+        const size = (key.length + raw.length) * 2;
+        entries.push({ key, timestamp, bytes: size });
+        bytes += size;
+      }
+    }
+    entries.sort((a, b) => a.timestamp - b.timestamp);
+    const entryLimit = MAX_PERSISTENT_ENTRIES - Number(Boolean(reservedKey));
+    const byteLimit = reclaim ? reservedBytes : MAX_PERSISTENT_BYTES;
+    while (entries.length > entryLimit || bytes > byteLimit) {
+      const oldest = entries.shift();
+      if (!oldest) break;
+      localStorage.removeItem(oldest.key);
+      bytes -= oldest.bytes;
     }
   }
 

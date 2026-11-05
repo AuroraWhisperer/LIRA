@@ -1,0 +1,149 @@
+body[data-style='sinking'] {
+  --sinking-skin: url('/img/overlays/danmaku-sinking/nacre.webp');
+  --sinking-ink: #274b4b;
+  --sinking-name: #526f6e;
+}
+body[data-style='sinking'][data-sinking-palette='mint'] {
+  --sinking-skin: url('/img/overlays/danmaku-sinking/nacre-mint.webp');
+  --sinking-ink: #1d4b42;
+  --sinking-name: #426b60;
+}
+body[data-style='sinking'][data-sinking-palette='blue'] {
+  --sinking-skin: url('/img/overlays/danmaku-sinking/nacre-blue.webp');
+  --sinking-ink: #234b60;
+  --sinking-name: #496f80;
+}
+body[data-style='sinking'] .danmaku-signal-stage,
+body[data-style='sinking'] .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+}
+body[data-style='sinking'] .danmaku-signal-header { display: none; }
+body[data-style='sinking'] .sinking-item {
+  position: absolute;
+  inset: 0 auto auto 0;
+  display: block;
+  width: 480px;
+  min-width: 0;
+  max-width: none;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--danmaku-text-color, var(--sinking-ink));
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  animation: none;
+  transform-origin: 0 0;
+  z-index: 1;
+}
+body[data-style='sinking'] .sinking-item::before,
+body[data-style='sinking'] .sinking-item::after { display: none; }
+body[data-style='sinking'] .sinking-panel { position: relative; transform-origin: 50% 42%; }
+body[data-style='sinking'] :is(.sinking-surface, .sinking-shadow, .sinking-surface::after) {
+  position: absolute;
+  inset: 0;
+  border: 1px solid transparent;
+  border-image-source: var(--sinking-skin);
+  border-image-slice: 32% 20% 25% 17% fill;
+  border-image-width: 60px 67px 60px 67px;
+  border-image-repeat: stretch;
+  pointer-events: none;
+}
+body[data-style='sinking'] .sinking-surface { opacity: var(--danmaku-background-opacity, 1); }
+body[data-style='sinking'] .sinking-surface::after {
+  content: '';
+  inset: -1px;
+  filter: sepia(.7) hue-rotate(125deg) saturate(.7);
+  opacity: var(--water-depth, 0%);
+  mix-blend-mode: multiply;
+}
+body[data-style='sinking'] .sinking-surface::before {
+  content: '';
+  position: absolute;
+  inset: 15% 13%;
+  border-radius: 50%;
+  background: linear-gradient(108deg, transparent 32%, #e6fff344 47%, #ffffff55 50%, transparent 66%);
+  transform: translateX(var(--water-light-x, 0%));
+  opacity: var(--water-light-opacity, 0);
+}
+body[data-style='sinking'] .sinking-shadow {
+  inset: 8px 3px -8px;
+  filter: brightness(.12) blur(8px) opacity(.13);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+body[data-style='sinking'] .sinking-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+  min-width: 0;
+  min-height: 240px;
+  gap: 16px;
+  padding: 60px 67px 56px;
+  background: none;
+}
+body[data-style='sinking'] .sinking-content .sinking-message {
+  display: block;
+  margin: 0;
+  max-width: 100%;
+  padding: 0;
+  color: inherit;
+  font: 500 var(--danmaku-font-size, 30px)/1.7 var(--danmaku-custom-font, 'SimSun', 'Songti SC', serif);
+  letter-spacing: .015em;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body[data-style='sinking'] .draw-danmaku-identity {
+  order: 2;
+  align-self: flex-end;
+  max-width: 100%;
+  padding: 0;
+  background: none;
+  color: var(--sinking-name);
+}
+body[data-style='sinking'] .draw-danmaku-identity strong {
+  max-width: 100%;
+  color: inherit;
+  font: 400 20px/1.4 var(--danmaku-ui-font);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+body[data-style='sinking'] :is(.draw-danmaku-gift-copy, .draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count) {
+  display: inline;
+  font: inherit;
+  color: inherit;
+  white-space: normal;
+}
+body[data-style='sinking'] .sinking-event {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--sinking-name);
+  font: 400 18px/1.4 var(--danmaku-ui-font);
+}
+body[data-style='sinking'] .draw-danmaku-emote { height: 1.5em; width: auto; vertical-align: middle; }
+body[data-style='sinking'] .sinking-bubbles { position: absolute; inset: 0; pointer-events: none; }
+body[data-style='sinking'] .sinking-bubble {
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  border: 1px solid #c2e5e2b8;
+  background: radial-gradient(circle at 28% 24%, #efffff85, transparent 34%);
+  border-radius: 50%;
+  box-shadow: inset -1px -1px 1px #7ca4ad50;
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='sinking'] .sinking-bubbles { display: none; }
+}

@@ -2,6 +2,7 @@ import { isHarborGiftVisible } from './danmaku-harbor.js';
 /* global document */
 import { componentEffectBounds } from './component-effect-filters.js';
 import { createFloatingDanmakuFeed } from './danmaku-floating.js';
+import { createSinkingDanmakuFeed } from './danmaku-sinking-feed.js';
 import { FULLSCREEN_SAFE_INSET_PX, findRandomDanmakuPosition } from './danmaku-random-position.js';
 import {
   DEFAULT_DANMAKU_CLASSES,
@@ -31,6 +32,7 @@ const LAYOUT_MOVE_CURVE = Object.freeze([0.3, 0.1, 0.2, 1]);
  * @returns {{render: Function, append: Function, remove: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
+  if (options.style === 'sinking') return createSinkingDanmakuFeed(root, options);
   if (options.layout === 'floating') return createFloatingDanmakuFeed(root, options);
   if (!root || typeof root.replaceChildren !== 'function') {
     throw new TypeError('弹幕组件需要一个可渲染的根节点。');
@@ -47,7 +49,7 @@ export function createDanmakuFeed(root, options = {}) {
   };
   const autoScroll = options.autoScroll !== false;
   const fullscreen = options.layout === FULLSCREEN_LAYOUT;
-  const showSuperchat = !fullscreen || ['mist', 'comic'].includes(options.style);
+  const showSuperchat = !fullscreen || ['mist', 'comic', 'window'].includes(options.style);
   const createBubble = createDanmakuMessageRenderer({
     document,
     classNames,
@@ -254,6 +256,8 @@ export function createDanmakuFeed(root, options = {}) {
   function animateFixedLayout(gap, direction, feedStyles) {
     // Relative positioning keeps the font rasterization stable during movement.
     // Read before writing and continue from the visible offset on interrupted moves.
+    const viewport = root.getBoundingClientRect();
+    const viewportScale = viewportHeight > 0 ? viewport.height / viewportHeight : 1;
     let previousOffset;
     const positions = renderedEntries.map((entry) => {
       const styles = globalThis.getComputedStyle?.(entry.node);
@@ -267,8 +271,15 @@ export function createDanmakuFeed(root, options = {}) {
         : ((entry.top ?? top) - top) / scale;
       const from = entry.entering ? dy : dy + offset;
       previousOffset = from * scale;
-      return { entry, top, dy, from };
+      const padding = Math.max(0, entry.height * viewportScale - rect.height) + gap * viewportScale;
+      const exited = viewport.height > 0 && !entry.entering && (direction > 0
+        ? Math.max(top, top + from * scale) + rect.height + padding <= viewport.top
+        : Math.min(top, top + from * scale) - padding >= viewport.bottom);
+      return { entry, top, dy, from, exited };
     });
+    // Busy feeds may never finish a move. Release only rows already past the exit
+    // at both their visible and target positions, including decorative clearance.
+    while (positions.length > 1 && positions[0].exited) removeEntry(positions.shift().entry);
     // One duration and curve per pass keeps rows in step; taller arrivals glide a little longer.
     const distance = Math.max(0, ...positions.map(({ from }) => Math.abs(from)));
     const baseMs = Number.parseFloat(feedStyles?.getPropertyValue?.('--danmaku-move-base-ms')) || LAYOUT_MOVE_BASE_MS;

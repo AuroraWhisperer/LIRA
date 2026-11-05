@@ -30,6 +30,45 @@ function oldRequest(f, input = {}, scope = null) {
   );
 }
 
+test('replacing a complete backup restores swapped identities without depending on profile order', (t) => {
+  const f = fanFixture(t);
+  const a = f.create({ notes: '原始甲' });
+  const b = f.create({ identity: { ...IDENTITY, value: '900000002' }, alias: '乙' });
+  const backup = f.run('backup');
+  const otherScope = JSON.stringify(['https://lira.example', 'streamer-b']);
+  f.service.execute(otherScope, 'create', { identity: IDENTITY, alias: '其它账号' });
+  const otherBefore = f.store.exportScope(otherScope);
+  const change = (id, identity) => f.run('save', { id, revision: f.detail(id).revision, identity });
+  for (const reverse of [false, true]) {
+    change(a.id, null);
+    change(b.id, IDENTITY);
+    change(a.id, { ...IDENTITY, value: '900000002' });
+    const incoming = structuredClone(backup);
+    if (reverse) incoming.profiles.reverse();
+    const plan = f.run('preview-restore', { backup: incoming });
+    assert.equal(plan.updated, 2);
+    f.run('restore', { backup: incoming, ...plan, conflicts: 'replace' });
+    assert.deepEqual(f.detail(a.id).identity, IDENTITY);
+    assert.equal(f.detail(b.id).identity.value, '900000002');
+    assert.deepEqual(f.store.exportScope(otherScope), otherBefore);
+  }
+});
+
+test('restore rejects a final identity collision with a retained profile before creating a recovery point', (t) => {
+  const f = fanFixture(t);
+  const a = f.create();
+  const b = f.create({ identity: { ...IDENTITY, value: '900000002' }, alias: '乙' });
+  const backup = f.run('backup');
+  backup.profiles = backup.profiles.filter((profile) => profile.id === a.id);
+  backup.profiles[0].identity = b.identity;
+  const plan = f.run('preview-restore', { backup });
+  const before = f.store.exportScope(SCOPE);
+  const snapshots = f.run('snapshots');
+  assert.throws(() => f.run('restore', { backup, ...plan, conflicts: 'replace' }), /身份.*冲突/);
+  assert.deepEqual(f.store.exportScope(SCOPE), before);
+  assert.deepEqual(f.run('snapshots'), snapshots);
+});
+
 test('restore normalizes identities and rejects malformed suppression keys before writing a snapshot', (t) => {
   const f = fanFixture(t);
   const profile = f.create();

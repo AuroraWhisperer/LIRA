@@ -1,10 +1,12 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { createLotteryAuthStore } = require('../../src/electron/dynamic-lottery-auth-store');
+const { createDynamicLotteryAuth } = require('../../src/electron/dynamic-lottery-auth');
 const { createLotteryProvider } = require('../../src/bilibili/dynamic-lottery/provider');
 const { createFixture, settle, authCookies, uid } = require('../helpers/dynamic-lottery-auth-fixture');
 
@@ -26,7 +28,7 @@ test('dedicated login, provider context, encrypted restore and logout never touc
   assert.equal(snapshots.length, 1);
   const encrypted = fs.readFileSync(path.join(f.dataDir, 'dynamic-lottery-auth', snapshots[0]));
   assert.equal(encrypted.includes(Buffer.from('lottery-test-secret')), false);
-  const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a' });
+  const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a', serverOrigin: f.license.serverOrigin });
   f.lotteryCookies().items = [];
   await store.restore();
   assert.equal((await store.getAuthState()).uid, uid);
@@ -34,8 +36,9 @@ test('dedicated login, provider context, encrypted restore and logout never touc
   let called = false;
   const provider = createLotteryProvider({
     getContext: f.auth.getContext,
-    request: async ({ init }) => {
+    request: async ({ init, scope }) => {
       called = true;
+      assert.equal(scope, f.auth.getIdentity().streamerId);
       assert.match(init.headers.Cookie, /lottery-test-secret/);
       assert.doesNotMatch(init.headers.Cookie, /live-test-secret/);
       return new Response(JSON.stringify({ code: -101 }));
@@ -93,6 +96,57 @@ test('LIRA identity changes cancel old login and select a different isolated par
   await assert.rejects(f.auth.getContext(), {
     code: 'LOTTERY_IDENTITY_UNAVAILABLE',
   });
+});
+
+test('same server restarts restore login while a different server with the same account ID remains isolated', async t => {
+  const f = createFixture(t);
+  await f.signIn();
+  const originalScope = f.auth.getIdentity().streamerId;
+  const originalSession = f.lotteryCookies();
+  const originalHeader = (await f.auth.getContext()).cookieHeader;
+  f.auth.dispose();
+  await f.auth.whenIdle();
+
+  async function restart() {
+    const auth = createDynamicLotteryAuth({ ...f, getMainWindow: () => null });
+    t.after(async () => { auth.dispose(); await auth.whenIdle(); });
+    return auth;
+  }
+  f.license.serverOrigin = 'https://server-b.example.test';
+  const serverB = await restart();
+  assert.notEqual(serverB.getIdentity().streamerId, originalScope);
+  assert.equal((await serverB.getAuthState()).loggedIn, false);
+  await assert.rejects(serverB.getContext(), { code: 'LOTTERY_SESSION_UNAVAILABLE' });
+  serverB.dispose();
+
+  originalSession.items = [];
+  f.license.serverOrigin = 'https://SERVER-A.EXAMPLE.TEST:443/';
+  const serverA = await restart();
+  assert.equal(serverA.getIdentity().streamerId, originalScope);
+  assert.equal((await serverA.getAuthState()).uid, uid);
+  assert.equal((await serverA.getContext()).cookieHeader, originalHeader);
+});
+
+test('unscoped legacy login is preserved without reading or claiming it for the current server', async t => {
+  const f = createFixture(t);
+  const legacyKey = crypto.createHash('sha256').update(f.license.streamerId).digest('hex');
+  const directory = path.join(f.dataDir, 'dynamic-lottery-auth', legacyKey);
+  fs.mkdirSync(directory, { recursive: true });
+  const encrypted = f.safeStorage.encryptString(JSON.stringify({ version: 1, streamerId: f.license.streamerId, cookies: authCookies() }));
+  const snapshot = path.join(directory, 'cookies.enc');
+  fs.writeFileSync(snapshot, encrypted);
+  const legacySession = f.session.fromPartition(`persist:bilibili-dynamic-lottery-${legacyKey}`);
+  legacySession.cookies.items = authCookies();
+
+  const state = await f.auth.getAuthState();
+  assert.equal(state.loggedIn, false);
+  assert.equal(state.warning, 'LOTTERY_AUTH_RELOGIN_REQUIRED');
+  await assert.rejects(f.auth.getContext(), { code: 'LOTTERY_SESSION_UNAVAILABLE' });
+  await f.auth.logout();
+  assert.deepEqual(fs.readFileSync(snapshot), encrypted);
+  assert.equal(legacySession.cookies.items.length, 3);
+  assert.equal((await f.signIn()).warning, '');
+  assert.deepEqual(fs.readFileSync(snapshot), encrypted);
 });
 
 test('cookie read completing after identity change cannot return an old context', async (t) => {
@@ -167,7 +221,7 @@ test('logout invalidates a context read that was already waiting for cookies', a
 
 test('corrupt encrypted snapshots report a safe warning and allow explicit recovery', async (t) => {
   const f = createFixture(t);
-  const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a' });
+  const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a', serverOrigin: f.license.serverOrigin });
   f.session.fromPartition(store.partition).cookies.items = authCookies();
   await store.persist();
   f.session.fromPartition(store.partition).cookies.items = [];
@@ -186,7 +240,7 @@ test('corrupt encrypted snapshots report a safe warning and allow explicit recov
 
 test('restore excludes other domains, expired cookies and malformed values', async (t) => {
   const f = createFixture(t);
-  const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a' });
+  const store = createLotteryAuthStore({ ...f, streamerId: 'streamer-a', serverOrigin: f.license.serverOrigin });
   f.session.fromPartition(store.partition).cookies.items = [
     ...authCookies(),
     { ...authCookies()[0], name: 'other', domain: '.evil.example' },

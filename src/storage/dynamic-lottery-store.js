@@ -378,7 +378,7 @@ function createDynamicLotteryStore(lotteryDb) {
     createTask,
     getTask,
     findCreateReceipt,
-    pruneCompletedHistory: () => transaction(lotteryDb, () => pruneCompletedTasks(lotteryDb, { keepLatest: true })),
+    pruneCompletedHistory: (streamerId) => transaction(lotteryDb, () => pruneCompletedTasks(lotteryDb, { streamerId, keepLatest: true })),
     beginScan,
     getScan,
     getActiveScan,
@@ -397,18 +397,19 @@ function createDynamicLotteryStore(lotteryDb) {
           .get(requiredText(streamerId, 'streamer ID'), requiredText(requestId, 'request ID')),
       );
     },
-    recoverInterrupted(nowMs) {
+    recoverInterrupted(nowMs, streamerId) {
+      const scope = requiredText(streamerId, 'lottery account scope');
       transaction(lotteryDb, () => {
         lotteryDb
           .prepare(
-            "UPDATE lottery_scans SET status = 'paused', pause_reason = 'LOTTERY_INTERRUPTED', updated_at_ms = ? WHERE status = 'running'",
+            "UPDATE lottery_scans SET status = 'paused', pause_reason = 'LOTTERY_INTERRUPTED', updated_at_ms = ? WHERE status = 'running' AND task_id IN (SELECT id FROM lottery_tasks WHERE streamer_id = ?)",
           )
-          .run(nowMs);
+          .run(nowMs, scope);
         lotteryDb
           .prepare(
-            "UPDATE lottery_tasks SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'collecting'",
+            "UPDATE lottery_tasks SET status = 'paused', revision = revision + 1, updated_at_ms = ? WHERE status = 'collecting' AND streamer_id = ?",
           )
-          .run(nowMs);
+          .run(nowMs, scope);
       });
     },
     pauseScan: ({ taskId, reason, nowMs }) => setScanStatus(taskId, 'paused', String(reason || ''), nowMs),

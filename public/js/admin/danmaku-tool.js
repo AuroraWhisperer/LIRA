@@ -127,15 +127,11 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   elements.refreshButton.addEventListener('click', refreshState);
   bindSettingToggle(elements.replyToggle, {
     key: 'enableRandomTagReply',
-    onText: '点歌自动回复已开启',
-    offText: '点歌自动回复已关闭',
     saveSetting,
     toast,
   });
   bindSettingToggle(elements.customReplyToggle, {
     key: 'enableCustomReplyBot',
-    onText: '关键词回复已开启',
-    offText: '关键词回复已关闭',
     saveSetting,
     toast,
   });
@@ -157,13 +153,8 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
       updateCounter();
       const count = Number(payload.data?.count) || 1;
       setResult(count > 1 ? `已拆成 ${count} 条弹幕发送。` : `已发送：${payload.data?.message || text}`, 'good');
-      toast(
-        count > 1
-          ? `弹幕已拆成 ${count} 条发送`
-          : payload.data?.replyUname
-            ? `弹幕已发送并 @${payload.data.replyUname}`
-            : '弹幕已发送',
-      );
+      if (count > 1) toast(`弹幕已拆成 ${count} 条发送`);
+      else if (payload.data?.replyUname) toast(`弹幕已发送并 @${payload.data.replyUname}`);
     } catch (error) {
       setResult(error.message || '发送弹幕失败', 'warn');
       toast(error.message || '发送弹幕失败', { type: 'error' });
@@ -286,7 +277,6 @@ function bindSettingToggle(element, options) {
     const enabled = element.checked ? 'true' : 'false';
     try {
       await options.saveSetting(options.key, enabled);
-      options.toast(enabled === 'true' ? options.onText : options.offText);
     } catch (error) {
       element.checked = !element.checked;
       options.toast(error.message || '保存设置失败', { type: 'error' });

@@ -25,7 +25,7 @@ js/playback.js          兼容层,仅 import playback/index.js
 | `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / lyric-controls / radio-mode / home-handler / import-handler / pending-handler / output-device | UI 操作处理器与本机音频输出,注入渲染回调与队列回调                                                                                                                |
 | `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations                                                                                       | 横切操作:登录登出、状态持久化、收藏/歌单、缓存统计                                                                                                  |
 | `ui/`         | index / components / playback-bar / queue-popup / drawer / fullscreen                                                                                                  | `UIRenderer` + 各 UI 组件(DOM 渲染主控)                                                                                                             |
-| `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService.applyBackgroundUpdate` 更新并 toast)                 |
+| `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService.applyBackgroundUpdate` 静默更新列表)                 |
 | `local/`      | manager                                                                                                                                                                | 本地音频文件(选择/最近历史/URL 解析)                                                                                                                |
 | `cache/`      | manager                                                                                                                                                                | "我喜欢"/歌单 24h localStorage 缓存(`playbackCache:` 前缀,内存→localStorage 两级,过期失效,登录态变化清缓存)                                         |
 | —             | config.js / utils.js                                                                                                                                                   | 配置常量(§2);工具(轨道归一化/序列化/洗牌/本地判定/URL 可用性/时长与元数据格式化/封面渲染/背景主题选取 `pickBackgroundTheme`)                        |
@@ -117,16 +117,16 @@ playbackControls → audio.load()/play()
 | lyric-service  | 歌词加载、行定位、浏览器端 lyric-state/timeline 上报(§3)                                                                                                                                                                                         |
 | match-service  | 点歌匹配:`/api/music/search` 候选 → `POST /api/music/match-track` 匹配；未获自动接受的相关候选进入 `pendingRequests` 待确认，无相关候选时继续备用平台，两平台均无匹配则跳过且可重试                                                                                                                           |
 | import-service | 点歌队列导入:读 `/api/state` 的 queue 快照，过滤已处理请求后最多匹配 30 条；自动接受结果插入下一首，其余候选进入待确认                                                                                                                                 |
-| home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后 toast"已自动更新")                                                                                               |
+| home-service   | 首页内容 `POST /api/music/home`(action: 推荐/每日/电台/歌单…),`ContentLoader` 提供缓存 + 后台刷新(首页命中缓存先渲染,后台更新后静默刷新列表)                                                                                               |
 | wesing-service | 全民 K 歌适配层:`/api/music/wesing/*`(active/refresh/configure/offset/diagnose/diagnose/export)+ WS `wesing-state` 实时状态 + `LyricWordRenderer` 逐字现场；`wesing-diagnostics` 管理“重新检测”左侧的“播放诊断”、20 秒采样结果面板及用户主动将 JSON 保存到日志目录（英文用途和本机时间命名，成功显示路径），复用当前采集器，收起后迟到结果不重开面板(详见 [backend/music/wesing.md](../backend/music/wesing.md));源切换用 `activationQueue` 串行化,避免后端状态错乱 |
 
 首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。可修改的歌单详情不再使用服务端第二份内容缓存，后台更新和强制刷新直接读取 Provider 当前结果，空歌单也更新播放器缓存。
 
 「我喜欢」每次加载的分页共用一个 `loadingSession`，让 Provider 复用本次歌单定位和 QQ 全量返回。登录/退出使平台代际失效后，已发出的页面返回即停止后续分页；普通页面导航仍允许同账号后台加载完成并写缓存。
 
-内容抽屉在初始及关闭状态设置 `inert`，打开时恢复键盘操作；关闭时若焦点仍在抽屉内或因遮罩点击回到页面主体，则返回仍有效的原触发控件。
+内容抽屉在初始及关闭状态设置 `inert`，打开时恢复键盘操作；关闭时若焦点仍在抽屉内或因遮罩点击回到页面主体，则返回仍有效的原触发控件。歌曲更多菜单由 HomeHandler 保管唯一外部点击监听与待安装定时器；按钮、Escape、Tab、返回、替换或关闭所属抽屉都会释放本次监听，保留正常焦点与 ARIA 行为。
 
-`CacheManager` 内存层最多 64 项，按序列化字符串 UTF-16 长度估算的合计预算为 8 MiB（不是 V8 实际堆大小保证）。读取提升最近使用顺序，写入/回填时回收超过默认 24 小时的内存条目，按最近使用顺序淘汰至预算内。超大单项跳过缓存而不截断歌单数据；localStorage 保留既有 24 小时有效期和浏览器配额。登录/退出还会使对应平台未完成内容请求失去缓存写入权，防止旧账号响应重新填回缓存。
+`CacheManager` 内存层最多 64 项，按序列化字符串 UTF-16 长度估算的合计预算为 8 MiB（不是 V8 实际堆大小保证）。读取提升最近使用顺序，写入/回填时回收超过默认 24 小时的内存条目，按最近使用顺序淘汰至预算内。超大单项跳过缓存而不截断歌单数据。持久层仅管理 `playbackCache:v2:` 前缀：构造及写入时清理过期项，最多 64 项、合计 2 MiB（键和值的 UTF-16 估算），超预算按缓存时间回收；配额失败只回收自身缓存并重试一次，不清除其他同源偏好或草稿。登录/退出还会使对应平台未完成内容请求失去缓存写入权，防止旧账号响应重新填回缓存。
 
 ## 5. 队列、电台与歌单
 

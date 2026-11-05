@@ -290,6 +290,48 @@ test('cancelling a destructive persona action keeps saved and edited content', a
   assert.equal(confirmations.length, 1, 'explicit Cancel does not open another confirmation');
 });
 
+test('deleting a persona keeps the confirmed target while a settings save is pending', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  t.after(() => db.close());
+  const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
+  for (const id of ['alpha', 'beta']) store.importPersona({
+    format: 'lira-ai-persona', version: 1, id, name: id,
+    prompt: '这是一段长度足够的合成角色指南，用于测试预设删除时的目标归属。',
+  });
+  store.updateConfig({ personaId: 'alpha' });
+  const pending = Promise.withResolvers();
+  let saved;
+  const confirmations = [];
+  const f = await createAiSettingsFixture({
+    config: store.getPublicConfig(),
+    confirm: async options => { confirmations.push(options); return true; },
+    request: (url, options) => {
+      if (url === '/api/ai/config' && options.method === 'PUT') {
+        saved = aiResponse(store.updateConfig(JSON.parse(options.body)));
+        return pending.promise;
+      }
+      if (url === '/api/ai/personas/delete') return aiResponse(store.deletePersona(JSON.parse(options.body).id));
+    },
+  });
+  f.input('xiaomiAiTrigger', '等待保存');
+  await f.advance(700);
+  f.fire('xiaomiAiPersonaManage', 'click');
+  f.fire('xiaomiAiPersonaDelete', 'click');
+  await flushAiTasks();
+  const select = f.elements.get('xiaomiAiPersona');
+  select.value = 'beta';
+  f.fire('xiaomiAiForm', 'change', { target: select });
+  f.fire('xiaomiAiPersonaManage', 'click');
+  pending.resolve(saved);
+  await flushAiTasks();
+  await flushAiTasks();
+  assert.match(confirmations[0].title, /alpha/);
+  const deleted = f.calls.filter(call => call.url === '/api/ai/personas/delete');
+  assert.deepEqual(deleted.map(call => JSON.parse(call.options.body).id), ['alpha']);
+  assert.equal(store.getConfig().personaPacks.some(pack => pack.id === 'beta'), true);
+});
+
 test('editing a role remains a draft until saved and cancel does not change the selection', async () => {
   const f = await createAiSettingsFixture({ config: { personaId: 'cat' } });
   const text = '你是一个温柔的直播间助手，用自然的语言回答问题，不要添加猫咪口头禅。';

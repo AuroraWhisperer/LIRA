@@ -21,15 +21,17 @@ function archiveQualifiedGift(db, row) {
     gift_variant_id: row.gift_variant_id, blind_box_variant_id: row.blind_box_variant_id,
     unit_price: row.unit_price, known_cost: row.blind_box_price !== null };
   const json = JSON.stringify(dimensions);
-  const key = createHash('sha256').update(json).digest('hex');
+  const key = createHash('sha256').update(JSON.stringify([dimensions, row.created_at])).digest('hex');
   const day = new Date(dayStart(row.created_at)).toISOString();
   const cost = row.blind_box_price === null ? null : Math.round(row.blind_box_price * 100);
   if ((cost !== null && (!Number.isSafeInteger(cost) || cost < 0)) || !Number.isSafeInteger(row.num) || row.num < 1) throw new Error('INVALID_GIFT_METRICS');
-  db.prepare(`INSERT INTO gift_local_archives VALUES (?,?,?,?,1,?,?,?,?)
+  db.prepare(`INSERT INTO gift_local_archives
+    (source_id,day_start,group_key,dimensions_json,event_count,item_count,value_cents,cost_cents,last_opened_at,occurred_at)
+    VALUES (?,?,?,?,1,?,?,?,?,?)
     ON CONFLICT(source_id,day_start,group_key) DO UPDATE SET event_count=event_count+1,
       item_count=item_count+excluded.item_count,value_cents=value_cents+excluded.value_cents,
       cost_cents=cost_cents+excluded.cost_cents,last_opened_at=MAX(last_opened_at,excluded.last_opened_at)`)
-    .run(row.source_id, day, key, json, row.num, cents, cost, row.created_at);
+    .run(row.source_id, day, key, json, row.num, cents, cost, row.created_at, row.created_at);
   const saved = db.prepare('SELECT * FROM gift_local_archives WHERE source_id=? AND day_start=? AND group_key=?').get(row.source_id,day,key);
   if (!['event_count','item_count','value_cents'].every((field) => Number.isSafeInteger(saved[field])) ||
     (saved.cost_cents !== null && !Number.isSafeInteger(saved.cost_cents))) throw new Error('INVALID_GIFT_METRICS');
@@ -60,11 +62,14 @@ function pruneLocalGiftBatch(db, sourceId, limit = 500) {
 
 function readLocalBlindArchives(db, { sourceScope, from, to, boxName, includeUnknownProfit }) {
   if (sourceScope?.kind !== 'source') return [];
-  return db.prepare('SELECT * FROM gift_local_archives WHERE source_id=? AND day_start>=? AND day_start<?')
-    .all(sourceScope.sourceId,from,to).flatMap((row) => {
+  return db.prepare(`SELECT * FROM gift_local_archives WHERE source_id=? AND occurred_at>=? AND occurred_at<?
+    UNION ALL SELECT * FROM gift_local_archives
+    WHERE source_id=? AND occurred_at IS NULL AND day_start>=? AND day_start<?`)
+    .all(sourceScope.sourceId,from,to,sourceScope.sourceId,from,to).flatMap((row) => {
       const dimensions = JSON.parse(row.dimensions_json);
       if ((!includeUnknownProfit && row.cost_cents === null) || (boxName && dimensions.blind_box_name !== boxName)) return [];
-      return [{ ...dimensions, archived: true, id: null, num: row.item_count, total_price: row.value_cents / 100,
+      return [{ ...dimensions, archived: true, ...(row.occurred_at === null ? { legacyArchivedDate: true } : {}),
+        id: null, num: row.item_count, total_price: row.value_cents / 100,
         blind_box_price: row.cost_cents === null ? null : row.cost_cents / 100,
         blind_profit: row.cost_cents === null ? null : (row.value_cents - row.cost_cents) / 100,
         created_at: row.last_opened_at }];

@@ -139,12 +139,20 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       throw new Error('恢复预览已变化，请重新核对并选择冲突处理方式。');
     }
     const value = validateBackup(scope, input.backup);
+    const conflicts = new Set(plan.conflicts.map((item) => item.incomingId));
+    const profiles = value.profiles.filter((profile) => input.conflicts === 'replace' || !conflicts.has(profile.id));
+    const replacedIds = new Set(input.conflicts === 'replace' ? plan.conflicts.map((item) => item.existingId) : []);
+    const identityKeys = new Set(store.list(scope, { includeSuppressed: true })
+      .filter((profile) => !replacedIds.has(profile.id))
+      .map((profile) => identityKey(profile.identity)).filter(Boolean));
+    for (const profile of profiles) {
+      const key = identityKey(profile.identity);
+      if (key && identityKeys.has(key)) throw new Error('恢复后的身份与保留档案冲突，请重新核对备份。');
+      if (key) identityKeys.add(key);
+    }
     const snapshotId = store.snapshot(scope, backup(scope), now());
-    for (const profile of value.profiles) {
-      const conflict = plan.conflicts.find((item) => item.incomingId === profile.id);
-      if (conflict && input.conflicts === 'keep') continue;
-      const prior = conflict && store.get(scope, conflict.existingId);
-      if (prior) store.remove(scope, prior.id, false);
+    for (const id of replacedIds) store.remove(scope, id, false);
+    for (const profile of profiles) {
       const { records, reminders, ...data } = profile;
       const restored = store.restoreProfile(scope, data, identityKey(data.identity), now());
       for (const record of records) {

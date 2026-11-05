@@ -152,6 +152,8 @@ class QQMusicStreamProvider extends QQMusicClient {
     try {
       return await this.getLegacyLyrics(sourceTrackId);
     } catch (error) {
+      if (error.code === 'LYRIC_EXPANSION_LIMIT') throw error;
+      if (richLyricError?.code === 'LYRIC_EXPANSION_LIMIT') throw richLyricError;
       if (!richLyricError) throw error;
       throw new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`);
     }

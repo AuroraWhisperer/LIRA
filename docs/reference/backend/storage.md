@@ -48,6 +48,11 @@ SC 的可撤销删除仍立即删除数据库行并留下防重 ID；`superchat-
 gift_retention_days 保存完整公开日分组的版本，gift_retention_receipts 保存准确去重键，
 gift_local_archives 与 gift_sprint_carry 保留本机已取得资格的统计。
 
+gift_db v21 由同一迁移 owner 为 `gift_local_archives` 追加可空 `occurred_at` 和
+`(source_id, occurred_at)` 部分索引。新本机盲盒归档按原事件时刻及统计维度区分，
+查询按精确时刻匹配本机自然日，`day_start` 仍保留北京时间日键。旧桶的该列为
+`NULL`，不根据最后开盒时间推测分布；原样保留并在分析中标明旧归档日期精度限制。
+
 gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migration.js) 幂等创建
 `gift_wish_contributions`。它按许愿、source、epoch 和事件身份保存非整日窗口所需的
 时间与数量；[gift-wish-retention.js](../../../src/storage/gift-wish-retention.js) 在快照替换或
@@ -250,7 +255,7 @@ songDb v13 由 [fan-song-migration.js](../../../src/storage/fan-song-migration.j
 
 `fan-record-store` 在写入、档案读取、完整备份导出及启动/每小时 retention 时清理早于上海当天及前 29 天的 `dailyCounts`，保留累计次数和最近三个日期；时钟回退产生的未来日期桶暂存，但不计入当前展示。档案表不参与 clear-all。自动恢复点按 `created_at DESC, rowid DESC` 每个 scope 保留两份，由 [fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js) 清理。新快照插入、旧快照清理及恢复/合并处于同一事务，失败时原档案和恢复点均回滚。
 
-完整备份 `lira-fan-profiles` 导出 v2，接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
+完整备份 `lira-fan-profiles` 导出 v2，接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。完整替换在同一事务内先验证导入集合与保留档案的最终身份唯一性，统一释放明确批准替换的档案后再恢复，支持档案间 UID 互换；失败连同恢复点一起回滚。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
 
 songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-roster-observation-migration.js) 为 `fan_records` 增加可空的 `roster_template_id` 外键。只压缩从未修订、仍被采用且未排除的纯自动名单观察，将除 `observedAt` 外的重复 JSON 保存一次；读取按记录时间完整还原，ID、sourceKey、历史判断和备份格式不变。编辑时在事务中展开原始依据并解除引用；删除、恢复与合并后回收无引用模板。人工记录、手动同步和真实购买事实不参与压缩。每个真实观察日期仍有一条小记录，因此这是无损去重，不是历史数量上限。
 
@@ -296,7 +301,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 
 v2 的 [superchat-receipt-migration.js](../../../src/storage/superchat-receipt-migration.js) 将旧 `deleted` 行转为防重 ID 并删除内容，活动与已处理的显示项保留。删除触发器在同一事务写入 ID，覆盖手动删除、平台撤回、清空和显式配置的按天清理；没有平台 ID 的已删留言不留记录。平台撤回先于原消息时也保存 ID，迟到包不会重新入库。防重 ID 不按天删除，清空使用记录也保留。
 
-历史数据由 `migrateLegacySuperChatsToDedicatedDatabase` 从 songDb 旧表迁移后删表([legacy-superchat-migration.js](../../../src/storage/legacy-superchat-migration.js))。旧表的 `deleted` 行同样只转移 ID，已存在防重 ID 的消息不会因迁移重试恢复内容。
+历史数据由 `migrateLegacySuperChatsToDedicatedDatabase` 从 songDb 旧表迁移后删表([legacy-superchat-migration.js](../../../src/storage/legacy-superchat-migration.js))。稳定平台 ID 优先去重；没有平台 ID 时，按 UID、正文、创建时间和规范化金额共同比较，不合并仅金额不同的留言。目标事务失败时保留源表，成功后才清理。旧表的 `deleted` 行同样只转移 ID，已存在防重 ID 的消息不会因迁移重试恢复内容。
 
 ### 3.3 gift-data.db(礼物库,17 表，含上文礼物保留表)
 
@@ -351,11 +356,13 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 抽奖库仅保存最小业务证据，不保存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 持有分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 在请求出站前同时预留本机和账号预算。
 
-2026-10-12 历史清理：成功创建新活动时，任务 store 在同一事务中调用 [dynamic-lottery-retention.js](../../../src/storage/dynamic-lottery-retention.js)，删除该 streamer 已完成或候选耗尽的旧活动及其采集、证据、轮次、名单、顺序、中奖与事件数据；创建失败回滚清理。启动按与活动列表一致的 `created_at_ms DESC, id DESC` 顺序，仅保留每个 streamer 当前最新活动的结果，清理其他已结束活动；暂停等仍可继续的活动保留。旧创建请求仅留下 `create-retired` 回执，同参数重试返回 `LOTTERY_TASK_CLEARED`，不同参数返回冲突，避免重放请求重新开奖。回执仍随活动数量增长，但不保留历史正文或名单。
+抽奖私有 `streamer_id`、创建回执与账号预算 scope 使用主进程生成的服务器 origin + 原始账号编号 namespace，算法与登录快照统一见 [auth.md §14](../desktop/auth.md#14-动态抽奖专用账号)。字段和 schema v2 不变，本机预算仍按整台安装共享。旧无 origin 的任务、结果、回执与预算保留，不自动映射到当前服务器。
+
+2026-10-12 历史清理：成功创建新活动时，任务 store 在同一事务中调用 [dynamic-lottery-retention.js](../../../src/storage/dynamic-lottery-retention.js)，删除该 namespace 已完成或候选耗尽的旧活动及其采集、证据、轮次、名单、顺序、中奖与事件数据；创建失败回滚清理。runtime 首次取得可信 scope 及切换 scope 后，按与活动列表一致的 `created_at_ms DESC, id DESC` 顺序，仅维护当前 namespace，保留其最新活动结果，清理其他已结束活动；暂停等仍可继续的活动保留，不维护归属不明的旧数据。旧创建请求仅留下 `create-retired` 回执，同参数重试返回 `LOTTERY_TASK_CLEARED`，不同参数返回冲突，避免重放请求重新开奖。回执仍随活动数量增长，但不保留历史正文或名单。
 
 2026-09-16 结果展示：抽奖库 v2 追加迁移 `lottery_evidence.display_name TEXT`，旧行保留且昵称为 NULL，重复启动不重跑迁移。昵称最多保存 256 字符，不影响资格或顺序；中奖结果通过 round 的 scan 与 member 的 source/recordId/uid 读取对应昵称和完整评论，避免同 UID 的其他评论或其他批次串入。缺少旧元数据时保持 NULL，不回源补查。
 
-2026-09-14 客户端交集流程：`dynamic-lottery-store.js` 的 `commitPages` 同事务提交点赞/转发共用页，source state 增加已见游标以拒绝分页循环；评论按事件时间截止，reaction 保留 `occurred_at_ms = NULL`。新 [dynamic-lottery-draw-store.js](../../../src/storage/dynamic-lottery-draw-store.js) 使用现有 v1 的 rounds/members/orders/awards/events 表，不修改已发布 DDL。冻结规则与全量随机顺序同事务保存；资格确认、授奖和 next_index 同事务推进，未知结果不推进。rules JSON `version:2` 固定单一中奖人数与三个条件，旧版本活动不能套用新流程续抽。启动将 collecting/drawing 恢复为暂停，不自动发请求；保留活动最近 50 条按可信 streamerId 查询。原数据清理端口仍仅覆盖原五库；抽奖历史由上述活动生命周期清理，请求预算独立保留。
+2026-09-14 客户端交集流程：`dynamic-lottery-store.js` 的 `commitPages` 同事务提交点赞/转发共用页，source state 增加已见游标以拒绝分页循环；评论按事件时间截止，reaction 保留 `occurred_at_ms = NULL`。新 [dynamic-lottery-draw-store.js](../../../src/storage/dynamic-lottery-draw-store.js) 使用现有 v1 的 rounds/members/orders/awards/events 表，不修改已发布 DDL。冻结规则与全量随机顺序同事务保存；资格确认、授奖和 next_index 同事务推进，未知结果不推进。rules JSON `version:2` 固定单一中奖人数与三个条件，旧版本活动不能套用新流程续抽。首次取得可信 namespace 后仅将其 collecting/drawing 恢复为暂停，不自动发请求；保留活动最近 50 条按该 namespace 查询。原数据清理端口仍仅覆盖原五库；抽奖历史由上述活动生命周期清理，请求预算独立保留。
 
 ## 4. Schema 迁移系统
 
@@ -367,7 +374,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | songDb      | `song_db`       | v1-v17 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引；v16 无损追加 queue.is_live 和 idx_queue_single_live 部分唯一索引；v17 新增 danmaku_appearances，按授权账号在本机保存完整弹幕外观 |
 | superChatDb | `super_chat_db` | v1-v2 | v1 基线；v2 新增最小防重 ID，删除旧 deleted 内容并覆盖后续删除路径 |
-| giftDb      | `gift_db`       | v1-v20 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引；v19 幂等增加许愿 `text_runs`，旧模板、图片位置、身份与进度保持不变；v20 增加许愿非整日精确贡献（见上文） |
+| giftDb      | `gift_db`       | v1-v21 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引；v19 幂等增加许愿 `text_runs`，旧模板、图片位置、身份与进度保持不变；v20 增加许愿非整日精确贡献（见上文）；v21 为本机盲盒归档追加可空 occurred_at 及精确时间部分索引，保留旧日桶 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | checkinDb   | `checkin_db`    | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
 | lotteryDb   | `lottery_db`    | v1–v2 | v1 新建九张抽奖业务表、身份/幂等/顺序唯一约束及查询索引；v2 为 `lottery_evidence` 增加可空 `display_name TEXT`，无默认值，历史行保持 `NULL`，不新增索引；独立失败边界，不加入原五库迁移事务                                                                                                                                                                                                                                      |

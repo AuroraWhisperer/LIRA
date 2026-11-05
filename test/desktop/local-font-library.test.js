@@ -12,8 +12,15 @@ function createNode(tagName) {
     tagName: String(tagName || '').toUpperCase(),
     children: [],
     dataset: {},
-    prepend(child) { child.parentNode = this; this.children.unshift(child); },
+    prepend(child) { child.remove(); child.parentNode = this; this.children.unshift(child); },
+    insertBefore(child, reference) {
+      child.remove();
+      child.parentNode = this;
+      const index = reference ? this.children.indexOf(reference) : this.children.length;
+      this.children.splice(index, 0, child);
+    },
     appendChild(child) {
+      child.remove();
       child.parentNode = this;
       this.children.push(child);
       return child;
@@ -37,7 +44,8 @@ function createSelect(value, builtIns) {
   select.value = value;
   select.querySelector = (selector) => {
     const key = selector === 'optgroup[data-local-fonts="true"]' ? 'localFonts'
-      : selector === 'optgroup[data-shared-fonts]' ? 'sharedFonts' : null;
+      : selector === 'optgroup[data-shared-fonts]' ? 'sharedFonts'
+        : selector === 'optgroup[data-saved-fonts]' ? 'savedFonts' : null;
     return key && select.children.find((child) => child.dataset?.[key] === 'true') || null;
   };
   Object.defineProperty(select, 'options', {
@@ -135,6 +143,34 @@ test('shared display fonts keep legacy selections without duplicate options or l
     unregister();
   }
   assert.equal(queries, 1);
+});
+
+test('installed font discovery preserves legacy system aliases and stacks while allowing a new selection', async () => {
+  const query = Promise.withResolvers();
+  const library = await loadModuleExports(path.join(ROOT_DIR, 'public/js/shared/font-library.js'), {
+    document: { createElement: createNode },
+    window: { queryLocalFonts: () => query.promise },
+  });
+  const stack = 'SimSun, STSong, serif';
+  const aliasSelect = createSelect('serif', [{ value: 'serif', label: '宋体' }]);
+  aliasSelect.options[0].dataset.fontFamily = '"SimSun", "Songti SC", serif';
+  const stackSelect = createSelect(stack, [{ value: stack, label: '宋体' }]);
+  const disposers = [aliasSelect, stackSelect].map(select => library.registerFontSelect(select));
+  assert.equal(aliasSelect.value, 'serif');
+  assert.equal(stackSelect.value, stack);
+  query.resolve([{ family: 'SimSun' }, { family: 'Cascadia Code' }]);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(aliasSelect.value, 'serif');
+  assert.equal(stackSelect.value, stack);
+  for (const select of [aliasSelect, stackSelect]) {
+    assert.ok(select.options.some(option => option.value === '"Cascadia Code"'));
+    select.value = '"Cascadia Code"';
+    library.ensureSavedFontOption(select, select.value);
+    library.populateSharedFontOptions(select);
+    assert.equal(select.value, '"Cascadia Code"');
+    assert.ok(select.options.some(option => option.value === '"SimSun"'), 'A new choice uses the installed family rather than the previous legacy stack.');
+  }
+  disposers.forEach(dispose => dispose());
 });
 
 test('shared font menus exclude missing, loading and failed faces, then add decoded fonts without changing selection', async () => {

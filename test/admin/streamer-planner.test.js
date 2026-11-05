@@ -6,11 +6,82 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createDom, createClock } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const STORAGE_KEY = 'admin.streamerWorkbench.v3';
 const PREVIOUS_STORAGE_KEY = 'admin.streamerWorkbench.v2';
 const LEGACY_STORAGE_KEY = 'admin.streamerPlanner.v1';
+
+test('cancelling event deletion preserves the draft, while confirmation deletes only the saved target', async t => {
+  const { documentRef: document, windowRef: window, windowListeners, container } = createDom();
+  const clock = createClock();
+  const create = document.createElement;
+  document.createElement = tag => {
+    const node = create(tag);
+    Object.assign(node, { value: '', checked: false, dataset: {}, open: false });
+    node.classList.toggle = (name, on) => node.classList[on ? 'add' : 'remove'](name);
+    node.showModal = () => { node.open = true; };
+    node.close = () => { node.open = false; };
+    node.querySelectorAll = () => [];
+    node.closest = () => tag === 'button' ? node : null;
+    const children = new Map();
+    node.querySelector = selector => {
+      if (!node.className.includes('lira-confirm-backdrop')) return null;
+      if (!children.has(selector)) {
+        const child = document.createElement('button');
+        children.set(selector, child);
+        node.append(child);
+      }
+      return children.get(selector);
+    };
+    return node;
+  };
+  document.createElementNS = (_ns, tag) => document.createElement(tag);
+  const nodes = new Map([['toast', container]]);
+  const get = id => {
+    if (!nodes.has(id)) nodes.set(id, document.createElement('div'));
+    return nodes.get(id);
+  };
+  document.getElementById = get;
+  const radios = ['live', 'work', 'personal'].map(value => ({ value, checked: value === 'live' }));
+  get('plannerEventForm').querySelectorAll = () => radios;
+  get('plannerEventForm').querySelector = () => radios.find(radio => radio.checked);
+  const stored = new Map();
+  window.localStorage = { getItem: key => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value) };
+  window.setInterval = () => 1;
+  window.clearInterval = () => {};
+  let nextId = 0;
+  const { todo } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/streamer-planner.js'), {
+    document, window, ...clock, crypto: { randomUUID: () => `event-${++nextId}` },
+    MutationObserver: class { observe() {} disconnect() {} },
+  });
+  t.after(() => { for (const listener of windowListeners.get('pagehide') || []) listener(); });
+  todo.init();
+  const original = todo.addEvent({ title: '原日程', date: '2026-11-20', time: '20:00' });
+  const other = todo.addEvent({ title: '另一日程', date: '2026-11-21', time: '21:00' });
+  const edit = document.createElement('button');
+  edit.dataset.eventEdit = original.id;
+  get('streamerPlanner').fire('click', { target: edit });
+  const draft = { Title: '未保存的新名称', Date: '2026-11-22', Time: '22:00', Detail: '未保存的备注' };
+  for (const [field, value] of Object.entries(draft)) get(`plannerEvent${field}`).value = value;
+  radios.forEach(radio => { radio.checked = radio.value === 'personal'; });
+  async function confirmDelete(accept) {
+    const pending = get('plannerEventDelete').fire('click');
+    const confirmation = document.body.children.find(node => node.className.includes('lira-confirm-backdrop'));
+    confirmation.querySelector(accept ? '.lira-confirm-confirm' : '.lira-confirm-cancel').fire('click');
+    clock.tick(170);
+    await pending;
+  }
+  const before = stored.get(STORAGE_KEY);
+  await confirmDelete(false);
+  assert.equal(get('plannerEventDialog').open, true);
+  for (const [field, value] of Object.entries(draft)) assert.equal(get(`plannerEvent${field}`).value, value);
+  assert.equal(radios.find(radio => radio.checked).value, 'personal');
+  assert.equal(stored.get(STORAGE_KEY), before);
+  await confirmDelete(true);
+  assert.deepEqual(Array.from(todo.getState().events, event => event.id), [other.id]);
+});
 
 async function loadTodo(stored = new Map(), storageOverrides = {}, plannerReminders) {
   let nextId = 0;

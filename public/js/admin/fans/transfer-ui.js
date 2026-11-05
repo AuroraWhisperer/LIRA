@@ -2,7 +2,7 @@ import { toast } from '../../shared/utils.js';
 import { html, dateLabel } from './view.js';
 import { legacyForm, exportForm } from './forms.js';
 
-export function createFanTransferUi({ request, openForm, getProfile, onProfile, onReset }) {
+export function createFanTransferUi({ request, openForm, beginIntent, getProfile, onProfile, onReset }) {
   async function mergeDraft(patch, targetId) {
     const input = { id: patch.id, revision: patch.revision, targetId, patch };
     const preview = await request('preview-merge', input);
@@ -130,8 +130,11 @@ export function createFanTransferUi({ request, openForm, getProfile, onProfile, 
 
   async function restoreFile(file) {
     if (!file || file.size > 16 * 1024 * 1024) throw new Error('请选择 16 MB 以内的完整档案备份。');
+    const isCurrent = beginIntent();
     const backup = JSON.parse(await file.text());
+    if (!isCurrent()) return;
     const preview = await request('preview-restore', { backup });
+    if (!isCurrent()) return;
     openForm(
       {
         title: '核对恢复预览',

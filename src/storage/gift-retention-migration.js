@@ -73,4 +73,12 @@ function migrateGiftRetention(db) {
   `);
 }
 
-module.exports = { migrateGiftRetention };
+function migrateExactLocalGiftArchives(db) {
+  if (!db.prepare('PRAGMA table_info(gift_local_archives)').all().some((column) => column.name === 'occurred_at')) {
+    db.exec('ALTER TABLE gift_local_archives ADD COLUMN occurred_at TEXT');
+  }
+  db.exec(`CREATE INDEX IF NOT EXISTS idx_gift_local_archives_exact_time
+    ON gift_local_archives(source_id,occurred_at) WHERE occurred_at IS NOT NULL`);
+}
+
+module.exports = { migrateGiftRetention, migrateExactLocalGiftArchives };

@@ -1,8 +1,9 @@
 'use strict';
 
-const { createLotteryAuthStore } = require('./dynamic-lottery-auth-store');
+const { createLotteryAuthStore, lotteryAccountScope } = require('./dynamic-lottery-auth-store');
 const { createLotterySession } = require('./dynamic-lottery-session');
 const { openBilibiliLoginWindow } = require('./bilibili-login-window');
+const { normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
 
 function fail(code) {
   throw Object.assign(new Error(code), { code });
@@ -27,19 +28,22 @@ function createDynamicLotteryAuth({
   function getScope() {
     if (disposed) fail('LOTTERY_SESSION_DISPOSED');
     if (licenseManager.getState() !== 'authorized') fail('LOTTERY_IDENTITY_UNAVAILABLE');
-    const streamerId = String(licenseManager.getCloudSyncIdentity()?.streamerId || '');
+    const accountId = String(licenseManager.getCloudSyncIdentity()?.streamerId || '');
+    const serverOrigin = normalizeRemoteRootOrigin(licenseManager.getRemoteBaseUrl());
     // Token renewal keeps the login lifecycle; a real identity/session change does not.
     const authorizationEpoch = licenseManager.getAuthorizationGeneration();
     if (
-      !streamerId ||
-      streamerId.length > 128 ||
-      /[\r\n\0]/u.test(streamerId) ||
+      !accountId || !serverOrigin ||
+      accountId.length > 128 ||
+      /[\r\n\0]/u.test(accountId) ||
       !Number.isSafeInteger(authorizationEpoch) ||
       authorizationEpoch < 0
     ) {
       fail('LOTTERY_IDENTITY_UNAVAILABLE');
     }
-    return { streamerId, authorizationEpoch };
+    // The lottery's legacy streamerId field is a private persistence namespace,
+    // never the server-issued accountId. It is not sent to Bilibili or renderers.
+    return { streamerId: lotteryAccountScope(serverOrigin, accountId), accountId, serverOrigin, authorizationEpoch };
   }
 
   function sameScope(left, right) {
@@ -74,13 +78,17 @@ function createDynamicLotteryAuth({
           session,
           safeStorage,
           dataDir,
-          streamerId: scope.streamerId,
+          streamerId: scope.accountId,
+          serverOrigin: scope.serverOrigin,
         }),
         warning: '',
       };
       account = selected;
       try {
         await selected.store.restore();
+        if (selected.store.hasLegacySnapshot() && !(await selected.store.getAuthState()).loggedIn) {
+          selected.warning = 'LOTTERY_AUTH_RELOGIN_REQUIRED';
+        }
       } catch (error) {
         selected.warning = error.code || 'LOTTERY_AUTH_RESTORE_FAILED';
       }

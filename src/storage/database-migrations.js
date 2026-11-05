@@ -10,7 +10,7 @@ const schema = require('./schema');
 const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
-const { migrateGiftRetention } = require('./gift-retention-migration');
+const { migrateGiftRetention, migrateExactLocalGiftArchives } = require('./gift-retention-migration');
 const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors, migrateGiftWishTextRuns, migrateGiftWishContributions } = require('./gift-wish-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
 const { migrateFanSongRetention } = require('./fan-song-migration');
@@ -374,6 +374,8 @@ function runAllMigrations(databases, options = {}) {
       migrateGiftWishTextRuns,
       // v20: exact wish contributions for partial days outside retained details.
       migrateGiftWishContributions,
+      // v21: retain exact local blind-box times without inventing dates for legacy buckets.
+      migrateExactLocalGiftArchives,
     ]),
   );
 

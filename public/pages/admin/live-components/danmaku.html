@@ -41,15 +41,15 @@
                   <button id="danmakuFloatingStyleTab" type="button" data-filter-value="floating" aria-pressed="false">飘窗弹幕</button>
                 </div>
               </div>
-              <div class="danmaku-library-filter"><span>持续动效</span>
-                <div class="danmaku-style-tabs" role="group" aria-label="持续动效" data-style-filter-group="ambient">
+              <div class="danmaku-library-filter"><span>样式动效</span>
+                <div class="danmaku-style-tabs" role="group" aria-label="样式动效" data-style-filter-group="motion">
                   <button type="button" data-filter-value="all" aria-pressed="true">不限</button>
                   <button type="button" data-filter-value="true" aria-pressed="false">有</button>
                   <button type="button" data-filter-value="false" aria-pressed="false">无</button>
                 </div>
               </div>
-              <div class="danmaku-library-filter"><span>节日元素</span>
-                <div class="danmaku-style-tabs" role="group" aria-label="节日元素" data-style-filter-group="holiday">
+              <div class="danmaku-library-filter"><span>节日限定</span>
+                <div class="danmaku-style-tabs" role="group" aria-label="节日限定" data-style-filter-group="holiday">
                   <button type="button" data-filter-value="all" aria-pressed="true">不限</button>
                   <button type="button" data-filter-value="true" aria-pressed="false">有</button>
                   <button type="button" data-filter-value="false" aria-pressed="false">无</button>
@@ -64,10 +64,6 @@
                   <button type="button" data-filter-value="tech" aria-pressed="false">潮酷</button>
                 </div>
               </div>
-            </div>
-            <div class="danmaku-library-summary">
-              <span id="danmakuStyleResultCount" role="status" aria-live="polite"></span>
-              <span class="hint">持续动效指装饰循环，不含弹幕入场与滚动</span>
               <button id="danmakuClearStyleFilters" class="secondary" type="button" disabled>清除筛选</button>
             </div>
             <div class="danmaku-library-scroll">
@@ -166,6 +162,10 @@
                 <img src="/img/overlays/danmaku-previews/comic.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">漫画对白</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="window" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/window.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">散落小窗</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="whiteframe" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/whiteframe.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">白描</span>
@@ -186,6 +186,10 @@
           </section>
           <section id="danmakuFloatingStyles" class="danmaku-style-group danmaku-style-group-floating" role="group" aria-labelledby="danmakuFloatingStyleTab">
             <div class="danmaku-style-options" role="group" aria-label="选择飘窗弹幕样式">
+              <button class="danmaku-style-option" type="button" data-danmaku-style="sinking" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/sinking.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">沉笺</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="floating" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/floating.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">浮光掠影</span>
@@ -208,6 +212,10 @@
               <p id="danmakuStyleEmpty" class="danmaku-library-empty" hidden>没有符合这些条件的样式，试试减少筛选条件。</p>
               <div id="danmakuImportedStyles" class="danmaku-imported-styles"></div>
             </div>
+            <footer class="danmaku-library-footer">
+              <span id="danmakuStyleResultCount" role="status" aria-live="polite"></span>
+              <div class="danmaku-library-actions"></div>
+            </footer>
           </dialog>
         </div>
         <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">

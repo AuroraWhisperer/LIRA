@@ -884,7 +884,7 @@ function createMainWindow(baseUrl, authorized = false) {
   windowState.baseUrl = baseUrl;
   var opts = {
     width: 1200,
-    height: 800,
+    height: 750,
     minWidth: 1024,
     minHeight: 680,
     show: false,

@@ -365,7 +365,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| 尺寸           | **1200×800**,minWidth 1024,minHeight 680                                                                           | [main.js](../../../src/electron/main.js)          |
+| 尺寸           | **1200×750**,minWidth 1024,minHeight 680                                                                           | [main.js](../../../src/electron/main.js)          |
 | 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [main.js](../../../src/electron/main.js) |
 | 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [main.js](../../../src/electron/main.js)                   |
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js](../../../src/electron/main.js) |

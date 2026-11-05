@@ -3,8 +3,17 @@ import { toast } from '../../shared/utils.js';
 export function createFanEditor({ editor, form, onError }) {
   const get = (id) => document.getElementById(id);
   let description = null;
+  let revision = 0;
+
+  function invalidate() { revision++; }
+
+  function beginIntent() {
+    const current = ++revision;
+    return () => current === revision;
+  }
 
   function open(formDescription, save) {
+    invalidate();
     description = { ...formDescription, save };
     editor.classList.toggle('fan-profile-editor', !!description.profileEditor);
     get('fanEditorTitle').textContent = description.title;
@@ -51,11 +60,16 @@ export function createFanEditor({ editor, form, onError }) {
 
   form.addEventListener('submit', submit);
   editor.addEventListener('cancel', cancel);
+  editor.addEventListener('close', invalidate);
   return {
     open,
+    beginIntent,
+    invalidate,
     dispose() {
+      invalidate();
       form.removeEventListener('submit', submit);
       editor.removeEventListener('cancel', cancel);
+      editor.removeEventListener('close', invalidate);
     },
   };
 }

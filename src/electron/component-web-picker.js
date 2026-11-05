@@ -14,8 +14,7 @@ function isPersonalRoot(directory) {
     || /^(Desktop|Documents|Downloads|Pictures|Music|Videos)$/i.test(path.basename(directory));
 }
 
-async function packageRoot(selected) {
-  let root = path.dirname(selected);
+async function packageRoot(selected, root = path.dirname(selected)) {
   const pending = [{ current: selected, documentEntry: selected }]; const visited = new Set();
   while (pending.length) {
     let { current, documentEntry } = pending.shift();
@@ -30,12 +29,7 @@ async function packageRoot(selected) {
       const value = localWebReference(reference);
       if (!value || value.startsWith('/')) continue;
       const target = path.resolve(path.dirname(current), decodeURIComponent(value));
-      while (path.relative(root, target).split(path.sep)[0] === '..') {
-        root = path.dirname(root);
-        if (isPersonalRoot(root)) {
-          throw Object.assign(new Error('资源引用超出素材文件夹，请选择完整的独立素材文件夹。'), { statusCode: 400 });
-        }
-      }
+      if (path.relative(root, target).split(path.sep)[0] === '..') return null;
       pending.push({ current: target, documentEntry });
     }
   }
@@ -76,7 +70,19 @@ function createComponentWebPicker({ dialog, getWindow }) {
         if (stat.size > limit) throw Object.assign(new Error(`文件不能超过 ${limit / 1024 / 1024} MiB。`), { statusCode: 413 });
         return { name: path.basename(selected), size: stat.size, open: () => fs.createReadStream(selected) };
       }
-      const root = await packageRoot(selected);
+      let root = await packageRoot(selected);
+      if (!root) {
+        const directory = await dialog.showOpenDialog(getWindow(), { title: '选择包含此文件及配套资源的完整素材文件夹',
+          defaultPath: path.dirname(selected), properties: ['openDirectory'] });
+        if (directory.canceled || !directory.filePaths?.[0]) return null;
+        root = directory.filePaths[0];
+        const relative = path.relative(root, selected);
+        if (!relative || path.isAbsolute(relative) || relative.split(path.sep)[0] === '..'
+          || isPersonalRoot(root) || (await fs.promises.lstat(root)).isSymbolicLink()
+          || !await packageRoot(selected, root)) {
+          throw Object.assign(new Error('资源引用超出所选素材文件夹，请选择完整的独立素材文件夹。'), { statusCode: 400 });
+        }
+      }
       if ((await fs.promises.lstat(selected)).isSymbolicLink() || (await fs.promises.lstat(root)).isSymbolicLink()
         || isPersonalRoot(root)) {
         throw Object.assign(new Error('请把第三方素材放在独立文件夹中，再选择其中的 HTML / CSS。'), { statusCode: 400 });

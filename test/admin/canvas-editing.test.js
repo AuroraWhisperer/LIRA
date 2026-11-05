@@ -114,12 +114,10 @@ test('canvas lyric settings save and existing lyric dimensions survive adding an
   const size = page.getByRole('spinbutton', { name: '高度', exact: true });
   const font = page.locator('[data-component-parameter="desktopLyricFontFamily"]');
   const fontSaved = page.waitForResponse(response => response.url().includes('/api/component-preview/appearance')
-    && response.request().postDataJSON()?.patch?.desktopLyricFontFamily?.startsWith('Microsoft YaHei,'));
-  await font.selectOption({ label: '系统字体' });
-  const multilingualFont = await font.inputValue();
-  assert.equal((await fontSaved).status(), 200);
-  assert.equal(fixture.runtime.settings.desktopLyricFontFamily, multilingualFont, 'A complete font stack survives saving.');
+    && response.request().postDataJSON()?.patch?.desktopLyricFontFamily === '"Lira Kuaile"');
   await font.selectOption('"Lira Kuaile"');
+  assert.equal((await fontSaved).status(), 200);
+  assert.equal(fixture.runtime.settings.desktopLyricFontFamily, '"Lira Kuaile"', 'Selecting a different available font saves the choice.');
   const fontSize = page.locator('[data-component-parameter="desktopLyricFontSize"]');
   await fontSize.fill('64'); await fontSize.press('Tab');
   await page.locator('[data-component-parameter="desktopLyricShowTranslation"]').uncheck();

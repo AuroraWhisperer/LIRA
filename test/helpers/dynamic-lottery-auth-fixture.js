@@ -2,10 +2,9 @@
 
 const crypto = require('node:crypto');
 const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const { createDynamicLotteryAuth } = require('../../src/electron/dynamic-lottery-auth');
+const { createScratchDirectory } = require('./scratch-directory');
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const uid = '9007199254740993123';
@@ -26,7 +25,7 @@ function authCookies(owner = uid, secret = 'lottery-test-secret') {
 }
 
 function createFixture(t) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-lottery-auth-'));
+  const dataDir = createScratchDirectory('lottery-auth-');
   const sessions = new Map();
   const windows = [];
   const session = {
@@ -68,10 +67,11 @@ function createFixture(t) {
     },
   };
   const stateChanges = new EventEmitter();
-  const license = { streamerId: 'streamer-a', epoch: 1, generation: 1, state: 'authorized' };
+  const license = { streamerId: 'streamer-a', serverOrigin: 'https://server-a.example.test', epoch: 1, generation: 1, state: 'authorized' };
   const licenseManager = {
     getState: () => license.state,
     getCloudSyncIdentity: () => ({ streamerId: license.streamerId }),
+    getRemoteBaseUrl: () => license.serverOrigin,
     getAuthorizationEpoch: () => license.epoch,
     getAuthorizationGeneration: () => license.generation,
     onStateChanged(listener) {

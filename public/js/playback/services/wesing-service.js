@@ -192,7 +192,6 @@ export class WeSingService {
       this.pendingLyricOffsetMs = null;
       this.applyStatus(data);
       this.renderOffsetInputs(true);
-      this.toast(`全民歌词偏移已设为 ${formatSignedMilliseconds(offsetMs)}`);
     } catch (error) {
       if (revision !== this.lyricOffsetRevision) return;
       this.pendingLyricOffsetMs = null;
@@ -392,11 +391,6 @@ function parseLyricOffset(value) {
   const number = Number(value);
   if (!Number.isFinite(number) || number < -3000 || number > 3000) return null;
   return Math.round(number);
-}
-
-function formatSignedMilliseconds(value) {
-  const number = numberValue(value, 0);
-  return `${number > 0 ? '+' : ''}${number} ms`;
 }
 
 function lyricFallback(state) {

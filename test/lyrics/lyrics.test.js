@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { spawnSync } = require('node:child_process');
 const { parseLyricResult, parseWordLyric } = require('../../src/music/lyric-parser');
 const { createLyricsService } = require('../../src/music/lyrics-service');
 const { musicCacheKey, writeMusicJsonCache, clearMusicCache, getMusicCacheStats } = require('../../src/music/music-cache');
@@ -77,6 +78,31 @@ test('parseWordLyric supports QQ QRC suffix timing', () => {
     ['jia ', 'yi'],
   );
   assert.equal(lines[1].text, 'bing');
+});
+
+test('word lyric fallback finishes for long missing or malformed timing markers', () => {
+  const child = spawnSync(process.execPath, ['-e', `
+    const assert = require('node:assert/strict');
+    const { parseWordLyric, parseLyricResult } = require(${JSON.stringify(require.resolve('../../src/music/lyric-parser'))});
+    const missing = '[1000,2000]' + 'x'.repeat(256 * 1024);
+    assert.equal(parseWordLyric(missing).length, 0);
+    assert.equal(parseWordLyric('[1000,2000]' + 'text(1,invalid)'.repeat(16000)).length, 0);
+    assert.equal(parseLyricResult('[00:01]original', missing)[0].translation, '');
+  `], { encoding: 'utf8', timeout: 3000, windowsHide: true });
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+});
+
+test('lyric expansion keeps ordinary repeated lines and rejects excessive expanded output', () => {
+  const normal = parseLyricResult('[00:01][00:02]chorus');
+  assert.equal(normal.length, 2);
+  assert.equal(normal[1].text, 'chorus');
+  const overText = '[00:01]'.repeat(512) + 'x'.repeat(4096);
+  assert.throws(() => parseLyricResult(overText), { code: 'LYRIC_EXPANSION_LIMIT', statusCode: 400 });
+  const overLines = '[00:01]x\n'.repeat(4097);
+  assert.throws(() => parseLyricResult(overLines), { code: 'LYRIC_EXPANSION_LIMIT' });
+  assert.throws(() => parseLyricResult('[00:01]'.repeat(512) + 'x', '[00:01]' + '译'.repeat(4096)),
+    { code: 'LYRIC_EXPANSION_LIMIT' });
 });
 
 test('parseLyricResult derives base lines from QRC and aligns alternates within 100ms', () => {

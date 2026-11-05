@@ -13,12 +13,12 @@ export function initFanProfileAutoUpdate({ windowRef = window, notify = toast } 
       const result = await windowRef.fanProfiles.invoke({ action: 'auto-update-status' });
       if (disposed || !result.ok || !result.data) return;
       const update = result.data;
-      const label = update.reason === 'startup' ? '启动补更新' : '12:10 定时更新';
       if (update.status === 'error') {
+        const label = update.reason === 'startup' ? '启动补更新' : '12:10 定时更新';
         notify(`粉丝档案${label}失败：${update.error}`, { type: 'error', duration: 5000 });
       } else {
-        for (const { message, ...options } of rosterUpdateNotices(update, `粉丝档案${label}完成。`)) {
-          notify(message, options);
+        for (const { message, ...options } of rosterUpdateNotices(update)) {
+          if (options.type !== 'success') notify(message, options);
         }
       }
     } catch (_) {

@@ -230,19 +230,21 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 
 ## 14. 动态抽奖专用账号
 
-[dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js) 是抽奖认证所有者；[dynamic-lottery-auth-store.js](../../../src/electron/dynamic-lottery-auth-store.js) 只管理其 Chromium Cookie 与加密快照。入口在桌面“百宝箱 → 动态抽奖”，由主进程现有授权管理器提供可信 `streamerId` 与 `getAuthorizationGeneration()` 登录生命周期，不接受 renderer 指定账号作用域。内部 `authorizationEpoch` 字段沿用名称，但保存该生命周期代次：正常 token 续期保留采集及网页会话，重新登录、激活/换账号、阻断清理和退出仍使旧操作失效。
+[dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js) 是抽奖认证所有者；[dynamic-lottery-auth-store.js](../../../src/electron/dynamic-lottery-auth-store.js) 只管理其 Chromium Cookie 与加密快照。入口在桌面“百宝箱 → 动态抽奖”，由主进程现有授权管理器提供可信服务器 origin、原始 `streamerId` 与 `getAuthorizationGeneration()` 登录生命周期，不接受 renderer 指定账号作用域。origin 复用 `normalizeRemoteRootOrigin`；本地 namespace 为 `lottery-v2:` 加 `sha256(JSON.stringify([origin, 原始streamerId]))`，覆盖登录、活动、结果、回执及账号预算。抽奖私有 `getIdentity().streamerId` 沿用字段名但承载该 namespace，原账号编号另存 `accountId`，两者均不发送给 renderer 或 B站。内部 `authorizationEpoch` 保存登录生命周期代次：正常 token 续期保留采集及网页会话，重新登录、激活/换账号、阻断清理和退出仍使旧操作失效。
 
 | 项目 | 合同 |
 | --- | --- |
-| 分区 | `persist:bilibili-dynamic-lottery-<sha256(streamerId)>`，不读取 `persist:bilibili` |
+| 分区 | `persist:bilibili-dynamic-lottery-lottery-v2-<hash>`，hash 使用上述 origin/账号二元组；不读取 `persist:bilibili` 或旧单 ID 分区 |
 | 登录 URL | `https://passport.bilibili.com/login`，HTTPS Bilibili 域内导航；受限登录窗口无 preload、启用 sandbox/context isolation |
-| 快照 | `dataDir/dynamic-lottery-auth/<hash>/cookies.enc`；`safeStorage` 加密二进制，临时加密文件原子替换，不创建明文导出 |
+| 快照 | `dataDir/dynamic-lottery-auth/lottery-v2-<hash>/cookies.enc`；`safeStorage` 加密 `{version:2,serverOrigin,streamerId:原始账号编号,cookies}`，临时加密文件原子替换，不创建明文导出 |
 | 恢复 | 当前可信主体首次使用时按需恢复；完整 Chromium 登录优先，快照主体必须一致，过滤域名/过期/无效 Cookie；失败在本功能报告，不影响其他启动 |
 | 展示状态 | API origin 下三项有效 Cookie 均非空、UID 是十进制字符串；只供登录展示，不是动态作者或在线有效性证明 |
 | 内部读取 | `getIdentity()` 只返回可信 LIRA scope；`getContext()` 绑定本专用分区与既有 `createLotterySession`。桌面组合根将这两个读取回调注入内嵌抽奖 runtime，不能调用直播 Cookie getter，也不向 preload 导出这两个端口 |
 | 退出/切换 | 等待取消的登录窗口与在途写入，再只清除当前作用域分区/快照；授权变化丢弃旧结果，退出与重新登录使旧 sessionEpoch 失效；不删抽奖历史 |
 | 退出软件 | 注销 IPC、取消窗口、排空认证操作，与已有同步控制器一并排空后，继续原有播放快照/后端停机流程 |
 | 网络与同步 | 状态读取不请求 B站；作者/关注验证仍由 provider 的受控调度执行。专用凭据不注入直播或云同步，也不暴露给 renderer |
+
+旧单 ID 分区、v1 快照及没有 origin 的业务数据原样保留，不按当前服务器自动认领或删除。发现旧快照且新分区未登录时返回 `LOTTERY_AUTH_RELOGIN_REQUIRED`，界面提示重新登录并说明旧数据尚未关联；仅重新登录不会把旧活动归入新 scope。同 origin/账号的新快照可跨重启恢复，异 origin 即使账号编号相同也隔离。
 
 IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用户主动采集、随机排序和按需关注核验/递补；登录成功仍不构成作者身份或真实接口可用性证明。操作开始、每个出站请求及提交前检查会话；预算等待期间定期重新检查，账号变化使旧工作暂停。新流程本轮按用户要求未测试，限制与后续验收见[实施计划](../../../specs/plans/2026-09-14-bilibili-dynamic-lottery.md)。
 

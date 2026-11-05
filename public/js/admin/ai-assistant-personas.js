@@ -81,6 +81,7 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
   }
 
   manageButton.addEventListener('click', () => {
+    if (busy) return;
     loadEditor(select.value);
     dialog.showModal();
   });
@@ -115,28 +116,35 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
       setState(state, '预设已保存，后续新弹幕立即生效。', 'good');
     });
   });
-  byId('PersonaReset').addEventListener('click', () => void runOperation(async () => {
-    const config = await readApi('/api/ai/personas/update', {
-      method: 'POST', body: JSON.stringify({ id: editorId, reset: true }),
+  byId('PersonaReset').addEventListener('click', () => {
+    const id = editorId;
+    void runOperation(async () => {
+      const config = await readApi('/api/ai/personas/update', {
+        method: 'POST', body: JSON.stringify({ id, reset: true }),
+      });
+      acceptConfig(config);
+      loadEditor(id);
+      setState(state, '已恢复内置角色指南。', 'good');
+    }, {
+      title: '恢复角色默认内容？',
+      description: '将覆盖此预设已保存及正在编辑的说明和角色指南。需要保留已保存内容时，请先导出。',
+      confirmLabel: '恢复默认',
     });
-    acceptConfig(config);
-    loadEditor(editorId);
-    setState(state, '已恢复内置角色指南。', 'good');
-  }, {
-    title: '恢复角色默认内容？',
-    description: '将覆盖此预设已保存及正在编辑的说明和角色指南。需要保留已保存内容时，请先导出。',
-    confirmLabel: '恢复默认',
-  }));
-  byId('PersonaDelete').addEventListener('click', () => void runOperation(async () => {
-    const config = await readApi('/api/ai/personas/delete', { method: 'POST', body: JSON.stringify({ id: editorId }) });
-    acceptConfig(config);
-    loadEditor(config.personaId);
-    setState(state, '已删除预设。', 'good');
-  }, {
-    title: `删除预设「${name.value}」？`,
-    description: '此预设及当前未保存的编辑将被删除，无法恢复。需要保留已保存内容时，请先导出。',
-    confirmLabel: '删除预设',
-  }));
+  });
+  byId('PersonaDelete').addEventListener('click', () => {
+    const id = editorId;
+    const displayName = name.value;
+    void runOperation(async () => {
+      const config = await readApi('/api/ai/personas/delete', { method: 'POST', body: JSON.stringify({ id }) });
+      acceptConfig(config);
+      loadEditor(config.personaId);
+      setState(state, '已删除预设。', 'good');
+    }, {
+      title: `删除预设「${displayName}」？`,
+      description: '此预设及当前未保存的编辑将被删除，无法恢复。需要保留已保存内容时，请先导出。',
+      confirmLabel: '删除预设',
+    });
+  });
   byId('PersonaImport').addEventListener('click', () => { if (!busy) fileInput.click(); });
   fileInput.addEventListener('change', async () => {
     const file = fileInput.files?.[0];
@@ -193,6 +201,10 @@ export function createPersonaControls({ flushPendingSave, acceptConfig, confirm:
 
   return {
     changeSelection() {
+      if (busy) {
+        renderOptions(selectedId);
+        return false;
+      }
       selectionNotice = '';
       if (select.value === '__new__') {
         renderOptions(selectedId);

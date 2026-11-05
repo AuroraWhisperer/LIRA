@@ -5,6 +5,7 @@ const test = require('node:test');
 const fs = require('node:fs');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
+const { spawnSync } = require('node:child_process');
 const { PassThrough, Readable } = require('node:stream');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { createComponentWebLibrary } = require('../../src/server/component-web-library');
@@ -216,6 +217,35 @@ test('script fetch URLs use the document base while module imports use the impor
   ]);
   assert.equal(result.status, 200, result.error);
   assert.equal(createComponentStyleStore(f.dataDir).list().length, 1);
+});
+
+test('long unterminated markup and CSS references finish within the import worker budget', t => {
+  const dataDir = createScratchDirectory('component-web-scan-');
+  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const worker = `
+    const { createComponentWebLibrary } = require('./src/server/component-web-library');
+    const library = createComponentWebLibrary(process.argv[1]);
+    (async () => {
+      for (const [entry, pattern] of [
+        ['index.html', '<a'], ['index.html', '<base x'], ['index.html', '<style>'],
+        ['index.html', '<script>'], ['index.html', '<!--'],
+        ['style.css', 'url(x'], ['style.css', '/*'],
+      ]) {
+        const text = pattern.repeat(Math.floor(400000 / pattern.length));
+        try {
+          await library.add([{ path: entry, stream: [Buffer.from(text)] }],
+            { type: 'clock', entry, width: 800, height: 600 }, () => {});
+        } catch (error) {
+          if (error.statusCode !== 400) throw error;
+        }
+      }
+    })().catch(error => { console.error(error); process.exitCode = 1; });
+  `;
+  const result = spawnSync(process.execPath, ['-e', worker, dataDir], {
+    cwd: path.resolve(__dirname, '../..'), encoding: 'utf8', timeout: 8000, windowsHide: true,
+  });
+  assert.equal(result.error, undefined, result.error?.message);
+  assert.equal(result.status, 0, result.stderr);
 });
 
 test('bundle paths and upload size declarations reject traversal, aliases and incomplete or trailing data', async t => {

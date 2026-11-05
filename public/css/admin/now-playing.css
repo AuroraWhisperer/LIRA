@@ -2,6 +2,7 @@
 
 .now-playing-settings-page {
   display: grid;
+  grid-auto-rows: max-content;
   gap: 24px;
 }
 

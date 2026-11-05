@@ -6,9 +6,9 @@ const vm = require('node:vm');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
-const styles = ['comic', 'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
+const styles = ['window', 'comic', 'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
-async function fixture(search = '?preview=1', savedStyle) {
+async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   const document = createParameterDocument();
   const node = document.getElementById;
   const buttons = [...styles, 'floating', 'comet'].map((style) => {
@@ -77,6 +77,7 @@ async function fixture(search = '?preview=1', savedStyle) {
     URL,
     window: {
       location, history, innerWidth: 1366, innerHeight: 900,
+      queryLocalFonts: async () => localFonts,
       Event,
       addEventListener(name, handler) {
         if (!windowListeners.has(name)) windowListeners.set(name, new Set());
@@ -273,14 +274,27 @@ test('local preview applies per-style parameters without external image requests
     signal: { fontSize: 42, fontFamily: 'serif', backgroundOpacity: 35, giftImage: 'gift', scrollDirection: 'down' },
     minimal: { fontSize: 24 },
   };
-  const f = await fixture(`?preview=1&style=signal&styleOptions=${encodeURIComponent(JSON.stringify(options))}`);
+  const f = await fixture(`?preview=1&style=signal&styleOptions=${encodeURIComponent(JSON.stringify(options))}`, undefined,
+    [{ family: 'SimSun' }, { family: 'Preview Local Font' }]);
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(f.node('root').style['--danmaku-font-size'], '42px');
   assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), options);
+  const font = f.node('previewFontFamily');
+  assert.equal(font.value, 'serif');
+  const selected = font.options.find(option => option.value === '"Preview Local Font"');
+  assert.ok(selected, 'the preview must allow a font discovered by the shared library');
+  font.value = selected.value;
+  font.events.change();
+  assert.ok(f.node('root').style['--danmaku-custom-font'].startsWith('"Preview Local Font",'));
+  assert.equal(f.history.state.danmakuStyleOptions.signal.fontFamily, '"Preview Local Font"');
   const gift = createDanmakuPreviewItems().find(item => item.id === 'preview-gift-cheer');
   assert.equal(f.options.at(-1).resolveGiftImageUrl(gift.giftImageUrl), gift.giftImageUrl);
   f.node('minimal').events.click();
   assert.equal(f.node('root').style['--danmaku-font-size'], '24px');
   assert.equal(f.options.at(-1).resolveGiftImageUrl(gift.giftImageUrl), '');
+  f.node('signal').events.click();
+  assert.equal(font.value, '"Preview Local Font"');
+  f.pagehide();
 });
 
 test('preview resolves only its bundled gift images, even with legacy theme options', async () => {

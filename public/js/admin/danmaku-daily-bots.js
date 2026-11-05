@@ -72,10 +72,6 @@ export function initDanmakuDailyBots({
         stale = false;
       }
       overall.textContent = '';
-      if (action === 'update') {
-        const name = payload.kind === 'checkin' ? '签到机器人' : '抽签机器人';
-        toast(`${name}已${saved[payload.kind].enabled ? '开启' : '关闭'}`);
-      }
       return response;
     } catch (error) {
       if (disposed || generation !== requested) return;

@@ -210,6 +210,11 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     minFontSize: 18, maxFontSize: 42, defaultFontSize: 26, defaultFontFamily: 'serif',
     background: true, giftImage: false, comicOptions: true, defaultTextColor: '#292626',
   },
+  window: {
+    layout: 'fullscreen-random', label: '散落小窗',
+    minFontSize: 18, maxFontSize: 40, defaultFontSize: 26,
+    background: true, giftImage: false, ambientMotion: true, windowOptions: true, defaultTextColor: '#344650',
+  },
   mist: {
     layout: 'fullscreen-random',
     entranceAnimation: true,
@@ -278,6 +283,11 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     ambientMotion: true, startrailOptions: true,
     defaultTextColor: '#f1f6ff',
   },
+  sinking: {
+    layout: 'floating', label: '沉笺',
+    minFontSize: 18, maxFontSize: 40, defaultFontSize: 30, defaultFontFamily: 'serif',
+    background: true, giftImage: false, sinkingOptions: true, defaultTextColor: '#274b4b',
+  },
   starveil: {
     layout: 'fullscreen-random',
     entranceAnimation: true,
@@ -329,12 +339,12 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
     disabledWhen: ['exitAnimation', 'none'], help: '占用停留时间的最后一段，只影响新消息。' },
   speedPixelsPerSecond: { label: '飘动速度', type: 'number', input: 'range', min: 20, max: 600, default: 120, capability: 'speed', control: 'floatingSpeed', group: 'floatingMotion',
     help: '1～100，默认 50 为原速；1 为原速的三分之一，100 为原速的三倍。长句或较窄的组件可适当降低速度。超出刻度范围的旧速度会保留，手动调节后按新刻度保存。' },
-  floatingDispersion: { label: '分散程度', type: 'number', input: 'range', min: 1, max: 100, default: 50, layout: 'floating', group: 'floatingMotion',
+  floatingDispersion: { label: '分散程度', type: 'number', input: 'range', min: 1, max: 100, default: 50, capability: 'speed', group: 'floatingMotion',
     help: '数值越大，新弹幕越倾向于远离画面中的其他弹幕。拥挤时以可用空间为准，已显示弹幕不换位置。' },
-  floatingEdgeFade: { label: '边缘显隐', type: 'select', default: 'none', defaultKey: 'defaultFloatingEdgeFade', layout: 'floating', group: 'floatingMotion',
+  floatingEdgeFade: { label: '边缘显隐', type: 'select', default: 'none', defaultKey: 'defaultFloatingEdgeFade', capability: 'speed', group: 'floatingMotion',
     choices: [['both', '两端渐隐'], ['right', '入场端渐显'], ['left', '离场端渐隐'], ['none', '直接切断']],
     help: '入场端为右侧，离场端为左侧。随横移经过边缘时逐渐显隐，完整弹幕和光尾移出后才清理。' },
-  floatingEdgeFadeSize: { label: '边缘柔化宽度', type: 'number', input: 'range', min: 4, max: 80, default: 28, unit: 'px', layout: 'floating', group: 'floatingMotion',
+  floatingEdgeFadeSize: { label: '边缘柔化宽度', type: 'number', input: 'range', min: 4, max: 80, default: 28, unit: 'px', capability: 'speed', group: 'floatingMotion',
     disabledWhen: ['floatingEdgeFade', 'none'], help: '按组件逻辑像素设置，每侧最多占区域宽度的 4%，保留中间的完整阅读区域。' },
   bubbleColor: { label: '弹幕配色', type: 'color', alpha: true, allowDefault: true, default: 'default', capability: 'bubbleColor' },
   giftImage: { label: '礼物图片', type: 'select', default: 'theme', capability: 'giftImage', choices: [['theme', '样式插画'], ['gift', '真实礼物图片']], group: 'message' },
@@ -390,6 +400,19 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   comicEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 180, max: 800, default: 420, unit: 'ms', capability: 'comicOptions', group: 'comic',
     disabledWhen: ['comicEntrance', 'none'],
     help: '默认 420ms；越大出现越慢。停留时间包含入场，长留言可适当延长停留。' },
+  windowPalette: { label: '小窗配色', type: 'select', default: 'porcelain', capability: 'windowOptions', group: 'window',
+    choices: [['porcelain', '白瓷蓝'], ['sakura', '樱花粉'], ['night', '月夜蓝']],
+    help: '同步调整窗面、边框与昵称牌；自定义正文颜色单独保留。' },
+  windowWidth: { label: '小窗宽度', type: 'number', input: 'range', min: 220, max: 560, default: 340, unit: 'px', capability: 'windowOptions', group: 'window',
+    help: '每张小窗的逻辑宽度，长文完整换行；区域过小时整张等比适配。' },
+  windowRadius: { label: '小窗圆角', type: 'number', input: 'range', min: 10, max: 36, default: 22, unit: 'px', capability: 'windowOptions', group: 'window' },
+  windowControls: { label: '窗角图标', type: 'select', default: 'show', capability: 'windowOptions', group: 'window',
+    choices: [['show', '显示'], ['hide', '隐藏']], help: '右上角的最小化与关闭图形仅作装饰，不是操作按钮。' },
+  windowEntrance: { label: '入场方式', type: 'select', default: 'mixed', capability: 'windowOptions', group: 'window',
+    choices: [['mixed', '随机混合'], ['pop', '轻弹出现'], ['unfold', '小窗展开'], ['rise', '轻盈上浮'], ['none', '直接显示']],
+    help: '混合时每条消息稳定选用一种动作。窗框先出现、正文随后渐显；只影响新消息，已有小窗不重播。' },
+  windowEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 180, max: 1000, default: 460, unit: 'ms', capability: 'windowOptions', group: 'window',
+    disabledWhen: ['windowEntrance', 'none'], help: '包含在停留时间内。正文只轻微上移与渐显，不缩放或旋转。' },
   centerBias: { label: '中心倾向', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'randomMotion' },
   dispersion: { label: '离散程度', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'randomMotion' },
   startrailColor: { label: '星芒颜色', type: 'color', alpha: true, default: '#b9dfff', capability: 'startrailOptions', group: 'startrail',
@@ -406,6 +429,16 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   startrailEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 250, max: 1200, default: 680, unit: 'ms', capability: 'startrailOptions', group: 'startrail',
     disabledWhen: ['startrailEntrance', 'none'],
     help: '星芒先亮起，昵称和正文随后渐显；建议 450～800ms。只影响新消息，不改变横向速度；离开时随移动自然淡出。' },
+  sinkingPalette: { label: '色泽', type: 'select', default: 'ivory', capability: 'sinkingOptions', group: 'sinking',
+    choices: [['ivory', '珍珠白'], ['mint', '浅海绿'], ['blue', '冰蓝']] },
+  sinkingDurationSeconds: { label: '停留时间', type: 'number', min: 2, max: 30, default: 10, unit: '秒', capability: 'sinkingOptions', group: 'sinking',
+    help: '包含入场、下沉阅读和退场。修改后用于新消息，已显示的留言保持原到期时间。' },
+  sinkingTravel: { label: '下沉行程', type: 'number', input: 'range', min: 10, max: 40, default: 24, unit: '%', capability: 'sinkingOptions', group: 'sinking',
+    help: '占弹幕区域高度的比例；小区域自动留出卡片和边缘。修改后用于新消息。' },
+  sinkingSway: { label: '水流幅度', type: 'number', input: 'range', min: 0, max: 36, default: 18, unit: 'px', capability: 'sinkingOptions', group: 'sinking',
+    help: '轻微左右漂移和摆动，阅读时保持接近正面。修改后用于新消息。' },
+  sinkingBubbleDensity: { label: '气泡密度', type: 'number', input: 'range', min: 1, max: 100, default: 50, capability: 'sinkingOptions', group: 'sinking',
+    help: '1 为极少，50 适中，100 为密集气泡流；越接近上限，气泡增加越明显。' },
 });
 const REAL_GIFT_STYLES = Object.freeze(['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']);
 const STYLE_OPTION_FIELDS = Object.fromEntries(Object.entries(DANMAKU_STYLE_OPTIONS).map(([style, limits]) => [style,
@@ -489,6 +522,9 @@ function styleOptionsFor(style, options = {}, legacyDurationSeconds = 6) {
   if (style === 'spooky' && !Object.hasOwn(options[style] || {}, 'textColor')) {
     resolved.textColor = SPOOKY_THEME_COLORS[resolved.spookyTheme].textColor;
   }
+  if (style === 'sinking' && !Object.hasOwn(options[style] || {}, 'textColor')) {
+    resolved.textColor = { ivory: '#274b4b', mint: '#1d4b42', blue: '#234b60' }[resolved.sinkingPalette];
+  }
   // Keep accepting legacy image options while these styles always show the gift itself.
   if (REAL_GIFT_STYLES.includes(style)) resolved.giftImage = 'gift';
   if (resolved.edgeFade === 'single') {
@@ -525,6 +561,7 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.ambientMotion = options.ambientMotion || 'on';
   document.body.dataset.startrailDust = options.startrailDust || 'on';
   document.body.dataset.auroraPalette = options.auroraPalette || 'lilac';
+  document.body.dataset.sinkingPalette = options.sinkingPalette || 'ivory';
   document.body.dataset.auroraCharm = options.auroraCharm || 'star';
   document.body.dataset.spookyTheme = options.spookyTheme || 'default';
   document.body.dataset.spookyFrame = options.spookyFrame || 'show';
@@ -532,7 +569,13 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.comicShape = options.comicShape || 'mixed';
   document.body.dataset.comicEntrance = options.comicEntrance || 'pop';
   document.body.dataset.comicEntranceMs = String(options.comicEntranceMs || 420);
+  document.body.dataset.windowPalette = options.windowPalette || 'porcelain';
+  document.body.dataset.windowControls = options.windowControls || 'show';
+  document.body.dataset.windowEntrance = options.windowEntrance || 'mixed';
+  document.body.dataset.windowEntranceMs = String(options.windowEntranceMs || 460);
   const root = document.documentElement.style;
+  root.setProperty('--window-width', `${options.windowWidth ?? 340}px`);
+  root.setProperty('--window-radius', `${options.windowRadius ?? 22}px`);
   root.setProperty('--danmaku-floating-edge-size', `${options.floatingEdgeFadeSize ?? 28}px`);
   root.setProperty('--aurora-entry-duration', `${options.auroraEntranceMs ?? 520}ms`);
   root.setProperty('--comic-stroke-width', `${options.comicStrokeWidth ?? 2}px`);

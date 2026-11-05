@@ -127,7 +127,6 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
       } else {
         setStatus('本次已保存，仍有未保存的更改', 'warn');
       }
-      toast(`${name}已保存`);
     } catch (error) {
       if (generation !== requested) return;
       setStatus('保存失败', 'warn');

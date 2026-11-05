@@ -1,5 +1,16 @@
 'use strict';
 
+const MAX_LYRIC_LINES = 4096;
+const MAX_LYRIC_TEXT = 512 * 1024;
+
+function assertLyricBudget(lineCount, textLength) {
+  if (lineCount > MAX_LYRIC_LINES || textLength > MAX_LYRIC_TEXT) {
+    throw Object.assign(new Error('歌词展开后超过 4096 行或 512 Ki 个字符，请减少重复时间戳或歌词内容。'), {
+      code: 'LYRIC_EXPANSION_LIMIT', statusCode: 400,
+    });
+  }
+}
+
 // 判断字符是否为汉字（CJK Unified Ideographs + Extension A + Compatibility）
 function isCJK(c) {
   const cp = c.codePointAt(0);
@@ -65,15 +76,21 @@ function parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma) {
     kanaByLineStart = mapKanaToLines(lines, kanaReadings);
   }
 
+  let textLength = 0;
   return lines.map((line, index) => {
     const romaFromApi = resolveRoma(line.startMs);
     const kanaFromTag = kanaByLineStart ? kanaByLineStart.get(line.startMs) || '' : '';
     const wordLine = wordLineByStart.get(line.startMs);
+    const roma = romaFromApi || kanaFromTag;
+    const translation = resolveTranslation(line.startMs);
+    textLength += line.text.length + translation.length + roma.length +
+      (wordLine?.words.reduce((sum, word) => sum + word.text.length, 0) || 0);
+    assertLyricBudget(index + 1, textLength);
     return {
       ...line,
       endMs: line.endMs ?? (lines[index + 1] ? lines[index + 1].startMs : undefined),
-      translation: resolveTranslation(line.startMs),
-      roma: romaFromApi || kanaFromTag,
+      translation,
+      roma,
       words: wordLine ? wordLine.words : [],
     };
   });
@@ -113,6 +130,7 @@ function createTimedTextResolver(lines, toleranceMs = 100) {
 
 function parseLrc(rawText) {
   const result = [];
+  let textLength = 0;
   const text = String(rawText || '');
   const linePattern = /\[(\d{1,2}):(\d{1,2})(?:[.:](\d{1,3}))?\]/g;
 
@@ -127,6 +145,8 @@ function parseLrc(rawText) {
 
     const lyricText = row.replace(linePattern, '').trim();
     if (!lyricText) continue;
+    textLength += lyricText.length * timestamps.length;
+    assertLyricBudget(result.length + timestamps.length, textLength);
     for (const startMs of timestamps) {
       result.push({ startMs, text: lyricText });
     }
@@ -147,10 +167,12 @@ function toStartMs(minutes, seconds, fraction) {
 
 function parseWordLyric(rawText) {
   const result = [];
+  let textLength = 0;
   const text = String(rawText || '');
   const linePattern = /\[(\d+),(\d+)\]([\s\S]*)/;
   const prefixWordPattern = /\((\d+),(\d+),\d*\)([^()]+)/g;
-  const suffixWordPattern = /([^()]*)\((\d+),(\d+)\)/g;
+  // Scan markers and delimiters once; a missing timestamp must not rescan the text tail.
+  const suffixWordPattern = /\((\d+),(\d+)\)|[()]/g;
 
   for (const row of text.split(/\r?\n/)) {
     const lineMatch = row.match(linePattern);
@@ -166,6 +188,8 @@ function parseWordLyric(rawText) {
       const durationMs = Number(match[2]);
       const textValue = String(match[3] || '');
       if (!textValue.trim()) continue;
+      textLength += textValue.length;
+      assertLyricBudget(result.length + 1, textLength);
       words.push({
         startMs,
         endMs: startMs + Math.max(0, durationMs),
@@ -173,12 +197,17 @@ function parseWordLyric(rawText) {
       });
     }
     if (!words.length) {
+      let textStart = 0;
       suffixWordPattern.lastIndex = 0;
       while ((match = suffixWordPattern.exec(body)) !== null) {
-        const textValue = String(match[1] || '');
+        const textValue = body.slice(textStart, match.index);
+        textStart = suffixWordPattern.lastIndex;
+        if (match[1] === undefined) continue;
         if (!textValue.trim()) continue;
-        const startMs = Number(match[2]);
-        const durationMs = Number(match[3]);
+        textLength += textValue.length;
+        assertLyricBudget(result.length + 1, textLength);
+        const startMs = Number(match[1]);
+        const durationMs = Number(match[2]);
         words.push({
           startMs,
           endMs: startMs + Math.max(0, durationMs),

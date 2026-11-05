@@ -43,13 +43,13 @@ export function createSettingsForm({
     });
   }
 
-  function initImmediateToggle(id, settingKey, enabledText, disabledText) {
+  function initImmediateToggle(id, settingKey, disabledText) {
     documentRef.getElementById(id).addEventListener('change', async (event) => {
       const enabled = event.target.checked ? 'true' : 'false';
       event.target.disabled = true;
       try {
         await api('/api/settings', { [settingKey]: enabled }, { notifyError: false });
-        toast(enabled === 'true' ? enabledText : disabledText, { type: 'success' });
+        if (enabled === 'false' && disabledText) toast(disabledText, { type: 'success' });
         await reloadState();
       } catch (error) {
         toast('保存失败：' + (error.message || String(error)), { type: 'error' });
@@ -187,10 +187,10 @@ export function createSettingsForm({
       await reloadState();
     });
 
-    initImmediateToggle('danmakuMonitoringEnabled', 'danmakuMonitoringEnabled', '已开启弹幕监控', '已关闭弹幕监控，观众点歌、进场欢迎和自动回复已暂停');
-    initImmediateToggle('giftMonitoringEnabled', 'giftMonitoringEnabled', '监控设置已保存', '监控设置已保存');
-    initImmediateToggle('giftDetectToggle', 'enableGiftSprint', '礼物统计已开启', '礼物统计已关闭');
-    initImmediateToggle('enableGiftNotification', 'enableGiftNotification', '礼物提示已开启', '礼物提示已关闭');
+    initImmediateToggle('danmakuMonitoringEnabled', 'danmakuMonitoringEnabled', '已关闭弹幕监控，观众点歌、进场欢迎和自动回复已暂停');
+    initImmediateToggle('giftMonitoringEnabled', 'giftMonitoringEnabled');
+    initImmediateToggle('giftDetectToggle', 'enableGiftSprint');
+    initImmediateToggle('enableGiftNotification', 'enableGiftNotification');
     documentRef.getElementById('giftSprintResetBtn').addEventListener('click', async () => {
       const confirmed = await showConfirmationDialog({
         variant: 'caution',

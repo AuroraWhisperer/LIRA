@@ -17,7 +17,7 @@
 .other-workspace {
   display: grid;
   grid-template-columns: 264px minmax(0, 1fr);
-  gap: 16px 8px;
+  gap: 16px 4px;
   height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 96px));
   min-height: 0;
   padding: 4px 4px 0;
@@ -49,20 +49,20 @@ body.player-dock-expanded .other-workspace {
     border-bottom-left-radius: 0;
     border-bottom-right-radius: 0;
   }
-
-  .other-page.sidebar-collapsed .other-feature-sidebar {
-    scrollbar-width: none;
-  }
-
-  .other-page.sidebar-collapsed .other-feature-sidebar::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 .other-feature-sidebar {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+}
+
+.other-page .other-feature-sidebar {
+  scrollbar-width: none !important;
+}
+
+.other-feature-sidebar::-webkit-scrollbar {
+  display: none;
 }
 
 .other-sidebar-toolbar {

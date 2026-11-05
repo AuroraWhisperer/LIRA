@@ -118,7 +118,6 @@ export function createGiftDisplaySettings() {
   get('giftDisplayCancel')?.addEventListener('click', () => {
     fill(config);
     get('giftDisplayError').textContent = '';
-    toast('已恢复上次保存的设置');
   });
   get('giftDisplayDefaults')?.addEventListener('click', () =>
     fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 }),

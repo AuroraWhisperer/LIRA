@@ -87,3 +87,56 @@ test('browser source polls only during downloads and stops after completion or n
   await settle();
   assert.equal(navigating.documentRef.head.children.length, 0);
 });
+
+test('failed font stylesheets retry the same state and stop retrying after disposal', async t => {
+  const listeners = new Set();
+  const state = { status: 'ready', completed: 2, completedAt: 'ready' };
+  const f = await fixture(t, {
+    getFontLibraryState: async () => state,
+    onFontLibraryStateChanged: listener => { listeners.add(listener); return () => listeners.delete(listener); },
+  });
+  await settle();
+  const failed = f.documentRef.head.children[0];
+  failed.fire('error');
+  f.clock.tick(60000);
+  assert.equal(f.documentRef.head.children.length, 1);
+  const retried = f.documentRef.head.children[0];
+  assert.notEqual(retried, failed);
+  retried.fire('load');
+  for (const listener of listeners) listener(state);
+  assert.deepEqual(f.documentRef.head.children, [retried]);
+  for (const listener of listeners) listener({ ...state, completedAt: 'new' });
+  f.documentRef.head.children[1].fire('error');
+  f.dispose();
+  f.clock.tick(60000);
+  assert.deepEqual(f.documentRef.head.children, [retried]);
+});
+
+test('browser status failures recover and repeated failures have a finite retry budget', async t => {
+  let requests = 0;
+  const f = await fixture(t, undefined, async () => {
+    if (++requests === 1) throw new Error('temporary status failure');
+    return { ok: true, json: async () => ({ status: 'ready', completed: 1 }) };
+  });
+  await settle();
+  f.clock.tick(60000);
+  await settle();
+  assert.equal(f.documentRef.head.children.length, 1);
+  f.documentRef.head.children[0].fire('load');
+  const recoveredRequests = requests;
+  f.clock.tick(60000);
+  await settle();
+  assert.equal(requests, recoveredRequests);
+
+  let failures = 0;
+  const unavailable = await fixture(t, undefined, async () => { failures++; throw new Error('offline'); });
+  for (let index = 0; index < 10; index++) {
+    unavailable.clock.tick(60000);
+    await settle();
+  }
+  assert.ok(failures > 1 && failures <= 4);
+  const stopped = failures;
+  unavailable.clock.tick(60000);
+  await settle();
+  assert.equal(failures, stopped);
+});

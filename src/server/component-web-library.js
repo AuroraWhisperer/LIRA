@@ -14,7 +14,7 @@ const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
 const { SCENE_TYPES } = require('../../public/js/shared/scene-components.js');
 const { detectComponentCssEngine } = require('../../public/js/shared/component-css-style.js');
-const { webFileReferences, localWebReference, webDocumentBase } = require('./component-web-references');
+const { webFileReferences, localWebReference, webDocumentBase, stripWebComments } = require('./component-web-references');
 
 const fail = message => { throw Object.assign(new Error(message), { statusCode: 400 }); };
 
@@ -33,7 +33,7 @@ function checkReferences(directory, entry, visited = new Set(), documentEntry = 
   const source = fs.readFileSync(path.join(directory, entry), 'utf8');
   if (source.includes('\u0000')) fail('网页或 CSS 文件包含无效的文本内容。');
   if (/\.html?$/i.test(entry)) documentEntry = webDocumentBase(source, entry);
-  if (/\.css$/i.test(entry)) css.push(source);
+  if (/\.css$/i.test(entry)) css.push(stripWebComments(source, '/*', '*/'));
   const references = webFileReferences(source, entry, documentEntry);
   for (const reference of references) {
     if (/^(?:[a-z][a-z0-9+.-]*:|\/\/|#)/i.test(reference)) {
@@ -73,7 +73,7 @@ function createComponentWebLibrary(dataDir) {
         if (!fs.existsSync(filename)) fail('未找到选中的 HTML / CSS 文件。');
         const stylesheets = checkReferences(directory, entry);
         const text = fs.readFileSync(filename, 'utf8');
-        if (!text.trim() || (html && !/<[a-z!][\s\S]*>/i.test(text))) fail('文件内容不是有效的 HTML / CSS。');
+        if (!text.trim() || (html && !/<[a-z!]/i.test(text.slice(0, text.lastIndexOf('>'))))) fail('文件内容不是有效的 HTML / CSS。');
         const styleId = randomUUID();
         const src = webResourceUrl(id, entry);
         let config;

@@ -2,7 +2,7 @@
 
 音乐展示位于「组件 → 音乐展示」，包含「直播歌词」与「歌曲信息」。歌词原分片 `song/desktop-lyric.html` 由 `live-components/page.html` 嵌入一次，完整保留来源、外观和预览；点歌页不再组合该标签。歌曲信息分片为 `live-components/now-playing.html`，模块为 `admin/now-playing.js`，共享渲染器和浏览器源入口见[overlay 参考](overlays.md#歌曲信息now-playing)。两个组件共用音乐来源并独立加入画布；导航兼容与保存方式见 [Admin 应用](app.md#2-公共框架shared)。
 
-粉丝档案位于百宝箱 → 主播工具，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒/设置”与“资料/手记/音乐/大航海”由 `js/admin/fans/` 拥有；在当前档案或已归档列表中直接切换人物时，保留当前详情页签。点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
+粉丝档案位于百宝箱 → 主播工具，沿用 `/admin`；`toolbox/fan-profiles-nav.html` 与 `toolbox/fan-profiles.html` 由既有 Admin composer 组合。页内“档案/提醒/设置”与“资料/手记/音乐/大航海”由 `js/admin/fans/` 拥有；在当前档案或已归档列表中直接切换人物时，保留当前详情页签。顶部页签与新建操作下方留 16px，再接主题浅色分隔线，避免选中下划线、按钮底边与分隔线挤在一起。点歌姓名入口把同一个详情节点移入快捷 dialog，返回时还原，不新增公开页面或 浏览器源。私有数据通过主窗口 IPC 获取，页面本身不持有 token 或 scope 决策。
 
 电音助手同属「主播工具」；设置片段 `toolbox/audio-assistant.html` 沿用通用导航，提供分区完整参数。`shared/audio-assistant.html` 与 `shared/topbar-status.html` 在主页面之外各组合一次，前者承载共享精简面板与侧边入口，后者承载顶栏连接详情；顶部图标由 `shell-start.html` 提供。对应 `audio-assistant.js`、`topbar-status.js` 由 `app.js` 装配；`audio-assistant-controls.js` 统一生成与同步两处音频控件。样式分别位于 `css/admin/audio-assistant.css`、`topbar-status.css`。本机偏好和交互边界见 [Admin 应用](app.md#6-组件与百宝箱)。
 
@@ -59,7 +59,7 @@
 
 普通正文、帮助、错误与可操作说明不得小于 12px；11px 只用于短而有边界的 microcopy。计时器、歌词、硬件数值、图表与其他展示数据可使用组件自有的 metric/presentation 字号，但不能反向覆盖通用正文。常规字重限定为 400/500/600/700。
 
-该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览继续读取同一组 `--preview-*` 用户配置。完整字体目录由 `shared/font-catalog.js` 拥有，`shared/font-library.js` 为播放器、歌词、弹幕、点歌板、展示板、画布参数及共享文字格式工具栏统一填充“共享字体库”，适配旧 ID 与字体名。本机字体枚举仍由 `shared/local-font-library.js` 共享，沿用原生许可与必要时的用户手势重试；旧 Admin/歌词字体模块 URL 保留兼容入口。
+该契约只拥有 Electron/Admin chrome。`css/overlays/` 中除桌面外壳专用的 `overlays/desktop.css` 外，不消费 `ui-*` 或 `--type-*`；`/queue`、`/songlist` 继续读取持久化的 overlay 字体与字号，`/lyrics` 和 Admin 歌词预览继续读取同一组 `--preview-*` 用户配置。完整字体目录由 `shared/font-catalog.js` 拥有，`shared/font-library.js` 为播放器、歌词、弹幕、点歌板、展示板、画布参数及共享文字格式工具栏统一填充“软件字体库”，适配旧 ID 与字体名。默认／跟随行为置顶；“软件字体库”使用统一资源，“系统字体库”仅使用本机枚举结果。旧页面系统预设只保留兼容元数据，已保存的别名和回退组合尽量在对应系统字体项回显，无法匹配时单列“当前设置”，不改写原值或校验限制。搜索框固定，只有选项区滚动。系统字体枚举仍由 `shared/local-font-library.js` 共享，沿用原生许可与必要时的用户手势重试；旧 Admin/歌词字体模块 URL 保留兼容入口。
 
 ### 1.2 组件工作区的桌面尺度
 
@@ -67,7 +67,7 @@
 
 桌面双栏布局中，左侧「组件」标题与底部「打开画布」「素材管理」「使用指南」固定在侧栏两端，仅中间组件列表独立滚动，隐藏列表滚动条。「使用指南」打开使用文档并通过现有目录导航定位到第 5 章「场景与素材」开头。
 
-百宝箱双栏工作区由 [toolbox/shell.css](../../../public/css/admin/toolbox/shell.css) 持有布局，顶部、左侧和右侧外边距均为 4px，侧栏与内容面板间距为 8px；窄窗口沿用单栏布局。
+百宝箱双栏工作区由 [toolbox/shell.css](../../../public/css/admin/toolbox/shell.css) 持有布局，顶部、左侧和右侧外边距均为 4px，侧栏与内容面板间距为 4px。侧栏始终隐藏滚动条，双栏下内容超出时仍可滚动；窄窗口沿用单栏布局。
 
 顶部入口命名为「组件」，与点歌、播放、礼物保持两字节奏，表示可配置并放入直播画面的独立功能；悬停说明为「组件 · 弹幕、礼物与直播画面设置」。命名参考同类产品的功能分类：[Streamlabs 中文站](https://streamlabs.com/zh-cn/stream-widgets)称 Widgets 为「小工具」，[StreamElements](https://docs.streamelements.com/overlays/getting-started)区分单个 Widget 与组合 Overlay，[OBS](https://obsproject.com/kb/sources-guide)则使用 Sources。LIRA 采用「组件」是结合本站功能与既有画布用语的选择，并非这些软件统一使用的中文名称。
 
@@ -88,6 +88,7 @@
 | --- | --- | --- |
 | 界面字体 | 正文 Segoe UI Variable Text，页标题 Segoe UI Variable Display；均回退 Segoe UI 与 Microsoft YaHei UI / Microsoft YaHei | 原生 Windows 字体栈，不额外下载显示字体。Variable 字体按光学尺寸分 Text / Display 档，20px 标题用 Display 档；中文回退不受影响。用户素材预览保留自身字体 |
 | 页面定位 | 左侧选中导航项；右侧不另设同名标题 | `tabpanel` 继续通过 `aria-labelledby` 关联导航项；开关与主要操作组成紧凑工具栏，没有工具栏的页面直接进入设置 |
+| 顶部工具栏 | 按内容撑开高度，按钮下方留 16px，再接主题浅色细分隔线；弹幕姬的线后说明再留 16px | 设置内容较长时工具栏仍保留完整内边距，分隔线不与按钮底边相接；监控开关组通过留白分组。月底冲刺的来源行及标题、盲盒盈亏榜标题沿用同一浅色边界 |
 | 分区标题 | 16px / 24px，600 | 基于 Fluent 16px 副标题，行高从 Web 的 22px 调到 24px。右侧保持分区 / 正文 / 辅助信息的 16 / 14 / 12 三级层次 |
 | 补充说明 | 相邻的 `lira-help` 问号 | 链接用法、预览作用、样式差异与触发规则按需查看；单位、长度或文件大小限制保留在字段旁，反馈继续使用可见状态区 |
 | 正文、按钮、字段标签 | 14px / 20px；正文、字段标签、开关行文字与输入值 400，按钮 500，选中项 600 | Fluent Body 1 尺度；同等任务不再混用 13px 和 14px。字段标签不加粗，粗体只留给分区/分组标题、选中项和按钮；输入框不继承标签字重，用户填写的内容始终是常规字重 |
@@ -280,7 +281,7 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 
 `pk-score-calculator.js` 拥有百宝箱「PK 算分」的本地试算与显示，由 `app.js` 按需加载；片段为 `toolbox/pk-score-calculator.html`，样式为 `css/admin/toolbox/pk-score-calculator.css`。默认值与换算规则见 [app.md §6.1](app.md#61-pk-算分)。
 
-「主播工具 → 世界地图」沿用 `/admin`，由 `toolbox/world-clock.html`、`js/admin/world-clock/` 和 `css/admin/toolbox/world-clock.css` 拥有；启动及整点后台天气刷新、计时、城市偏好与地球按需加载见 [Admin 应用](app.md#世界地图)。
+「主播工具 → 世界地图」沿用 `/admin`，由 `toolbox/world-clock.html`、`js/admin/world-clock/` 和 `css/admin/toolbox/world-clock.css` 拥有；顶部搜索与操作区以主题浅色细线连接地图，保留紧凑布局。启动及整点后台天气刷新、计时、城市偏好与地球按需加载见 [Admin 应用](app.md#世界地图)。
 
 ### 4.2 播放助手 `public/js/playback/`(纯 ES Module)
 

@@ -63,34 +63,30 @@ body.desktop-shell .status-strip {
 .topbar-status-details {
   position: fixed;
   inset: auto;
-  width: min(320px, calc(100vw - 24px));
+  width: min(280px, calc(100vw - 24px));
   max-height: calc(100vh - 84px);
   overflow: auto;
   margin: 0;
-  padding: 18px;
-  border: 1px solid var(--border);
+  padding: 16px;
+  border: 0;
   border-radius: var(--radius-lg);
   color: var(--text);
-  background: var(--surface);
+  background: var(--color-quick-panel-surface, var(--color-floating-surface));
+  box-shadow: var(--shadow-floating);
   font-family: var(--font-ui);
   font-size: var(--type-size-caption);
   -webkit-app-region: no-drag;
 }
 
-.topbar-status-details h2 {
-  margin: 0 0 16px;
-  font-size: var(--type-size-card-title);
-}
-
 .topbar-status-details dl {
   display: grid;
-  gap: 12px;
+  gap: 10px;
   margin: 0;
 }
 
 .topbar-status-details dl > div {
   display: grid;
-  grid-template-columns: 5em 1fr;
+  grid-template-columns: 4em 1fr;
   gap: 12px;
 }
 

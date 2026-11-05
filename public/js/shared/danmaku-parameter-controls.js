@@ -1,4 +1,4 @@
-import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, REAL_GIFT_STYLES, SPOOKY_THEME_COLORS,
+import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, REAL_GIFT_STYLES, SPOOKY_THEME_COLORS,
   SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, styleOptionFields, styleOptionsFor } from './danmaku-style-options.js';
 import { readAppearanceValue, editStyleOption, resetStyleOptions, resetSpookyColors,
   floatingSpeedFromPixelsPerSecond, floatingSpeedToPixelsPerSecond, floatingSpeedLabel } from './danmaku-appearance-draft.js';
@@ -18,8 +18,10 @@ const GROUPS = {
   randomMotion: ['RandomMotion', '随机弹幕通用参数'],
   floatingMotion: ['FloatingMotion', '飘窗弹幕通用参数'],
   comic: ['ComicOptions', '漫画造型与入场'],
+  window: ['WindowOptions', '散落小窗'],
   startrail: ['StartrailOptions', '星芒与光尾'],
   aurora: ['AuroraOptions', '极光薄笺'],
+  sinking: ['SinkingOptions', '沉笺 · 水下薄片'],
 };
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
 
@@ -61,7 +63,7 @@ export function mountDanmakuParameters(host, controller, {
     const grid = element('div', gridClass, '', key === 'message' ? suffix : '');
     if (key === 'message') grid.classList.add('danmaku-message-options');
     section.append(title, grid);
-    if (key === 'randomMotion' || key === 'floatingMotion') host.append(section);
+    if (key === 'randomMotion' || key === 'floatingMotion' || key === 'sinking') host.append(section);
     else (key.startsWith('ripploid') ? ripploid : advancedBody).append(section);
     groups.set(key, { section, grid });
   }
@@ -124,9 +126,10 @@ export function mountDanmakuParameters(host, controller, {
       output.htmlFor = input.id; view.heading.append(output);
     }
     if (definition.type === 'select' || definition.type === 'font') {
-      const choices = definition.choices || [['default', '样式默认'], ['sans', '微软雅黑'], ['serif', '宋体'], ['kai', '楷体']];
+      const choices = definition.choices || [['default', '使用样式字体'], ['sans', '微软雅黑'], ['serif', '宋体'], ['kai', '楷体']];
       for (const [value, text] of choices) {
         const option = element('option', '', text); option.value = value; input.append(option);
+        if (definition.type === 'font' && DANMAKU_FONTS[value]) option.dataset.fontFamily = DANMAKU_FONTS[value];
       }
     } else {
       input.type = definition.input || definition.type;
@@ -172,7 +175,7 @@ export function mountDanmakuParameters(host, controller, {
   const effectsHost = element('div', '', '', 'AppearanceEffects'); advancedBody.append(effectsHost);
   const effects = mountStyleParameters(effectsHost, controller, 'danmaku', { messageHost: groups.get('message').grid, helpPopover: desktop });
   const fontInput = views.get('fontFamily').input;
-  const unregisterFont = desktop ? registerFontSelect(fontInput) : null;
+  const unregisterFont = registerFontSelect(fontInput);
   const reset = () => {
     const { draft, loaded } = controller.getState();
     if (loaded && Object.hasOwn(draft, 'styleOptions')) controller.edit({ styleOptions: resetStyleOptions(draft).styleOptions });
@@ -212,12 +215,7 @@ export function mountDanmakuParameters(host, controller, {
       if (definition.type === 'color' && !custom && hasMode) value = spooky
         ? SPOOKY_THEME_COLORS[options.spookyTheme][key]
         : DANMAKU_STYLE_OPTIONS[draft.style].defaultBubbleColor || options.textColor;
-      if (key === 'fontFamily') {
-        if (desktop) value = { default: draft.style === 'starveil' ? '"SimSun"' : draft.style === 'outline' ? '"Segoe UI"' : '"Microsoft YaHei UI"',
-          sans: '"Microsoft YaHei UI"', serif: '"SimSun"', kai: '"KaiTi"' }[value] || value;
-        if (desktop) ensureSavedFontOption(fontInput, value);
-        else addFonts([{ value, label: value }]);
-      }
+      if (key === 'fontFamily') ensureSavedFontOption(fontInput, value);
       if (definition.type === 'number') {
         view.input.min = String(key === 'speedPixelsPerSecond' ? 1 : Math.ceil((field?.min ?? definition.min ?? 18) * (key === 'fontSize' ? scale : 1)));
         view.input.max = String(key === 'speedPixelsPerSecond' ? 100 : Math.floor((field?.max ?? definition.max ?? 48) * (key === 'fontSize' ? scale : 1)));
@@ -240,16 +238,10 @@ export function mountDanmakuParameters(host, controller, {
       || fields.durationSeconds && options.durationSeconds !== fields.durationSeconds.default;
     resetButton.disabled = !loaded || !supported || !canReset;
   }
-  function addFonts(fonts) {
-    for (const { value, label } of fonts) {
-      if (Array.from(fontInput.options).some(option => option.value === value)) continue;
-      const option = element('option', '', label); option.value = value; fontInput.append(option);
-    }
-  }
   enhanceColorControls(host);
   initParameterRanges(host);
   const unsubscribe = subscribeComponentFields(host, controller, render);
-  return { render, addFonts, dispose() {
+  return { render, dispose() {
     unsubscribe(); effects.dispose(); unregisterFont?.(); resetButton.removeEventListener('click', reset);
     disposeParameterRanges(host); host.replaceChildren();
   } };

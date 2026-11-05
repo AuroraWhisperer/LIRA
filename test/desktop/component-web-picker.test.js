@@ -31,8 +31,11 @@ async function collect(files) {
   return result;
 }
 
-function pickerFor(selected) {
-  return createComponentWebPicker({ dialog: { showOpenDialog: async () => ({ canceled: false, filePaths: [selected] }) }, getWindow: () => null });
+function pickerFor(selected, directory) {
+  return createComponentWebPicker({ dialog: { showOpenDialog: async (_window, options) => {
+    const file = options.properties.includes('openDirectory') ? directory : selected;
+    return file ? { canceled: false, filePaths: [file] } : { canceled: true };
+  } }, getWindow: () => null });
 }
 
 test('native HTML selection imports companion directories without exposing absolute paths to the renderer', async t => {
@@ -63,7 +66,7 @@ test('choosing a CSS file in a subdirectory preserves sibling resources and the 
     ['skin/images/frame.png', Buffer.from([1, 2, 3])], ['skin/fonts/clock.woff2', Buffer.from([4, 5, 6])],
     ['unrelated/private.json', '{"private":true}'],
   ]);
-  const selected = await pickerFor(path.join(root, 'skin', 'css', 'style.css'))('auto');
+  const selected = await pickerFor(path.join(root, 'skin', 'css', 'style.css'), path.join(root, 'skin'))('auto');
   assert.equal(selected.entry, 'css/style.css');
   const dataDir = path.join(root, 'isolated-library');
   const imported = await createComponentWebLibrary(dataDir).add(selected.files,
@@ -72,6 +75,23 @@ test('choosing a CSS file in a subdirectory preserves sibling resources and the 
   assert.deepEqual(fs.readFileSync(path.join(directory, 'images', 'frame.png')), Buffer.from([1, 2, 3]));
   assert.deepEqual(fs.readFileSync(path.join(directory, 'fonts', 'clock.woff2')), Buffer.from([4, 5, 6]));
   assert.equal(fs.existsSync(path.join(directory, 'unrelated')), false);
+});
+
+test('references outside the selected file directory require an explicit material root and cancellation imports nothing', async t => {
+  const root = fixture(t, [
+    ['source/themes/third-party/index.html', '<link href="../../shared/theme.css">'],
+    ['source/shared/theme.css', 'body { background: url("frame.png"); }'],
+    ['source/shared/frame.png', 'image'], ['source/backups/private.json', '{"private":true}'],
+  ]);
+  const entry = path.join(root, 'source/themes/third-party/index.html');
+  assert.equal(await pickerFor(entry)('html'), null);
+  await assert.rejects(pickerFor(entry, path.dirname(entry))('html'), { statusCode: 400 });
+  await assert.rejects(pickerFor(entry, path.join(root, 'source/shared'))('html'), { statusCode: 400 });
+  const selected = await pickerFor(entry, path.join(root, 'source'))('html');
+  assert.equal(selected.entry, 'themes/third-party/index.html');
+  assert.deepEqual([...await collect(selected.files)].map(([name]) => name).sort(), [
+    'backups/private.json', 'shared/frame.png', 'shared/theme.css', 'themes/third-party/index.html',
+  ]);
 });
 
 test('automatic selection returns only the selected media or archive and delays opening until authorized', async t => {
@@ -137,7 +157,7 @@ test('native selection never imports an entire personal folder when chosen direc
     ['Downloads/frame.png', 'image'],
   ]);
   await assert.rejects(pickerFor(path.join(root, 'Downloads', 'index.html'))('html'), { statusCode: 400 });
-  await assert.rejects(pickerFor(path.join(root, 'Downloads', 'skin', 'style.css'))('css'), { statusCode: 400 });
+  await assert.rejects(pickerFor(path.join(root, 'Downloads', 'skin', 'style.css'), path.join(root, 'Downloads'))('css'), { statusCode: 400 });
 });
 
 test('companion traversal stops at the supported nesting depth', async t => {

@@ -14,6 +14,53 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('sinking keeps native safe text and emotes, and complete settled event content', async () => {
+  const render = await createRenderer({ style: 'sinking', fullscreen: true, showAvatar: false,
+    resolveEmoteUrl: value => `/emote${value}` });
+  const chat = render({ name: '<b>观众</b>', message: '晚安[星]', emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] });
+  assert.equal(findByClass(chat, 'draw-danmaku-identity').children[0].textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/emote/star.png');
+  const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 5, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'sinking-amount').textContent, '¥12.5');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(member, 'draw-danmaku-gift-action').textContent, '续费');
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', message, price: 30 });
+  assert.equal(findByClass(sc, 'sinking-message').textContent, message);
+  assert.equal(findByClass(sc, 'sinking-message').children.length, 0);
+  assert.equal(findByClass(sc, 'sinking-amount').textContent, '¥30');
+});
+
+test('window recomposes safe sender, avatar and emotes using room identity', async () => {
+  const render = await createRenderer({ style: 'window', fullscreen: true, showAvatar: true,
+    resolveAvatarUrl: value => `/avatar${value}`, resolveEmoteUrl: value => `/emote${value}` });
+  const item = { name: '<b>原昵称</b>', avatarUrl: '/real.png', message: '你好[星]', guardLevel: 1, roomGuardLevel: 0,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  const root = render(item);
+  assert.equal(findByClass(root, 'window-nameplate').children[1].textContent, item.name);
+  assert.equal(findByClass(root, 'draw-danmaku-avatar').children[0].src, '/avatar/real.png');
+  assert.equal(findByClass(root, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(root, 'window-role'), undefined, 'other-room guard is not a room badge');
+  assert.equal(findByClass(render({ ...item, roomGuardLevel: 3 }), 'window-role').textContent, '舰长');
+});
+
+test('window retains settled gift totals, actual membership action and literal complete SC', async () => {
+  const render = await createRenderer({ style: 'window', fullscreen: true });
+  const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 10, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 10');
+  assert.equal(findByClass(gift, 'window-amount').textContent, '¥12.50');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(member, 'draw-danmaku-gift-action').textContent, '续费');
+  assert.equal(findByClass(member, 'window-amount').textContent, '—');
+  const message = '  第一行\n<script>保留完整留言</script>  ';
+  const sc = render({ kind: 'superchat', message, price: 30 });
+  assert.equal(findByClass(sc, 'window-copy').textContent, message);
+  assert.equal(findByClass(sc, 'window-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'window-amount').textContent, '¥30.00');
+});
+
 test('comic preserves safe chat content and room identity with a stable silhouette', async () => {
   const render = await createRenderer({ style: 'comic', fullscreen: true, showAvatar: true,
     resolveAvatarUrl: value => `/avatar${value}`, resolveEmoteUrl: value => `/emote${value}` });

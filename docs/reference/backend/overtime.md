@@ -73,7 +73,7 @@ final    → service.finalizeGift(event)  // 收到服务器 final 后立即结�
 
 `remote-catalog-cache.js` 在本地 `data/cache/overtime-gift-catalog-v2.json` 保存 ETag、同步版本、更新时间和 schema 3 原始身份包及兼容的规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按完整礼物身份、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/cache/overtime-gift-images/index.json`（schemaVersion 2，`images` 为 variantId 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/cache/overtime-gift-assets-state-v2.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
 
-图片及 `index.json` 写入遇到 `EPERM` / `EBUSY` 时，仅重试已完成临时文件的原子重命名，最多四次，分别等待 50/100/150/200 ms；不重复下载或删除目的文件。持续锁定或其他错误保持原失败语义，旧文件保留、自有临时文件清理；图片修复成功后才增加缓存 revision。
+图片及 `index.json` 写入遇到 `EPERM` / `EBUSY` 时，仅重试已完成临时文件的原子重命名，最多四次，分别异步等待 50/100/150/200 ms，让出事件循环；调用方等待保存完成，不重复下载或删除目的文件。索引提交串行执行，等待期间产生的新 revision 会在返回前补写。持续锁定或其他错误保持原失败语义，旧文件保留、自有临时文件清理；图片修复成功后才增加缓存 revision。
 
 schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资料；必需字段与已知字段仍校验，附加字段仅保留在原始磁盘缓存并参与完整业务摘要，不进入 renderer 快照、图片下载或记账。顶层、礼物身份、价格、实际媒体源、特效和盲盒关系仍使用原有严格校验。目录校验失败时保留上一份有效目录；重启会重新检查，但不能自行修复协议不兼容。
 

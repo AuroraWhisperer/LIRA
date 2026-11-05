@@ -142,7 +142,6 @@ export class StreamService {
       if (!isCurrent()) return;
 
       if (newUrl) {
-        this.toast('播放地址已刷新');
         if (onRetrySuccess) {
           const resumeAt = Math.max(0, songPosition - getPlaybackLyricOffsetMs(track) / 1000);
           await onRetrySuccess(track, resumeAt);

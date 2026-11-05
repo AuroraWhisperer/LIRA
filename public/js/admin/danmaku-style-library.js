@@ -13,7 +13,7 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
   const count = document.getElementById('danmakuStyleResultCount');
   const empty = document.getElementById('danmakuStyleEmpty');
   const groups = [...dialog.querySelectorAll('[data-style-filter-group]')];
-  const filters = { layout: 'all', ambient: 'all', holiday: 'all', visual: 'all' };
+  const filters = { layout: 'all', motion: 'all', holiday: 'all', visual: 'all' };
   const cards = new Map(buttons.map(button => [button.dataset.danmakuStyle, button]));
   let account;
   let history = [];

@@ -42,14 +42,17 @@ function firstCssFontFamily(value) {
 
 function replaceLocalFontOptions(select, families) {
   const currentValue = select.value;
+  const currentOption = Array.from(select.options).find(option => option.value === currentValue);
+  const currentFont = { label: currentOption?.textContent, fontFamily: currentOption?.dataset.fontFamily || currentValue };
   select.querySelector('optgroup[data-local-fonts="true"]')?.remove();
   const existingFamilies = new Set(
     Array.from(select.options)
-      .map((option) => firstCssFontFamily(option.value).toLocaleLowerCase())
+      .filter(option => !option.dataset.savedLocalFont)
+      .map((option) => firstCssFontFamily(option.dataset.fontFamily || option.value).toLocaleLowerCase())
       .filter(Boolean),
   );
   const group = document.createElement('optgroup');
-  group.label = '本机字体';
+  group.label = '系统字体库';
   group.dataset.localFonts = 'true';
   families.forEach((family) => {
     if (existingFamilies.has(family.toLocaleLowerCase())) return;
@@ -58,13 +61,13 @@ function replaceLocalFontOptions(select, families) {
     const option = document.createElement('option');
     option.value = value;
     option.textContent = family;
+    option.dataset.fontFamily = value;
     group.appendChild(option);
   });
 
-  select.appendChild(group);
-  if (Array.from(select.options).some((option) => option.value === currentValue)) {
-    select.value = currentValue;
-  }
+  if (group.children.length) select.appendChild(group);
+  ensureSavedFontOption(select, currentValue, currentFont);
+  select.value = currentValue;
 }
 
 function populateRegisteredSelects(families) {
@@ -107,16 +110,42 @@ async function loadRegisteredLocalFonts() {
 }
 
 /** Preserve a persisted font value that is absent from this machine's current options. */
-export function ensureSavedFontOption(select, value) {
-  if (!select?.options || !value) return;
+export function ensureSavedFontOption(select, value, { label, fontFamily = value } = {}) {
+  if (!select?.options) return;
+  const localOptions = Array.from(select.querySelector('optgroup[data-local-fonts="true"]')?.children || []);
+  let existing = Array.from(select.options).find(option => option.value === value && !option.dataset.savedLocalFont);
+  if (!existing && value) {
+    const family = firstCssFontFamily(fontFamily).toLocaleLowerCase();
+    existing = localOptions.find(option => firstCssFontFamily(option.dataset.fontFamily).toLocaleLowerCase() === family);
+    if (existing && existing.value !== value) existing.value = value;
+  }
+  for (const option of localOptions) {
+    if (option !== existing && option.value !== option.dataset.fontFamily) option.value = option.dataset.fontFamily;
+  }
+  for (const option of Array.from(select.options)) {
+    if (option.dataset.savedLocalFont && (existing || option.value !== value)) option.remove();
+  }
+  let group = select.querySelector('optgroup[data-saved-fonts]');
+  if (group && !group.children.length) {
+    group.remove();
+    group = null;
+  }
+  if (!value) return;
   const exists = Array.from(select.options).some((option) => option.value === value);
   if (exists) return;
 
+  if (!group) {
+    group = document.createElement('optgroup');
+    group.label = '当前设置';
+    group.dataset.savedFonts = 'true';
+    select.insertBefore(group, select.querySelector('optgroup[data-local-fonts="true"]'));
+  }
   const option = document.createElement('option');
   option.value = value;
-  option.textContent = `${String(value).replace(/^"|"$/g, '')}（当前设置）`;
+  option.textContent = label || String(value).replace(/^"|"$/g, '');
+  option.dataset.fontFamily = fontFamily;
   option.dataset.savedLocalFont = 'true';
-  select.appendChild(option);
+  group.appendChild(option);
 }
 
 /** Register one selector to receive the shared, deduplicated local font inventory. */

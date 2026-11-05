@@ -41,12 +41,13 @@ test('client text, action states, semantic pairs and functional boundaries meet 
       const ratio = contrast(resolveColor(palette, foreground), resolveColor(palette, background));
       assert.ok(ratio >= minimum, `${id}: ${foreground} on ${background} is ${ratio.toFixed(3)}; expected ${minimum}`);
     };
-    for (const surface of ['--color-bg-page', '--color-bg-primary', '--color-bg-secondary', '--color-control-surface']) {
+    for (const surface of ['--color-bg-page', '--color-bg-primary', '--color-bg-secondary', '--color-control-surface', '--color-quick-panel-surface']) {
       for (const text of ['--color-text-primary', '--color-text-secondary', '--color-text-muted']) check(text, surface, 4.5);
       check('--color-control-border', surface, 3);
       check('--color-control-border-hover', surface, 3);
       check('--color-primary-text', surface, 3);
     }
+    check('--color-primary-text', '--color-quick-panel-surface', 4.5);
     for (const action of ['--color-primary-fill', '--color-primary-fill-hover', '--color-primary-fill-active']) {
       for (const stop of resolveColor(palette, action).match(/#[0-9a-f]{6}/g)) check('--color-on-primary', stop, 4.5);
     }

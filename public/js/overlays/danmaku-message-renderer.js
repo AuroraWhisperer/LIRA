@@ -8,6 +8,8 @@ import { createFlowerLetterMessageRenderer } from './danmaku-flower-letter.js';
 import { createChristmasMessageRenderer } from './danmaku-christmas.js';
 import { createChristmasLetterMessageRenderer } from './danmaku-christmas-letter.js';
 import { createComicMessageRenderer } from './danmaku-comic.js';
+import { createWindowMessageRenderer } from './danmaku-window.js';
+import { createSinkingMessageRenderer } from './danmaku-sinking.js';
 import { createStartrailMessageRenderer } from './danmaku-startrail.js';
 import { createAuroraMessageRenderer } from './danmaku-aurora.js';
 import { createRandomEntranceRenderer } from './danmaku-random-entrance.js';
@@ -28,6 +30,8 @@ export function createDanmakuMessageRenderer(options) {
   if (options.style === 'christmas') return createChristmasMessageRenderer(options, render);
   if (options.style === 'christmas-letter') return createChristmasLetterMessageRenderer(options, render);
   if (options.style === 'comic') return createComicMessageRenderer(options, render);
+  if (options.style === 'window') return createWindowMessageRenderer(options, render);
+  if (options.style === 'sinking') return createSinkingMessageRenderer(options, render);
   if (options.style === 'startrail') return createStartrailMessageRenderer(options, render);
   if (DANMAKU_STYLE_OPTIONS[options.style]?.entranceAnimation) {
     return createRandomEntranceRenderer(options, render, DANMAKU_STYLE_OPTIONS[options.style]);

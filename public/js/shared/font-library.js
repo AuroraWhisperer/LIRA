@@ -3,6 +3,26 @@ import { ensureSavedFontOption as ensureLocalFontOption, registerLocalFontSelect
 
 const registeredSelects = new Set();
 const fontReadiness = new Map();
+const FONT_MODES = new Set(['', 'default', 'system', 'inherit']);
+const legacyFontOptions = new WeakMap();
+
+function retainLegacyFontOptions(select) {
+  if (legacyFontOptions.has(select)) return;
+  const currentValue = select.value;
+  const legacy = new Map();
+  for (const option of Array.from(select.options)) {
+    if (FONT_MODES.has(option.value)) continue;
+    legacy.set(option.value, { label: SYSTEM_FONT_OPTIONS[option.value] || option.textContent,
+      fontFamily: option.dataset.fontFamily || option.value });
+    option.remove();
+  }
+  for (const group of Array.from(select.children)) {
+    if (group.tagName === 'OPTGROUP' && !group.children.length) group.remove();
+  }
+  legacyFontOptions.set(select, legacy);
+  ensureSavedFontOption(select, currentValue);
+  select.value = currentValue;
+}
 
 function sharedFaces(font) {
   return Array.from(document.fonts || []).filter(face =>
@@ -40,7 +60,7 @@ export function refreshSharedFonts() {
 
 // Preserve stored IDs / unquoted families without adding duplicate library choices.
 export function ensureSavedFontOption(select, value) {
-  if (!select?.options || !value) return;
+  if (!select?.options) return;
   const font = findSharedFont(value);
   if (font && !isReady(font)) {
     for (const option of Array.from(select.options)) {
@@ -56,7 +76,8 @@ export function ensureSavedFontOption(select, value) {
   const option = font && Array.from(select.options).find(item => item.dataset.fontId === font.id);
   if (option) {
     if (option.value !== value) option.value = value;
-  } else ensureLocalFontOption(select, value);
+  }
+  ensureLocalFontOption(select, value, legacyFontOptions.get(select)?.get(value));
 }
 
 export function populateSharedFontOptions(select) {
@@ -67,7 +88,7 @@ export function populateSharedFontOptions(select) {
     if (findSharedFont(option.value)) option.remove();
   }
   const group = document.createElement('optgroup');
-  group.label = '共享字体库';
+  group.label = '软件字体库';
   group.dataset.sharedFonts = 'true';
   for (const font of SHARED_FONTS) {
     if (!isReady(font)) continue;
@@ -78,7 +99,7 @@ export function populateSharedFontOptions(select) {
     option.dataset.fontFamily = font.value;
     group.appendChild(option);
   }
-  if (group.children.length) select.prepend(group);
+  if (group.children.length) select.insertBefore(group, Array.from(select.children).find(child => child.tagName === 'OPTGROUP') || null);
   select.dataset.selectSearch = '';
   select.dataset.selectFontPreview = '';
   ensureSavedFontOption(select, currentValue);
@@ -88,6 +109,7 @@ export function populateSharedFontOptions(select) {
 export function registerFontSelect(select, { maxLength } = {}) {
   if (!select) return;
   if (maxLength) select.dataset.fontMaxLength = String(maxLength);
+  retainLegacyFontOptions(select);
   registeredSelects.add(select);
   refreshSharedFonts();
   const unregisterLocal = registerLocalFontSelect(select);
@@ -111,6 +133,7 @@ const SYSTEM_FONT_OPTIONS = Object.freeze({
   'Courier New, Consolas, monospace': '等宽字体 · 极客风格',
 });
 
+// Registration retains these old stacks as compatibility metadata, not font choices.
 export function populateSystemFontOptions(select, maxLength = Infinity) {
   if (!select) return;
   select.replaceChildren(...Object.entries(SYSTEM_FONT_OPTIONS).filter(([value]) => Array.from(value).length <= maxLength).map(([value, title]) => {

@@ -3,7 +3,7 @@
 'use strict';
 
 import { formatDateTime, formatBytes, formatDuration } from '../shared/display-format.js';
-import { toast, showError } from '../shared/utils.js';
+import { showError } from '../shared/utils.js';
 
 export const metrics = (() => {
   const METRICS_SAMPLE_SECONDS = 5;
@@ -37,7 +37,6 @@ export const metrics = (() => {
       const payload = await response.json();
       if (!payload.ok) throw new Error(payload.error || '性能检测失败');
       renderMetrics(payload.data);
-      toast('性能检测完成');
 
       try {
         const hardwarePayload = await hardwarePromise;

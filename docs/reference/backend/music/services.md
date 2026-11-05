@@ -130,7 +130,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `searchMusicTracks(registry, body)`                   | 平台缺省 `netease`;关键词取 `keyword/query/songName`,**截 120 字符**,空抛错;`limit` clamp 1-30 默认 20;返回 `{source, keyword, tracks}`([lyrics-service.js:44-55](../../../../src/music/lyrics-service.js#L44-L55))               |
 | `getMusicHomeContent(registry, body)`                 | 首页内容(带缓存),见 §6.2                                                                                                                                                                                                          |
 | `getMusicTrackLyrics(registry, body)`                 | 歌词(带缓存),见 §6.3                                                                                                                                                                                                              |
-| `parseLyricPayload(body)`                             | 纯文本歌词解析:`lyric/translation/wordLyric(yrc)/roma` 各**截 512 KB**,`cleanTextPreserveLines` 保换行,喂 `parseLyricResult`;供前端直接粘贴歌词用([lyrics-service.js:150-156](../../../../src/music/lyrics-service.js#L150-L156)) |
+| `parseLyricPayload(body)`                             | 纯文本歌词解析:`lyric/translation/wordLyric(yrc)/roma` 各**截 512 Ki 个 JS 字符**,`cleanTextPreserveLines` 保换行,喂 `parseLyricResult`;超出 §14 展开预算时报 `LYRIC_EXPANSION_LIMIT`；供前端直接粘贴歌词用([lyrics-service.js:150-156](../../../../src/music/lyrics-service.js#L150-L156)) |
 | `matchMusicTrackCandidates(body)`                     | 匹配打分入口:`songName` 截 120 必填、`artist` 截 80、`durationMs`;candidates 截 50;`threshold` 取匹配模块的 `AUTO_ACCEPT_SCORE`(70);返回 `{request, threshold, results}`([lyrics-service.js](../../../../src/music/lyrics-service.js))    |
 | `writeMusicPlaylistTracks(registry, body, operation)` | 歌单写入门面,见 §6.4                                                                                                                                                                                                              |
 | `normalizeMusicTrackForProvider`                      | 透传 §4.1                                                                                                                                                                                                                         |
@@ -465,6 +465,8 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 
 `lyric-parser.js` 是 QQ 音乐与网易云音乐**共用**的歌词行模型实现。导出 `parseLyricResult`、`parseLrc`、`parseWordLyric`、`findCurrentLyricLine` 及仅由网易云调用的 `estimateWordTimings`([lyric-parser.js](../../../../src/music/lyric-parser.js))。
 
+解析器在多时间戳展开、逐字行提取和四路文本组合时检查资源预算：每份结果最多 4096 行，累计文本最多 512 Ki 个 JS 字符（组合结果包含正文、翻译、罗马音及词文本）。超预算抛出 `LYRIC_EXPANSION_LIMIT`（`statusCode:400`），不返回截断结果；检查在逐字估算和 HTTP 序列化之前执行。正常同行多时间戳语义不变。歌词与手动解析 HTTP 将该错误映射为 400、`code:LYRIC_EXPANSION_LIMIT` 及固定整理提示；QQ 保留新版到旧版的正常回退，最终失败不丢失该错误类型。
+
 ### 14.1 parseLyricResult(rawLyric, rawTranslation, rawWordLyric, rawRoma)([lyric-parser.js:45-75](../../../../src/music/lyric-parser.js#L45-L75))
 
 组合四路原始文本，产出完整行数组：
@@ -495,7 +497,7 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 | -------------------- | -------------------------------- | --------------------------- |
 | 行                   | `/\[(\d+),(\d+)\]([/s/S]*)/`     | `[startMs,durationMs,body]` |
 | 前缀词（优先）       | `/\((\d+),(\d+),\d*\)([^()]+)/g` | `(start,duration,?)text`    |
-| 后缀词（仅无前缀时） | `/([^()]*)\((\d+),(\d+)\)/g`     | `text(start,duration)`      |
+| 后缀词（仅无前缀时） | `/\((\d+),(\d+)\)\|[()]/g`     | 单向扫描时间标记/括号，截取标记前文本；缺少或截断标记时不反复扫描尾部 |
 
 每词输出 `{ startMs, endMs: startMs + max(0, durationMs), text }`，保留有效词文本中的空格，避免 YRC 英文词连写；无词的行整体丢弃；行 `text` = 所有词文本拼接后 `trim()`。
 

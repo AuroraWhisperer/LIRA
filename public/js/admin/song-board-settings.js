@@ -84,7 +84,7 @@ export function bindSongBoardSettings(form, controller) {
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
     controller.edit(collectSongBoardSettings(form));
-    if (await save()) toast('展示板已保存');
+    await save();
   });
   node('songBoardPresets').addEventListener('click', async (event) => {
     const card = event.target.closest('[data-theme]');
@@ -93,12 +93,12 @@ export function bindSongBoardSettings(form, controller) {
     controller.edit(preset);
     render(controller.getState(), true);
     renderPresetCards('songBoardPresets', theme.songBoardThemePresets, theme.songBoardPresetLabels, theme.songBoardPresetSwatches);
-    if (await save()) toast(`已套用「${theme.songBoardPresetLabels[card.dataset.theme]}」展示板预设`);
+    await save();
   });
   node('songBoardResetTheme').addEventListener('click', async () => {
     controller.edit(THEME_DEFAULTS);
     render(controller.getState(), true);
-    if (await save()) toast('展示板主题已恢复默认');
+    await save();
   });
   function render({ draft, dirty, saving, error, applied }, force = false) {
     ensureSavedFontOption(node('songBoardFontFamily'), draft.songBoardFontFamily);

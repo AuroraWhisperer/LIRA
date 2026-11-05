@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { setTimeout: delay } = require('node:timers/promises');
 const { normalizeImageBaseUrl } = require('./remote-catalog-cache');
 const { giftVariantId } = require('../../shared/gift-identity');
 const { resolveDataPaths } = require('../../shared/data-paths');
@@ -42,6 +43,7 @@ function createRemoteGiftImageCache(options = {}) {
   const lastGoodImages = readImageIndex(indexPath);
   let indexDirty = false;
   let revision = 0;
+  let indexWrite = Promise.resolve();
 
   async function cacheGifts(gifts, cacheOptions = {}) {
     if (!Array.isArray(gifts)) return [];
@@ -68,7 +70,7 @@ function createRemoteGiftImageCache(options = {}) {
         return { ...gift, imagePath };
       }),
     );
-    persistImageIndex();
+    await persistImageIndex();
     return result;
   }
 
@@ -121,23 +123,24 @@ function createRemoteGiftImageCache(options = {}) {
         indexDirty = true;
         revision += 1;
       }
-      if (persist) persistImageIndex();
+      if (persist) await persistImageIndex();
     }
     return imagePath || getCachedGiftImagePath(gift);
   }
 
   function persistImageIndex() {
-    if (!indexDirty) return;
-    writeAtomic(
-      indexPath,
-      Buffer.from(
-        JSON.stringify({
+    const task = indexWrite.catch(() => {}).then(async () => {
+      while (indexDirty) {
+        const savedRevision = revision;
+        await writeAtomic(indexPath, Buffer.from(JSON.stringify({
           schemaVersion: 2,
           images: Object.fromEntries(lastGoodImages),
-        }),
-      ),
-    );
-    indexDirty = false;
+        })));
+        indexDirty = revision !== savedRevision;
+      }
+    });
+    indexWrite = task;
+    return task;
   }
 
   function safeImageBaseUrl() {
@@ -161,7 +164,7 @@ function createRemoteGiftImageCache(options = {}) {
         const bytes = await downloadImage(url, fetchImage, timeoutMs, headers);
         if (!validateImageBytes(bytes, basename))
           throw new Error('downloaded image signature does not match extension');
-        writeAtomic(targetPath, bytes);
+        await writeAtomic(targetPath, bytes);
         revision += 1;
         return `${LOCAL_IMAGE_PREFIX}${basename}`;
       } catch (error) {
@@ -417,7 +420,7 @@ function validateImageBytes(bytes, basename) {
   return false;
 }
 
-function writeAtomic(filePath, bytes) {
+async function writeAtomic(filePath, bytes) {
   const tempPath = path.join(
     path.dirname(filePath),
     `.${path.basename(filePath)}.tmp-${process.pid}-${crypto.randomBytes(6).toString('hex')}`,
@@ -428,7 +431,7 @@ function writeAtomic(filePath, bytes) {
       try { fs.renameSync(tempPath, filePath); break; }
       catch (error) {
         if (attempt >= 4 || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
+        await delay(50 * (attempt + 1));
       }
     }
   } finally {
