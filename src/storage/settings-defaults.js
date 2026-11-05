@@ -185,6 +185,7 @@ const DEFAULT_SETTINGS = {
   songBoardTitleFontSize: '15',
   songBoardSortMode: 'initial',
   // 桌面歌词设置
+  nowPlayingAppearance: '{}',
   desktopLyricFontFamily: 'Lira Maiyuan',
   desktopLyricFontWeight: '800',
   desktopLyricTextColor: '#000000',

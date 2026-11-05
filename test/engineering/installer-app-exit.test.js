@@ -50,13 +50,16 @@ test(
       'audio-silent-timeout',
       'audio-multiple',
       'audio-failed-process-check',
+      'audio-component',
+      'audio-component-selected-directory',
+      'audio-component-other-directory',
     ]) {
       scenarios.push(t.test(scenario, async () => {
         const root = fs.mkdtempSync(path.join(scratch, 'lira-close-test-'));
         const installDir = path.join(root, '旧版 LIRA');
         const newInstallDir = path.join(root, '新版 LIRA');
         const otherDir = scenario.endsWith('other-directory-prefix') ? newInstallDir + '-other' : path.join(root, 'other-application');
-        const dataDir = path.join(installDir, 'data');
+        const dataDir = path.join(scenario === 'audio-component-selected-directory' ? newInstallDir : installDir, 'data');
         const dataFile = path.join(dataDir, 'fixture.txt');
         const backup = newInstallDir + '.lira-data-backup';
         const ready = path.join(root, 'ready.txt');
@@ -70,7 +73,8 @@ test(
         const windowless = scenario === 'windowless';
         const checkFails = scenario.endsWith('failed-process-check');
         const appRoot = unrelated ? otherDir : scenario.endsWith('selected-directory') ? newInstallDir : installDir;
-        const appDirectory = audio ? path.join(appRoot, 'resources', 'audio-assistant') : appRoot;
+        const appDirectory = audio ? path.join(appRoot, scenario.startsWith('audio-component')
+          ? 'data/components/audio/0123456789abcdef01234567' : 'resources/audio-assistant') : appRoot;
         const appFile = path.join(appDirectory, appName);
         const silent = scenario.startsWith('silent-') || scenario.startsWith('audio-silent');
         const legacyAudio = scenario === 'audio-legacy' || scenario === 'audio-silent-timeout';
@@ -251,7 +255,8 @@ test(
             installer.once('close', resolve);
           });
           const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit', 'visible-update',
-            'audio-approved', 'audio-selected-directory', 'audio-silent', 'audio-multiple'].includes(scenario);
+            'audio-approved', 'audio-selected-directory', 'audio-silent', 'audio-multiple',
+            'audio-component', 'audio-component-selected-directory'].includes(scenario);
           const report = path.join(root, 'LIRA-install-error.txt');
           assert.equal(
             status,

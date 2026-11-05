@@ -36,7 +36,7 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
         { ...sender, message: '正文大小' },
         { ...sender, kind: 'gift', giftName: '礼物', giftCount: 2, giftTotalPrice: 30 },
       ];
-      const hasSuperchat = limits.scrollDirection || style === 'mist';
+      const hasSuperchat = limits.scrollDirection || ['mist', 'comic'].includes(style);
       if (hasSuperchat) messages.push({ ...sender, kind: 'superchat', message: '留言大小', price: 30 });
       for (const fontSize of [limits.minFontSize, limits.maxFontSize]) {
         applyStyleOptions(document, style, { [style]: { fontSize, fontFamily: '"Georgia"' } });
@@ -45,6 +45,8 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
         const paragraph = (card, text) => Array.from(card.querySelectorAll('p')).find(node => node.textContent === text);
         const giftSelector = style === 'ripploid' ? '.ripploid-gift-name'
           : style === 'flower-letter' ? '.flower-gift-name'
+            : style === 'christmas' ? '.christmas-gift-name'
+            : style === 'christmas-letter' ? '.xletter-gift-name'
             : limits.speed ? 'p' : '.draw-danmaku-gift-name';
         const content = [
           ['chat', paragraph(cards[0], '正文大小')],
@@ -87,7 +89,8 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
     const nativeLettering = style === 'flower-letter'
       || kind === 'superchat' && ['ripploid', 'notebook'].includes(style)
       || kind === 'gift' && ['ripploid', 'spooky'].includes(style);
-    if (!nativeLettering) assert.ok(Math.abs(width - fontSize * scale) <= 0.1, JSON.stringify(result));
+    const roleScale = style === 'christmas' && kind === 'gift' ? 0.92 : 1;
+    if (!nativeLettering) assert.ok(Math.abs(width - fontSize * scale * roleScale) <= 0.1, JSON.stringify(result));
     if (!baselines.has(key)) baselines.set(key, result);
     const baseline = baselines.get(key);
     // RIPPLOID's gift ticket owns fixed lettering; chat and SC still use the text setting.

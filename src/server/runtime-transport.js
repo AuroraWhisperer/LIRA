@@ -7,7 +7,7 @@ const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
 const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
 
-const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
+const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'now-playing', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
 const GIFT_SCENE_TYPES = ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
 
 function snapshotSceneTypes(reason) {
@@ -16,7 +16,7 @@ function snapshotSceneTypes(reason) {
   if (/^(?:gift:|bilibili:gift$|database:clear-gifts$)/.test(reason)) return GIFT_SCENE_TYPES;
   if (/^(?:queue:|superchat:|bilibili:(?:danmaku|superchat)$|database:clear-superchats$)/.test(reason)) return ['queue'];
   if (/^(?:songs:|cloud:songs$|database:clear$)/.test(reason)) return ['queue', 'songlist'];
-  if (reason === 'database:clear-playback') return ['lyrics'];
+  if (reason === 'database:clear-playback') return ['lyrics', 'now-playing'];
   return SNAPSHOT_SCENE_TYPES;
 }
 

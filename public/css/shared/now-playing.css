@@ -1,0 +1,193 @@
+.now-playing-surface {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.now-playing {
+  box-sizing: border-box;
+  container-type: size;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: var(--now-playing-gap, 24px);
+  padding: 12px;
+}
+
+.now-playing [hidden],
+.now-playing[hidden] {
+  display: none;
+}
+
+.now-playing-visual {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(var(--now-playing-record-size, 120px), 42cqw, calc(100cqh - 24px));
+  aspect-ratio: 1;
+}
+
+.now-playing-disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, transparent 0 2px, rgb(255 255 255 / 5%) 3px, transparent 4px),
+    conic-gradient(from 15deg, #101014, #33333b 45deg, #101014 90deg 180deg, #33333b 225deg, #101014 270deg 360deg);
+  box-shadow: 0 4px 9px rgb(0 0 0 / 20%);
+  animation: now-playing-rotation var(--now-playing-rotation-seconds, 20s) linear infinite;
+  animation-play-state: paused;
+}
+
+.now-playing-artwork {
+  position: absolute;
+  inset: 32%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e3d6ed, #9375b1 55%, #c6afd8);
+}
+
+.now-playing-cover {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.now-playing-spindle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6%;
+  height: 6%;
+  border-radius: 50%;
+  background: #29252f;
+  box-shadow: 0 0 0 3px rgb(237 229 243 / 72%);
+  transform: translate(-50%, -50%);
+}
+
+.now-playing-tonearm {
+  display: none;
+}
+
+.now-playing-copy {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.now-playing-title,
+.now-playing-artist {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+.now-playing-title {
+  color: var(--now-playing-title-color, #74618c);
+  font-size: var(--now-playing-title-size, 32px);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.now-playing-artist {
+  color: var(--now-playing-artist-color, #9a88af);
+  font-size: var(--now-playing-artist-size, 18px);
+  font-weight: 400;
+  line-height: 1.4;
+  margin-top: 7px;
+}
+
+.now-playing-title[hidden] + .now-playing-artist {
+  margin-top: 0;
+}
+
+.now-playing[data-style='cover'] .now-playing-artwork {
+  inset: 0;
+}
+
+.now-playing[data-style='turntable'] .now-playing-visual {
+  aspect-ratio: 1.2;
+  background: #d9cde2;
+  border-radius: 12px;
+  box-shadow: 0 5px 12px rgb(0 0 0 / 16%);
+}
+
+.now-playing[data-style='turntable'] .now-playing-disc {
+  inset: 10% auto 10% 8%;
+  width: 66.6667%;
+}
+
+.now-playing[data-style='turntable'] .now-playing-tonearm {
+  display: block;
+  position: absolute;
+  right: 10%;
+  top: 15%;
+  width: 4%;
+  height: 64%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #8d8098, #f2e9f7 50%, #ab9ab8);
+  transform-origin: 50% 5%;
+  transform: rotate(0);
+  transition: transform 300ms ease;
+}
+
+.now-playing-tonearm::before {
+  content: '';
+  position: absolute;
+  width: 230%;
+  aspect-ratio: 1;
+  left: -65%;
+  top: -5%;
+  border-radius: 50%;
+  background: #a797b2;
+}
+
+.now-playing-tonearm::after {
+  content: '';
+  position: absolute;
+  width: 180%;
+  height: 24%;
+  bottom: 0;
+  left: -40%;
+  border-radius: 2px;
+  background: #6b587a;
+}
+
+.now-playing[data-playing='true'] .now-playing-tonearm {
+  transform: rotate(24deg);
+}
+
+.now-playing[data-layout='vertical'] {
+  flex-direction: column;
+  justify-content: center;
+}
+
+.now-playing[data-layout='vertical'] .now-playing-visual {
+  width: min(var(--now-playing-record-size, 120px), 90cqw, max(32px, calc(100cqh - var(--now-playing-title-size, 32px) * 2.6 - var(--now-playing-artist-size, 18px) * 2.8 - var(--now-playing-gap, 24px) - 24px)));
+}
+
+.now-playing[data-layout='vertical'] .now-playing-copy {
+  flex: 0 1 auto;
+  width: 100%;
+  text-align: center;
+}
+
+.now-playing[data-record-only='true'] {
+  justify-content: center;
+}
+
+.now-playing[data-record-only='true'] .now-playing-visual {
+  width: min(var(--now-playing-record-size, 120px), 90cqw, calc(100cqh - 24px));
+}
+
+@keyframes now-playing-rotation {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .now-playing-disc { animation: none; }
+  .now-playing-tonearm { transition: none; }
+}

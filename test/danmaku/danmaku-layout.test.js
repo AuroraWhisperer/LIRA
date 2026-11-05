@@ -47,7 +47,7 @@ test('new default regions preserve previously saved dimensions', () => {
 });
 
 // Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook'];
+const OPTIONAL_REGIONS = ['comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   const original = layout.createLayout();

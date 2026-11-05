@@ -5,7 +5,7 @@ const test = require('node:test');
 const { LicenseState } = require('../../src/electron/license/license-runtime-policy');
 const { createDesktopReadinessController } = require('../../src/electron/desktop-readiness-controller');
 
-function createHarness({ ready = true, authorized = true, initializeFontLibrary } = {}) {
+function createHarness({ ready = true, authorized = true, initializeFontLibrary, initializeAudioComponent } = {}) {
   const cloud = Promise.withResolvers();
   const calls = [];
   const navigations = [];
@@ -17,6 +17,7 @@ function createHarness({ ready = true, authorized = true, initializeFontLibrary 
   let lastLicenseListener;
   let lastCatalogListener;
   const controller = createDesktopReadinessController({
+    audioComponent: initializeAudioComponent ? { initialize: initializeAudioComponent } : undefined,
     baseUrl: 'http://127.0.0.1:3000',
     writeLog: (...args) => calls.push(['log', ...args]),
     getMainWindow: () => ({
@@ -167,20 +168,27 @@ test('dispose removes both listeners and rejects queued callbacks and repeated s
   assert.equal(h.navigations.length, 0);
 });
 
-test('font download starts only after authorization and never delays gifts or navigation', async () => {
+test('font and audio preparation start only after authorization and never delay gifts or navigation', async () => {
   const fontDownload = Promise.withResolvers();
+  const audioDownload = Promise.withResolvers();
   let fontStarts = 0;
+  let audioStarts = 0;
   const h = createHarness({ ready: false, authorized: false,
+    initializeAudioComponent: () => { audioStarts++; return audioDownload.promise; },
     initializeFontLibrary: () => { fontStarts++; return fontDownload.promise; } });
   h.controller.start();
   assert.equal(fontStarts, 0);
+  assert.equal(audioStarts, 0);
   h.change(LicenseState.AUTHORIZED);
   assert.equal(fontStarts, 1);
+  assert.equal(audioStarts, 1);
   assert.ok(h.calls.some(call => call[0] === 'catalog'));
   h.ready();
   assert.ok(h.navigations.some(navigation => navigation.url.endsWith('/admin?desktop=1')));
   fontDownload.reject(new Error('offline'));
+  audioDownload.reject(new Error('offline'));
   await Promise.resolve();
   assert.ok(h.calls.some(call => call[1] === 'font-library'));
+  assert.ok(h.calls.some(call => call[1] === 'audio-component'));
   h.controller.dispose();
 });

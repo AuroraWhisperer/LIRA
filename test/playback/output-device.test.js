@@ -16,6 +16,7 @@ async function fixture(preference = null, nativeOutput = null) {
   let changeSink = async () => {};
   let failSave = false;
   let receive;
+  let componentState;
   let state;
   const audio = {
     sinkId: '', paused: false,
@@ -48,7 +49,10 @@ async function fixture(preference = null, nativeOutput = null) {
       addEventListener: (event, listener) => deviceListeners.set(event, listener),
       removeEventListener: event => deviceListeners.delete(event),
     },
-    bridge: { onState(callback) { receive = callback; return () => { receive = null; }; } },
+    bridge: {
+      onState(callback) { receive = callback; return () => { receive = null; }; },
+      onComponentState(callback) { componentState = callback; return () => { componentState = null; }; },
+    },
   };
   const output = getPlaybackOutput(audio, options);
   output.subscribe(next => { state = next; });
@@ -60,6 +64,7 @@ async function fixture(preference = null, nativeOutput = null) {
     setChangeSink: callback => { changeSink = callback; },
     failSave: () => { failSave = true; },
     receive: value => receive(value),
+    componentState: value => componentState(value),
     hasSubscription: () => Boolean(receive),
     storageEvent: preference => {
       const value = JSON.stringify(preference);
@@ -69,6 +74,32 @@ async function fixture(preference = null, nativeOutput = null) {
     reinitialize: () => getPlaybackOutput(audio, options),
   };
 }
+
+test('component preparation keeps browser playback available and preserves a pending native device', async () => {
+  let ready = false;
+  const selected = [];
+  const native = {
+    enumerate: async () => {
+      if (!ready) { const error = new Error('preparing'); error.code = 'AUDIO_COMPONENT_NOT_READY'; throw error; }
+      return [{ deviceId: 'asio:studio', name: 'Studio', backend: 'asio' }];
+    },
+    select: async id => selected.push(id), browser: async () => {}, prepare: async () => {}, dispose() {},
+  };
+  const browser = await fixture(null, native);
+  await browser.output.prepare();
+  assert.equal(browser.audio.paused, false);
+  const preference = { deviceId: 'asio:studio', name: 'Studio', backend: 'asio' };
+  const f = await fixture(preference, native);
+  await assert.rejects(f.output.prepare());
+  assert.equal(f.savedPreference().deviceId, preference.deviceId);
+  assert.equal(f.writes.length, 0);
+  ready = true;
+  f.componentState({ status: 'ready' });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.deepEqual(selected, ['asio:studio']);
+  f.output.dispose();
+  browser.output.dispose();
+});
 
 test('native output choices reach their backend, persist after success and never use setSinkId as a fake backend', async () => {
   const calls = [];

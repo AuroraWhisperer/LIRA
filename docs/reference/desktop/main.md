@@ -4,7 +4,9 @@
 
 实时进程采集（含 LIRA 内置播放）的版本下限为 Windows 10 2004（Build 19041），也允许 Windows 11；由 `ProcessCapture.SupportsWindowsVersion` 定义，`AudioSession.Start` 在改动设备路由前检查。本地文件不经过进程采集检查。微软[示例说明](https://learn.microsoft.com/en-us/samples/microsoft/windows-classic-samples/applicationloopbackaudio-sample/)标注 20348，但 [OBS 官方实现](https://github.com/obsproject/obs-studio/blob/master/plugins/win-wasapi/plugin-main.cpp)对同一接口采用 19041；本实现沿用该兼容边界。版本通过不跳过实际接口、设备隔离或失败恢复检查。
 
-`main.js` 装配 `audio-assistant.js` 与受限 IPC。打开电音助手设置或启用入口时才启动原生工作程序；一个桌面实例复用一个进程。设置页须同时满足百宝箱主页面激活、该子面板未隐藏；登录时仅恢复上次选中项不触发启动。开发时从 `build/audio-assistant`、安装后从 `resources/audio-assistant` 加载，使用 Electron 自带 Node 管理标准输入/输出，不开放网络端口。无窗口 C# 宿主复用成熟分离、变调、WASAPI 与路由守护，renderer 只消费统一会话状态。
+`main.js` 装配 `audio-assistant.js` 与受限 IPC。打开电音助手设置或启用入口时才启动原生工作程序；一个桌面实例复用一个进程。设置页须同时满足百宝箱主页面激活、该子面板未隐藏；登录时仅恢复上次选中项不触发启动。`audio-component-manager.js` 为助手和播放输出提供已验证的程序路径：优先复用本机组件或旧版文件，首次授权后才补齐缺失组件。使用 Electron 自带 Node 管理标准输入/输出，不开放网络端口。无窗口 C# 宿主复用成熟分离、变调、WASAPI 与路由守护，renderer 只消费统一会话状态。
+
+组件准备与原生进程启动分离。readiness 在授权后启动一个共享准备任务；完整本地命中不请求 CDN，客户端版本或账号变化不触发重下。内置描述固定包路径、大小及 SHA-256，ZIP 中每个文件再按描述校验，禁止额外成员、重复成员、链接及路径穿越，全部成功后才发布版本目录。下载失败不自动循环重试；下载中心可明确重试，下一次启动重新检查。关闭取消准备任务，等待中的助手/输出不会在退出后启动。路径与旧版迁移见 [存储](../backend/storage.md#音频组件文件)，上传见 [CDN 指南](../../guides/cdn-resources.md#音频组件独立交付)。
 
 `AudioDevices` 分别枚举 Windows 活跃播放、录音端点，包含驱动暴露的实体声卡、线路和硬件回送。设备来源 `input` 用 WASAPI 共享录音，`loopback` 用指定播放端点回送；[DeviceCapture.cs](../../../native/audio-assistant/DeviceCapture.cs) 按设备格式接收 PCM，选取单声道或相邻立体声对，再转为处理核心的 48 kHz 双声道浮点。自动声道对单声道输入复制左右声道，多声道取前两个声道；其他通道由用户明确选择。最终输出复用 `PlaybackOutputs` 的实际接口工厂，旧端点 ID 继续按 WASAPI 共享播放；不宣称采集 ASIO 专用、独占或未由驱动开放的硬件内部声音。
 
@@ -145,7 +147,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 [client-appearance.js](../../../src/electron/client-appearance.js) 在创建 runtime 和主窗口前读取
 `dataDir/client-appearance.json`，只持久化 `{ themeId }`。合法值由
 [client-theme.js](../../../src/shared/client-theme.js) 的统一配色目录定义，包含 `dusty-rose`（烟粉 · 灰玫瑰）；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
-不覆盖原文件。显式应用按请求顺序写临时文件并原子替换；成功才更新内存快照，失败保留旧状态。
+不覆盖原文件。外观保存按请求顺序写临时文件并原子替换；成功才更新内存快照，失败保留旧状态。
 替换遇到 `EPERM` / `EBUSY` 时按 50、100、150、200 毫秒间隔最多重试四次；持续占用或其他写入错误仍返回原有保存失败结果，不删除旧记录。
 关停先移除写入 IPC 并等待已接受的写入完成。
 
@@ -154,6 +156,24 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 [server-core.md](../backend/server-core.md)。桥与错误码见 [preload.md](preload.md)。
 主窗口原生底色使用统一配色目录中的对应页面底，与 `desktop/palettes.css` 一致；烟粉 · 灰玫瑰为 `#d4b6bd`。
 主 frame 导航时重新选择，登录仍为 `#f7f3ef`，不更改 `nativeTheme`。
+
+## 本机系统通知
+
+[desktop-notifications.js](../../../src/electron/desktop-notifications.js) 在桌面启动时读取
+`dataDir/desktop-notifications.json`，拥有独立于云设置的日程通知开关、礼物通知开关与人民币门槛。
+修改串行写入随机临时文件并原子替换；写入或替换失败保留旧状态，暂态 Windows 文件锁沿用外观设置的有界重试。
+字段、默认值和受限设置桥见 [preload.md](preload.md#25-dailybotsfanprofiles-与-giftexport)。
+
+日程定时与通知仍由 [planner-reminder-controller.js](../../../src/electron/planner-reminder-controller.js)
+拥有；关闭开关取消定时器并关闭持有的通知，保留已同步日程，再次开启跳过关闭期间到期的提醒，仅恢复未来日程。
+大额礼物通知复用 `src/server.js` 的结算后 `onGiftFlushed` 回调，仅在当前授权有效时传给桌面 owner，
+不新增订阅或轮询，不参与入账。单次 final 的 `total_price` 按整数分严格大于门槛才通知，不重复乘数量；
+以 `updated_at` 排除本次启动或重新启用前的旧礼物。历史导入、final 重放与消费者重试继续沿用投影层既有去重。
+
+两类提醒都使用 Electron `Notification`，窗口最小化或切页不取消，退出后不提醒。
+点击礼物通知恢复并聚焦主窗口；关闭礼物通知或退出时释放仍持有的原生通知，退出移除设置 IPC 并等待写入完成。
+通知失败仅记录固定错误代码，不记录观众或日程正文，也不重试弹窗。Windows 10/11 的原生通知是否弹出仍受
+系统通知权限、横幅与勿扰/专注设置控制；Windows 的应用身份要求见 [Electron 官方说明](https://www.electronjs.org/docs/latest/tutorial/notifications#windows)。
 
 ## 1. 进程形态与入口
 
@@ -345,7 +365,7 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| 尺寸           | **1280×720**,minWidth 1024,minHeight 680                                                                           | [main.js](../../../src/electron/main.js)          |
+| 尺寸           | **1200×800**,minWidth 1024,minHeight 680                                                                           | [main.js](../../../src/electron/main.js)          |
 | 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [main.js](../../../src/electron/main.js) |
 | 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [main.js](../../../src/electron/main.js)                   |
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js](../../../src/electron/main.js) |

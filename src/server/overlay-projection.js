@@ -2,6 +2,7 @@
 
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 const { normalizeClockStyleOptions } = require('./clock-contract');
+const { NOW_PLAYING_FIELDS } = require('../../public/js/shared/now-playing-appearance.js');
 
 // Page capabilities select fields, never a whole runtime object or settings prefix.
 const SETTING_KEYS = {
@@ -60,6 +61,7 @@ const SETTING_KEYS = {
   'gift-wishes': '',
   'gift-sprint': '',
   'gift-export': '',
+  'now-playing': '',
   opening: '',
   clock: `clockStyle clockShowDate clockShowSeconds clockHourFormat clockLabel
     clockFlipFrameColor clockFlipFaceColor clockFlipTextColor clockMoonMode clockMoonIntervalSeconds clockStyleParameters clockStyleOptions`,
@@ -87,6 +89,7 @@ const DANMAKU_ITEM = {
 const QUEUE_ITEM = fields(
   'song_name requester_name is_pinned is_live requester_guard_level requester_medal_level requester_medal_name',
 );
+const QUEUE_REQUEST_RESULT = fields('id accepted requesterName songName expiresAt');
 const OVERTIME = {
   ...fields('revision status serverNowMs effectiveRemainingMs'),
   background: fields('path fit'),
@@ -102,6 +105,8 @@ const LYRIC_TIMELINE = {
   artists: [true],
   lines: [{ ...fields('startMs endMs text translation roma'), words: [fields('text startMs endMs')] }],
 };
+const NOW_PLAYING = { ...fields('source trackTitle coverUrl playing'), artists: [true] };
+const NOW_PLAYING_CONFIG = fields(Object.keys(NOW_PLAYING_FIELDS).join(' '));
 const WHEEL = {
   entries: [fields('label weight')],
   spin: fields('id index startedAt durationMs turns'),
@@ -122,7 +127,8 @@ const GAME_STATES = {
   'draw-guess': DRAW_STATE,
 };
 const STATE_SCHEMAS = {
-  queue: { queue: { current: QUEUE_ITEM, waiting: [QUEUE_ITEM] }, superChats: [fields('message price')] },
+  queue: { queue: { current: QUEUE_ITEM, waiting: [QUEUE_ITEM],
+    requestResult: QUEUE_REQUEST_RESULT, requestResults: [QUEUE_REQUEST_RESULT] }, superChats: [fields('message price')] },
   songlist: {},
   blindbox: {},
   'gift-effects': {},
@@ -131,6 +137,7 @@ const STATE_SCHEMAS = {
   'gift-sprint': { giftSprint: fields('targetRmb remainingCrystalBalls') },
   overtime: { overtime: OVERTIME },
   lyrics: { lyricState: LYRIC_STATE, lyricTimeline: LYRIC_TIMELINE },
+  'now-playing': { nowPlaying: NOW_PLAYING, nowPlayingConfig: NOW_PLAYING_CONFIG },
   danmaku: { danmakuFeed: [DANMAKU_ITEM], liveStatus: fields('enabled roomId connected message') },
   interactions: {},
   games: {},
@@ -149,6 +156,7 @@ const INTERACTION = {
   },
 };
 const RESPONSE_SCHEMAS = {
+  'now-playing': { '/api/now-playing/config': NOW_PLAYING_CONFIG },
   danmaku: { '/api/bilibili/room/profile': fields('roomId uid name avatarUrl') },
   interactions: { '/api/interactions/session': INTERACTION },
   'gift-wishes': {
@@ -173,7 +181,7 @@ const RESPONSE_SCHEMAS = {
   },
   'gift-feed': {
     '/api/gifts/display-settings': {
-      ...fields('palette visibleRows scrollSpeed minGiftAmountCents'),
+      ...fields('palette tailStyle textureStyle visibleRows scrollSpeed minGiftAmountCents'),
       thresholds: [true],
     },
     '/api/gifts/history': {
@@ -240,6 +248,7 @@ const EVENT_SCHEMAS = {
   'wheel:update': { scope: 'wheel', schema: { state: WHEEL } },
   'lyric-state': { scope: 'lyrics', schema: { state: LYRIC_STATE } },
   'lyric-timeline': { scope: 'lyrics', schema: { timeline: LYRIC_TIMELINE } },
+  'now-playing': { scope: 'now-playing', schema: { state: NOW_PLAYING } },
   'overtime:update': {
     scope: 'overtime',
     schema: {

@@ -1,6 +1,7 @@
 import { localOverlayOrigin, toast } from '../../shared/utils.js';
 import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
+import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from '../../shared/gift-banner-styles.js';
 import {
   createGiftBanner,
   createGiftArtworkResolver,
@@ -12,6 +13,14 @@ import {
 export function createGiftDisplaySettings() {
   const get = (id) => document.getElementById(id);
   const previewRoot = get('giftStylePreview');
+  for (const [id, options] of [['giftTailStyle', GIFT_BANNER_TAILS], ['giftTextureStyle', GIFT_BANNER_TEXTURES]]) {
+    for (const [value, label] of Object.entries(options)) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      get(id).append(option);
+    }
+  }
   let config;
   const sample = {
     eventId: 'sample',
@@ -54,6 +63,8 @@ export function createGiftDisplaySettings() {
   function values() {
     return {
       palette: 'bilibili-four',
+      tailStyle: get('giftTailStyle').value,
+      textureStyle: get('giftTextureStyle').value,
       thresholds: [1, 2, 3].map((n) => Number(get(`giftTier${n}`).value) * 100),
       visibleRows: Number(get('giftFeedRows').value),
       scrollSpeed: Number(get('giftFeedSpeed').value),
@@ -87,10 +98,12 @@ export function createGiftDisplaySettings() {
     get('giftDisplayCancel').hidden = savedValues.every(([id, value]) => {
       const input = get(id);
       return input.value !== '' && Number(input.value) === value;
-    });
+    }) && get('giftTailStyle').value === config.tailStyle && get('giftTextureStyle').value === config.textureStyle;
   }
 
   function fill(value) {
+    get('giftTailStyle').value = value.tailStyle ?? DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle;
+    get('giftTextureStyle').value = value.textureStyle ?? DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle;
     [1, 2, 3].forEach((n) => {
       get(`giftTier${n}`).value = value.thresholds[n - 1] / 100;
       get(`giftTierEnd${n - 1}`).value = value.thresholds[n - 1] / 100;
@@ -141,7 +154,7 @@ export function createGiftDisplaySettings() {
         const result = await response.json();
         if (current !== sequence) return;
         if (!result.ok) throw new Error(result.error);
-        config = result.data;
+        config = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
         fill(config);
         get('giftDisplayError').textContent = '';
         toast('滚动礼物与词条样式已保存');
@@ -159,10 +172,10 @@ export function createGiftDisplaySettings() {
   const receiveSettings = event => {
     if (!config || saving || !event.detail?.giftDisplayConfig) return;
     let next;
-    try { next = JSON.parse(event.detail.giftDisplayConfig); } catch { return; }
+    try { next = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...JSON.parse(event.detail.giftDisplayConfig) }; } catch { return; }
     const draft = values();
     const merged = { ...next };
-    for (const key of ['visibleRows', 'scrollSpeed', 'minGiftAmountCents', 'thresholds']) {
+    for (const key of ['visibleRows', 'scrollSpeed', 'minGiftAmountCents', 'thresholds', 'tailStyle', 'textureStyle']) {
       if (JSON.stringify(draft[key]) !== JSON.stringify(config[key])) merged[key] = draft[key];
     }
     config = next;
@@ -180,7 +193,7 @@ export function createGiftDisplaySettings() {
       if (!result.ok) throw new Error(result.error);
       const nextCatalog = await loadGiftArtworkCatalog(AbortSignal.timeout(5000)).catch(() => []);
       if (current !== sequence) return;
-      config = result.data;
+      config = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
       artwork = createGiftArtworkResolver(nextCatalog);
       const url = `${localOverlayOrigin(location)}/gift-feed`;
       get('giftFeedUrl').textContent = url;

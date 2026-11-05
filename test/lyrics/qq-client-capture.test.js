@@ -68,10 +68,11 @@ test('late QQ lyrics cannot replace a newer track or reactivate a stopped captur
   send(); send();
   send({ title: 'New song', timelineUpdatedAt: 99700 });
   send({ title: 'New song', timelineUpdatedAt: 100000 });
-  pending[1].resolve({ ...LYRICS, lines: [{ startMs: 0, text: 'New lyric' }] });
+  pending[1].resolve({ ...LYRICS, coverUrl: 'https://example.test/new.jpg', lines: [{ startMs: 0, text: 'New lyric' }] });
   await tick();
-  pending[0].resolve(LYRICS); await tick();
+  pending[0].resolve({ ...LYRICS, coverUrl: 'https://example.test/old.jpg' }); await tick();
   assert.equal(timelines.at(-1).lines[0].text, 'New lyric');
+  assert.equal(capture.getStatus().coverUrl, 'https://example.test/new.jpg');
   capture.refresh(); send(); send();
   capture.setActive(false);
   pending[2].resolve(LYRICS); await tick();

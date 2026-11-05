@@ -1,0 +1,15 @@
+/* Spatial edge fades belong to horizontal travel, independently of a theme's entrance. */
+.draw-danmaku-feed[data-layout='floating'] {
+  --floating-edge-size: min(var(--danmaku-floating-edge-size, 28px), 4%);
+  --floating-edge-left: 0px;
+  --floating-edge-right: 0px;
+  mask-image: linear-gradient(to right, transparent, #000 var(--floating-edge-left),
+    #000 calc(100% - var(--floating-edge-right)), transparent);
+}
+body:is([data-floating-edge-fade='both'], [data-floating-edge-fade='left']) .draw-danmaku-feed[data-layout='floating'] {
+  --floating-edge-left: var(--floating-edge-size);
+}
+body:is([data-floating-edge-fade='both'], [data-floating-edge-fade='right']) .draw-danmaku-feed[data-layout='floating'] {
+  --floating-edge-right: var(--floating-edge-size);
+}
+body[data-floating-edge-fade='none'] .draw-danmaku-feed[data-layout='floating'] { mask-image: none; }

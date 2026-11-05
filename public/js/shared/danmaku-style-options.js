@@ -128,6 +128,17 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultBubbleColor: '#eb945e',
     defaultTextColor: '#f5f5f5',
   },
+  christmas: {
+    scrollDirection: true, defaultEdgeFade: 'none', label: '圣诞绮笺',
+    minFontSize: 18, maxFontSize: 40, defaultFontSize: 24,
+    background: true, giftImage: false, bubbleColor: true, ambientMotion: true,
+    defaultBubbleColor: '#782632', defaultTextColor: '#fff1d8',
+  },
+  'christmas-letter': {
+    scrollDirection: true, defaultEdgeFade: 'none', label: '圣诞来信',
+    minFontSize: 18, maxFontSize: 40, defaultFontSize: 24,
+    background: true, giftImage: false, defaultTextColor: '#725244',
+  },
   notebook: {
     scrollDirection: true, defaultEdgeFade: 'none', label: '手账风',
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 23,
@@ -186,6 +197,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   outline: {
     layout: 'fullscreen-random',
+    entranceAnimation: true,
     label: '一纸素笺',
     minFontSize: 18,
     maxFontSize: 40,
@@ -193,8 +205,15 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     giftImage: true,
     defaultTextColor: '#1d1d1f',
   },
+  comic: {
+    layout: 'fullscreen-random', label: '漫画对白',
+    minFontSize: 18, maxFontSize: 42, defaultFontSize: 26, defaultFontFamily: 'serif',
+    background: true, giftImage: false, comicOptions: true, defaultTextColor: '#292626',
+  },
   mist: {
     layout: 'fullscreen-random',
+    entranceAnimation: true,
+    defaultEntranceMs: 280,
     label: '青雾',
     minFontSize: 18,
     maxFontSize: 40,
@@ -216,6 +235,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   cream: {
     layout: 'fullscreen-random',
+    entranceAnimation: true,
     label: '杏花白',
     minFontSize: 18,
     maxFontSize: 40,
@@ -243,9 +263,25 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     speed: true,
     defaultTextColor: '#c29670',
   },
+  aurora: {
+    layout: 'floating', label: '极光薄笺',
+    defaultFloatingEdgeFade: 'both',
+    minFontSize: 18, maxFontSize: 40, defaultFontSize: 26,
+    background: true, giftImage: false, speed: true, ambientMotion: true, auroraOptions: true,
+    defaultTextColor: '#514365',
+  },
+  startrail: {
+    layout: 'floating', label: '星轨飞语',
+    defaultFloatingEdgeFade: 'both',
+    minFontSize: 18, maxFontSize: 44, defaultFontSize: 28,
+    background: false, giftImage: false, speed: true,
+    ambientMotion: true, startrailOptions: true,
+    defaultTextColor: '#f1f6ff',
+  },
   starveil: {
     layout: 'fullscreen-random',
     entranceAnimation: true,
+    defaultEntranceMs: 260,
     label: '点点流萤',
     minFontSize: 18,
     maxFontSize: 40,
@@ -281,11 +317,25 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   edgeFade: { label: '边缘处理', type: 'select', default: 'single', defaultKey: 'defaultEdgeFade', capability: 'scrollDirection', legacy: ['single'],
     help: '可选择上下两端、仅上边或仅下边渐隐；选定的边缘不随滚动方向改变。',
     choices: [['both', '两端渐隐'], ['top', '上边渐隐'], ['bottom', '下边渐隐'], ['none', '直接切断']] },
-  durationSeconds: { label: '停留（秒）', type: 'number', min: 2, max: 30, default: 6, layout: 'fullscreen-random', control: 'fullscreenDurationSeconds' },
-  speedPixelsPerSecond: { label: '飘动速度', type: 'number', input: 'range', min: 20, max: 600, default: 120, capability: 'speed', control: 'floatingSpeed',
-    help: '1～100，默认 50 为原速；1 为原速的三分之一，100 为原速的三倍。超出刻度范围的旧速度会保留，手动调节后按新刻度保存。' },
-  floatingDispersion: { label: '分散程度', type: 'number', input: 'range', min: 1, max: 100, default: 50, layout: 'floating',
+  entranceAnimation: { label: '入场动画', type: 'select', default: 'fade', capability: 'entranceAnimation', group: 'randomMotion',
+    choices: [['fade', '样式渐显'], ['rise', '上浮弹入'], ['none', '直接显示']], help: '只影响新消息；保留本款渐显设计，或选用共用的上浮弹入。' },
+  entranceDurationMs: { label: '入场时长', type: 'number', input: 'range', min: 100, max: 1000, default: 200, defaultKey: 'defaultEntranceMs', unit: 'ms', capability: 'entranceAnimation', group: 'randomMotion',
+    disabledWhen: ['entranceAnimation', 'none'] },
+  durationSeconds: { label: '停留（秒）', type: 'number', min: 2, max: 30, default: 6, layout: 'fullscreen-random', control: 'fullscreenDurationSeconds', group: 'randomMotion',
+    help: '包含入场与退场；长留言建议预留更久。调整后用于新消息，已显示弹幕保持原到期时间。' },
+  exitAnimation: { label: '退场方式', type: 'select', default: 'fade', layout: 'fullscreen-random', group: 'randomMotion',
+    choices: [['fade', '渐隐'], ['none', '直接消失']], help: '控制正常到期时的消失方式。拥挤淘汰、撤回和清空直接移除。' },
+  exitDurationMs: { label: '退场时长', type: 'number', input: 'range', min: 100, max: 1000, default: 400, unit: 'ms', layout: 'fullscreen-random', group: 'randomMotion',
+    disabledWhen: ['exitAnimation', 'none'], help: '占用停留时间的最后一段，只影响新消息。' },
+  speedPixelsPerSecond: { label: '飘动速度', type: 'number', input: 'range', min: 20, max: 600, default: 120, capability: 'speed', control: 'floatingSpeed', group: 'floatingMotion',
+    help: '1～100，默认 50 为原速；1 为原速的三分之一，100 为原速的三倍。长句或较窄的组件可适当降低速度。超出刻度范围的旧速度会保留，手动调节后按新刻度保存。' },
+  floatingDispersion: { label: '分散程度', type: 'number', input: 'range', min: 1, max: 100, default: 50, layout: 'floating', group: 'floatingMotion',
     help: '数值越大，新弹幕越倾向于远离画面中的其他弹幕。拥挤时以可用空间为准，已显示弹幕不换位置。' },
+  floatingEdgeFade: { label: '边缘显隐', type: 'select', default: 'none', defaultKey: 'defaultFloatingEdgeFade', layout: 'floating', group: 'floatingMotion',
+    choices: [['both', '两端渐隐'], ['right', '入场端渐显'], ['left', '离场端渐隐'], ['none', '直接切断']],
+    help: '入场端为右侧，离场端为左侧。随横移经过边缘时逐渐显隐，完整弹幕和光尾移出后才清理。' },
+  floatingEdgeFadeSize: { label: '边缘柔化宽度', type: 'number', input: 'range', min: 4, max: 80, default: 28, unit: 'px', layout: 'floating', group: 'floatingMotion',
+    disabledWhen: ['floatingEdgeFade', 'none'], help: '按组件逻辑像素设置，每侧最多占区域宽度的 4%，保留中间的完整阅读区域。' },
   bubbleColor: { label: '弹幕配色', type: 'color', alpha: true, allowDefault: true, default: 'default', capability: 'bubbleColor' },
   giftImage: { label: '礼物图片', type: 'select', default: 'theme', capability: 'giftImage', choices: [['theme', '样式插画'], ['gift', '真实礼物图片']], group: 'message' },
   minGiftAmount: { label: '弹幕礼物卡片最低金额', type: 'number', min: 0, max: 100000, step: 0.01, default: 0, capability: 'minGiftAmount', group: 'message',
@@ -314,10 +364,48 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   decorationShape: { label: '装饰图案', type: 'select', default: 'sparkle', capability: 'decorationShape', help: '每种图案搭配自己的轻动画，切换图案即可预览。',
     choices: [['sparkle', '四角星'], ['heart', '爱心'], ['square', '圆角方块'], ['star', '五角星'], ['flower', '小花'], ['moon', '月牙'], ['bow', '蝴蝶结']] },
   ambientMotion: { label: '持续动画', type: 'select', default: 'on', capability: 'ambientMotion', choices: [['on', '开启'], ['off', '关闭']],
-    help: '控制图案、纸张或头像的循环动作，保留新弹幕入场和列表滚动。' },
-  entranceAnimation: { label: '入场动画', type: 'select', default: 'fade', capability: 'entranceAnimation', choices: [['fade', '动画 1 · 渐显'], ['rise', '动画 2 · 上浮弹入']] },
-  centerBias: { label: '中心倾向', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'distribution' },
-  dispersion: { label: '离散程度', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'distribution' },
+    help: '控制图案、纸张或头像的循环动作，保留新弹幕入场和正常移动。' },
+  auroraPalette: { label: '薄笺配色', type: 'select', default: 'lilac', capability: 'auroraOptions', group: 'aurora',
+    choices: [['lilac', '紫藤极光'], ['glacier', '冰川青蓝'], ['rose', '玫瑰晨曦'], ['champagne', '香槟月白']] },
+  auroraSheen: { label: '珠光强度', type: 'number', input: 'range', min: 0, max: 100, default: 55, unit: '%', capability: 'auroraOptions', group: 'aurora',
+    help: '调整纸面与边缘的珠光，正文颜色和背景不透明度单独设置。' },
+  auroraCharm: { label: '吊饰图案', type: 'select', default: 'star', capability: 'auroraOptions', group: 'aurora',
+    choices: [['star', '四角星'], ['moon', '月牙'], ['none', '不显示']] },
+  auroraSway: { label: '吊饰摆幅', type: 'number', input: 'range', min: 0, max: 12, default: 5, unit: '°', capability: 'auroraOptions', group: 'aurora',
+    help: '在吊饰可见且持续动画开启时生效，只摆动吊饰，文字保持稳定；0° 静止。关闭持续动画会同时停止吊饰和流光。' },
+  auroraEntrance: { label: '入场方式', type: 'select', default: 'layered', capability: 'auroraOptions', group: 'aurora',
+    choices: [['layered', '薄笺分层展开'], ['none', '直接显示']], help: '只控制纸面、昵称与正文的出现，横向移动和边缘显隐使用通用参数。' },
+  auroraEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 180, max: 1200, default: 520, unit: 'ms', capability: 'auroraOptions', group: 'aurora',
+    disabledWhen: ['auroraEntrance', 'none'], help: '按比例调整本款分层节奏，只影响新消息。' },
+  comicWritingMode: { label: '阅读方向', type: 'select', default: 'horizontal', capability: 'comicOptions', group: 'comic',
+    choices: [['horizontal', '横排'], ['vertical', '竖排']], help: '普通弹幕可横排或从右向左竖排；礼物和醒目留言保留横排，方便阅读金额与长文。' },
+  comicShape: { label: '气泡造型', type: 'select', default: 'mixed', capability: 'comicOptions', group: 'comic',
+    choices: [['mixed', '混排'], ['speech', '对白框'], ['box', '旁白框'], ['burst', '爆炸框']],
+    help: '控制后续普通弹幕的外形。礼物使用旁白框，醒目留言使用强调框；混排时同一条消息保持同一造型。' },
+  comicStrokeWidth: { label: '墨线粗细', type: 'number', input: 'range', min: 1, max: 4, default: 2, unit: 'px', capability: 'comicOptions', group: 'comic' },
+  comicTexture: { label: '网点浓度', type: 'number', input: 'range', min: 0, max: 30, default: 8, unit: '%', capability: 'comicOptions', group: 'comic',
+    help: '只调整纸面的印刷网点，0 为关闭，文字和表情保持清晰。' },
+  comicEntrance: { label: '入场方式', type: 'select', default: 'pop', capability: 'comicOptions', group: 'comic',
+    choices: [['pop', '漫画弹出'], ['ink', '墨线勾勒'], ['fade', '轻柔渐显'], ['none', '直接显示']], help: '只控制新弹幕出现；消失方式在随机弹幕通用参数中调整，已显示弹幕不重播。' },
+  comicEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 180, max: 800, default: 420, unit: 'ms', capability: 'comicOptions', group: 'comic',
+    disabledWhen: ['comicEntrance', 'none'],
+    help: '默认 420ms；越大出现越慢。停留时间包含入场，长留言可适当延长停留。' },
+  centerBias: { label: '中心倾向', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'randomMotion' },
+  dispersion: { label: '离散程度', type: 'number', input: 'range', min: 1, max: 50, default: 1, layout: 'fullscreen-random', group: 'randomMotion' },
+  startrailColor: { label: '星芒颜色', type: 'color', alpha: true, default: '#b9dfff', capability: 'startrailOptions', group: 'startrail',
+    help: '同时调整星芒、光尾和星尘的颜色与不透明度，不影响正文。' },
+  startrailStarSize: { label: '星芒大小', type: 'number', input: 'range', min: 12, max: 40, default: 24, unit: 'px', capability: 'startrailOptions', group: 'startrail' },
+  startrailTailLength: { label: '光尾长度', type: 'number', input: 'range', min: 0, max: 360, default: 180, unit: 'px', capability: 'startrailOptions', group: 'startrail',
+    help: '0 隐藏光尾；尾迹完整离开画面后才清理消息。' },
+  startrailGlow: { label: '辉光强度', type: 'number', input: 'range', min: 0, max: 100, default: 45, unit: '%', capability: 'startrailOptions', group: 'startrail',
+    help: '只调整星芒和光尾，正文保持清晰稳定。' },
+  startrailDust: { label: '星尘', type: 'select', default: 'on', choices: [['on', '开启'], ['off', '关闭']], capability: 'startrailOptions', group: 'startrail',
+    help: '星尘沿光尾显示；光尾长度为 0 时一并隐藏。' },
+  startrailEntrance: { label: '入场方式', type: 'select', default: 'spark', choices: [['spark', '星芒点亮'], ['none', '直接显示']], capability: 'startrailOptions', group: 'startrail',
+    help: '只控制星芒、文字与光尾的出现，横向移动和边缘显隐使用通用参数。' },
+  startrailEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 250, max: 1200, default: 680, unit: 'ms', capability: 'startrailOptions', group: 'startrail',
+    disabledWhen: ['startrailEntrance', 'none'],
+    help: '星芒先亮起，昵称和正文随后渐显；建议 450～800ms。只影响新消息，不改变横向速度；离开时随移动自然淡出。' },
 });
 const REAL_GIFT_STYLES = Object.freeze(['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']);
 const STYLE_OPTION_FIELDS = Object.fromEntries(Object.entries(DANMAKU_STYLE_OPTIONS).map(([style, limits]) => [style,
@@ -406,6 +494,9 @@ function styleOptionsFor(style, options = {}, legacyDurationSeconds = 6) {
   if (resolved.edgeFade === 'single') {
     resolved.edgeFade = resolved.scrollDirection === 'down' ? 'bottom' : 'top';
   }
+  if (resolved.entranceAnimation === 'rise' && !Object.hasOwn(options[style] || {}, 'entranceDurationMs')) {
+    resolved.entranceDurationMs = 500;
+  }
   return resolved;
 }
 
@@ -426,11 +517,33 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.scrollDirection = options.scrollDirection;
   document.body.dataset.edgeFade = options.edgeFade || 'none';
   document.body.dataset.entranceAnimation = options.entranceAnimation || 'fade';
+  document.body.dataset.entranceDurationMs = String(options.entranceDurationMs || 200);
+  document.body.dataset.floatingEdgeFade = options.floatingEdgeFade || 'none';
+  document.body.dataset.auroraEntrance = options.auroraEntrance || 'layered';
+  document.body.dataset.startrailEntrance = options.startrailEntrance || 'spark';
   document.body.dataset.decorationShape = options.decorationShape || 'sparkle';
   document.body.dataset.ambientMotion = options.ambientMotion || 'on';
+  document.body.dataset.startrailDust = options.startrailDust || 'on';
+  document.body.dataset.auroraPalette = options.auroraPalette || 'lilac';
+  document.body.dataset.auroraCharm = options.auroraCharm || 'star';
   document.body.dataset.spookyTheme = options.spookyTheme || 'default';
   document.body.dataset.spookyFrame = options.spookyFrame || 'show';
+  document.body.dataset.comicWritingMode = options.comicWritingMode || 'horizontal';
+  document.body.dataset.comicShape = options.comicShape || 'mixed';
+  document.body.dataset.comicEntrance = options.comicEntrance || 'pop';
+  document.body.dataset.comicEntranceMs = String(options.comicEntranceMs || 420);
   const root = document.documentElement.style;
+  root.setProperty('--danmaku-floating-edge-size', `${options.floatingEdgeFadeSize ?? 28}px`);
+  root.setProperty('--aurora-entry-duration', `${options.auroraEntranceMs ?? 520}ms`);
+  root.setProperty('--comic-stroke-width', `${options.comicStrokeWidth ?? 2}px`);
+  root.setProperty('--comic-texture', String((options.comicTexture ?? 8) / 100));
+  root.setProperty('--startrail-color', options.startrailColor || '#b9dfff');
+  root.setProperty('--startrail-star-size', `${options.startrailStarSize ?? 24}px`);
+  root.setProperty('--startrail-tail-length', `${options.startrailTailLength ?? 180}px`);
+  root.setProperty('--startrail-glow', String((options.startrailGlow ?? 45) / 100));
+  root.setProperty('--startrail-entry-duration', `${options.startrailEntranceMs ?? 680}ms`);
+  root.setProperty('--aurora-sheen', String((options.auroraSheen ?? 55) / 100));
+  root.setProperty('--aurora-sway', `${options.auroraSway ?? 5}deg`);
   for (const key of Object.keys(TWITTER_LAYOUT_DEFAULTS)) document.body.dataset[key] = options[key] || 'show';
   for (const key of Object.keys(TWITTER_COLOR_DEFAULTS)) {
     root.setProperty(`--twitter-event-color-${key.replace('twitterColor', '')}`, options[key] || '');

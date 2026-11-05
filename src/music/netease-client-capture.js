@@ -14,7 +14,7 @@ function createNeteaseClientCapture({
   const initial = {
     active: false, supported: platform === 'win32', detected: false, status: 'inactive',
     message: '未启用外部网易云音乐', trackTitle: '', artists: [], currentMs: 0, durationMs: 0,
-    playing: false, lyricSource: '',
+    playing: false, lyricSource: '', coverUrl: '',
   };
   let state = { ...initial };
   let monitor = null;
@@ -63,6 +63,7 @@ function createNeteaseClientCapture({
     lyrics = null;
     resolved = resolving = lyricError = false;
     state.lyricSource = '';
+    state.coverUrl = '';
   }
 
   function resetTrack() {
@@ -95,6 +96,7 @@ function createNeteaseClientCapture({
       if (!state.active || version !== trackVersion) return;
       resolved = true;
       lyrics = result?.lines?.length ? result : null;
+      state.coverUrl = result?.coverUrl || '';
       state.lyricSource = lyrics?.source || '';
       applyLyrics();
       emit();

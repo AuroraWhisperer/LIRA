@@ -1,0 +1,276 @@
+/* Original pearl stationery: a cut paper edge, a name tab and a suspended charm. */
+body[data-style='aurora'] {
+  --aurora-paper-top: #f5efff;
+  --aurora-paper-bottom: #e2e7fb;
+  --aurora-accent: #8570b7;
+  --aurora-accent-deep: #62518f;
+  --aurora-tint: #e3c6f6;
+  --aurora-cool: #b5e5e5;
+}
+body[data-style='aurora'][data-aurora-palette='glacier'] {
+  --aurora-paper-top: #f0fbfc;
+  --aurora-paper-bottom: #ddebf5;
+  --aurora-accent: #669cae;
+  --aurora-accent-deep: #45788c;
+  --aurora-tint: #c0dcf5;
+  --aurora-cool: #bcf1e1;
+}
+body[data-style='aurora'][data-aurora-palette='rose'] {
+  --aurora-paper-top: #fff3f7;
+  --aurora-paper-bottom: #f1e2ed;
+  --aurora-accent: #bc8b9f;
+  --aurora-accent-deep: #98667d;
+  --aurora-tint: #f4c1de;
+  --aurora-cool: #f8e8bd;
+}
+body[data-style='aurora'][data-aurora-palette='champagne'] {
+  --aurora-paper-top: #fffaf0;
+  --aurora-paper-bottom: #eee8db;
+  --aurora-accent: #ad9870;
+  --aurora-accent-deep: #85724f;
+  --aurora-tint: #f2d6ab;
+  --aurora-cool: #e1d8f4;
+}
+body[data-style='aurora'] .danmaku-signal-stage,
+body[data-style='aurora'] .draw-danmaku-feed {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+body[data-style='aurora'] .draw-danmaku-feed {
+  position: relative;
+  max-height: none;
+  overflow: hidden;
+}
+body[data-style='aurora'] .danmaku-signal-header { display: none; }
+body[data-style='aurora'] .draw-danmaku-item {
+  position: absolute;
+  display: block;
+  width: max-content;
+  min-width: 330px;
+  max-width: 690px;
+  min-height: 0;
+  padding: 18px 10px 22px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  animation: none;
+  overflow: visible;
+  font-family: var(--danmaku-custom-font, var(--danmaku-ui-font));
+}
+body[data-style='aurora'] .draw-danmaku-item::before,
+body[data-style='aurora'] .draw-danmaku-item::after { content: none; }
+.aurora-arrival {
+  position: relative;
+  padding: 18px 0 28px;
+  isolation: isolate;
+}
+.aurora-paper {
+  position: absolute;
+  z-index: -1;
+  inset: 18px 0 14px;
+  overflow: hidden;
+  border: 1px solid var(--aurora-accent);
+  border-color: color-mix(in srgb, var(--aurora-accent) 50%, white);
+  border-radius: 12px 0 22px 12px;
+  background: linear-gradient(122deg, var(--aurora-paper-top), var(--aurora-paper-bottom));
+  clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+.aurora-paper::before,
+.aurora-paper::after {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+}
+.aurora-paper::before {
+  inset: 5px;
+  border: 1px solid rgb(133 112 183 / 27%);
+  border-color: color-mix(in srgb, var(--aurora-accent) 27%, transparent);
+  border-radius: 7px 0 16px 7px;
+  background:
+    radial-gradient(ellipse at 12% 0, var(--aurora-tint), transparent 52%),
+    radial-gradient(ellipse at 95% 100%, var(--aurora-cool), transparent 62%);
+  opacity: var(--aurora-sheen, .55);
+}
+.aurora-paper::after {
+  inset: 0;
+  background: linear-gradient(112deg, transparent 34%, rgb(255 255 255 / 85%) 46%, var(--aurora-tint) 51%, transparent 63%) 110% 0 / 280% 100% no-repeat;
+  opacity: calc(var(--aurora-sheen, .55) * .65);
+  animation: auroraPearl 11s ease-in-out var(--aurora-phase, 0s) infinite;
+}
+body[data-style='aurora'] .draw-danmaku-body {
+  position: relative;
+  display: grid;
+  align-content: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 0 64px 0 28px;
+  background: none;
+  text-shadow: none;
+}
+body[data-style='aurora'] .draw-danmaku-identity {
+  position: relative;
+  justify-content: flex-start;
+  width: fit-content;
+  max-width: 100%;
+  min-height: 30px;
+  margin-top: -14px;
+  padding: 5px 17px 5px 14px;
+  border: 1px solid rgb(255 255 255 / 80%);
+  border-radius: 4px 4px 10px 4px;
+  isolation: isolate;
+  color: #fff;
+  background: none;
+  box-shadow: none;
+}
+body[data-style='aurora'] .draw-danmaku-identity::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -1px;
+  border-radius: inherit;
+  background: var(--aurora-accent-deep);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+body[data-style='aurora'] .draw-danmaku-identity strong {
+  max-width: 100%;
+  color: inherit;
+  font: 600 17px/1.45 var(--danmaku-custom-font, var(--danmaku-ui-font));
+  letter-spacing: .025em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body[data-style='aurora'] .draw-danmaku-body p {
+  margin: 0;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--danmaku-text-color, #514365);
+  font-size: var(--danmaku-font-size, 26px);
+  font-weight: 500;
+  line-height: 1.48;
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .aurora-arrival {
+  animation: auroraArrive var(--aurora-entry-duration) cubic-bezier(.2, .75, .25, 1) both;
+}
+body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-identity {
+  animation: auroraName calc(var(--aurora-entry-duration) * 21 / 26) cubic-bezier(.2, .75, .25, 1) calc(var(--aurora-entry-duration) * 2 / 13) both;
+}
+body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-body p {
+  animation: auroraText calc(var(--aurora-entry-duration) * 15 / 26) ease-out calc(var(--aurora-entry-duration) / 4) both;
+}
+.aurora-pin {
+  position: absolute;
+  left: 10px;
+  top: 7px;
+  width: 20px;
+  height: 25px;
+  background: linear-gradient(135deg, #fff 8%, var(--aurora-accent) 47%, var(--aurora-cool) 85%);
+  clip-path: polygon(50% 0, 62% 35%, 100% 50%, 62% 64%, 50% 100%, 37% 64%, 0 50%, 37% 35%);
+}
+.aurora-charm {
+  position: absolute;
+  right: 19px;
+  top: 18px;
+  width: 34px;
+  height: 86px;
+  transform-origin: 50% 0;
+  animation: auroraSway 6.8s ease-in-out var(--aurora-phase, 0s) infinite;
+}
+.aurora-charm::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 14px;
+  width: 6px;
+  height: 43px;
+  border-radius: 3px;
+  background: radial-gradient(ellipse at center, transparent 32%, var(--aurora-accent) 40% 59%, transparent 68%) 0 0 / 6px 10px repeat-y;
+  opacity: .6;
+}
+.aurora-charm::after {
+  content: '';
+  position: absolute;
+  top: 42px;
+  left: 4px;
+  width: 26px;
+  height: 32px;
+  background: linear-gradient(135deg, #fff 9%, var(--aurora-accent) 45%, var(--aurora-tint) 70%, var(--aurora-cool));
+  clip-path: polygon(50% 0, 63% 35%, 100% 50%, 63% 65%, 50% 100%, 37% 65%, 0 50%, 37% 35%);
+}
+body[data-aurora-charm='moon'] .aurora-charm::after {
+  border-radius: 50%;
+  clip-path: none;
+  mask: radial-gradient(circle at 72% 30%, transparent 0 42%, #000 44%);
+}
+body[data-aurora-charm='none'] .aurora-charm { visibility: hidden; }
+body[data-style='aurora'] .draw-danmaku-gift {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+body[data-style='aurora'] .draw-danmaku-gift-art { display: none; }
+body[data-style='aurora'] .draw-danmaku-gift-copy {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 .25em;
+  min-width: 0;
+  padding: 0;
+}
+body[data-style='aurora'] :is(.draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count, .draw-danmaku-gift-amount) {
+  position: static;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  letter-spacing: normal;
+  background: none;
+  text-shadow: none;
+  overflow-wrap: anywhere;
+}
+body[data-style='aurora'] :is(.draw-danmaku-gift-count, .draw-danmaku-gift-amount) {
+  font-family: var(--danmaku-num-font);
+  font-variant-numeric: tabular-nums;
+}
+body[data-style='aurora'] .draw-danmaku-emote {
+  width: auto;
+  height: 1.4em;
+  max-width: 100%;
+  object-fit: contain;
+  vertical-align: -.28em;
+}
+body[data-style='aurora'] .is-emote-only .draw-danmaku-emote { height: 76px; }
+body[data-style='aurora'][data-ambient-motion='off'] .aurora-charm,
+body[data-style='aurora'][data-ambient-motion='off'] .aurora-paper::after { animation: none; }
+@keyframes auroraArrive {
+  from { opacity: 0; transform: translate(14px, 4px); }
+  to { opacity: 1; transform: translate(0, 0); }
+}
+@keyframes auroraName {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes auroraText { from { opacity: 0; } to { opacity: 1; } }
+@keyframes auroraPearl {
+  0%, 16% { background-position: 110% 0; }
+  62%, 100% { background-position: -10% 0; }
+}
+@keyframes auroraSway {
+  0%, 100% { transform: rotate(calc(-1 * var(--aurora-sway, 5deg))); }
+  50% { transform: rotate(var(--aurora-sway, 5deg)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='aurora'] [data-live-entry][data-aurora-entrance] :is(.aurora-arrival, .draw-danmaku-identity, .draw-danmaku-body p),
+  body[data-style='aurora'] .aurora-charm,
+  body[data-style='aurora'] .aurora-paper::after {
+    animation: none;
+  }
+}

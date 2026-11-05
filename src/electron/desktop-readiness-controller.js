@@ -10,6 +10,7 @@ function createDesktopReadinessController({
   getMainWindow,
   baseUrl,
   writeLog,
+  audioComponent,
 }) {
   let active = false;
   let disposed = false;
@@ -27,6 +28,7 @@ function createDesktopReadinessController({
   let unsubscribeLicense = null;
 
   function resumeAuthorizedWork(startup) {
+    audioComponent?.initialize().catch(error => writeLog('audio-component', error));
     runtime.initializeFontLibrary?.()?.catch?.(error => writeLog('font-library', error));
     const generation = recoveryGeneration;
     const authorizationGeneration = licenseManager.getAuthorizationGeneration();

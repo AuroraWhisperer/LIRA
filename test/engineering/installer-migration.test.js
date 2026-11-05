@@ -3,7 +3,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const { spawn, spawnSync } = require('node:child_process');
 
@@ -43,11 +42,19 @@ test(
       'linked-partial-backup',
       'installer-same-name',
       'upgrade-preserves-data-and-downloads',
+      'bundled-audio-upgrade',
+      'bundled-audio-publish-retry',
+      'bundled-audio-publish-failure',
+      'bundled-audio-change-directory',
+      'bundled-audio-no-user-data',
+      'preserved-audio-upgrade',
     ]) {
-      await t.test(scenario, async () => {
-        const root = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-installer-test-'));
+      await t.test(scenario, async (scenarioTest) => {
+        const scratch = path.resolve(__dirname, '../../tmp');
+        fs.mkdirSync(scratch, { recursive: true });
+        const root = fs.mkdtempSync(path.join(scratch, 'lira-installer-test-'));
         const oldInstall = path.join(root, '旧版 LIRA');
-        const newInstall = ['change-directory', 'target-conflict'].includes(scenario)
+        const newInstall = ['change-directory', 'target-conflict', 'bundled-audio-change-directory'].includes(scenario)
           ? path.join(root, '新版 LIRA')
           : oldInstall;
         const oldData = path.join(oldInstall, 'data');
@@ -58,6 +65,9 @@ test(
         const reportDir = path.join(root, 'reports');
         const prepared = path.join(root, 'prepared.txt');
         const completed = path.join(root, 'completed.txt');
+        const publicationLock = scenario.startsWith('bundled-audio-publish-');
+        const publishReady = path.join(root, 'publish-ready.txt');
+        const lockReady = path.join(root, 'lock-ready.txt');
         let holder;
         const putData = (directory, value = 'legacy fixture') => {
           assert.ok(path.resolve(directory).startsWith(root + path.sep));
@@ -70,7 +80,14 @@ test(
           fs.writeFileSync(path.join(oldInstall, 'old-program.txt'), 'program fixture');
           if (scenario === 'appdata-return') putData(legacyAppData);
           else if (scenario === 'recover-backup') putData(backup);
-          else putData(oldData);
+          else if (scenario !== 'bundled-audio-no-user-data') putData(oldData);
+          if (scenario.startsWith('bundled-audio') || scenario === 'preserved-audio-upgrade') {
+            const audio = path.join(oldInstall, scenario === 'preserved-audio-upgrade'
+              ? 'data/components/audio/0123456789abcdef01234567' : 'resources/audio-assistant');
+            fs.mkdirSync(path.join(audio, 'vendor'), { recursive: true });
+            fs.writeFileSync(path.join(audio, 'LiraAudioAssistant.exe'), 'audio program fixture');
+            fs.writeFileSync(path.join(audio, 'vendor/lira.onnx'), 'audio model fixture');
+          }
           if (scenario === 'existing-local') putData(legacyAppData, 'stale AppData fixture');
           if (scenario === 'backup-conflict') putData(backup, 'previous recovery fixture');
           if (scenario === 'target-conflict') putData(destination, 'newer fixture');
@@ -107,6 +124,37 @@ test(
               await new Promise((resolve) => setTimeout(resolve, 25));
             assert.ok(fs.existsSync(ready), 'fixture file lock must be acquired');
           }
+          if (publicationLock) {
+            const literal = value => "'" + value.replaceAll("'", "''") + "'";
+            const audio = path.join(backup + '.partial', 'components/audio/legacy/LiraAudioAssistant.exe');
+            const command =
+              `$ErrorActionPreference = 'Stop'; $deadline = [DateTime]::UtcNow.AddSeconds(10); ` +
+              `while (!(Test-Path -LiteralPath ${literal(publishReady)})) { ` +
+              `if ([DateTime]::UtcNow -gt $deadline) { throw 'The installer did not reach backup publication' }; Start-Sleep -Milliseconds 10 }; ` +
+              `$lock = [IO.File]::Open(${literal(audio)}, 'Open', 'Read', 'ReadWrite'); ` +
+              `[IO.File]::WriteAllText(${literal(lockReady)}, 'ready'); try { ` +
+              (scenario === 'bundled-audio-publish-retry' ? 'Start-Sleep -Milliseconds 200; $lock.Dispose(); $lock = $null; ' : '') +
+              '[Console]::ReadLine() } finally { if ($lock) { $lock.Dispose() } }';
+            holder = spawn('powershell.exe',
+              ['-NoLogo', '-NoProfile', '-EncodedCommand', Buffer.from(command, 'utf16le').toString('base64')],
+              { windowsHide: true, stdio: ['pipe', 'ignore', 'ignore'] });
+          }
+          const publishHook = [
+            `FileOpen $R0 "${definePath(publishReady)}" w`,
+            'FileWrite $R0 "ready"',
+            'FileClose $R0',
+            'StrCpy $R9 0',
+            'liraFixtureWaitForLock:',
+            `IfFileExists "${definePath(lockReady)}" liraFixtureLockReady`,
+            'IntOp $R9 $R9 + 1',
+            'IntCmp $R9 500 liraFixtureLockFailed',
+            'Sleep 10',
+            'Goto liraFixtureWaitForLock',
+            'liraFixtureLockFailed:',
+            'SetErrorLevel 3',
+            'Quit',
+            'liraFixtureLockReady:',
+          ].join('\n');
           const fixture = [
             'Unicode true',
             'Name "LIRA isolated preservation test"',
@@ -123,7 +171,7 @@ test(
             `OutFile "${definePath(path.join(root, 'fixture.exe'))}"`,
             `!define FIXTURE_APPDATA "${definePath(appData)}"`,
             `!define FIXTURE_TEMP "${definePath(reportDir)}"`,
-            functions,
+            publicationLock ? functions.replace('  liraPublishBackup:', `  liraPublishBackup:\n${publishHook}`) : functions,
             removal,
             'Function .onInit',
             `StrCpy $INSTDIR "${definePath(newInstall)}"`,
@@ -133,10 +181,10 @@ test(
             `FileOpen $0 "${definePath(prepared)}" w`,
             'FileWrite $0 "$INSTDIR | $liraDataSource | $liraDataBackup"',
             'FileClose $0',
-            ['legacy-update', 'change-directory', 'appdata-return', 'restore-failure'].includes(scenario)
+            ['legacy-update', 'change-directory', 'bundled-audio-change-directory', 'appdata-return', 'restore-failure'].includes(scenario)
               ? `RMDir /r "${definePath(oldInstall)}"`
               : '',
-            scenario === 'upgrade-preserves-data-and-downloads' ? '!insertmacro customRemoveFiles' : '',
+            scenario === 'upgrade-preserves-data-and-downloads' || scenario.includes('audio') ? '!insertmacro customRemoveFiles' : '',
             'CreateDirectory "$INSTDIR"',
             scenario === 'restore-failure'
               ? 'FileOpen $0 "$INSTDIR\\data" w\nFileWrite $0 "obstruction"\nFileClose $0'
@@ -165,6 +213,7 @@ test(
             timeout: 30000,
           });
           assert.equal(run.error, undefined);
+          if (publicationLock) assert.ok(fs.existsSync(lockReady), 'the copied audio must be locked before backup publication');
           const failed =
             scenario.includes('failure') ||
             scenario.includes('conflict') ||
@@ -177,12 +226,21 @@ test(
           );
           assert.equal(fs.existsSync(completed), !failed);
           if (!failed) {
+            if (scenario !== 'bundled-audio-no-user-data') {
             assert.ok(
               fs.existsSync(path.join(destination, 'fixture.txt')),
               fs.readFileSync(prepared, 'utf8') + '\n' + fs.readdirSync(root, { recursive: true }).join('\n'),
             );
             assert.equal(fs.readFileSync(path.join(destination, 'fixture.txt'), 'utf8'), 'legacy fixture');
+            }
             assert.equal(fs.existsSync(backup), false);
+            if (scenario.includes('audio')) {
+              const component = path.join(destination, 'components/audio',
+                scenario === 'preserved-audio-upgrade' ? '0123456789abcdef01234567' : 'legacy');
+              assert.equal(fs.readFileSync(path.join(component, 'LiraAudioAssistant.exe'), 'utf8'), 'audio program fixture');
+              assert.equal(fs.readFileSync(path.join(component, 'vendor/lira.onnx'), 'utf8'), 'audio model fixture');
+              assert.equal(fs.existsSync(path.join(newInstall, 'resources/audio-assistant')), false);
+            }
           } else if (scenario === 'restore-failure') {
             assert.equal(fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'), 'legacy fixture');
           } else {
@@ -194,6 +252,18 @@ test(
             assert.ok(report.includes('fixture'));
             assert.ok(report.includes(destination));
             if (scenario === 'locked-data') assert.ok(report.includes('Cookies'), report);
+            if (scenario === 'bundled-audio-publish-failure') {
+              assert.match(report, /Win32 error=(5|32|33)\b/);
+              assert.equal(fs.existsSync(backup), false);
+              const partial = backup + '.partial';
+              assert.equal(fs.readFileSync(path.join(partial, 'fixture.txt'), 'utf8'), 'legacy fixture');
+              assert.equal(fs.readFileSync(path.join(partial, 'Network/Cookies'), 'utf8'), 'cookie fixture');
+              for (const audio of [path.join(partial, 'components/audio/legacy'), path.join(oldInstall, 'resources/audio-assistant')]) {
+                assert.equal(fs.readFileSync(path.join(audio, 'LiraAudioAssistant.exe'), 'utf8'), 'audio program fixture');
+                assert.equal(fs.readFileSync(path.join(audio, 'vendor/lira.onnx'), 'utf8'), 'audio model fixture');
+              }
+              scenarioTest.diagnostic(report);
+            }
           }
           if (scenario === 'backup-conflict')
             assert.equal(fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'), 'previous recovery fixture');
@@ -218,7 +288,7 @@ test(
             await exited;
           }
           const resolved = fs.realpathSync(root);
-          assert.equal(path.dirname(resolved), fs.realpathSync(os.tmpdir()));
+          assert.equal(path.dirname(resolved), fs.realpathSync(scratch));
           assert.ok(path.basename(resolved).startsWith('lira-installer-test-'));
           fs.rmSync(resolved, { recursive: true, force: true });
         }

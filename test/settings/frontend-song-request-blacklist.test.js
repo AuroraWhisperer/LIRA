@@ -89,6 +89,10 @@ test('snapshots preserve editable drafts and selection until successful save rel
 
   field.dataset.dirty = 'false';
   editor.render('修改中的词条');
+  assert.equal(list.children[0].children[0], input, 'autosave normalization must not replace the active input');
+  assert.equal(input.value, '  修改中的词条  ');
+  documentRef.activeElement = null;
+  editor.render('修改中的词条');
   assert.equal(list.children[0].children[0].value, '修改中的词条');
   assert.equal(field.value, '修改中的词条');
   editor.render('');

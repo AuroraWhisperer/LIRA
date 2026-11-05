@@ -98,6 +98,20 @@ class BilibiliApiClient {
     return cleanText(payload && payload.data && (payload.data.uname || payload.data.name));
   }
 
+  async fetchCurrentUserProfile() {
+    const { payload } = await this.fetchJson('nav', 'https://api.bilibili.com/x/web-interface/nav', {
+      signal: AbortSignal.timeout(8000),
+    });
+    const account = payload?.data;
+    if (payload?.code !== 0 || !account?.isLogin || Number(account.mid) !== Number(this.uid)) {
+      throw new Error('B站登录账号资料读取失败。');
+    }
+    return {
+      avatarUrl: normalizeBilibiliAvatarUrl(account.face),
+      name: cleanText(account.uname),
+    };
+  }
+
   async fetchUserProfile(uid, { signal } = {}) {
     signal?.throwIfAborted();
     const userId = String(uid || '').trim();

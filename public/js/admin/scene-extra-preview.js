@@ -14,7 +14,7 @@ import { initParameterRanges, refreshParameterRange, disposeParameterRanges } fr
 import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
 import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
 
-export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, previewHint, restrictResourceStyle = false } = {}) {
+export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, hideStyleControl = false, previewHint, restrictResourceStyle = false } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
   const previewFields = type === 'guard-thanks' ? {
     tier: { label: '预览等级', type: 'select', default: 'captain', options: { captain: '舰长', admiral: '提督', governor: '总督' } },
@@ -82,6 +82,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       const openingFields = type === 'opening' ? openingAppearanceFields(
         initialConfig.resourceStyle?.preset === 'moonlit-opening' ? 'moonlit-fan' : initialConfig.style) : {};
       for (const [key, field] of Object.entries({ ...definition.fields, ...openingFields, ...previewFields })) {
+        if (hideStyleControl && key === 'style') continue;
         if (type === 'background' && Object.hasOwn(BACKGROUND_FIELDS, key)) continue;
         // Keep the legacy config key, but don't offer a color the song board doesn't render.
         if (type === 'songlist' && key === 'songBoardThemePrimary') continue;
@@ -94,7 +95,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         const label = previewElement(field.allowEmpty ? 'div' : 'label');
         label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
         let inherit;
-        const fontFamily = ['desktopLyricFontFamily', 'songBoardFontFamily', 'overlayFontFamily'].includes(key);
+        const fontFamily = ['desktopLyricFontFamily', 'nowPlayingFontFamily', 'songBoardFontFamily', 'overlayFontFamily'].includes(key);
         const input = previewElement(fontFamily ? 'select' : ['select', 'textarea'].includes(field.type) ? field.type : 'input');
         input.setAttribute('aria-label', field.label);
         const cents = type === 'gift-feed' && (key.startsWith('threshold') || key === 'minGiftAmountCents');

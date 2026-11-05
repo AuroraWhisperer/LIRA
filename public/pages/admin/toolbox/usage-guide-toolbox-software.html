@@ -1,7 +1,7 @@
 <h4 class="usage-guide-subsection-title">7.1 客户端设置与性能</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature" id="ug-client-appearance"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.1 客户端配色</strong></h5></div>
 
-<p>打开「百宝箱 → 设置 → 客户端外观」，选一套配色，点「应用配色」。看到「配色已应用」，卡片上标了「当前使用」，就换好了。</p>
+<p>打开「百宝箱 → 设置 → 外观与声音」，点选一套配色，看到「配色已保存」就换好了；保存失败会恢复原选择，可以重新点选。</p>
 <p>喜欢柔和的灰粉色，可以选「烟粉 · 灰玫瑰」；喜欢更明亮的粉色渐变，可以选「玫瑰映光」。</p>
 <p>这里改 LIRA 软件界面的颜色。想改直播画面或观众网页歌单，去下面各自的设置里改。</p>
 </article>
@@ -19,22 +19,27 @@
 </figure>
 </article>
 <article class="usage-guide-feature" id="ug-playback-output"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.3 内置播放器输出</strong></h5></div>
-<p>打开<strong class="usage-guide-keyword">「百宝箱 → 设置 → 内置播放器输出」</strong>，在「输出通道」里选择耳机、扬声器或声卡通道。默认选「系统默认输出」；看到「输出通道已切换并保存。」就设置好了，下次打开 LIRA 继续使用。</p>
+<p>打开<strong class="usage-guide-keyword">「百宝箱 → 设置 → 外观与声音 → 内置播放器输出」</strong>，在「输出通道」里选择耳机、扬声器或声卡通道。默认选「系统默认输出」；看到「输出通道已切换并保存。」就设置好了，下次打开 LIRA 继续使用。</p>
 <p>这项设置控制 LIRA 内置播放器的声音。QQ 音乐和网易云音乐客户端仍在各自的设置里选择输出设备。</p>
 <p>列表按电脑实际设备和驱动显示。WASAPI、DirectSound、WaveOut 是不同的播放方式，同一声卡可能有多项；通常先用「系统默认输出」或 WASAPI。安装了 ASIO 驱动时也会出现对应选项，标为「连接待检查」的驱动要成功打开后才显示实际输出声道。接入声卡、安装驱动后点「刷新设备」，列表数量会随电脑变化。</p>
 <p>音频格式自动适配。麦克风、线路输入和声卡回送请到<a data-usage-guide-link href="#ug-audio-device-input">电音助手的设备输入</a>选择。系统声音采集不一定能采到 ASIO 播放的声音；如需采集，需要声卡提供硬件回送。想直接配合进程采集时，优先使用 WASAPI。</p>
 <p>配合电音助手时，这里的输出通道与助手的「原声通道」选同一个设备，「最终输出」另选一个独立通道。处理内置播放时，要先关闭「当前歌曲」，再切换输出通道。具体步骤见<a data-usage-guide-link href="#ug-audio-assistant">电音助手</a>。</p>
 <p>如果选中的设备被拔掉或暂时不可用，LIRA 会保留原选择并暂停播放。重新接好设备，或在这里换一个可用的输出通道后，再继续播放。</p>
+</article>
+<article class="usage-guide-feature" id="ug-desktop-notifications"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>7.1.4 系统通知</strong></h5></div>
+<p>打开「百宝箱 → 设置 → 通知提醒」，修改后自动保存到本机。「工作台日程提醒」默认开启，只提醒在工作台勾选了「系统通知提醒」的日程；关闭后保留日程，再次开启不补发已过期的提醒。</p>
+<p>「大额礼物通知」默认关闭。开启后可修改「通知金额」，默认 1000 元；单次礼物结算总额大于该金额时，通过 Windows 通知显示观众、礼物与总额，等于门槛时不提醒。门槛可填非负金额，最多两位小数；启动或重新开启前的旧礼物不补发通知。</p>
+<p>系统通知支持 Windows 10 和 Windows 11，LIRA 需保持运行，切换页面或最小化不影响提醒。若没有弹出，请检查 Windows 的 LIRA 通知权限、横幅与勿扰或专注助手设置。礼物页内的礼物提示仍由该页原有开关控制。</p>
 </article></div>
 <h4 class="usage-guide-subsection-title" id="ug-reinstall">7.2 更新、重装与卸载</h4>
-<p>更新或重装时保持原安装位置。截图中的版本号可能与你的不同，不影响操作。</p>
+<p>更新或重装时保持原安装位置。截图中的账号、设备与更新版本为示例，与你的环境可能不同，不影响操作。</p>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head">
 <h5 class="usage-guide-task-title"><strong>7.2.1 桌面更新</strong></h5>
 </div>
 
 <ol class="usage-guide-checks">
 <li>
-      打开<strong class="usage-guide-keyword">「百宝箱 → 桌面更新」</strong>，点<strong class="usage-guide-keyword">「检查并下载更新」</strong>。
+      打开<strong class="usage-guide-keyword">「百宝箱 → 设置 → 关于与更新」</strong>，点<strong class="usage-guide-keyword">「检查并下载更新」</strong>。
     </li>
 <li>有新版本会自动开始下载，等待下载进度完成。下载失败时，可再次点击<strong class="usage-guide-keyword">「检查并下载更新」</strong>重试。</li>
 <li>下载完成后，点<strong class="usage-guide-keyword">「重启并安装更新」</strong>。LIRA 退出后会显示更新安装进度窗口；完成后窗口自动关闭，并重新打开 LIRA。</li>
@@ -43,22 +48,22 @@
     更新失败时，可<a href="https://lirahub.cn/download/client" target="_blank" rel="noopener noreferrer">下载官方安装包</a>，按<a data-usage-guide-link href="#ug-reinstall">「更新、重装与卸载」</a>中的步骤覆盖安装。
   </p>
 <p>
-    「启动时自动检查更新」只决定打开 LIRA 时是否检查；手动检查发现新版也会自动下载。下载完成后直接退出程序也会显示安装进度，完成后保持 LIRA 关闭。要反馈问题，点「日志目录」那一行的「打开目录」，更新错误详情在 <code>errors/desktop.log</code>，终端警告与错误在 <code>errors/terminal.log</code>。别把「数据目录」当成日志目录。
+    「启动时自动检查更新」只决定打开 LIRA 时是否检查；手动检查发现新版也会自动下载。下载完成后直接退出程序也会显示安装进度，完成后保持 LIRA 关闭。要反馈问题，在「本地数据与支持」点「日志目录」那一行的「打开目录」，更新错误详情在 <code>errors/desktop.log</code>，终端警告与错误在 <code>errors/terminal.log</code>。别把「数据目录」当成日志目录。
   </p>
 <figure class="usage-guide-figure">
-<img alt="桌面更新页，显示当前版本、检查并下载更新按钮、启动时自动检查开关，以及数据目录和日志目录" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-desktop-update.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>桌面更新页。</figcaption>
+<img alt="关于与更新页签，显示版本、更新按钮与右侧的本地数据与支持" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-desktop-update.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>「设置 → 关于与更新」，右侧为「本地数据与支持」。</figcaption>
 </figure>
 <details class="usage-guide-foldout">
 <summary>查看下载与重启两种状态</summary>
 <div class="usage-guide-grid">
 <figure class="usage-guide-figure">
-<img alt="发现新版本时，桌面更新页显示准备下载状态" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-download.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<img alt="发现新版本时，关于与更新页签显示下载进度" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-download.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
 <figcaption>发现新版本后自动下载；下载完成后可重启安装。</figcaption>
 </figure>
 <figure class="usage-guide-figure">
-<img alt="更新下载完成后，桌面更新页显示重启并更新按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-ready.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>下载完成后，点「重启并安装更新」。图中「重启并更新」现为「重启并安装更新」。</figcaption>
+<img alt="更新下载完成后，关于与更新页签显示重启并安装更新按钮" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/toolbox-update-ready.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>下载完成后，点「重启并安装更新」。</figcaption>
 </figure>
 </div>
 </details>

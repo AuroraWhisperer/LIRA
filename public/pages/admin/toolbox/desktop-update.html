@@ -1,20 +1,24 @@
 <section
   id="otherDesktopUpdateFeature"
-  class="other-feature-panel desktop-only"
+  class="client-settings-panel"
   role="tabpanel"
-  aria-labelledby="otherDesktopUpdateFeatureTab"
-  data-other-feature-panel
+  aria-labelledby="settingsAboutTab"
   hidden
 >
-  <div class="other-feature-panel-body stack">
-    <section class="desktop-update-card" aria-labelledby="desktopUpdateTitle">
+    <header class="client-about-heading">
+      <img class="client-about-logo" src="/img/shared/lira-app-icon.png" width="52" height="52" alt="" />
+      <div>
+        <div class="client-about-name"><h3>LIRA</h3><span class="desktop-current-version"><span>版本</span><strong id="desktopVersionPill">--</strong></span></div>
+        <p>为 B 站直播提供点歌、互动与直播画面工具。</p>
+      </div>
+    </header>
+
+    <div class="client-settings-columns">
+    <div class="client-update-column">
+    <section class="desktop-update-card client-settings-group desktop-only" aria-labelledby="desktopUpdateTitle" hidden>
       <div class="desktop-update-content">
         <div class="desktop-update-card-heading">
-          <h4 id="desktopUpdateTitle" class="ui-section-title">版本更新</h4>
-          <span class="desktop-current-version">
-            <span>当前版本</span>
-            <strong id="desktopVersionPill">--</strong>
-          </span>
+          <h3 id="desktopUpdateTitle" class="ui-section-title">版本更新</h3>
         </div>
         <div class="desktop-update-status-row">
           <div class="desktop-update-status-copy">
@@ -45,11 +49,11 @@
             <span id="desktopUpdateSpeed"></span>
           </div>
         </div>
-        <p class="hint">检查发现新版本后会自动下载，退出程序后显示安装进度窗口，完成后自动关闭。直播中请留意下载带宽。</p>
+        <p class="hint desktop-update-note">发现新版本后会自动下载，直播中请留意下载带宽。退出后显示安装进度，完成后自动关闭。</p>
       </div>
 
       <div class="desktop-auto-update-row">
-        <span id="desktopAutoUpdateTitle">启动时自动检查更新</span>
+        <div class="client-settings-row-copy"><label id="desktopAutoUpdateTitle" for="autoUpdateToggle">启动时自动检查更新</label><p>打开 LIRA 时检查是否有新版本</p></div>
         <label class="switch-control">
           <span id="autoUpdateLabel">已关闭</span>
           <input id="autoUpdateToggle" type="checkbox" aria-labelledby="desktopAutoUpdateTitle" />
@@ -58,17 +62,17 @@
       </div>
     </section>
 
-    <section id="resourceDownloads" class="desktop-support-card" aria-labelledby="resourceDownloadsTitle" hidden>
+    <section id="resourceDownloads" class="client-settings-group" aria-labelledby="resourceDownloadsTitle" hidden>
       <header>
         <h4 id="resourceDownloadsTitle" class="ui-card-title">正在下载</h4>
       </header>
       <ul id="resourceDownloadList" class="resource-download-list"></ul>
     </section>
 
-    <section class="desktop-support-card" aria-labelledby="desktopSupportTitle">
-      <header>
-        <h4 id="desktopSupportTitle" class="ui-card-title">本地数据与支持</h4>
-        <p class="hint">歌库和设置独立存储，版本更新后会保留。</p>
+    </div>
+    <section class="desktop-support-card client-settings-group desktop-only" aria-labelledby="desktopSupportTitle" hidden>
+      <header class="client-settings-group-heading">
+        <div><h3 id="desktopSupportTitle" class="ui-section-title">本地数据与支持</h3><p>歌库和设置独立存储，版本更新后会保留。</p></div>
       </header>
       <div class="desktop-support-row">
         <div class="desktop-support-copy">
@@ -109,5 +113,9 @@
         </button>
       </div>
     </section>
-  </div>
+    </div>
+    <footer class="client-about-links" aria-label="产品信息与协议">
+      <a id="licenseWebsitesTitle" href="https://lirahub.cn/" target="_blank" rel="noopener noreferrer">LIRA 官网 <span aria-hidden="true">↗</span></a>
+      <button id="licenseAgreementOpen" type="button" aria-haspopup="dialog" aria-controls="licenseAgreementDialog">用户协议与隐私说明</button>
+    </footer>
 </section>

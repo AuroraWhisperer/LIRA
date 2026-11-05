@@ -7,14 +7,6 @@
           <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 5h16v12H9l-5 4V5Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M8 9h8M8 13h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
           <span class="other-feature-label"><strong>弹幕姬</strong></span>
         </button>
-        <button id="livePollFeatureTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="livePollFeature" data-other-feature="livePollFeature" tabindex="-1">
-          <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h16M6 16v-5m6 5V4m6 12V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-          <span class="other-feature-label"><strong>弹幕投票</strong></span>
-        </button>
-        <button id="liveRatingFeatureTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="liveRatingFeature" data-other-feature="liveRatingFeature" tabindex="-1">
-          <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
-          <span class="other-feature-label"><strong>观众评分</strong></span>
-        </button>
         <button
           id="otherGiftFeatureTab"
           class="other-feature-button live-component-group"
@@ -70,6 +62,21 @@
             <span class="other-feature-label"><strong>大航海感谢</strong></span>
           </button>
         </div>
+        <button id="musicDisplayGroup" class="other-feature-button live-component-group" type="button" aria-expanded="true" aria-controls="musicDisplayNavigation" aria-label="收起音乐展示" data-other-feature-group="music-display">
+          <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M9 17V5l11-2v12M9 17a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Zm11-2a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3ZM9 9l11-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="other-feature-label"><strong>音乐展示</strong></span>
+          <svg class="other-feature-group-arrow" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div id="musicDisplayNavigation" class="live-component-submenu" data-other-feature-submenu role="presentation">
+          <button id="desktopLyricFeatureTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="desktopLyricPage" data-other-feature="desktopLyricPage" tabindex="-1">
+            <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 12h16M7 18h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+            <span class="other-feature-label"><strong>直播歌词</strong></span>
+          </button>
+          <button id="nowPlayingFeatureTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="nowPlayingPage" data-other-feature="nowPlayingPage" tabindex="-1">
+            <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M6.5 11A5.5 5.5 0 0 1 11 6.5M13 17.5a5.5 5.5 0 0 0 4.5-4.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
+            <span class="other-feature-label"><strong>歌曲信息</strong></span>
+          </button>
+        </div>
         <button
           id="otherTextBoxFeatureTab"
           class="other-feature-button"
@@ -113,6 +120,33 @@
           </span>
         </button>
         <button
+          id="otherClockFeatureTab"
+          class="other-feature-button"
+          type="button"
+          role="tab"
+          aria-selected="false"
+          aria-controls="otherClockFeature"
+          data-other-feature="otherClockFeature"
+        >
+          <!-- Plain clock face: the stopwatch crown is what separates 加班机 from 时钟,
+               following the usual timer/schedule icon split. -->
+          <span class="other-feature-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8" />
+              <path
+                d="M12 7.5V12l3 1.8"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </span>
+          <span class="other-feature-label">
+            <strong>时钟</strong>
+          </span>
+        </button>
+        <button
           id="otherStartAnimationFeatureTab"
           class="other-feature-button"
           type="button"
@@ -140,32 +174,13 @@
             <strong>开播动画</strong>
           </span>
         </button>
-        <button
-          id="otherClockFeatureTab"
-          class="other-feature-button"
-          type="button"
-          role="tab"
-          aria-selected="false"
-          aria-controls="otherClockFeature"
-          data-other-feature="otherClockFeature"
-        >
-          <!-- Plain clock face: the stopwatch crown is what separates 加班机 from 时钟,
-               following the usual timer/schedule icon split. -->
-          <span class="other-feature-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="1.8" />
-              <path
-                d="M12 7.5V12l3 1.8"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </span>
-          <span class="other-feature-label">
-            <strong>时钟</strong>
-          </span>
+        <button id="livePollFeatureTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="livePollFeature" data-other-feature="livePollFeature" tabindex="-1">
+          <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M4 20h16M6 16v-5m6 5V4m6 12V8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+          <span class="other-feature-label"><strong>弹幕投票</strong></span>
+        </button>
+        <button id="liveRatingFeatureTab" class="other-feature-button" type="button" role="tab" aria-selected="false" aria-controls="liveRatingFeature" data-other-feature="liveRatingFeature" tabindex="-1">
+          <span class="other-feature-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></span>
+          <span class="other-feature-label"><strong>观众评分</strong></span>
         </button>
       </nav>
       <div class="live-components-help">
@@ -188,6 +203,8 @@
       <!-- admin-fragment: pages/admin/toolbox/gift.html -->
       <!-- admin-fragment: pages/admin/live-components/gift-sprint.html -->
       <!-- admin-fragment: pages/admin/live-components/blindbox.html -->
+      <!-- admin-fragment: pages/admin/song/desktop-lyric.html -->
+      <!-- admin-fragment: pages/admin/live-components/now-playing.html -->
       <!-- admin-fragment: pages/admin/toolbox/text-box.html -->
       <!-- admin-fragment: pages/admin/toolbox/overtime.html -->
       <!-- admin-fragment: pages/admin/toolbox/start-animation.html -->

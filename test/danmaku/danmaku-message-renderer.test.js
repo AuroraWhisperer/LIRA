@@ -14,6 +14,37 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('comic preserves safe chat content and room identity with a stable silhouette', async () => {
+  const render = await createRenderer({ style: 'comic', fullscreen: true, showAvatar: true,
+    resolveAvatarUrl: value => `/avatar${value}`, resolveEmoteUrl: value => `/emote${value}` });
+  const item = { id: 'same-message', name: '<b>观众</b>', message: '你好[星]', avatarUrl: '/real.png',
+    guardLevel: 1, roomGuardLevel: 0, emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  const root = render(item, 0);
+  assert.equal(findByClass(root, 'comic-name').textContent, item.name);
+  assert.equal(findByClass(root, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(root, 'comic-avatar').children[0].src, '/avatar/real.png');
+  assert.equal(findByClass(root, 'comic-role'), undefined, 'other-room rank does not become a room badge');
+  assert.equal(root.dataset.comicShape, render(item, 99).dataset.comicShape, 'rebuilding does not shuffle the same message');
+  const member = render({ ...item, roomGuardLevel: 3 });
+  assert.equal(findByClass(member, 'comic-role').textContent, '舰长');
+});
+
+test('comic uses settled gift totals and preserves complete literal SC', async () => {
+  const render = await createRenderer({ style: 'comic', fullscreen: true, showGiftTotal: true });
+  const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 10, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'comic-amount').textContent, '¥12.50');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, giftCount: 1 });
+  assert.equal(findByClass(member, 'draw-danmaku-gift-name').textContent, '提督');
+  assert.equal(findByClass(member, 'draw-danmaku-gift-action').textContent, '支持 ');
+  assert.equal(findByClass(member, 'comic-amount').textContent, '—');
+  const text = '  第一行\n<script>第二行</script>  ';
+  const sc = render({ kind: 'superchat', message: text, price: 30 });
+  assert.equal(findByClass(sc, 'comic-copy').textContent, text);
+  assert.equal(findByClass(sc, 'comic-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'comic-amount').textContent, '¥30.00');
+});
+
 test('notebook keeps viewer names literal and resolves avatars and emotes', async () => {
   const render = await createRenderer({ style: 'notebook',
     resolveAvatarUrl: value => `/avatar${value}`,
@@ -83,6 +114,17 @@ test('spooky SC preserves literal content, sender and price', async () => {
   assert.equal(copy.children.length, 0);
   assert.equal(findByClass(root, 'spooky-event-name').textContent, '<b>留言者</b>');
   assert.match(findByClass(root, 'spooky-event-copy').textContent, /¥120\.5/);
+});
+
+test('aurora preserves one sender and the settled gift total with the actual membership action', async () => {
+  const render = await createRenderer({ style: 'aurora', fullscreen: true, showAvatar: false });
+  const gift = render({ kind: 'gift', name: '送礼者', giftName: '<b>星愿</b>', giftCount: 5, giftTotalPrice: 12.5 });
+  assert.equal(findAllByClass(gift, 'draw-danmaku-identity').length, 1);
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<b>星愿</b>');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-amount').textContent, '¥12.5');
+  const renew = render({ kind: 'gift', name: '续订者', giftName: '舰长', giftGuardLevel: 3, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(renew, 'draw-danmaku-gift-action').textContent, '续费');
+  assert.equal(findByClass(renew, 'draw-danmaku-gift-amount').textContent, '—');
 });
 
 test('floating gifts render a complete feeding sentence as safe text', async () => {
@@ -254,6 +296,7 @@ test('chat keeps viewer text as text and renders inline emotes', async () => {
   for (const [style, options] of [
     ['sketch', { showAvatar: false }], ['starlight', { showAvatar: false }], ['moonlit', {}],
     ['whiteframe', { fullscreen: true }], ['starveil', { fullscreen: true }],
+    ['startrail', { fullscreen: true, showAvatar: false }],
   ]) {
     const render = await createRenderer({ style, resolveAvatarUrl: (url) => url, ...options });
     const chat = render(EMOTE_CHAT);

@@ -104,25 +104,26 @@ export function createDanmakuPreviewItems(style = 'signal') {
     ...item, uid: String(100000 + index), avatarUrl: item.avatarUrl || AVATAR,
     roomGuardLevel: item.guardLevel || 0,
   }));
-  if (style === 'mist') return samples.map((item) => ({
+  if (['mist', 'comic'].includes(style)) return samples.map((item) => ({
     ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
   }));
   if (style === 'harbor') return samples.map((item, index) => ({
     ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
     ...(index < 3 ? { onlineRank: index + 1 } : {}),
   }));
-  if (!['prismatic', 'snowfox', 'ripploid', 'flower-letter', 'notebook'].includes(style)) return samples;
+  if (!['prismatic', 'snowfox', 'ripploid', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'].includes(style)) return samples;
   const palettes = {
     1: [50, '#A773F199', '#D47AFF'], 2: [38, '#4C7DFF99', '#58A1F8'],
     3: [28, '#3FB4F699', '#5FC7F4'], 0: [9, '#5762A799', '#5762A7'],
   };
   return samples.map((item, index) => {
-    const roomGuardLevel = item.guardLevel || 0;
+    const christmasMember = style === 'christmas-letter' && item.giftGuardLevel;
+    const roomGuardLevel = item.guardLevel || christmasMember || 0;
     const [level, color, border] = palettes[roomGuardLevel];
     return {
       ...item, avatarUrl: item.avatarUrl || AVATAR,
       honorLevel: [70, 45, 32, 19, 28][index % 5], roomGuardLevel,
-      ...(item.medalLevel ? { roomMedal: { name: item.medalName, level, guardLevel: roomGuardLevel, isLight: true,
+      ...(item.medalLevel || christmasMember ? { roomMedal: { name: christmasMember ? item.medalName || '小铃铛' : item.medalName, level, guardLevel: roomGuardLevel, isLight: true,
         colorStart: color, colorEnd: color, colorBorder: border, colorText: '#FFFFFF' } } : {}),
     };
   });

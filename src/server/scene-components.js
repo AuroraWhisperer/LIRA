@@ -22,7 +22,7 @@ const { normalizeStyleParameters } = require('../shared/component-style-paramete
 const CLOCK_KEYS = { style: 'clockStyle', ...CLOCK_APPEARANCE_KEYS };
 const QUEUE_DEFAULTS = projectOverlayState('queue', { settings: DEFAULT_SETTINGS }).settings;
 const DISPLAY_STATE_FIELDS = { queue: ['queue', 'superChats'], overtime: ['overtime'],
-  'gift-sprint': ['giftSprint'], lyrics: ['lyricState', 'lyricTimeline'] };
+  'gift-sprint': ['giftSprint'], lyrics: ['lyricState', 'lyricTimeline'], 'now-playing': ['nowPlaying'] };
 
 function invalidConfig() {
   return Object.assign(new Error('场景外观参数无效。'), { code: 'INVALID_SCENE_CONFIG', statusCode: 400 });

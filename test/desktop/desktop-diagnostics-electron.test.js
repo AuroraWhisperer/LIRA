@@ -12,11 +12,14 @@ test('real Electron persists page errors, rejected promises, preload failures, f
 }, async () => {
   const directory = createScratchDirectory('desktop-diagnostics-');
   const report = path.join(directory, 'report.json');
+  const stages = path.join(directory, 'stages.log');
   const probe = path.join(directory, 'probe.cjs');
   const preload = path.join(directory, 'preload.cjs');
   fs.writeFileSync(preload, "throw new Error('synthetic preload failure');");
   fs.writeFileSync(probe, `
     const fs = require('node:fs');
+    const mark = stage => fs.appendFileSync(${JSON.stringify(stages)}, Date.now() + ' ' + stage + '\\n');
+    mark('main-entry');
     const http = require('node:http');
     const { app, BrowserWindow } = require('electron');
     const directory = ${JSON.stringify(directory)};
@@ -46,20 +49,26 @@ test('real Electron persists page errors, rejected promises, preload failures, f
     }
     app.whenReady().then(async () => {
       try {
+        mark('app-ready');
         await new Promise(resolve => server.listen(0,'127.0.0.1',resolve));
         baseUrl = 'http://127.0.0.1:' + server.address().port;
         if ((await fetch(baseUrl + '/diagnostics')).status !== 200) throw new Error('fixture route unavailable');
+        mark('route-ready');
         const win = new BrowserWindow({show:false,webPreferences:{preload:${JSON.stringify(preload)},contextIsolation:true,nodeIntegration:false,sandbox:false}});
         await win.loadURL(baseUrl + '/diagnostics');
+        mark('page-loaded');
         const errorPath = directory + '/errors/desktop.log';
         const read = () => fs.existsSync(errorPath) ? fs.readFileSync(errorPath,'utf8') : '';
         await waitFor(() => read().includes('synthetic rejection') && read().includes('synthetic timer failure'));
+        mark('page-errors-recorded');
         const failed = new BrowserWindow({show:false});
         await failed.loadURL(baseUrl + '/broken').catch(() => {});
         await waitFor(() => read().includes('page-load-error'));
+        mark('failed-load-recorded');
         const crashed = new Promise(resolve => win.webContents.once('render-process-gone', resolve));
         win.webContents.forcefullyCrashRenderer();
         await crashed;
+        mark('renderer-crash-recorded');
         fs.writeFileSync(${JSON.stringify(report)}, JSON.stringify({content:read()}));
         failed.destroy(); win.destroy(); dispose();
         server.close(() => app.exit(0));
@@ -69,9 +78,11 @@ test('real Electron persists page errors, rejected promises, preload failures, f
       }
     });
   `);
-  const env = { ...process.env };
+  const env = { ...process.env, ELECTRON_ENABLE_STACK_DUMPING: '1' };
   delete env.ELECTRON_RUN_AS_NODE;
-  const child = spawn(require('electron'), [probe], { env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const child = spawn(require('electron'), [`--user-data-dir=${directory}`, probe], {
+    env, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+  });
   let output = '';
   child.stdout.on('data', (chunk) => { output = (output + chunk).slice(-8000); });
   child.stderr.on('data', (chunk) => { output = (output + chunk).slice(-8000); });
@@ -82,7 +93,8 @@ test('real Electron persists page errors, rejected promises, preload failures, f
     timeout = setTimeout(() => child.kill(), 20_000);
   });
   try {
-    assert.equal(await closed, 0, output + (fs.existsSync(report) ? fs.readFileSync(report, 'utf8') : ''));
+    assert.equal(await closed, 0, output + (fs.existsSync(stages) ? fs.readFileSync(stages, 'utf8') : 'main-entry not reached\n')
+      + (fs.existsSync(report) ? fs.readFileSync(report, 'utf8') : ''));
     const { content } = JSON.parse(fs.readFileSync(report, 'utf8'));
     for (const expected of ['synthetic console failure', 'synthetic rejection', 'synthetic timer failure',
       'preload-error', 'page-load-error', 'renderer-process-error']) assert.ok(content.includes(expected), expected);

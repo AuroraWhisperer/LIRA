@@ -281,6 +281,7 @@ test('installed suite styles appear once in client component lists and disappear
   await desktop.evaluate(async html => {
     document.body.innerHTML = html;
     for (const panel of document.querySelectorAll('section[hidden]')) panel.hidden = false;
+    document.getElementById('danmakuStyleLibrary').showModal();
     const { initComponentStyleLibraries } = await import('/js/admin/component-style-client.js');
     initComponentStyleLibraries(); initComponentStyleLibraries();
     const { initStartAnimation } = await import('/js/admin/start-animation.js');

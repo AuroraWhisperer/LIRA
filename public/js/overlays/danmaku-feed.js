@@ -47,7 +47,7 @@ export function createDanmakuFeed(root, options = {}) {
   };
   const autoScroll = options.autoScroll !== false;
   const fullscreen = options.layout === FULLSCREEN_LAYOUT;
-  const showSuperchat = !fullscreen || options.style === 'mist';
+  const showSuperchat = !fullscreen || ['mist', 'comic'].includes(options.style);
   const createBubble = createDanmakuMessageRenderer({
     document,
     classNames,
@@ -65,8 +65,7 @@ export function createDanmakuFeed(root, options = {}) {
   if (smoothLayout) root.dataset.smoothLayout = 'true';
   const hasEntrance = smoothLayout && Boolean(globalThis.getComputedStyle?.(root)
     ?.getPropertyValue?.('--danmaku-enter-animation')?.trim());
-  const requestedLifetime = Number(options.itemLifetimeMs);
-  const itemLifetimeMs = Number.isFinite(requestedLifetime) && requestedLifetime > 0 ? requestedLifetime : 0;
+  let expirationOptions = options;
   const expireItems = options.expireItems !== false;
   const now = typeof options.now === 'function' ? options.now : () => Date.now();
   const scheduleTimeout =
@@ -124,7 +123,10 @@ export function createDanmakuFeed(root, options = {}) {
   function finishMotion() {
     if (reducedMotion?.matches) {
       renderedEntries.forEach(cancelAnimations);
-      if (hasEntrance) renderedEntries.forEach(({ node }) => { delete node.dataset.liveEntry; });
+      if (hasEntrance || fullscreen) renderedEntries.forEach((entry) => {
+        delete entry.node.dataset.liveEntry;
+        entry.live = false;
+      });
       if (smoothLayout) scheduleLayout();
     }
   }
@@ -171,11 +173,12 @@ export function createDanmakuFeed(root, options = {}) {
     if (root.children.length === 1 && root.children[0].className === classNames.empty) {
       root.replaceChildren();
     }
-    const node = createBubble(item, renderedSequence);
+    const live = hasEntrance && !reducedMotion?.matches;
+    const node = createBubble(item, renderedSequence, { live, now: now() });
     const height = estimateItemHeight(item);
-    if (hasEntrance && !reducedMotion?.matches) node.dataset.liveEntry = 'true';
+    if (live) node.dataset.liveEntry = 'true';
     root.append(node);
-    const entry = { node, height, item, timer: null, entering: smoothLayout };
+    const entry = { node, height, item, timer: null, entering: smoothLayout, live: fullscreen && !reducedMotion?.matches };
     renderedEntries.push(entry);
     renderedContentHeight += height;
     renderedSequence += 1;
@@ -401,7 +404,11 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function scheduleExpiration(entry) {
-    if (!fullscreen || !expireItems || !itemLifetimeMs) return;
+    // Capture timing per message. Editing the next message's settings must not
+    // restart a current fade, move its deadline, or rebuild the visible feed.
+    const { exitAnimation = 'fade', exitDurationMs = FADE_DURATION_MS } = expirationOptions;
+    const itemLifetimeMs = Number(expirationOptions.itemLifetimeMs);
+    if (!fullscreen || !expireItems || !Number.isFinite(itemLifetimeMs) || itemLifetimeMs <= 0) return;
     const currentTime = Number(now());
     const itemTimestamp = Number(entry.item?.timestamp);
     const timestamp = Number.isFinite(itemTimestamp) && itemTimestamp > 0 ? itemTimestamp : currentTime;
@@ -415,7 +422,7 @@ export function createDanmakuFeed(root, options = {}) {
       entry.timer = null;
       removeEntry(entry);
     };
-    if (reducedMotion?.matches || typeof entry.node.animate !== 'function') {
+    if (exitAnimation === 'none' || reducedMotion?.matches || typeof entry.node.animate !== 'function') {
       entry.timer = scheduleTimeout(expire, remaining);
       return;
     }
@@ -430,7 +437,7 @@ export function createDanmakuFeed(root, options = {}) {
         });
       }
       entry.timer = scheduleTimeout(expire, fadeMs);
-    }, Math.max(0, remaining - FADE_DURATION_MS));
+    }, Math.max(0, remaining - exitDurationMs));
   }
 
   function repositionFullscreenItems() {
@@ -467,6 +474,10 @@ export function createDanmakuFeed(root, options = {}) {
       item.entry.node.style.setProperty('left', `${position.left / item.zoom - item.x}px`);
       item.entry.node.style.setProperty('top', `${position.top / item.zoom - item.y}px`);
       item.entry.node.style.setProperty('visibility', 'visible');
+      if (item.entry.live) {
+        item.entry.node.dataset.liveEntry = 'true';
+        item.entry.live = false;
+      }
       occupied.push({ ...item, ...position });
     }
   }
@@ -506,6 +517,9 @@ export function createDanmakuFeed(root, options = {}) {
     remove,
     setRandomPlacement(value) {
       randomPlacement = { centerBias: value.centerBias, dispersion: value.dispersion };
+    },
+    setExpirationOptions(value) {
+      expirationOptions = value;
     },
     destroy() {
       if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);

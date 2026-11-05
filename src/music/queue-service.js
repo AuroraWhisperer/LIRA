@@ -2,6 +2,7 @@
 // 点歌队列领域规则；持久化由 storage/queue-store.js 实现。
 'use strict';
 
+const { randomUUID } = require('node:crypto');
 const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('../shared/utils');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
@@ -9,6 +10,8 @@ const { requestRejection, requesterIdentity, assertSongRequesterAllowed } = requ
 
 const REQUEST_REJECTION_CODES = new Set(['SONG_NAME_REQUIRED', 'QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED', 'SONG_COOLDOWN',
   'REQUESTER_IDENTITY_REQUIRED', 'REQUESTER_BLACKLISTED', 'REQUESTER_GUARD_REQUIRED', 'REQUESTER_MEDAL_REQUIRED', 'USER_QUEUE_FULL']);
+const REQUEST_RESULT_RETENTION_MS = 60000;
+const REQUEST_RESULT_LIMIT = 200;
 
 function isQueueRequestRejection(error) {
   return REQUEST_REJECTION_CODES.has(error?.code);
@@ -133,7 +136,26 @@ function handleQueueAction(context, action, rawId) {
 }
 
 function getQueueSnapshot(context) {
-  return { current: null, waiting: context.store.listActive(context.settings().guardPriorityEnabled === 'true') };
+  const timestamp = Date.now();
+  const requestResult = context.requestResult;
+  const requestResults = (context.requestResults || []).filter((result) => result.expiresAt > timestamp);
+  return { current: null, waiting: context.store.listActive(context.settings().guardPriorityEnabled === 'true'),
+    ...(requestResult?.expiresAt > timestamp ? { requestResult: { ...requestResult } } : {}),
+    ...(requestResults.length ? { requestResults: requestResults.map((result) => ({ ...result })) } : {}) };
+}
+
+function recordQueueRequestResult(context, { accepted, requesterName, songName }) {
+  const timestamp = Date.now();
+  context.requestResult = {
+    id: randomUUID(),
+    accepted: accepted === true,
+    requesterName: cleanText(requesterName) || '观众',
+    songName: cleanText(songName) || '随机歌曲',
+    expiresAt: timestamp + 4000,
+  };
+  context.requestResults = (context.requestResults || []).filter((result) => result.expiresAt > timestamp);
+  context.requestResults.push({ ...context.requestResult, expiresAt: timestamp + REQUEST_RESULT_RETENTION_MS });
+  if (context.requestResults.length > REQUEST_RESULT_LIMIT) context.requestResults.shift();
 }
 
 function ensureUnifiedQueue(context) {
@@ -147,5 +169,6 @@ module.exports = {
   cancelQueueItem,
   handleQueueAction,
   getQueueSnapshot,
+  recordQueueRequestResult,
   ensureUnifiedQueue,
 };

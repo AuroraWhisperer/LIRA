@@ -5,18 +5,33 @@ import { bindGuardImage } from '../shared/bilibili-guard-icons.js';
 import { createSpookyMessageRenderer } from './danmaku-spooky.js';
 import { createNotebookMessageRenderer } from './danmaku-notebook.js';
 import { createFlowerLetterMessageRenderer } from './danmaku-flower-letter.js';
+import { createChristmasMessageRenderer } from './danmaku-christmas.js';
+import { createChristmasLetterMessageRenderer } from './danmaku-christmas-letter.js';
+import { createComicMessageRenderer } from './danmaku-comic.js';
+import { createStartrailMessageRenderer } from './danmaku-startrail.js';
+import { createAuroraMessageRenderer } from './danmaku-aurora.js';
+import { createRandomEntranceRenderer } from './danmaku-random-entrance.js';
+import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 
 export { DEFAULT_DANMAKU_CLASSES, measureDanmakuText };
 
 // Keep the desktop's staggered entrance and existing system-message appearance.
 export function createDanmakuMessageRenderer(options) {
-  const render = createDanmakuRenderer({ bindGiftImage: bindGuardImage, ...options }, {
+  const render = createDanmakuRenderer({ bindGiftImage: bindGuardImage, showGiftTotal: options.style === 'aurora', ...options }, {
     decorateSystemMessages: false,
     entranceDelay: (index) => Math.min(index, 8) * 24,
   });
+  if (options.style === 'aurora') return createAuroraMessageRenderer(options, render);
   if (options.style === 'notebook') return createNotebookMessageRenderer(options, render);
   if (options.style === 'spooky') return createSpookyMessageRenderer(options, render);
   if (options.style === 'flower-letter') return createFlowerLetterMessageRenderer(options, render);
+  if (options.style === 'christmas') return createChristmasMessageRenderer(options, render);
+  if (options.style === 'christmas-letter') return createChristmasLetterMessageRenderer(options, render);
+  if (options.style === 'comic') return createComicMessageRenderer(options, render);
+  if (options.style === 'startrail') return createStartrailMessageRenderer(options, render);
+  if (DANMAKU_STYLE_OPTIONS[options.style]?.entranceAnimation) {
+    return createRandomEntranceRenderer(options, render, DANMAKU_STYLE_OPTIONS[options.style]);
+  }
   if (!['ripploid', 'twitter'].includes(options.style)) return render;
   const { document, classNames } = options;
   const resolveAvatarUrl = typeof options.resolveAvatarUrl === 'function' ? options.resolveAvatarUrl : (value) => value;

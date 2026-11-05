@@ -115,6 +115,8 @@ function createBilibiliClient(roomId, context) {
             logSongRequest('queue-broadcast', danmaku, {
               queueId: Number(result.queueItem?.id) || 0,
             });
+          } else if (result.command?.type === 'request' || result.command?.type === 'random') {
+            broadcastSnapshot('queue:request-result');
           }
           return gameResult?.game === 'draw-guess';
         } catch (error) {

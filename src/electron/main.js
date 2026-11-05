@@ -32,6 +32,8 @@ const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 const { createDailyBotController } = require('./daily-bot-controller');
 const { createPlannerReminderController } = require('./planner-reminder-controller');
 const { registerPlannerReminderIpc } = require('./ipc/planner-reminder-ipc');
+const { createDesktopNotifications } = require('./desktop-notifications');
+const { registerDesktopNotificationsIpc } = require('./ipc/desktop-notifications-ipc');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
 const { createSceneCloudController, getSceneOwner, getComponentPreviewOwner } = require('./scene-cloud-controller');
@@ -46,6 +48,7 @@ const { createClientAppearance, getClientWindowBackground, bindClientAppearanceW
 const { registerClientAppearanceIpc } = require('./ipc/client-appearance-ipc');
 const { registerScreenColorPicker } = require('./screen-color-picker');
 const { createAudioAssistant } = require('./audio-assistant');
+const { createAudioComponentManager } = require('./audio-component-manager');
 const { registerAudioAssistantIpc } = require('./ipc/audio-assistant-ipc');
 const { createPlaybackOutput } = require('./playback-output');
 const { registerPlaybackOutputIpc } = require('./ipc/playback-output-ipc');
@@ -152,6 +155,7 @@ var doubaoSession = null;
 var disposeClientAppearanceIpc = null;
 var disposeScreenColorPicker = null;
 var audioAssistant = null;
+var audioComponent = null;
 var playbackOutput = null;
 var disposePlaybackOutputIpc = null;
 var disposeAudioAssistantIpc = null;
@@ -165,6 +169,8 @@ var fanProfileController = null;
 var disposeFanProfileIpc = null;
 var disposeDailyBotIpc = null;
 var plannerReminderController = null;
+var desktopNotifications = null;
+var disposeDesktopNotificationsIpc = null;
 var disposeDiagnostics = null;
 var disposeLogMaintenance = null;
 var disposePlannerReminderIpc = null;
@@ -358,11 +364,13 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
       disposeFanProfileIpc?.();
       disposeDailyBotIpc?.();
       disposePlannerReminderIpc?.();
+      disposeDesktopNotificationsIpc?.();
       disposeClientAppearanceIpc?.();
       disposeScreenColorPicker?.();
       disposeAudioAssistantIpc?.();
       disposePlaybackOutputIpc?.();
       plannerReminderController?.dispose();
+      desktopNotifications?.dispose();
       dynamicLotteryAuth?.dispose();
       const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth, doubaoSession].filter(
         Boolean,
@@ -376,7 +384,9 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
         integrityStopped,
         audioAssistant?.dispose(),
         playbackOutput?.dispose(),
+        audioComponent?.close(),
         clientAppearance?.whenIdle(),
+        desktopNotifications?.whenIdle(),
         dynamicLotteryAuth?.whenIdle(),
         guardExpiryAuth?.whenIdle(),
         ...controllersToDrain.map((controller) => controller.whenIdle()),
@@ -396,18 +406,27 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
 
 async function startDesktopApp() {
   configureDesktopEnvironment();
+  audioComponent = createAudioComponentManager({
+    dataDir: pathState.dataDir,
+    bundledDirectory: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant'),
+    canDownload: () => licenseManager?.getState() === LicenseState.AUTHORIZED,
+    onState: state => {
+      const window = windowState.main;
+      if (window && !window.isDestroyed()) window.webContents.send('audio-component:state', state);
+    },
+  });
   playbackOutput = createPlaybackOutput({
-    executable: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant', 'LiraAudioAssistant.exe'),
+    getExecutable: audioComponent.getExecutable,
     dataDir: pathState.dataDir,
     onFault: (fault) => {
       const window = windowState.main;
       if (window && !window.isDestroyed()) window.webContents.send('playback-output:fault', fault);
     },
   });
-  disposePlaybackOutputIpc = registerPlaybackOutputIpc({ ipcMain, output: playbackOutput,
+  disposePlaybackOutputIpc = registerPlaybackOutputIpc({ ipcMain, output: playbackOutput, component: audioComponent,
     getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
   audioAssistant = createAudioAssistant({
-    executable: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant', 'LiraAudioAssistant.exe'),
+    getExecutable: audioComponent.getExecutable,
     dataDir: pathState.dataDir,
     getProcessIds: () => [process.pid, playbackOutput?.getProcessId(), ...app.getAppMetrics().map((item) => item.pid)],
     getPlaybackProcessId: () => playbackOutput?.getCaptureProcessId(),
@@ -416,7 +435,7 @@ async function startDesktopApp() {
       if (window && !window.isDestroyed()) window.webContents.send('audio-assistant:state', state);
     },
   });
-  disposeAudioAssistantIpc = registerAudioAssistantIpc({ ipcMain, assistant: audioAssistant,
+  disposeAudioAssistantIpc = registerAudioAssistantIpc({ ipcMain, assistant: audioAssistant, component: audioComponent,
     getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl,
     isPathAllowedForLocalMedia, shell });
   clientAppearance = createClientAppearance({ dataDir: pathState.dataDir, writeLog });
@@ -434,12 +453,25 @@ async function startDesktopApp() {
   logStartupPhase('partition-migration', phaseStartedAt);
   configureMenu();
   configureLocalMediaProtocol();
+  desktopNotifications = createDesktopNotifications({
+    dataDir: pathState.dataDir,
+    Notification,
+    getMainWindow: () => windowState.main,
+    icon: path.join(ROOT_DIR, 'build', 'icon.png'),
+    writeLog,
+    onPlannerRemindersChanged: (enabled) => plannerReminderController?.setEnabled(enabled),
+  });
+  disposeDesktopNotificationsIpc = registerDesktopNotificationsIpc({
+    ipcMain, notifications: desktopNotifications,
+    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl,
+  });
   plannerReminderController = createPlannerReminderController({
     Notification,
     powerMonitor,
     getMainWindow: () => windowState.main,
     icon: path.join(ROOT_DIR, 'build', 'icon.png'),
     writeLog,
+    enabled: desktopNotifications.getState().settings.plannerRemindersEnabled,
   });
   disposePlannerReminderIpc = registerPlannerReminderIpc({
     ipcMain,
@@ -524,6 +556,9 @@ async function startDesktopApp() {
   logStartupPhase('bilibili-cookie-restore', phaseStartedAt);
 
   var serverOptions = {
+    onGiftFlushed: (item) => {
+      if (licenseManager?.isAuthorized()) desktopNotifications.notifyGift(item);
+    },
     fontFetch: (url, options) => net.fetch(url, options),
     host: process.env.HOST || '127.0.0.1',
     startPort: 3000,
@@ -759,6 +794,7 @@ async function startDesktopApp() {
   phaseStartedAt = Date.now();
   readinessController = createDesktopReadinessController({
     licenseManager,
+    audioComponent,
     runtime: lifecycleState.runtime,
     remoteGiftController,
     cloudSyncController,
@@ -847,8 +883,8 @@ function configureLocalMediaProtocol() {
 function createMainWindow(baseUrl, authorized = false) {
   windowState.baseUrl = baseUrl;
   var opts = {
-    width: 1280,
-    height: 720,
+    width: 1200,
+    height: 800,
     minWidth: 1024,
     minHeight: 680,
     show: false,

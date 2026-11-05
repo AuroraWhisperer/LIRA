@@ -70,6 +70,7 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
         return { lyricState, ...(unchanged(request, 'lyricTimeline', entry.version)
           ? {} : { lyricTimeline: structuredClone(entry.timeline) }) };
       }
+      case 'now-playing': return { nowPlaying: projectOverlayState(type, getState()).nowPlaying };
       case 'games': return { session: response('/api/games/session', displayPorts.games.getSession()) };
       case 'wheel': return response('/api/wheel', displayPorts.wheel.getState());
       case 'interactions': return response('/api/interactions/session', displayPorts.interactions.getState());

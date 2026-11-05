@@ -2,8 +2,9 @@ import { STYLE_PARAMETER_CAPABILITIES, styleParametersFor } from '../shared/comp
 import { componentEffectProfiles, createEffectFilters, effectColor, effectTransform } from './component-effect-filters.js';
 
 const CLOCK_TEXT = '.clock-time > span, .clock-flip-value, .clock-flip-half > span, .clock-date-row > span, .clock-label, .clock-period, .clock-year';
-const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name';
+const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount';
 const SURFACES = {
+  comic: '.comic-ink',
   mist: '.draw-danmaku-body, .mist-guard-card, .sc-mist',
   ranked: '.draw-danmaku-body > p', cream: '.draw-danmaku-body',
   glow: '.draw-danmaku-body > p', starveil: '.draw-danmaku-body > p, .draw-danmaku-gift-copy',

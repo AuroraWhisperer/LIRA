@@ -34,9 +34,9 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
       const { initTextBoxes } = await import('/js/admin/text-box.js');
       enhanceSelects(); enhanceColorControls(); initTextBoxes();
     }, markup);
+    await desktop.waitForFunction(() => !document.querySelector('[data-text-box="add"]').disabled);
   }
   await openTextBoxes();
-  await desktop.waitForFunction(() => !document.querySelector('[data-text-box="add"]').disabled);
   await desktop.evaluate(async () => {
     const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
     window.textBoxCanvas = (await prepareComponentPreviews()).find(component => component.id === 'canvas');
@@ -131,7 +131,7 @@ test('desktop text formatting survives rapid toggles, undo, publication and reop
   assert.equal(await desktop.evaluate(hasTextBox), false);
   await desktop.locator('[data-text-box="discard"]').click({ force: true });
   await desktop.waitForFunction(hasTextBox);
-  assert.equal((await desktop.reload()).status(), 200);
+  assert.equal((await desktop.reload({ waitUntil: 'domcontentloaded' })).status(), 200);
   await openTextBoxes();
   assert.equal(await speed.inputValue(), '85');
   await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first().waitFor();

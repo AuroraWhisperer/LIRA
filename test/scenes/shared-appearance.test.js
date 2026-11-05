@@ -17,6 +17,8 @@ const { handleCanvasAppearance } = require('../../src/server/routes/scene-appear
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { readNowPlayingConfig, saveNowPlayingConfig } = require('../../src/server/now-playing-settings');
+const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
 
 function context(t) {
   const values = { ...DEFAULT_SETTINGS, songBoardSyncTheme: 'false', songBoardTitle: '客户端标题' };
@@ -58,6 +60,39 @@ test('heart box display parameters share desktop values and canvas edits without
   assert.equal(ctx.values.blindboxCastleMultiplier, '');
   assert.throws(() => owner.patch('blindbox', config, { blindboxCastleMultiplier: '-1' }));
   assert.equal(config.heartBoxOnly, false);
+});
+
+test('now-playing settings are shared by desktop and canvas while each scene retains its record style', t => {
+  const ctx = context(t);
+  const snapshots = [];
+  ctx.broadcastSnapshot = reason => snapshots.push(reason);
+  const config = { ...createSceneExtraDefaults('now-playing'), style: 'turntable' };
+  saveNowPlayingConfig(ctx, { ...createSceneExtraDefaults('now-playing'), style: 'cover',
+    nowPlayingShowArtist: false, nowPlayingRotationSeconds: 28 });
+  assert.equal(readNowPlayingConfig(ctx.values).style, 'cover');
+  const shared = createSceneSharedAppearance(ctx).read('now-playing', config);
+  assert.equal(shared.nowPlayingShowArtist, false);
+  assert.equal(shared.nowPlayingRotationSeconds, 28);
+  assert.equal(Object.hasOwn(shared, 'style'), false);
+  createSceneSharedAppearance(ctx).patch('now-playing', config, { nowPlayingShowArtist: true, nowPlayingLayout: 'vertical' });
+  const reread = readNowPlayingConfig(ctx.values);
+  assert.equal(reread.nowPlayingShowArtist, true);
+  assert.equal(reread.nowPlayingLayout, 'vertical');
+  assert.equal(reread.style, 'cover');
+  assert.equal(config.style, 'turntable');
+  assert.deepEqual(snapshots, ['settings']);
+});
+
+test('invalid now-playing appearance cannot replace saved configuration through either settings writer', t => {
+  const ctx = context(t);
+  ctx.broadcastSnapshot = () => {};
+  saveNowPlayingConfig(ctx, { ...createSceneExtraDefaults('now-playing'), nowPlayingShowRecord: false });
+  const before = ctx.values.nowPlayingAppearance;
+  assert.throws(() => saveNowPlayingConfig(ctx, { nowPlayingRotationSeconds: -1 }));
+  assert.throws(() => createSceneSharedAppearance(ctx).patch('now-playing', createSceneExtraDefaults('now-playing'), { style: 'cover' }));
+  const invalid = normalizeSettingsPatch({ nowPlayingAppearance: JSON.stringify({ arbitraryFile: 'private' }) }, DEFAULT_SETTINGS);
+  assert.ok(invalid.error);
+  assert.equal(ctx.values.nowPlayingAppearance, before);
 });
 
 test('style owners keep clock profiles, guard languages and imported resource parameters separate', t => {
@@ -117,11 +152,15 @@ test('gift display validation and field allowlists reject the complete patch bef
   const ctx = context(t);
   const config = createSceneExtraDefaults('gift-feed');
   const owner = createSceneSharedAppearance(ctx);
-  owner.patch('gift-feed', config, { visibleRows: 5 });
+  owner.patch('gift-feed', config, { visibleRows: 5, tailStyle: 'swallowtail', textureStyle: 'polka' });
   assert.equal(JSON.parse(ctx.values.giftDisplayConfig).visibleRows, 5);
+  const appearance = createSceneSharedAppearance(ctx).read('gift-feed', config);
+  assert.equal(appearance.tailStyle, 'swallowtail');
+  assert.equal(appearance.textureStyle, 'polka');
   const before = JSON.stringify(ctx.values);
   for (const [type, appearance, patch] of [
     ['gift-feed', config, { threshold1: 200000, visibleRows: 3 }],
+    ['gift-feed', config, { textureStyle: 'unknown', visibleRows: 3 }],
     ['lyrics', createSceneExtraDefaults('lyrics'), { desktopLyricScale: 3 }],
     ['songlist', createSceneExtraDefaults('songlist'), { songBoardTitle: '禁止的复合写入', paused: true }],
     ['clock', getClockConfig(ctx.values), { label: '不能绕过客户端控制器' }],

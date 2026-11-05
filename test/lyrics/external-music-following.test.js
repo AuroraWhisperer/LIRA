@@ -129,11 +129,42 @@ test('playing without lyrics stays its own source and late inactive results cann
   await sample('netease');
   await runtime.selectLyricSource('netease-client');
   assert.equal(runtime.getLyricSource().neteaseClient.status, 'empty');
-  pending.resolve({ source: 'qq', lines: [{ startMs: 0, text: 'Late QQ' }] });
+  assert.equal(runtime.getNowPlayingState().source, 'netease-client');
+  assert.equal(runtime.getNowPlayingState().trackTitle, 'netease');
+  assert.equal(runtime.getNowPlayingState().playing, true);
+  assert.deepEqual(runtime.getNowPlayingState().artists, ['Artist']);
+  pending.resolve({ source: 'qq', coverUrl: 'https://example.test/qq.jpg', lines: [{ startMs: 0, text: 'Late QQ' }] });
   await new Promise(setImmediate);
   assert.equal(runtime.getLyricSource().source, 'netease-client');
   assert.equal(runtime.getLyricTimeline().status, 'empty');
   assert.deepEqual(runtime.getLyricTimeline().lines, []);
+  assert.equal(runtime.getNowPlayingState().coverUrl, '', 'inactive results cannot replace the selected artwork');
+  await sample('netease', 'Paused');
+  await sample('qq', 'Stopped');
+  assert.equal(runtime.getNowPlayingState().playing, false);
+});
+
+test('now-playing publishes track and playback changes once, rejects stale artwork, and clears it on a new track', async (t) => {
+  const { runtime, messages } = await fixture(t);
+  const input = { trackTitle: 'Instrumental', artists: ['Artist'], coverUrl: 'https://example.test/current.jpg',
+    playing: true, status: 'empty', generation: 10, sequence: 1 };
+  runtime.publishLyricState(input);
+  const updates = () => messages.filter(message => message.type === 'now-playing');
+  assert.equal(updates().length, 1);
+  assert.equal(runtime.getNowPlayingState().playing, true);
+  for (let sequence = 2; sequence <= 10; sequence++) runtime.publishLyricState({ ...input, sequence, currentMs: sequence * 100 });
+  assert.equal(updates().length, 1, 'lyric clock ticks do not create metadata broadcasts');
+  runtime.publishLyricState({ ...input, sequence: 11, playing: false });
+  assert.equal(updates().length, 2);
+  runtime.publishLyricState({ ...input, sequence: 10, coverUrl: 'https://example.test/stale.jpg' });
+  assert.equal(runtime.getNowPlayingState().coverUrl, input.coverUrl);
+  assert.equal(runtime.getNowPlayingState().playing, false);
+  runtime.publishLyricTimeline({ trackTitle: 'Next track', artists: ['Another artist'], lines: [] });
+  assert.equal(runtime.getNowPlayingState().trackTitle, 'Next track');
+  assert.equal(runtime.getNowPlayingState().coverUrl, '');
+  assert.equal(updates().length, 3);
+  runtime.publishLyricState({ trackTitle: 'Next track', coverUrl: 'file:///private/cover.png', playing: true, generation: 20, sequence: 1 });
+  assert.equal(runtime.getNowPlayingState().coverUrl, '', 'private local file paths cannot reach browser sources');
 });
 
 test('retries target one client; shutdown retires both monitors and their callbacks', async (t) => {

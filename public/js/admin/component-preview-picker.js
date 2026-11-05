@@ -44,6 +44,8 @@ const CATEGORY_ICONS = {
   overtime: 'M9 3h6m-3 0v3m6 2 2-2M12 10v4l2 1m6-1a8 8 0 1 1-16 0 8 8 0 0 1 16 0Z',
   songlist: 'M5 5h9M5 9h7M5 13h5m7-5v10m0-10 4-1v3l-4 1m0 7a3 2 0 1 1-6 0 3 2 0 0 1 6 0Z',
   lyrics: 'M4 6h16M4 12h16M7 18h10',
+  'now-playing': 'M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-6 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z',
+  'music-display': 'M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Zm12-2a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Z',
   '直播小游戏': 'M8 7h8a5 5 0 0 1 5 4l1 5a3 3 0 0 1-5 3l-3-3h-4l-3 3a3 3 0 0 1-5-3l1-5a5 5 0 0 1 5-4Zm-1 3v5m-2-2h4m7-2h.01m2 3h.01',
   'interactions-poll': 'M4 20h16M6 16v-5m6 5V4m6 12V8',
   'interactions-rating': 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z',
@@ -58,10 +60,11 @@ const CATEGORY_ICONS = {
 };
 
 const PICKER_NAVIGATION = [
-  'danmaku', 'interactions-poll', 'interactions-rating',
+  'danmaku',
   { id: 'gifts', title: '礼物姬', categories: ['gift-frame', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox', 'guard-thanks'] },
-  'text-box', 'overtime', 'opening', 'clock',
-  { id: 'music', title: '点歌', categories: ['queue', 'songlist', 'lyrics'] },
+  { id: 'music-display', title: '音乐展示', categories: ['lyrics', 'now-playing'] },
+  'text-box', 'overtime', 'clock', 'opening', 'interactions-poll', 'interactions-rating',
+  { id: 'music', title: '点歌', categories: ['queue', 'songlist'] },
   '直播小游戏', 'background',
 ];
 const CATEGORY_TITLES = { clock: '时钟', 'gift-feed': '滚动礼物' };

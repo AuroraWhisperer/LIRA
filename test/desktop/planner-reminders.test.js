@@ -102,6 +102,26 @@ test('startup skips past schedules but resume delivers already scheduled reminde
   f.controller.dispose();
 });
 
+test('the workbench switch cancels reminders without losing future schedules or replaying disabled deadlines', () => {
+  const f = fixture();
+  const first = f.reminder();
+  const later = f.reminder({ id: 'later', remindAt: first.remindAt + 60000 });
+  f.controller.sync([first, later]);
+  f.controller.setEnabled(false);
+  assert.equal(f.timers.size, 0);
+  f.advance(60000);
+  f.powerMonitor.emit('resume');
+  f.controller.sync([first, later]);
+  assert.equal(f.notifications.length, 0);
+  assert.equal(f.timers.size, 0);
+  f.controller.setEnabled(true);
+  f.advance(60000);
+  assert.equal(f.notifications.length, 1);
+  f.controller.setEnabled(false);
+  assert.equal(f.notifications[0].closed, true);
+  f.controller.dispose();
+});
+
 test('invalid snapshots are rejected atomically without cancelling valid reminders', () => {
   const f = fixture();
   const valid = f.reminder();

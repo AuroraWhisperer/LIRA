@@ -5,7 +5,7 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
 
-function createPlaybackOutput({ executable, dataDir, onFault = () => {}, spawnProcess = spawn, exists = fs.existsSync }) {
+function createPlaybackOutput({ executable, getExecutable, dataDir, onFault = () => {}, spawnProcess = spawn, exists = fs.existsSync }) {
   let child = null;
   let launching = null;
   let closing = null;
@@ -22,8 +22,17 @@ function createPlaybackOutput({ executable, dataDir, onFault = () => {}, spawnPr
   function launch() {
     if (closed) return Promise.reject(new Error('播放输出正在关闭。'));
     if (launching) return launching;
-    if (!exists(executable)) return Promise.reject(new Error('原生音频组件未就绪，请重新安装完整客户端。'));
-    launching = new Promise((resolve, reject) => {
+    const pending = Promise.resolve().then(() => getExecutable ? getExecutable() : executable).then(filename => {
+      if (closed) throw new Error('播放输出正在关闭。');
+      return launchWorker(filename);
+    }).catch(error => { if (launching === pending) launching = null; throw error; });
+    launching = pending;
+    return launching;
+  }
+
+  function launchWorker(executable) {
+    if (!exists(executable)) return Promise.reject(new Error('原生音频组件缺失，请重新打开 LIRA 检查。'));
+    return new Promise((resolve, reject) => {
       const worker = spawnProcess(executable, ['--playback-output'], {
         windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'],
         env: { ...process.env, LIRA_AUDIO_DATA_DIR: path.join(dataDir, 'playback-output') },
@@ -61,7 +70,6 @@ function createPlaybackOutput({ executable, dataDir, onFault = () => {}, spawnPr
       worker.once('exit', ended);
       worker.stdin.on('error', ended);
     });
-    return launching;
   }
 
   function request(op, value) {

@@ -28,6 +28,7 @@ function createPlannerReminderController({
   getMainWindow,
   icon,
   writeLog = () => {},
+  enabled = true,
   now = Date.now,
   setTimer = setTimeout,
   clearTimer = clearTimeout,
@@ -48,7 +49,7 @@ function createPlannerReminderController({
 
   function schedule() {
     cancelTimer();
-    if (disposed) return;
+    if (disposed || !enabled) return;
     const pending = [...reminders.values()].filter((reminder) => !reminder.fired);
     if (!pending.length) return;
     const next = Math.min(...pending.map((reminder) => reminder.remindAt));
@@ -89,7 +90,7 @@ function createPlannerReminderController({
   }
 
   function checkDue() {
-    if (disposed) return;
+    if (disposed || !enabled) return;
     cancelTimer();
     const time = now();
     for (const reminder of reminders.values()) {
@@ -121,6 +122,25 @@ function createPlannerReminderController({
     return state;
   }
 
+  function setEnabled(value) {
+    if (disposed || enabled === value) return;
+    enabled = value;
+    cancelTimer();
+    if (enabled) {
+      // Reminders that expired while disabled must not be replayed on enable.
+      for (const reminder of reminders.values()) {
+        if (reminder.remindAt <= now()) reminder.fired = true;
+      }
+      schedule();
+    } else {
+      for (const notification of notifications) {
+        notification.removeAllListeners();
+        notification.close();
+      }
+      notifications.clear();
+    }
+  }
+
   function dispose() {
     if (disposed) return;
     disposed = true;
@@ -135,7 +155,7 @@ function createPlannerReminderController({
   }
 
   powerMonitor.on('resume', checkDue);
-  return { getState, sync, dispose };
+  return { getState, sync, setEnabled, dispose };
 }
 
 module.exports = { createPlannerReminderController };

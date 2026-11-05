@@ -17,9 +17,88 @@
   top: 4px;
   width: calc(var(--gift-banner-width) - 64px);
   height: 64px;
+  overflow: hidden;
   border-radius: 32px 0 0 32px;
   clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%);
   background: linear-gradient(90deg, var(--gift-start), var(--gift-end));
+}
+.gift-banner[data-tail-style='swallowtail'] .gift-banner-background {
+  width: calc(var(--gift-banner-width) - 58px);
+  clip-path: polygon(0 0, calc(100% - 6px) 0, calc(100% - 32px) 50%, 100% 100%, 0 100%);
+}
+.gift-banner[data-tail-style='swallowtail'] .gift-banner-background::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(calc(100% - 32px) 50%, 100% 100%, calc(100% - 68px) 100%);
+  background: linear-gradient(180deg, #ffffff60, #ffffffaa);
+}
+.gift-banner[data-tail-style='ribbon']::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  width: calc(var(--gift-banner-width) - 76px);
+  height: 58px;
+  border-radius: 29px 0 0 29px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 26px) 100%, 0 100%);
+  background: linear-gradient(110deg, #ffffffa8, #ffffff62), linear-gradient(90deg, var(--gift-start), var(--gift-end));
+  box-shadow: inset 0 -1px 0 #ffffff80;
+}
+.gift-banner[data-tail-style='ribbon'] .gift-banner-background {
+  z-index: 1;
+  width: calc(var(--gift-banner-width) - 74px);
+  clip-path: polygon(0 0, 100% 0, calc(100% - 26px) 100%, 0 100%);
+}
+.gift-banner[data-tail-style='ribbon']::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--gift-banner-width) - 96px);
+  top: 67px;
+  width: 8px;
+  height: 3px;
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+  background: linear-gradient(#00000022, #00000022), var(--gift-end);
+}
+.gift-banner[data-tail-style='ribbon'] > :not(.gift-banner-background) {
+  z-index: 2;
+}
+.gift-banner[data-tail-style='swallowtail'] .gift-banner-count,
+.gift-banner[data-tail-style='ribbon'] .gift-banner-count {
+  margin-left: calc(var(--gift-banner-width) - 58px);
+}
+.gift-banner[data-texture-style]:not([data-texture-style='solid']) .gift-banner-background {
+  background: linear-gradient(110deg, #15172d12, #15172d26 64%, #15172d08),
+    linear-gradient(90deg, var(--gift-start), var(--gift-end));
+  box-shadow: inset 0 1px 0 #ffffff40, inset 0 -1px 0 #18152930;
+}
+.gift-banner[data-texture-style]:not([data-texture-style='solid']) .gift-banner-text {
+  text-shadow: 0 1px 2px #17122730;
+}
+.gift-banner[data-texture-style]:not([data-texture-style='solid']) .gift-banner-background::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-size: 100% 100%;
+  background-repeat: no-repeat;
+  -webkit-mask-image: linear-gradient(90deg, #000 5%, #0008 24%, #0008 62%, #000 86%);
+  mask-image: linear-gradient(90deg, #000 5%, #0008 24%, #0008 62%, #000 86%);
+}
+.gift-banner[data-texture-style='satin'] .gift-banner-background::before {
+  background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20364%2064%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22sheen%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%22.04%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.52%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22shade%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22black%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22black%22%20stop-opacity%3D%22.2%22%2F%3E%3C%2FlinearGradient%3E%3Cpattern%20id%3D%22silk%22%20width%3D%227%22%20height%3D%224%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M0%20.5H7%22%20stroke%3D%22white%22%20stroke-opacity%3D%22.045%22%20stroke-width%3D%22.5%22%2F%3E%3C%2Fpattern%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M-16%2046C62%209%20116-13%20203%206S296%2040%20383-6V14C292%2055%20272%2030%20194%2016S65%2027-16%2058Z%22%20fill%3D%22url%28%23sheen%29%22%2F%3E%3Cpath%20d%3D%22M-8%2047C66%2022%20115%2034%20193%2052S284%2073%20375%2028V65H-8Z%22%20fill%3D%22url%28%23shade%29%22%2F%3E%3Cpath%20d%3D%22M-8%2048C80%206%20114%204%20194%2017S296%2045%20379%205%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%22.55%22%20opacity%3D%22.46%22%2F%3E%3Cpath%20d%3D%22M174%2061C255%2052%20295%2034%20371%2012%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%22.5%22%20opacity%3D%22.2%22%2F%3E%3Cpath%20d%3D%22M0%200H364V64H0Z%22%20fill%3D%22url%28%23silk%29%22%2F%3E%3C%2Fsvg%3E');
+}
+.gift-banner[data-texture-style='starlight'] .gift-banner-background::before {
+  background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20364%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22haze%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%22.46%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3C%2FradialGradient%3E%3ClinearGradient%20id%3D%22orbit%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%22.72%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.4%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cellipse%20cx%3D%22303%22%20cy%3D%22-6%22%20rx%3D%22116%22%20ry%3D%2257%22%20fill%3D%22url%28%23haze%29%22%2F%3E%3Cellipse%20cx%3D%2225%22%20cy%3D%2268%22%20rx%3D%2258%22%20ry%3D%2240%22%20fill%3D%22url%28%23haze%29%22%20opacity%3D%22.6%22%2F%3E%3Cpath%20d%3D%22M4%2065C101%2077%20241-4%20383%2010%22%20fill%3D%22none%22%20stroke%3D%22url%28%23orbit%29%22%20stroke-width%3D%22.65%22%2F%3E%3Cpath%20d%3D%22M145%2070C221%2030%20297%2013%20374%2019%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%22.4%22%20opacity%3D%22.13%22%2F%3E%3Cg%20fill%3D%22white%22%3E%3Cg%20opacity%3D%22.65%22%3E%3Ccircle%20cx%3D%2277%22%20cy%3D%227%22%20r%3D%22.65%22%2F%3E%3Ccircle%20cx%3D%22148%22%20cy%3D%225%22%20r%3D%22.55%22%2F%3E%3Ccircle%20cx%3D%22206%22%20cy%3D%2259%22%20r%3D%22.65%22%2F%3E%3Ccircle%20cx%3D%22239%22%20cy%3D%227%22%20r%3D%22.8%22%2F%3E%3Ccircle%20cx%3D%22274%22%20cy%3D%2253%22%20r%3D%22.8%22%2F%3E%3Ccircle%20cx%3D%22308%22%20cy%3D%225%22%20r%3D%22.65%22%2F%3E%3Ccircle%20cx%3D%22347%22%20cy%3D%2247%22%20r%3D%22.75%22%2F%3E%3C%2Fg%3E%3Cg%20opacity%3D%22.35%22%3E%3Ccircle%20cx%3D%2295%22%20cy%3D%2256%22%20r%3D%22.45%22%2F%3E%3Ccircle%20cx%3D%22177%22%20cy%3D%2212%22%20r%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%22220%22%20cy%3D%2247%22%20r%3D%22.45%22%2F%3E%3Ccircle%20cx%3D%22259%22%20cy%3D%2226%22%20r%3D%22.5%22%2F%3E%3Ccircle%20cx%3D%22290%22%20cy%3D%2219%22%20r%3D%22.4%22%2F%3E%3Ccircle%20cx%3D%22325%22%20cy%3D%2234%22%20r%3D%22.45%22%2F%3E%3Ccircle%20cx%3D%22340%22%20cy%3D%2212%22%20r%3D%22.45%22%2F%3E%3Ccircle%20cx%3D%22359%22%20cy%3D%2259%22%20r%3D%22.5%22%2F%3E%3C%2Fg%3E%3C%2Fg%3E%3Cg%20fill%3D%22url%28%23haze%29%22%3E%3Ccircle%20cx%3D%22254%22%20cy%3D%2211%22%20r%3D%2210%22%2F%3E%3Ccircle%20cx%3D%22336%22%20cy%3D%2252%22%20r%3D%227%22%2F%3E%3C%2Fg%3E%3Cg%20fill%3D%22white%22%20opacity%3D%22.8%22%3E%3Cpath%20d%3D%22M254%205L254.7%2010.3%20260%2011%20254.7%2011.7%20254%2017%20253.3%2011.7%20248%2011%20253.3%2010.3Z%22%2F%3E%3Cpath%20d%3D%22M336%2048L336.5%2051.5%20340%2052%20336.5%2052.5%20336%2056%20335.5%2052.5%20332%2052%20335.5%2051.5Z%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E');
+}
+.gift-banner[data-texture-style='facets'] .gift-banner-background::before {
+  background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20364%2064%22%3E%3Cdefs%3E%3ClinearGradient%20id%3D%22plane%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%22.02%22%2F%3E%3Cstop%20offset%3D%22.86%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.25%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.08%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22edge%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%22.45%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.58%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.06%22%2F%3E%3C%2FlinearGradient%3E%3ClinearGradient%20id%3D%22depth%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%221%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22black%22%20stop-opacity%3D%22.14%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22black%22%20stop-opacity%3D%220%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M0%200H115L48%2064H0Z%22%20fill%3D%22url%28%23plane%29%22%2F%3E%3Cpath%20d%3D%22M224%200H281L212%2064H155Z%22%20fill%3D%22white%22%20opacity%3D%22.055%22%2F%3E%3Cpath%20d%3D%22M303%200L255%2064H364V0Z%22%20fill%3D%22url%28%23plane%29%22%2F%3E%3Cpath%20d%3D%22M303%200L364%2028V64H255Z%22%20fill%3D%22url%28%23depth%29%22%2F%3E%3Cpath%20d%3D%22M303%200L364%2028%20338%200Z%22%20fill%3D%22white%22%20opacity%3D%22.22%22%2F%3E%3Cpath%20d%3D%22M115%200L48%2064M303%200L255%2064M303%200L364%2028%22%20fill%3D%22none%22%20stroke%3D%22url%28%23edge%29%22%20stroke-width%3D%22.8%22%2F%3E%3Cpath%20d%3D%22M309%200L261%2064%22%20stroke%3D%22white%22%20stroke-width%3D%22.45%22%20opacity%3D%22.2%22%2F%3E%3Cpath%20d%3D%22M0%2063.5H364%22%20stroke%3D%22white%22%20stroke-width%3D%22.5%22%20opacity%3D%22.18%22%2F%3E%3C%2Fsvg%3E');
+}
+.gift-banner[data-texture-style='argyle'] .gift-banner-background::before {
+  background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20364%2064%22%3E%3Cdefs%3E%3Cpattern%20id%3D%22weave%22%20width%3D%2244%22%20height%3D%2232%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M22%20.8L43.2%2016%2022%2031.2%20.8%2016Z%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%22.6%22%20opacity%3D%22.13%22%2F%3E%3Cpath%20d%3D%22M22%20.2L43.8%2016%2022%2031.8%20.2%2016Z%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%22.6%22%20opacity%3D%22.26%22%2F%3E%3Cpath%20d%3D%22M22%203.1L39.8%2016%2022%2028.9%204.2%2016Z%22%20fill%3D%22none%22%20stroke%3D%22white%22%20stroke-width%3D%22.4%22%20opacity%3D%22.1%22%2F%3E%3C%2Fpattern%3E%3Cpattern%20id%3D%22thread%22%20width%3D%226%22%20height%3D%223%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Cpath%20d%3D%22M0%20.4H6%22%20stroke%3D%22white%22%20stroke-width%3D%22.35%22%20opacity%3D%22.055%22%2F%3E%3C%2Fpattern%3E%3ClinearGradient%20id%3D%22shine%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3Cstop%20offset%3D%22.8%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.2%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.04%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M0%200H364V64H0Z%22%20fill%3D%22url%28%23weave%29%22%2F%3E%3Cpath%20d%3D%22M0%200H364V64H0Z%22%20fill%3D%22url%28%23thread%29%22%2F%3E%3Cpath%20d%3D%22M0%203.5H364M0%2060.5H364%22%20stroke%3D%22white%22%20stroke-width%3D%22.6%22%20opacity%3D%22.24%22%2F%3E%3Cpath%20d%3D%22M0%205.5H364M0%2058.5H364%22%20stroke%3D%22white%22%20stroke-width%3D%22.35%22%20opacity%3D%22.13%22%2F%3E%3Cpath%20d%3D%22M0%200H364V64H0Z%22%20fill%3D%22url%28%23shine%29%22%2F%3E%3Cg%20fill%3D%22white%22%20opacity%3D%22.55%22%3E%3Ccircle%20cx%3D%22286%22%20cy%3D%2216%22%20r%3D%22.65%22%2F%3E%3Ccircle%20cx%3D%22330%22%20cy%3D%2248%22%20r%3D%22.65%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E');
+}
+.gift-banner[data-texture-style='polka'] .gift-banner-background::before {
+  background-image: url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20364%2064%22%3E%3Cdefs%3E%3CradialGradient%20id%3D%22pearl%22%20cx%3D%2235%25%22%20cy%3D%2225%25%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%22.65%22%2F%3E%3Cstop%20offset%3D%22.5%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.3%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.04%22%2F%3E%3C%2FradialGradient%3E%3Cpattern%20id%3D%22pearls%22%20width%3D%2228%22%20height%3D%2224%22%20patternUnits%3D%22userSpaceOnUse%22%3E%3Ccircle%20cx%3D%226%22%20cy%3D%226.6%22%20r%3D%221.65%22%20fill%3D%22black%22%20opacity%3D%22.06%22%2F%3E%3Ccircle%20cx%3D%226%22%20cy%3D%226%22%20r%3D%221.65%22%20fill%3D%22url%28%23pearl%29%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2218.6%22%20r%3D%221.15%22%20fill%3D%22black%22%20opacity%3D%22.06%22%2F%3E%3Ccircle%20cx%3D%2220%22%20cy%3D%2218%22%20r%3D%221.15%22%20fill%3D%22url%28%23pearl%29%22%2F%3E%3C%2Fpattern%3E%3ClinearGradient%20id%3D%22gloss%22%20x1%3D%220%22%20y1%3D%220%22%20x2%3D%220%22%20y2%3D%221%22%3E%3Cstop%20stop-color%3D%22white%22%20stop-opacity%3D%22.04%22%2F%3E%3Cstop%20offset%3D%22.9%22%20stop-color%3D%22white%22%20stop-opacity%3D%22.22%22%2F%3E%3Cstop%20offset%3D%221%22%20stop-color%3D%22white%22%20stop-opacity%3D%220%22%2F%3E%3C%2FlinearGradient%3E%3C%2Fdefs%3E%3Cpath%20d%3D%22M0%200H364V64H0Z%22%20fill%3D%22url%28%23pearls%29%22%2F%3E%3Cpath%20d%3D%22M-8%200H374V17C302%2042%20252%2013%20188%2017S67%2053-8%2025Z%22%20fill%3D%22url%28%23gloss%29%22%2F%3E%3Cpath%20d%3D%22M-8%2025C67%2053%20121%2020%20188%2017S302%2042%20374%2017%22%20stroke%3D%22white%22%20stroke-width%3D%22.5%22%20fill%3D%22none%22%20opacity%3D%22.28%22%2F%3E%3Cpath%20d%3D%22M0%2062H364%22%20stroke%3D%22white%22%20stroke-width%3D%22.5%22%20opacity%3D%22.18%22%2F%3E%3C%2Fsvg%3E');
 }
 .gift-banner-avatar {
   position: absolute;

@@ -101,18 +101,23 @@ test('scene output uses explicit read ports and shares a fresh local snapshot on
   const getState = () => {
     reads++;
     return { settings: DEFAULT_SETTINGS, lyricState: { lineText, private: 'secret' }, lyricTimeline: { lines: [] },
+      nowPlaying: { trackTitle: '当前歌曲', artists: ['歌手'], playing: true, private: 'secret' },
       giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, private: 'secret' } };
   };
   const { runtime } = fixture(t, { settings: { get: () => DEFAULT_SETTINGS }, system: { getState },
     songs: { list: () => [{ id: 1, name: '公开歌曲', private: 'secret' }], getChangeToken: () => 1 } }, getState);
-  for (const types of [['lyrics'], ['songlist'], ['lyrics', 'songlist'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame']]) {
+  for (const types of [['lyrics'], ['now-playing'], ['lyrics', 'now-playing'], ['songlist'], ['lyrics', 'songlist'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame']]) {
     const source = publish(runtime, types);
     reads = 0;
     const output = await runtime.service.getOutput(source);
-    assert.equal(reads, types.some(type => ['lyrics', 'gift-sprint'].includes(type)) ? 1 : 0);
+    assert.equal(reads, types.some(type => ['lyrics', 'now-playing', 'gift-sprint'].includes(type)) ? 1 : 0);
     assert.doesNotMatch(JSON.stringify(output.data), /secret|private/);
     if (types.includes('songlist')) assert.equal(output.data.songlist.songs[0].name, '公开歌曲');
     if (types.includes('gift-sprint')) assert.deepEqual(output.data['gift-sprint'], { targetRmb: 1000, remainingCrystalBalls: 7 });
+    if (types.includes('now-playing')) {
+      assert.equal(output.data['now-playing'].nowPlaying.trackTitle, '当前歌曲');
+      assert.equal(output.data['now-playing'].nowPlaying.playing, true);
+    }
     if (types.includes('lyrics')) {
       assert.equal(output.data.lyrics.lyricState.lineText, lineText);
       lineText += '更新';

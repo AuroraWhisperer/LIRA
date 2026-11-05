@@ -149,8 +149,9 @@ test('cooldown write failure rolls back admission and a retry can succeed', (t) 
 
 test('manual admission returns a readable cooldown error without broadcasting another queue item', async (t) => {
   const f = fixture(t);
-  let broadcasts = 0;
-  const context = { queue: { add: f.add }, broadcastSnapshot: () => broadcasts++ };
+  const broadcasts = [];
+  const context = { queue: { add: f.add, recordRequestResult: result => queue.recordQueueRequestResult(f.context, result) },
+    broadcastSnapshot: reason => broadcasts.push(reason) };
   async function request() {
     const response = {
       writeHead(status) { this.status = status; },
@@ -163,7 +164,7 @@ test('manual admission returns a readable cooldown error without broadcasting an
   const rejected = await request();
   assert.equal(rejected.status, 400);
   assert.match(rejected.body.error, /《晴天》冷却中/);
-  assert.equal(broadcasts, 1);
+  assert.deepEqual(broadcasts, ['queue:add', 'queue:request-result']);
   assert.equal(f.context.store.countActive(), 1);
 });
 

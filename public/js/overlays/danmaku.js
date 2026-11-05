@@ -50,6 +50,7 @@ let currentMinGiftAmount = 0;
 let currentSpeedPixelsPerSecond = 120;
 let currentFloatingDispersion = 50;
 let currentRandomPlacement = {};
+let currentRandomExpiration = {};
 let effectConfig = {};
 let effects;
 let legacyConfiguration = null;
@@ -63,6 +64,12 @@ function configureEffects(config) {
   effects?.update('danmaku', config);
 }
 
+function configureLiveFeed(config) {
+  applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions);
+  if (feedNeedsRender) applyItems([]);
+  configureEffects(config);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   effects = isComponentPreview() ? null : createComponentStyleEffects(document);
   syncRankedOverlayScale();
@@ -70,10 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (!previewMode && params.get('source') === 'component') {
     createOverlayFeed(currentOverlayStyle, currentFullscreenDurationSeconds);
     initDanmakuComponentSource({
-      configure: (config) => {
-        applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true);
-        configureEffects(config);
-      },
+      configure: configureLiveFeed,
       showWelcomeMessages: () => styleParametersFor(effectConfig).showEntryMessages !== false,
       clear: () => applyItems([]), append: appendItem, remove: removeSuperChats, status: setConnectionState, getStyle: () => currentOverlayStyle,
       room: syncTwitterProfile,
@@ -99,17 +103,13 @@ document.addEventListener('DOMContentLoaded', () => {
       initialStyle: params.get('style'),
       styleOptions: previewOptions,
       duration: params.get('fullscreenDurationSeconds') || previewHistory.danmakuDuration,
-      renderConfiguration(config) {
-        effectConfig = config;
-        applyConfiguration(config.style, config.fullscreenDurationSeconds, config.styleOptions, true);
-        applyItems([]);
-      },
+      renderConfiguration: configureLiveFeed,
       renderData: sceneDisplay.update,
       renderSamples(style, options, duration, layout, config = { style }, restart = false) {
         effectConfig = config;
         const appearance = styleOptionsFor(style, options, duration);
         const nextContentKey = JSON.stringify([style, appearance.giftImage, appearance.minGiftAmount,
-          appearance.scrollDirection, appearance.durationSeconds,
+          appearance.scrollDirection,
           styleParametersFor(config).showEntryMessages !== false]);
         if (!restart && playNext && sampleContentKey === nextContentKey) {
           applyConfiguration(style, duration, options);
@@ -118,7 +118,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sampleContentKey = nextContentKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
-          style === 'mist' || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
+          ['mist', 'comic'].includes(style) || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
         if (styleParametersFor(config).showEntryMessages !== false) samples.push({ ...DANMAKU_PREVIEW_WELCOME });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
@@ -323,7 +323,7 @@ function createOverlayFeed(style, durationSeconds) {
     },
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
-    showGiftTotal: ['mist', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox', 'ripploid', 'twitter', 'spooky'].includes(style),
+    showGiftTotal: ['mist', 'comic', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox', 'ripploid', 'twitter', 'spooky', 'aurora'].includes(style),
   };
   if (isFloatingDanmakuStyle(style)) {
     options.layout = 'floating';
@@ -332,7 +332,7 @@ function createOverlayFeed(style, durationSeconds) {
   }
   if (isRandomDanmakuStyle(style)) {
     options.layout = 'fullscreen-random';
-    Object.assign(options, currentRandomPlacement);
+    Object.assign(options, currentRandomPlacement, currentRandomExpiration);
     options.itemLifetimeMs = durationSeconds * 1000;
   }
   feed = createDanmakuFeed(document.getElementById('danmakuFeed'), options);
@@ -361,21 +361,23 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   const changed =
     style !== currentOverlayStyle ||
     appearance.giftImage !== currentGiftImage ||
-    (appearance.minGiftAmount || 0) !== currentMinGiftAmount ||
-    (isRandomDanmakuStyle(style) && duration !== currentFullscreenDurationSeconds);
+    (appearance.minGiftAmount || 0) !== currentMinGiftAmount;
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   currentGiftImage = appearance.giftImage;
   currentMinGiftAmount = appearance.minGiftAmount || 0;
   currentRandomPlacement = { centerBias: appearance.centerBias, dispersion: appearance.dispersion };
   feed?.setRandomPlacement?.(currentRandomPlacement);
+  currentRandomExpiration = { itemLifetimeMs: duration * 1000,
+    exitAnimation: appearance.exitAnimation, exitDurationMs: appearance.exitDurationMs };
+  feed?.setExpirationOptions?.(currentRandomExpiration);
   currentSpeedPixelsPerSecond = appearance.speedPixelsPerSecond || 120;
   currentFloatingDispersion = appearance.floatingDispersion ?? 50;
   if (isFloatingDanmakuStyle(style)) feed?.setFloatingDispersion?.(currentFloatingDispersion);
   if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;
   if (style === 'spooky') applySpookyColorFallback(document);
-  if (changed || refreshPreview) createOverlayFeed(style, duration);
+  if (!feed || changed || refreshPreview) createOverlayFeed(style, duration);
   if (!isSceneComponent() && params.get('source') !== 'component') syncTwitterProfile();
   syncRankedOverlayScale();
 }

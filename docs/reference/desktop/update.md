@@ -4,6 +4,8 @@
 
 本文档是自动更新运行时的**唯一事实源**:状态机、运行时配置、事件、状态载荷、错误映射只在此成文。electron-builder / publish 配置与发布流程见 [../engineering/build.md](../engineering/build.md)(本文件不重复配置块);IPC 通道表见 [preload.md](preload.md) §2。
 
+界面入口为「百宝箱 → 设置 → 关于与更新」，更新通知也定位到此页签。[desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html) 由设置片段嵌入一次，沿用 [desktop.js](../../../public/js/desktop.js) 的更新与资源检查渲染；数据目录、日志与资源检查位于「本地数据与支持」分区。更新状态机、自动检查开关和安装流程不变。
+
 ## 1. 职责边界
 
 | 侧       | 事实                                                                                                      | 出处                                                                       |
@@ -57,6 +59,8 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 订阅的 electron-updater 事件 → 状态迁移:checking-for-update / update-available / update-not-available / download-progress / update-downloaded / error(错误映射见 §5)。`download-progress` 中计算下载速度 `speed = bytesDiff / timeDiff`(首帧为 0),percent 钳制 0-100([update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86))。
 
 ## 客户端资源检查
+
+音频组件由独立的 [组件准备 owner](main.md#电音助手生命周期) 校验和补齐，在同页下载任务中显示进度及重试；下面的安装资源诊断不会触发音频重下。
 
 版本更新页「本地数据与支持」提供手动只读诊断，独立于更新状态机和授权构建指纹。`resource-integrity-manager.js` 拥有内存状态、单任务和取消；`desktop-resource-integrity.js` 负责原始文件系统及状态投递组合，主进程在退出/重启和安装更新前停止并等待检查。下载安装包和普通更新检查不停止资源检查。
 

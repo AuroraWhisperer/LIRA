@@ -23,15 +23,56 @@
       <section class="danmaku-settings-block" aria-labelledby="danmakuAppearanceTitle">
         <div class="danmaku-style-picker">
           <div class="danmaku-style-heading">
-            <h4 id="danmakuAppearanceTitle">样式</h4>
-            <div class="danmaku-style-tabs" role="tablist" aria-label="弹幕显示方式">
-              <button id="danmakuFixedStyleTab" type="button" role="tab" aria-selected="true" aria-controls="danmakuFixedStyles">固定位置</button>
-              <button id="danmakuRandomStyleTab" type="button" role="tab" aria-selected="false" aria-controls="danmakuRandomStyles" tabindex="-1">区域随机</button>
-              <button id="danmakuFloatingStyleTab" type="button" role="tab" aria-selected="false" aria-controls="danmakuFloatingStyles" tabindex="-1">飘窗弹幕</button>
-            </div>
+            <h4 id="danmakuAppearanceTitle">最近使用</h4>
             <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 青墨笺</span>
+            <button id="danmakuAllStylesBtn" class="secondary" type="button">全部样式</button>
           </div>
-          <section id="danmakuFixedStyles" class="danmaku-style-group danmaku-style-group-fixed" role="tabpanel" aria-labelledby="danmakuFixedStyleTab">
+          <div id="danmakuRecentStyles" class="danmaku-style-options danmaku-recent-styles" role="group" aria-label="最近使用的弹幕样式"></div>
+          <dialog id="danmakuStyleLibrary" class="danmaku-style-library" aria-label="弹幕样式库">
+            <button id="danmakuCloseStyleLibraryBtn" class="secondary danmaku-library-close" type="button" aria-label="关闭样式库">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+            </button>
+            <div class="danmaku-library-filters">
+              <div class="danmaku-library-filter"><span>显示方式</span>
+                <div class="danmaku-style-tabs" role="group" aria-label="显示方式" data-style-filter-group="layout">
+                  <button id="danmakuAllStyleTab" type="button" data-filter-value="all" aria-pressed="true">全部</button>
+                  <button id="danmakuFixedStyleTab" type="button" data-filter-value="fixed" aria-pressed="false">固定位置</button>
+                  <button id="danmakuRandomStyleTab" type="button" data-filter-value="fullscreen-random" aria-pressed="false">区域随机</button>
+                  <button id="danmakuFloatingStyleTab" type="button" data-filter-value="floating" aria-pressed="false">飘窗弹幕</button>
+                </div>
+              </div>
+              <div class="danmaku-library-filter"><span>持续动效</span>
+                <div class="danmaku-style-tabs" role="group" aria-label="持续动效" data-style-filter-group="ambient">
+                  <button type="button" data-filter-value="all" aria-pressed="true">不限</button>
+                  <button type="button" data-filter-value="true" aria-pressed="false">有</button>
+                  <button type="button" data-filter-value="false" aria-pressed="false">无</button>
+                </div>
+              </div>
+              <div class="danmaku-library-filter"><span>节日元素</span>
+                <div class="danmaku-style-tabs" role="group" aria-label="节日元素" data-style-filter-group="holiday">
+                  <button type="button" data-filter-value="all" aria-pressed="true">不限</button>
+                  <button type="button" data-filter-value="true" aria-pressed="false">有</button>
+                  <button type="button" data-filter-value="false" aria-pressed="false">无</button>
+                </div>
+              </div>
+              <div class="danmaku-library-filter"><span>视觉风格</span>
+                <div class="danmaku-style-tabs" role="group" aria-label="视觉风格" data-style-filter-group="visual">
+                  <button type="button" data-filter-value="all" aria-pressed="true">不限</button>
+                  <button type="button" data-filter-value="simple" aria-pressed="false">简约</button>
+                  <button type="button" data-filter-value="cute" aria-pressed="false">可爱</button>
+                  <button type="button" data-filter-value="elegant" aria-pressed="false">雅致</button>
+                  <button type="button" data-filter-value="tech" aria-pressed="false">潮酷</button>
+                </div>
+              </div>
+            </div>
+            <div class="danmaku-library-summary">
+              <span id="danmakuStyleResultCount" role="status" aria-live="polite"></span>
+              <span class="hint">持续动效指装饰循环，不含弹幕入场与滚动</span>
+              <button id="danmakuClearStyleFilters" class="secondary" type="button" disabled>清除筛选</button>
+            </div>
+            <div class="danmaku-library-scroll">
+              <div id="danmakuStyleResults" class="danmaku-library-results">
+          <section id="danmakuFixedStyles" class="danmaku-style-group danmaku-style-group-fixed" role="group" aria-labelledby="danmakuFixedStyleTab">
             <div class="danmaku-style-options danmaku-style-options-fixed" role="group" aria-label="选择固定位置弹幕样式">
               <button class="danmaku-style-option" type="button" data-danmaku-style="bubble" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/bubble.png" class="danmaku-style-sample" alt="" />
@@ -77,6 +118,14 @@
                 <img src="/img/overlays/danmaku-previews/ripploid.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">RIPPLOID</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="christmas" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/christmas.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">圣诞绮笺</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="christmas-letter" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/christmas-letter.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">圣诞来信</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="notebook" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/notebook.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">手账风</span>
@@ -99,7 +148,7 @@
               </button>
             </div>
           </section>
-          <section id="danmakuRandomStyles" class="danmaku-style-group danmaku-style-group-random" role="tabpanel" aria-labelledby="danmakuRandomStyleTab" hidden>
+          <section id="danmakuRandomStyles" class="danmaku-style-group danmaku-style-group-random" role="group" aria-labelledby="danmakuRandomStyleTab">
             <div
               class="danmaku-style-options danmaku-style-options-random"
               role="group"
@@ -112,6 +161,10 @@
               <button class="danmaku-style-option" type="button" data-danmaku-style="mist" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/mist.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">青雾</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="comic" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/comic.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">漫画对白</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="whiteframe" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/whiteframe.png" class="danmaku-style-sample" alt="" />
@@ -131,18 +184,31 @@
               </button>
             </div>
           </section>
-          <section id="danmakuFloatingStyles" class="danmaku-style-group danmaku-style-group-floating" role="tabpanel" aria-labelledby="danmakuFloatingStyleTab" hidden>
+          <section id="danmakuFloatingStyles" class="danmaku-style-group danmaku-style-group-floating" role="group" aria-labelledby="danmakuFloatingStyleTab">
             <div class="danmaku-style-options" role="group" aria-label="选择飘窗弹幕样式">
               <button class="danmaku-style-option" type="button" data-danmaku-style="floating" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/floating.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">浮光掠影</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="startrail" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/startrail.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">星轨飞语</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="comet" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/comet.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">鹤舞花枝间</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="aurora" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/aurora.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">极光薄笺</span>
+              </button>
             </div>
           </section>
+              </div>
+              <p id="danmakuStyleEmpty" class="danmaku-library-empty" hidden>没有符合这些条件的样式，试试减少筛选条件。</p>
+              <div id="danmakuImportedStyles" class="danmaku-imported-styles"></div>
+            </div>
+          </dialog>
         </div>
         <section class="danmaku-parameters" aria-labelledby="danmakuParametersTitle">
           <div class="danmaku-filter-heading">

@@ -5,7 +5,9 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-test('connection and song request forms save independently and preserve pending or failed drafts', async () => {
+test('song request edits autosave independently, serialize newer drafts and retain failed or incomplete edits', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const settle = () => new Promise(setImmediate);
   const values = {
     roomId: '123',
     paused: 'true',
@@ -36,13 +38,18 @@ test('connection and song request forms save independently and preserve pending 
   const renderedUserBlacklists = [];
   let reloads = 0;
   let saveOutcome;
-  const { createSettingsForm } = await loadModuleExports(path.resolve('public/js/admin/settings-form.js'));
+  let valid = true;
+  const { createSettingsForm } = await loadModuleExports(path.resolve('public/js/admin/settings-form.js'), {
+    setTimeout, clearTimeout,
+  });
   const form = createSettingsForm({
     documentRef: {
       getElementById(id) {
         if (!elements.has(id)) {
           elements.set(id, {
+            id,
             dataset: {},
+            checkValidity: () => valid,
             addEventListener(event, handler) {
               const key = `${id}:${event}`;
               assert.equal(listeners.has(key), false);
@@ -77,58 +84,89 @@ test('connection and song request forms save independently and preserve pending 
     },
   });
   await form.init();
+  t.mock.timers.tick(1000);
+  assert.equal(requests.length, 0, 'initialization must not save default values');
   await listeners.get('settingsForm:submit')({ preventDefault() {} });
   assert.deepEqual(requests, [{ url: '/api/settings', payload: { roomId: '123' } }]);
-  assert.equal(typeof listeners.get('songRequestSettingsForm:submit'), 'function');
-  await listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
-  const { roomId, ...requestSettings } = values;
-  assert.deepEqual(requests[1], { url: '/api/settings', payload: requestSettings });
+
+  const paused = { id: 'paused', tagName: 'SELECT', dataset: {} };
+  elements.set('paused', paused);
+  listeners.get('songRequestSettingsForm:input')({ target: paused });
+  values.queueLimit = '40';
+  listeners.get('songRequestSettingsForm:change')({ target: paused });
+  t.mock.timers.tick(499);
+  assert.equal(requests.length, 1);
+  t.mock.timers.tick(1);
+  await settle();
   assert.equal(requests.length, 2);
+  assert.equal(requests[1].payload.queueLimit, '40');
+  assert.equal(requests[1].payload.songRequestCancelEnabled, 'false');
+  assert.equal(Object.hasOwn(requests[1].payload, 'roomId'), false);
   assert.equal(reloads, 2);
-  assert.deepEqual(notices, ['设置已保存', '点歌设置已保存']);
+  assert.deepEqual(notices, ['设置已保存'], 'autosaves do not interrupt editing with success toasts');
   assert.deepEqual(renderedBlacklists, [{ savedValue: '78\n不要唱', dirty: 'false' }]);
   assert.deepEqual(renderedUserBlacklists, [{ savedValue: values.songRequestUserBlacklist, dirty: 'false' }]);
-  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '已保存');
+  const savedState = elements.get('songRequestSettingsSaveState').textContent;
+  elements.get('queueLimit').tagName = 'INPUT';
+  listeners.get('songRequestSettingsForm:change')({ target: elements.get('queueLimit') });
+  t.mock.timers.tick(500);
+  assert.equal(requests.length, 2, 'leaving an already saved input must not submit it again');
 
   const blacklist = elements.get('songRequestBlacklist');
   listeners.get('songRequestSettingsForm:input')({ target: blacklist });
   assert.deepEqual(blacklist.dataset, { preserveDirty: 'true', dirty: 'true' });
-  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '有未保存修改');
   saveOutcome = Promise.withResolvers();
-  const pending = listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
-  assert.equal(elements.get('songRequestSettingsSave').disabled, true);
-  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '保存中…');
+  t.mock.timers.tick(500);
   values.songRequestBlacklist = '78\n保存期间继续编辑';
-  listeners.get('songRequestSettingsForm:change')({ target: blacklist });
+  listeners.get('songRequestSettingsForm:input')({ target: blacklist });
   const userBlacklist = elements.get('songRequestUserBlacklist');
   values.songRequestUserBlacklist = '[]';
   listeners.get('songRequestSettingsForm:input')({ target: userBlacklist });
+  t.mock.timers.tick(500);
+  assert.equal(requests.length, 3, 'an in-flight write must not overlap a newer write');
   saveOutcome.resolve();
-  await pending;
+  await settle();
   assert.equal(blacklist.dataset.dirty, 'true');
   assert.equal(requests[2].payload.songRequestBlacklist, '78\n不要唱');
   assert.equal(renderedBlacklists.length, 1, 'a late save does not redraw over a newer blacklist draft');
   assert.equal(renderedUserBlacklists.length, 1, 'a late save does not restore removed users');
   assert.equal(userBlacklist.dataset.dirty, 'true');
-  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '有未保存修改');
+  t.mock.timers.tick(500);
+  await settle();
+  assert.equal(requests[3].payload.songRequestBlacklist, values.songRequestBlacklist);
+  assert.equal(requests[3].payload.songRequestUserBlacklist, '[]');
+  assert.equal(blacklist.dataset.dirty, 'false');
+  assert.equal(userBlacklist.dataset.dirty, 'false');
 
+  values.songRequestBlacklist = '失败时的草稿';
+  listeners.get('songRequestSettingsForm:input')({ target: blacklist });
   saveOutcome = Promise.withResolvers();
-  const failed = listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
+  t.mock.timers.tick(500);
   saveOutcome.reject(new Error('save failed'));
-  await assert.rejects(failed, /save failed/);
-  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '保存失败，修改已保留，请重试');
-  assert.equal(elements.get('songRequestSettingsSave').disabled, false);
+  await settle();
+  assert.notEqual(elements.get('songRequestSettingsSaveState').textContent, savedState);
+  assert.equal(elements.get('songRequestSettingsSave').hidden, false);
   assert.equal(blacklist.dataset.dirty, 'true');
-  assert.equal(userBlacklist.dataset.dirty, 'true');
-  assert.equal(reloads, 3);
-  assert.equal(notices.length, 3);
+  t.mock.timers.tick(5000);
+  assert.equal(requests.length, 5, 'a failure must not start an unbounded retry loop');
 
   saveOutcome = null;
-  await listeners.get('songRequestSettingsForm:submit')({ preventDefault() {} });
+  await listeners.get('songRequestSettingsSave:click')();
   assert.equal(blacklist.dataset.dirty, 'false');
-  assert.equal(elements.get('songRequestSettingsSaveState').textContent, '已保存');
-  assert.equal(requests[4].payload.songRequestBlacklist, values.songRequestBlacklist);
-  assert.equal(requests[4].payload.songRequestUserBlacklist, '[]');
-  assert.equal(userBlacklist.dataset.dirty, 'false');
-  assert.equal(renderedUserBlacklists.at(-1).savedValue, '[]');
+  assert.equal(requests[5].payload.songRequestBlacklist, values.songRequestBlacklist);
+
+  valid = false;
+  listeners.get('songRequestSettingsForm:input')({ target: userBlacklist });
+  t.mock.timers.tick(500);
+  await settle();
+  assert.equal(requests.length, 6, 'incomplete user rows must not be saved');
+  valid = true;
+  listeners.get('songRequestSettingsForm:compositionstart')();
+  listeners.get('songRequestSettingsForm:input')({ target: blacklist });
+  t.mock.timers.tick(500);
+  assert.equal(requests.length, 6, 'IME input must finish before saving');
+  listeners.get('songRequestSettingsForm:compositionend')();
+  t.mock.timers.tick(500);
+  await settle();
+  assert.equal(requests.length, 7);
 });

@@ -44,8 +44,13 @@ Function liraPreserveInstallData
   StrCpy $liraDataSource "$APPDATA\com.aurorawhisperer.lira\data"
   IfFileExists "$liraDataSource\*.*" liraCheckBackup
   IfFileExists "$liraDataBackup\*.*" liraRecoverBackup
+  IfFileExists "$liraPreviousInstallDir\resources\audio-assistant\LiraAudioAssistant.exe" liraAudioOnlyBackup
   StrCpy $liraDataBackup ""
   Return
+
+  liraAudioOnlyBackup:
+    StrCpy $liraDataSource ""
+    Goto liraCheckBackup
 
   liraCheckDestination:
     StrCmp $liraPreviousInstallDir $INSTDIR liraCheckBackup
@@ -73,14 +78,38 @@ Function liraPreserveInstallData
     Call liraRemoveTree
     IfErrors liraPrepareFailed
   liraPrepareCopyReady:
+    StrCmp $liraDataSource "" 0 liraCopyExistingData
+    CreateDirectory "$liraCopyTarget"
+    Goto liraKeepBundledAudio
+  liraCopyExistingData:
     Call liraCopyData
+    StrCmp $R4 "error" liraPrepareCopyFailed
+    IntCmp $R4 8 liraPrepareCopyFailed liraKeepBundledAudio liraPrepareCopyFailed
+  liraKeepBundledAudio:
+    Call liraPreserveBundledAudio
     StrCmp $R4 "error" liraPrepareCopyFailed
     IntCmp $R4 8 liraPrepareCopyFailed liraPublishBackup liraPrepareCopyFailed
   liraPublishBackup:
     StrCpy $liraDataStage "保存安装前的数据备份"
+    StrCpy $R8 0
+  liraPublishBackupAttempt:
     ClearErrors
-    Rename "$liraCopyTarget" "$liraDataBackup"
-    IfErrors liraPrepareCopyFailed
+    System::Call 'kernel32::MoveFileW(w "$liraCopyTarget", w "$liraDataBackup") i.R0 ?e'
+    Pop $R7
+    StrCmp $R0 0 0 liraBackupPublished
+    StrCpy $R5 "目录备份发布失败（Win32 error=$R7）。暂存目录：$liraCopyTarget"
+    StrCmp $R7 5 liraPublishBackupBusy
+    StrCmp $R7 32 liraPublishBackupBusy
+    StrCmp $R7 33 liraPublishBackupBusy
+    Goto liraPrepareFailed
+  liraPublishBackupBusy:
+    StrCmp $R8 4 liraPrepareFailed
+    IntOp $R8 $R8 + 1
+    IntOp $R6 $R8 * 50
+    Sleep $R6
+    Goto liraPublishBackupAttempt
+  liraBackupPublished:
+    StrCpy $R5 ""
     Call liraCloseDataBanner
     Return
   liraPrepareCopyFailed:
@@ -91,6 +120,30 @@ Function liraPreserveInstallData
     Call liraInstallDataFailure
   liraRecoverBackup:
     StrCpy $liraDataSource "$liraDataBackup"
+FunctionEnd
+
+; Preserve the 6.0.0 files before its uninstaller removes resources. The new
+; client verifies its pinned hashes before promoting this directory or running it.
+Function liraPreserveBundledAudio
+  StrCpy $R4 0
+  IfFileExists "$liraPreviousInstallDir\resources\audio-assistant\LiraAudioAssistant.exe" 0 liraAudioPreserved
+  IfFileExists "$liraCopyTarget\components\audio\legacy\LiraAudioAssistant.exe" liraAudioPreserved
+  System::Call 'kernel32::GetFileAttributesW(w "$liraPreviousInstallDir\resources\audio-assistant") i.R7'
+  IntOp $R7 $R7 & 0x400
+  StrCmp $R7 0 0 liraAudioUnsafe
+  Push $liraCopySource
+  Push $liraCopyTarget
+  StrCpy $liraDataStage "保留已有音频组件"
+  StrCpy $liraCopySource "$liraPreviousInstallDir\resources\audio-assistant"
+  StrCpy $liraCopyTarget "$liraCopyTarget\components\audio\legacy"
+  Call liraCopyData
+  Pop $liraCopyTarget
+  Pop $liraCopySource
+  Return
+  liraAudioUnsafe:
+    StrCpy $R4 "error"
+    StrCpy $R5 "音频组件目录是链接，无法安全保留。请检查安装目录后重试。"
+  liraAudioPreserved:
 FunctionEnd
 
 Function liraRestoreInstallData

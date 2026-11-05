@@ -9,6 +9,10 @@
   gap: var(--spacing-lg);
 }
 
+#songRequestPage > .panel-body {
+  padding: 5px;
+}
+
 #songRequestSettingsForm {
   display: block;
   padding: 0;

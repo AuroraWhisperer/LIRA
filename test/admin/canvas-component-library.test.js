@@ -77,6 +77,11 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     await page.waitForFunction(() => document.querySelector('.scene-editor-item.is-selected .component-preview-load-state')?.hidden);
     const preview = page.frameLocator('.scene-editor-item.is-selected iframe');
     await preview.locator(previews[variant] || previews[type]).first().waitFor({ state: 'visible' });
+    if (type === 'gift-feed') {
+      await page.locator('[data-component-parameter="tailStyle"]').selectOption('ribbon');
+      await page.locator('[data-component-parameter="textureStyle"]').selectOption('argyle');
+      await preview.locator('.gift-banner[data-tail-style="ribbon"][data-texture-style="argyle"]').first().waitFor({ state: 'visible' });
+    }
     if (type === 'songlist') await page.locator('[data-component-parameter="songBoardSyncTheme"]').uncheck();
     if (type === 'interactions') {
       for (const key of Object.keys(legacyInteractionBackground)) {
@@ -134,6 +139,9 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   const giftAvatar = output.frameLocator('iframe[src^="/gift-feed"]').locator('.gift-banner-avatar').first();
   await giftAvatar.waitFor();
   assert.equal(await giftAvatar.getAttribute('src'), avatarUrl);
+  const giftBanner = output.frameLocator('iframe[src^="/gift-feed"]').locator('.gift-banner').first();
+  assert.equal(await giftBanner.getAttribute('data-tail-style'), 'ribbon');
+  assert.equal(await giftBanner.getAttribute('data-texture-style'), 'argyle');
   await giftAvatar.evaluate((image) => image.decode());
   assert.deepEqual(await giftAvatar.evaluate(async () => {
     const { sceneAvatarSource } = await import('/js/overlays/scene-extra-client.js');

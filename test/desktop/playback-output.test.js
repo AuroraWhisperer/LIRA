@@ -20,15 +20,20 @@ test('playback IPC accepts only bounded PCM and enumerated output families from 
   const contents = new EventEmitter();
   contents.mainFrame = { url: 'http://127.0.0.1:3456/admin' };
   const calls = [];
+  let componentStatus = 'downloading';
   const dispose = registerPlaybackOutputIpc({
     ipcMain: { handle: (key, fn) => handlers.set(key, fn), removeHandler: key => handlers.delete(key) },
     output: { invoke: async (...args) => { calls.push(args); return { ok: true }; } },
+    component: { getState: () => ({ status: componentStatus }) },
     getMainWindow: () => ({ webContents: contents, isDestroyed: () => false }),
     getDesktopBaseUrl: () => 'http://127.0.0.1:3456',
   });
   const invoke = handlers.get('playback-output:invoke');
   const event = { sender: contents, senderFrame: contents.mainFrame };
   assert.equal((await invoke({ ...event, senderFrame: { ...contents.mainFrame } }, { op: 'list' })).error, 'IPC_SOURCE_INVALID');
+  assert.equal((await invoke(event, { op: 'list' })).preparing, true);
+  assert.equal(calls.length, 0);
+  componentStatus = 'ready';
   await invoke(event, { op: 'list' });
   await invoke(event, { op: 'list' });
   assert.equal(contents.listenerCount('did-start-navigation'), 1);

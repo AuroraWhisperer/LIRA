@@ -110,7 +110,8 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
       && (entry.expiresAt || 0) === readExpiry(rows[index])
     ));
     field.value = rawValue;
-    if (!unchanged) {
+    const editing = rows.some((row) => [row.uid, row.name, row.expiry].includes(documentRef.activeElement));
+    if (!unchanged && !editing) {
       rows = [];
       list.replaceChildren();
       entries.forEach(appendUser);

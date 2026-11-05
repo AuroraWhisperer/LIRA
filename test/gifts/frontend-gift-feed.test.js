@@ -124,6 +124,7 @@ test('a settings change arriving during a gift refresh is applied in the next ba
   const page = await openFeed(t, { count: 1 });
   await observeFeed(page);
   await page.evaluate(() => {
+    window.originalFeedRow = document.getElementById('giftFeedStage').firstElementChild;
     const fetch = window.fetch;
     window.deferHistory = true;
     window.fetch = async (url) => {
@@ -140,6 +141,8 @@ test('a settings change arriving during a gift refresh is applied in the next ba
   await page.waitForFunction(() => typeof window.resumeHistory === 'function');
   await page.evaluate(() => {
     window.feedConfig.thresholds = [100, 300, 500];
+    window.feedConfig.tailStyle = 'swallowtail';
+    window.feedConfig.textureStyle = 'starlight';
     window.socketOptions.onMessage({ type: 'snapshot', reason: 'settings' });
     window.resumeHistory();
   });
@@ -147,9 +150,12 @@ test('a settings change arriving during a gift refresh is applied in the next ba
   assert.deepEqual(
     await page.evaluate(() => ({
       color: document.getElementById('giftFeedStage').firstElementChild.style.getPropertyValue('--gift-start'),
+      tail: document.getElementById('giftFeedStage').firstElementChild.dataset.tailStyle,
+      texture: document.getElementById('giftFeedStage').firstElementChild.dataset.textureStyle,
+      sameRow: document.getElementById('giftFeedStage').firstElementChild === window.originalFeedRow,
       resources: window.feedRequests.filter((url) => /display-settings|catalog/.test(url)),
     })),
-    { color: GIFT_PALETTE[1][0], resources: ['/api/gifts/display-settings'] },
+    { color: GIFT_PALETTE[1][0], tail: 'swallowtail', texture: 'starlight', sameRow: true, resources: ['/api/gifts/display-settings'] },
   );
 });
 

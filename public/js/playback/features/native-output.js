@@ -118,6 +118,11 @@ export function createNativeOutput(audio, { bridge, onFault, AudioContextClass =
     async enumerate() {
       const result = await bridge.invoke({ op: 'list' });
       if (!result.ok) throw new Error(result.error);
+      if (result.preparing) {
+        const error = new Error('音频组件尚未就绪，请在下载任务中查看进度或重试。');
+        error.code = 'AUDIO_COMPONENT_NOT_READY';
+        throw error;
+      }
       return result.data;
     },
     async select(deviceId) {

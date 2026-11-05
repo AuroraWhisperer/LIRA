@@ -233,6 +233,12 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `current` 是历史遗留态,`ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))在启动/清库修复时把它归位为 `waiting`。
 
+`recordQueueRequestResult(context, {accepted, requesterName, songName})` 在当前队列 context 中保留临时点歌结果，不写入数据库。单条形状为 `{id, accepted, requesterName, songName, expiresAt}`：`id` 为每次尝试独立生成的 UUID。成功使用已匹配歌名，拒绝使用请求歌名，随机失败没有实际歌名时使用「随机歌曲」。不包含 UID、拒绝原因或其他私有元数据。
+
+快照的可选 `requestResults` 按发生顺序提供最近一分钟、最多 200 条仍有效的结果，`expiresAt` 是接收期限，不是前端显示时长。该窗口补足同一 microtask 合并的广播与短暂场景补读；读取返回独立副本，过期不投影。兼容字段 `requestResult` 继续只保留最后一条和原四秒期限。新展示端在首次快照建立基线，之后按 ID 接收并逐条播放；已经收到并排队的结果不因接收期限到达而取消，实际阅读时间由[点歌板](../../frontend/overlays.md#2-队列叠加层queue)拥有。该缓冲不是持久日志，页面重开不追播旧结果，长时间离线不补发。
+
+观众弹幕、SC 和已登录账号的随机点歌由 `domain-services.js` 在消息入口记录结果；普通聊天、取消点歌及关闭 SC 点歌后的 SC 不产生结果。手动添加由 `queue-routes.js` 在领域服务成功或预期拒绝后记录。失败不新增队列项、请求历史或冷却；通知沿现有快照与场景链路发送，前端展示与去重规则见[点歌板](../../frontend/overlays.md#2-队列叠加层queue)。
+
 ### 8.2 addQueueItem(context, input)([queue-service.js](../../../../src/music/queue-service.js))
 
 校验链(顺序即语义):
@@ -389,6 +395,14 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 内置 HTTP 的输入 `generation/sequence` 门槛与广播的全局版本分别维护。内置时间轴变化推进输入代际，并立即缓存新曲的加载状态，清空进度和歌词，防止旧曲状态继续输出；匹配的新状态到达前保留候选最后的实际播放标志，空曲目则明确清除该标志。过时状态不覆盖候选，响应返回最后接受的内置状态及 `nextGeneration = max(内置门槛, 广播代际) + 1`，只供发送端恢复。当前输出的时间轴改变或来源切换时，广播代际递增并重置 sequence；当前状态广播递增 sequence。外部来源输出期间仍接受有效内置候选，输入版本不会被其他播放器的状态误判为旧包；`nextGeneration` 不进入快照或 WS 广播。
 
 管理状态 `lyricSource` 为 `{source, selection, playingSources, qqClient, neteaseClient, weSing}`；`playingSources` 使用上述来源顺序，仅列实际正在播放的来源。`qqClient` / `neteaseClient` 共有字段为 `active / supported / detected / status / message / trackTitle / artists / currentMs / durationMs / playing / lyricSource`；其中 `lyricSource` 表示实际歌词平台（qq、netease 或空），区别于顶层输出来源。WeSing 字段由 [wesing.md](wesing.md) 维护。完整采集诊断仅向 Admin 提供。
+
+### 正在播放展示数据
+
+`music-runtime` 在同一来源仲裁结果上生成 `nowPlaying = { source, trackTitle, artists, coverUrl, playing }`。`playing` 来自候选实际播放状态，歌词缺失或加载失败不阻止歌曲信息展示。仅这些字段变化时发布 `now-playing` 消息并通知场景；歌词进度采样不会重复广播歌曲信息。初始与重连快照带当前值。
+
+内置歌词状态/时间轴发布可携带可选 `coverUrl`，运行时保存为曲目元数据，不改变既有歌词快照/增量字段。QQ / 网易云采集复用当前平台匹配结果中已存在的封面；没有匹配封面、精确 ID 路径没有封面或读取失败时留空，不新增封面搜索/下载轮询。切歌先清空旧封面，迟到的旧解析结果不得覆盖当前曲目。图片地址只接受受支持的 HTTP(S) 地址，不下发本地路径或采集诊断。
+
+展示消费为 `/now-playing` 与场景类型 `now-playing`；后者通过现有场景数据显示接口收到 `{nowPlaying}`。外观保存由[配置接口](../api.md#26-正在播放配置now-playing)拥有，与歌曲数据分开。
 
 ### 13.1 归一化规则(共同)
 

@@ -19,9 +19,10 @@ const SHOTS = [
   {
     id: 'E3',
     file: 'danmaku-styles',
-    title: '弹幕显示方式、固定位置样式与添加样式入口',
+    title: '弹幕样式库、组合筛选与样式卡片',
     feature: 'liveDanmakuFeature',
-    clip: '.danmaku-style-picker',
+    click: '#danmakuAllStylesBtn',
+    clip: '#danmakuStyleLibrary',
   },
   {
     id: 'E4',
@@ -50,7 +51,7 @@ const SHOTS = [
     file: 'danmaku-random-params',
     title: '区域随机样式停留时间与应用按钮',
     feature: 'liveDanmakuFeature',
-    click: ['#danmakuRandomStyleTab', '[data-danmaku-style="outline"]'],
+    click: ['#danmakuAllStylesBtn', '#danmakuRandomStyleTab', '[data-danmaku-style="outline"]'],
     scroll: '.danmaku-parameters',
     mustShow: ['#danmakuFullscreenDurationSeconds', '#danmakuApplyOverlayBtn'],
   },

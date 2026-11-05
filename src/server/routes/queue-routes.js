@@ -18,6 +18,7 @@ const routes = {
       return;
     }
     if (!result.accepted) {
+      if (result.command?.type === 'random') context.broadcastSnapshot('queue:request-result');
       sendJson(res, 400, { ok: false, error: result.reason, ...(result.code ? { code: result.code } : {}) });
       return;
     }
@@ -43,9 +44,12 @@ const routes = {
       });
     } catch (error) {
       if (!isQueueRequestRejection(error)) throw error;
+      context.queue.recordRequestResult({ accepted: false, requesterName: body.requesterName || '主播', songName: body.songName });
+      context.broadcastSnapshot('queue:request-result');
       sendJson(res, 400, { ok: false, error: error.message, code: error.code });
       return;
     }
+    context.queue.recordRequestResult({ accepted: true, requesterName: item.requester_name, songName: item.song_name });
     context.broadcastSnapshot('queue:add');
     sendJson(res, 200, { ok: true, data: item });
   },

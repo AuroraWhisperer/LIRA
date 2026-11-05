@@ -1,0 +1,57 @@
+{
+  "source": "User-provided screenshots, 2026-11-04",
+  "processing": "Remove pale exterior from top/left edges, preserve artwork cut by the screenshot at right/bottom, remove separate calligraphy and crop; no generated artwork.",
+  "assets": [
+    {
+      "tier": "captain",
+      "source": "codex-clipboard-a357e389-e520-4c3f-ba3e-6d7f440234d6.png",
+      "sha256": "9bbf7f95e264b9a89e28176a46cdc0cab4d306414e3dbe1801a0b429f13a4352",
+      "crop": [
+        101,
+        243,
+        350,
+        650
+      ],
+      "output": "captain-scene.webp",
+      "size": [
+        249,
+        407
+      ],
+      "bytes": 13186
+    },
+    {
+      "tier": "admiral",
+      "source": "codex-clipboard-6948369c-d85f-4fbd-9bbe-7cab4ebd5191.png",
+      "sha256": "992e0321b57979b94bc3ca0c0e03f75ab0742b9227b003b48edb0fb3aa764cc5",
+      "crop": [
+        63,
+        231,
+        312,
+        566
+      ],
+      "output": "admiral-scene.webp",
+      "size": [
+        249,
+        335
+      ],
+      "bytes": 18348
+    },
+    {
+      "tier": "governor",
+      "source": "codex-clipboard-59339fc6-a1eb-4946-8def-a1de455ea6ab.png",
+      "sha256": "e5e684e8979db664e3d533ad2bee5568548952d5fb1530bc66bbbce77cc554ce",
+      "crop": [
+        100,
+        264,
+        398,
+        657
+      ],
+      "output": "governor-scene.webp",
+      "size": [
+        298,
+        393
+      ],
+      "bytes": 24658
+    }
+  ]
+}

@@ -1,0 +1,175 @@
+/* 圣诞绮笺：文字留在原栅格层，入场和微光只绘制各自图层。 */
+@property --christmas-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --christmas-reveal { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@property --christmas-sway { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --christmas-scale { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --christmas-trace { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --christmas-light-level { syntax: '<number>'; inherits: false; initial-value: .85; }
+
+body[data-style='christmas'] {
+  --christmas-wine: var(--danmaku-bubble-color, #782632);
+  --christmas-gold: #d8b77c;
+  --christmas-cream: #fff1d8;
+  --christmas-font: 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
+  --christmas-gift-font: Georgia, 'Songti SC', 'SimSun', serif;
+  --danmaku-enter-animation: christmasEntry 1040ms linear;
+  --danmaku-move-base-ms: 300;
+  --danmaku-move-max-ms: 540;
+  --danmaku-move-curve: .25, .1, .25, 1;
+}
+body[data-style='christmas'][data-custom-font='true'] {
+  --christmas-font: var(--danmaku-custom-font);
+  --christmas-gift-font: var(--danmaku-custom-font);
+}
+body[data-style='christmas'] .danmaku-signal-header { display: none; }
+body[data-style='christmas'] .danmaku-signal-stage { padding: 14px 16px 18px 14px; }
+body[data-style='christmas'] .draw-danmaku-feed { gap: 18px; padding: 10px 12px 18px 38px; }
+body[data-style='christmas'] .draw-danmaku-item.christmas-item,
+body[data-style='christmas'] .draw-danmaku-item.christmas-item.is-gift {
+  display: block; position: relative; isolation: isolate; flex: none;
+  width: 100%; max-width: 100%; min-width: 0; min-height: 0;
+  margin: 0; padding: 0 0 7px; border: 0; border-radius: 0;
+  background: none; box-shadow: none; clip-path: none; overflow: visible;
+  color: var(--danmaku-text-color, var(--christmas-cream));
+  font: 400 24px/1.55 var(--christmas-font);
+  animation: none; zoom: 1;
+}
+body[data-style='christmas'] .draw-danmaku-item.christmas-item::after,
+body[data-style='christmas'] .draw-danmaku-item.christmas-item.is-gift::after { display: none; animation: none; }
+body[data-style='christmas'] .christmas-item .christmas-card {
+  display: block; position: relative; min-width: 0;
+  padding: 14px 24px 20px; border: 1px solid transparent;
+  border-radius: 13px; background: none; overflow: visible;
+}
+body[data-style='christmas'] .christmas-item .christmas-card::before {
+  display: block;
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background:
+    radial-gradient(ellipse 72% 22px at 8% 100%, color-mix(in srgb, var(--christmas-wine) 88%, #1f111c) 98%, transparent),
+    radial-gradient(ellipse 80% 24px at 100% 106%, color-mix(in srgb, var(--christmas-wine) 95%, #d8b77c) 98%, transparent),
+    linear-gradient(115deg, var(--christmas-wine), color-mix(in srgb, var(--christmas-wine) 76%, #1f111c));
+  box-shadow: inset 0 0 0 3px #ffffff04, 0 4px 12px #1f0a151a;
+  opacity: var(--danmaku-background-opacity, 1);
+  clip-path: inset(0 var(--christmas-reveal) 0 0 round 12px);
+}
+.christmas-frame {
+  position: absolute; inset: -1px; width: calc(100% + 2px); height: calc(100% + 2px);
+  overflow: visible; pointer-events: none;
+}
+.christmas-frame rect {
+  width: calc(100% - 1px); height: calc(100% - 1px); fill: none;
+  stroke: color-mix(in srgb, var(--christmas-gold) 68%, transparent); stroke-width: 1px;
+  stroke-dasharray: 1; stroke-dashoffset: var(--christmas-trace);
+}
+body[data-style='christmas'] .christmas-heading {
+  position: relative; z-index: 1; display: flex; align-items: baseline; flex-wrap: wrap;
+  gap: 5px 10px; min-width: 0; margin: 0 0 5px; padding: 0 42px 0 0;
+  color: color-mix(in srgb, var(--christmas-gold) 86%, var(--christmas-cream));
+  font: 600 16px/1.4 var(--christmas-font); letter-spacing: .035em;
+}
+body[data-style='christmas'] .christmas-heading .christmas-name {
+  color: inherit; font: inherit; min-width: 0; white-space: normal; overflow-wrap: anywhere;
+}
+.christmas-role { font-size: .86em; color: #f5dfb9; letter-spacing: .02em; }
+.christmas-role::before { content: '✦'; margin-right: 7px; color: var(--christmas-gold); font-size: .7em; }
+body[data-style='christmas'] .christmas-copy {
+  display: block; position: relative; z-index: 1; margin: 0; padding: 0;
+  color: inherit; font: 400 var(--danmaku-font-size, 24px)/1.55 var(--christmas-font);
+  white-space: pre-wrap; overflow-wrap: anywhere; text-wrap: pretty; text-shadow: none;
+}
+.christmas-copy .draw-danmaku-emote { max-width: 100%; object-fit: contain; vertical-align: middle; }
+.christmas-ornament { display: block; position: absolute; pointer-events: none; color: var(--christmas-gold); overflow: visible; }
+.christmas-corner { width: 110px; height: 47px; top: 0; right: 0; opacity: .65; clip-path: inset(0 0 0 var(--christmas-reveal)); }
+.christmas-bow { width: 54px; height: 30px; left: calc(50% - 27px); bottom: -14px; z-index: 2; }
+.christmas-pendant { width: 30px; height: 60px; left: -34px; top: 12px; transform-origin: 50% 0; clip-path: inset(0 0 var(--christmas-reveal)); }
+.christmas-wreath { width: 41px; height: 41px; left: -22px; top: 15px; z-index: 2; }
+.christmas-garland { width: 100%; height: 28px; top: 0; left: 0; clip-path: inset(0 var(--christmas-reveal) 0 0); }
+.christmas-lights { display: block; position: absolute; inset: 0 0 auto; height: 28px; pointer-events: none; }
+.christmas-light {
+  position: absolute; left: calc(10% - 2px); top: 14px; width: 5px; height: 7px; border-radius: 2px 2px 50% 50%;
+  background: #eccc8b; box-shadow: 0 0 6px #eccc8b55;
+  opacity: calc(var(--christmas-opacity) * var(--christmas-light-level));
+}
+.christmas-light:nth-child(2) { left: calc(30% - 2px); background: #d7686c; --christmas-light-delay: 670ms; --christmas-light-phase: -.9s; }
+.christmas-light:nth-child(3) { left: calc(50% - 2px); background: #eddaa6; --christmas-light-delay: 720ms; --christmas-light-phase: -1.8s; }
+.christmas-light:nth-child(4) { left: calc(70% - 2px); background: #90ad8a; --christmas-light-delay: 770ms; --christmas-light-phase: -2.7s; }
+.christmas-light:nth-child(5) { left: calc(90% - 2px); --christmas-light-delay: 820ms; --christmas-light-phase: -3.6s; }
+body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) { --danmaku-enter-animation: christmasEntry 1180ms linear; }
+body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-card { padding: 30px 24px 20px; }
+body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-heading { padding-right: 0; }
+body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-name { flex: 1 1 50%; }
+.christmas-event-label { margin-left: auto; font-size: .86em; font-weight: 400; color: #e8cead; }
+.christmas-amount { position: relative; z-index: 1; min-width: 0; max-width: 100%; margin-left: auto; color: #f3d6a2; font: 600 18px/1.45 var(--christmas-font); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.christmas-event-meta { display: inline-flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; max-width: 100%; margin-left: auto; }
+.christmas-event-meta .christmas-event-label { margin: 0; }
+body[data-style='christmas'] .christmas-event-meta .christmas-amount { margin: 0; font-size: 20px; }
+body[data-style='christmas'] .christmas-item.is-gift .christmas-heading {
+  display: block; margin-bottom: 6px; text-align: center;
+}
+body[data-style='christmas'] .christmas-item.is-gift .christmas-name {
+  color: var(--danmaku-text-color, var(--christmas-cream)); font-size: 20px; font-weight: 500;
+}
+.christmas-thanks { margin-right: 8px; color: #e8cead; font: 400 14px/1.4 var(--christmas-font); }
+body[data-style='christmas'] .christmas-gift-copy {
+  display: flex; justify-content: center; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; text-align: center;
+}
+.christmas-gift-description { flex: 0 1 auto; min-width: 0; max-width: 100%; }
+.christmas-gift-copy .christmas-amount { margin-left: 0; color: #e8cead; font-size: 14px; font-weight: 400; }
+.christmas-gift-copy .christmas-amount::before { content: '·'; margin-right: 12px; color: var(--christmas-gold); }
+body[data-style='christmas'] .christmas-item.is-superchat .christmas-copy { padding-top: 12px; border-top: 1px solid #d8b77c40; text-wrap: balance; }
+.christmas-gift-action { margin-right: 4px; color: #efdcc1; font-size: 14px; }
+.christmas-gift-name { font: 400 .92em/1.55 var(--christmas-gift-font); letter-spacing: .06em; }
+.christmas-gift-count {
+  display: inline-block; margin-left: 6px; vertical-align: .2em; white-space: nowrap;
+  color: #efd8b1; font: 400 14px/1.4 var(--christmas-font); font-variant-numeric: tabular-nums;
+}
+body[data-style='christmas'] .christmas-item.christmas-notice .christmas-copy { font-size: .82em; }
+body[data-style='christmas'] .draw-danmaku-item.christmas-notice { padding-bottom: 0; }
+body[data-style='christmas'] .christmas-notice .christmas-card { padding: 10px 18px 12px; }
+.christmas-notice :is(.christmas-pendant,.christmas-bow) { display: none; }
+body[data-style='christmas']:not([data-ambient-motion='off']) .draw-danmaku-item:last-child:not([data-live-entry]) .christmas-pendant { animation: christmasSway 5.6s ease-in-out infinite; }
+body[data-style='christmas']:not([data-ambient-motion='off']) .draw-danmaku-item:last-child .christmas-light { --christmas-light-ambient: christmasGlow 4.8s ease-in-out var(--christmas-light-phase, 0s) infinite; }
+.christmas-light { animation: var(--christmas-light-entry, none), var(--christmas-light-ambient, none); }
+body[data-style='christmas'] .draw-danmaku-item.christmas-item[data-live-entry] { animation: var(--danmaku-enter-animation); }
+.christmas-item[data-live-entry] .christmas-card::before { animation: christmasReveal 320ms cubic-bezier(.16,1,.3,1) backwards; }
+.christmas-item[data-live-entry] .christmas-frame rect { animation: christmasTrace 520ms cubic-bezier(.25,.1,.25,1) 60ms backwards; }
+.christmas-item[data-live-entry] .christmas-heading { animation: christmasInk 180ms ease-out 90ms backwards; }
+.christmas-item[data-live-entry] .christmas-copy { animation: christmasInk 200ms ease-out 150ms backwards; }
+.christmas-item[data-live-entry] .christmas-corner { animation: christmasReveal 400ms cubic-bezier(.16,1,.3,1) 260ms backwards; }
+.christmas-item[data-live-entry] .christmas-pendant { animation: christmasPendant 440ms cubic-bezier(.16,1,.3,1) 380ms backwards; }
+.christmas-item[data-live-entry] .christmas-bow { animation: christmasBow 420ms cubic-bezier(.16,1,.3,1) 620ms backwards; }
+.christmas-item[data-live-entry]:is(.is-gift,.is-superchat) .christmas-card::before { animation-duration: 360ms; }
+.christmas-item[data-live-entry]:is(.is-gift,.is-superchat) .christmas-frame rect { animation-duration: 600ms; }
+.christmas-item[data-live-entry]:is(.is-gift,.is-superchat) .christmas-heading { animation-delay: 100ms; }
+.christmas-item[data-live-entry]:is(.is-gift,.is-superchat) .christmas-copy { animation-delay: 180ms; animation-duration: 220ms; }
+.christmas-item[data-live-entry] .christmas-garland { animation: christmasReveal 440ms cubic-bezier(.25,.1,.25,1) 300ms backwards; }
+.christmas-item[data-live-entry] .christmas-wreath { animation: christmasWreath 480ms cubic-bezier(.16,1,.3,1) 420ms backwards; }
+.christmas-item[data-live-entry] .christmas-light { --christmas-light-entry: christmasInk 240ms ease-out var(--christmas-light-delay, 620ms) backwards; }
+.christmas-item[data-live-entry]:is(.is-gift,.is-superchat) .christmas-bow { animation-delay: 760ms; }
+
+@keyframes christmasEntry { from, to { --christmas-opacity: 1; } }
+@keyframes christmasReveal { from { --christmas-reveal: 100%; } to { --christmas-reveal: 0%; } }
+@keyframes christmasTrace { from { --christmas-trace: 1; } to { --christmas-trace: 0; } }
+@keyframes christmasInk { from { --christmas-opacity: 0; } to { --christmas-opacity: 1; } }
+@keyframes christmasPendant {
+  from { --christmas-reveal: 100%; --christmas-opacity: 0; --christmas-sway: -6deg; }
+  65% { --christmas-reveal: 0%; --christmas-opacity: 1; --christmas-sway: 1.5deg; }
+  to { --christmas-reveal: 0%; --christmas-opacity: 1; --christmas-sway: 0deg; }
+}
+@keyframes christmasBow {
+  from { --christmas-opacity: 0; --christmas-scale: .68; --christmas-sway: -8deg; }
+  65% { --christmas-opacity: 1; --christmas-scale: 1; --christmas-sway: 2deg; }
+  to { --christmas-opacity: 1; --christmas-scale: 1; --christmas-sway: 0deg; }
+}
+@keyframes christmasWreath {
+  from { --christmas-opacity: 0; --christmas-scale: .86; --christmas-sway: -10deg; }
+  to { --christmas-opacity: 1; --christmas-scale: 1; --christmas-sway: 0deg; }
+}
+@keyframes christmasSway { 0%, 50%, 100% { --christmas-sway: 0deg; } 25% { --christmas-sway: 1.6deg; } 75% { --christmas-sway: -1.6deg; } }
+@keyframes christmasGlow { 0%, 50%, 100% { --christmas-light-level: .85; } 25% { --christmas-light-level: 1; } 75% { --christmas-light-level: .72; } }
+:is(.christmas-heading,.christmas-copy,.christmas-pendant,.christmas-bow,.christmas-wreath) { opacity: var(--christmas-opacity); }
+:is(.christmas-pendant,.christmas-bow,.christmas-wreath) { rotate: var(--christmas-sway); }
+:is(.christmas-bow,.christmas-wreath) { scale: var(--christmas-scale); }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='christmas'] .christmas-item, body[data-style='christmas'] .christmas-item * { animation: none !important; }
+}

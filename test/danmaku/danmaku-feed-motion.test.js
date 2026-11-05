@@ -54,7 +54,7 @@ async function preview(t, direction, scale, style = 'moonlit') {
   return page;
 }
 
-for (const style of ['starlight', 'notebook']) {
+for (const style of ['starlight', 'notebook', 'christmas']) {
   test(`${style} can stop ambient loops while new messages keep their entrance and movement`, { timeout: 15000 }, async t => {
     const page = await preview(t, 'down', 1, style);
     const stopped = await page.evaluate(async style => {

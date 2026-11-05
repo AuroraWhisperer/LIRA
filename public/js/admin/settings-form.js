@@ -85,17 +85,40 @@ export function createSettingsForm({
     const requestSaveButton = documentRef.getElementById('songRequestSettingsSave');
     const requestSaveState = documentRef.getElementById('songRequestSettingsSaveState');
     let savingRequest = false;
+    let requestDirty = false;
+    let requestSaveTimer;
+    let composingRequest = false;
+    const scheduleRequestSave = () => {
+      clearTimeout(requestSaveTimer);
+      if (!composingRequest) requestSaveTimer = setTimeout(() => void saveRequestSettings(), 500);
+    };
     const markRequestSettingDirty = ({ target }) => {
       target.dataset.preserveDirty = 'true';
       target.dataset.dirty = 'true';
-      if (requestSaveState) requestSaveState.textContent = '有未保存修改';
+      requestDirty = true;
+      if (requestSaveState) requestSaveState.textContent = '等待自动保存…';
       if (target.id === 'songCooldownMode') renderSongCooldownControls(documentRef);
+      scheduleRequestSave();
     };
     songRequestForm.addEventListener('input', markRequestSettingDirty);
-    songRequestForm.addEventListener('change', markRequestSettingDirty);
-    songRequestForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      if (savingRequest) return;
+    songRequestForm.addEventListener('change', (event) => {
+      if (event.target.tagName === 'SELECT') markRequestSettingDirty(event);
+    });
+    songRequestForm.addEventListener('compositionstart', () => {
+      composingRequest = true;
+      clearTimeout(requestSaveTimer);
+    });
+    songRequestForm.addEventListener('compositionend', () => {
+      composingRequest = false;
+      if (requestDirty) scheduleRequestSave();
+    });
+    async function saveRequestSettings() {
+      clearTimeout(requestSaveTimer);
+      if (savingRequest || !requestDirty || composingRequest) return;
+      if (!songRequestForm.checkValidity()) {
+        if (requestSaveState) requestSaveState.textContent = '请补全或修正输入，修改后将自动保存';
+        return;
+      }
       const updates = {
         paused: value('paused'),
         scSongRequestEnabled: value('scSongRequestEnabled'),
@@ -118,7 +141,12 @@ export function createSettingsForm({
         songRequestBlacklist: value('songRequestBlacklist'),
       };
       savingRequest = true;
-      if (requestSaveButton) requestSaveButton.disabled = true;
+      requestDirty = false;
+      let saved = false;
+      if (requestSaveButton) {
+        requestSaveButton.disabled = true;
+        requestSaveButton.hidden = true;
+      }
       if (requestSaveState) requestSaveState.textContent = '保存中…';
       try {
         const result = await api('/api/settings', updates);
@@ -131,18 +159,25 @@ export function createSettingsForm({
         if (value('songRequestUserBlacklist') === updates.songRequestUserBlacklist) {
           userBlacklistEditor?.render(result.data.settings.songRequestUserBlacklist);
         }
-        const changed = Object.entries(updates).some(([key, savedValue]) => value(key) !== savedValue);
-        if (requestSaveState) requestSaveState.textContent = changed ? '有未保存修改' : '已保存';
-        toast('点歌设置已保存', { type: 'success' });
         await reloadState();
-      } catch (error) {
+        saved = true;
+        if (requestSaveState) requestSaveState.textContent = requestDirty ? '等待自动保存…' : '已自动保存';
+      } catch {
+        clearTimeout(requestSaveTimer);
+        requestDirty = true;
         if (requestSaveState) requestSaveState.textContent = '保存失败，修改已保留，请重试';
-        throw error;
+        if (requestSaveButton) requestSaveButton.hidden = false;
       } finally {
         savingRequest = false;
         if (requestSaveButton) requestSaveButton.disabled = false;
+        if (saved && requestDirty) scheduleRequestSave();
       }
+    }
+    songRequestForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      return saveRequestSettings();
     });
+    requestSaveButton?.addEventListener('click', saveRequestSettings);
     documentRef.getElementById('giftSprintForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       await api('/api/settings', {

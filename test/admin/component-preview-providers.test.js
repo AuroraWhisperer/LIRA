@@ -9,6 +9,49 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const adminPath = path.join(__dirname, '../../public/js/admin');
 
+test('current song preview shares one live subscription across layers and releases it when switching scenes', async () => {
+  const events = new Set();
+  const emitted = [];
+  let nowPlaying = { source: 'qq-client', trackTitle: '当前歌曲', artists: ['歌手'], playing: true };
+  let listener;
+  const state = { draft: { document: { items: [] } } };
+  const controller = { subscribe(receive) { listener = receive; receive(state); return () => { listener = null; }; } };
+  const context = vm.createContext({ window: {
+    addEventListener(name, receive) { assert.equal(name, 'app:now-playing'); events.add(receive); },
+    removeEventListener(_name, receive) { events.delete(receive); },
+  } });
+  const module = new vm.SourceTextModule(fs.readFileSync(path.join(adminPath, 'now-playing-canvas-data.js'), 'utf8'), { context });
+  await module.link(() => new vm.SyntheticModule(['stateService'], function () {
+    this.setExport('stateService', { getAppState: () => ({ nowPlaying }) });
+  }, { context }));
+  await module.evaluate();
+  const stop = module.namespace.startNowPlayingCanvasData(controller, value => emitted.push(value));
+  const latest = () => emitted.at(-1)?.previewData['now-playing'];
+  assert.equal(events.size, 0);
+  state.draft.document.items = [{ type: 'now-playing' }, { type: 'now-playing' }];
+  listener(state);
+  listener(state);
+  assert.equal(events.size, 1);
+  assert.equal(latest().nowPlaying.trackTitle, '当前歌曲');
+  nowPlaying = { ...nowPlaying, trackTitle: '切换后的歌曲', playing: false };
+  events.forEach(receive => receive({ detail: nowPlaying }));
+  assert.equal(latest().nowPlaying.trackTitle, '切换后的歌曲');
+  assert.equal(latest().nowPlaying.playing, false);
+  nowPlaying = null;
+  events.forEach(receive => receive({ detail: nowPlaying }));
+  assert.equal(latest(), null, 'No current track leaves sample selection to the preview renderer.');
+  state.draft.document.items = [{ type: 'lyrics' }];
+  listener(state);
+  assert.equal(events.size, 0);
+  nowPlaying = { trackTitle: '重新进入时的歌曲', artists: [], playing: true };
+  state.draft.document.items = [{ type: 'now-playing' }];
+  listener(state);
+  assert.equal(latest().nowPlaying.trackTitle, nowPlaying.trackTitle);
+  stop();
+  assert.equal(events.size, 0);
+  assert.equal(listener, null);
+});
+
 test('wish previews fill the supported limit from distinct catalog gifts once and cancel late replies', async () => {
   const reads = [];
   const emitted = [];

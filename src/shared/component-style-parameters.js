@@ -41,10 +41,13 @@ const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
     'timeline-vertical': 'text', digital: 'text', minimal: 'text', orbit: 'art', flip: 'panel', 'moonlit-fan': 'moon',
   },
   danmaku: {
+    startrail: 'text',
+    christmas: 'panel',
+    'christmas-letter': 'panel',
     'flower-letter': 'art',
     bubble: 'panel', signal: 'panel', minimal: 'art', ranked: 'panel', transparent: 'text',
     identity: 'panel', sketch: 'panel', harbor: 'panel', prismatic: 'panel', snowfox: 'panel', ripploid: 'frame', twitter: 'panel', spooky: 'frame', notebook: 'panel', starlight: 'art', moonlit: 'art', outline: 'panel', mist: 'panel', whiteframe: 'frame',
-    cream: 'panel', glow: 'panel', starveil: 'panel', floating: 'panel', comet: 'art',
+    comic: 'art', cream: 'panel', glow: 'panel', starveil: 'panel', floating: 'panel', comet: 'art', aurora: 'art',
   },
 });
 const IMPORTED_STYLE = /^(css|media|resource|web):[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;

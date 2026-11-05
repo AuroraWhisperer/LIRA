@@ -59,6 +59,7 @@ function createApiContext(options) {
     },
     queue: {
       add: domainServices.queue.add,
+      recordRequestResult: domainServices.queue.recordRequestResult,
       requestRandom: bilibili.requestRandomSong,
       handleAction: domainServices.queue.handleAction,
     },

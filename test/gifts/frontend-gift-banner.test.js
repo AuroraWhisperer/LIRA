@@ -57,13 +57,19 @@ test('gift banner updates patch the sender avatar and quantity', async (t) => {
     };
     const row = createGiftBanner(item, config);
     document.getElementById('stage').append(row);
-    updateGiftBanner(row, { ...item, gift: { ...item.gift, num: 5, avatarUrl: 'https://i0.hdslb.com/bfs/face/new.webp' } }, config);
+    const avatar = row.querySelector('.gift-banner-avatar');
+    updateGiftBanner(row, { ...item, gift: { ...item.gift, num: 5, avatarUrl: 'https://i0.hdslb.com/bfs/face/new.webp' } },
+      { ...config, tailStyle: 'ribbon', textureStyle: 'facets' });
     return {
       avatarSource: new URL(row.querySelector('.gift-banner-avatar').src).searchParams.get('url'),
       count: row.querySelector('.gift-banner-count').textContent,
+      tail: row.dataset.tailStyle,
+      texture: row.dataset.textureStyle,
+      sameAvatar: row.querySelector('.gift-banner-avatar') === avatar,
     };
   });
-  assert.deepEqual(result, { avatarSource: 'https://i0.hdslb.com/bfs/face/new.webp', count: '×5' });
+  assert.deepEqual(result, { avatarSource: 'https://i0.hdslb.com/bfs/face/new.webp', count: '×5',
+    tail: 'ribbon', texture: 'facets', sameAvatar: true });
 });
 
 test('long gift counts expand exported PNG dimensions', async (t) => {
@@ -79,7 +85,7 @@ test('long gift counts expand exported PNG dimensions', async (t) => {
       eventId: String(num),
       gift: { giftId: 'sample', giftName: '测试礼物', userName: '测试观众', unitPrice: 2, num },
     }));
-    const payload = { config: { thresholds: [10000, 50000, 100000] }, catalog: [], background: 'transparent' };
+    const payload = { config: { thresholds: [10000, 50000, 100000], tailStyle: 'ribbon', textureStyle: 'argyle' }, catalog: [], background: 'transparent' };
     const singles = [];
     for (const item of items) {
       singles.push(await window.renderGiftExport({ ...payload, items: [item] }));

@@ -22,7 +22,7 @@ function createNode() {
       if (!handlers.has(name)) handlers.set(name, []);
       handlers.get(name).push(handler);
     },
-    fire(name) { for (const handler of handlers.get(name) || []) handler(); },
+    fire(name) { return Promise.all((handlers.get(name) || []).map(handler => handler())); },
     append(...children) { this.children.push(...children); },
     querySelectorAll() { return []; },
     querySelector(selector) { return this.getElementById(selector); },
@@ -60,11 +60,13 @@ async function loadOwner(filename, overrides = {}) {
       return { dispose() {} };
     } },
     './danmaku-parameter-view.js': { bindDanmakuParameters: () => ({ dispose() {} }) },
+    './danmaku-style-library.js': { bindDanmakuStyleLibrary() {} },
     './authorized-account.js': { observeAuthorizedAccount() {} },
     ...overrides,
   };
   const stubs = new Map(Object.entries(replacements).map(([name, exports]) => [path.resolve(adminPath, name), exports]));
-  const context = vm.createContext({ console, document, URL, location: new URL('http://127.0.0.1:3000/admin'),
+  const context = vm.createContext({ console, document, URL, AbortController, TextEncoder, structuredClone,
+    crypto: require('node:crypto'), location: new URL('http://127.0.0.1:3000/admin'),
     window: { addEventListener() {}, liraLicense: {} },
     fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: {} }) }) });
   const modules = new Map();
@@ -107,6 +109,49 @@ test('registry stays lazy and creates fresh descriptions with shared controllers
     assert.equal(description.controller, controllers.get(description.id));
     assert.equal(description.controller, second[index].controller);
   });
+});
+
+test('now playing adds its saved native appearance to the canvas without a standalone relay session', async () => {
+  const notices = [];
+  const writes = [];
+  const nativePreview = (_type, { controller } = {}) => ({ id: 'now-playing', sceneOnly: true, controller,
+    size: () => [480, 200], createPanel: () => ({ dispose() {} }) });
+  const fixture = await loadOwner('now-playing.js', {
+    '../shared/utils.js': { api: async (url, config) => { writes.push(url); return { data: config }; },
+      copyText() {}, localOverlayOrigin: () => 'http://127.0.0.1:3000', toast: message => notices.push(message) },
+    '../shared/now-playing-renderer.js': { createNowPlayingRenderer: () => ({ updateConfig() {}, updateState() {}, dispose() {} }) },
+    './scene-extra-preview.js': { createSceneExtraPreview: nativePreview },
+    './component-preview-definitions.js': { COMPONENT_PREVIEW_DEFINITIONS: { 'now-playing': { createPreview: nativePreview } } },
+    './component-style-library.js': { mountComponentStyleLibrary() {}, openComponentStyleLibrary() {} },
+    './component-library-manager.js': { openComponentLibraryManager() {} },
+    './component-style-api.js': { loadComponentStyleCss() {}, requestComponentStyles() {} },
+    './component-resource-settings-panel.js': { mountResourceStyleSettings() {} },
+    './component-preview-surface.js': { previewElement: createNode },
+    './gift-frame.js': { renderGiftFrameStyleState() {} },
+  });
+  fixture.document.getElementById('nowPlayingPreview').parentElement = { classList: { toggle() {} } };
+  let scene = { schemaVersion: 1, id: '11111111-1111-4111-8111-111111111111', title: '直播场景',
+    canvas: { width: 1920, height: 1080 }, items: [] };
+  fixture.registry.setComponentPreviewPreparation(() => ({ id: 'canvas', controller: {
+    getState: () => ({ loaded: true, draft: { document: structuredClone(scene) } }),
+    edit: ({ document }) => { scene = plain(document); },
+  } }));
+  const controller = fixture.owner.initNowPlaying();
+  controller.receive(controller.getState().draft);
+  controller.edit({ style: 'cover', nowPlayingLayout: 'vertical', nowPlayingShowArtist: false });
+  await fixture.document.getElementById('nowPlayingOpenCanvas').fire('click');
+  assert.deepEqual(notices, []);
+  assert.deepEqual(writes, ['/api/now-playing/config']);
+  assert.equal(fixture.registry.getComponentPreviews().length, 0);
+  assert.equal(scene.items.length, 1);
+  const item = scene.items[0];
+  assert.equal(item.type, 'now-playing');
+  assert.equal(item.appearance.mode, 'independent');
+  assert.equal(item.appearance.config.style, 'cover');
+  assert.equal(item.appearance.config.nowPlayingLayout, 'vertical');
+  assert.equal(item.appearance.config.nowPlayingShowArtist, false);
+  assert.equal(item.width, 480);
+  assert.equal(fixture.opened[0].selectedItemId, item.id);
 });
 
 test('clock factory keeps the small preview live while shared editor sessions are open', async () => {

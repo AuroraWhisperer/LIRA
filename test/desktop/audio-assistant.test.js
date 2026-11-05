@@ -72,6 +72,18 @@ test('missing audio resources report recovery instructions without launching any
   await assistant.dispose();
 });
 
+test('closing during component preparation cannot launch an audio process afterward', async () => {
+  const prepared = Promise.withResolvers();
+  let launches = 0;
+  const assistant = createAudioAssistant({ getExecutable: () => prepared.promise, dataDir: 'isolated',
+    exists: () => true, spawnProcess: () => { launches++; return worker(); } });
+  const request = assistant.invoke('get');
+  await assistant.dispose();
+  prepared.resolve('verified-worker.exe');
+  assert.equal((await request).ok, false);
+  assert.equal(launches, 0);
+});
+
 test('internal audio source is derived from this Electron instance process IDs, never the player display name', async () => {
   const child = worker();
   const assistant = createAudioAssistant({ executable: 'worker.exe', dataDir: 'isolated', exists: () => true,

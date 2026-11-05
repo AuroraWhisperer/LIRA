@@ -236,7 +236,8 @@
     if (!navigation || !otherPage) return;
 
     navigation.setMainPage('otherAssistantPage');
-    otherPage.selectFeatureById('otherDesktopUpdateFeature');
+    otherPage.selectFeatureById('otherSettingsFeature');
+    document.getElementById('settingsAboutTab')?.click();
   }
 
   function handleDesktopUpdateState(state) {
@@ -424,7 +425,7 @@
   function desktopUpdateHintText(state) {
     if (state.status === 'downloaded') return '退出程序时会安装更新，建议在直播结束后重启。';
     if (state.status === 'dev-disabled') return '开发模式不支持更新，请使用安装版。';
-    if (state.status === 'error') return '可重新检查更新；详细错误见「日志目录」中的 errors/desktop.log。';
+    if (state.status === 'error') return '可重新检查更新；在「本地数据与支持」打开日志目录查看 errors/desktop.log。';
     return '';
   }
 

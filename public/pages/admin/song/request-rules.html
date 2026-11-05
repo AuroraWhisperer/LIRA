@@ -145,7 +145,7 @@
           <div class="song-board-section-title">
             <h3 id="songRequestUserBlacklistTitle" class="song-board-section-heading">
               点歌用户黑名单
-              <lira-help label="点歌用户黑名单说明">按 B 站 UID 拦截点歌，改昵称也不影响。备注昵称仅供辨认。到期时间按本机时区填写，留空表示永久；到期后自动失效。最多 200 人，添加、修改或删除后统一保存点歌规则。</lira-help>
+              <lira-help label="点歌用户黑名单说明">按 B 站 UID 拦截点歌，改昵称也不影响。备注昵称仅供辨认。到期时间按本机时区填写，留空表示永久；到期后自动失效。最多 200 人，填写完整后，添加、修改或删除会自动保存。</lira-help>
             </h3>
             <span id="songRequestUserBlacklistCount" class="song-board-section-meta">0 人</span>
           </div>
@@ -165,8 +165,8 @@
         </div>
       </section>
       <div class="song-board-actions actions">
-        <span id="songRequestSettingsSaveState" class="hint" role="status" aria-live="polite"></span>
-        <button id="songRequestSettingsSave" class="primary" type="submit">保存点歌规则</button>
+        <span id="songRequestSettingsSaveState" class="hint" role="status" aria-live="polite">修改后自动保存</span>
+        <button id="songRequestSettingsSave" class="secondary" type="button" hidden>重试保存</button>
       </div>
     </form>
   </div>

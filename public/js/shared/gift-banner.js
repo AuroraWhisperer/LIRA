@@ -3,6 +3,7 @@
 import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
 import { fitTextToWidth } from './fit-text-to-width.js';
 import { bindGuardImage, getGuardAvatarFrame, getGuardIcon } from './bilibili-guard-icons.js';
+import { DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
 
 export const BANNER_WIDTH = 428;
 export const BANNER_HEIGHT = 72;
@@ -98,6 +99,7 @@ export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = 
   const root = document.createElement('div');
   root.className = 'gift-banner';
   root.dataset.eventId = item.eventId;
+  applyGiftBannerAppearance(root, config);
   const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
   root.style.setProperty('--gift-start', colors[0]);
   root.style.setProperty('--gift-end', colors[1]);
@@ -136,6 +138,7 @@ export function createGiftBanner(item, config, catalog = [], resolveAvatarUrl = 
 
 /** Patch changed display fields in place; return whether the text needs refitting. */
 export function updateGiftBanner(root, item, config, catalog = [], retryAvatar = false, resolveAvatarUrl = giftAvatarSource) {
+  applyGiftBannerAppearance(root, config);
   const gift = item.gift;
   const colors = GIFT_PALETTE[giftTier(gift, config.thresholds, item.cardTotalCents)];
   for (const [index, key] of ['--gift-start', '--gift-end'].entries()) {
@@ -163,6 +166,13 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
     else root.insertBefore(bannerImage(source, 'gift-banner-frame', ''), root.querySelector('.gift-banner-text'));
   } else frame?.remove();
   return textChanged;
+}
+
+function applyGiftBannerAppearance(root, config) {
+  for (const key of ['tailStyle', 'textureStyle']) {
+    const value = config[key] ?? DEFAULT_GIFT_BANNER_APPEARANCE[key];
+    if (root.dataset[key] !== value) root.dataset[key] = value;
+  }
 }
 
 export function giftAvatarSource(value) {

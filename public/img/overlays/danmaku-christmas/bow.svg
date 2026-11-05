@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 56" fill="none" color="#d8b77c">
+<defs>
+    <linearGradient id="ribbon" x2="0" y2="1">
+      <stop stop-color="#eb6765"/><stop offset=".5" stop-color="#bf3548"/><stop offset="1" stop-color="#791e37"/>
+    </linearGradient>
+    <linearGradient id="leaf" x2="1" y2="1">
+      <stop stop-color="#729276"/><stop offset="1" stop-color="#33594e"/>
+    </linearGradient>
+  </defs>
+    <path d="M44 23 31 50l12-3 6 7 6-28M54 24l13 27 1-12 11 1-18-19" fill="url(#ribbon)" stroke="#db9b77" stroke-width=".7"/>
+    <path d="M45 21C32 3 6 0 8 13c1 11 18 24 37 16M55 21C68 3 94 0 92 13c-1 11-18 24-37 16" fill="url(#ribbon)" stroke="#eea188" stroke-width="1"/>
+    <path d="M44 25C24 9 15 9 13 12c-1 5 14 12 31 13M56 25c20-16 29-16 31-13 1 5-14 12-31 13" fill="#6b2131"/>
+    <path d="m44 20-9 25m22-24 12 22M10 12c4 8 20 16 32 16m48-16c-4 8-20 16-32 16" fill="none" stroke="#eab08b" stroke-width=".8"/>
+    <path d="M44 19c-2 4-2 10 1 13l12-1c2-4 1-9-1-12Z" fill="#e7bd79"/>
+    <path d="m49 21-14-9-1 6-9 1 5 6-4 6 11-1 5 5 5-8m8-4 14-9 1 6 9 1-5 6 4 6-11-1-5 5-5-8" fill="url(#leaf)"/>
+    <g fill="#dcb565"><circle cx="49" cy="26" r="3.2"/><circle cx="55" cy="26" r="3.2"/><circle cx="52" cy="31" r="3.2"/></g>
+    <g fill="#f9e6b3"><circle cx="48" cy="25" r=".9"/><circle cx="54" cy="25" r=".9"/></g>
+
+</svg>

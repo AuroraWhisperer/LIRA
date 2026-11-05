@@ -35,6 +35,7 @@ test('audio IPC is restricted to the authorized main frame and selected local au
   const dispose = registerAudioAssistantIpc({
     ipcMain: { handle: (name, callback) => handlers.set(name, callback), removeHandler: (name) => handlers.delete(name) },
     assistant: { invoke: async (...args) => { calls.push(args); return { ok: true }; } },
+    component: { getState: () => ({ status: 'idle' }), retry: async () => calls.push(['component:retry']) },
     getMainWindow: () => ({ isDestroyed: () => false, webContents }),
     getDesktopBaseUrl: () => 'http://127.0.0.1:3456',
     isPathAllowedForLocalMedia: (value) => value === 'selected.wav',
@@ -51,6 +52,12 @@ test('audio IPC is restricted to the authorized main frame and selected local au
   await invoke(event, { op: 'configure', value: { volume: 200 } });
   await invoke(event, { op: 'mixer' });
   assert.deepEqual(calls, [['file', 'selected.wav'], ['configure', { volume: 200 }], ['external', 'ms-settings:apps-volume']]);
+  const retry = handlers.get('audio-component:retry');
+  assert.equal((await retry(event, { url: 'https://untrusted.example/component.zip' })).error, 'IPC_ARGUMENTS_INVALID');
+  assert.equal((await retry({ ...event, senderFrame: { ...frame } })).error, 'IPC_SOURCE_INVALID');
+  assert.equal((await handlers.get('audio-component:get-state')(event)).status, 'idle');
+  await retry(event);
+  assert.deepEqual(calls.at(-1), ['component:retry']);
   dispose();
   assert.equal(handlers.size, 0);
 });

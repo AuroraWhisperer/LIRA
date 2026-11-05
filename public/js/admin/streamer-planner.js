@@ -285,8 +285,8 @@ export const todo = (() => {
     };
     byId('plannerEventReminderHint').textContent = messages[reminderStatus] ||
       (reminder.checked
-        ? (allDay ? '按所选时间提醒。' : `在日程开始时${time.value ? `（${time.value}）` : ''}提醒。`) + ' LIRA 运行时生效，最小化后也可提醒。'
-        : '到点通过系统通知提醒，LIRA 需保持运行。');
+        ? (allDay ? '按所选时间提醒。' : `在日程开始时${time.value ? `（${time.value}）` : ''}提醒。`) + ' 需在「设置 → 通知提醒」开启日程提醒，LIRA 保持运行。'
+        : '到点通过系统通知提醒，需在「设置 → 通知提醒」开启日程提醒，LIRA 保持运行。');
   }
 
   async function confirmTaskDelete(taskId) {

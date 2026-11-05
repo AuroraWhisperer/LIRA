@@ -2,6 +2,9 @@ Var liraPreviousInstallDir
 Var liraProcessName
 Var liraProcessRelativePath
 Var liraProcessId
+Var liraAudioDirectory
+Var liraAudioFindHandle
+Var liraAudioVersion
 
 !ifdef BUILD_UNINSTALLER
   !define LIRA_PROCESS_PREFIX "un."
@@ -64,7 +67,7 @@ Function ${LIRA_PROCESS_PREFIX}liraEnsureAudioExited
   liraRestartAudioWait:
     System::Call 'kernel32::GetTickCount() i.R2'
   liraWaitForAudioExit:
-    Call ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
+    Call ${LIRA_PROCESS_PREFIX}liraFindAudioProcess
     StrCmp $R0 603 liraAudioExited
     StrCpy $R5 "无法确认电音助手是否退出，进程检查返回码：$R0。"
     StrCmp $R0 0 0 liraAudioExitFailed
@@ -108,6 +111,40 @@ Function ${LIRA_PROCESS_PREFIX}liraFindAppProcess
   StrCpy $liraProcessName "${APP_EXECUTABLE_FILENAME}"
   StrCpy $liraProcessRelativePath "$liraProcessName"
   Call ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
+FunctionEnd
+
+; Check both the old bundled location and preserved component versions. Each
+; candidate still goes through the exact executable-path ownership check.
+Function ${LIRA_PROCESS_PREFIX}liraFindAudioProcess
+  StrCpy $liraProcessRelativePath "resources\audio-assistant\$liraProcessName"
+  Call ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
+  StrCmp $R0 603 0 liraAudioFindDone
+  StrCpy $liraAudioDirectory "$liraPreviousInstallDir\data\components\audio"
+  liraAudioFindRoot:
+    FindFirst $liraAudioFindHandle $liraAudioVersion "$liraAudioDirectory\*"
+  liraAudioFindVersion:
+    StrCmp $liraAudioVersion "" liraAudioFindRootDone
+    StrCmp $liraAudioVersion "." liraAudioFindNext
+    StrCmp $liraAudioVersion ".." liraAudioFindNext
+    System::Call 'kernel32::GetFileAttributesW(w "$liraAudioDirectory\$liraAudioVersion") i.R7'
+    IntOp $R7 $R7 & 0x410
+    IntCmp $R7 16 0 liraAudioFindNext liraAudioFindNext
+    StrCpy $liraProcessRelativePath "data\components\audio\$liraAudioVersion\$liraProcessName"
+    Call ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
+    StrCmp $R0 603 liraAudioFindNext
+    FindClose $liraAudioFindHandle
+    Return
+  liraAudioFindNext:
+    FindNext $liraAudioFindHandle $liraAudioVersion
+    Goto liraAudioFindVersion
+  liraAudioFindRootDone:
+    FindClose $liraAudioFindHandle
+    StrCmp $liraAudioDirectory "$INSTDIR\data\components\audio" liraAudioFindAbsent
+    StrCpy $liraAudioDirectory "$INSTDIR\data\components\audio"
+    Goto liraAudioFindRoot
+  liraAudioFindAbsent:
+    StrCpy $R0 603
+  liraAudioFindDone:
 FunctionEnd
 
 Function ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess

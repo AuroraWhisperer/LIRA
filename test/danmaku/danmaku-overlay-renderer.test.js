@@ -3,14 +3,95 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const { FakeNode, createFakeDocument } = require('../helpers/fake-dom');
+const { FakeNode, createFakeDocument, findByClass } = require('../helpers/fake-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('mist random SC supports snapshots, increments, removal and timed expiry while old random styles omit SC', async () => {
+for (const style of ['christmas', 'christmas-letter']) {
+  test(`${style} preserves room identity, emotes, full SC and settled gift amounts`, async () => {
+    const prefix = style === 'christmas' ? 'christmas' : 'xletter';
+    const giftAmount = style === 'christmas' ? 'christmas-amount' : 'xletter-gift-amount';
+    const root = new FakeNode('div');
+    const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
+      document: createFakeDocument(),
+    });
+    const feed = module.createDanmakuFeed(root, { style, autoScroll: false,
+      resolveEmoteUrl: () => '/approved-emote.png' });
+    feed.render([
+      { id: 'chat', name: '<b>冬日来信</b>', roomGuardLevel: 0, guardLevel: 1, message: '[妙]',
+        emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+      { id: 'gift', kind: 'gift', name: '观众', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+      { id: 'member', kind: 'gift', name: '舰长', giftGuardLevel: 3, giftCount: 1 },
+      { id: 'sc', kind: 'superchat', name: '来信', price: 50, message: '第一行\n<b>完整留言</b>' },
+    ]);
+    const [chat, gift, member, sc] = root.children;
+    assert.equal(findByClass(chat, style === 'christmas' ? 'christmas-role' : 'xletter-role-label'), undefined, 'other-room guard status is not shown');
+    assert.equal(findByClass(chat, `${prefix}-name`).textContent, '<b>冬日来信</b>');
+    assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+    assert.equal(findByClass(gift, `${prefix}-gift-name`).textContent, '<b>星愿</b>');
+    assert.equal(findByClass(gift, giftAmount).textContent, '¥12.50', 'the settled total is not multiplied again');
+    assert.equal(findByClass(member, `${prefix}-gift-action`).textContent, '支持 ');
+    assert.equal(findByClass(member, `${prefix}-gift-name`).textContent, '舰长');
+    assert.equal(findByClass(member, `${prefix}-amount`).textContent, '—', 'unknown prices are not invented');
+    const copy = findByClass(sc, `${prefix}-copy`);
+    assert.equal(findByClass(sc, `${prefix}-amount`).textContent, '¥50.00');
+    assert.equal(copy.textContent, '第一行\n<b>完整留言</b>');
+    assert.equal(copy.children.length, 0, 'SC remains literal text');
+    feed.remove(['sc']);
+    assert.deepEqual(root.children, [chat, gift, member]);
+    feed.append({ id: 'renew', kind: 'gift', name: '续订者', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1, giftTotalPrice: 1998 });
+    const renewed = root.children.at(-1);
+    assert.equal(findByClass(renewed, `${prefix}-gift-action`).textContent, '续费 ');
+    assert.equal(findByClass(renewed, `${prefix}-gift-name`).textContent, '提督');
+    feed.destroy();
+  });
+}
+
+test('christmas letter applies room medal levels to every guard tier and uses the shared SC path', async () => {
+  const root = new FakeNode('div');
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
+    document: createFakeDocument(),
+  });
+  const feed = module.createDanmakuFeed(root, { style: 'christmas-letter', autoScroll: false });
+  const message = '  普通文字也可以写 SC ¥50\n但类型由事件决定。  ';
+  const tiers = [
+    { guard: 3, role: 'captain', label: '舰长', level: 28 },
+    { guard: 2, role: 'admiral', label: '提督', level: 38 },
+    { guard: 1, role: 'governor', label: '总督', level: 50 },
+  ];
+  feed.render([
+    { id: 'viewer', name: '普通观众', message, price: 50, medalLevel: 99, medalName: '其他房间' },
+    { id: 'fan', name: '团员', message, roomMedal: { name: '小铃铛', level: 12 } },
+    ...tiers.map(tier => ({ id: tier.role, name: '本房间成员', message,
+      roomGuardLevel: tier.guard, roomMedal: { name: '小铃铛', level: tier.level } })),
+    ...tiers.map(tier => ({ id: `join-${tier.role}`, kind: 'gift', name: '新成员',
+      roomGuardLevel: 3, giftGuardLevel: tier.guard, guardAction: 'open', giftCount: 1,
+      roomMedal: { name: '小铃铛', level: tier.level } })),
+    { id: 'sc', kind: 'superchat', name: '留言者', message, price: 50 },
+  ]);
+  const [viewer, fan] = root.children;
+  const sc = root.children.at(-1);
+  assert.equal(viewer.dataset.letterKind, 'chat');
+  assert.equal(findByClass(viewer, 'xletter-medal'), undefined, 'other-room medals are not presented as this fan club');
+  assert.equal(findByClass(viewer, 'xletter-amount'), undefined, 'text and price alone never turn chat into SC');
+  assert.match(findByClass(fan, 'xletter-medal').textContent, /12$/);
+  assert.match(findByClass(fan, 'xletter-medal').title, /小铃铛/);
+  tiers.forEach((tier, index) => {
+    const chat = root.children[index + 2];
+    const joined = root.children[index + 5];
+    assert.equal(findByClass(chat, 'xletter-guard-label').textContent, `${tier.label} ${tier.level}`);
+    assert.equal(findByClass(joined, 'xletter-guard-label').textContent, `${tier.label} ${tier.level}`);
+    assert.equal(joined.dataset.letterTier, tier.role, 'purchased tier selects the scene even when room identity is stale');
+  });
+  assert.equal(sc.classList.contains('is-superchat'), true);
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message, 'the SC module retains the complete original text');
+  feed.destroy();
+});
+
+test('supported random SC styles retain snapshots, increments, removal and timed expiry', async () => {
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), { document: createFakeDocument() });
-  for (const style of ['mist', 'outline']) {
+  for (const style of ['mist', 'comic', 'outline']) {
     const root = new FakeNode('div');
     const timers = new Map();
     let nextTimer = 0;
@@ -26,11 +107,11 @@ test('mist random SC supports snapshots, increments, removal and timed expiry wh
     const sc = { id: 'sc', kind: 'superchat', price: 30, message: '留言', timestamp: 1000 };
     feed.render([{ id: 'chat', name: '观众', message: '弹幕', timestamp: 1000 }, sc]);
     const chat = root.children[0];
-    assert.equal(root.children.length, style === 'mist' ? 2 : 1);
+    assert.equal(root.children.length, style === 'outline' ? 1 : 2);
     feed.append({ ...sc, id: 'second' });
-    assert.equal(root.children.length, style === 'mist' ? 3 : 1);
+    assert.equal(root.children.length, style === 'outline' ? 1 : 3);
     feed.remove(['sc']);
-    assert.equal(root.children.length, style === 'mist' ? 2 : 1);
+    assert.equal(root.children.length, style === 'outline' ? 1 : 2);
     assert.equal(root.children[0], chat);
     assert.ok([...timers.values()].every(timer => timer.delay === 6000));
     for (const { callback } of [...timers.values()]) callback();

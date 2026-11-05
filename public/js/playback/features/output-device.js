@@ -68,7 +68,12 @@ export function getPlaybackOutput(audio, options = {}) {
       .map((device, index) => ({ deviceId: device.deviceId,
         name: `${native ? '自动：' : ''}${device.label || `输出设备 ${index + 1}`}` }));
     if (!native) return browserDevices;
-    const nativeDevices = await native.enumerate();
+    let nativeDevices;
+    try { nativeDevices = await native.enumerate(); }
+    catch (error) {
+      if (error.code === 'AUDIO_COMPONENT_NOT_READY' && !/^(wasapi|directsound|waveout|asio):/.test(selected.deviceId)) return browserDevices;
+      throw error;
+    }
     if (selected.deviceId.startsWith('asio:') && !nativeDevices.some(device => device.deviceId === selected.deviceId)
       && nativeDevices.some(device => device.deviceId === selected.deviceId.split('|')[0])) {
       nativeDevices.push({ ...selected, backend: 'asio', name: `${selected.name}（连接待检查）` });
@@ -135,7 +140,7 @@ export function getPlaybackOutput(audio, options = {}) {
         const missing = selected.deviceId && !devices.some((device) => device.deviceId === selected.deviceId);
         blocked = selected.deviceId !== (native ? appliedId : audio.sinkId || '') || Boolean(missing) || Boolean(deferredPreference);
         if (blocked) audio.pause();
-        message = error.name === 'NotAllowedError'
+        message = error.code === 'AUDIO_COMPONENT_NOT_READY' ? error.message : error.name === 'NotAllowedError'
           ? '无法访问这个输出通道，请在 LIRA 桌面客户端重新选择。'
           : error.name === 'NotFoundError' ? MISSING_HINT
             : [MISSING_HINT, PROCESSING_HINT].includes(error.message) ? error.message
@@ -164,8 +169,8 @@ export function getPlaybackOutput(audio, options = {}) {
       } else if (blocked && !processing && !startLocks) {
         await select(selected.deviceId, { save: false });
       }
-    } catch {
-      message = '未能读取输出设备，请稍后点击「刷新设备」重试。';
+    } catch (error) {
+      message = error.code === 'AUDIO_COMPONENT_NOT_READY' ? error.message : '未能读取输出设备，请稍后点击「刷新设备」重试。';
     }
     publish();
   }
@@ -198,6 +203,7 @@ export function getPlaybackOutput(audio, options = {}) {
   });
   windowRef.addEventListener?.('storage', onStorage);
   mediaDevices?.addEventListener?.('devicechange', refresh);
+  const unsubscribeComponent = bridge?.onComponentState?.(state => { if (state.status === 'ready') void refresh(); });
 
   const output = {
     select,
@@ -234,6 +240,7 @@ export function getPlaybackOutput(audio, options = {}) {
       native?.dispose();
       windowRef.removeEventListener?.('storage', onStorage);
       mediaDevices?.removeEventListener?.('devicechange', refresh);
+      unsubscribeComponent?.();
       listeners.clear();
       outputs.delete(audio);
     },

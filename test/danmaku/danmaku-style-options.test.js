@@ -16,6 +16,9 @@ const SPOOKY_COLOR_KEYS = ['spookyFrameColor', 'spookyMessageColor', 'spookyEven
 const SPOOKY_OPACITY_KEYS = ['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity'];
 const TWITTER_LAYOUT_KEYS = ['twitterHeader', 'twitterComposer', 'twitterActions'];
 const TWITTER_COLOR_KEYS = ['twitterColor0', 'twitterColor50', 'twitterColor100', 'twitterColor1000'];
+const RANDOM_TIMING_KEYS = ['durationSeconds', 'exitAnimation', 'exitDurationMs', 'centerBias', 'dispersion'];
+const RANDOM_ENTRANCE_KEYS = ['entranceAnimation', 'entranceDurationMs'];
+const FLOATING_KEYS = ['speedPixelsPerSecond', 'floatingDispersion', 'floatingEdgeFade', 'floatingEdgeFadeSize'];
 const CONTROLS = {
   harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
   bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
@@ -31,19 +34,41 @@ const CONTROLS = {
   twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...TWITTER_COLOR_KEYS],
   'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   notebook: ['scrollDirection', 'edgeFade', 'ambientMotion'],
+  christmas: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion'],
+  'christmas-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
   starlight: ['scrollDirection', 'edgeFade', 'decorationShape', 'ambientMotion'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  outline: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
-  whiteframe: ['durationSeconds', 'centerBias', 'dispersion', 'entranceAnimation', 'bubbleColor'],
-  mist: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity'],
-  cream: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'giftImage'],
-  floating: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
-  comet: ['speedPixelsPerSecond', 'floatingDispersion', 'backgroundOpacity'],
-  starveil: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
-  glow: ['durationSeconds', 'centerBias', 'dispersion', 'backgroundOpacity', 'entranceAnimation'],
+  outline: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity', 'giftImage'],
+  comic: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'comicWritingMode', 'comicShape',
+    'comicStrokeWidth', 'comicTexture', 'comicEntrance', 'comicEntranceMs'],
+  whiteframe: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'bubbleColor'],
+  mist: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
+  cream: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity', 'giftImage'],
+  floating: [...FLOATING_KEYS, 'backgroundOpacity'],
+  comet: [...FLOATING_KEYS, 'backgroundOpacity'],
+  startrail: [...FLOATING_KEYS, 'ambientMotion', 'startrailColor', 'startrailStarSize', 'startrailTailLength', 'startrailGlow', 'startrailDust', 'startrailEntrance', 'startrailEntranceMs'],
+  aurora: [...FLOATING_KEYS, 'backgroundOpacity', 'ambientMotion', 'auroraPalette', 'auroraSheen', 'auroraCharm', 'auroraSway', 'auroraEntrance', 'auroraEntranceMs'],
+  starveil: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
+  glow: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
 };
 const CONTROL_VALUES = {
+  comicWritingMode: { valid: ['horizontal', 'vertical'], invalid: ['sideways', null], optional: true },
+  comicShape: { valid: ['mixed', 'speech', 'box', 'burst'], invalid: ['circle', null], optional: true },
+  comicStrokeWidth: { valid: [1, 4], invalid: [0, 5, 1.5, '2'], optional: true },
+  comicTexture: { valid: [0, 30], invalid: [-1, 31], optional: true },
+  comicEntrance: { valid: ['pop', 'ink', 'fade', 'none'], invalid: ['spin', null], optional: true },
+  comicEntranceMs: { valid: [180, 800], invalid: [179, 801], optional: true },
+  startrailColor: { valid: ['#b9dfff', '#b9dfff80'], invalid: ['red', '#abc', '#b9dff', null], optional: true },
+  startrailStarSize: { valid: [12, 40], invalid: [11, 41, 20.5, '24'], optional: true },
+  startrailTailLength: { valid: [0, 360], invalid: [-1, 361, 20.5, '180'], optional: true },
+  startrailGlow: { valid: [0, 100], invalid: [-1, 101, 20.5, '45'], optional: true },
+  startrailDust: { valid: ['on', 'off'], invalid: [true, 'show', null], optional: true },
+  startrailEntranceMs: { valid: [250, 1200], invalid: [249, 1201, 680.5, '680'], optional: true },
+  auroraPalette: { valid: ['lilac', 'glacier', 'rose', 'champagne'], invalid: ['unknown'], optional: true },
+  auroraSheen: { valid: [0, 100], invalid: [-1, 101, 0.5], optional: true },
+  auroraCharm: { valid: ['star', 'moon', 'none'], invalid: ['unknown'], optional: true },
+  auroraSway: { valid: [0, 12], invalid: [-1, 13, 0.5], optional: true },
   durationSeconds: { valid: [2, 6, 30], invalid: [1, 31, 6.5, '6', null, true], optional: true },
   composerText: {
     valid: ['欢迎来到直播间 ✨', '中文 English #😊', '字'.repeat(20), '👨‍👩‍👧‍👦'.repeat(20)],
@@ -54,7 +79,15 @@ const CONTROL_VALUES = {
   spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], optional: true },
   decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], optional: true },
   ambientMotion: { valid: ['on', 'off'], invalid: ['static', '', null, true, 1], optional: true },
-  entranceAnimation: { valid: ['fade', 'rise'], invalid: ['slide', 'RISE', '', null, true, 1, {}], optional: true },
+  entranceAnimation: { valid: ['fade', 'rise', 'none'], invalid: ['slide', 'RISE', '', null, true, 1, {}], optional: true },
+  entranceDurationMs: { valid: [100, 1000], invalid: [99, 1001, 200.5], optional: true },
+  exitAnimation: { valid: ['fade', 'none'], invalid: ['rise'], optional: true },
+  exitDurationMs: { valid: [100, 1000], invalid: [99, 1001, 400.5], optional: true },
+  floatingEdgeFade: { valid: ['both', 'left', 'right', 'none'], invalid: ['top'], optional: true },
+  floatingEdgeFadeSize: { valid: [4, 80], invalid: [3, 81, 28.5], optional: true },
+  auroraEntrance: { valid: ['layered', 'none'], invalid: ['rise'], optional: true },
+  auroraEntranceMs: { valid: [180, 1200], invalid: [179, 1201, 520.5], optional: true },
+  startrailEntrance: { valid: ['spark', 'none'], invalid: ['layered'], optional: true },
   floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], optional: true },
   minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], optional: true },
   bubbleColor: { valid: ['default', '#ba739c', '#ba739c80'], invalid: ['', 'red', '#abc', '#123456\n', null, 1], optional: true },
@@ -269,6 +302,9 @@ test('edge fading keeps theme defaults, applies overrides and clears on other la
 });
 
 test('entrance animation stays per style and resets on empty options or unsupported styles', async () => {
+  assert.equal(contract.styleOptionsFor('whiteframe', { whiteframe: { entranceAnimation: 'rise' } }).entranceDurationMs, 500,
+    'saved rise choices retain the legacy duration until explicitly edited');
+  assert.equal(contract.styleOptionsFor('whiteframe', { whiteframe: { entranceAnimation: 'rise', entranceDurationMs: 800 } }).entranceDurationMs, 800);
   const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
   const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };

@@ -34,7 +34,7 @@ function reloadAfterPartialClearAll(response, { alertRef, locationRef }) {
       (failed.length ? `✗ 失败：${failed.join(', ')}\n` : '') +
       (response.error ? `原因：${response.error}\n` : '') +
       `\n${phaseText}\n` +
-      `礼物导入与加班写入仍暂停，刷新页面不会恢复。请从「桌面更新」打开日志目录并检查数据；确认后可再次完整清空，成功后恢复写入。\n` +
+      `礼物导入与加班写入仍暂停，刷新页面不会恢复。请从「设置 → 关于与更新 → 本地数据与支持」打开日志目录并检查数据；确认后可再次完整清空，成功后恢复写入。\n` +
       `页面将重新加载。`,
   );
   locationRef.reload();

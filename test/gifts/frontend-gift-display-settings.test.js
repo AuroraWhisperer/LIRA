@@ -61,6 +61,34 @@ test('gift feed settings save speed and cancel restores the saved value', async 
   assert.equal(await speed.inputValue(), '50');
 });
 
+test('gift appearance choices preview independently, save, and restore without losing incoming settings', async (t) => {
+  const page = await openSettings(t);
+  const tail = page.locator('#giftTailStyle');
+  const texture = page.locator('#giftTextureStyle');
+  assert.equal(await tail.inputValue(), 'slant');
+  assert.equal(await texture.inputValue(), 'solid');
+  await tail.selectOption('ribbon');
+  await texture.selectOption('argyle');
+  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-tail-style'), 'ribbon');
+  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-texture-style'), 'argyle');
+  await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
+  await page.waitForFunction(() => window.displaySaves.length === 1 && !document.getElementById('giftDisplayFields').disabled);
+  assert.equal(await page.evaluate(() => window.savedDisplay.tailStyle), 'ribbon');
+  assert.equal(await page.evaluate(() => window.savedDisplay.textureStyle), 'argyle');
+  await texture.selectOption('satin');
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('app:settings-state', {
+    detail: { giftDisplayConfig: JSON.stringify({ ...window.savedDisplay, tailStyle: 'slant', visibleRows: 5 }) },
+  })));
+  assert.equal(await tail.inputValue(), 'slant');
+  assert.equal(await texture.inputValue(), 'satin');
+  await page.locator('#giftDisplayCancel').click();
+  assert.equal(await texture.inputValue(), 'argyle');
+  assert.equal(await page.locator('#giftFeedRows').inputValue(), '5');
+  await page.locator('#giftDisplayDefaults').click();
+  assert.equal(await tail.inputValue(), 'slant');
+  assert.equal(await texture.inputValue(), 'solid');
+});
+
 test('feed minimum accepts one decimal place and saves cents', async (t) => {
   const page = await openSettings(t);
   const amount = page.locator('#giftFeedMinAmount');

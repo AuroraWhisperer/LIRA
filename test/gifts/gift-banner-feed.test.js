@@ -77,6 +77,8 @@ test('display settings validate speed and preserve saved colors and rows from le
   };
   const expected = {
     palette: legacy.palette,
+    tailStyle: 'slant',
+    textureStyle: 'solid',
     thresholds: legacy.thresholds,
     visibleRows: 7,
     scrollSpeed: 1,
@@ -89,16 +91,29 @@ test('display settings validate speed and preserve saved colors and rows from le
 
 test('feed minimum defaults to zero for old settings and accepts only nonnegative tenths of a yuan', () => {
   const legacy = { palette: 'bilibili-four', thresholds: [100, 1000, 10000], visibleRows: 7, scrollSpeed: 31 };
-  const normalized = { ...legacy, minGiftAmountCents: 0 };
+  const normalized = { ...legacy, tailStyle: 'slant', textureStyle: 'solid', minGiftAmountCents: 0 };
   assert.deepEqual(validateGiftDisplaySettings(legacy), normalized);
   assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(legacy) }), normalized);
   for (const minGiftAmountCents of [10, 100000]) {
-    const config = { ...legacy, minGiftAmountCents };
+    const config = { ...normalized, minGiftAmountCents };
     assert.deepEqual(validateGiftDisplaySettings(config), config);
     assert.deepEqual(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(config) }), config);
   }
   for (const minGiftAmountCents of [-10, 11, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
     assert.throws(() => validateGiftDisplaySettings({ ...legacy, minGiftAmountCents }));
+  }
+});
+
+test('gift tails and textures save independently and reject unknown or non-string choices', () => {
+  const config = { ...DEFAULT_GIFT_DISPLAY, tailStyle: 'swallowtail', textureStyle: 'argyle' };
+  const saved = readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify(validateGiftDisplaySettings(config)) });
+  assert.equal(saved.tailStyle, 'swallowtail');
+  assert.equal(saved.textureStyle, 'argyle');
+  assert.equal(validateGiftDisplaySettings({ ...saved, tailStyle: 'slant' }).textureStyle, 'argyle');
+  assert.equal(validateGiftDisplaySettings({ ...saved, textureStyle: 'solid' }).tailStyle, 'swallowtail');
+  assert.equal(readGiftDisplaySettings({ giftDisplayConfig: JSON.stringify({ ...saved, tailStyle: 'ribbon' }) }).tailStyle, 'ribbon');
+  for (const patch of [{ tailStyle: 'unknown' }, { textureStyle: 'unknown' }, { tailStyle: ['slant'] }, { textureStyle: null }]) {
+    assert.throws(() => validateGiftDisplaySettings({ ...config, ...patch }));
   }
 });
 

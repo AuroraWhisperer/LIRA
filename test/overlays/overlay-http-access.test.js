@@ -29,7 +29,7 @@ test('page credentials are independent, revocable and fail closed', () => {
       null,
     );
   }
-  assert.equal(tokens.size, 16);
+  assert.equal(tokens.size, Object.keys(OVERLAY_PAGES).length);
   assert.throws(() => createOverlayToken(ADMIN, 'admin'));
   assert.throws(() => createOverlayToken('', 'lyrics'));
   url.searchParams.set('token', ADMIN);
@@ -191,6 +191,27 @@ test('sprint overlay reads only the existing countdown and cannot change its goa
   assert.deepEqual(f.calls, []);
 });
 
+test('now-playing source reads only display metadata and appearance without music or management privileges', async t => {
+  const f = await fixture(t);
+  f.state.nowPlaying = { source: 'qq-client', trackTitle: 'Song', artists: ['Artist'], playing: true,
+    coverUrl: 'https://example.test/cover.jpg', mediaPath: SECRET };
+  f.state.nowPlayingConfig = { style: 'vinyl', nowPlayingShowArtist: true, secret: SECRET };
+  const token = createOverlayToken(ADMIN, 'now-playing');
+  const response = await f.request('/api/state', token, { headers: { Origin: 'null' } });
+  assert.equal(response.status, 200);
+  const { data } = await response.json();
+  assert.equal(data.nowPlaying.trackTitle, 'Song');
+  assert.equal(data.nowPlaying.playing, true);
+  assert.equal(data.nowPlayingConfig.style, 'vinyl');
+  assert.equal(Object.hasOwn(data, 'lyricState'), false);
+  assert.doesNotMatch(JSON.stringify(data), /PRIVATE-SENTINEL/);
+  assert.equal((await f.request('/api/now-playing/config', token)).status, 200);
+  for (const pathname of ['/api/now-playing/config', '/api/playback/lyric-source', '/api/music/lyrics']) {
+    assert.equal((await f.request(pathname, token, { method: 'POST', body: '{}' })).status, 403);
+  }
+  assert.equal((await f.request('/api/now-playing/config', createOverlayToken(ADMIN, 'lyrics'))).status, 403);
+});
+
 test('wish overlay HTTP reads projected counts and rejects writes and source selection', async (t) => {
   const f = await fixture(t);
   const token = createOverlayToken(ADMIN, 'gift-wishes');
@@ -348,11 +369,14 @@ test('allowed read APIs project data and force song visibility and today-only gi
   assert.equal(config.data.scrollSpeed, 12);
   assert.equal(config.data.minGiftAmountCents, 0);
   assert.equal(Object.hasOwn(config.data, 'paused'), false);
-  f.state.settings.giftDisplayConfig = JSON.stringify({ ...config.data, minGiftAmountCents: 1250 });
+  f.state.settings.giftDisplayConfig = JSON.stringify({ ...config.data, minGiftAmountCents: 1250,
+    tailStyle: 'swallowtail', textureStyle: 'starlight' });
   const savedConfig = await (
     await f.request('/api/gifts/display-settings', createOverlayToken(ADMIN, 'gift-feed'))
   ).json();
   assert.equal(savedConfig.data.minGiftAmountCents, 1250);
+  assert.equal(savedConfig.data.tailStyle, 'swallowtail');
+  assert.equal(savedConfig.data.textureStyle, 'starlight');
   assert.equal((await f.request('/api/gifts/card-profiles', createOverlayToken(ADMIN, 'gift-export'))).status, 403);
   const avatar = await f.request(
     '/api/bilibili/avatar?url=https://example.test/image',

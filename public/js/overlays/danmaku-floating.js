@@ -5,6 +5,7 @@ import { DEFAULT_DANMAKU_CLASSES, createDanmakuMessageRenderer } from './danmaku
 // Horizontal travel has its own lifetime: a card leaves only after its trailing edge exits.
 export function createFloatingDanmakuFeed(root, options = {}) {
   const classNames = { ...DEFAULT_DANMAKU_CLASSES, ...options.classNames };
+  root.dataset.layout = 'floating';
   const createMessage = createDanmakuMessageRenderer({
     ...options, document: root.ownerDocument || document, classNames, fullscreen: true, showAvatar: false,
   });
@@ -17,9 +18,19 @@ export function createFloatingDanmakuFeed(root, options = {}) {
   let pendingTimer = null;
   let entries = [];
   let sequence = 0;
+  const reducedMotion = root.ownerDocument?.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)');
   const observer = typeof ResizeObserver === 'function' ? new ResizeObserver(layout) : null;
   observer?.observe(root);
   root.ownerDocument?.defaultView?.addEventListener('lira:effects-updated', layout);
+  reducedMotion?.addEventListener?.('change', finishEntrances);
+
+  function finishEntrances() {
+    if (!reducedMotion.matches) return;
+    for (const entry of entries) {
+      entry.live = false;
+      delete entry.node.dataset.liveEntry;
+    }
+  }
 
   function stop(entry) {
     if (entry.timer !== null) cancelTimeout(entry.timer);
@@ -50,13 +61,16 @@ export function createFloatingDanmakuFeed(root, options = {}) {
       const scale = Math.min(1, width / (bounds.width || 1), height / (bounds.height || 1));
       const cardWidth = bounds.width * scale;
       const cardHeight = bounds.height * scale;
-      const trailWidth = parseFloat(node.ownerDocument.defaultView.getComputedStyle(node).getPropertyValue('--danmaku-trail-width')) || 0;
+      const computedStyle = node.ownerDocument.defaultView.getComputedStyle(node);
+      const trailWidth = parseFloat(computedStyle.getPropertyValue('--danmaku-trail-width')) || 0;
+      const entryInset = Math.max(0, parseFloat(computedStyle.getPropertyValue('--danmaku-entry-inset')) || 0) * scale;
+      const initialLeft = width - (entry.live ? Math.min(width, entryInset) : 0);
       const travelWidth = cardWidth + trailWidth * scale;
       const geometry = `${width}:${height}:${travelWidth}:${cardHeight}:${speed}`;
       if (entry.geometry === geometry) continue;
       const left = Math.min(width, entry.startedAt === undefined
         ? entry.waitingAt === undefined
-          ? width - Math.max(0, time - (Number(entry.item.timestamp) || time)) * speed / 1000 : width
+          ? initialLeft - Math.max(0, time - (Number(entry.item.timestamp) || time)) * speed / 1000 : initialLeft
         : entry.left - (time - entry.startedAt) * entry.speed / 1000);
       stop(entry);
       if (left + travelWidth <= 0) {
@@ -79,6 +93,7 @@ export function createFloatingDanmakuFeed(root, options = {}) {
         }
         entry.topRatio = top / (height - cardHeight || 1);
       }
+      if (entry.live && entry.startedAt === undefined) node.dataset.liveEntry = 'true';
       entry.cardHeight = cardHeight;
       entry.travelWidth = travelWidth;
       entry.geometry = geometry;
@@ -98,12 +113,12 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     }
   }
 
-  function add(item) {
+  function add(item, live = true) {
     if (item?.kind === 'superchat') return;
     if (!entries.length) root.replaceChildren();
     const node = createMessage(item, sequence++);
     node.style.visibility = 'hidden';
-    const entry = { node, item, timer: null };
+    const entry = { node, item, live: live && !reducedMotion?.matches, timer: null };
     entries.push(entry);
     root.append(node);
     observer?.observe(node);
@@ -115,9 +130,9 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     if (add(item)) layout();
   }
 
-  function appendBatch(items) {
+  function appendBatch(items, live = true) {
     let added = false;
-    for (const item of items) if (add(item)) added = true;
+    for (const item of items) if (add(item, live)) added = true;
     if (added) layout();
   }
 
@@ -133,7 +148,7 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     appendBatch,
     render(items) {
       clear();
-      appendBatch((Array.isArray(items) ? items : []).filter((item) => item?.kind !== 'superchat').slice(-maxItems));
+      appendBatch((Array.isArray(items) ? items : []).filter((item) => item?.kind !== 'superchat').slice(-maxItems), false);
     },
     setSpeedPixelsPerSecond(value) {
       speed = value;
@@ -145,7 +160,9 @@ export function createFloatingDanmakuFeed(root, options = {}) {
     destroy() {
       observer?.disconnect();
       root.ownerDocument?.defaultView?.removeEventListener('lira:effects-updated', layout);
+      reducedMotion?.removeEventListener?.('change', finishEntrances);
       clear();
+      delete root.dataset.layout;
     },
   };
 }

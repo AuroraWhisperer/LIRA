@@ -1,6 +1,7 @@
 import { createMoonlitScroll } from './danmaku-moonlit.js';
 import { createRipploidSuperChat } from './danmaku-ripploid.js';
 import { createTwitterSuperChat } from './danmaku-twitter.js';
+import { createChristmasLetterSuperChat } from './danmaku-christmas-letter.js';
 
 // Bilibili price_configs: background_color / background_bottom_color / background_price_color.
 // Live packet colors take precedence; 2-yuan messages share the 30-yuan fallback.
@@ -47,6 +48,7 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   root.style.setProperty('--sc-on-accent', superChatForeground(colors.accentColor));
   const card = node('div', `sc-message sc-${style}`);
   const copy = node('p', 'sc-copy', String(item.message ?? ''));
+  if (style === 'christmas-letter') return createChristmasLetterSuperChat(document, root, item, copy, classNames);
   const name = String(item.name || '观众').trim() || '观众';
   const price = Number(item.price).toLocaleString('zh-CN', {
     minimumFractionDigits: ['starlight', 'sketch'].includes(style) ? 2 : 0, maximumFractionDigits: 2,

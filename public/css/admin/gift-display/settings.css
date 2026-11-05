@@ -115,6 +115,25 @@
   overflow-x: auto;
 }
 
+.gift-appearance-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  max-width: 640px;
+  margin-bottom: var(--spacing-md);
+}
+
+.gift-appearance-controls > label {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.gift-appearance-controls select {
+  width: 100%;
+  min-width: 0;
+}
+
 #giftStylePreview {
   --gift-preview-offset: 12px;
   display: grid;

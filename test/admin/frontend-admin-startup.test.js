@@ -33,7 +33,7 @@ test('legacy danmaku initialization preserves reconnect defaults and explicit in
   assert.deepEqual(calls, ['legacy', 'legacy', 'explicit']);
 });
 
-async function createStartupFixture({ confirm = async () => false } = {}) {
+async function createStartupFixture({ confirm = async () => false, hash } = {}) {
   const theme = Promise.withResolvers();
   const data = Promise.withResolvers();
   const dataRequested = Promise.withResolvers();
@@ -46,6 +46,13 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
   const featureInitializations = [];
   const toolboxBindings = [];
   const preferenceWrites = [];
+  const selectedFeatures = [];
+  const pageState = {};
+  const location = { hash: hash || '', pathname: '/admin', search: '' };
+  const navigationButtons = hash === undefined ? [] : ['songAssistantPage', 'liveComponentsPage'].map(mainPage => ({
+    dataset: { mainPage }, classList: { toggle: noop }, setAttribute: noop, addEventListener: noop, closest: () => null,
+  }));
+  const pages = navigationButtons.map(button => ({ id: button.dataset.mainPage, classList: { toggle: noop } }));
   const songFilters = { query: 'current page filter' };
   let readSongFilters;
   let start;
@@ -53,11 +60,14 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     desktop: { initDesktopShell: () => calls.push('desktop') },
   };
   const context = vm.createContext({
+    location,
+    history: { replaceState: (_state, _title, url) => { location.hash = url.startsWith('#') ? url : ''; } },
     window: { addEventListener: noop, location: { reload: () => calls.push('reload') } },
     document: {
+      body: { dataset: pageState },
       readyState: 'interactive',
       documentElement: { classList: { remove: (name) => classes.delete(name) } },
-      querySelectorAll: () => [],
+      querySelectorAll: selector => selector === '.main-page-tab' ? navigationButtons : selector === '.main-page' ? pages : [],
       getElementById: () => null,
       addEventListener: (name, listener) => {
         if (name === 'DOMContentLoaded') start = listener;
@@ -94,7 +104,7 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     './usage-guide.js': { initUsageGuide: noop },
     './toolbox-lifecycle.js': { createToolboxLifecycle: (options) => {
       toolboxOptions.push(options);
-      return { dispose: noop };
+      return { dispose: noop, setPage: noop };
     } },
     './dynamic-lottery.js': { initDynamicLottery: () => ({ dispose: noop }) },
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
@@ -134,13 +144,14 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
     './gift-effects.js': { giftEffects: { init: noop } },
     './toolbox-navigation.js': {
       other: { initOtherPage: (options) => toolboxBindings.push(options), selectFeatureById: noop },
-      createFeatureNavigation: () => ({ initOtherPage: noop }),
+      createFeatureNavigation: () => ({ initOtherPage: noop, selectFeatureById: feature => selectedFeatures.push(feature) }),
     },
     './danmaku-tool.js': { danmakuTool: {} },
     './ai-assistant-settings.js': { aiAssistantSettings: {} },
     './desktop-lyric.js': { desktopLyric: { initDesktopLyricForm: noop } },
     './song-import.js': { songImports: {} },
     './client-appearance.js': { initClientAppearance: noop },
+    './client-settings.js': { initClientSettings: noop },
     './playback-output-settings.js': { initPlaybackOutputSettings: noop },
     './audio-assistant.js': { initAudioAssistant: noop },
     './topbar-status.js': { initTopbarStatus: noop },
@@ -178,8 +189,22 @@ async function createStartupFixture({ confirm = async () => false } = {}) {
   });
   await entry.evaluate();
   return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions,
-    featureInitializations, toolboxBindings, preferenceWrites };
+    featureInitializations, toolboxBindings, preferenceWrites, selectedFeatures, pageState };
 }
+
+test('music display links open the matching component after its navigation is initialized', async () => {
+  for (const [hash, feature] of [['#desktopLyricPage', 'desktopLyricPage'], ['#now-playing', 'nowPlayingPage']]) {
+    const fixture = await createStartupFixture({ hash });
+    const starting = fixture.start();
+    fixture.theme.resolve();
+    await fixture.dataRequested.promise;
+    fixture.data.resolve();
+    await starting;
+    assert.equal(fixture.pageState.mainPage, 'components');
+    assert.deepEqual(fixture.selectedFeatures, [feature]);
+    assert.deepEqual(fixture.errors, []);
+  }
+});
 
 test('toolbox initialization recovery reloads only after confirmation and keeps the failure visible', async () => {
   const dialogs = [];

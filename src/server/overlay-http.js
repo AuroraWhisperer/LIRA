@@ -4,6 +4,7 @@ const { sendJson } = require('./http-utils');
 const { projectOverlayResponse } = require('./overlay-projection');
 const { getClockConfig } = require('./clock-contract');
 const { getOpeningConfig } = require('./opening-service');
+const { readNowPlayingConfig } = require('./now-playing-settings');
 const { readGiftDisplaySettings } = require('../bilibili/gift/display-settings');
 const { routes: bilibiliRoutes } = require('./routes/bilibili-routes');
 const { routes: danmakuDisplayRoutes } = require('./routes/danmaku-display-routes');
@@ -104,6 +105,8 @@ async function handleOverlayApi(context, principal, request, res) {
         return reply(getClockConfig(context.settings.get()));
       case '/api/opening/config':
         return reply(getOpeningConfig(context));
+      case '/api/now-playing/config':
+        return reply(readNowPlayingConfig(context.settings.get()));
       case '/api/bilibili/avatar':
         return bilibiliRoutes['GET /api/bilibili/avatar'](context, request, res);
       case '/api/bilibili/room/profile':

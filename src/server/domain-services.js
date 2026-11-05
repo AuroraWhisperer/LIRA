@@ -101,6 +101,7 @@ function createDomainServices(options) {
   };
   const queue = {
     getSnapshot: () => queueService.getQueueSnapshot(queueContext),
+    recordRequestResult: (input) => queueService.recordQueueRequestResult(queueContext, input),
     add: (input) => queueService.addQueueItem(queueContext, input),
     cancel: (input) => queueService.cancelQueueItem(queueContext, input),
     handleAction: (action, id) => queueService.handleQueueAction(queueContext, action, id),
@@ -229,6 +230,10 @@ function createDomainServices(options) {
           },
           danmaku,
         );
+        if (result.command?.type === 'request' || result.command?.type === 'random') {
+          queue.recordRequestResult({ accepted: result.accepted, requesterName: danmaku.userName,
+            songName: result.queueItem?.song_name || result.command.songName });
+        }
         if (result.command) return result;
         if (customReplies.isCloudOwnedCommand(danmaku.message)) {
           return { accepted: false, reason: 'cloud-owned', command: { type: 'custom-exact-reply' } };

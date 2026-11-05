@@ -14,6 +14,14 @@ contextBridge.exposeInMainWorld('playbackOutput', {
 
 contextBridge.exposeInMainWorld('audioAssistant', {
   invoke: (request) => ipcRenderer.invoke('audio-assistant:invoke', request),
+  getComponentState: () => ipcRenderer.invoke('audio-component:get-state'),
+  retryComponent: () => ipcRenderer.invoke('audio-component:retry'),
+  onComponentState: (callback) => {
+    if (typeof callback !== 'function') return () => {};
+    const listener = (_event, state) => callback(state);
+    ipcRenderer.on('audio-component:state', listener);
+    return () => ipcRenderer.removeListener('audio-component:state', listener);
+  },
   onState: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const listener = (_event, state) => callback(state);
@@ -25,6 +33,11 @@ contextBridge.exposeInMainWorld('audioAssistant', {
 contextBridge.exposeInMainWorld('plannerReminders', {
   getState: () => ipcRenderer.invoke('planner-reminders:get-state'),
   sync: (reminders) => ipcRenderer.invoke('planner-reminders:sync', reminders),
+});
+
+contextBridge.exposeInMainWorld('desktopNotifications', {
+  getState: () => ipcRenderer.invoke('desktop-notifications:get-state'),
+  update: (patch) => ipcRenderer.invoke('desktop-notifications:update', patch),
 });
 
 contextBridge.exposeInMainWorld('dailyBots', {

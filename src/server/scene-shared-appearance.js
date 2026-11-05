@@ -14,6 +14,7 @@ const { GUARD_THANKS_EFFECTS, readGuardThanksEffect } = require('../../public/js
 const { openingStyleSettingsPatch } = require('../../public/js/shared/opening-settings.js');
 const { hasInstalledAppearance, sharedControllerAppearance, sceneAppearanceKey } = require('../../public/js/shared/scene-shared-appearance.js');
 const { SONG_BOARD_THEME_FIELDS } = require('../../public/js/shared/song-board-theme-fields.js');
+const { NOW_PLAYING_SETTING, readNowPlayingConfig } = require('./now-playing-settings');
 
 const LOCAL_TYPES = ['songlist', 'lyrics', 'interactions', 'blindbox'];
 const BLINDBOX_KEYS = { top: 'blindboxOverlayTop', winnersOnly: 'blindboxWinnersOnly', hideLoss: 'blindboxWinnersOnly',
@@ -38,6 +39,10 @@ function createSceneSharedAppearance(context) {
   function read(type, config, defaults) {
     if (config.resourceStyle) return resource(config, type)?.config || {};
     if (hasInstalledAppearance(config)) return {};
+    if (type === 'now-playing') {
+      const { style: _style, ...appearance } = readNowPlayingConfig(settings);
+      return appearance;
+    }
     if (type === 'clock') defaults ??= getClockConfig(settings);
     if (type === 'queue') defaults ??= projectOverlayState('queue', { settings }).settings;
     if (type === 'overtime') defaults ??= context.system.getState?.(['overtime']).overtime?.background;
@@ -80,10 +85,15 @@ function createSceneSharedAppearance(context) {
     }
     // The desktop relay remains the only writer of clock/queue/overtime drafts
     // and remote danmaku settings. This capability never acquires their authority.
-    if (!LOCAL_TYPES.includes(type) && !['gift-feed', 'guard-thanks', 'opening'].includes(type)) throw invalid();
+    if (!LOCAL_TYPES.includes(type) && !['gift-feed', 'guard-thanks', 'opening', 'now-playing'].includes(type)) throw invalid();
     const next = normalizeSceneConfig(type, { ...config, ...current, ...patch });
     let values;
-    if (type === 'gift-feed') {
+    if (type === 'now-playing') {
+      const saved = readNowPlayingConfig(context.settings.get());
+      const appearance = normalizeSceneConfig(type, { ...saved, ...patch });
+      context.settings.setMany({ [NOW_PLAYING_SETTING]: JSON.stringify(appearance) });
+      return createSceneSharedAppearance(context).read(type, config);
+    } else if (type === 'gift-feed') {
       const value = validateGiftDisplaySettings({ ...next, palette: 'bilibili-four', thresholds: [next.threshold1, next.threshold2, next.threshold3] });
       context.settings.setMany({ [GIFT_DISPLAY_SETTING]: JSON.stringify(value) });
       return createSceneSharedAppearance(context).read(type, config);

@@ -24,6 +24,7 @@ const scopes = [
   'gift-sprint',
   'gift-export',
   'lyrics',
+  'now-playing',
   'games',
   'danmaku',
   'wheel',
@@ -79,6 +80,8 @@ const state = {
   queue: {
     current: { song_name: '歌', requester_name: '观众', is_live: true, requester_uid: secret, secret },
     waiting: [],
+    requestResult: { id: 'request', accepted: false, requesterName: '观众', songName: '歌', expiresAt: 123, requesterUid: secret, secret },
+    requestResults: [{ id: 'buffered', accepted: true, requesterName: '另一位观众', songName: '另一首歌', expiresAt: 456, requesterUid: secret, secret }],
     history: secret,
   },
   superChats: [{ message: '留言', price: 30, uid: secret }],
@@ -117,6 +120,8 @@ const state = {
       words: [{ text: '歌', startMs: 0, endMs: 100, secret }], secret }],
     secret,
   },
+  nowPlaying: { source: 'internal', trackTitle: 'Song', artists: ['Artist'], coverUrl: 'https://example.test/cover.jpg', playing: true, secret },
+  nowPlayingConfig: { style: 'vinyl', nowPlayingShowArtist: true, secret },
 };
 
 test('every scope receives only its own snapshot fields and unknown principals fail closed', () => {
@@ -130,6 +135,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     'gift-wishes': ['gifts'],
     'gift-sprint': ['giftSprint'],
     lyrics: ['settings', 'lyricState', 'lyricTimeline'],
+    'now-playing': ['nowPlaying', 'nowPlayingConfig'],
     danmaku: ['settings', 'liveStatus', 'danmakuFeed'],
     clock: ['settings'],
   };
@@ -143,7 +149,12 @@ test('every scope receives only its own snapshot fields and unknown principals f
     assert.deepEqual(Object.keys(result.state).sort(), (allowed[scope] || []).sort(), scope);
     assert.doesNotMatch(JSON.stringify(result), /PRIVATE_SENTINEL/, scope);
     assert.deepEqual(projectOverlayResponse(scope, '/api/state', state), result.state);
-    if (scope === 'queue') assert.equal(result.state.queue.current.is_live, true);
+    if (scope === 'queue') {
+      assert.equal(result.state.queue.current.is_live, true);
+      assert.equal(result.state.queue.requestResult.id, 'request');
+      assert.equal(result.state.queue.requestResult.accepted, false);
+      assert.equal(result.state.queue.requestResults[0].id, 'buffered');
+    }
     if (scope === 'lyrics') assert.deepEqual(result.state.lyricTimeline.lines[0].words,
       [{ text: '歌', startMs: 0, endMs: 100 }]);
   }
@@ -216,6 +227,7 @@ test('WS event scope matrix strips nested extras while preserving display and dr
     ],
     ['lyrics', { type: 'lyric-state', state: state.lyricState }],
     ['lyrics', { type: 'lyric-timeline', timeline: state.lyricTimeline }],
+    ['now-playing', { type: 'now-playing', state: state.nowPlaying }],
     [
       'overtime',
       {
@@ -582,6 +594,8 @@ test('actual shared gift banner renders the same avatar, guard, artwork, amount 
   };
   const config = {
     palette: 'bilibili-four',
+    tailStyle: 'swallowtail',
+    textureStyle: 'argyle',
     thresholds: [10000, 50000, 100000],
     visibleRows: 3,
     intervalSeconds: 4,

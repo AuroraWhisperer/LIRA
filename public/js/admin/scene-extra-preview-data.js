@@ -11,6 +11,7 @@ export function sceneExtraPreviewData(type) {
     'gift-sprint': { targetRmb: 10000, remainingCrystalBalls: 100 },
     opening: { enabled: true, audio: 'none' },
     songlist: { preview: true, songs: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, name: `示例歌曲 ${index + 1}`, artist: '示例歌手', category_name: '流行', language: '国语', name_initial: 'S' })) },
+    'now-playing': { nowPlaying: { source: 'internal', trackTitle: '把此刻唱成一首歌', artists: ['示例歌手'], coverUrl: '', playing: true } },
     lyrics: { lyricTimeline: { trackTitle: '示例歌曲', lines: [
       { startMs: 0, endMs: 10000, text: '把此刻唱成一首歌', translation: 'Sing this moment into a song' },
       { startMs: 10000, endMs: 20000, text: '让旋律陪伴每一刻', translation: '' },

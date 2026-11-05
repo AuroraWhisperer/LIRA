@@ -29,8 +29,8 @@ export function initDanmakuComponentSource({ configure, clear, append, remove, s
         if (nextKey !== configKey) {
           configKey = nextKey;
           configuration = config;
-          clear();
           if (config) { configure(config); fit(); }
+          else clear();
         }
         display.update(data);
       },

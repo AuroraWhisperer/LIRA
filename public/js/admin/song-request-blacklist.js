@@ -67,6 +67,7 @@ export function createSongRequestBlacklist({ documentRef, getState }) {
     if (field.dataset.dirty === 'true') return;
     const words = rawValue.split('\n').filter(Boolean);
     field.value = rawValue;
+    if (inputs.includes(documentRef.activeElement)) return;
     if (words.length === inputs.length && words.every((word, index) => word === inputs[index].value)) return;
     inputs = [];
     list.replaceChildren();

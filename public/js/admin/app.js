@@ -10,6 +10,7 @@ import { desktopLyric } from './desktop-lyric.js';
 import { songImports } from './song-import.js';
 import { settings } from './settings.js';
 import { initClientAppearance } from './client-appearance.js';
+import { initClientSettings } from './client-settings.js';
 import { initPlaybackOutputSettings } from './playback-output-settings.js';
 import { initAudioAssistant } from './audio-assistant.js';
 import { initTopbarStatus } from './topbar-status.js';
@@ -89,6 +90,7 @@ const liveComponents = createToolboxLifecycle({
     otherClockFeature: () => import('./clock-card.js').then((module) => module.initClockCard),
     livePollFeature: loadInteractions,
     liveRatingFeature: loadInteractions,
+    nowPlayingPage: () => import('./now-playing.js').then((module) => module.initNowPlaying),
     otherTextBoxFeature: () => import('./text-box.js').then((module) => module.initTextBoxes),
     otherOvertimeMachineFeature: () =>
       import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
@@ -130,6 +132,7 @@ async function initializeApp() {
   stateService.setSongFiltersReader(songPanel.readSongFilters);
   modules.desktop?.initDesktopShell?.();
   settings.initSettingsForm();
+  initClientSettings();
   initClientAppearance();
   disposePlaybackOutputSettings = initPlaybackOutputSettings();
   disposeAudioAssistant = initAudioAssistant();
@@ -223,6 +226,11 @@ async function initializeApp() {
       document.querySelector('#otherUsageGuideFeature a[href="#ug-scene-guide"]')?.click();
     },
   });
+  if (['#desktopLyricPage', '#desktop-lyric', '#lyrics'].includes(initialNavigationHash)) {
+    liveComponentsNavigation.selectFeatureById('desktopLyricPage');
+  } else if (initialNavigationHash === '#now-playing') {
+    liveComponentsNavigation.selectFeatureById('nowPlayingPage');
+  }
   initGiftHistoryDrawer();
 
   eventBus.on(
@@ -301,12 +309,13 @@ function initMainPages() {
   });
 
   const hash = location.hash;
+  initialNavigationHash = hash;
   const initialPage =
     hash === '#playback'
       ? 'playbackAssistantPage'
       : hash === '#gifts'
         ? 'giftAssistantPage'
-        : hash === '#components'
+        : ['#components', '#desktopLyricPage', '#desktop-lyric', '#lyrics', '#now-playing'].includes(hash)
           ? 'liveComponentsPage'
           : hash === '#other'
             ? 'otherAssistantPage'
@@ -324,6 +333,7 @@ function initMainPages() {
 
 // 有效的主页面 ID 列表 — 新增页面时在此注册即可
 const VALID_MAIN_PAGES = ['songAssistantPage', 'playbackAssistantPage', 'giftAssistantPage', 'liveComponentsPage', 'otherAssistantPage'];
+let initialNavigationHash = '';
 // 主页面 → URL hash 映射（songAssistantPage 为默认页，无需 hash）
 const MAIN_PAGE_HASH_MAP = {
   playbackAssistantPage: '#playback',

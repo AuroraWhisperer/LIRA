@@ -33,9 +33,9 @@ function createExternalClientLyricResolver({ platform, getRegistry, lyricsServic
     }
     const result = await lyricsService.getMusicTrackLyrics(registry, { track });
     if (result?.source && result.source !== platform) return null;
-    if (!result?.lines?.length) return null;
+    if (!result?.lines?.length && !track.coverUrl) return null;
     return { ...result, source: platform, songMid: track.sourceTrackId, title: track.title,
-      artists: track.artists, durationMs: durationMs || track.durationMs };
+      artists: track.artists, durationMs: durationMs || track.durationMs, coverUrl: track.coverUrl || '' };
   };
 }
 

@@ -23,9 +23,66 @@
 }
 
 .queue-classic {
+  position: relative;
   width: 405px;
   transform: scale(var(--queue-panel-scale, 1));
   transform-origin: top left;
+}
+
+.queue-request-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45em;
+  position: absolute;
+  z-index: 5;
+  inset: 0.4em 0.4em auto;
+  padding: 0.35em 0.7em;
+  border-left: 0.2em solid #20a781;
+  border-radius: 0.2em;
+  background: #e6f8f0;
+  color: #167858;
+  font-family: inherit;
+  font-size: var(--identity-queue-font-size, 28px);
+  font-weight: 500;
+  line-height: 1.4;
+  pointer-events: none;
+}
+
+.queue-request-notice[hidden] {
+  display: none;
+}
+
+.queue-request-viewport {
+  min-width: min(100%, 4em);
+  flex: 1;
+  overflow: hidden;
+}
+
+.queue-request-message {
+  width: max-content;
+  white-space: nowrap;
+}
+
+.queue-request-outcome {
+  flex: none;
+  margin-left: auto;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.queue-classic .queue-request-notice {
+  font-size: var(--overlay-waiting-font-size, 18px);
+}
+
+.illustrated-custom-font .queue-request-notice {
+  font-family: var(--illustrated-queue-font-family);
+}
+
+.queue-request-notice[data-result='failure'] {
+  border-left-color: #e25c69;
+  background: #fff0f0;
+  color: #b83244;
 }
 
 .overlay-panel.has-backdrop-blur {

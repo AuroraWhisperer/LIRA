@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -24,6 +24,7 @@
     "refresh:gifts": "node scripts/refresh-bilibili-gift-sale.js",
     "sync:gifts": "node scripts/initialize-gift-catalog.js",
     "export:resources": "node scripts/export-cdn-resources.js",
+    "export:audio": "node scripts/export-audio-component.js",
     "diagnose:wesing": "node scripts/inspect-wesing-playback.js",
     "make:icon": "node scripts/create-icon.js",
     "dist:win": "npm run make:icon && electron-builder --win nsis --x64 --publish never",
@@ -69,6 +70,7 @@
       "!**/AGENTS.md",
       "!**/*.map",
       "!public/img/**/README.md",
+      "!public/img/**/SOURCES.md",
       "!public/img/**/generated.md",
       "!public/img/**/provenance.json",
       "!public/img/**/*.webp.json",
@@ -110,7 +112,11 @@
       "!public/img/playback/qqmusic-icon.png",
       "!public/img/usage-guide/*.png",
       "!node_modules/@clamber_l/crypto/Readme.MD",
+      "!node_modules/@clamber_l/crypto/dist/loader-inline.js",
       "!node_modules/@jixun/qmweb-sign/src/**/*",
+      "!node_modules/@jixun/qmweb-sign/tsconfig.json",
+      "!node_modules/@jixun/qmweb-sign/dist/web.{cjs,mjs}",
+      "!node_modules/pend/test.js",
       "!node_modules/**/*.d.{cts,mts}",
       "!node_modules/semver/range.bnf",
       "!node_modules/pako/dist/*.js",
@@ -122,16 +128,6 @@
       "en-US"
     ],
     "asar": true,
-    "extraResources": [
-      {
-        "from": "build/audio-assistant",
-        "to": "audio-assistant",
-        "filter": [
-          "**/*",
-          "!**/*.pdb"
-        ]
-      }
-    ],
     "npmRebuild": false,
     "afterPack": "scripts/after-pack.js",
     "afterSign": "scripts/after-sign.js",

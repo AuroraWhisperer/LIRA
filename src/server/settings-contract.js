@@ -16,6 +16,7 @@ const {
 const { normalizeOpeningStyle, normalizeOpeningTrackMotion } = require('./opening-contract');
 const { normalizeWeSingCachePath, normalizeWeSingLyricOffsetMs } = require('../music/wesing-cache');
 const { CLOCK_SETTING_KEYS, normalizeClockSettingValue } = require('./clock-contract');
+const { NOW_PLAYING_SETTING, normalizeNowPlayingSetting } = require('./now-playing-settings');
 const { CLOUD_SETTING_KEYS, hasCloudSettingChanges } = require('../shared/cloud-settings');
 const { SONG_REQUEST_CONTROL_KEYS, normalizeSongRequestSettingValue, serializeSongRequestSettings } = require('../shared/song-request-settings');
 const CLOUD_BOOLEAN_KEYS = new Set([
@@ -38,6 +39,7 @@ const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTex
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {
+  if (key === NOW_PLAYING_SETTING) return normalizeNowPlayingSetting(rawValue);
   if (SONG_REQUEST_CONTROL_KEYS.includes(key)) return normalizeSongRequestSettingValue(key, rawValue);
   if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCompact', 'blindboxAutoPages', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'].includes(key)) {
     return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;

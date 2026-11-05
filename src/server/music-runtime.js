@@ -12,7 +12,7 @@ const { createQQClientCapture } = require('../music/qq-client-capture');
 const { createNeteaseClientCapture } = require('../music/netease-client-capture');
 const { LYRIC_SOURCES, chooseLyricSource } = require('../music/lyric-source-selection');
 
-function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub, onLyricsChanged }) {
+function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub, onLyricsChanged, onNowPlayingChanged }) {
   const lyricsService = createLyricsService({
     apiCacheDir: dataDir.apiCacheDir, lyricCacheDir: dataDir.lyricCacheDir,
   });
@@ -25,13 +25,27 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   let internalGeneration = 0;
   let internalSequence = 0;
   let lyricSource = 'internal';
+  let nowPlaying = { source: 'internal', trackTitle: '', artists: [], coverUrl: '', playing: false };
+  let nowPlayingSignature = JSON.stringify(nowPlaying);
   let selection = 'auto';
   let started = false;
   let stopped = false;
   let sourceSnapshot = '';
   const candidates = Object.fromEntries(LYRIC_SOURCES.map((source) => [source, {
-    playing: false, available: false, state: normalizeLyricState({}), timeline: normalizeLyricTimeline({}),
+    playing: false, available: false, coverUrl: '', state: normalizeLyricState({}), timeline: normalizeLyricTimeline({}),
   }]));
+
+  function publishNowPlaying() {
+    const candidate = candidates[lyricSource];
+    const next = { source: lyricSource, trackTitle: candidate.state.trackTitle,
+      artists: [...candidate.state.artists], coverUrl: candidate.coverUrl, playing: candidate.playing === true };
+    const signature = JSON.stringify(next);
+    if (signature === nowPlayingSignature) return;
+    nowPlaying = next;
+    nowPlayingSignature = signature;
+    webSocketHub.broadcast({ type: 'now-playing', state: nowPlaying });
+    onNowPlayingChanged?.();
+  }
 
   function publishCurrentState() {
     if (lyricSource === 'internal' && internalGeneration > lyricGeneration) {
@@ -64,6 +78,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
       if (switched || stateChanged) publishCurrentState();
       if (timelineChanged || switched || stateChanged) onLyricsChanged?.();
     }
+    publishNowPlaying();
     broadcastLyricSource();
   }
 
@@ -71,6 +86,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     if (stopped) return;
     const candidate = candidates[source];
     candidate.state = normalizeLyricState(input);
+    candidate.coverUrl = normalizeCoverUrl(status.coverUrl);
     candidate.playing = status.active && status.playing === true;
     candidate.available = status.active && (status.detected === true || status.platformDetected === true) && Boolean(status.trackTitle);
     updateSource(source, true);
@@ -189,6 +205,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     },
     getLyricState: () => lyricState,
     getLyricTimeline: () => lyricTimeline,
+    getNowPlayingState: () => nowPlaying,
     publishLyricState(input) {
       const state = normalizeLyricState(input);
       if (state.generation > 0 || state.sequence > 0) {
@@ -202,6 +219,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
         internalSequence++;
       }
       candidates.internal.state = { ...state, generation: internalGeneration, sequence: internalSequence };
+      candidates.internal.coverUrl = normalizeCoverUrl(input?.coverUrl);
       candidates.internal.playing = state.playing;
       candidates.internal.available = Boolean(state.trackTitle);
       updateSource('internal', true);
@@ -220,11 +238,22 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
         candidates.internal.available = Boolean(timeline.trackTitle);
         if (!timeline.trackTitle) candidates.internal.playing = false;
       }
+      candidates.internal.coverUrl = normalizeCoverUrl(input?.coverUrl);
       candidates.internal.timeline = timeline;
       updateSource('internal', changed);
       return timeline;
     },
   };
+}
+
+function normalizeCoverUrl(value) {
+  if (typeof value !== 'string' || value.length > 2048 || /[\u0000-\u001f\u007f]/.test(value)) return '';
+  try {
+    const url = new URL(value);
+    return ['https:', 'http:'].includes(url.protocol) && !url.username && !url.password ? url.href : '';
+  } catch {
+    return '';
+  }
 }
 
 module.exports = { buildMusicRuntime };

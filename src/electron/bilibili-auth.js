@@ -173,10 +173,16 @@ async function getBilibiliAccountProfile(dataDir) {
   }
 
   const cookieHeader = await getBilibiliCookieHeader();
-  const profile = await new BilibiliApiClient('0', {
+  const client = new BilibiliApiClient('0', {
     cookieHeader,
     uid: state.uid,
-  }).fetchUserProfile(state.uid);
+  });
+  let profile;
+  try {
+    profile = await client.fetchCurrentUserProfile();
+  } catch (_) {
+    profile = await client.fetchUserProfile(state.uid);
+  }
   return {
     uid: state.uid,
     name: profile.name || '',

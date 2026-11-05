@@ -38,6 +38,24 @@ test('verified NetEase ID avoids search and an empty result cannot borrow anothe
   assert.equal(fetched.source, 'netease');
 });
 
+test('a matched external instrumental retains its artwork without another lookup', async () => {
+  let searches = 0;
+  let lyricRequests = 0;
+  const resolver = createExternalClientLyricResolver({ platform: 'qq', getRegistry: () => ({}), lyricsService: {
+    async searchMusicTracks() {
+      searches++;
+      return { tracks: [{ source: 'qq', sourceTrackId: 'instrumental', title: 'Instrumental', artists: ['Artist'],
+        coverUrl: 'https://example.test/instrumental.jpg' }] };
+    },
+    async getMusicTrackLyrics() { lyricRequests++; return { source: 'qq', lines: [] }; },
+  } });
+  const result = await resolver({ title: 'Instrumental', artists: ['Artist'] });
+  assert.equal(result.coverUrl, 'https://example.test/instrumental.jpg');
+  assert.deepEqual(result.lines, []);
+  assert.equal(searches, 1);
+  assert.equal(lyricRequests, 1);
+});
+
 test('a provider failure is reported instead of fetching another platform', async () => {
   const resolver = createExternalClientLyricResolver({ platform: 'qq', getRegistry: () => ({}), lyricsService: {
     async searchMusicTracks(_registry, { platform }) { assert.equal(platform, 'qq'); throw new Error('QQ unavailable'); },

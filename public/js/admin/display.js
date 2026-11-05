@@ -37,7 +37,7 @@ export const display = (() => {
     document.querySelectorAll('[data-copy-url]').forEach((button) => {
       bindCopyUrl(button, {
         onCopied: async () => {
-          const component = { queueUrl: 'queue', localDanmakuUrl: 'danmaku', liveClockUrl: 'clock', liveOvertimeUrl: 'overtime' }[button.dataset.copyUrl];
+          const component = { queueUrl: 'queue', localDanmakuUrl: 'danmaku', liveClockUrl: 'clock', liveOvertimeUrl: 'overtime', nowPlayingUrl: 'now-playing' }[button.dataset.copyUrl];
           const size = component ? await readComponentOutputSize(component).catch(() => null) : null;
           const name = button.closest('.overlay-address-item')?.querySelector('.ui-card-title')?.firstChild.textContent.trim();
           const message = name && !button.dataset.copyUrl.startsWith('web') ? `${name}浏览器源地址已复制` : '地址已复制';
@@ -65,6 +65,7 @@ export const display = (() => {
     document.getElementById('queueUrl').textContent = `${origin}/queue`;
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
+    document.getElementById('nowPlayingUrl').textContent = `${origin}/now-playing`;
     observeServerOverlayUrl((url) => {
       document.getElementById('liveDanmakuUrl').textContent = url || '连接 LIRA 账号后显示服务器地址';
       document.querySelector('[data-copy-url="liveDanmakuUrl"]').disabled = !url;

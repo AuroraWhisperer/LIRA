@@ -5,10 +5,11 @@ const path = require('node:path');
 const { spawn } = require('node:child_process');
 const { createInterface } = require('node:readline');
 
-function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {}, getProcessIds = () => [], getPlaybackProcessId = () => null }) {
+function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess = spawn, exists = fs.existsSync, onState = () => {}, getProcessIds = () => [], getPlaybackProcessId = () => null }) {
   let child = null;
   let launching = null;
   let closing = null;
+  let closed = false;
   let sequence = 0;
   let state = { ready: false, running: false, starting: false, status: '电音助手尚未启动。' };
   const requests = new Map();
@@ -20,12 +21,20 @@ function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exist
   }
 
   function launch() {
-    if (closing) return Promise.reject(new Error('电音助手正在关闭。'));
+    if (closed) return Promise.reject(new Error('电音助手正在关闭。'));
     if (child && state.ready) return Promise.resolve();
     if (launching) return launching;
-    if (!exists(executable)) return Promise.reject(new Error('音频组件未就绪，请重新安装完整客户端；开发环境请先运行 npm run build:audio-assistant。'));
+    const pending = Promise.resolve().then(() => getExecutable ? getExecutable() : executable).then(filename => {
+      if (closed) throw new Error('电音助手正在关闭。');
+      return launchWorker(filename);
+    }).catch(error => { if (launching === pending) launching = null; throw error; });
+    launching = pending;
+    return launching;
+  }
+
+  function launchWorker(executable) {
+    if (!exists(executable)) return Promise.reject(new Error('音频组件缺失，请重新打开 LIRA 检查；开发环境请先运行 npm run build:audio-assistant。'));
     const { promise, resolve, reject } = Promise.withResolvers();
-    launching = promise;
     let settled = false;
     const timer = setTimeout(() => {
       reject(new Error('音频组件启动超时，请重试。'));
@@ -92,6 +101,7 @@ function createAudioAssistant({ executable, dataDir, spawnProcess = spawn, exist
   }
 
   function dispose() {
+    closed = true;
     if (closing) return closing;
     if (!child) return Promise.resolve();
     const processHandle = child;

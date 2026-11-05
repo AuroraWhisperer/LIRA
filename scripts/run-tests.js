@@ -59,6 +59,7 @@ const groups = {
     'overlays/background-windowlight',
     'overlays/background-filters',
     'overlays/component-style-effects',
+    'overlays/now-playing-renderer',
     'overlays/text-box-scroll',
     'overtime/overtime-rule-editor-browser',
     'scenes/scene-live-updates',

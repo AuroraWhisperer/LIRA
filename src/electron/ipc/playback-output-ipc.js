@@ -16,7 +16,7 @@ function validPlaybackRequest(request) {
   return false;
 }
 
-function registerPlaybackOutputIpc({ ipcMain, output, getMainWindow, getDesktopBaseUrl }) {
+function registerPlaybackOutputIpc({ ipcMain, output, component, getMainWindow, getDesktopBaseUrl }) {
   const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
   const channel = 'playback-output:invoke';
   let contents;
@@ -29,6 +29,9 @@ function registerPlaybackOutputIpc({ ipcMain, output, getMainWindow, getDesktopB
   }
   register(channel, (event, ...args) => {
     if (args.length !== 1 || !validPlaybackRequest(args[0])) return { ok: false, error: 'IPC_ARGUMENTS_INVALID' };
+    if (args[0].op === 'list' && component && component.getState().status !== 'ready') {
+      return { ok: true, data: [], preparing: true };
+    }
     if (contents !== event.sender) {
       unbind();
       contents = event.sender;

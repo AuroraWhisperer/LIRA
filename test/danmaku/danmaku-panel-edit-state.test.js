@@ -13,8 +13,12 @@ test('spooky client and cloned canvas panels share palette overrides, independen
   await page.evaluate(async (html) => {
     document.body.innerHTML = html;
     document.getElementById('liveDanmakuFeature').hidden = false;
-    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
-    const { cloneComponentPanel } = await import('/js/admin/component-preview-panel.js');
+    window.parameterModule = await import('/js/admin/danmaku-parameter-view.js');
+    window.panelModule = await import('/js/admin/component-preview-panel.js');
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  await page.evaluate(() => {
+    const { bindDanmakuParameters } = window.parameterModule;
+    const { cloneComponentPanel } = window.panelModule;
     const listeners = new Set();
     window.paletteEdits = [];
     window.paletteState = { loaded: true, draft: { style: 'spooky', fullscreenDurationSeconds: 6,
@@ -31,7 +35,7 @@ test('spooky client and cloned canvas panels share palette overrides, independen
     document.body.append(clone);
     window.canvasPaletteBinding = bindDanmakuParameters(clone, controller, message => window.messages.push(message));
     document.querySelectorAll('.danmaku-advanced').forEach(details => { details.open = true; });
-  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  });
   for (const [key, value] of [['SpookyFrameColor', '#123456'], ['SpookyMessageColor', '#234567'], ['SpookyEventColor', '#345678'], ['SpookyAccentColor', '#456789'], ['TextColor', '#fce6fa']]) {
     await page.locator(`#danmaku${key}Mode`).selectOption('custom');
     await page.locator(`#danmaku${key}`).evaluate((input, color) => {
@@ -66,7 +70,10 @@ test('RIPPLOID colors edit independently, switch styles safely and reset only th
   await page.evaluate(async (html) => {
     document.body.innerHTML = html;
     document.getElementById('liveDanmakuFeature').hidden = false;
-    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    window.parameterModule = await import('/js/admin/danmaku-parameter-view.js');
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  await page.evaluate(() => {
+    const { bindDanmakuParameters } = window.parameterModule;
     const listeners = new Set();
     window.paletteState = { loaded: true, draft: {
       style: 'ripploid',
@@ -84,7 +91,7 @@ test('RIPPLOID colors edit independently, switch styles safely and reset only th
     window.paletteController = controller;
     window.paletteBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
     document.querySelector('.danmaku-advanced').open = true;
-  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  });
   assert.equal(await page.locator('#danmakuGiftColor50').inputValue(), '#123456');
   for (const [id, value] of [['danmakuGiftColor50', '#a1b2c3'], ['danmakuGuardColorAdmiral', '#654321'], ['danmakuSuperchatColor2000', '#abcdef']]) {
     await page.locator(`#${id}`).evaluate((input, color) => {
@@ -111,7 +118,10 @@ test('danmaku selects, sliders and effect fields commit once after editing and k
   await page.evaluate(async (html) => {
     document.body.innerHTML = html;
     document.getElementById('liveDanmakuFeature').hidden = false;
-    const { bindDanmakuParameters } = await import('/js/admin/danmaku-parameter-view.js');
+    window.parameterModule = await import('/js/admin/danmaku-parameter-view.js');
+  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  await page.evaluate(() => {
+    const { bindDanmakuParameters } = window.parameterModule;
     const listeners = new Set();
     window.parameterState = { loaded: true, draft: { style: 'starveil', styleOptions: {}, fullscreenDurationSeconds: 6 } };
     window.parameterEdits = [];
@@ -122,7 +132,7 @@ test('danmaku selects, sliders and effect fields commit once after editing and k
       subscribe: listener => { listeners.add(listener); listener(window.parameterState); return () => listeners.delete(listener); },
     };
     window.parameterBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
-  }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  });
   const entrance = page.locator('#danmakuEntranceAnimation');
   await entrance.evaluate(input => { input.value = 'rise'; input.dispatchEvent(new Event('input', { bubbles: true })); });
   assert.equal(await page.evaluate(() => window.parameterEdits.length), 0);
@@ -220,10 +230,12 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
       return { ok: true, json: async () => ({ ok: true, data }), text: async () => JSON.stringify({ ok: true, data }) };
     };
     await import('/js/admin/danmaku-tool.js');
-    window.AdminApp.danmakuTool.init();
-    await window.AdminApp.danmakuTool.refresh();
   }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html') +
     readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+  await page.evaluate(async () => {
+    window.AdminApp.danmakuTool.init();
+    await window.AdminApp.danmakuTool.refresh();
+  });
 
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
   for (const [id, key] of [
@@ -235,11 +247,12 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
   }
   assert.equal(await page.locator('#danmakuCustomReplyList input').first().inputValue(), '测试关键词');
   const requestCount = await page.evaluate(() => window.requests.length);
-  await page.getByRole('tab', { name: '区域随机', exact: true }).click();
+  await page.locator('#danmakuAllStylesBtn').click();
+  await page.locator('[data-style-filter-group="layout"] [data-filter-value="fullscreen-random"]').click();
   assert.equal(await page.evaluate(() => window.requests.length), requestCount, 'Browsing categories must not write settings.');
   // The preview handshake is shared by every style; one selected style proves the panel wiring.
   const style = 'cream';
-  await page.locator(`[data-danmaku-style="${style}"]`).click();
+  await page.locator(`#danmakuStyleLibrary [data-danmaku-style="${style}"]`).click();
   await page.locator('#danmakuPreviewOverlayBtn').click();
   await page.waitForFunction((style) => window.pendingSaves.some((request) =>
     request.url === '/api/component-preview' && request.body.action === 'open'
@@ -278,13 +291,110 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
     closeComponentPreview();
   });
   await page.locator('#danmakuDiscardOverlayBtn').click();
-  assert.equal(await page.locator('[data-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-recent-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
   await page.evaluate(() => {
     window.appearanceConfig = { style: 'cream', fullscreenDurationSeconds: 6, styleOptions: {} };
   });
   await page.locator('#danmakuReloadOverlayBtn').click();
-  await page.waitForFunction(() => !document.getElementById('danmakuRandomStyles').hidden);
-  assert.equal(await page.locator('[data-danmaku-style="cream"]').getAttribute('aria-pressed'), 'true');
+  await page.waitForFunction(() => document.querySelector('[data-recent-danmaku-style="cream"]')?.getAttribute('aria-pressed') === 'true');
+});
+
+test('style library combines filters and keeps only confirmed recent styles for each account', async (t) => {
+  const page = await fixture(t, 'danmaku');
+  const mount = async () => {
+    await page.evaluate(async (html) => {
+      document.body.innerHTML = html;
+      document.getElementById('liveDanmakuFeature').hidden = false;
+      window.activeAppearanceAccount = 'first';
+      window.appearanceConfigs = {
+        first: { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: { signal: { fontSize: 34 } } },
+        second: { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {} },
+      };
+      window.appearanceSnapshot = (accountName) => ({
+        state: 'authorized', streamer: { accountName, songPageUrl: `https://${accountName}.example.test/` },
+      });
+      window.liraLicense = {
+        getState: async () => window.appearanceSnapshot(window.activeAppearanceAccount),
+        onStateChanged: (callback) => { window.appearanceAccountChanged = callback; return () => {}; },
+      };
+      window.fetch = async (url) => {
+        if (url !== '/api/danmaku/appearance') throw new Error(`Unexpected appearance request: ${url}`);
+        const data = { binding: `synthetic-${window.activeAppearanceAccount}`, config: window.appearanceConfigs[window.activeAppearanceAccount] };
+        return { ok: true, json: async () => ({ ok: true, data }), text: async () => JSON.stringify({ ok: true, data }) };
+      };
+      const { initDanmakuOverlaySettings } = await import('/js/admin/danmaku-overlay-settings.js');
+      window.appearanceController = initDanmakuOverlaySettings({
+        styleButtons: Array.from(document.querySelectorAll('[data-danmaku-style]')),
+        styleChip: document.getElementById('danmakuStyleChip'),
+        styleSaveState: document.getElementById('danmakuStyleSaveState'),
+        previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
+      }, message => window.messages.push(message));
+    }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
+    await page.waitForFunction(() => window.appearanceController.getState().loaded);
+  };
+  await mount();
+  const history = account => page.evaluate((accountName) => {
+    const account = JSON.stringify([accountName, `https://${accountName}.example.test/`]);
+    return JSON.parse(localStorage.getItem(`lira.danmaku-recent-styles.v1.${encodeURIComponent(account)}`) || '[]');
+  }, account);
+  const choose = async (style) => {
+    await page.locator('#danmakuAllStylesBtn').click();
+    await page.locator(`#danmakuStyleLibrary [data-danmaku-style="${style}"]`).click();
+  };
+  const save = page.locator('#danmakuApplyOverlayBtn');
+  const library = page.locator('#danmakuStyleLibrary');
+  await page.locator('#danmakuAllStylesBtn').click();
+  await page.locator('[data-style-filter-group="holiday"] [data-filter-value="true"]').click();
+  assert.equal(await library.locator('[data-danmaku-style="christmas"]').isVisible(), true);
+  await page.locator('[data-style-filter-group="layout"] [data-filter-value="floating"]').click();
+  assert.equal(await library.locator('[data-danmaku-style]:visible').count(), 0);
+  assert.equal(await page.locator('#danmakuStyleEmpty').isVisible(), true);
+  await page.locator('#danmakuClearStyleFilters').click();
+  await library.locator('[data-danmaku-style="cream"]').click();
+  assert.equal(await library.isVisible(), false);
+  assert.deepEqual(await history('first'), [], 'Browsing and selecting do not record usage.');
+
+  await save.click();
+  await page.evaluate(() => window.pendingSaves.at(-1).reject(new Error('Synthetic save failure')));
+  await page.waitForFunction(() => !window.appearanceController.getState().saving);
+  assert.deepEqual(await history('first'), [], 'A failed save does not record usage.');
+  await save.click();
+  await choose('bubble');
+  await page.evaluate(() => {
+    const request = window.pendingSaves.at(-1);
+    window.appearanceConfigs.first = structuredClone(request.body.config);
+    request.resolve({ data: { binding: request.body.binding, config: request.body.config } });
+  });
+  await page.waitForFunction(() => !window.appearanceController.getState().saving);
+  assert.equal(await page.evaluate(() => window.appearanceController.getState().draft.style), 'bubble');
+  assert.equal(await page.evaluate(() => window.appearanceController.getState().saved.styleOptions.signal.fontSize), 34);
+  assert.deepEqual(await history('first'), ['cream'], 'Record the saved style, not the newer draft.');
+
+  await save.click();
+  await page.evaluate(() => {
+    window.previousAccountSave = window.appearanceController.save();
+    window.activeAppearanceAccount = 'second';
+    window.appearanceAccountChanged(window.appearanceSnapshot('second'));
+  });
+  await page.waitForFunction(() => window.appearanceController.getState().loaded);
+  await page.evaluate(async () => {
+    const request = window.pendingSaves.at(-1);
+    request.resolve({ data: { binding: request.body.binding, config: request.body.config } });
+    await window.previousAccountSave;
+  });
+  assert.deepEqual(await history('second'), []);
+  assert.deepEqual(await history('first'), ['cream']);
+  assert.equal(await page.locator('[data-recent-danmaku-style="cream"]').count(), 0);
+  await page.evaluate(() => {
+    window.activeAppearanceAccount = 'first';
+    window.appearanceAccountChanged(window.appearanceSnapshot('first'));
+  });
+  await page.waitForFunction(() => window.appearanceController.getState().loaded);
+  assert.equal(await page.locator('[data-recent-danmaku-style="cream"]').count(), 1);
+  await page.reload();
+  await mount();
+  assert.equal(await page.locator('[data-recent-danmaku-style="cream"]').count(), 1, 'History is restored after reload.');
+  assert.equal(await page.locator('[data-recent-danmaku-style="bubble"]').count(), 0);
 });
 
 const libraries = [

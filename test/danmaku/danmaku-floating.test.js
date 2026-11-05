@@ -40,12 +40,17 @@ test('dispersion increases separation, includes rectangle sizes and uses current
   assert.ok(distance(selected) >= sampledBest - 0.001, 'continuous search beats an exhaustive pixel grid');
 });
 
-async function fixture(height = 500) {
+async function fixture(height = 500, trailWidth = 0, entryInset = 0) {
   let time = 10000;
   let sequence = 0;
   const timers = new Map(), animations = [];
+  const motionPreference = { matches: false,
+    addEventListener(_event, listener) { this.listener = listener; },
+    removeEventListener(_event, listener) { if (this.listener === listener) this.listener = null; },
+  };
   const document = { defaultView: {
-    getComputedStyle: () => ({ getPropertyValue: () => '0' }),
+    matchMedia: () => motionPreference,
+    getComputedStyle: () => ({ getPropertyValue: key => String({ '--danmaku-trail-width': trailWidth, '--danmaku-entry-inset': entryInset }[key] || 0) }),
     addEventListener() {}, removeEventListener() {},
   }, createElement(tag) {
     const node = new FakeNode(tag);
@@ -71,7 +76,7 @@ async function fixture(height = 500) {
     scheduleTimeout(callback, delay) { const id = ++sequence; timers.set(id, { callback, at: time + delay }); return id; },
     cancelTimeout(id) { timers.delete(id); },
   });
-  return { feed, root, animations, timers, append() { feed.append({ id: String(++sequence), name: '测试观众', message: '测试弹幕', timestamp: time }); },
+  return { feed, root, animations, timers, motionPreference, append() { feed.append({ id: String(++sequence), name: '测试观众', message: '测试弹幕', timestamp: time }); },
     advance(duration) {
       const end = time + duration;
       while (true) {
@@ -101,6 +106,7 @@ test('live updates keep positions and animations continuous; disposal cancels al
   assert.equal(f.timers.size, 0);
   assert.equal(f.root.children.length, 0);
   assert.ok(f.animations.every(animation => animation.cancelled));
+  assert.equal(f.motionPreference.listener, null);
 });
 
 test('batched arrivals keep the feed bounded and retain existing animations', async () => {
@@ -115,6 +121,36 @@ test('batched arrivals keep the feed bounded and retain existing animations', as
   assert.deepEqual(f.root.children.slice(0, 40), retained);
   assert.deepEqual(retained.map(node => node.animation), animations);
   assert.ok(f.root.children.every(node => node.style.visibility === 'visible'));
+  f.feed.destroy();
+  assert.equal(f.timers.size, 0);
+});
+
+test('live entrances wait for an available position and snapshots never replay them', async () => {
+  const f = await fixture(100, 0, 80);
+  f.append(); f.append();
+  assert.equal(f.root.children[0].dataset.liveEntry, 'true');
+  assert.equal(f.root.children[1].dataset.liveEntry, undefined);
+  f.advance(1800);
+  assert.equal(f.root.children[1].dataset.liveEntry, 'true');
+  const travel = f.root.children[1].animation;
+  f.motionPreference.matches = true;
+  f.motionPreference.listener();
+  f.motionPreference.matches = false;
+  f.motionPreference.listener();
+  assert.ok(f.root.children.every(node => node.dataset.liveEntry === undefined), 'restoring motion must not restart existing entrances');
+  assert.equal(f.root.children[1].animation, travel, 'reading movement remains continuous');
+  f.feed.render([{ id: 'snapshot', name: '合成观众', message: '恢复的消息', timestamp: 11800 }]);
+  assert.equal(f.root.children[0].dataset.liveEntry, undefined);
+  f.feed.destroy();
+});
+
+test('floating messages remain alive until their complete light trail has left the viewport', async () => {
+  const f = await fixture(500, 180);
+  f.append();
+  f.advance(10000);
+  assert.equal(f.root.children.length, 1, 'the text has left, but its trailing light is still visible');
+  f.advance(1501);
+  assert.equal(f.root.children.length, 0);
   f.feed.destroy();
   assert.equal(f.timers.size, 0);
 });

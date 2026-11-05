@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
-const styles = ['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
+const styles = ['comic', 'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle) {
   const document = createParameterDocument();
@@ -129,6 +129,7 @@ async function fixture(search = '?preview=1', savedStyle) {
             setSpeedPixelsPerSecond(value) { config.speedPixelsPerSecond = value; },
             setFloatingDispersion(value) { config.floatingDispersion = value; },
             setRandomPlacement(value) { Object.assign(config, value); },
+            setExpirationOptions(value) { Object.assign(config, value); },
           };
         });
       },
@@ -246,7 +247,9 @@ test('appearance edits preserve current messages and playback timing while expli
     const messages = f.appends.length;
     const renders = f.renders.length;
     const timers = [...f.timeouts.keys()];
-    for (const [id, value] of [['previewBackgroundOpacity', '55'], ['previewTextColor', '#abcdef'], ['previewFontSize', '32']]) {
+    const edits = [['previewBackgroundOpacity', '55'], ['previewTextColor', '#abcdef'], ['previewFontSize', '32']];
+    if (style === 'starveil') edits.push(['previewDuration', '12'], ['previewExitDurationMs', '750']);
+    for (const [id, value] of edits) {
       const control = f.node(id);
       control.min = '0'; control.max = '100'; control.value = value;
       control.events.change();

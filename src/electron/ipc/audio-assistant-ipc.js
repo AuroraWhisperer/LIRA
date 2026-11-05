@@ -18,7 +18,7 @@ function validConfiguration(value) {
   });
 }
 
-function registerAudioAssistantIpc({ ipcMain, assistant, getMainWindow, getDesktopBaseUrl, isPathAllowedForLocalMedia, shell }) {
+function registerAudioAssistantIpc({ ipcMain, assistant, component, getMainWindow, getDesktopBaseUrl, isPathAllowedForLocalMedia, shell }) {
   const register = createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl });
   const channel = 'audio-assistant:invoke';
   register(channel, async (_event, ...args) => {
@@ -40,7 +40,19 @@ function registerAudioAssistantIpc({ ipcMain, assistant, getMainWindow, getDeskt
     }
     return assistant.invoke(op, value);
   });
-  return () => ipcMain.removeHandler(channel);
+  if (component) {
+    register('audio-component:get-state', (_event, ...args) => args.length
+      ? { ok: false, error: 'IPC_ARGUMENTS_INVALID' } : component.getState());
+    register('audio-component:retry', async (_event, ...args) => {
+      if (args.length) return { ok: false, error: 'IPC_ARGUMENTS_INVALID' };
+      // Both paths return the sanitized state, never the executable path.
+      return component.retry().then(component.getState, component.getState);
+    });
+  }
+  return () => {
+    ipcMain.removeHandler(channel);
+    if (component) { ipcMain.removeHandler('audio-component:get-state'); ipcMain.removeHandler('audio-component:retry'); }
+  };
 }
 
 module.exports = { registerAudioAssistantIpc, validConfiguration };

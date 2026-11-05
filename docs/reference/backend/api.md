@@ -225,6 +225,7 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 | danmaku | `GET /api/bilibili/avatar`、`GET /api/bilibili/room/profile`、`GET /api/danmaku/display`、`GET /api/danmaku/events`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；room/profile 只读服务端当前配置房间的房主资料，投影仅 `roomId/uid/name/avatarUrl`，不接受页面指定房间或主播身份；display 返回当前账号的规范化外观及展示投影；events 仅发送变更通知；size 只读本 scope 尺寸 |
 | wheel | `GET /api/wheel`、`POST /api/wheel/spin` | 只读展示配置与抽取，不允许编辑配置 |
 | opening | `GET /api/opening/config` | 仅文案、展示参数、当前媒体 URL |
+| now-playing | `GET /api/now-playing/config` | 仅本机歌曲信息组件的外观；当前歌曲通过本 scope 的 state/WS 投影读取，无写入权限 |
 | clock | `GET /api/clock/config`、`GET /api/component/size` | 仅时钟显示参数及本 scope 尺寸 |
 
 HTML sandbox 使展示请求的 Origin 为 `null`。该值本身没有权限：预检仅对上表已知方法/路径开放 Authorization/Content-Type，实际请求再校验有效 scope；管理凭据对此来源一律拒绝。仅上述路径的实际错误响应允许页面读取，以便旧凭据收到 401 后刷新，不返回额外状态。没有 `Access-Control-Allow-Credentials`。
@@ -457,6 +458,17 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 内存按坐标合并在途请求，成功结果缓存至请求开始时的下个整点（最长 1 小时），最多 128 项，不在过期前驱逐有效项；满时先释放已到期且非在途项，否则返回 503。缓存命中保留原始数据时间和获取时间，跨整点完成的请求不延长缓存期限。错误至少退避一分钟并遵守更长的 Retry-After，不把旧结果包装成新的成功响应，不回退到收费来源。前端在软件启动和每个整点请求，切页不会发起请求；新 runtime 缓存为空，首次请求直接抓取。缓存仅在当前 runtime 内共享，不自动跨主播电脑共享。后台调度由管理页控制器拥有，服务本身无定时抓取或持久化；调用者取消不终止共享上游请求，runtime 关闭在 HTTP drain 前取消并排空请求。用户可见行为见 [世界地图](../frontend/app.md#世界地图)。
 
+## 2.6 正在播放配置(now-playing)
+
+[now-playing-routes.js](../../../src/server/routes/now-playing-routes.js) 通过本机管理路由提供外观配置，`data` 为规范化配置对象。
+
+| 接口 | 权限与输入 | 结果 |
+| --- | --- | --- |
+| `GET /api/now-playing/config` | Admin 或 now-playing 页面能力 | 已保存外观；缺失时使用默认黑胶横排 |
+| `POST /api/now-playing/config` | 仅 Admin，请求体直接为配置对象 | 校验字段后整体保存，广播 settings 快照；非法字段/范围返回 400 |
+
+字段、默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 唯一声明；`normalizeSceneExtraConfig` 校验写入，`now-playing-settings.js` 保存本机 `nowPlayingAppearance` JSON。页面不能写外观或选择音乐来源。当前歌曲数据使用独立 `nowPlaying` 快照/消息，见[音乐服务](music/services.md#正在播放展示数据)。
+
 ## 3. WeSing 采集域(wesing)
 
 > 模块文件:[src/server/routes/wesing-routes.js](../../../src/server/routes/wesing-routes.js)
@@ -652,7 +664,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；可选 `conditional=1/contentRevision` 用于完整扫描后的内容确认；禁止 `sourceId/source_id` | 默认返回当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态。条件读取增加 contentRevision，匹配时只返回 unchanged、空 items/nextCursor 与同步状态，详见 [礼物参考](bilibili/gift.md) | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
 | `GET /api/gifts/card-profiles` | 可选 `viewRevision/contentRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial/contentRevision`；匹配内容版本时返回空 items 和 `unchanged:true`。完整 items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时验证服务端分页的来源、日期和同步代次，支持版本的服务端只在变化时重新翻页；不可用时只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
-| `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0 | 读取/保存本地礼物展示配置，保存后广播刷新；速率线性对应每行 5–0.1 秒，默认 12（每行 3.9 秒）。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
+| `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0；独立字符串枚举 tailStyle（`slant\|swallowtail\|ribbon`，默认 `slant`）与 textureStyle（`solid\|satin\|starlight\|facets\|argyle\|polka`，默认 `solid`） | 读取/保存本地礼物展示配置，保存后广播刷新；尾部与条带纹理独立组合，共用于设置预览、画布、滚动画面和 PNG 导出，缺外观字段的旧配置/请求补原样默认且保留原金额、行数及速度。速率线性对应每行 5–0.1 秒，默认 12（每行 3.9 秒）。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
 | `GET /api/gifts/statistics`         | 查询参数:`query?`、`range?` 同 history;禁止 `sourceId/source_id`                                                          | 当前授权 source 的 8 项整数分 summary、`topGifts`(≤50)、`timeSeries`(≤240)及同步完整性状态 | 400(参数/来源选择器无效)、409(来源未就绪) |
 | `GET /api/gifts/blind-box-stats`    | 查询参数 `boxName?`、`top?`（-1 全榜、0 汇总、1–10 前 N）、`hideLoss?`（0/1，默认 0） | 今日盲盒汇总、排行及 `heartBoxProgress`；先过滤非盈利用户再 top，汇总值不变；非法参数返回 `400 INVALID_GIFT_STATS_OPTIONS` | — |
 | `GET /api/gifts/blind-box-analysis` | 查询参数:`viewer?`、`box?`、`view?`(默认 `users`)、`page?`(默认 `1`)、`limit?`(默认 `25`)、`sort?`、`direction?`(默认 `desc`)、`startDate?/endDate?`(本机日期 YYYY-MM-DD，含首尾两天；只给一端为单日，都省略为今天) | 当前授权来源的盲盒开盒分析；`dateRange` 返回生效日期，`today` 仍为本机当天零点 | 400(日期无效或逆序) |

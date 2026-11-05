@@ -101,6 +101,24 @@ async function fixture() {
       modules.set(filename, effects);
       return effects;
     }
+    if (filename.endsWith('danmaku-style-library.js')) {
+      // The browser suite owns library filtering; these tests keep exercising the appearance controller.
+      const picker = new vm.SyntheticModule(['bindDanmakuStyleLibrary'], function () {
+        this.setExport('bindDanmakuStyleLibrary', ({ buttons, controller }) => {
+          for (const button of buttons) button.addEventListener('click', () => {
+            if (controller.getState().loaded) controller.edit({ style: button.dataset.danmakuStyle });
+          });
+          controller.subscribe(({ draft, loaded }) => {
+            for (const button of buttons) {
+              button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
+              button.disabled = !loaded;
+            }
+          });
+        });
+      }, { context });
+      modules.set(filename, picker);
+      return picker;
+    }
     const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'authorized-account.js'].includes(path.basename(filename))
       ? new vm.SourceTextModule(fs.readFileSync(filename, 'utf8'), { context, identifier: filename })
       : new vm.SyntheticModule(

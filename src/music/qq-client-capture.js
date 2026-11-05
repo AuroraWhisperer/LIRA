@@ -14,7 +14,7 @@ function createQQClientCapture({
   const initial = {
     active: false, supported: platform === 'win32', detected: false, status: 'inactive',
     message: '未启用外部 QQ 音乐', trackTitle: '', artists: [], currentMs: 0, durationMs: 0,
-    playing: false, lyricSource: '',
+    playing: false, lyricSource: '', coverUrl: '',
   };
   let state = { ...initial };
   let monitor = null;
@@ -105,6 +105,7 @@ function createQQClientCapture({
       if (!state.active || version !== trackVersion) return;
       resolved = true;
       lyrics = result?.lines?.length ? result : null;
+      state.coverUrl = result?.coverUrl || '';
       state.lyricSource = lyrics?.source || '';
       applyResolvedLyrics();
       emit();
@@ -158,6 +159,7 @@ function createQQClientCapture({
       state.trackTitle = title;
       state.artists = artist ? [artist] : [];
       state.lyricSource = '';
+      state.coverUrl = '';
       state.status = 'loading';
       clearLyrics('loading');
     } else {

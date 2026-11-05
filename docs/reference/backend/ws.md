@@ -2,7 +2,7 @@
 
 > 涉及文件:[src/server/ws.js](../../../src/server/ws.js)、[src/server.js](../../../src/server.js)(getState/广播点)
 
-本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 19 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
+本文档是 WebSocket 的**唯一事实源**:传输层实现、快照 21 字段、全部消息类型与广播原因只在此成表。客户端消费语义见 [frontend/comms.md](../frontend/comms.md),各字段的领域细节链接到对应行为文档。
 
 ## 1. 传输层(手写 RFC 6455)
 
@@ -37,9 +37,9 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 尚未交给 hub 的拒绝升级由 HTTP 入口收尾：400/423/503 响应写出后销毁 socket，不等待对方回 FIN。它们不属于 hub 的升级连接集合，不能依赖 hub.stop() 兜底。
 
-## 2. 快照(Snapshot)19 字段
+## 2. 快照(Snapshot)21 字段
 
-每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **19 个字段**；overlay 不接收这个完整对象：
+每次连接建立时发送 `{type:'snapshot', reason:'connect', state}`，之后快照域的业务变更触发当前 principal 的完整投影重推；游戏、转盘等独立状态沿 §3 的专用消息与 HTTP 恢复接口传输。Admin 的 `state` 由 [server.js](../../../src/server.js) 的 `getState()` 组装，共 **21 个字段**；overlay 不接收这个完整对象：
 
 `topic=danmaku` 仅选择高频 `danmaku:message` 与 `danmaku:superchat-delete` 增量，不改变同一 principal 的 snapshot 投影，也不是权限凭据。Admin 与 danmaku scope 可订阅这些增量；其他 overlay 即使带该 topic 也不能接收。所有 scope 均接收初始及后续最小 snapshot 封套，无全局快照字段需求的页面收到空 `state`。真实连接契约见 `test/transport/websocket-access-policy.test.js`。
 
@@ -61,6 +61,8 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `bilibiliDiagnostics` | `bilibiliDiagnostics` 对象                 | Bilibili 诊断信息(最近包/命令/礼物时间戳、解析计数等),见 [bilibili/danmaku.md](bilibili/danmaku.md)               |
 | `lyricState`          | `lyricState` 对象                          | 当前歌词行状态(单行),见 [music/services.md](music/services.md)                                                    |
 | `lyricTimeline`       | `lyricTimeline` 对象                       | 歌词时间轴(全曲),经 `normalizeLyricTimeline` 归一化                                                               |
+| `nowPlaying` | `musicRuntime.getNowPlayingState()` | 与歌词共用来源选择的曲目信息和实际播放状态，见[正在播放展示数据](music/services.md#正在播放展示数据) |
+| `nowPlayingConfig` | `readNowPlayingConfig(settingsStore.getSettings())` | 已保存的本机唱片展示外观，见[歌曲信息页面](../frontend/overlays.md#歌曲信息now-playing) |
 | `lyricSource` | `musicRuntime.getLyricSource()` | 实际输出来源、跟随偏好、正在播放的来源及 QQ / 网易云 / WeSing 采集状态，仅 Admin；见[音乐服务 §13](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs) |
 | `weSing`              | `weSingCapture.getStatus()`                | 全民K歌采集状态,见 [music/wesing.md](music/wesing.md)                                                             |
 | `danmakuFeed`         | `danmakuFeedBuffer.getSnapshot()`          | 当前直播间最近 50 条普通弹幕、SC 和已结算礼物提示的公开投影，含可选 B 站表情、SC 金额／撤回 ID 或礼物字段，见 [bilibili/danmaku.md](bilibili/danmaku.md) §4.1 |
@@ -81,6 +83,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `gift-wishes` | `gifts.viewRevision` | 无专用事件；`gift:wishes` 快照 reason 通知重新读取整数进度 |
 | `gift-sprint` | `giftSprint.targetRmb/remainingCrystalBalls`；复用现有来源隔离的冲刺统计 | 无专用事件；初始及后续快照更新文字倒计数，不开放修改目标、重置或礼物明细 |
 | `lyrics` | 歌词展示设置、`lyricState`、`lyricTimeline` | `lyric-state`、`lyric-timeline` |
+| `now-playing` | `nowPlaying` 曲目展示字段及 `nowPlayingConfig` 外观字段白名单 | `now-playing`；不接收歌词、采集诊断或其他设置 |
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`、`danmaku:superchat-delete`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
 | `wheel` | 空 state | `wheel:update` |
@@ -101,6 +104,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `gift:effect` | `{type,source,eventId,giftId,effect}`；effect 为播放素材和布局展示 DTO | 礼物特效发布；仅 Admin 与 gift-effects scope 接收 |
 | `lyric-state` | `{type:'lyric-state', state}`；含 `generation/sequence` 和默认 1 的 `playbackRate`，字段规则见[歌词状态](music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs) | `music-runtime` 更新实际输出来源（内置、QQ、网易云、WeSing）的状态或切换输出来源时广播 |
 | `lyric-timeline` | `{type:'lyric-timeline', timeline}` | `music-runtime` 接受当前生产者的完整时间轴时广播 |
+| `now-playing` | `{type:'now-playing', state}`；state 与快照 `nowPlaying` 相同 | 当前来源、曲目信息、封面或实际播放状态变化时广播；进度采样不重复发送，仅 Admin 与 now-playing scope 接收，详见[展示数据](music/services.md#正在播放展示数据) |
 | `lyric-source` | `{type:'lyric-source', state:{source,selection,playingSources,qqClient,neteaseClient,weSing}}` | 跟随偏好、实际来源或采集状态变化；仅 Admin，相同快照去重，重连从 snapshot.lyricSource 恢复 |
 | `wesing-state`        | `{type:'wesing-state', state}`                                                                                       | WeSing 采集状态变化([server.js:184](../../../src/server.js#L184))                                                                                                                                                                                                                                                                                                  |
 | `overtime:update`     | `{type, reason, state, adjustment?}`                                                                                 | 加班机状态变更([server.js:148-153](../../../src/server.js#L148-L153)),`adjustment` 仅礼物结算时携带                                                                                                                                                                                                                                                                |
@@ -113,16 +117,17 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 ### 3.1 `snapshot` 的 reason 枚举
 
-以下是运行时实际发布的字面量及受领域 action 限制的模式。成功提交或状态更新后才请求广播；reason 描述触发原因，不包含业务数据，也不是可重放事件日志。
+以下是运行时实际发布的字面量及受领域 action 限制的模式。成功提交或状态更新（包括临时点歌结果更新）后才请求广播；reason 描述触发原因，不包含业务数据，也不是可重放事件日志。
 
 | reason | 触发提交点 / owner | Admin 额外副作用 |
 | --- | --- | --- |
 | `connect` | [ws.js](../../../src/server/ws.js) 握手成功后的初始快照 | `applySnapshot` 强制初始化；连接恢复流程仍独立重载 HTTP |
-| `settings` | 设置 patch、礼物显示设置、开播媒体选择/清除成功；[settings-routes.js](../../../src/server/routes/settings-routes.js)、[gift-routes.js](../../../src/server/routes/gift-routes.js)、[opening-routes.js](../../../src/server/routes/opening-routes.js) | 仅状态应用 |
+| `settings` | 设置 patch、礼物显示设置、开播媒体选择/清除、歌曲信息外观保存成功；[settings-routes.js](../../../src/server/routes/settings-routes.js)、[gift-routes.js](../../../src/server/routes/gift-routes.js)、[opening-routes.js](../../../src/server/routes/opening-routes.js)、[now-playing-routes.js](../../../src/server/routes/now-playing-routes.js) | 仅状态应用 |
 | `theme:preset-applied` | [theme-routes.js](../../../src/server/routes/theme-routes.js) 预设应用后 | 仅状态应用 |
 | `songs:save`、`songs:delete`、`songs:toggle`、`songs:import`、`songs:import-xlsx` | [song-routes.js](../../../src/server/routes/song-routes.js) mutation 成功；CSV/兼容导入复用 import | 合并调度歌库重载 |
 | `cloud:songs` / `cloud:settings` | [server.js](../../../src/server.js) 远端快照写入本地 owner 后 | songs 调度歌库重载；settings 仅状态应用 |
 | `queue:add` | [queue-routes.js](../../../src/server/routes/queue-routes.js) 手动/随机点歌成功 | 仅状态应用 |
+| `queue:request-result` | [queue-routes.js](../../../src/server/routes/queue-routes.js) 或 [bilibili-client.js](../../../src/server/bilibili-client.js) 点歌被预期规则拒绝，临时结果已记录后通知；字段归属见 [点歌队列](music/services.md#81-统一队列语义) | 仅状态应用；点歌板及场景读取最新结果 |
 | `queue:${action}` | 同路由 handleAction 返回后；action 仅 `next/clear/pin/unpin/delete/done/skip/live/unlive`，校验 owner 为 [queue-service.js](../../../src/music/queue-service.js) | 仅状态应用 |
 | `superchat:${action}` | [superchat-routes.js](../../../src/server/routes/superchat-routes.js) 成功后；仅 `assist/unassist/delete/undo`，owner 为 [superchat-service.js](../../../src/bilibili/superchat-service.js) | 仅状态应用 |
 | `bilibili:danmaku` / `bilibili:superchat` | [bilibili-client.js](../../../src/server/bilibili-client.js) 本地消息被接受或 SC 入账后 | 仅状态应用；overlay 自有 reason 筛选见 [overlays.md](../frontend/overlays.md) |

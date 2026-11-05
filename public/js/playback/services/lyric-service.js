@@ -140,6 +140,7 @@ export class LyricService {
     const state = {
       trackTitle: track?.title || '',
       artists: Array.isArray(track?.artists) ? track.artists : [],
+      coverUrl: track?.coverUrl || '',
       lineText: lyricLine?.text || '',
       translation: lyricLine?.translation || '',
       words: Array.isArray(lyricLine?.words) ? lyricLine.words : [],
@@ -174,6 +175,7 @@ export class LyricService {
     const timeline = {
       trackTitle: track?.title || '',
       artists: Array.isArray(track?.artists) ? track.artists : [],
+      coverUrl: track?.coverUrl || '',
       status: !track ? 'idle' : !hasLyrics ? 'loading' : lyrics.lines.length > 0 ? 'ready' : 'empty',
       lines: hasLyrics ? lyrics.lines : [],
     };

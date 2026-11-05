@@ -7,39 +7,7 @@ import { isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js
 import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
-
-function bindStyleGroups() {
-  const groups = ['Fixed', 'Random', 'Floating'].map((name) => ({
-    tab: document.getElementById(`danmaku${name}StyleTab`),
-    panel: document.getElementById(`danmaku${name}Styles`),
-  }));
-  function select(index) {
-    groups.forEach(({ tab, panel }, current) => {
-      const active = current === index;
-      tab.setAttribute('aria-selected', String(active));
-      tab.tabIndex = active ? 0 : -1;
-      panel.hidden = !active;
-    });
-  }
-  groups.forEach(({ tab }, index) => {
-    tab.addEventListener('click', () => select(index));
-    tab.addEventListener('keydown', (event) => {
-      let next;
-      if (event.key === 'ArrowRight') next = (index + 1) % groups.length;
-      else if (event.key === 'ArrowLeft') next = (index + groups.length - 1) % groups.length;
-      else if (event.key === 'Home') next = 0;
-      else if (event.key === 'End') next = groups.length - 1;
-      else return;
-      event.preventDefault();
-      groups[next].tab.focus();
-      select(next);
-    });
-  });
-  return (style) => {
-    const layout = DANMAKU_STYLE_OPTIONS[style].layout;
-    select(layout === 'floating' ? 2 : layout === 'fullscreen-random' ? 1 : 0);
-  };
-}
+import { bindDanmakuStyleLibrary } from './danmaku-style-library.js';
 
 export function initDanmakuOverlaySettings(elements, toast) {
   let account = '';
@@ -49,8 +17,6 @@ export function initDanmakuOverlaySettings(elements, toast) {
   const applyButton = document.getElementById('danmakuApplyOverlayBtn');
   const reloadButton = document.getElementById('danmakuReloadOverlayBtn');
   const discardButton = document.getElementById('danmakuDiscardOverlayBtn');
-  const showStyleGroup = bindStyleGroups();
-  let displayedStyle;
 
   function settingsFrom(response) {
     if (typeof response?.binding !== 'string' || !response.binding
@@ -77,17 +43,10 @@ export function initDanmakuOverlaySettings(elements, toast) {
       return settingsFrom(response);
     },
   });
+  bindDanmakuStyleLibrary({ buttons: elements.styleButtons, controller, getAccount: () => account });
   registerComponentPreview('danmaku', () => createDanmakuPreview({ controller }));
   controller.subscribe((state) => {
     const { draft, loaded, dirty, saving, loading } = state;
-    if (draft.style !== displayedStyle) {
-      showStyleGroup(draft.style);
-      displayedStyle = draft.style;
-    }
-    for (const button of elements.styleButtons) {
-      button.setAttribute('aria-pressed', String(button.dataset.danmakuStyle === draft.style));
-      button.disabled = !loaded;
-    }
     elements.styleChip.textContent = loaded
       ? `${dirty ? '待应用' : '已应用样式'} · ${DANMAKU_STYLE_OPTIONS[draft.style].label}`
       : loading ? '正在读取样式' : '尚未读取样式';
@@ -99,13 +58,6 @@ export function initDanmakuOverlaySettings(elements, toast) {
     if (discardButton) discardButton.disabled = !dirty || saving;
   });
   bindDanmakuParameters(document, controller, (message) => { elements.styleSaveState.textContent = message; });
-  for (const button of elements.styleButtons) {
-    button.addEventListener('click', () => {
-      if (controller.getState().loaded && Object.hasOwn(DANMAKU_STYLE_OPTIONS, button.dataset.danmakuStyle)) {
-        controller.edit({ style: button.dataset.danmakuStyle });
-      }
-    });
-  }
   applyButton.addEventListener('click', () => saveComponentWithFeedback(controller, '弹幕姬样式', toast));
   discardButton?.addEventListener('click', () => controller.discard());
   reloadButton.addEventListener('click', () => { if (account) return controller.reload(); });

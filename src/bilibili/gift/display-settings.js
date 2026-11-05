@@ -1,8 +1,11 @@
 'use strict';
 
+const { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } = require('../../../public/js/shared/gift-banner-styles.js');
+
 const GIFT_DISPLAY_SETTING = 'giftDisplayConfig';
 const DEFAULT_GIFT_DISPLAY = Object.freeze({
   palette: 'bilibili-four',
+  ...DEFAULT_GIFT_BANNER_APPEARANCE,
   thresholds: [3000, 10000, 100000],
   visibleRows: 3,
   scrollSpeed: 12,
@@ -42,8 +45,15 @@ function validateGiftDisplaySettings(value) {
   if (!Number.isSafeInteger(minGiftAmountCents) || minGiftAmountCents < 0 || minGiftAmountCents % 10 !== 0) {
     throw new Error('最小礼物金额须大于或等于 0，且最多保留一位小数。');
   }
+  const { tailStyle = DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle, textureStyle = DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle } = value;
+  if (typeof tailStyle !== 'string' || typeof textureStyle !== 'string' ||
+      !Object.hasOwn(GIFT_BANNER_TAILS, tailStyle) || !Object.hasOwn(GIFT_BANNER_TEXTURES, textureStyle)) {
+    throw new Error('请选择有效的礼物卡片尾部和条带内部样式。');
+  }
   return {
     palette: 'bilibili-four',
+    tailStyle,
+    textureStyle,
     thresholds: [...value.thresholds],
     visibleRows: value.visibleRows,
     scrollSpeed,

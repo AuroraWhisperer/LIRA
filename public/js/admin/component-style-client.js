@@ -18,16 +18,17 @@ export async function addStyleToCanvas(style) {
   await getActiveComponentPreview('browser-preview')?.syncCanvas();
   const document = canvas.controller.getState().draft.document;
   if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
+  const component = entries.find(entry => entry.id === style.type) || COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview();
   const media = componentStyleMedia(style.config);
-  const scale = Math.min(1, document.canvas.width / media.width, document.canvas.height / media.height);
-  const width = Math.max(32, Math.round(media.width * scale)); const height = Math.max(32, Math.round(media.height * scale));
+  const [sourceWidth, sourceHeight] = media ? [media.width, media.height] : component.size(style.config);
+  const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
+  const width = Math.max(32, Math.round(sourceWidth * scale)); const height = Math.max(32, Math.round(sourceHeight * scale));
   const id = crypto.randomUUID();
   document.items.push({ id, type: style.type, name: style.name,
     x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
     width, height, visible: true, locked: false, appearance: { mode: 'independent', config: structuredClone(style.config) } });
   canvas.controller.edit({ document: validateSceneDocument(document) });
-  const component = entries.find(entry => entry.id === style.type) || COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview();
-  openComponentPreview({ ...component, selectedItemId: id });
+  return openComponentPreview({ ...component, selectedItemId: id });
 }
 
 let initialized = false;
@@ -66,7 +67,7 @@ export function initComponentStyleLibraries() {
   }
   const locations = [
     ['#otherClockFeature .clock-style-options', 'clock'],
-    ['#liveDanmakuFeature .danmaku-style-options-fixed', 'danmaku'],
+    ['#danmakuImportedStyles', 'danmaku'],
     ['#giftWishDisplayStyle', 'gift-wishes'],
     ['#giftFramePanel', 'gift-frame'], ['#guardThanksStyleLibrary', 'guard-thanks'],
     ['#themeForm .style-picker', 'queue'],
@@ -90,7 +91,7 @@ export function initComponentStyleLibraries() {
     function select(style) {
       const nextId = hasResourceSettings(style) ? style.id : '';
       if (!selectedId && nextId) {
-        nativeSelection = [...feature.querySelectorAll('[data-clock-style-option], [data-danmaku-style], [data-overlay-style]')]
+        nativeSelection = [...feature.querySelectorAll('[data-clock-style-option], [data-danmaku-style], [data-recent-danmaku-style], [data-overlay-style]')]
           .filter(button => !button.closest('.resource-style-settings'))
           .map(button => ({ button, active: button.classList.contains('active'), pressed: button.getAttribute('aria-pressed') }));
       }

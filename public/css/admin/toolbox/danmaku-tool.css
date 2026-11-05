@@ -483,6 +483,9 @@
 .danmaku-advanced-section[hidden] {
   display: none;
 }
+#danmakuParameterFields > .danmaku-advanced-section {
+  margin-top: var(--spacing-lg);
+}
 .danmaku-advanced-section h6,
 .danmaku-advanced .component-style-parameters > h3 {
   margin: 0;

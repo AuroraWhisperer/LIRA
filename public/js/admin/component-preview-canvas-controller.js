@@ -6,6 +6,7 @@ import { validateSceneDocument } from './scene-template.js';
 import { startOpeningCanvasData } from './opening-canvas-data.js';
 import { startGamesCanvasData } from './games-canvas-data.js';
 import { startGiftWishesCanvasData } from './gift-wishes-canvas-data.js';
+import { startNowPlayingCanvasData } from './now-playing-canvas-data.js';
 
 let cached;
 
@@ -243,7 +244,8 @@ export async function prepareComponentPreviewCanvas(components, request = reques
         const stopOpening = startOpeningCanvasData(controller, receive);
         const stopGames = startGamesCanvasData(controller, receive);
         const stopWishes = startGiftWishesCanvasData(controller, receive);
-        return () => { stopOpening(); stopGames(); stopWishes(); };
+        const stopNowPlaying = startNowPlayingCanvasData(controller, receive);
+        return () => { stopOpening(); stopGames(); stopWishes(); stopNowPlaying(); };
       },
       getComponentSize: (...args) => active?.getComponentSize(...args),
       source: () => {

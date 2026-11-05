@@ -1,5 +1,7 @@
 import { BACKGROUND_FIELDS } from './background-appearance.js';
 import { OPENING_APPEARANCE_FIELDS } from './opening-appearance.js';
+import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
+import { NOW_PLAYING_FIELDS } from './now-playing-appearance.js';
 
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
@@ -45,6 +47,12 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       songBoardBackdropBlur: number('背景模糊', '0', 0, 30), songBoardGlowIntensity: number('发光强度', '0', 0, 20),
       songBoardEnableGradient: check('渐变背景', 'false'), songBoardGradientEnd: color('渐变结束颜色', '#181823', 'songBoardThemeOpacity'),
     },
+  },
+  'now-playing': {
+    title: '歌曲信息', size: [480, 200], path: '/now-playing', variantKey: 'style',
+    variants: [variant('vinyl', '黑胶唱片', '唱片 · 歌名 · 歌手'),
+      variant('cover', '圆形封面', '封面 · 歌名 · 歌手'), variant('turntable', '唱片机', '唱片机 · 歌名 · 歌手')],
+    fields: NOW_PLAYING_FIELDS,
   },
   lyrics: {
     title: '直播歌词', size: [960, 360], path: '/lyrics', variantKey: 'style',
@@ -139,6 +147,8 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     title: '滚动礼物', size: [428, 232], path: '/gift-feed',
     variants: [variant('default', '滚动礼物', '感谢投喂')],
     fields: {
+      tailStyle: select('尾部样式', DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle, GIFT_BANNER_TAILS),
+      textureStyle: select('条带内部', DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle, GIFT_BANNER_TEXTURES),
       visibleRows: number('显示行数', 3, 1, 10), scrollSpeed: number('滚动速度', 12, 1, 50),
       minGiftAmountCents: number('最低礼物金额（元）', 0, 0, 100000000, 10),
       threshold1: number('第二档金额（元）', 3000, 1, 100000000),

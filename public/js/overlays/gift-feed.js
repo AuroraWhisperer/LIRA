@@ -78,7 +78,7 @@ function render(retryAvatars = false) {
   const next = new Map();
   const fit = [];
   for (const item of state.visible(config.visibleRows, true)) {
-    const signature = JSON.stringify([item, config.thresholds, catalogVersion]);
+    const signature = JSON.stringify([item, config.thresholds, config.tailStyle, config.textureStyle, catalogVersion]);
     let row = rendered.get(item.eventId);
     const avatar = retryAvatars ? row?.node.querySelector('.gift-banner-avatar') : null;
     const retryAvatar = Boolean(avatar && item.gift.avatarUrl && avatar.getAttribute('src') !== avatar.dataset.source);

@@ -135,6 +135,7 @@ async function fixture({ scene = false } = {}) {
     sockets,
     configurationWrites: () => body.datasetWrites + documentElement.datasetWrites + documentElement.styleWrites,
     sceneSnapshot(data) { return sendScene({ type: 'component-preview:data', data }); },
+    sceneConfiguration(config) { return sendScene({ type: 'component-preview:config', config }); },
     snapshot(items, style = 'signal', duration = 6) {
       sockets.at(-1).emit('message', {
         data: JSON.stringify({
@@ -173,6 +174,24 @@ async function fixture({ scene = false } = {}) {
 }
 
 const message = (id, extra = {}) => ({ id, name: '合成观众', message: `消息 ${id}`, timestamp: 10000, ...extra });
+
+test('published scene motion edits retain visible messages and their deadlines', async () => {
+  const f = await fixture({ scene: true });
+  await f.sceneConfiguration({ style: 'outline', fullscreenDurationSeconds: 6, styleOptions: {} });
+  f.sceneSnapshot({ status: 'connected', epoch: 'one', state: { liveStatus: 1, liveSessionId: 'live' },
+    events: [{ type: 'danmaku', liveSessionId: 'live', name: '合成观众', message: '保存前的弹幕' }] });
+  f.flush();
+  const node = f.root.children[0];
+  const timers = [...f.timers.keys()];
+  f.advance(1000);
+  await f.sceneConfiguration({ style: 'outline', fullscreenDurationSeconds: 6,
+    styleOptions: { outline: { durationSeconds: 12, exitAnimation: 'none' } } });
+  f.flush();
+  assert.equal(f.root.children[0], node);
+  assert.deepEqual([...f.timers.keys()], timers);
+  f.advance(5000);
+  assert.equal(f.root.children.length, 0, 'saving keeps the original expiry');
+});
 
 test('unchanged snapshots preserve actual nodes and timers for fixed and random feeds', async () => {
   for (const style of ['signal', 'outline']) {
@@ -299,8 +318,11 @@ test('first empty snapshot, content corrections, clear and feed configuration ch
   node = f.root.children[0];
   f.snapshot([first], 'outline', 8);
   f.flush();
-  assert.notEqual(f.root.children[0], node);
-  assert.equal([...f.timers.values()][0].deadline, 18000);
+  assert.equal(f.root.children[0], node, 'timing edits preserve messages already on screen');
+  assert.equal([...f.timers.values()][0].deadline, 16000);
+  f.append(message('later', { timestamp: 10001 }));
+  f.flush();
+  assert.equal([...f.timers.values()].at(-1).deadline, 18001, 'the next message uses the edited lifetime');
   f.snapshot([], 'outline', 8);
   f.flush();
   assert.equal(f.root.children[0].textContent, placeholder);

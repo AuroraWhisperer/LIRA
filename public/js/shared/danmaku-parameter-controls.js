@@ -15,7 +15,11 @@ const GROUPS = {
   ripploidGuard: ['RipploidGuardColors', '上舰配色'],
   ripploidSuperchat: ['RipploidSuperchatColors', 'SC 配色'],
   message: ['MessageOptions', '消息显示'],
-  distribution: ['DistributionOptions', '位置分布'],
+  randomMotion: ['RandomMotion', '随机弹幕通用参数'],
+  floatingMotion: ['FloatingMotion', '飘窗弹幕通用参数'],
+  comic: ['ComicOptions', '漫画造型与入场'],
+  startrail: ['StartrailOptions', '星芒与光尾'],
+  aurora: ['AuroraOptions', '极光薄笺'],
 };
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
 
@@ -43,7 +47,7 @@ export function mountDanmakuParameters(host, controller, {
   advanced.append(summary);
   const advancedBody = element('div', desktop ? 'danmaku-advanced-body' : '');
   advanced.append(advancedBody);
-  host.append(basic, advanced);
+  host.append(basic);
   const groups = new Map();
   const ripploid = element('section', 'danmaku-advanced-section', '', 'RipploidColors');
   const ripploidTitle = element(desktop ? 'h6' : 'h3', '', 'RIPPLOID 事件配色', 'RipploidColorsTitle');
@@ -57,9 +61,11 @@ export function mountDanmakuParameters(host, controller, {
     const grid = element('div', gridClass, '', key === 'message' ? suffix : '');
     if (key === 'message') grid.classList.add('danmaku-message-options');
     section.append(title, grid);
-    (key.startsWith('ripploid') ? ripploid : advancedBody).append(section);
+    if (key === 'randomMotion' || key === 'floatingMotion') host.append(section);
+    else (key.startsWith('ripploid') ? ripploid : advancedBody).append(section);
     groups.set(key, { section, grid });
   }
+  host.append(advanced);
   function label(text, suffix, input, container) {
     const field = element('label', 'danmaku-parameter-field', '', suffix);
     field.htmlFor = input.id;
@@ -219,7 +225,8 @@ export function mountDanmakuParameters(host, controller, {
         if (key === 'speedPixelsPerSecond') value = floatingSpeedFromPixelsPerSecond(value);
       }
       syncComponentFieldValue(view.input, value, force);
-      view.input.disabled = !loaded || !supported;
+      const disabledByChoice = definition.disabledWhen && options[definition.disabledWhen[0]] === definition.disabledWhen[1];
+      view.input.disabled = !loaded || !supported || Boolean(disabledByChoice);
       view.updateOutput();
       if (key === 'speedPixelsPerSecond' && Number(view.input.value) === floatingSpeedFromPixelsPerSecond(options.speedPixelsPerSecond || 120)) {
         view.output.textContent = floatingSpeedLabel(options.speedPixelsPerSecond || 120);

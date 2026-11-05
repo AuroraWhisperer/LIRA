@@ -6,7 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
-async function fixture({ fontSnapshot = { status: 'idle' } } = {}) {
+async function fixture({ fontSnapshot = { status: 'idle' }, audioSnapshot } = {}) {
   const dom = createDom();
   const region = dom.documentRef.createElement('section');
   region.hidden = true;
@@ -20,7 +20,7 @@ async function fixture({ fontSnapshot = { status: 'idle' } } = {}) {
     path.resolve(__dirname, '../../public/js/admin/resource-downloads.js'),
     { window: {}, document: {}, setTimeout: () => 0, clearTimeout() {} },
   );
-  const listeners = { fonts: new Set(), gifts: new Set() };
+  const listeners = { fonts: new Set(), gifts: new Set(), audio: new Set() };
   const subscribe = key => listener => {
     listeners[key].add(listener);
     return () => listeners[key].delete(listener);
@@ -31,11 +31,34 @@ async function fixture({ fontSnapshot = { status: 'idle' } } = {}) {
     onFontLibraryStateChanged: subscribe('fonts'),
     onGiftCatalogStateChanged: subscribe('gifts'),
   };
+  let audioRetries = 0;
+  if (audioSnapshot) dom.windowRef.audioAssistant = {
+    getComponentState: async () => audioSnapshot,
+    onComponentState: subscribe('audio'),
+    retryComponent: async () => { audioRetries++; },
+  };
   const controller = createResourceDownloads({ window: dom.windowRef, document: dom.documentRef,
     bridge, eventBus: { on: () => () => {} } });
   const emit = (key, state) => listeners[key].forEach(listener => listener(state));
-  return { ...dom, region, list, listeners, controller, emit };
+  return { ...dom, region, list, listeners, controller, emit, audioRetries: () => audioRetries };
 }
+
+test('audio has one independent progress subscription and an accessible retry after a failed preparation', async () => {
+  const f = await fixture({ audioSnapshot: { status: 'downloading', totalBytes: 1000, downloadedBytes: 250 } });
+  await f.controller.init();
+  const row = f.list.children[2];
+  assert.equal(row.hidden, false);
+  assert.equal(f.listeners.audio.size, 1);
+  f.emit('audio', { status: 'error', error: 'retry preparation' });
+  assert.equal(row.hidden, false);
+  assert.equal(row.children[3].hidden, false);
+  row.children[3].fire('click');
+  assert.equal(f.audioRetries(), 1);
+  f.emit('audio', { status: 'ready' });
+  assert.equal(row.hidden, true);
+  f.controller.dispose();
+  assert.equal(f.listeners.audio.size, 0);
+});
 
 test('active downloads remain visible after dismissing toast; terminal rows and empty region disappear', async () => {
   const { controller, emit, region, list, container } = await fixture();

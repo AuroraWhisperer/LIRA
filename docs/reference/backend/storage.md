@@ -1,5 +1,18 @@
 # 存储层:数据目录、SQLite 六库与迁移
 
+## 本机通知偏好
+
+桌面主进程在 `dataDir/desktop-notifications.json` 保存日程与大额礼物通知偏好，不进入 SQLite 或云设置。
+文件由 [desktop-notifications.js](../../../src/electron/desktop-notifications.js) 原子写入，字段与默认值见
+[通知设置 IPC](../desktop/preload.md#25-dailybotsfanprofiles-与-giftexport)，调度与清理见
+[本机系统通知](../desktop/main.md#本机系统通知)。工作台日程仍保存在原本机 localStorage 键中，不复制到此文件。
+
+## 音频组件文件
+
+可执行组件存于 `<dataDir>/components/audio/<内容版本>/`，与 `audio-assistant/settings.json`、路由恢复记录及播放器输出状态分离。内容版本来自固定文件清单的摘要，不随客户端版本或账号变化；该目录不进入字体/图片缓存清理及业务云同步。程序启动后首次使用前校验文件；开发构建目录或旧版 bundled 目录完整时可直接复用。
+
+6.0.0 升级由安装器在删除旧程序前，把 `resources/audio-assistant` 复制进数据备份的 `components/audio/legacy`；主进程按内置描述完整验证后直接重命名到内容版本目录，复用过程中无 CDN 请求。未知或损坏文件不能直接执行。下载写入独占 `.prepare-*` 目录，成功后原子发布，失败/关闭清理本次临时文件；其他已存在版本不被失败下载删除。安装维护退出会检查旧路径及版本目录中的本实例音频进程。
+
 ## 电音助手本机数据
 
 原生会话将参数原子写入 `<dataDir>/audio-assistant/settings.json`（先写 `.tmp` 再替换），不增加 SQLite 表或服务器设置。缺失/损坏 JSON 使用默认值，读取时归一化数值范围。
@@ -497,6 +510,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 本节是设置分组与代表项，不是逐键字典。完整默认键、类型与默认值以 [settings-defaults.js](../../../src/storage/settings-defaults.js) 的 `DEFAULT_SETTINGS` 为准，输入约束以 [settings-contract.js](../../../src/server/settings-contract.js) 和领域 normalizer 为准。公开设置经 WS 快照 `settings` 字段投影下发，过滤约束见 [ws.md](ws.md)；账号归属与歌曲待传的私有持久键单列于 §8，不属于可编辑设置或公开快照；未进入 defaults 的领域设置不一定私有，见下文。
 
 ### 7.1 关键设置的归属与约束
+
+`nowPlayingAppearance` 默认 `'{}'`，是歌曲信息组件的本机外观 JSON，不加入云设置同步。默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 定义，专属配置接口与普通 settings 写入均经过同一场景字段校验；缺失/非法存量回退默认黑胶横排。默认键补齐不覆盖旧设置，无数据库结构迁移。画布共享外观写回同一配置，场景自身的唱片样式、位置、尺寸和显隐保持独立；保存机制见 [now-playing-settings.js](../../../src/server/now-playing-settings.js)。
 
 直播歌词已唱颜色由本地 settings 的 `desktopLyricSungColor` 保存，默认 `''` 表示跟随样式高亮色；显式值使用十六进制颜色，支持透明度，渲染器对无效值回退继承。未唱颜色复用原 `desktopLyricTextColor`（默认 `#000000`），普通整句、翻译和关闭逐字时同样使用它，不新增另一套未唱设置。原 `desktopLyricOpacity` 保持统一文字不透明度，颜色按钮各自的 Alpha 不改写该值。旧库沿用缺失键默认补齐，无 schema 迁移，不覆盖已存颜色。两项颜色只投影至歌词 scope；与现有歌词外观一样同步到同样式画布组件，独立资源样式保留自己的外观。
 

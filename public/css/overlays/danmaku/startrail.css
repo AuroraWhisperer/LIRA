@@ -1,0 +1,223 @@
+/* 星轨飞语: stable type, an ice-blue leading star and a fine trailing wake. */
+@property --danmaku-entry-inset {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+body[data-style='startrail'] .danmaku-signal-stage,
+body[data-style='startrail'] .draw-danmaku-feed {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+}
+body[data-style='startrail'] .danmaku-signal-header { display: none; }
+body[data-style='startrail'] .draw-danmaku-feed {
+  position: relative;
+  max-height: none;
+  overflow: hidden;
+}
+body[data-style='startrail'] .draw-danmaku-item {
+  --danmaku-entry-inset: calc(30px + var(--startrail-star-size, 24px) + var(--danmaku-font-size, 28px));
+  --danmaku-trail-width: var(--startrail-tail-length, 180px);
+  position: absolute;
+  display: block;
+  width: max-content;
+  min-width: 0;
+  max-width: min(680px, 100%);
+  min-height: 72px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  color: var(--danmaku-text-color, #f1f6ff);
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  overflow: visible;
+  animation: none;
+  font-family: var(--danmaku-custom-font, var(--danmaku-ui-font));
+  will-change: transform;
+}
+body[data-style='startrail'] .draw-danmaku-item[data-startrail-entrance='none'] { --danmaku-entry-inset: 0px; }
+body[data-style='startrail'] .draw-danmaku-item::before,
+body[data-style='startrail'] .draw-danmaku-item::after { display: none; }
+body[data-style='startrail'] .startrail-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--startrail-star-size, 24px) minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+body[data-style='startrail'] .draw-danmaku-body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 0;
+}
+body[data-style='startrail'] .draw-danmaku-identity {
+  display: flex;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 0;
+  background: none;
+  color: #b5c9df;
+}
+body[data-style='startrail'] [data-identity='captain'] .draw-danmaku-identity { color: #9bd3ff; }
+body[data-style='startrail'] [data-identity='admiral'] .draw-danmaku-identity { color: #d8b9ff; }
+body[data-style='startrail'] [data-identity='governor'] .draw-danmaku-identity { color: #ffe1a0; }
+body[data-style='startrail'] .draw-danmaku-identity strong {
+  max-width: 100%;
+  color: inherit;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.35;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+body[data-style='startrail'] .draw-danmaku-body p {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  margin: 0;
+  color: var(--danmaku-text-color, #f1f6ff);
+  font-size: var(--danmaku-font-size, 28px);
+  font-weight: 500;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  text-align: left;
+}
+body[data-style='startrail'] .draw-danmaku-body {
+  paint-order: stroke fill;
+  -webkit-text-stroke: .4px rgb(4 14 28 / 50%);
+  text-shadow: 0 1px 3px rgb(0 5 14 / 90%), 0 0 1px rgb(0 5 14 / 90%);
+}
+body[data-style='startrail'] .draw-danmaku-emote {
+  width: auto;
+  height: 1.35em;
+  max-width: 100%;
+  object-fit: contain;
+  vertical-align: -.25em;
+}
+body[data-style='startrail'] .draw-danmaku-gift-art { display: none; }
+body[data-style='startrail'] .draw-danmaku-gift-copy,
+body[data-style='startrail'] .draw-danmaku-gift-copy > *,
+body[data-style='startrail'] .draw-danmaku-gift-count {
+  display: inline;
+  color: inherit;
+  font: inherit;
+}
+body[data-style='startrail'] .draw-danmaku-gift-copy > * + *,
+body[data-style='startrail'] .draw-danmaku-gift-count { margin-left: .25em; }
+body[data-style='startrail'] .startrail-head {
+  position: relative;
+  width: var(--startrail-star-size, 24px);
+  height: var(--startrail-star-size, 24px);
+  color: var(--startrail-color, #b9dfff);
+  pointer-events: none;
+}
+body[data-style='startrail'] .startrail-star {
+  position: absolute;
+  inset: 0;
+  background: currentColor;
+  clip-path: polygon(50% 0, 60% 37%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 37%);
+  animation: startrailTwinkle 4.8s ease-in-out infinite;
+}
+body[data-style='startrail'] .startrail-star::after {
+  content: '';
+  position: absolute;
+  inset: 37%;
+  border-radius: 50%;
+  background: rgb(from currentColor 255 255 255 / alpha);
+}
+body[data-style='startrail'] .startrail-halo {
+  position: absolute;
+  inset: -12px;
+  border-radius: 50%;
+  opacity: calc(var(--startrail-glow, .45) * .58);
+  background: radial-gradient(closest-side, var(--startrail-color, #b9dfff), transparent);
+}
+body[data-style='startrail'] .startrail-tail {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  width: var(--startrail-tail-length, 180px);
+  height: 44px;
+  transform: translateY(-50%);
+  overflow: hidden;
+  pointer-events: none;
+  color: var(--startrail-color, #b9dfff);
+}
+body[data-style='startrail'] .startrail-tail::before,
+body[data-style='startrail'] .startrail-tail::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  height: 1px;
+  background: linear-gradient(90deg, currentColor, transparent 95%);
+}
+body[data-style='startrail'] .startrail-tail::before {
+  height: 4px;
+  margin-top: -1px;
+  opacity: calc(var(--startrail-glow, .45) * .7);
+  filter: blur(2px);
+}
+body[data-style='startrail'] .startrail-tail::after { opacity: .65; }
+body[data-style='startrail'] .startrail-dust { animation: startrailDust 5.6s ease-in-out infinite; }
+body[data-style='startrail'] .startrail-dust i {
+  position: absolute;
+  top: 8px;
+  left: 14%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: .65;
+}
+body[data-style='startrail'] .startrail-dust i:nth-child(2) { top: 31px; left: 37%; width: 2px; height: 2px; opacity: .4; }
+body[data-style='startrail'] .startrail-dust i:nth-child(3) { top: 15px; left: 67%; width: 2px; height: 2px; opacity: .3; }
+body[data-style='startrail'][data-startrail-dust='off'] .startrail-dust { display: none; }
+body[data-style='startrail'] [data-live-entry][data-startrail-entrance='spark'] .startrail-head {
+  animation: startrailHeadIn var(--startrail-entry-duration, 680ms) ease-out both;
+}
+body[data-style='startrail'] [data-live-entry][data-startrail-entrance='spark'] .draw-danmaku-body {
+  animation: startrailTextIn var(--startrail-entry-duration, 680ms) ease-out both;
+}
+body[data-style='startrail'] [data-live-entry][data-startrail-entrance='spark'] .startrail-tail {
+  animation: startrailTailIn var(--startrail-entry-duration, 680ms) ease-out both;
+}
+body[data-style='startrail'][data-ambient-motion='off'] .startrail-star,
+body[data-style='startrail'][data-ambient-motion='off'] .startrail-dust { animation: none; }
+@keyframes startrailHeadIn {
+  0% { opacity: 0; transform: scale(.65); }
+  28% { opacity: 1; transform: scale(1.18); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes startrailTextIn {
+  0%, 18% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes startrailTailIn {
+  0%, 12% { opacity: 0; }
+  100% { opacity: 1; }
+}
+@keyframes startrailTwinkle {
+  0%, 100% { opacity: .82; transform: scale(.94); }
+  46% { opacity: 1; transform: scale(1.06); }
+}
+@keyframes startrailDust {
+  0%, 100% { opacity: .55; }
+  50% { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='startrail'] .draw-danmaku-item { --danmaku-entry-inset: 0px; }
+  body[data-style='startrail'] .startrail-star,
+  body[data-style='startrail'] .startrail-dust,
+  body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .startrail-head,
+  body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .draw-danmaku-body,
+  body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .startrail-tail { animation: none; }
+}

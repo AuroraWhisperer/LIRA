@@ -94,6 +94,9 @@ test('blacklist snapshots preserve edits and focus, then update same-length rows
   // formsService may fill the hidden field before the editor receives the snapshot.
   ui.field.value = '[{"uid":"34","name":"已保存昵称","expiresAt":0}]';
   ui.editor.render(ui.field.value);
+  assert.equal(ui.row(0).name, row.name, 'autosave must not replace a focused input');
+  ui.documentRef.activeElement = null;
+  ui.editor.render(ui.field.value);
   assert.equal(ui.row(0).uid.value, '34');
   assert.equal(ui.row(0).name.value, '已保存昵称');
   assert.equal(ui.row(0).status.textContent, '永久');

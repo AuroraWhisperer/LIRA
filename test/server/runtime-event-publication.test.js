@@ -138,7 +138,7 @@ test('scene notifications select dynamic projections even with no ordinary WebSo
     ['bilibili:gift', ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox']],
     ['gift:source', ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox']],
     ['gift:sprint:reset', ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox']],
-    ['database:clear-playback', ['lyrics']],
+    ['database:clear-playback', ['lyrics', 'now-playing']],
   ]) {
     transport.broadcastSnapshot(reason);
     assert.deepEqual(changes.pop(), { types }, reason);

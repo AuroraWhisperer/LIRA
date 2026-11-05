@@ -13,6 +13,7 @@ const OVERLAY_PAGES = Object.freeze({
   'gift-sprint': 'gift-sprint.html',
   'gift-export': 'gift-export.html',
   lyrics: 'lyric-window.html',
+  'now-playing': 'now-playing.html',
   games: 'games.html',
   interactions: 'interactions.html',
   danmaku: 'danmaku.html',
@@ -22,6 +23,7 @@ const OVERLAY_PAGES = Object.freeze({
 });
 
 const OVERLAY_ROUTES = {
+  'now-playing': ['GET /api/now-playing/config'],
   songlist: ['GET /api/songs'],
   blindbox: ['GET /api/gifts/blind-box-stats'],
   'gift-feed': [

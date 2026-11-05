@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { addQueueItem, cancelQueueItem, handleQueueAction, getQueueSnapshot, ensureUnifiedQueue } = require('../../src/music/queue-service');
+const { addQueueItem, cancelQueueItem, handleQueueAction, getQueueSnapshot, ensureUnifiedQueue, recordQueueRequestResult } = require('../../src/music/queue-service');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createQueueStore } = require('../../src/storage/queue-store');
 const { createSongStore } = require('../../src/storage/song-store');
@@ -13,6 +13,37 @@ const { createRequesterTargetStore } = require('../../src/storage/requester-targ
 const { migrateQueueHistory } = require('../../src/storage/queue-history-store');
 const { runMigrations } = require('../../src/storage/schema');
 const { createUserRequestCooldown } = require('../../src/music/user-request-cooldown');
+
+test('request feedback retains a bounded delivery window without changing the queue or legacy result lifetime', (t) => {
+  let timestamp = 1000;
+  t.mock.method(Date, 'now', () => timestamp);
+  const context = { settings: () => ({}), store: { listActive: () => [] } };
+  recordQueueRequestResult(context, { accepted: true, requesterName: '观众', songName: '歌曲' });
+  const first = getQueueSnapshot(context).requestResult;
+  assert.equal(first.accepted, true);
+  recordQueueRequestResult(context, { accepted: false, requesterName: '观众', songName: '歌曲' });
+  const snapshot = getQueueSnapshot(context);
+  assert.equal(snapshot.requestResult.accepted, false);
+  assert.notEqual(snapshot.requestResult.id, first.id);
+  assert.equal(snapshot.requestResult.songName, '歌曲');
+  assert.deepEqual(snapshot.requestResults.map((result) => result.id), [first.id, snapshot.requestResult.id]);
+  assert.equal(snapshot.waiting.length, 0);
+  snapshot.requestResult.songName = '不能改写 owner';
+  snapshot.requestResults[0].songName = '也不能改写缓冲';
+  assert.equal(getQueueSnapshot(context).requestResult.songName, '歌曲');
+  assert.equal(getQueueSnapshot(context).requestResults[0].songName, '歌曲');
+  timestamp = snapshot.requestResult.expiresAt;
+  assert.equal(getQueueSnapshot(context).requestResult, undefined);
+  assert.equal(getQueueSnapshot(context).requestResults.length, 2, 'delivery outlives the legacy four-second notice');
+  timestamp = snapshot.requestResults[1].expiresAt;
+  assert.equal(getQueueSnapshot(context).requestResults, undefined);
+  for (let index = 0; index < 205; index += 1) {
+    recordQueueRequestResult(context, { accepted: false, requesterName: '观众', songName: `歌曲 ${index}` });
+  }
+  const retained = getQueueSnapshot(context).requestResults;
+  assert.equal(retained.length, 200);
+  assert.equal(retained.at(-1).songName, '歌曲 204');
+});
 
 test('queue owner classifies expected request rejections without writing a request', () => {
   for (const [settings, count, duplicate, input, code] of [
@@ -33,13 +64,19 @@ test('queue rejection codes reach HTTP and the existing optional danmaku reply',
   const { handleDanmakuMessage } = require('../../src/bilibili/bilibili-message-handler');
   const code = 'QUEUE_FULL';
   const reject = () => { throw Object.assign(new Error('预期拒绝'), { code }); };
-  const context = { queue: { add: reject, requestRandom: reject }, broadcastSnapshot() { assert.fail(); } };
+  const notices = [];
+  const broadcasts = [];
+  const context = { queue: { add: reject, requestRandom: reject, recordRequestResult: (result) => notices.push(result) },
+    broadcastSnapshot: (reason) => broadcasts.push(reason) };
   for (const route of ['POST /api/queue/add', 'POST /api/queue/random']) {
     const response = { writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
     await routes[route](context, { body: async () => ({ songName: '歌曲' }) }, response);
     assert.equal(response.status, 400);
     assert.equal(response.body.code, code);
   }
+  assert.equal(notices.length, 1);
+  assert.equal(notices[0].accepted, false);
+  assert.deepEqual(broadcasts, ['queue:request-result']);
   for (const enabled of ['true', 'false']) {
     const result = handleDanmakuMessage({
       settings: () => ({ enableRandomTagReply: enabled }), settingsStore: { getDefaultSettings: () => ({}) },
@@ -230,6 +267,49 @@ test('cancellation switch rejects both commands without mutating requests or coo
   f.settings.songRequestCancelEnabled = 'true';
   assert.equal(f.request({ message: '取消点歌 测试歌曲' }).queueItem.id, item.id);
   assert.equal(f.count('queue'), 0);
+});
+
+test('request results reach display snapshots once while ordinary messages and cancellations do not replace them', (t) => {
+  const { createSettingsStore } = require('../../src/storage/settings-store');
+  const { createDomainServices } = require('../../src/server/domain-services');
+  const { createBilibiliClient } = require('../../src/server/bilibili-client');
+  t.mock.method(console, 'log', () => {});
+  const f = historyFixture(t);
+  const settingsStore = createSettingsStore(f.db.songDb);
+  settingsStore.setSetting('onlyFromLibrary', 'false');
+  settingsStore.setSetting('userCooldownSeconds', '0');
+  const services = createDomainServices({ db: f.db, settingsStore });
+  const snapshots = [];
+  const client = createBilibiliClient('123', {
+    isShuttingDown: () => false, aiDanmakuDeliveryVerifier: { observe() {} }, domainServices: services,
+    aiAssistant: { handleDanmaku() {} },
+    broadcastSnapshot: (reason) => snapshots.push({ reason, queue: services.queue.getSnapshot() }),
+    updateLiveStatus() {}, bilibiliDiagnostics: {}, bilibiliAuthCache: {},
+  });
+  try {
+    const event = { uid: '42', userName: '观众', message: '点歌 泡沫' };
+    client.handlers.onMessage(event);
+    assert.equal(snapshots.length, 1);
+    assert.equal(snapshots[0].queue.requestResult.accepted, true);
+    assert.equal(snapshots[0].queue.requestResult.songName, '泡沫');
+    settingsStore.setSetting('paused', 'true');
+    client.handlers.onMessage({ ...event, source: 'superchat' });
+    assert.equal(snapshots.length, 2);
+    assert.equal(snapshots[1].reason, 'queue:request-result');
+    assert.equal(snapshots[1].queue.requestResult.accepted, false);
+    assert.equal(snapshots[1].queue.waiting.length, 1, 'rejected requests do not enter the queue');
+    const rejectedId = snapshots[1].queue.requestResult.id;
+    client.handlers.onMessage({ ...event, message: '普通聊天' });
+    assert.equal(snapshots.length, 2, 'ordinary messages do not broadcast request results');
+    client.handlers.onMessage({ ...event, message: '取消点歌' });
+    assert.equal(services.queue.getSnapshot().requestResult.id, rejectedId, 'cancellation keeps the previous request result');
+    assert.equal(services.queue.getSnapshot().waiting.length, 0);
+  } finally {
+    client.stop();
+    services.gifts.dispose();
+    services.overtime.dispose();
+    services.superChats.dispose();
+  }
 });
 
 test('realtime and history cancellation share deduplication and broadcast each actual queue removal once', async (t) => {

@@ -28,19 +28,17 @@ function element(properties = {}) {
 
 async function createFixture({ themeId = 'neutral', setClientTheme, themes = CLIENT_THEMES } = {}) {
   const choices = themes.map(({ id }) => element({ value: id, checked: false, defaultChecked: id === DEFAULT_CLIENT_THEME_ID }));
-  const labels = choices.map(({ value }) => element({ dataset: { clientThemeCurrent: value } }));
-  const applyButton = element();
   const feedback = element();
   const panel = {
     attributes: {},
     setAttribute(name, value) {
       this.attributes[name] = value;
     },
-    querySelectorAll(selector) {
-      return selector === 'input[name="clientTheme"]' ? choices : labels;
+    querySelectorAll() {
+      return choices;
     },
-    querySelector(selector) {
-      return selector === '[data-client-theme-apply]' ? applyButton : feedback;
+    querySelector() {
+      return feedback;
     },
   };
   const documentRef = {
@@ -52,8 +50,6 @@ async function createFixture({ themeId = 'neutral', setClientTheme, themes = CLI
   init();
   return {
     choices,
-    labels,
-    applyButton,
     feedback,
     panel,
     documentRef,
@@ -66,7 +62,7 @@ async function createFixture({ themeId = 'neutral', setClientTheme, themes = CLI
   };
 }
 
-test('appearance choices only commit after explicit apply succeeds, with one in-flight request', async () => {
+test('appearance choices save immediately and commit only after success, with one in-flight request', async () => {
   const requests = [];
   let complete;
   const fixture = await createFixture({
@@ -76,13 +72,9 @@ test('appearance choices only commit after explicit apply succeeds, with one in-
     },
   });
   fixture.init();
-  await fixture.choose('terracotta');
-  assert.deepEqual(requests, []);
-  assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'neutral');
-  const applying = fixture.applyButton.dispatch('click');
+  const applying = fixture.choose('terracotta');
   assert.deepEqual(requests, ['terracotta']);
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'neutral');
-  await fixture.applyButton.dispatch('click');
   await fixture.choose('classic');
   assert.deepEqual(requests, ['terracotta']);
   assert.equal(fixture.choices[2].checked, true);
@@ -92,7 +84,7 @@ test('appearance choices only commit after explicit apply succeeds, with one in-
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'terracotta');
 });
 
-test('failed appearance writes preserve the current theme and candidate and allow retry', async () => {
+test('failed appearance writes restore the current selection and allow retry', async () => {
   for (const failure of [() => ({ ok: false }), () => Promise.reject(new Error('disk full'))]) {
     let attempt = 0;
     const fixture = await createFixture({
@@ -103,10 +95,9 @@ test('failed appearance writes preserve the current theme and candidate and allo
       },
     });
     await fixture.choose('terracotta');
-    await fixture.applyButton.dispatch('click');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
-    assert.equal(fixture.choices[2].checked, true);
-    await fixture.applyButton.dispatch('click');
+    assert.equal(fixture.choices[1].checked, true);
+    await fixture.choose('terracotta');
     assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'terracotta');
   }
 });
@@ -118,14 +109,12 @@ test('unknown initial themes select the terracotta fallback and invalid response
   });
   assert.equal(fixture.choices[2].checked, true);
   await fixture.choose('classic');
-  await fixture.applyButton.dispatch('click');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'future');
 });
 
 test('appearance controls without the desktop bridge cannot change the preference', async () => {
   const fixture = await createFixture({ themeId: 'classic' });
   await fixture.choose('terracotta');
-  await fixture.applyButton.dispatch('click');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
 });
 
@@ -133,11 +122,9 @@ test('appearance accepts a catalog option without a separate frontend allowlist'
   const themes = [...CLIENT_THEMES, { id: 'catalog-addition' }];
   const fixture = await createFixture({ themes, setClientTheme: (themeId) => ({ ok: true, themeId }) });
   await fixture.choose('catalog-addition');
-  await fixture.applyButton.dispatch('click');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'catalog-addition');
   const restored = await createFixture({ themes, themeId: 'catalog-addition', setClientTheme: () => {} });
   assert.equal(restored.choices.find((choice) => choice.checked).value, 'catalog-addition');
   await fixture.choose('classic');
-  await fixture.applyButton.dispatch('click');
   assert.equal(fixture.documentRef.documentElement.dataset.clientTheme, 'classic');
 });

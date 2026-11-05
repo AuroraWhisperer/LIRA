@@ -70,6 +70,12 @@ Use these only when relevant:
 - Keep runtime/generated data and secrets out of commits.
 - Put ad hoc scripts, temporary/intermediate artifacts, QA screenshots, and test
   scratch directories inside the repository-root `tmp/`.
+- Repository-root `output/` is the user's standalone deliverables directory,
+  not temporary storage. Preserve its location and contents during cleanup and
+  packaging audits unless the user explicitly requests an operation on `output/`.
+  Git-ignore rules, file age, or exporters defaulting to `tmp/` do not authorize
+  moving or deleting these deliverables. Exclude them from installers through
+  packaging rules without relocating the originals.
 - Stop when the requested behavior is implemented and evidence is sufficient.
 
 ## Workflow By Risk

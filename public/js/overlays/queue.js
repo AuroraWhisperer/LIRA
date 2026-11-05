@@ -25,6 +25,7 @@ import { watchComponentOutputSize } from './component-output-size.js';
 import { normalizePersistedQueueStyle, resolveQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { createOverlaySocket } from './socket-client.js';
 import { createComponentPreviewClient, isComponentPreview, isSceneComponent } from './component-preview-client.js';
+import { createQueueRequestNotice } from './queue-request-notice.js';
 
 const ILLUSTRATED_QUEUE_RENDERERS = {
   storybook: renderStorybookQueue,
@@ -51,13 +52,15 @@ let liveStatusRevision = 0;
 let previewClient = null;
 let editingPreview = false;
 let previousSize = '';
+let requestNotice = null;
 document.addEventListener('DOMContentLoaded', () => {
+  requestNotice = createQueueRequestNotice(document.getElementById('queueRequestNotice'));
   if (isComponentPreview()) {
     editingPreview = !isSceneComponent();
     let settings = {};
     let data = { queue: { current: null, waiting: [] }, superChats: [] };
     previewClient = createComponentPreviewClient({
-      onConfig(config) { settings = config; applyState({ settings, ...data }); },
+      onConfig(config) { settings = config; applyState({ settings, ...data }, false); },
       onData(value) { data = value; applyState({ settings, ...data }); },
       onDispose: disposeSocket,
     });
@@ -74,6 +77,7 @@ function handleQueueViewportResize() {
   if (state) {
     syncQueueViewport();
   }
+  requestNotice?.relayout();
   clearTimeout(overlayResizeTimer);
   overlayResizeTimer = setTimeout(relayoutQueue, 100);
 }
@@ -101,6 +105,7 @@ function connectSocket() {
     },
     onMessage: (payload) => {
       if (payload.type !== 'snapshot') return;
+      requestNotice?.update(payload.state.queue);
       if (payload.reason === 'live:status' && state) {
         liveStatusRevision += 1;
         state.liveStatus = payload.state.liveStatus;
@@ -129,13 +134,15 @@ function disposeSocket() {
   stateRevision += 1;
   clearTimeout(stateRefreshTimer);
   clearTimeout(overlayResizeTimer);
+  requestNotice?.dispose();
   window.removeEventListener('resize', handleQueueViewportResize);
   document.getAnimations?.().forEach((animation) => animation.cancel());
   socketController?.dispose();
   socketController = null;
 }
 
-function applyState(nextState) {
+function applyState(nextState, syncRequestNotice = true) {
+  if (syncRequestNotice) requestNotice?.update(nextState.queue);
   const newKey = computeStateKey(nextState);
   state = nextState;
   if (newKey === lastRenderKey) return;
@@ -247,6 +254,7 @@ function render() {
   }
 
   syncQueueViewport();
+  requestNotice?.relayout();
   scheduleScrollAnimationRestore(scrollState);
 }
 

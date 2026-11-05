@@ -26,6 +26,7 @@ const ROUTE_MODULES = [
   require('./routes/clock-routes'),
   require('./routes/world-clock-routes'),
   require('./routes/opening-routes'),
+  require('./routes/now-playing-routes'),
   require('./routes/wesing-routes'),
   require('./routes/music-routes'),
   require('./routes/playback-routes'),

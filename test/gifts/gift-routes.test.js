@@ -162,6 +162,8 @@ test('gift display settings persist valid cents and leave saved configuration un
   };
   const config = {
     palette: 'bilibili-four',
+    tailStyle: 'swallowtail',
+    textureStyle: 'starlight',
     thresholds: [9999, 49999, 99999],
     visibleRows: 1,
     scrollSpeed: 26,

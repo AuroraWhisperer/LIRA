@@ -372,7 +372,7 @@ test('runtime state selection skips unrelated domains and preserves the complete
     const state = getState();
     assert.deepEqual(Object.keys(state), ['queue', 'superChats', 'gifts', 'giftSprint', 'giftDetection',
       'blindBoxMapping', 'overtime', 'settings', 'categories', 'tags', 'songCount', 'liveStatus', 'roomGuard',
-      'bilibiliDiagnostics', 'lyricState', 'lyricTimeline', 'lyricSource', 'weSing', 'danmakuFeed']);
+      'bilibiliDiagnostics', 'lyricState', 'lyricTimeline', 'nowPlaying', 'nowPlayingConfig', 'lyricSource', 'weSing', 'danmakuFeed']);
     assert.deepEqual(reads, ['queue.getSnapshot', 'superChats.getSnapshot', 'gifts.getSnapshot',
       'gifts.getSprintSnapshot', 'songs.getMetadata']);
     assert.deepEqual(state.lyricState, lyrics.lyricState);

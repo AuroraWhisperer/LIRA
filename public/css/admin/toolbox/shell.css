@@ -20,7 +20,7 @@
   gap: 16px 8px;
   height: calc(100vh - var(--topbar-height, 58px) - var(--player-dock-reserve, 96px));
   min-height: 0;
-  padding: 12px 12px 0;
+  padding: 4px 4px 0;
   overflow: hidden;
   transition: grid-template-columns var(--other-sidebar-duration) var(--other-sidebar-easing);
 }

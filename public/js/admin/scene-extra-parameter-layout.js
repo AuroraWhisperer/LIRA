@@ -2,6 +2,14 @@ import { previewElement } from './component-preview-surface.js';
 
 // Keep the canvas sections in the same vocabulary as their client settings pages.
 const PARAMETER_GROUPS = {
+  'now-playing': [
+    ['appearance', '唱片与布局', ['style', 'nowPlayingLayout', 'nowPlayingRecordSize', 'nowPlayingGap']],
+    ['content', '显示内容', ['nowPlayingShowRecord', 'nowPlayingShowTitle', 'nowPlayingShowArtist']],
+    ['text', '字体与颜色', ['nowPlayingFontFamily', 'nowPlayingTitleFontSize', 'nowPlayingArtistFontSize',
+      'nowPlayingTitleColor', 'nowPlayingArtistColor']],
+    ['behavior', '动效与显示规则', ['nowPlayingRotation', 'nowPlayingRotationSeconds',
+      'nowPlayingHideOnPause', 'nowPlayingHideWhenEmpty', 'nowPlayingOpacity']],
+  ],
   lyrics: [
     ['basic', '基础样式', ['style', 'desktopLyricFontFamily', 'desktopLyricFontSize',
       'desktopLyricFontWeight', 'desktopLyricTextAlign',
@@ -43,6 +51,7 @@ const PARAMETER_GROUPS = {
       'interactionBarColor', 'interactionTrackColor', 'interactionCornerRadius']],
   ],
   'gift-feed': [
+    ['appearance', '卡片外观', ['tailStyle', 'textureStyle']],
     ['display', '显示设置', ['visibleRows', 'scrollSpeed', 'minGiftAmountCents']],
     ['amounts', '金额分档', ['threshold1', 'threshold2', 'threshold3']],
   ],

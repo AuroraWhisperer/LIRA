@@ -113,6 +113,7 @@ test('packaging omits external media and maintenance metadata while retaining re
   const excluded = (await fs.readdir(path.join(projectDir, artwork))).map(name => `${artwork}/${name}`);
   excluded.push('public/img/component-previews/gift-frame-default.webp', 'src/electron/AGENTS.md',
     'public/js/admin/AGENTS.md', 'public/img/overlays/danmaku-comet/provenance.json',
+    'public/img/overlays/danmaku-flower-letter/SOURCES.md',
     'public/img/admin/gifts/guard-icon-sources.json', 'public/img/overlays/danmaku-harbor/sources.json',
     'src/shared/danmaku-source-manifest.json', 'public/fonts/README.md',
     'public/fonts/lyrics-fallback/README.md');
@@ -138,11 +139,15 @@ test('production dependencies omit development files and browser bundles but ret
   }).createFilter();
   for (const [included, relatives] of [
     [false, ['@clamber_l/crypto/Readme.MD', '@jixun/qmweb-sign/src/node.ts',
+      '@clamber_l/crypto/dist/loader-inline.js', '@jixun/qmweb-sign/tsconfig.json',
+      '@jixun/qmweb-sign/dist/web.cjs', '@jixun/qmweb-sign/dist/web.mjs', 'pend/test.js',
       '@jixun/qmweb-sign/src/ag1_cipher.test.ts', 'qrc-decoder/dist/qrc_codec.d.cts',
       'qrc-decoder/dist/qrc_codec.d.mts', 'semver/range.bnf',
       'pako/dist/pako.js', 'pako/dist/pako_inflate.es5.js', 'js-yaml/dist/js-yaml.min.js']],
     [true, ['@clamber_l/crypto/LICENSE_APACHE', '@clamber_l/crypto/LICENSE_MIT',
       '@clamber_l/crypto/dist/loader.js', '@clamber_l/crypto/dist/um_wasm_bg.wasm',
+      '@clamber_l/crypto/dist/loader.mjs', '@jixun/qmweb-sign/dist/node.mjs',
+      'pend/index.js', 'pend/LICENSE',
       '@jixun/qmweb-sign/dist/node.cjs', '@jixun/qmweb-sign/LICENSE',
       'qrc-decoder/dist/qrc_codec.cjs', 'qrc-decoder/dist/qrc_codec.mjs', 'qrc-decoder/LICENSE',
       'pako/index.js', 'pako/lib/inflate.js', 'pako/dist/pako.esm.mjs', 'pako/lib/zlib/README',

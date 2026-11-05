@@ -1,0 +1,64 @@
+<section id="nowPlayingPage" class="other-feature-panel" role="tabpanel" aria-labelledby="nowPlayingFeatureTab" data-other-feature-panel hidden>
+  <div class="other-feature-panel-body now-playing-settings-page">
+    <div class="component-toolbar">
+      <div class="component-toolbar-group">
+        <p id="nowPlayingSourceStatus" class="hint" role="status">正在读取音乐来源…</p>
+        <button id="nowPlayingSourceSettings" class="secondary" type="button">调整音乐来源</button>
+        <lira-help>与直播歌词共用音乐来源。调整后，歌词和歌曲信息组件一起跟随所选播放器。</lira-help>
+      </div>
+      <div class="component-toolbar-group">
+        <button id="nowPlayingOpenCanvas" class="secondary" type="button">在画布中使用</button>
+        <button id="nowPlayingCopyUrl" class="secondary" type="button">复制浏览器源</button>
+      </div>
+    </div>
+    <div class="now-playing-workspace">
+      <div class="now-playing-settings">
+        <section class="now-playing-styles" aria-labelledby="nowPlayingStylesTitle">
+          <h3 id="nowPlayingStylesTitle" class="ui-section-title">唱片样式</h3>
+          <div class="now-playing-style-options">
+            <button class="now-playing-style-option" type="button" data-now-playing-style="vinyl" aria-pressed="true">
+              <span class="now-playing-style-art" aria-hidden="true"></span>
+              <span>黑胶唱片</span>
+            </button>
+            <button class="now-playing-style-option" type="button" data-now-playing-style="cover" aria-pressed="false">
+              <span class="now-playing-style-art" aria-hidden="true"></span>
+              <span>圆形封面</span>
+            </button>
+            <button class="now-playing-style-option" type="button" data-now-playing-style="turntable" aria-pressed="false">
+              <span class="now-playing-style-art" aria-hidden="true"></span>
+              <span>唱片机</span>
+            </button>
+          </div>
+        </section>
+        <fieldset id="nowPlayingParameters" class="now-playing-parameters" disabled>
+          <legend class="sr-only">歌曲信息外观与显示设置</legend>
+        </fieldset>
+      </div>
+      <section class="now-playing-preview-card" aria-labelledby="nowPlayingPreviewTitle">
+        <header class="now-playing-preview-header">
+          <h3 id="nowPlayingPreviewTitle" class="ui-section-title">实时预览</h3>
+          <label class="component-inline-field">
+            <span class="sr-only">预览内容</span>
+            <select id="nowPlayingPreviewMode" aria-label="预览内容">
+              <option value="live">当前歌曲</option>
+              <option value="sample">示例歌曲</option>
+            </select>
+          </label>
+        </header>
+        <div class="now-playing-preview-stage">
+          <div id="nowPlayingPreview" class="now-playing-preview-content"></div>
+          <p id="nowPlayingPreviewEmpty" class="now-playing-preview-empty">等待播放，也可以切换到示例歌曲调试样式。</p>
+        </div>
+        <p id="nowPlayingPreviewStatus" class="hint now-playing-preview-status" role="status">预览跟随当前歌曲。</p>
+      </section>
+    </div>
+    <div class="now-playing-savebar">
+      <p id="nowPlayingSaveState" class="hint" role="status">正在读取外观…</p>
+      <div class="component-toolbar-group">
+        <button id="nowPlayingReload" class="secondary" type="button">重新读取</button>
+        <button id="nowPlayingDiscard" class="secondary" type="button" disabled>放弃未保存修改</button>
+        <button id="nowPlayingSave" class="primary" type="button" disabled>保存外观</button>
+      </div>
+    </div>
+  </div>
+</section>

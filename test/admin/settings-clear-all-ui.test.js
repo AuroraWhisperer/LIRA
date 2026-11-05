@@ -103,7 +103,7 @@ test('Admin clear-all alerts and reloads for a structured partial failure', asyn
   assert.match(alerts[0], /songDb/);
   assert.match(alerts[0], /superChatDb/);
   assert.match(alerts[0], /仍暂停.*刷新页面不会恢复/);
-  assert.match(alerts[0], /桌面更新.*日志目录.*再次完整清空/);
+  assert.match(alerts[0], /日志目录.*再次完整清空/);
   assert.equal(reloadCount, 1);
   assert.deepEqual(toasts, []);
 });

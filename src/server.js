@@ -10,6 +10,7 @@ const { openAdminPageIfNeeded } = require('./server/admin-launcher');
 const { createBilibiliClient: buildBilibiliClient } = require('./server/bilibili-client');
 const { createBilibiliRuntime } = require('./server/bilibili-runtime');
 const { buildMusicRuntime } = require('./server/music-runtime');
+const { readNowPlayingConfig } = require('./server/now-playing-settings');
 const { buildAiRuntime } = require('./server/ai-runtime');
 const { createInflightTracker } = require('./server/inflight-tracker');
 const { createServerCompatibility } = require('./server/compatibility-runtime');
@@ -209,7 +210,10 @@ function createServerRuntime(runtimeOptions = {}) {
               }
             : null,
         giftEffectResolver,
-        onGiftFlushed: publishGiftFlushed,
+        onGiftFlushed: (item) => {
+          publishGiftFlushed(item);
+          options.onGiftFlushed?.(item);
+        },
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
       const displayPorts = {
@@ -256,6 +260,7 @@ function createServerRuntime(runtimeOptions = {}) {
         settingsStore,
         webSocketHub,
         onLyricsChanged: () => sceneRuntime?.notify({ types: ['lyrics'] }),
+        onNowPlayingChanged: () => sceneRuntime?.notify({ types: ['now-playing'] }),
       });
       publishOvertimeUpdate = broadcastOvertimeUpdate;
       bilibiliRuntime = createBilibiliRuntime({
@@ -479,6 +484,8 @@ function createServerRuntime(runtimeOptions = {}) {
       bilibiliDiagnostics: () => bilibiliDiagnostics,
       lyricState: () => musicRuntime.getLyricState(),
       lyricTimeline: () => musicRuntime.getLyricTimeline(),
+      nowPlaying: () => musicRuntime.getNowPlayingState(),
+      nowPlayingConfig: () => readNowPlayingConfig(settingsStore.getSettings()),
       lyricSource: () => musicRuntime.getLyricSource(),
       weSing: () => musicRuntime.weSingCapture.getStatus(),
       danmakuFeed: () => danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],

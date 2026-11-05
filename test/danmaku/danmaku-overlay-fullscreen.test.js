@@ -284,6 +284,35 @@ test('fullscreen random danmaku positions are stable, bounded, and expire from t
   assert.ok(cancelled.includes(activeFadeTimer));
   assert.equal(motionPreference.listener, null);
   assert.equal(root.children.length, 0);
+
+  now = 20000;
+  const timedFeed = module.createDanmakuFeed(root, {
+    layout: 'fullscreen-random', itemLifetimeMs: 2000, exitDurationMs: 600,
+    now: () => now, autoScroll: false,
+    scheduleTimeout(callback, delay) { const timer = { callback, delay }; scheduled.push(timer); return timer; },
+    cancelTimeout: timer => cancelled.push(timer),
+  });
+  timedFeed.append({ id: 'old-timing', timestamp: now, message: '保留本条到期点' });
+  const oldNode = root.children[0];
+  const oldFade = scheduled.at(-1);
+  assert.equal(oldFade.delay, 1400);
+  timedFeed.setExpirationOptions({ itemLifetimeMs: 4000, exitAnimation: 'none', exitDurationMs: 1000 });
+  timedFeed.append({ id: 'new-timing', timestamp: now, message: '后续直接消失' });
+  const newExpiry = scheduled.at(-1);
+  assert.equal(newExpiry.delay, 4000);
+  assert.equal(root.children[0], oldNode);
+  now = 21400;
+  oldFade.callback();
+  assert.equal(scheduled.at(-1).delay, 600, 'the existing message keeps its own exit duration');
+  now = 22000;
+  scheduled.at(-1).callback();
+  assert.equal(root.children.length, 1, 'editing timing does not extend the existing message');
+  const animationCount = animations.length;
+  now = 24000;
+  newExpiry.callback();
+  assert.equal(root.children.length, 0);
+  assert.equal(animations.length, animationCount, 'direct removal never starts an exit animation');
+  timedFeed.destroy();
 });
 
 test('fullscreen random preview keeps rendered items without expiration timers', async () => {

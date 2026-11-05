@@ -123,6 +123,10 @@ export class StateService {
         if (payload.timeline !== null && !isRecord(payload.timeline)) return;
         this.applyRealtimeField('lyricTimeline', payload.timeline);
         dispatchRealtimeState('app:lyric-timeline', payload.timeline);
+      } else if (payload.type === 'now-playing') {
+        if (!isRecord(payload.state)) return;
+        this.applyRealtimeField('nowPlaying', payload.state);
+        dispatchRealtimeState('app:now-playing', payload.state);
       } else if (payload.type === 'game:update') {
         dispatchRealtimeState('app:game-update', payload.session, true);
       } else if (payload.type === 'game:patch' && payload.state) {
@@ -214,6 +218,8 @@ export class StateService {
       ['lyricSource', 'app:lyric-source'],
       ['lyricState', 'app:lyric-state'],
       ['lyricTimeline', 'app:lyric-timeline'],
+      ['nowPlaying', 'app:now-playing'],
+      ['nowPlayingConfig', 'app:now-playing-config'],
     ]) {
       if (changedKeys.includes(key)) dispatchRealtimeState(eventName, next[key]);
     }
