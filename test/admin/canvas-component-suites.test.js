@@ -108,7 +108,7 @@ test('Moonlit lyrics load imported resources, publish live words once and wait f
   assert.deepEqual(errors, []);
 });
 
-test('wish canvas fits the selected number of catalog examples and publishes only actual wishes', { timeout: 45000 }, async t => {
+test('wish canvas fits the selected number of saved wishes and publishes actual progress', { timeout: 45000 }, async t => {
   const { randomUUID } = require('node:crypto');
   const { createComponentStyleStore } = require('../../src/storage/component-style-store');
   const { saveMedia } = require('../../src/server/component-media-files');
@@ -117,9 +117,13 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
   const actualWish = { id: 'actual-wish', period: 'day', giftName: '实际许愿',
     imagePath: '/img/overlays/gift-feed/flower.webp', target: 50, count: 12, todayCount: 12,
     remaining: 38, progress: 24, completed: false, displayStyle: 'card' };
+  const actualWishes = [actualWish, ...['cheer', 'call'].map((artwork, index) => ({
+    ...actualWish, id: `actual-wish-${index + 2}`, giftName: `实际许愿 ${index + 2}`,
+    imagePath: `/img/overlays/gift-feed/${artwork}.webp`,
+  }))];
   const fixture = await suiteFixture(t, { notifications: true, extraContext: {
     gifts: { getViewRevision: () => 'synthetic-wishes' },
-    giftWishes: { getSnapshot: async () => ({ items: [{ ...actualWish }] }) },
+    giftWishes: { getSnapshot: async () => ({ items: actualWishes.map(wish => ({ ...wish })) }) },
   } }, { installed: false });
   t.after(() => fixture.close());
   const store = createComponentStyleStore(fixture.dataDir);
@@ -153,12 +157,9 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
     assert.deepEqual(childRequests, [], 'Wish frames use the existing parent data channel.');
   });
   const url = await openCanvasDesktop(desktop, fixture);
-  const gifts = ['flower', 'cheer', 'call', 'flower'].map((artwork, index) => ({
-    id: String(index + 1), name: `合成礼物 ${index + 1}`, imagePath: `/img/overlays/gift-feed/${artwork}.webp`,
-  }));
   await desktop.route('**/api/overtime/gifts/catalog', route => {
     catalogReads++;
-    return route.fulfill({ json: { ok: true, data: { gifts } } });
+    return route.fulfill({ json: { ok: true, data: { gifts: [] } } });
   });
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
@@ -187,7 +188,7 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
     return images.map(image => ({ name: image.alt, path: image.getAttribute('src') }));
   });
   assert.equal(new Set(selectedGifts.map(gift => gift.name)).size, 3);
-  for (const gift of selectedGifts) assert.ok(gifts.some(entry => entry.name === gift.name && entry.imagePath === gift.path));
+  for (const gift of selectedGifts) assert.ok(actualWishes.some(wish => wish.giftName === gift.name && wish.imagePath === gift.path));
   await limit.fill('1'); await limit.press('Tab');
   const finalHeight = await fitted(1, 'moonlit');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
@@ -211,7 +212,7 @@ test('wish canvas fits the selected number of catalog examples and publishes onl
   await published.locator('.wish-card-count').filter({ hasText: '55' }).waitFor();
   assert.equal(await published.locator('.wish-card').count(), 1);
   assert.equal(await published.locator('[role="progressbar"]').getAttribute('aria-valuenow'), '50');
-  assert.equal(catalogReads, 1);
+  assert.equal(catalogReads, 0);
 });
 
 test('moonlit queue parameters edit the installed preset and survive scene publication', { timeout: 45000 }, async t => {
@@ -348,7 +349,8 @@ test('adding a suite clock from the client synchronizes its instance before reus
     let intercepted = false;
     const intercept = async route => {
       const body = route.request().postDataJSON();
-      if (body.action !== 'exchange' || body.id !== canvasSessionId || intercepted) return route.fallback();
+      if (body.action !== 'exchange' || body.id !== canvasSessionId
+        || body.state?.draft.document.items.length !== count || intercepted) return route.fallback();
       intercepted = true;
       const response = await route.fetch({ headers: { ...route.request().headers(), Authorization: `Bearer ${fixture.token}` } });
       observed();
@@ -356,10 +358,10 @@ test('adding a suite clock from the client synchronizes its instance before reus
       await route.fulfill({ response });
     };
     await desktop.route('**/api/component-preview', intercept);
-    await inFlight;
     const linked = desktop.waitForResponse(response => response.request().postDataJSON()?.action === 'link');
     try {
       await desktop.getByRole('button', { name: '在画布中使用', exact: true }).click();
+      await inFlight;
     } finally { release(); }
     const response = await linked;
     assert.equal(response.status(), 200, JSON.stringify(await response.json()));

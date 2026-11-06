@@ -2,6 +2,7 @@ import { BACKGROUND_FIELDS } from './background-appearance.js';
 import { OPENING_APPEARANCE_FIELDS } from './opening-appearance.js';
 import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
 import { NOW_PLAYING_FIELDS } from './now-playing-appearance.js';
+import { GIFT_WISH_RIBBON_FIELDS } from './gift-wish-ribbon-appearance.js';
 
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
@@ -62,32 +63,32 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
       desktopLyricFontFamily: text('字体', 'Lira Maiyuan', 256), desktopLyricFontWeight: fontWeight,
       desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('未唱颜色（含普通整句与翻译）', '#000000'),
       desktopLyricTextAlign: select('文字对齐', 'left', { left: '左对齐', center: '居中', right: '右对齐', justify: '两端对齐' }),
-      desktopLyricLineHeight: number('行高', '1.4', 1, 2, 0.1), desktopLyricVisibleLines: number('显示行数（0 为自动）', '0', 0, 99),
+      desktopLyricLineHeight: number('行高', '1.4', 1, 2, 0.1), desktopLyricVisibleLines: number('自定义行数', '0', 0, 99),
       desktopLyricOpacity: number('文字不透明度', '0.95', 0, 1, 0.05),
-      desktopLyricKaraokeMode: select('逐字效果', 'continuous', { off: '关闭', continuous: '连续', discrete: '逐字' }),
+      desktopLyricKaraokeMode: select('逐字高亮方式', 'continuous', { off: '关闭（整句显示）', continuous: '连续填充', discrete: '逐字点亮' }),
       desktopLyricSungColor: { ...color('已唱颜色', ''), allowEmpty: true, inheritLabel: '跟随样式' },
       desktopLyricShowTranslation: check('显示翻译', 'true'), desktopLyricTranslationScale: number('翻译字号比例', '0.65', 0.4, 1, 0.05),
       desktopLyricHidePassedLines: check('隐藏已唱歌词', 'false'), desktopLyricHideOnPause: check('暂停时隐藏', 'false'),
       desktopLyricStrokeEnabled: check('文字描边', 'false'), desktopLyricStrokeColor: color('描边颜色', '#ffffff'),
       desktopLyricStrokeWidth: number('描边宽度', '3', 0, 6, 0.5), desktopLyricShadowEnabled: check('文字阴影', 'true'),
-      desktopLyricTimeOffsetMs: number('歌词偏移（毫秒）', '0', -5000, 5000, 50),
+      desktopLyricTimeOffsetMs: number('歌词时间偏移（毫秒）', '0', -5000, 5000, 50),
       desktopLyricNoLyricText: text('无歌词提示', '纯音乐，请欣赏'),
       desktopLyricFallbackFontFamily: text('备用字体', 'Microsoft JhengHei'),
       desktopLyricLetterSpacing: number('字间距', '0', -0.1, 2, 0.01),
       desktopLyricShadowColor: color('阴影颜色', '#000000', 'desktopLyricShadowIntensity'), desktopLyricShadowIntensity: number('阴影强度', '0.35', 0, 1, 0.01),
       desktopLyricShadowBlur: number('阴影模糊', '8', 0, 30),
       desktopLyricShadowOffsetX: number('阴影水平偏移', '0', -20, 20), desktopLyricShadowOffsetY: number('阴影垂直偏移', '3', -20, 20),
-      desktopLyricTraditionalMode: check('繁体歌词', 'false'), desktopLyricInterludeOffsetEm: number('间奏位置偏移', '0', -10, 10, 0.1),
-      desktopLyricCurrentLineEnhanced: check('当前行底板', 'false'), desktopLyricBaseOpacity: number('未唱歌词不透明度', '0.38', 0, 1, 0.01),
+      desktopLyricTraditionalMode: check('优先使用繁体字形', 'false'), desktopLyricInterludeOffsetEm: number('间奏提示点位置', '0', -10, 10, 0.1),
+      desktopLyricCurrentLineEnhanced: check('当前行底板', 'false'), desktopLyricBaseOpacity: number('非当前行不透明度', '0.38', 0, 1, 0.01),
       desktopLyricTranslationOpacity: number('翻译不透明度', '0.72', 0, 1, 0.01),
       desktopLyricShowTitleWhenNoLyric: check('无歌词时显示歌名', 'false'),
-      desktopLyricSpringAnimation: check('弹簧动画', 'false'), desktopLyricBlurEffect: check('模糊效果', 'false'),
-      desktopLyricScaleEffect: check('缩放效果', 'false'), desktopLyricScale: number('缩放比例', '1', 0.5, 2, 0.01),
-      desktopLyricAlignPosition: number('对齐位置', '0.5', 0, 1, 0.01),
-      desktopLyricAlignAnchor: select('对齐锚点', 'center', { start: '开始', center: '中间', end: '末尾' }),
+      desktopLyricSpringAnimation: check('弹性动画', 'false'), desktopLyricBlurEffect: check('模糊非当前行', 'false'),
+      desktopLyricScaleEffect: check('突出当前行大小', 'false'), desktopLyricScale: number('整体缩放', '1', 0.5, 2, 0.01),
+      desktopLyricAlignPosition: number('当前行垂直位置', '0.5', 0, 1, 0.01),
+      desktopLyricAlignAnchor: select('当前行对齐锚点', 'center', { start: '顶部', center: '中心', end: '底部' }),
       desktopLyricTranslateX: number('水平偏移', '0', -500, 500), desktopLyricTranslateY: number('垂直偏移', '0', -500, 500),
       desktopLyricPerspective: number('透视距离', '800', 200, 2000),
-      desktopLyricRotateX: number('X 轴旋转', '0', -45, 45), desktopLyricRotateY: number('Y 轴旋转', '0', -45, 45),
+      desktopLyricRotateX: number('上下倾斜角度', '0', -45, 45), desktopLyricRotateY: number('左右倾斜角度', '0', -45, 45),
       desktopLyricBackgroundEnabled: check('歌词背景', 'false'),
       desktopLyricBackgroundRenderer: select('背景效果', 'mesh', { mesh: '流动网格', aurora: '极光', solid: '纯色' }),
       desktopLyricBgOpacity: number('背景不透明度', '0.15', 0, 1, 0.01),
@@ -130,8 +131,11 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   },
   'gift-frame': {
     title: '全屏礼物感谢', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
-    variants: [],
-    fields: {},
+    variantKey: 'style',
+    variants: [variant('gift-drop', '礼物掉落', '重力掉落 · 碰撞堆积'), variant('gift-swing', '礼物摇摇乐', '底部立牌 · 弹性回摆')],
+    fields: { style: { ...select('动画风格', 'follow', {
+      follow: '跟随已启用效果', 'gift-drop': '礼物掉落', 'gift-swing': '礼物摇摇乐',
+    }), optional: true } },
   },
   'guard-thanks': {
     title: '大航海感谢', size: [2560, 1440], path: '/gift-effects?giftComponent=guard', variantKey: 'style',
@@ -176,19 +180,29 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   },
   'gift-wishes': {
     title: '礼物许愿', size: [440, 600], path: '/gift-wishes', variantKey: 'displayStyle',
-    variants: [variant('card', '礼物卡片', '心愿进度'), variant('text', '文字版', '距离目标还差…'), variant('circle', '圆形徽章', '完成进度')],
+    variants: [variant('card', '礼物卡片', '心愿进度'), variant('text', '文字版', '距离目标还差…'), variant('circle', '圆形徽章', '完成进度'),
+      variant('ribbon', '流光彩带', '动态许愿进度')],
     fields: {
       period: select('许愿周期', 'all', { all: '全部', long: '长效许愿', day: '本日许愿', session: '本场直播许愿' }),
-      displayStyle: select('展示样式', 'card', { original: '跟随每条许愿', card: '礼物卡片', text: '文字版', circle: '圆形徽章', moonlit: '月渡花汀' }),
+      displayStyle: select('展示样式', 'card', { original: '跟随每条许愿', card: '礼物卡片', text: '文字版', circle: '圆形徽章', ribbon: '流光彩带', moonlit: '月渡花汀' }),
       showCompleted: check('显示已完成许愿'), limit: number('显示条数', 1, 1, 30),
       gap: number('条目间距', 12, 0, 80), textPendingColor: color('当日未收到的文字颜色', '#3b6ea8'),
       textReceivedColor: color('当日已收到的文字颜色', '#21815c'),
+      ...GIFT_WISH_RIBBON_FIELDS,
     },
   },
   'gift-sprint': {
     title: '月底冲刺', size: [600, 80], path: '/gift-sprint',
     variants: [variant('default', '月底冲刺', '还差 100 个水晶球')],
     fields: {},
+  },
+  'heart-box-collection': {
+    title: '心动盲盒', size: [620, 252], path: '/heart-box-collection', variantKey: 'displayStyle',
+    variants: [variant('task', '心动收集', '解锁本周心动奖励'), variant('compact', '紧凑进度', '收集心动盲盒')],
+    fields: {
+      displayStyle: select('展示样式', 'task', { task: '心动收集', compact: '紧凑进度' }),
+      showRewards: check('显示倍率和限开数量'),
+    },
   },
 });
 

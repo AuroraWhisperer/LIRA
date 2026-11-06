@@ -4,7 +4,6 @@ import {
   BANNER_GAP,
   createGiftBanner,
   createGiftArtworkResolver,
-  giftExportPages,
   readyGiftImages,
 } from '../../shared/gift-banner.js';
 
@@ -38,25 +37,27 @@ export function createGiftExportPreview({ showPane }) {
       artworkCatalog = task.snapshot.catalog;
       artwork = createGiftArtworkResolver(artworkCatalog);
     }
-    const pages = giftExportPages(task.snapshot.items, task.mode);
-    page = Math.min(page, pages.length - 1);
+    const files = task.files;
+    page = Math.min(page, files.length - 1);
+    const file = files[page];
+    const items = task.snapshot.items.slice(file.start, file.start + file.count);
     get('giftExportSummary').textContent =
-      `已选 ${task.snapshot.selectedCount ?? task.snapshot.items.length} 条 · ${task.snapshot.items.length} 张卡片 · 输出 ${pages.length} 张 PNG`;
+      `已选 ${task.snapshot.selectedCount ?? task.snapshot.items.length} 条 · ${task.snapshot.items.length} 张卡片 · 输出 ${files.length} 张 PNG`;
     get('giftExportDirectory').textContent = task.directory;
-    get('giftExportPage').textContent = `${page + 1} / ${pages.length}`;
+    get('giftExportPage').textContent = `${page + 1} / ${files.length}`;
     get('giftExportPrev').disabled = page === 0;
-    get('giftExportNext').disabled = page === pages.length - 1;
+    get('giftExportNext').disabled = page === files.length - 1;
     get('giftExportMode').value = task.mode;
     get('giftExportBackground').value = task.background;
     get('giftExportSettingsDirectory').textContent = task.root;
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
     preview.replaceChildren(
-      ...pages[page].map((item) => createGiftBanner(item, task.snapshot.config, artwork)),
+      ...items.map((item) => createGiftBanner(item, task.snapshot.config, artwork)),
     );
     const width = Math.max(BANNER_WIDTH * 2, Math.ceil(preview.getBoundingClientRect().width * 2));
     get('giftExportFiles').textContent =
-      `${task.files[page].fileName} · ${width} × ${(pages[page].length * BANNER_HEIGHT + (pages[page].length - 1) * BANNER_GAP) * 2} 像素${task.mode === 'combined' && pages.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
+      `${file.fileName} · ${width} × ${(items.length * BANNER_HEIGHT + (items.length - 1) * BANNER_GAP) * 2} 像素${task.mode === 'combined' && files.length > 1 ? '；超过单图高度，已按每张最多 39 条拆分。' : ''}`;
     await readyGiftImages(preview);
   }
 

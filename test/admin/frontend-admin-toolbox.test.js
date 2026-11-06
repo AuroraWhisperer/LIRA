@@ -1,10 +1,8 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
@@ -80,38 +78,17 @@ test('metrics distinguish unavailable samples from real zero load', async () => 
   assert.notEqual(unavailable, '0.0%');
 });
 
-test('desktop update opens its toolbox feature through module APIs', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'public', 'js', 'desktop.js'), 'utf8');
+test('desktop update invokes the supplied navigation action', async () => {
   let showUpdatePage;
-  let selectedPage = '';
-  let selectedFeature = '';
-  let aboutOpened = false;
+  let opened = 0;
   const sandbox = {
     console,
     document: {
       body: { classList: { add() {} } },
-      getElementById: (id) => id === 'settingsAboutTab' ? { click() { aboutOpened = true; } } : null,
+      getElementById: () => null,
       querySelectorAll: () => [],
     },
     window: {
-      AdminApp: {
-        utils: {
-          toast() {},
-          showStackedToast() {},
-          showError() {},
-          api: async () => ({}),
-        },
-        navigation: {
-          setMainPage(pageId) {
-            selectedPage = pageId;
-          },
-        },
-        other: {
-          selectFeatureById(featureId) {
-            selectedFeature = featureId;
-          },
-        },
-      },
       songAssistantDesktop: {
         onShowUpdatePage(callback) {
           showUpdatePage = callback;
@@ -122,11 +99,12 @@ test('desktop update opens its toolbox feature through module APIs', () => {
     },
   };
 
-  vm.runInNewContext(source, sandbox);
-  sandbox.window.AdminApp.desktop.initDesktopShell();
+  const { createDesktopShell } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/desktop.js'), sandbox);
+  createDesktopShell({
+    showError() {},
+    openUpdatePage: () => { opened++; },
+  }).initDesktopShell();
   showUpdatePage();
 
-  assert.equal(selectedPage, 'otherAssistantPage');
-  assert.equal(selectedFeature, 'otherSettingsFeature');
-  assert.equal(aboutOpened, true);
+  assert.equal(opened, 1);
 });

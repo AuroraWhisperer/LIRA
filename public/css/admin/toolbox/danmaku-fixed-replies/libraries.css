@@ -1,0 +1,102 @@
+/* Daily, scheduled and welcome/PK library headers, rows, search and pagination. */
+
+.danmaku-scheduled-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  align-items: end;
+  gap: 12px;
+}
+#danmakuScheduledPanel .danmaku-blessings-body {
+  margin-top: 16px;
+}
+.danmaku-welcome-server-status,
+.danmaku-welcome-library-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  padding-top: 4px;
+}
+.danmaku-welcome-server-status > span {
+  margin-right: auto;
+}
+.danmaku-welcome-server-status {
+  padding-top: 2px;
+}
+.danmaku-welcome-library-heading {
+  padding-top: 0;
+}
+#danmakuWelcomeLibraries,
+#danmakuPkReportPanel {
+  display: grid;
+  gap: 12px;
+}
+#danmakuWelcomeLibraries > .danmaku-blessing-add-row,
+#danmakuPkReportPanel > .danmaku-blessing-add-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+#danmakuWelcomeAddBtn,
+#danmakuPkReportAddBtn {
+  white-space: nowrap;
+}
+.danmaku-library-pagination {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+}
+.daily-library-list-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+:is(#danmakuDailyLibraryPanel, #danmakuScheduledPanel) .danmaku-blessing-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 8px 12px;
+}
+#danmakuDailyLibraryPanel .danmaku-fortune-row {
+  padding: 8px 16px;
+  gap: 8px;
+}
+#danmakuDailyLibraryPanel .danmaku-fortune-row-heading {
+  justify-content: space-between;
+  gap: 20px;
+}
+#danmakuDailyLibraryPanel .danmaku-fortune-row-heading > span {
+  font-size: 13px;
+  font-weight: 600;
+}
+#danmakuDailyLibraryPanel .danmaku-fortune-fields {
+  grid-template-columns: minmax(70px, 0.6fr) minmax(100px, 1fr) minmax(0, 2fr) minmax(0, 2fr);
+  gap: 12px;
+}
+.daily-library-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  white-space: nowrap;
+}
+.danmaku-fixed-reply-section .daily-library-search input {
+  width: clamp(160px, 24cqi, 280px);
+  padding-left: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23928b80' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='10.5' cy='10.5' r='6.5'/%3E%3Cpath d='m16 16 4.5 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: 9px center;
+}
+#dailyLibraryRefresh {
+  margin-left: auto;
+}
+@container fixed-replies (width < 640px) {
+  #danmakuDailyLibraryPanel .danmaku-fortune-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@container fixed-replies (width < 480px) {
+  #danmakuDailyLibraryPanel .danmaku-fortune-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

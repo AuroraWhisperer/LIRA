@@ -26,7 +26,6 @@ body {
   position: relative;
   width: var(--component-width, 100vw);
   height: var(--component-height, 100vh);
-  height: var(--component-height, 100dvh);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -34,6 +33,13 @@ body {
   color: var(--ot-text);
   font-size: 2cqmin;
   isolation: isolate;
+}
+
+/* Unsupported units inside var() invalidate the computed height, including its vh fallback. */
+@supports (height: 100dvh) {
+  .overtime-machine {
+    height: var(--component-height, 100dvh);
+  }
 }
 
 .overtime-background,

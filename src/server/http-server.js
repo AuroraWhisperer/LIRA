@@ -123,6 +123,7 @@ function createHttpServer(options = {}) {
 
       if (requestUrl.pathname.startsWith('/api/')) {
         await inflightTracker.run(() => apiRoutes.handleApi({ ...createApiContext(), componentPreviews,
+          getComponentPreviewStatus: () => getPhase() !== 'ready' ? 503 : isLicenseAuthorized() ? 200 : 423,
           getSceneOutputStatus: () => getPhase() !== 'ready' ? 503 : isLicenseAuthorized() ? 200 : 423,
         }, req, res, requestUrl));
         return;

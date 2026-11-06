@@ -80,6 +80,8 @@
 | ------------------------------------------------------------- | ------------------------------------------------------------------------ |
 | 端口/环境变量/启动与关闭时序/token 注入机制                   | [backend/server-core.md](backend/server-core.md)                         |
 | 本地 HTTP 端点与方法/请求/响应/错误码契约                   | [backend/api.md](backend/api.md)                                         |
+| 场景发布、独立组件来源及浏览器预览会话接口                   | [backend/api.md](backend/api.md#本地场景)、[预览会话](backend/api.md#浏览器组件预览) |
+| 场景来源渲染、完整版本切换与共享外观投影                     | [frontend/overlays.md](frontend/overlays.md#本地场景浏览器来源)             |
 | `roomId` 规范化算法/`customReplyRules` 解析规则               | [backend/api.md](backend/api.md) §2.1–§2.2                               |
 | WS 传输参数/管理快照契约/消息类型/reason 枚举                 | [backend/ws.md](backend/ws.md)                                           |
 | Bilibili 用户信息合并、字段投影与房间 run 生命周期            | [backend/bilibili/danmaku.md](backend/bilibili/danmaku.md) §10           |

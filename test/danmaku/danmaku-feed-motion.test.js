@@ -58,7 +58,7 @@ for (const style of ['starlight', 'notebook', 'christmas']) {
   test(`${style} can stop ambient loops while new messages keep their entrance and movement`, { timeout: 15000 }, async t => {
     const page = await preview(t, 'down', 1, style);
     const stopped = await page.evaluate(async style => {
-      const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+      const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
       const loops = () => document.getAnimations().filter(animation => animation.effect.getTiming().iterations === Infinity);
       const before = loops().length;
       const nodes = Array.from(root.children);
@@ -87,7 +87,7 @@ for (const style of ['starlight', 'notebook', 'christmas']) {
     await page.waitForFunction(() => document.getAnimations().length === 0);
     assert.equal(await page.evaluate(() => root.lastElementChild.textContent.includes('纸张和装饰静止，入场与滚动继续。')), true);
     await page.evaluate(async style => {
-      const { applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+      const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
       applyStyleOptions(document, style, {});
     }, style);
     assert.ok(await page.evaluate(() => document.getAnimations().some(animation => animation.effect.getTiming().iterations === Infinity)),

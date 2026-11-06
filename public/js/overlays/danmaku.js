@@ -9,7 +9,8 @@ import { createTwitterRoomProfile } from './danmaku-twitter-profile.js';
 import { applySpookyColorFallback } from './danmaku-spooky.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { createOverlaySocket } from './socket-client.js';
-import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, applyStyleOptions, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { applyStyleOptions } from './danmaku-style-application.js';
 
 ('use strict');
 

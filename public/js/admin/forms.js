@@ -1,5 +1,4 @@
 import { setOverlayStyle } from './theme-style-view.js';
-import { publishForms } from './legacy-admin-bridge.js';
 // 编写人：Aurora
 // 表单工具和通用组件
 ('use strict');
@@ -365,5 +364,3 @@ export class FormsService {
 
 // 创建单例实例
 export const formsService = new FormsService();
-
-publishForms(formsService);

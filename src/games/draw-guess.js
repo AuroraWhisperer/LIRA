@@ -1,6 +1,7 @@
 'use strict';
 
 const { DEFAULT_WORDS, getWordCategorySummaries } = require('./draw-guess-words');
+const { createCanvasState, cloneCanvasState, applyCanvasOperation } = require('./draw-guess-canvas');
 
 const DEFAULT_TOTAL_ROUNDS = 5;
 const MIN_TOTAL_ROUNDS = 1;
@@ -11,13 +12,6 @@ const MAX_ROUND_DURATION_SECONDS = 300;
 const ROUND_DURATION_MS = 90 * 1000;
 const SCORE_BY_RANK = [10, 7, 5];
 const LATER_CORRECT_SCORE = 3;
-const DRAW_COLORS = new Set(['#222034', '#6c5ce7', '#ef476f', '#118ab2', '#06d6a0', '#f6bd60', '#ffffff']);
-const DRAW_WIDTHS = new Set([2, 4, 8, 12]);
-const MAX_STROKES = 160;
-const MAX_POINTS_PER_STROKE = 500;
-const MAX_POINTS_PER_OPERATION = 32;
-const MAX_TOTAL_POINTS = 6000;
-
 function createDrawGuessState(options = {}) {
   const normalizedWords = normalizeWords(options.words || DEFAULT_WORDS);
   const requestedCategoryIds = normalizeCategoryIds(options.categoryIds, normalizedWords);
@@ -148,81 +142,9 @@ function chooseDrawGuessWord(state, word, nowMs = 0) {
 
 function applyDrawOperation(state, input = {}) {
   if (!state || state.phase !== 'drawing') return reject('当前不在作画阶段。', state);
-  const clientId = normalizeIdentifier(input.clientId);
-  if (!clientId) return reject('绘画客户端标识无效。', state);
-  if (input.action === 'clear') {
-    const revision = state.canvas.revision + 1;
-    return {
-      accepted: true,
-      operation: { action: 'clear', clientId, revision },
-      state: { ...state, canvas: { revision, totalPoints: 0, strokes: [] } },
-    };
-  }
-  if (input.action === 'undo') {
-    const stroke = state.canvas.strokes.at(-1);
-    if (!stroke) return reject('没有可撤销的笔画。', state);
-    const revision = state.canvas.revision + 1;
-    return {
-      accepted: true,
-      operation: { action: 'undo', clientId, strokeId: stroke.id, revision },
-      state: {
-        ...state,
-        canvas: {
-          revision,
-          totalPoints: Math.max(0, state.canvas.totalPoints - stroke.points.length),
-          strokes: state.canvas.strokes.slice(0, -1),
-        },
-      },
-    };
-  }
-  if (input.action !== 'append') return reject('不支持这个绘画操作。', state);
-
-  const strokeId = normalizeIdentifier(input.strokeId);
-  const color = String(input.color || '').toLowerCase();
-  const width = Number(input.width);
-  const points = normalizePoints(input.points);
-  if (!strokeId) return reject('笔画标识无效。', state);
-  if (!DRAW_COLORS.has(color)) return reject('画笔颜色无效。', state);
-  if (!DRAW_WIDTHS.has(width)) return reject('画笔粗细无效。', state);
-  if (!points) return reject(`每次请提交 1-${MAX_POINTS_PER_OPERATION} 个有效坐标。`, state);
-
-  const strokeIndex = state.canvas.strokes.findIndex((stroke) => stroke.id === strokeId);
-  const existing = strokeIndex >= 0 ? state.canvas.strokes[strokeIndex] : null;
-  if (!existing && state.canvas.strokes.length >= MAX_STROKES) return reject('本局笔画数量已达上限。', state);
-  if (existing && (existing.color !== color || existing.width !== width))
-    return reject('同一笔画的样式不能改变。', state);
-  if ((existing?.points.length || 0) + points.length > MAX_POINTS_PER_STROKE)
-    return reject('单笔坐标数量已达上限。', state);
-  if (state.canvas.totalPoints + points.length > MAX_TOTAL_POINTS) return reject('本局画布坐标数量已达上限。', state);
-
-  const strokes = state.canvas.strokes.map((stroke) => ({
-    ...stroke,
-    points: [...stroke.points],
-  }));
-  if (existing) strokes[strokeIndex].points.push(...points);
-  else strokes.push({ id: strokeId, color, width, points: [...points] });
-  const revision = state.canvas.revision + 1;
-  const operation = {
-    action: 'append',
-    clientId,
-    strokeId,
-    color,
-    width,
-    points,
-    revision,
-  };
-  return {
-    accepted: true,
-    operation,
-    state: {
-      ...state,
-      canvas: {
-        revision,
-        totalPoints: state.canvas.totalPoints + points.length,
-        strokes,
-      },
-    },
-  };
+  const result = applyCanvasOperation(state.canvas, input);
+  if (!result.accepted) return reject(result.reason, state);
+  return { accepted: true, operation: result.operation, state: { ...state, canvas: result.canvas } };
 }
 
 function publicDrawGuessState(state, timing = {}) {
@@ -252,14 +174,7 @@ function publicDrawGuessState(state, timing = {}) {
       score: item.score,
       firsts: item.firsts,
     })),
-    ...(timing.includeCanvas === false ? {} : { canvas: {
-      revision: state.canvas.revision,
-      totalPoints: state.canvas.totalPoints,
-      strokes: state.canvas.strokes.map((stroke) => ({
-        ...stroke,
-        points: stroke.points.map((point) => ({ ...point })),
-      })),
-    } }),
+    ...(timing.includeCanvas === false ? {} : { canvas: cloneCanvasState(state.canvas) }),
   };
 }
 
@@ -281,10 +196,6 @@ function getHostDrawGuessState(state) {
 
 function getDrawGuessCategories() {
   return getWordCategorySummaries();
-}
-
-function createCanvasState() {
-  return { revision: 0, totalPoints: 0, strokes: [] };
 }
 
 function normalizeWords(words) {
@@ -377,26 +288,6 @@ function normalizeGuessText(value) {
     .replace(/[\s\u3000，。！？、,.!?;；:'"“”‘’（）()【】\[\]_-]+/g, '');
 }
 
-function normalizePoints(points) {
-  if (!Array.isArray(points) || points.length < 1 || points.length > MAX_POINTS_PER_OPERATION) return null;
-  const normalized = [];
-  for (const point of points) {
-    const x = Number(point?.x);
-    const y = Number(point?.y);
-    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || x > 1 || y < 0 || y > 1) return null;
-    normalized.push({
-      x: Math.round(x * 10000) / 10000,
-      y: Math.round(y * 10000) / 10000,
-    });
-  }
-  return normalized;
-}
-
-function normalizeIdentifier(value) {
-  const text = String(value || '').trim();
-  return /^[A-Za-z0-9_-]{1,64}$/.test(text) ? text : '';
-}
-
 function normalizeTotalRounds(value) {
   const rounds = Number(value === undefined ? DEFAULT_TOTAL_ROUNDS : value);
   return Number.isInteger(rounds) && rounds >= MIN_TOTAL_ROUNDS && rounds <= MAX_TOTAL_ROUNDS
@@ -423,11 +314,8 @@ function reject(reason, state) {
 module.exports = {
   DEFAULT_TOTAL_ROUNDS,
   DEFAULT_ROUND_DURATION_SECONDS,
-  DRAW_COLORS,
-  DRAW_WIDTHS,
   MAX_ROUND_DURATION_SECONDS,
   MAX_TOTAL_ROUNDS,
-  MAX_POINTS_PER_OPERATION,
   MIN_ROUND_DURATION_SECONDS,
   MIN_TOTAL_ROUNDS,
   ROUND_DURATION_MS,

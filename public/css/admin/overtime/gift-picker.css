@@ -25,6 +25,12 @@
 .overtime-picker-shell h3 {
   margin: 0;
 }
+.overtime-catalog-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
 .overtime-gift-search-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

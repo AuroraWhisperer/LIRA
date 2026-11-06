@@ -47,6 +47,7 @@ export function bindClockParameters(root, controller) {
     label: 'clockCustomLabel', flipFrameColor: 'clockFlipFrameColor', flipFaceColor: 'clockFlipFaceColor', flipTextColor: 'clockFlipTextColor',
     moonMode: 'clockMoonMode', moonIntervalSeconds: 'clockMoonIntervalSeconds' };
   const styles = Array.from(root.querySelectorAll('[data-clock-style-option]'));
+  const currentStyle = node('clockCurrentStyle');
   const palettes = Array.from(root.querySelectorAll('[data-clock-palette]'));
   for (const [key, id] of Object.entries(fields)) {
     const control = node(id);
@@ -62,6 +63,9 @@ export function bindClockParameters(root, controller) {
     const style = button.dataset.clockStyleOption;
     if (!CLOCK_STYLE_VALUES.has(style)) return;
     controller.edit(clockStyleChange(draft, style));
+  });
+  currentStyle?.addEventListener('change', () => {
+    if (CLOCK_STYLE_VALUES.has(currentStyle.value)) controller.edit(clockStyleChange(controller.getState().draft, currentStyle.value));
   });
   for (const button of palettes) button.addEventListener('click', () => {
     const [flipFrameColor, flipFaceColor, flipTextColor] = FLIP_PALETTES[button.dataset.clockPalette];
@@ -83,6 +87,17 @@ export function bindClockParameters(root, controller) {
     node('clockFlipColors').hidden = draft.style !== 'flip';
     node('clockMoonColors').hidden = draft.style !== 'moonlit-fan';
     node('clockMoonIntervalField').hidden = draft.moonMode !== 'auto';
+    if (currentStyle) {
+      let imported = currentStyle.querySelector('option[value=""]');
+      const label = draft.cssStyle ? '自定义 CSS 样式' : draft.mediaStyle ? '自定义底图'
+        : draft.resourceStyle || draft.style === 'moonlit-fan' ? '月渡花汀' : '';
+      if (label) {
+        if (!imported) { imported = document.createElement('option'); imported.value = ''; imported.disabled = true; currentStyle.prepend(imported); }
+        imported.textContent = label;
+      } else imported?.remove();
+      currentStyle.value = label ? '' : draft.style;
+      currentStyle.disabled = !loaded;
+    }
     for (const button of styles) {
       const active = button.dataset.clockStyleOption === draft.style;
       button.classList.toggle('active', active);
@@ -106,6 +121,16 @@ export function createClockPreview({ controller, source = document, onOpen, onCl
     createPanel: (host, targetController = controller) => {
       const panel = cloneComponentPanel(source.querySelector('.clock-parameter-section'), panelPrefix);
       panel.querySelector('[data-local-styles]')?.remove();
+      const styles = panel.querySelector('.clock-style-options');
+      const styleField = document.createElement('label'); styleField.className = 'clock-form-field';
+      const label = document.createElement('span'); label.textContent = '当前样式';
+      const select = document.createElement('select'); select.id = `${panelPrefix}-clockCurrentStyle`;
+      select.dataset.previewField = 'clockCurrentStyle'; styleField.htmlFor = select.id;
+      for (const button of styles.querySelectorAll('[data-clock-style-option]')) {
+        const option = document.createElement('option'); option.value = button.dataset.clockStyleOption;
+        option.textContent = button.querySelector('strong').textContent; select.append(option);
+      }
+      styleField.append(label, select); styles.replaceWith(styleField);
       host.append(panel);
       return bindClockParameters(panel, targetController);
     },

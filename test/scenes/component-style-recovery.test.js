@@ -38,6 +38,28 @@ test('reopened style stores reuse verified indexes and detect external edits wit
   assert.ok(fs.existsSync(f.backup));
 });
 
+test('style readers select isolated values from one verified snapshot and refresh after external changes', async t => {
+  const f = await fixture(t);
+  const other = { id: randomUUID(), styles: [{ id: randomUUID(), type: 'lyrics', config: { label: '歌词' } }] };
+  f.store.stage(other); await installComponentStyle(f.store, other.id, () => {});
+  const stats = t.mock.method(fs, 'statSync');
+  const readStyle = f.store.createStyleReader();
+  const style = readStyle(f.pack.styles[0].id, 'clock');
+  style.config.label = '未提交的修改';
+  assert.equal(readStyle(f.pack.styles[0].id, 'clock').config.label, '初始');
+  assert.equal(readStyle(other.styles[0].id, 'lyrics').config.label, '歌词');
+  assert.equal(readStyle(f.pack.styles[0].id, 'lyrics'), undefined);
+  assert.equal(stats.mock.callCount(), 2, 'A request verifies the two index files once, regardless of its selected styles.');
+  stats.mock.restore();
+  const external = f.store.read();
+  external.packages[0].styles[0].config.label = '外部编辑';
+  fs.writeFileSync(f.index, JSON.stringify(external));
+  assert.equal(readStyle(f.pack.styles[0].id, 'clock').config.label, '初始');
+  assert.equal(f.store.createStyleReader()(f.pack.styles[0].id, 'clock').config.label, '外部编辑');
+  fs.writeFileSync(f.index, '{broken');
+  assert.equal(f.store.createStyleReader()(f.pack.styles[0].id, 'clock').config.label, '外部编辑');
+});
+
 test('temporary style cleanup is throttled and later reclaims expired files after their active import ends', async t => {
   const { beginStyleFileUse, endStyleFileUse, pruneStyleTemporaryFiles } = require('../../src/storage/component-style-files');
   const f = await fixture(t);

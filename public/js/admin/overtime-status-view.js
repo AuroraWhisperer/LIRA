@@ -16,6 +16,7 @@ export function createOvertimeStatusView({
   let localAnchorMs = 0;
   let clockTimer = null;
   let lastClockValue = '';
+  let busy = false;
 
   function renderState(nextState, { allowRevisionReset = false } = {}) {
     if (!nextState || (!allowRevisionReset && Number(nextState.revision) < Number(overtimeState?.revision))) return false;
@@ -23,18 +24,14 @@ export function createOvertimeStatusView({
     overtimeState = { ...overtimeState, ...nextState };
     anchorRemainingMs = Number(overtimeState.effectiveRemainingMs) || 0;
     localAnchorMs = performance.now();
-    const enabled = overtimeState.enabled === true;
     const statusLabels = {
-      disabled: '未启用',
+      disabled: '未开始',
       paused: '已暂停',
       running: '直播加班中',
       finished: '已结束',
     };
     byId('overtimeClockLabel').textContent = statusLabels[overtimeState.status] || '状态未知';
-    byId('overtimeEnableBtn').textContent = enabled ? '关闭加班机' : '启用加班机';
-    byId('overtimeStartBtn').disabled = !enabled || overtimeState.status === 'running' || anchorRemainingMs <= 0;
-    byId('overtimePauseBtn').disabled = !enabled || overtimeState.status !== 'running';
-    byId('overtimeResetBtn').disabled = !enabled;
+    renderControls();
     renderInitialDuration(Number(overtimeState.initialSeconds) || 0);
     const quantityLimitedCount = Number(overtimeState.quantityLimitedCount) || 0;
     byId('overtimePendingCount').textContent =
@@ -46,6 +43,26 @@ export function createOvertimeStatusView({
     }
     syncClockLoop();
     return true;
+  }
+
+  function renderControls() {
+    const enabled = overtimeState?.enabled === true;
+    const running = overtimeState?.status === 'running';
+    const hasTime = Number(overtimeState?.effectiveRemainingMs) > 0;
+    const ready = Boolean(overtimeState?.limits);
+    byId('overtimeStartBtn').textContent = busy ? '处理中…' : running ? '暂停' : hasTime ? '继续加班' : '开始加班';
+    byId('overtimeStartBtn').disabled = busy || !ready;
+    byId('overtimeEnableBtn').textContent = enabled ? '关闭加班机' : '只启用收礼';
+    for (const id of ['overtimeEnableBtn', 'overtimeResetBtn', 'overtimeApplyTimeBtn', 'overtimeInitialHours', 'overtimeInitialMinutes']) {
+      byId(id).disabled = busy || !ready;
+    }
+    byId('overtimeControlHint').textContent = running
+      ? '正在倒计时，收到礼物会按已保存规则调整时间。'
+      : enabled
+        ? '倒计时已停，礼物仍会按规则结算。要停止收礼，请在「更多操作」中关闭加班机。'
+        : hasTime
+          ? '已保留剩余时间，点击继续加班即可恢复。'
+          : '填写初始时长，点击开始；有礼物规则时会一起保存。';
   }
 
   function renderConsumerStatus() {
@@ -103,5 +120,9 @@ export function createOvertimeStatusView({
     getState: () => overtimeState,
     syncClockLoop,
     stopClockLoop,
+    setBusy(value) {
+      busy = value;
+      renderControls();
+    },
   };
 }

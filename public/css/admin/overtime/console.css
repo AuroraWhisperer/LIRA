@@ -56,18 +56,28 @@
   font-size: clamp(24px, 3.4vw, 46px);
   letter-spacing: 0.015em;
 }
-.overtime-control-stack {
+.overtime-start-controls {
   display: flex;
-  flex: 1;
-  align-items: center;
+  align-items: flex-end;
   justify-content: flex-end;
   flex-wrap: wrap;
-  gap: 8px 16px;
+  gap: 16px;
 }
 .overtime-consumer-status {
   gap: 8px;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+.overtime-more-controls,
+#overtimeControlHint {
+  flex-basis: 100%;
+}
+.overtime-more-controls > .overtime-actions {
+  margin-top: 12px;
+  justify-content: flex-start;
+}
+.overtime-more-controls > .overtime-consumer-status {
+  margin-top: 12px;
 }
 .overtime-actions {
   flex-wrap: wrap;

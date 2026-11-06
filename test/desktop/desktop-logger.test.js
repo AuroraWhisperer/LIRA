@@ -13,7 +13,7 @@ test('desktop logger bounds normal and error entries after UTF-8 encoding', (t) 
   const filePath = path.join(directory, 'desktop.log');
   const logger = createDesktopLogger({
     getLogFile: () => filePath,
-    loggingState: { runId: 'run-test', sequence: 0 },
+    runId: 'run-test',
   });
 
   logger.writeLog('status', '常'.repeat(10000));
@@ -36,7 +36,7 @@ test('desktop logger rotates a full file and keeps the new diagnostic', (t) => {
   fs.writeFileSync(filePath, 'x'.repeat(128), 'utf8');
   const logger = createDesktopLogger({
     getLogFile: () => filePath,
-    loggingState: { runId: 'run-test', sequence: 0 },
+    runId: 'run-test',
     maxFileBytes: 128,
   });
 
@@ -55,7 +55,7 @@ test('desktop logger handles circular diagnostic data without throwing', (t) => 
   value.self = value;
   const logger = createDesktopLogger({
     getLogFile: () => filePath,
-    loggingState: { runId: 'run-test', sequence: 0 },
+    runId: 'run-test',
   });
 
   assert.doesNotThrow(() => logger.writeLog('status', value));

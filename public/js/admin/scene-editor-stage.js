@@ -1,6 +1,5 @@
 import { previewElement, mountComponentPreview } from './component-preview-surface.js';
 import { createSceneItemController } from './scene-item-controller.js';
-import { moveSceneItems, resizeSceneItem } from './scene-document-model.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createBrowserSourcePreview, mountBrowserSourcePreview } from './browser-source-preview.js';
 import { createTextBoxPreview } from './text-box-preview.js';
@@ -24,6 +23,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   let zoom = 'fit';
   let snap = true;
   let gesture = null;
+  let moveFrame = 0;
+  let pendingMove = null;
   let closed = false;
   function scheduleContentResize() {
     if (resizeFrame || !contentSizes.size || closed) return;
@@ -91,6 +92,9 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
   }
   function cancelGesture() {
     if (!gesture) return;
+    cancelAnimationFrame(moveFrame);
+    moveFrame = 0;
+    pendingMove = null;
     const { pointerId } = gesture;
     gesture = null;
     model.cancelGesture();
@@ -102,7 +106,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     entries.get(id)?.host.focus({ preventScroll: true });
     const toggle = event.shiftKey || event.ctrlKey || event.metaKey;
     if (toggle || !getSelection().has(id)) select(id, toggle);
-    const item = model.getSnapshot().items.find((entry) => entry.id === id);
+    const item = model.getItemSnapshot(id);
     if (toggle || !item || item.locked) return;
     const ids = [...getSelection()];
     const handle = event.target.closest('[data-resize]')?.dataset.resize;
@@ -116,13 +120,24 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     if (!gesture.started && Math.abs(deltaX) + Math.abs(deltaY) < 2) return;
     try {
       if (!gesture.started) { gesture.started = true; model.beginGesture(); }
-      model.updateGesture((document) => gesture.handle
-        ? resizeSceneItem(document, gesture.ids[0], gesture.handle, deltaX, deltaY, { snap })
-        : moveSceneItems(document, gesture.ids, deltaX, deltaY, { snap }));
+      pendingMove = { deltaX, deltaY };
+      if (!moveFrame) moveFrame = requestAnimationFrame(flushPointerMove);
     } catch (error) { cancelGesture(); report(error.message); }
+  }
+  function flushPointerMove() {
+    cancelAnimationFrame(moveFrame);
+    moveFrame = 0;
+    if (!gesture || !pendingMove) return;
+    const { deltaX, deltaY } = pendingMove;
+    pendingMove = null;
+    try { model.updateGestureGeometry(gesture.ids, deltaX, deltaY, { handle: gesture.handle, snap }); }
+    catch (error) { cancelGesture(); report(error.message); }
   }
   function pointerUp(event) {
     if (!gesture || event.pointerId !== gesture.pointerId) return;
+    if (gesture.started) pointerMove(event);
+    flushPointerMove();
+    if (!gesture) return;
     const { started } = gesture;
     gesture = null;
     if (started) model.commitGesture();
@@ -132,8 +147,9 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     if (closed) return;
     const document = model.getSnapshot();
     for (const [id, entry] of entries) {
-      if (document.items.some((item) => item.id === id && item.visible && item.type === entry.host.dataset.component
-        && (item.appearance.config?.cssStyle?.engine || '') === entry.cssEngine)) continue;
+      const item = model.getItemSnapshot(id);
+      if (item?.visible && item.type === entry.host.dataset.component
+        && (item.appearance.config?.cssStyle?.engine || '') === entry.cssEngine) continue;
       entry.surface.dispose();
       entry.host.remove();
       entries.delete(id);
@@ -165,7 +181,7 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
             onResize(size) { contentSizes.set(item.id, size); scheduleContentResize(); },
           } : {}),
           size: () => {
-            const current = model.getSnapshot().items.find((value) => value.id === item.id) || item;
+            const current = model.getItemSnapshot(item.id) || item;
             return [current.width, current.height];
           },
         });

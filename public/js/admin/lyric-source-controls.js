@@ -21,6 +21,7 @@ export function createLyricSourceControls({ api, state }) {
     if (!root || initialized) return;
     initialized = true;
     const status = document.getElementById('desktopLyricSourceStatus');
+    const followLabel = document.getElementById('desktopLyricFollowLabel');
     const track = document.getElementById('desktopLyricSourceTrack');
     const externalControls = document.getElementById('desktopLyricExternalControls');
     const weSingSettings = document.getElementById('desktopLyricWeSingSettings');
@@ -45,8 +46,8 @@ export function createLyricSourceControls({ api, state }) {
         const client = clients.find((item) => item.source === input.value);
         input.disabled = !!client && current?.[client.key]?.supported === false;
       });
-      status.textContent = requestError || (current
-        ? `当前跟随：${SOURCE_LABELS[current.source]}` : '正在读取歌词来源…');
+      followLabel.hidden = !!requestError || !current;
+      status.textContent = requestError || (current ? SOURCE_LABELS[current.source] : '正在读取歌词来源…');
       const followedClient = clients.find((client) => client.source === current?.source);
       const followed = followedClient && current[followedClient.key];
       track.textContent = followed?.trackTitle
@@ -54,7 +55,7 @@ export function createLyricSourceControls({ api, state }) {
       track.hidden = !track.textContent;
       for (const client of clients) {
         const detail = current?.[client.key];
-        client.status.textContent = `${client.label}：${detail?.message || '正在读取检测状态…'}`;
+        client.status.textContent = detail?.message || '正在检测…';
         client.retry.disabled = detail?.supported === false;
       }
     }

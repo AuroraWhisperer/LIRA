@@ -26,37 +26,70 @@ export async function requestGiftWish(path, body, signal) {
   }
 }
 
-export function createGiftWishFeed({ onData, onError }) {
-  let active = false;
+const feeds = new Map();
+
+function createFeed(path) {
+  const listeners = new Set();
   let generation = 0;
   let controller;
   let timer;
+  let latest;
+  let pending;
   async function refresh() {
-    if (!active) return;
+    if (!listeners.size) return;
     clearTimeout(timer);
     controller?.abort();
     controller = new AbortController();
     const current = ++generation;
     try {
-      const value = await requestGiftWish('/api/gifts/wishes', undefined, controller.signal);
-      if (active && current === generation) onData(value);
+      const value = await requestGiftWish(path, undefined, controller.signal);
+      if (current === generation) {
+        latest = value;
+        for (const listener of listeners) listener.onData(value);
+      }
     } catch (error) {
-      if (active && current === generation) onError(error);
+      if (current === generation) {
+        latest = undefined;
+        for (const listener of listeners) listener.onError(error);
+      }
     } finally {
-      if (active && current === generation) timer = setTimeout(refresh, 3000);
+      if (listeners.size && current === generation) timer = setTimeout(refresh, 3000);
     }
   }
   return {
-    start() {
-      active = true;
-      return refresh();
+    add(listener) {
+      listeners.add(listener);
+      if (listeners.size === 1) pending = refresh();
+      else if (latest !== undefined) listener.onData(latest);
+      return pending;
     },
     refresh,
-    stop() {
-      active = false;
+    remove(listener) {
+      listeners.delete(listener);
+      if (listeners.size) return;
       generation++;
       clearTimeout(timer);
       controller?.abort();
+      feeds.delete(path);
+    },
+  };
+}
+
+// The desktop editor and canvas share one request stream for each endpoint.
+export function createGiftWishFeed({ onData, onError, path = '/api/gifts/wishes' }) {
+  const listener = { onData, onError };
+  let feed;
+  return {
+    start() {
+      if (feed) return feed.refresh();
+      if (!feeds.has(path)) feeds.set(path, createFeed(path));
+      feed = feeds.get(path);
+      return feed.add(listener);
+    },
+    refresh() { return feed?.refresh(); },
+    stop() {
+      feed?.remove(listener);
+      feed = null;
     },
   };
 }

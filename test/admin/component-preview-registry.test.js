@@ -42,13 +42,15 @@ async function loadOwner(filename, overrides = {}) {
   const replacements = {
     '../shared/copy-url.js': { bindCopyUrl: () => () => {} },
     '../shared/utils.js': { api: async () => { throw new Error('Unexpected business write'); },
-      localOverlayOrigin: () => 'http://127.0.0.1:3000', copyText() {}, toast() {}, value() {}, setValue() {} },
+      localOverlayOrigin: () => 'http://127.0.0.1:3000', copyText() {}, toast() {}, value() {}, setValue() {},
+      showConfirmationDialog: async () => { throw new Error('Unexpected confirmation'); } },
     './component-preview-dialog.js': { openComponentPreview(options) {
       opened.push(options);
       return { close() { options.onClose?.(); } };
     } },
     './component-preview-panel.js': { cloneComponentPanel: createNode,
-      componentField: (root, id) => root.getElementById(id), componentFieldLabel: () => '参数' },
+      componentField: (root, id) => root.getElementById(id), componentFieldLabel: () => '参数',
+      syncComponentFieldValue: (input, value) => { input.value = String(value); } },
     './forms.js': { formsService: {} },
     './component-style-parameters.js': { mountStyleParameters: () => ({ dispose() {} }) },
     './state.js': { stateService: { getAppState: () => ({ settings: {} }) } },
@@ -214,7 +216,7 @@ test('queue initialization is idempotent and both entry points reuse its paramet
   assert.equal(controller.getState().draft.storybookQueueFontSize, '36');
 });
 
-test('overtime descriptions isolate demo closures, share appearance drafts and release actual data subscriptions', async () => {
+test('overtime descriptions isolate read-only sample modes, share appearance drafts and release actual data subscriptions', async () => {
   const fixture = await loadOwner('overtime-preview.js');
   const appearance = fixture.owner.createOvertimeAppearance({ initial: { status: 'paused', effectiveRemainingMs: 30000 },
     onSavedState() { throw new Error('Demo must not save'); } });
@@ -230,19 +232,21 @@ test('overtime descriptions isolate demo closures, share appearance drafts and r
   const firstData = [];
   const secondData = [];
   const stopFirst = preview.startData({ mode: 'paused', emit: (data) => firstData.push(data) });
-  const stopSecond = single.startData({ mode: 'paused', emit: (data) => secondData.push(data) });
-  const addMinute = firstPanel.children[2].children[1];
-  addMinute.fire('click');
-  assert.equal(firstData.at(-1).effectiveRemainingMs, 180000);
+  const stopSecond = single.startData({ mode: 'running', emit: (data) => secondData.push(data) });
+  assert.equal(firstData.at(-1).status, 'paused');
+  assert.equal(secondData.at(-1).status, 'running');
+  assert.equal(firstPanel.children[2].hidden, true);
+  assert.equal(secondPanel.children[2].hidden, true);
   assert.equal(secondData.at(-1).effectiveRemainingMs, 120000);
   stopFirst();
-  addMinute.fire('click');
-  assert.equal(firstData.length, 2);
   const stopActual = preview.startData({ mode: 'actual', emit: (data) => firstData.push(data) });
+  assert.equal(firstPanel.children[2].hidden, false);
+  assert.equal(secondPanel.children[2].hidden, true);
   appearance.controller.edit({ fit: 'contain' });
   appearance.receive({ revision: 3, status: 'paused', effectiveRemainingMs: 60000,
     background: { path: '', fit: 'cover' } });
   assert.equal(firstData.at(-1).effectiveRemainingMs, 60000);
+  assert.equal(secondData.length, 1, 'sample data does not subscribe to actual countdown changes');
   assert.equal(appearance.controller.getState().draft.fit, 'contain');
   stopActual();
   appearance.receive({ revision: 4, status: 'finished' });

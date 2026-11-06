@@ -112,7 +112,7 @@ flowchart LR
 
 ### A4. Admin 旧全局状态仍形成隐式依赖（持续治理，已确认设计债务）
 
-- **证据**：[songs.js](../../public/js/admin/songs.js)、[forms.js](../../public/js/admin/forms.js) 等仍通过 `window.AdminApp` 访问其他模块；[legacy-admin-bridge.js](../../public/js/admin/legacy-admin-bridge.js) 提供迁移桥接。
+- **证据**：[songs.js](../../public/js/admin/songs.js)、[forms.js](../../public/js/admin/forms.js) 等仍通过 `window.AdminApp` 访问其他模块；`legacy-admin-bridge.js` 当时提供迁移桥接（2026-11-06 已退役，现由 [app.js](../../public/js/admin/app.js) 显式装配）。
 - **影响**：模块调用关系、初始化顺序和可变状态归属不能全部从 ESM import 看出。
 - **已有控制**：[module-boundaries.test.js](../../test/engineering/module-boundaries.test.js) 冻结已知全局依赖数量，禁止新增文件继续扩散。
 - **建议**：随具体功能修改迁移到明确的 ESM 接口和状态 owner，避免一次性重写所有页面。

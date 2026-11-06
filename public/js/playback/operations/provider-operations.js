@@ -235,7 +235,7 @@ export function createProviderOperations(deps) {
     }
     const sourceName = PlaybackUtils.getSourceName(playbackState.selectedSource);
 
-    const confirmed = await window.AdminApp.utils.logoutConfirm({
+    const confirmed = await utils.logoutConfirm({
       title: '退出登录',
       platform: sourceName,
       message: '退出后将无法访问该平台的会员歌曲和个人歌单。',

@@ -118,7 +118,7 @@ test('gift tails and textures save independently and reject unknown or non-strin
 });
 
 test('price bands use each historical unit price times quantity, with exact boundaries', async () => {
-  const { giftTier, giftExportPages } = await loadModuleExports(path.resolve('public/js/shared/gift-banner.js'));
+  const { giftTier } = await loadModuleExports(path.resolve('public/js/shared/gift-banner.js'));
   const bands = [3000, 10000, 100000];
   for (const [amount, expected] of [
     [29.99, 0],
@@ -129,10 +129,6 @@ test('price bands use each historical unit price times quantity, with exact boun
     assert.equal(giftTier({ unitPrice: amount, num: 1 }, bands), expected);
   }
   assert.equal(giftTier({ unitPrice: 10, num: 100, totalPrice: 10 }, bands), 3);
-  assert.deepEqual(
-    Array.from(giftExportPages(Array(40).fill({}), 'combined'), (page) => page.length),
-    [39, 1],
-  );
   for (const thresholds of [
     [0, 100, 200],
     [100, 100, 200],

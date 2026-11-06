@@ -108,12 +108,12 @@ test('automatic content sizing does not consume the previous user edit undo entr
 });
 
 test('one pointer gesture has one undo entry and updates use the starting snapshot', async () => {
-  const [{ createSceneDocumentModel, moveSceneItems }] = await modules;
+  const [{ createSceneDocumentModel }] = await modules;
   const document = fixture();
   const model = createSceneDocumentModel(document);
   model.beginGesture();
   for (const distance of [8, 16, 24, 32]) {
-    model.updateGesture((draft) => moveSceneItems(draft, [document.items[0].id], distance, 0));
+    model.updateGestureGeometry([document.items[0].id], distance, 0);
   }
   assert.equal(model.getDocument().items[0].x, 72);
   assert.deepEqual(plain(model.getState()), { canUndo: false, canRedo: false });
@@ -126,6 +126,31 @@ test('one pointer gesture has one undo entry and updates use the starting snapsh
   assert.equal(model.undo(), false);
   model.redo();
   assert.equal(model.getDocument().items[0].x, 72);
+});
+
+test('geometry gestures retain validated appearances while enforcing bounds, document size and cancellation', async () => {
+  const [{ createSceneDocumentModel }, { validateSceneDocument }] = await modules;
+  const document = fixture();
+  document.items.push({ ...document.items[0], id: randomUUID(), x: 650 });
+  const model = createSceneDocumentModel(document);
+  const appearance = model.getItemSnapshot(document.items[0].id).appearance;
+  model.beginGesture();
+  model.updateGestureGeometry([document.items[0].id], 1000, 1000, { handle: 'se' });
+  assert.equal(model.getItemSnapshot(document.items[0].id).appearance, appearance);
+  assert.equal(model.getSnapshot().items[3].width, model.getSnapshot().items[0].width);
+  assert.doesNotThrow(() => validateSceneDocument(model.getSnapshot()));
+  assert.throws(() => model.updateGestureGeometry([document.items[0].id], NaN, 0));
+  model.cancelGesture();
+  assert.equal(model.getItemSnapshot(document.items[0].id).x, document.items[0].x);
+
+  const large = fixture();
+  large.items[0].appearance = { mode: 'independent', config: { text: '' } };
+  const bytes = Buffer.byteLength(JSON.stringify(large));
+  large.items[0].appearance.config.text = 'a'.repeat(256 * 1024 - bytes);
+  const limited = createSceneDocumentModel(large);
+  limited.beginGesture();
+  assert.throws(() => limited.updateGestureGeometry([large.items[0].id], 100, 100));
+  assert.equal(limited.getSnapshot().items[0].x, large.items[0].x);
 });
 
 test('resizing anchors opposite edges, permits overflow and respects size limits, locks and automatic heights', async () => {

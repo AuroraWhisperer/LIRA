@@ -17,6 +17,8 @@ const { createServerCompatibility } = require('./server/compatibility-runtime');
 const { createRuntimeApiContextFactory } = require('./server/runtime-api-context');
 const { resolveServerRuntimeConfig, validateServerHost } = require('./server/runtime-config');
 const { createRuntimeTransport } = require('./server/runtime-transport');
+const { listGiftFrameTriggerStyleIds, migrateGiftFrameStyleTriggers } = require('./server/gift-frame-style-triggers');
+const { createCloudSyncRuntime } = require('./server/cloud-sync-runtime');
 const { createFontLibrary } = require('./fonts/font-library');
 const { createResourceLibrary } = require('./resources/resource-library');
 const { startRetentionMaintenance } = require('./server/startup-retention');
@@ -29,13 +31,10 @@ const { resolveDataPaths } = require('./shared/data-paths');
 const { normalizeRoomInput } = require('./bilibili/room-input');
 const { publicBilibiliErrorMessage } = require('./bilibili/api-error');
 const { createDatabases, optimizeDatabases, closeDatabases } = require('./storage/database');
-const { createGiftSyncStore } = require('./storage/gift-sync-store');
-const { createGiftRetentionStore } = require('./storage/gift-retention-store');
-const { pruneLocalGiftBatch } = require('./storage/gift-local-retention');
-const { cleanupGiftRetentionBatch } = require('./storage/gift-retention-cleanup');
+const { createGiftSyncRuntime } = require('./server/gift-sync-runtime');
 const { migrateCacheData } = require('./storage/data-directory-migration');
 const { DEFAULT_SETTINGS } = require('./storage/settings-defaults');
-const { prepareSettingsBootstrap } = require('./server/settings-bootstrap');
+const { bootstrapSettingsStore } = require('./storage/settings-store');
 const giftEffectModule = require('./bilibili/gift/effect-config');
 const { createGiftExportRuntime } = require('./server/gift-export-runtime');
 const { createDanmakuFeedBuffer } = require('./bilibili/danmaku/feed-buffer');
@@ -49,9 +48,6 @@ const START_PORT = 3000;
 const PORT_CLEANUP_TIMEOUT_MS = 7500;
 const PORT_CLEANUP_POLL_MS = 120;
 const MAX_BODY_BYTES = 16 * 1024 * 1024;
-const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('./server/settings-contract');
-const { buildDesktopMenuCommands } = require('./server/danmaku-menu');
-const { isAiReady } = require('./ai/config');
 const { createWorldClockTemperature } = require('./server/world-clock-temperature');
 
 function createServerRuntime(runtimeOptions = {}) {
@@ -78,8 +74,6 @@ function createServerRuntime(runtimeOptions = {}) {
   let resourceLibrary = null;
   let worldClock = null;
   let sceneRuntime = null;
-  let giftSyncStore = null;
-  let giftRetentionStore = null;
   let musicRuntime = null;
   let bilibiliRuntime = null;
   let liveStatus = null;
@@ -102,10 +96,6 @@ function createServerRuntime(runtimeOptions = {}) {
   let exitRequested = false;
   let exitIssued = false;
   let sessionToken = '';
-  let blindBoxMappingState = null;
-  let menuCommandsSignature = '';
-  let menuRefreshQueued = false;
-  const cloudSyncListeners = new Set();
   const inflightTracker = createInflightTracker();
   const licenseGate = runtimeOptions.licenseGate || {
     isAuthorized: () => true,
@@ -136,6 +126,8 @@ function createServerRuntime(runtimeOptions = {}) {
     getSettings: () => settingsStore.getSettings(),
     getDanmakuFeedBuffer: () => danmakuFeedBuffer,
     resolveGiftEffect: (giftId) => domainServices.gifts.resolveEffect(giftId),
+    resolveGiftMotionArtwork: item => domainServices.overtimeGiftCatalog.getArtworkResolver()(item.gift_variant_id || String(item.gift_id)),
+    getGiftFrameStyleIds: () => listGiftFrameTriggerStyleIds(DATA_DIR),
     publishSceneGift: (payload) => sceneRuntime?.receiveGift(payload),
     notifySceneOutput: (change) => sceneRuntime?.notify(change),
   });
@@ -144,6 +136,18 @@ function createServerRuntime(runtimeOptions = {}) {
     getBilibiliRuntime: () => bilibiliRuntime,
     getOvertimeGiftCatalog: () => domainServices?.overtimeGiftCatalog,
   });
+  const cloudSync = createCloudSyncRuntime({
+    getSettingsStore: () => settingsStore,
+    getBilibiliRuntime: () => bilibiliRuntime,
+    getAiConfig: () => aiRuntime?.configStore.getConfig(),
+    getGameSession: () => gameSessionService?.getSession(),
+    getInteractionSession: () => interactionSessionService?.getState().session,
+    getSongs: () => domainServices?.songs,
+    getCustomReplies: () => domainServices?.customReplies,
+    isActive: () => applicationInitialized && !isShuttingDown,
+    broadcastSnapshot,
+  });
+  const giftSyncRuntime = createGiftSyncRuntime();
 
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
@@ -167,8 +171,8 @@ function createServerRuntime(runtimeOptions = {}) {
       worldClock = createWorldClockTemperature({ fetch: runtimeOptions.worldClockFetch });
       reportPhase('database-init', Date.now() - phaseStartedAt);
       phaseStartedAt = Date.now();
-      const settingsBootstrap = prepareSettingsBootstrap(db.songDb);
-      settingsStore = settingsBootstrap.settingsStore;
+      settingsStore = bootstrapSettingsStore(db.songDb);
+      migrateGiftFrameStyleTriggers(settingsStore, DATA_DIR);
       webSocketHub = wsTransport.createWebSocketHub();
       danmakuFeedBuffer = createDanmakuFeedBuffer({
         resolveGiftImagePath: (...args) => domainServices?.overtimeGiftCatalog?.resolveGiftImagePath?.(...args),
@@ -178,7 +182,7 @@ function createServerRuntime(runtimeOptions = {}) {
           webSocketHub.broadcast(payload);
           if (['game:update', 'game:draw', 'game:patch'].includes(payload.type)) sceneRuntime?.notify({ types: ['games'] });
           if (payload.type === 'interaction:update') sceneRuntime?.notify({ types: ['interactions'] });
-          if (['game:update', 'game:patch', 'interaction:update'].includes(payload.type)) scheduleMenuSync();
+          if (['game:update', 'game:patch', 'interaction:update'].includes(payload.type)) cloudSync.scheduleMenuSync();
         },
         getSourceState: () => bilibiliRuntime.getRealtimeState(),
         subscribe: (listener) => bilibiliRuntime.subscribeRealtime(listener),
@@ -228,6 +232,7 @@ function createServerRuntime(runtimeOptions = {}) {
         },
         giftCards: { getProfiles: giftRuntime.giftCards.getProfiles },
         giftWishes: { getSnapshot: domainServices.giftWishes.getSnapshot },
+        heartBoxCollection: { getSnapshot: domainServices.heartBoxCollection.getSnapshot },
         games: { getSession: gameSessionService.getSession },
         wheel: { getState: wheelSessionService.getState },
         interactions: { getState: interactionSessionService.getState },
@@ -238,13 +243,7 @@ function createServerRuntime(runtimeOptions = {}) {
         },
       };
       sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, displayPorts });
-      giftSyncStore = createGiftSyncStore({
-        giftDb: db.giftDb,
-        importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
-        importLiveEvent: (event, sourceId, importOptions) =>
-          domainServices.gifts.importProcessedEvent(event, sourceId, importOptions),
-      });
-      giftRetentionStore = createGiftRetentionStore({
+      giftSyncRuntime.initialize({
         giftDb: db.giftDb,
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
         importLiveEvent: (event, sourceId, importOptions) =>
@@ -302,7 +301,7 @@ function createServerRuntime(runtimeOptions = {}) {
       domainServices.overtimeGiftCatalog.start?.();
       reportPhase('startup-repair', Date.now() - phaseStartedAt);
       applicationInitialized = true;
-      menuCommandsSignature = JSON.stringify(getDesktopMenuCommands());
+      cloudSync.initializeMenuSync();
     } catch (error) {
       await disposeApplication({ optimize: false });
       throw error;
@@ -336,7 +335,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getSessionToken: () => sessionToken,
     broadcastSnapshot,
     broadcastGiftEffectPreview: (payload) => { webSocketHub.broadcast(payload); sceneRuntime?.receiveGift(payload); },
-    requestCloudSync,
+    requestCloudSync: cloudSync.requestCloudSync,
     rebuildGiftProjection: giftRuntime.rebuildGiftProjection,
     clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
     getDomainServices: () => domainServices,
@@ -473,7 +472,7 @@ function createServerRuntime(runtimeOptions = {}) {
       gifts: () => domainServices.gifts.getSnapshot(),
       giftSprint: () => domainServices.gifts.getSprintSnapshot(),
       giftDetection: () => domainServices.gifts.getStatus(),
-      blindBoxMapping: () => blindBoxMappingState,
+      blindBoxMapping: cloudSync.getBlindBoxMappingState,
       overtime: () => domainServices.overtime.getSnapshot(),
       settings: () => settingsStore.getSettings(),
       categories: () => readSongMetadata().categories,
@@ -602,8 +601,7 @@ function createServerRuntime(runtimeOptions = {}) {
     resourceLibrary = null;
     worldClock = null;
     sceneRuntime = null;
-    giftSyncStore = null;
-    giftRetentionStore = null;
+    giftSyncRuntime.dispose();
     musicRuntime = null;
     bilibiliRuntime = null;
     liveStatus = null;
@@ -657,151 +655,6 @@ function createServerRuntime(runtimeOptions = {}) {
     return settingsStore ? settingsStore.getSettings()[key] : DEFAULT_SETTINGS[key];
   }
 
-  function requireGiftSyncStore() {
-    if (!giftSyncStore) throw new Error('Gift sync store not ready.');
-    return giftSyncStore;
-  }
-
-  function resolveGiftSource(sourceKey) {
-    return requireGiftSyncStore().resolveSource(sourceKey);
-  }
-
-  function getGiftSyncState(sourceId) {
-    return requireGiftSyncStore().getState(sourceId);
-  }
-
-  function commitGiftHistoryPage(page) {
-    return requireGiftSyncStore().commitHistoryPage(page);
-  }
-
-  function restartGiftHistoryBootstrap(sourceId, projectionGeneration) {
-    return requireGiftSyncStore().restartHistoryBootstrap(sourceId, projectionGeneration);
-  }
-
-  function commitGiftCatchUpPage(page) {
-    return requireGiftSyncStore().commitCatchUpPage(page);
-  }
-
-  function commitLegacyGiftPage(page) {
-    return requireGiftSyncStore().commitLegacyPage(page);
-  }
-
-  function resetGiftProjectionForRebuild(sourceId) {
-    return requireGiftSyncStore().resetProjectionForRebuild(sourceId);
-  }
-
-  function importProcessedGiftEvent(event, sourceId) {
-    if (!domainServices?.gifts?.importProcessedEvent) {
-      throw new Error('Gift service not ready.');
-    }
-    return domainServices.gifts.importProcessedEvent(event, sourceId);
-  }
-
-  function getCloudSettingsSnapshot() {
-    if (!settingsStore) throw new Error('Settings store not ready.');
-    return { ...serializeCloudSettings(settingsStore.getSettings()), menuCommands: getDesktopMenuCommands() };
-  }
-
-  function getPendingCloudSettings(accountKey) {
-    const pending = settingsStore.getPendingCloudSettings(accountKey);
-    return pending ? {
-      ...pending,
-      values: { ...serializeCloudSettings(pending.values), menuCommands: getDesktopMenuCommands() },
-    } : null;
-  }
-
-  function getDesktopMenuCommands() {
-    const aiConfig = aiRuntime?.configStore.getConfig() || {};
-    return buildDesktopMenuCommands({
-      settings: settingsStore.getSettings(),
-      ai: { ready: isAiReady(aiConfig), trigger: aiConfig.trigger },
-      game: gameSessionService?.getSession(),
-      interaction: interactionSessionService?.getState().session,
-    });
-  }
-
-  function scheduleMenuSync() {
-    if (menuRefreshQueued || !applicationInitialized || isShuttingDown) return;
-    menuRefreshQueued = true;
-    queueMicrotask(() => {
-      menuRefreshQueued = false;
-      if (!applicationInitialized || isShuttingDown) return;
-      const signature = JSON.stringify(getDesktopMenuCommands());
-      if (signature !== menuCommandsSignature) requestCloudSync('settings');
-    });
-  }
-
-  function prepareCloudRoomAccount(accountKey) {
-    if (!settingsStore || !bilibiliRuntime) {
-      throw new Error('Application runtime not ready.');
-    }
-    const changed = settingsStore.prepareCloudRoomAccount(accountKey);
-    if (changed) {
-      bilibiliRuntime.configure();
-      broadcastSnapshot('cloud:settings');
-    }
-    return changed;
-  }
-
-  function applyCloudSettingsSnapshot(input) {
-    if (!settingsStore || !bilibiliRuntime) {
-      throw new Error('Application runtime not ready.');
-    }
-    settingsStore.setSettings(normalizeCloudSettingsSnapshot(input), { syncPending: false });
-    bilibiliRuntime.configure();
-    broadcastSnapshot('cloud:settings');
-    return getCloudSettingsSnapshot();
-  }
-
-  function applyCloudFixedReplySettingsSnapshot(input, revision) {
-    domainServices?.customReplies.setCloudExactReplySettings(input, revision);
-  }
-
-  function setBlindBoxMappingState(input) {
-    if (!input || typeof input !== 'object' || Array.isArray(input)) {
-      blindBoxMappingState = null;
-      return;
-    }
-    blindBoxMappingState = Object.freeze({
-      mode: input.mode === 'legacy' ? 'legacy' : 'v2',
-      catalogVersion: String(input.catalogVersion || '') || null,
-      settingsRevision: Math.max(0, Number(input.settingsRevision) || 0),
-      customCount: Math.max(0, Number(input.customCount) || 0),
-      takenOverCount: Math.max(0, Number(input.takenOverCount) || 0),
-      migrationPendingCount: Math.max(0, Number(input.migrationPendingCount) || 0),
-      applied: input.applied === true,
-    });
-  }
-
-  function getCloudSongsSnapshot() {
-    if (!domainServices) throw new Error('Song library not ready.');
-    return domainServices.songs.list({});
-  }
-
-  function replaceCloudSongsSnapshot(songs) {
-    if (!domainServices) throw new Error('Song library not ready.');
-    const result = domainServices.songs.replaceCloud(songs);
-    broadcastSnapshot('cloud:songs');
-    return result;
-  }
-
-  function requestCloudSync(scope) {
-    if (scope === 'settings' && settingsStore) menuCommandsSignature = JSON.stringify(getDesktopMenuCommands());
-    for (const listener of cloudSyncListeners) {
-      try {
-        listener(scope);
-      } catch (error) {
-        void error;
-      }
-    }
-  }
-
-  function onCloudSyncRequested(listener) {
-    if (typeof listener !== 'function') return () => {};
-    cloudSyncListeners.add(listener);
-    return () => cloudSyncListeners.delete(listener);
-  }
-
   function getGiftCatalogInitializationState() {
     return (
       domainServices?.overtimeGiftCatalog?.getInitializationState?.() || {
@@ -836,38 +689,20 @@ function createServerRuntime(runtimeOptions = {}) {
     persistPlaybackSnapshot,
     resumeAuthorizedWork,
     pauseAuthorizedWork,
-    resolveGiftSource,
-    getGiftRetentionProgress: (sourceId) => giftRetentionStore.progress(sourceId),
-    restartGiftRetention: (input) => giftRetentionStore.restart(input),
-    commitGiftSummaryPage: (input) => giftRetentionStore.summaryPage(input),
-    commitRetainedGiftHistoryPage: (input) => giftRetentionStore.historyPage(input),
-    activateGiftRetention: (input) => giftRetentionStore.activate(input),
-    pruneLocalGiftRetention: (sourceId) => {
-      const result = pruneLocalGiftBatch(db.giftDb, sourceId);
-      if (!result.deleted) cleanupGiftRetentionBatch(db.giftDb, sourceId);
-      return result;
-    },
-    getGiftSyncState,
-    commitGiftHistoryPage,
-    restartGiftHistoryBootstrap,
-    commitGiftCatchUpPage,
-    commitLegacyGiftPage,
-    resetGiftProjectionForRebuild,
-    importProcessedGiftEvent,
+    ...giftSyncRuntime.operations,
     publishGiftEffect,
-    getCloudSettingsSnapshot,
-    getPendingCloudSettings,
-    acknowledgePendingCloudSettings: (key, mutationId) => settingsStore.acknowledgePendingCloudSettings(key, mutationId),
-    prepareCloudRoomAccount,
-    applyCloudSettingsSnapshot,
-    applyCloudFixedReplySettingsSnapshot,
-    setBlindBoxMappingState,
-    getCloudSongsSnapshot,
-    getPendingCloudSongs: (key) => domainServices.songs.getPendingCloudSongs(key),
-    acknowledgePendingCloudSongs: (key, mutationId) =>
-      domainServices.songs.acknowledgePendingCloudSongs(key, mutationId),
-    replaceCloudSongsSnapshot,
-    onCloudSyncRequested,
+    getCloudSettingsSnapshot: cloudSync.getCloudSettingsSnapshot,
+    getPendingCloudSettings: cloudSync.getPendingCloudSettings,
+    acknowledgePendingCloudSettings: cloudSync.acknowledgePendingCloudSettings,
+    prepareCloudRoomAccount: cloudSync.prepareCloudRoomAccount,
+    applyCloudSettingsSnapshot: cloudSync.applyCloudSettingsSnapshot,
+    applyCloudFixedReplySettingsSnapshot: cloudSync.applyCloudFixedReplySettingsSnapshot,
+    setBlindBoxMappingState: cloudSync.setBlindBoxMappingState,
+    getCloudSongsSnapshot: cloudSync.getCloudSongsSnapshot,
+    getPendingCloudSongs: cloudSync.getPendingCloudSongs,
+    acknowledgePendingCloudSongs: cloudSync.acknowledgePendingCloudSongs,
+    replaceCloudSongsSnapshot: cloudSync.replaceCloudSongsSnapshot,
+    onCloudSyncRequested: cloudSync.onCloudSyncRequested,
     getGiftCatalogInitializationState,
     initializeGiftCatalog,
     isGiftCatalogInitialized,

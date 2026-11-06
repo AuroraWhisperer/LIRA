@@ -12,6 +12,7 @@ const {
   readGift,
 } = require('../helpers/processed-gift-fixture');
 const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics-store');
 const {
   createGiftConsumerRegistry,
   createGiftProjectionService,
@@ -60,7 +61,7 @@ test('final delivery retries after one second without another platform packet', 
   const sourceId = createGiftSource(db.giftDb);
   const projection = createGiftProjectionService(
     {
-      db,
+      store: createGiftProjectionStore(db.giftDb),
       settings: () => ({ enableGiftSprint: 'true' }),
     },
     {
@@ -110,7 +111,7 @@ test('consumer eligibility is frozen by the first server phase', () => {
   const sourceId = createGiftSource(db.giftDb);
   const projection = createGiftProjectionService(
     {
-      db,
+      store: createGiftProjectionStore(db.giftDb),
       settings: () => ({
         enableGiftSprint: giftStatisticsEnabled ? 'true' : 'false',
       }),
@@ -150,14 +151,14 @@ test('pause cancels consumer retries and resume retains failed non-statistics de
   let attempts = 0;
   const sourceId = createGiftSource(db.giftDb);
   const projection = createGiftProjectionService(
-    { db, settings: () => ({ enableGiftSprint: 'true' }), state: {} },
+    { store: createGiftProjectionStore(db.giftDb), settings: () => ({ enableGiftSprint: 'true' }) },
     {
       now: clock.now,
       setTimeout: clock.setTimeout,
       clearTimeout: clock.clearTimeout,
       consumerRegistry: createGiftConsumerRegistry({
         consumers: [
-          createGiftStatisticsConsumer({ giftDb: db.giftDb }),
+          createGiftStatisticsConsumer({ store: createGiftStatisticsStore(db.giftDb) }),
           {
             name: 'retry-once',
             handle(event) {
@@ -204,7 +205,7 @@ test('a transient database read failure during consumer retry is contained and r
   };
   let attempts = 0;
   const projection = createGiftProjectionService(
-    { db, projectionStore, settings: () => ({}) },
+    { store: projectionStore, settings: () => ({}) },
     {
       now: clock.now,
       setTimeout: clock.setTimeout,
@@ -245,7 +246,7 @@ test('optional display v1 survives projection and repeated final deliveries with
   t.after(() => fx.close());
   const source = fx.resolveSource('a'.repeat(64));
   fx.setActiveSource(source.id);
-  const service = createGiftProjectionService(fx.context);
+  const service = createGiftProjectionService({ store: fx.context.projectionStore, settings: fx.context.settings });
   t.after(() => service.dispose());
   const event = {
     eventId: 'profile-test',

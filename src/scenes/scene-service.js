@@ -1,21 +1,12 @@
 'use strict';
 
-const { createHash, randomBytes, randomUUID, timingSafeEqual } = require('node:crypto');
+const { randomUUID } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const { SCENE_TYPES, SceneError, normalizeSceneId, normalizeSceneDocument } = require('./scene-contract');
-const { createSceneOutputProjection } = require('./scene-output-projection');
+const { createSceneOutputReader } = require('./scene-output-reader');
+const { createSceneCapabilityCodec } = require('./scene-capability-codec');
 const { createSceneBrowserSourceCodec } = require('./scene-browser-source-codec');
 const { createSceneTransfer } = require('./scene-transfer');
-
-function hashToken(token) {
-  return createHash('sha256').update(token).digest('hex');
-}
-
-function matchesToken(token, hash) {
-  return typeof token === 'string' && /^[0-9a-f]{64}$/.test(token)
-    && typeof hash === 'string' && /^[0-9a-f]{64}$/.test(hash)
-    && timingSafeEqual(Buffer.from(hashToken(token), 'hex'), Buffer.from(hash, 'hex'));
-}
 
 function managementDto(record) {
   return {
@@ -30,22 +21,6 @@ function conflict() {
   return new SceneError('SCENE_CONFLICT', 409, '场景已更新，请重新加载后重试。');
 }
 
-function readDataVersions(value) {
-  if (value === undefined || value === null) return null;
-  try {
-    if (typeof value === 'string') {
-      if (value.length > 1024) throw new Error();
-      value = JSON.parse(value);
-    }
-    if (!value || typeof value !== 'object' || Array.isArray(value)
-      || Object.entries(value).some(([key, token]) => !['songlist', 'lyricTimeline', 'gift-feed'].includes(key)
-        || typeof token !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(token))) throw new Error();
-    return { known: { ...value }, current: {} };
-  } catch {
-    throw new SceneError('SCENE_INVALID_DATA_VERSION', 400, '场景数据版本无效。');
-  }
-}
-
 function checkRevision(record, expectedRevision) {
   if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
     throw new SceneError('SCENE_INVALID_REVISION', 400, '场景版本无效。');
@@ -54,9 +29,16 @@ function checkRevision(record, expectedRevision) {
 }
 
 function createSceneService({ store, getOwner, secretCodec, normalizeConfig, getDefaultConfig, getDisplayData, getSharedAppearances, onOutputChanged = () => {} }) {
-  const projections = createSceneOutputProjection();
-  const outputDocuments = new WeakMap();
   const browserSources = createSceneBrowserSourceCodec(secretCodec);
+  const capabilities = createSceneCapabilityCodec(secretCodec);
+  const output = createSceneOutputReader({
+    readOutput: (scope, id) => store.getOutput(scope, id),
+    readCapability: (scope, id) => store.getOutputCapability(scope, id),
+    decodeDocument: browserSources.decodeDocument,
+    matchesToken: capabilities.matchesToken,
+    getDisplayData,
+    getSharedAppearances,
+  });
   function withOwner(work) {
     try {
       const current = getOwner();
@@ -92,73 +74,6 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
     const record = readStored(scope, id);
     if (!record.isPreset) throw new SceneError('SCENE_NOT_FOUND', 404, '场景不存在。');
     return browserSources.decode(record, scope);
-  }
-
-  function readOutputSource(input, owner) {
-    const id = normalizeSceneId(input?.id);
-    const { token, version } = input;
-    const record = store.getOutput(owner.scope, id);
-    if (!record) throw new SceneError('SCENE_NOT_FOUND', 404, '场景不存在。');
-    if (!matchesToken(token, record.capability.hash)) {
-      throw new SceneError('SCENE_ACCESS_DENIED', 403, '场景来源凭据无效。');
-    }
-    if (version != null && (!Number.isSafeInteger(version) || version < 0)) {
-      throw new SceneError('SCENE_INVALID_VERSION', 400, '场景发布版本无效。');
-    }
-    if (!record.publishedDocument) throw new SceneError('SCENE_NOT_PUBLISHED', 409, '场景尚未发布。');
-    let document = record.publishedDocument;
-    let metadata = outputDocuments.get(document);
-    if (!metadata) {
-      metadata = { items: new Map(document.items.map(item => [item.id, item])),
-        types: [...new Set(document.items.filter(item => item.visible).map(item => item.type))] };
-      outputDocuments.set(document, metadata);
-    }
-    const itemId = input.item == null ? null : normalizeSceneId(input.item);
-    const binding = [owner.scope, owner.epoch, id, record.capability.hash, itemId];
-    const activeTypes = projections.read(input.projection, binding, version);
-    if (input.item != null) {
-      const item = metadata.items.get(itemId);
-      if (!item) throw new SceneError('SCENE_ITEM_NOT_FOUND', 404, '组件尚未发布或已移除。');
-      document = { ...document, canvas: { width: item.width, height: item.height },
-        items: [{ ...item, x: 0, y: 0, visible: true }] };
-    }
-    const types = itemId === null ? metadata.types : [document.items[0].type];
-    return { id, record, document, binding, types, activeTypes };
-  }
-
-  function decodeCapability(scope, id, capability) {
-    try {
-      if (secretCodec.isAvailable() !== true) throw new Error();
-      const decoded = JSON.parse(secretCodec.decrypt(capability.encrypted));
-      if (!decoded || Object.keys(decoded).length !== 5 || decoded.schemaVersion !== 1
-        || decoded.ownerScope !== scope || decoded.sceneId !== id
-        || decoded.capabilityVersion !== capability.version || !matchesToken(decoded.token, capability.hash)) {
-        throw new Error();
-      }
-      return decoded.token;
-    } catch {
-      throw new SceneError('SCENE_SOURCE_UNAVAILABLE', 503, '无法安全读取场景来源，请检查系统凭据保护。');
-    }
-  }
-
-  function issueCapability(scope, id, version) {
-    try {
-      if (!Number.isSafeInteger(version) || version < 1 || secretCodec.isAvailable() !== true) throw new Error();
-      const token = randomBytes(32).toString('hex');
-      const encrypted = secretCodec.encrypt(JSON.stringify({
-        schemaVersion: 1,
-        ownerScope: scope,
-        sceneId: id,
-        capabilityVersion: version,
-        token,
-      }));
-      if (typeof encrypted !== 'string' || !encrypted) throw new Error();
-      const capability = { version, hash: hashToken(token), encrypted };
-      decodeCapability(scope, id, capability);
-      return { capability, token };
-    } catch {
-      throw new SceneError('SCENE_SOURCE_UNAVAILABLE', 503, '无法安全保存场景来源，请检查系统凭据保护。');
-    }
   }
 
   function confirm(record, document) {
@@ -239,7 +154,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       return withOwner(() => normalizeSceneDocument(input?.document, { normalizeConfig }));
     },
 
-    ...createSceneTransfer({ withOwner, store, browserSources, issueCapability, normalizeConfig, getDefaultConfig, getSharedAppearances }),
+    ...createSceneTransfer({ withOwner, store, browserSources, issueCapability: capabilities.issue, normalizeConfig, getDefaultConfig, getSharedAppearances }),
 
     visitAssetReferences(visit) {
       store.visitDocuments((document, scope) => visit(browserSources.decodeDocument(document, scope)));
@@ -258,7 +173,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
           canvas: input?.canvas,
           items: [],
         }, { normalizeConfig });
-        const { capability } = issueCapability(owner.scope, document.id, 1);
+        const { capability } = capabilities.issue(owner.scope, document.id, 1);
         assertCurrent();
         return managementDto(store.create({ scope: owner.scope, document, capability }));
       });
@@ -328,7 +243,7 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
         const id = normalizeSceneId(sceneId);
         const record = readStored(owner.scope, id);
         const published = record.publishedDocument;
-        return { id, token: decodeCapability(owner.scope, id, record.capability),
+        return { id, token: capabilities.decode(owner.scope, id, record.capability),
           itemIds: published?.items.map((item) => item.id) || [],
           canvas: published ? { ...published.canvas } : null,
           itemSizes: Object.fromEntries((published?.items || []).map(item => [item.id,
@@ -340,8 +255,8 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
       const result = withOwner((owner, assertCurrent) => {
         const id = normalizeSceneId(sceneId);
         const record = readStored(owner.scope, id);
-        decodeCapability(owner.scope, id, record.capability);
-        const { capability, token } = issueCapability(owner.scope, id, record.capability.version + 1);
+        capabilities.decode(owner.scope, id, record.capability);
+        const { capability, token } = capabilities.issue(owner.scope, id, record.capability.version + 1);
         assertCurrent();
         const updated = store.rotate({ scope: owner.scope, id, expectedCapabilityVersion: record.capability.version, capability });
         if (!updated) throw conflict();
@@ -352,44 +267,11 @@ function createSceneService({ store, getOwner, secretCodec, normalizeConfig, get
     },
 
     getOutputAccess(input) {
-      return withOwner((owner) => {
-        const { record, binding, types, activeTypes } = readOutputSource(input, owner);
-        return { binding: JSON.stringify(binding), version: record.publishedVersion,
-          types: [...new Set([...types, ...activeTypes])] };
-      });
+      return withOwner(owner => output.getAccess(input, owner));
     },
 
     getOutput(input) {
-      return withOwner((owner, assertCurrent) => {
-        const { id, record, document, binding, types, activeTypes } = readOutputSource(input, owner);
-        const { token, version, epoch, cursor } = input;
-        const dataVersions = readDataVersions(input.dataVersions);
-        if (dataVersions && version !== record.publishedVersion) dataVersions.known = {};
-        const data = getDisplayData([...new Set([...types, ...activeTypes])], { epoch, cursor,
-          ...(dataVersions ? { dataVersions } : {}) });
-        const finish = (display) => {
-          assertCurrent();
-          const capability = store.getOutputCapability(owner.scope, id);
-          if (!capability) throw new SceneError('SCENE_NOT_FOUND', 404, '场景不存在。');
-          if (!matchesToken(token, capability.hash)) {
-            throw new SceneError('SCENE_ACCESS_DENIED', 403, '场景来源凭据无效。');
-          }
-          const outputDocument = version === record.publishedVersion ? null
-            : structuredClone(browserSources.decodeDocument(document, owner.scope));
-          const appearances = getSharedAppearances?.(document.items.filter(item => item.visible));
-          assertCurrent();
-          return {
-            sceneId: id,
-            version: record.publishedVersion,
-            projection: projections.issue(binding, record.publishedVersion, types),
-            document: outputDocument,
-            data: display,
-            ...(dataVersions ? { dataVersions: dataVersions.current } : {}),
-            ...(appearances ? { appearances } : {}),
-          };
-        };
-        return data?.then ? data.then(finish) : finish(data);
-      });
+      return withOwner((owner, assertCurrent) => output.getOutput(input, owner, assertCurrent));
     },
   };
 }

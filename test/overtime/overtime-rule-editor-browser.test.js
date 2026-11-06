@@ -66,35 +66,30 @@ test('accepted long durations survive rule and initial-time editor round trips',
     const readonly = hours.readOnly;
     const inputValid = hours.checkValidity();
     const { createOvertimeTimeView } = await import('/js/admin/overtime-time-view.js');
-    for (const id of ['overtimeInitialTime', 'overtimeInitialHours', 'overtimeInitialMinutes']) {
-      const node = document.createElement(id === 'overtimeInitialTime' ? 'input' : 'select');
+    for (const id of ['overtimeInitialHours', 'overtimeInitialMinutes']) {
+      const node = document.createElement('input');
+      node.type = 'number';
       node.id = id;
       document.body.append(node);
     }
     const view = createOvertimeTimeView({ byId: id => document.getElementById(id), getServerLimits: () => ({ maxSeconds }),
       setValueUnlessFocused: (id, value) => { document.getElementById(id).value = value; } });
-    view.populateInitialDurationSelectors();
     view.renderInitialDuration(seconds);
-    const formatted = document.getElementById('overtimeInitialTime').value;
     const selectedHours = document.getElementById('overtimeInitialHours').value;
-    const parsed = view.parseInitialDuration(formatted);
-    view.renderInitialDuration(3600);
-    return { saved, readonly, inputValid, formatted, selectedHours, parsed,
-      preservedOptions: document.querySelectorAll('[data-preserved-hours]').length };
+    const parsed = view.readInitialDuration();
+    return { saved, readonly, inputValid, selectedHours, parsed };
   }, { seconds, maxSeconds: MAX_OVERTIME_SECONDS });
   assert.equal(result.saved, seconds);
   assert.equal(result.readonly, true);
   assert.equal(result.inputValid, true);
-  assert.equal(result.formatted, '1000:02');
   assert.equal(result.selectedHours, '1000');
-  assert.equal(result.parsed, seconds - 5);
-  assert.equal(result.preservedOptions, 0);
+  assert.equal(result.parsed, seconds);
 });
 
 test('native display input accepts six Unicode code points and validates after composition', async t => {
   const base = { giftId: '1', mode: 'display', displayText: '谢谢支持' };
   const page = await mount(t, validateRules([base]));
-  await page.getByRole('button', { name: '展开设置', exact: true }).click();
+  await page.getByRole('button', { name: '编辑规则', exact: true }).click();
   const input = page.locator('[data-display-text]');
   for (const text of ['一二三四五六', '😀😃😄😁😆😅', '甲😀乙😃丙😄']) {
     await input.fill('');

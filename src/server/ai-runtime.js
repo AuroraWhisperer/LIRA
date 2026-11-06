@@ -3,6 +3,7 @@
 const path = require('node:path');
 const { createAiConfigStore } = require('../ai/config-store');
 const { createAiStateStore } = require('../storage/ai-state-store');
+const { createAiApiUsageStore } = require('../storage/ai-api-usage-store');
 const { createAiApiQuotaStore } = require('../ai/api-quota-store');
 const { createElectronSecretCodec } = require('../ai/secret-codec');
 const { createModelClient } = require('../ai/model-client');
@@ -22,7 +23,7 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
   const configStore = createAiConfigStore(persistence, secretCodec);
   const chatgptSession = createChatGptSession({ persistence, secretCodec,
     openBrowser: runtimeOptions.openAiLoginBrowser, fetchImpl: runtimeOptions.fetchImpl });
-  const quotaStore = createAiApiQuotaStore(songDb);
+  const quotaStore = createAiApiQuotaStore(createAiApiUsageStore(songDb));
   const deliveryVerifier = createDanmakuDeliveryVerifier();
   const requestLogger = runtimeOptions.aiRequestLogger || createAiRequestLogger({ logDir: path.dirname(aiLogPath) });
   const doubao = createDoubaoClient({

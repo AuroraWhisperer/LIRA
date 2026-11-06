@@ -32,20 +32,26 @@ test('replacing an installed style edits only the scene and never patches the pr
     overlayQueueStyle: 'identity', resourceStyle: { id: 'replacement' }, overlayShowIndex: 'false',
   });
 });
-test('A08: moving one item does not notify unchanged appearances across 32 instances', async () => {
+test('moving one item does not rebuild unchanged appearances across 32 instances', async () => {
   const { createSceneDocumentModel } = await load('admin/scene-document-model.js');
   const { createSceneItemController } = await load('admin/scene-item-controller.js');
   const document = documentOf(Array.from({ length: 32 }, () => item()));
   const model = createSceneDocumentModel(document);
   let notifications = 0;
   let changed = 0;
-  const defaults = { getState: () => ({ loaded: true, draft: {}, saved: {} }), subscribe(fn) { fn(); return () => {}; } };
+  let reads = 0;
+  const defaults = { getState: () => { reads++; return { loaded: true, draft: {}, saved: {} }; },
+    subscribe(fn) { fn(); return () => {}; } };
   const stops = document.items.map(item => createSceneItemController(model, item.id, defaults).subscribe(state => {
     notifications++; if (JSON.stringify(state.draft) !== JSON.stringify(item.appearance.config)) changed++;
   }));
-  notifications = changed = 0;
-  model.edit(draft => { draft.items[0].x++; });
+  notifications = changed = reads = 0;
+  for (let index = 0; index < 60; index++) model.edit(draft => { draft.items[0].x++; });
   assert.equal(notifications, 0); assert.equal(changed, 0);
+  assert.equal(reads, 0, 'geometry changes must be skipped before reading appearance owners');
+  model.edit(draft => { draft.items[0].appearance.config.label = 'changed'; });
+  assert.equal(reads, 1, 'a real appearance change still reads and notifies its owner');
+  assert.equal(notifications, 1);
   stops.forEach(stop => stop());
 });
 

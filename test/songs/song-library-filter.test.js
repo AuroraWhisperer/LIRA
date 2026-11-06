@@ -5,30 +5,19 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
-const { pathToFileURL } = require('node:url');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDatabases, closeDatabases } = require('../../src/storage/database');
 const { createSongStore } = require('../../src/storage/song-store');
 const songService = require('../../src/music/song-service');
 const ROOT_DIR = path.join(__dirname, '../..');
 
 async function loadCategoryFilterModule() {
-  const filePath = path.join(__dirname, '../..', 'public', 'js', 'admin', 'song-category-filter.js');
-  const context = vm.createContext({ console, document: {} });
-  const module = new vm.SourceTextModule(fs.readFileSync(filePath, 'utf8'), {
-    context,
-    identifier: pathToFileURL(filePath).href,
-  });
-  await module.link(() => {
-    throw new Error('The category filter module should not import dependencies.');
-  });
-  await module.evaluate();
-  return module.namespace;
+  const filePath = path.join(__dirname, '../..', 'public', 'js', 'admin', 'song-library-filters.js');
+  return loadModuleExports(filePath);
 }
 
 async function loadSongsModule(globals) {
   const { utils, state = {} } = globals.window.AdminApp;
-  const { loadModuleExports } = require('../helpers/frontend-modules');
   const { createSongs } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/songs.js'), globals);
   return createSongs({ utils, state });
 }

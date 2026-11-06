@@ -125,7 +125,7 @@ review_status: complete
 
 ### F05：Admin 的模块协作仍依赖全局对象和导入顺序
 
-位置：[songs.js:63](../../public/js/admin/songs.js)、[gifts/index.js:7](../../public/js/admin/gifts/index.js)、[admin/index.js](../../public/js/admin/index.js)、[legacy-admin-bridge.js](../../public/js/admin/legacy-admin-bridge.js)。
+位置：[songs.js:63](../../public/js/admin/songs.js)、[gifts/index.js:7](../../public/js/admin/gifts/index.js)、[admin/index.js](../../public/js/admin/index.js)、`legacy-admin-bridge.js`（2026-11-06 已退役，现行边界见 [legacy-boundaries.md](../architecture/engineering/legacy-boundaries.md)）。
 
 桥接文件之外，21 个 Admin JS 文件有 237 处 `window.AdminApp` 原始文本引用，含注册、检查、读写，不能当作 237 条独立依赖。例如歌曲流程读取全局状态，礼物入口检查并调用其他全局子模块，入口通过副作用导入保证注册顺序。这使消费者需要知道全局对象结构，单独装配与测试较难。
 

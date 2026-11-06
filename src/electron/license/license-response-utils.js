@@ -2,7 +2,7 @@
 
 const { isSensitiveFieldName: isSensitiveResponseKey } = require('../../shared/sensitive-field-name');
 
-const { RemoteLicenseError, normalizeErrorCode } = require('./remote-license-client');
+const { RemoteLicenseError, normalizeErrorCode } = require('./remote-license-error');
 
 const SONG_BACKGROUND_MAX_BYTES = 5 * 1024 * 1024;
 const SONG_BACKGROUND_TYPES = new Map([

@@ -85,9 +85,8 @@ start resources, and close them in reverse order.
 ## 4. Frontend Modules
 
 - New frontend code uses named ESM imports and exports.
-- Do not add `window.AdminApp` dependencies.
-  `public/js/admin/legacy-admin-bridge.js` is the intentional compatibility
-  boundary for new Admin ESM consumers.
+- Do not add `window.AdminApp` dependencies or publishers. Admin, desktop UI and
+  playback now use explicit imports and callbacks; their legacy bridge is retired.
 - Existing classic or IIFE modules may remain during incremental migration, but
   their legacy global text debt can only decrease.
 - Entrypoints may use side-effect imports for documented compatibility modules;
@@ -140,11 +139,12 @@ Status meanings:
 | Rule ID               | Rule                                                          | Status                 | Enforcement                                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle          | Incrementally Enforced | Selected composition-root assertions plus review                                                                                                                                 |
-| `MOD-STORAGE-001`     | Domain services do not issue SQL                              | Incrementally Enforced | Receiver-aware no-SQL scan outside storage (no allowlist), selected domain import guards                                                                                                                                                   |
+| `MOD-STORAGE-001`     | Domain services do not issue SQL                              | Incrementally Enforced | Receiver-aware no-SQL scan outside storage (no allowlist), directory-wide domain-to-storage/transport/desktop import guards |
 | `MOD-STORAGE-002`     | Stores own transaction boundaries                             | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
-| `MOD-ADMIN-001`       | New Admin code does not add global-state access               | Incrementally Enforced | `window.AdminApp` debt budget                                                                                                                                                    |
+| `MOD-ADMIN-001`       | New Admin code does not add global-state access               | Incrementally Enforced | All frontend modules are checked for direct Admin registry reads/publication; the former debt budget is removed |
 | `MOD-FRONTEND-001`    | New frontend code uses explicit ESM boundaries                | Incrementally Enforced | `test/engineering/esm-module-boundaries.test.js` rejects undeclared or unimported identifiers in ES modules under `public/js/`; review covers explicit exports and classic-script exceptions |
-| `MOD-SHARED-001`      | Shared utilities remain domain-neutral                        | Migration Target       | Frontend shared-to-Admin/overlay import guard plus selected regression assertions |
+| `MOD-SHARED-001`      | Shared utilities remain domain-neutral                        | Incrementally Enforced | Shared imports cannot point to runtime/UI owners; Node may consume pure browser-shared contracts; semantic cohesion remains review-based |
+| `MOD-DEPENDENCY-001`  | Product JavaScript module dependencies are acyclic             | Incrementally Enforced | Static ESM declarations and executable literal require/import calls under src and public/js; computed paths and injected callbacks need review |
 | `MOD-CONTRACT-001`    | Public contracts remain compatible by default                 | Incrementally Enforced | Existing regression tests; full inventory deferred                                                                                                                               |
 | `MOD-SIZE-001`        | Review file size by source kind, responsibility and purpose | Review Required | `scripts/check-modularity.js` reports advisory size signals; `test/engineering/modularity-size.test.js` verifies counting and reporting, not semantic cohesion |
 | `MOD-FUNCTION-001`    | Long or complex functions need semantic decomposition review  | Migration Target       | Named debt and next-change triggers in [modularity-debt.md](modularity-debt.md); no repository-wide function metric gate                                                         |
@@ -172,7 +172,9 @@ Current fitness functions block or freeze selected regressions, including:
 
 - Song, Queue and SuperChat services issuing SQLite statements directly.
 - Known database receivers issuing SQL outside storage.
-- Admin legacy global debt expanding to a new file or beyond a file baseline.
+- Admin registry reads or publication returning to any frontend module.
+- Domain imports of storage/transport/desktop implementations, shared imports of
+  upper-layer owners, or cycles in the product JavaScript module dependency graph.
 - Empty or comment-only catch debt expanding in `src/` or `public/js/`.
 - Playback composition reintroducing generic dependencies or mutable forward
   declarations.

@@ -2,7 +2,7 @@
 
 async function openLyricGroup(page, control) {
   const group = page.locator('.desktop-lyric-settings-group').filter({ has: page.locator(control) });
-  if (!(await group.evaluate((el) => el.open))) await group.locator('summary').click();
+  if (!(await group.evaluate((el) => el.open))) await group.locator(':scope > summary').click();
   await group.evaluate((el) => el.scrollIntoView({ block: 'start' }));
 }
 
@@ -122,10 +122,10 @@ const SHOTS = [
   {
     id: 'B13',
     file: 'desktop-lyric-appearance',
-    title: '桌面歌词基础字体设置',
+    title: '直播歌词文字排版',
     main: 'liveComponentsPage', feature: 'desktopLyricPage',
     size: [1440, 1040],
-    scroll: '.desktop-lyric-settings-group.is-basic',
+    scroll: '[data-parameter-group="basic"]',
   },
   {
     id: 'B13b',
@@ -137,14 +137,14 @@ const SHOTS = [
   {
     id: 'B13c',
     file: 'desktop-lyric-karaoke',
-    title: '桌面歌词逐字高亮与翻译',
+    title: '直播歌词高亮与配色',
     main: 'liveComponentsPage', feature: 'desktopLyricPage',
     setup: (page) => openLyricGroup(page, '#desktopLyricKaraokeMode'),
   },
   {
     id: 'B13d',
     file: 'desktop-lyric-opacity',
-    title: '桌面歌词可见性与时间偏移',
+    title: '直播歌词播放与同步',
     main: 'liveComponentsPage', feature: 'desktopLyricPage',
     setup: (page) => openLyricGroup(page, '#desktopLyricTimeOffsetMs'),
     size: [1440, 1040],

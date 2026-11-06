@@ -5,6 +5,7 @@ import { clockAt, dayDifference, isDaylight, sunDirection } from './time.js';
 import { createGlobe } from './globe.js';
 import { createTemperatureController } from './temperature.js';
 import { mountCityDrag } from './city-drag.js';
+import { createCityPicker } from './city-picker.js';
 
 const STORAGE_KEY = 'admin.worldClock';
 const CITY_BY_ID = new Map(CITIES.map(city => [city.id, city]));
@@ -60,9 +61,6 @@ export function initWorldClock() {
   let active = false;
   let disposed = false;
   let lastSunMinute = -1;
-  let catalogMatches = [];
-  let catalogShown = 0;
-  let catalogMinute = '';
   let menuCityId = null;
   let menuAnchor = null;
   const temperatures = createTemperatureController({
@@ -70,6 +68,22 @@ export function initWorldClock() {
     onChange: renderTemperatures,
   });
   const cityDrag = mountCityDrag(get('list'), { beforeDrag: closeCityMenu, commit: reorderCities });
+  const cityPicker = createCityPicker({
+    dialog: get('dialog'), search: get('search'), results: get('results'),
+    footer: get('catalog-footer'), summary: get('catalog-summary'), more: get('more'), closeButton: get('close'),
+    getSelectedIds: () => ids,
+    getFormat: () => format,
+    createAddIcon: () => icon('plus'),
+    onAdd(city) {
+      ids.push(city.id);
+      get('filter').value = '';
+      renderCards();
+      selectCity(city.id);
+      rows.find(row => row.city.id === city.id)?.button.focus();
+      temperatures.refreshCity(city);
+    },
+    onOpenChange() { syncGlobeActivity(); tick(); },
+  });
 
   function renderTemperatures() {
     for (const row of rows) {
@@ -253,14 +267,7 @@ export function initWorldClock() {
     const now = new Date();
     const minute = Math.floor(now.getTime() / 60000);
     if (get('dialog').open) {
-      const key = `${minute}/${format}`;
-      if (catalogMinute !== key) {
-        for (const node of get('results').querySelectorAll('[data-world-clock-catalog-time]')) {
-          const clock = clockAt(CITY_BY_ID.get(node.dataset.worldClockCatalogTime).zone, now, format);
-          setText(node, `${clock.period ? `${clock.period} ` : ''}${clock.hour}:${clock.minute}`);
-        }
-        catalogMinute = key;
-      }
+      cityPicker.updateTime(now, format);
       return;
     }
     const reference = clockAt('Asia/Shanghai', now, format);
@@ -314,65 +321,10 @@ export function initWorldClock() {
     }
   }
 
-  function renderCatalog(append = false) {
-    catalogMinute = '';
-    const results = get('results');
-    const query = get('search').value.trim();
-    if (!append) {
-      catalogMatches = query ? CITIES.filter(city => !ids.includes(city.id) && matchesCity(city, query)) : [];
-      catalogShown = 0;
-      results.replaceChildren();
-      results.scrollTop = 0;
-    }
-    const nextIndex = catalogShown;
-    for (const city of catalogMatches.slice(catalogShown, catalogShown + 100)) {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'world-clock-catalog-city';
-      button.setAttribute('aria-label', `添加${city.name}`);
-      const content = document.createElement('div');
-      const name = document.createElement('strong');
-      name.textContent = city.name;
-      const details = document.createElement('p');
-      details.textContent = [city.country, city.region, city.english].filter(Boolean).join(' · ');
-      content.append(name, details);
-      const time = document.createElement('time');
-      time.dataset.worldClockCatalogTime = city.id;
-      button.append(content, time, icon('plus'));
-      button.addEventListener('click', () => {
-        ids.push(city.id);
-        get('filter').value = '';
-        get('dialog').close();
-        renderCards();
-        selectCity(city.id);
-        rows.find(row => row.city.id === city.id)?.button.focus();
-        temperatures.refreshCity(city);
-      });
-      results.append(button);
-    }
-    catalogShown = Math.min(catalogShown + 100, catalogMatches.length);
-    get('catalog-footer').hidden = !catalogMatches.length;
-    get('catalog-summary').textContent = `共 ${catalogMatches.length.toLocaleString()} 座城市，已显示 ${catalogShown.toLocaleString()} 座`;
-    get('more').hidden = catalogShown === catalogMatches.length;
-    if (!catalogMatches.length) {
-      const empty = document.createElement('p');
-      empty.className = 'world-clock-empty';
-      empty.textContent = query ? '没有匹配的可添加城市' : '输入城市名称或国家开始搜索';
-      results.append(empty);
-    }
-    if (append) results.children[nextIndex]?.focus();
-    tick();
-  }
-
   function openAdd() {
     cityDrag.cancel();
     closeCityMenu();
-    get('search').value = '';
-    renderCatalog();
-    get('dialog').showModal();
-    syncGlobeActivity();
-    get('search').focus();
-    tick();
+    cityPicker.open();
   }
 
   function syncGlobeActivity() {
@@ -394,7 +346,7 @@ export function initWorldClock() {
     } else {
       cityDrag.cancel();
       closeCityMenu();
-      if (get('dialog').open) get('dialog').close();
+      cityPicker.close();
     }
   }
 
@@ -462,16 +414,7 @@ export function initWorldClock() {
     event.stopPropagation();
     closeDetails();
   });
-  listen(get('close'), 'click', () => get('dialog').close());
-  listen(get('dialog'), 'close', () => { syncGlobeActivity(); tick(); });
-  listen(get('dialog'), 'click', event => {
-    if (event.target !== get('dialog')) return;
-    const rect = get('dialog').getBoundingClientRect();
-    if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) get('dialog').close();
-  });
   listen(get('filter'), 'input', renderCards);
-  listen(get('search'), 'input', () => renderCatalog());
-  listen(get('more'), 'click', () => renderCatalog(true));
   for (const button of root.querySelectorAll('[data-world-clock-format]')) {
     button.setAttribute('aria-pressed', String(button.dataset.worldClockFormat === format));
     listen(button, 'click', () => {
@@ -507,7 +450,7 @@ export function initWorldClock() {
     events.abort();
     globe?.destroy();
     closeCityMenu();
-    if (get('dialog').open) get('dialog').close();
+    cityPicker.dispose();
   });
   renderCards();
   for (const button of root.querySelectorAll('.world-clock-globe-controls button')) button.disabled = true;

@@ -76,7 +76,10 @@ test('open blind box analysis debounces gift events into one quiet reload and st
   const timers = [];
   const requests = [];
   const window = {};
-  const { giftAnalysis } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox-analysis.js'), {
+  const [{ giftAnalysis }, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox-analysis.js'),
+    path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], {
     window,
     HTMLElement: class {},
     AbortController,
@@ -95,7 +98,6 @@ test('open blind box analysis debounces gift events into one quiet reload and st
       return new Promise(() => {});
     },
   });
-  const { eventBus } = window.AdminApp;
   const pendingTimers = () => timers.filter((timer) => !timer.cleared);
 
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });

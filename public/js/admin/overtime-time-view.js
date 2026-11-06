@@ -3,6 +3,9 @@
 import { formatClockDisplay, formatClockSeconds } from '../shared/overtime-time-format.js';
 
 export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerLimits, getSettlements }) {
+  let durationDirty = false;
+  let savedSeconds = 0;
+
   function renderSettlements() {
     const settlements = getSettlements();
     const root = byId('overtimeSettlements');
@@ -49,50 +52,32 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
     }
   }
 
-  function populateInitialDurationSelectors() {
-    const hours = byId('overtimeInitialHours');
-    const minutes = byId('overtimeInitialMinutes');
-    for (let value = 0; value <= 999; value += 1) {
-      appendOption(hours, String(value), `${value} 小时`);
-    }
-    for (let value = 0; value < 60; value += 1) {
-      appendOption(minutes, String(value), `${value} 分钟`);
-    }
-  }
-
-  function syncDurationSelectorsFromInput() {
-    try {
-      renderDurationSelectors(parseInitialDuration(byId('overtimeInitialTime').value));
-    } catch (_) {
-      return;
-    }
-  }
-
-  function syncDurationInputFromSelectors() {
-    const hours = Number(byId('overtimeInitialHours').value) || 0;
-    const minutes = Number(byId('overtimeInitialMinutes').value) || 0;
-    byId('overtimeInitialTime').value = formatInitialDuration((hours * 60 + minutes) * 60);
+  function markDurationDirty() {
+    durationDirty = true;
   }
 
   function renderInitialDuration(seconds) {
-    const normalizedSeconds = Math.max(0, Math.floor((Number(seconds) || 0) / 60) * 60);
-    setValueUnlessFocused('overtimeInitialTime', formatInitialDuration(normalizedSeconds));
-    renderDurationSelectors(normalizedSeconds);
-  }
-
-  function renderDurationSelectors(seconds) {
-    const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
+    savedSeconds = Math.max(0, Number(seconds) || 0);
+    if (durationDirty) return;
+    const totalMinutes = Math.floor(savedSeconds / 60);
     const hours = Math.floor(totalMinutes / 60);
-    const selector = byId?.('overtimeInitialHours');
-    if (selector) {
-      for (const option of selector.querySelectorAll('[data-preserved-hours]')) option.remove();
-      if (hours > 999) {
-        appendOption(selector, String(hours), `${hours} 小时（已保存）`);
-        selector.lastElementChild.dataset.preservedHours = 'true';
-      }
-    }
     setValueUnlessFocused('overtimeInitialHours', String(hours));
     setValueUnlessFocused('overtimeInitialMinutes', String(totalMinutes % 60));
+  }
+
+  function readInitialDuration() {
+    if (!durationDirty) return savedSeconds;
+    const hours = byId('overtimeInitialHours').value.trim() || '0';
+    const minutes = byId('overtimeInitialMinutes').value.trim() || '0';
+    if (!/^\d+$/.test(hours) || !/^\d{1,2}$/.test(minutes)) {
+      throw new Error('小时和分钟请填写非负整数，分钟需小于 60。');
+    }
+    return parseInitialDuration(`${hours}:${minutes.padStart(2, '0')}`);
+  }
+
+  function acceptInitialDuration(seconds) {
+    durationDirty = false;
+    renderInitialDuration(seconds);
   }
 
   function parseInitialDuration(value) {
@@ -117,13 +102,6 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
     return `${hours}:${String(minutes).padStart(2, '0')}`;
   }
 
-  function formatInitialDuration(seconds) {
-    const totalMinutes = Math.floor(Math.max(0, Number(seconds) || 0) / 60);
-    const hours = Math.floor(totalMinutes / 60);
-    const minutes = totalMinutes % 60;
-    return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
-  }
-
   function formatSignedClock(seconds) {
     const number = Number(seconds) || 0;
     return `${number < 0 ? '-' : '+'}${formatClockSeconds(Math.abs(number))}`;
@@ -143,13 +121,6 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
     return formatSignedClock(item.appliedDeltaSeconds);
   }
 
-  function appendOption(select, value, label) {
-    const option = document.createElement('option');
-    option.value = value;
-    option.textContent = label;
-    select.append(option);
-  }
-
   function createMessage(className, message) {
     const node = document.createElement('div');
     node.className = className;
@@ -159,9 +130,9 @@ export function createOvertimeTimeView({ byId, setValueUnlessFocused, getServerL
 
   return {
     renderSettlements,
-    populateInitialDurationSelectors,
-    syncDurationSelectorsFromInput,
-    syncDurationInputFromSelectors,
+    markDurationDirty,
+    readInitialDuration,
+    acceptInitialDuration,
     renderInitialDuration,
     parseInitialDuration,
     formatClockDisplay,

@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { createDeviceKeyStore } = require('../../src/electron/license/device-key-store');
-const { requestDeviceActivation } = require('../../src/electron/license/license-activation');
+const { requestDeviceActivation } = require('../../src/electron/license/device-authentication');
 
 function createFixture(t, existing) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-activation-'));

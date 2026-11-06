@@ -10,29 +10,6 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const ROOT_DIR = path.join(__dirname, '../..');
 const noop = () => {};
 
-test('legacy danmaku initialization preserves reconnect defaults and explicit injection', async () => {
-  const calls = [];
-  const window = {
-    AdminApp: {
-      settings: {
-        reconnectBilibili: () => calls.push('legacy'),
-      },
-    },
-  };
-  const { publishDanmakuTool } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/legacy-admin-bridge.js'),
-    { window },
-  );
-  publishDanmakuTool({
-    init: ({ reconnectBilibili }) => reconnectBilibili(),
-    refresh: noop,
-  });
-  window.AdminApp.danmakuTool.init();
-  window.AdminApp.danmakuTool.init({ reconnectBilibili: undefined });
-  window.AdminApp.danmakuTool.init({ reconnectBilibili: () => calls.push('explicit') });
-  assert.deepEqual(calls, ['legacy', 'legacy', 'explicit']);
-});
-
 async function createStartupFixture({ confirm = async () => false, hash } = {}) {
   const theme = Promise.withResolvers();
   const data = Promise.withResolvers();
@@ -47,6 +24,11 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   const toolboxBindings = [];
   const preferenceWrites = [];
   const selectedFeatures = [];
+  const selectedToolboxFeatures = [];
+  let desktopOptions;
+  let playbackOptions;
+  let aboutOpened = 0;
+  let fullscreenClosed = 0;
   const pageState = {};
   const location = { hash: hash || '', pathname: '/admin', search: '' };
   const navigationButtons = hash === undefined ? [] : ['songAssistantPage', 'liveComponentsPage'].map(mainPage => ({
@@ -56,9 +38,6 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   const songFilters = { query: 'current page filter' };
   let readSongFilters;
   let start;
-  const modules = {
-    desktop: { initDesktopShell: () => calls.push('desktop') },
-  };
   const context = vm.createContext({
     location,
     history: { replaceState: (_state, _title, url) => { location.hash = url.startsWith('#') ? url : ''; } },
@@ -68,7 +47,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
       readyState: 'interactive',
       documentElement: { classList: { remove: (name) => classes.delete(name) } },
       querySelectorAll: selector => selector === '.main-page-tab' ? navigationButtons : selector === '.main-page' ? pages : [],
-      getElementById: () => null,
+      getElementById: (id) => id === 'settingsAboutTab' ? { click: () => { aboutOpened++; } } : null,
       addEventListener: (name, listener) => {
         if (name === 'DOMContentLoaded') start = listener;
       },
@@ -97,10 +76,14 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     '../shared/parameter-range.js': { initParameterRanges: noop },
     '../shared/color-control.js': { enhanceColorControls: noop },
     '../shared/select-menu.js': { enhanceSelects: () => featureInitializations.push('select-controls') },
-    './legacy-admin-bridge.js': {
-      getLegacyAdminModules: () => modules,
-      publishNavigation: noop,
-    },
+    '../desktop.js': { createDesktopShell: (options) => {
+      desktopOptions = options;
+      return { initDesktopShell: () => calls.push('desktop') };
+    } },
+    '../playback/index.js': { initPlaybackAssistant: (options) => {
+      playbackOptions = options;
+      featureInitializations.push('playback');
+    }, closeQueuePopup: noop },
     './usage-guide.js': { initUsageGuide: noop },
     './toolbox-lifecycle.js': { createToolboxLifecycle: (options) => {
       toolboxOptions.push(options);
@@ -109,6 +92,8 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     './dynamic-lottery.js': { initDynamicLottery: () => ({ dispose: noop }) },
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
     './gift-frame.js': { initGiftFrame: noop },
+    './gift-frame-styles.js': { initGiftFrameStyles: noop },
+    './gift-motion-settings.js': { initGiftMotionSettings: noop },
     './gift-guard-thanks.js': { initGuardThanks: noop },
     './gifts/history.js': { initGiftHistoryDrawer: noop },
     './gifts/index.js': { renderGiftPanel: noop },
@@ -134,6 +119,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
       formsService: {
         initWorkspaceControls: () => calls.push('workspace'),
         initTabs: noop,
+        closeFullscreenPlayer: () => { fullscreenClosed++; },
       },
     },
     './queue.js': { initQueueForm: noop },
@@ -143,7 +129,8 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     './streamer-planner.js': { todo: { init: () => featureInitializations.push('planner') } },
     './gift-effects.js': { giftEffects: { init: noop } },
     './toolbox-navigation.js': {
-      other: { initOtherPage: (options) => toolboxBindings.push(options), selectFeatureById: noop },
+      other: { initOtherPage: (options) => toolboxBindings.push(options),
+        selectFeatureById: (feature) => selectedToolboxFeatures.push(feature) },
       createFeatureNavigation: () => ({ initOtherPage: noop, selectFeatureById: feature => selectedFeatures.push(feature) }),
     },
     './danmaku-tool.js': { danmakuTool: {} },
@@ -189,7 +176,9 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   });
   await entry.evaluate();
   return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions,
-    featureInitializations, toolboxBindings, preferenceWrites, selectedFeatures, pageState };
+    featureInitializations, toolboxBindings, preferenceWrites, selectedFeatures, pageState,
+    selectedToolboxFeatures, desktopOptions, get playbackOptions() { return playbackOptions; },
+    get aboutOpened() { return aboutOpened; }, get fullscreenClosed() { return fullscreenClosed; } };
 }
 
 test('music display links open the matching component after its navigation is initialized', async () => {
@@ -237,13 +226,19 @@ test('desktop startup waits for theme and initial data while initializing window
   fixture.theme.resolve();
   await fixture.dataRequested.promise;
   assert.deepEqual(fixture.calls.slice(4).sort(), ['display-form', 'theme-form']);
-  assert.deepEqual(fixture.featureInitializations.sort(), ['planner', 'select-controls', 'world-clock']);
+  assert.deepEqual(fixture.featureInitializations.sort(), ['planner', 'playback', 'select-controls', 'world-clock']);
   assert.deepEqual(fixture.connectionStates, ['connected', 'disconnected', 'shutdown']);
   assert.equal(fixture.classes.has('admin-starting'), true);
   fixture.data.resolve();
   await starting;
   assert.equal(fixture.classes.has('admin-starting'), false);
   assert.deepEqual(fixture.errors, []);
+  fixture.desktopOptions.openUpdatePage();
+  assert.equal(fixture.pageState.mainPage, 'other');
+  assert.deepEqual(fixture.selectedToolboxFeatures, ['otherSettingsFeature']);
+  assert.equal(fixture.aboutOpened, 1);
+  fixture.playbackOptions.closeFullscreenPlayer();
+  assert.equal(fixture.fullscreenClosed, 1);
 });
 
 test('toolbox preference callbacks persist only the corresponding settings fields', async () => {

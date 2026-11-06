@@ -2,6 +2,8 @@
 // 统一事件管理系统 - EventBus
 'use strict';
 
+import { logger } from './logger.js';
+
 /**
  * 事件总线 - 用于应用内跨模块通信
  *
@@ -85,8 +87,8 @@ export class EventBus {
    * @param {*} data - 事件数据
    */
   emit(event, data) {
-    if (this.debug && window.AdminApp?.logger) {
-      window.AdminApp.logger.debug(`EventBus: ${event}`, data);
+    if (this.debug) {
+      logger.debug(`EventBus: ${event}`, data);
     }
 
     const handlers = this.listeners.get(event);
@@ -170,14 +172,6 @@ export class EventBus {
 
 // 导出单例
 export const eventBus = new EventBus();
-
-// 挂载到全局（向后兼容）
-if (typeof window !== 'undefined') {
-  if (!window.AdminApp) {
-    window.AdminApp = {};
-  }
-  window.AdminApp.eventBus = eventBus;
-}
 
 /**
  * 常用事件名称常量

@@ -77,7 +77,7 @@ async function run(mediaOnly = false) {
     getBaseUrl: () => origin,
     getToken: () => token,
   });
-  configureMediaRequestHeaders(session.defaultSession, {}, auth);
+  configureMediaRequestHeaders(session.defaultSession, auth);
   const makeWindow = () => {
     const win = new BrowserWindow({
       show: false,

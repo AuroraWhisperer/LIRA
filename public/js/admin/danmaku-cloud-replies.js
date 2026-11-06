@@ -64,7 +64,7 @@ export function initDanmakuCloudReplies({
       library.load(schedule.messages);
       timingFields();
     }
-    exactState.textContent = `${saved.customExactReplies.length} 条自定义`;
+    exactState.textContent = '';
     get('danmakuScheduledSummary').textContent = schedule.mode === 'random'
       ? `随机 ${schedule.minSeconds}–${schedule.maxSeconds} 秒 · ${schedule.messages.length} 条`
       : `每 ${schedule.intervalSeconds} 秒 · ${schedule.messages.length} 条`;

@@ -2,8 +2,8 @@
 // 组装歌曲、队列、礼物和弹幕领域服务，集中管理它们需要的共享状态。
 'use strict';
 
-const database = require('../storage/database');
-const retention = require('../storage/retention');
+const { createMessageApplication } = require('./message-application');
+const { createDataMaintenanceRuntime } = require('./data-maintenance-runtime');
 const { createPlaybackStore } = require('../storage/playback-store');
 const { createThemeStore } = require('../storage/theme-store');
 const { createCooldownStore } = require('../storage/cooldown-store');
@@ -27,12 +27,11 @@ const { previewSongImport, applySongImport } = require('../music/song-import-upd
 const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const { createGiftWishService } = require('../bilibili/gift/wish-service');
+const { createHeartBoxCollectionService } = require('../bilibili/gift/heart-box-collection');
 const { createGiftWishStore } = require('../storage/gift-wish-store');
 const superChatService = require('../bilibili/superchat-service');
 const { createSuperChatUndo } = require('../bilibili/superchat-undo');
-const { dailyBotCommand } = require('../bilibili/danmaku/command-text');
 const { createCustomReplyService } = require('../bilibili/custom-reply-service');
-const bilibiliMessageHandler = require('../bilibili/bilibili-message-handler');
 const { createOvertimeConsumer, createOvertimeService } = require('../overtime');
 const {
   createGiftSaleCatalogService,
@@ -57,11 +56,8 @@ function createDomainServices(options) {
   });
   const superChatStore = createSuperChatStore(db.superChatDb);
   const customReplies = createCustomReplyService({
-    settings: () => settingsStore.getSettings(),
+    settings: () => settingsStore.getSettings(['enableCustomReplyBot', 'customReplyRules']),
   });
-
-  // schema 版本只在启动迁移时变化，运行时缓存避免每次 /api/health 重算 5 个 SELECT。
-  let schemaVersionsCache = null;
 
   // 冷却记录重启后从 DB 恢复，避免观众靠重启绕过冷却
   const restoredCooldowns = userRequestCooldown.restore();
@@ -184,8 +180,10 @@ function createDomainServices(options) {
       },
     };
 
+    const giftWishStore = createGiftWishStore(db.giftDb);
+    const heartBoxCollection = createHeartBoxCollectionService({ store: giftWishStore, gifts, catalog: overtimeGiftCatalog });
     const giftWishes = createGiftWishService({
-      store: createGiftWishStore(db.giftDb),
+      store: giftWishStore,
       gifts,
       catalog: overtimeGiftCatalog,
       getRoomId: options.giftSaleGetRoomId || (() => settingsStore.getSettings().roomId),
@@ -208,107 +206,28 @@ function createDomainServices(options) {
       dispose: superChatUndo.clear,
     };
 
-    const messages = {
-      handleDanmaku(danmaku) {
-        const reserved = dailyBotCommand(danmaku.message);
-        if (reserved) return { accepted: false, reason: 'cloud-owned', command: { type: reserved } };
-        const result = bilibiliMessageHandler.handleDanmakuMessage(
-          {
-            settings: () => settingsStore.getSettings(),
-            // message-handler still reads this legacy-shaped adapter; it only
-            // exposes the defaults query rather than the full settings store.
-            settingsStore: {
-              getDefaultSettings: () => settingsStore.getDefaultSettings(),
-            },
-            userRequestCooldown,
-            addQueueItem: queue.add,
-            cancelQueueItem: queue.cancel,
-            resolveSongRequest: songs.findUniqueNameMatch,
-            // 通过 songs.pickRandom 传入，让 message-handler 无需直接访问 DB 句柄
-            pickRandomSong: songs.pickRandom,
-            describeRandomSongScope: songs.describeRandomScope,
-          },
-          danmaku,
-        );
-        if (result.command?.type === 'request' || result.command?.type === 'random') {
-          queue.recordRequestResult({ accepted: result.accepted, requesterName: danmaku.userName,
-            songName: result.queueItem?.song_name || result.command.songName });
-        }
-        if (result.command) return result;
-        if (customReplies.isCloudOwnedCommand(danmaku.message)) {
-          return { accepted: false, reason: 'cloud-owned', command: { type: 'custom-exact-reply' } };
-        }
-        const customReply = customReplies.handleDanmaku(danmaku);
-        if (!customReply.command) return result;
-        return {
-          ...result,
-          customReply,
-          customReplyReply: customReply.autoReply || null,
-        };
-      },
-      logDanmaku: bilibiliMessageHandler.logDanmakuCommand,
-    };
-
-    const data = {
-      clearSongLibrary() {
-        const result = database.clearSongLibraryData(db.songDb);
-        songs.ensureCategory('默认');
-        queue.ensureUnified();
-        return result;
-      },
-      clearSuperChats() {
-        superChatUndo.clear();
-        return database.clearSuperChatData(db.superChatDb);
-      },
-      clearPlayback: () => database.clearPlaybackData(db.musicDb),
-      clearGifts() {
-        return database.clearGiftData(db.giftDb, {
-          sourceId: getActiveGiftSourceId(gifts),
-        });
-      },
-      clearAll() {
-        superChatUndo.clear();
-        const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb, {
-          sourceId: getActiveGiftSourceId(gifts),
-        });
-
-        // 只有完全成功时才重置内存状态
-        if (result.cleared === true && !result.partial) {
-          try {
-            overtime.reloadState();
-            userRequestCooldown.reset();
-            songs.ensureCategory('默认');
-            queue.ensureUnified();
-          } catch (error) {
-            return {
-              ...result,
-              ok: false,
-              cleared: false,
-              partial: true,
-              phase: 'runtime-reset',
-              failed: [],
-              error: `数据已清空，但运行状态重载失败：${error.message}`,
-            };
-          }
-        }
-
-        return result;
-      },
-      getSchemaVersions: () => {
-        if (!schemaVersionsCache) schemaVersionsCache = database.getSchemaVersions(db);
-        return schemaVersionsCache;
-      },
-      getRetentionStats: () => retention.getRetentionStats(db),
-      runRetention(options = {}) {
-        if (options.dryRun !== true) superChatUndo.clear();
-        const policy = options.policy || retention.readRetentionPolicy(settingsStore.getSettings());
-        return retention.applyRetentionPolicies(db, {
-          policy,
-          dryRun: options.dryRun === true,
-          ranAt: options.ranAt,
-        });
-      },
-    };
+    const messages = createMessageApplication({
+      getSettings: () => settingsStore.getSettings(),
+      getDefaultSettings: () => settingsStore.getDefaultSettings(),
+      userRequestCooldown,
+      addQueueItem: input => queue.add(input),
+      cancelQueueItem: input => queue.cancel(input),
+      resolveSongRequest: name => songs.findUniqueNameMatch(name),
+      pickRandomSong: scope => songs.pickRandom(scope),
+      describeRandomSongScope: scope => songs.describeRandomScope(scope),
+      recordRequestResult: input => queue.recordRequestResult(input),
+      customReplies,
+    });
+    const data = createDataMaintenanceRuntime({
+      db,
+      getSettings: () => settingsStore.getSettings(),
+      ensureSongCategory: name => songs.ensureCategory(name),
+      ensureUnifiedQueue: () => queue.ensureUnified(),
+      clearSuperChatUndo: () => superChatUndo.clear(),
+      getActiveGiftSource: () => gifts.getActiveSource?.(),
+      reloadOvertimeState: () => overtime.reloadState(),
+      resetUserCooldowns: () => userRequestCooldown.reset(),
+    });
 
     return {
       songs,
@@ -316,6 +235,7 @@ function createDomainServices(options) {
       fans,
       gifts,
       giftWishes,
+      heartBoxCollection,
       overtime,
       overtimeGiftCatalog,
       superChats,
@@ -346,11 +266,5 @@ function createDomainServices(options) {
   }
 }
 
-function getActiveGiftSourceId(gifts) {
-  const source = gifts.getActiveSource?.();
-  if (source?.syncState === 'SOURCE_SWITCHING') return null;
-  const sourceId = Number(source?.sourceId);
-  return Number.isSafeInteger(sourceId) && sourceId >= 1 ? sourceId : null;
-}
 
 module.exports = { createDomainServices };

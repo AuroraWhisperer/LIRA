@@ -211,7 +211,7 @@ body.blind-analysis-open .playback-player-panel {
 /* Viewer names can be long: let the shared menu grow past the trigger. */
 .blind-analysis-filter .lira-select-menu {
   right: auto;
-  width: max(100%, 240px);
+  width: max(var(--select-trigger-width), 240px);
   max-width: min(360px, calc(100vw - 32px));
   max-height: min(320px, calc(100vh - 250px));
 }
@@ -451,7 +451,7 @@ body.blind-analysis-open .playback-player-panel {
   }
 
   .blind-analysis-filter .lira-select-menu {
-    width: 100%;
+    width: var(--select-trigger-width);
   }
 
   .blind-analysis-clear {

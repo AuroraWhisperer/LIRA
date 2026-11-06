@@ -14,14 +14,11 @@ const {
   stripWeSingWindowTitle,
 } = require('./wesing-cache');
 const { createPowerShellWeSingMonitor } = require('./wesing-monitor');
-const { createWeSingPlaybackClock } = require('./wesing-playback-clock');
+const { createWeSingPlaybackTracker, isWeSingAudioAudible } = require('./wesing-playback-tracker');
 const { resolveWeSingLyrics } = require('./wesing-lyric-resolver');
 const { createWeSingQrcWatcher } = require('./wesing-qrc-watcher');
 const { createWeSingDiagnostics } = require('./wesing-diagnostics');
 
-const PAUSED_AFTER_MS = 1500;
-const AUDIO_PEAK_THRESHOLD = 0.001;
-const PROGRESS_COMPENSATION_MS = 130;
 const PLAYBACK_REFRESH_DELAY_MS = 1000;
 const AUTOMATIC_REFRESH_INTERVAL_MS = 3000;
 
@@ -46,11 +43,6 @@ function createWeSingCapture(options = {}) {
   let refreshVersion = 0;
   let lifecycleVersion = 0;
   let pendingRefresh = Promise.resolve();
-  let lastProgressMs = -1;
-  let lastProgressChangeAt = 0;
-  let lastAudibleAt = -Infinity;
-  let extrapolatingStaleProgress = false;
-  let hasStartedCurrentTrack = false;
   let loadingTrackTitle = '';
   let cachePathQueue = Promise.resolve();
   let cachePathVersion = 0;
@@ -78,13 +70,8 @@ function createWeSingCapture(options = {}) {
     message: '全民 K 歌捕捉未启用。',
     lyricState: normalizeLyricState({ status: 'idle' }),
   };
-  const playbackClock = createWeSingPlaybackClock(() => state.durationMs || lyricDurationMs);
-  const {
-    read: readPlaybackClock,
-    set: setPlaybackClock,
-    start: startPlaybackClock,
-    pause: pausePlaybackClock,
-  } = playbackClock;
+  const playback = createWeSingPlaybackTracker(() => state.durationMs || lyricDurationMs);
+  const { read: readPlaybackClock, pause: pausePlaybackClock } = playback;
   const qrcWatcher = createWeSingQrcWatcher({
     watchFactory: options.watchFactory,
     setTimer,
@@ -198,7 +185,7 @@ function createWeSingCapture(options = {}) {
       monitor = monitorFactory((sample) => {
         if (version !== lifecycleVersion) return;
         handleMonitorSample(sample);
-        diagnostics.record(sample, !sample.error && sample.audioActive === true && Number(sample.audioPeak) > AUDIO_PEAK_THRESHOLD);
+        diagnostics.record(sample, !sample.error && isWeSingAudioAudible(sample));
       });
       monitor.start();
       state.status = 'waiting';
@@ -331,13 +318,9 @@ function createWeSingCapture(options = {}) {
     const wasPlatformDetected = state.platformDetected;
     state.platformDetected = sample.detected === true;
     const title = stripWeSingWindowTitle(sample.title);
-    const sampledCurrentSec = Number(sample.currentSec);
-    const hasSampledProgress = Number.isFinite(sampledCurrentSec) && sampledCurrentSec >= 0;
-    const sampledCurrentMs = hasSampledProgress ? sampledCurrentSec * 1000 : null;
     const sampledDurationSec = Number(sample.totalSec);
     const sampledDurationMs =
       Number.isFinite(sampledDurationSec) && sampledDurationSec > 0 ? sampledDurationSec * 1000 : 0;
-    const audioActive = sample.audioActive === true ? true : sample.audioActive === false ? false : null;
 
     if (!state.platformDetected) {
       cancelPlaybackRefresh();
@@ -406,103 +389,22 @@ function createWeSingCapture(options = {}) {
       loadingTrackTitle = '';
     }
 
-    if (audioActive === false) {
-      pausePlaybackClock(timestamp);
-      lastAudibleAt = -Infinity;
-      // A frozen UI value must not rewind the clock after audio kept it moving.
-      if (hasSampledProgress && (!extrapolatingStaleProgress || sampledCurrentMs !== lastProgressMs)) {
-        lastProgressMs = sampledCurrentMs;
-        lastProgressChangeAt = timestamp;
-        extrapolatingStaleProgress = false;
-        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-      }
-      state.currentMs = readPlaybackClock(timestamp);
-      state.playing = false;
-      state.waitingForPlayback = !hasStartedCurrentTrack;
-      updateLyricState();
-      emit();
-      return;
+    const result = playback.sample(sample, timestamp);
+    state.currentMs = result.currentMs;
+    state.playing = result.playing;
+    state.waitingForPlayback = result.waitingForPlayback;
+    if (result.progressEvent === 'replay') {
+      state.message = `检测到《${title}》重新开始，歌词已回到开头。`;
+    } else if (state.qrcReady && ['advance', 'audio'].includes(result.progressEvent)) {
+      state.message = `正在同步《${title}》的逐字歌词。`;
     }
-
-    const hasAudibleAudio = audioActive === true && Number(sample.audioPeak) > AUDIO_PEAK_THRESHOLD;
-    if (hasAudibleAudio) lastAudibleAt = timestamp;
-
-    if (hasSampledProgress) {
-      const progressChanged = lastProgressMs >= 0 && sampledCurrentMs !== lastProgressMs;
-      const isFirstProgress = lastProgressMs < 0;
-      const replayedFromStart =
-        lastProgressMs > 3000 && sampledCurrentMs <= 2000 && sampledCurrentMs < lastProgressMs - 2000;
-      if (progressChanged || isFirstProgress) extrapolatingStaleProgress = false;
-
-      if (replayedFromStart) {
-        pausePlaybackClock(timestamp);
-        lastProgressMs = sampledCurrentMs;
-        lastProgressChangeAt = timestamp;
-        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        hasStartedCurrentTrack = sampledCurrentMs > 0 || hasAudibleAudio;
-        state.playing = hasStartedCurrentTrack;
-        state.waitingForPlayback = !hasStartedCurrentTrack;
-        if (state.playing) startPlaybackClock(timestamp);
-        state.message = `检测到《${title}》重新开始，歌词已回到开头。`;
-      } else if (progressChanged) {
-        lastProgressMs = sampledCurrentMs;
-        lastProgressChangeAt = timestamp;
-        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        startPlaybackClock(timestamp);
-        state.playing = true;
-        hasStartedCurrentTrack = true;
-        state.waitingForPlayback = false;
-        if (state.qrcReady) state.message = `正在同步《${title}》的逐字歌词。`;
-      } else if (isFirstProgress) {
-        lastProgressMs = sampledCurrentMs;
-        lastProgressChangeAt = timestamp;
-        setPlaybackClock(sampledCurrentMs + PROGRESS_COMPENSATION_MS, timestamp);
-        if (sampledCurrentMs > 0 || hasAudibleAudio) {
-          startPlaybackClock(timestamp);
-          state.playing = true;
-          hasStartedCurrentTrack = true;
-          state.waitingForPlayback = false;
-        } else {
-          pausePlaybackClock(timestamp);
-          state.playing = false;
-          state.waitingForPlayback = true;
-        }
-      } else if (hasAudibleAudio ||
-        (state.playing && audioActive === true && timestamp - lastAudibleAt <= PAUSED_AFTER_MS)) {
-        if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) extrapolatingStaleProgress = true;
-        startPlaybackClock(timestamp);
-        state.playing = true;
-        hasStartedCurrentTrack = true;
-        state.waitingForPlayback = false;
-      } else if (timestamp - lastProgressChangeAt > PAUSED_AFTER_MS) {
-        pausePlaybackClock(timestamp);
-        state.playing = false;
-      }
-    } else if (audioActive === true) {
-      startPlaybackClock(timestamp);
-      state.playing = true;
-      hasStartedCurrentTrack = true;
-      state.waitingForPlayback = false;
-      if (state.qrcReady) state.message = `正在同步《${title}》的逐字歌词。`;
-    } else {
-      pausePlaybackClock(timestamp);
-      state.playing = false;
-      state.waitingForPlayback = !hasStartedCurrentTrack;
-    }
-
-    state.currentMs = readPlaybackClock(timestamp);
     if (playbackRefreshPending && state.playing) schedulePlaybackRefresh(title);
     updateLyricState();
     emit();
   }
 
   function resetPlaybackClock(timestamp) {
-    playbackClock.reset(timestamp);
-    lastProgressMs = -1;
-    lastProgressChangeAt = timestamp;
-    lastAudibleAt = -Infinity;
-    extrapolatingStaleProgress = false;
-    hasStartedCurrentTrack = false;
+    playback.reset(timestamp);
     state.waitingForPlayback = true;
   }
 

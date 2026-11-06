@@ -62,6 +62,9 @@ test('runtime exposes the transactional gift projection sync surface', async () 
     const reset = runtime.resetGiftProjectionForRebuild(source.id);
     assert.equal(reset.projectionGeneration, 2);
     assert.equal(reset.bootstrapComplete, false);
+
+    await runtime.stop({ exitProcess: false });
+    assert.throws(() => runtime.getGiftSyncState(source.id));
   } finally {
     await runtime.stop({ exitProcess: false });
     fs.rmSync(dataDir, { recursive: true, force: true });

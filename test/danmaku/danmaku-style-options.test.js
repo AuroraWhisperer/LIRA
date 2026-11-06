@@ -185,8 +185,7 @@ test('RIPPLOID applies independent event color variables and clears them outside
   assert.deepEqual(contract.normalizeStyleOptions({ ripploid: { giftColor50: '#AaBbCc' } }), {
     ripploid: { giftColor50: '#aabbcc' },
   });
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = {
     documentElement: { style: { setProperty(key, value) { this[key] = value; } } },
     body: { dataset: {} },
@@ -205,7 +204,7 @@ test('RIPPLOID applies independent event color variables and clears them outside
 });
 
 test('Twitter layout and event palette apply to existing content and clear outside the style', async () => {
-  const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
   const options = { twitterHeader: 'hide', twitterComposer: 'hide', twitterActions: 'hide', twitterColor50: '#ABCDEF80' };
   assert.deepEqual(contract.normalizeStyleOptions({ twitter: options }), { twitter: { ...options, twitterColor50: '#abcdef80' } });
@@ -224,7 +223,7 @@ test('Twitter composer text counts visible characters, normalizes Unicode and re
   });
   assert.deepEqual(contract.normalizeStyleOptions({ twitter: { composerText: '   ' } }), { twitter: {} });
   assert.equal(contract.styleOptionsFor('twitter', { twitter: { composerText: '' } }).composerText, contract.TWITTER_COMPOSER_TEXT_DEFAULT);
-  const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const node = { textContent: '', children: [] };
   const document = { body: { dataset: {} }, documentElement: { style: { setProperty() {} } }, getElementById: () => node };
   browser.applyStyleOptions(document, 'twitter', { twitter: { composerText: '<b>你好</b>' } });
@@ -235,7 +234,7 @@ test('Twitter composer text counts visible characters, normalizes Unicode and re
 });
 
 test('spooky follows theme ink, preserves explicit overrides and clears renderer variables outside the style', async () => {
-  const browser = await import(pathToFileURL(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js')).href);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
   const root = document.documentElement.style;
   for (const [theme, { textColor: ink }] of Object.entries(contract.SPOOKY_THEME_COLORS)) {
@@ -269,8 +268,7 @@ test('styles without gift artwork always use real gift images while accepting le
 });
 
 test('scroll direction applies to fixed styles and resets to upward for other layouts', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = {
     documentElement: { style: { setProperty() {} } },
     body: { dataset: {} },
@@ -292,8 +290,7 @@ test('scroll direction applies to fixed styles and resets to upward for other la
 });
 
 test('edge fading keeps theme defaults, applies overrides and clears on other layouts', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
   // The shared direction/edge resolver has three default branches, independent of artwork.
   for (const [style, fallback] of [['signal', 'top'], ['prismatic', 'both'], ['notebook', 'none']]) {
@@ -319,8 +316,7 @@ test('entrance animation stays per style and resets on empty options or unsuppor
   assert.equal(contract.styleOptionsFor('whiteframe', { whiteframe: { entranceAnimation: 'rise' } }).entranceDurationMs, 500,
     'saved rise choices retain the legacy duration until explicitly edited');
   assert.equal(contract.styleOptionsFor('whiteframe', { whiteframe: { entranceAnimation: 'rise', entranceDurationMs: 800 } }).entranceDurationMs, 800);
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
   const saved = contract.normalizeStyleOptions({
     whiteframe: { entranceAnimation: 'rise' },
@@ -338,7 +334,7 @@ test('entrance animation stays per style and resets on empty options or unsuppor
 });
 
 test('border color and ambient motion retain per-style drafts and clear on switch or reset', async () => {
-  const { applyStyleOptions } = await import('../../public/js/shared/danmaku-style-options.js');
+  const { applyStyleOptions } = await import('../../public/js/overlays/danmaku-style-application.js');
   const { editStyleOption, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
   const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
   const draft = { style: 'whiteframe', styleOptions: contract.normalizeStyleOptions({
@@ -425,8 +421,7 @@ test('browser field definitions generate the exact privileged display contract',
 });
 
 test('local font families round-trip safely and render as a single quoted family', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   for (const fontFamily of [
     'default',
     'sans',
@@ -475,8 +470,7 @@ test('local font families round-trip safely and render as a single quoted family
 });
 
 test('text colors are validated, applied and restored to the theme default', async () => {
-  const source = fs.readFileSync(path.join(__dirname, '../../public/js/shared/danmaku-style-options.js'), 'utf8');
-  const browser = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`);
+  const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   for (const textColor of ['#AaBbCc80', '#AaBbCc00', '#AaBbCc']) {
     assert.deepEqual(contract.normalizeStyleOptions({ signal: { textColor } }), {
       signal: { textColor: textColor.toLowerCase() },

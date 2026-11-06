@@ -22,7 +22,8 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const measurements = await page.evaluate(async () => {
-    const { DANMAKU_STYLE_OPTIONS, applyStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    const { DANMAKU_STYLE_OPTIONS } = await import('/js/shared/danmaku-style-options.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
     const { createLayout } = await import('/js/shared/danmaku-layout.js');
     const { applyCanvas } = await import('/js/overlays/danmaku-canvas.js');
     const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');

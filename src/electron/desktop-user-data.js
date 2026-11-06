@@ -87,8 +87,25 @@ function removeStagingDirectory(fileSystem, stagingDir) {
   }
 }
 
+function migrateLegacyPartitions({ app, writeLog, fileSystem = fs }) {
+  const oldUserData = path.join(app.getPath('appData'), app.getName());
+  const newUserData = app.getPath('userData');
+  if (oldUserData === newUserData) return;
+  const oldPartitions = path.join(oldUserData, 'Partitions');
+  const newPartitions = path.join(newUserData, 'Partitions');
+  if (fileSystem.existsSync(oldPartitions) && !fileSystem.existsSync(newPartitions)) {
+    try {
+      fileSystem.cpSync(oldPartitions, newPartitions, { recursive: true });
+      writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
+    } catch (error) {
+      writeLog('migration-error', error);
+    }
+  }
+}
+
 module.exports = {
   PACKAGED_USER_DATA_DIR_NAME,
   migrateLegacyUserData,
+  migrateLegacyPartitions,
   resolveDesktopUserDataPaths,
 };

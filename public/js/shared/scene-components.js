@@ -21,7 +21,8 @@ export const SCENE_COMPONENTS = Object.freeze({
     rendererUrl: '/overtime?componentPreview=1&sceneComponent=1', sourceUrl: '/overtime',
   }),
   ...Object.fromEntries(Object.entries(SCENE_EXTRA_COMPONENTS).map(([type, definition]) => [type, Object.freeze({
-    resizeAxes: type === 'gift-wishes' ? 'x' : 'xy', contentHeight: type === 'gift-wishes', independentOnly: true,
+    resizeAxes: ['gift-wishes', 'heart-box-collection'].includes(type) ? 'x' : 'xy',
+    contentHeight: ['gift-wishes', 'heart-box-collection'].includes(type), independentOnly: true,
     rendererUrl: `${definition.path}${definition.path.includes('?') ? '&' : '?'}componentPreview=1&sceneComponent=1`, sourceUrl: definition.path,
     disconnectedData: () => null,
   })])),

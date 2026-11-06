@@ -1,5 +1,79 @@
 'use strict';
 
+const database = require('../storage/database');
+const retention = require('../storage/retention');
+
+function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ensureUnifiedQueue,
+  clearSuperChatUndo, getActiveGiftSource, reloadOvertimeState, resetUserCooldowns }) {
+  // Schema versions only change during startup migration.
+  let schemaVersionsCache = null;
+
+  function activeGiftSourceId() {
+    const source = getActiveGiftSource?.();
+    if (source?.syncState === 'SOURCE_SWITCHING') return null;
+    const sourceId = Number(source?.sourceId);
+    return Number.isSafeInteger(sourceId) && sourceId >= 1 ? sourceId : null;
+  }
+
+  return {
+    clearSongLibrary() {
+      const result = database.clearSongLibraryData(db.songDb);
+      ensureSongCategory('默认');
+      ensureUnifiedQueue();
+      return result;
+    },
+    clearSuperChats() {
+      clearSuperChatUndo();
+      return database.clearSuperChatData(db.superChatDb);
+    },
+    clearPlayback: () => database.clearPlaybackData(db.musicDb),
+    clearGifts() {
+      return database.clearGiftData(db.giftDb, { sourceId: activeGiftSourceId() });
+    },
+    clearAll() {
+      clearSuperChatUndo();
+      const result = database.clearAllData(db.songDb, db.superChatDb, db.giftDb, db.musicDb, db.checkinDb, {
+        sourceId: activeGiftSourceId(),
+      });
+
+      // Only reset live state after all databases have committed successfully.
+      if (result.cleared === true && !result.partial) {
+        try {
+          reloadOvertimeState();
+          resetUserCooldowns();
+          ensureSongCategory('默认');
+          ensureUnifiedQueue();
+        } catch (error) {
+          return {
+            ...result,
+            ok: false,
+            cleared: false,
+            partial: true,
+            phase: 'runtime-reset',
+            failed: [],
+            error: `数据已清空，但运行状态重载失败：${error.message}`,
+          };
+        }
+      }
+      return result;
+    },
+    getSchemaVersions() {
+      if (!schemaVersionsCache) schemaVersionsCache = database.getSchemaVersions(db);
+      return schemaVersionsCache;
+    },
+    getRetentionStats: () => retention.getRetentionStats(db),
+    runRetention(options = {}) {
+      if (options.dryRun !== true) clearSuperChatUndo();
+      const policy = options.policy || retention.readRetentionPolicy(getSettings());
+      return retention.applyRetentionPolicies(db, {
+        policy,
+        dryRun: options.dryRun === true,
+        ranAt: options.ranAt,
+      });
+    },
+  };
+}
+
 function runClearAll({ clearAll, pauseGifts, resumeGifts, pauseOvertime, resumeOvertime,
   clearMusicCache, rebuildGiftProjection }) {
   function resumeWriters({ gifts = true, overtime = true } = {}) {
@@ -67,4 +141,4 @@ function runClearAll({ clearAll, pauseGifts, resumeGifts, pauseOvertime, resumeO
   return result;
 }
 
-module.exports = { runClearAll };
+module.exports = { createDataMaintenanceRuntime, runClearAll };

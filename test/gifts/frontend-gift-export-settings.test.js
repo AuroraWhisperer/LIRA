@@ -34,6 +34,8 @@ async function openExport(t) {
       ...task,
       files: Array.from({ length: task.mode === 'combined' ? 1 : 2 }, (_, index) => ({
         fileName: '礼物_' + (index + 1) + '.png',
+        start: task.mode === 'combined' ? 0 : index,
+        count: task.mode === 'combined' ? items.length : 1,
       })),
     });
     window.giftExport = {
@@ -92,8 +94,17 @@ async function openExport(t) {
 
 test('history export settings update the current preview and remember the next export', async (t) => {
   const page = await openExport(t);
+  const visibleCards = () => page.locator('#giftExportPreview .gift-banner').evaluateAll(
+    nodes => nodes.map(node => node.dataset.eventId),
+  );
+  assert.deepEqual(await visibleCards(), ['1', '2']);
   await page.locator('#giftExportMode').selectOption('separate');
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
+  assert.deepEqual(await visibleCards(), ['1']);
+  await page.locator('#giftExportNext').click();
+  assert.deepEqual(await visibleCards(), ['2']);
+  await page.locator('#giftExportPrev').click();
+  assert.deepEqual(await visibleCards(), ['1']);
   await page.locator('#giftExportBackground').selectOption('white');
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   await page.locator('#giftExportChoose').click();

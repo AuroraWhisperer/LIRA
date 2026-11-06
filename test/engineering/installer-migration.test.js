@@ -29,6 +29,9 @@ test(
     for (const scenario of [
       'legacy-update',
       'preserving-update',
+      'verified-update',
+      'changed-uninstaller',
+      'different-uninstaller',
       'change-directory',
       'appdata-return',
       'existing-local',
@@ -65,6 +68,8 @@ test(
         const reportDir = path.join(root, 'reports');
         const prepared = path.join(root, 'prepared.txt');
         const completed = path.join(root, 'completed.txt');
+        const copied = path.join(root, 'copied.txt');
+        const uninstaller = path.join(oldInstall, 'Uninstall LIRA.exe');
         const publicationLock = scenario.startsWith('bundled-audio-publish-');
         const publishReady = path.join(root, 'publish-ready.txt');
         const lockReady = path.join(root, 'lock-ready.txt');
@@ -78,6 +83,7 @@ test(
         try {
           for (const directory of [appData, reportDir, oldInstall]) fs.mkdirSync(directory);
           fs.writeFileSync(path.join(oldInstall, 'old-program.txt'), 'program fixture');
+          fs.writeFileSync(uninstaller, 'preserving uninstaller fixture');
           if (scenario === 'appdata-return') putData(legacyAppData);
           else if (scenario === 'recover-backup') putData(backup);
           else if (scenario !== 'bundled-audio-no-user-data') putData(oldData);
@@ -171,11 +177,18 @@ test(
             `OutFile "${definePath(path.join(root, 'fixture.exe'))}"`,
             `!define FIXTURE_APPDATA "${definePath(appData)}"`,
             `!define FIXTURE_TEMP "${definePath(reportDir)}"`,
-            publicationLock ? functions.replace('  liraPublishBackup:', `  liraPublishBackup:\n${publishHook}`) : functions,
+            (publicationLock ? functions.replace('  liraPublishBackup:', `  liraPublishBackup:\n${publishHook}`) : functions)
+              .replace(/Function liraCopyData\r?\n/, `Function liraCopyData\nFileOpen $R0 "${definePath(copied)}" a\nFileWrite $R0 "copy$\\r$\\n"\nFileClose $R0\n`),
             removal,
             'Function .onInit',
+            `StrCpy $INSTDIR "${definePath(oldInstall)}"`,
+            ['verified-update', 'changed-uninstaller', 'different-uninstaller', 'change-directory', 'backup-conflict', 'bundled-audio-upgrade'].includes(scenario)
+              ? 'Call liraRecordDataPreservation' : '',
+            scenario === 'changed-uninstaller'
+              ? `FileOpen $0 "${definePath(uninstaller)}" w\nFileWrite $0 "older destructive uninstaller"\nFileClose $0` : '',
             `StrCpy $INSTDIR "${definePath(newInstall)}"`,
             `StrCpy $liraPreviousInstallDir "${definePath(oldInstall)}"`,
+            `StrCpy $liraPreviousUninstaller "${definePath(scenario === 'different-uninstaller' ? path.join(root, 'other.exe') : uninstaller)}"`,
             'Call liraWaitForAppExit',
             'Call liraPreserveInstallData',
             `FileOpen $0 "${definePath(prepared)}" w`,
@@ -184,7 +197,7 @@ test(
             ['legacy-update', 'change-directory', 'bundled-audio-change-directory', 'appdata-return', 'restore-failure'].includes(scenario)
               ? `RMDir /r "${definePath(oldInstall)}"`
               : '',
-            scenario === 'upgrade-preserves-data-and-downloads' || scenario.includes('audio') ? '!insertmacro customRemoveFiles' : '',
+            ['verified-update', 'upgrade-preserves-data-and-downloads'].includes(scenario) || scenario.includes('audio') ? '!insertmacro customRemoveFiles' : '',
             'CreateDirectory "$INSTDIR"',
             scenario === 'restore-failure'
               ? 'FileOpen $0 "$INSTDIR\\data" w\nFileWrite $0 "obstruction"\nFileClose $0'
@@ -225,6 +238,9 @@ test(
             fs.existsSync(reportPath) ? fs.readFileSync(reportPath, 'utf16le') : 'installer exit code',
           );
           assert.equal(fs.existsSync(completed), !failed);
+          if (!failed && scenario !== 'recover-backup') {
+            assert.equal(fs.existsSync(copied), scenario !== 'verified-update', 'only a verified same-directory upgrade may skip copying');
+          }
           if (!failed) {
             if (scenario !== 'bundled-audio-no-user-data') {
             assert.ok(

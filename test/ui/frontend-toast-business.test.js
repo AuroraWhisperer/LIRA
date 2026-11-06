@@ -1,9 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom, createClock } = require('../helpers/toast-dom');
@@ -90,13 +88,11 @@ test('desktop available and downloaded both notify, immediately or after expiry,
     documentRef.querySelectorAll = () => [];
     let onState;
     const notices = [];
-    windowRef.AdminApp = {
-      utils: {
-        ...utils,
-        showStackedToast: (notice) => {
-          notices.push(notice);
-          return utils.showStackedToast(notice);
-        },
+    const desktopUtils = {
+      ...utils,
+      showStackedToast: (notice) => {
+        notices.push(notice);
+        return utils.showStackedToast(notice);
       },
     };
     windowRef.songAssistantDesktop = {
@@ -106,8 +102,10 @@ test('desktop available and downloaded both notify, immediately or after expiry,
       },
       getInfo: async () => ({}),
     };
-    vm.runInNewContext(fs.readFileSync('public/js/desktop.js', 'utf8'), { document: documentRef, window: windowRef });
-    windowRef.AdminApp.desktop.initDesktopShell();
+    const { createDesktopShell } = await loadModuleExports(path.resolve('public/js/desktop.js'), {
+      document: documentRef, window: windowRef,
+    });
+    createDesktopShell(desktopUtils).initDesktopShell();
     onState({ status: 'available', updateVersion: 'A' });
     onState({ status: 'available', updateVersion: 'A' });
     clock.tick(delay);

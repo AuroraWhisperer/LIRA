@@ -70,6 +70,7 @@ function createApiContext(options) {
     },
     giftCards: options.giftCards,
     giftWishes: domainServices.giftWishes,
+    heartBoxCollection: domainServices.heartBoxCollection,
     gifts: {
       getViewRevision: () => domainServices.gifts.getViewRevision(),
       getSelection: (options) => domainServices.gifts.getSelection(options),
@@ -206,7 +207,7 @@ function createApiContext(options) {
       }),
       getState: system.getState,
       getMetrics: systemMetrics.getSystemMetrics,
-      getHardware: systemMetrics.getHardwareSummary,
+      getHardware: system.getHardware,
       shutdown: system.shutdown,
     },
     music: {

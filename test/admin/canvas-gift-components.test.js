@@ -12,6 +12,85 @@ const { Readable } = require('node:stream');
 
 const openBrowserSession = useSharedBrowser();
 
+test('heart-box collection opens in the canvas and publishes either style with live source-scoped progress', { timeout: 40000 }, async t => {
+  let unavailable = false;
+  const progress = { count: 37, target: 40, remaining: 3, completed: false, status: 'collecting',
+    stages: [
+      { target: 20, multiplier: 4, castles: 1, unlocked: true },
+      { target: 40, multiplier: 4, castles: 2, unlocked: false },
+      { target: 80, multiplier: 5, castles: 1, unlocked: false },
+      { target: 120, multiplier: 5, castles: 2, unlocked: false },
+    ] };
+  const fixture = await startCanvasOutputFixture({ notifications: true, extraContext: {
+    gifts: { getViewRevision: () => 'collection-source' },
+    heartBoxCollection: { getSnapshot() {
+      if (unavailable) throw Object.assign(new Error('source unavailable'), { code: 'GIFT_SOURCE_UNAVAILABLE' });
+      return structuredClone(progress);
+    } },
+  } });
+  const browser = openBrowserSession();
+  const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  const errors = [];
+  const childRequests = [];
+  context.on('page', page => { page.setDefaultTimeout(6000); page.on('pageerror', error => errors.push(error.message)); });
+  context.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/api/') && request.frame().parentFrame()) childRequests.push(request.url());
+  });
+  t.after(async () => { await browser.close(); await fixture.close();
+    assert.deepEqual(errors, []); assert.deepEqual(childRequests, []); });
+  const desktop = await context.newPage();
+  const canvas = await context.newPage();
+  await openCanvasDesktop(desktop, fixture, 'heart-box-collection');
+  await desktop.waitForFunction(() => window.externalPreviewUrl);
+  const url = await desktop.evaluate(() => window.externalPreviewUrl);
+  assert.equal((await fetch(url)).status, 200);
+  await canvas.goto(url);
+  const preview = canvas.frameLocator('.scene-editor-item[data-component="heart-box-collection"] iframe');
+  await preview.locator('.heart-collection-count').filter({ hasText: '37' }).waitFor();
+  await preview.locator('.heart-collection-image').evaluate(image => image.decode());
+  const castles = await preview.locator('.heart-collection-castle').evaluateAll(async images => {
+    await Promise.all(images.map(image => image.decode()));
+    return images.map(image => ({ source: new URL(image.currentSrc).pathname, width: image.naturalWidth }));
+  });
+  assert.equal(castles.length, 4);
+  assert.ok(castles.every(image => image.source === '/img/heart-box-collection/castle.webp' && image.width > 0));
+  const rewards = canvas.locator('[data-component-parameter="showRewards"]');
+  await rewards.uncheck();
+  await preview.locator('.heart-collection-reward').first().waitFor({ state: 'hidden' });
+  const style = canvas.locator('[data-component-parameter="displayStyle"]');
+  await style.selectOption('compact');
+  await preview.locator('.heart-collection.is-compact').waitFor();
+  await rewards.check();
+  await preview.locator('.heart-collection-reward').first().waitFor();
+  await rewards.uncheck();
+  await preview.locator('.heart-collection-reward').first().waitFor({ state: 'hidden' });
+  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await canvas.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  const saved = fixture.service.list()[0];
+  assert.equal(saved.document.items[0].appearance.config.showRewards, false);
+  const source = fixture.service.getSource(saved.document.id);
+  const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  const output = await context.newPage();
+  await output.goto(outputUrl);
+  const live = output.frameLocator('.scene-version:not(.is-staging) iframe');
+  await live.locator('.heart-collection.is-compact .heart-collection-count').filter({ hasText: '37' }).waitFor();
+  assert.equal(await live.locator('.heart-collection-reward:visible').count(), 0);
+  const standaloneUrl = `${fixture.origin}/heart-box-collection?showRewards=false`;
+  assert.equal((await fetch(standaloneUrl)).status, 200);
+  const standalone = await context.newPage();
+  await standalone.goto(standaloneUrl);
+  await standalone.locator('.heart-collection-count').filter({ hasText: '37' }).waitFor();
+  assert.equal(await standalone.locator('.heart-collection-reward:visible').count(), 0);
+  progress.status = 'ended';
+  progress.count = 39;
+  fixture.notify({ types: ['heart-box-collection'], invalidateTypes: ['heart-box-collection'] });
+  await live.locator('.heart-collection.is-ended .heart-collection-count').filter({ hasText: '39' }).waitFor();
+  unavailable = true;
+  fixture.notify({ types: ['heart-box-collection'], invalidateTypes: ['heart-box-collection'] });
+  await live.locator('#heartBoxCollectionStage').waitFor({ state: 'hidden' });
+});
+
 test('sprint opens from its component tab, saves a canvas layer and follows live goals without child requests', { timeout: 40000 }, async t => {
   const fixture = await startCanvasOutputFixture({ extraContext: {}, notifications: true });
   fixture.runtime.giftSprint = { targetRmb: 1000, remainingCrystalBalls: 7 };

@@ -8,8 +8,8 @@ const {
   buildHardwareSummary,
   buildDisplaySummary,
   createHardwareSummaryService,
-  sampleWindowsGpuMetrics,
-} = require('../../src/server/system-metrics');
+} = require('../../src/server/hardware-summary');
+const { sampleWindowsGpuMetrics } = require('../../src/server/system-metrics');
 
 function mockWindowsCommand(t, callback) {
   const platform = Object.getOwnPropertyDescriptor(process, 'platform');

@@ -18,6 +18,7 @@ const {
   pickEffect,
 } = require('../../src/bilibili/gift/effect-config');
 const { createGiftProjectionService } = require('../../src/bilibili/gift');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 
 function confEntry(id, giftIds, mp4Url = `https://i0.hdslb.com/bfs/live/effect-${id}.mp4`) {
@@ -381,7 +382,7 @@ test('gift effect capture stays active when sprint and overtime consumers are di
   const sourceId = createGiftSource(db.giftDb);
   const detection = createGiftProjectionService(
     {
-      db,
+      store: createGiftProjectionStore(db.giftDb),
       settings: () => ({ enableGiftSprint: 'false' }),
     },
     {

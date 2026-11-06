@@ -213,79 +213,430 @@
   gap: 10px;
 }
 
+/* 全屏礼物感谢：内置与导入样式同列，每张卡片独立开关、金额、预览与保存。 */
 .gift-frame-effects {
   display: grid;
-  gap: var(--spacing-xl);
+  gap: 14px;
 }
 
-.gift-frame-settings-card {
-  container: gift-frame-settings / inline-size;
+.gift-effect-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 540px), 1fr));
+  gap: 16px;
+}
+
+.gift-effect-card {
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.gift-effect-card[hidden] {
+  display: none;
+}
+
+.gift-effect-card:has(.gift-effect-switch input:checked) {
+  border-color: color-mix(in srgb, var(--components-accent) 42%, var(--border));
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--components-accent) 10%, transparent);
+}
+
+.gift-effect-card-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px 14px;
+}
+
+.gift-effect-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--muted);
+  transition: background-color 160ms ease, color 160ms ease;
+}
+
+.gift-effect-icon[hidden] {
+  display: none;
+}
+
+.gift-effect-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.gift-effect-card:has(.gift-effect-switch input:checked) .gift-effect-icon {
+  background: var(--components-accent-soft);
+  color: var(--components-accent-solid);
+}
+
+.gift-effect-thumb {
+  display: block;
+  width: 78px;
+  height: 44px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.gift-effect-thumb[hidden] {
+  display: none;
+}
+
+.gift-effect-thumb-text {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: 0.06em;
+}
+
+.gift-effect-card-title {
   min-width: 0;
 }
 
-.gift-frame-settings-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--border);
-}
-.gift-frame-settings-heading h3 {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--type-size-section-title);
-}
-.gift-frame-switch {
-  flex-shrink: 0;
-  margin: 0;
-}
-.gift-frame-controls {
-  padding: 16px 0;
-}
-.gift-frame-preview {
+.gift-effect-card-title h3 {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px 24px;
-}
-.gift-frame-section-heading h4 {
+  gap: 4px 8px;
   margin: 0;
+  color: var(--text);
   font-size: var(--type-size-card-title);
   font-weight: var(--type-weight-semibold);
+  line-height: 22px;
+  overflow-wrap: anywhere;
 }
-.gift-frame-preview-grid {
-  display: grid;
-  flex: 1;
-  grid-template-columns: repeat(2, minmax(160px, 1fr)) 128px auto;
+
+.gift-effect-card-title p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.gift-effect-tag {
+  display: inline-flex;
   align-items: center;
-  gap: 16px;
-  min-width: 0;
+  min-height: 20px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: var(--type-size-micro);
+  font-weight: var(--type-weight-medium);
+  line-height: 20px;
+  white-space: nowrap;
 }
-.gift-frame-preview-grid .component-inline-field input {
-  flex: 1;
-  width: 0;
+
+.gift-effect-switch {
+  flex-shrink: 0;
+  margin: 0;
+}
+
+.gift-effect-fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  align-items: flex-end;
+  gap: 14px 28px;
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--border);
+}
+
+.gift-effect-field {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+}
+
+.gift-effect-field-label {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.gift-effect-field-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-components-page .gift-effect-field-control input {
+  width: 88px;
+  min-width: 0;
   font-variant-numeric: tabular-nums;
 }
-.gift-frame-status {
-  margin: 0 0 16px;
+
+.gift-motion-settings .gift-effect-card-head {
+  gap: 12px;
+  padding: 18px 20px;
 }
-.gift-frame-status:empty {
+
+.gift-motion-settings .gift-effect-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--text);
+}
+
+.gift-motion-settings .gift-effect-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.gift-motion-settings .gift-effect-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 18px 16px;
+  padding: 20px;
+}
+
+.gift-motion-settings .gift-effect-field {
+  min-width: 0;
+  gap: 8px;
+}
+
+.gift-motion-settings .gift-effect-field-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  min-width: 0;
+  height: 40px;
+  gap: 8px;
+}
+
+.live-components-page .gift-motion-settings .gift-effect-field-control input {
+  width: 100%;
+  height: 40px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-control-border, var(--border));
+  border-radius: var(--radius-control);
+  background: var(--color-control-surface, var(--surface));
+  font-size: var(--type-size-control);
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.live-components-page .gift-motion-settings .gift-effect-field-control input:hover {
+  border-color: var(--color-control-border-hover, var(--border));
+}
+
+.live-components-page .gift-motion-settings .gift-effect-field-control input:focus {
+  border-color: var(--components-accent-solid);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--components-accent) 16%, transparent);
+  outline: none;
+}
+
+.gift-motion-settings .gift-effect-unit {
+  flex: none;
+  padding-right: 0;
+  font-size: var(--type-size-caption);
+}
+
+.gift-motion-settings .gift-effect-field-control:has(select) {
+  display: block;
+}
+
+.live-components-page .gift-motion-settings .gift-effect-field-control .lira-select-trigger {
+  height: 40px;
+  padding: 7px 8px 7px 10px;
+  gap: 6px;
+  font-size: var(--type-size-control);
+}
+
+.gift-effect-unit {
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  white-space: nowrap;
+}
+
+.gift-effect-sample {
+  display: grid;
+  flex: 1 0 100%;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+}
+
+.gift-effect-sample-label {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: 18px;
+}
+
+.gift-effect-sample-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.gift-effect-sample-fields .gift-effect-field {
+  grid-template-columns: auto auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-components-page .gift-effect-sample-fields input {
+  width: 132px;
+  min-width: 0;
+}
+
+.live-components-page .gift-effect-sample-fields .gift-effect-sample-count {
+  width: 72px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gift-effect-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.gift-effect-notice {
+  margin: 0;
+  padding: 10px 18px;
+  border-top: 1px solid var(--border);
+  background: color-mix(in srgb, var(--color-warning, #b7791f) 8%, var(--surface));
+}
+
+.gift-effect-notice[hidden] {
   display: none;
 }
+
+.gift-effect-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  min-height: 60px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  background: var(--surface-2);
+}
+
+.gift-effect-card-foot .gift-frame-status {
+  margin: 0;
+}
+
 .gift-frame-status[data-state='error'] {
   color: var(--danger);
 }
+
 .gift-frame-status[data-state='success'] {
   color: var(--color-success-dark);
 }
 
-@container gift-frame-settings (max-width: 700px) {
-  .gift-frame-settings-heading {
-    flex-wrap: wrap;
+.gift-effect-actions,
+.gift-effect-style-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.gift-effect-actions {
+  margin-left: auto;
+}
+
+.gift-effect-style-actions:empty {
+  display: none;
+}
+
+.live-components-page .gift-effect-remove {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+
+.live-components-page .gift-effect-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+}
+
+.gift-effect-add {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 16px 18px;
+  border: 1px dashed var(--color-border-strong, var(--border));
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--surface-2) 60%, transparent);
+}
+
+.gift-effect-add-copy h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 22px;
+}
+
+.gift-effect-add-copy p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+/* The shared library supplies import, status and confirm flows; its thumbnail list is replaced by the cards above. */
+.gift-effect-library {
+  display: contents;
+}
+
+.gift-effect-library .component-style-library-inline > .component-style-list {
+  display: none;
+}
+
+.gift-effect-library .component-style-library-inline > .hint:not([hidden]) {
+  display: block;
+  grid-row: 2;
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.gift-effect-add > .resource-style-settings-host {
+  display: none;
+}
+
+.gift-effect-add > .component-style-add {
+  grid-row: 1;
+  grid-column: 3;
+}
+
+.live-components-page .gift-effect-add > .component-style-add {
+  width: auto;
+  min-height: var(--component-control-height);
+  padding: 7px 16px;
+  border-style: solid;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .gift-effect-add {
+    grid-template-columns: auto minmax(0, 1fr);
   }
-  .gift-frame-preview-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  .gift-effect-add > .component-style-add {
+    grid-row: auto;
+    grid-column: 2;
+    justify-self: start;
   }
 }
 

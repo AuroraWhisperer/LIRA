@@ -18,8 +18,8 @@ test('main locks the durable root before migration and separates browser paths b
   assert.equal(profile.value, path.join(root, 'browser'));
   assert.equal(events.at(-1).type, 'ready');
   await h.start();
-  assert.equal(h.state.paths.dataDir, root);
-  assert.equal(h.state.paths.logDir, path.join(path.dirname(root), 'logs'));
+  assert.equal(h.runtimeOptions.dataDir, root);
+  assert.equal(h.logDirectory, path.join(path.dirname(root), 'logs'));
 });
 
 test('a locked legacy source stops before target locking, profile migration or runtime startup', async () => {
@@ -72,6 +72,6 @@ for (const stage of ['runtimeStart', 'licenseBootstrap']) {
     assert.equal(h.count('runtime:stop'), 1);
     assert.equal(h.count('app:exit'), 1);
     assert.equal(h.clock.pending, 0);
-    assert.equal(h.state.window.main, null);
+    assert.equal(h.window, null);
   });
 }

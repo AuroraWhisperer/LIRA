@@ -2,8 +2,8 @@
 .guard-thanks-card {
   container: guard-thanks / inline-size;
   min-width: 0;
-  margin-bottom: var(--spacing-lg);
-  padding: 20px;
+  margin-bottom: 12px;
+  padding: 12px 16px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background: var(--surface);
@@ -13,7 +13,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  padding-bottom: 16px;
+  padding-bottom: 10px;
   border-bottom: 1px solid var(--border);
 }
 .guard-thanks-heading h3 {
@@ -21,18 +21,21 @@
   color: var(--text);
   font-size: var(--type-size-section-title);
 }
+.guard-thanks-heading .hint:empty {
+  display: none;
+}
 .guard-thanks-switch {
   flex-shrink: 0;
   margin: 0;
 }
 .guard-thanks-controls {
-  padding-top: 16px;
+  padding-top: 10px;
 }
 .guard-thanks-preview {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px 24px;
+  gap: 10px 20px;
 }
 .guard-thanks-controls h4 {
   margin: 0;
@@ -41,14 +44,13 @@
 }
 .guard-thanks-preview-grid {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) 128px auto;
+  grid-template-columns: 180px 112px auto;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
   min-width: 0;
 }
 [data-guard-thanks-style='classic'] .guard-thanks-preview-grid {
-  flex: 1;
-  grid-template-columns: minmax(160px, 1fr) minmax(180px, 1.5fr) 128px auto;
+  grid-template-columns: 180px minmax(180px, 240px) 112px auto;
 }
 .guard-thanks-preview-grid .component-inline-field :is(input, .lira-select) {
   flex: 1;
@@ -67,8 +69,215 @@
 .guard-thanks-status[data-state='success'] {
   color: var(--color-success-dark);
 }
-.guard-thanks-more h3 {
-  margin: 0 0 12px;
+#guardThanksPanel .guard-thanks-heading {
+  padding-bottom: 10px;
+}
+#guardThanksPanel .guard-thanks-heading .component-inline-field :is(select, .lira-select) {
+  width: 128px;
+}
+#guardThanksPanel :is(button.primary, button.secondary) {
+  border-radius: 6px;
+  box-shadow: none;
+}
+#guardThanksPanel .guard-thanks-save {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+#guardThanksPanel .guard-thanks-save svg,
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > summary svg {
+  flex: 0 0 16px;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.75;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#guardThanksPanel :is(.guard-thanks-remove, .guard-thanks-discard) {
+  border-color: transparent;
+  background: transparent;
+  color: var(--muted);
+}
+#guardThanksPanel .guard-thanks-remove:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  color: var(--danger);
+}
+#guardThanksPanel .guard-thanks-discard:hover:not(:disabled) {
+  background: var(--surface-2);
+  color: var(--text);
+}
+.guard-thanks-heading h3 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#guardThanksStyleLibrary [data-local-styles] {
+  display: block;
+}
+#guardThanksStyleLibrary .component-style-add {
+  width: auto;
+  min-height: var(--component-control-height);
+  padding: 7px 16px;
+}
+#guardThanksStyleLibrary .resource-style-settings.guard-thanks-card {
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+}
+.guard-thanks-card .resource-style-parameters {
+  margin: 0;
+}
+.guard-thanks-card .resource-style-parameters > .hint {
+  display: none;
+}
+.guard-thanks-card .scene-extra-parameters {
+  display: block;
+  margin: 0;
+}
+.guard-thanks-card .guard-thanks-preview-fields {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+#guardThanksStyleLibrary .guard-thanks-preview-fields > summary {
+  display: none;
+}
+#guardThanksStyleLibrary .guard-thanks-preview-fields > .desktop-lyric-group-body {
+  display: grid;
+  grid-template-columns: 180px minmax(180px, 240px) max-content;
+  align-items: center;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+}
+#guardThanksStyleLibrary .guard-thanks-preview-fields .desktop-lyric-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+#guardThanksStyleLibrary .guard-thanks-preview-fields .desktop-lyric-control[hidden] {
+  display: none;
+}
+.guard-thanks-preview-fields .desktop-lyric-control-copy {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: var(--type-size-body);
+}
+.guard-thanks-preview-fields .scene-parameter-value {
+  flex: 1;
+  min-width: 0;
+}
+.guard-thanks-preview-fields .scene-parameter-value > :is(input, select, .lira-select) {
+  width: 100%;
+  min-width: 0;
+}
+.guard-thanks-card .resource-style-parameters [data-parameter-group='appearance'] {
+  margin: 10px 0 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  overflow: visible;
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > summary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--muted);
+  transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > summary strong {
+  color: inherit;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-medium);
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > summary::after {
+  width: 5px;
+  height: 5px;
+  flex-basis: 5px;
+  margin-left: 2px;
+  border-color: currentColor;
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > summary:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'][open] > summary {
+  border-color: color-mix(in srgb, var(--primary) 35%, var(--border));
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  color: var(--primary-strong);
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] > .desktop-lyric-group-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(280px, 1.4fr);
+  align-items: center;
+  gap: 12px 24px;
+  margin-top: 10px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--border);
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] .scene-parameter-control {
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+}
+#guardThanksStyleLibrary [data-parameter-group='appearance'] .scene-parameter-control[hidden] {
+  display: none;
+}
+.guard-thanks-media-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.guard-thanks-media-card .component-style-select {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  text-align: start;
+}
+.guard-thanks-media-card .component-style-select :is(img, video, .component-source-thumbnail) {
+  width: 56px;
+  height: 36px;
+  flex-shrink: 0;
+  margin: 0;
+}
+.guard-thanks-media-card .component-style-delete {
+  position: static;
+  flex-shrink: 0;
+}
+@container guard-thanks (max-width: 850px) {
+  #guardThanksStyleLibrary [data-parameter-group='appearance'] > .desktop-lyric-group-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #guardThanksStyleLibrary [data-parameter-group='appearance'] .scene-parameter-control:has([data-component-parameter='nameFontSize']) {
+    grid-column: 1 / -1;
+  }
 }
 @container guard-thanks (max-width: 700px) {
   .guard-thanks-heading {
@@ -77,5 +286,12 @@
   .guard-thanks-preview-grid,
   [data-guard-thanks-style='classic'] .guard-thanks-preview-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #guardThanksStyleLibrary .guard-thanks-preview-fields > .desktop-lyric-group-body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .guard-thanks-preview-grid,
+  .guard-thanks-preview-fields {
+    flex-basis: 100%;
   }
 }

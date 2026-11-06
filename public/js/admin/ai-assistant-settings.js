@@ -1,8 +1,8 @@
 'use strict';
 import { showStackedToast } from '../shared/utils.js';
-import { publishAiAssistantSettings } from './legacy-admin-bridge.js';
 import { createPersonaControls } from './ai-assistant-personas.js';
 import { createSubscriptionControls } from './ai-assistant-subscription.js';
+import { createAiModelPicker } from './ai-model-picker.js';
 
 import {
   readApi,
@@ -36,10 +36,6 @@ function init({ notify = showStackedToast, confirm } = {}) {
     ['qweather', document.getElementById('xiaomiAiQWeatherTestBtn')],
     ['amap', document.getElementById('xiaomiAiAmapTestBtn')],
   ];
-  const fetchModelsButton = document.getElementById('xiaomiAiFetchModelsBtn');
-  const modelInput = document.getElementById('xiaomiAiModel');
-  const modelMenu = document.getElementById('xiaomiAiModelMenu');
-  const modelFetchState = document.getElementById('xiaomiAiModelFetchState');
   const providerInput = document.getElementById('xiaomiAiModelProvider');
   const reasoningInput = document.getElementById('xiaomiAiReasoning');
   let autosaveTimer = null;
@@ -47,24 +43,30 @@ function init({ notify = showStackedToast, confirm } = {}) {
   let pendingSave = false;
   let dirty = false;
   let configLoaded = false;
+  let pendingConfigRefreshes = 0;
   let savingPromise = null;
   let enabledSavePromise = null;
   let enabledEditVersion = 0;
   let editVersion = 0;
   let initialLoadPromise = null;
   let restoreManualEndpointAfterProviderSave = false;
-  let modelRequestGeneration = 0;
-  const modelServiceFields = new Set(['xiaomiAiModelProvider', 'xiaomiAiModelAuthMode', 'xiaomiAiDeepSeekUrl',
-    'xiaomiAiModelApiProtocol', 'xiaomiAiDeepSeekKey']);
   const editedFieldIds = new Set();
   let personaControls;
+  const modelPicker = createAiModelPicker({
+    readApi,
+    onSelect(id) {
+      editedFieldIds.add(id);
+      scheduleSave();
+    },
+  });
 
   refreshConfig = async () => {
+    pendingConfigRefreshes += 1;
     try {
       const [config, status] = await Promise.all([readApi('/api/ai/config'), readApi('/api/ai/status')]);
-      const previousService = JSON.stringify(readModelService());
+      const previousService = JSON.stringify(modelPicker.readService());
       renderConfig(config, editedFieldIds);
-      if (previousService !== JSON.stringify(readModelService())) invalidateModelLookup();
+      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate();
       personaControls.render(config, editedFieldIds);
       renderStatus(status);
       if (!configLoaded) {
@@ -77,6 +79,8 @@ function init({ notify = showStackedToast, confirm } = {}) {
       }
     } catch (error) {
       setState(saveState, error.message || '无法读取 AI 配置', 'warn');
+    } finally {
+      pendingConfigRefreshes -= 1;
     }
   };
 
@@ -179,9 +183,9 @@ function init({ notify = showStackedToast, confirm } = {}) {
       return configLoaded && flushPendingSave();
     },
     acceptConfig(config) {
-      const previousService = JSON.stringify(readModelService());
+      const previousService = JSON.stringify(modelPicker.readService());
       renderConfig(config, editedFieldIds);
-      if (previousService !== JSON.stringify(readModelService())) invalidateModelLookup();
+      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate();
       personaControls.render(config, editedFieldIds);
     },
   });
@@ -193,19 +197,19 @@ function init({ notify = showStackedToast, confirm } = {}) {
     renderProviderSelection(providerInput.value, {
       keepEndpointLocked: restoreManualEndpointAfterProviderSave,
     });
-    invalidateModelLookup();
+    modelPicker.invalidate();
     if (personaControls.changeProvider()) editedFieldIds.add('xiaomiAiPersona');
     void refreshDoubaoStatus();
     void subscriptionControls.refresh();
   });
   document.getElementById('xiaomiAiModelAuthMode')?.addEventListener('change', () => {
     renderProviderSelection(providerInput.value);
-    invalidateModelLookup();
+    modelPicker.invalidate();
     void subscriptionControls.refresh();
   });
 
   form.addEventListener('input', (event) => {
-    if (modelServiceFields.has(event.target.id)) invalidateModelLookup();
+    modelPicker.invalidateField(event.target.id);
     if (event.target.matches('input[type="checkbox"], input[type="file"]')) return;
     if (event.target.id === 'xiaomiAiPersona') return;
     if (event.target.id) editedFieldIds.add(event.target.id);
@@ -214,7 +218,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
 
   form.addEventListener('change', (event) => {
     if (event.target.id === 'xiaomiAiChatGptProfiles') return;
-    if (modelServiceFields.has(event.target.id)) invalidateModelLookup();
+    modelPicker.invalidateField(event.target.id);
     if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id === 'xiaomiAiPersona' && !personaControls.changeSelection()) return;
       if (event.target.id) editedFieldIds.add(event.target.id);
@@ -305,156 +309,8 @@ function init({ notify = showStackedToast, confirm } = {}) {
     }
   }
 
-  function readModelService() {
-    const input = document.getElementById('xiaomiAiDeepSeekKey');
-    const key = input.disabled ? '' : input.value.trim();
-    return {
-      apiKey: key === '********' ? '' : key,
-      apiUrl: document.getElementById('xiaomiAiDeepSeekUrl').value.trim(),
-      modelProvider: providerInput?.value || 'auto',
-      modelAuthMode: document.getElementById('xiaomiAiModelAuthMode')?.value || 'api',
-      modelApiProtocol: document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto',
-    };
-  }
-
-  function invalidateModelLookup() {
-    modelRequestGeneration += 1;
-    modelMenu.replaceChildren();
-    closeModelMenu();
-    setState(modelFetchState, '');
-    fetchModelsButton.disabled = providerInput?.value === 'doubao';
-    fetchModelsButton.textContent = '获取模型';
-  }
-
-  fetchModelsButton.addEventListener('click', async () => {
-    const generation = ++modelRequestGeneration;
-    const service = readModelService();
-    // Credential edits advance the generation; committing that same draft only clears its input.
-    const signature = JSON.stringify({ ...service, apiKey: '' });
-    const isCurrent = () => generation === modelRequestGeneration
-      && signature === JSON.stringify({ ...readModelService(), apiKey: '' });
-    fetchModelsButton.disabled = true;
-    fetchModelsButton.textContent = '获取中…';
-    setState(modelFetchState, '正在从当前模型服务获取可用模型…');
-    try {
-      const result = await readApi('/api/ai/models', {
-        method: 'POST',
-        body: JSON.stringify(service),
-      });
-      if (!isCurrent()) return;
-      const models = Array.isArray(result.models) ? result.models : [];
-      const menuItems = models.map((model) => {
-        const item = document.createElement('button');
-        item.type = 'button';
-        item.className = 'xiaomi-ai-model-option lira-select-option';
-        item.setAttribute('role', 'option');
-        item.tabIndex = -1;
-        item.setAttribute('aria-selected', String(model === modelInput.value));
-        item.textContent = model;
-        item.addEventListener('click', () => {
-          if (!isCurrent()) return;
-          modelInput.value = model;
-          editedFieldIds.add(modelInput.id);
-          closeModelMenu();
-          scheduleSave();
-        });
-        return item;
-      });
-      modelMenu.replaceChildren(...menuItems);
-      setState(
-        modelFetchState,
-        `已获取 ${menuItems.length} 个可用模型；可选择或直接输入。`,
-        menuItems.length ? 'good' : 'warn',
-      );
-      modelMenu.hidden = menuItems.length === 0;
-      modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
-      fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
-    } catch (error) {
-      if (isCurrent()) setState(modelFetchState, error.message || '无法获取当前服务的模型列表。', 'warn');
-    } finally {
-      if (generation === modelRequestGeneration) {
-        fetchModelsButton.disabled = false;
-        fetchModelsButton.textContent = '获取模型';
-      }
-    }
-  });
-
-  modelInput.addEventListener('keydown', (event) => {
-    if (event.key === 'Escape') {
-      closeModelMenu();
-      return;
-    }
-    if (!['ArrowDown', 'ArrowUp'].includes(event.key) || !modelMenu.children.length) return;
-    event.preventDefault();
-    const options = [...modelMenu.querySelectorAll('[role="option"]')];
-    const selectedIndex = options.findIndex((item) => item.getAttribute('aria-selected') === 'true');
-    const nextIndex = modelMenu.hidden
-      ? event.key === 'ArrowUp'
-        ? options.length - 1
-        : selectedIndex < 0
-          ? 0
-          : selectedIndex
-      : event.key === 'ArrowUp'
-        ? Math.max(0, selectedIndex < 0 ? options.length - 1 : selectedIndex - 1)
-        : Math.min(options.length - 1, selectedIndex < 0 ? 0 : selectedIndex + 1);
-    openModelMenu();
-    focusModelOption(options[nextIndex]);
-  });
-
-  if (typeof modelMenu?.addEventListener === 'function')
-    modelMenu.addEventListener('keydown', (event) => {
-      const options = [...modelMenu.querySelectorAll('[role="option"]')];
-      const currentIndex = options.indexOf(document.activeElement);
-      if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-        event.preventDefault();
-        const nextIndex =
-          event.key === 'Home'
-            ? 0
-            : event.key === 'End'
-              ? options.length - 1
-              : event.key === 'ArrowUp'
-                ? Math.max(0, currentIndex - 1)
-                : Math.min(options.length - 1, currentIndex + 1);
-        focusModelOption(options[nextIndex]);
-      } else if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        options[currentIndex >= 0 ? currentIndex : 0]?.click();
-      } else if (event.key === 'Escape') {
-        event.preventDefault();
-        closeModelMenu();
-        modelInput.focus();
-      } else if (event.key === 'Tab') {
-        closeModelMenu();
-      }
-    });
-
-  if (typeof document?.addEventListener === 'function') {
-    document.addEventListener('click', (event) => {
-      if (!event.target.closest('.xiaomi-ai-model-picker')) closeModelMenu();
-    });
-  }
-
-  function openModelMenu() {
-    if (!modelMenu.children.length) return;
-    modelMenu.hidden = false;
-    modelInput.setAttribute('aria-expanded', 'true');
-    fetchModelsButton.setAttribute('aria-expanded', 'true');
-  }
-
-  function focusModelOption(option) {
-    if (!option) return;
-    option.focus({ preventScroll: true });
-    option.scrollIntoView?.({ block: 'nearest' });
-  }
-
-  function closeModelMenu() {
-    modelMenu.hidden = true;
-    modelInput.setAttribute('aria-expanded', 'false');
-    fetchModelsButton.setAttribute('aria-expanded', 'false');
-  }
-
   let doubaoRefreshPending = false;
-  const subscriptionControls = createSubscriptionControls({ readApi, onAccountChange: invalidateModelLookup,
+  const subscriptionControls = createSubscriptionControls({ readApi, onAccountChange: modelPicker.invalidate,
     async flushPendingSave() {
       await initialLoadPromise;
       return configLoaded && flushPendingSave();
@@ -481,8 +337,38 @@ function init({ notify = showStackedToast, confirm } = {}) {
     });
   }
   if (typeof window?.addEventListener === 'function') {
-    const timer = setInterval(() => { void refreshDoubaoStatus(); void subscriptionControls.refresh(); }, 3000);
-    window.addEventListener('pagehide', () => clearInterval(timer), { once: true });
+    const page = document.getElementById('otherAssistantPage');
+    const panel = document.getElementById('otherDanmakuFeature');
+    let timer = null;
+    let disposed = false;
+    const visible = () => !document.hidden && page.classList.contains('active') && !form.closest('[hidden]');
+    function refreshAccounts() {
+      if (disposed || !visible()) return;
+      void refreshDoubaoStatus();
+      void subscriptionControls.refresh();
+    }
+    function syncPolling() {
+      if (disposed || !visible()) {
+        clearInterval(timer);
+        timer = null;
+        return;
+      }
+      if (timer !== null) return;
+      // Feature navigation already includes account status in its full refresh.
+      if (!pendingConfigRefreshes) refreshAccounts();
+      timer = setInterval(refreshAccounts, 3000);
+    }
+    const observer = new MutationObserver(syncPolling);
+    observer.observe(page, { attributes: true, attributeFilter: ['class'] });
+    observer.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+    document.addEventListener('visibilitychange', syncPolling);
+    window.addEventListener('pagehide', () => {
+      disposed = true;
+      syncPolling();
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', syncPolling);
+    }, { once: true });
+    if (visible()) timer = setInterval(refreshAccounts, 3000);
   }
   initialLoadPromise = refreshConfig();
 }
@@ -504,4 +390,3 @@ function refresh() {
 }
 
 export const aiAssistantSettings = { init, refresh };
-publishAiAssistantSettings(aiAssistantSettings);

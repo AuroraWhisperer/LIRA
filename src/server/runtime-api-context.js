@@ -1,8 +1,10 @@
 'use strict';
 
 const { createApiContext } = require('./api-context');
+const { createHardwareSummaryService } = require('./hardware-summary');
 
 function createRuntimeApiContextFactory(options = {}) {
+  const hardware = createHardwareSummaryService();
   return function buildCurrentApiContext() {
     const domainServices = options.getDomainServices();
     const musicRuntime = options.getMusicRuntime();
@@ -60,6 +62,7 @@ function createRuntimeApiContextFactory(options = {}) {
       settings: { defaults: options.defaultSettings, store: settingsStore },
       system: {
         ...options.systemPaths,
+        getHardware: hardware.getHardwareSummary,
         liveStatus: options.getLiveStatus(),
         getState: options.getState,
         shutdown: options.shutdown,

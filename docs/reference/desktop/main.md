@@ -38,7 +38,7 @@
 快照 flush。启动失败退出、已确认的程序重启沿用原流程。
 
 更新器启动安装后发出的 Electron `before-quit-for-update` 事件直接调用
-`requestDesktopShutdown()`，随后 `before-quit` 复用同一关闭任务，不再弹出使用确认。
+`desktopLifecycle.requestShutdown()`，随后 `before-quit` 复用同一关闭任务，不再弹出使用确认。
 仅下载完成不会绕过普通关窗确认；安装发起后的退出仍等待原有同步排空和播放快照 flush。
 
 ## 豆包账号会话
@@ -126,15 +126,15 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 `danmaku-pk-report-settings.html`；设置区接入既有单活动编辑器。Electron 合成交互和保存读回复用
 `scripts/verify-welcome-settings.cjs`。
 
-> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-state.js](../../../src/electron/desktop-state.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
+> 涉及文件:[src/electron/main.js](../../../src/electron/main.js)、[src/electron/desktop-user-data.js](../../../src/electron/desktop-user-data.js)、[src/electron/cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js)、[src/electron/remote-gift-controller.js](../../../src/electron/remote-gift-controller.js)、[src/electron/desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)、[src/electron/desktop-logger.js](../../../src/electron/desktop-logger.js)、[src/electron/media-request-headers.js](../../../src/electron/media-request-headers.js)、[src/electron/license/license-manager.js](../../../src/electron/license/license-manager.js)、[src/electron/license/license-runtime-policy.js](../../../src/electron/license/license-runtime-policy.js)、[src/electron/desktop-lifecycle.js](../../../src/electron/desktop-lifecycle.js)、[src/electron/desktop-main-window.js](../../../src/electron/desktop-main-window.js)、[src/electron/desktop-permissions.js](../../../src/electron/desktop-permissions.js)、[src/electron/playback-flush.js](../../../src/electron/playback-flush.js)、[src/electron/terminal-log.js](../../../src/electron/terminal-log.js)、[src/electron/local-media-access.js](../../../src/electron/local-media-access.js)、[package.json](../../../package.json)
 
 本文档是 Electron 桌面壳的**唯一事实源**:进程入口、启动序列、主窗口规格、`local-media://` 协议、请求头伪装、关闭时序与日志只在此成文。IPC 通道全量注册表见 [preload.md](preload.md),登录会话见 [auth.md](auth.md),辅助窗口见 [windows.md](windows.md),自动更新运行时见 [update.md](update.md);后端服务生命周期见 [../backend/server-core.md](../backend/server-core.md),数据目录树见 [../backend/storage.md](../backend/storage.md)。
 
-**主进程模块边界:** `main.js` 是唯一 Electron 组合根，拥有 app/window/protocol/IPC 的接线与生命周期；`cloud-sync-controller.js` 只协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 只负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 只管理登录窗口和认证快照，`desktop-update-controller.js` 只适配更新运行时，`desktop-logger.js` 只做有序日志写入与单条/单文件准入，`media-request-headers.js` 安装唯一请求头监听，组合媒体规则与 `desktop-request-auth.js` 的管理主框架认证；后者拥有精确 frame/session 校验、重定向凭据剥离和主窗口导航监听。授权域由 `license-manager.js` 持有状态和远端流程，`license-runtime-policy.js` 只计算可授权能力与状态映射。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
+**主进程模块边界:** `main.js` 是唯一 Electron 组合根，接线 app/window/protocol/IPC；关闭流程与主窗口分别由 `desktop-lifecycle.js`、`desktop-main-window.js` 持有。`cloud-sync-controller.js` 协调三个云端 scope 的 revision、dirty、SSE 失效通知、低频兜底和应用，`remote-gift-controller.js` 负责服务端权威礼物的 DeviceBearer SSE、final cursor 对账、断线重连和本地投影，本地 `gift-sync-store` 在 SQLite 投影事务中保存按来源隔离的恢复状态与 final cursor；`desktop-auth-controller.js` 管理登录窗口和认证快照，`desktop-update-controller.js` 持有更新状态和启动检查定时器，`desktop-logger.js` 持有运行标识、日志序列并执行有序写入与单条/单文件准入。`media-request-headers.js` 安装唯一请求头监听，组合媒体规则与 `desktop-request-auth.js` 的管理主框架认证；后者拥有精确 frame/session 校验、重定向凭据剥离和主窗口导航监听。授权域由 `license-manager.js` 持有身份、会话和生命周期状态，`license-runtime-policy.js` 定义授权状态、重新认证条件和维护计时常量。辅助模块通过显式回调访问窗口/路径，不反向读取 `main.js` 的可变全局。
 
 礼物同步进入 `LIVE` 或 `LEGACY_PARTIAL` 后，`remote-gift-controller.js` 每 **10 秒**经现有串行队列补拉 final cursor，覆盖 SSE 保持连接但未送达礼物通知的情况。补拉结束后重新计时，不叠加慢请求；离开上述状态、停止、销毁或切换 generation 时取消定时器，回调仍校验 source/auth/controller/projection fence。SSE 继续负责即时投影，定时补拉不改变历史导入、幂等结算或授权边界。
 
-礼物 SSE 的原始 JSON 只在 `license/remote-license-client.js` 通过 `normalizeProcessedGiftEvent` 执行严格 wire 字段校验；回调传递的是含整数分派生字段的 canonical event。`remote-gift-controller.js` 使用 `canonicalizeProcessedGiftEvent` 处理该内部对象，不能再次用 wire 字段白名单拒绝这些派生字段；合法且连续的 final 仍走即时 importer，再按游标对账。
+礼物 SSE 的原始 JSON 只在 `license/gift-protocol.js` 通过 `normalizeProcessedGiftEvent` 执行严格 wire 字段校验；回调传递的是含整数分派生字段的 canonical event。`remote-gift-controller.js` 使用 `canonicalizeProcessedGiftEvent` 处理该内部对象，不能再次用 wire 字段白名单拒绝这些派生字段；合法且连续的 final 仍走即时 importer，再按游标对账。
 
 `scene-cloud-controller.js` 的云弹幕连接由 `scene-runtime` 的共享展示需求驱动：读取弹幕投影或默认外观，以及含弹幕的有效本机通知流成功发送 ready/change/心跳时续期；最后一次读取或有效通知活动后 15 秒自动停止，重新使用时在授权有效下恢复。页面读取暂停而通知流仍健康时不主动断开；其他类型场景、撤销和失败写入不续期。多个本机来源仍共用一条连接，停止时清理读取、超时和退避并清空旧实时事件。展示 owner 使用 `getAuthorizationGeneration()` 的当前授权生命周期，普通 token 续期不重连或清空；退出、失效、重新授权及账号/服务器变化仍终止旧上下文，授权管理器的 token epoch 契约不变。设置读取的取消信号贯通授权等待和远端 GET；退出时可及时结束当前调用，继续既有的 runtime 停止和播放状态 flush 顺序。`license-overlay-ipc.js` 把已校验的设置读取/保存结果连同请求前捕获的 owner scope/epoch 回填场景外观缓存；缓冲拒绝旧账号结果，不需要常开云 SSE 才能保存样式。原 IPC 返回值和渲染进程权限不变。
 
@@ -228,34 +228,34 @@ IPC 通道定义见 [preload.md](preload.md)。
 | 运行形态 | `npm run desktop` → `electron .`;后端 HTTP 服务与 Electron main **同进程**(`require('../server')` 的运行时适配,见 §2) | [package.json](../../../package.json)、[server-core.md](../backend/server-core.md) §1 |
 | 应用名   | `app.setName('LIRA')`；持久化目录使用固定 appId 名称，不再依赖产品展示名派生                                               | [main.js](../../../src/electron/main.js)                                                     |
 
-[entry.js](../../../src/electron/entry.js) 先取得 Electron 的 `app/dialog`，再加载组合根；捕获组合根及其依赖的同步加载异常（包括缺失生产依赖）后，尽力加载本地路径解析与日志模块保存启动诊断，诊断不可用也继续显示错误。提示包含“LIRA 启动失败”和原始错误，建议使用完整安装包覆盖原目录；关闭提示后以 `app.exit(1)` 结束进程，错误提示自身失败也保证退出，避免没有窗口的残留进程阻塞下一次安装。正常启动与运行中的关闭流程仍由 `main.js` 拥有。[原生启动回归](../../../test/desktop/electron-startup.test.js) 使用隔离 Electron 模拟依赖加载失败和错误提示失败，验证确定退出及正常加载。
+[entry.js](../../../src/electron/entry.js) 先取得 Electron 的 `app/dialog`，再加载组合根；捕获组合根及其依赖的同步加载异常（包括缺失生产依赖）后，尽力加载本地路径解析与日志模块保存启动诊断，诊断不可用也继续显示错误。提示包含“LIRA 启动失败”和原始错误，建议使用完整安装包覆盖原目录；关闭提示后以 `app.exit(1)` 结束进程，错误提示自身失败也保证退出，避免没有窗口的残留进程阻塞下一次安装。正常启动由 `main.js` 接线，运行中的关闭流程由 `desktop-lifecycle.js` 拥有。[原生启动回归](../../../test/desktop/electron-startup.test.js) 使用隔离 Electron 模拟依赖加载失败和错误提示失败，验证确定退出及正常加载。
 
-`whenReady` 后的异步启动失败由 `main.js` 记录并提示，再进入 `requestDesktopShutdown({ exitCode: 1 })` 清理已创建资源；错误提示自身抛错也不能跳过关闭。相关证据见 [electron-startup-data.test.js](../../../test/desktop/electron-startup-data.test.js)。
+`whenReady` 后的异步启动失败由 `main.js` 记录并提示，再进入 `desktopLifecycle.requestShutdown({ exitCode: 1 })` 清理已创建资源；错误提示自身抛错也不能跳过关闭。相关证据见 [electron-startup-data.test.js](../../../test/desktop/electron-startup-data.test.js)。
 
 **单实例锁**:`app.requestSingleInstanceLock()` 拿不到锁立即 `app.quit()`([main.js](../../../src/electron/main.js));`second-instance` 事件时还原并聚焦主窗口([main.js](../../../src/electron/main.js));锁在退出流程末尾释放(§7)。
 
 `window-all-closed` 时非 darwin 平台直接 `app.quit()`([main.js](../../../src/electron/main.js))。
 
-主进程可变状态由 `createDesktopState()` 创建并按 `window/lifecycle/media/paths/logging/update` 六个职责分组。`main.js` 只保留这些分组引用,窗口、内嵌服务、更新状态和日志序列不再散落为模块级 `let`。
+主进程状态归各自 owner：`desktop-lifecycle.js` 私有保存关闭任务、确认任务和总期限，`desktop-main-window.js` 私有保存主窗口及服务 URL；`desktop-update-controller.js` 保存更新状态与启动检查定时器，`desktop-logger.js` 保存运行标识和日志序列。`main.js` 保留装配引用和冻结的路径配置，通过窄方法接线，不再共享跨域可变状态袋。
 
 ## 2. 启动序列 startDesktopApp
 
-远端礼物的历史能力、投影替换、游标页连续性和恢复错误分类由 [remote-gift-recovery-rules.js](../../../src/electron/remote-gift-recovery-rules.js) 提供纯规则；控制器继续独占授权/来源/投影代次、串行任务、HTTP/SSE 取消和定时资源。
+远端礼物的来源标识、历史能力、投影替换、游标页连续性和恢复错误分类由 [remote-gift-recovery-rules.js](../../../src/electron/remote-gift-recovery-rules.js) 提供纯规则；来源 key 继续对规范化 origin、账号和 streamerId 按既有字节格式计算 SHA-256。[remote-gift-history.js](../../../src/electron/remote-gift-history.js) 拥有历史分页 token、重复 token 检查、一次过期重启与恢复快照校验。`remote-gift-controller.js` 捕获单次恢复的 fence，提交/重启回调完成时立即更新自己的 currentState；控制器继续独占授权/来源/投影代次、串行任务、HTTP/SSE 取消和定时资源。
 
 批次 C 将授权/目录就绪后的导航与恢复交给 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js)。main 在创建主窗口后启动它，退出时先 dispose，再注销系统恢复监听、排空同步并关闭 runtime。就绪控制器拥有两类订阅及恢复代次；内部导航协作者独占 route 与 loadURL 代次。授权恢复绑定稳定的 `getAuthorizationGeneration()`，同主体正常 token 续期不会取消等待中的恢复；撤销、授权轮换或 dispose 后，云同步完成不能继续恢复旧授权工作。旧导航失败不能清除较新路由。
 
 模块初始化时先由 `desktop-user-data.js` 解析稳定目录。需要一次性旧 AppData 迁移时，先在来源业务数据根申请旧版单实例锁，持锁检查来源 runtime 已停止并完成复制/发布，随后释放来源锁；再在安装目录的业务数据根申请运行期单实例锁，迁移浏览器/缓存并设置 Electron `userData` 与 `sessionData`。迁移失败保留数据并停止启动，避免应用以空 profile 继续运行。`app.whenReady()` 后执行:
 
 1. `configureDesktopEnvironment()` — 配置迁移后的数据/日志目录、环境变量、terminal 日志及 local-media 访问控制；随后创建播放输出、电音助手与外观适配器，注册各自 IPC(§3/§5/§8)
-2. `migrateUserDataFromAppData()` — 旧 `%APPDATA%` 登录分区迁移(§3.2)
+2. `migrateLegacyPartitions({ app, writeLog })` — 旧 `%APPDATA%` 登录分区迁移(§3.2)
 3. `configureMenu()` — `Menu.setApplicationMenu(null)`([main.js](../../../src/electron/main.js))
 4. `configureLocalMediaProtocol()` — 注册 `local-media` handler(§5)
 5. `registerDesktopShellIpc()` / `registerMusicIpc()` / `registerBilibiliIpc()` — 注册桌面外壳、音乐和 Bilibili IPC handler；桌面外壳 owner 为 [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)，不改变通道和来源校验(通道清单见 [preload.md](preload.md) §2)
 6. 创建本地请求授权适配器，再执行 `configureMediaRequestHeaders()` 与 `configureAudioMediaCors()`(§6)
 7. `configureAutoUpdater()` — 从 `desktopUpdate` 适配器取得的自动更新接线；适配器由 [createDesktopUpdateController](../../../src/electron/desktop-update-controller.js) 创建([update.md](update.md) §3)
 8. `await restoreMusicCookieSnapshots()` → `await restoreBilibiliCookieSnapshot()` — **先于服务器启动**恢复会话([auth.md](auth.md) §8)
-9. 初始化豆包账号会话，再将 `createDesktopRuntime(serverRuntimeModule, options)` 的结果保存在 `lifecycleState.runtime`，注册 `setPreShutdownHook(requestPlaybackFlush)`；options 注入数据目录、`safeStorage`、模型会话与授权等能力([main.js](../../../src/electron/main.js))
-10. `await lifecycleState.runtime.start(serverOptions)` — 启动内嵌 HTTP 服务(注入契约见 [auth.md](auth.md) §11,[server-core.md](../backend/server-core.md) §6.1)
+9. 初始化豆包账号会话，再将 `createDesktopRuntime(serverRuntimeModule, options)` 的结果保存在 `runtime`，注册 `setPreShutdownHook(requestPlaybackFlush)`；options 注入数据目录、`safeStorage`、模型会话与授权等能力([main.js](../../../src/electron/main.js))
+10. `await runtime.start(serverOptions)` — 启动内嵌 HTTP 服务(注入契约见 [auth.md](auth.md) §11,[server-core.md](../backend/server-core.md) §6.1)
 11. 创建 `licenseManager`,注册 license IPC,再 `await licenseManager.bootstrap()`;本地服务此时仍通过动态 `licenseGate` 拒绝 Admin、业务 API 和 WebSocket
 12. 创建 `cloudSyncController`，注入授权 manager、本地 runtime 与仅 main process 可访问的 Bilibili Cookie 适配器；创建 `remoteGiftController` 并注入本地 runtime 的 SQLite 礼物同步 owner。场景云订阅、粉丝档案等控制器在各自授权约束下接线；启动恢复由后续就绪控制器协调
 13. 由 `license/license-resume.js` 的 `createLicenseResumeHandler` 注册 `powerMonitor` 的 `resume` 监听;系统唤醒时由 main process 立即调用 `licenseManager.resume()` 重新确认设备会话，并在成功后请求云端同步和远程礼物 cursor resume
@@ -269,7 +269,9 @@ IPC 通道定义见 [preload.md](preload.md)。
 
 ### 2.1 设备授权生命周期
 
-远程 transport 由 `license/remote-license-client.js` 统一拥有认证头、期限、响应预算和错误转换；`remote-danmaku-settings.js`、`remote-songs.js`、`remote-cloud-sync.js`、`remote-gift-reads.js` 只组装各领域的固定方法/路径与专有读取预算。HTTPS 根 origin 校验复用 `shared/remote-url-policy.js`，不合并歌曲、礼物和粉丝的持久 owner key 格式。
+远程 transport 由 [license/license-transport.js](../../../src/electron/license/license-transport.js) 拥有 HTTP/SSE 读取、认证头、期限、取消、响应预算和错误转换；公共错误值由 `remote-license-error.js` 定义。`gift-protocol.js`、`song-protocol.js`、`display-settings-protocol.js`、`cloud-account-protocol.js` 各自拥有领域固定端点、专有预算/请求头、响应校验与授权操作，`remote-license-client.js` 和 `license-operations.js` 仅装配相应工厂，不反向承载领域规则。HTTPS 根 origin 校验复用 `shared/remote-url-policy.js`，不合并歌曲、礼物和粉丝的持久 owner key 格式。
+
+[license/device-authentication.js](../../../src/electron/license/device-authentication.js) 拥有设备激活/认证端点、指纹与构建证明采集、签名、challenge/verify 及一次 challenge 重试；激活继续按既有顺序暂存、提交设备密钥。`license-manager.js` 保留身份接受、beforeAccept、令牌/会话、生命周期代次、操作互斥与维护定时器，设备证明流程在异步边界使用管理器注入的有效性判断。
 
 `license-manager.js` 是设备身份状态、内存 access token、续期和 heartbeat 的唯一所有者。持久化文件只保存公开设备资料;私钥由 Electron `safeStorage` 加密,access token 不写磁盘也不进入 preload/renderer 返回值。
 
@@ -277,7 +279,7 @@ IPC 通道定义见 [preload.md](preload.md)。
 
 `license/build-integrity.js` 在启动认证、激活及续期需要构建信息时，使用 Electron `original-fs` 异步读取原始 `app.asar`，复用一个 64 KiB 缓冲区逐块计算 SHA256，并在成功或失败后关闭文件。这样避免整包同步读取和计算占用主线程，也避免每块重新分配缓冲区。结果不缓存，`buildId` 与 `integrityStatus` 格式及失败语义不变。认证和激活等待摘要后重新核对既有生命周期；已失效操作不再发起授权请求或暂存激活密钥。
 
-`remote-license-client.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用已有的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-cache.test.js)。
+`license-transport.js` 的普通 JSON 响应默认限制为 1 MiB（按 UTF-8 字节数计），其他端点沿用领域工厂传入的独立上限。公共礼物目录独立限制为 32 MiB，按解码后的响应流累计字节；超过时取消读取并返回 `RESPONSE_TOO_LARGE`，不替换上一份完整内存/磁盘目录或 ETag。首次没有可用目录时保持初始化失败，仍沿用现有重试入口。固定来源、总期限、结构校验和完整目录 schema 不变，不截断礼物或分页。该容量约为 2026-09-25 官方目录实测 1,689,296 字节的 19.9 倍；超过支持容量时需显式调整合同。验收见 [容量边界与旧缓存保留](../../../test/gifts/remote-catalog-cache.test.js)。
 
 - 状态为 `CHECKING / NEEDS_ACTIVATION / NEEDS_CONNECTION / AUTHORIZING / AUTHORIZED / BLOCKED`;只有 `AUTHORIZED` 打开本地业务 gate
 - token 续期使用全局单飞 Promise,其他受保护请求和 heartbeat 必须等待该 Promise,避免旧 `token_jti` 与新 token 并发
@@ -300,6 +302,8 @@ Device SSE 使用 15 秒连接期限和 60 秒完整事件块空闲期限；注�
 
 `cloud-sync-controller.js` 是 Electron 进程内的同步协调者，不持久化云端 revision。授权成功后立即同步并建立一条 main-process DeviceBearer SSE；事件只含 scope revision，收到更新 revision 后通过既有 GET 对账。SSE 正常结束或失败后按 1–60 秒有界退避重连，重连成功立即同步。系统 resume 在设备会话恢复后调用 `syncNow()`。可 `unref()` 的 10 分钟单次 timer 只作为代理假在线或漏通知的自动兜底，每轮结束（包括读取失败）都会重新调度。授权离开 `AUTHORIZED` 时 abort SSE 并停止 timer；退出时 `dispose()` 同时移除本地 mutation 与授权状态 listener。
 
+[cloud-settings-sync-controller.js](../../../src/electron/cloud-settings-sync-controller.js) 拥有设置快照的待传读取、当前菜单投影、上传确认、失效盲盒身份修复和拉取应用；菜单上传签名随父控制器停止而重置。[cloud-bilibili-sync-controller.js](../../../src/electron/cloud-bilibili-sync-controller.js) 拥有凭据上传与拉取应用，复用本地认证 owner 的 session revision 栅栏。两者不创建队列、订阅或 timer，始终使用父控制器注入的账号有效性、dirty/revision 判定和取消信号；revision 由父控制器的窄回调记录，保持设置应用后先记录 revision、再按需播种的次序。
+
 三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传；上传只在完成时代次仍未变化的情况下清除 dirty，因此上传期间出现的新修改会再上传一次。失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。songs/Bilibili 在等待远端内容后、写入本地 owner 前再次检查 dirty 与 revision，避免首次判断后发生的本地修改被旧拉取覆盖。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；未初始化的 Bilibili scope 清除本地登录态，不从旧本地 Cookie 自动播种云端凭据。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
 
 歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，内容相同时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
@@ -310,14 +314,14 @@ settings 也保留账号所属的持久待传快照：启动或切回账号先�
 
 手动歌库同步先由主进程返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。请求入队即标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
 
-`license-operations.syncSongs` 在授权生命周期复核后验证服务器上传确认：`ok` 必须为 true，`count` 必须与提交快照长度一致。缺失、非法或不匹配的确认返回 `INVALID_RESPONSE`，不确认 pending、不清除 dirty，也不把本地数量作为服务器成功数量。
+`song-protocol.js` 的 `syncSongs` 授权操作在授权生命周期复核后验证服务器上传确认：`ok` 必须为 true，`count` 必须与提交快照长度一致。缺失、非法或不匹配的确认返回 `INVALID_RESPONSE`，不确认 pending、不清除 dirty，也不把本地数量作为服务器成功数量。
 
-[gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有自动感谢、数据查询两个开关及礼物答谢文案的提交状态、订阅和公开结果。它使用 `cloud-sync-controller.js` 注入的同一账号代次与串行队列；设置上传、持久待传确认、revision/dirty 更新和重试仍由同步控制器完成，不维护第二套同步状态。文案以可选 `giftThanksTemplates` 写入完整云设置，省略保留服务器值，不写本机 settings。旧服务不返回该字段时仍支持原有开关，文案保存返回 GIFT_THANKS_UNSUPPORTED；完整模板确认后才报告保存成功，账号切换拒绝旧结果。受限模板与快照见 [preload](preload.md)。
+[gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有自动感谢、数据查询两个开关及礼物答谢文案的提交状态、订阅和公开结果。它使用 `cloud-sync-controller.js` 注入的同一账号代次与串行队列；设置上传和持久待传确认复用 `cloud-settings-sync-controller.js`，revision/dirty 更新和重试仍由父同步控制器完成，不维护第二套同步状态。文案以可选 `giftThanksTemplates` 写入完整云设置，省略保留服务器值，不写本机 settings。旧服务不返回该字段时仍支持原有开关，文案保存返回 GIFT_THANKS_UNSUPPORTED；完整模板确认后才报告保存成功，账号切换拒绝旧结果。受限模板与快照见 [preload](preload.md)。
 
 ### 2.3 服务端权威礼物接收生命周期
 
 礼物 SSE 额外声明 `X-Lira-Gift-Effects: 1`，接收独立 `gift-effect` frame。
-`remote-license-client` 校验代码并移除传入媒体后交给 `remote-gift-controller.onEffect`；
+`gift-protocol.js` 校验代码并移除传入媒体后交给 `remote-gift-controller.onEffect`；
 runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveEffect`。
 异步解析前后均检查本地开关和原授权/连接 fence，停用或过期结果不广播。
 该临时展示事件不进入导入器、账本或 cursor 恢复。见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。
@@ -347,9 +351,11 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 ### 3.2 升级迁移
 
-旧卸载器可能递归删除安装目录；旧版运行时的 Cookies 也不能安全复制。NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径的 LIRA 进程已退出，关闭确认及重试规则见[构建文档](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。随后才将数据完整复制到 `<新安装目录>.lira-data-backup.partial`，复制返回码 0–7 后重命名为不受旧卸载器删除影响的同级备份。失败中止安装并保留源；已有恢复备份或不同目标数据产生冲突时停止，不覆盖。
+NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径的 LIRA 及音频进程已退出。普通同目录更新在确认实际旧卸载器支持保留数据后，直接保留 data，不复制或恢复；识别依据是安装成功时记录的卸载器 SHA-256，不能仅凭版本号或标记存在判断。完整条件、安装上下文与退出重试规则见[构建文档](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。
 
-程序替换完成后、启动新版前，安装器将备份恢复为 `<新安装目录>/data`。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
+旧卸载器可能递归删除安装目录；未知旧版、换目录、旧 AppData 或遗留捆绑音频等兼容情况仍将数据完整复制到 `<新安装目录>.lira-data-backup.partial`，复制返回码 0–7 后发布到同级备份。失败中止安装并保留源；已有恢复备份或不同目标数据产生冲突时停止，不覆盖。首次升级到支持能力记录的安装器仍可能执行完整备份。
+
+兼容路径在程序替换完成后、启动新版前，将备份恢复为 `<新安装目录>/data`；快路径直接使用原数据。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
 
 只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移在复制前持有来源旧版单实例锁，并检查 `.server-runtime.json`；来源实例仍在运行、runtime 标记损坏或无法确认进程已退出时停止启动，不发布目标。来源锁一直保持到唯一 staging 目录完成复制和重命名，防止检查后旧客户端重新启动造成主库/WAL 不一致；进程锁文件不复制，成功与失败均释放来源锁，之后才申请安装目录的运行期锁。复制失败清理本次 staging、保留来源供重试；已有目标不获取来源锁，也不会被历史副本覆盖。更早期 `%APPDATA%/LIRA/Partitions/` 仍在目标缺失时兼容读取。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
 
@@ -361,19 +367,19 @@ runtime `publishGiftEffect` 共用测试播放的 `domainServices.gifts.resolveE
 
 隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。横幅基础为 428×72、间隔 8px；2× PNG 每行基础为 856×144、间隔 16px，每图最多 39 条（基础 856×6224），数量文字可向右扩宽，同页取最宽横幅。支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
 
-`createMainWindow(baseUrl, authorized)` 创建唯一主窗口；后续 `/license` 与 `/admin?desktop=1` 切换只由 main process 的授权和礼物初始化状态监听器负责：
+[desktop-main-window.js](../../../src/electron/desktop-main-window.js) 的 `create(baseUrl, authorized)` 创建并持有唯一主窗口；初次 URL 使用 main 注入的就绪结果，后续 `/license` 与 `/admin?desktop=1` 切换由 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 的授权和礼物初始化状态监听器驱动：
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| 尺寸           | **1200×750**,minWidth 1024,minHeight 680                                                                           | [main.js](../../../src/electron/main.js)          |
-| 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [main.js](../../../src/electron/main.js) |
-| 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [main.js](../../../src/electron/main.js)                   |
-| webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [main.js](../../../src/electron/main.js) |
-| 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [main.js](../../../src/electron/main.js) |
+| 尺寸           | **1200×750**,minWidth 1024,minHeight 680                                                                           | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
+| 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
+| 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js)、[desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
+| webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
+| 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 
-导航与管理认证由 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 在 loadURL 前绑定，实例保存在 `lifecycleState.requestAuth`。`setWindowOpenHandler` 拒绝创建窗口，只对现有外链规则允许的目标调用 `shell.openExternal`；`will-navigate` 仅放行精确服务 origin 的管理 aliases、`/license` 和管理页发起的 `/api/*` 下载，其余允许的外链交系统浏览器。`will-redirect` 对同一范围重新校验，拒绝跳入展示页或外域。管理 Bearer 只由 main 为受信任主 frame 的请求附加，完整契约见 [auth.md](auth.md) §11.1。
+导航与管理认证由 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 在 loadURL 前绑定，实例由 main 创建并通过 `bindRequestAuth` 接入窗口 owner。`setWindowOpenHandler` 拒绝创建窗口，只对现有外链规则允许的目标调用 `shell.openExternal`；`will-navigate` 仅放行精确服务 origin 的管理 aliases、`/license` 和管理页发起的 `/api/*` 下载，其余允许的外链交系统浏览器。`will-redirect` 对同一范围重新校验，拒绝跳入展示页或外域。管理 Bearer 只由 main 为受信任主 frame 的请求附加，完整契约见 [auth.md](auth.md) §11.1。
 
-最大化状态:窗口 `maximize`/`unmaximize` 事件经 `desktop:window-maximized` 推给渲染进程([main.js](../../../src/electron/main.js),消费方见 [preload.md](preload.md) §2.2)。
+最大化状态:窗口 `maximize`/`unmaximize` 事件由 [desktop-main-window.js](../../../src/electron/desktop-main-window.js) 经 `desktop:window-maximized` 推给渲染进程，窗口关闭时移除该 owner 注册的事件监听；消费方见 [preload.md](preload.md#3-消息订阅与播放持久化)。
 
 `ready-to-show` 后:显示窗口、下发当前更新状态,并触发首轮自动更新检查(仅打包版且 `enableAutoUpdate==='true'`,延迟 1s,见 [update.md](update.md) §1)。
 
@@ -420,19 +426,19 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 | `*://*.qqmusic.qq.com/*`、`*://*.gtimg.cn/*`、`*://*.y.qq.com/*` | 以 `qqmusic.qq.com` / `gtimg.cn` / `y.qq.com` 结尾 | `Referer: https://y.qq.com/` + `Origin: https://y.qq.com`                 |
 | `*://*.bilibili.com/*`、`*://*.hdslb.com/*`                      | 以 `bilibili.com` / `hdslb.com` 结尾               | `Referer: https://www.bilibili.com/` + `Origin: https://www.bilibili.com` |
 
-出处：[media-request-headers.js](../../../src/electron/media-request-headers.js) 的 `configureMediaRequestHeaders`，通过 `mediaState.headersConfigured` 幂等安装。管理认证与这些媒体规则共用同一监听；全 URL 过滤用于清理管理请求的重定向残留头，凭据注入仍按精确主框架与目标白名单限制。
+出处：[media-request-headers.js](../../../src/electron/media-request-headers.js) 的 `configureMediaRequestHeaders`，按 Electron session 私有记录注册；同一认证 owner 幂等安装，替换 owner 时先移除旧监听，旧 disposer 不移除新注册。返回的 disposer 在最终关闭阶段移除自有监听。管理认证与这些媒体规则共用同一监听；全 URL 过滤用于清理管理请求的重定向残留头，凭据注入仍按精确主框架与目标白名单限制。
 
 ## 7. 关闭序列与播放状态冲刷
 
-主窗口 `close`（包括 `desktop:close-window` 和原生关闭）、`before-quit`、`desktop:restart` 与异步启动失败共用 [main.js](../../../src/electron/main.js) 的 `requestDesktopShutdown({ restart = false, exitCode = 0 } = {})`，关闭状态保存在 `lifecycleState.shutdownPromise`。窗口 `close` 先阻止默认销毁，保留 renderer 完成播放冲刷；最终由 `app.exit(exitCode)` 结束窗口，正常退出为 0，启动失败为 1，重复关闭不重置期限：
+主窗口 `close`（包括 `desktop:close-window` 和原生关闭）、`before-quit`、`desktop:restart` 与异步启动失败共用 [desktop-lifecycle.js](../../../src/electron/desktop-lifecycle.js) 的 `requestShutdown({ restart = false, exitCode = 0 } = {})`；该 owner 私有保存关闭状态，main 注入排空、停止运行时、最终清理等窄能力。窗口 `close` 先阻止默认销毁，保留 renderer 完成播放冲刷；最终由 `app.exit(exitCode)` 结束窗口，正常退出为 0，启动失败为 1，重复关闭不重置期限：
 
 1. 每个受控 `before-quit` 都先 `event.preventDefault()`，再请求同一关闭任务。尚无后端且没有受控任务时保留 Electron 默认退出；重启入口在后端缺失时也能完成
 2. 首个请求保存共享 Promise 并启动唯一 **5s 总兜底定时器**，后续请求复用任务，不刷新期限，也不改变首次的退出/重启意图
-3. 在总期限和清理异常处理建立后，保存 `resourceIntegrity.stop()` 返回的 `integrityStopped`，dispose readiness 并置空，注销系统 resume；随后依次调用抽奖授权、礼物互动、礼物导出、粉丝档案、云端每日机器人 IPC 的 disposer，阻止新入口
+3. 在总期限和清理异常处理建立后，保存 `resourceIntegrity.stop()` 返回的 `integrityStopped`，取消更新 owner 的启动检查定时器，dispose readiness 并置空，注销系统 resume；随后依次调用抽奖授权、礼物互动、礼物导出、粉丝档案、云端每日机器人 IPC 的 disposer，阻止新入口
 4. dispose 动态抽奖授权；保存当前 remoteGift、cloudSync、fanProfile、desktopAuth controller 集合并逐个 dispose，再置空 main 的前三个 controller 引用。取消/代次失效使晚结果不能继续提交；客户端退出不表示云端业务关闭，也不保证撤回已发出的上游请求
 5. `await Promise.all([integrityStopped, dynamicLotteryAuth.whenIdle(), ...controllersToDrain.map(c => c.whenIdle())])`。此时 runtime/SQLite 保持可用；等待完成且未被 5 秒终结抢先结束后，才进入后端关闭
-6. `lifecycleState.shutdown({exitProcess:false})` 委托 runtime.stop → [server-core.md](../backend/server-core.md) §6.2，其中 `preShutdownHook` 为 `requestPlaybackFlush`，正常路径等待 renderer 冲刷与后端资源/数据库关闭
-7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、分别 dispose 管理请求认证与 license manager（单项失败记录后继续）、释放单实例锁，按首次请求决定是否 `app.relaunch()`，最后 `app.exit(exitCode)`。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
+6. `stopRuntime()` 委托 `runtime.stop({exitProcess:false})` → [server-core.md](../backend/server-core.md) §6.2，其中 `preShutdownHook` 为 `requestPlaybackFlush`，正常路径等待 renderer 冲刷与后端资源/数据库关闭
+7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、分别移除媒体请求监听、dispose 管理请求认证与 license manager（单项失败记录后继续）、释放单实例锁，按首次请求决定是否 `app.relaunch()`，最后 `app.exit(exitCode)`。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
 
 | 资源与创建 owner | 取消入口 / 排空 | 数据依赖与晚完成保护 |
 | --- | --- | --- |
@@ -494,7 +500,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 | `logs/errors/terminal.log` | 日志目录的 `errors/` | console.warn/error |
 | `logs/errors/desktop.log` | 同上 | Error 对象，warn/warning/error/failed/failure/fatal scope，页面错误、进程异常及启动失败 |
 
-出处:[main.js](../../../src/electron/main.js) 的 `configureDesktopEnvironment`(目录创建、`logRunId`、`installTerminalLog`)、[desktop-logger.js](../../../src/electron/desktop-logger.js) 的 `createDesktopLogger` / `writeLog`。日志目录位于 data 目录**父目录**下(data 目录树见 [storage.md](../backend/storage.md) §2)。
+出处:[main.js](../../../src/electron/main.js) 的 `configureDesktopEnvironment`(目录创建、生成 `runId`、`installTerminalLog`)、[desktop-logger.js](../../../src/electron/desktop-logger.js) 的 `createDesktopLogger` / `startRun` / `writeLog`；日志 owner 私有保存运行标识与序号，main 注入 `nextSequence` 供终端日志共享顺序。日志目录位于 data 目录**父目录**下(data 目录树见 [storage.md](../backend/storage.md) §2)。
 
 行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)) 保留时间、runId、序号、PID、进程类型和 source，消息内换行转义；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB。正常日志每文件 1 MiB，错误日志每文件 3 MiB，各保留活动文件和 `.1`、`.2` 两份归档；包含 AI 的六组受管理日志合计最多 36 MiB。满额轮转后继续写入，超大旧文件仅保留完整行尾部，拒绝符号链接或非普通文件目标，写入失败不干扰业务。
 

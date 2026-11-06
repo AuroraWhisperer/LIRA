@@ -6,9 +6,13 @@ const { createComponentStyleIndex } = require('./component-style-index');
 const { activeImports, beginStyleFileUse, endStyleFileUse, pruneStyleTemporaryFiles, renameStyleDirectory } = require('./component-style-files');
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
+function hasMultipleCategories(pack) {
+  return new Set(pack.styles.map(style => style.category || style.type)).size > 1;
+}
+
 function isSuite(pack, packages) {
   const candidates = pack.packageId ? [pack, ...packages.filter(item => item.packageId === pack.packageId)] : [pack];
-  return candidates.some(item => new Set(item.styles.map(style => style.category || style.type)).size > 1);
+  return candidates.some(hasMultipleCategories);
 }
 
 function createComponentStyleStore(dataDir) {
@@ -25,6 +29,7 @@ function createComponentStyleStore(dataDir) {
   function removePending(id) { fs.rmSync(directory(id, true), { recursive: true, force: true }); }
   return {
     root, directory, read, integrity: () => indexFile.integrity(),
+    createStyleReader: () => indexFile.createStyleReader(),
     beginPending(id) { beginStyleFileUse(directory(id, true)); },
     endPending(id) { endStyleFileUse(directory(id, true)); },
     cancelPending(id) {
@@ -33,9 +38,14 @@ function createComponentStyleStore(dataDir) {
     },
     list() {
       const { packages } = read();
-      return packages.filter(pack => !pack.removed).map(pack => ({ ...pack, isSuite: isSuite(pack, packages),
-        importTarget: isSuite(pack, packages) ? 'suite' : pack.styles[0].category || pack.styles[0].type,
-        styles: pack.styles.filter(style => !style.removed) }));
+      const suiteIds = new Set();
+      for (const pack of packages) if (pack.packageId && hasMultipleCategories(pack)) suiteIds.add(pack.packageId);
+      return packages.filter(pack => !pack.removed).map(pack => {
+        const suite = pack.packageId ? suiteIds.has(pack.packageId) : hasMultipleCategories(pack);
+        return { ...pack, isSuite: suite,
+          importTarget: suite ? 'suite' : pack.styles[0].category || pack.styles[0].type,
+          styles: pack.styles.filter(style => !style.removed) };
+      });
     },
     describe(pack) {
       const { packages } = read();

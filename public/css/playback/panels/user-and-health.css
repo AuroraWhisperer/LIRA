@@ -58,66 +58,35 @@
 }
 
 /* Provider 健康状态显示 */
-.playback-status-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 2px 0;
-  min-height: 26px;
-}
-
 .playback-health-status {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  flex: 1;
+  gap: 6px;
   min-height: 24px;
-  box-sizing: border-box;
-  border: 1px solid transparent;
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   color: var(--color-text-muted);
   line-height: var(--type-leading-caption);
-  padding: 2px 10px;
-  border-radius: 6px;
-  background: var(--surface-2);
-  transition:
-    color 300ms ease,
-    background-color 300ms ease,
-    border-color 300ms ease;
+  white-space: nowrap;
+}
+
+.playback-health-status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 .playback-health-status.success {
   color: var(--color-success-dark);
-  background: var(--color-success-light);
-  border: 1px solid color-mix(in srgb, var(--color-success) 24%, transparent);
-  font-weight: 600;
-}
-
-.playback-health-status.success::before {
-  content: '✓ ';
-  font-weight: bold;
 }
 
 .playback-health-status.error {
   color: var(--danger);
-  background: var(--color-danger-light);
-  border: 1px solid color-mix(in srgb, var(--danger) 24%, transparent);
-  font-weight: 600;
-}
-
-.playback-health-status.error::before {
-  content: '✕ ';
-  font-weight: bold;
 }
 
 .playback-health-status.warning {
   color: var(--color-warning);
-  background: var(--color-warning-light);
-  border: 1px solid color-mix(in srgb, var(--color-warning-medium) 28%, transparent);
-  font-weight: 600;
-}
-
-.playback-health-status.warning::before {
-  content: '⚠ ';
-  font-weight: bold;
 }

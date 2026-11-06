@@ -162,7 +162,7 @@ function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtra
   }
   function getDisplayData(types, request) {
     let state;
-    const needsRoomGuard = types.some((type) => ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'text-box'].includes(type));
+    const needsRoomGuard = types.some((type) => ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'text-box'].includes(type));
     const readState = () => state ??= getState([...new Set([
       ...types.flatMap((type) => Object.hasOwn(DISPLAY_STATE_FIELDS, type) ? DISPLAY_STATE_FIELDS[type] : []),
       ...(needsRoomGuard ? ['roomGuard'] : []),

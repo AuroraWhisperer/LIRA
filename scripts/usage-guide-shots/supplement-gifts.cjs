@@ -96,6 +96,10 @@ const SHOTS = [
     title: '盲盒盈亏榜标题、人数与筛选',
     main: 'liveComponentsPage',
     click: ['#giftAssistantBlindboxTab'],
+    // The guide describes the 心动盲盒 sub-panel, so show it opened.
+    setup: async (page) => {
+      if (!(await page.locator('#blindboxHeartBoxOnly').isChecked())) await page.locator('label:has(#blindboxHeartBoxOnly)').click();
+    },
     scroll: '#blindboxOverlayTitle',
   },
   {

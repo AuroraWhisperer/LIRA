@@ -329,6 +329,36 @@ test('an incomplete profile keeps useful fields and retries the missing avatar a
   service.dispose();
 });
 
+test('reads and fresh hints do not reuse expired profiles between whole-cache sweeps', async () => {
+  let calls = 0;
+  const { service, advance } = createService({
+    nowMs: Date.now(),
+    profileProvider: {
+      async fetchProfile() {
+        calls += 1;
+        return { name: 'Refreshed', avatarUrl: 'https://i0.hdslb.com/bfs/face/new.jpg' };
+      },
+    },
+  });
+  const run = beginRoom(service);
+  for (const uid of ['1', '2', '3']) {
+    service.ingestHint(
+      { uid, name: 'Old', avatarUrl: 'https://i0.hdslb.com/bfs/face/old.jpg' },
+      { ...run, source: 'danmaku' },
+    );
+  }
+  advance(10 * 60 * 1000);
+  assert.equal(service.peek('1', { fields: ['name'] }).name, 'Old');
+  advance(1);
+  assert.equal(service.peek('1'), null);
+  assert.equal((await service.ensure('2', { fields: ['name'] })).name, 'Refreshed');
+  assert.equal(calls, 1);
+  const fresh = service.ingestHint({ uid: '3', name: 'Fresh hint' }, { ...run, source: 'danmaku' });
+  assert.equal(fresh.snapshot.avatarUrl, undefined);
+  assert.equal(service.peek('3', { fields: ['name'] }).name, 'Fresh hint');
+  service.dispose();
+});
+
 test('continuous identity ingestion evicts expired viewers without requiring a UI query', () => {
   const { service, advance } = createService();
   const run = beginRoom(service);

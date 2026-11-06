@@ -1,11 +1,11 @@
 # 全民 K 歌采集(wesing-capture)
 
-> 涉及文件:[wesing-capture.js](../../../../src/music/wesing-capture.js)、[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)、[wesing-playback-clock.js](../../../../src/music/wesing-playback-clock.js)、[wesing-lyric-resolver.js](../../../../src/music/wesing-lyric-resolver.js)、[wesing-qrc-watcher.js](../../../../src/music/wesing-qrc-watcher.js)、[wesing-native-monitor-source.js](../../../../src/music/wesing-native-monitor-source.js)、[wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js)、[lyric-parser.js](../../../../src/music/lyric-parser.js)(findCurrentLyricLine)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)、[server.js](../../../../src/server.js)(装配)、[inspect-wesing-playback.js](../../../../scripts/inspect-wesing-playback.js)(诊断)
+> 涉及文件:[wesing-capture.js](../../../../src/music/wesing-capture.js)、[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)、[wesing-playback-tracker.js](../../../../src/music/wesing-playback-tracker.js)、[wesing-lyric-resolver.js](../../../../src/music/wesing-lyric-resolver.js)、[wesing-qrc-watcher.js](../../../../src/music/wesing-qrc-watcher.js)、[wesing-native-monitor-source.js](../../../../src/music/wesing-native-monitor-source.js)、[wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js)、[lyric-parser.js](../../../../src/music/lyric-parser.js)(findCurrentLyricLine)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)、[server.js](../../../../src/server.js)(装配)、[inspect-wesing-playback.js](../../../../scripts/inspect-wesing-playback.js)(诊断)
 > 依赖:`qrc-decoder`(QRC 解密);运行时内嵌 PowerShell + C# 监视源码
 
 本文档是 WeSing(全民 K 歌)**离线歌词采集**的唯一事实源:监视源、日志/QRC 扫描、播放时钟、v3.3.14 的 loading 过渡跟踪、在线兜底打分与 WS 集成只在此成表。消息契约见 [ws.md](../ws.md),设置持久化见 [storage.md](../storage.md) §7,诊断工具见 [engineering/test.md](../../engineering/test.md)。
 
-**内部模块边界:** `wesing-capture.js` 是兼容导出门面；`wesing-capture-engine.js` 拥有采集生命周期和监视样本状态机；`wesing-playback-clock.js` 只维护单调播放时钟；`wesing-lyric-resolver.js` 只决定本地/在线歌词结果；`wesing-qrc-watcher.js` 管理 QRC 和歌曲日志的文件监听与事件合并；`wesing-cache.js` 拥有目录、日志、QRC 解密与偏移校验；[wesing-cache-discovery.js](../../../../src/music/wesing-cache-discovery.js) 只探测固定候选缓存位置，由运行时注入引擎；`wesing-monitor.js` 拥有 PowerShell 进程与脚本组装；[wesing-diagnostics.js](../../../../src/music/wesing-diagnostics.js) 负责按需记录现有样本和归纳诊断结果。这些模块不反向依赖引擎状态。
+**内部模块边界:** `wesing-capture.js` 是兼容导出门面；`wesing-capture-engine.js` 拥有采集、曲目/歌词刷新与缓存生命周期；`wesing-playback-tracker.js` 统一拥有单调播放时钟和音频/进度证据、停滞外推、重放判断，接收当前样本与时间并返回播放状态；`wesing-lyric-resolver.js` 只决定本地/在线歌词结果；`wesing-qrc-watcher.js` 管理 QRC 和歌曲日志的文件监听与事件合并；`wesing-cache.js` 拥有目录、日志、QRC 解密与偏移校验；[wesing-cache-discovery.js](../../../../src/music/wesing-cache-discovery.js) 只探测固定候选缓存位置，由运行时注入引擎；`wesing-monitor.js` 拥有 PowerShell 进程与脚本组装；[wesing-diagnostics.js](../../../../src/music/wesing-diagnostics.js) 负责按需记录现有样本和归纳诊断结果。这些模块不反向依赖引擎状态。
 
 采集器的启停代次使旧目录检查、旧监视样本及延时刷新失效；停用和 `stop()` 同时推进歌词刷新版本。旧歌词结果即使在重新启用后才返回，也不能发布状态或时间线。QRC watcher 单独持有监听代次，关闭后的目录检查、防抖回调和旧文件事件均不能重新创建监听或干扰新会话。
 
@@ -63,9 +63,9 @@ Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**�
 | `MAX_LOG_SCAN_BYTES`       | 4 MiB(日志回读上限，UTF-16 对齐可多 1 字节)        | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
 | `MAX_QRC_BYTES`            | 4 MB(单个 QRC 文件上限)                           | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
 | `MAX_FALLBACK_FILES`       | 80(目录扫描兜底文件数上限)                        | [wesing-cache.js](../../../../src/music/wesing-cache.js)            |
-| `PAUSED_AFTER_MS`          | 1500(进度停滞且无近期有效音量时判暂停)            | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)            |
-| `AUDIO_PEAK_THRESHOLD`     | 0.001(峰值大于此值才作为有效音量)                 | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)            |
-| `PROGRESS_COMPENSATION_MS` | 130(进度采样补偿)                                 | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js)            |
+| `PAUSED_AFTER_MS`          | 1500(进度停滞且无近期有效音量时判暂停)            | [wesing-playback-tracker.js](../../../../src/music/wesing-playback-tracker.js) |
+| `AUDIO_PEAK_THRESHOLD`     | 0.001(峰值大于此值才作为有效音量)                 | [wesing-playback-tracker.js](../../../../src/music/wesing-playback-tracker.js) |
+| `PROGRESS_COMPENSATION_MS` | 130(进度采样补偿)                                 | [wesing-playback-tracker.js](../../../../src/music/wesing-playback-tracker.js) |
 | `QRC_REFRESH_DEBOUNCE_MS`  | 2000(fs.watch 防抖)                               | [wesing-qrc-watcher.js](../../../../src/music/wesing-qrc-watcher.js)            |
 | `AUTOMATIC_REFRESH_INTERVAL_MS` | 3000(监视样本触发的自动复查间隔)               | [wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js) |
 | `MIN/MAX_LYRIC_OFFSET_MS`  | ±3000(歌词时间偏移夹取)                           | [wesing-cache.js](../../../../src/music/wesing-cache.js)     |
@@ -139,13 +139,13 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 
 ## 6. 播放时钟
 
-### 6.1 单调外推(performance.now(),[wesing-playback-clock.js](../../../../src/music/wesing-playback-clock.js))
+### 6.1 单调外推(performance.now(),[wesing-playback-tracker.js](../../../../src/music/wesing-playback-tracker.js))
 
 - `now` 可注入,默认 `performance.now()`(monotonic,不受系统时间跳变影响)
-- 时钟 = `baseMs + (running ? now - startedAt : 0)`,`readPlaybackClock` 再夹到 `[0, durationMs]`(`state.durationMs || lyricDurationMs`)
-- `setPlaybackClock(ms, ts)` 设基准并保持当前走/停状态;`startPlaybackClock` 起走(幂等);`pausePlaybackClock` 冻结当前值;`resetPlaybackClock` 归零并清进度、有效音量和陈旧进度外推记录及 `hasStartedCurrentTrack`
+- 时钟 = `baseMs + (running ? max(0, timestamp - startedAt) : 0)`；tracker 的 `read(timestamp)` 再夹到 `[0, durationMs]`(`state.durationMs || lyricDurationMs`)，采集器将它绑定为 `readPlaybackClock`。
+- tracker 对外提供 `read/pause/reset/sample`：`pause` 冻结当前值，`reset` 归零并清进度、有效音量、陈旧进度外推记录及本曲开始标记；`sample` 内部用 `set/start` 对齐基准和幂等起走，返回 `{currentMs,playing,waitingForPlayback,progressEvent}`，采集器据此更新歌词及状态文案。
 
-### 6.2 采样对齐(handleMonitorSample,[wesing-capture-engine.js](../../../../src/music/wesing-capture-engine.js))
+### 6.2 采样对齐（采集器处理曲目/加载生命周期，playback tracker 处理播放证据）
 
 每个样本按分支顺序处理:
 
@@ -155,10 +155,10 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 4. **标题变化** → 清 `loadingTrackTitle`、`resetLyrics`、`status:'loading'`、`pendingRefresh = refreshLyrics(title)`
 5. 标题为空 → 停时钟、`waiting`
 6. `loading === true` → 记 `loadingTrackTitle = title`、重置时钟、`status` 保持 loading 文案(v3.3.14 见 §6.4)
-7. 音频不活跃(`audioActive === false`)→ 立即停时钟并清近期音量证据;若有采样进度则 `setPlaybackClock(currentMs + 130ms)`，但已由音频外推的陈旧同值进度不能把时钟拉回；进度变化后重新作为有效锚点。
+7. 音频不活跃(`audioActive === false`)→ 立即停时钟并清近期音量证据;若有采样进度则将基准设为 `currentMs + 130ms`，但已由音频外推的陈旧同值进度不能把时钟拉回；进度变化后重新作为有效锚点。
 8. 有采样进度:
    - **重播检测**(`replayedFromStart`):`lastProgressMs > 3000 && currentMs ≤ 2000 && currentMs < lastProgressMs - 2000` → 回滚到 `currentMs + 130`，有非零进度或有效音量才起走，文案"检测到《…》重新开始,歌词已回到开头"
-   - 进度变化 → `setPlaybackClock(currentMs + 130)` 并 `startPlaybackClock`(playing)
+   - 进度变化 → 将基准设为 `currentMs + 130` 并起走时钟(playing)
    - 首个进度 → 对齐基准;`currentMs > 0` 或有有效音量才起走，否则保持 `waitingForPlayback`
    - 进度不变但 `audioActive === true` 且 `audioPeak > AUDIO_PEAK_THRESHOLD` → 起走或继续单调时钟，不重复对齐陈旧进度；超过 1500ms 未变时标记为陈旧进度外推。进度重新变化后清除此标记并按真实位置校准。
    - 已在播放且音频会话仍活跃时，最近一次有效音量可延续 `PAUSED_AFTER_MS = 1500`，容忍伴奏短暂静音；仅有 Active、零音量、底噪或缺失峰值不能恢复已经暂停的时钟。

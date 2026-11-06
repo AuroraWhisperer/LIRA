@@ -5,7 +5,7 @@ const test = require('node:test');
 const { EventEmitter } = require('node:events');
 const { createGuardExpiryAuth, publicAccount } = require('../../src/electron/guard-expiry-auth');
 const { createLicenseOperations } = require('../../src/electron/license/license-operations');
-const { createRemoteCloudSync } = require('../../src/electron/license/remote-cloud-sync');
+const { createCloudAccountEndpoints } = require('../../src/electron/license/cloud-account-protocol');
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const empty = { source: 'separate', loggedIn: false, uid: null, displayName: null, revision: 1 };
 
@@ -120,7 +120,7 @@ test('invalid source and missing authorization fail before session access', (t) 
 test('account requests preserve authorization and cancellation and identify older servers', async () => {
   const calls = [];
   const signal = new AbortController().signal;
-  const remote = createRemoteCloudSync(async (...args) => { calls.push(args); return empty; });
+  const remote = createCloudAccountEndpoints({ request: async (...args) => { calls.push(args); return empty; } });
   const operations = createLicenseOperations({ remote, withAuthorizedToken: async (fn, options) => {
     assert.equal(options.signal, signal);
     return fn('device-token');

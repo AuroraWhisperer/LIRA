@@ -17,6 +17,10 @@ const { buildGiftFrameEvent } = require('../../src/bilibili/gift/frame-config');
 const { createOvertimeConsumer, createOvertimeService } = require('../../src/overtime');
 const { createOvertimeStore } = require('../../src/storage/overtime-store');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
+const { createGiftMaintenanceStore } = require('../../src/storage/gift-maintenance-store');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics-store');
 const {
   createFakeClock,
   createFixture,
@@ -153,7 +157,13 @@ test('gift projection runtime never finalizes or consumes old local gifts', () =
   const legacyFinal = fixture.db.giftDb.prepare("SELECT * FROM gift_events WHERE platform_id = 'legacy-final'").get();
   const finalized = [];
   const gifts = createGiftService(
-    { db: fixture.db, settings: () => ({ enableGiftSprint: 'true' }) },
+    {
+      queryStore: createGiftQueryStore(fixture.db.giftDb),
+      maintenanceStore: createGiftMaintenanceStore(fixture.db.giftDb),
+      projectionStore: createGiftProjectionStore(fixture.db.giftDb),
+      statisticsStore: createGiftStatisticsStore(fixture.db.giftDb),
+      settings: () => ({ enableGiftSprint: 'true' }),
+    },
     {
       now: fixture.clock.now,
       setTimeout: fixture.clock.setTimeout,
@@ -292,9 +302,11 @@ test('processed final reaches existing statistics, overtime, history, snapshot, 
   const snapshots = [];
   const frames = [];
   const context = {
-    db,
+    queryStore: createGiftQueryStore(db.giftDb),
+    maintenanceStore: createGiftMaintenanceStore(db.giftDb),
+    projectionStore: createGiftProjectionStore(db.giftDb),
+    statisticsStore: createGiftStatisticsStore(db.giftDb),
     settings: () => settings,
-    state: { blindBoxCache: null },
     now: () => new Date(clock.now() + 1).toISOString(),
   };
   let gifts;

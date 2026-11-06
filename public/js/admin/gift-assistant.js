@@ -1,6 +1,7 @@
 import { createGiftDisplaySettings } from './gifts/display-settings.js';
 import { createGiftWishes } from './gifts/wishes.js';
 import { initGiftSprintOverlay } from './gifts/sprint-overlay.js';
+import { createHeartBoxCollection } from './gifts/heart-box-collection.js';
 
 let initialized = false;
 
@@ -10,15 +11,24 @@ export function initGiftAssistant() {
   initialized = true;
   const display = createGiftDisplaySettings();
   const wishes = createGiftWishes();
+  const collection = createHeartBoxCollection();
   initGiftSprintOverlay();
   const displayPanel = document.getElementById('giftDisplayFeature');
   const wishesPanel = document.getElementById('giftWishesFeature');
+  const collectionPanel = document.getElementById('heartBoxCollectionFeature');
   const displayError = document.getElementById('giftDisplayError');
   let displayVisible = false;
   let wishesVisible = false;
+  let collectionVisible = false;
 
   function syncVisibility() {
     const pageVisible = page.classList.contains('active');
+    const nextCollectionVisible = pageVisible && !collectionPanel.hidden;
+    if (nextCollectionVisible !== collectionVisible) {
+      if (nextCollectionVisible) collection.open();
+      else collection.close();
+      collectionVisible = nextCollectionVisible;
+    }
     const nextWishesVisible = pageVisible && !wishesPanel.hidden;
     if (nextWishesVisible !== wishesVisible) {
       if (nextWishesVisible) wishes.open();
@@ -43,10 +53,12 @@ export function initGiftAssistant() {
   const visibility = new MutationObserver(syncVisibility);
   visibility.observe(displayPanel, { attributes: true, attributeFilter: ['hidden'] });
   visibility.observe(wishesPanel, { attributes: true, attributeFilter: ['hidden'] });
+  visibility.observe(collectionPanel, { attributes: true, attributeFilter: ['hidden'] });
   visibility.observe(page, { attributes: true, attributeFilter: ['class'] });
   window.addEventListener('pagehide', () => {
     visibility.disconnect();
     wishes.close();
+    collection.close();
   });
   syncVisibility();
 }

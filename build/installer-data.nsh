@@ -4,6 +4,19 @@ Var liraDataStage
 Var liraDataBanner
 Var liraCopySource
 Var liraCopyTarget
+Var liraPreviousUninstaller
+
+; Bind the capability to the installed uninstaller, not a version or stale flag.
+Function liraRecordDataPreservation
+  Push "SHA2-256"
+  Push "$INSTDIR\${UNINSTALL_FILENAME}"
+  StdUtils::HashFile /NOUNLOAD
+  Pop $R0
+  StrLen $R1 $R0
+  StrCmp $R1 64 0 liraPreservationRecorded
+  WriteINIStr "$INSTDIR\uninstall-data-preservation.ini" "preserve-data" "sha256" "$R0"
+  liraPreservationRecorded:
+FunctionEnd
 
 Function liraWaitForAppExit
   StrCpy $liraDataStage "等待旧版 LIRA 退出"
@@ -60,6 +73,24 @@ Function liraPreserveInstallData
   liraCheckBackup:
     StrCpy $R5 "发现上次安装保留的数据，请勿删除或覆盖。请把诊断报告发给提供安装包的人。"
     IfFileExists "$liraDataBackup" liraPrepareFailed
+    ; Unknown uninstallers and migrations still need a complete recovery copy.
+    StrCmp $liraPreviousInstallDir $INSTDIR 0 liraPrepareBackup
+    StrCmp $liraDataSource "$INSTDIR\data" 0 liraPrepareBackup
+    StrCmp $liraPreviousUninstaller "" liraPrepareBackup
+    GetFullPathName $R2 "$liraPreviousUninstaller"
+    StrCmp $R2 "$INSTDIR\${UNINSTALL_FILENAME}" 0 liraPrepareBackup
+    IfFileExists "$INSTDIR\resources\audio-assistant\LiraAudioAssistant.exe" liraPrepareBackup
+    ReadINIStr $R0 "$INSTDIR\uninstall-data-preservation.ini" "preserve-data" "sha256"
+    StrLen $R1 $R0
+    StrCmp $R1 64 0 liraPrepareBackup
+    Push "SHA2-256"
+    Push "$R2"
+    StdUtils::HashFile /NOUNLOAD
+    Pop $R1
+    StrCmp $R0 $R1 0 liraPrepareBackup
+    StrCpy $liraDataBackup ""
+    Return
+  liraPrepareBackup:
     SetDetailsPrint textonly
     DetailPrint "正在备份本地数据，请稍候…"
     SetDetailsPrint lastused

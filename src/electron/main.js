@@ -43,8 +43,9 @@ const { installDesktopDiagnostics } = require('./desktop-diagnostics');
 const { installLogMaintenance } = require('./log-maintenance');
 const { createDesktopRuntime } = require('./desktop-runtime');
 const { createDesktopUpdateController } = require('./desktop-update-controller');
-const { createDesktopState } = require('./desktop-state');
-const { createClientAppearance, getClientWindowBackground, bindClientAppearanceWindow } = require('./client-appearance');
+const { createDesktopLifecycle } = require('./desktop-lifecycle');
+const { createDesktopMainWindow } = require('./desktop-main-window');
+const { createClientAppearance } = require('./client-appearance');
 const { registerClientAppearanceIpc } = require('./ipc/client-appearance-ipc');
 const { registerScreenColorPicker } = require('./screen-color-picker');
 const { createAudioAssistant } = require('./audio-assistant');
@@ -52,7 +53,7 @@ const { createAudioComponentManager } = require('./audio-component-manager');
 const { registerAudioAssistantIpc } = require('./ipc/audio-assistant-ipc');
 const { createPlaybackOutput } = require('./playback-output');
 const { registerPlaybackOutputIpc } = require('./ipc/playback-output-ipc');
-const { migrateLegacyUserData, resolveDesktopUserDataPaths } = require('./desktop-user-data');
+const { migrateLegacyUserData, migrateLegacyPartitions, resolveDesktopUserDataPaths } = require('./desktop-user-data');
 const { migrateBrowserData, migrateCacheData } = require('../storage/data-directory-migration');
 const { registerLocalFontPermissionHandler } = require('./desktop-permissions');
 const { createLocalMediaAccess, hasExactOrigin } = require('./local-media-access');
@@ -81,23 +82,20 @@ const { createComponentWebPicker } = require('./component-web-picker');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const GITHUB_REPO_URL = 'https://github.com/AuroraWhisperer/LIRA';
-const desktopState = createDesktopState();
-const windowState = desktopState.window;
-const lifecycleState = desktopState.lifecycle;
-const mediaState = desktopState.media;
-const pathState = desktopState.paths;
-const loggingState = desktopState.logging;
-const updateRuntime = desktopState.update;
+let paths = { dataDir: '', logDir: '', logFile: '', terminalLogFile: '' };
+let runtime = null;
+let requestAuth = null;
+let localMediaAccess = null;
+let disposeMediaHeaders = null;
 const startupTiming = { startedAt: 0 };
-const { writeLog, nextSequence: nextLogSequence } = createDesktopLogger({
-  getLogFile: () => pathState.logFile,
-  loggingState,
+const { writeLog, nextSequence: nextLogSequence, startRun: startLogRun } = createDesktopLogger({
+  getLogFile: () => paths.logFile,
 });
 const desktopAuth = createDesktopAuthController({
   BrowserWindow,
   shell,
-  getMainWindow: () => windowState.main,
-  getDataDir: () => pathState.dataDir,
+  getMainWindow: () => desktopWindow.getWindow(),
+  getDataDir: () => paths.dataDir,
   writeLog,
 });
 const {
@@ -122,26 +120,23 @@ const {
 } = desktopAuth;
 const resourceIntegrity = createDesktopResourceIntegrity({
   app,
-  getMainWindow: () => windowState.main,
-  getDesktopBaseUrl: () => windowState.baseUrl,
+  getMainWindow: () => desktopWindow.getWindow(),
+  getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
   writeLog,
 });
 const desktopUpdate = createDesktopUpdateController({
   app,
   updateManager: updateMgr,
-  updateRuntime,
   beforeInstall: () => resourceIntegrity.stop('UPDATE_INSTALLING'),
-  getRuntime: () => lifecycleState.runtime,
-  getMainWindow: () => windowState.main,
+  getAutoUpdateSetting: () => runtime?.getSetting?.('enableAutoUpdate'),
+  getMainWindow: () => desktopWindow.getWindow(),
   writeLog,
 });
 const {
   configureAutoUpdater,
   checkForUpdates,
-  readAutoUpdateSetting,
   downloadUpdate,
   installUpdate,
-  setUpdateError,
   sendUpdateState,
 } = desktopUpdate;
 var licenseManager = null;
@@ -175,6 +170,46 @@ var disposeDiagnostics = null;
 var disposeLogMaintenance = null;
 var disposePlannerReminderIpc = null;
 const remoteGiftCatalogBootstrapBase = resolveConfiguredBaseUrl();
+
+const desktopWindow = createDesktopMainWindow({
+  BrowserWindow,
+  preloadPath: path.join(__dirname, 'preload.js'),
+  iconPath: path.join(ROOT_DIR, 'build', 'icon.png'),
+  getThemeId: () => clientAppearance.getThemeId(),
+  bindRequestAuth: window => requestAuth.bindWindow(window, shell),
+  onCloseRequest: () => desktopLifecycle.requestClose(),
+  onReady: () => {
+    logStartupPhase('ready-to-show', startupTiming.startedAt || Date.now());
+    sendUpdateState();
+    desktopUpdate.scheduleStartupCheck();
+  },
+  writeLog,
+});
+const desktopLifecycle = createDesktopLifecycle({
+  app, dialog,
+  getMainWindow: desktopWindow.getWindow,
+  hasRuntime: () => runtime !== null,
+  hasActiveOverlayConnections: () => runtime?.hasActiveOverlayConnections?.() === true,
+  stopResourceIntegrity: () => resourceIntegrity.stop(),
+  drainBeforeRuntimeStop,
+  stopRuntime: () => runtime?.stop({ exitProcess: false }),
+  disposeRequestAuth: () => {
+    try {
+      disposeMediaHeaders?.();
+    } finally {
+      requestAuth?.dispose();
+    }
+  },
+  disposeLicense: () => {
+    try { licenseManager?.dispose(); }
+    finally { licenseManager = null; }
+  },
+  disposeDiagnostics: () => {
+    disposeDiagnostics?.();
+    disposeLogMaintenance?.();
+  },
+  writeLog,
+});
 
 // ---- app lifecycle ----
 
@@ -249,18 +284,14 @@ if (userDataMigrationState.error) {
       } catch (reportError) {
         writeLog('startup-error', reportError);
       } finally {
-        void requestDesktopShutdown({ exitCode: 1 });
+        void desktopLifecycle.requestShutdown({ exitCode: 1 });
       }
     });
 }
 
 app.setName('LIRA');
 
-app.on('second-instance', function () {
-  if (!windowState.main) return;
-  if (windowState.main.isMinimized()) windowState.main.restore();
-  windowState.main.focus();
-});
+app.on('second-instance', desktopWindow.focus);
 
 app.on('window-all-closed', function () {
   if (process.platform !== 'darwin') app.quit();
@@ -268,138 +299,52 @@ app.on('window-all-closed', function () {
 
 // electron-updater emits this after starting the installer and before app.quit().
 autoUpdater.on('before-quit-for-update', function () {
-  void requestDesktopShutdown();
+  void desktopLifecycle.requestShutdown();
 });
 
-app.on('before-quit', function (event) {
-  if (!lifecycleState.shutdownPromise && !lifecycleState.shutdown) {
-    void resourceIntegrity.stop();
-    return;
-  }
-  event.preventDefault();
-  requestDesktopClose();
-});
+app.on('before-quit', desktopLifecycle.beforeQuit);
 
-function requestDesktopClose() {
-  if (lifecycleState.shutdownPromise) return lifecycleState.shutdownPromise;
-  if (lifecycleState.closePromptPromise) return lifecycleState.closePromptPromise;
-  if (!lifecycleState.runtime?.hasActiveOverlayConnections?.()) return requestDesktopShutdown();
-  const options = {
-    type: 'question',
-    title: '退出 LIRA',
-    message: '仍有浏览器源连接，确定退出？',
-    detail: '退出后，连接中的本机画面将停止更新。',
-    buttons: ['取消退出', '退出 LIRA'],
-    defaultId: 0,
-    cancelId: 0,
-    noLink: true,
-  };
-  const result = windowState.main && !windowState.main.isDestroyed()
-    ? dialog.showMessageBox(windowState.main, options)
-    : dialog.showMessageBox(options);
-  lifecycleState.closePromptPromise = result.then(({ response }) => {
-    if (response === 1) return requestDesktopShutdown();
-  }).catch((error) => writeLog('close-prompt-error', error)).finally(() => {
-    lifecycleState.closePromptPromise = null;
-  });
-  return lifecycleState.closePromptPromise;
-}
-
-function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
-  if (lifecycleState.shutdownPromise) return lifecycleState.shutdownPromise;
-  // The first request owns the final action and the deadline, including reentry.
-  const { promise, resolve } = Promise.withResolvers();
-  lifecycleState.shutdownPromise = promise;
-  let finished = false;
-  writeLog('lifecycle', { event: 'QUIT_BEGIN' });
-  const forceQuitTimer = setTimeout(function () {
-    finish('QUIT_TIMEOUT');
-  }, 5000);
-
-  function logError(error) {
-    writeLog('shutdown-error', error);
-    console.warn('Shutdown failed:', error.message);
-  }
-
-  function finish(event) {
-    if (finished) return;
-    finished = true;
-    clearTimeout(forceQuitTimer);
-    writeLog('lifecycle', { event });
-    try {
-      lifecycleState.requestAuth?.dispose();
-    } catch (error) {
-      logError(error);
-    }
-    try {
-      licenseManager?.dispose();
-    } catch (error) {
-      logError(error);
-    }
-    licenseManager = null;
-    try {
-      app.releaseSingleInstanceLock();
-      if (restart) app.relaunch();
-    } catch (error) {
-      logError(error);
-    } finally {
-      disposeDiagnostics?.();
-      disposeLogMaintenance?.();
-      app.exit(exitCode);
-      resolve();
-    }
-  }
-
-  void (async function () {
-    try {
-      const integrityStopped = resourceIntegrity.stop();
-      readinessController?.dispose();
-      readinessController = null;
-      licenseResumeController?.unregister();
-      disposeLotteryAuthIpc?.();
-      disposeGuardExpiryIpc?.();
-      guardExpiryAuth?.dispose();
-      disposeGiftInteractionIpc?.();
-      disposeGiftExportIpc?.();
-      disposeFanProfileIpc?.();
-      disposeDailyBotIpc?.();
-      disposePlannerReminderIpc?.();
-      disposeDesktopNotificationsIpc?.();
-      disposeClientAppearanceIpc?.();
-      disposeScreenColorPicker?.();
-      disposeAudioAssistantIpc?.();
-      disposePlaybackOutputIpc?.();
-      plannerReminderController?.dispose();
-      desktopNotifications?.dispose();
-      dynamicLotteryAuth?.dispose();
-      const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth, doubaoSession].filter(
-        Boolean,
-      );
-      for (const controller of controllersToDrain) controller.dispose();
-      remoteGiftController = null;
-      sceneCloudController = null;
-      cloudSyncController = null;
-      fanProfileController = null;
-      await Promise.all([
-        integrityStopped,
-        audioAssistant?.dispose(),
-        playbackOutput?.dispose(),
-        audioComponent?.close(),
-        clientAppearance?.whenIdle(),
-        desktopNotifications?.whenIdle(),
-        dynamicLotteryAuth?.whenIdle(),
-        guardExpiryAuth?.whenIdle(),
-        ...controllersToDrain.map((controller) => controller.whenIdle()),
-      ]);
-      if (finished) return;
-      await lifecycleState.shutdown?.({ exitProcess: false });
-    } catch (error) {
-      if (!finished) logError(error);
-    } finally {
-      finish('QUIT_DONE');
-    }
-  })();
-  return promise;
+async function drainBeforeRuntimeStop() {
+  const integrityStopped = resourceIntegrity.stop();
+  desktopUpdate.dispose();
+  readinessController?.dispose();
+  readinessController = null;
+  licenseResumeController?.unregister();
+  disposeLotteryAuthIpc?.();
+  disposeGuardExpiryIpc?.();
+  guardExpiryAuth?.dispose();
+  disposeGiftInteractionIpc?.();
+  disposeGiftExportIpc?.();
+  disposeFanProfileIpc?.();
+  disposeDailyBotIpc?.();
+  disposePlannerReminderIpc?.();
+  disposeDesktopNotificationsIpc?.();
+  disposeClientAppearanceIpc?.();
+  disposeScreenColorPicker?.();
+  disposeAudioAssistantIpc?.();
+  disposePlaybackOutputIpc?.();
+  plannerReminderController?.dispose();
+  desktopNotifications?.dispose();
+  dynamicLotteryAuth?.dispose();
+  const controllersToDrain = [sceneCloudController, remoteGiftController, cloudSyncController, fanProfileController, desktopAuth, doubaoSession].filter(
+    Boolean,
+  );
+  for (const controller of controllersToDrain) controller.dispose();
+  remoteGiftController = null;
+  sceneCloudController = null;
+  cloudSyncController = null;
+  fanProfileController = null;
+  await Promise.all([
+    integrityStopped,
+    audioAssistant?.dispose(),
+    playbackOutput?.dispose(),
+    audioComponent?.close(),
+    clientAppearance?.whenIdle(),
+    desktopNotifications?.whenIdle(),
+    dynamicLotteryAuth?.whenIdle(),
+    guardExpiryAuth?.whenIdle(),
+    ...controllersToDrain.map((controller) => controller.whenIdle()),
+  ]);
 }
 
 // ---- startup ----
@@ -407,68 +352,68 @@ function requestDesktopShutdown({ restart = false, exitCode = 0 } = {}) {
 async function startDesktopApp() {
   configureDesktopEnvironment();
   audioComponent = createAudioComponentManager({
-    dataDir: pathState.dataDir,
+    dataDir: paths.dataDir,
     bundledDirectory: path.join(app.isPackaged ? process.resourcesPath : path.join(ROOT_DIR, 'build'), 'audio-assistant'),
     canDownload: () => licenseManager?.getState() === LicenseState.AUTHORIZED,
     onState: state => {
-      const window = windowState.main;
+      const window = desktopWindow.getWindow();
       if (window && !window.isDestroyed()) window.webContents.send('audio-component:state', state);
     },
   });
   playbackOutput = createPlaybackOutput({
     getExecutable: audioComponent.getExecutable,
-    dataDir: pathState.dataDir,
+    dataDir: paths.dataDir,
     onFault: (fault) => {
-      const window = windowState.main;
+      const window = desktopWindow.getWindow();
       if (window && !window.isDestroyed()) window.webContents.send('playback-output:fault', fault);
     },
   });
   disposePlaybackOutputIpc = registerPlaybackOutputIpc({ ipcMain, output: playbackOutput, component: audioComponent,
-    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
+    getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl() });
   audioAssistant = createAudioAssistant({
     getExecutable: audioComponent.getExecutable,
-    dataDir: pathState.dataDir,
+    dataDir: paths.dataDir,
     getProcessIds: () => [process.pid, playbackOutput?.getProcessId(), ...app.getAppMetrics().map((item) => item.pid)],
     getPlaybackProcessId: () => playbackOutput?.getCaptureProcessId(),
     onState: (state) => {
-      const window = windowState.main;
+      const window = desktopWindow.getWindow();
       if (window && !window.isDestroyed()) window.webContents.send('audio-assistant:state', state);
     },
   });
   disposeAudioAssistantIpc = registerAudioAssistantIpc({ ipcMain, assistant: audioAssistant, component: audioComponent,
-    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl,
+    getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
     isPathAllowedForLocalMedia, shell });
-  clientAppearance = createClientAppearance({ dataDir: pathState.dataDir, writeLog });
+  clientAppearance = createClientAppearance({ dataDir: paths.dataDir, writeLog });
   disposeClientAppearanceIpc = registerClientAppearanceIpc({ ipcMain, appearance: clientAppearance,
-    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
+    getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl() });
   disposeScreenColorPicker = registerScreenColorPicker({ ipcMain, BrowserWindow, desktopCapturer, screen,
-    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
+    getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl() });
   if (process.platform === 'win32') app.setAppUserModelId('com.aurorawhisperer.lira');
   writeLog('user-data-migration', userDataMigrationState.migration);
   const startupStartedAt = Date.now();
   startupTiming.startedAt = startupStartedAt;
   logStartupPhase('start', startupStartedAt);
   var phaseStartedAt = Date.now();
-  migrateUserDataFromAppData();
+  migrateLegacyPartitions({ app, writeLog });
   logStartupPhase('partition-migration', phaseStartedAt);
   configureMenu();
   configureLocalMediaProtocol();
   desktopNotifications = createDesktopNotifications({
-    dataDir: pathState.dataDir,
+    dataDir: paths.dataDir,
     Notification,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     icon: path.join(ROOT_DIR, 'build', 'icon.png'),
     writeLog,
     onPlannerRemindersChanged: (enabled) => plannerReminderController?.setEnabled(enabled),
   });
   disposeDesktopNotificationsIpc = registerDesktopNotificationsIpc({
     ipcMain, notifications: desktopNotifications,
-    getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl,
+    getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
   });
   plannerReminderController = createPlannerReminderController({
     Notification,
     powerMonitor,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     icon: path.join(ROOT_DIR, 'build', 'icon.png'),
     writeLog,
     enabled: desktopNotifications.getState().settings.plannerRemindersEnabled,
@@ -476,36 +421,36 @@ async function startDesktopApp() {
   disposePlannerReminderIpc = registerPlannerReminderIpc({
     ipcMain,
     controller: plannerReminderController,
-    getMainWindow: () => windowState.main,
-    getDesktopBaseUrl: () => windowState.baseUrl,
+    getMainWindow: () => desktopWindow.getWindow(),
+    getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
   });
   registerDesktopShellIpc({
     ipcMain,
     app,
     shell,
-    getDataDir: () => pathState.dataDir,
-    getLogFile: () => pathState.logFile,
-    getLogDir: () => pathState.logDir,
-    getTerminalLogFile: () => pathState.terminalLogFile,
-    getUpdateState: () => updateRuntime.value,
+    getDataDir: () => paths.dataDir,
+    getLogFile: () => paths.logFile,
+    getLogDir: () => paths.logDir,
+    getTerminalLogFile: () => paths.terminalLogFile,
+    getUpdateState: desktopUpdate.getState,
     resourceIntegrity,
     githubRepoUrl: GITHUB_REPO_URL,
     checkForUpdates,
     downloadUpdate,
     installUpdate,
-    requestRestart: () => requestDesktopShutdown({ restart: true }),
-    getMainWindow: () => windowState.main,
-    getDesktopBaseUrl: () => windowState.baseUrl,
+    requestRestart: () => desktopLifecycle.requestShutdown({ restart: true }),
+    getMainWindow: () => desktopWindow.getWindow(),
+    getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
     writeLog,
   });
   registerMusicIpc({
     ipcMain,
     dialog,
-    getMainWindow: () => windowState.main,
-    getDesktopBaseUrl: () => windowState.baseUrl,
-    getDesktopRuntime: () => lifecycleState.runtime,
+    getMainWindow: () => desktopWindow.getWindow(),
+    getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
+    getDesktopRuntime: () => runtime,
     getAppDataPath: () => app.getPath('appData'),
-    getLocalMediaAccess: () => mediaState.localAccess,
+    getLocalMediaAccess: () => localMediaAccess,
     getMusicAuthState,
     loginMusicAccount,
     logoutMusicAccount,
@@ -514,16 +459,16 @@ async function startDesktopApp() {
     isPathAllowedForLocalMedia,
     acknowledgePlaybackFlush: playbackFlush.acknowledgePlaybackFlush,
     writePlaybackSnapshot: (payload, clientId) => {
-      if (!lifecycleState.runtime || typeof lifecycleState.runtime.persistPlaybackSnapshot !== 'function') {
+      if (!runtime || typeof runtime.persistPlaybackSnapshot !== 'function') {
         return { ok: false, error: 'Playback store not available' };
       }
-      return lifecycleState.runtime.persistPlaybackSnapshot(payload, clientId);
+      return runtime.persistPlaybackSnapshot(payload, clientId);
     },
   });
   registerBilibiliIpc({
     ipcMain,
-    getMainWindow: () => windowState.main,
-    getDesktopBaseUrl: () => windowState.baseUrl,
+    getMainWindow: () => desktopWindow.getWindow(),
+    getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
     getAuthState: getBilibiliAuthState,
     getProfile: getBilibiliAccountProfile,
     login: async () => {
@@ -537,22 +482,22 @@ async function startDesktopApp() {
       return result;
     },
   });
-  lifecycleState.requestAuth = createDesktopRequestAuth({
+  requestAuth = createDesktopRequestAuth({
     desktopSession: session.defaultSession,
-    getMainWindow: () => windowState.main,
-    getBaseUrl: () => windowState.baseUrl,
-    getToken: () => lifecycleState.runtime?.getApiToken?.() || '',
+    getMainWindow: () => desktopWindow.getWindow(),
+    getBaseUrl: () => desktopWindow.getBaseUrl(),
+    getToken: () => runtime?.getApiToken?.() || '',
   });
-  configureMediaRequestHeaders(session.defaultSession, mediaState, lifecycleState.requestAuth);
-  configureAudioMediaCors(session.defaultSession, { getMainWindow: () => windowState.main, getDesktopBaseUrl: () => windowState.baseUrl });
+  disposeMediaHeaders = configureMediaRequestHeaders(session.defaultSession, requestAuth);
+  configureAudioMediaCors(session.defaultSession, { getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl() });
   configureAutoUpdater();
   phaseStartedAt = Date.now();
   await restoreMusicCookieSnapshots();
-  if (lifecycleState.shutdownPromise) return;
+  if (desktopLifecycle.isShuttingDown()) return;
   logStartupPhase('music-cookie-restore', phaseStartedAt);
   phaseStartedAt = Date.now();
   await restoreBilibiliCookieSnapshot();
-  if (lifecycleState.shutdownPromise) return;
+  if (desktopLifecycle.isShuttingDown()) return;
   logStartupPhase('bilibili-cookie-restore', phaseStartedAt);
 
   var serverOptions = {
@@ -595,13 +540,13 @@ async function startDesktopApp() {
       imageBaseUrl: () => licenseManager?.getRemoteBaseUrl?.() || remoteGiftCatalogBootstrapBase,
     },
   };
-  doubaoSession = createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir: pathState.dataDir, getParent: () => windowState.main });
+  doubaoSession = createDoubaoSession({ BrowserWindow, session, safeStorage, dataDir: paths.dataDir, getParent: () => desktopWindow.getWindow() });
   await doubaoSession.initialize();
-  if (lifecycleState.shutdownPromise) return;
-  lifecycleState.runtime = createDesktopRuntime(serverRuntimeModule, {
-    dataDir: pathState.dataDir,
+  if (desktopLifecycle.isShuttingDown()) return;
+  runtime = createDesktopRuntime(serverRuntimeModule, {
+    dataDir: paths.dataDir,
     nativeMusicCapture: true,
-    pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => windowState.main }),
+    pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => desktopWindow.getWindow() }),
     getClientTheme: clientAppearance.getThemeId,
     safeStorage,
     doubaoSession,
@@ -628,18 +573,17 @@ async function startDesktopApp() {
         ...extra,
       }),
   });
-  lifecycleState.shutdown = lifecycleState.runtime.stop.bind(lifecycleState.runtime);
 
   // Register pre-shutdown hook: flush renderer playback state via IPC before closing server/DB
-  lifecycleState.runtime.setPreShutdownHook(requestPlaybackFlush);
+  runtime.setPreShutdownHook(requestPlaybackFlush);
 
   phaseStartedAt = Date.now();
-  var serverInfo = await lifecycleState.runtime.start(serverOptions);
-  if (lifecycleState.shutdownPromise) return;
+  var serverInfo = await runtime.start(serverOptions);
+  if (desktopLifecycle.isShuttingDown()) return;
   logStartupPhase('runtime-ready', phaseStartedAt);
 
   licenseManager = createLicenseManager({
-    dataDir: pathState.dataDir,
+    dataDir: paths.dataDir,
     safeStorage,
     appVersion: app.getVersion(),
     isPackaged: app.isPackaged,
@@ -648,62 +592,62 @@ async function startDesktopApp() {
   dynamicLotteryAuth = createDynamicLotteryAuth({
     session,
     safeStorage,
-    dataDir: pathState.dataDir,
+    dataDir: paths.dataDir,
     licenseManager,
     BrowserWindow,
     shell,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     writeLog,
   });
   guardExpiryAuth = createGuardExpiryAuth({
     session, licenseManager, BrowserWindow, shell,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     loginConfig: require('./bilibili-auth').BILIBILI_LOGIN_CONFIG,
   });
   disposeGuardExpiryIpc = registerGuardExpiryIpc({
     ipcMain, auth: guardExpiryAuth,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   disposeLotteryAuthIpc = registerDynamicLotteryAuthIpc({
     ipcMain,
     auth: dynamicLotteryAuth,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   registerLicenseIpc({
     ipcMain,
     licenseManager,
     getCloudSyncController: () => cloudSyncController,
-    onOverlaySettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),
-    onFixedReplySettings: (settings, revision) => lifecycleState.runtime.applyCloudFixedReplySettingsSnapshot(settings, revision),
+    onOverlaySettings: (update) => runtime.receiveSceneCloudSettings(update),
+    onFixedReplySettings: (settings, revision) => runtime.applyCloudFixedReplySettingsSnapshot(settings, revision),
     giftCatalog: {
-      getState: () => lifecycleState.runtime.getGiftCatalogInitializationState(),
+      getState: () => runtime.getGiftCatalogInitializationState(),
       initialize: () =>
-        lifecycleState.runtime.initializeGiftCatalog({
+        runtime.initializeGiftCatalog({
           force: true,
           reason: 'license-retry',
         }),
-      onStateChanged: (listener) => lifecycleState.runtime.onGiftCatalogInitializationStateChanged(listener),
+      onStateChanged: (listener) => runtime.onGiftCatalogInitializationStateChanged(listener),
     },
     fontLibrary: {
-      getState: () => lifecycleState.runtime.getFontLibraryState(),
-      initialize: () => lifecycleState.runtime.initializeFontLibrary({ force: true }),
-      onStateChanged: listener => lifecycleState.runtime.onFontLibraryStateChanged(listener),
+      getState: () => runtime.getFontLibraryState(),
+      initialize: () => runtime.initializeFontLibrary({ force: true }),
+      onStateChanged: listener => runtime.onFontLibraryStateChanged(listener),
     },
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
     hasExactOrigin,
   });
   await licenseManager.bootstrap();
-  if (lifecycleState.shutdownPromise) return;
+  if (desktopLifecycle.isShuttingDown()) return;
   writeLog('license-state', {
     event: 'bootstrap',
     ...licenseManager.getSnapshot(),
   });
   cloudSyncController = createCloudSyncController({
     licenseManager,
-    runtime: lifecycleState.runtime,
+    runtime,
     bilibiliAuth: {
       getAuthState: getBilibiliAuthState,
       getCookieHeader: getBilibiliCookieHeader,
@@ -715,7 +659,7 @@ async function startDesktopApp() {
   disposeGiftInteractionIpc = registerGiftInteractionIpc({
     ipcMain,
     controller: cloudSyncController,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   disposeGiftExportIpc = registerGiftExportIpc({
@@ -725,41 +669,41 @@ async function startDesktopApp() {
       BrowserWindow,
       dialog,
       shell,
-      runtime: lifecycleState.runtime,
+      runtime,
       getBaseUrl: () => serverInfo.baseUrl,
-      getMainWindow: () => windowState.main,
+      getMainWindow: () => desktopWindow.getWindow(),
     }),
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   remoteGiftController = createRemoteGiftController({
     licenseManager,
-    runtime: lifecycleState.runtime,
+    runtime,
   });
   sceneCloudController = createSceneCloudController({
     licenseManager,
     writeLog,
-    subscribeDemand: (listener) => lifecycleState.runtime.subscribeSceneCloudDemand(listener),
-    publish: (update) => lifecycleState.runtime.receiveSceneCloud(update),
-    publishSettings: (update) => lifecycleState.runtime.receiveSceneCloudSettings(update),
+    subscribeDemand: (listener) => runtime.subscribeSceneCloudDemand(listener),
+    publish: (update) => runtime.receiveSceneCloud(update),
+    publishSettings: (update) => runtime.receiveSceneCloudSettings(update),
   });
   sceneCloudController.start();
   fanProfileController = createFanProfileController({
     licenseManager,
-    getService: () => lifecycleState.runtime.getFanProfiles(),
-    getRoomId: () => lifecycleState.runtime.getSetting('roomId'),
+    getService: () => runtime.getFanProfiles(),
+    getRoomId: () => runtime.getSetting('roomId'),
     fetchGuardRoster,
     fetchUserProfile: async (uid, { signal }) => {
       signal.throwIfAborted();
       const cookieHeader = await getBilibiliCookieHeader();
       return new BilibiliApiClient('', { cookieHeader }).fetchUserProfile(uid, { signal });
     },
-    isWindowOpen: () => Boolean(windowState.main && !windowState.main.isDestroyed()),
+    isWindowOpen: () => Boolean(desktopWindow.getWindow() && !desktopWindow.getWindow().isDestroyed()),
   });
   disposeFanProfileIpc = registerFanProfileIpc({
     ipcMain,
     controller: fanProfileController,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   void fanProfileController.start();
@@ -767,10 +711,10 @@ async function startDesktopApp() {
     ipcMain,
     controller: createDailyBotController({
       licenseManager,
-      getLegacyReader: () => lifecycleState.runtime.getDailyBotLegacy(),
-      sourceLabel: path.join(pathState.dataDir, 'checkin-data.db'),
+      getLegacyReader: () => runtime.getDailyBotLegacy(),
+      sourceLabel: path.join(paths.dataDir, 'checkin-data.db'),
     }),
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
   });
   licenseResumeController = createLicenseResumeHandler({
@@ -788,84 +732,57 @@ async function startDesktopApp() {
     desktopSession: session.defaultSession,
     dialog,
     desktopBaseUrl: serverInfo.baseUrl,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     hasExactOrigin,
   });
   phaseStartedAt = Date.now();
   readinessController = createDesktopReadinessController({
     licenseManager,
     audioComponent,
-    runtime: lifecycleState.runtime,
+    runtime,
     remoteGiftController,
     cloudSyncController,
-    getMainWindow: () => windowState.main,
+    getMainWindow: () => desktopWindow.getWindow(),
     baseUrl: serverInfo.baseUrl,
     writeLog,
   });
-  createMainWindow(serverInfo.baseUrl, readinessController.initialRoute === 'admin');
+  desktopWindow.create(serverInfo.baseUrl, readinessController.initialRoute === 'admin');
   readinessController.start();
   logStartupPhase('window-create', phaseStartedAt);
   writeLog('lifecycle', { event: 'READY', baseUrl: serverInfo.baseUrl });
 
-  if (!app.isPackaged) {
-    updateRuntime.value = {
-      ...updateRuntime.value,
-      status: 'dev-disabled',
-      message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
-      canDownload: false,
-      canInstall: false,
-    };
-    sendUpdateState();
-  }
+  if (!app.isPackaged) desktopUpdate.setDevelopmentMode();
 }
 
 function configureDesktopEnvironment() {
-  pathState.dataDir = desktopUserDataPaths.dataDir;
-  pathState.logDir = desktopUserDataPaths.logDir;
-  pathState.logFile = path.join(pathState.logDir, 'desktop.log');
-  pathState.terminalLogFile = path.join(pathState.logDir, 'terminal.log');
-  fs.mkdirSync(pathState.dataDir, { recursive: true });
-  fs.mkdirSync(pathState.logDir, { recursive: true });
-  loggingState.runId = crypto.randomUUID();
-  loggingState.sequence = 0;
-  disposeLogMaintenance = installLogMaintenance(pathState.logDir);
-  installTerminalLog(pathState.terminalLogFile, {
-    runId: loggingState.runId,
+  paths = Object.freeze({
+    dataDir: desktopUserDataPaths.dataDir,
+    logDir: desktopUserDataPaths.logDir,
+    logFile: path.join(desktopUserDataPaths.logDir, 'desktop.log'),
+    terminalLogFile: path.join(desktopUserDataPaths.logDir, 'terminal.log'),
+  });
+  fs.mkdirSync(paths.dataDir, { recursive: true });
+  fs.mkdirSync(paths.logDir, { recursive: true });
+  const runId = crypto.randomUUID();
+  startLogRun(runId);
+  disposeLogMaintenance = installLogMaintenance(paths.logDir);
+  installTerminalLog(paths.terminalLogFile, {
+    runId,
     pid: process.pid,
     processType: process.type || 'browser',
     nextSequence: nextLogSequence,
   });
-  disposeDiagnostics = installDesktopDiagnostics({ app, writeLog, getBaseUrl: () => windowState.baseUrl });
+  disposeDiagnostics = installDesktopDiagnostics({ app, writeLog, getBaseUrl: () => desktopWindow.getBaseUrl() });
   writeLog('lifecycle', {
     event: 'START',
-    dataDir: pathState.dataDir,
-    logDir: pathState.logDir,
+    dataDir: paths.dataDir,
+    logDir: paths.logDir,
     isPackaged: app.isPackaged,
   });
-  mediaState.localAccess = createLocalMediaAccess(pathState.dataDir);
-  process.env.SONG_PLUGIN_DATA_DIR = pathState.dataDir;
+  localMediaAccess = createLocalMediaAccess(paths.dataDir);
+  process.env.SONG_PLUGIN_DATA_DIR = paths.dataDir;
   process.env.ELECTRON_DESKTOP = '1';
   if (!process.env.HOST) process.env.HOST = '127.0.0.1';
-}
-
-// 将旧版本残留在 %APPDATA% 下的 Chromium 分区数据迁移到新的 userData 目录，
-// 确保已安装用户在升级后不会丢失登录状态。
-function migrateUserDataFromAppData() {
-  const oldUserData = path.join(app.getPath('appData'), app.getName());
-  const newUserData = app.getPath('userData');
-  if (oldUserData === newUserData) return;
-
-  const oldPartitions = path.join(oldUserData, 'Partitions');
-  const newPartitions = path.join(newUserData, 'Partitions');
-
-  if (fs.existsSync(oldPartitions) && !fs.existsSync(newPartitions)) {
-    try {
-      fs.cpSync(oldPartitions, newPartitions, { recursive: true });
-      writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
-    } catch (e) {
-      writeLog('migration-error', e);
-    }
-  }
 }
 
 function configureMenu() {
@@ -873,80 +790,15 @@ function configureMenu() {
 }
 
 function isPathAllowedForLocalMedia(filePath) {
-  return Boolean(mediaState.localAccess && mediaState.localAccess.isAllowed(filePath));
+  return Boolean(localMediaAccess && localMediaAccess.isAllowed(filePath));
 }
 
 function configureLocalMediaProtocol() {
-  registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, () => windowState.baseUrl);
-}
-
-function createMainWindow(baseUrl, authorized = false) {
-  windowState.baseUrl = baseUrl;
-  var opts = {
-    width: 1200,
-    height: 750,
-    minWidth: 1024,
-    minHeight: 680,
-    show: false,
-    title: 'LIRA',
-    backgroundColor: getClientWindowBackground(baseUrl + (authorized ? '/admin' : '/license'), baseUrl, clientAppearance.getThemeId()),
-    frame: false,
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-      backgroundThrottling: false,
-    },
-  };
-  var iconPath = path.join(ROOT_DIR, 'build', 'icon.png');
-  if (fs.existsSync(iconPath)) opts.icon = iconPath;
-
-  windowState.main = new BrowserWindow(opts);
-  bindClientAppearanceWindow(windowState.main, baseUrl, clientAppearance.getThemeId);
-  lifecycleState.requestAuth.bindWindow(windowState.main, shell);
-  writeLog('window', { event: 'create', window: 'main' });
-  windowState.main.loadURL(baseUrl + (authorized ? '/admin?desktop=1' : '/license'));
-
-  windowState.main.once('ready-to-show', function () {
-    writeLog('window', { event: 'ready', window: 'main' });
-    logStartupPhase('ready-to-show', startupTiming.startedAt || Date.now());
-    windowState.main.show();
-    sendUpdateState();
-    if (app.isPackaged && readAutoUpdateSetting()) {
-      setTimeout(function () {
-        checkForUpdates().catch(function (e) {
-          setUpdateError(e);
-        });
-      }, 1000);
-    }
-  });
-
-  windowState.main.on('close', function (event) {
-    event.preventDefault();
-    requestDesktopClose();
-  });
-
-  windowState.main.on('closed', function () {
-    writeLog('window', { event: 'closed', window: 'main' });
-    windowState.main = null;
-  });
-
-  windowState.main.on('maximize', function () {
-    if (windowState.main && !windowState.main.isDestroyed()) {
-      windowState.main.webContents.send('desktop:window-maximized', true);
-    }
-  });
-
-  windowState.main.on('unmaximize', function () {
-    if (windowState.main && !windowState.main.isDestroyed()) {
-      windowState.main.webContents.send('desktop:window-maximized', false);
-    }
-  });
+  registerLocalMediaProtocol(protocol, isPathAllowedForLocalMedia, () => desktopWindow.getBaseUrl());
 }
 
 function logStartupPhase(phase, startedAt, extra = {}) {
-  if (!pathState.logFile) return;
+  if (!paths.logFile) return;
   writeLog('lifecycle', {
     event: 'PHASE',
     phase,
@@ -956,7 +808,7 @@ function logStartupPhase(phase, startedAt, extra = {}) {
 }
 
 async function requestPlaybackFlush() {
-  var result = await playbackFlush.requestPlaybackFlush(windowState.main);
+  var result = await playbackFlush.requestPlaybackFlush(desktopWindow.getWindow());
   writeLog('playback-flush', result);
   return result;
 }

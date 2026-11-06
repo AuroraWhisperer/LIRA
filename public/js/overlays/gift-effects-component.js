@@ -8,6 +8,9 @@ import { createMediaEventPlayer } from './component-media.js';
 import { createNauticalGuardPlayer } from './guard-nautical-player.js';
 import { resolveComponentResource } from './component-resources.js';
 import { WOODLAND_GIFT_VIDEO } from '../shared/component-resource-style.js';
+import { createGiftMotionPlayer } from './gift-motion-player.js';
+import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
+import { isGiftFrameEventForLayer } from '../shared/gift-frame-style-triggers.js';
 
 export function mountGiftEffectComponent() {
   if (!isComponentPreview()) return false;
@@ -24,12 +27,17 @@ export function mountGiftEffectComponent() {
   let previewSequence = 0;
   let mediaPlayer = null;
   let generation = 0;
+  let motionPlayer = null;
+  const sampleTimers = new Set();
   function clear() {
     generation += 1;
     clearTimeout(timer);
     queue?.dispose();
     queue = null;
     mediaPlayer?.stop();
+    motionPlayer?.dispose(); motionPlayer = null;
+    for (const task of sampleTimers) clearTimeout(task);
+    sampleTimers.clear();
   }
   function dispose() {
     clear();
@@ -45,6 +53,14 @@ export function mountGiftEffectComponent() {
   }
   function enqueue(payload) {
     if (payload.type !== (frame ? 'gift:frame' : 'gift:guard-thanks')) return;
+    const motion = ['gift-drop', 'gift-swing'].includes(payload.themeId);
+    if (frame && motion) {
+      if (config.mediaStyle || config.resourceStyle || !['follow', payload.themeId].includes(config.style || 'follow')) return;
+      motionPlayer ??= createGiftMotionPlayer({ root: document.getElementById('giftMotionRoot') });
+      motionPlayer.enqueue(payload); return;
+    }
+    if (frame && ['gift-drop', 'gift-swing'].includes(config.style)) return;
+    if (frame && !isGiftFrameEventForLayer(config, payload)) return;
     const nautical = config.resourceStyle?.preset === 'nautical-guard-thanks';
     if (!payload.preview && !frame && nautical !== (payload.style === 'nautical')) return;
     if (!frame && !config.mediaStyle && !config.resourceStyle && ['aurora', 'classic'].includes(config.style)) {
@@ -66,12 +82,23 @@ export function mountGiftEffectComponent() {
   }
   function preview() {
     clear();
-    for (const payload of sample.events) enqueue({ ...payload, preview: true, eventId: `${payload.eventId}-${++previewSequence}` });
+    const motion = frame && ['gift-drop', 'gift-swing'].includes(config.style) && !config.mediaStyle && !config.resourceStyle;
+    const events = motion ? sample.events.some(event => event.themeId === config.style)
+      ? sample.events.filter(event => event.themeId === config.style) : createGiftMotionSamples(config.style) : sample.events;
+    events.forEach((payload, index) => {
+      const play = () => enqueue({ ...payload, preview: true, startedAt: Date.now(), eventId: `${payload.eventId}-${++previewSequence}` });
+      if (!motion || index === 0) play();
+      else {
+        const task = setTimeout(() => { sampleTimers.delete(task); play(); }, index * 1500);
+        sampleTimers.add(task);
+      }
+    });
     const current = generation;
     void Promise.resolve(mediaPlayer?.ready()).then(() => {
       if (current !== generation) return;
       const interval = mediaPlayer ? Math.max(3000, mediaPlayer.durationMs * sample.events.length + 1000)
-        : frame ? FRAME_DURATION_MS * sample.events.length + 1500 : 8000;
+        : motion ? Math.max(...events.map(event => (event.motion?.durationSeconds || 20) * 1000)) + events.length * 1500 + 1000
+          : frame ? FRAME_DURATION_MS * sample.events.length + 1500 : 8000;
       timer = setTimeout(preview, interval);
     }).catch(() => {});
   }

@@ -12,7 +12,7 @@ async function createFixture() {
       this.nodeType = 1;
       this.children = [];
       this.dataset = {};
-      this.style = {};
+      this.style = { setProperty(name, value) { this[name] = value; } };
       if (tag === 'input') this.value = '';
       this.attributes = new Map();
       this.listeners = new Map();
@@ -56,7 +56,12 @@ async function createFixture() {
     removeAttribute(name) { this.attributes.delete(name); }
     contains(node) { return this === node || this.children.some(child => child.contains(node)); }
     focus() { document.activeElement = this; }
-    getBoundingClientRect() { return { top: 0, bottom: 20, height: 20 }; }
+    showPopover() { this.popoverOpen = true; }
+    hidePopover() { this.popoverOpen = false; }
+    matches(selector) { return selector === ':popover-open' && this.popoverOpen; }
+    get offsetWidth() { return 100; }
+    get offsetHeight() { return 20; }
+    getBoundingClientRect() { return { left: 0, top: 0, bottom: 20, width: 100, height: 20 }; }
     closest() { return null; }
     addEventListener(type, callback) {
       if (!this.listeners.has(type)) this.listeners.set(type, new Set());
@@ -96,7 +101,7 @@ async function createFixture() {
   document.body.append(form);
   const timers = [];
   const { enhanceSelects } = await loadModuleExports(path.resolve('public/js/shared/select-menu.js'), {
-    document, window: { innerHeight: 600 }, HTMLSelectElement: Select, MutationObserver: Observer,
+    document, window: { innerWidth: 800, innerHeight: 600, addEventListener() {} }, HTMLSelectElement: Select, MutationObserver: Observer,
     Node: { ELEMENT_NODE: 1 }, setTimeout(callback) { timers.push(callback); },
     Event: class { constructor(type) { this.type = type; } },
   });

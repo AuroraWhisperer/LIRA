@@ -8,6 +8,9 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-11-06-gift-frame-independent-styles](2026-11-06-gift-frame-independent-styles.md) | Awaiting Verification | 导入样式独立触发、统一效果卡片、林间花信导入后才显示及文档已完成；聚焦/桌面 E2E/文档/架构门禁通过。待真实礼物在直播软件中驱动导入图片/视频图层的实播验收。 |
+| [2026-11-06-standalone-component-sources](2026-11-06-standalone-component-sources.md) | Awaiting Verification | 已修复加班机零高度、投票/评分旧正则解析和盲盒高度限制；当前 17 个、6.0.0 的 15 个入口在 Chromium 106 通过，相关检查 40/40 通过；待含修复版本在用户另一台电脑的直播姬实机验收。 |
+| [2026-11-06-efficient-client-update](2026-11-06-efficient-client-update.md) | Awaiting Verification | 实现及安装器 78 项、更新 15 项、相关回归和 quick 门禁通过，隔离 NSIS 构建与资源验证完成；待 CDN 补传新旧 blockmap 及已发布客户端真实升级验收。 |
 | [2026-11-02-update-install-progress](2026-11-02-update-install-progress.md) | Awaiting Verification | 5.7.8 正式安装包已构建并通过完整资源验包，原生进度、自动关闭、启动意图与数据保护回归通过；旧版客户端触发真实升级的端到端验收待补。 |
 | [2026-11-02-client-download-manifest](2026-11-02-client-download-manifest.md) | Awaiting Verification | 2026-11-03 已核实线上 5.7.8 清单禁止缓存、原名安装包完整下载及 SHA-512 匹配、官网 302 正确，本机安装目录为 5.7.8；旧版客户端自动更新端到端验收待补。 |
 | [2026-11-02-cdn-client-resources](2026-11-02-cdn-client-resources.md) | Awaiting Verification | CDN 17 个包及 60 个资源完整下载校验通过，安装包 255,567,366 字节与本机 5.7.4 摘要一致；内置更新源已切到 CDN，51 项聚焦检查与语法/文档/架构门禁通过。更新清单已上传，真实 Electron 更新器读取 5.7.4 及匹配摘要通过；待重新构建客户端使更新源切换进入安装包。 |

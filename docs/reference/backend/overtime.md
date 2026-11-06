@@ -17,7 +17,8 @@
 | 文件                      | 职责                                                                                                                |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
 | `overtime-service.js`     | 计时状态机(`createOvertimeService`):权威倒计时、状态转移、持久化调用、定时器与补偿调度                                     |
-| `overtime-effects.js`     | 礼物规则匹配、随机抽取与结算 effect 计算；无数据库、定时器或广播副作用                                              |
+| [overtime-settlement.js](../../../src/overtime/overtime-settlement.js) | 完整礼物结算算法：数量限制、规则抽取、规则快照和调整结果；显式接收当前状态、时间与随机源 |
+| `overtime-effects.js`     | 时长边界、固定/重复 effect 运算与随机结果汇总；无数据库、定时器或广播副作用 |
 | `storage/overtime-store.js`       | 三张表的全部 SQL(`createOvertimeStore`):状态读写、规则整表替换、pending/结算事务(`BEGIN IMMEDIATE`)、补偿查询       |
 | `overtime-contract.js`    | 输入校验与常量(`validateTimeInput/validateAction/validateBackground/validateRules` 及 `MAX_*` 常量,§4–§5)           |
 | `overtime-consumer.js`    | 礼物消费者适配层(`createOvertimeConsumer`):`progress → observeGift`、`final → finalizeGift`                         |
@@ -32,7 +33,9 @@
 
 1. `overtime = createOvertimeService({ store: createOvertimeStore(db.giftDb), onUpdate: onOvertimeUpdate })` — 组合根从 storage 创建适配器并显式注入；领域服务只消费 store，不接收数据库句柄，也不自行创建适配器。仍使用同一个 `gift-data.db`，事务由 store 拥有。
 2. `overtimeConsumer = createOvertimeConsumer({ service: overtime })` — 消费者 `name: 'overtime'`,`isEnabled()` 即 `getCurrentEpoch() > 0`([overtime-consumer.js:8-17](../../../src/overtime/overtime-consumer.js#L8-L17))。
-3. `giftService.createGiftService(baseContext, { consumers: [overtimeConsumer], getOvertimeEpoch: overtime.getCurrentEpoch })` — 消费者注册进服务器结果投影器；`getOvertimeEpoch` 决定首次收到事件时冻结的加班 epoch。
+3. `giftService.createGiftService({ queryStore, maintenanceStore, projectionStore, statisticsStore, settings }, { consumers: [overtimeConsumer], getOvertimeEpoch: overtime.getCurrentEpoch })` — 消费者注册进服务器结果投影器；四个存储能力均由组合根创建，`getOvertimeEpoch` 决定首次收到事件时冻结的加班 epoch。
+
+结算算法仍在 `store.settleFinal` 的原事务回调中执行；服务在提交成功后更新内存状态和单调时钟锚点，并继续独占归零计时、失败记账及恢复调度。算法模块不读取 service 的可变状态，也不提前在事务外抽取随机结果。
 
 状态是**单例行** `overtime_machine_state.id = 1`(DDL `CHECK (id = 1)`,[schema.js:315-327](../../../src/storage/schema.js#L315-L327));服务启动时 `getState() || ensureState()` 惰性插入安全默认行(`enabled=0/epoch=0/remaining_ms=0/status='paused'/revision=0`,[overtime-store.js](../../../src/storage/overtime-store.js))。迁移版本 giftDb v5 负责为旧库插入该行(见 [storage.md](storage.md) §4)。
 
@@ -109,7 +112,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | `pause`      | `remainingMs<=0` 时归 `finished`,否则 `paused`(时间冻结)                                             | [113-119](../../../src/overtime/overtime-service.js#L113-L119)                                                                           |
 | `reset`      | `remainingMs = initialSeconds*1000`,归零时 `finished` 否则 `paused`                                  | [121-127](../../../src/overtime/overtime-service.js#L121-L127)                                                                           |
 | `setTime`    | `remainingSeconds` 写入后强制 `paused`(归零时 `finished`);`initialSeconds` 只改重置基准              | [64-74](../../../src/overtime/overtime-service.js#L64-L74)                                                                               |
-| 礼物结算联动 | `remainingMs` 归零 → `finished`;正向调整且原 `finished` → 自动 `running`(§3.3)                       | [210-211](../../../src/overtime/overtime-service.js#L210-L211)                                                                           |
+| 礼物结算联动 | `remainingMs` 归零 → `finished`;剩余时间实际增加且原 `finished` → 自动 `running`(§3.3)                       | [overtime-settlement.js](../../../src/overtime/overtime-settlement.js)                                                                           |
 
 ### 2.3 权威倒计时(ADR-0002)
 
@@ -156,9 +159,9 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | pending 幂等 upsert | `ensurePending`:`INSERT … ON CONFLICT(gift_event_id) DO UPDATE … WHERE status='pending'`,仅刷新快照字段(quantity/total_price/事件时间)                                                                                     | [overtime-store.js](../../../src/storage/overtime-store.js)                                                 |
 | final 结算          | `settleFinal` 同一事务内:复验 enabled/epoch → 幂等确保 pending → 确认 `detection_status='final'` → 查 `enabled=1` 规则(无规则 → ignored)→ `resolve` 计算时间变化 → `saveState` + pending 行置 `applied`(写全量快照字段)    | [overtime-store.js](../../../src/storage/overtime-store.js)                                                 |
-| 时间变化            | 按规则的 `quantityMode` 得到执行次数:连击组模式为 1,具体数量模式为 `num`;固定操作顺序重复,随机模式每次独立抽取。最终 `appliedDeltaSeconds = trunc((afterMs-beforeMs)/1000)`,经 `clampMs` **双向钳制**:负数归零、超上限截断 | [overtime-service.js:202-278](../../../src/overtime/overtime-service.js#L202-L278)                                             |
-| 状态联动            | `afterMs === 0` → `finished`;`requested>0` 且当前 `finished` → 自动恢复 `running`                                                                                                                                          | [210-211](../../../src/overtime/overtime-service.js#L210-L211)                                                                 |
-| 审计快照            | `rule_snapshot_json`:`{mode, quantityMode, fixedEffect\|null, outcomes[], displayText, ruleUpdatedAt}`;盲盒结果 `outcomes_json` 单次为 version 2、多次为 version 3(§4.3);`rule_mode` = `fixed/random/display/ignored`                               | [215-221](../../../src/overtime/overtime-service.js#L215-L221)、[247-266](../../../src/overtime/overtime-service.js#L247-L266) |
+| 时间变化            | 按规则的 `quantityMode` 得到执行次数:连击组模式为 1,具体数量模式为 `num`;固定操作顺序重复,随机模式每次独立抽取。剩余毫秒经 `clampMs` **双向钳制**:负数归零、超上限截断；实际变化 `appliedDeltaSeconds = trunc((afterMs-beforeMs)/1000)` 可为负数 | [overtime-settlement.js](../../../src/overtime/overtime-settlement.js)、[overtime-effects.js](../../../src/overtime/overtime-effects.js) |
+| 状态联动            | `afterMs === 0` → `finished`;`afterMs > beforeMs` 且当前 `finished` → 自动恢复 `running`                                                                                                                                          | [overtime-settlement.js](../../../src/overtime/overtime-settlement.js) |
+| 审计快照            | `rule_snapshot_json`:`{version:2, giftIdentity, mode, quantityMode, fixedEffect\|null, outcomes[], ruleUpdatedAt}`，display 模式另含 `displayText`；盲盒结果 `outcomes_json` 单次为 version 2、多次为 version 3(§4.3);`rule_mode` = `fixed/random/display/ignored` | [overtime-settlement.js](../../../src/overtime/overtime-settlement.js) |
 | 广播                | `kind === 'applied'` 才 `onUpdate({reason:'gift', state, adjustment})`;`ignored` 不递增 revision、不广播、不动效                                                                                                           | [overtime-service.js:178-188](../../../src/overtime/overtime-service.js#L178-L188)                                             |
 
 `adjustment` 载荷由 `resolveGiftSettlement` 构造,经 `overtime:update` 的 `adjustment` 字段下发(见 [ws.md](ws.md) §3.2);`quantity` 是封账数量,`applicationCount` 是实际规则执行次数。示例(固定规则 `+300s` 的 `x100` 连击,选择按具体数量):
@@ -220,7 +223,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 - 规则存储:`mode='fixed'` 时写入 version 2 effect;`random` 写入 version 2 outcomes;`display` 写入 `{ "version": 3, "quantityMode": "group", "displayText": "…" }`([overtime-store.js](../../../src/storage/overtime-store.js))。
 - 结算行审计：单次随机结果保存 `{version:2,selectedIndex,selectedEffect:{operation,value},totalWeight}`；多次执行保存 `{version:3,quantity,selectedIndexes,totalWeight}`，并结合结算行的规则快照还原各项效果。客户端仅展示持久化结果，不自行重抽。
-- `selectRuleResult` 位于 [overtime-service.js](../../../src/overtime/overtime-service.js)：fixed 使用 `fixedEffect`，random 按权重通过 `node:crypto.randomInt(totalWeight)` 选择 effect；多次结果由 [overtime-effects.js](../../../src/overtime/overtime-effects.js) 的 `summarizeRandomOutcomes` 汇总。
+- `resolveGiftSettlement` 位于 [overtime-settlement.js](../../../src/overtime/overtime-settlement.js)：fixed 使用 `fixedEffect`，random 由内部 `selectRuleResult` 按权重抽取，随机源由 service 注入（生产默认 `node:crypto.randomInt`）；多次结果由 [overtime-effects.js](../../../src/overtime/overtime-effects.js) 的 `summarizeRandomOutcomes` 汇总。
 - **随机结果按执行次数产生**:`group` 模式抽一次,`item` 模式按最终数量独立抽取;同一结算会保存全部抽中索引。页面刷新、WS 重连和重复礼物包都不能重抽(结算行已 complete)。
 - 每次随机结算只计算一次总权重；运行时保留首个完整结果以兼容单件 v2 格式，多件直接累积全部索引以生成原 v3 格式，不为每件保留重复的完整结果对象。自动抽取次数受 `limits.maxRandomApplications` 约束，具体范围及超限 `pending` 规则见[数量规格](../../../specs/overtime-rule-quantity-mode_design.md)。超限不执行抽取、提交倒计时或写部分索引；完整付费礼物保留，沿用现有退避恢复。`getOverview()` 附加 `quantityLimitedCount`；失败记录成功后通过既有 `overtime:update` 的 `quantity-limit` 原因发送待结算计数，不发送成功 adjustment、不改变 revision。界面在待结算数量旁实时明确提示尚未结算；该计数只包含仍为 pending 的数量超限记录。
 

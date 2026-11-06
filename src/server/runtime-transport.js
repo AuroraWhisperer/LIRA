@@ -3,12 +3,14 @@
 const pageAssets = require('./page-assets');
 const { serveFontAsset } = require('./font-assets');
 const { serveResourceAsset } = require('./resource-assets');
-const { buildGiftFrameEvent } = require('../bilibili/gift/frame-config');
+const { buildGiftFrameEvent, buildGiftFrameStyleEvent } = require('../bilibili/gift/frame-config');
+const { buildGiftMotionEvents } = require('../bilibili/gift/motion-config');
+const { createGiftArtworkResolver } = require('../../public/js/shared/gift-banner.js');
 const { buildGuardThanksEvents, buildNauticalGuardThanksEvent } = require('../bilibili/gift/guard-thanks-config');
 const { normalizeGiftEffectEvent } = require('../bilibili/gift/effect-event');
 
-const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'now-playing', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
-const GIFT_SCENE_TYPES = ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox'];
+const SNAPSHOT_SCENE_TYPES = ['queue', 'overtime', 'songlist', 'opening', 'lyrics', 'now-playing', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox'];
+const GIFT_SCENE_TYPES = ['overtime', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox'];
 
 function snapshotSceneTypes(reason) {
   if (reason === 'settings' || reason === 'component:styles' || reason === 'bilibili:room-guard') return undefined;
@@ -35,6 +37,8 @@ function createRuntimeTransport({
   getSettings,
   getDanmakuFeedBuffer,
   resolveGiftEffect,
+  resolveGiftMotionArtwork,
+  getGiftFrameStyleIds,
   publishSceneGift,
   notifySceneOutput,
 }) {
@@ -54,11 +58,28 @@ function createRuntimeTransport({
         : reason === 'settings' ? { invalidateTypes: ['blindbox'] } : {}) });
   }
 
+  function readGiftFrameStyleIds() {
+    try { return getGiftFrameStyleIds?.() || []; } catch { return []; }
+  }
+
   function publishGiftFlushed(item) {
+    const startedAt = Date.now();
     const message = getDanmakuFeedBuffer().pushGift(item);
     broadcastSnapshot('bilibili:gift');
     const frameEvent = buildGiftFrameEvent(item, getSettings());
     if (frameEvent) { getWebSocketHub()?.broadcast(frameEvent); publishSceneGift?.(frameEvent); }
+    // Imported styles exist only as scene layers; the legacy overlay page would replay them as woodland.
+    const styleEvent = buildGiftFrameStyleEvent(item, getSettings(), readGiftFrameStyleIds());
+    if (styleEvent) publishSceneGift?.(styleEvent);
+    const motionEvents = buildGiftMotionEvents(item, getSettings(), { startedAt });
+    if (motionEvents.length) {
+      const artworkPath = resolveGiftMotionArtwork?.(item) || createGiftArtworkResolver([])({
+        giftId: String(item.gift_id || ''), giftName: item.gift_name, coinType: item.coin_type });
+      for (const event of motionEvents) {
+        event.artworkPath = artworkPath;
+        getWebSocketHub()?.broadcast(event); publishSceneGift?.(event);
+      }
+    }
     for (const event of buildGuardThanksEvents(item, getSettings())) {
       getWebSocketHub()?.broadcast(event); publishSceneGift?.(event);
     }
@@ -69,7 +90,7 @@ function createRuntimeTransport({
 
   function publishGiftCatalogUpdate(snapshot) {
     getWebSocketHub()?.broadcast({ type: 'gift-catalog:update', snapshot });
-    notifySceneOutput?.({ types: ['gift-feed', 'gift-wishes'], invalidateTypes: ['gift-feed', 'gift-wishes'] });
+    notifySceneOutput?.({ types: ['gift-feed', 'gift-wishes', 'heart-box-collection'], invalidateTypes: ['gift-feed', 'gift-wishes', 'heart-box-collection'] });
   }
 
   async function publishGiftEffect(input, isCurrent) {

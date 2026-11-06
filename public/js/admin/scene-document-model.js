@@ -1,11 +1,18 @@
-import { validateSceneDocument } from './scene-template.js';
+import { validateSceneDocument, validateSceneDocumentSize } from './scene-template.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
-import { MIN_SCENE_ITEM_VISIBLE, getSceneItemPositionBounds, clampSceneItemPosition } from '../shared/scene-geometry.js';
+import { MIN_SCENE_ITEM_VISIBLE, getSceneItemPositionBounds, clampSceneItemPosition, isSceneItemGeometryValid } from '../shared/scene-geometry.js';
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
-const equal = (left, right) => JSON.stringify(left) === JSON.stringify(right);
+function equal(left, right) {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) !== Array.isArray(right)) return false;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length
+    && keys.every(key => Object.hasOwn(right, key) && equal(left[key], right[key]));
+}
 
 function freeze(value) {
+  if (Object.isFrozen(value)) return value;
   for (const entry of Object.values(value)) if (entry && typeof entry === 'object') freeze(entry);
   return Object.freeze(value);
 }
@@ -17,22 +24,26 @@ export function createSceneDocumentModel(document) {
   let gesture = null;
   const listeners = new Set();
   const snapshotListeners = new Set();
+  const itemIndexes = new WeakMap();
+  function itemsById(snapshot) {
+    if (!itemIndexes.has(snapshot)) itemIndexes.set(snapshot, new Map(snapshot.items.map(item => [item.id, item])));
+    return itemIndexes.get(snapshot);
+  }
   const getDocument = () => clone(current);
   const getState = () => ({ canUndo: !gesture && past.length > 0, canRedo: !gesture && future.length > 0 });
   function notify() {
     for (const listener of listeners) listener(getState(), getDocument());
     for (const listener of snapshotListeners) listener(getState(), current);
   }
-  function change(base, mutator) {
-    const draft = clone(base);
-    const result = mutator(draft);
-    const next = result === undefined ? draft : result;
-    const previousItems = new Map(base.items.map((item) => [item.id, item]));
+  function syncSharedSizes(base, next) {
+    const previousItems = itemsById(base);
+    const synchronized = new Set();
     for (const item of next.items) {
       const previous = previousItems.get(item.id);
       if (!previous || item.width === previous.width && item.height === previous.height) continue;
       clampSceneItemPosition(item, next.canvas);
-      if (item.appearance.mode !== 'shared') continue;
+      if (item.appearance.mode !== 'shared' || synchronized.has(item.type)) continue;
+      synchronized.add(item.type);
       for (const reference of next.items) {
         if (reference.id === item.id || reference.type !== item.type || reference.appearance.mode !== 'shared') continue;
         reference.width = item.width;
@@ -40,7 +51,18 @@ export function createSceneDocumentModel(document) {
         clampSceneItemPosition(reference, next.canvas);
       }
     }
-    return freeze(validateSceneDocument(next));
+  }
+  function change(base, mutator) {
+    const draft = clone(base);
+    const result = mutator(draft);
+    const next = result === undefined ? draft : result;
+    syncSharedSizes(base, next);
+    const validated = validateSceneDocument(next);
+    for (const item of validated.items) {
+      const previous = itemsById(base).get(item.id);
+      if (previous?.type === item.type && equal(previous.appearance, item.appearance)) item.appearance = previous.appearance;
+    }
+    return freeze(validated);
   }
   function record(previous) {
     past.push(previous);
@@ -50,6 +72,7 @@ export function createSceneDocumentModel(document) {
   return {
     getDocument,
     getSnapshot: () => current,
+    getItemSnapshot: id => itemsById(current).get(id),
     getState,
     isGestureActive: () => gesture !== null,
     subscribe(listener) {
@@ -81,6 +104,25 @@ export function createSceneDocumentModel(document) {
       const next = change(gesture, mutator);
       if (equal(current, next)) return false;
       current = next;
+      notify();
+      return true;
+    },
+    updateGestureGeometry(ids, deltaX, deltaY, { handle, snap = false } = {}) {
+      if (!gesture) throw new Error('请先开始手势。');
+      if (![deltaX, deltaY].every(Number.isFinite)) throw new Error('移动距离必须为有限数值。');
+      // Only geometry is mutable here; all appearance data comes from the validated, frozen gesture snapshot.
+      const next = { ...gesture, items: gesture.items.map(item => ({ ...item })) };
+      if (handle) resizeItem(next, ids[0], handle, deltaX, deltaY, { snap });
+      else moveItems(next, ids, deltaX, deltaY, { snap });
+      syncSharedSizes(gesture, next);
+      for (const [index, item] of next.items.entries()) {
+        if (!isSceneItemGeometryValid(item, next.canvas)) throw new Error('场景组件位置或尺寸无效。');
+        const previous = current.items[index];
+        if (equal(item, previous)) next.items[index] = previous;
+      }
+      if (equal(current, next)) return false;
+      validateSceneDocumentSize(next);
+      current = freeze(next);
       notify();
       return true;
     },
@@ -159,7 +201,10 @@ function bounds(items) {
 
 export function moveSceneItems(document, ids, deltaX, deltaY, { snap = false } = {}) {
   if (![deltaX, deltaY].every(Number.isFinite)) throw new Error('移动距离必须为有限数值。');
-  const next = validateSceneDocument(document);
+  return moveItems(validateSceneDocument(document), ids, deltaX, deltaY, { snap });
+}
+
+function moveItems(next, ids, deltaX, deltaY, { snap = false } = {}) {
   const items = selection(next, ids);
   if (!items.length) return next;
   const box = bounds(items);
@@ -182,7 +227,10 @@ export function moveSceneItems(document, ids, deltaX, deltaY, { snap = false } =
 }
 
 export function resizeSceneItem(document, id, handle, deltaX, deltaY, { snap = false } = {}) {
-  const next = validateSceneDocument(document);
+  return resizeItem(validateSceneDocument(document), id, handle, deltaX, deltaY, { snap });
+}
+
+function resizeItem(next, id, handle, deltaX, deltaY, { snap = false } = {}) {
   const item = selection(next, [id])[0];
   if (!item) return next;
   const coordinate = (value) => snap ? snapSceneCoordinate(value) : value;

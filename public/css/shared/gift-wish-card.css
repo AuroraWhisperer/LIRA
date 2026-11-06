@@ -1,5 +1,6 @@
 @import url('./display-fonts.css');
 @import './gift-wish-moonlit.css';
+@import './gift-wish-ribbon.css';
 
 .wish-card {
   --wish-ink: #b23f69;

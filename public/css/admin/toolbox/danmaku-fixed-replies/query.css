@@ -1,0 +1,66 @@
+/* Query-reply command groups, examples and search placement. */
+
+.danmaku-query-reply-group + .danmaku-query-reply-group {
+  border-top: 1px solid var(--fixed-divider);
+}
+.danmaku-query-reply-heading {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 10px 12px;
+  background: var(--fixed-editor-surface);
+  color: var(--danmaku-heading-color);
+  font-size: 14px;
+  font-weight: 600;
+}
+.danmaku-query-reply-columns,
+.danmaku-custom-reply-row.danmaku-query-reply-row {
+  display: grid;
+  grid-template-columns: minmax(112px, 0.7fr) repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.danmaku-query-reply-column-head {
+  padding: 6px 12px;
+  border-top: 1px solid var(--fixed-divider);
+  color: var(--muted);
+  font-size: 12px;
+}
+.danmaku-query-reply-column-head + .danmaku-query-reply-row {
+  border-top: 1px solid var(--fixed-divider);
+}
+.danmaku-custom-reply-row.danmaku-query-reply-row {
+  align-items: start;
+  padding: 12px;
+}
+.danmaku-query-reply-period,
+.danmaku-query-reply-command {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.danmaku-query-reply-period {
+  font-weight: 600;
+}
+.danmaku-query-reply-period .hint {
+  font-weight: 400;
+}
+.danmaku-query-command-text {
+  display: inline-flex;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 3px 8px;
+  border: 1px solid var(--fixed-divider);
+  border-radius: var(--radius-control);
+  background: var(--fixed-editor-surface);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+.danmaku-query-reply-name-command {
+  grid-column: 2 / -1;
+}
+#danmakuQueryRepliesPanel .daily-library-search {
+  margin-block: 12px;
+}

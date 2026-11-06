@@ -52,9 +52,13 @@ function name(value) {
   if (typeof value !== 'string' || !value.trim() || Array.from(value).length > 80) throw invalid();
 }
 
+export function validateSceneDocumentSize(document) {
+  if (new TextEncoder().encode(JSON.stringify(document)).length > 256 * 1024) throw invalid();
+}
+
 export function validateSceneDocument(input) {
   const document = safeJson(input, new Set(), 0, [], true);
-  if (new TextEncoder().encode(JSON.stringify(document)).length > 256 * 1024) throw invalid();
+  validateSceneDocumentSize(document);
   exactKeys(document, ['schemaVersion', 'id', 'title', 'canvas', 'items']);
   if (document.schemaVersion !== 1 || !UUID.test(document.id)) throw invalid();
   name(document.title);

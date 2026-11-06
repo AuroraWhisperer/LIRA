@@ -3,17 +3,10 @@
 const crypto = require('node:crypto');
 const licenseTokenUtils = require('./license-token-utils');
 const licenseResponseUtils = require('./license-response-utils');
-const { requestDeviceActivation } = require('./license-activation');
+const { requestDeviceActivation, requestDeviceAuthentication } = require('./device-authentication');
 const { createLicenseErrorHandlers } = require('./license-error-handlers');
 const { createLicenseOperations } = require('./license-operations');
-const {
-  PROTOCOL_VERSION,
-  validateActivationInput,
-  normalizeFingerprint,
-  countFingerprintValues,
-  buildAuthPayload,
-  signPayload,
-} = require('./license-protocol');
+const { validateActivationInput } = require('./license-protocol');
 const { createRemoteLicenseClient, RemoteLicenseError } = require('./remote-license-client');
 const { createDeviceKeyStore } = require('./device-key-store');
 const { createLicenseStateStore } = require('./license-state-store');
@@ -23,7 +16,6 @@ const { createRetryPolicy } = require('./retry-policy');
 const {
   LicenseState,
   REAUTHENTICATE_CODES,
-  RETRY_CHALLENGE_CODES,
   RENEW_EARLY_MS,
   HEARTBEAT_INTERVAL_MS,
   MAX_TIMER_DELAY_MS,
@@ -391,69 +383,16 @@ function createLicenseManager(options = {}) {
   }
 
   async function authenticate({
-    identity: currentIdentity,
-    privateKeyPem,
-    attempt = 0,
-    generation = lifecycleGeneration,
-    expectedToken = null,
-    renewalSessionId,
-    beforeAccept,
+    identity: currentIdentity, privateKeyPem, generation = lifecycleGeneration,
+    expectedToken = null, renewalSessionId, beforeAccept,
   }) {
     const isAttemptActive = () =>
       isLifecycleActive(generation) && (expectedToken === null || accessToken === expectedToken);
-    if (!isAttemptActive()) return null;
-    const fingerprint = normalizeFingerprint(await fingerprintProvider.collect());
-    if (!isAttemptActive()) return null;
-    if (countFingerprintValues(fingerprint) < 2)
-      throw new RemoteLicenseError('FINGERPRINT_UNAVAILABLE', '无法读取足够的设备标识，暂时无法完成绑定。');
-    const build = await buildInfoProvider();
-    if (!isAttemptActive()) return null;
-    const challenge = await remote.challenge({
-      deviceId: currentIdentity.deviceId,
+    const result = await requestDeviceAuthentication({
+      identity: currentIdentity, privateKeyPem, runtimeId, renewalSessionId,
+      virtualization: options.virtualization, remote, fingerprintProvider, buildInfoProvider,
+      isActive: isAttemptActive,
     });
-    if (!isAttemptActive()) return null;
-    const canonical = buildAuthPayload({
-      protocolVersion: PROTOCOL_VERSION,
-      deviceId: currentIdentity.deviceId,
-      challengeId: challenge.challengeId,
-      nonce: challenge.nonce,
-      runtimeId,
-      appVersion: build.appVersion,
-      buildId: build.buildId,
-      integrityStatus: build.integrityStatus,
-      fingerprint,
-      virtualization: Boolean(options.virtualization),
-    });
-    let result;
-    try {
-      result = await remote.verify({
-        protocolVersion: PROTOCOL_VERSION,
-        deviceId: currentIdentity.deviceId,
-        challengeId: challenge.challengeId,
-        nonce: challenge.nonce,
-        signature: signPayload(canonical, privateKeyPem),
-        runtimeId,
-        appVersion: build.appVersion,
-        buildId: build.buildId,
-        integrityStatus: build.integrityStatus,
-        fingerprint,
-        environment: { virtualization: Boolean(options.virtualization) },
-        ...(renewalSessionId ? { renewalSessionId } : {}),
-      });
-    } catch (error) {
-      if (RETRY_CHALLENGE_CODES.has(getErrorCode(error)) && attempt < 1) {
-        return authenticate({
-          identity: currentIdentity,
-          privateKeyPem,
-          attempt: attempt + 1,
-          generation,
-          expectedToken,
-          renewalSessionId,
-          beforeAccept,
-        });
-      }
-      throw error;
-    }
     if (!isAttemptActive()) return null;
     return acceptAuthenticationResult(result, beforeAccept);
   }

@@ -5,15 +5,18 @@
 .rich-text-format-bold { font-weight: 800; }
 .rich-text-format-italic { font-style: italic; }
 .rich-text-format-underline { text-decoration: underline; text-underline-offset: 3px; }
-.rich-text-toolbar .lira-select { width: 84px; min-width: 84px; }
+.rich-text-toolbar .lira-select { width: 68px; min-width: 68px; }
 .rich-text-toolbar .lira-select-trigger, .rich-text-font-size { min-height: 30px; height: 30px; padding: 3px 8px; font-size: 13px; }
-.rich-text-toolbar .lira-select-trigger { padding-right: 24px; }
+.rich-text-toolbar .lira-select-trigger { gap: 6px; padding-right: 4px; }
+.rich-text-toolbar .lira-select-chevron { width: 20px; height: 20px; }
 .rich-text-color { position: relative; display: grid; place-items: center; width: 30px; height: 30px; font-size: 18px; font-weight: 650; color: var(--text); cursor: pointer; }
 .rich-text-color::after { content: ''; position: absolute; bottom: 2px; width: 16px; height: 3px; background: var(--rich-text-current-color); outline: 1px solid var(--border); }
 .rich-text-toolbar button:hover { background: var(--surface-2); }
 .rich-text-toolbar button:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: 2px; }
 .rich-text-toolbar button[aria-expanded='true'] { background: var(--surface-2); }
 .rich-text-format-popover { position: fixed; width: 224px; max-width: calc(100vw - 16px); padding: 10px; border-radius: var(--radius-md); background: var(--surface); color: var(--text); box-shadow: var(--shadow-floating); }
+.rich-text-effects-menu { width: max-content; min-width: 136px; padding: 6px; }
+.rich-text-effects-menu .rich-text-format-action { gap: 16px; white-space: nowrap; }
 .rich-text-format-popover[hidden], .rich-text-recent-colors[hidden] { display: none; }
 .rich-text-toolbar .rich-text-format-action { display: flex; align-items: center; width: 100%; min-height: 34px; padding: 7px 9px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); box-shadow: none; text-align: left; font-size: 13px; font-weight: 450; }
 .rich-text-format-action:hover { background: var(--surface-2); }

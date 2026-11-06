@@ -156,7 +156,7 @@ export function mountNauticalGuardToggle(host) {
   const label = previewElement('label', 'guard-thanks-switch switch-control');
   const input = previewElement('input'); input.type = 'checkbox'; input.setAttribute('aria-label', '启用航海旗帜');
   input.checked = readNauticalGuardEnabled(currentSettings);
-  label.append(input, previewElement('span', 'switch-track'), document.createTextNode('启用'));
+  label.append(input, previewElement('span', 'switch-track'), previewElement('span', '', '启用'));
   const status = previewElement('span', 'hint'); status.setAttribute('role', 'status');
   host.append(label, status);
   const receive = event => { if (!input.disabled) input.checked = readNauticalGuardEnabled(event.detail || {}); };

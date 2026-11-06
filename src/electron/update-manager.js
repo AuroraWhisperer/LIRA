@@ -53,7 +53,7 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   configuredUpdater.autoDownload = true;
   configuredUpdater.autoInstallOnAppQuit = true;
   configuredUpdater.allowPrerelease = false;
-  configuredUpdater.disableDifferentialDownload = true;
+  configuredUpdater.disableDifferentialDownload = false;
 
   configuredUpdater.on('checking-for-update', () => {
     log('update', { event: 'checking' });

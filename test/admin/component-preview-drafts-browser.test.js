@@ -123,7 +123,7 @@ test('reopening a retained clock draft after a saved settings update allows edit
   const url = await openCanvasDesktop(desktop, fixture, 'clock');
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  await page.locator('[data-clock-style-option="starlight"]').click();
+  await page.locator('[data-preview-field="clockCurrentStyle"]').selectOption('starlight', { force: true });
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.style === 'starlight');
   await page.goto('about:blank');
   await desktop.evaluate(() => {
@@ -137,7 +137,7 @@ test('reopening a retained clock draft after a saved settings update allows edit
   await page.goto(reopenedUrl);
   await page.getByRole('button', { name: '添加组件', exact: true }).waitFor();
   assert.equal(await page.locator('.scene-editor-stage-host').evaluate(node => node.inert), false);
-  assert.equal(await page.locator('[data-clock-style-option="starlight"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await page.locator('[data-preview-field="clockCurrentStyle"]').inputValue(), 'starlight');
   const width = page.getByRole('spinbutton', { name: '宽度', exact: true });
   await width.fill('777');
   await width.press('Tab');

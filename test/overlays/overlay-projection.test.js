@@ -356,6 +356,8 @@ test('REST projections retain display fields, strip nested ledger/config metadat
         items: [
           {
             eventId: 'gift',
+            sortId: 42,
+            sortTime: '2026-09-01T17:00:00.000Z',
             gift: {
               giftId: '1',
               giftName: '花',
@@ -374,6 +376,8 @@ test('REST projections retain display fields, strip nested ledger/config metadat
         nextCursor: 'cursor',
         viewRevision: 'revision',
         partial: true,
+        delta: true,
+        removedEventIds: ['old'],
         secret,
       },
     ],
@@ -431,6 +435,12 @@ test('REST projections retain display fields, strip nested ledger/config metadat
     if (owner === 'blindbox') {
       assert.deepEqual(projected.summary, { boxCount: 2, totalCost: 5, totalValue: 8, totalProfit: 3 });
       assert.deepEqual(projected.heartBoxProgress, { openedSinceCastle: 12 });
+    }
+    if (pathname === '/api/gifts/history') {
+      assert.equal(projected.delta, true);
+      assert.deepEqual(projected.removedEventIds, ['old']);
+      assert.equal(projected.items[0].sortId, 42);
+      assert.equal(projected.items[0].sortTime, '2026-09-01T17:00:00.000Z');
     }
     for (const scope of scopes.filter((scope) => scope !== owner))
       assert.equal(projectOverlayResponse(scope, pathname, data), null, `${scope} ${pathname}`);

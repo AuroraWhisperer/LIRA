@@ -27,7 +27,6 @@ import { stateService } from './state.js';
 import { formsService } from './forms.js';
 import { renderState } from './queue.js';
 import { giftBlindbox } from './gifts/blindbox.js';
-import { publishSettings } from './legacy-admin-bridge.js';
 
 const documentRef = document;
 const windowRef = window;
@@ -145,4 +144,3 @@ export const settings = {
   renderShutdownScreen,
   updateBlindboxOverlayUrl,
 };
-publishSettings(settings);

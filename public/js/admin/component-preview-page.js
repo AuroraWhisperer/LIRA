@@ -8,6 +8,8 @@ import { loadThemeConfig } from '../shared/theme.js';
 import { readComponentPreviewLink } from './component-preview-link.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 import { toast } from '../shared/toast.js';
+import { readApiResponse } from '../shared/json-response.js';
+import { createPreviewPollBatch } from './component-preview-poll-batch.js';
 
 enhanceColorControls();
 
@@ -19,11 +21,18 @@ let recovery;
 let links = [];
 let stopCanvas;
 const requests = new AbortController();
+const pollBatch = createPreviewPollBatch({ async send(body, signal) {
+  const response = await fetch('/api/component-preview', { method: 'POST', credentials: 'omit', cache: 'no-store',
+    headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    signal: AbortSignal.any([requests.signal, signal, AbortSignal.timeout(body.waitMs + 5000)]) });
+  return (await readApiResponse(response, '预览连接失败，请从客户端重新打开。')).data;
+} });
 
 function dispose() {
   if (closed) return;
   closed = true;
   requests.abort();
+  pollBatch.dispose();
   stopCanvas?.();
   recovery?.dispose();
   view?.dispose();
@@ -47,7 +56,7 @@ async function start() {
     || new Set(links.map(({ id }) => id)).size !== links.length) throw new Error('预览链接无效，请从客户端重新打开。');
   if (selectedSize !== null && !['width', 'height'].every((axis) => Number.isFinite(selectedSize[axis])
     && selectedSize[axis] >= 32 && selectedSize[axis] <= 7680)) throw new Error('组件尺寸无效，请从客户端重新打开。');
-  connections = links.map(createBrowserPreviewConnection);
+  connections = links.map(link => createBrowserPreviewConnection({ ...link, pollBatch }));
   await Promise.all(connections.map((connection) => connection.start()));
   if (links.some(({ component }) => component === 'queue')) await loadThemeConfig();
   if (closed) return;
@@ -75,7 +84,8 @@ function mount(selectedId, selectedSize = null, selectedItemId) {
   const components = Object.entries(COMPONENT_PREVIEW_DEFINITIONS).flatMap(([id, definition]) => {
     const connection = connections.find(({ component }) => component === id);
     return connection ? [definition.createPreview({ controller: connection.controller, source,
-      startActualData: connection.startActualData, embedded: true })]
+      startActualData: connection.startActualData, embedded: true,
+      ...(id === 'overtime' ? { control: change => connection.execute('control', change) } : {}) })]
       : definition.sceneOnly && canvasConnection
         ? [definition.createPreview({ startPreviewData: canvasConnection.startActualData,
           openingSettings: canvasConnection.requestOpeningSettings,

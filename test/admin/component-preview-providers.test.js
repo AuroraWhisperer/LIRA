@@ -52,58 +52,98 @@ test('current song preview shares one live subscription across layers and releas
   assert.equal(listener, null);
 });
 
-test('wish previews fill the supported limit from distinct catalog gifts once and cancel late replies', async () => {
+test('wish previews follow saved wishes across layers and cancel replies after leaving the scene', async () => {
   const reads = [];
   const emitted = [];
+  const timers = new Map();
+  let timerId = 0;
   let listener;
   let finish;
   const { startGiftWishesCanvasData } = await loadModuleExports(path.join(adminPath, 'gift-wishes-canvas-data.js'), {
-    AbortController, setTimeout, clearTimeout,
-    Math: Object.assign(Object.create(Math), { random: () => 0.99 }),
+    AbortController,
+    setTimeout(callback, delay) { timers.set(++timerId, { callback, delay }); return timerId; },
+    clearTimeout(id) { timers.delete(id); },
     fetch(url, options) { reads.push({ url, options }); return new Promise(resolve => { finish = resolve; }); },
   });
   const state = { draft: { document: { items: [] } } };
   const controller = { subscribe(receive) { listener = receive; receive(state); return () => { listener = null; }; } };
-  let stop = startGiftWishesCanvasData(controller, value => emitted.push(value));
+  const stop = startGiftWishesCanvasData(controller, value => emitted.push(value));
   assert.equal(reads.length, 0);
   state.draft.document.items = [{ type: 'gift-wishes' }, { type: 'gift-wishes' }];
   listener(state);
   listener(state);
   assert.equal(reads.length, 1);
-  const gifts = [1, 2, 3, 4].map(id => ({ id: String(id), name: `合成礼物 ${id}`, imagePath: `/gift-image/${id}.png` }));
-  finish({ ok: true, json: async () => ({ ok: true, data: { gifts: [...gifts, gifts[0], { id: 'missing-art', name: '无图片' }] } }) });
+  assert.equal(reads[0].url, '/api/gifts/wishes');
+  const wish = { id: 'saved-wish', period: 'long', giftName: '保存的礼物', count: 3, target: 12,
+    textPendingColor: '#123456', textReceivedColor: '#abcdef' };
+  finish({ ok: true, json: async () => ({ ok: true, data: { items: [wish] } }) });
   await new Promise(resolve => setImmediate(resolve));
   const items = emitted[0].previewData['gift-wishes'].items;
-  assert.equal(items.length, 30);
-  assert.equal(new Set(items.map(item => item.id)).size, 30);
-  assert.deepEqual(Array.from(items.slice(0, 4), item => item.giftId), ['4', '3', '2', '1']);
-  for (const item of items) {
-    const gift = gifts.find(gift => gift.id === item.giftId);
-    assert.equal(item.giftName, gift.name);
-    assert.equal(item.imagePath, gift.imagePath);
-  }
+  assert.equal(items.length, 1);
+  assert.equal(items[0].period, 'long');
+  assert.equal(items[0].target, 12);
+  assert.equal(items[0].textPendingColor, '#123456');
   listener(state);
-  assert.equal(reads.length, 1, 'Changing geometry does not reshuffle or refetch gifts.');
+  assert.equal(reads.length, 1, 'Changing geometry does not refetch wishes.');
+  const update = [...timers.values()].find(timer => timer.delay === 3000).callback();
+  finish({ ok: true, json: async () => ({ ok: true, data: { items: [{ ...wish, textPendingColor: '#fedcba' }] } }) });
+  await update;
+  assert.equal(emitted.at(-1).previewData['gift-wishes'].items[0].textPendingColor, '#fedcba');
+  state.draft.document.items = [];
+  listener(state);
+  assert.equal(timers.size, 0);
+  assert.equal(emitted.at(-1).previewData['gift-wishes'], null);
+  state.draft.document.items = [{ type: 'gift-wishes' }];
+  listener(state);
   stop();
   assert.equal(listener, null);
-  stop = startGiftWishesCanvasData(controller, value => emitted.push(value));
-  stop();
-  assert.equal(reads[1].options.signal.aborted, true);
-  finish({ ok: true, json: async () => ({ ok: true, data: { gifts } }) });
+  assert.equal(reads.at(-1).options.signal.aborted, true);
+  const before = emitted.length;
+  finish({ ok: true, json: async () => ({ ok: true, data: { items: [wish] } }) });
   await new Promise(resolve => setImmediate(resolve));
-  assert.equal(emitted.length, 1);
+  assert.equal(emitted.length, before);
 });
 
-test('wish previews fall back to the room cache and explain an empty catalog', async () => {
-  for (const empty of [false, true]) {
-    const reads = [];
+test('wish editors and canvases share a feed until the last consumer closes', async () => {
+  const reads = [];
+  const desktop = [];
+  const canvas = [];
+  let finish;
+  const { createGiftWishFeed } = await loadModuleExports(path.join(adminPath, '../shared/gift-wish-client.js'), {
+    AbortController, setTimeout, clearTimeout,
+    fetch(url, options) { reads.push({ url, options }); return new Promise(resolve => { finish = resolve; }); },
+  });
+  const first = createGiftWishFeed({ onData: value => desktop.push(value), onError: () => {} });
+  const second = createGiftWishFeed({ onData: value => canvas.push(value), onError: () => {} });
+  const pending = first.start();
+  second.start();
+  assert.equal(reads.length, 1);
+  finish({ ok: true, json: async () => ({ ok: true, data: { items: [{ id: 'saved' }] } }) });
+  await pending;
+  assert.equal(desktop[0].items[0].id, 'saved');
+  assert.equal(canvas[0].items[0].id, 'saved');
+  first.stop();
+  assert.equal(reads[0].options.signal.aborted, false);
+  const update = second.refresh();
+  finish({ ok: true, json: async () => ({ ok: true, data: { items: [] } }) });
+  await update;
+  assert.equal(canvas.at(-1).items.length, 0);
+  assert.equal(desktop.length, 1);
+  const cancelled = second.refresh();
+  second.stop();
+  assert.equal(reads.at(-1).options.signal.aborted, true);
+  finish({ ok: true, json: async () => ({ ok: true, data: { items: [{ id: 'late' }] } }) });
+  await cancelled;
+  assert.equal(canvas.length, 2);
+});
+
+test('wish previews explain missing wishes and clear unavailable data', async () => {
+  for (const failed of [false, true]) {
     const { startGiftWishesCanvasData } = await loadModuleExports(path.join(adminPath, 'gift-wishes-canvas-data.js'), {
       AbortController, setTimeout, clearTimeout,
-      fetch: async url => {
-        reads.push(url);
-        if (url.endsWith('/catalog')) throw new Error('Unavailable');
-        return { ok: true, json: async () => ({ ok: true, data: { gifts: empty ? [] : [1, 2, 3].map(id =>
-          ({ id, name: `合成礼物 ${id}`, imagePath: `/gift-image/${id}.png` })) } }) };
+      fetch: async () => {
+        if (failed) throw new Error('Unavailable');
+        return { ok: true, json: async () => ({ ok: true, data: { items: [] } }) };
       },
     });
     let stop;
@@ -114,13 +154,11 @@ test('wish previews fall back to the room cache and explain an empty catalog', a
       } }, resolve);
     });
     stop();
-    assert.deepEqual(reads, ['/api/overtime/gifts/catalog', '/api/overtime/gifts']);
-    assert.equal(value.previewData['gift-wishes'].items.length, empty ? 0 : 30);
-    assert.equal(Boolean(value.previewData['gift-wishes'].message), empty);
+    assert.equal(value.previewData['gift-wishes'].items.length, 0);
+    assert.ok(value.previewData['gift-wishes'].message);
   }
 });
 
-// Games and opening previews share startCanvasDataPolling; games represents the shared poller.
 test('canvas data shares requests, clears failures and cancels late replies', async () => {
   const timers = new Map();
   const reads = [];
@@ -128,13 +166,15 @@ test('canvas data shares requests, clears failures and cancels late replies', as
   let items = [];
   let finish;
   let reject;
-  const api = await loadModuleExports(path.join(adminPath, 'games-canvas-data.js'), {
+  const api = await loadModuleExports(path.join(adminPath, 'canvas-data-poller.js'), {
     AbortController,
     window: { setTimeout(callback) { timers.set(1, callback); return 1; }, clearTimeout(id) { timers.delete(id); } },
     fetch(url, options) { reads.push({ url, options }); return new Promise((resolve, fail) => { finish = resolve; reject = fail; }); },
   });
-  const stop = api.startGamesCanvasData({ getState: () => ({ draft: { document: { items } } }) }, value => emitted.push(value));
-  const latest = () => emitted.at(-1).previewData.games.session;
+  const stop = api.startCanvasDataPolling({ getState: () => ({ draft: { document: { items } } }) }, {
+    type: 'games', url: '/api/games/session', emit: value => emitted.push(value),
+  });
+  const latest = () => emitted.at(-1);
   assert.equal(reads.length, 0);
   assert.equal(latest(), null);
   items = [{ type: 'games' }, { type: 'games' }];
@@ -274,7 +314,7 @@ test('offline recovery injects null display data for every layer without inventi
 });
 
 test('preview factories, browser definitions and stage have no transitive desktop owner or state dependency', async () => {
-  const blocked = new Set(['clock-card.js', 'danmaku-canvas-dialog.js', 'overtime-preview.js',
+  const blocked = new Set(['clock-card.js', 'danmaku-overlay-settings.js', 'overtime-preview.js',
     'component-preview-dialog.js', 'component-preview-registry.js', 'scene-editor-preview-data.js', 'state.js', 'event-bus.js']);
   const context = vm.createContext({});
   const modules = new Map();

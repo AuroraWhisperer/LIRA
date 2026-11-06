@@ -24,7 +24,6 @@ body.blindbox-overlay-body {
   max-width: calc(100vw - (2 * var(--overlay-edge)));
   margin: var(--overlay-edge);
   max-height: calc(100vh - (2 * var(--overlay-edge)));
-  max-height: calc(100dvh - (2 * var(--overlay-edge)));
   box-sizing: border-box;
   border-color: rgba(255, 255, 255, 0.12);
   overflow-x: hidden;
@@ -32,6 +31,12 @@ body.blindbox-overlay-body {
   container-type: inline-size;
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+@supports (height: 100dvh) {
+  .blindbox-panel {
+    max-height: calc(100dvh - (2 * var(--overlay-edge)));
+  }
 }
 
 .overlay-body.blindbox-viewport-resized .blindbox-panel {

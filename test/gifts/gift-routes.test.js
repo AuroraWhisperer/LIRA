@@ -28,7 +28,7 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
   const history = createResponse();
   routes['GET /api/gifts/history'](
     context,
-    createRequest('query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc&amountAbove=10.01'),
+    createRequest('query=%25_&range=90d&limit=25&cursor=opaque&sortField=price&sortDirection=asc&amountAbove=10.01&conditional=1&delta=1'),
     history,
   );
   assert.equal(history.status, 200);
@@ -40,6 +40,8 @@ test('gift ledger routes pass only allowlisted filters and reject source selecto
       limit: '25',
       cursor: 'opaque',
       amountAbove: '10.01',
+      conditional: true,
+      delta: true,
       sortField: 'price',
       sortDirection: 'asc',
     },

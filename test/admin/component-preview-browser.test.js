@@ -147,7 +147,7 @@ for (const component of ['clock', 'queue', 'danmaku', 'overtime']) {
     if (component === 'overtime') {
       await page.getByRole('button', { name: '加班机展示数据', exact: true }).click();
       await page.getByRole('option', { name: '示例 · 运行中', exact: true }).click();
-      await page.getByRole('button', { name: '演示加时 +1 分钟' }).click();
+      assert.equal(await page.getByRole('button', { name: '设置并重置倒计时' }).isVisible(), false);
       assert.equal(await desktop.evaluate(() => window.writes.length), 1);
     }
     await desktop.evaluate(() => window.handle.close());
@@ -194,10 +194,11 @@ test('clock frames keep each style within its frame and publish the saved output
   };
   await setWidth(462);
   const flipFrame = await settledSize();
-  const styles = await page.locator('[data-clock-style-option]').evaluateAll(buttons => buttons.map(button => button.dataset.clockStyleOption));
+  const styleSelect = page.locator('[data-preview-field="clockCurrentStyle"]');
+  const styles = await styleSelect.locator('option').evaluateAll(options => options.map(option => option.value));
   // Finish on flip: its saved frame is the published output size below.
   for (const style of [...styles.filter(value => value !== 'flip'), 'flip']) {
-    await page.locator(`[data-clock-style-option="${style}"]`).click();
+    await styleSelect.selectOption(style, { force: true });
     await frame.waitForFunction(expected => document.documentElement.dataset.clockStyle === expected, style, { timeout: 5000 });
     await frame.waitForFunction(() => {
       const card = document.getElementById('clockCard');
@@ -298,7 +299,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   const page = await browserContext.newPage();
   const errors = [];
   let holdExchanges = false;
-  let heldExchanges = 0;
+  const heldExchanges = new Set();
   let onExchangesHeld;
   let resumeExchanges;
   const exchangesHeld = new Promise(resolve => { onExchangesHeld = resolve; });
@@ -313,8 +314,11 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
     assert.deepEqual(errors, []);
   });
   await desktop.route('**/api/component-preview', async route => {
-    if (holdExchanges && route.request().postDataJSON().action === 'exchange') {
-      if (++heldExchanges === 5) onExchangesHeld();
+    const body = route.request().postDataJSON();
+    const exchanges = body.action === 'exchange-batch' ? body.entries : body.action === 'exchange' ? [body] : [];
+    if (holdExchanges && exchanges.length) {
+      for (const { id } of exchanges) heldExchanges.add(id);
+      if (heldExchanges.size === 5) onExchangesHeld();
       await exchangesResumed;
     }
     await route.continue({ headers: { ...route.request().headers(), Authorization: `Bearer ${fixture.token}` } });
@@ -359,6 +363,18 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   await page.waitForFunction(() => document.querySelector('.component-preview-load-state')?.hidden);
+  let idleRequests = 0;
+  const countIdle = request => {
+    if (request.url().endsWith('/api/component-preview')
+      && ['read', 'exchange'].includes(request.postDataJSON()?.action)) idleRequests++;
+  };
+  page.on('request', countIdle);
+  desktop.on('request', countIdle);
+  await page.waitForTimeout(2000);
+  page.off('request', countIdle);
+  desktop.off('request', countIdle);
+  assert.ok(idleRequests <= 20, `five idle sessions sent ${idleRequests} requests in two seconds`);
+  t.diagnostic(`five-session idle requests over two seconds: ${idleRequests}`);
   const names = { clock: '萌时钟', queue: '点歌板', danmaku: '弹幕姬', overtime: '加班机' };
   const add = async id => {
     await page.getByRole('button', { name: '添加组件', exact: true }).click();
@@ -440,6 +456,10 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === '关闭后也保存'
     && window.controllers.canvas.getState().draft.document.items.find(item => item.type === 'queue').appearance.config.overlayQueueStyle === 'classic');
   holdExchanges = true;
+  await desktop.evaluate(async () => {
+    const { setRoomGuardState } = await import('/js/shared/bilibili-room-guard.js');
+    setRoomGuardState({ roomId: 'synthetic-test-room', count: 1 });
+  });
   await exchangesHeld;
   const closingUrl = new URL(await desktop.evaluate(() => window.externalPreviewUrl));
   const sessions = (await fixture.post({ action: 'resolve' }, closingUrl.hash.slice(1))).data.links;

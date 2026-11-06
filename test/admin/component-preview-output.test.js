@@ -27,9 +27,10 @@ test('canvas discard restores its shared and independent edits without clearing 
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const receivedDrafts = Promise.all(['queue', 'clock'].map(type => page.waitForResponse(async response => {
-    if (!response.url().endsWith('/api/component-preview') || response.request().postDataJSON()?.action !== 'read') return false;
+    if (!response.url().endsWith('/api/component-preview')
+      || !['read', 'read-batch'].includes(response.request().postDataJSON()?.action)) return false;
     const { data } = await response.json();
-    return data?.component === type && data.state.dirty;
+    return (data?.updates || [data]).some(update => update?.component === type && update.state?.dirty);
   })));
   await desktop.evaluate(() => {
     window.controllers.queue.edit({ overlayTitle: 'Keep unrelated work' });

@@ -1,5 +1,7 @@
 'use strict';
 
+import { positionSelectMenu } from './select-menu-position.js';
+
 let selectMenuId = 0;
 const enhancedSelects = new WeakMap();
 let selectObserverInstalled = false;
@@ -87,7 +89,11 @@ function focusOption(state, index) {
   if (!options.length) return;
   const next = options[Math.max(0, Math.min(index, options.length - 1))];
   options.forEach((option) => option.classList.toggle('is-keyboard-focused', option === next));
-  next.focus();
+  next.focus({ preventScroll: true });
+  const bounds = state.optionsRoot.getBoundingClientRect();
+  const optionBounds = next.getBoundingClientRect();
+  if (optionBounds.top < bounds.top) state.optionsRoot.scrollTop += optionBounds.top - bounds.top;
+  else if (optionBounds.bottom > bounds.bottom) state.optionsRoot.scrollTop += optionBounds.bottom - bounds.bottom;
 }
 
 function closeMenu(state, { restoreFocus = true } = {}) {
@@ -95,12 +101,13 @@ function closeMenu(state, { restoreFocus = true } = {}) {
   state.open = false;
   state.wrapper.classList.remove('is-open', 'is-above');
   state.trigger.setAttribute('aria-expanded', 'false');
+  if (state.menu.matches(':popover-open')) state.menu.hidePopover();
   state.menu.hidden = true;
   state.menu.removeAttribute('aria-activedescendant');
   state.menu
     .querySelectorAll('.is-keyboard-focused')
     .forEach((option) => option.classList.remove('is-keyboard-focused'));
-  if (restoreFocus) state.trigger.focus();
+  if (restoreFocus) state.trigger.focus({ preventScroll: true });
 }
 
 function openMenu(state, initialOffset = 0) {
@@ -115,17 +122,16 @@ function openMenu(state, initialOffset = 0) {
     filterOptions(state);
   }
 
-  const triggerRect = state.trigger.getBoundingClientRect();
-  const menuRect = state.menu.getBoundingClientRect();
-  const opensAbove = menuRect.bottom > window.innerHeight - 12 && triggerRect.top > menuRect.height + 12;
-  state.wrapper.classList.toggle('is-above', opensAbove);
+  // Keep the DOM ancestry (labels, themes and dialogs), but escape clipping and stacking contexts.
+  state.menu.showPopover({ source: state.trigger });
+  positionSelectMenu(state);
 
   const options = getEnabledOptions(state.menu);
   const selectedIndex = Math.max(
     0,
     options.findIndex((option) => option.getAttribute('aria-selected') === 'true'),
   );
-  if (state.search) state.search.focus();
+  if (state.search) state.search.focus({ preventScroll: true });
   else focusOption(state, selectedIndex + initialOffset);
   state.select.dispatchEvent(new Event('lira-select-open', { bubbles: true }));
 }
@@ -179,6 +185,7 @@ function buildOptions(state) {
   }
   filterOptions(state);
   syncSelectedState(state);
+  if (state.open) positionSelectMenu(state);
   if (state.open && document.activeElement !== state.search) {
     const options = getEnabledOptions(state.menu);
     const selectedIndex = Math.max(
@@ -266,6 +273,7 @@ function enhanceSelect(select) {
 
   const menu = document.createElement('div');
   menu.className = 'lira-select-menu';
+  menu.popover = 'manual';
   menu.hidden = true;
   menu.setAttribute('tabindex', '-1');
   let optionsRoot = menu;
@@ -310,7 +318,13 @@ function enhanceSelect(select) {
   wrapper.append(trigger, menu);
   buildOptions(state);
   patchNativeValue(state);
-  search?.addEventListener('input', () => filterOptions(state));
+  search?.addEventListener('input', () => {
+    filterOptions(state);
+    if (state.open) positionSelectMenu(state);
+  });
+  menu.addEventListener('toggle', (event) => {
+    if (event.newState === 'closed' && !menu.matches(':popover-open')) closeMenu(state, { restoreFocus: false });
+  });
 
   trigger.addEventListener('click', () => (state.open ? closeMenu(state) : openMenu(state)));
   trigger.addEventListener('keydown', (event) => {
@@ -371,6 +385,19 @@ function installSelectObserver() {
     const wrapper = event.target.closest?.('.lira-select');
     closeOpenMenus(enhancedSelects.get(wrapper?.querySelector('select')));
   });
+  document.addEventListener('scroll', (event) => {
+    if (event.target.closest?.('.lira-select-menu')) return;
+    document.querySelectorAll('.lira-select.is-open').forEach((wrapper) => {
+      const state = enhancedSelects.get(wrapper.querySelector('select'));
+      if (!state) return;
+      const rect = state.trigger.getBoundingClientRect();
+      // Ignore a queued scroll that already happened before this menu was positioned.
+      if (rect.top !== state.anchorRect.top || rect.left !== state.anchorRect.left) {
+        closeMenu(state, { restoreFocus: false });
+      }
+    });
+  }, true);
+  window.addEventListener('resize', () => closeOpenMenus());
   document.addEventListener('reset', (event) => {
     const form = event.target;
     if (form.tagName !== 'FORM') return;

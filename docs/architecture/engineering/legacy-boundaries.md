@@ -6,27 +6,18 @@ the named test and test case are the only numeric authority.
 
 ## Admin Global State
 
-- **Current shape:** Legacy browser modules read or write `window.AdminApp`
-  across `public/js/`. `public/js/admin/legacy-admin-bridge.js` is the intentional
-  compatibility boundary for new Admin ESM consumers. Admin feature modules
-  now use explicit imports or injected capabilities; app composition retains
-  bridge access for external desktop/playback lifecycle producers. Legacy
-  publication is confined to the bridge within `public/js/admin/`. Publication is
-  consumer-driven: a publisher exists only while a production or test consumer
-  reads that entry. Entries published without readers were removed rather than
-  kept as placeholders, and the bridge itself is exempt from the numeric budget,
-  so removing a publisher is the preferred direction when its last consumer goes
-  away.
-- **New-code rule:** Do not add a `window.AdminApp` dependency outside the bridge.
-  Use named ESM imports and explicit narrow interfaces.
-- **Task-scoped migration:** A touched module may move calls behind the bridge or
-  explicit imports while preserving behavior. Do not rewrite unrelated Admin
-  modules.
-- **Target architecture:** Admin dependencies are explicit ESM imports and
-  exports; the bridge remains only while legacy producers or consumers exist.
-- **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
-  test `Admin legacy global usage is frozen and can only decrease`. That test is
-  the only numeric authority.
+- **Current shape:** Retired on 2026-11-06. Admin composition directly creates the
+  desktop UI and initializes playback; feature modules, shared utilities, theme,
+  logging and events use named imports or explicit callbacks. The final
+  fullscreen-close consumer receives a callback through playback composition.
+  The bridge and publishers have no remaining production consumers and are removed;
+  tests load the actual module owners instead of preserving a test-only registry.
+- **New-code rule:** Do not reintroduce `window.AdminApp` dependencies or a
+  replacement global service registry. Use named ESM imports and narrow interfaces.
+- **Enforcement:** `test/engineering/module-boundaries.test.js`, test
+  `frontend modules use explicit dependencies without an Admin registry`, scans
+  all frontend modules. The former numeric debt budget is removed; computed
+  property access and other implicit dependency mechanisms still require review.
 
 ## Domain SQL Outside Storage
 
@@ -40,16 +31,14 @@ blind-box analysis now receive `queryStore`; recent clearing receives
 `maintenanceStore`. Structured local/source/unavailable scopes are translated
 to SQL only inside `gift-query-store.js`.
 
-The existing `src/bilibili/gift/index.js` facade adapts database contexts for
-existing constructor and exported query callers. This avoids a public facade
-break while production composition explicitly injects stores. Remove the fallback
-when the remaining context-based callers migrate; do not add context/SQLite
-dependencies to projection, consumer, query or analysis implementations.
-`test/engineering/module-boundaries.test.js`
-protects those implementations, and gift projection/import tests protect
-transaction, retry and idempotency behavior.
+The database-context fallback in `src/bilibili/gift/index.js` is retired on
+2026-11-06. Production composition and isolated test fixtures explicitly create
+the four gift stores. The facade only assembles domain capabilities and owns
+active-source/view-epoch state. Domain directories are checked for imports of
+storage, transport and desktop implementations; gift projection/import tests
+protect transaction, retry and idempotency behavior.
 
-AI configuration now receives `src/storage/ai-state-store.js` from `server/ai-runtime.js`; the domain retains codec, persona, TTL and key-origin rules. Overtime receives `src/storage/overtime-store.js` from `server/domain-services.js`, preserving the same gift database and transaction boundaries. Both former SQL exceptions are removed.
+AI configuration receives `src/storage/ai-state-store.js` from `server/ai-runtime.js`; the domain retains codec, persona, TTL and key-origin rules. AI quota now receives `ai-api-usage-store` from the same runtime and retains reservation/refund/month rules. Overtime receives `src/storage/overtime-store.js` from `server/domain-services.js`, preserving the same gift database and transaction boundaries. These former SQL/implicit storage-construction exceptions are removed.
 
 - **Current shape:** Known database receivers no longer issue SQL outside `src/storage/`; the text scan is not a complete semantic dependency analysis.
 - **New-code rule:** New domain behavior depends on a narrow store or repository;
@@ -60,7 +49,7 @@ AI configuration now receives `src/storage/ai-state-store.js` from `server/ai-ru
 - **Target architecture:** SQL, table knowledge, and transaction ownership live
   under `src/storage/`.
 - **Enforcement:** Incrementally enforced by `test/engineering/module-boundaries.test.js`,
-  test `domain SQL receivers stay inside storage`, with no allowlist. It uses receiver-aware raw-text scanning; selected domain/store import assertions and behavioral tests complement it.
+  test `domain SQL receivers stay inside storage`, with no allowlist. It uses receiver-aware raw-text scanning; directory-wide domain import guards and behavioral tests complement it.
 
 ## Shared Utility Aggregation
 
@@ -79,12 +68,15 @@ AI configuration now receives `src/storage/ai-state-store.js` from `server/ai-ru
 
 `public/js/shared/html-escape.js` owns HTML/attribute escaping; `display-format.js` owns display formatting. Direct consumers, including playback helpers, import these modules without loading dialogs, toast, requests or legacy global publication. The original falsy-input semantics remain unchanged; classic overlays and confirmation-dialog escaping retain their separate contracts.
 
-`shared/utils.js` still exposes its existing named exports, aggregate object and `window.AdminApp.utils` publication for compatibility. Remaining UI/request consumers may migrate only within their own tasks. Remove a compatibility export or publisher only after its real consumers have migrated; `public/js/playback/operations/provider-operations.js` still reads `window.AdminApp.utils.logoutConfirm` directly. `module-boundaries.test.js` prevents named pure-helper imports from returning to the aggregate entry; `test/ui/frontend-pure-utils.test.js` exercises real ESM imports without UI globals or network access.
+`shared/utils.js` retains its named exports for existing explicit UI/request consumers. Its unused aggregate object and global publication are removed; playback provider operations use the already injected utility capability for logout confirmation. `module-boundaries.test.js` prevents named pure-helper imports from returning to the UI/request entry; `test/ui/frontend-pure-utils.test.js` exercises real ESM imports without UI globals or network access.
 
 ## Mutable Behavior In Composition Roots
 
 - **Current shape:** Composition roots historically mixed dependency wiring with
-  mutable subsystem behavior.
+  mutable subsystem behavior. Desktop close/deadline and window state now belong
+  to `desktop-lifecycle` and `desktop-main-window`; logger and updater own their
+  state. The former cross-domain `desktop-state` bag is removed. Server message
+  decisions and maintenance recovery belong to application owners.
 - **New-code rule:** Entrypoints create components, connect callbacks, start
   resources, and close them in reverse order. Mutable policy belongs to the
   owning runtime or service.

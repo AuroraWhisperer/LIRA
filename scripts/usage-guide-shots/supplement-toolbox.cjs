@@ -129,15 +129,18 @@ const SHOTS = [
   {
     id: 'E11b',
     file: 'toolbox-overtime-controls',
-    title: '加班机初始时间、启用与开始暂停',
+    title: '加班机初始时长与一键开始',
     feature: 'otherOvertimeMachineFeature',
-    mustShow: ['#overtimeApplyTimeBtn', '#overtimeStartBtn', '#overtimePauseBtn'],
+    mustShow: ['#overtimeInitialHours', '#overtimeStartBtn', '#overtimeAddGiftBtn'],
   },
   {
     id: 'E11c',
     file: 'toolbox-overtime-settlements',
     title: '加班机最近结算与直播画面入口（暂无结算）',
     feature: 'otherOvertimeMachineFeature',
+    setup: async (page) => {
+      for (const summary of await page.locator('#overtimePanel > .overtime-disclosure > summary').all()) await summary.click();
+    },
     wait: '#overtimeSettlements .overtime-settlement-empty',
     scroll: '#overtimeSettlements',
     mustShow: ['#overtimeSettlements'],

@@ -1,39 +1,17 @@
 ﻿// 编写人：Aurora
-// 桌面更新 UI。挂载到 window.AdminApp.desktop
+// 桌面更新 UI。由管理页显式创建和初始化。
 'use strict';
 
-(function () {
-  const utils = window.AdminApp.utils;
-  const { toast, showStackedToast, showError } = utils;
+import { createResourceIntegrity } from './desktop-resource-integrity.js';
+
+export function createDesktopShell({ toast, showStackedToast, showError, api, showConfirmationDialog, openUpdatePage = () => {} } = {}) {
+  const resourceIntegrity = createResourceIntegrity({ toast, describeError: desktopActionErrorMessage });
   let desktopUpdateNoticeKey = '';
   let desktopUpdateAction = '';
-  let resourceIntegrityInitialized = false;
-  let resourceIntegrityState = null;
-  let resourceIntegrityPending = false;
-  const integrityReasons = {
-    FILE_MISSING: '文件缺失',
-    SIZE_MISMATCH: '文件大小不一致',
-    HASH_MISMATCH: '文件内容不一致',
-    FILE_UNREADABLE: '无法读取文件',
-    FILE_CHANGED: '文件在检查期间发生变化',
-    MANIFEST_MISSING: '当前安装缺少校验清单',
-    MANIFEST_INVALID: '校验清单无效或无法读取',
-    MANIFEST_UNSUPPORTED: '不支持此校验清单格式',
-    MANIFEST_VERSION_MISMATCH: '校验清单与当前版本、平台或架构不符',
-    PATH_INVALID: '校验清单包含不允许的路径',
-    PATH_UNSAFE: '检测到链接或不安全的资源路径',
-    DEV_MODE: '开发模式不支持此检查',
-    PLATFORM_UNSUPPORTED: '当前平台或架构暂不支持此检查',
-    UPDATE_INSTALLING: '正在安装更新，暂不能开始检查',
-    CHECK_TIMEOUT: '检查超时，部分项目未完成',
-    CHECK_CANCELLED: '检查已停止，未完成全部项目',
-    CHECK_FAILED: '检查未能完成，请查看日志',
-  };
-
   function initDesktopShell() {
     const desktop = window.songAssistantDesktop;
     if (!desktop) return;
-    initResourceIntegrity(desktop);
+    resourceIntegrity.init(desktop);
 
     document.body.classList.add('desktop-shell');
     document.querySelectorAll('.desktop-only').forEach((node) => {
@@ -81,7 +59,7 @@
       autoUpdateToggle.addEventListener('change', async () => {
         const enabled = autoUpdateToggle.checked;
         try {
-          await utils.api(
+          await api(
             '/api/settings',
             {
               enableAutoUpdate: enabled ? 'true' : 'false',
@@ -105,7 +83,7 @@
       });
     }
 
-    desktop.onShowUpdatePage(showDesktopUpdatePage);
+    desktop.onShowUpdatePage(openUpdatePage);
     desktop.onUpdateState(handleDesktopUpdateState);
     desktop
       .getInfo()
@@ -115,128 +93,6 @@
         handleDesktopUpdateState(info.updateState);
       })
       .catch(showError);
-  }
-
-  function initResourceIntegrity(desktop) {
-    if (
-      resourceIntegrityInitialized ||
-      !desktop.getResourceIntegrityState ||
-      !desktop.checkResourceIntegrity ||
-      !desktop.onResourceIntegrityState
-    )
-      return;
-    const button = document.getElementById('desktopIntegrityCheckBtn');
-    if (!button) return;
-    resourceIntegrityInitialized = true;
-    const unsubscribe = desktop.onResourceIntegrityState(renderResourceIntegrityState);
-    window.addEventListener('beforeunload', unsubscribe, { once: true });
-    desktop
-      .getResourceIntegrityState()
-      .then(renderResourceIntegrityState)
-      .catch(() => {
-        if (!resourceIntegrityState) {
-          document.getElementById('desktopIntegrityStatus').textContent =
-            '无法读取检查状态，请重新打开页面或查看日志。';
-          button.disabled = false;
-        }
-      });
-    button.addEventListener('click', async () => {
-      if (resourceIntegrityPending) return;
-      resourceIntegrityPending = true;
-      button.disabled = true;
-      try {
-        renderResourceIntegrityState(await desktop.checkResourceIntegrity());
-      } catch (_) {
-        toast('无法开始资源检查，请查看日志后重试。', { type: 'error' });
-      } finally {
-        resourceIntegrityPending = false;
-        button.disabled = ['checking', 'unavailable'].includes(resourceIntegrityState?.status);
-      }
-    });
-    document
-      .getElementById('desktopIntegrityGithubBtn')
-      ?.addEventListener('click', () => runDesktopAction(() => desktop.openGithub(), false));
-  }
-
-  function renderResourceIntegrityState(state) {
-    if (!state || !Number.isSafeInteger(state.revision) || state.revision <= (resourceIntegrityState?.revision ?? -1))
-      return;
-    resourceIntegrityState = state;
-    const button = document.getElementById('desktopIntegrityCheckBtn');
-    const status = document.getElementById('desktopIntegrityStatus');
-    if (!button || !status) return;
-    const checking = state.status === 'checking';
-    const tone = state.issueCount || state.status === 'issues'
-      ? 'danger'
-      : { passed: 'success', inconclusive: 'warning', cancelled: 'warning' }[state.status] || 'neutral';
-    const result = document.getElementById('desktopIntegrityResult');
-    result.dataset.tone = tone;
-    result.hidden = state.status === 'idle';
-    document.getElementById('desktopIntegrityIcon').setAttribute('d', {
-      success: 'M8 12l3 3 5-6',
-      danger: 'M9 9l6 6 M15 9l-6 6',
-      warning: 'M12 7v6 M12 16h.01',
-      neutral: 'M12 11v5 M12 8h.01',
-    }[tone]);
-    button.disabled = resourceIntegrityPending || checking || state.status === 'unavailable';
-    button.textContent = checking
-      ? '检查中…'
-      : state.status === 'idle' || state.status === 'unavailable'
-        ? '开始检查'
-        : state.status === 'passed' || state.status === 'issues'
-          ? '重新检查'
-          : '重试';
-    const reason = integrityReasons[state.reasonCode] || '暂不能确认资源完整性';
-    const counts =
-      state.totalFiles == null ? '正在读取校验清单' : `已检查 ${state.checkedFiles} / ${state.totalFiles} 个文件`;
-    const knownIssues = state.issueCount ? `发现 ${state.issueCount} 项资源异常` : '';
-    const messages = {
-      idle: '等待检查',
-      checking: `检查中 · ${counts}`,
-      passed: '检查通过，未发现资源异常',
-      issues: `${knownIssues}${state.complete ? '' : '（部分项目未完成）'}`,
-      inconclusive: `检查未完成：${reason}`,
-      unavailable: reason,
-      cancelled: `检查已停止${knownIssues ? `，${knownIssues}` : '，未完成全部项目'}`,
-    };
-    status.textContent = messages[state.status] || '无法读取检查状态，请查看日志。';
-    const meta = document.getElementById('desktopIntegrityMeta');
-    const timestamp = state.finishedAt || state.startedAt;
-    meta.textContent = [
-      state.totalFiles == null ? '' : counts,
-      state.unresolvedCount ? `${state.unresolvedCount} 项未确定` : '',
-      timestamp ? new Date(timestamp).toLocaleString() : '',
-    ].filter(Boolean).join(' · ');
-    meta.hidden = checking || !meta.textContent;
-    const details = document.getElementById('desktopIntegrityDetails');
-    details.replaceChildren();
-    for (const detail of (state.details || []).slice(0, 20)) {
-      const item = document.createElement('li');
-      item.textContent = `${detail.path}：${integrityReasons[detail.reasonCode] || '无法判定'}`;
-      details.appendChild(item);
-    }
-    details.hidden = !details.children.length;
-    const hint = document.getElementById('desktopIntegrityHint');
-    const totalDetails = state.issueCount + state.unresolvedCount;
-    const truncated = totalDetails > 20 ? `共 ${totalDetails} 项异常或未确定，仅显示前 20 项。` : '';
-    const nextStep = state.issueCount
-      ? '请备份重要数据，关闭客户端后从官方渠道重新安装。'
-      : ['inconclusive', 'cancelled'].includes(state.status)
-        ? '请重试，或打开日志目录排查。'
-        : '';
-    hint.textContent = `${truncated}${state.reasonCode && state.status === 'issues' ? `${reason}。` : ''}${nextStep}`;
-    hint.hidden = !hint.textContent;
-    document.getElementById('desktopIntegrityGithubBtn').hidden = !state.issueCount;
-  }
-
-  function showDesktopUpdatePage() {
-    const navigation = window.AdminApp.navigation;
-    const otherPage = window.AdminApp.other;
-    if (!navigation || !otherPage) return;
-
-    navigation.setMainPage('otherAssistantPage');
-    otherPage.selectFeatureById('otherSettingsFeature');
-    document.getElementById('settingsAboutTab')?.click();
   }
 
   function handleDesktopUpdateState(state) {
@@ -255,7 +111,7 @@
         title: titles[desktopUpdateAction],
         message: desktopUpdateAction === 'install' ? '请到更新页查看原因，再试一次。' : '请检查网络，再到更新页重试。',
         actionLabel: '打开更新页',
-        onClick: showDesktopUpdatePage,
+        onClick: openUpdatePage,
       });
       desktopUpdateAction = '';
     }
@@ -285,7 +141,7 @@
       message: body,
       className: 'desktop-update-toast',
       duration: 8000,
-      onClick: showDesktopUpdatePage,
+      onClick: openUpdatePage,
     });
   }
 
@@ -296,7 +152,7 @@
       message: message || '当前版本不需要更新。',
       className: 'desktop-update-toast desktop-update-toast-good',
       duration: 4200,
-      onClick: showDesktopUpdatePage,
+      onClick: openUpdatePage,
     });
   }
 
@@ -450,7 +306,7 @@
   }
 
   function showRestartConfirmModal() {
-    return utils.showConfirmationDialog({
+    return showConfirmationDialog({
       variant: 'caution',
       title: '现在重启并安装更新？',
       description: '应用会退出并显示更新安装进度，完成后自动关闭进度窗口并重新启动 LIRA。建议确认直播间暂时不需要操作后再继续。',
@@ -459,14 +315,13 @@
     });
   }
 
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.desktop = {
+  return {
     initDesktopShell,
-    initResourceIntegrity,
-    renderResourceIntegrityState,
+    initResourceIntegrity: resourceIntegrity.init,
+    renderResourceIntegrityState: resourceIntegrity.render,
     renderDesktopUpdateState,
     desktopUpdateStatusText,
     desktopUpdateHintText,
     desktopActionErrorMessage,
   };
-})();
+}

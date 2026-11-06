@@ -1,0 +1,210 @@
+/* Shared reply fields, actions, controls and editable-list interaction states. */
+
+.danmaku-fixed-reply-section .switch-control {
+  flex: none;
+  gap: 6px;
+  margin: 0;
+  min-height: 32px;
+}
+.danmaku-fixed-reply-section .switch-track {
+  width: 34px;
+  height: 20px;
+}
+.danmaku-fixed-reply-section .switch-track::after {
+  width: 14px;
+  height: 14px;
+  top: 2px;
+  left: 2px;
+}
+.danmaku-fixed-reply-section .switch-control input:checked + .switch-track::after {
+  transform: translateX(14px);
+}
+.danmaku-song-reply-examples {
+  margin: 16px 0;
+}
+.danmaku-song-reply-examples > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) minmax(0, 3fr);
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--fixed-divider);
+}
+.danmaku-song-reply-examples dt {
+  font-weight: 600;
+}
+.danmaku-song-reply-examples dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.danmaku-fixed-reply-section .danmaku-reply-fields {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.danmaku-fixed-reply-section .danmaku-blessings-body {
+  padding: 0;
+  border: 0;
+}
+.danmaku-fixed-reply-section .danmaku-blessing-actions,
+.danmaku-welcome-parameter-actions,
+.danmaku-welcome-custom-actions {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 12px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--fixed-divider);
+}
+.danmaku-fixed-reply-section .danmaku-blessing-actions > .hint,
+#danmakuWelcomeParameterStatus,
+#danmakuWelcomeCustomStatus {
+  min-width: 0;
+  flex: 1;
+  margin-right: auto;
+}
+.danmaku-fixed-reply-section .danmaku-blessing-actions button {
+  width: auto;
+}
+.danmaku-fixed-reply-section .danmaku-custom-reply-add-grid {
+  grid-template-columns: minmax(140px, 0.45fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 12px;
+  margin-top: 8px;
+}
+.danmaku-fixed-reply-section .danmaku-custom-reply-add-grid .secondary {
+  grid-column: auto;
+  justify-self: start;
+}
+.danmaku-fixed-reply-section .danmaku-custom-reply-row {
+  padding-block: 12px;
+}
+.danmaku-fixed-reply-section .danmaku-custom-reply-fields {
+  gap: 12px;
+}
+.danmaku-fixed-reply-section :is(.danmaku-blessing-list, .danmaku-fortune-list, .danmaku-custom-reply-list) {
+  max-height: none;
+  overflow: visible;
+  border-width: 1px;
+  border-color: var(--fixed-divider);
+}
+.danmaku-field-error {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+  color: var(--danger);
+  font-size: 12px;
+}
+.danmaku-text-action {
+  border: 0;
+  padding: 4px 0;
+  min-height: 32px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  text-decoration: none;
+  text-underline-offset: 3px;
+}
+.danmaku-text-action:hover {
+  background: transparent;
+  color: var(--danmaku-heading-color);
+  text-decoration: underline;
+}
+.danmaku-fixed-reply-section :is(button, .lira-select-trigger) {
+  font-weight: 500;
+  font-size: 13px;
+}
+.danmaku-fixed-reply-section :is(button, input:not([type='checkbox']), textarea, select, .lira-select-trigger) {
+  border-radius: var(--radius-control);
+}
+.danmaku-fixed-reply-section :is(input:not([type='checkbox']), textarea, .lira-select-trigger) {
+  font-size: 14px;
+}
+.danmaku-fixed-reply-section button:not(.lira-select-option, .danmaku-blessing-delete) {
+  min-height: 34px;
+}
+.danmaku-fixed-reply-section button.danmaku-text-action {
+  min-height: 30px;
+}
+.danmaku-fixed-reply-section .danmaku-welcome-tabs button {
+  min-height: 28px;
+}
+.danmaku-fixed-reply-section .lira-select-trigger {
+  min-height: 34px;
+  padding: 5px 10px;
+  font-size: 14px;
+}
+.danmaku-fixed-reply-section select {
+  min-height: 32px;
+  padding: 4px 8px;
+  border-width: 1px;
+  font-size: 14px;
+}
+.danmaku-fixed-reply-section
+  :is(
+    input:not([type='checkbox']),
+    textarea,
+    select,
+    .danmaku-blessing-list,
+    .danmaku-fortune-list,
+    .danmaku-custom-reply-list
+  ) {
+  background: var(--surface);
+  color: var(--text);
+}
+.danmaku-fixed-reply-section :is(.daily-library-delete, .danmaku-blessing-delete, .danmaku-welcome-custom-row > button) {
+  color: var(--muted);
+  opacity: 0.6;
+  text-decoration: none;
+}
+.danmaku-fixed-reply-section :is(.daily-library-delete, .danmaku-blessing-delete, .danmaku-welcome-custom-row > button):is(:hover, :focus-visible):not(:disabled) {
+  color: var(--danger);
+  opacity: 1;
+  text-decoration: none;
+}
+.danmaku-fixed-reply-section :is(.danmaku-blessing-row, .danmaku-fortune-row, .danmaku-custom-reply-row, .danmaku-welcome-custom-row):hover {
+  background: var(--fixed-editor-surface);
+}
+/* Labels remain in the accessibility tree; repeat them when fields stack. */
+@container fixed-replies (width >= 640px) {
+  .danmaku-fixed-reply-section :is(.danmaku-fortune-row, .danmaku-custom-reply-row):nth-child(n + 2 of :not([hidden])) label {
+    font-size: 0;
+    gap: 0;
+  }
+}
+.danmaku-fixed-reply-section :is(button, select, summary, input):focus-visible {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 3px;
+}
+.danmaku-fixed-reply-section .switch-control input:focus-visible + .switch-track {
+  outline: 2px solid var(--color-control-focus);
+  outline-offset: 3px;
+}
+@container fixed-replies (width < 640px) {
+  .danmaku-fixed-reply-section .danmaku-custom-reply-add-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .danmaku-fixed-reply-section .danmaku-custom-reply-add-grid .secondary {
+    grid-column: 1 / -1;
+  }
+}
+@container fixed-replies (width < 480px) {
+  .danmaku-fixed-reply-section .danmaku-blessing-actions > .hint,
+  #danmakuWelcomeParameterStatus,
+  #danmakuWelcomeCustomStatus {
+    flex-basis: 100%;
+  }
+  .danmaku-fixed-reply-section
+    :is(.danmaku-custom-reply-add-grid, .danmaku-custom-reply-fields) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (pointer: coarse) {
+  .danmaku-fixed-reply-section :is(button, select, input:not([type='checkbox']), .switch-control),
+  .danmaku-fixed-reply-section button:not(.lira-select-option, .danmaku-blessing-delete) {
+    min-height: 44px;
+  }
+}

@@ -9,13 +9,11 @@
   gap: var(--spacing-lg);
 }
 
+/* Rule cards sit on a tinted backdrop so each group reads as its own surface. */
 #songRequestPage > .panel-body {
-  padding: 5px;
-}
-
-#songRequestSettingsForm {
-  display: block;
-  padding: 0;
+  padding: var(--spacing-md);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  background: var(--surface-2);
 }
 
 .song-board-section {
@@ -26,16 +24,196 @@
   background: var(--surface);
 }
 
-.song-request-section {
-  display: grid;
-  grid-template-columns: 160px minmax(0, 1fr);
-  gap: var(--spacing-lg);
-  min-width: 0;
-  padding: var(--spacing-lg);
+.song-board-section-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
 }
 
-.song-request-section + .song-request-section {
+.song-board-section-heading {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-section-title);
+}
+
+.song-board-section-meta {
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+}
+
+.song-board-section-body {
+  margin-top: var(--spacing-md);
+}
+
+/* Queue rules fill the left column; interval and eligibility stack on the right with matching bottoms. */
+.song-request-board {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-rows: auto 1fr;
+  align-items: start;
+  gap: var(--spacing-md);
+}
+
+.song-request-card {
+  min-width: 0;
+  padding: 18px 22px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--text) 4%, transparent);
+}
+
+.song-request-card-queue {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+.song-request-card-interval {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.song-request-card-eligibility {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: stretch;
+}
+
+.song-request-card-wide,
+.song-request-board > .song-board-actions {
+  grid-column: 1 / -1;
+}
+
+.song-request-card-wide {
+  padding-bottom: 18px;
+}
+
+.song-request-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+  min-height: 36px;
+  margin-bottom: 4px;
+}
+
+.song-request-card-wide > .song-request-card-header {
+  margin-bottom: 10px;
+}
+
+.song-request-card .song-board-section-heading {
+  font-size: var(--type-size-card-title);
+}
+
+.song-request-card-header > button {
+  flex: none;
+}
+
+/* Settings rows: label left, one fixed-width control column right. */
+.song-request-row-group + .song-request-row-group {
+  margin-top: var(--spacing-sm);
   border-top: 1px solid var(--border);
+}
+
+/* Card scope outranks the shell's semibold label default. */
+.song-request-card .song-request-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 200px;
+  align-items: center;
+  column-gap: var(--spacing-md);
+  min-height: 52px;
+  padding: 7px 0;
+  color: var(--text);
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
+}
+
+.song-request-row + .song-request-row {
+  border-top: 1px solid var(--color-border-light);
+}
+
+.song-request-row :is(input, .lira-select-value) {
+  font-weight: var(--type-weight-regular);
+}
+
+.song-request-row input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.song-request-number {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.song-request-number input {
+  padding-right: 36px;
+}
+
+.song-request-unit {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  translate: 0 -50%;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  pointer-events: none;
+}
+
+.song-request-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.song-request-tier-mark {
+  display: inline-grid;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  object-fit: contain;
+}
+
+span.song-request-tier-mark::before {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-border-strong);
+  content: '';
+}
+
+.song-cooldown-controls {
+  display: flex;
+  gap: var(--spacing-sm);
+  min-width: 0;
+}
+
+.song-cooldown-controls > :first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+#songCooldownAmount {
+  flex: 0 0 84px;
+}
+
+#songCooldownAmount[hidden] {
+  display: none;
+}
+
+#songCooldownAmount input {
+  padding-right: 40px;
+}
+
+#songCooldownAmount .song-request-unit {
+  right: 10px;
 }
 
 .song-user-blacklist-table {
@@ -76,101 +254,6 @@
 
 .song-user-blacklist-table td:nth-last-child(-n + 2) {
   white-space: nowrap;
-}
-
-.song-request-section-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: var(--spacing-sm) var(--spacing-md);
-}
-
-.song-request-list-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-md);
-}
-
-.song-request-list-actions > button {
-  flex: none;
-  margin-left: auto;
-}
-
-.song-board-section-title {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 10px;
-}
-
-.song-board-section-heading {
-  margin: 0;
-  color: var(--text);
-  font-family: var(--font-display);
-  font-size: var(--type-size-section-title);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-section-title);
-}
-
-.song-board-section-meta {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-}
-
-.song-board-section-body {
-  margin-top: var(--spacing-md);
-}
-
-.song-request-section > .song-board-section-body {
-  min-width: 0;
-  margin-top: 0;
-}
-
-.song-request-rules {
-  display: grid;
-  align-items: start;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--spacing-md);
-}
-
-.song-request-eligibility {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.song-cooldown-setting {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  align-content: start;
-  color: var(--text);
-  font-size: var(--type-size-control);
-  font-weight: var(--type-weight-semibold);
-}
-
-.song-cooldown-controls {
-  display: flex;
-  gap: var(--spacing-sm);
-}
-
-.song-cooldown-controls > :first-child {
-  flex: 1;
-  min-width: 0;
-}
-
-#songCooldownAmount {
-  flex: 0 0 76px;
-}
-
-#songCooldownAmount[hidden] {
-  display: none;
-}
-
-.song-cooldown-setting .hint {
-  margin: 0;
-  font-weight: var(--type-weight-regular);
 }
 
 .song-blacklist-empty {
@@ -246,33 +329,27 @@
 .song-board-actions {
   display: flex;
   justify-content: flex-end;
-  padding: var(--spacing-md) var(--spacing-lg);
-  border-top: 1px solid var(--border);
-  background: var(--surface);
-  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  padding: 0 var(--spacing-xs);
 }
 
-@media (max-width: 1200px) {
-  .song-request-section {
-    grid-template-columns: 140px minmax(0, 1fr);
-  }
-
-  .song-request-rules {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 900px) {
-  .song-request-section {
+@media (max-width: 1000px) {
+  .song-request-board {
     grid-template-columns: minmax(0, 1fr);
-    gap: var(--spacing-md);
-    padding: var(--spacing-md);
+    grid-template-rows: none;
+  }
+
+  .song-request-card-queue,
+  .song-request-card-interval,
+  .song-request-card-eligibility {
+    grid-column: 1;
+    grid-row: auto;
   }
 }
 
 @media (max-width: 640px) {
-  .song-request-rules {
+  .song-request-card .song-request-row {
     grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--spacing-xs);
   }
 
   .song-blacklist-words {

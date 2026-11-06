@@ -169,18 +169,19 @@ test('navigation keeps the privileged window on admin/license documents or admin
 test('media and management rules share one listener with request lifecycle cleanup', () => {
   const f = fixture();
   const registrations = {};
+  const removals = [];
   f.session.webRequest = Object.fromEntries(
     ['onBeforeSendHeaders', 'onCompleted', 'onErrorOccurred'].map((event) => [
       event,
       (...args) => {
+        if (args[0] === null) { removals.push(event); return; }
         assert.equal(registrations[event], undefined);
         registrations[event] = args;
       },
     ]),
   );
-  const state = {};
-  configureMediaRequestHeaders(f.session, state, f.auth);
-  configureMediaRequestHeaders(f.session, state, f.auth);
+  const dispose = configureMediaRequestHeaders(f.session, f.auth);
+  assert.equal(configureMediaRequestHeaders(f.session, f.auth), dispose);
   const [filter, listener] = registrations.onBeforeSendHeaders;
   assert.deepEqual(filter.urls, ['<all_urls>']);
   listener({ id: 2, url: 'https://y.qq.com/song', requestHeaders: {} }, ({ requestHeaders }) => {
@@ -188,6 +189,9 @@ test('media and management rules share one listener with request lifecycle clean
   });
   assert.equal(registrations.onCompleted[0], f.auth.completeRequest);
   assert.equal(registrations.onErrorOccurred[0], f.auth.completeRequest);
+  dispose();
+  dispose();
+  assert.deepEqual(removals, ['onBeforeSendHeaders', 'onCompleted', 'onErrorOccurred']);
 });
 
 test('window rebinding and disposal remove owned navigation listeners', () => {

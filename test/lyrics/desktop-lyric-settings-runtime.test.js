@@ -188,6 +188,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricScale: '1',
     desktopLyricLineHeight: '1.4',
     desktopLyricShadowIntensity: '0.35',
+    desktopLyricShadowBlur: '8',
     desktopLyricTranslationScale: '0.65',
     desktopLyricTextAlign: 'justify',
   };
@@ -294,15 +295,13 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
       weSingSmartLyricMatch: 'true',
     },
   });
+  elements.get('desktopLyricFontSize').value = '60';
   scheduledTimer.callback();
   assert.equal(apiCalls.length, 1);
-  assert.equal(apiCalls[0].body.weSingLyricSource, 'netease');
-  assert.equal(apiCalls[0].body.weSingSmartLyricMatch, 'true');
-  assert.equal(apiCalls[0].body.desktopLyricTextAlign, 'justify');
-  assert.equal(apiCalls[0].body.desktopLyricSungColor, '#ff220080');
-  assert.equal(apiCalls[0].body.desktopLyricTextColor, '#123456');
+  assert.equal(apiCalls[0].body.desktopLyricFontSize, '60');
+  assert.equal(Object.hasOwn(apiCalls[0].body, 'desktopLyricTextColor'), false, 'Only edited fields are submitted.');
   assert.equal(elements.get('desktopLyricSungColorInherited').checked, false);
-  assert.equal(apiCalls[0].body.desktopLyricFontFamily, 'Microsoft YaHei', 'An explicitly saved font is preserved.');
+  assert.equal(elements.get('desktopLyricFontFamily').value, 'Microsoft YaHei', 'An explicitly saved font is preserved.');
   assert.equal(Object.hasOwn(apiCalls[0].body, 'desktopLyricFallbackFontFamily'), false,
     'Changing visible settings must not overwrite the retired fallback field.');
 
@@ -311,6 +310,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   smartLyricMatch.checked = false;
   listeners.get('change')();
   windowListeners.get('app:settings-state')({ detail: { ...values,
+    desktopLyricShadowBlur: '19',
     weSingLyricSource: 'netease', weSingSmartLyricMatch: 'true' } });
   assert.equal(lyricSourceInputs[0].checked, false);
   assert.equal(lyricSourceInputs[1].checked, true);
@@ -331,6 +331,9 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[1].body.desktopLyricTextColor, '#abcdef80');
   assert.equal(apiCalls[1].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[1].body.weSingSmartLyricMatch, 'false');
+  assert.equal(Object.hasOwn(apiCalls[1].body, 'desktopLyricShadowBlur'), false,
+    'A pending desktop save cannot overwrite another field just saved from the canvas.');
+  assert.equal(elements.get('desktopLyricShadowBlur').value, '19');
 
   await new Promise((resolve) => setImmediate(resolve));
   await resetListeners.get('click')();
@@ -342,6 +345,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-defaults.js'),
   );
   assert.equal(apiCalls[2].body.desktopLyricFontSize, DESKTOP_LYRIC_DEFAULTS.desktopLyricFontSize);
-  assert.equal(apiCalls[2].body.weSingLyricSource, 'qq');
-  assert.equal(apiCalls[2].body.weSingSmartLyricMatch, 'false');
+  assert.equal(Object.hasOwn(apiCalls[2].body, 'weSingLyricSource'), false);
+  assert.equal(lyricSourceInputs[1].checked, true);
+  assert.equal(smartLyricMatch.checked, false);
 });

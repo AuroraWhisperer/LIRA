@@ -31,16 +31,23 @@ async function editor(t, component = 'danmaku') {
   return { page, desktop, fixture };
 }
 
-async function poll(page) {
-  await page.waitForResponse(response => response.url().endsWith('/api/component-preview')
-    && response.request().postDataJSON()?.action === 'read');
+async function receiveDisplayUpdate(page, desktop) {
+  const received = page.waitForResponse(response => response.url().endsWith('/api/component-preview')
+    && ['read', 'read-batch'].includes(response.request().postDataJSON()?.action));
+  await desktop.evaluate(async () => {
+    const { getRoomGuardState, setRoomGuardState } = await import('/js/shared/bilibili-room-guard.js');
+    setRoomGuardState({ roomId: 'synthetic-test-room', count: (getRoomGuardState().count || 0) + 1 });
+  });
+  await received;
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
 }
 
 function waitForDraft(page, matches) {
   return page.waitForResponse(async response => {
-    if (!response.url().endsWith('/api/component-preview') || response.request().postDataJSON()?.action !== 'read') return false;
-    return matches((await response.json()).data?.state?.draft || {});
+    if (!response.url().endsWith('/api/component-preview')
+      || !['read', 'read-batch'].includes(response.request().postDataJSON()?.action)) return false;
+    const { data } = await response.json();
+    return (data?.updates || [data]).some(update => update?.state && matches(update.state.draft || {}));
   });
 }
 
@@ -120,6 +127,20 @@ test('canvas lyric settings save and existing lyric dimensions survive adding an
   assert.equal(fixture.runtime.settings.desktopLyricFontFamily, '"Lira Kuaile"', 'Selecting a different available font saves the choice.');
   const fontSize = page.locator('[data-component-parameter="desktopLyricFontSize"]');
   await fontSize.fill('64'); await fontSize.press('Tab');
+  const linePreset = page.locator('[data-lyric-line-preset]');
+  await linePreset.selectOption('custom');
+  const lines = page.locator('[data-component-parameter="desktopLyricVisibleLines"]');
+  await lines.fill('5'); await lines.press('Tab');
+  const singleLineSaved = page.waitForResponse(response => response.url().includes('/api/component-preview/appearance')
+    && response.request().postDataJSON()?.patch?.desktopLyricVisibleLines === '1');
+  await linePreset.selectOption('1');
+  assert.equal((await singleLineSaved).status(), 200);
+  const restoredLines = page.waitForResponse(response => response.url().includes('/api/component-preview/appearance')
+    && response.request().postDataJSON()?.patch?.desktopLyricVisibleLines === '5');
+  await linePreset.selectOption('custom');
+  assert.equal((await restoredLines).status(), 200);
+  const translationScale = page.locator('[data-component-parameter="desktopLyricTranslationScale"]');
+  await translationScale.fill('0.75'); await translationScale.press('Tab');
   await page.locator('[data-component-parameter="desktopLyricShowTranslation"]').uncheck();
 
   await size.fill('480'); await size.press('Tab');
@@ -131,15 +152,18 @@ test('canvas lyric settings save and existing lyric dimensions survive adding an
   assert.equal(fixture.runtime.settings.desktopLyricFontSize, '64');
   assert.equal(fixture.runtime.settings.desktopLyricFontFamily, '"Lira Kuaile"');
   assert.equal(fixture.runtime.settings.desktopLyricShowTranslation, 'false');
+  assert.equal(fixture.runtime.settings.desktopLyricTranslationScale, '0.75', 'Hiding translation controls keeps their saved values.');
+  assert.equal(fixture.runtime.settings.desktopLyricVisibleLines, '5', 'Switching back from a preset restores the custom line count.');
+  assert.equal(await linePreset.inputValue(), 'custom', 'A newly selected lyric reads the saved custom mode.');
 });
 
-test('canvas inputs keep typing and native selection across preview polling', { timeout: 30000 }, async (t) => {
+test('canvas inputs keep typing and native selection across preview updates', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   const font = page.locator('[data-preview-field="danmakuFontSize"]');
   await font.click();
   await font.press('Control+a');
   await page.keyboard.type('36', { delay: 300 });
-  await poll(page);
+  await receiveDisplayUpdate(page, desktop);
   assert.equal(await font.inputValue(), '36');
   await font.press('Tab');
   await desktop.waitForFunction(() => window.controllers.danmaku.getState().draft.styleOptions.signal?.fontSize === 36);
@@ -150,7 +174,7 @@ test('canvas inputs keep typing and native selection across preview polling', { 
   await page.keyboard.type('Canvas title');
   await name.press('Home');
   await name.press('Shift+ArrowRight');
-  await poll(page);
+  await receiveDisplayUpdate(page, desktop);
   assert.deepEqual(await name.evaluate(node => [node.selectionStart, node.selectionEnd]), [0, 1]);
   assert.equal(await name.inputValue(), 'Canvas title');
   await name.press('Tab');
@@ -210,7 +234,7 @@ test('danmaku field commits keep the pending local value while their acknowledge
   t.after(() => release());
   await font.fill('40');
   await font.press('Tab');
-  await poll(page);
+  await receiveDisplayUpdate(page, desktop);
   assert.equal(await font.inputValue(), '40', 'The field uses the pending local draft before the desktop acknowledges it.');
   assert.equal(edits, 1, 'Blur does not create a second command.');
   assert.notEqual(await desktop.evaluate(() => window.controllers.danmaku.getState().draft.styleOptions.signal?.fontSize), 40);
@@ -241,7 +265,7 @@ test('canvas layer hiding, deletion and locking are undoable and locked layers r
   await page.keyboard.press('Control+z');
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
   await page.locator('.preview-canvas-layer-select').last().click();
-  await poll(page);
+  await receiveDisplayUpdate(page, desktop);
   // The preceding visibility edit must reach the desktop before capturing the undo baseline.
   await desktop.waitForFunction(id => window.controllers.canvas.getState().draft.document.items
     .find(item => item.id === id)?.visible === true, clockId);
@@ -250,7 +274,7 @@ test('canvas layer hiding, deletion and locking are undoable and locked layers r
   await menu.getByRole('menuitem', { name: '删除', exact: true }).click();
   assert.equal(await page.locator('.scene-editor-item').count(), 1);
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
-  await poll(page);
+  await receiveDisplayUpdate(page, desktop);
   await page.keyboard.press('Control+z');
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 2);
   assert.deepEqual(await desktop.evaluate(() => window.controllers.canvas.getState().draft.document), beforeRemoval);
@@ -436,7 +460,7 @@ test('canvas Delete and Ctrl+Z restore deletion, resize and move as separate edi
   await page.keyboard.press('Delete');
   assert.equal(await item.count(), 0);
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 0);
-  await poll(page);
+  await receiveDisplayUpdate(page, desktop);
   await page.keyboard.press('Control+z');
   assert.deepEqual(await geometry(), resized);
   await page.keyboard.press('Control+z');
@@ -504,8 +528,11 @@ test('canvas dragging retains a visible corner and negative coordinate edits sur
   await x.press('Tab');
   await y.fill('-80');
   await y.press('Tab');
-  const published = page.waitForResponse(async response => response.url().endsWith('/api/component-preview')
-    && (await response.json()).data?.display?.result?.publishedVersion === 1);
+  const published = page.waitForResponse(async response => {
+    if (!response.url().endsWith('/api/component-preview')) return false;
+    const { data } = await response.json();
+    return (data?.updates || [data]).some(update => update?.display?.result?.publishedVersion === 1);
+  });
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
   await published;
   const saved = fixture.service.list()[0];

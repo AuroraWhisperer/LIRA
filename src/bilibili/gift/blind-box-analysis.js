@@ -11,6 +11,7 @@ const BLIND_BOX_ANALYSIS_SORTS = {
   records: new Set(['createdAt', 'profit', 'cost', 'value', 'num']),
 };
 const statsCache = new WeakMap();
+const STATS_CACHE_FILTER_LIMIT = 2; // Management totals and heart-box overlays share the same ledger.
 
 function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } = {}) {
   if (!/^(?:-1|[0-9]|10)$/.test(String(top)) || ![true, false, '0', '1'].includes(hideLoss)) {
@@ -31,11 +32,21 @@ function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } 
   const dayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
   const dayEnd = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).getTime();
   const key = revision == null || source.kind === 'unavailable' ? null
-    : JSON.stringify([source, revision, dayStart, dayEnd, boxName]);
+    : JSON.stringify([source, revision, dayStart, dayEnd]);
   const cached = statsCache.get(context);
-  if (key !== null && cached?.key === key) return project(cached.value);
+  const values = key !== null && cached?.key === key ? cached.values : new Map();
+  if (values.has(boxName)) {
+    const value = values.get(boxName);
+    values.delete(boxName);
+    values.set(boxName, value);
+    return project(value);
+  }
   const value = calculateBlindBoxStats(context, boxName, nowDate);
-  if (key !== null) statsCache.set(context, { key, value });
+  if (key !== null) {
+    values.set(boxName, value);
+    if (values.size > STATS_CACHE_FILTER_LIMIT) values.delete(values.keys().next().value);
+    statsCache.set(context, { key, values });
+  }
   else statsCache.delete(context);
   return project(value);
 }

@@ -13,9 +13,20 @@ function createCustomReplyService(dependencies = {}) {
   const { settings } = dependencies;
   let cloudTriggers = new Set();
   let cloudRevision = -1;
+  let cachedRuleText = null;
+  let cachedRules = [];
 
-  function currentSettings() {
-    return typeof settings === 'function' ? settings() : {};
+  function findCurrentRule(message) {
+    const current = typeof settings === 'function' ? settings() : {};
+    const text = cleanText(message);
+    if (!text || current.enableCustomReplyBot !== 'true') return null;
+    const value = current.customReplyRules;
+    if (typeof value !== 'string') return matchCustomReplyRule(text, parseCustomReplyRules(value));
+    if (value !== cachedRuleText) {
+      cachedRules = parseCustomReplyRules(value);
+      cachedRuleText = value;
+    }
+    return matchCustomReplyRule(text, cachedRules);
   }
 
   return {
@@ -45,8 +56,7 @@ function createCustomReplyService(dependencies = {}) {
     },
 
     handleDanmaku(danmaku = {}) {
-      const text = cleanText(danmaku.message);
-      const matchedRule = findCustomReplyRule(text, currentSettings());
+      const matchedRule = findCurrentRule(danmaku.message);
       if (!matchedRule) {
         return { accepted: false, reason: 'not-custom-reply' };
       }
@@ -56,7 +66,7 @@ function createCustomReplyService(dependencies = {}) {
       return {
         accepted: true,
         command: { type: 'custom-reply', keyword: matchedRule.keyword },
-        rule: matchedRule,
+        rule: { ...matchedRule },
         autoReply: {
           message: matchedRule.reply,
           target: { uid, name: userName },
@@ -65,7 +75,7 @@ function createCustomReplyService(dependencies = {}) {
     },
 
     isCommandText(message) {
-      return cloudTriggers.has(String(message || '').trim()) || Boolean(findCustomReplyRule(message, currentSettings()));
+      return cloudTriggers.has(String(message || '').trim()) || Boolean(findCurrentRule(message));
     },
   };
 }
@@ -73,10 +83,13 @@ function createCustomReplyService(dependencies = {}) {
 function findCustomReplyRule(message, settings = {}) {
   const text = cleanText(message);
   if (!text || settings.enableCustomReplyBot !== 'true') return null;
+  return matchCustomReplyRule(text, parseCustomReplyRules(settings.customReplyRules));
+}
 
+function matchCustomReplyRule(text, rules) {
   const normalizedText = text.toLocaleLowerCase();
   return (
-    parseCustomReplyRules(settings.customReplyRules).find(
+    rules.find(
       (rule) => rule.enabled !== false && normalizedText.includes(rule.keyword.toLocaleLowerCase()),
     ) || null
   );

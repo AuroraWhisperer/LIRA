@@ -7,6 +7,8 @@ import { createGiftEffectPlayer } from './gift-effect-player.js';
 import { createGuardThanksQueue } from './gift-effects-guard.js';
 import { mountGiftEffectComponent } from './gift-effects-component.js';
 import { createOverlaySocket } from './socket-client.js';
+import { createGiftMotionPlayer } from './gift-motion-player.js';
+import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
 
 (function () {
   if (mountGiftEffectComponent()) return;
@@ -31,6 +33,7 @@ import { createOverlaySocket } from './socket-client.js';
     onError: (error) => showStatus(`大航海感谢播放失败：${error.message || error}`),
   });
   let socketController = null;
+  const motionPlayer = createGiftMotionPlayer({ root: document.getElementById('giftMotionRoot') });
   let disposed = false;
 
   if (DEBUG) document.body.classList.add('is-debug');
@@ -47,10 +50,14 @@ import { createOverlaySocket } from './socket-client.js';
         frameQueue.dispose();
         effectPlayer.dispose();
         guardThanks.dispose();
+        motionPlayer.dispose();
       },
       { once: true },
     );
-    if (PREVIEW_MODE && GUARD_PREVIEW_TIER) {
+    const motionStyle = params.get('giftStyle');
+    if (PREVIEW_MODE && ['gift-drop', 'gift-swing'].includes(motionStyle)) {
+      for (const sample of createGiftMotionSamples(motionStyle)) motionPlayer.enqueue(sample);
+    } else if (PREVIEW_MODE && GUARD_PREVIEW_TIER) {
       window.setTimeout(() => guardThanks.enqueue(createGuardPreviewPayload(GUARD_PREVIEW_TIER)), 80);
     } else if (PREVIEW_MODE) {
       window.setTimeout(() => frameQueue.enqueue(createPreviewPayload()), 80);
@@ -70,7 +77,7 @@ import { createOverlaySocket } from './socket-client.js';
           effectPlayer.setEnabled(payload.state?.settings?.giftEffectDanmakuEnabled === 'true');
           return;
         }
-        if (payload.type === 'gift:frame') frameQueue.enqueue(payload);
+        if (payload.type === 'gift:frame' && !motionPlayer.enqueue(payload)) frameQueue.enqueue(payload);
         if (payload.type === 'gift:effect') effectPlayer.enqueue(payload);
         if (payload.type === 'gift:guard-thanks') guardThanks.enqueue(payload);
       },

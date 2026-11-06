@@ -5,13 +5,18 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
+import { ensureSavedFontOption, populateSystemFontOptions, registerFontSelect } from '../shared/font-library.js';
 
 const OVERLAY_FIELDS = ['blindboxOverlayTitle', 'blindboxOverlayTop', 'blindboxWinnersOnly', 'blindboxHeartBoxOnly',
   'blindboxCastleMultiplier', 'blindboxCastlesRemaining', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'];
-const APPEARANCE_FIELDS = { compact: 'blindboxCompact', noScroll: 'blindboxAutoPages',
-  overlayFontFamily: 'overlayFontFamily', overlayFontWeight: 'overlayFontWeight', themeFontScale: 'themeFontScale',
-  themeBackground: 'themeBackground', themeOpacity: 'themeOpacity', themeText: 'themeText',
-  themePrimary: 'themePrimary', themeAccent: 'themeAccent' };
+// [row title, [component field key, settings key, label override]]. Opacity is edited in the background color.
+const APPEARANCE_ROWS = [
+  ['排版', [['overlayFontFamily', 'overlayFontFamily'], ['overlayFontWeight', 'overlayFontWeight'],
+    ['themeFontScale', 'themeFontScale']]],
+  ['配色', [['themeBackground', 'themeBackground', '背景'], ['themeOpacity', 'themeOpacity'],
+    ['themeText', 'themeText', '文字'], ['themePrimary', 'themePrimary'], ['themeAccent', 'themeAccent']]],
+  ['布局', [['compact', 'blindboxCompact'], ['noScroll', 'blindboxAutoPages']]],
+];
 
 function parseBlindboxConfig(textarea) {
   const raw = (textarea.value || '').trim();
@@ -62,29 +67,49 @@ export function createBlindboxSettings({
 
   function mountAppearanceFields() {
     const host = documentRef.getElementById('blindboxAppearanceFields');
-    for (const [key, setting] of Object.entries(APPEARANCE_FIELDS)) {
-      const field = SCENE_EXTRA_COMPONENTS.blindbox.fields[key];
-      const label = documentRef.createElement('label');
-      const name = documentRef.createElement('span');
-      name.textContent = field.label;
-      const input = documentRef.createElement(field.type === 'select' ? 'select' : 'input');
-      input.id = `blindboxAppearance-${key}`;
-      if (field.type === 'select') {
-        for (const [value, text] of Object.entries(field.options)) {
-          const option = documentRef.createElement('option');
-          option.value = value; option.textContent = text; input.append(option);
+    const create = (tag, className, text) => {
+      const node = documentRef.createElement(tag);
+      if (className) node.className = className;
+      if (text) node.textContent = text;
+      return node;
+    };
+    for (const [rowTitle, fields] of APPEARANCE_ROWS) {
+      const row = create('div', 'blindbox-appearance-row');
+      const grid = create('div', 'blindbox-appearance-grid');
+      row.append(create('span', 'blindbox-row-title', rowTitle), grid);
+      for (const [key, setting, labelText] of fields) {
+        const field = SCENE_EXTRA_COMPONENTS.blindbox.fields[key];
+        const fontFamily = key === 'overlayFontFamily';
+        const label = create('label', fontFamily ? 'blindbox-span-2' : '');
+        const name = create('span', '', labelText || field.label);
+        const input = create(fontFamily || field.type === 'select' ? 'select' : 'input');
+        input.id = `blindboxAppearance-${key}`;
+        if (fontFamily) {
+          // Same searchable font picker as the canvas for this shared setting.
+          populateSystemFontOptions(input, field.maxLength);
+          registerFontSelect(input, { maxLength: field.maxLength });
+        } else if (field.type === 'select') {
+          for (const [value, text] of Object.entries(field.options)) {
+            const option = documentRef.createElement('option');
+            option.value = value; option.textContent = text; input.append(option);
+          }
+        } else input.type = field.type;
+        if (field.opacity) input.dataset.colorOpacity = `blindboxAppearance-${field.opacity}`;
+        if (field.type === 'number') {
+          input.min = field.min; input.max = field.max; input.step = field.step; input.required = true;
         }
-      } else input.type = field.type;
-      if (field.type === 'number') {
-        input.min = field.min; input.max = field.max; input.step = field.step; input.required = true;
+        if (field.maxLength && !fontFamily) input.maxLength = field.maxLength;
+        if (field.type === 'checkbox') {
+          label.className = 'switch-control';
+          input.setAttribute('role', 'switch');
+          const track = create('span', 'switch-track');
+          track.setAttribute('aria-hidden', 'true');
+          label.append(input, track, name);
+        } else label.append(name, input);
+        grid.append(label);
+        overlayFields.push([input.id, setting]);
       }
-      if (field.maxLength) input.maxLength = field.maxLength;
-      if (field.type === 'checkbox') {
-        label.className = 'blindbox-appearance-toggle';
-        label.append(input, name);
-      } else label.append(name, input);
-      host.append(label);
-      overlayFields.push([input.id, setting]);
+      host.append(row);
     }
   }
 
@@ -240,7 +265,10 @@ export function createBlindboxSettings({
         const input = documentRef.getElementById(id);
         if (!input || settings?.[setting] === undefined || documentRef.activeElement === input) continue;
         if (input.type === 'checkbox') input.checked = settings[setting] === 'true';
-        else input.value = settings[setting];
+        else {
+          if (input.dataset?.selectFontPreview !== undefined) ensureSavedFontOption(input, settings[setting]);
+          input.value = settings[setting];
+        }
       }
       updateHeartBoxSettings();
     };

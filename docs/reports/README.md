@@ -6,6 +6,7 @@
 
 ## 历史报告
 
+- [独立组件浏览器源检查](2026-11-06-standalone-component-sources.md)
 - [持续只读审计：安全、正确性、资源与代码质量](2026-11-05-continuous-audit.md)（[审计提示词](2026-11-05-continuous-audit-prompt.md)）
 - [客户端与服务器持续代码审计及复核修复结果](2026-10-29-full-stack-audit.md)（[审计提示词](2026-10-29-full-stack-audit-prompt.md)）
 - [客户端架构与命名审查及整改结果](2026-10-28-client-architecture-naming-review.md)（[审查提示词](2026-10-28-client-architecture-naming-review-prompt.md)）

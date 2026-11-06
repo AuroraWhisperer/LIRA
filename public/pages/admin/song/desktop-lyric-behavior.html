@@ -1,219 +1,200 @@
-<details class="desktop-lyric-settings-group is-content" open>
-  <summary>
-    <span><strong>显示策略</strong></span
-    ><span class="desktop-lyric-group-count">8 项</span>
-  </summary>
-  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-    <section class="desktop-lyric-karaoke-card" aria-labelledby="desktopLyricKaraokeTitle">
-      <div class="desktop-lyric-karaoke-heading">
-        <div class="desktop-lyric-control-copy">
-          <strong id="desktopLyricKaraokeTitle"
-            >逐字高亮方式
-            <lira-help
-              ><span id="desktopLyricKaraokeHint">连续填充更细腻；逐字点亮按时间点切换，更省资源。已唱颜色用于当前句的逐字高亮；未唱颜色也用于普通整句、翻译及关闭逐字时的歌词。</span></lira-help
-            ></strong
-          >
-        </div>
-        <span class="desktop-lyric-karaoke-badge">高亮</span>
-      </div>
-      <div
-        id="desktopLyricKaraokeMode"
-        class="desktop-lyric-karaoke-options"
-        role="radiogroup"
-        aria-labelledby="desktopLyricKaraokeTitle"
-        aria-describedby="desktopLyricKaraokeHint"
-      >
-        <label class="desktop-lyric-karaoke-option">
-          <input type="radio" name="desktopLyricKaraokeMode" value="off" />
-          <span class="desktop-lyric-karaoke-choice"><strong>关闭</strong><small>整句显示</small></span>
-        </label>
-        <label class="desktop-lyric-karaoke-option">
-          <input type="radio" name="desktopLyricKaraokeMode" value="continuous" checked />
-          <span class="desktop-lyric-karaoke-choice"><strong>连续填充</strong><small>细腻跟随</small></span>
-        </label>
-        <label class="desktop-lyric-karaoke-option">
-          <input type="radio" name="desktopLyricKaraokeMode" value="discrete" />
-          <span class="desktop-lyric-karaoke-choice"><strong>逐字点亮</strong><small>低功耗</small></span>
-        </label>
-      </div>
-      <div class="desktop-lyric-control">
-        <div class="desktop-lyric-control-copy">
-          <strong id="desktopLyricSungColorLabel">已唱颜色</strong>
-          <label class="hint"><input id="desktopLyricSungColorInherited" type="checkbox" checked />跟随样式</label>
-        </div>
-        <input id="desktopLyricSungColor" type="color" value="#ffcf4a" aria-labelledby="desktopLyricSungColorLabel" disabled />
-      </div>
-      <div class="desktop-lyric-control">
-        <div class="desktop-lyric-control-copy">
-          <strong id="desktopLyricTextColorLabel">未唱颜色</strong>
-          <small>同时用于普通整句、翻译和罗马音</small>
-        </div>
-        <input id="desktopLyricTextColor" type="color" value="#000000" aria-labelledby="desktopLyricTextColorLabel" />
-      </div>
-    </section>
-    <input id="desktopLyricKaraokeEnabled" type="checkbox" hidden />
-    <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShowTranslationLabel">显示翻译歌词</span></strong></span
-      ><label class="switch-control"
-        ><input aria-labelledby="desktopLyricShowTranslationLabel" id="desktopLyricShowTranslation" type="checkbox" checked /><span
-          class="switch-track"
-          aria-hidden="true"
-        ></span
-      ></label>
-    </div>
-    <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslationScaleLabel">翻译行缩放比例</span></strong></span
-      ><span class="range-row"
-        ><input
-          aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScale"
-          class="parameter-range parameter-range--scale"
-          type="range"
-          min="0.4"
-          max="1"
-          step="0.05"
-          value="0.65"
-        /><input aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScaleNumber" type="number" min="40" max="100" step="5" value="65" /><span
-          class="desktop-lyric-unit"
-          >%</span
-        ></span
-      ></label
-    >
-    <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricHidePassedLinesLabel">隐藏已唱歌词</span></strong></span
-      ><label class="switch-control"
-        ><input aria-labelledby="desktopLyricHidePassedLinesLabel" id="desktopLyricHidePassedLines" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
-      ></label>
-    </div>
-    <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"
-        ><strong><span id="desktopLyricTraditionalModeLabel">繁体中文模式</span> <lira-help>优先使用字体的繁体字形。</lira-help></strong></span
-      ><label class="switch-control"
-        ><input aria-labelledby="desktopLyricTraditionalModeLabel" id="desktopLyricTraditionalMode" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
-      ></label>
-    </div>
-    <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricInterludeOffsetEmLabel">间奏提示点位置</span></strong></span
-      ><span class="range-row"
-        ><input
-          aria-labelledby="desktopLyricInterludeOffsetEmLabel" id="desktopLyricInterludeOffsetEm"
-          class="parameter-range parameter-range--centered"
-          type="range"
-          min="-10"
-          max="10"
-          step="0.5"
-          value="0"
-        /><input aria-labelledby="desktopLyricInterludeOffsetEmLabel" id="desktopLyricInterludeOffsetEmNumber" type="number" min="-10" max="10" step="0.5" value="0" /><span
-          class="desktop-lyric-unit"
-          >em</span
-        ></span
-      ></label
+<div class="desktop-lyric-control desktop-lyric-karaoke-control" aria-labelledby="desktopLyricKaraokeTitle">
+  <div class="desktop-lyric-control-copy">
+    <strong id="desktopLyricKaraokeTitle"
+      >逐字高亮方式
+      <lira-help
+        ><span id="desktopLyricKaraokeHint">连续填充更细腻；逐字点亮按时间点切换，更省资源。已唱颜色用于当前句的逐字高亮；未唱颜色也用于普通整句、翻译及关闭逐字时的歌词。</span></lira-help
+      ></strong
     >
   </div>
-</details>
+  <div
+    id="desktopLyricKaraokeMode"
+    class="desktop-lyric-karaoke-options"
+    role="radiogroup"
+    aria-labelledby="desktopLyricKaraokeTitle"
+    aria-describedby="desktopLyricKaraokeHint"
+  >
+    <label class="desktop-lyric-karaoke-option">
+      <input type="radio" name="desktopLyricKaraokeMode" value="off" />
+      <span class="desktop-lyric-karaoke-choice"><strong>关闭</strong><small>整句显示</small></span>
+    </label>
+    <label class="desktop-lyric-karaoke-option">
+      <input type="radio" name="desktopLyricKaraokeMode" value="continuous" checked />
+      <span class="desktop-lyric-karaoke-choice"><strong>连续填充</strong><small>细腻跟随</small></span>
+    </label>
+    <label class="desktop-lyric-karaoke-option">
+      <input type="radio" name="desktopLyricKaraokeMode" value="discrete" />
+      <span class="desktop-lyric-karaoke-choice"><strong>逐字点亮</strong><small>低功耗</small></span>
+    </label>
+  </div>
+</div>
+<div class="desktop-lyric-control">
+  <div class="desktop-lyric-control-copy">
+    <strong id="desktopLyricSungColorLabel">已唱颜色</strong>
+    <label class="hint"><input id="desktopLyricSungColorInherited" type="checkbox" checked />跟随样式</label>
+  </div>
+  <input id="desktopLyricSungColor" type="color" value="#ffcf4a" aria-labelledby="desktopLyricSungColorLabel" disabled />
+</div>
+<div class="desktop-lyric-control">
+  <div class="desktop-lyric-control-copy">
+    <strong id="desktopLyricTextColorLabel">未唱颜色</strong>
+    <small>同时用于普通整句、翻译和罗马音</small>
+  </div>
+  <input id="desktopLyricTextColor" type="color" value="#000000" aria-labelledby="desktopLyricTextColorLabel" />
+</div>
+<input id="desktopLyricKaraokeEnabled" type="checkbox" hidden />
+<div class="desktop-lyric-control">
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShowTranslationLabel">显示翻译歌词</span></strong></span
+  ><label class="switch-control"
+    ><input aria-labelledby="desktopLyricShowTranslationLabel" id="desktopLyricShowTranslation" type="checkbox" checked /><span
+      class="switch-track"
+      aria-hidden="true"
+    ></span
+  ></label>
+</div>
+<label class="desktop-lyric-control desktop-lyric-range-control"
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslationScaleLabel">翻译字号比例</span></strong></span
+  ><span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScale"
+      class="parameter-range parameter-range--scale"
+      type="range"
+      min="0.4"
+      max="1"
+      step="0.05"
+      value="0.65"
+    /><input aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScaleNumber" type="number" min="40" max="100" step="5" value="65" /><span
+      class="desktop-lyric-unit"
+      >%</span
+    ></span
+  ></label
+>
+<div class="desktop-lyric-control">
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricHidePassedLinesLabel">隐藏已唱歌词</span></strong></span
+  ><label class="switch-control"
+    ><input aria-labelledby="desktopLyricHidePassedLinesLabel" id="desktopLyricHidePassedLines" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
+  ></label>
+</div>
+<div class="desktop-lyric-control">
+  <span class="desktop-lyric-control-copy"
+    ><strong><span id="desktopLyricTraditionalModeLabel">优先使用繁体字形</span> <lira-help>使用字体提供的繁体字形，不转换歌词文本；效果取决于所选字体。</lira-help></strong></span
+  ><label class="switch-control"
+    ><input aria-labelledby="desktopLyricTraditionalModeLabel" id="desktopLyricTraditionalMode" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
+  ></label>
+</div>
+<label class="desktop-lyric-control desktop-lyric-range-control"
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricInterludeOffsetEmLabel">间奏提示点位置</span></strong></span
+  ><span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricInterludeOffsetEmLabel" id="desktopLyricInterludeOffsetEm"
+      class="parameter-range parameter-range--centered"
+      type="range"
+      min="-10"
+      max="10"
+      step="0.5"
+      value="0"
+    /><input aria-labelledby="desktopLyricInterludeOffsetEmLabel" id="desktopLyricInterludeOffsetEmNumber" type="number" min="-10" max="10" step="0.5" value="0" /><span
+      class="desktop-lyric-unit"
+      >em</span
+    ></span
+  ></label
+>
 
-<details class="desktop-lyric-settings-group is-visibility">
-  <summary>
-    <span><strong>可见性与同步</strong></span
-    ><span class="desktop-lyric-group-count">8 项</span>
-  </summary>
-  <div class="desktop-lyric-group-body desktop-lyric-settings-fields">
-    <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricHideOnPauseLabel">暂停时隐藏</span></strong></span
-      ><label class="switch-control"
-        ><input aria-labelledby="desktopLyricHideOnPauseLabel" id="desktopLyricHideOnPause" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
-      ></label>
-    </div>
-    <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricCurrentLineEnhancedLabel">当前行底板</span> <lira-help>为当前句添加半透明底板和光晕。关闭后仍保留逐字高亮。</lira-help></strong></span
-      ><label class="switch-control"
-        ><input aria-labelledby="desktopLyricCurrentLineEnhancedLabel" id="desktopLyricCurrentLineEnhanced" type="checkbox" /><span
-          class="switch-track"
-          aria-hidden="true"
-        ></span
-      ></label>
-    </div>
-    <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricOpacityLabel">歌词文字不透明度</span> <lira-help>统一影响已唱与未唱文字；两个颜色按钮中的不透明度分别作用于各自颜色。</lira-help></strong></span
-      ><span class="range-row"
-        ><input
-          aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacity"
-          class="parameter-range parameter-range--intensity"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value="0.95"
-        /><input aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacityNumber" type="number" min="0" max="100" step="5" value="95" /><span
-          class="desktop-lyric-unit"
-          >%</span
-        ></span
-      ></label
-    >
-    <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricBaseOpacityLabel">未唱歌词不透明度</span></strong></span
-      ><span class="range-row"
-        ><input
-          aria-labelledby="desktopLyricBaseOpacityLabel" id="desktopLyricBaseOpacity"
-          class="parameter-range parameter-range--intensity"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value="0.38"
-        /><input aria-labelledby="desktopLyricBaseOpacityLabel" id="desktopLyricBaseOpacityNumber" type="number" min="0" max="100" step="5" value="38" /><span
-          class="desktop-lyric-unit"
-          >%</span
-        ></span
-      ></label
-    >
-    <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslationOpacityLabel">翻译歌词不透明度</span></strong></span
-      ><span class="range-row"
-        ><input
-          aria-labelledby="desktopLyricTranslationOpacityLabel" id="desktopLyricTranslationOpacity"
-          class="parameter-range parameter-range--intensity"
-          type="range"
-          min="0"
-          max="1"
-          step="0.05"
-          value="0.72"
-        /><input aria-labelledby="desktopLyricTranslationOpacityLabel" id="desktopLyricTranslationOpacityNumber" type="number" min="0" max="100" step="5" value="72" /><span
-          class="desktop-lyric-unit"
-          >%</span
-        ></span
-      ></label
-    >
-    <label class="desktop-lyric-control desktop-lyric-range-control"
-      ><span class="desktop-lyric-control-copy"
-        ><strong><span id="desktopLyricTimeOffsetMsLabel">歌词画面时间偏移</span> <lira-help>调整浏览器源歌词画面；正值提前，负值延后。使用全民 K 歌时，会叠加“播放 → 全民 K 歌”中的歌词时间调整。</lira-help></strong></span
-      ><span class="range-row"
-        ><input
-          aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMs"
-          class="parameter-range parameter-range--centered"
-          type="range"
-          min="-5000"
-          max="5000"
-          step="50"
-          value="0"
-        /><input aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMsNumber" type="number" min="-5000" max="5000" step="50" value="0" /><span
-          class="desktop-lyric-unit"
-          >ms</span
-        ></span
-      ></label
-    >
-    <div class="desktop-lyric-control">
-      <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShowTitleWhenNoLyricLabel">无歌词时显示歌名</span></strong></span
-      ><label class="switch-control"
-        ><input aria-labelledby="desktopLyricShowTitleWhenNoLyricLabel" id="desktopLyricShowTitleWhenNoLyric" type="checkbox" /><span
-          class="switch-track"
-          aria-hidden="true"
-        ></span
-      ></label>
-    </div>
-    <label class="desktop-lyric-control"
-      ><span class="desktop-lyric-control-copy"
-        ><strong>无歌词提示文字 <lira-help>没有歌词和歌名时显示。</lira-help></strong></span
-      ><input id="desktopLyricNoLyricText" type="text" value="纯音乐，请欣赏" maxlength="80"
-    /></label>
-  </div>
-</details>
+<div class="desktop-lyric-control">
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricHideOnPauseLabel">暂停时隐藏</span></strong></span
+  ><label class="switch-control"
+    ><input aria-labelledby="desktopLyricHideOnPauseLabel" id="desktopLyricHideOnPause" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
+  ></label>
+</div>
+<div class="desktop-lyric-control">
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricCurrentLineEnhancedLabel">当前行底板</span> <lira-help>为当前句添加半透明底板和光晕。关闭后仍保留逐字高亮。</lira-help></strong></span
+  ><label class="switch-control"
+    ><input aria-labelledby="desktopLyricCurrentLineEnhancedLabel" id="desktopLyricCurrentLineEnhanced" type="checkbox" /><span
+      class="switch-track"
+      aria-hidden="true"
+    ></span
+  ></label>
+</div>
+<label class="desktop-lyric-control desktop-lyric-range-control"
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricOpacityLabel">歌词文字不透明度</span> <lira-help>统一影响已唱与未唱文字；两个颜色按钮中的不透明度分别作用于各自颜色。</lira-help></strong></span
+  ><span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacity"
+      class="parameter-range parameter-range--intensity"
+      type="range"
+      min="0"
+      max="1"
+      step="0.05"
+      value="0.95"
+    /><input aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacityNumber" type="number" min="0" max="100" step="5" value="95" /><span
+      class="desktop-lyric-unit"
+      >%</span
+    ></span
+  ></label
+>
+<label class="desktop-lyric-control desktop-lyric-range-control"
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricBaseOpacityLabel">非当前行不透明度</span></strong></span
+  ><span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricBaseOpacityLabel" id="desktopLyricBaseOpacity"
+      class="parameter-range parameter-range--intensity"
+      type="range"
+      min="0"
+      max="1"
+      step="0.05"
+      value="0.38"
+    /><input aria-labelledby="desktopLyricBaseOpacityLabel" id="desktopLyricBaseOpacityNumber" type="number" min="0" max="100" step="5" value="38" /><span
+      class="desktop-lyric-unit"
+      >%</span
+    ></span
+  ></label
+>
+<label class="desktop-lyric-control desktop-lyric-range-control"
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslationOpacityLabel">翻译歌词不透明度</span></strong></span
+  ><span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricTranslationOpacityLabel" id="desktopLyricTranslationOpacity"
+      class="parameter-range parameter-range--intensity"
+      type="range"
+      min="0"
+      max="1"
+      step="0.05"
+      value="0.72"
+    /><input aria-labelledby="desktopLyricTranslationOpacityLabel" id="desktopLyricTranslationOpacityNumber" type="number" min="0" max="100" step="5" value="72" /><span
+      class="desktop-lyric-unit"
+      >%</span
+    ></span
+  ></label
+>
+<label class="desktop-lyric-control desktop-lyric-range-control"
+  ><span class="desktop-lyric-control-copy"
+    ><strong><span id="desktopLyricTimeOffsetMsLabel">歌词画面时间偏移</span> <lira-help>调整浏览器源歌词画面；正值提前，负值延后。使用全民 K 歌时，会叠加“播放 → 全民 K 歌”中的歌词时间调整。</lira-help></strong></span
+  ><span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMs"
+      class="parameter-range parameter-range--centered"
+      type="range"
+      min="-5000"
+      max="5000"
+      step="50"
+      value="0"
+    /><input aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMsNumber" type="number" min="-5000" max="5000" step="50" value="0" /><span
+      class="desktop-lyric-unit"
+      >ms</span
+    ></span
+  ></label
+>
+<div class="desktop-lyric-control">
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricShowTitleWhenNoLyricLabel">无歌词时显示歌名</span></strong></span
+  ><label class="switch-control"
+    ><input aria-labelledby="desktopLyricShowTitleWhenNoLyricLabel" id="desktopLyricShowTitleWhenNoLyric" type="checkbox" /><span
+      class="switch-track"
+      aria-hidden="true"
+    ></span
+  ></label>
+</div>
+<label class="desktop-lyric-control"
+  ><span class="desktop-lyric-control-copy"
+    ><strong>无歌词提示文字 <lira-help>没有歌词和歌名时显示。</lira-help></strong></span
+  ><input id="desktopLyricNoLyricText" type="text" value="纯音乐，请欣赏" maxlength="80"
+/></label>

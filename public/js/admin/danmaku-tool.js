@@ -1,7 +1,6 @@
 'use strict';
 import { toast as defaultToast } from '../shared/utils.js';
 import { readApiResponse } from '../shared/json-response.js';
-import { publishDanmakuTool } from './legacy-admin-bridge.js';
 
 import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
@@ -290,4 +289,3 @@ function refresh(options) {
 }
 
 export const danmakuTool = { init, refresh };
-publishDanmakuTool(danmakuTool);

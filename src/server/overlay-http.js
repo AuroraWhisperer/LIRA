@@ -43,11 +43,12 @@ async function handleOverlayApi(context, principal, request, res) {
       case '/api/gifts/display-settings':
         return reply(readGiftDisplaySettings(context.settings.get()));
       case '/api/gifts/wishes':
+      case '/api/gifts/heart-box-collection':
         if (query.has('sourceId') || query.has('source_id')) {
           return sendJson(res, 400, { ok: false, error: '礼物来源不能由页面指定。' });
         }
         try {
-          return reply(await context.giftWishes.getSnapshot());
+          return reply(await (pathName === '/api/gifts/wishes' ? context.giftWishes : context.heartBoxCollection).getSnapshot());
         } catch (error) {
           if (['GIFT_VIEW_STALE', 'GIFT_SOURCE_UNAVAILABLE'].includes(error.code)) {
             return sendJson(res, 409, { ok: false, error: error.message, code: error.code });
@@ -77,6 +78,7 @@ async function handleOverlayApi(context, principal, request, res) {
               cursor: query.get('cursor') || null,
               ...(query.has('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
               ...(query.get('conditional') === '1' ? { conditional: true } : {}),
+              ...(query.get('delta') === '1' ? { delta: true } : {}),
               ...(query.has('contentRevision') ? { contentRevision: query.get('contentRevision') } : {}),
             }),
           );

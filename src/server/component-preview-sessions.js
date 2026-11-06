@@ -7,6 +7,7 @@ const { normalizeStyleParameters } = require('../shared/component-style-paramete
 
 const PREVIEW_SESSION_TYPES = Object.freeze([...SHARED_SCENE_TYPES, 'canvas']);
 const SESSION_TTL_MS = 2 * 60 * 1000;
+const MAX_WAIT_MS = 20000;
 const MAX_PREVIEW_CONFIG_BYTES = MAX_SCENE_BYTES + 1024;
 const MAX_PREVIEW_STATE_BYTES = 2 * MAX_PREVIEW_CONFIG_BYTES + 4096;
 const MAX_PREVIEW_REQUEST_BYTES = MAX_PREVIEW_STATE_BYTES + 256 * 1024 + 4096;
@@ -33,9 +34,87 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   const anonymousScope = crypto.randomUUID();
   const owner = () => JSON.stringify(getOwner());
 
+  function wake(session, side) {
+    session?.waiters?.get(side)?.();
+  }
+
+  function checkWait(waitMs) {
+    if (!Number.isSafeInteger(waitMs) || waitMs < 0 || waitMs > MAX_WAIT_MS) fail(400, '预览等待时间无效。');
+  }
+
+  function waitFor(targets, side, waitMs, signal, read) {
+    signal?.throwIfAborted();
+    for (const session of targets) {
+      session.waiters ||= new Map();
+      wake(session, side);
+    }
+    return new Promise((resolve, reject) => {
+      let finished = false;
+      const finish = (error) => {
+        if (finished) return;
+        finished = true;
+        clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
+        for (const session of targets) if (session.waiters.get(side) === notify) session.waiters.delete(side);
+        try { if (error) reject(error); else resolve(read()); }
+        catch (failure) { reject(failure); }
+      };
+      const notify = () => finish();
+      const abort = () => finish(signal.reason);
+      const timer = setTimeout(notify, waitMs);
+      for (const session of targets) session.waiters.set(side, notify);
+      signal?.addEventListener('abort', abort, { once: true });
+    });
+  }
+
+  function batch({ entries, waitMs = 0 }, side, { signal } = {}) {
+    checkWait(waitMs);
+    const action = side === 'browser' ? 'read' : 'exchange';
+    const keys = side === 'browser'
+      ? ['action', 'id', 'token', 'attachmentId', 'focusId', 'stateRevision', 'displayRevision', 'ack']
+      : ['action', 'id', 'ack', 'incremental'];
+    if (!Array.isArray(entries) || !entries.length || entries.length > PREVIEW_SESSION_TYPES.length
+      || entries.some(entry => !record(entry) || entry.action !== action || Object.keys(entry).some(key => !keys.includes(key)))
+      || new Set(entries.map(entry => entry.id)).size !== entries.length) fail(400, '预览批量等待参数无效。');
+    entries = entries.map(entry => ({ ...entry }));
+    const validate = (checkReceipts = true) => entries.map(entry => {
+      if (side === 'browser') {
+        const session = authenticate(entry.id, entry.token);
+        if (now() - session.touched > SESSION_TTL_MS) fail(503, '正在等待客户端恢复连接，未保存修改仍保留。');
+        if (!session.attachmentId || entry.attachmentId !== session.attachmentId || session.detached) {
+          fail(409, '编辑已在其他页面继续，请刷新此页后重试。');
+        }
+        return session;
+      }
+      const session = get(entry.id);
+      if (checkReceipts && (entry.incremental !== true || !Number.isSafeInteger(entry.ack)
+        || entry.ack < session.ack || entry.ack > session.sequence)) fail(400, '预览确认序号无效。');
+      return session;
+    });
+    // Check the entire batch before any member renews its lease or ACKs a command.
+    const targets = validate();
+    if (side === 'desktop') for (const entry of entries) exchange(entry);
+    const read = () => {
+      // A pending response must recheck every member's current authority and attachment.
+      const current = validate(false);
+      return { updates: entries.map((entry, index) => ({ id: entry.id,
+        ...(side === 'browser' ? browser(entry, entry.token)
+          : copy({ commands: current[index].commands, closed: current[index].closed === true })) })), waitMs };
+    };
+    const initial = read();
+    const idle = initial.updates.every((update, index) => side === 'browser'
+      ? !Object.hasOwn(update, 'state') && !Object.hasOwn(update, 'display') && update.ack === entries[index].ack && !update.focus
+      : !update.commands.length && !update.closed);
+    return waitMs && idle ? waitFor(targets, side, waitMs, signal, read) : initial;
+  }
+
   function remove(id) {
-    sessions.get(id)?.focusRequest?.finish(false);
-    return sessions.delete(id);
+    const session = sessions.get(id);
+    const removed = sessions.delete(id);
+    session?.focusRequest?.finish(false);
+    wake(session, 'desktop');
+    wake(session, 'browser');
+    return removed;
   }
 
   function prune() {
@@ -129,6 +208,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         } };
       const timer = setTimeout(() => request.finish(false), 2000);
       session.focusRequest = request;
+      wake(session, 'browser');
     });
   }
 
@@ -176,7 +256,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     return { id, token, draftKey };
   }
 
-  function exchange({ id, state, display, ack, incremental = false }) {
+  function exchange({ id, state, display, ack, incremental = false, waitMs = 0 }, { signal } = {}) {
+    checkWait(waitMs);
     const session = get(id);
     const hasState = state !== undefined || incremental !== true;
     const hasDisplay = display !== undefined || incremental !== true;
@@ -192,13 +273,22 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       getOwner()?.scope || anonymousScope, 'canvas', next.saved.document?.id,
     ])).digest('hex');
     if (hasDisplay) { session.display = copy(display ?? null); session.displayRevision++; }
+    const ackChanged = session.ack !== ack;
     session.ack = ack;
     session.commands = session.commands.filter((command) => command.sequence > ack);
     session.touched = now();
-    return copy({ commands: session.commands, closed: session.closed === true });
+    if (hasState || hasDisplay || ackChanged) wake(session, 'browser');
+    const read = () => {
+      const current = get(id);
+      return copy({ commands: current.commands, closed: current.closed === true, ...(waitMs ? { waitMs } : {}) });
+    };
+    return waitMs && !session.commands.length && !session.closed
+      ? waitFor([session], 'desktop', waitMs, signal, read) : read();
   }
 
-  function browser({ id, action, change, baseItemIds, commandId, attachmentId, previousAttachmentId, focusId, stateRevision, displayRevision }, token) {
+  function browser({ id, action, change, baseItemIds, commandId, attachmentId, previousAttachmentId, focusId,
+    stateRevision, displayRevision, ack, waitMs = 0 }, token, { signal } = {}) {
+    checkWait(waitMs);
     const session = authenticate(id, token);
     // Keep at most one session per component so the original desktop can resume
     // after suspended timers. Browser capabilities cannot revive an idle lease.
@@ -218,6 +308,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         session.lastCommand = undefined;
       }
       session.touched = now();
+      wake(session, 'browser');
       return publicState(session);
     }
     if ((action !== 'read' || attachmentId !== undefined)
@@ -229,18 +320,33 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       session.focusRequest?.finish(false);
       // Keep the last identity so an in-flight startup read can still attach safely.
       session.detached = true;
+      wake(session, 'browser');
       return {};
     }
-    if (action === 'close') { session.focusRequest?.finish(false); session.closed = true; session.touched = now(); return {}; }
+    if (action === 'close') {
+      session.focusRequest?.finish(false);
+      session.closed = true;
+      session.touched = now();
+      wake(session, 'desktop');
+      wake(session, 'browser');
+      return {};
+    }
     if (action === 'read') {
       if (session.focusRequest && session.focusRequest.selection.id === focusId && session.focusRequest.attachmentId === attachmentId) {
         session.focusRequest.finish(true);
       }
       session.touched = now();
-      return publicState(session, { stateRevision, displayRevision });
+      if (waitMs && stateRevision === session.stateRevision && displayRevision === session.displayRevision
+        && ack === session.ack && !session.focusRequest) {
+        return waitFor([session], 'browser', waitMs, signal, () => ({
+          ...browser({ id, action, attachmentId, stateRevision, displayRevision }, token), waitMs,
+        }));
+      }
+      return { ...publicState(session, { stateRevision, displayRevision }), ...(waitMs ? { waitMs } : {}) };
     }
     if (!['edit', 'save', 'discard'].includes(action)
-      && !(session.component === 'canvas' && ['publish', 'source', 'preset'].includes(action))) fail(400, '不支持的预览操作。');
+      && !(session.component === 'canvas' && ['publish', 'source', 'preset'].includes(action))
+      && !(session.component === 'overtime' && action === 'control')) fail(400, '不支持的预览操作。');
     if (commandId !== undefined) {
       if (!Number.isSafeInteger(commandId) || commandId < 1) fail(400, '预览操作编号无效。');
       if (commandId < session.lastCommand?.id) fail(409, '预览操作已过期，请重新打开预览。');
@@ -257,6 +363,12 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       fail(400, '预览参数无效。');
     }
     if (action === 'edit') checkConfig(change, session.component);
+    if (action === 'control' && (!record(change)
+      || (change.action === 'time'
+        ? Object.keys(change).some(key => !['action', 'seconds'].includes(key)) || !Number.isSafeInteger(change.seconds)
+        : !['enable', 'disable', 'start', 'pause', 'reset'].includes(change.action) || Object.keys(change).length !== 1))) {
+      fail(400, '加班机操作无效。');
+    }
     if (baseItemIds !== undefined) {
       checkSize(baseItemIds, MAX_SCENE_BYTES);
       if (action !== 'edit' || session.component !== 'canvas' || !record(change.document)
@@ -277,10 +389,11 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
           || typeof change.title !== 'string' || !change.title.trim() || change.title.length > 80
           || typeof change.duplicate !== 'boolean' : true))) fail(400, '场景预设参数无效。');
     const sequence = ++session.sequence;
-    session.commands.push({ sequence, action, ...(['edit', 'preset'].includes(action) ? { change: copy(change) } : {}),
+    session.commands.push({ sequence, action, ...(['edit', 'preset', 'control'].includes(action) ? { change: copy(change) } : {}),
       ...(baseItemIds === undefined ? {} : { baseItemIds: [...baseItemIds] }) });
     if (commandId !== undefined) session.lastCommand = { id: commandId, sequence };
     session.touched = now();
+    wake(session, 'desktop');
     return { sequence };
   }
 
@@ -295,6 +408,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   }
 
   return { open, exchange, browser, link, resolveLink, focus, authorizeCanvasMedia,
+    readBatch: (input, options) => batch(input, 'browser', options),
+    exchangeBatch: (input, options) => batch(input, 'desktop', options),
     visitAssetReferences(visit) {
       prune();
       for (const session of sessions.values()) {

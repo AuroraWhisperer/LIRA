@@ -26,7 +26,9 @@ async function createFixture({ json = JSON } = {}) {
       events.push(event);
     },
   };
-  const { StateService } = await loadModuleExports(path.resolve('public/js/admin/state.js'), {
+  const [{ StateService }, { eventBus }] = await loadModuleExports([
+    path.resolve('public/js/admin/state.js'), path.resolve('public/js/shared/event-bus.js'),
+  ], {
     JSON: json,
     window,
     location: { protocol: 'http:', host: '127.0.0.1:3000' },
@@ -47,7 +49,7 @@ async function createFixture({ json = JSON } = {}) {
   });
   const service = new StateService();
   service.connectSocket();
-  return { service, requests, urls, timers, events, eventBus: window.AdminApp.eventBus };
+  return { service, requests, urls, timers, events, eventBus };
 }
 
 test('song filters only read songs and identical pending refreshes share a request', async () => {

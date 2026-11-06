@@ -1,4 +1,5 @@
-import { createDanmakuPreview, openDanmakuCanvas } from './danmaku-canvas-dialog.js';
+import { createDanmakuPreview } from './danmaku-preview.js';
+import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { observeAuthorizedAccount } from './authorized-account.js';
 import { readDanmakuAppearance, saveDanmakuAppearance } from './danmaku-appearance-api.js';
@@ -62,7 +63,7 @@ export function initDanmakuOverlaySettings(elements, toast) {
   discardButton?.addEventListener('click', () => controller.discard());
   reloadButton.addEventListener('click', () => { if (account) return controller.reload(); });
   elements.previewOverlayButton.addEventListener('click', () => {
-    canvasEditor = openDanmakuCanvas({ controller });
+    canvasEditor = openComponentPreview(createDanmakuPreview({ controller }));
   });
   observeAuthorizedAccount((next) => {
     if (next === account) return;

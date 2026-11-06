@@ -32,14 +32,15 @@ function handleDanmakuMessage(
   },
 ) {
   const text = cleanText(message);
-  const settings = context.settings();
+  let settings = source === 'superchat' ? context.settings() : null;
   if (source === 'superchat' && settings.scSongRequestEnabled === 'false') {
     return { accepted: false, reason: 'SC 点歌已关闭。' };
   }
-  const command = parseDanmakuCommand(text, settings);
+  const command = parseDanmakuCommand(text);
   if (!command) {
     return { accepted: false, reason: '不是点歌指令。' };
   }
+  settings ??= context.settings();
 
   const requesterIdentityType = identityType || (/^[1-9]\d{0,24}$/.test(cleanText(uid)) ? 'uid' : undefined);
   if (command.type === 'cancel') {

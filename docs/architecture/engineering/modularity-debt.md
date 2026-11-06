@@ -10,7 +10,23 @@
 
 已知状态、资源、事务及复杂流程问题在相关修改时复核，按真实职责整改并运行对应保护测试。文件变短不代表问题已解决；仅超过提示线也不新增整改任务。下文历史函数测量用于定位具体风险，不恢复旧文件上限或要求为数字拆分状态所有者。
 
-## 已知长函数：保留一个状态所有者
+## 2026-11-06 职责与依赖复核
+
+本轮按静态依赖、真实消费者与状态生命周期复核客户端，以下结果更新下文历史表的保留判断；历史跨度不代表当前行数。拆分依据是可独立拥有的状态、资源或规则，单纯装配、共享一次事务或共同取消代际仍保持同一 owner。
+
+| 范围 | 当前归属与处理 | 保留理由与行为保护 |
+| --- | --- | --- |
+| Electron 启停与窗口 | `desktop-lifecycle.js` 独占退出意图、确认、幂等关闭及截止时间；`desktop-main-window.js` 独占窗口和导航；日志与更新状态归各自 owner，删除 `desktop-state.js` | `main.js` 保留资源装配与释放顺序；shutdown、startup、request-auth 和资源生命周期测试执行真实模块 |
+| 授权及远端协议 | `device-authentication.js` 收拢完整设备 proof；gift/song/display/cloud-account 协议分别拥有请求编码、DTO 与能力协商；`license-transport.js` 只管网络/SSE/预算/取消 | manager 保留 token、账号代际、续期、撤销和 pending key 顺序；原授权、IPC、预算、abort 和 SSE 测试保护 |
+| 远端礼物 | `remote-gift-history.js` 拥有完整 history 分页与快照重启；source key 归 recovery rules；删除无消费者的旧 JSON cursor store | controller 仍独占来源代际、串行调度和取消，避免不同分页任务写入错误来源；history/retention/owner-isolation 测试保护 |
+| Admin 与播放 | 删除无真实消费者的 Admin 全局桥及播放加载壳；模型选择、歌曲草稿、列表筛选和资源完整性视图各自管理状态 | Admin 显式初始化和注入能力；播放控制器保留统一装配。启动、状态失效、歌曲编辑及菜单浏览器测试保护 |
+| AI 与 WeSing | AI 生成回合独立拥有上下文快照、工具和安全审核；模型 codec 收拢协议转换；WeSing tracker 合并播放证据与时钟 | AI service 保留队列、取消、投递确认后提交记忆；采集 engine 保留 IO、歌词和缓存。原生成/投递、协议和播放时钟测试保护 |
+| 领域与应用 | AI quota、gift 接注入 store；消息决策归 message application，维护恢复归已有 maintenance runtime；结算、画布 reducer、场景输出、硬件缓存分别归完整 owner | 领域不导入 storage/server/electron；加班机事务、游戏回合与场景授权校验仍归原服务。相关领域、传输和恢复测试保护 |
+| 服务运行期 | gift-sync runtime 拥有同步/retention store、就绪状态和 prune/cleanup 顺序 | `server.js` 保留部分初始化失败的统一清理与 HTTP 生命周期；重复为初始化、销毁或快照增加宽 context 包装没有收益 |
+
+静态门禁覆盖 `src/` 与 `public/js/` 的 ESM 导入及可执行字面量 require/import，禁止循环及已退役的跨层依赖。计算路径、运行时回调和动态状态仍依靠消费者审查及行为验证，不将静态无环表述为全部运行期行为已证明。迁移注册表、稳定声明数据和有独立生命周期的小模块继续保留；不按 600/800 行机械拆分。
+
+## 已知长函数：历史保留判断
 
 ### 2026-09-18 粉丝档案增量复核
 

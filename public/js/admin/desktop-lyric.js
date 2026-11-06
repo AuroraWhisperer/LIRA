@@ -11,6 +11,7 @@ import { desktopLyricPreview } from './desktop-lyric-preview.js';
 import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
 import { createLyricSourceControls } from './lyric-source-controls.js';
 import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.js';
+import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
@@ -21,6 +22,7 @@ export function createDesktopLyric({
   const AUTOSAVE_DELAY_MS = 500;
   const { setValue, api, dangerConfirm } = utils;
   const lyricSourceControls = createLyricSourceControls({ api, state });
+  let syncParameterLayout = () => {};
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',
@@ -68,6 +70,18 @@ export function createDesktopLyric({
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
+    const groups = document.getElementById('desktopLyricSettingGroups');
+    if (groups) {
+      const fields = new Map();
+      for (const key of Object.keys(DESKTOP_LYRIC_DEFAULTS)) {
+        const input = document.getElementById(key);
+        const label = input?.closest('.desktop-lyric-control');
+        if (label) fields.set(key, { input, label });
+      }
+      syncParameterLayout = groupDesktopLyricParameters(groups, fields);
+      groups.append(document.getElementById('desktopLyricResetBtn').closest('.desktop-lyric-reset-group'));
+      syncParameterLayout();
+    }
     lyricSourceControls.init();
     populateSystemFontOptions(document.getElementById('desktopLyricFontFamily'));
     registerFontSelect(document.getElementById('desktopLyricFontFamily'));
@@ -95,6 +109,8 @@ export function createDesktopLyric({
     const currentSettings = state.getAppState()?.settings;
     let settingsLoaded = Boolean(currentSettings);
     if (currentSettings) loadDesktopLyricSettings(currentSettings);
+    let savedValues = currentSettings ? collectDesktopLyric() : {};
+    let latestSettings = currentSettings || {};
 
     const setAutosaveState = (text, state = '') => {
       if (!autosaveState) return;
@@ -111,10 +127,17 @@ export function createDesktopLyric({
 
       saving = true;
       dirty = false;
+      const patch = Object.fromEntries(Object.entries(collectDesktopLyric()).filter(([key, value]) => value !== savedValues[key]));
       setAutosaveState('正在自动保存…', 'is-saving');
       try {
-        await api('/api/settings', collectDesktopLyric());
-        if (!dirty) setAutosaveState('已自动保存', 'is-saved');
+        const response = Object.keys(patch).length ? await api('/api/settings', patch) : null;
+        savedValues = { ...savedValues, ...patch };
+        latestSettings = response?.data?.settings || { ...latestSettings, ...patch };
+        if (!dirty) {
+          loadDesktopLyricSettings(latestSettings);
+          savedValues = collectDesktopLyric();
+          setAutosaveState('已自动保存', 'is-saved');
+        }
       } catch (_) {
         dirty = true;
         setAutosaveState('自动保存失败，请重试', 'is-error');
@@ -140,20 +163,24 @@ export function createDesktopLyric({
     };
 
     window.addEventListener('app:settings-state', (event) => {
+      latestSettings = event.detail;
       if (!settingsLoaded || (!dirty && !saving)) loadWeSingLyricSettings(event.detail);
       if (!settingsLoaded) {
         settingsLoaded = true;
         loadDesktopLyricSettings(event.detail);
+        savedValues = collectDesktopLyric();
       } else if (!dirty && !saving) {
         loadDesktopLyricSettings(event.detail);
+        savedValues = collectDesktopLyric();
       }
       if (!dirty) return;
       setAutosaveState('等待自动保存…', 'is-saving');
+      clearTimeout(autosaveTimer);
       autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     });
 
-    form.addEventListener('input', () => scheduleAutosave());
-    form.addEventListener('change', () => scheduleAutosave(true));
+    form.addEventListener('input', () => { syncParameterLayout(); scheduleAutosave(); });
+    form.addEventListener('change', () => { syncParameterLayout(); scheduleAutosave(true); });
     document.getElementById('desktopLyricResetBtn')?.addEventListener('click', async () => {
       if (!await dangerConfirm({ title: '恢复直播歌词默认设置？',
         message: '将覆盖已保存的歌词外观、显示行为和画面时间偏移，并立即应用。全民 K 歌的歌词源设置会保留。',
@@ -255,6 +282,7 @@ export function createDesktopLyric({
     });
     forms.refreshParameterRanges?.();
     syncDesktopLyricKaraokeColorControls(settings);
+    syncParameterLayout();
     preview.applySettings(settings);
   }
 

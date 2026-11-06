@@ -32,13 +32,17 @@ SC 行内删除提供 10 秒批次撤销：`superchat-undo.js` 保留服务端�
 
 Schema 3 按服务器协议接收完整历史活动目录，不额外设置 10,000 条活动身份的拒绝门槛；仍逐项核对字段、身份摘要、总数、业务版本和奖池引用，合法全包才持久化后发布。超过该数量的合法目录须完整刷新、重启可读；非法大目录保留旧快照，不能截断活动或删除未被当前奖池引用的历史身份。验证：`test/gifts/gift-identity-catalog.test.js`。
 
+`variant-room-catalog.js` 在一次合并中建立自定义盒子及产物的精确身份索引，复用 ID、名称与标价的匹配结果，避免每个产物分别扫描全目录。同一身份证据对应多个候选时仍不选择；房间顺序、已选 variant 去重和目录覆写规则保持原样。
+
 ## 1. 架构总览
 
 ### 礼物许愿
 
 同一轮快照按时间窗批量读取 count/todayCount，复用 retention 快照；
-`hybrid-catalog.getArtworkResolver` 按房间、全局目录及图片缓存 revision 复用图片索引，
-轮询不克隆整份目录。原目录 getter 仍返回副本，图片修复会使索引失效。
+`hybrid-catalog.getArtworkResolver` 按房间、全局目录修订及自定义盲盒配置内容复用礼物身份索引，
+仅对本轮实际消费的礼物读取本地图片。图片 revision 只使已解析路径失效，不再重建整份目录；
+下载完成立即更新，外部删除或损坏仍在一秒复查窗口后重新检查。房间同 key 条目保持优先，
+完整目录 getter 仍返回副本并保留原有图片完整性检查。
 
 `wish-service.js` 拥有三周期许愿；`wish-session.js` 按需读取 B 站 `room_init.live_time` / `live_status`，30 秒缓存并合并请求。直播间来自组合根的当前账号房间 getter。`gift-wish-store.js` 保存来源隔离的定义与最近直播窗口，按当前授权来源组合活动快照的最终流水、完整日汇总和非整日精确贡献。历史导入在快照激活后参与计数，不依赖实时通知资格；未激活下载不可见，互斥的统计集合避免重复累计。创建日及本场起止不以整日总量近似，正常明细回收不使已保留的进度倒退；存储与历史数据限制见[礼物保留存储](../storage.md#礼物保留存储)。
 
@@ -67,22 +71,28 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 按人民币元转换为整数分比较门槛，合格事件以稳定的 `gift-frame:<giftEventId>` ID 广播为 `gift:frame`，
 `themeId` 为 `woodland-bloom`。Adapter 不使用 `unit_price * num` 重算，也不读取官方媒体映射；
 开关关闭、非 final、零金额或不达阈值的行不广播。已撤销的缎带设置不参与触发。
+导入的全屏礼物感谢图片/视频样式各自判断：`buildGiftFrameStyleEvent` 按 `giftFrameStyleTriggers` 中每个样式 ID 的开关和含等号门槛筛选，同一笔礼物只生成一条 `gift-frame:<giftEventId>:imported`（`themeId: imported`，`styleIds` 列出达标样式），没有达标样式时不生成。候选样式 ID 由组合根从本机样式库读取（含已从可选库移除但场景可能仍引用的样式）；读取失败时不生成该事件，不影响林间花信和掉落/摇摇乐。该事件只发布到场景窗口，不广播到旧 `/gift-effects` WS 页面。
 管理页预览通过 `/api/gifts/frame/preview` 使用独立的预览 ID，不污染实时去重集合。
 事件的 `avatarUrl` 读取 final 行已知头像，复用 `gift/avatar-url.js` 的 HTTPS B 站 CDN 校验；
 缺失或不合法时为空字符串，不额外查询观众。展示端通过既有头像代理加载并在黄色铭牌上方显示。
+
+原生掉落与摇摇乐由 `gift/motion-config.js` 在同一 final 入口分别匹配 `giftDropEnabled/ThresholdRmb` 与 `giftSwingEnabled/ThresholdRmb`，使用权威 `total_price` 转整数分，包含门槛值；0 只放行正金额礼物，progress 与历史重放不触发。两款可同时生成，不参与林间花信的主题选择或队列。事件 ID 为 `gift-motion:<gift-drop|gift-swing>:<final行ID>`，复用原 `gift:frame` 本地 WS/场景交付与来源隔离；只增加展示字段 `startedAt/artworkPath/motion`。
+
+`runtime-transport.publishGiftFlushed` 在入口先捕获同一个本机时刻，后续图片准备不移动该时刻。图片按 `gift_variant_id` 优先、否则稳定礼物 ID，复用 `hybrid-catalog.getArtworkResolver()` 的精确活动身份索引和本地图片完整性缓存；不按名字猜图，不整库枚举、不重新请求远程图片。无可用原图时沿用已有礼物/舰队占位。每款参数随事件冻结，后续改设置不改变已显示实例的截止时间。具体播放和容量见[礼物展示页](../../frontend/overlays.md#14-礼物四方边框gift-effects)。
 
 大航海感谢由 `src/bilibili/gift/guard-thanks-config.js` 在同一 final 回调中生成：辉光和经典分别读取 `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`；新键为空时按旧 `guardThanksEnabled/TextMode/Style` 兼容解析，仅旧选中的风格继承开关。先用 `guard-gift-aliases.js` 规范化礼物 ID（`guard-3/2/1` 及其别名）识别舰长/提督/总督，ID 无法识别时只接受完全等于「舰长」「提督」「总督」的礼物名。合格行为每个启用风格分别以稳定 ID `guard-thanks:<giftEventId>:<aurora|classic>` 广播 `gift:guard-thanks`，携带等级、昵称、月数（礼物 `num`）、通过 HTTPS hdslb 白名单的头像、该风格的 `style/textMode`，同时启用时按辉光、经典顺序入队，分别去重；不读取金额阈值，也不改变记账、统计或边框。管理页预览经 `/api/gifts/guard-thanks/preview` 使用独立预览 ID。资源型航海旗帜由同模块的 `buildNauticalGuardThanksEvent` 生成 `style=nautical`、ID 后缀 `:nautical` 的独立事件；启用与兼容读取见[设置存储契约](../storage.md)，消费范围见[资源型样式](../../frontend/overlays.md#资源型样式)。
 
 装配点：`domainServices` 创建 `createGiftService`，注入 final 回调、加班消费者及 `getOvertimeEpoch`；`index.js` 注册礼物统计消费者并创建 `createGiftProjectionService`。原始检测、金额换算、连击定时器、盲盒匹配及旧记录修复实现已删除，没有本地检测模式或回退入口。本地 B 站连接通过独立的 `extractBilibiliGiftIdentity` 读取姓名、头像及舰队身份，不生成礼物记账事件。服务器事件经 `importProcessedGiftEvent` 进入投影器（见 §6.1）。
 
 查询装配由 `domainServices` 一次性创建并注入 `queryStore`、`maintenanceStore`。
+同一装配点创建 `projectionStore`、`statisticsStore`；`gift/index.js` 只组合领域服务与活动来源状态，不再接收数据库句柄或提供隐式存储构造。`createGiftProjectionService` 使用 `{ store, settings }`，`createGiftStatisticsConsumer` 使用 `{ store }`，查询函数直接消费查询端口。
 `query-service.js` 与 `blind-box-analysis.js` 不访问数据库；来源仅表达
 `{kind: 'local'}`、`{kind: 'source', sourceId}`、`{kind: 'unavailable'}`，由
 `gift-query-store.js` 翻译成 SQL。切换中或无效来源继续返回空查询且不重置冲刺。
 盲盒行筛选和排序由 query store 执行，领域层保留日期边界、聚合及展示投影。
 `gift-maintenance-store.js` 的 `clearRecent({updatedAt})` 保留最近 3000 条本地
 合格记录及 pending settlement 协调语义；不删除远端来源记录。
-旧导出函数及数据库构造参数仅由 `gift/index.js` 兼容适配。
+`gift/index.js` 保留领域函数导出，调用方须显式传入对应存储端口；数据库组装只存在于应用组合根。
 
 ## 2. 服务器结果投影（GiftProjectionService）
 
@@ -111,7 +121,9 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 ## 3. 历史导入与存储边界
 
-`projection-service.js` 接收窄 `store`，保留输入校验、progress/final 决策和重试生命周期。SQL 与表字段操作归 `storage/gift-projection-store.js`；`statistics-consumer.js` 委托 `storage/gift-statistics-store.js:deliverOnce` 在单个 `BEGIN IMMEDIATE` 事务内检查 final/资格/投递标记并更新统计标记。组合入口注入两个 store，原 gift 门面为旧 context 调用者提供适配。投影调用仍可加入 gift-sync-store 的现有事务，消费者仍只在提交后扇出，不新增 schema 或改变 cursor 原子性。
+`projection-service.js` 接收窄 `store`，保留输入校验、progress/final 决策和重试生命周期。SQL 与表字段操作归 `storage/gift-projection-store.js`；`statistics-consumer.js` 委托 `storage/gift-statistics-store.js:deliverOnce` 在单个 `BEGIN IMMEDIATE` 事务内检查 final/资格/投递标记并更新统计标记。组合入口注入两个 store，gift 门面不再将旧数据库 context 隐式转换为存储适配器。投影调用仍可加入 gift-sync-store 的现有事务，消费者仍只在提交后扇出，不新增 schema 或改变 cursor 原子性。
+
+[gift-sync-runtime.js](../../../../src/server/gift-sync-runtime.js) 以礼物数据库、历史导入和实时导入回调创建同步/保留存储，并拥有两者的应用生命周期。它保持历史、catch-up、旧协议提交与投影重建的现有端口；本地保留清理先裁剪明细，仅当本批没有删除明细时才清理旧快照，事务与投影 fence 仍归对应 storage 实现。
 
 `importProcessedHistoryRecord` 独立导入服务器历史 final，校验 source 和重复记录一致性，并把历史行标为不参与统计/加班。历史导入不派发消费者或边框事件。`normalizeGiftRow` 仅整理数据库输出类型；原始礼物输入归一化、近期命令查重、连击合并及 `repairGiftV2Events` 均已删除。数据库 schema 和已有历史记录不因删除代码而被清空。
 
@@ -125,17 +137,29 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 盲盒盈亏汇总、排行与分析只读 `final + gift_stats_eligible + is_blind_box=1 + blind_profit 非空` 的当前来源有效记录。统计默认查询本机当天；分析支持显式日期范围，由 [blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js) 的 `loadBlindBoxRows` 计算本机日期边界。日期默认值、范围校验、分页与返回字段统一见 [HTTP 契约](../api.md#10-礼物域gifts)。
 
-当天统计在查询 owner 内复用最近一次结果，键包含来源、本机当日始末时间戳、盒名及礼物库变更标记（同连接写入与其他连接提交）。歌词等无关场景更新不再重读并汇总全部盲盒行；本地旧来源、空结果仍可复用。原行修订、清理、来源切换、盒名筛选、跨日或运行中切换时区导致日界变化时，在下一次读取重新计算；事务内读取不进入缓存，避免回滚后的临时值泄漏。返回独立结果，展示消费者不会改写缓存。
+当天统计在查询 owner 内按来源、本机当日始末时间戳及礼物库变更标记（同连接写入与其他连接提交）缓存，保留最多两个最近使用的盒名结果，使管理页全部盲盒与心动盲盒展示交替读取时互不驱逐。歌词等无关场景更新不再重读并汇总全部盲盒行；本地旧来源、空结果仍可复用。原行修订、清理、来源切换、跨日或运行中切换时区导致日界变化时，旧结果全部失效；首次读取或已淘汰的盒名重新计算。事务内读取不进入缓存，避免回滚后的临时值泄漏。返回独立结果，展示消费者不会改写缓存。
 
 `boxName=心动盲盒` 的统计另返回 `heartBoxProgress.openedSinceCastle`：按 `created_at`（含毫秒）及行 ID 顺序，累计今天最近一次开出浪漫城堡之后的心动盲盒数量，出堡行将计数归零，今天未出堡则为今日累计。仅接受心动盲盒 ID `32251`（旧行缺 ID 时沿用精确盒名），浪漫城堡按产物 ID `32132` 识别；直送礼物、其他盒型/日期/来源不参与。进度包含盈亏未知但已确认的有效开盒记录，盈亏汇总仍排除这些行。计算从账本恢复，不依赖展示端累加；其他 `boxName` 查询的 `heartBoxProgress` 为 `null`。
 
+### 心动盲盒每周收集
+
+`gift/heart-box-collection.js` 拥有固定每周任务：按北京时间每周六 00:00（含）至周五 00:00（不含）累计，周五继续返回刚结束一期的结果，下一周六切换新一期。查询当前授权来源的已定稿、有效、正整数数量的心动盲盒，包含开启功能之前本期已有的流水及开出城堡的盒子，出堡不重置。盒 ID `32251` 跨活动身份累计；旧行仅缺盒 ID 时回退精确盒名「心动盲盒」，其他 ID 即使同名也不参与。复用 `gift-wish-store.js` 的窗口聚合与保留汇总，无任务表、启用时基线或本地累加计数。
+
+图片继续由目录 owner 的 `getArtworkResolver` 按需检查；活动身份 key 优先，稳定礼物 ID 仅在索引中唯一时可作别名，歧义不猜图，不在每次任务刷新时扫描或检查全库图片。缓存未就绪时任务仍可显示，组件以礼物盒 / 城堡线条图标承接缺图，不反复请求同一个失败地址。
+
+固定解锁为 20 个 → 4 倍限开 1 个、40 个 → 4 倍限开 2 个、80 个 → 5 倍限开 1 个、120 个 → 5 倍限开 2 个。服务返回下一未解锁档的目标及差额，全部解锁后目标保持 120、差额 0，真实数量继续保留。倍率是任务奖励展示，不计算或写入 B 站概率，也不自动扣减已开城堡。来源不可用时返回 `GIFT_SOURCE_UNAVAILABLE`，同步未完成时标 `partial:true`。独立只读接口见 [礼物 API](../api.md#10-礼物域gifts)，展示与操作见 [心动收集组件](../../frontend/overlays.md#心动盲盒收集组件)。
+
 ## 5. 礼物冲刺与查询
+
+礼物冲刺聚合在查询 owner 按来源和礼物库变更标记复用；队列等无关快照通知不会重复求和。目标值与开关仍每次读取，礼物写入、结转、重置、外部连接提交或来源切换使聚合失效；事务内读取不复用或发布缓存，避免回滚的临时结果进入后续快照。
 
 ### 流水筛选、选择快照与展示资料（2026-09-18）
 
 `history-filters.js` 拥有北京时间日期边界、独立用户/礼物名称过滤与来源版本。`getGiftHistory` 在完整有效流水上先筛选再分页，支持 today 和起止日期；游标绑定筛选、排序、asOf 与 viewRevision。viewRevision 包含 source、持久化 projection generation 及进程内来源切换代次。排序保留勾选，筛选、清库/重建、换来源使选择失效。
 
 礼物滚动的 `/api/gifts/history` 读取可选 `conditional=1`，响应增加 `contentRevision`；完成全部分页且每页版本一致后，下次首请求携带该值。未变化时返回 `unchanged:true`、空 `items`、空 `nextCursor` 与当前同步状态，复用上次完整记录；旧请求继续完整分页。版本覆盖真实礼物写入、外部数据库提交、来源/连接、筛选和可见时间边界，不能用只表示来源世代的 `viewRevision` 替代。跨页变更不确认版本，下一轮完整重读。
+
+本机滚动源与场景读取还可在 `conditional=1`、`created_at asc` 下选择 `delta=1`。首次仍读全量，各行额外含 `sortTime/sortId`，保持数据库原始时间文本升序、同时间 ID 降序；之后只在有完整且一致的基础版本时请求增量。有效增量返回 `delta:true/items/removedEventIds/contentRevision`、空 `nextCursor` 和当前同步状态，不提供全量 `total/totalPages`；先移除变动身份，再按原顺序合入当前仍可见的记录，因此更正、迟到 final 和成员移除不会漏掉。只使用连接内最近 1000 次变更、最多 64 个已读版本，候选超过本次页大小、基础版本丢失、物理删除、身份变化、外部提交或保留快照切换时回到普通完整分页。普通历史表格和旧调用无需选择该扩展。
 
 `gift-card-runtime.js` 对支持可选 `revision` 的远端 `gift-card-profiles` 做同样的完整分页确认；旧服务没有版本时继续全量读取。远端版本按租户、北京时间日、syncEpoch 和账本变更生成，与普通弹幕/进场写入无关。资料未变时复用 UID/头像准备结果，只重试仍缺失的 UID；头像修复后本地 `contentRevision` 变化。本地 `/api/gifts/card-profiles` 可携带 `contentRevision`，未变时返回空 `items` 和 `unchanged:true`；同来源同日的失败回退仍标 `partial:true`。两份完整输入未变时滚动源与画布复用卡片分组，独立变化的送礼人资料仍触发更新。
 
@@ -148,7 +172,7 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 | 事实       | 值                                                                                                                                                                                                                                                                                                                                                                                                                                                                | 出处                                                                                                                             |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | 开关/目标  | `enableGiftSprint`(默认 `'true'`)、`giftSprintTargetRmb`(默认 `'0'`,见 [storage.md](../storage.md) §7)                                                                                                                                                                                                                                                                                                                                                            | [settings-store.js:19-21](../../../../src/storage/settings-store.js#L19-L21)                                                     |
-| 全屏礼物感谢   | `giftFrameEnabled`(默认 `'false'`)、`giftFrameThresholdRmb`(默认 `'20'`)；这两个键专属特效 1 · 林间花信，固定 8 秒，不再配置主题/动效                                                                                                                                                                                                                                                                                                                         | [frame-config.js](../../../../src/bilibili/gift/frame-config.js)、[settings-store.js](../../../../src/storage/settings-store.js) |
+| 全屏礼物感谢   | `giftFrameEnabled`(默认 `'false'`)、`giftFrameThresholdRmb`(默认 `'20'`)；这两个键专属特效 1 · 林间花信，固定 8 秒，不再配置主题/动效。导入的图片/视频样式使用 `giftFrameStyleTriggers`(默认 `''`)，按样式 ID 各自保存开关与金额                                                                                                                                                                                                                                                                                                                         | [frame-config.js](../../../../src/bilibili/gift/frame-config.js)、[settings-store.js](../../../../src/storage/settings-store.js) |
 | 大航海感谢 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode` 分别控制两套动画（默认空值继承旧配置，见 [存储契约](../storage.md)） | [guard-thanks-config.js](../../../../src/bilibili/gift/guard-thanks-config.js) |
 | 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`(RMB)                                                                                                                                                                                                                                                                                                                                                                                                                               | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6)                                                          |
 | 冲刺快照   | `receivedRmb = SUM(total_price)`(final + 资格 + `counted_in_sprint=1`);`remainingRmb = max(0, target - received)`;**`remainingCrystalBalls = ceil(remaining / 100)`**                                                                                                                                                                                                                                                                                             | [query-service.js:99-122](../../../../src/bilibili/gift/query-service.js#L99-L122)                                               |
@@ -175,7 +199,7 @@ Electron 只在 main process 使用授权 DeviceBearer 请求远端礼物接口�
 | `X-Lira-Gift-Display: 1` | 基础 + `display` | display 必须完整对象，不能为 null；定义如下 |
 | 两项独立能力同时协商 | 基础 + 两个身份字段 + display | 仍是封闭集合，不接受其他扩展字段 |
 
-pull/history 的请求头由 [remote-gift-reads.js](../../../../src/electron/license/remote-gift-reads.js) 设置；SSE 在 [remote-license-client.js](../../../../src/electron/license/remote-license-client.js) 另带 `X-Lira-Gift-Effects: 1`，仅协商特效事件，不扩大记账 DTO。活动身份的目录对应关系见本文开头；展示能力不依赖活动身份能力。
+pull/history 与 SSE 的请求头统一由 [gift-protocol.js](../../../../src/electron/license/gift-protocol.js) 设置；SSE 另带 `X-Lira-Gift-Effects: 1`，仅协商特效事件，不扩大记账 DTO。活动身份的目录对应关系见本文开头；展示能力不依赖活动身份能力。
 
 `display={version:1,avatarUrl,guardLevel}`：avatarUrl 为 null 或长度≤2048的 HTTPS hdslb.com/其子域 URL，无用户名、密码、非默认端口、query、fragment；guardLevel 为 null 或0/1/2/3。null 表示未知，0 表示已知无大航海等级。不能按昵称补齐身份；头像补查只更新展示投影（§5）。wire 不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。
 

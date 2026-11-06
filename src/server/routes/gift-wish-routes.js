@@ -2,7 +2,7 @@
 
 const { sendJson } = require('../http-utils');
 
-function wishRoute(action) {
+function wishRoute(action, service = 'giftWishes') {
   return async (context, request, res) => {
     try {
       const body = action === 'getSnapshot' ? undefined : await request.body();
@@ -17,7 +17,7 @@ function wishRoute(action) {
           error: '礼物来源不能由页面指定。',
         });
       }
-      const data = await context.giftWishes[action](body);
+      const data = await context[service][action](body);
       if (action !== 'getSnapshot') context.broadcastSnapshot('gift:wishes');
       sendJson(res, 200, { ok: true, data });
     } catch (error) {
@@ -38,6 +38,7 @@ function wishRoute(action) {
 }
 
 const routes = {
+  'GET /api/gifts/heart-box-collection': wishRoute('getSnapshot', 'heartBoxCollection'),
   'GET /api/gifts/wishes': wishRoute('getSnapshot'),
   'POST /api/gifts/wishes/save': wishRoute('save'),
   'POST /api/gifts/wishes/delete': wishRoute('remove'),

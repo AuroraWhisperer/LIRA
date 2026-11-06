@@ -126,8 +126,9 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 | ----------------- | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
 | `queue-render.js` | `queue-theme.js`                                                               | render 拥有队列 DOM；theme 只映射设置到 CSS 变量并由 render 兼容再导出                                          |
 | `queue.js` | `queue-request-notice.js` | queue 接线并交付快照；notice 拥有提示 DOM、结果顺序、阅读时间、进出场/文字动画与资源释放 |
-| `gift-effects.js` | `gift-effects-frame.js`                                                        | 入口拥有 WebSocket、去重、队列和装饰粒子；frame controller 只拥有边框 DOM/WAAPI 时间线                          |
-| `games.js`        | `games-drawing.js` / `games-drawing-geometry.js` / `games-drawing-controls.js` | 入口拥有游戏会话和通用结果，games-session.js 负责增量与快照排序；drawing 拥有画板同步，geometry 是纯形状/颜色计算，controls 只适配画板启停与撤销状态 |
+| `gift-effects.js` | `gift-frame-queue.js` / `gift-frame-player.js` / `gift-motion-player.js` / `gift-effect-player.js` / `gift-effects-guard.js` / `gift-effects-component.js` | 固定来源入口拥有单一 WebSocket 和消息分发；各队列/播放器拥有自身去重、播放和清理；组件适配器只接收父页配置与事件，不另建连接。林间花信画面由 `gift-effects-frame.js` 播放，掉落物理由共享 `gift-drop-physics.js` 计算 |
+| `danmaku.js` | `danmaku-style-application.js` | 入口拥有配置接纳、feed 和数据连接；样式适配器将既有样式配置映射为 DOM dataset 与 CSS 变量，不持有消息或连接 |
+| `games.js`        | `games-result.js` / `games-drawing.js` / `games-drawing-geometry.js` / `games-drawing-controls.js` | 入口拥有游戏会话、结果操作请求和恢复，games-session.js 负责增量与快照排序；result 拥有结果窗、头像请求代次、位置及按钮状态；drawing 拥有画板同步，geometry 是纯形状/颜色计算，controls 只适配画板启停与撤销状态 |
 
 这些模块均由页面以 ES Module 加载；内部模块不得自行创建第二条 WebSocket 连接或重复持有会话状态。
 
@@ -150,6 +151,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 | `gift-effects` | GET `/bilibili/avatar` | `giftEffectDanmakuEnabled`；`gift:frame` 的礼物铭牌/特效身份字段，`gift:effect` 的播放 URL 与 RGB/alpha 布局，`gift:guard-thanks` 的等级/昵称/月数/头像/文字模式 |
 | `gift-feed` | GET `/gifts/display-settings`、`/gifts/history`、`/gifts/card-profiles`、`/overtime/gifts/catalog`、`/bilibili/avatar` | `gifts.viewRevision` 与刷新 reason；`gift-catalog:update` 仅为失效通知，不附完整目录 |
 | `gift-wishes` | GET `/gifts/wishes` | `gifts.viewRevision`；响应仅含当前来源的许愿定义、进度、直播窗口状态和分页信息 |
+| `heart-box-collection` | GET `/gifts/heart-box-collection` | `gifts.viewRevision`；响应仅含本期时间、收集状态、累计、下一档差额、四档奖励及缓存图片，不附送礼人或原始记录 |
 | `gift-sprint` | 无 | `giftSprint.targetRmb/remainingCrystalBalls`；月底冲刺文字版直接使用既有服务端折算数量，未设目标或断线时清空文字，重连恢复；页面 `/gift-sprint`，`preview=1` 显示底色与提示；画布模式通过父页接收同一投影，不启动子页 WebSocket |
 | `gift-export` | GET `/bilibili/avatar` | 无业务快照或专用消息；导出行、配置和目录由 Electron main 的冻结输入提供，不授予流水选择或导出 IPC 权限 |
 | `lyrics` | 无 | 本页歌词设置、`lyricState/lyricTimeline`；`lyric-state/lyric-timeline` 仅含曲名/艺人、行词文本与时间、播放/排序状态 |
@@ -161,7 +163,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 | `opening` | GET `/opening/config` | 无；配置仅启用、文案、画质/轨道/音符/均衡器、音频开关/音量及当前音频/人物图 URL |
 | `clock` | GET `/clock/config` | 无；仅 `style/showDate/showSeconds/hourFormat/label/flipFrameColor/flipFaceColor/flipTextColor/moonMode/moonIntervalSeconds` |
 
-本日礼物的服务端读取固定北京时间今天、每页 100 条、按创建时间升序；页面只能传分页 cursor 和 viewRevision，不能扩大日期、来源或筛选范围。返回仅保留 `viewRevision/nextCursor/partial`，以及横幅需要的 `eventId/artworkPath` 和礼物显示名、礼物 ID/变体、币种、单价、数量、头像、大航海等级。目录仅保留礼物 ID/名称/变体和本地图片路径，不暴露来源配置、同步状态或完整流水元数据。
+本日礼物的服务端读取固定北京时间今天、每页 100 条、按创建时间升序；页面可传分页 `cursor/viewRevision` 与条件读取 `conditional/contentRevision/delta`，不能扩大日期、来源或筛选范围。返回仅保留 `viewRevision/nextCursor/partial/contentRevision/unchanged`、增量标记与 `removedEventIds`，以及横幅需要的 `eventId/artworkPath`、可选排序标识 `sortTime/sortId` 和礼物显示名、礼物 ID/变体、币种、单价、数量、头像、大航海等级、时间。目录仅保留礼物 ID/名称/变体和本地图片路径，不暴露来源配置、同步状态或完整流水元数据。
 
 游戏投影按游戏类型逐字段选择。数字炸弹的隐藏数字、你画我猜的未揭晓词条/别名和管理态不对展示页开放；只有领域状态已经 `answerRevealed: true` 才传递 `revealedAnswer`。公开弹幕保留观众实际发送的文本。落子不能携带对象形式的主持控制指令，开始/配置游戏和转盘、提前揭晓/切换题目仍属于管理端。
 
@@ -348,12 +350,20 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 
 ### 1.4 礼物四方边框(`/gift-effects`)
 
+「全屏礼物感谢」内置 `gift-drop`（礼物掉落）和 `gift-swing`（礼物摇摇乐）。两款可同时启用，在客户端分别保存最低结算金额、大小和存活时长；摇摇乐另有摆幅。画布 `gift-frame` 的两张内置卡使用可选 `style` 字段选择对应主题；旧 `{}` / `follow` 接受全部已启用主题，导入资源和媒体样式不播放这两款。导入的图片/视频图层只播放 `themeId: imported` 且 `styleIds` 含自身 `mediaStyle.id` 的事件，不再跟随林间花信；其他图层（内置、林间花信资源样式、CSS 外观）忽略 `imported` 事件。预览样例不受此限制。规则由共享 `gift-frame-style-triggers.js` 的 `isGiftFrameEventForLayer` 拥有。启用与参数保存在本机设置，不复制进场景；修改只影响后续结算，画布示例从同一已保存设置读取，参数页的预览可展示未保存草稿。
+
+两款的参数直接展示在各自卡片中，均提供速度控制；掉落另有弹跳力度，摇摇乐可选择完整文字、仅礼物和数量、仅图片。范围与默认值见[本机礼物动效设置](../backend/storage.md#71-关键设置的归属与约束)。参数页由共享 `gift-motion-settings.js` 定义生成，保存与草稿预览复用同一组字段。
+
+`gift-motion-player.js` 和共享 `gift-drop-physics.js` 分别拥有 DOM/动画生命周期和固定步长刚体计算。事件沿现有 `gift:frame` 携带独立 `eventId`、`startedAt`（本机捕捉 final 的毫秒时刻）、`artworkPath` 与 `motion.size/durationSeconds/speed`，掉落另含 `bounce`，摇摇乐另含 `angle/textMode`，不进入旧 FIFO。大小按 1920×1080 逻辑舞台计算；速度按百分比控制运动快慢，掉落初速度按倍率缩放、重力按倍率平方缩放，碰撞取两件礼物较低的弹性，摇摇乐按倍率改变回摆节奏。旧事件缺少新字段时保持原速度、弹性与完整文字。每份截止时间固定为 `startedAt + durationSeconds * 1000`，速度设置、图片加载、准备等待、页面隐藏都不重置；最后 600ms 淡出，截止时移除刚体，失去支撑的上层继续受重力。摇摇乐每次结算生成一张底部弹簧立牌，文字按该次结算的 `textMode` 显示，独立回摆和到期；不合并不同结算的计时。
+
+掉落按数量生成图片，单次最多 60 张，超出部分在最后一张保留真实数量；同屏最多 400 张，新事件不提前淘汰旧礼物，容量满时不再加入。摇摇乐最多同时保留 80 张，新事件同样不挤走旧立牌。重复事件不重复生成；来源 reset、关闭画面和销毁清理节点、帧循环、预览定时器与监听。普通连接短暂中断时已显示的掉落仍按原截止时间结束。正式来源不产生示例、不重播历史、不增加图片目录或 B 站请求。
+
 `gift-effects.html` 保留透明全屏浏览器源地址，消费 `gift:frame`，并将 `gift:effect`
 交给独立的 `gift-effect-player.js`。官方特效按已验证 RGB/alpha 坐标用 WebGL 合成，
 单条播放、最多 3 条等待、等待超过 12 秒丢弃；错误、30 秒超时和停用统一清理。
 弹幕开关关闭或 WS 断开时停止指令特效并清空其队列；手动预览不受开关限制。
 服务器代码解析、桌面共用测试播放解析器和兼容规则见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。
-**特效 1 · 林间花信**（`themeId: woodland-bloom`）通过「更多样式」导入 1.0.0 ZIP 后播放本地 `woodland-bloom-v4.webm`，视频不再内置于安装包。
+**特效 1 · 林间花信**（`themeId: woodland-bloom`）通过全屏礼物感谢页「添加样式」导入 1.0.0 ZIP 后播放本地 `woodland-bloom-v4.webm`，视频不再内置于安装包。
 原生 2560×1440、30fps、8 秒，具有真实 VP9 Alpha。四边各层在 0–1.2 秒依次入场，1.2–7.2 秒完整动态展示，
 7.2–8 秒同步退场；植物与飘落装饰动作已包含在视频内。`gift-effects-frame.js` 使用原生 video 播放，
 不再逐帧重绘植物。视频与文字共享 1920×1080 逻辑舞台，按视口短边等比缩放并居中，不拉伸。
@@ -374,7 +384,7 @@ legacy 保留原 RGB 增益及亮度补偿。亮度权重为 (0.2126, 0.7152, 0.
 
 `gift-frame-queue.js` 负责自定义边框的 FIFO 队列：1 条播放、最多 50 条等待；当前播放不被插队或打断，
 满队列忽略新事件，已排队项不因等待时长失效，也不按金额排序。实时与预览均按 eventId 去重，
-预览接口每次生成独立 ID。队列只接受 `woodland-bloom`，缺省主题仍按特效 1 处理。
+预览接口每次生成独立 ID。队列接受 `woodland-bloom` 与 `imported`，缺省主题仍按特效 1 处理；导入媒体先由组件按 `styleIds` 筛选，再进入同一顺序队列，旧 `/gift-effects` 不接收导入事件。
 `gift-frame-player.js` 交给 `gift-effects-frame.js` 播放。特效 1 由 `giftFrameEnabled` 和
 `giftFrameThresholdRmb` 控制；final 礼物按整数分比较触发门槛。
 缎带礼笺已撤销，其管理入口、播放器与素材已移除；历史设置不再参与触发，旧主题事件被队列忽略。
@@ -462,6 +472,8 @@ WebSocket 通知合并后重读，可见时每 30 秒对账；隐藏时暂停协
 
 礼物横幅的图片解析由 `shared/gift-banner.js` 拥有。滚动展示、管理预览及 PNG 输出在接收目录快照时建立 variant ID 与「礼物 ID＋规范化名称」索引，同一快照的多张横幅共用；目录替换后重建。规范化继续使用 NFKC、空白合并及小写，重复匹配仍显示占位图，variant 优先且不回退到含糊名称，大航海图标与已指定 `artworkPath` 保持优先级。显式索引保存快照值；仍直接传入可变数组的一次性调用继续即时匹配，不隐式缓存旧数组。
 
+滚动源与画布首次完整读完当天分页后，以同一个内容版本请求有界增量；少量新礼物或更正只传变化行。客户端按 `sortTime` 升序、同时间 `sortId` 降序合并，替换或移除变化身份，保留未变化对象和完整轮播集合。日期、来源、投影代次仍独立校验；跨页内容变动不确认版本。服务器不能证明增量完整时自动返回普通分页，旧服务没有排序标识时继续条件确认和全量读取，详见 [礼物查询契约](../backend/bilibili/gift.md#5-礼物冲刺与查询)。
+
 ## 2. 队列叠加层(/queue)
 
 [overlays/queue.js](../../../public/js/overlays/queue.js) 渲染 `state.queue`(current + waiting)与 `state.superChats`:
@@ -516,7 +528,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 | `@container (max-aspect-ratio: 1.45)` | 竖屏(高 > 宽/1.45)收紧纵向间距                                                                                                                                                              | [overtime.css:274-276](../../../public/css/overlays/overtime.css#L274-L276) |
 | `@container (max-height: 239px)`      | 超矮场景隐藏送礼表头、压缩间距                                                                                                                                                              | [overtime.css:277-281](../../../public/css/overlays/overtime.css#L277-L281) |
 | `@supports not (font-size: 1cqmin)`   | 无 cq 支持时回退 `2vmin`                                                                                                                                                                    | [overtime.css:297-299](../../../public/css/overlays/overtime.css#L297-L299) |
-| `height: 100vh` → `100dvh`            | 先声明 `100vh` 兜底：内核支持 `container-type: size`（Chrome 105+）但不认 `100dvh`（Chrome 108+）时，高度声明失效会被尺寸包含（size containment）塌成 0，整个画面不可见（如直播姬浏览器源） | [overtime.css:17-18](../../../public/css/overlays/overtime.css#L17-L18)     |
+| `height: var(--component-height, 100vh)` | `100dvh` 覆盖必须放在 `@supports (height: 100dvh)` 内。旧内核对 `var()` 内不支持的单位会在计算值阶段判为无效，连续写 `vh`、`dvh` 不能兜底；配合 size containment 会使高度变成 0。已在 Chromium 106 复现并验证修复。 | [overtime.css](../../../public/css/overlays/overtime.css) |
 
 ### 4.3 时钟与数字呈现
 
@@ -531,6 +543,8 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 ## 5. 盲盒叠加层(/blindbox)
 
 客户端「组件 → 礼物姬 → 盲盒盈亏榜」和画布共用标题、榜单人数、盈利筛选、心动盲盒筛选、城堡展示、紧凑布局、自动翻页及字体配色设置。字体与配色继续沿用通用主题；画布只显示一个盈利筛选，旧 `hideLoss` 字段仍作兼容别名。新复制的地址不带这些参数，保存后跟随 settings 更新；已有 URL 显式提供的同名参数继续优先。筛选变更会重新读取统计并使场景盲盒缓存失效。
+
+面板最大高度以 `100vh` 减去上下边距为基线，仅在 `@supports (height: 100dvh)` 内改用 `dvh`，避免旧内核让带 `var()` 的 `calc()` 计算失效而丢失视口限制；超出高度的榜单仍可滚动。
 
 [overlays/blindbox.js](../../../public/js/overlays/blindbox.js):
 
@@ -567,8 +581,9 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 - 间奏提示:按上一句最后一个有效字词的结束时间计算空档，无逐字时间时使用有效的行结束时间；空档至少 6 秒，才在下一句前最后 3 秒显示三个点。只有开始时间或以下一句开始时间推算结束时间的普通歌词不猜测间奏；长前奏仍从歌曲起点计算。限定显示行数时，提示在已唱完的当前行内替换正文、翻译和罗马音，保留原占位，下一句不会被额外提示行推开；整首模式保留独立提示行。提示尺寸随字号调整，颜色跟随文字和显式已唱配色，跳转和模式切换会恢复歌词。
 - 预览底板:网格与纯色辅助背景按未唱文字的相对亮度自动使用浅色或深色，保证默认黑字和浅色文字均可检查；只影响管理页辅助底板，直播来源仍透明。无歌词提示也跟随文字颜色。
 - 文字描边:新配置、恢复默认及新建画布歌词组件的 `desktopLyricStrokeEnabled` 默认 `false`；缺失设置时同样关闭。已有配置中显式保存的描边选择继续生效。
-- 逐字配色:「显示策略 → 逐字高亮方式」及画布参数集中提供「已唱颜色」「未唱颜色」，基础样式不再重复展示文字颜色。未唱颜色复用原 `desktopLyricTextColor`，原保存值保持不变，同时用于普通整句、翻译、罗马音及关闭逐字时的歌词。新增 `desktopLyricSungColor` 默认空值，表示跟随样式（普通为 `#ffcf4a`，月渡花汀为 `#93682f`）；取消跟随后自定义当前句的已唱高亮色，两种高亮模式共用。两个颜色按钮各自支持透明度，不改写统一的 `desktopLyricOpacity`；「可见性与同步」保留歌词文字不透明度控制，统一影响两种颜色。恢复默认将未唱设为黑色、已唱恢复跟随。预览、直播来源和画布共用 `--preview-color` 与 `--preview-sung-color`。
-- 显示行数:管理页「基础样式 → 显示歌词行数」同步控制预览与浏览器源。设置 `desktopLyricVisibleLines` 为 `0` 时保持整首可见;正整数仍创建整首时间轴,只将当前行窗口外的行标记为不可见。`1` 仅显示当前行;偶数向下扩展,奇数向上下扩展,整首数据继续保留以保证同步和自动跟随。
+- 逐字配色:「高亮与配色 → 逐字高亮方式」及画布参数集中提供「已唱颜色」「未唱颜色」，文字排版不重复展示文字颜色。未唱颜色复用原 `desktopLyricTextColor`，原保存值保持不变，同时用于普通整句、翻译、罗马音及关闭逐字时的歌词。新增 `desktopLyricSungColor` 默认空值，表示跟随样式（普通为 `#ffcf4a`，月渡花汀为 `#93682f`）；取消跟随后自定义当前句的已唱高亮色，两种高亮模式共用。两个颜色按钮各自支持透明度，不改写统一的 `desktopLyricOpacity`；同组保留歌词文字不透明度控制，统一影响两种颜色。恢复默认将未唱设为黑色、已唱恢复跟随。预览、直播来源和画布共用 `--preview-color` 与 `--preview-sung-color`。
+- 设置分组:客户端与画布共用 `admin/desktop-lyric-parameter-layout.js`，依次为文字排版、显示内容、高亮与配色、描边与阴影、位置与动效、背景与画面、播放与同步。前两组默认展开；更多排版、当前行强调、阴影位置、位置微调、3D 倾斜和画面调色分别收在所属组内。翻译、描边、阴影、背景关闭时收起依赖参数，关闭逐字时收起已唱颜色，均保留原值；分组摘要展示当前状态，不统计参数数量。非当前行不透明度仍使用 `desktopLyricBaseOpacity`，同时作用于前后歌词；繁体字形仍由字体的 `font-variant-east-asian` 实现，不转换歌词文本。
+- 显示行数:管理页和画布「显示内容 → 显示行数」提供整首、当前句、当前句和下一句、自定义行数；选择自定义可继续输入原范围内的行数，切换预设后可回到本次编辑的自定义值。界面选项不新增持久化字段，仍由 `desktopLyricVisibleLines` 同步控制预览与浏览器源。设置 `desktopLyricVisibleLines` 为 `0` 时保持整首可见;正整数仍创建整首时间轴,只将当前行窗口外的行标记为不可见。`1` 仅显示当前行;偶数向下扩展,奇数向上下扩展,整首数据继续保留以保证同步和自动跟随。
 - 播放换句:正常播放到下一句时，`lyrics/desktop-lyric-line-transition.js` 记录换句前的位置；已经可见的行从原位置连续移动，新进入的行在 360ms 内轻移、淡入。退出显示窗口的句子保留切换瞬间的逐字高亮，以不参与布局及辅助阅读的短暂快照在 180ms 内淡出；结束、切歌、跳转、手动浏览及样式变更时清理。连续换句从尚未结束的动画位置续接，不排队。这项基础过渡独立于弹性动画开关，系统减少动态效果时只保留 140ms 淡入淡出。
 - 逐字动效:连续填充与按字点亮共用轻跳效果，按原始字词时间上浮、轻微放大，长音保持后柔和落回；默认样式、月渡花汀及共享该渲染器的样式均适用。暂停与跳转对齐播放位置，只为当前字词及短暂收尾创建位移动画；换行、关闭逐字或性能降级时释放，系统减少动态效果时只保留高亮。无逐字时间数据时保持原有整行显示，不推算字词时间。
 - 增量渲染:只为当前正在填充的词创建高亮动画；未开始的词保持未亮，唱完的词写入全亮状态后释放动画，跳回词内时按当前进度重建。暂停保留当前词的填充位置，不逐帧重写相同时间或反复调用 play/pause；手动及静态高亮只写变化值。倒计时只在目标句或显示秒数变化时更新。共享渲染器按规范化后的设置和完整时间轴去重，相同快照不重建歌词、取消换行动画或重置手动浏览；真实内容和设置变化仍即时生效。
@@ -599,7 +614,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 桌面弹幕外观由 `danmaku-appearance.js` 与 `danmaku-appearance-store.js` 按授权 Server origin + streamerId 保存在本机。`danmaku-overlay-settings.js` 复用配置控制器，通过本机管理 API 读取和保存，编辑仅为草稿；迟到回包不覆盖新编辑或新账号。首次成功读取承接旧远端配置，后续云端外观不再覆盖本地参数。具体接口见 [本机弹幕外观管理](../backend/api.md#本机弹幕外观管理)，持久格式见 [本地场景持久化](../backend/storage.md#本地场景持久化)。
 
-“预览与调整”由 `admin/danmaku-canvas-dialog.js` 提供组件描述，经 `component-preview-dialog.js` 打开系统浏览器中的场景编辑器。其 `/danmaku?preview=1&componentPreview=1` 子 frame 保留 `sandbox allow-scripts`、opaque origin，不能访问父页凭据/preload；网页修改经临时组件会话返回客户端原控制器，再写本机外观 API。关闭销毁 frame 和消息监听但保留共享草稿；账号切换使旧会话及迟到保存失效。新流程使用既有本机场景来源，要求桌面持续运行；旧服务器在线源独立兼容，当前客户端的外观保存不会改变其配置。
+“预览与调整”由 `admin/danmaku-overlay-settings.js` 使用 `danmaku-preview.js` 创建组件描述，再经 `component-preview-dialog.js` 打开系统浏览器中的场景编辑器。其 `/danmaku?preview=1&componentPreview=1` 子 frame 保留 `sandbox allow-scripts`、opaque origin，不能访问父页凭据/preload；网页修改经临时组件会话返回客户端原控制器，再写本机外观 API。关闭销毁 frame 和消息监听但保留共享草稿；账号切换使旧会话及迟到保存失效。新流程使用既有本机场景来源，要求桌面持续运行；旧服务器在线源独立兼容，当前客户端的外观保存不会改变其配置。
 
 独立弹幕的布局契约由 `shared/danmaku-layout.js` 定义为 `{canvas,contentScale,regions}`，与客户端 Node 校验保持一致；公共分辨率预设由 `shared/canvas-presets.js` 提供1280×720、1920×1080默认、2560×1440、3840×2160、1080×1920及自定义（320～7680整数）。各样式各自记忆 `{x,y,width,height}`；固定样式默认距左/下40，其中七款尺寸依次为bubble570×560、signal560×600、minimal588×576、ranked640×640、transparent520×540、identity640×616、moonlit640×720，Twitter 为530×850；outline/cream/glow默认铺满，称“区域随机”。新默认尺寸不覆盖已保存的区域位置和尺寸。独立弹幕区域至少64×64且不能超出其画布；统一编辑器的三栏布局及公共图层操作见下方组件系统说明。
 
@@ -627,9 +642,11 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 本地页面对去重、截取最近 50 条后的消息内容做完整比较。内容未变且 feed 无需初始化时，快照保留现有消息节点、到期计时器及尚未绘制的增量帧；仍更新直播连接状态。legacy WS 中已有内容完整匹配前缀的纯尾部追加复用正常追加，后续同 ID 单项继续去重；相同规范化外观不重复写入样式。首次空快照、前缀不符的消息修正/清空/补数、样式或全屏期限变更导致的 feed 重建仍执行权威恢复。此优化不改变场景/component 的配置确认或远端正式 overlay 的 SSE。真实页面模块和共享 feed 的节点/计时器回归见 `test/danmaku/danmaku-snapshot-stability.test.js`。
 
-弹幕组件依次展示监控及预览、最近使用、参数、弹幕过滤和保存操作；输出地址沿用公共场景入口。主页「最近使用」最多显示 4 款内置样式，当前草稿、已保存款优先，再按最近使用去重补齐；三种显示方式混排并标注类型。「全部样式」打开样式库，内置样式按显示方式、样式动效、节日限定和视觉风格取交集筛选；顶部排列筛选条件与「清除筛选」，底部紧凑栏固定显示结果数量与「添加样式」导入入口。样式动效按默认外观中的分层入场、独立图层变化或装饰动画标注，整卡淡入／平移、列表滚动或飘窗平移本身不计入；标签不随个人参数变化。选择内置卡片只更新原草稿并关闭弹窗；导入样式在库内独立展示，沿用原参数流程，不参与这些标签筛选和最近使用记录。
+弹幕组件依次展示监控及预览、最近使用、参数、弹幕过滤和保存操作；输出地址沿用公共场景入口。主页「最近使用」最多显示 4 款内置样式，当前草稿、已保存款优先，再按最近使用去重补齐；三种显示方式混排；客户端和画布的内置样式卡片均用紧凑单行展示左侧中文名称与右侧英文标识，客户端卡片的悬停提示保留显示方式。「全部样式」打开样式库，内置样式按显示方式、样式动效、节日限定和外观特征取交集筛选；顶部排列筛选条件与「清除筛选」，底部紧凑栏固定显示结果数量与「添加样式」导入入口。样式动效按默认外观中的分层入场、独立图层变化或装饰动画标注，整卡淡入／平移、列表滚动或飘窗平移本身不计入；标签不随个人参数变化。选择内置卡片只更新原草稿并关闭弹窗；导入样式在库内独立展示，沿用原参数流程，不参与这些标签筛选和最近使用记录。
 
-`public/js/admin/danmaku-style-library.js` 拥有选择器与最近使用记录，`danmaku-style-catalog.js` 只维护筛选标签。历史使用 `localStorage` 键 `lira.danmaku-recent-styles.v1.<encodeURIComponent(account)>`，按已有授权账号 UI 标识隔离并保留至重启后；只有同一控制器代际内保存成功才记录返回的 `saved.style`，浏览、选择、预览与保存失败不记入。原始 `data-danmaku-style` 卡片仅在库中保留一份供画布读取，主页副本使用 `data-recent-danmaku-style` 并转发原选择入口。
+外观特征按默认外观的可见元素标注：「文字」以文字、头像或细线框为主，没有明显的独立卡片底色；「卡片」使用对话气泡、色块卡片或界面窗格；「纸笺」具有便笺、手账、信纸、票据或纸页拼贴外观；「插画」具有花草、动物或节庆物件等独立装饰，不按观众头像或礼物图片归类；「光效」具有辉光、星光、流光或明显的渐变、虹彩材质。同一款可同时命中多个标签，例如流霞属于卡片与光效，花与信笺属于纸笺与插画。客户端与画布共用这些标签和筛选逻辑。
+
+`public/js/admin/danmaku-style-library.js` 拥有选择器与最近使用记录，`danmaku-style-catalog.js` 只维护筛选标签，`visual` 数组保存同一样式的多个外观特征。历史使用 `localStorage` 键 `lira.danmaku-recent-styles.v1.<encodeURIComponent(account)>`，按已有授权账号 UI 标识隔离并保留至重启后；只有同一控制器代际内保存成功才记录返回的 `saved.style`，浏览、选择、预览与保存失败不记入。原始 `data-danmaku-style` 卡片仅在库中保留一份供画布读取，主页副本使用 `data-recent-danmaku-style` 并转发原选择入口。
 
 `danmaku-style-options.js` 定义各样式字体、正文字号范围、背景不透明度、礼物插画及入场动画选项；无底色样式不显示底色参数，蝶恋花与流光溢彩没有独立礼物图位。`styleOptions` 由本机账号配置按样式保存，不受远端支持哪些样式限制。切换样式保留各自草稿，恢复默认只重置当前样式，仍需显式应用。固定样式另有“滚动方向”：up 为从下向上（默认），down 为从上向下；方向随当前样式草稿保存、传给本地预览并在保存后通过本地场景通知更新。随机样式隐藏且不接受该参数；反向排列仍淘汰最旧消息。区域随机的停留时间位于参数区，按当前样式保存。
 
@@ -639,7 +656,7 @@ HTTP 初始/重连请求带本页读取代次，较新的完整 WS 状态使旧�
 
 `styleOptions.<style>.fontSize` 只调节正文与行内表情，不作为整张卡片的缩放基准。普通正文和 SC 留言沿用各款字号比例，礼物／上舰文案保留各自排版层级；RIPPLOID 礼物票据固定字样不随正文变化。默认值为 30px，幽灵便笺 20px（16–36）、手账风 23px（18–48）、RIPPLOID 24px（18–48）、花与信笺 24px（18–40）、仿推特 3.0 22px（18–40）、漫画对白 26px（18–42）、散落小窗 26px（18–40）；其余范围由能力表定义。头像、头像框、昵称、徽章和装饰采用各款默认设计尺寸：幽灵便笺的 em 设计基准固定 20px，手账风固定 23px，绿萌简笔画／对白／流霞／雪狐物语／青雾／白描固定 30px；星语昵称固定 22.5px，点点流萤昵称固定 23.4px。气泡随正文换行和行高自然增高，装饰跟随对应边缘定位。琉璃、青墨笺和经典样式的昵称保留 30px，其他原已独立的样式保留自身设置。画布／组件整体缩放仍同时缩放文字与装饰；超高单条继续自动适配，其中流霞和雪狐的全宽事件卡同时临时缩小卡片基准与正文变量以重新换行，恢复空间后清除临时值。已有参数不迁移、不新增头像或昵称设置，切换及恢复默认仍只作用于当前样式；桌面预览与本机场景输出复用同一套 CSS，旧服务器源保留自己的兼容合同。
 
-`shared/danmaku-style-options.js` 的 `DANMAKU_OPTION_FIELDS` 集中维护参数名称、类型、范围、默认值、选项、分组及所需能力；`DANMAKU_STYLE_OPTIONS` 声明各款能力与默认值，`styleOptionFields(style)` 一次解析并缓存适用字段。常用与高级只是界面分组，不影响逐样式保存。通用外观效果仍由 `shared/component-style-parameters.js` 的 `STYLE_PARAMETER_GROUPS` 与能力表负责，保留既有 `styleOptions[style]` / `styleParameters[style]` 两类配置。
+`overlays/danmaku-style-application.js` 的 `applyStyleOptions` 将解析后的外观应用到 DOM、CSS 变量和 Twitter 文本节点，单向消费共享参数合同。`shared/danmaku-style-options.js` 保持无 DOM 副作用；其 `DANMAKU_OPTION_FIELDS` 集中维护参数名称、类型、范围、默认值、选项、分组及所需能力；`DANMAKU_STYLE_OPTIONS` 声明各款能力与默认值，`styleOptionFields(style)` 一次解析并缓存适用字段。常用与高级只是界面分组，不影响逐样式保存。通用外观效果仍由 `shared/component-style-parameters.js` 的 `STYLE_PARAMETER_GROUPS` 与能力表负责，保留既有 `styleOptions[style]` / `styleParameters[style]` 两类配置。
 
 以下本机专属参数沿用同一草稿、保存和恢复默认流程，不要求旧服务器在线源同步支持：
 
@@ -921,6 +938,7 @@ UID、未激活页签、陪伴天数、底栏提示和空列表文字复用元�
 同一 canvas 会话的组件、实例和场景切换复用同一个短入口，客户端串行更新最近选择后定位已有网页；恢复草稿的 draftKey 随场景变化，入口能力不随之变化。已删除实例或另一场景的旧选择回落到当前画布。能力的有效期与鉴权仍见 [API 注册表](../backend/api.md#浏览器组件预览)。
 顶部「添加组件」通过小窗按类别
 展示已有样式；“套装”入口按已导入的包显示名称、数量和样式卡片，点击卡片添加对应组件。
+样式卡片使用 8:5 预览舞台并等比容纳图片；只有一款时适度放大、最大宽 480px，弹幕筛选结果及无图文本框保持紧凑布局。背景与全屏礼物感谢读取成功但没有素材时显示导入指引，读取失败仍显示错误。
 套装成员来自本机已安装包的 styles 数组，按包分组显示；初始不再提供月渡花汀卡片。清单允许可变种类、数量和同类多个样式；分类页与套装页读取同一个库。
 
 导入后，“背景”分类和套装提供月渡花汀静态/动态两种背景。`background` 复用独立组件注册，`style` 默认为 `none`，导入后可为 `moonlit`（静态）或 `moonlit-animated`；新增时按当前画布宽高铺满并放在最上层；作为底图时需将图层拖到组件栏最右侧，之后可移动、缩放、隐藏和调整层级。`overlays/background.js` 先接入预览协议，再根据配置映射并解码图片；动态版由 `background-moonlit.js` 延迟加载并播放 `img/overlays/backgrounds/moonlit-loop-hq-60.webm`：同画风重新绘制底景、月亮、柳叶、灯笼、云雾与花瓣，逐枝节/逐叶动画和重新绘制的水纹、倒影离线以 3840×2160 缓冲抗锯齿合成并输出 2560×1440、60fps、24 秒无声循环；素材保留软 Alpha，原始 RGBA 帧直接编码，底景原画仍为 1672×941。运行时不再切条扭曲图片，也不需要 Canvas RAF。视频开始播放前或加载失败时保留原图；隐藏页面时暂停并保留进度，销毁时移除视频源与监听器，减少动态效果时显示静态原图。`background.css` 默认使用等比覆盖，非 16:9 容器居中裁切；可通过背景外观参数改为完整显示或拉伸。静态资源仍为 `img/overlays/backgrounds/moonlit.webp`，不修改开播动画底图。模板保留样式与本机资源映射，无业务数据；迁移到另一电脑需要连同素材库一起迁移。
@@ -939,6 +957,7 @@ UID、未激活页签、陪伴天数、底栏提示和空列表文字复用元�
 展示板及画布以百分比显示背景不透明度，持久化值仍为 0–1。
 
 参数区仅在 `sharedAppearance.getState(item)` 提供自动保存 owner 时标为即时生效；内置时钟、点歌板、弹幕姬和加班机的公共参数仍是控制器草稿，随保存并应用生效。位置、尺寸与图层仍需保存并应用。组件面板的画布入口优先选中对应已有图层，没有时加入未保存图层。
+参数区的保存状态明确标为「公共参数」，与顶部场景的未保存、当前输出状态分别呈现；公共参数没有未保存修改不代表场景布局已保存或应用。画布时钟的克隆参数面板以「当前样式」下拉切换内置样式，保留原参数与外置素材入口，不重复陈列整组样式卡片；客户端原样式选择器保持不变。
 部分保存失败、冲突或未完成草稿会停止发布，保留之前的直播布局；已经成功保存的共享外观继续生效。客户端浏览器源中的
 `canvas-overlay-source.js` 与网页按钮共用 `scene-source-url.js`，自动读取并显示首个已绑定场景的已发布地址，
 点击地址区域即可复制；未发布时提示先编辑并应用。进入浏览器源页、返回客户端或账号/在线来源改变时重新读取，
@@ -946,6 +965,8 @@ UID、未激活页签、陪伴天数、底栏提示和空列表文字复用元�
 
 独立组件来源 `/clock`、`/queue`、`/overtime` 和 `/danmaku?source=component` 可直接复制使用，
 无需打开场景编辑器、创建或发布场景。它们使用已保存的公共外观，与画布内同样式参数同步；显式 URL 参数继续覆盖对应字段。
+其他固定来源按本页 §1.0 的 scope 读取其领域配置及真实数据，不继承当前选中图层的独立配置或预览示例。
+独立图层使用 `/scene?id=…&item=…#token=…`，只输出该图层并归零位置；导入样式、背景和文本框复用此来源。
 本机弹幕的 `danmaku-component-source.js` 与场景共用 `display-source.js`，通过 `/api/danmaku/events`
 获知变化后读取 `/api/danmaku/display`；通知健康时五秒校验，断开时回退 750ms 读取。
 复用已有云展示缓冲、样式渲染和 canvas 坐标逻辑；不建立本地旧弹幕 WS 或第二条上游 SSE。
@@ -957,8 +978,8 @@ UID、未激活页签、陪伴天数、底栏提示和空列表文字复用元�
 身份版仍不超过原始设计大小。编辑时按宽度计算内容高度，避免旧框高度反过来限制面板；
 发布后的来源继续按已保存矩形完整容纳内容。透明样式不继承经典款的背景模糊设置。
 加班机页面已移除内嵌 iframe，保留紧凑运行状态、初始时长/外观分栏及通栏规则。
-其公共窗口默认实际只读状态，可切换运行/暂停/结束/未启用示例；示例加时与暂停不写业务接口。
-来源切换清理动画并重置 revision 基线，外观草稿保持；保存只向原 config 接口提交 `{path, fit}`。
+其公共窗口默认显示实际倒计时，小时/分钟/秒、启停和开始/暂停通过 overtime 会话中继到客户端原 `/api/overtime/time`、`/api/overtime/action`。操作立即保存并回填两端，替换非零剩余时间前确认；失败保留时间输入。运行/暂停/结束/未启用示例只供查看，没有修改示例时间的按钮。
+来源切换清理动画并重置 revision 基线，外观草稿保持；外观保存仍只向原 config 接口提交 `{path, fit}`，时间和规则不进入场景配置。
 
 组件扩展由各环境的显式定义负责：`shared/scene-components.js` 持有前端稳定类型、顺序、
 缩放轴、内容高度、子 renderer/默认来源 URL 和断线重置能力；
@@ -974,18 +995,22 @@ owner 注册，未知类型立即报错，不反向导入工厂或 owner。`cloc
 `shared/scene-extra-components.js` 定义开播动画、展示板、歌词、三类小游戏、全屏礼物感谢、大航海感谢、礼物滚动、盲盒榜、许愿的独立参数与选择项；
 `admin/scene-extra-preview.js` 直接在画布中创建参数面板，其修改由场景 owner 保存。
 展示板的示例歌曲分类跟随各图层的分类筛选，正式来源仍筛选实际歌库，不写入示例歌曲。兼容 blivechat/blc 的导入弹幕 CSS 在编辑预览中持续补充示例，避免退场动画后永久空白；页面隐藏时暂停，销毁时停止，正式来源只消费直播事件。
-小游戏画布通过 `admin/games-canvas-data.js` 在客户端每秒读取当前公开对局，沿现有预览会话传给游戏子页；不再使用固定示例局面。
+小游戏画布由 `admin/component-preview-canvas-controller.js` 配置公共 `canvas-data-poller.js`，在客户端每秒读取当前公开对局，沿现有预览会话传给游戏子页；不再使用固定示例局面。
 `overlays/games.js` 按实际棋盘字段复用数字炸弹按钮、五子棋按钮及坐标；相同完整快照不重建节点或重复绑定点击。落子、范围、回合和胜负变化仍更新棋盘，标题、结果、外观及你画我猜倒计时沿原路径更新。
-小游戏和开播数据适配器复用 `admin/canvas-data-poller.js` 的单请求轮询、超时及销毁取消；按画布组件类型决定是否请求，读取失败清空本次投影。
+小游戏和开播数据由画布控制器复用 `admin/canvas-data-poller.js` 的单请求轮询、超时及销毁取消；按画布组件类型决定是否请求，读取失败清空本次投影。
 没有匹配对局或读取失败时，编辑画布显示等待开局，正式来源仍隐藏未进行的游戏；开始、落子与绘画继续由「直播小游戏」管理。
 新添加的数字炸弹、五子棋、你画我猜分别默认 800 × 360、600 × 600、1280 × 720；五子棋棋盘按组件视口适配，已有图层保留保存的尺寸。
 礼物许愿的组件选择与展示样式均支持「月渡花汀」（`moonlit`）。独立浏览器源与场景画布共用
 `shared/gift-wish-card.js` 渲染入口；同一条月渡花汀许愿更新时保留卡片节点，使进度过渡和装饰动画连续。
-许愿画布由 `admin/gift-wishes-canvas-data.js` 从客户端缓存礼物目录随机选取有图片的礼物；全局目录不足时补读房间缓存，同次预览不随参数变化重新抽取。「显示条数」默认 1，可设为 1–30；示例不足时重复使用缓存礼物补足条数。示例周期随各图层的周期选择调整，切换长期或本场仍可预览。目录为空时提示同步礼物库，不使用虚构礼物。示例与进度不写入许愿或场景，正式来源仍读取实际许愿，最多显示设定条数。原生样式按内容测量高度，画布外框与参数中的自动高度一起更新，高度不超过场景画布；素材装饰保留自定义尺寸。月渡花汀在 640px 宽时的单条初始高度为 143px，旧套装尺寸由客户端实测纠正。
+画布内置「流光彩带」（`ribbon`），适用于普通礼物和大航海。`shared/gift-wish-ribbon.js` 负责图标、礼物名、已收/目标与流动斜纹；同一许愿更新时保留节点，填充封顶 100%，计数仍显示实际数量。外观保存在场景图层，不写入服务端许愿定义，正式输出使用发布后的场景地址。
+彩带字段由 `shared/gift-wish-ribbon-appearance.js` 声明并沿既有场景校验保存：`ribbonColor`（填充，`#ee87ac`）、`ribbonTrackColor`（未完成底色，`#fee6fb`）、`ribbonBorderColor`（边框，`#ffffff`）、`ribbonTextColor`（文字，`#ffffff`）、`ribbonOutlineColor`（描边，`#4b494b`）；`ribbonHeight` 为 40–120px（默认 68），`ribbonFontSize` 为名称字号 12–48px（默认 26，兼容原统一字号），`ribbonSpeed` 为 0–20 秒的流动周期（步长 0.5，默认 2，0 为静止）。`ribbonDecorationStyle`（「右下角装饰」）可选 `none`（无）、`pastry`（默认，原奶油条）、`bow`（蝴蝶结）、`sakura`（樱花）、`candy`（爱心糖）、`star`（流星）。旧开关 `ribbonDecorations` 保留用于读取已保存场景，`false` 仍隐藏装饰；参数面板以款式下拉项统一控制显示与造型，切换时同步该旧开关。四款新装饰使用随客户端交付的 `public/img/shared/gift-wish-ribbon/*.webp` 透明素材，预置倾角并按条高适配，底部预留空间以避免遮挡数字或裁切；切换款式复用卡片、斜纹与装饰节点。参数仅在彩带样式下显示；系统请求减少动态效果时停止条纹和进度过渡。
+`ribbonBorderWidth` 为 0–12px（默认 8，0 隐藏边框），`ribbonRadius` 为 0–36px（默认 10），`ribbonStripeWidth` 为条纹横向粗细 4–24px（默认 10，循环纹理尺寸为两倍），`ribbonFlowDirection` 为 `normal`（默认，向右）或 `reverse`（向左）；`ribbonNumberFontSize` 可独立设置为 12–48px，缺省或空值时跟随名称字号，沿用旧配置效果。参数面板分为「彩带外观」「文字与数字」「彩带动效」。为保持短条比例，实际边框不超过条高的 18%，圆角不超过条高的一半，图标不超出内框或组件内容宽度的 16%；名称和数字的实际字号同时限制在条高的一半及可用内高的 72% 以内，描边随各自字号缩放。数字还按字符数量适配组件宽度，完整显示长计数；名称使用剩余空间并保留完整名称提示。宽度或可用空间不足时，实际字号可低于输入字号。
+文字版的 `textPendingColor` / `textReceivedColor` 由每条许愿拥有，场景组件直接使用许愿投影中的颜色，随已保存设置及 `todayCount` 更新。画布不再提供整层颜色覆盖；旧场景中的同名字段仍可读取和保存，但不参与渲染，避免覆盖客户端设置。文字片段的显式配色仍按原规则优先于状态色。
+许愿画布由 `admin/gift-wishes-canvas-data.js` 读取已保存的许愿，保留实际周期、内容、进度和每条文字颜色；周期及完成项过滤与正式输出相同，没有许愿时提示客户端添加。`shared/gift-wish-client.js` 按接口地址共用一次可取消的三秒轮询，客户端许愿页和画布订阅同一数据，保存后的主动刷新同时更新两端；最后一个消费者退出时取消读取并清除缓存。多个图层不增加请求，切换到无许愿的场景释放订阅；失败清空画布旧内容。「显示条数」默认 1，可设为 1–30，不复制条目补足数量。原生样式按内容测量高度，画布外框与参数中的自动高度一起更新，高度不超过场景画布；素材装饰保留自定义尺寸。月渡花汀在 640px 宽时的单条初始高度为 143px，旧套装尺寸由客户端实测纠正。
 外观与动态效果规则见[前端页面](pages.md)。
 `gift-frame` 和 `guard-thanks` 是两个独立图层，分别通过 `/gift-effects?giftComponent=frame`、
 `/gift-effects?giftComponent=guard` 的无凭据组件模式复用现有播放器，只消费父页传入的对应事件。
-礼物姬预览入口直接打开并选中对应画布图层，不再提供独立播放页或共用来源地址。
+礼物姬预览入口直接打开并选中对应画布图层。固定 `/gift-effects` 来源仍由「点歌 → 浏览器源」和礼物特效工具提供，消费已启用的内置动效、林间花信、官方礼物特效及普通大航海感谢；导入的图片/视频感谢样式与航海旗帜使用对应图层的 `/scene` 单组件地址或组合场景。
 大航海感谢添加窗提供「辉光」「经典」两张独立卡片，以 `appearance.config.style=aurora/classic` 保存图层风格；各原生图层只播放对应风格的实时事件，预览按图层风格渲染。旧配置缺少 style 时归一为 `follow`，继续使用事件风格；普通媒体样式维持原事件消费行为，航海旗帜资源组件只消费上文的 nautical 专属事件。
 大航海感谢参数面板的动画风格属于持久化外观；预览等级（舰长/提督/总督）、观众昵称和月数（1–999）仍为示例参数，修改后立即重播，
 客户端礼物姬填写的这三项参数随预览入口带入画布并回填；持续轮询不覆盖画布中随后修改的值。
@@ -1007,6 +1032,14 @@ owner 注册，未知类型立即报错，不反向导入工厂或 owner。`cloc
 当前画布继续复用场景文档模型、stage、inspector 和模板数据契约。
 stage、inspector 和画布视图的只读路径使用模型的冻结快照及快照订阅，避免每个消费者重复深拷贝；编辑仍通过模型草稿与手势历史提交。
 
+### 心动盲盒收集组件
+
+`/heart-box-collection` 与场景类型 `heart-box-collection` 由 `shared/heart-box-collection.js` / `css/shared/heart-box-collection.css` 共用渲染。`displayStyle=task` 为粉色四档任务卡，`compact` 为深色紧凑进度；默认视口宽 620，内容高度随样式及奖励显隐自动测量。标题显示本期真实累计和下一档目标；粗轨道穿过圆形数字节点，已达成节点附勾、未解锁节点带锁，粉色款在轨道起点显示「已收集」。全达成保留超额数量。周五标注「收集已结束」，保留最终结果。
+
+布尔展示字段 `showRewards` 默认 `true`，两种样式均可关闭下方城堡、倍率和限开数量，标题、进度与节点保留。组件底部在所有收集状态下均不显示提示文字。独立 URL 使用 `showRewards=false`（或 `0`）关闭；管理页开关同步本页预览与复制地址，画布中的开关随该图层保存，旧场景缺字段时补默认值。标题与四档奖励分别使用实际心动盲盒、同一张浪漫城堡图片，静态透明 WebP 随组件打包在 `public/img/heart-box-collection/`，来源及转换摘要见该目录 `sources.json`；不依赖运行时礼物目录下载。
+
+管理菜单显示真实数据；画布以 37 / 40 的示例展示四档，正式场景由父页传入当前授权来源的只读投影，子页不另发请求或开连接。独立浏览器源复用许愿 feed 的单个可取消轮询及 scoped socket；来源变化清除旧画面，离开管理页停止轮询。服务器周期与解锁规则见 [每周任务](../backend/bilibili/gift.md#心动盲盒每周收集)，无需创建普通许愿或配置手动重置。
+
 ## 7. 数据消费一览
 
 | 叠加层       | 首帧                                                                 | 实时                                        | 去重指纹                                | 触发重载的 reason                                              |
@@ -1015,7 +1048,7 @@ stage、inspector 和画布视图的只读路径使用模型的冻结快照及�
 | songs        | `/api/state` + `/api/songs`                                          | snapshot                                    | orderKey/layoutKey/motionKey            | `songs:*`/`cloud:songs`/`database:clear`/`database:clear-all`(220ms 重载) |
 | blindbox     | `/api/state` + `/api/gifts/blind-box-stats`                          | snapshot(即时设置)+ 轮询                     | 统计内容相同保留节点                    | `bilibili:gift`/`gift:sprint:reset`/`connect`                  |
 | overtime     | `/api/state`(overtime 字段)                                          | snapshot + `overtime:update`                | `revision` 单调比较                     | `overtime:update` 的 adjustment → 动画入队                     |
-| gift-effects | `/gift-effects` 页面播放特效 1 的 8 秒透明 WebM + 独立 DOM 感谢词条 | `gift:frame`                                | `eventId` 去重 + 50 条 FIFO 等待，无等待时效  | 每个合格 final 礼物一次播放                                    |
+| gift-effects | 无触发事件时透明；snapshot 同步官方特效开关 | `gift:frame` / `gift:effect` / `gift:guard-thanks` | 各播放器按 `eventId` 去重；并行动效与串行队列分开，见 §1.4 | 新事件交给对应播放器；刷新不重播历史 |
 | opening      | `/api/opening/config`                                                | 无                                          | 无；首帧配置经枚举/文本清洗             | 页面加载一次；Admin 预览可由 URL 参数覆盖                      |
 | clock        | `/api/clock/config` + 设备本地时间；URL 参数可覆盖 | clock scope settings snapshot + 秒边界定时器 | HTTP 修订保护；单一计时器 | 初始读取及重连；快照原位更新 |
 | lyrics       | snapshot 中的设置、状态和时间轴                                      | `lyric-state` + `lyric-timeline` + snapshot | 当前行与时间轴内部去重                  | 播放页按状态变化推送                                           |
@@ -1094,6 +1127,8 @@ stage、inspector 和画布视图的只读路径使用模型的冻结快照及�
 选项文字位于进度条内左侧，票数与比例右对齐。整体底色透明，默认深色文字、浅青色填充，投票不再展示完整规则说明。标题和提示默认空、留空隐藏，不回退到本场主题。管理端「直播画面」按内容、颜色、布局与显示分组，左侧编辑、右侧棋盘格背景预览；窄窗口将预览放到编辑区上方。客户端与画布可调整标题、提示、评分规则、文字/进度条/轨道颜色、整体不透明度、文字大小、卡片圆角、状态和人数显示，不提供整体背景颜色或背景不透明度控件。整体不透明度同时影响卡片全部内容；字号 16–24px，结果行随文字换行自然增高。隐藏人数不隐藏接收中断警告，也不提前公开评分汇总。标题与状态均隐藏时折叠标题区，底部无人数或警告时折叠底部。
 
 草稿即时预览，可切换投票或评分，预览明确使用示例数据；进度条色也用于最终均分框。预览与浮层共用外观样式，按卡片宽度调整选项内的排列。点击应用后通过既有 `/api/settings` 保存并广播，恢复默认也先进入草稿。设置键与默认值见 [storage.md](../backend/storage.md)；只有 interactions scope 接收这些展示设置。样式更新不改变会话或选项节点；评分浮层共用这套外观。
+
+标题与提示的字素长度、RGI emoji 和不可见字符校验由桌面与 Node 写入端负责。`interaction-rules.js` 在调用校验时构造 Unicode `v` 正则，避免旧浏览器在导入模块时发生语法错误；`readInteractionAppearance` 渲染已保存标题/提示时只做 trim/NFC，不重复执行写入校验。其他外观字段保留原有归一化规则，文字仍通过纯文本 DOM 显示。Chromium 106 的投票、评分及已保存 emoji 标题已通过独立来源检查。
 
 
 ## 绿萌简笔画固定样式

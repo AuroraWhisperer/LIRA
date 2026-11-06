@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { createGiftProjectionService } = require('../../src/bilibili/gift');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
 const { createFixture } = require('../helpers/overtime-service-fixture');
 const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 const { loadModuleExports } = require('../helpers/frontend-modules');
@@ -89,7 +90,7 @@ test('100000 items imported through the gift projection settle fully and once, w
     },
   });
   const projection = createGiftProjectionService(
-    { db: f.db, settings: () => ({}) },
+    { store: createGiftProjectionStore(f.db.giftDb), settings: () => ({}) },
     {
       getOvertimeEpoch: service.getCurrentEpoch,
       onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),

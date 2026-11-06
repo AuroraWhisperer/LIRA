@@ -1,4 +1,4 @@
-/* ---- 盲盒投屏 URL 生成器 ---- */
+/* ---- 盲盒盈亏榜投屏设置 ---- */
 .gift-blindbox-broadcast-panel {
   container: blindbox-controls / inline-size;
 }
@@ -8,54 +8,6 @@
   border-bottom-color: var(--color-border-light, var(--border));
 }
 
-.blindbox-builder {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding: var(--spacing-md) 0 0;
-}
-
-.blindbox-appearance {
-  padding-block: 12px;
-  border-block: 1px solid var(--border);
-}
-
-.blindbox-appearance > summary {
-  cursor: pointer;
-  font-weight: var(--type-weight-semibold);
-}
-
-.blindbox-appearance-fields {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  align-items: end;
-  gap: 12px 16px;
-  margin-top: 14px;
-}
-
-.blindbox-appearance-fields label {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.blindbox-appearance-fields .blindbox-appearance-toggle {
-  flex-direction: row;
-  align-items: center;
-  min-height: var(--component-control-height, 36px);
-}
-
-.blindbox-appearance-toggle input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary);
-}
-
-.blindbox-appearance .hint {
-  margin: 12px 0 0;
-}
-
 .blindbox-broadcast-heading {
   display: flex;
   align-items: baseline;
@@ -63,17 +15,47 @@
   gap: 4px 10px;
 }
 
-.blindbox-broadcast-caption {
+.blindbox-broadcast-caption,
+.blindbox-save-state {
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
 }
 
+.blindbox-save-state {
+  margin: 0;
+  text-align: right;
+}
+
+.blindbox-builder {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: var(--spacing-md) 0 0;
+}
+
+/* 字段标签用次级色，分区与行标题保持粗体，形成两级层次。 */
+.gift-blindbox-broadcast-panel :is(
+  .blindbox-builder-label,
+  .blindbox-field-label,
+  .blindbox-appearance-grid > label:not(.switch-control) > span:first-child,
+  .blindbox-url-label
+) {
+  color: var(--color-text-secondary, var(--text));
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+  line-height: var(--type-leading-control);
+}
+
+.gift-blindbox-broadcast-panel :is(.blindbox-heart-control, .blindbox-appearance-grid) .switch-control {
+  font-weight: var(--type-weight-regular);
+}
+
 .blindbox-builder-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 112px;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) 140px;
+  gap: 16px;
 }
 
 .blindbox-builder-row label {
@@ -83,113 +65,140 @@
   gap: 6px;
 }
 
-.blindbox-builder-label {
-  font-weight: var(--type-weight-semibold);
-  font-size: var(--type-size-control);
-  line-height: var(--type-leading-control);
-}
-
 .blindbox-builder-switches {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
-  gap: 8px;
-}
-
-.blindbox-switch {
   display: flex;
-  align-items: center;
-  gap: 6px 8px;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--color-bg-tertiary);
-  cursor: pointer;
-  transition:
-    border-color 160ms ease,
-    background 160ms ease;
-  user-select: none;
+  flex-wrap: wrap;
+  gap: 4px 32px;
 }
 
-.blindbox-switch:hover {
-  border-color: var(--color-border-strong);
-}
-
-.blindbox-switch:has(input:checked) {
-  border-color: var(--color-border-accent);
-  background: var(--color-accent-light);
-}
-
-.blindbox-switch input[type='checkbox'] {
-  flex-shrink: 0;
-  width: 16px;
-  height: 16px;
-  accent-color: var(--primary);
-}
-
-.blindbox-switch span:first-of-type {
-  font-weight: var(--type-weight-semibold);
+.blindbox-builder-switches .switch-control {
   font-size: var(--type-size-control);
-  line-height: var(--type-leading-control);
+  font-weight: var(--type-weight-semibold);
 }
 
-.blindbox-switch .hint {
-  width: 100%;
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-  line-height: var(--type-leading-caption);
-  color: var(--muted);
-  margin-left: 24px;
-}
-
+/* 心动盲盒子面板：紧跟父开关，只在开启时出现。 */
 .blindbox-heart-settings {
   display: grid;
-  gap: 8px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
+  gap: 12px;
+  margin-top: -8px;
+  padding: 14px 16px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-bg-tertiary);
 }
 
 .blindbox-heart-settings[hidden] {
   display: none;
 }
 
-.blindbox-heart-fields {
+.blindbox-subpanel-title {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.blindbox-heart-fields label,
-.blindbox-heart-remaining {
+.blindbox-subpanel-title strong,
+.blindbox-section-title,
+.blindbox-row-title {
+  color: var(--text);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  line-height: var(--type-leading-control);
+}
+
+.blindbox-heart-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px 24px;
+}
+
+.blindbox-heart-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.blindbox-heart-control {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-height: var(--component-control-height, 36px);
+}
+
+.blindbox-heart-control input[type='number'] {
+  width: 120px;
+  min-width: 0;
+}
+
+.blindbox-unit {
+  color: var(--muted);
   font-size: var(--type-size-control);
   white-space: nowrap;
 }
 
-.blindbox-heart-fields input[type='number'] {
-  width: 82px;
+/* 外观：排版 / 配色 / 布局三行，对齐四列栅格。 */
+.blindbox-appearance {
+  display: grid;
+  gap: 14px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
 }
 
-.blindbox-heart-fields input[type='checkbox'] {
-  width: 16px;
-  height: 16px;
+.blindbox-section-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.blindbox-section-title {
   margin: 0;
-  accent-color: var(--primary);
 }
 
-.blindbox-heart-settings .hint {
-  margin: 0;
+.blindbox-appearance-fields {
+  display: grid;
+  gap: 14px;
 }
 
-/* 生成的链接栏 */
+.blindbox-appearance-row {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  align-items: end;
+  gap: 16px;
+}
+
+.blindbox-row-title {
+  padding-bottom: 8px;
+}
+
+.blindbox-appearance-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: start;
+  gap: 12px 16px;
+}
+
+.blindbox-appearance-grid > label:not(.switch-control) {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.blindbox-appearance-grid > .blindbox-span-2 {
+  grid-column: span 2;
+}
+
+/* 浏览器源地址 */
 .blindbox-url-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 10px;
   margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
 }
 
 .blindbox-url-copy {
@@ -200,9 +209,6 @@
 }
 
 .blindbox-url-label {
-  font-weight: var(--type-weight-semibold);
-  font-size: var(--type-size-control);
-  line-height: var(--type-leading-control);
   white-space: nowrap;
 }
 
@@ -213,9 +219,33 @@
   margin-left: auto;
 }
 
+@container blindbox-controls (max-width: 759px) {
+  .blindbox-heart-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blindbox-appearance-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .blindbox-row-title {
+    padding-bottom: 0;
+  }
+
+  .blindbox-appearance-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @container blindbox-controls (max-width: 379px) {
-  .blindbox-builder-row {
-    grid-template-columns: 1fr;
+  .blindbox-builder-row,
+  .blindbox-appearance-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .blindbox-appearance-grid > .blindbox-span-2 {
+    grid-column: auto;
   }
 }
 

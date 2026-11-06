@@ -1,6 +1,7 @@
 import { createGameSessionStream } from './games-session.js';
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
+import { createGameResult } from './games-result.js';
 import { startOverlayPages } from './auto-pages.js';
 import { createOverlaySocket } from './socket-client.js';
 import { isComponentPreview } from './component-preview-client.js';
@@ -17,13 +18,16 @@ const gameStream = createGameSessionStream({
   onDelta: applyGameDelta,
   recover: () => loadSnapshot(),
 });
-let resultProfileRequest = 0;
 let drawDanmakuFeed = null;
 let drawController = null;
 let componentConfig = null;
 let componentData = null;
 let bombBoardKey = '';
 let gomokuBoardKey = '';
+const gameResult = createGameResult({
+  onAction: submitGameResultAction,
+  resolveAvatarUrl: avatarSource,
+});
 
 const INITIAL_SNAPSHOT_RETRIES = 4;
 const INITIAL_SNAPSHOT_RETRY_DELAY_MS = 350;
@@ -42,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
       gameStream.dispose();
       clearTimeout(snapshotRetryTimer);
       socketController?.dispose();
+      gameResult.dispose();
     },
     { once: true },
   );
@@ -79,10 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return;
   }
   connectSocket();
-  byId('gameResultAvatar').addEventListener('error', hideGameResultAvatar);
-  byId('gameResultExit').addEventListener('click', () => submitGameResultAction('stop'));
-  byId('gameResultNext').addEventListener('click', () => submitGameResultAction('restart'));
-  window.addEventListener('resize', positionGameResult);
+  gameResult.bind();
   setInterval(() => drawController?.updateCountdown(), 250);
 });
 
@@ -185,20 +187,26 @@ function renderGame(nextSession) {
   if (!session) {
     drawController?.setToolsEnabled(false);
     byId('gameTurn').textContent = '等待开局';
-    hideGameResult();
+    gameResult.hide();
     return;
   }
   const state = session.state;
   if (game === 'draw-guess') {
     renderDrawGuess(state);
-    hideGameResult();
+    gameResult.hide(session.restartBlocked);
     return;
   }
   byId('gameTurn').textContent = state.winner ? winnerLabel(state.winner) : `${turnLabel(state.turn)}的回合`;
   if (game === 'number-bomb') renderBomb(state);
   else renderGomoku(state);
-  if (state.winner) showGameResult(state.winner, session.winner);
-  else hideGameResult();
+  if (state.winner) gameResult.show({
+    winner: state.winner,
+    identity: session.winner,
+    title: winnerLabel(state.winner),
+    avatarLabel: `${turnLabel(state.winner)}头像`,
+    blockRestart: session.restartBlocked,
+  });
+  else gameResult.hide(session.restartBlocked);
 }
 
 function renderBomb(state) {
@@ -388,67 +396,9 @@ function byId(id) {
   return document.getElementById(id);
 }
 
-function showGameResult(winner, winnerIdentity = {}) {
-  const resultEl = byId('gameResult');
-  const textEl = byId('gameResultText');
-  const winnerUid = String(winnerIdentity.uid || '').trim();
-  if (!resultEl.hidden && resultEl.dataset.winner === winner && resultEl.dataset.winnerUid === winnerUid) return;
-  const requestId = ++resultProfileRequest;
-  resultEl.dataset.winner = winner;
-  resultEl.dataset.winnerUid = winnerUid;
-  textEl.textContent = winnerLabel(winner);
-  setGameResultActionsPending(false);
-  setGameResultActionStatus('');
-  resultEl.hidden = false;
-  positionGameResult();
-  hideGameResultAvatar();
-  if (winner !== 'draw' && !isComponentPreview()) void loadWinnerProfile(requestId, winner);
-}
-
-function positionGameResult() {
-  const resultEl = byId('gameResult');
-  if (!resultEl || resultEl.hidden) return;
-  const target = document.body.dataset.game === 'gomoku' ? byId('gomokuBoard') : byId('bombNumbers');
-  const stage = byId('gameStage');
-  if (!target || !stage) return;
-  const targetRect = target.getBoundingClientRect();
-  const stageRect = stage.getBoundingClientRect();
-  if (targetRect.width <= 0 || targetRect.height <= 0) return;
-  resultEl.style.left = `${targetRect.left - stageRect.left}px`;
-  resultEl.style.top = `${targetRect.top - stageRect.top}px`;
-  resultEl.style.width = `${targetRect.width}px`;
-  resultEl.style.height = `${targetRect.height}px`;
-}
-
-async function loadWinnerProfile(requestId, winner) {
-  try {
-    const token = window.__API_TOKEN__;
-    const response = await fetch('/api/games/winner-profile', {
-      cache: 'no-store',
-      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-    });
-    const payload = await response.json();
-    if (!payload.ok || requestId !== resultProfileRequest) return;
-    const profile = payload.data || {};
-    const resultEl = byId('gameResult');
-    if (resultEl.hidden || resultEl.dataset.winner !== winner) return;
-    if (!profile.avatarUrl) return;
-    const avatar = byId('gameResultAvatar');
-    avatar.alt = `${turnLabel(winner)}头像`;
-    avatar.src = avatarSource(profile.avatarUrl);
-    avatar.hidden = false;
-  } catch (_) {
-    hideGameResultAvatar();
-  }
-}
-
 async function submitGameResultAction(action) {
-  const resultEl = byId('gameResult');
-  if (resultEl.hidden || !['stop', 'restart'].includes(action)) return;
   const revision = gameStream.beginSnapshot();
   clearTimeout(snapshotRetryTimer);
-  setGameResultActionsPending(true, action);
-  setGameResultActionStatus('');
   try {
     const token = window.__API_TOKEN__;
     const response = await fetch('/api/games/session', {
@@ -465,47 +415,9 @@ async function submitGameResultAction(action) {
     gameStream.finishSnapshot(revision, payload.data);
   } catch (_) {
     if (!gameStream.isCurrent(revision)) return;
-    if (!resultEl.hidden) {
-      setGameResultActionsPending(false);
-      setGameResultActionStatus('操作失败，请重试');
-    }
+    gameResult.showActionError();
     loadSnapshot();
   }
-}
-
-function setGameResultActionsPending(pending, action = '') {
-  const exitButton = byId('gameResultExit');
-  const nextButton = byId('gameResultNext');
-  exitButton.disabled = pending;
-  nextButton.disabled = pending || session?.restartBlocked === true;
-  nextButton.title = session?.restartBlocked ? '请先结束投票或评分' : '';
-  exitButton.textContent = pending && action === 'stop' ? '正在结束…' : '结束游戏';
-  nextButton.textContent = pending && action === 'restart' ? '开局中…' : '下一局';
-}
-
-function setGameResultActionStatus(message) {
-  const status = byId('gameResultActionStatus');
-  status.textContent = message;
-  status.hidden = !message;
-}
-
-function hideGameResult() {
-  resultProfileRequest += 1;
-  const resultEl = byId('gameResult');
-  resultEl.hidden = true;
-  resultEl.removeAttribute('style');
-  delete resultEl.dataset.winner;
-  delete resultEl.dataset.winnerUid;
-  hideGameResultAvatar();
-  setGameResultActionsPending(false);
-  setGameResultActionStatus('');
-}
-
-function hideGameResultAvatar() {
-  const avatar = byId('gameResultAvatar');
-  avatar.hidden = true;
-  avatar.alt = '';
-  avatar.removeAttribute('src');
 }
 
 function avatarSource(value) {

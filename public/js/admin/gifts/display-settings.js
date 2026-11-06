@@ -123,12 +123,18 @@ export function createGiftDisplaySettings() {
     fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 }),
   );
   get('giftDisplayForm')?.addEventListener('input', (event) => {
+    if (event.target.tagName === 'SELECT') return;
     const boundary = event.target.dataset.giftBoundary;
     if (boundary) {
       for (const input of get('giftDisplayForm').querySelectorAll('[data-gift-boundary]')) {
         if (input !== event.target && input.dataset.giftBoundary === boundary) input.value = event.target.value;
       }
     }
+    preview();
+    updateCancelVisibility();
+  });
+  get('giftDisplayForm')?.addEventListener('change', (event) => {
+    if (event.target.tagName !== 'SELECT') return;
     preview();
     updateCancelVisibility();
   });

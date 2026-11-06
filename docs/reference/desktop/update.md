@@ -1,23 +1,25 @@
 # 自动更新运行时
 
-> 涉及文件:[src/electron/update-manager.js](../../../src/electron/update-manager.js)、[src/electron/main.js](../../../src/electron/main.js)(IPC 与启动触发)、[src/electron/preload.js](../../../src/electron/preload.js)(桥)
+> 涉及文件:[src/electron/update-manager.js](../../../src/electron/update-manager.js)、[src/electron/desktop-update-controller.js](../../../src/electron/desktop-update-controller.js)(状态投递与启动检查)、[src/electron/ipc/desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)(IPC)、[src/electron/main.js](../../../src/electron/main.js)(接线)、[src/electron/preload.js](../../../src/electron/preload.js)(桥)
 
 本文档是自动更新运行时的**唯一事实源**:状态机、运行时配置、事件、状态载荷、错误映射只在此成文。electron-builder / publish 配置与发布流程见 [../engineering/build.md](../engineering/build.md)(本文件不重复配置块);IPC 通道表见 [preload.md](preload.md) §2。
 
-界面入口为「百宝箱 → 设置 → 关于与更新」，更新通知也定位到此页签。[desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html) 由设置片段嵌入一次，沿用 [desktop.js](../../../public/js/desktop.js) 的更新与资源检查渲染；数据目录、日志与资源检查位于「本地数据与支持」分区。更新状态机、自动检查开关和安装流程不变。
+界面入口为「百宝箱 → 设置 → 关于与更新」，更新通知也定位到此页签。[desktop-update.html](../../../public/pages/admin/toolbox/desktop-update.html) 由设置片段嵌入一次；[desktop.js](../../../public/js/desktop.js) 拥有更新渲染并装配 [desktop-resource-integrity.js](../../../public/js/desktop-resource-integrity.js) 的资源检查 UI。数据目录、日志与资源检查位于「本地数据与支持」分区。更新状态机、自动检查开关和安装流程不变。
 
 ## 1. 职责边界
 
 | 侧       | 事实                                                                                                      | 出处                                                                       |
 | -------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| 运行时   | `electron-updater` 6.x 的 `autoUpdater`;延迟加载(`getAutoUpdater` 首次调用才 require,避免 ready 前初始化) | [update-manager.js:10-15](../../../src/electron/update-manager.js#L10-L15) |
+| 运行时   | `electron-updater` 6.x 的 `autoUpdater`;延迟加载(`getAutoUpdater` 首次调用才 require,避免 ready 前初始化) | [update-manager.js](../../../src/electron/update-manager.js) |
 | 版本来源 | CDN `https://assets.lirahub.cn/downloads/latest.yml`                                                    | [../engineering/build.md](../engineering/build.md)                         |
-| 开关     | 设置 `enableAutoUpdate === 'true'`(设置存储见 [../backend/storage.md](../backend/storage.md) §7)          | [main.js](../../../src/electron/main.js)                 |
-| 触发     | 主窗口 `ready-to-show` 后,仅**打包版且开关开启**时延迟 **1s** 首查                                        | [main.js](../../../src/electron/main.js)                 |
+| 开关     | 设置 `enableAutoUpdate === 'true'`(设置存储见 [../backend/storage.md](../backend/storage.md) §7)          | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `readAutoUpdateSetting` |
+| 触发     | 主窗口 `ready-to-show` 后,仅**打包版且开关开启**时延迟 **1s** 首查                                        | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `scheduleStartupCheck`，由 main 注入窗口 `onReady` |
+
+控制器通过 main 注入的 `getAutoUpdateSetting` 读取开关；启动检查已有待执行 timer 时不重复排队，`dispose()` 取消该 timer 并禁止再次安排。用于 UI 投递的状态快照及 timer 留在控制器内部，renderer 只接收快照。
 
 ## 2. 状态机
 
-状态对象 `updateState = {status, message, version, canDownload, canInstall, progress, updateVersion}`(初值 `idle`/`尚未检查更新`,见 [update-manager.js:17-25](../../../src/electron/update-manager.js#L17-L25))。**status 枚举与迁移**(唯一成表处):
+状态对象 `updateState = {status, message, version, canDownload, canInstall, progress, updateVersion}`(初值 `idle`/`尚未检查更新`,见 [update-manager.js](../../../src/electron/update-manager.js))。**status 枚举与迁移**(唯一成表处):
 
 ```
 idle ──checkForUpdates──▶ checking ──▶ available ──▶ downloading ──▶ downloaded ──▶ installing
@@ -29,15 +31,15 @@ checking ──无新版本──▶ not-available
 
 | status          | 含义         | canDownload / canInstall | 进入方式                                       | 出处                                                                           |
 | --------------- | ------------ | ------------------------ | ---------------------------------------------- | ------------------------------------------------------------------------------ |
-| `idle`          | 初始         | false / false            | 启动                                           | [update-manager.js:17-25](../../../src/electron/update-manager.js#L17-L25)     |
-| `checking`      | 检查中       | false / false            | autoUpdater `checking-for-update` 事件         | [update-manager.js:41-47](../../../src/electron/update-manager.js#L41-L47)     |
-| `available`     | 发现新版本   | **true** / false         | `update-available` 事件                        | [update-manager.js:49-55](../../../src/electron/update-manager.js#L49-L55)     |
-| `not-available` | 已是最新     | false / false            | `update-not-available` 事件 | [update-manager.js:57-63](../../../src/electron/update-manager.js#L57-L63)     |
-| `downloading`   | 下载中       | false / false            | `download-progress` 事件 / `downloadUpdate()`  | [update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86)     |
-| `downloaded`    | 下载完成     | false / **true**         | `update-downloaded` 事件                       | [update-manager.js:88-96](../../../src/electron/update-manager.js#L88-L96)     |
-| `installing`    | 安装中(重启) | false / false            | `installUpdate()`                              | [update-manager.js:150-159](../../../src/electron/update-manager.js#L150-L159) |
-| `error`         | 失败         | false / false            | autoUpdater `error` 事件 / 各函数 catch        | [update-manager.js:98-105](../../../src/electron/update-manager.js#L98-L105)   |
-| `dev-disabled`  | 开发模式禁用 | false / false            | `checkForUpdates()` 且未打包 / 启动即置位      | [update-manager.js:116-122](../../../src/electron/update-manager.js#L116-L122) |
+| `idle`          | 初始         | false / false            | 启动                                           | [update-manager.js](../../../src/electron/update-manager.js)     |
+| `checking`      | 检查中       | false / false            | autoUpdater `checking-for-update` 事件         | [update-manager.js](../../../src/electron/update-manager.js)     |
+| `available`     | 发现新版本   | **true** / false         | `update-available` 事件                        | [update-manager.js](../../../src/electron/update-manager.js)     |
+| `not-available` | 已是最新     | false / false            | `update-not-available` 事件 | [update-manager.js](../../../src/electron/update-manager.js)     |
+| `downloading`   | 下载中       | false / false            | `download-progress` 事件 / `downloadUpdate()`  | [update-manager.js](../../../src/electron/update-manager.js)     |
+| `downloaded`    | 下载完成     | false / **true**         | `update-downloaded` 事件                       | [update-manager.js](../../../src/electron/update-manager.js)     |
+| `installing`    | 安装中(重启) | false / false            | `installUpdate()`                              | [update-manager.js](../../../src/electron/update-manager.js) |
+| `error`         | 失败         | false / false            | autoUpdater `error` 事件 / 各函数 catch        | [update-manager.js](../../../src/electron/update-manager.js)   |
+| `dev-disabled`  | 开发模式禁用 | false / false            | `checkForUpdates()` 且未打包 / 启动即置位      | [update-manager.js](../../../src/electron/update-manager.js) |
 
 > 状态名以代码为准:`available` / `not-available`(旧文档写的 `update-available` / `no-update` 已纠正);`progress` 仅在 downloading / downloaded 非空。
 
@@ -47,16 +49,18 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 
 缓存根通过 `desktop-user-data.js` 按实际可执行文件位置解析，开发版按仓库根解析；不依赖迁移后的 Chromium `userData`，因此浏览器目录调整不会把更新文件写进 `data`。
 
-`configureAutoUpdater({onStateChange, writeLog, updater})`([update-manager.js:31-106](../../../src/electron/update-manager.js#L31-L106)):
+`configureAutoUpdater({onStateChange, writeLog, updater})`([update-manager.js](../../../src/electron/update-manager.js)):
 
 | 配置                          | 值    | 说明                       |
 | ----------------------------- | ----- | -------------------------- |
 | `autoDownload`                | true  | 检查到新版本后自动开始下载 |
 | `autoInstallOnAppQuit`        | true  | 退出应用时自动完成安装     |
 | `allowPrerelease`             | false | 只接受正式版               |
-| `disableDifferentialDownload` | true  | 禁用增量下载,整包下载      |
+| `disableDifferentialDownload` | false | 优先增量下载，失败自动回退整包 |
 
-订阅的 electron-updater 事件 → 状态迁移:checking-for-update / update-available / update-not-available / download-progress / update-downloaded / error(错误映射见 §5)。`download-progress` 中计算下载速度 `speed = bytesDiff / timeDiff`(首帧为 0),percent 钳制 0-100([update-manager.js:65-86](../../../src/electron/update-manager.js#L65-L86))。
+generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的数据，不要求 CDN 支持 multipart ranges。增量使用本地 `updates/lira-updater/installer.exe`、已缓存或远端旧块映射，以及新版 `.exe.blockmap`；缺少旧包、块映射不可用或分段失败时，由 electron-updater 回退整包并继续校验 SHA-512。有效的待安装包可直接复用；校验失败不能进入可安装状态。增量减少网络传输，程序仍由原 NSIS 安装器替换，数据原地保留条件见 [构建参考](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。CDN 上传与旧块映射保留规则见 [分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。
+
+订阅的 electron-updater 事件 → 状态迁移:checking-for-update / update-available / update-not-available / download-progress / update-downloaded / error(错误映射见 §5)。`download-progress` 中计算下载速度 `speed = bytesDiff / timeDiff`(首帧为 0),percent 钳制 0-100([update-manager.js](../../../src/electron/update-manager.js))。
 
 ## 客户端资源检查
 
@@ -82,7 +86,7 @@ Windows 更新器沿用 `electron-updater.autoUpdater` 及其 Electron HTTP exec
 - `progress = {percent: 100}`(downloaded)
 - `progress = null`(其余状态)
 
-形状出处 [update-manager.js:81-95](../../../src/electron/update-manager.js#L81-L95)。前端消费由 [desktop.js](../../../public/js/desktop.js) 的更新状态订阅负责。
+形状出处 [update-manager.js](../../../src/electron/update-manager.js)。前端消费由 [desktop.js](../../../public/js/desktop.js) 的更新状态订阅负责。
 
 更新状态只通过 `desktop:update-state` 投递，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应已有 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段显示准备下载，不展示需要用户点击才下载的假象；下载完成提示退出安装，应用内使用指南提供 `https://lirahub.cn/download/client` 官方下载入口，由服务器按同一清单跳转，资源检查保留官方项目页面入口。
 

@@ -88,3 +88,33 @@ test('final gift ingress reuses existing eligibility for both scene types withou
   transport.publishGiftFlushed({ ...row, id: 2 });
   assert.equal(received.length, 3);
 });
+
+test('imported gift-frame events reach scene layers of their own style only', async () => {
+  const { isGiftFrameEventForLayer } = await import('../../public/js/shared/gift-frame-style-triggers.js');
+  const [own, other] = ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'];
+  const hub = [];
+  const buffer = createSceneGiftEvents({ getOwner: () => ({ scope: 'a', epoch: 1 }) });
+  const options = { defaultPort: 3000, getHost: () => '127.0.0.1', getStartedPort: () => 3000,
+    getSessionToken: () => 'synthetic', getState: () => ({}), getDanmakuFeedBuffer: () => ({ pushGift: () => null }),
+    publishSceneGift: (event) => buffer.receive(event) };
+  const transport = createRuntimeTransport({ ...options,
+    getSettings: () => ({ giftFrameEnabled: 'true', giftFrameThresholdRmb: '20',
+      giftFrameStyleTriggers: JSON.stringify({ [own]: { enabled: 'true', thresholdRmb: '20' } }) }),
+    getGiftFrameStyleIds: () => [own, other],
+    getWebSocketHub: () => ({ broadcastSnapshot() {}, broadcast: (payload) => hub.push(payload) }) });
+  transport.publishGiftFlushed({ id: 3, gift_name: '小花花', user_name: '观众', num: 1, total_price: 25, detection_status: 'final' });
+  const [woodland, imported] = buffer.getSnapshot('gift-frame').events.map(({ payload }) => payload);
+  assert.deepEqual([woodland.themeId, imported.themeId, imported.styleIds], ['woodland-bloom', 'imported', [own]]);
+  assert.deepEqual(hub.filter((payload) => payload.type === 'gift:frame').map((payload) => payload.themeId), ['woodland-bloom'],
+    'the legacy overlay page would replay imported events as 林间花信');
+  const layer = (id) => ({ mediaStyle: { id } });
+  assert.deepEqual([layer(own), layer(other), {}].map((config) => [woodland, imported].map((event) => isGiftFrameEventForLayer(config, event))),
+    [[false, true], [false, false], [true, false]]);
+  assert.equal(isGiftFrameEventForLayer(layer(other), { ...woodland, preview: true }), true);
+
+  // An unreadable style library must not block the other gift effects.
+  const failing = createRuntimeTransport({ ...options, getSettings: () => ({ giftFrameEnabled: 'true' }),
+    getGiftFrameStyleIds: () => { throw new Error('index unavailable'); }, getWebSocketHub: () => null });
+  assert.doesNotThrow(() => failing.publishGiftFlushed({ id: 4, total_price: 25, detection_status: 'final' }));
+  assert.equal(buffer.getSnapshot('gift-frame').events.at(-1).payload.themeId, 'woodland-bloom');
+});

@@ -44,6 +44,24 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('selected settings stay isolated and current without exposing internal account keys', (t) => {
+  const { store } = fixture(t);
+  store.prepareCloudRoomAccount('projection-test');
+  const keys = ['enableCustomReplyBot', 'customReplyRules', 'cloudRoomAccountKey'];
+  const selected = store.getSettings(keys);
+  assert.deepEqual(Object.keys(selected), ['enableCustomReplyBot', 'customReplyRules']);
+  selected.enableCustomReplyBot = 'caller-edit';
+  assert.notEqual(store.getSettings(keys).enableCustomReplyBot, 'caller-edit');
+
+  store.setSettings({ enableCustomReplyBot: 'true', customReplyRules: '[{"keyword":"test","reply":"reply"}]' });
+  const updated = store.getSettings(keys);
+  assert.equal(updated.enableCustomReplyBot, 'true');
+  assert.equal(updated.customReplyRules, store.getSettings().customReplyRules);
+  store.setSetting('enableCustomReplyBot', 'false');
+  assert.equal(store.getSettings(keys).enableCustomReplyBot, 'false');
+  assert.equal(Object.hasOwn(store.getSettings(), 'cloudRoomAccountKey'), false);
+});
+
 test('new request controls default to no additional restrictions and synchronize optional values', async (t) => {
   const f = fixture(t);
   const { SONG_REQUEST_CONTROL_DEFAULTS, SONG_REQUEST_CONTROL_KEYS } = require('../../src/shared/song-request-settings');

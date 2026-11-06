@@ -90,23 +90,6 @@ async function createPlaybackApp(initialState, options = {}) {
   const window = {
     __API_TOKEN__: options.apiToken,
     __PLAYBACK_SNAPSHOT_WRITER__: { writerId: 'playback-test-writer', generation: 1 },
-    AdminApp: {
-      utils: {
-        escapeHtml: escapeText,
-        escapeAttr: escapeText,
-        value: (id) => document.getElementById(id).value || '',
-        formatBytes: (bytes) => `${bytes} B`,
-        formatCompactNumber: (number) => String(number),
-        toast() {},
-        showError(error) {
-          errors.push(error);
-        },
-        async api() {},
-        async readJsonResponse(response) {
-          return response.payload;
-        },
-      },
-    },
     musicAPI: {
       async login(platform) {
         return options.login?.(platform);
@@ -254,7 +237,7 @@ async function createPlaybackApp(initialState, options = {}) {
     window,
   };
   const context = vm.createContext(sandbox);
-  const playbackEntry = path.join(__dirname, '..', '..', 'public', 'js', 'playback.js');
+  const playbackEntry = path.join(__dirname, '..', '..', 'public', 'js', 'playback', 'index.js');
   const moduleCache = new Map();
 
   function loadModule(filePath) {
@@ -291,16 +274,9 @@ async function createPlaybackApp(initialState, options = {}) {
     return loadModule(fileURLToPath(dependencyUrl));
   });
   await playbackModule.evaluate();
-  window.AdminApp.utils.logoutConfirm = async () => true;
-
   return {
     init(options = {}) {
-      return window.AdminApp.playback.initPlaybackAssistant({
-        readJsonResponse: window.AdminApp.utils.readJsonResponse,
-        showError: window.AdminApp.utils.showError,
-        toast: window.AdminApp.utils.toast,
-        ...options,
-      });
+      return playbackModule.namespace.initPlaybackAssistant(options);
     },
     element(id) {
       return document.getElementById(id);
@@ -366,6 +342,10 @@ async function createPlaybackApp(initialState, options = {}) {
     },
     audioPlayCalls() {
       return document.getElementById('music-player').playCalls;
+    },
+    lyricPublications() {
+      return fetchCalls.filter(({ url }) => url === '/api/playback/lyric-state')
+        .map(({ options }) => JSON.parse(options.body));
     },
     errors() {
       return errors.slice();
@@ -513,14 +493,6 @@ function response(payload) {
       return payload;
     },
   };
-}
-
-function escapeText(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;');
 }
 
 async function flushAsyncWork() {

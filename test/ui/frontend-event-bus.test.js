@@ -14,6 +14,20 @@ async function fixture() {
   return { bus: new EventBus(), errors };
 }
 
+test('debug events use the shared logger without an Admin registry', async () => {
+  const logs = [];
+  const { EventBus } = await loadModuleExports(path.resolve(__dirname, '../../public/js/shared/event-bus.js'), {
+    location: { hostname: '127.0.0.1' },
+    console: { log: (...args) => logs.push(args), error() {} },
+  });
+  const bus = new EventBus();
+  const data = { value: 1 };
+  bus.enableDebug();
+  bus.emit('ready', data);
+  assert.equal(logs.length, 1);
+  assert.equal(logs[0].at(-1), data);
+});
+
 test('a throwing once callback detaches without interrupting other subscribers', async () => {
   const { bus, errors } = await fixture();
   let calls = 0;

@@ -13,15 +13,16 @@ test('games overlay avoids HTML injection and lets only the authenticated server
   const read = (...parts) => fs.readFileSync(path.join(__dirname, '../..', 'public', ...parts), 'utf8');
   const script = read('js', 'overlays', 'games.js');
   const drawingModule = read('js', 'overlays', 'games-drawing.js');
-  for (const source of [script, drawingModule]) {
+  const resultModule = read('js', 'overlays', 'games-result.js');
+  for (const source of [script, drawingModule, resultModule]) {
     assert.doesNotMatch(source, /innerHTML/);
   }
   assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/, 'the server session selects the game, not the URL');
-  assert.match(script, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
+  assert.match(resultModule, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
   assert.match(script, /api\/bilibili\/avatar\?url=/);
 });
 
-test('game snapshots retain unchanged boards and refresh moves, turns, results and resets', async () => {
+function createGameOverlayFixture(fetchResult) {
   const nodes = new Map();
   const requests = [];
   let created = 0;
@@ -34,6 +35,9 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
         if (!this.handlers.has(type)) this.handlers.set(type, []);
         this.handlers.get(type).push(listener);
       },
+      removeEventListener(type, listener) {
+        this.handlers.set(type, (this.handlers.get(type) || []).filter(item => item !== listener));
+      },
       replaceChildren() { this.children = []; },
       append(child) { this.children.push(child); },
       getBoundingClientRect() { return { top: 0, left: 0, width: 100, height: 100 }; },
@@ -44,10 +48,10 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
     createElement() { created++; return node(); },
     getElementById(id) { if (!nodes.has(id)) nodes.set(id, node()); return nodes.get(id); },
   };
-  const context = vm.createContext({ document, window: {}, URL, URLSearchParams,
+  const context = vm.createContext({ document, window: node(), URL, URLSearchParams,
     location: new URL('http://127.0.0.1/games'), setTimeout, clearTimeout,
     fetch: async (url, options) => {
-      if (!url.endsWith('/move')) return { json: async () => ({ ok: false }) };
+      if (!url.endsWith('/move')) return fetchResult ? fetchResult(url, options) : { json: async () => ({ ok: false }) };
       requests.push(JSON.parse(options.body));
       return { json: async () => ({ ok: true, data: context.incoming.session }) };
     },
@@ -60,6 +64,11 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
     } : null };
     vm.runInContext('gameStream.receive(incoming)', context);
   };
+  return { nodes, requests, context, receive, created: () => created };
+}
+
+test('game snapshots retain unchanged boards and refresh moves, turns, results and resets', async () => {
+  const { nodes, requests, receive, created } = createGameOverlayFixture();
   const { createNumberBombState, publicNumberBombState } = require('../../src/games/number-bomb');
   const { createGomokuState } = require('../../src/games/gomoku');
   for (const [game, state, rootId] of [
@@ -69,10 +78,10 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
     receive(game, state);
     const root = nodes.get(rootId);
     const first = root.children[0];
-    const count = created;
+    const count = created();
     for (let index = 0; index < 60; index++) receive(game, state);
     assert.equal(root.children[0], first);
-    assert.equal(created, count, 'repeated full snapshots must not create board or coordinate nodes');
+    assert.equal(created(), count, 'repeated full snapshots must not create board or coordinate nodes');
     receive(game, { ...state, turn: 'viewer' });
     assert.equal(root.children.every(button => button.disabled), true);
     const changed = structuredClone(state);
@@ -112,4 +121,72 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
       correct: [], scores: [], answerRevealed: true, revealedAnswer: '苹果' });
     assert.equal(nodes.get('gameTurn').textContent, `${totalRounds} 局结束 · 最终排行`);
   }
+});
+
+test('result actions and late winner profiles follow the current game session', async () => {
+  const profiles = [];
+  const actions = [];
+  const snapshots = [];
+  const { nodes, context, receive } = createGameOverlayFixture((url, options) => new Promise(resolve => {
+    const request = { options, resolve: (data, ok = true) => resolve({ ok, json: async () => ({ ok, data }) }) };
+    if (url === '/api/games/winner-profile') profiles.push(request);
+    else if (url === '/api/games/session' && options.method === 'POST') actions.push(request);
+    else if (url === '/api/games/session') snapshots.push(request);
+    else assert.fail(`Unexpected request: ${url}`);
+  }));
+  vm.runInContext('window.__API_TOKEN__ = "result-test-token"; gameResult.bind()', context);
+  const { createNumberBombState, publicNumberBombState } = require('../../src/games/number-bomb');
+  const state = publicNumberBombState(createNumberBombState(() => 0.5));
+  const flush = () => new Promise(setImmediate);
+  const result = () => nodes.get('gameResult');
+  const avatar = () => nodes.get('gameResultAvatar');
+  const click = id => nodes.get(id).handlers.get('click')[0]();
+
+  receive('number-bomb', { ...state, winner: 'host' });
+  receive('number-bomb', { ...state, winner: 'viewer' });
+  profiles[0].resolve({ avatarUrl: 'https://example.test/old.png' });
+  await flush();
+  assert.equal(avatar().hidden, true, 'a previous winner cannot supply the current avatar');
+  profiles[1].resolve({ avatarUrl: 'https://example.test/current.png' });
+  await flush();
+  assert.equal(avatar().hidden, false);
+  assert.equal(avatar().alt, '观众头像');
+  assert.match(avatar().src, /current\.png/);
+  assert.equal(profiles[1].options.headers.Authorization, 'Bearer result-test-token');
+
+  const stop = click('gameResultExit');
+  assert.equal(nodes.get('gameResultExit').disabled, true);
+  assert.equal(nodes.get('gameResultNext').disabled, true);
+  assert.equal(actions.length, 1, 'one click sends one action');
+  assert.deepEqual(JSON.parse(actions[0].options.body), { action: 'stop' });
+  assert.equal(actions[0].options.headers.Authorization, 'Bearer result-test-token');
+  actions[0].resolve(null);
+  await stop;
+  assert.equal(result().hidden, true);
+
+  receive('number-bomb', { ...state, winner: 'host' });
+  const restart = click('gameResultNext');
+  assert.deepEqual(JSON.parse(actions[1].options.body), { action: 'restart' });
+  actions[1].resolve(null, false);
+  await restart;
+  assert.equal(nodes.get('gameResultActionStatus').hidden, false);
+  assert.equal(nodes.get('gameResultNext').disabled, false);
+  assert.equal(snapshots.length, 1, 'a failed current action starts one snapshot recovery');
+  snapshots[0].resolve({ ...context.incoming.session, state });
+  await flush();
+  assert.equal(result().hidden, true);
+
+  receive('number-bomb', { ...state, winner: 'host' });
+  const stale = click('gameResultNext');
+  receive('number-bomb', null);
+  actions[2].resolve(null, false);
+  await stale;
+  assert.equal(snapshots.length, 1, 'a superseded action cannot recover over a newer snapshot');
+  assert.equal(nodes.get('gameResultActionStatus').hidden, true);
+  profiles.slice(2).forEach(request => request.resolve({ avatarUrl: 'https://example.test/late.png' }));
+  await flush();
+  assert.equal(avatar().hidden, true);
+  vm.runInContext('gameResult.dispose()', context);
+  assert.equal(nodes.get('gameResultNext').handlers.get('click').length, 0);
+  assert.equal(context.window.handlers.get('resize').length, 0);
 });

@@ -50,6 +50,7 @@ The 2026-10-28 requirement assigns danmaku appearance to an account-scoped local
 - Scene service owns scene draft, publication, capability and bounded display-event buffer. Store owns SQLite transactions in existing songDb, through an appended migration. No new database process or framework.
 - Trusted main provides the current authorized Server origin + streamerId and authorization generation. Browser-supplied owner or roomId never chooses scope. Anonymous standalone runtime cannot manufacture an authorized scene owner.
 - Existing clock/queue/overtime/danmaku services retain business and default-configuration ownership. A scene creates display instances, never duplicate countdown or gift settlement services.
+- The overtime editor operates the real countdown through its attached, scoped desktop preview session. Setting time and starting/pausing use the existing service and update both UIs immediately; replacing remaining time requires confirmation. Sample modes are view-only. Gift-wish previews consume saved wishes, including per-wish text colors and real period filtering, through the desktop's shared feed. Neither operation stores business state in a scene.
 - Existing page URLs, runtime Host/Origin validation, WS principals, settings keys, login and shutdown order remain compatible.
 
 ## Scene Document

@@ -42,6 +42,7 @@ function createComponentStyleIndex(root) {
   let backupCurrent = false;
   let recovery = null;
   let cached;
+  let indexedStyles;
   function fingerprint() {
     return ['index.json', 'index.backup.json'].map(filename => {
       try {
@@ -55,7 +56,8 @@ function createComponentStyleIndex(root) {
   }
   function remember(index) {
     // Cache bookkeeping must not turn a committed write into an install rollback.
-    try { cached = backupCurrent ? { fingerprint: fingerprint(), index: structuredClone(index) } : null; }
+    indexedStyles = null;
+    try { cached = backupCurrent ? { fingerprint: fingerprint(), index } : null; }
     catch { cached = null; }
     return index;
   }
@@ -80,27 +82,42 @@ function createComponentStyleIndex(root) {
       backupCurrent = true;
     } catch { backupCurrent = false; }
   }
+  function readIndex() {
+    if (cached && fingerprint() === cached.fingerprint) return cached.index;
+    cached = null;
+    indexedStyles = null;
+    const primary = load('index.json');
+    if (primary.index) { mirror(primary.text); return remember(primary.index); }
+    const backup = load('index.backup.json');
+    if (backup.index) {
+      try {
+        if (primary.damaged) fs.copyFileSync(path.join(root, 'index.json'), path.join(root, `index.damaged-${randomUUID()}.json`), fs.constants.COPYFILE_EXCL);
+        atomicWrite(root, 'index.json', backup.text);
+      } catch { throw unavailable(); }
+      backupCurrent = true;
+      recovery = { source: 'backup', recoveredAt: Date.now() };
+      // The primary has committed; a failed notice must not undo recovery.
+      try { atomicWrite(root, 'index.recovery.json', JSON.stringify(recovery)); } catch { recovery.noticePersisted = false; }
+      return remember(backup.index);
+    }
+    const installed = fs.existsSync(root) && fs.readdirSync(root).some(name => UUID.test(name));
+    if (primary.missing && backup.missing && !installed) return { version: 1, packages: [] };
+    throw unavailable();
+  }
   const owner = {
-    read() {
-      if (cached && fingerprint() === cached.fingerprint) return structuredClone(cached.index);
-      cached = null;
-      const primary = load('index.json');
-      if (primary.index) { mirror(primary.text); return remember(primary.index); }
-      const backup = load('index.backup.json');
-      if (backup.index) {
-        try {
-          if (primary.damaged) fs.copyFileSync(path.join(root, 'index.json'), path.join(root, `index.damaged-${randomUUID()}.json`), fs.constants.COPYFILE_EXCL);
-          atomicWrite(root, 'index.json', backup.text);
-        } catch { throw unavailable(); }
-        backupCurrent = true;
-        recovery = { source: 'backup', recoveredAt: Date.now() };
-        // The primary has committed; a failed notice must not undo recovery.
-        try { atomicWrite(root, 'index.recovery.json', JSON.stringify(recovery)); } catch { recovery.noticePersisted = false; }
-        return remember(backup.index);
+    read() { return structuredClone(readIndex()); },
+    createStyleReader() {
+      const index = readIndex();
+      if (indexedStyles?.index !== index) {
+        const styles = new Map();
+        for (const pack of index.packages) for (const style of pack.styles) {
+          const key = `${style.type}:${style.id}`;
+          if (!styles.has(key)) styles.set(key, style);
+        }
+        indexedStyles = { index, styles };
       }
-      const installed = fs.existsSync(root) && fs.readdirSync(root).some(name => UUID.test(name));
-      if (primary.missing && backup.missing && !installed) return { version: 1, packages: [] };
-      throw unavailable();
+      const { styles } = indexedStyles;
+      return (id, type) => structuredClone(styles.get(`${type}:${id}`));
     },
     write(index) {
       const text = JSON.stringify(validateIndex(index));

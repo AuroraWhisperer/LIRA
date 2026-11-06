@@ -1,5 +1,8 @@
 'use strict';
 
+const crypto = require('node:crypto');
+const { normalizeRemoteRootOrigin } = require('../shared/remote-url-policy');
+
 const REBUILD_ERROR_CODES = new Set([
   'SYNC_EPOCH_MISMATCH',
   'CURSOR_AHEAD',
@@ -85,7 +88,27 @@ function canRestartBootstrap(error) {
   return BOOTSTRAP_RESTART_CODES.has(error?.code);
 }
 
+// Active source identity contract, still used by the controller. Keep these versioned hash inputs stable.
+function createRemoteGiftSourceKey(baseUrl, streamer = {}) {
+  const accountName = String(streamer?.accountName || '')
+    .trim()
+    .toLowerCase();
+  const streamerId = streamer?.streamerId;
+  if (!accountName || !Number.isSafeInteger(streamerId) || streamerId <= 0) {
+    throw new Error('REMOTE_GIFT_SOURCE_UNAVAILABLE');
+  }
+  const source = ['gift-source-v2', canonicalizeGiftSourceOrigin(baseUrl), accountName, streamerId].join('\n');
+  return crypto.createHash('sha256').update(source).digest('hex');
+}
+
+function canonicalizeGiftSourceOrigin(baseUrl) {
+  const origin = normalizeRemoteRootOrigin(baseUrl);
+  if (!origin) throw new Error('INVALID_GIFT_SOURCE_ORIGIN');
+  return origin;
+}
+
 module.exports = {
+  createRemoteGiftSourceKey,
   normalizeResolvedSource,
   hasHistoryCapability,
   requiresProjectionReplacement,

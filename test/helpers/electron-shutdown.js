@@ -5,7 +5,6 @@ const { EventEmitter } = require('node:events');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { createDesktopState } = require('../../src/electron/desktop-state');
 
 const MAIN_PATH = path.resolve(__dirname, '../../src/electron/main.js');
 const MAIN_SOURCE = fs.readFileSync(MAIN_PATH, 'utf8');
@@ -57,7 +56,11 @@ function createShutdownHarness(options = {}) {
   const logs = [];
   const startupErrors = [];
   const storageCalls = [];
-  const state = createDesktopState();
+  let windowOwner;
+  let lifecycle;
+  let closePromise = null;
+  let publishUpdate;
+  let logFile;
   const clock = createClock();
   const ready = Promise.withResolvers();
   const remoteIdle = Promise.withResolvers();
@@ -70,7 +73,7 @@ function createShutdownHarness(options = {}) {
   let startPromise;
   let runtimeOpen = false;
   let requestRestart;
-  let runtimeOptions;
+  let runtimeOptions = null;
   const safeStorage = { synthetic: 'safe-storage' };
 
   const app = Object.assign(new EventEmitter(), {
@@ -97,7 +100,7 @@ function createShutdownHarness(options = {}) {
     relaunch: () => calls.push('app:relaunch'),
     exit(code) {
       assert.equal(code, options.expectedExitCode ?? (options.recoveryDataDir || options.migrationError || options.legacyMigrationError ? 1 : 0));
-      state.window.main?.destroy();
+      windowOwner?.getWindow()?.destroy();
       calls.push('app:exit');
     },
     quit() {
@@ -216,7 +219,7 @@ function createShutdownHarness(options = {}) {
         removeHandler: (channel) => handlers.delete(channel),
         handle: (channel, handler) =>
           handlers.set(channel, (...args) => {
-            const sender = state.window.main?.webContents;
+            const sender = windowOwner?.getWindow()?.webContents;
             return handler({ sender, senderFrame: sender?.mainFrame }, ...args);
           }),
       },
@@ -228,7 +231,22 @@ function createShutdownHarness(options = {}) {
       powerMonitor,
     },
     './desktop-readiness-controller': require('../../src/electron/desktop-readiness-controller'),
-    './desktop-state': { createDesktopState: () => state },
+    './desktop-main-window': {
+      createDesktopMainWindow(options) {
+        windowOwner = require('../../src/electron/desktop-main-window').createDesktopMainWindow({ ...options, exists: () => false });
+        return windowOwner;
+      },
+    },
+    './desktop-lifecycle': {
+      createDesktopLifecycle(options) {
+        lifecycle = require('../../src/electron/desktop-lifecycle').createDesktopLifecycle({ ...options, timers: clock });
+        return {
+          ...lifecycle,
+          requestClose: () => (closePromise = lifecycle.requestClose()),
+          beforeQuit: event => (closePromise = lifecycle.beforeQuit(event)),
+        };
+      },
+    },
     './client-appearance': {
       ...require('../../src/electron/client-appearance'),
       createClientAppearance: () => ({ getThemeId: () => 'neutral', whenIdle: () => options.appearanceIdle?.promise }),
@@ -286,16 +304,25 @@ function createShutdownHarness(options = {}) {
       registerDynamicLotteryAuthIpc: () => () => calls.push('lottery:remove-ipc'),
     },
     './desktop-update-controller': {
-      createDesktopUpdateController: () => ({
-        configureAutoUpdater() {},
-        sendUpdateState() {},
-        installUpdate: () => calls.push('update:install'),
-      }),
+      createDesktopUpdateController(options) {
+        return require('../../src/electron/desktop-update-controller').createDesktopUpdateController({
+          ...options,
+          timers: clock,
+          updateManager: {
+            configureAutoUpdater({ onStateChange }) { publishUpdate = onStateChange; },
+            installUpdate: () => calls.push('update:install'),
+          },
+        });
+      },
     },
     './desktop-logger': {
-      createDesktopLogger: () => ({
-        writeLog: (scope, value) => logs.push({ scope, value }),
-      }),
+      createDesktopLogger: ({ getLogFile }) => {
+        logFile = getLogFile;
+        return {
+          writeLog: (scope, value) => logs.push({ scope, value }),
+          startRun() {},
+        };
+      },
     },
     './desktop-diagnostics': {
       installDesktopDiagnostics() {
@@ -310,6 +337,7 @@ function createShutdownHarness(options = {}) {
       },
     },
     './desktop-user-data': {
+      migrateLegacyPartitions() {},
       resolveDesktopUserDataPaths: () => ({
         ...require('../../src/shared/data-paths').resolveDataPaths(app.getPath()),
         recoveryDataDir: options.recoveryDataDir,
@@ -400,7 +428,17 @@ function createShutdownHarness(options = {}) {
       configureMediaRequestHeaders() {},
     },
     './audio-media-cors': { configureAudioMediaCors() {} },
-    './desktop-request-auth': require('../../src/electron/desktop-request-auth'),
+    './desktop-request-auth': {
+      createDesktopRequestAuth(input) {
+        const auth = require('../../src/electron/desktop-request-auth').createDesktopRequestAuth(input);
+        const dispose = auth.dispose;
+        auth.dispose = () => {
+          dispose();
+          if (options.requestAuthDisposeError) throw options.requestAuthDisposeError;
+        };
+        return auth;
+      },
+    },
     './update-manager': {},
     './playback-flush': options.realPlaybackFlush ? require('../../src/electron/playback-flush') : {
       async requestPlaybackFlush() {
@@ -441,7 +479,7 @@ function createShutdownHarness(options = {}) {
   };
 
   vm.runInNewContext(
-    MAIN_SOURCE + '\ncaptureRestart(() => requestDesktopShutdown({ restart: true }));',
+    MAIN_SOURCE + '\ncaptureRestart(() => desktopLifecycle.requestShutdown({ restart: true }));',
     {
       require(id) {
         if (Object.hasOwn(modules, id)) return modules[id];
@@ -475,7 +513,11 @@ function createShutdownHarness(options = {}) {
   return {
     calls,
     logs,
-    state,
+    get window() { return windowOwner?.getWindow() ?? null; },
+    get shutdownPromise() { return lifecycle.isShuttingDown() ? lifecycle.requestShutdown() : null; },
+    get closePromise() { return closePromise; },
+    get logDirectory() { return path.dirname(logFile()); },
+    publishUpdate: value => publishUpdate(value),
     clock,
     remoteIdle,
     cloudIdle,

@@ -8,16 +8,6 @@
   border-bottom: 1px solid var(--border);
 }
 
-.desktop-lyric-preview-header h3 {
-  margin: 0;
-  color: var(--text);
-}
-
-.desktop-lyric-preview-header p {
-  margin: 4px 0 0;
-  color: var(--muted);
-}
-
 .desktop-lyric-preview-tools,
 .desktop-lyric-preview-backgrounds {
   display: flex;
@@ -27,8 +17,6 @@
 
 .desktop-lyric-preview-tools {
   flex-wrap: wrap;
-  justify-content: flex-end;
-  margin-left: auto;
 }
 
 .desktop-lyric-preview-backgrounds {
@@ -53,7 +41,7 @@
 }
 
 .desktop-lyric-preview-stage {
-  height: clamp(560px, calc(100vh - 170px), 800px);
+  height: clamp(360px, calc(100vh - 210px), 760px);
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-viewport:has(.desktop-lyric-preview-empty) {

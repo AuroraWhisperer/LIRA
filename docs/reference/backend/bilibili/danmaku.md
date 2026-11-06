@@ -182,12 +182,12 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 
 | 事实     | 值                                                                                        | 出处                                                                                      |
 | -------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| 开关     | `enableCustomReplyBot === 'true'`,否则不匹配                                              | [custom-reply-service.js:47](../../../../src/bilibili/custom-reply-service.js#L47)        |
-| 匹配     | 消息小写后 `includes(rule.keyword 小写)`,`enabled !== false`;命中即回复(**无需点歌前缀**) | [custom-reply-service.js:45-53](../../../../src/bilibili/custom-reply-service.js#L45-L53) |
-| 规则上限 | `MAX_CUSTOM_REPLY_RULES = 30`                                                             | [custom-reply-service.js:7](../../../../src/bilibili/custom-reply-service.js#L7)          |
-| 字段上限 | 关键词 `30` 字符、回复 `120` 字符(`truncateText`)                                         | [custom-reply-service.js:8-9](../../../../src/bilibili/custom-reply-service.js#L8-L9)     |
+| 开关     | `enableCustomReplyBot === 'true'`,否则不匹配                                              | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)        |
+| 匹配     | 消息小写后 `includes(rule.keyword 小写)`,`enabled !== false`;命中即回复(**无需点歌前缀**) | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js) |
+| 规则上限 | `MAX_CUSTOM_REPLY_RULES = 30`                                                             | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)          |
+| 字段上限 | 关键词 `30` 字符、回复 `120` 字符(`truncateText`)                                         | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)     |
 
-`customReplyRules` 设置为规则数组;`isCommandText(message)` 暴露给入口识别([custom-reply-service.js:39-42](../../../../src/bilibili/custom-reply-service.js#L39-L42)),使自定义关键词也能参与去重窗口。
+`customReplyRules` 以 JSON 字符串保存规则数组；`isCommandText(message)` 暴露给入口识别，使自定义关键词也能参与去重窗口。同一条实时弹幕复用一次命令判定，服务实例在规则字符串不变时复用解析与规范化结果；开关和规则更新在下一次调用立即生效。关键词适配器只投影 `enableCustomReplyBot` 与 `customReplyRules`；普通非点歌弹幕在桥接层取得完整点歌设置前返回，SC 仍先应用原有关闭规则。直接传入数组的调用仍逐次读取，命中规则对外返回副本，调用方修改结果不会影响后续匹配。
 
 ### 6.4 云端菜单的桌面命令投影
 
@@ -204,6 +204,8 @@ Server 保存每日抽签结果快照，同日重复命令、重启和词库更�
 组合根在一次房间 runtime 启动或协调重连时只调用一次 `beginRoomRun()`，把同一个不可变 context 传给三个 poller；单 poller 重启仅使用自己的 local generation。`setRoom()` 递增 room generation 并清除旧 room identity/audience index，A→B→A 的旧 context 仍失效；同房协调重连轮换 runToken 并在下一次在线榜成功前保持空 online snapshot。结束整组 producer 时调用 `endRoomRun()`，共享 service 只在 runtime dispose 时销毁。
 
 头像流程是显式的：消息先 ingest 自带可信头像；画猜、今日礼物卡片等业务在确实需要且缺失时调用 `ensure()`，provider 以 `profile:${uid}` 合并在途请求并对失败或未返回完整资料做 30 秒负缓存，已返回的有效字段继续可用。用户资料请求八秒超时，B 站非零业务返回码按失败处理。`onMessage()` 返回值没有头像触发语义，renderer 仍只通过现有 `/api/bilibili/avatar` 代理获取图片。
+
+单 UID 读取和消息合并最多每 30 秒触发一次全缓存回收，当前 UID 仍逐次检查 10 分钟 TTL，过期资料不会因批量清理尚未到期而返回或续用。最近/在线名单读取仍会先清理过期资料；缓存命中不刷新 `seenAt`，失败冷却与在途请求合并保持独立。
 
 粉丝档案的手动/每日名单同步另由 Electron controller 调用 `BilibiliApiClient.fetchUserProfile(uid, {signal})`，对名单外未归档 UID 档案读取新资料，不使用上述缺失资料缓存。该方法保留 8 秒截止时间，并与可选调用方取消信号组合；已取消时不发请求。归属核验、查询节流和写回事务见[粉丝档案规格](../../../../specs/fan-profiles.md)。
 

@@ -7,6 +7,10 @@ const path = require('node:path');
 const test = require('node:test');
 const { createGiftService, getBlindBoxAnalysis, getBlindBoxStats } = require('../../src/bilibili/gift');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
+const { createGiftMaintenanceStore } = require('../../src/storage/gift-maintenance-store');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics-store');
 const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 
 const LOCAL_NOON = new Date(2026, 8, 15, 12).getTime();
@@ -17,7 +21,10 @@ function fixture(t) {
   const db = createDatabases({ dataDir });
   const sourceId = createGiftSource(db.giftDb);
   const context = {
-    db,
+    queryStore: createGiftQueryStore(db.giftDb),
+    maintenanceStore: createGiftMaintenanceStore(db.giftDb),
+    projectionStore: createGiftProjectionStore(db.giftDb),
+    statisticsStore: createGiftStatisticsStore(db.giftDb),
     settings: () => ({ enableGiftSprint: 'true' }),
     getActiveGiftSource: () => ({ sourceId }),
   };

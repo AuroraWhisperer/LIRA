@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { buildDesktopMenuCommands } = require('../../src/server/danmaku-menu');
+const { createCloudSyncRuntime } = require('../../src/server/cloud-sync-runtime');
 const { createServerRuntime } = require('../../src/server');
 const { CLOUD_SYNC_KEYS, hasCloudSettingChanges } = require('../../src/shared/cloud-settings');
 
@@ -40,6 +41,39 @@ test('menu includes only accepting sessions and clearly identifies ongoing inter
   assert.deepEqual(current({ game: { game: 'gomoku', state: { turn: 'host', winner: '' } } }), []);
   assert.deepEqual(current({ game: { game: 'draw-guess', state: { phase: 'drawing' } } }), ['你画我猜（进行中）：发送答案']);
   assert.deepEqual(current({ game: { game: 'draw-guess', state: { phase: 'round-result' } } }), []);
+});
+
+test('menu sync coalesces current session changes and discards queued work after shutdown', async () => {
+  let active = true;
+  let game;
+  let settingsStore = { getSettings: () => ({ ...settings, paused: 'true' }) };
+  const runtime = createCloudSyncRuntime({
+    getSettingsStore: () => settingsStore,
+    getAiConfig: () => ({}),
+    getGameSession: () => game,
+    getInteractionSession: () => undefined,
+    isActive: () => active,
+  });
+  const requested = [];
+  runtime.onCloudSyncRequested((scope) => requested.push(scope));
+  runtime.initializeMenuSync();
+  game = { game: 'gomoku', state: { turn: 'host', winner: '' } };
+  runtime.scheduleMenuSync();
+  game = { game: 'gomoku', state: { turn: 'viewer', winner: '' } };
+  runtime.scheduleMenuSync();
+  await Promise.resolve();
+  assert.deepEqual(requested, ['settings']);
+
+  runtime.scheduleMenuSync();
+  await Promise.resolve();
+  assert.equal(requested.length, 1);
+
+  game = undefined;
+  runtime.scheduleMenuSync();
+  active = false;
+  settingsStore = null;
+  await Promise.resolve();
+  assert.equal(requested.length, 1);
 });
 
 test('current menu is projected into pending uploads and changes request cloud sync without storing menu state', async (t) => {

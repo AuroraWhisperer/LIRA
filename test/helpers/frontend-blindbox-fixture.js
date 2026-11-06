@@ -100,7 +100,7 @@ async function createBlindboxFixture({
   };
 
   if (includePanel) window.fetch = fetch;
-  const { giftBlindbox, giftNotification, renderGiftPanel, stateService } = await loadModuleExports(
+  const { giftBlindbox, giftNotification, renderGiftPanel, stateService, eventBus } = await loadModuleExports(
     path.join(__dirname, 'gift-admin-graph.js'),
     {
       document,
@@ -142,7 +142,7 @@ async function createBlindboxFixture({
     },
     dispatchSavedSettings(nextRoomId) {
       currentRoomId = nextRoomId;
-      window.AdminApp.eventBus.emit('state:saved', {
+      eventBus.emit('state:saved', {
         settings: { roomId: nextRoomId },
       });
     },
@@ -157,6 +157,7 @@ async function createBlindboxFixture({
     },
     module: giftBlindbox,
     stateService,
+    eventBus,
     gifts: {
       blindbox: giftBlindbox,
       notification: giftNotification,

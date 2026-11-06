@@ -1,4 +1,5 @@
 import { previewElement } from './component-preview-surface.js';
+import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
 
 // Keep the canvas sections in the same vocabulary as their client settings pages.
 const PARAMETER_GROUPS = {
@@ -9,26 +10,6 @@ const PARAMETER_GROUPS = {
       'nowPlayingTitleColor', 'nowPlayingArtistColor']],
     ['behavior', '动效与显示规则', ['nowPlayingRotation', 'nowPlayingRotationSeconds',
       'nowPlayingHideOnPause', 'nowPlayingHideWhenEmpty', 'nowPlayingOpacity']],
-  ],
-  lyrics: [
-    ['basic', '基础样式', ['style', 'desktopLyricFontFamily', 'desktopLyricFontSize',
-      'desktopLyricFontWeight', 'desktopLyricTextAlign',
-      'desktopLyricLineHeight', 'desktopLyricLetterSpacing', 'desktopLyricVisibleLines']],
-    ['content', '显示策略', ['desktopLyricKaraokeMode', 'desktopLyricSungColor', 'desktopLyricTextColor',
-      'desktopLyricShowTranslation', 'desktopLyricTranslationScale',
-      'desktopLyricHidePassedLines', 'desktopLyricTraditionalMode', 'desktopLyricInterludeOffsetEm']],
-    ['effect', '描边与阴影', ['desktopLyricStrokeEnabled', 'desktopLyricStrokeColor', 'desktopLyricStrokeWidth',
-      'desktopLyricShadowEnabled', 'desktopLyricShadowColor', 'desktopLyricShadowIntensity', 'desktopLyricShadowBlur',
-      'desktopLyricShadowOffsetX', 'desktopLyricShadowOffsetY'], false],
-    ['visibility', '可见性与同步', ['desktopLyricHideOnPause', 'desktopLyricCurrentLineEnhanced',
-      'desktopLyricOpacity', 'desktopLyricBaseOpacity', 'desktopLyricTranslationOpacity', 'desktopLyricTimeOffsetMs',
-      'desktopLyricShowTitleWhenNoLyric', 'desktopLyricNoLyricText'], false],
-    ['layout', '动画与布局', ['desktopLyricSpringAnimation', 'desktopLyricBlurEffect', 'desktopLyricScaleEffect',
-      'desktopLyricScale', 'desktopLyricAlignPosition', 'desktopLyricAlignAnchor', 'desktopLyricTranslateX',
-      'desktopLyricTranslateY', 'desktopLyricPerspective', 'desktopLyricRotateX', 'desktopLyricRotateY'], false],
-    ['render', '背景与渲染', ['desktopLyricBackgroundEnabled', 'desktopLyricBackgroundRenderer',
-      'desktopLyricBgOpacity', 'desktopLyricGlobalOpacity', 'desktopLyricBrightness', 'desktopLyricContrast',
-      'desktopLyricSaturation'], false],
   ],
   songlist: [
     ['content', '展示内容', ['songBoardTitle', 'category', 'songBoardSortMode', 'scrollSeconds']],
@@ -57,7 +38,10 @@ const PARAMETER_GROUPS = {
   ],
   'gift-wishes': [
     ['content', '许愿展示', ['displayStyle', 'period', 'showCompleted', 'limit', 'gap']],
-    ['colors', '文字配色', ['textPendingColor', 'textReceivedColor']],
+    ['ribbon', '彩带外观', ['ribbonHeight', 'ribbonBorderWidth', 'ribbonRadius',
+      'ribbonColor', 'ribbonTrackColor', 'ribbonBorderColor', 'ribbonDecorationStyle']],
+    ['ribbon-text', '文字与数字', ['ribbonFontSize', 'ribbonNumberFontSize', 'ribbonTextColor', 'ribbonOutlineColor']],
+    ['ribbon-motion', '彩带动效', ['ribbonStripeWidth', 'ribbonFlowDirection', 'ribbonSpeed']],
   ],
   'guard-thanks': [
     ['appearance', '动画与文字', ['style', 'textMode', 'showAvatar', 'showUserName', 'nameFontSize']],
@@ -96,6 +80,7 @@ export function appendSceneParameterControl(label, input, { slider = false } = {
 }
 
 export function groupSceneExtraParameters(root, type, fields) {
+  if (type === 'lyrics') return groupDesktopLyricParameters(root, fields, { scene: true });
   const groups = [];
   for (const [id, title, keys, open = true] of PARAMETER_GROUPS[type] || []) {
     const controls = keys.map(key => fields.get(key)?.label).filter(Boolean);

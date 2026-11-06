@@ -1,7 +1,5 @@
 'use strict';
 
-const { createAiApiUsageStore } = require('../storage/ai-api-usage-store');
-
 const API_QUOTAS = Object.freeze({
   qweather: 40000,
   amap_search: 4000,
@@ -20,9 +18,8 @@ const CATEGORY_ERROR_CODES = Object.freeze({
   amap_lbs: 'AMAP_LBS_MONTHLY_LIMIT',
 });
 
-function createAiApiQuotaStore(db, options = {}) {
+function createAiApiQuotaStore(usageStore, options = {}) {
   const now = options.now || Date.now;
-  const usageStore = createAiApiUsageStore(db);
   let lastPrunedMonth = '';
 
   function pruneOldMonths(monthKey) {

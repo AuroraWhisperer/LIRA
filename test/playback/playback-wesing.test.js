@@ -92,10 +92,11 @@ test('WeSing browser client selects its preference, saves settings and follows o
 });
 
 test('WeSing status pushes do not request online streams', async () => {
+  let fullscreenClosed = 0;
   const app = await createPlaybackApp({
     current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
   }, { sourceTabs: ['qq', 'wesing'] });
-  await app.init();
+  await app.init({ closeFullscreenPlayer: () => { fullscreenClosed++; } });
   await flushAsyncWork();
   await app.emitWindow('app:wesing-state', { detail: {
     platformDetected: true, cacheReady: true, status: 'ready', message: '已就绪',
@@ -109,6 +110,7 @@ test('WeSing status pushes do not request online streams', async () => {
     platformDetected: false, status: 'inactive', message: '等待检测',
   } });
   assert.equal(app.resolveStreamRequestCount(), 0, 'status pushes do not request song quality or stream URLs');
+  assert.equal(fullscreenClosed, 1, 'switching to the external playback source closes the app fullscreen view');
 });
 
 test('playback state accepts WeSing as a persisted source', async () => {

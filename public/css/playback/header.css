@@ -15,7 +15,6 @@
 
 .playback-head-inner {
   min-height: 48px;
-  align-items: flex-start;
   flex-wrap: wrap;
 }
 
@@ -28,21 +27,20 @@
 
 /* ===== 账号状态（紧凑型） ===== */
 .playback-account-compact {
-  flex: 1 1 0;
+  flex: 0 0 auto;
   min-width: 0;
+  margin-inline-start: auto;
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-end;
+  align-items: center;
+  justify-content: flex-end;
 }
 
 .playback-account-status {
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 30px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+  gap: 8px;
+  min-height: 40px;
+  justify-content: flex-end;
 }
 
 .playback-account-status .pill {
@@ -53,27 +51,64 @@
 
 .playback-account-status button,
 .playback-cache-row button {
-  min-height: 30px;
-  padding: 4px 10px;
+  min-height: 36px;
+  padding: 6px 12px;
   font-size: var(--type-size-control);
+  white-space: nowrap;
+}
+
+#playbackMoreBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  anchor-name: --playback-more;
+}
+
+.playback-more-menu {
+  position: fixed;
+  position-anchor: --playback-more;
+  inset: auto;
+  top: calc(anchor(bottom) + 6px);
+  right: anchor(right);
+  margin: 0;
+  padding: 6px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  color: var(--text);
+  background: var(--color-floating-surface);
+  box-shadow: var(--shadow-floating);
+}
+
+.playback-more-menu button {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.playback-more-menu button:hover:not(:disabled) {
+  background: var(--color-bg-hover, var(--surface-2));
 }
 
 /* 音乐分组在同一条导航内展开，滑块跟随现有平台选中状态。 */
 .playback-navigation {
-  --playback-switch-motion: 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  --playback-switch-motion: 320ms cubic-bezier(0.16, 1, 0.3, 1);
   --playback-switch-fade: 140ms ease-out;
+  --playback-switch-text-delay: 60ms;
   display: grid;
-  /* 固定整条导航的占位，账号状态文案更新不挤动平台标签。 */
   grid-template-columns: minmax(0, 2fr) minmax(0, 2fr);
-  flex: none;
-  width: min(680px, 100%);
+  flex: 0 1 auto;
+  width: clamp(460px, 50%, 640px);
+  max-width: 100%;
   gap: 6px;
   padding: 2px;
   border: 1px solid var(--color-border-light);
   border-radius: 999px;
   background: var(--surface);
   box-shadow: var(--shadow-sm);
-  transition: grid-template-columns var(--playback-switch-motion);
+  transition: grid-template-columns var(--playback-switch-motion) var(--playback-switch-text-delay);
 }
 
 .playback-navigation[data-workspace='music'] {
@@ -87,8 +122,8 @@
 
 .playback-navigation .playback-workspace-button {
   width: 100%;
-  min-height: 44px;
-  padding: 8px 16px;
+  min-height: 40px;
+  padding: 7px 12px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -181,10 +216,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
   min-height: 40px;
-  padding: 7px 12px;
+  padding: 7px 10px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -206,7 +241,8 @@
 }
 
 .source-tab-label {
-  transition: transform var(--playback-switch-motion);
+  font-size: var(--type-size-control);
+  transition: transform var(--playback-switch-motion), font-size 0s var(--playback-switch-text-delay);
 }
 
 .source-tab-separator {
@@ -222,6 +258,7 @@
 }
 
 .playback-navigation[data-workspace='appearance'] .source-tab-label {
+  font-size: 10px;
   transform: translateX(-14px);
 }
 
@@ -262,6 +299,7 @@
   .playback-navigation {
     --playback-switch-motion: 0ms linear;
     --playback-switch-fade: 100ms ease;
+    --playback-switch-text-delay: 0ms;
   }
 }
 

@@ -294,6 +294,43 @@ function sceneRequest(document) {
   } };
 }
 
+test('canvas live data maps opening and game responses while preserving empty game sessions', async t => {
+  const timers = new Map();
+  let nextTimer = 0;
+  const data = {
+    '/api/opening/config': { title: '合成开播画面' },
+    '/api/games/session': { id: 'synthetic-game', game: 'number-bomb' },
+  };
+  const { prepareComponentPreviewCanvas } = await load('admin/component-preview-canvas-controller.js', {
+    AbortController,
+    window: {
+      setTimeout(callback) { timers.set(++nextTimer, callback); return nextTimer; },
+      clearTimeout(id) { timers.delete(id); },
+      removeEventListener() {},
+    },
+    fetch: async url => ({ ok: true, json: async () => ({ ok: true, data: data[url] }) }),
+  });
+  const f = sceneRequest(documentOf([item('opening', 'independent', {}), item('games', 'independent', {})]));
+  const canvas = await prepareComponentPreviewCanvas([], f.request);
+  const emitted = [];
+  const stop = canvas.startActualData(value => emitted.push(value));
+  t.after(stop);
+  await new Promise(resolve => setImmediate(resolve));
+  const latest = () => emitted.at(-1).previewData;
+  assert.equal(latest().opening.title, '合成开播画面');
+  assert.equal(latest().games.preview, true);
+  assert.equal(latest().games.session.id, 'synthetic-game');
+
+  data['/api/opening/config'] = null;
+  data['/api/games/session'] = null;
+  const refreshes = [...timers.values()];
+  timers.clear();
+  await Promise.all(refreshes.map(refresh => refresh()));
+  assert.equal(latest().opening, null);
+  assert.equal(latest().games.preview, true);
+  assert.equal(latest().games.session, null);
+});
+
 test('save and publication conflicts stop publication, keep drafts and discard reloads the owning revision', async () => {
   const { prepareComponentPreviewCanvas } = await load('admin/component-preview-canvas-controller.js');
   const { createComponentConfigController } = await load('admin/component-config-controller.js');

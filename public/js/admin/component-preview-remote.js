@@ -7,6 +7,7 @@ export function createRemotePreviewController(initial, send) {
   let state = initial;
   let stateKey = JSON.stringify(initial);
   let pending = [];
+  let acknowledged = 0;
   let chain = Promise.resolve();
   let stopped = false;
   let connectionError = '';
@@ -36,6 +37,7 @@ export function createRemotePreviewController(initial, send) {
       if (stopped) return;
       const result = await send(command);
       command.sequence = result.sequence;
+      if (command.sequence <= acknowledged) { pending = pending.filter(entry => entry !== command); notify(); }
     }).catch((error) => disconnect(error.message));
     return chain;
   }
@@ -76,6 +78,7 @@ export function createRemotePreviewController(initial, send) {
       const nextKey = update.state === undefined ? stateKey : JSON.stringify(update.state);
       const pendingCount = pending.length;
       if (update.state !== undefined) state = update.state;
+      acknowledged = Math.max(acknowledged, update.ack);
       pending = pending.filter((command) => command.sequence === undefined || command.sequence > update.ack);
       if (nextKey === stateKey && pending.length === pendingCount) return;
       stateKey = nextKey;
@@ -85,7 +88,7 @@ export function createRemotePreviewController(initial, send) {
   };
 }
 
-export function createBrowserPreviewConnection({ id, token, component }) {
+export function createBrowserPreviewConnection({ id, token, component, pollBatch }) {
   let closed = false;
   let timer = 0;
   let polling = false;
@@ -94,6 +97,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
   let display;
   let stateRevision;
   let displayRevision;
+  let ack = 0;
   let draftKey;
   let attachmentId;
   let focusId;
@@ -106,10 +110,14 @@ export function createBrowserPreviewConnection({ id, token, component }) {
   const displayListeners = new Set();
 
   async function requestOnce(command, keepalive = false) {
+    if (!keepalive && command.action === 'read' && command.waitMs > 0 && pollBatch) {
+      return pollBatch.request({ attachmentId, ...command, id, token }, { signal: requests.signal });
+    }
     const response = await fetch('/api/component-preview', { method: 'POST', credentials: 'omit', cache: 'no-store',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
       body: JSON.stringify({ attachmentId, ...command, id }), keepalive,
-      signal: keepalive ? AbortSignal.timeout(5000) : AbortSignal.any([requests.signal, AbortSignal.timeout(5000)]) });
+      signal: keepalive ? AbortSignal.timeout(5000)
+        : AbortSignal.any([requests.signal, AbortSignal.timeout((command.waitMs || 0) + 5000)]) });
     let payload;
     try { payload = await response.json(); }
     catch (error) { if (!response.ok) error.status = response.status; throw error; }
@@ -179,12 +187,13 @@ export function createBrowserPreviewConnection({ id, token, component }) {
     if (closed || polling) return;
     polling = true;
     try {
-      const update = await request({ action: 'read', stateRevision, displayRevision });
+      const update = await request({ action: 'read', stateRevision, displayRevision, ack, waitMs: 20000 });
       if (closed) return;
       draftKey = update.draftKey;
       controller.receive(update);
       stateRevision = update.stateRevision;
       displayRevision = update.displayRevision;
+      ack = update.ack;
       if (Object.hasOwn(update, 'display')) {
         display = update.display;
         applyRoomGuardState(display?.roomGuard);
@@ -196,7 +205,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
         // Confirm immediately; background tabs may throttle the next polling timer.
         await request({ action: 'read', focusId });
       }
-      timer = window.setTimeout(poll, update.ack < pendingSequence || rejectOperation ? 40 : 250);
+      timer = window.setTimeout(poll, update.waitMs ? 0 : update.ack < pendingSequence || rejectOperation ? 40 : 250);
     } catch (error) {
       if (!closed) {
         stop(error);
@@ -207,7 +216,8 @@ export function createBrowserPreviewConnection({ id, token, component }) {
   }
 
   async function run(action, change) {
-    if (component !== 'canvas' || !['publish', 'source', 'preset'].includes(action)) throw new Error('不支持的场景操作。');
+    if (!(component === 'canvas' && ['publish', 'source', 'preset'].includes(action))
+      && !(component === 'overtime' && action === 'control')) throw new Error('不支持的场景操作。');
     await controller.flush();
     const { sequence } = await send({ action, ...(change ? { change } : {}) });
     return new Promise((resolve, reject) => {
@@ -217,6 +227,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
         if (error) reject(error); else resolve(result);
       };
       const receive = (data) => {
+        if (action === 'control') data = data?.operation;
         if (data?.sequence !== sequence || data.busy) return;
         finish(data.error ? new Error(data.error) : null, data.result);
       };
@@ -283,6 +294,7 @@ export function createBrowserPreviewConnection({ id, token, component }) {
       controller = createRemotePreviewController(initial.state, send);
       stateRevision = initial.stateRevision;
       displayRevision = initial.displayRevision;
+      ack = initial.ack;
       display = initial.display;
       applyRoomGuardState(display?.roomGuard);
       timer = window.setTimeout(poll, 250);

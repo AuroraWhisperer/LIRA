@@ -8,7 +8,6 @@ import { DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
 export const BANNER_WIDTH = 428;
 export const BANNER_HEIGHT = 72;
 export const BANNER_GAP = 8;
-export const MAX_COMPOSITE_ROWS = 39;
 export const GIFT_PALETTE = [
   ['#38B6FF', '#65C8FF'],
   ['#8F58EDF2', '#776CE9E6'],
@@ -21,13 +20,6 @@ export function giftTier(gift, thresholds, cardTotalCents) {
   const total =
     cardTotalCents === undefined ? BigInt(Math.round(gift.unitPrice * 100)) * BigInt(gift.num) : BigInt(cardTotalCents);
   return thresholds.filter((value) => total >= BigInt(value)).length;
-}
-
-export function giftExportPages(items, mode) {
-  const size = mode === 'separate' ? 1 : MAX_COMPOSITE_ROWS;
-  const pages = [];
-  for (let index = 0; index < items.length; index += size) pages.push(items.slice(index, index + size));
-  return pages;
 }
 
 function guardArtwork(gift) {

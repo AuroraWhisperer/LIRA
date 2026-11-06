@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
-const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
+const { bootstrapSettingsStore } = require('../../src/storage/settings-store');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
@@ -51,7 +51,7 @@ for (const version of ['1', undefined]) {
       WHEN NEW.key = 'queueFontSizeRangeVersion'
       AND (SELECT value FROM settings WHERE key = 'queueSongFontSize') = '20'
       BEGIN SELECT RAISE(ABORT, 'version write failed'); END`);
-    assert.throws(() => prepareSettingsBootstrap(state.db), /version write failed/);
+    assert.throws(() => bootstrapSettingsStore(state.db), /version write failed/);
     state.reopen();
     assert.equal(state.value('queueSongFontSize'), '10');
     assert.equal(state.value('queueTitleFontSize'), '8');
@@ -59,13 +59,13 @@ for (const version of ['1', undefined]) {
     assert.equal(state.value('songScrollSpeedRangeVersion'), undefined);
     assert.equal(state.value('scrollSeconds'), '110');
     state.db.exec('DROP TRIGGER fail_version');
-    prepareSettingsBootstrap(state.db);
+    bootstrapSettingsStore(state.db);
     assert.equal(state.value('queueSongFontSize'), '20');
     assert.equal(state.value('queueTitleFontSize'), '16');
     assert.equal(state.value('queueFontSizeRangeVersion'), '2');
     assert.equal(state.value('scrollSeconds'), '51');
     state.reopen();
-    prepareSettingsBootstrap(state.db);
+    bootstrapSettingsStore(state.db);
     assert.equal(state.value('queueSongFontSize'), '20');
     assert.equal(state.value('scrollSeconds'), '51');
   });
@@ -73,18 +73,18 @@ for (const version of ['1', undefined]) {
 
 test('new and already migrated settings remain stable on repeated startup', (t) => {
   const state = fixture(t, {});
-  const first = prepareSettingsBootstrap(state.db).settingsStore.getSettings();
+  const first = bootstrapSettingsStore(state.db).getSettings();
   assert.equal(first.scrollSeconds, DEFAULT_SETTINGS.scrollSeconds);
   assert.equal(first.queueSongFontSize, DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(first.queueTitleFontSize, DEFAULT_SETTINGS.queueTitleFontSize);
   assert.equal(first.overlayFontFamily, DEFAULT_SETTINGS.overlayFontFamily);
   assert.equal(first.identityQueueFontFamily, DEFAULT_SETTINGS.identityQueueFontFamily);
   state.reopen();
-  assert.deepEqual(prepareSettingsBootstrap(state.db).settingsStore.getSettings(), first);
+  assert.deepEqual(bootstrapSettingsStore(state.db).getSettings(), first);
   state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('12', 'queueSongFontSize');
   state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run('45', 'scrollSeconds');
   state.reopen();
-  prepareSettingsBootstrap(state.db);
+  bootstrapSettingsStore(state.db);
   assert.equal(state.value('queueSongFontSize'), '12');
   assert.equal(state.value('scrollSeconds'), '45');
 });
@@ -92,57 +92,57 @@ test('new and already migrated settings remain stable on repeated startup', (t) 
 test('legacy rule cleanup runs once and preserves current user text across restarts', (t) => {
   for (const values of [{}, { queueStyleSettingsVersion: '1' }]) {
     const state = fixture(t, values);
-    const store = prepareSettingsBootstrap(state.db).settingsStore;
+    const store = bootstrapSettingsStore(state.db);
     store.setSetting('overlayRule3', '同一观众 10 秒冷却');
     store.setSetting('overlayRule4', '按队列顺序演唱');
     state.reopen();
-    prepareSettingsBootstrap(state.db);
+    bootstrapSettingsStore(state.db);
     assert.equal(state.value('identityRuleDefaultsVersion'), '1');
     assert.equal(state.value('overlayRule3'), '同一观众 10 秒冷却');
     assert.equal(state.value('overlayRule4'), '按队列顺序演唱');
   }
   const upgraded = fixture(t, { queueStyleSettingsVersion: '1', overlayRule3: '同一观众 10 秒冷却' });
-  prepareSettingsBootstrap(upgraded.db);
+  bootstrapSettingsStore(upgraded.db);
   assert.equal(upgraded.value('overlayRule3'), '同一观众 10 秒冷却');
   const legacy = fixture(t, { overlayRule3: '同一观众 10 秒冷却' });
   legacy.db.exec(`CREATE TRIGGER fail_rule_checkpoint BEFORE INSERT ON settings
     WHEN NEW.key = 'identityRuleDefaultsVersion' BEGIN SELECT RAISE(ABORT, 'checkpoint failed'); END;`);
-  assert.throws(() => prepareSettingsBootstrap(legacy.db), /checkpoint failed/);
+  assert.throws(() => bootstrapSettingsStore(legacy.db), /checkpoint failed/);
   assert.equal(legacy.value('overlayRule3'), '同一观众 10 秒冷却');
   assert.equal(legacy.value('identityRuleDefaultsVersion'), undefined);
   legacy.db.exec('DROP TRIGGER fail_rule_checkpoint');
-  prepareSettingsBootstrap(legacy.db);
+  bootstrapSettingsStore(legacy.db);
   assert.equal(legacy.value('overlayRule3'), '');
 });
 
 test('startup preserves saved song-board sizes, including the former default', (t) => {
   const state = fixture(t, { songBoardFontSize: '16' });
-  prepareSettingsBootstrap(state.db);
+  bootstrapSettingsStore(state.db);
   assert.equal(state.value('songBoardFontSize'), '16');
   for (const value of ['17', '16']) {
     state.db.prepare('UPDATE settings SET value = ? WHERE key = ?').run(value, 'songBoardFontSize');
     state.reopen();
-    prepareSettingsBootstrap(state.db);
+    bootstrapSettingsStore(state.db);
     assert.equal(state.value('songBoardFontSize'), value);
   }
 });
 
 test('an absent legacy queue font receives the current default without scaling', (t) => {
   const state = fixture(t, { queueTitleFontSize: '8' });
-  prepareSettingsBootstrap(state.db);
+  bootstrapSettingsStore(state.db);
   assert.equal(state.value('queueSongFontSize'), DEFAULT_SETTINGS.queueSongFontSize);
   assert.equal(state.value('queueTitleFontSize'), '16');
 });
 
 test('queue style 2 copies the legacy font once and then persists independently across startup', t => {
   const state = fixture(t, { overlayFontFamily: '"Lira Maiyuan"' });
-  const store = prepareSettingsBootstrap(state.db).settingsStore;
+  const store = bootstrapSettingsStore(state.db);
   assert.equal(state.value('identityQueueFontFamily'), '"Lira Maiyuan"');
   store.setSetting('overlayFontFamily', '"STKaiti"');
   state.reopen();
-  prepareSettingsBootstrap(state.db).settingsStore.setSetting('identityQueueFontFamily', '"Lira Smiley"');
+  bootstrapSettingsStore(state.db).setSetting('identityQueueFontFamily', '"Lira Smiley"');
   state.reopen();
-  prepareSettingsBootstrap(state.db);
+  bootstrapSettingsStore(state.db);
   assert.equal(state.value('overlayFontFamily'), '"STKaiti"');
   assert.equal(state.value('identityQueueFontFamily'), '"Lira Smiley"');
 });
@@ -151,11 +151,11 @@ test('independent queue font migration rolls back on failure and retries without
   const state = fixture(t, { overlayFontFamily: '"STKaiti"' });
   state.db.exec(`CREATE TRIGGER reject_identity_font BEFORE INSERT ON settings
     WHEN NEW.key = 'identityQueueFontFamily' BEGIN SELECT RAISE(ABORT, 'font migration failed'); END;`);
-  assert.throws(() => prepareSettingsBootstrap(state.db), /font migration failed/);
+  assert.throws(() => bootstrapSettingsStore(state.db), /font migration failed/);
   assert.equal(state.value('identityQueueFontFamily'), undefined);
   assert.equal(state.value('queueFontSizeRangeVersion'), undefined);
   assert.equal(state.value('overlayFontFamily'), '"STKaiti"');
   state.db.exec('DROP TRIGGER reject_identity_font');
-  prepareSettingsBootstrap(state.db);
+  bootstrapSettingsStore(state.db);
   assert.equal(state.value('identityQueueFontFamily'), '"STKaiti"');
 });

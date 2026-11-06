@@ -46,7 +46,7 @@ test('acknowledging an unchanged edit notifies and completes flush without a sta
   assert.equal(notifications, 3);
 });
 
-test('pending browser edits poll promptly without overlapping reads, then return to idle frequency', async () => {
+test('legacy relays keep prompt pending reads without overlap and return to idle frequency', async () => {
   const timers = new Map();
   let timerId = 0;
   let sequence = 0;
@@ -89,6 +89,49 @@ test('pending browser edits poll promptly without overlapping reads, then return
     assert.deepEqual([...timers.values()].map(({ delay }) => delay), [250]);
   } finally { connection.detach(); }
   assert.equal(timers.size, 0);
+});
+
+test('idle browser reads remain pending and an ACK arriving before the command receipt still completes flush', async t => {
+  const { createComponentPreviewSessions } = require('../../src/server/component-preview-sessions');
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sessions = createComponentPreviewSessions();
+  const session = sessions.open({ component: 'clock', state: state() });
+  let reads = 0;
+  let receipt;
+  let accepted;
+  const { createBrowserPreviewConnection } = await loadModuleExports(entry, {
+    structuredClone, AbortController, AbortSignal, crypto: require('node:crypto'),
+    window: { setTimeout: (...args) => setTimeout(...args), clearTimeout: id => clearTimeout(id) },
+    fetch: async (_url, options) => {
+      const command = JSON.parse(options.body);
+      if (command.action === 'read') reads++;
+      const data = await sessions.browser(command, session.token, { signal: options.signal });
+      if (command.action === 'edit') {
+        accepted = data.sequence;
+        await new Promise(resolve => { receipt = resolve; });
+      }
+      return { ok: true, json: async () => ({ ok: true, data }) };
+    },
+  });
+  const connection = createBrowserPreviewConnection({ ...session, component: 'clock' });
+  t.after(() => { connection.detach(); sessions.clear(); });
+  await connection.start();
+  t.mock.timers.tick(250);
+  await new Promise(setImmediate);
+  for (let index = 0; index < 10; index++) {
+    t.mock.timers.tick(1000);
+    await new Promise(setImmediate);
+  }
+  assert.equal(reads, 2, 'one startup read and one held read cover ten idle seconds');
+  const editing = connection.controller.edit({ label: 'changed' });
+  await new Promise(setImmediate);
+  sessions.exchange({ id: session.id, ack: accepted, incremental: true, state: state('changed') });
+  await new Promise(setImmediate);
+  receipt();
+  await editing;
+  await connection.controller.flush();
+  assert.equal(connection.controller.getState().draft.label, 'changed');
+  assert.notEqual(connection.controller.getState().dirty, true);
 });
 
 test('browser edits survive older snapshots and save follows preceding edits', async () => {

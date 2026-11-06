@@ -50,8 +50,9 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     document: { getElementById: () => list },
   };
 
-  const { giftRecent: recent } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'),
+  const [{ giftRecent: recent }, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ],
     sandbox,
   );
   recent.renderGiftRecentList([
@@ -66,7 +67,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
   ]);
   const initialPromise = recent.loadGiftArtworkCatalog();
 
-  sandbox.window.AdminApp.eventBus.emit('gift:catalog_updated', {
+  eventBus.emit('gift:catalog_updated', {
     snapshot: {
       source: 'server',
       version: 'v2',
@@ -101,7 +102,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
   assert.match(list.innerHTML, /\/overtime-gift-images\/35792-new\.webp/);
   assert.doesNotMatch(list.innerHTML, /\/overtime-gift-images\/35792-old\.webp/);
 
-  sandbox.window.AdminApp.eventBus.emit('gift:catalog_updated', {
+  eventBus.emit('gift:catalog_updated', {
     snapshot: {
       source: 'server',
       version: 'v3',

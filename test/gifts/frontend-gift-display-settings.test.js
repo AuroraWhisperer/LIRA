@@ -63,19 +63,26 @@ test('gift feed settings save speed and cancel restores the saved value', async 
 
 test('gift appearance choices preview independently, save, and restore without losing incoming settings', async (t) => {
   const page = await openSettings(t);
+  await page.evaluate(async () => {
+    const { enhanceSelects } = await import('/js/shared/select-menu.js');
+    enhanceSelects(document.getElementById('giftDisplayForm'));
+  });
   const tail = page.locator('#giftTailStyle');
   const texture = page.locator('#giftTextureStyle');
   assert.equal(await tail.inputValue(), 'slant');
   assert.equal(await texture.inputValue(), 'solid');
-  await tail.selectOption('ribbon');
-  await texture.selectOption('argyle');
+  await page.getByRole('button', { name: '尾部样式', exact: true }).click();
+  await page.getByRole('option', { name: '折叠飘带', exact: true }).click();
   assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-tail-style'), 'ribbon');
+  await page.getByRole('button', { name: '条带内部', exact: true }).click();
+  await page.getByRole('option', { name: '菱格织纹', exact: true }).click();
   assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-texture-style'), 'argyle');
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
   await page.waitForFunction(() => window.displaySaves.length === 1 && !document.getElementById('giftDisplayFields').disabled);
   assert.equal(await page.evaluate(() => window.savedDisplay.tailStyle), 'ribbon');
   assert.equal(await page.evaluate(() => window.savedDisplay.textureStyle), 'argyle');
-  await texture.selectOption('satin');
+  await page.getByRole('button', { name: '条带内部', exact: true }).click();
+  await page.getByRole('option', { name: '丝缎流光', exact: true }).click();
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('app:settings-state', {
     detail: { giftDisplayConfig: JSON.stringify({ ...window.savedDisplay, tailStyle: 'slant', visibleRows: 5 }) },
   })));

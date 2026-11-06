@@ -112,26 +112,29 @@
 .component-style-fields label:has(input[type='checkbox']) { display: flex; align-items: center; gap: 8px; }
 .component-style-fields input[type='checkbox'] { width: 18px; min-height: 18px; margin: 0; }
 .component-style-pack-list { line-height: 1.8; }
-.component-source-import { width: min(520px, 94vw); padding: 28px; border: 1px solid var(--color-border-default); border-radius: 24px; box-shadow: none; scrollbar-width: none; }
+.component-source-import { width: min(480px, 94vw); padding: 24px; border: 1px solid var(--color-border-default); border-radius: var(--radius-xl); box-shadow: none; scrollbar-width: none; }
 .component-source-import form { display: grid; gap: 20px; }
 .component-source-import p { margin: 0; }
 .component-source-import [hidden], .component-source-import [role='status']:empty { display: none; }
 .component-source-heading { display: grid; gap: 8px; }
-.component-source-heading h2 { font-size: 22px; line-height: 1.3; }
+.component-source-heading h2 { font-size: 18px; line-height: 1.4; }
 .component-source-heading .hint { font-size: 13px; color: var(--color-text-secondary); }
-.component-source-file { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; border-radius: var(--radius-lg); font-size: 15px; font-weight: 600; }
-.component-source-file svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.component-source-options { display: grid; gap: 12px; }
-.component-source-options > details { margin: 0; padding: 0 14px; border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); }
-.component-source-import summary { display: flex; align-items: center; gap: 4px; min-height: 48px; margin: 0; border-radius: var(--radius-lg); font-size: 14px; font-weight: 500; list-style: none; cursor: pointer; }
+.component-source-file { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; border-radius: var(--radius-control); font-size: 14px; font-weight: 600; }
+.component-source-file svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.component-source-options { display: grid; border: 1px solid var(--color-border-default); border-radius: var(--radius-lg); overflow: hidden; }
+.component-source-options > details { margin: 0; padding: 0; }
+.component-source-options > details + details { border-top: 1px solid var(--color-border-default); }
+.component-source-import summary { box-sizing: border-box; display: flex; align-items: center; gap: 8px; min-height: 44px; margin: 0; padding: 12px 14px; font-size: 14px; font-weight: 500; line-height: 20px; list-style: none; cursor: pointer; }
 .component-source-import summary::-webkit-details-marker { display: none; }
-.component-source-import summary::after { content: ''; width: 6px; height: 6px; margin-left: auto; margin-right: 4px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); color: var(--color-text-secondary); }
+.component-source-import summary::after { content: ''; flex-shrink: 0; width: 6px; height: 6px; margin-left: auto; margin-right: 2px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(-45deg); color: var(--color-text-secondary); }
 .component-source-import details[open] > summary::after { transform: rotate(45deg); }
 .component-source-import summary:hover { background: var(--color-bg-hover); }
-.component-source-import summary:focus-visible { outline: 2px solid var(--color-control-focus); outline-offset: -2px; }
+.component-source-import summary:active { background: var(--color-bg-secondary); }
+.component-source-import summary:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: -2px; }
 .component-source-optional { color: var(--color-text-secondary); font-size: 12px; font-weight: 400; }
 .component-source-import details[open] { padding-bottom: 16px; }
 .component-source-import details[open] > summary { margin-bottom: 8px; }
+.component-source-import details > :not(summary) { margin-inline: 14px; }
 .component-source-import details > button { margin-top: 12px; border-radius: var(--radius-lg); }
 .component-source-import details > .hint { margin-top: 8px; }
 .component-source-import label { display: grid; gap: 8px; font-size: 13px; color: var(--color-text-secondary); }

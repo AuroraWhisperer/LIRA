@@ -5,6 +5,7 @@ import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { COMPONENT_RESOURCE_PRESETS, isExternalComponentStyle } from '../shared/component-resource-style.js';
 import { BACKGROUND_FIELDS } from '../shared/background-appearance.js';
+import { getRibbonDecorationStyle } from '../shared/gift-wish-ribbon-appearance.js';
 import { mountBackgroundParameters } from './background-parameter-view.js';
 import { openingAppearanceFields } from '../shared/opening-appearance.js';
 import { mountOpeningCanvasSettings } from './opening-canvas-settings.js';
@@ -43,11 +44,6 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         let source = display?.previewData?.[type] || sample;
         if (type === 'opening') source = { ...source, enabled: true, preview: true,
           ...(!source?.enabled ? { audio: 'none' } : {}) };
-        if (type === 'gift-wishes' && source.preview) {
-          const period = target.getState().draft.period;
-          if (period !== 'all') source = { ...source,
-            items: source.items.map(item => ({ ...item, period, label: '示例心愿' })) };
-        }
         if (type === 'songlist' && source.preview) {
           const category = target.getState().draft.category;
           if (category) source = { ...source, songs: source.songs.map(song => ({ ...song, category_name: category })) };
@@ -89,6 +85,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         // Interaction output stays transparent; saved background keys remain compatible.
         if (type === 'interactions' && ['interactionBackgroundColor', 'interactionBackgroundOpacity'].includes(key)) continue;
         if (type === 'blindbox' && key === 'hideLoss') continue;
+        // Keep legacy scene fields readable; text colors now belong to each saved wish.
+        if (type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor', 'ribbonDecorations'].includes(key)) continue;
         // Preserve the legacy setting in saved scenes; font fallback is automatic now.
         if (type === 'lyrics' && key === 'desktopLyricFallbackFontFamily') continue;
         const previewOnly = Object.hasOwn(previewFields, key);
@@ -133,6 +131,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             const draft = target.getState().draft;
             const preset = COMPONENT_RESOURCE_PRESETS[draft.resourceStyle?.preset];
             target.edit({ [key]: typeof field.default === 'string' ? String(value) : value,
+              ...(type === 'gift-wishes' && key === 'ribbonDecorationStyle' ? { ribbonDecorations: value !== 'none' } : {}),
               ...(type === 'blindbox' && key === 'winnersOnly' ? { hideLoss: value } : {}),
               ...(['style', 'displayStyle'].includes(key) && draft.mediaStyle ? { mediaStyle: null } : {}),
               ...(['style', 'displayStyle'].includes(key) && preset && !preset.styles?.includes(value) ? { resourceStyle: null } : {}) });
@@ -149,7 +148,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         }
         const slider = appendSceneParameterControl(label, input, {
           slider: field.type === 'number' && !editsOpacity && !cents && !field.optional
-            && !['top', 'months', 'blindboxCastlesRemaining'].includes(key),
+            && !['top', 'months', 'blindboxCastlesRemaining', 'desktopLyricVisibleLines'].includes(key),
         });
         slider?.addEventListener('input', () => { input.value = slider.value; save(); });
         grid.append(label); fields.set(key, { input, slider, cents, scale, inherit, label });
@@ -166,7 +165,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         '画布展示静态示例歌词；“暂停时隐藏”仅作用于直播输出。'));
       if (definition.category === '直播小游戏') host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
       if (type === 'gift-sprint') host.append(previewElement('p', 'hint', '这里显示示例进度。直播画面跟随“组件 → 礼物姬 → 月底冲刺”的目标与进度，未设目标时隐藏。'));
-      if (type === 'gift-wishes') host.append(previewElement('p', 'hint', previewHint || '预览按显示条数展示已缓存的 B 站礼物，进度为示例，礼物不足时重复展示。高度随条数和间距自动调整；直播最多显示设定条数，礼物与目标数量在“礼物许愿”中设置。'));
+      if (type === 'heart-box-collection') host.append(previewElement('p', 'hint', '画布展示示例进度；直播自动统计北京时间每周六 00:00 至周五 00:00 收到的心动盲盒，包含开启前本期已收到的数量，出城堡不清零。'));
+      if (type === 'gift-wishes') host.append(previewElement('p', 'hint', previewHint || '画布读取已保存的礼物许愿，礼物、目标、进度、文字和颜色与客户端同步。高度随条数和间距自动调整，最多显示设定条数；许愿内容在客户端编辑。'));
       if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint',
         '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
       const render = ({ draft, loaded }) => {
@@ -176,16 +176,18 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             : !draft.resourceStyle || !Object.hasOwn(openingFields, key))
             || type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
             || type === 'background' && key === 'style' && Boolean(draft.mediaStyle)
+            || type === 'gift-frame' && key === 'style' && Boolean(draft.mediaStyle || draft.resourceStyle)
             || type === 'background' && ['sceneMode', 'windowScene', 'sceneIntervalSeconds'].includes(key)
               && (draft.style !== 'windowlight' || Boolean(draft.mediaStyle) || key === 'sceneIntervalSeconds' && draft.sceneMode !== 'auto')
             || type === 'interactions' && key === 'interactionRatingRules' && draft.kind !== 'rating'
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
-            || type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor'].includes(key) && !['text', 'original'].includes(draft.displayStyle)
+            || type === 'gift-wishes' && key.startsWith('ribbon') && draft.displayStyle !== 'ribbon'
             || type === 'blindbox' && key.startsWith('blindbox') && key !== 'blindboxOverlayTitle' && (!draft.heartBoxOnly
               || key === 'blindboxCastlesRemaining' && ![true, 'true'].includes(draft.blindboxShowCastlesRemaining))
             || type === 'guard-thanks' && (nautical ? ['style', 'textMode', 'months'].includes(key)
               : ['showAvatar', 'showUserName', 'nameFontSize'].includes(key));
-          const value = Object.hasOwn(previewFields, key) ? previewValues[key]
+          const value = type === 'gift-wishes' && key === 'ribbonDecorationStyle' ? getRibbonDecorationStyle(draft)
+            : Object.hasOwn(previewFields, key) ? previewValues[key]
             : draft[key] ?? openingFields[key]?.default ?? definition.fields[key].default;
           const inheritedColor = type === 'lyrics'
             ? draft.style === 'moonlit' ? '#93682f' : '#ffcf4a'

@@ -46,7 +46,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     if (failPublish) throw Object.assign(new Error('模拟发布失败'), { statusCode: 503 });
     return service.publishCanvas(body);
   } };
-  const server = await startComponentPreviewServer({ scenes, dataDir, getOwner: () => owner, getState: () => runtime,
+  const server = await startComponentPreviewServer({ scenes, dataDir, extraContext, overtime: extraContext?.overtime, getOwner: () => owner, getState: () => runtime,
     settings: { get: () => runtime.settings, defaults: DEFAULT_SETTINGS,
       setMany(patch) {
         Object.assign(runtime.settings, patch);

@@ -119,6 +119,9 @@ test('previews never save the settings draft and restored values are no longer d
     guard.initGuardThanks(); frame.initGiftFrame();
     guard.renderGuardThanks({ guardThanksClassicEnabled: 'false', guardThanksClassicTextMode: 'bilingual' });
     frame.renderGiftFrame({ giftFrameEnabled: 'false', giftFrameThresholdRmb: '20' });
+    // 林间花信's card appears once the style library reports the imported package.
+    const { requestComponentStyles } = await import('/js/admin/component-style-api.js');
+    frame.renderGiftFrameStyleState(await requestComponentStyles('list'));
   }, readAdminFragmentHtml('pages/admin/toolbox/gift.html'));
   for (const [prefix, button, quantity] of [
     ['guardThanksClassic', 'PlayBtn', 'PreviewMonths'], ['giftFrame', 'PreviewBtn', 'PreviewNum'],

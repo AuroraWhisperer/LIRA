@@ -3,15 +3,14 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const test = require('node:test');
 const { createDom } = require('../helpers/toast-dom');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const root = path.join(__dirname, '../..');
 const markup = fs.readFileSync(path.join(root, 'public/pages/admin/toolbox/desktop-update.html'), 'utf8');
-const source = fs.readFileSync(path.join(root, 'public/js/desktop.js'), 'utf8');
 
-function createFixture(utils = {}) {
+async function createFixture(utils = {}) {
   const { documentRef, windowRef } = createDom();
   const nodes = Object.fromEntries(
     [...markup.matchAll(/\bid="([^"]+)"/g)].map(([, id]) => {
@@ -22,19 +21,21 @@ function createFixture(utils = {}) {
   );
   documentRef.getElementById = (id) => nodes[id] || null;
   documentRef.querySelectorAll = () => [];
-  windowRef.AdminApp = { utils };
-  vm.runInNewContext(source, { document: documentRef, window: windowRef });
+  const { createDesktopShell } = await loadModuleExports(path.join(root, 'public/js/desktop.js'), {
+    document: documentRef, window: windowRef,
+  });
+  const desktop = createDesktopShell(utils);
   return {
     nodes,
     windowRef,
-    desktop: windowRef.AdminApp.desktop,
-    render: windowRef.AdminApp.desktop.renderDesktopUpdateState,
+    desktop,
+    render: desktop.renderDesktopUpdateState,
   };
 }
 
 test('update failures notify once for manual checks and active downloads, keeping background checks quiet', async () => {
   const notices = [];
-  const { desktop, nodes, windowRef } = createFixture({
+  const { desktop, nodes, windowRef } = await createFixture({
     showStackedToast: (options) => notices.push(options),
     showError: (error) => { throw error; },
   });
@@ -61,8 +62,8 @@ test('update failures notify once for manual checks and active downloads, keepin
   assert.notEqual(notices[1].title, notices[0].title, 'download failure must not reuse the check failure notice');
 });
 
-test('resource checks ignore stale revisions and render bounded details as text', () => {
-  const { nodes, desktop } = createFixture();
+test('resource checks ignore stale revisions and render bounded details as text', async () => {
+  const { nodes, desktop } = await createFixture();
   const initial = {
     revision: 1,
     status: 'checking',
@@ -103,7 +104,7 @@ test('resource checks ignore stale revisions and render bounded details as text'
 });
 
 test('resource check subscription is registered once and an old initial snapshot cannot replace a newer event', async () => {
-  const { desktop, nodes, windowRef } = createFixture();
+  const { desktop, nodes, windowRef } = await createFixture();
   const snapshot = Promise.withResolvers();
   let subscribeCount = 0;
   let readCount = 0;
@@ -137,4 +138,31 @@ test('resource check subscription is registered once and an old initial snapshot
   assert.equal(nodes.desktopIntegrityCheckBtn.disabled, true, 'the older idle snapshot must not re-enable an unavailable check');
   dispose();
   assert.equal(removed, 1);
+});
+
+test('closing resource checks ignores late snapshots, events and rejected actions', async () => {
+  const notices = [];
+  const { desktop, nodes, windowRef } = await createFixture({ toast: (...args) => notices.push(args) });
+  const initial = Promise.withResolvers();
+  const check = Promise.withResolvers();
+  let listener;
+  let dispose;
+  let removed = 0;
+  windowRef.addEventListener = (_name, callback) => { dispose = callback; };
+  desktop.initResourceIntegrity({
+    onResourceIntegrityState(callback) { listener = callback; return () => { removed++; }; },
+    getResourceIntegrityState: () => initial.promise,
+    checkResourceIntegrity: () => check.promise,
+  });
+  const checking = nodes.desktopIntegrityCheckBtn.listeners.get('click')();
+  const previousStatus = nodes.desktopIntegrityStatus.textContent;
+  dispose();
+  listener({ revision: 3, status: 'passed', totalFiles: 0, details: [] });
+  initial.resolve({ revision: 2, status: 'idle', details: [] });
+  check.reject(new Error('closed page'));
+  await checking;
+  await new Promise(setImmediate);
+  assert.equal(removed, 1);
+  assert.equal(nodes.desktopIntegrityStatus.textContent, previousStatus);
+  assert.equal(notices.length, 0);
 });

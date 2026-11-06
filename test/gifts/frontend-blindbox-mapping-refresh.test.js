@@ -23,12 +23,14 @@ test('settings form announces the saved room only after a successful save, inclu
     },
   };
   const window = {};
-  const { createSettingsForm } = await loadModuleExports(
-    path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-form.js'),
+  const [{ createSettingsForm }, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/settings-form.js'),
+    path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ],
     { window },
   );
   const saved = [];
-  window.AdminApp?.eventBus?.on('state:saved', (payload) => saved.push(payload));
+  eventBus.on('state:saved', (payload) => saved.push(payload));
   let resolveSave;
   let rejectSave;
   const form = createSettingsForm({
@@ -227,8 +229,12 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
       hidden: false,
       textContent: '',
       href: '',
+      options: [],
+      children: [],
       classList: { add() {} },
       append() {},
+      replaceChildren() {},
+      querySelector: () => null,
       getAttribute(name) {
         return this[name];
       },
@@ -262,6 +268,8 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
   elements.get('blindBoxAdvanced').hidden = true;
   const { createBlindboxSettings } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'settings-blindbox.js'),
+    // The appearance font picker builds its options through the global document.
+    { document: { createElement: () => makeElement(), fonts: [] } },
   );
   const savedConfigs = [];
   let saveGate = null;

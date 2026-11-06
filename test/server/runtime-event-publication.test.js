@@ -135,9 +135,9 @@ test('scene notifications select dynamic projections even with no ordinary WebSo
   for (const [reason, types] of [
     ['queue:add', ['queue']], ['superchat:delete', ['queue']], ['bilibili:danmaku', ['queue']],
     ['songs:save', ['queue', 'songlist']], ['cloud:songs', ['queue', 'songlist']],
-    ['bilibili:gift', ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox']],
-    ['gift:source', ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox']],
-    ['gift:sprint:reset', ['overtime', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox']],
+    ['bilibili:gift', ['overtime', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox']],
+    ['gift:source', ['overtime', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox']],
+    ['gift:sprint:reset', ['overtime', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox']],
     ['database:clear-playback', ['lyrics', 'now-playing']],
   ]) {
     transport.broadcastSnapshot(reason);
@@ -153,7 +153,8 @@ test('scene notifications select dynamic projections even with no ordinary WebSo
   transport.broadcastSnapshot('gift:wishes');
   assert.deepEqual(changes.pop(), { types: ['gift-wishes'], invalidateTypes: ['gift-wishes'] });
   transport.publishGiftCatalogUpdate({ gifts: [] });
-  assert.deepEqual(changes.pop(), { types: ['gift-feed', 'gift-wishes'], invalidateTypes: ['gift-feed', 'gift-wishes'] });
+  assert.deepEqual(changes.pop(), { types: ['gift-feed', 'gift-wishes', 'heart-box-collection'],
+    invalidateTypes: ['gift-feed', 'gift-wishes', 'heart-box-collection'] });
 });
 
 test('lyrics notify scenes after accepted states and changed timelines without changing read or acknowledgement shapes', t => {

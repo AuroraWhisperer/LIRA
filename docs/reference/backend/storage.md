@@ -152,11 +152,11 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 索引合同仍为 v1，无需迁移。`component-style-index.js` 在主索引提交后保存同内容的 `index.backup.json`；副本失败只报告恢复能力降级，不回滚已提交的安装。旧库首次读取会补齐副本。主索引缺失、损坏或结构无效时，从有效副本恢复；损坏原件保留为 `index.damaged-<UUID>.json`，`index.recovery.json` 记录恢复提示。两份均不可用时返回 503，不重建空库；高于当前支持版本的索引拒绝读取，不用旧副本降级。每包 `package.json` 是导入快照，后续参数以索引及其恢复副本为准。
 
-同一素材根目录共享已验证的索引缓存。每次读取检查主索引与副本的文件身份、大小和纳秒修改/状态时间；未变化时返回独立副本，不再重复读取及解析 JSON。索引写入立即更新缓存，外部改动或文件缺失重新进入上述校验与恢复流程；副本降级期间继续尝试修复。
+同一素材根目录共享已验证的索引缓存。每次读取检查主索引与副本的文件身份、大小和纳秒修改/状态时间；未变化时不再重复读取及解析 JSON。全量 `read()` 返回独立副本；内部 `createStyleReader()` 创建时验证一次索引，返回按 `(id,type)` 取独立样式副本的函数。一次公共外观请求复用同一 reader 和稳定快照，仅复制所选样式；类型与 ID 索引随已验证索引变化重建，包含 removed 历史并保留首个匹配。索引写入立即更新缓存，下一次读取或创建 reader 时，外部改动或文件缺失重新进入上述校验与恢复流程；副本降级期间继续尝试修复。
 
 上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存。打开库时回收超过 24 小时、且未被本进程导入占用的暂存和索引临时文件；同一目录每小时至多扫描一次，避免场景持续读取触发重复遍历。链接或被锁定文件保留。未登记的正式 UUID 目录保留供核对，不自动删除。
 
-相同作者 ID、版本、ZIP 摘要重复安装幂等，并能恢复该包或成员的 `removed` 状态，复用原安装 UUID 和资源；同 ID 同版本不同内容返回冲突，作者需提高版本。所有标准素材包（含单组件多变体包）安装时在一次索引提交中将同 packageId 的其他已安装版本设为 `removed`，包括旧客户端留下的并存版本。套装分类由未过滤的完整成员及同 packageId 历史记录推导，不新增持久化字段，旧成员被移除或新版减少组件类型都不会改变既有套装身份。
+相同作者 ID、版本、ZIP 摘要重复安装幂等，并能恢复该包或成员的 `removed` 状态，复用原安装 UUID 和资源；同 ID 同版本不同内容返回冲突，作者需提高版本。所有标准素材包（含单组件多变体包）安装时在一次索引提交中将同 packageId 的其他已安装版本设为 `removed`，包括旧客户端留下的并存版本。套装分类由未过滤的完整成员及同 packageId 历史记录推导，不新增持久化字段，旧成员被移除或新版减少组件类型都不会改变既有套装身份。列表读取一次遍历各历史包建立套装 packageId 集合，再投影可见包；多类别仍须存在于同一个历史包，不跨版本拼凑类别。
 
 服务层的 [component-style-install.js](../../../src/server/component-style-install.js) 统一素材、网页样式和套装的安装重试：仅新包待确认目录移到正式目录时的 `EPERM` / `EBUSY` 最多重试四次，每次重新授权；不重放失败的索引事务或回滚。存储层写好临时索引后，遇到这两类锁定错误只重试该临时文件到 `index.json` 的原子重命名，最多四次、累计等待 500 ms；等待保持同步以免其他写入插入当前事务，持续失败仍回滚。清理后的同版本原包恢复与备份批量恢复，目录移动和回滚也使用相同上限的同步重试，保留原身份及参数。磁盘格式不变。
 
@@ -460,6 +460,8 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 清空全部的应用流程由 [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 的同步 `runClearAll` 拥有。[路由](../../../src/server/routes/data-routes.js)从 [API 上下文](../../../src/server/api-context.js)传入窄能力，运行时依次暂停写入、清库并恢复，全程不插入 `await`:
 
+同文件的 `createDataMaintenanceRuntime` 提供 `domainServices.data`：它拥有活动礼物来源选择、SC 撤销状态清理、清库成功后的倒计时/冷却/默认分类/队列恢复，以及保留策略与 schema 版本缓存。组合根只注入数据库和必要的运行期操作；跨库提交、回滚与 SQL 继续由 storage 拥有。
+
 - `context.gifts.pauseDetection()`:暂停本地检测、finalize 与消费重试，取消计时器且不强制 flush；暂停期间销毁也不 flush。远端实时/历史导入抛出 `GIFT_DETECTION_PAUSED`，使礼物与同步游标所属事务一起回滚，避免丢事件
 - `context.overtime.pauseRecovery()`:暂停礼物结算、后台补偿与倒计时归零写入，取消零点/重试计时器
 - `runClearAll` 同时尽力清理音乐 API 与歌词文件缓存，失败不替换数据库结果；投影重建也尽力触发且不等待。Electron 桌面端在成功响应后还会清理 QQ 音乐、网易云音乐会话缓存（不删除登录 Cookie）。
@@ -485,11 +487,11 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 云端可选布尔值。它只控制弹幕指令特效，不控制全屏礼物感谢或收礼流水；不增加数据库表或
 迁移。云端旧快照缺少该字段时本地按关闭应用。见 [弹幕礼物特效规格](../../../specs/gift-effect-danmaku.md)。
 
-启动入口 `prepareSettingsBootstrap` 委托存储门面 `bootstrapSettingsStore(db)`：在同一 `BEGIN IMMEDIATE` 事务内读取旧版本、补齐默认值、转换设置并写入版本检查点；全部成功才提交，任何异常回滚整次初始化。新库的默认滚动速度同步保存当前版本，重启不会按旧范围再次转换。故障回归使用独立临时 SQLite 库与版本写入触发器，不读取用户数据。
+服务入口直接调用存储门面 `bootstrapSettingsStore(db)`：在同一 `BEGIN IMMEDIATE` 事务内读取旧版本、补齐默认值、转换设置并写入版本检查点；全部成功才提交，任何异常回滚整次初始化。新库的默认滚动速度同步保存当前版本，重启不会按旧范围再次转换。故障回归使用独立临时 SQLite 库与版本写入触发器，不读取用户数据。
 
 批量写能力 `setSettings(values)` 由存储层持有 `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK`，返回实际变化的键；没有变化时不写入。只有提交成功才清除内存缓存，失败同时保留数据库旧值与缓存旧值。`setSetting(key, value)` 继续供既有单键调用者使用。HTTP 设置 patch 与云端设置快照都走批量能力，字段校验归属 [API 设置契约](api.md#2-设置域settings)，不由存储层重复定义。
 
-`createSettingsStore(db)`（[settings-store.js](../../../src/storage/settings-store.js)）为缺失键插入默认值；`getSettings()` 合并默认值与数据库并缓存，写入使缓存失效。生产启动使用 `bootstrapSettingsStore` 将默认值、兼容迁移与检查点放在同一事务。默认键按组：
+`createSettingsStore(db)`（[settings-store.js](../../../src/storage/settings-store.js)）为缺失键插入默认值；`getSettings()` 合并默认值与数据库并缓存，写入使缓存失效。无参数读取仍返回完整独立副本；内部消费者可用 `getSettings(keys)` 只复制所需键，省略不存在或已隐藏的内部键。两种读取共享相同失效规则，均不暴露缓存对象。生产启动使用 `bootstrapSettingsStore` 将默认值、兼容迁移与检查点放在同一事务。默认键按组：
 
 | 分组         | 键(代表)                                                                                                                                                                                                                                                                                                                                                                                                             |
 | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -502,7 +504,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 单曲冷却 | `songCooldownMode=off`（`off/hours/days`）、`songCooldownValue=1`（1–999），同步到云端账号设置；入队时间仅存本机，按账号 scope 隔离；语义见 [音乐服务](music/services.md) |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
 | 弹幕机器人   | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules`                                                                                                                                                                                                                                                                        |
-| 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`guardThanksAuroraEnabled`、`guardThanksAuroraTextMode`、`guardThanksClassicEnabled`、`guardThanksClassicTextMode`（旧 `guardThanksEnabled`、`guardThanksTextMode`、`guardThanksStyle` 保留兼容）；特效 1 · 林间花信默认关闭、阈值为 20 元。已撤销的 `giftFrameRibbonEnabled` / `giftFrameRibbonThresholdRmb` 及旧 `giftFrameTheme` / `giftFrameMotionMode` 历史行原样保留但不参与运行，已从默认值/HTTP 可写键/overlay 投影移除；大航海感谢默认关闭、文字为 `bilingual`。官方映射来自只读 v2 目录缓存，不写回设置；缺少 v2 私有字段表示不覆盖，合法 `[]` 只清空自定义层。非空 legacy 配置保持迁移待确认，不按名称猜 ID |
+| 礼物         | `enableGiftSprint`、`giftSprintTargetRmb`、legacy `giftBlindBoxConfig`、云端私有 `giftBlindBoxCustomConfigV2`、`enableGiftNotification`、`giftFrameEnabled`、`giftFrameThresholdRmb`、`giftFrameStyleTriggers`、`guardThanksAuroraEnabled`、`guardThanksAuroraTextMode`、`guardThanksClassicEnabled`、`guardThanksClassicTextMode`（旧 `guardThanksEnabled`、`guardThanksTextMode`、`guardThanksStyle` 保留兼容）；特效 1 · 林间花信默认关闭、阈值为 20 元。已撤销的 `giftFrameRibbonEnabled` / `giftFrameRibbonThresholdRmb` 及旧 `giftFrameTheme` / `giftFrameMotionMode` 历史行原样保留但不参与运行，已从默认值/HTTP 可写键/overlay 投影移除；大航海感谢默认关闭、文字为 `bilingual`。官方映射来自只读 v2 目录缓存，不写回设置；缺少 v2 私有字段表示不覆盖，合法 `[]` 只清空自定义层。非空 legacy 配置保持迁移待确认，不按名称猜 ID |
 | 滚动/字号    | `scrollSeconds`、风格 1 的 `queueScrollMode`/`queueScrollSpeed`/`queueSongFontSize`、风格 2 的 `identityQueueScrollMode`/`identityQueueScrollSpeed`/`identityQueueFontSize`、风格 3–6 各自的 `storybook*`/`neonVinyl*`/`cherryRibbon*`/`goldenLily*` 字号与滚动键、`songBoardFontSize` 及各 `*RangeVersion`/`queueStyleSettingsVersion` 迁移版本键；`queueStyleSettingsVersion=1` 首次升级时把旧共享值复制到各风格键 |
 | 主题         | `themePrimary/themeAccent/themeText/themeBackground/themeOpacity/themeRadius/themeFontScale` 等 + `songBoard*` 独立一套                                                                                                                                                                                                                                                                                              |
 | 悬浮层       | `danmakuOverlayStyle`(`bubble`/`signal`/`minimal`/`ranked`/`transparent`/`identity`/`outline`，默认 `signal`)、`danmakuFullscreenDurationSeconds`(默认 `6`，服务端限制 2–30 的安全整数)、`overlayQueueStyle`(`classic`/`identity`/`storybook`/`neon-vinyl`/`cherry-ribbon`/`golden-lily`,遗留 `festival` 按 identity 使用)、插画风格各自的 `*QueueFontFamily`/`*QueueFontWeight`/`*QueueUseCustomTextColor`/`*QueueTextColor`、`overlayLowPowerMode`、`backdropBlur`、`glowIntensity`、`overlayPin1-3`、`overlayRule1-6` 及颜色/字号       |
@@ -537,6 +539,9 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | `danmakuOverlayStyle='signal'`、`danmakuFullscreenDurationSeconds='6'` | 本地展示设置；不是服务器 overlay 配置的权威副本 | 本地 HTTP 校验与展示 scope 消费；服务器样式独立经 liraLicense IPC，允许值差异见 [preload.md](../desktop/preload.md) |
 | `weSingCachePath` 为 Windows APPDATA 下 Tencent/WeSing/WeSingCache（否则空）、`weSingLyricOffsetMs='0'` | 本机路径/时钟，不同步 | 目录选择 IPC 只返回路径，HTTP 保存先 prepare 再写库；[wesing-cache.js](../../../src/music/wesing-cache.js) 校验绝对目录与偏移 |
 | `giftFrameEnabled='false'`、`giftFrameThresholdRmb='20'` | 林间花信的专属开关/金额，不加入云设置范围；缎带旧设置保留历史行但不再读取或写入 | 设置 HTTP → gift frame/overlay；[frame-config.js](../../../src/bilibili/gift/frame-config.js) |
+| `giftFrameStyleTriggers=''` | 导入的全屏礼物感谢图片/视频样式的独立开关/金额：JSON 对象，键为样式 UUID，值 `{enabled,thresholdRmb}`（`enabled` 为 `'true'` 或 `'false'`），最多 1000 条，非法值整份拒绝。`''` 表示尚未迁移，所有导入图片/视频沿用升级前规则跟随林间花信；已迁移后缺少条目视为关闭、20 元。启动时仅当值为 `''` 且样式库可读才迁移一次：为库中全部（含已移除）图片/视频样式写入当时的林间花信开关与金额；样式库不可读则保持 `''` 并在下次启动重试。不加入云设置范围 | 设置 HTTP → gift frame；[frame-config.js](../../../src/bilibili/gift/frame-config.js)、[gift-frame-style-triggers.js](../../../src/server/gift-frame-style-triggers.js) |
+| `giftDropEnabled='false'`、`giftDropThresholdRmb='0'`、`giftDropSize='96'`、`giftDropDurationSeconds='20'`、`giftDropSpeed='100'`、`giftDropBounce='18'` | 本机礼物掉落；大小 32–240px，存活 3–120 秒，速度 50–200%，弹跳力度 0–80%（0 不反弹），均为整数；金额非负、包含门槛，0 表示所有正金额结算。速度与弹性不改变到期时刻，不加入云设置范围 | 设置 HTTP → [motion-config.js](../../../src/bilibili/gift/motion-config.js) → final 展示事件 |
+| `giftSwingEnabled='false'`、`giftSwingThresholdRmb='0'`、`giftSwingSize='150'`、`giftSwingDurationSeconds='20'`、`giftSwingAngle='24'`、`giftSwingSpeed='100'`、`giftSwingTextMode='full'` | 本机礼物摇摇乐；大小 64–280px，存活 3–120 秒，摆幅 5–45 度，速度 50–200%，均为整数；文字仅接受 `full`（昵称、礼物和数量）、`gift`（礼物和数量）、`none`（仅图片）。独立金额/开关，不加入云设置范围 | 设置 HTTP → 同一 motion owner；缺少新字段时沿用原效果，无新表或迁移 |
 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`（四键默认 `''`） | 两套本地开关与文字独立保存，不加入云设置范围。空值继承旧配置：仅 `guardThanksStyle` 指定的风格继承旧开关，两者继承旧文字；独立保存后该风格不再受旧键影响。旧默认仍为 `false/bilingual/aurora`，新安装两套均关闭。无数据库结构迁移 | 设置 HTTP → 每个启用风格的 `gift:guard-thanks`/overlay；[guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)、[共用兼容解析](../../../public/js/shared/guard-thanks-settings.js) |
 | `guardThanksNauticalEnabled`（默认 `''`） | 航海旗帜本地开关，`true/false` 独立生效；空值兼容任一内置感谢已启用的旧行为。新安装保持关闭，不加入云设置范围 | 同一 final 上舰行投影为专属 `style:nautical` 场景事件，不广播给旧独立礼物特效页，不触发其他样式 |
 | `openingEnabled='false'`、openingAudioFile/Name、openingCharacterFile/Name、openingPixelCharacterFile/Name | 本机上传素材与开播展示；每次 bootstrap 强制关闭 openingEnabled | 专属上传/删除路由保存素材路径，普通设置不是任意路径导入；目录见本文件 §1 |
@@ -610,7 +615,9 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，再分别按总计、礼物身份和北京时间分桶聚合，保留各组原有金额与数量计算。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
 
-条件式历史扫描在同一读事务内核对 `contentRevision`，命中时不读总数或行。连接内临时表及触发器只追踪 `gift_events` 写入，普通同步状态更新不使记录版本失效；外部提交、schema 变化及可见时间上界对应的最后记录时间同时参与版本。每个 store 有独立实例标识，读取沿用独立读事务，调用时已有事务会拒绝；回滚和重开连接不会确认未提交内容。临时追踪不改变持久 schema 或迁移版本。
+条件式历史扫描在同一读事务内核对 `contentRevision`，命中时不读总数或分页明细；可见时间边界使用与历史一致的 final、状态和时间索引取最新记录，避免只按 source 排序全库。`gift-history-changes.js` 拥有连接内 TEMP 修订与有界行 ID 日志，追踪 `gift_events` 和保留快照成员写入；普通同步状态更新不使记录版本失效。外部提交、schema、活动快照及可见时间边界同时参与版本。每个 store 有独立实例标识，最多保留 64 个成功读取的版本；调用时已有事务会拒绝，只在读事务提交后发布版本。
+
+选择 `delta=1` 的时间升序读取，可从最近 1000 次变更找出行 ID，并通过原时间索引补入刚到可见时间的记录；候选不超过请求页大小时按主键读取当前可见行及需替换的身份，不重复 COUNT 或重读整天。回滚同时回滚 TEMP 日志；日志缺口、过多候选、物理删除、身份变化、连接/来源/快照/外部版本变化均退回完整分页。临时追踪不改变持久 schema 或迁移版本，详细兼容响应见 [礼物查询](bilibili/gift.md#5-礼物冲刺与查询)。
 
 粉丝列表在已有 scope 事务内先筛选档案文本、归档、收藏与资料缺失，再通过 `records.listForProfiles` / `statesForProfiles` 每批最多 500 个 ID 读取候选明细。返回按 profileId 分组的 Map，记录仍按 occurred_at DESC、id 排序；单次列表固定当前时间，会员过滤与灯牌全局排序在计算后执行。
 

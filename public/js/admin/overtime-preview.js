@@ -48,7 +48,13 @@ export function createOvertimeAppearance({ initial = {}, onSavedState }) {
     if (state.background) controller.receive({ path: state.background.path || '', fit: state.background.fit || 'cover' });
     for (const listener of dataListeners) listener(projectOvertimePreviewState(current));
   }
-  const getOvertimePreview = () => createOvertimePreview({ controller, startActualData(emit) {
+  const getOvertimePreview = () => createOvertimePreview({ controller, async control(change) {
+    const response = change.action === 'time'
+      ? await api('/api/overtime/time', { initialSeconds: change.seconds, remainingSeconds: change.seconds }, { notifyError: false })
+      : await api('/api/overtime/action', { action: change.action }, { notifyError: false });
+    onSavedState(response.data);
+    return projectOvertimePreviewState(response.data);
+  }, startActualData(emit) {
     emit(projectOvertimePreviewState(current));
     dataListeners.add(emit);
     return () => dataListeners.delete(emit);

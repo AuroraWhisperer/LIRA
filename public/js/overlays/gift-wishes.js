@@ -2,6 +2,7 @@ import { renderGiftWishCards, WISH_PERIODS } from '../shared/gift-wish-card.js';
 import { createGiftWishFeed } from '../shared/gift-wish-client.js';
 import { createOverlaySocket } from './socket-client.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
+import { GIFT_WISH_RIBBON_FIELDS } from '../shared/gift-wish-ribbon-appearance.js';
 
 const query = new URLSearchParams(location.search);
 const period = Object.hasOwn(WISH_PERIODS, query.get('period')) ? query.get('period') : null;
@@ -66,7 +67,7 @@ function renderComponent() {
   stage.style.gap = `${componentConfig.gap}px`;
   renderGiftWishCards(stage, items.map((wish) => ({ ...wish,
     ...(componentConfig.displayStyle !== 'original' ? { displayStyle: componentConfig.displayStyle } : {}),
-    textPendingColor: componentConfig.textPendingColor, textReceivedColor: componentConfig.textReceivedColor,
+    ...Object.fromEntries(Object.keys(GIFT_WISH_RIBBON_FIELDS).map(key => [key, componentConfig[key]])),
   })));
   status.textContent = componentData?.preview ? componentData.message || '' : '';
   status.hidden = !status.textContent;

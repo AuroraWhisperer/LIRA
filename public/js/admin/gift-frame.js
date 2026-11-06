@@ -6,12 +6,14 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { requestComponentStyles } from './component-style-api.js';
 
-const MISSING_STYLE_MESSAGE = '请先从「更多样式 → ＋ 添加样式」导入林间花信样式包。';
+const MISSING_STYLE_MESSAGE = '请先在本页最下方「＋ 添加样式」导入林间花信样式包。';
+const WOODLAND_PACKAGE = 'lira.woodland-gift-frame';
+const isWoodlandStyle = style => style.config.resourceStyle?.preset === 'woodland-gift-frame';
 
 // 每个特效自成一组：设置键、控件 id 和预览输入都只属于自己。
 const EFFECTS = [
   {
-    label: '全屏礼物感谢',
+    label: '林间花信',
     themeId: 'woodland-bloom',
     enabledKey: 'giftFrameEnabled',
     thresholdKey: 'giftFrameThresholdRmb',
@@ -31,6 +33,8 @@ const EFFECTS = [
 
 let initialized = false;
 let currentSettings = {};
+// 林间花信只在导入后显示；已开启但样式库中没有时仍显示，便于关闭。
+let woodland = { checked: false, installed: false, failed: false };
 const draftFields = new Set();
 const savingFields = new Set();
 const settingIds = EFFECTS.flatMap((effect) => [effect.enabledKey, effect.thresholdKey]);
@@ -65,17 +69,30 @@ export function initGiftFrame() {
 }
 
 export function renderGiftFrameStyleState(packs) {
-  const status = document.getElementById('giftFrameStyleState');
-  if (!status) return;
-  if (packs) {
-    const installed = packs.some(pack => pack.packageId === 'lira.woodland-gift-frame'
-      && pack.styles.some(style => style.config.resourceStyle?.preset === 'woodland-gift-frame'));
-    status.hidden = installed;
-    status.textContent = installed ? '' : `尚未导入林间花信，启用后暂不会显示。${MISSING_STYLE_MESSAGE}`;
-  } else {
-    status.hidden = false;
-    status.textContent = '样式库状态暂未读取成功；使用前请确认已导入林间花信样式包。';
+  const pack = packs?.find(item => item.packageId === WOODLAND_PACKAGE && item.styles.some(isWoodlandStyle));
+  woodland = { checked: Boolean(packs), installed: Boolean(pack), failed: !packs };
+  const thumb = document.getElementById('giftFrameThumb');
+  const icon = document.getElementById('giftFrameIcon');
+  const tag = document.getElementById('giftFrameTag');
+  if (thumb && icon && tag) {
+    const preview = pack?.styles.find(isWoodlandStyle).config.resourceStyle.preview;
+    if (preview) thumb.src = preview; else thumb.removeAttribute('src');
+    thumb.hidden = !preview; icon.hidden = Boolean(preview);
+    tag.textContent = pack?.version ? `样式包 ${pack.version}` : '样式包';
   }
+  syncWoodlandCard();
+}
+
+function syncWoodlandCard() {
+  const card = document.getElementById('giftFrameSettings');
+  const notice = document.getElementById('giftFrameStyleState');
+  // Visibility follows the style library; until it answers, keep the page's initial state.
+  if (!card || !notice || !woodland.checked && !woodland.failed) return;
+  card.hidden = !woodland.installed && currentSettings.giftFrameEnabled !== 'true';
+  notice.hidden = card.hidden || woodland.installed;
+  notice.textContent = notice.hidden ? '' : woodland.failed
+    ? '样式库暂未读取成功；使用前请确认已导入林间花信样式包。'
+    : '样式库中没有林间花信。画布里已有的林间花信图层仍按这里的设置播放；不再需要时请关闭并保存，或在下方「＋ 添加样式」重新导入。';
 }
 
 export function renderGiftFrame(settings = {}) {
@@ -92,6 +109,7 @@ export function renderGiftFrame(settings = {}) {
     for (const id of [enabled, threshold]) syncDraftField(document.getElementById(id), effect);
     if (document.getElementById(effect.ids.status).dataset.state === 'pending') setStatus(effect.ids.status, '', '');
   }
+  syncWoodlandCard();
 }
 
 function syncDraftField(node, effect) {

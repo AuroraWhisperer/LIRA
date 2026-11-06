@@ -18,7 +18,7 @@ async function controlsFixture(api, initial = sourceState('internal')) {
   const groups = ['internal', 'external', 'wesing'].map((value) => ({ name: 'desktopLyricSourceGroup', value }));
   const listeners = new Map();
   const elements = new Map();
-  for (const id of ['SourceControls', 'SourceStatus', 'SourceTrack', 'SourceRetry', 'QQStatus', 'NetEaseStatus', 'NetEaseRetry', 'ExternalControls', 'WeSingSettings']) elements.set(`desktopLyric${id}`, {
+  for (const id of ['SourceControls', 'SourceStatus', 'FollowLabel', 'SourceTrack', 'SourceRetry', 'QQStatus', 'NetEaseStatus', 'NetEaseRetry', 'ExternalControls', 'WeSingSettings']) elements.set(`desktopLyric${id}`, {
     querySelectorAll: (selector) => selector === 'input[name="desktopLyricSourceGroup"]' ? groups : inputs,
     addEventListener(type, fn) { listeners.set(`${id}:${type}`, [...(listeners.get(`${id}:${type}`) || []), fn]); },
   });

@@ -23,16 +23,21 @@ test('catalog image revisions invalidate on downloads and recheck external file 
     remoteCatalog: { getRevision: () => 0, getSnapshot: () => ({ gifts: [gift] }), refresh: async () => null },
     remoteImageCache: cache,
   });
+  assert.equal(catalog.getArtworkResolver()('1'), '');
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
   const downloaded = await cache.cacheGiftImage(gift);
+  assert.equal(catalog.getArtworkResolver()('1'), downloaded);
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, downloaded);
   fs.writeFileSync(path.join(cache.cacheDir, 'image.webp'), 'invalid');
   clock += 1000;
+  assert.equal(catalog.getArtworkResolver()('1'), '');
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
   await cache.cacheGiftImage(gift);
+  assert.equal(catalog.getArtworkResolver()('1'), downloaded);
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, downloaded);
   fs.unlinkSync(path.join(cache.cacheDir, 'image.webp'));
   clock += 1000;
+  assert.equal(catalog.getArtworkResolver()('1'), '');
   assert.equal(catalog.getGlobalSnapshot().gifts[0].imagePath, '');
 });
 

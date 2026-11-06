@@ -100,7 +100,10 @@ export function mountSceneEditorInspector(host, { model, components, getSelectio
         retry.addEventListener('click', () => { void (controller.getState().dirty ? controller.save?.() : controller.reload?.()); });
         parameters.append(status, retry);
         stopStatus = controller.subscribe(state => {
-          status.textContent = componentSaveMessage(state);
+          status.textContent = state.error || state.saving || state.loading || !state.loaded || state.conflict
+            ? `公共参数：${componentSaveMessage(state)}`
+            : state.dirty ? autoSavesAppearance ? '公共参数等待自动保存。' : '公共参数有未保存修改。'
+              : '公共参数无未保存修改。';
           retry.textContent = state.dirty ? '重试保存参数' : '重新读取参数';
           retry.hidden = !state.error; retry.disabled = state.saving || state.loading;
         });

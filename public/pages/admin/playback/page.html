@@ -25,14 +25,18 @@
       </div>
       <div class="playback-account-compact">
         <div class="playback-account-status">
-          <span id="playbackSourceStatus" class="pill warn">QQ 音乐待登录</span>
-          <button id="playbackHealthBtn" type="button">检查音乐平台连接</button>
-          <button id="playbackClearCacheBtn" type="button">清理全部音乐缓存</button>
-          <button id="playbackLoginBtn" type="button">登录 QQ 音乐</button>
-          <button id="playbackLogoutBtn" class="danger" type="button" style="display: none">退出登录</button>
-        </div>
-        <div class="playback-status-row">
-          <span id="playbackProviderHealth" class="playback-health-status">等待检查</span>
+          <span id="playbackProviderHealth" class="playback-health-status" role="status">等待检查</span>
+          <span id="playbackSourceStatus" class="pill good" hidden>已登录</span>
+          <button id="playbackLoginBtn" class="primary" type="button">登录</button>
+          <button id="playbackHealthBtn" type="button">检查连接</button>
+          <button id="playbackMoreBtn" type="button" popovertarget="playbackMoreMenu" aria-label="更多音乐播放操作">
+            更多
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="none" aria-hidden="true"><path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
+          <div id="playbackMoreMenu" class="playback-more-menu" popover="auto" aria-label="音乐播放操作">
+            <button id="playbackClearCacheBtn" type="button" popovertarget="playbackMoreMenu" popovertargetaction="hide">清理全部音乐缓存</button>
+            <button id="playbackLogoutBtn" class="danger" type="button" popovertarget="playbackMoreMenu" popovertargetaction="hide" style="display: none">退出登录</button>
+          </div>
         </div>
       </div>
     </div>

@@ -126,6 +126,8 @@ for (const failurePhase of ['metadata', 'initialization', 'startup-repair']) {
       const app = await runtime.start({ startPort: 0 });
       assert.equal(app.server.listening, true);
       assert.ok(runtime.getApiToken());
+      const source = runtime.resolveGiftSource('a'.repeat(64));
+      assert.equal(runtime.getGiftSyncState(source.id).bootstrapComplete, false);
       const denied = await fetch(`${app.baseUrl}/api/state`);
       assert.equal(denied.status, 423, 'runtime licenseGate must reach the HTTP transport after retry');
       assert.deepEqual(await denied.json(), { ok: false, error: 'LICENSE_REQUIRED' });

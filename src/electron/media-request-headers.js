@@ -1,8 +1,11 @@
 'use strict';
 
-function configureMediaRequestHeaders(desktopSession, state, requestAuth = null) {
-  if (state.headersConfigured) return;
-  state.headersConfigured = true;
+const registrations = new WeakMap();
+
+function configureMediaRequestHeaders(desktopSession, requestAuth = null) {
+  const previous = registrations.get(desktopSession);
+  if (previous?.requestAuth === requestAuth) return previous.dispose;
+  previous?.dispose();
   desktopSession.webRequest.onBeforeSendHeaders(
     {
       urls: requestAuth
@@ -53,6 +56,17 @@ function configureMediaRequestHeaders(desktopSession, state, requestAuth = null)
     desktopSession.webRequest.onCompleted(requestAuth.completeRequest);
     desktopSession.webRequest.onErrorOccurred(requestAuth.completeRequest);
   }
+  function dispose() {
+    if (registrations.get(desktopSession)?.dispose !== dispose) return;
+    registrations.delete(desktopSession);
+    desktopSession.webRequest.onBeforeSendHeaders(null);
+    if (requestAuth) {
+      desktopSession.webRequest.onCompleted(null);
+      desktopSession.webRequest.onErrorOccurred(null);
+    }
+  }
+  registrations.set(desktopSession, { requestAuth, dispose });
+  return dispose;
 }
 
 module.exports = {

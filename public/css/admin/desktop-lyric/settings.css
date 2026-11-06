@@ -1,7 +1,12 @@
 /* 桌面歌词设置页实时预览；时间轴算法位于 shared/lyric-word-renderer.js。 */
+#desktopLyricPage > .other-feature-panel-body {
+  padding-inline: 12px;
+  padding-top: 12px;
+}
+
 .desktop-lyric-workspace {
   display: grid;
-  grid-template-columns: minmax(460px, 1fr) minmax(320px, 648px);
+  grid-template-columns: minmax(420px, 1fr) minmax(320px, 648px);
   align-items: start;
   gap: 16px;
 }
@@ -40,10 +45,6 @@
 
 .desktop-lyric-autosave-state.is-error::before {
   background: var(--danger);
-}
-
-.desktop-lyric-settings-fields {
-  grid-template-columns: 1fr;
 }
 
 .desktop-lyric-settings .theme-section {
@@ -105,20 +106,68 @@
   border-top: 1px solid var(--border);
 }
 
+.desktop-lyric-follow-current {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.desktop-lyric-follow-label {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.desktop-lyric-follow-current strong {
+  min-width: 0;
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+.desktop-lyric-follow-label[hidden] + strong {
+  font-weight: inherit;
+}
+
+.desktop-lyric-client-list {
+  display: grid;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
 .desktop-lyric-client-status {
   display: flex;
+  min-height: 44px;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
+  padding: 6px 6px 6px 12px;
+}
+
+.desktop-lyric-client-status + .desktop-lyric-client-status {
+  border-top: 1px solid var(--border);
+}
+
+.desktop-lyric-client-status img {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  border-radius: 50%;
 }
 
 .desktop-lyric-client-status p {
+  flex: 1 1 auto;
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
 .desktop-lyric-client-status button {
   flex: 0 0 auto;
+}
+
+/* 行内重检按钮比组件页通用 36px 控件矮一档，需压过 live-components.css 的共享规则。 */
+#desktopLyricSourceControls .desktop-lyric-client-status button {
+  min-height: 32px;
+  padding-block: 5px;
 }
 
 #desktopLyricSourceControls p {
@@ -135,11 +184,11 @@
 
 .desktop-lyric-source-choice {
   display: flex;
-  min-height: 48px;
+  min-height: 36px;
   align-items: center;
   justify-content: center;
   gap: 7px;
-  padding: 7px 9px;
+  padding: 4px 9px;
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface);
@@ -183,7 +232,7 @@
 }
 
 .desktop-lyric-source-groups .desktop-lyric-source-choice {
-  min-height: 40px;
+  min-height: 36px;
   border-color: transparent;
   background: transparent;
 }
@@ -265,10 +314,6 @@
   background: color-mix(in srgb, var(--color-selection-marker) 18%, var(--surface));
 }
 
-.desktop-lyric-settings .desktop-lyric-group-count {
-  background: var(--surface);
-}
-
 .desktop-lyric-settings-group > summary::-webkit-details-marker {
   display: none;
 }
@@ -317,17 +362,39 @@
   line-height: 1.4;
 }
 
-.desktop-lyric-group-count {
+.desktop-lyric-group-state {
   margin-left: auto;
-  padding: 3px 7px;
-  border-radius: 999px;
-  background: var(--surface-2);
   color: var(--muted);
-  font-weight: var(--type-weight-bold);
+  font-size: var(--type-size-control);
   white-space: nowrap;
+}
+
+.desktop-lyric-settings-group[open] > summary > .desktop-lyric-group-state {
+  display: none;
 }
 
 .desktop-lyric-group-body {
   padding: 0 16px;
   border-top: 1px solid var(--border);
+}
+
+.desktop-lyric-advanced {
+  border-top: 1px solid var(--border);
+}
+
+.desktop-lyric-advanced > summary {
+  padding: 12px 0;
+  color: var(--muted);
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-semibold);
+  cursor: pointer;
+}
+
+.desktop-lyric-advanced > summary:hover {
+  color: var(--text);
+}
+
+.desktop-lyric-advanced > summary:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
 }

@@ -1,12 +1,12 @@
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 import { componentSaveMessage } from './component-config-controller.js';
 import { createResourceStyleSettings } from './resource-style-settings.js';
-import { mountComponentPreview, previewElement } from './component-preview-surface.js';
+import { mountComponentPreview, previewElement, previewToolbarIcon } from './component-preview-surface.js';
 import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
 import { mountNauticalGuardToggle } from './gift-guard-thanks.js';
 
 // The installed style owns parameters shared by the feature page and its scenes.
-export function mountResourceStyleSettings(host, { style, request, onUse, onPreview }) {
+export function mountResourceStyleSettings(host, { style, request, onUse, onPreview, compactGuardThanks = false }) {
   const root = previewElement('section', 'resource-style-settings');
   root.dataset.resourceStyleSettings = style.id;
   root.setAttribute('aria-label', `${style.name}设置`);
@@ -31,8 +31,33 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   const component = COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview({ controller, embedded: true, restrictResourceStyle: true, panelPrefix: `resource-${style.id}`,
     previewHint: onPreview ? '上方预览展示正在编辑的这条许愿；显示条数和间距用于画布及直播画面。' : undefined });
   const panel = component.createPanel(parameters, controller);
-  const toggle = preset === COMPONENT_RESOURCE_PRESETS['nautical-guard-thanks'] ? mountNauticalGuardToggle(heading) : null;
+  const toolbar = compactGuardThanks ? previewElement('div', 'component-toolbar-group') : heading;
+  const toggle = preset === COMPONENT_RESOURCE_PRESETS['nautical-guard-thanks'] ? mountNauticalGuardToggle(toolbar) : null;
   if (toggle) hint.textContent += ' 旗帜中文固定在素材中，不随语言切换。';
+  let previewData;
+  const stopPreviewData = compactGuardThanks ? component.startData({ emit: value => { previewData = value; } }) : null;
+  if (compactGuardThanks) {
+    root.classList.add('guard-thanks-card');
+    heading.classList.add('guard-thanks-heading', 'component-toolbar');
+    const help = previewElement('lira-help'); help.setAttribute('label', `${style.name}说明`);
+    help.textContent = hint.textContent; title.append(' ', help); hint.remove();
+    save.classList.add('guard-thanks-save'); save.prepend(previewToolbarIcon('save'));
+    discard.classList.add('guard-thanks-discard');
+    toolbar.append(save, discard); heading.append(toolbar);
+    const controls = previewElement('div', 'guard-thanks-controls');
+    const row = previewElement('section', 'guard-thanks-preview'); row.setAttribute('aria-label', '画布预览');
+    row.append(previewElement('h4', '', '画布预览'));
+    const fields = parameters.querySelector('[data-parameter-group="preview"]');
+    fields.classList.add('guard-thanks-preview-fields');
+    for (const label of fields.querySelectorAll('.desktop-lyric-control-copy')) label.textContent = label.textContent.replace('预览', '');
+    use.textContent = '在画布中预览'; fields.querySelector('.desktop-lyric-group-body').append(use);
+    row.append(fields); controls.append(row); heading.after(controls);
+    const appearance = parameters.querySelector('[data-parameter-group="appearance"]');
+    appearance.open = false; appearance.querySelector('strong').textContent = '外观设置';
+    appearance.querySelector('summary').prepend(previewToolbarIcon('settings'));
+    status.classList.add('guard-thanks-status');
+    actions.remove();
+  }
   let previewedConfig;
   function updatePagePreview(draft) {
     if (!onPreview || root.hidden) return;
@@ -44,7 +69,9 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   const stop = controller.subscribe(state => {
     save.disabled = !state.dirty || state.saving;
     discard.disabled = !state.dirty || state.saving;
-    status.textContent = state.applied && !state.dirty && !state.error ? '已保存并同步到画布。' : componentSaveMessage(state);
+    if (compactGuardThanks) discard.hidden = !state.dirty;
+    status.textContent = compactGuardThanks && !state.dirty && !state.saving && !state.error && !state.applied ? ''
+      : state.applied && !state.dirty && !state.error ? '已保存并同步到画布。' : componentSaveMessage(state);
     updatePagePreview(state.draft);
   });
   save.addEventListener('click', () => { void controller.save(); });
@@ -53,7 +80,7 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
     use.disabled = true;
     try {
       if (controller.getState().dirty && !await controller.save()) throw new Error(controller.getState().error || '样式保存失败，请重试。');
-      await onUse({ ...style, config: controller.getState().saved });
+      await onUse({ ...style, config: controller.getState().saved }, compactGuardThanks ? { previewData, reuseExisting: true } : undefined);
     }
     catch (error) { status.textContent = error.message; }
     finally { use.disabled = false; }
@@ -75,12 +102,13 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
       onResize(value) { width = value.width; height = value.height; preview?.fit(); } });
   });
   return {
-    update(value) { style = value; title.textContent = style.name; controller.receive(style.config); },
+    element: root,
+    update(value) { style = value; title.firstChild.textContent = style.name; controller.receive(style.config); },
     show(visible) {
       root.hidden = !visible;
       if (visible) updatePagePreview(controller.getState().draft);
       else { closePreview(); previewedConfig = undefined; }
     },
-    dispose() { clearInterval(timer); requests.abort(); closePreview(); stop(); panel.dispose(); toggle?.dispose(); root.remove(); },
+    dispose() { clearInterval(timer); requests.abort(); closePreview(); stopPreviewData?.(); stop(); panel.dispose(); toggle?.dispose(); root.remove(); },
   };
 }

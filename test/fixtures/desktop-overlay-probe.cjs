@@ -61,7 +61,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     getSettings: () => settings,
     servePageOrAsset(req, res, url) {
       // Keep the real management HTML/CSP without starting unrelated app domains.
-      if (['/js/admin/index.js', '/js/playback.js'].includes(url.pathname)) {
+      if (url.pathname === '/js/admin/index.js') {
         res.setHeader('Content-Type', 'application/javascript');
         res.end('');
         return;
@@ -90,7 +90,7 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     getBaseUrl: () => origin,
     getToken: () => token,
   });
-  configureMediaRequestHeaders(session.defaultSession, {}, auth);
+  configureMediaRequestHeaders(session.defaultSession, auth);
   auth.bindWindow(admin, {
     openExternal() {
       assert.fail('probe must not open external browsers');

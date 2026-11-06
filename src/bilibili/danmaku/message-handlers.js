@@ -136,8 +136,9 @@ class MessageHandlers {
     }
     logSongRequest('command-ingress', diagnosticMessage);
 
+    const isCommand = this.isCommandText(text);
     if (
-      this.isCommandText(text) &&
+      isCommand &&
       !bilibiliHelpers.isCapturableBilibiliTimestamp(messageTimestamp, this.startedAtMs)
     ) {
       logSongRequest('command-filtered', diagnosticMessage, {
@@ -147,7 +148,7 @@ class MessageHandlers {
       return;
     }
     if (
-      this.isCommandText(text) &&
+      isCommand &&
       !this.deduplicator.remember(userInfo[0], text, messageTimestamp, {
         userName: userInfo[1],
         source: 'danmaku',

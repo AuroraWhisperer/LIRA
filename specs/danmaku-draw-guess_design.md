@@ -28,7 +28,7 @@
 
 ## Architecture
 
-- Backend owner: `src/games/draw-guess-words.js` 负责分类词库内容，`src/games/draw-guess.js` 负责分类筛选、答案规范化、回合、计分、公开状态和绘画输入限制；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
+- Backend owner: `src/games/draw-guess-words.js` 负责分类词库内容，`src/games/draw-guess.js` 负责分类筛选、答案规范化、回合、计分、公开状态和作画阶段校验；`src/games/draw-guess-canvas.js` 独立拥有画布创建、笔画/坐标校验与限额、append/undo/clear 状态变换和公开画布深复制，保持被拒绝操作的原状态不变；`src/games/game-session-service.js` 负责单会话互斥、服务端倒计时、弹幕接入和广播。
 - HTTP contract: `GET /api/games/draw-guess/categories` 只返回分类 ID、名称和词数；`GET /api/games/host-state` 返回主持人私有题词、本场分类选择及选词阶段的全部可用词；`POST /api/games/session` 可接收分类 ID 数组；`POST /api/games/session/draw` 接收受限的增量绘画、清空和撤销上一笔操作；现有 `POST /api/games/session/move` 接收带 `word/sessionId/round` 的 `choose-word` 确认，以及结束作画、公布答案和准备下一题操作。
 - WebSocket contract: `game:update` 建立完整公开会话；`game:patch` 只传新增弹幕、头像补充或不含画布的回合状态；`game:draw` 传画笔操作。恢复顺序及字段由 [WebSocket 契约](../docs/reference/backend/ws.md) 维护。
 - Frontend owner: `public/js/admin/games.js` 管理第四张卡片、私有题词和回合控制；`public/js/overlays/games.js` 在 `/games` 上提供主播画布并同步给其它浏览器源实例。

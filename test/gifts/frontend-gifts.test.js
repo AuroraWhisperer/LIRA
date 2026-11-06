@@ -31,7 +31,9 @@ test('blind box summary refreshes on gift events and coalesces in-flight updates
       },
     },
   };
-  const { giftBlindbox } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'gifts', 'blindbox.js'), {
+  const [{ giftBlindbox }, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], {
     window,
     document: {
       readyState: 'complete',
@@ -63,7 +65,6 @@ test('blind box summary refreshes on gift events and coalesces in-flight updates
   assert.equal(statsRequests, 1);
   await finishRequest(empty);
 
-  const eventBus = window.AdminApp.eventBus;
   eventBus.emit('state:loaded', { state: {} });
   assert.equal(statsRequests, 1);
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });

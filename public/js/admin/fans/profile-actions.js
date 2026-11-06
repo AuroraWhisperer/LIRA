@@ -1,7 +1,8 @@
 import { profileForm, recordForm } from './forms.js';
 import { html } from './view.js';
+import { toast } from '../../shared/utils.js';
 
-export function createFanProfileActions({ request, openForm, onProfile, onDeleted }) {
+export function createFanProfileActions({ request, openForm, onProfile, onDeleted, onChanged, onArchived, onSuppressed, reload }) {
   function editProfile(profile = {}) {
     openForm(profileForm(profile), async (payload) => {
       let saved;
@@ -43,5 +44,49 @@ export function createFanProfileActions({ request, openForm, onProfile, onDelete
     );
   }
 
-  return { editProfile, editRecord, deleteProfile };
+  async function handle(name, profile, selection, recordId) {
+    if (name === 'edit-profile') {
+      editProfile(profile);
+    } else if (name.startsWith('new-')) {
+      editRecord(profile.id, name.slice(4));
+    } else if (name === 'edit-record') {
+      const record = profile.records.find((item) => item.id === recordId);
+      if (record) editRecord(profile.id, record.kind, record);
+    } else if (name.startsWith('resolve-')) {
+      const saved = await request('resolve-membership', {
+        profileId: profile.id,
+        id: recordId,
+        choice: name.slice(8),
+      });
+      await onChanged(saved, profile.id, selection);
+    } else if (name === 'archive') {
+      const saved = await request('save', {
+        id: profile.id,
+        revision: profile.revision,
+        archived: !profile.archived,
+      });
+      onArchived(saved, selection);
+      toast(saved.archived ? '已归档，资料仍保留。可在‘已归档’中恢复。' : '已恢复到主列表，可在‘当前档案’中查看。');
+      await reload();
+    } else if (name === 'suppress') {
+      await request('suppress', { id: profile.id, revision: profile.revision });
+      onSuppressed(profile.id, selection);
+      toast('已加入黑名单，相关档案与提醒已隐藏。可在设置中解除屏蔽。');
+      await reload();
+    } else if (name === 'favorite') {
+      const saved = await request('save', {
+        id: profile.id,
+        revision: profile.revision,
+        favorite: !profile.favorite,
+      });
+      await onChanged(saved, profile.id, selection);
+    } else if (name === 'delete') {
+      deleteProfile(profile);
+    } else {
+      return false;
+    }
+    return true;
+  }
+
+  return { editProfile, editRecord, deleteProfile, handle };
 }

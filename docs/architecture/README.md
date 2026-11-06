@@ -21,6 +21,7 @@ LIRA 是以 Electron 桌面为主要 UI 的模块化单体。Electron main 同�
 
 - 主播身份由受认证服务边界确定，稳定 `streamerId` 隔离租户；`roomId` 是外部属性。main 持有设备凭据，renderer 不能选择任意租户或取得凭据。授权、账号切换与 Cookie 契约见 [认证参考](../reference/desktop/auth.md)。
 - settings、songs、Bilibili 各有明确的同步与恢复 owner。组合根负责接线，控制器负责并发和取消，存储层负责原子提交。各自持久化保证见 [main 的同步生命周期](../reference/desktop/main.md#22-云端同步生命周期) 和 [存储](../reference/backend/storage.md)。
+- 本地场景 service/store 按授权账号拥有布局、样式选择与发布版本；共享外观继续由组件设置 owner 提供，弹幕外观保存在本机账号配置中。组合画面与独立组件来源复用同一已发布场景，通过范围受限的场景凭据读取展示投影；浏览器预览会话只转交编辑命令，保存仍由原桌面控制器执行。边界见 [ADR-0022](adr/0022-local-component-scenes.md)，当前接口与使用方式见 [本地场景](../reference/backend/api.md#本地场景)、[浏览器组件预览](../reference/backend/api.md#浏览器组件预览)和[组件与浏览器源指南](../guides/component-sources.md)。
 - main 通过实时推送与 HTTP 恢复，将服务器礼物账本写入按来源隔离的本地 SQLite 投影；符合接收条件的连续 final 与同步进度原子提交，提交后才交给本地消费者和 HTTP/WS。恢复及实时业务资格由 [礼物参考](../reference/backend/bilibili/gift.md) 维护，决策见 [ADR-0021](adr/0021-atomic-live-gift-progress.md)。
 - 跨仓契约通过固定提交和 fixture 摘要核对，不在运行时跨仓 import。[ADR-0020](adr/0020-shared-danmaku-source.md) 规定公共弹幕渲染核心由服务器维护、客户端固定源码快照；样式规则和 feed 生命周期仍各自拥有。
 

@@ -48,14 +48,14 @@ test('explicit toolbox feature selection reopens and persists its collapsed grou
   const runtime = createToolboxRuntime({
     initialStorage: { 'admin.toolboxCollapsedFeatureGroups': '["live-scene"]' },
   });
-  runtime.sandbox.window.AdminApp.other.initOtherPage({
+  runtime.other.initOtherPage({
     persistCollapsedFeatureGroups: (groupIds) => persisted.push([...groupIds]),
   });
   runtime.dispatchWindowEvent('app:settings-state', {
     toolboxCollapsedFeatureGroups: '["live-scene"]',
   });
 
-  runtime.sandbox.window.AdminApp.other.selectFeature(runtime.root, 'otherClockFeature');
+  runtime.other.selectFeature(runtime.root, 'otherClockFeature');
 
   assert.deepEqual(persisted, [[]]);
 });

@@ -36,6 +36,7 @@ export async function scanTodayGifts({ request, signal, day, onRevision, previou
   let partial = true;
   let contentRevision;
   let consistent = true;
+  let deltaReady = true;
   do {
     const params = new URLSearchParams({
       range: 'today',
@@ -49,6 +50,7 @@ export async function scanTodayGifts({ request, signal, day, onRevision, previou
     if (cursor) params.set('cursor', cursor);
     if (viewRevision) params.set('viewRevision', viewRevision);
     if (!cursor && previous?.day === day && previous.contentRevision) params.set('contentRevision', previous.contentRevision);
+    if (cursor || previous?.day !== day || !previous.contentRevision || previous.deltaReady) params.set('delta', '1');
     const data = await request(`/api/gifts/history?${params}`, signal);
     if (!viewRevision) {
       viewRevision = data.viewRevision;
@@ -59,11 +61,38 @@ export async function scanTodayGifts({ request, signal, day, onRevision, previou
     if (data.unchanged && !cursor && previous?.day === day && previous.viewRevision === viewRevision &&
         previous.contentRevision === data.contentRevision) return { ...previous, partial: data.partial };
     if (data.unchanged) throw Object.assign(new Error('礼物来源已变更'), { code: 'GIFT_VIEW_STALE' });
+    if (data.delta) {
+      if (cursor || previous?.day !== day || !previous.deltaReady || previous.viewRevision !== viewRevision)
+        throw Object.assign(new Error('礼物来源已变更'), { code: 'GIFT_VIEW_STALE' });
+      return { ...previous, items: mergeGiftDelta(previous.items, data), contentRevision: data.contentRevision, partial: data.partial };
+    }
     if (!cursor) contentRevision = data.contentRevision;
     else if (contentRevision !== data.contentRevision) consistent = false;
-    for (const item of data.items) items.set(item.eventId, item);
+    for (const item of data.items) {
+      items.set(item.eventId, item);
+      if (!Number.isSafeInteger(item.sortId) || typeof item.sortTime !== 'string') deltaReady = false;
+    }
     partial = data.partial;
     cursor = data.nextCursor;
   } while (cursor);
-  return { items: [...items.values()], viewRevision, partial, day, contentRevision: consistent ? contentRevision : undefined };
+  return { items: [...items.values()], viewRevision, partial, day, deltaReady,
+    contentRevision: consistent ? contentRevision : undefined };
+}
+
+function mergeGiftDelta(previous, data) {
+  const changed = new Set([...data.removedEventIds, ...data.items.map((item) => item.eventId)]);
+  if (!changed.size) return previous;
+  const result = [];
+  let next = 0;
+  for (const item of previous) {
+    if (changed.has(item.eventId)) continue;
+    while (next < data.items.length && compareGiftOrder(data.items[next], item) < 0) result.push(data.items[next++]);
+    result.push(item);
+  }
+  while (next < data.items.length) result.push(data.items[next++]);
+  return result;
+}
+
+function compareGiftOrder(left, right) {
+  return left.sortTime < right.sortTime ? -1 : left.sortTime > right.sortTime ? 1 : right.sortId - left.sortId;
 }

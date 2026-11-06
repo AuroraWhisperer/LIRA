@@ -7,14 +7,15 @@ const { createWebSocketHub } = require('../../src/server/ws');
 const { serveFontAsset } = require('../../src/server/font-assets');
 const { serveResourceAsset } = require('../../src/server/resource-assets');
 
-async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary, resourceLibrary,
+async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary, resourceLibrary, extraContext,
+  isLicenseAuthorized = () => true, inflightTracker = { run: (work) => work() },
   publicDir = path.resolve(__dirname, '../../public') } = {}) {
   const token = 'synthetic-desktop-component-preview-token';
   const hub = getState ? createWebSocketHub({ closeTimeoutMs: 20 }) : null;
   const server = createHttpServer({ host: '127.0.0.1', startPort: 0, dataDir,
     getPhase: () => 'ready', getStartedPort: () => server.address()?.port,
-    getPreviewOwner: getOwner, isLicenseAuthorized: () => true,
-    inflightTracker: { run: (work) => work() }, createApiContext: () => ({ sessionToken: token, scenes, sceneEvents, danmakuEvents, readDanmakuDisplay, overtime,
+    getPreviewOwner: getOwner, isLicenseAuthorized,
+    inflightTracker, createApiContext: () => ({ ...extraContext, sessionToken: token, scenes, sceneEvents, danmakuEvents, readDanmakuDisplay, overtime,
       system: { getState, dataDir }, settings: settings || { get: () => getState?.().settings },
       bilibili: { configure() {} }, broadcastSnapshot() { hub?.broadcastSnapshot({ getState }, 'settings'); } }),
     getSettings: () => getState?.().settings || {},
@@ -36,7 +37,7 @@ async function startComponentPreviewServer({ getOwner = () => null, parentHtml, 
       body: JSON.stringify(body) });
     return { status: response.status, ...await response.json() };
   }
-  return { origin, token, post, broadcast: () => hub?.broadcastSnapshot({ getState }, 'test'), close: () => new Promise((resolve) => {
+  return { origin, token, post, broadcast: (payload) => payload ? hub?.broadcast(payload) : hub?.broadcastSnapshot({ getState }, 'test'), close: () => new Promise((resolve) => {
     hub?.stop();
     server.closeAllConnections();
     server.close(resolve);

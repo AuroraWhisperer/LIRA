@@ -62,7 +62,7 @@
 
 ### 2.1 songAssistantDesktop
 
-Owner 为 [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)，客户端外观由 [client-appearance-ipc.js](../../../src/electron/ipc/client-appearance-ipc.js) 拥有。直接消费者是 [desktop.js](../../../public/js/desktop.js) 的更新/目录入口与窗口控件，以及 [settings-operations.js](../../../public/js/admin/settings-operations.js)；资源检查也由桌面 UI 消费。
+Owner 为 [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)，客户端外观由 [client-appearance-ipc.js](../../../src/electron/ipc/client-appearance-ipc.js) 拥有。直接消费者是 [desktop.js](../../../public/js/desktop.js) 的更新/目录入口与窗口控件，以及 [settings-operations.js](../../../public/js/admin/settings-operations.js)；资源检查由桌面壳装配的 [desktop-resource-integrity.js](../../../public/js/desktop-resource-integrity.js) 消费。
 
 | 通道 | 桥方法与输入 | 成功返回 / 公开失败 |
 | --- | --- | --- |
@@ -189,7 +189,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 - **欢迎配置**：V1 非空 patch 只含 enabled(boolean)/messages；词库 1–30 条，每条非空且 ≤80 Unicode code point，禁止控制字符，随后 trim。V2 的 enabled/greetingEnabled/attentionEnabled/rareNamePinyinEnabled 为 boolean；welcomeDelaySeconds=0–300、greetingDelaySeconds=1–600、welcomeMinHonorLevel/greetingMinHonorLevel=0–999、attentionMinHonorLevel=1–999，均为整数；messages/greetingMessages/attentionWelcomeMessages/attentionGreetingMessages 沿用词库规则。完整响应要求所有字段，关闭 welcome 时不能开启 greeting/attention，greeting 开启时 delay 必须大于 welcome delay。校验和 fieldErrors 白名单见 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)，并发草稿见 [main.md](main.md#服务器进场欢迎设置)。
 - **SongPublic**：只复制 [license-songs-ipc.js](../../../src/electron/ipc/license-songs-ipc.js) 的 `SONG_PUBLIC_FIELDS`（ID、标题/名称、歌手、分类、tags、语言、来源、备注、价格、片段、启用、排序、时间及其兼容别名）；值仅 null/string/boolean/有限 number，字符串截断 4096，不透传对象或数组。
 - **BackgroundResponse**：`{ok,background:null或{url?,previewUrl?,bytes?,updatedAt?}}`；相对 url 与可信 HTTPS previewUrl 均经过清洗，不返回凭据 query。previewUrl 由 main 基于可信服务 origin 解析，renderer 不指定远端地址。
-- **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},templates,status,error}`，两个开关均 boolean；templates 为 `{gift,guard}` 或 null（尚未确认或旧服务不支持）；status=confirmed/pending/unconfirmed，error 为代码或 null。开关 key 仅这两个名称，enabled 严格 boolean。模板各为单行非空纯文本、最多 120 Unicode 字符，`{称呼}`、`{礼物}`、`{金额}` 各一次，禁止未知或残缺标记、额外字段及控制字符，校验由 [gift-thanks-templates.js](../../../public/js/shared/gift-thanks-templates.js) 统一实现。owner 为 [gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 和 cloud-sync-controller；意图并入已有同步队列，省略未修改字段以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
+- **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},templates,status,error}`，两个开关均 boolean；templates 为 `{gift,guard}` 或 null（尚未确认或旧服务不支持）；status=confirmed/pending/unconfirmed，error 为代码或 null。开关 key 仅这两个名称，enabled 严格 boolean。模板各为单行非空纯文本、最多 120 Unicode 字符，`{称呼}`、`{礼物}`、`{金额}` 各一次，禁止未知或残缺标记、额外字段及控制字符，校验由 [gift-thanks-templates.js](../../../public/js/shared/gift-thanks-templates.js) 统一实现。[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 注册桥，状态及公开结果由 [gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有；意图并入 cloud-sync-controller 的已有同步队列，省略未修改字段以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
 
 ### 2.5 dailyBots、fanProfiles 与 giftExport
 
@@ -221,10 +221,10 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 | 通道 | 桥订阅方法 | 载荷 | 发送 owner / 直接消费者 |
 | --- | --- | --- | --- |
 | `gift-export:progress` | `giftExport.onProgress(callback)` | `{id,saved,total}`，均为该任务已保存进度 | gift-export-ipc / export-preview，按当前 id 过滤 |
-| `desktop:resource-integrity-state` | `songAssistantDesktop.onResourceIntegrityState(callback)` | 资源检查快照 | [desktop-resource-integrity.js](../../../src/electron/desktop-resource-integrity.js) / desktop.js，按单调 revision 忽略旧值 |
+| `desktop:resource-integrity-state` | `songAssistantDesktop.onResourceIntegrityState(callback)` | 资源检查快照 | [主进程资源检查](../../../src/electron/desktop-resource-integrity.js) / [资源检查 UI](../../../public/js/desktop-resource-integrity.js)，按单调 revision 忽略旧值 |
 | `desktop:show-update-page` | `songAssistantDesktop.onShowUpdatePage(callback)` | 无 | 预留监听，当前 main 无发送者 / desktop.js |
-| `desktop:update-state` | `songAssistantDesktop.onUpdateState(callback)` | 更新状态，见 [update.md](update.md) | main 的 sendUpdateState / desktop.js |
-| `desktop:window-maximized` | `songAssistantDesktop.onWindowMaximized(callback)` | boolean | main 的 maximize/unmaximize / 桌面窗口控件 |
+| `desktop:update-state` | `songAssistantDesktop.onUpdateState(callback)` | 更新状态，见 [update.md](update.md) | [desktop-update-controller.js](../../../src/electron/desktop-update-controller.js) 的 `sendUpdateState` / desktop.js |
+| `desktop:window-maximized` | `songAssistantDesktop.onWindowMaximized(callback)` | boolean | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) 的 maximize/unmaximize / 桌面窗口控件 |
 | `app:prepare-shutdown` | `musicAPI.onPrepareShutdown(callback)` | 无 | [playback-flush.js](../../../src/electron/playback-flush.js) / playback initializer |
 | `license:gift-interaction-state-changed` | `liraLicense.onGiftInteractionStateChanged(callback)` | GiftInteractionSnapshot | gift-interaction-ipc / interaction-controls |
 | `license:state-changed` | `liraLicense.onStateChanged(callback)` | LicenseSnapshot | license-ipc / license.js、Admin 账户与各云端面板 |
@@ -323,7 +323,7 @@ Owner：[gift-export-controller.js](../../../src/electron/gift-export-controller
 
 - settings 不传参数读取默认值；写入只含可选 mode=combined/separate、background=transparent/white、directoryAction=choose/default，拒绝未知字段与非法值。renderer 不传保存路径，目录由原生对话框或系统图片目录产生。取消目录选择不写入；导航/任务代次变化/销毁后忽略迟到选择。
 - prepare 的 selection 必须带当前 viewRevision；可带 eventIds（1–10000个非空字符串，各≤64）或历史筛选/排序条件，规则见 [礼物 HTTP 契约](../backend/api.md)。查回数量必须匹配去重 ID 数；筛选结果最多10000条且不能为空。冻结当前来源、流水、展示设置、目录和礼物卡片；后续默认设置只影响新任务。
-- ExportTask 为 `{id,snapshot,root,directory,mode,background,files:[{start,count,fileName}],custom}`。snapshot 含 viewRevision/asOf/items、同步元数据、selectedCount/cardsPartial、config/catalog；卡片转换可改变 items 的组织，selectedCount 保留原选中记录数。
+- ExportTask 为 `{id,snapshot,root,directory,mode,background,files:[{start,count,fileName}],custom}`。snapshot 含 viewRevision/asOf/items、同步元数据、selectedCount/cardsPartial、config/catalog；卡片转换可改变 items 的组织，selectedCount 保留原选中记录数。预览按 files 切出当前页，保存时同一份局部布局用于窗口初始尺寸、逐张输出和进度总数。
 - configure 要求当前 id、合法 mode/background；directoryAction 可省略，remember===true 只记忆目录。条目数1–10000；combined 每图最多39行，separate 每图1行。运行中不可改配置或再次 prepare；完成的任务不可重复 save。失败后 configure 生成新目录并重置保存计数。
 - save 使用独占任务目录/文件，逐张 render/capture/write，渲染步骤有20秒期限；viewRevision 变化立即使任务失效。进度 `{id,saved,total}` 表示已完成文件，不表示所有文件必然成功。取消或部分失败保留已写文件，返回 saved/directory；不承诺取消能撤回正在完成的文件写入。
 - 主窗口非原地导航或 destroyed 调用 cancel；dispose 也取消并销毁隐藏渲染窗口。取消不匹配的旧 id 不影响新任务；preparationGeneration 防止旧 prepare 覆盖新任务。renderer 按 id 过滤迟到 progress，关闭预览解除订阅。openFolder 只允许已保存至少一张的任务，不能传任意路径。

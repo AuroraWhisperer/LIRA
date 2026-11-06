@@ -1,0 +1,60 @@
+/* Clock settings and preview layout, including its container response. */
+.live-components-page .clock-tool-layout {
+  grid-template-columns: minmax(0, 1fr) 320px;
+  gap: 24px;
+}
+
+.live-components-page .clock-settings-card {
+  grid-column: 1;
+  grid-row: 1;
+  gap: 24px;
+  padding: 0;
+  border: 0;
+}
+
+.live-components-page .clock-preview-card {
+  grid-column: 2;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  padding-left: 24px;
+  border-left: 1px solid var(--border);
+}
+
+.live-components-page .clock-preview-canvas {
+  height: 192px;
+}
+
+.live-components-page .clock-parameter-section {
+  padding-top: 0;
+  border-top: 0;
+  gap: 16px;
+}
+
+.live-components-page .clock-settings-card .clock-style-options {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 152px), 1fr));
+}
+
+.live-components-page .clock-style-options :is(.clock-style-option, .component-style-add) {
+  min-height: 64px;
+}
+
+.live-components-page .clock-style-options .component-style-add {
+  padding: 8px;
+  font-size: 14px;
+}
+
+@container clock-settings (max-width: 880px) {
+  .live-components-page .clock-tool-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-components-page .clock-preview-card {
+    grid-column: 1;
+    grid-row: 2;
+    position: static;
+    padding: 24px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+  }
+}

@@ -7,7 +7,7 @@
         <fieldset id="desktopLyricSourceControls" class="theme-section desktop-lyric-source-settings" disabled>
           <legend>
             <span id="desktopLyricSourceLabel">音乐跟随</span>
-            <lira-help label="歌词跟随说明"
+            <lira-help label="音乐跟随说明"
               ><span id="desktopLyricSourceHint"
                 >只有一个播放器在播放时自动跟随；多个播放器同时播放时，优先跟随所选播放器。智能模式会保持当前跟随，停止播放后自动切换。</span
               ></lira-help
@@ -45,13 +45,17 @@
                 </label>
               </div>
             </div>
-            <div class="desktop-lyric-client-status">
-              <p id="desktopLyricQQStatus" class="muted" role="status">QQ 音乐：正在读取检测状态…</p>
-              <button id="desktopLyricSourceRetry" type="button" class="btn secondary">重新检测 QQ 音乐</button>
-            </div>
-            <div class="desktop-lyric-client-status">
-              <p id="desktopLyricNetEaseStatus" class="muted" role="status">网易云音乐：正在读取检测状态…</p>
-              <button id="desktopLyricNetEaseRetry" type="button" class="btn secondary">重新检测网易云音乐</button>
+            <div class="desktop-lyric-client-list">
+              <div class="desktop-lyric-client-status">
+                <img src="/img/playback/qqmusic-icon.webp" alt="" draggable="false" />
+                <p class="muted" role="status" aria-atomic="true"><span class="sr-only">QQ 音乐：</span><span id="desktopLyricQQStatus">正在检测…</span></p>
+                <button id="desktopLyricSourceRetry" type="button" class="btn secondary" aria-label="重新检测 QQ 音乐">重新检测</button>
+              </div>
+              <div class="desktop-lyric-client-status">
+                <img src="/img/playback/netease-music-icon.ico" alt="" draggable="false" />
+                <p class="muted" role="status" aria-atomic="true"><span class="sr-only">网易云音乐：</span><span id="desktopLyricNetEaseStatus">正在检测…</span></p>
+                <button id="desktopLyricNetEaseRetry" type="button" class="btn secondary" aria-label="重新检测网易云音乐">重新检测</button>
+              </div>
             </div>
           </div>
           <div id="desktopLyricWeSingSettings" class="desktop-lyric-source-settings" hidden>
@@ -110,12 +114,15 @@
             </div>
           </div>
           <div class="desktop-lyric-follow-status">
-            <p id="desktopLyricSourceStatus" role="status">正在读取歌词来源…</p>
+            <p class="desktop-lyric-follow-current" role="status" aria-atomic="true"
+              ><span id="desktopLyricFollowLabel" class="desktop-lyric-follow-label" hidden>当前跟随</span
+              ><strong id="desktopLyricSourceStatus">正在读取歌词来源…</strong></p
+            >
             <p id="desktopLyricSourceTrack" class="muted" hidden></p>
           </div>
         </fieldset>
 
-        <div class="desktop-lyric-setting-groups">
+        <div id="desktopLyricSettingGroups" class="desktop-lyric-setting-groups">
           <!-- admin-fragment: pages/admin/song/desktop-lyric-appearance.html -->
           <!-- admin-fragment: pages/admin/song/desktop-lyric-behavior.html -->
           <!-- admin-fragment: pages/admin/song/desktop-lyric-layout.html -->

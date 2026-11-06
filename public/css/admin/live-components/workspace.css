@@ -1,0 +1,262 @@
+/* Workspace tokens, navigation and responsive shell. */
+/* Desktop component workspace. Dimensions and rationale: docs/reference/frontend/pages.md. */
+.live-components-page {
+  --font-ui: 'Segoe UI Variable Text', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --font: var(--font-ui);
+  /* Page titles keep the Display optical size; Latin text at 20px needs it, CJK falls back unchanged. */
+  --font-display: 'Segoe UI Variable Display', 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --type-size-page-title: 20px;
+  --type-size-section-title: 16px;
+  --type-size-card-title: 14px;
+  --type-size-control: 14px;
+  --type-size-micro: 12px;
+  --type-weight-bold: 600;
+  --type-leading-page-title: 1.4;
+  --type-leading-section-title: 1.5;
+  --type-leading-card-title: 1.4286;
+  --type-leading-body: 1.4286;
+  --type-leading-control: 1.4286;
+  --type-leading-micro: 1.5;
+  --component-control-height: 36px;
+  --component-page-padding: 24px;
+  --color-control-height: var(--component-control-height);
+
+  /* Selection colors follow the client appearance. `selection-marker` is the token each
+     palette tunes for visibility, so the dark appearance keeps a readable marker where its
+     primary is a near-white silver. Solid chips use the text-weight value so 11–12px labels
+     stay above 4.5:1 on every palette; their glyph color is the page surface. */
+  --components-accent: var(--color-selection-marker, var(--primary));
+  --components-accent-solid: var(--color-selection-text, var(--primary-strong));
+  --components-accent-on: var(--surface);
+  --components-accent-soft: color-mix(in srgb, var(--components-accent) 12%, transparent);
+
+  /* Navigation and expander rows sit on the page background, not on a panel surface, so their
+     feedback mixes against the text color instead of reusing the surface-tuned hover token. */
+  --components-row-hover: color-mix(in srgb, var(--text) 7%, transparent);
+  --components-row-selected-bg: var(--client-main-nav-active-bg, var(--surface));
+  --components-row-selected-shadow: var(
+    --client-main-nav-active-shadow,
+    0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent)
+  );
+
+  font-family: var(--font-ui);
+  font-size: var(--type-size-body);
+  line-height: var(--type-leading-body);
+}
+
+.live-components-workspace {
+  grid-template-columns: 200px minmax(0, 1fr);
+  gap: 16px;
+  padding: 4px 4px 0 16px;
+}
+
+.live-components-sidebar {
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.live-components-heading {
+  padding: 14px 20px 8px;
+}
+
+.live-components-heading h2 {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  letter-spacing: 0.02em;
+}
+
+.live-components-menu {
+  padding: 0 8px;
+}
+
+@media (min-width: 901px) {
+  .live-components-sidebar {
+    overflow: hidden;
+  }
+
+  .live-components-heading,
+  .live-components-help {
+    flex-shrink: 0;
+  }
+
+  .live-components-menu {
+    flex: 1;
+    min-height: 0;
+    align-content: start;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: none;
+  }
+
+  .live-components-menu::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.live-components-menu .other-feature-button {
+  grid-template-columns: 20px minmax(0, 1fr);
+  grid-template-rows: auto;
+  gap: 12px;
+  height: 40px;
+  min-height: 40px;
+  margin-bottom: 2px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: var(--text);
+}
+
+.live-components-menu .other-feature-icon,
+.live-components-menu .other-feature-icon svg {
+  width: 20px;
+  height: 20px;
+  background: transparent;
+}
+
+.live-components-menu .other-feature-label strong {
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
+}
+
+/* Selected row carries fill, outline, accent bar and weight together, so the state does not
+   depend on hue alone (WCAG 1.4.1) and stays legible on the dark appearance. */
+.live-components-menu .other-feature-button.active {
+  background: var(--components-row-selected-bg);
+  box-shadow: var(--components-row-selected-shadow);
+  color: var(--text);
+}
+
+.live-components-menu .other-feature-button.active::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-start-end-radius: 3px;
+  border-end-end-radius: 3px;
+  background: var(--components-accent);
+}
+
+.live-components-menu .other-feature-button.active .other-feature-icon {
+  color: var(--components-accent-solid);
+}
+
+.live-components-menu .other-feature-button.active strong {
+  font-weight: var(--type-weight-semibold);
+}
+
+.live-components-menu .other-feature-button:hover:not(.active) {
+  background: var(--components-row-hover);
+}
+
+.live-components-menu .live-component-group {
+  grid-template-columns: 20px minmax(0, 1fr) 14px;
+}
+
+.live-component-submenu {
+  margin: 0 0 8px 32px;
+}
+
+.live-components-menu .live-component-submenu .other-feature-button {
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 8px;
+  height: 34px;
+  min-height: 34px;
+  padding: 6px 12px;
+}
+
+.live-component-submenu .other-feature-icon,
+.live-component-submenu .other-feature-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.live-component-group[aria-expanded='false'] + .live-component-submenu {
+  display: none;
+}
+
+.live-component-group[aria-expanded='false'] .other-feature-group-arrow {
+  transform: rotate(-90deg);
+}
+
+/* A collapsed group keeps the current location visible without selecting two rows. */
+.live-components-menu .live-component-group[aria-expanded='false']:has(+ .live-component-submenu [aria-selected='true']) {
+  background: var(--components-row-selected-bg);
+  box-shadow: var(--components-row-selected-shadow);
+  color: var(--components-accent-solid);
+}
+
+/* Bottom padding keeps 使用指南 clear of the global player-dock toggle at the window's edge. */
+.live-components-help {
+  margin-top: auto;
+  padding: 8px 8px 32px;
+  border-top: 1px solid var(--color-border-light, var(--border));
+  font-size: var(--type-size-control);
+}
+
+.live-components-help button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.live-components-help svg {
+  width: 20px;
+  height: 20px;
+}
+
+.live-components-help button:hover {
+  background: var(--components-row-hover);
+  color: var(--text);
+}
+
+.live-components-page .other-feature-panel {
+  box-shadow: none;
+}
+
+.live-components-page .other-feature-panel-body {
+  box-sizing: border-box;
+  width: 100%;
+  padding: var(--component-page-padding);
+  scrollbar-gutter: stable;
+}
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .live-components-page {
+    --component-page-padding: 20px;
+  }
+
+  .live-components-workspace {
+    grid-template-columns: 184px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .live-components-workspace {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .live-components-heading,
+  .live-components-help {
+    display: none;
+  }
+
+  .live-components-menu .other-feature-button {
+    min-height: 48px;
+  }
+}

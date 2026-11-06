@@ -38,13 +38,14 @@ test('canvas keeps opening styles visible when disabled or configuration is unav
   assert.equal(fixture.runtime.settings.openingEnabled, 'false');
 });
 
-test('preview filters keep samples visible without changing live filtering', { timeout: 40000 }, async t => {
+test('saved wishes retain live filtering while song and lyric samples stay visible', { timeout: 40000 }, async t => {
+  const wishes = { items: [{ id: 'real-day-wish', period: 'day',
+    giftName: '小花花', target: 100, count: 36, todayCount: 36, remaining: 64, progress: 36,
+    completed: false, displayStyle: 'card' }] };
   const fixture = await startCanvasOutputFixture({ extraContext: {
     songs: { list: () => [{ id: 1, name: '实际流行歌曲', artist: '歌手', category_name: '流行' }] },
     gifts: { getViewRevision: () => 'synthetic' },
-    giftWishes: { getSnapshot: async () => ({ items: [{ id: 'real-day-wish', period: 'day',
-      giftName: '小花花', target: 100, count: 36, todayCount: 36, remaining: 64, progress: 36,
-      completed: false, displayStyle: 'card' }] }) },
+    giftWishes: { getSnapshot: async () => wishes },
   } });
   Object.assign(fixture.runtime, sceneExtraPreviewData('lyrics'));
   const browser = openBrowserSession();
@@ -62,8 +63,7 @@ test('preview filters keep samples visible without changing live filtering', { t
     });
   });
   const url = await openCanvasDesktop(desktop, fixture);
-  await desktop.route('**/api/overtime/gifts/catalog', route => route.fulfill({ json: { ok: true,
-    data: { gifts: [{ id: '31036', name: '小花花', imagePath: '/img/overlays/gift-feed/flower.webp' }] } } }));
+  await desktop.route('**/api/gifts/wishes', route => route.fulfill({ json: { ok: true, data: wishes } }));
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   async function add(type, style) {
@@ -76,7 +76,7 @@ test('preview filters keep samples visible without changing live filtering', { t
   await wish.locator('.wish-card').waitFor();
   await page.locator('[data-component-parameter="period"]').selectOption('long');
   await wish.waitForFunction(() => window.previewConfig?.period === 'long');
-  await wish.locator('.wish-card').waitFor();
+  await wish.locator('.wish-card').waitFor({ state: 'detached' });
   const lyrics = await add('lyrics', 'default');
   await lyrics.locator('.desktop-lyric-preview-row').first().waitFor();
   await page.locator('[data-parameter-group="visibility"] > summary').click();

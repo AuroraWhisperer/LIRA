@@ -9,9 +9,8 @@ test('one session listener retains music and Bilibili rules across repeated setu
   const session = {
     webRequest: { onBeforeSendHeaders: (...args) => registrations.push(args) },
   };
-  const state = {};
-  configureMediaRequestHeaders(session, state);
-  configureMediaRequestHeaders(session, state);
+  configureMediaRequestHeaders(session);
+  configureMediaRequestHeaders(session);
   assert.equal(registrations.length, 1);
   const [, handler] = registrations[0];
   for (const [host, expected] of [

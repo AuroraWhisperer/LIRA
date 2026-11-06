@@ -9,6 +9,8 @@ const {
   createGiftStatisticsConsumer,
 } = require('../../src/bilibili/gift');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
+const { createGiftStatisticsStore } = require('../../src/storage/gift-statistics-store');
 
 function createFixture(options = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-processed-gift-'));
@@ -19,7 +21,7 @@ function createFixture(options = {}) {
   const finalizedIds = [];
   const detection = createGiftProjectionService(
     {
-      db,
+      store: createGiftProjectionStore(db.giftDb),
       settings: () => ({
         enableGiftSprint: options.enableGiftSprint || 'true',
       }),
@@ -27,7 +29,7 @@ function createFixture(options = {}) {
     {
       consumerRegistry: createGiftConsumerRegistry({
         consumers: [
-          createGiftStatisticsConsumer({ giftDb: db.giftDb }),
+          createGiftStatisticsConsumer({ store: createGiftStatisticsStore(db.giftDb) }),
           { name: 'recorder', handle: (event) => events.push(event) },
         ],
       }),

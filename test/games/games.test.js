@@ -335,6 +335,32 @@ test('draw guess validates incremental canvas operations and supports clearing',
   assert.equal(drawn.state.canvas.revision, 1);
   state = drawn.state;
 
+  const extended = applyDrawOperation(state, {
+    action: 'append',
+    clientId: 'page-1',
+    strokeId: 'stroke-1',
+    color: '#222034',
+    width: 4,
+    points: [{ x: 0.2, y: 0.3 }],
+  });
+  assert.equal(extended.accepted, true);
+  assert.equal(state.canvas.strokes[0].points.length, 2, 'appending preserves the previous state');
+  assert.equal(extended.state.canvas.totalPoints, 3);
+  const nextStroke = applyDrawOperation(extended.state, {
+    action: 'append',
+    clientId: 'page-1',
+    strokeId: 'stroke-2',
+    color: '#ef476f',
+    width: 8,
+    points: [{ x: 0.4, y: 0.5 }],
+  });
+  const view = publicDrawGuessState(nextStroke.state);
+  view.canvas.strokes[0].points[0].x = 1;
+  view.canvas.strokes[1].points.push({ x: 1, y: 1 });
+  assert.equal(extended.state.canvas.strokes.length, 1);
+  assert.equal(nextStroke.state.canvas.strokes[0].points[0].x, 0.1);
+  assert.equal(nextStroke.state.canvas.strokes[1].points.length, 1);
+
   const invalid = applyDrawOperation(state, {
     action: 'append',
     clientId: 'page-1',

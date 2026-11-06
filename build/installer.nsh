@@ -135,6 +135,22 @@ ManifestDPIAware true
       SetDetailsPrint textonly
       DetailPrint "正在准备安装 LIRA，请稍候…"
       SetDetailsPrint listonly
+      ; Match the exact uninstaller the builder will invoke in this context.
+      StrCpy $liraPreviousUninstaller ""
+      ReadRegStr $R3 SHELL_CONTEXT "${UNINSTALL_REGISTRY_KEY}" "UninstallString"
+      StrCpy $R4 $R3 1
+      StrCmp $R4 '"' 0 liraUninstallerSelected
+      Push "$R3"
+      Call GetInQuotes
+      Pop $liraPreviousUninstaller
+      ${If} $installMode == "all"
+        ; The builder also removes a per-user installation when installing for all.
+        ReadRegStr $R3 HKCU "${UNINSTALL_REGISTRY_KEY}" "UninstallString"
+        ${If} $R3 != ""
+          StrCpy $liraPreviousUninstaller ""
+        ${EndIf}
+      ${EndIf}
+      liraUninstallerSelected:
       ; Electron profiles are per-user even for an all-users installation.
       SetShellVarContext current
       Call liraPreserveInstallData
@@ -151,6 +167,7 @@ ManifestDPIAware true
 
 !macro customInstall
   Call liraRestoreInstallData
+  Call liraRecordDataPreservation
   ; Keep the updater's cached installer alongside its local download cache.
   Push "$INSTDIR\updates\${APP_INSTALLER_STORE_FILE}"
   Call GetFileParent

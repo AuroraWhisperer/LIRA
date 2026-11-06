@@ -32,7 +32,7 @@
 
 ### 本地发布验证
 
-当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境执行 [发布指南](../../../RELEASE_GUIDE.md) 与本地验证命令。
+当前仓库已移除 Check 工作流，发布前在 Windows 和 Node.js 24 环境按[发布指南](../../../RELEASE_GUIDE.md#0-选择发布流程与审查范围)选择日常增量或大版本／高风险流程；该指南统一维护审查范围与验证要求。下文说明各检查的环境，不要求增量发布运行所有检查；两种流程均保留发布脚本内置的构建和安装包验证。
 
 构建检出（包括独立 worktree）必须拥有通过 `npm ci` 安装的独立 `node_modules`，可以共用 npm 下载缓存，但不要用 junction/symlink 共用另一检出的依赖目录。已复现 electron-builder 26.15.3 在共享目录时只收集 6 个包，遗漏 `pako`、`pend` 和更新器依赖；其 `cannot find path for dependency` 警告不会自行终止打包。出现此警告时必须修复构建依赖并重建，不能接受生成的 EXE，也不能把间接依赖逐个添加到应用顶层来掩盖收集错误。
 
@@ -40,7 +40,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 `npm run verify` 先实时校验 [契约锁](../../../server-contract.lock.json) 指定的服务器提交和夹具，再运行语法检查（逐文件复用）和完整 `npm test`，后者已包含文档与架构测试。依赖安装必须先结束，验证期间不要重装或修改依赖。服务器检出按显式路径、`LIRA_SERVER_ROOT`、已存在的平级 `lira-server-contract`、平级 `lira-server` 的顺序选择；准备方式与失败语义见 [测试参考](test.md#固定服务器契约输入)。不要为测试重置正在开发的服务器工作区。真实 HTTP 歌库往返由 `npm run verify:roundtrip` 单独执行，要求两边安装依赖。
 
-原生安装器测试需要 `LIRA_TEST_MAKENSIS` 指向 NSIS 的 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll` 和 `nsProcess.dll` 的 `x86-unicode` 插件目录；可复用本机 electron-builder 缓存。发布验证应配置这些路径并检查测试汇总，确保安装、迁移和卸载场景实际执行。
+原生安装器测试需要 `LIRA_TEST_MAKENSIS` 指向 NSIS 的 `makensis.exe`，`LIRA_TEST_NSIS_PLUGINS` 指向包含 `StdUtils.dll` 和 `nsProcess.dll` 的 `x86-unicode` 插件目录；可复用本机 electron-builder 缓存。执行完整验证或专门检查安装器时，应配置这些路径并检查测试汇总，确保安装、迁移和卸载场景实际执行。
 
 未在上表展开的脚本（精确键名与 package.json 一致）：
 
@@ -159,7 +159,8 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 - `--updated` 更新由 [installer-ui.nsh](../../../build/installer-ui.nsh) 的 `liraInitUpdateProgress` 将 `/S` 切为可见自动安装：使用原有安装范围跳过选择页，协议与目录沿用 builder 的跳页逻辑，显示原生文件进度和等待退出、备份、安装、恢复等阶段。更新成功自动关闭，完成页 pre 回调仅在 `--force-run` 时通过 builder 的普通用户启动宏打开新版；普通退出自动安装后不重新启动。错误继续显示原有安全停止提示，不进入成功启动。独立 `/S`（不带 `--updated`）和手动安装向导保持原有行为。原生回归：[installer-update.test.js](../../../test/engineering/installer-update.test.js)。
 - 安装向导第一页是「用户协议与隐私说明」：`licensePage`([installer.nsh](../../../build/installer.nsh))占用 builder 的许可页宏，以单选按钮显示 [user-agreement.txt](../../../public/pages/admin/toolbox/user-agreement.txt)。正文分为使用条款和隐私说明。`liraShowAgreement` 隐藏重复的上下提示，将原生 RichEdit 阅读区扩展至同意选项上方，按当前 DPI 测量间距，使用微软雅黑 UI 字体并增加内边距；保留自动换行、原生纵向滚动和键盘阅读。客户端「百宝箱 → 设置 → 用户协议与隐私说明」读取同一静态文件，安装后不复制或另维护第二份协议正文。“我不同意”默认选中，选择同意前“下一步”保持禁用，不同意只能取消安装。builder 在该页前插入 `skipPageIfUpdated`，`--updated` 自动更新跳过此页；`/S` 静默安装不显示向导页。协议文件须保留 UTF-8 BOM，否则 makensis 按系统代码页读取；CRLF 与 LF 换行显示一致。不要设置 `nsis.license`，也不要在 `build/` 放 `license*` / `eula*` 文件，否则 builder 会再生成一个 `licensePage` 宏；[静态测试](../../../test/engineering/installer-static.test.js)检查这些约束。
 - [installer-process.nsh](../../../build/installer-process.nsh) 拥有安装与卸载共用的进程检查，`customCheckAppRunning` 接入 builder 流程。按可执行文件完整路径核对旧安装目录和所选目录；其他目录的同名程序不阻塞，也不会收到关闭请求。进程存在但无法核实路径时停止，不把检查失败当作已经退出。交互操作先征求关闭确认，再向对应窗口发送正常关闭请求；等待约 10 秒仍未退出时，提示可能有启动失败后的后台残留，显示相关目录，允许重试或取消。静默操作只等待主程序自行退出，超时中止。主程序退出后，两种模式均检查旧 `resources/audio-assistant/LiraAudioAssistant.exe` 以及 `data/components/audio/<版本>/LiraAudioAssistant.exe`，向核实归属的 PID 发送安装退出事件，等待音频进程安全释放文件和恢复记录后才备份/卸载。旧助手不支持事件或恢复未完成时，约 10 秒后准确提示电音助手仍在运行，旧版本可重启电脑后直接安装；静默操作返回失败。等待按经过时间计量，重试重新计时，不强制终止进程。音频维护退出语义见[桌面生命周期](../desktop/main.md#电音助手生命周期)。
-- [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认退出，再用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。复制返回码须为 0–7，且完整备份已发布，才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。备份发布使用不覆盖目标的 `MoveFileW`；仅 Windows 错误 5/32/33（访问拒绝或共享/锁定冲突）最多尝试五次，以 50/100/150/200ms 退避，四次退避合计 500ms。其他错误或重试耗尽时保留原数据、既有备份及完整 `.partial`，报告实际 Win32 错误码和暂存路径并停止；不把上次成功的复制返回码当成发布错误。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。备份及残留 `.partial` 的清理复用 `liraRemoveTree`，只移除目录链接本身，不跟随目标。升级时 `customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。
+- [installer-data.nsh](../../../build/installer-data.nsh) 在标准安装 section 前确认退出和备份冲突，再判断能否原地保留数据。成功安装后，`liraRecordDataPreservation` 用 StdUtils 计算新卸载器 SHA-256，写入安装根目录 `uninstall-data-preservation.ini` 的 `preserve-data.sha256`；标记不属于用户 data，随程序替换或卸载清理。只有新旧目录一致、来源为原 data、当前安装上下文注册的卸载器规范化路径等于本目录 `${UNINSTALL_FILENAME}`、实际摘要与记录一致、没有遗留 `resources/audio-assistant` 工作程序时，才跳过完整备份和恢复。读取注册项发生在切换当前用户 AppData 上下文之前；all-users 安装若还会调用第二个 current-user 卸载器则保守回退。标记缺失、失效或写入失败只影响下次提速，不根据版本号猜测能力。
+- 未知旧版、换目录、旧 AppData 和遗留音频等兼容路径仍用系统 `robocopy` 将完整数据复制并发布到 `<新安装目录>.lira-data-backup`。复制返回码须为 0–7，且完整备份已发布，才允许运行旧卸载器；失败、数据冲突或无法检查进程时停止。备份发布使用不覆盖目标的 `MoveFileW`；仅 Windows 错误 5/32/33（访问拒绝或共享/锁定冲突）最多尝试五次，以 50/100/150/200ms 退避，四次退避合计 500ms。其他错误或重试耗尽时保留原数据、既有备份及完整 `.partial`，报告实际 Win32 错误码和暂存路径并停止；不把上次成功的复制返回码当成发布错误。程序替换后恢复 `data/`，恢复失败保留备份、报告位置并禁止启动空库。备份及残留 `.partial` 的清理复用 `liraRemoveTree`，只移除目录链接本身，不跟随目标。升级时 `customRemoveFiles` 只替换程序文件，保留 `data/`、`logs/`、`updates/`。首次安装新策略后，后续同目录更新才可使用能力记录；快路径不提供数据库迁移的回滚快照。详情见 [desktop/main.md](../desktop/main.md) §3 和 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。
 - [installer-uninstall.nsh](../../../build/installer-uninstall.nsh) 拥有普通卸载选项和删除策略。普通卸载自动清理 `logs/`、`updates/`，完整保留 `data/`；“同时删除用户数据”默认不勾选。安装模式选定且程序退出后，勾选者需再次确认，默认回答“否”，拒绝确认会保留数据并继续卸载。确认后清理当前安装数据及当前用户的 `%APPDATA%/com.aurorawhisperer.lira`、`%APPDATA%/lira`，避免重装导入旧资料；手工/安装恢复备份及云端资料保留。静默卸载不删除数据，`--updated` 升级始终保留全部运行目录。删除前拒绝空路径、磁盘根（包括 NSIS 去掉尾斜杠后的裸盘符）与安装目录链接；递归清理只移除链接本身，不跟随目标，失败返回非零并留下卸载程序用于重试。[原生卸载回归](../../../test/engineering/installer-uninstall.test.js) 在隔离目录编译真实卸载页，覆盖默认保留、确认删除、静默/升级、目录链接和失败路径。
 - 交互安装在迁移期间显示等待提示；复制或目录发布失败时显示错误步骤与复制返回码，并把详细输出以 UTF-16 保存到 `%TEMP%/LIRA-install-error.txt`。报告无法写入时仍显示错误弹窗。静默安装不显示等待提示或阻塞弹窗，失败仍返回非零退出码。
 - [collect-install-diagnostics.cmd](../../../scripts/collect-install-diagnostics.cmd) 调用同目录的 [PowerShell 收集脚本](../../../scripts/collect-install-diagnostics.ps1)，在工具旁生成 `LIRA安装诊断-日期时间.txt`（写入失败时退回 `%TEMP%`）。内容限于 Windows 版本/位数、同目录最多五个安装包的大小/哈希/签名、相关进程名、两天内的迁移报告及匹配 LIRA 程序名的崩溃/拦截事件；不会运行安装包、读取业务数据库或上传报告。迁移报告不存在不能证明故障原因。
@@ -228,7 +229,7 @@ flowchart LR
 
 ## 11. 自动更新
 
-运行时依赖 `electron-updater` ^6.8.4(见 §2)。构建生成带版本号的 `lira-setup-{version}.exe`、块映射及引用同名安装包的 `latest.yml`，保留 SHA-512 和大小校验；`release:win` 沿用原流程将这三个文件上传 GitHub。客户端使用 generic CDN feed，维护者向多吉云直接上传同次构建的原名 EXE 和原始清单，官网固定入口也按该清单跳转，操作见[CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。更新 feed 切换只对重新构建的客户端生效，现有安装包不会随源码改动而改变。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
+运行时依赖 `electron-updater` ^6.8.4(见 §2)。构建生成带版本号的 `lira-setup-{version}.exe`、块映射及引用同名安装包的 `latest.yml`，保留 SHA-512 和大小校验；`release:win` 沿用原流程将这三个文件上传 GitHub。客户端使用 generic CDN feed，维护者向多吉云上传同次构建的原名 EXE、blockmap 和原始清单，并保留支持中的旧 blockmap，官网固定入口也按该清单跳转，操作见[CDN 分发指南](../../guides/cdn-resources.md#客户端安装包与自动更新)。provider 的 `useMultipleRangeRequest: false` 使增量使用单段 Range；客户端优先增量、不可用时回退整包。更新配置随重新构建和安装生效，现有客户端不会随源码改动而改变。检查时机、更新状态机、安装与重启时序、状态到渲染进程的同步,全部成文于 [desktop/update.md](../desktop/update.md)。
 
 ## 12. Windows 代码签名
 

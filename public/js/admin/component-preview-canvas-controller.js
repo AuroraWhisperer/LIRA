@@ -3,10 +3,10 @@ import { createComponentSaveBatch } from './component-save-batch.js';
 import { getCanvasPublicationEntries } from './component-preview-publication.js';
 import { requestScene, readComponentOutputSize } from './scene-api.js';
 import { validateSceneDocument } from './scene-template.js';
-import { startOpeningCanvasData } from './opening-canvas-data.js';
-import { startGamesCanvasData } from './games-canvas-data.js';
+import { startCanvasDataPolling } from './canvas-data-poller.js';
 import { startGiftWishesCanvasData } from './gift-wishes-canvas-data.js';
 import { startNowPlayingCanvasData } from './now-playing-canvas-data.js';
+import { startGiftMotionCanvasData } from './gift-motion-canvas-data.js';
 
 let cached;
 
@@ -241,11 +241,14 @@ export async function prepareComponentPreviewCanvas(components, request = reques
           Object.assign(previewData, data.previewData);
           emit({ previewData: { ...previewData } });
         };
-        const stopOpening = startOpeningCanvasData(controller, receive);
-        const stopGames = startGamesCanvasData(controller, receive);
+        const stopOpening = startCanvasDataPolling(controller, { type: 'opening', url: '/api/opening/config',
+          emit: opening => receive({ previewData: { opening } }) });
+        const stopGames = startCanvasDataPolling(controller, { type: 'games', url: '/api/games/session',
+          emit: session => receive({ previewData: { games: { preview: true, session } } }) });
         const stopWishes = startGiftWishesCanvasData(controller, receive);
         const stopNowPlaying = startNowPlayingCanvasData(controller, receive);
-        return () => { stopOpening(); stopGames(); stopWishes(); stopNowPlaying(); };
+        const stopGiftMotion = startGiftMotionCanvasData(controller, receive);
+        return () => { stopOpening(); stopGames(); stopWishes(); stopNowPlaying(); stopGiftMotion(); };
       },
       getComponentSize: (...args) => active?.getComponentSize(...args),
       source: () => {

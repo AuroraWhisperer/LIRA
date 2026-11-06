@@ -1,7 +1,9 @@
 'use strict';
 
 const { createCancellableDelay } = require('../shared/cancellable-delay');
+const { createCloudSettingsSyncController } = require('./cloud-settings-sync-controller');
 const { createCloudSongSyncController } = require('./cloud-song-sync-controller');
+const { createCloudBilibiliSyncController } = require('./cloud-bilibili-sync-controller');
 const { createGiftInteractionController, assertGiftInteractionResult } = require('./gift-interaction-controller');
 
 const DEFAULT_INTERVAL_MS = 600_000;
@@ -26,12 +28,29 @@ function createCloudSyncController(options = {}) {
   const revisions = { settings: null, songs: null, bilibili: null };
   const dirty = new Set();
   const dirtyGenerations = { settings: 0, songs: 0, bilibili: 0 };
+  const settingsSync = createCloudSettingsSyncController({
+    runtime,
+    licenseManager,
+    isCurrent,
+    shouldApply,
+    seedScope,
+    getDirtyGeneration: () => dirtyGenerations.settings,
+    recordRevision: (revision) => { revisions.settings = revision; },
+    confirmState: (values) => giftInteraction.confirmState(values),
+  });
   const songSync = createCloudSongSyncController({
     runtime,
     licenseManager,
     isCurrent,
     shouldApply,
     seedScope,
+  });
+  const bilibiliSync = createCloudBilibiliSyncController({
+    licenseManager,
+    bilibiliAuth,
+    isCurrent,
+    shouldApply,
+    recordRevision: (revision) => { revisions.bilibili = revision; },
   });
   let timer = null;
   let disposed = false;
@@ -48,7 +67,6 @@ function createCloudSyncController(options = {}) {
   let streamConnections = 0;
   let retryNotBefore = 0;
   let retryError = null;
-  let lastMenuUploadSignature = null;
   const giftInteraction = createGiftInteractionController({
     prepareWork() {
       if (!isAuthorized() || !prepareAccount() || !active) return null;
@@ -77,17 +95,17 @@ function createCloudSyncController(options = {}) {
       if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SETTINGS_CHANGED' });
       if (retryNotBefore > now()) throw retryError;
       const dirtyGeneration = dirtyGenerations.settings;
-      const pending = getPendingSettings(work.accountKey);
+      const pending = settingsSync.getPending(work.accountKey);
       // Omit the untouched flag: the server preserves its current value.
-      const result = await uploadSettings(
-        { ...settingsUploadValues(pending), [intent.key]: intent.key === 'giftThanksTemplates' ? intent.value : intent.enabled },
+      const result = await settingsSync.upload(
+        { ...settingsSync.uploadValues(pending), [intent.key]: intent.key === 'giftThanksTemplates' ? intent.value : intent.enabled },
         pending, dirtyGeneration, work,
       );
       if (!isCurrent(work)) return null;
       assertGiftInteractionResult(result);
-      await acceptSettingsUpload(result, pending, dirtyGeneration, work);
+      await settingsSync.acceptUpload(result, pending, dirtyGeneration, work);
       if (!isCurrent(work)) return null;
-      if (dirtyGeneration === dirtyGenerations.settings && !getPendingSettings(work.accountKey)) {
+      if (dirtyGeneration === dirtyGenerations.settings && !settingsSync.getPending(work.accountKey)) {
         dirty.delete('settings');
       }
       revisions.settings = Number(result.revision) || revisions.settings;
@@ -155,7 +173,7 @@ function createCloudSyncController(options = {}) {
     } else if (roomChanged) {
       dirty.delete('settings');
     }
-    const pendingSettings = getPendingSettings(nextAccountKey);
+    const pendingSettings = settingsSync.getPending(nextAccountKey);
     if (pendingSettings) {
       runtime.applyCloudSettingsSnapshot(pendingSettings.values);
       markScopeDirty('settings');
@@ -289,85 +307,29 @@ function createCloudSyncController(options = {}) {
     streamConnections = 0;
   }
 
-  function getPendingSettings(key) {
-    return runtime.getPendingCloudSettings?.(key) || null;
-  }
-
-  function settingsUploadValues(pending) {
-    const current = runtime.getCloudSettingsSnapshot();
-    if (Array.isArray(current.menuCommands)) lastMenuUploadSignature = JSON.stringify(current.menuCommands);
-    if (!pending) return current;
-    return {
-      ...pending.values,
-      ...(current.menuCommands === undefined ? {} : { menuCommands: current.menuCommands }),
-    };
-  }
-
-  async function acceptSettingsUpload(result, pending, generation, work) {
-    runtime.applyCloudFixedReplySettingsSnapshot?.(result?.values, result?.revision);
-    const unchanged = generation === dirtyGenerations.settings
-      && getPendingSettings(work.accountKey)?.mutationId === pending?.mutationId;
-    const applied = unchanged && Boolean(result?.values);
-    if (applied) {
-      await runtime.applyCloudSettingsSnapshot(result.values);
-      if (!isCurrent(work)) return false;
-    }
-    if (pending) runtime.acknowledgePendingCloudSettings(work.accountKey, pending.mutationId);
-    return applied;
-  }
-
-  async function uploadSettings(values, pending, generation, work) {
-    const requestOptions = { signal: work.signal };
-    try {
-      return await licenseManager.updateCloudSettings(values, requestOptions);
-    } catch (error) {
-      if (error?.code !== 'INVALID_GIFT_BLIND_BOX_CONFIG' || !isCurrent(work)) throw error;
-      const state = await licenseManager.getCloudState(requestOptions);
-      if (!isCurrent(work) || generation !== dirtyGenerations.settings
-        || pending?.mutationId !== getPendingSettings(work.accountKey)?.mutationId) throw error;
-      const remote = state?.settings?.values?.giftBlindBoxCustomConfigV2;
-      const local = values.giftBlindBoxCustomConfigV2;
-      if (!state?.settings?.initialized || !Array.isArray(remote) || !Array.isArray(local)) throw error;
-      const activeIds = new Set(remote.map(box => box.customId));
-      // Retired server identities cannot be recreated. Keep current edits and new drafts.
-      const repaired = local.filter(box => !box.customId || activeIds.has(box.customId));
-      if (repaired.length === local.length) throw error;
-      return licenseManager.updateCloudSettings({ ...values, giftBlindBoxCustomConfigV2: repaired }, requestOptions);
-    }
-  }
-
   async function flushScope(scope, work) {
     if (!dirty.has(scope) || !isCurrent(work)) return false;
     const dirtyGeneration = dirtyGenerations[scope];
-    const requestOptions = { signal: work.signal };
     let result;
     let pendingSettings;
     if (scope === 'settings') {
-      pendingSettings = getPendingSettings(work.accountKey);
-      result = await uploadSettings(settingsUploadValues(pendingSettings), pendingSettings, dirtyGeneration, work);
+      pendingSettings = settingsSync.getPending(work.accountKey);
+      result = await settingsSync.upload(settingsSync.uploadValues(pendingSettings), pendingSettings, dirtyGeneration, work);
     } else if (scope === 'songs') {
       result = await songSync.upload(work);
     } else {
-      const state = await bilibiliAuth.getAuthState();
-      if (!isCurrent(work)) return false;
-      if (state?.loggedIn) {
-        const cookie = await bilibiliAuth.getCookieHeader();
-        if (!isCurrent(work)) return false;
-        result = await licenseManager.setBilibiliCredentialsInternal(cookie, requestOptions);
-      } else {
-        result = await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
-      }
+      result = await bilibiliSync.upload(work);
     }
     if (!isCurrent(work)) return false;
     if (scope === 'settings' && result?.values) giftInteraction.confirmState(result.values);
     if (scope === 'settings') {
-      const applied = await acceptSettingsUpload(result, pendingSettings, dirtyGeneration, work);
+      const applied = await settingsSync.acceptUpload(result, pendingSettings, dirtyGeneration, work);
       if (!isCurrent(work)) return false;
       if (applied) runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
     }
     revisions[scope] = Number(result?.revision) || revisions[scope];
     if (dirtyGenerations[scope] === dirtyGeneration
-      && (scope !== 'settings' || !getPendingSettings(work.accountKey))
+      && (scope !== 'settings' || !settingsSync.getPending(work.accountKey))
       && (scope !== 'songs' || !songSync.hasPending(work.accountKey)))
       dirty.delete(scope);
     return result;
@@ -404,7 +366,7 @@ function createCloudSyncController(options = {}) {
 
   function shouldApply(scope, cloudRevision, work) {
     if (!isCurrent(work) || dirty.has(scope)) return false;
-    if (scope === 'settings' && getPendingSettings(work.accountKey)) return false;
+    if (scope === 'settings' && settingsSync.getPending(work.accountKey)) return false;
     if (scope === 'songs' && songSync.hasPending(work.accountKey)) return false;
     const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
@@ -416,61 +378,6 @@ function createCloudSyncController(options = {}) {
     dirty.add(scope);
   }
 
-  async function reconcileSettings(state, work) {
-    if (!isCurrent(work)) return;
-    runtime.applyCloudFixedReplySettingsSnapshot?.(state?.values, state?.revision);
-    if (state?.initialized) giftInteraction.confirmState(state.values);
-    if (!state?.initialized) {
-      await seedScope('settings', work);
-      return;
-    }
-    if (!shouldApply('settings', state.revision, work)) return;
-    const values = state.values || {};
-    const isMissingBlindBoxConfig = !Object.prototype.hasOwnProperty.call(values, 'giftBlindBoxConfig');
-    await runtime.applyCloudSettingsSnapshot(values);
-    if (!isCurrent(work)) return;
-    runtime.setBlindBoxMappingState?.(state.blindBoxMapping || null);
-    revisions.settings = Number(state.revision) || 0;
-    const menuCommands = runtime.getCloudSettingsSnapshot().menuCommands;
-    const menuSignature = Array.isArray(menuCommands) ? JSON.stringify(menuCommands) : null;
-    const menuChanged = menuSignature !== null && menuSignature !== JSON.stringify(values.menuCommands)
-      && menuSignature !== lastMenuUploadSignature;
-    if (isMissingBlindBoxConfig || menuChanged) await seedScope('settings', work);
-  }
-
-  async function reconcileBilibili(state, work) {
-    if (!isCurrent(work)) return;
-    const sessionRevision = bilibiliAuth.getSessionRevision?.();
-    const canWrite = () => shouldApply('bilibili', state?.revision, work)
-      && sessionRevision === bilibiliAuth.getSessionRevision?.();
-    if (!state?.initialized) {
-      if (!shouldApply('bilibili', 0, work)) return;
-      // An unowned local Cookie must never seed a newly authorized account.
-      const result = await bilibiliAuth.logout({ isCurrent: canWrite });
-      if (result !== null && isCurrent(work)) revisions.bilibili = 0;
-      return;
-    }
-    if (!shouldApply('bilibili', state.revision, work)) return;
-    const result = await licenseManager.getBilibiliCredentialsInternal({
-      signal: work.signal,
-    });
-    if (!isCurrent(work)) return;
-    if (
-      typeof result?.loggedIn !== 'boolean' ||
-      !Number.isSafeInteger(result.revision) ||
-      result.revision < 0 ||
-      (result.loggedIn && (typeof result.cookie !== 'string' || !result.cookie.trim()))
-    ) {
-      throw Object.assign(new Error('Invalid cloud credential snapshot.'), { code: 'INVALID_RESPONSE' });
-    }
-    const cloudRevision = Math.max(Number(state.revision) || 0, Number(result?.revision) || 0);
-    if (!shouldApply('bilibili', cloudRevision, work)) return;
-    const applied = result.loggedIn
-      ? await bilibiliAuth.replaceCookieHeader(result.cookie, { isCurrent: canWrite })
-      : await bilibiliAuth.logout({ isCurrent: canWrite });
-    if (applied !== null && isCurrent(work)) revisions.bilibili = cloudRevision;
-  }
-
   async function runSync(work) {
     if (!isCurrent(work)) return false;
     if (retryNotBefore > now()) {
@@ -479,7 +386,7 @@ function createCloudSyncController(options = {}) {
     }
     clearTimer();
     try {
-      if (getPendingSettings(work.accountKey) && !dirty.has('settings')) markScopeDirty('settings');
+      if (settingsSync.getPending(work.accountKey) && !dirty.has('settings')) markScopeDirty('settings');
       if (songSync.hasPending(work.accountKey) && !dirty.has('songs')) markScopeDirty('songs');
       await flushDirty(work);
       if (!isCurrent(work)) return false;
@@ -500,10 +407,10 @@ function createCloudSyncController(options = {}) {
           throw Object.assign(new Error('Invalid cloud state snapshot.'), { code: 'INVALID_RESPONSE' });
         }
       }
-      await reconcileSettings(state?.settings, work);
+      await settingsSync.reconcile(state?.settings, work);
       const songsRevision = await songSync.reconcile(state?.songs, work);
       if (songsRevision !== null) revisions.songs = songsRevision;
-      await reconcileBilibili(state?.bilibili, work);
+      await bilibiliSync.reconcile(state?.bilibili, work);
       return isCurrent(work);
     } catch (error) {
       if (isCurrent(work)) rememberRetry(error);
@@ -556,7 +463,7 @@ function createCloudSyncController(options = {}) {
     active = false;
     lifecycleGeneration += 1;
     pendingSync = null;
-    lastMenuUploadSignature = null;
+    settingsSync.reset();
     requestController?.abort();
     requestController = null;
     clearTimer();

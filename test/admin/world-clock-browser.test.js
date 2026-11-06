@@ -74,6 +74,34 @@ test('drag order survives ticking and reload; new cities append and can also mov
   assert.deepEqual((await savedOrder(page)).ids, ['london', 'shanghai', 'new-york', 'beijing', 'tokyo']);
 });
 
+test('city search paginates, ticks with the page clock and resets after adding a city', async t => {
+  const page = await openClock(t, { ids: ['beijing'], selectedId: 'beijing', format: '12' });
+  const add = page.locator('[data-world-clock="add"]');
+  const search = page.locator('[data-world-clock="search"]');
+  const cities = page.locator('.world-clock-catalog-city');
+  await add.click();
+  await search.fill('中国');
+  const firstPage = await cities.count();
+  assert.ok(firstPage > 0);
+  const time = cities.first().locator('time');
+  const before = await time.textContent();
+  await page.clock.runFor(60000);
+  assert.notEqual(await time.textContent(), before, 'the existing page tick updates catalog times');
+  await page.locator('[data-world-clock="more"]').click();
+  assert.ok(await cities.count() > firstPage);
+  const displayed = await cities.locator('time').evaluateAll(nodes => nodes.map(node => node.dataset.worldClockCatalogTime));
+  assert.equal(new Set(displayed).size, displayed.length, 'pagination does not repeat cities');
+  assert.equal(await cities.nth(firstPage).evaluate(node => node === document.activeElement), true);
+  await search.fill('上海');
+  await page.getByRole('button', { name: '添加上海', exact: true }).click();
+  assert.equal((await savedOrder(page)).ids.filter(id => id === 'shanghai').length, 1);
+  await add.click();
+  assert.equal(await search.inputValue(), '');
+  assert.equal(await cities.count(), 0);
+  await search.fill('上海');
+  assert.equal(await page.getByRole('button', { name: '添加上海', exact: true }).count(), 0);
+});
+
 test('filtered reorder preserves hidden cities and keyboard moves use the same saved order', async t => {
   const page = await openClock(t, { ids: ['los-angeles', 'london', 'dallas', 'beijing', 'new-york', 'tokyo'], customOrder: true });
   const filter = page.locator('[data-world-clock="filter"]');

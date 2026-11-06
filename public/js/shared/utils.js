@@ -117,39 +117,3 @@ export function normalizeRangeValue(input, min, max, fallback) {
   const clamped = Math.max(min, Math.min(max, safeValue));
   return String(Math.round(clamped * 100) / 100);
 }
-
-// 聚合导出
-export const utils = {
-  multilingualFontFallback,
-  escapeHtml,
-  escapeAttr,
-  value,
-  setValue,
-  localOverlayOrigin,
-  copyText,
-  formatTime,
-  formatDateTime,
-  formatBytes,
-  formatDuration,
-  formatSuperChatPrice,
-  formatMoney,
-  formatCompactNumber,
-  withMultilingualFallback,
-  toast,
-  showStackedToast,
-  api,
-  readJsonResponse,
-  showError,
-  debounce,
-  normalizeRangeValue,
-  showConfirmationDialog,
-  logoutConfirm,
-  dangerConfirm,
-};
-
-// 【过渡期兼容层】- 保持window.AdminApp.utils可用
-// 阶段5时删除
-if (typeof window !== 'undefined') {
-  window.AdminApp = window.AdminApp || {};
-  window.AdminApp.utils = utils;
-}

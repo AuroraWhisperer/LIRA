@@ -193,7 +193,6 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
     window.opened = [];
     window.appearanceConfig = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {} };
     window.open = (url) => window.opened.push(url);
-    window.AdminApp = { utils: { toast: (message) => window.messages.push(message) } };
     window.liraLicense = {
       getState: async () => ({
         state: 'authorized',
@@ -229,12 +228,12 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
       }
       return { ok: true, json: async () => ({ ok: true, data }), text: async () => JSON.stringify({ ok: true, data }) };
     };
-    await import('/js/admin/danmaku-tool.js');
+    window.danmakuTool = (await import('/js/admin/danmaku-tool.js')).danmakuTool;
   }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html') +
     readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
   await page.evaluate(async () => {
-    window.AdminApp.danmakuTool.init();
-    await window.AdminApp.danmakuTool.refresh();
+    window.danmakuTool.init({ toast: (message) => window.messages.push(message) });
+    await window.danmakuTool.refresh();
   });
 
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
@@ -350,6 +349,9 @@ test('style library combines filters and keeps only confirmed recent styles for 
   await page.locator('[data-style-filter-group="motion"] [data-filter-value="false"]').click();
   assert.equal(await library.locator('[data-danmaku-style="ripploid"]').isVisible(), false);
   assert.equal(await library.locator('[data-danmaku-style="floating"]').isVisible(), true, 'Travel alone is not style motion.');
+  await page.locator('[data-style-filter-group="visual"] [data-filter-value="light"]').click();
+  assert.equal(await library.locator('[data-danmaku-style="prismatic"]').isVisible(), true, 'A style matches its secondary visual tag as well.');
+  assert.equal(await library.locator('[data-danmaku-style="floating"]').isVisible(), false, 'Visual features combine with the active motion filter.');
   await page.locator('#danmakuClearStyleFilters').click();
   await page.locator('[data-style-filter-group="holiday"] [data-filter-value="true"]').click();
   assert.equal(await library.locator('[data-danmaku-style="christmas"]').isVisible(), true);

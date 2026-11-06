@@ -24,8 +24,9 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   });
   await mountResourceStylePage(page);
   async function open(name, wishes = false) {
-    await page.getByRole('button', { name: `${wishes ? '预览样式' : '调整样式'}：${name}`, exact: true }).click();
     const panel = page.getByRole('region', { name: `${name}设置`, exact: true });
+    if (name === '航海旗帜') await panel.getByText('外观设置', { exact: true }).click();
+    else await page.getByRole('button', { name: `${wishes ? '预览样式' : '调整样式'}：${name}`, exact: true }).click();
     await panel.waitFor(); return panel;
   }
   const guard = await open('航海旗帜');

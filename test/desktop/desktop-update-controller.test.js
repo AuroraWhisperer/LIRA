@@ -16,12 +16,24 @@ function createWindow() {
   };
 }
 
+function createController(options = {}) {
+  let publish;
+  const controller = createDesktopUpdateController({
+    getMainWindow: () => null,
+    ...options,
+    updateManager: {
+      configureAutoUpdater({ onStateChange }) { publish = onStateChange; },
+      ...options.updateManager,
+    },
+  });
+  controller.configureAutoUpdater();
+  return { controller, publish: value => publish(value) };
+}
+
 test('update installation drains resource checking first without stopping scans for download or invalid install', async () => {
   const drain = Promise.withResolvers();
   const calls = [];
-  const updateRuntime = { value: { canInstall: false } };
-  const controller = createDesktopUpdateController({
-    updateRuntime,
+  const { controller, publish } = createController({
     beforeInstall: () => {
       calls.push('stop');
       return drain.promise;
@@ -31,7 +43,7 @@ test('update installation drains resource checking first without stopping scans 
   await controller.installUpdate();
   controller.downloadUpdate();
   assert.deepEqual(calls, ['install', 'download']);
-  updateRuntime.value.canInstall = true;
+  publish({ canInstall: true });
   const pending = controller.installUpdate();
   assert.deepEqual(calls, ['install', 'download', 'stop']);
   drain.resolve();
@@ -40,43 +52,36 @@ test('update installation drains resource checking first without stopping scans 
 });
 
 test('automatic updates are enabled only by the exact stored setting and never by a failing runtime', () => {
-  for (const [name, getRuntime, expected] of [
-    ['enabled', () => ({ getSetting: (key) => (key === 'enableAutoUpdate' ? 'true' : 'false') }), true],
-    ['disabled', () => ({ getSetting: () => 'false' }), false],
+  for (const [name, getAutoUpdateSetting, expected] of [
+    ['enabled', () => 'true', true],
+    ['disabled', () => 'false', false],
     ['no runtime yet', () => null, false],
     [
       'setting read throws',
-      () => ({
-        getSetting() {
-          throw new Error('database closed');
-        },
-      }),
+      () => { throw new Error('database closed'); },
       false,
     ],
   ]) {
-    const controller = createDesktopUpdateController({ updateRuntime: { value: {} }, getRuntime });
+    const controller = createDesktopUpdateController({ getAutoUpdateSetting });
     assert.equal(controller.readAutoUpdateSetting(), expected, name);
   }
 });
 
 test('update state reaches only a live window without forcing navigation', () => {
-  const updateRuntime = { value: { status: 'idle' }, lastStatus: undefined };
   let mainWindow = null;
-  const controller = createDesktopUpdateController({ updateRuntime, getMainWindow: () => mainWindow });
+  const { controller, publish } = createController({ getMainWindow: () => mainWindow });
 
   controller.sendUpdateState();
   mainWindow = createWindow();
   mainWindow.destroyed = true;
   controller.sendUpdateState();
   assert.deepEqual(mainWindow.sent, []);
-  assert.equal(updateRuntime.lastStatus, undefined, 'a missing window must not consume the transition');
 
   mainWindow = createWindow();
   const pages = () => mainWindow.sent.filter(([channel]) => channel === 'desktop:show-update-page').length;
   const states = () => mainWindow.sent.filter(([channel]) => channel === 'desktop:update-state').length;
   for (const status of ['available', 'available', 'downloaded', 'error']) {
-    updateRuntime.value = { status };
-    controller.sendUpdateState();
+    publish({ status });
     assert.equal(pages(), 0, status);
   }
   assert.equal(states(), 4, 'every state is delivered even without a transition');
@@ -87,23 +92,44 @@ test('update errors are logged and disable download and install with the running
   const logs = [];
   const error = new Error('signature mismatch');
   const mainWindow = createWindow();
-  const updateRuntime = { value: { status: 'downloaded', canDownload: true, canInstall: true, progress: { percent: 100 }, extra: 'kept' } };
-  const controller = createDesktopUpdateController({
+  const { controller, publish } = createController({
     app: { getVersion: () => '9.9.9' },
-    updateRuntime,
     getMainWindow: () => mainWindow,
     writeLog: (...args) => logs.push(args),
     updateManager: {
       friendlyUpdateError: () => ({ status: 'error', message: 'friendly message' }),
     },
   });
+  publish({ status: 'downloaded', canDownload: true, canInstall: true, progress: { percent: 100 }, extra: 'kept' });
+  mainWindow.sent.length = 0;
 
   controller.setUpdateError(error);
 
   assert.deepEqual(logs, [['update-error', error]]);
-  assert.equal(updateRuntime.value.status, 'error');
-  assert.equal(updateRuntime.value.canDownload, false);
-  assert.equal(updateRuntime.value.canInstall, false);
-  assert.equal(updateRuntime.value.version, '9.9.9');
-  assert.deepEqual(mainWindow.sent, [['desktop:update-state', updateRuntime.value]]);
+  assert.equal(controller.getState().status, 'error');
+  assert.equal(controller.getState().canDownload, false);
+  assert.equal(controller.getState().canInstall, false);
+  assert.equal(controller.getState().version, '9.9.9');
+  assert.deepEqual(mainWindow.sent, [['desktop:update-state', controller.getState()]]);
+});
+
+test('disposing the update owner cancels its delayed startup check', () => {
+  const pending = new Map();
+  let checks = 0;
+  const { controller } = createController({
+    app: { isPackaged: true },
+    getAutoUpdateSetting: () => 'true',
+    updateManager: { checkForUpdates: async () => { checks++; } },
+    timers: {
+      setTimeout(callback) { pending.set(callback, callback); return callback; },
+      clearTimeout(handle) { pending.delete(handle); },
+    },
+  });
+  controller.scheduleStartupCheck();
+  controller.scheduleStartupCheck();
+  assert.equal(pending.size, 1);
+  controller.dispose();
+  controller.scheduleStartupCheck();
+  for (const callback of pending.values()) callback();
+  assert.equal(checks, 0);
 });

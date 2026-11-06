@@ -9,6 +9,14 @@ export function sceneExtraPreviewData(type) {
   const session = (game, state) => ({ game, sessionId: `preview-${game}`, eventRevision: 1, state, danmaku: [] });
   const examples = {
     'gift-sprint': { targetRmb: 10000, remainingCrystalBalls: 100 },
+    'heart-box-collection': { preview: true, count: 37, target: 40, remaining: 3, completed: false,
+      status: 'collecting', partial: false, imagePath: '/img/heart-box-collection/heart-box.webp',
+      castleImagePath: '/img/heart-box-collection/castle.webp', stages: [
+        { target: 20, multiplier: 4, castles: 1, unlocked: true },
+        { target: 40, multiplier: 4, castles: 2, unlocked: false },
+        { target: 80, multiplier: 5, castles: 1, unlocked: false },
+        { target: 120, multiplier: 5, castles: 2, unlocked: false },
+      ] },
     opening: { enabled: true, audio: 'none' },
     songlist: { preview: true, songs: Array.from({ length: 20 }, (_, index) => ({ id: index + 1, name: `示例歌曲 ${index + 1}`, artist: '示例歌手', category_name: '流行', language: '国语', name_initial: 'S' })) },
     'now-playing': { nowPlaying: { source: 'internal', trackTitle: '把此刻唱成一首歌', artists: ['示例歌手'], coverUrl: '', playing: true } },
@@ -23,7 +31,7 @@ export function sceneExtraPreviewData(type) {
     } },
     wheel: { entries: [{ label: '唱一首歌', weight: 1 }, { label: '聊聊天', weight: 1 }, { label: '再来一次', weight: 1 }, { label: '谢谢参与', weight: 1 }], spin: null, lastResult: null },
     interactions: { sessions: {
-      poll: { sessionId: 'preview-poll', kind: 'poll', phase: 'active', participants: 100, endsAt: Date.now() + 60000, options: [{ text: '流行歌曲', votes: 65, percentage: 65 }, { text: '经典老歌', votes: 35, percentage: 35 }] },
+      poll: { sessionId: 'preview-poll', kind: 'poll', phase: 'active', connected: true, participants: 100, endsAt: Date.now() + 60000, options: [{ text: '流行歌曲', votes: 65, percentage: 65 }, { text: '经典老歌', votes: 35, percentage: 35 }] },
       rating: { sessionId: 'preview-rating', kind: 'rating', phase: 'finished', participants: 100, average: 8.6 },
     } },
     blindbox: { summary: { boxCount: 12, totalCost: 120, totalValue: 156, totalProfit: 36 }, heartBoxProgress: { openedSinceCastle: 12 }, perUser: [{ userName: '示例观众', boxCount: 8, totalProfit: 42 }, { userName: '另一位观众', boxCount: 4, totalProfit: -6 }] },
@@ -43,7 +51,7 @@ export function sceneExtraPreviewData(type) {
       userName: '观众A', giftName: '林间花信', num: 2, totalPriceCents: 52000, themeId: 'woodland-bloom' }] },
     'guard-thanks': { preview: true, events: [{ type: 'gift:guard-thanks', eventId: 'canvas-guard-preview',
       userName: '观众A', tier: 'captain', months: 1, textMode: 'bilingual', style: 'aurora' }] },
-    'gift-wishes': { preview: true, items: [], message: '正在读取礼物预览…', session: { state: 'live', stale: false } },
+    'gift-wishes': { preview: true, items: [], message: '正在读取已保存的礼物许愿…', session: { state: 'live', stale: false } },
   };
   return examples[type];
 }

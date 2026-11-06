@@ -59,6 +59,7 @@ const SETTING_KEYS = {
   wheel: '',
   'gift-feed': '',
   'gift-wishes': '',
+  'heart-box-collection': '',
   'gift-sprint': '',
   'gift-export': '',
   'now-playing': '',
@@ -134,6 +135,7 @@ const STATE_SCHEMAS = {
   'gift-effects': {},
   'gift-feed': { gifts: fields('viewRevision') },
   'gift-wishes': { gifts: fields('viewRevision') },
+  'heart-box-collection': { gifts: fields('viewRevision') },
   'gift-sprint': { giftSprint: fields('targetRmb remainingCrystalBalls') },
   overtime: { overtime: OVERTIME },
   lyrics: { lyricState: LYRIC_STATE, lyricTimeline: LYRIC_TIMELINE },
@@ -156,6 +158,12 @@ const INTERACTION = {
   },
 };
 const RESPONSE_SCHEMAS = {
+  'heart-box-collection': {
+    '/api/gifts/heart-box-collection': {
+      ...fields('viewRevision asOf startsAt endsAt nextStartsAt status partial count target remaining completed imagePath castleImagePath'),
+      stages: [fields('target multiplier castles unlocked')],
+    },
+  },
   'now-playing': { '/api/now-playing/config': NOW_PLAYING_CONFIG },
   danmaku: { '/api/bilibili/room/profile': fields('roomId uid name avatarUrl') },
   interactions: { '/api/interactions/session': INTERACTION },
@@ -185,10 +193,11 @@ const RESPONSE_SCHEMAS = {
       thresholds: [true],
     },
     '/api/gifts/history': {
-      ...fields('viewRevision nextCursor partial contentRevision unchanged'),
+      ...fields('viewRevision nextCursor partial contentRevision unchanged delta'),
+      removedEventIds: [true],
       items: [
         {
-          ...fields('eventId artworkPath'),
+          ...fields('eventId artworkPath sortId sortTime'),
           gift: fields('userName giftName giftId giftVariantId coinType unitPrice num avatarUrl guardLevel createdAt'),
         },
       ],
@@ -225,7 +234,8 @@ const EVENT_SCHEMAS = {
   'gift-catalog:update': { scope: 'gift-feed', schema: {} },
   'gift:frame': {
     scope: 'gift-effects',
-    schema: fields('eventId giftName userName avatarUrl num totalPriceCents themeId preview'),
+    schema: { ...fields('eventId giftName userName avatarUrl num totalPriceCents themeId preview artworkPath startedAt'),
+      motion: fields('size durationSeconds angle speed bounce textMode'), styleIds: [true] },
   },
   'gift:guard-thanks': {
     scope: 'gift-effects',
@@ -296,7 +306,7 @@ function projectGameSession(session) {
   return result;
 }
 
-const ROOM_GUARD_SCOPES = new Set(['queue', 'overtime', 'danmaku', 'gift-feed', 'gift-wishes']);
+const ROOM_GUARD_SCOPES = new Set(['queue', 'overtime', 'danmaku', 'gift-feed', 'gift-wishes', 'heart-box-collection']);
 
 function getOverlayStateFields(scope) {
   if (!Object.hasOwn(STATE_SCHEMAS, scope)) return [];

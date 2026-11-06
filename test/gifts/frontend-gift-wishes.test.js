@@ -208,6 +208,13 @@ for (const cancellation of ['timeout', 'pagehide']) {
 
 test('choose room or cached gifts, enforce integer targets, edit without resetting and delete', async (t) => {
   const page = await open(t);
+  await page.evaluate(async () => {
+    const { startGiftWishesCanvasData } = await import('/js/admin/gift-wishes-canvas-data.js');
+    window.stopCanvasWishes = startGiftWishesCanvasData({ subscribe(receive) {
+      receive({ draft: { document: { items: [{ type: 'gift-wishes' }] } } });
+      return () => {};
+    } }, data => { window.canvasWishes = data.previewData['gift-wishes']; });
+  });
   await page.locator('#giftWishPick').click();
   await page.getByRole('button', { name: '全部缓存礼物', exact: true }).click();
   await page.locator('#giftWishSearch').fill('小花');
@@ -227,10 +234,14 @@ test('choose room or cached gifts, enforce integer targets, edit without resetti
   await page.waitForFunction(() => document.querySelector('#giftWishCards .wish-card-target').textContent.includes('20'));
   assert.equal(await page.locator('#giftWishCards .wish-card-count').textContent(), '3');
   assert.equal(await page.evaluate(() => window.wishSaves[1].id), 'new');
+  assert.equal(await page.evaluate(() => window.canvasWishes.items[0].target), 20,
+    'Saving from the desktop refreshes the active canvas subscription.');
   await page.getByRole('button', { name: '删除', exact: true }).click();
   await page.getByRole('button', { name: '再次点击删除', exact: true }).click();
   await page.waitForFunction(() => document.getElementById('giftWishEmpty').hidden === false);
   assert.equal(await page.locator('#giftWishCards .wish-card').count(), 0);
+  assert.equal(await page.evaluate(() => window.canvasWishes.items.length), 0);
+  await page.evaluate(() => window.stopCanvasWishes());
 });
 
 test('the browser-source URL stays unified and source changes discard an in-progress edit', async (t) => {
@@ -401,6 +412,65 @@ test('moonlit progress clamps overflow and keeps gift names as text', async (t) 
   assert.equal(await page.locator('.wish-moon-name img').count(), 0);
 });
 
+test('ribbon wishes retain the flowing card when progress and decorations update and clamp overflow', async (t) => {
+  const page = await openOverlay(t, 'long', [], { displayStyle: 'ribbon', giftName: '<b>舰长</b>', ribbonDecorations: false });
+  assert.equal(await page.locator('.wish-card--ribbon').getAttribute('data-ribbon-decoration'), 'none');
+  await page.evaluate(() => {
+    window.ribbonCard = document.querySelector('.wish-card--ribbon');
+    window.ribbonFlow = document.querySelector('.wish-ribbon-flow');
+    window.wishData.items[0].count = 13;
+    window.wishData.items[0].progress = 130;
+    window.wishData.items[0].completed = true;
+    window.wishData.items[0].ribbonDecorations = true;
+    window.wishData.items[0].ribbonDecorationStyle = 'bow';
+    window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+  });
+  await page.waitForFunction(() => document.querySelector('.wish-ribbon-count').textContent === '13');
+  assert.equal(await page.locator('.wish-ribbon-frame').getAttribute('aria-valuenow'), '10');
+  assert.equal(await page.locator('.wish-ribbon-fill').evaluate(node => node.style.clipPath), 'inset(0px 0% 0px 0px)');
+  assert.equal(await page.locator('.wish-ribbon-name').textContent(), '<b>舰长</b>');
+  assert.equal(await page.locator('.wish-ribbon-name b').count(), 0);
+  assert.equal(await page.locator('.wish-ribbon-sticker').getAttribute('src'), '/img/shared/gift-wish-ribbon/bow.webp');
+  assert.equal(await page.evaluate(() => window.ribbonCard === document.querySelector('.wish-card--ribbon')
+    && window.ribbonFlow === document.querySelector('.wish-ribbon-flow')), true);
+});
+
+test('ribbon number sizing inherits saved text size until independently set or cleared', async t => {
+  const page = await openOverlay(t, 'long', [], { displayStyle: 'ribbon', ribbonFontSize: 32 });
+  await page.addStyleTag({ content: fs.readFileSync('public/css/shared/gift-wish-ribbon.css', 'utf8') });
+  const sizes = () => page.locator('.wish-card--ribbon').evaluate(node => ({
+    name: getComputedStyle(node.querySelector('.wish-ribbon-name')).fontSize,
+    number: getComputedStyle(node.querySelector('.wish-ribbon-total')).fontSize,
+  }));
+  assert.deepEqual(await sizes(), { name: '32px', number: '32px' });
+  for (const [value, expected] of [['24', '24px'], ['', '32px']]) {
+    await page.evaluate(value => {
+      window.wishData.items[0].ribbonNumberFontSize = value;
+      window.socketOptions.onMessage({ type: 'snapshot', reason: 'gift:wishes', state: { gifts: { viewRevision: 'one' } } });
+    }, value);
+    await page.waitForFunction(expected => getComputedStyle(document.querySelector('.wish-ribbon-total')).fontSize === expected, expected);
+    assert.deepEqual(await sizes(), { name: '32px', number: expected });
+  }
+});
+
+test('ribbon keeps long counts inside a narrow frame when numbers are enlarged', async t => {
+  const page = await openOverlay(t, 'long', [], { displayStyle: 'ribbon', giftName: '心动盲盒限定礼物',
+    ribbonFontSize: 32, ribbonNumberFontSize: '48', count: 123456789, target: 999999999, progress: 12.35 });
+  await page.addStyleTag({ content: '#giftWishStage{width:320px}.wish-card{box-sizing:border-box;width:100%}'
+    + fs.readFileSync('public/css/shared/gift-wish-ribbon.css', 'utf8') });
+  const layout = await page.locator('.wish-card--ribbon').evaluate(node => {
+    const frame = node.querySelector('.wish-ribbon-frame').getBoundingClientRect();
+    const total = node.querySelector('.wish-ribbon-total').getBoundingClientRect();
+    const name = node.querySelector('.wish-ribbon-name');
+    return { fits: total.left >= frame.left && total.right <= frame.right,
+      nameVisible: name.getBoundingClientRect().width > parseFloat(getComputedStyle(name).fontSize) * 2,
+      text: node.querySelector('.wish-ribbon-total').textContent };
+  });
+  assert.equal(layout.fits, true);
+  assert.equal(layout.nameVisible, true);
+  assert.equal(layout.text, '123456789/999999999');
+});
+
 test('text overlay renders custom text safely', async (t) => {
   const page = await openOverlay(t, 'day', [], {
     displayStyle: 'text',
@@ -408,6 +478,33 @@ test('text overlay renders custom text safely', async (t) => {
   });
   assert.equal(await page.locator('.wish-card-text').textContent(), '<b>想要小花花</b>\n3/10 {未知}');
   assert.equal(await page.locator('.wish-card img, .wish-card b').count(), 0);
+});
+
+test('scene wishes follow each saved wish color instead of legacy canvas overrides', async t => {
+  const page = await fixture(t, 'wish-scene');
+  await page.route('**/js/overlays/scene-extra-client.js', route => route.fulfill({
+    contentType: 'text/javascript',
+    body: 'export const mountSceneExtraClient = (_type, callbacks) => { window.wishComponent = callbacks; return { resize() {} }; };',
+  }));
+  await page.setContent('<main id="giftWishStage"></main><p id="giftWishOverlayStatus" hidden></p>');
+  await page.evaluate(async () => {
+    await import('/js/overlays/gift-wishes.js');
+    window.wishComponent.onConfig({ period: 'all', showCompleted: true, limit: 2, gap: 12, displayStyle: 'text',
+      textPendingColor: '#ff0000', textReceivedColor: '#00ff00' });
+    window.sceneWishes = [
+      { id: 'first', period: 'day', giftName: '小花花', todayCount: 0, textPendingColor: '#663399', textReceivedColor: '#b45309' },
+      { id: 'second', period: 'day', giftName: '打call', todayCount: 1, textPendingColor: '#123456', textReceivedColor: '#654321' },
+    ];
+    window.wishComponent.onData({ items: window.sceneWishes });
+  });
+  const colors = () => page.locator('.wish-card').evaluateAll(cards => cards.map(card => card.style.getPropertyValue('--wish-ink')));
+  assert.deepEqual(await colors(), ['#663399', '#654321']);
+  await page.evaluate(() => {
+    window.sceneWishes[0].textPendingColor = '#112233';
+    window.sceneWishes[1].todayCount = 0;
+    window.wishComponent.onData({ items: window.sceneWishes });
+  });
+  assert.deepEqual(await colors(), ['#112233', '#123456']);
 });
 
 const animatedWishImage = 'data:image/webp;base64,UklGRoQAAABXRUJQVlA4WAoAAAACAAAAAwAAAwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAAMAAAMAAGQAAAJWUDhMDwAAAC8DwAAABxD9j/4HIqL/AQBBTk1GKAAAAAAAAAAAAAMAAAMAAGQAAABWUDhMDwAAAC8DwAAAB9D/iP4HIqL/AQA=';

@@ -129,6 +129,7 @@ export function mountRichTextFormatControls(toolbar, { listen, format, clearForm
   more.setAttribute('aria-label', more.title);
   more.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.7"/><circle cx="12" cy="12" r="1.7"/><circle cx="19" cy="12" r="1.7"/></svg>';
   const options = createPanel(more, '文字效果');
+  options.classList.add('rich-text-effects-menu');
   for (const [key, label] of [['stroke', '文字描边'], ['shadow', '轻阴影']]) {
     const toggle = button(options, label, 'rich-text-format-action rich-text-effect-toggle', () => {
       format(key, toggle.getAttribute('aria-pressed') !== 'true');

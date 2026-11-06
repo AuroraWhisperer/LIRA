@@ -20,6 +20,7 @@ async function createFixture({
   initialState = {},
   confirmImpl = async () => true,
   parsedDuration = 0,
+  apiImpl = null,
 } = {}) {
   const document = createFakeDocument();
   const window = { AdminApp: {} };
@@ -30,6 +31,7 @@ async function createFixture({
     confirmationCalls: [],
     confirmImpl,
     parsedDuration,
+    apiImpl,
     overtimeState: initialState.overtime || null,
     fetchImpl: fetchImpl || (() => Promise.resolve({ ok: true, payload: fetchPayload })),
   };
@@ -119,6 +121,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     '../shared/utils.js': stub({
       async api(url, body) {
         state.apiCalls.push({ url, body });
+        if (state.apiImpl) return state.apiImpl(url, body);
         return {
           data: { gifts: saleGifts, refreshedAt: '2026-09-05T00:00:00.000Z' },
         };
@@ -157,11 +160,10 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
     './overtime-time-view.js': stub({
       createOvertimeTimeView: () => ({
         renderSettlements() {},
-        populateInitialDurationSelectors() {},
-        syncDurationSelectorsFromInput() {},
-        syncDurationInputFromSelectors() {},
+        markDurationDirty() {},
+        acceptInitialDuration() {},
+        readInitialDuration: () => state.parsedDuration,
         renderInitialDuration() {},
-        parseInitialDuration: () => state.parsedDuration,
         formatClockDisplay: (milliseconds) => `${milliseconds / 1000} 秒`,
       }),
     }),
@@ -172,6 +174,7 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
         },
         syncClockLoop() {},
         stopClockLoop() {},
+        setBusy() {},
         getState: () => state.overtimeState,
       }),
     }),

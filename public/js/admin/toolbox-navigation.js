@@ -1,7 +1,6 @@
 // 编写人：Aurora
 // 功能工作区共用导航行为，每个页面独立保存选中项。
 'use strict';
-import { publishOther } from './legacy-admin-bridge.js';
 
 export function createFeatureNavigation({ pageId, storagePrefix }) {
   const SIDEBAR_COLLAPSED_KEY = `${storagePrefix}SidebarCollapsed`;
@@ -419,4 +418,3 @@ export function createFeatureNavigation({ pageId, storagePrefix }) {
   };
 }
 export const other = createFeatureNavigation({ pageId: 'otherAssistantPage', storagePrefix: 'admin.toolbox' });
-publishOther(other);

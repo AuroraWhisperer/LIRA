@@ -82,6 +82,7 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
           throw error;
         }
       case 'gift-wishes': return cached(type, async () => response('/api/gifts/wishes', await displayPorts.giftWishes.getSnapshot()));
+      case 'heart-box-collection': return cached(type, () => response('/api/gifts/heart-box-collection', displayPorts.heartBoxCollection.getSnapshot()));
       case 'gift-feed': return Promise.resolve(cached(type, async (key) => {
         const previous = feedSnapshot?.key === key ? feedSnapshot : null;
         const currentCatalogVersion = catalogVersion;
@@ -91,6 +92,7 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
           return response('/api/gifts/history', displayPorts.gifts.getHistory({ range: 'today', startDate: day, endDate: day,
             limit: 100, sortField: 'created_at', sortDirection: 'asc', cursor: query.get('cursor'),
             conditional: true,
+            ...(query.get('delta') === '1' ? { delta: true } : {}),
             ...(query.has('contentRevision') ? { contentRevision: query.get('contentRevision') } : {}),
             ...(query.has('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}) }));
         } });

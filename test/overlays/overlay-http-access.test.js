@@ -334,7 +334,7 @@ test('allowed read APIs project data and force song visibility and today-only gi
     ['blindbox', '/api/gifts/blind-box-stats'],
     [
       'gift-feed',
-      '/api/gifts/history?range=all&startDate=2000-01-01&sourceId=other&limit=999&userQuery=private&sortDirection=desc',
+      '/api/gifts/history?range=all&startDate=2000-01-01&sourceId=other&limit=999&userQuery=private&sortDirection=desc&conditional=1&delta=1',
     ],
     ['gift-feed', '/api/gifts/display-settings'],
     ['gift-feed', '/api/overtime/gifts/catalog'],
@@ -360,6 +360,8 @@ test('allowed read APIs project data and force song visibility and today-only gi
     sortField: 'created_at',
     sortDirection: 'asc',
     cursor: null,
+    conditional: true,
+    delta: true,
   });
   assert.deepEqual(
     f.calls.find(([name]) => name === 'card-profiles'),

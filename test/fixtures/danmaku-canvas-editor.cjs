@@ -19,11 +19,15 @@ async function run() {
   const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
   const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
   const { DatabaseSync } = require('node:sqlite');
+  const { createDatabases, closeDatabases } = require('../../src/storage/database');
+  const { createOvertimeStore } = require('../../src/storage/overtime-store');
+  const { createOvertimeService } = require('../../src/overtime');
   const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
   const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
   const { readSceneSharedAppearances } = require('../../src/server/scene-shared-appearance');
+  const { readNowPlayingConfig } = require('../../src/server/now-playing-settings');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
   const { createDanmakuAppearance } = require('../../src/server/danmaku-appearance');
   const { createDanmakuAppearanceStore, migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
@@ -52,8 +56,13 @@ async function run() {
   const token = 'synthetic-canvas-parent-secret';
   const root = path.resolve(__dirname, '../..');
   const openingSettings = {};
-  const getState = () => ({ settings: { ...DEFAULT_SETTINGS, ...openingSettings } });
+  let overtime;
+  const getState = () => ({ settings: { ...DEFAULT_SETTINGS, ...openingSettings }, nowPlayingConfig: readNowPlayingConfig(openingSettings),
+    ...(overtime ? { overtime: overtime.getSnapshot() } : {}) });
   const hub = createWebSocketHub({ closeTimeoutMs: 20 });
+  const overtimeDatabases = process.argv.includes('--overtime') ? createDatabases({ dataDir: path.join(directory, 'overtime') }) : null;
+  if (overtimeDatabases) overtime = createOvertimeService({ store: createOvertimeStore(overtimeDatabases.giftDb),
+    onUpdate: payload => hub.broadcast({ type: 'overtime:update', ...payload }) });
   let saved = { style: 'signal', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
     overlayUrl: 'https://canvas.example.test/overlay/syntheticKey_123' };
   const db = new DatabaseSync(path.join(directory, 'canvas-test.db'));
@@ -76,9 +85,11 @@ async function run() {
       system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: appearance.getSettings() }) }, items),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
-    ...createSceneComponentPorts({ getState: () => ({ settings: openingSettings }), getDanmakuConfig: appearance.getSettings }) });
+    ...createSceneComponentPorts({ getState, getDanmakuConfig: appearance.getSettings }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
     openingSettings,
+    overtime,
+    output: () => scenes.getOutput({ ...scenes.getSource(scenes.list()[0].document.id), version: 0 }),
     saved: () => appearance.getSettings(), scene: () => scenes.list()[0], componentSize: () => scenes.getComponentSize('danmaku'),
     authorization: () => ({ epoch: manager.getAuthorizationEpoch(), generation: manager.getAuthorizationGeneration() }),
     async renewAuthorization() {
@@ -97,7 +108,9 @@ async function run() {
     inflightTracker: { run: (fn) => fn() }, getSettings: () => openingSettings,
     getWebSocketHub: () => hub,
     getWebSocketContext: base => ({ sessionToken: token, allowedOrigins: [base], getState }),
-    createApiContext: () => ({ sessionToken: token, scenes, danmakuAppearance, settings: { get: () => openingSettings, defaults: DEFAULT_SETTINGS,
+    createApiContext: () => ({ sessionToken: token, scenes, danmakuAppearance,
+      ...(overtime ? { overtime: { ...overtime, getGiftCatalog: () => ({ gifts: [] }), getGlobalGiftCatalog: () => ({ gifts: [] }) } } : {}),
+      settings: { get: () => openingSettings, defaults: DEFAULT_SETTINGS,
       set(key, value) { openingSettings[key] = value; },
       setMany(patch) { Object.assign(openingSettings, patch); return Object.keys(patch); } },
       bilibili: { configure() {} }, broadcastSnapshot(reason) { hub.broadcastSnapshot({ getState }, reason); },
@@ -129,7 +142,6 @@ async function run() {
           initCanvasOverlaySource();`);
         return;
       }
-      if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
       servePageOrAsset(path.join(root, 'public'), req, res, url, token);
     },
   });
@@ -144,7 +156,7 @@ async function run() {
     webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } });
   const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession, getMainWindow: () => window,
     getBaseUrl: () => origin, getToken: () => token });
-  configureMediaRequestHeaders(session.defaultSession, {}, auth);
+  configureMediaRequestHeaders(session.defaultSession, auth);
   auth.bindWindow(window, { openExternal(url) { global.canvasTest.externalUrls.push(url); } });
   registerLicenseIpc({ ipcMain, getMainWindow: () => window, getDesktopBaseUrl: () => origin,
     hasExactOrigin: (url, expected) => new URL(url).origin === expected,
@@ -155,7 +167,10 @@ async function run() {
       updateOverlaySettings: async () => { throw new Error('Appearance must be saved locally.'); },
     },
   });
-  app.once('before-quit', () => { manager.dispose(); auth.dispose(); hub.stop(); server.closeAllConnections(); server.close(); db.close(); });
+  app.once('before-quit', () => {
+    manager.dispose(); auth.dispose(); overtime?.dispose(); hub.stop(); server.closeAllConnections(); server.close(); db.close();
+    if (overtimeDatabases) closeDatabases(overtimeDatabases);
+  });
   app.on('window-all-closed', () => app.quit());
   await window.loadURL(`${origin}/admin`);
 }

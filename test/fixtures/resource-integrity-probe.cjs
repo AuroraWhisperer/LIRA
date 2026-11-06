@@ -18,9 +18,12 @@ const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const html = `<!doctype html><html lang="zh-CN" class="desktop-shell"><head><meta charset="utf-8">
 <style>${read('public/css/styles-base.css')}${read('public/css/desktop/palettes.css')}${read('public/css/desktop/theme.css')}${read('public/css/desktop/update.css')}</style></head><body class="desktop-shell">
 ${read('public/pages/admin/toolbox/desktop-update.html')}
-<script>window.AdminApp={utils:{toast(){}}};</script>
-<script>${read('public/js/desktop.js')}</script>
-<script>document.getElementById('otherDesktopUpdateFeature').hidden=false;window.AdminApp.desktop.initResourceIntegrity(window.songAssistantDesktop);</script>
+<script type="module">
+import { createResourceIntegrity } from '/js/desktop-resource-integrity.js';
+window.resourceIntegrity = createResourceIntegrity({ toast() {}, describeError: error => error.message });
+document.getElementById('otherDesktopUpdateFeature').hidden = false;
+window.resourceIntegrity.init(window.songAssistantDesktop);
+</script>
 </body></html>`;
 let window;
 let manager;
@@ -31,7 +34,7 @@ let server;
 async function clickAndWait() {
   return window.webContents.executeJavaScript(`(async () => {
     const bridge = window.songAssistantDesktop;
-    window.AdminApp.desktop.renderResourceIntegrityState(await bridge.getResourceIntegrityState());
+    window.resourceIntegrity.render(await bridge.getResourceIntegrityState());
     return new Promise((resolve) => {
       let ticks = 0;
       const interval = setInterval(() => { ticks += 1; }, 10);
@@ -50,7 +53,12 @@ async function clickAndWait() {
 async function run() {
   await app.whenReady();
   // A test-only loopback server; it never starts LIRA's backend or reads its state.
-  server = http.createServer((_request, response) => {
+  server = http.createServer((request, response) => {
+    if (request.url === '/js/desktop-resource-integrity.js') {
+      response.writeHead(200, { 'Content-Type': 'text/javascript; charset=utf-8' });
+      response.end(read('public/js/desktop-resource-integrity.js'));
+      return;
+    }
     response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
     response.end(html);
   });

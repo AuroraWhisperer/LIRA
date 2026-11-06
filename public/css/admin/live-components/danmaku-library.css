@@ -1,0 +1,247 @@
+/* Danmaku style cards, display filters and library dialog. */
+.live-components-page .danmaku-style-picker {
+  --danmaku-sample-height: 104px;
+  padding: var(--spacing-md);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.live-components-page .danmaku-style-picker .danmaku-style-options {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 208px), 1fr));
+  gap: 12px;
+}
+
+.live-components-page .danmaku-style-picker :is(.danmaku-style-option, .component-style-select, .component-style-add) {
+  min-height: 152px;
+}
+
+.live-components-page .danmaku-style-picker .danmaku-style-option[aria-pressed='true'] {
+  background: var(--surface);
+}
+
+/* The badge moves onto the thumbnail so it stops sharing the caption line with the name. */
+.live-components-page .danmaku-style-picker .danmaku-style-option[aria-pressed='true']::after {
+  top: 16px;
+  right: 16px;
+  bottom: auto;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--components-accent-solid);
+  color: var(--components-accent-on);
+  font-weight: var(--type-weight-semibold);
+}
+
+/* Display mode filters the style grid inside one section, so it uses a segmented control
+   rather than the underlined tabs that switch whole pages (礼物姬). */
+.live-components-page .danmaku-style-tabs {
+  justify-self: start;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  padding: 3px;
+  border: 0;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.live-components-page .danmaku-style-tabs :is([role='tab'], [data-filter-value]) {
+  min-height: 30px;
+  margin: 0;
+  padding: 4px 16px;
+  border: 0;
+  border-radius: 6px;
+  font-size: var(--type-size-body);
+  line-height: 22px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: var(--type-weight-medium);
+  box-shadow: none;
+}
+
+.live-components-page .danmaku-style-tabs button:hover:not([aria-selected='true'], [aria-pressed='true']) {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .danmaku-style-tabs :is([aria-selected='true'], [aria-pressed='true']) {
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--text) 14%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent);
+  color: var(--text);
+  font-weight: var(--type-weight-semibold);
+}
+
+.live-components-page .danmaku-style-picker .danmaku-recent-styles {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.live-components-page .danmaku-style-caption {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.live-components-page .danmaku-style-caption .danmaku-style-name {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.live-components-page .danmaku-style-code {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  white-space: nowrap;
+}
+
+.live-components-page .danmaku-style-picker .danmaku-style-option {
+  min-height: 0;
+  padding-bottom: 4px;
+}
+
+.live-components-page .danmaku-style-library {
+  width: min(1100px, calc(100vw - 64px));
+  height: min(790px, calc(100dvh - 64px));
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--text);
+}
+
+.live-components-page .danmaku-style-library[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.danmaku-style-library::backdrop {
+  background: rgb(0 0 0 / 35%);
+}
+
+.live-components-page .danmaku-style-library button.danmaku-library-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-height: 30px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--text) 12%, transparent);
+}
+
+.live-components-page .danmaku-library-close svg {
+  width: 18px;
+  height: 18px;
+}
+
+.live-components-page .danmaku-library-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 8px 24px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.live-components-page .danmaku-library-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.live-components-page .danmaku-library-filter:first-child {
+  flex-basis: 100%;
+}
+
+.live-components-page .danmaku-library-filter > span {
+  color: var(--muted);
+  font-size: var(--type-size-body);
+  white-space: nowrap;
+}
+
+.live-components-page .danmaku-library-filter:not(:first-child) .danmaku-style-tabs button {
+  padding-inline: 12px;
+}
+
+.live-components-page #danmakuClearStyleFilters {
+  margin-left: auto;
+}
+
+.live-components-page .danmaku-library-footer {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 4px 20px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.live-components-page .danmaku-library-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.live-components-page .danmaku-library-actions button,
+.live-components-page #danmakuClearStyleFilters {
+  min-height: 28px;
+  padding: 3px 8px;
+  font-size: var(--type-size-caption);
+}
+
+.live-components-page .danmaku-library-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+}
+
+.live-components-page :is(.danmaku-library-results, .danmaku-imported-styles) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.live-components-page .danmaku-library-results :is(.danmaku-style-group, .danmaku-style-options) {
+  display: contents;
+}
+
+.live-components-page .danmaku-library-results .danmaku-style-option[hidden] {
+  display: none;
+}
+
+.live-components-page .danmaku-library-empty {
+  padding: 40px 16px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.live-components-page .danmaku-imported-styles:not(:empty) {
+  margin-top: 20px;
+}
+
+@media (max-width: 760px) {
+  .live-components-page .danmaku-style-picker .danmaku-recent-styles {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .live-components-page .danmaku-recent-styles > :nth-child(n + 4) {
+    display: none;
+  }
+}

@@ -27,7 +27,7 @@ async function fixture() {
 
 test('one active plus 50 waiting play FIFO, without interruption, price priority or expiry', async () => {
   const { queue, plays } = await fixture();
-  assert.equal(queue.enqueue(event(0)), true);
+  assert.equal(queue.enqueue({ ...event(0), themeId: 'imported', styleIds: ['synthetic-style'] }), true);
   for (let i = 1; i <= 50; i += 1) assert.equal(queue.enqueue(event(i)), true);
   assert.equal(queue.enqueue({ ...event(51), totalPriceCents: 99999999 }), false);
   assert.equal(plays.length, 1);

@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const test = require('node:test');
-const { createComponentPreviewSessions, SESSION_TTL_MS } = require('../../src/server/component-preview-sessions');
+const { createComponentPreviewSessions, PREVIEW_SESSION_TYPES, SESSION_TTL_MS } = require('../../src/server/component-preview-sessions');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { normalizeSceneDocument, MAX_SCENE_BYTES } = require('../../src/scenes/scene-contract');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
@@ -11,6 +11,216 @@ const { DANMAKU_STYLE_OPTIONS } = require('../../src/shared/danmaku-style-option
 const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
+
+test('one batch wait wakes for any member without mixing commands, state or focus', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sessions = createComponentPreviewSessions();
+  t.after(() => sessions.clear());
+  const opened = ['clock', 'queue'].map(component => sessions.open({ component, state: state() }));
+  const entries = opened.map(session => {
+    const attachmentId = randomUUID();
+    const initial = sessions.browser({ id: session.id, action: 'attach', attachmentId, previousAttachmentId: null }, session.token);
+    return { action: 'read', id: session.id, token: session.token, attachmentId,
+      stateRevision: initial.stateRevision, displayRevision: initial.displayRevision, ack: initial.ack };
+  });
+  const waiting = sessions.readBatch({ entries, waitMs: 20000 });
+  const receiving = sessions.exchangeBatch({ entries: opened.map(({ id }) => ({ action: 'exchange', id, ack: 0, incremental: true })), waitMs: 20000 });
+  assert.equal(typeof waiting?.then, 'function');
+  assert.equal(typeof receiving?.then, 'function');
+  const accepted = sessions.browser({ ...entries[1], action: 'edit', change: { label: '第二个组件' } }, entries[1].token);
+  const commands = (await receiving).updates;
+  assert.equal(commands[0].commands.length, 0);
+  assert.equal(commands[1].id, opened[1].id);
+  assert.equal(commands[1].commands[0].sequence, accepted.sequence);
+  sessions.exchange({ id: opened[1].id, ack: accepted.sequence, incremental: true, state: state({ label: '第二个组件' }) });
+  const update = await waiting;
+  assert.equal(update.updates[1].state.draft.label, '第二个组件');
+  assert.equal(update.updates[1].ack, accepted.sequence);
+  assert.equal(Object.hasOwn(update.updates[0], 'state'), false);
+  const nextEntries = entries.map((entry, index) => ({ ...entry, stateRevision: update.updates[index].stateRevision,
+    displayRevision: update.updates[index].displayRevision, ack: update.updates[index].ack }));
+  const focused = sessions.readBatch({ entries: nextEntries, waitMs: 20000 });
+  const focus = sessions.focus(sessions.link({ links: [opened[0]] }));
+  const { updates } = await focused;
+  sessions.browser({ ...entries[0], action: 'read', focusId: updates[0].focus.id }, entries[0].token);
+  assert.equal((await focus).focused, true);
+  const timeout = sessions.readBatch({ entries: nextEntries, waitMs: 20000 });
+  t.mock.timers.tick(20000);
+  assert.equal((await timeout).updates.length, 2);
+});
+
+test('batch validation checks every capability and receipt before renewing or acknowledging any member', () => {
+  let now = 0;
+  const sessions = createComponentPreviewSessions({ now: () => now });
+  const opened = ['clock', 'queue'].map(component => sessions.open({ component, state: state() }));
+  const entries = opened.map(session => {
+    const attachmentId = randomUUID();
+    sessions.browser({ id: session.id, action: 'attach', attachmentId, previousAttachmentId: null }, session.token);
+    return { action: 'read', id: session.id, token: session.token, attachmentId };
+  });
+  now = SESSION_TTL_MS - 1;
+  assert.throws(() => sessions.readBatch({ entries: [entries[0], { ...entries[1], token: opened[0].token }] }), { statusCode: 403 });
+  now += 2;
+  assert.throws(() => sessions.browser({ ...entries[0], action: 'read' }, entries[0].token), { statusCode: 503 });
+  for (const session of opened) sessions.exchange({ id: session.id, ack: 0, incremental: true });
+  sessions.browser({ ...entries[0], action: 'save' }, opened[0].token);
+  assert.throws(() => sessions.exchangeBatch({ entries: [
+    { action: 'exchange', id: opened[0].id, ack: 1, incremental: true },
+    { action: 'exchange', id: opened[1].id, ack: 1, incremental: true },
+  ] }), { statusCode: 400 });
+  assert.equal(sessions.exchange({ id: opened[0].id, ack: 0, incremental: true }).commands.length, 1);
+  for (const invalid of [[], [null], [entries[0], entries[0]],
+    Array.from({ length: PREVIEW_SESSION_TYPES.length + 1 }, () => ({ ...entries[0], id: randomUUID() }))]) {
+    assert.throws(() => sessions.readBatch({ entries: invalid }), { statusCode: 400 });
+  }
+  assert.throws(() => sessions.exchangeBatch({ entries: [{ action: 'exchange', id: opened[0].id, ack: 0,
+    incremental: true, state: state({ label: '不能在等待中写入' }) }] }), { statusCode: 400 });
+});
+
+test('batch waits release all members on cancellation, page takeover and owner replacement', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let now = 0;
+  let owner = 'first';
+  const sessions = createComponentPreviewSessions({ now: () => now, getOwner: () => owner });
+  t.after(() => sessions.clear());
+  const opened = ['clock', 'queue'].map(component => sessions.open({ component, state: state() }));
+  const entries = opened.map(session => {
+    const attachmentId = randomUUID();
+    const initial = sessions.browser({ id: session.id, action: 'attach', attachmentId, previousAttachmentId: null }, session.token);
+    return { action: 'read', id: session.id, token: session.token, attachmentId,
+      stateRevision: initial.stateRevision, displayRevision: initial.displayRevision, ack: initial.ack };
+  });
+  const cancellation = new AbortController();
+  const cancelled = assert.rejects(sessions.readBatch({ entries, waitMs: 20000 }, { signal: cancellation.signal }), { name: 'AbortError' });
+  cancellation.abort();
+  await cancelled;
+  now = SESSION_TTL_MS - 1;
+  t.mock.timers.tick(20000);
+  now += 2;
+  for (const entry of entries) assert.throws(() => sessions.browser(entry, entry.token), { statusCode: 503 });
+  for (const { id } of opened) sessions.exchange({ id, ack: 0, incremental: true });
+  const takenOver = assert.rejects(sessions.readBatch({ entries, waitMs: 20000 }), { statusCode: 409 });
+  const nextAttachment = randomUUID();
+  sessions.browser({ id: opened[1].id, action: 'attach', attachmentId: nextAttachment,
+    previousAttachmentId: entries[1].attachmentId }, opened[1].token);
+  await takenOver;
+  entries[1].attachmentId = nextAttachment;
+  const revoked = assert.rejects(sessions.readBatch({ entries, waitMs: 20000 }), { statusCode: 410 });
+  const desktop = assert.rejects(sessions.exchangeBatch({ entries: opened.map(({ id }) => ({ action: 'exchange', id, ack: 0, incremental: true })), waitMs: 20000 }), { statusCode: 410 });
+  owner = 'second';
+  sessions.open({ component: 'canvas', state: state() });
+  await Promise.all([revoked, desktop]);
+});
+
+test('HTTP batch waits keep desktop authority separate from each browser capability', async t => {
+  const fixture = await startComponentPreviewServer();
+  t.after(() => fixture.close());
+  const opened = [];
+  for (const component of ['clock', 'queue']) opened.push((await fixture.post({ action: 'open', component, state: state() })).data);
+  const desktop = { action: 'exchange-batch', waitMs: 0,
+    entries: opened.map(({ id }) => ({ action: 'exchange', id, ack: 0, incremental: true })) };
+  assert.equal((await fixture.post(desktop, opened[0].token)).status, 401);
+  assert.equal((await fixture.post(desktop)).data.updates.length, 2);
+  const entries = [];
+  for (const session of opened) {
+    const attachmentId = randomUUID();
+    const { data } = await fixture.post({ action: 'attach', id: session.id, attachmentId, previousAttachmentId: null }, session.token);
+    entries.push({ action: 'read', id: session.id, token: session.token, attachmentId,
+      stateRevision: data.stateRevision, displayRevision: data.displayRevision, ack: data.ack });
+  }
+  const browser = { action: 'read-batch', entries, waitMs: 0 };
+  assert.equal((await fixture.post(browser)).data.updates.length, 2);
+  assert.equal((await fixture.post({ ...browser, entries: [entries[0], { ...entries[1], token: opened[0].token }] })).status, 403);
+});
+
+test('idle preview exchanges wait for commands and reads wake immediately for ACK, state, display and focus', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const sessions = createComponentPreviewSessions();
+  t.after(() => sessions.clear());
+  const session = sessions.open({ component: 'clock', state: state() });
+  const attachmentId = randomUUID();
+  const browser = body => sessions.browser({ id: session.id, attachmentId, ...body }, session.token);
+  let known = browser({ action: 'attach', previousAttachmentId: null });
+  const waiting = () => browser({ action: 'read', stateRevision: known.stateRevision,
+    displayRevision: known.displayRevision, ack: known.ack, waitMs: 20000 });
+  const receiving = waiting();
+  const exchanging = sessions.exchange({ id: session.id, ack: 0, incremental: true, waitMs: 20000 });
+  assert.equal(typeof receiving?.then, 'function', 'unchanged reads must not return immediately');
+  assert.equal(typeof exchanging?.then, 'function', 'idle desktop requests must not return immediately');
+  const accepted = browser({ action: 'edit', change: { label: 'changed' }, commandId: 1 });
+  assert.equal((await exchanging).commands[0].sequence, accepted.sequence);
+  sessions.exchange({ id: session.id, ack: accepted.sequence, incremental: true, state: state({ label: 'changed' }) });
+  known = await receiving;
+  assert.equal(known.ack, accepted.sequence);
+  assert.equal(known.state.draft.label, 'changed');
+  const display = waiting();
+  sessions.exchange({ id: session.id, ack: accepted.sequence, incremental: true, display: { value: 2 } });
+  known = await display;
+  assert.deepEqual(known.display, { value: 2 });
+  const focused = waiting();
+  const focus = sessions.focus(sessions.link({ links: [session] }));
+  const update = await focused;
+  browser({ action: 'read', focusId: update.focus.id });
+  assert.deepEqual(await focus, { focused: true });
+  const timeout = waiting();
+  t.mock.timers.tick(20000);
+  assert.equal((await timeout).ack, accepted.sequence);
+});
+
+test('preview waits release on cancellation, replacement and revocation without reviving an expired browser lease', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let now = 0;
+  let owner = 'first';
+  const sessions = createComponentPreviewSessions({ now: () => now, getOwner: () => owner });
+  t.after(() => sessions.clear());
+  const session = sessions.open({ component: 'clock', state: state() });
+  const attachmentId = randomUUID();
+  const initial = sessions.browser({ id: session.id, action: 'attach', attachmentId, previousAttachmentId: null }, session.token);
+  const read = { id: session.id, action: 'read', attachmentId, stateRevision: initial.stateRevision,
+    displayRevision: initial.displayRevision, ack: initial.ack, waitMs: 20000 };
+  const cancellation = new AbortController();
+  const cancelled = sessions.browser(read, session.token, { signal: cancellation.signal });
+  assert.equal(typeof cancelled?.then, 'function');
+  const cancellationResult = assert.rejects(cancelled, { name: 'AbortError' });
+  cancellation.abort();
+  await cancellationResult;
+  const oldPage = assert.rejects(sessions.browser(read, session.token), { statusCode: 409 });
+  const nextAttachment = randomUUID();
+  sessions.browser({ id: session.id, action: 'attach', attachmentId: nextAttachment, previousAttachmentId: attachmentId }, session.token);
+  await oldPage;
+  const expired = assert.rejects(sessions.browser({ ...read, attachmentId: nextAttachment }, session.token), { statusCode: 503 });
+  now = SESSION_TTL_MS + 1;
+  t.mock.timers.tick(20000);
+  await expired;
+  sessions.exchange({ id: session.id, ack: 0, incremental: true });
+  const revoked = assert.rejects(sessions.browser({ ...read, attachmentId: nextAttachment }, session.token), { statusCode: 410 });
+  const desktop = assert.rejects(sessions.exchange({ id: session.id, ack: 0, incremental: true, waitMs: 20000 }), { statusCode: 410 });
+  owner = 'second';
+  sessions.open({ component: 'canvas', state: state() });
+  await Promise.all([revoked, desktop]);
+});
+
+for (const action of ['exchange', 'exchange-batch']) {
+  test(`passive HTTP ${action} waits release the shutdown tracker and recheck authorization before responding`, { timeout: 3000 }, async t => {
+    const { createInflightTracker } = require('../../src/server/inflight-tracker');
+    const tracker = createInflightTracker();
+    let authorized = true;
+    let handled;
+    const fixture = await startComponentPreviewServer({ isLicenseAuthorized: () => authorized,
+      inflightTracker: { async run(work) { const result = await tracker.run(work); handled?.(); return result; } } });
+    t.after(() => fixture.close());
+    const { data: session } = await fixture.post({ action: 'open', component: 'clock', state: state() });
+    const registered = new Promise(resolve => { handled = resolve; });
+    const entry = { action: 'exchange', id: session.id, ack: 0, incremental: true };
+    const pending = fixture.post(action === 'exchange-batch'
+      ? { action, entries: [entry], waitMs: 100 } : { ...entry, waitMs: 100 });
+    await registered;
+    tracker.quiesce();
+    await tracker.drain();
+    authorized = false;
+    assert.equal((await pending).status, 423, 'a previously authorized waiting request cannot return data after revocation');
+  });
+}
 
 test('incremental preview heartbeats retain bodies and conditional reads keep acknowledgements and leases', () => {
   let now = 0;
@@ -530,6 +740,29 @@ test('only canvas capabilities can queue bound publication and source operations
   assert.deepEqual(sessions.exchange({ id: canvas.id, state: state({ document: {} }), ack: 0 })
     .commands.map(command => command.action), ['publish', 'source']);
   assert.throws(() => sessions.browser({ id: canvas.id, action: 'edit', change: { title: 'wrong field' } }, canvas.token), { statusCode: 400 });
+});
+
+test('only the attached overtime editor can queue time operations and retries run once', () => {
+  const sessions = createComponentPreviewSessions();
+  const overtime = sessions.open({ component: 'overtime', state: state({ path: '', fit: 'cover' }) });
+  const canvas = sessions.open({ component: 'canvas', state: state({ document: {} }) });
+  const attachmentId = randomUUID();
+  sessions.browser({ action: 'attach', id: overtime.id, attachmentId, previousAttachmentId: null }, overtime.token);
+  const command = { id: overtime.id, attachmentId, action: 'control', commandId: 1, change: { action: 'time', seconds: 1924 } };
+  assert.throws(() => sessions.browser(command, canvas.token), { statusCode: 403 });
+  assert.throws(() => sessions.browser({ ...command, id: canvas.id, attachmentId: undefined }, canvas.token), { statusCode: 400 });
+  assert.throws(() => sessions.browser({ ...command, attachmentId: randomUUID() }, overtime.token), { statusCode: 409 });
+  assert.throws(() => sessions.browser({ ...command, change: { action: 'rules', rules: [] } }, overtime.token), { statusCode: 400 });
+  const accepted = sessions.browser(command, overtime.token);
+  sessions.browser(command, overtime.token);
+  const queued = sessions.exchange({ id: overtime.id, ack: 0, incremental: true }).commands;
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].change.seconds, 1924);
+  sessions.exchange({ id: overtime.id, ack: accepted.sequence, incremental: true });
+  sessions.browser(command, overtime.token);
+  assert.equal(sessions.exchange({ id: overtime.id, ack: accepted.sequence, incremental: true }).commands.length, 0);
+  sessions.revoke(overtime.id);
+  assert.throws(() => sessions.browser(command, overtime.token), { statusCode: 410 });
 });
 
 test('browser preview never receives admin authority or bypasses Host/Origin protection', async (t) => {

@@ -175,7 +175,8 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       await fs.mkdir(path.dirname(current.directory), { recursive: true });
       await fs.mkdir(current.directory); // Exclusive task directory; never reuse an existing one.
       assertCurrent(current);
-      const firstRows = exportLayout(current.snapshot.items.length, current.mode)[0].count;
+      const files = exportLayout(current.snapshot.items.length, current.mode);
+      const firstRows = files[0].count;
       renderWindow = new BrowserWindow({
         width: EXPORT_WIDTH,
         height: firstRows * 144 + (firstRows - 1) * 16,
@@ -199,7 +200,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       win.webContents.on('will-navigate', (event) => event.preventDefault());
       await bounded(win.loadURL(new URL('/gift-export', getBaseUrl()).href));
-      for (const file of exportLayout(current.snapshot.items.length, current.mode)) {
+      for (const file of files) {
         assertCurrent(current);
         const height = file.count * 144 + (file.count - 1) * 16;
         const payload = {
@@ -234,7 +235,7 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
         onProgress({
           id: current.id,
           saved: current.saved,
-          total: exportLayout(current.snapshot.items.length, current.mode).length,
+          total: files.length,
         });
       }
       current.completed = true;

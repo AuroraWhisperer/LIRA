@@ -101,16 +101,19 @@ function createSettingsStore(db) {
     writeSetting.run('enableBilibili', combinedMonitoring, now());
   }
 
-  function getSettings() {
-    if (cache) return { ...cache };
-    const rows = db.prepare('SELECT key, value FROM settings').all();
-    cache = { ...DEFAULT_SETTINGS };
-    for (const row of rows) {
-      if (row.key === CLOUD_ROOM_ACCOUNT_KEY || row.key.startsWith(CLOUD_SONG_SYNC_PENDING_PREFIX)
-        || row.key.startsWith(CLOUD_SETTINGS_SYNC_PENDING_PREFIX)) continue;
-      cache[row.key] = row.value;
+  function getSettings(keys) {
+    if (!cache) {
+      const rows = db.prepare('SELECT key, value FROM settings').all();
+      cache = { ...DEFAULT_SETTINGS };
+      for (const row of rows) {
+        if (row.key === CLOUD_ROOM_ACCOUNT_KEY || row.key.startsWith(CLOUD_SONG_SYNC_PENDING_PREFIX)
+          || row.key.startsWith(CLOUD_SETTINGS_SYNC_PENDING_PREFIX)) continue;
+        cache[row.key] = row.value;
+      }
     }
-    return { ...cache };
+    return keys
+      ? Object.fromEntries(keys.filter(key => Object.hasOwn(cache, key)).map(key => [key, cache[key]]))
+      : { ...cache };
   }
 
   function setSettings(values, { syncPending = true } = {}) {

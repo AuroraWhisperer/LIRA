@@ -11,7 +11,7 @@ const aiResponse = (data) => ({
   json: async () => ({ ok: true, data }),
 });
 
-async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request, confirm = async () => true } = {}) {
+async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request, confirm = async () => true, visible = true } = {}) {
   const publicConfig = {
     enabled: false,
     trigger: '小米',
@@ -113,14 +113,38 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     resolveInitialConfig = resolve;
   });
   if (!deferInitialConfig) resolveInitialConfig(aiResponse(publicConfig));
-  const window = {};
+  const windowEvents = new Map();
+  const documentEvents = new Map();
+  const observers = new Set();
+  const visibility = { pageActive: true, panelHidden: !visible, documentHidden: false };
+  const page = { classList: { contains: (name) => name === 'active' && visibility.pageActive } };
+  const panel = { get hidden() { return visibility.panelHidden; } };
+  elements.set('otherAssistantPage', page);
+  elements.set('otherDanmakuFeature', panel);
+  elements.get('xiaomiAiForm').closest = (selector) => selector === '[hidden]' && panel.hidden ? panel : null;
+  const window = {
+    addEventListener: (type, handler) => windowEvents.set(type, handler),
+  };
+  const documentRef = {
+    hidden: false, getElementById: (id) => elements.get(id), createElement, body: createElement('body'),
+    addEventListener: (type, handler) => documentEvents.set(type, handler),
+    removeEventListener: (type, handler) => {
+      if (documentEvents.get(type) === handler) documentEvents.delete(type);
+    },
+  };
+  class MutationObserver {
+    constructor(callback) { this.callback = callback; this.targets = new Map(); observers.add(this); }
+    observe(target, options) { this.targets.set(target, options); }
+    disconnect() { observers.delete(this); }
+  }
   const { aiAssistantSettings: api } = await loadModuleExports(
     path.resolve(__dirname, '../../public/js/admin/ai-assistant-settings.js'),
     {
       window,
       Blob,
       URL,
-      document: { getElementById: (id) => elements.get(id), createElement, body: createElement('body') },
+      document: documentRef,
+      MutationObserver,
       fetch: async (url, options = {}) => {
         calls.push({ url, options });
         const override = request?.(url, options);
@@ -144,6 +168,11 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
         return timerId;
       },
       clearTimeout: (id) => timers.delete(id),
+      setInterval(handler, delay) {
+        timers.set(++timerId, { handler, at: clock + delay, interval: delay });
+        return timerId;
+      },
+      clearInterval: (id) => timers.delete(id),
     },
   );
   api.init({ notify: () => {}, confirm });
@@ -152,9 +181,28 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
   return {
     elements,
     calls,
+    timers,
     publicConfig,
     downloads,
     api,
+    async setVisibility(changes) {
+      const mutations = [];
+      if (changes.pageActive !== undefined && changes.pageActive !== visibility.pageActive)
+        mutations.push({ target: page, attributeName: 'class' });
+      if (changes.panelHidden !== undefined && changes.panelHidden !== visibility.panelHidden)
+        mutations.push({ target: panel, attributeName: 'hidden' });
+      const documentChanged = changes.documentHidden !== undefined && changes.documentHidden !== visibility.documentHidden;
+      Object.assign(visibility, changes);
+      documentRef.hidden = visibility.documentHidden;
+      for (const observer of observers) {
+        if (mutations.some(({ target, attributeName }) => observer.targets.get(target)?.attributeFilter.includes(attributeName))) {
+          queueMicrotask(() => { if (observers.has(observer)) observer.callback(mutations); });
+        }
+      }
+      if (documentChanged) documentEvents.get('visibilitychange')?.();
+      await flushAiTasks();
+    },
+    pagehide() { windowEvents.get('pagehide')?.(); },
     resolveInitialConfig: () => resolveInitialConfig(aiResponse(publicConfig)),
     saves: () =>
       calls
@@ -174,7 +222,9 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
     async advance(ms) {
       clock += ms;
       for (const [id, timer] of [...timers]) {
-        if (timer.at > clock || !timers.delete(id)) continue;
+        if (timer.at > clock || !timers.has(id)) continue;
+        if (timer.interval) timer.at = clock + timer.interval;
+        else timers.delete(id);
         timer.handler();
       }
       await flushAiTasks();

@@ -14,9 +14,8 @@ export class Logger {
   _shouldEnable() {
     // 开发环境检测
     const isDev =
-      window.location.hostname === 'localhost' ||
-      window.location.hostname === '127.0.0.1' ||
-      window.AdminApp?.debug === true;
+      globalThis.location?.hostname === 'localhost' ||
+      globalThis.location?.hostname === '127.0.0.1';
     return isDev;
   }
 
@@ -40,12 +39,4 @@ export class Logger {
 }
 
 // 导出默认实例
-export const logger = new Logger('AdminApp');
-
-// 全局挂载
-if (typeof window !== 'undefined') {
-  if (!window.AdminApp) {
-    window.AdminApp = {};
-  }
-  window.AdminApp.logger = logger;
-}
+export const logger = new Logger('LIRA');

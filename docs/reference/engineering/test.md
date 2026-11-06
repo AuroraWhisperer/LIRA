@@ -13,7 +13,7 @@
 - **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、前端行为和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
 - **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
 - **原生卸载夹具**:`installer-uninstall.test.js` 通过独立就绪文件区分进程启动与删除执行；启动限时 30 秒，进入夹具后删除仍限时 10 秒。超时终止自己启动的进程，等待退出后再清理隔离目录；所有保留、删除、升级、链接及失败退出断言继续执行。
-- **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模报告测试；行数本身不是硬门禁。
+- **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模报告测试；行数本身不是硬门禁。模块依赖图覆盖 `src/` 和 `public/js/` 的静态 ESM 与可执行字面量 require/import，检查循环、领域向存储/传输/桌面的反向导入、shared 向上导入及已退役的 Admin 全局注册表。计算路径和运行时回调仍需审查消费者与生命周期。
 - **规模审查提示**:`npm run verify:modularity` 按文件类型报告物理行数，超过提示线不单独导致失败；职责与用途由正常变更审查判断，同一报告已接入架构和全量测试，口径见 [modularity-standard.md](../../architecture/engineering/modularity-standard.md#file-size-review)。
 - **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。
 - **契约输入门禁**:`npm run verify:contracts` 核对固定服务器提交和全部 fixture 的 SHA-256；不下载或切换检出目录。
@@ -98,6 +98,20 @@ npm test -- --file=test/gifts/frontend-blindbox-overlay.test.js --file=test/ui/f
 
 `--list` 只列清单，不启动测试。执行时显示 `File scope: full/partial` 和选中文件数，描述的是文件范围；Node 名称过滤、分片、skip 等仍须另行说明，不能称作完整验收。`--test-name-pattern` 只过滤所选文件内部的用例，不能代替 `--file`：未限定文件时，其他文件仍会加载并执行顶层初始化。
 
+### 失败文件重跑与诊断记录
+
+执行器每次运行将选中文件、失败用例和文件耗时写入 `tmp/test-results/run-*/results.json`；`latest.json` 在运行开始时指向本次记录。并行启动的较早任务即使较晚结束，也不会覆盖新任务的指针。记录只用于诊断，不是可复用的通过凭证。
+
+```powershell
+# 先查看最近一次运行的失败文件，再重跑这些文件
+npm test -- --failed --list
+npm test -- --failed
+```
+
+`--failed` 读取最新指针指向的运行，要求结果完整且有失败文件；没有记录、结果不完整、已全部通过或记录中的文件已不存在时会报错，不会回退到更早的失败结果或全量运行。失败文件仍与运行组、`--domain` 和 `--file` 取交集。它选择整个文件，原先的名称过滤等 Node 参数需按需重新传入。重跑会生成新记录；聚焦通过只证明这次选择的范围，不能替代发布验收或未解释的并发失败诊断。
+
+### 按影响范围验证
+
 选择器不自动推断源码依赖。修改共享资源、权限、存储或跨域接线时，按实际消费者补充文件；只调整普通页面样式时，按根 AGENTS 的 Small 工作流进行针对性检查，不默认启动领域全组、浏览器全组或完整发布验证。已通过且相关输入未变的检查不重复执行。
 
 浏览器测试不因存放在 `admin/` 或 `scenes/` 而成为 offline；经 helper 间接启动 Chromium 的文件同样必须登记到 browser。同一文件的多个浏览器用例用 [shared-browser.js](../../../test/helpers/shared-browser.js) 共用一个 Chromium，每个用例使用独立 context；只在用例需要独立进程状态时自行启动浏览器。桌面测试统一经 [shared-electron.js](../../../test/helpers/shared-electron.js) 的 `launchElectron` 启动 Playwright 的 Electron 宿主：它在传给被测应用的进程环境里删除 `ELECTRON_RUN_AS_NODE`，该变量会让 Electron 以纯 Node 启动、握手永不完成，表现为整组桌面用例只报 `Process failed to launch!`。该变量只影响这一个被测进程，直接以 Node 方式启动 Electron 的测试（如 build-integrity）仍自行管理环境。contracts 组只放必须读取锁定服务器 fixture 的用例，同文件中不依赖 fixture 的用例拆到离线文件，避免被服务器检出版本锁住。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
@@ -145,6 +159,8 @@ node scripts/verify-song-roundtrip.cjs D:\Work\Live D:\Work\lira-server
 该检查独立于 `npm test`。`npm run verify:roundtrip` 使用当前客户端和上述服务器目录解析规则；原有两个显式绝对路径的调用方式继续有效。脚本在加载服务器模块前校验锁、fixture 和运行时工作区，再执行往返场景。开发联调可显式使用 `node scripts/verify-song-roundtrip.cjs --working-tree <客户端绝对路径> <服务端绝对路径>` 检查当前两仓实现，结果不能替代固定提交的发布契约验收。客户端完整测试也需要锁定的服务器 fixture；单仓的 `verify:quick` 和 `node --test test/engineering/server-contract.test.js` 不需要私有服务器检出。本地发布验证及访问配置见 [构建文档](build.md#本地发布验证)。
 
 ### Windows 安装器集成测试
+
+数据保护用例同时核对已验证卸载器的同目录升级不执行复制，卸载器被替换或注册路径不匹配时回退；能力存在也不能绕过换目录、备份冲突或遗留音频保留。[更新管理回归](../../../test/desktop/update-manager.test.js) 用真实 NsisUpdater 和本地 HTTP 服务核对增量传输字节、已下载包离线复用、冷缓存/缺块图/Range 失败回退整包，以及摘要错误与离线失败不得进入可安装状态。
 
 [安装目录测试](../../../test/engineering/installer-directory.test.js)验证默认目录、沿用旧路径、用户指定路径优先和无 D 盘的情况；[数据保护测试](../../../test/engineering/installer-migration.test.js)验证升级、换目录、旧数据迁回、备份恢复、冲突、复制/报告失败、文件占用、备份目录链接，以及升级清理时保留数据和下载文件；[自动关闭测试](../../../test/engineering/installer-app-exit.test.js)使用原生窗口及无窗口进程验证确认关闭、取消、拒绝关闭、超时重试、进程查询失败、静默退出与超时、无实例，以及其他目录同名程序和路径前缀相似程序的隔离，确认退出时的最后一次写入完整进入备份。音频助手夹具使用真实命名事件，覆盖旧/新目录、静默安装、其他目录/相似前缀隔离和旧版无事件超时；不运行用户安装或修改真实路由。
 

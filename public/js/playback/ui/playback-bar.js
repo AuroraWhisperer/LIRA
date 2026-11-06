@@ -278,15 +278,9 @@ export class PlaybackBar {
     // 更新状态显示
     const sourceStatus = document.getElementById('playbackSourceStatus');
     if (sourceStatus) {
-      sourceStatus.textContent = isWeSing
-        ? healthState?.platformDetected
-          ? '已检测到全民 K 歌'
-          : '全民 K 歌等待检测'
-        : loggedIn
-          ? `${sourceName}已检测到登录`
-          : `${sourceName}待登录`;
-      sourceStatus.classList.toggle('good', isWeSing ? healthState?.platformDetected === true : loggedIn);
-      sourceStatus.classList.toggle('warn', isWeSing ? healthState?.platformDetected !== true : !loggedIn);
+      sourceStatus.hidden = isWeSing || !loggedIn;
+      sourceStatus.textContent = '已登录';
+      sourceStatus.title = `${sourceName}已检测到登录`;
     }
 
     // 更新登录/登出按钮（确保互斥显示）
@@ -294,7 +288,9 @@ export class PlaybackBar {
     const logoutBtn = document.getElementById('playbackLogoutBtn');
     if (loginBtn && logoutBtn) {
       // 始终更新登录按钮文本，确保切换音乐源时文本正确
-      loginBtn.textContent = `登录 ${sourceName}`;
+      loginBtn.textContent = '登录';
+      loginBtn.title = `登录 ${sourceName}`;
+      loginBtn.setAttribute('aria-label', `登录 ${sourceName}`);
 
       const canLogin = !isWeSing && !loggedIn;
       const canLogout = !isWeSing && loggedIn;
@@ -306,10 +302,12 @@ export class PlaybackBar {
 
     const clearCacheBtn = document.getElementById('playbackClearCacheBtn');
     if (clearCacheBtn) clearCacheBtn.style.display = isWeSing ? 'none' : '';
+    const moreBtn = document.getElementById('playbackMoreBtn');
+    if (moreBtn) moreBtn.style.display = isWeSing ? 'none' : '';
     const healthBtn = document.getElementById('playbackHealthBtn');
     if (healthBtn) {
       // The 全民 K歌 panel carries its own 重新检测 button, so the header one is hidden there.
-      healthBtn.textContent = '检查音乐平台连接';
+      healthBtn.textContent = '检查连接';
       healthBtn.style.display = isWeSing ? 'none' : '';
     }
 
@@ -346,19 +344,33 @@ export class PlaybackBar {
       if (healthState) {
         const message = healthState.message || `音乐服务状态：${healthState.status || (healthState.ok ? '正常' : '未知')}`;
         const details = healthState.details ? ` (${healthState.details})` : '';
-        providerHealth.textContent = message + details;
+        providerHealth.title = message + details;
+        providerHealth.setAttribute('aria-label', message + details);
+        providerHealth.textContent = isWeSing
+          ? healthState.ok
+            ? '缓存就绪'
+            : healthState.status === 'error'
+              ? '检测异常'
+              : healthState.platformDetected
+                ? '等待缓存'
+                : '等待全民 K 歌'
+          : healthState.ok
+            ? '搜索可用'
+            : '连接异常';
 
         // 根据状态设置样式
         providerHealth.classList.remove('error', 'success', 'warning');
         if (healthState.ok) {
           providerHealth.classList.add('success');
-        } else if (healthState.status === 'error') {
+        } else if (!isWeSing || healthState.status === 'error') {
           providerHealth.classList.add('error');
         } else {
           providerHealth.classList.add('warning');
         }
       } else {
-        providerHealth.textContent = '等待检查音乐服务状态';
+        providerHealth.textContent = '等待检查';
+        providerHealth.title = '等待检查音乐服务状态';
+        providerHealth.setAttribute('aria-label', providerHealth.title);
         providerHealth.classList.remove('error', 'success', 'warning');
       }
     }

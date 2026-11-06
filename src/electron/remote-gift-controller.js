@@ -2,7 +2,7 @@
 
 const { createCancellableDelay } = require('../shared/cancellable-delay');
 const { canonicalizeProcessedGiftEvent } = require('../shared/processed-gift-contract');
-const { createRemoteGiftSourceKey } = require('./remote-gift-cursor-store');
+const { bootstrapGiftHistory } = require('./remote-gift-history');
 const { syncRetainedGifts } = require('./remote-gift-retention');
 
 const RECONNECT_MIN_MS = 1000;
@@ -15,7 +15,7 @@ const {
   validateEpochAwareCursorPage,
   giftSyncStalledError,
   requiresProjectionRebuild,
-  canRestartBootstrap,
+  createRemoteGiftSourceKey,
 } = require('./remote-gift-recovery-rules');
 const GiftSyncState = Object.freeze({
   SOURCE_SWITCHING: 'SOURCE_SWITCHING',
@@ -257,58 +257,26 @@ function createRemoteGiftController(options = {}) {
     return false;
   }
 
-  async function bootstrapHistory(discovery) {
+  function bootstrapHistory(discovery) {
     setSyncState(GiftSyncState.BOOTSTRAPPING);
-    let pageToken = currentState.bootstrapPageToken;
-    const seenPageTokens = new Set(pageToken === null ? [] : [pageToken]);
-    let restarted = false;
-    while (active && isAuthorized()) {
-      const fence = captureFence();
-      let page;
-      try {
-        page = await licenseManager.getGiftHistoryInternal({
-          pageToken,
-          signal: generationController.signal,
-        });
-      } catch (error) {
-        if (canRestartBootstrap(error) && !restarted && ensureFenceCurrent(fence)) {
-          currentState = runtime.restartGiftHistoryBootstrap(currentSource.id, fence.projectionGeneration);
-          if (!ensureFenceCurrent(fence)) return false;
-          restarted = true;
-          pageToken = null;
-          continue;
-        }
-        throw error;
-      }
-      if (!ensureFenceCurrent(fence)) return false;
-      if (
-        page.syncEpoch !== discovery.syncEpoch ||
-        (currentState.bootstrapRecoveryCursor !== null &&
-          currentState.bootstrapRecoveryCursor !== page.recoveryCursor) ||
-        (currentState.bootstrapSyncEpoch !== null && currentState.bootstrapSyncEpoch !== page.syncEpoch)
-      ) {
-        const mismatch = new Error('GIFT_BOOTSTRAP_SNAPSHOT_MISMATCH');
-        mismatch.code = 'REBUILD_REQUIRED';
-        throw mismatch;
-      }
-      if (page.hasMore && seenPageTokens.has(page.nextPageToken)) {
-        throw giftSyncStalledError();
-      }
-      currentState = runtime.commitGiftHistoryPage({
-        sourceId: currentSource.id,
+    const fence = captureFence();
+    return bootstrapGiftHistory({
+      state: currentState,
+      discovery,
+      signal: generationController.signal,
+      isCurrent: () => ensureFenceCurrent(fence),
+      readPage: input => licenseManager.getGiftHistoryInternal(input),
+      restart: () => (currentState = runtime.restartGiftHistoryBootstrap(fence.sourceId, fence.projectionGeneration)),
+      commitPage: page => (currentState = runtime.commitGiftHistoryPage({
+        sourceId: fence.sourceId,
         projectionGeneration: fence.projectionGeneration,
         records: page.events,
         nextPageToken: page.nextPageToken,
         hasMore: page.hasMore,
         recoveryCursor: page.recoveryCursor,
         syncEpoch: page.syncEpoch,
-      });
-      if (!ensureFenceCurrent(fence)) return false;
-      pageToken = page.nextPageToken;
-      if (pageToken !== null) seenPageTokens.add(pageToken);
-      if (!page.hasMore) return true;
-    }
-    return false;
+      })),
+    });
   }
 
   async function synchronizeRetention(full) {

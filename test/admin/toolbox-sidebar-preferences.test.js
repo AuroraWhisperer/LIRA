@@ -7,7 +7,7 @@ const { createToolboxRuntime } = require('../helpers/toolbox-runtime');
 test('toolbox sidebar restores the durable preference when the legacy cache is absent', () => {
   const persisted = [];
   const runtime = createToolboxRuntime();
-  runtime.sandbox.window.AdminApp.other.initOtherPage({
+  runtime.other.initOtherPage({
     persistSidebarCollapsed: (collapsed) => persisted.push(collapsed),
   });
 
@@ -25,7 +25,7 @@ test('toolbox sidebar migrates the legacy preference and saves explicit toggles'
   const runtime = createToolboxRuntime({
     initialStorage: { 'admin.toolboxSidebarCollapsed': 'true' },
   });
-  runtime.sandbox.window.AdminApp.other.initOtherPage({
+  runtime.other.initOtherPage({
     persistSidebarCollapsed: (collapsed) => persisted.push(collapsed),
   });
 
@@ -43,7 +43,7 @@ test('toolbox sidebar migrates the legacy preference and saves explicit toggles'
 test('toolbox feature groups restore after a full application restart', () => {
   let durableGroups = '';
   const firstRuntime = createToolboxRuntime();
-  firstRuntime.sandbox.window.AdminApp.other.initOtherPage({
+  firstRuntime.other.initOtherPage({
     persistCollapsedFeatureGroups: (groupIds) => {
       durableGroups = JSON.stringify(groupIds);
     },
@@ -57,7 +57,7 @@ test('toolbox feature groups restore after a full application restart', () => {
   assert.equal(durableGroups, '["live-interaction","live-scene"]');
 
   const secondRuntime = createToolboxRuntime();
-  secondRuntime.sandbox.window.AdminApp.other.initOtherPage();
+  secondRuntime.other.initOtherPage();
   secondRuntime.dispatchWindowEvent('app:settings-state', {
     toolboxCollapsedFeatureGroups: durableGroups,
   });
@@ -74,7 +74,7 @@ test('toolbox feature groups migrate cached state and ignore malformed or stale 
       'admin.toolboxSelectedFeature': 'otherDanmakuFeature',
     },
   });
-  cachedRuntime.sandbox.window.AdminApp.other.initOtherPage({
+  cachedRuntime.other.initOtherPage({
     persistCollapsedFeatureGroups: (groupIds) => migrated.push([...groupIds]),
   });
   cachedRuntime.dispatchWindowEvent('app:settings-state', {
@@ -88,7 +88,7 @@ test('toolbox feature groups migrate cached state and ignore malformed or stale 
   const durableRuntime = createToolboxRuntime({
     initialStorage: { 'admin.toolboxCollapsedFeatureGroups': '{invalid' },
   });
-  durableRuntime.sandbox.window.AdminApp.other.initOtherPage();
+  durableRuntime.other.initOtherPage();
   durableRuntime.dispatchWindowEvent('app:settings-state', {
     toolboxCollapsedFeatureGroups: '["live-scene","removed-group"]',
   });

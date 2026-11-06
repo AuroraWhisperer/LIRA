@@ -1,0 +1,139 @@
+.wish-card.wish-card--ribbon {
+  --wish-ribbon-edge: min(var(--wish-ribbon-border-width), calc(var(--wish-ribbon-height) * 0.18));
+  --wish-ribbon-corner: min(var(--wish-ribbon-radius), calc(var(--wish-ribbon-height) * 0.5));
+  --wish-ribbon-text-limit: min(calc(var(--wish-ribbon-height) * 0.5),
+    calc((var(--wish-ribbon-height) - var(--wish-ribbon-edge) * 2) * 0.72));
+  --wish-ribbon-stripe-size: calc(var(--wish-ribbon-stripe-width) * 2);
+  --wish-ribbon-tail-space: max(6px, calc(var(--wish-ribbon-height) * 0.2 - 11px));
+  position: relative;
+  display: block;
+  container-type: inline-size;
+  height: calc(var(--wish-ribbon-height) + var(--wish-ribbon-tail-space));
+  padding: 0 6px var(--wish-ribbon-tail-space) 0;
+  color: var(--wish-ribbon-text-color);
+  font-size: min(var(--wish-ribbon-font-size), var(--wish-ribbon-text-limit));
+  font-weight: 800;
+  line-height: 1.2;
+}
+.wish-ribbon-frame {
+  --wish-ribbon-icon-size: min(calc(var(--wish-ribbon-height) * 0.65),
+    calc(var(--wish-ribbon-height) - var(--wish-ribbon-edge) * 2 - 4px), 72px, 16cqi);
+  --wish-ribbon-number-size: min(var(--wish-ribbon-number-font-size, var(--wish-ribbon-font-size)),
+    var(--wish-ribbon-text-limit), calc(40cqi / var(--wish-ribbon-number-length) / 0.62));
+  /* Reserve both 20px gaps and the 13px/24px padding before fitting the name. */
+  --wish-ribbon-name-size: min(var(--wish-ribbon-font-size), var(--wish-ribbon-text-limit),
+    max(1px, calc((100cqi - var(--wish-ribbon-edge) * 2 - var(--wish-ribbon-icon-size) - 77px
+      - var(--wish-ribbon-number-size) * var(--wish-ribbon-number-length) * 0.62) * 0.5)));
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  height: 100%;
+  padding: 0 24px 0 13px;
+  border: var(--wish-ribbon-edge) solid transparent;
+  border-radius: var(--wish-ribbon-corner);
+  outline: min(1px, var(--wish-ribbon-edge)) solid color-mix(in srgb, var(--wish-ribbon-color) 35%, var(--wish-ribbon-border-color));
+  outline-offset: -1px;
+  background:
+    linear-gradient(var(--wish-ribbon-track-color), var(--wish-ribbon-track-color)) padding-box,
+    var(--wish-ribbon-border-color);
+  overflow: hidden;
+}
+.wish-ribbon-frame::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: min(1px, var(--wish-ribbon-edge)) solid color-mix(in srgb, var(--wish-ribbon-border-color) 65%, transparent);
+  border-radius: max(0px, calc(var(--wish-ribbon-corner) - var(--wish-ribbon-edge)));
+  pointer-events: none;
+}
+.wish-ribbon-fill {
+  position: absolute;
+  inset: 0;
+  background: var(--wish-ribbon-color);
+  overflow: hidden;
+  transition: clip-path 650ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.wish-ribbon-flow {
+  position: absolute;
+  inset: 0 calc(var(--wish-ribbon-stripe-size) * -1);
+  background-image: linear-gradient(45deg,
+    transparent 25%, rgb(255 255 255 / 18%) 25% 50%,
+    transparent 50% 75%, rgb(255 255 255 / 18%) 75%);
+  background-size: var(--wish-ribbon-stripe-size) var(--wish-ribbon-stripe-size);
+  animation: wish-ribbon-flow var(--wish-ribbon-speed) linear infinite;
+  animation-direction: var(--wish-ribbon-flow-direction);
+}
+.wish-ribbon-frame .wish-card-image {
+  position: relative;
+  width: var(--wish-ribbon-icon-size);
+  height: var(--wish-ribbon-icon-size);
+}
+.wish-ribbon-name,
+.wish-ribbon-total {
+  position: relative;
+  -webkit-text-stroke: clamp(1.5px, 0.135em, 4px) var(--wish-ribbon-outline-color);
+  paint-order: stroke fill;
+  text-shadow: 0 1px 1px rgb(58 44 49 / 22%);
+}
+.wish-ribbon-name {
+  font-size: var(--wish-ribbon-name-size);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wish-ribbon-total {
+  display: flex;
+  align-items: baseline;
+  font-size: var(--wish-ribbon-number-size);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.wish-ribbon-count {
+  font-weight: inherit;
+}
+.wish-ribbon-flourish {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: none;
+  width: var(--wish-ribbon-height);
+  height: calc(var(--wish-ribbon-height) * 0.4);
+  stroke: color-mix(in srgb, var(--wish-ribbon-color) 70%, #aa7a89);
+  stroke-width: 1px;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.wish-ribbon-pastry {
+  fill: color-mix(in srgb, var(--wish-ribbon-border-color), #edd09c 60%);
+}
+.wish-ribbon-icing {
+  fill: color-mix(in srgb, var(--wish-ribbon-color), #fff 20%);
+}
+.has-ribbon-decoration[data-ribbon-decoration='pastry'] .wish-ribbon-flourish--pastry,
+.has-ribbon-decoration:not([data-ribbon-decoration='pastry']) .wish-ribbon-sticker {
+  display: block;
+}
+.has-ribbon-decoration:not([data-ribbon-decoration='pastry']) {
+  --wish-ribbon-tail-space: max(14px, calc(var(--wish-ribbon-height) * 0.42));
+}
+.wish-ribbon-sticker {
+  width: min(calc(var(--wish-ribbon-height) * 0.92), 22cqi);
+  height: calc(var(--wish-ribbon-height) * 0.62);
+  object-fit: contain;
+  object-position: right bottom;
+}
+.is-ribbon-static .wish-ribbon-flow {
+  animation: none;
+}
+@keyframes wish-ribbon-flow {
+  from { transform: translateX(calc(var(--wish-ribbon-stripe-size) * -1)); }
+  to { transform: translateX(0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wish-ribbon-fill { transition: none; }
+  .wish-ribbon-flow { animation: none; }
+}

@@ -50,8 +50,7 @@ class UserInfoService {
     const selection = normalizeFields(options.fields, ALL_FIELDS);
     const uidKey = normalizeUid(uid);
     if (!uidKey || !this.matchesRequestedRoom(options.roomId)) return null;
-    this.cleanupExpired();
-    const record = this.records.get(uidKey);
+    const record = this.readRecord(uidKey);
     return record ? this.project(record, selection) : null;
   }
 
@@ -63,8 +62,7 @@ class UserInfoService {
     if (source !== 'profile' && !this.matchesActiveRun(context)) return emptyIngestResult();
 
     const observedAt = this.now();
-    if (observedAt >= this.nextCleanupAt) this.cleanupExpired();
-    let record = this.records.get(uid);
+    let record = this.readRecord(uid, observedAt);
     if (!record) {
       record = {
         uid,
@@ -119,15 +117,14 @@ class UserInfoService {
 
     const uidKey = normalizeUid(uid);
     if (!uidKey || !this.matchesRequestedRoom(options.roomId) || this.disposed) return null;
-    this.cleanupExpired();
+    const nowMs = this.now();
     const explicitRoomId = options.roomId === undefined ? '' : cleanText(options.roomId);
     const requestedGeneration = explicitRoomId && this.roomScope ? this.roomScope.generation : 0;
-    const existing = this.records.get(uidKey);
+    const existing = this.readRecord(uidKey, nowMs);
     if (selection.fields.every((field) => Boolean(existing && existing[field]))) {
       return this.project(existing, selection);
     }
 
-    const nowMs = this.now();
     if (Number(this.profileFailures.get(uidKey) || 0) > nowMs) {
       return existing ? this.project(existing, selection) : null;
     }
@@ -182,7 +179,7 @@ class UserInfoService {
     ) {
       return null;
     }
-    const current = this.records.get(uidKey);
+    const current = this.readRecord(uidKey);
     return current ? this.project(current, selection) : null;
   }
 
@@ -412,6 +409,18 @@ class UserInfoService {
       },
       { recent },
     );
+  }
+
+  readRecord(uid, nowMs = this.now()) {
+    if (nowMs >= this.nextCleanupAt) this.cleanupExpired();
+    const record = this.records.get(uid);
+    // Throttle whole-cache sweeps, but never return or revive an expired viewer.
+    if (record && record.seenAt < nowMs - USER_INFO_TTL_MS) {
+      this.records.delete(uid);
+      this.identityCache.deleteMerged(uid);
+      return null;
+    }
+    return record;
   }
 
   cleanupExpired() {

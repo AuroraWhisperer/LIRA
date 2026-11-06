@@ -530,8 +530,10 @@ test('custom media consumes gift events once and keeps opening/video lifecycle',
   };
   const send = data => page.evaluate(value => window.sendMediaData(value), data);
   {
-    const frame = await mount('/gift-effects?giftComponent=frame', await makeStyle('gift-frame'));
-    const event = { type: 'gift:frame', eventId: 'one', userName: '观众甲', giftName: '测试礼物', num: 2, totalPriceCents: 1000, themeId: 'woodland-bloom' };
+    const config = await makeStyle('gift-frame');
+    const frame = await mount('/gift-effects?giftComponent=frame', config);
+    const event = { type: 'gift:frame', eventId: 'one', userName: '观众甲', giftName: '测试礼物', num: 2,
+      totalPriceCents: 1000, themeId: 'imported', styleIds: [config.mediaStyle.id] };
     await send({ reset: false, events: [event, event, { ...event, eventId: 'two', userName: '观众乙' }] });
     await frame.locator('.component-media-thanks').filter({ hasText: '观众甲' }).waitFor({ state: 'visible' });
     await frame.locator('.component-media-thanks').filter({ hasText: '观众乙' }).waitFor({ state: 'visible' });

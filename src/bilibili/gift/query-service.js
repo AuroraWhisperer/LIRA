@@ -17,6 +17,7 @@ const DEFAULT_HISTORY_LIMIT = 50;
 const MAX_HISTORY_LIMIT = 100;
 const MAX_SEARCH_LENGTH = 100;
 const MAX_CURSOR_LENGTH = 4096;
+const sprintAggregates = new WeakMap();
 const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
 const DEFAULT_HISTORY_SORT_DIRECTION = 'desc';
 const HISTORY_SORT_FIELDS = Object.freeze(['created_at', 'gift_name', 'price', 'remarks']);
@@ -75,6 +76,8 @@ function getGiftHistory(context, options = {}) {
   const limit = normalizeHistoryLimit(options.limit);
   const sortField = normalizeHistorySortField(options.sortField);
   const sortDirection = normalizeHistorySortDirection(options.sortDirection);
+  const deltaEnabled = options.delta === true && options.conditional === true &&
+    sortField === 'created_at' && sortDirection === 'asc';
   const cursor = decodeHistoryCursor(options.cursor, {
     query,
     range,
@@ -98,14 +101,19 @@ function getGiftHistory(context, options = {}) {
     sortField,
     sortDirection,
     conditional: options.conditional === true,
+    delta: deltaEnabled,
     contentRevision: options.contentRevision,
     viewRevision,
   };
-  const { total, rows, contentRevision, unchanged } = queryStore.readHistoryPage({
+  const { total, rows, contentRevision, unchanged, delta, removedPlatformIds } = queryStore.readHistoryPage({
     ...historyOptions,
     limit: limit + 1,
   });
   if (unchanged) return { viewRevision, contentRevision, unchanged: true, items: [], nextCursor: null, ...buildSyncMetadata(activeSource) };
+  const mapRow = (row) => ({ ...mapLedgerHistoryRow(row),
+    ...(deltaEnabled ? { sortId: Number(row.id), sortTime: row.created_at } : {}) });
+  if (delta) return { viewRevision, contentRevision, delta: true, items: rows.map(mapRow),
+    removedEventIds: removedPlatformIds.map(historyEventId), nextCursor: null, ...buildSyncMetadata(activeSource) };
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
   const last = pageRows.at(-1);
@@ -117,7 +125,7 @@ function getGiftHistory(context, options = {}) {
     ...filters,
     asOf,
     range,
-    items: pageRows.map(mapLedgerHistoryRow),
+    items: pageRows.map(mapRow),
     nextCursor:
       hasMore && last
         ? encodeHistoryCursor({
@@ -176,7 +184,13 @@ function getGiftSprintSnapshot(context) {
   const settings = context.settings();
   const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
   const sourceScope = resolveGiftSourceScope(context);
-  const row = context.queryStore.readSprint(sourceScope);
+  const store = context.queryStore;
+  const revision = store.getChangeToken?.();
+  const key = revision == null || sourceScope.kind === 'unavailable' ? null : JSON.stringify([sourceScope, revision]);
+  const cached = sprintAggregates.get(store);
+  const row = key !== null && cached?.key === key ? cached.row : store.readSprint(sourceScope);
+  if (key !== null) sprintAggregates.set(store, { key, row });
+  else sprintAggregates.delete(store);
   const receivedRmb = normalizeMoney(row.receivedRmb);
   const remainingRmb = Math.max(0, normalizeMoney(targetRmb - receivedRmb));
 
@@ -228,15 +242,19 @@ function buildSyncMetadata(source) {
   };
 }
 
+function historyEventId(value) {
+  const platformId = String(value || '');
+  return platformId.startsWith('lira-server:') ? platformId.slice('lira-server:'.length) : platformId;
+}
+
 function mapLedgerHistoryRow(row) {
   const unitPriceCents = moneyToSafeCents(row.unit_price);
   const totalPriceCents = moneyToSafeCents(row.total_price);
   const isBlindBox = Number(row.is_blind_box) === 1;
   const blindBoxPriceCents = isBlindBox && row.blind_box_price !== null ? moneyToSafeCents(row.blind_box_price) : null;
   const blindProfitCents = blindBoxPriceCents === null ? null : totalPriceCents - blindBoxPriceCents;
-  const platformId = String(row.platform_id || '');
   return {
-    eventId: platformId.startsWith('lira-server:') ? platformId.slice('lira-server:'.length) : platformId,
+    eventId: historyEventId(row.platform_id),
     gift: {
       giftId: canonicalGiftId(row.gift_id),
       giftVariantId: row.gift_variant_id || null,

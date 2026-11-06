@@ -10,6 +10,7 @@ const OVERLAY_PAGES = Object.freeze({
   'gift-effects': 'gift-effects.html',
   'gift-feed': 'gift-feed.html',
   'gift-wishes': 'gift-wishes.html',
+  'heart-box-collection': 'heart-box-collection.html',
   'gift-sprint': 'gift-sprint.html',
   'gift-export': 'gift-export.html',
   lyrics: 'lyric-window.html',
@@ -36,6 +37,7 @@ const OVERLAY_ROUTES = {
   'gift-export': ['GET /api/bilibili/avatar'],
   'gift-effects': ['GET /api/bilibili/avatar'],
   'gift-wishes': ['GET /api/gifts/wishes'],
+  'heart-box-collection': ['GET /api/gifts/heart-box-collection'],
   interactions: ['GET /api/interactions/session'],
   games: [
     'GET /api/games/session',

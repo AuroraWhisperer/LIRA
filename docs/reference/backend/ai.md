@@ -4,7 +4,9 @@
 
 本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §13;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
-**内部模块边界:** `ai-assistant-service.js` 拥有触发、排队、工具调用与回复发送生命周期；`ai-assistant-helpers.js` 提供提示与回复归一化纯函数，[conversation-context.js](../../../src/ai/conversation-context.js) 负责有界多轮历史的规范化与追加。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
+**内部模块边界:** `ai-assistant-service.js` 拥有触发、排队、取消、回复投递与送达后的记忆提交；[ai-reply-generator.js](../../../src/ai/ai-reply-generator.js) 拥有每轮人格、上下文快照、会话 ID、缓存、工具与前后审核，生成和吞弹幕后重生成使用同一 turn。它显式返回记忆材料，不修改 service 的任务对象；service 仅在送达确认后追加会话。`ai-assistant-helpers.js` 提供提示与回复归一化纯函数，[conversation-context.js](../../../src/ai/conversation-context.js) 负责有界多轮历史的规范化与追加。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
+
+[model-protocol.js](../../../src/ai/model-protocol.js) 集中拥有 Responses/Chat Completions 请求、工具及厂商推理参数转换和响应归一化，供模型入口与 ChatGPT 客户端单向消费。`model-client.js` 保留账号路由、HTTP 与日志、连接检查和 Chat Completions 历史生命周期；协议模块没有网络或缓存状态。
 
 ## 1. 概览与触发链
 
@@ -43,7 +45,7 @@ AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫�
 
 ### 3.1 生成管线(generateReply)
 
-[generateReply](../../../src/ai/ai-assistant-service.js#L92-L179) 按序执行:
+[生成回合](../../../src/ai/ai-reply-generator.js) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
 2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v7`，不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
@@ -112,9 +114,9 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 两个协议都归一为同一形状 `{id, text, functionCalls[], finishReason, usage{inputTokens, outputTokens}}`:
 
-- Responses:`normalizeResponse` 遍历 `output[]` 的 `function_call` 与 `output_text` 内容,兼容顶层 `output_text`([model-client.js](../../../src/ai/model-client.js))。
-- Chat Completions:`normalizeChatResponse` 取 `choices[0].message` 的 `tool_calls` 与 `content`([model-client.js](../../../src/ai/model-client.js))。
-- 空响应:finishReason 为 `length`/`max_output_tokens` → `DEEPSEEK_OUTPUT_TRUNCATED`,否则 `DEEPSEEK_INVALID_RESPONSE`;工具参数 JSON 解析失败同样按截断处理([model-client.js](../../../src/ai/model-client.js))。
+- Responses:`normalizeResponse` 遍历 `output[]` 的 `function_call` 与 `output_text` 内容,兼容顶层 `output_text`([model-protocol.js](../../../src/ai/model-protocol.js))。
+- Chat Completions:`normalizeChatResponse` 取 `choices[0].message` 的 `tool_calls` 与 `content`([model-protocol.js](../../../src/ai/model-protocol.js))。
+- 空响应:finishReason 为 `length`/`max_output_tokens` → `DEEPSEEK_OUTPUT_TRUNCATED`,否则 `DEEPSEEK_INVALID_RESPONSE`（[model-client.js](../../../src/ai/model-client.js)）；工具参数 JSON 解析由 [model-protocol.js](../../../src/ai/model-protocol.js) 拥有，解析失败且有上述截断标记时才返回 `DEEPSEEK_OUTPUT_TRUNCATED`，否则为 `INVALID_TOOL_ARGUMENTS`。
 
 辅助接口:`listModels` 根据配置地址推导同级 `/models`；第三方服务根地址默认使用 `/v1/models`，DeepSeek 官方根地址保持 `/models`，结果去重排序([model-client.js](../../../src/ai/model-client.js));`testConnection`(发"你好"取 200 字回复,401/403/AUTH 类错误码 → `DEEPSEEK_AUTH_FAILED`,[model-client.js](../../../src/ai/model-client.js))。 API 连接测试回执的 `provider` 复用 `describeModelEndpoint` 的结果：显式供应商按预设，`auto` 的官方 DeepSeek 地址为 `deepseek`、其他地址为 `custom`；豆包账号和 ChatGPT 订阅分别返回 `doubao` 与 `openai`。兼容路径 `/api/ai/test/deepseek` 仍测试当前模型配置。
 
@@ -261,6 +263,8 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 ## 8. 月度配额与审计日志
 
 ### 8.1 第三方 API 月度配额(api-quota-store)
+
+[ai-runtime.js](../../../src/server/ai-runtime.js) 创建 `createAiApiUsageStore(songDb)` 并传入 `createAiApiQuotaStore(usageStore)`。配额模块只使用 `consume/release/read/pruneBefore` 存储端口，拥有月份、限额及预留生命周期；SQLite 语句和原子计数由 [ai-api-usage-store.js](../../../src/storage/ai-api-usage-store.js) 拥有。
 
 按**北京时间月份**计数的本机请求次数上限，用于限制第三方调用；它是保守的安全预算，不是供应商账单统计。计数落 `ai_api_usage` 表 `PK(category, month_key)`:
 

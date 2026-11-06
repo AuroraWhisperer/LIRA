@@ -1,6 +1,7 @@
 import { setGiftImage } from './gift-image-fallback.js';
 import { setGiftWishTextImage } from './gift-wish-image.js';
 import { mountMoonlitGiftWish, updateMoonlitGiftWish } from './gift-wish-moonlit.js';
+import { mountRibbonGiftWish, updateRibbonGiftWish } from './gift-wish-ribbon.js';
 import { applyTextStyle } from './text-style.js';
 import { WISH_TEXT_DEFAULTS } from './gift-wish-text.js';
 
@@ -65,6 +66,7 @@ export function createGiftWishCard(wish, documentRef = document) {
   card.dataset.wishId = wish.id;
   card.setAttribute('aria-label', [WISH_PERIODS[wish.period], wish.giftName, wish.label].filter(Boolean).join(' · '));
   if (wish.displayStyle === 'moonlit') return mountMoonlitGiftWish(card, wish, documentRef);
+  if (wish.displayStyle === 'ribbon') return mountRibbonGiftWish(card, wish, documentRef);
   if (wish.displayStyle === 'text') {
     card.classList.add('wish-card--text');
     card.classList.toggle('is-received-today', wish.todayCount > 0);
@@ -130,9 +132,11 @@ export function renderGiftWishCards(root, wishes) {
     let card = previous.get(wish.id);
     if (wish.displayStyle === 'moonlit' && card?.classList.contains('wish-card--moonlit')) {
       updateMoonlitGiftWish(card, wish);
+    } else if (wish.displayStyle === 'ribbon' && card?.classList.contains('wish-card--ribbon')) {
+      updateRibbonGiftWish(card, wish);
     } else card = createGiftWishCard(wish, root.ownerDocument);
     retained.add(card);
-    // Keep live moonlit nodes attached so progress transitions and particles continue.
+    // Keep animated cards attached so progress transitions and decorations continue.
     if (root.children[index] !== card) root.insertBefore(card, root.children[index] || null);
   });
   for (const card of [...root.children]) if (!retained.has(card)) card.remove();

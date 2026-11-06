@@ -260,7 +260,7 @@
 
 .clock-style-swatch.is-digital b {
   font:
-    400 16px/1 'Impact',
+    400 12px/1 'Impact',
     'Arial Narrow',
     sans-serif;
   letter-spacing: 0;
@@ -292,8 +292,8 @@
 .clock-style-swatch.is-flip {
   display: flex;
   justify-content: center;
-  gap: 2px;
-  padding: 4px;
+  gap: 1px;
+  padding: 2px;
   background: #e4e4e4;
 }
 .clock-style-swatch.is-flip b {
@@ -302,7 +302,7 @@
   color: #303030;
   background: linear-gradient(#fff 48%, #b5b5b5 49%, #b5b5b5 51%, #fff 52%);
   font-family: 'Impact', 'Bahnschrift', sans-serif;
-  font-size: 14px;
+  font-size: 10px;
   font-weight: 400;
 }
 .clock-flip-colors,

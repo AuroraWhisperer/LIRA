@@ -2,10 +2,9 @@ import { previewElement } from './component-preview-surface.js';
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 import { mountBrowserSourceFields } from './browser-source-preview.js';
 import { createTextBoxDefaults } from '../shared/text-box-config.js';
-import { renderTextBox } from '../shared/text-box-renderer.js';
 import { mountComponentStyleLibrary } from './component-style-library.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
-import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
+import { bindDanmakuStyleFilters } from './danmaku-style-library.js';
 
 // Content bounds in the existing 640 × 400 thumbnails; retain room for shadows.
 const PREVIEW_IMAGE_BOUNDS = {
@@ -24,13 +23,13 @@ const PREVIEW_IMAGE_BOUNDS = {
   'queue-cherry-ribbon': [168, 8, 304, 384],
   'queue-golden-lily': [184, 8, 272, 384],
   'songlist-default': [132, 8, 376, 384],
-  'lyrics-default': [8, 84, 396, 236],
   'games-number-bomb': [8, 64, 624, 272],
   'games-gomoku': [124, 8, 392, 384],
   'wheel-default': [124, 8, 392, 384],
   'gift-wishes-card': [16, 140, 616, 120],
   'gift-wishes-text': [8, 160, 256, 80],
   'gift-wishes-circle': [140, 8, 360, 376],
+  'gift-wishes-ribbon': [100, 120, 440, 160],
   'gift-sprint-default': [24, 160, 592, 80],
 };
 
@@ -55,13 +54,14 @@ const CATEGORY_ICONS = {
   'guard-thanks': 'M12 3v16m-4-9h8m-4-7a2 2 0 1 1 0 4 2 2 0 0 1 0-4ZM4 13v3c0 6 16 6 16 0v-3m-18 2 2-2 2 2m12 0 2-2 2 2',
   blindbox: 'M3 20h18M5 20v-8h4v8m1 0V4h4v16m1 0V9h4v11',
   'gift-wishes': 'm12 3 3 6 7 1-5 5 1 7-6-3-6 3 1-7-5-5 7-1Z',
+  'heart-box-collection': 'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z',
   'gift-sprint': 'M5 21V4c5-3 9 3 14 0v10c-5 3-9-3-14 0',
   music: 'M9 18V5l12-2v13M9 18a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Zm12-2a3 3 0 1 1-3-3c1.7 0 3 1.3 3 3Z',
 };
 
 const PICKER_NAVIGATION = [
   'danmaku',
-  { id: 'gifts', title: '礼物姬', categories: ['gift-frame', 'gift-feed', 'gift-wishes', 'gift-sprint', 'blindbox', 'guard-thanks'] },
+  { id: 'gifts', title: '礼物姬', categories: ['gift-frame', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox', 'guard-thanks'] },
   { id: 'music-display', title: '音乐展示', categories: ['lyrics', 'now-playing'] },
   'text-box', 'overtime', 'clock', 'opening', 'interactions-poll', 'interactions-rating',
   { id: 'music', title: '点歌', categories: ['queue', 'songlist'] },
@@ -110,20 +110,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   const choices = new Map();
   const groups = new Map();
   const navigationGroups = new Map();
-  const textPreviews = new ResizeObserver(entries => {
-    const samples = new Set(entries.map(({ target }) => target.closest('.preview-picker-text-preview')));
-    for (const sample of samples) {
-      const text = sample.firstElementChild;
-      if (!text.offsetWidth || !text.offsetHeight) continue;
-      sample.style.aspectRatio = String(Math.min(2.4, Math.max(1, text.offsetWidth / text.offsetHeight)));
-      const width = sample.clientWidth - 32;
-      const height = sample.clientHeight - 32;
-      if (width <= 0 || height <= 0) continue;
-      const scale = Math.min(2, width / text.offsetWidth, height / text.offsetHeight);
-      text.style.transform = `translate(-50%, -50%) scale(${scale})`;
-    }
-  });
-  dialog.addEventListener('close', () => { textPreviews.disconnect(); styleLibrary?.dispose(); });
+  dialog.addEventListener('close', () => { styleLibrary?.dispose(); });
   const pickerComponents = components.flatMap(component => component.id === 'interactions'
     ? COMPONENT_PREVIEW_DEFINITIONS.interactions.variants.map(variant => ({ ...component,
       title: variant.label, pickerCategory: `interactions-${variant.value}`, pickerVariant: variant.value,
@@ -142,28 +129,19 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       const button = previewElement('button', 'preview-picker-style preview-picker-text-card');
       button.type = 'button';
       button.setAttribute('aria-label', item ? `添加副本：${item.name}` : '新建文本框');
-      const sample = previewElement('div', 'preview-picker-text-preview');
-      sample.setAttribute('aria-hidden', 'true');
       if (item) {
         button.dataset.textBoxSource = item.id;
-        const text = previewElement('div');
-        renderTextBox(text, item.appearance.config);
-        for (const image of text.querySelectorAll('img')) image.loading = 'lazy';
-        sample.append(text);
-        textPreviews.observe(sample);
-        textPreviews.observe(text);
       } else {
         button.dataset.pickerStyle = 'default';
-        sample.classList.add('preview-picker-text-new');
-        sample.append(pickerIcon('M12 5v14M5 12h14'));
       }
       const caption = previewElement('span', 'preview-picker-caption');
-      caption.append(previewElement('strong', '', item?.name || '新建文本框'));
+      caption.append(pickerIcon(item ? CATEGORY_ICONS['text-box'] : 'M12 5v14M5 12h14'),
+        previewElement('strong', '', item?.name || '新建文本框'));
       if (item) {
         button.title = item.name;
         caption.append(previewElement('span', 'preview-picker-add', '添加副本'));
       }
-      button.append(sample, caption);
+      button.append(caption);
       button.addEventListener('click', () => {
         try {
           if (item) {
@@ -194,7 +172,6 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
 
   function show(component, initialFile, updatePack) {
     styleLibrary?.dispose();
-    textPreviews.disconnect();
     content.classList.add('has-style-grid');
     const category = categoryOf(component);
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === category));
@@ -234,33 +211,51 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
 
   function componentStyleList(component) {
     const danmaku = component.id === 'danmaku';
-    const types = danmaku ? [['fixed', '固定弹幕'], ['fullscreen-random', '随机弹幕'], ['floating', '飘窗弹幕']] : [];
-    const group = style => danmaku ? DANMAKU_STYLE_OPTIONS[style]?.layout || 'fixed' : 'all';
     const builtinCards = component.id === 'text-box' ? textBoxCards(component)
       : styleOptions(component).map(option => styleCard(component, option));
-    const builtins = builtinCards.map(card => ({ group: group(card.dataset.pickerStyle), card }));
-    let active = danmaku ? 'fixed' : 'all';
-    let entries = builtins;
-    if (danmaku) subcategories.setAttribute('aria-label', '弹幕类型');
-    const tabs = types.map(([id, label]) => {
-      const button = previewElement('button', 'secondary', label);
-      button.type = 'button';
-      button.addEventListener('click', () => { active = id; filter(); content.scrollTop = 0; });
-      subcategories.append(button);
-      return { id, button };
-    });
-    function filter() {
-      for (const { id, button } of tabs) button.setAttribute('aria-pressed', String(id === active));
-      for (const entry of entries) entry.card.hidden = entry.group !== active;
+    let filter;
+    let empty;
+    let firstRender = true;
+    const importEmpty = !builtinCards.length && ['background', 'gift-frame'].includes(component.id)
+      ? previewElement('p', 'hint preview-picker-empty', '还没有添加素材。点击「添加样式」，导入图片、视频或作者提供的素材包。') : null;
+    let importHost = subcategories;
+    if (danmaku) {
+      subcategories.setAttribute('aria-label', '弹幕样式筛选');
+      const filters = source.querySelector('.danmaku-library-filters').cloneNode(true);
+      const clearButton = filters.querySelector('#danmakuClearStyleFilters');
+      for (const node of filters.querySelectorAll('[id]')) node.removeAttribute('id');
+      for (const button of filters.querySelectorAll('button')) button.classList.add('secondary');
+      filters.className = 'preview-picker-danmaku-filters';
+      const count = previewElement('span', 'preview-picker-result-count');
+      count.setAttribute('role', 'status');
+      importHost = previewElement('div', 'preview-picker-danmaku-actions');
+      importHost.append(count);
+      filters.firstElementChild.append(importHost);
+      empty = previewElement('p', 'hint preview-picker-empty', '没有符合条件的内置样式，请调整或清除筛选。');
+      subcategories.append(filters);
+      filters.addEventListener('click', () => { content.scrollTop = 0; });
+      filter = bindDanmakuStyleFilters({ root: filters, clearButton, render(matches) {
+        let visible = 0;
+        for (const card of builtinCards) {
+          card.hidden = !matches(card.dataset.pickerStyle);
+          if (!card.hidden) visible += 1;
+        }
+        count.textContent = `${visible} 款内置样式`;
+        empty.hidden = visible > 0;
+      } });
     }
     return ({ list, cards, add }) => {
       list.classList.add('preview-picker-styles');
-      entries = [...builtins, ...cards.map(({ style, card }) => ({ group: group(style.config.style), card }))];
-      list.replaceChildren(...entries.map(entry => entry.card));
+      list.classList.toggle('preview-picker-styles-single', !danmaku && component.id !== 'text-box'
+        && builtinCards.length + cards.length === 1);
+      // The initial render runs before the library request has succeeded.
+      if (importEmpty) importEmpty.hidden = firstRender || cards.length > 0;
+      list.replaceChildren(...(empty ? [empty] : []), ...(importEmpty ? [importEmpty] : []), ...builtinCards, ...cards.map(({ card }) => card));
       add.className = 'secondary preview-picker-import';
       add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
-      subcategories.append(add);
-      filter();
+      importHost.append(add);
+      filter?.();
+      firstRender = false;
     };
   }
 
@@ -292,12 +287,13 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     image.draggable = false;
     image.addEventListener('load', () => {
       const bounds = !sourceImage && PREVIEW_IMAGE_BOUNDS[`${component.id}-${style}`];
-      const [x, y, width, height] = bounds || [0, 0, image.naturalWidth, image.naturalHeight];
-      if (bounds) image.style.objectViewBox = `inset(${y / image.naturalHeight * 100}% ${(image.naturalWidth - x - width) / image.naturalWidth * 100}% ${(image.naturalHeight - y - height) / image.naturalHeight * 100}% ${x / image.naturalWidth * 100}%)`;
-      if (component.id !== 'danmaku') image.style.aspectRatio = String(Math.min(2.5, Math.max(1, width / height)));
+      if (!bounds) return;
+      const [x, y, width, height] = bounds;
+      image.style.objectViewBox = `inset(${y / image.naturalHeight * 100}% ${(image.naturalWidth - x - width) / image.naturalWidth * 100}% ${(image.naturalHeight - y - height) / image.naturalHeight * 100}% ${x / image.naturalWidth * 100}%)`;
     }, { once: true });
     const caption = previewElement('span', 'preview-picker-caption');
     caption.append(previewElement('strong', '', label));
+    if (component.id === 'danmaku') caption.append(previewElement('span', 'preview-picker-style-code', style));
     button.append(image, caption);
     button.addEventListener('click', () => {
       try {
@@ -327,7 +323,6 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
         add(component, style.config, { name: style.name, size: [media.width, media.height] }); dialog.close();
       },
     });
-    textPreviews.disconnect();
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'suites'));
     styles.hidden = false;
     browserForm.hidden = subcategories.hidden = true;
@@ -390,7 +385,6 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     more.addEventListener('click', () => {
       styleLibrary?.dispose();
       content.classList.remove('has-style-grid');
-      textPreviews.disconnect();
       for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === 'browser'));
       subcategories.hidden = styles.hidden = true;
       browserForm.hidden = false;
@@ -432,6 +426,6 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       else categories.querySelector('[data-category]').click();
       dialog.showModal();
     },
-    dispose() { styleLibrary?.dispose(); textPreviews.disconnect(); dialog.close(); dialog.remove(); },
+    dispose() { styleLibrary?.dispose(); dialog.close(); dialog.remove(); },
   };
 }

@@ -51,8 +51,7 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     assert.deepEqual(childRequests, [], 'sandboxed renderers never request management or overlay APIs'); });
   const url = await openCanvasDesktop(desktop, fixture);
   await desktop.route('**/api/games/session', route => route.fulfill({ json: { ok: true, data: activeGame } }));
-  await desktop.route('**/api/overtime/gifts/catalog', route => route.fulfill({ json: { ok: true,
-    data: { gifts: [1, 2, 3].map(id => ({ id, name: `合成礼物 ${id}`, imagePath: '/img/overlays/gift-feed/flower.webp' })) } } }));
+  await desktop.route('**/api/gifts/wishes', route => route.fulfill({ json: { ok: true, data: data['gift-wishes'] } }));
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const cases = [
@@ -64,6 +63,7 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     ['gift-feed', null, 'default', 'scrollSpeed', '40'],
     ['blindbox', null, 'default', 'top', '5'],
     ['gift-wishes', null, 'card', 'gap', '20'],
+    ['gift-wishes', null, 'ribbon', 'ribbonHeight', '72'],
   ];
   const previews = { songlist: '.song-card', lyrics: '.desktop-lyric-preview-row',
     'number-bomb': '#bombNumbers button', wheel: '#wheelSegments path', poll: '.interaction-row',
@@ -91,6 +91,23 @@ test('canvas library saves variant layouts and shared parameters and renders rea
     }
     const input = page.locator(`[data-component-parameter="${key}"]`);
     await input.fill(value); await input.press('Tab');
+    if (type === 'gift-wishes' && variant === 'ribbon') {
+      const color = page.locator('[data-component-parameter="ribbonColor"]');
+      await color.fill('#b58de7'); await color.dispatchEvent('input');
+      await page.locator('[data-component-parameter="ribbonSpeed"]').fill('3.5');
+      await page.locator('[data-component-parameter="ribbonSpeed"]').press('Tab');
+      for (const [parameter, value] of [['ribbonBorderWidth', '6'], ['ribbonRadius', '18'],
+        ['ribbonStripeWidth', '8'], ['ribbonFontSize', '24'], ['ribbonNumberFontSize', '32']]) {
+        const field = page.locator(`[data-component-parameter="${parameter}"]`);
+        await field.fill(value); await field.press('Tab');
+      }
+      await page.locator('[data-component-parameter="ribbonFlowDirection"]').selectOption('reverse');
+      const decoration = page.locator('[data-component-parameter="ribbonDecorationStyle"]');
+      await decoration.selectOption('none');
+      await preview.locator('.wish-card--ribbon[data-ribbon-decoration="none"]').waitFor();
+      await decoration.selectOption('star');
+      await preview.locator('.wish-card--ribbon[data-ribbon-decoration="star"] .wish-ribbon-sticker').evaluate(image => image.decode());
+    }
     for (const [name, size] of [['宽度', '400'], ['高度', '300']]) {
       if (type === 'gift-wishes' && name === '高度') continue;
       const dimension = page.getByRole('spinbutton', { name, exact: true });
@@ -137,6 +154,22 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   assert.deepEqual(frames.map(([width, height]) => [width, height]), saved.document.items.map(item => [`${item.width}px`, `${item.height}px`]));
   assert.ok(frames.every(([, , sandbox]) => sandbox === 'allow-scripts'));
   const giftAvatar = output.frameLocator('iframe[src^="/gift-feed"]').locator('.gift-banner-avatar').first();
+  const ribbon = output.frameLocator('iframe[src^="/gift-wishes"]').nth(1).locator('.wish-card--ribbon');
+  await ribbon.waitFor();
+  assert.deepEqual(await ribbon.evaluate(node => ({ height: node.style.getPropertyValue('--wish-ribbon-height'),
+    color: node.style.getPropertyValue('--wish-ribbon-color'), speed: node.style.getPropertyValue('--wish-ribbon-speed'),
+    decoration: node.dataset.ribbonDecoration })),
+  { height: '72px', color: '#b58de7', speed: '3.5s', decoration: 'star' });
+  await ribbon.locator('.wish-ribbon-sticker').evaluate(image => image.decode());
+  assert.equal(await ribbon.locator('.wish-ribbon-sticker').getAttribute('src'), '/img/shared/gift-wish-ribbon/star.webp');
+  assert.deepEqual(await ribbon.evaluate(node => {
+    const frame = getComputedStyle(node.querySelector('.wish-ribbon-frame'));
+    const flow = getComputedStyle(node.querySelector('.wish-ribbon-flow'));
+    return { border: frame.borderTopWidth, radius: frame.borderTopLeftRadius,
+      name: getComputedStyle(node.querySelector('.wish-ribbon-name')).fontSize,
+      number: getComputedStyle(node.querySelector('.wish-ribbon-total')).fontSize,
+      stripes: flow.backgroundSize, direction: flow.animationDirection };
+  }), { border: '6px', radius: '18px', name: '24px', number: '32px', stripes: '16px 16px', direction: 'reverse' });
   await giftAvatar.waitFor();
   assert.equal(await giftAvatar.getAttribute('src'), avatarUrl);
   const giftBanner = output.frameLocator('iframe[src^="/gift-feed"]').locator('.gift-banner').first();

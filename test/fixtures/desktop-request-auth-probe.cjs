@@ -127,7 +127,7 @@ app
       getBaseUrl: () => baseUrl,
       getToken: () => token,
     });
-    configureMediaRequestHeaders(session.defaultSession, {}, auth);
+    configureMediaRequestHeaders(session.defaultSession, auth);
     mainWindow = createWindow();
     auth.bindWindow(mainWindow, {
       openExternal() {

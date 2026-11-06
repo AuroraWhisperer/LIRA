@@ -28,12 +28,15 @@ import * as Theme from '../shared/theme.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
 import { enhanceSelects } from '../shared/select-menu.js';
 import { enhanceColorControls } from '../shared/color-control.js';
-import { getLegacyAdminModules, publishNavigation } from './legacy-admin-bridge.js';
+import { createDesktopShell } from '../desktop.js';
+import * as playback from '../playback/index.js';
 import { initUsageGuide } from './usage-guide.js';
 import { createToolboxLifecycle } from './toolbox-lifecycle.js';
 import { initDynamicLottery } from './dynamic-lottery.js';
 import { initInteractiveTour } from './interactive-tour.js';
 import { initGiftFrame } from './gift-frame.js';
+import { initGiftFrameStyles } from './gift-frame-styles.js';
+import { initGiftMotionSettings } from './gift-motion-settings.js';
 import { initGuardThanks } from './gift-guard-thanks.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
 import { renderGiftPanel } from './gifts/index.js';
@@ -47,6 +50,19 @@ import { createAdminStateRenderer, renderConnectionStatus } from './state-render
 import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
 import { waitForAuthorizedAccountInitialization } from './authorized-account.js';
 import { prepareComponentPreviewCanvas } from './component-preview-canvas-controller.js';
+
+const desktop = createDesktopShell({
+  toast: Utils.toast,
+  showStackedToast: Utils.showStackedToast,
+  showError: Utils.showError,
+  api: Utils.api,
+  showConfirmationDialog: Utils.showConfirmationDialog,
+  openUpdatePage() {
+    setMainPage('otherAssistantPage');
+    other.selectFeatureById('otherSettingsFeature');
+    document.getElementById('settingsAboutTab')?.click();
+  },
+});
 
 let toolboxRecovery = null;
 function recoverToolboxInitialization(error) {
@@ -83,6 +99,7 @@ const liveComponents = createToolboxLifecycle({
     otherGiftFeature: loadGiftAssistant,
     giftDisplayFeature: loadGiftAssistant,
     giftWishesFeature: loadGiftAssistant,
+    heartBoxCollectionFeature: loadGiftAssistant,
     giftSprintFeature: loadGiftAssistant,
     giftBlindboxFeature: loadGiftAssistant,
     guardThanksFeature: loadGiftAssistant,
@@ -128,9 +145,8 @@ async function initApp() {
 async function initializeApp() {
   logger.debug('正在初始化...');
 
-  const modules = getLegacyAdminModules();
   stateService.setSongFiltersReader(songPanel.readSongFilters);
-  modules.desktop?.initDesktopShell?.();
+  desktop.initDesktopShell();
   settings.initSettingsForm();
   initClientSettings();
   initClientAppearance();
@@ -149,23 +165,15 @@ async function initializeApp() {
 
   // 初始化表单和工作区
   formsService.initWorkspaceControls({
-    getCloseQueuePopup: () => getLegacyAdminModules().playback?.closeQueuePopup,
+    getCloseQueuePopup: () => playback.closeQueuePopup,
   });
   formsService.initTabs();
 
   await Theme.loadThemeConfig();
 
-  // 初始化播放助手（监听模块加载完成事件）
-  window.addEventListener('playback-module-loaded', initPlaybackAssistant, {
-    once: true,
-  });
+  initPlaybackAssistant();
 
-  // 如果模块已经加载完成（DOMContentLoaded 晚于模块加载），立即初始化
-  if (modules.playback?.initPlaybackAssistant) {
-    initPlaybackAssistant();
-  }
-
-  // 初始化各模块表单（使用兼容层调用）
+  // 初始化各模块表单
   initQueueForm();
   songPanel.initSongForm();
   initSongImportUpdate({
@@ -189,6 +197,8 @@ async function initializeApp() {
   metrics.initPerformanceMonitor();
   giftEffects.init();
   initGiftFrame();
+  initGiftFrameStyles();
+  initGiftMotionSettings();
   initGuardThanks();
   todo.init();
   const dynamicLottery = initDynamicLottery();
@@ -284,15 +294,13 @@ async function initializeApp() {
  * 初始化播放助手
  */
 function initPlaybackAssistant() {
-  const playback = getLegacyAdminModules().playback;
-  if (playback?.initPlaybackAssistant) {
-    playback.initPlaybackAssistant({
-      getWeSingState: () => stateService.getAppState()?.weSing,
-      toast: Utils.toast,
-      showError: Utils.showError,
-      readJsonResponse: Utils.readJsonResponse,
-    });
-  }
+  playback.initPlaybackAssistant({
+    getWeSingState: () => stateService.getAppState()?.weSing,
+    toast: Utils.toast,
+    showError: Utils.showError,
+    readJsonResponse: Utils.readJsonResponse,
+    closeFullscreenPlayer: () => formsService.closeFullscreenPlayer(),
+  });
 }
 
 /**
@@ -390,17 +398,9 @@ function setMainPage(pageId) {
   }
 }
 
-publishNavigation({ setMainPage });
-
-// 模块脚本执行时文档通常已是 interactive，但同级模块可能仍未执行完；
-// 等到 DOMContentLoaded 再启动，确保所有遗留模块均已注册。
+// 等到 DOMContentLoaded 再启动，确保页面片段和控件均已就绪。
 if (document.readyState === 'complete') {
   initApp();
 } else {
   document.addEventListener('DOMContentLoaded', initApp, { once: true });
-}
-
-// 【过渡期】暴露事件总线，方便调试和兼容
-if (typeof window !== 'undefined') {
-  window.__APP_EVENT_BUS__ = eventBus;
 }

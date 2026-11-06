@@ -58,6 +58,59 @@ test('hybrid memoization invalidates for local, remote, custom and image changes
   assert.equal(hybrid.getArtworkResolver()('1'), 'image-2');
 });
 
+test('artwork resolves unique stable gift IDs from variant catalogs without guessing ambiguous artwork', () => {
+  const gifts = [
+    { id: '32251', variantId: 'heart-v1', name: '心动盲盒' },
+    { id: '32132', variantId: 'castle-v1', name: '浪漫城堡' },
+    { id: '32132', variantId: 'castle-v2', name: '浪漫城堡' },
+  ];
+  const checks = [];
+  const hybrid = createHybridGiftSaleCatalogService({
+    local: { getSnapshot: () => ({ gifts: [] }), refresh: async () => null },
+    remoteCatalog: { getSnapshot: () => ({ gifts }), refresh: async () => null },
+    remoteImageCache: { getCachedGiftImagePath(gift) { checks.push(gift.variantId); return `${gift.variantId}.webp`; } },
+  });
+  const artwork = hybrid.getArtworkResolver();
+  assert.equal(artwork('32251'), 'heart-v1.webp');
+  assert.equal(artwork('32132'), undefined);
+  assert.equal(artwork('castle-v2'), 'castle-v2.webp');
+  assert.deepEqual(checks, ['heart-v1', 'castle-v2']);
+});
+
+test('artwork resolvers check only requested images and reuse the directory index across image revisions', () => {
+  let localRevision = 0;
+  let remoteRevision = 0;
+  let imageRevision = 0;
+  let directoryReads = 0;
+  const checked = [];
+  const gifts = Array.from({ length: 1000 }, (_, index) => ({ id: String(index + 1), name: `Gift ${index + 1}` }));
+  const hybrid = createHybridGiftSaleCatalogService({
+    local: { getRevision: () => localRevision,
+      getSnapshot: () => ({ gifts: [{ id: '1', name: `Room ${localRevision}` }] }), refresh: async () => null },
+    remoteCatalog: { getRevision: () => remoteRevision,
+      getSnapshot() { directoryReads++; return { gifts }; }, refresh: async () => null },
+    remoteImageCache: { getRevision: () => imageRevision,
+      getCachedGiftImagePath(gift) { checked.push(gift.id); return `${gift.name}:${imageRevision}`; } },
+  });
+  const resolver = hybrid.getArtworkResolver();
+  assert.equal(checked.length, 0, 'an empty wish list must not inspect the whole image library');
+  assert.equal(resolver('1'), 'Room 0:0');
+  assert.equal(resolver('1'), 'Room 0:0');
+  assert.equal(resolver('999'), 'Gift 999:0');
+  assert.equal(resolver('missing'), undefined);
+  assert.deepEqual(checked, ['1', '999']);
+  const reads = directoryReads;
+  imageRevision++;
+  assert.equal(hybrid.getArtworkResolver()('1'), 'Room 0:1');
+  assert.equal(directoryReads, reads, 'an image check does not rebuild unchanged gift identities');
+  assert.deepEqual(checked, ['1', '999', '1']);
+  localRevision++;
+  assert.equal(hybrid.getArtworkResolver()('1'), 'Room 1:1');
+  gifts[998] = { id: '999', name: 'Updated' };
+  remoteRevision++;
+  assert.equal(hybrid.getArtworkResolver()('999'), 'Updated:1');
+});
+
 test('hybrid catalog keeps local room catalog primary and exposes remote search separately', async () => {
   const calls = { local: 0, remote: 0, search: 0 };
   const local = {
@@ -120,6 +173,9 @@ test('hybrid catalog keeps local room catalog primary and exposes remote search 
   );
   assert.equal(calls.remote, 1);
   assert.equal(calls.search, 1);
+  const artwork = hybrid.getArtworkResolver();
+  assert.equal(artwork('1'), 'first.webp');
+  assert.equal(artwork('21'), '', 'global images stay unavailable without the local image cache');
 });
 
 test('room expansion uses exact box ids and removes relation-only outputs', () => {
@@ -210,4 +266,28 @@ test('rule artwork lookup checks only the requested gift, not all catalog images
   assert.equal(catalog.resolveGiftImagePath('1001'), 'updated');
   assert.equal(snapshots, initialSnapshots);
   assert.equal(imageChecks, 2);
+});
+
+test('custom room outputs require unique name and price evidence and retain their configured order', () => {
+  const { giftVariantId } = require('../../src/shared/gift-identity');
+  const gift = (id, name, priceRaw, bagGift = false) => {
+    const item = { id, name, priceRaw, coinType: 'gold', bagGift };
+    return { ...item, variantId: giftVariantId(item) };
+  };
+  const box = gift('900', '自定义盒', 10000);
+  const first = gift('901', '第一产物', 1250);
+  const ambiguous = gift('902', '无法唯一确定', 3000);
+  const last = gift('903', '末尾产物', 4000);
+  const snapshot = { schemaVersion: 3, variantBlindBoxes: [], gifts: [
+    box, first, gift('901', '同 ID 不同名', 1250), gift('901', first.name, 1500),
+    ambiguous, gift('902', ambiguous.name, ambiguous.priceRaw, true), last,
+  ] };
+  const customItem = (item) => ({ giftId: item.id, name: item.name, price: item.priceRaw / 1000 });
+  const custom = [{ ...customItem(box), outputs: [first, ambiguous, last, first].map(customItem) }];
+  const merged = mergeRoomCatalog({ gifts: [box] }, snapshot, custom);
+  assert.deepEqual(merged.gifts.map((item) => item.variantId), [box.variantId, first.variantId, last.variantId]);
+
+  snapshot.gifts.push(gift(box.id, box.name, box.priceRaw, true));
+  assert.equal(mergeRoomCatalog({ gifts: [box] }, snapshot, custom).gifts.length, 1,
+    'ambiguous box evidence cannot attach any custom outputs');
 });

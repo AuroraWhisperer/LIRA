@@ -10,15 +10,20 @@ import { loadComponentStyleCss, requestComponentStyles } from './component-style
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { mountResourceStyleSettings } from './component-resource-settings-panel.js';
 import { renderGiftFrameStyleState } from './gift-frame.js';
+import { renderGiftFrameStyles } from './gift-frame-styles.js';
 
-export async function addStyleToCanvas(style) {
+export async function addStyleToCanvas(style, { previewData, reuseExisting = false } = {}) {
   const entries = await prepareComponentPreviews();
   const canvas = entries.find(entry => entry.id === 'canvas');
   if (!canvas?.controller.getState().loaded) throw new Error('画布尚未准备完成，请稍后重试。');
   await getActiveComponentPreview('browser-preview')?.syncCanvas();
   const document = canvas.controller.getState().draft.document;
-  if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
   const component = entries.find(entry => entry.id === style.type) || COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview();
+  const styleKey = config => config?.resourceStyle?.id || config?.mediaStyle?.id;
+  const existing = reuseExisting && styleKey(style.config) && document.items.find(item => item.type === style.type
+    && styleKey(item.appearance.config) === styleKey(style.config));
+  if (existing) return openComponentPreview({ ...component, previewData, selectedItemId: existing.id });
+  if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
   const media = componentStyleMedia(style.config);
   const [sourceWidth, sourceHeight] = media ? [media.width, media.height] : component.size(style.config);
   const scale = Math.min(1, document.canvas.width / sourceWidth, document.canvas.height / sourceHeight);
@@ -28,7 +33,7 @@ export async function addStyleToCanvas(style) {
     x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
     width, height, visible: true, locked: false, appearance: { mode: 'independent', config: structuredClone(style.config) } });
   canvas.controller.edit({ document: validateSceneDocument(document) });
-  return openComponentPreview({ ...component, selectedItemId: id });
+  return openComponentPreview({ ...component, previewData, selectedItemId: id });
 }
 
 let initialized = false;
@@ -69,22 +74,23 @@ export function initComponentStyleLibraries() {
     ['#otherClockFeature .clock-style-options', 'clock'],
     ['#danmakuImportedStyles', 'danmaku'],
     ['#giftWishDisplayStyle', 'gift-wishes'],
-    ['#giftFramePanel', 'gift-frame'], ['#guardThanksStyleLibrary', 'guard-thanks'],
+    ['#giftFrameStyleLibrary', 'gift-frame'], ['#guardThanksStyleLibrary', 'guard-thanks'],
     ['#themeForm .style-picker', 'queue'],
   ];
   for (const [selector, type] of locations) {
     const host = document.querySelector(selector);
     if (!host || host.querySelector('[data-local-styles]')) continue;
-    const list = previewElement('div', ['clock', 'danmaku', 'gift-wishes'].includes(type) ? 'component-style-inline-host' : 'component-style-list');
+    const list = previewElement('div', ['clock', 'danmaku', 'gift-wishes', 'gift-frame'].includes(type) ? 'component-style-inline-host' : 'component-style-list');
     list.dataset.localStyles = type;
     const wishes = type === 'gift-wishes';
+    const guardThanks = type === 'guard-thanks';
     const hasResourceSettings = style => type !== 'gift-frame' && Boolean(style?.config.resourceStyle);
     (wishes ? host.querySelector('.gift-wish-styles') : host).append(list);
     const feature = host.closest('#otherClockFeature, #liveDanmakuFeature, #themeForm') || host;
     const previewWish = style => host.dispatchEvent(new CustomEvent('gift-wish:style', { detail: style }));
     const settings = previewElement('div', 'resource-style-settings-host');
     settings.dataset.resourceStyleSettings = type;
-    (host.closest('form, .danmaku-style-picker') || host).after(settings);
+    if (!guardThanks) (host.closest('form, .danmaku-style-picker') || host).after(settings);
     const editors = new Map();
     let selectedId = '';
     let nativeSelection = [];
@@ -106,7 +112,7 @@ export function initComponentStyleLibraries() {
       for (const [id, editor] of editors) editor.show(id === selectedId);
       feature.classList.toggle('has-resource-style', Boolean(selectedId));
       for (const card of list.querySelectorAll('[data-custom-style-id]')) {
-        if (!wishes) card.querySelector('.component-style-select').setAttribute('aria-pressed', String(card.dataset.customStyleId === selectedId));
+        if (!wishes) card.querySelector('.component-style-select')?.setAttribute('aria-pressed', String(card.dataset.customStyleId === selectedId));
       }
     }
     settingsViews.push({ dispose() { for (const editor of editors.values()) editor.dispose(); settings.remove(); } });
@@ -124,6 +130,8 @@ export function initComponentStyleLibraries() {
         else if (!hasResourceSettings(style)) return addStyleToCanvas(style);
       },
       renderList({ cards, add }) {
+        // 全屏礼物感谢：每个导入样式一张效果卡片，与内置效果同列。
+        if (type === 'gift-frame') return renderGiftFrameStyles({ cards, add, use: addStyleToCanvas });
         if (type === 'danmaku') {
           add.className = 'secondary';
           add.textContent = '添加样式';
@@ -131,6 +139,22 @@ export function initComponentStyleLibraries() {
         }
         for (const { style, card } of cards) {
           const button = card.querySelector('.component-style-select');
+          if (guardThanks && hasResourceSettings(style)) {
+            const remove = card.querySelector('.component-style-delete');
+            button.remove();
+            if (!editors.has(style.id)) editors.set(style.id,
+              mountResourceStyleSettings(card, { style, request, onUse: addStyleToCanvas, compactGuardThanks: true }));
+            const editor = editors.get(style.id);
+            card.append(editor.element);
+            if (remove) {
+              editor.element.querySelector('.guard-thanks-remove')?.remove();
+              remove.className = 'secondary guard-thanks-remove'; remove.textContent = '移除';
+              editor.element.querySelector('.component-toolbar-group').prepend(remove);
+            }
+            editor.update(style);
+            continue;
+          }
+          if (guardThanks) card.classList.add('guard-thanks-card', 'guard-thanks-media-card');
           if (wishes) {
             button.firstElementChild.remove();
             button.setAttribute('aria-pressed', String(style.id === host.dataset.previewStyleId));

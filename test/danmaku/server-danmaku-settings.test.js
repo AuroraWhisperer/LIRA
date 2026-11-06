@@ -119,18 +119,21 @@ async function fixture() {
       modules.set(filename, picker);
       return picker;
     }
-    const dependency = !['utils.js', 'danmaku-canvas-dialog.js', 'authorized-account.js'].includes(path.basename(filename))
+    const dependency = !['utils.js', 'danmaku-preview.js', 'component-preview-dialog.js', 'authorized-account.js'].includes(path.basename(filename))
       ? new vm.SourceTextModule(fs.readFileSync(filename, 'utf8'), { context, identifier: filename })
       : new vm.SyntheticModule(
-          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin', 'toast'] : specifier.includes('canvas-dialog') ? ['createDanmakuPreview', 'openDanmakuCanvas'] : ['observeAuthorizedAccount'],
+          specifier.includes('utils') ? ['copyText', 'localOverlayOrigin', 'toast']
+            : specifier.includes('danmaku-preview') ? ['createDanmakuPreview']
+              : specifier.includes('component-preview-dialog') ? ['openComponentPreview'] : ['observeAuthorizedAccount'],
           function () {
             if (specifier.includes('utils')) {
               this.setExport('copyText', async () => {});
               this.setExport('toast', () => {});
               this.setExport('localOverlayOrigin', () => 'http://127.0.0.1:3000');
-            } else if (specifier.includes('canvas-dialog')) {
+            } else if (specifier.includes('danmaku-preview')) {
               this.setExport('createDanmakuPreview', ({ controller }) => ({ id: 'danmaku', controller }));
-              this.setExport('openDanmakuCanvas', ({ controller }) => {
+            } else if (specifier.includes('component-preview-dialog')) {
+              this.setExport('openComponentPreview', ({ controller }) => {
                 editors.push({ controller, get draft() { return controller.getState().draft; },
                   get canApply() { return controller.getState().loaded; },
                   onChange: (draft) => controller.edit(draft), onApply: () => controller.save() });

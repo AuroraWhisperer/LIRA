@@ -22,6 +22,15 @@ function documentFor(type, config = createSceneExtraDefaults(type)) {
       visible: true, locked: false, appearance: { mode: 'independent', config } }] };
 }
 
+test('heart collection loads older style-only configurations and preserves the explicit rewards switch', () => {
+  for (const displayStyle of ['task', 'compact']) {
+    assert.equal(normalizeSceneConfig('heart-box-collection', { displayStyle }).showRewards, true);
+    const config = normalizeSceneConfig('heart-box-collection', { displayStyle, showRewards: false });
+    const saved = normalizeSceneDocument(documentFor('heart-box-collection', config), { normalizeConfig: normalizeSceneConfig });
+    assert.equal(saved.items[0].appearance.config.showRewards, false);
+  }
+});
+
 test('conditional scene data prepares unchanged songs and lyric timelines once but keeps the playback clock live', t => {
   let owner = { scope: 'a', epoch: 1 }, revision = 1, currentMs = 0;
   let songReads = 0, lineReads = 0;
@@ -61,15 +70,19 @@ test('conditional scene data prepares unchanged songs and lyric timelines once b
 test('scene gift feeds reuse full scans, cards and catalog while checking independent profile changes', async () => {
   let now = Date.parse('2026-09-19T08:00:00Z');
   let historyReads = 0, catalogReads = 0, profileRevision = 'one';
+  let contentRevision = 'a'.repeat(64);
   const day = '2026-09-19';
   const items = Array.from({ length: 5000 }, (_, index) => ({ eventId: `gift-${index}`,
+    sortId: 5000 - index, sortTime: '2026-09-19T01:00:00Z',
     gift: { userName: 'before', giftId: '1', giftName: 'gift', num: 1, unitPrice: 1, createdAt: '2026-09-19T01:00:00Z' } }));
   const displayPorts = {
     gifts: { getViewRevision: () => 'source', getHistory(options) {
       historyReads++;
-      if (options.contentRevision === 'a'.repeat(64)) return { viewRevision: 'source', contentRevision: options.contentRevision, unchanged: true, items: [], nextCursor: null };
+      if (options.contentRevision === contentRevision) return { viewRevision: 'source', contentRevision, unchanged: true, items: [], nextCursor: null };
+      if (options.delta && options.contentRevision === 'a'.repeat(64)) return { viewRevision: 'source', contentRevision,
+        delta: true, removedEventIds: [], items: [items[0]], nextCursor: null };
       const offset = Number(options.cursor || 0);
-      return { viewRevision: 'source', contentRevision: 'a'.repeat(64), items: items.slice(offset, offset + 100),
+      return { viewRevision: 'source', contentRevision, items: items.slice(offset, offset + 100),
         nextCursor: offset + 100 < items.length ? String(offset + 100) : null };
     } },
     giftCards: { getProfiles: async () => ({ viewRevision: 'source', day, contentRevision: profileRevision,
@@ -91,6 +104,13 @@ test('scene gift feeds reuse full scans, cards and catalog while checking indepe
   now += 6000; profileRevision = 'two';
   const changed = await read('gift-feed', undefined, { dataVersions: { known: versions.current, current: {} } });
   assert.equal(changed.items[0].gift.userName, 'two');
+  now += 6000;
+  contentRevision = 'b'.repeat(64);
+  items.unshift({ ...items[0], eventId: 'new', sortId: 5001 });
+  const beforeDelta = historyReads;
+  const incremental = await read('gift-feed');
+  assert.equal(historyReads - beforeDelta, 1);
+  assert.equal(incremental.items[0].gift.num, 5001);
   read.invalidate(['gift-feed']);
   await read('gift-feed');
   assert.equal(catalogReads, 2);

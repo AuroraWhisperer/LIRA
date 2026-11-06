@@ -13,7 +13,7 @@ export function inspectInteractionText(value, max = 10) {
     if (/[\p{Cc}\p{Zl}\p{Zp}]/u.test(part)) return true;
     // RGI sequences admit ZWJ, selectors and tags only as part of a full emoji.
     if (/[\p{Cf}\uFE00-\uFE0F\u{E0100}-\u{E01EF}]/u.test(part)) {
-      return !/^\p{RGI_Emoji}$/v.test(part);
+      return !new RegExp('^\\p{RGI_Emoji}$', 'v').test(part);
     }
     return !/[^\p{M}\s]/u.test(part) && !/^ +$/.test(part);
   });

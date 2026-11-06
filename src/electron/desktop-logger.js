@@ -11,12 +11,12 @@ const NORMAL_ENTRY_BYTES = 2 * 1024;
 const ERROR_ENTRY_BYTES = 16 * 1024;
 const MAX_FILE_BYTES = 1024 * 1024;
 
-function createDesktopLogger({ getLogFile, loggingState, maxFileBytes = MAX_FILE_BYTES, now = Date.now }) {
+function createDesktopLogger({ getLogFile, runId = '', maxFileBytes = MAX_FILE_BYTES, now = Date.now }) {
+  let sequence = 0;
   const normalBudget = createLogRateLimit({ now });
   const errorBudget = createLogRateLimit({ now });
   function nextSequence() {
-    loggingState.sequence += 1;
-    return loggingState.sequence;
+    return ++sequence;
   }
 
   function writeLog(scope, value) {
@@ -42,7 +42,7 @@ function createDesktopLogger({ getLogFile, loggingState, maxFileBytes = MAX_FILE
   function append(scope, message, isError) {
     const line = formatLogLine({
       timestamp: new Date().toISOString(),
-      runId: loggingState.runId,
+      runId,
       sequence: nextSequence(),
       pid: process.pid,
       processType: process.type || 'browser',
@@ -58,7 +58,12 @@ function createDesktopLogger({ getLogFile, loggingState, maxFileBytes = MAX_FILE
     });
   }
 
-  return { writeLog, nextSequence };
+  function startRun(value) {
+    runId = value;
+    sequence = 0;
+  }
+
+  return { writeLog, nextSequence, startRun };
 }
 
 module.exports = { createDesktopLogger };

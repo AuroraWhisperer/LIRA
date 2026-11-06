@@ -1,7 +1,7 @@
 'use strict';
 
 const { canonicalGiftId, canonicalGiftText } = require('../shared/processed-gift-contract');
-const { createHash, randomUUID } = require('node:crypto');
+const { createGiftHistoryChanges } = require('./gift-history-changes');
 const { retentionLedgerFilter, statisticsFilter, mergeSummaryStatistics, activeSnapshot } = require('./gift-retention-queries');
 const { readLocalBlindArchives } = require('./gift-local-retention');
 const { transaction } = require('./gift-retention-store');
@@ -57,12 +57,11 @@ const HISTORY_SORT_EXPRESSIONS = Object.freeze({
 });
 
 function createGiftQueryStore(giftDb) {
-  const historyInstance = randomUUID();
-  let historyRevision;
   if (!giftDb || typeof giftDb.prepare !== 'function') {
     throw new Error('giftDb is required to create GiftQueryStore.');
   }
   ensureGiftSqlFunctions(giftDb);
+  const historyChanges = createGiftHistoryChanges(giftDb);
 
   function ledgerFilter(options) {
     return retentionLedgerFilter(giftDb, options, buildLedgerFilter(options));
@@ -208,20 +207,9 @@ function createGiftQueryStore(giftDb) {
   }
 
   function readHistoryPage(options) {
-    if (options.conditional && !giftDb.isTransaction && !historyRevision) {
-      // Only gift rows affect the feed. Sync heartbeats and other settings must not
-      // force all history pages to be read again. This state lives with the connection.
-      giftDb.exec(`CREATE TEMP TABLE IF NOT EXISTS lira_gift_history_revision (revision INTEGER NOT NULL);
-        INSERT INTO lira_gift_history_revision SELECT 0 WHERE NOT EXISTS (SELECT 1 FROM lira_gift_history_revision);`);
-      for (const operation of ['INSERT', 'UPDATE', 'DELETE']) {
-        giftDb.exec(`CREATE TEMP TRIGGER IF NOT EXISTS lira_gift_history_${operation}
-          AFTER ${operation} ON main.gift_events BEGIN
-            UPDATE lira_gift_history_revision SET revision = revision + 1;
-          END`);
-      }
-      historyRevision = giftDb.prepare('SELECT revision FROM temp.lira_gift_history_revision');
-    }
+    if (options.conditional) historyChanges.initialize();
     let nextCache;
+    let historySnapshot;
     const page = withReadTransaction(giftDb, () => {
       // Read the version inside the same snapshot as COUNT and both page segments.
       // total_changes covers this connection (including rolled-back writes), while
@@ -232,18 +220,21 @@ function createGiftQueryStore(giftDb) {
       const stamp = `${changes}:${dataVersion}:${schemaVersion}`;
       let contentRevision;
       if (options.conditional) {
-        // Include the visible time boundary: future-dated rows become visible as
-        // the clock advances even without any database write.
-        const upper = options.rangeEnd && options.rangeEnd < options.asOf ? options.rangeEnd : options.asOf;
-        const boundary = giftDb.prepare(`SELECT created_at FROM gift_events
-          WHERE source_id=? AND created_at<? ORDER BY created_at DESC LIMIT 1`).get(options.sourceId, upper)?.created_at;
-        contentRevision = createHash('sha256').update(JSON.stringify([
-          historyInstance, historyRevision?.get().revision, dataVersion, schemaVersion,
-          options.sourceId, options.viewRevision, options.query, options.rangeStart, boundary,
-          options.userQuery, options.giftQuery, options.amountAbove, options.sortField, options.sortDirection,
-        ])).digest('hex');
+        // Use the same indexed visibility filter: omitting status/final would
+        // sort the entire source just to check its latest visible timestamp.
+        const boundary = listHistoryRows({ ...options, cursor: null,
+          sortField: 'created_at', sortDirection: 'desc', limit: 1 })[0]?.created_at;
+        historySnapshot = historyChanges.read(options, {
+          dataVersion, schemaVersion, boundary, retention: activeSnapshot(giftDb, options.sourceId),
+        });
+        contentRevision = historySnapshot.contentRevision;
         if (!options.cursor && options.contentRevision === contentRevision) {
           return { contentRevision, unchanged: true };
+        }
+        if (options.delta && !options.cursor) {
+          const previous = historyChanges.base(options.contentRevision, historySnapshot);
+          const delta = previous && readHistoryDelta(options, previous, historySnapshot);
+          if (delta) return { ...delta, contentRevision };
         }
       }
       const previous = historyCountCaches.get(giftDb);
@@ -259,7 +250,29 @@ function createGiftQueryStore(giftDb) {
     });
     // A failed read transaction must never publish a cached count.
     if (nextCache) historyCountCaches.set(giftDb, nextCache);
+    if (historySnapshot) historyChanges.remember(historySnapshot);
     return page;
+  }
+
+  function readHistoryDelta(options, previous, current) {
+    const limit = options.limit - 1;
+    const ids = new Set(historyChanges.changedIds(previous, limit + 1));
+    if (ids.size > limit) return null;
+    if (previous.upper < current.upper) {
+      const newlyVisible = listHistoryRows({ ...options,
+        rangeStart: options.rangeStart > previous.upper ? options.rangeStart : previous.upper });
+      for (const row of newlyVisible) ids.add(row.id);
+      if (ids.size > limit) return null;
+    }
+    const serializedIds = JSON.stringify([...ids]);
+    // Drive these lookups by the bounded IDs, not the full source/time index.
+    const identities = giftDb.prepare(`SELECT g.platform_id FROM json_each(?) changed
+      CROSS JOIN gift_events g ON g.id=changed.value WHERE g.source_id=?`).all(serializedIds, options.sourceId);
+    const filter = ledgerFilter(options);
+    const rows = giftDb.prepare(`SELECT g.* FROM json_each(?) changed
+      CROSS JOIN gift_events g ON g.id=changed.value WHERE ${filter.sql}
+      ORDER BY g.created_at ASC, g.id DESC`).all(serializedIds, ...filter.params);
+    return { delta: true, rows, removedPlatformIds: identities.map((row) => row.platform_id) };
   }
 
   function readStatistics({ sourceId, query, rangeStart, asOf, range }) {

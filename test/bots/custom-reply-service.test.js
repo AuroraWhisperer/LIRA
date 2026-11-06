@@ -57,12 +57,14 @@ test('custom replies preserve special symbols when applying the length limit', (
   assert.equal(normalized.reply.includes('\uFFFD'), false);
 });
 
-test('custom reply service creates targeted automatic replies', () => {
+test('custom reply service reuses stored rules and keeps returned rules isolated from live settings', (t) => {
+  const settings = {
+    enableCustomReplyBot: 'true',
+    customReplyRules: '[{"keyword":"菜单","reply":"点歌格式：点歌 歌名"}]',
+  };
+  const parse = t.mock.method(JSON, 'parse');
   const service = createCustomReplyService({
-    settings: () => ({
-      enableCustomReplyBot: 'true',
-      customReplyRules: '[{"keyword":"菜单","reply":"点歌格式：点歌 歌名"}]',
-    }),
+    settings: () => ({ ...settings }),
   });
 
   const result = service.handleDanmaku({
@@ -78,6 +80,33 @@ test('custom reply service creates targeted automatic replies', () => {
   });
   assert.equal(service.handleDanmaku({ message: '路过', uid: '123' }).reason, 'not-custom-reply');
   assert.equal(isBilibiliCommandText('菜单看看', service.isCommandText), true);
+  result.rule.reply = 'changed by the caller';
+  for (let i = 0; i < 20; i++) {
+    assert.equal(service.isCommandText('看看菜单'), true);
+    assert.equal(service.handleDanmaku({ message: '菜单' }).autoReply.message, '点歌格式：点歌 歌名');
+  }
+  assert.equal(parse.mock.callCount(), 1);
+  settings.enableCustomReplyBot = 'false';
+  assert.equal(service.isCommandText('菜单'), false);
+  assert.equal(service.handleDanmaku({ message: '菜单' }).accepted, false);
+  settings.enableCustomReplyBot = 'true';
+  settings.customReplyRules = '[{"keyword":"晚安","reply":"好梦"}]';
+  assert.equal(service.isCommandText('菜单'), false);
+  assert.equal(service.handleDanmaku({ message: '晚安主播' }).autoReply.message, '好梦');
+  assert.equal(parse.mock.callCount(), 2);
+});
+
+test('custom reply service observes in-place edits to array rules', () => {
+  const rule = { keyword: '菜单', reply: '旧回复' };
+  const rules = [rule];
+  const service = createCustomReplyService({
+    settings: () => ({ enableCustomReplyBot: 'true', customReplyRules: rules }),
+  });
+  assert.equal(service.handleDanmaku({ message: '菜单' }).autoReply.message, '旧回复');
+  rule.keyword = '晚安';
+  rule.reply = '新回复';
+  assert.equal(service.isCommandText('菜单'), false);
+  assert.equal(service.handleDanmaku({ message: '晚安' }).autoReply.message, '新回复');
 });
 
 test('cloud exact commands use trimmed equality and ignore stale projections until account reset', () => {

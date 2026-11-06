@@ -37,7 +37,6 @@ import { createRadioMode } from './features/radio-mode.js';
 import { createSearchHandler } from './features/search-handler.js';
 import { createHomeHandler } from './features/home-handler.js';
 import { createPendingHandler } from './features/pending-handler.js';
-import { createLyricControls } from './features/lyric-controls.js';
 import { createImportHandler } from './features/import-handler.js';
 import { createMatchHandler } from './features/match-handler.js';
 
@@ -212,12 +211,6 @@ export function createPlaybackController(initialOptions = {}) {
     showError,
   });
 
-  const lyricControls = createLyricControls({
-    playbackState,
-    lyricService,
-    renderPlayback: () => renderPlayback(),
-  });
-
   const matchHandler = createMatchHandler({
     matchService,
     showError,
@@ -301,8 +294,10 @@ export function createPlaybackController(initialOptions = {}) {
     rendererModule.renderPlayback(providerOperations.getAuthState(), providerOperations.getProviderHealth());
   }
 
-  function syncPlaybackLyricWindow(force = false) {
-    return lyricControls.syncPlaybackLyricWindow(force, getPlaybackAudio);
+  async function syncPlaybackLyricWindow(force = false) {
+    const audio = getPlaybackAudio();
+    const track = playbackState.current || null;
+    await lyricService.syncWindow(track, audio, force);
   }
 
   function playPlaybackTrack(...args) {
@@ -432,6 +427,7 @@ export function createPlaybackController(initialOptions = {}) {
   // SECTION 13 — 初始化器 & 事件处理器
   // ══════════════════════════════════════════════════════════════
   const eventHandlersModule = createEventHandlers({
+    closeFullscreenPlayer: initialOptions.closeFullscreenPlayer,
     playbackState,
     stateActions,
     getPlaybackAudio,

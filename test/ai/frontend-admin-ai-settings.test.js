@@ -52,6 +52,72 @@ test('Doubao login and logout use existing authenticated API without sending cre
   assert.ok(writes.every(call => call.options.body === undefined));
 });
 
+test('account status polling follows panel, main page and document visibility and stops on pagehide', async () => {
+  const status = { available: true, pending: true, profiles: [] };
+  const f = await createAiSettingsFixture({ visible: false,
+    config: { modelProvider: 'openai', modelAuthMode: 'subscription' },
+    request: (url) => url.endsWith('/status') ? aiResponse({ ...status, chatgpt: status }) : undefined,
+  });
+  const statusReads = () => f.calls.filter(({ url }) => /\/api\/ai\/(chatgpt|doubao)\/status$/.test(url)).length;
+  await f.advance(3000);
+  assert.equal(statusReads(), 0, 'initially hidden settings do not poll');
+  await f.setVisibility({ panelHidden: false });
+  assert.equal(statusReads(), 1, 'opening the panel immediately checks pending authorization');
+  await f.advance(3000);
+  assert.equal(statusReads(), 2);
+  await f.setVisibility({ pageActive: false });
+  await f.advance(3000);
+  assert.equal(statusReads(), 2, 'another main page suspends account polling');
+  await f.setVisibility({ pageActive: true });
+  assert.equal(statusReads(), 3);
+  await f.setVisibility({ documentHidden: true });
+  await f.advance(3000);
+  assert.equal(statusReads(), 3, 'a hidden window suspends account polling');
+  await f.setVisibility({ documentHidden: false });
+  assert.equal(statusReads(), 4);
+
+  const provider = f.elements.get('xiaomiAiModelProvider');
+  provider.value = 'doubao';
+  f.fire(provider.id, 'change');
+  f.publicConfig.modelProvider = 'doubao';
+  await flushAiTasks();
+  assert.equal(statusReads(), 5, 'changing the selected provider still reads its account');
+  await f.setVisibility({ panelHidden: true });
+  await f.advance(3000);
+  assert.equal(statusReads(), 5, 'a hidden panel also suspends Doubao reads');
+  const shown = f.setVisibility({ panelHidden: false });
+  await Promise.all([shown, f.api.refresh()]);
+  assert.equal(statusReads(), 5, 'navigation already reads account status in the full refresh');
+  await f.advance(3000);
+  assert.equal(statusReads(), 6);
+  f.pagehide();
+  await f.setVisibility({ panelHidden: true, documentHidden: true });
+  await f.setVisibility({ panelHidden: false, documentHidden: false });
+  await f.advance(3000);
+  assert.equal(statusReads(), 6, 'late visibility notifications cannot restart a closed page');
+  assert.equal(f.timers.size, 0);
+});
+
+test('an account read spanning hide and restore remains single flight and cannot restart a closed page', async () => {
+  const pending = Promise.withResolvers();
+  const f = await createAiSettingsFixture({ config: { modelProvider: 'doubao' }, request: (url) =>
+    url === '/api/ai/doubao/status' ? pending.promise : undefined });
+  const statusReads = () => f.calls.filter(({ url }) => url === '/api/ai/doubao/status').length;
+  await f.advance(3000);
+  await f.setVisibility({ documentHidden: true });
+  await f.setVisibility({ documentHidden: false });
+  await f.advance(3000);
+  assert.equal(statusReads(), 1, 'restoring a pending read must not start a second request');
+  await f.setVisibility({ documentHidden: true });
+  f.pagehide();
+  pending.resolve(aiResponse({ available: true, loggedIn: true, encryptionAvailable: true }));
+  await flushAiTasks();
+  await f.setVisibility({ documentHidden: false });
+  await f.advance(3000);
+  assert.equal(statusReads(), 1);
+  assert.equal(f.timers.size, 0);
+});
+
 test('AI initial load preserves edits and blocks saving before configuration arrives', async () => {
   const f = await createAiSettingsFixture({
     deferInitialConfig: true,

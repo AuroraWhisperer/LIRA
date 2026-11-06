@@ -32,8 +32,10 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
       }),
     },
   };
-  const { getGiftToastArtwork, giftRecent: recent } = await loadModuleExports(
+  const [{ getGiftToastArtwork, giftRecent: recent }, { eventBus }] = await loadModuleExports([
     path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    path.join(__dirname, '../../public/js/shared/event-bus.js'),
+  ],
     sandbox,
   );
   await recent.loadGiftArtworkCatalog();
@@ -76,7 +78,7 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     }).src,
     '/img/gift-placeholder.png',
   );
-  sandbox.window.AdminApp.eventBus.emit('gift:catalog_updated', {
+  eventBus.emit('gift:catalog_updated', {
     snapshot: {
       gifts: [
         { ...renamed, imagePath: '' },

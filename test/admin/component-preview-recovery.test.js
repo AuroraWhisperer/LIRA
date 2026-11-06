@@ -21,7 +21,7 @@ test('preview retries retain drafts, serialize mutations and publish once after 
   t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
   for (const target of [desktop, page]) target.on('pageerror', error => errors.push(error.message));
   await desktop.route('**/api/component-preview', async route => {
-    if (failExchange && route.request().postDataJSON().action === 'exchange') {
+    if (failExchange && ['exchange', 'exchange-batch'].includes(route.request().postDataJSON().action)) {
       failedExchanges++;
       await route.fulfill({ status: 503, json: { ok: false, error: '暂时不可用' } });
     } else await route.continue({ headers: { ...route.request().headers(), Authorization: `Bearer ${fixture.token}` } });
@@ -50,6 +50,16 @@ test('preview retries retain drafts, serialize mutations and publish once after 
   });
   await desktop.waitForFunction(() => window.previewUrl);
   const url = await desktop.evaluate(() => window.previewUrl);
+  const { data: link } = await fixture.post({ action: 'resolve' }, new URL(url).hash.slice(1));
+  const canvasId = link.links.find(({ component }) => component === 'canvas').id;
+  const idleCanvas = desktop.waitForRequest(request => {
+    const command = request.postDataJSON();
+    const entries = command?.action === 'exchange-batch' ? command.entries : [command];
+    return command?.waitMs > 0 && entries.some(entry => entry?.action === 'exchange' && entry.id === canvasId);
+  });
+  await desktop.evaluate(() => window.canvas.edit({ document: { title: '待同步画布' } }));
+  await idleCanvas;
+  await desktop.evaluate(() => window.handle.syncCanvas());
   await page.route('**/api/component-preview', async route => {
     const command = route.request().postDataJSON();
     browserRequests++;

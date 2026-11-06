@@ -3,23 +3,30 @@
 function createDesktopUpdateController({
   app,
   updateManager,
-  updateRuntime,
-  getRuntime,
+  getAutoUpdateSetting,
   getMainWindow,
   writeLog,
   beforeInstall = async () => {},
+  timers = { setTimeout, clearTimeout },
 }) {
+  let state = {
+    status: 'idle', message: '尚未检查更新', version: '', canDownload: false,
+    canInstall: false, progress: null, updateVersion: '',
+  };
+  let startupTimer = null;
+  let disposed = false;
+
   function sendUpdateState() {
     const mainWindow = getMainWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
 
-    mainWindow.webContents.send('desktop:update-state', updateRuntime.value);
+    mainWindow.webContents.send('desktop:update-state', state);
   }
 
   function configureAutoUpdater() {
     updateManager.configureAutoUpdater({
-      onStateChange(state) {
-        updateRuntime.value = state;
+      onStateChange(nextState) {
+        state = nextState;
         sendUpdateState();
       },
       writeLog,
@@ -32,10 +39,7 @@ function createDesktopUpdateController({
 
   function readAutoUpdateSetting() {
     try {
-      const runtime = getRuntime();
-      return Boolean(
-        runtime && typeof runtime.getSetting === 'function' && runtime.getSetting('enableAutoUpdate') === 'true',
-      );
+      return getAutoUpdateSetting() === 'true';
     } catch (_) {
       return false;
     }
@@ -46,18 +50,18 @@ function createDesktopUpdateController({
   }
 
   async function installUpdate() {
-    if (updateRuntime.value.canInstall) await beforeInstall();
+    if (state.canInstall) await beforeInstall();
     return updateManager.installUpdate();
   }
 
   function setUpdateState(nextState) {
-    updateRuntime.value = {
-      ...updateRuntime.value,
+    state = {
+      ...state,
       ...nextState,
       version: app.getVersion(),
     };
     sendUpdateState();
-    return updateRuntime.value;
+    return state;
   }
 
   function setUpdateError(error) {
@@ -72,6 +76,31 @@ function createDesktopUpdateController({
     });
   }
 
+  function setDevelopmentMode() {
+    state = {
+      ...state,
+      status: 'dev-disabled',
+      message: '开发模式不检查 GitHub 更新；打包安装后自动启用。',
+      canDownload: false,
+      canInstall: false,
+    };
+    sendUpdateState();
+  }
+
+  function scheduleStartupCheck() {
+    if (disposed || startupTimer !== null || !app.isPackaged || !readAutoUpdateSetting()) return;
+    startupTimer = timers.setTimeout(() => {
+      startupTimer = null;
+      checkForUpdates().catch(error => { if (!disposed) setUpdateError(error); });
+    }, 1000);
+  }
+
+  function dispose() {
+    disposed = true;
+    if (startupTimer !== null) timers.clearTimeout(startupTimer);
+    startupTimer = null;
+  }
+
   return {
     configureAutoUpdater,
     checkForUpdates,
@@ -80,6 +109,10 @@ function createDesktopUpdateController({
     installUpdate,
     setUpdateError,
     sendUpdateState,
+    setDevelopmentMode,
+    scheduleStartupCheck,
+    dispose,
+    getState: () => state,
   };
 }
 

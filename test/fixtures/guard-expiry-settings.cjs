@@ -81,7 +81,6 @@ async function run() {
           enhanceSelects(panel);`);
         return;
       }
-      if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
       servePageOrAsset(path.join(root, 'public'), req, res, url, token);
     },
   });
@@ -92,7 +91,7 @@ async function run() {
     webPreferences: { preload: path.join(root, 'src/electron/preload.js'), contextIsolation: true, sandbox: true, nodeIntegration: false, offscreen: true, backgroundThrottling: false } });
   const desktopAuth = createDesktopRequestAuth({ desktopSession: session.defaultSession,
     getMainWindow: () => window, getBaseUrl: () => origin, getToken: () => token });
-  configureMediaRequestHeaders(session.defaultSession, {}, desktopAuth);
+  configureMediaRequestHeaders(session.defaultSession, desktopAuth);
   desktopAuth.bindWindow(window, { openExternal() {} });
   // A synthetic official-origin page exercises real isolated cookies and the normal login window.
   const expiryAuth = createGuardExpiryAuth({

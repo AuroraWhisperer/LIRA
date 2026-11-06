@@ -39,11 +39,10 @@ const overtimeTimeView = createOvertimeTimeView({
 });
 const {
   renderSettlements,
-  populateInitialDurationSelectors,
-  syncDurationSelectorsFromInput,
-  syncDurationInputFromSelectors,
+  markDurationDirty,
+  readInitialDuration,
+  acceptInitialDuration,
   renderInitialDuration,
-  parseInitialDuration,
   formatClockDisplay,
 } = overtimeTimeView;
 
@@ -114,17 +113,17 @@ async function refresh() {
 }
 
 function bindControls() {
-  populateInitialDurationSelectors();
+  overtimeStatusView.setBusy(false);
   byId('overtimeEnableBtn').addEventListener('click', () =>
     runAction(overtimeStatusView.getState()?.enabled ? 'disable' : 'enable'),
   );
-  byId('overtimeStartBtn').addEventListener('click', () => runAction('start'));
-  byId('overtimePauseBtn').addEventListener('click', () => runAction('pause'));
+  byId('overtimeStartBtn').addEventListener('click', () =>
+    runAction(overtimeStatusView.getState()?.status === 'running' ? 'pause' : 'start'),
+  );
   byId('overtimeResetBtn').addEventListener('click', () => runAction('reset'));
   byId('overtimeApplyTimeBtn').addEventListener('click', applyTime);
-  byId('overtimeInitialTime').addEventListener('input', syncDurationSelectorsFromInput);
-  byId('overtimeInitialHours').addEventListener('change', syncDurationInputFromSelectors);
-  byId('overtimeInitialMinutes').addEventListener('change', syncDurationInputFromSelectors);
+  byId('overtimeInitialHours').addEventListener('input', markDurationDirty);
+  byId('overtimeInitialMinutes').addEventListener('input', markDurationDirty);
   giftPicker.bind();
   byId('overtimeRules').addEventListener('input', markRulesDirty);
   byId('overtimeRules').addEventListener('change', markRulesDirty);
@@ -135,59 +134,97 @@ function bindControls() {
 }
 
 async function runAction(action) {
-  if (action === 'reset' && timeChangePending) return;
-  if (action === 'reset') timeChangePending = true;
+  if (timeChangePending) return;
+  setTimeChangePending(true);
   try {
+    if (action === 'start') {
+      await startOvertime();
+      return;
+    }
     if (action === 'reset' && !(await confirmTimeReset(overtimeStatusView.getState()?.initialSeconds || 0))) return;
-    const result = await api('/api/overtime/action', { action });
-    renderState(result.data);
-  } catch (_) {
+    await requestAction(action);
+  } catch (error) {
+    showError(error);
   } finally {
-    if (action === 'reset') timeChangePending = false;
+    setTimeChangePending(false);
   }
+}
+
+async function requestAction(action) {
+  const result = await api('/api/overtime/action', { action }, { notifyError: false });
+  renderState(result.data);
+}
+
+async function startOvertime() {
+  const state = overtimeStatusView.getState();
+  const initialSeconds = readInitialDuration();
+  const replaceTime = initialSeconds !== state.initialSeconds || state.effectiveRemainingMs <= 0;
+  if (replaceTime) {
+    if (initialSeconds <= 0) {
+      throw new Error('请先填写大于 0 的初始时长，再开始加班。');
+    }
+    if (state.effectiveRemainingMs > 0 && !(await confirmTimeReset(initialSeconds, true, true))) return;
+  }
+  if (!(await saveRules())) return;
+  if (replaceTime) await saveTime(initialSeconds);
+  if (!overtimeStatusView.getState().enabled) await requestAction('enable');
+  await requestAction('start');
+}
+
+function setTimeChangePending(value) {
+  timeChangePending = value;
+  overtimeStatusView.setBusy(value);
+}
+
+async function saveTime(initialSeconds) {
+  const result = await api('/api/overtime/time', {
+    initialSeconds,
+    remainingSeconds: initialSeconds,
+  }, { notifyError: false });
+  renderState(result.data);
+  acceptInitialDuration(overtimeStatusView.getState().initialSeconds);
 }
 
 async function applyTime() {
   if (timeChangePending) return;
-  timeChangePending = true;
+  setTimeChangePending(true);
   try {
-    const initialSeconds = parseInitialDuration(byId('overtimeInitialTime').value);
+    const initialSeconds = readInitialDuration();
     if (!(await confirmTimeReset(initialSeconds, true))) return;
-    const result = await api('/api/overtime/time', {
-      initialSeconds,
-      remainingSeconds: initialSeconds,
-    });
-    renderState(result.data);
+    await saveTime(initialSeconds);
     toast('初始时长已设置，倒计时已重置并暂停');
   } catch (error) {
     showError(error);
   } finally {
-    timeChangePending = false;
+    setTimeChangePending(false);
   }
 }
 
-function confirmTimeReset(initialSeconds, applying = false) {
+function confirmTimeReset(initialSeconds, applying = false, starting = false) {
   return showConfirmationDialog({
     variant: 'caution',
-    title: applying ? '设置初始时间并重置倒计时？' : '重置倒计时？',
-    message: `当前剩余时间将被替换为 ${formatClockDisplay(initialSeconds * 1000, 'paused')}，倒计时会停止。已累积的剩余时间无法恢复。`,
-    confirmLabel: applying ? '设置并重置' : '重置倒计时',
+    title: starting ? '替换剩余时间并开始？' : applying ? '设置初始时间并重置倒计时？' : '重置倒计时？',
+    message: `当前剩余时间将被替换为 ${formatClockDisplay(initialSeconds * 1000, 'paused')}，${starting ? '随后开始倒计时' : '倒计时会停止'}。已累积的剩余时间无法恢复。`,
+    confirmLabel: starting ? '替换并开始' : applying ? '设置并重置' : '重置倒计时',
   });
 }
 
 async function saveRules() {
-  if (rulesSaving || !rulesDirty) return;
+  if (rulesSaving) return false;
+  if (!rulesDirty) return true;
   rulesSaving = true;
   syncRulesSaveButton();
   try {
     const rules = ruleEditor.readRules();
     const submittedRevision = rulesEditRevision;
-    const result = await api('/api/overtime/rules', { rules });
+    const result = await api('/api/overtime/rules', { rules }, { notifyError: false });
     rulesDirty = rulesEditRevision !== submittedRevision;
     renderState(result.data);
     toast(rulesDirty ? '本次修改已保存，仍有未保存的更改' : '修改已保存');
+    return !rulesDirty;
   } catch (error) {
     showError(error);
+    return false;
   } finally {
     rulesSaving = false;
     syncRulesSaveButton();
@@ -212,6 +249,7 @@ function syncRulesSaveButton() {
   const state = getRulesSaveButtonState(rulesDirty, rulesSaving);
   button.textContent = state.label;
   button.disabled = state.disabled;
+  button.hidden = !rulesDirty && !rulesSaving;
   button.classList.toggle('is-dirty', state.dirty);
 }
 

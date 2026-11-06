@@ -7,6 +7,7 @@ const { createOvertimeConsumer } = require('../../src/overtime');
 const { createOvertimeStore } = require('../../src/storage/overtime-store');
 const { clearGiftData } = require('../../src/storage/database');
 const { createGiftProjectionService } = require('../../src/bilibili/gift');
+const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
 const { normalizeProcessedGiftEvent } = require('../../src/shared/processed-gift-contract');
 const { createFixture, fixedRule } = require('../helpers/overtime-service-fixture');
 const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
@@ -331,7 +332,7 @@ test('1000 distinct final gifts and their replays settle once with one countdown
     },
   });
   const projection = createGiftProjectionService(
-    { db: fixture.db, settings: () => ({}) },
+    { store: createGiftProjectionStore(fixture.db.giftDb), settings: () => ({}) },
     {
       getOvertimeEpoch: service.getCurrentEpoch,
       onGiftFinalized: (row) => service.finalizeGift({ giftEventId: row.id }),

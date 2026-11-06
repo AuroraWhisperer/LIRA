@@ -1,0 +1,91 @@
+.heart-collection {
+  --heart-ink: #826574;
+  --heart-muted: #927b88;
+  --heart-accent: #f28db5;
+  --heart-track: #fff4f4;
+  --heart-node: #ffcada;
+  --heart-fill: #ffb8d0;
+  --heart-reward: #fff6f7;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 20px 24px 16px;
+  overflow: hidden;
+  border-radius: 16px;
+  background: #fff;
+  color: var(--heart-ink);
+  font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  font-size: 18px;
+  font-variant-numeric: tabular-nums;
+  container-type: inline-size;
+}
+
+.heart-collection[hidden] { display: none; }
+.heart-collection * { box-sizing: border-box; }
+.heart-collection [hidden] { display: none; }
+.heart-collection-heading { display: flex; align-items: center; gap: 10px; }
+.heart-collection-image { width: 42px; height: 42px; object-fit: contain; flex: 0 0 auto; }
+.heart-collection-title { font-size: clamp(16px, 3.5cqw, 21px); font-weight: 700; }
+.heart-collection-total { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.heart-collection-count { color: var(--heart-accent); font-size: clamp(24px, 5cqw, 30px); }
+.heart-collection-target { color: var(--heart-muted); font-size: 19px; }
+.heart-collection-state { margin-left: auto; color: var(--heart-accent); font-size: 13px; white-space: nowrap; }
+.heart-collection-milestones { position: relative; margin-top: 18px; }
+.heart-collection-track { position: absolute; top: 11px; right: 10%; left: 0; height: 26px; border-radius: 13px; background: var(--heart-track); overflow: hidden; }
+.heart-collection-fill { width: 100%; height: 100%; background: var(--heart-fill); border-radius: inherit; transform: scaleX(0); transform-origin: left; transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+.heart-collection-collected { position: absolute; top: 11px; left: 0; z-index: 1; display: grid; place-items: center; width: 64px; height: 26px; border-radius: 13px; background: var(--heart-fill); color: #fff; font-size: 15px; white-space: nowrap; }
+.heart-collection-stages { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 96%; margin: 0 0 0 6%; padding: 0; list-style: none; }
+.heart-collection-stage { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.heart-collection-node { position: relative; display: grid; place-items: center; width: 48px; height: 48px; border-radius: 50%; background: var(--heart-node); color: #fff; }
+.heart-collection-threshold { font-size: 26px; line-height: 1; }
+.heart-collection-lock, .heart-collection-check { position: absolute; right: -1px; bottom: -1px; display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid #fff; border-radius: 50%; background: #c4b7c1; color: #fff; }
+.heart-collection-lock svg, .heart-collection-check svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+.heart-collection-check { display: none; background: var(--heart-fill); }
+.heart-collection-reward { position: relative; display: grid; justify-items: center; gap: 2px; width: min(100%, 108px); margin-top: 16px; padding: 5px 6px 8px; border: 1px solid #ffe7ed; border-radius: 12px; background: var(--heart-reward); }
+.heart-collection-reward::before { position: absolute; top: -6px; left: calc(50% - 6px); width: 10px; height: 10px; border-top: 1px solid #ffe7ed; border-left: 1px solid #ffe7ed; background: inherit; content: ''; transform: rotate(45deg); }
+.heart-collection-reward-title { display: flex; align-items: center; gap: 2px; }
+.heart-collection-castle { width: 36px; height: 36px; object-fit: contain; }
+.heart-collection-multiplier { color: var(--heart-accent); font-size: 24px; font-weight: 700; }
+.heart-collection-limit { font-size: 15px; color: var(--heart-muted); white-space: nowrap; }
+.heart-collection-stage.is-unlocked .heart-collection-node { background: var(--heart-fill); }
+.heart-collection-stage.is-unlocked .heart-collection-lock { display: none; }
+.heart-collection-stage.is-unlocked .heart-collection-check { display: grid; }
+.heart-collection.is-ended .heart-collection-state { padding: 5px 8px; border: 1px solid currentColor; border-radius: 4px; }
+
+.heart-collection.is-compact {
+  --heart-ink: #fff;
+  --heart-muted: #e0d6df;
+  --heart-accent: #ffc26d;
+  --heart-fill: #ffc26d;
+  --heart-track: #56535c;
+  --heart-node: #6d6d74;
+  --heart-reward: #443542;
+  padding: 16px 20px;
+  background: rgb(36 27 40 / 88%);
+}
+.heart-collection.is-compact .heart-collection-state { color: var(--heart-muted); }
+.heart-collection.is-compact .heart-collection-milestones { margin-top: 13px; }
+.heart-collection.is-compact .heart-collection-collected { display: none; }
+.heart-collection.is-compact .heart-collection-stages { width: 100%; margin-left: 0; }
+.heart-collection.is-compact .heart-collection-node { width: 42px; height: 42px; color: var(--heart-ink); }
+.heart-collection.is-compact .heart-collection-track { top: 11px; right: 0; height: 20px; }
+.heart-collection.is-compact .heart-collection-threshold { font-size: 21px; }
+.heart-collection.is-compact .heart-collection-lock { background: #6d6d74; }
+.heart-collection.is-compact .heart-collection-reward, .heart-collection.is-compact .heart-collection-reward::before { border-color: #67515f; }
+
+@container (max-width: 430px) {
+  .heart-collection-heading { flex-wrap: wrap; gap: 6px; }
+  .heart-collection-image { width: 32px; height: 32px; }
+  .heart-collection-state { font-size: 12px; }
+  .heart-collection-target { font-size: 17px; }
+  .heart-collection-collected { width: 48px; font-size: 12px; }
+  .heart-collection-node { width: 42px; height: 42px; }
+  .heart-collection-track, .heart-collection-collected { top: 10px; height: 22px; }
+  .heart-collection-threshold { font-size: 20px; }
+  .heart-collection-reward { width: calc(100% - 6px); padding: 4px 2px 7px; }
+  .heart-collection-multiplier { font-size: 20px; }
+  .heart-collection-castle { width: 24px; height: 24px; }
+  .heart-collection-limit { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .heart-collection-fill { transition: none; }
+}

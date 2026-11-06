@@ -8,3 +8,4 @@ export { giftBlindbox } from '../../public/js/admin/gifts/blindbox.js';
 export { giftNotification } from '../../public/js/admin/gifts/notification.js';
 export { renderGiftPanel } from '../../public/js/admin/gifts/index.js';
 export { stateService } from '../../public/js/admin/state.js';
+export { eventBus } from '../../public/js/shared/event-bus.js';

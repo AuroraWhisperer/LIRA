@@ -14,6 +14,10 @@ function wishMatch(wish, summary = false) {
   const identity = wish.variant_id
     ? column(box ? 'blind_box_variant_id' : 'gift_variant_id', box ? 'blindBoxVariantId' : 'giftVariantId')
     : column(box ? 'blind_box_id' : 'gift_id', box ? 'blindBoxId' : 'giftId');
+  if (box && !wish.variant_id && wish.legacy_box_name) {
+    return { sql: `(${identity}=? OR (COALESCE(${identity},'')='' AND ${column('blind_box_name', 'blindBoxName')}=?)) AND ${blind}=1`,
+      params: [wish.gift_id, wish.legacy_box_name] };
+  }
   return { sql: `${identity}=?${box || wish.gift_category === 'blindBoxOutput' ? ` AND ${blind}=1` : ''}`,
     params: [wish.variant_id || wish.gift_id] };
 }

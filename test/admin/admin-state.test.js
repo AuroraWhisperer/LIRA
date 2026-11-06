@@ -56,11 +56,13 @@ async function createSongReloadHarness() {
   });
   const filters = { query: 'older' };
   globals.URLSearchParams = URLSearchParams;
-  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const [{ StateService }, { eventBus }] = await loadModuleExports([
+    STATE_PATH, path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], globals);
   const service = new StateService();
   service.setSongFiltersReader(() => filters);
   const updates = [];
-  globals.window.AdminApp.eventBus.on('song:updated', ({ songs }) => updates.push(songs));
+  eventBus.on('song:updated', ({ songs }) => updates.push(songs));
   let stateReloads = 0;
   service.reloadState = async () => {
     stateReloads += 1;
@@ -351,15 +353,17 @@ async function createSocketLifecycleHarness(overrides = {}) {
     return nextTimer;
   };
   globals.clearTimeout = (timer) => timers.delete(timer);
-  const { StateService } = await loadModuleExports(STATE_PATH, globals);
+  const [{ StateService }, { eventBus }] = await loadModuleExports([
+    STATE_PATH, path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], globals);
   const service = new StateService();
-  return { service, sockets, timers, globals };
+  return { service, sockets, timers, globals, eventBus };
 }
 
 test('Admin owns one socket and ignores obsolete socket events after reconnecting', async () => {
-  const { service, sockets, timers, globals } = await createSocketLifecycleHarness();
+  const { service, sockets, timers, eventBus } = await createSocketLifecycleHarness();
   let connected = 0;
-  globals.window.AdminApp.eventBus.on('ws:connected', () => connected++);
+  eventBus.on('ws:connected', () => connected++);
   service.connectSocket();
   service.connectSocket();
   assert.equal(sockets.length, 1);
@@ -391,9 +395,9 @@ test('Admin cancels pending reconnects when shutdown starts', async () => {
 });
 
 test('server shutdown stops song reloads and reconnection and announces its terminal state once', async () => {
-  const { service, sockets, timers, globals } = await createSocketLifecycleHarness();
+  const { service, sockets, timers, eventBus } = await createSocketLifecycleHarness();
   let shutdowns = 0;
-  globals.window.AdminApp.eventBus.on('app:shutdown', () => shutdowns++);
+  eventBus.on('app:shutdown', () => shutdowns++);
   service.connectSocket();
   service.scheduleSongReload();
   sockets[0].emit('message', { data: JSON.stringify({ type: 'shutdown' }) });

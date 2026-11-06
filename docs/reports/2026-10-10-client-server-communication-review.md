@@ -46,7 +46,7 @@ flowchart LR
 | 本地场景与预览 | `display-source`、`display-notifications`、组件 iframe `postMessage`、窄 preview capability | 场景与单组件显示已共享通知/读取；帧通信有 source/origin 和销毁规则，不宜并进 Device 通讯 |
 | Server 浏览器页面 | `/api/auth`、`/api/admin`、`/api/streamer`、`/api/public`；`public/shared/http-client.js` | 管理页已共享 JSON helper；登录恢复、只读页面和二进制二维码保留各自适配 |
 
-上述客户端远端主入口为 [remote-license-client.js](../../src/electron/license/remote-license-client.js)、[remote-danmaku-settings.js](../../src/electron/license/remote-danmaku-settings.js) 和 [remote-gift-reads.js](../../src/electron/license/remote-gift-reads.js)。Server 对应 `src/routes/device.js`、`src/routes/device-daily-bots.js` 与 `src/modules/song-page-background/register-routes.js`。
+上述客户端远端主入口为 [remote-license-client.js](../../src/electron/license/remote-license-client.js)、`remote-danmaku-settings.js`（2026-11-06 收拢至 [display-settings-protocol.js](../../src/electron/license/display-settings-protocol.js)） 和 `remote-gift-reads.js`（2026-11-06 收拢至 [gift-protocol.js](../../src/electron/license/gift-protocol.js)）。Server 对应 `src/routes/device.js`、`src/routes/device-daily-bots.js` 与 `src/modules/song-page-background/register-routes.js`。
 
 ## C01：优先合并手动与自动歌库写入入口
 

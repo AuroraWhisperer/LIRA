@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { normalizeGiftEffectEvent } = require('../../src/bilibili/gift/effect-event');
-const { handleGiftEventBlock } = require('../../src/electron/license/remote-license-client');
+const { handleGiftEventBlock } = require('../../src/electron/license/gift-protocol');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 const { createRemoteGiftController } = require('../../src/electron/remote-gift-controller');
 const { createFixture } = require('../helpers/remote-gift-controller-fixture');

@@ -16,7 +16,7 @@ try {
     });
     createDesktopLogger({
       getLogFile: () => path.join(logDir, 'desktop.log'),
-      loggingState: { runId: 'startup-failed', sequence: 0 },
+      runId: 'startup-failed',
     }).writeLog('startup-error', error);
   } catch {
     diagnosticUnavailable = true;

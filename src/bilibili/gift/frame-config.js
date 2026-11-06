@@ -1,6 +1,12 @@
 'use strict';
 
 const { normalizeAvatarUrl } = require('./avatar-url');
+const {
+  GIFT_FRAME_STYLE_TRIGGERS_KEY,
+  MAX_GIFT_FRAME_STYLE_TRIGGERS,
+  readGiftFrameStyleTrigger,
+} = require('../../../public/js/shared/gift-frame-style-triggers.js');
+const STYLE_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 
 // 各特效独立持有开关与门槛；数组顺序就是并列时的优先级（后出现者优先）。
 const FRAME_EFFECTS = Object.freeze([
@@ -60,10 +66,33 @@ function normalizeFrameSettingValue(key, value) {
     return String(value) === 'true' || String(value) === 'false' ? String(value) : null;
   }
   if (key === 'giftFrameThresholdRmb') return normalizeThresholdRmb(value);
+  if (key === GIFT_FRAME_STYLE_TRIGGERS_KEY) return normalizeStyleTriggers(value);
   return null;
 }
 
-function buildGiftFrameEvent(item, settings = {}) {
+// 每个导入样式一条：{ enabled: 'true'|'false', thresholdRmb }。'' 保留为"尚未迁移"。
+function normalizeStyleTriggers(value) {
+  if (value === '') return '';
+  let parsed = value;
+  if (typeof value === 'string') {
+    try { parsed = JSON.parse(value); } catch { return null; }
+  }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+  const entries = Object.entries(parsed);
+  if (entries.length > MAX_GIFT_FRAME_STYLE_TRIGGERS) return null;
+  const triggers = {};
+  for (const [id, entry] of entries) {
+    if (!STYLE_ID.test(id) || !entry || typeof entry !== 'object' || Array.isArray(entry)
+      || Object.keys(entry).some((key) => !['enabled', 'thresholdRmb'].includes(key))) return null;
+    const enabled = normalizeFrameSettingValue('giftFrameEnabled', entry.enabled);
+    const thresholdRmb = normalizeThresholdRmb(entry.thresholdRmb);
+    if (enabled === null || thresholdRmb === null) return null;
+    triggers[id] = { enabled, thresholdRmb };
+  }
+  return JSON.stringify(triggers);
+}
+
+function buildFrameBase(item) {
   if (item?.detection_status && item.detection_status !== 'final') return null;
 
   const giftEventId = Number(item?.id ?? item?.giftEventId);
@@ -71,9 +100,6 @@ function buildGiftFrameEvent(item, settings = {}) {
   if (!Number.isSafeInteger(giftEventId) || giftEventId <= 0 || totalPriceCents === null || totalPriceCents <= 0) {
     return null;
   }
-  const themeId = selectFrameTheme(totalPriceCents, settings);
-  if (!themeId) return null;
-
   const giftId = Number(item?.gift_id ?? item?.giftId);
   return {
     type: 'gift:frame',
@@ -85,8 +111,26 @@ function buildGiftFrameEvent(item, settings = {}) {
     totalPriceCents,
     userName: normalizeDisplayText(item?.user_name ?? item?.userName, '观众'),
     avatarUrl: normalizeAvatarUrl(item?.avatar_url ?? item?.avatarUrl),
-    themeId,
   };
+}
+
+function buildGiftFrameEvent(item, settings = {}) {
+  const base = buildFrameBase(item);
+  const themeId = base && selectFrameTheme(base.totalPriceCents, settings);
+  return themeId ? { ...base, themeId } : null;
+}
+
+// 导入的图片/视频样式各自判断开关与门槛；一笔礼物只生成一条，列出所有达标样式。
+function buildGiftFrameStyleEvent(item, settings = {}, styleIds = []) {
+  const base = buildFrameBase(item);
+  if (!base) return null;
+  const matched = [...new Set(styleIds)].filter((id) => {
+    const trigger = readGiftFrameStyleTrigger(settings, id);
+    const thresholdCents = normalizeRmbCents(trigger.thresholdRmb);
+    return trigger.enabled && thresholdCents !== null && base.totalPriceCents >= thresholdCents;
+  });
+  if (!matched.length) return null;
+  return { ...base, eventId: `${base.eventId}:imported`, themeId: 'imported', styleIds: matched };
 }
 
 function buildGiftFramePreviewEvent(input = {}) {
@@ -144,5 +188,6 @@ module.exports = {
   selectFrameTheme,
   normalizeFrameSettingValue,
   buildGiftFrameEvent,
+  buildGiftFrameStyleEvent,
   buildGiftFramePreviewEvent,
 };

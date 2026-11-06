@@ -8,7 +8,6 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { contentType } = require('../../src/server/http-utils');
 const { addFrameProtectionHeaders } = require('../../src/server/page-assets');
-const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
 const { getOpeningConfig } = require('../../src/server/opening-service');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
@@ -206,10 +205,10 @@ test('opening animation starts disabled for every application session', () => {
   });
 
   try {
-    const firstSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
+    const firstSession = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
     firstSession.setSetting('openingEnabled', 'true');
 
-    const nextSession = prepareSettingsBootstrap(databases.songDb, settingsStoreModule).settingsStore;
+    const nextSession = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
     assert.equal(nextSession.getSettings().openingEnabled, 'false');
   } finally {
     closeDatabases(databases);

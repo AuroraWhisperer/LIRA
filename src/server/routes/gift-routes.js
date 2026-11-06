@@ -241,6 +241,7 @@ function sendGiftLedgerResponse(context, request, res, operation) {
             ...(query?.has?.('amountAbove') ? { amountAbove: query.get('amountAbove') } : {}),
             ...(query?.has?.('viewRevision') ? { viewRevision: query.get('viewRevision') } : {}),
             ...(query?.get?.('conditional') === '1' ? { conditional: true } : {}),
+            ...(query?.get?.('delta') === '1' ? { delta: true } : {}),
             ...(query?.has?.('contentRevision') ? { contentRevision: query.get('contentRevision') } : {}),
             sortField: query?.has?.('sortField') ? query.get('sortField') : undefined,
             sortDirection: query?.has?.('sortDirection') ? query.get('sortDirection') : undefined,

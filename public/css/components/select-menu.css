@@ -195,9 +195,13 @@
   animation: lira-select-menu-in 140ms ease-out;
 }
 
-.lira-select.is-above .lira-select-menu {
-  top: auto;
-  bottom: calc(100% + 6px);
+.lira-select-menu[popover],
+.lira-multiselect-menu[popover] {
+  position: fixed;
+  inset: auto;
+  box-sizing: border-box;
+  width: var(--select-trigger-width);
+  margin: 0;
 }
 
 .lira-select-menu[hidden] {
@@ -215,7 +219,14 @@
   max-height: none;
 }
 
+.lira-multiselect-menu[popover]:popover-open {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .lira-multiselect-options {
+  min-height: 0;
   max-height: 260px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -243,6 +254,12 @@
   transition:
     background-color 100ms ease,
     color 100ms ease;
+}
+
+/* Keep offscreen previews at the row minimum without shaping every installed font. */
+.lira-select:has(> select[data-select-font-preview]) .lira-select-option {
+  content-visibility: auto;
+  contain-intrinsic-block-size: auto 0px;
 }
 
 /* Outrank the shell-wide `label, button` weight so only the chosen row is bold. */
@@ -407,6 +424,7 @@
 }
 
 .lira-multiselect-clear {
+  flex: 0 0 auto;
   width: 100%;
   min-height: 32px;
   margin-top: 6px;

@@ -1,0 +1,25 @@
+<section id="heartBoxCollectionFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantHeartBoxTab" data-other-feature-panel hidden>
+  <section class="heart-box-settings">
+    <header class="component-toolbar heart-box-toolbar">
+      <div class="heart-box-period">
+        <strong id="heartBoxCollectionPeriod">本期收集</strong>
+        <span class="hint">北京时间 · 每周六 00:00 至周四 24:00</span>
+      </div>
+      <div class="heart-box-actions">
+        <button id="heartBoxCollectionRefresh" type="button" class="secondary">刷新进度</button>
+        <button id="heartBoxCollectionPreview" type="button" class="primary">打开画布</button>
+      </div>
+    </header>
+    <p id="heartBoxCollectionStatus" class="hint" role="status">正在读取本期收集进度…</p>
+    <p id="heartBoxCollectionError" class="heart-box-error" role="alert" hidden></p>
+    <label class="heart-box-rewards-toggle"><input id="heartBoxCollectionShowRewards" type="checkbox" checked />显示倍率和限开数量</label>
+    <div class="heart-box-live-preview" role="region" aria-label="本期真实收集进度">
+      <div id="heartBoxCollectionPreviewCard" hidden></div>
+    </div>
+    <div class="heart-box-source-row">
+      <span class="hint">浏览器源地址</span>
+      <button id="heartBoxCollectionUrl" type="button" class="copy-url" aria-label="复制心动盲盒收集任务浏览器源地址"></button>
+    </div>
+    <p class="hint heart-box-rules">开启前，本期收集期间已收到的心动盲盒会自动计入；开出浪漫城堡不会清零。周五保留本期解锁结果，周六 00:00 自动开始新一期。</p>
+  </section>
+</section>

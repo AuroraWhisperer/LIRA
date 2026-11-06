@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { buildMusicRuntime } = require('../../src/server/music-runtime');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 const INTERNAL_TIMELINE = { trackTitle: 'Internal', status: 'ready', lines: [{ startMs: 0, text: 'Internal line' }] };
@@ -157,21 +158,24 @@ for (const phase of ['timeline', 'state']) {
   });
 }
 
-test('lyric controls publish internal candidates independently of provider tabs and displayed source', async () => {
-  const { createLyricControls } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/features/lyric-controls.js'));
-  const playbackState = { selectedSource: 'wesing', current: { title: 'Internal' } };
-  const publications = [];
-  const controls = createLyricControls({
-    playbackState,
-    lyricService: { suspendWindow: () => assert.fail('output choice cannot suspend candidates'), syncWindow: (...args) => publications.push(args) },
-    weSingService: { setSelected: () => assert.fail('publication must not change the source preference') },
+test('audio events publish internal lyric candidates while the WeSing tab displays external lyrics', async () => {
+  const app = await createPlaybackApp({
+    current: track('internal', 'Internal'), selectedSource: 'wesing', mode: 'sequence', volume: 0.75,
   });
-  const audio = { paused: true };
-  for (const source of ['qq-client', 'netease-client', 'wesing', 'internal']) {
-    playbackState.lyricSource = source;
-    await controls.syncPlaybackLyricWindow(true, () => audio);
-    assert.equal(publications.at(-1)[0], playbackState.current);
-    assert.equal(publications.at(-1)[1], audio);
-  }
-  assert.equal(publications.length, 4);
+  await app.init();
+  await flushAsyncWork();
+  await app.emitWindow('app:wesing-state', { detail: {
+    active: true, playing: true, trackTitle: 'External', currentMs: 9000,
+    lyricState: { lineText: 'External line', currentMs: 9000 },
+  } });
+  const before = app.lyricPublications().length;
+  app.element('music-player').currentTime = 12.5;
+  await app.emit('music-player', 'seeking');
+  await flushAsyncWork();
+  const publications = app.lyricPublications().slice(before);
+  assert.equal(publications.length, 1);
+  assert.equal(publications[0].trackTitle, 'Internal');
+  assert.equal(publications[0].currentMs, 12500);
+  assert.equal(publications[0].playing, false);
+  assert.deepEqual(app.errors(), []);
 });

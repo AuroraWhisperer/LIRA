@@ -137,7 +137,11 @@ test('installed style parameters follow the library, survive removal and never r
   store.stage({ id: pack, styles: [{ id: resourceStyle.id, type: 'gift-wishes', name: '共享样式', config }] });
   store.install(pack);
   createSceneSharedAppearance(ctx).patch('gift-wishes', config, { limit: 4, gap: 24 });
+  const clones = t.mock.method(global, 'structuredClone');
   const next = createSceneSharedAppearance(ctx).read('gift-wishes', config);
+  assert.equal(clones.mock.calls.filter(call => Array.isArray(call.arguments[0]?.packages)).length, 0,
+    'Reading one shared style must not copy the complete library.');
+  clones.mock.restore();
   assert.equal(next.limit, 4); assert.equal(next.gap, 24);
   assert.deepEqual(next.resourceStyle, config.resourceStyle);
   assert.equal(config.limit, 1);

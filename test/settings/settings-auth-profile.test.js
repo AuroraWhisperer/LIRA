@@ -44,7 +44,6 @@ test('Bilibili account changes reconnect the existing listener once without reco
     './forms.js': { formsService: {} },
     './queue.js': { renderState: noop },
     './gifts/blindbox.js': { giftBlindbox: {} },
-    './legacy-admin-bridge.js': { publishSettings: noop },
   };
   const entry = new vm.SourceTextModule(fs.readFileSync(path.join(ROOT, 'public/js/admin/settings.js'), 'utf8'), { context });
   await entry.link(specifier => {

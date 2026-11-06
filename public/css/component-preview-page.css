@@ -17,7 +17,7 @@
 .preview-canvas-presets { display: flex; flex: 0 1 auto; align-items: center; gap: 8px; min-width: 0; padding-right: 16px; border-right: 1px solid var(--color-border-strong, var(--border)); }
 .preview-canvas-presets label { display: flex; flex-shrink: 0; align-items: center; gap: 8px; min-width: 0; color: var(--muted); font-size: var(--type-size-caption); white-space: nowrap; }
 .preview-canvas-presets .lira-select { --select-marker-display: none; width: 160px; }
-.preview-canvas-presets .lira-select-menu { right: auto; width: max-content; min-width: 100%; max-height: calc(6 * 36px + 5 * 2px + 12px); overflow-x: hidden; overflow-y: auto; }
+.preview-canvas-presets .lira-select-menu { right: auto; width: max-content; min-width: var(--select-trigger-width); max-height: calc(6 * 36px + 5 * 2px + 12px); overflow-x: hidden; overflow-y: auto; }
 .preview-canvas-live-preset { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: var(--type-size-caption); }
 .preview-canvas-toolbar button { min-height: 32px; padding: 4px 8px; white-space: nowrap; font-size: var(--type-size-control); line-height: 1.5; }
 .preview-canvas-toolbar svg { flex: 0 0 auto; width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -190,6 +190,15 @@
 .preview-picker-suite-title { align-self: center; margin: 0; color: var(--text); font-size: var(--type-size-control); font-weight: var(--type-weight-semibold); }
 .preview-picker-subcategories button { min-height: 34px; padding: 7px 12px; font-size: var(--type-size-control); }
 .preview-picker-subcategories button[aria-pressed='true'] { background: var(--color-primary-light); color: var(--color-selection-text, var(--picker-accent)); border-color: var(--color-selection-marker, var(--primary-strong)); }
+.preview-picker-danmaku-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; width: 100%; }
+.preview-picker-danmaku-filters .danmaku-library-filter { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.preview-picker-danmaku-filters .danmaku-library-filter:first-child { flex-basis: 100%; }
+.preview-picker-danmaku-filters .danmaku-library-filter > span { color: var(--muted); font-size: var(--type-size-control); white-space: nowrap; }
+.preview-picker-danmaku-filters .danmaku-style-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 0; }
+.preview-picker-danmaku-filters button { min-height: 28px; padding: 4px 8px; }
+.preview-picker-danmaku-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 12px; margin-left: auto; white-space: nowrap; }
+.preview-picker-result-count { align-self: center; color: var(--muted); font-size: var(--type-size-caption); }
+.preview-picker-empty { grid-column: 1 / -1; margin: 24px 0; text-align: center; }
 .opening-canvas-settings h4 { margin: 16px 0 8px; }
 .opening-canvas-settings > fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
 .opening-canvas-media { margin-top: 20px; }
@@ -201,14 +210,17 @@
 .preview-picker-styles .preview-picker-style { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 0; min-width: 0; width: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); text-align: left; box-shadow: none; transition: border-color 160ms ease, background-color 160ms ease; }
 .preview-picker-styles .preview-picker-style:hover { border-color: var(--primary-strong); background: var(--color-primary-light); transform: none; }
 .preview-picker-styles .preview-picker-style:active { background: var(--surface-2); }
-.preview-picker-style[data-picker-style='timeline-vertical'] { grid-row: span 2; }
 .preview-component-picker button:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: -2px; }
-.preview-picker-image { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; background: #232a34; }
+.preview-picker-image { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; background: var(--surface-2); }
 .preview-picker-caption { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; }
 .preview-picker-caption strong { min-width: 0; color: var(--text); font-size: var(--type-size-control); font-weight: var(--type-weight-medium); line-height: 1.5; }
+.preview-picker-style[data-picker-component='danmaku'] .preview-picker-caption { padding-block: 8px; }
+.preview-picker-style[data-picker-component='danmaku'] .preview-picker-caption strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.preview-picker-style-code { flex-shrink: 0; color: var(--muted); font-size: var(--type-size-caption); white-space: nowrap; }
 .preview-picker-add { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; color: var(--picker-accent); font-size: var(--type-size-caption); line-height: 1.5; }
 .preview-picker-content.has-style-grid .preview-picker-subcategories { position: sticky; top: -16px; z-index: 1; margin: -16px 0 16px; padding-block: 16px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .preview-picker-content.has-style-grid .component-style-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.preview-picker-content.has-style-grid .preview-picker-styles.preview-picker-styles-single { grid-template-columns: minmax(0, 1fr); max-width: 480px; }
 .preview-picker-content.has-style-grid .component-style-select { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; min-height: 0; height: 100%; padding: 0; overflow: hidden; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); text-align: left; box-shadow: none; }
 .preview-picker-content.has-style-grid .component-style-select:hover { border-color: var(--primary-strong); background: var(--color-primary-light); transform: none; }
 .preview-picker-content.has-style-grid .component-style-select :is(img, video, .component-source-thumbnail) { width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; margin: 0; background: #232a34; }

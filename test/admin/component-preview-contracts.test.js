@@ -78,7 +78,7 @@ test('preview client accepts only its exact parent and origin and releases liste
 });
 
 test('danmaku region intent preserves current appearance and other regions', async () => {
-  const { applyDanmakuRegionEdit } = await loadModuleExports(entry('admin/danmaku-canvas-dialog.js'));
+  const { applyDanmakuRegionEdit } = await loadModuleExports(entry('admin/danmaku-preview.js'));
   const { createLayout } = await loadModuleExports(entry('shared/danmaku-layout.js'));
   const { createComponentConfigController } = await loadModuleExports(entry('admin/component-config-controller.js'));
   const initial = { style: 'signal', fullscreenDurationSeconds: 8, styleOptions: { signal: { fontSize: 36 } }, layout: createLayout() };

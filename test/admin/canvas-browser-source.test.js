@@ -123,8 +123,8 @@ test('canvas browser sources keep independent viewports through editing, saving 
   await page.locator('.scene-editor-parameters [role="alert"]:visible').waitFor();
   assert.equal(await inspectorUrl.evaluate((input) => input.checkValidity()), false);
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.waitForResponse((response) => response.url().endsWith('/api/component-preview')
-    && response.request().postDataJSON()?.action === 'read');
+  assert.equal(await inspectorUrl.evaluate((input) => document.activeElement === input), true,
+    'Publication returns focus to the invalid browser source URL.');
   assert.equal(publishRequests, 0, 'An invalid inspector URL blocks publication instead of saving stale configuration.');
   await assertSource(first.frameLocator('iframe'), 'first', 800, 600);
   await changeNumber(page, '网页宽度', 960);

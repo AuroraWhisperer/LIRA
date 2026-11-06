@@ -68,6 +68,16 @@ function createFanUi() {
     request,
     openForm,
     onProfile: receiveProfile,
+    async onChanged(profile, profileId, selection) {
+      if (selection === state.selection && state.profile?.id === profileId) state.profile = profile;
+      await load();
+      renderSelected();
+    },
+    onArchived(profile, selection) {
+      if (profile.archived !== state.archived) removeProfileSelection(profile.id, selection);
+    },
+    onSuppressed: removeProfileSelection,
+    reload: load,
     async onDeleted() {
       state.profile = null;
       updateMarkup(detailNode, '<p class="fan-empty">档案已删除。</p>');
@@ -328,6 +338,12 @@ function createFanUi() {
     renderList();
   }
 
+  function removeProfileSelection(id, selection) {
+    state.profiles = state.profiles.filter((item) => item.id !== id);
+    if (selection === state.selection || state.selectionId === id) clearSelection();
+    else if (state.profile?.id === id) clearSelection(true);
+  }
+
   function changeScope(archived) {
     clearTimeout(searchTimer);
     state.archived = archived;
@@ -472,71 +488,11 @@ function createFanUi() {
       return;
     }
     if (!state.profile) return;
-    if (name === 'edit-profile') {
-      profileActions.editProfile(state.profile);
-      return;
-    }
     if (name === 'legacy') {
       transfer.legacy();
       return;
     }
-    if (name.startsWith('new-')) {
-      profileActions.editRecord(state.profile.id, name.slice(4));
-      return;
-    }
-    if (name === 'edit-record') {
-      const record = state.profile.records.find((r) => r.id === element.dataset.recordId);
-      if (record) profileActions.editRecord(state.profile.id, record.kind, record);
-      return;
-    }
-    if (name.startsWith('resolve-')) {
-      const profile = state.profile;
-      const selection = state.selection;
-      const saved = await request('resolve-membership', {
-        profileId: profile.id,
-        id: element.dataset.recordId,
-        choice: name.slice(8),
-      });
-      if (selection === state.selection && state.profile?.id === profile.id) state.profile = saved;
-    } else if (name === 'archive') {
-      const profile = state.profile;
-      const selection = state.selection;
-      const saved = await request('save', {
-        id: profile.id,
-        revision: profile.revision,
-        archived: !profile.archived,
-      });
-      if (saved.archived !== state.archived) {
-        state.profiles = state.profiles.filter((item) => item.id !== saved.id);
-        if (selection === state.selection || state.selectionId === saved.id) clearSelection();
-        else if (state.profile?.id === saved.id) clearSelection(true);
-      }
-      toast(saved.archived ? '已归档，资料仍保留。可在‘已归档’中恢复。' : '已恢复到主列表，可在‘当前档案’中查看。');
-      await load();
-      return;
-    } else if (name === 'suppress') {
-      const profile = state.profile;
-      const selection = state.selection;
-      await request('suppress', { id: profile.id, revision: profile.revision });
-      state.profiles = state.profiles.filter((item) => item.id !== profile.id);
-      if (selection === state.selection || state.selectionId === profile.id) clearSelection();
-      else if (state.profile?.id === profile.id) clearSelection(true);
-      toast('已加入黑名单，相关档案与提醒已隐藏。可在设置中解除屏蔽。');
-      await load();
-      return;
-    } else if (name === 'favorite') {
-      const profile = state.profile;
-      const selection = state.selection;
-      const saved = await request('save', {
-        id: profile.id,
-        revision: profile.revision,
-        favorite: !profile.favorite,
-      });
-      if (selection === state.selection && state.profile?.id === profile.id) state.profile = saved;
-    } else if (name === 'delete') {
-      profileActions.deleteProfile(state.profile);
-      return;
-    }
+    if (await profileActions.handle(name, state.profile, state.selection, element.dataset.recordId)) return;
     await load();
     renderSelected();
   }

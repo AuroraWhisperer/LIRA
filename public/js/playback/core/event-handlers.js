@@ -46,6 +46,7 @@ export function createEventHandlers(deps) {
     loadPlaybackHomeContent,
     toggleQueuePopup,
     closeQueuePopup,
+    closeFullscreenPlayer,
     closePlaybackDrawer,
     playbackDrawerGoBack,
     refreshPlaybackHomeContent,
@@ -223,8 +224,21 @@ export function createEventHandlers(deps) {
       const musicWorkspace = document.getElementById('playbackMusicWorkspace');
       const appearance = document.getElementById('playerAppearance');
       const account = document.querySelector('.playback-account-compact');
+      let sourceTransition = null;
       const selectWorkspace = (music, focusSource = false) => {
-        navigation.dataset.workspace = music ? 'music' : 'appearance';
+        const workspace = music ? 'music' : 'appearance';
+        if (navigation.dataset.workspace !== workspace) {
+          const opacity = Number(window.getComputedStyle(sourceTabs).opacity);
+          const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+          sourceTransition?.cancel();
+          sourceTransition = sourceTabs.animate(reduceMotion ? [{ opacity }, { opacity: 1 }] : [
+            { opacity, offset: 0 },
+            { opacity: 0, offset: 0.16 },
+            { opacity: 0, offset: 0.6 },
+            { opacity: 1, offset: 1 },
+          ], { duration: reduceMotion ? 100 : 380 });
+        }
+        navigation.dataset.workspace = workspace;
         musicToggle.setAttribute('aria-expanded', String(music));
         appearanceToggle.setAttribute('aria-pressed', String(!music));
         musicToggle.inert = music;
@@ -251,7 +265,7 @@ export function createEventHandlers(deps) {
         if (newSource === 'wesing') {
           // The WeSing client is the playback clock while this source is selected.
           suspendPlaybackForExternalSource();
-          window.closeFullscreenPlayer?.();
+          closeFullscreenPlayer?.();
         }
         searchService.clearResults();
         homeService.clearHomeState();

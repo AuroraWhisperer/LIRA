@@ -88,11 +88,9 @@
 .text-box-gift-results img { width: 48px; height: 48px; object-fit: contain; }
 .text-box-gift-results span { max-width: 100%; font-size: 14px; overflow-wrap: anywhere; }
 .text-box-gift-results small { font-size: 11px; font-weight: 400; color: var(--muted); }
-.preview-picker-text-preview { position: relative; width: 100%; aspect-ratio: 12 / 5; padding: 16px; overflow: hidden; background: #252b35; }
-.preview-picker-text-preview .text-box-content { position: absolute; top: 50%; left: 50%; width: max-content; max-width: 640px; transform: translate(-50%, -50%); transform-origin: center; pointer-events: none; }
-.preview-picker-text-new { display: grid; place-items: center; background: var(--surface-2); color: var(--muted); }
-.preview-picker-text-new svg { width: 32px; height: 32px; }
-.preview-picker-text-card .preview-picker-caption strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-picker-text-card .preview-picker-caption { min-height: 64px; gap: 12px; }
+.preview-picker-text-card .preview-picker-caption svg { color: var(--muted); }
+.preview-picker-text-card .preview-picker-caption strong { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .text-box-page [hidden], .text-box-panel [hidden] { display: none !important; }
 @media (max-width: 1150px) {
   .text-box-detail { grid-template-columns: minmax(0, 1fr); }

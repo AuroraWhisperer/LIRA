@@ -29,7 +29,7 @@ test('real Electron persists page errors, rejected promises, preload failures, f
     app.disableHardwareAcceleration();
     const { installDesktopDiagnostics } = require(${JSON.stringify(require.resolve('../../src/electron/desktop-diagnostics'))});
     const { createDesktopLogger } = require(${JSON.stringify(require.resolve('../../src/electron/desktop-logger'))});
-    const logger = createDesktopLogger({getLogFile: () => directory + '/desktop.log', loggingState: {runId:'test',sequence:0}});
+    const logger = createDesktopLogger({getLogFile: () => directory + '/desktop.log', runId: 'test'});
     let baseUrl = '';
     const dispose = installDesktopDiagnostics({app, writeLog: logger.writeLog, getBaseUrl: () => baseUrl});
     const server = http.createServer((req, res) => {

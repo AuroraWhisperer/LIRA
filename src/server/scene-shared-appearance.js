@@ -28,13 +28,13 @@ function settingsKeys(type) {
 
 function createSceneSharedAppearance(context) {
   const settings = { ...DEFAULT_SETTINGS, ...context.settings.get() };
-  let styles;
+  let readStyle;
   let opening;
   function resource(config, type) {
     if (!config.resourceStyle || !context.system.dataDir) return null;
     // Removed packages keep their saved appearance and assets for existing scenes.
-    styles ??= createComponentStyleStore(context.system.dataDir).read().packages.flatMap(pack => pack.styles);
-    return styles.find(style => style.id === config.resourceStyle.id && style.type === type);
+    readStyle ??= createComponentStyleStore(context.system.dataDir).createStyleReader();
+    return readStyle(config.resourceStyle.id, type);
   }
   function read(type, config, defaults) {
     if (config.resourceStyle) return resource(config, type)?.config || {};

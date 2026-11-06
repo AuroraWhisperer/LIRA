@@ -3,7 +3,15 @@
 const { giftVariantId } = require('../../shared/gift-identity');
 
 function mergeVariantRoomCatalog(room, server, customBoxes) {
-  const byVariant = new Map(server.gifts.map((gift) => [gift.variantId, gift]));
+  const byVariant = new Map();
+  const customVariants = new Map();
+  for (const gift of server.gifts) {
+    byVariant.set(gift.variantId, gift);
+    if (customBoxes.length) {
+      const key = JSON.stringify([gift.id, gift.name, gift.priceRaw]);
+      customVariants.set(key, customVariants.has(key) ? null : gift.variantId);
+    }
+  }
   const gifts = (room?.gifts || []).map((gift) => {
     const variantId = giftVariantId(gift);
     const archived = byVariant.get(variantId);
@@ -23,15 +31,9 @@ function mergeVariantRoomCatalog(room, server, customBoxes) {
     for (const output of box.outputVariantIds) addVariant(output);
   }
   // Tenant entries have name and list price evidence, not just an ID.
-  const findCustom = (item) => {
-    const matches = server.gifts.filter(
-      (gift) =>
-        gift.id === String(item?.giftId) &&
-        gift.name === item?.name &&
-        gift.priceRaw === Math.round(Number(item?.price) * 1000),
-    );
-    return matches.length === 1 ? matches[0].variantId : null;
-  };
+  const findCustom = (item) => customVariants.get(
+    JSON.stringify([String(item?.giftId), item?.name, Math.round(Number(item?.price) * 1000)]),
+  ) ?? null;
   for (const box of customBoxes) {
     if (!selected.has(findCustom(box))) continue;
     for (const output of box.outputs || []) addVariant(findCustom(output));

@@ -105,3 +105,30 @@ test('wish overlay can read only its progress and never mutate or expose source 
   assert.equal(result.items[0].textReceivedColor, '#654321');
   assert.equal(result.items[0].todayCount, 1);
 });
+
+test('heart-box collection is a read-only source-scoped API and exposes only public task progress', async () => {
+  const path = '/api/gifts/heart-box-collection';
+  const handler = routes[`GET ${path}`];
+  const rejected = response();
+  await handler({}, { query: new URLSearchParams('sourceId=9') }, rejected);
+  assert.equal(rejected.status, 400);
+  const res = response();
+  await handler({ heartBoxCollection: { getSnapshot: () => ({ count: 37 }) } }, { query: new URLSearchParams() }, res);
+  assert.equal(res.payload.data.count, 37);
+  const unavailable = response();
+  await handler({ heartBoxCollection: { getSnapshot() {
+    throw Object.assign(new Error('unavailable'), { code: 'GIFT_SOURCE_UNAVAILABLE' });
+  } } }, { query: new URLSearchParams() }, unavailable);
+  assert.equal(unavailable.status, 409);
+  assert.equal(isOverlayRequestAllowed('heart-box-collection', 'GET', path), true);
+  assert.equal(isOverlayRequestAllowed('heart-box-collection', 'POST', path), false);
+  assert.equal(isOverlayRequestAllowed('heart-box-collection', 'GET', '/api/gifts/history'), false);
+  assert.equal(isOverlayRequestAllowed('gift-wishes', 'GET', path), false);
+  const projected = projectOverlayResponse('heart-box-collection', path, {
+    count: 37, status: 'collecting', sourceId: 'private', sender: 'private',
+    stages: [{ target: 20, multiplier: 4, castles: 1, unlocked: true, internal: 'private' }],
+  });
+  assert.equal(projected.count, 37);
+  assert.equal(projected.stages[0].unlocked, true);
+  assert.doesNotMatch(JSON.stringify(projected), /private/);
+});

@@ -81,17 +81,24 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?,selectedItemId?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；同一 canvas 及成员凭据复用一个 key，更新最近组件/实例选择和尺寸；无 canvas 时保留按选择分配的兼容入口 |
 | `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize,selectedItemId?}`，只返回绑定的有效会话与当前有效选择；不续活闲置租约；未知或失效入口为 410 |
 | `focus` | 管理身份；`{key}`，再次验证短入口及其全部成员 | `{focused}`；锚定会话当前 attachment 经 read 确认定位才为 true；无页面、两秒超时、被更新请求取代或会话结束时为 false。定位请求不排入配置命令，不修改持久化状态 |
-| `exchange` | 管理身份；`{id,state,display?,ack}`；可选 `incremental:true` 时允许省略未变化的 state/display，省略表示保留 | `{commands:[{sequence,action,change?,baseItemIds?}],closed}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话 |
+| `exchange` | 管理身份；`{id,state,display?,ack,waitMs?}`；可选 `incremental:true` 时允许省略未变化的 state/display，省略表示保留 | `{commands:[{sequence,action,change?,baseItemIds?}],closed,waitMs?}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话。无待处理命令时可有界等待；请求等待时返回 waitMs 确认支持 |
+| `exchange-batch` | 管理身份；`{entries:[{action:"exchange",id,ack,incremental:true}],waitMs?}`；仅合并无 state/display 的空闲交换 | `{updates:[{id,commands,closed}],waitMs}`；任一成员有命令或关闭即返回全部成员的当前结果；先校验全部 ACK，再更新各自回执 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
-| `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?,stateRevision?,displayRevision?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state?,display?,stateRevision,displayRevision,ack,sequence,attachmentId,focus?}`；请求 revision 与当前值相等时仅省略对应主体，不带 revision 时返回完整主体。attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
+| `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?,stateRevision?,displayRevision?,ack?,waitMs?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state?,display?,stateRevision,displayRevision,ack,sequence,attachmentId,focus?,waitMs?}`；请求 revision 与当前值相等时仅省略对应主体，不带 revision 时返回完整主体。revision 和 ACK 均已知且无定位请求时可有界等待。attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
+| `read-batch` | `{entries:[{action:"read",id,token,attachmentId,stateRevision?,displayRevision?,ack?,focusId?}],waitMs?}`；每项使用自己的 token，且必须是该会话当前已连接的 attachment | `{updates:[{id,...单条read结果}],waitMs}`；任一成员的状态、展示、ACK 或定位变化即返回全部成员的增量；全部成员通过权限与 attachment 检查后才续租或确认定位 |
 | `attach` | 当前会话 Bearer；`{id,attachmentId,previousAttachmentId}`；新标识为 UUID v4，previousAttachmentId 为刚读取的标识 | 同完整 read；比较原标识后接管，重试同一接管幂等；拒绝迟到旧页面接管；保留已接受命令及确认序号 |
 | `detach` | 当前会话 Bearer；`{id,attachmentId}`，必须匹配最后接管的页面 | `{}`；释放页面并立即结束待确认 focus，保留会话、草稿及已接受命令；同一页面重复释放幂等，迟到旧页面不能释放新页面。已释放标识仅保留为下次 attach 的比较基线，不能继续操作或恢复自身接管 |
 | `edit` / `save` / `discard` | 当前会话 Bearer；`{id,attachmentId?,commandId?,change?,baseItemIds?}`，edit 允许该组件已有草稿字段；clock/danmaku 另允许向旧草稿新增经类型校验的 styleParameters，禁止原型键。baseItemIds 仅允许 canvas 文档 edit，为编辑前已知的 UUID 列表 | `{sequence}`；仅表示已排队，保存完成以之后的 state 为准。可选 baseItemIds 经 exchange 原样转发，桌面应用文档时保留当前场景中不在此基线和提交文档中的新增图层；已知图层删除仍生效。旧请求保持原替换语义，基线不持久化 |
 | `publish` / `source` | 仅当前 canvas 会话 Bearer；`{id,attachmentId?,commandId?}`，领域场景 ID 由客户端绑定 | `{sequence}`；publish 结果 `{publishedVersion}`，source 结果 `{id,token}`，均从后续 display 按 sequence 读取 |
+| `control` | 仅当前 overtime 会话 Bearer；沿用 attachment/commandId 校验；`change:{action:'time',seconds}`（安全整数）或 `{action:'enable'\|'disable'\|'start'\|'pause'\|'reset'}`，禁止额外字段 | `{sequence}`；客户端依次调用原加班机 time/action 接口，由领域 owner 校验时长；从后续 `display.operation` 按 sequence 读取 `{result?,error?}`，display 中的实时状态继续更新；重试不重复执行 |
 | `preset` | 仅当前 canvas 会话 Bearer；`change:{action:'select',id}`、`{action:'create',title,duplicate:boolean}`、`{action:'delete',id}` 或 `{action:'refresh'}` | 选择/删除仅操作桌面 state.presets 列出的预设；删除还须匹配当前草稿 ID，由桌面持有的 revision 提交。refresh 只读取并补入新增预设，不覆盖已有草稿。结果 `{id}` 为最终选中预设（删空为 null），经 display 返回；删除当前输出会切换到剩余已保存预设或透明空画面，其余操作不发布，不授予通用管理权限 |
 | `close` | 当前会话 Bearer；`{id,attachmentId?}` | `{}`，显式关闭浏览器访问；客户端先处理已经接受的修改/保存，再撤销会话 |
 
 接管后，网页变更和关闭必须携带当前 attachmentId，轮询也校验附带的标识；旧页面请求返回 409。
+
+客户端与网页各自把同一编辑器的空闲等待合为一条批量请求，避免五个会话分别长时间占用 HTTP/1 连接，阻塞同源场景及组件脚本。`entries` 必须非空、ID 不重复，数量不超过五个现有组件/场景会话；每项禁止嵌入 `waitMs`、state/display 或其他写入字段，完整请求仍受原字节预算约束。保存、编辑、发布与有变化的状态交换继续使用原单条接口。任一成员唤醒即结束整条等待并释放其全部计时器/监听；取消、成员撤销、页面接管和账号变化同样释放整批等待，回包前重新检查每项权限。
+
+`waitMs` 可选，范围为 0～20000 的整数；省略或 0 保持立即返回。状态、显示、ACK 或定位变化唤醒 read，排队命令或关闭唤醒 exchange；同一会话每侧最多一个等待，新等待结束旧等待。开始等待沿用有效请求续租，完成读取再次核对租约、账号归属、会话能力及 attachment；超时不能复活过期租约。断开 HTTP 连接、撤销、会话替换和服务关闭清理等待计时器及监听器。HTTP handler 完成同步鉴权和中继更新后释放 in-flight tracker，被动等待不阻塞关闭排空；回包前重新核对授权和运行阶段。等待不拥有配置或保存锁，桌面配置变化可取消等待并立即发布，命令确认及保存结果无需等到超时。
 未接管会话保留无标识旧协议。网页在每次接管内串行发送递增 commandId，重试最近一次编号返回
 原 sequence，确认后亦不重复执行；更早编号拒绝。新页面接管后可以重新计数，但不能丢弃已接受命令。
 恢复草稿前等待 `ack === sequence`、state.saving 和 display.busy 结束，避免重放此前已接受的保存/发布。正常 token 续期保留画布连接；预览 owner 绑定经主进程校验的账号与登录生命周期，见 [授权生命周期](../desktop/auth.md)。
@@ -100,7 +107,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 切换预设后 draftKey 随当前文档 ID 更新，恢复副本不能跨预设写入或重放。短链接记住入口所属
 预设；切换后刷新该链接不再添加或选中旧入口组件，显式从客户端重新打开组件则绑定当前预设。
 
-中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页读取、变更或客户端 exchange 续期；detach 不续租。双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此中继及下述受限画布文本素材接口，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付，随后只放在 Authorization 请求头；无管理凭据注入浏览器 HTML。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 停止当前页面轮询，并通过带当前 attachment 的 keepalive detach 释放页面，刷新与重开继续使用原会话和草稿，focus 不等待已释放页面。异常退出未能发送 detach 时保留两秒 focus 超时回退；领域保存失败保留原控制器草稿。
+中继拥有分层 UTF-8 大小限制：每份场景 document 仍限 256 KiB；单个 saved/draft 配置或 edit change 限 257 KiB，双份状态封装限 518 KiB，display 限 256 KiB；完整 HTTP 请求限 778 KiB（含 4 KiB 请求元数据余量）。超限不改变已有会话或命令，文档结构和领域配置仍由原保存 owner 校验。每会话最多 64 条待确认命令、每类型最多一会话。有效网页读取、变更或客户端 exchange 续期；detach 不续租。双方连续两分钟无有效请求暂停网页操作并返回可重试的 503，保留会话等待原客户端通过认证、同 generation 的 exchange 恢复，网页不能自行续活。账号归属/登录生命周期变化、控制器 generation 变化、显式 close/revoke 或同类型新会话使旧会话永久失效。状态只在内存中，服务关闭清理；不保存用户配置。页面能力仅用于此中继及下述受限画布文本素材接口，不能访问管理 API、WebSocket 或其他预览。凭据通过 URL fragment 交付；单条请求放在 Authorization 请求头，批量读取则将每个会话自己的 token 放在同源 POST 请求体的对应 entries 中，不写入 query、持久存储或浏览器 HTML；浏览器不接收管理凭据。拒绝 opaque/外站 Origin，沿用 loopback/Host 和授权闸门；401 管理身份缺失，403 能力或 Origin 无效，409 配置未就绪或页面/操作已被替代，410 会话结束，413 请求过大，429 待处理操作过多，其他非法请求 400。客户端关闭撤销会话；网页 pagehide 停止当前页面轮询，并通过带当前 attachment 的 keepalive detach 释放页面，刷新与重开继续使用原会话和草稿，focus 不等待已释放页面。异常退出未能发送 detach 时保留两秒 focus 超时回退；领域保存失败保留原控制器草稿。
 
 ### 本地场景
 
@@ -217,9 +224,10 @@ QQ 流的上游响应字节预算、主动读取超时、背压及取消见 [音
 | gift-effects | `GET /api/bilibili/avatar` | 仅通过既有受限 B 站头像代理读取送礼头像；无礼物历史或管理接口权限，专用推送见 [ws.md](ws.md) |
 | songlist | `GET /api/songs` | 服务端强制 enabledOnly，仅 category 展示过滤；不返回文件路径、禁用歌或导入元数据 |
 | blindbox | `GET /api/gifts/blind-box-stats` | 可选 boxName/top/hideLoss，仅公开统计字段 |
-| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；仅转发 cursor/viewRevision 及可选 conditional/contentRevision；card-profiles 转发 viewRevision/contentRevision，返回当日 eventId、senderId 与昵称/头像/等级证据或未变化确认，禁止客户端选择旧日期、来源或其他用户过滤 |
+| gift-feed | `GET /api/gifts/display-settings`、`/api/gifts/history`、`/api/gifts/card-profiles`、`/api/overtime/gifts/catalog`、`/api/bilibili/avatar` | history 强制北京时间今日、100 条、created_at 升序；仅转发 cursor/viewRevision 及可选 conditional/contentRevision/delta；card-profiles 转发 viewRevision/contentRevision，返回当日 eventId、senderId 与昵称/头像/等级证据或未变化确认，禁止客户端选择旧日期、来源或其他用户过滤 |
 | gift-export | `GET /api/bilibili/avatar` | 导出数据由 main 注入冻结快照；没有历史、selection 或导出 IPC 权限 |
 | gift-wishes | `GET /api/gifts/wishes` | 仅心愿展示字段、整数计数、进度及直播窗口；无来源 ID、送礼人或管理写权限 |
+| heart-box-collection | `GET /api/gifts/heart-box-collection` | 仅固定每周任务的阶段、数量、周期与图片投影；无来源 ID、送礼人或管理写权限，契约见[礼物域](#10-礼物域gifts) |
 | interactions | `GET /api/interactions/session` | 只读投票/评分公开结果；禁止写入与 host-state |
 | games | `GET /api/games/session`、`/api/games/winner-profile`、`/api/bilibili/avatar`；`POST /api/games/session`、`/api/games/session/move`、`/api/games/session/draw` | session 仅 stop/restart；move 的 value 仅 number/string，禁止夹带主持动作对象；draw 仅 append/undo/clear。不能新开配置、读取 host-state/词库/观众或揭晓答案 |
 | danmaku | `GET /api/bilibili/avatar`、`GET /api/bilibili/room/profile`、`GET /api/danmaku/display`、`GET /api/danmaku/events`、`GET /api/component/size` | 保留现有头像/表情 CDN 校验；room/profile 只读服务端当前配置房间的房主资料，投影仅 `roomId/uid/name/avatarUrl`，不接受页面指定房间或主播身份；display 返回当前账号的规范化外观及展示投影；events 仅发送变更通知；size 只读本 scope 尺寸 |
@@ -345,6 +353,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `songRequestBlacklist` | 仅接受字符串；每行一项，将 CRLF/CR 转 LF、按 `cleanText` 合并行内空白并去首尾空白，去掉空行和重复项；存为换行分隔文本。空字符串清空名单；仅保存在本机 |
 | `giftBlindBoxConfig` / `giftBlindBoxCustomConfigV2` | 数组或 JSON 文本，交给 [blind-box-config.js](../../../src/bilibili/gift/blind-box-config.js) 校验；失败返回无效字段。V2 特许 `null`/`'null'` 保存为 `'null'`（未确认）；`[]` 是明确空配置，不能混同 |
 | 全屏礼物感谢设置 | [frame-config.js](../../../src/bilibili/gift/frame-config.js)：`giftFrameEnabled` / `giftFrameThresholdRmb` 控制林间花信；enabled 仅 boolean/字符串 true/false；阈值用 Number 转换并四舍五入到安全整数分，拒绝空字符串、负数和非有限数，存元数字字符串。门槛比较在服务端按整数分进行；已撤销的缎带设置不再接受写入 |
+| 礼物掉落 / 礼物摇摇乐设置 | [motion-config.js](../../../src/bilibili/gift/motion-config.js) 校验各款独立开关、金额和动画参数；数值参数仅接受范围内整数或数字字符串，摇摇乐文字模式仅接受定义的字符串枚举；非法值拒绝整次写入。字段、范围与默认值见[本机设置](storage.md#71-关键设置的归属与约束)，保存只影响后续结算 |
 | 大航海感谢 | [guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)：`guardThanksAuroraEnabled`、`guardThanksClassicEnabled` 仅 boolean/字符串 true/false；对应 `guardThanksAuroraTextMode`、`guardThanksClassicTextMode`=`bilingual/zh/en`。旧 `guardThanksEnabled`、`guardThanksTextMode` 和 `guardThanksStyle`（`aurora/classic`）保留兼容；新键的存储空值仅用于继承旧配置，HTTP 不接受空值 |
 | `danmakuOverlayStyle` / `danmakuFullscreenDurationSeconds` | 样式仅 `bubble/signal/minimal/ranked/transparent/identity/outline`；时长为 number 或十进制数字字符串，安全整数 2–30，存字符串 |
 | 时钟设置 | [clock-contract.js](../../../src/server/clock-contract.js)：style 为九种已登记样式，hourFormat=`12/24`；日期/秒开关经 trim/lowercase 后仅 true/false/0/1；label 去控制符、合并空白、按 Unicode code point 截取前 16 个，存字符串；clockFlipFrameColor / clockFlipFaceColor / clockFlipTextColor 接受 #RRGGBB / #RRGGBBAA 十六进制颜色（无 Alpha 时完全不透明）并统一小写；clockMoonMode 仅 light/dark/auto，clockMoonIntervalSeconds 仅 1–86400 整数秒，默认 light/30 |
@@ -663,7 +672,7 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 | `POST /api/gifts/sprint/reset`      | 无                                                                                                                            | 重置礼物冲刺进度;广播 `gift:sprint:reset`           | —                                   |
 | `GET /api/gifts/effects/resolve` | 查询参数 `giftId`（1–12 位正整数） | 解析可播放的 MP4 全屏特效，返回 `{giftId,effect}` | 400（ID 无效）、404（无可播放特效） |
 | `POST /api/gifts/effects/preview` | `{giftId}`（1–12 位正整数） | 返回 `{giftId,effect}`，并广播 `gift:effect` 预览（`eventId:0,preview:true`） | 400（ID 无效）、404（无可播放特效） |
-| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；可选 `conditional=1/contentRevision` 用于完整扫描后的内容确认；禁止 `sourceId/source_id` | 默认返回当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态。条件读取增加 contentRevision，匹配时只返回 unchanged、空 items/nextCursor 与同步状态，详见 [礼物参考](bilibili/gift.md) | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
+| `GET /api/gifts/history`            | 查询参数:`query?`(非空时规范化后 **1–100 个 Unicode code point**)、`range?`(`7d\|30d\|90d\|all\|today`,默认 `30d`)、`limit?`(**1–100**,默认 50)、`cursor?`(opaque keyset)、`sortField?`(`created_at\|gift_name\|price\|remarks`)、`sortDirection?`(`asc\|desc`)；`startDate/endDate`(北京时间 YYYY-MM-DD)、`userQuery/giftQuery`(独立名称交集)、`amountAbove?`(人民币元，非负且精确到分；单条总金额严格大于该值，留空不限；与其他条件取交集并绑定游标)、`viewRevision`(来源投影版本)；可选 `conditional=1/contentRevision` 用于完整扫描后的内容确认；`created_at asc` 可另选 `delta=1` 获取有界变动行及排序标识；禁止 `sourceId/source_id` | 默认返回当前授权 source 的付费礼物分页、`total/totalPages` 及同步完整性状态。条件读取增加 contentRevision，匹配时只返回 unchanged、空 items/nextCursor 与同步状态；增量响应提供 delta/items/removedEventIds，不重复全量计数，详见 [礼物参考](bilibili/gift.md) | 400(参数/排序/来源选择器无效)、409(来源未就绪) |
 | `POST /api/gifts/selection` | `viewRevision`、可选 `eventIds`（最多 10000）及与 history 相同的筛选/排序 | 固定记录快照，不合并；无 eventIds 时选择全部筛选结果，保留 partial 状态 | 400(无效参数/超限)、409(来源变化或记录失效) |
 | `GET /api/gifts/card-profiles` | 可选 `viewRevision/contentRevision`；来源由当前授权决定，日期固定北京时间今日 | 返回 `viewRevision/day/items/partial/contentRevision`；匹配内容版本时返回空 items 和 `unchanged:true`。完整 items 仅含 eventId、senderId、userName、avatarUrl、guardLevel、createdAt。运行时验证服务端分页的来源、日期和同步代次，支持版本的服务端只在变化时重新翻页；不可用时只复用同来源/日期缓存，否则返回空资料及 partial，不猜测身份 | 409(来源或日期变化/来源未就绪) |
 | `GET/POST /api/gifts/display-settings` | POST 固定 palette、三个严格递增正整数分 thresholds、visibleRows(1–10)、scrollSpeed(1–50)，后两者须为整数；minGiftAmountCents 为非负安全整数分且是 10 的倍数（界面金额最多一位小数），省略默认 0；独立字符串枚举 tailStyle（`slant\|swallowtail\|ribbon`，默认 `slant`）与 textureStyle（`solid\|satin\|starlight\|facets\|argyle\|polka`，默认 `solid`） | 读取/保存本地礼物展示配置，保存后广播刷新；尾部与条带纹理独立组合，共用于设置预览、画布、滚动画面和 PNG 导出，缺外观字段的旧配置/请求补原样默认且保留原金额、行数及速度。速率线性对应每行 5–0.1 秒，默认 12（每行 3.9 秒）。最小金额 0 不过滤，正数仅让当天合并后累计金额严格大于门槛的卡片进入滚动，不影响历史或导出。旧配置/请求缺金额字段补 0；合法 intervalSeconds、paused/lowPower 兼容读入为速率 1，保留配色和行数，返回与保存仅使用新字段 | 400(设置无效) |
@@ -680,6 +689,12 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 `GET /api/gifts/blind-box-analysis` 在筛选区间包含本地归档时附带 `hasArchivedDetails: true`。用户与盒型统计仍包含同资格归档合计，`records` 仅返回可用逐笔记录；界面据此说明历史统计保留、部分明细已过期。结果包含缺少原事件时刻的旧日桶时，另附 `hasLegacyArchivedDates: true`，提示单日统计可能存在时区偏差；新归档按精确时刻匹配本机日期，不推测旧桶的跨日分布。
 
 行为文档:[bilibili/gift.md](bilibili/gift.md)(礼物事件、检测账本、冲刺)。礼物分区投影、同步完整性与查询合同见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md) 和 [ADR-0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection.md)。
+
+### 心动盲盒收集任务
+
+`GET /api/gifts/heart-box-collection` 不接受客户端来源选择，来源由当前授权决定；`sourceId/source_id` 返回 400，来源未就绪或切换时返回 `409 GIFT_SOURCE_UNAVAILABLE`。成功 `data` 为 `{viewRevision,asOf,startsAt,endsAt,nextStartsAt,status,partial,count,target,remaining,completed,stages,imagePath,castleImagePath}`：时间为 ISO 字符串，`status` 为 `collecting/ended`，`stages` 每项仅含 `{target,multiplier,castles,unlocked}`。固定阶段、北京时间周界和历史补计规则归 [礼物统计](bilibili/gift.md#心动盲盒每周收集)。
+
+本组件独立 overlay scope `heart-box-collection` 仅可读取该接口及自己的公共状态，不可改任务、选择来源或读取礼物明细；响应不含来源 ID、送礼人或原始事件。无 POST 或新持久化设置。
 
 ## 11. 加班机域(overtime)
 
@@ -920,6 +935,8 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 你画我猜为内存会话，默认五局、每局 90 秒，允许配置 1–12 局和每局 15–300 秒；固定题库由 `src/games/draw-guess-words.js` 拥有，题目可带 `|` 分隔的等价答案，但分类摘要不会暴露这些词条。每局由主播从管理端选词窗选定题词，确认前不作画、不计时、不计分；服务端单计时器从确认时起运行，到时结束作画并等待主播公布答案。会话公开状态保留本局开始后收到的弹幕（最多 500 条，含 uid、昵称、内容和可选头像地址），直到会话结束；观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分，时间到后不再计分。
 
 常规猜题消息完成计分后只发布一次包含新弹幕与最终得分的 `game:patch`；错误答案仍更新聊天。选词确认与下一局准备分别发布完整 `game:update`，公开状态不含可选词表。游戏候选观众缓存按单调时钟保留最近十分钟，刷新 UID 时调整内部过期顺序，公开 `uid/name/lastSeenAt` 字段不变。
+
+画笔追加只复制当前修改笔画的坐标数组，内部未变化笔画复用原状态，避免每批坐标重拷整张画布；操作不修改先前状态，公开会话快照仍独立复制坐标。画布上限、撤销/清空和 `game:draw` 增量协议不变。
 
 ## 独立转盘 API
 

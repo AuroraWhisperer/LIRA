@@ -324,6 +324,41 @@ test('history sorting is deterministic across keyset pages with stable totals', 
   }
 });
 
+test('unchanged sprint snapshots reuse the aggregate and invalidate for ledger, carry and external writes', (t) => {
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  const source = fixture.resolveSource('d'.repeat(64));
+  fixture.setActiveSource(source.id);
+  fixture.giftDb.exec('BEGIN');
+  for (let index = 0; index < 5000; index++) {
+    fixture.insertGift(source.id, `sprint-${index}`, { countedInSprint: 1 });
+  }
+  fixture.giftDb.exec('COMMIT');
+  const store = fixture.context.queryStore;
+  const readSprint = store.readSprint;
+  let aggregateReads = 0;
+  store.readSprint = (...args) => { aggregateReads++; return readSprint(...args); };
+  for (let index = 0; index < 100; index++) {
+    assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 5000);
+  }
+  assert.equal(aggregateReads, 1, 'unrelated snapshots do not sum the same 5000 rows again');
+
+  fixture.giftDb.exec('BEGIN');
+  fixture.giftDb.exec('UPDATE gift_events SET total_price=2');
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 10000);
+  fixture.giftDb.exec('ROLLBACK');
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 5000);
+
+  const { DatabaseSync } = require('node:sqlite');
+  const external = new DatabaseSync(fixture.giftDb.prepare('PRAGMA database_list').all().find(row => row.name === 'main').file);
+  try { external.exec('UPDATE gift_events SET total_price=3 WHERE id=1'); }
+  finally { external.close(); }
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 5002);
+  fixture.giftDb.prepare('INSERT INTO gift_sprint_carry (source_id,value_cents,event_count) VALUES (?,?,?)').run(source.id, 250, 1);
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 5004.5);
+  assert.equal(resetGiftSprintProgress(fixture.context).giftSprint.receivedRmb, 0);
+});
+
 test('legacy gift page reads and sprint reset stay within the active source', (t) => {
   // Blind-box reads use the machine-local day; pin local noon so rows created now stay in today.
   t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 15, 12).getTime() });

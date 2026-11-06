@@ -148,7 +148,6 @@ async function run() {
           initGiftInteractionControls({ surface: 'danmaku', onState: thanks.updateState }); initFixedReplyEditor();`);
         return;
       }
-      if (url.pathname === '/js/playback.js') { res.setHeader('Content-Type', 'application/javascript'); res.end(''); return; }
       servePageOrAsset(path.join(root, 'public'), req, res, url, token);
     },
   });
@@ -160,7 +159,7 @@ async function run() {
       offscreen: true, backgroundThrottling: false } });
   const auth = createDesktopRequestAuth({ desktopSession: session.defaultSession,
     getMainWindow: () => window, getBaseUrl: () => origin, getToken: () => token });
-  configureMediaRequestHeaders(session.defaultSession, {}, auth);
+  configureMediaRequestHeaders(session.defaultSession, auth);
   auth.bindWindow(window, { openExternal() {} });
   registerLicenseIpc({ ipcMain, licenseManager: manager, getMainWindow: () => window,
     getDesktopBaseUrl: () => origin, hasExactOrigin: (url, expected) => new URL(url).origin === expected });

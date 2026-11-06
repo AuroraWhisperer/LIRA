@@ -99,7 +99,9 @@ test('a state-owner accepted restart replaces the clock and background and inval
   const f = await fixture();
   const { controller } = f.appearance;
   const window = { dispatchEvent() {} };
-  const { stateService } = await loadModuleExports(entry('state.js'), {
+  const [{ stateService }, { eventBus }] = await loadModuleExports([
+    entry('state.js'), path.resolve('public/js/shared/event-bus.js'),
+  ], {
     window, document: { getElementById: () => ({ hidden: false }) },
     location: { protocol: 'http:', host: 'localhost' },
     WebSocket: class {
@@ -107,7 +109,7 @@ test('a state-owner accepted restart replaces the clock and background and inval
       addEventListener(type, listener) { this.listeners.set(type, listener); }
     },
   });
-  window.AdminApp.eventBus.on('state:loaded', ({ state, isConnectionSnapshot }) => {
+  eventBus.on('state:loaded', ({ state, isConnectionSnapshot }) => {
     f.renderState(state.overtime, { allowRevisionReset: isConnectionSnapshot });
   });
   stateService.connectSocket();

@@ -114,6 +114,8 @@ app
   .then(async () => {
     runtime = createServerRuntime({
       dataDir: DATA_DIR,
+      getSceneOwner: () => fixture.license.state === 'authorized'
+        ? { scope: 'usage-guide-demo', epoch: 1 } : null,
       dynamicLotteryAuth: {
         getIdentity: () => ({ streamerId: 'demo', authorizationEpoch: 1 }),
         getContext: () => {
@@ -163,7 +165,7 @@ app
       getBaseUrl: () => baseUrl,
       getToken: () => runtime.getApiToken(),
     });
-    configureMediaRequestHeaders(session.defaultSession, {}, requestAuth);
+    configureMediaRequestHeaders(session.defaultSession, requestAuth);
     session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
       const url = new URL(details.url);
       callback({

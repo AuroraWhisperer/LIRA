@@ -47,10 +47,14 @@ export function normalizeInteractionAppearanceValue(key, value) {
 
 export function readInteractionAppearance(settings = {}) {
   return Object.fromEntries(
-    Object.entries(INTERACTION_APPEARANCE_DEFAULTS).map(([key, fallback]) => [
-      key,
-      normalizeInteractionAppearanceValue(key, settings[key]) ?? fallback,
-    ]),
+    Object.entries(INTERACTION_APPEARANCE_DEFAULTS).map(([key, fallback]) => {
+      // Titles are validated by the desktop/Node writer. Older overlay engines
+      // must render saved emoji without running the writer's Unicode-set regex.
+      const savedText = ['interactionOverlayTitle', 'interactionOverlayHint'].includes(key)
+        && typeof settings[key] === 'string';
+      return [key, savedText ? settings[key].trim().normalize('NFC')
+        : normalizeInteractionAppearanceValue(key, settings[key]) ?? fallback];
+    }),
   );
 }
 

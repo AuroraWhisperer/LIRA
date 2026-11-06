@@ -1,0 +1,301 @@
+/* Shared component-page controls, section hierarchy and selection states. */
+.live-components-page .component-toolbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 0 16px;
+  border: 0;
+  border-bottom: 1px solid var(--color-border-light, var(--border));
+  border-radius: 0;
+  background: transparent;
+}
+
+.live-components-page .component-toolbar > h3 {
+  margin: 0;
+}
+.live-components-page .component-toolbar-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  min-width: 0;
+}
+.live-components-page .other-feature-panel label.component-inline-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-regular);
+}
+.live-components-page .component-inline-field > span {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.live-components-page .component-inline-field :is(input, select, .lira-select) {
+  width: 112px;
+  min-width: 0;
+}
+.live-components-page .component-toolbar-group > .component-inline-field {
+  padding-left: 16px;
+  border-left: 1px solid var(--border);
+}
+.live-components-page .component-toolbar-group button {
+  flex-shrink: 0;
+}
+
+/* The selected sidebar tab names the page; content starts with actions or task sections. */
+.live-components-page .other-feature-panel
+  :is(
+    .ui-section-title,
+    .danmaku-settings-heading h4,
+    .gift-display-group-head h4,
+    .opening-section-heading strong,
+    .opening-copy-section h3,
+    .opening-music-heading strong,
+    .text-box-live-heading h3
+  ) {
+  font-size: var(--type-size-section-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 24px;
+}
+
+/* Required field guidance stays visible; optional explanations use contextual help. */
+.live-components-page .component-section-note {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.live-components-page .component-section-note + * {
+  margin-top: 12px;
+}
+
+/* Text controls share a 20px line box + 7px inset + 1px border on each side. */
+.live-components-page .other-feature-panel :is(button.primary, button.secondary, button.ghost, button.button-quiet, .lira-select-trigger, .opening-upload-button),
+.live-components-page .overtime-actions button {
+  box-sizing: border-box;
+  min-height: var(--component-control-height);
+  padding: 7px 12px;
+  font-size: var(--type-size-control);
+  font-weight: var(--type-weight-medium);
+  line-height: 20px;
+}
+
+.live-components-page .other-feature-panel :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='color'], [type='file']), select) {
+  box-sizing: border-box;
+  min-height: var(--component-control-height);
+  padding: 7px 12px;
+  font-family: var(--font-ui);
+  font-size: var(--type-size-control);
+  line-height: 20px;
+}
+
+/* The shared trigger already reserves its chevron with flex, so an extra end inset only
+   squeezed the value text and pushed the chevron off the control's optical edge. */
+.live-components-page .other-feature-panel .lira-select-trigger {
+  padding-inline-end: 10px;
+}
+
+.live-components-page :is(.danmaku-parameter-field, .clock-form-field) {
+  --color-control-height: var(--component-control-height);
+}
+
+.live-components-page .other-feature-panel :is(.hint, .danmaku-style-chip, .opening-audio-status) {
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.live-components-page .component-expander-summary {
+  margin-inline-start: auto;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: 18px;
+}
+
+.live-components-page .component-expander-summary:empty {
+  display: none;
+}
+
+/* Style-parameter groups are expandable rows too, so they drop the default disclosure
+   triangle and take the same hover row, chevron and trailing state as 弹幕过滤. */
+.live-components-page .component-style-parameters :is(.component-parameter-group, .component-parameter-advanced) > summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 40px;
+  margin-inline: -12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  list-style: none;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-medium);
+}
+
+.live-components-page .component-style-parameters summary::-webkit-details-marker {
+  display: none;
+}
+
+.live-components-page .component-style-parameters summary:hover {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .component-parameter-state {
+  float: none;
+  margin: 0 0 0 auto;
+  font-size: var(--type-size-caption);
+}
+
+.live-components-page .component-style-parameters summary::after {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-right: 1.75px solid var(--muted);
+  border-bottom: 1.75px solid var(--muted);
+  content: '';
+  transform: translateY(-2px) rotate(45deg);
+  transition: transform 140ms ease;
+}
+
+.live-components-page .component-style-parameters details[open] > summary::after {
+  transform: translateY(1px) rotate(225deg);
+}
+
+/* Effect values read as compact property rows (label | slider | number), like the effect panels
+   in Figma or Photoshop, instead of page-wide sliders under stacked labels. */
+.live-components-page .component-parameter-fields {
+  /* At most two columns; a single column once each would drop below 340px. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(340px, calc(50% - 20px))), 1fr));
+  gap: 8px 40px;
+}
+
+.live-components-page .component-parameter-field {
+  grid-template-columns: 104px minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+
+.live-components-page .component-parameter-inputs input[type='number'] {
+  flex-basis: 64px;
+  width: 64px;
+}
+
+.live-components-page .component-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.live-components-page .component-icon-button svg {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+}
+
+.live-components-page .component-subsection-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.live-components-page .component-subsection-heading > h3 {
+  margin: 0;
+}
+
+.live-components-page .component-heading-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-inline-start: auto;
+}
+
+/* Style pickers share one selected affordance across the six pages: an accent ring plus a
+   badge over the thumbnail. The ring uses `selection-marker` because several palettes set a
+   primary that cannot carry a 1px outline — the dark appearance's primary is a near-white
+   silver, which made the selected card indistinguishable from the unselected ones. */
+.live-components-page
+  :is(
+    .danmaku-style-picker .danmaku-style-option[aria-pressed='true'],
+    .danmaku-style-picker .component-style-select[aria-pressed='true'],
+    .clock-style-options .clock-style-option.active,
+    .opening-style-options button[aria-pressed='true']
+  ) {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px var(--components-accent);
+}
+
+/* A placeholder action must not outweigh real content: ghost outline, no fill. */
+.live-components-page .component-style-add {
+  border-style: dashed;
+  background: transparent;
+  color: var(--muted);
+}
+
+.live-components-page .component-style-add:hover {
+  border-color: var(--components-accent);
+  color: var(--text);
+}
+
+.live-components-page .gift-assistant-tabs [aria-selected='true'] {
+  border-bottom-color: var(--components-accent);
+  color: var(--components-accent-solid);
+}
+
+/* Field labels and typed values stay regular on all six pages, so section and group headings,
+   selected items and buttons remain the bold text. Several page styles set a bold label weight
+   that inputs inherited, which made user-entered values bold too. */
+.live-components-page .other-feature-panel
+  :is(
+    .danmaku-parameter-field strong,
+    .clock-form-field,
+    .component-parameter-field,
+    .opening-copy-fields > label,
+    .opening-select-grid > label,
+    .opening-field-wide,
+    .opening-volume-field,
+    .overtime-duration-selectors label,
+    .overtime-appearance-fields label,
+    .gift-effect-field,
+    .clock-toggle-field strong,
+    .danmaku-filter-form > label,
+    .opening-editor-checks label,
+    .component-parameter-group > .component-parameter-toggle
+  ),
+.live-components-page .other-feature-panel :is(input, select, textarea, .lira-select-trigger) {
+  font-weight: var(--type-weight-regular);
+}
+
+.live-components-page :is(.gift-assistant, .clock-tool-panel, .opening-animation-panel, .overtime-admin) {
+  gap: 24px;
+  background: var(--surface);
+}
+
+.live-components-page :is(.gift-display-settings, .opening-style-picker, .opening-animation-editor) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.live-components-page :is(.gift-wish-field > label, .gift-wish-field-label, .gift-wish-style-field > legend, .text-box-layout-fields label) {
+  font-size: var(--type-size-body);
+  line-height: 20px;
+}
+
+/* Switch rows read the same way on every page: label first, control last. */
+.live-components-page :is(.gift-frame-switch, .guard-thanks-switch) > span:not(.switch-track) {
+  order: -1;
+}

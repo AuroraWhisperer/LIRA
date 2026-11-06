@@ -33,6 +33,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
   let assetsUpdatedAt = '';
   let roomCache = null;
   let globalCache = null;
+  let artworkCatalog = null;
   let artworkCache = null;
   let globalContent = null;
   const getCustomBlindBoxes =
@@ -46,6 +47,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
       onUpdated: (snapshot) => {
         roomCache = null;
         globalCache = null;
+        artworkCatalog = null;
         if (!giftCatalogInitializer) {
           options.onUpdated?.(snapshot);
           return;
@@ -129,6 +131,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
       const snapshot = await decorateRoomSnapshot(localSnapshot, serverSnapshot, remoteImageCache, getCustomBlindBoxes());
       roomCache = null;
       globalCache = null;
+      artworkCatalog = null;
       return cloneRoomSnapshot(snapshot, localSnapshot.cached === true);
     })().finally(() => {
       roomRefreshPending = null;
@@ -146,6 +149,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
     );
     roomCache = null;
     globalCache = null;
+    artworkCatalog = null;
     return serverSnapshot;
   }
 
@@ -177,12 +181,41 @@ function createHybridGiftSaleCatalogService(options = {}) {
   }
 
   function getArtworkResolver() {
-    const global = readGlobalSnapshot();
-    const room = readRoomSnapshot();
-    if (artworkCache?.global !== global || artworkCache?.room !== room) {
-      const paths = new Map([...(global?.gifts || []), ...room.gifts]
-        .map((gift) => [gift.variantId || String(gift.id), gift.imagePath]));
-      artworkCache = { global, room, resolve: (key) => paths.get(key) };
+    const custom = getCustomBlindBoxes();
+    const key = [local.getRevision?.(), remoteCatalog.getRevision?.(), JSON.stringify(custom)];
+    if (!local.getRevision || !remoteCatalog.getRevision || !artworkCatalog ||
+      !key.every((value, index) => value === artworkCatalog.key[index])) {
+      const global = remoteCatalog.getSnapshot();
+      roomSnapshot = local.getSnapshot();
+      const room = mergeRoomCatalog(roomSnapshot, global, custom);
+      const gifts = new Map();
+      for (const gift of Array.isArray(global?.gifts) ? global.gifts : []) {
+        gifts.set(gift.variantId || String(gift.id), { gift, imagePath: '' });
+      }
+      for (const gift of room.gifts) {
+        gifts.set(gift.variantId || String(gift.id), { gift, imagePath: gift.imagePath });
+      }
+      const byGiftId = new Map();
+      for (const entry of gifts.values()) {
+        const id = String(entry.gift.id);
+        byGiftId.set(id, byGiftId.has(id) ? null : entry);
+      }
+      artworkCatalog = { key, gifts, byGiftId };
+    }
+    // Image integrity expires independently of the unchanged gift identity index.
+    const imageRevision = remoteImageCache?.getRevision?.();
+    if (artworkCache?.catalog !== artworkCatalog || artworkCache.imageRevision !== imageRevision ||
+      (remoteImageCache && !remoteImageCache.getRevision)) {
+      const { gifts, byGiftId } = artworkCatalog;
+      const paths = new Map();
+      artworkCache = { catalog: artworkCatalog, imageRevision, resolve(key) {
+        if (!paths.has(key)) {
+          const entry = gifts.get(key) || byGiftId.get(key);
+          if (!entry) return undefined;
+          paths.set(key, remoteImageCache ? remoteImageCache.getCachedGiftImagePath(entry.gift) : entry.imagePath);
+        }
+        return paths.get(key);
+      } };
     }
     return artworkCache.resolve;
   }

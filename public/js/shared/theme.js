@@ -115,12 +115,3 @@ export const theme = {
     return getSongBoardSwatches();
   },
 };
-
-// 【过渡期兼容层】- 保持window.AdminApp.theme可用
-// 阶段5时删除
-if (typeof window !== 'undefined') {
-  window.AdminApp = window.AdminApp || {};
-  const existingTheme = window.AdminApp.theme || {};
-  Object.defineProperties(existingTheme, Object.getOwnPropertyDescriptors(theme));
-  window.AdminApp.theme = existingTheme;
-}

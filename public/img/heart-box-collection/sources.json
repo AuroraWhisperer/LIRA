@@ -1,0 +1,31 @@
+{
+  "provenance": "Existing Bilibili gift catalog artwork reused for the user-requested collection component. No third-party open license asserted.",
+  "assets": [
+    {
+      "path": "heart-box.webp",
+      "giftId": "32251",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/ddeeaa0dfcff67b4e70945a91dd0ea4e5386d033.webp",
+      "sourceSha256": "aa459843e9c982dd1ea7f4236ed036d2d15f846f3391fa9fc5ad05f473f6c25e",
+      "sha256": "c313601269da7464fced3d8cab39687133dd4a564a51fded5e9056054c04b205",
+      "bytes": 4732,
+      "width": 140,
+      "height": 140,
+      "frames": 1,
+      "transformation": "Frame 0, original transparent 140x140, static WebP quality 92",
+      "usage": "Bundled heart-box collection component artwork; no runtime CDN request"
+    },
+    {
+      "path": "castle.webp",
+      "giftId": "32132",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/71b74a80a0227557d52ebbca3d257fbf9a7f5cca.webp",
+      "sourceSha256": "ed26afc502c0472ab6234fcd05189e78bdf9dad881de85fb5b2e3a4bb7078a88",
+      "sha256": "56261146988ff3d6aa0da2bfdbab5c906a80c4b6e9d99429c1596dbe404243ae",
+      "bytes": 7590,
+      "width": 140,
+      "height": 140,
+      "frames": 1,
+      "transformation": "Frame 0, original transparent 140x140, static WebP quality 92",
+      "usage": "Bundled heart-box collection component artwork; no runtime CDN request"
+    }
+  ]
+}

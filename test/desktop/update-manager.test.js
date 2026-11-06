@@ -8,12 +8,12 @@ const fs = require('node:fs');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { build, ...packagedMetadata } = require('../../package.json');
 
-function loadUpdateManager(t) {
+function loadUpdateManager(t, suppliedUpdater) {
   const Module = require('node:module');
   const originalLoad = Module._load;
   const modulePath = require.resolve('../../src/electron/update-manager');
   const cachedModule = require.cache[modulePath];
-  const updater = Object.assign(new EventEmitter(), { app: {}, setFeedURL(options) { this.feed = options; }, quitAndInstall() {} });
+  const updater = suppliedUpdater || Object.assign(new EventEmitter(), { app: {}, setFeedURL(options) { this.feed = options; }, quitAndInstall() {} });
   const app = {
     getVersion: () => '5.2.7',
     getPath: () => path.resolve('tmp/updater-test/LIRA.exe'),
@@ -34,17 +34,17 @@ function loadUpdateManager(t) {
   const manager = require(modulePath);
   const states = [];
   const logs = [];
-  manager.configureAutoUpdater({ onStateChange: (state) => states.push(state), writeLog: (...args) => logs.push(args) });
+  manager.configureAutoUpdater({ updater: suppliedUpdater, onStateChange: (state) => states.push(state), writeLog: (...args) => logs.push(args) });
   return { manager, updater, states, logs };
 }
 
-test('packaged startup leaves the update feed to app-update.yml and preserves automatic full downloads', t => {
+test('packaged startup leaves the update feed to app-update.yml and enables automatic differential downloads', t => {
   const { updater } = loadUpdateManager(t);
   assert.equal(updater.feed, undefined);
   assert.equal(updater.autoDownload, true);
   assert.equal(updater.autoInstallOnAppQuit, true);
   assert.equal(updater.allowPrerelease, false);
-  assert.equal(updater.disableDifferentialDownload, true);
+  assert.equal(updater.disableDifferentialDownload, false);
 });
 
 for (const operation of ['checkForUpdates', 'downloadUpdate']) {
@@ -101,6 +101,113 @@ test('installation clears downloaded progress while preserving the update versio
   assert.equal(state.status, 'installing');
   assert.equal(state.progress, null);
   assert.equal(state.updateVersion, '5.2.8');
+});
+
+test('NSIS downloads reuse local blocks and retain full-download and integrity fallbacks', async t => {
+  const http = require('node:http');
+  const { once } = require('node:events');
+  const { createHash } = require('node:crypto');
+  const { gzipSync } = require('node:zlib');
+  const { NsisUpdater } = require('electron-updater');
+  const { ElectronHttpExecutor } = require('electron-updater/out/electronHttpExecutor');
+  const { CURRENT_APP_INSTALLER_FILE_NAME } = require('builder-util-runtime');
+  const blockSize = 64 * 1024;
+  const blocks = [1, 2, 3, 4, 5, 6].map(value => Buffer.alloc(blockSize, value));
+  const oldBlocks = blocks.slice(0, 4);
+  const newBlocks = [blocks[0], blocks[4], blocks[1], blocks[5]];
+  const installer = Buffer.concat(newBlocks);
+  const digest = bytes => createHash('sha512').update(bytes).digest('base64');
+  const blockmap = entries => gzipSync(JSON.stringify({ version: '2', files: [{ name: 'file', offset: 0,
+    checksums: entries.map(digest), sizes: entries.map(entry => entry.length) }] }));
+
+  for (const scenario of ['differential', 'cold-cache', 'missing-blockmap', 'range-rejected', 'bad-checksum', 'offline']) {
+    await t.test(scenario, { timeout: 15000 }, async st => {
+      const directory = createScratchDirectory('update-download-', st);
+      const requests = [];
+      const payload = Buffer.from(installer);
+      if (scenario === 'bad-checksum') payload[blockSize] ^= 1;
+      const server = http.createServer((request, response) => {
+        const pathname = new URL(request.url, 'http://localhost').pathname;
+        const range = request.headers.range;
+        let bytes;
+        let status = 200;
+        if (pathname === '/latest.yml') {
+          bytes = Buffer.from(JSON.stringify({ version: '1.0.1', files: [{ url: 'lira-setup-1.0.1.exe',
+            sha512: digest(installer), size: installer.length }] }));
+        } else if (pathname.endsWith('.blockmap')) {
+          status = scenario === 'missing-blockmap' ? 404 : 200;
+          bytes = status === 404 ? Buffer.alloc(0) : blockmap(pathname.includes('1.0.0') ? oldBlocks : newBlocks);
+        } else if (pathname === '/lira-setup-1.0.1.exe') {
+          if (range) {
+            const match = /^bytes=(\d+)-(\d+)$/.exec(range);
+            if (scenario === 'range-rejected' || !match) {
+              status = 416;
+              bytes = Buffer.alloc(0);
+            } else {
+              const [, start, end] = match.map(Number);
+              status = 206;
+              bytes = payload.subarray(start, end + 1);
+              response.setHeader('Content-Range', `bytes ${start}-${end}/${payload.length}`);
+            }
+          } else bytes = payload;
+        } else {
+          status = 404;
+          bytes = Buffer.alloc(0);
+        }
+        requests.push({ pathname, range, status, bytes: bytes.length });
+        response.writeHead(status, { 'Content-Length': bytes.length });
+        response.end(bytes);
+      });
+      const closeServer = async () => {
+        if (!server.listening) return;
+        server.closeAllConnections();
+        await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      };
+      st.after(closeServer);
+      server.listen(0, '127.0.0.1');
+      await once(server, 'listening');
+      const configFile = path.join(directory, 'app-update.yml');
+      fs.writeFileSync(configFile, JSON.stringify({ ...build.publish[0],
+        url: `http://127.0.0.1:${server.address().port}/`, updaterCacheDirName: 'lira-updater' }));
+      const updater = new NsisUpdater(null, { version: '1.0.0', name: 'LIRA', isPackaged: true,
+        baseCachePath: directory, userDataPath: directory, appUpdateConfigPath: configFile,
+        whenReady: async () => {}, onQuit() {} });
+      // Keep the real updater's download/hash pipeline; only adapt HTTP to Node.
+      updater.httpExecutor = new ElectronHttpExecutor();
+      updater.httpExecutor.createRequest = (options, callback) => http.request({ ...options, agent: false }, callback);
+      updater.logger = null;
+      const { manager } = loadUpdateManager(st, updater);
+      updater.autoDownload = false;
+      const helper = await updater.getOrCreateDownloadHelper();
+      if (scenario !== 'cold-cache') {
+        fs.mkdirSync(helper.cacheDir, { recursive: true });
+        fs.writeFileSync(path.join(helper.cacheDir, CURRENT_APP_INSTALLER_FILE_NAME), Buffer.concat(oldBlocks));
+      }
+      await manager.checkForUpdates();
+      if (scenario === 'offline') await closeServer();
+      const state = await manager.downloadUpdate();
+      if (['bad-checksum', 'offline'].includes(scenario)) {
+        assert.equal(state.status, 'error');
+        assert.equal(state.canInstall, false);
+        assert.equal(updater.installerPath, null);
+        return;
+      }
+      assert.equal(state.status, 'downloaded', state.message);
+      assert.equal(digest(fs.readFileSync(updater.installerPath)), digest(installer));
+      const downloads = requests.filter(request => request.pathname.endsWith('.exe'));
+      if (scenario === 'differential') {
+        assert.equal(downloads.filter(request => !request.range).length, 0);
+        assert.equal(downloads.reduce((total, request) => total + request.bytes, 0), 2 * blockSize);
+        st.diagnostic(`Installer bytes: ${2 * blockSize} downloaded / ${installer.length} full`);
+        const before = requests.length;
+        await closeServer();
+        assert.equal((await manager.downloadUpdate()).status, 'downloaded');
+        assert.equal(requests.length, before, 'a validated pending installer must be reusable offline');
+      } else {
+        assert.equal(downloads.filter(request => !request.range && request.status === 200).length, 1);
+      }
+    });
+  }
 });
 
 test(

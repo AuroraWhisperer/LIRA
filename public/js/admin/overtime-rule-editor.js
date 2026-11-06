@@ -131,8 +131,10 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     enabled.dataset.ruleEnabled = 'true';
     enabledLabel.append(enabled, documentRef.createElement('span'), documentRef.createTextNode('启用'));
     controls.append(enabledLabel);
+    const management = documentRef.createElement('div');
+    management.className = 'overtime-rule-buttons overtime-rule-management';
     if (dependencies.onReselect) {
-      controls.append(
+      management.append(
         ruleButton('重新选择礼物', '保留规则设置，重新选择礼物', false, () => dependencies.onReselect(row)),
       );
     }
@@ -142,14 +144,14 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const moveDown = ruleButton('↓', '将这条规则下移', index === count - 1, () => moveRule(row, 1));
     moveDown.classList.add('overtime-rule-icon-button');
     moveDown.dataset.ruleMoveDown = 'true';
-    controls.append(moveUp, moveDown);
+    management.append(moveUp, moveDown);
     const remove = ruleButton('删除', '删除规则', false, () => {
       markDirty();
       row.remove();
       refreshMoveButtons();
     });
     remove.classList.add('overtime-rule-remove');
-    controls.append(remove);
+    management.append(remove);
 
     const body = documentRef.createElement('div');
     body.className = 'overtime-rule-body';
@@ -160,13 +162,13 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     toggle.className = 'secondary overtime-rule-toggle';
     toggle.setAttribute('aria-controls', body.id);
     toggle.setAttribute('aria-expanded', String(expanded));
-    toggle.textContent = expanded ? '收起设置' : '展开设置';
+    toggle.textContent = expanded ? '收起设置' : '编辑规则';
     toggle.addEventListener('click', () => {
       const nextExpanded = body.hidden;
       body.hidden = !nextExpanded;
       row.classList.toggle('is-expanded', nextExpanded);
       toggle.setAttribute('aria-expanded', String(nextExpanded));
-      toggle.textContent = nextExpanded ? '收起设置' : '展开设置';
+      toggle.textContent = nextExpanded ? '收起设置' : '编辑规则';
     });
     controls.append(toggle);
     header.append(controls);
@@ -204,7 +206,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     modeOptions.addEventListener('change', (event) => {
       if (event.target.matches('[data-rule-mode]:checked')) effectEditor.setEffectMode(effect, event.target.value);
     });
-    body.append(effect);
+    body.append(effect, management);
     body.addEventListener('input', () => updateRuleSummary(row));
     body.addEventListener('change', () => updateRuleSummary(row));
     row.classList.toggle('is-expanded', expanded);

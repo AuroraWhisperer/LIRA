@@ -213,6 +213,7 @@ test('gift effects overlay keeps its own reconnect policy and stops the connecti
       createElement: (tag) => element(tag),
       createDocumentFragment: () => element('fragment'),
       addEventListener() {},
+      removeEventListener() {},
     },
     window: windowRef,
     location: { search: '', protocol: 'http:', host: '127.0.0.1:3000' },
@@ -223,6 +224,7 @@ test('gift effects overlay keeps its own reconnect policy and stops the connecti
     clearTimeout: clearTimeoutFn,
     requestAnimationFrame: () => 1,
     cancelAnimationFrame() {},
+    ResizeObserver: class { observe() {} disconnect() {} },
   });
 
   assert.equal(sockets.length, 1);

@@ -4,17 +4,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const { buildDependencyGraph, findDependencyCycles } = require('../helpers/module-dependency-graph');
+const { sanitizeSource } = require('../helpers/esm-source-sanitizer');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
-const LEGACY_ADMIN_GLOBAL_LIMITS = {
-  'public/js/desktop.js': 7,
-  'public/js/playback/index.js': 3,
-  'public/js/playback/operations/provider-operations.js': 1,
-  'public/js/shared/event-bus.js': 5,
-  'public/js/shared/logger.js': 4,
-  'public/js/shared/theme.js': 5,
-  'public/js/shared/utils.js': 4,
-};
 const EMPTY_CATCH_LIMITS = {
   'src/ai/model-client.js': 1,
   'src/ai/http-client.js': 1,
@@ -35,7 +28,6 @@ const EMPTY_CATCH_LIMITS = {
   'src/server/ws.js': 3,
   'src/server.js': 1,
   'public/js/admin/toolbox-navigation.js': 2,
-  'public/js/admin/overtime.js': 3,
   'public/js/gift-audit/index.js': 2,
   'public/js/playback/cache/manager.js': 3,
   'public/js/playback/content/loader.js': 1,
@@ -58,10 +50,66 @@ function listJavaScriptFiles(relativeDirectory) {
   for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
     const relativePath = path.join(relativeDirectory, entry.name);
     if (entry.isDirectory()) files.push(...listJavaScriptFiles(relativePath));
-    else if (entry.name.endsWith('.js')) files.push(relativePath.replaceAll('\\', '/'));
+    else if (/\.(?:c|m)?js$/.test(entry.name)) files.push(relativePath.replaceAll('\\', '/'));
   }
   return files;
 }
+
+const productGraph = buildDependencyGraph(new Map(
+  [...listJavaScriptFiles('src'), ...listJavaScriptFiles('public/js')].map(file => [file, read(file)]),
+));
+
+test('product module imports and literal require/import calls have no dependency cycles', () => {
+  assert.deepEqual(findDependencyCycles(productGraph), []);
+});
+
+test('dependency graph distinguishes executable imports, directory modules, and URL query suffixes', () => {
+  const graph = buildDependencyGraph(new Map([
+    ['src/app.js', `
+      // require('./ignored');
+      const example = "import('./ignored')";
+      const pattern = /require('ignored')/;
+      const load = () => require('./feature');
+      import('./later.js');
+    `],
+    ['src/feature/index.js', "module.exports = require('../leaf');"],
+    ['src/later.js', "export { value } from './leaf.js';"],
+    ['src/leaf.js', 'export const value = 1;'],
+    ['src/ignored.js', "require('./app');"],
+    ['public/js/page.js', "import '/js/shared/value.js?v=1#module';"],
+    ['public/js/shared/value.js', 'export const value = 1;'],
+  ]));
+  assert.deepEqual(graph.get('src/app.js'), ['src/feature/index.js', 'src/later.js']);
+  assert.deepEqual(graph.get('public/js/page.js'), ['public/js/shared/value.js']);
+  assert.deepEqual(findDependencyCycles(graph), []);
+  graph.get('src/leaf.js').push('src/app.js');
+  assert.deepEqual(findDependencyCycles(graph), [['src/app.js', 'src/feature/index.js', 'src/leaf.js', 'src/app.js']]);
+  assert.deepEqual(findDependencyCycles(new Map([['self.js', ['self.js']]])), [['self.js', 'self.js']]);
+});
+
+test('domain modules receive stores and never import storage, transport, or desktop implementations', () => {
+  for (const [file, dependencies] of productGraph) {
+    if (!/^src\/(?:ai|bilibili|music|overtime|fans|games|scenes)\//.test(file)) continue;
+    for (const dependency of dependencies) {
+      assert.doesNotMatch(dependency, /^src\/(?:storage\/|server(?:\/|\.js$)|electron\/)/, `${file} imports ${dependency}`);
+    }
+  }
+});
+
+test('shared modules have no upward imports or implicit Admin registry dependencies', () => {
+  for (const [file, dependencies] of productGraph) {
+    if (file.startsWith('public/js/shared/')) {
+      assert.doesNotMatch(sanitizeSource(read(file)), /\bAdminApp\b/, file);
+      for (const dependency of dependencies) {
+        assert.ok(dependency.startsWith('public/js/shared/'), `${file} imports ${dependency}`);
+      }
+    } else if (file.startsWith('src/shared/')) {
+      for (const dependency of dependencies) {
+        assert.ok(/^(?:src\/shared\/|public\/js\/shared\/)/.test(dependency), `${file} imports ${dependency}`);
+      }
+    }
+  }
+});
 
 test('domain services use stores instead of SQLite statements', () => {
   const queueService = read('src/music/queue-service.js');
@@ -98,30 +146,20 @@ test('domain services use stores instead of SQLite statements', () => {
 
 test('internal backend modules do not import composition entrypoints', () => {
   const entrypoints = new Set(['src/server.js', 'src/electron/entry.js', 'src/electron/main.js']);
-  for (const file of listJavaScriptFiles('src')) {
+  for (const [file, dependencies] of productGraph) {
+    if (!file.startsWith('src/')) continue;
     if (entrypoints.has(file)) continue;
-    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
-      let target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
-      if (!path.posix.extname(target)) target += '.js';
+    for (const target of dependencies) {
       assert.equal(entrypoints.has(target), false, `${file} imports composition entry ${target}`);
     }
   }
 });
 
 test('storage adapters do not depend on server, desktop, or browser modules', () => {
-  for (const file of listJavaScriptFiles('src/storage')) {
-    for (const match of read(file).matchAll(/\brequire\(\s*['"](\.[^'"]+)['"]\s*\)/g)) {
-      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
+  for (const [file, dependencies] of productGraph) {
+    if (!file.startsWith('src/storage/')) continue;
+    for (const target of dependencies) {
       assert.doesNotMatch(target, /^(?:src\/(?:server(?:\.js|\/|$)|electron\/)|public\/)/, file);
-    }
-  }
-});
-
-test('frontend shared modules do not import Admin or overlay runtimes', () => {
-  for (const file of listJavaScriptFiles('public/js/shared')) {
-    for (const match of read(file).matchAll(/(?:\bfrom\s*|\bimport\s*(?:\(\s*)?)['"](.[^'"]+)['"]/g)) {
-      const target = path.posix.normalize(path.posix.join(path.posix.dirname(file), match[1]));
-      assert.doesNotMatch(target, /^public\/js\/(?:admin|overlays)(?:\/|$)/, file);
     }
   }
 });
@@ -138,59 +176,12 @@ test('composition owns wheel cleanup', () => {
   assert.match(read('src/server.js'), /wheelSessionService\?\.dispose\(\)/);
 });
 
-test('Admin application accesses legacy globals only through its bridge', () => {
-  const app = read('public/js/admin/app.js');
-  const bridge = read('public/js/admin/legacy-admin-bridge.js');
-
-  assert.doesNotMatch(app, /window\.AdminApp/);
-  assert.doesNotMatch(app, /shared\/container\.js|\bcontainer\./);
-  assert.match(bridge, /window\.AdminApp/);
-  for (const relativePath of [
-    'public/js/admin/songs.js',
-    'public/js/admin/state-renderer.js',
-    'public/js/admin/state.js',
-    'public/js/admin/metrics.js',
-    'public/js/admin/streamer-planner.js',
-    'public/js/admin/gift-effects.js',
-    'public/js/admin/danmaku-tool.js',
-    'public/js/admin/ai-assistant-settings.js',
-    'public/js/admin/toolbox-navigation.js',
-    'public/js/admin/desktop-lyric.js',
-    'public/js/admin/desktop-lyric-preview.js',
-    'public/js/admin/song-import.js',
-    'public/js/admin/settings.js',
-    'public/js/admin/display.js',
-    'public/js/admin/forms.js',
-    'public/js/admin/theme.js',
-    'public/js/admin/theme-style-view.js',
-    ...listJavaScriptFiles('public/js/admin/gifts'),
-  ]) {
-    assert.doesNotMatch(
-      read(relativePath),
-      /\bAdminApp\b|getLegacyAdminModules/,
-      `${relativePath} must use explicit dependencies, not legacy registry reads`,
-    );
-  }
-});
-
-test('Admin legacy global usage is frozen and can only decrease', () => {
-  const candidates = listJavaScriptFiles('public/js');
-
-  for (const relativePath of candidates) {
-    if (relativePath === 'public/js/admin/legacy-admin-bridge.js') continue;
-    const count = read(relativePath).match(/window\.AdminApp/g)?.length || 0;
-    if (count === 0) continue;
-    assert.ok(
-      Object.hasOwn(LEGACY_ADMIN_GLOBAL_LIMITS, relativePath),
-      `${relativePath} introduces a new legacy Admin global dependency`,
-    );
-    assert.ok(count <= LEGACY_ADMIN_GLOBAL_LIMITS[relativePath], `${relativePath} increases legacy Admin global usage`);
-  }
-
-  for (const [relativePath, limit] of Object.entries(LEGACY_ADMIN_GLOBAL_LIMITS)) {
-    const count = read(relativePath).match(/window\.AdminApp/g)?.length || 0;
-    assert.ok(count > 0, `${relativePath} has no legacy Admin global usage; remove its baseline`);
-    assert.ok(count <= limit, `${relativePath} increases legacy Admin global usage`);
+test('frontend modules use explicit dependencies without an Admin registry', () => {
+  assert.doesNotMatch(read('public/js/admin/app.js'), /shared\/container\.js|\bcontainer\./);
+  for (const file of listJavaScriptFiles('public/js')) {
+    const source = read(file);
+    assert.doesNotMatch(sanitizeSource(source), /\bAdminApp\b|getLegacyAdminModules/, file);
+    assert.doesNotMatch(source, /\b(?:window|globalThis)\s*\[\s*['"]AdminApp['"]\s*\]/, file);
   }
 });
 
@@ -289,6 +280,7 @@ test('composition roots delegate mutable subsystem state to runtimes', () => {
 
   assert.match(server, /createBilibiliRuntime/);
   assert.doesNotMatch(server, /function (?:configure|reconnect|replace)Bilibili/);
-  assert.match(desktop, /createDesktopState/);
-  assert.doesNotMatch(desktop, /^let\s+/m);
+  assert.match(desktop, /createDesktopLifecycle/);
+  assert.match(desktop, /createDesktopMainWindow/);
+  assert.doesNotMatch(desktop, /createDesktopState|\b(?:shutdownPromise|closePromptPromise)\b/);
 });

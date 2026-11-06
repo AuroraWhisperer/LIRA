@@ -262,7 +262,9 @@ test('games admin marks stale data once after a failed refresh and clears it on 
     setInterval: () => 1,
     clearInterval() {},
   };
-  const games = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'games.js'), sandbox);
+  const [games, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/games.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], sandbox);
   const settle = async () => {
     for (let index = 0; index < 30; index += 1) await new Promise(setImmediate);
   };
@@ -270,16 +272,16 @@ test('games admin marks stale data once after a failed refresh and clears it on 
   await settle();
 
   const status = node('gamesSessionStatus');
-  sandbox.window.AdminApp.eventBus.emit('ws:connected');
+  eventBus.emit('ws:connected');
   await settle();
   assert.match(status.textContent, /数据可能已过期/, 'a failed auto refresh tells the user the data may be stale');
   const staleText = status.textContent;
-  sandbox.window.AdminApp.eventBus.emit('ws:connected');
+  eventBus.emit('ws:connected');
   await settle();
   assert.equal(status.textContent, staleText, 'a repeated failure must not stack another warning');
 
   sessionReadsFail = false;
-  sandbox.window.AdminApp.eventBus.emit('ws:connected');
+  eventBus.emit('ws:connected');
   await settle();
   assert.doesNotMatch(status.textContent, /数据可能已过期/, 'a successful refresh clears the warning');
   assert.equal(status.textContent, '当前没有进行中的游戏');

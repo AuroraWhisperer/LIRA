@@ -135,3 +135,34 @@ test('frame preview route broadcasts a preview event and validates bad input', a
   assert.equal(retired.status, 400);
   assert.equal(broadcasts.length, 1);
 });
+
+test('imported gift-frame styles each keep their own switch and threshold', async () => {
+  const { buildGiftFrameStyleEvent } = require('../../src/bilibili/gift/frame-config');
+  const { writeGiftFrameStyleTrigger } = await import('../../public/js/shared/gift-frame-style-triggers.js');
+  const [a, b, c] = ['1', '2', '3'].map((digit) => `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`);
+  const gift = { id: 9, detection_status: 'final', gift_name: '礼物', user_name: '观众A', num: 1, total_price: 25 };
+  // Not yet migrated: imported styles keep the pre-upgrade switch shared with 林间花信.
+  const legacy = { giftFrameEnabled: 'true', giftFrameThresholdRmb: '20', giftFrameStyleTriggers: '' };
+  assert.deepEqual(buildGiftFrameStyleEvent(gift, legacy, [a, b]).styleIds, [a, b]);
+
+  const value = normalizeFrameSettingValue('giftFrameStyleTriggers',
+    { [a]: { enabled: 'true', thresholdRmb: '30' }, [b]: { enabled: true, thresholdRmb: '10.5' } });
+  assert.deepEqual(JSON.parse(value), { [a]: { enabled: 'true', thresholdRmb: '30' }, [b]: { enabled: 'true', thresholdRmb: '10.50' } });
+  const settings = { giftFrameEnabled: 'false', giftFrameThresholdRmb: '20', giftFrameStyleTriggers: value };
+  const event = buildGiftFrameStyleEvent(gift, settings, [a, b, c]);
+  assert.deepEqual([event.eventId, event.themeId, event.styleIds], ['gift-frame:9:imported', 'imported', [b]]);
+  assert.deepEqual(buildGiftFrameStyleEvent({ ...gift, total_price: 30 }, settings, [a, c]).styleIds, [a], 'threshold is inclusive');
+  assert.equal(buildGiftFrameEvent(gift, settings), null, '林间花信 keeps its own switch');
+
+  // Saving one style before migration materializes the others with their current values.
+  assert.deepEqual(JSON.parse(writeGiftFrameStyleTrigger(legacy, [a, b], a, { enabled: false, thresholdRmb: '5.00' })),
+    { [a]: { enabled: 'false', thresholdRmb: '5.00' }, [b]: { enabled: 'true', thresholdRmb: '20' } });
+  assert.deepEqual(Object.keys(JSON.parse(writeGiftFrameStyleTrigger(settings, [a, b, c], c, { enabled: true, thresholdRmb: '1' }))), [a, b, c]);
+
+  for (const invalid of ['[]', '{', JSON.stringify({ 'not-a-style': { enabled: 'true', thresholdRmb: '1' } }),
+    JSON.stringify({ [a]: { enabled: 'maybe', thresholdRmb: '1' } }), JSON.stringify({ [a]: { enabled: 'true', thresholdRmb: '-1' } }),
+    JSON.stringify({ [a]: { enabled: 'true', thresholdRmb: '1', extra: true } })]) {
+    assert.equal(normalizeFrameSettingValue('giftFrameStyleTriggers', invalid), null, invalid);
+  }
+  assert.equal(normalizeFrameSettingValue('giftFrameStyleTriggers', ''), '');
+});

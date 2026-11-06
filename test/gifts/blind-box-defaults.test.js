@@ -5,7 +5,6 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
-const { prepareSettingsBootstrap } = require('../../src/server/settings-bootstrap');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const settingsStoreModule = require('../../src/storage/settings-store');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
@@ -75,7 +74,7 @@ test('settings bootstrap merges new blind-box defaults before the first settings
       )
       .run(JSON.stringify(existing), new Date().toISOString());
 
-    const { settingsStore } = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
+    const settingsStore = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
     const migrated = JSON.parse(settingsStore.getSettings().giftBlindBoxConfig);
 
     assert.deepEqual(migrated.slice(0, existing.length), existing);
@@ -142,11 +141,11 @@ test('an empty blind-box configuration survives repeated settings bootstrap', ()
   });
 
   try {
-    const first = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
-    first.settingsStore.setSetting('giftBlindBoxConfig', '[]');
+    const first = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
+    first.setSetting('giftBlindBoxConfig', '[]');
 
-    const second = prepareSettingsBootstrap(databases.songDb, settingsStoreModule);
-    assert.equal(second.settingsStore.getSettings().giftBlindBoxConfig, '[]');
+    const second = settingsStoreModule.bootstrapSettingsStore(databases.songDb);
+    assert.equal(second.getSettings().giftBlindBoxConfig, '[]');
   } finally {
     closeDatabases(databases);
     fs.rmSync(dataDir, { recursive: true, force: true });

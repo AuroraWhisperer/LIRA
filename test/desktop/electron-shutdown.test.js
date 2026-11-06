@@ -17,21 +17,21 @@ test('connected output prompts once and cancellation leaves the runtime and rend
       return answer.promise;
     } });
   await h.start();
-  h.state.window.main.close();
+  h.window.close();
   h.quit();
   assert.equal(h.count('dialog:close'), 1);
-  assert.equal(h.state.lifecycle.shutdownPromise, null);
+  assert.equal(h.shutdownPromise, null);
   assert.deepEqual(h.clock.delays, [], 'shutdown deadline starts only after approval');
   answer.resolve({ response: 0 });
-  await h.state.lifecycle.closePromptPromise;
+  await h.closePromise;
   assert.equal(h.runtimeOpen, true);
   assert.equal(h.count('cloud:dispose'), 0);
-  assert.equal(h.state.window.main.isDestroyed(), false);
+  assert.equal(h.window.isDestroyed(), false);
   connected = false;
-  h.state.window.main.close();
+  h.window.close();
   assert.equal(h.count('dialog:close'), 1, 'disconnected outputs do not prompt again');
   h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
-  await h.state.lifecycle.shutdownPromise;
+  await h.shutdownPromise;
   assert.equal(h.count('app:exit'), 1);
 });
 
@@ -41,7 +41,7 @@ test('confirming connected output close runs the existing ordered shutdown once'
   await h.start();
   h.quit();
   h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
-  await h.state.lifecycle.closePromptPromise;
+  await h.closePromise;
   assert.equal(h.count('dialog:close'), 1);
   assert.equal(h.count('runtime:stop'), 1);
   assert.equal(h.count('screen-color-picker:dispose'), 1);
@@ -55,11 +55,11 @@ test('updater quit bypasses the usage prompt and still drains before playback fl
   await h.start();
   h.quitForUpdate();
   assert.equal(h.count('dialog:close'), 0);
-  assert.ok(h.state.lifecycle.shutdownPromise);
+  assert.ok(h.shutdownPromise);
   assert.equal(h.count('playback:flush'), 0, 'pending controllers must drain first');
   assert.equal(h.count('app:exit'), 0);
   h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
-  await h.state.lifecycle.shutdownPromise;
+  await h.shutdownPromise;
   assert.equal(h.count('playback:flush'), 1);
   assert.equal(h.count('runtime:stop'), 1);
   assert.equal(h.count('app:exit'), 1);
@@ -70,11 +70,11 @@ test('updater quit bypasses the usage prompt and still drains before playback fl
 test('a downloaded update does not bypass the prompt for an ordinary close', async () => {
   const h = createShutdownHarness({ hasActiveOverlayConnections: () => true });
   await h.start();
-  h.state.update.value = { status: 'downloaded', canInstall: true };
+  h.publishUpdate({ status: 'downloaded', canInstall: true });
   h.quit();
-  await h.state.lifecycle.closePromptPromise;
+  await h.closePromise;
   assert.equal(h.count('dialog:close'), 1);
-  assert.equal(h.state.lifecycle.shutdownPromise, null);
+  assert.equal(h.shutdownPromise, null);
   assert.equal(h.runtimeOpen, true);
 });
 
@@ -138,7 +138,7 @@ test('quit drains a scene waiting for scheduled renewal and reaches the actual p
   assert.equal(h.count('license:dispose'), 0);
   assert.equal(h.count('app:exit'), 0);
   assert.equal(acknowledgePlaybackFlush(), true);
-  await h.state.lifecycle.shutdownPromise;
+  await h.shutdownPromise;
   assertFinalized(h, false);
   assert.equal(settingsCalls, 0);
   assert.equal(h.logs.find((log) => log.scope === 'playback-flush').value.status, 'ack');
@@ -150,11 +150,11 @@ for (const entry of ['ipc', 'native']) {
     const h = createShutdownHarness({ realPlaybackFlush: true });
     t.after(acknowledgePlaybackFlush);
     await h.start();
-    const window = h.state.window.main;
+    const window = h.window;
     if (entry === 'ipc') h.handlers.get('desktop:close-window')();
     else window.close();
     assert.equal(window.isDestroyed(), false);
-    assert.equal(h.state.window.main, window);
+    assert.equal(h.window, window);
     window.close();
     assert.equal(h.count('cloud:dispose'), 1);
     h.cloudIdle.resolve();
@@ -165,7 +165,7 @@ for (const entry of ['ipc', 'native']) {
     assert.equal(h.count('app:exit'), 0);
     assert.equal(window.isDestroyed(), false);
     assert.equal(acknowledgePlaybackFlush(), true);
-    await h.state.lifecycle.shutdownPromise;
+    await h.shutdownPromise;
     assert.equal(window.isDestroyed(), true);
     assert.equal(h.count('app:exit'), 1);
     assert.equal(h.logs.find((log) => log.scope === 'playback-flush').value.status, 'ack');
@@ -176,7 +176,7 @@ test('repeated native close retains the existing shutdown deadline when the rend
   const h = createShutdownHarness({ realPlaybackFlush: true });
   t.after(acknowledgePlaybackFlush);
   await h.start();
-  const window = h.state.window.main;
+  const window = h.window;
   window.close();
   h.cloudIdle.resolve();
   h.remoteIdle.resolve();
@@ -184,7 +184,7 @@ test('repeated native close retains the existing shutdown deadline when the rend
   window.close();
   assert.deepEqual(h.clock.delays, [5000]);
   h.clock.advance(5000);
-  await h.state.lifecycle.shutdownPromise;
+  await h.shutdownPromise;
   assert.equal(window.isDestroyed(), true);
   assert.equal(h.count('app:exit'), 1);
   assert.ok(h.logs.some((log) => log.value?.event === 'QUIT_TIMEOUT'));
@@ -242,7 +242,7 @@ for (const [idleOption, disposedOnce, stoppedAtLeastOnce] of [
     await h.settle();
     assert.equal(h.count('runtime:stop'), 1);
     h.backendStop.resolve();
-    await h.state.lifecycle.shutdownPromise;
+    await h.shutdownPromise;
     assertFinalized(h, false);
   });
 }
@@ -254,10 +254,10 @@ test('every quit event waits for one sync drain, playback flush and runtime stop
   assert.equal(h.powerMonitor.listenerCount('resume'), 1);
 
   assert.equal(h.quit().defaultPrevented, true);
-  const shutdown = h.state.lifecycle.shutdownPromise;
+  const shutdown = h.shutdownPromise;
   assert.equal(h.quit().defaultPrevented, true);
   assert.ok(shutdown);
-  assert.equal(h.state.lifecycle.shutdownPromise, shutdown);
+  assert.equal(h.shutdownPromise, shutdown);
   assert.equal(h.powerMonitor.listenerCount('resume'), 0);
   assert.equal(h.count('remote:dispose'), 1);
   assert.equal(h.count('cloud:dispose'), 1);
@@ -324,10 +324,10 @@ for (const firstIntent of ['quit', 'restart']) {
     const h = createShutdownHarness();
     await h.start();
     const first = firstIntent === 'restart' ? h.restart() : h.quit();
-    const shutdown = h.state.lifecycle.shutdownPromise;
+    const shutdown = h.shutdownPromise;
     const restarts = [h.restart(), h.restart()];
     assert.equal(h.quit().defaultPrevented, true);
-    assert.equal(h.state.lifecycle.shutdownPromise, shutdown);
+    assert.equal(h.shutdownPromise, shutdown);
     assert.equal(h.count('remote:dispose'), 1);
     assert.equal(h.count('cloud:dispose'), 1);
     assert.equal(h.count('runtime:stop'), 0);
@@ -434,9 +434,8 @@ test('license disposal failure is logged without preventing restart termination'
 });
 
 test('request-auth disposal failure cannot defeat the forced shutdown deadline', async () => {
-  const h = createShutdownHarness();
+  const h = createShutdownHarness({ requestAuthDisposeError: new Error('request auth disposal failed') });
   await h.start();
-  h.state.lifecycle.requestAuth = { dispose() { throw new Error('request auth disposal failed'); } };
   h.quit();
   assert.doesNotThrow(() => h.clock.advance(5000));
   assertFinalized(h, false);
@@ -454,7 +453,7 @@ test('restart during the last startup restore exits without creating a runtime l
   const pendingRestore = Promise.withResolvers();
   const h = createShutdownHarness({ doubaoRestore: pendingRestore });
   await h.start();
-  assert.equal(h.state.lifecycle.runtime, null);
+  assert.equal(h.runtimeOptions, null);
   assert.deepEqual(await h.restart(), { ok: false, error: 'IPC_SOURCE_INVALID' });
   assert.equal(await h.requestRestart(), undefined);
   assert.equal(h.count('app:relaunch'), 1);
@@ -525,6 +524,6 @@ test('restart drains scene cloud delivery before closing the runtime', async () 
   assert.equal(h.count('runtime:stop'), 1);
   assert.ok(h.calls.indexOf('scene:idle') < h.calls.indexOf('runtime:stop'));
   h.backendStop.resolve();
-  await h.state.lifecycle.shutdownPromise;
+  await h.shutdownPromise;
   assertFinalized(h, true);
 });

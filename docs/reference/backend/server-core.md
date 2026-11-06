@@ -6,6 +6,8 @@
 
 **组合根边界:** `server.js` 只保留运行时生命周期、领域装配与启动/关闭次序。`runtime-config.js` 解析路径和限制，`runtime-transport.js` 装配 WebSocket/静态传输，`authorized-work.js` 控制授权后才启动的消费者，`http-server.js` 创建监听器并分发请求，`runtime-api-context.js` 组装每次请求的 API 依赖；启动及每小时保留期维护和自动打开后台分别由 `startup-retention.js`、`admin-launcher.js` 单独拥有。叶模块不导入 `server.js`，依赖只从组合根向下传递。
 
+[cloud-sync-runtime.js](../../../src/server/cloud-sync-runtime.js) 拥有本地云设置/歌曲快照适配、待上传快照及确认、账号房间准备、盲盒映射状态和同步通知订阅；菜单构造继续复用 `danmaku-menu.js` 的纯规则。菜单签名与微任务合并由该适配器持有，入口提供当前服务读取端口和运行状态，在初始化完成时记录菜单基线，关闭开始后不再执行排队的菜单通知。原有 runtime 门面和 API 调用保持一致，云端修订、串行请求及重试仍归桌面云同步控制器。
+
 `http-server.js` 的异常日志在源头只记录解析后的 pathname（不含 query），并经共享凭据脱敏处理 error/stack 后输出。因此独立 Node 入口也不依赖 Electron 的 terminal wrapper 来保护这条错误日志。
 
 ## 1. 进程模型与入口
@@ -123,6 +125,8 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游戏和转盘服务创建后组装一次只读 `displayPorts`，交给 `scene-runtime.js` / `scene-extra-display.js`：设置读取、数据目录与状态读取、歌曲列表/版本、礼物版本/历史/盲盒统计、礼物卡片/心愿、小游戏/转盘/互动状态和全局礼物目录。共享外观读取使用其中的 settings/system 与 runtime 自有 cloud danmaku reader；外观写路由仍使用自己的 settings 写入上下文。Scene 不经 API Context 取回自身，也不取得 session token、音乐 registry 或 shutdown 能力。
 
+场景管理的账号校验、修订、发布与事务由 `scene-service.js` 拥有；[scene-output-reader.js](../../../src/scenes/scene-output-reader.js) 拥有输出读取、投影凭据和数据版本，异步读取结束后仍复核账号代次与来源凭据。[scene-capability-codec.js](../../../src/scenes/scene-capability-codec.js) 统一来源凭据的签发、加密内容校验和 token 比较，供管理与输出两条路径使用。
+
 ### 4.3 静态页面服务与页面能力
 
 [page-assets.js](../../../src/server/page-assets.js) 的 `servePageOrAsset` 按 [access-policy.js](../../../src/server/access-policy.js) 固定页面表解析 scope；raw HTML、规范 URL 同权，大小写与文件路径按实际解析处理，路径必须留在 publicDir 内。禁止冒号文件别名，避免 Windows NTFS `::$DATA` 将 HTML 伪装成普通资源。
@@ -148,17 +152,19 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 | `gifts`                                                  | gift-service + 消费者注册表(加班机消费者)                 | [bilibili/gift.md](bilibili/gift.md)       |
 | `overtime`                                               | `createOvertimeService({store, onUpdate})`               | [overtime.md](overtime.md)                 |
 | `superChats`                                             | superchat-service                                         | [bilibili/gift.md](bilibili/gift.md)       |
-| `messages` | 本地点歌/关键词命令编排；签到、抽签命令返回 `cloud-owned`，交由服务器执行 | [bilibili/danmaku.md](bilibili/danmaku.md) |
+| `messages` | [message-application.js](../../../src/server/message-application.js) 拥有命令优先级、点歌结果登记与自定义回复选择；签到、抽签命令返回 `cloud-owned` | [bilibili/danmaku.md](bilibili/danmaku.md) |
 | `customReplies / requesterTargets` | 本地关键词回复与点歌目标识别 | [bilibili/danmaku.md](bilibili/danmaku.md) |
 | `dailyBotLegacy` | 旧签到/抽签数据只读导出，供显式迁移；不执行机器人 | [bilibili/danmaku.md](bilibili/danmaku.md) |
 | `fans` | 本地粉丝档案与点歌事实消费 | [storage.md](storage.md) |
-| `giftWishes / overtimeGiftCatalog` | 本地礼物许愿与加班机使用的礼物目录 | [bilibili/gift.md](bilibili/gift.md)、[overtime.md](overtime.md) |
-| `data`                                                   | 清库/保留策略入口(database + retention)                   | [storage.md](storage.md)                   |
+| `giftWishes / heartBoxCollection / overtimeGiftCatalog` | 本地礼物许愿、心动盲盒每周收集与共享礼物目录；收集服务复用许愿存储的窗口聚合 | [bilibili/gift.md](bilibili/gift.md)、[overtime.md](overtime.md) |
+| `data` | [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 拥有清库后运行状态恢复、来源选择、保留策略与 schema 版本缓存 | [storage.md](storage.md) |
 | `playback / theme / cooldowns`                           | playback-store / theme-store / cooldown-store             | [storage.md](storage.md)                   |
 
 **启动时数据修复链**仅在精确端口绑定成功后执行:`createDatabases`/schema migration → `settingsBootstrap` 设置迁移 → runtime 装配 → 旧 `giftEffectResolver` 按显式兼容 API 惰性加载 → `ensureCategory('默认')` → `queue.ensureUnified()` → `startRetentionMaintenance()`。保留期维护立即检查一次，之后每小时检查；每次读取最新设置，仅在 `autoRetentionOnStartup==='true'` 时执行，失败只记录警告，不阻断启动或后续维护。未完成点歌沿用数据库中的 ID、置顶和排队顺序，历史 `current` 态归位为 `waiting`；重启不清空队列，完成与清空由显式队列操作决定。客户端原始礼物检测与修复实现已删除，旧本地礼物不再重新解析或合并。`/gift-effects` 的实时路径不再预热或消费旧媒体映射。
 
 **运行时组件装配**:音乐 Provider Registry、歌词服务、歌词状态与 WeSing 捕获由 `buildMusicRuntime()` 拥有;AI 配置、配额、统一模型入口、豆包适配器、ChatGPT 会话与客户端、工具、上下文清理、投递校验及请求日志由 `buildAiRuntime()` 拥有;Bilibili 登录缓存、客户端替换串行化、liveStatus、诊断缓冲和弹幕发送器由 `createBilibiliRuntime()` 拥有。`server.js` 作为 composition root 只创建这些 runtime、连接广播/领域回调并控制启动与逆序关闭。当前 Bilibili runtime 仍创建并维持 `BilibiliDanmakuClient`，本地 `onGift → gifts.add()` 记账入口已移除；弹幕、点歌/机器人、SC、用户信息和小游戏仍继续处理。服务器权威礼物由 LIRA Server 的每主播 `RoomMonitor` 检测，Electron main 通过 DeviceBearer final cursor/SSE 拉取后调用本地 `importProcessedGiftEvent`;本仓库的 renderer 不直接访问远程接口或凭据。本地客户端启停跟随 `danmakuMonitoringEnabled`（兼容旧数据 `enableBilibili`），`giftMonitoringEnabled` 单独控制云端礼物入口。两项默认开启；存储与云同步将旧总开关维护为两项逻辑或，旧的明确停用会保留。服务端仅切换通道时原地更新 `RoomMonitor`，两项都关闭才停止共享连接；已接受礼物仍完成结算。远程礼物协议、baseline/catch-up 与隐私白名单见 `specs/server-authoritative-gift-detection_design.md`。
+
+[gift-sync-runtime.js](../../../src/server/gift-sync-runtime.js) 拥有礼物同步和保留存储的创建、就绪状态、历史/实时导入及本地清理顺序；`server.js` 只注入礼物数据库与两个导入回调，并在应用关闭时释放引用。来源选择、导出准备与卡片缓存仍由 `gift-export-runtime.js` 拥有。
 
 ## 6. 启动与关闭时序(服务端唯一成文处)
 
@@ -207,6 +213,6 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 
 [src/server/system-metrics.js](../../../src/server/system-metrics.js) 的 `getSystemMetrics(rawWindowMs = 5000)`:默认 5 秒采样窗口内的 CPU/内存/GPU(Windows 下 PowerShell 采样 GPU 引擎)指标,由 `/api/system/metrics` 暴露(见 [api.md](api.md))。GPU 命令需要额外启动和枚举计数器，统一由子进程超时限制为采样时长加 10 秒；CPU/内存取样完成后等待 GPU 返回，不提前丢弃有效结果。`windowMs` 和 `sampledAt` 记录 CPU/内存采样窗口及结束时间，不计入等待 GPU 的额外耗时。GPU 命令超时、计数器不可用或解析失败时仍返回不可用状态和 `null`，不伪装为零负载。
 
-同模块的 `getHardwareSummary(includeTemperatures)` 读取操作系统版本、CPU/物理 GPU/内存型号与容量、排除虚拟显示适配器，并在进程内缓存静态结果。Windows 系统名称和主 build 来自 `Win32_OperatingSystem.Caption/BuildNumber`，功能版本及补丁修订号来自 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion` 的 `DisplayVersion`（缺失时用 `ReleaseId`）和 `UBR`。查询失败时保留 Node `os.version()` 的名称及 Windows `os.release()` 的主 build，不根据 `10.0` 内核版本推断为 Windows 10；缺失修订号不伪造 `.0`。系统资料查询失败不影响同次硬件读取。返回字段见 [系统域 API](api.md#1-系统域system)。只有 `/api/system/hardware?includeTemperatures=true` 明确请求时，才会为 NVIDIA GPU 短暂调用 `nvidia-smi`;不支持的传感器返回不可用状态，不启动常驻监控进程，也不返回序列号。
+[hardware-summary.js](../../../src/server/hardware-summary.js) 的 `createHardwareSummaryService()` 拥有硬件详情缓存和探测流程，由 `runtime-api-context` 在运行期装配时创建一次，所有请求复用其 `getHardwareSummary(includeTemperatures)`。它读取操作系统版本、CPU/物理 GPU/内存型号与容量、排除虚拟显示适配器，静态结果按服务实例缓存，显示器每次刷新。Windows 系统名称和主 build 来自 `Win32_OperatingSystem.Caption/BuildNumber`，功能版本及补丁修订号来自 `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion` 的 `DisplayVersion`（缺失时用 `ReleaseId`）和 `UBR`。查询失败时保留 Node `os.version()` 的名称及 Windows `os.release()` 的主 build，不根据 `10.0` 内核版本推断为 Windows 10；缺失修订号不伪造 `.0`。系统资料查询失败不影响同次硬件读取。返回字段见 [系统域 API](api.md#1-系统域system)。只有 `/api/system/hardware?includeTemperatures=true` 明确请求时，才会为 NVIDIA GPU 短暂调用 `nvidia-smi`;不支持的传感器返回不可用状态，不启动常驻监控进程，也不返回序列号。
 
 GPU 的 `videoMemoryBytes` 是驱动报告的专用或预留显存，不包含核显可动态使用的共享系统内存。Windows 静态查询按显卡设备对应的驱动注册表项读取 64 位 `HardwareInformation.qwMemorySize`；缺失时仅采用低于 4095 MiB 的 `Win32_VideoController.AdapterRAM`。旧字段为 32 位，4095 MiB 及以上可能是饱和值；没有可靠容量时返回 `null`，避免将 8 GB 等显卡误报为 4 GB。

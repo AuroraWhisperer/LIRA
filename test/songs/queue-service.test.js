@@ -88,6 +88,14 @@ test('queue rejection codes reach HTTP and the existing optional danmaku reply',
   }
 });
 
+test('ordinary non-command chat does not load song request settings', () => {
+  const { handleDanmakuMessage } = require('../../src/bilibili/bilibili-message-handler');
+  const context = { settings() { assert.fail('ordinary chat must not copy the song request settings'); } };
+  const result = handleDanmakuMessage(context, { message: '普通聊天', source: 'danmaku' });
+  assert.equal(result.accepted, false);
+  assert.equal(result.command, undefined);
+});
+
 test('queue and request inserts roll back together when request persistence fails', () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-queue-atomic-'));
   const db = createDatabases({ dataDir });

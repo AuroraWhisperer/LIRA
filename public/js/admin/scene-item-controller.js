@@ -1,7 +1,7 @@
 import { sharedControllerAppearance, mergeSharedAppearancePatch } from '../shared/scene-shared-appearance.js';
 
 export function createSceneItemController(model, itemId, defaultController, sharedAppearance) {
-  const getItem = () => model.getSnapshot().items.find(entry => entry.id === itemId);
+  const getItem = () => model.getItemSnapshot ? model.getItemSnapshot(itemId) : model.getSnapshot().items.find(entry => entry.id === itemId);
   function readState() {
     const item = getItem();
     if (!item || item.appearance.mode === 'shared') return defaultController.getState();
@@ -51,6 +51,7 @@ export function createSceneItemController(model, itemId, defaultController, shar
     discard() { const item = getItem(); return sharedAppearance?.getState(item) ? sharedAppearance.discard(item) : defaultController.discard?.(); },
     subscribe(listener) {
       let previous;
+      let previousItem;
       const notify = () => {
         const state = readState();
         const serialized = JSON.stringify(state);
@@ -58,7 +59,12 @@ export function createSceneItemController(model, itemId, defaultController, shar
         previous = serialized;
         listener(JSON.parse(serialized));
       };
-      const stopModel = model.subscribeSnapshot(notify);
+      const stopModel = model.subscribeSnapshot(() => {
+        const item = getItem();
+        if (previous !== undefined && item?.type === previousItem?.type && item?.appearance === previousItem?.appearance) return;
+        previousItem = item;
+        notify();
+      });
       const stopDefault = defaultController.subscribe(notify);
       const stopShared = sharedAppearance?.subscribe(notify);
       return () => { stopModel(); stopDefault(); stopShared?.(); };

@@ -66,7 +66,7 @@ test('gift subviews skip unrelated state updates while corrections, catalogs and
   assert.equal(writes.blindbox, 0);
   assert.match(recent.innerHTML, /礼物 x2/);
   assert.deepEqual(notices.at(-1), [2]);
-  f.window.AdminApp.eventBus.emit('gift:catalog_updated', {
+  f.eventBus.emit('gift:catalog_updated', {
     snapshot: { gifts: [{ id: '1', name: '礼物', imagePath: '/overtime-gift-images/new.webp' }] },
   });
   assert.match(recent.innerHTML, /\/overtime-gift-images\/new.webp/);

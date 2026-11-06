@@ -3,13 +3,9 @@
 'use strict';
 const { randomUUID } = require('node:crypto');
 
-const { createGiftProjectionService: buildGiftProjectionService } = require('./projection-service');
+const { createGiftProjectionService } = require('./projection-service');
 const { createGiftConsumerRegistry } = require('./consumer-registry');
-const { createGiftStatisticsConsumer: buildGiftStatisticsConsumer } = require('./statistics-consumer');
-const { createGiftProjectionStore } = require('../../storage/gift-projection-store');
-const { createGiftStatisticsStore } = require('../../storage/gift-statistics-store');
-const { createGiftQueryStore } = require('../../storage/gift-query-store');
-const { createGiftMaintenanceStore } = require('../../storage/gift-maintenance-store');
+const { createGiftStatisticsConsumer } = require('./statistics-consumer');
 const {
   CRYSTAL_BALL_VALUE_RMB,
   resetGiftSprintProgress,
@@ -25,55 +21,26 @@ const {
 const { getBlindBoxStats, getBlindBoxAnalysis } = require('./blind-box-analysis');
 const { normalizeGiftRow } = require('./normalizer');
 
-// Existing callers use this facade's database context. Keep that adaptation
-// here; the projection and consumer implementations only receive narrow stores.
-function createGiftProjectionService(context, options = {}) {
-  return buildGiftProjectionService(
-    {
-      store: context.projectionStore || createGiftProjectionStore(context.db.giftDb),
-      settings: context.settings,
-    },
-    options,
-  );
-}
-
-function createGiftStatisticsConsumer({ store, giftDb }) {
-  return buildGiftStatisticsConsumer({
-    store: store || createGiftStatisticsStore(giftDb),
-  });
-}
-
-function createQueryContext(context) {
-  return {
-    queryStore: context.queryStore || createGiftQueryStore(context.db.giftDb),
-    maintenanceStore: context.maintenanceStore || createGiftMaintenanceStore(context.db.giftDb),
-    settings: context.settings,
-    now: context.now,
-    getActiveGiftSource: context.getActiveGiftSource,
-    activeGiftSource: context.activeGiftSource,
-  };
-}
-
-function createGiftService(context, options = {}) {
+function createGiftService({ queryStore, maintenanceStore, projectionStore, statisticsStore, settings, now }, options = {}) {
   let activeGiftSource = null;
   let viewEpoch = randomUUID();
   const giftContext = {
-    ...createQueryContext(context),
+    queryStore,
+    maintenanceStore,
+    settings,
+    now,
     getActiveGiftSource: () => activeGiftSource,
   };
   const statisticsConsumer =
     options.statisticsConsumer ||
-    createGiftStatisticsConsumer({
-      store: context.statisticsStore,
-      giftDb: context.db?.giftDb,
-    });
+    createGiftStatisticsConsumer({ store: statisticsStore });
   const consumerRegistry =
     options.consumerRegistry ||
     createGiftConsumerRegistry({
       consumers: [statisticsConsumer, ...(options.consumers || [])],
       onError: options.onConsumerError,
     });
-  const projectionService = createGiftProjectionService(context, {
+  const projectionService = createGiftProjectionService({ store: projectionStore, settings }, {
     ...options,
     consumerRegistry,
   });
@@ -130,14 +97,14 @@ module.exports = {
   createGiftProjectionService,
   createGiftConsumerRegistry,
   createGiftStatisticsConsumer,
-  resetGiftSprintProgress: (context) => resetGiftSprintProgress(createQueryContext(context)),
-  getGiftSnapshot: (context) => getGiftSnapshot(createQueryContext(context)),
-  getGiftHistory: (context, options) => getGiftHistory(createQueryContext(context), options),
-  getGiftStatistics: (context, options) => getGiftStatistics(createQueryContext(context), options),
-  getGiftSprintSnapshot: (context) => getGiftSprintSnapshot(createQueryContext(context)),
-  getBlindBoxAnalysis: (context, options) => getBlindBoxAnalysis(createQueryContext(context), options),
-  getBlindBoxStats: (context, options) => getBlindBoxStats(createQueryContext(context), options),
-  searchGifts: (context, options) => searchGifts(createQueryContext(context), options),
+  resetGiftSprintProgress,
+  getGiftSnapshot,
+  getGiftHistory,
+  getGiftStatistics,
+  getGiftSprintSnapshot,
+  getBlindBoxAnalysis,
+  getBlindBoxStats,
+  searchGifts,
   normalizeGiftRow,
-  clearRecentGifts: (context) => clearRecentGifts(createQueryContext(context)),
+  clearRecentGifts,
 };

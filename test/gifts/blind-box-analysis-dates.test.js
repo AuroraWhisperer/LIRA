@@ -6,7 +6,7 @@ const { getBlindBoxAnalysis, getBlindBoxStats } = require('../../src/bilibili/gi
 const { routes } = require('../../src/server/routes/gift-routes');
 const { createFixture } = require('../helpers/gift-query-fixture');
 
-test('blind box snapshots reuse unchanged rows across lyric updates and invalidate for writes, source, filter and day', t => {
+test('blind box snapshots share all-box and heart-box reads and invalidate for writes, source and day', t => {
   const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-18T12:00:00') });
   const fixture = createFixture();
@@ -22,14 +22,15 @@ test('blind box snapshots reuse unchanged rows across lyric updates and invalida
   for (let i = 0; i < 20; i++) {
     display('lyrics', () => ({ lyricState: { currentMs: i * 250 }, lyricTimeline: { lines: [] } }));
     assert.equal(display('blindbox').summary.totalProfit, 1);
+    assert.equal(getBlindBoxStats(fixture.context, { boxName: '心动盲盒' }).heartBoxProgress.openedSinceCastle, 1);
   }
-  assert.equal(rows.mock.callCount(), 1);
+  assert.equal(rows.mock.callCount(), 2);
   fixture.giftDb.prepare('UPDATE gift_events SET blind_profit = 2').run();
   assert.equal(display('blindbox').summary.totalProfit, 2);
-  assert.equal(rows.mock.callCount(), 2, 'in-place changes invalidate even with the same row count');
+  assert.equal(rows.mock.callCount(), 3, 'in-place changes invalidate even with the same row count');
   heartOnly = true;
   assert.equal(display('blindbox').heartBoxProgress.openedSinceCastle, 1);
-  assert.equal(rows.mock.callCount(), 3);
+  assert.equal(rows.mock.callCount(), 4);
   fixture.setActiveSource(fixture.resolveSource('a'.repeat(64)).id);
   assert.equal(display('blindbox').summary.boxCount, 0);
   const emptyReads = rows.mock.callCount();

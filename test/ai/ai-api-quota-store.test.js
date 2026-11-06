@@ -4,12 +4,13 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
+const { createAiApiUsageStore } = require('../../src/storage/ai-api-usage-store');
 const { createAiApiQuotaStore, API_QUOTAS, withApiQuota } = require('../../src/ai/api-quota-store');
 
 test('AI API quotas stop exactly at their configured monthly limits', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
-  const quota = createAiApiQuotaStore(db, {
+  const quota = createAiApiQuotaStore(createAiApiUsageStore(db), {
     now: () => Date.parse('2026-08-06T04:00:00.000Z'),
   });
 
@@ -30,7 +31,7 @@ test('AI API quotas reset at the start of a Beijing calendar month', () => {
   let now = Date.parse('2026-08-31T15:59:59.000Z');
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
-  const quota = createAiApiQuotaStore(db, { now: () => now });
+  const quota = createAiApiQuotaStore(createAiApiUsageStore(db), { now: () => now });
 
   assert.equal(quota.consume('qweather').monthKey, '2026-08');
   now = Date.parse('2026-08-31T16:00:00.000Z');
@@ -42,7 +43,7 @@ test('failed requests consume the remaining monthly quota and block the next att
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
-  const quota = createAiApiQuotaStore(db, {
+  const quota = createAiApiQuotaStore(createAiApiUsageStore(db), {
     now: () => Date.parse('2026-08-06T04:00:00.000Z'),
   });
   db.prepare('INSERT INTO ai_api_usage (category, month_key, request_count, updated_at) VALUES (?, ?, ?, 0)')
@@ -67,7 +68,7 @@ test('a late failure after month rollover keeps both months of request counts in
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
-  const quota = createAiApiQuotaStore(db, { now: () => now });
+  const quota = createAiApiQuotaStore(createAiApiUsageStore(db), { now: () => now });
   let rejectRequest;
   const request = withApiQuota(quota, 'qweather', () => new Promise((resolve, reject) => {
     rejectRequest = reject;
@@ -86,7 +87,7 @@ test('a late failure after month rollover keeps both months of request counts in
 test('quota availability maps exhausted categories to their local tools', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);
-  const quota = createAiApiQuotaStore(db, {
+  const quota = createAiApiQuotaStore(createAiApiUsageStore(db), {
     now: () => Date.parse('2026-08-06T04:00:00.000Z'),
   });
   const insert = db.prepare(`
@@ -117,7 +118,7 @@ test('quota cleanup keeps current, previous and future months across year rollov
     insert.run('qweather', month, API_QUOTAS.qweather);
   }
   let now = Date.parse('2025-12-31T16:00:00Z');
-  const quota = createAiApiQuotaStore(db, { now: () => now });
+  const quota = createAiApiQuotaStore(createAiApiUsageStore(db), { now: () => now });
   const months = () => db.prepare('SELECT month_key FROM ai_api_usage ORDER BY month_key').all().map((row) => row.month_key);
   assert.deepEqual(months(), ['2025-12', '2026-01', '2026-02']);
   assert.equal(quota.consume('qweather').allowed, false, 'cleanup must not reset the current budget');

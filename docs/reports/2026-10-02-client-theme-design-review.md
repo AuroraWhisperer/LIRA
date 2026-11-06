@@ -333,7 +333,7 @@ HTML 初始化只处理显式列出的主界面、组件预览、授权后的礼
 | [gift-audit.html](../../public/pages/gift-audit.html)、[gift-audit.css](../../public/css/gift-audit.css)、[gift-audit/index.js](../../public/js/gift-audit/index.js) | 独立入口、局部颜色体系及旧授权依赖；不是桌面子窗口接入的证明。 |
 | [license.html](../../public/pages/license.html)、[license.css](../../public/css/license.css) | 登录独立设计及当前用户改动，明确排除。 |
 | [shell-start.html](../../public/pages/admin/shell-start.html)、[overlays/desktop.css](../../public/css/overlays/desktop.css) | CSS 前的桌面标记、样式加载顺序及当前位图导航。 |
-| [main.js](../../src/electron/main.js)、[desktop-state.js](../../src/electron/desktop-state.js)、[desktop-user-data.js](../../src/electron/desktop-user-data.js) | 主窗口初始底色、内存状态和持久数据路径。 |
+| [main.js](../../src/electron/main.js)、[desktop-main-window.js](../../src/electron/desktop-main-window.js)、[desktop-user-data.js](../../src/electron/desktop-user-data.js) | 主窗口初始底色、内存状态和持久数据路径。2026-11-06 原 `desktop-state.js` 内存容器已由各运行期 owner 接管。 |
 | [main-window-ipc.js](../../src/electron/ipc/main-window-ipc.js)、[desktop-request-auth.js](../../src/electron/desktop-request-auth.js) | 主窗口 IPC 白名单与外部浏览器打开策略。 |
 | [http-utils.js](../../src/server/http-utils.js)、[component-preview-page.js](../../src/server/component-preview-page.js) | HTML 授权与组合位置；未来只读初始化可接入的入口。 |
 | [component-preview-dialog.js](../../public/js/admin/component-preview-dialog.js)、[component-preview-page.js](../../public/js/admin/component-preview-page.js) | 外部预览链接、受限会话、恢复与页面销毁行为。 |

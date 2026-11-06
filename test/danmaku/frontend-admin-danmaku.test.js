@@ -42,15 +42,10 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
       };
       window.danmakuRequests = [];
       window.reconnects = 0;
-      window.AdminApp = {
-        utils: { toast() {} },
-        settings: {
-          async reconnectBilibili(options) {
-            window.reconnects++;
-            window.reconnectOptions = options;
-            window.danmakuState.connected = true;
-          },
-        },
+      window.reconnectBilibili = async (options) => {
+        window.reconnects++;
+        window.reconnectOptions = options;
+        window.danmakuState.connected = true;
       };
       window.fetch = async (url) => {
         if (url !== '/api/bilibili/danmaku/state') throw new Error(`Unexpected danmaku request: ${url}`);
@@ -60,12 +55,12 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
           json: async () => ({ ok: true, data: structuredClone(window.danmakuState) }),
         };
       };
-      await import('/js/admin/danmaku-tool.js');
-      window.AdminApp.danmakuTool.init({
-        reconnectBilibili: window.AdminApp.settings.reconnectBilibili,
+      window.danmakuTool = (await import('/js/admin/danmaku-tool.js')).danmakuTool;
+      window.danmakuTool.init({
+        reconnectBilibili: window.reconnectBilibili,
         toast() {},
       });
-      await window.AdminApp.danmakuTool.refresh();
+      await window.danmakuTool.refresh();
     },
     { html, state, overlayHtml: readAdminFragmentHtml('pages/admin/live-components/danmaku.html') },
   );
@@ -170,13 +165,13 @@ test('automatic refresh stays quiet and skips disabled monitoring or an unset ro
   const page = await createDanmakuPage(t, { connected: false });
   await page.evaluate(async () => {
     document.getElementById('danmakuMonitoringEnabled').checked = false;
-    await window.AdminApp.danmakuTool.refresh({ reconnectIfDisconnected: true });
+    await window.danmakuTool.refresh({ reconnectIfDisconnected: true });
   });
   assert.equal(await page.evaluate(() => window.reconnects), 0);
   await page.evaluate(async () => {
     document.getElementById('danmakuMonitoringEnabled').checked = true;
     window.danmakuState.roomId = '';
-    await window.AdminApp.danmakuTool.refresh({ reconnectIfDisconnected: true });
+    await window.danmakuTool.refresh({ reconnectIfDisconnected: true });
   });
   assert.equal(await page.evaluate(() => window.reconnects), 0);
 });
@@ -214,9 +209,9 @@ test('opening a disconnected danmaku panel reconnects once and refreshes the sta
   const page = await createDanmakuPage(t, { connected: false }, readAdminHtml());
   await page.evaluate(async () => {
     window.localStorage.setItem('admin.toolboxSelectedFeature', 'otherPerformanceFeature');
-    await import('/js/admin/toolbox-navigation.js');
-    window.AdminApp.other.initOtherPage();
-    window.AdminApp.other.selectFeatureById('otherDanmakuFeature');
+    window.other = (await import('/js/admin/toolbox-navigation.js')).other;
+    window.other.initOtherPage({ danmakuTool: window.danmakuTool, reconnectBilibili: window.reconnectBilibili });
+    window.other.selectFeatureById('otherDanmakuFeature');
   });
   await page.waitForFunction(() => document.getElementById('danmakuToolStatus').className === 'connection-good', null, {
     timeout: 2000,
@@ -224,7 +219,7 @@ test('opening a disconnected danmaku panel reconnects once and refreshes the sta
   assert.equal(await page.evaluate(() => window.reconnects), 1);
   assert.deepEqual(await page.evaluate(() => window.reconnectOptions), { silent: true });
   assert.equal(await page.evaluate(() => window.danmakuRequests.length), 3);
-  await page.evaluate(() => window.AdminApp.other.selectFeatureById('otherDanmakuFeature'));
+  await page.evaluate(() => window.other.selectFeatureById('otherDanmakuFeature'));
   await page.waitForFunction(() => window.danmakuRequests.length === 4, null, {
     timeout: 2000,
   });
