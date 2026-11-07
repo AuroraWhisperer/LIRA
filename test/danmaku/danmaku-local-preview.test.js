@@ -11,6 +11,7 @@ const styles = ['window', 'comic', 'bubble', 'signal', 'minimal', 'ranked', 'tra
 async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   const document = createParameterDocument();
   const node = document.getElementById;
+  document.querySelector = selector => selector === '.danmaku-signal-stage' ? node('stage') : null;
   const buttons = [...styles, 'floating', 'comet'].map((style) => {
     const button = node(style);
     button.dataset.previewStyle = style;

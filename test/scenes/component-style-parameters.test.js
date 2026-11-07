@@ -70,6 +70,16 @@ test('browser and privileged display contracts stay identical', () => {
   assert.deepEqual(common.normalizeStyleParameters('danmaku', input), parameters.normalizeStyleParameters('danmaku', input));
 });
 
+test('dark moon display effects roundtrip through local scene validation', () => {
+  const { normalizeSceneConfig } = require('../../src/server/scene-components');
+  const config = normalizeSceneConfig('danmaku', {
+    style: 'dark-moon', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null,
+    styleParameters: { 'dark-moon': { textOutline: { width: 1.5 }, shadow: { blur: 12 } } },
+  });
+  assert.equal(config.styleParameters['dark-moon'].textOutline.width, 1.5);
+  assert.equal(config.styleParameters['dark-moon'].shadow.blur, 12);
+});
+
 test('preview relay accepts validated optional effects on old clock and danmaku drafts only', () => {
   const { createComponentPreviewSessions } = require('../../src/server/component-preview-sessions');
   const sessions = createComponentPreviewSessions();

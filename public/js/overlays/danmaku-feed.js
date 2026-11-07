@@ -4,6 +4,7 @@ import { componentEffectBounds } from './component-effect-filters.js';
 import { createFloatingDanmakuFeed } from './danmaku-floating.js';
 import { createSinkingDanmakuFeed } from './danmaku-sinking-feed.js';
 import { FULLSCREEN_SAFE_INSET_PX, findRandomDanmakuPosition } from './danmaku-random-position.js';
+import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import {
   DEFAULT_DANMAKU_CLASSES,
   createDanmakuMessageRenderer,
@@ -32,6 +33,8 @@ const LAYOUT_MOVE_CURVE = Object.freeze([0.3, 0.1, 0.2, 1]);
  * @returns {{render: Function, append: Function, remove: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
+  const fixedLifetimeMs = DANMAKU_STYLE_OPTIONS[options.style]?.fixedLifetimeMs;
+  if (fixedLifetimeMs) options = { expireFixedItems: true, itemLifetimeMs: fixedLifetimeMs, ...options };
   if (options.style === 'sinking') return createSinkingDanmakuFeed(root, options);
   if (options.layout === 'floating') return createFloatingDanmakuFeed(root, options);
   if (!root || typeof root.replaceChildren !== 'function') {
@@ -49,7 +52,12 @@ export function createDanmakuFeed(root, options = {}) {
   };
   const autoScroll = options.autoScroll !== false;
   const fullscreen = options.layout === FULLSCREEN_LAYOUT;
-  const showSuperchat = !fullscreen || ['mist', 'comic', 'window'].includes(options.style);
+  const horizontal = !fullscreen && (options.flowAxis === 'horizontal' || options.layout === 'horizontal');
+  const axis = horizontal
+    ? { size: 'width', clientSize: 'clientWidth', position: 'left', end: 'right', paddingStart: 'paddingLeft', paddingEnd: 'paddingRight', gap: 'columnGap', reverse: 'row-reverse' }
+    : { size: 'height', clientSize: 'clientHeight', position: 'top', end: 'bottom', paddingStart: 'paddingTop', paddingEnd: 'paddingBottom', gap: 'rowGap', reverse: 'column-reverse' };
+  const showSuperchat = !fullscreen || ['mist', 'comic', 'window', 'stardust'].includes(options.style)
+    || DANMAKU_STYLE_OPTIONS[options.style]?.fullscreenSuperchat === true;
   const createBubble = createDanmakuMessageRenderer({
     document,
     classNames,
@@ -82,19 +90,19 @@ export function createDanmakuFeed(root, options = {}) {
           if (typeof globalThis.clearTimeout === 'function') globalThis.clearTimeout(timer);
         };
   let renderedSequence = 0;
-  let viewportHeight = 0;
-  let renderedContentHeight = 0;
+  let viewportExtent = 0;
+  let renderedContentExtent = 0;
   let layoutGap = 0;
   let layoutPadding = 0;
   let renderedEntries = [];
   let lastFullscreenPosition = null;
-  let randomPlacement = { centerBias: options.centerBias, dispersion: options.dispersion };
+  let randomPlacement = { centerBias: options.centerBias, dispersion: options.dispersion, clearCenter: options.clearCenter };
   let layoutFrame = null;
   const reducedMotion = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)');
   const resizeObserver =
     typeof ResizeObserver === 'function'
       ? new ResizeObserver(() => {
-          updateViewportHeight();
+          updateViewportExtent();
           if (smoothLayout) {
             if (layoutFrame !== null) globalThis.cancelAnimationFrame?.(layoutFrame);
             layoutFrame = null;
@@ -112,9 +120,11 @@ export function createDanmakuFeed(root, options = {}) {
     if (!event.pseudoElement && event.target?.parentNode === root) delete event.target.dataset.liveEntry;
   }
 
-  function cancelAnimations(entry) {
-    entry.fade?.cancel();
-    entry.fade = null;
+  function cancelAnimations(entry, keepFade = false) {
+    if (!keepFade) {
+      entry.fade?.cancel();
+      entry.fade = null;
+    }
     if (entry.motion) {
       entry.motion.onfinish = null;
       entry.motion.cancel();
@@ -124,7 +134,7 @@ export function createDanmakuFeed(root, options = {}) {
 
   function finishMotion() {
     if (reducedMotion?.matches) {
-      renderedEntries.forEach(cancelAnimations);
+      renderedEntries.forEach(entry => cancelAnimations(entry));
       if (hasEntrance || fullscreen) renderedEntries.forEach((entry) => {
         delete entry.node.dataset.liveEntry;
         entry.live = false;
@@ -137,9 +147,9 @@ export function createDanmakuFeed(root, options = {}) {
     const showingEmptyState = root.children.length === 1 && root.children[0].className === classNames.empty;
     clearExpirationTimers();
     renderedEntries.forEach(({ node }) => resizeObserver?.unobserve?.(node));
-    updateViewportHeight();
+    updateViewportExtent();
     root.replaceChildren();
-    renderedContentHeight = 0;
+    renderedContentExtent = 0;
     renderedEntries = [];
     lastFullscreenPosition = null;
     const messages = selectMessages(items, showingEmptyState);
@@ -155,14 +165,14 @@ export function createDanmakuFeed(root, options = {}) {
     const fragment = document.createDocumentFragment();
     messages.forEach((item, index) => {
       const node = createBubble(item, index);
-      const height = estimateItemHeight(item);
+      const extent = estimateItemHeight(item);
       fragment.append(node);
-      renderedEntries.push({ node, height, item, timer: null });
-      renderedContentHeight += height;
+      renderedEntries.push({ node, extent, item, timer: null });
+      renderedContentExtent += extent;
     });
     root.append(fragment);
     if (fullscreen || fitViewport) renderedEntries.forEach(({ node }) => resizeObserver?.observe(node));
-    if (fullscreen) {
+    if (fullscreen || options.expireFixedItems) {
       [...renderedEntries].forEach(scheduleExpiration);
     }
     if (fullscreen || fitViewport) scheduleLayout();
@@ -177,18 +187,19 @@ export function createDanmakuFeed(root, options = {}) {
     }
     const live = hasEntrance && !reducedMotion?.matches;
     const node = createBubble(item, renderedSequence, { live, now: now() });
-    const height = estimateItemHeight(item);
+    const extent = estimateItemHeight(item);
     if (live) node.dataset.liveEntry = 'true';
     root.append(node);
-    const entry = { node, height, item, timer: null, entering: smoothLayout, live: fullscreen && !reducedMotion?.matches };
+    const entry = { node, extent, item, timer: null, entering: smoothLayout, live: fullscreen && !reducedMotion?.matches };
     renderedEntries.push(entry);
-    renderedContentHeight += height;
+    renderedContentExtent += extent;
     renderedSequence += 1;
     if (fullscreen || fitViewport) resizeObserver?.observe(node);
     if (fullscreen) {
       scheduleExpiration(entry);
       pruneMaxItems();
     } else if (!fitViewport) pruneOldMessages();
+    if (!fullscreen && options.expireFixedItems) scheduleExpiration(entry);
     if (fullscreen || fitViewport) scheduleLayout();
     scrollToLatest();
   }
@@ -200,9 +211,9 @@ export function createDanmakuFeed(root, options = {}) {
     if (matches.length && (fullscreen || fitViewport)) scheduleLayout();
   }
 
-  function updateViewportHeight() {
-    const nextHeight = Number(root.clientHeight);
-    if (Number.isFinite(nextHeight) && nextHeight > 0) viewportHeight = nextHeight;
+  function updateViewportExtent() {
+    const nextHeight = Number(root[axis.clientSize]);
+    if (Number.isFinite(nextHeight) && nextHeight > 0) viewportExtent = nextHeight;
   }
 
   function scheduleLayout() {
@@ -218,36 +229,39 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function updateLayout() {
-    updateViewportHeight();
+    updateViewportExtent();
     if (fullscreen) {
       repositionFullscreenItems();
       return;
     }
     const styles = globalThis.getComputedStyle?.(root);
-    const gap = Number.parseFloat(styles?.rowGap) || 0;
-    const padding = (Number.parseFloat(styles?.paddingTop) || 0) + (Number.parseFloat(styles?.paddingBottom) || 0);
+    const gap = Number.parseFloat(styles?.[axis.gap]) || 0;
+    const padding = (Number.parseFloat(styles?.[axis.paddingStart]) || 0) + (Number.parseFloat(styles?.[axis.paddingEnd]) || 0);
     layoutGap = gap;
     layoutPadding = padding;
-    if (viewportHeight > padding) renderedEntries.forEach((entry) => fitItem(entry, root.clientWidth, viewportHeight - padding));
-    renderedContentHeight = renderedEntries.reduce((total, entry) => {
+    if (viewportExtent > padding) renderedEntries.forEach((entry) => fitItem(entry,
+      horizontal && options.fitWidth === false ? 0 : horizontal ? viewportExtent - padding : root.clientWidth,
+      horizontal ? root.clientHeight - (Number.parseFloat(styles?.paddingTop) || 0) - (Number.parseFloat(styles?.paddingBottom) || 0) : viewportExtent - padding));
+    renderedContentExtent = renderedEntries.reduce((total, entry) => {
       const zoom = Number.parseFloat(globalThis.getComputedStyle?.(entry.node)?.zoom) || 1;
-      const measured = componentEffectBounds(entry.node, entry.node.offsetWidth, entry.node.offsetHeight).height * zoom;
-      entry.height = measured > 0 ? measured : estimateItemHeight(entry.item);
-      return total + entry.height;
+      const measured = componentEffectBounds(entry.node, entry.node.offsetWidth, entry.node.offsetHeight)[axis.size] * zoom;
+      entry.extent = measured > 0 ? measured : estimateItemHeight(entry.item);
+      return total + entry.extent;
     }, 0);
-    if (smoothLayout) animateFixedLayout(gap, styles?.flexDirection === 'column-reverse' ? -1 : 1, styles);
+    root.dataset.flowOverflow = String(renderedContentExtent + gap * Math.max(0, renderedEntries.length - 1) + padding > viewportExtent);
+    if (smoothLayout) animateFixedLayout(gap, styles?.flexDirection === axis.reverse ? -1 : 1, styles);
     pruneFixedLayout();
   }
 
   function pruneFixedLayout() {
     // Moving messages can still be visible even when their destination is clipped.
     // Keep them until the move finishes; the item limit still bounds a busy feed.
-    // Layout heights ignore entrance transforms and work in either scroll direction.
+    // Cached extents ignore entrance transforms and work in either flow axis/direction.
     while (
       renderedEntries.length > 1 &&
       (renderedEntries.length > maxItems ||
-        (!renderedEntries[0].motion && viewportHeight > 0 && renderedContentHeight - renderedEntries[0].height +
-          layoutGap * (renderedEntries.length - 1) + layoutPadding >= viewportHeight))
+        (!renderedEntries[0].motion && viewportExtent > 0 && renderedContentExtent - renderedEntries[0].extent +
+          layoutGap * (renderedEntries.length - 1) + layoutPadding >= viewportExtent))
     ) {
       removeEntry(renderedEntries[0]);
     }
@@ -257,24 +271,25 @@ export function createDanmakuFeed(root, options = {}) {
     // Relative positioning keeps the font rasterization stable during movement.
     // Read before writing and continue from the visible offset on interrupted moves.
     const viewport = root.getBoundingClientRect();
-    const viewportScale = viewportHeight > 0 ? viewport.height / viewportHeight : 1;
+    const viewportScale = viewportExtent > 0 ? viewport[axis.size] / viewportExtent : 1;
+    const entryOffset = Number.parseFloat(feedStyles?.getPropertyValue('--danmaku-enter-offset'));
     let previousOffset;
     const positions = renderedEntries.map((entry) => {
       const styles = globalThis.getComputedStyle?.(entry.node);
       const zoom = Number.parseFloat(styles?.zoom) || 1;
-      const offset = Number.parseFloat(styles?.top) || 0;
+      const offset = Number.parseFloat(styles?.[axis.position]) || 0;
       const rect = entry.node.getBoundingClientRect();
       const scale = rect.width / entry.node.offsetWidth || 1;
-      const top = rect.top - offset * scale;
+      const top = rect[axis.position] - offset * scale;
       const dy = entry.entering
-        ? (previousOffset ?? direction * (entry.height + gap) * scale / zoom) / scale
+        ? (previousOffset ?? (Number.isFinite(entryOffset) ? entryOffset * scale : direction * (entry.extent + gap) * scale / zoom)) / scale
         : ((entry.top ?? top) - top) / scale;
       const from = entry.entering ? dy : dy + offset;
       previousOffset = from * scale;
-      const padding = Math.max(0, entry.height * viewportScale - rect.height) + gap * viewportScale;
-      const exited = viewport.height > 0 && !entry.entering && (direction > 0
-        ? Math.max(top, top + from * scale) + rect.height + padding <= viewport.top
-        : Math.min(top, top + from * scale) - padding >= viewport.bottom);
+      const padding = Math.max(0, entry.extent * viewportScale - rect[axis.size]) + gap * viewportScale;
+      const exited = viewport[axis.size] > 0 && !entry.entering && (direction > 0
+        ? Math.max(top, top + from * scale) + rect[axis.size] + padding <= viewport[axis.position]
+        : Math.min(top, top + from * scale) - padding >= viewport[axis.end]);
       return { entry, top, dy, from, exited };
     });
     // Busy feeds may never finish a move. Release only rows already past the exit
@@ -304,11 +319,11 @@ export function createDanmakuFeed(root, options = {}) {
       entry.top = top;
       entry.entering = false;
       if (Math.abs(dy) < 0.01) continue;
-      cancelAnimations(entry);
+      cancelAnimations(entry, true);
       if (reducedMotion?.matches || typeof entry.node.animate !== 'function') continue;
       const motion = entry.node.animate([
-        { top: `${from}px` },
-        { top: '0px' },
+        { [axis.position]: `${from}px` },
+        { [axis.position]: '0px' },
       ], { duration, easing });
       entry.motion = motion;
       entry.move = { from, duration, curve };
@@ -376,10 +391,10 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function pruneOldMessages() {
-    const maxContentHeight = viewportHeight > 0 ? viewportHeight * (offscreenViewports + 1) : Number.POSITIVE_INFINITY;
+    const maxContentHeight = viewportExtent > 0 ? viewportExtent * (offscreenViewports + 1) : Number.POSITIVE_INFINITY;
     while (
       renderedEntries.length > 1 &&
-      (renderedEntries.length > maxItems || renderedContentHeight > maxContentHeight)
+      (renderedEntries.length > maxItems || renderedContentExtent > maxContentHeight)
     ) {
       removeEntry(renderedEntries[0]);
     }
@@ -399,7 +414,7 @@ export function createDanmakuFeed(root, options = {}) {
     renderedEntries.splice(index, 1);
     cancelAnimations(entry);
     resizeObserver?.unobserve?.(entry.node);
-    renderedContentHeight = Math.max(0, renderedContentHeight - entry.height);
+    renderedContentExtent = Math.max(0, renderedContentExtent - entry.extent);
     if (entry.node.parentNode === root || Array.from(root.children || []).includes(entry.node)) {
       root.removeChild(entry.node);
     }
@@ -418,8 +433,10 @@ export function createDanmakuFeed(root, options = {}) {
     // Capture timing per message. Editing the next message's settings must not
     // restart a current fade, move its deadline, or rebuild the visible feed.
     const { exitAnimation = 'fade', exitDurationMs = FADE_DURATION_MS } = expirationOptions;
-    const itemLifetimeMs = Number(expirationOptions.itemLifetimeMs);
-    if (!fullscreen || !expireItems || !Number.isFinite(itemLifetimeMs) || itemLifetimeMs <= 0) return;
+    const event = ['gift', 'superchat'].includes(entry.item?.kind);
+    const itemLifetimeMs = Number(expirationOptions.itemLifetimeMs)
+      + (event ? DANMAKU_STYLE_OPTIONS[options.style]?.eventDurationExtraMs || 0 : 0);
+    if ((!fullscreen && !options.expireFixedItems) || !expireItems || !Number.isFinite(itemLifetimeMs) || itemLifetimeMs <= 0) return;
     const currentTime = Number(now());
     const itemTimestamp = Number(entry.item?.timestamp);
     const timestamp = Number.isFinite(itemTimestamp) && itemTimestamp > 0 ? itemTimestamp : currentTime;
@@ -432,6 +449,7 @@ export function createDanmakuFeed(root, options = {}) {
     const expire = () => {
       entry.timer = null;
       removeEntry(entry);
+      if (fitViewport) scheduleLayout();
     };
     if (exitAnimation === 'none' || reducedMotion?.matches || typeof entry.node.animate !== 'function') {
       entry.timer = scheduleTimeout(expire, remaining);
@@ -459,6 +477,7 @@ export function createDanmakuFeed(root, options = {}) {
     const occupied = [];
     const measured = renderedEntries.map((entry) => ({
       entry,
+      anchor: options.style === 'stardust' ? entry.node.dataset.stardustAnchor : undefined,
       ...fitItem(entry, width - FULLSCREEN_SAFE_INSET_PX * 2, height - FULLSCREEN_SAFE_INSET_PX * 2),
     }));
     for (const item of measured) {
@@ -494,19 +513,19 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function scrollToLatest() {
-    if (autoScroll) root.scrollTop = root.scrollHeight;
+    if (autoScroll) root[horizontal ? 'scrollLeft' : 'scrollTop'] = root[horizontal ? 'scrollWidth' : 'scrollHeight'];
   }
 
   function selectMessages(items, bypassViewportPruning = false) {
     const bounded = Array.isArray(items)
       ? items.filter((item) => (showSuperchat || item?.kind !== 'superchat')
         && (options.style !== 'harbor' || isHarborGiftVisible(item, options.minGiftAmount))).slice(-maxItems) : [];
-    if (fullscreen || fitViewport || bypassViewportPruning || viewportHeight <= 0 || bounded.length <= 1)
+    if (fullscreen || fitViewport || bypassViewportPruning || viewportExtent <= 0 || bounded.length <= 1)
       return bounded;
 
     // Keep the visible viewport plus the configured buffer above it. The
     // estimate avoids creating DOM nodes that are guaranteed to be discarded.
-    const maxContentHeight = viewportHeight * (offscreenViewports + 1);
+    const maxContentHeight = viewportExtent * (offscreenViewports + 1);
     let contentHeight = 0;
     const retained = [];
     for (let index = bounded.length - 1; index >= 0; index -= 1) {
@@ -527,7 +546,7 @@ export function createDanmakuFeed(root, options = {}) {
     append,
     remove,
     setRandomPlacement(value) {
-      randomPlacement = { centerBias: value.centerBias, dispersion: value.dispersion };
+      randomPlacement = { centerBias: value.centerBias, dispersion: value.dispersion, clearCenter: value.clearCenter };
     },
     setExpirationOptions(value) {
       expirationOptions = value;
@@ -541,9 +560,10 @@ export function createDanmakuFeed(root, options = {}) {
       if (hasEntrance) root.removeEventListener?.('animationend', finishEntrance);
       clearExpirationTimers();
       if (smoothLayout) delete root.dataset.smoothLayout;
+      delete root.dataset.flowOverflow;
       renderedSequence = 0;
-      viewportHeight = 0;
-      renderedContentHeight = 0;
+      viewportExtent = 0;
+      renderedContentExtent = 0;
       renderedEntries = [];
       lastFullscreenPosition = null;
       root.replaceChildren();

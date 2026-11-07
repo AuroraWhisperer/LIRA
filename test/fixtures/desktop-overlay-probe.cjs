@@ -243,10 +243,11 @@ module.exports = async function verifyRealOverlays({ directory, createWindow, se
     async () => await exportWindow.webContents.executeJavaScript("typeof window.renderGiftExport==='function'"),
   );
   assert.equal(await exportWindow.webContents.executeJavaScript('window.origin'), 'null');
+  await exportWindow.webContents.executeJavaScript('window.initializeGiftExport({config:{thresholds:[1000,2000,3000]},catalog:[]})');
   const exported = await exportWindow.webContents.executeJavaScript(
     `window.renderGiftExport({items:[{eventId:'synthetic-gift',gift:{giftId:'guard-3',
       coinType:'guard',giftName:'Synthetic gift',userName:'Synthetic sender',unitPrice:1,num:2,
-      avatarUrl:'https://synthetic.test/avatar'}}],config:{thresholds:[1000,2000,3000]},catalog:[],background:'white'})`,
+      avatarUrl:'https://synthetic.test/avatar'}}],background:'white'})`,
   );
   assert.equal(exported.width, 856);
   assert.equal(exported.height, 144);

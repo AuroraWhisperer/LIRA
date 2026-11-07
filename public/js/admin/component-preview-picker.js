@@ -246,14 +246,15 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
     }
     return ({ list, cards, add }) => {
       list.classList.add('preview-picker-styles');
-      list.classList.toggle('preview-picker-styles-single', !danmaku && component.id !== 'text-box'
-        && builtinCards.length + cards.length === 1);
       // The initial render runs before the library request has succeeded.
       if (importEmpty) importEmpty.hidden = firstRender || cards.length > 0;
       list.replaceChildren(...(empty ? [empty] : []), ...(importEmpty ? [importEmpty] : []), ...builtinCards, ...cards.map(({ card }) => card));
-      add.className = 'secondary preview-picker-import';
-      add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
-      importHost.append(add);
+      if (add) {
+        add.className = 'secondary preview-picker-import';
+        add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
+        importHost.append(add);
+      }
+      subcategories.hidden = !subcategories.childElementCount;
       filter?.();
       firstRender = false;
     };

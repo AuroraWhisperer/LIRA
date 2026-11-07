@@ -1,0 +1,214 @@
+body[data-style='glass-bubble'] {
+  --glass-bubble-font: 'Lira Rounded Mplus', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+}
+body[data-style='glass-bubble'][data-custom-font='true'] { --glass-bubble-font: var(--danmaku-custom-font); }
+body[data-style='glass-bubble'] .danmaku-signal-header { display: none; }
+body[data-style='glass-bubble'] :is(.danmaku-signal-stage, .draw-danmaku-feed) {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  padding: 0;
+  overflow: hidden;
+}
+
+body[data-style='glass-bubble'] .draw-danmaku-item.glass-bubble-item {
+  --glass-accent: 194 210 230;
+  --glass-bright: 255 255 255;
+  --glass-tint: .05;
+  --glass-outline: .72;
+  position: absolute;
+  display: block;
+  isolation: isolate;
+  width: max-content;
+  min-width: 160px;
+  max-width: min(max(36%, 320px), calc(100% - 32px));
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 18px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  overflow: visible;
+  animation: none;
+  zoom: 1;
+  color: var(--danmaku-text-color, #fff);
+  font: 800 var(--danmaku-font-size, 27px)/1.5 var(--glass-bubble-font);
+  text-shadow: 0 1px 2px rgb(5 12 24 / 55%);
+}
+body[data-style='glass-bubble'] .glass-bubble-item::before,
+body[data-style='glass-bubble'] .glass-bubble-item::after { display: none; content: none; }
+body[data-style='glass-bubble'] .draw-danmaku-item.glass-bubble-item.is-gift::after { display: none; content: none; animation: none; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='blue'] { --glass-accent: 90 164 242; --glass-bright: 181 216 255; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='cyan'] { --glass-accent: 77 193 211; --glass-bright: 171 239 249; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='green'] { --glass-accent: 71 195 164; --glass-bright: 166 242 218; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='yellow'] { --glass-accent: 235 191 80; --glass-bright: 255 226 160; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='orange'] { --glass-accent: 231 151 83; --glass-bright: 255 210 165; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='magenta'] { --glass-accent: 211 113 171; --glass-bright: 249 199 226; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='red'] { --glass-accent: 226 113 120; --glass-bright: 255 194 198; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='member'] { --glass-accent: 70 184 156; --glass-bright: 167 237 219; }
+body[data-style='glass-bubble'] .glass-bubble-item[data-glass-bubble-tier='gift'] { --glass-accent: 169 187 95; --glass-bright: 226 237 169; }
+body[data-style='glass-bubble'] .glass-bubble-item:not([data-glass-bubble-tier='chat']) {
+  --glass-tint: .16;
+  --glass-outline: .64;
+  min-width: min(300px, calc(100% - 32px));
+}
+
+/* One continuous outline includes the tail; only the material expands. */
+.glass-bubble-surface {
+  --glass-outline-shape: shape(from 34px 0, hline to calc(100% - 34px),
+    arc to 100% 34px of 34px cw, vline to calc(100% - 52px),
+    arc to calc(100% - 34px) calc(100% - 18px) of 34px cw,
+    hline to calc(50% + 16px), line to calc(50% + 2px) calc(100% - 3px),
+    curve to calc(50% - 2px) calc(100% - 3px) with 50% calc(100% - 1px),
+    line to calc(50% - 16px) calc(100% - 18px),
+    hline to 34px, arc to 0 calc(100% - 52px) of 34px cw, vline to 34px,
+    arc to 34px 0 of 34px cw, close);
+  position: absolute;
+  z-index: -1;
+  inset: 18px 0 0;
+  clip-path: var(--glass-outline-shape);
+  border-radius: 34px;
+  background: none;
+  transform-origin: center;
+  pointer-events: none;
+}
+.glass-bubble-surface::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: var(--glass-outline-shape);
+  border-radius: 33px;
+  background: radial-gradient(ellipse at 15% -12%,
+    rgb(255 255 255 / calc(.2 * var(--danmaku-background-opacity, 1) * var(--glass-bubble-highlight, 1))), transparent 68%),
+    linear-gradient(135deg, rgb(var(--glass-accent) / calc(var(--glass-tint) * var(--danmaku-background-opacity, 1))),
+    rgb(255 255 255 / calc(.025 * var(--danmaku-background-opacity, 1)))),
+    rgb(12 20 34 / calc(.66 * var(--danmaku-background-opacity, 1)));
+  backdrop-filter: blur(10px);
+}
+.glass-bubble-surface::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(140deg, rgb(255 255 255 / calc(.88 * var(--glass-bubble-highlight, 1))),
+    rgb(var(--glass-accent) / var(--glass-outline)) 48%, rgb(var(--glass-accent) / 36%));
+  clip-path: shape(evenodd from 34px 0, hline to calc(100% - 34px),
+    arc to 100% 34px of 34px cw, vline to calc(100% - 52px),
+    arc to calc(100% - 34px) calc(100% - 18px) of 34px cw,
+    hline to calc(50% + 16px), line to calc(50% + 2px) calc(100% - 3px),
+    curve to calc(50% - 2px) calc(100% - 3px) with 50% calc(100% - 1px),
+    line to calc(50% - 16px) calc(100% - 18px),
+    hline to 34px, arc to 0 calc(100% - 52px) of 34px cw, vline to 34px,
+    arc to 34px 0 of 34px cw, close,
+    move to 34px 1.5px, hline to calc(100% - 34px),
+    arc to calc(100% - 1.5px) 34px of 32.5px cw, vline to calc(100% - 52px),
+    arc to calc(100% - 34px) calc(100% - 19.5px) of 32.5px cw,
+    hline to calc(50% + 15.35px), line to calc(50% + 1px) calc(100% - 4.5px),
+    curve to calc(50% - 1px) calc(100% - 4.5px) with 50% calc(100% - 3.5px),
+    line to calc(50% - 15.35px) calc(100% - 19.5px), hline to 34px,
+    arc to 1.5px calc(100% - 52px) of 32.5px cw, vline to 34px,
+    arc to 34px 1.5px of 32.5px cw, close);
+}
+@supports not (clip-path: shape(from 0 0, line to 1px 1px, close)) {
+  .glass-bubble-surface { border: 1.5px solid rgb(var(--glass-accent) / var(--glass-outline)); }
+  .glass-bubble-surface::after { display: none; }
+}
+.glass-bubble-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 32%, rgb(255 255 255 / calc(.18 * var(--glass-bubble-highlight, 1))) 48%, transparent 64%);
+  opacity: 0;
+}
+body[data-style='glass-bubble'] .glass-bubble-item .glass-bubble-content {
+  position: relative;
+  display: block;
+  width: auto;
+  min-width: 0;
+  padding: 20px 32px;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  font: inherit;
+}
+body[data-style='glass-bubble'] .glass-bubble-item .glass-bubble-header {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: nowrap;
+  gap: 12px;
+  width: auto;
+  max-width: none;
+  margin: 0 32px -17.5px;
+  padding: 0;
+  background: none;
+  font: 800 21px/1.5 var(--glass-bubble-font);
+  color: #fff;
+}
+body[data-style='glass-bubble'] .glass-bubble-item .glass-bubble-header .glass-bubble-name,
+.glass-bubble-amount {
+  display: block;
+  min-width: 0;
+  padding: 0 16px 2px;
+  border: 1px solid rgb(var(--glass-accent) / 45%);
+  border-radius: 22px;
+  background: linear-gradient(rgb(var(--glass-accent) / 30%), rgb(var(--glass-accent) / 12%)), rgb(12 20 34 / 76%);
+  box-shadow: inset 0 1px 1px rgb(255 255 255 / calc(.36 * var(--glass-bubble-highlight, 1)));
+  color: #fff;
+  font: inherit;
+  letter-spacing: normal;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.glass-bubble-amount {
+  flex: none;
+  max-width: 60%;
+  padding-inline: 12px;
+  border-color: rgb(255 255 255 / 6%);
+  background: rgb(8 17 35 / 80%);
+  box-shadow: none;
+  color: rgb(var(--glass-bright));
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+body[data-style='glass-bubble'] .glass-bubble-item .glass-bubble-copy {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body[data-style='glass-bubble'] .glass-bubble-copy :is(.draw-danmaku-gift-copy, .draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count) {
+  display: inline;
+  margin: 0;
+  color: inherit;
+  font: inherit;
+}
+.glass-bubble-event, .glass-bubble-thanks { display: block; }
+.glass-bubble-copy .draw-danmaku-emote { display: inline-block; width: auto; height: 1.4em; max-width: 100%; vertical-align: -.3em; object-fit: contain; }
+.glass-bubble-item[data-live-entry] .glass-bubble-surface { animation: glassBubbleOpen 380ms cubic-bezier(.22, 1, .36, 1) backwards; }
+.glass-bubble-item[data-live-entry] .glass-bubble-header { animation: glassBubbleReveal 220ms ease-out 140ms backwards; }
+.glass-bubble-item[data-live-entry] .glass-bubble-glyph {
+  animation: glassBubbleType 180ms ease-out calc(300ms + var(--glass-glyph-order) * var(--glass-typing-step)) backwards;
+}
+.glass-bubble-item[data-glass-bubble-reveal='instant'] .glass-bubble-glyph { animation: none; }
+.glass-bubble-item[data-live-entry][data-glass-bubble-kind='sc'] .glass-bubble-sheen { animation: glassBubbleSweep 950ms ease-in-out 300ms; }
+body[data-style='glass-bubble'][data-glass-bubble-sweep='off'] .glass-bubble-sheen { visibility: hidden; }
+@keyframes glassBubbleOpen { from { opacity: 0; transform: scale(.18, .94); } to { opacity: 1; transform: scale(1); } }
+@keyframes glassBubbleReveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes glassBubbleType { from { opacity: 0; } to { opacity: 1; } }
+@keyframes glassBubbleSweep { 0% { opacity: 0; translate: -110% 0; } 20%, 75% { opacity: 1; } 100% { opacity: 0; translate: 110% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='glass-bubble'] .glass-bubble-item * { animation: none; }
+}

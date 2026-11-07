@@ -2,6 +2,42 @@
   "version": 2,
   "files": [
     {
+      "path": "fonts/animated-gradient/montserrat-400.ttf",
+      "size": 180068,
+      "sha256": "84f3d3275dfb159dd311c61828fd754a82ec31c377120518e2cd3e7d34394e96",
+      "label": "字体 · montserrat-400.ttf"
+    },
+    {
+      "path": "fonts/animated-gradient/montserrat-700.ttf",
+      "size": 181028,
+      "sha256": "247f052d2f5b84a5bbe7831c3b08a71ca391ff54f1dfb9be88a3d3da569e3a38",
+      "label": "字体 · montserrat-700.ttf"
+    },
+    {
+      "path": "fonts/celestial-horizontal/cinzel-700-latin.woff2",
+      "size": 15184,
+      "sha256": "8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263",
+      "label": "字体 · cinzel-700-latin.woff2"
+    },
+    {
+      "path": "fonts/celestial-horizontal/montserrat-300-latin.woff2",
+      "size": 18708,
+      "sha256": "a04fdaaec9f3cd46b0cb3adc3d3e35a15264664330d22c7ba688ef6ea7d02010",
+      "label": "字体 · montserrat-300-latin.woff2"
+    },
+    {
+      "path": "fonts/glass-bubble/mplus-rounded-800.woff2",
+      "size": 1132368,
+      "sha256": "af9bf4ecb38f312ad3fb508af0ca6fe4eed562ad85c99ac2e1fd8ec1589d2287",
+      "label": "字体 · mplus-rounded-800.woff2"
+    },
+    {
+      "path": "fonts/glass/quicksand.ttf",
+      "size": 124824,
+      "sha256": "39c9b64223561f56aaff6062a6f04063c4fc86809ad6768722c06614d977e1cc",
+      "label": "字体 · quicksand.ttf"
+    },
+    {
       "path": "fonts/library/mashanzheng.woff2",
       "size": 3250688,
       "sha256": "c7d3694525df10a332b01c185b147ccd20e8084ba194747b79dad16be3db4d23",
@@ -326,6 +362,12 @@
       "label": "字体 · xiaolai.woff2"
     },
     {
+      "path": "fonts/sea-breeze/sea-breeze-serif.woff2",
+      "size": 16710792,
+      "sha256": "530a1382941de5c67855e1d0a454040e62c4d83e05e3a47b1fbca634d6195992",
+      "label": "字体 · sea-breeze-serif.woff2"
+    },
+    {
       "path": "fonts/spooky/nunito-500.ttf",
       "size": 125652,
       "sha256": "ceb6eec0a584cae83e8f3ab868e2f03977b38ff6e78632bc8a7ec69dcf9f7c18",
@@ -336,6 +378,18 @@
       "size": 125464,
       "sha256": "1a025dfce6e6e03bbe31ba82277ec5ed96df8b8dd58b3df6267269490b90b1dc",
       "label": "字体 · nunito-700.ttf"
+    },
+    {
+      "path": "fonts/stargazer/poppins-400.ttf",
+      "size": 160316,
+      "sha256": "7e65201e9b79159e2300267cc885e16c8dcef2424cdfa09a29bfb0980a94a7ba",
+      "label": "字体 · poppins-400.ttf"
+    },
+    {
+      "path": "fonts/stargazer/poppins-700.ttf",
+      "size": 155996,
+      "sha256": "983676516167748b74de6f4771fb384c664fd913acb8b471122ecacf5da5ea6c",
+      "label": "字体 · poppins-700.ttf"
     },
     {
       "path": "img/admin/world-clock/earth-day-8k.png",
@@ -508,6 +562,57 @@
       "sha256": "05af61fac61742b929198823a766a31e482d65c8aa332553f124bf17ff3f4649",
       "files": [
         "fonts/lyrics-fallback/notoseriftibetan.woff2"
+      ]
+    },
+    {
+      "id": "source-han-serif",
+      "size": 16710968,
+      "sha256": "fb6736e106f0d937ec76e7e0174f899238687d42e1c227113cac0b110a8bd10a",
+      "files": [
+        "fonts/sea-breeze/sea-breeze-serif.woff2"
+      ]
+    },
+    {
+      "id": "poppins",
+      "size": 316610,
+      "sha256": "4bbb44b61cc6ecd2ec79cb9783d9a3cf4b79772ef9b1b600045d14da7fb68359",
+      "files": [
+        "fonts/stargazer/poppins-400.ttf",
+        "fonts/stargazer/poppins-700.ttf"
+      ]
+    },
+    {
+      "id": "quicksand",
+      "size": 124972,
+      "sha256": "a310d46bf27af722d2aa2c972b15f2c3d655ef06cd8afb7f5ec1e5e0a2da7afa",
+      "files": [
+        "fonts/glass/quicksand.ttf"
+      ]
+    },
+    {
+      "id": "montserrat",
+      "size": 380328,
+      "sha256": "cb35a3853d53bd00ca191ea15998d4b2b7c5d01548ea9ed4bca0bc494a0dd3b1",
+      "files": [
+        "fonts/animated-gradient/montserrat-400.ttf",
+        "fonts/animated-gradient/montserrat-700.ttf",
+        "fonts/celestial-horizontal/montserrat-300-latin.woff2"
+      ]
+    },
+    {
+      "id": "cinzel",
+      "size": 15380,
+      "sha256": "3ba8df5224aa8585212790f36029a2f961d7b3985f33af7b43ba4421be387e50",
+      "files": [
+        "fonts/celestial-horizontal/cinzel-700-latin.woff2"
+      ]
+    },
+    {
+      "id": "mplus-rounded",
+      "size": 1132550,
+      "sha256": "3a35f62cac9c066521c773cfe126035c935654c8a28a3b5385cdc12a8e45a335",
+      "files": [
+        "fonts/glass-bubble/mplus-rounded-800.woff2"
       ]
     },
     {

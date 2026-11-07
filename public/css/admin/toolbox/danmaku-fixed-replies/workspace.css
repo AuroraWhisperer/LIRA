@@ -126,7 +126,7 @@
 .danmaku-fixed-reply-section .danmaku-fixed-summary,
 .danmaku-fixed-note {
   display: block;
-  font-size: 9px;
+  font-size: 11px;
   color: var(--muted);
   overflow-wrap: anywhere;
 }

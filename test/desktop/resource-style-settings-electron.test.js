@@ -112,7 +112,7 @@ test('resource settings pause polling under hidden pages and resume without losi
       state.panel = embedded ? createResourceStyleSettings(style, { request }).mount(host)
         : mountResourceStyleSettings(host, { style, request });
     }, { style: styles.find(style => style.type === 'lyrics'), embedded });
-    const fontSize = page.locator('#resource-polling-test').getByLabel('字号', { exact: true });
+    const fontSize = page.locator('#resource-polling-test [data-component-parameter="desktopLyricFontSize"]');
     await fontSize.fill('54'); await fontSize.dispatchEvent('change');
     await page.clock.fastForward(1000);
     assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 1);

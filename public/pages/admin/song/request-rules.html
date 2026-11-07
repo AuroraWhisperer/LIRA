@@ -31,6 +31,13 @@
           </div>
           <div class="song-request-row-group">
             <label class="song-request-row">
+              <span>歌名匹配方式 <lira-help label="歌名匹配方式说明">两种方式都优先匹配完整歌名。「唯一匹配」仅在包含关键词的可点歌曲只有一首时补全；「前缀优先」先匹配以关键词开头的唯一歌曲，没有前缀候选时再尝试唯一包含匹配。例如歌库有《如果你也听说》和《听说你》，前缀优先会将「点歌 听说」补全为《听说你》。多个候选仍不自动选择，沿用「只允许歌库歌曲」的处理。</lira-help></span>
+              <select id="songRequestMatchMode" data-dropdown-variant="settings" aria-label="歌名匹配方式">
+                <option value="unique">唯一匹配（默认）</option>
+                <option value="prefix">前缀优先</option>
+              </select>
+            </label>
+            <label class="song-request-row">
               只允许歌库歌曲
               <select id="onlyFromLibrary" data-dropdown-variant="settings">
                 <option value="false">不限制</option>

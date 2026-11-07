@@ -30,6 +30,9 @@ const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canv
 test('Moonlit lyrics load imported resources, publish live words once and wait for native settings on style change', { timeout: 60000 }, async t => {
   const fixture = await suiteFixture(t, { extraContext: {} });
   t.after(() => fixture.close());
+  const library = createComponentStyleLibrary(fixture.dataDir);
+  const lyricStyle = library.list().flatMap(pack => pack.styles).find(style => style.type === 'lyrics');
+  library.config({ id: lyricStyle.id, patch: { advancedLyricEnabled: 'true', advancedLyricFontFamily: '"月渡花汀文楷"' } });
   fixture.runtime.lyricTimeline = { status: 'ready', trackTitle: '合成歌词', lines: [
     { text: '月渡花汀', startMs: 0, endMs: 8000, translation: 'Moonlit waters' },
     { text: '清风入梦', startMs: 8000, endMs: 16000, translation: 'A quiet breeze' },
@@ -57,10 +60,14 @@ test('Moonlit lyrics load imported resources, publish live words once and wait f
   const frame = await page.locator('.scene-editor-item.is-selected iframe').elementHandle().then(handle => handle.contentFrame());
   await frame.waitForFunction(() => document.querySelector('style[data-component-resources]')?.textContent.includes('/component-media/'));
   const loaded = await frame.evaluate(async () => {
-    const text = document.querySelector('.desktop-lyric-preview-row.is-active .desktop-lyric-preview-row-text');
-    const family = getComputedStyle(text).fontFamily.split(',').find(value => value.includes('月渡花汀文楷-'));
-    const faces = await document.fonts.load(`48px ${family}`, '月渡花汀清風星河こんにちは');
-    return faces.length > 0 && faces.every(face => face.status === 'loaded');
+    for (const selector of ['.desktop-lyric-preview-row.is-active .desktop-lyric-preview-row-text', '.advanced-lyric-ink']) {
+      const text = document.querySelector(selector);
+      const family = getComputedStyle(text).fontFamily.split(',').find(value => value.includes('月渡花汀文楷-'));
+      if (!family) return false;
+      const faces = await document.fonts.load(`48px ${family}`, '月渡花汀清風星河こんにちは');
+      if (!faces.length || faces.some(face => face.status !== 'loaded')) return false;
+    }
+    return true;
   });
   assert.equal(loaded, true, 'Bundled fonts load from the imported package without originals.');
   const size = page.locator('[data-component-parameter="desktopLyricFontSize"]');
@@ -311,8 +318,9 @@ test('installed suite styles appear once in client component lists and disappear
   await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));
   await desktop.waitForFunction(() => !document.querySelector('.component-style-card'));
   for (const type of ['clock', 'danmaku', 'opening', 'gift-wishes']) {
+    const refreshed = page.waitForResponse(response => response.url().includes('/styles/list?') && response.ok());
     await picker.locator(`[data-category="${type}"]`).click();
-    await picker.getByRole('button', { name: '添加样式', exact: true }).waitFor();
+    await refreshed;
     assert.equal(await picker.locator('.component-style-card').count(), 0, type);
   }
 });

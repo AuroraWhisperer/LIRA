@@ -78,6 +78,37 @@ test('cleanup rechecks references and authorization and never trusts stale inven
   assert.equal(fs.readFileSync(path.join(outside, 'keep'), 'utf8'), 'keep');
 });
 
+test('inventory distinguishes registered quarantine and pending files, and cleanup only removes selected packages', async t => {
+  const f = fixture(t);
+  const first = await f.install();
+  const second = await f.install('2.0.0');
+  const current = await f.install('3.0.0');
+  const before = f.maintenance.inventory();
+  const extras = [
+    [`.purged-${first.id}`, 'quarantined'],
+    [`.pending-${first.id}`, 'pending'],
+    [randomUUID(), 'unregistered'],
+    [`.purged-${randomUUID()}`, 'unregistered-purged'],
+  ];
+  for (const [name, content] of extras) {
+    const directory = path.join(f.store.root, name);
+    fs.mkdirSync(directory);
+    fs.writeFileSync(path.join(directory, 'asset.bin'), content);
+  }
+  const inventory = f.maintenance.inventory();
+  assert.equal(inventory.entries[0].bytes, before.entries[0].bytes + Buffer.byteLength(extras[0][1]));
+  assert.equal(inventory.pendingBytes, Buffer.byteLength(extras[1][1] + extras[3][1]));
+  assert.equal(inventory.unregisteredBytes, Buffer.byteLength(extras[2][1]));
+  assert.throws(() => f.maintenance.cleanup([extras[2][0]], () => assert.fail('unregistered package authorized')), { statusCode: 409 });
+  const result = f.maintenance.cleanup([second.id, first.id], () => {});
+  assert.equal(result.freedBytes, inventory.entries[0].bytes + inventory.entries[1].bytes);
+  assert.deepEqual(result.failed, []);
+  assert.equal(fs.existsSync(f.store.directory(first.id)), false);
+  assert.equal(fs.existsSync(f.store.directory(second.id)), false);
+  assert.ok(fs.existsSync(f.store.directory(current.id)));
+  for (const [name] of extras.slice(1)) assert.ok(fs.existsSync(path.join(f.store.root, name)));
+});
+
 test('reopening reclaims expired pending files while protecting in-flight and recent imports', t => {
   const f = fixture(t);
   const ids = [randomUUID(), randomUUID(), randomUUID()];

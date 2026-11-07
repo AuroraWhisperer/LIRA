@@ -17,6 +17,20 @@ function coveredDay(intervals, after, remaining) {
   return null;
 }
 
+// prepareMembership supplies disjoint intervals ordered by start.
+function intervalAt(intervals, at) {
+  let low = 0;
+  let high = intervals.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >> 1;
+    const interval = intervals[middle];
+    if (interval.start > at) high = middle - 1;
+    else if (interval.end <= at) low = middle + 1;
+    else return interval;
+  }
+  return null;
+}
+
 function membershipMilestoneDates(intervals, baselines, earliest, latest, now) {
   const firstTime = dayStart(earliest);
   const firstDay = dayIndex(firstTime);
@@ -47,7 +61,7 @@ function membershipMilestoneDates(intervals, baselines, earliest, latest, now) {
         continue;
       }
       const extensionStart = dayStart(record.data.asOf) + DAY_MS;
-      const extension = intervals.find(interval => interval.start <= extensionStart && interval.end > extensionStart);
+      const extension = intervalAt(intervals, extensionStart);
       const candidate = day + threshold - continuousDays;
       if (extension && candidate < extension.endDay) add(candidate);
     }

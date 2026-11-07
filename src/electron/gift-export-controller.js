@@ -200,13 +200,16 @@ function createGiftExportController({ app, BrowserWindow, dialog, shell, runtime
       win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
       win.webContents.on('will-navigate', (event) => event.preventDefault());
       await bounded(win.loadURL(new URL('/gift-export', getBaseUrl()).href));
+      assertCurrent(current);
+      await bounded(win.webContents.executeJavaScript(`window.initializeGiftExport(${JSON.stringify({
+        config: current.snapshot.config,
+        catalog: current.snapshot.catalog,
+      })})`));
       for (const file of files) {
         assertCurrent(current);
         const height = file.count * 144 + (file.count - 1) * 16;
         const payload = {
           items: current.snapshot.items.slice(file.start, file.start + file.count),
-          config: current.snapshot.config,
-          catalog: current.snapshot.catalog,
           background: current.background,
         };
         const { width } = await bounded(

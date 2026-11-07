@@ -1,19 +1,24 @@
 import { REGION_DEFAULTS } from '../shared/danmaku-layout.js';
+import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 
-export function canvasContentScale(layout, style) {
+export function canvasContentScale(layout, style, styleOptions = {}) {
   const width = REGION_DEFAULTS[style]?.[0];
   const region = layout.regions[style];
+  // Widening a horizontal strip adds room for cards instead of enlarging each card.
+  if (DANMAKU_STYLE_OPTIONS[style]?.layout === 'horizontal' || styleOptions[style]?.stargazerLayout === 'horizontal') {
+    return Math.min(layout.contentScale, region.width / 64, region.height / 64);
+  }
   // Keep room for the stage insets and a complete card even in a very short region.
   return Math.min(width ? region.width / width : Math.min(layout.contentScale, region.width / 720), region.height / 64);
 }
 
 // Canvas coordinates are independent of the editor or live source viewport.
-export function applyCanvas(document, layout, style, width, height) {
+export function applyCanvas(document, layout, style, width, height, styleOptions = {}) {
   document.body.classList.toggle('has-layout', Boolean(layout));
   if (!layout) return 1;
   const region = layout.regions[style];
   const scale = Math.min(width / layout.canvas.width, height / layout.canvas.height);
-  const contentScale = canvasContentScale(layout, style);
+  const contentScale = canvasContentScale(layout, style, styleOptions);
   const contentWidth = region.width / contentScale;
   const values = {
     'canvas-width': `${layout.canvas.width}px`, 'canvas-height': `${layout.canvas.height}px`,

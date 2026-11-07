@@ -265,27 +265,53 @@ export const giftBlindbox = (() => {
 
   // ── 盲盒统计 ──
 
-  let blindBoxStatsLoading = false;
-  let blindBoxStatsPending = false;
+  let blindBoxStatsDirty = true;
+  let blindBoxStatsController = null;
+  let blindBoxStatsDisposed = false;
+
+  function isBlindBoxStatsVisible() {
+    const page = document.getElementById('giftAssistantPage');
+    const section = document.querySelector('.gift-blindbox-panel');
+    const workspace = document.getElementById('blindBoxAnalysisWorkspace');
+    return !blindBoxStatsDisposed && !document.hidden && page?.classList.contains('active') &&
+      !section?.classList.contains('is-collapsed') && (!workspace || workspace.hidden);
+  }
+
+  function syncBlindBoxStatsVisibility() {
+    if (!isBlindBoxStatsVisible()) {
+      blindBoxStatsDirty = true;
+      blindBoxStatsController?.abort();
+      blindBoxStatsController = null;
+      return;
+    }
+    void refreshBlindBoxStats();
+  }
 
   /**
    * 加载盲盒统计数据
    */
-  async function loadBlindBoxStats() {
-    // 防止并发请求；有待发标记则在当前请求完成后补发一次
-    if (blindBoxStatsLoading) {
-      blindBoxStatsPending = true;
-      return;
-    }
-    blindBoxStatsLoading = true;
+  function loadBlindBoxStats() {
+    blindBoxStatsDirty = true;
+    return refreshBlindBoxStats();
+  }
+
+  async function refreshBlindBoxStats() {
+    if (!blindBoxStatsDirty || blindBoxStatsController || !isBlindBoxStatsVisible()) return;
+    blindBoxStatsDirty = false;
+    const controller = new AbortController();
+    blindBoxStatsController = controller;
     try {
-      const response = await fetch('/api/gifts/blind-box-stats');
+      const response = await fetch('/api/gifts/blind-box-stats?top=10', { signal: controller.signal });
       const payload = await readJsonResponse(response, '盲盒统计加载失败');
+      if (controller !== blindBoxStatsController) return;
+      if (!isBlindBoxStatsVisible()) { blindBoxStatsDirty = true; return; }
       if (!response.ok || !payload.ok) {
         throw new Error(payload.error || `盲盒统计加载失败（HTTP ${response.status}）`);
       }
       renderBlindBoxStats(payload.data);
     } catch (error) {
+      if (controller !== blindBoxStatsController) return;
+      if (!isBlindBoxStatsVisible()) { blindBoxStatsDirty = true; return; }
       const summary = document.getElementById('blindBoxStatsSummary');
       const section = summary && summary.closest('.gift-blindbox-panel');
       if (section) section.dataset.state = 'error';
@@ -301,10 +327,9 @@ export const giftBlindbox = (() => {
       const body = document.getElementById('blindBoxStatsBody');
       if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
     } finally {
-      blindBoxStatsLoading = false;
-      if (blindBoxStatsPending) {
-        blindBoxStatsPending = false;
-        loadBlindBoxStats();
+      if (controller === blindBoxStatsController) {
+        blindBoxStatsController = null;
+        if (blindBoxStatsDirty) void refreshBlindBoxStats();
       }
     }
   }
@@ -391,6 +416,8 @@ export const giftBlindbox = (() => {
    * 初始化盲盒盈亏面板折叠功能
    */
   function initBlindBoxStatsToggle() {
+    if (statsInitialized) return;
+    statsInitialized = true;
     const section = document.querySelector('.gift-blindbox-panel');
     const toggle = document.getElementById('blindBoxStatsToggle');
     const panelHeader = section?.querySelector('.panel-header');
@@ -438,11 +465,23 @@ export const giftBlindbox = (() => {
       });
     });
 
-    if (!statsInitialized) {
-      statsInitialized = true;
-      eventBus.on(Events.GIFT_RECEIVED, loadBlindBoxStats);
-      loadBlindBoxStats();
+    const observer = new MutationObserver(syncBlindBoxStatsVisibility);
+    for (const element of [section, document.getElementById('giftAssistantPage')]) {
+      if (element) observer.observe(element, { attributes: true, attributeFilter: ['class'] });
     }
+    const workspace = document.getElementById('blindBoxAnalysisWorkspace');
+    if (workspace) observer.observe(workspace, { attributes: true, attributeFilter: ['hidden'] });
+    document.addEventListener('visibilitychange', syncBlindBoxStatsVisibility);
+    const unsubscribe = eventBus.on(Events.GIFT_RECEIVED, loadBlindBoxStats);
+    window.addEventListener('pagehide', () => {
+      blindBoxStatsDisposed = true;
+      unsubscribe();
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', syncBlindBoxStatsVisibility);
+      blindBoxStatsController?.abort();
+      blindBoxStatsController = null;
+    }, { once: true });
+    syncBlindBoxStatsVisibility();
   }
 
   // 在 DOM 就绪后初始化

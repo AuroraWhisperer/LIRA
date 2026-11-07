@@ -5,7 +5,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const test = require('node:test');
 const { getMainFileMatchers } = require('app-builder-lib/out/fileMatcher');
-const { createPackage, extractFile } = require('@electron/asar');
+const { createPackage, extractFile, listPackage } = require('@electron/asar');
 const { createPackagedApp } = require('../helpers/packaged-app');
 const { launchElectron } = require('../helpers/shared-electron');
 const { fonts } = require('../../src/fonts/catalog.json');
@@ -35,6 +35,11 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
   await createPackage(sourceDir, archive);
   for (const name of ['clock-moon-serif-400.woff2', 'guard-thanks-serif-400.woff2'])
     assert.deepEqual(extractFile(archive, path.join('public/fonts', name)), await fs.readFile(path.join(root, 'public/fonts', name)));
+  const packagedFiles = new Set(listPackage(archive).map(name => name.replaceAll('\\', '/')));
+  for (const font of fonts) {
+    for (const file of font.bundled)
+      assert.equal(packagedFiles.has(`/public/fonts/${file.path}`), false, `${font.id} is delivered through the CDN`);
+  }
   const cwd = path.join(appOutDir, 'unrelated-working-directory');
   await fs.mkdir(cwd);
   const exported = exportCdnResources({ outputDir: path.join(appOutDir, 'cdn') });

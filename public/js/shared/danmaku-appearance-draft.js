@@ -1,4 +1,4 @@
-import { DANMAKU_OPTION_FIELDS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, isRandomDanmakuStyle } from './danmaku-style-options.js';
+import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, isRandomDanmakuStyle } from './danmaku-style-options.js';
 
 export function readAppearanceValue(key, rawValue, min, max) {
   if (key === 'composerText') {
@@ -6,7 +6,7 @@ export function readAppearanceValue(key, rawValue, min, max) {
     if (error) throw new Error(error);
     return text || undefined;
   }
-  if (key === 'minGiftAmount') {
+  if (DANMAKU_OPTION_FIELDS[key]?.step === .01) {
     const value = Number(rawValue);
     if (!rawValue.trim() || !Number.isFinite(value) || value < Number(min) || value > Number(max)
       || Number(value.toFixed(2)) !== value) throw new Error(`请输入 ${min}～${max} 元，最多两位小数。`);
@@ -52,8 +52,9 @@ export function floatingSpeedLabel(speed) {
 
 export function resetStyleOptions(draft) {
   // An explicit default overrides the legacy shared lifetime without changing other styles.
+  const duration = DANMAKU_STYLE_OPTIONS[draft.style]?.defaultDurationSeconds ?? 6;
   const options = isRandomDanmakuStyle(draft.style) && isValidFullscreenDuration(draft.fullscreenDurationSeconds)
-    && draft.fullscreenDurationSeconds !== 6 ? { durationSeconds: 6 } : {};
+    && draft.fullscreenDurationSeconds !== duration ? { durationSeconds: duration } : {};
   return replaceStyleOptions(draft, options);
 }
 

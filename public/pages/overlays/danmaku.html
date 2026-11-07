@@ -5,7 +5,7 @@
     <meta name="referrer" content="no-referrer" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>弹幕姬</title>
-    <link rel="stylesheet" href="/css/overlays/danmaku.css?v=20261026-02" />
+    <link rel="stylesheet" href="/css/overlays/danmaku.css?v=20261106-dark-moon" />
   </head>
   <body class="danmaku-overlay-body" data-style="signal">
     <aside id="danmakuPreviewControls" class="danmaku-preview-controls" aria-label="弹幕样式预览" hidden>
@@ -60,6 +60,10 @@
           <img src="/img/overlays/danmaku-previews/harbor.png" alt="" />
           <span>对白<small>身份配色、航海头像框与在线榜前三</small></span>
         </button>
+        <button type="button" data-preview-style="dark-moon" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/dark-moon.png" alt="" />
+          <span>暗月<small>月相星芒、暗色细框与本房间大航海金边</small></span>
+        </button>
         <button type="button" data-preview-style="starlight" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/starlight.png" alt="" />
           <span>星语<small>透明细线、闪星与右侧金额</small></span>
@@ -80,6 +84,10 @@
           <img src="/img/overlays/danmaku-previews/ripploid.png" alt="" />
           <span>RIPPLOID<small>票券、护照与撕裂卡带，支持事件分级换色</small></span>
         </button>
+        <button type="button" data-preview-style="stargazer" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/stargazer.png" alt="" />
+          <span>Stargazer · 星旅<small>紫金消息流、星芒粒子与流星，支持横排及透视</small></span>
+        </button>
         <button type="button" data-preview-style="christmas" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/christmas.png" alt="" />
           <span>圣诞绮笺</span>
@@ -91,6 +99,18 @@
         <button type="button" data-preview-style="notebook" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/notebook.png" alt="" />
           <span>手账风<small>便笺、胶带与分层入场，保留 B 站表情</small></span>
+        </button>
+        <button type="button" data-preview-style="glass" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/glass.png" alt="" />
+          <span>Glass 玻璃通知<small>透明圆角卡片、通知图标与缓缓显现</small></span>
+        </button>
+        <button type="button" data-preview-style="animated-gradient" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/animated-gradient.png" alt="" />
+          <span>渐变气泡<small>流动昵称牌、白色气泡与双框事件条</small></span>
+        </button>
+        <button type="button" data-preview-style="celestial-horizontal" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/celestial-horizontal.png" alt="" />
+          <span>天穹横栏<small>横向滚动 · CELESTIAL</small></span>
         </button>
         <button type="button" data-preview-style="spooky" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/spooky.png" alt="" />
@@ -104,12 +124,20 @@
           <img src="/img/overlays/danmaku-previews/flower-letter.png" alt="" />
           <span>花与信笺<small>花叶信笺、邮戳与分层信封，默认悠哉字体</small></span>
         </button>
+        <button type="button" data-preview-style="sea-breeze" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/sea-breeze.png" alt="" />
+          <span>郁香海风<small>宋体、彩色身份牌与文字倒影，可选左中右对齐</small></span>
+        </button>
       </div>
       <div class="danmaku-preview-choices" role="group" aria-label="区域随机弹幕">
         <h2>区域随机</h2>
         <button type="button" data-preview-style="outline" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/outline.png" alt="" />
           <span>一纸素笺<small>白底圆角，只显示昵称和正文</small></span>
+        </button>
+        <button type="button" data-preview-style="sea-breeze-random" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/sea-breeze-random.png" alt="" />
+          <span>郁香海风 · 随机<small>全屏散落的宋体与倒影，身份、昵称、正文依次显现</small></span>
         </button>
         <button type="button" data-preview-style="mist" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/mist.png" alt="" />
@@ -126,6 +154,10 @@
         <button type="button" data-preview-style="window" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/window.png" alt="" />
           <span>散落小窗<small>圆角小窗、昵称胶囊，三套配色与随机混合入场</small></span>
+        </button>
+        <button type="button" data-preview-style="stardust" aria-pressed="false">
+          <img src="/img/overlays/danmaku-previews/stardust.png" alt="" />
+          <span>星尘 2.0<small>透明宋体、上下汇聚，星芒与轨道点亮</small></span>
         </button>
         <button type="button" data-preview-style="cream" aria-pressed="false">
           <img src="/img/overlays/danmaku-previews/cream.png" alt="" />

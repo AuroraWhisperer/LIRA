@@ -185,7 +185,7 @@ function getGiftSprintSnapshot(context) {
   const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
   const sourceScope = resolveGiftSourceScope(context);
   const store = context.queryStore;
-  const revision = store.getChangeToken?.();
+  const revision = store.getChangeToken?.('sprint');
   const key = revision == null || sourceScope.kind === 'unavailable' ? null : JSON.stringify([sourceScope, revision]);
   const cached = sprintAggregates.get(store);
   const row = key !== null && cached?.key === key ? cached.row : store.readSprint(sourceScope);

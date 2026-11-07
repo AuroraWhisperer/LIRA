@@ -13,8 +13,8 @@ const modules = Promise.all(['component-preview-canvas-controller.js', 'componen
   loadModuleExports(path.join(admin, file), { TextEncoder, queueMicrotask, crypto: { randomUUID } })));
 const copy = (value) => JSON.parse(JSON.stringify(value));
 
-async function fixture(records = [], read) {
-  const [{ prepareComponentPreviewCanvas }, { createComponentConfigController }] = await modules;
+async function fixture(records = [], read, moduleExports = modules) {
+  const [{ prepareComponentPreviewCanvas }, { createComponentConfigController }] = await moduleExports;
   const controller = createComponentConfigController({ initial: { layout: { canvas: { width: 2560, height: 1440 } } }, read });
   const components = [{ id: 'danmaku', controller }];
   const calls = [];
@@ -74,6 +74,13 @@ test('preset selection retains drafts and applies the selected document to the f
   assert.equal(canvas.controller.getState().draft.document.title, '未保存的原预设');
   assert.equal(canvas.controller.getState().dirty, true);
   await canvas.preset({ action: 'select', id: second });
+  const originalMetadata = canvas.controller.getState().presets.find(preset => preset.id === original.id);
+  assert.equal(originalMetadata.title, '未保存的原预设');
+  assert.equal(originalMetadata.dirty, true);
+  originalMetadata.title = '外部篡改';
+  originalMetadata.dirty = false;
+  assert.equal(canvas.controller.getState().presets.find(preset => preset.id === original.id).title, '未保存的原预设');
+  assert.equal(canvas.controller.getState().presets.find(preset => preset.id === original.id).dirty, true);
   await canvas.publish();
   assert.equal((await canvas.source()).id, original.id);
   assert.equal(canvas.controller.getState().activeSceneId, second);
@@ -82,6 +89,49 @@ test('preset selection retains drafts and applies the selected document to the f
   const writes = f.calls.length;
   await assert.rejects(canvas.preset({ action: 'select', id: randomUUID() }), /不存在/);
   assert.equal(f.calls.length, writes);
+});
+
+test('preset metadata reads do not serialize inactive scene documents', async () => {
+  const serialized = [];
+  const countedJSON = Object.create(JSON);
+  countedJSON.stringify = (value, ...args) => {
+    if (value?.document?.id) serialized.push(value.document.id);
+    return JSON.stringify(value, ...args);
+  };
+  const instrumented = Promise.all(['component-preview-canvas-controller.js', 'component-config-controller.js']
+    .map(file => loadModuleExports(path.join(admin, file), {
+      TextEncoder, queueMicrotask, crypto: { randomUUID }, JSON: countedJSON,
+    })));
+  const f = await fixture([], undefined, instrumented);
+  const canvas = await f.prepare();
+  const inactiveId = canvas.controller.getState().draft.document.id;
+  await canvas.preset({ action: 'create', title: '当前场景' });
+  serialized.length = 0;
+  const state = canvas.controller.getState();
+  assert.equal(state.presets.length, 2);
+  assert.ok(serialized.includes(state.draft.document.id), 'active document remains an isolated copy');
+  assert.equal(serialized.includes(inactiveId), false, 'metadata must not copy inactive documents');
+});
+
+test('preset metadata follows save, discard and refreshed documents', async () => {
+  const f = await fixture();
+  const canvas = await f.prepare();
+  const initial = canvas.controller.getState().draft.document;
+  const metadata = () => canvas.controller.getState().presets.find(preset => preset.id === initial.id);
+  canvas.controller.edit({ document: { ...initial, title: '已保存标题' } });
+  assert.equal(metadata().dirty, true);
+  await canvas.controller.save();
+  assert.equal(metadata().title, '已保存标题');
+  assert.equal(metadata().dirty, false);
+  canvas.controller.edit({ document: { ...initial, title: '放弃的标题' } });
+  canvas.controller.discard();
+  assert.equal(metadata().title, '已保存标题');
+  assert.equal(metadata().dirty, false);
+  f.records[0].document.title = '外部更新标题';
+  f.records[0].revision += 1;
+  await canvas.controller.reload();
+  assert.equal(metadata().title, '外部更新标题');
+  assert.equal(metadata().dirty, false);
 });
 
 test('preset deletion retains other drafts and keeps the selected draft on failure', async () => {

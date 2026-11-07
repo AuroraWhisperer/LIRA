@@ -57,41 +57,6 @@
   white-space: nowrap;
 }
 
-#playbackMoreBtn {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  anchor-name: --playback-more;
-}
-
-.playback-more-menu {
-  position: fixed;
-  position-anchor: --playback-more;
-  inset: auto;
-  top: calc(anchor(bottom) + 6px);
-  right: anchor(right);
-  margin: 0;
-  padding: 6px;
-  border: 0;
-  border-radius: var(--radius-lg);
-  color: var(--text);
-  background: var(--color-floating-surface);
-  box-shadow: var(--shadow-floating);
-}
-
-.playback-more-menu button {
-  display: block;
-  width: 100%;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  text-align: left;
-}
-
-.playback-more-menu button:hover:not(:disabled) {
-  background: var(--color-bg-hover, var(--surface-2));
-}
-
 /* 音乐分组在同一条导航内展开，滑块跟随现有平台选中状态。 */
 .playback-navigation {
   --playback-switch-motion: 320ms cubic-bezier(0.16, 1, 0.3, 1);

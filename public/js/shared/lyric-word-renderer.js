@@ -33,11 +33,12 @@ export class LyricWordRenderer {
     this.renderedWords = [];
     this.wordElements = [];
     this.wordProgress = [];
+    this.enabled = true;
     this.surfaceVisible = true;
     this.visibilityHandler = () => {
       const visible = this.isVisible();
       if (visible) this.renderFrame(clockNow());
-      if (visible && this.state.playing && !isReducedMotion()) {
+      if (visible && this.state.playing) {
         this.scheduler.start(this.renderFrame);
       } else {
         this.scheduler.stop();
@@ -57,7 +58,14 @@ export class LyricWordRenderer {
   }
 
   isVisible() {
-    return this.surfaceVisible && isDocumentVisible();
+    return this.enabled && this.surfaceVisible && isDocumentVisible();
+  }
+
+  setEnabled(enabled) {
+    const next = enabled !== false;
+    if (next === this.enabled) return;
+    this.enabled = next;
+    this.visibilityHandler();
   }
 
   setState(nextState = {}) {
@@ -70,7 +78,7 @@ export class LyricWordRenderer {
         || this.state.trackTitle !== previousTrackTitle,
     });
     this.renderContent();
-    if (this.state.playing && !isReducedMotion() && this.isVisible()) {
+    if (this.state.playing && this.isVisible()) {
       this.scheduler.start(this.renderFrame);
     } else {
       this.scheduler.stop();
@@ -152,10 +160,6 @@ function clamp(value, minimum, maximum) {
 
 function clockNow() {
   return typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
-}
-
-function isReducedMotion() {
-  return typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 }
 
 function clearElement(element) {

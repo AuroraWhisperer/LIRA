@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { FakeNode } = require('../helpers/fake-dom');
 
 class Node {
   constructor(tagName = '') {
@@ -82,6 +83,7 @@ async function fixture({ scene = false } = {}) {
   const listeners = new Map();
   const body = new Node('body');
   const documentElement = new Node('html');
+  const stage = new FakeNode('section');
   const location = { search: scene ? '?preview=1&componentPreview=1&sceneComponent=1' : '',
     pathname: '/danmaku', href: 'http://127.0.0.1:3000/danmaku', protocol: 'http:', host: '127.0.0.1:3000' };
   const window = { innerWidth: 1280, __API_TOKEN__: 'synthetic-token', parent: { postMessage() {} },
@@ -99,6 +101,7 @@ async function fixture({ scene = false } = {}) {
       },
       createElement: (tag) => new Node(tag),
       createDocumentFragment: () => Object.assign(new Node(), { isFragment: true }),
+      querySelector: (selector) => selector === '.danmaku-signal-stage' ? stage : null,
       querySelectorAll: () => [],
     },
     window,

@@ -104,7 +104,7 @@ export function createDanmakuPreviewItems(style = 'signal') {
     ...item, uid: String(100000 + index), avatarUrl: item.avatarUrl || AVATAR,
     roomGuardLevel: item.guardLevel || 0,
   }));
-  if (['mist', 'comic', 'window'].includes(style)) return samples.map((item) => ({
+  if (['mist', 'comic', 'window', 'wireframe'].includes(style)) return samples.map((item) => ({
     ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
   }));
   if (style === 'harbor') return samples.map((item, index) => ({

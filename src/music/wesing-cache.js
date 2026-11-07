@@ -60,7 +60,10 @@ async function hasWeSingCacheData(input) {
     const stat = await fs.promises.stat(path.join(logDir, entry.name)).catch(() => null);
     if (stat?.isFile() && stat.size > 0) return true;
   }
-  return (await listRecentQrcFiles(path.join(cachePath, 'WeSingDL', 'Res'), 1)).length > 0;
+  for await (const candidates of readQrcFileBatches(path.join(cachePath, 'WeSingDL', 'Res'))) {
+    if (candidates.length > 0) return true;
+  }
+  return false;
 }
 
 async function findLatestWeSingLog(cachePath) {
@@ -159,13 +162,18 @@ async function loadWeSingLyrics(options = {}) {
 }
 
 async function listRecentQrcFiles(resDir, maximum) {
+  const candidates = [];
+  for await (const batch of readQrcFileBatches(resDir)) candidates.push(...batch);
+  return candidates.sort((a, b) => b.modifiedMs - a.modifiedMs).slice(0, maximum);
+}
+
+async function* readQrcFileBatches(resDir) {
   let entries;
   try {
     entries = await fs.promises.readdir(resDir, { withFileTypes: true });
   } catch (_) {
-    return [];
+    return;
   }
-  const candidates = [];
   const directories = entries.filter((entry) => entry.isDirectory() && SAFE_SONG_MID.test(entry.name));
   for (let start = 0; start < directories.length; start += 100) {
     const batch = directories.slice(start, start + 100);
@@ -181,9 +189,8 @@ async function listRecentQrcFiles(resDir, maximum) {
         }
       }),
     );
-    candidates.push(...rows.filter(Boolean));
+    yield rows.filter(Boolean);
   }
-  return candidates.sort((a, b) => b.modifiedMs - a.modifiedMs).slice(0, maximum);
 }
 
 async function tryReadQrc(filePath) {

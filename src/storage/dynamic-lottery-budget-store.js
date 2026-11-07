@@ -40,18 +40,30 @@ function parseTimes(value) {
 }
 
 function createRequestBudgetStore(db) {
+  const ensureRowStatement = db.prepare(
+    `
+      INSERT OR IGNORE INTO lottery_request_budget (scope_key, updated_at_ms)
+      VALUES (?, ?)
+    `,
+  );
+  const readRowStatement = db.prepare('SELECT * FROM lottery_request_budget WHERE scope_key = ?');
+  const saveRowStatement = db.prepare(
+    `
+      UPDATE lottery_request_budget
+      SET request_times_json = ?, consecutive_count = ?,
+          last_finished_at_ms = ?, earliest_resume_at_ms = ?,
+          hold_reason = ?, rate_limit_strikes = ?, updated_at_ms = ?
+      WHERE scope_key = ?
+    `,
+  );
+
   function scopeKeys(scope) {
     return ['local', `account:${requiredText(scope, 'budget scope')}`];
   }
 
   function ensureRow(scopeKey, nowMs) {
-    db.prepare(
-      `
-      INSERT OR IGNORE INTO lottery_request_budget (scope_key, updated_at_ms)
-      VALUES (?, ?)
-    `,
-    ).run(scopeKey, nowMs);
-    return db.prepare('SELECT * FROM lottery_request_budget WHERE scope_key = ?').get(scopeKey);
+    ensureRowStatement.run(scopeKey, nowMs);
+    return readRowStatement.get(scopeKey);
   }
 
   function normalizeRow(row, nowMs) {
@@ -69,15 +81,7 @@ function createRequestBudgetStore(db) {
   }
 
   function saveRow(row, nowMs) {
-    db.prepare(
-      `
-      UPDATE lottery_request_budget
-      SET request_times_json = ?, consecutive_count = ?,
-          last_finished_at_ms = ?, earliest_resume_at_ms = ?,
-          hold_reason = ?, rate_limit_strikes = ?, updated_at_ms = ?
-      WHERE scope_key = ?
-    `,
-    ).run(
+    saveRowStatement.run(
       JSON.stringify(row.times),
       row.consecutiveCount,
       row.lastFinishedAtMs,
@@ -120,9 +124,9 @@ function createRequestBudgetStore(db) {
     return transaction(db, () => {
       const rows = scopeKeys(scope).map((key) => normalizeRow(ensureRow(key, nowMs), nowMs));
       const decisions = rows.map((row) => evaluate(row, nowMs));
-      for (const row of rows) saveRow(row, nowMs);
       const manual = decisions.find((decision) => decision.reason);
       if (manual) {
+        for (const row of rows) saveRow(row, nowMs);
         return {
           allowed: false,
           waitUntilMs: null,
@@ -132,6 +136,7 @@ function createRequestBudgetStore(db) {
       }
       const waitUntilMs = Math.max(0, ...decisions.map((decision) => decision.waitUntilMs || 0));
       if (waitUntilMs > nowMs) {
+        for (const row of rows) saveRow(row, nowMs);
         return {
           allowed: false,
           waitUntilMs,

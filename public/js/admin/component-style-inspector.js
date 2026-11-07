@@ -1,16 +1,18 @@
 import { previewElement } from './component-preview-surface.js';
-import { openComponentStyleLibrary } from './component-style-library.js';
+import { canImportComponentStyle, openComponentStyleLibrary } from './component-style-library.js';
 import { mountMediaStyleFields } from './component-style-editor.js';
 import { MEDIA_STYLE_TYPES } from '../shared/component-media-style.js';
 import { loadComponentStyleCss } from './component-style-api.js';
 import { getBackgroundAppearance } from '../shared/background-appearance.js';
+import { componentStyleMedia } from '../shared/component-resource-style.js';
 
 export function mountComponentStyleInspector(host, { item, model, component, request, report }) {
   loadComponentStyleCss();
-  const change = previewElement('button', 'secondary', MEDIA_STYLE_TYPES.includes(item.type) ? '更换样式 / 添加素材' : '更换样式'); change.type = 'button'; change.disabled = item.locked;
+  const canImport = canImportComponentStyle(item.type);
+  const change = previewElement('button', 'secondary', canImport && MEDIA_STYLE_TYPES.includes(item.type) ? '更换样式 / 添加素材' : '更换样式'); change.type = 'button'; change.disabled = item.locked;
   let library;
   let mediaFields;
-  if (item.type !== 'danmaku') host.append(change);
+  if (item.type !== 'danmaku' && (canImport || componentStyleMedia(item.appearance.config))) host.append(change);
   change.addEventListener('click', () => {
     library = openComponentStyleLibrary({ type: item.type, request, actionLabel: `更换「${item.name}」的样式`,
       onUse(style) {

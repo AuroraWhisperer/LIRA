@@ -26,7 +26,16 @@ test('legacy settings initialize once; local profiles survive repeated migration
   assert.equal(initial.config.styleOptions.bubble.fontSize, 32);
   assert.doesNotMatch(JSON.stringify(initial), /PRIVATE/);
   const next = { ...initial, config: { ...initial.config, style: 'spooky',
-    styleOptions: { ...initial.config.styleOptions, spooky: { fontSize: 36 }, outline: { durationSeconds: 12 } } } };
+    styleOptions: { ...initial.config.styleOptions, spooky: { fontSize: 36 }, outline: { durationSeconds: 12 },
+      'animated-gradient': { gradientPalette: 'ocean', gradientCycleSeconds: 24, gradientUnderline: 'hide' },
+      'glass-bubble': { glassBubbleReveal: 'instant', glassBubbleTypingSpeed: 60, glassBubbleSweep: 'off', glassBubbleHighlight: 0 },
+      'celestial-horizontal': { celestialNebulaOpacity: 80, celestialStarDensity: 'dense', celestialStarShape: 'star', celestialSeparator: 'hide' },
+      glass: { glassTime: 'hide', glassGlintIntensity: 0, glassDensity: 'compact' },
+      'dark-moon': { darkMoonPalette: 'ice', darkMoonRingSize: 140, darkMoonSparks: 'hide' },
+      wireframe: { wireframeFadeLength: 0, wireframeOrbit: 'hide', wireframeEntrance: 'none', wireframeEntranceMs: 1400 },
+      'sea-breeze': { seaBreezeReflectionOpacity: 0, seaBreezeReflectionLength: 100, seaBreezeReflectionGap: 0 },
+      'sea-breeze-random': { seaBreezeReflectionOpacity: 60, seaBreezeReflectionLength: 200, seaBreezeReflectionGap: 30 },
+    } } };
   f.service.save(next);
   assert.equal(f.service.seed({ ownerScope: f.state.owner.scope, authorizationEpoch: 1,
     settings: { style: 'signal', fullscreenDurationSeconds: 6 } }), false);
@@ -37,6 +46,21 @@ test('legacy settings initialize once; local profiles survive repeated migration
   assert.deepEqual(await restarted.read(), next);
   assert.equal(reads, 1);
   assert.equal(f.state.changes, 2);
+});
+
+test('stardust text effects survive local saving and service restart', async t => {
+  const f = fixture(t);
+  const initial = await f.service.read();
+  f.service.save({ ...initial, config: { ...initial.config, style: 'stardust',
+    styleParameters: { stardust: { showEntryMessages: false,
+      textOutline: { color: '#203040', width: 1.5 }, shadow: { opacity: 60, blur: 4 } } } } });
+  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner,
+    loadLegacy: () => { throw new Error('Saved local effects must not read remote settings.'); } });
+  const config = (await restarted.read()).config;
+  assert.equal(config.style, 'stardust');
+  assert.equal(config.styleParameters.stardust.showEntryMessages, false);
+  assert.equal(config.styleParameters.stardust.textOutline.width, 1.5);
+  assert.equal(config.styleParameters.stardust.shadow.opacity, 60);
 });
 
 test('invalid local writes leave the complete saved appearance unchanged', async t => {

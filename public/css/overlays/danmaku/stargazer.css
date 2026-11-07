@@ -1,0 +1,174 @@
+
+body[data-style='stargazer'] {
+  --stargazer-font: 'Stargazer Poppins', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
+  --danmaku-enter-animation: stargazerEntry 480ms ease-out;
+  --danmaku-move-base-ms: 300;
+  --danmaku-move-max-ms: 300;
+  --danmaku-move-curve: .22, .1, .25, 1;
+  --danmaku-edge-fade-size: 14px;
+}
+body[data-style='stargazer'][data-custom-font='true'] { --stargazer-font: var(--danmaku-custom-font); }
+body[data-style='stargazer'] .danmaku-signal-header { display: none; }
+body[data-style='stargazer'] .danmaku-signal-stage { position: relative; padding: 12px 18px; }
+body[data-style='stargazer'] .draw-danmaku-feed {
+  position: relative; gap: var(--stargazer-gap, 24px); padding: 22px 10px 12px;
+  overflow: hidden; isolation: isolate;
+}
+body[data-style='stargazer'][data-stargazer-align='top'] .draw-danmaku-feed:not([data-flow-overflow='true']) { justify-content: flex-start; }
+body[data-style='stargazer']:not([data-stargazer-perspective='none']) .draw-danmaku-feed {
+  transform: perspective(1000px) rotateY(var(--stargazer-angle)); transform-origin: center;
+}
+body[data-style='stargazer'][data-stargazer-frame='show'] .danmaku-signal-stage::before {
+  content: ''; position: absolute; inset: 3px; pointer-events: none; border-radius: 22px;
+  border: 1px solid #ccb0f2; background: linear-gradient(120deg, #b694e51c, #17102075 45%, #f6cc7014);
+  box-shadow: inset 0 0 10px #bd8bf83b, 0 0 10px #bd8bf855;
+}
+body[data-style='stargazer'][data-stargazer-frame='show'] .danmaku-signal-stage::after {
+  content: ''; position: absolute; inset: 3px; pointer-events: none; border-radius: 22px;
+  background: linear-gradient(125deg, #ffe59a, transparent 28%, transparent 72%, #ffe59a);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0); mask-composite: exclude; padding: 1px;
+}
+body[data-style='stargazer'] .draw-danmaku-item.stargazer-item {
+  --sg-accent: #d1b1fa; --sg-ink: #f7edff; --sg-title: #dfc5ff;
+  --sg-left: #aa829d; --sg-right: #6c558c; --sg-base: #251a35;
+  --sg-right-weight: var(--stargazer-gradient, 40%);
+  --sg-plate: #cfb0fa; --sg-plate-ink: #2b193d;
+  display: block; position: relative; flex: none; width: 100%; max-width: 100%; min-height: 0;
+  margin: 0; padding: 0; border: 0; background: none; box-shadow: none; clip-path: none;
+  overflow: visible; animation: none; color: var(--sg-ink); font: 400 22px/1.5 var(--stargazer-font);
+}
+body[data-style='stargazer'] .stargazer-item::after { display: none; }
+body[data-style='stargazer'] .stargazer-item[data-stargazer-tone='1'] {
+  --sg-left: #756582; --sg-right: #af887d; --sg-title: #ffe496;
+  --sg-plate: #ffe492; --sg-accent: #ffe492;
+}
+body[data-style='stargazer'] .stargazer-item[data-stargazer-tone='3'] {
+  --sg-left: #ac8a7d; --sg-right: #644f83; --sg-title: #ffe496;
+  --sg-plate: #2c203b; --sg-plate-ink: #d3b0ff;
+}
+body[data-style='stargazer'][data-stargazer-palette='mixed'] .stargazer-item[data-stargazer-tone='0'],
+body[data-style='stargazer'][data-stargazer-palette='gold'] .stargazer-item,
+body[data-style='stargazer'][data-stargazer-palette='chat-purple'] .stargazer-item:is([data-stargazer-kind='gift'],[data-stargazer-kind='member'],[data-stargazer-kind='superchat']),
+body[data-style='stargazer'][data-stargazer-palette='chat-gold'] .stargazer-item:is([data-stargazer-kind='chat'],[data-stargazer-kind='system']) {
+  --sg-base: #e7b454; --sg-left: #ffcb5b; --sg-right: #5c365d; --sg-ink: #30213d;
+  --sg-right-weight: min(100%, calc(var(--stargazer-gradient, 40%) * 1.4));
+  --sg-title: #30213d; --sg-accent: #ffe59a; --sg-plate: #30213d; --sg-plate-ink: #ffe59a;
+}
+body[data-style='stargazer'][data-stargazer-palette='custom'] .stargazer-item {
+  --sg-base: #131016; --sg-accent: var(--stargazer-color); --sg-title: var(--stargazer-color);
+  --sg-left: var(--stargazer-color); --sg-right: var(--stargazer-color);
+  --sg-plate: var(--stargazer-color); --sg-plate-ink: #17121d;
+}
+body[data-style='stargazer'][data-custom-text-color='true'] .stargazer-item { --sg-ink: var(--danmaku-text-color); }
+body[data-style='stargazer'] .stargazer-card {
+  display: block; position: relative; isolation: isolate; min-width: 0; border-radius: 16px;
+  padding: 12px 14px 13px; background: none;
+}
+.stargazer-card::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  border: 1px solid color-mix(in srgb, var(--sg-accent) 30%, transparent);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--sg-left) var(--stargazer-gradient, 40%), transparent), transparent 48%, color-mix(in srgb, var(--sg-right) var(--sg-right-weight), transparent)),
+    color-mix(in srgb, var(--sg-base) 88%, transparent);
+  box-shadow: inset 0 0 3px color-mix(in srgb, var(--sg-accent) 24%, transparent),
+    0 2px var(--stargazer-glow, 8px) color-mix(in srgb, var(--sg-accent) 24%, transparent);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+body[data-stargazer-gradient='off'] .stargazer-card::before { background: color-mix(in srgb, var(--sg-base) 88%, transparent); }
+.stargazer-card::after {
+  content: ''; position: absolute; left: -5px; top: calc(50% - 5px); width: 10px; height: 10px;
+  border-radius: 50%; background: var(--sg-accent);
+}
+.stargazer-item { container-type: inline-size; }
+.stargazer-card::after { box-shadow: calc(100cqw) 0 var(--sg-accent); }
+.stargazer-item:is([data-stargazer-kind='gift'],[data-stargazer-kind='member'],[data-stargazer-kind='superchat']) .stargazer-card::after {
+  width: 16px; height: 16px; left: -8px; top: calc(50% - 8px); border-radius: 0;
+  clip-path: polygon(50% 0,62% 35%,100% 50%,62% 64%,50% 100%,37% 64%,0 50%,37% 35%);
+  box-shadow: none;
+}
+.stargazer-item:is([data-stargazer-kind='gift'],[data-stargazer-kind='member'],[data-stargazer-kind='superchat']) .stargazer-card .stargazer-sky::after {
+  content: ''; position: absolute; right: -8px; top: calc(50% - 8px); width: 16px; height: 16px;
+  background: var(--sg-accent); clip-path: polygon(50% 0,62% 35%,100% 50%,62% 64%,50% 100%,37% 64%,0 50%,37% 35%);
+}
+body[data-style='stargazer'] .stargazer-heading {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0;
+  margin: 0 0 8px; padding: 0 24px 0 0; color: var(--sg-title);
+  font: 700 22px/1.35 var(--stargazer-font);
+}
+body[data-style='stargazer'] .stargazer-heading :is(.stargazer-name,.stargazer-title) {
+  font: inherit; color: inherit; white-space: normal; overflow-wrap: anywhere;
+  text-shadow: 0 0 3px color-mix(in srgb, var(--sg-title) 45%, transparent);
+}
+body[data-style='stargazer'] .stargazer-heading .draw-danmaku-avatar {
+  flex: 0 0 24px; width: 24px; height: 24px; margin-right: 3px; border-radius: 5px; clip-path: none;
+  background: #322743; color: #e0c3ff; font: 700 12px/1 var(--stargazer-font);
+}
+.stargazer-heading .stargazer-role {
+  display: inline-block; max-width: 100%; padding: 2px 6px; border-radius: 3px; background: var(--sg-title);
+  color: var(--sg-base); font: 700 12px/1.4 var(--stargazer-font); overflow-wrap: anywhere;
+}
+body[data-style='stargazer'] .stargazer-copy {
+  display: block; margin: 0; padding: 0; color: var(--sg-ink); font: 400 var(--danmaku-font-size, 22px)/1.5 var(--stargazer-font);
+  white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: none;
+}
+body[data-style='stargazer'] .stargazer-copy :is(.draw-danmaku-gift-name,.draw-danmaku-gift-count) { font: inherit; color: inherit; white-space: normal; }
+.stargazer-copy .draw-danmaku-emote { height: 1.45em; max-width: 100%; vertical-align: -.3em; object-fit: contain; }
+.stargazer-heading :is(.stargazer-amount,.stargazer-sender) { font-size: .75em; overflow-wrap: anywhere; }
+.stargazer-heading .stargazer-amount { margin-left: auto; }
+.stargazer-icon {
+  display: grid; place-items: center; position: absolute; right: 28px; top: -16px;
+  width: 34px; height: 34px; border-radius: 6px; background: var(--sg-plate); color: var(--sg-plate-ink);
+  border: 1px solid color-mix(in srgb, var(--sg-accent) 24%, transparent);
+}
+.stargazer-icon svg { width: 22px; height: 22px; fill: currentColor; }
+.stargazer-sky { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
+.stargazer-meteor {
+  position: absolute; left: 50%; top: 15%; width: 100px; height: 1px;
+  background: linear-gradient(90deg, transparent, #e5ccff99); transform: rotate(35deg); opacity: 0;
+}
+.stargazer-meteor::after {
+  content: ''; position: absolute; right: -8px; top: -8px; width: 17px; height: 17px;
+  background: #f2e3ff; clip-path: polygon(50% 0,56% 44%,100% 50%,56% 56%,50% 100%,44% 56%,0 50%,44% 44%);
+}
+.stargazer-particle {
+  position: absolute; left: 7%; top: 72%; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--sg-accent); box-shadow: 0 0 6px 2px color-mix(in srgb, var(--sg-accent) 36%, transparent); opacity: 0;
+  --sg-delay: 0s;
+}
+.stargazer-particle:nth-child(3) { left: 18%; top: 42%; --sg-delay: -.8s; }
+.stargazer-particle:nth-child(4) { left: 37%; top: 84%; --sg-delay: -1.7s; width: 2px; height: 2px; }
+.stargazer-particle:nth-child(5) { left: 52%; top: 58%; --sg-delay: -3.1s; }
+.stargazer-particle:nth-child(6) { left: 69%; top: 75%; --sg-delay: -2.2s; width: 2px; height: 2px; }
+.stargazer-particle:nth-child(7) { left: 84%; top: 37%; --sg-delay: -3.7s; }
+.stargazer-particle:nth-child(8) { left: 90%; top: 66%; --sg-delay: -1.3s; }
+.stargazer-particle:nth-child(9) { left: 45%; top: 28%; --sg-delay: -2.8s; width: 2px; height: 2px; }
+body[data-style='stargazer']:not([data-ambient-motion='off']) .stargazer-meteor { animation: stargazerMeteor 7s var(--stargazer-phase, 0ms) linear infinite; }
+body[data-style='stargazer']:not([data-ambient-motion='off']) .stargazer-particle { animation: stargazerDust 4.4s calc(var(--sg-delay) + var(--stargazer-phase, 0ms)) ease-in-out infinite; }
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-feed { flex-direction: row; align-items: flex-end; }
+body[data-style='stargazer'][data-stargazer-layout='horizontal']:not([data-stargazer-perspective='none']) .draw-danmaku-feed {
+  transform: perspective(max(1000px, calc(var(--region-content-width, 1200px) * 3))) rotateY(var(--stargazer-angle));
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-scroll-direction='down'] .draw-danmaku-feed { flex-direction: row-reverse; }
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item { width: var(--stargazer-width, 320px); max-width: none; }
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent);
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade='none'] .draw-danmaku-feed { mask: none; }
+body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade='top'] .draw-danmaku-feed { mask: linear-gradient(90deg, transparent, #000 14px); }
+body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade='bottom'] .draw-danmaku-feed { mask: linear-gradient(90deg, #000 calc(100% - 14px), transparent); }
+@keyframes stargazerEntry { from { opacity: .45; } to { opacity: 1; } }
+@keyframes stargazerMeteor {
+  0%, 68%, 100% { opacity: 0; translate: -70px -50px; }
+  70% { opacity: .7; translate: -60px -42px; }
+  81% { opacity: .65; translate: 70px 48px; }
+  84% { opacity: 0; translate: 90px 62px; }
+}
+@keyframes stargazerDust {
+  0%, 100% { opacity: 0; translate: 0 10px; }
+  25% { opacity: .6; }
+  60% { opacity: .15; }
+  80% { opacity: .5; translate: 4px -20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='stargazer'] :is(.stargazer-item,.stargazer-meteor,.stargazer-particle) { animation: none !important; }
+}

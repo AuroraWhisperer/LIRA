@@ -270,7 +270,18 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   function previewActiveShape() {
     if (!activeStroke || !isShapeTool(activeStroke.tool)) return;
     const points = createShapePoints(activeStroke.tool, activeStroke.startPoint, activeStroke.lastPoint);
-    redrawCanvas(getSession()?.state?.canvas);
+    const canvas = byId('drawCanvas');
+    let background = activeStroke.background;
+    if (!background || background.width !== canvas.width || background.height !== canvas.height) {
+      redrawCanvas(getSession()?.state?.canvas);
+      background = document.createElement('canvas');
+      background.width = canvas.width;
+      background.height = canvas.height;
+      background.getContext('2d').drawImage(canvas, 0, 0);
+      activeStroke.background = background;
+    } else {
+      canvas.getContext('2d').drawImage(background, 0, 0);
+    }
     drawCanvasPoints(points, activeStroke.color, activeStroke.width);
   }
 
@@ -414,12 +425,15 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     );
     canvasState.totalPoints = (Number(canvasState.totalPoints) || 0) + operation.points.length;
     canvasState.revision = Number(operation.revision) || canvasState.revision;
-    if (drawIncrement)
+    if (drawIncrement) {
+      if (activeStroke) activeStroke.background = null;
       drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
+    }
     drawControls.syncUndoState();
   }
 
   function redrawCanvas(canvasState = {}) {
+    if (activeStroke) activeStroke.background = null;
     const canvas = byId('drawCanvas');
     if (!canvas) return;
     const context = canvas.getContext('2d');

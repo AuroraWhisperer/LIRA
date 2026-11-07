@@ -1,0 +1,197 @@
+@property --dark-moon-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --dark-moon-reveal { syntax: '<percentage>'; inherits: false; initial-value: 0%; }
+@property --dark-moon-slide { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --dark-moon-scale { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --dark-moon-turn { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+
+body[data-style='dark-moon'] {
+  --moon-gold: #efcd86;
+  --moon-ink: #c9c0dc;
+  --moon-muted: #756584;
+  --moon-line: #5e506f;
+  --moon-font: 'Spooky Nunito', 'Microsoft YaHei UI', sans-serif;
+  --danmaku-enter-animation: darkMoonEntry 800ms linear;
+  --danmaku-move-base-ms: 260;
+  --danmaku-move-max-ms: 460;
+  --danmaku-move-curve: .25,.1,.25,1;
+}
+body[data-style='dark-moon'][data-dark-moon-palette='moonlight'] {
+  --moon-gold: #e7eafa;
+  --moon-ink: #cbd1e9;
+  --moon-muted: #838ba7;
+  --moon-line: #656c8b;
+  --moon-seal-color: #c9cfee;
+  --moon-seal-background: #343b5745;
+  --moon-guard-background: #20243b;
+  --moon-event-paint: linear-gradient(105deg, #edf0ff, #bcc8e8);
+  --moon-event-ink: #25314c;
+  --moon-event-accent: #526487;
+  --moon-event-soft: #eff4ff;
+  --moon-event-dark: #252b43;
+}
+body[data-style='dark-moon'][data-dark-moon-palette='ice'] {
+  --moon-gold: #aee6f4;
+  --moon-ink: #cae2ed;
+  --moon-muted: #6c98ac;
+  --moon-line: #4d7b90;
+  --moon-seal-color: #b6e6f2;
+  --moon-seal-background: #234d6245;
+  --moon-guard-background: #122c3b;
+  --moon-event-paint: linear-gradient(105deg, #ddf8ff, #9cd7e8);
+  --moon-event-ink: #163846;
+  --moon-event-accent: #3e6c7b;
+  --moon-event-soft: #e6fbff;
+  --moon-event-dark: #173b4b;
+}
+body[data-style='dark-moon'][data-custom-font='true'] { --moon-font: var(--danmaku-custom-font); }
+body[data-style='dark-moon'] :is(.danmaku-signal-header,.draw-danmaku-empty) { display: none; }
+
+body[data-style='dark-moon'] .draw-danmaku-feed { gap: .9em; padding: .25em .3em .5em; font-size: 24px; }
+body[data-style='dark-moon'] .draw-danmaku-item.dark-moon-item {
+  --moon-frame: var(--moon-line);
+  display: block; width: max-content; min-width: 0; max-width: 100%; min-height: 0;
+  padding: 0 0 .35em 2.45em; border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none; overflow: visible;
+  color: var(--moon-ink); font: 500 24px/1.35 var(--moon-font);
+  animation: none; text-shadow: none; zoom: 1;
+}
+body[data-style='dark-moon'] .draw-danmaku-item::after { content: none; }
+body[data-style='dark-moon'] .draw-danmaku-item.dark-moon-item.is-gift::after { content: none; }
+body[data-style='dark-moon'] .dark-moon-item[data-identity='guard'] { --moon-frame: var(--moon-gold); }
+body[data-style='dark-moon'] .dark-moon-item .dark-moon-body { position: relative; display: block; width: fit-content; max-width: 100%; min-height: 0; padding: 0; }
+body[data-style='dark-moon'] .dark-moon-heading {
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: .35em;
+  width: fit-content; max-width: 100%; min-height: 1.7em; margin-bottom: .45em;
+  opacity: var(--dark-moon-opacity);
+  clip-path: inset(min(0px, calc((1 - var(--moon-ring-size, 1)) * .85em)) var(--dark-moon-reveal) min(0px, calc((1 - var(--moon-ring-size, 1)) * .85em)) -3em);
+}
+body[data-style='dark-moon'] .dark-moon-name {
+  max-width: 100%; overflow: hidden; color: var(--moon-gold);
+  font: 500 .95em/1.4 var(--moon-font); letter-spacing: .085em;
+  text-overflow: ellipsis; white-space: nowrap;
+}
+.dark-moon-seal {
+  position: absolute; left: -2.45em; top: 0; display: grid; place-items: center;
+  width: 1.7em; height: 1.7em; border: .085em solid transparent; border-radius: 50%;
+  color: var(--moon-seal-color, #c1a6e5); background: var(--moon-seal-background, #45305145); opacity: var(--dark-moon-opacity);
+  scale: calc(var(--dark-moon-scale) * var(--moon-ring-size, 1)); rotate: var(--dark-moon-turn);
+}
+.dark-moon-symbol { display: block; width: .84em; height: .84em; fill: currentColor; }
+.dark-moon-item[data-identity='guard'] .dark-moon-seal { color: var(--moon-gold); border-color: currentColor; background: var(--moon-guard-background, #22182b); }
+.dark-moon-item[data-identity='guard'] .dark-moon-symbol { width: 1.05em; height: 1.05em; }
+.dark-moon-divider { width: .63em; height: .63em; margin: 0 .13em; fill: var(--moon-muted); }
+.dark-moon-role { color: var(--moon-muted); font-size: .72em; letter-spacing: .12em; }
+.dark-moon-rail {
+  position: absolute; left: -1.64em; top: 2.15em; bottom: .05em; width: .075em; border-radius: 1em;
+  background: linear-gradient(var(--moon-line) 0 calc(100% - .65em), transparent 0 calc(100% - .37em), var(--moon-line) 0);
+  clip-path: inset(0 0 var(--dark-moon-reveal)); opacity: var(--dark-moon-opacity);
+}
+.dark-moon-panel {
+  --moon-trim-width: min(8.1em, calc(100% - 1.5em));
+  position: relative; isolation: isolate; width: fit-content; max-width: 100%; min-width: 3.4em;
+  padding: .92em 1.35em .95em; border-radius: .5em;
+}
+.dark-moon-panel::before {
+  position: absolute; z-index: -1; inset: 0; border: .085em solid var(--moon-frame); border-radius: inherit;
+  background: rgb(10 9 15 / calc(.92 * var(--danmaku-background-opacity, 1)));
+  clip-path: inset(0 0 var(--dark-moon-reveal) round .5em); opacity: var(--dark-moon-opacity); content: '';
+}
+.dark-moon-lining {
+  position: absolute; top: .07em; right: .48em; bottom: .07em; width: .065em;
+  background: var(--moon-frame); clip-path: inset(var(--dark-moon-reveal) 0 0); opacity: var(--dark-moon-opacity);
+}
+body[data-style='dark-moon'] .draw-danmaku-body .dark-moon-copy {
+  position: relative; margin: 0; color: var(--danmaku-text-color, var(--moon-ink));
+  font: 500 var(--danmaku-font-size)/1.28 var(--moon-font); letter-spacing: .09em; white-space: pre-wrap;
+  overflow-wrap: anywhere; opacity: var(--dark-moon-opacity);
+  clip-path: inset(0 0 var(--dark-moon-reveal));
+}
+body[data-style='dark-moon'] .draw-danmaku-emote { height: 1.45em; margin: 0 .1em; filter: none; }
+body[data-style='dark-moon'] .is-emote-only .draw-danmaku-emote { height: 3.5em; }
+.dark-moon-trim { position: absolute; right: .8em; bottom: -.29em; width: 8.1em; max-width: calc(100% - 1.5em); height: .6em; color: var(--moon-gold); opacity: var(--dark-moon-opacity); }
+.dark-moon-item[data-moon-kind='chat'] .dark-moon-panel::before, .dark-moon-sc-message::before {
+  --moon-frame-mask: linear-gradient(#000 0 0) top / 100% calc(100% - 2px) no-repeat,
+    linear-gradient(to left,
+      #000 0 calc(.8em + var(--moon-trim-width) * .1),
+      transparent 0 calc(.8em + var(--moon-trim-width) * .3),
+      #000 0 calc(.8em + var(--moon-trim-width) * .36),
+      transparent 0 calc(.8em + var(--moon-trim-width) * .42),
+      #000 0 calc(.8em + var(--moon-trim-width) * .88),
+      transparent 0 calc(.8em + var(--moon-trim-width)), #000 0) bottom / 100% 2px no-repeat;
+  -webkit-mask: var(--moon-frame-mask);
+  mask: var(--moon-frame-mask);
+}
+.dark-moon-spark { position: absolute; right: 13%; top: 0; width: .6em; height: .6em; fill: currentColor; opacity: var(--dark-moon-opacity); scale: var(--dark-moon-scale); rotate: var(--dark-moon-turn); }
+.dark-moon-dot { position: absolute; left: 5%; top: .21em; width: .17em; height: .17em; border-radius: 50%; background: currentColor; opacity: var(--dark-moon-opacity); }
+body[data-style='dark-moon'][data-dark-moon-sparks='hide'] :is(.dark-moon-spark,.dark-moon-dot,.dark-moon-comet) { display: none; }
+
+/* Alerts unfold from their centre before the seal, ribbon and lettering appear. */
+body[data-style='dark-moon'] .dark-moon-item:is(.is-gift,.is-superchat) {
+  --danmaku-enter-animation: darkMoonEntry 1100ms linear;
+  width: 100%; padding-left: 2.45em;
+}
+body[data-style='dark-moon'] .dark-moon-item:is(.is-gift,.is-superchat) > .dark-moon-body { width: 100%; }
+.dark-moon-item:is(.is-gift,.is-superchat) .dark-moon-panel:not(.dark-moon-sc-message) {
+  width: 100%; min-height: 4.4em; padding: 1.25em 1.1em; color: var(--moon-event-ink, #402332);
+}
+.dark-moon-item:is(.is-gift,.is-superchat) .dark-moon-panel:not(.dark-moon-sc-message)::before {
+  border: 0; background: var(--moon-event-paint, linear-gradient(105deg, #ffe69f, #f8cc80));
+  clip-path: inset(0 var(--dark-moon-reveal) round .5em);
+  opacity: calc(var(--dark-moon-opacity) * var(--danmaku-background-opacity, 1));
+}
+body[data-style='dark-moon'] .dark-moon-event-heading {
+  justify-content: center; gap: .25em .5em; width: 100%; min-height: 1.8em; margin: 0;
+  font-size: calc(var(--danmaku-font-size) * .78); line-height: 1.5; text-align: center; letter-spacing: .075em;
+  clip-path: none;
+}
+body[data-style='dark-moon'] .is-gift .dark-moon-event-heading { font-size: calc(var(--danmaku-font-size) * .88); }
+body[data-style='dark-moon'] .dark-moon-item .dark-moon-event-heading .dark-moon-name {
+  color: var(--moon-event-ink, #402332); max-width: 100%; font: 700 1em/1.5 var(--moon-font); white-space: normal; overflow-wrap: anywhere;
+}
+.dark-moon-panel > .dark-moon-seal { top: 50%; left: -.9em; translate: 0 -50%; width: 1.8em; height: 1.8em; color: var(--moon-event-soft, #ffe8a0); border-color: currentColor; background: var(--moon-event-dark, #28131f); }
+.dark-moon-event-label { color: var(--moon-event-accent, #a95938); font-weight: 700; overflow-wrap: anywhere; }
+.dark-moon-amount { color: var(--moon-event-accent, #764831); font-size: .85em; font-variant-numeric: tabular-nums; }
+.dark-moon-item:is(.is-gift,.is-superchat) .dark-moon-lining { z-index: 1; left: .4em; right: .4em; width: auto; border-left: .075em solid var(--moon-event-accent, #a66441); border-right: .075em solid var(--moon-event-accent, #a66441); background: none; }
+.dark-moon-event-art { position: absolute; z-index: -1; inset: 0; overflow: visible; color: var(--moon-event-soft, #fff6b6); clip-path: inset(-1em var(--dark-moon-reveal) -1em round .5em); opacity: var(--dark-moon-opacity); }
+.dark-moon-watermark { position: absolute; left: 41%; top: -.55em; width: 5.3em; height: 5.3em; fill: currentColor; opacity: .65; rotate: -18deg; }
+.dark-moon-bookmark { position: absolute; right: 1.2em; top: 0; width: 1em; height: 1.15em; clip-path: inset(0 0 var(--dark-moon-reveal)); }
+.dark-moon-bookmark::before { position: absolute; inset: 0; background: var(--moon-event-dark, #432333); clip-path: polygon(0 0,100% 0,100% 100%,50% 82%,0 100%); content: ''; }
+.dark-moon-orbit { position: absolute; right: 18%; bottom: -.5em; width: 1.05em; height: 1.05em; border: .07em solid var(--moon-event-soft, #ffe6a0); border-radius: 50%; background: var(--moon-event-dark, #28131f); translate: 0 var(--dark-moon-slide); opacity: var(--dark-moon-opacity); scale: calc(var(--dark-moon-scale) * var(--moon-ring-size, 1)); }
+.dark-moon-event-art .dark-moon-dot { left: 7%; top: 73%; background: var(--moon-event-soft, #e9b25f); }
+.dark-moon-event-art .dark-moon-spark { top: auto; right: 5%; bottom: .65em; }
+.dark-moon-comet { position: absolute; right: 6%; bottom: .65em; width: 1.35em; height: .065em; transform-origin: right; rotate: -40deg; background: linear-gradient(90deg,transparent,var(--moon-event-soft, #fff5b3)); }
+.dark-moon-sc-message { margin-top: .5em; width: 100%; }
+.dark-moon-sc-message .dark-moon-lining { display: none; }
+body[data-style='dark-moon'] .dark-moon-item.is-superchat .dark-moon-sc-message .dark-moon-copy { color: var(--danmaku-text-color, var(--moon-ink)); }
+
+.dark-moon-item[data-live-entry] .dark-moon-heading:not(.dark-moon-event-heading) { animation: darkMoonInk 220ms ease-out 50ms backwards, darkMoonName 350ms cubic-bezier(.16,1,.3,1) backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-seal { animation: darkMoonSeal 420ms cubic-bezier(.22,1,.36,1) backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-panel::before { animation: darkMoonReveal 300ms cubic-bezier(.16,1,.3,1) 120ms backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-copy { animation: darkMoonReveal 240ms ease-out 170ms backwards, darkMoonInk 180ms ease-out 170ms backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-trim { animation: darkMoonInk 200ms ease-out 300ms backwards; }
+.dark-moon-item[data-live-entry] :is(.dark-moon-rail,.dark-moon-lining) { animation: darkMoonReveal 240ms ease-out 420ms backwards; }
+.dark-moon-item[data-live-entry]:is(.is-gift,.is-superchat) .dark-moon-panel::before { animation: darkMoonUnfold 500ms cubic-bezier(.25,.2,.23,1) backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-event-art { animation: darkMoonUnfold 500ms cubic-bezier(.25,.2,.23,1) backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-event-heading { animation: darkMoonInk 230ms ease-out 600ms backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-panel > .dark-moon-seal { animation-delay: 300ms; }
+.dark-moon-item[data-live-entry] .dark-moon-bookmark { animation: darkMoonRibbon 300ms cubic-bezier(.22,1,.36,1) 500ms backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-orbit { animation: darkMoonSeal 450ms ease-out 450ms backwards; }
+.dark-moon-item[data-live-entry].is-superchat .dark-moon-sc-message::before { animation: darkMoonReveal 300ms ease-out 500ms backwards; }
+.dark-moon-item[data-live-entry] .dark-moon-sc-message .dark-moon-copy { animation-delay: 650ms; }
+.dark-moon-item[data-live-entry].is-superchat .dark-moon-trim { animation-delay: 800ms; }
+
+body[data-style='dark-moon']:not([data-ambient-motion='off']) .dark-moon-spark { animation: darkMoonTwinkle 3.8s ease-in-out infinite; }
+body[data-style='dark-moon']:not([data-ambient-motion='off']) .dark-moon-item:not([data-live-entry]) .dark-moon-orbit { animation: darkMoonFloat 5.2s ease-in-out infinite; }
+body[data-style='dark-moon']:not([data-ambient-motion='off']) .dark-moon-dot { animation: darkMoonGlint 4.6s ease-in-out -1.2s infinite; }
+@keyframes darkMoonEntry { from,to { --dark-moon-opacity: 1; } }
+@keyframes darkMoonInk { from { --dark-moon-opacity: 0; } to { --dark-moon-opacity: 1; } }
+@keyframes darkMoonName { from { --dark-moon-reveal: 100%; } to { --dark-moon-reveal: 0%; } }
+@keyframes darkMoonReveal { from { --dark-moon-reveal: 100%; } to { --dark-moon-reveal: 0%; } }
+@keyframes darkMoonSeal { from { --dark-moon-scale: .35; --dark-moon-turn: -35deg; --dark-moon-opacity: 0; } to { --dark-moon-scale: 1; --dark-moon-turn: 0deg; --dark-moon-opacity: 1; } }
+@keyframes darkMoonUnfold { from { --dark-moon-reveal: 50%; } to { --dark-moon-reveal: 0%; } }
+@keyframes darkMoonRibbon { from { --dark-moon-reveal: 100%; } to { --dark-moon-reveal: 0%; } }
+@keyframes darkMoonTwinkle { 0%,50%,100% { --dark-moon-scale: 1; --dark-moon-opacity: 1; } 25%,75% { --dark-moon-scale: .65; --dark-moon-opacity: .5; } }
+@keyframes darkMoonFloat { 0%,100% { --dark-moon-slide: 0px; } 50% { --dark-moon-slide: -.15em; } }
+@keyframes darkMoonGlint { 0%,100% { --dark-moon-opacity: .95; } 50% { --dark-moon-opacity: .35; } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='dark-moon'] .dark-moon-item, body[data-style='dark-moon'] .dark-moon-item *, body[data-style='dark-moon'] .dark-moon-item *::before { animation: none !important; }
+}

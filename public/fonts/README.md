@@ -10,19 +10,27 @@
 | 志莽行、马善政、悠哉 | [艺术字体](library/README.md)，完整字库；悠哉包含普通 400 与中等 500 两个字重；得意黑直接复用，不重复保存 |
 | 霞鹜文楷 Light | [文楷分片](moonlit-wenkai/README.md)，共享库与外部资源样式共用来源 |
 | Nunito | `spooky/nunito-500.ttf` 与 `nunito-700.ttf`，共用现有 OFL 字库和 `Spooky Nunito` 字体族名 |
+| 思源宋体 | [完整宋体字库](sea-breeze/README.md)，Regular 400；郁香海风固定／随机两版及线框星事共用同一文件，也可供其他组件选择 |
+| Poppins | [字体来源](stargazer/README.md)，400/700 两个字重；星旅默认使用，也可供其他组件选择 |
+| Quicksand | [字体来源](glass/README.md)，原始 300–700 可变字体；Glass 默认使用 400，也可供其他组件选择 |
+| Montserrat | [字体来源](animated-gradient/README.md)，400/700 与[天穹横栏](celestial-horizontal/README.md)的 Latin 300 分支合为一包，供所有组件选择 |
+| Cinzel | [字体来源](celestial-horizontal/README.md)，700、Latin 字形，天穹横栏昵称默认使用，也可供其他组件选择 |
+| M PLUS Rounded 1c | [字体来源](glass-bubble/README.md)，完整 ExtraBold 800，玻璃气泡默认使用，也可供其他组件选择 |
 | Noto Sans、Gowun Dodum、Noto Serif Tibetan | [多语言字库](lyrics-fallback/README.md)，按实际字体名称供所有组件选择，歌词继续自动补字 |
 
-共享完整字体的二进制不进入安装包；两个微型标题裁剪字库随安装包保留。首次授权后，客户端与礼物初始化并行，从 CDN 下载缺失字体并保存在应用数据目录的 `cache/resources/`；首次补齐需要联网，之后可使用本地缓存。现有本地 HTTP 继续通过 `/fonts/` 提供资源，客户端和浏览器源不直接访问 CDN，也不向安装目录写入或注册 Windows 系统字体。文楷全部 23 个分片共同保留完整字符覆盖。CDN 上 13 款共享字体各一个具名 ZIP，同款字体的分片、字重和语种分支归入同包；客户端自动校验、解包并一起发布同一包的新缓存索引，完成数按字体包统计。
+共享完整字体的二进制不进入安装包；两个微型标题裁剪字库随客户端静态交付。首次授权后，客户端与礼物初始化并行，从 CDN 下载缺失字体并保存在应用数据目录的 `cache/resources/`；首次补齐需要联网，之后可使用本地缓存。现有本地 HTTP 继续通过 `/fonts/` 提供资源，客户端和浏览器源不直接访问 CDN，也不向安装目录写入或注册 Windows 系统字体。文楷全部 23 个分片共同保留完整字符覆盖。CDN 上 19 款共享字体各一个具名 ZIP，同款字体的分片、字重和语种分支归入同包；客户端自动校验、解包并一起发布同一包的新缓存索引，完成数按字体包统计。
 
 `css/shared/display-fonts.css` 是统一样式入口，由本地 HTTP 根据已就绪资源提供。[字体目录](../../src/fonts/catalog.json) 保留字体族、字重及分片范围；`bundled[].aliases` 让歌词旧字体族复用同一文件，[公共资源清单](../../src/resources/catalog.json) 提供允许下载的逻辑路径。每次已授权启动只检查一次远程清单，比较本地文件大小和 SHA-256，只补齐缺失、损坏或变化的文件；没有下载时不显示 toast。全部使用 `font-display: swap`，字体选择器确认本地字体解码成功后才列为可选字体，尚未就绪的已有选择保留并标记「未就绪」。艺术字体缺字仍由原有回退链补齐，不保证全部 Unicode。
 
-共享库的 56 个完整字体文件合计约 56.63 MiB，经 CDN 分发；两个标题裁剪字库共 6,524 字节，与小型 OFL 许可一起随应用保留。字体与大图共用下载进度，在首次准备页和 Admin toast 中按字节显示，也可在「百宝箱 → 桌面更新」查看；失败保留已有资源并允许重试。旧 `cache/fonts/` 仍可为旧字体路由提供兼容数据，正常桌面资源同步不再访问 GitHub 或 jsDelivr。源码目录仍保留完整文件，开发态可复用与清单匹配的源文件。`shared/font-library-loader.js` 随已就绪文件刷新样式；桌面使用现有 IPC，浏览器源只在检查或下载期间轮询。缓存位置见[存储参考](../../docs/reference/backend/storage.md#公共资源缓存)，本地资源读取见[HTTP 参考](../../docs/reference/backend/api.md#共享字体资源)，上传与更新步骤见[CDN 资源分发](../../docs/guides/cdn-resources.md)。
+共享库的 65 个字体文件合计约 74.45 MiB，经 CDN 分发；两个标题裁剪字库共 6,524 字节，与小型 OFL 许可一起随应用保留。字体与大图共用下载进度，在首次准备页和 Admin toast 中按字节显示，也可在「百宝箱 → 桌面更新」查看；失败保留已有资源并允许重试。旧 `cache/fonts/` 仍可为旧字体路由提供兼容数据，正常桌面资源同步不再访问 GitHub 或 jsDelivr。源码目录仍保留完整文件，开发态可复用与清单匹配的源文件。`shared/font-library-loader.js` 随已就绪文件刷新样式；桌面使用现有 IPC，浏览器源只在检查或下载期间轮询。缓存位置见[存储参考](../../docs/reference/backend/storage.md#公共资源缓存)，本地资源读取见[HTTP 参考](../../docs/reference/backend/api.md#共享字体资源)，上传与更新步骤见[CDN 资源分发](../../docs/guides/cdn-resources.md)。
 
 新选择使用单个带双引号的 CSS 字体族；旧播放器 `maiyuan`/`kuaile`/`smiley` ID 和未加引号的旧字体名原样保留，不迁移持久化数据。场景参数继续限制原有字体名长度。资源样式中的文楷仍映射到资源包版本专用名称，旧 ZIP 的独立字体副本仍可使用。
 
 服务端弹幕页继续使用 LIRA Server 的 `public/overlay/fonts/` 既有压缩副本与 `/overlay/assets/` 版本路由。客户端公共资源不使用该路径，不增加 LIRA Server 字体下载接口；后续更换字体版本或覆盖范围仍须核对该消费者。
 
 ## 专用资源
+
+[思源宋体](sea-breeze/README.md)、[Poppins](stargazer/README.md)、[Quicksand](glass/README.md)、[Montserrat](animated-gradient/README.md)、[Cinzel](celestial-horizontal/README.md) 和 [M PLUS Rounded 1c](glass-bubble/README.md) 已纳入共享库，经 CDN 补齐后由本地 HTTP 按需加载。原弹幕的默认族名与字重保留，线框星事通过别名复用同一份思源宋体；Montserrat 两款样式共用一个下载包。Cinzel 与 Montserrat 300 保留原有 Latin 分支，其余文字沿用回退链；其他组件也可在软件字体库中选择。
 
 [多语言字体](lyrics-fallback/README.md)已加入共享库，也继续用于歌词自动补字。以下两份裁剪字体仅服务固定标题和时间显示，不在通用字体选择中显示。
 

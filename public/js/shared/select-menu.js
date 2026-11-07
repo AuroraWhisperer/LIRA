@@ -51,8 +51,9 @@ function getOptionNodes(select) {
 }
 
 function syncSelectedState(state) {
-  const { select, trigger, valueNode, menu, labelText } = state;
-  const selected = select.options[select.selectedIndex];
+  const { select, trigger, valueNode, labelText } = state;
+  const selectedIndex = select.selectedIndex;
+  const selected = select.options[selectedIndex];
   valueNode.textContent = selected?.textContent?.trim() || '请选择';
   trigger.disabled = select.disabled;
   trigger.title = select.title || '';
@@ -61,12 +62,15 @@ function syncSelectedState(state) {
   state.optionsRoot.setAttribute('aria-label', select.getAttribute('aria-label') || labelText || '选项');
   if (select.disabled) closeMenu(state, { restoreFocus: false });
 
-  menu.querySelectorAll('[role="option"]').forEach((optionNode) => {
-    const isSelected =
-      optionNode.dataset.value === select.value && optionNode.dataset.index === String(select.selectedIndex);
-    optionNode.setAttribute('aria-selected', String(isSelected));
-    optionNode.classList.toggle('is-selected', isSelected);
-  });
+  const optionNode = state.optionNodes[selectedIndex];
+  const selectedOption = optionNode?.dataset.value === select.value ? optionNode : null;
+  if (state.selectedOption !== selectedOption) {
+    state.selectedOption?.setAttribute('aria-selected', 'false');
+    state.selectedOption?.classList.toggle('is-selected', false);
+    selectedOption?.setAttribute('aria-selected', 'true');
+    selectedOption?.classList.toggle('is-selected', true);
+    state.selectedOption = selectedOption;
+  }
 }
 
 function getEnabledOptions(menu) {
@@ -155,6 +159,8 @@ function selectOption(state, optionNode) {
 
 function buildOptions(state) {
   state.optionsRoot.replaceChildren();
+  state.optionNodes = [];
+  state.selectedOption = null;
   let optionIndex = 0;
   for (const { option, group, disabled } of getOptionNodes(state.select)) {
     if (group && !group.parentNode) {
@@ -165,6 +171,7 @@ function buildOptions(state) {
     optionNode.type = 'button';
     optionNode.className = 'lira-select-option';
     optionNode.setAttribute('role', 'option');
+    optionNode.setAttribute('aria-selected', 'false');
     optionNode.dataset.value = option.value;
     optionNode.dataset.index = String(optionIndex);
     optionNode.textContent = option.textContent.trim();
@@ -174,6 +181,7 @@ function buildOptions(state) {
     optionNode.setAttribute('aria-disabled', String(disabled));
     optionNode.disabled = disabled;
     (group || state.optionsRoot).append(optionNode);
+    state.optionNodes.push(optionNode);
     optionNode.addEventListener('click', () => selectOption(state, optionNode));
     optionIndex += 1;
   }

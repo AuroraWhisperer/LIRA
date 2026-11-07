@@ -1,8 +1,15 @@
 import { BANNER_WIDTH, BANNER_HEIGHT, BANNER_GAP, createGiftBanner, createGiftArtworkResolver, readyGiftImages } from '../shared/gift-banner.js';
 
-window.renderGiftExport = async ({ items, config, catalog, background }) => {
+let config;
+let artwork;
+
+window.initializeGiftExport = (snapshot) => {
+  config = snapshot.config;
+  artwork = createGiftArtworkResolver(snapshot.catalog);
+};
+
+window.renderGiftExport = async ({ items, background }) => {
   const stage = document.getElementById('stage');
-  const artwork = createGiftArtworkResolver(catalog);
   document.body.style.background = background === 'white' ? '#fff' : 'transparent';
   stage.replaceChildren(...items.map((item) => createGiftBanner(item, config, artwork)));
   await readyGiftImages(stage);

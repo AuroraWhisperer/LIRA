@@ -13,7 +13,9 @@ const COMMAND_CACHE_MAX_SIZE = 500;
 class MessageDeduplicator {
   constructor() {
     this.seenCommandKeys = new Map();
-    this.recentCommands = [];
+    this.recentCommands = new Set();
+    this.commandsByMessage = new Map();
+    this.earliestReceivedAt = Infinity;
   }
 
   remember(uid, message, timestampMs, options = {}) {
@@ -53,9 +55,13 @@ class MessageDeduplicator {
     };
     this.seenCommandKeys.set(key, seenEntry);
 
-    const crossSourceMatch = this.recentCommands.find(
-      (candidate) => isCrossSourceDuplicate(candidate, command) && !candidate.matchedSources.has(command.source),
-    );
+    let crossSourceMatch;
+    for (const candidate of this.commandsByMessage.get(command.message) || []) {
+      if (isCrossSourceDuplicate(candidate, command) && !candidate.matchedSources.has(command.source)) {
+        crossSourceMatch = candidate;
+        break;
+      }
+    }
     if (crossSourceMatch) {
       crossSourceMatch.matchedSources.add(command.source);
       seenEntry.rejectedSources.add(command.source || '(unknown)');
@@ -68,7 +74,10 @@ class MessageDeduplicator {
     }
 
     if (command.source) command.matchedSources.add(command.source);
-    this.recentCommands.push(command);
+    this.recentCommands.add(command);
+    if (!this.commandsByMessage.has(command.message)) this.commandsByMessage.set(command.message, new Set());
+    this.commandsByMessage.get(command.message).add(command);
+    this.earliestReceivedAt = Math.min(this.earliestReceivedAt, receivedAt);
     this.prune(receivedAt);
     return true;
   }
@@ -84,9 +93,24 @@ class MessageDeduplicator {
     }
 
     const cutoff = receivedAt - COMMAND_CACHE_MAX_AGE_MS;
-    this.recentCommands = this.recentCommands
-      .filter((command) => command.receivedAt >= cutoff)
-      .slice(-COMMAND_CACHE_MAX_SIZE);
+    // Capacity eviction may leave an older bound; it only causes an early sweep.
+    if (this.earliestReceivedAt < cutoff) {
+      this.earliestReceivedAt = Infinity;
+      for (const command of this.recentCommands) {
+        if (command.receivedAt < cutoff) this.removeRecentCommand(command);
+        else this.earliestReceivedAt = Math.min(this.earliestReceivedAt, command.receivedAt);
+      }
+    }
+    while (this.recentCommands.size > COMMAND_CACHE_MAX_SIZE) {
+      this.removeRecentCommand(this.recentCommands.values().next().value);
+    }
+  }
+
+  removeRecentCommand(command) {
+    this.recentCommands.delete(command);
+    const candidates = this.commandsByMessage.get(command.message);
+    candidates.delete(command);
+    if (!candidates.size) this.commandsByMessage.delete(command.message);
   }
 
   has(uid, message, timestampMs) {

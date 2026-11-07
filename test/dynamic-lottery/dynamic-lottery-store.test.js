@@ -253,3 +253,63 @@ test('request budget cooldown survives database reopen', () => {
     fs.rmSync(dataDir, { recursive: true, force: true });
   }
 });
+
+test('request budget persists expired state cleanup when hourly capacity still blocks a reservation', () => {
+  const db = openDatabase();
+  const store = createDynamicLotteryStore(db);
+  const nowMs = 3_601_000;
+  const recentTimes = Array(600).fill(nowMs - 1_000);
+  try {
+    const seed = db.prepare(`
+      INSERT INTO lottery_request_budget
+        (scope_key, request_times_json, consecutive_count, last_finished_at_ms,
+         earliest_resume_at_ms, hold_reason, updated_at_ms)
+      VALUES (?, ?, 50, ?, ?, 'RATE_LIMIT_COOLDOWN', 0)
+    `);
+    for (const scopeKey of ['local', 'account:streamer-1']) {
+      seed.run(scopeKey, JSON.stringify([1_000, ...recentTimes]), nowMs - 60_000, nowMs - 1);
+    }
+
+    const blocked = store.requestBudget.reserve({ scope: 'streamer-1', kind: 'comment_page', nowMs });
+    assert.equal(blocked.allowed, false);
+    assert.equal(blocked.requestCount, 600);
+    assert.equal(blocked.waitUntilMs, nowMs - 1_000 + 3_600_000);
+    for (const row of db.prepare('SELECT * FROM lottery_request_budget').all()) {
+      assert.deepEqual(JSON.parse(row.request_times_json), recentTimes);
+      assert.equal(row.consecutive_count, 0);
+      assert.equal(row.earliest_resume_at_ms, 0);
+      assert.equal(row.hold_reason, '');
+      assert.equal(row.updated_at_ms, nowMs);
+    }
+  } finally {
+    db.close();
+  }
+});
+
+test('request budget writes each scope once and retries atomically after a failed reservation', () => {
+  const db = openDatabase();
+  const store = createDynamicLotteryStore(db);
+  try {
+    db.exec(`
+      CREATE TEMP TABLE budget_updates (scope_key TEXT);
+      CREATE TEMP TRIGGER count_budget_updates AFTER UPDATE ON lottery_request_budget
+      BEGIN INSERT INTO budget_updates VALUES (NEW.scope_key); END;
+      CREATE TEMP TRIGGER fail_account_budget BEFORE UPDATE ON lottery_request_budget
+      WHEN NEW.scope_key = 'account:streamer-1'
+      BEGIN SELECT RAISE(ABORT, 'synthetic account update failure'); END;
+    `);
+    const request = { scope: 'streamer-1', kind: 'comment_page', nowMs: 1_000 };
+    assert.throws(() => store.requestBudget.reserve(request), /synthetic account update failure/);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM lottery_request_budget').get().count, 0);
+    assert.equal(db.prepare('SELECT COUNT(*) AS count FROM budget_updates').get().count, 0);
+
+    db.exec('DROP TRIGGER fail_account_budget');
+    assert.equal(store.requestBudget.reserve(request).allowed, true);
+    const writes = db.prepare('SELECT scope_key, COUNT(*) AS count FROM budget_updates GROUP BY scope_key').all();
+    assert.equal(writes.length, 2);
+    for (const row of writes) assert.equal(row.count, 1);
+    assert.equal(store.requestBudget.get({ scope: 'streamer-1', nowMs: 1_000 }).requestCount, 1);
+  } finally {
+    db.close();
+  }
+});

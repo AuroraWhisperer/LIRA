@@ -1,4 +1,6 @@
 @import url('./desktop-lyric/settings.css');
 @import url('./desktop-lyric/controls.css');
 @import url('../lyrics/desktop-lyric.css');
+@import url('../lyrics/advanced-lyric.css');
 @import url('./desktop-lyric/preview.css');
+@import url('./desktop-lyric/advanced.css');

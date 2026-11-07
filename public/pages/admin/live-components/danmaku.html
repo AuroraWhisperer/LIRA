@@ -39,6 +39,7 @@
                   <button id="danmakuFixedStyleTab" type="button" data-filter-value="fixed" aria-pressed="false">固定位置</button>
                   <button id="danmakuRandomStyleTab" type="button" data-filter-value="fullscreen-random" aria-pressed="false">区域随机</button>
                   <button id="danmakuFloatingStyleTab" type="button" data-filter-value="floating" aria-pressed="false">飘窗弹幕</button>
+                  <button id="danmakuHorizontalStyleTab" type="button" data-filter-value="horizontal" aria-pressed="false">横向滚动</button>
                 </div>
               </div>
               <div class="danmaku-library-filter"><span>样式动效</span>
@@ -103,6 +104,10 @@
                 <img src="/img/overlays/danmaku-previews/prismatic.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">流霞</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="dark-moon" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/dark-moon.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">暗月</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="starlight" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/starlight.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">星语</span>
@@ -115,9 +120,17 @@
                 <img src="/img/overlays/danmaku-previews/ripploid.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">RIPPLOID</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="stargazer" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/stargazer.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">Stargazer · 星旅</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="christmas" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/christmas.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">圣诞绮笺</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="wireframe" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/wireframe.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">线框星事</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="christmas-letter" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/christmas-letter.png" class="danmaku-style-sample" alt="" />
@@ -126,6 +139,14 @@
               <button class="danmaku-style-option" type="button" data-danmaku-style="notebook" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/notebook.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">手账风</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="glass" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/glass.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">Glass 玻璃通知</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="animated-gradient" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/animated-gradient.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">渐变气泡</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="spooky" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/spooky.png" class="danmaku-style-sample" alt="" />
@@ -143,6 +164,10 @@
                 <img src="/img/overlays/danmaku-previews/identity.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">灵动弹幕</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="sea-breeze" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/sea-breeze.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">郁香海风</span>
+              </button>
             </div>
           </section>
           <section id="danmakuRandomStyles" class="danmaku-style-group danmaku-style-group-random" role="group" aria-labelledby="danmakuRandomStyleTab">
@@ -155,6 +180,10 @@
                 <img src="/img/overlays/danmaku-previews/outline.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">一纸素笺</span>
               </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="sea-breeze-random" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/sea-breeze-random.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">郁香海风 · 随机</span>
+              </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="mist" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/mist.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">青雾</span>
@@ -166,6 +195,14 @@
               <button class="danmaku-style-option" type="button" data-danmaku-style="window" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/window.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">散落小窗</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="stardust" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/stardust.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">星尘 2.0</span>
+              </button>
+              <button class="danmaku-style-option" type="button" data-danmaku-style="glass-bubble" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/glass-bubble.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">玻璃气泡</span>
               </button>
               <button class="danmaku-style-option" type="button" data-danmaku-style="whiteframe" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/whiteframe.png" class="danmaku-style-sample" alt="" />
@@ -206,6 +243,14 @@
               <button class="danmaku-style-option" type="button" data-danmaku-style="aurora" aria-pressed="false">
                 <img src="/img/overlays/danmaku-previews/aurora.png" class="danmaku-style-sample" alt="" />
                 <span class="danmaku-style-name">极光薄笺</span>
+              </button>
+            </div>
+          </section>
+          <section id="danmakuHorizontalStyles" class="danmaku-style-group" role="group" aria-labelledby="danmakuHorizontalStyleTab">
+            <div class="danmaku-style-options" role="group" aria-label="选择横向滚动样式">
+              <button class="danmaku-style-option" type="button" data-danmaku-style="celestial-horizontal" aria-pressed="false">
+                <img src="/img/overlays/danmaku-previews/celestial-horizontal.png" class="danmaku-style-sample" alt="" />
+                <span class="danmaku-style-name">天穹横栏</span>
               </button>
             </div>
           </section>

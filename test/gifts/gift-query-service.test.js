@@ -343,6 +343,13 @@ test('unchanged sprint snapshots reuse the aggregate and invalidate for ledger, 
   }
   assert.equal(aggregateReads, 1, 'unrelated snapshots do not sum the same 5000 rows again');
 
+  const validate = fixture.giftDb.prepare('UPDATE gift_sync_state SET last_validated_at = ? WHERE source_id = ?');
+  for (let index = 0; index < 100; index++) {
+    validate.run(new Date(Date.UTC(2026, 8, 2, 0, 0, index)).toISOString(), source.id);
+    assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 5000);
+  }
+  assert.equal(aggregateReads, 1, 'empty reconciliation does not invalidate the gift aggregate');
+
   fixture.giftDb.exec('BEGIN');
   fixture.giftDb.exec('UPDATE gift_events SET total_price=2');
   assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 10000);
@@ -357,6 +364,28 @@ test('unchanged sprint snapshots reuse the aggregate and invalidate for ledger, 
   fixture.giftDb.prepare('INSERT INTO gift_sprint_carry (source_id,value_cents,event_count) VALUES (?,?,?)').run(source.id, 250, 1);
   assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 5004.5);
   assert.equal(resetGiftSprintProgress(fixture.context).giftSprint.receivedRmb, 0);
+});
+
+test('aggregate tracking starts after a first transactional read rolls back', (t) => {
+  const { createGiftQueryStore } = require('../../src/storage/gift-query-store');
+  const fixture = createFixture();
+  t.after(() => fixture.close());
+  fixture.giftDb.exec('BEGIN');
+  fixture.insertGift(null, 'rolled-back', { cmd: 'SEND_GIFT', countedInSprint: 1,
+    isBlindBox: true, blindBoxPrice: 1, totalPrice: 2, createdAt: new Date().toISOString() });
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 2);
+  assert.equal(getBlindBoxStats(fixture.context).summary.totalProfit, 1);
+  fixture.giftDb.exec('ROLLBACK');
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 0);
+  assert.equal(getBlindBoxStats(fixture.context).summary.totalProfit, 0);
+
+  const secondStore = createGiftQueryStore(fixture.giftDb);
+  assert.equal(secondStore.getChangeToken(), fixture.context.queryStore.getChangeToken());
+  fixture.insertGift(null, 'committed', { cmd: 'SEND_GIFT', countedInSprint: 1,
+    isBlindBox: true, blindBoxPrice: 1, totalPrice: 3, createdAt: new Date().toISOString() });
+  assert.equal(getGiftSprintSnapshot(fixture.context).receivedRmb, 3);
+  assert.equal(getBlindBoxStats(fixture.context).summary.totalProfit, 2);
+  assert.equal(secondStore.getChangeToken(), fixture.context.queryStore.getChangeToken());
 });
 
 test('legacy gift page reads and sprint reset stay within the active source', (t) => {

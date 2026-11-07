@@ -3,6 +3,7 @@ import { OPENING_APPEARANCE_FIELDS } from './opening-appearance.js';
 import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
 import { NOW_PLAYING_FIELDS } from './now-playing-appearance.js';
 import { GIFT_WISH_RIBBON_FIELDS } from './gift-wish-ribbon-appearance.js';
+import { ADVANCED_LYRIC_FIELDS, LYRIC_DISPLAY_FIELDS } from './advanced-lyric-appearance.js';
 
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
@@ -59,6 +60,9 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     title: '直播歌词', size: [960, 360], path: '/lyrics', variantKey: 'style',
     variants: [variant('default', '直播歌词', '逐字歌词')],
     fields: {
+      lyricLayer: select('歌词显示层', 'both', { both: '基础与高级', basic: '仅基础', advanced: '仅高级' }),
+      ...LYRIC_DISPLAY_FIELDS,
+      ...ADVANCED_LYRIC_FIELDS,
       style: select('展示样式', 'default', { default: '直播歌词', moonlit: '月渡花汀' }),
       desktopLyricFontFamily: text('字体', 'Lira Maiyuan', 256), desktopLyricFontWeight: fontWeight,
       desktopLyricFontSize: number('字号', '56', 24, 72), desktopLyricTextColor: color('未唱颜色（含普通整句与翻译）', '#000000'),

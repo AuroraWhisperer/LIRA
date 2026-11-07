@@ -25,12 +25,25 @@ test('blind box snapshots share all-box and heart-box reads and invalidate for w
     assert.equal(getBlindBoxStats(fixture.context, { boxName: '心动盲盒' }).heartBoxProgress.openedSinceCastle, 1);
   }
   assert.equal(rows.mock.callCount(), 2);
-  fixture.giftDb.prepare('UPDATE gift_events SET blind_profit = 2').run();
+  for (let index = 0; index < 100; index++) {
+    fixture.insertGift(null, `ordinary-${index}`, { cmd: 'SEND_GIFT', createdAt: new Date().toISOString() });
+    assert.equal(display('blindbox').summary.totalProfit, 1);
+  }
+  fixture.giftDb.prepare('UPDATE gift_events SET gift_stats_delivered = 1, updated_at = ?')
+    .run(new Date().toISOString());
+  display('blindbox');
+  assert.equal(rows.mock.callCount(), 2, 'ordinary gifts and delivery metadata do not invalidate blind-box totals');
+  fixture.giftDb.prepare('UPDATE gift_events SET blind_profit = 2 WHERE is_blind_box = 1').run();
   assert.equal(display('blindbox').summary.totalProfit, 2);
   assert.equal(rows.mock.callCount(), 3, 'in-place changes invalidate even with the same row count');
   heartOnly = true;
   assert.equal(display('blindbox').heartBoxProgress.openedSinceCastle, 1);
   assert.equal(rows.mock.callCount(), 4);
+  fixture.giftDb.prepare(`UPDATE gift_events SET is_blind_box = 1, blind_box_name = '心动盲盒',
+    blind_box_price = 1, blind_profit = 0 WHERE platform_id = 'lira-server:ordinary-0'`).run();
+  assert.equal(display('blindbox').summary.boxCount, 2, 'a corrected ordinary gift enters blind-box totals');
+  fixture.giftDb.prepare("UPDATE gift_events SET gift_stats_eligible = 0 WHERE platform_id = 'lira-server:ordinary-0'").run();
+  assert.equal(display('blindbox').summary.boxCount, 1, 'a gift leaving statistical eligibility is removed');
   fixture.setActiveSource(fixture.resolveSource('a'.repeat(64)).id);
   assert.equal(display('blindbox').summary.boxCount, 0);
   const emptyReads = rows.mock.callCount();
@@ -91,6 +104,32 @@ test('blind box cache rejects rolled-back values and observes other database con
   try { second.prepare('UPDATE gift_events SET blind_profit = 4').run(); }
   finally { second.close(); }
   assert.equal(read().summary.totalProfit, 4);
+  fixture.giftDb.prepare("UPDATE gift_events SET user_name = 'Renamed user'").run();
+  assert.equal(read().perUser[0].userName, 'Renamed user');
+});
+
+test('blind box caches follow a replacement database and archive corrections', t => {
+  const first = createFixture();
+  const replacement = createFixture();
+  t.after(() => { first.close(); replacement.close(); });
+  const source = first.resolveSource('a'.repeat(64));
+  const nextSource = replacement.resolveSource('a'.repeat(64));
+  first.setActiveSource(source.id);
+  const createdAt = new Date().toISOString();
+  first.insertGift(source.id, 'first', { isBlindBox: true, blindBoxPrice: 1, totalPrice: 2, createdAt });
+  replacement.insertGift(nextSource.id, 'next', { isBlindBox: true, blindBoxPrice: 1, totalPrice: 3, createdAt });
+  assert.equal(getBlindBoxStats(first.context).summary.totalProfit, 1);
+  first.context.queryStore = replacement.context.queryStore;
+  assert.equal(getBlindBoxStats(first.context).summary.totalProfit, 2);
+  replacement.giftDb.prepare(`INSERT INTO gift_local_archives
+    (source_id, day_start, group_key, dimensions_json, event_count, item_count, value_cents, cost_cents, last_opened_at, occurred_at)
+    VALUES (?, ?, 'archived', ?, 1, 1, 300, 100, ?, ?)`).run(nextSource.id, createdAt,
+      JSON.stringify({ user_name: 'Archived user', blind_box_name: 'Archived box' }), createdAt, createdAt);
+  assert.equal(getBlindBoxStats(first.context).summary.totalProfit, 4);
+  replacement.giftDb.exec('UPDATE gift_local_archives SET value_cents = 400');
+  assert.equal(getBlindBoxStats(first.context).summary.totalProfit, 5);
+  replacement.giftDb.exec('DELETE FROM gift_local_archives');
+  assert.equal(getBlindBoxStats(first.context).summary.totalProfit, 2);
 });
 
 test('blind box cache follows changed local-day boundaries even when the date label stays the same', t => {

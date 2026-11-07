@@ -2,8 +2,20 @@ import { STYLE_PARAMETER_CAPABILITIES, styleParametersFor } from '../shared/comp
 import { componentEffectProfiles, createEffectFilters, effectColor, effectTransform } from './component-effect-filters.js';
 
 const CLOCK_TEXT = '.clock-time > span, .clock-flip-value, .clock-flip-half > span, .clock-date-row > span, .clock-label, .clock-period, .clock-year';
-const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount, .window-role, .window-event, .window-amount, .sinking-event-label, .sinking-amount';
+const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount, .window-role, .window-event, .window-amount, .stardust-event, .sinking-event-label, .sinking-amount, .wireframe-amount';
+const DANMAKU_STYLE_TEXT = {
+  'glass-bubble': '.glass-bubble-name, .glass-bubble-amount',
+  'celestial-horizontal': '.celestial-name, .celestial-amount',
+  'animated-gradient': '.gradient-role, .gradient-ticket .gradient-name, .gradient-amount, .gradient-event-label',
+  glass: '.glass-time, .glass-event-label',
+  stargazer: '.stargazer-amount, .stargazer-sender, .stargazer-role',
+  'dark-moon': '.dark-moon-copy, .dark-moon-role, .dark-moon-event-label, .dark-moon-amount',
+};
 const SURFACES = {
+  'glass-bubble': '.glass-bubble-surface',
+  'animated-gradient': '.gradient-panel',
+  glass: '.glass-panel',
+  wireframe: '.wireframe-frame, .wireframe-orbit',
   comic: '.comic-ink',
   window: '.window-frame',
   mist: '.draw-danmaku-body, .mist-guard-card, .sc-mist',
@@ -136,7 +148,7 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
     }
     if (type !== 'browser') textEffects(root, type === 'clock' ? CLOCK_TEXT : config.cssStyle?.engine === 'blc'
       ? '.danmaku-author-name, .danmaku-message' : config.cssStyle?.engine === 'blivechat'
-        ? '#author-name, #message' : DANMAKU_TEXT, textOnly ? 'replace' : artwork ? 'clear' : '');
+        ? '#author-name, #message' : [DANMAKU_TEXT, DANMAKU_STYLE_TEXT[config.style]].filter(Boolean).join(', '), textOnly ? 'replace' : artwork ? 'clear' : '');
   }
   function apply() {
     if (disposed || !Object.keys(parameters).some(key => key !== 'showEntryMessages')) return;
@@ -167,7 +179,7 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
     }
     for (const item of document.querySelectorAll('#danmakuFeed > .draw-danmaku-item')) {
       const surface = ['panel', 'frame'].includes(kind)
-        ? config.style === 'window' ? SURFACES.window : item.classList.contains('is-superchat') ? '.sc-message'
+        ? ['animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style] : item.classList.contains('is-superchat') ? '.sc-message'
           : config.style === 'glow' && item.classList.contains('is-gift') ? ':self' : SURFACES[config.style] || ':self' : null;
       applyRoot(item, surface, kind === 'art', kind === 'text');
     }

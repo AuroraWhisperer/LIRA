@@ -8,7 +8,7 @@ const { FakeNode } = require('../helpers/fake-dom');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
 
-async function createLiveRenderer() {
+async function createLiveRenderer({ advanced = false, layer, reducedMotion = false } = {}) {
   const animations = [];
   const frames = new Map();
   let frameId = 0;
@@ -35,7 +35,10 @@ async function createLiveRenderer() {
     Object.defineProperty(element, 'nextElementSibling', {
       get: () => element.parent?.children[element.parent.children.indexOf(element) + 1] || null,
     });
-    element.classList = { add() {}, remove() {}, toggle() {} };
+    element.classList.toggle = (name, force = !element.classList.contains(name)) => {
+      if (force) element.classList.add(name);
+      else element.classList.remove(name);
+    };
     element.animate = (frames) => {
       const animation = { currentTime: null, playState: 'paused', cancelled: false,
         play() { this.playState = 'running'; }, pause() { this.playState = 'paused'; },
@@ -49,6 +52,7 @@ async function createLiveRenderer() {
     `desktopLyricPreview${name}`, createElement(),
   ]));
   elements.set('desktopLyricSurface', createElement());
+  if (advanced) elements.set('advancedLyricPreviewStage', createElement());
   elements.get('desktopLyricPreviewViewport').clientHeight = 0;
   const { desktopLyricRenderer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-renderer.js'), {
     performance: { now: () => now },
@@ -58,13 +62,14 @@ async function createLiveRenderer() {
       disconnect() {}
     },
     Element: { prototype: { animate() {} } },
-    window: { addEventListener() {}, matchMedia: () => ({ matches: false }) },
+    window: { addEventListener() {}, matchMedia: () => ({ matches: reducedMotion }) },
     document: { createElement, createDocumentFragment: () => Object.assign(createElement(), { isFragment: true }),
+      defaultView: { matchMedia: () => ({ matches: reducedMotion }) },
       getElementById: (id) => elements.get(id), addEventListener() {} },
     requestAnimationFrame: (callback) => { frames.set(++frameId, callback); return frameId; },
     cancelAnimationFrame: (id) => frames.delete(id), clearTimeout() {},
   });
-  desktopLyricRenderer.init();
+  desktopLyricRenderer.init({ layer });
   desktopLyricRenderer.updateLyricTimeline({ status: 'ready', lines: [
     { startMs: 0, text: '第一句' }, { startMs: 5000, text: '第二句' },
   ] });
@@ -114,6 +119,38 @@ test('identical timeline snapshots retain rows and word animations', async () =>
   assert.equal(animation.cancelled, true);
 });
 
+test('local sample preview preserves live version filtering through restoration', async () => {
+  const { renderer, elements, frames, state } = await createLiveRenderer({ advanced: true });
+  const timeline = { status: 'ready', lines: [
+    { startMs: 0, text: '第一句', words: state.words }, { startMs: 5000, text: '第二句' },
+  ] };
+  renderer.applySettings({ advancedLyricEnabled: 'true' });
+  renderer.updateLyricTimeline(timeline);
+  assert.equal(renderer.updateLyricState(state), true);
+  renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text: '预览样例', endMs: 9000 }] });
+  renderer.updatePreviewState({ trackTitle: '本地样例', lineText: '预览样例', words: [],
+    currentMs: 1000, durationMs: 9000, playing: true, status: 'ready', discontinuity: true });
+  const playback = elements.get('desktopLyricPreviewPlayback');
+  assert.equal(playback.textContent, '预览样例', 'a sample must work after a versioned live state');
+  assert.equal(frames.size, 1, 'sample playback reuses the existing frame loop');
+
+  const cachedLive = { ...state, trackTitle: '实时歌曲', sequence: 4, currentMs: 6000,
+    lineText: '第二句', words: [{ text: '第二句', startMs: 5000, endMs: 10000 }] };
+  assert.equal(renderer.updateLyricState(cachedLive, { render: false }), true);
+  assert.equal(playback.textContent, '预览样例', 'live samples are accepted without interrupting the local sample');
+  assert.equal(renderer.updateLyricState({ ...cachedLive, sequence: 3 }, { render: false }), false);
+  renderer.updateLyricTimeline(timeline);
+  renderer.updatePreviewState({ ...cachedLive, discontinuity: true });
+  assert.equal(playback.textContent, '第二句');
+  assert.ok(elements.get('desktopLyricPreviewTimeline').children[1].classList.contains('is-active'));
+  assert.equal(renderer.updateLyricState({ ...state, sequence: 3 }), false);
+  assert.equal(renderer.updateLyricState({ lineText: '无版本旧状态' }), false);
+  assert.equal(playback.textContent, '第二句', 'restoration must not weaken the live stream version guard');
+  assert.equal(renderer.updateLyricState({ ...cachedLive, sequence: 5, playing: false }), true);
+  assert.equal(frames.size, 0);
+  renderer.dispose();
+});
+
 test('settings updates cannot restart spring scrolling on a hidden lyric surface', async () => {
   const { renderer, elements, frames, setVisible } = await createLiveRenderer();
   const viewport = elements.get('desktopLyricPreviewViewport');
@@ -128,6 +165,203 @@ test('settings updates cannot restart spring scrolling on a hidden lyric surface
   assert.equal(frames.size, 0, 'an invisible but laid-out surface must not restart its spring');
   setVisible(true);
   assert.equal(frames.size, 1, 'revealing the surface restores following');
+});
+
+test('display switches release inactive rows and stop frame work without changing playback', async () => {
+  const { renderer, elements, animations, frames, advance, state } = await createLiveRenderer();
+  renderer.updateLyricState(state);
+  const highlight = animations.at(-1);
+  const viewport = elements.get('desktopLyricPreviewViewport');
+  const timeline = elements.get('desktopLyricPreviewTimeline');
+  assert.equal(frames.size, 1);
+  renderer.applySettings({ desktopLyricEnabled: 'false' });
+  assert.equal(viewport.hidden, true);
+  assert.equal(timeline.children.length, 0, 'a disabled layer must not retain the full lyric DOM');
+  assert.equal(highlight.cancelled, true);
+  assert.equal(frames.size, 0, 'both outputs disabled means no animation frame loop');
+
+  advance(4200);
+  renderer.setPreviewLayer('basic');
+  assert.equal(viewport.hidden, false, 'editing can preview a disabled output');
+  assert.equal(timeline.children[1].classList.contains('is-active'), true,
+    'the shared clock keeps its position while rendering is stopped');
+  assert.equal(frames.size, 1);
+  renderer.setPreviewLayer('both');
+  assert.equal(viewport.hidden, true, 'combined preview returns to the saved output switches');
+  assert.equal(frames.size, 0);
+  renderer.applySettings({ desktopLyricEnabled: 'true' });
+  assert.equal(viewport.hidden, false);
+  assert.equal(timeline.children[1].classList.contains('is-active'), true);
+  renderer.dispose();
+  assert.equal(frames.size, 0);
+});
+
+test('paused output can still be edited and hidden intersection never restarts its clock', async () => {
+  const { renderer, elements, frames, setVisible, state } = await createLiveRenderer();
+  renderer.applySettings({ desktopLyricHideOnPause: 'true' });
+  renderer.updateLyricState({ ...state, playing: false });
+  assert.equal(elements.get('desktopLyricPreviewViewport').hidden, true);
+  renderer.setPreviewLayer('basic');
+  assert.equal(elements.get('desktopLyricPreviewViewport').hidden, false);
+  assert.equal(elements.get('desktopLyricSurface').classList.contains('is-paused-hidden'), false);
+  renderer.applySettings({ desktopLyricEnabled: 'false' });
+  renderer.setPreviewLayer('both');
+  renderer.updateLyricState({ ...state, sequence: 2 });
+  setVisible(false);
+  setVisible(true);
+  assert.equal(frames.size, 0, 'intersection visibility must not override a disabled output');
+  renderer.dispose();
+});
+
+test('basic and advanced lyrics share one frame loop and preserve their independent settings', async () => {
+  const { renderer, elements, animations, frames, state } = await createLiveRenderer({ advanced: true });
+  renderer.applySettings({ advancedLyricEnabled: 'true', advancedLyricLayout: 'corners' });
+  renderer.updateLyricState(state);
+  const advanced = elements.get('advancedLyricPreviewStage');
+  const stage = elements.get('desktopLyricPreviewStage');
+  const artwork = advanced.querySelector('.advanced-lyric-art');
+  assert.equal(stage.dataset.lyricLayers, 'both');
+  assert.equal(advanced.dataset.layout, 'corners');
+  assert.equal(frames.size, 1, 'a second visual layer must not create a second lyric clock loop');
+  const firstGroup = artwork.children[0];
+  renderer.applySettings({ desktopLyricFontSize: '60' });
+  assert.equal(advanced.dataset.layout, 'corners');
+  assert.equal(artwork.children[0], firstGroup, 'basic settings do not rebuild the advanced composition');
+  renderer.applySettings({ desktopLyricEnabled: 'false' });
+  assert.equal(elements.get('desktopLyricPreviewTimeline').children.length, 0);
+  assert.equal(advanced.hidden, false);
+  assert.equal(frames.size, 1);
+  renderer.applySettings({ advancedLyricEnabled: 'false' });
+  assert.equal(stage.dataset.lyricLayers, 'none');
+  assert.equal(frames.size, 0);
+  assert.ok(animations.every(animation => animation.cancelled), 'disabled layers release their active word animations');
+  renderer.setPreviewLayer('advanced');
+  assert.equal(stage.dataset.lyricLayers, 'advanced');
+  assert.equal(frames.size, 1);
+  renderer.setPreviewLayer('both');
+  assert.equal(stage.dataset.lyricLayers, 'none');
+  assert.equal(frames.size, 0);
+  renderer.applySettings({ desktopLyricEnabled: 'true' });
+  assert.equal(stage.dataset.lyricLayers, 'basic');
+  assert.equal(animations.at(-1).cancelled, false, 'restoring the basic layer remounts its current word highlight');
+  assert.equal(animations.at(-1).currentTime, state.currentMs);
+  renderer.dispose();
+});
+
+test('output layer filters and pause hiding stay independent of the other lyric layer', async () => {
+  const { renderer, elements, frames, state } = await createLiveRenderer({ advanced: true, layer: 'advanced' });
+  renderer.applySettings({ desktopLyricEnabled: 'true', advancedLyricEnabled: 'true', advancedLyricHideOnPause: 'true' });
+  renderer.updateLyricState(state);
+  const stage = elements.get('desktopLyricPreviewStage');
+  assert.equal(stage.dataset.lyricLayers, 'advanced');
+  assert.equal(elements.get('desktopLyricPreviewTimeline').children.length, 0);
+  renderer.updateLyricState({ ...state, sequence: 2, playing: false });
+  assert.equal(stage.dataset.lyricLayers, 'none');
+  assert.equal(frames.size, 0);
+  renderer.applySettings({ lyricLayer: 'both' });
+  assert.equal(stage.dataset.lyricLayers, 'basic', 'advanced pause hiding does not hide the basic layer');
+  const seeked = { ...state, currentMs: 6000, lineText: '第二句', words: [] };
+  renderer.updateLyricState({ ...seeked, sequence: 3, playing: false, discontinuity: true });
+  renderer.updateLyricState({ ...seeked, sequence: 4 });
+  assert.equal(stage.dataset.lyricLayers, 'both');
+  assert.equal(elements.get('advancedLyricPreviewStage').getAttribute('aria-label'), '第二句',
+    'resuming after a hidden seek must reveal the current line immediately');
+  assert.equal(frames.size, 1);
+  renderer.dispose();
+});
+
+test('a playing song without lyrics stops frame work until lyric content arrives', async () => {
+  const { renderer, elements, frames, state } = await createLiveRenderer({ advanced: true });
+  renderer.applySettings({ advancedLyricEnabled: 'true' });
+  renderer.updateLyricTimeline({ status: 'empty', lines: [] });
+  renderer.updateLyricState({ ...state, status: 'empty', lineText: '', words: [] });
+  assert.equal(frames.size, 0);
+  assert.equal(elements.get('advancedLyricPreviewStage').hidden, true);
+  renderer.applySettings({ advancedLyricGlowEnabled: 'true' });
+  assert.equal(elements.get('advancedLyricPreviewStage').hidden, true, 'settings must not reveal stale art after lyrics became empty');
+  renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text: '第一句' }] });
+  assert.equal(frames.size, 0, 'a timeline arriving before its ready state must not restart stale playback');
+  renderer.updateLyricState({ ...state, sequence: 2 });
+  assert.equal(frames.size, 1);
+  renderer.updateLyricTimeline({ status: 'loading', lines: [] });
+  assert.equal(frames.size, 0);
+  renderer.dispose();
+});
+
+test('preview contrast follows the selected lyric layer and its current text color', async () => {
+  const { renderer, elements } = await createLiveRenderer({ advanced: true });
+  const card = elements.get('desktopLyricSurface');
+  renderer.applySettings({ desktopLyricTextColor: '#000000' });
+  assert.equal(card.classList.contains('is-light-text'), false);
+  renderer.setPreviewLayer('advanced');
+  assert.equal(card.classList.contains('is-light-text'), true, 'the default light advanced text needs a dark preview surface');
+  renderer.applySettings({ advancedLyricTextColor: '#111111' });
+  assert.equal(card.classList.contains('is-light-text'), false);
+  renderer.applySettings({ advancedLyricTextColor: '#ffffff' });
+  renderer.setPreviewLayer('basic');
+  assert.equal(card.classList.contains('is-light-text'), false, 'returning to basic restores its own text contrast');
+  renderer.dispose();
+});
+
+test('reduced motion keeps timed line changes while inactive output stops its shared clock loop', async () => {
+  const { renderer, elements, frames, advance, state } = await createLiveRenderer({ advanced: true, reducedMotion: true });
+  renderer.applySettings({ advancedLyricEnabled: 'true' });
+  renderer.updatePreviewState(state);
+  const advanced = elements.get('advancedLyricPreviewStage');
+  assert.equal(advanced.getAttribute('aria-label'), '第一句\n第二句');
+  assert.equal(frames.size, 1, 'the shared clock must still drive line changes when motion is reduced');
+  advance(4200);
+  assert.equal(advanced.getAttribute('aria-label'), '第二句');
+  assert.ok(elements.get('desktopLyricPreviewTimeline').children[1].classList.contains('is-active'));
+  renderer.applySettings({ desktopLyricEnabled: 'false', advancedLyricEnabled: 'false' });
+  assert.equal(frames.size, 0);
+  renderer.dispose();
+});
+
+test('lyric row updates stay bounded on sequential playback and follow seeks, settings and new timelines', async () => {
+  const { renderer, elements, state } = await createLiveRenderer();
+  const lines = Array.from({ length: 100 }, (_, index) => ({ startMs: (index + 1) * 1000, text: `line ${index}` }));
+  renderer.applySettings({ desktopLyricVisibleLines: 3, desktopLyricKaraokeMode: 'off' });
+  renderer.updateLyricState({ ...state, currentMs: 0, playing: false });
+  renderer.updateLyricTimeline({ status: 'ready', lines });
+  const rows = elements.get('desktopLyricPreviewTimeline').children.slice(0, lines.length);
+  assert.ok(rows.every(row => row.classList.contains('is-line-hidden')), 'the intro has no active visible window');
+  let generation = 1;
+  const seek = currentMs => renderer.updateLyricState({ ...state, currentMs, durationMs: 101000,
+    playing: false, generation: ++generation });
+  seek(1000);
+  let toggles = 0;
+  for (const row of rows) {
+    const toggle = row.classList.toggle;
+    row.classList.toggle = (...args) => { toggles++; return toggle(...args); };
+  }
+  seek(2000);
+  assert.ok(toggles <= 10, 'advancing one line must not revisit the full lyric list');
+  assert.ok(rows[0].classList.contains('is-past'));
+  assert.ok(rows[1].classList.contains('is-active'));
+  assert.ok(rows[2].classList.contains('is-near'));
+  assert.ok(rows[3].classList.contains('is-line-hidden'));
+  seek(51000);
+  assert.ok(rows[49].classList.contains('is-past') && rows[49].classList.contains('is-near'));
+  assert.ok(rows[50].classList.contains('is-active'));
+  assert.equal(rows[51].classList.contains('is-line-hidden'), false);
+  assert.equal(rows[1].classList.contains('is-active') || rows[1].classList.contains('is-near'), false);
+  seek(1000);
+  assert.equal(rows[49].classList.contains('is-past') || rows[49].classList.contains('is-near'), false);
+  assert.ok(rows[49].classList.contains('is-line-hidden'));
+  seek(0);
+  assert.ok(rows.every(row => row.classList.contains('is-line-hidden')
+    && !['is-past', 'is-near', 'is-active'].some(name => row.classList.contains(name))));
+  seek(1000);
+  renderer.applySettings({ desktopLyricVisibleLines: 5, desktopLyricKaraokeMode: 'off' });
+  assert.equal(rows[2].classList.contains('is-line-hidden'), false);
+  assert.ok(rows[3].classList.contains('is-line-hidden'));
+  renderer.applySettings({ desktopLyricVisibleLines: 0, desktopLyricKaraokeMode: 'off' });
+  assert.ok(rows.every(row => !row.classList.contains('is-line-hidden')));
+  renderer.updateLyricTimeline({ status: 'ready', lines: lines.slice(0, 2) });
+  const newRows = elements.get('desktopLyricPreviewTimeline').children.slice(0, 2);
+  assert.ok(newRows[0].classList.contains('is-active'));
+  assert.ok(newRows.every(row => !row.classList.contains('is-line-hidden')));
 });
 
 test('desktop karaoke immediately anchors a small explicit seek within the same word', async () => {

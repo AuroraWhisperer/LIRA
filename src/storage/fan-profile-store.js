@@ -156,11 +156,15 @@ function createFanProfileStore(db) {
   }
 
   function exportScope(scope) {
+    const profiles = list(scope, { includeSuppressed: true });
+    const profileIds = profiles.map((profile) => profile.id);
+    const recordsByProfile = records.listForProfiles(scope, profileIds);
+    const statesByProfile = statesForProfiles(scope, profileIds);
     return {
-      profiles: list(scope, { includeSuppressed: true }).map((profile) => ({
+      profiles: profiles.map((profile) => ({
         ...profile,
-        records: records.list(scope, profile.id),
-        reminders: states(scope, profile.id),
+        records: recordsByProfile.get(profile.id) || [],
+        reminders: statesByProfile.get(profile.id) || [],
       })),
       settings: getScope(scope),
       suppressions: suppressions(scope),

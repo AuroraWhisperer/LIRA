@@ -3,6 +3,7 @@
 const SONG_REQUEST_CONTROL_DEFAULTS = Object.freeze({
   scSongRequestEnabled: 'true',
   songRequestCancelEnabled: 'true',
+  songRequestMatchMode: 'unique',
   userQueueLimit: '0',
   userCooldownCaptainSeconds: '',
   userCooldownAdmiralSeconds: '',
@@ -35,6 +36,7 @@ function normalizeSongRequestUserBlacklist(input) {
 }
 
 function normalizeSongRequestSettingValue(key, rawValue) {
+  if (key === 'songRequestMatchMode') return ['unique', 'prefix'].includes(rawValue) ? rawValue : null;
   if (key === 'songRequestUserBlacklist') {
     let entries;
     try {
@@ -61,6 +63,7 @@ function normalizeSongRequestSettingValue(key, rawValue) {
 function serializeSongRequestSettings(settings) {
   return Object.fromEntries(SONG_REQUEST_CONTROL_KEYS.map((key) => {
     const value = settings[key] ?? SONG_REQUEST_CONTROL_DEFAULTS[key];
+    if (key === 'songRequestMatchMode') return [key, value];
     if (key === 'songRequestUserBlacklist') return [key, JSON.parse(value)];
     if (['scSongRequestEnabled', 'songRequestCancelEnabled', 'songRequestGuardMedalBypass'].includes(key)) return [key, value === 'true'];
     return [key, value === '' ? '' : Number(value)];

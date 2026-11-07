@@ -205,6 +205,12 @@ test('shared font menus exclude missing, loading and failed faces, then add deco
   }
   assert.equal(saved.value, 'maiyuan');
   assert.equal(fresh.value, 'default');
+  const readyGroup = fresh.querySelector('optgroup[data-shared-fonts]');
+  const later = createSelect('default', [{ value: 'default', label: '默认字体' }]);
+  const disposeLater = library.registerFontSelect(later);
+  assert.equal(fresh.querySelector('optgroup[data-shared-fonts]'), readyGroup,
+    'Opening another font selector must retain an unchanged existing menu.');
+  assert.deepEqual(later.querySelector('optgroup[data-shared-fonts]').children.map(option => option.dataset.fontId), ['maiyuan']);
   const replacement = { family: 'Lira Smiley', status: 'loaded' };
   faces.splice(0, faces.length, replacement);
   faces.load = async () => { loads++; return [replacement]; };
@@ -216,6 +222,7 @@ test('shared font menus exclude missing, loading and failed faces, then add deco
   assert.equal(saved.options.find(option => option.value === 'maiyuan').disabled, true);
   disposeSaved();
   disposeFresh();
+  disposeLater();
   faces.splice(0, faces.length, readyFace);
   library.refreshSharedFonts();
   assert.equal(loads, 3, 'Disposed selectors do not trigger font loads after stylesheet changes.');

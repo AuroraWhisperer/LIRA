@@ -22,7 +22,7 @@ function observe(db) {
   return { queries };
 }
 
-test('fan list loads only candidates and batches full lists without changing record order or scope', (t) => {
+test('fan list and backup batch record reads without changing record order or scope', (t) => {
   const f = fanFixture(t);
   const ids = [];
   f.store.transaction(() => {
@@ -67,6 +67,10 @@ test('fan list loads only candidates and batches full lists without changing rec
   queries.length = 0;
   assert.equal(f.run('list').profiles.length, 503);
   assert.equal(recordsQueries().length, 2);
+  assert.equal(queries.filter(({ sql }) => /FROM fan_reminder_states/u.test(sql)).length, 2);
+  queries.length = 0;
+  assert.equal(f.run('backup').profiles.length, 503);
+  assert.equal(recordsQueries().length, 3, 'backup also prunes expired song-count buckets once');
   assert.equal(queries.filter(({ sql }) => /FROM fan_reminder_states/u.test(sql)).length, 2);
   const batch = f.store.records.listForProfiles(SCOPE, ids);
   assert.deepEqual(batch.get(ids[0]), f.store.records.list(SCOPE, ids[0]));

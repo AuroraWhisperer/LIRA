@@ -181,7 +181,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `saveSong(store, input)`                   | **upsert 语义**:有 `input.id` 走 UPDATE(不存在抛"歌曲不存在",UNIQUE 冲突翻译成"歌曲名称和艺术家与已有歌曲重复");无 id 时先按 `(name, artist)` 精确查重,存在则 UPDATE 其余字段,否则 INSERT。`name` 必填;分类缺省"默认"(`ensureCategory`);`name_pinyin = name_initial = getInitial(name)` | [song-service.js](../../../../src/music/song-service.js) |
 | `listSongs(store, filters)`                | store 保留关键词/分类的 SQL LIKE 语义，将分类候选以 OR 组合后与其他条件取交集；领域层做语言/歌手完整字段及任一完整 tag 匹配，再按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`) 稳定排序并布尔化 `is_enabled` | [song-service.js](../../../../src/music/song-service.js) |
 | `findSong(store, songName, artist?)`       | 有 artist 先精确 `(name, artist)`;否则按 name 取 `updated_at` 最新;仅启用歌曲 | [song-service.js](../../../../src/music/song-service.js) |
-| `findUniqueSongNameMatch(store, songName)` | 精确失败后由 store 执行转义 LIKE `%name%`,**恰好 1 条才返回**(模糊匹配拒绝猜测) | [song-service.js](../../../../src/music/song-service.js) |
+| `findUniqueSongNameMatch(store, songName, matchMode = 'unique')` | 两种模式都先查完整歌名。`unique` 保留唯一包含匹配；`prefix` 先查唯一歌名开头候选，没有前缀候选时再尝试唯一包含匹配。多候选返回 null，不猜测；只查询启用歌曲并转义 LIKE 字面关键词。领域装配每次读取当前 `songRequestMatchMode` | [song-service.js](../../../../src/music/song-service.js) |
 | `deleteSong` / `toggleSong` / `countSongs` | 委托 store 的单曲写操作(删除时在同一事务解除 queue/request 引用);切换启用返回 `{ok}`;总数 | [song-service.js](../../../../src/music/song-service.js) |
 
 ### 7.2 分类与标签
@@ -323,7 +323,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ## 10. 随机点歌筛选(random-song-filter.js + tag-aliases.js)
 
-每次筛选先编译完整条件和空格子条件，语言/分类别名组只在模块初始化时归一化；每首歌曲的歌手、语言、分类字段只准备一次，再与所有条件比对。`describeRandomSongScope` 在同次扫描中累计各条件是否出现及是否由同一首歌满足全部条件，不再次筛选整份歌曲。匹配结果、顺序、分类停用和标签单向别名语义不变；不跨请求保存歌曲缓存。
+每次筛选先编译完整条件和空格子条件，语言/分类别名组只在模块初始化时归一化；标签查询词的归一化和单向别名查询也在条件编译时完成，由该次扫描复用。每首歌曲的歌手、语言、分类字段只准备一次，再与所有条件比对；标签仍在前面维度未命中时按需比对。`describeRandomSongScope` 在同次扫描中累计各条件是否出现及是否由同一首歌满足全部条件，不再次筛选整份歌曲。匹配结果、顺序、分类停用和标签单向别名语义不变；不跨请求保存歌曲缓存。
 
 随机抽取在已有条件匹配后通过 `queueService.filterSongsByCooldown` 排除冷却项，再应用既有最近随机歌曲避让。条件无匹配仍返回空；有匹配但全部冷却抛 `SONG_COOLDOWN`，点歌桥生成专门回复。最终入队仍校验冷却。
 
@@ -343,11 +343,11 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | 歌手 | 整串或按 `/\s*(?:\/                                                                                                                                                                                                                                  | &                                                            | ＆)\s*/`切分后逐段`normalizeComparable` 相等 |
 | 语言 | `randomLanguageAliases(term)` 命中组内任一别名(`LANGUAGE_ALIAS_GROUPS`:[random-song-filter.js:8-14](../../../../src/music/random-song-filter.js#L8-L14):日语/韩语/英语/粤语/国语组,含 ja/jp/ko/en/chinese 等码),歌曲 language 按 `/、，,` 切分后比对 |
 | 分类 | 歌曲分类启用(`category_is_enabled !== 0`)且 `randomCategoryAliases` 命中(`CATEGORY_ALIAS_GROUPS`:[random-song-filter.js:16-24](../../../../src/music/random-song-filter.js#L16-L24):流行/R&B/说唱/摇滚/民谣/舞曲/影视原声)                           |
-| 标签 | `splitSongTags`(分隔符 `[,，、;；                                                                                                                                                                                                                    | ]`,**整项匹配**避免"情"误中"抒情")逐项过 `matchesLibraryTag` |
+| 标签 | `splitSongTags`(分隔符 `[,，、;；                                                                                                                                                                                                                    | ]`,**整项匹配**避免"情"误中"抒情")逐项使用编译后的标签条件 |
 
 ### 10.3 标签别名(tag-aliases.js)
 
-`LIBRARY_TAG_ALIASES`([tag-aliases.js:4-12](../../../../src/music/tag-aliases.js#L4-L12)):观众叫法 → 歌库标准标签单向映射(抒情/治愈/怀旧/国风/小甜歌/影视OST/K-Pop)。`matchesLibraryTag(libraryTag, viewerTerm)`([tag-aliases.js:25-31](../../../../src/music/tag-aliases.js#L25-L31)):先原样相等,再查 `LIBRARY_TAG_BY_VIEWER_ALIAS`(构建时把每个别名归一化映射到标准标签);**不反向展开**——歌库里的非标准标签不会因观众输入标准词而被扩展命中。归一化 = 压缩空白 + `toLocaleLowerCase('zh-Hans-CN')`。
+`LIBRARY_TAG_ALIASES`([tag-aliases.js](../../../../src/music/tag-aliases.js)):观众叫法 → 歌库标准标签单向映射(抒情/治愈/怀旧/国风/小甜歌/影视OST/K-Pop)。`matchesLibraryTag(libraryTag, viewerTerm)` 与批量筛选使用的 `createLibraryTagMatcher(viewerTerm)` 共用比较规则：归一化后相等，或歌库标签等于 `LIBRARY_TAG_BY_VIEWER_ALIAS` 对应的标准标签(构建时把每个别名归一化映射到标准标签)；**不反向展开**——歌库里的非标准标签不会因观众输入标准词而被扩展命中。归一化 = 压缩空白 + `toLocaleLowerCase('zh-Hans-CN')`。
 
 ## 11. 导入导出契约(song-import-schema.js + song-file-codec.js)
 

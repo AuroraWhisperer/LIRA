@@ -1,0 +1,119 @@
+/* 线框星事：宋体、向右渐隐的细线，以及独立于文字的圈线/描框入场。 */
+body[data-style='wireframe'] {
+  --wireframe-font: 'Times New Roman', 'Lira Wireframe Serif', SimSun, 'Songti SC', serif;
+  --danmaku-enter-animation: wireframeEntry calc(700ms * var(--motion-speed, 1)) linear;
+  --danmaku-move-base-ms: 320;
+  --danmaku-move-max-ms: 560;
+  --danmaku-move-curve: .2, .7, .2, 1;
+}
+body[data-style='wireframe'][data-custom-font='true'] { --wireframe-font: var(--danmaku-custom-font); }
+body[data-style='wireframe'] .danmaku-signal-header { display: none; }
+body[data-style='wireframe'] .danmaku-signal-stage { padding: 0; }
+body[data-style='wireframe'] .draw-danmaku-feed { gap: calc(var(--danmaku-font-size) * .85); padding: calc(var(--danmaku-font-size) * .6) var(--danmaku-font-size); }
+body[data-style='wireframe'] .draw-danmaku-item.wireframe-item {
+  --danmaku-enter-animation: wireframeEntry calc(700ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) linear;
+  position: relative; isolation: isolate; display: flex; align-items: flex-start; gap: .425em;
+  width: max-content; max-width: 100%; min-width: 0; min-height: 0;
+  margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+  box-shadow: none; clip-path: none; overflow: visible; animation: none; zoom: 1;
+  color: var(--danmaku-text-color, #fff); font: 400 var(--danmaku-font-size, 24px)/1.4 var(--wireframe-font);
+  text-shadow: 0 1px 2px rgb(0 0 0 / 65%);
+}
+body[data-style='wireframe'] .wireframe-item::after { display: none; }
+.wireframe-avatar { position: relative; flex: none; width: 1.9em; height: 1.9em; margin: .05em 0 0; }
+.wireframe-face {
+  position: absolute; inset: .07em; display: grid; place-items: center; overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 78%); border-radius: 50%; background: #d9e0e4;
+  color: #67727c; font-size: .8em; font-weight: 700; text-shadow: none;
+}
+.wireframe-face img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.wireframe-orbit { position: absolute; inset: 0; border: 1px solid rgb(255 255 255 / 55%); border-radius: 50%; pointer-events: none; }
+body[data-style='wireframe'][data-wireframe-orbit='hide'] .wireframe-orbit { display: none; }
+.wireframe-item[data-role='captain'] .wireframe-orbit { inset: -.05em; border-color: rgb(255 255 255 / 90%); border-width: 2px; }
+.wireframe-item:is([data-role='admiral'],[data-role='governor']) .wireframe-orbit { inset: -.12em; border: .08em solid rgb(255 255 255 / 68%); }
+.wireframe-item:is([data-role='admiral'],[data-role='governor']) .wireframe-orbit::after { content: ''; position: absolute; inset: .05em; border: 1px solid rgb(255 255 255 / 85%); border-radius: inherit; }
+.wireframe-body { position: relative; isolation: isolate; flex: 0 1 auto; min-width: 0; padding: .28em .6em .34em; }
+.wireframe-surface, .wireframe-frame { position: absolute; z-index: -1; inset: 0; pointer-events: none; }
+/* Entry owns layer opacity; keep the user's transparency in the paint alpha. */
+.wireframe-surface { background: linear-gradient(90deg, rgb(0 0 0 / calc(.62 * var(--danmaku-background-opacity, 1))), rgb(0 0 0 / calc(.28 * var(--danmaku-background-opacity, 1))) 70%, transparent); }
+.wireframe-frame { border: 1px solid rgb(255 255 255 / 75%); mask-image: linear-gradient(90deg, #000 calc(100% - var(--wireframe-fade-length, 100%)), transparent); }
+body[data-style='wireframe'] .wireframe-identity { display: flex; align-items: center; flex-wrap: nowrap; gap: .28em; margin: 0 0 .08em; min-width: 0; font: 700 .8em/1.3 var(--wireframe-font); color: inherit; }
+body[data-style='wireframe'] .wireframe-identity .wireframe-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: inherit; color: inherit; }
+.wireframe-guard { display: block; flex: none; width: .8em; height: .8em; object-fit: contain; }
+.wireframe-rank { display: inline-flex; align-items: center; justify-content: center; gap: .28em; flex: none; padding: 0 .42em; font: 700 .64em/1.2 'Times New Roman', serif; }
+.wireframe-rank .wireframe-star { width: .7em; height: .7em; }
+.wireframe-medal { flex: none; max-width: 9em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .6em; font-weight: 400; opacity: .8; }
+body[data-style='wireframe'] .wireframe-copy { margin: 0; padding: 0; min-width: 0; font: inherit; color: inherit; white-space: pre-wrap; overflow-wrap: anywhere; }
+.wireframe-copy .draw-danmaku-emote { display: inline-block; max-width: 100%; height: 1.4em; width: auto; object-fit: contain; vertical-align: middle; }
+.wireframe-item.is-emote-only .wireframe-copy .draw-danmaku-emote { height: 2.8em; }
+.wireframe-item:is([data-role='admiral'],[data-role='governor']) .wireframe-body { padding: .32em .72em .38em; }
+.wireframe-item[data-role='admiral'] .wireframe-frame { mask-image: none; border-color: rgb(255 255 255 / 65%); }
+.wireframe-item[data-role='admiral'] .wireframe-frame::after { content: ''; position: absolute; inset: 2px; border: 1px solid rgb(255 255 255 / 25%); }
+.wireframe-item[data-role='admiral'] .wireframe-surface::after { content: ''; position: absolute; inset: .35em auto .35em .25em; width: 1px; background: linear-gradient(transparent, rgb(255 255 255 / 50%), transparent); }
+.wireframe-item[data-role='admiral'] .wireframe-rank { border: 1px solid rgb(255 255 255 / 45%); }
+.wireframe-ticks { position: absolute; top: -.12em; right: .5em; width: 1.5em; height: .25em; border-inline: 1px solid rgb(255 255 255 / 65%); }
+.wireframe-item[data-role='governor'] .wireframe-frame { mask-image: none; border: .15em solid rgb(255 255 255 / 32%); outline: 1px solid rgb(255 255 255 / 80%); outline-offset: -1px; box-shadow: inset 0 0 0 1px rgb(255 255 255 / 55%); }
+.wireframe-item[data-role='governor'] .wireframe-rank { border-block: 1px solid rgb(255 255 255 / 55%); padding-block: .1em; }
+.wireframe-star, .wireframe-corner { display: block; fill: currentColor; flex: none; width: .65em; height: .65em; }
+.wireframe-corner { position: absolute; width: .3em; height: .3em; pointer-events: none; }
+.wireframe-corner--start { top: -.15em; left: .65em; }
+.wireframe-corner--end { right: .65em; bottom: -.15em; }
+
+/* Gift and SC share the source's compact ledger header, with full original copy. */
+body[data-style='wireframe'] .wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) { width: calc(100% - 1.15em); padding-inline: 0; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-body { container-type: inline-size; width: 100%; padding: .3em .4em .4em; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-surface { background: rgb(0 0 0 / calc(.65 * var(--danmaku-background-opacity, 1))); border-radius: .1em; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-frame { border: 0; border-block: 1px solid rgb(255 255 255 / 60%); border-radius: .1em; mask-image: none; outline: none; box-shadow: none; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-frame::after { content: ''; position: absolute; top: -.12em; left: 0; width: 1.6em; height: .25em; border-inline: 1px solid rgb(255 255 255 / 60%); }
+body[data-style='wireframe'] :is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-identity { flex-wrap: wrap; gap: .4em; margin: 0; min-height: 1.7em; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-avatar { width: 2em; height: 2em; margin: 0 .12em 0 0; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-orbit { inset: 0; border-width: 1px; }
+.wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-orbit::after { display: none; }
+.wireframe-amount { flex: none; max-width: 100%; padding: .15em 0 .15em .35em; border-left: 1px solid rgb(255 255 255 / 55%); overflow-wrap: anywhere; font-size: min(1.1em, 14cqi); }
+.wireframe-divider { display: block; height: 1px; margin: .15em 0 .25em; background: rgb(255 255 255 / 35%); }
+body[data-style='wireframe'] :is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-copy { padding-left: clamp(0px, calc(100% - 12em), 1.85em); }
+
+/* Membership announcements are deliberately separate from chat cards. */
+body[data-style='wireframe'] .wireframe-item[data-wireframe-kind='member'] { --danmaku-enter-animation: wireframeEntry calc(1100ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) linear; width: 100%; padding: .9em 0 .65em; text-align: center; }
+.wireframe-item[data-wireframe-kind='member'] .wireframe-body { width: 100%; padding: 0; display: flex; flex-direction: column; align-items: center; }
+.wireframe-item[data-wireframe-kind='member'] :is(.wireframe-surface,.wireframe-frame) { display: none; }
+.wireframe-item[data-wireframe-kind='member'] .wireframe-avatar { width: 2.4em; height: 2.4em; margin: 0 0 .4em; }
+.wireframe-item[data-wireframe-kind='member'] .wireframe-orbit::after { inset: -.35em; border-width: 1px; border-color: rgb(255 255 255 / 40%); }
+body[data-style='wireframe'] [data-wireframe-kind='member'] .wireframe-identity { justify-content: center; max-width: 74%; margin: 0; font-size: .85em; line-height: 1.25; }
+body[data-style='wireframe'] [data-wireframe-kind='member'] .wireframe-identity .wireframe-name { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
+.wireframe-item[data-wireframe-kind='member'] .wireframe-guard { width: .55em; height: .55em; margin-top: .08em; }
+body[data-style='wireframe'] [data-wireframe-kind='member'] .wireframe-copy { display: flex; align-items: center; justify-content: center; gap: .2em; margin-top: .3em; font-size: .7em; letter-spacing: .12em; }
+.wireframe-wings { position: absolute; top: 1.1em; width: 25%; height: .8em; border-block: 1px solid rgb(255 255 255 / 48%); }
+.wireframe-wings::after { content: ''; position: absolute; top: 50%; left: 8%; right: 8%; height: 1px; background: rgb(255 255 255 / 18%); }
+.wireframe-wings--left { left: 10%; transform-origin: right; }
+.wireframe-wings--right { right: 10%; transform-origin: left; }
+.wireframe-member-rank { position: absolute; top: 6.2em; font: 700 .5em/1 'Times New Roman', serif; opacity: .75; }
+.wireframe-member-rank--left { left: 12%; }
+.wireframe-member-rank--right { right: 12%; }
+body[data-style='wireframe'] .wireframe-item[data-wireframe-kind='notice'] { padding-left: 2.5em; }
+
+/* Only live entries animate. Snapshots always show the complete, final layout. */
+.wireframe-item[data-live-entry] .wireframe-avatar { animation: wireframePortrait calc(360ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out both; }
+.wireframe-item[data-live-entry] .wireframe-orbit { animation: wireframeRing calc(600ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out both; }
+.wireframe-item[data-live-entry] :is(.wireframe-surface,.wireframe-frame,.wireframe-ticks) { animation: wireframeTrace calc(480ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) cubic-bezier(.16, 1, .3, 1) calc(100ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry] .wireframe-identity { animation: wireframeReveal calc(300ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(180ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry] .wireframe-copy { animation: wireframeReveal calc(330ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(300ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry] :is(.wireframe-corner,.wireframe-divider) { animation: wireframeReveal calc(360ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(240ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry][data-wireframe-kind='member'] .wireframe-avatar { animation-duration: calc(500ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)); }
+.wireframe-item[data-live-entry][data-wireframe-kind='member'] .wireframe-identity { animation-delay: calc(400ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)); }
+.wireframe-item[data-live-entry][data-wireframe-kind='member'] :is(.wireframe-guard,.wireframe-member-rank) { animation: wireframeReveal calc(350ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(500ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry][data-wireframe-kind='member'] .wireframe-copy { animation-delay: calc(650ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)); }
+.wireframe-item[data-live-entry] .wireframe-wings { animation: wireframeWings calc(600ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) cubic-bezier(.16, 1, .3, 1) calc(180ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+body[data-style='wireframe'] .wireframe-item[data-wireframe-entrance='none'] { --danmaku-enter-animation: none; }
+body[data-style='wireframe'] .wireframe-item[data-wireframe-entrance='none'],
+body[data-style='wireframe'] .wireframe-item[data-wireframe-entrance='none'] * { animation: none !important; }
+@keyframes wireframeEntry { from, to { opacity: 1; } }
+@keyframes wireframePortrait { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wireframeRing { from { opacity: 0; transform: scale(.65) rotate(-45deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
+@keyframes wireframeTrace { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(-.2em); } }
+@keyframes wireframeReveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wireframeWings { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='wireframe'] { --danmaku-move-base-ms: 0; --danmaku-move-max-ms: 0; }
+  body[data-style='wireframe'] .wireframe-item, body[data-style='wireframe'] .wireframe-item * { animation: none !important; }
+}

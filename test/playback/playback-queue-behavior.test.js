@@ -499,6 +499,66 @@ test('clicking a track in the active playlist jumps without duplicating or repla
   assert.equal(app.audioPlayCalls(), 1);
 });
 
+test('an unavailable playlist jump preserves the current song and remaining queue', async () => {
+  const tracks = ['first', 'next', 'unavailable', 'last'].map(id => track(id, id));
+  const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal',
+    normalQueueTracks: tracks, normalQueue: tracks.slice(1), playlistIndex: 0,
+    queueType: 'playlist', mode: 'sequence', selectedSource: 'qq', volume: 0.75 }, {
+    resolveStream: (_count, request) => request.track.id === 'unavailable'
+      ? {} : { url: `https://example.test/${request.track.id}.mp3` },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  const audioSource = app.element('music-player').src;
+  await app.emit('playbackQueueList', 'click', {
+    target: closestTarget({ playbackPlaylistJump: '2' }, 'data-playback-playlist-jump'),
+  });
+  await flushAsyncWork();
+  const saved = app.savedState();
+  assert.equal(saved.current.id, 'first');
+  assert.equal(saved.playlistIndex, 0);
+  assert.deepEqual(saved.normalQueue.map(item => item.id), ['next', 'unavailable', 'last']);
+  assert.equal(app.element('music-player').src, audioSource);
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'next');
+});
+
+test('only the accepted playlist jump commits its cursor and remaining queue', async (t) => {
+  const tracks = ['first', 'next', 'slow', 'last'].map(id => track(id, id));
+  const delayed = Promise.withResolvers();
+  t.after(() => delayed.resolve({ url: 'https://example.test/slow.mp3' }));
+  const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal',
+    normalQueueTracks: tracks, normalQueue: tracks.slice(1), playlistIndex: 0,
+    queueType: 'playlist', mode: 'sequence', selectedSource: 'qq', volume: 0.75 }, {
+    resolveStream: (_count, request) => {
+      if (request.track.id !== 'slow') return { url: `https://example.test/${request.track.id}.mp3` };
+      return delayed.promise;
+    },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQueueList', 'click', {
+    target: closestTarget({ playbackPlaylistJump: '2' }, 'data-playback-playlist-jump'),
+  });
+  await flushAsyncWork();
+  assert.equal(app.resolveStreamRequestCount(), 1);
+  assert.equal(app.savedState().playlistIndex, 0, 'a pending jump must not move the queue cursor');
+  await app.emit('playbackQueueList', 'click', {
+    target: closestTarget({ playbackPlaylistJump: '1' }, 'data-playback-playlist-jump'),
+  });
+  await flushAsyncWork();
+  delayed.resolve({ url: 'https://example.test/slow.mp3' });
+  await flushAsyncWork();
+  const saved = app.savedState();
+  assert.equal(saved.current.id, 'next');
+  assert.equal(saved.playlistIndex, 1);
+  assert.deepEqual(saved.normalQueue.map(item => item.id), ['slow', 'last']);
+  assert.equal(app.audioPlayCalls(), 1);
+});
+
 for (const mode of ['sequence', 'repeat-one', 'shuffle']) {
   test(`playlist previous wraps from the first track (${mode})`, async () => {
     const tracks = [track('first', '第一首'), track('last', '最后一首')];

@@ -3,7 +3,7 @@ import { DANMAKU_STYLE_TAGS } from './danmaku-style-catalog.js';
 
 const HISTORY_PREFIX = 'lira.danmaku-recent-styles.v1.';
 const RECENT_LIMIT = 4;
-const LAYOUT_LABELS = { fixed: '固定位置', 'fullscreen-random': '区域随机', floating: '飘窗弹幕' };
+const LAYOUT_LABELS = { fixed: '固定位置', 'fullscreen-random': '区域随机', floating: '飘窗弹幕', horizontal: '横向滚动' };
 
 export function bindDanmakuStyleFilters({ root, clearButton, render }) {
   const groups = [...root.querySelectorAll('[data-style-filter-group]')];

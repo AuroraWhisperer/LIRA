@@ -56,37 +56,3 @@
 .playback-cache-row .hint {
   display: none;
 }
-
-/* Provider 健康状态显示 */
-.playback-health-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 24px;
-  font-size: var(--type-size-caption);
-  font-weight: var(--type-weight-regular);
-  color: var(--color-text-muted);
-  line-height: var(--type-leading-caption);
-  white-space: nowrap;
-}
-
-.playback-health-status::before {
-  content: '';
-  width: 6px;
-  height: 6px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: currentColor;
-}
-
-.playback-health-status.success {
-  color: var(--color-success-dark);
-}
-
-.playback-health-status.error {
-  color: var(--danger);
-}
-
-.playback-health-status.warning {
-  color: var(--color-warning);
-}

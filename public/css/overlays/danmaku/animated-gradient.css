@@ -1,0 +1,121 @@
+body[data-style='animated-gradient'] {
+  --gradient-font: 'Gradient Montserrat', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --gradient-paint: linear-gradient(100deg, #8cd7bb, #74b5e6 22%, #9487f5 44%, #c485f0 66%, #e99be5 82%, #8b9eee);
+  --gradient-edge: #e5b2ec;
+  --danmaku-enter-animation: gradientEntry calc(1100ms * var(--motion-speed, 1)) linear;
+  --danmaku-move-base-ms: 280;
+  --danmaku-move-max-ms: 450;
+  --danmaku-move-curve: .22, 1, .36, 1;
+}
+body[data-style='animated-gradient'][data-gradient-palette='sunset'] {
+  --gradient-paint: linear-gradient(100deg, #ad4935, #a83e5c 22%, #864090 44%, #744393 66%, #a0416a 82%, #a56535);
+  --gradient-edge: #e9adc6;
+}
+body[data-style='animated-gradient'][data-gradient-palette='ocean'] {
+  --gradient-paint: linear-gradient(100deg, #2f7969, #287381 22%, #396698 44%, #535591 66%, #316e86 82%, #377e72);
+  --gradient-edge: #a0cde5;
+}
+body[data-style='animated-gradient'][data-gradient-palette='lavender'] {
+  --gradient-paint: linear-gradient(100deg, #7352a3, #654d99 22%, #88549f 44%, #925385 66%, #795c9f 82%, #5a64a4);
+  --gradient-edge: #cdb4ed;
+}
+body[data-style='animated-gradient'][data-custom-font='true'] { --gradient-font: var(--danmaku-custom-font); }
+body[data-style='animated-gradient'] .danmaku-signal-header { display: none; }
+body[data-style='animated-gradient'] .danmaku-signal-stage { padding: 12px; }
+body[data-style='animated-gradient'] .draw-danmaku-feed { gap: 22px; padding: 4px 12px 10px; }
+body[data-style='animated-gradient'] .draw-danmaku-item.gradient-item {
+  display: block; position: relative; width: max-content; max-width: 100%; min-width: 0; min-height: 0;
+  margin: 0; padding: 0 0 0 20px; border: 0; border-radius: 0; background: none;
+  box-shadow: none; clip-path: none; text-shadow: none; animation: none; zoom: 1;
+  color: var(--danmaku-text-color, #242424); font: 400 var(--danmaku-font-size, 19px)/1.45 var(--gradient-font);
+}
+body[data-style='animated-gradient'] .gradient-item::before,
+body[data-style='animated-gradient'] .gradient-item::after { display: none; content: none; }
+body[data-style='animated-gradient'] .draw-danmaku-item.gradient-item.is-gift::after { display: none; content: none; animation: none; }
+body[data-style='animated-gradient'] .gradient-body {
+  position: relative; display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; width: 100%; gap: 0; padding: 0; margin: 0;
+  color: inherit; font: inherit; background: none; border: 0; box-shadow: none;
+}
+body[data-style='animated-gradient'] .gradient-body::before,
+body[data-style='animated-gradient'] .gradient-body::after { display: none; content: none; }
+body[data-style='animated-gradient'] .gradient-heading {
+  position: relative; z-index: 1; display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  width: max-content; max-width: 100%; min-height: 44px; margin: 0 20px -12px -20px;
+  padding: 8px 22px; border: 0; border-radius: 23px 23px 23px 0;
+  color: #fff; font: 700 19px/1.3 var(--gradient-font); background: var(--gradient-paint);
+  background-size: 400% 100%; animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite;
+  text-shadow: 0 1px 2px rgb(43 34 76 / 48%);
+}
+body[data-style='animated-gradient'] .gradient-heading .gradient-name {
+  min-width: 0; max-width: 100%; overflow-wrap: anywhere; white-space: normal; text-overflow: clip;
+  color: inherit; font: inherit; letter-spacing: .6px; text-transform: uppercase;
+}
+body[data-style='animated-gradient'] .gradient-role {
+  color: rgb(255 255 255 / 90%); font: 400 13px/1.4 var(--gradient-font); letter-spacing: .5px;
+  overflow-wrap: anywhere;
+}
+.gradient-role::before { content: '- '; }
+.gradient-role-icon { display: grid; place-items: center; flex: none; width: 17px; height: 17px; border-radius: 2px; background: #a27bde; }
+.gradient-role-icon svg { display: block; width: 14px; height: 14px; fill: #fff; }
+.gradient-role-icon--streamer { background: #db2344; }
+.gradient-role-icon--captain { background: #459be0; }
+.gradient-role-icon--admiral { background: #a35add; }
+.gradient-role-icon--governor { background: #d5a24a; }
+.gradient-panel { position: relative; isolation: isolate; border-radius: 15px; }
+.gradient-panel::before {
+  content: ''; position: absolute; z-index: -1; inset: 0; border-radius: inherit;
+  background: rgb(255 255 255 / var(--danmaku-background-opacity, 1));
+}
+.gradient-panel::after {
+  content: ''; position: absolute; z-index: -1; inset: 0; border: 2px solid var(--gradient-edge); border-radius: inherit;
+  box-shadow: 0 0 4px rgb(227 168 236 / 45%); pointer-events: none;
+}
+body[data-style='animated-gradient']:is([data-gradient-palette='original'], :not([data-gradient-palette]))
+  .gradient-item:is([data-gradient-role='captain'], [data-gradient-role='admiral']) { --gradient-edge: #b7a0ef; }
+body[data-style='animated-gradient'] .gradient-body > .gradient-copy {
+  display: block; width: 100%; min-width: 0; margin: 0; padding: 18px 50px 14px 30px;
+  border: 0; color: inherit; font: inherit; background: none; box-shadow: none; text-shadow: none;
+  white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word;
+}
+.gradient-copy .draw-danmaku-emote { display: inline-block; width: auto; max-width: 100%; height: 1.4em; object-fit: contain; vertical-align: middle; margin: 0 .12em; }
+.gradient-item.is-emote-only .gradient-copy .draw-danmaku-emote { height: 2.4em; }
+.gradient-underline { display: block; height: 1px; margin: 10px 6px 0; background: rgb(255 255 255 / 90%); transform-origin: left; }
+body[data-style='animated-gradient'][data-gradient-underline='hide'] .gradient-underline { visibility: hidden; }
+.gradient-event { position: relative; display: flex; flex-wrap: wrap; align-items: center; row-gap: 8px; min-width: 0; width: max-content; max-width: 100%; padding: 5px; }
+.gradient-ticket {
+  display: flex; flex: 0 1 auto; flex-wrap: wrap; align-items: center; justify-content: center; gap: .25em; min-width: min-content; max-width: 100%; min-height: 42px; margin-right: -28px;
+  padding: 9px 42px 9px 24px; font: 700 calc(var(--danmaku-font-size, 19px) * 17 / 19)/1.4 var(--gradient-font); text-align: center; border-radius: 8px;
+  outline: 1px solid rgb(255 255 255 / 92%); outline-offset: 4px;
+}
+.gradient-ticket .gradient-name { min-width: 0; overflow-wrap: anywhere; text-transform: uppercase; }
+.gradient-ticket::after { border-color: #fff; box-shadow: none; }
+.gradient-amount { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gradient-event-label {
+  position: relative; z-index: 1; flex: 0 0 auto; max-width: min(230px, 100%);
+  padding: 5px 13px; border-radius: 20px; background: var(--gradient-paint); background-size: 400% 100%;
+  color: #fff; font: italic 700 calc(var(--danmaku-font-size, 19px) * 13 / 19)/1.4 var(--gradient-font); text-align: center; overflow-wrap: anywhere;
+  animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite;
+  text-shadow: 0 1px 2px rgb(43 34 76 / 48%);
+}
+body[data-style='animated-gradient'] .gradient-item[data-gradient-kind='superchat'] .gradient-copy,
+body[data-style='animated-gradient'] .gradient-item[data-gradient-kind='notice'] .gradient-copy { margin-top: 9px; }
+.gradient-item[data-live-entry] .gradient-body { animation: gradientAppear calc(480ms * var(--motion-speed, 1)) ease-out calc(180ms * var(--motion-speed, 1)) both; }
+.gradient-item[data-live-entry] .gradient-underline { animation: gradientLine calc(650ms * var(--motion-speed, 1)) ease-out calc(330ms * var(--motion-speed, 1)) both; }
+.gradient-item:not([data-gradient-kind='chat']) { --danmaku-enter-animation: gradientEntry calc(1650ms * var(--motion-speed, 1)) linear; }
+.gradient-item[data-live-entry] .gradient-event-label {
+  animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite, gradientTag calc(500ms * var(--motion-speed, 1)) ease-out calc(1100ms * var(--motion-speed, 1)) both;
+}
+@keyframes gradientEntry { from, to { opacity: 1; } }
+@keyframes gradientAppear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes gradientLine { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
+@keyframes gradientTag { from { opacity: 0; transform: translateX(25px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes gradientFlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
+body[data-style='animated-gradient'][data-ambient-motion='off'] :is(.gradient-heading, .gradient-event-label) { animation: none; background-position: 60% 50%; }
+body[data-style='animated-gradient'][data-ambient-motion='off'] .gradient-item[data-live-entry] .gradient-event-label {
+  animation: gradientTag calc(500ms * var(--motion-speed, 1)) ease-out calc(1100ms * var(--motion-speed, 1)) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='animated-gradient'] .gradient-item,
+  body[data-style='animated-gradient'] .gradient-item * { animation: none !important; }
+  body[data-style='animated-gradient'] .gradient-panel::after { animation: none; }
+}

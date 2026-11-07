@@ -10,6 +10,10 @@ const styleTitle = type => MEDIA_STYLE_TITLES[type] || SCENE_EXTRA_COMPONENTS[ty
   || ({ overtime: '加班机', browser: '浏览器源', 'text-box': '文本框' })[type] || '组件';
 const isComponentSuite = pack => pack.isSuite;
 
+export function canImportComponentStyle(type) {
+  return !['gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox'].includes(type);
+}
+
 export function mountComponentStyleLibrary(host, { type, request = requestComponentStyles, onUse, actionLabel = '添加到画布', inline = false, suitesOnly = false, renderList, onImportTarget, initialFile, updatePack } = {}) {
   loadComponentStyleCss();
   const root = previewElement('section', 'component-style-library');
@@ -25,7 +29,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
   root.append(header, list, status); host.append(root);
   const requests = new AbortController();
   let editor; let closed = false; let revision = 0; let updateTarget = updatePack || null; let importing = false; let interacted = false;
-  const add = type ? previewElement('button', 'component-style-add', '＋ 添加样式') : null;
+  const add = type && canImportComponentStyle(type) ? previewElement('button', 'component-style-add', '＋ 添加样式') : null;
   if (add) { add.type = 'button'; add.addEventListener('click', () => openImport()); }
   function redirectImport(target, file, pack) {
     if (onImportTarget) onImportTarget(target, file, pack);
@@ -216,7 +220,7 @@ export function mountComponentStyleLibrary(host, { type, request = requestCompon
         list.append(empty);
       }
       if (!interacted) {
-        status.textContent = type ? '点击「＋ 添加样式」，选择文件或粘贴作者提供的内容。'
+        status.textContent = type ? add ? '点击「＋ 添加样式」，选择文件或粘贴作者提供的内容。' : ''
           : '套装整体导入、更新和删除；点击组件卡片可单独选用。单个样式请从对应组件「＋ 添加样式」添加。';
         status.hidden = inline;
       }

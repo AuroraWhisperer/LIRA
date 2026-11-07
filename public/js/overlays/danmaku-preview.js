@@ -1,5 +1,5 @@
 import { CANVAS_PRESETS, createLayout, defaultRegion, fitRegion, normalizeLayout, resizeCanvas } from '../shared/danmaku-layout.js';
-import { isRandomDanmakuStyle, isFloatingDanmakuStyle, normalizeStyleOptions } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, normalizeStyleOptions } from '../shared/danmaku-style-options.js';
 import { applyCanvas } from './danmaku-canvas.js';
 import { initRegionEditor } from './danmaku-region-editor.js';
 import { initPreviewAppearance } from './danmaku-preview-appearance.js';
@@ -20,7 +20,7 @@ function initComponentCanvas({ initialStyle, styleOptions, duration, renderSampl
     const canvas = { width: host.clientWidth, height: host.clientHeight };
     const layout = layer ? { ...draft.layout, canvas,
       regions: { ...draft.layout.regions, [draft.style]: { x: 0, y: 0, ...canvas } } } : draft.layout;
-    scale = applyCanvas(document, layout, draft.style, host.clientWidth, host.clientHeight);
+    scale = applyCanvas(document, layout, draft.style, host.clientWidth, host.clientHeight, draft.styleOptions);
   }
   const observer = new ResizeObserver(fit);
   observer.observe(host);
@@ -87,7 +87,7 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
   const appearance = initPreviewAppearance({ getDraft: () => draft, change: edit, error: (message) => { status.textContent = message; } });
 
   function fit() {
-    scale = applyCanvas(document, draft.layout, draft.style, host.clientWidth, host.clientHeight);
+    scale = applyCanvas(document, draft.layout, draft.style, host.clientWidth, host.clientHeight, draft.styleOptions);
     byId('canvasZoom').textContent = `适应窗口 · ${Math.round(scale * 100)}%`;
   }
   function render(refreshSamples = true) {
@@ -109,6 +109,8 @@ export function initDanmakuPreview({ initialStyle, styleOptions, duration, rende
     byId('selectionLabel').textContent = `${region.width} × ${region.height}`;
     byId('regionHint').textContent = isFloatingDanmakuStyle(draft.style)
       ? '弹幕从右向左飘过区域；默认铺满画布，可拖动边框调整范围。'
+      : DANMAKU_STYLE_OPTIONS[draft.style]?.layout === 'horizontal'
+      ? '新消息到达时横向推移；默认在画布底部通栏显示，可调整位置与宽度。'
       : isRandomDanmakuStyle(draft.style)
       ? '弹幕在框内随机出现；缩小区域可避开直播主体。'
       : '拖动区域移动，拖动边框调整大小。方向键微调，Shift 加速。';

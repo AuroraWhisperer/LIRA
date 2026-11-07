@@ -98,7 +98,9 @@ export async function prepareComponentPreviewCanvas(components, request = reques
       const controller = {
         ...configController,
         getState,
-        subscribe(listener) { return configController.subscribe(() => listener(getState())); },
+        subscribe(listener) {
+          return configController.subscribe(state => listener({ ...state, ...(stale ? { error: conflictMessage } : {}) }));
+        },
         discard() {
           const discarded = configController.discard();
           if (discarded && stale) { stale = false; void configController.reload(); }
@@ -207,7 +209,10 @@ export async function prepareComponentPreviewCanvas(components, request = reques
     function retain(dto) {
       const preset = createPreset(dto);
       presets.set(dto.document.id, preset);
-      preset.unsubscribe = preset.controller.subscribe(notify);
+      preset.unsubscribe = preset.controller.subscribe(state => {
+        preset.metadata = { id: dto.document.id, title: state.draft.document.title, dirty: state.dirty };
+        notify();
+      });
       return preset;
     }
     for (const record of scenes) retain(record);
@@ -215,10 +220,8 @@ export async function prepareComponentPreviewCanvas(components, request = reques
     const controller = {
       getState() {
         return { ...(active?.controller || empty).getState(),
-          presets: [...presets].map(([id, preset]) => {
-            const state = preset.controller.getState();
-            return { id, title: state.draft.document.title, dirty: state.dirty };
-          }), activeSceneId: binding.publishedVersion ? binding.activeSceneId : null,
+          presets: [...presets.values()].map(preset => ({ ...preset.metadata })),
+          activeSceneId: binding.publishedVersion ? binding.activeSceneId : null,
           activeSceneTitle: binding.activeSceneTitle || '' };
       },
       subscribe(listener) { listeners.add(listener); listener(controller.getState()); return () => listeners.delete(listener); },

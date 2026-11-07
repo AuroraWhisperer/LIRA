@@ -24,9 +24,14 @@ function retainLegacyFontOptions(select) {
   select.value = currentValue;
 }
 
-function sharedFaces(font) {
-  return Array.from(document.fonts || []).filter(face =>
-    face.family.replace(/^(['"])(.*)\1$/, '$2') === font.family);
+function sharedFacesByFamily() {
+  const families = new Map();
+  for (const face of document.fonts || []) {
+    const family = face.family.replace(/^(['"])(.*)\1$/, '$2');
+    if (!families.has(family)) families.set(family, []);
+    families.get(family).push(face);
+  }
+  return families;
 }
 
 function isReady(font) {
@@ -38,12 +43,15 @@ function refreshRegisteredSelects() {
 }
 
 export function refreshSharedFonts() {
-  if (!registeredSelects.size) return;
+  if (!registeredSelects.size) return false;
+  const families = sharedFacesByFamily();
+  let changed = false;
   for (const font of SHARED_FONTS) {
-    const faces = sharedFaces(font);
+    const faces = families.get(font.family) || [];
     const previous = fontReadiness.get(font.id);
     if (previous && previous.faces.length === faces.length
       && faces.every((face, index) => face === previous.faces[index])) continue;
+    changed = true;
     const readiness = { faces, ready: false };
     fontReadiness.set(font.id, readiness);
     if (!faces.length) continue;
@@ -55,7 +63,8 @@ export function refreshSharedFonts() {
       refreshRegisteredSelects();
     }, () => {});
   }
-  refreshRegisteredSelects();
+  if (changed) refreshRegisteredSelects();
+  return changed;
 }
 
 // Preserve stored IDs / unquoted families without adding duplicate library choices.
@@ -111,7 +120,7 @@ export function registerFontSelect(select, { maxLength } = {}) {
   if (maxLength) select.dataset.fontMaxLength = String(maxLength);
   retainLegacyFontOptions(select);
   registeredSelects.add(select);
-  refreshSharedFonts();
+  if (!refreshSharedFonts()) populateSharedFontOptions(select);
   const unregisterLocal = registerLocalFontSelect(select);
   return () => {
     registeredSelects.delete(select);

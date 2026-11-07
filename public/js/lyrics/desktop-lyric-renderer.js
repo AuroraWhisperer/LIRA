@@ -17,8 +17,10 @@ import {
   getVisibleLyricRange,
   stepSpringScroll,
 } from './desktop-lyric-timeline.js';
-import { applyDesktopLyricStyles } from './desktop-lyric-styles.js';
+import { applyDesktopLyricStyles, applyLyricPreviewContrast } from './desktop-lyric-styles.js';
 import { createLyricLineTransition } from './desktop-lyric-line-transition.js';
+import { createAdvancedLyricRenderer } from './advanced-lyric-renderer.js';
+import { LYRIC_VISUAL_DEFAULTS } from '../shared/advanced-lyric-appearance.js';
 
 export { calculateFollowTarget, findActiveLyricIndex, getLyricCountdown, getVisibleLyricRange, stepSpringScroll };
 
@@ -44,6 +46,17 @@ const JOINED_TEXT = /\p{Mark}|[\u0590-\u11FF\u1780-\u17FF\uA960-\uA97F\uA9E0-\uA
 
 let initialized = false;
 let renderer = null;
+let advancedRenderer = null;
+let advancedStage = null;
+let previewStage = null;
+let layoutObserver = null;
+let outputLayer = 'both';
+let previewLayer = 'both';
+let basicVisible = true;
+let advancedVisible = false;
+let rawSettings = {};
+let fallbackLine = null;
+let advancedLineCache = null;
 let latestState = null;
 let latestTimeline = EMPTY_TIMELINE;
 let timelineSignature = '';
@@ -55,6 +68,7 @@ let countdownSignature = '';
 let countdownRow = null;
 let rowElements = [];
 let activeIndex = -1;
+let visibleLineRange = null;
 let activeWordIndex = -1;
 let activeWordSignature = '';
 let activeWordAnimator = null;
@@ -73,7 +87,7 @@ let lineTransition = null;
 let immediateLineChange = false;
 let currentDisplaySettings = resolveDesktopLyricSettings();
 
-function init() {
+function init({ layer = 'both' } = {}) {
   if (initialized) return true;
   const stage = document.getElementById('desktopLyricPreviewStage');
   const playback = document.getElementById('desktopLyricPreviewPlayback');
@@ -81,6 +95,10 @@ function init() {
   viewport = document.getElementById('desktopLyricPreviewViewport');
   if (!stage || !playback || !timelineElement || !viewport) return false;
   initialized = true;
+  previewStage = stage;
+  outputLayer = normalizeLayer(layer);
+  advancedStage = document.getElementById('advancedLyricPreviewStage');
+  if (advancedStage) advancedRenderer = createAdvancedLyricRenderer(advancedStage);
   lineTransition = createLyricLineTransition(viewport, timelineElement);
 
   renderer = new LyricWordRenderer({
@@ -93,6 +111,8 @@ function init() {
     onFrameBudget: (duration) => performanceProfile?.recordFrame(duration),
     onFrame: (position) => renderTimelineFrame(position.currentMs),
     onVisibilityChange: (visible) => {
+      advancedRenderer?.setVisible(visible && advancedVisible);
+      performanceProfile?.setVisible(visible);
       if (visible) followActiveLyric();
       else {
         stopFollowAnimation();
@@ -123,30 +143,87 @@ function init() {
   viewport.addEventListener('pointerdown', pauseAutomaticFollow, {
     passive: true,
   });
-  viewport.addEventListener('keydown', (event) => {
-    if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) {
-      pauseAutomaticFollow();
-    }
-  });
+  viewport.addEventListener('keydown', onViewportKeydown);
   window.addEventListener('resize', followActiveLyric);
   document.fonts?.addEventListener?.('loadingdone', followActiveLyric);
   if (typeof ResizeObserver === 'function') {
     // Auto-sized rows and the desktop preview can settle after the first layout pass.
-    const layoutObserver = new ResizeObserver(followActiveLyric);
+    layoutObserver = new ResizeObserver(followActiveLyric);
     layoutObserver.observe(viewport);
     layoutObserver.observe(timelineElement);
   }
+  syncLayerVisibility();
   return true;
 }
 
-function updateLyricState(state) {
+function onViewportKeydown(event) {
+  if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End'].includes(event.key)) pauseAutomaticFollow();
+}
+
+function normalizeLayer(value) {
+  return value === 'basic' || value === 'advanced' ? value : 'both';
+}
+
+function setPreviewLayer(layer) {
+  const next = normalizeLayer(layer);
+  if (previewLayer === next) return;
+  previewLayer = next;
+  applyPlaybackVisibility();
+  renderTimelineFrame(currentPreviewPosition());
+}
+
+function syncLayerVisibility() {
+  const previousBasic = basicVisible;
+  const previousAdvanced = advancedVisible;
+  const paused = latestState?.playing === false;
+  basicVisible = outputLayer !== 'advanced' && (previewLayer === 'basic'
+    || previewLayer === 'both' && rawSettings.desktopLyricEnabled !== 'false' && rawSettings.desktopLyricEnabled !== false
+      && !(paused && currentDisplaySettings.hideOnPause));
+  advancedVisible = Boolean(advancedRenderer) && outputLayer !== 'basic' && (previewLayer === 'advanced'
+    || previewLayer === 'both' && (rawSettings.advancedLyricEnabled === 'true' || rawSettings.advancedLyricEnabled === true)
+      && !(paused && (rawSettings.advancedLyricHideOnPause === 'true' || rawSettings.advancedLyricHideOnPause === true)));
+  if (viewport) viewport.hidden = !basicVisible;
+  if (previewStage) previewStage.dataset.lyricLayers = basicVisible ? advancedVisible ? 'both' : 'basic' : advancedVisible ? 'advanced' : 'none';
+  const card = document.getElementById('desktopLyricLivePreview') || document.getElementById('desktopLyricSurface');
+  if (card) applyLyricPreviewContrast(card, advancedVisible && !basicVisible
+    ? rawSettings.advancedLyricTextColor || LYRIC_VISUAL_DEFAULTS.advancedLyricTextColor : currentDisplaySettings.textColor);
+  if (previousBasic !== basicVisible) renderTimeline();
+  else if (advancedVisible && !previousAdvanced) renderAdvancedFrame(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings));
+  const hasContent = (latestTimeline.lines.length > 0 || Boolean(fallbackLine))
+    && !['loading', 'empty'].includes(latestTimeline.status)
+    && !['idle', 'loading', 'empty'].includes(latestState?.status);
+  renderer?.setEnabled((basicVisible || advancedVisible) && hasContent);
+  advancedRenderer?.setVisible(advancedVisible && renderer?.isVisible() !== false);
+}
+
+function updateLyricState(state, { render = true } = {}) {
+  if (!state || typeof state !== 'object' || !acceptLyricVersion(state)) return false;
+  if (render) applyLyricState(state);
+  return true;
+}
+
+// Local preview samples and cached live restoration share the renderer without
+// changing the live stream's generation/sequence guard.
+function updatePreviewState(state) {
   if (!state || typeof state !== 'object') return;
-  if (!acceptLyricVersion(state)) return;
+  applyLyricState(state);
+}
+
+function applyLyricState(state) {
   const previousState = latestState;
+  const previousWords = latestWordSignature;
   latestState = { ...(latestState || {}), ...state };
   latestWordSignature = JSON.stringify([latestState.lineText || '', latestState.words || []]);
   immediateLineChange = state.discontinuity === true || latestState.generation !== previousState?.generation
     || latestState.trackTitle !== previousState?.trackTitle;
+  if (latestWordSignature !== previousWords || immediateLineChange) {
+    const words = Array.isArray(latestState.words) ? latestState.words : [];
+    fallbackLine = latestState.lineText ? {
+      text: latestState.lineText, translation: latestState.translation || '', words,
+      startMs: words[0]?.startMs ?? (fallbackLine?.text === latestState.lineText ? fallbackLine.startMs : latestState.currentMs),
+      endMs: words.at(-1)?.endMs,
+    } : null;
+  }
   if (immediateLineChange) lineTransition?.clear();
   renderer?.setState({ ...latestState, discontinuity: state.discontinuity === true });
   immediateLineChange = false;
@@ -174,6 +251,7 @@ function updateLyricTimeline(timeline) {
   manualFollowUntil = 0;
   viewport?.classList.remove('is-manual-browsing');
   renderTimeline();
+  syncLayerVisibility();
   updatePreviewStatus();
 }
 
@@ -186,10 +264,17 @@ function renderTimeline() {
   countdownSignature = '';
   countdownRow = null;
   activeIndex = -1;
+  visibleLineRange = null;
   stopFollowAnimation();
   followPosition = viewport?.scrollTop || 0;
   followVelocity = 0;
   resetActiveWords();
+
+  if (!basicVisible) {
+    timelineElement.replaceChildren();
+    renderTimelineFrame(currentPreviewPosition());
+    return;
+  }
 
   if (!latestTimeline.lines.length) {
     timelineElement.style.paddingBlockStart = '';
@@ -235,6 +320,7 @@ function renderTimeline() {
 
   timelineElement.replaceChildren(fragment);
   renderTimelineFrame(currentPreviewPosition());
+  applyVisibleLineWindow();
 }
 
 function createCountdownElement() {
@@ -252,10 +338,16 @@ function createCountdownElement() {
 }
 
 function renderTimelineFrame(currentMs) {
+  if (!basicVisible && !advancedVisible) return;
   const lines = latestTimeline.lines;
-  if (!lines.length) return;
   const lyricTime = resolveLyricTime(currentMs, currentDisplaySettings);
   const nextActiveIndex = findActiveLyricIndex(lines, lyricTime);
+
+  if (!basicVisible || !lines.length) {
+    activeIndex = nextActiveIndex;
+    renderAdvancedFrame(lyricTime);
+    return;
+  }
 
   if (nextActiveIndex !== activeIndex) {
     const canTransition = activeIndex >= 0 && nextActiveIndex === activeIndex + 1
@@ -263,12 +355,22 @@ function renderTimelineFrame(currentMs) {
     const positions = canTransition ? lineTransition?.capture(rowElements,
       getVisibleLyricRange(nextActiveIndex, currentDisplaySettings.visibleLines, rowElements.length)) : null;
     if (!positions) lineTransition?.clear();
+    const previousIndex = activeIndex;
     activeIndex = nextActiveIndex;
-    rowElements.forEach((row, index) => {
-      row.classList.toggle('is-past', index < activeIndex);
-      row.classList.toggle('is-near', activeIndex >= 0 && Math.abs(index - activeIndex) <= 1);
-      row.classList.toggle('is-active', index === activeIndex);
-    });
+    const first = Math.max(0, Math.min(previousIndex, activeIndex) - 1);
+    const last = Math.min(rowElements.length - 1, Math.max(previousIndex, activeIndex) + 1);
+    for (let index = first; index <= last; index += 1) {
+      const row = rowElements[index];
+      if ((index < previousIndex) !== (index < activeIndex)) {
+        row.classList.toggle('is-past', index < activeIndex);
+      }
+      const wasNear = previousIndex >= 0 && Math.abs(index - previousIndex) <= 1;
+      const isNear = activeIndex >= 0 && Math.abs(index - activeIndex) <= 1;
+      if (wasNear !== isNear) row.classList.toggle('is-near', isNear);
+      if (index === previousIndex || index === activeIndex) {
+        row.classList.toggle('is-active', index === activeIndex);
+      }
+    }
     applyVisibleLineWindow();
     resetActiveWords();
     renderActiveWords();
@@ -280,10 +382,34 @@ function renderTimelineFrame(currentMs) {
   }
 
   updateActiveWordProgress(lyricTime);
+  renderAdvancedFrame(lyricTime);
+}
+
+function renderAdvancedFrame(currentMs) {
+  if (!advancedVisible || renderer?.isVisible() === false) return;
+  const matchesTrack = !latestTimeline.trackTitle || !latestState?.trackTitle
+    || latestTimeline.trackTitle === latestState.trackTitle;
+  const available = matchesTrack && !['idle', 'loading', 'empty'].includes(latestState?.status)
+    && !['loading', 'empty'].includes(latestTimeline.status);
+  let line = available ? latestTimeline.lines[activeIndex]
+    || (!latestTimeline.lines.length ? fallbackLine : null) : null;
+  if (line && !line.words?.length && latestState?.lineText === line.text && latestState.words?.length) {
+    if (advancedLineCache?.source !== line || advancedLineCache.words !== latestWordSignature) {
+      advancedLineCache = { source: line, words: latestWordSignature, line: { ...line, words: latestState.words } };
+    }
+    line = advancedLineCache.line;
+  }
+  advancedRenderer?.renderFrame({
+    currentMs, line, index: activeIndex,
+    nextLine: available ? latestTimeline.lines[activeIndex + 1] : null,
+    playing: latestState?.playing === true, playbackRate: latestState?.playbackRate,
+    discontinuity: immediateLineChange,
+    trackTitle: latestState?.trackTitle || latestTimeline.trackTitle,
+  });
 }
 
 function renderActiveWords() {
-  if (activeIndex < 0 || !rowElements[activeIndex]) return;
+  if (!basicVisible || activeIndex < 0 || !rowElements[activeIndex]) return;
   if (!currentDisplaySettings.karaokeEnabled || (latestTimeline.trackTitle && latestState?.trackTitle
     && latestTimeline.trackTitle !== latestState.trackTitle)) {
     resetActiveWords();
@@ -327,6 +453,7 @@ function resetActiveWords() {
 }
 
 function updateActiveWordProgress(currentMs, force = false) {
+  if (!basicVisible) return;
   activeWordAnimator?.sync({ currentMs }, {
     playing: latestState?.playing === true && renderer?.isVisible() !== false, playbackRate: latestState?.playbackRate, force,
   });
@@ -354,9 +481,23 @@ function acceptLyricVersion(state) {
 
 function applyVisibleLineWindow() {
   const range = getVisibleLyricRange(activeIndex, currentDisplaySettings.visibleLines, rowElements.length);
-  rowElements.forEach((row, index) => {
-    row.classList.toggle('is-line-hidden', index < range.first || index > range.last);
-  });
+  if (!visibleLineRange) {
+    rowElements.forEach((row, index) => {
+      row.classList.toggle('is-line-hidden', index < range.first || index > range.last);
+    });
+  } else {
+    setLinesHidden(visibleLineRange.first, Math.min(visibleLineRange.last, range.first - 1), true);
+    setLinesHidden(Math.max(visibleLineRange.first, range.last + 1), visibleLineRange.last, true);
+    setLinesHidden(range.first, Math.min(range.last, visibleLineRange.first - 1), false);
+    setLinesHidden(Math.max(range.first, visibleLineRange.last + 1), range.last, false);
+  }
+  visibleLineRange = range;
+}
+
+function setLinesHidden(first, last, hidden) {
+  for (let index = first; index <= last; index += 1) {
+    rowElements[index].classList.toggle('is-line-hidden', hidden);
+  }
 }
 
 function updateCountdown(currentMs) {
@@ -394,7 +535,7 @@ function updateCountdown(currentMs) {
 }
 
 function followActiveLyric() {
-  if (renderer?.isVisible() === false || Date.now() < manualFollowUntil) return;
+  if (!basicVisible || renderer?.isVisible() === false || Date.now() < manualFollowUntil) return;
   const activeRow = rowElements[activeIndex] || (countdownElement?.hidden === false ? countdownElement : null);
   if (!activeRow || !viewport || viewport.clientHeight <= 0) return;
   timelineElement.style.paddingBlockStart = `${viewport.clientHeight * currentDisplaySettings.alignPosition}px`;
@@ -453,7 +594,7 @@ function stopFollowAnimation() {
 }
 
 function pauseAutomaticFollow() {
-  if (!latestTimeline.lines.length) return;
+  if (!basicVisible || !latestTimeline.lines.length) return;
   lineTransition?.clear();
   manualFollowUntil = Date.now() + MANUAL_FOLLOW_PAUSE_MS;
   viewport?.classList.add('is-manual-browsing');
@@ -490,13 +631,19 @@ function updatePreviewStatus() {
 function applySettings(settings = {}) {
   const card = document.getElementById('desktopLyricLivePreview') || document.getElementById('desktopLyricSurface');
   if (!card) return;
-  const values = resolveDesktopLyricSettings(settings);
-  const signature = JSON.stringify(values);
+  for (const [key, value] of Object.entries(settings)) {
+    if (key.startsWith('desktopLyric') || key.startsWith('advancedLyric') && key !== 'advancedLyricSavedPresets'
+      || key === 'lyricLayer') rawSettings[key] = value;
+  }
+  const values = resolveDesktopLyricSettings(rawSettings);
+  const signature = JSON.stringify([values, rawSettings]);
   if (signature === settingsSignature) return;
   settingsSignature = signature;
   lineTransition?.clear();
   const previousSettings = currentDisplaySettings;
   currentDisplaySettings = values;
+  if (Object.hasOwn(settings, 'lyricLayer')) outputLayer = normalizeLayer(settings.lyricLayer);
+  advancedRenderer?.applySettings(rawSettings);
   applyDesktopLyricStyles(card, values);
   applyPlaybackVisibility();
   if (
@@ -530,8 +677,9 @@ function timelineFallback(timeline, settings) {
 function applyPlaybackVisibility() {
   const card = document.getElementById('desktopLyricLivePreview') || document.getElementById('desktopLyricSurface');
   if (!card) return;
-  const hidden = currentDisplaySettings.hideOnPause && latestState?.playing === false;
+  const hidden = previewLayer !== 'basic' && currentDisplaySettings.hideOnPause && latestState?.playing === false;
   card.classList.toggle('is-paused-hidden', hidden);
+  syncLayerVisibility();
 }
 
 function currentPreviewPosition() {
@@ -540,9 +688,48 @@ function currentPreviewPosition() {
     typeof performance !== 'undefined' && typeof performance.now === 'function' ? performance.now() : Date.now();
   return renderer.getPosition(now).currentMs;
 }
+
+function dispose() {
+  if (!initialized) return;
+  initialized = false;
+  stopFollowAnimation();
+  clearTimeout(followResumeTimer);
+  lineTransition?.clear();
+  layoutObserver?.disconnect();
+  viewport?.removeEventListener?.('wheel', pauseAutomaticFollow);
+  viewport?.removeEventListener?.('touchstart', pauseAutomaticFollow);
+  viewport?.removeEventListener?.('pointerdown', pauseAutomaticFollow);
+  viewport?.removeEventListener?.('keydown', onViewportKeydown);
+  window.removeEventListener?.('resize', followActiveLyric);
+  document.fonts?.removeEventListener?.('loadingdone', followActiveLyric);
+  advancedRenderer?.dispose();
+  activeWordAnimator?.dispose();
+  performanceProfile?.dispose();
+  renderer?.dispose();
+  renderer = advancedRenderer = advancedStage = previewStage = layoutObserver = null;
+  timelineElement = viewport = lineTransition = activeWordAnimator = performanceProfile = null;
+  latestState = fallbackLine = advancedLineCache = null;
+  latestTimeline = EMPTY_TIMELINE;
+  rowElements = [];
+  countdownElement = countdownRow = null;
+  activeIndex = activeWordIndex = -1;
+  visibleLineRange = null;
+  countdownSignature = timelineSignature = settingsSignature = activeWordSignature = latestWordSignature = '';
+  lastLyricGeneration = null;
+  lastLyricSequence = manualFollowUntil = followResumeTimer = 0;
+  outputLayer = previewLayer = 'both';
+  basicVisible = true;
+  advancedVisible = false;
+  rawSettings = {};
+  currentDisplaySettings = resolveDesktopLyricSettings();
+}
+
 export const desktopLyricRenderer = Object.freeze({
   init,
   applySettings,
   updateLyricState,
+  updatePreviewState,
   updateLyricTimeline,
+  setPreviewLayer,
+  dispose,
 });

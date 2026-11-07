@@ -42,6 +42,25 @@ test('WeSing discovers the unique populated candidate and keeps a valid saved ch
   assert.equal(await discoverWeSingCachePath({ candidates: [empty] }), '');
 });
 
+test('WeSing cache presence stops after finding QRC data without statting the remaining songs', async (t) => {
+  const cachePath = cacheFixture(t, 'qrc', 'qrc');
+  const resDir = path.join(cachePath, 'WeSingDL', 'Res');
+  for (let index = 0; index < 250; index += 1) {
+    const mid = `cached-${index}`;
+    fs.mkdirSync(path.join(resDir, mid));
+    fs.writeFileSync(path.join(resDir, mid, `${mid}.qrc`), 'cached data');
+  }
+  const originalStat = fs.promises.stat;
+  let qrcStats = 0;
+  t.mock.method(fs.promises, 'stat', async function (filePath, ...args) {
+    if (path.extname(filePath) === '.qrc') qrcStats += 1;
+    return Reflect.apply(originalStat, this, [filePath, ...args]);
+  });
+
+  assert.equal(await hasWeSingCacheData(cachePath), true);
+  assert.ok(qrcStats < 125, `presence checked ${qrcStats} files in a 251-song cache`);
+});
+
 test('WeSing discovery only probes the configured profile locations and drive-root cache names', () => {
   const drivePaths = [...'CDEFGHIJKLMNOPQRSTUVWXYZ'].map((drive) => `${drive}:\\WeSingCache`);
   for (const userDirectory of ['C:\\Users\\Test User', 'E:\\用户资料\\小明']) {

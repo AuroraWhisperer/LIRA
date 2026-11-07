@@ -44,7 +44,8 @@ async function receiveDisplayUpdate(page, desktop) {
 
 function waitForDraft(page, matches) {
   return page.waitForResponse(async response => {
-    if (!response.url().endsWith('/api/component-preview')
+    // Renderer frames poll the same endpoint and can unload during updates.
+    if (response.frame() !== page.mainFrame() || !response.url().endsWith('/api/component-preview')
       || !['read', 'read-batch'].includes(response.request().postDataJSON()?.action)) return false;
     const { data } = await response.json();
     return (data?.updates || [data]).some(update => update?.state && matches(update.state.draft || {}));
@@ -529,7 +530,7 @@ test('canvas dragging retains a visible corner and negative coordinate edits sur
   await y.fill('-80');
   await y.press('Tab');
   const published = page.waitForResponse(async response => {
-    if (!response.url().endsWith('/api/component-preview')) return false;
+    if (response.frame() !== page.mainFrame() || !response.url().endsWith('/api/component-preview')) return false;
     const { data } = await response.json();
     return (data?.updates || [data]).some(update => update?.display?.result?.publishedVersion === 1);
   });

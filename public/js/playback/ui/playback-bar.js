@@ -302,13 +302,13 @@ export class PlaybackBar {
 
     const clearCacheBtn = document.getElementById('playbackClearCacheBtn');
     if (clearCacheBtn) clearCacheBtn.style.display = isWeSing ? 'none' : '';
-    const moreBtn = document.getElementById('playbackMoreBtn');
-    if (moreBtn) moreBtn.style.display = isWeSing ? 'none' : '';
     const healthBtn = document.getElementById('playbackHealthBtn');
     if (healthBtn) {
       // The 全民 K歌 panel carries its own 重新检测 button, so the header one is hidden there.
       healthBtn.textContent = '检查连接';
       healthBtn.style.display = isWeSing ? 'none' : '';
+      const message = healthState?.message || '检查音乐服务连接';
+      healthBtn.title = message + (healthState?.details ? ` (${healthState.details})` : '');
     }
 
     // 更新用户名显示
@@ -335,43 +335,6 @@ export class PlaybackBar {
         vipState.textContent = `Cookie ${authState.cookieCount || 0} 个，关键字段：${keys || '待确认'}，加密快照：${authState.encryptedSnapshotExists ? '已保存' : '未保存'}`;
       } else {
         vipState.textContent = '账号歌单和推荐将在音乐服务接入后显示';
-      }
-    }
-
-    // 更新音乐服务健康状态
-    const providerHealth = document.getElementById('playbackProviderHealth');
-    if (providerHealth) {
-      if (healthState) {
-        const message = healthState.message || `音乐服务状态：${healthState.status || (healthState.ok ? '正常' : '未知')}`;
-        const details = healthState.details ? ` (${healthState.details})` : '';
-        providerHealth.title = message + details;
-        providerHealth.setAttribute('aria-label', message + details);
-        providerHealth.textContent = isWeSing
-          ? healthState.ok
-            ? '缓存就绪'
-            : healthState.status === 'error'
-              ? '检测异常'
-              : healthState.platformDetected
-                ? '等待缓存'
-                : '等待全民 K 歌'
-          : healthState.ok
-            ? '搜索可用'
-            : '连接异常';
-
-        // 根据状态设置样式
-        providerHealth.classList.remove('error', 'success', 'warning');
-        if (healthState.ok) {
-          providerHealth.classList.add('success');
-        } else if (!isWeSing || healthState.status === 'error') {
-          providerHealth.classList.add('error');
-        } else {
-          providerHealth.classList.add('warning');
-        }
-      } else {
-        providerHealth.textContent = '等待检查';
-        providerHealth.title = '等待检查音乐服务状态';
-        providerHealth.setAttribute('aria-label', providerHealth.title);
-        providerHealth.classList.remove('error', 'success', 'warning');
       }
     }
 

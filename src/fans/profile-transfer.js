@@ -265,7 +265,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       throw new Error('恢复点预览已变化，请重新确认。');
     }
     const snapshotId = store.snapshot(scope, { ...backup(scope), reason: '恢复本机恢复点之前' }, now());
-    for (const profile of store.list(scope, { includeSuppressed: true })) store.remove(scope, profile.id, false);
+    store.removeAll(scope);
     // Restoring older data must not silently unblock an identity.
     for (const { records, reminders, ...profile } of value.profiles) {
       store.restoreProfile(scope, profile, identityKey(profile.identity), now());

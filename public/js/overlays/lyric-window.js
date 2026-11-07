@@ -8,13 +8,16 @@ import { createOverlaySocket } from './socket-client.js';
 let socketController = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-  desktopLyricRenderer.init();
+  desktopLyricRenderer.init({ layer: new URLSearchParams(location.search).get('layer') });
   if (mountSceneExtraClient('lyrics', {
     onConfig(config) {
       const resource = config.resourceStyle;
       const fontFamily = COMPONENT_RESOURCE_PRESETS[resource?.preset]?.fontFamily;
-      desktopLyricRenderer.applySettings(fontFamily && [fontFamily, `"${fontFamily}"`].includes(config.desktopLyricFontFamily)
-        ? { ...config, desktopLyricFontFamily: `${fontFamily}-${resource.id}` } : config);
+      const settings = { ...config };
+      for (const key of ['desktopLyricFontFamily', 'advancedLyricFontFamily']) {
+        if (fontFamily && [fontFamily, `"${fontFamily}"`].includes(config[key])) settings[key] = `${fontFamily}-${resource.id}`;
+      }
+      desktopLyricRenderer.applySettings(settings);
     },
     onData(data) {
       if (Object.hasOwn(data || {}, 'lyricTimeline')) {
@@ -22,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       desktopLyricRenderer.updateLyricState(data?.lyricState || { playing: false, lineText: '', words: [], currentMs: 0, status: 'idle' });
     },
+    onDispose: () => desktopLyricRenderer.dispose(),
   })) return;
   connectSocket();
   window.addEventListener('pagehide', disposeSocket, { once: true });
@@ -57,4 +61,5 @@ function connectSocket() {
 function disposeSocket() {
   socketController?.dispose();
   socketController = null;
+  desktopLyricRenderer.dispose();
 }

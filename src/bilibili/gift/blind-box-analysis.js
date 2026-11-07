@@ -28,7 +28,7 @@ function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } 
   boxName = cleanText(boxName);
   const nowDate = new Date();
   const source = resolveGiftSourceScope(context);
-  const revision = context.queryStore.getChangeToken?.();
+  const revision = context.queryStore.getChangeToken?.('blindBox');
   const dayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
   const dayEnd = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).getTime();
   const key = revision == null || source.kind === 'unavailable' ? null

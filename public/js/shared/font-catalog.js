@@ -14,6 +14,12 @@ export const SHARED_FONTS = Object.freeze([
   { id: 'gowun-dodum', family: 'Lira Gowun Dodum', label: 'Gowun Dodum · 韩文圆体', sample: '한글' },
   { id: 'noto-sans', family: 'Lira Noto Sans', label: 'Noto Sans · 多语种黑体', sample: 'Noto Sans' },
   { id: 'noto-serif-tibetan', family: 'Lira Noto Serif Tibetan', label: 'Noto Serif Tibetan · 藏文衬线', sample: 'བོད་ཡིག' },
+  { id: 'source-han-serif', family: 'Lira Sea Breeze Serif', label: '思源宋体 · 典雅宋体' },
+  { id: 'poppins', family: 'Stargazer Poppins', label: 'Poppins · 几何西文', sample: 'Poppins' },
+  { id: 'quicksand', family: 'Lira Quicksand', label: 'Quicksand · 圆润西文', sample: 'Quicksand' },
+  { id: 'montserrat', family: 'Gradient Montserrat', label: 'Montserrat · 现代西文', sample: 'Montserrat' },
+  { id: 'cinzel', family: 'Celestial Cinzel', label: 'Cinzel · 古典西文', sample: 'CINZEL' },
+  { id: 'mplus-rounded', family: 'Lira Rounded Mplus', label: 'M PLUS Rounded 1c · 日文圆体', sample: '丸文字' },
 ].map(font => Object.freeze({ ...font, value: `"${font.family}"` })));
 
 export function findSharedFont(value) {

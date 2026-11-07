@@ -25,9 +25,18 @@ for (const [libraryTag, aliases] of Object.entries(LIBRARY_TAG_ALIASES)) {
 function matchesLibraryTag(libraryTag, viewerTerm) {
   const normalizedLibraryTag = normalizeTag(libraryTag);
   const normalizedViewerTerm = normalizeTag(viewerTerm);
-  if (!normalizedLibraryTag || !normalizedViewerTerm) return false;
-  if (normalizedLibraryTag === normalizedViewerTerm) return true;
-  return LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm) === normalizedLibraryTag;
+  return matchesNormalizedTags(normalizedLibraryTag, normalizedViewerTerm,
+    LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm));
+}
+
+function createLibraryTagMatcher(viewerTerm) {
+  const normalizedViewerTerm = normalizeTag(viewerTerm);
+  const standardTag = LIBRARY_TAG_BY_VIEWER_ALIAS.get(normalizedViewerTerm);
+  return (libraryTag) => matchesNormalizedTags(normalizeTag(libraryTag), normalizedViewerTerm, standardTag);
+}
+
+function matchesNormalizedTags(libraryTag, viewerTerm, standardTag) {
+  return Boolean(libraryTag && viewerTerm) && (libraryTag === viewerTerm || libraryTag === standardTag);
 }
 
 function normalizeTag(value) {
@@ -37,4 +46,4 @@ function normalizeTag(value) {
     .toLocaleLowerCase('zh-Hans-CN');
 }
 
-module.exports = { matchesLibraryTag };
+module.exports = { matchesLibraryTag, createLibraryTagMatcher };

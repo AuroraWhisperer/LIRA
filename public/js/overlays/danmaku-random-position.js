@@ -25,7 +25,18 @@ export function findRandomDanmakuPosition(item, width, height, occupied, options
       || point.left + item.width + ITEM_GAP_PX <= box.left
       || point.top >= box.top + box.height + ITEM_GAP_PX
       || point.top + item.height + ITEM_GAP_PX <= box.top);
-  if (valid(item.entry.position)) return item.entry.position;
+  const anchorLeft = (width - item.width) / 2;
+  if (valid(item.entry.position) && (!item.anchor || Math.abs(item.entry.position.left - anchorLeft) < 1)) return item.entry.position;
+  if (item.anchor) {
+    const top = Math.min(inset + travelY, Math.max(inset, item.anchor === 'top' ? height * .07 : height * .9 - item.height));
+    for (const offset of [0, 1, -1, 2, -2]) {
+      const point = { left: anchorLeft, top: top + offset * (item.height + ITEM_GAP_PX) };
+      if (valid(point)) return point;
+    }
+    return undefined;
+  }
+  // A narrow component still needs room for a complete message. Existing rows stay put.
+  const clearCenter = options.clearCenter && width * .32 >= item.width + inset + ITEM_GAP_PX;
   const random = messageRandom(item.entry.item);
   const centerBias = ((options.centerBias ?? 1) - 1) / 49;
   const dispersion = ((options.dispersion ?? 1) - 1) / 49;
@@ -36,6 +47,8 @@ export function findRandomDanmakuPosition(item, width, height, occupied, options
     // Gumbel-max samples proportional to exp(logWeight), without exponent overflow.
     const noise = -Math.log(-Math.log(random()));
     if (!valid(point)) return;
+    if (clearCenter && point.left < width * .68 && point.left + item.width > width * .32
+      && point.top < height * .85 && point.top + item.height > height * .15) return;
     const x = point.left + item.width / 2;
     const y = point.top + item.height / 2;
     const centerDistance = (travelX > 0 ? ((x - width / 2) / (travelX / 2)) ** 2 : 0)

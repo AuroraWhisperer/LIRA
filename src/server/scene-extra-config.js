@@ -3,6 +3,7 @@
 const { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { getBackgroundAppearance } = require('../../public/js/shared/background-appearance.js');
 const { validateGiftDisplaySettings } = require('../bilibili/gift/display-settings');
+const { LYRIC_VISUAL_DEFAULTS, normalizeLyricVisualSetting } = require('../../public/js/shared/advanced-lyric-appearance.js');
 
 function normalizeSceneExtraConfig(type, config) {
   const fields = SCENE_EXTRA_COMPONENTS[type].fields;
@@ -12,6 +13,12 @@ function normalizeSceneExtraConfig(type, config) {
     || Object.keys(config).some((key) => !Object.hasOwn(fields, key))) throw invalid();
   const result = createSceneExtraDefaults(type);
   for (const [key, raw] of Object.entries(config)) {
+    if (type === 'lyrics' && Object.hasOwn(LYRIC_VISUAL_DEFAULTS, key)) {
+      const value = normalizeLyricVisualSetting(key, raw);
+      if (value === null) throw invalid();
+      result[key] = value;
+      continue;
+    }
     const field = fields[key];
     let value = raw;
     if (field.type === 'number') {

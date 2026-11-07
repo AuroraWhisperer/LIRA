@@ -63,7 +63,7 @@ function createView(root) {
   });
   milestones.append(track, collected, stages);
   root.replaceChildren(heading, milestones);
-  return { count, target, state, track, fill, entries };
+  return { count, target, state, track, fill, collected, entries };
 }
 
 export function renderHeartBoxCollection(root, data, { displayStyle = 'task', showRewards = true } = {}) {
@@ -81,6 +81,8 @@ export function renderHeartBoxCollection(root, data, { displayStyle = 'task', sh
   view.count.textContent = String(data.count);
   view.target.textContent = ` / ${data.target}`;
   view.state.textContent = data.status === 'ended' ? '收集已结束' : data.completed ? '全部解锁' : '收集中';
+  view.track.hidden = data.count === 0;
+  view.collected.hidden = data.count === 0;
   view.track.setAttribute('aria-valuemin', '0');
   view.track.setAttribute('aria-valuemax', '120');
   view.track.setAttribute('aria-valuenow', String(Math.min(data.count, 120)));

@@ -50,6 +50,13 @@ test('every clock and danmaku preset applies supported effects, preserves animat
     await send({ ...config, styleParameters: { [style]: groups } });
     if (type === 'danmaku') { await addMessages(); await frame.locator(selector).first().waitFor(); }
     assert.ok(await frame.locator('[style*="text-stroke"]').count(), `${type}/${style}: text target`);
+    if (type === 'danmaku' && style === 'stardust') {
+      const events = frame.locator('.stardust-event');
+      assert.ok(await events.count(), 'event labels are present');
+      assert.ok(await events.evaluateAll(nodes => nodes.every(node => node.style.webkitTextStroke.includes('1px'))),
+        'event labels share the text effect with messages and names');
+      assert.equal(await frame.locator('.stardust-ornament [style*="text-stroke"]').count(), 0);
+    }
     assert.ok(await frame.locator('[style*="--component-transform"]').count(), `${type}/${style}: transform target`);
     if (groups.innerShadow) assert.ok(await frame.locator('[style*="box-shadow"]').count(), `${type}/${style}: panel target`);
     if (type === 'danmaku' && style === 'window') {
@@ -68,6 +75,117 @@ test('every clock and danmaku preset applies supported effects, preserves animat
     if (style === 'moonlit-fan') assert.match(await frame.locator('.clock-moon-face').evaluate(node => getComputedStyle(node).filter), /drop-shadow/);
   }
   assert.deepEqual(errors, []);
+});
+
+test('Glass applies panel and text effects to every message while retaining rotation during live entry', { timeout: 15000 }, async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <body data-style="glass"><div class="danmaku-signal-stage" style="width:696px;height:900px">
+      <div id="danmakuFeed" class="draw-danmaku-feed"></div>
+    </div></body>` });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage({ viewport: { width: 720, height: 940 } });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const result = await page.evaluate(async () => {
+    const { createComponentStyleEffects } = await import('/js/overlays/component-style-effects.js');
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    applyStyleOptions(document, 'glass', {});
+    const effects = createComponentStyleEffects(document);
+    const feed = createDanmakuFeed(document.getElementById('danmakuFeed'), {
+      style: 'glass', offscreenViewports: 0, autoScroll: false, expireItems: false,
+    });
+    const timestamp = Date.now();
+    feed.render([
+      { kind: 'superchat', name: '留言观众', message: '完整留言', price: 30, timestamp },
+      { kind: 'gift', name: '礼物观众', giftName: '小花花', giftCount: 2, timestamp },
+      { name: '聊天观众', message: '正常弹幕', timestamp },
+    ]);
+    const panels = () => [...document.querySelectorAll('.glass-panel')];
+    const authoredBorder = getComputedStyle(panels()[0]).borderColor;
+    effects.update('danmaku', { style: 'glass', styleParameters: { glass: {
+      outline: { width: 3, color: '#22ff88', opacity: 100 },
+      innerShadow: { x: 0, y: 2, blur: 12, color: '#ff0000', opacity: 80 },
+      textOutline: { width: 1, color: '#000000', opacity: 100 },
+      transform: { rotateZ: 6 },
+    } } });
+    const panelEffects = panels().map(panel => ({ border: getComputedStyle(panel).borderColor,
+      shadow: getComputedStyle(panel).boxShadow }));
+    const strokes = [...document.querySelectorAll('.glass-time, .glass-event-label')]
+      .map(node => getComputedStyle(node).webkitTextStrokeWidth);
+    feed.append({ name: '新消息', message: '入场保留旋转', timestamp });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const newest = document.querySelector('.glass-item:last-child');
+    const entrance = newest.getAnimations().find(animation => animation.animationName === 'glassEntry');
+    entrance.pause();
+    entrance.currentTime = 700;
+    const duringEntry = new DOMMatrix(getComputedStyle(newest).transform).b;
+    const newBorder = getComputedStyle(newest.querySelector('.glass-panel')).borderColor;
+    effects.update('danmaku', { style: 'glass' });
+    const restored = panels().every(panel => getComputedStyle(panel).borderColor === authoredBorder);
+    const cleared = !document.querySelector('[style*="--component-transform"], [style*="text-stroke"]');
+    effects.dispose(); feed.destroy();
+    return { panelEffects, strokes, duringEntry, newBorder, restored, cleared };
+  });
+  assert.equal(result.panelEffects.length, 3);
+  for (const panel of result.panelEffects) {
+    assert.equal(panel.border, 'rgb(34, 255, 136)');
+    assert.match(panel.shadow, /rgba\(255, 0, 0, 0\.8\).*inset|inset.*rgba\(255, 0, 0, 0\.8\)/);
+  }
+  assert.ok(result.strokes.length >= 4 && result.strokes.every(width => width === '1px'));
+  assert.ok(Math.abs(result.duringEntry - Math.sin(6 * Math.PI / 180)) < 0.001,
+    'the entrance must compose with the configured rotation');
+  assert.equal(result.newBorder, 'rgb(34, 255, 136)');
+  assert.ok(result.restored && result.cleared, 'removing parameters restores the authored appearance');
+});
+
+test('dark moon text effects cover chat, room role and alert lettering without replaying messages', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <body data-style="dark-moon"><div id="danmakuFeed" class="draw-danmaku-feed" style="width:640px;height:900px"></div></body>` });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const result = await page.evaluate(async () => {
+    const { createComponentStyleEffects } = await import('/js/overlays/component-style-effects.js');
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    const feed = createDanmakuFeed(document.getElementById('danmakuFeed'), {
+      style: 'dark-moon', offscreenViewports: 0, autoScroll: false, expireItems: false,
+    });
+    feed.render([
+      { name: '观众', roomGuardLevel: 3, message: '完整聊天' },
+      { kind: 'gift', name: '航海家', giftGuardLevel: 3, giftCount: 1, giftTotalPrice: 198 },
+      { kind: 'superchat', name: '留言观众', message: '完整留言', price: 30 },
+    ]);
+    const cards = [...document.querySelectorAll('.dark-moon-item')];
+    const effects = createComponentStyleEffects(document);
+    effects.update('danmaku', { style: 'dark-moon', styleParameters: { 'dark-moon': {
+      textOutline: { width: 1.5, color: '#000000', opacity: 100 },
+    } } });
+    const roles = ['.dark-moon-name', '.dark-moon-copy', '.dark-moon-role', '.dark-moon-event-label', '.dark-moon-amount'];
+    const outlined = roles.every(selector => [...document.querySelectorAll(selector)]
+      .every(node => getComputedStyle(node).webkitTextStrokeWidth === '1.5px'));
+    feed.append({ name: '新观众', message: '追加消息也有描边' });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const newest = document.querySelector('.dark-moon-item:last-child');
+    const arriving = getComputedStyle(newest.querySelector('.dark-moon-copy')).webkitTextStrokeWidth;
+    effects.update('danmaku', { style: 'dark-moon' });
+    const cleared = roles.every(selector => [...document.querySelectorAll(selector)]
+      .every(node => getComputedStyle(node).webkitTextStrokeWidth === '0px'));
+    const retained = cards.every(node => node.isConnected && !node.hasAttribute('data-live-entry'));
+    effects.dispose(); feed.destroy();
+    return { outlined, arriving, cleared, retained };
+  });
+  assert.equal(result.outlined, true);
+  assert.equal(result.arriving, '1.5px');
+  assert.equal(result.cleared, true);
+  assert.equal(result.retained, true);
 });
 
 test('white balance, levels and Bloom affect native pixels and preserve transparency', { timeout: 20000 }, async t => {

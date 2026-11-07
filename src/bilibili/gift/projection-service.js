@@ -91,11 +91,10 @@ function createGiftProjectionService({ store, settings }, options = {}) {
       if (event.phase === 'progress') dispatch(row, 'progress');
     } else {
       store.updateProgress(row.id, capturedSourceId, gift, detectedAtMs);
-      row = readGift(row.id);
+      if (event.phase === 'progress') row = readGift(row.id);
     }
 
     if (event.phase === 'progress') return row;
-    store.updateProgress(row.id, capturedSourceId, gift, detectedAtMs);
     return finalizeImportedGift(row.id, detectedAtMs, importOptions);
   }
 

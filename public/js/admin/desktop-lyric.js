@@ -12,6 +12,8 @@ import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } 
 import { createLyricSourceControls } from './lyric-source-controls.js';
 import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.js';
 import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
+import { LYRIC_DISPLAY_FIELDS } from '../shared/advanced-lyric-appearance.js';
+import { createAdvancedLyricEditor } from './advanced-lyric-editor.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
@@ -23,6 +25,8 @@ export function createDesktopLyric({
   const { setValue, api, dangerConfirm } = utils;
   const lyricSourceControls = createLyricSourceControls({ api, state });
   let syncParameterLayout = () => {};
+  let advancedEditor = null;
+  let syncEditorMode = () => {};
   const CHECKBOX_KEYS = new Set([
     'desktopLyricStrokeEnabled',
     'desktopLyricShadowEnabled',
@@ -70,6 +74,46 @@ export function createDesktopLyric({
   function initDesktopLyricForm() {
     const form = document.getElementById('desktopLyricForm');
     if (!form) return;
+    advancedEditor = createAdvancedLyricEditor(document.getElementById('advancedLyricEditor'));
+    let editorMode = 'basic';
+    const modeTabs = [...document.querySelectorAll('#desktopLyricForm [data-lyric-editor]')];
+    const combinedPreview = document.getElementById('desktopLyricPreviewBoth');
+    syncEditorMode = () => {
+      for (const tab of modeTabs) {
+        const active = tab.dataset.lyricEditor === editorMode;
+        tab.setAttribute('aria-selected', String(active));
+        tab.tabIndex = active ? 0 : -1;
+        document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
+      }
+      if (editorMode === 'advanced') advancedEditor.activate();
+      document.getElementById('desktopLyricPage')?.classList.toggle('is-advanced', editorMode === 'advanced');
+      const both = combinedPreview?.checked;
+      preview.setPreviewLayer?.(both ? 'both' : editorMode);
+      const title = document.getElementById('desktopLyricPreviewHeading');
+      if (title) title.textContent = both ? '实际叠加预览' : editorMode === 'advanced' ? '高级样式预览' : '基础样式预览';
+      const basicEnabled = document.getElementById('desktopLyricEnabled')?.checked;
+      const advancedEnabled = document.getElementById('advancedLyricEnabled')?.checked;
+      const status = document.getElementById('desktopLyricPreviewLayerStatus');
+      if (status) status.textContent = both
+        ? basicEnabled && advancedEnabled ? '基础与高级歌词同时输出。'
+          : basicEnabled ? '当前仅输出基础歌词。' : advancedEnabled ? '当前仅输出高级歌词。' : '两种歌词均已关闭，直播画面不显示歌词。'
+        : (editorMode === 'basic' ? basicEnabled : advancedEnabled)
+          ? '当前样式已开启，修改会实时应用到直播画面。'
+          : '当前样式的直播输出已关闭，仍可在这里预览和编辑。';
+    };
+    modeTabs.forEach((tab, index) => {
+      const select = () => { editorMode = tab.dataset.lyricEditor; syncEditorMode(); };
+      tab.addEventListener('click', select);
+      tab.addEventListener('keydown', event => {
+        const next = event.key === 'ArrowRight' || event.key === 'ArrowLeft' ? 1 - index
+          : event.key === 'Home' ? 0 : event.key === 'End' ? 1 : -1;
+        if (next < 0) return;
+        event.preventDefault();
+        modeTabs[next].click();
+        modeTabs[next].focus();
+      });
+    });
+    combinedPreview?.addEventListener('change', syncEditorMode);
     const groups = document.getElementById('desktopLyricSettingGroups');
     if (groups) {
       const fields = new Map();
@@ -88,7 +132,7 @@ export function createDesktopLyric({
     const fontSelect = document.getElementById('desktopLyricFontFamily');
     ensureSavedFontOption(fontSelect, DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily);
     fontSelect.value = DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily;
-    preview.init(form);
+    preview.init(form, { readSettings: collectDesktopLyric });
 
     // Range ↔ Number 双向绑定
     if (forms.bindRangePair) {
@@ -179,17 +223,27 @@ export function createDesktopLyric({
       autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     });
 
-    form.addEventListener('input', () => { syncParameterLayout(); scheduleAutosave(); });
-    form.addEventListener('change', () => { syncParameterLayout(); scheduleAutosave(true); });
+    form.addEventListener('input', () => { syncParameterLayout(); syncEditorMode(); scheduleAutosave(); });
+    form.addEventListener('change', () => { syncParameterLayout(); syncEditorMode(); scheduleAutosave(true); });
     document.getElementById('desktopLyricResetBtn')?.addEventListener('click', async () => {
-      if (!await dangerConfirm({ title: '恢复直播歌词默认设置？',
-        message: '将覆盖已保存的歌词外观、显示行为和画面时间偏移，并立即应用。全民 K 歌的歌词源设置会保留。',
-        confirmLabel: '恢复默认设置' })) return;
+      if (!await dangerConfirm({ title: '恢复基础歌词默认设置？',
+        message: '将恢复基础歌词的外观、显示行为和共用时间偏移。高级歌词外观、显示开关和音乐来源设置会保留。',
+        confirmLabel: '恢复基础默认' })) return;
       loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, {
         includeWeSing: false,
+        includeAdvanced: false,
+        includeDisplay: false,
       });
       scheduleAutosave(true);
     });
+    document.getElementById('advancedLyricEditor')?.addEventListener('lyric:reset-advanced', async () => {
+      if (!await dangerConfirm({ title: '恢复高级歌词默认设置？',
+        message: '将恢复高级歌词的排版、配色和动效。已保存的搭配与显示开关会保留。',
+        confirmLabel: '恢复高级默认' })) return;
+      advancedEditor.reset();
+    });
+    syncEditorMode();
+    window.addEventListener('pagehide', () => advancedEditor?.dispose(), { once: true });
   }
 
   function selectedWeSingLyricSource() {
@@ -202,9 +256,14 @@ export function createDesktopLyric({
 
   function collectDesktopLyric() {
     const settings = {
+      ...advancedEditor?.read(),
       weSingLyricSource: selectedWeSingLyricSource(),
       weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch'),
     };
+    for (const [key, field] of Object.entries(LYRIC_DISPLAY_FIELDS)) {
+      const input = document.getElementById(key);
+      settings[key] = input ? String(input.checked) : String(field.default);
+    }
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       if (key === 'desktopLyricFallbackFontFamily') return;
       if (key === 'desktopLyricTextAlign') {
@@ -241,6 +300,13 @@ export function createDesktopLyric({
     if (!settings) return;
 
     if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
+    if (options.includeAdvanced !== false) advancedEditor?.load(settings);
+    if (options.includeDisplay !== false) {
+      for (const [key, field] of Object.entries(LYRIC_DISPLAY_FIELDS)) {
+        const input = document.getElementById(key);
+        if (input) input.checked = String(settings[key] ?? field.default) !== 'false';
+      }
+    }
     const karaokeMode = ['off', 'continuous', 'discrete'].includes(settings.desktopLyricKaraokeMode)
       ? settings.desktopLyricKaraokeMode
       : settings.desktopLyricKaraokeEnabled === 'false'
@@ -283,7 +349,8 @@ export function createDesktopLyric({
     forms.refreshParameterRanges?.();
     syncDesktopLyricKaraokeColorControls(settings);
     syncParameterLayout();
-    preview.applySettings(settings);
+    preview.applySettings({ ...settings, ...collectDesktopLyric() });
+    syncEditorMode();
   }
 
   function loadWeSingLyricSettings(settings) {

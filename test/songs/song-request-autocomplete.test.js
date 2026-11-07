@@ -2,7 +2,6 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const songService = require('../../src/music/song-service');
@@ -13,7 +12,9 @@ const { createSettingsStore } = require('../../src/storage/settings-store');
 const { songRequestReason } = require('../../src/bilibili/diagnostics');
 
 function createTestDatabases(prefix) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
+  const tempRoot = path.resolve(__dirname, '../../tmp/song-request-autocomplete');
+  fs.mkdirSync(tempRoot, { recursive: true });
+  const dataDir = fs.mkdtempSync(path.join(tempRoot, prefix));
   return {
     dataDir,
     databases: createDatabases({ dataDir }),
@@ -110,6 +111,55 @@ test('danmaku requests preserve the submitted name when multiple library songs m
     assert.equal(result.accepted, true);
     assert.equal(result.queueItem.song_name, '不醉');
     assert.equal(result.queueItem.song_id, null);
+  } finally {
+    closeTestDatabases(testContext);
+  }
+});
+
+test('prefix matching prefers an enabled title prefix without guessing between multiple prefixes', () => {
+  const testContext = createTestDatabases('prefix-match-');
+  const songStore = createSongStore(testContext.databases.songDb);
+  try {
+    songService.saveSong(songStore, { name: '如果你也听说' });
+    songService.saveSong(songStore, { name: '我曾听说' });
+    songService.saveSong(songStore, { name: '听说你', artist: '于冬然' });
+    songService.saveSong(songStore, { name: '听说再见', isEnabled: false });
+    songService.saveSong(songStore, { name: '100%真心' });
+    songService.saveSong(songStore, { name: '1000真心' });
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix').name, '听说你');
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '你也', 'prefix').name, '如果你也听说');
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '100%', 'prefix').name, '100%真心');
+    songService.saveSong(songStore, { name: '听说爱情回来过' });
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix'), null);
+    songService.saveSong(songStore, { name: '听说' });
+    assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix').name, '听说');
+  } finally {
+    closeTestDatabases(testContext);
+  }
+});
+
+test('changing the matching mode applies to the next request and preserves earlier queue entries', () => {
+  const testContext = createTestDatabases('prefix-mode-');
+  const settingsStore = createSettingsStore(testContext.databases.songDb);
+  try {
+    const services = createDomainServices({ db: testContext.databases, settingsStore });
+    services.songs.save({ name: '如果你也听说', artist: '张惠妹' });
+    const song = services.songs.save({ name: '听说你', artist: '于冬然' });
+    const request = { message: '点歌 听说', userName: '观众', uid: '123' };
+    const original = services.messages.handleDanmaku(request);
+    assert.equal(original.queueItem.song_name, '听说');
+    settingsStore.setSettings({ songRequestMatchMode: 'prefix', onlyFromLibrary: 'true' });
+    const completed = services.messages.handleDanmaku(request);
+    assert.equal(completed.accepted, true);
+    assert.equal(completed.queueItem.song_id, song.id);
+    assert.equal(completed.queueItem.song_name, '听说你');
+    assert.equal(completed.queueItem.artist, '于冬然');
+    assert.equal(testContext.databases.songDb.prepare('SELECT message FROM requests WHERE queue_id = ?')
+      .get(completed.queueItem.id).message, request.message);
+    settingsStore.setSetting('songRequestMatchMode', 'unique');
+    assert.equal(services.messages.handleDanmaku(request).code, 'SONG_NOT_IN_LIBRARY');
+    assert.equal(testContext.databases.songDb.prepare('SELECT song_name FROM queue WHERE id = ?')
+      .get(original.queueItem.id).song_name, '听说');
   } finally {
     closeTestDatabases(testContext);
   }

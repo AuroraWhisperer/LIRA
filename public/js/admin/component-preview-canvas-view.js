@@ -1,4 +1,4 @@
-import { isFloatingDanmakuStyle } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isFloatingDanmakuStyle } from '../shared/danmaku-style-options.js';
 import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
 import { createSceneDocumentModel } from './scene-document-model.js';
 import { mountSceneEditorStage } from './scene-editor-stage.js';
@@ -246,7 +246,9 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const height = Math.max(32, Math.min(defaultHeight * scale, document.canvas.height));
       const item = { id, type: component.id,
         name: name || `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
-        x: Math.round((document.canvas.width - width) / 2), y: Math.round((document.canvas.height - height) / 2),
+        x: Math.round((document.canvas.width - width) / 2),
+        y: component.id === 'danmaku' && DANMAKU_STYLE_OPTIONS[draft.style]?.layout === 'horizontal'
+          ? document.canvas.height - height : Math.round((document.canvas.height - height) / 2),
         width, height, visible: true, locked: false,
         appearance: config || component.sceneOnly ? { mode: 'independent', config: draft } : { mode: 'shared' } };
       document.items.push(item);
@@ -404,15 +406,16 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     const discardStates = [...states.filter(isDiscardTarget), ...sharedStates];
     discard.disabled = discardStates.some((state) => state.saving) || outputBusy
       || (!discardStates.some((state) => state.dirty || state.error) && !recoveryState?.pending);
-    const connected = !canvasController || canvasController.getState().loaded;
-    const hasScene = canvasController?.getState().presets?.length !== 0;
+    const canvasState = states.find(state => state.id === 'canvas');
+    const connected = !canvasController || canvasState.loaded;
+    const hasScene = canvasState?.presets?.length !== 0;
     discard.disabled ||= !connected;
     if (restore) restore.disabled = !connected || saving || outputBusy;
     library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
     canvasButton.disabled = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
     stage?.setEmptyMessage(hasScene ? '添加组件，开始编排直播画面。' : '暂无场景，请从顶部“场景操作”新建场景。');
     output?.render(connected && hasScene && !recoveryState?.pending && !outputBusy, saving);
-    presets?.render(outputBusy || Boolean(recoveryState?.pending));
+    presets?.render(outputBusy || Boolean(recoveryState?.pending), canvasState);
   }
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));
   subscriptions.push(sharedAppearance.subscribe(renderStatus));

@@ -8,6 +8,30 @@ const modulePromise = import(`data:text/javascript;base64,${Buffer.from(source).
 const item = (id, previousPosition) => ({ width: 120, height: 42, entry: { item: { id }, previousPosition } });
 const distance = (point, target) => Math.hypot(point.left + 60 - target.x, point.top + 21 - target.y);
 
+test('reserved center keeps ordinary messages outside it and narrow regions remain usable', async () => {
+  const { findRandomDanmakuPosition: position } = await modulePromise;
+  for (let index = 0; index < 100; index += 1) {
+    const point = position(item(`clear-${index}`), 1920, 1080, [], { clearCenter: true });
+    assert.ok(point.left + 120 <= 1920 * .32 || point.left >= 1920 * .68
+      || point.top + 42 <= 1080 * .15 || point.top >= 1080 * .85);
+  }
+  assert.ok(position(item('narrow'), 160, 120, [], { clearCenter: true }));
+});
+
+test('highlight anchors center events, avoid occupied messages and preserve a settled position', async () => {
+  const { findRandomDanmakuPosition: position } = await modulePromise;
+  const candidate = { ...item('highlight'), anchor: 'bottom' };
+  const bottom = position(candidate, 1920, 1080, []);
+  assert.equal(bottom.left + candidate.width / 2, 960);
+  assert.ok(bottom.top > 1080 / 2);
+  const top = position({ ...candidate, anchor: 'top' }, 1920, 1080, []);
+  assert.ok(top.top < 1080 / 2);
+  const next = position(candidate, 1920, 1080, [{ ...bottom, width: 120, height: 42 }]);
+  assert.ok(Math.abs(next.top - bottom.top) >= 52);
+  candidate.entry.position = next;
+  assert.equal(position(candidate, 1920, 1080, [], { clearCenter: true }), next);
+});
+
 test('center bias progressively reduces distance from center and the frequency of edge positions', async () => {
   const { findRandomDanmakuPosition: position } = await modulePromise;
   const totals = [0, 0, 0];

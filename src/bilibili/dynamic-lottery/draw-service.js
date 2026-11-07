@@ -39,12 +39,13 @@ function createDrawService({ store, drawStore, provider, getContext, clock, rand
       });
     }
     if (['completed', 'exhausted'].includes(round.status)) return;
+    const order = round.order;
     drawStore.setStatus(task, 'drawing', '', clock.nowMs());
     try {
-      for (let index = round.nextIndex; index < round.order.length; index += 1) {
+      for (let index = round.nextIndex; index < order.length; index += 1) {
         signal.throwIfAborted();
         assertSameContext(context, await getContext());
-        const uid = round.order[index];
+        const uid = order[index];
         const verification = task.rules.requireFollow
           ? await provider.readRelation(uid, signal)
           : {
@@ -66,6 +67,7 @@ function createDrawService({ store, drawStore, provider, getContext, clock, rand
           uid,
           verification,
           nowMs: clock.nowMs(),
+          includeOrder: false,
         });
         if (round.status === 'completed') return;
       }

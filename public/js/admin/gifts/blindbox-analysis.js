@@ -26,6 +26,7 @@ export const giftAnalysis = (() => {
     requestId: 0,
     controller: null,
     refreshTimer: null,
+    refreshPending: false,
     returnFocus: null,
   };
   let datePicker;
@@ -98,7 +99,10 @@ export const giftAnalysis = (() => {
     if (!workspace || !state.open) return;
     state.open = false;
     state.controller?.abort();
+    state.controller = null;
     clearTimeout(state.refreshTimer);
+    state.refreshTimer = null;
+    state.refreshPending = false;
     datePicker.close();
     workspace.hidden = true;
     document.body.classList.remove('blind-analysis-open');
@@ -107,12 +111,23 @@ export const giftAnalysis = (() => {
 
   function refreshIfOpen() {
     if (!state.open) return;
-    clearTimeout(state.refreshTimer);
-    state.refreshTimer = setTimeout(() => load({ quiet: true }), REFRESH_DELAY_MS);
+    state.refreshPending = true;
+    scheduleRefresh();
+  }
+
+  function scheduleRefresh() {
+    if (!state.open || !state.refreshPending || state.controller || state.refreshTimer !== null) return;
+    state.refreshTimer = setTimeout(() => {
+      state.refreshTimer = null;
+      void load({ quiet: true });
+    }, REFRESH_DELAY_MS);
   }
 
   async function load({ quiet = false } = {}) {
     if (!state.open) return;
+    clearTimeout(state.refreshTimer);
+    state.refreshTimer = null;
+    state.refreshPending = false;
     const requestId = ++state.requestId;
     state.controller?.abort();
     state.controller = new AbortController();
@@ -139,8 +154,13 @@ export const giftAnalysis = (() => {
       if (requestId !== state.requestId || !state.open) return;
       render(payload.data);
     } catch (error) {
-      if (error.name === 'AbortError' || requestId !== state.requestId) return;
+      if (error.name === 'AbortError' || requestId !== state.requestId || !state.open) return;
       renderError(error.message || '数据读取失败');
+    } finally {
+      if (requestId === state.requestId) {
+        state.controller = null;
+        scheduleRefresh();
+      }
     }
   }
 

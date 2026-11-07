@@ -162,6 +162,21 @@ test('maps viewer aliases to real library tags while preserving AND filtering', 
   );
 });
 
+test('random tag conditions are normalized once per scope instead of per library candidate', (t) => {
+  const songs = Array.from({ length: 100 }, (_, index) => ({
+    name: `Song ${index}`, tags: '怀旧,抒情,治愈,小甜歌,影视OST',
+  }));
+  const original = String.prototype.toLocaleLowerCase;
+  let queryNormalizations = 0;
+  t.mock.method(String.prototype, 'toLocaleLowerCase', function (...args) {
+    if (['老歌', '情歌', 'OST'].includes(String(this))) queryNormalizations += 1;
+    return Reflect.apply(original, this, args);
+  });
+
+  assert.equal(filterRandomSongCandidates(songs, '老歌+情歌+OST').length, songs.length);
+  assert.ok(queryNormalizations < 20, `three query terms were normalized ${queryNormalizations} times`);
+});
+
 test('describes direct and alias terms against the song library', () => {
   const description = describeRandomSongScope(SONGS, '情歌+摇滚');
   assert.deepEqual(description.terms, ['情歌', '摇滚']);

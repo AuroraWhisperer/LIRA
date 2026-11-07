@@ -26,6 +26,7 @@ async function run() {
   const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
   const { createSceneStore } = require('../../src/storage/scene-store');
   const { createSceneService } = require('../../src/scenes/scene-service');
+  const { createCloudDisplayBuffer } = require('../../src/scenes/cloud-display-buffer');
   const { readSceneSharedAppearances } = require('../../src/server/scene-shared-appearance');
   const { readNowPlayingConfig } = require('../../src/server/now-playing-settings');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
@@ -80,13 +81,15 @@ async function run() {
     global.canvasTest.writes.push(input.config);
     return result;
   } };
+  const display = createCloudDisplayBuffer({ getOwner: () => ({ scope: 'canvas-test', epoch: 1 }) });
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
     getSharedAppearances: items => readSceneSharedAppearances({ settings: { get: () => openingSettings },
       system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: appearance.getSettings() }) }, items),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
-    ...createSceneComponentPorts({ getState, getDanmakuConfig: appearance.getSettings }) });
+    ...createSceneComponentPorts({ getState, cloud: display, getDanmakuConfig: appearance.getSettings }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
+    display,
     openingSettings,
     overtime,
     output: () => scenes.getOutput({ ...scenes.getSource(scenes.list()[0].document.id), version: 0 }),

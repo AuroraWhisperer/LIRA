@@ -11,6 +11,7 @@ import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { createOverlaySocket } from './socket-client.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { applyStyleOptions } from './danmaku-style-application.js';
+import { syncCelestialBackdrop } from './danmaku-celestial-horizontal.js';
 
 ('use strict');
 
@@ -51,6 +52,7 @@ let currentMinGiftAmount = 0;
 let currentSpeedPixelsPerSecond = 120;
 let currentFloatingDispersion = 50;
 let currentSinkingOptions = {};
+let currentStargazerOptions = {};
 let currentRandomPlacement = {};
 let currentRandomExpiration = {};
 let effectConfig = {};
@@ -120,7 +122,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sampleContentKey = nextContentKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
-          ['mist', 'comic', 'window', 'sinking'].includes(style) || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
+          ['mist', 'comic', 'window', 'sinking'].includes(style) || DANMAKU_STYLE_OPTIONS[style]?.fullscreenSuperchat
+          || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
         if (styleParametersFor(config).showEntryMessages !== false) samples.push({ ...DANMAKU_PREVIEW_WELCOME });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);
@@ -128,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
         applyItems([]);
         let remainingSamples = [];
         // Introduce each theme's distinctive message forms before the shuffled loop.
-        const openingSamples = style === 'mist'
+        const openingSamples = ['mist', 'dark-moon'].includes(style)
           ? [samples.find((item) => item.id === 'preview-chat-everyday-1'),
             samples.find((item) => item.roomGuardLevel === 3),
             samples.find((item) => item.kind === 'gift' && !item.giftGuardLevel),
@@ -325,14 +328,24 @@ function createOverlayFeed(style, durationSeconds) {
       return bilibiliAvatarSource(value);
     },
     getGuardLabel: guardLabel,
-    showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch'].includes(style) && !isFloatingDanmakuStyle(style),
+    showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch', 'stardust'].includes(style) && !isFloatingDanmakuStyle(style),
     showGiftTotal: ['mist', 'comic', 'harbor', 'transparent', 'identity', 'whiteframe', 'cream', 'moonlit', 'starlight', 'sketch', 'prismatic', 'snowfox', 'ripploid', 'twitter', 'spooky', 'aurora'].includes(style),
   };
+  if (style === 'stargazer') Object.assign(options, {
+    flowAxis: currentStargazerOptions.stargazerLayout === 'horizontal' ? 'horizontal' : 'vertical',
+    maxItems: currentStargazerOptions.stargazerMaxMessages,
+    expireFixedItems: true,
+    itemLifetimeMs: currentStargazerOptions.stargazerHideSeconds * 1000,
+  });
   if (isFloatingDanmakuStyle(style)) {
+    // Floating cards keep independent travel; horizontal bars use the shared ordered feed.
     options.layout = 'floating';
     options.speedPixelsPerSecond = currentSpeedPixelsPerSecond;
     options.floatingDispersion = currentFloatingDispersion;
   }
+  if (DANMAKU_STYLE_OPTIONS[style]?.layout === 'horizontal') Object.assign(options, {
+    layout: 'horizontal', flowAxis: 'horizontal', maxItems: 15, fitWidth: false,
+  });
   if (isRandomDanmakuStyle(style)) {
     options.layout = 'fullscreen-random';
     Object.assign(options, currentRandomPlacement, currentRandomExpiration);
@@ -363,24 +376,30 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   const duration = appearance.durationSeconds ?? legacyDuration;
   const changed =
     style !== currentOverlayStyle ||
+    (style === 'stargazer' && ['stargazerLayout', 'stargazerMaxMessages', 'stargazerHideSeconds']
+      .some(key => appearance[key] !== currentStargazerOptions[key])) ||
     appearance.giftImage !== currentGiftImage ||
     (appearance.minGiftAmount || 0) !== currentMinGiftAmount;
   currentOverlayStyle = style;
   currentFullscreenDurationSeconds = duration;
   currentGiftImage = appearance.giftImage;
   currentMinGiftAmount = appearance.minGiftAmount || 0;
-  currentRandomPlacement = { centerBias: appearance.centerBias, dispersion: appearance.dispersion };
+  currentRandomPlacement = { centerBias: appearance.centerBias, dispersion: appearance.dispersion,
+    clearCenter: style === 'stardust' && appearance.stardustKeepCenter === 'on' };
   feed?.setRandomPlacement?.(currentRandomPlacement);
-  currentRandomExpiration = { itemLifetimeMs: duration * 1000,
+  currentRandomExpiration = { itemLifetimeMs: DANMAKU_STYLE_OPTIONS[style]?.fixedLifetimeMs ?? duration * 1000,
     exitAnimation: appearance.exitAnimation, exitDurationMs: appearance.exitDurationMs };
   feed?.setExpirationOptions?.(currentRandomExpiration);
   currentSpeedPixelsPerSecond = appearance.speedPixelsPerSecond || 120;
   currentFloatingDispersion = appearance.floatingDispersion ?? 50;
   currentSinkingOptions = appearance;
+  currentStargazerOptions = appearance;
+  if (style === 'stargazer') feed?.setExpirationOptions?.({ itemLifetimeMs: appearance.stargazerHideSeconds * 1000 });
   if (style === 'sinking') feed?.setSinkingOptions?.(currentSinkingOptions);
   if (isFloatingDanmakuStyle(style)) feed?.setFloatingDispersion?.(currentFloatingDispersion);
   if (isFloatingDanmakuStyle(style)) feed?.setSpeedPixelsPerSecond?.(currentSpeedPixelsPerSecond);
   document.body.dataset.style = style;
+  syncCelestialBackdrop(document, style === 'celestial-horizontal');
   if (style === 'spooky') applySpookyColorFallback(document);
   if (!feed || changed || refreshPreview) createOverlayFeed(style, duration);
   if (!isSceneComponent() && params.get('source') !== 'component') syncTwitterProfile();

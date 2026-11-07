@@ -17,6 +17,7 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.edgeFade = options.edgeFade || 'none';
   document.body.dataset.entranceAnimation = options.entranceAnimation || 'fade';
   document.body.dataset.entranceDurationMs = String(options.entranceDurationMs || 200);
+  document.body.dataset.seaBreezeAlign = options.seaBreezeAlign || 'center';
   document.body.dataset.floatingEdgeFade = options.floatingEdgeFade || 'none';
   document.body.dataset.auroraEntrance = options.auroraEntrance || 'layered';
   document.body.dataset.startrailEntrance = options.startrailEntrance || 'spark';
@@ -36,7 +37,37 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.windowControls = options.windowControls || 'show';
   document.body.dataset.windowEntrance = options.windowEntrance || 'mixed';
   document.body.dataset.windowEntranceMs = String(options.windowEntranceMs || 460);
+  document.body.dataset.stardustEntrance = options.stardustEntrance || 'on';
+  document.body.dataset.stardustNicknames = options.stardustNicknames || 'show';
+  document.body.dataset.stardustGiftThreshold = String(options.stardustGiftThreshold ?? .01);
+  document.body.dataset.stardustSwapAnchors = options.stardustSwapAnchors || 'off';
+  for (const key of ['stargazerPalette', 'stargazerLayout', 'stargazerAlign', 'stargazerFrame', 'stargazerPerspective', 'stargazerGradient']) {
+    document.body.dataset[key] = options[key] || '';
+  }
+  for (const key of ['gradientPalette', 'gradientUnderline', 'glassBubbleReveal', 'glassBubbleSweep',
+    'celestialStarDensity', 'celestialStarShape', 'celestialSeparator', 'glassTime', 'glassDensity',
+    'darkMoonPalette', 'darkMoonSparks', 'wireframeOrbit', 'wireframeEntrance']) {
+    document.body.dataset[key] = options[key] || '';
+  }
   const root = document.documentElement.style;
+  root.setProperty('--gradient-cycle', `${options.gradientCycleSeconds ?? 10}s`);
+  root.setProperty('--glass-bubble-highlight', String((options.glassBubbleHighlight ?? 100) / 100));
+  root.setProperty('--celestial-nebula-opacity', String((options.celestialNebulaOpacity ?? 30) / 100));
+  root.setProperty('--glass-glint-intensity', String((options.glassGlintIntensity ?? 100) / 100));
+  root.setProperty('--moon-ring-size', String((options.darkMoonRingSize ?? 100) / 100));
+  root.setProperty('--wireframe-fade-length', `${options.wireframeFadeLength ?? 100}%`);
+  root.setProperty('--sea-breeze-reflection-opacity', String((options.seaBreezeReflectionOpacity ?? 28) / 100));
+  root.setProperty('--sea-breeze-reflection-length', String((options.seaBreezeReflectionLength ?? 130) / 100));
+  root.setProperty('--sea-breeze-reflection-gap', `${options.seaBreezeReflectionGap ?? -9}px`);
+  document.body.dataset.seaBreezeReflection = options.seaBreezeReflectionOpacity === 0 || options.seaBreezeReflectionLength === 0 ? 'off' : 'on';
+  document.body.dataset.glassBubbleTypingSpeed = String(options.glassBubbleTypingSpeed ?? 26);
+  document.body.dataset.wireframeEntranceMs = String(options.wireframeEntranceMs ?? 700);
+  root.setProperty('--stargazer-color', options.stargazerColor || '#c04efe');
+  root.setProperty('--stargazer-width', `${options.stargazerWidth ?? 320}px`);
+  root.setProperty('--stargazer-gap', `${options.stargazerGap ?? 24}px`);
+  root.setProperty('--stargazer-angle', `${(options.stargazerPerspective === 'left' ? -1 : 1) * (options.stargazerAngle ?? 6)}deg`);
+  root.setProperty('--stargazer-glow', `${options.stargazerGlow ?? 8}px`);
+  root.setProperty('--stargazer-gradient', `${options.stargazerGradientOpacity ?? 40}%`);
   root.setProperty('--window-width', `${options.windowWidth ?? 340}px`);
   root.setProperty('--window-radius', `${options.windowRadius ?? 22}px`);
   root.setProperty('--danmaku-floating-edge-size', `${options.floatingEdgeFadeSize ?? 28}px`);

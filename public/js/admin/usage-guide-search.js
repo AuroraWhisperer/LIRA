@@ -9,6 +9,7 @@ function buildSearchIndex(panel) {
       /^\d+\s*/,
       '',
     );
+    const sectionTitleLower = sectionTitle.toLowerCase();
     const targets = [
       section,
       ...section.querySelectorAll(':scope > p, :scope > h4, article, details, .usage-guide-steps > li'),
@@ -24,7 +25,18 @@ function buildSearchIndex(panel) {
       const body = target === section ? '' : target.textContent;
       let text = normalizeText(body);
       if (text.startsWith(title)) text = text.slice(title.length).trim();
-      return { target, sectionId: section.id, sectionTitle, title, text };
+      const titleLower = heading ? title.toLowerCase() : sectionTitleLower;
+      const textLower = text.toLowerCase();
+      return {
+        target,
+        sectionId: section.id,
+        sectionTitle,
+        title,
+        text,
+        searchText: `${sectionTitleLower} ${titleLower} ${textLower}`,
+        titleLower,
+        textLower,
+      };
     });
   });
 }
@@ -97,13 +109,10 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
     entries ??= buildSearchIndex(panel);
     const terms = [...new Set(query.split(' '))];
     const matches = entries
-      .filter((entry) => {
-        const text = `${entry.sectionTitle} ${entry.title} ${entry.text}`.toLowerCase();
-        return terms.every((term) => text.includes(term));
-      })
+      .filter((entry) => terms.every((term) => entry.searchText.includes(term)))
       .sort((a, b) => {
         const score = (entry) =>
-          terms.reduce((total, term) => total + (entry.title.toLowerCase().includes(term) ? 1 : 0), 0);
+          terms.reduce((total, term) => total + (entry.titleLower.includes(term) ? 1 : 0), 0);
         return score(b) - score(a);
       });
     status.textContent = matches.length
@@ -129,7 +138,7 @@ export function initUsageGuideSearch(panel, navigateToTarget) {
       if (entry.text) {
         const snippet = document.createElement('span');
         snippet.className = 'usage-guide-search-snippet';
-        const positions = terms.map((term) => entry.text.toLowerCase().indexOf(term)).filter((index) => index >= 0);
+        const positions = terms.map((term) => entry.textLower.indexOf(term)).filter((index) => index >= 0);
         const start = Math.max(0, (positions.length ? Math.min(...positions) : 0) - 24);
         const excerpt = `${start ? '…' : ''}${entry.text.slice(start, start + 100)}${entry.text.length > start + 100 ? '…' : ''}`;
         appendHighlightedText(snippet, excerpt, terms);

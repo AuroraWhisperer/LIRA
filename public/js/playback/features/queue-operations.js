@@ -48,10 +48,9 @@ export function createQueueOperations(deps) {
   }
 
   function jumpToPlaylistTrack(index, playPlaybackTrack) {
-    const track = queueManager.jumpToPlaylistTrack(index);
+    const track = playbackState.normalQueueTracks?.[index];
     if (!track) return;
-    savePlaybackState();
-    playPlaybackTrack(track, { origin: 'normal' });
+    playPlaybackTrack(track, { origin: 'normal', playlistIndex: index });
   }
   return {
     startPlaybackCollection,

@@ -73,7 +73,9 @@ function createDomainServices(options) {
     save: (input) => songService.saveSong(songStore, input),
     list: (options) => songService.listSongs(songStore, options),
     find: (songName, artist) => songService.findSong(songStore, songName, artist),
-    findUniqueNameMatch: (songName) => songService.findUniqueSongNameMatch(songStore, songName),
+    findUniqueNameMatch: (songName) => songService.findUniqueSongNameMatch(
+      songStore, songName, settingsStore.getSettings().songRequestMatchMode,
+    ),
     listCategories: () => songService.listCategories(songStore),
     listTags: () => songService.listTags(songStore),
     ensureCategory: (name) => songService.ensureCategory(songStore, name),

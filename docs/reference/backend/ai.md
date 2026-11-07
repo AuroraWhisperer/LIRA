@@ -306,7 +306,7 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 
 AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 捕获当前房间、监听代次、认证 provider、账号操作代次和当前 UID。身份读取只发生于已接受的 AI 任务；读取失败按会话失效处理。生成、排队、限流等待、分段发送、送达确认与重试均检查同一会话；切房、退出或账号操作使旧任务取消，不写入成功对话上下文，也不记普通交付失败。新任务重新捕获当前身份，账号切换后不依赖旧 authCache 的 UID。发送前刷新身份，已发出的请求无法撤回，但后续分段和重试会停止。手动发送保持原有行为。回归见 [ai-assistant-session.test.js](../../../test/ai/ai-assistant-session.test.js) 和 [danmaku-sender-session.test.js](../../../test/danmaku/danmaku-sender-session.test.js)。
 
-直播间每条入站弹幕都经 `aiDanmakuDeliveryVerifier.observe(danmaku)` 缓冲([server.js:614](../../../src/server.js#L614))。`waitForDelivery`([danmaku-delivery-verifier.js:22-42](../../../src/ai/danmaku-delivery-verifier.js#L22-L42))等待本次发送的**全部消息**在房间弹幕流中出现:
+直播间每条入站弹幕由 [bilibili-client.js](../../../src/server/bilibili-client.js) 交给 `aiDanmakuDeliveryVerifier.observe(danmaku)` 缓冲。[danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js) 的 `waitForDelivery` 等待本次发送的**全部消息**在房间弹幕流中出现。每个 waiter 注册时匹配一次已有缓冲，后续只检查新到事件；已匹配状态和事件消费标记仍由原 waiter 与共享缓冲维护，不反复扫描历史:
 
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。

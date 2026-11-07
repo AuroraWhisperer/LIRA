@@ -12,6 +12,46 @@ const publicRoot = path.resolve(__dirname, '../../public');
 const appearanceHtml = fs.readFileSync(path.join(publicRoot, 'pages/admin/playback/appearance.html'), 'utf8');
 const playerHtml = fs.readFileSync(path.join(publicRoot, 'pages/admin/playback/fullscreen.html'), 'utf8');
 
+test('failed fullscreen artwork is not retried by progress renders and a changed URL can recover', async t => {
+  const browser = openBrowser();
+  t.after(() => browser.close());
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html><meta charset="utf-8">${playerHtml}` });
+  t.after(() => fixture.close());
+  const page = await browser.newPage();
+  let failedRequests = 0;
+  await page.route('**/unavailable-cover.png', route => {
+    failedRequests++;
+    return route.fulfill({ status: 404, body: '' });
+  });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { FullscreenPlayer } = await import('/js/playback/ui/fullscreen.js');
+    window.coverPlayer = new FullscreenPlayer();
+    window.coverPlayer.init();
+    window.coverTrack = { title: '封面测试', artists: [], coverUrl: new URL('/unavailable-cover.png', location.href).href };
+    window.coverPlayer.render(window.coverTrack, { paused: false });
+  });
+  await page.waitForFunction(() => !document.querySelector('#playerFsArt img'));
+  await page.evaluate(() => {
+    for (let index = 0; index < 20; index++) window.coverPlayer.render(window.coverTrack, { paused: false });
+  });
+  await page.waitForFunction(() => !document.querySelector('#playerFsArt img'));
+  assert.equal(failedRequests, 1);
+  const recovered = await page.evaluate(async () => {
+    window.coverTrack.coverUrl = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="1" height="1"></svg>';
+    window.coverPlayer.render(window.coverTrack, { paused: false });
+    const image = document.querySelector('#playerFsArt img');
+    await image.decode();
+    window.coverPlayer.render(window.coverTrack, { paused: false });
+    return { sameImage: image === document.querySelector('#playerFsArt img'),
+      hasImage: document.getElementById('playerFsArt').classList.contains('has-image') };
+  });
+  assert.equal(recovered.sameImage, true);
+  assert.equal(recovered.hasImage, true);
+});
+
 test('player appearance preview follows playback while respecting rotation and cover settings', async t => {
   const browser = openBrowser();
   t.after(() => browser.close());

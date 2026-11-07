@@ -1,0 +1,196 @@
+/* 郁香海风: small identity labels, Song-style lettering and a fading reflection. */
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) {
+  --danmaku-enter-animation: seaBreezeEntry 800ms linear;
+  --danmaku-move-base-ms: 180;
+  --danmaku-move-max-ms: 360;
+  --danmaku-move-curve: .25, .1, .25, 1;
+  --sea-breeze-align: center;
+  --sea-breeze-justify: center;
+  --sea-breeze-reflection-height: calc(var(--danmaku-font-size) * var(--sea-breeze-reflection-length, 1.3));
+  --sea-breeze-font: 'Times New Roman', 'Lira Sea Breeze Serif', SimSun, serif;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random'])[data-custom-font='true'] {
+  --sea-breeze-font: var(--danmaku-custom-font);
+}
+body[data-style='sea-breeze'][data-sea-breeze-align='left'] {
+  --sea-breeze-align: left;
+  --sea-breeze-justify: flex-start;
+}
+body[data-style='sea-breeze'][data-sea-breeze-align='right'] {
+  --sea-breeze-align: right;
+  --sea-breeze-justify: flex-end;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .danmaku-signal-stage {
+  display: block;
+  padding: 0;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .danmaku-signal-header { display: none; }
+body[data-style='sea-breeze'] .draw-danmaku-feed {
+  gap: 16px;
+  padding: 4px 6px;
+  align-items: stretch;
+}
+body[data-style='sea-breeze-random'] .draw-danmaku-feed {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  padding: 0;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .draw-danmaku-item.sea-breeze-item {
+  position: relative;
+  display: block;
+  grid-template: none;
+  flex-shrink: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  min-height: 0;
+  margin: 0;
+  padding: 0 0 max(38px, calc(var(--sea-breeze-reflection-height) + var(--sea-breeze-reflection-gap, -9px)));
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  overflow: visible;
+  zoom: 1;
+  color: var(--danmaku-text-color, #ffffff);
+  font: 400 30px/1.2 var(--sea-breeze-font);
+  letter-spacing: 0;
+  text-align: var(--sea-breeze-align);
+  text-shadow: 0 1px 2px rgb(63 38 95 / 65%);
+  animation: none;
+}
+body[data-style='sea-breeze-random'] .draw-danmaku-item.sea-breeze-item {
+  position: absolute;
+  width: max-content;
+  max-width: min(calc(100% - 32px), 16em);
+  visibility: hidden;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item::before,
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item::after,
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-surface::before,
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-surface::after { display: none; }
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item .sea-breeze-surface {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-shadow: inherit;
+  -webkit-box-reflect: below var(--sea-breeze-reflection-gap, -9px) linear-gradient(transparent calc(100% - var(--sea-breeze-reflection-height)), rgb(255 255 255 / var(--sea-breeze-reflection-opacity, .28)));
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random'])[data-sea-breeze-reflection='off'] .sea-breeze-item { padding-bottom: 0; }
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random'])[data-sea-breeze-reflection='off'] .sea-breeze-surface { -webkit-box-reflect: initial; }
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: var(--sea-breeze-justify);
+  gap: 4px;
+  min-width: 0;
+  padding-bottom: 6px;
+  font: 400 12px/1.15 var(--sea-breeze-font);
+}
+.sea-breeze-role,
+.sea-breeze-medal {
+  display: inline-block;
+  max-width: 100%;
+  padding: 0 2px;
+  border: 1px solid #8d8bc5;
+  border-radius: 0;
+  overflow-wrap: anywhere;
+  color: #f5f0ff;
+  background: #9a97de;
+  text-shadow: 0 1px 1px rgb(71 55 103 / 55%);
+}
+.sea-breeze-medal { color: var(--sea-breeze-medal-color, #8d79ad); background: #faf5ff; text-shadow: none; }
+[data-sea-breeze-role='captain'] .sea-breeze-role { background: #85bed5; }
+[data-sea-breeze-role='admiral'] .sea-breeze-role { background: #bc89de; }
+[data-sea-breeze-role='governor'] .sea-breeze-role { background: #eb849c; }
+[data-sea-breeze-role='streamer'] .sea-breeze-role { background: #d895ce; }
+[data-sea-breeze-role='gift'] .sea-breeze-role { background: #dcc19b; }
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item .sea-breeze-name,
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item .sea-breeze-name strong {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: 26px;
+  text-align: inherit;
+  text-shadow: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item .sea-breeze-copy {
+  display: block;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-size: var(--danmaku-font-size);
+  line-height: 1.22;
+  text-align: inherit;
+  text-shadow: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.sea-breeze-amount {
+  display: block;
+  min-width: 0;
+  font-size: 20px;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .draw-danmaku-emote {
+  display: inline-block;
+  width: auto;
+  height: 1.25em;
+  max-width: 100%;
+  margin: 0 .08em;
+  vertical-align: middle;
+  object-fit: contain;
+}
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .is-emote-only .draw-danmaku-emote { height: 1.6em; }
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item[data-live-entry] {
+  animation: seaBreezeEntry var(--random-enter-duration, 800ms) linear;
+}
+.sea-breeze-item[data-live-entry] .sea-breeze-tags {
+  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .5) ease-out backwards;
+}
+.sea-breeze-item[data-live-entry] .sea-breeze-name {
+  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .6) ease-out
+    calc(var(--random-enter-duration, 800ms) * .1) backwards;
+}
+.sea-breeze-item[data-live-entry] .sea-breeze-copy {
+  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .65) ease-out
+    calc(var(--random-enter-duration, 800ms) * .2) backwards;
+}
+.sea-breeze-item[data-live-entry] .sea-breeze-amount {
+  animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .6) ease-out
+    calc(var(--random-enter-duration, 800ms) * .35) backwards;
+}
+.sea-breeze-item[data-entrance-animation='none'] :is(.sea-breeze-tags, .sea-breeze-name, .sea-breeze-copy, .sea-breeze-amount) { animation: none; }
+body[data-style] .sea-breeze-item[data-live-entry][data-entrance-animation='none'] { animation: none; }
+@keyframes seaBreezeEntry {
+  from { --sea-breeze-entered: 0; }
+  to { --sea-breeze-entered: 1; }
+}
+@keyframes seaBreezeReveal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sea-breeze-item[data-live-entry],
+  .sea-breeze-item[data-live-entry] :is(.sea-breeze-tags, .sea-breeze-name, .sea-breeze-copy, .sea-breeze-amount) { animation: none !important; }
+}

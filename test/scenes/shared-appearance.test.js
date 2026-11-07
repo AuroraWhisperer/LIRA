@@ -26,6 +26,52 @@ function context(t) {
     settings: { defaults: DEFAULT_SETTINGS, get: () => values, setMany: patch => Object.assign(values, patch) } };
 }
 
+test('lyric layers share visual settings while retaining their own output filter', t => {
+  const ctx = context(t);
+  const basic = normalizeSceneConfig('lyrics', { lyricLayer: 'basic' });
+  const advanced = normalizeSceneConfig('lyrics', { lyricLayer: 'advanced' });
+  const owner = createSceneSharedAppearance(ctx);
+  owner.patch('lyrics', advanced, { advancedLyricEnabled: 'true', advancedLyricLayout: 'corners',
+    advancedLyricMaterial: 'metallic', advancedLyricLayoutSequence: 'corners,arc', advancedLyricStrokeLayers: '3' });
+  const next = createSceneSharedAppearance(ctx);
+  for (const config of [basic, advanced]) {
+    const appearance = next.read('lyrics', config);
+    assert.equal(appearance.advancedLyricEnabled, 'true');
+    assert.equal(appearance.advancedLyricMaterial, 'metallic');
+    assert.equal(Object.hasOwn(appearance, 'lyricLayer'), false);
+  }
+  assert.equal(basic.lyricLayer, 'basic');
+  assert.equal(advanced.lyricLayer, 'advanced');
+  assert.throws(() => owner.patch('lyrics', advanced, { lyricLayer: 'basic' }));
+  assert.throws(() => normalizeSceneConfig('lyrics', { advancedLyricLayoutSequence: 'corners,missing' }));
+  assert.throws(() => normalizeSceneConfig('lyrics', { advancedLyricStrokeLayers: '8' }));
+});
+
+test('resource lyric appearances preserve each scene layer through reads and saved appearance responses', t => {
+  const ctx = context(t);
+  const store = createComponentStyleStore(ctx.system.dataDir);
+  const pack = randomUUID();
+  const preset = COMPONENT_RESOURCE_PRESETS['moonlit-lyrics'];
+  const source = `/component-media/${pack}/${'b'.repeat(64)}`;
+  const resourceStyle = { id: randomUUID(), preset: 'moonlit-lyrics', preview: `${source}.webp`, width: 960, height: 480,
+    resources: Object.fromEntries(preset.resources.map(key => [key, `${source}${key.slice(key.lastIndexOf('.'))}`])) };
+  const config = normalizeSceneConfig('lyrics', { ...preset.config, resourceStyle });
+  store.stage({ id: pack, styles: [{ id: resourceStyle.id, type: 'lyrics', name: '共享歌词', config }] });
+  store.install(pack);
+  const items = ['basic', 'advanced'].map(layer => ({ id: layer, type: 'lyrics',
+    appearance: { mode: 'independent', config: { ...config, lyricLayer: layer } } }));
+  const owner = createSceneSharedAppearance(ctx);
+  const saved = owner.patch('lyrics', items[0].appearance.config, { advancedLyricEnabled: 'true', advancedLyricLayout: 'corners' });
+  assert.equal(Object.hasOwn(saved, 'lyricLayer'), false, 'saving shared appearance must not replace the instance filter');
+  const projected = readSceneSharedAppearances(ctx, items);
+  for (const item of items) {
+    const effective = { ...item.appearance.config, ...projected[item.id] };
+    assert.equal(effective.lyricLayer, item.id);
+    assert.equal(effective.advancedLyricLayout, 'corners');
+  }
+  assert.throws(() => owner.patch('lyrics', config, { lyricLayer: 'advanced' }));
+});
+
 test('shared projections prefer desktop settings without rewriting snapshots and both entry points use the same values', t => {
   const ctx = context(t);
   const config = { ...createSceneExtraDefaults('songlist'), songBoardTitle: '旧场景标题', category: '动画' };

@@ -32,9 +32,11 @@ const scopes = [
   'clock',
 ];
 
-test('lyrics project independent karaoke colors without exposing unrelated settings', () => {
-  const settings = { desktopLyricSungColor: '#ff220080', desktopLyricTextColor: '#123456' };
-  const projected = projectOverlayState('lyrics', { settings: { ...settings, aiApiKey: 'private' } });
+test('lyrics project both visual layers without exposing saved libraries or unrelated settings', () => {
+  const settings = { desktopLyricSungColor: '#ff220080', desktopLyricTextColor: '#123456',
+    desktopLyricEnabled: 'true', advancedLyricEnabled: 'true', advancedLyricLayout: 'corners',
+    advancedLyricLayoutSequence: 'corners,arc', advancedLyricGlowEnabled: 'true' };
+  const projected = projectOverlayState('lyrics', { settings: { ...settings, aiApiKey: 'private', advancedLyricSavedPresets: 'private library' } });
   assert.deepEqual(projected.settings, settings);
 });
 const secret = 'PRIVATE_SENTINEL';

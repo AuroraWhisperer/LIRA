@@ -166,7 +166,7 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 专用备份由 `component-library-transfer.js` 编排资源 ZIP，`scene-transfer.js` 只导出当前账号的显示文档并负责新的场景凭据，场景批量插入由 `scene-store.js` 的 savepoint 事务提交。不改变任何表或索引版本。归档参数来自最新索引，文件保留原相对路径并记录 SHA-256；恢复重映射包、样式、文本框图片及场景身份。恢复副本 ID 由归档摘要、来源 ID（场景另含当前账号的 scope 摘要）确定，重复恢复不会覆盖既有副本上的修改。素材包名加「备份」，作者 ID 使用 `backup.` 命名空间，避免与原安装包或当前参数冲突；版本号保持不变。先登记隐藏素材，再事务创建未发布场景，最后恢复库可见性；失败可用同一备份安全续作，隐藏无引用资源可清理。原直播绑定、原场景和凭据均不覆盖。外部浏览器源、电脑本地加班机背景路径、未保存草稿及业务数据不导出；导入的本地 HTML/CSS 及其配套资源随包迁移。
 
-`component-library-maintenance.js` 盘点实际磁盘体积。手动清理重新检查所有账号的保存/发布文档（经场景 owner 解密）、预览中保存/未保存配置及待处理编辑命令，并保留可见样式的依赖。缺失正在使用的资源、索引故障、恢复副本不可写、引用解密失败或目录链接都会阻止清理。仅整包已移除或全部成员已移除且无引用的目录可回收；先 rename 为 `.purged-<UUID>` 再删除，失败可再次检查，异常残留沿用 24 小时回收规则。保留索引中的历史身份、参数和分类，重新导入完全相同的 ZIP 可补回原 UUID 的文件。
+`component-library-maintenance.js` 盘点实际磁盘体积；每次盘点构建已登记目录集合，每次清理按当次盘点构建条目索引，避免为每个目录或选中包重复扫描整库，不跨请求缓存盘点结果。手动清理重新检查所有账号的保存/发布文档（经场景 owner 解密）、预览中保存/未保存配置及待处理编辑命令，并保留可见样式的依赖。缺失正在使用的资源、索引故障、恢复副本不可写、引用解密失败或目录链接都会阻止清理。仅整包已移除或全部成员已移除且无引用的目录可回收；先 rename 为 `.purged-<UUID>` 再删除，失败可再次检查，异常残留沿用 24 小时回收规则。保留索引中的历史身份、参数和分类，重新导入完全相同的 ZIP 可补回原 UUID 的文件。
 
 ## 1. 技术选型
 
@@ -247,7 +247,7 @@ data/
 
 songDb v15 为 `fan_records` 和 `fan_reminder_states` 分别增加 `idx_fan_records_profile_id`、`idx_fan_reminder_states_profile_id`，均以 `profile_id` 为索引键。父档案删除的外键级联由这些索引定位子行，不依赖 ANALYZE 后的 skip-scan；原有 scope 查询索引、外键和事务保持不变。
 
-`fan-profile-store.list(scope)` 默认排除黑名单，不额外读取每份档案的抑制状态；完整备份与恢复点替换显式传入 `{includeSuppressed:true}`。`get` / `byIdentity` 供内部身份匹配及备份使用，应用服务对详情、手动写入与自动写入执行黑名单规则。完整备份保留黑名单及被屏蔽的原资料，恢复时合并当前黑名单，仅 `unsuppress` 明确解除；黑名单不新增 schema。
+`fan-profile-store.list(scope)` 默认排除黑名单，不额外读取每份档案的抑制状态；完整备份导出显式传入 `{includeSuppressed:true}`。`get` / `byIdentity` 供内部身份匹配及备份使用，应用服务对详情、手动写入与自动写入执行黑名单规则。完整备份保留黑名单及被屏蔽的原资料，恢复时合并当前黑名单，仅 `unsuppress` 明确解除；黑名单不新增 schema。完整本机恢复点在原恢复事务内通过 `removeAll(scope)` 一次删除当前 scope 的档案及级联明细，并仅清理一次无引用名单模板；其他 scope、当前抑制标记及恢复失败回滚规则保持不变。
 
 `requests` 保存 `stable_id`（唯一 UUID）、`owner_scope`、`identity_type` 和 v13 新增的 `fan_recorded`。普通点歌入队、更新档案歌曲汇总与标记已归档在同一事务提交；仍在队列中的请求通过稳定标识和标记避免重复计数。旧流水不猜归属，也不补记以前遗漏的档案记录。`done`、`deleted`、`skipped` 及清空队列会物理删除对应的 `queue` / `requests` 行，已计入档案的次数不扣除；`done` 只表示队列已处理。
 
@@ -354,7 +354,9 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 | `lottery_events` | 当前活动事件及已清理活动的创建请求回执 | streamer 范围 requestId 唯一；`create-retired` 仅保留请求 ID/摘要，不关联旧任务或轮次 |
 | `lottery_request_budget` | 本机/账号滚动请求预算和冷却 | scope PK；活动删除不重置 |
 
-抽奖库仅保存最小业务证据，不保存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 持有分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 在请求出站前同时预留本机和账号预算。
+抽奖库仅保存最小业务证据，不保存 Cookie、认证头或完整上游响应。`dynamic-lottery-store.js` 持有分页证据与游标的 `BEGIN IMMEDIATE` 事务；`dynamic-lottery-budget-store.js` 在请求出站前同时预留本机和账号预算。预算 store 在实例内复用三条固定 SQL 的预编译语句，每次仍读取最新预算；成功预留在同一事务内对每个 scope 只保存一次最终状态，受阻时仍保存过期记录和冷却状态的清理结果，失败整体回滚。
+
+`dynamic-lottery-draw-store.js` 在单个 store 实例内按当前 order ID 与数据库 `order_json` 原文复用一份已解析的冻结顺序；每次仍读取数据库中的最新轮次、进度和原文，原文变化、事务回滚或其他连接写入后重新解析。公开完整轮次返回独立的顺序数组，进度结果不复制全名单。核验服务在一次启动或恢复内使用起始顺序，逐候选通过 `recordCheck({includeOrder:false})` 取得进度；事务内仍校验最新轮次、状态、索引和当前 UID，授奖与游标推进保持原子性。
 
 抽奖私有 `streamer_id`、创建回执与账号预算 scope 使用主进程生成的服务器 origin + 原始账号编号 namespace，算法与登录快照统一见 [auth.md §14](../desktop/auth.md#14-动态抽奖专用账号)。字段和 schema v2 不变，本机预算仍按整台安装共享。旧无 origin 的任务、结果、回执与预算保留，不自动映射到当前服务器。
 
@@ -500,6 +502,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 身份优先 | `guardPriorityEnabled=false`，按账号同步；LIVE 标记仅存在本机 queue.is_live，重启保留，具体排序见 [音乐服务](music/services.md) |
 | SC 点歌 | `scSongRequestEnabled=true`，沿用 settings 文本存储和账号同步；旧快照省略保留已存值。关闭只停止 SC 点歌指令，留言显示与已有队列保留 |
 | 观众取消点歌 | `songRequestCancelEnabled=true`，沿用 settings 文本存储和账号同步；旧快照省略保留已存值。关闭只禁止观众取消点歌，不移除已有队列，不影响主播手动删除 |
+| 歌名匹配方式 | `songRequestMatchMode=unique`，可选 `prefix`；沿用 settings 文本存储和账号同步，旧快照省略保留已存值。匹配行为见 [音乐服务](music/services.md#71-歌曲-crud)，不新增 schema 或更改已有队列 |
 | 观众点歌限制 | `userQueueLimit=0`、`userCooldownCaptainSeconds/userCooldownAdmiralSeconds/userCooldownGovernorSeconds` 为空串、`songRequestMinMedalLevel=0`、`songRequestGuardLevel=0`、`songRequestGuardMedalBypass=false`、`songRequestUserBlacklist=[]`；均按账号同步，默认不附加限制。名单用 JSON 文本存于 settings，不增加表；字段范围见 [设置 API](api.md)，准入与事务计数见 [音乐服务](music/services.md) |
 | 单曲冷却 | `songCooldownMode=off`（`off/hours/days`）、`songCooldownValue=1`（1–999），同步到云端账号设置；入队时间仅存本机，按账号 scope 隔离；语义见 [音乐服务](music/services.md) |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
@@ -523,6 +526,12 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 `nowPlayingAppearance` 默认 `'{}'`，是歌曲信息组件的本机外观 JSON，不加入云设置同步。默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 定义，专属配置接口与普通 settings 写入均经过同一场景字段校验；缺失/非法存量回退默认黑胶横排。默认键补齐不覆盖旧设置，无数据库结构迁移。画布共享外观写回同一配置，场景自身的唱片样式、位置、尺寸和显隐保持独立；保存机制见 [now-playing-settings.js](../../../src/server/now-playing-settings.js)。
 
 直播歌词已唱颜色由本地 settings 的 `desktopLyricSungColor` 保存，默认 `''` 表示跟随样式高亮色；显式值使用十六进制颜色，支持透明度，渲染器对无效值回退继承。未唱颜色复用原 `desktopLyricTextColor`（默认 `#000000`），普通整句、翻译和关闭逐字时同样使用它，不新增另一套未唱设置。原 `desktopLyricOpacity` 保持统一文字不透明度，颜色按钮各自的 Alpha 不改写该值。旧库沿用缺失键默认补齐，无 schema 迁移，不覆盖已存颜色。两项颜色只投影至歌词 scope；与现有歌词外观一样同步到同样式画布组件，独立资源样式保留自己的外观。
+
+#### 歌词视觉设置
+
+`desktopLyricEnabled='true'`、`advancedLyricEnabled='false'` 是基础/高级两个独立的本地显示开关；切换编辑页签不持久化。高级字段 `advancedLyric*` 的视觉类型、范围、默认值与目录由 [advanced-lyric-appearance.js](../../../public/js/shared/advanced-lyric-appearance.js) 统一定义，服务端设置写入和场景配置使用同一归一化规则；存储层在 `settings-defaults.js` 显式登记相同的持久化默认值，不依赖浏览器模块。数值、布尔值保存为字符串，颜色接受六/八位十六进制，排版/材质/动作值只接受目录 ID。排版/入场轮换序列保存为逗号分隔的已知 ID，至多 12 项并按顺序去重。非法值拒绝整批写入。沿用缺失默认值补齐，不新增数据库 schema 迁移，不覆盖原基础外观。
+
+`advancedLyricSavedPresets='[]'` 保存命名搭配的 JSON 数组，每项为 `{id,name,settings}`，至多 20 份、序列化总长至多 65536 个 JS 字符；ID 为 1–64 位字母、数字、下划线或连字符，名称为 1–64 个 Unicode 字符。`settings` 只允许高级外观字段并补齐默认值，不包含两个显示开关、音乐来源或其他预设。预设库仅供本机编辑，不投影至歌词浏览器源，也不参与云端设置同步；实际高级外观与显示开关投影至 `lyrics` scope，并与普通画布歌词组件共享。场景实例的 `lyricLayer` 不在 settings 中保存。
 
 开播样式保持独立：经典舞台沿用原键；像素卡带新增 `openingPixelQuality='high'`、`openingPixelShowNotes='true'`、`openingPixelShowEq='true'`、`openingPixelAudioVolume='0.35'`、`openingPixelAudioFile=''`、`openingPixelAudioName=''`。既有 settings 默认值补齐负责旧库升级，不覆盖经典配置，无 schema 迁移。导入资源样式的公共参数由组件库 config 拥有，覆盖已有场景中的旧副本；不写内置样式设置。
 
@@ -615,11 +624,13 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，再分别按总计、礼物身份和北京时间分桶聚合，保留各组原有金额与数量计算。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
 
+冲刺与当天盲盒缓存的修订由 `gift-aggregate-changes.js` 按数据库连接共享：TEMP 单行计数与触发器分别跟踪冲刺、盲盒的实际输入。礼物更新只在原行或新行满足该统计资格、且查询输入字段改变时推进相应计数；冲刺结转和本机盲盒归档分别推进所属计数。同步校验时间、投递标记等无关写入不使聚合失效，普通礼物不使盲盒缓存失效。计数随事务回滚；事务内读取不安装追踪或复用缓存，首次事务外读取才初始化。令牌含连接追踪实例身份，并以 `data_version` 对其他连接提交保守失效；连接关闭即销毁 TEMP 状态，不新增持久 schema 或迁移。
+
 条件式历史扫描在同一读事务内核对 `contentRevision`，命中时不读总数或分页明细；可见时间边界使用与历史一致的 final、状态和时间索引取最新记录，避免只按 source 排序全库。`gift-history-changes.js` 拥有连接内 TEMP 修订与有界行 ID 日志，追踪 `gift_events` 和保留快照成员写入；普通同步状态更新不使记录版本失效。外部提交、schema、活动快照及可见时间边界同时参与版本。每个 store 有独立实例标识，最多保留 64 个成功读取的版本；调用时已有事务会拒绝，只在读事务提交后发布版本。
 
 选择 `delta=1` 的时间升序读取，可从最近 1000 次变更找出行 ID，并通过原时间索引补入刚到可见时间的记录；候选不超过请求页大小时按主键读取当前可见行及需替换的身份，不重复 COUNT 或重读整天。回滚同时回滚 TEMP 日志；日志缺口、过多候选、物理删除、身份变化、连接/来源/快照/外部版本变化均退回完整分页。临时追踪不改变持久 schema 或迁移版本，详细兼容响应见 [礼物查询](bilibili/gift.md#5-礼物冲刺与查询)。
 
-粉丝列表在已有 scope 事务内先筛选档案文本、归档、收藏与资料缺失，再通过 `records.listForProfiles` / `statesForProfiles` 每批最多 500 个 ID 读取候选明细。返回按 profileId 分组的 Map，记录仍按 occurred_at DESC、id 排序；单次列表固定当前时间，会员过滤与灯牌全局排序在计算后执行。
+粉丝列表在已有 scope 事务内先筛选档案文本、归档、收藏与资料缺失，再通过 `records.listForProfiles` / `statesForProfiles` 每批最多 500 个 ID 读取候选明细。返回按 profileId 分组的 Map，记录仍按 occurred_at DESC、id 排序；单次列表固定当前时间，会员过滤与灯牌全局排序在计算后执行。完整备份的 `exportScope` 复用这两个批量 reader，读取包含被屏蔽档案的全部记录和提醒，不逐档案查询，不截断备份内容。
 
 ## 礼物身份迁移 v10
 

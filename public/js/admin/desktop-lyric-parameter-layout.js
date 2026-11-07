@@ -95,7 +95,13 @@ export function groupDesktopLyricParameters(root, fields, { scene = false } = {}
   const advancedGroups = [];
   const lines = fields.has('desktopLyricVisibleLines') ? createVisibleLinesControl(fields.get('desktopLyricVisibleLines')) : null;
   if (scene && lines) lines.row.classList.add('scene-parameter-control');
-  for (const [id, title, entries, open = false] of GROUPS) {
+  const definitions = scene ? [
+    ['layers', '显示层', ['lyricLayer', 'desktopLyricEnabled', 'advancedLyricEnabled'], true],
+    ['advanced-lyrics', '高级歌词', ['advancedLyricLayout', 'advancedLyricFontSize', 'advancedLyricTextColor',
+      'advancedLyricAccentColor', 'advancedLyricShowNextLine', 'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricScale']],
+    ...GROUPS,
+  ] : GROUPS;
+  for (const [id, title, entries, open = false] of definitions) {
     const section = element('details', `desktop-lyric-settings-group${scene ? ' scene-parameter-group' : ''}`);
     section.dataset.parameterGroup = id;
     section.open = open;
@@ -152,7 +158,10 @@ export function groupDesktopLyricParameters(root, fields, { scene = false } = {}
       effect: `描边${enabled('desktopLyricStrokeEnabled')} · 阴影${enabled('desktopLyricShadowEnabled')}`,
     };
     for (const { id, section, controls, status } of groups) {
-      section.hidden = controls.every(control => control.hidden);
+      const layer = value('lyricLayer');
+      section.hidden = controls.every(control => control.hidden)
+        || scene && (layer === 'advanced' && !['layers', 'advanced-lyrics'].includes(id)
+          || layer === 'basic' && id === 'advanced-lyrics');
       status.textContent = states[id] || '';
       status.hidden = !status.textContent;
     }

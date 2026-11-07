@@ -2,9 +2,10 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { DAY_MS, dayOf, dayStart, addDays } = require('../../src/fans/dates');
+const { DAY_MS, dayOf, dayStart, dayIndex, addDays } = require('../../src/fans/dates');
 const { prepareMembership } = require('../../src/fans/membership');
 const { buildReminders } = require('../../src/fans/reminders');
+const { membershipMilestoneDates } = require('../../src/fans/membership-milestones');
 
 const NOW = Date.parse('2026-10-23T04:00:00Z');
 const PROFILE = { id: 'profile', alias: '观众', milestoneReminders: true };
@@ -100,4 +101,20 @@ test('a full year checks milestone candidates instead of every intervening day',
   assert.equal(result.length, 6);
   assert.equal(dates.length, 7, 'one current state plus two dates for each of three distinct milestone dates');
   assert.equal(new Set(dates).size, dates.length, 'total and continuous milestones share date evaluations');
+});
+
+test('historical baseline extensions use ordered intervals without scanning every segment', () => {
+  const start = dayStart('2020-01-01');
+  let checks = 0;
+  const intervals = Array.from({ length: 1000 }, (_, index) => {
+    const time = start + index * 2 * DAY_MS;
+    return { get start() { checks++; return time; }, end: time + DAY_MS,
+      startDay: dayIndex(time), endDay: dayIndex(time) + 1 };
+  });
+  const baselines = intervals.map((interval, index) => ({ day: interval.startDay,
+    record: { data: { asOf: dayOf(start + index * 2 * DAY_MS), totalDays: null, continuousDays: 1 } },
+  }));
+  const dates = membershipMilestoneDates(intervals, baselines, addDays(dayOf(NOW), -7), addDays(dayOf(NOW), 7), NOW);
+  assert.deepEqual(dates, []);
+  assert.ok(checks < baselines.length * 50, `baseline extensions checked ${checks} intervals`);
 });

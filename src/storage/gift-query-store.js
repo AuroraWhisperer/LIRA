@@ -2,6 +2,7 @@
 
 const { canonicalGiftId, canonicalGiftText } = require('../shared/processed-gift-contract');
 const { createGiftHistoryChanges } = require('./gift-history-changes');
+const { createGiftAggregateChanges } = require('./gift-aggregate-changes');
 const { retentionLedgerFilter, statisticsFilter, mergeSummaryStatistics, activeSnapshot } = require('./gift-retention-queries');
 const { readLocalBlindArchives } = require('./gift-local-retention');
 const { transaction } = require('./gift-retention-store');
@@ -62,6 +63,7 @@ function createGiftQueryStore(giftDb) {
   }
   ensureGiftSqlFunctions(giftDb);
   const historyChanges = createGiftHistoryChanges(giftDb);
+  const aggregateChanges = createGiftAggregateChanges(giftDb);
 
   function ledgerFilter(options) {
     return retentionLedgerFilter(giftDb, options, buildLedgerFilter(options));
@@ -396,13 +398,7 @@ function createGiftQueryStore(giftDb) {
   }
 
   return {
-    getChangeToken() {
-      // Never reuse a result read inside a transaction after that transaction rolls back.
-      if (giftDb.isTransaction) return null;
-      const changes = giftDb.prepare('SELECT total_changes() AS value').get().value;
-      const version = giftDb.prepare('PRAGMA data_version').get().data_version;
-      return `${changes}:${version}`;
-    },
+    getChangeToken: aggregateChanges.read,
     getRetention: (sourceId) => {
       const snapshot = activeSnapshot(giftDb, sourceId);
       return snapshot ? { detailStart: snapshot.detail_start, summaryRevision: snapshot.revision } : null;

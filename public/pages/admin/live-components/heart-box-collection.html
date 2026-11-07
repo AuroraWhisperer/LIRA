@@ -1,5 +1,5 @@
 <section id="heartBoxCollectionFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="giftAssistantHeartBoxTab" data-other-feature-panel hidden>
-  <section class="heart-box-settings">
+  <section class="other-feature-panel-body stack heart-box-settings">
     <header class="component-toolbar heart-box-toolbar">
       <div class="heart-box-period">
         <strong id="heartBoxCollectionPeriod">本期收集</strong>
@@ -10,16 +10,37 @@
         <button id="heartBoxCollectionPreview" type="button" class="primary">打开画布</button>
       </div>
     </header>
-    <p id="heartBoxCollectionStatus" class="hint" role="status">正在读取本期收集进度…</p>
-    <p id="heartBoxCollectionError" class="heart-box-error" role="alert" hidden></p>
-    <label class="heart-box-rewards-toggle"><input id="heartBoxCollectionShowRewards" type="checkbox" checked />显示倍率和限开数量</label>
-    <div class="heart-box-live-preview" role="region" aria-label="本期真实收集进度">
-      <div id="heartBoxCollectionPreviewCard" hidden></div>
+    <div class="heart-box-workspace">
+      <section class="heart-box-preview-pane" aria-labelledby="heartBoxCollectionPreviewTitle">
+        <h3 id="heartBoxCollectionPreviewTitle" class="ui-section-title">画面预览</h3>
+        <div class="heart-box-live-preview" role="region" aria-label="本期真实收集进度">
+          <div id="heartBoxCollectionPreviewCard" hidden></div>
+        </div>
+        <p id="heartBoxCollectionStatus" class="hint" role="status">正在读取本期收集进度…</p>
+        <p id="heartBoxCollectionError" class="heart-box-error" role="alert" hidden></p>
+      </section>
+      <aside class="heart-box-controls" aria-label="显示与使用设置">
+        <section class="heart-box-settings-group">
+          <h3 class="ui-section-title">显示设置</h3>
+          <label class="switch-control heart-box-rewards-toggle">
+            <input id="heartBoxCollectionShowRewards" type="checkbox" role="switch" checked />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>显示倍率和限开数量</span>
+          </label>
+        </section>
+        <section class="heart-box-settings-group heart-box-source-row">
+          <h3 class="ui-section-title">浏览器源地址</h3>
+          <button id="heartBoxCollectionUrl" type="button" class="copy-url" aria-label="复制心动盲盒收集任务浏览器源地址" title="点击复制地址"></button>
+        </section>
+        <section class="heart-box-settings-group heart-box-rules-section">
+          <h3 class="ui-section-title">收集规则</h3>
+          <ul class="hint heart-box-rules">
+            <li>开启前，本期收集期间已收到的心动盲盒会自动计入。</li>
+            <li>开出浪漫城堡不会清零。</li>
+            <li>周五保留本期解锁结果，周六 00:00 自动开始新一期。</li>
+          </ul>
+        </section>
+      </aside>
     </div>
-    <div class="heart-box-source-row">
-      <span class="hint">浏览器源地址</span>
-      <button id="heartBoxCollectionUrl" type="button" class="copy-url" aria-label="复制心动盲盒收集任务浏览器源地址"></button>
-    </div>
-    <p class="hint heart-box-rules">开启前，本期收集期间已收到的心动盲盒会自动计入；开出浪漫城堡不会清零。周五保留本期解锁结果，周六 00:00 自动开始新一期。</p>
   </section>
 </section>

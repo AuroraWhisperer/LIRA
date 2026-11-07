@@ -283,7 +283,7 @@ function createSongStore(songDb) {
       );
     },
 
-    findEnabledByNameContains(pattern) {
+    findEnabledByNameContains(pattern, prefixOnly = false) {
       const escaped = String(pattern).replace(/[\\%_]/g, (value) => `\\${value}`);
       return songDb
         .prepare(
@@ -295,7 +295,7 @@ function createSongStore(songDb) {
         LIMIT 2
       `,
         )
-        .all(`%${escaped}%`);
+        .all(prefixOnly ? `${escaped}%` : `%${escaped}%`);
     },
 
     deleteSong(id) {

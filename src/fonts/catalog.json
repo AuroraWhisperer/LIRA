@@ -566,6 +566,123 @@
           ]
         }
       ]
+    },
+    {
+      "id": "source-han-serif",
+      "family": "Lira Sea Breeze Serif",
+      "label": "思源宋体",
+      "format": "woff2",
+      "sha256": "530a1382941de5c67855e1d0a454040e62c4d83e05e3a47b1fbca634d6195992",
+      "size": 16710792,
+      "sources": [],
+      "bundled": [
+        {
+          "path": "sea-breeze/sea-breeze-serif.woff2",
+          "sha256": "530a1382941de5c67855e1d0a454040e62c4d83e05e3a47b1fbca634d6195992",
+          "weight": 400,
+          "aliases": [
+            "Lira Wireframe Serif"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poppins",
+      "family": "Stargazer Poppins",
+      "label": "Poppins",
+      "format": "ttf",
+      "sha256": "7e65201e9b79159e2300267cc885e16c8dcef2424cdfa09a29bfb0980a94a7ba",
+      "size": 160316,
+      "sources": [],
+      "bundled": [
+        {
+          "path": "stargazer/poppins-400.ttf",
+          "sha256": "7e65201e9b79159e2300267cc885e16c8dcef2424cdfa09a29bfb0980a94a7ba",
+          "weight": 400
+        },
+        {
+          "path": "stargazer/poppins-700.ttf",
+          "sha256": "983676516167748b74de6f4771fb384c664fd913acb8b471122ecacf5da5ea6c",
+          "weight": 700
+        }
+      ]
+    },
+    {
+      "id": "quicksand",
+      "family": "Lira Quicksand",
+      "label": "Quicksand",
+      "format": "ttf",
+      "sha256": "39c9b64223561f56aaff6062a6f04063c4fc86809ad6768722c06614d977e1cc",
+      "size": 124824,
+      "sources": [],
+      "bundled": [
+        {
+          "path": "glass/quicksand.ttf",
+          "sha256": "39c9b64223561f56aaff6062a6f04063c4fc86809ad6768722c06614d977e1cc",
+          "weight": "300 700"
+        }
+      ]
+    },
+    {
+      "id": "montserrat",
+      "family": "Gradient Montserrat",
+      "label": "Montserrat",
+      "format": "ttf",
+      "sha256": "84f3d3275dfb159dd311c61828fd754a82ec31c377120518e2cd3e7d34394e96",
+      "size": 180068,
+      "sources": [],
+      "bundled": [
+        {
+          "path": "animated-gradient/montserrat-400.ttf",
+          "sha256": "84f3d3275dfb159dd311c61828fd754a82ec31c377120518e2cd3e7d34394e96",
+          "weight": 400
+        },
+        {
+          "path": "animated-gradient/montserrat-700.ttf",
+          "sha256": "247f052d2f5b84a5bbe7831c3b08a71ca391ff54f1dfb9be88a3d3da569e3a38",
+          "weight": 700
+        },
+        {
+          "path": "celestial-horizontal/montserrat-300-latin.woff2",
+          "sha256": "a04fdaaec9f3cd46b0cb3adc3d3e35a15264664330d22c7ba688ef6ea7d02010",
+          "weight": 300,
+          "aliases": [
+            "Celestial Montserrat"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cinzel",
+      "family": "Celestial Cinzel",
+      "label": "Cinzel",
+      "format": "woff2",
+      "sha256": "8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263",
+      "size": 15184,
+      "sources": [],
+      "bundled": [
+        {
+          "path": "celestial-horizontal/cinzel-700-latin.woff2",
+          "sha256": "8efa224fe70fef188a39c095e218b81fd31061809f2752537e33a9ec7b9c2263",
+          "weight": 700
+        }
+      ]
+    },
+    {
+      "id": "mplus-rounded",
+      "family": "Lira Rounded Mplus",
+      "label": "M PLUS Rounded 1c",
+      "format": "woff2",
+      "sha256": "af9bf4ecb38f312ad3fb508af0ca6fe4eed562ad85c99ac2e1fd8ec1589d2287",
+      "size": 1132368,
+      "sources": [],
+      "bundled": [
+        {
+          "path": "glass-bubble/mplus-rounded-800.woff2",
+          "sha256": "af9bf4ecb38f312ad3fb508af0ca6fe4eed562ad85c99ac2e1fd8ec1589d2287",
+          "weight": 800
+        }
+      ]
     }
   ]
 }

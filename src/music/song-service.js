@@ -97,11 +97,15 @@ function findSong(store, songName, artist) {
   return store.findByName(cleanName);
 }
 
-function findUniqueSongNameMatch(store, songName) {
+function findUniqueSongNameMatch(store, songName, matchMode = 'unique') {
   const cleanName = cleanText(songName);
   if (!cleanName) return null;
   const exact = findSong(store, cleanName);
   if (exact) return exact;
+  if (matchMode === 'prefix') {
+    const prefixes = store.findEnabledByNameContains(cleanName, true);
+    if (prefixes.length) return prefixes.length === 1 ? prefixes[0] : null;
+  }
   const matches = store.findEnabledByNameContains(cleanName);
   return matches.length === 1 ? matches[0] : null;
 }

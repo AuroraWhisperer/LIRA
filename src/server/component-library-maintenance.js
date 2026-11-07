@@ -43,9 +43,10 @@ function createComponentLibraryMaintenance({ dataDir, visitReferences }) {
       return { id: pack.id, name: pack.name, version: pack.version || '', bytes,
         state: visible(pack) ? 'installed' : used(pack) ? 'referenced' : exists || hasPurged ? 'reclaimable' : 'reclaimed' };
     });
+    const registeredDirectories = new Set(packages.flatMap(pack => [pack.id, `.purged-${pack.id}`]));
     let pendingBytes = 0; let unregisteredBytes = 0;
     for (const name of fs.existsSync(store.root) ? fs.readdirSync(store.root) : []) {
-      if (!/^(?:\.pending-|\.purged-)?[a-f0-9-]{36}$/.test(name) || packages.some(pack => pack.id === name || `.purged-${pack.id}` === name)) continue;
+      if (!/^(?:\.pending-|\.purged-)?[a-f0-9-]{36}$/.test(name) || registeredDirectories.has(name)) continue;
       const bytes = listStyleFiles(path.join(store.root, name)).reduce((sum, file) => sum + file.bytes, 0);
       if (name.startsWith('.')) pendingBytes += bytes; else unregisteredBytes += bytes;
     }
@@ -61,7 +62,8 @@ function createComponentLibraryMaintenance({ dataDir, visitReferences }) {
       }
       const current = inventory();
       if (!current.integrity.backupCurrent) throw Object.assign(new Error('恢复副本尚未保存成功，请稍后再清理。'), { statusCode: 503 });
-      const selected = ids.map(id => current.entries.find(entry => entry.id === id));
+      const entriesById = new Map(current.entries.map(entry => [entry.id, entry]));
+      const selected = ids.map(id => entriesById.get(id));
       if (selected.some(entry => !entry || !['reclaimable', 'reclaimed'].includes(entry.state))) {
         throw Object.assign(new Error('素材使用情况已变化，请重新查看后再清理。'), { statusCode: 409 });
       }

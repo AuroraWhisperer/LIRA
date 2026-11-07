@@ -39,13 +39,20 @@ export const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
     'timeline-vertical': 'text', digital: 'text', minimal: 'text', orbit: 'art', flip: 'panel', 'moonlit-fan': 'moon',
   },
   danmaku: {
+    'celestial-horizontal': 'text',
+    'animated-gradient': 'panel',
     startrail: 'text',
+    stardust: 'text',
+    'glass-bubble': 'panel',
     christmas: 'panel',
+    'dark-moon': 'art',
+    stargazer: 'art',
     'christmas-letter': 'panel',
+    wireframe: 'frame',
     'flower-letter': 'art',
     bubble: 'panel', signal: 'panel', minimal: 'art', ranked: 'panel', transparent: 'text',
     identity: 'panel', sketch: 'panel', harbor: 'panel', prismatic: 'panel', snowfox: 'panel', ripploid: 'frame', twitter: 'panel', spooky: 'frame', notebook: 'panel', starlight: 'art', moonlit: 'art', outline: 'panel', mist: 'panel', whiteframe: 'frame',
-    comic: 'art', window: 'panel', sinking: 'art', cream: 'panel', glow: 'panel', starveil: 'panel', floating: 'panel', comet: 'art', aurora: 'art',
+    comic: 'art', window: 'panel', sinking: 'art', glass: 'panel', cream: 'panel', glow: 'panel', starveil: 'panel', floating: 'panel', comet: 'art', aurora: 'art',
   },
 });
 const IMPORTED_STYLE = /^(css|media|resource|web):[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/;

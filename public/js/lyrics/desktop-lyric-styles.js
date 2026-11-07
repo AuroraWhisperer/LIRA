@@ -16,26 +16,33 @@ function hexWithAlpha(color, alpha) {
   return `rgba(${match.r}, ${match.g}, ${match.b}, ${clampedAlpha})`;
 }
 
-export function applyDesktopLyricStyles(card, values) {
-  const previewColor = parseHexColor(values.textColor);
+export function createLyricFontStack(fontFamily, fallbackFontFamily = '') {
+  const genericFont = fontFamily.match(GENERIC_FONT_SUFFIX)?.[1] || 'sans-serif';
+  // Route joining scripts as a whole, and fill gaps before generic families use OS fallback.
+  return [
+    '"Lira Lyric Scripts"',
+    fontFamily.replace(GENERIC_FONT_SUFFIX, ''),
+    '"Lira Lyric Korean"', '"Lira Xiaolai"', '"Lira Lyric Extended"',
+    fallbackFontFamily.replace(GENERIC_FONT_SUFFIX, ''),
+    '"Microsoft YaHei"', '"Nirmala UI"', '"Leelawadee UI"', '"Ebrima"',
+    '"Segoe UI Symbol"', '"Segoe UI Emoji"', '"Apple Color Emoji"', 'system-ui', genericFont,
+  ].filter(Boolean).join(', ');
+}
+
+export function applyLyricPreviewContrast(card, textColor) {
+  const previewColor = parseHexColor(textColor);
   const channels = previewColor ? [previewColor.r, previewColor.g, previewColor.b].map(value => {
     const channel = value / 255;
     return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
   }) : [0, 0, 0];
   card.classList.toggle('is-light-text', channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722 > 0.179);
-  const genericFont = values.fontFamily.match(GENERIC_FONT_SUFFIX)?.[1] || 'sans-serif';
-  // Route joining scripts as a whole, and fill gaps before generic families use OS fallback.
-  const fontStack = [
-    '"Lira Lyric Scripts"',
-    values.fontFamily.replace(GENERIC_FONT_SUFFIX, ''),
-    '"Lira Lyric Korean"', '"Lira Xiaolai"', '"Lira Lyric Extended"',
-    values.fallbackFontFamily.replace(GENERIC_FONT_SUFFIX, ''),
-    '"Microsoft YaHei"', '"Nirmala UI"', '"Leelawadee UI"', '"Ebrima"',
-    '"Segoe UI Symbol"', '"Segoe UI Emoji"', '"Apple Color Emoji"', 'system-ui', genericFont,
-  ].filter(Boolean).join(', ');
+}
+
+export function applyDesktopLyricStyles(card, values) {
+  applyLyricPreviewContrast(card, values.textColor);
   card.style.setProperty(
     '--preview-font',
-    fontStack,
+    createLyricFontStack(values.fontFamily, values.fallbackFontFamily),
   );
   card.style.setProperty('--preview-weight', values.fontWeight);
   card.style.setProperty('--preview-color', values.textColor);

@@ -85,16 +85,21 @@ test('long gift counts expand exported PNG dimensions', async (t) => {
       eventId: String(num),
       gift: { giftId: 'sample', giftName: '测试礼物', userName: '测试观众', unitPrice: 2, num },
     }));
-    const payload = { config: { thresholds: [10000, 50000, 100000], tailStyle: 'ribbon', textureStyle: 'argyle' }, catalog: [], background: 'transparent' };
+    let catalogReads = 0;
+    window.initializeGiftExport({
+      config: { thresholds: [10000, 50000, 100000], tailStyle: 'ribbon', textureStyle: 'argyle' },
+      catalog: { [Symbol.iterator]() { catalogReads++; return [][Symbol.iterator](); } },
+    });
     const singles = [];
     for (const item of items) {
-      singles.push(await window.renderGiftExport({ ...payload, items: [item] }));
+      singles.push(await window.renderGiftExport({ items: [item], background: 'transparent' }));
     }
-    const combined = await window.renderGiftExport({ ...payload, items });
+    const combined = await window.renderGiftExport({ items, background: 'transparent' });
     stage.style.transform = 'none';
     return {
       singles,
       combined,
+      catalogReads,
       stageHeight: stage.getBoundingClientRect().height,
       rows: [...stage.children].map((row) => {
         const bounds = row.getBoundingClientRect();
@@ -105,6 +110,7 @@ test('long gift counts expand exported PNG dimensions', async (t) => {
       }),
     };
   });
+  assert.equal(result.catalogReads, 1);
   for (let index = 0; index < result.rows.length; index += 1) {
     const row = result.rows[index];
     assert.equal(result.singles[index].width, Math.ceil(row.width * 2));

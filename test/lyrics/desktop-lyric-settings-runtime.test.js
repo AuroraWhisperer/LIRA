@@ -191,8 +191,14 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricShadowBlur: '8',
     desktopLyricTranslationScale: '0.65',
     desktopLyricTextAlign: 'justify',
+    desktopLyricEnabled: 'false',
+    advancedLyricEnabled: 'true',
+    advancedLyricLayout: 'corners',
+    advancedLyricMaterial: 'chalk',
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
+  elements.set('desktopLyricEnabled', { checked: false });
+  elements.set('advancedLyricEnabled', { checked: true });
   elements.set('desktopLyricSungColorInherited', { checked: true });
   elements.set('desktopLyricFontFamily', Object.assign(createFontNode(), { value: values.desktopLyricFontFamily }));
   const lyricSourceInputs = [
@@ -348,4 +354,17 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(Object.hasOwn(apiCalls[2].body, 'weSingLyricSource'), false);
   assert.equal(lyricSourceInputs[1].checked, true);
   assert.equal(smartLyricMatch.checked, false);
+  assert.equal(Object.hasOwn(apiCalls[2].body, 'advancedLyricLayout'), false, 'Basic reset must preserve the advanced composition.');
+  assert.equal(desktopLyric.collectDesktopLyric().advancedLyricLayout, 'corners');
+  assert.equal(desktopLyric.collectDesktopLyric().advancedLyricMaterial, 'chalk');
+  assert.equal(elements.get('desktopLyricEnabled').checked, false, 'Resetting appearance must not enable basic output.');
+  assert.equal(elements.get('advancedLyricEnabled').checked, true, 'Basic reset must not disable advanced output.');
+
+  await new Promise(resolve => setImmediate(resolve));
+  elements.get('desktopLyricEnabled').checked = true;
+  listeners.get('change')();
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(apiCalls.at(-1).body.desktopLyricEnabled, 'true');
+  assert.equal(Object.hasOwn(apiCalls.at(-1).body, 'advancedLyricEnabled'), false, 'The output switches persist independently.');
+  assert.equal(elements.get('advancedLyricEnabled').checked, true);
 });

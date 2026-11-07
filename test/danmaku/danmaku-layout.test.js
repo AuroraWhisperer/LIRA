@@ -2,6 +2,22 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const layout = require('../../src/shared/danmaku-layout');
 
+test('widening a horizontal strip adds card space while preserving the content scale', async () => {
+  const { canvasContentScale } = await import('../../public/js/overlays/danmaku-canvas.js');
+  const value = layout.createLayout();
+  const region = value.regions.stargazer;
+  const options = { stargazer: { stargazerLayout: 'horizontal' } };
+  region.height = 260;
+  const original = canvasContentScale(value, 'stargazer', options);
+  region.width = 1200;
+  assert.equal(canvasContentScale(value, 'stargazer', options), original);
+  assert.ok(canvasContentScale(value, 'stargazer') > original, 'vertical cards retain width-based scaling');
+  const horizontal = value.regions['celestial-horizontal'];
+  const barScale = canvasContentScale(value, 'celestial-horizontal');
+  horizontal.width = 1200;
+  assert.equal(canvasContentScale(value, 'celestial-horizontal'), barScale);
+});
+
 test('resolution changes scale composition; portrait changes retain typography and contain every region', () => {
   const original = layout.createLayout();
   original.regions.signal = { x: 100, y: 200, width: 400, height: 300 };
@@ -47,7 +63,7 @@ test('new default regions preserve previously saved dimensions', () => {
 });
 
 // Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['sinking', 'window', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
+const OPTIONAL_REGIONS = ['glass-bubble', 'celestial-horizontal', 'animated-gradient', 'stargazer', 'wireframe', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   const original = layout.createLayout();

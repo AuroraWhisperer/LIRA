@@ -19,7 +19,12 @@ const TWITTER_COLOR_KEYS = ['twitterColor0', 'twitterColor50', 'twitterColor100'
 const RANDOM_TIMING_KEYS = ['durationSeconds', 'exitAnimation', 'exitDurationMs', 'centerBias', 'dispersion'];
 const RANDOM_ENTRANCE_KEYS = ['entranceAnimation', 'entranceDurationMs'];
 const FLOATING_KEYS = ['speedPixelsPerSecond', 'floatingDispersion', 'floatingEdgeFade', 'floatingEdgeFadeSize'];
+const SEA_BREEZE_REFLECTION_KEYS = ['seaBreezeReflectionOpacity', 'seaBreezeReflectionLength', 'seaBreezeReflectionGap'];
 const CONTROLS = {
+  'celestial-horizontal': ['backgroundOpacity', 'bubbleColor', 'ambientMotion', 'celestialNebulaOpacity', 'celestialStarDensity', 'celestialStarShape', 'celestialSeparator'],
+  stargazer: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'stargazerPalette', 'stargazerColor',
+    'stargazerLayout', 'stargazerWidth', 'stargazerGap', 'stargazerAlign', 'stargazerFrame', 'stargazerPerspective',
+    'stargazerAngle', 'stargazerGlow', 'stargazerGradient', 'stargazerGradientOpacity', 'stargazerMaxMessages', 'stargazerHideSeconds'],
   harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
   bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
   signal: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
@@ -34,16 +39,25 @@ const CONTROLS = {
   twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...TWITTER_COLOR_KEYS],
   'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
   notebook: ['scrollDirection', 'edgeFade', 'ambientMotion'],
+  glass: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion', 'glassTime', 'glassGlintIntensity', 'glassDensity'],
+  'animated-gradient': ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'gradientPalette', 'gradientCycleSeconds', 'gradientUnderline'],
   christmas: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion'],
   'christmas-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
+  wireframe: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'wireframeFadeLength', 'wireframeOrbit', 'wireframeEntrance', 'wireframeEntranceMs'],
   spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
   starlight: ['scrollDirection', 'edgeFade', 'decorationShape', 'ambientMotion'],
+  'dark-moon': ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'darkMoonPalette', 'darkMoonRingSize', 'darkMoonSparks'],
   moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
+  'sea-breeze': ['scrollDirection', 'edgeFade', 'seaBreezeAlign', ...SEA_BREEZE_REFLECTION_KEYS],
+  'sea-breeze-random': [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, ...SEA_BREEZE_REFLECTION_KEYS],
   outline: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity', 'giftImage'],
   comic: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'comicWritingMode', 'comicShape',
     'comicStrokeWidth', 'comicTexture', 'comicEntrance', 'comicEntranceMs'],
   window: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'ambientMotion', 'windowPalette', 'windowWidth',
     'windowRadius', 'windowControls', 'windowEntrance', 'windowEntranceMs'],
+  stardust: [...RANDOM_TIMING_KEYS, 'ambientMotion', 'stardustEntrance', 'stardustKeepCenter',
+    'stardustNicknames', 'stardustGiftThreshold', 'stardustSwapAnchors'],
+  'glass-bubble': [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'glassBubbleReveal', 'glassBubbleTypingSpeed', 'glassBubbleSweep', 'glassBubbleHighlight'],
   whiteframe: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'bubbleColor'],
   mist: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
   cream: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity', 'giftImage'],
@@ -56,6 +70,50 @@ const CONTROLS = {
   glow: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
 };
 const CONTROL_VALUES = {
+  gradientPalette: { valid: ['original', 'sunset', 'ocean', 'lavender'], invalid: ['unknown'], optional: true },
+  gradientCycleSeconds: { valid: [6, 24], invalid: [5, 25, 10.5], optional: true },
+  gradientUnderline: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  glassBubbleReveal: { valid: ['typing', 'instant'], invalid: ['unknown'], optional: true },
+  glassBubbleTypingSpeed: { valid: [10, 60], invalid: [9, 61, 26.5], optional: true },
+  glassBubbleSweep: { valid: ['on', 'off'], invalid: ['unknown'], optional: true },
+  glassBubbleHighlight: { valid: [0, 100], invalid: [-1, 101], optional: true },
+  celestialNebulaOpacity: { valid: [0, 100], invalid: [-1, 101], optional: true },
+  celestialStarDensity: { valid: ['off', 'sparse', 'normal', 'dense'], invalid: ['unknown'], optional: true },
+  celestialStarShape: { valid: ['identity', 'sparkle', 'star'], invalid: ['unknown'], optional: true },
+  celestialSeparator: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  glassTime: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  glassGlintIntensity: { valid: [0, 100], invalid: [-1, 101], optional: true },
+  glassDensity: { valid: ['comfortable', 'compact'], invalid: ['unknown'], optional: true },
+  darkMoonPalette: { valid: ['original', 'moonlight', 'ice'], invalid: ['unknown'], optional: true },
+  darkMoonRingSize: { valid: [70, 140], invalid: [69, 141], optional: true },
+  darkMoonSparks: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  wireframeFadeLength: { valid: [0, 100], invalid: [-1, 101], optional: true },
+  wireframeOrbit: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  wireframeEntrance: { valid: ['traced', 'none'], invalid: ['unknown'], optional: true },
+  wireframeEntranceMs: { valid: [350, 1400], invalid: [349, 1401, 700.5], optional: true },
+  seaBreezeReflectionOpacity: { valid: [0, 60], invalid: [-1, 61], optional: true },
+  seaBreezeReflectionLength: { valid: [0, 200], invalid: [-1, 201], optional: true },
+  seaBreezeReflectionGap: { valid: [-20, 30], invalid: [-21, 31], optional: true },
+  seaBreezeAlign: { valid: ['left', 'center', 'right'], invalid: ['unknown'], optional: true },
+  stardustEntrance: { valid: ['on', 'off'], invalid: ['none'], optional: true },
+  stardustKeepCenter: { valid: ['on', 'off'], invalid: [true], optional: true },
+  stardustNicknames: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
+  stardustGiftThreshold: { valid: [.01, 52.1, 1000000], invalid: [0, 1000000.01, 1.005, '52.1'], optional: true },
+  stardustSwapAnchors: { valid: ['on', 'off'], invalid: ['swap'], optional: true },
+  stargazerPalette: { valid: ['mixed', 'purple', 'gold', 'chat-purple', 'chat-gold', 'custom'], invalid: ['unknown'], optional: true },
+  stargazerColor: { valid: ['#c04efe'], invalid: ['red'], optional: true },
+  stargazerLayout: { valid: ['vertical', 'horizontal'], invalid: ['unknown'], optional: true },
+  stargazerWidth: { valid: [220, 600], invalid: [219, 601], optional: true },
+  stargazerGap: { valid: [6, 40], invalid: [5, 41], optional: true },
+  stargazerAlign: { valid: ['bottom', 'top'], invalid: ['unknown'], optional: true },
+  stargazerFrame: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  stargazerPerspective: { valid: ['none', 'left', 'right'], invalid: ['unknown'], optional: true },
+  stargazerAngle: { valid: [0, 12], invalid: [-1, 13], optional: true },
+  stargazerGlow: { valid: [0, 20], invalid: [-1, 21], optional: true },
+  stargazerGradient: { valid: ['on', 'off'], invalid: ['unknown'], optional: true },
+  stargazerGradientOpacity: { valid: [0, 100], invalid: [-1, 101], optional: true },
+  stargazerMaxMessages: { valid: [1, 50], invalid: [0, 51], optional: true },
+  stargazerHideSeconds: { valid: [0, 999], invalid: [-1, 1000], optional: true },
   sinkingPalette: { valid: ['ivory', 'mint', 'blue'], invalid: ['unknown'], optional: true },
   sinkingDurationSeconds: { valid: [2, 30], invalid: [1, 31], optional: true },
   sinkingTravel: { valid: [10, 40], invalid: [9, 41], optional: true },
@@ -179,6 +237,10 @@ test('random lifetimes retain legacy values until edited and reset only the sele
   assert.equal(contract.styleOptionsFor('cream', reset.styleOptions, 12).durationSeconds, 9);
   assert.deepEqual(reset.styleOptions.signal, { fontSize: 32 });
   assert.deepEqual(legacy.styleOptions, { signal: { fontSize: 32 } });
+  const stardust = resetStyleOptions({ ...other, style: 'stardust', fullscreenDurationSeconds: 20,
+    styleOptions: { ...other.styleOptions, stardust: { durationSeconds: 3 } } });
+  assert.equal(contract.styleOptionsFor('stardust', stardust.styleOptions, 20).durationSeconds, 12);
+  assert.equal(contract.styleOptionsFor('cream', stardust.styleOptions, 20).durationSeconds, 9);
 });
 
 test('RIPPLOID applies independent event color variables and clears them outside its style', async () => {
@@ -267,7 +329,7 @@ test('styles without gift artwork always use real gift images while accepting le
   assert.equal(contract.styleOptionsFor('signal').giftImage, 'theme');
 });
 
-test('scroll direction applies to fixed styles and resets to upward for other layouts', async () => {
+test('scroll direction applies to fixed styles and restores each default', async () => {
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = {
     documentElement: { style: { setProperty() {} } },
@@ -280,7 +342,7 @@ test('scroll direction applies to fixed styles and resets to upward for other la
       assert.equal(document.body.dataset.scrollDirection, scrollDirection);
     }
     browser.applyStyleOptions(document, style, {});
-    assert.equal(document.body.dataset.scrollDirection, 'up');
+    assert.equal(document.body.dataset.scrollDirection, style === 'glass' ? 'down' : 'up');
   }
   for (const style of Object.keys(CONTROLS).filter((name) => !CONTROLS[name].includes('scrollDirection'))) {
     browser.applyStyleOptions(document, 'signal', { signal: { scrollDirection: 'down' } });

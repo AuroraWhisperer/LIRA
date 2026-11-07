@@ -1,0 +1,85 @@
+body[data-style='celestial-horizontal'] {
+  --celestial-font: 'Celestial Montserrat', 'Microsoft YaHei UI', sans-serif;
+  --celestial-name-font: 'Celestial Cinzel', 'SimSun', serif;
+  --celestial-gold: var(--danmaku-bubble-color, #ffd700);
+  --danmaku-enter-animation: celestialEntry 500ms linear;
+  --danmaku-enter-offset: 0;
+  --danmaku-move-base-ms: 300;
+  --danmaku-move-max-ms: 550;
+  --danmaku-move-curve: .25, .1, .25, 1;
+}
+body[data-style='celestial-horizontal'][data-custom-font='true'] {
+  --celestial-font: var(--danmaku-custom-font);
+  --celestial-name-font: var(--danmaku-custom-font);
+}
+body[data-style='celestial-horizontal'] .danmaku-signal-header { display: none; }
+body[data-style='celestial-horizontal'] .danmaku-signal-stage {
+  position: relative; display: flex; align-items: center; padding: 0; gap: 0; isolation: isolate;
+  height: 96px; margin-top: auto; overflow: hidden;
+  border-block: 1px solid color-mix(in srgb, var(--celestial-gold) 50%, transparent);
+  box-shadow: 0 0 30px color-mix(in srgb, var(--celestial-gold) 20%, transparent);
+}
+body[data-style='celestial-horizontal'].has-layout .danmaku-signal-stage { height: var(--region-content-height); }
+body[data-style='celestial-horizontal']:not(.has-layout) .danmaku-region { display: flex; flex-direction: column; }
+.celestial-backdrop { position: absolute; inset: 0; z-index: -1; pointer-events: none; background: rgb(26 6 51 / calc(.8 * var(--danmaku-background-opacity, 1))); }
+.celestial-nebula {
+  position: absolute; inset: 0 auto 0 0; width: 200%; opacity: calc(var(--celestial-nebula-opacity, .3) * var(--danmaku-background-opacity, 1));
+  background: radial-gradient(circle at 20% 50%, #4b0082 0%, transparent 40%),
+    radial-gradient(circle at 80% 50%, #310a5d 0%, transparent 40%),
+    radial-gradient(circle at 50% 50%, #20b2aa 0%, transparent 30%);
+  background-size: 100% 100%; animation: celestialNebula 20s ease-in-out infinite;
+}
+.celestial-stars { position: absolute; inset: 0; opacity: .6; }
+.celestial-star { position: absolute; width: var(--star-size); height: var(--star-size); background: #fff; border-radius: 50%; opacity: .2; animation: celestialTwinkle var(--star-duration) ease-in-out infinite; animation-delay: var(--star-delay, 0s); }
+.celestial-star:nth-child(n + 31) { display: none; }
+body[data-style='celestial-horizontal'][data-celestial-star-density='dense'] .celestial-star { display: block; }
+body[data-style='celestial-horizontal'][data-celestial-star-density='sparse'] .celestial-star:nth-child(n + 13),
+body[data-style='celestial-horizontal'][data-celestial-star-density='off'] .celestial-stars { display: none; }
+body[data-style='celestial-horizontal'] .draw-danmaku-feed {
+  position: relative; display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
+  width: 100%; height: 100%; padding: 0 32px; gap: 0; overflow: hidden; mask: none;
+}
+body[data-style='celestial-horizontal'] .draw-danmaku-feed:not([data-flow-overflow='true']) { justify-content: flex-start; }
+body[data-style='celestial-horizontal'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(90deg, transparent, #000 min(24px, 4%), #000 calc(100% - min(24px, 4%)), transparent);
+}
+body[data-style='celestial-horizontal'] .draw-danmaku-item.celestial-item {
+  display: flex; align-items: center; flex: none; gap: 0; width: max-content; max-width: none; min-height: 0;
+  margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none;
+  font: 300 var(--danmaku-font-size, 16px)/1.5 var(--celestial-font); color: var(--danmaku-text-color, #f0f8ff);
+  animation: none; overflow: visible; zoom: 1;
+}
+body[data-style='celestial-horizontal'] .draw-danmaku-feed > .draw-danmaku-item.celestial-item::after {
+  content: ''; position: static; inset: auto; flex: none; width: 1px; height: 24px; margin: 0 24px; opacity: .4;
+  background: linear-gradient(transparent, var(--celestial-gold), transparent); animation: none;
+}
+body[data-style='celestial-horizontal'] .draw-danmaku-feed > .draw-danmaku-item.celestial-item:last-child::after { display: none; }
+body[data-style='celestial-horizontal'][data-celestial-separator='hide'] .draw-danmaku-feed > .draw-danmaku-item.celestial-item::after { visibility: hidden; }
+body[data-style='celestial-horizontal'] .celestial-item .celestial-message {
+  display: flex; flex-direction: row; align-items: center; gap: 12px; grid-area: auto;
+  width: max-content; min-width: 0; min-height: 0; padding: 0; font: inherit; white-space: nowrap;
+}
+.celestial-user-star { display: block; flex: none; width: 24px; height: 24px; fill: var(--celestial-star-color); stroke: var(--celestial-star-color); filter: drop-shadow(0 0 5px rgb(255 215 0 / 50%)); }
+body[data-style='celestial-horizontal'][data-celestial-star-shape='sparkle'] .celestial-user-star > path {
+  d: path('M12 2 14.8 9.2 22 12 14.8 14.8 12 22 9.2 14.8 2 12 9.2 9.2Z');
+  stroke-width: 1;
+}
+body[data-style='celestial-horizontal'][data-celestial-star-shape='star'] .celestial-user-star > path {
+  d: path('M12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26Z');
+  stroke-width: 1;
+}
+body[data-style='celestial-horizontal']:is([data-celestial-star-shape='sparkle'], [data-celestial-star-shape='star']) .celestial-user-star > circle { display: none; }
+body[data-style='celestial-horizontal'] .celestial-name { font: 700 16px/24px var(--celestial-name-font); color: var(--celestial-gold); letter-spacing: .05em; white-space: nowrap; }
+body[data-style='celestial-horizontal'] .celestial-copy { display: block; margin: 0; padding: 0; font: inherit; color: inherit; letter-spacing: .025em; white-space: nowrap; overflow-wrap: normal; }
+.celestial-copy .draw-danmaku-emote { display: inline-block; height: 1.5em; width: auto; vertical-align: middle; object-fit: contain; }
+.celestial-amount { font: inherit; color: var(--celestial-gold); white-space: nowrap; }
+body[data-style='celestial-horizontal'] .draw-danmaku-empty { width: 100%; margin: 0; padding: 0; font: italic 300 14px/20px var(--celestial-font); color: #f0f8ff; opacity: .4; letter-spacing: .1em; text-align: center; background: none; border: 0; }
+.celestial-item[data-live-entry] .celestial-message { animation: celestialReveal 500ms cubic-bezier(.23, 1, .32, 1) both; }
+@keyframes celestialEntry { from, to { opacity: 1; } }
+@keyframes celestialReveal { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes celestialNebula { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-50%); } }
+@keyframes celestialTwinkle { 0%, 100% { opacity: .2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
+body[data-style='celestial-horizontal'][data-ambient-motion='off'] :is(.celestial-nebula,.celestial-star) { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='celestial-horizontal'] :is(.celestial-nebula,.celestial-star,.celestial-message) { animation: none !important; }
+}

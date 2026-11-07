@@ -26,6 +26,12 @@ function settingsKeys(type) {
     .filter(key => Object.hasOwn(DEFAULT_SETTINGS, key)) : [];
 }
 
+function sharedResourceAppearance(type, config = {}) {
+  if (type !== 'lyrics') return config;
+  const { lyricLayer: _layer, ...appearance } = config;
+  return appearance;
+}
+
 function createSceneSharedAppearance(context) {
   const settings = { ...DEFAULT_SETTINGS, ...context.settings.get() };
   let readStyle;
@@ -37,7 +43,7 @@ function createSceneSharedAppearance(context) {
     return readStyle(config.resourceStyle.id, type);
   }
   function read(type, config, defaults) {
-    if (config.resourceStyle) return resource(config, type)?.config || {};
+    if (config.resourceStyle) return sharedResourceAppearance(type, resource(config, type)?.config);
     if (hasInstalledAppearance(config)) return {};
     if (type === 'now-playing') {
       const { style: _style, ...appearance } = readNowPlayingConfig(settings);
@@ -81,7 +87,8 @@ function createSceneSharedAppearance(context) {
       || !Object.keys(patch).length || Object.keys(patch).some(key => !Object.hasOwn(current, key)
         || ['resourceStyle', 'cssStyle', 'mediaStyle', 'backgroundDefaults'].includes(key))) throw invalid();
     if (config.resourceStyle) {
-      return createComponentStyleLibrary(context.system.dataDir).config({ id: config.resourceStyle.id, patch }).config;
+      return sharedResourceAppearance(type,
+        createComponentStyleLibrary(context.system.dataDir).config({ id: config.resourceStyle.id, patch }).config);
     }
     // The desktop relay remains the only writer of clock/queue/overtime drafts
     // and remote danmaku settings. This capability never acquires their authority.

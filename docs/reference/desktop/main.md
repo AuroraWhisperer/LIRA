@@ -365,7 +365,7 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 `gift-export-ipc.js` 只接受主窗口、主 frame、精确本地 origin 的管理页调用；preload 提供 prepare/configure/save/cancel/openFolder 和进度订阅，不接收任意输出路径或页面 URL。`gift-export-controller.js` 从 runtime 取得冻结记录、配置及目录，默认保存到系统图片目录 `LIRA/礼物导出/日期/时间-随机标识`，替换根目录只能通过原生文件夹对话框。预览不创建目录；任务目录独占创建，PNG 用 wx 防覆盖。
 
-隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。横幅基础为 428×72、间隔 8px；2× PNG 每行基础为 856×144、间隔 16px，每图最多 39 条（基础 856×6224），数量文字可向右扩宽，同页取最宽横幅。支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
+隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。每次保存先向该窗口传递一次冻结配置与礼物目录，并建立一次图片索引；逐图只传当前条目和背景，复用同一索引直到窗口销毁。横幅基础为 428×72、间隔 8px；2× PNG 每行基础为 856×144、间隔 16px，每图最多 39 条（基础 856×6224），数量文字可向右扩宽，同页取最宽横幅。支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
 
 [desktop-main-window.js](../../../src/electron/desktop-main-window.js) 的 `create(baseUrl, authorized)` 创建并持有唯一主窗口；初次 URL 使用 main 注入的就绪结果，后续 `/license` 与 `/admin?desktop=1` 切换由 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 的授权和礼物初始化状态监听器驱动：
 

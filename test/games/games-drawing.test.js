@@ -49,14 +49,20 @@ async function createDrawingFixture(t) {
     const nodes = new Map();
     const keyboard = new Map();
     const painted = [];
+    const drawingStats = { lineSegments: 0, captures: 0, restores: 0 };
     const context = {
+      painted,
       fillRect: () => {
         painted.length = 0;
       },
       beginPath() {},
       arc() {},
       moveTo() {},
-      lineTo() {},
+      lineTo() { drawingStats.lineSegments++; },
+      drawImage(source) {
+        painted.splice(0, painted.length, ...source.getContext('2d').painted);
+        drawingStats.restores++;
+      },
       fill() {
         painted.push(this.fillStyle);
       },
@@ -101,6 +107,17 @@ async function createDrawingFixture(t) {
       path.join(__dirname, '../..', 'public', 'js', 'overlays', 'games-drawing.js'),
       {
         document: {
+          createElement(tag) {
+            assert.equal(tag, 'canvas');
+            const background = {
+              painted: [],
+              drawImage(source) {
+                this.painted.splice(0, this.painted.length, ...source.getContext('2d').painted);
+                drawingStats.captures++;
+              },
+            };
+            return { width: 0, height: 0, getContext: () => background };
+          },
           querySelectorAll: (selector) => toolbar[selector] || [],
           addEventListener: (type, listener) => keyboard.set(type, listener),
         },
@@ -148,6 +165,7 @@ async function createDrawingFixture(t) {
       controller,
       byId,
       painted,
+      drawingStats,
       loadSnapshot,
       canvas: () => structuredClone(session.state.canvas),
       restore: (value) => {
@@ -331,6 +349,57 @@ test('queued drawing is discarded after its round is replaced', async (t) => {
   await pending;
   assert.equal(f.requests.length, 0);
   assert.deepEqual(f.host.canvas().strokes, []);
+});
+
+test('shape dragging reuses the painted history until the canvas changes', async (t) => {
+  const { host, games } = await createDrawingFixture(t);
+  const snapshot = structuredClone(games.getSession());
+  snapshot.state.canvas.strokes = Array.from({ length: 100 }, (_, index) => ({
+    id: `history-${index}`, color: '#ef476f', width: 4,
+    points: Array.from({ length: 50 }, (_, point) => ({ x: point / 100, y: index / 100 })),
+  }));
+  snapshot.state.canvas.totalPoints = 5000;
+  host.restore(snapshot);
+  host.key('r');
+  Object.assign(host.drawingStats, { lineSegments: 0, captures: 0, restores: 0 });
+  host.pointer('pointerdown', 10);
+  for (let index = 0; index < 100; index++) host.pointer('pointermove', 20 + index / 2);
+  t.diagnostic(JSON.stringify(host.drawingStats));
+  assert.equal(host.drawingStats.lineSegments, 4900 + 100 * 4);
+  assert.equal(host.drawingStats.captures, 1);
+  assert.equal(host.drawingStats.restores, 100);
+  assert.equal(host.painted.length, 101, 'each preview replaces the previous shape');
+});
+
+test('shape backgrounds refresh after remote edits, snapshots, resizing and a new gesture', async (t) => {
+  const { host, games } = await createDrawingFixture(t);
+  host.key('l');
+  host.pointer('pointerdown', 10);
+  host.pointer('pointermove', 40);
+  const append = { action: 'append', clientId: 'remote', strokeId: 'remote', color: '#118ab2', width: 4,
+    points: [{ x: 0.1, y: 0.3 }, { x: 0.4, y: 0.6 }], revision: 3 };
+  host.controller.applyBroadcast(append);
+  host.pointer('pointermove', 50);
+  assert.deepEqual(host.painted, ['#222034', '#ef476f', '#118ab2', '#222034']);
+  host.controller.applyBroadcast({ action: 'undo', clientId: 'remote', strokeId: 'stroke-1', revision: 4 });
+  host.pointer('pointermove', 60);
+  assert.deepEqual(host.painted, ['#222034', '#118ab2', '#222034']);
+  host.controller.applyBroadcast({ action: 'clear', clientId: 'remote', revision: 5 });
+  host.pointer('pointermove', 70);
+  assert.deepEqual(host.painted, ['#222034']);
+  host.restore(games.getSession());
+  host.pointer('pointermove', 80);
+  assert.deepEqual(host.painted, ['#222034', '#ef476f', '#222034']);
+  const captures = host.drawingStats.captures;
+  host.byId('drawCanvas').width = 200;
+  host.pointer('pointermove', 90);
+  assert.equal(host.drawingStats.captures, captures + 1);
+  assert.deepEqual(host.painted, ['#222034', '#ef476f', '#222034']);
+  host.controller.setToolsEnabled(false);
+  assert.deepEqual(host.painted, ['#222034', '#ef476f']);
+  host.controller.setToolsEnabled(true);
+  host.pointer('pointerdown', 10);
+  assert.equal(host.drawingStats.captures, captures + 2);
 });
 
 test('keyboard shortcuts select tools and widths, and each tool submits its own stroke geometry', async (t) => {

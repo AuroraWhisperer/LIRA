@@ -20,7 +20,7 @@ export function createHeartBoxCollection() {
       render();
       get('heartBoxCollectionPeriod').textContent = `本期收集 · ${date.format(new Date(data.startsAt))}—${date.format(new Date(Date.parse(data.endsAt) - 1))}`;
       status.textContent = data.partial ? '礼物记录仍在同步，当前进度可能尚未完整。'
-        : data.status === 'ended' ? '本期收集已结束，下面显示最终进度。' : '正在自动更新本期进度。';
+        : data.status === 'ended' ? '本期收集已结束，当前为最终进度。' : '正在自动更新本期进度。';
       error.hidden = true;
     },
     onError(value) {

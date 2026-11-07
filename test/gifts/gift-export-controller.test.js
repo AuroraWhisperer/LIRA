@@ -18,15 +18,18 @@ function fixture(t, renderWidths = [856], storedSettings = {}) {
       this.options = options;
       this.destroyed = false;
       this.sizes = [];
+      this.payloads = [];
       windows.push(this);
       let render = 0;
       this.webContents = {
         setWindowOpenHandler() {},
         on() {},
-        executeJavaScript: async (script) =>
-          script.startsWith('window.renderGiftExport(')
+        executeJavaScript: async (script) => {
+          if (script.startsWith('window.')) this.payloads.push(JSON.parse(script.slice(script.indexOf('(') + 1, -1)));
+          return script.startsWith('window.renderGiftExport(')
             ? { width: renderWidths[Math.min(render++, renderWidths.length - 1)] }
-            : undefined,
+            : undefined;
+        },
         capturePage: async (rect) => ({
           toPNG() {
             const bytes = Buffer.alloc(24);
@@ -72,7 +75,7 @@ function fixture(t, renderWidths = [856], storedSettings = {}) {
         viewRevision: revision,
         items: [{ eventId: 'one' }, { eventId: 'two' }],
         config: {},
-        catalog: [],
+        catalog: [{ id: 'sample', name: 'Sample gift' }],
       }),
     },
     getBaseUrl: () => 'http://127.0.0.1:3000',
@@ -204,6 +207,16 @@ test('export resizes each PNG to its rendered quantity width and rejects invalid
     assert.equal(invalid.windows[0].destroyed, true);
     assert.deepEqual(fs.readdirSync(next.directory), []);
   }
+});
+
+test('export transfers the fixed catalog once across separate images', async (t) => {
+  const { controller, windows } = fixture(t);
+  const task = await controller.prepare({});
+  await controller.configure({ id: task.id, mode: 'separate', background: 'transparent' });
+  const result = await controller.save({ id: task.id });
+  assert.equal(result.ok, true);
+  assert.equal(result.saved, 2);
+  assert.equal(windows[0].payloads.reduce((count, payload) => count + (payload.catalog?.length || 0), 0), 1);
 });
 
 test('a source change prevents any subsequent file being written', async (t) => {

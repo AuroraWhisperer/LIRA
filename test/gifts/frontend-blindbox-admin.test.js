@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createClock } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
@@ -60,20 +61,23 @@ test('blind box calendar fits each month while keeping its weekday positions', a
   }
 });
 
-test('open blind box analysis debounces gift events into one quiet reload and stops after closing', async () => {
+async function createAnalysisHarness({ autoResolve = false } = {}) {
   const elements = new Map();
   const element = (id = '') => {
     if (id && elements.has(id)) return elements.get(id);
+    const listeners = new Map();
     const node = {
       id, hidden: true, dataset: {}, textContent: '', innerHTML: '', disabled: false,
       classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
-      addEventListener() {}, setAttribute() {}, getAttribute: () => null, focus() {},
+      addEventListener: (name, listener) => listeners.set(name, listener),
+      emit: (name, event) => listeners.get(name)?.(event),
+      setAttribute() {}, getAttribute: () => null, focus() {}, replaceChildren() {},
       querySelector: () => element(), querySelectorAll: () => [],
     };
     if (id) elements.set(id, node);
     return node;
   };
-  const timers = [];
+  const clock = createClock();
   const requests = [];
   const window = {};
   const [{ giftAnalysis }, { eventBus }] = await loadModuleExports([
@@ -82,6 +86,7 @@ test('open blind box analysis debounces gift events into one quiet reload and st
   ], {
     window,
     HTMLElement: class {},
+    Option: class {},
     AbortController,
     URLSearchParams,
     document: {
@@ -89,32 +94,77 @@ test('open blind box analysis debounces gift events into one quiet reload and st
       addEventListener() {}, getElementById: (id) => element(id),
       querySelector: () => null, querySelectorAll: () => [],
     },
-    setTimeout: (callback, delay) => timers.push({ callback, delay, cleared: false }) - 1,
-    clearTimeout: (index) => {
-      if (timers[index]) timers[index].cleared = true;
-    },
+    ...clock,
     fetch: (url, { signal }) => {
-      requests.push({ url, signal });
-      return new Promise(() => {});
+      const request = Promise.withResolvers();
+      requests.push({ url, signal, ...request });
+      if (autoResolve) request.resolve(result(1));
+      return request.promise;
     },
   });
-  const pendingTimers = () => timers.filter((timer) => !timer.cleared);
+  function result(count) {
+    return { ok: true, text: async () => JSON.stringify({ ok: true, data: {
+      filters: {}, summary: { boxCount: count }, items: [], pagination: {},
+    } }) };
+  }
+  return { giftAnalysis, eventBus, clock, requests, element,
+    async finish(index, count = 1) {
+      requests[index].resolve(result(count));
+      await new Promise(setImmediate);
+    } };
+}
+
+test('open blind box analysis refreshes throughout continuous gift traffic and stops after closing', async () => {
+  const { giftAnalysis, eventBus, clock, requests } = await createAnalysisHarness({ autoResolve: true });
 
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
-  assert.equal(pendingTimers().length, 0, 'a closed workspace ignores gift events');
+  clock.tick(1000);
+  assert.equal(requests.length, 0, 'a closed workspace ignores gift events');
   giftAnalysis.open();
+  await new Promise(setImmediate);
   assert.equal(requests.length, 1);
   assert.match(requests[0].url, /^\/api\/gifts\/blind-box-analysis\?view=users&page=1/);
-  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
-  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
-  assert.equal(pendingTimers().length, 1, 'gift bursts share one delayed reload');
-  pendingTimers()[0].callback();
-  assert.equal(requests.length, 2);
-  assert.equal(requests[0].signal.aborted, true, 'the newer reload aborts the older request');
+  for (let i = 0; i < 240; i++) {
+    eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+    clock.tick(250);
+    await new Promise(setImmediate);
+  }
+  assert.equal(requests.length, 121, 'continuous gifts share bounded refreshes without postponing them forever');
   giftAnalysis.close();
-  assert.equal(requests[1].signal.aborted, true);
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
-  assert.equal(pendingTimers().length, 0);
+  clock.tick(1000);
+  assert.equal(requests.length, 121);
+});
+
+test('gift refreshes finish slow analysis reads while newer filters and closing reject stale results', async () => {
+  const { giftAnalysis, eventBus, clock, requests, element, finish } = await createAnalysisHarness();
+  giftAnalysis.open();
+  for (let i = 0; i < 4; i++) {
+    eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+    clock.tick(250);
+  }
+  assert.equal(requests.length, 1, 'gift refreshes cannot continuously abort a slow read');
+  assert.equal(requests[0].signal.aborted, false);
+  await finish(0);
+  clock.tick(500);
+  assert.equal(requests.length, 2);
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  clock.tick(1000);
+  assert.equal(requests.length, 2);
+  element('blindBoxAnalysisViewer').emit('change', { target: { value: 'uid:new' } });
+  assert.equal(requests.length, 3);
+  assert.equal(requests[1].signal.aborted, true);
+  assert.match(requests[2].url, /viewer=uid%3Anew/);
+  await finish(2, 9);
+  await finish(1, 2);
+  assert.equal(element('blindBoxAnalysisCount').textContent, '9');
+  clock.tick(1000);
+  assert.equal(requests.length, 3, 'the newer filtered read consumes earlier invalidation');
+  giftAnalysis.open();
+  giftAnalysis.close();
+  assert.equal(requests[3].signal.aborted, true);
+  await finish(3, 20);
+  assert.equal(element('blindBoxAnalysisCount').textContent, '9');
 });
 
 test('blindbox controls keep a stable IPv4 source URL that follows saved settings', async () => {

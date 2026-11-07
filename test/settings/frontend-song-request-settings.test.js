@@ -13,6 +13,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
     paused: 'true',
     scSongRequestEnabled: 'false',
     songRequestCancelEnabled: 'false',
+    songRequestMatchMode: 'prefix',
     queueLimit: '30',
     userCooldownSeconds: '60',
     userQueueLimit: '2',
@@ -89,11 +90,11 @@ test('song request edits autosave independently, serialize newer drafts and reta
   await listeners.get('settingsForm:submit')({ preventDefault() {} });
   assert.deepEqual(requests, [{ url: '/api/settings', payload: { roomId: '123' } }]);
 
-  const paused = { id: 'paused', tagName: 'SELECT', dataset: {} };
-  elements.set('paused', paused);
-  listeners.get('songRequestSettingsForm:input')({ target: paused });
+  const matching = { id: 'songRequestMatchMode', tagName: 'SELECT', dataset: {} };
+  elements.set('songRequestMatchMode', matching);
+  listeners.get('songRequestSettingsForm:input')({ target: matching });
   values.queueLimit = '40';
-  listeners.get('songRequestSettingsForm:change')({ target: paused });
+  listeners.get('songRequestSettingsForm:change')({ target: matching });
   t.mock.timers.tick(499);
   assert.equal(requests.length, 1);
   t.mock.timers.tick(1);
@@ -101,6 +102,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
   assert.equal(requests.length, 2);
   assert.equal(requests[1].payload.queueLimit, '40');
   assert.equal(requests[1].payload.songRequestCancelEnabled, 'false');
+  assert.equal(requests[1].payload.songRequestMatchMode, 'prefix');
   assert.equal(Object.hasOwn(requests[1].payload, 'roomId'), false);
   assert.equal(reloads, 2);
   assert.deepEqual(notices, ['设置已保存'], 'autosaves do not interrupt editing with success toasts');

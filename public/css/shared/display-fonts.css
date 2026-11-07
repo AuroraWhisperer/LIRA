@@ -475,10 +475,98 @@
 }
 
 @font-face {
+  font-family: 'Lira Sea Breeze Serif';
+  src: url('/fonts/sea-breeze/sea-breeze-serif.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lira Wireframe Serif';
+  src: url('/fonts/sea-breeze/sea-breeze-serif.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stargazer Poppins';
+  src: url('/fonts/stargazer/poppins-400.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Stargazer Poppins';
+  src: url('/fonts/stargazer/poppins-700.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lira Quicksand';
+  src: url('/fonts/glass/quicksand.ttf') format('truetype');
+  font-weight: 300 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
   font-family: 'Lira Lyric Scripts';
   src: url('/fonts/lyrics-fallback/notoseriftibetan.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
   font-display: swap;
   unicode-range: U+0F00-0FFF;
+}
+
+@font-face {
+  font-family: 'Gradient Montserrat';
+  src: url('/fonts/animated-gradient/montserrat-400.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gradient Montserrat';
+  src: url('/fonts/animated-gradient/montserrat-700.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Gradient Montserrat';
+  src: url('/fonts/celestial-horizontal/montserrat-300-latin.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Celestial Montserrat';
+  src: url('/fonts/celestial-horizontal/montserrat-300-latin.woff2') format('woff2');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Celestial Cinzel';
+  src: url('/fonts/celestial-horizontal/cinzel-700-latin.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Lira Rounded Mplus';
+  src: url('/fonts/glass-bubble/mplus-rounded-800.woff2') format('woff2');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
 }

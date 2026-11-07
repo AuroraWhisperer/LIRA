@@ -7,7 +7,7 @@ const { createSceneDanmakuDisplay } = require('../../public/js/overlays/scene-da
 const { createCloudDisplayBuffer } = require('../../src/scenes/cloud-display-buffer');
 
 test('supported random and sinking scene output include SC and forward its deletion; other floating styles omit SC', () => {
-  for (const style of ['mist', 'comic', 'sinking', 'outline', 'floating']) {
+  for (const style of ['mist', 'comic', 'sinking', 'stardust', 'sea-breeze-random', 'glass-bubble', 'celestial-horizontal', 'outline', 'floating']) {
     const items = [];
     const deleted = [];
     const display = createSceneDanmakuDisplay({ clear() {}, append: item => items.push(item),
@@ -17,7 +17,7 @@ test('supported random and sinking scene output include SC and forward its delet
       { type: 'superchat', liveSessionId: 'live', messageId: 'sc', message: '原文\n第二行', price: 30 },
       { type: 'superchat', liveSessionId: 'old', messageId: 'old-sc', message: '旧场次', price: 30 },
     ] });
-    assert.equal(items.length, ['mist', 'comic', 'sinking'].includes(style) ? 1 : 0);
+    assert.equal(items.length, ['mist', 'comic', 'sinking', 'stardust', 'sea-breeze-random', 'glass-bubble', 'celestial-horizontal'].includes(style) ? 1 : 0);
     if (items.length) assert.equal(items[0].message, '原文\n第二行');
     display.update({ ...snapshot, events: [{ type: 'superchat-delete', liveSessionId: 'live', messageIds: ['sc'] }] });
     assert.deepEqual(deleted, ['sc']);

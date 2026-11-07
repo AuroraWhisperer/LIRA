@@ -3,7 +3,7 @@
 'use strict';
 
 const { cleanText } = require('../shared/utils');
-const { matchesLibraryTag } = require('./tag-aliases');
+const { createLibraryTagMatcher } = require('./tag-aliases');
 const { splitSongArtists, splitSongLanguages, splitSongTags } = require('./song-field-utils');
 
 const LANGUAGE_ALIAS_GROUPS = [
@@ -79,7 +79,7 @@ function compileScopeTerm(term) {
 
 function compileTerm(term) {
   return {
-    text: term,
+    matchesTag: createLibraryTagMatcher(term),
     normalized: normalizeComparable(term),
     languages: randomLanguageAliases(term),
     categories: randomCategoryAliases(term),
@@ -109,7 +109,7 @@ function songMatchesTerm(song, term) {
   return !term.normalized || song.artist === term.normalized || song.artists.includes(term.normalized) ||
     song.languages.some((language) => term.languages.includes(language)) ||
     song.categories.some((category) => term.categories.includes(category)) ||
-    song.tags.some((tag) => matchesLibraryTag(tag, term.text));
+    song.tags.some(term.matchesTag);
 }
 
 function splitSongCategories(value) {

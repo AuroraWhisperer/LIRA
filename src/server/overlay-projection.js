@@ -3,6 +3,7 @@
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
 const { normalizeClockStyleOptions } = require('./clock-contract');
 const { NOW_PLAYING_FIELDS } = require('../../public/js/shared/now-playing-appearance.js');
+const { LYRIC_VISUAL_DEFAULTS } = require('../../public/js/shared/advanced-lyric-appearance.js');
 
 // Page capabilities select fields, never a whole runtime object or settings prefix.
 const SETTING_KEYS = {
@@ -79,6 +80,7 @@ function fields(names) {
 }
 
 const SETTING_SCHEMAS = Object.fromEntries(Object.entries(SETTING_KEYS).map(([scope, keys]) => [scope, fields(keys)]));
+Object.assign(SETTING_SCHEMAS.lyrics, fields(Object.keys(LYRIC_VISUAL_DEFAULTS).join(' ')));
 const POINT = fields('x y');
 const EFFECT = fields('operation value');
 const DANMAKU_ITEM = {

@@ -14,6 +14,158 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('stargazer preserves native content, room identity and settled events in its card composition', async () => {
+  const render = await createRenderer({ style: 'stargazer', showAvatar: true,
+    resolveAvatarUrl: value => `/avatar${value}`, resolveEmoteUrl: value => `/emote${value}` });
+  const chat = { id: 'stable', name: '<b>观众</b>', message: '你好[星]', avatarUrl: '/real.png', guardLevel: 1, roomGuardLevel: 0,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  const card = render(chat);
+  assert.equal(findByClass(card, 'stargazer-name').textContent, chat.name);
+  assert.equal(findByClass(card, 'draw-danmaku-avatar').children[0].src, '/avatar/real.png');
+  assert.equal(findByClass(card, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(card, 'stargazer-role'), undefined, 'other-room guard is not a room badge');
+  assert.equal(findByClass(render({ ...chat, roomGuardLevel: 3 }), 'stargazer-role').textContent, '舰长');
+  assert.equal(card.dataset.stargazerTone, render(chat, 99).dataset.stargazerTone, 'rebuilding preserves the palette');
+  const gift = render({ kind: 'gift', name: '<送礼者>', giftName: '<花>', giftCount: 10, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'stargazer-sender').textContent, '<送礼者>');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, ' × 10');
+  assert.equal(findByClass(gift, 'stargazer-amount').textContent, ' · ¥12.50');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(member, 'draw-danmaku-gift-name').textContent, '提督');
+  assert.ok(allNodes(member).some(node => node.textContent === ' 续费 '));
+  assert.equal(findByClass(member, 'stargazer-amount').textContent, ' · —');
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', name: '原发送者', message, price: 30 });
+  assert.equal(findByClass(sc, 'stargazer-copy').textContent, message);
+  assert.equal(findByClass(sc, 'stargazer-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'stargazer-sender').textContent, '原发送者');
+  assert.equal(findByClass(sc, 'stargazer-amount').textContent, '¥30.00');
+});
+
+test('dark moon colors only current-room guards and preserves literal chat and inline emotes', async () => {
+  const render = await createRenderer({ style: 'dark-moon', resolveEmoteUrl: value => `/emote${value}` });
+  const item = { name: '<b>观众</b>', message: '晚上好[星]', avatarUrl: '/unused.png',
+    guardLevel: 1, roomGuardLevel: 0, emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  const regular = render(item);
+  assert.equal(regular.dataset.identity, 'regular', 'a guard from another room keeps the ordinary frame');
+  assert.equal(findByClass(regular, 'dark-moon-role'), undefined);
+  assert.equal(findByClass(regular, 'dark-moon-name').textContent, item.name);
+  assert.equal(findByClass(regular, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(regular, 'draw-danmaku-avatar'), undefined);
+  for (const [level, role] of [[1, '总督'], [2, '提督'], [3, '舰长']]) {
+    const guard = render({ ...item, roomGuardLevel: level });
+    assert.equal(guard.dataset.identity, 'guard');
+    assert.equal(findByClass(guard, 'dark-moon-role').textContent, role);
+  }
+});
+
+test('dark moon alerts use settled gift data and retain full literal SC content', async () => {
+  const render = await createRenderer({ style: 'dark-moon' });
+  const gift = render({ kind: 'gift', name: '<观众>', giftName: '<花>', giftCount: 5, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'dark-moon-name').textContent, '<观众>');
+  assert.equal(findByClass(gift, 'dark-moon-event-label').textContent, '送出 <花> × 5');
+  assert.equal(findByClass(gift, 'dark-moon-amount').textContent, '¥12.50');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(member.dataset.moonKind, 'member');
+  assert.equal(findByClass(member, 'dark-moon-event-label').textContent, '续费 提督 × 1');
+  assert.equal(findByClass(member, 'dark-moon-amount').textContent, '—');
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', message, price: 30 });
+  assert.equal(findByClass(sc, 'dark-moon-copy').textContent, message);
+  assert.equal(findByClass(sc, 'dark-moon-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'dark-moon-event-label').textContent, '醒目留言 ¥30.00');
+});
+
+test('glass preserves safe messages and uses only current-room role markers without loading avatars', async () => {
+  const render = await createRenderer({ style: 'glass', showAvatar: true,
+    resolveAvatarUrl: () => { throw new Error('Glass has no avatar'); },
+    resolveEmoteUrl: value => `/emote${value}` });
+  const item = { name: '<b>观众</b>', message: '你好[星]', avatarUrl: '/real.png',
+    guardLevel: 1, roomGuardLevel: 0, timestamp: 1793977980000,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  const root = render(item);
+  assert.equal(findByClass(root, 'glass-heading').children[0].textContent, item.name);
+  assert.equal(findByClass(root, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(root, 'glass-role-icon'), undefined, 'other-room guard is not a current-room badge');
+  assert.equal(findByClass(root, 'draw-danmaku-avatar'), undefined);
+  assert.equal(findByClass(render({ ...item, roomGuardLevel: 3 }), 'glass-role-icon').getAttribute('aria-label'), '舰长');
+  assert.equal(findByClass(root, 'glass-time').getAttribute('datetime'), new Date(item.timestamp).toISOString());
+});
+
+test('glass retains settled gift values, membership actions and complete literal SC', async () => {
+  const render = await createRenderer({ style: 'glass',
+    resolveGiftImageUrl: value => { assert.equal(value, '', 'Glass does not request discarded gift artwork'); return ''; } });
+  const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 10, giftTotalPrice: 12.5, giftImageUrl: '/gift.png' });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 10');
+  assert.match(findByClass(gift, 'glass-amount').textContent, /¥12\.5/);
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(member, 'draw-danmaku-gift-action').textContent, '续费');
+  assert.equal(findByClass(member, 'draw-danmaku-gift-name').textContent, '提督');
+  assert.equal(findByClass(member, 'glass-amount'), undefined);
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', message, price: 30 });
+  assert.equal(findByClass(sc, 'glass-copy').textContent, message);
+  assert.equal(findByClass(sc, 'glass-copy').children.length, 0);
+  assert.match(findByClass(sc, 'glass-event-label').textContent, /¥30/);
+});
+
+test('stardust preserves safe copy, emotes and settled event data in its transparent composition', async () => {
+  const render = await createRenderer({ style: 'stardust', fullscreen: true, showAvatar: false,
+    resolveEmoteUrl: value => `/emote${value}` });
+  const chat = render({ name: '<b>观众</b>', message: '晚安[星]',
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] });
+  assert.equal(findByClass(chat, 'stardust-name').children[0].textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/emote/star.png');
+  const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 5, giftTotalPrice: 52.1 });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 5');
+  assert.match(findByClass(gift, 'stardust-event').textContent, /¥52.1$/);
+  assert.equal(gift.dataset.stardustAnchor, 'top');
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.match(findByClass(member, 'stardust-copy').textContent, /提督.*续费/);
+  assert.equal(member.dataset.stardustAnchor, 'bottom');
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', message, price: 30 });
+  assert.equal(findByClass(sc, 'stardust-copy').textContent, message);
+  assert.equal(findByClass(sc, 'stardust-copy').children.length, 0);
+  assert.match(findByClass(sc, 'stardust-event').textContent, /¥30$/);
+});
+
+test('sea breeze shares safe text and emotes while using only the current room identity', async () => {
+  const render = await createRenderer({ style: 'sea-breeze-random', fullscreen: true, showAvatar: true,
+    resolveEmoteUrl: value => `/emote${value}` });
+  const item = { name: '<b>海边游客</b>', avatarUrl: '/unused.png', guardLevel: 1, roomGuardLevel: 0,
+    message: '你好[星]', emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }],
+    roomMedal: { name: '<花>', level: 12 } };
+  const root = render(item);
+  assert.equal(findByClass(root, 'sea-breeze-name').children[0].textContent, item.name);
+  assert.equal(findByClass(root, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(root, 'draw-danmaku-avatar'), undefined);
+  assert.equal(root.dataset.seaBreezeRole, 'visitor');
+  assert.equal(findByClass(root, 'sea-breeze-medal').textContent, '<花>12');
+  assert.equal(findByClass(root, 'sea-breeze-medal').children.length, 0);
+  assert.equal(render({ ...item, roomGuardLevel: 3 }).dataset.seaBreezeRole, 'captain');
+});
+
+test('sea breeze preserves settled gift totals, membership actions and the complete literal SC', async () => {
+  const render = await createRenderer({ style: 'sea-breeze' });
+  const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 10, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'sea-breeze-gift-name').textContent, '<花>');
+  assert.match(findByClass(gift, 'sea-breeze-amount').textContent, /12\.5$/u);
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(member.dataset.seaBreezeRole, 'admiral');
+  assert.match(findByClass(member, 'sea-breeze-copy').textContent, /提督续费/u);
+  assert.doesNotMatch(findByClass(render({ kind: 'gift', giftGuardLevel: 3 }), 'sea-breeze-copy').textContent, /开通|续费/u);
+  const message = '  第一行\n<script>保留完整留言</script>  ';
+  const sc = render({ kind: 'superchat', message, price: 30 });
+  assert.equal(findByClass(sc, 'sea-breeze-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sea-breeze-copy').children.length, 0);
+  assert.match(findByClass(sc, 'sea-breeze-amount').textContent, /30$/u);
+  assert.equal(findByClass(render({ kind: 'gift', giftCount: 1 }), 'sea-breeze-amount').textContent, '—');
+});
+
 test('sinking keeps native safe text and emotes, and complete settled event content', async () => {
   const render = await createRenderer({ style: 'sinking', fullscreen: true, showAvatar: false,
     resolveEmoteUrl: value => `/emote${value}` });

@@ -96,7 +96,10 @@ export function initNowPlaying() {
   elements.PreviewMode.addEventListener('change', renderPreview, { signal });
   elements.SourceSettings.addEventListener('click', () => {
     document.getElementById('desktopLyricFeatureTab')?.click();
-    document.getElementById('desktopLyricSourceControls')?.scrollIntoView({ block: 'start' });
+    const sourceControls = document.getElementById('desktopLyricSourceControls');
+    const sourceSection = sourceControls?.closest('details');
+    if (sourceSection) sourceSection.open = true;
+    sourceControls?.scrollIntoView({ block: 'start' });
   }, { signal });
   elements.Save.addEventListener('click', () => saveComponentWithFeedback(controller, '歌曲信息外观'), { signal });
   elements.Reload.addEventListener('click', () => { void controller.reload(); }, { signal });

@@ -32,6 +32,19 @@ test('short reminder windows match the full prediction while avoiding distant me
   );
 });
 
+test('resolved reminder history checks each key without rescanning the growing output', () => {
+  const { buildReminders } = require('../../src/fans/reminders');
+  let keyReads = 0;
+  const states = Array.from({ length: 1000 }, (_, index) => ({
+    get key() { keyReads++; return `anniversary:old-${index}`; },
+    date: '2020-01-01', status: index % 2 ? 'ignored' : 'handled',
+  }));
+  const reminders = buildReminders({ id: 'profile', alias: '观众' }, [], states, Date.parse(NOW));
+  assert.equal(reminders.length, states.length);
+  assert.ok(reminders.every(item => item.group === 'history' && !item.actionable));
+  assert.ok(keyReads < states.length * 10, `history key reads grew to ${keyReads}`);
+});
+
 test('former names keep the latest three distinct names, support edits and survive restart and restore', (t) => {
   const f = fanFixture(t);
   const p = f.create();

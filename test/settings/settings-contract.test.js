@@ -44,6 +44,40 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('basic and advanced lyrics save independently, restore presets and reject invalid combinations atomically', async t => {
+  const f = fixture(t);
+  assert.equal(f.store.getSettings().desktopLyricEnabled, 'true');
+  assert.equal(f.store.getSettings().advancedLyricEnabled, 'false');
+  const presets = [{ id: 'my-corners', name: '四角手记', settings: {
+    advancedLyricLayout: 'corners', advancedLyricMaterial: 'marker', advancedLyricGlowEnabled: 'true',
+  } }];
+  assert.equal((await f.post({ desktopLyricEnabled: true, advancedLyricEnabled: true,
+    desktopLyricFontSize: '64', advancedLyricLayout: 'corners', advancedLyricGlowEnabled: true,
+    advancedLyricLayoutSequence: 'corners,arc,corners', advancedLyricSavedPresets: presets })).status, 200);
+  assert.equal((await f.post({ desktopLyricEnabled: false })).status, 200);
+  const saved = createSettingsStore(f.db).getSettings();
+  assert.equal(saved.advancedLyricEnabled, 'true');
+  assert.equal(saved.desktopLyricEnabled, 'false');
+  assert.equal(saved.desktopLyricFontSize, '64');
+  assert.equal(saved.advancedLyricLayoutSequence, 'corners,arc');
+  const restored = JSON.parse(saved.advancedLyricSavedPresets)[0];
+  assert.equal(restored.name, '四角手记');
+  assert.equal(restored.settings.advancedLyricLayout, 'corners');
+  assert.equal(restored.settings.advancedLyricGlowEnabled, 'true');
+  assert.equal(Object.hasOwn(restored.settings, 'desktopLyricEnabled'), false);
+  assert.deepEqual(f.dirtyScopes, [], 'visual changes stay local and do not start a cloud settings sync');
+
+  for (const patch of [
+    { advancedLyricLayoutSequence: 'corners,unknown' },
+    { advancedLyricFontSize: Infinity },
+    { advancedLyricEnabled: 'yes' },
+    { advancedLyricSavedPresets: [{ ...presets[0], settings: { desktopLyricEnabled: false } }] },
+  ]) {
+    assert.equal((await f.post({ ...patch, desktopLyricEnabled: true })).status, 400);
+    assert.equal(f.store.getSettings().desktopLyricEnabled, 'false', 'an invalid visual patch must not partly enable output');
+  }
+});
+
 test('selected settings stay isolated and current without exposing internal account keys', (t) => {
   const { store } = fixture(t);
   store.prepareCloudRoomAccount('projection-test');
@@ -74,6 +108,7 @@ test('new request controls default to no additional restrictions and synchronize
   const patch = {
     scSongRequestEnabled: false,
     songRequestCancelEnabled: false,
+    songRequestMatchMode: 'prefix',
     userQueueLimit: ' 02 ', userCooldownCaptainSeconds: '', userCooldownAdmiralSeconds: 0,
     userCooldownGovernorSeconds: '0030', songRequestMinMedalLevel: 5, songRequestGuardLevel: 3,
     songRequestGuardMedalBypass: true,
@@ -91,6 +126,8 @@ test('new request controls default to no additional restrictions and synchronize
   assert.equal(normalizeCloudSettingsSnapshot(cloud).userCooldownAdmiralSeconds, '0');
   assert.equal(saved.scSongRequestEnabled, 'false');
   assert.equal(saved.songRequestCancelEnabled, 'false');
+  assert.equal(saved.songRequestMatchMode, 'prefix');
+  assert.equal(normalizeCloudSettingsSnapshot(cloud).songRequestMatchMode, 'prefix');
   assert.equal(normalizeCloudSettingsSnapshot(cloud).songRequestCancelEnabled, 'false');
   assert.equal(normalizeCloudSettingsSnapshot(cloud).scSongRequestEnabled, 'false');
   for (const key of SONG_REQUEST_CONTROL_KEYS) delete cloud[key];
@@ -105,6 +142,7 @@ test('request control limits reject invalid batches without saving or requesting
   const cases = {
     scSongRequestEnabled: [null, [], {}, 'TRUE', ' false ', 2],
     songRequestCancelEnabled: [null, [], {}, 'TRUE', ' false ', 2],
+    songRequestMatchMode: [null, [], {}, true, 1, '', ' prefix ', 'PREFIX', 'contains'],
     userQueueLimit: [-1, 301, '', ' ', true, null, [], {}, 1.5, '1e2'],
     userCooldownCaptainSeconds: [-1, 3601, ' ', null, [], false, 0.5],
     userCooldownAdmiralSeconds: [-1, 'NaN'],

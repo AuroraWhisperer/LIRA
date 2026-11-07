@@ -15,6 +15,10 @@ import { initParameterRanges, refreshParameterRange, disposeParameterRanges } fr
 import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
 import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
 
+const LYRIC_CANVAS_ADVANCED_FIELDS = new Set(['advancedLyricEnabled', 'advancedLyricLayout', 'advancedLyricFontSize',
+  'advancedLyricTextColor', 'advancedLyricAccentColor', 'advancedLyricShowNextLine',
+  'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricScale']);
+
 export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, hideStyleControl = false, previewHint, restrictResourceStyle = false } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
   const previewFields = type === 'guard-thanks' ? {
@@ -34,7 +38,9 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
   return { id: type, title: definition.title, controller, sceneOnly: true,
     url: new URL(SCENE_COMPONENTS[type].rendererUrl, location.href).href,
     size: config => definition.variants.find(variant => variant.value === config?.[definition.variantKey])?.size || definition.size,
-    projectConfig: config => type === 'lyrics' ? { ...config, desktopLyricHideOnPause: 'false' } : config,
+    projectConfig: config => type === 'lyrics' ? { ...config, desktopLyricHideOnPause: 'false', advancedLyricHideOnPause: 'false',
+      ...(config.lyricLayer === 'advanced' ? { advancedLyricEnabled: 'true' }
+        : config.lyricLayer === 'basic' ? { desktopLyricEnabled: 'true' } : {}) } : config,
     startData({ emit, controller: target = controller }) {
       const sample = type === 'games' ? { preview: true, session: null } : sceneExtraPreviewData(type);
       let display;
@@ -89,6 +95,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor', 'ribbonDecorations'].includes(key)) continue;
         // Preserve the legacy setting in saved scenes; font fallback is automatic now.
         if (type === 'lyrics' && key === 'desktopLyricFallbackFontFamily') continue;
+        if (type === 'lyrics' && key.startsWith('advancedLyric') && !LYRIC_CANVAS_ADVANCED_FIELDS.has(key)) continue;
         const previewOnly = Object.hasOwn(previewFields, key);
         const label = previewElement(field.allowEmpty ? 'div' : 'label');
         label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
@@ -162,7 +169,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         ? mountOpeningCanvasSettings(host, { target, request: openingSettings, startPreviewData }) : null;
       if (type === 'opening' && !embedded) host.append(previewElement('p', 'hint', '画布始终预览动画；直播显示由开播总开关控制。'));
       if (type === 'lyrics') host.append(previewElement('p', 'hint',
-        '画布展示静态示例歌词；“暂停时隐藏”仅作用于直播输出。'));
+        '画布展示静态示例歌词；单层示例始终可见，直播输出遵循显示开关。完整搭配在「组件 → 音乐展示 → 直播歌词 → 高级样式」中编辑。'));
       if (definition.category === '直播小游戏') host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
       if (type === 'gift-sprint') host.append(previewElement('p', 'hint', '这里显示示例进度。直播画面跟随“组件 → 礼物姬 → 月底冲刺”的目标与进度，未设目标时隐藏。'));
       if (type === 'heart-box-collection') host.append(previewElement('p', 'hint', '画布展示示例进度；直播自动统计北京时间每周六 00:00 至周五 00:00 收到的心动盲盒，包含开启前本期已收到的数量，出城堡不清零。'));

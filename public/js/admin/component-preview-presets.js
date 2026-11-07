@@ -119,8 +119,7 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
   button('删除场景', () => { void run('preset', { action: 'delete', id: controller.getState().draft.document.id }); }, 'secondary danger');
   bar.append(live);
   host.prepend(bar);
-  function render(disabled = false) {
-    const state = controller.getState();
+  function render(disabled = false, state = controller.getState()) {
     const next = JSON.stringify([state.presets, state.activeSceneId]);
     if (signature !== next) {
       signature = next;

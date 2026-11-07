@@ -16,9 +16,11 @@ function createDanmakuDeliveryVerifier(options = {}) {
     const uid = cleanText(danmaku.uid);
     const message = cleanText(danmaku.message);
     if (!uid || !message) return;
-    events.push({ uid, message, observedAt: now(), consumed: false });
+    const event = { uid, message, observedAt: now(), consumed: false };
+    events.push(event);
     pruneEvents();
-    for (const waiter of pending) checkWaiter(waiter);
+    // Existing waiters already checked the buffer; only the new event can add a match.
+    for (const waiter of pending) checkWaiter(waiter, [event]);
   }
 
   function waitForDelivery(delivery = {}) {
@@ -51,8 +53,8 @@ function createDanmakuDeliveryVerifier(options = {}) {
     });
   }
 
-  function checkWaiter(waiter) {
-    for (const event of events) {
+  function checkWaiter(waiter, candidates = events) {
+    for (const event of candidates) {
       if (event.consumed || event.uid !== waiter.accountUid || event.observedAt < waiter.sentAfter) continue;
       const index = findExpectedMessage(waiter, event.message);
       if (index < 0) continue;

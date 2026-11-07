@@ -10,10 +10,10 @@ const openBrowserSession = useSharedBrowser();
 const styledMotion = Object.keys(DANMAKU_STYLE_OPTIONS)
   .filter(style => DANMAKU_STYLE_OPTIONS[style].scrollDirection && style !== 'moonlit');
 
-async function preview(t, direction, scale, style = 'moonlit') {
+async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'vertical') {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
-    <body data-style="${style}" data-scroll-direction="${direction}">
+    <body data-style="${style}" data-scroll-direction="${direction}" data-stargazer-layout="${flowAxis}">
       <div class="danmaku-signal-stage" style="width:640px;height:420px;transform:scale(${scale});transform-origin:top left">
         <div id="feed" class="draw-danmaku-feed"></div>
       </div>
@@ -29,10 +29,10 @@ async function preview(t, direction, scale, style = 'moonlit') {
   const url = `${fixture.origin}/preview-test-host`;
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  await page.evaluate(async style => {
+  await page.evaluate(async ({ style, flowAxis }) => {
     const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
     window.root = document.getElementById('feed');
-    window.feed = createDanmakuFeed(root, { style, offscreenViewports: 0, autoScroll: false, maxItems: 8 });
+    window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: style !== 'celestial-horizontal', offscreenViewports: 0, autoScroll: false, maxItems: 8 });
     feed.render([
       { name: '云洲来信', message: '提督报到，这一段太好听了', guardLevel: 2 },
       { name: '路过听一首', message: '刚进来，这首歌叫什么名字呀？' },
@@ -42,7 +42,7 @@ async function preview(t, direction, scale, style = 'moonlit') {
       animation.pause();
       animation.currentTime = time;
     }));
-  }, style);
+  }, { style, flowAxis });
   await page.evaluate(async () => {
     await document.fonts.ready;
     await new Promise(requestAnimationFrame);
@@ -54,7 +54,166 @@ async function preview(t, direction, scale, style = 'moonlit') {
   return page;
 }
 
-for (const style of ['starlight', 'notebook', 'christmas']) {
+test('glass bubble long chat finishes revealing before the shortest stay begins fading', { timeout: 15000 }, async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <body data-style="glass-bubble"><div class="danmaku-signal-stage" style="width:1920px;height:1080px">
+      <div id="feed" class="draw-danmaku-feed"></div>
+    </div></body>` });
+  t.after(() => fixture.close());
+  const session = openBrowserSession();
+  t.after(() => session.close());
+  const page = await session.newPage({ viewport: { width: 1920, height: 1080 } });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const hiddenAtFade = await page.evaluate(async () => {
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    applyStyleOptions(document, 'glass-bubble', { 'glass-bubble': { glassBubbleTypingSpeed: 60 } });
+    const feed = createDanmakuFeed(document.getElementById('feed'), {
+      style: 'glass-bubble', layout: 'fullscreen-random', autoScroll: false,
+      itemLifetimeMs: 2000, exitDurationMs: 1000,
+    });
+    feed.render([{ name: '观众', message: '字体就绪' }]);
+    await document.fonts.ready;
+    feed.render([]);
+    feed.append({ name: '观众', message: '希望这条长弹幕可以在开始退场之前完整显示。'.repeat(4), timestamp: Date.now() });
+    await new Promise(requestAnimationFrame);
+    await new Promise(requestAnimationFrame);
+    const glyphs = [...document.querySelectorAll('.glass-bubble-glyph')];
+    glyphs.flatMap(node => node.getAnimations()).forEach(animation => {
+      animation.pause();
+      animation.currentTime = 1000;
+    });
+    const hidden = glyphs.filter(node => getComputedStyle(node).opacity !== '1').length;
+    feed.destroy();
+    return hidden;
+  });
+  assert.equal(hiddenAtFade, 0, 'the full message is readable before the earliest allowed fade');
+});
+
+test('wireframe keeps the chosen background transparency throughout live entrances', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'wireframe');
+  for (const kind of ['danmaku', 'superchat']) {
+    for (const backgroundOpacity of [0, 35]) {
+      const clip = await page.evaluate(async ({ kind, backgroundOpacity }) => {
+        const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+        applyStyleOptions(document, 'wireframe', { wireframe: { backgroundOpacity } });
+        feed.render([]);
+        feed.append({ id: kind, kind, name: '观众', message: '背景跟随已选透明度', price: 30 });
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        document.getAnimations().forEach(animation => { animation.pause(); animation.currentTime = 400; });
+        const surface = root.lastElementChild.querySelector('.wireframe-surface').getBoundingClientRect();
+        return { x: Math.floor(surface.left + surface.width / 2), y: Math.floor(surface.bottom - 3), width: 1, height: 1 };
+      }, { kind, backgroundOpacity });
+      const pixel = await page.screenshot({ clip, omitBackground: true });
+      const alpha = await page.evaluate(async source => {
+        const image = new Image();
+        image.src = `data:image/png;base64,${source}`;
+        await image.decode();
+        const canvas = document.createElement('canvas');
+        canvas.width = canvas.height = 1;
+        const context = canvas.getContext('2d');
+        context.drawImage(image, 0, 0);
+        return context.getImageData(0, 0, 1, 1).data[3];
+      }, pixel.toString('base64'));
+      assert.ok(alpha <= Math.ceil(255 * backgroundOpacity / 100), `${kind} must not flash a more opaque background`);
+      if (backgroundOpacity > 0) assert.ok(alpha > 0, `${kind} retains the configured translucent surface`);
+    }
+  }
+});
+
+for (const [style, direction, scale] of [['stargazer', 'up', 1], ['stargazer', 'down', 0.63], ['celestial-horizontal', 'up', 1], ['celestial-horizontal', 'up', 0.63]]) {
+  test(`${style} horizontal ${direction} at ${scale} preserves interrupted positions and releases exited messages`, { timeout: 15000 }, async t => {
+    const page = await preview(t, direction, scale, style, 'horizontal');
+    const result = await page.evaluate(async () => {
+      let removed = 0;
+      const changes = [];
+      const gaps = [];
+      for (let index = 0; index < 16; index += 1) {
+        freezeMoves(150);
+        const area = root.getBoundingClientRect();
+        const old = Array.from(root.children).map(node => ({ node, rect: node.getBoundingClientRect() }));
+        feed.append({ id: `horizontal-${index}`, name: '连续观众', message: '横向消息保留完整内容' });
+        await new Promise(requestAnimationFrame);
+        freezeMoves(0);
+        removed += old.filter(({ node }) => !node.isConnected).length;
+        changes.push(...old.filter(({ rect }) => rect.right > area.left && rect.left < area.right)
+          .map(({ node, rect }) => ({ connected: node.isConnected, delta: node.getBoundingClientRect().left - rect.left })));
+        const boxes = Array.from(root.children).map(node => node.getBoundingClientRect()).sort((a, b) => a.left - b.left);
+        gaps.push(...boxes.slice(1).map((box, i) => box.left - boxes[i].right));
+      }
+      feed.destroy();
+      return { removed, changes, gaps, animations: document.getAnimations().length };
+    });
+    assert.ok(result.removed > 0);
+    assert.ok(result.changes.every(row => row.connected && Math.abs(row.delta) < 0.5 * scale), 'visible cards continue without snapping');
+    assert.ok(result.gaps.every(gap => gap >= -0.2), 'horizontal cards do not cross during dense arrivals');
+    assert.equal(result.animations, 0, 'destroy releases entry, movement and ambient layers');
+  });
+}
+
+test('top-aligned messages keep new content visible when the feed fills', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'stargazer');
+  await page.evaluate(async () => {
+    document.body.dataset.stargazerAlign = 'top';
+    feed.render([{ name: '第一位', message: '第一条消息' }]);
+    await new Promise(requestAnimationFrame);
+    window.firstCard = root.firstElementChild;
+    window.firstTop = firstCard.getBoundingClientRect().top;
+    for (let index = 0; index < 4; index += 1) feed.append({ name: '新观众', message: '较长的弹幕会换行显示完整内容。'.repeat(3) });
+    await new Promise(requestAnimationFrame);
+    freezeMoves(0);
+  });
+  assert.ok(await page.evaluate(() => Math.abs(firstCard.getBoundingClientRect().top - firstTop) < .5), 'overflow starts from the visible position');
+  await page.evaluate(() => Array.from(root.children).forEach(node => node.getAnimations().forEach(animation => animation.finish())));
+  const latest = await page.evaluate(() => ({ area: root.getBoundingClientRect().toJSON(), last: root.lastElementChild.getBoundingClientRect().toJSON() }));
+  assert.ok(latest.last.bottom <= latest.area.bottom, 'newest message finishes inside the viewport');
+  assert.ok(latest.last.top >= latest.area.top, 'a complete message remains readable');
+  await page.evaluate(() => feed.destroy());
+});
+
+test('timed fixed messages finish fading during arrivals and reflow after expiration', { timeout: 15000 }, async t => {
+  const page = await preview(t, 'up', 1, 'stargazer');
+  const result = await page.evaluate(async () => {
+    feed.destroy();
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    let clock = 10000;
+    let sequence = 0;
+    const timers = new Map();
+    feed = createDanmakuFeed(root, { style: 'stargazer', offscreenViewports: 0, autoScroll: false,
+      expireFixedItems: true, itemLifetimeMs: 1000, now: () => clock,
+      scheduleTimeout(fn) { timers.set(++sequence, fn); return sequence; }, cancelTimeout(id) { timers.delete(id); } });
+    feed.render([{ id: 'expiring', timestamp: clock, name: '观众', message: '保留到截止时间' }]);
+    await new Promise(requestAnimationFrame);
+    const old = root.firstElementChild;
+    clock = 10600;
+    const fade = timers.values().next().value;
+    timers.delete(timers.keys().next().value);
+    fade();
+    const fading = old.getAnimations().find(animation => animation.effect.getKeyframes().some(frame => frame.opacity === '0'));
+    feed.append({ id: 'incoming', timestamp: clock, name: '新观众', message: '移动时继续淡出' });
+    await new Promise(requestAnimationFrame);
+    const keptFade = fading?.playState === 'running';
+    clock = 11000;
+    const expire = timers.values().next().value;
+    timers.delete(timers.keys().next().value);
+    expire();
+    await new Promise(requestAnimationFrame);
+    const remaining = Array.from(root.children).map(node => node.textContent);
+    feed.destroy();
+    return { keptFade, expired: !old.isConnected, remaining, timers: timers.size };
+  });
+  assert.equal(result.keptFade, true);
+  assert.equal(result.expired, true);
+  assert.equal(result.remaining.length, 1);
+  assert.ok(result.remaining[0].includes('移动时继续淡出'));
+  assert.equal(result.timers, 0);
+});
+
+for (const style of ['starlight', 'notebook', 'christmas', 'stargazer', 'dark-moon', 'animated-gradient']) {
   test(`${style} can stop ambient loops while new messages keep their entrance and movement`, { timeout: 15000 }, async t => {
     const page = await preview(t, 'down', 1, style);
     const stopped = await page.evaluate(async style => {
@@ -268,7 +427,7 @@ for (const style of styledMotion) {
     assert.equal(interrupted.removedVisible, false, 'retargeting never removes a visible message');
     assert.ok(interrupted.deltas.every(delta => Math.abs(delta) < 0.5 * scale), `retargeting stays within layout rounding: ${interrupted.deltas}`);
     assert.ok(interrupted.entranceTimes.every(time => time === 120), 'retargeting does not restart or cancel an entrance');
-    assert.ok(interrupted.gaps.every(gap => gap >= -0.2), 'different-height arrivals never cross other cards');
+    assert.ok(interrupted.gaps.every(gap => gap >= -0.2), `different-height arrivals never cross other cards: ${interrupted.gaps}`);
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.waitForFunction(() => Array.from(root.children).every(node => !node.getAnimations().length));

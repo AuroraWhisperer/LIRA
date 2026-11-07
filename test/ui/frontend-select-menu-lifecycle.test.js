@@ -256,6 +256,66 @@ test('searchable font selects filter groups without changing selection and suppo
   assert.equal(f.document.activeElement, trigger);
 });
 
+test('large selects update only changed choices and discard the selection cache when options rebuild', async t => {
+  const f = await createFixture();
+  const select = new f.Select();
+  for (let index = 0; index < 500; index++) {
+    const option = f.document.createElement('option');
+    Object.assign(option, { value: `font-${index === 499 ? 0 : index}`, textContent: `Font ${index}` });
+    select.append(option);
+    select.options.push(option);
+  }
+  select.selectedIndex = 0;
+  f.form.append(select);
+  f.enhanceSelects(select);
+  const [, trigger, menu] = select.parentNode.children;
+  trigger.dispatchEvent({ type: 'click' });
+  const options = menu.querySelectorAll('[role="option"]');
+  const counts = { scanned: 0, attributes: 0, classes: 0 };
+  const query = menu.querySelectorAll.bind(menu);
+  menu.querySelectorAll = selector => {
+    const nodes = query(selector);
+    if (selector === '[role="option"]') counts.scanned += nodes.length;
+    return nodes;
+  };
+  for (const option of options) {
+    const setAttribute = option.setAttribute.bind(option);
+    option.setAttribute = (name, value) => {
+      if (name === 'aria-selected') counts.attributes++;
+      setAttribute(name, value);
+    };
+    option.classList.toggle = name => { if (name === 'is-selected') counts.classes++; };
+  }
+  let changes = 0;
+  select.addEventListener('change', () => changes++);
+  options[499].dispatchEvent({ type: 'click' });
+  t.diagnostic(JSON.stringify(counts));
+  assert.equal(select.selectedIndex, 499, 'duplicate values keep the chosen native option index');
+  assert.equal(changes, 1);
+  assert.equal(options[0].getAttribute('aria-selected'), 'false');
+  assert.equal(options[499].getAttribute('aria-selected'), 'true');
+  assert.equal(counts.scanned, 0);
+  assert.equal(counts.attributes, 2);
+  assert.equal(counts.classes, 2);
+  select.selectedIndex = 499;
+  assert.equal(counts.attributes, 2, 'repeating the current selection does not rewrite options');
+  select.value = 'font-1';
+  assert.equal(options[499].getAttribute('aria-selected'), 'false');
+  assert.equal(options[1].getAttribute('aria-selected'), 'true');
+  select.value = 'missing';
+  assert.equal(options[1].getAttribute('aria-selected'), 'false');
+  assert.equal(counts.attributes, 5, 'clearing selection only updates the previous choice');
+  select.selectedIndex = 2;
+  const observer = f.observers.find(item => item.target === select);
+  observer.callback();
+  const rebuilt = menu.querySelectorAll('[role="option"]');
+  assert.equal(rebuilt[2].getAttribute('aria-selected'), 'true');
+  assert.equal(rebuilt[499].getAttribute('aria-selected'), 'false');
+  select.selectedIndex = 3;
+  assert.equal(rebuilt[2].getAttribute('aria-selected'), 'false');
+  assert.equal(rebuilt[3].getAttribute('aria-selected'), 'true');
+});
+
 test('removing repeated dynamic selects releases observers and does not accumulate external listeners', async () => {
   const f = await createFixture();
   for (let index = 0; index < 100; index += 1) {

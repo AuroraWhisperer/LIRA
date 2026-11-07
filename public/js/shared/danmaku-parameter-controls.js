@@ -19,9 +19,18 @@ const GROUPS = {
   floatingMotion: ['FloatingMotion', '飘窗弹幕通用参数'],
   comic: ['ComicOptions', '漫画造型与入场'],
   window: ['WindowOptions', '散落小窗'],
+  stardust: ['StardustOptions', '星尘 · 画面与互动'],
   startrail: ['StartrailOptions', '星芒与光尾'],
   aurora: ['AuroraOptions', '极光薄笺'],
   sinking: ['SinkingOptions', '沉笺 · 水下薄片'],
+  stargazer: ['StargazerOptions', 'Stargazer · 星旅'],
+  gradient: ['GradientOptions', '渐变与昵称牌'],
+  glassBubble: ['GlassBubbleOptions', '玻璃与显字'],
+  celestial: ['CelestialOptions', '星云与星标'],
+  glass: ['GlassOptions', '玻璃通知'],
+  darkMoon: ['DarkMoonOptions', '月环与星芒'],
+  wireframe: ['WireframeOptions', '圈线与描框'],
+  seaBreeze: ['SeaBreezeOptions', '海风倒影'],
 };
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
 
@@ -148,8 +157,11 @@ export function mountDanmakuParameters(host, controller, {
         : definition.type === 'text' ? `${inspectComposerText(input.value).length}/${definition.maxLength}`
         : `${input.value}${definition.unit || ''}`;
     };
-    input.addEventListener('input', updateOutput);
+    let pendingInput = false;
+    input.addEventListener('input', () => { pendingInput = true; updateOutput(); });
+    input.addEventListener('blur', () => { pendingInput = false; });
     input.addEventListener('change', () => {
+      pendingInput = false;
       const { draft, loaded } = controller.getState();
       if (!loaded || !Object.hasOwn(draft, 'styleOptions')) return;
       try {
@@ -164,7 +176,7 @@ export function mountDanmakuParameters(host, controller, {
       const value = mode.value === 'custom' ? input.value : key === 'bubbleColor' ? 'default' : undefined;
       controller.edit({ styleOptions: editStyleOption(draft, key, value).styleOptions });
     });
-    views.set(key, { ...view, input, mode, modeView, output, updateOutput });
+    views.set(key, { ...view, input, mode, modeView, output, updateOutput, hasPendingInput: () => pendingInput });
   }
   const spookyReset = element('button', 'secondary', '恢复当前主题配色', 'SpookyResetColors');
   spookyReset.type = 'button'; groups.get('spookyColors').section.append(spookyReset);
@@ -217,12 +229,14 @@ export function mountDanmakuParameters(host, controller, {
         : DANMAKU_STYLE_OPTIONS[draft.style].defaultBubbleColor || options.textColor;
       if (key === 'fontFamily') ensureSavedFontOption(fontInput, value);
       if (definition.type === 'number') {
-        view.input.min = String(key === 'speedPixelsPerSecond' ? 1 : Math.ceil((field?.min ?? definition.min ?? 18) * (key === 'fontSize' ? scale : 1)));
+        const min = field?.min ?? definition.min ?? 18;
+        view.input.min = String(key === 'speedPixelsPerSecond' ? 1 : key === 'fontSize' ? Math.ceil(min * scale) : min);
         view.input.max = String(key === 'speedPixelsPerSecond' ? 100 : Math.floor((field?.max ?? definition.max ?? 48) * (key === 'fontSize' ? scale : 1)));
         if (key === 'fontSize') value = Math.round(value * scale);
         if (key === 'speedPixelsPerSecond') value = floatingSpeedFromPixelsPerSecond(value);
       }
-      syncComponentFieldValue(view.input, value, force);
+      // Focus can remain here after an edit in the other window; only unfinished input needs protection.
+      syncComponentFieldValue(view.input, value, force || definition.type !== 'color' && !view.hasPendingInput());
       const disabledByChoice = definition.disabledWhen && options[definition.disabledWhen[0]] === definition.disabledWhen[1];
       view.input.disabled = !loaded || !supported || Boolean(disabledByChoice);
       view.updateOutput();

@@ -14,6 +14,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
   const year = Number(today.slice(0, 4));
   const statesByKey = new Map(states.map((state) => [state.key, state]));
   const result = [];
+  const resultKeys = new Set();
   const summarize = options.summarize || prepareMembership(records);
   const membership = options.membership || summarize(now);
   const accompany = getGuardAccompany(profile, now);
@@ -51,6 +52,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
               : 'later',
       actionable: !isResolved && !snoozed && scheduled <= today,
     });
+    resultKeys.add(key);
   }
 
   const birthday = profile.birthday;
@@ -191,7 +193,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
   }
 
   for (const state of states) {
-    if (!['handled', 'ignored'].includes(state.status) || result.some((r) => r.key === state.key)) continue;
+    if (!['handled', 'ignored'].includes(state.status) || resultKeys.has(state.key)) continue;
     const match = /^(total|continuous|accompany):.*?(\d+)$/.exec(state.key);
     const revised = match && (metricDays(match[1]) ?? -1) < Number(match[2]);
     result.push({
@@ -203,6 +205,7 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
       actionable: false,
       revisedBelowThreshold: Boolean(revised),
     });
+    resultKeys.add(state.key);
   }
   return result.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.key.localeCompare(b.key));
 }

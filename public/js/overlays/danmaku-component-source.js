@@ -14,7 +14,7 @@ export function initDanmakuComponentSource({ configure, clear, append, remove, s
     const { layout, style } = configuration;
     const outputLayout = outputSize ? { ...layout, canvas: outputSize,
       regions: { ...layout.regions, [style]: { x: 0, y: 0, ...outputSize } } } : layout;
-    applyCanvas(document, outputLayout, style, host.clientWidth, host.clientHeight);
+    applyCanvas(document, outputLayout, style, host.clientWidth, host.clientHeight, configuration.styleOptions);
   };
   const stopOutputSize = watchComponentOutputSize('danmaku', (size) => { outputSize = size; fit(); });
   const observer = new ResizeObserver(fit);

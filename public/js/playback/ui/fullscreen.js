@@ -67,6 +67,7 @@ export class FullscreenPlayer {
     this.titleEl = null;
     this.artistEl = null;
     this.artEl = null;
+    this.artworkUrl = null;
     this.bgEl = null;
     this.vinylDiscEl = null;
     this.tonearmEl = null;
@@ -195,6 +196,8 @@ export class FullscreenPlayer {
     if (!this.artEl) return;
 
     const coverUrl = track && track.coverUrl ? track.coverUrl : '';
+    if (coverUrl === this.artworkUrl) return;
+    this.artworkUrl = coverUrl;
 
     this.artEl.classList.toggle('has-image', Boolean(coverUrl));
 

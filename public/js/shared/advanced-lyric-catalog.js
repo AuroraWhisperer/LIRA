@@ -1,0 +1,75 @@
+const entries = (items) => items.map(([id, label, description]) => ({ id, label, description }));
+const preset = (id, label, settings) => ({ id, label,
+  settings: Object.fromEntries(Object.entries(settings).map(([key, value]) => [`advancedLyric${key}`, String(value)])) });
+
+// Every identifier has a matching composition or treatment in the visual renderer.
+export const ADVANCED_LYRIC_CATALOG = Object.freeze({
+  layouts: entries([
+    ['center', '单句聚焦', '当前句居中，下一句轻轻衬托'],
+    ['duet', '双句交替', '上下两句，主次分明'],
+    ['offset', '错位双行', '上下错开，留出呼吸感'],
+    ['split', '左右对话', '歌词分成左右两组'],
+    ['corners', '四角构图', '四组文字分布在画面四角'],
+    ['staircase', '阶梯递进', '文字顺着台阶逐级展开'],
+    ['diagonal', '斜线构图', '沿着倾斜轴线铺开'],
+    ['vertical', '竖向诗句', '自上而下排列的歌词'],
+    ['split-vertical', '双栏竖排', '两列文字错落呼应'],
+    ['emphasis', '大小字交错', '不同大小的文字形成节奏'],
+    ['initials', '首字放大', '放大首字，余句围绕展开'],
+    ['outline-echo', '巨字回声', '巨型空心字衬托当前句'],
+    ['tiles', '字块拼贴', '每个字落在独立色块上'],
+    ['ribbons', '彩色条带', '整组文字铺在色带上'],
+    ['speech', '对话气泡', '带尾角的对话式歌词'],
+    ['postcard', '纸笺卡片', '歌词收进一张轻盈纸笺'],
+    ['arc', '弧形排字', '文字沿弧线舒展'],
+    ['wave', '波浪排字', '高低起伏的文字轨迹'],
+    ['fan', '扇形展开', '从中心向两边旋转展开'],
+    ['orbit', '环绕构图', '文字围绕中心排列'],
+    ['bracket', '括号诗行', '大括号包裹一组诗行'],
+    ['magazine', '杂志标题', '大标题与小字形成版式层次'],
+  ]),
+  materials: entries([
+    ['solid', '纯色', '清晰的实心文字'], ['gradient', '双色渐变', '主色与强调色自然过渡'],
+    ['sunset', '落日', '暖色层叠的渐变'], ['aurora', '极光', '柔和的多彩过渡'],
+    ['metallic', '金属', '明暗交替的金属反光'], ['glass', '透光', '轻盈半透明字面'],
+    ['striped', '条纹', '细密条纹填充'], ['dots', '网点', '印刷网点填充'],
+    ['chalk', '粉笔', '柔和粉笔笔触'], ['neon', '霓虹', '发亮的字面'],
+    ['marker', '荧光手记', '标记笔划过的文字'], ['outline', '空心', '留下字形轮廓'],
+  ]),
+  enters: entries([
+    ['fade', '淡入'], ['rise', '上浮'], ['drop', '落下'], ['slide-left', '从左滑入'],
+    ['slide-right', '从右滑入'], ['pop', '弹出'], ['zoom', '放大出现'], ['rotate', '旋转归位'],
+    ['flip', '翻转出现'], ['wipe', '擦入'], ['scatter', '散字聚拢'], ['stretch', '拉伸归位'],
+  ]),
+  holds: entries([
+    ['still', '静止'], ['float', '轻浮'], ['breathe', '呼吸'], ['wave', '波动'],
+    ['sway', '轻摆'], ['drift', '慢移'], ['pulse', '脉动'], ['shimmer', '微光'],
+  ]),
+  exits: entries([
+    ['fade', '淡出'], ['rise', '向上离开'], ['drop', '向下离开'], ['shrink', '缩小消失'],
+    ['zoom', '放大离开'], ['scatter', '散字离开'], ['wipe', '擦除'], ['squeeze', '压缩消失'],
+  ]),
+  wordMotions: entries([
+    ['none', '整句显示'], ['fill', '逐字填色'], ['pop', '逐字弹出'], ['rise', '逐字上浮'],
+    ['bounce', '逐字跳动'], ['wave', '逐字波浪'], ['tilt', '逐字轻摆'], ['glow', '逐字发光'],
+  ]),
+  decorations: entries([
+    ['none', '无装饰'], ['underline', '下划线'], ['highlight', '荧光底纹'], ['brackets', '引号括边'],
+    ['frame', '细线边框'], ['corners', '四角标记'], ['stars', '星点'], ['dots', '圆点'],
+    ['tape', '纸胶带'], ['orbit', '环形线条'],
+  ]),
+  presets: [
+    preset('spotlight', '聚光诗句', { Layout: 'center', Material: 'solid', Enter: 'rise', Hold: 'still', Exit: 'fade', WordMotion: 'fill' }),
+    preset('conversation', '一句一答', { Layout: 'speech', Material: 'solid', Enter: 'pop', WordMotion: 'bounce', TextColor: '#242230', AccentColor: '#f5c6d6', StrokeEnabled: false }),
+    preset('four-corners', '四角漫游', { Layout: 'corners', Material: 'gradient', Enter: 'scatter', Exit: 'scatter', WordMotion: 'pop', Decoration: 'corners', ExtrudeEnabled: true }),
+    preset('neon-night', '夜色霓虹', { Layout: 'offset', Material: 'neon', Enter: 'slide-left', Hold: 'shimmer', WordMotion: 'glow', TextColor: '#fff4ff', AccentColor: '#e894dc', GlowEnabled: true }),
+    preset('journal', '荧光手记', { Layout: 'magazine', Material: 'marker', Enter: 'wipe', WordMotion: 'fill', Decoration: 'tape', TextColor: '#292738', AccentColor: '#e2ef8d', StrokeEnabled: false }),
+    preset('outline-poster', '巨字海报', { Layout: 'outline-echo', Material: 'solid', Enter: 'zoom', Exit: 'shrink', WordMotion: 'rise', TextColor: '#fff3da', AccentColor: '#f0986c', StrokeLayers: 2 }),
+    preset('poem', '竖排诗笺', { Layout: 'split-vertical', Material: 'solid', Enter: 'fade', Hold: 'still', WordMotion: 'fill', Decoration: 'brackets', FontFamily: 'Microsoft YaHei', FontWeight: '500', TextColor: '#fff5df' }),
+    preset('candy', '糖果字块', { Layout: 'tiles', Material: 'solid', Enter: 'flip', Exit: 'squeeze', WordMotion: 'bounce', TextColor: '#ffffff', AccentColor: '#c383a5', SecondaryColor: '#7fa6b2', StrokeEnabled: false }),
+    preset('sunset-wave', '落日海浪', { Layout: 'wave', Material: 'sunset', Enter: 'rise', Hold: 'float', WordMotion: 'wave', Decoration: 'dots', TextColor: '#ffe6c5', AccentColor: '#f6957b' }),
+    preset('chalk-note', '黑板小调', { Layout: 'postcard', Material: 'chalk', Enter: 'rotate', WordMotion: 'fill', Decoration: 'underline', TextColor: '#fff9e9', AccentColor: '#667d71', StrokeEnabled: false }),
+    preset('metal-stair', '金属阶梯', { Layout: 'staircase', Material: 'metallic', Enter: 'stretch', WordMotion: 'pop', ExtrudeEnabled: true, EmbossEnabled: true, AccentColor: '#d4b98a' }),
+    preset('orbit-song', '环绕旋律', { Layout: 'orbit', Material: 'gradient', Enter: 'scatter', Hold: 'sway', Exit: 'scatter', WordMotion: 'glow', Decoration: 'stars', AccentColor: '#accde0', SecondaryColor: '#e4c2df' }),
+  ],
+});

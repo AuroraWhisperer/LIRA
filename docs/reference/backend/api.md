@@ -344,6 +344,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `guardPriorityEnabled` | 默认关闭；按账号同步的可选字段，旧快照省略保留本地值；保存后重排现有等待队列，具体顺序见 [音乐服务](music/services.md#83-handlequeueactioncontext-action-rawidqueue-servicejs) |
 | `scSongRequestEnabled` | 默认开启；按账号同步的可选 boolean 字段，旧快照省略保留本地值。关闭时 SC 仅作留言，不解析普通或随机点歌、不入点歌队列和点歌板、不消耗点歌冷却；已有队列不变 |
 | `songRequestCancelEnabled` | 默认开启；按账号同步的可选 boolean 字段，旧快照省略保留本地值。关闭时拒绝观众的两种取消点歌指令，已有队列与主播手动删除不受影响 |
+| `songRequestMatchMode` | 精确字符串 `unique`（默认）或 `prefix`；保存到现有 settings 并按账号同步，旧快照省略保留本地值。只影响后续点歌；匹配顺序见 [音乐服务](music/services.md#71-歌曲-crud) |
 | `userQueueLimit` | 0–300 的整数或十进制整数字符串，默认 0（不限制单人活跃点歌数） |
 | `userCooldownCaptainSeconds` / `userCooldownAdmiralSeconds` / `userCooldownGovernorSeconds` | 精确空串表示沿用通用用户间隔（默认）；否则接受 0–3600 的整数或十进制整数字符串，0 明确不限制，空白串无效 |
 | `songRequestMinMedalLevel` / `songRequestGuardLevel` / `songRequestGuardMedalBypass` | 粉丝牌要求为 0–100（默认 0 不限）；大航海要求为 0 不限、3 舰长及以上、2 提督及以上、1 总督；前两项接受整数或十进制整数字符串。免牌开关默认 false，接受既有兼容 boolean 标量，只免粉丝牌、不免大航海等级要求 |

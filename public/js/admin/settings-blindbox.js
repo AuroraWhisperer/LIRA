@@ -248,7 +248,7 @@ export function createBlindboxSettings({
           .finally(() => {
             pendingAppearanceSaves -= 1;
             if (status && !pendingAppearanceSaves) status.textContent = failedAppearanceFields.size
-              ? '部分设置保存失败，请重新修改后重试。' : '已自动保存';
+              ? '部分设置保存失败，请重新修改后重试。' : '已保存';
           });
       });
     }

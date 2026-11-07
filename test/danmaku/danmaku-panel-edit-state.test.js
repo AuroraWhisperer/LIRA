@@ -113,7 +113,7 @@ test('RIPPLOID colors edit independently, switch styles safely and reset only th
   await page.evaluate(() => window.paletteBinding.dispose());
 });
 
-test('danmaku selects, sliders and effect fields commit once after editing and keep pending values', async (t) => {
+test('danmaku fields retain pending input and synchronize committed values while still focused', async (t) => {
   const page = await fixture(t, 'danmaku');
   await page.evaluate(async (html) => {
     document.body.innerHTML = html;
@@ -134,11 +134,17 @@ test('danmaku selects, sliders and effect fields commit once after editing and k
     window.parameterBinding = bindDanmakuParameters(document.body, controller, message => window.messages.push(message));
   });
   const entrance = page.locator('#danmakuEntranceAnimation');
+  await entrance.focus();
   await entrance.evaluate(input => { input.value = 'rise'; input.dispatchEvent(new Event('input', { bubbles: true })); });
   assert.equal(await page.evaluate(() => window.parameterEdits.length), 0);
   await entrance.dispatchEvent('change');
   assert.equal(await page.evaluate(() => window.parameterEdits.length), 1);
   assert.equal(await page.evaluate(() => window.parameterState.draft.styleOptions.starveil.entranceAnimation), 'rise');
+  await page.evaluate(() => {
+    window.parameterState.draft.styleOptions.starveil.entranceAnimation = 'none';
+    window.refreshParameters();
+  });
+  assert.equal(await entrance.inputValue(), 'none', 'An edit from the other panel updates a committed select without requiring blur.');
   await page.locator('.danmaku-advanced > summary').click();
   for (const [style, id, key, value, saved] of [
     ['starveil', 'BackgroundOpacity', 'backgroundOpacity', 55, 55],
@@ -159,6 +165,12 @@ test('danmaku selects, sliders and effect fields commit once after editing and k
     await input.dispatchEvent('change');
     assert.equal(await page.evaluate(() => window.parameterEdits.length), 1);
     assert.equal(await page.evaluate(({ style, key }) => window.parameterState.draft.styleOptions[style][key], { style, key }), saved);
+    await page.evaluate(({ style, key }) => {
+      delete window.parameterState.draft.styleOptions[style][key];
+      window.refreshParameters();
+    }, { style, key });
+    assert.notEqual(await input.inputValue(), String(value), 'A committed slider follows changes from the other panel while focused.');
+    assert.equal(await page.evaluate(() => window.parameterEdits.length), 1, 'Synchronizing a field does not submit another edit.');
   }
   await page.locator('[data-effect-group="shadow"] > summary').click();
   await page.locator('[data-effect-enabled="shadow"]').check();
@@ -247,6 +259,10 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
   assert.equal(await page.locator('#danmakuCustomReplyList input').first().inputValue(), '测试关键词');
   const requestCount = await page.evaluate(() => window.requests.length);
   await page.locator('#danmakuAllStylesBtn').click();
+  for (const layout of ['fixed', 'fullscreen-random', 'floating', 'horizontal']) {
+    await page.locator(`[data-style-filter-group="layout"] [data-filter-value="${layout}"]`).click();
+    assert.equal(await page.locator('#danmakuStyleLibrary [data-danmaku-style="celestial-horizontal"]').isVisible(), layout === 'horizontal');
+  }
   await page.locator('[data-style-filter-group="layout"] [data-filter-value="fullscreen-random"]').click();
   assert.equal(await page.evaluate(() => window.requests.length), requestCount, 'Browsing categories must not write settings.');
   // The preview handshake is shared by every style; one selected style proves the panel wiring.
@@ -301,7 +317,7 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
 test('style library combines filters and keeps only confirmed recent styles for each account', async (t) => {
   const page = await fixture(t, 'danmaku');
   const mount = async () => {
-    await page.evaluate(async (html) => {
+    await page.evaluate((html) => {
       document.body.innerHTML = html;
       document.getElementById('liveDanmakuFeature').hidden = false;
       window.activeAppearanceAccount = 'first';
@@ -321,15 +337,17 @@ test('style library combines filters and keeps only confirmed recent styles for 
         const data = { binding: `synthetic-${window.activeAppearanceAccount}`, config: window.appearanceConfigs[window.activeAppearanceAccount] };
         return { ok: true, json: async () => ({ ok: true, data }), text: async () => JSON.stringify({ ok: true, data }) };
       };
-      const { initDanmakuOverlaySettings } = await import('/js/admin/danmaku-overlay-settings.js');
-      window.appearanceController = initDanmakuOverlaySettings({
-        styleButtons: Array.from(document.querySelectorAll('[data-danmaku-style]')),
-        styleChip: document.getElementById('danmakuStyleChip'),
-        styleSaveState: document.getElementById('danmakuStyleSaveState'),
-        previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
-      }, message => window.messages.push(message));
+      // Complete the import in the page; CDP waits for explicit readiness below.
+      window.appearanceSettingsModule = import('/js/admin/danmaku-overlay-settings.js').then(({ initDanmakuOverlaySettings }) => {
+        window.appearanceController = initDanmakuOverlaySettings({
+          styleButtons: Array.from(document.querySelectorAll('[data-danmaku-style]')),
+          styleChip: document.getElementById('danmakuStyleChip'),
+          styleSaveState: document.getElementById('danmakuStyleSaveState'),
+          previewOverlayButton: document.getElementById('danmakuPreviewOverlayBtn'),
+        }, message => window.messages.push(message));
+      });
     }, readAdminFragmentHtml('pages/admin/live-components/danmaku.html'));
-    await page.waitForFunction(() => window.appearanceController.getState().loaded);
+    await page.waitForFunction(() => window.appearanceController?.getState().loaded);
   };
   await mount();
   const history = account => page.evaluate((accountName) => {

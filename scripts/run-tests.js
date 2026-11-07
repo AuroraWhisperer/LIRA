@@ -54,6 +54,7 @@ const groups = {
     'gifts/gift-guard-thanks-admin',
     'gifts/gift-motion-browser',
     'gifts/guard-nautical-player',
+    'lyrics/advanced-lyric-browser',
     'lyrics/desktop-lyric-fonts-browser',
     'lyrics/desktop-lyric-layout-browser',
     'overlays/component-source',

@@ -44,6 +44,7 @@ test('fixed danmaku overlay subscribes with the encoded token and renders snapsh
       addEventListener: (_, listener) => { ready = listener; },
       createElement: (tag) => Object.assign(new FakeNode(tag), { classList }),
       createDocumentFragment: () => Object.assign(new FakeNode(), { isFragment: true }),
+      querySelector: (selector) => selector === '.danmaku-signal-stage' ? element('danmakuStage') : null,
       querySelectorAll: () => [],
     },
     window,

@@ -11,7 +11,9 @@ function conflict() {
 }
 
 function createLotteryDrawStore(db) {
-  function getRound(taskId) {
+  let cachedOrder = null;
+
+  function readRound(taskId) {
     const row = db
       .prepare(
         `SELECT r.*, o.order_json, o.next_index
@@ -20,6 +22,11 @@ function createLotteryDrawStore(db) {
       )
       .get(taskId);
     if (!row) return null;
+    // Only the order is immutable. Re-read progress and compare the stored JSON
+    // so rollbacks and writes through another connection cannot leave stale UIDs.
+    if (cachedOrder?.id !== row.current_order_id || cachedOrder.json !== row.order_json) {
+      cachedOrder = { id: row.current_order_id, json: row.order_json, values: JSON.parse(row.order_json) };
+    }
     return {
       id: row.id,
       taskId: row.task_id,
@@ -30,9 +37,16 @@ function createLotteryDrawStore(db) {
       status: row.status,
       revision: Number(row.revision),
       orderId: row.current_order_id,
-      order: JSON.parse(row.order_json),
+      order: cachedOrder.values,
       nextIndex: Number(row.next_index),
     };
+  }
+
+  function getRound(taskId, { includeOrder = true } = {}) {
+    const round = readRound(taskId);
+    if (!round) return null;
+    const { order, ...snapshot } = round;
+    return includeOrder ? { ...snapshot, order: order.slice() } : snapshot;
   }
 
   function event(task, roundId, type, payload, nowMs) {
@@ -104,8 +118,9 @@ function createLotteryDrawStore(db) {
 
   function setStatus(task, status, reason, nowMs) {
     return transaction(db, () => {
-      const round = getRound(task.id);
-      if (!round || ['completed', 'exhausted'].includes(round.status)) return round;
+      const round = readRound(task.id);
+      if (!round) return null;
+      if (['completed', 'exhausted'].includes(round.status)) return getRound(task.id);
       db.prepare('UPDATE lottery_rounds SET status = ?, revision = revision + 1, updated_at_ms = ? WHERE id = ?').run(
         status,
         nowMs,
@@ -126,9 +141,9 @@ function createLotteryDrawStore(db) {
     });
   }
 
-  function recordCheck({ task, roundId, index, uid, verification, nowMs }) {
+  function recordCheck({ task, roundId, index, uid, verification, nowMs, includeOrder = true }) {
     return transaction(db, () => {
-      const round = getRound(task.id);
+      const round = readRound(task.id);
       if (
         !round ||
         round.id !== roundId ||
@@ -178,12 +193,12 @@ function createLotteryDrawStore(db) {
         { uid, index, state: verification.state, reason: verification.reason },
         nowMs,
       );
-      return getRound(task.id);
+      return getRound(task.id, { includeOrder });
     });
   }
 
   function getResult(taskId) {
-    const round = getRound(taskId);
+    const round = readRound(taskId);
     if (!round) return null;
     const awards = winners(round.id);
     const lastPause = db
