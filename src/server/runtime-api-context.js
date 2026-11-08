@@ -16,6 +16,7 @@ function createRuntimeApiContextFactory(options = {}) {
       worldClock: options.getWorldClock?.(),
       giftCards: options.giftCards,
       scenes: options.getScenes?.(),
+      liveRankings: options.getLiveRankings?.(),
       sceneEvents: options.getSceneEvents?.(),
       readDanmakuDisplay: options.getDanmakuDisplay?.(),
       danmakuAppearance: options.getDanmakuAppearance?.(),

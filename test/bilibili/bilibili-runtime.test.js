@@ -186,15 +186,17 @@ test('missing room status is distinct from disabled listening', async (t) => {
   t.after(() => fixture.runtime.stop());
   fixture.settings.roomId = '';
   fixture.runtime.configure();
-  assert.equal(fixture.runtime.getLiveStatus().message, '未设置直播间');
+  const missingRoomMessage = fixture.runtime.getLiveStatus().message;
+  assert.ok(missingRoomMessage);
   const { liveStatus } = await fixture.runtime.reconnect();
-  assert.equal(liveStatus.message, '未设置直播间');
+  assert.equal(liveStatus.message, missingRoomMessage);
   assert.equal(fixture.clients.length, 0);
 
   fixture.settings.roomId = '123';
   fixture.settings.enableBilibili = 'false';
   fixture.runtime.configure();
-  assert.equal(fixture.runtime.getLiveStatus().message, '未启用弹幕监听');
+  assert.ok(fixture.runtime.getLiveStatus().message);
+  assert.notEqual(fixture.runtime.getLiveStatus().message, missingRoomMessage);
 });
 
 test('disabled client cannot report late status or restart failure', async (t) => {

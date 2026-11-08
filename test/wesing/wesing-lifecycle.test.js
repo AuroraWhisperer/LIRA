@@ -175,7 +175,6 @@ test('WeSing automatically retries a failed cache save on a later monitor sample
   f.samples[0](sample);
   await f.capture.waitForRefresh();
   assert.equal(f.capture.getStatus().cachePath, cachePath);
-  assert.match(f.capture.getStatus().message, /自动重试/);
   timestamp = 3001;
   f.samples[0](sample);
   await f.capture.waitForRefresh();

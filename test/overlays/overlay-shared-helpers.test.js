@@ -6,6 +6,16 @@ const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const overlayPath = (file) => path.join(__dirname, '../../public/js/overlays', file);
 
+test('scene avatars reject credential-bearing, untrusted and private local URLs', async () => {
+  const { sceneAvatarSource } = await loadModuleExports(overlayPath('scene-extra-client.js'), { URL });
+  assert.equal(sceneAvatarSource('https://i0.hdslb.com/a.webp'), 'https://i0.hdslb.com/a.webp');
+  assert.equal(sceneAvatarSource('/img/overlays/danmaku-ranked/viewer.webp'), '/img/overlays/danmaku-ranked/viewer.webp');
+  for (const url of ['http://i0.hdslb.com/a.webp', 'https://untrusted.example/a.webp', '/api/bilibili/avatar',
+    'https://user:secret@i0.hdslb.com/a.webp', '/img/overlays/danmaku-ranked/../secret.webp']) {
+    assert.equal(sceneAvatarSource(url), '');
+  }
+});
+
 test('overlay utilities escape markup, combine color alpha and resolve low-power mode', async () => {
   const location = { search: '?quality=low' };
   const utils = await loadModuleExports(overlayPath('overlay-utils-module.js'), {

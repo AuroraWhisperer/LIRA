@@ -8,6 +8,7 @@ const giftFeedGifts = [
 export function sceneExtraPreviewData(type) {
   const session = (game, state) => ({ game, sessionId: `preview-${game}`, eventRevision: 1, state, danmaku: [] });
   const examples = {
+    'live-rankings': { status: 'loading', boards: [], message: '正在读取当前直播间的真实榜单…' },
     'gift-sprint': { targetRmb: 10000, remainingCrystalBalls: 100 },
     'heart-box-collection': { preview: true, count: 37, target: 40, remaining: 3, completed: false,
       status: 'collecting', partial: false, imagePath: '/img/heart-box-collection/heart-box.webp',

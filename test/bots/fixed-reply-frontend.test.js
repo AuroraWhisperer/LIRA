@@ -144,8 +144,9 @@ test('thanks edits keep parameters atomic, support native undo and paste untrust
   assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').count(), 0);
   await editor.press('Control+Shift+z');
   assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').count(), 1);
+  const tokenLabel = await editor.locator('[data-thanks-token="{称呼}"]').textContent();
   await page.keyboard.insertText('呀');
-  assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').textContent(), '观众称呼');
+  assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').textContent(), tokenLabel);
   await editor.press('Control+z');
   await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
   await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor();

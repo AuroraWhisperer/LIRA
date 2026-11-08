@@ -167,28 +167,23 @@ test('login window is muted by default so the live homepage cannot play sound', 
   await resultPromise;
 });
 
-test('login completion is logged and closed once when several cookie changes arrive together', async () => {
-  const logs = [];
+test('login completion closes the window once when several cookie changes arrive together', async (t) => {
   const resultPromise = open(
     createAuth({
       getBilibiliAuthState: async () => ({ loggedIn: true }),
     }),
-    (scope, message) => logs.push({ scope, message }),
   );
 
   await new Promise((resolve) => setImmediate(resolve));
-  const cookies = FakeBrowserWindow.latest.webContents.session.cookies;
+  const win = FakeBrowserWindow.latest;
+  const close = t.mock.method(win, 'close');
+  const cookies = win.webContents.session.cookies;
   cookies.emit('changed');
   cookies.emit('changed');
   cookies.emit('changed');
   await resultPromise;
 
-  assert.deepEqual(logs, [
-    {
-      scope: 'bilibili-login-auto-close',
-      message: 'Bilibili 登录成功，自动关闭登录窗口',
-    },
-  ]);
+  assert.equal(close.mock.callCount(), 1);
 });
 
 test('login window cleans up listeners on did-fail-load', async () => {

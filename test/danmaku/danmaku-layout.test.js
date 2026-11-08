@@ -68,7 +68,7 @@ test('new default regions preserve previously saved dimensions and text scaling'
 });
 
 // Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'stargazer', 'wireframe', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
+const OPTIONAL_REGIONS = ['coffee', 'horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'stargazer', 'wireframe', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   const original = layout.createLayout();

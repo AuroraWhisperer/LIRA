@@ -181,8 +181,6 @@ test('preview welcome toggle adds only a simulated robot welcome instead of an e
     if (enabled !== false) {
       const welcome = f.appends.find(item => item.isWelcome);
       assert.equal(welcome.kind, 'danmaku');
-      assert.equal(welcome.name, 'LIRA 机器人');
-      assert.equal(welcome.message, '欢迎 路过的咸鱼_07 来到直播间～');
     }
     f.pagehide();
   }

@@ -81,8 +81,8 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 | `link` | 管理身份；`{links:[{id,token}],selectedId?,selectedSize?,selectedItemId?}`，1–5 个不同的有效会话，逐项校验能力；selectedId 为绑定的共享组件类型、绑定 canvas 会话时的独立场景类型或 null，selectedSize 仅在有选择时可为 `{width,height}`，各轴 32–7680 | `{key}`，独立 128 位随机能力的 22 字符 base64url 编码；同一 canvas 及成员凭据复用一个 key，更新最近组件/实例选择和尺寸；无 canvas 时保留按选择分配的兼容入口 |
 | `resolve` | 短入口 Bearer；`{action:'resolve'}` | `{links:[{component,id,token,draftKey}],selectedId,selectedSize,selectedItemId?}`，只返回绑定的有效会话与当前有效选择；不续活闲置租约；未知或失效入口为 410 |
 | `focus` | 管理身份；`{key}`，再次验证短入口及其全部成员 | `{focused}`；锚定会话当前 attachment 经 read 确认定位才为 true；无页面、两秒超时、被更新请求取代或会话结束时为 false。定位请求不排入配置命令，不修改持久化状态 |
-| `exchange` | 管理身份；`{id,state,display?,ack,waitMs?}`；可选 `incremental:true` 时允许省略未变化的 state/display，省略表示保留 | `{commands:[{sequence,action,change?,baseItemIds?}],closed,waitMs?}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话。无待处理命令时可有界等待；请求等待时返回 waitMs 确认支持 |
-| `exchange-batch` | 管理身份；`{entries:[{action:"exchange",id,ack,incremental:true}],waitMs?}`；仅合并无 state/display 的空闲交换 | `{updates:[{id,commands,closed}],waitMs}`；任一成员有命令或关闭即返回全部成员的当前结果；先校验全部 ACK，再更新各自回执 |
+| `exchange` | 管理身份；`{id,state,display?,ack,waitMs?}`；可选 `incremental:true` 时允许省略未变化的 state/display，省略表示保留 | `{commands:[{sequence,action,change?,baseItemIds?}],closed,attached?,waitMs?}`，按序确认，已确认命令不重放；closed 时处理已排队操作后释放会话。无待处理命令时可有界等待；请求等待时返回 waitMs 确认支持 |
+| `exchange-batch` | 管理身份；`{entries:[{action:"exchange",id,ack,incremental:true}],waitMs?}`；仅合并无 state/display 的空闲交换 | `{updates:[{id,commands,closed,attached?}],waitMs}`；任一成员有命令或关闭即返回全部成员的当前结果；先校验全部 ACK，再更新各自回执 |
 | `revoke` | 管理身份；`{id}` | `{closed}` |
 | `read` | 当前会话 Bearer；`{id,attachmentId?,focusId?,stateRevision?,displayRevision?,ack?,waitMs?}`；未附页面标识的读取用于接管前取得快照；只有当前 attachment 可用 focusId 确认定位 | `{component,draftKey,state?,display?,stateRevision,displayRevision,ack,sequence,attachmentId,focus?,waitMs?}`；请求 revision 与当前值相等时仅省略对应主体，不带 revision 时返回完整主体。revision 和 ACK 均已知且无定位请求时可有界等待。attachmentId 初始为 null；focus 仅请求待处理时存在，为 `{id,selectedId,selectedSize,selectedItemId?}`；确认或过期后移除 |
 | `read-batch` | `{entries:[{action:"read",id,token,attachmentId,stateRevision?,displayRevision?,ack?,focusId?}],waitMs?}`；每项使用自己的 token，且必须是该会话当前已连接的 attachment | `{updates:[{id,...单条read结果}],waitMs}`；任一成员的状态、展示、ACK 或定位变化即返回全部成员的增量；全部成员通过权限与 attachment 检查后才续租或确认定位 |
@@ -149,7 +149,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 
 这里的展示 owner epoch 取主进程当前授权的生命周期 generation，普通后台 token 续期不改变它，也不撤销来源、回执或重建云弹幕连接。换账号、换服务器、重新授权、退出及当前授权失效仍终止旧来源；敏感远端请求继续使用授权管理器原有 token epoch 和校验，不因展示身份稳定而放宽。
 
-可选 `dataVersions` 为最长 1024 字符的 JSON 对象，仅接受 `songlist`、`lyricTimeline`、`gift-feed`、`queue`、`wheel`、`games`、`blindbox`、`gift-frame`、`guard-thanks`、`gamesCanvas`、`gamesScores` 键及 1–128 字符的字母、数字、下划线或连字符版本值。首次传 `{}`，成功接收后回传响应中的版本；已确认且未变化的对应类型数据（`lyricTimeline` 对应 `data.lyrics.lyricTimeline`）省略，播放状态仍更新。队列、转盘和游戏在对应类型通知后失效，owner scope/epoch 变化也重建基线；即使漏通知，版本最多保留五秒，随后重新读取核对。盲盒每次核验统计 owner 的账本、来源代次与本机日界变更标记，并绑定展示 owner 和心动盲盒筛选；变化后重新投影完整榜单，未变时跳过统计副本、投影及传输，不限制各实例自行选择榜单人数。配置显式失效仍立即生效，无可用变更标记的读取不复用缓存。发布版本不匹配时忽略旧确认；版本不提供权限，仍逐次执行原授权和投影检查。非法值返回 `400 SCENE_INVALID_DATA_VERSION`。旧请求不带此参数时始终返回完整数据，也不增加 `dataVersions` 响应字段。父页保留已接收静态内容供换版准备使用，输出失败或撤销清除确认后重新读取。
+可选 `dataVersions` 为最长 1024 字符的 JSON 对象，仅接受 `songlist`、`lyricTimeline`、`gift-feed`、`queue`、`wheel`、`games`、`blindbox`、`gift-frame`、`guard-thanks`、`gamesCanvas`、`gamesScores`、`live-rankings` 键及 1–128 字符的字母、数字、下划线或连字符版本值。首次传 `{}`，成功接收后回传响应中的版本；已确认且未变化的对应类型数据（`lyricTimeline` 对应 `data.lyrics.lyricTimeline`）省略，播放状态仍更新。队列、转盘和游戏在对应类型通知后失效，owner scope/epoch 变化也重建基线；即使漏通知，版本最多保留五秒，随后重新读取核对。盲盒每次核验统计 owner 的账本、来源代次与本机日界变更标记，并绑定展示 owner 和心动盲盒筛选；变化后重新投影完整榜单，未变时跳过统计副本、投影及传输，不限制各实例自行选择榜单人数。配置显式失效仍立即生效，无可用变更标记的读取不复用缓存。发布版本不匹配时忽略旧确认；版本不提供权限，仍逐次执行原授权和投影检查。非法值返回 `400 SCENE_INVALID_DATA_VERSION`。旧请求不带此参数时始终返回完整数据，也不增加 `dataVersions` 响应字段。父页保留已接收静态内容供换版准备使用，输出失败或撤销清除确认后重新读取。
 
 `incrementalParts=1` 显式声明支持游戏嵌套数据和礼物事件基线的条件输出；只有同时携带 `dataVersions` 才启用。你画我猜的 `gamesCanvas` 绑定展示 owner、游戏会话、回合和画笔修订；`gamesScores` 绑定 owner、会话、回合和本轮计分修订。版本匹配时分别省略 `data.games.session.state.canvas` 或 `correct/scores`，仍交付最新聊天、阶段和计时字段。父页面和游戏组件只在同会话、同回合内合并缺失部分，换回合、换 owner、断线及重发布重新补齐；不带能力标记的旧页面不会得到这些新版本，也继续取得完整嵌套游戏状态。新页面首次仍发送 `{}`，旧服务忽略未知 query，保持兼容。
 
@@ -906,6 +906,18 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 行为文档:[ai.md](ai.md)。
 
 ## 14. Bilibili 域(bilibili)
+
+### 实时四榜
+
+`GET /api/bilibili/live-rankings?version=<上次版本>` 仅接受本机管理身份，返回 `{ok:true,data}` 并设置 `Cache-Control: no-store`。房间取当前授权账号保存的配置，不接受客户端指定房间。首次返回 `{version,room,intervalMs:500,status,message,boards,serverNow}`；版本相同时只返回 `{unchanged:true,serverNow}`，仍续期消费需求。
+
+`boards` 的 ID 为 `hot`、`hot-new`、`popular`、`popular-area`，分别对应热门全站 / 新人 TOP50、人气全站 / 当前房间推荐分区 TOP100。分区来自 B 站 `getRankTabConfigWithList`，不是全站列表的筛选结果。每榜包含 `title,unit,limit,rows,current,eligible,status,message,updatedAt,requestMs,endsAt`；失败重试时可附 `retryAt`。行字段为 `roomId,uid,name,avatarUrl,rank,score,supporters,areaName,distance`，未知数值为 `null`，不附带播放地址或凭据。时间为本机毫秒时间戳；`endsAt` 根据上游剩余秒数和请求中点估算，不能作为 B 站权威结榜时刻。
+
+[live-rank-provider.js](../../../src/bilibili/live-rank-provider.js) 只读官方接口并投影字段；[live-rank-service.js](../../../src/bilibili/live-rank-service.js) 由 `scene-runtime.js` 持有。管理页、编辑器和场景输出共享一轮四榜请求，以 500ms 为目标间隔，慢请求不重叠；每分钟刷新房间分区上下文。无人读取或续期三秒后停止并取消在途请求，账号 / 房间变化清空旧快照。每榜错误独立退避 1–30 秒，HTTP Retry-After 最多采用 60 秒，保留最后成功数据；恢复后回到 500ms。上游建议的 15 秒不替代用户选择的查询间隔，也不保证每次查询有新分值。
+
+浏览器源通过原场景能力读取同一快照，并以 `dataVersions['live-rankings']` 确认版本；该能力不能访问管理端点。配置与呈现见[榜单展示](../frontend/overlays.md#实时榜单)。
+
+画布 `exchange` 与 `exchange-batch` 的成员结果额外包含 `attached`：当前网页已 attach、未 detach，且最近 30 秒内 attach/read 才为真。attach/detach 和过期后重新读取会唤醒管理端等待；该状态只控制榜单实时订阅，不撤销编辑链接、草稿或待保存命令。正常关闭网页立即暂停预览订阅，异常离开在活动租约过期后暂停；本机榜单服务再按上述三秒需求租约停止。旧客户端可忽略字段，新客户端遇到旧服务缺少字段时沿用原订阅行为。
 
 > 模块文件:[src/server/routes/bilibili-routes.js](../../../src/server/routes/bilibili-routes.js)
 > 前缀:`/api/bilibili/`

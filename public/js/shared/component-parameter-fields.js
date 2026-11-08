@@ -39,12 +39,17 @@ export function subscribeComponentFields(root, controller, render) {
     });
   };
   const stop = controller.subscribe(render);
-  root.addEventListener('focusout', refresh);
+  const onFocusOut = event => {
+    const select = event.target.closest?.('.lira-select');
+    if (select?.contains(event.relatedTarget)) return;
+    refresh();
+  };
+  root.addEventListener('focusout', onFocusOut);
   root.addEventListener('lira-color-edit-end', refresh);
   return () => {
     disposed = true;
     stop();
-    root.removeEventListener('focusout', refresh);
+    root.removeEventListener('focusout', onFocusOut);
     root.removeEventListener('lira-color-edit-end', refresh);
   };
 }

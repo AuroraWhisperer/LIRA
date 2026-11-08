@@ -80,20 +80,24 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
     get bodies() { return bodies; },
     addGift(event, now) {
       const size = event.motion.size;
+      const collisionSize = size * 0.8;
       const motionSpeed = (event.motion.speed ?? 100) / 100;
       const bounce = (event.motion.bounce ?? 18) / 100;
       const multiplier = event.motion.quantityMultiplier ?? 4;
       const expiresAt = event.startedAt + event.motion.durationSeconds * 1000;
-      if (expiresAt <= now) return [];
+      if (expiresAt + 1000 <= now) return [];
       // Large combos keep their true quantity on the last representative image.
       // Existing gifts are never evicted early to make room for a newer gift.
       const count = Math.min(event.num * multiplier, 60 * multiplier, MAX_GIFT_DROP_BODIES - bodies.length);
       const added = [];
       for (let index = 0; index < count; index++) {
+        const delay = random() * 1000;
+        if (expiresAt + delay <= now) continue;
         const body = { id: `${event.eventId}:${index}`, eventId: event.eventId,
           quantity: index === count - 1 ? Math.max(1, event.num - Math.ceil(count / multiplier) + 1) : 1,
-          size, half: size / 2, invInertia: 6 / (size * size), expiresAt, motionSpeed, bounce,
-          x: size + random() * (width - size * 2), y: -size / 2 - Math.floor(index / multiplier) * size * 0.4,
+          size, half: collisionSize / 2, invInertia: 6 / (collisionSize * collisionSize), motionSpeed, bounce,
+          spawnAt: event.startedAt + delay, expiresAt: expiresAt + delay,
+          x: size + random() * (width - size * 2), y: -size / 2,
           vx: (random() - 0.5) * 160 * motionSpeed, vy: (80 + random() * 80) * motionSpeed,
           angle: (random() - 0.5) * Math.PI, spin: (random() - 0.5) * 3 * motionSpeed };
         bodies.push(body); added.push(body);
@@ -102,17 +106,18 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
     },
     step(elapsed, now) {
       bodies = bodies.filter(body => body.expiresAt > now);
+      const active = bodies.filter(body => body.spawnAt <= now);
       remainder += Math.max(0, Math.min(elapsed, 1 / 15));
       while (remainder >= FIXED_STEP) {
         remainder -= FIXED_STEP;
-        for (const body of bodies) {
+        for (const body of active) {
           body.vy += 1500 * body.motionSpeed ** 2 * FIXED_STEP;
           body.vx *= 0.999; body.spin *= 0.998;
           body.x += body.vx * FIXED_STEP; body.y += body.vy * FIXED_STEP;
           body.angle += body.spin * FIXED_STEP;
         }
         for (let iteration = 0; iteration < 5; iteration++) {
-          for (const [a, b] of pairs(bodies, 240)) {
+          for (const [a, b] of pairs(active, 240)) {
             const hit = collide(a, b);
             if (!hit) continue;
             const correction = Math.max(0, hit.depth - 0.08) * 0.4;
@@ -120,7 +125,7 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
             b.x += hit.nx * correction; b.y += hit.ny * correction;
             impulse(a, b, hit.nx, hit.ny, hit.x, hit.y);
           }
-          for (const body of bodies) walls(body, width, height);
+          for (const body of active) walls(body, width, height);
         }
       }
     },

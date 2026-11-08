@@ -27,6 +27,7 @@ import { createCelestialHorizontalMessageRenderer } from './danmaku-celestial-ho
 import { createNeonGlassMessageRenderer } from './danmaku-neon-glass.js';
 import { createHorizontalCharmMessageRenderer } from './danmaku-horizontal-charm.js';
 import { createAstralMessageRenderer } from './danmaku-astral.js';
+import { createCoffeeMessageRenderer } from './danmaku-coffee.js';
 
 export { DEFAULT_DANMAKU_CLASSES, measureDanmakuText };
 
@@ -59,6 +60,7 @@ function createStyleRenderer(options) {
   if (options.style === 'neon-glass') return createNeonGlassMessageRenderer(options, render);
   if (options.style === 'horizontal-charm') return createHorizontalCharmMessageRenderer(options, render);
   if (options.style === 'astral') return createAstralMessageRenderer(options, render);
+  if (options.style === 'coffee') return createCoffeeMessageRenderer(options, render);
   if (options.style === 'aurora') return createAuroraMessageRenderer(options, render);
   if (options.style === 'stargazer') return createStargazerMessageRenderer(options, render);
   if (options.style === 'notebook') return createNotebookMessageRenderer(options, render);

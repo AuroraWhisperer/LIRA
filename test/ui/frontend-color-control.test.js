@@ -248,12 +248,12 @@ test('undo groups a continuous color-plane drag into one edit and emits one inpu
   assert.equal(await page.getByRole('button', { name: '撤回', exact: true }).isDisabled(), true);
 });
 
-test('generated component parameters restore defaults and update the owning draft immediately', async t => {
+test('generated component opacity updates its owning draft without changing the selected color', async t => {
   const page = await pageFor(t, '');
   await page.evaluate(async () => {
     const { createSceneExtraPreview } = await import('/js/admin/scene-extra-preview.js');
     const { createSceneExtraDefaults } = await import('/js/shared/scene-extra-components.js');
-    window.draft = { ...createSceneExtraDefaults('songlist'), songBoardSyncTheme: 'false', songBoardThemeOpacity: '0.35', songBoardThemeText: '#11223380' };
+    window.draft = { ...createSceneExtraDefaults('songlist'), songBoardSyncTheme: 'false', songBoardThemeOpacity: '0.35', songBoardThemeBackground: '#123456' };
     const listeners = new Set();
     const controller = {
       getState: () => ({ draft: window.draft, loaded: true }),
@@ -262,12 +262,11 @@ test('generated component parameters restore defaults and update the owning draf
     };
     createSceneExtraPreview('songlist', { controller }).createPanel(document.getElementById('host'));
   });
-  assert.equal(await page.locator('[data-component-parameter="songBoardThemeText"]').evaluate(input => input.value), '#11223380');
   const background = page.locator('[data-component-parameter="songBoardThemeBackground"]');
-  assert.equal(await background.evaluate(input => input.parentElement.querySelector('.lira-color-alpha-value').textContent), '35%');
   await background.click();
   const alpha = page.getByRole('dialog').getByLabel('不透明度（%）', { exact: true });
+  assert.equal(await alpha.inputValue(), '35');
   await alpha.fill('0');
   assert.equal(await page.evaluate(() => window.draft.songBoardThemeOpacity), '0');
-  assert.equal(await background.evaluate(input => input.value), '#181823');
+  assert.equal(await page.evaluate(() => window.draft.songBoardThemeBackground), '#123456');
 });

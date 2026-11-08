@@ -114,6 +114,8 @@ export function getParameterRangeOrigin(input) {
  */
 export function refreshParameterRange(input) {
   if (!isParameterRange(input)) return;
+  // ResizeObserver refreshes these when their panel becomes visible.
+  if (input.closest?.('[hidden], details:not([open]) > :not(summary)')) return;
 
   const progress = getParameterRangeProgress(input);
   const origin = getParameterRangeOrigin(input);

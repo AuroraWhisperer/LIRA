@@ -77,34 +77,3 @@ test('metrics distinguish unavailable samples from real zero load', async () => 
   assert.equal(elements.get('gpuUsage').textContent, '0.0%');
   assert.notEqual(unavailable, '0.0%');
 });
-
-test('desktop update invokes the supplied navigation action', async () => {
-  let showUpdatePage;
-  let opened = 0;
-  const sandbox = {
-    console,
-    document: {
-      body: { classList: { add() {} } },
-      getElementById: () => null,
-      querySelectorAll: () => [],
-    },
-    window: {
-      songAssistantDesktop: {
-        onShowUpdatePage(callback) {
-          showUpdatePage = callback;
-        },
-        onUpdateState() {},
-        getInfo: () => new Promise(() => {}),
-      },
-    },
-  };
-
-  const { createDesktopShell } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/desktop.js'), sandbox);
-  createDesktopShell({
-    showError() {},
-    openUpdatePage: () => { opened++; },
-  }).initDesktopShell();
-  showUpdatePage();
-
-  assert.equal(opened, 1);
-});

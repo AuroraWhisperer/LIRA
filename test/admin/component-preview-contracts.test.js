@@ -146,6 +146,14 @@ test('component fields refill after editing with current optimistic state and re
   document.activeElement = control;
   controller.receive({ state: state('remote'), ack: 0 });
   assert.equal(control.value, 'saved');
+  const search = {};
+  const select = { contains: node => node === search };
+  const internalFocus = Object.assign(new Event('focusout'), { relatedTarget: search });
+  Object.defineProperty(internalFocus, 'target', { value: { closest: () => select } });
+  const beforeOpening = renders;
+  root.dispatchEvent(internalFocus);
+  await Promise.resolve();
+  assert.equal(renders, beforeOpening, 'Moving from the dropdown trigger to its search must not refresh the parameter panel.');
   document.activeElement = null;
   root.dispatchEvent(new Event('focusout'));
   root.dispatchEvent(new Event('lira-color-edit-end'));

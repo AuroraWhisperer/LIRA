@@ -57,7 +57,7 @@ test('published motion layers isolate styles, retain settlement expiry through d
   assert.equal(await drop.locator('.gift-swing-item').count(), 0);
   assert.equal(await swing.locator('.gift-drop-item').count(), 0);
   assert.equal(await swing.locator('.gift-swing-name').textContent(), '<观众>');
-  assert.equal(Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at')), startedAt + 3000);
+  const dropDeadline = Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at'));
   assert.equal(await drop.locator('.gift-drop-item').first().evaluate(node => node.style.width), '88px');
   fixture.receiveGift(event);
   assert.equal(await drop.locator('.gift-drop-item').count(), 8);
@@ -73,7 +73,8 @@ test('published motion layers isolate styles, retain settlement expiry through d
   assert.ok(frozen.pixel[0] > 240 && frozen.pixel[1] < 15 && frozen.pixel[2] < 15, 'the static WebP retains the red first frame');
   await swing.waitForFunction(() => document.querySelector('.gift-motion-image')?.src.startsWith('data:image/webp'));
   assert.equal(await swing.locator('.gift-motion-image').first().getAttribute('src'), frozen.src);
-  await drop.locator('.gift-drop-item').first().waitFor({ state: 'detached', timeout: 5000 });
+  assert.equal(Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at')), dropDeadline);
+  await drop.waitForFunction(() => !document.querySelector('.gift-drop-item'), null, { timeout: 5000 });
   await swing.locator('.gift-swing-item').waitFor({ state: 'detached', timeout: 5000 });
   for (const [textMode, text] of [['gift', '小花花 ×4'], ['none', ''], ['name-quantity', '<观众>×4']]) {
     fixture.receiveGift({ ...event, eventId: `swing-${textMode}`, themeId: 'gift-swing', startedAt: Date.now(),

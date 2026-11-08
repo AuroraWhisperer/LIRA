@@ -161,6 +161,7 @@ export function openComponentPreview(selected = null) {
       connection.sentAck = connection.ack;
       received = true;
       connection.retryDelay = 1000;
+      connection.stopData?.setActive?.(data.attached !== false);
       for (const command of data.commands) {
         if (command.sequence <= connection.ack) continue;
         if (command.action === 'edit') {

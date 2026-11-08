@@ -2,6 +2,7 @@
 // Visual tags describe visible elements and may overlap; avatars and gift images do not determine illustration tags.
 // Motion includes layered entry and animated decoration; whole-card entry or travel alone does not count.
 export const DANMAKU_STYLE_TAGS = {
+  coffee: { visual: ['text', 'illustration'], motion: true, holiday: false },
   'neon-glass': { visual: ['card', 'light'], motion: true, holiday: false },
   'horizontal-charm': { visual: ['card'], motion: true, holiday: false },
   astral: { visual: ['card', 'light'], motion: true, holiday: false },

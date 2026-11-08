@@ -1,5 +1,7 @@
 # Admin 应用与公共框架
 
+实时榜单由 `app.js` 在组件标签首次选择时加载 `admin/live-rankings.js`；[live-rankings-client.js](../../../public/js/admin/live-rankings-client.js) 合并该页与画布预览的订阅，每 500ms 读取管理快照。最后一个订阅退出后取消本机读取；画布订阅还受编辑网页连接状态与榜单图层可见性约束。呈现和配置契约见[实时榜单](overlays.md#实时榜单)。
+
 SC 行内删除后，在“清空 SC 记录”左侧显示单一批次的数量和“撤销”，使用客户端颜色
 token。连续删除合并，最后一次删除后 10 秒失效；出现、消失各用 1 秒淡入淡出，
 失效后立即禁用撤销，淡出结束隐藏。系统减少动画时不播放渐变。恢复请求串行执行，清空记录后取消
@@ -79,7 +81,7 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 场景操作和编辑命令完成后，桌面立即回传确认和结果。`component-preview-dialog.js` 订阅控制器、实际显示数据和房间大航海状态；变化时取消空闲等待并立即 exchange，仅附变化的 state/display。无待处理命令时，exchange 最多等待 20 秒；网页 read 携带已知 state/display revision 和 ACK，在无变化时同样等待，编辑、确认、显示更新和定位会立即唤醒。同一桌面预览窗口的空闲 exchange 与同一网页的空闲 read 分别由 `component-preview-poll-batch.js` 聚合为一条等待请求，新增或取消某个连接时取消旧批并重组；每项仍保留自己的会话、凭据、修订与确认序号。这样不会因逐组件长轮询占满 HTTP/1 连接槽而阻塞场景 iframe、素材或编辑请求。单连接旧协议仍保留；旧中继未确认等待能力时，沿用桌面 200ms、网页空闲 250ms/待确认 40ms 的兼容调度。
 同步画布时，取消空闲 exchange 后返回紧接着补发同步的结果；成功后才继续定位新图层，不把被取消等待的空结果当成同步失败。
 `component-preview-remote.js` 仅在权威状态变化或待确认命令被移除时通知订阅者，display 省略时不重复通知显示监听器；同值编辑以及 ACK 先于命令回执到达时仍会完成 `flush()`，连接错误设置与清除独立通知。命令序号重试、草稿恢复、租约及实际显示数据来源不变；等待与撤销规则见[预览 API](../backend/api.md#浏览器组件预览)。
-队列、弹幕及公共效果参数通过 `component-preview-panel.js` 的局部字段订阅处理编辑结束：失焦或颜色弹窗关闭后，在当前输入提交完成的微任务中读取最新乐观状态回填，包含尚未确认的本地编辑。颜色选择器只发出只读的 `lira-color-edit-end` 事件，不额外触发 input/change 或请求；保留键盘焦点，面板释放时移除监听并取消已排队回填。这样相同快照被去重后，先前受焦点保护的字段仍能恢复最新值，避免后续整表采集写回旧值。
+队列、弹幕及公共效果参数通过 `component-preview-panel.js` 的局部字段订阅处理编辑结束：焦点离开整个增强下拉控件或颜色弹窗关闭后，在当前输入提交完成的微任务中读取最新乐观状态回填；下拉触发框、搜索框与选项之间的内部焦点切换不触发整表刷新。其他字段失焦继续回填，包含尚未确认的本地编辑。颜色选择器只发出只读的 `lira-color-edit-end` 事件，不额外触发 input/change 或请求；保留键盘焦点，面板释放时移除监听并取消已排队回填。这样相同快照被去重后，先前受焦点保护的字段仍能恢复最新值，避免后续整表采集写回旧值。
 `scene-editor-stage.js` 只写变化的图层几何、名称和 ARIA 属性；画布适配尺寸按宽、高及缩放缓存。拖拽同一动画帧只应用最新位置，松手先应用最终坐标再提交一次历史，取消丢弃待处理位置。`scene-document-model.js` 的几何手势复用已完整校验且冻结的外观，仅修改几何，每次核对位置与尺寸；有限几何数值的 JSON 表示可能增长时，执行完整的 256 KiB UTF-8 文档大小校验，数值表示未增长时不重复序列化。通用编辑、重置和导入仍完整校验。模型按快照索引图层 ID、保留未变外观引用，`scene-item-controller.js` 在读取共享 owner 和序列化前跳过纯几何通知。画布设置及撤销状态读取不可变快照，总状态复用控制器订阅值和共享外观元数据，避免拖动时复制完整草稿。同次模型刷新在更新选中状态后定位标签一次，容器缩放和单独选择变化仍重新定位；iframe、自动高度与撤销语义不变。画布内部及外围留白统一在 viewport 处理左键取消选择，先聚焦工作区让当前输入正常提交，再切换参数面板；取消选择本身不改动场景草稿，组件与拖拽事件保留原语义。
 场景控制器在各预设变更通知中维护标题与未保存标记，列表读取不复制其他场景的完整文档；当前场景仍返回独立的 saved/draft 副本。画布一次状态刷新复用同一快照显示连接、场景列表及操作状态，保存、放弃、重新读取和切换预设仍由原控制器处理。
 `component-preview-canvas-output.js` 的地址框支持点击外部、按 Esc 或再次点击同一复制按钮收起；点击另一复制按钮会复制并展示对应地址，框内仍可选中文字手动复制。Esc 从地址框返回触发按钮，释放模块时移除关闭监听。
@@ -171,7 +173,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 │           displayPage(展示板) / overlayPage(浏览器源) / importPage(歌单导入导出)
 ├── #playbackAssistantPage 播放助手(#playback)
 ├── #giftAssistantPage     礼物面板(#gifts):礼物检测/提示/最近/今日盲盒盈亏/盲盒映射
-├── #liveComponentsPage    组件(#components):弹幕姬/礼物姬/音乐展示/文本框/加班机/时钟/开播动画/弹幕投票/观众评分
+├── #liveComponentsPage    组件(#components):实时榜单/弹幕姬/礼物姬/音乐展示/文本框/加班机/时钟/开播动画/弹幕投票/观众评分
 │     └── 音乐展示：desktopLyricPage(直播歌词) / nowPlayingPage(歌曲信息)
 └── #otherAssistantPage    百宝箱(#other):弹幕互动/PK 算分/动态抽奖/小游戏/礼物特效/电音助手/粉丝档案/主播工作台/世界地图/设置/性能/使用文档
 ```
@@ -429,9 +431,9 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | 使用文档 / 关于与更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [usage-guide-layout.js](../../../public/js/admin/usage-guide-layout.js) / [usage-guide-progress.js](../../../public/js/admin/usage-guide-progress.js) / [usage-guide-lightbox.js](../../../public/js/admin/usage-guide-lightbox.js) / [desktop.js](../../../public/js/desktop.js)                                                                                                                                                                                                   | 目录锚点平滑滚动、章节与小标题定位、本章阅读位置及上下章导航，侧栏收缩时切换双栏目录;截图点击或 Enter/空格以原生 `<dialog>` 查看大图，Esc 或点击任意处关闭;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 首次启动引导        | [interactive-tour.js](../../../public/js/admin/interactive-tour.js)                                                                                                                                                                             | 旧七步弹窗及全局 onboarding 控制器已退役，旧 settings 标记保留兼容；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-直播歌词设置页位于「组件 → 音乐展示 → 直播歌词」。[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 组织基础／高级编辑页签、独立输出开关和共用音乐跟随；基础外观使用 `DESKTOP_LYRIC_DEFAULTS`（不提交 `desktopLyricFallbackFontFamily`），高级分类编辑与自存搭配由 [advanced-lyric-editor.js](../../../public/js/admin/advanced-lyric-editor.js) 拥有。外观及 `weSingLyricSource/weSingSmartLyricMatch` 沿用 `/api/settings` 自动保存；切换页签与预览来源不保存输出开关。两类外观分别重置，保留两开关和自存搭配；基础重置同时恢复共用时间偏移。
+直播歌词设置页位于「组件 → 音乐展示 → 直播歌词」。[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 组织基础／高级编辑页签、独立输出开关和常驻展开的共用音乐跟随；设置随整页滚动，宽屏右侧预览保持可见。基础外观使用 `DESKTOP_LYRIC_DEFAULTS`（不提交 `desktopLyricFallbackFontFamily`），高级分类编辑与自存搭配由 [advanced-lyric-editor.js](../../../public/js/admin/advanced-lyric-editor.js) 拥有。外观及 `weSingLyricSource/weSingSmartLyricMatch` 沿用 `/api/settings` 自动保存；切换页签不保存输出开关。两类外观分别重置，保留两开关和自存搭配；基础重置同时恢复共用时间偏移。
 
-[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 将实时事件或本地示例交给同一 `desktopLyricRenderer`，支持单层编辑预览、按真实开关叠加预览和合并／独立地址复制。样例期间真实歌词版本仍验收并缓存，切回当前歌曲时恢复最新进度；共享时钟、视觉模块和资源生命周期见 [歌词 overlay](overlays.md#6-直播歌词页lyrics)。字体选择沿用统一软件／系统字体库；Chromium `queryLocalFonts()` 要求瞬时用户激活时，在用户正常点击／按键后重试，权限边界见 [desktop/main.md](../desktop/main.md) §4。
+[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 将当前歌曲的实时事件交给同一 `desktopLyricRenderer`，预览始终跟随左侧基础／高级编辑页签，输出开关关闭时仍可预览对应样式。右侧保留背景切换、播放状态和合并地址复制；共享时钟、视觉模块和资源生命周期见 [歌词 overlay](overlays.md#6-直播歌词页lyrics)。字体选择沿用统一软件／系统字体库；Chromium `queryLocalFonts()` 要求瞬时用户激活时，在用户正常点击／按键后重试，权限边界见 [desktop/main.md](../desktop/main.md) §4。
 
 同页的 [lyric-source-controls.js](../../../public/js/admin/lyric-source-controls.js) 独立管理跟随偏好、实际来源与外部客户端重检，不进入外观自动保存。一级选择为「内置播放器 / 外部播放器 / 全民 K 歌」；仅选中外部播放器时显示「智能 / QQ 音乐 / 网易云音乐」和客户端检测、重检，切回外部分类沿用本页上次选项。`auto / qq-client / netease-client` 映射到外部分类，`internal / wesing` 各自对应一级分类；按 `selection` 控制显示，实际 `source` 的自动切换不改变分类。智能匹配歌词和首选歌词源在选中全民 K 歌后直接展开于同一跟随区域内，沿用设置表单的自动保存；外部播放器保持各自平台歌词。状态同步及播放行为见 [playback.md](playback.md#3-歌词链路)，服务端选择规则见[音乐服务 §13](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
 

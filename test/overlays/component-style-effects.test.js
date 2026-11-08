@@ -35,8 +35,6 @@ test('fixed danmaku keeps perspective separate from filter reset and restores it
   await page.locator('.danmaku-advanced > summary').click();
   await page.locator('[data-effect-group="transform"] > summary').click();
   const input = page.locator('[data-effect-field="transform.rotateY"]');
-  assert.equal(await page.locator('#danmakuFixedMotion [data-effect-field="transform.rotateY"]').count(), 1);
-  assert.equal(await page.locator('#danmakuAppearanceEffects [data-effect-group="transform"]').count(), 0);
   assert.equal(await input.inputValue(), '25');
   await input.fill('-30');
   await input.press('Tab');
@@ -49,8 +47,6 @@ test('fixed danmaku keeps perspective separate from filter reset and restores it
   assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform.rotateY), -30);
   assert.equal(await resetEffects.isDisabled(), true, 'perspective alone does not enable filter reset');
   await page.evaluate(() => controller.edit({ style: 'horizontal-charm' }));
-  assert.equal(await page.locator('#danmakuFixedMotion').isVisible(), false);
-  assert.equal(await page.locator('.component-parameter-advanced [data-effect-field="transform.rotateY"]').count(), 1);
   await page.locator('.component-parameter-advanced > summary').click();
   assert.equal(await input.inputValue(), '-15');
   await resetEffects.click();
@@ -158,7 +154,7 @@ test('signed perspective control swaps near edges without adding a planar rotati
   await page.evaluate(() => disposePerspective());
 });
 
-test('every clock and danmaku preset applies supported effects, preserves animation and restores authored styles', { timeout: 45000 }, async t => {
+test('native panel, text, artwork and moving surfaces apply effects and restore authored styles', { timeout: 45000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><iframe sandbox="allow-scripts" style="width:900px;height:650px;border:0"></iframe>' });
   const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
@@ -167,7 +163,12 @@ test('every clock and danmaku preset applies supported effects, preserves animat
   page.on('pageerror', error => errors.push(error.message));
   assert.equal((await fetch(`${fixture.origin}/preview-test-host`)).status, 200);
   await page.goto(`${fixture.origin}/preview-test-host`);
-  for (const type of ['clock', 'danmaku']) for (const style of Object.keys(contract.STYLE_PARAMETER_CAPABILITIES[type])) {
+  // Cover the effect owner's surface branches; Glass and Dark Moon have focused cases below.
+  const surfaces = {
+    clock: ['peach', 'flip', 'digital', 'orbit', 'moonlit-fan'],
+    danmaku: ['signal', 'wireframe', 'stardust', 'window', 'glow', 'floating', 'comet'],
+  };
+  for (const [type, styles] of Object.entries(surfaces)) for (const style of styles) {
     const groups = Object.fromEntries(contract.styleParameterCapabilities(type, { style })
       .map(group => [group, contract.styleParameterDefaults(group)]));
     groups.transform = { perspective: 1600, rotateX: 15, rotateY: -10, rotateZ: 12, skewX: 4, skewY: 0 };

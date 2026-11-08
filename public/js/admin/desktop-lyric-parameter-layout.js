@@ -98,7 +98,7 @@ export function groupDesktopLyricParameters(root, fields, { scene = false } = {}
   const definitions = scene ? [
     ['layers', '显示层', ['lyricLayer', 'desktopLyricEnabled', 'advancedLyricEnabled'], true],
     ['advanced-lyrics', '高级歌词', ['advancedLyricLayout', 'advancedLyricFontSize', 'advancedLyricTextColor',
-      'advancedLyricAccentColor', 'advancedLyricShowNextLine', 'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricScale']],
+      'advancedLyricAccentColor', 'advancedLyricHideUnsung', 'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricScale']],
     ...GROUPS,
   ] : GROUPS;
   for (const [id, title, entries, open = false] of definitions) {

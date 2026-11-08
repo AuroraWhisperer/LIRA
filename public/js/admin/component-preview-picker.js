@@ -34,6 +34,7 @@ const PREVIEW_IMAGE_BOUNDS = {
 };
 
 const CATEGORY_ICONS = {
+  'live-rankings': 'M4 20h16M5 20v-8h4v8m1 0V4h4v16m1 0V9h4v11',
   background: 'M3 4h18v16H3Zm0 12 5-5 4 4 3-3 6 6M16 8h.01',
   'text-box': 'M4 4h16v4M12 4v16m-4 0h8',
   opening: 'M3 5h18v14H3Zm7 4 5 3-5 3Z',
@@ -60,6 +61,7 @@ const CATEGORY_ICONS = {
 };
 
 const PICKER_NAVIGATION = [
+  'live-rankings',
   'danmaku',
   { id: 'gifts', title: '礼物姬', categories: ['gift-frame', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox', 'guard-thanks'] },
   { id: 'music-display', title: '音乐展示', categories: ['lyrics', 'now-playing'] },

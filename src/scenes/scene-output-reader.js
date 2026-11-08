@@ -11,7 +11,7 @@ function readDataVersions(value) {
       value = JSON.parse(value);
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)
-      || Object.entries(value).some(([key, token]) => !['songlist', 'lyricTimeline', 'gift-feed', 'queue', 'wheel', 'games', 'blindbox', 'gift-frame', 'guard-thanks', 'gamesCanvas', 'gamesScores'].includes(key)
+      || Object.entries(value).some(([key, token]) => !['songlist', 'lyricTimeline', 'gift-feed', 'queue', 'wheel', 'games', 'blindbox', 'gift-frame', 'guard-thanks', 'gamesCanvas', 'gamesScores', 'live-rankings'].includes(key)
         || typeof token !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(token))) throw new Error();
     return { known: { ...value }, current: {} };
   } catch {

@@ -32,6 +32,82 @@ async function openRenderer(t) {
   return page;
 }
 
+test('every advanced layout reveals only reached current-line glyphs, including decorative copies', async t => {
+  const page = await openRenderer(t);
+  const results = await page.evaluate(async () => {
+    const { ADVANCED_LYRIC_CATALOG } = await import('/js/shared/advanced-lyric-catalog.js');
+    const root = document.getElementById('stage');
+    const line = { text: '甲乙丙丁', startMs: 1000, endMs: 6000,
+      words: [...'甲乙丙丁'].map((text, index) => ({ text, startMs: 1000 + index * 1000, endMs: 1800 + index * 1000 })) };
+    const results = [];
+    for (const [index, { id }] of ADVANCED_LYRIC_CATALOG.layouts.entries()) {
+      window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: id,
+        advancedLyricMaterial: ADVANCED_LYRIC_CATALOG.materials[index % ADVANCED_LYRIC_CATALOG.materials.length].id,
+        advancedLyricEnter: ADVANCED_LYRIC_CATALOG.enters[index % ADVANCED_LYRIC_CATALOG.enters.length].id,
+        advancedLyricShowNextLine: 'true', advancedLyricWordMotion: 'none', advancedLyricEchoEnabled: 'true' });
+      window.renderer.renderFrame({ line, nextLine: { text: '下一句', startMs: 6000, endMs: 10000 },
+        index: 0, currentMs: 2500, playing: false });
+      const visible = [...root.querySelectorAll('.advanced-lyric-glyph')].filter(glyph => {
+        for (let node = glyph; node && node !== root; node = node.parentElement) {
+          const style = getComputedStyle(node);
+          if (style.visibility === 'hidden' || Number(style.opacity) === 0 || style.clipPath === 'inset(0px 100% 0px 0px)') return false;
+        }
+        return true;
+      });
+      results.push({ layout: id, label: root.getAttribute('aria-label'),
+        future: root.querySelectorAll('[data-source="next"]').length,
+        visible: [...new Set(visible.map(node => node.dataset.text))].join('') });
+    }
+    return results;
+  });
+  for (const result of results) {
+    assert.equal(result.future, 0, `${result.layout} must not render the next line even with an old setting`);
+    assert.equal(result.label, '甲乙丙丁');
+    assert.equal(result.visible, '甲乙', `${result.layout} must hide every copy of unsung glyphs`);
+  }
+});
+
+test('unsung visibility toggles immediately and restores after pause, backward seek and hidden playback', async t => {
+  const page = await openRenderer(t);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const result = await page.evaluate(async () => {
+    const root = document.getElementById('stage');
+    const line = { text: '一二三四', startMs: 1000, endMs: 5000 };
+    const frame = { line, index: 0, currentMs: 2500, playing: false };
+    const shown = () => [...root.querySelectorAll('.advanced-lyric-glyph')].filter(glyph => {
+      for (let node = glyph; node && node !== root; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (style.visibility === 'hidden' || Number(style.opacity) === 0 || style.clipPath === 'inset(0px 100% 0px 0px)') return false;
+      }
+      return true;
+    }).map(node => node.dataset.text).join('');
+    window.renderer.renderFrame(frame);
+    const initial = shown();
+    await new Promise(resolve => setTimeout(resolve, 120));
+    const paused = shown();
+    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricHideUnsung: 'false' });
+    const full = shown();
+    window.renderer.applySettings(window.lyricSettings);
+    window.renderer.renderFrame({ ...frame, currentMs: 1499, discontinuity: true });
+    const seeked = shown();
+    window.renderer.setVisible(false);
+    window.renderer.renderFrame({ ...frame, currentMs: 3500 });
+    window.renderer.setVisible(true);
+    const resumed = shown();
+    window.renderer.renderFrame({ ...frame, currentMs: 900 });
+    const before = shown();
+    window.renderer.renderFrame({ ...frame, currentMs: 5000 });
+    return { initial, paused, full, seeked, resumed, before, after: shown() };
+  });
+  assert.equal(result.initial, '一二');
+  assert.equal(result.paused, result.initial);
+  assert.equal(result.full, '一二三四');
+  assert.equal(result.seeked, '一');
+  assert.equal(result.resumed, '一二三');
+  assert.equal(result.before, '');
+  assert.equal(result.after, '');
+});
+
 test('advanced layouts retain complete long lyrics inside the output', async t => {
   const page = await openRenderer(t);
   const text = '把长长的一句歌词唱完 Remember every word with 👨‍👩‍👧‍👦 and Cafe\u0301 in the moonlight';
@@ -54,6 +130,29 @@ test('advanced layouts retain complete long lyrics inside the output', async t =
     assert.equal(result.text, text, `${layout} must keep every character`);
     assert.deepEqual(result.clipped, [], `${layout} must fit the full line in its output`);
   }
+});
+
+test('timed groups keep future backplates hidden and retain the final sung glyph until the line ends', async t => {
+  const page = await openRenderer(t);
+  const result = await page.evaluate(() => {
+    const root = document.getElementById('stage');
+    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'tiles', advancedLyricExit: 'shrink' });
+    const line = { text: '唱完', startMs: 1000, endMs: 5000, words: [
+      { text: '唱', startMs: 1000, endMs: 2000 }, { text: '完', startMs: 4000, endMs: 5000 },
+    ] };
+    window.renderer.renderFrame({ line, index: 0, currentMs: 2500, playing: false });
+    const futurePlate = getComputedStyle(root.querySelectorAll('.advanced-lyric-enter')[1]).opacity;
+    window.renderer.renderFrame({ line, index: 0, currentMs: 4999, playing: false });
+    const tail = root.querySelectorAll('.advanced-lyric-glyph')[1];
+    let tailOpacity = 1;
+    for (let node = tail; node && node !== root; node = node.parentElement) tailOpacity *= Number(getComputedStyle(node).opacity);
+    window.renderer.renderFrame({ line: { text: '下一句', startMs: 5000, endMs: 8000 }, index: 1, currentMs: 5500, playing: false });
+    return { futurePlate, tailOpacity, current: root.getAttribute('aria-label'), previous: root.textContent.includes('唱完') };
+  });
+  assert.equal(result.futurePlate, '0');
+  assert.equal(result.tailOpacity, 1);
+  assert.equal(result.current, '下一句');
+  assert.equal(result.previous, false);
 });
 
 test('advanced fill interpolates, pauses and seeks from the shared clock and releases hidden animations', async t => {

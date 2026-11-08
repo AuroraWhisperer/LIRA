@@ -50,9 +50,10 @@ test('basic and advanced lyrics save independently, restore presets and reject i
   assert.equal(f.store.getSettings().advancedLyricEnabled, 'false');
   const presets = [{ id: 'my-corners', name: '四角手记', settings: {
     advancedLyricLayout: 'corners', advancedLyricMaterial: 'marker', advancedLyricGlowEnabled: 'true',
+    advancedLyricShowNextLine: 'true',
   } }];
   assert.equal((await f.post({ desktopLyricEnabled: true, advancedLyricEnabled: true,
-    desktopLyricFontSize: '64', advancedLyricLayout: 'corners', advancedLyricGlowEnabled: true,
+    desktopLyricFontSize: '64', advancedLyricLayout: 'corners', advancedLyricGlowEnabled: true, advancedLyricHideUnsung: false,
     advancedLyricLayoutSequence: 'corners,arc,corners', advancedLyricSavedPresets: presets })).status, 200);
   assert.equal((await f.post({ desktopLyricEnabled: false })).status, 200);
   const saved = createSettingsStore(f.db).getSettings();
@@ -60,10 +61,14 @@ test('basic and advanced lyrics save independently, restore presets and reject i
   assert.equal(saved.desktopLyricEnabled, 'false');
   assert.equal(saved.desktopLyricFontSize, '64');
   assert.equal(saved.advancedLyricLayoutSequence, 'corners,arc');
+  assert.equal(saved.advancedLyricHideUnsung, 'false');
   const restored = JSON.parse(saved.advancedLyricSavedPresets)[0];
   assert.equal(restored.name, '四角手记');
   assert.equal(restored.settings.advancedLyricLayout, 'corners');
   assert.equal(restored.settings.advancedLyricGlowEnabled, 'true');
+  assert.equal(restored.settings.advancedLyricHideUnsung, 'true', 'old presets inherit timed reveal without rejecting their legacy next-line key');
+  assert.equal((await f.post({ advancedLyricSavedPresets: [{ ...presets[0], settings: { advancedLyricHideUnsung: false } }] })).status, 200);
+  assert.equal(JSON.parse(f.store.getSettings().advancedLyricSavedPresets)[0].settings.advancedLyricHideUnsung, 'false');
   assert.equal(Object.hasOwn(restored.settings, 'desktopLyricEnabled'), false);
   assert.deepEqual(f.dirtyScopes, [], 'visual changes stay local and do not start a cloud settings sync');
 

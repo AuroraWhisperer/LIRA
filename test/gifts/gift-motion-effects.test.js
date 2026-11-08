@@ -100,13 +100,17 @@ test('amplified large combos retain their true remainder and never evict existin
   assert.equal(world.addGift({ ...event, eventId: 'full' }, 1000).length, 0);
 });
 
-test('late arrival and image preparation never restart a drop lifetime', () => {
-  const world = createGiftDropWorld({ random: () => 0.5 });
+test('staggered drops expire independently and late arrival never restarts their lifetime', () => {
+  let roll = 0;
+  const world = createGiftDropWorld({ random: () => (roll++ % 10) / 10 });
   const event = { eventId: 'a', num: 3, startedAt: 1000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } };
   world.addGift(event, 2500);
   assert.equal(world.bodies.length, 3);
-  assert.equal(world.bodies[0].expiresAt, 4000);
-  world.step(0, 4000);
+  const deadlines = world.bodies.map(body => body.expiresAt);
+  assert.ok(deadlines.every(deadline => deadline >= 4000 && deadline < 5000));
+  world.step(0, Math.min(...deadlines));
+  assert.ok(world.bodies.length > 0 && world.bodies.length < 3);
+  world.step(0, Math.max(...deadlines));
   assert.equal(world.bodies.length, 0);
   world.addGift({ ...event, eventId: 'late' }, 5000);
   assert.equal(world.bodies.length, 0);
@@ -117,15 +121,15 @@ test('expired support disappears first and the supported drop falls to the floor
   world.addGift({ eventId: 'bottom', num: 1, startedAt: 1000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } }, 1000);
   world.addGift({ eventId: 'top', num: 1, startedAt: 2000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } }, 2000);
   const [bottom, top] = world.bodies;
-  Object.assign(bottom, { x: 250, y: 460, angle: 0, vx: 0, vy: 0, spin: 0 });
-  Object.assign(top, { x: 250, y: 380, angle: 0, vx: 0, vy: 0, spin: 0 });
+  const floorY = 500 - bottom.half; const supportedY = floorY - bottom.half - top.half;
+  Object.assign(bottom, { x: 250, y: floorY, angle: 0, vx: 0, vy: 0, spin: 0 });
+  Object.assign(top, { x: 250, y: supportedY, angle: 0, vx: 0, vy: 0, spin: 0 });
   for (let index = 0; index < 60; index++) world.step(1 / 60, 3000 + index * 10);
-  assert.ok(top.y < 390, `supported at ${top.y}`);
-  world.step(1 / 60, 4000);
+  assert.ok(top.y < supportedY + 10, `supported at ${top.y}`);
+  world.step(1 / 60, bottom.expiresAt);
   assert.equal(world.bodies.includes(bottom), false);
-  for (let index = 0; index < 45; index++) world.step(1 / 60, 4010 + index * 10);
-  assert.ok(top.y > 450, `fell to ${top.y}`);
-  assert.equal(top.expiresAt, 5000);
-  world.step(0, 5000);
+  for (let index = 0; index < 45; index++) world.step(1 / 60, bottom.expiresAt + 10 + index * 10);
+  assert.ok(top.y > floorY - 10, `fell to ${top.y}`);
+  world.step(0, top.expiresAt);
   assert.equal(world.bodies.length, 0);
 });

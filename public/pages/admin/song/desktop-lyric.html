@@ -5,21 +5,19 @@
         <h3 id="desktopLyricSettingsTitle" class="sr-only">歌词样式</h3>
         <span id="desktopLyricAutosaveState" class="desktop-lyric-autosave-state" aria-live="polite">修改会自动保存并应用到直播画面</span>
         <div class="lyric-editor-modes" role="tablist" aria-label="编辑歌词样式">
-          <button id="desktopLyricBasicTab" type="button" role="tab" aria-selected="true" aria-controls="desktopLyricBasicPanel" data-lyric-editor="basic">基础样式<span>多行歌词</span></button>
-          <button id="desktopLyricAdvancedTab" type="button" role="tab" aria-selected="false" aria-controls="desktopLyricAdvancedPanel" data-lyric-editor="advanced" tabindex="-1">高级样式<span>单句构图与动效</span></button>
+          <button id="desktopLyricBasicTab" type="button" role="tab" aria-selected="true" aria-controls="desktopLyricBasicPanel" data-lyric-editor="basic">基础样式</button>
+          <button id="desktopLyricAdvancedTab" type="button" role="tab" aria-selected="false" aria-controls="desktopLyricAdvancedPanel" data-lyric-editor="advanced" tabindex="-1">高级样式</button>
         </div>
         <div class="lyric-output-switches" aria-label="直播画面显示">
           <label class="lyric-output-switch">
-            <span><strong>显示基础歌词</strong><small>可与高级歌词同时显示</small></span>
+            <strong>显示基础歌词</strong>
             <span class="switch-control"><input id="desktopLyricEnabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
           </label>
           <label class="lyric-output-switch">
-            <span><strong>显示高级歌词</strong><small>独立控制直播画面输出</small></span>
+            <strong>显示高级歌词</strong>
             <span class="switch-control"><input id="advancedLyricEnabled" type="checkbox" /><span class="switch-track" aria-hidden="true"></span></span>
           </label>
         </div>
-        <details class="lyric-editor-source">
-          <summary>音乐跟随<span>基础与高级共用当前歌曲</span></summary>
         <fieldset id="desktopLyricSourceControls" class="theme-section desktop-lyric-source-settings" disabled>
           <legend>
             <span id="desktopLyricSourceLabel">音乐跟随</span>
@@ -137,7 +135,6 @@
             <p id="desktopLyricSourceTrack" class="muted" hidden></p>
           </div>
         </fieldset>
-        </details>
 
         <section id="desktopLyricBasicPanel" role="tabpanel" aria-labelledby="desktopLyricBasicTab">
         <div id="desktopLyricSettingGroups" class="desktop-lyric-setting-groups">

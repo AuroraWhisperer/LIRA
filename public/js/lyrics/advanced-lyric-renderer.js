@@ -95,7 +95,6 @@ export function createAdvancedLyricRenderer(root) {
   let reducedMotion = false;
   let lineWindow = { startMs: 0, endMs: 1 };
   let currentUnits = [];
-  let upcomingUnits = [];
   let contentVisible = null;
   const media = document.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)');
   reducedMotion = media?.matches === true;
@@ -138,7 +137,7 @@ export function createAdvancedLyricRenderer(root) {
     for (const entry of items) {
       const { item, node, text, units } = entry;
       const availableWidth = width * item.width / 100;
-      const maxHeight = height * (item.source === 'next' || item.translation ? 12 : item.maxHeight || HEIGHT_BUDGET[layout] || 30) / 100;
+      const maxHeight = height * (item.translation ? 12 : item.maxHeight || HEIGHT_BUDGET[layout] || 30) / 100;
       const count = units.reduce((sum, unit) => sum + [...unit.text].reduce((length, ch) => length + (/\s/u.test(ch) ? 0.3 : /[\x20-\x7e]/u.test(ch) ? 0.58 : 1), 0), 0);
       const padding = item.plate ? 0.7 : 0;
       const requestedSize = settings.advancedLyricFontSize * item.size;
@@ -199,20 +198,22 @@ export function createAdvancedLyricRenderer(root) {
     layout = rotateChoice(s, 'advancedLyricRotateLayouts', 'advancedLyricLayoutSequence', 'advancedLyricLayout', 'layouts', lineIndex);
     const entrance = rotateChoice(s, 'advancedLyricRotateMotions', 'advancedLyricMotionSequence', 'advancedLyricEnter', 'enters', lineIndex);
     root.dataset.layout = layout;
-    root.setAttribute('aria-label', `${line.text}${s.advancedLyricShowNextLine && nextLine?.text ? `\n${nextLine.text}` : ''}`);
+    root.setAttribute('aria-label', line.text);
     const window = lineWindow;
     const duration = Math.min(s.advancedLyricMotionDuration, (window.endMs - window.startMs) * 0.3);
     const units = currentUnits;
-    const nextUnits = s.advancedLyricShowNextLine ? upcomingUnits : [];
-    const plan = buildAdvancedLyricLayout(layout, units, nextUnits, { showNext: s.advancedLyricShowNextLine });
+    const sungEnd = Math.max(...units.map(unit => unit.startMs + (unit.endMs - unit.startMs) * unit.fillEnd));
+    const exitStart = Math.max(window.endMs - duration * 0.55, sungEnd);
+    const plan = buildAdvancedLyricLayout(layout, units);
     if (s.advancedLyricShowTranslation && line.translation) {
       plan.push({ start: 0, end: 1, x: 50, y: 97, width: 85, size: 0.38, rotation: 0, source: 'translation', translation: true });
     }
     addDecoration(s.advancedLyricDecoration);
     const pendingMotion = [];
     plan.forEach((item, ordinal) => {
-      const itemUnits = item.translation ? [{ text: String(line.translation), startMs: window.startMs, endMs: window.endMs, fillStart: 0, fillEnd: 1 }]
-        : (item.source === 'next' ? nextUnits : units).slice(item.start, item.end);
+      const itemUnits = item.translation ? createAdvancedLyricText({ text: line.translation,
+        startMs: Math.min(...units.map(unit => unit.startMs)), endMs: sungEnd }) : units.slice(item.start, item.end);
+      const itemStart = Math.min(...itemUnits.map(unit => unit.startMs + (unit.endMs - unit.startMs) * unit.fillStart));
       const node = element(document, 'div', 'advanced-lyric-item');
       node.dataset.source = item.source;
       if (item.plate) node.dataset.plate = item.plate;
@@ -228,24 +229,41 @@ export function createAdvancedLyricRenderer(root) {
       const text = element(document, 'div', 'advanced-lyric-text');
       let wordRun = null;
       itemUnits.forEach((unit, index) => {
+        const reveal = element(document, 'span', 'advanced-lyric-reveal');
         const glyph = element(document, 'span', 'advanced-lyric-glyph');
         glyph.dataset.text = unit.text;
         const ink = element(document, 'span', 'advanced-lyric-ink');
         ink.textContent = unit.text;
         glyph.append(ink);
+        reveal.append(glyph);
         if (/^[A-Za-z0-9]+$/u.test(unit.text) && !item.vertical) {
           if (!wordRun) { wordRun = element(document, 'span', 'advanced-lyric-word-run'); text.append(wordRun); }
-          wordRun.append(glyph);
+          wordRun.append(reveal);
         } else {
           wordRun = null;
-          text.append(glyph);
+          text.append(reveal);
+        }
+        const begin = unit.startMs + (unit.endMs - unit.startMs) * unit.fillStart;
+        const end = unit.startMs + (unit.endMs - unit.startMs) * unit.fillEnd;
+        if (s.advancedLyricHideUnsung) {
+          const revealDuration = Math.min(duration, 280, Math.max(80, (end - begin) * 0.7));
+          if (unit.revealAsRun) {
+            pendingMotion.push(() => motion.add(reveal,
+              [{ clipPath: item.vertical ? 'inset(0 0 100% 0)' : 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }],
+              { startMs: begin, endMs: end, easing: 'linear' }));
+          } else if (reducedMotion) {
+            pendingMotion.push(() => motion.add(reveal, [{ opacity: 0 }, { opacity: 1 }],
+              { startMs: begin - 1, endMs: begin, easing: 'steps(1, end)' }));
+          } else {
+            pendingMotion.push(() => motion.add(reveal,
+              advancedLyricKeyframes('enter', entrance, s.advancedLyricMotionAmount, item.start + index),
+              { startMs: begin, endMs: begin + revealDuration }));
+          }
         }
         if (item.source !== 'current' || item.decorative || s.advancedLyricWordMotion === 'none') return;
         const highlight = element(document, 'span', 'advanced-lyric-highlight');
         highlight.textContent = unit.text;
         glyph.append(highlight);
-        const begin = unit.startMs + (unit.endMs - unit.startMs) * unit.fillStart;
-        const end = unit.startMs + (unit.endMs - unit.startMs) * unit.fillEnd;
         pendingMotion.push(() => motion.add(highlight, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }],
           { startMs: begin, endMs: end, easing: 'linear' }));
         if (!reducedMotion) pendingMotion.push(() => motion.add(glyph,
@@ -254,15 +272,17 @@ export function createAdvancedLyricRenderer(root) {
       });
       exit.append(text); hold.append(exit); enter.append(hold); node.append(enter); art.append(node);
       items.push({ item, node, text, units: itemUnits });
+      if (s.advancedLyricHideUnsung) pendingMotion.push(() => motion.add(enter, [{ opacity: 0 }, { opacity: 1 }],
+        { startMs: itemStart - 1, endMs: itemStart, easing: 'steps(1, end)' }));
       if (!reducedMotion && !item.decorative) {
         const delay = Math.min(duration * 0.3, ordinal * 28);
         pendingMotion.push(() => {
-          motion.add(enter, advancedLyricKeyframes('enter', entrance, s.advancedLyricMotionAmount, ordinal),
+          if (!s.advancedLyricHideUnsung) motion.add(enter, advancedLyricKeyframes('enter', entrance, s.advancedLyricMotionAmount, ordinal),
             { startMs: window.startMs + delay, endMs: window.startMs + duration, duration: Math.max(1, duration - delay) });
           motion.add(hold, advancedLyricKeyframes('hold', s.advancedLyricHold, s.advancedLyricMotionAmount, ordinal),
-            { startMs: window.startMs + duration, endMs: window.endMs - duration, duration: 2600 + ordinal * 80, loop: true, easing: 'ease-in-out' });
-          motion.add(exit, advancedLyricKeyframes('exit', s.advancedLyricExit, s.advancedLyricMotionAmount, ordinal),
-            { startMs: window.endMs - duration, endMs: window.endMs, duration, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
+            { startMs: Math.max(window.startMs, itemStart) + duration, endMs: exitStart, duration: 2600 + ordinal * 80, loop: true, easing: 'ease-in-out' });
+          if (exitStart < window.endMs) motion.add(exit, advancedLyricKeyframes('exit', s.advancedLyricExit, s.advancedLyricMotionAmount, ordinal),
+            { startMs: exitStart, endMs: window.endMs, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
         });
       }
     });
@@ -277,7 +297,6 @@ export function createAdvancedLyricRenderer(root) {
       line = value.line; nextLine = value.nextLine; lineIndex = value.index; trackTitle = value.trackTitle;
       lineWindow = advancedLyricLineWindow(line, nextLine);
       currentUnits = createAdvancedLyricText(line ? { ...line, endMs: Number(line.endMs) || lineWindow.endMs } : null);
-      upcomingUnits = createAdvancedLyricText(nextLine);
       dirty = true;
     }
     if (!visible) return;
@@ -300,7 +319,7 @@ export function createAdvancedLyricRenderer(root) {
     const { desktopLyricEnabled, advancedLyricEnabled, ...appearance } = next;
     const signature = JSON.stringify(appearance);
     if (signature === settingsSignature) return;
-    const structural = ['Layout', 'ShowNextLine', 'ShowTranslation', 'FontFamily', 'FontWeight', 'FontSize', 'LetterSpacing',
+    const structural = ['Layout', 'HideUnsung', 'ShowTranslation', 'FontFamily', 'FontWeight', 'FontSize', 'LetterSpacing',
       'Enter', 'Hold', 'Exit', 'WordMotion', 'MotionDuration', 'MotionAmount', 'RotateLayouts', 'LayoutSequence',
       'RotateMotions', 'MotionSequence', 'Decoration'];
     const rebuild = structural.some(key => settings[`advancedLyric${key}`] !== next[`advancedLyric${key}`]);

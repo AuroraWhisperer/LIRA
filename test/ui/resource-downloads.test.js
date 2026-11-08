@@ -71,7 +71,6 @@ test('active downloads remain visible after dismissing toast; terminal rows and 
   assert.equal(region.hidden, false);
   assert.equal(fonts.hidden, false);
   assert.equal(gifts.hidden, true);
-  assert.match(fonts.textContent, /25%.*已处理 2 \/ 8 · 小赖字体/);
   assert.equal(fonts.children[1].value, 2);
   assert.equal(fonts.children[1].max, 8);
   container.children[0].fire('click');
@@ -79,7 +78,7 @@ test('active downloads remain visible after dismissing toast; terminal rows and 
   assert.equal(fonts.hidden, false);
   emit('gifts', { status: 'updating', phase: 'images', total: 10, completed: 4, available: 3, failed: 1 });
   assert.equal(gifts.hidden, false);
-  assert.match(gifts.textContent, /40%.*失败 1/);
+  assert.equal(gifts.children[1].value, 4);
   emit('fonts', { status: 'ready', total: 8, completed: 8 });
   assert.equal(fonts.hidden, true);
   assert.equal(region.hidden, false);

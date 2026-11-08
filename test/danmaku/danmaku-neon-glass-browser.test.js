@@ -5,14 +5,14 @@ const { startComponentPreviewServer } = require('../helpers/component-preview-se
 
 const openBrowserSession = useSharedBrowser();
 
-test('neon glass preserves horizontal content, entry and shared perspective through updates and retraction', async t => {
+test('neon glass preserves content, entry and shared perspective through updates and retraction', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
     <body class="danmaku-overlay-body" data-style="neon-glass"><div class="danmaku-signal-stage">
       <div id="danmakuFeed" class="draw-danmaku-feed"></div></div></body>` });
   const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
-  const page = await browser.newPage({ viewport: { width: 1500, height: 360 } });
+  const page = await browser.newPage({ viewport: { width: 640, height: 720 } });
   const url = `${fixture.origin}/preview-test-host`;
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
@@ -21,7 +21,7 @@ test('neon glass preserves horizontal content, entry and shared perspective thro
     const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
     const { createComponentStyleEffects } = await import('/js/overlays/component-style-effects.js');
     const feed = createDanmakuFeed(document.getElementById('danmakuFeed'), { style: 'neon-glass',
-      layout: 'horizontal', offscreenViewports: 0, fitWidth: false, autoScroll: false, expireItems: false });
+      offscreenViewports: 0, autoScroll: false, expireItems: false });
     const effects = createComponentStyleEffects(document);
     const frame = () => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     applyStyleOptions(document, 'neon-glass', {});
@@ -36,9 +36,6 @@ test('neon glass preserves horizontal content, entry and shared perspective thro
     const entry = gift.querySelector('.neon-glass-content').getAnimations()[0];
     entry.pause(); entry.currentTime = 240;
     const duringEntry = new DOMMatrix(getComputedStyle(gift).transform).is2D;
-    const nodes = [...document.querySelectorAll('.neon-glass-item')];
-    const rects = nodes.map(node => node.getBoundingClientRect());
-    const sameBaseline = Math.abs(rects[0].top - rects[1].top) < 15;
     applyStyleOptions(document, 'neon-glass', { 'neon-glass': { neonGlassIcons: 'hide', neonGlassHighlight: 0 } });
     const retained = original === document.querySelector('.neon-glass-item');
     const hiddenIcon = getComputedStyle(gift.querySelector('.neon-glass-icon')).display === 'none';
@@ -55,17 +52,16 @@ test('neon glass preserves horizontal content, entry and shared perspective thro
     feed.remove(['sc']);
     const retracted = !document.querySelector('.neon-glass-item');
     effects.dispose(); feed.destroy();
-    return { duringEntry, sameBaseline, retained, hiddenIcon, reset, complete, contained, retracted };
+    return { duringEntry, retained, hiddenIcon, reset, complete, contained, retracted };
   });
   assert.equal(result.duringEntry, false, 'the authored entry keeps the public 3D transform');
-  assert.ok(result.sameBaseline, 'events stay in the horizontal flow');
   assert.ok(result.retained && result.hiddenIcon && result.reset, 'appearance edits reuse existing content and reset transforms');
-  assert.ok(result.complete && result.contained, 'long SC remains complete within the strip');
+  assert.ok(result.complete && result.contained, 'long SC remains complete within the region');
   assert.ok(result.retracted, 'only the requested SC is removed');
   await page.emulateMedia({ reducedMotion: 'reduce' });
   assert.equal(await page.evaluate(async () => {
     const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
-    const feed = createDanmakuFeed(document.getElementById('danmakuFeed'), { style: 'neon-glass', layout: 'horizontal', offscreenViewports: 0 });
+    const feed = createDanmakuFeed(document.getElementById('danmakuFeed'), { style: 'neon-glass', offscreenViewports: 0 });
     feed.append({ id: 'reduced', name: '观众', message: '减少动态效果仍显示全文' });
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     const item = document.querySelector('.neon-glass-content');

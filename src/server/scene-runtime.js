@@ -14,12 +14,20 @@ const { readSceneSharedAppearances } = require('./scene-shared-appearance');
 const { createDanmakuAppearanceStore } = require('../storage/danmaku-appearance-store');
 const { createDanmakuAppearance } = require('./danmaku-appearance');
 const { projectOverlayResponse } = require('./overlay-projection');
+const { createLiveRankProvider } = require('../bilibili/live-rank-provider');
+const { createLiveRankService } = require('../bilibili/live-rank-service');
 
 function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
   const getState = displayPorts.system.getState;
   const getOwner = runtimeOptions.getSceneOwner || (() => null);
   const getAppearanceOwner = runtimeOptions.getPreviewOwner || getOwner;
   const demand = createDisplayDemand();
+  const liveRankings = createLiveRankService({
+    provider: runtimeOptions.liveRankProvider || createLiveRankProvider(), demand: createDisplayDemand({ idleTimeoutMs: 3000 }),
+    getScope: () => ({ owner: getOwner(), roomId: String(displayPorts.settings.get().roomId || '') }),
+    getRoomProfile: () => displayPorts.bilibili.getRoomProfile(),
+    onUpdate: () => notify({ types: ['live-rankings'] }),
+  });
   const cloud = createCloudDisplayBuffer({ getOwner, onRead: demand.touch });
   function readCloud(request) {
     const snapshot = cloud.getSnapshot(request);
@@ -59,7 +67,7 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
       danmakuEvents.notify({ types: ['danmaku'] });
     } });
   const gifts = createSceneGiftEvents({ getOwner });
-  const getExtraDisplay = createSceneExtraDisplay({ displayPorts, getOwner });
+  const getExtraDisplay = createSceneExtraDisplay({ displayPorts: { ...displayPorts, liveRankings }, getOwner });
   const componentPorts = createSceneComponentPorts({ getState, getOwner, cloud: sceneCloud, getDanmakuConfig: () => {
     const config = appearance.getSettings();
     if (!config) demand.touch();
@@ -82,15 +90,18 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
     onOutputChanged: notify,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
     ...componentPorts });
-  const renewDemand = ({ types }) => { if (types.includes('danmaku')) demand.touch(); };
+  const renewDemand = ({ types }) => {
+    if (types.includes('danmaku')) demand.touch();
+    if (types.includes('live-rankings')) liveRankings.touch();
+  };
   const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input), onActivity: renewDemand });
   const danmakuEvents = createDisplayNotifications({ getAccess() {
     const owner = getOwner();
     if (!owner) throw Object.assign(new Error('Display owner unavailable'), { statusCode: 423 });
     return { binding: JSON.stringify([owner.scope, owner.epoch]), version: 0, types: ['danmaku'] };
   }, onActivity: renewDemand });
-  return { service, events, danmakuEvents, appearance, notify, subscribeCloudDemand: demand.subscribe,
-    dispose() { events.dispose(); danmakuEvents.dispose(); demand.dispose(); },
+  return { service, events, danmakuEvents, appearance, liveRankings, notify, subscribeCloudDemand: demand.subscribe,
+    dispose() { liveRankings.dispose(); events.dispose(); danmakuEvents.dispose(); demand.dispose(); },
     receiveCloud(update) {
       const accepted = cloud.receive(update);
       if (accepted) {

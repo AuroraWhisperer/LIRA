@@ -1,14 +1,6 @@
 <section id="desktopLyricLivePreview" class="desktop-lyric-preview-card" aria-label="直播歌词预览">
   <header class="desktop-lyric-preview-header">
-    <div class="lyric-preview-heading">
-      <strong id="desktopLyricPreviewHeading">基础样式预览</strong>
-      <label class="lyric-preview-composite"><input id="desktopLyricPreviewBoth" type="checkbox" />查看实际叠加</label>
-    </div>
     <div class="desktop-lyric-preview-tools">
-      <div class="lyric-preview-sources" aria-label="预览内容">
-        <button id="desktopLyricPreviewLive" type="button" aria-pressed="true">当前歌曲</button>
-        <button id="desktopLyricPreviewSample" type="button" aria-pressed="false">示例试播</button>
-      </div>
       <div class="desktop-lyric-preview-backgrounds" aria-label="预览背景">
         <button class="active" type="button" data-lyric-preview-background="grid" aria-pressed="true">网格背景</button>
         <button type="button" data-lyric-preview-background="solid" aria-pressed="false">纯色背景</button>
@@ -19,8 +11,6 @@
       </span>
       <span id="desktopLyricPreviewStatus" class="pill warn">等待播放</span>
     </div>
-    <p id="desktopLyricPreviewLayerStatus" class="hint lyric-preview-layer-status" role="status">基础歌词已开启，修改会实时应用。</p>
-    <p id="desktopLyricPreviewSourceStatus" class="hint lyric-preview-layer-status" hidden>示例仅用于预览；点击“示例试播”可重新播放。</p>
   </header>
   <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage">
     <div
@@ -36,8 +26,4 @@
     <div id="advancedLyricPreviewStage" class="advanced-lyric-preview-stage" hidden></div>
     <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
   </div>
-  <footer class="lyric-preview-footer">
-    <label><span>单独输出</span><select id="desktopLyricOutputLayer" aria-label="单独输出歌词类型"><option value="basic">基础歌词</option><option value="advanced">高级歌词</option></select></label>
-    <button id="desktopLyricCopyLayerUrlBtn" type="button" class="secondary">复制独立地址</button>
-  </footer>
 </section>

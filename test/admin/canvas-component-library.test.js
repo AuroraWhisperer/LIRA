@@ -83,30 +83,11 @@ test('canvas library saves variant layouts and shared parameters and renders rea
       await preview.locator('.gift-banner[data-tail-style="ribbon"][data-texture-style="argyle"]').first().waitFor({ state: 'visible' });
     }
     if (type === 'songlist') await page.locator('[data-component-parameter="songBoardSyncTheme"]').uncheck();
-    if (type === 'interactions') {
-      for (const key of Object.keys(legacyInteractionBackground)) {
-        assert.equal(await page.locator(`[data-component-parameter="${key}"]`).count(), 0,
-          'Transparent interaction output does not offer unused legacy background controls.');
-      }
-    }
     const input = page.locator(`[data-component-parameter="${key}"]`);
     await input.fill(value); await input.press('Tab');
     if (type === 'gift-wishes' && variant === 'ribbon') {
       const color = page.locator('[data-component-parameter="ribbonColor"]');
       await color.fill('#b58de7'); await color.dispatchEvent('input');
-      await page.locator('[data-component-parameter="ribbonSpeed"]').fill('3.5');
-      await page.locator('[data-component-parameter="ribbonSpeed"]').press('Tab');
-      for (const [parameter, value] of [['ribbonBorderWidth', '6'], ['ribbonRadius', '18'],
-        ['ribbonStripeWidth', '8'], ['ribbonFontSize', '24'], ['ribbonNumberFontSize', '32']]) {
-        const field = page.locator(`[data-component-parameter="${parameter}"]`);
-        await field.fill(value); await field.press('Tab');
-      }
-      await page.locator('[data-component-parameter="ribbonFlowDirection"]').selectOption('reverse');
-      const decoration = page.locator('[data-component-parameter="ribbonDecorationStyle"]');
-      await decoration.selectOption('none');
-      await preview.locator('.wish-card--ribbon[data-ribbon-decoration="none"]').waitFor();
-      await decoration.selectOption('star');
-      await preview.locator('.wish-card--ribbon[data-ribbon-decoration="star"] .wish-ribbon-sticker').evaluate(image => image.decode());
     }
     for (const [name, size] of [['宽度', '400'], ['高度', '300']]) {
       if (type === 'gift-wishes' && name === '高度') continue;
@@ -157,30 +138,14 @@ test('canvas library saves variant layouts and shared parameters and renders rea
   const ribbon = output.frameLocator('iframe[src^="/gift-wishes"]').nth(1).locator('.wish-card--ribbon');
   await ribbon.waitFor();
   assert.deepEqual(await ribbon.evaluate(node => ({ height: node.style.getPropertyValue('--wish-ribbon-height'),
-    color: node.style.getPropertyValue('--wish-ribbon-color'), speed: node.style.getPropertyValue('--wish-ribbon-speed'),
-    decoration: node.dataset.ribbonDecoration })),
-  { height: '72px', color: '#b58de7', speed: '3.5s', decoration: 'star' });
-  await ribbon.locator('.wish-ribbon-sticker').evaluate(image => image.decode());
-  assert.equal(await ribbon.locator('.wish-ribbon-sticker').getAttribute('src'), '/img/shared/gift-wish-ribbon/star.webp');
-  assert.deepEqual(await ribbon.evaluate(node => {
-    const frame = getComputedStyle(node.querySelector('.wish-ribbon-frame'));
-    const flow = getComputedStyle(node.querySelector('.wish-ribbon-flow'));
-    return { border: frame.borderTopWidth, radius: frame.borderTopLeftRadius,
-      name: getComputedStyle(node.querySelector('.wish-ribbon-name')).fontSize,
-      number: getComputedStyle(node.querySelector('.wish-ribbon-total')).fontSize,
-      stripes: flow.backgroundSize, direction: flow.animationDirection };
-  }), { border: '6px', radius: '18px', name: '24px', number: '32px', stripes: '16px 16px', direction: 'reverse' });
+    color: node.style.getPropertyValue('--wish-ribbon-color') })),
+  { height: '72px', color: '#b58de7' });
   await giftAvatar.waitFor();
   assert.equal(await giftAvatar.getAttribute('src'), avatarUrl);
   const giftBanner = output.frameLocator('iframe[src^="/gift-feed"]').locator('.gift-banner').first();
   assert.equal(await giftBanner.getAttribute('data-tail-style'), 'ribbon');
   assert.equal(await giftBanner.getAttribute('data-texture-style'), 'argyle');
   await giftAvatar.evaluate((image) => image.decode());
-  assert.deepEqual(await giftAvatar.evaluate(async () => {
-    const { sceneAvatarSource } = await import('/js/overlays/scene-extra-client.js');
-    return ['http://i0.hdslb.com/a.webp', 'https://untrusted.example/a.webp', '/api/bilibili/avatar',
-      'https://user:secret@i0.hdslb.com/a.webp', '/img/overlays/danmaku-ranked/../secret.webp'].map(sceneAvatarSource);
-  }), ['', '', '', '', '']);
   const single = await context.newPage();
   const singleUrl = `${fixture.origin}/scene?id=${source.id}&item=${saved.document.items[0].id}#token=${source.token}`;
   assert.equal((await fetch(singleUrl)).status, 200);

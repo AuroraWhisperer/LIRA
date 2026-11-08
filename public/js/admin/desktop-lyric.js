@@ -77,7 +77,6 @@ export function createDesktopLyric({
     advancedEditor = createAdvancedLyricEditor(document.getElementById('advancedLyricEditor'));
     let editorMode = 'basic';
     const modeTabs = [...document.querySelectorAll('#desktopLyricForm [data-lyric-editor]')];
-    const combinedPreview = document.getElementById('desktopLyricPreviewBoth');
     syncEditorMode = () => {
       for (const tab of modeTabs) {
         const active = tab.dataset.lyricEditor === editorMode;
@@ -87,19 +86,7 @@ export function createDesktopLyric({
       }
       if (editorMode === 'advanced') advancedEditor.activate();
       document.getElementById('desktopLyricPage')?.classList.toggle('is-advanced', editorMode === 'advanced');
-      const both = combinedPreview?.checked;
-      preview.setPreviewLayer?.(both ? 'both' : editorMode);
-      const title = document.getElementById('desktopLyricPreviewHeading');
-      if (title) title.textContent = both ? '实际叠加预览' : editorMode === 'advanced' ? '高级样式预览' : '基础样式预览';
-      const basicEnabled = document.getElementById('desktopLyricEnabled')?.checked;
-      const advancedEnabled = document.getElementById('advancedLyricEnabled')?.checked;
-      const status = document.getElementById('desktopLyricPreviewLayerStatus');
-      if (status) status.textContent = both
-        ? basicEnabled && advancedEnabled ? '基础与高级歌词同时输出。'
-          : basicEnabled ? '当前仅输出基础歌词。' : advancedEnabled ? '当前仅输出高级歌词。' : '两种歌词均已关闭，直播画面不显示歌词。'
-        : (editorMode === 'basic' ? basicEnabled : advancedEnabled)
-          ? '当前样式已开启，修改会实时应用到直播画面。'
-          : '当前样式的直播输出已关闭，仍可在这里预览和编辑。';
+      preview.setPreviewLayer?.(editorMode);
     };
     modeTabs.forEach((tab, index) => {
       const select = () => { editorMode = tab.dataset.lyricEditor; syncEditorMode(); };
@@ -113,7 +100,6 @@ export function createDesktopLyric({
         modeTabs[next].focus();
       });
     });
-    combinedPreview?.addEventListener('change', syncEditorMode);
     const groups = document.getElementById('desktopLyricSettingGroups');
     if (groups) {
       const fields = new Map();

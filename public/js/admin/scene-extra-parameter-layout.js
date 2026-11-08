@@ -3,6 +3,10 @@ import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js
 
 // Keep the canvas sections in the same vocabulary as their client settings pages.
 const PARAMETER_GROUPS = {
+  'live-rankings': [
+    ['content', '榜单与名次', ['showHot', 'showNew', 'showPopular', 'showArea', 'range', 'nearby', 'pageSize', 'pageSeconds']],
+    ['appearance', '布局与配色', ['columns', 'theme', 'fontSize', 'showAvatar', 'accent']],
+  ],
   'now-playing': [
     ['appearance', '唱片与布局', ['style', 'nowPlayingLayout', 'nowPlayingRecordSize', 'nowPlayingGap']],
     ['content', '显示内容', ['nowPlayingShowRecord', 'nowPlayingShowTitle', 'nowPlayingShowArtist']],

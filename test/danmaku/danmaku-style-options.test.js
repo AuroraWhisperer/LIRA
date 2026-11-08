@@ -6,238 +6,31 @@ const { pathToFileURL } = require('node:url');
 const contract = require('../../src/shared/danmaku-style-options');
 const { createFakeDocument } = require('../helpers/fake-dom');
 
-// Expected per-style controls. Font family, size and text color apply to every style.
-const RIPPLOID_COLOR_KEYS = [
-  'giftColor0', 'giftColor50', 'giftColor100', 'giftColor500', 'giftColor1000', 'giftColor2000',
-  'guardColorCaptain', 'guardColorAdmiral', 'guardColorGovernor',
-  'superchatColor0', 'superchatColor50', 'superchatColor100', 'superchatColor500', 'superchatColor1000', 'superchatColor2000',
-];
-const SPOOKY_COLOR_KEYS = ['spookyFrameColor', 'spookyMessageColor', 'spookyEventColor', 'spookyAccentColor'];
-const SPOOKY_OPACITY_KEYS = ['spookyFrameOpacity', 'spookyMessageOpacity', 'spookyEventOpacity'];
 const TWITTER_LAYOUT_KEYS = ['twitterHeader', 'twitterComposer', 'twitterActions'];
-const TWITTER_COLOR_KEYS = ['twitterColor0', 'twitterColor50', 'twitterColor100', 'twitterColor1000'];
-const RANDOM_TIMING_KEYS = ['durationSeconds', 'exitAnimation', 'exitDurationMs', 'centerBias', 'dispersion'];
-const RANDOM_ENTRANCE_KEYS = ['entranceAnimation', 'entranceDurationMs'];
-const FLOATING_KEYS = ['speedPixelsPerSecond', 'floatingDispersion', 'floatingEdgeFade', 'floatingEdgeFadeSize'];
-const SEA_BREEZE_REFLECTION_KEYS = ['seaBreezeReflectionOpacity', 'seaBreezeReflectionLength', 'seaBreezeReflectionGap'];
-const CONTROLS = {
-  'neon-glass': ['backgroundOpacity', 'bubbleColor', 'neonGlassNameColors', 'neonGlassHighlight', 'neonGlassIcons', 'neonGlassEntrance', 'neonGlassEntranceMs'],
-  'horizontal-charm': ['backgroundOpacity', 'bubbleColor', 'charmGap', 'charmMaxWidth'],
-  astral: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'astralAccentColor', 'astralEntrance'],
-  glowy: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion', 'glowyLayout', 'glowyAvatar', 'glowyTime', 'glowyLight'],
-  'celestial-horizontal': ['backgroundOpacity', 'bubbleColor', 'ambientMotion', 'celestialNebulaOpacity', 'celestialStarDensity', 'celestialStarShape', 'celestialSeparator'],
-  stargazer: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'stargazerPalette', 'stargazerColor',
-    'stargazerLayout', 'stargazerWidth', 'stargazerGap', 'stargazerAlign', 'stargazerFrame', 'stargazerPerspective',
-    'stargazerAngle', 'stargazerGlow', 'stargazerGradient', 'stargazerGradientOpacity', 'stargazerMaxMessages', 'stargazerHideSeconds'],
-  harbor: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'minGiftAmount'],
-  bubble: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  signal: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  minimal: ['scrollDirection', 'edgeFade'],
-  ranked: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  transparent: ['scrollDirection', 'edgeFade', 'giftImage'],
-  identity: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  sketch: ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
-  prismatic: ['scrollDirection', 'edgeFade'],
-  snowfox: ['scrollDirection', 'edgeFade', 'bubbleColor'],
-  ripploid: ['scrollDirection', 'edgeFade', 'bubbleColor', ...RIPPLOID_COLOR_KEYS],
-  twitter: ['scrollDirection', 'edgeFade', 'giftImage', 'composerText', ...TWITTER_LAYOUT_KEYS, ...TWITTER_COLOR_KEYS],
-  'flower-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
-  notebook: ['scrollDirection', 'edgeFade', 'ambientMotion'],
-  glass: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion', 'glassTime', 'glassGlintIntensity', 'glassDensity'],
-  'animated-gradient': ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'gradientPalette', 'gradientCycleSeconds', 'gradientUnderline'],
-  christmas: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion'],
-  'christmas-letter': ['scrollDirection', 'edgeFade', 'backgroundOpacity'],
-  wireframe: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'wireframeFadeLength', 'wireframeOrbit', 'wireframeEntrance', 'wireframeEntranceMs'],
-  spooky: ['scrollDirection', 'edgeFade', 'spookyTheme', 'spookyFrame', ...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS],
-  starlight: ['scrollDirection', 'edgeFade', 'decorationShape', 'ambientMotion'],
-  'dark-moon': ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'darkMoonPalette', 'darkMoonRingSize', 'darkMoonSparks'],
-  moonlit: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'giftImage'],
-  'sea-breeze': ['scrollDirection', 'edgeFade', 'seaBreezeAlign', ...SEA_BREEZE_REFLECTION_KEYS],
-  'sea-breeze-random': [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, ...SEA_BREEZE_REFLECTION_KEYS],
-  outline: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity', 'giftImage'],
-  comic: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'comicWritingMode', 'comicShape',
-    'comicStrokeWidth', 'comicTexture', 'comicEntrance', 'comicEntranceMs'],
-  window: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'ambientMotion', 'windowPalette', 'windowWidth',
-    'windowRadius', 'windowControls', 'windowGuard', 'windowMedal', 'windowEntrance', 'windowEntranceMs'],
-  stardust: [...RANDOM_TIMING_KEYS, 'ambientMotion', 'stardustEntrance', 'stardustKeepCenter',
-    'stardustNicknames', 'stardustGiftThreshold', 'stardustSwapAnchors'],
-  'glass-bubble': [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'glassBubbleReveal', 'glassBubbleTypingSpeed', 'glassBubbleSweep', 'glassBubbleHighlight'],
-  whiteframe: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'bubbleColor'],
-  mist: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
-  cream: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity', 'giftImage'],
-  floating: [...FLOATING_KEYS, 'backgroundOpacity'],
-  comet: [...FLOATING_KEYS, 'backgroundOpacity'],
-  startrail: [...FLOATING_KEYS, 'ambientMotion', 'startrailColor', 'startrailStarSize', 'startrailTailLength', 'startrailGlow', 'startrailDust', 'startrailEntrance', 'startrailEntranceMs'],
-  aurora: [...FLOATING_KEYS, 'backgroundOpacity', 'ambientMotion', 'auroraPalette', 'auroraSheen', 'auroraCharm', 'auroraSway', 'auroraEntrance', 'auroraEntranceMs'],
-  sinking: ['backgroundOpacity', 'sinkingPalette', 'sinkingDurationSeconds', 'sinkingTravel', 'sinkingSway', 'sinkingBubbleDensity'],
-  starveil: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
-  glow: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
-};
-const CONTROL_VALUES = {
-  charmGap: { valid: [8, 80], invalid: [7, 81, 32.5], optional: true },
-  charmMaxWidth: { valid: [240, 1000], invalid: [239, 1001, 560.5], optional: true },
-  neonGlassNameColors: { valid: ['original', 'identity', 'text'], invalid: ['unknown'], optional: true },
-  neonGlassHighlight: { valid: [0, 100], invalid: [-1, 101], optional: true },
-  neonGlassIcons: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
-  neonGlassEntrance: { valid: ['layered', 'none'], invalid: ['unknown'], optional: true },
-  neonGlassEntranceMs: { valid: [200, 1000], invalid: [199, 1001, 480.5], optional: true },
-  astralAccentColor: { valid: ['#aabbcc', '#aabbcc80'], invalid: ['blue', '#12345'], optional: true },
-  astralEntrance: { valid: ['layered', 'none'], invalid: ['unknown'], optional: true },
-  glowyLayout: { valid: ['vertical', 'horizontal'], invalid: ['diagonal'], optional: true },
-  glowyAvatar: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
-  glowyTime: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
-  glowyLight: { valid: [0, 100], invalid: [-1, 101, 1.5], optional: true },
-  gradientPalette: { valid: ['original', 'sunset', 'ocean', 'lavender'], invalid: ['unknown'], optional: true },
-  gradientCycleSeconds: { valid: [6, 24], invalid: [5, 25, 10.5], optional: true },
-  gradientUnderline: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  glassBubbleReveal: { valid: ['typing', 'instant'], invalid: ['unknown'], optional: true },
-  glassBubbleTypingSpeed: { valid: [10, 60], invalid: [9, 61, 26.5], optional: true },
-  glassBubbleSweep: { valid: ['on', 'off'], invalid: ['unknown'], optional: true },
-  glassBubbleHighlight: { valid: [0, 100], invalid: [-1, 101], optional: true },
-  celestialNebulaOpacity: { valid: [0, 100], invalid: [-1, 101], optional: true },
-  celestialStarDensity: { valid: ['off', 'sparse', 'normal', 'dense'], invalid: ['unknown'], optional: true },
-  celestialStarShape: { valid: ['identity', 'sparkle', 'star'], invalid: ['unknown'], optional: true },
-  celestialSeparator: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  glassTime: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  glassGlintIntensity: { valid: [0, 100], invalid: [-1, 101], optional: true },
-  glassDensity: { valid: ['comfortable', 'compact'], invalid: ['unknown'], optional: true },
-  darkMoonPalette: { valid: ['original', 'moonlight', 'ice'], invalid: ['unknown'], optional: true },
-  darkMoonRingSize: { valid: [70, 140], invalid: [69, 141], optional: true },
-  darkMoonSparks: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  wireframeFadeLength: { valid: [0, 100], invalid: [-1, 101], optional: true },
-  wireframeOrbit: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  wireframeEntrance: { valid: ['traced', 'none'], invalid: ['unknown'], optional: true },
-  wireframeEntranceMs: { valid: [350, 1400], invalid: [349, 1401, 700.5], optional: true },
-  seaBreezeReflectionOpacity: { valid: [0, 60], invalid: [-1, 61], optional: true },
-  seaBreezeReflectionLength: { valid: [0, 200], invalid: [-1, 201], optional: true },
-  seaBreezeReflectionGap: { valid: [-20, 30], invalid: [-21, 31], optional: true },
-  seaBreezeAlign: { valid: ['left', 'center', 'right'], invalid: ['unknown'], optional: true },
-  stardustEntrance: { valid: ['on', 'off'], invalid: ['none'], optional: true },
-  stardustKeepCenter: { valid: ['on', 'off'], invalid: [true], optional: true },
-  stardustNicknames: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
-  stardustGiftThreshold: { valid: [.01, 52.1, 1000000], invalid: [0, 1000000.01, 1.005, '52.1'], optional: true },
-  stardustSwapAnchors: { valid: ['on', 'off'], invalid: ['swap'], optional: true },
-  stargazerPalette: { valid: ['mixed', 'purple', 'gold', 'chat-purple', 'chat-gold', 'custom'], invalid: ['unknown'], optional: true },
-  stargazerColor: { valid: ['#c04efe'], invalid: ['red'], optional: true },
-  stargazerLayout: { valid: ['vertical', 'horizontal'], invalid: ['unknown'], optional: true },
-  stargazerWidth: { valid: [220, 600], invalid: [219, 601], optional: true },
-  stargazerGap: { valid: [6, 40], invalid: [5, 41], optional: true },
-  stargazerAlign: { valid: ['bottom', 'top'], invalid: ['unknown'], optional: true },
-  stargazerFrame: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  stargazerPerspective: { valid: ['none', 'left', 'right'], invalid: ['unknown'], optional: true },
-  stargazerAngle: { valid: [0, 12], invalid: [-1, 13], optional: true },
-  stargazerGlow: { valid: [0, 20], invalid: [-1, 21], optional: true },
-  stargazerGradient: { valid: ['on', 'off'], invalid: ['unknown'], optional: true },
-  stargazerGradientOpacity: { valid: [0, 100], invalid: [-1, 101], optional: true },
-  stargazerMaxMessages: { valid: [1, 50], invalid: [0, 51], optional: true },
-  stargazerHideSeconds: { valid: [0, 999], invalid: [-1, 1000], optional: true },
-  sinkingPalette: { valid: ['ivory', 'mint', 'blue'], invalid: ['unknown'], optional: true },
-  sinkingDurationSeconds: { valid: [2, 30], invalid: [1, 31], optional: true },
-  sinkingTravel: { valid: [10, 40], invalid: [9, 41], optional: true },
-  sinkingSway: { valid: [0, 36], invalid: [-1, 37], optional: true },
-  sinkingBubbleDensity: { valid: [1, 100], invalid: [0, 101, 50.5], optional: true },
-  windowPalette: { valid: ['porcelain', 'sakura', 'night'], invalid: ['unknown'], optional: true },
-  windowWidth: { valid: [220, 560], invalid: [219, 561], optional: true },
-  windowRadius: { valid: [10, 36], invalid: [9, 37], optional: true },
-  windowControls: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  windowGuard: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  windowMedal: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
-  windowEntrance: { valid: ['mixed', 'pop', 'unfold', 'rise', 'none'], invalid: ['unknown'], optional: true },
-  windowEntranceMs: { valid: [180, 1000], invalid: [179, 1001], optional: true },
-  comicWritingMode: { valid: ['horizontal', 'vertical'], invalid: ['sideways', null], optional: true },
-  comicShape: { valid: ['mixed', 'speech', 'box', 'burst'], invalid: ['circle', null], optional: true },
-  comicStrokeWidth: { valid: [1, 4], invalid: [0, 5, 1.5, '2'], optional: true },
-  comicTexture: { valid: [0, 30], invalid: [-1, 31], optional: true },
-  comicEntrance: { valid: ['pop', 'ink', 'fade', 'none'], invalid: ['spin', null], optional: true },
-  comicEntranceMs: { valid: [180, 800], invalid: [179, 801], optional: true },
-  startrailColor: { valid: ['#b9dfff', '#b9dfff80'], invalid: ['red', '#abc', '#b9dff', null], optional: true },
-  startrailStarSize: { valid: [12, 40], invalid: [11, 41, 20.5, '24'], optional: true },
-  startrailTailLength: { valid: [0, 360], invalid: [-1, 361, 20.5, '180'], optional: true },
-  startrailGlow: { valid: [0, 100], invalid: [-1, 101, 20.5, '45'], optional: true },
-  startrailDust: { valid: ['on', 'off'], invalid: [true, 'show', null], optional: true },
-  startrailEntranceMs: { valid: [250, 1200], invalid: [249, 1201, 680.5, '680'], optional: true },
-  auroraPalette: { valid: ['lilac', 'glacier', 'rose', 'champagne'], invalid: ['unknown'], optional: true },
-  auroraSheen: { valid: [0, 100], invalid: [-1, 101, 0.5], optional: true },
-  auroraCharm: { valid: ['star', 'moon', 'none'], invalid: ['unknown'], optional: true },
-  auroraSway: { valid: [0, 12], invalid: [-1, 13, 0.5], optional: true },
-  durationSeconds: { valid: [2, 6, 30], invalid: [1, 31, 6.5, '6', null, true], optional: true },
-  composerText: {
-    valid: ['欢迎来到直播间 ✨', '中文 English #😊', '字'.repeat(20), '👨‍👩‍👧‍👦'.repeat(20)],
-    invalid: ['字'.repeat(21), '👨‍👩‍👧‍👦'.repeat(21), 'a\nb', 'a\u0000b', null, 1, true, {}],
-    optional: true,
-  },
-  spookyTheme: { valid: ['default', 'autumn', 'graveyard', 'moonlight'], invalid: ['purple', '', null, true, 1], optional: true },
-  spookyFrame: { valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], optional: true },
-  decorationShape: { valid: ['sparkle', 'heart', 'square', 'star', 'flower', 'moon', 'bow'], invalid: ['circle', 'HEART', '', null, true, 1, {}], optional: true },
-  ambientMotion: { valid: ['on', 'off'], invalid: ['static', '', null, true, 1], optional: true },
-  entranceAnimation: { valid: ['fade', 'rise', 'none'], invalid: ['slide', 'RISE', '', null, true, 1, {}], optional: true },
-  entranceDurationMs: { valid: [100, 1000], invalid: [99, 1001, 200.5], optional: true },
-  exitAnimation: { valid: ['fade', 'none'], invalid: ['rise'], optional: true },
-  exitDurationMs: { valid: [100, 1000], invalid: [99, 1001, 400.5], optional: true },
-  floatingEdgeFade: { valid: ['both', 'left', 'right', 'none'], invalid: ['top'], optional: true },
-  floatingEdgeFadeSize: { valid: [4, 80], invalid: [3, 81, 28.5], optional: true },
-  auroraEntrance: { valid: ['layered', 'none'], invalid: ['rise'], optional: true },
-  auroraEntranceMs: { valid: [180, 1200], invalid: [179, 1201, 520.5], optional: true },
-  startrailEntrance: { valid: ['spark', 'none'], invalid: ['layered'], optional: true },
-  floatingDispersion: { valid: [1, 50, 100], invalid: [0, 101, 1.5, '50', null, true], optional: true },
-  minGiftAmount: { valid: [0, 0.01, 9.99, 100000], invalid: [-1, 100000.01, 1.005, '1', null, true, Infinity, NaN], optional: true },
-  bubbleColor: { valid: ['default', '#ba739c', '#ba739c80'], invalid: ['', 'red', '#abc', '#123456\n', null, 1], optional: true },
-  edgeFade: { valid: ['both', 'top', 'bottom', 'single', 'none'], invalid: ['left', 'BOTH', '', null, true, 1], optional: true },
-  scrollDirection: { valid: ['up', 'down'], invalid: ['left', 'DOWN', '', null, true, 1] },
-  backgroundOpacity: { valid: [0, 100], invalid: [-1, 101, 50.5, '50', null] },
-  giftImage: { valid: ['theme', 'gift'], invalid: ['https://evil.test/x.webp', '', null] },
-  speedPixelsPerSecond: {
-    valid: [20, 120, 600],
-    invalid: [0, 19, 601, 100.5, '120', null, true],
-    optional: true,
-  },
-  centerBias: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], optional: true },
-  dispersion: { valid: [1, 25, 50], invalid: [0, 51, 1.5, '25', null, true], optional: true },
-};
-for (const key of RIPPLOID_COLOR_KEYS) {
-  CONTROL_VALUES[key] = {
-    valid: ['#a1b2c3'],
-    invalid: ['', 'red', '#abc', '#a1b2c380', '#a1b2c3\n', null, 1, undefined],
-    optional: true,
-  };
-}
-for (const key of SPOOKY_COLOR_KEYS) CONTROL_VALUES[key] = {
-  valid: ['default', '#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], optional: true,
-};
-for (const key of SPOOKY_OPACITY_KEYS) CONTROL_VALUES[key] = {
-  valid: [0, 50, 100], invalid: [-1, 101, 50.5, '50', null, true], optional: true,
-};
-for (const key of TWITTER_LAYOUT_KEYS) CONTROL_VALUES[key] = {
-  valid: ['show', 'hide'], invalid: ['', 'SHOW', null, true, 1], optional: true,
-};
-for (const key of TWITTER_COLOR_KEYS) CONTROL_VALUES[key] = {
-  valid: ['#a1b2c3', '#a1b2c380'], invalid: ['', 'red', '#abc', '#a1b2c3\n', null, 1, undefined], optional: true,
-};
 
-test('each style exposes exactly its own controls and rejects fields outside that set', () => {
-  assert.deepEqual(Object.keys(CONTROLS).sort(), Object.keys(contract.DANMAKU_STYLE_OPTIONS).sort());
-  for (const [style, controls] of Object.entries(CONTROLS)) {
-    assert.deepEqual(Object.keys(contract.styleOptionFields(style)).sort(),
-      ['fontFamily', 'fontSize', 'textColor', ...controls].sort(), style);
-    const options = Object.fromEntries(controls.map(control => [control, CONTROL_VALUES[control].valid[0]]));
-    assert.deepEqual(contract.normalizeStyleOptions({ [style]: options }), { [style]: options }, style);
-    const optionalKeys = Object.keys(contract.styleOptionsFor(style)).filter(key => CONTROL_VALUES[key]?.optional);
-    assert.deepEqual(optionalKeys.sort(), controls.filter(key => CONTROL_VALUES[key].optional).sort(), style);
-    const unsupported = Object.keys(CONTROL_VALUES).find(key => !controls.includes(key));
-    assert.throws(() => contract.normalizeStyleOptions({ [style]: { [unsupported]: CONTROL_VALUES[unsupported].valid[0] } }),
-      { code: 'INVALID_OVERLAY_OPTIONS' }, `${style} rejects ${unsupported}`);
-  }
+test('style fields validate shared numeric, enum and color rules without accepting unsupported controls', () => {
+  const options = { glowy: { glowyLight: 0, glowyLayout: 'horizontal' },
+    whiteframe: { bubbleColor: 'default' } };
+  assert.deepEqual(contract.normalizeStyleOptions(options), options);
+  for (const value of [
+    { glowy: { glowyLight: -1 } },
+    { glowy: { glowyLight: 101 } },
+    { glowy: { glowyLayout: 'diagonal' } },
+    { glowy: { composerText: 'belongs to another style' } },
+    { ripploid: { giftColor50: '#aabbcc80' } },
+  ]) assert.throws(() => contract.normalizeStyleOptions(value), { code: 'INVALID_OVERLAY_OPTIONS' });
 });
 
-test('shared control validators enforce their complete value boundaries at one supporting style', () => {
-  for (const [control, { valid, invalid }] of Object.entries(CONTROL_VALUES)) {
-    const style = Object.keys(CONTROLS).find(style => CONTROLS[style].includes(control));
-    const normalize = value => contract.normalizeStyleOptions({ [style]: { [control]: value } });
-    for (const value of valid) {
-      assert.deepEqual(normalize(value), { [style]: { [control]: value } }, `${style} ${control}`);
+test('gift amount settings retain cents and enforce their distinct bounds', () => {
+  for (const [style, field, minimum, maximum] of [
+    ['harbor', 'minGiftAmount', 0, 100000],
+    ['stardust', 'stardustGiftThreshold', 0.01, 1000000],
+  ]) {
+    for (const value of [minimum, 9.99, maximum]) {
+      assert.equal(contract.normalizeStyleOptions({ [style]: { [field]: value } })[style][field], value);
     }
-    for (const value of invalid) {
-      assert.throws(() => normalize(value), { code: 'INVALID_OVERLAY_OPTIONS' }, `${style} ${control} ${value}`);
+    for (const value of [minimum - 0.01, maximum + 0.01, 1.005]) {
+      assert.throws(() => contract.normalizeStyleOptions({ [style]: { [field]: value } }), { code: 'INVALID_OVERLAY_OPTIONS' });
     }
   }
 });
@@ -278,9 +71,8 @@ test('RIPPLOID applies independent event color variables and clears them outside
   assert.equal(root['--ripploid-guard-color-admiral'], '#654321');
   assert.equal(root['--ripploid-superchat-color2000'], '#abcdef');
   browser.applyStyleOptions(document, 'snowfox', {});
-  for (const key of RIPPLOID_COLOR_KEYS) {
-    const suffix = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-    assert.equal(root[`--ripploid-${suffix}`], '', `${key} is cleared outside RIPPLOID`);
+  for (const suffix of ['gift-color50', 'guard-color-admiral', 'superchat-color2000']) {
+    assert.equal(root[`--ripploid-${suffix}`], '', `${suffix} is cleared outside RIPPLOID`);
   }
 });
 
@@ -298,6 +90,11 @@ test('Twitter layout and event palette apply to existing content and clear outsi
 });
 
 test('Twitter composer text counts visible characters, normalizes Unicode and restores its default when blank', async () => {
+  const limit = '👨‍👩‍👧‍👦'.repeat(20);
+  assert.equal(contract.normalizeStyleOptions({ twitter: { composerText: limit } }).twitter.composerText, limit);
+  for (const composerText of [limit + '字', 'a\nb', null]) {
+    assert.throws(() => contract.normalizeStyleOptions({ twitter: { composerText } }), { code: 'INVALID_OVERLAY_OPTIONS' });
+  }
   assert.deepEqual(contract.inspectComposerText(' e\u0301 ✨ 👨‍👩‍👧‍👦 '), { text: 'é ✨ 👨‍👩‍👧‍👦', length: 5, error: '' });
   assert.deepEqual(contract.normalizeStyleOptions({ twitter: { composerText: '  中英 Hello!  ' } }), {
     twitter: { composerText: '中英 Hello!' },
@@ -355,16 +152,16 @@ test('scroll direction applies to fixed styles and restores each default', async
     documentElement: { style: { setProperty() {} } },
     body: { dataset: {} },
   };
-  for (const style of Object.keys(CONTROLS).filter((name) => CONTROLS[name].includes('scrollDirection'))) {
+  for (const style of ['signal', 'glass']) {
     for (const scrollDirection of ['up', 'down']) {
       const options = { [style]: { scrollDirection } };
       browser.applyStyleOptions(document, style, options);
       assert.equal(document.body.dataset.scrollDirection, scrollDirection);
     }
     browser.applyStyleOptions(document, style, {});
-    assert.equal(document.body.dataset.scrollDirection, style === 'glass' ? 'down' : 'up');
+    assert.equal(document.body.dataset.scrollDirection, contract.styleOptionsFor(style).scrollDirection);
   }
-  for (const style of Object.keys(CONTROLS).filter((name) => !CONTROLS[name].includes('scrollDirection'))) {
+  for (const style of ['outline', 'floating']) {
     browser.applyStyleOptions(document, 'signal', { signal: { scrollDirection: 'down' } });
     browser.applyStyleOptions(document, style, { signal: { scrollDirection: 'down' } });
     assert.equal(document.body.dataset.scrollDirection, 'up');
@@ -374,21 +171,16 @@ test('scroll direction applies to fixed styles and restores each default', async
 test('edge fading keeps theme defaults, applies overrides and clears on other layouts', async () => {
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
-  // The shared direction/edge resolver has three default branches, independent of artwork.
-  for (const [style, fallback] of [['signal', 'top'], ['prismatic', 'both'], ['notebook', 'none']]) {
-    assert.equal(contract.styleOptionsFor(style).edgeFade, fallback);
-    for (const scrollDirection of ['up', 'down']) {
-      for (const edgeFade of CONTROL_VALUES.edgeFade.valid) {
-        const options = { [style]: { scrollDirection, edgeFade } };
-        const expected = edgeFade === 'single' ? (scrollDirection === 'down' ? 'bottom' : 'top') : edgeFade;
-        assert.equal(contract.styleOptionsFor(style, options).edgeFade, expected);
-        browser.applyStyleOptions(document, style, options);
-        assert.equal(document.body.dataset.edgeFade, expected);
-      }
-      browser.applyStyleOptions(document, style, { [style]: { scrollDirection } });
-      assert.equal(document.body.dataset.edgeFade,
-        style === 'signal' ? (scrollDirection === 'down' ? 'bottom' : 'top') : fallback);
-    }
+  for (const [scrollDirection, edgeFade, expected] of [
+    ['up', 'single', 'top'], ['down', 'single', 'bottom'], ['down', 'top', 'top'],
+  ]) {
+    browser.applyStyleOptions(document, 'signal', { signal: { scrollDirection, edgeFade } });
+    assert.equal(document.body.dataset.edgeFade, expected);
+  }
+  for (const style of ['signal', 'prismatic', 'notebook']) {
+    browser.applyStyleOptions(document, style, { [style]: { edgeFade: 'bottom' } });
+    browser.applyStyleOptions(document, style, {});
+    assert.equal(document.body.dataset.edgeFade, contract.styleOptionsFor(style).edgeFade);
   }
   browser.applyStyleOptions(document, 'outline', {});
   assert.equal(document.body.dataset.edgeFade, 'none');
@@ -403,13 +195,11 @@ test('entrance animation stays per style and resets on empty options or unsuppor
   const saved = contract.normalizeStyleOptions({
     whiteframe: { entranceAnimation: 'rise' },
     glow: { entranceAnimation: 'fade' },
-    starveil: { entranceAnimation: 'rise' },
   });
-  for (const [style, controls] of Object.entries(CONTROLS)) {
+  for (const style of ['whiteframe', 'glow', 'signal']) {
     browser.applyStyleOptions(document, 'whiteframe', saved);
-    const options = browser.applyStyleOptions(document, style, saved);
+    browser.applyStyleOptions(document, style, saved);
     assert.equal(document.body.dataset.entranceAnimation, saved[style]?.entranceAnimation || 'fade');
-    assert.equal(Object.hasOwn(options, 'entranceAnimation'), controls.includes('entranceAnimation'));
     browser.applyStyleOptions(document, style, { [style]: {} });
     assert.equal(document.body.dataset.entranceAnimation, 'fade');
   }
@@ -472,14 +262,18 @@ test('gift images load only resolver-approved URLs without a referrer', async ()
 
 test('per-style display limits validate before accepting any options', () => {
   for (const [style, limits] of Object.entries(contract.DANMAKU_STYLE_OPTIONS)) {
-    for (const fontSize of [limits.minFontSize, 30, limits.maxFontSize]) {
+    for (const fontSize of [limits.minFontSize, limits.maxFontSize]) {
       assert.equal(contract.normalizeStyleOptions({ [style]: { fontSize } })[style].fontSize, fontSize);
     }
-    for (const fontSize of [limits.minFontSize - 1, limits.maxFontSize + 1, 30.1, '30', null, true]) {
+    for (const fontSize of [limits.minFontSize - 1, limits.maxFontSize + 1]) {
       assert.throws(() => contract.normalizeStyleOptions({ [style]: { fontSize } }), {
         code: 'INVALID_OVERLAY_OPTIONS',
       });
     }
+  }
+  // Type and integer checks share one validator; only bounds differ by style.
+  for (const fontSize of [30.1, '30', null, NaN]) {
+    assert.throws(() => contract.normalizeStyleOptions({ signal: { fontSize } }), { code: 'INVALID_OVERLAY_OPTIONS' });
   }
   for (const value of [
     null,

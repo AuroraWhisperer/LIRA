@@ -14,7 +14,7 @@
 .desktop-lyric-settings {
   min-width: 0;
   max-height: none;
-  padding-right: 4px;
+  gap: 12px;
   overflow: visible;
 }
 

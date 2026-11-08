@@ -346,6 +346,7 @@ function createServerRuntime(runtimeOptions = {}) {
     clearRemoteGiftHistory: giftRuntime.clearRemoteGiftHistory,
     getDomainServices: () => domainServices,
     getScenes: () => sceneRuntime?.service,
+    getLiveRankings: () => sceneRuntime?.liveRankings,
     getSceneEvents: () => sceneRuntime?.events,
     getDanmakuDisplay: () => sceneRuntime?.readDanmakuDisplay,
     getDanmakuAppearance: () => sceneRuntime?.appearance,

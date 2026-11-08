@@ -4,7 +4,7 @@ const IDLE_TIMEOUT_MS = 15000;
 
 // Reads and validated display heartbeats renew one shared lease. The grace
 // period covers short reloads without keeping an unused upstream stream alive.
-function createDisplayDemand({ now = Date.now, timers = globalThis } = {}) {
+function createDisplayDemand({ now = Date.now, timers = globalThis, idleTimeoutMs = IDLE_TIMEOUT_MS } = {}) {
   const listeners = new Set();
   let active = false;
   let disposed = false;
@@ -31,8 +31,8 @@ function createDisplayDemand({ now = Date.now, timers = globalThis } = {}) {
 
   function touch() {
     if (disposed) return;
-    expiresAt = now() + IDLE_TIMEOUT_MS;
-    if (timer === null) schedule(IDLE_TIMEOUT_MS);
+    expiresAt = now() + idleTimeoutMs;
+    if (timer === null) schedule(idleTimeoutMs);
     update(true);
   }
 

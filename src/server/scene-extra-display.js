@@ -43,6 +43,10 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
     getState ??= () => displayPorts.system.getState();
     const response = (path, value) => projectOverlayResponse(type, path, value);
     switch (type) {
+      case 'live-rankings': {
+        const snapshot = displayPorts.liveRankings?.getSnapshot() || null;
+        return snapshot && unchanged(request, type, snapshot.version) ? undefined : snapshot;
+      }
       case 'gift-sprint': return projectOverlayState(type, getState()).giftSprint ?? null;
       case 'opening': return response('/api/opening/config', getOpeningConfig(displayPorts));
       case 'songlist': {

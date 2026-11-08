@@ -545,6 +545,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 #### 歌词视觉设置
 
+高级输出只显示当前句。`advancedLyricHideUnsung='true'` 默认隐藏未唱到的字，可关闭并随命名搭配保存，桌面和画布共用。旧 `advancedLyricShowNextLine` 继续接受布尔值，供已有设置和预设读取兼容；默认值为 `'false'`，编辑器不提供该控制，渲染不使用它显示下一句。旧预设缺少新字段时补齐默认开启。
+
 `desktopLyricEnabled='true'`、`advancedLyricEnabled='false'` 是基础/高级两个独立的本地显示开关；切换编辑页签不持久化。高级字段 `advancedLyric*` 的视觉类型、范围、默认值与目录由 [advanced-lyric-appearance.js](../../../public/js/shared/advanced-lyric-appearance.js) 统一定义，服务端设置写入和场景配置使用同一归一化规则；存储层在 `settings-defaults.js` 显式登记相同的持久化默认值，不依赖浏览器模块。数值、布尔值保存为字符串，颜色接受六/八位十六进制，排版/材质/动作值只接受目录 ID。排版/入场轮换序列保存为逗号分隔的已知 ID，至多 12 项并按顺序去重。非法值拒绝整批写入。沿用缺失默认值补齐，不新增数据库 schema 迁移，不覆盖原基础外观。
 
 `advancedLyricSavedPresets='[]'` 保存命名搭配的 JSON 数组，每项为 `{id,name,settings}`，至多 20 份、序列化总长至多 65536 个 JS 字符；ID 为 1–64 位字母、数字、下划线或连字符，名称为 1–64 个 Unicode 字符。`settings` 只允许高级外观字段并补齐默认值，不包含两个显示开关、音乐来源或其他预设。预设库仅供本机编辑，不投影至歌词浏览器源，也不参与云端设置同步；实际高级外观与显示开关投影至 `lyrics` scope，并与普通画布歌词组件共享。场景实例的 `lyricLayer` 不在 settings 中保存。

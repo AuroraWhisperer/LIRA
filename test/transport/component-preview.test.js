@@ -353,13 +353,38 @@ test('detaching a page cancels focus immediately and preserves commands for a fr
   assert.equal(resumed.sequence, 1);
   assert.equal(resumed.ack, 0);
   assert.deepEqual(sessions.exchange({ id: canvas.id, ack: 0, state: state() }), {
-    commands: [{ sequence: 1, action: 'edit', change: { label: 'unsaved' } }], closed: false,
+    commands: [{ sequence: 1, action: 'edit', change: { label: 'unsaved' } }], closed: false, attached: true,
   });
   assert.throws(() => browser({ action: 'detach' }), { statusCode: 409 });
   const refocused = sessions.focus(link);
   const { focus } = browser({ action: 'read', attachmentId: resumedId });
   browser({ action: 'read', attachmentId: resumedId, focusId: focus.id });
   assert.deepEqual(await refocused, { focused: true });
+});
+
+test('canvas activity wakes desktop consumers on attach and detach without closing the editor session', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let time = 1;
+  const sessions = createComponentPreviewSessions({ now: () => time });
+  t.after(() => sessions.clear());
+  const canvas = sessions.open({ component: 'canvas', state: state() });
+  const entry = { action: 'exchange', id: canvas.id, ack: 0, incremental: true };
+  const read = () => sessions.exchange(entry);
+  assert.equal(read().attached, false);
+  const waiting = sessions.exchange({ ...entry, waitMs: 20000 });
+  const attachmentId = randomUUID();
+  const browser = action => sessions.browser({ id: canvas.id, attachmentId, action, previousAttachmentId: null }, canvas.token);
+  browser('attach');
+  assert.equal((await waiting).attached, true);
+  time += 30001;
+  assert.equal(read().attached, false, 'a crashed page cannot keep high-frequency consumers alive');
+  browser('read');
+  assert.equal(read().attached, true);
+  const batch = sessions.exchangeBatch({ entries: [entry], waitMs: 20000 });
+  browser('detach');
+  const update = (await batch).updates[0];
+  assert.equal(update.attached, false);
+  assert.equal(update.closed, false, 'drafts and the reusable editor link remain available');
 });
 
 test('canvas preset relay only selects desktop-listed presets and isolates their recovery keys', () => {

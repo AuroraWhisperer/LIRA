@@ -46,7 +46,9 @@ export function createGiftMotionPlayer({ root }) {
     for (const body of dropWorld.bodies) {
       if (reduced.matches) { body.angle = 0; body.spin = 0; body.vx = 0; }
       const node = drops.get(body.id);
-      node.style.transform = `translate(${body.x - body.half}px, ${body.y - body.half}px) rotate(${body.angle}rad)`;
+      node.hidden = now < body.spawnAt;
+      if (node.hidden) continue;
+      node.style.transform = `translate(${body.x - body.size / 2}px, ${body.y - body.size / 2}px) rotate(${body.angle}rad)`;
       node.style.opacity = Math.min(1, (body.expiresAt - now) / 600);
     }
     for (const [id, swing] of swings) {
@@ -77,14 +79,17 @@ export function createGiftMotionPlayer({ root }) {
       [`${effect.prefix}${name}`, payload.motion?.[name[0].toLowerCase() + name.slice(1)]]));
     const motion = readGiftMotionSettings(settings, effect);
     const expiresAt = startedAt + motion.durationSeconds * 1000;
-    if (expiresAt <= now) return false;
+    if (effect.style !== 'gift-drop' && expiresAt <= now) return false;
     seen.add(payload.eventId);
     if (seen.size > 2048) seen.delete(seen.values().next().value);
     const event = { ...payload, startedAt, motion, num: Math.max(1, Number(payload.num) || 1) };
     if (effect.style === 'gift-drop') {
-      for (const body of dropWorld.addGift(event, now)) {
+      const added = dropWorld.addGift(event, now);
+      if (!added.length) return false;
+      for (const body of added) {
         if (reduced.matches) { body.angle = 0; body.spin = 0; body.vx = 0; }
         const node = element('div', 'gift-drop-item');
+        node.hidden = true;
         node.dataset.motionId = body.id; node.dataset.expiresAt = String(body.expiresAt);
         node.style.width = node.style.height = `${body.size}px`;
         node.append(image(payload, 'gift-motion-image'));

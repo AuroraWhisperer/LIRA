@@ -32,12 +32,13 @@ test('lyric layers share visual settings while retaining their own output filter
   const advanced = normalizeSceneConfig('lyrics', { lyricLayer: 'advanced' });
   const owner = createSceneSharedAppearance(ctx);
   owner.patch('lyrics', advanced, { advancedLyricEnabled: 'true', advancedLyricLayout: 'corners',
-    advancedLyricMaterial: 'metallic', advancedLyricLayoutSequence: 'corners,arc', advancedLyricStrokeLayers: '3' });
+    advancedLyricMaterial: 'metallic', advancedLyricLayoutSequence: 'corners,arc', advancedLyricStrokeLayers: '3', advancedLyricHideUnsung: 'false' });
   const next = createSceneSharedAppearance(ctx);
   for (const config of [basic, advanced]) {
     const appearance = next.read('lyrics', config);
     assert.equal(appearance.advancedLyricEnabled, 'true');
     assert.equal(appearance.advancedLyricMaterial, 'metallic');
+    assert.equal(appearance.advancedLyricHideUnsung, 'false');
     assert.equal(Object.hasOwn(appearance, 'lyricLayer'), false);
   }
   assert.equal(basic.lyricLayer, 'basic');

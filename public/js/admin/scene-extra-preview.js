@@ -16,7 +16,7 @@ import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-
 import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
 
 const LYRIC_CANVAS_ADVANCED_FIELDS = new Set(['advancedLyricEnabled', 'advancedLyricLayout', 'advancedLyricFontSize',
-  'advancedLyricTextColor', 'advancedLyricAccentColor', 'advancedLyricShowNextLine',
+  'advancedLyricTextColor', 'advancedLyricAccentColor', 'advancedLyricHideUnsung',
   'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricScale']);
 
 export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, hideStyleControl = false, previewHint, restrictResourceStyle = false } = {}) {
@@ -181,6 +181,8 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         for (const [key, { input, slider, cents, scale, inherit, label }] of fields) {
           label.hidden = type === 'opening' && (key === 'style' ? Boolean(draft.resourceStyle)
             : !draft.resourceStyle || !Object.hasOwn(openingFields, key))
+            || type === 'live-rankings' && (key === 'nearby' && draft.range !== 'nearby'
+              || ['pageSize', 'pageSeconds'].includes(key) && draft.range !== 'all')
             || type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
             || type === 'background' && key === 'style' && Boolean(draft.mediaStyle)
             || type === 'gift-frame' && key === 'style' && Boolean(draft.mediaStyle || draft.resourceStyle)

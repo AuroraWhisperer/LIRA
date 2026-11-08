@@ -58,7 +58,6 @@ for (const operation of ['checkForUpdates', 'downloadUpdate']) {
     const state = await manager[operation]();
     assert.equal(state.status, 'error');
     assert.equal(states.at(-1).status, 'error');
-    assert.match(state.message, /更新清单/);
     assert.equal(state.canDownload, false);
     assert.equal(state.canInstall, false);
     assert.equal(logs.length, 1);

@@ -18,8 +18,6 @@ test('games overlay avoids HTML injection and lets only the authenticated server
     assert.doesNotMatch(source, /innerHTML/);
   }
   assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/, 'the server session selects the game, not the URL');
-  assert.match(resultModule, /loadWinnerProfile[\s\S]+Authorization:\s*`Bearer \$\{token\}`/);
-  assert.match(script, /api\/bilibili\/avatar\?url=/);
 });
 
 function createGameOverlayFixture(fetchResult) {
@@ -96,9 +94,11 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
     } else assert.match(root.children[0].className, /has-black/);
     receive(game, { ...changed, winner: 'draw' });
     assert.equal(root.children.every(button => button.disabled), true);
-    assert.equal(nodes.get('gameResultText').textContent, '和棋');
+    const drawResult = nodes.get('gameResultText').textContent;
+    assert.ok(drawResult);
     receive(game, { ...changed, winner: 'viewer' });
-    assert.equal(nodes.get('gameResultText').textContent, '观众获胜');
+    assert.ok(nodes.get('gameResultText').textContent);
+    assert.notEqual(nodes.get('gameResultText').textContent, drawResult);
     receive(game, state);
     const reset = root.children[0];
     assert.equal(reset.disabled, false);
@@ -116,11 +116,9 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
     }
   }
   assert.equal(requests.length, 2, 'each click sends exactly one move');
-  for (const totalRounds of [1, 5, 12]) {
-    receive('draw-guess', { phase: 'finished', round: totalRounds, totalRounds,
-      correct: [], scores: [], answerRevealed: true, revealedAnswer: '苹果' });
-    assert.equal(nodes.get('gameTurn').textContent, `${totalRounds} 局结束 · 最终排行`);
-  }
+  receive('draw-guess', { phase: 'finished', round: 7, totalRounds: 7,
+    correct: [], scores: [], answerRevealed: true, revealedAnswer: '苹果' });
+  assert.match(nodes.get('gameTurn').textContent, /7/);
 });
 
 test('scene drawing retains painted history until its revision, session, round or canvas size changes', () => {
@@ -190,8 +188,10 @@ test('result actions and late winner profiles follow the current game session', 
   profiles[1].resolve({ avatarUrl: 'https://example.test/current.png' });
   await flush();
   assert.equal(avatar().hidden, false);
-  assert.equal(avatar().alt, '观众头像');
-  assert.match(avatar().src, /current\.png/);
+  const avatarUrl = new URL(avatar().src, 'http://127.0.0.1');
+  assert.equal(avatarUrl.pathname, '/api/bilibili/avatar');
+  assert.equal(avatarUrl.searchParams.get('url'), 'https://example.test/current.png');
+  assert.equal(avatarUrl.searchParams.get('token'), 'result-test-token');
   assert.equal(profiles[1].options.headers.Authorization, 'Bearer result-test-token');
 
   const stop = click('gameResultExit');

@@ -1,0 +1,169 @@
+/* Coffee-cup chat: transparent chalk lettering, drawn cup and a written reply. */
+body[data-style='coffee'] {
+  --coffee-ink: #eeeadd;
+  --coffee-name: #c5c3b5;
+  --coffee-font: 'KaiTi', 'STKaiti', 'Lira Yozai', serif;
+  --danmaku-move-base-ms: 240;
+  --danmaku-move-max-ms: 240;
+  --danmaku-move-curve: .22, .61, .36, 1;
+  --danmaku-enter-animation: coffeeEntry var(--coffee-entry-duration, 1100ms) linear both;
+}
+body[data-style='coffee'] .danmaku-signal-header { display: none; }
+body[data-style='coffee'][data-custom-font='true'] { --coffee-font: var(--danmaku-custom-font); }
+body[data-style='coffee'] .draw-danmaku-feed { gap: 12px; }
+body[data-style='coffee'] .draw-danmaku-item.coffee-item {
+  --danmaku-enter-animation: coffeeEntry var(--coffee-entry-duration, 1100ms) linear both;
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  grid-template-areas: none;
+  align-items: start;
+  gap: 12px;
+  width: 100%;
+  max-width: 100%;
+  min-height: 94px;
+  padding: 10px 6px 24px 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  clip-path: none;
+  color: var(--coffee-ink);
+  animation: none;
+}
+body[data-style='coffee'] .coffee-item::after {
+  inset: auto 8px 0 70px;
+  width: auto;
+  height: 1px;
+  opacity: .24;
+  background: linear-gradient(90deg, transparent, var(--coffee-ink) 12%, transparent 38%, var(--coffee-ink) 43%, transparent 77%, var(--coffee-ink) 90%, transparent);
+  transform: rotate(-.3deg);
+}
+body[data-style='coffee'] .draw-danmaku-item.coffee-no-avatar { grid-template-columns: minmax(0, 1fr); }
+.coffee-portrait { position: relative; width: 58px; height: 74px; margin-top: -9px; }
+.coffee-cup { position: absolute; inset: 0; width: 58px; height: 74px; overflow: visible; }
+.coffee-cup path { fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+.coffee-cup .coffee-steam { stroke-width: 1.3; animation: coffeeSteam 2.8s ease-in-out var(--coffee-steam-phase) infinite; }
+body[data-style='coffee'] .coffee-item .draw-danmaku-avatar {
+  position: absolute;
+  top: 32px;
+  left: 12px;
+  width: 27px;
+  height: 27px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  clip-path: none;
+  color: var(--coffee-ink);
+  background: none;
+  font: 16px/1 var(--coffee-font);
+}
+body[data-style='coffee'] .draw-danmaku-avatar img { border-radius: inherit; }
+body[data-style='coffee'] .coffee-item .draw-danmaku-body { grid-area: auto; display: block; padding: 0; min-height: 0; }
+body[data-style='coffee'] .coffee-item .coffee-heading { flex-wrap: nowrap; gap: 6px; height: 24px; }
+body[data-style='coffee'] .coffee-item .coffee-heading strong {
+  flex: 0 1 auto;
+  color: var(--coffee-name);
+  font: 400 18px/1.3 var(--coffee-font);
+  letter-spacing: .02em;
+}
+.coffee-leader { flex: 1; min-width: 8px; height: 1px; background: currentColor; opacity: .15; }
+.coffee-time { flex-shrink: 0; color: var(--coffee-ink); opacity: .65; font: 400 12px/1.3 var(--danmaku-num-font); }
+.coffee-role { position: relative; flex-shrink: 0; width: 9px; height: 10px; color: #80b5dc; }
+.coffee-role::before { position: absolute; inset: 0; border-radius: 5px 5px 3px 3px; background: currentColor; content: ''; }
+.coffee-role::after { position: absolute; inset: 3px 2px; border-block: 1px solid #fff9; content: ''; }
+.coffee-item[data-coffee-role='3'] { --coffee-name: #b8cfcb; }
+.coffee-item[data-coffee-role='2'] { --coffee-name: #d9bdc9; }
+.coffee-item[data-coffee-role='2'] .coffee-role { color: #b48cce; }
+.coffee-item[data-coffee-role='1'] { --coffee-name: #e4c0ac; }
+.coffee-item[data-coffee-role='1'] .coffee-role { color: #e6a684; }
+.coffee-item[data-coffee-role='streamer'] .coffee-role { color: #e4cb85; }
+body[data-style='coffee'] .coffee-item .coffee-copy {
+  display: block;
+  margin: 3px 0 0;
+  color: var(--danmaku-text-color, var(--coffee-ink));
+  font: 400 var(--danmaku-font-size)/1.5 var(--coffee-font);
+  letter-spacing: .015em;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  text-shadow: 0 1px 1px rgb(35 28 20 / 18%);
+}
+.coffee-glyph { display: inline; }
+body[data-style='coffee'] .coffee-copy .draw-danmaku-emote { height: 1.55em; max-height: none; vertical-align: middle; }
+body[data-style='coffee'] .coffee-copy :is(.draw-danmaku-gift-copy, .draw-danmaku-gift-action, .draw-danmaku-gift-name, .draw-danmaku-gift-count, .draw-danmaku-gift-amount) {
+  display: inline;
+  color: inherit;
+  font: inherit;
+}
+body[data-style='coffee'] .draw-danmaku-gift-count { margin-left: .3em; }
+body[data-style='coffee'] .draw-danmaku-item.coffee-event {
+  --coffee-accent: #dfca91;
+  --coffee-name: var(--coffee-accent);
+  min-height: 108px;
+  padding: 16px 20px 30px 10px;
+  overflow: hidden;
+}
+body[data-style='coffee'] .coffee-event[data-coffee-membership='3'] { --coffee-accent: #acd0d9; }
+body[data-style='coffee'] .coffee-event[data-coffee-membership='2'] { --coffee-accent: #d5bde2; }
+body[data-style='coffee'] .coffee-event[data-coffee-membership='1'] { --coffee-accent: #edc3a2; }
+body[data-style='coffee'] .coffee-event[data-coffee-kind='sc'] { --coffee-accent: #e8baad; }
+body[data-style='coffee'] .coffee-event .coffee-heading { flex-wrap: wrap; height: auto; min-height: 24px; }
+body[data-style='coffee'] .coffee-event .coffee-heading strong {
+  max-width: 100%;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+body[data-style='coffee'] .coffee-event .coffee-leader { color: var(--coffee-accent); }
+.coffee-price {
+  flex-shrink: 0;
+  max-width: 100%;
+  margin-left: auto;
+  padding: 1px 6px;
+  border: 1px solid color-mix(in srgb, var(--coffee-accent) 60%, transparent);
+  border-radius: 50% 42% 46% 38% / 46% 52% 42% 50%;
+  color: var(--coffee-accent);
+  font: 400 15px/1.4 var(--danmaku-num-font);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.coffee-event-note { display: block; margin-top: 6px; color: var(--coffee-accent); font: 400 16px/1.4 var(--coffee-font); }
+.coffee-event-frame, .coffee-event-ornament {
+  position: absolute;
+  pointer-events: none;
+  fill: none;
+  stroke: var(--coffee-accent);
+  stroke-width: 1.15;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.coffee-event-frame { inset: 0; width: 100%; height: 100%; }
+.coffee-event-frame rect { width: calc(100% - var(--coffee-frame-inset)); height: calc(100% - var(--coffee-frame-inset)); }
+.coffee-event-frame rect + rect { opacity: .24; stroke-width: .7; }
+.coffee-event-ornament { right: 8px; bottom: 8px; width: 23px; height: 23px; }
+.coffee-event[data-coffee-kind='member'] .coffee-event-ornament { width: 25px; height: 25px; }
+.coffee-item[data-live-entry] { animation: var(--danmaku-enter-animation); }
+body[data-style='coffee'] .draw-danmaku-item.coffee-item.coffee-event::after { display: none; }
+.coffee-item[data-live-entry] .coffee-heading { animation: coffeeReveal 300ms ease-out both; }
+.coffee-item[data-live-entry] .draw-danmaku-avatar { animation: coffeeReveal 320ms ease-out 70ms both; }
+.coffee-item[data-live-entry] .coffee-cup path:not(.coffee-steam) {
+  stroke-dasharray: 1;
+  animation: coffeeDraw 450ms ease-out var(--coffee-stroke-delay) both;
+}
+.coffee-item[data-live-entry] .coffee-glyph { animation: coffeeReveal 85ms linear var(--coffee-write-delay) both; }
+.coffee-item[data-live-entry]::after { animation: coffeeReveal 550ms ease-out 400ms backwards; }
+.coffee-event[data-live-entry] .coffee-event-frame rect { stroke-dasharray: 1; animation: coffeeDraw 900ms ease-out 140ms both; }
+.coffee-event[data-live-entry] .coffee-event-frame rect + rect { animation-delay: 260ms; }
+.coffee-event[data-live-entry] .coffee-price { animation: coffeeReveal 280ms ease-out 320ms both; }
+.coffee-event[data-live-entry] .coffee-event-note { animation: coffeeReveal 360ms ease-out 780ms both; }
+.coffee-event[data-live-entry] .coffee-event-ornament { stroke-dasharray: 1; animation: coffeeDraw 400ms ease-out 740ms both; }
+body[data-style='coffee'][data-ambient-motion='off'] .coffee-steam { animation: none; }
+@keyframes coffeeEntry { from, to { --danmaku-enter-opacity: 1; } }
+@keyframes coffeeReveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes coffeeDraw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes coffeeSteam {
+  0%, 100% { opacity: .45; transform: translateY(1px); }
+  50% { opacity: .9; transform: translateY(-2px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='coffee'] .coffee-item, body[data-style='coffee'] .coffee-item::after,
+  body[data-style='coffee'] .coffee-item * { animation: none !important; }
+}

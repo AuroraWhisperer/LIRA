@@ -238,6 +238,20 @@ test('scene notifications invalidate only the changed conditional display type',
   assert.equal(reads, 2);
 });
 
+test('live ranking sources accept their data acknowledgement and retain the board until it changes', t => {
+  const { runtime } = fixture(t);
+  let snapshot = { version: 'ranking-1', room: { roomId: '88' }, boards: [{ id: 'hot', rows: [{ rank: 6, score: 100 }] }] };
+  t.mock.method(runtime.liveRankings, 'getSnapshot', () => snapshot);
+  const source = publish(runtime, 'live-rankings');
+  const first = runtime.service.getOutput({ ...source, dataVersions: {} });
+  assert.equal(first.data['live-rankings'].boards[0].rows[0].score, 100);
+  const repeated = runtime.service.getOutput({ ...source, dataVersions: first.dataVersions });
+  assert.equal(Object.hasOwn(repeated.data, 'live-rankings'), false);
+  snapshot = { ...snapshot, version: 'ranking-2', boards: [{ id: 'hot', rows: [{ rank: 5, score: 120 }] }] };
+  const changed = runtime.service.getOutput({ ...source, dataVersions: repeated.dataVersions });
+  assert.equal(changed.data['live-rankings'].boards[0].rows[0].rank, 5);
+});
+
 test('cloud demand follows display reads, leaves other scenes idle and expires after the last read', t => {
   t.mock.timers.enable({ apis: ['Date', 'setInterval', 'setTimeout'] });
   const { runtime } = fixture(t);

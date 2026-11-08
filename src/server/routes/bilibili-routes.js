@@ -7,6 +7,13 @@ const { publicBilibiliErrorMessage } = require('../../bilibili/api-error');
 const prefixes = ['/api/bilibili/'];
 
 const routes = {
+  'GET /api/bilibili/live-rankings'(context, request, res) {
+    res.setHeader('Cache-Control', 'no-store');
+    const snapshot = context.liveRankings.getSnapshot();
+    return sendJson(res, 200, { ok: true, data: request.query.get('version') === snapshot.version
+      ? { unchanged: true, serverNow: snapshot.serverNow } : snapshot });
+  },
+
   async 'GET /api/bilibili/likes/state'(context, _request, res) {
     sendJson(res, 200, { ok: true, data: context.bilibili.getLikeState() });
   },

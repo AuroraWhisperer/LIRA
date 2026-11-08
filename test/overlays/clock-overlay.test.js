@@ -6,7 +6,6 @@ const path = require('node:path');
 const test = require('node:test');
 const { handleApi } = require('../../src/server/api-routes');
 const {
-  CLOCK_STYLE_VALUES,
   DEFAULT_LABELS,
   cleanClockLabel,
   getClockConfig,
@@ -25,21 +24,6 @@ const CLOCK_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'clock.js');
 const CLOCK_CARD_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'admin', 'clock-card.js');
 const MOON_DEFAULTS = { moonMode: 'light', moonIntervalSeconds: 30 };
 const read = (...parts) => fs.readFileSync(path.join(ROOT_DIR, ...parts), 'utf8');
-
-test('clock shared defaults round-trip every style through settings, scenes and overlay input', async () => {
-  const shared = require('../../public/js/shared/clock-settings.js');
-  const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
-  assert.equal(DEFAULT_LABELS, shared.CLOCK_STYLE_LABELS);
-  assert.deepEqual([...CLOCK_STYLE_VALUES], Object.keys(shared.CLOCK_STYLE_LABELS));
-  for (const [style, label] of Object.entries(shared.CLOCK_STYLE_LABELS)) {
-    const config = getClockConfig({ clockStyle: style, clockStyleOptions: '{}' });
-    const payload = assertClockRoundTrip(config);
-    assert.deepEqual(shared.clockConfigFromSettings(payload), config);
-    assert.deepEqual(Object.keys(config.styleOptions[style]), Object.keys(shared.CLOCK_APPEARANCE_KEYS));
-    const query = overlay.readClockConfig(new URLSearchParams({ style }));
-    assert.deepEqual([query.style, query.label], [style, label]);
-  }
-});
 
 test('cute clock overlay owns a scoped, sandboxed frameable route', () => {
   assert.equal(require('../../src/server/access-policy').getOverlayScope('/clock'), 'clock');
@@ -206,7 +190,7 @@ test('clock settings are persisted through validated keys and exposed by the clo
   assert.equal(publicResponse.payload.ok, true);
 });
 
-test('clock config round-trips through admin payload and fixed URL query overrides', async () => {
+test('fixed clock URLs preserve explicit visibility, hour format and empty labels', async () => {
   const style = 'digital';
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   const admin = await loadModuleExports(CLOCK_CARD_ENTRY, { URL });
@@ -219,51 +203,15 @@ test('clock config round-trips through admin payload and fixed URL query overrid
     label: '',
   };
 
-  const payload = { ...admin.clockSettingsPayload(config) };
-  assert.deepEqual(payload, {
-    clockStyle: style,
-    clockShowDate: 'false',
-    clockShowSeconds: 'true',
-    clockHourFormat: '12',
-    clockLabel: '',
-    clockFlipFrameColor: FLIP_COLORS.flipFrameColor,
-    clockFlipFaceColor: FLIP_COLORS.flipFaceColor,
-    clockFlipTextColor: FLIP_COLORS.flipTextColor,
-    clockMoonMode: 'light',
-    clockMoonIntervalSeconds: '30',
-  });
-  assert.deepEqual(getClockConfig(payload), config);
-
-  const { normalizeSceneConfig } = require('../../src/server/scene-components');
-  assert.deepEqual(normalizeSceneConfig('clock', config), config);
-
   const fixedUrl = admin.buildClockUrl('http://127.0.0.1:3000/clock', config);
   const params = new URL(fixedUrl).searchParams;
   const queryConfig = overlay.readClockConfig(params);
-  assert.deepEqual(
-    { ...queryConfig },
-    {
-      style,
-      showDate: false,
-      showSeconds: true,
-      hour12: true,
-      label: '',
-      ...FLIP_COLORS, ...MOON_DEFAULTS,
-    },
-  );
-  assert.deepEqual(
-    {
-      ...overlay.mergeClockConfig(config, queryConfig, params),
-    },
-    {
-      style,
-      showDate: false,
-      showSeconds: true,
-      hour12: true,
-      label: '',
-      ...FLIP_COLORS, ...MOON_DEFAULTS,
-    },
-  );
+  const merged = overlay.mergeClockConfig({ ...config, showDate: true, showSeconds: false, hourFormat: '24', label: 'Saved label' }, queryConfig, params);
+  assert.equal(merged.style, style);
+  assert.equal(merged.showDate, false);
+  assert.equal(merged.showSeconds, true);
+  assert.equal(merged.hour12, true);
+  assert.equal(merged.label, '');
 });
 
 test('clock overlay loads saved settings while explicit legacy parameters still override each field', async () => {

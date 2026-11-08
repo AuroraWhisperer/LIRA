@@ -25,6 +25,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     ['/license', 'pages/license.html'],
     ['/scene', 'pages/overlays/scene.html'],
     ['/text-box', 'pages/overlays/text-box.html'],
+    ['/live-rankings', 'pages/overlays/live-rankings.html'],
     ['/background', 'pages/overlays/background.html'],
     ['/imported-danmaku', 'pages/overlays/imported-danmaku.html'],
     ['/component-preview', 'pages/component-preview.html'],
@@ -51,6 +52,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     !overlayScope &&
     relativePath !== 'pages/overlays/scene.html' &&
     relativePath !== 'pages/overlays/text-box.html' &&
+    relativePath !== 'pages/overlays/live-rankings.html' &&
     relativePath !== 'pages/overlays/background.html' &&
     relativePath !== 'pages/overlays/imported-danmaku.html' &&
     relativePath !== 'pages/component-preview.html' &&
@@ -139,7 +141,8 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
 }
 
 function addFrameProtectionHeaders(res, pathname) {
-  if (getOverlayScope(pathname) || ['/scene', '/text-box', '/background', '/imported-danmaku', '/pages/overlays/imported-danmaku.html'].includes(pathname)) {
+  if (getOverlayScope(pathname) || ['/scene', '/text-box', '/background', '/imported-danmaku', '/pages/overlays/imported-danmaku.html',
+    '/live-rankings', '/pages/overlays/live-rankings.html'].includes(pathname)) {
     // Do not add allow-same-origin: an embedded overlay must not call the
     // privileged parent frame or inherit its credentials.
     res.setHeader('Content-Security-Policy', 'sandbox allow-scripts');

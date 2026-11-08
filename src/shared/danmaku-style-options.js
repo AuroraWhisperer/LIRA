@@ -22,6 +22,12 @@ const TWITTER_COLOR_DEFAULTS = Object.freeze({
   twitterColor0: '#409afa', twitterColor50: '#f9c844', twitterColor100: '#f89260', twitterColor1000: '#ef4260',
 });
 const DANMAKU_STYLE_OPTIONS = Object.freeze({
+  coffee: {
+    scrollDirection: true, label: '咖啡手记',
+    minFontSize: 18, maxFontSize: 48, defaultFontSize: 26,
+    background: false, giftImage: false, ambientMotion: true,
+    defaultTextColor: '#eeeadd',
+  },
   astral: {
     scrollDirection: true, defaultEdgeFade: 'none', label: 'Astral 星笺',
     minFontSize: 12, maxFontSize: 48, defaultFontSize: 20,
@@ -41,7 +47,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#51465f',
   },
   'neon-glass': {
-    layout: 'horizontal', label: 'Neon Glass · 霓光玻璃',
+    scrollDirection: true, label: 'Neon Glass · 霓光玻璃',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 24,
     background: true, giftImage: false, bubbleColor: true, neonGlassOptions: true,
     defaultTextColor: '#ffffff',

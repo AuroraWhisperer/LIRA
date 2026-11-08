@@ -2,7 +2,8 @@ const { CANVAS_PRESETS } = require('./canvas-presets');
 
 // Display contract mirrored by the desktop main process and the server.
 const REGION_DEFAULTS = Object.freeze({
-  'neon-glass': [1920, 144],
+  coffee: [400, 640],
+  'neon-glass': [480, 700],
   'horizontal-charm': [1920, 120],
   astral: [640, 720],
   'celestial-horizontal': [1920, 80],
@@ -54,7 +55,7 @@ function defaultRegion(style, canvas, contentScale = 1) {
   const width = Math.round(size[0] * contentScale);
   const height = Math.round(size[1] * contentScale);
   const margin = Math.round(40 * contentScale);
-  if (['celestial-horizontal', 'neon-glass', 'horizontal-charm'].includes(style)) return fitRegion({ x: 0, y: canvas.height - height, width: canvas.width, height }, canvas);
+  if (['celestial-horizontal', 'horizontal-charm'].includes(style)) return fitRegion({ x: 0, y: canvas.height - height, width: canvas.width, height }, canvas);
   return fitRegion({ x: margin, y: canvas.height - height - margin, width, height }, canvas);
 }
 
@@ -77,7 +78,7 @@ function normalizeLayout(value) {
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
     || !regions || typeof regions !== 'object' || Array.isArray(regions)
     || Object.keys(regions).some((style) => !Object.hasOwn(REGION_DEFAULTS, style))
-    || Object.keys(REGION_DEFAULTS).some((style) => !['horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'stargazer', 'wireframe'].includes(style) && !Object.hasOwn(regions, style))) fail();
+    || Object.keys(REGION_DEFAULTS).some((style) => !['coffee', 'horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'stargazer', 'wireframe'].includes(style) && !Object.hasOwn(regions, style))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
     const region = !Object.hasOwn(regions, style)

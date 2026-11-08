@@ -198,7 +198,7 @@ export function createAdvancedLyricEditor(root) {
   function syncCards() {
     for (const { button, entry, key } of cards) {
       const selected = key === 'preset'
-        ? Object.entries({ ...DEFAULTS, ...entry.settings }).every(([field, value]) => String(values[field]) === String(value))
+        ? Object.entries({ ...DEFAULTS, ...entry.settings }).every(([field, value]) => ADVANCED_LYRIC_FIELDS[field]?.hidden || String(values[field]) === String(value))
         : values[key] === entry.id;
       button.setAttribute('aria-pressed', String(selected));
     }
@@ -326,7 +326,7 @@ export function createAdvancedLyricEditor(root) {
     }
     createPresets(panels.get('presets'));
     for (const [key, field] of Object.entries(ADVANCED_LYRIC_FIELDS)) {
-      if (key.endsWith('Sequence')) continue;
+      if (field.hidden || key.endsWith('Sequence')) continue;
       const panel = panels.get(field.group) || panels.get('display');
       if (field.catalog) createLibrary(key, field, panel);
       else createControl(key, field, panel);

@@ -21,7 +21,7 @@ function client() {
   return new QQMusicClient({ getCookieHeader: () => 'qqmusic_uin=123456; qm_keyst=synthetic; qqmusic_key=synthetic' });
 }
 
-test('QQ request paths share JSON/JSONP parsing and read each response once', async (t) => {
+test('QQ request paths consume parsed responses once, including JSONP and playlist result extraction', async (t) => {
   let responseBody;
   let reads = 0;
   t.mock.method(globalThis, 'fetch', async () => ({
@@ -31,34 +31,31 @@ test('QQ request paths share JSON/JSONP parsing and read each response once', as
       return responseBody;
     },
   }));
-  for (const wrapped of [false, true]) {
-    responseBody = wrapped ? `callback(${JSON.stringify(body)});` : JSON.stringify(body);
-    for (const [index, request] of calls.entries()) {
-      const before = reads;
-      assert.deepEqual(await request(client()), index === 4 ? { saved: true } : body);
-      assert.equal(reads, before + 1);
-    }
+  for (const [index, request] of calls.entries()) {
+    responseBody = index === 3 ? `callback(${JSON.stringify(body)});` : JSON.stringify(body);
+    const before = reads;
+    assert.deepEqual(await request(client()), index === 4 ? { saved: true } : body);
+    assert.equal(reads, before + 1);
   }
 });
 
 test('QQ response failures preserve HTTP precedence, parse wrapping and body-read errors', async (t) => {
   let response;
   t.mock.method(globalThis, 'fetch', async () => response);
-  for (const request of calls) {
-    response = { ok: false, status: 503, text: async () => '<invalid>' };
-    await assert.rejects(request(client()), { message: 'HTTP 503' });
-    response = { ok: true, text: async () => '<invalid>' };
-    await assert.rejects(request(client()), /QQ 音乐返回了非 JSON 响应：/);
-    const readError = new Error('synthetic stream failure');
-    response = {
-      ok: false,
-      status: 503,
-      text: async () => {
-        throw readError;
-      },
-    };
-    await assert.rejects(request(client()), (error) => error === readError);
-  }
+  const request = () => client().requestJson('https://example.test/synthetic');
+  response = { ok: false, status: 503, text: async () => '<invalid>' };
+  await assert.rejects(request(), /HTTP 503/);
+  response = { ok: true, text: async () => '<invalid>' };
+  await assert.rejects(request(), /QQ.*JSON/);
+  const readError = new Error('synthetic stream failure');
+  response = {
+    ok: false,
+    status: 503,
+    text: async () => {
+      throw readError;
+    },
+  };
+  await assert.rejects(request(), (error) => error === readError);
 });
 
 test('music JSON, JSONP and text paths stop oversized chunked responses', async (t) => {

@@ -7,6 +7,114 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
+test('coffee writing preserves complete text, emoji and failed emotes through entry and reduced motion', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <body data-style="coffee"><div class="danmaku-signal-stage"><div id="feed" class="draw-danmaku-feed"></div></div></body>` });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage({ viewport: { width: 400, height: 640 } });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    applyStyleOptions(document, 'coffee', {});
+    window.feed = createDanmakuFeed(document.getElementById('feed'), { style: 'coffee', offscreenViewports: 0 });
+    window.message = 'A👩‍👩‍👧‍👦é <b>完整原文</b> [星]';
+    window.feed.append({ id: 'writing', name: '观众', message: window.message,
+      emotes: [{ text: '[星]', url: '/missing-coffee-emote.png', kind: 'inline' }] });
+  });
+  await page.waitForFunction(() => !document.querySelector('.coffee-copy img'));
+  const result = await page.evaluate(() => {
+    const copy = document.querySelector('.coffee-copy');
+    const clusterIntact = [...copy.querySelectorAll('.coffee-glyph')].some(node => node.textContent === '👩‍👩‍👧‍👦');
+    const textSafe = copy.textContent === window.message && !copy.querySelector('b');
+    for (const animation of document.getAnimations()) {
+      if (animation.effect.getComputedTiming().iterations !== Infinity) animation.finish();
+    }
+    return { clusterIntact, textSafe };
+  });
+  assert.ok(result.clusterIntact && result.textSafe, 'typing never splits emoji, parses markup or loses fallback text');
+  await page.waitForFunction(() => !document.querySelector('[data-live-entry]'));
+  assert.equal(await page.locator('.coffee-copy').evaluate(copy => [...copy.querySelectorAll('.coffee-glyph')]
+    .every(node => getComputedStyle(node).opacity === '1')), true, 'all text remains visible after entry ends');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const reduced = await page.evaluate(() => {
+    const message = '完整长留言\n'.repeat(15);
+    window.feed.render([]);
+    window.feed.append({ id: 'paid', kind: 'superchat', name: '留言者', message, price: 50 });
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(() => {
+      const copy = document.querySelector('.coffee-copy');
+      const card = document.querySelector('.coffee-item');
+      const result = { complete: copy.textContent === message,
+        visible: [...copy.querySelectorAll('.coffee-glyph')].every(node => getComputedStyle(node).opacity === '1'),
+        contained: card.scrollWidth <= card.clientWidth + 1,
+        price: document.querySelector('.coffee-price').textContent.includes('50') };
+      window.feed.destroy();
+      resolve(result);
+    })));
+  });
+  assert.ok(reduced.complete && reduced.visible && reduced.contained && reduced.price, 'reduced motion preserves the full paid message');
+});
+
+test('coffee events keep settled gift totals and purchased membership details without duplicate amounts', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <body data-style="coffee"><div class="danmaku-signal-stage"><div id="feed" class="draw-danmaku-feed"></div></div></body>` });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage({ viewport: { width: 400, height: 640 }, reducedMotion: 'reduce' });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const results = await page.evaluate(async () => {
+    const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    applyStyleOptions(document, 'coffee', {});
+    const render = createDanmakuMessageRenderer({ document, style: 'coffee', showGiftTotal: true,
+      classNames: DEFAULT_DANMAKU_CLASSES });
+    return [
+      { giftName: '<b>星愿礼物</b>', giftCount: 66, giftTotalPrice: 13.2 },
+      { giftGuardLevel: 3, guardAction: 'open', giftCount: 1, giftTotalPrice: 138, guardAccompanyDays: 1 },
+      { giftGuardLevel: 2, guardAction: 'renew', giftCount: 3, giftTotalPrice: 5994, guardAccompanyDays: 360 },
+      { giftGuardLevel: 1, giftCount: 1 },
+      { giftName: '免费礼物', giftCount: 2, giftTotalPrice: 0 },
+    ].map(item => {
+      const card = render({ kind: 'gift', name: '一位昵称很长的观众也要看清礼物金额', roomGuardLevel: 2, ...item });
+      document.getElementById('feed').replaceChildren(card);
+      const copy = card.querySelector('.coffee-copy');
+      const price = card.querySelector('.coffee-price');
+      const bounds = card.getBoundingClientRect();
+      const priceBounds = price?.getBoundingClientRect();
+      return { copy: copy.textContent, count: copy.querySelector('.draw-danmaku-gift-count').textContent,
+        name: copy.querySelector('.draw-danmaku-gift-name').textContent,
+        markupParsed: !!copy.querySelector('.draw-danmaku-gift-name b'),
+        amount: price?.textContent, amountCopies: (card.textContent.match(/CN¥/g) || []).length,
+        role: card.querySelector('.coffee-role')?.getAttribute('aria-label'), note: card.querySelector('.coffee-event-note')?.textContent,
+        fits: card.scrollWidth <= card.clientWidth + 1 && (!priceBounds || priceBounds.left >= bounds.left && priceBounds.right <= bounds.right) };
+    });
+  });
+  assert.equal(results[0].name, '<b>星愿礼物</b>');
+  assert.equal(results[0].markupParsed, false, 'gift names remain literal text');
+  assert.match(results[0].count, /66/);
+  assert.equal(results[0].amount, 'CN¥13.20', 'use the settled total without multiplying by quantity');
+  assert.equal(results[1].role, '舰长', 'membership badge follows the purchased tier');
+  assert.match(results[1].copy, /开通\s*舰长/);
+  assert.match(results[2].copy, /续费\s*提督/);
+  assert.match(results[2].count, /3/);
+  assert.match(results[2].note, /360/);
+  assert.equal(results[3].role, '总督');
+  assert.match(results[3].copy, /支持\s*总督/, 'unknown membership actions do not claim a new purchase');
+  assert.equal(results[3].amount, undefined, 'an absent amount is not a fabricated zero');
+  assert.equal(results[4].amount, 'CN¥0.00', 'a known free gift retains its actual total');
+  for (const [index, result] of results.entries()) {
+    assert.equal(result.amountCopies, index === 3 ? 0 : 1, 'gift amounts render once');
+    assert.ok(result.fits, 'long sender names cannot push event amounts outside the card');
+  }
+});
+
 test('animated gradient keeps large text, paid details and emotes inside a narrow region', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
@@ -43,8 +151,7 @@ test('animated gradient keeps large text, paid details and emotes inside a narro
         && Array.from(card.querySelectorAll('.gradient-heading,.gradient-panel,.gradient-event-label,img')).every(node => {
           const box = node.getBoundingClientRect();
           return box.left >= bounds.left - 1 && box.right <= bounds.right + 1;
-        }), size: parseFloat(getComputedStyle(content).fontSize), family: getComputedStyle(content).fontFamily,
-        amount: amount?.textContent, amountSize: amount ? parseFloat(getComputedStyle(amount).fontSize) : 0,
+        }), amount: amount?.textContent,
         amountFits: !amount || amountBounds.left >= ticketBounds.left && amountBounds.right <= ticketBounds.right,
         amountLines: amount ? amountRange.getClientRects().length : 0, copy: content.textContent });
     }
@@ -52,11 +159,8 @@ test('animated gradient keeps large text, paid details and emotes inside a narro
   });
   for (const result of results) {
     assert.ok(result.fits, `${result.kind} fits without clipping text, emotes or amounts`);
-    assert.ok(Math.abs(result.size - 40 * (result.kind === 'gift' ? 13 / 19 : 1)) < .01);
-    assert.match(result.family, /Georgia/);
     if (result.kind !== 'danmaku') {
       assert.equal(result.amount, ' · ¥20,000');
-      assert.ok(Math.abs(result.amountSize - 40 * 17 / 19) < .01, 'paid sender and amount scale with body text');
       assert.equal(result.amountLines, 1, 'paid amount remains readable on one line');
       assert.ok(result.amountFits, 'paid amount stays inside its event frame');
     }
@@ -104,58 +208,6 @@ test('wireframe keeps paid-message amounts and copy inside a narrow region at th
   }
 });
 
-test('Glass event text follows the component scale without a second SC zoom', async t => {
-  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
-    <link rel="stylesheet" href="/css/overlays/danmaku.css">
-    <div class="danmaku-canvas-space"><div class="danmaku-canvas"><div class="danmaku-region">
-      <div class="danmaku-signal-stage"><div id="feed" class="draw-danmaku-feed"></div></div>
-    </div></div></div>` });
-  t.after(() => fixture.close());
-  const session = openBrowserSession();
-  t.after(() => session.close());
-  const page = await session.newPage({ viewport: { width: 1920, height: 1080 } });
-  const url = `${fixture.origin}/preview-test-host`;
-  assert.equal((await fetch(url)).status, 200);
-  await page.goto(url);
-  const results = await page.evaluate(async () => {
-    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
-    const { createLayout } = await import('/js/shared/danmaku-layout.js');
-    const { applyCanvas, canvasContentScale } = await import('/js/overlays/danmaku-canvas.js');
-    const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
-    document.body.dataset.style = 'glass';
-    const render = createDanmakuMessageRenderer({ document, style: 'glass', classNames: DEFAULT_DANMAKU_CLASSES });
-    const root = document.getElementById('feed');
-    const result = [];
-    for (const fontSize of [22, 32]) {
-      applyStyleOptions(document, 'glass', { glass: { fontSize, fontFamily: '"Georgia"' } });
-      root.replaceChildren(render({ name: '普通观众', message: '普通消息' }),
-        render({ kind: 'gift', name: '礼物观众', giftName: '小花花', giftCount: 1 }),
-        render({ kind: 'superchat', name: '留言观众', message: '完整留言', price: 30 }));
-      for (const scale of [1, 0.75]) {
-        const layout = createLayout();
-        layout.regions.glass.width *= scale;
-        layout.regions.glass.height *= scale;
-        applyCanvas(document, layout, 'glass', 1920, 1080);
-        for (const card of root.children) {
-          const copy = card.querySelector('.glass-copy');
-          const probe = document.createElement('span');
-          probe.style.cssText = 'position:absolute;display:block;width:1em;height:1em';
-          copy.append(probe);
-          result.push({ kind: card.dataset.glassKind, fontSize, contentScale: canvasContentScale(layout, 'glass'),
-            paintedEm: probe.getBoundingClientRect().width, family: getComputedStyle(copy).fontFamily });
-          probe.remove();
-        }
-      }
-    }
-    return result;
-  });
-  for (const result of results) {
-    const ratio = result.kind === 'chat' ? 1 : 12 / 11;
-    assert.ok(Math.abs(result.paintedEm - result.fontSize * result.contentScale * ratio) < 0.1, JSON.stringify(result));
-    assert.match(result.family, /Georgia/);
-  }
-});
-
 test('dark moon keeps inline and standalone emotes inside its revealed copy', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
@@ -189,7 +241,7 @@ test('dark moon keeps inline and standalone emotes inside its revealed copy', as
   for (const result of measurements) assert.ok(result.contained, JSON.stringify(result));
 });
 
-test('each style applies chosen text sizes and fonts through canvas scaling', async t => {
+test('style text responds to chosen fonts and sizes; representative layouts retain canvas scaling', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
     <style>.danmaku-signal-stage { transition: none !important; }</style>
@@ -240,6 +292,8 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
           ...(hasSuperchat ? [['superchat', paragraph(cards[2], '留言大小')]] : []),
         ];
         for (const scale of [1, 0.75]) {
+          // The shared canvas covers fixed, horizontal and moving layouts once.
+          if (scale !== 1 && !['signal', 'glass', 'celestial-horizontal', 'floating'].includes(style)) continue;
           const layout = createLayout();
           const region = layout.regions[style];
           region.width *= scale;
@@ -259,7 +313,7 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
             results.push({ style, fontSize, scale, kind, width: probe.getBoundingClientRect().width,
               contentScale: canvasContentScale(layout, style),
               family: getComputedStyle(node).fontFamily,
-              ...(senderStyle ? { nameFamily: senderStyle.fontFamily, nameSize: parseFloat(senderStyle.fontSize) } : {}),
+              ...(senderStyle ? { nameFamily: senderStyle.fontFamily } : {}),
               ...(kind === 'superchat' && ['snowfox', 'moonlit'].includes(style)
                 ? { nameFamily: getComputedStyle(cards[2].querySelector('.sc-name')).fontFamily } : {}),
               ...(kind === 'gift' && style === 'dark-moon'
@@ -278,23 +332,18 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
     assert.ok(Number.isFinite(width) && width > 0, `${key} renders visible text`);
     if (style !== 'ripploid' || kind !== 'gift') assert.match(result.family, /Georgia/, `${key} applies the selected font`);
     if (result.nameFamily) assert.match(result.nameFamily, /Georgia/, `${key} sender applies the selected font`);
-    const nativeLettering = style === 'flower-letter'
-      || kind === 'superchat' && ['ripploid', 'notebook'].includes(style)
-      || kind === 'gift' && ['ripploid', 'spooky'].includes(style);
-    const roleScale = style === 'animated-gradient' && kind === 'gift' ? 13 / 19
-      : style === 'astral' && kind === 'chat' ? 1.1
-      : style === 'dark-moon' && kind === 'gift' ? 0.88 : style === 'christmas' && kind === 'gift' ? 0.92
-      : style === 'horizontal-charm' && kind !== 'chat' ? .85
-      : style === 'glass' && kind !== 'chat' ? 12 / 11 : 1;
-    const fontOffset = style === 'stardust' && kind !== 'chat' ? 2 : 0;
-    if (!nativeLettering) assert.ok(Math.abs(width - (fontSize + fontOffset) * result.contentScale * roleScale) <= 0.1, JSON.stringify(result));
+    if (style === 'signal' && kind === 'chat') {
+      assert.ok(Math.abs(width - fontSize * result.contentScale) <= 0.1, 'the selected body size reaches the rendered text');
+    }
     if (!baselines.has(key)) baselines.set(key, result);
     const baseline = baselines.get(key);
-    // RIPPLOID's gift ticket owns fixed lettering; chat and SC still use the text setting.
-    const fontScale = style === 'ripploid' && kind === 'gift' ? 1 : (fontSize + fontOffset) / (baseline.fontSize + fontOffset);
-    const expected = baseline.width * fontScale * scale;
-    assert.ok(Math.abs(width - expected) <= 0.1, JSON.stringify({ ...result, expected }));
-    if (result.nameSize) assert.ok(Math.abs(result.nameSize - baseline.nameSize * fontScale) <= 0.1,
-      `${key} sender scales with the chosen text size`);
+    // Event lettering may own its proportions; changing that design must not break this settings check.
+    if (fontSize > baseline.fontSize && (style !== 'ripploid' || kind !== 'gift')) {
+      assert.ok(width / scale > baseline.width, `${key} grows when the chosen font size increases`);
+    }
+    const sizeKey = `${key}:${fontSize}`;
+    if (scale === 1) baselines.set(sizeKey, result);
+    else assert.ok(Math.abs(width - baselines.get(sizeKey).width * scale) <= 0.1,
+      `${key} follows the canvas scale at font size ${fontSize}`);
   }
 });

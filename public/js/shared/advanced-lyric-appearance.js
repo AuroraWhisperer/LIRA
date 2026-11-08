@@ -13,7 +13,9 @@ export const LYRIC_DISPLAY_FIELDS = Object.freeze({
 
 export const ADVANCED_LYRIC_FIELDS = Object.freeze({
   advancedLyricLayout: select('排版', 'center', 'layouts', 'layout'),
-  advancedLyricShowNextLine: check('显示下一句', true, 'display'),
+  // Retained for saved settings/presets; advanced output only renders the current line.
+  advancedLyricShowNextLine: { ...check('显示下一句', false, 'display'), hidden: true },
+  advancedLyricHideUnsung: check('隐藏未唱到的字', true, 'display'),
   advancedLyricShowTranslation: check('显示翻译', false, 'display'),
   advancedLyricHideOnPause: check('暂停时隐藏', false, 'display'),
   advancedLyricFontFamily: { label: '字体', type: 'text', default: 'Lira Maiyuan', maxLength: 256, group: 'font' },

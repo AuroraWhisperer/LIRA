@@ -262,6 +262,10 @@
   contain-intrinsic-block-size: auto 0px;
 }
 
+.lira-select:has(> select[data-select-font-preview]) .lira-select-menu {
+  animation: none;
+}
+
 /* Outrank the shell-wide `label, button` weight so only the chosen row is bold. */
 :is(.lira-select-menu, .lira-multiselect-menu, .lira-select-panel) :is(.lira-select-option, .lira-multiselect-option) {
   font-weight: var(--type-weight-regular);

@@ -41,7 +41,7 @@
 }
 
 .desktop-lyric-preview-stage {
-  height: clamp(360px, calc(100vh - 210px), 760px);
+  height: clamp(320px, calc(100vh - 240px), 760px);
 }
 
 .desktop-lyric-workspace .desktop-lyric-preview-viewport:has(.desktop-lyric-preview-empty) {
@@ -65,46 +65,6 @@
 
 .desktop-lyric-workspace .desktop-lyric-preview-empty {
   font-size: 13.5px;
-}
-
-@media (min-width: 981px) {
-  #desktopLyricPage > .other-feature-panel-body {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-  #desktopLyricPage .desktop-lyric-workspace {
-    flex: 1 1 0;
-    min-height: 0;
-    grid-template-rows: minmax(0, 1fr);
-    align-items: stretch;
-  }
-
-  #desktopLyricPage .desktop-lyric-settings {
-    min-height: 0;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    scrollbar-gutter: stable;
-    padding-right: 8px;
-  }
-
-  #desktopLyricPage .desktop-lyric-preview-card {
-    position: relative;
-    top: auto;
-    height: 100%;
-    min-height: 0;
-    max-height: 100%;
-  }
-
-  #desktopLyricPage .desktop-lyric-preview-stage {
-    flex: 1 1 0;
-    height: auto;
-  }
-
-  #desktopLyricPage :is(.desktop-lyric-preview-header, .lyric-preview-footer) {
-    flex: 0 0 auto;
-  }
 }
 
 @container admin-lyric-preview (max-width: 560px) {

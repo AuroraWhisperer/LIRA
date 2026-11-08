@@ -308,7 +308,7 @@ test('reduced motion keeps timed line changes while inactive output stops its sh
   renderer.applySettings({ advancedLyricEnabled: 'true' });
   renderer.updatePreviewState(state);
   const advanced = elements.get('advancedLyricPreviewStage');
-  assert.equal(advanced.getAttribute('aria-label'), '第一句\n第二句');
+  assert.equal(advanced.getAttribute('aria-label'), '第一句');
   assert.equal(frames.size, 1, 'the shared clock must still drive line changes when motion is reduced');
   advance(4200);
   assert.equal(advanced.getAttribute('aria-label'), '第二句');

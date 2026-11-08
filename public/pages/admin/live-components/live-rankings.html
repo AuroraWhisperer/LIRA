@@ -1,0 +1,18 @@
+<section id="liveRankingsFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="liveRankingsFeatureTab" data-other-feature-panel hidden>
+  <div class="live-rankings-page">
+    <header class="live-rankings-heading">
+      <div><h2>实时榜单</h2><p data-rankings="room">跟随当前账号配置的直播间</p></div>
+      <div class="live-rankings-actions">
+        <button class="secondary" type="button" data-rankings="pause" aria-pressed="false">暂停查看</button>
+        <button class="primary" type="button" data-rankings="display">配置直播画面</button>
+      </div>
+    </header>
+    <div class="live-rankings-toolbar">
+      <label>查看范围 <select data-rankings="range"><option value="all">完整榜单</option><option value="nearby">本房间附近</option></select></label>
+      <label data-rankings="neighbors" hidden>上下各 <input data-rankings="nearby" aria-label="上下各几名" type="number" min="0" max="10" step="1" value="2"> 名</label>
+      <p class="live-rankings-status" data-rankings="status" role="status">正在连接榜单…</p>
+    </div>
+    <div data-rankings="boards" aria-label="B 站实时四榜"></div>
+    <p class="live-rankings-help">热门榜分为全站与新人；人气分区取自当前直播间。分值按 B 站原始热度值／助力值显示。倒计时受网络及 B 站更新影响，以 B 站实际结榜为准。直播展示可在画布中选择榜单、完整翻页或附近名次，再保存并复制独立地址。</p>
+  </div>
+</section>

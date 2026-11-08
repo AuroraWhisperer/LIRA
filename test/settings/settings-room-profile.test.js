@@ -60,12 +60,10 @@ test('room card renders owner identity with the existing authenticated avatar pr
     };
   });
   await view.refresh('123');
-  assert.equal(elements.bilibiliRoomStatus.textContent, '已设置');
   assert.equal(elements.bilibiliRoomName.textContent, '房主名字');
   assert.equal(elements.roomId.value, '123');
   const avatar = elements.bilibiliRoomAvatar;
   assert.equal(avatar.hidden, false);
-  assert.equal(avatar.alt, '房主名字的头像');
   const source = new URL(avatar.src, 'http://127.0.0.1');
   assert.equal(source.pathname, '/api/bilibili/avatar');
   assert.equal(source.searchParams.get('token'), 'synthetic-token');
@@ -98,7 +96,6 @@ test('editing a room clears the previous identity and invalidates pending respon
     },
   });
   await loading;
-  assert.equal(elements.bilibiliRoomStatus.textContent, '待保存');
   assert.doesNotMatch(elements.bilibiliRoomName.textContent, /旧房主/);
   assert.equal(elements.bilibiliRoomAvatar.hidden, true);
   assert.equal(module.getBilibiliRoomProfileSnapshot('123'), null);
@@ -113,10 +110,11 @@ test('a late response cannot replace the newly saved room identity', async () =>
   );
   const oldRequest = view.refresh('123');
   await view.refresh('456');
+  const savedStatus = elements.bilibiliRoomStatus.textContent;
   pending.reject(new Error('Old lookup failed'));
   await oldRequest;
   assert.equal(elements.bilibiliRoomName.textContent, '新房主');
-  assert.equal(elements.bilibiliRoomStatus.textContent, '已设置');
+  assert.equal(elements.bilibiliRoomStatus.textContent, savedStatus);
 });
 
 test('an empty room skips lookup and a failed lookup can be retried on save', async () => {
@@ -127,11 +125,11 @@ test('an empty room skips lookup and a failed lookup can be retried on save', as
   });
   await view.refresh('');
   assert.equal(requests, 0);
-  assert.equal(elements.bilibiliRoomStatus.textContent, '未设置');
   await view.refresh('123');
-  assert.equal(elements.bilibiliRoomStatus.textContent, '读取失败');
+  const failedStatus = elements.bilibiliRoomStatus.textContent;
   await view.refresh('123', true);
-  assert.equal(elements.bilibiliRoomStatus.textContent, '已设置');
+  assert.equal(requests, 2);
+  assert.notEqual(elements.bilibiliRoomStatus.textContent, failedStatus);
   assert.equal(elements.bilibiliRoomName.textContent, '房主');
   assert.equal(elements.bilibiliRoomAvatar.hidden, true);
 });

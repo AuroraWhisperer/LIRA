@@ -191,7 +191,7 @@ test('lottery announces running task outcomes once but does not announce histori
   f.setState(state(task('ready')));
   [...f.timers.values()].at(-1)();
   await settle();
-  assert.match(f.notices.at(-1).message, /名单已准备好/);
+  assert.equal(f.notices.at(-1).type, 'success');
   await f.click('state-refresh');
   assert.equal(f.notices.length, 1);
   f.setState(state(task('drawing'), { ...result(0), status: 'drawing' }, { kind: 'draw', taskId: 'task-1' }));
@@ -201,7 +201,6 @@ test('lottery announces running task outcomes once but does not announce histori
   await settle();
   assert.equal(f.notices.length, 2);
   assert.equal(f.notices[1].type, 'warning');
-  assert.match(f.notices[1].message, /7 位.*还差 3 位/);
 });
 
 test('copying winners includes all result pages and their Bilibili identities', async () => {

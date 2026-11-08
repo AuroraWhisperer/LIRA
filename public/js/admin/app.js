@@ -109,6 +109,7 @@ const liveComponents = createToolboxLifecycle({
     liveRatingFeature: loadInteractions,
     nowPlayingPage: () => import('./now-playing.js').then((module) => module.initNowPlaying),
     otherTextBoxFeature: () => import('./text-box.js').then((module) => module.initTextBoxes),
+    liveRankingsFeature: () => import('./live-rankings.js').then((module) => module.initLiveRankings),
     otherOvertimeMachineFeature: () =>
       import('./overtime.js').then((module) => () => module.initOvertime(stateService.getAppState())),
   },

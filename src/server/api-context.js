@@ -36,6 +36,7 @@ function createApiContext(options) {
     worldClock: options.worldClock,
     dynamicLottery: options.dynamicLottery,
     scenes: options.scenes,
+    liveRankings: options.liveRankings,
     sceneEvents: options.sceneEvents,
     readDanmakuDisplay: options.readDanmakuDisplay,
     danmakuAppearance: options.danmakuAppearance,

@@ -9,7 +9,7 @@ function loadModel() {
   const source = readJsModuleBundle('public', 'js', 'admin', 'streamer-planner-model.js');
   const sandbox = { console, crypto: { randomUUID: () => 'generated-id' } };
   vm.runInNewContext(
-    `${source}\nthis.model = { STORAGE_KEY, PREVIOUS_STORAGE_KEY, LEGACY_STORAGE_KEY, STAGES, NOTE_LABELS, NOTE_STAGE, EVENT_LABELS, createItemId, toDateValue, getCalendarDays, shiftMonth, normalizeEvent, getEventReminderTimestamp, normalizeTask, normalizeTasks, normalizeNote, createDefaultState, normalizeState };`,
+    `${source}\nthis.model = { STAGES, NOTE_LABELS, NOTE_STAGE, EVENT_LABELS, createItemId, toDateValue, getCalendarDays, shiftMonth, normalizeEvent, getEventReminderTimestamp, normalizeTask, normalizeTasks, normalizeNote, createDefaultState, normalizeState };`,
     sandbox,
   );
   return sandbox.model;
@@ -37,12 +37,6 @@ test('old events keep reminders off; timed reminders follow the event and all-da
   assert.equal(model.normalizeEvent({ ...original, reminderTime: '24:00' }), null);
   const restored = model.normalizeState({ version: 3, events: [allDay] });
   assert.equal(restored.events[0].reminderTime, '09:30');
-});
-
-test('exports the persisted v3 and legacy storage names', () => {
-  assert.equal(model.STORAGE_KEY, 'admin.streamerWorkbench.v3');
-  assert.equal(model.PREVIOUS_STORAGE_KEY, 'admin.streamerWorkbench.v2');
-  assert.equal(model.LEGACY_STORAGE_KEY, 'admin.streamerPlanner.v1');
 });
 
 test('normalizes tasks and filters only exact historical starters when requested', () => {

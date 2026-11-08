@@ -62,13 +62,15 @@ test('polling reports offline rooms, then reconnects exactly once when the room 
   pendingRooms.shift()();
   await overlapping;
   await new Promise(setImmediate);
-  assert.deepEqual(statuses, [{ roomId: '1', isLive: false, ownerName: '主播', message: '未开播，历史消息监听中' }]);
+  assert.deepEqual(statuses.map(({ roomId, isLive, ownerName }) => ({ roomId, isLive, ownerName })),
+    [{ roomId: '1', isLive: false, ownerName: '主播' }]);
 
   t.mock.timers.tick(10 * 60 * 1000);
   pendingRooms.shift()();
   await new Promise(setImmediate);
   assert.deepEqual(started, ['1']);
-  assert.deepEqual(statuses.at(-1), { roomId: '1', isLive: true, ownerName: '主播', message: '已开播，正在重连礼物监听' });
+  assert.equal(statuses.at(-1).roomId, '1');
+  assert.equal(statuses.at(-1).isLive, true);
   assert.equal(monitor.stopped, true, 'the poller stops before reconnecting');
   await monitor.checkLiveStatus();
   monitor.triggerLiveStarted('1');

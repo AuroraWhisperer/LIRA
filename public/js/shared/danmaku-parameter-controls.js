@@ -38,6 +38,31 @@ const GROUPS = {
 };
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
 const isFixedStyle = style => Boolean(DANMAKU_STYLE_OPTIONS[style]) && (DANMAKU_STYLE_OPTIONS[style].layout || 'fixed') === 'fixed';
+// Display names for the CSS font inherited by the existing `default` choice.
+const STYLE_FONT_NAMES = {
+  coffee: '楷体',
+  astral: 'Nunito',
+  'celestial-horizontal': 'Montserrat',
+  'horizontal-charm': 'Nunito',
+  'neon-glass': 'Nunito',
+  ripploid: '思源宋体 / 宋体',
+  stargazer: 'Poppins',
+  wireframe: 'Times New Roman / 思源宋体',
+  'christmas-letter': 'Nunito',
+  glowy: 'Arial',
+  glass: 'Quicksand',
+  'animated-gradient': 'Montserrat',
+  spooky: 'Nunito',
+  twitter: 'Arial',
+  'flower-letter': '悠哉字体',
+  'dark-moon': 'Nunito',
+  moonlit: '宋体',
+  'sea-breeze': 'Times New Roman / 思源宋体',
+  'sea-breeze-random': 'Times New Roman / 思源宋体',
+  outline: 'Segoe UI',
+  'glass-bubble': 'M PLUS Rounded 1c',
+  starveil: '思源宋体 / 宋体',
+};
 
 export function mountDanmakuParameters(host, controller, {
   prefix = 'danmaku', desktop = true, onError, resetButton, fontScale = () => 1,
@@ -145,7 +170,7 @@ export function mountDanmakuParameters(host, controller, {
       output.htmlFor = input.id; view.heading.append(output);
     }
     if (definition.type === 'select' || definition.type === 'font') {
-      const choices = definition.choices || [['default', '使用样式字体'], ['sans', '微软雅黑'], ['serif', '宋体'], ['kai', '楷体']];
+      const choices = definition.choices || [['default', '默认字体'], ['sans', '微软雅黑'], ['serif', '宋体'], ['kai', '楷体']];
       for (const [value, text] of choices) {
         const option = element('option', '', text); option.value = value; input.append(option);
         if (definition.type === 'font' && DANMAKU_FONTS[value]) option.dataset.fontFamily = DANMAKU_FONTS[value];
@@ -201,6 +226,7 @@ export function mountDanmakuParameters(host, controller, {
   });
   const fontInput = views.get('fontFamily').input;
   const unregisterFont = registerFontSelect(fontInput);
+  const defaultFontOption = Array.from(fontInput.options).find(option => option.value === 'default');
   const reset = () => {
     const { draft, loaded } = controller.getState();
     if (loaded && Object.hasOwn(draft, 'styleOptions')) controller.edit({ styleOptions: resetStyleOptions(draft).styleOptions });
@@ -210,6 +236,8 @@ export function mountDanmakuParameters(host, controller, {
   function render({ draft, loaded }, force = false) {
     force ||= renderedStyle !== draft.style;
     renderedStyle = draft.style;
+    const defaultFontLabel = `${STYLE_FONT_NAMES[draft.style] || '微软雅黑'}（默认）`;
+    if (defaultFontOption.textContent !== defaultFontLabel) defaultFontOption.textContent = defaultFontLabel;
     fixed.hidden = !isFixedStyle(draft.style);
     const fields = styleOptionFields(draft.style);
     const options = styleOptionsFor(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds);

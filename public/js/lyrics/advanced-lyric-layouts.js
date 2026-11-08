@@ -13,7 +13,7 @@ export function createAdvancedLyricText(line) {
   if (!text) return [];
   const startMs = finite(line.startMs, 0);
   const endMs = Math.max(startMs + 1, finite(line.endMs, startMs + 4000));
-  if (JOINING_TEXT.test(text)) return [{ text, startMs, endMs, fillStart: 0, fillEnd: 1 }];
+  if (JOINING_TEXT.test(text)) return [{ text, startMs, endMs, fillStart: 0, fillEnd: 1, revealAsRun: true }];
   const segments = [...graphemeSegmenter.segment(text)];
   const units = segments.map(({ segment, index }, ordinal) => ({
     text: segment, offset: index, startMs, endMs,
@@ -46,7 +46,7 @@ export function createAdvancedLyricText(line) {
     grouped.push({ text: chunk.map(unit => unit.text).join(''), offset: first.offset,
       startMs: first.startMs + (first.endMs - first.startMs) * first.fillStart,
       endMs: last.startMs + (last.endMs - last.startMs) * last.fillEnd,
-      fillStart: 0, fillEnd: 1 });
+      fillStart: 0, fillEnd: 1, revealAsRun: true });
   }
   return grouped;
 }
@@ -91,17 +91,14 @@ function group(range, x, y, width, size = 1, extra = {}) {
   return { ...range, x, y, width, size, rotation: 0, source: 'current', ...extra };
 }
 
-export function buildAdvancedLyricLayout(layout, units, nextUnits = [], options = {}) {
+export function buildAdvancedLyricLayout(layout, units) {
   if (!units.length) return [];
   const all = { start: 0, end: units.length };
   const split = count => partitionAdvancedLyricText(units, count);
-  const hasNext = options.showNext !== false && nextUnits.length > 0;
-  const next = (x = 50, y = 88, width = 78, size = 0.46) => group({ start: 0, end: nextUnits.length }, x, y, width, size, { source: 'next', tone: 'secondary' });
   let items;
   switch (layout) {
     case 'duet':
-      items = hasNext ? [group(all, 50, 33, 90, 1.35), next(50, 70, 86, 0.82)]
-        : split(2).map((range, index) => group(range, 50, 32 + index * 35, 88, index ? 1.05 : 1.4));
+      items = split(2).map((range, index) => group(range, 50, 32 + index * 35, 88, index ? 1.05 : 1.4));
       break;
     case 'offset':
       items = split(2).map((range, index) => group(range, index ? 61 : 39, 30 + index * 35, 70, index ? 1.5 : 1.05, { align: index ? 'right' : 'left' }));
@@ -194,8 +191,7 @@ export function buildAdvancedLyricLayout(layout, units, nextUnits = [], options 
         { align: index === 1 ? 'right' : 'left', tone: index === 1 ? 'accent' : '', plate: index === 2 ? 'label' : '' }));
       break;
     default:
-      items = [group(all, 50, hasNext ? 43 : 50, 90, 1.4)];
+      items = [group(all, 50, 50, 90, 1.4)];
   }
-  if (hasNext && layout !== 'duet') items.push(next());
   return items;
 }

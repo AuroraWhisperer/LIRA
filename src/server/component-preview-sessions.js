@@ -34,6 +34,10 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
   const anonymousScope = crypto.randomUUID();
   const owner = () => JSON.stringify(getOwner());
 
+  const isAttached = session => Boolean(session.attachmentId && !session.detached && now() - session.browserTouched < 30000);
+  const desktopState = session => ({ commands: session.commands, closed: session.closed === true,
+    ...(session.component === 'canvas' ? { attached: isAttached(session) } : {}) });
+
   function wake(session, side) {
     session?.waiters?.get(side)?.();
   }
@@ -99,7 +103,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       const current = validate(false);
       return { updates: entries.map((entry, index) => ({ id: entry.id,
         ...(side === 'browser' ? browser(entry, entry.token)
-          : copy({ commands: current[index].commands, closed: current[index].closed === true })) })), waitMs };
+          : copy(desktopState(current[index]))) })), waitMs };
     };
     const initial = read();
     const idle = initial.updates.every((update, index) => side === 'browser'
@@ -280,7 +284,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
     if (hasState || hasDisplay || ackChanged) wake(session, 'browser');
     const read = () => {
       const current = get(id);
-      return copy({ commands: current.commands, closed: current.closed === true, ...(waitMs ? { waitMs } : {}) });
+      return copy({ ...desktopState(current), ...(waitMs ? { waitMs } : {}) });
     };
     return waitMs && !session.commands.length && !session.closed
       ? waitFor([session], 'desktop', waitMs, signal, read) : read();
@@ -308,6 +312,8 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
         session.lastCommand = undefined;
       }
       session.touched = now();
+      session.browserTouched = now();
+      wake(session, 'desktop');
       wake(session, 'browser');
       return publicState(session);
     }
@@ -320,6 +326,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       session.focusRequest?.finish(false);
       // Keep the last identity so an in-flight startup read can still attach safely.
       session.detached = true;
+      wake(session, 'desktop');
       wake(session, 'browser');
       return {};
     }
@@ -332,6 +339,9 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       return {};
     }
     if (action === 'read') {
+      const attached = isAttached(session);
+      session.browserTouched = now();
+      if (!attached && isAttached(session)) wake(session, 'desktop');
       if (session.focusRequest && session.focusRequest.selection.id === focusId && session.focusRequest.attachmentId === attachmentId) {
         session.focusRequest.finish(true);
       }

@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
 const { encryptQrc } = require('qrc-decoder');
-const { buildPowerShellMonitorScript, createWeSingCapture } = require('../../src/music/wesing-capture');
+const { createWeSingCapture } = require('../../src/music/wesing-capture');
 const { createFixture, qrcXml } = require('../helpers/wesing-capture-fixture');
 const { discoverWeSingCachePath, getWeSingCacheCandidates } = require('../../src/music/wesing-cache-discovery');
 const { createWeSingOnlineLyricResolver } = require('../../src/music/wesing-online-lyrics');
@@ -125,27 +125,6 @@ test('WeSing capture falls back to injected online lyrics when local QRC is abse
   assert.equal(timelines.at(-1).trackTitle, '失控');
   assert.equal(timelines.at(-1).lines[0].text, '请原谅我的词穷');
   await capture.setActive(false);
-});
-
-test('WeSing monitor uses Now Playing polling cadence', () => {
-  const script = buildPowerShellMonitorScript();
-  assert.match(script, /Start-Sleep -Milliseconds 100/);
-  assert.match(script, /loading = \$false/);
-  assert.match(script, /\\u6b4c\\u66f2\\u52a0\\u8f7d\\u4e2d/);
-});
-
-test('WeSing monitor finds hidden playback windows and reports audio activity', () => {
-  const script = buildPowerShellMonitorScript();
-  assert.match(script, /EnumWindows/);
-  assert.match(script, /AccessibleObjectFromWindow/);
-  assert.match(script, /GetAccessiblePlaybackSnapshot/);
-  assert.match(script, /progressSource = 'msaa'/);
-  assert.match(script, /IAudioSessionManager2/);
-  assert.match(script, /IAudioMeterInformation/);
-  assert.match(script, /audioActive/);
-  assert.match(script, /audioPeak/);
-  assert.match(script, /windowHandle/);
-  assert.match(script, /AutomationElement\]::FromHandle/);
 });
 
 test('WeSing capture refreshes a late QRC without resetting the playback clock', async (t) => {

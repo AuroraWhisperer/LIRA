@@ -1,7 +1,6 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 
@@ -10,7 +9,7 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 const ROOT_DIR = path.join(__dirname, '../..');
 
 test('early theme preset references receive asynchronously loaded data', async () => {
-  const config = JSON.parse(fs.readFileSync(path.join(ROOT_DIR, 'public', 'data', 'theme-presets.json'), 'utf8'));
+  const config = { presets: { classic: { sample: { accent: '#123456' } }, songBoard: { sample: { fontSize: 28 } } } };
   const browserWindow = { AdminApp: {} };
   const themeModule = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'shared', 'theme.js'), {
     window: browserWindow,

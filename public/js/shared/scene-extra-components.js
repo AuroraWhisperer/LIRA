@@ -4,6 +4,7 @@ import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE
 import { NOW_PLAYING_FIELDS } from './now-playing-appearance.js';
 import { GIFT_WISH_RIBBON_FIELDS } from './gift-wish-ribbon-appearance.js';
 import { ADVANCED_LYRIC_FIELDS, LYRIC_DISPLAY_FIELDS } from './advanced-lyric-appearance.js';
+import { LIVE_RANKING_COMPONENT } from './live-rankings.js';
 
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
@@ -15,6 +16,7 @@ const variant = (value, label, sample = label) => ({ value, label, sample });
 const fontWeight = select('字重', '800', { 400: '常规', 500: '中等', 600: '半粗', 700: '加粗', 800: '特粗', 900: '超粗' });
 
 export const SCENE_EXTRA_COMPONENTS = Object.freeze({
+  'live-rankings': LIVE_RANKING_COMPONENT,
   background: {
     title: '背景', size: [1920, 1080], path: '/background', variantKey: 'style',
     variants: [],

@@ -443,7 +443,7 @@
 }
 
 .audio-assistant-compact {
-  padding: 18px 20px;
+  padding: 12px 20px 18px;
 }
 
 .audio-assistant-current {
@@ -452,13 +452,13 @@
   justify-content: space-between;
   gap: 16px;
   margin-bottom: 12px;
-  padding-bottom: 18px;
+  padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 
 .audio-assistant-current > div {
   display: grid;
-  gap: 6px;
+  gap: 4px;
   min-width: 0;
 }
 

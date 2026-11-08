@@ -9,24 +9,16 @@ body[data-style='neon-glass'] {
 }
 body[data-style='neon-glass'][data-custom-font='true'] { --neon-glass-font: var(--danmaku-custom-font); }
 body[data-style='neon-glass'] .danmaku-signal-header { display: none; }
-body[data-style='neon-glass']:not(.has-layout) .danmaku-region { display: flex; flex-direction: column; }
 body[data-style='neon-glass'] .danmaku-signal-stage {
-  position: relative; display: flex; align-items: center; flex: none; width: 100%; height: 144px;
-  max-width: none; margin-top: auto; padding: 0; background: none; border: 0; box-shadow: none;
+  position: relative; padding: 0; background: none; border: 0; box-shadow: none;
 }
-body[data-style='neon-glass'].has-layout .danmaku-signal-stage { height: var(--region-content-height); }
 body[data-style='neon-glass'] .draw-danmaku-feed {
-  position: relative; display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
-  width: 100%; height: 100%; padding: 14px 24px; gap: 16px; overflow: hidden; mask: none;
-}
-body[data-style='neon-glass'] .draw-danmaku-feed:not([data-flow-overflow='true']) { justify-content: flex-start; }
-body[data-style='neon-glass'] .draw-danmaku-feed[data-smooth-layout='true'] {
-  mask: linear-gradient(90deg, transparent, #000 min(20px, 4%), #000 calc(100% - min(20px, 4%)), transparent);
+  position: relative; padding: 14px 24px; gap: 16px;
 }
 body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item {
   --neon-glass-name-color: var(--neon-glass-original-name-color);
   position: relative; display: block; flex: none; width: max-content;
-  max-width: min(640px, calc(var(--region-content-width, 100vw) - 48px)); min-width: 0; min-height: 0;
+  max-width: min(640px, 100%); min-width: 0; min-height: 0;
   margin: 0; padding: 10px 22px; border: 0; border-radius: 30px; background: none;
   box-shadow: none; clip-path: none; overflow: visible; animation: none; zoom: 1;
   font: 400 var(--danmaku-font-size, 24px)/1.45 var(--neon-glass-font);
