@@ -31,10 +31,11 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     canDraw,
     getSession,
     onDisable: () => {
+      const hadActiveStroke = Boolean(activeStroke);
       clearTimeout(drawFlushTimer);
       drawFlushTimer = null;
       activeStroke = null;
-      redrawCanvas(getSession()?.state?.canvas);
+      if (hadActiveStroke) redrawCanvas(getSession()?.state?.canvas);
     },
   });
 

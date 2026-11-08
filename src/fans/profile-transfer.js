@@ -151,7 +151,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       if (key) identityKeys.add(key);
     }
     const snapshotId = store.snapshot(scope, backup(scope), now());
-    for (const id of replacedIds) store.remove(scope, id, false);
+    store.removeMany(scope, [...replacedIds]);
     for (const profile of profiles) {
       const { records, reminders, ...data } = profile;
       const restored = store.restoreProfile(scope, data, identityKey(data.identity), now());

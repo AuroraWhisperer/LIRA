@@ -7,6 +7,7 @@ const { setTimeout: delay } = require('node:timers/promises');
 const { normalizeImageBaseUrl } = require('./remote-catalog-cache');
 const { giftVariantId } = require('../../shared/gift-identity');
 const { resolveDataPaths } = require('../../shared/data-paths');
+const { pruneManagedFiles } = require('../../shared/file-retention');
 
 const CACHE_DIR_NAME = 'overtime-gift-images';
 const LOCAL_IMAGE_PREFIX = '/overtime-gift-images/';
@@ -36,14 +37,29 @@ function createRemoteGiftImageCache(options = {}) {
   const concurrency = positiveInteger(options.concurrency, DEFAULT_CONCURRENCY);
   const logger = options.logger || console;
   const pending = new Map();
+  const shutdown = new AbortController();
   let active = 0;
   const waiting = [];
   fs.mkdirSync(cacheDir, { recursive: true });
   const indexPath = path.join(cacheDir, 'index.json');
-  const lastGoodImages = readImageIndex(indexPath);
+  const { images: lastGoodImages, valid: indexWasValid } = readImageIndex(indexPath);
+  let canPrune = indexWasValid;
+  if (!canPrune) {
+    try { canPrune = !fs.readdirSync(cacheDir).some(isSafeBasename); }
+    catch { canPrune = false; }
+  }
+  const usedImages = new Set();
+  let lastPruned = -Infinity;
+  pruneManagedFiles(dataDir, cacheDir, { matches: name => /^\.[A-Za-z0-9._-]+\.tmp-\d+-[a-f0-9]{12}$/.test(name),
+    maxAgeMs: 86400000 });
   let indexDirty = false;
   let revision = 0;
   let indexWrite = Promise.resolve();
+
+  function rememberImage(basename) {
+    usedImages.add(basename);
+    if (usedImages.size > 8192) usedImages.delete(usedImages.keys().next().value);
+  }
 
   async function cacheGifts(gifts, cacheOptions = {}) {
     if (!Array.isArray(gifts)) return [];
@@ -76,6 +92,7 @@ function createRemoteGiftImageCache(options = {}) {
 
   function getFilePath(imagePathOrBasename) {
     const basename = imageBasename(imagePathOrBasename, getImageBaseUrl());
+    if (basename) rememberImage(basename);
     return basename ? path.join(cacheDir, basename) : '';
   }
 
@@ -107,6 +124,7 @@ function createRemoteGiftImageCache(options = {}) {
     const filePath = candidate ? path.join(cacheDir, candidate.basename) : '';
     if (!filePath) return '';
     const basename = path.basename(filePath);
+    rememberImage(basename);
     return isValidImageFileSync(filePath, basename) ? `${LOCAL_IMAGE_PREFIX}${basename}` : '';
   }
 
@@ -115,6 +133,7 @@ function createRemoteGiftImageCache(options = {}) {
     // A CDN outage must not turn every client into a full-library server download.
     const [candidate] = giftImageCandidates(gift, imageBaseUrl);
     const imagePath = await cacheCandidate(candidate);
+    if (shutdown.signal.aborted) return imagePath || getCachedGiftImagePath(gift);
     const id = gift?.variantId || giftVariantId(gift);
     if (imagePath && id) {
       const basename = path.posix.basename(imagePath);
@@ -126,6 +145,17 @@ function createRemoteGiftImageCache(options = {}) {
       if (persist) await persistImageIndex();
     }
     return imagePath || getCachedGiftImagePath(gift);
+  }
+
+  function getSourceImagePath(source, gift) {
+    const candidate = sourceImageCandidate(source, gift, safeImageBaseUrl());
+    if (candidate) rememberImage(candidate.basename);
+    return candidate ? `${LOCAL_IMAGE_PREFIX}${candidate.basename}` : '';
+  }
+
+  async function cacheSourceImage(source, gift) {
+    const candidate = sourceImageCandidate(source, gift, safeImageBaseUrl());
+    return cacheCandidate(candidate);
   }
 
   function persistImageIndex() {
@@ -152,16 +182,19 @@ function createRemoteGiftImageCache(options = {}) {
   }
 
   async function cacheCandidate(candidate) {
-    if (!candidate) return '';
+    if (!candidate || shutdown.signal.aborted) return '';
     const { url, basename, headers } = candidate;
+    rememberImage(basename);
     const targetPath = path.join(cacheDir, basename);
     if (await isValidImageFile(targetPath, basename)) return `${LOCAL_IMAGE_PREFIX}${basename}`;
 
     if (pending.has(basename)) return pending.get(basename);
     const task = runWithLimit(async () => {
+      if (shutdown.signal.aborted) return '';
       if (await isValidImageFile(targetPath, basename)) return `${LOCAL_IMAGE_PREFIX}${basename}`;
       try {
-        const bytes = await downloadImage(url, fetchImage, timeoutMs, headers);
+        const bytes = await downloadImage(url, fetchImage, timeoutMs, headers, shutdown.signal);
+        shutdown.signal.throwIfAborted();
         if (!validateImageBytes(bytes, basename))
           throw new Error('downloaded image signature does not match extension');
         await writeAtomic(targetPath, bytes);
@@ -187,24 +220,48 @@ function createRemoteGiftImageCache(options = {}) {
     }
   }
 
+  function prune(gifts) {
+    const now = (options.now || Date.now)();
+    if (shutdown.signal.aborted || !canPrune || !Array.isArray(gifts) || now - lastPruned < 3600000) return;
+    lastPruned = now;
+    const keep = new Set([...lastGoodImages.values(), ...usedImages, ...pending.keys()]);
+    function visit(value) {
+      if (typeof value === 'string') {
+        for (const match of value.matchAll(/\/overtime-gift-images\/([A-Za-z0-9._-]+)/g)) keep.add(match[1]);
+      } else if (value && typeof value === 'object') for (const item of Object.values(value)) visit(item);
+    }
+    try { options.visitAssetReferences?.(visit); } catch { return; }
+    for (const gift of gifts) for (const candidate of giftImageCandidates(gift, safeImageBaseUrl())) keep.add(candidate.basename);
+    const result = pruneManagedFiles(dataDir, cacheDir, {
+      matches: name => /^(?:[1-9]\d{0,19}-[a-f0-9]{16}|source-[a-f0-9]{64})\.(?:gif|jpe?g|png|webp)$/.test(name),
+      keep, maxAgeMs: 30 * 86400000, minAgeMs: 86400000, maxBytes: 512 * 1024 * 1024, refreshKept: true, now,
+    });
+    usedImages.clear();
+    if (result.files) revision += 1;
+  }
+
   return {
     cacheDir,
+    prune,
     // Writes invalidate immediately; external removal/corruption is rechecked within one second.
     getRevision: () => `${revision}:${Math.floor((options.now || Date.now)() / 1000)}:${safeImageBaseUrl()}`,
     cacheGifts,
     cacheGiftImage,
+    getSourceImagePath,
+    cacheSourceImage,
     getCachedImagePath,
     getCachedGiftImagePath,
     isGiftImageCurrent,
     hasGiftImageSource,
     getFilePath,
+    dispose() { shutdown.abort(); return Promise.allSettled([...pending.values(), persistImageIndex()]); },
   };
 }
 
-async function downloadImage(url, fetchImage, timeoutMs, extraHeaders = {}) {
+async function downloadImage(url, fetchImage, timeoutMs, extraHeaders, signal) {
   const response = await fetchImage(url, {
     redirect: 'error',
-    signal: AbortSignal.timeout(timeoutMs),
+    signal: AbortSignal.any([AbortSignal.timeout(timeoutMs), signal]),
     headers: {
       Accept: 'image/png,image/jpeg,image/webp,image/gif',
       ...extraHeaders,
@@ -245,20 +302,33 @@ function bilibiliImageCandidate(gift, serverCandidate = null) {
   };
 }
 
+function sourceImageCandidate(source, gift, imageBaseUrl) {
+  const parsed = parseAllowedBilibiliImageUrl(source);
+  if (!parsed) return null;
+  if (parseAllowedBilibiliImageUrl(gift?.sourceUrl)?.href === parsed.href) {
+    const candidate = bilibiliImageCandidate(gift, serverImageCandidate(gift.imagePath, imageBaseUrl));
+    if (candidate) return candidate;
+  }
+  const hash = crypto.createHash('sha256').update(parsed.href).digest('hex');
+  return { url: parsed.href, basename: `source-${hash}${imageExtension(parsed.pathname)}`, headers: BILIBILI_IMAGE_HEADERS };
+}
+
 function readImageIndex(filePath) {
   const images = new Map();
   try {
     const value = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-    if (value?.schemaVersion !== 2 || !value.images || typeof value.images !== 'object') return images;
+    if (value?.schemaVersion !== 2 || !value.images || typeof value.images !== 'object' || Array.isArray(value.images)) return { images, valid: false };
+    let valid = true;
     for (const [id, basename] of Object.entries(value.images)) {
       if (/^gv_[a-f0-9]{64}$/u.test(id) && typeof basename === 'string' && isSafeBasename(basename))
         images.set(id, basename);
+      else valid = false;
     }
+    return { images, valid };
   } catch (_) {
     // The image files remain reusable even if the optional fallback index is lost.
-    return images;
+    return { images, valid: false };
   }
-  return images;
 }
 
 function serverImageCandidate(value, imageBaseUrl) {

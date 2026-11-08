@@ -1,6 +1,6 @@
 'use strict';
 
-import { GIFT_PLACEHOLDER } from './gift-image-fallback.js';
+import { GIFT_PLACEHOLDER, bindGiftImage, resolveGiftImageSource } from './gift-image.js';
 import { fitTextToWidth } from './fit-text-to-width.js';
 import { bindGuardImage, getGuardAvatarFrame, getGuardIcon } from './bilibili-guard-icons.js';
 import { DEFAULT_GIFT_BANNER_APPEARANCE } from './gift-banner-styles.js';
@@ -30,8 +30,7 @@ function guardArtwork(gift) {
 }
 
 const normalizeArtworkName = value => String(value || '').normalize('NFKC').replace(/\s+/gu, ' ').trim().toLowerCase();
-const artworkPath = path => /^\/overtime-gift-images\/[a-z0-9_-][a-z0-9._-]*\.webp$/i.test(path || '') && !path.includes('..')
-  ? path : GIFT_PLACEHOLDER;
+const artworkPath = path => (path?.startsWith('/overtime-gift-images/') && resolveGiftImageSource(path)) || GIFT_PLACEHOLDER;
 
 // Build once when a consumer accepts a new catalog snapshot. A raw mutable
 // array remains supported by resolveGiftArtwork for one-off callers.
@@ -175,7 +174,7 @@ export function giftAvatarSource(value) {
 }
 
 function updateBannerImage(image, source, retry = false) {
-  source = bindGuardImage(image, source);
+  source = image.classList.contains('gift-banner-artwork') ? bindGiftImage(image, source) : bindGuardImage(image, source);
   if (image.dataset.source !== source || (retry && image.getAttribute('src') !== source)) {
     image.dataset.source = source;
     image.style.visibility = '';
@@ -193,7 +192,7 @@ function bannerImage(source, className, fallback) {
   image.alt = '';
   image.draggable = false;
   image.referrerPolicy = 'no-referrer';
-  image.src = bindGuardImage(image, source);
+  image.src = className === 'gift-banner-artwork' ? bindGiftImage(image, source) : bindGuardImage(image, source);
   image.dataset.source = source;
   image.dataset.fallback = fallback;
   image.addEventListener('error', () => {

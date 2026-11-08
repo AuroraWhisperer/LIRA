@@ -24,7 +24,7 @@ function createDrawService({ store, drawStore, provider, getContext, clock, rand
       const members = buildCandidatePool({
         task,
         scan: store.getActiveScan(task.id),
-        evidence: store.getEvidence(task.activeScanId),
+        evidence: store.getEvidence(task.activeScanId, { includeContent: false }),
       });
       const order = createUniformOrder(members, randomIntFn);
       const digest = createHash('sha256')

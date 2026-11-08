@@ -39,6 +39,8 @@ const groups = {
     'bots/fixed-reply-frontend',
     'danmaku/frontend-admin-danmaku',
     'danmaku/danmaku-feed-motion',
+    'danmaku/danmaku-glowy-browser',
+    'danmaku/danmaku-neon-glass-browser',
     'danmaku/danmaku-typography-browser',
     'games/frontend-wheel-draft',
     'games/frontend-draw-guess',

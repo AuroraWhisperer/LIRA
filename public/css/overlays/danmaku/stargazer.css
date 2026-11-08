@@ -1,4 +1,9 @@
 
+/* Decorations share the card's paint scale without promoting overlapping text. */
+@property --stargazer-decor-opacity { syntax: '<number>'; inherits: false; initial-value: 0; }
+@property --stargazer-decor-x { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --stargazer-decor-y { syntax: '<length>'; inherits: false; initial-value: 0px; }
+
 body[data-style='stargazer'] {
   --stargazer-font: 'Stargazer Poppins', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
   --danmaku-enter-animation: stargazerEntry 480ms ease-out;
@@ -92,7 +97,7 @@ body[data-stargazer-gradient='off'] .stargazer-card::before { background: color-
 }
 body[data-style='stargazer'] .stargazer-heading {
   display: flex; align-items: center; flex-wrap: wrap; gap: 5px; min-width: 0;
-  margin: 0 0 8px; padding: 0 24px 0 0; color: var(--sg-title);
+  margin: 0 0 8px; padding: 0; color: var(--sg-title);
   font: 700 22px/1.35 var(--stargazer-font);
 }
 body[data-style='stargazer'] .stargazer-heading :is(.stargazer-name,.stargazer-title) {
@@ -111,16 +116,27 @@ body[data-style='stargazer'] .stargazer-copy {
   display: block; margin: 0; padding: 0; color: var(--sg-ink); font: 400 var(--danmaku-font-size, 22px)/1.5 var(--stargazer-font);
   white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: none;
 }
-body[data-style='stargazer'] .stargazer-copy :is(.draw-danmaku-gift-name,.draw-danmaku-gift-count) { font: inherit; color: inherit; white-space: normal; }
+body[data-style='stargazer'] .stargazer-copy :is(.draw-danmaku-gift-name,.draw-danmaku-gift-count) { font: inherit; color: inherit; }
+body[data-style='stargazer'] .stargazer-copy .draw-danmaku-gift-name { font-weight: 700; white-space: normal; }
+.stargazer-item:is([data-stargazer-kind='gift'],[data-stargazer-kind='member']) .stargazer-copy {
+  display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; white-space: normal;
+}
+.stargazer-gift-details { min-width: 0; max-width: 100%; }
+.stargazer-gift-details .stargazer-action { font-size: .85em; }
+.stargazer-copy .stargazer-amount { flex: none; margin-left: auto; font-size: .72em; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .stargazer-copy .draw-danmaku-emote { height: 1.45em; max-width: 100%; vertical-align: -.3em; object-fit: contain; }
-.stargazer-heading :is(.stargazer-amount,.stargazer-sender) { font-size: .75em; overflow-wrap: anywhere; }
+.stargazer-heading .stargazer-amount,
+.stargazer-item[data-stargazer-kind='superchat'] .stargazer-heading .stargazer-sender { font-size: .75em; overflow-wrap: anywhere; }
 .stargazer-heading .stargazer-amount { margin-left: auto; }
 .stargazer-icon {
-  display: grid; place-items: center; position: absolute; right: 28px; top: -16px;
+  display: grid; place-items: center; position: absolute; right: 20px; top: -18px;
   width: 34px; height: 34px; border-radius: 6px; background: var(--sg-plate); color: var(--sg-plate-ink);
   border: 1px solid color-mix(in srgb, var(--sg-accent) 24%, transparent);
+  font: 700 12px/1 var(--stargazer-font); white-space: nowrap;
 }
 .stargazer-icon svg { width: 22px; height: 22px; fill: currentColor; }
+.stargazer-icon .stargazer-guard-icon { width: 28px; height: 28px; object-fit: contain; }
+.stargazer-item[data-stargazer-kind='superchat'] .stargazer-icon { width: auto; padding: 0 9px; }
 .stargazer-sky { position: absolute; inset: 0; pointer-events: none; z-index: -1; }
 .stargazer-meteor {
   position: absolute; left: 50%; top: 15%; width: 100px; height: 1px;
@@ -142,6 +158,10 @@ body[data-style='stargazer'] .stargazer-copy :is(.draw-danmaku-gift-name,.draw-d
 .stargazer-particle:nth-child(7) { left: 84%; top: 37%; --sg-delay: -3.7s; }
 .stargazer-particle:nth-child(8) { left: 90%; top: 66%; --sg-delay: -1.3s; }
 .stargazer-particle:nth-child(9) { left: 45%; top: 28%; --sg-delay: -2.8s; width: 2px; height: 2px; }
+.stargazer-meteor, .stargazer-particle {
+  opacity: var(--stargazer-decor-opacity);
+  translate: var(--stargazer-decor-x) var(--stargazer-decor-y);
+}
 body[data-style='stargazer']:not([data-ambient-motion='off']) .stargazer-meteor { animation: stargazerMeteor 7s var(--stargazer-phase, 0ms) linear infinite; }
 body[data-style='stargazer']:not([data-ambient-motion='off']) .stargazer-particle { animation: stargazerDust 4.4s calc(var(--sg-delay) + var(--stargazer-phase, 0ms)) ease-in-out infinite; }
 body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-feed { flex-direction: row; align-items: flex-end; }
@@ -156,18 +176,18 @@ body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-f
 body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade='none'] .draw-danmaku-feed { mask: none; }
 body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade='top'] .draw-danmaku-feed { mask: linear-gradient(90deg, transparent, #000 14px); }
 body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade='bottom'] .draw-danmaku-feed { mask: linear-gradient(90deg, #000 calc(100% - 14px), transparent); }
-@keyframes stargazerEntry { from { opacity: .45; } to { opacity: 1; } }
+@keyframes stargazerEntry { from { --danmaku-enter-opacity: .45; } to { --danmaku-enter-opacity: 1; } }
 @keyframes stargazerMeteor {
-  0%, 68%, 100% { opacity: 0; translate: -70px -50px; }
-  70% { opacity: .7; translate: -60px -42px; }
-  81% { opacity: .65; translate: 70px 48px; }
-  84% { opacity: 0; translate: 90px 62px; }
+  0%, 68%, 100% { --stargazer-decor-opacity: 0; --stargazer-decor-x: -70px; --stargazer-decor-y: -50px; }
+  70% { --stargazer-decor-opacity: .7; --stargazer-decor-x: -60px; --stargazer-decor-y: -42px; }
+  81% { --stargazer-decor-opacity: .65; --stargazer-decor-x: 70px; --stargazer-decor-y: 48px; }
+  84% { --stargazer-decor-opacity: 0; --stargazer-decor-x: 90px; --stargazer-decor-y: 62px; }
 }
 @keyframes stargazerDust {
-  0%, 100% { opacity: 0; translate: 0 10px; }
-  25% { opacity: .6; }
-  60% { opacity: .15; }
-  80% { opacity: .5; translate: 4px -20px; }
+  0%, 100% { --stargazer-decor-opacity: 0; --stargazer-decor-x: 0px; --stargazer-decor-y: 10px; }
+  25% { --stargazer-decor-opacity: .6; }
+  60% { --stargazer-decor-opacity: .15; }
+  80% { --stargazer-decor-opacity: .5; --stargazer-decor-x: 4px; --stargazer-decor-y: -20px; }
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='stargazer'] :is(.stargazer-item,.stargazer-meteor,.stargazer-particle) { animation: none !important; }

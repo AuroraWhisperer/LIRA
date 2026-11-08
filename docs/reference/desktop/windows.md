@@ -17,7 +17,7 @@
 
 **导航白名单**:`setWindowOpenHandler`([music-login-window.js:27-34](../../../src/electron/music-login-window.js#L27-L34))与 `will-navigate`([music-login-window.js:36-40](../../../src/electron/music-login-window.js#L36-L40))两条路径均用 `isAllowedMusicLoginUrl(platform, url)` 判定:命中平台允许域名 → 当前窗口内 `loadURL`;未命中 → `shell.openExternal` 交系统浏览器。`setWindowOpenHandler` 一律返回 `{action:'deny'}`,绝不弹新的 Electron 窗口。
 
-**Cookie 持久化节奏**(窗口侧;检测语义属 [auth.md](auth.md) §9):`cookies.on('changed')` → 800ms 防抖落盘快照,同时立即做一次登录完成检测([music-login-window.js:45-68](../../../src/electron/music-login-window.js#L45-L68));另设 1.5s 轮询兜底([music-login-window.js:73](../../../src/electron/music-login-window.js#L73));检测到登录成功 → 自动 `close()`。窗口 `closed` 时清理定时器与监听器、做**最终强制快照**,resolve `{platform, snapshot, state}`([music-login-window.js:75-89](../../../src/electron/music-login-window.js#L75-L89))。
+**Cookie 持久化节奏**(窗口侧;检测语义属 [auth.md](auth.md) §9):`cookies.on('changed')` → 800ms 防抖落盘快照,同时立即做一次登录完成检测([music-login-window.js:45-68](../../../src/electron/music-login-window.js#L45-L68));另设 1.5s 轮询兜底([music-login-window.js:73](../../../src/electron/music-login-window.js#L73))。事件和轮询检测只读取当前 session 状态，检测到登录成功 → 自动 `close()`。窗口 `closed` 时清理定时器与监听器、做**最终强制快照**，再读取完整 auth state，resolve `{platform, snapshot, state}`([music-login-window.js](../../../src/electron/music-login-window.js))。
 
 ## 2. B站登录窗(bilibili-login-window.js)
 
@@ -33,6 +33,7 @@
 
 与音乐登录窗的差异:
 
+- **检测适配器**:优先调用注入的 `getBilibiliSessionState()`；独立账号适配器未提供时调用其原有 `getBilibiliAuthState()`，具体读取边界见 [auth.md](auth.md) §9。
 - **关闭快照**:`closed` 时执行 `persistBilibiliCookieSnapshot(dataDir)`，仅写入 safeStorage 加密快照，并按 [auth.md](auth.md) §6 清理旧 `cookies.txt`，不导出明文；随后取回最新 auth state，一并 resolve([bilibili-login-window.js:98-117](../../../src/electron/bilibili-login-window.js#L98-L117))。
 - **防重入**:`loginCheckInFlight`(检测在飞时不重复发起)与 `loginCloseRequested`(已请求关闭后不再触发)两道守卫保护自动关闭检测([bilibili-login-window.js:57-58](../../../src/electron/bilibili-login-window.js#L57-L58)、[68-83](../../../src/electron/bilibili-login-window.js#L68-L83))。
 - **加载失败处理**:`loadURL` 失败时清理监听并 `destroy()` 窗口,异常上抛给 IPC 调用方([bilibili-login-window.js:119-125](../../../src/electron/bilibili-login-window.js#L119-L125))。

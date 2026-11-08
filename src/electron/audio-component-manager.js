@@ -4,7 +4,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const manifestDefault = require('./audio-component-manifest.json');
 const { resolveCdnOrigin, writeResource } = require('../resources/resource-download');
-const { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory } = require('./audio-component-files');
+const { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory, pruneAudioPreparations } = require('./audio-component-files');
 
 function createAudioComponentManager({ dataDir, bundledDirectory, manifest = manifestDefault,
   fetch: fetchImpl = globalThis.fetch, cdnBaseUrl, canDownload = () => true, onState = () => {},
@@ -26,6 +26,7 @@ function createAudioComponentManager({ dataDir, bundledDirectory, manifest = man
     if (platform !== manifest.platform || arch !== manifest.arch) throw new Error('AUDIO_PLATFORM_UNSUPPORTED');
     publish({ status: 'checking', error: '', totalBytes: 0, downloadedBytes: 0 });
     await ensureAudioRoot(dataDir);
+    await pruneAudioPreparations(dataDir, root, signal).catch(() => {});
     if (await verifyAudioDirectory(directory, manifest, signal)) return path.join(directory, manifest.entry);
     const legacy = path.join(root, 'legacy');
     if (await verifyAudioDirectory(legacy, manifest, signal)) {

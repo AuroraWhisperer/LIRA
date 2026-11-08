@@ -4,6 +4,7 @@ import { localOverlayOrigin, toast } from '../shared/utils.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { mountOpeningStylePicker } from './opening-style-picker.js';
+import { stateService } from './state.js';
 import {
   OPENING_DEFAULTS,
   OPENING_STYLE_SETTING_KEYS,
@@ -88,6 +89,10 @@ function updateVolumeOutput(root, config) {
   if (output) output.textContent = `${volumePercent(config.volume)}%`;
 }
 
+function openingSettingsSignature(settings = {}) {
+  return JSON.stringify(Object.keys(settings).filter(key => key.startsWith('opening')).sort().map(key => [key, settings[key]]));
+}
+
 let initialized = false;
 
 function initStartAnimation() {
@@ -120,6 +125,8 @@ function initStartAnimation() {
   let activeStyle = 'classic';
   let styleConfigs = {};
   let pendingSettings = {};
+  let receivedSettingsSignature = openingSettingsSignature(stateService.getAppState()?.settings);
+  let settingsRefreshPending = false;
   let picker;
 
   const setSaveState = (state) => {
@@ -208,7 +215,10 @@ function initStartAnimation() {
     } finally {
       saveInFlight = false;
       if (saveQueued) void persist();
-      else if (!failed) setSaveState(Object.keys(pendingSettings).length ? 'pending' : 'saved');
+      else {
+        if (!failed) setSaveState(Object.keys(pendingSettings).length ? 'pending' : 'saved');
+        if (settingsRefreshPending) void refreshSharedSettings();
+      }
     }
   };
 
@@ -263,6 +273,7 @@ function initStartAnimation() {
       loading = false;
       updateLoadState();
       render();
+      if (settingsRefreshPending) void refreshSharedSettings();
     }
   };
 
@@ -284,6 +295,7 @@ function initStartAnimation() {
   async function refreshSharedSettings() {
     if (!hydrated || refreshing || saveInFlight || Object.keys(pendingSettings).length) return;
     refreshing = true;
+    settingsRefreshPending = false;
     const before = JSON.stringify(readStartAnimationConfig(root));
     try {
       const response = await fetch(OPENING_CONFIG_ENDPOINT, { cache: 'no-store' });
@@ -297,10 +309,22 @@ function initStartAnimation() {
       lastSavedPayload = JSON.stringify(openingSettingsPayload(readStartAnimationConfig(root)));
       render();
     } catch { toast('开播设置同步失败，已保留当前输入，请重新切回页面重试。'); }
-    finally { refreshing = false; }
+    finally {
+      refreshing = false;
+      if (settingsRefreshPending) void refreshSharedSettings();
+    }
   }
-  window.addEventListener('focus', refreshSharedSettings);
-  window.addEventListener('app:settings-state', () => { void refreshSharedSettings(); });
+  function requestSettingsRefresh() {
+    settingsRefreshPending = true;
+    return refreshSharedSettings();
+  }
+  window.addEventListener('focus', requestSettingsRefresh);
+  window.addEventListener('app:settings-state', (event) => {
+    const signature = openingSettingsSignature(event.detail);
+    if (signature === receivedSettingsSignature) return;
+    receivedSettingsSignature = signature;
+    void requestSettingsRefresh();
+  });
   picker = mountOpeningStylePicker({ beforeSelect: schedulePersist, onBuiltin(style) {
     const select = root.getElementById('openingStyle');
     select.value = style;

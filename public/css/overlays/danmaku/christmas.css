@@ -22,8 +22,8 @@ body[data-style='christmas'][data-custom-font='true'] {
   --christmas-gift-font: var(--danmaku-custom-font);
 }
 body[data-style='christmas'] .danmaku-signal-header { display: none; }
-body[data-style='christmas'] .danmaku-signal-stage { padding: 14px 16px 18px 14px; }
-body[data-style='christmas'] .draw-danmaku-feed { gap: 18px; padding: 10px 12px 18px 38px; }
+body[data-style='christmas'] .danmaku-signal-stage { padding: 0; }
+body[data-style='christmas'] .draw-danmaku-feed { gap: 18px; padding: 8px 8px 14px 36px; }
 body[data-style='christmas'] .draw-danmaku-item.christmas-item,
 body[data-style='christmas'] .draw-danmaku-item.christmas-item.is-gift {
   display: block; position: relative; isolation: isolate; flex: none;
@@ -95,6 +95,19 @@ body[data-style='christmas'] .christmas-copy {
 .christmas-light:nth-child(4) { left: calc(70% - 2px); background: #90ad8a; --christmas-light-delay: 770ms; --christmas-light-phase: -2.7s; }
 .christmas-light:nth-child(5) { left: calc(90% - 2px); --christmas-light-delay: 820ms; --christmas-light-phase: -3.6s; }
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) { --danmaku-enter-animation: christmasEntry 1180ms linear; }
+body[data-style='christmas'] .christmas-item[data-christmas-kind='gift'] {
+  --christmas-wine: #204b41;
+  --christmas-pattern: url('../../../img/overlays/danmaku-christmas/gift-foil.svg');
+}
+body[data-style='christmas'] .christmas-item[data-christmas-kind='member'] {
+  --christmas-wine: #253c59;
+  --christmas-pattern: url('../../../img/overlays/danmaku-christmas/member-foil.svg');
+}
+body[data-style='christmas'] .christmas-item.is-gift .christmas-card::before {
+  background:
+    var(--christmas-pattern) right bottom / auto 100% no-repeat,
+    linear-gradient(115deg, var(--christmas-wine), color-mix(in srgb, var(--christmas-wine) 72%, #101b24));
+}
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-card { padding: 30px 24px 20px; }
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-heading { padding-right: 0; }
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-name { flex: 1 1 50%; }
@@ -116,7 +129,7 @@ body[data-style='christmas'] .christmas-gift-copy {
 .christmas-gift-description { flex: 0 1 auto; min-width: 0; max-width: 100%; }
 .christmas-gift-copy .christmas-amount { margin-left: 0; color: #e8cead; font-size: 14px; font-weight: 400; }
 .christmas-gift-copy .christmas-amount::before { content: '·'; margin-right: 12px; color: var(--christmas-gold); }
-body[data-style='christmas'] .christmas-item.is-superchat .christmas-copy { padding-top: 12px; border-top: 1px solid #d8b77c40; text-wrap: balance; }
+body[data-style='christmas'] .christmas-item.is-superchat .christmas-copy { padding-top: 12px; border-top: 1px solid #d8b77c40; text-wrap: wrap; }
 .christmas-gift-action { margin-right: 4px; color: #efdcc1; font-size: 14px; }
 .christmas-gift-name { font: 400 .92em/1.55 var(--christmas-gift-font); letter-spacing: .06em; }
 .christmas-gift-count {

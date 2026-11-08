@@ -76,7 +76,9 @@ final    → service.finalizeGift(event)  // 收到服务器 final 后立即结�
 
 `remote-catalog-cache.js` 在本地 `data/cache/overtime-gift-catalog-v2.json` 保存 ETag、同步版本、更新时间和 schema 3 原始身份包及兼容的规范化付费礼物数组。首次授权成功后，`gift-catalog-initializer.js` 保持登录页可见，扫描完整目录并从已校验的 Bilibili `sourceUrl` 下载图片；只有缺少可用源地址的条目才下载服务器 `/gift-media/images/<basename>`，B 站失败不会自动转为服务器批量下载。文件按完整礼物身份、源 URL 和已校验服务器图片 URL 的 hash 分离，`data/cache/overtime-gift-images/index.json`（schemaVersion 2，`images` 为 variantId 到安全 basename 的映射）原子保存最近成功图片，换图失败继续使用旧图。完成状态写入 `data/cache/overtime-gift-assets-state-v2.json`。目录不可用且没有旧快照时提供重试；单图失败不永久阻塞。已有完成状态的每次授权启动立即进入 Admin，并以 `If-None-Match` 检查一次；持续运行每 12 小时再检查，关闭时清理定时器。304 也检查本地缺图并补齐。Admin 只接收本地 `/overtime-gift-images/<basename>`，支持离线复用。
 
-图片及 `index.json` 写入遇到 `EPERM` / `EBUSY` 时，仅重试已完成临时文件的原子重命名，最多四次，分别异步等待 50/100/150/200 ms，让出事件循环；调用方等待保存完成，不重复下载或删除目的文件。索引提交串行执行，等待期间产生的新 revision 会在返回前补写。持续锁定或其他错误保持原失败语义，旧文件保留、自有临时文件清理；图片修复成功后才增加缓存 revision。
+本机场景图片由 [gift-image-resources.js](../../../src/bilibili/gift/gift-image-resources.js) 统一接入同一个目录缓存实例。目录 facade 的 `imageResources.resolveSource(source)` 按准确 B 站 URL 查目录索引，复用既有图片文件名；目录尚未包含的合法来源使用 `source-<sha256>.<扩展名>`，无需改变礼物身份或云端事件字段。来源索引仅随目录 revision 重建；映射本身不下载，最多登记 512 个最近使用的资源。`ensureImage(localPath)` 只准备已登记资源，并与目录初始化共用 `remote-gift-image-cache.js` 的同文件任务合并、最多 4 路下载、15 秒超时、5 MiB 上限、来源和内容校验及禁止重定向规则。重复失败冷却 30 秒，之后实际使用时重试，无额外轮询。现有有效文件可跨场景及重启离线复用；URL 更新分离新文件，来源只匹配一个 variant 时，更新失败可回退该 variant 的最近成功图片；多个 variant 共用同一来源时只复用准确来源文件，不猜测旧图归属。HTTP 不接受任意 URL 代取，详见[共享礼物图片](api.md#共享礼物图片)。原目录初始化与定时更新策略保持不变，不为每条弹幕刷新目录。
+
+图片及 `index.json` 写入遇到 `EPERM` / `EBUSY` 时，仅重试已完成临时文件的原子重命名，最多四次，分别异步等待 50/100/150/200 ms，让出事件循环；调用方等待保存完成，不重复下载或删除目的文件。索引提交串行执行，等待期间产生的新 revision 会在返回前补写。持续锁定或其他错误保持原失败语义，旧文件保留、自有临时文件清理；图片修复成功后才增加缓存 revision。运行时关闭时目录 facade 释放资源登记并取消自己拥有的图片缓存任务；借入的缓存仍由其原 owner 释放。
 
 schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资料；必需字段与已知字段仍校验，附加字段仅保留在原始磁盘缓存并参与完整业务摘要，不进入 renderer 快照、图片下载或记账。顶层、礼物身份、价格、实际媒体源、特效和盲盒关系仍使用原有严格校验。目录校验失败时保留上一份有效目录；重启会重新检查，但不能自行修复协议不兼容。
 
@@ -191,8 +193,8 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | 机制           | 行为                                                                                                                                                                                                                 | 出处                                                                                                                                                               |
 | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 结算事务失败   | 事务回滚,行保持 pending;`recordFailure` 递增 `retry_count`、写 `settle_after_ms = now + delay`,延迟按指数退避 `min(30, 2^(retryCount-1))` 秒(**1、2、4、8、16、30、30…**);`last_error` 只存单行化错误摘要(≤500 字符) | [overtime-store.js](../../../src/storage/overtime-store.js)                       |
-| 重试调度       | `scheduleRecovery` 单定时器(可 `unref`)到点执行 `recoverSettlements`;空闲时按 `getNextPendingAt` 只从 final 礼物的 pending 结算取最近到期时间预排；未封账的 progress 不参与重试调度,无需礼物活动                                                                                     | [overtime-service.js:333-353](../../../src/overtime/overtime-service.js#L333-L353)、[overtime-store.js](../../../src/storage/overtime-store.js) |
-| 补偿扫描       | 服务构造时与每次重试:扫描 `detection_status='final' AND overtime_epoch=当前epoch AND (无 settlement 或 pending 到期)` 的组补投,按 `id ASC`、单批 ≤100                                                                | [overtime-store.js](../../../src/storage/overtime-store.js)、[overtime-service.js:315-331](../../../src/overtime/overtime-service.js#L315-L331) |
+| 重试调度       | `scheduleRecovery` 单定时器(可 `unref`)到点执行 `recoverSettlements`，保留较早的已排任务；空闲时按 `getNextPendingAt` 只从 final 礼物的 pending 结算取最近到期时间。检查点或失败退避无法持久化时终止当前续扫并等候 1 秒，即使 pending 仍记录到期也不能提前该恢复计时器；正常新礼物结算不受阻。未封账的 progress 不参与重试调度                                                                                     | [overtime-service.js](../../../src/overtime/overtime-service.js)、[overtime-store.js](../../../src/storage/overtime-store.js) |
+| 补偿扫描       | 服务构造时与每次重试:扫描 `detection_status='final' AND overtime_epoch=当前epoch AND (无 settlement 或 pending 到期)` 的组补投，按主键 `id ASC`、单批 ≤100。连续成功的满批按上一批末尾 ID 立即续扫；不足一批或结算失败时结束本轮，保留失败退避并从头核对遗漏 final 和到期 pending。暂停恢复、重新载入状态或停用时清除本轮游标                                                                | [overtime-store.js](../../../src/storage/overtime-store.js)、[overtime-service.js](../../../src/overtime/overtime-service.js) |
 | 投影消费者重投 | final 分发失败时投影服务按 `min(30s, 1s·2^attempt)` 退避重发同一 `final` 事件(退避指数上限 5，失败时继续重试),直到 dispatch 无失败                                                                                                     | [projection-service.js](../../../src/bilibili/gift/projection-service.js)                                                                          |
 
 两个补偿器(统计消费者用 `gift_stats_delivered`,加班机用 settlement 行)互不干扰,任何一次投递都幂等;加班机补偿只对 epoch 匹配的组生效,历史事件不会回放(ADR [0006-shared-gift-detection-core](../../architecture/adr/0006-shared-gift-detection-core.md))。
@@ -291,6 +293,8 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 ```
 
 计时本身不每秒广播,只在人工操作、礼物结算、配置变化、自然归零与连接建立时同步;客户端以 `serverNowMs` 抵消传输时延后用本地时钟插值,已连接状态下只接受 revision 更新的增量,重连快照无条件接受。
+
+本机场景输出在同一次响应内复用加班机快照，同时投影倒计时数据和公共背景外观，避免外观读取再次获取规则。下一次响应重新读取快照，`serverNowMs` 和剩余时间继续更新；用于复用的内部读取上下文不进入响应。
 
 ## 7. 故障行为(按实现)
 

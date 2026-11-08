@@ -56,10 +56,13 @@
 | --------------------------------------- | -------------------------------------------------------------------------------------- |
 | `get(platform)`                         | 归一化后取实例(不存在的平台抛错)                                                       |
 | `list()`                                | 两个 Provider 实例数组                                                                 |
+| `getAuthorizationRevision(platform)`    | 后端内部异步版本号：从 `getCookieHeader` 读取当前 Cookie，在内存比较摘要，变化时递增；不调用 `getAuthState`、读取持久化授权文件或自行发起网络请求，不返回 Cookie 或摘要 |
 | `healthCheck(platform?)`                | 传平台只查单个;不传 `Promise.all` 并发查全部                                           |
 | `getHealthyFallback(preferredPlatform)` | 并发健康检查,返回**第一个 ok 且非首选平台**的 Provider(返回原始健康对象);全挂返回 null |
 
 两个真实 Provider 都注入同一对 `getAuthState` / `getCookieHeader`,Cookie 与登录态来源见 [auth.md](../../desktop/auth.md)。
+
+授权修订仅在当前 registry 生命周期内有效，不持久化、不经 HTTP/IPC 暴露；读取复用 Provider 的 `getSafeCookieHeader()`，保留 Cookie 会话读取失败时的匿名回退。WeSing 在线匹配用修订号使未命中的短期退避在登录状态变化后立即失效。
 
 ### 3.2 provider-health.js
 
@@ -213,7 +216,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 2. store 提供最近 10 次 `source = 'random' 或 'random:%'` 的点歌流水歌名(`requests` 表),领域层排除它们——避免随机重复刚点过的歌
 3. 排除后为空则回退全池;`randomSourceValue(scopeText)` 生成 `source = 'random'` 或 `random:<scope>`(弹幕机器人据此定位请求者,见 §12)
 
-`describeRandomSongScope`(导出名映射到库版,[song-service.js](../../../../src/music/song-service.js)):同样的数据源调 `describeRandomSongScope`(§10),供"随机点歌说明"用。`normalizeRandomScopeText` 会剥掉前导 `+＋:：-—` 符号。
+随机点歌未命中时的自动回复只使用输入条件，由 message handler 直接解析 `scopeText`，不再通过 song service 第二次读取整库生成说明。§10 的纯函数 `describeRandomSongScope` 保留独立条件诊断能力。`normalizeRandomScopeText` 会剥掉前导 `+＋:：-—` 符号。
 
 ## 8. 点歌队列(queue-service.js)
 

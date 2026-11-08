@@ -1,5 +1,6 @@
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createSceneGiftDisplay } from './scene-gift-display.js';
+import { mergeGameSession } from './games-session.js';
 import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from './browser-source-frame.js';
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { componentCssRendererUrl } from '../shared/component-css-style.js';
@@ -211,7 +212,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       appearanceVersion = response.version;
       appearance(active);
       appearance(staging);
-      const values = giftDisplay.update(response.data || {}, active?.entries.map((entry) => entry.item.type) || []);
+      const values = giftDisplay.update(response.data || {}, active?.entries.map((entry) => entry.item.type) || [], response.dataVersions);
       const cloud = values.danmaku;
       data(active, values);
       if (cloud && !active?.entries.some((entry) => entry.item.type === 'danmaku')) {
@@ -226,6 +227,8 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       } else pendingDanmaku = null;
       latestData = { ...latestData, ...giftDisplay.withoutEvents(values),
         ...(values.lyrics ? { lyrics: { ...latestData.lyrics, ...values.lyrics } } : {}),
+        ...(values.games ? { games: { ...values.games,
+          session: mergeGameSession(latestData.games?.session, values.games.session) } } : {}),
         ...(cloud ? { danmaku: { ...cloud, reset: false, events: [] } } : {}) };
       if (response.document) prepare(response.document, response.version, response.projection);
     },

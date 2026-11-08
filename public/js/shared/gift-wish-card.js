@@ -1,4 +1,4 @@
-import { setGiftImage } from './gift-image-fallback.js';
+import { setGiftArtwork } from './gift-image.js';
 import { setGiftWishTextImage } from './gift-wish-image.js';
 import { mountMoonlitGiftWish, updateMoonlitGiftWish } from './gift-wish-moonlit.js';
 import { mountRibbonGiftWish, updateRibbonGiftWish } from './gift-wish-ribbon.js';
@@ -95,7 +95,7 @@ export function createGiftWishCard(wish, documentRef = document) {
   }
   const image = element('img', 'wish-card-image');
   image.alt = wish.giftName;
-  setGiftImage(image, wish.imagePath);
+  setGiftArtwork(image, wish.imagePath);
   const progress = element('div', 'wish-card-progress');
   const total = element('div', 'wish-card-total');
   total.append(

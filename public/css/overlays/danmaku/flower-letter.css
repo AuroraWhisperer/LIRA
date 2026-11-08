@@ -142,7 +142,7 @@ body[data-style='flower-letter'] .flower-small-gift .flower-content { padding: 2
 body[data-style='flower-letter'] .flower-small-gift .flower-copy { display: flex; align-items: baseline; font-size: var(--flower-type); white-space: nowrap; -webkit-text-stroke: 0; }
 .flower-small-gift .flower-nickname { font-size: 25px; font-weight: 400; color: #766d5d; }
 .flower-small-gift .flower-gift-description { flex: none; }
-@keyframes flower-letter-entry { from { opacity: .8; } to { opacity: 1; } }
+@keyframes flower-letter-entry { from { --danmaku-enter-opacity: .8; } to { --danmaku-enter-opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='flower-letter'] .flower-letter-item { animation: none !important; }
 }

@@ -2,7 +2,7 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { getBlindBoxAnalysis, getBlindBoxStats } = require('../../src/bilibili/gift/blind-box-analysis');
+const { getBlindBoxAnalysis, getBlindBoxChangeToken, getBlindBoxStats } = require('../../src/bilibili/gift/blind-box-analysis');
 const { routes } = require('../../src/server/routes/gift-routes');
 const { createFixture } = require('../helpers/gift-query-fixture');
 
@@ -16,7 +16,8 @@ test('blind box snapshots share all-box and heart-box reads and invalidate for w
   const rows = t.mock.method(fixture.context.queryStore, 'listBlindBoxRows');
   let heartOnly = false;
   const display = createSceneExtraDisplay({ displayPorts: {
-    gifts: { getBlindBoxStats: options => getBlindBoxStats(fixture.context, options) },
+    gifts: { getBlindBoxChangeToken: () => getBlindBoxChangeToken(fixture.context),
+      getBlindBoxStats: options => getBlindBoxStats(fixture.context, options) },
     settings: { get: () => ({ blindboxHeartBoxOnly: String(heartOnly) }) },
   } });
   for (let i = 0; i < 20; i++) {
@@ -189,6 +190,36 @@ function seed(t) {
   }
   return fixture;
 }
+
+test('analysis reuses an unchanged query while preserving copies, filters, ledger changes and source isolation', t => {
+  const fixture = seed(t);
+  const reads = t.mock.method(fixture.context.queryStore, 'listBlindBoxRows');
+  const options = { startDate: '2026-08-31', endDate: '2026-09-01', view: 'records', limit: 1 };
+  const initial = getBlindBoxAnalysis(fixture.context, options);
+  const modified = getBlindBoxAnalysis(fixture.context, options);
+  modified.summary.totalProfit = 500;
+  modified.filters.viewers[0].label = 'Changed by caller';
+  modified.items[0].giftName = 'Changed by caller';
+  for (let index = 0; index < 20; index++) {
+    fixture.insertGift(null, `ordinary-analysis-${index}`, { cmd: 'SEND_GIFT' });
+    assert.deepEqual(getBlindBoxAnalysis(fixture.context, options), initial);
+  }
+  assert.equal(reads.mock.callCount(), 1, 'ordinary gifts do not rescan the blind-box ledger');
+  const nextPage = getBlindBoxAnalysis(fixture.context, { ...options, page: 2 });
+  assert.equal(nextPage.items[0].giftName, 'start');
+  assert.equal(getBlindBoxAnalysis(fixture.context, { ...options, viewer: 'name:小月' }).pagination.total, 1);
+  fixture.giftDb.exec('BEGIN');
+  fixture.giftDb.prepare("UPDATE gift_events SET blind_profit = 3 WHERE gift_name = 'end'").run();
+  assert.equal(getBlindBoxAnalysis(fixture.context, options).summary.totalProfit, 4);
+  fixture.giftDb.exec('ROLLBACK');
+  assert.deepEqual(getBlindBoxAnalysis(fixture.context, options), initial);
+  fixture.setActiveSource(1, { syncState: 'SOURCE_SWITCHING' });
+  assert.equal(getBlindBoxAnalysis(fixture.context, options).summary.boxCount, 0);
+  fixture.clearActiveSource();
+  assert.equal(getBlindBoxAnalysis(fixture.context, options).summary.totalProfit, 100);
+  assert.throws(() => getBlindBoxAnalysis(fixture.context, { ...options, startDate: '2026-02-30' }),
+    { code: 'INVALID_GIFT_FILTER' });
+});
 
 test('blind box date ranges include both local days across months in all views and isolate sources', (t) => {
   const fixture = seed(t);

@@ -84,7 +84,9 @@ async function openBilibiliLoginWindow(options = {}) {
     if (loginCheckInFlight || loginCloseRequested || loginWindow.isDestroyed()) return;
     loginCheckInFlight = true;
     try {
-      const state = await auth.getBilibiliAuthState(dataDir);
+      const state = auth.getBilibiliSessionState
+        ? await auth.getBilibiliSessionState()
+        : await auth.getBilibiliAuthState(dataDir);
       if (state.loggedIn && !loginWindow.isDestroyed()) {
         loginCloseRequested = true;
         writeLog('bilibili-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);

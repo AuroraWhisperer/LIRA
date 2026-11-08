@@ -44,7 +44,7 @@ Do not create a new shared owner merely because several consumers change.
 
 ## 弹幕外观与事件的交付边界
 
-新流程为 B 站 → Server 事件 → Electron 单一按需订阅 → 本地场景输出。外观由 `src/server/danmaku-appearance.js` 和账号隔离的本地 store 拥有，场景负责布局与样式选择，公共 feed 负责事件生命周期。新增本地样式只需同步客户端 Node／浏览器校验、参数控件、渲染与资源，不要求镜像服务器样式或 OpenAPI。
+新流程为 B 站 → Server 事件 → Electron 单一按需订阅 → 本地场景输出。外观由 `src/server/danmaku-appearance.js` 和账号隔离的本地 store 拥有，场景负责布局与样式选择，公共 feed 负责事件生命周期。礼物图片复用目录所拥有的共享磁盘缓存与资源接口；场景只映射已接受的来源，样式通过前端共享图片入口显示，接口与请求规则见[礼物缓存](../../reference/backend/overtime.md#15-服务器全局礼物目录联动)和[弹幕参考](../../reference/frontend/overlays.md)。新增本地样式只需同步客户端 Node／浏览器校验、参数控件、渲染与资源，不要求镜像服务器样式或 OpenAPI。
 
 验证桌面显式保存、重启恢复、账号切换与迟到请求、多个场景共享参数、保存不重播，以及本地场景实际渲染。仅预览通过不算交付；不得重新接回远端样式 PUT 来绕过本地 owner。首次升级承接旧配置，之后服务器外观快照不得覆盖本地值；未知云端样式不能阻断合法事件。
 

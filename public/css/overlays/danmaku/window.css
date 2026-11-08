@@ -1,3 +1,5 @@
+@property --window-edge-opacity { syntax: '<number>'; inherits: false; initial-value: .1; }
+
 body[data-style='window'] {
   --window-paper: #fffdf8;
   --window-border: #7b97a8;
@@ -35,7 +37,7 @@ body[data-style='window'] :is(.danmaku-signal-stage, .draw-danmaku-feed) {
 body[data-style='window'] .draw-danmaku-item.window-item {
   position: absolute;
   display: block;
-  width: calc(var(--window-width, 340px) + 24px);
+  width: calc(var(--window-width, 380px) + 24px);
   min-width: 0;
   max-width: none;
   min-height: 0;
@@ -81,7 +83,7 @@ body[data-style='window'] .window-item::after { content: none; animation: none; 
   inset: 3px;
   border: 1px solid var(--window-border);
   border-radius: max(3px, calc(var(--window-radius, 22px) - 5px));
-  opacity: .1;
+  opacity: var(--window-edge-opacity);
   animation: windowEdgeBreath 7s ease-in-out var(--window-phase, 0s) infinite;
   content: '';
 }
@@ -106,27 +108,37 @@ body[data-style='window'] .window-content .draw-danmaku-identity {
   padding: 0;
   background: none;
 }
+.window-sender {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
 .window-nameplate {
   display: flex;
+  flex: 0 1 auto;
   align-items: center;
   flex-wrap: nowrap;
   gap: 4px 6px;
-  min-width: 0;
+  min-width: 56px;
   padding: 4px 9px 4px 5px;
   border-radius: 14px;
   background: color-mix(in srgb, var(--window-chip) var(--danmaku-background-weight, 100%), transparent);
   color: var(--window-muted);
 }
 body[data-style='window'] .window-item .window-nameplate strong {
+  display: -webkit-box;
   flex: 1 1 auto;
   min-width: 0;
-  max-width: 100%;
+  max-width: 8em;
   color: inherit;
   font: 600 15px/1.4 var(--danmaku-ui-font);
   letter-spacing: 0;
-  overflow: visible;
+  overflow: hidden;
   overflow-wrap: anywhere;
   white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 body[data-style='window'] .window-nameplate .draw-danmaku-avatar {
   flex: 0 0 21px;
@@ -138,14 +150,25 @@ body[data-style='window'] .window-nameplate .draw-danmaku-avatar {
   background: color-mix(in srgb, var(--window-border) 20%, var(--window-paper));
   font: 600 12px/1 var(--danmaku-ui-font);
 }
-.window-role {
-  flex: 0 0 auto;
-  padding-left: 5px;
-  border-left: 1px solid color-mix(in srgb, var(--window-muted) 35%, transparent);
-  color: var(--window-muted);
-  font: 500 12px/1.4 var(--danmaku-ui-font);
-  white-space: nowrap;
+.window-guard { flex: 0 0 24px; width: 24px; height: 24px; object-fit: contain; }
+.window-medal {
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 2px 5px;
+  border: 1px solid var(--medal-border, #a6afbc);
+  border-radius: 8px;
+  color: var(--medal-text, #fff);
+  background: linear-gradient(45deg, var(--medal-start, #5b6470), var(--medal-end, #5b6470));
+  font: 600 12px/1.4 var(--danmaku-ui-font);
 }
+.window-medal[data-lit='false'] { filter: grayscale(1); }
+.window-medal-name { min-width: 0; overflow-wrap: anywhere; }
+.window-medal-level { flex: 0 0 auto; font: 600 12px/1.4 var(--danmaku-num-font); font-variant-numeric: tabular-nums; }
+body[data-style='window'][data-window-guard='hide'] .window-guard,
+body[data-style='window'][data-window-medal='hide'] .window-medal { display: none; }
 .window-controls { display: flex; flex: 0 0 auto; align-items: center; gap: 10px; color: var(--window-border); }
 .window-controls i { position: relative; display: block; width: 10px; height: 10px; }
 .window-minimize::before,
@@ -225,30 +248,35 @@ body[data-style='window'] .is-emote-only .window-copy .draw-danmaku-emote { heig
 .window-item[data-window-kind='gift'] .window-frame,
 .window-item[data-window-kind='member'] .window-frame { border-color: var(--window-event); }
 
+.window-item[data-live-entry] .window-frame {
+  opacity: var(--danmaku-enter-opacity);
+  transform: var(--danmaku-enter-transform);
+  translate: 0 var(--danmaku-enter-y);
+}
 .window-item[data-live-entry][data-window-entrance='pop'] .window-frame { animation: windowPop var(--window-entry-duration) cubic-bezier(.16,1,.3,1) backwards; }
 .window-item[data-live-entry][data-window-entrance='unfold'] .window-frame { animation: windowUnfold var(--window-entry-duration) cubic-bezier(.16,1,.3,1) backwards; }
 .window-item[data-live-entry][data-window-entrance='rise'] .window-frame { animation: windowRise var(--window-entry-duration) cubic-bezier(.16,1,.3,1) backwards; }
-.window-item[data-live-entry]:not([data-window-entrance='none']) .draw-danmaku-identity { animation: windowHeadingIn var(--window-entry-duration) ease-out backwards; }
-.window-item[data-live-entry]:not([data-window-entrance='none']) :is(.window-copy, .window-footer) { animation: windowCopyIn var(--window-entry-duration) ease-out backwards; }
+.window-item[data-live-entry]:not([data-window-entrance='none']) .draw-danmaku-identity { opacity: var(--danmaku-enter-opacity); animation: windowHeadingIn var(--window-entry-duration) ease-out backwards; }
+.window-item[data-live-entry]:not([data-window-entrance='none']) :is(.window-copy, .window-footer) { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: windowCopyIn var(--window-entry-duration) ease-out backwards; }
 body[data-style='window'][data-ambient-motion='off'] .window-frame::after { animation: none; }
 @keyframes windowPop {
-  0% { opacity: 0; transform: scale(.88); }
-  65% { opacity: 1; transform: scale(1); }
-  82% { transform: scale(.992); }
-  100% { opacity: 1; transform: none; }
+  0% { --danmaku-enter-opacity: 0; --danmaku-enter-transform: scale(.88); }
+  65% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1); }
+  82% { --danmaku-enter-transform: scale(.992); }
+  100% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1); }
 }
 @keyframes windowUnfold {
-  0% { opacity: 0; clip-path: inset(0 0 72% 0 round var(--window-radius, 22px)); }
-  24% { opacity: 1; }
-  100% { opacity: 1; clip-path: inset(0 round var(--window-radius, 22px)); }
+  0% { --danmaku-enter-opacity: 0; clip-path: inset(0 0 72% 0 round var(--window-radius, 22px)); }
+  24% { --danmaku-enter-opacity: 1; }
+  100% { --danmaku-enter-opacity: 1; clip-path: inset(0 round var(--window-radius, 22px)); }
 }
 @keyframes windowRise {
-  from { opacity: 0; translate: 0 12px; }
-  to { opacity: 1; translate: 0 0; }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 12px; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
-@keyframes windowHeadingIn { 0%, 10% { opacity: 0; } 65%, 100% { opacity: 1; } }
-@keyframes windowCopyIn { 0%, 22% { opacity: 0; translate: 0 3px; } 85%, 100% { opacity: 1; translate: 0 0; } }
-@keyframes windowEdgeBreath { 0%, 100% { opacity: .08; } 50% { opacity: .28; } }
+@keyframes windowHeadingIn { 0%, 10% { --danmaku-enter-opacity: 0; } 65%, 100% { --danmaku-enter-opacity: 1; } }
+@keyframes windowCopyIn { 0%, 22% { --danmaku-enter-opacity: 0; --danmaku-enter-y: 3px; } 85%, 100% { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0; } }
+@keyframes windowEdgeBreath { 0%, 100% { --window-edge-opacity: .08; } 50% { --window-edge-opacity: .28; } }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='window'] .window-item *,
   body[data-style='window'] .window-frame::after { animation: none !important; }

@@ -1,4 +1,4 @@
-import { setGiftImage } from './gift-image-fallback.js';
+import { setGiftArtwork } from './gift-image.js';
 
 const views = new WeakMap();
 
@@ -46,7 +46,7 @@ export function updateMoonlitGiftWish(card, wish) {
   view.name.title = wish.giftName;
   view.image.alt = wish.giftName;
   if (view.source !== wish.imagePath || !view.image.hasAttribute('src')) {
-    setGiftImage(view.image, wish.imagePath);
+    setGiftArtwork(view.image, wish.imagePath);
     view.source = wish.imagePath;
   }
   view.count.textContent = String(wish.count);

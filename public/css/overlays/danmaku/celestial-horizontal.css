@@ -15,7 +15,7 @@ body[data-style='celestial-horizontal'][data-custom-font='true'] {
 body[data-style='celestial-horizontal'] .danmaku-signal-header { display: none; }
 body[data-style='celestial-horizontal'] .danmaku-signal-stage {
   position: relative; display: flex; align-items: center; padding: 0; gap: 0; isolation: isolate;
-  height: 96px; margin-top: auto; overflow: hidden;
+  height: 80px; margin-top: auto; overflow: hidden;
   border-block: 1px solid color-mix(in srgb, var(--celestial-gold) 50%, transparent);
   box-shadow: 0 0 30px color-mix(in srgb, var(--celestial-gold) 20%, transparent);
 }
@@ -50,7 +50,7 @@ body[data-style='celestial-horizontal'] .draw-danmaku-item.celestial-item {
   animation: none; overflow: visible; zoom: 1;
 }
 body[data-style='celestial-horizontal'] .draw-danmaku-feed > .draw-danmaku-item.celestial-item::after {
-  content: ''; position: static; inset: auto; flex: none; width: 1px; height: 24px; margin: 0 24px; opacity: .4;
+  content: ''; display: block; position: static; inset: auto; flex: none; width: 1px; height: 24px; margin: 0 24px; opacity: .4;
   background: linear-gradient(transparent, var(--celestial-gold), transparent); animation: none;
 }
 body[data-style='celestial-horizontal'] .draw-danmaku-feed > .draw-danmaku-item.celestial-item:last-child::after { display: none; }
@@ -74,9 +74,9 @@ body[data-style='celestial-horizontal'] .celestial-copy { display: block; margin
 .celestial-copy .draw-danmaku-emote { display: inline-block; height: 1.5em; width: auto; vertical-align: middle; object-fit: contain; }
 .celestial-amount { font: inherit; color: var(--celestial-gold); white-space: nowrap; }
 body[data-style='celestial-horizontal'] .draw-danmaku-empty { width: 100%; margin: 0; padding: 0; font: italic 300 14px/20px var(--celestial-font); color: #f0f8ff; opacity: .4; letter-spacing: .1em; text-align: center; background: none; border: 0; }
-.celestial-item[data-live-entry] .celestial-message { animation: celestialReveal 500ms cubic-bezier(.23, 1, .32, 1) both; }
-@keyframes celestialEntry { from, to { opacity: 1; } }
-@keyframes celestialReveal { from { opacity: 0; transform: translateX(30px); } to { opacity: 1; transform: translateX(0); } }
+.celestial-item[data-live-entry] .celestial-message { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); animation: celestialReveal 500ms cubic-bezier(.23, 1, .32, 1) both; }
+@keyframes celestialEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+@keyframes celestialReveal { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(30px); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0); } }
 @keyframes celestialNebula { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-50%); } }
 @keyframes celestialTwinkle { 0%, 100% { opacity: .2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
 body[data-style='celestial-horizontal'][data-ambient-motion='off'] :is(.celestial-nebula,.celestial-star) { animation: none; }

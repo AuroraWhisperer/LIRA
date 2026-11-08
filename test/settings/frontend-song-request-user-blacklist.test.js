@@ -6,7 +6,7 @@ const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
-async function createEditor(entries = []) {
+async function createEditor(entries = [], globals = {}) {
   const { documentRef } = createDom();
   const createElement = documentRef.createElement;
   const draftEvents = [];
@@ -22,8 +22,8 @@ async function createEditor(entries = []) {
     elements.set(`songRequestUserBlacklist${suffix}`, documentRef.createElement('div'));
   }
   documentRef.getElementById = (id) => elements.get(id);
-  const { createSongRequestUserBlacklist } = await loadModuleExports(
-    path.resolve('public/js/admin/song-request-user-blacklist.js'), { Event },
+  const [{ createSongRequestUserBlacklist }, { eventBus, Events }] = await loadModuleExports(
+    [path.resolve('public/js/admin/song-request-user-blacklist.js'), path.resolve('public/js/shared/event-bus.js')], { Event, ...globals },
   );
   const editor = createSongRequestUserBlacklist({
     documentRef,
@@ -38,6 +38,7 @@ async function createEditor(entries = []) {
     table: elements.get('songRequestUserBlacklistTable'),
     count: elements.get('songRequestUserBlacklistCount'),
     add: elements.get('songRequestUserBlacklistAdd'),
+    receive(state, changedKeys = ['queue']) { eventBus.emit(Events.STATE_LOADED, { state, changedKeys }); },
     row(index) {
       const [uid, name, expiry, status, remove] = list.children[index].children.map((cell) => cell.children[0]);
       return { uid, name, expiry, status, remove };
@@ -100,6 +101,52 @@ test('blacklist snapshots preserve edits and focus, then update same-length rows
   assert.equal(ui.row(0).uid.value, '34');
   assert.equal(ui.row(0).name.value, '已保存昵称');
   assert.equal(ui.row(0).status.textContent, '永久');
+  const saved = ui.field.value;
+  ui.row(0).name.value = '另一次草稿';
+  ui.row(0).name.fire('input');
+  ui.field.dataset.dirty = 'false';
+  ui.editor.render(saved);
+  assert.equal(ui.row(0).name.value, '已保存昵称', 'resetting a draft restores even the previously rendered snapshot');
+});
+
+test('unrelated snapshots leave blacklist labels alone until expiry and hidden updates remain current', async () => {
+  let now = Date.parse('2030-01-01T00:00:00Z');
+  const ui = await createEditor([{ uid: '123', expiresAt: now + 5000 }], {
+    Date: class extends Date { static now() { return now; } },
+  });
+  const row = ui.row(0);
+  const state = { settings: { songRequestUserBlacklist: ui.field.value } };
+  let attributeWrites = 0;
+  let statusWrites = 0;
+  for (const node of [row.uid, row.name, row.expiry, row.remove]) {
+    const setAttribute = node.setAttribute;
+    node.setAttribute = (...args) => { attributeWrites++; setAttribute(...args); };
+  }
+  const statusProperty = Object.getOwnPropertyDescriptor(row.status, 'textContent');
+  Object.defineProperty(row.status, 'textContent', {
+    ...statusProperty, set(value) { statusWrites++; statusProperty.set.call(this, value); },
+  });
+  for (let index = 0; index < 20; index++) ui.receive({ ...state, queue: { requestResult: { id: index } } });
+  assert.equal(attributeWrites, 0);
+  assert.equal(statusWrites, 0);
+  const activeStatus = row.status.textContent;
+  now += 5000;
+  ui.receive(state);
+  assert.notEqual(row.status.textContent, activeStatus);
+  ui.receive(state);
+  assert.equal(attributeWrites, 0, 'expiry does not rewrite structural labels');
+  assert.equal(statusWrites, 1);
+  now -= 1000;
+  ui.receive(state);
+  assert.equal(row.status.textContent, activeStatus, 'clock rollback restores a limit that has not yet expired');
+  ui.receive(state);
+  assert.equal(attributeWrites, 0);
+  assert.equal(statusWrites, 2);
+  ui.documentRef.hidden = true;
+  ui.receive({ settings: { songRequestUserBlacklist: '[{"uid":"456","name":"更新后","expiresAt":0}]' } }, ['settings']);
+  ui.documentRef.hidden = false;
+  assert.equal(ui.row(0).uid.value, '456');
+  assert.equal(ui.row(0).name.value, '更新后');
 });
 
 test('editing a note preserves the maximum supported expiry in the local time zone', async () => {

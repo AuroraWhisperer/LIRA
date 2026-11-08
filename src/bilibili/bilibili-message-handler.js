@@ -109,13 +109,7 @@ function handleDanmakuMessage(
           : '歌库里还没有可随机歌曲。';
         const autoReply =
           settings.enableRandomTagReply === 'true'
-            ? buildRandomScopeAutoReply(
-                command.scopeText,
-                {
-                  ...(context.describeRandomSongScope ? context.describeRandomSongScope(command.scopeText) : {}),
-                },
-                { uid, name: userName },
-              )
+            ? buildRandomScopeAutoReply(command.scopeText, {}, { uid, name: userName })
             : null;
         return { accepted: false, reason, command, autoReply };
       }

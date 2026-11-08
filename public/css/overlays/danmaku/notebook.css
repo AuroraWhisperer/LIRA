@@ -1,3 +1,7 @@
+@property --notebook-shift { syntax: '<length>'; inherits: false; initial-value: 0px; }
+@property --notebook-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@property --notebook-scale { syntax: '<number>'; inherits: false; initial-value: 1.0193; }
+
 body[data-style='notebook'] {
   --danmaku-enter-animation: notebookEntry 740ms linear;
   --danmaku-move-base-ms: 85;
@@ -44,7 +48,7 @@ body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] {
   --nb-portrait: url('/img/overlays/danmaku-notebook/avatar-frame-governor.png');
 }
 body[data-style='notebook'] .notebook-item .notebook-paper-float { position: relative; flex: 1; min-width: 0; max-width: 100%; }
-body[data-style='notebook'] .notebook-item .notebook-paper { position: relative; isolation: isolate; will-change: transform; }
+body[data-style='notebook'] .notebook-item .notebook-paper { position: relative; isolation: isolate; }
 body[data-style='notebook'] .notebook-item .notebook-paper-base {
   position: absolute; inset: .021635em; z-index: -1; border-radius: .411058em;
   background: linear-gradient(0deg, rgb(222 245 181 / 5%), transparent), linear-gradient(90deg,var(--nb-start),var(--nb-end));
@@ -130,86 +134,86 @@ body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'].notebook-n
 body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-content { padding-left: .605769em; }
 body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-heading { padding-left: 0; }
 
-body[data-style='notebook'] .notebook-item .notebook-portrait-sway { animation: notebookAvatarSway 4233.333ms linear infinite; }
-body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] :is(.notebook-paper-float,.notebook-portrait-float) { animation: notebookFloat 2333.333ms ease-in-out 500ms infinite both; }
+body[data-style='notebook'] .notebook-item .notebook-portrait-sway { translate: 0 var(--notebook-shift); rotate: var(--notebook-angle); animation: notebookAvatarSway 4233.333ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] :is(.notebook-paper-float,.notebook-portrait-float) { translate: 0 var(--notebook-shift); animation: notebookFloat 2333.333ms ease-in-out 500ms infinite both; }
 body[data-style='notebook'] .notebook-item:not(:last-child) :is(.notebook-paper-float,.notebook-portrait-float) { animation-play-state: paused; }
 body[data-style='notebook'] .notebook-item .notebook-portrait-pulse { scale: 1.0193; }
-body[data-style='notebook'] .notebook-item[data-notebook-role='captain'] .notebook-portrait-pulse { animation: notebookCaptainPulse 4933.333ms linear infinite; }
-body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] .notebook-portrait-pulse { animation: notebookAdmiralPulse 4100ms linear infinite; }
-body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] .notebook-portrait-pulse { animation: notebookGovernorPulse 3300ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='captain'] .notebook-portrait-pulse { scale: var(--notebook-scale); animation: notebookCaptainPulse 4933.333ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='admiral'] .notebook-portrait-pulse { scale: var(--notebook-scale); animation: notebookAdmiralPulse 4100ms linear infinite; }
+body[data-style='notebook'] .notebook-item[data-notebook-role='governor'] .notebook-portrait-pulse { scale: var(--notebook-scale); animation: notebookGovernorPulse 3300ms linear infinite; }
 body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-sway,
 body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-pulse { animation: none; scale: 1; }
 body[data-style='notebook'][data-ambient-motion='off'] .notebook-item :is(.notebook-paper-float,.notebook-portrait-float,.notebook-portrait-sway,.notebook-portrait-pulse) { animation: none; }
-body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-portrait-enter { animation: notebookAvatarFade 500ms linear both, notebookAvatarRise 600ms ease-out both, notebookAvatarReturn 420ms linear both; }
-body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { animation: notebookPaperEnter 450ms cubic-bezier(.22,1,.36,1) 150ms both; }
-body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-heading { animation: notebookTextEnter 300ms ease-out 320ms both; }
-body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-copy { animation: notebookTextEnter 320ms ease-out 420ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-portrait-enter { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); rotate: var(--notebook-angle); animation: notebookAvatarFade 500ms linear both, notebookAvatarRise 600ms ease-out both, notebookAvatarReturn 420ms linear both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); animation: notebookPaperEnter 450ms cubic-bezier(.22,1,.36,1) 150ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-heading { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: notebookTextEnter 300ms ease-out 320ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-copy { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: notebookTextEnter 320ms ease-out 420ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='gift'] .notebook-paper,
-body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='sc'] .notebook-paper { animation: notebookEventEnter 200ms ease-out both; }
-body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='member'] .notebook-paper { animation: notebookEventEnter 280ms ease-out 120ms both; }
-@keyframes notebookEntry { from, to { opacity: 1; } }
-@keyframes notebookFloat { 0%,100% { translate: 0 0; } 50% { translate: 0 -.173077em; } }
-@keyframes notebookAvatarFade { 0% { opacity: 0; } 20% { opacity: .746; } 40% { opacity: .949; } 60% { opacity: .99; } 100% { opacity: 1; } }
-@keyframes notebookAvatarRise { from { translate: 0 .173077em; } to { translate: 0 0; } }
-@keyframes notebookAvatarReturn { 0% { rotate: -3.05deg; } 25% { rotate: -1.831deg; } 50% { rotate: -.893deg; } 75% { rotate: -.262deg; } 100% { rotate: 0deg; } }
-@keyframes notebookPaperEnter { from { opacity: 0; transform: translateX(.432692em) rotate(3deg) scale(.975); } to { opacity: 1; transform: translateX(0) rotate(0deg) scale(1); } }
-@keyframes notebookTextEnter { from { opacity: 0; translate: 0 .259615em; } to { opacity: 1; translate: 0 0; } }
-@keyframes notebookEventEnter { from { opacity: 0; } to { opacity: 1; } }
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='sc'] .notebook-paper { opacity: var(--danmaku-enter-opacity); animation: notebookEventEnter 200ms ease-out both; }
+body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='member'] .notebook-paper { opacity: var(--danmaku-enter-opacity); animation: notebookEventEnter 280ms ease-out 120ms both; }
+@keyframes notebookEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+@keyframes notebookFloat { 0%,100% { --notebook-shift: 0; } 50% { --notebook-shift: -.173077em; } }
+@keyframes notebookAvatarFade { 0% { --danmaku-enter-opacity: 0; } 20% { --danmaku-enter-opacity: .746; } 40% { --danmaku-enter-opacity: .949; } 60% { --danmaku-enter-opacity: .99; } 100% { --danmaku-enter-opacity: 1; } }
+@keyframes notebookAvatarRise { from { --danmaku-enter-y: .173077em; } to { --danmaku-enter-y: 0; } }
+@keyframes notebookAvatarReturn { 0% { --notebook-angle: -3.05deg; } 25% { --notebook-angle: -1.831deg; } 50% { --notebook-angle: -.893deg; } 75% { --notebook-angle: -.262deg; } 100% { --notebook-angle: 0deg; } }
+@keyframes notebookPaperEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(.432692em) rotate(3deg) scale(.975); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0) rotate(0deg) scale(1); } }
+@keyframes notebookTextEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: .259615em; } to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0; } }
+@keyframes notebookEventEnter { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 
 @keyframes notebookAvatarSway {
-  0% { rotate: -1.07000deg; translate: 0 0.059712em; }
-  6.25% { rotate: -1.55947deg; translate: 0 0.071214em; }
-  12.5% { rotate: -1.82827deg; translate: 0 0.077144em; }
-  18.75% { rotate: -1.83548deg; translate: 0 0.076600em; }
-  25% { rotate: -1.58000deg; translate: 0 0.069663em; }
-  31.25% { rotate: -1.10073deg; translate: 0 0.057392em; }
-  37.5% { rotate: -0.47062deg; translate: 0 0.041652em; }
-  43.75% { rotate: 0.21438deg; translate: 0 0.024842em; }
-  50% { rotate: 0.85000deg; translate: 0 0.009519em; }
-  56.25% { rotate: 1.33947deg; translate: 0 -0.001983em; }
-  62.5% { rotate: 1.60827deg; translate: 0 -0.007913em; }
-  68.75% { rotate: 1.61548deg; translate: 0 -0.007369em; }
-  75% { rotate: 1.36000deg; translate: 0 -0.000433em; }
-  81.25% { rotate: 0.88073deg; translate: 0 0.011839em; }
-  87.5% { rotate: 0.25062deg; translate: 0 0.027578em; }
-  93.75% { rotate: -0.43438deg; translate: 0 0.044389em; }
-  100% { rotate: -1.07000deg; translate: 0 0.059712em; }
+  0% { --notebook-angle: -1.07000deg; --notebook-shift: 0.059712em; }
+  6.25% { --notebook-angle: -1.55947deg; --notebook-shift: 0.071214em; }
+  12.5% { --notebook-angle: -1.82827deg; --notebook-shift: 0.077144em; }
+  18.75% { --notebook-angle: -1.83548deg; --notebook-shift: 0.076600em; }
+  25% { --notebook-angle: -1.58000deg; --notebook-shift: 0.069663em; }
+  31.25% { --notebook-angle: -1.10073deg; --notebook-shift: 0.057392em; }
+  37.5% { --notebook-angle: -0.47062deg; --notebook-shift: 0.041652em; }
+  43.75% { --notebook-angle: 0.21438deg; --notebook-shift: 0.024842em; }
+  50% { --notebook-angle: 0.85000deg; --notebook-shift: 0.009519em; }
+  56.25% { --notebook-angle: 1.33947deg; --notebook-shift: -0.001983em; }
+  62.5% { --notebook-angle: 1.60827deg; --notebook-shift: -0.007913em; }
+  68.75% { --notebook-angle: 1.61548deg; --notebook-shift: -0.007369em; }
+  75% { --notebook-angle: 1.36000deg; --notebook-shift: -0.000433em; }
+  81.25% { --notebook-angle: 0.88073deg; --notebook-shift: 0.011839em; }
+  87.5% { --notebook-angle: 0.25062deg; --notebook-shift: 0.027578em; }
+  93.75% { --notebook-angle: -0.43438deg; --notebook-shift: 0.044389em; }
+  100% { --notebook-angle: -1.07000deg; --notebook-shift: 0.059712em; }
 }
 
 @keyframes notebookCaptainPulse {
-  0% { scale: 1.025375; }
-  12.5% { scale: 1.018178; }
-  25% { scale: 1.011015; }
-  37.5% { scale: 1.008081; }
-  50% { scale: 1.011095; }
-  62.5% { scale: 1.018292; }
-  75% { scale: 1.025455; }
-  87.5% { scale: 1.028389; }
-  100% { scale: 1.025375; }
+  0% { --notebook-scale: 1.025375; }
+  12.5% { --notebook-scale: 1.018178; }
+  25% { --notebook-scale: 1.011015; }
+  37.5% { --notebook-scale: 1.008081; }
+  50% { --notebook-scale: 1.011095; }
+  62.5% { --notebook-scale: 1.018292; }
+  75% { --notebook-scale: 1.025455; }
+  87.5% { --notebook-scale: 1.028389; }
+  100% { --notebook-scale: 1.025375; }
 }
 
 @keyframes notebookAdmiralPulse {
-  0% { scale: 1.019415; }
-  12.5% { scale: 1.005164; }
-  25% { scale: 1.000254; }
-  37.5% { scale: 1.007560; }
-  50% { scale: 1.022803; }
-  62.5% { scale: 1.037054; }
-  75% { scale: 1.041964; }
-  87.5% { scale: 1.034658; }
-  100% { scale: 1.019415; }
+  0% { --notebook-scale: 1.019415; }
+  12.5% { --notebook-scale: 1.005164; }
+  25% { --notebook-scale: 1.000254; }
+  37.5% { --notebook-scale: 1.007560; }
+  50% { --notebook-scale: 1.022803; }
+  62.5% { --notebook-scale: 1.037054; }
+  75% { --notebook-scale: 1.041964; }
+  87.5% { --notebook-scale: 1.034658; }
+  100% { --notebook-scale: 1.019415; }
 }
 
 @keyframes notebookGovernorPulse {
-  0% { scale: 1.029324; }
-  12.5% { scale: 1.008210; }
-  25% { scale: 1.000152; }
-  37.5% { scale: 1.009869; }
-  50% { scale: 1.031670; }
-  62.5% { scale: 1.052784; }
-  75% { scale: 1.060842; }
-  87.5% { scale: 1.051125; }
-  100% { scale: 1.029324; }
+  0% { --notebook-scale: 1.029324; }
+  12.5% { --notebook-scale: 1.008210; }
+  25% { --notebook-scale: 1.000152; }
+  37.5% { --notebook-scale: 1.009869; }
+  50% { --notebook-scale: 1.031670; }
+  62.5% { --notebook-scale: 1.052784; }
+  75% { --notebook-scale: 1.060842; }
+  87.5% { --notebook-scale: 1.051125; }
+  100% { --notebook-scale: 1.029324; }
 }
 
 @media (prefers-reduced-motion: reduce) {

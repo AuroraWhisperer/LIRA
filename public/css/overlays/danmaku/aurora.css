@@ -157,12 +157,17 @@ body[data-style='aurora'] .draw-danmaku-body p {
   overflow-wrap: anywhere;
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .aurora-arrival {
+  opacity: var(--danmaku-enter-opacity);
+  transform: var(--danmaku-enter-transform);
   animation: auroraArrive var(--aurora-entry-duration) cubic-bezier(.2, .75, .25, 1) both;
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-identity {
+  opacity: var(--danmaku-enter-opacity);
+  transform: var(--danmaku-enter-transform);
   animation: auroraName calc(var(--aurora-entry-duration) * 21 / 26) cubic-bezier(.2, .75, .25, 1) calc(var(--aurora-entry-duration) * 2 / 13) both;
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-body p {
+  opacity: var(--danmaku-enter-opacity);
   animation: auroraText calc(var(--aurora-entry-duration) * 15 / 26) ease-out calc(var(--aurora-entry-duration) / 4) both;
 }
 .aurora-pin {
@@ -251,14 +256,14 @@ body[data-style='aurora'] .is-emote-only .draw-danmaku-emote { height: 76px; }
 body[data-style='aurora'][data-ambient-motion='off'] .aurora-charm,
 body[data-style='aurora'][data-ambient-motion='off'] .aurora-paper::after { animation: none; }
 @keyframes auroraArrive {
-  from { opacity: 0; transform: translate(14px, 4px); }
-  to { opacity: 1; transform: translate(0, 0); }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translate(14px, 4px); }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translate(0, 0); }
 }
 @keyframes auroraName {
-  from { opacity: 0; transform: translateY(-5px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateY(-5px); }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateY(0); }
 }
-@keyframes auroraText { from { opacity: 0; } to { opacity: 1; } }
+@keyframes auroraText { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes auroraPearl {
   0%, 16% { background-position: 110% 0; }
   62%, 100% { background-position: -10% 0; }

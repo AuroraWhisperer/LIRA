@@ -71,12 +71,44 @@ function createSceneExtraDisplay({ displayPorts, getOwner, now = Date.now }) {
           ? {} : { lyricTimeline: structuredClone(entry.timeline) }) };
       }
       case 'now-playing': return { nowPlaying: projectOverlayState(type, getState()).nowPlaying };
-      case 'games': return { session: response('/api/games/session', displayPorts.games.getSession()) };
+      case 'games': {
+        if (!request?.incrementalParts || !request.dataVersions || !displayPorts.games.getDisplaySession) {
+          return { session: response('/api/games/session', displayPorts.games.getSession()) };
+        }
+        const owner = getOwner?.();
+        const key = JSON.stringify([owner?.scope, owner?.epoch]);
+        let entry = cache.get('games-parts');
+        if (entry?.key !== key) {
+          entry = { key, prefix: `${randomUUID()}_` };
+          cache.set('games-parts', entry);
+        }
+        const known = (name) => {
+          const value = request.dataVersions.known[name];
+          return value?.startsWith(entry.prefix) ? value.slice(entry.prefix.length) : undefined;
+        };
+        const value = displayPorts.games.getDisplaySession({ canvasVersion: known('gamesCanvas'), scoresVersion: known('gamesScores') });
+        for (const [name, version] of [['gamesCanvas', value.canvasVersion], ['gamesScores', value.scoresVersion]]) {
+          if (version) request.dataVersions.current[name] = `${entry.prefix}${version}`;
+        }
+        return { session: response('/api/games/session', value.session) };
+      }
       case 'wheel': return response('/api/wheel', displayPorts.wheel.getState());
       case 'interactions': return response('/api/interactions/session', displayPorts.interactions.getState());
       case 'blindbox':
-        try { return response('/api/gifts/blind-box-stats', displayPorts.gifts.getBlindBoxStats(
-          displayPorts.settings.get().blindboxHeartBoxOnly === 'true' ? { boxName: '心动盲盒' } : {})); }
+        try {
+          const owner = getOwner?.();
+          const revision = displayPorts.gifts.getBlindBoxChangeToken?.();
+          const boxName = displayPorts.settings.get().blindboxHeartBoxOnly === 'true' ? '心动盲盒' : '';
+          const key = JSON.stringify([owner?.scope, owner?.epoch, revision, boxName]);
+          let entry = cache.get(type);
+          if (revision == null || entry?.key !== key) {
+            entry = { key, version: randomUUID(),
+              value: response('/api/gifts/blind-box-stats', displayPorts.gifts.getBlindBoxStats({ boxName })) };
+            if (revision != null) cache.set(type, entry);
+            else cache.delete(type);
+          }
+          return unchanged(request, type, entry.version) ? undefined : structuredClone(entry.value);
+        }
         catch (error) {
           if (['GIFT_SOURCE_UNAVAILABLE', 'GIFT_VIEW_STALE'].includes(error.code)) return null;
           throw error;

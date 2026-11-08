@@ -5,13 +5,15 @@ const layout = require('../../src/shared/danmaku-layout');
 test('widening a horizontal strip adds card space while preserving the content scale', async () => {
   const { canvasContentScale } = await import('../../public/js/overlays/danmaku-canvas.js');
   const value = layout.createLayout();
-  const region = value.regions.stargazer;
-  const options = { stargazer: { stargazerLayout: 'horizontal' } };
-  region.height = 260;
-  const original = canvasContentScale(value, 'stargazer', options);
-  region.width = 1200;
-  assert.equal(canvasContentScale(value, 'stargazer', options), original);
-  assert.ok(canvasContentScale(value, 'stargazer') > original, 'vertical cards retain width-based scaling');
+  for (const style of ['stargazer', 'glowy']) {
+    const region = value.regions[style];
+    const options = { [style]: { [`${style}Layout`]: 'horizontal' } };
+    region.height = 260;
+    const original = canvasContentScale(value, style, options);
+    region.width = 1200;
+    assert.equal(canvasContentScale(value, style, options), original);
+    assert.ok(canvasContentScale(value, style) > original, 'vertical cards retain width-based scaling');
+  }
   const horizontal = value.regions['celestial-horizontal'];
   const barScale = canvasContentScale(value, 'celestial-horizontal');
   horizontal.width = 1200;
@@ -54,16 +56,19 @@ test('invalid layout values never become a partial valid configuration', () => {
     assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' });
 });
 
-test('new default regions preserve previously saved dimensions', () => {
+test('new default regions preserve previously saved dimensions and text scaling', async () => {
+  const { canvasContentScale } = await import('../../public/js/overlays/danmaku-canvas.js');
   const saved = layout.createLayout();
   saved.regions.bubble = { x: 120, y: 240, width: 380, height: 560 };
   saved.regions.minimal = { x: 600, y: 200, width: 504, height: 592 };
   saved.regions.identity = { x: 40, y: 480, width: 640, height: 560 };
+  saved.regions['dark-moon'] = { x: 40, y: 320, width: 640, height: 720 };
   assert.deepEqual(layout.normalizeLayout(saved), saved);
+  assert.equal(canvasContentScale(saved, 'dark-moon'), 1, 'saved text keeps its original scale');
 });
 
 // Styles added after the first saved layouts may be absent from older settings.
-const OPTIONAL_REGIONS = ['glass-bubble', 'celestial-horizontal', 'animated-gradient', 'stargazer', 'wireframe', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
+const OPTIONAL_REGIONS = ['horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'stargazer', 'wireframe', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'mist', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter'];
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   const original = layout.createLayout();

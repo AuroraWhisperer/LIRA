@@ -22,28 +22,25 @@
   clip-path: polygon(0 0, 100% 0, calc(100% - 28px) 100%, 0 100%);
   background: linear-gradient(90deg, var(--gift-start), var(--gift-end));
 }
-.gift-banner[data-tail-style='swallowtail'] .gift-banner-background {
-  width: calc(var(--gift-banner-width) - 58px);
-  clip-path: polygon(0 0, calc(100% - 6px) 0, calc(100% - 32px) 50%, 100% 100%, 0 100%);
-}
-.gift-banner[data-tail-style='swallowtail'] .gift-banner-background::after {
+.gift-banner[data-tail-style='swallowtail']::before {
   content: '';
   position: absolute;
-  inset: 0;
-  clip-path: polygon(calc(100% - 32px) 50%, 100% 100%, calc(100% - 68px) 100%);
-  background: linear-gradient(180deg, #ffffff60, #ffffffaa);
+  left: calc(var(--gift-banner-width) - 88px);
+  top: calc(4px + 64px * 2 / 3);
+  width: 28px;
+  height: calc(64px / 3);
+  clip-path: polygon(33.333% 0, 100% 100%, 0 100%);
+  background: linear-gradient(160deg, #ffffff60, #ffffffa6), var(--gift-end);
 }
 .gift-banner[data-tail-style='ribbon']::before {
   content: '';
   position: absolute;
-  left: 12px;
-  top: 12px;
-  width: calc(var(--gift-banner-width) - 76px);
-  height: 58px;
-  border-radius: 29px 0 0 29px;
-  clip-path: polygon(0 0, 100% 0, calc(100% - 26px) 100%, 0 100%);
-  background: linear-gradient(110deg, #ffffffa8, #ffffff62), linear-gradient(90deg, var(--gift-start), var(--gift-end));
-  box-shadow: inset 0 -1px 0 #ffffff80;
+  left: calc(var(--gift-banner-width) - 102px);
+  top: 18px;
+  width: 40px;
+  height: 52px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 50%, 100% 100%, 16px 100%);
+  background: linear-gradient(120deg, #ffffff70, #ffffffb0), var(--gift-end);
 }
 .gift-banner[data-tail-style='ribbon'] .gift-banner-background {
   z-index: 1;
@@ -55,11 +52,11 @@
   position: absolute;
   z-index: 1;
   left: calc(var(--gift-banner-width) - 96px);
-  top: 67px;
-  width: 8px;
-  height: 3px;
-  clip-path: polygon(0 0, 100% 0, 50% 100%);
-  background: linear-gradient(#00000022, #00000022), var(--gift-end);
+  top: 18px;
+  width: 20px;
+  height: 52px;
+  clip-path: polygon(100% 0, 50% 100%, 0 calc(100% - 2px));
+  background: linear-gradient(160deg, #00000018, #00000048), var(--gift-end);
 }
 .gift-banner[data-tail-style='ribbon'] > :not(.gift-banner-background) {
   z-index: 2;

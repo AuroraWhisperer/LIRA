@@ -2,7 +2,7 @@
 
 import { describeQuantityMode, describeRule, formatDurationSummary, readRules } from './overtime-rule-model.js';
 import { createOvertimeRuleEffectEditor } from './overtime-rule-effect-editor.js';
-import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { setGiftArtwork } from '../shared/gift-image.js';
 
 function describeBinding(id, identity) {
   return `ID ${id} · 标价 ¥${(identity.priceRaw / 1000).toFixed(2)}${identity.bagGift ? ' · 背包礼物' : ''}`;
@@ -97,7 +97,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     const gift = documentRef.createElement('div');
     gift.className = 'overtime-rule-gift';
     const image = documentRef.createElement('img');
-    setGiftImage(image, rule.imagePath);
+    setGiftArtwork(image, rule.imagePath);
     image.alt = '';
     gift.append(image);
 
@@ -335,7 +335,7 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
       target.dataset.giftName = gift.name;
       target.dataset.giftIdentity = JSON.stringify(gift.giftIdentity || null);
       target.dataset.imagePath = gift.imagePath || '';
-      setGiftImage(target.querySelector('.overtime-rule-gift img'), gift.imagePath);
+      setGiftArtwork(target.querySelector('.overtime-rule-gift img'), gift.imagePath);
       target.querySelector('.overtime-rule-identity strong').textContent = gift.name;
       target.querySelector('[data-gift-binding]').textContent = gift.giftIdentity
         ? describeBinding(gift.id, gift.giftIdentity)

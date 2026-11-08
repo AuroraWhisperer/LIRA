@@ -9,6 +9,8 @@ import { enhanceColorControls } from './color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from './parameter-range.js';
 
 const GROUPS = {
+  neonGlass: ['NeonGlassOptions', '霓光玻璃'],
+  astral: ['AstralOptions', 'Astral · 星笺'],
   twitterColors: ['TwitterColors', '礼物与 SC 配色'],
   spookyColors: ['SpookyColors', '背景与装饰配色'],
   ripploidGift: ['RipploidGiftColors', '礼物配色'],
@@ -27,12 +29,15 @@ const GROUPS = {
   gradient: ['GradientOptions', '渐变与昵称牌'],
   glassBubble: ['GlassBubbleOptions', '玻璃与显字'],
   celestial: ['CelestialOptions', '星云与星标'],
+  charm: ['CharmOptions', '昵称签与横栏'],
+  glowy: ['GlowyOptions', 'Glowy 流光玻璃'],
   glass: ['GlassOptions', '玻璃通知'],
   darkMoon: ['DarkMoonOptions', '月环与星芒'],
   wireframe: ['WireframeOptions', '圈线与描框'],
   seaBreeze: ['SeaBreezeOptions', '海风倒影'],
 };
 const capitalize = value => value[0].toUpperCase() + value.slice(1);
+const isFixedStyle = style => Boolean(DANMAKU_STYLE_OPTIONS[style]) && (DANMAKU_STYLE_OPTIONS[style].layout || 'fixed') === 'fixed';
 
 export function mountDanmakuParameters(host, controller, {
   prefix = 'danmaku', desktop = true, onError, resetButton, fontScale = () => 1,
@@ -59,12 +64,17 @@ export function mountDanmakuParameters(host, controller, {
   const advancedBody = element('div', desktop ? 'danmaku-advanced-body' : '');
   advanced.append(advancedBody);
   host.append(basic);
+  const fixed = element('section', 'danmaku-advanced-section component-style-parameters', '', 'FixedMotion');
+  const fixedTitle = element(desktop ? 'h6' : 'h3', '', '固定弹幕通用参数', 'FixedMotionTitle');
+  fixed.setAttribute('aria-labelledby', fixedTitle.id);
+  fixed.append(fixedTitle);
+  advancedBody.append(fixed);
   const groups = new Map();
   const ripploid = element('section', 'danmaku-advanced-section', '', 'RipploidColors');
   const ripploidTitle = element(desktop ? 'h6' : 'h3', '', 'RIPPLOID 事件配色', 'RipploidColorsTitle');
   ripploid.setAttribute('aria-labelledby', ripploidTitle.id);
   ripploid.append(ripploidTitle);
-  advancedBody.append(ripploid);
+  host.append(ripploid);
   for (const [key, [suffix, label]] of Object.entries(GROUPS)) {
     const section = element('section', 'danmaku-advanced-section', '', key === 'message' ? '' : suffix);
     const title = element(desktop ? 'h6' : 'h3', '', label, `${suffix}Title`);
@@ -185,7 +195,10 @@ export function mountDanmakuParameters(host, controller, {
     if (loaded) controller.edit({ styleOptions: resetSpookyColors(draft).styleOptions });
   });
   const effectsHost = element('div', '', '', 'AppearanceEffects'); advancedBody.append(effectsHost);
-  const effects = mountStyleParameters(effectsHost, controller, 'danmaku', { messageHost: groups.get('message').grid, helpPopover: desktop });
+  const effects = mountStyleParameters(effectsHost, controller, 'danmaku', {
+    messageHost: groups.get('message').grid, helpPopover: desktop, fieldsRoot: host,
+    getTransformHost: draft => isFixedStyle(draft.style) ? fixed : null,
+  });
   const fontInput = views.get('fontFamily').input;
   const unregisterFont = registerFontSelect(fontInput);
   const reset = () => {
@@ -197,6 +210,7 @@ export function mountDanmakuParameters(host, controller, {
   function render({ draft, loaded }, force = false) {
     force ||= renderedStyle !== draft.style;
     renderedStyle = draft.style;
+    fixed.hidden = !isFixedStyle(draft.style);
     const fields = styleOptionFields(draft.style);
     const options = styleOptionsFor(draft.style, draft.styleOptions, draft.fullscreenDurationSeconds);
     const saved = draft.styleOptions?.[draft.style] || {};

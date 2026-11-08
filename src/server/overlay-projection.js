@@ -237,7 +237,7 @@ const EVENT_SCHEMAS = {
   'gift:frame': {
     scope: 'gift-effects',
     schema: { ...fields('eventId giftName userName avatarUrl num totalPriceCents themeId preview artworkPath startedAt'),
-      motion: fields('size durationSeconds angle speed bounce textMode'), styleIds: [true] },
+      motion: fields('size durationSeconds angle speed bounce textMode quantityMultiplier'), styleIds: [true] },
   },
   'gift:guard-thanks': {
     scope: 'gift-effects',

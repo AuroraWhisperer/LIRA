@@ -52,7 +52,7 @@ function applyRetentionPolicies(databases, options = {}) {
   };
 
   const giftRawDays = normalizeDays(policy.giftRawJsonDays);
-  if (giftRawDays > 0 && databases.giftDb) {
+  if (options.giftEventsOnly !== true && giftRawDays > 0 && databases.giftDb) {
     const threshold = isoDaysAgo(giftRawDays);
     const countRow = databases.giftDb
       .prepare(
@@ -90,6 +90,9 @@ function applyRetentionPolicies(databases, options = {}) {
       result.hasMoreGiftEvents = deleteResult.hasMore;
     }
   }
+
+  // Continuations drain this bounded deletion without repeating other domains.
+  if (options.giftEventsOnly === true) return result;
 
   const requestDays = normalizeDays(policy.requestDays);
   if (requestDays > 0 && databases.songDb) {

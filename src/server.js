@@ -22,6 +22,7 @@ const { createCloudSyncRuntime } = require('./server/cloud-sync-runtime');
 const { createFontLibrary } = require('./fonts/font-library');
 const { createResourceLibrary } = require('./resources/resource-library');
 const { startRetentionMaintenance } = require('./server/startup-retention');
+const { visitLocalAssetReferences } = require('./server/local-asset-references');
 const lifecycle = require('./server/lifecycle');
 const wsTransport = require('./server/ws');
 const { createDomainServices } = require('./server/domain-services');
@@ -140,7 +141,7 @@ function createServerRuntime(runtimeOptions = {}) {
     getSettingsStore: () => settingsStore,
     getBilibiliRuntime: () => bilibiliRuntime,
     getAiConfig: () => aiRuntime?.configStore.getConfig(),
-    getGameSession: () => gameSessionService?.getSession(),
+    getGameSession: () => gameSessionService?.getMenuState(),
     getInteractionSession: () => interactionSessionService?.getState().session,
     getSongs: () => domainServices?.songs,
     getCustomReplies: () => domainServices?.customReplies,
@@ -196,6 +197,10 @@ function createServerRuntime(runtimeOptions = {}) {
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
       domainServices = createDomainServices({
         db,
+        visitAssetReferences: visit => visitLocalAssetReferences({
+          system: { dataDir: DATA_DIR }, scenes: sceneRuntime?.service,
+          componentPreviews: server, settings: { get: settingsStore.getSettings },
+        }, visit),
         getFanScope: runtimeOptions.getFanScope,
         getSceneOwner: runtimeOptions.getSceneOwner,
         settingsStore,
@@ -221,6 +226,7 @@ function createServerRuntime(runtimeOptions = {}) {
         onOvertimeUpdate: (update) => publishOvertimeUpdate(update),
       });
       const displayPorts = {
+        giftImages: domainServices.overtimeGiftCatalog.imageResources,
         bilibili: { getRoomProfile: () => bilibiliRuntime.getRoomProfile() },
         settings: { get: settingsStore.getSettings },
         system: { dataDir: DATA_DIR, getState },
@@ -369,6 +375,8 @@ function createServerRuntime(runtimeOptions = {}) {
     inflightTracker,
     createApiContext,
     getSettings: () => settingsStore?.getSettings(),
+    ensureGiftImage: imagePath => isLicenseAuthorized()
+      ? domainServices?.overtimeGiftCatalog?.imageResources?.ensureImage(imagePath) : '',
     servePageOrAsset,
     getWebSocketContext,
     getWebSocketHub: () => webSocketHub,
@@ -463,7 +471,7 @@ function createServerRuntime(runtimeOptions = {}) {
     return startPromise;
   }
 
-  function getState(fields) {
+  function getState(fields, { exclude = [] } = {}) {
     let songMetadata;
     const readSongMetadata = () => songMetadata ??= domainServices.songs.getMetadata();
     const readers = {
@@ -489,7 +497,8 @@ function createServerRuntime(runtimeOptions = {}) {
       weSing: () => musicRuntime.weSingCapture.getStatus(),
       danmakuFeed: () => danmakuFeedBuffer ? danmakuFeedBuffer.getSnapshot() : [],
     };
-    return Object.fromEntries((fields ?? Object.keys(readers)).map((field) => [field, readers[field]()]));
+    return Object.fromEntries((fields ?? Object.keys(readers)).filter(field => !exclude.includes(field))
+      .map((field) => [field, readers[field]()]));
   }
 
   function shutdownApplication(options = {}) {
@@ -577,7 +586,10 @@ function createServerRuntime(runtimeOptions = {}) {
       ['AI drain', () => aiRuntime?.shutdown()],
       ['pending gift flush', () => domainServices?.gifts.dispose()],
       ['SC undo', () => domainServices?.superChats.dispose()],
-      ['gift catalog', () => domainServices?.overtimeGiftCatalog.stop?.()],
+      ['gift catalog', () => {
+        domainServices?.overtimeGiftCatalog.stop?.();
+        return domainServices?.overtimeGiftCatalog.dispose?.();
+      }],
       ['overtime', () => domainServices?.overtime.dispose()],
       ['Music capture', () => musicRuntime?.stop()],
       ['database optimize', () => options.optimize === true && db && optimizeDatabases(db)],

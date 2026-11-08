@@ -47,6 +47,10 @@ test('browser gift toasts reuse safe local artwork and top-layer notifications s
           body: fs.readFileSync('public/img/admin/gifts/bilibili-guard-captain.webp'),
         });
       }
+      if (url.pathname === '/overtime-gift-images/gift.gif') {
+        return route.fulfill({ contentType: 'image/gif',
+          body: Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64') });
+      }
       return route.fulfill({ status: 404, body: '' });
     }
     const file = path.resolve('public', '.' + url.pathname);
@@ -108,7 +112,6 @@ test('browser gift toasts reuse safe local artwork and top-layer notifications s
   for (const [id, giftId, variantId] of [
     [2, '101', 'missing'],
     [3, '102', 'remote'],
-    [4, '103', 'animation'],
     [5, '999', 'unknown'],
   ]) {
     await page.evaluate(
@@ -120,6 +123,12 @@ test('browser gift toasts reuse safe local artwork and top-layer notifications s
     );
     await page.waitForFunction(() => !document.querySelector('#gift-notice-test img'));
   }
+  await page.evaluate(() => {
+    currentGiftNotice.close(true);
+    notifyGift([{ id: 4, gift_id: '103', gift_variant_id: 'animation', gift_name: '动态图片', num: 1 }]);
+  });
+  await page.waitForFunction(() => document.querySelector('#gift-notice-test .gift-notify-artwork.is-loaded'));
+  assert.equal(await page.locator('#gift-notice-test img').getAttribute('src'), '/overtime-gift-images/gift.gif');
   const discarded = await page.evaluate(() => {
     currentGiftNotice.close(true);
     document.getElementById('gift-notice-test').style.top = `${innerHeight - 8}px`;
@@ -132,7 +141,7 @@ test('browser gift toasts reuse safe local artwork and top-layer notifications s
   assert.equal(discarded.connected, false);
   assert.equal(discarded.artwork, 0);
   assert.equal(catalogRequests, 1);
-  assert.deepEqual(imageRequests, ['/overtime-gift-images/output.webp', '/overtime-gift-images/missing.webp']);
+  assert.deepEqual(imageRequests, ['/overtime-gift-images/output.webp', '/overtime-gift-images/missing.webp', '/overtime-gift-images/gift.gif']);
   await page.evaluate(() => {
     giftStack.dispose();
     document.getElementById('gift-notice-test').remove();

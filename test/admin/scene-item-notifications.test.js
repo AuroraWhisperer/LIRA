@@ -55,6 +55,70 @@ test('moving one item does not rebuild unchanged appearances across 32 instances
   stops.forEach(stop => stop());
 });
 
+test('shared appearance polls notify only affected owners and recover read errors without changing data', async () => {
+  const timers = new Map();
+  let timerId = 0;
+  const globals = { AbortController, setTimeout(fn, delay) { timers.set(++timerId, { fn, delay }); return timerId; },
+    clearTimeout(id) { timers.delete(id); } };
+  const { createSceneDocumentModel } = await load('admin/scene-document-model.js');
+  const { createSceneItemController } = await load('admin/scene-item-controller.js');
+  const { createCanvasSharedAppearance } = await load('admin/canvas-shared-appearance.js', globals);
+  const { sceneAppearanceKey } = await load('shared/scene-shared-appearance.js');
+  const layers = ['songlist', 'opening'].flatMap(type => Array.from({ length: 3 }, () => item(type, 'independent', {})));
+  const model = createSceneDocumentModel(documentOf(layers));
+  let title = 'before';
+  let installedTitle = 'installed';
+  let failing = false;
+  const provider = createCanvasSharedAppearance({ model, request: async body => {
+    if (failing) throw new Error('unavailable');
+    return Object.fromEntries(body.items.map(({ type, config }) => [sceneAppearanceKey(type, config),
+      { title: config.resourceStyle ? installedTitle : type === 'songlist' ? title : 'opening' }]));
+  } });
+  const notices = layers.map(() => 0);
+  let statusNotices = 0;
+  const defaults = { getState: () => assert.fail('a locally owned appearance must not read an unrelated default owner'),
+    subscribe(listener) { listener(); return () => {}; } };
+  const stops = layers.map((layer, index) => createSceneItemController(model, layer.id, defaults, provider)
+    .subscribe(() => { notices[index]++; }));
+  stops.push(provider.subscribe(() => { statusNotices++; }));
+  try {
+    await provider.reload();
+    notices.fill(0); statusNotices = 0;
+    await provider.reload();
+    assert.equal(notices.reduce((sum, count) => sum + count, 0), 0);
+    assert.equal(statusNotices, 0);
+    title = 'after';
+    await provider.reload();
+    assert.equal(notices.slice(0, 3).every(count => count === 1), true);
+    assert.equal(notices.slice(3).every(count => count === 0), true);
+    assert.equal(statusNotices, 1, 'one poll publishes one aggregate status notification');
+    notices.fill(0); statusNotices = 0;
+    failing = true;
+    await provider.reload();
+    failing = false;
+    await provider.reload();
+    assert.equal(notices.every(count => count === 2), true, 'unchanged data must still clear a displayed read failure');
+    assert.equal(statusNotices, 2);
+
+    model.edit(document => { document.items[0].appearance.config.resourceStyle = { id: 'installed' }; });
+    await provider.reload();
+    notices.fill(0);
+    title = 'old owner changed';
+    await provider.reload();
+    assert.deepEqual(notices, [0, 1, 1, 0, 0, 0], 'replacing a style detaches its previous owner subscription');
+    notices.fill(0);
+    installedTitle = 'new owner changed';
+    await provider.reload();
+    assert.deepEqual(notices, [1, 0, 0, 0, 0, 0], 'the replacement style follows its new owner');
+    notices.fill(0);
+    stops[0]();
+    installedTitle = 'after unsubscribe';
+    await provider.reload();
+    assert.equal(notices.reduce((sum, count) => sum + count, 0), 0);
+  } finally { stops.forEach(stop => stop()); provider.dispose(); }
+  assert.equal(timers.size, 0);
+});
+
 test('same-style instances share edits while a different clock style and scene geometry stay independent', async () => {
   const { createSceneDocumentModel } = await load('admin/scene-document-model.js');
   const { createSceneItemController } = await load('admin/scene-item-controller.js');

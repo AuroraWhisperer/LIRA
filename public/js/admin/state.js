@@ -42,7 +42,7 @@ export class StateService {
     if (this.shuttingDown || this.ws || this.reconnectTimer !== null) return;
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     const token = window.__API_TOKEN__;
-    const wsUrl = `${protocol}//${location.host}/ws${token ? '?token=' + encodeURIComponent(token) : ''}`;
+    const wsUrl = `${protocol}//${location.host}/ws?snapshot=music-events-v1${token ? '&token=' + encodeURIComponent(token) : ''}`;
     this.ws = new WebSocket(wsUrl);
     const connection = this.ws;
 
@@ -64,13 +64,14 @@ export class StateService {
       if (!isRecord(payload)) return;
       if (payload.type === 'shutdown') {
         this.setShuttingDown(true);
-      } else if (payload.type === 'snapshot') {
+      } else if (payload.type === 'snapshot' || payload.type === 'snapshot:patch') {
         if (!isStateSnapshot(payload.state)) return;
         this.realtimeVersion += 1;
         for (const key of Object.keys(payload.state)) {
           this.realtimeFields.set(key, this.realtimeVersion);
         }
-        this.applySnapshot(payload.state, Infinity, payload.reason === 'connect');
+        this.applySnapshot(payload.type === 'snapshot:patch' ? { ...this.appState, ...payload.state } : payload.state,
+          Infinity, payload.type === 'snapshot' && payload.reason === 'connect');
         if (isGiftSnapshotReason(payload.reason)) {
           eventBus.emit(Events.GIFT_RECEIVED, { reason: payload.reason });
         }

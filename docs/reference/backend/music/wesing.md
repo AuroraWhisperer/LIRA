@@ -99,17 +99,21 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 ### 5.1 日志扫描(findLatestSongEntry,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
-1. `Log/WeSing/` 下全部 `*.log` 按 mtime 降序取**最新文件**
+1. 枚举 `Log/WeSing/` 下的 `*.log` 并逐个读取元数据，在同一轮遍历中选择 mtime 最大的**最新文件**，不对文件列表排序。
 2. 从尾部按 `LOG_TAIL_BYTES = 100 KiB` 向前分块读取，找到歌曲记录即停止，总量最多 `MAX_LOG_SCAN_BYTES = 4 MiB + 1 字节`。起始偏移按数值整除向下取整至偶数(UTF-16LE 防半个字符)，避免大于 2 GiB 的文件偏移被位运算截断；单块最多 100 KiB + 1 字节。
 3. 每块 `utf16le` 解码，保留跨块未完行（最多 50 Ki 字符），按行**倒序**找含 `"StartKSong"` 的行，正则提取 `"mid"` 与 `"songname"`(`decodeJsonString` 解转义)。普通日志增长超过 100 KiB 后仍可恢复当前版本。
 4. `SAFE_SONG_MID` 校验失败整体返回 null；最新歌曲记录与期望标题按 `normalizeTitle`(去"全民K歌 - "前缀 + 去空白 + 小写)不相等时也返回 null，不跳过它去找更早播放的同名歌曲。
+
+采集引擎持有一个 `createWeSingCacheReader()`，按缓存目录保存最新日志的解析 Promise；文件路径及 `dev/ino/birthtimeMs/ctimeMs/mtimeMs/size` 均未变时复用结果，再按当前标题匹配。追加、截断、替换或轮转改变指纹后重新解析，读取失败不保留结果；启停和 `stop()` 清理解析缓存。同一轮 refresh 的目录发现、就绪检查、歌曲身份与歌词解析共享候选目录快照；手动刷新期间标题改变时，旧标题快照不能用于新歌。
 
 ### 5.2 QRC 歌词加载(loadWeSingLyrics,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
 1. 日志命中 → 只读 `WeSingDL/Res/<mid>/<mid>.qrc`；缺失或无法解析则进入在线兜底，不再借用其他 mid 下的同名歌词。mid 标识当前伴奏版本。
 2. 仅在日志未命中时兜底扫描 `listRecentQrcFiles`([wesing-cache.js](../../../../src/music/wesing-cache.js))——`SAFE_SONG_MID` 子目录批量(每批 100)stat 各自的 `.qrc`(`0 < size ≤ 4MB`)，按 mtime 降序取最多 80 个。候选中只有一份标题匹配(`normalizeTitle` 相等)时才采用；多份同名缓存返回 null，交给在线匹配，不按文件新旧猜版本。仅凭唯一缓存标题仍无法保证实际伴奏版本一致，应优先配置实际写入日志与 QRC 的缓存目录。
 
-resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cachePath, title, logEntry})` 将同一条记录用于本地定位和在线歌手匹配。QRC 缺少歌手元数据时采用该日志的歌手；记录的 mid 单独返回引擎作为版本标识，不与在线平台的 track id 混用。
+resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓存读取器取得，独立调用则默认读取最新歌曲日志。显式传入 null 表示没有匹配记录，不再次扫描日志。通过 `loadWeSingLyrics({cachePath, title, logEntry})` 将同一条记录用于本地定位和在线歌手匹配。QRC 缺少歌手元数据时采用该日志的歌手；记录的 mid 单独返回引擎作为版本标识，不与在线平台的 track id 混用。
+
+引擎通过同一个 `createWeSingCacheReader().loadLyrics()` 复用成功解析的 QRC。每次仍检查文件的 `dev/ino/birthtimeMs/ctimeMs/mtimeMs/size`；指纹不变时共享读取 Promise 和解析结果，文件改变后重新解密。仅缓存含有效行的结果，失败或未完成的下载下轮可重试；按最近使用淘汰，最多保留 80 个文件，另以 JSON 字符串 UTF-16 长度估算的 16 MiB 内容预算限制保留量。未命中的候选不拷贝歌词，最终选中时才复制歌手和深拷贝歌词行，避免下游修改缓存。启停、`stop()` 和缓存路径变化清理缓存，在途旧读取不能回填。
 
 ### 5.3 QRC 解密与解析(tryReadQrc / parseQrcDocument,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 
@@ -192,7 +196,8 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 - 设置键 `weSingCachePath` / `weSingLyricOffsetMs`,持久化见 [storage.md](../storage.md) §7
 - 默认设置仍为当前 Windows 用户的 `%APPDATA%\Tencent\WeSing\WeSingCache`；候选包括已保存路径、`%APPDATA%`、`%LOCALAPPDATA%` 下的 `Tencent\WeSing\WeSingCache` 和 C–Z 盘根的 `WeSingCache`（如 `E:\WeSingCache`）。用户目录从当前进程环境读取，不写死用户名或 C 盘；用户目录迁移后仍按实际位置探测。缓存与全民安装目录可以不在同一盘，不递归扫描磁盘，也不从安装盘推断唯一位置。
 - 启用时检查缓存；检测到客户端后，监视样本每 3 秒最多触发一次自动复查，客户端恢复或歌名变化可立即触发。在所有有效候选中，优先选择最新歌曲记录匹配当前歌名且日志写入时间最新的目录（歌名为空时比较可读取歌曲记录的日志）。无法区分活动候选时保留有效已保存路径，否则仅采用唯一有效候选；没有结果则继续等待并自动重试。旧目录仍有文件不阻止跟随新位置。
-- 有效指 `Log/WeSing` 有非空 `.log`，或 `WeSingDL/Res/<mid>/<mid>.qrc` 为 `0 < size ≤ 4MB` 的文件；空目录不算就绪。探测和手动保存都不创建目录。首次播放生成日志或稍后下载 QRC 都由自动复查接续，不要求点击重新检测。路径/就绪状态不变时仅核对当前 mid；已有歌词不重复加载、不保存配置、不重置进度，空歌词会在后续复查重试。
+- 自动复查仍枚举候选日志目录并检查文件元数据，以发现迁移、轮转和漏掉的文件事件；未变化日志复用 §5.1 的解析结果，不重新打开和回读。同一候选目录在本轮的发现和当前歌曲检查中只探测一次。
+- 有效指 `Log/WeSing` 有非空 `.log`，或 `WeSingDL/Res/<mid>/<mid>.qrc` 为 `0 < size ≤ 4MB` 的文件；空目录不算就绪。探测和手动保存都不创建目录。首次播放生成日志或稍后下载 QRC 都由自动复查接续，不要求点击重新检测。路径/就绪状态不变时仅核对当前 mid；已有歌词不重复加载、不保存配置、不重置进度，空歌词会在后续复查重试本地读取，在线请求遵守 §8 的短期退避。
 - 目录有效性检查只需确认存在合规文件：日志未命中时，QRC 复用每批最多 100 个文件的并行校验，在首个有效批次停止，不扫描后续批次或按时间排序。目录枚举仍执行；实际歌词兜底选取继续完整扫描并按 mtime 排序，保持最新候选和同名歧义判断。
 - 播放页说明自动识别与跟随，文件夹按钮和“保存并检测”保留作特殊位置的备用入口；实时状态可回填识别结果，但不能覆盖尚未保存的输入草稿。
 
@@ -204,7 +209,9 @@ resolver 每次只读取一次歌曲日志，并通过 `loadWeSingLyrics({cacheP
 
 ## 8. 在线兜底(wesing-online-lyrics.js)
 
-`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, getPreferences, preferredPlatform, smartMatch })`([wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs})`,由 [music-runtime.js](../../../../src/server/music-runtime.js) 注入 weSingCapture 的 `resolveFallbackLyrics`。采集器从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；在线搜索关键词为“歌名 歌手”，搜索时去掉歌手的括号别名，匹配时保留别名，例如 `en (王翊恩)` 可匹配 `en` 或 `王翊恩`。
+`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, getPreferences, preferredPlatform, smartMatch, now? })`([wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs}, {songMid?, force?})`，另有 `clear()` 清理当前请求状态，由 [music-runtime.js](../../../../src/server/music-runtime.js) 注入 weSingCapture 的 `resolveFallbackLyrics`。第二参数仅传递内部版本和刷新上下文；采集器从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；在线搜索关键词为“歌名 歌手”，搜索时去掉歌手的括号别名，匹配时保留别名，例如 `en (王翊恩)` 可匹配 `en` 或 `王翊恩`。
+
+仅保留当前歌曲的一组在途请求和短期未命中状态；同一歌曲版本、歌手、时长、偏好、registry 及授权修订的同时请求共用 Promise。无可靠歌词或全部失败后，从完成时起等待 30 秒再自动搜索，连续未命中后等待 60 秒，成功则重置退避；失败期间保留原错误供状态显示。手动刷新可立即重试，同一身份已有请求时仍共用它。切歌、版本/偏好变化、Cookie 授权修订变化及 registry 更换立即失效，启停、`stop()` 和歌词身份重置调用 `clear()`；旧身份或旧生命周期的结果不能覆盖新请求状态。授权修订从既有内存 Cookie provider 取得，不额外读取或解密磁盘授权；未命中结果不写入长期歌词缓存。本地每 3 秒的发现与元数据复查独立进行，迟到 QRC 无需等待在线退避。`now` 默认单调时钟，只用于重试间隔。
 
 流程:
 

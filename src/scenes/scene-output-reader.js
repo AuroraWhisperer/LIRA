@@ -11,7 +11,7 @@ function readDataVersions(value) {
       value = JSON.parse(value);
     }
     if (!value || typeof value !== 'object' || Array.isArray(value)
-      || Object.entries(value).some(([key, token]) => !['songlist', 'lyricTimeline', 'gift-feed'].includes(key)
+      || Object.entries(value).some(([key, token]) => !['songlist', 'lyricTimeline', 'gift-feed', 'queue', 'wheel', 'games', 'blindbox', 'gift-frame', 'guard-thanks', 'gamesCanvas', 'gamesScores'].includes(key)
         || typeof token !== 'string' || !/^[a-zA-Z0-9_-]{1,128}$/.test(token))) throw new Error();
     return { known: { ...value }, current: {} };
   } catch {
@@ -68,8 +68,10 @@ function createSceneOutputReader({ readOutput, readCapability, decodeDocument, m
       const { token, version, epoch, cursor } = input;
       const dataVersions = readDataVersions(input.dataVersions);
       if (dataVersions && version !== record.publishedVersion) dataVersions.known = {};
+      const displayContext = {};
       const data = getDisplayData([...new Set([...types, ...activeTypes])], { epoch, cursor,
-        ...(dataVersions ? { dataVersions } : {}) });
+        ...(input.incrementalParts === true ? { incrementalParts: true } : {}),
+        ...(dataVersions ? { dataVersions } : {}) }, displayContext);
       const finish = (display) => {
         assertCurrent();
         const capability = readCapability(owner.scope, id);
@@ -79,7 +81,7 @@ function createSceneOutputReader({ readOutput, readCapability, decodeDocument, m
         }
         const outputDocument = version === record.publishedVersion ? null
           : structuredClone(decodeDocument(document, owner.scope));
-        const appearances = getSharedAppearances?.(document.items.filter(item => item.visible));
+        const appearances = getSharedAppearances?.(document.items.filter(item => item.visible), displayContext);
         assertCurrent();
         return {
           sceneId: id,

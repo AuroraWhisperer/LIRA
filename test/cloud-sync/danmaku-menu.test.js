@@ -8,6 +8,7 @@ const { buildDesktopMenuCommands } = require('../../src/server/danmaku-menu');
 const { createCloudSyncRuntime } = require('../../src/server/cloud-sync-runtime');
 const { createServerRuntime } = require('../../src/server');
 const { CLOUD_SYNC_KEYS, hasCloudSettingChanges } = require('../../src/shared/cloud-settings');
+const drawGuess = require('../../src/games/draw-guess');
 
 const settings = { danmakuMonitoringEnabled: 'true', paused: 'false' };
 
@@ -133,4 +134,13 @@ test('current menu is projected into pending uploads and changes request cloud s
   await request('/api/games/session', { action: 'stop' });
   assert.deepEqual(requested, ['settings']);
   assert.deepEqual(runtime.getPendingCloudSettings(accountKey).values.menuCommands, []);
+  await request('/api/games/session', { game: 'draw-guess' });
+  const fullProjection = drawGuess.publicDrawGuessState;
+  let projections = 0;
+  t.mock.method(drawGuess, 'publicDrawGuessState', (...args) => { projections++; return fullProjection(...args); });
+  for (let i = 0; i < 20; i++) {
+    assert.deepEqual(runtime.getCloudSettingsSnapshot().menuCommands, []);
+    assert.deepEqual(runtime.getPendingCloudSettings(accountKey).values.menuCommands, []);
+  }
+  assert.equal(projections, 0, 'menu synchronization must not build the full game canvas or score table');
 });

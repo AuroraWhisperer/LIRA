@@ -61,8 +61,9 @@ test('blind box calendar fits each month while keeping its weekday positions', a
   }
 });
 
-async function createAnalysisHarness({ autoResolve = false } = {}) {
+async function createAnalysisHarness({ autoResolve = false, filters = {} } = {}) {
   const elements = new Map();
+  const optionCounts = { created: 0 };
   const element = (id = '') => {
     if (id && elements.has(id)) return elements.get(id);
     const listeners = new Map();
@@ -71,7 +72,8 @@ async function createAnalysisHarness({ autoResolve = false } = {}) {
       classList: { add() {}, remove() {}, toggle() {}, contains: () => false },
       addEventListener: (name, listener) => listeners.set(name, listener),
       emit: (name, event) => listeners.get(name)?.(event),
-      setAttribute() {}, getAttribute: () => null, focus() {}, replaceChildren() {},
+      setAttribute() {}, getAttribute: () => null, focus() {}, children: [],
+      replaceChildren(...children) { this.children = children; },
       querySelector: () => element(), querySelectorAll: () => [],
     };
     if (id) elements.set(id, node);
@@ -86,7 +88,9 @@ async function createAnalysisHarness({ autoResolve = false } = {}) {
   ], {
     window,
     HTMLElement: class {},
-    Option: class {},
+    Option: class {
+      constructor(label, value) { this.textContent = label; this.value = value; optionCounts.created += 1; }
+    },
     AbortController,
     URLSearchParams,
     document: {
@@ -102,20 +106,21 @@ async function createAnalysisHarness({ autoResolve = false } = {}) {
       return request.promise;
     },
   });
-  function result(count) {
+  function result(count, selectedFilters = filters) {
     return { ok: true, text: async () => JSON.stringify({ ok: true, data: {
-      filters: {}, summary: { boxCount: count }, items: [], pagination: {},
+      filters: selectedFilters, summary: { boxCount: count }, items: [], pagination: {},
     } }) };
   }
-  return { giftAnalysis, eventBus, clock, requests, element,
-    async finish(index, count = 1) {
-      requests[index].resolve(result(count));
+  return { giftAnalysis, eventBus, clock, requests, element, optionCounts,
+    async finish(index, count = 1, selectedFilters) {
+      requests[index].resolve(result(count, selectedFilters));
       await new Promise(setImmediate);
     } };
 }
 
 test('open blind box analysis refreshes throughout continuous gift traffic and stops after closing', async () => {
-  const { giftAnalysis, eventBus, clock, requests } = await createAnalysisHarness({ autoResolve: true });
+  const filters = { viewers: Array.from({ length: 1000 }, (_, i) => ({ value: `uid:${i}`, label: `Viewer ${i}` })) };
+  const { giftAnalysis, eventBus, clock, requests, optionCounts } = await createAnalysisHarness({ autoResolve: true, filters });
 
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
   clock.tick(1000);
@@ -123,6 +128,7 @@ test('open blind box analysis refreshes throughout continuous gift traffic and s
   giftAnalysis.open();
   await new Promise(setImmediate);
   assert.equal(requests.length, 1);
+  const initialOptions = optionCounts.created;
   assert.match(requests[0].url, /^\/api\/gifts\/blind-box-analysis\?view=users&page=1/);
   for (let i = 0; i < 240; i++) {
     eventBus.emit('gift:received', { reason: 'bilibili:gift' });
@@ -130,10 +136,32 @@ test('open blind box analysis refreshes throughout continuous gift traffic and s
     await new Promise(setImmediate);
   }
   assert.equal(requests.length, 121, 'continuous gifts share bounded refreshes without postponing them forever');
+  assert.equal(optionCounts.created, initialOptions, 'unchanged refreshes retain the filter options');
   giftAnalysis.close();
   eventBus.emit('gift:received', { reason: 'bilibili:gift' });
   clock.tick(1000);
   assert.equal(requests.length, 121);
+});
+
+test('blind box filter selections update without replacing unchanged options and changed labels rebuild', async () => {
+  const { giftAnalysis, eventBus, clock, element, finish } = await createAnalysisHarness();
+  const viewers = [{ value: 'uid:a', label: 'A' }, { value: 'uid:b', label: 'B' }];
+  giftAnalysis.open();
+  await finish(0, 1, { viewers, selectedViewer: 'uid:a', boxes: ['Box A'] });
+  const viewerSelect = element('blindBoxAnalysisViewer');
+  const original = viewerSelect.children;
+  viewerSelect.emit('change', { target: { value: 'uid:b' } });
+  await finish(1, 2, { viewers, selectedViewer: 'uid:b', boxes: ['Box A'] });
+  assert.equal(viewerSelect.children, original);
+  assert.equal(viewerSelect.value, 'uid:b');
+  eventBus.emit('gift:received');
+  clock.tick(500);
+  await finish(2, 3, { viewers: [{ value: 'uid:b', label: 'Renamed B' }], selectedViewer: 'uid:b', boxes: [] });
+  assert.equal(viewerSelect.children.length, 2);
+  assert.equal(viewerSelect.children[1].textContent, 'Renamed B');
+  assert.equal(viewerSelect.value, 'uid:b');
+  assert.equal(element('blindBoxAnalysisBox').children.length, 1);
+  giftAnalysis.close();
 });
 
 test('gift refreshes finish slow analysis reads while newer filters and closing reject stale results', async () => {

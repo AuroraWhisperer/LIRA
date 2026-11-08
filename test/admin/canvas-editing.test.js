@@ -47,7 +47,13 @@ function waitForDraft(page, matches) {
     // Renderer frames poll the same endpoint and can unload during updates.
     if (response.frame() !== page.mainFrame() || !response.url().endsWith('/api/component-preview')
       || !['read', 'read-batch'].includes(response.request().postDataJSON()?.action)) return false;
-    const { data } = await response.json();
+    let data;
+    try { ({ data } = await response.json()); }
+    catch (error) {
+      // Chromium can discard an obsolete poll body while another poll is settling.
+      if (error.message.includes('Network.getResponseBody')) return false;
+      throw error;
+    }
     return (data?.updates || [data]).some(update => update?.state && matches(update.state.draft || {}));
   });
 }
@@ -556,10 +562,11 @@ test('overtime width drafts survive automatic height updates', { timeout: 30000 
   await page.waitForFunction(() => document.querySelector('.scene-editor-item[data-component="overtime"] .component-preview-load-state')?.hidden);
   const width = page.getByRole('spinbutton', { name: '宽度', exact: true });
   await width.fill('610');
-  const height = await overtime.evaluate(node => {
-    const height = node.offsetHeight + 24;
-    window.dispatchEvent(new MessageEvent('message', { source: node.querySelector('iframe').contentWindow,
-      origin: 'null', data: { type: 'component-preview:resize', size: { width: node.offsetWidth, height } } }));
+  const frame = await (await overtime.locator('iframe').elementHandle()).contentFrame();
+  const height = await frame.locator('.overtime-foreground').evaluate(node => {
+    const height = Math.ceil(node.getBoundingClientRect().height) + 24;
+    // Trigger the real observer; a synthetic size is overwritten by the live content measurement.
+    node.style.minHeight = `${height}px`;
     return height;
   });
   await page.waitForFunction(height => document.querySelector('.scene-editor-item[data-component="overtime"]').offsetHeight === height, height);

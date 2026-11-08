@@ -1,6 +1,6 @@
 import { createGiftDropWorld } from '../shared/gift-drop-physics.js';
-import { GIFT_MOTION_EFFECTS, readGiftMotionSettings } from '../shared/gift-motion-settings.js';
-import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { GIFT_MOTION_EFFECTS, GIFT_SWING_TEXT_MODES, readGiftMotionSettings } from '../shared/gift-motion-settings.js';
+import { setGiftArtwork } from '../shared/gift-image.js';
 
 const WIDTH = 1920; const HEIGHT = 1080;
 const SVG = 'http://www.w3.org/2000/svg';
@@ -26,8 +26,9 @@ export function createGiftMotionPlayer({ root }) {
   function image(payload, className) {
     const image = element('img', className); image.alt = ''; image.draggable = false;
     const source = String(payload.artworkPath || '');
-    setGiftImage(image, /^\/(?:overtime-gift-images\/[\w.-]+\.webp|img\/(?:admin\/gifts\/bilibili-guard-[\w-]+\.webp|overlays\/gift-feed\/(?:flower|cheer|call)\.webp))$/.test(source)
-      && !source.includes('..') ? source : '');
+    const path = /^\/(?:overtime-gift-images\/[\w.-]+\.(?:webp|png|jpe?g|gif)|img\/(?:admin\/gifts\/bilibili-guard-[\w-]+\.webp|overlays\/gift-feed\/(?:flower|cheer|call)\.webp))$/.test(source)
+      && !source.includes('..') ? source : '';
+    setGiftArtwork(image, path, { format: 'static', mimeType: 'image/webp' });
     return image;
   }
 
@@ -58,15 +59,9 @@ export function createGiftMotionPlayer({ root }) {
         const motionDt = dt * swing.motionSpeed;
         swing.speed += ((target - swing.rotation) * 90 - swing.speed * 5) * motionDt;
         swing.rotation += swing.speed * motionDt;
-        swing.liftSpeed += (-swing.lift * 150 - swing.liftSpeed * 12) * dt;
-        swing.lift += swing.liftSpeed * dt;
       }
       const angle = reduced.matches ? 0 : swing.rotation;
-      const radians = angle * Math.PI / 180;
-      const dx = Math.sin(radians) * swing.size * 0.48;
-      const dy = Math.abs(angle) * 0.35 + (reduced.matches ? 0 : swing.lift);
-      swing.card.style.transform = `translate(${dx}px, ${dy}px) rotate(${angle}deg)`;
-      swing.rod.setAttribute('d', `M ${swing.size / 2} ${swing.size + 52} Q ${swing.size / 2 + dx * 0.2} ${swing.size + 24} ${swing.size / 2 + dx} ${swing.size - 8 + dy}`);
+      swing.node.style.transform = `rotate(${angle}deg)`;
       swing.node.style.opacity = Math.min(1, (swing.expiresAt - now) / 600, (now - swing.startedAt) / 200);
     }
     if (drops.size || swings.size) frame = requestAnimationFrame(tick);
@@ -106,21 +101,26 @@ export function createGiftMotionPlayer({ root }) {
       node.dataset.motionId = payload.eventId; node.dataset.expiresAt = String(expiresAt);
       node.style.width = `${size}px`; node.style.height = `${size + 60}px`;
       node.style.left = `${(WIDTH - columns * slotWidth) / 2 + (slot % columns) * slotWidth + 22}px`;
-      node.style.bottom = '8px';
+      node.style.bottom = '0';
       const svg = document.createElementNS(SVG, 'svg'); svg.setAttribute('viewBox', `0 0 ${size} ${size + 60}`);
-      const rod = document.createElementNS(SVG, 'path'); svg.append(rod); node.append(svg);
+      const rod = document.createElementNS(SVG, 'path');
+      rod.setAttribute('d', `M ${size / 2} ${size + 60} L ${size / 2} ${size / 2}`);
+      svg.append(rod); node.append(svg);
       const card = element('div', 'gift-swing-card');
-      if (motion.textMode !== 'none') {
+      const textParts = GIFT_SWING_TEXT_MODES[motion.textMode];
+      if (textParts.length) {
         const caption = element('div', 'gift-swing-caption');
-        if (motion.textMode === 'full') caption.append(element('span', 'gift-swing-name', payload.userName || '观众'));
-        caption.append(element('span', 'gift-swing-detail', `${payload.giftName || '礼物'} ×${event.num}`));
+        if (textParts.includes('userName')) caption.append(element('span', 'gift-swing-name', payload.userName || '观众'));
+        const detail = [textParts.includes('giftName') ? payload.giftName || '礼物' : '',
+          textParts.includes('quantity') ? `×${event.num}` : ''].filter(Boolean).join(' ');
+        if (detail) caption.append(element('span', 'gift-swing-detail', detail));
         card.append(caption);
       }
-      card.append(image(payload, 'gift-motion-image')); node.append(card, element('div', 'gift-swing-base'));
+      card.append(image(payload, 'gift-motion-image')); node.append(card);
       stage.append(node);
-      swings.set(payload.eventId, { node, card, rod, slot, size, expiresAt, startedAt,
+      swings.set(payload.eventId, { node, slot, expiresAt, startedAt,
         angle: motion.angle, motionSpeed: motion.speed / 100, rotation: motion.angle * (slot % 2 ? -1 : 1), speed: 0,
-        lift: reduced.matches ? 0 : 45, liftSpeed: -180, phase: slot * 1.7 });
+        phase: slot * 1.7 });
     }
     start(); return true;
   }

@@ -56,7 +56,7 @@ body[data-style]:not([data-style='minimal']) .draw-danmaku-item.is-gift::after {
   box-shadow: none;
   clip-path: none;
   filter: none;
-  opacity: 0;
+  opacity: var(--danmaku-gift-sheen-opacity);
   transform: none;
   pointer-events: none;
   content: '';

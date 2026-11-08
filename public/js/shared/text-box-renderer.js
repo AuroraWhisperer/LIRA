@@ -1,5 +1,5 @@
 import { normalizeTextBoxConfig } from './text-box-config.js';
-import { setGiftImage } from './gift-image-fallback.js';
+import { setGiftArtwork } from './gift-image.js';
 import { applyTextStyle } from './text-style.js';
 
 export function renderTextBox(host, input, { editable = false, singleLine = false } = {}) {
@@ -25,7 +25,7 @@ export function renderTextBox(host, input, { editable = false, singleLine = fals
       image.draggable = false;
       Object.assign(image.style, { height: node.type === 'gift' ? '1.3em' : '2em', maxWidth: '4em',
         objectFit: 'contain', verticalAlign: 'middle' });
-      if (node.type === 'gift') setGiftImage(image, node.src);
+      if (node.type === 'gift') setGiftArtwork(image, node.src);
       else image.src = node.src;
       span.append(image);
       if (editable) {

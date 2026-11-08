@@ -61,6 +61,9 @@ body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .draw-danma
   text-shadow: 0 1px 2px rgb(63 38 95 / 65%);
   animation: none;
 }
+body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze-item[data-sea-breeze-kind='sc'] {
+  color: var(--sc-accent);
+}
 body[data-style='sea-breeze-random'] .draw-danmaku-item.sea-breeze-item {
   position: absolute;
   width: max-content;
@@ -166,17 +169,21 @@ body:is([data-style='sea-breeze'], [data-style='sea-breeze-random']) .sea-breeze
   animation: seaBreezeEntry var(--random-enter-duration, 800ms) linear;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-tags {
+  opacity: var(--danmaku-enter-opacity);
   animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .5) ease-out backwards;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-name {
+  opacity: var(--danmaku-enter-opacity);
   animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .6) ease-out
     calc(var(--random-enter-duration, 800ms) * .1) backwards;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-copy {
+  opacity: var(--danmaku-enter-opacity);
   animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .65) ease-out
     calc(var(--random-enter-duration, 800ms) * .2) backwards;
 }
 .sea-breeze-item[data-live-entry] .sea-breeze-amount {
+  opacity: var(--danmaku-enter-opacity);
   animation: seaBreezeReveal calc(var(--random-enter-duration, 800ms) * .6) ease-out
     calc(var(--random-enter-duration, 800ms) * .35) backwards;
 }
@@ -187,8 +194,8 @@ body[data-style] .sea-breeze-item[data-live-entry][data-entrance-animation='none
   to { --sea-breeze-entered: 1; }
 }
 @keyframes seaBreezeReveal {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { --danmaku-enter-opacity: 0; }
+  to { --danmaku-enter-opacity: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
   .sea-breeze-item[data-live-entry],

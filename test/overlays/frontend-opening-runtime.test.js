@@ -465,6 +465,97 @@ for (const failure of ['http', 'network']) {
   });
 }
 
+test('opening ignores unrelated settings while hidden and keeps configuration, media and focus refreshes', async () => {
+  const dom = createDom();
+  const settings = { openingEnabled: 'true', openingStyle: 'classic', openingTitle: '原文案', openingCharacterFile: '', requestPrice: '1' };
+  const config = extra => {
+    const classic = savedConfig({ style: 'classic', ...extra });
+    return { ...classic, styles: { classic, 'pixel-cassette': savedConfig({ style: 'pixel-cassette' }) } };
+  };
+  let remote = config({ title: settings.openingTitle });
+  let reads = 0;
+  const [module, { stateService }] = await loadModuleExports([
+    entry('admin', 'start-animation.js'), entry('admin', 'state.js'),
+  ], dom.globals(async () => { reads++; return reply(remote); }));
+  stateService.appState = { settings };
+  module.initStartAnimation();
+  await flush();
+  assert.equal(reads, 1);
+  dom.document.hidden = true;
+  for (let index = 0; index < 20; index++) {
+    await dom.window.dispatch('app:settings-state', { detail: { ...settings, requestPrice: String(index + 2) } });
+    await flush();
+  }
+  assert.equal(reads, 1);
+  remote = config({ title: '画布新文案' });
+  const changed = { ...settings, openingTitle: remote.title };
+  await dom.window.dispatch('app:settings-state', { detail: changed });
+  await flush();
+  assert.equal(reads, 2);
+  assert.equal(dom.document.getElementById('openingTitle').value, remote.title);
+  remote = config({ title: remote.title, characterName: '新人物图.png', characterUrl: '/opening-character/new.png' });
+  await dom.window.dispatch('app:settings-state', { detail: { ...changed, openingCharacterFile: 'new.png' } });
+  await flush();
+  dom.document.hidden = false;
+  assert.equal(reads, 3);
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, remote.characterName);
+  await dom.window.dispatch('focus');
+  assert.equal(reads, 4, 'focus still checks local media and externally saved configuration');
+});
+
+test('opening retains related settings received during a refresh or while local edits await saving', async () => {
+  const dom = createDom();
+  const config = extra => {
+    const classic = savedConfig({ style: 'classic', ...extra });
+    return { ...classic, styles: { classic, 'pixel-cassette': savedConfig({ style: 'pixel-cassette' }) } };
+  };
+  const settings = { openingEnabled: 'true', openingStyle: 'classic', openingTitle: '初始文案' };
+  let remote = config({ title: settings.openingTitle });
+  const pending = Promise.withResolvers();
+  const writes = [];
+  let holdNextRead = false;
+  let reads = 0;
+  const [module, { stateService }] = await loadModuleExports([
+    entry('admin', 'start-animation.js'), entry('admin', 'state.js'),
+  ], dom.globals(async (_url, options = {}) => {
+    if (options.method === 'POST') {
+      const body = JSON.parse(options.body);
+      writes.push(body);
+      remote = config({ title: body.openingTitle, characterName: '新人物图.png', characterUrl: '/opening-character/new.png' });
+      return { ok: true };
+    }
+    reads++;
+    if (holdNextRead) { holdNextRead = false; return pending.promise; }
+    return reply(remote);
+  }));
+  stateService.appState = { settings };
+  module.initStartAnimation();
+  await flush();
+  holdNextRead = true;
+  await dom.window.dispatch('app:settings-state', { detail: { ...settings, openingTitle: '第二版' } });
+  remote = config({ title: '最新一版' });
+  const latest = { ...settings, openingTitle: remote.title };
+  await dom.window.dispatch('app:settings-state', { detail: latest });
+  assert.equal(reads, 2, 'related notifications do not overlap reads');
+  pending.resolve(reply(config({ title: '第二版' })));
+  await flush();
+  const title = dom.document.getElementById('openingTitle');
+  assert.equal(reads, 3);
+  assert.equal(title.value, '最新一版');
+  title.value = '本地编辑';
+  await dom.document.getElementById('openingAnimationForm').dispatch('input', { target: title });
+  await dom.window.dispatch('app:settings-state', { detail: { ...latest, openingCharacterFile: 'new.png' } });
+  assert.equal(reads, 3, 'pending local input is not overwritten');
+  assert.equal(title.value, '本地编辑');
+  await dom.tick(220);
+  await flush();
+  assert.equal(writes.length, 1);
+  assert.equal(writes[0].openingTitle, '本地编辑');
+  assert.equal(reads, 4);
+  assert.equal(title.value, '本地编辑');
+  assert.equal(dom.document.getElementById('openingCharacterName').textContent, '新人物图.png');
+});
+
 test('opening focus refresh preserves newer edits and permits restoring a value changed in the canvas', async () => {
   const dom = createDom();
   const writes = [];

@@ -1,3 +1,11 @@
+/* Paint entrances at the canvas scale instead of resampling accelerated text layers. */
+@property --danmaku-enter-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --danmaku-enter-x { syntax: '<length-percentage>'; inherits: false; initial-value: 0px; }
+@property --danmaku-enter-y { syntax: '<length-percentage>'; inherits: false; initial-value: 0px; }
+@property --danmaku-enter-transform { syntax: '<transform-list>'; inherits: false; initial-value: translate(0px, 0px); }
+@property --danmaku-exit-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --danmaku-gift-sheen-opacity { syntax: '<number>'; inherits: false; initial-value: 0; }
+
 /* The feed moves rows; each theme owns the live entrance and its decorations. */
 .draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item {
   animation: none;
@@ -5,6 +13,10 @@
 
 .draw-danmaku-feed[data-smooth-layout='true'] > .draw-danmaku-item[data-live-entry] {
   animation: var(--danmaku-enter-animation, none);
+}
+
+:where(.draw-danmaku-feed[data-smooth-layout='true']) > .draw-danmaku-item[data-live-entry] {
+  opacity: var(--danmaku-enter-opacity);
 }
 
 /* Fixed feeds keep their original exit fade unless another edge mode is selected. */
@@ -32,11 +44,11 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
 
 @keyframes giftSheen {
   from {
-    opacity: 1;
+    --danmaku-gift-sheen-opacity: 1;
     background-position: 100% 0;
   }
   to {
-    opacity: 1;
+    --danmaku-gift-sheen-opacity: 1;
     background-position: 0 0;
   }
 }
@@ -52,12 +64,12 @@ body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
 }
 @keyframes outlineMessageIn {
   from {
-    opacity: 0;
-    transform: translateY(3px) var(--component-transform, translate(0px, 0px));
+    --danmaku-enter-opacity: 0;
+    --danmaku-enter-y: 3px;
   }
   to {
-    opacity: 1;
-    transform: translateY(0) var(--component-transform, translate(0px, 0px));
+    --danmaku-enter-opacity: 1;
+    --danmaku-enter-y: 0px;
   }
 }
 

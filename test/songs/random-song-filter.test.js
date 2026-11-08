@@ -311,6 +311,8 @@ test('ignores a random danmaku when no library song satisfies every term', () =>
 });
 
 test('builds a direct mention auto-reply for a single unmatched random condition', () => {
+  let libraryReads = 0;
+  const store = { listRandomRows() { libraryReads++; return SONGS; } };
   const result = handleDanmakuMessage(
     {
       settings: () => ({
@@ -322,12 +324,8 @@ test('builds a direct mention auto-reply for a single unmatched random condition
         getDefaultSettings: () => ({ userCooldownSeconds: '0' }),
       },
       userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } },
-      pickRandomSong: () => null,
-      describeRandomSongScope: () => ({
-        terms: ['摇滚'],
-        unmatchedTerms: ['摇滚'],
-        hasCandidates: false,
-      }),
+      pickRandomSong: scope => songService.pickRandomSong(store, scope),
+      describeRandomSongScope: scope => describeRandomSongScope(store.listRandomRows(), scope),
       addQueueItem() {
         assert.fail('an unmatched random condition must not create a request');
       },
@@ -340,6 +338,7 @@ test('builds a direct mention auto-reply for a single unmatched random condition
   );
 
   assert.equal(result.accepted, false);
+  assert.equal(libraryReads, 1, 'the reply needs no second library scan');
   assert.ok(result.autoReply.message.includes('摇滚'));
   assert.deepEqual(result.autoReply.target, { uid: '123', name: 'Alice' });
 });
@@ -354,11 +353,6 @@ test('builds a combination mention auto-reply and keeps it disabled by the switc
     settingsStore: { getDefaultSettings: () => ({ userCooldownSeconds: '0' }) },
     userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } },
     pickRandomSong: () => null,
-    describeRandomSongScope: () => ({
-      terms: ['国语', '摇滚'],
-      unmatchedTerms: ['摇滚'],
-      hasCandidates: false,
-    }),
     addQueueItem() {
       assert.fail('an unmatched random condition must not create a request');
     },

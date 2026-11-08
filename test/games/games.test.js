@@ -312,6 +312,33 @@ test('draw guess completes after the configured number of rounds and ranks total
   );
 });
 
+test('incremental score ordering matches a stable full ranking across rounds and renamed viewers', () => {
+  let state = createDrawingState({ words: [{ word: '苹果', category: '食物' }], totalRounds: 5 });
+  let expected = [];
+  const compare = (a, b) => b.score - a.score || b.firsts - a.firsts || a.lastScoreAt - b.lastScoreAt
+    || a.name.localeCompare(b.name, 'zh-CN');
+  for (let round = 1; round <= 5; round++) {
+    if (round > 1) state = chooseDrawGuessWord(startNextRound(finishRound(state, round * 1000)), '苹果', round * 1000).state;
+    for (let position = 0; position < 120; position++) {
+      const uid = String((position * 37 + round * 11) % 120);
+      const name = `观众${(Number(uid) + round) % 4}`;
+      const previous = structuredClone(state.scores);
+      state.scores.forEach(Object.freeze);
+      Object.freeze(state.scores);
+      const result = submitGuess(state, { uid, userName: name, message: '苹果' }, round * 1000);
+      assert.equal(result.accepted, true);
+      assert.deepEqual(state.scores, previous, 'awarding a new score does not mutate prior states');
+      let viewer = expected.find(item => item.uid === uid);
+      if (!viewer) { viewer = { uid, score: 0, firsts: 0 }; expected.push(viewer); }
+      Object.assign(viewer, { name, score: viewer.score + result.award.points,
+        firsts: viewer.firsts + (position === 0 ? 1 : 0), lastScoreAt: round * 1000 });
+      expected.sort(compare);
+      state = result.state;
+      assert.deepEqual(state.scores, expected);
+    }
+  }
+});
+
 test('draw guess validates incremental canvas operations and supports clearing', () => {
   let state = createDrawingState({
     words: [{ word: '苹果', category: '食物' }],

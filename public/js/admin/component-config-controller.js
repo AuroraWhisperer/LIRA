@@ -18,6 +18,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
   let error = '';
   let conflict = false;
   let applied = false;
+  let dirty = false;
   let generation = 0;
   let authorityRevision = 0;
   let editRevision = 0;
@@ -26,31 +27,44 @@ export function createComponentConfigController({ initial = {}, read, persist, c
   let submissionRevisions = null;
   let pendingSave = null;
   const listeners = new Set();
+  const changeListeners = new Set();
 
   function changes() {
     return Object.fromEntries(Object.entries(draft).filter(([key, value]) => !equal(value, saved[key])));
   }
 
-  function getState() {
-    return { saved: clone(saved), draft: clone(draft), dirty: Object.keys(changes()).length > 0,
-      loaded, loading, saving, error, conflict, applied, generation };
-  }
+  const getStatus = () => ({ dirty, loaded, loading, saving, error, conflict, applied, generation });
+  const getState = () => ({ saved: clone(saved), draft: clone(draft), ...getStatus() });
 
   function notify() {
+    dirty = Object.keys(changes()).length > 0;
     for (const listener of listeners) listener(getState());
+    for (const listener of changeListeners) listener();
   }
 
   function edit(change) {
+    let changed = Boolean(error);
     for (const [key, value] of Object.entries(change)) {
       if (equal(draft[key], value)) continue;
       draft[key] = clone(value);
       fieldRevisions[key] = ++editRevision;
+      changed = true;
     }
     error = '';
-    notify();
+    if (changed) notify();
   }
 
   function receive(next) {
+    // Even an identical broadcast invalidates an older in-flight read/acknowledgement.
+    authorityRevision += 1;
+    if (equal(saved, next)) {
+      const nextConflict = dirty && conflict;
+      if (loaded && conflict === nextConflict) return false;
+      loaded = true;
+      conflict = nextConflict;
+      notify();
+      return true;
+    }
     for (const key of new Set([...Object.keys(saved), ...Object.keys(next)])) {
       const edited = !equal(draft[key], saved[key])
         || (submissionRevisions && fieldRevisions[key] !== submissionRevisions[key]);
@@ -64,9 +78,9 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     }
     saved = clone(next);
     loaded = true;
-    authorityRevision += 1;
     if (!Object.keys(changes()).length) conflict = false;
     notify();
+    return true;
   }
 
   async function reload() {
@@ -185,6 +199,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
 
   function discard() {
     if (saving) return false;
+    if (!dirty && !error && !conflict) return true;
     draft = clone(saved);
     error = '';
     conflict = false;
@@ -211,7 +226,13 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     return () => listeners.delete(listener);
   }
 
-  return { getState, edit, prepareSave, save, discard, subscribe, receive, reload, reset };
+  function subscribeChanges(listener) {
+    changeListeners.add(listener);
+    listener();
+    return () => changeListeners.delete(listener);
+  }
+
+  return { getState, getStatus, edit, prepareSave, save, discard, subscribe, subscribeChanges, receive, reload, reset };
 }
 
 export function componentSaveMessage(state) {

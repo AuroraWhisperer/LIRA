@@ -15,6 +15,9 @@ const HEARTBEAT_INTERVAL_MS = 30000;
 const SOCKET_TIMEOUT_MS = 90000;
 const CLOSE_TIMEOUT_MS = 1000;
 const SUBSCRIPTION_TOPICS = new Set(['danmaku']);
+// These owners already publish every change; negotiated clients need a full
+// music baseline only when connecting, not again on unrelated gift snapshots.
+const MUSIC_EVENT_FIELDS = ['lyricState', 'lyricTimeline', 'nowPlaying', 'lyricSource', 'weSing'];
 
 function createWebSocketHub(options = {}) {
   const sockets = new Set();
@@ -79,6 +82,7 @@ function createWebSocketHub(options = {}) {
     socket._lastPongAt = performance.now();
     socket._wsCleanedUp = false;
     socket._wsPrincipal = principal;
+    socket._wsMusicEvents = principal.type === 'admin' && requestUrl.searchParams.get('snapshot') === 'music-events-v1';
     socket._wsTopics = parseSubscriptionTopics(requestUrl.searchParams);
     socket._wsMaxPendingBytes = maxPendingBytes;
 
@@ -154,6 +158,7 @@ function createWebSocketHub(options = {}) {
     }
     socket._wsContext = null;
     socket._wsPrincipal = null;
+    socket._wsMusicEvents = false;
     socket._wsBuffer = null;
     socket._wsBufferStorage = null;
     socket._wsFragment = null;
@@ -346,7 +351,7 @@ function createWebSocketHub(options = {}) {
       const payload = {
         type: 'snapshot',
         reason: next.reason,
-        state: readSnapshot(next.context, sockets),
+        state: readSnapshot(next.context, sockets, true),
       };
       const frames = new Map();
       for (const socket of Array.from(sockets)) {
@@ -392,23 +397,32 @@ function createWebSocketHub(options = {}) {
   };
 }
 
-function readSnapshot(context, sockets) {
+function readSnapshot(context, sockets, incremental = false) {
   const fields = new Set();
+  let admin = false;
   for (const socket of sockets) {
-    if (socket._wsPrincipal?.type === 'admin') return context.getState();
+    if (socket._wsPrincipal?.type === 'admin') {
+      if (!incremental || !socket._wsMusicEvents) return context.getState();
+      admin = true;
+      continue;
+    }
     const requested = getOverlayStateFields(socket._wsPrincipal?.scope);
     if (requested === null) return context.getState();
     for (const field of requested) fields.add(field);
   }
+  if (admin) return context.getState(undefined, { exclude: MUSIC_EVENT_FIELDS.filter(field => !fields.has(field)) });
   return context.getState([...fields]);
 }
 
 function sendWebSocket(socket, payload, frames) {
   if (!socket._wsPrincipal) return false;
-  const key = `${socket._wsPrincipal.type}:${socket._wsPrincipal.scope || ''}`;
+  const partial = socket._wsMusicEvents && payload.type === 'snapshot' && payload.reason !== 'connect';
+  const key = `${socket._wsPrincipal.type}:${socket._wsPrincipal.scope || ''}:${partial ? 'music-events' : ''}`;
   let frame = frames?.get(key);
   if (frame === undefined) {
-    const projected = projectWebSocketPayload(socket._wsPrincipal, payload);
+    let projected = projectWebSocketPayload(socket._wsPrincipal, payload);
+    if (partial) projected = { ...projected, type: 'snapshot:patch',
+      state: Object.fromEntries(Object.entries(projected.state).filter(([field]) => !MUSIC_EVENT_FIELDS.includes(field))) };
     frame = projected === null ? null : encodeWebSocketFrame(Buffer.from(JSON.stringify(projected)), 0x1);
     frames?.set(key, frame);
   }

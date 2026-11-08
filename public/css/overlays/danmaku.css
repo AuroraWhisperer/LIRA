@@ -33,8 +33,10 @@
 @import url('./danmaku/spooky.css');
 @import url('./danmaku/notebook.css');
 @import url('./danmaku/glass.css');
+@import url('./danmaku/glowy.css');
 @import url('./danmaku/glass-bubble.css');
 @import url('./danmaku/animated-gradient.css');
+@import url('./danmaku/astral.css');
 @import url('./danmaku/christmas.css');
 @import url('./danmaku/christmas-letter.css');
 @import url('./danmaku/wireframe.css');
@@ -49,4 +51,6 @@
 @import url('./danmaku/stargazer.css');
 @import url('./danmaku/floating-motion.css');
 @import url('./danmaku/celestial-horizontal.css');
+@import url('./danmaku/neon-glass.css');
+@import url('./danmaku/horizontal-charm.css');
 @import url('./danmaku/preview.css');

@@ -349,16 +349,24 @@ body[data-style='snowfox'] .snowfox-member-name {
 /* Animate inner artwork and copy; the feed keeps exclusive ownership of row movement. */
 @media (prefers-reduced-motion: no-preference) {
   body[data-style='snowfox'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxBubbleReveal 460ms cubic-bezier(0.16, 1, 0.3, 1) var(--danmaku-delay, 0ms) backwards;
   }
   body[data-style='snowfox'] :is(.draw-danmaku-avatar, .sc-avatar) {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxPortraitEnter 560ms cubic-bezier(0.22, 0.85, 0.28, 1) var(--danmaku-delay, 0ms) backwards;
     transform-origin: 50% 70%;
   }
   body[data-style='snowfox'] .sc-snowfox {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxTicketReveal 620ms cubic-bezier(0.16, 1, 0.3, 1) 60ms backwards;
   }
   body[data-style='snowfox'] .sc-snowfox::after {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxCharmSettle 760ms cubic-bezier(0.22, 0.85, 0.28, 1) 100ms backwards;
     transform-origin: 65% 0;
   }
@@ -367,67 +375,78 @@ body[data-style='snowfox'] .snowfox-member-name {
     animation: snowfoxIceReveal 480ms cubic-bezier(0.16, 1, 0.3, 1) backwards;
   }
   body[data-style='snowfox'] .draw-danmaku-feed .draw-danmaku-item.is-gift {
+    opacity: var(--danmaku-enter-opacity);
     animation: snowfoxCardAppear 400ms ease-out var(--danmaku-delay, 0ms) backwards;
   }
   body[data-style='snowfox'] .is-gift :is(.draw-danmaku-identity, .draw-danmaku-gift-copy, .draw-danmaku-gift-amount) {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxCopyReveal 440ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards;
   }
   body[data-style='snowfox'] .is-gift .draw-danmaku-gift-art {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxGiftOpen 600ms cubic-bezier(0.22, 0.85, 0.28, 1) backwards;
     transform-origin: 50% 100%;
   }
   body[data-style='snowfox'] .snowfox-member {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxMemberReveal 580ms cubic-bezier(0.16, 1, 0.3, 1) 80ms backwards;
     transform-origin: 20% 50%;
   }
   body[data-style='snowfox'] .snowfox-member::before {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxAnchorSettle 740ms cubic-bezier(0.22, 0.85, 0.28, 1) backwards;
     transform-origin: 45% 90%;
   }
   body[data-style='snowfox'] .snowfox-member-name {
+    opacity: var(--danmaku-enter-opacity);
+    transform: var(--danmaku-enter-transform);
     animation: snowfoxCopyReveal 400ms cubic-bezier(0.16, 1, 0.3, 1) 200ms backwards;
   }
 }
 @keyframes snowfoxBubbleReveal {
-  from { opacity: 0.3; clip-path: inset(-4px 24% -4px -4px round 0.5em); transform: translateX(-0.25em); }
-  to { opacity: 1; clip-path: inset(-4px); transform: none; }
+  from { --danmaku-enter-opacity: 0.3; clip-path: inset(-4px 24% -4px -4px round 0.5em); --danmaku-enter-transform: translateX(-0.25em); }
+  to { --danmaku-enter-opacity: 1; clip-path: inset(-4px); --danmaku-enter-transform: translateX(0px); }
 }
 @keyframes snowfoxPortraitEnter {
-  0% { opacity: 0.35; transform: translateY(0.18em) scale(0.82) rotate(-7deg); }
-  65% { opacity: 1; transform: scale(1.035) rotate(1.5deg); }
-  100% { transform: none; }
+  0% { --danmaku-enter-opacity: 0.35; --danmaku-enter-transform: translateY(0.18em) scale(0.82) rotate(-7deg); }
+  65% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.035) rotate(1.5deg); }
+  100% { --danmaku-enter-transform: translateY(0px) scale(1) rotate(0deg); }
 }
 @keyframes snowfoxTicketReveal {
-  from { opacity: 0.3; clip-path: inset(-2px 38% -2px -2px); transform: translateX(-0.35em); }
-  to { opacity: 1; clip-path: inset(-2px); transform: none; }
+  from { --danmaku-enter-opacity: 0.3; clip-path: inset(-2px 38% -2px -2px); --danmaku-enter-transform: translateX(-0.35em); }
+  to { --danmaku-enter-opacity: 1; clip-path: inset(-2px); --danmaku-enter-transform: translateX(0px); }
 }
 @keyframes snowfoxCharmSettle {
-  0% { opacity: 0.3; transform: rotate(-12deg); }
-  55% { opacity: 1; transform: rotate(4deg); }
-  100% { transform: none; }
+  0% { --danmaku-enter-opacity: 0.3; --danmaku-enter-transform: rotate(-12deg); }
+  55% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: rotate(4deg); }
+  100% { --danmaku-enter-transform: rotate(0deg); }
 }
 @keyframes snowfoxIceReveal {
   from { opacity: 0.2; clip-path: inset(28% 0 0); }
   to { opacity: 1; clip-path: inset(0); }
 }
-@keyframes snowfoxCardAppear { from { opacity: 0.25; } to { opacity: 1; } }
+@keyframes snowfoxCardAppear { from { --danmaku-enter-opacity: 0.25; } to { --danmaku-enter-opacity: 1; } }
 @keyframes snowfoxCopyReveal {
-  from { opacity: 0.2; transform: translateY(0.2em); }
-  to { opacity: 1; transform: none; }
+  from { --danmaku-enter-opacity: 0.2; --danmaku-enter-transform: translateY(0.2em); }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateY(0px); }
 }
 @keyframes snowfoxGiftOpen {
-  0% { opacity: 0.35; transform: scale(0.78) rotate(-9deg); }
-  65% { opacity: 1; transform: scale(1.04) rotate(2deg); }
-  100% { transform: none; }
+  0% { --danmaku-enter-opacity: 0.35; --danmaku-enter-transform: scale(0.78) rotate(-9deg); }
+  65% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.04) rotate(2deg); }
+  100% { --danmaku-enter-transform: scale(1) rotate(0deg); }
 }
 @keyframes snowfoxMemberReveal {
-  from { opacity: 0.3; transform: scaleX(0.88); }
-  to { opacity: 1; transform: none; }
+  from { --danmaku-enter-opacity: 0.3; --danmaku-enter-transform: scaleX(0.88); }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scaleX(1); }
 }
 @keyframes snowfoxAnchorSettle {
-  0% { opacity: 0.4; transform: translateY(-0.22em) rotate(-8deg); }
-  60% { opacity: 1; transform: rotate(2deg); }
-  100% { transform: none; }
+  0% { --danmaku-enter-opacity: 0.4; --danmaku-enter-transform: translateY(-0.22em) rotate(-8deg); }
+  60% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: rotate(2deg); }
+  100% { --danmaku-enter-transform: translateY(0px) rotate(0deg); }
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='snowfox'] *, body[data-style='snowfox'] *::before, body[data-style='snowfox'] *::after { animation: none !important; }

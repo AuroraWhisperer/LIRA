@@ -442,6 +442,11 @@
   width: 100%;
   min-width: 0;
 }
+.danmaku-parameter-field :is(input:not([type='color'], [type='range']), select, .lira-select-trigger) {
+  height: var(--color-control-height);
+  min-height: var(--color-control-height);
+  padding-block: 5px;
+}
 .danmaku-parameter-field input[type='range'] {
   height: 36px;
   padding: 0;

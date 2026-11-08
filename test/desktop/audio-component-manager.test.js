@@ -10,6 +10,25 @@ const { createAudioComponentManager } = require('../../src/electron/audio-compon
 
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 
+test('audio preparation removes abandoned staging without deleting completed versions, recent work or linked content', async t => {
+  const f = await fixture(t);
+  await f.populate(f.destination);
+  const old = new Date(Date.now() - 2 * 86400000);
+  const abandoned = path.join(f.root, '.prepare-abc123');
+  await fs.mkdir(abandoned); await fs.writeFile(path.join(abandoned, 'download.tmp'), 'partial');
+  await fs.utimes(path.join(abandoned, 'download.tmp'), old, old); await fs.utimes(abandoned, old, old);
+  const recent = path.join(f.root, '.prepare-new123'); await fs.mkdir(recent);
+  const previous = path.join(f.root, 'fedcba9876543210fedcba98'); await f.populate(previous);
+  const linked = path.join(f.root, '.prepare-link12');
+  await fs.symlink(previous, linked, 'junction');
+  const manager = f.manager({ fetch: () => { throw new Error('Must remain offline'); } });
+  await manager.initialize();
+  await assert.rejects(fs.access(abandoned), { code: 'ENOENT' });
+  await fs.access(recent); await fs.access(linked);
+  assert.equal((await fs.readFile(path.join(previous, 'dependency.dll'))).toString(), 'isolated library');
+  assert.equal(await manager.getExecutable(), path.join(f.destination, f.manifest.entry));
+});
+
 async function fixture(t) {
   const scratch = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(scratch, { recursive: true });

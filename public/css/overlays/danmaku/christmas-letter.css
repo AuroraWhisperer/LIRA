@@ -50,7 +50,7 @@ body[data-style='christmas-letter'] .christmas-letter-item[data-role='governor']
 .xletter-glint { z-index: -1; overflow: hidden; }
 .xletter-glint::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 38%, rgb(255 255 237 / 65%) 49%, transparent 61%); opacity: 0; }
 body[data-style='christmas-letter'] .xletter-copy {
-  --xletter-alpha: 1; position: relative; margin: 0; padding: 20px 40px 16px 36px;
+  --xletter-alpha: 1; position: relative; margin: 0; padding: 20px 36px 16px;
   color: inherit; font: inherit; overflow-wrap: anywhere; white-space: pre-wrap;
   opacity: var(--xletter-alpha); text-shadow: none;
 }
@@ -109,7 +109,7 @@ body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='gov
 [data-letter-kind='member'] .xletter-amount { font-size: var(--danmaku-font-size, 24px); }
 [data-letter-kind='superchat'] .xletter-event-heading { border-bottom: 1px solid #c99a5745; }
 .christmas-letter-item:is([data-letter-kind='member'],[data-letter-kind='superchat']) .xletter-identity { position: relative; top: auto; left: auto; max-width: 100%; margin: 10px 24px 0; }
-body[data-style='christmas-letter'] .christmas-letter-item:is([data-letter-kind='member'],[data-letter-kind='superchat']) .xletter-copy { padding: 10px 30px 19px 24px; }
+body[data-style='christmas-letter'] .christmas-letter-item:is([data-letter-kind='member'],[data-letter-kind='superchat']) .xletter-copy { padding: 10px 24px 19px; }
 .christmas-letter-item:is([data-letter-kind='member'],[data-letter-kind='superchat']) .xletter-art--alert { width: 55px; height: 64px; left: -22px; top: -18px; }
 body[data-style='christmas-letter'] [data-letter-kind='member'] .xletter-bubble { min-height: 210px; padding: 22px 20px 18px; overflow: hidden; border-radius: 12px; }
 body[data-style='christmas-letter'] [data-letter-kind='member'] .xletter-identity { width: 62%; max-width: 100%; margin: 0; }

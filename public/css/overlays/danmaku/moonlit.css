@@ -1,4 +1,6 @@
 /* 月渡花汀：身份底色保留；纸面先展开，外围装饰随后显现。 */
+@property --moonlit-sheen-opacity { syntax: '<number>'; inherits: false; initial-value: 0; }
+
 body[data-style='moonlit'] {
   --moonlit-font: 'Songti SC', 'SimSun', 'Noto Serif CJK SC', serif;
 }
@@ -197,8 +199,8 @@ body[data-style='moonlit'] .draw-danmaku-item:is(.moonlit-scroll, .moonlit-guard
   bottom: -40%;
   left: 0;
   width: 27%;
-  opacity: 0;
-  transform: translateX(-150%) skewX(-18deg);
+  opacity: var(--moonlit-sheen-opacity);
+  transform: var(--danmaku-enter-transform);
   background: linear-gradient(90deg, transparent, #d8e6eb55 20%, #fffdf2e8 48%, #c2dce580 60%, transparent);
   animation: moonlitScrollSheen 1800ms 2600ms ease-in-out both;
 }
@@ -304,7 +306,7 @@ body[data-style='moonlit'] .moonlit-scroll .draw-danmaku-gift-art.has-image {
   width: 18px;
   background: url('/img/overlays/danmaku-moonlit/scroll-roller.webp') center / 100% 100% no-repeat;
   pointer-events: none;
-  transform: translateX(0);
+  transform: var(--danmaku-enter-transform);
   animation: moonlitRollerOpen 1400ms cubic-bezier(.22, .61, .36, 1) both;
 }
 .moonlit-scroll-flowers {
@@ -413,13 +415,13 @@ body[data-style='moonlit'] .draw-danmaku-empty { display: none; }
 @keyframes moonlitRevealDown { from { mask-position: 0 100%; } to { mask-position: 0 0; } }
 @keyframes moonlitScrollOpen { from { clip-path: inset(0 0 0 100%); } to { clip-path: inset(0); } }
 @keyframes moonlitRollerOpen {
-  from { transform: translateX(var(--moonlit-scroll-travel)); }
-  to { transform: translateX(0); }
+  from { --danmaku-enter-transform: translateX(var(--moonlit-scroll-travel)); }
+  to { --danmaku-enter-transform: translateX(0); }
 }
 @keyframes moonlitScrollSheen {
-  0% { transform: translateX(-150%) skewX(-18deg); opacity: 0; }
-  18%, 75% { opacity: .52; }
-  100% { transform: translateX(500%) skewX(-18deg); opacity: 0; }
+  0% { --danmaku-enter-transform: translateX(-150%) skewX(-18deg); --moonlit-sheen-opacity: 0; }
+  18%, 75% { --moonlit-sheen-opacity: .52; }
+  100% { --danmaku-enter-transform: translateX(500%) skewX(-18deg); --moonlit-sheen-opacity: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='moonlit'] *, body[data-style='moonlit'] *::before, body[data-style='moonlit'] *::after { animation: none !important; }

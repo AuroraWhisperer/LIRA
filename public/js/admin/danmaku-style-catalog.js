@@ -2,6 +2,9 @@
 // Visual tags describe visible elements and may overlap; avatars and gift images do not determine illustration tags.
 // Motion includes layered entry and animated decoration; whole-card entry or travel alone does not count.
 export const DANMAKU_STYLE_TAGS = {
+  'neon-glass': { visual: ['card', 'light'], motion: true, holiday: false },
+  'horizontal-charm': { visual: ['card'], motion: true, holiday: false },
+  astral: { visual: ['card', 'light'], motion: true, holiday: false },
   'celestial-horizontal': { visual: ['text', 'light'], motion: true, holiday: false },
   bubble: { visual: ['card'], motion: false, holiday: false },
   signal: { visual: ['card'], motion: false, holiday: false },
@@ -20,6 +23,7 @@ export const DANMAKU_STYLE_TAGS = {
   'christmas-letter': { visual: ['paper', 'illustration'], motion: true, holiday: true },
   wireframe: { visual: ['card'], motion: true, holiday: false },
   notebook: { visual: ['paper'], motion: true, holiday: false },
+  glowy: { visual: ['card', 'light'], motion: true, holiday: false },
   glass: { visual: ['card', 'light'], motion: true, holiday: false },
   'animated-gradient': { visual: ['card', 'light'], motion: true, holiday: false },
   // Spooky Notes uses Halloween bats, skulls, ghosts and spider webs.

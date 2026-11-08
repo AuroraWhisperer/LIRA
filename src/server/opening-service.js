@@ -8,7 +8,8 @@ const {
 const { normalizeSettingsPatch } = require('./settings-contract');
 const { OPENING_DEFAULTS, openingStyleSettingsPatch } = require('../../public/js/shared/opening-settings');
 const { normalizeStoredFileName, normalizeStoredCharacterFileName,
-  musicFileExists, characterFileExists, saveOpeningMediaFile } = require('./opening-media-store');
+  musicFileExists, characterFileExists, saveOpeningMediaFile, removeOpeningMediaFile } = require('./opening-media-store');
+const { pruneUploadedMedia } = require('./uploaded-media-retention');
 
 const DEFAULT_AUDIO_URL = '';
 const DEFAULT_CHARACTER_URL = '';
@@ -30,17 +31,27 @@ function resolveOpeningMediaSlot(kind, style = DEFAULT_OPENING_STYLE) {
   return { kind, settingPrefix: normalizedStyle === 'pixel-cassette' ? 'openingPixelCharacter' : 'openingCharacter' };
 }
 
-function saveOpeningMedia({ settings, system, broadcastSnapshot }, slot, upload) {
+function saveOpeningMedia(context, slot, upload) {
+  pruneUploadedMedia(context);
+  const { settings, system, broadcastSnapshot } = context;
   const fileName = saveOpeningMediaFile(system.dataDir, slot.kind, upload);
-  settings.setMany({
-    [`${slot.settingPrefix}File`]: fileName,
-    [`${slot.settingPrefix}Name`]: upload.name,
-  });
+  try {
+    settings.setMany({
+      [`${slot.settingPrefix}File`]: fileName,
+      [`${slot.settingPrefix}Name`]: upload.name,
+    });
+  } catch (error) {
+    try { removeOpeningMediaFile(system.dataDir, slot.kind, fileName); }
+    catch (cleanupError) { console.warn('[Opening] Upload rollback failed:', cleanupError.code || 'UNKNOWN'); }
+    throw error;
+  }
   broadcastSnapshot('settings');
   return getOpeningConfig({ settings, system });
 }
 
-function clearOpeningMedia({ settings, system, broadcastSnapshot }, slot) {
+function clearOpeningMedia(context, slot) {
+  pruneUploadedMedia(context);
+  const { settings, system, broadcastSnapshot } = context;
   settings.setMany({
     [`${slot.settingPrefix}File`]: '',
     [`${slot.settingPrefix}Name`]: '',

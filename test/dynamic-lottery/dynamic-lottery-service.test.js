@@ -2,8 +2,10 @@
 
 const assert = require('node:assert/strict');
 const { createHash } = require('node:crypto');
+const path = require('node:path');
 const test = require('node:test');
 const { commentRecord, openLotteryDatabase } = require('../helpers/dynamic-lottery-fixture');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { createDynamicLotteryStore } = require('../../src/storage/dynamic-lottery-store');
 const { createLotteryDrawStore } = require('../../src/storage/dynamic-lottery-draw-store');
 const { createDynamicLotteryService, publicCode } = require('../../src/bilibili/dynamic-lottery/service');
@@ -29,15 +31,14 @@ function seedTask(store, id, streamerId, overrides = {}) {
   store.beginScan({ id: `scan-${id}`, taskId: id, sessionEpoch: 1, sources: ['comment'], startedAtMs: 1_000 });
   store.commitPage({
     taskId: id, scanId: `scan-${id}`, source: 'comment', expectedCursor: null, sessionEpoch: 1, committedAtMs: 2_000,
-    page: { records: [commentRecord(String(recordSequence += 1), '7')], nextCursor: null, ended: true },
+    page: { records: overrides.records || [commentRecord(String(recordSequence += 1), '7')], nextCursor: null, ended: true },
   });
   return store.getTask(id);
 }
 
 // The fake upstream never answers by itself: each call waits until the test
 // releases it, and an aborted job rejects with its abort reason.
-function createFixture(t) {
-  const db = openLotteryDatabase();
+function createFixture(t, db = openLotteryDatabase()) {
   const store = createDynamicLotteryStore(db);
   const drawStore = createLotteryDrawStore(db);
   let identity = { streamerId: '42', authorizationEpoch: 3 };
@@ -93,6 +94,74 @@ test('tasks are visible and actionable only by the owning streamer identity', as
   assert.deepEqual(f.service.getState().tasks.map((task) => task.id), [foreign.id]);
   f.setIdentity({ streamerId: '43' });
   assert.throws(() => f.service.getState(), { code: 'LOTTERY_IDENTITY_UNAVAILABLE' });
+});
+
+test('progress polling reuses candidate counts only for the current task and authorization', async (t) => {
+  const f = createFixture(t);
+  const own = seedTask(f.store, 'cached-own', '42');
+  const foreign = seedTask(f.store, 'cached-foreign', '43', {
+    records: [commentRecord('1', '8'), commentRecord('2', '9')],
+  });
+  const getEvidence = f.store.getEvidence;
+  let evidenceReads = 0;
+  f.store.getEvidence = (...args) => {
+    evidenceReads += 1;
+    return getEvidence(...args);
+  };
+  assert.equal(f.service.actOnTask({ taskId: own.id, action: 'draw', revision: own.revision }).task.candidateCount, 1);
+  assert.ok(await f.nextRequest());
+  for (let index = 0; index < 5; index += 1) {
+    const state = f.service.getState({ taskId: own.id });
+    assert.equal(state.task.candidateCount, 1);
+    assert.equal(state.job.kind, 'draw');
+  }
+  assert.equal(evidenceReads, 1, 'waiting for account verification must not reload an unchanged full candidate pool');
+  f.setIdentity({ streamerId: '42', authorizationEpoch: 4 });
+  assert.equal(f.service.getState({ taskId: own.id }).task.candidateCount, 1);
+  assert.equal(evidenceReads, 2, 're-authorization does not reuse the previous identity snapshot');
+  f.setIdentity({ streamerId: '43', authorizationEpoch: 1 });
+  assert.equal(f.service.getState({ taskId: foreign.id }).task.candidateCount, 2);
+  assert.throws(() => f.service.getState({ taskId: own.id }), { code: 'LOTTERY_TASK_NOT_FOUND' });
+  f.setIdentity({ streamerId: '42', authorizationEpoch: 3 });
+  assert.equal(f.service.getState({ taskId: own.id }).task.candidateCount, 1);
+});
+
+test('candidate count snapshots reflect writes, rollback, other connections and a replacement scan', async (t) => {
+  const scratch = createScratchDirectory('lottery-count-', t);
+  const dbPath = path.join(scratch, 'lottery.db');
+  const f = createFixture(t, openLotteryDatabase(dbPath));
+  let other;
+  try {
+    const task = seedTask(f.store, 'count-invalidation', '42');
+    const count = () => f.service.getState({ taskId: task.id }).task.candidateCount;
+    assert.equal(count(), 1);
+    const setUid = f.db.prepare('UPDATE lottery_evidence SET uid = ? WHERE scan_id = ?');
+    setUid.run('999', task.activeScanId);
+    assert.equal(count(), 0, 'writes on the owning connection invalidate the snapshot');
+    setUid.run('7', task.activeScanId);
+    assert.equal(count(), 1);
+    f.db.exec('BEGIN');
+    setUid.run('999', task.activeScanId);
+    assert.equal(count(), 0);
+    f.db.exec('ROLLBACK');
+    assert.equal(count(), 1, 'a snapshot of uncommitted evidence cannot survive rollback');
+    other = openLotteryDatabase(dbPath);
+    other.prepare('UPDATE lottery_evidence SET uid = ? WHERE scan_id = ?').run('999', task.activeScanId);
+    assert.equal(count(), 0, 'another connection invalidates the snapshot without a task revision change');
+
+    f.store.beginScan({ id: 'replacement-scan', taskId: task.id, sessionEpoch: 2, sources: ['comment'], startedAtMs: 3000 });
+    assert.equal(count(), null);
+    f.store.commitPage({
+      taskId: task.id, scanId: 'replacement-scan', source: 'comment', expectedCursor: null,
+      sessionEpoch: 2, committedAtMs: 4000,
+      page: { records: [commentRecord('1', '8'), commentRecord('2', '9')], nextCursor: null, ended: true },
+    });
+    assert.equal(count(), 2);
+  } finally {
+    await f.service.dispose();
+    other?.close();
+    f.db.close();
+  }
 });
 
 test('a create request is idempotent per streamer, conflicts on changed input and runs one job at a time', async (t) => {

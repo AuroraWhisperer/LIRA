@@ -14,13 +14,27 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   const { escapeHtml, escapeAttr, value, setValue, toast, api, debounce, dangerConfirm } = utils;
   const editor = createSongEditor({ value, setValue, api, toast, onSaved: () => state.reloadAll() });
   const filters = createSongLibraryFilters({ value, escapeHtml, escapeAttr, debounce, onChange: () => state.reloadSongs() });
+  let initialized = false;
   let songTableBound = false;
+  let pendingSongs = null;
+  let renderedMarkup;
   // 行内操作按最近一次渲染的歌库快照解析目标，与逐行绑定时的闭包一致。
   let renderedSongs = [];
 
   function initSongForm() {
+    if (initialized) return;
+    initialized = true;
     editor.init();
     filters.init();
+    const visibility = new MutationObserver(renderPendingSongs);
+    visibility.observe(document.getElementById('songsPage'), { attributes: true, attributeFilter: ['class', 'hidden'] });
+    const workspace = document.getElementById('songAssistantPage');
+    if (workspace) visibility.observe(workspace, { attributes: true, attributeFilter: ['class'] });
+    document.addEventListener('visibilitychange', renderPendingSongs);
+    window.addEventListener('pagehide', () => {
+      visibility.disconnect();
+      document.removeEventListener('visibilitychange', renderPendingSongs);
+    }, { once: true });
     document.addEventListener('click', (event) => {
       if (!event.target.closest('.song-actions-menu')) closeSongActionsMenus();
     });
@@ -115,10 +129,21 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
 
   function renderSongs(songs, songLanguages, songArtists, songTags, { complete = false } = {}) {
     editor.reconcileSongs(songs, { complete });
+    pendingSongs = { songs, songLanguages, songArtists, songTags };
+    renderPendingSongs();
+  }
+
+  function renderPendingSongs() {
+    const page = document.getElementById('songsPage');
+    const workspace = document.getElementById('songAssistantPage');
+    if (document.hidden || page.hidden || !page.classList.contains('active')
+      || workspace && !workspace.classList.contains('active')) return;
+    if (!pendingSongs) return;
+    const { songs, songLanguages, songArtists, songTags } = pendingSongs;
+    pendingSongs = null;
     renderedSongs = songs;
     bindSongTableActions();
     filters.updateOptions(songs, songLanguages, songArtists, songTags);
-
     const table = document.getElementById('songsTable');
     const visibleColumns = new Set(
       ['request_price', 'note']
@@ -127,15 +152,14 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     for (const header of document.querySelectorAll('#songsPage th[data-song-column]')) {
       header.hidden = !visibleColumns.has(header.dataset.songColumn);
     }
+    let markup;
     if (songs.length === 0) {
       const currentFilters = filters.readSongFilters();
       const filtered = currentFilters.query || currentFilters.categories.length || currentFilters.language || currentFilters.artist || currentFilters.tags.length || currentFilters.enabledOnly;
-      table.innerHTML = filtered
+      markup = filtered
         ? '<tr><td colspan="8">没有符合筛选条件的歌曲，请调整或清除筛选。</td></tr>'
         : '<tr><td colspan="8">歌库还没有歌曲。可在上方添加，或到“歌单导入导出”批量导入。</td></tr>';
-      return;
-    }
-    table.innerHTML = songs
+    } else markup = songs
       .map(
         (song) => `
       <tr>
@@ -167,6 +191,11 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     `,
       )
       .join('');
+    if (markup !== renderedMarkup) {
+      closeSongActionsMenus();
+      table.innerHTML = markup;
+      renderedMarkup = markup;
+    }
   }
 
   // 行内操作统一由表格接收点击，避免每次重画后逐行重新绑定。

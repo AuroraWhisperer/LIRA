@@ -58,6 +58,12 @@ function saveOpeningMediaFile(dataDir, kind, upload) {
   }
 }
 
+function removeOpeningMediaFile(dataDir, kind, fileName) {
+  const directory = kind === 'music' ? getMusicDir(dataDir) : getCharacterDir(dataDir);
+  const normalized = kind === 'music' ? normalizeStoredFileName(fileName) : normalizeStoredCharacterFileName(fileName);
+  if (normalized) fs.rmSync(path.join(directory, normalized), { force: true });
+}
+
 module.exports = {
   getMusicDir,
   getCharacterDir,
@@ -66,4 +72,5 @@ module.exports = {
   musicFileExists,
   characterFileExists,
   saveOpeningMediaFile,
+  removeOpeningMediaFile,
 };

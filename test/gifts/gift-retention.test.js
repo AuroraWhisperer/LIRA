@@ -152,10 +152,30 @@ test('wishes combine active history and summaries while preserving exact creatio
   assert.equal(count(daily, BEFORE), 1);
   assert.equal(count(long), 2, 'creation day excludes the gift before creation');
   assert.equal(count(all), 3, 'complete days use summaries without doubling boundary contributions');
+  const prepare = f.giftDb.prepare;
+  const reads = { detail: 0, summary: 0, contribution: 0 };
+  const observe = t.mock.method(f.giftDb, 'prepare', function (sql) {
+    if (sql.includes('SUM(')) {
+      if (sql.includes('FROM gift_events g WHERE')) reads.detail++;
+      if (sql.includes('FROM gift_retention_days s')) reads.summary++;
+      if (sql.includes('FROM gift_wish_contributions c')) reads.contribution++;
+    }
+    return prepare.call(this, sql);
+  });
+  const windows = [
+    { wish: long, start: OLD, end: NOW },
+    { wish: all, start: DAY, end: NOW },
+    { wish: daily, start: BEFORE, end: NOW },
+    { wish: long, start: OLD, end: '2026-01-01T02:30:00.000Z' },
+  ];
+  assert.deepEqual(store.countMany(f.source.id, windows), [2, 3, 1, 0]);
+  observe.mock.restore();
+  assert.deepEqual(reads, { detail: 1, summary: 1, contribution: 1 });
   assert.equal(f.statistics().summaryRow.itemCount, 3);
   assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 2);
   assert.equal(count(long), 2);
   assert.equal(count(all), 3);
+  assert.deepEqual(store.countMany(f.source.id, windows), [2, 3, 1, 0]);
   assert.equal(f.statistics().summaryRow.itemCount, 3);
   assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 0);
   assert.equal(createGiftWishStore(f.giftDb).count(f.source.id, long, OLD, NOW), 2);
@@ -186,6 +206,11 @@ test('wishes retain late creation-day finals when pruning and respect a stale se
   f.retention.activate(f.scope());
   assert.equal(store.count(f.source.id, long, OLD, NOW), 4);
   assert.equal(store.count(f.source.id, session, OLD, '2026-01-01T02:30:00.000Z'), 1);
+  assert.deepEqual(store.countMany(f.source.id, [
+    { wish: long, start: OLD, end: NOW },
+    { wish: session, start: OLD, end: '2026-01-01T02:30:00.000Z' },
+    { wish: long, start: BEFORE, end: NOW },
+  ]), [4, 1, 1]);
   f.giftDb.exec(`CREATE TRIGGER reject_wish_archive BEFORE INSERT ON gift_wish_contributions
     WHEN NEW.platform_id='lira-server:late-boundary' BEGIN SELECT RAISE(ABORT,'wish archive failed'); END;`);
   assert.throws(() => pruneLocalGiftBatch(f.giftDb, f.source.id), /wish archive failed/);
@@ -221,12 +246,13 @@ test('summary wish quantities preserve guard aliases and separate box and output
   stage(f, summary({ rows }), []);
   f.retention.activate(f.scope());
   const store = createGiftWishStore(f.giftDb);
-  const count = (gift_id, gift_category, variant_id = null) => store.count(f.source.id,
-    { gift_id, gift_category, variant_id }, DAY, NOW);
-  assert.equal(count('guard-3', 'guard'), 2);
-  assert.equal(count('box', 'blindBox', 'box-v1'), 2);
-  assert.equal(count('output', 'blindBoxOutput', 'output-v1'), 2);
-  assert.equal(count('output', 'blindBoxOutput', 'output-v2'), 0);
+  const wishes = [
+    { gift_id: 'guard-3', gift_category: 'guard' },
+    { gift_id: 'box', gift_category: 'blindBox', variant_id: 'box-v1' },
+    { gift_id: 'output', gift_category: 'blindBoxOutput', variant_id: 'output-v1' },
+    { gift_id: 'output', gift_category: 'blindBoxOutput', variant_id: 'output-v2' },
+  ];
+  assert.deepEqual(store.countMany(f.source.id, wishes.map(wish => ({ wish, start: DAY, end: NOW }))), [2, 2, 2, 0]);
 });
 
 test('snapshot pages stay hidden until atomic activation, preserve old values on failure and fence stale accounts', (t) => {

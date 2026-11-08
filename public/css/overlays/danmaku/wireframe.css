@@ -60,7 +60,7 @@ body[data-style='wireframe'] .wireframe-copy { margin: 0; padding: 0; min-width:
 .wireframe-corner--end { right: .65em; bottom: -.15em; }
 
 /* Gift and SC share the source's compact ledger header, with full original copy. */
-body[data-style='wireframe'] .wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) { width: calc(100% - 1.15em); padding-inline: 0; }
+body[data-style='wireframe'] .wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) { width: 100%; padding-inline: 0; }
 .wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-body { container-type: inline-size; width: 100%; padding: .3em .4em .4em; }
 .wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-surface { background: rgb(0 0 0 / calc(.65 * var(--danmaku-background-opacity, 1))); border-radius: .1em; }
 .wireframe-item:is([data-wireframe-kind='gift'],[data-wireframe-kind='superchat']) .wireframe-frame { border: 0; border-block: 1px solid rgb(255 255 255 / 60%); border-radius: .1em; mask-image: none; outline: none; box-shadow: none; }
@@ -93,25 +93,25 @@ body[data-style='wireframe'] [data-wireframe-kind='member'] .wireframe-copy { di
 body[data-style='wireframe'] .wireframe-item[data-wireframe-kind='notice'] { padding-left: 2.5em; }
 
 /* Only live entries animate. Snapshots always show the complete, final layout. */
-.wireframe-item[data-live-entry] .wireframe-avatar { animation: wireframePortrait calc(360ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out both; }
+.wireframe-item[data-live-entry] .wireframe-avatar { opacity: var(--danmaku-enter-opacity); animation: wireframePortrait calc(360ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out both; }
 .wireframe-item[data-live-entry] .wireframe-orbit { animation: wireframeRing calc(600ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out both; }
 .wireframe-item[data-live-entry] :is(.wireframe-surface,.wireframe-frame,.wireframe-ticks) { animation: wireframeTrace calc(480ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) cubic-bezier(.16, 1, .3, 1) calc(100ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
-.wireframe-item[data-live-entry] .wireframe-identity { animation: wireframeReveal calc(300ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(180ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
-.wireframe-item[data-live-entry] .wireframe-copy { animation: wireframeReveal calc(330ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(300ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
-.wireframe-item[data-live-entry] :is(.wireframe-corner,.wireframe-divider) { animation: wireframeReveal calc(360ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(240ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry] .wireframe-identity { opacity: var(--danmaku-enter-opacity); animation: wireframeReveal calc(300ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(180ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry] .wireframe-copy { opacity: var(--danmaku-enter-opacity); animation: wireframeReveal calc(330ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(300ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry] :is(.wireframe-corner,.wireframe-divider) { opacity: var(--danmaku-enter-opacity); animation: wireframeReveal calc(360ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(240ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
 .wireframe-item[data-live-entry][data-wireframe-kind='member'] .wireframe-avatar { animation-duration: calc(500ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)); }
 .wireframe-item[data-live-entry][data-wireframe-kind='member'] .wireframe-identity { animation-delay: calc(400ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)); }
-.wireframe-item[data-live-entry][data-wireframe-kind='member'] :is(.wireframe-guard,.wireframe-member-rank) { animation: wireframeReveal calc(350ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(500ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
+.wireframe-item[data-live-entry][data-wireframe-kind='member'] :is(.wireframe-guard,.wireframe-member-rank) { opacity: var(--danmaku-enter-opacity); animation: wireframeReveal calc(350ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) ease-out calc(500ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
 .wireframe-item[data-live-entry][data-wireframe-kind='member'] .wireframe-copy { animation-delay: calc(650ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)); }
 .wireframe-item[data-live-entry] .wireframe-wings { animation: wireframeWings calc(600ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) cubic-bezier(.16, 1, .3, 1) calc(180ms * var(--motion-speed, 1) * var(--wireframe-entry-factor, 1)) both; }
 body[data-style='wireframe'] .wireframe-item[data-wireframe-entrance='none'] { --danmaku-enter-animation: none; }
 body[data-style='wireframe'] .wireframe-item[data-wireframe-entrance='none'],
 body[data-style='wireframe'] .wireframe-item[data-wireframe-entrance='none'] * { animation: none !important; }
-@keyframes wireframeEntry { from, to { opacity: 1; } }
-@keyframes wireframePortrait { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wireframeEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+@keyframes wireframePortrait { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes wireframeRing { from { opacity: 0; transform: scale(.65) rotate(-45deg); } to { opacity: 1; transform: scale(1) rotate(0); } }
 @keyframes wireframeTrace { from { opacity: 0; clip-path: inset(0 100% 0 0); } to { opacity: 1; clip-path: inset(-.2em); } }
-@keyframes wireframeReveal { from { opacity: 0; } to { opacity: 1; } }
+@keyframes wireframeReveal { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes wireframeWings { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='wireframe'] { --danmaku-move-base-ms: 0; --danmaku-move-max-ms: 0; }

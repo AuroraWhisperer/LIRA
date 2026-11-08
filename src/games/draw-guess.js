@@ -162,7 +162,7 @@ function publicDrawGuessState(state, timing = {}) {
     serverNowMs: normalizeNow(timing.serverNowMs),
     revealedAnswer: state.answerRevealed ? state.revealedAnswer : '',
     answerRevealed: Boolean(state.answerRevealed),
-    correct: state.correct.map((item) => ({
+    ...(timing.includeScores === false ? {} : { correct: state.correct.map((item) => ({
       uid: item.uid,
       name: item.name,
       rank: item.rank,
@@ -173,7 +173,7 @@ function publicDrawGuessState(state, timing = {}) {
       name: item.name,
       score: item.score,
       firsts: item.firsts,
-    })),
+    })) }),
     ...(timing.includeCanvas === false ? {} : { canvas: cloneCanvasState(state.canvas) }),
   };
 }
@@ -253,29 +253,37 @@ function availableWords(state) {
 }
 
 function updateScores(scores, award) {
-  const next = scores.map((item) => ({ ...item }));
+  const next = [...scores];
   const index = next.findIndex((item) => item.uid === award.uid);
+  let updated;
   if (index >= 0) {
-    next[index].name = award.name;
-    next[index].score += award.points;
-    next[index].firsts += award.rank === 1 ? 1 : 0;
-    next[index].lastScoreAt = award.guessedAt;
+    const previous = next.splice(index, 1)[0];
+    updated = { ...previous, name: award.name, score: previous.score + award.points,
+      firsts: previous.firsts + (award.rank === 1 ? 1 : 0), lastScoreAt: award.guessedAt };
   } else {
-    next.push({
+    updated = {
       uid: award.uid,
       name: award.name,
       score: award.points,
       firsts: award.rank === 1 ? 1 : 0,
       lastScoreAt: award.guessedAt,
-    });
+    };
   }
-  return next.sort(
-    (a, b) =>
-      b.score - a.score ||
-      b.firsts - a.firsts ||
-      a.lastScoreAt - b.lastScoreAt ||
-      a.name.localeCompare(b.name, 'zh-CN'),
-  );
+  let low = 0, high = next.length;
+  while (low < high) {
+    const middle = (low + high) >>> 1;
+    const order = compareScores(updated, next[middle]);
+    // Preserve the stable ordering of equal scores from the previous array.
+    if (order < 0 || order === 0 && index >= 0 && middle >= index) high = middle;
+    else low = middle + 1;
+  }
+  next.splice(low, 0, updated);
+  return next;
+}
+
+function compareScores(a, b) {
+  return b.score - a.score || b.firsts - a.firsts || a.lastScoreAt - b.lastScoreAt
+    || a.name.localeCompare(b.name, 'zh-CN');
 }
 
 function normalizeGuessText(value) {

@@ -201,11 +201,11 @@ function createLotteryDrawStore(db) {
     const round = readRound(taskId);
     if (!round) return null;
     const awards = winners(round.id);
-    const lastPause = db
-      .prepare(
-        "SELECT payload_json FROM lottery_events WHERE round_id = ? AND event_type = 'paused' ORDER BY id DESC LIMIT 1",
-      )
-      .get(round.id);
+    const lastPause = round.status === 'paused'
+      ? db.prepare(
+          "SELECT payload_json FROM lottery_events WHERE round_id = ? AND event_type = 'paused' ORDER BY id DESC LIMIT 1",
+        ).get(round.id)
+      : null;
     return {
       roundId: round.id,
       status: round.status,

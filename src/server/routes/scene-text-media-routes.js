@@ -2,12 +2,14 @@
 
 const { readRawBody, sendJson, validateOrigin } = require('../http-utils');
 const { MAX_TEXT_IMAGE_BYTES, storeTextImage } = require('../scene-text-images');
+const { pruneUploadedMedia } = require('../uploaded-media-retention');
 const { GUARD_WISH_GIFTS } = require('../../bilibili/gift/wish-service');
 
 async function handleTextMedia(context, req, res, url, authorize = () => {}) {
   try {
     if (!validateOrigin(req, [url.origin])) return sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
     authorize();
+    pruneUploadedMedia(context);
     let data;
     if (url.pathname.endsWith('/text-image')) {
       if (req.method !== 'POST') return sendJson(res, 405, { ok: false, error: '上传图片仅支持 POST。' });

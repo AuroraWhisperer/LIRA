@@ -82,17 +82,18 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
       const size = event.motion.size;
       const motionSpeed = (event.motion.speed ?? 100) / 100;
       const bounce = (event.motion.bounce ?? 18) / 100;
+      const multiplier = event.motion.quantityMultiplier ?? 4;
       const expiresAt = event.startedAt + event.motion.durationSeconds * 1000;
       if (expiresAt <= now) return [];
       // Large combos keep their true quantity on the last representative image.
       // Existing gifts are never evicted early to make room for a newer gift.
-      const count = Math.min(event.num, 60, MAX_GIFT_DROP_BODIES - bodies.length);
+      const count = Math.min(event.num * multiplier, 60 * multiplier, MAX_GIFT_DROP_BODIES - bodies.length);
       const added = [];
       for (let index = 0; index < count; index++) {
         const body = { id: `${event.eventId}:${index}`, eventId: event.eventId,
-          quantity: index === count - 1 ? event.num - count + 1 : 1,
+          quantity: index === count - 1 ? Math.max(1, event.num - Math.ceil(count / multiplier) + 1) : 1,
           size, half: size / 2, invInertia: 6 / (size * size), expiresAt, motionSpeed, bounce,
-          x: size + random() * (width - size * 2), y: -size / 2 - index * size * 0.4,
+          x: size + random() * (width - size * 2), y: -size / 2 - Math.floor(index / multiplier) * size * 0.4,
           vx: (random() - 0.5) * 160 * motionSpeed, vy: (80 + random() * 80) * motionSpeed,
           angle: (random() - 0.5) * Math.PI, spin: (random() - 0.5) * 3 * motionSpeed };
         bodies.push(body); added.push(body);

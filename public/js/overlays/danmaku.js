@@ -12,12 +12,13 @@ import { createOverlaySocket } from './socket-client.js';
 import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { applyStyleOptions } from './danmaku-style-application.js';
 import { syncCelestialBackdrop } from './danmaku-celestial-horizontal.js';
+import { resolveGiftImageSource } from '../shared/gift-image.js';
 
 ('use strict');
 
 const MAX_ITEMS = 50;
-const PREVIEW_MESSAGE_MIN_DELAY_MS = 1600;
-const PREVIEW_MESSAGE_MAX_DELAY_MS = 4400;
+const PREVIEW_MESSAGE_MIN_DELAY_MS = Math.round(1600 / 1.3);
+const PREVIEW_MESSAGE_MAX_DELAY_MS = Math.round(4400 / 1.3);
 const DEFAULT_FULLSCREEN_DURATION_SECONDS = 6;
 const OVERLAY_STYLES = new Set(Object.keys(DANMAKU_STYLE_OPTIONS));
 const FIXED_STAGE_PADDING = 12;
@@ -53,6 +54,7 @@ let currentSpeedPixelsPerSecond = 120;
 let currentFloatingDispersion = 50;
 let currentSinkingOptions = {};
 let currentStargazerOptions = {};
+let currentGlowyLayout = 'vertical';
 let currentRandomPlacement = {};
 let currentRandomExpiration = {};
 let effectConfig = {};
@@ -323,9 +325,7 @@ function createOverlayFeed(style, durationSeconds) {
     resolveGiftImageUrl: (value) => {
       if (currentGiftImage !== 'gift') return '';
       if (previewMode && DANMAKU_PREVIEW_GIFT_IMAGES.includes(value)) return value;
-      const source = String(value || '');
-      if (/^\/overtime-gift-images\/[a-z\d_-][a-z\d._-]*\.(?:png|jpe?g|gif|webp)$/iu.test(source) && !source.includes('..')) return source;
-      return bilibiliAvatarSource(value);
+      return resolveGiftImageSource(value);
     },
     getGuardLabel: guardLabel,
     showAvatar: !['outline', 'whiteframe', 'starveil', 'glow', 'starlight', 'sketch', 'stardust'].includes(style) && !isFloatingDanmakuStyle(style),
@@ -337,6 +337,7 @@ function createOverlayFeed(style, durationSeconds) {
     expireFixedItems: true,
     itemLifetimeMs: currentStargazerOptions.stargazerHideSeconds * 1000,
   });
+  if (style === 'glowy') options.flowAxis = currentGlowyLayout;
   if (isFloatingDanmakuStyle(style)) {
     // Floating cards keep independent travel; horizontal bars use the shared ordered feed.
     options.layout = 'floating';
@@ -376,6 +377,7 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   const duration = appearance.durationSeconds ?? legacyDuration;
   const changed =
     style !== currentOverlayStyle ||
+    (style === 'glowy' && appearance.glowyLayout !== currentGlowyLayout) ||
     (style === 'stargazer' && ['stargazerLayout', 'stargazerMaxMessages', 'stargazerHideSeconds']
       .some(key => appearance[key] !== currentStargazerOptions[key])) ||
     appearance.giftImage !== currentGiftImage ||
@@ -387,13 +389,14 @@ function applyConfiguration(styleValue, durationValue, styleOptions = {}, refres
   currentRandomPlacement = { centerBias: appearance.centerBias, dispersion: appearance.dispersion,
     clearCenter: style === 'stardust' && appearance.stardustKeepCenter === 'on' };
   feed?.setRandomPlacement?.(currentRandomPlacement);
-  currentRandomExpiration = { itemLifetimeMs: DANMAKU_STYLE_OPTIONS[style]?.fixedLifetimeMs ?? duration * 1000,
+  currentRandomExpiration = { itemLifetimeMs: duration * 1000,
     exitAnimation: appearance.exitAnimation, exitDurationMs: appearance.exitDurationMs };
   feed?.setExpirationOptions?.(currentRandomExpiration);
   currentSpeedPixelsPerSecond = appearance.speedPixelsPerSecond || 120;
   currentFloatingDispersion = appearance.floatingDispersion ?? 50;
   currentSinkingOptions = appearance;
   currentStargazerOptions = appearance;
+  currentGlowyLayout = appearance.glowyLayout || 'vertical';
   if (style === 'stargazer') feed?.setExpirationOptions?.({ itemLifetimeMs: appearance.stargazerHideSeconds * 1000 });
   if (style === 'sinking') feed?.setSinkingOptions?.(currentSinkingOptions);
   if (isFloatingDanmakuStyle(style)) feed?.setFloatingDispersion?.(currentFloatingDispersion);

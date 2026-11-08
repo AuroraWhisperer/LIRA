@@ -20,7 +20,7 @@ body[data-style='glass'] .draw-danmaku-item.glass-item {
 }
 body[data-style='glass'] .draw-danmaku-item.glass-item::after,
 body[data-style='glass'] .draw-danmaku-item.glass-item::before { display: none; content: none; }
-body[data-style='glass'] .glass-item[data-live-entry] { animation: var(--danmaku-enter-animation); }
+body[data-style='glass'] .glass-item[data-live-entry] { translate: var(--danmaku-enter-x) 0; animation: var(--danmaku-enter-animation); }
 body[data-style='glass'] .glass-panel {
   position: relative; display: block; padding: 28px 38px 26px;
   border: 1px solid rgb(255 255 255 / 30%); border-radius: inherit; overflow: hidden;
@@ -72,6 +72,7 @@ body[data-style='glass'] .glass-item:not([data-glass-kind='chat']) .glass-copy {
   font-size: calc(var(--danmaku-font-size, 22px) * 12 / 11);
 }
 body[data-style='glass'] .glass-event-icon { display: block; width: 56px; height: 56px; color: rgb(255 255 255 / 64%); }
+body[data-style='glass'] .glass-gift-image { width: 100%; height: 100%; object-fit: contain; }
 body[data-style='glass'] .glass-divider {
   align-self: stretch; width: 6px; min-height: 90px; border-radius: 3px;
   background: rgb(255 255 255 / 40%);
@@ -105,9 +106,9 @@ body[data-style='glass'] .glass-glint:nth-child(2) {
 }
 body[data-style='glass'][data-ambient-motion='off'] .glass-glints { display: none; }
 @keyframes glassEntry {
-  0%, 32% { opacity: 0; transform: translateX(24px) var(--component-transform, translate(0px, 0px)); }
-  65% { opacity: .55; transform: translateX(7px) var(--component-transform, translate(0px, 0px)); }
-  100% { opacity: 1; transform: translateX(0) var(--component-transform, translate(0px, 0px)); }
+  0%, 32% { --danmaku-enter-opacity: 0; --danmaku-enter-x: 24px; }
+  65% { --danmaku-enter-opacity: .55; --danmaku-enter-x: 7px; }
+  100% { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
 }
 @keyframes glassGlint {
   0%, 40%, 64%, 100% { opacity: 0; }

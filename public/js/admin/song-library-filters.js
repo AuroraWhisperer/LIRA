@@ -81,6 +81,25 @@ export function readSelectedTags(root = document) {
 }
 
 export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, debounce, onChange }) {
+  const renderedOptions = new Map();
+  let previousFields = null;
+  let previousFiltered;
+  let previousLanguages;
+  let previousArtists;
+
+  function optionsChanged(key, values) {
+    const previous = renderedOptions.get(key);
+    if (previous?.size === (values.size ?? values.length)) {
+      let unchanged = true;
+      for (const value of values) {
+        if (!previous.has(value)) { unchanged = false; break; }
+      }
+      if (unchanged) return false;
+    }
+    renderedOptions.set(key, new Set(values));
+    return true;
+  }
+
   function readSongFilters() {
     return {
       query: value('songSearch'),
@@ -137,15 +156,23 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
   }
 
   function updateOptions(songs, songLanguages, songArtists, songTags) {
-    const filtered = ['songSearch', 'languageFilter', 'artistFilter'].some((id) => value(id))
-      || value('enabledFilter') === 'true' || readSelectedCategories().length || readSelectedTags().length;
-    if (!filtered) {
-      songLanguages.clear();
-      songArtists.clear();
-    }
-    for (const song of songs) {
-      for (const language of splitSongLanguages(song.language)) songLanguages.add(language);
-      for (const artist of splitSongArtists(song.artist)) songArtists.add(artist);
+    const filtered = Boolean(['songSearch', 'languageFilter', 'artistFilter'].some((id) => value(id))
+      || value('enabledFilter') === 'true' || readSelectedCategories().length || readSelectedTags().length);
+    if (filtered !== previousFiltered || songLanguages !== previousLanguages || songArtists !== previousArtists
+      || songs.length !== previousFields?.length
+      || songs.some((song, index) => song.language !== previousFields[index].language || song.artist !== previousFields[index].artist)) {
+      if (!filtered) {
+        songLanguages.clear();
+        songArtists.clear();
+      }
+      for (const song of songs) {
+        for (const language of splitSongLanguages(song.language)) songLanguages.add(language);
+        for (const artist of splitSongArtists(song.artist)) songArtists.add(artist);
+      }
+      previousFields = songs.map(({ language, artist }) => ({ language, artist }));
+      previousFiltered = filtered;
+      previousLanguages = songLanguages;
+      previousArtists = songArtists;
     }
     renderLanguageFilter(songLanguages);
     renderArtistFilter(songArtists);
@@ -156,6 +183,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
     const options = document.getElementById('categoryFilterOptions');
     const selected = new Set(readSelectedCategories());
     const names = splitCategoryNames(categories);
+    if (!optionsChanged('categories', names)) return;
     options.innerHTML =
       names.length === 0
         ? '<span class="lira-select-empty">暂无分类</span>'
@@ -179,6 +207,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
   }
 
   function renderLanguageFilter(songLanguages) {
+    if (!optionsChanged('languages', songLanguages)) return;
     const select = document.getElementById('languageFilter');
     const selected = select.value;
     const languages = new Set();
@@ -200,6 +229,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
   }
 
   function renderArtistFilter(songArtists) {
+    if (!optionsChanged('artists', songArtists)) return;
     const select = document.getElementById('artistFilter');
     const selected = select.value;
     const artists = new Set();
@@ -221,6 +251,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
   }
 
   function renderTagFilter(songTags) {
+    if (!optionsChanged('tags', songTags)) return;
     const options = document.getElementById('tagFilterOptions');
     const selected = new Set(readSelectedTags());
     const sorted = Array.from(songTags).sort((a, b) => a.localeCompare(b, 'zh-Hans-CN'));

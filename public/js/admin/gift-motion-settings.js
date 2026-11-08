@@ -1,6 +1,7 @@
 import { api, toast } from '../shared/utils.js';
-import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS } from '../shared/gift-motion-settings.js';
+import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, GIFT_SWING_TEXT_PARTS, GIFT_SWING_TEXT_MODES } from '../shared/gift-motion-settings.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
+import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 import { getActiveComponentPreview } from './component-preview-session.js';
 import { openComponentPreview } from './component-preview-dialog.js';
@@ -19,29 +20,49 @@ export function initGiftMotionSettings() {
   for (const effect of GIFT_MOTION_EFFECTS) {
     const host = node(`${effect.prefix}Fields`);
     for (const [name, field] of Object.entries(effect.fields)) {
-      const label = document.createElement('label'); label.className = 'gift-effect-field';
-      const title = document.createElement('span'); title.className = 'gift-effect-field-label'; title.textContent = field.label;
+      const label = document.createElement('div'); label.className = 'gift-effect-field';
+      const title = document.createElement(field.options ? 'span' : 'label'); title.className = 'gift-effect-field-label'; title.textContent = field.label;
       const control = document.createElement('span'); control.className = 'gift-effect-field-control';
-      const input = document.createElement(field.options ? 'select' : 'input'); input.id = `${effect.prefix}${name}`;
+      const input = document.createElement('input'); input.id = `${effect.prefix}${name}`;
+      if (!field.options) title.htmlFor = input.id;
+      title.id = `${input.id}Label`;
       input.required = true;
       if (field.options) {
-        for (const [value, text] of field.options) {
-          const option = document.createElement('option'); option.value = value; option.textContent = text;
-          input.append(option);
+        input.type = 'hidden'; control.append(input);
+        control.classList.add('gift-motion-text-options');
+        control.setAttribute('role', 'group'); control.setAttribute('aria-labelledby', title.id);
+        for (const [part, text] of Object.entries(GIFT_SWING_TEXT_PARTS)) {
+          const option = document.createElement('label'); option.className = 'gift-motion-text-option';
+          const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.dataset.textPart = part;
+          option.append(checkbox, document.createTextNode(text)); control.append(option);
+          checkbox.addEventListener('change', () => {
+            const selected = [...control.querySelectorAll('[data-text-part]')].filter(node => node.checked).map(node => node.dataset.textPart);
+            input.value = Object.entries(GIFT_SWING_TEXT_MODES).find(([, parts]) =>
+              parts.length === selected.length && selected.every(part => parts.includes(part)))[0];
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+          });
         }
       } else {
-        input.type = 'number'; input.min = field.min; input.max = field.max; input.step = 1;
+        label.classList.add('gift-motion-parameter');
+        input.type = 'range'; input.className = 'parameter-range';
+        input.min = field.min; input.max = field.max; input.step = 1; input.dataset.unit = field.unit || '';
+        input.setAttribute('aria-labelledby', title.id);
+        const output = document.createElement('output'); output.className = 'gift-motion-value';
+        output.id = `${input.id}Value`; output.htmlFor = input.id; control.append(output);
       }
-      control.append(input);
-      if (field.unit) {
-        const unit = document.createElement('span'); unit.className = 'gift-effect-unit'; unit.textContent = field.unit;
-        control.append(unit);
+      label.append(title, control);
+      if (!field.options) {
+        const row = document.createElement('div'); row.className = 'gift-motion-range';
+        const minimum = document.createElement('span'); minimum.textContent = field.min;
+        const maximum = document.createElement('span'); maximum.textContent = field.max;
+        row.append(minimum, input, maximum); label.append(row);
       }
-      label.append(title, control); host.append(label);
+      host.append(label);
     }
+    initParameterRanges(host);
     for (const key of keys(effect)) {
       const input = node(key); input.dataset.preserveDirty = 'true';
-      const edit = () => { syncDirty(key); status(effect); };
+      const edit = () => { syncControl(key); syncDirty(key); status(effect); };
       input.addEventListener('input', edit); input.addEventListener('change', edit);
     }
     node(`${effect.prefix}SaveBtn`).addEventListener('click', () => save(effect));
@@ -51,9 +72,22 @@ export function initGiftMotionSettings() {
   render(currentSettings);
 }
 
+function syncControl(key) {
+  const input = node(key);
+  if (input.type === 'range') {
+    const text = `${input.value}${input.dataset.unit === '%' ? '' : ' '}${input.dataset.unit}`.trim();
+    node(`${key}Value`).value = text;
+    input.setAttribute('aria-valuetext', text); refreshParameterRange(input);
+  } else if (input.type === 'hidden') {
+    for (const checkbox of input.parentElement.querySelectorAll('[data-text-part]')) {
+      checkbox.checked = GIFT_SWING_TEXT_MODES[input.value].includes(checkbox.dataset.textPart);
+    }
+  }
+}
+
 function syncDirty(key) {
   const saved = currentSettings[key] ?? GIFT_MOTION_DEFAULTS[key];
-  const same = key.endsWith('Enabled') || node(key).tagName === 'SELECT' ? value(key) === saved
+  const same = key.endsWith('Enabled') || node(key).type === 'hidden' ? value(key) === saved
     : value(key).trim() !== '' && Number(value(key)) === Number(saved);
   if (saving.has(key) || !same) dirty.add(key); else dirty.delete(key);
   node(key).dataset.dirty = String(dirty.has(key));
@@ -67,6 +101,7 @@ function render(settings) {
         const saved = settings[key] ?? GIFT_MOTION_DEFAULTS[key];
         if (key.endsWith('Enabled')) node(key).checked = saved === 'true'; else node(key).value = saved;
       }
+      syncControl(key);
       syncDirty(key);
     }
     status(effect);

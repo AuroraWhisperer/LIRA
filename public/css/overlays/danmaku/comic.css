@@ -179,6 +179,11 @@ body[data-style='comic'][data-comic-writing-mode='vertical'] .comic-item:not(.is
   vertical-align: middle;
 }
 
+.comic-item[data-live-entry] .comic-content {
+  opacity: var(--danmaku-enter-opacity);
+  translate: 0 var(--danmaku-enter-y);
+}
+.comic-item[data-live-entry][data-comic-entrance='fade'] .comic-surface { opacity: var(--danmaku-enter-opacity); }
 .comic-item[data-live-entry][data-comic-entrance='pop'] .comic-ink { animation: comicPaperPop var(--comic-enter-duration) cubic-bezier(.2,.75,.25,1) backwards; }
 .comic-item[data-live-entry][data-comic-entrance='pop'] .comic-content { animation: comicCopyIn var(--comic-enter-duration) cubic-bezier(.2,.75,.25,1) backwards; }
 .comic-item[data-live-entry][data-comic-entrance='ink'] .comic-trace { animation: comicInkTrace var(--comic-enter-duration) ease-out backwards; }
@@ -193,8 +198,8 @@ body[data-style='comic'][data-comic-writing-mode='vertical'] .comic-item:not(.is
   100% { opacity: 1; transform: none; }
 }
 @keyframes comicCopyIn {
-  0%, 18% { opacity: 0; translate: 0 5px; }
-  75%, 100% { opacity: 1; translate: none; }
+  0%, 18% { --danmaku-enter-opacity: 0; --danmaku-enter-y: 5px; }
+  75%, 100% { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
 @keyframes comicInkTrace {
   from { stroke-dasharray: 1; stroke-dashoffset: 1; }
@@ -208,7 +213,7 @@ body[data-style='comic'][data-comic-writing-mode='vertical'] .comic-item:not(.is
   0%, 18% { opacity: 0; }
   75%, 100% { opacity: calc(var(--comic-texture, .08) * var(--danmaku-background-opacity, 1)); }
 }
-@keyframes comicFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes comicFadeIn { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 
 @media (prefers-reduced-motion: reduce) {
   body[data-style='comic'] .comic-item * { animation: none !important; }

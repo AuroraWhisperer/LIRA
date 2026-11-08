@@ -25,8 +25,11 @@ export function createAdminStateRenderer({
     const changed = new Set(changedKeys);
     // Settings must hydrate before the gift view reads its form controls.
     if (changed.has('settings')) {
-      renderSettings(state.settings || {});
-      renderQueueStyle(projectComponentDrafts(state.settings || {}));
+      const settings = state.settings || {};
+      receiveComponentSettings(settings);
+      const projected = projectComponentDrafts(settings);
+      renderSettings(settings, projected);
+      renderQueueStyle(projected);
     }
     if (changed.has('queue') || changed.has('settings')) {
       const settings = state.settings || {};
@@ -50,9 +53,8 @@ export function createAdminStateRenderer({
   };
 }
 
-function fillSettings(settings) {
-  receiveComponentSettings(settings);
-  formsService.fillForm(projectComponentDrafts(settings));
+function fillSettings(settings, projected) {
+  formsService.fillForm(projected);
   renderSongCooldownControls();
   for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
     const toggle = document.getElementById(key);

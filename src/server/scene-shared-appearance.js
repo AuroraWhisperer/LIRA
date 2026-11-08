@@ -51,7 +51,8 @@ function createSceneSharedAppearance(context) {
     }
     if (type === 'clock') defaults ??= getClockConfig(settings);
     if (type === 'queue') defaults ??= projectOverlayState('queue', { settings }).settings;
-    if (type === 'overtime') defaults ??= context.system.getState?.(['overtime']).overtime?.background;
+    if (type === 'overtime') defaults ??= (context.readState ? context.readState()
+      : context.system.getState?.(['overtime']))?.overtime?.background;
     if (type === 'danmaku') defaults ??= context.readDanmakuDisplay?.({})?.config;
     if (defaults) return sharedControllerAppearance(type, config, defaults);
     if (LOCAL_TYPES.includes(type)) {

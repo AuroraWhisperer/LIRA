@@ -115,10 +115,12 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   canvasButton.title = '画布设置';
   canvasButton.append(previewToolbarIcon('canvas'), dimensions);
   const undo = button(canvasControls, '撤销', () => changeHistory('undo'));
-  undo.title = '撤销 (Ctrl+Z)';
+  undo.prepend(previewToolbarIcon('undo'));
+  undo.title = '取消上一步修改，例如找回刚删除的组件（Ctrl+Z）';
   const redo = button(canvasControls, '重做', () => changeHistory('redo'));
-  redo.title = '重做 (Ctrl+Y / Ctrl+Shift+Z)';
-  subscriptions.push(model.subscribe(({ canUndo, canRedo }) => { undo.disabled = !canUndo; redo.disabled = !canRedo; }));
+  redo.prepend(previewToolbarIcon('redo'));
+  redo.title = '把刚撤销的那一步再做一次，例如再次删除找回的组件（Ctrl+Y / Ctrl+Shift+Z）';
+  subscriptions.push(model.subscribeSnapshot(({ canUndo, canRedo }) => { undo.disabled = !canUndo; redo.disabled = !canRedo; }));
   const backgroundLabel = previewElement('label');
   backgroundLabel.title = '预览底色，不影响直播画面';
   const background = previewElement('select');
@@ -147,6 +149,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   body.append(center, sidebar);
   const controllers = [...components.filter((component) => !component.sceneOnly),
     ...(canvasController ? [{ id: 'canvas', title: '直播场景', controller: canvasController }] : [])];
+  const controllerStates = new Map(controllers.map(({ controller }) => [controller, controller.getState()]));
   const isDiscardTarget = ({ id }) => !canvasController || id === 'canvas' || sharedTypes.has(id);
   const restore = recovery ? button(applyActions, '恢复上次草稿', () => recovery.restore()) : null;
   const discard = button(applyActions, '放弃修改', async () => {
@@ -377,8 +380,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       itemActions.center.disabled = itemActions.remove.disabled = item.locked;
       itemActions.lock.textContent = item.locked ? '解锁' : '锁定';
     }
-    const sharedStates = sharedAppearance.getStates().map(state => ({ id: 'appearance', title: '共享参数', ...state }));
-    const states = [...controllers.map(({ id, title, controller }) => ({ id, title, ...controller.getState() })), ...sharedStates];
+    const sharedStates = sharedAppearance.getStatuses().map(state => ({ id: 'appearance', title: '共享参数', ...state }));
+    const states = [...controllers.map(({ id, title, controller }) => ({ id, title, ...controllerStates.get(controller) })), ...sharedStates];
     const saving = states.some((state) => state.saving);
     const dirty = states.filter((state) => state.dirty);
     const failures = states.filter((state) => state.error);
@@ -420,7 +423,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));
   subscriptions.push(sharedAppearance.subscribe(renderStatus));
   for (const component of components) {
-    subscriptions.push(component.controller.subscribe(renderStatus));
+    subscriptions.push(component.controller.subscribe(state => { controllerStates.set(component.controller, state); renderStatus(); }));
   }
   stage = mountSceneEditorStage(stageHost, { model, components, getSelection: () => new Set(selected ? [selected] : []), select, report, sharedAppearance });
   function updateLayout() {
@@ -449,7 +452,9 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     renderStatus();
   }));
   let pendingFocus;
-  if (canvasController) subscriptions.push(canvasController.subscribe(({ draft }) => {
+  if (canvasController) subscriptions.push(canvasController.subscribe(state => {
+    controllerStates.set(canvasController, state);
+    const { draft } = state;
     if (!model.isGestureActive() && JSON.stringify(draft.document) !== JSON.stringify(model.getSnapshot())) {
       receiving = true;
       try { model.reset(draft.document); } finally { receiving = false; }

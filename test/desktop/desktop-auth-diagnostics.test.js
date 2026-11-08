@@ -17,7 +17,7 @@ function controller(auth, login) {
       module,
       AbortController,
       require(request) {
-        if (request === './bilibili-auth') return auth;
+        if (request === './bilibili-auth') return { getBilibiliSessionState: auth.getBilibiliAuthState, ...auth };
         if (request === './bilibili-login-window' && login) return { openBilibiliLoginWindow: login };
         if (request === './music-auth-manager' || request === './music-login-window') return {};
         return localRequire(request);
@@ -190,6 +190,15 @@ test('random request identity only changes for a different account or a complete
   state = { loggedIn: true, uid: 42 };
   await auth.loginBilibiliAccount();
   assert.equal(auth.getBilibiliIdentityRevision(), 4, 'logout ends the old identity even when the same user logs in');
+});
+
+test('request identity uses current session state without reading backup metadata', async (t) => {
+  const auth = controller({
+    getBilibiliSessionState: async () => ({ loggedIn: true, uid: 42 }),
+    getBilibiliAuthState: async () => { throw new Error('full backup metadata is not needed'); },
+  });
+  t.after(() => auth.dispose());
+  assert.equal((await auth.getBilibiliRequestIdentity()).uid, 42);
 });
 
 test('random identity waits for Cookie replacement without changing normal auth-state reads', async (t) => {

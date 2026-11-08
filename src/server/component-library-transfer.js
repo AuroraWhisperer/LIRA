@@ -97,10 +97,12 @@ function createComponentLibraryTransfer({ dataDir, scenes }) {
       if (files.length >= MAX_BACKUP_FILES) throw invalidBackup('备份文件数量过多，请减少素材后重试。');
       const available = new Set(files.map(file => file.name));
       for (const required of referencedFiles([packages, portable.documents])) if (!available.has(required)) throw invalidBackup('有配套素材缺失，请先重新导入原安装包。');
-      for (const id of selected) beginStyleFileUse(store.directory(id));
+      const heldFiles = [...selected].map(id => store.directory(id));
+      heldFiles.push(...files.filter(file => file.name.startsWith('images/')).map(file => file.file));
+      for (const file of heldFiles) beginStyleFileUse(file);
       try {
         yield* encodeBackup(files, { format: 'lira-component-library-backup', version: 1, packages, ...portable }, () => { authorize(); session.assertCurrent(); });
-      } finally { for (const id of selected) endStyleFileUse(store.directory(id)); }
+      } finally { for (const file of heldFiles) endStyleFileUse(file); }
     },
 
     async inspect(stream, authorize) {

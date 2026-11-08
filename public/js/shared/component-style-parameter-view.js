@@ -11,7 +11,7 @@ function previewElement(tag, className, text) {
   return element;
 }
 
-export function mountStyleParameters(host, controller, type, { messageHost, helpPopover = true } = {}) {
+export function mountStyleParameters(host, controller, type, { messageHost, getTransformHost, fieldsRoot, helpPopover = true } = {}) {
   host.querySelector('[data-style-parameters-panel]')?.remove();
   messageHost?.querySelector('[data-show-entry-messages]')?.closest('label').remove();
   if (!document.querySelector('link[data-style-parameters-css]')) {
@@ -44,7 +44,8 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
     } catch (error) { status.textContent = error.message; status.hidden = false; }
   }
   const advanced = previewElement('details', 'component-parameter-advanced');
-  advanced.append(previewElement('summary', '', '调色与变形'));
+  const advancedSummary = previewElement('summary', '', '调色与变形');
+  advanced.append(advancedSummary);
   for (const [name, group] of Object.entries(STYLE_PARAMETER_GROUPS)) {
     const details = previewElement('details', 'component-parameter-group');
     details.dataset.effectGroup = name;
@@ -60,6 +61,7 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
     for (const [key, field] of Object.entries(group.fields)) {
       const title = `${field.label}${field.unit ? `（${field.unit}）` : ''}`;
       const label = previewElement('label', 'component-parameter-field', title);
+      if (name === 'transform' && key === 'rotateY') label.title = '0 为正面；正数左近右远，负数左远右近。';
       const row = previewElement('span', 'component-parameter-inputs');
       const input = previewElement('input'); input.type = field.type || 'number';
       input.setAttribute('aria-label', `${group.label} · ${title}`);
@@ -105,18 +107,25 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
   const reset = previewElement('button', 'secondary', '恢复当前样式效果'); reset.type = 'button';
   reset.addEventListener('click', () => {
     const { draft } = controller.getState();
-    controller.edit({ styleParameters: { ...draft.styleParameters, [componentStyleKey(draft)]: {} } });
+    const parameters = styleParametersFor(draft);
+    const retained = getTransformHost?.(draft) && parameters.transform ? { transform: parameters.transform } : {};
+    controller.edit({ styleParameters: { ...draft.styleParameters, [componentStyleKey(draft)]: retained } });
     status.hidden = true;
   });
   root.append(status, reset); host.append(root);
   enhanceColorControls(root);
   initParameterRanges(root);
-  const stop = subscribeComponentFields(root, controller, ({ draft, loaded }) => {
+  const stop = subscribeComponentFields(fieldsRoot || root, controller, ({ draft, loaded }) => {
     const key = componentStyleKey(draft);
     const force = key !== currentKey;
     currentKey = key;
     const parameters = styleParametersFor(draft);
     const supported = styleParameterCapabilities(type, draft);
+    const transformHost = getTransformHost?.(draft);
+    const transform = groups.get('transform').details;
+    const transformContainer = transformHost || advanced;
+    if (transform.parentElement !== transformContainer) transformContainer.append(transform);
+    advancedSummary.textContent = transformHost ? '调色与辉光' : '调色与变形';
     if (type !== 'browser') {
       const kind = draft.mediaStyle ? 'art' : ['blc', 'blivechat'].includes(draft.cssStyle?.engine) ? 'panel'
         : STYLE_PARAMETER_CAPABILITIES[type]?.[draft.style];
@@ -124,7 +133,7 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
         : ['panel', 'frame'].includes(kind) ? '光影和轮廓作用于卡片底板。' : '光影和轮廓作用于整体图案。';
       hint.textContent = `${target}仅调整当前样式；未开启的效果沿用原样式，强度设为 0 可关闭对应效果。`;
     }
-    advanced.hidden = !supported.some(name => STYLE_PARAMETER_GROUPS[name].advanced);
+    advanced.hidden = !supported.some(name => STYLE_PARAMETER_GROUPS[name].advanced && !(transformHost && name === 'transform'));
     for (const [name, view] of groups) {
       view.details.hidden = !supported.includes(name);
       view.toggle.checked = Object.hasOwn(parameters, name);
@@ -133,12 +142,18 @@ export function mountStyleParameters(host, controller, type, { messageHost, help
       view.state.textContent = view.toggle.checked ? '已调整' : '原样式';
       const values = parameters[name] || styleParameterDefaults(name);
       for (const [key, { input, slider }] of view.controls) {
-        syncComponentFieldValue(input, values[key], force);
-        if (slider) { syncComponentFieldValue(slider, values[key], force); refreshParameterRange(slider); }
+        const value = values[key] ?? STYLE_PARAMETER_GROUPS[name].fields[key].default;
+        syncComponentFieldValue(input, value, force);
+        if (slider) { syncComponentFieldValue(slider, value, force); refreshParameterRange(slider); }
       }
     }
     if (entry) { entry.checked = parameters.showEntryMessages !== false; entry.disabled = !loaded; }
-    reset.disabled = !loaded || !Object.keys(parameters).length;
+    reset.disabled = !loaded || !Object.keys(parameters).some(name => !(transformHost && name === 'transform'));
   });
-  return { dispose() { stop(); disposeParameterRanges(root); entryLabel?.remove(); root.remove(); } };
+  return { dispose() {
+    stop();
+    const transform = groups.get('transform').details;
+    disposeParameterRanges(transform); transform.remove();
+    disposeParameterRanges(root); entryLabel?.remove(); root.remove();
+  } };
 }

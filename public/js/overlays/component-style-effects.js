@@ -4,6 +4,10 @@ import { componentEffectProfiles, createEffectFilters, effectColor, effectTransf
 const CLOCK_TEXT = '.clock-time > span, .clock-flip-value, .clock-flip-half > span, .clock-date-row > span, .clock-label, .clock-period, .clock-year';
 const DANMAKU_TEXT = '.draw-danmaku-identity strong, .draw-danmaku-body > p, .draw-danmaku-gift-copy, .moonlit-guard-name, .moonlit-guard-title, .moonlit-guard-action, .sc-name, .sc-copy, .sc-money, .mist-guard-name, .mist-guard-title, .mist-guard-footer, .spooky-event-name, .spooky-event-copy, .spooky-sc-copy, .flower-greeting, .flower-signature, .flower-from, .flower-price, .flower-member-name, .comic-role, .comic-event, .comic-amount, .window-role, .window-event, .window-amount, .stardust-event, .sinking-event-label, .sinking-amount, .wireframe-amount';
 const DANMAKU_STYLE_TEXT = {
+  'neon-glass': '.neon-glass-name, .neon-glass-amount, .neon-glass-separator',
+  'horizontal-charm': '.charm-name, .charm-role, .charm-amount, .charm-event-label',
+  astral: '.astral-name, .astral-role, .astral-event-label, .astral-amount',
+  glowy: '.glowy-time, .glowy-role, .glowy-event-label, .glowy-amount',
   'glass-bubble': '.glass-bubble-name, .glass-bubble-amount',
   'celestial-horizontal': '.celestial-name, .celestial-amount',
   'animated-gradient': '.gradient-role, .gradient-ticket .gradient-name, .gradient-amount, .gradient-event-label',
@@ -12,6 +16,9 @@ const DANMAKU_STYLE_TEXT = {
   'dark-moon': '.dark-moon-copy, .dark-moon-role, .dark-moon-event-label, .dark-moon-amount',
 };
 const SURFACES = {
+  'neon-glass': '.neon-glass-panel',
+  'horizontal-charm': '.charm-item[data-charm-kind="chat"] .charm-content',
+  glowy: '.glowy-material',
   'glass-bubble': '.glass-bubble-surface',
   'animated-gradient': '.gradient-panel',
   glass: '.glass-panel',
@@ -179,7 +186,7 @@ export function createComponentStyleEffects(document, { externalFrame = null } =
     }
     for (const item of document.querySelectorAll('#danmakuFeed > .draw-danmaku-item')) {
       const surface = ['panel', 'frame'].includes(kind)
-        ? ['animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style] : item.classList.contains('is-superchat') ? '.sc-message'
+        ? ['neon-glass', 'horizontal-charm', 'glowy', 'animated-gradient', 'wireframe', 'window', 'glass', 'glass-bubble'].includes(config.style) ? SURFACES[config.style] : item.classList.contains('is-superchat') ? '.sc-message'
           : config.style === 'glow' && item.classList.contains('is-gift') ? ':self' : SURFACES[config.style] || ':self' : null;
       applyRoot(item, surface, kind === 'art', kind === 'text');
     }

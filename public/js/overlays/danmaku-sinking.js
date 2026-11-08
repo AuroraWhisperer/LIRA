@@ -1,5 +1,7 @@
+import { setGiftArtwork } from '../shared/gift-image.js';
+
 // Keep text, emotes and gift details in the shared safe renderer.
-export function createSinkingMessageRenderer({ document, classNames }, render) {
+export function createSinkingMessageRenderer({ document, classNames, resolveGiftImageUrl }, render) {
   const element = (tag, className) => {
     const node = document.createElement(tag);
     node.className = className;
@@ -8,6 +10,7 @@ export function createSinkingMessageRenderer({ document, classNames }, render) {
   return (item = {}, index = 0) => {
     const superchat = item.kind === 'superchat';
     const root = render({ ...item, kind: superchat ? 'danmaku' : item.kind,
+      giftImageUrl: item.kind === 'gift' ? '' : item.giftImageUrl,
       emotes: superchat ? [] : item.emotes }, index);
     root.classList.add('sinking-item');
     root.classList.remove('is-gift', 'is-superchat');
@@ -25,6 +28,15 @@ export function createSinkingMessageRenderer({ document, classNames }, render) {
         body.querySelector('.draw-danmaku-gift-action').textContent = { open: '开通', renew: '续费' }[item.guardAction] || '支持';
         body.querySelector('.draw-danmaku-gift-name').textContent = membership;
       }
+      const image = element('img', 'sinking-gift-image');
+      image.alt = '';
+      image.setAttribute('aria-hidden', 'true');
+      image.decoding = 'async';
+      setGiftArtwork(image, membership ? '' : resolveGiftImageUrl?.(item.giftImageUrl), {
+        format: 'static', mimeType: 'image/webp', guardLevel: Number(item.giftGuardLevel),
+      });
+      const message = body.children[1];
+      message.replaceChildren(image, ...message.children);
     }
     if (superchat || item.kind === 'gift') {
       const footer = element('div', 'sinking-event');

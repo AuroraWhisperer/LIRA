@@ -22,7 +22,6 @@ const EMPTY_CATCH_LIMITS = {
   'src/music/wesing-capture-engine.js': 3,
   'src/music/wesing-monitor.js': 4,
   'src/music/wesing-native-monitor-source.js': 2,
-  'src/overtime/overtime-service.js': 1,
   'src/server/lifecycle.js': 2,
   'src/server/data-maintenance-runtime.js': 1,
   'src/server/ws.js': 3,

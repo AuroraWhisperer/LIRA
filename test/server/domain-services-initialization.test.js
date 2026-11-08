@@ -261,7 +261,7 @@ for (const failure of ['catalog', 'hybrid', 'gift', 'recovery']) {
     const f = fixture({ failure });
     try {
       assert.throws(f.create, (error) => error === f.originalError);
-      assert.equal(f.clock.scheduled(), 2);
+      assert.equal(f.clock.scheduled(), failure === 'recovery' ? 1 : 2);
       assert.equal(f.clock.timers.size, 0);
       assert.equal(f.listeners.size, 0);
       assert.equal(f.borrowedStops(), 0);

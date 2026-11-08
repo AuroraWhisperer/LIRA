@@ -9,6 +9,50 @@ const { encryptQrc } = require('qrc-decoder');
 const { buildPowerShellMonitorScript, createWeSingCapture } = require('../../src/music/wesing-capture');
 const { createFixture, qrcXml } = require('../helpers/wesing-capture-fixture');
 const { discoverWeSingCachePath, getWeSingCacheCandidates } = require('../../src/music/wesing-cache-discovery');
+const { createWeSingOnlineLyricResolver } = require('../../src/music/wesing-online-lyrics');
+
+test('WeSing keeps local download discovery responsive during online backoff and forwards manual retries', async (t) => {
+  const fixture = createFixture();
+  const qrcPath = path.join(fixture.cachePath, 'WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`);
+  const download = path.join(fixture.root, 'download.qrc');
+  fs.renameSync(qrcPath, download);
+  let timestamp = 0;
+  let sample;
+  let searches = 0;
+  const capture = createWeSingCapture({
+    cachePath: fixture.cachePath, platform: 'win32', now: () => timestamp,
+    monitorFactory(callback) { sample = callback; return { start() {}, stop() {} }; },
+    watchFactory: () => ({ close() {} }),
+    setTimer: () => ({ unref() {} }), clearTimer() {},
+    discoverCachePath: (input) => discoverWeSingCachePath({ ...input, candidates: [fixture.cachePath] }),
+    resolveFallbackLyrics: createWeSingOnlineLyricResolver({
+      registry: {}, platforms: ['qq'], now: () => timestamp,
+      lyricsService: {
+        async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+        async getMusicTrackLyrics() { throw new Error('no search match'); },
+      },
+    }),
+  });
+  t.after(() => { capture.stop(); fs.rmSync(fixture.root, { recursive: true, force: true }); });
+  const tick = async () => {
+    sample({ detected: true, title: '测试歌曲', currentSec: 1, totalSec: 8 });
+    await capture.waitForRefresh();
+  };
+  await capture.setActive(true);
+  await tick();
+  assert.equal(searches, 1);
+  timestamp = 3001;
+  await tick();
+  assert.equal(searches, 1, 'automatic local discovery honors the online retry interval');
+  await capture.refresh();
+  assert.equal(searches, 2, 'explicit refresh bypasses the online retry interval');
+  fs.renameSync(download, qrcPath);
+  timestamp = 6002;
+  await tick();
+  assert.equal(capture.getStatus().lyricSource, 'wesing');
+  assert.equal(capture.getStatus().qrcReady, true, 'a late local download is picked up without a file event');
+  assert.equal(searches, 2);
+});
 
 test('WeSing capture falls back to injected online lyrics when local QRC is absent', async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wesing-online-'));
@@ -377,9 +421,22 @@ test('WeSing automatically follows newly created and moved caches without refres
   timestamp = 12005;
   await sendSample(2);
   assert.equal(discoveries, before.discoveries, 'monitor samples are throttled');
+  const logWork = { scans: 0, reads: 0 };
+  const originalReadDir = fs.promises.readdir;
+  const originalOpen = fs.promises.open;
+  t.mock.method(fs.promises, 'readdir', async function (directory, ...args) {
+    if (directory === path.join(second, 'Log', 'WeSing')) logWork.scans += 1;
+    return Reflect.apply(originalReadDir, this, [directory, ...args]);
+  });
+  t.mock.method(fs.promises, 'open', async function (file, ...args) {
+    if (path.extname(file) === '.log') logWork.reads += 1;
+    return Reflect.apply(originalOpen, this, [file, ...args]);
+  });
   timestamp = 15005;
   await sendSample(3);
   assert.equal(timelines, before.timelines, 'an unchanged cache does not reload lyrics');
   assert.equal(capture.getStatus().currentMs, 3130);
   assert.deepEqual(saved, [second], 'an unchanged path is not saved again');
+  assert.equal(logWork.scans, 1, 'discovery and identity checks share one directory snapshot per refresh');
+  assert.equal(logWork.reads, 0, 'unchanged logs are not reopened after missed-event recovery');
 });

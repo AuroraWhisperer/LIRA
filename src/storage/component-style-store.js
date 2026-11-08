@@ -30,6 +30,7 @@ function createComponentStyleStore(dataDir) {
   return {
     root, directory, read, integrity: () => indexFile.integrity(),
     createStyleReader: () => indexFile.createStyleReader(),
+    listMediaStyleIds: type => indexFile.listMediaStyleIds(type),
     beginPending(id) { beginStyleFileUse(directory(id, true)); },
     endPending(id) { endStyleFileUse(directory(id, true)); },
     cancelPending(id) {

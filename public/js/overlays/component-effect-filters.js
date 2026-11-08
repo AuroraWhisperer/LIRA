@@ -32,7 +32,7 @@ export function effectColor({ color, opacity = 100 }) {
 
 export function effectTransform(value) {
   if (!value || !['rotateX', 'rotateY', 'rotateZ', 'skewX', 'skewY'].some(key => value[key])) return '';
-  return `translate(50%, 50%) perspective(1000px) rotateX(${value.rotateX || 0}deg) rotateY(${value.rotateY || 0}deg) rotateZ(${value.rotateZ || 0}deg) skew(${value.skewX || 0}deg, ${value.skewY || 0}deg) translate(-50%, -50%)`;
+  return `translate(50%, 50%) perspective(${value.perspective ?? 1000}px) rotateX(${value.rotateX || 0}deg) rotateY(${value.rotateY || 0}deg) rotateZ(${value.rotateZ || 0}deg) skew(${value.skewX || 0}deg, ${value.skewY || 0}deg) translate(-50%, -50%)`;
 }
 
 export function levelTable({ black, white, gamma, outputBlack, outputWhite }) {

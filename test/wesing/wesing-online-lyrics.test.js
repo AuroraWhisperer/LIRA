@@ -7,6 +7,171 @@ const path = require('node:path');
 const test = require('node:test');
 const { createWeSingOnlineLyricResolver, selectWeSingLyricTrack } = require('../../src/music/wesing-online-lyrics');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+const { createMusicProviderRegistry } = require('../../src/music/provider-registry');
+
+test('WeSing backs off empty online searches while manual refresh can retry immediately', async () => {
+  let timestamp = 0;
+  let searches = 0;
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: {}, now: () => timestamp,
+    lyricsService: {
+      async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+      async getMusicTrackLyrics() { throw new Error('no search match'); },
+    },
+  });
+  const input = { title: '未收录歌曲', durationMs: 120000 };
+  await resolve(input);
+  for (let index = 1; index <= 20; index += 1) {
+    timestamp = index * 3001;
+    assert.equal(await resolve(input), null);
+  }
+  assert.equal(searches, 4, 'each provider searches once initially and once after 30 seconds');
+  timestamp = 90030;
+  await resolve(input);
+  assert.equal(searches, 6, 'the second miss retries after 60 seconds');
+  await resolve(input, { force: true });
+  assert.equal(searches, 8);
+});
+
+test('WeSing coalesces simultaneous online refreshes and clears retry state with the capture lifecycle', async () => {
+  let searches = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: {},
+    lyricsService: {
+      async searchMusicTracks() { searches += 1; await gate; return { tracks: [] }; },
+      async getMusicTrackLyrics() { throw new Error('no search match'); },
+    },
+  });
+  const input = { title: '未收录歌曲' };
+  const first = resolve(input);
+  const second = resolve(input, { force: true });
+  await new Promise((done) => setImmediate(done));
+  assert.equal(searches, 2, 'a manual refresh joins the current provider request');
+  release();
+  await Promise.all([first, second]);
+  resolve.clear();
+  await resolve(input);
+  assert.equal(searches, 4);
+});
+
+test('WeSing invalidates a missed search when the rendition, preferences, authorization or registry changes', async () => {
+  let searches = 0;
+  let cookie = 'session=first';
+  let preferences = { smartMatch: false, preferredPlatform: 'qq' };
+  const makeRegistry = () => createMusicProviderRegistry({
+    getCookieHeader: () => cookie,
+    getAuthState() { throw new Error('lyric retry checks must not decrypt the persisted auth store'); },
+  });
+  let registry = makeRegistry();
+  const resolve = createWeSingOnlineLyricResolver({
+    getRegistry: () => registry, getPreferences: () => preferences,
+    lyricsService: {
+      async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+      async getMusicTrackLyrics() { throw new Error('no search match'); },
+    },
+  });
+  const input = { title: '同名歌曲', durationMs: 120000 };
+  await resolve(input, { songMid: 'first' });
+  await resolve(input, { songMid: 'first' });
+  assert.equal(searches, 1);
+  await resolve(input, { songMid: 'second' });
+  assert.equal(searches, 2, 'same-title renditions have distinct retry state');
+  preferences = { smartMatch: false, preferredPlatform: 'netease' };
+  await resolve(input, { songMid: 'second' });
+  assert.equal(searches, 3);
+  cookie = 'session=second';
+  await resolve(input, { songMid: 'second' });
+  assert.equal(searches, 4, 'new authorization can immediately retry');
+  registry = makeRegistry();
+  await resolve(input, { songMid: 'second' });
+  assert.equal(searches, 5);
+});
+
+test('WeSing retains a transient provider failure during backoff and retries after it expires', async () => {
+  let timestamp = 0;
+  let searches = 0;
+  const error = new Error('provider unavailable');
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: {}, platforms: ['qq'], now: () => timestamp,
+    lyricsService: {
+      async searchMusicTracks() { searches += 1; throw error; },
+      async getMusicTrackLyrics() { throw new Error('no search match'); },
+    },
+  });
+  const input = { title: '暂时不可用的歌曲' };
+  await assert.rejects(resolve(input), error);
+  timestamp = 3001;
+  await assert.rejects(resolve(input), error);
+  assert.equal(searches, 1);
+  timestamp = 30001;
+  await assert.rejects(resolve(input), error);
+  assert.equal(searches, 2);
+});
+
+test('WeSing preserves provider anonymous fallback when reading the cookie session fails', async () => {
+  const requested = [];
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: createMusicProviderRegistry({ getCookieHeader() { throw new Error('session unavailable'); } }),
+    platforms: ['qq'],
+    lyricsService: createTrackingLyricsService(requested),
+  });
+  assert.equal((await resolve({ title: '失控', durationMs: 255000 })).source, 'qq');
+  assert.deepEqual(requested, ['qq']);
+});
+
+test('WeSing discards an old authorized request without overwriting the replacement result or retry state', async () => {
+  let revision = 1;
+  let searches = 0;
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: { getAuthorizationRevision: async () => revision }, platforms: ['qq'],
+    lyricsService: {
+      async searchMusicTracks() {
+        searches += 1;
+        if (searches === 1) {
+          await gate;
+          return { tracks: [createTrack('qq:old', '井迪', 255000)] };
+        }
+        return { tracks: [] };
+      },
+      async getMusicTrackLyrics() { return { source: 'qq', lines: [{ startMs: 0, endMs: 1000, text: '旧账号结果' }] }; },
+    },
+  });
+  const input = { title: '失控', durationMs: 255000 };
+  const old = resolve(input);
+  await new Promise((done) => setImmediate(done));
+  revision = 2;
+  assert.equal(await resolve(input, { force: true }), null);
+  release();
+  assert.equal(await old, null, 'an old authorization cannot return lyrics after the account changed');
+  assert.equal(await resolve(input), null);
+  assert.equal(searches, 2, 'the late old request cannot erase the new account retry state');
+});
+
+test('WeSing does not let a late authorization read restore an older request identity', async () => {
+  let reads = 0;
+  let searches = 0;
+  let release;
+  const oldRevision = new Promise((resolve) => { release = resolve; });
+  const resolve = createWeSingOnlineLyricResolver({
+    registry: { getAuthorizationRevision: () => ++reads === 1 ? oldRevision : Promise.resolve(2) },
+    platforms: ['qq'],
+    lyricsService: {
+      async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+      async getMusicTrackLyrics() { throw new Error('no search match'); },
+    },
+  });
+  const input = { title: '未收录歌曲' };
+  const old = resolve(input);
+  await resolve(input, { force: true });
+  release(1);
+  await old;
+  await resolve(input);
+  assert.equal(searches, 1, 'an older authorization observation cannot restart the new account lookup');
+});
 
 test('WeSing online lyric matching uses duration to disambiguate same-title songs', () => {
   const selected = selectWeSingLyricTrack('失控', 255000, [

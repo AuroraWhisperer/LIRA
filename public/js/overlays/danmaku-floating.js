@@ -105,9 +105,11 @@ export function createFloatingDanmakuFeed(root, options = {}) {
       node.style.top = `${entry.topRatio * Math.max(0, height - cardHeight) - bounds.y * scale}px`;
       node.style.visibility = 'visible';
       node.style.transformOrigin = 'top left';
+      node.style.scale = String(scale);
+      // Paint moving text at the actual canvas scale; user transforms stay independent.
       entry.animation = node.animate([
-        { transform: `translateX(${left - bounds.x * scale}px) scale(${scale}) var(--component-transform, translate(0px, 0px))` },
-        { transform: `translateX(${-travelWidth - bounds.x * scale}px) scale(${scale}) var(--component-transform, translate(0px, 0px))` },
+        { left: `${left - bounds.x * scale}px` },
+        { left: `${-travelWidth - bounds.x * scale}px` },
       ], { duration, easing: 'linear', fill: 'forwards' });
       entry.timer = scheduleTimeout(() => { remove(entry); layout(); }, duration);
     }

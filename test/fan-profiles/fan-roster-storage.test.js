@@ -173,6 +173,21 @@ test('expanded v1/v2 backups and recovery snapshots restore compact observations
   assert.equal(templateCount(f.db.songDb), 1);
 });
 
+test('replacing several backup profiles cleans shared templates once and retains other profiles', (t) => {
+  const f = fanFixture(t);
+  const members = [0, 1, 2].map(index => ({ uid: String(900000001 + index), name: `观众${index}`, level: 3 }));
+  f.service.importGuardRoster(SCOPE, { roomId: '1234', ownerUid: '99', observedAt: NOW, members, skipped: 0 }, '2026-09-18');
+  const before = f.store.exportScope(SCOPE);
+  const backup = f.run('backup');
+  backup.profiles.pop();
+  const prune = t.mock.method(f.store.records, 'pruneRosterTemplates');
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(prune.mock.callCount(), 1);
+  assert.deepEqual(f.store.exportScope(SCOPE), before);
+  assert.equal(templateCount(f.db.songDb), 3);
+  assert.deepEqual(f.db.songDb.prepare('PRAGMA foreign_key_check').all(), []);
+});
+
 test('merge retains observation IDs and deletes templates only after their final scoped owner is removed', (t) => {
   const f = fanFixture(t);
   const source = f.create();

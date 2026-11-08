@@ -1,6 +1,7 @@
 import { componentEffectBounds, componentEffectProfiles, effectTransform } from './component-effect-filters.js';
 import { DEFAULT_DANMAKU_CLASSES, createDanmakuMessageRenderer } from './danmaku-message-renderer.js';
 import { FULLSCREEN_SAFE_INSET_PX, findRandomDanmakuPosition } from './danmaku-random-position.js';
+import { projectSinkingPoint, sinkingBubblePoint } from './danmaku-sinking-geometry.js';
 
 const DEFAULTS = { sinkingDurationSeconds: 10, sinkingTravel: 24, sinkingSway: 18, sinkingBubbleDensity: 50 };
 const clamp = value => Math.max(0, Math.min(1, value));
@@ -94,8 +95,7 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       const edge = random();
       entry.bubbles.push({ node, first: offset + (index + 0.2 + random() * 0.6) / rate,
         period: count / rate, life: 2 + random() * 1.2, stopAt: entry.duration - exitSeconds(entry.duration) + 0.15,
-        x: edge < 0.28 ? -size * 0.6 : edge < 0.56 ? entry.width - size * 0.4 : random() * entry.width,
-        y: edge < 0.56 ? entry.height * (0.18 + random() * 0.65) : 1 + random() * 8,
+        edge: edge < 0.28 ? 'left' : edge < 0.56 ? 'right' : 'top', fraction: random(), size,
         velocity: 20 + size * 4.5, drift: (random() - 0.5) * 13,
         phase: random() * Math.PI * 2, opacity: 0.4 + random() * 0.4 });
     }
@@ -116,7 +116,11 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       // Birth position stays fixed within a cycle; layout changes invalidate it.
       if (bubble.birth !== birth || !bubble.origin) {
         bubble.birth = birth;
-        bubble.origin = poseAt(entry, birth);
+        const pose = poseAt(entry, birth);
+        const point = sinkingBubblePoint(entry.width, entry.height, bubble.edge, bubble.fraction);
+        const projected = projectSinkingPoint(point, entry.width, entry.height, pose,
+          componentEffectProfiles.get(entry.node)?.transform);
+        bubble.origin = { x: pose.x + projected.x * entry.scale, y: pose.y + projected.y * entry.scale };
         bubble.sinPhase ??= Math.sin(bubble.phase);
       }
       const origin = bubble.origin;
@@ -125,7 +129,8 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       const opacity = bubble.opacity * smooth(bubbleAge / 0.25) * (1 - smooth((bubbleAge - life + 0.9) / 0.9));
       bubble.visible = true;
       bubble.node.style.opacity = opacity.toFixed(3);
-      bubble.node.style.transform = `translate(${origin.x + (bubble.x + wobble + bubble.drift * bubbleAge) * entry.scale}px, ${origin.y + (bubble.y - rise) * entry.scale}px) scale(${entry.scale * (0.78 + 0.22 * smooth(bubbleAge / 0.3))})`;
+      const scale = entry.scale * (0.78 + 0.22 * smooth(bubbleAge / 0.3));
+      bubble.node.style.transform = `translate(${origin.x + (wobble + bubble.drift * bubbleAge) * entry.scale - bubble.size * scale / 2}px, ${origin.y - rise * entry.scale - bubble.size * scale / 2}px) scale(${scale})`;
     }
   }
 
@@ -194,7 +199,7 @@ export function createSinkingDanmakuFeed(root, options = {}) {
       entry.node.style.transform = `translate(${pose.x}px, ${pose.y}px) scale(${entry.scale}) ${effect}`;
       entry.panel.style.transform = `perspective(800px) translateZ(${pose.depth}px) rotateX(${pose.pitch}deg) rotateY(${pose.yaw}deg) rotateZ(${pose.angle}deg)`;
       entry.node.style.opacity = pose.opacity.toFixed(4);
-      entry.panel.style.filter = pose.blur < 0.015 ? 'none' : `blur(${pose.blur.toFixed(3)}px)`;
+      entry.surface.style.filter = pose.blur < 0.015 ? 'none' : `blur(${pose.blur.toFixed(3)}px)`;
       entry.node.dataset.progress = pose.progress.toFixed(3);
       if (entry.arrival !== pose.arrival || entry.departure !== pose.departure) {
         entry.arrival = pose.arrival;

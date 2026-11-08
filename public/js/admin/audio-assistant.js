@@ -84,7 +84,7 @@ export function initAudioAssistant() {
     panel.style.maxHeight = `${bounds.bottom - bounds.top}px`;
     const anchor = (preferences.placement === 'top' ? top : floating).getBoundingClientRect();
     const { width, height } = panel.getBoundingClientRect();
-    const x = preferences.placement === 'top' ? anchor.right - width
+    const x = preferences.placement === 'top' ? (anchor.left + anchor.right - width) / 2
       : anchor.right + width + 12 <= bounds.width ? anchor.right + 12 : anchor.left - width - 12;
     const y = preferences.placement === 'top' ? anchor.bottom + 10 : anchor.top;
     panel.style.left = `${clamp(x, 12, bounds.width - width - 12)}px`;

@@ -99,19 +99,23 @@ body[data-style='animated-gradient'][data-gradient-underline='hide'] .gradient-u
 }
 body[data-style='animated-gradient'] .gradient-item[data-gradient-kind='superchat'] .gradient-copy,
 body[data-style='animated-gradient'] .gradient-item[data-gradient-kind='notice'] .gradient-copy { margin-top: 9px; }
-.gradient-item[data-live-entry] .gradient-body { animation: gradientAppear calc(480ms * var(--motion-speed, 1)) ease-out calc(180ms * var(--motion-speed, 1)) both; }
-.gradient-item[data-live-entry] .gradient-underline { animation: gradientLine calc(650ms * var(--motion-speed, 1)) ease-out calc(330ms * var(--motion-speed, 1)) both; }
+.gradient-item[data-live-entry] .gradient-body { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); animation: gradientAppear calc(480ms * var(--motion-speed, 1)) ease-out calc(180ms * var(--motion-speed, 1)) both; }
+.gradient-item[data-live-entry] .gradient-underline { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); animation: gradientLine calc(650ms * var(--motion-speed, 1)) ease-out calc(330ms * var(--motion-speed, 1)) both; }
 .gradient-item:not([data-gradient-kind='chat']) { --danmaku-enter-animation: gradientEntry calc(1650ms * var(--motion-speed, 1)) linear; }
 .gradient-item[data-live-entry] .gradient-event-label {
+  opacity: var(--danmaku-enter-opacity);
+  transform: var(--danmaku-enter-transform);
   animation: gradientFlow var(--gradient-cycle, 10s) ease-in-out var(--gradient-phase, 0ms) infinite, gradientTag calc(500ms * var(--motion-speed, 1)) ease-out calc(1100ms * var(--motion-speed, 1)) both;
 }
-@keyframes gradientEntry { from, to { opacity: 1; } }
-@keyframes gradientAppear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes gradientLine { from { opacity: 0; transform: scaleX(0); } to { opacity: 1; transform: scaleX(1); } }
-@keyframes gradientTag { from { opacity: 0; transform: translateX(25px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes gradientEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+@keyframes gradientAppear { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateY(8px); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateY(0); } }
+@keyframes gradientLine { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: scaleX(0); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scaleX(1); } }
+@keyframes gradientTag { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(25px); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0); } }
 @keyframes gradientFlow { 0%, 100% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } }
 body[data-style='animated-gradient'][data-ambient-motion='off'] :is(.gradient-heading, .gradient-event-label) { animation: none; background-position: 60% 50%; }
 body[data-style='animated-gradient'][data-ambient-motion='off'] .gradient-item[data-live-entry] .gradient-event-label {
+  opacity: var(--danmaku-enter-opacity);
+  transform: var(--danmaku-enter-transform);
   animation: gradientTag calc(500ms * var(--motion-speed, 1)) ease-out calc(1100ms * var(--motion-speed, 1)) both;
 }
 @media (prefers-reduced-motion: reduce) {

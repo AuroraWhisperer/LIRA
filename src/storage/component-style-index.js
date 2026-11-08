@@ -43,6 +43,7 @@ function createComponentStyleIndex(root) {
   let recovery = null;
   let cached;
   let indexedStyles;
+  let indexedMedia;
   function fingerprint() {
     return ['index.json', 'index.backup.json'].map(filename => {
       try {
@@ -57,6 +58,7 @@ function createComponentStyleIndex(root) {
   function remember(index) {
     // Cache bookkeeping must not turn a committed write into an install rollback.
     indexedStyles = null;
+    indexedMedia = null;
     try { cached = backupCurrent ? { fingerprint: fingerprint(), index } : null; }
     catch { cached = null; }
     return index;
@@ -86,6 +88,7 @@ function createComponentStyleIndex(root) {
     if (cached && fingerprint() === cached.fingerprint) return cached.index;
     cached = null;
     indexedStyles = null;
+    indexedMedia = null;
     const primary = load('index.json');
     if (primary.index) { mirror(primary.text); return remember(primary.index); }
     const backup = load('index.backup.json');
@@ -106,6 +109,19 @@ function createComponentStyleIndex(root) {
   }
   const owner = {
     read() { return structuredClone(readIndex()); },
+    listMediaStyleIds(type) {
+      const index = readIndex();
+      if (indexedMedia?.index !== index) {
+        const byType = new Map();
+        for (const pack of index.packages) for (const style of pack.styles) {
+          if (!style.config?.mediaStyle) continue;
+          if (!byType.has(style.type)) byType.set(style.type, []);
+          byType.get(style.type).push(style.id);
+        }
+        indexedMedia = { index, byType };
+      }
+      return [...(indexedMedia.byType.get(type) || [])];
+    },
     createStyleReader() {
       const index = readIndex();
       if (indexedStyles?.index !== index) {

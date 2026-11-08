@@ -97,6 +97,10 @@ test('automatic retention yields between gift batches and cancels queued continu
   assert.equal(f.dataService.runRetention.mock.callCount(), 1);
   next();
   assert.equal(f.dataService.runRetention.mock.callCount(), 2);
+  assert.equal(f.dataService.runRetention.mock.calls[1].arguments[0].giftEventsOnly, true);
+  f.settings.autoRetentionOnStartup = 'false';
+  next();
+  assert.equal(f.dataService.runRetention.mock.callCount(), 2, 'disabling maintenance stops gift continuations too');
   stop();
   next();
   assert.equal(f.dataService.runRetention.mock.callCount(), 2);

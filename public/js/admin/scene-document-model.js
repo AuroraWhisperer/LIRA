@@ -115,13 +115,16 @@ export function createSceneDocumentModel(document) {
       if (handle) resizeItem(next, ids[0], handle, deltaX, deltaY, { snap });
       else moveItems(next, ids, deltaX, deltaY, { snap });
       syncSharedSizes(gesture, next);
+      let grows = false;
       for (const [index, item] of next.items.entries()) {
         if (!isSceneItemGeometryValid(item, next.canvas)) throw new Error('场景组件位置或尺寸无效。');
         const previous = current.items[index];
+        grows ||= ['x', 'y', 'width', 'height'].some(key => String(item[key]).length > String(previous[key]).length);
         if (equal(item, previous)) next.items[index] = previous;
       }
       if (equal(current, next)) return false;
-      validateSceneDocumentSize(next);
+      // Only finite geometry numbers changed; shorter/equal JSON numbers cannot grow a validated document.
+      if (grows) validateSceneDocumentSize(next);
       current = freeze(next);
       notify();
       return true;

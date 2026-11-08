@@ -9,6 +9,25 @@ const { createResourceLibrary } = require('../../src/resources/resource-library'
 const { createResourcePackages, packagePath } = require('../../src/resources/resource-packages');
 const { createStoredStyleZip } = require('../../scripts/component-style-zip');
 
+test('a resource restart reclaims abandoned download files offline while retaining old versioned assets', async t => {
+  const f = await fixture(t, { 'fonts/one.woff2': Buffer.from('current font') });
+  const first = f.create(); await first.initialize(); await first.close();
+  const directory = path.join(f.dataDir, 'cache/resources');
+  const expired = `${'1'.repeat(64)}.woff2.00000000-0000-4000-8000-000000000001.tmp`;
+  const zip = `${'2'.repeat(64)}.zip`;
+  const recent = `${'3'.repeat(64)}.zip`;
+  const previous = `${'4'.repeat(64)}.woff2`;
+  for (const name of [expired, zip, recent, previous, 'unrelated.tmp']) await fs.writeFile(path.join(directory, name), 'fixture');
+  const old = new Date(Date.now() - 2 * 86400000);
+  for (const name of [expired, zip, previous, 'unrelated.tmp']) await fs.utimes(path.join(directory, name), old, old);
+  f.offline(); const before = f.requests.length;
+  const reopened = f.create(); await reopened.initialize();
+  for (const name of [expired, zip]) await assert.rejects(fs.access(path.join(directory, name)), { code: 'ENOENT' });
+  for (const name of [recent, previous, 'unrelated.tmp']) await fs.access(path.join(directory, name));
+  assert.equal((await fs.readFile(reopened.resolveAsset('fonts/one.woff2'))).toString(), 'current font');
+  assert.equal(f.requests.length - before, 1, 'Only the manifest check is attempted offline.');
+});
+
 const origin = 'https://assets.lirahub.cn';
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const file = (name, bytes) => ({ path: name, size: bytes.length, sha256: digest(bytes), label: name });

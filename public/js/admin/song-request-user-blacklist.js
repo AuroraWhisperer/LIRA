@@ -20,9 +20,23 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
   const count = documentRef.getElementById('songRequestUserBlacklistCount');
   const addButton = documentRef.getElementById('songRequestUserBlacklistAdd');
   let rows = [];
+  let renderedValue;
+  let nextExpiryAt = Infinity;
+  let expiryCheckedAt = -Infinity;
 
   function readExpiry(row) {
     return row.expiry.value === row.savedExpiryText ? row.savedExpiresAt : dateTimeTimestamp(row.expiry.value);
+  }
+
+  function updateExpiryLabels(now = Date.now()) {
+    expiryCheckedAt = now;
+    nextExpiryAt = Infinity;
+    for (const row of rows) {
+      const expiresAt = readExpiry(row);
+      const status = !expiresAt ? '永久' : expiresAt <= now ? '已过期' : '限时';
+      if (row.status.textContent !== status) row.status.textContent = status;
+      if (expiresAt > now) nextExpiryAt = Math.min(nextExpiryAt, expiresAt);
+    }
   }
 
   function updateLabels() {
@@ -35,12 +49,12 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
       row.name.setAttribute('aria-label', `用户 ${index + 1} 的备注昵称`);
       row.expiry.setAttribute('aria-label', `用户 ${index + 1} 的到期时间，留空永久`);
       row.remove.setAttribute('aria-label', `删除用户 ${index + 1}`);
-      const expiresAt = readExpiry(row);
-      row.status.textContent = !expiresAt ? '永久' : expiresAt <= Date.now() ? '已过期' : '限时';
     });
+    updateExpiryLabels();
   }
 
-  function updateDraft() {
+  function updateDraft(structureChanged = false) {
+    renderedValue = undefined;
     field.value = JSON.stringify(rows.map((row) => ({
       uid: row.uid.value.trim(),
       name: row.name.value.trim(),
@@ -48,7 +62,8 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     })));
     field.dataset.preserveDirty = 'true';
     field.dataset.dirty = 'true';
-    updateLabels();
+    if (structureChanged) updateLabels();
+    else updateExpiryLabels();
     field.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
@@ -81,12 +96,12 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
     remove.className = 'secondary';
     remove.textContent = '删除';
     const row = { uid, name, expiry, status, remove, savedExpiresAt: entry.expiresAt || 0, savedExpiryText: expiry.value };
-    for (const input of [uid, name, expiry]) input.addEventListener('input', updateDraft);
+    for (const input of [uid, name, expiry]) input.addEventListener('input', () => updateDraft());
     remove.addEventListener('click', () => {
       const index = rows.indexOf(row);
       rows.splice(index, 1);
       item.remove();
-      updateDraft();
+      updateDraft(true);
       (rows[index]?.uid || rows[index - 1]?.uid || addButton).focus();
     });
     for (const control of [uid, name, expiry, status, remove]) {
@@ -100,8 +115,9 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
   }
 
   function render(rawValue = '[]') {
-    if (field.dataset.dirty === 'true') {
-      updateLabels();
+    if (field.dataset.dirty === 'true' || rawValue === renderedValue) {
+      const now = Date.now();
+      if (now < expiryCheckedAt || now >= nextExpiryAt) updateExpiryLabels(now);
       return;
     }
     const entries = JSON.parse(rawValue || '[]');
@@ -116,13 +132,14 @@ export function createSongRequestUserBlacklist({ documentRef, getState }) {
       list.replaceChildren();
       entries.forEach(appendUser);
     }
+    if (unchanged || !editing) renderedValue = rawValue;
     updateLabels();
   }
 
   function init() {
     addButton.addEventListener('click', () => {
       const input = appendUser({ uid: '', name: '', expiresAt: 0 });
-      updateDraft();
+      updateDraft(true);
       input.focus();
     });
     eventBus.on(Events.STATE_LOADED, ({ state }) => render(state.settings?.songRequestUserBlacklist));

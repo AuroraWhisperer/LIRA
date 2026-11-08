@@ -9,7 +9,7 @@ const fixture = createUiFixture();
 
 async function open(t) {
   const page = await fixture(t, 'song-editor');
-  await page.setContent(readAdminFragmentHtml('pages/admin/song/library.html'));
+  await page.setContent(`<div id="songAssistantPage" class="main-page active">${readAdminFragmentHtml('pages/admin/song/library.html')}</div>`);
   await page.evaluate(async () => {
     const { createSongs } = await import('/js/admin/songs.js');
     window.library = [
@@ -61,9 +61,14 @@ test('a large song library renders every song and keeps delegated actions and fi
     window.library = Array.from({ length: 5000 }, (_, index) => ({
       id: index + 1, name: `歌曲 ${index + 1}`, artist: '测试歌手', is_enabled: true,
     }));
-    for (let count = 0; count < 3; count++) window.renderSongs(window.library);
+    window.renderSongs(window.library);
+    window.firstSongRow = document.querySelector('#songsTable tr');
+    window.artistOption = document.querySelector('#artistFilter option[value="测试歌手"]');
+    for (let count = 0; count < 3; count++) window.renderSongs(window.library.map(song => ({ ...song })));
   });
   assert.equal(await page.locator('#songsTable tr').count(), 5000);
+  assert.equal(await page.evaluate(() => window.firstSongRow === document.querySelector('#songsTable tr')), true);
+  assert.equal(await page.evaluate(() => window.artistOption === document.querySelector('#artistFilter option[value="测试歌手"]')), true);
   assert.equal(await page.locator('[data-edit-song="5000"]').count(), 1);
   assert.equal(await page.locator('[data-edit-song="101"]').count(), 1);
   await page.locator('[data-edit-song="101"]').dispatchEvent('click');
@@ -102,6 +107,30 @@ test('deleting the last song refreshes the complete library', async (t) => {
   await page.waitForFunction(() => document.querySelectorAll('#songsTable tr').length === 200);
   assert.equal(await page.locator('[data-delete-song="201"]').count(), 0);
   assert.equal(await page.locator('[data-edit-song="200"]').count(), 1);
+});
+
+test('a hidden library renders only the latest received result when both pages become visible', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    document.getElementById('songAssistantPage').classList.remove('active');
+    document.getElementById('songsPage').hidden = true;
+    window.tableChanges = 0;
+    window.tableObserver = new MutationObserver(() => window.tableChanges++);
+    window.tableObserver.observe(document.getElementById('songsTable'), { childList: true });
+    window.renderSongs([{ id: 3, name: '较早的结果', artist: '较早的歌手', is_enabled: true }]);
+    window.renderSongs([{ id: 4, name: '最新的结果', artist: '最新的歌手', is_enabled: true }]);
+  });
+  assert.equal(await page.evaluate(() => window.tableChanges), 0);
+  assert.equal(await page.locator('[data-edit-song="1"]').count(), 1);
+  assert.equal(await page.locator('#artistFilter option[value="最新的歌手"]').count(), 0);
+  await page.evaluate(() => document.getElementById('songAssistantPage').classList.add('active'));
+  assert.equal(await page.evaluate(() => window.tableChanges), 0);
+  await page.evaluate(() => { document.getElementById('songsPage').hidden = false; });
+  await page.waitForFunction(() => document.querySelector('[data-edit-song="4"]'));
+  assert.equal(await page.locator('[data-edit-song="3"]').count(), 0);
+  assert.equal(await page.locator('#artistFilter option[value="最新的歌手"]').count(), 1);
+  assert.equal(await page.evaluate(() => window.tableChanges), 1);
+  await page.evaluate(() => window.tableObserver.disconnect());
 });
 
 for (const switchSong of [false, true]) test(`deleting the edited song ${switchSong ? 'preserves a later edit' : 'resets the editor'}`, async (t) => {

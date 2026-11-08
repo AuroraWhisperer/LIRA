@@ -1,4 +1,4 @@
-import { setGiftImage } from './gift-image-fallback.js';
+import { setGiftArtwork } from './gift-image.js';
 import { GIFT_WISH_RIBBON_FIELDS, getRibbonDecorationStyle } from './gift-wish-ribbon-appearance.js';
 
 const DECORATION_IMAGES = {
@@ -81,7 +81,7 @@ export function updateRibbonGiftWish(card, wish) {
   view.name.textContent = wish.giftName;
   view.name.title = wish.giftName;
   if (view.source !== wish.imagePath || !view.image.hasAttribute('src')) {
-    setGiftImage(view.image, wish.imagePath);
+    setGiftArtwork(view.image, wish.imagePath);
     view.source = wish.imagePath;
   }
   view.count.textContent = String(wish.count);

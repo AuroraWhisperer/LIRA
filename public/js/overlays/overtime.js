@@ -2,7 +2,7 @@
 
 import { formatClockDisplay, formatClockSeconds, nextClockDelay } from '../shared/overtime-time-format.js';
 import { createOverlaySocket } from './socket-client.js';
-import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { setGiftArtwork } from '../shared/gift-image.js';
 import { createComponentPreviewClient, isComponentPreview } from './component-preview-client.js';
 import { watchComponentOutputSize } from './component-output-size.js';
 
@@ -229,7 +229,7 @@ function renderTickets() {
 
     const image = document.createElement('img');
     image.className = 'overtime-ticket-image';
-    setGiftImage(image, rule.imagePath);
+    setGiftArtwork(image, rule.imagePath);
     image.alt = '';
     const name = document.createElement('span');
     name.className = 'overtime-ticket-name';

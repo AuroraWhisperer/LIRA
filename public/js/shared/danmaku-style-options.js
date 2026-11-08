@@ -22,11 +22,29 @@ const TWITTER_COLOR_DEFAULTS = Object.freeze({
   twitterColor0: '#409afa', twitterColor50: '#f9c844', twitterColor100: '#f89260', twitterColor1000: '#ef4260',
 });
 const DANMAKU_STYLE_OPTIONS = Object.freeze({
+  astral: {
+    scrollDirection: true, defaultEdgeFade: 'none', label: 'Astral 星笺',
+    minFontSize: 12, maxFontSize: 48, defaultFontSize: 20,
+    background: true, giftImage: false, ambientMotion: true, astralOptions: true,
+    defaultTextColor: '#ffffff',
+  },
   'celestial-horizontal': {
     layout: 'horizontal', label: '天穹横栏',
     minFontSize: 12, maxFontSize: 40, defaultFontSize: 16,
     background: true, giftImage: false, bubbleColor: true, ambientMotion: true, celestialOptions: true,
     defaultBubbleColor: '#ffd700', defaultTextColor: '#f0f8ff',
+  },
+  'horizontal-charm': {
+    layout: 'horizontal', label: 'Charm · 轻语横栏',
+    minFontSize: 12, maxFontSize: 36, defaultFontSize: 20,
+    background: true, giftImage: false, bubbleColor: true, charmOptions: true,
+    defaultTextColor: '#51465f',
+  },
+  'neon-glass': {
+    layout: 'horizontal', label: 'Neon Glass · 霓光玻璃',
+    minFontSize: 16, maxFontSize: 40, defaultFontSize: 24,
+    background: true, giftImage: false, bubbleColor: true, neonGlassOptions: true,
+    defaultTextColor: '#ffffff',
   },
   bubble: {
     scrollDirection: true,
@@ -161,6 +179,12 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 23,
     background: false, giftImage: false, ambientMotion: true, defaultTextColor: '#3e3e3d',
   },
+  glowy: {
+    scrollDirection: true, defaultEdgeFade: 'none', label: 'Glowy 流光玻璃',
+    minFontSize: 16, maxFontSize: 40, defaultFontSize: 22,
+    background: true, giftImage: false, bubbleColor: true, ambientMotion: true, glowyOptions: true,
+    defaultBubbleColor: '#a58aff', defaultTextColor: '#f5f5fa',
+  },
   glass: {
     scrollDirection: true, defaultScrollDirection: 'down', defaultEdgeFade: 'none', label: 'Glass 玻璃通知',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 22,
@@ -171,7 +195,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     scrollDirection: true, defaultEdgeFade: 'none', label: '渐变气泡',
     minFontSize: 16, maxFontSize: 40, defaultFontSize: 19,
     background: true, giftImage: false, ambientMotion: true, gradientOptions: true,
-    fixedLifetimeMs: 10000, defaultTextColor: '#242424',
+    defaultTextColor: '#242424',
   },
   spooky: {
     scrollDirection: true, defaultEdgeFade: 'none', label: '幽灵便笺',
@@ -377,6 +401,12 @@ const DANMAKU_FONTS = Object.freeze({
 
 // One field contract feeds validation and every parameter editor. Groups only change presentation.
 const DANMAKU_OPTION_FIELDS = Object.freeze({
+  neonGlassNameColors: { label: '昵称配色', type: 'select', default: 'original', capability: 'neonGlassOptions', group: 'neonGlass',
+    choices: [['original', '原作彩色'], ['identity', '按房间身份'], ['text', '跟随正文']] },
+  neonGlassHighlight: { label: '玻璃高光', type: 'number', input: 'range', min: 0, max: 100, default: 100, unit: '%', capability: 'neonGlassOptions', group: 'neonGlass' },
+  neonGlassIcons: { label: '提醒图标', type: 'select', default: 'show', capability: 'neonGlassOptions', group: 'neonGlass', choices: [['show', '显示'], ['hide', '隐藏']] },
+  neonGlassEntrance: { label: '入场方式', type: 'select', default: 'layered', capability: 'neonGlassOptions', group: 'neonGlass', choices: [['layered', '玻璃与文字分层渐显'], ['none', '直接显示']] },
+  neonGlassEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 200, max: 1000, default: 480, unit: 'ms', capability: 'neonGlassOptions', group: 'neonGlass', disabledWhen: ['neonGlassEntrance', 'none'] },
   fontFamily: { label: '字体', type: 'font', default: 'default', defaultKey: 'defaultFontFamily' },
   fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize', help: '调整正文和行内表情，气泡随内容自动增高。头像、头像框、昵称、徽章和装饰保持本款尺寸；礼物及上舰文案保留各款排版比例。需要整套放大或缩小，请在画布中缩放组件。' },
   textColor: { label: '正文颜色', type: 'color', alpha: true, default: '#eaf2ff', defaultKey: 'defaultTextColor' },
@@ -435,6 +465,9 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
     choices: [['sparkle', '四角星'], ['heart', '爱心'], ['square', '圆角方块'], ['star', '五角星'], ['flower', '小花'], ['moon', '月牙'], ['bow', '蝴蝶结']] },
   ambientMotion: { label: '持续动画', type: 'select', default: 'on', capability: 'ambientMotion', choices: [['on', '开启'], ['off', '关闭']],
     help: '控制图案、纸张或头像的循环动作，保留新弹幕入场和正常移动。' },
+  astralAccentColor: { label: '星芒颜色', type: 'color', alpha: true, default: '#f7e68b', capability: 'astralOptions', group: 'astral' },
+  astralEntrance: { label: '入场方式', type: 'select', default: 'layered', capability: 'astralOptions', group: 'astral',
+    choices: [['layered', '描框与星芒点亮'], ['none', '直接显示']] },
   gradientPalette: { label: '渐变配色', type: 'select', default: 'original', capability: 'gradientOptions', group: 'gradient',
     choices: [['original', '原作流彩'], ['sunset', '落日暖霞'], ['ocean', '海盐青蓝'], ['lavender', '薰衣草紫']], help: '联动昵称牌、事件标签和气泡彩边，正文颜色单独保留。' },
   gradientCycleSeconds: { label: '流转周期', type: 'number', input: 'range', min: 6, max: 24, default: 10, unit: '秒', capability: 'gradientOptions', group: 'gradient',
@@ -448,11 +481,19 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   glassBubbleHighlight: { label: '玻璃高光', type: 'number', input: 'range', min: 0, max: 100, default: 100, unit: '%', capability: 'glassBubbleOptions', group: 'glassBubble',
     help: '调整银边和表面高光，正文与金额保持清晰。' },
   celestialNebulaOpacity: { label: '星云浓度', type: 'number', input: 'range', min: 0, max: 100, default: 30, unit: '%', capability: 'celestialOptions', group: 'celestial' },
+  charmGap: { label: '消息间距', type: 'number', input: 'range', min: 8, max: 80, default: 32, unit: 'px', capability: 'charmOptions', group: 'charm' },
+  charmMaxWidth: { label: '气泡最大宽度', type: 'number', input: 'range', min: 240, max: 1000, default: 560, unit: 'px', capability: 'charmOptions', group: 'charm',
+    help: '长消息自动换行，保留完整文字；可在画布中增加横栏高度。' },
   celestialStarDensity: { label: '星点疏密', type: 'select', default: 'normal', capability: 'celestialOptions', group: 'celestial',
     choices: [['off', '关闭'], ['sparse', '稀疏'], ['normal', '原作'], ['dense', '繁星']] },
   celestialStarShape: { label: '星标造型', type: 'select', default: 'identity', capability: 'celestialOptions', group: 'celestial',
     choices: [['identity', '按昵称变化'], ['sparkle', '四角星'], ['star', '五角星']] },
   celestialSeparator: { label: '消息分隔线', type: 'select', default: 'show', capability: 'celestialOptions', group: 'celestial', choices: [['show', '显示'], ['hide', '隐藏']] },
+  glowyLayout: { label: '消息排列', type: 'select', default: 'vertical', capability: 'glowyOptions', group: 'glowy',
+    choices: [['vertical', '竖排'], ['horizontal', '横排']], help: '横排使用同一消息流；可在画布中拉宽区域。向上对应新消息从右侧进入，向下对应从左侧进入。' },
+  glowyAvatar: { label: '观众头像', type: 'select', default: 'show', capability: 'glowyOptions', group: 'glowy', choices: [['show', '显示'], ['hide', '隐藏']] },
+  glowyTime: { label: '消息时间', type: 'select', default: 'show', capability: 'glowyOptions', group: 'glowy', choices: [['show', '显示'], ['hide', '隐藏']] },
+  glowyLight: { label: '侧光强度', type: 'number', input: 'range', min: 0, max: 100, default: 85, unit: '%', capability: 'glowyOptions', group: 'glowy' },
   glassTime: { label: '消息时间', type: 'select', default: 'show', capability: 'glassOptions', group: 'glass', choices: [['show', '显示'], ['hide', '隐藏']] },
   glassGlintIntensity: { label: '星点闪光强度', type: 'number', input: 'range', min: 0, max: 100, default: 100, unit: '%', capability: 'glassOptions', group: 'glass',
     disabledWhen: ['ambientMotion', 'off'] },
@@ -518,11 +559,15 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   windowPalette: { label: '小窗配色', type: 'select', default: 'porcelain', capability: 'windowOptions', group: 'window',
     choices: [['porcelain', '白瓷蓝'], ['sakura', '樱花粉'], ['night', '月夜蓝']],
     help: '同步调整窗面、边框与昵称牌；自定义正文颜色单独保留。' },
-  windowWidth: { label: '小窗宽度', type: 'number', input: 'range', min: 220, max: 560, default: 340, unit: 'px', capability: 'windowOptions', group: 'window',
+  windowWidth: { label: '小窗宽度', type: 'number', input: 'range', min: 220, max: 560, default: 380, unit: 'px', capability: 'windowOptions', group: 'window',
     help: '每张小窗的逻辑宽度，长文完整换行；区域过小时整张等比适配。' },
   windowRadius: { label: '小窗圆角', type: 'number', input: 'range', min: 10, max: 36, default: 22, unit: 'px', capability: 'windowOptions', group: 'window' },
   windowControls: { label: '窗角图标', type: 'select', default: 'show', capability: 'windowOptions', group: 'window',
     choices: [['show', '显示'], ['hide', '隐藏']], help: '右上角的最小化与关闭图形仅作装饰，不是操作按钮。' },
+  windowGuard: { label: '大航海图标', type: 'select', default: 'show', capability: 'windowOptions',
+    choices: [['show', '显示'], ['hide', '隐藏']], help: '昵称右侧显示当前直播间的舰长、提督或总督图标；没有身份时隐藏。' },
+  windowMedal: { label: '粉丝牌', type: 'select', default: 'show', capability: 'windowOptions',
+    choices: [['show', '显示'], ['hide', '隐藏']], help: '大航海图标右侧显示当前直播间的粉丝牌名称和等级，沿用粉丝牌配色；没有粉丝牌时隐藏。' },
   windowEntrance: { label: '入场方式', type: 'select', default: 'mixed', capability: 'windowOptions', group: 'window',
     choices: [['mixed', '随机混合'], ['pop', '轻弹出现'], ['unfold', '小窗展开'], ['rise', '轻盈上浮'], ['none', '直接显示']],
     help: '混合时每条消息稳定选用一种动作。窗框先出现、正文随后渐显；只影响新消息，已有小窗不重播。' },
@@ -563,7 +608,7 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   sinkingBubbleDensity: { label: '气泡密度', type: 'number', input: 'range', min: 1, max: 100, default: 50, capability: 'sinkingOptions', group: 'sinking',
     help: '1 为极少，50 适中，100 为密集气泡流；越接近上限，气泡增加越明显。' },
 });
-const REAL_GIFT_STYLES = Object.freeze(['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter']);
+const REAL_GIFT_STYLES = Object.freeze(['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter', 'glass', 'startrail', 'sinking']);
 const STYLE_OPTION_FIELDS = Object.fromEntries(Object.entries(DANMAKU_STYLE_OPTIONS).map(([style, limits]) => [style,
   Object.fromEntries(Object.entries(DANMAKU_OPTION_FIELDS)
     .filter(([, field]) => (!field.capability || limits[field.capability]) && (!field.layout || limits.layout === field.layout))

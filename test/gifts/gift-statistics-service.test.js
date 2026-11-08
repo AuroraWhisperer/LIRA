@@ -2,11 +2,20 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
+const { DatabaseSync } = require('node:sqlite');
 const { getGiftHistory, getGiftStatistics } = require('../../src/bilibili/gift/query-service');
 const { createFixture } = require('../helpers/gift-query-fixture');
 
-test('statistics use cents, canonical rows, active source and completeness state', () => {
-  const fixture = createFixture();
+test('statistics normalize matched values once and preserve cents, source and completeness', (t) => {
+  const calls = { giftMoneyCents: 0, giftQuantity: 0 };
+  const register = DatabaseSync.prototype.function;
+  const observe = t.mock.method(DatabaseSync.prototype, 'function', function (name, options, callback) {
+    if (!Object.hasOwn(calls, name)) return register.call(this, name, options, callback);
+    return register.call(this, name, options, value => { calls[name]++; return callback(value); });
+  });
+  let fixture;
+  try { fixture = createFixture(); }
+  finally { observe.mock.restore(); }
   try {
     const sourceA = fixture.resolveSource('c'.repeat(64));
     const sourceB = fixture.resolveSource('d'.repeat(64));
@@ -53,6 +62,8 @@ test('statistics use cents, canonical rows, active source and completeness state
     });
 
     const result = getGiftStatistics(fixture.context, { range: 'all' });
+    assert.equal(calls.giftMoneyCents, 7, 'each total/unit price and known blind-box cost is normalized once');
+    assert.equal(calls.giftQuantity, 3);
     assert.equal(result.partial, false);
     assert.equal(result.syncState, 'LIVE');
     assert.equal(result.syncedThroughCursor, 18);
@@ -236,6 +247,16 @@ test('statistics fail closed on corrupt money, quantity, and aggregate overflow'
 
     update.run(1, 1.5, source.id);
     assert.throws(() => getGiftStatistics(fixture.context, { range: 'all' }));
+
+    update.run(1, 1, source.id);
+    fixture.giftDb.prepare('UPDATE gift_events SET unit_price=0.001 WHERE source_id=?').run(source.id);
+    assert.throws(() => getGiftStatistics(fixture.context, { range: 'all' }));
+    fixture.giftDb.prepare('UPDATE gift_events SET unit_price=1, blind_box_price=0.001 WHERE source_id=?').run(source.id);
+    assert.equal(getGiftStatistics(fixture.context, { range: 'all' }).summary.eventCount, 1,
+      'a non-blind gift does not consume its unused box cost');
+    fixture.giftDb.prepare('UPDATE gift_events SET is_blind_box=1 WHERE source_id=?').run(source.id);
+    assert.throws(() => getGiftStatistics(fixture.context, { range: 'all' }));
+    fixture.giftDb.prepare('UPDATE gift_events SET blind_box_price=NULL WHERE source_id=?').run(source.id);
 
     update.run(1, Number.MAX_SAFE_INTEGER, source.id);
     fixture.insertGift(source.id, 'overflow');

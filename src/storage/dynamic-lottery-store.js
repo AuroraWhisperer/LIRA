@@ -117,6 +117,8 @@ function createDynamicLotteryStore(lotteryDb) {
   if (!lotteryDb || typeof lotteryDb.prepare !== 'function') {
     throw new TypeError('A migrated lottery database is required.');
   }
+  const changes = lotteryDb.prepare('SELECT total_changes() AS value');
+  const dataVersion = lotteryDb.prepare('PRAGMA data_version');
 
   function getTask(taskId) {
     return toTask(lotteryDb.prepare('SELECT * FROM lottery_tasks WHERE id = ?').get(requiredText(taskId, 'task ID')));
@@ -375,6 +377,11 @@ function createDynamicLotteryStore(lotteryDb) {
 
   const requestBudget = createRequestBudgetStore(lotteryDb);
   return {
+    getChangeToken() {
+      // A snapshot observed inside a transaction must never survive its rollback.
+      if (lotteryDb.isTransaction) return null;
+      return `${changes.get().value}:${dataVersion.get().data_version}`;
+    },
     createTask,
     getTask,
     findCreateReceipt,
@@ -416,27 +423,32 @@ function createDynamicLotteryStore(lotteryDb) {
     resumeScan: ({ taskId, sessionEpoch, nowMs }) =>
       setScanStatus(taskId, 'running', '', nowMs, normalizeMs(sessionEpoch, 'session epoch')),
     failScan: ({ taskId, reason, nowMs }) => setScanStatus(taskId, 'failed', String(reason || ''), nowMs),
-    getEvidence(scanId) {
+    getEvidence(scanId, { includeContent = true } = {}) {
       return lotteryDb
         .prepare(
           `
-          SELECT source, record_id, uid, occurred_at_ms, text, parent_id, level, display_name
+          SELECT source, record_id, uid, occurred_at_ms${includeContent ? ', text, parent_id, level, display_name' : ''}
           FROM lottery_evidence
           WHERE scan_id = ?
           ORDER BY source, length(record_id), record_id
         `,
         )
         .all(requiredText(scanId, 'scan ID'))
-        .map((row) => ({
-          source: row.source,
-          recordId: row.record_id,
-          uid: row.uid,
-          displayName: row.display_name,
-          occurredAtMs: row.occurred_at_ms === null ? null : Number(row.occurred_at_ms),
-          text: row.text,
-          parentId: row.parent_id,
-          level: row.level === null ? null : Number(row.level),
-        }));
+        .map((row) => {
+          const record = {
+            source: row.source,
+            recordId: row.record_id,
+            uid: row.uid,
+            occurredAtMs: row.occurred_at_ms === null ? null : Number(row.occurred_at_ms),
+          };
+          if (includeContent) {
+            record.displayName = row.display_name;
+            record.text = row.text;
+            record.parentId = row.parent_id;
+            record.level = row.level === null ? null : Number(row.level);
+          }
+          return record;
+        });
     },
     requestBudget,
   };

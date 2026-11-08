@@ -123,6 +123,27 @@ test('wishes with the same time window share ledger aggregation and one retentio
   assert.equal(aggregations, 1);
 });
 
+test('long wishes share one ledger scan while keeping distinct creation times', async (t) => {
+  const f = setup(t);
+  for (let index = 0; index < 30; index++) {
+    const date = new Date(Date.parse('2026-09-20T03:00:00Z') + index * 60000).toISOString();
+    f.time(date);
+    f.add('long');
+    f.event(`gift-${index}`, date, 1);
+  }
+  f.time('2026-09-20T04:00:00Z');
+  const prepare = f.fixture.giftDb.prepare;
+  let aggregations = 0;
+  t.mock.method(f.fixture.giftDb, 'prepare', function (sql) {
+    if (sql.includes('SUM(') && sql.includes('FROM gift_events g WHERE')) aggregations++;
+    return prepare.call(this, sql);
+  });
+  const snapshot = await f.service.getSnapshot();
+  assert.deepEqual(snapshot.items.map(item => item.count), Array.from({ length: 30 }, (_, index) => 30 - index));
+  assert.ok(snapshot.items.every(item => item.todayCount === 30));
+  assert.equal(aggregations, 1);
+});
+
 test('three periods count final integer quantities in their own windows and survive restart', async (t) => {
   const f = setup(t);
   migrateGiftWishes(f.fixture.giftDb);

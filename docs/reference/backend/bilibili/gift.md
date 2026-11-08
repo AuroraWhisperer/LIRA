@@ -71,6 +71,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 按人民币元转换为整数分比较门槛，合格事件以稳定的 `gift-frame:<giftEventId>` ID 广播为 `gift:frame`，
 `themeId` 为 `woodland-bloom`。Adapter 不使用 `unit_price * num` 重算，也不读取官方媒体映射；
 开关关闭、非 final、零金额或不达阈值的行不广播。已撤销的缎带设置不参与触发。
+导入样式触发在同一笔礼物内只解析一次 `giftFrameStyleTriggers`，各样式继续独立判断原有开关和金额门槛。候选读取使用样式库的媒体样式 ID 索引，不复制整份素材配置；文件变化与备份恢复检查仍由 [存储索引](../storage.md) 执行。
 导入的全屏礼物感谢图片/视频样式各自判断：`buildGiftFrameStyleEvent` 按 `giftFrameStyleTriggers` 中每个样式 ID 的开关和含等号门槛筛选，同一笔礼物只生成一条 `gift-frame:<giftEventId>:imported`（`themeId: imported`，`styleIds` 列出达标样式），没有达标样式时不生成。候选样式 ID 由组合根从本机样式库读取（含已从可选库移除但场景可能仍引用的样式）；读取失败时不生成该事件，不影响林间花信和掉落/摇摇乐。该事件只发布到场景窗口，不广播到旧 `/gift-effects` WS 页面。
 管理页预览通过 `/api/gifts/frame/preview` 使用独立的预览 ID，不污染实时去重集合。
 事件的 `avatarUrl` 读取 final 行已知头像，复用 `gift/avatar-url.js` 的 HTTPS B 站 CDN 校验；
@@ -137,9 +138,13 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 客户端直接保存服务器的盲盒 ID、名称、成本和盈亏，不按礼物名匹配盒子或重新计算价值。[blind-box-config.js](../../../../src/bilibili/gift/blind-box-config.js) 仅验证待同步的盲盒设置格式，实际收礼判定由服务器处理。
 
-盲盒盈亏汇总、排行与分析只读 `final + gift_stats_eligible + is_blind_box=1 + blind_profit 非空` 的当前来源有效记录。统计默认查询本机当天；分析支持显式日期范围，由 [blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js) 的 `loadBlindBoxRows` 计算本机日期边界。日期默认值、范围校验、分页与返回字段统一见 [HTTP 契约](../api.md#10-礼物域gifts)。
+盲盒盈亏汇总、排行与分析只读 `final + gift_stats_eligible + is_blind_box=1 + blind_profit 非空` 的当前来源有效记录。统计默认查询本机当天；分析支持显式日期范围，由 [blind-box-analysis.js](../../../../src/bilibili/gift/blind-box-analysis.js) 的 `prepareBlindBoxQuery` 校验日期并计算本机日期边界。日期默认值、范围校验、分页与返回字段统一见 [HTTP 契约](../api.md#10-礼物域gifts)。
 
 当天统计在查询 owner 内按来源、本机当日始末时间戳及盲盒输入变更标记缓存，保留最多两个最近使用的盒名结果，使管理页全部盲盒与心动盲盒展示交替读取时互不驱逐。同连接的普通礼物、同步校验时间和投递标记不触发盲盒重算；本地旧来源、空结果仍可复用。盲盒查询输入修订、归档变化、清理、其他数据库连接提交、来源或连接替换、跨日及运行中切换时区导致日界变化时，旧结果失效；首次读取或已淘汰的盒名重新计算。事务内读取不进入缓存，避免回滚后的临时值泄漏。返回独立结果，展示消费者不会改写缓存。存储变更追踪见[查询优化](../storage.md#查询优化song-v7--gift-v12)。
+
+分析入口另保留每个查询 context 最近一份分页响应，不保留完整历史行；缓存键包含上述盲盒变更标记、实际查询日期始末时间戳及规范化筛选、视图、排序和分页参数。查询未变的连续刷新复用结果，切换历史日期对应的时区边界时重新计算；无稳定标记时直接读取且不缓存。返回副本，调用方修改不会污染后续结果。
+
+同一统计 owner 的内部 `getBlindBoxChangeToken` 复用上述来源、账本和日界标记，由礼物服务门面绑定来源切换代次，再供场景适配器核验投影缓存。没有稳定标记（如事务内或来源切换中）时返回 `null`，场景沿用完整读取；已确认的未变榜单可直接省略，条件响应见 [HTTP 契约](../api.md)。
 
 `boxName=心动盲盒` 的统计另返回 `heartBoxProgress.openedSinceCastle`：按 `created_at`（含毫秒）及行 ID 顺序，累计今天最近一次开出浪漫城堡之后的心动盲盒数量，出堡行将计数归零，今天未出堡则为今日累计。仅接受心动盲盒 ID `32251`（旧行缺 ID 时沿用精确盒名），浪漫城堡按产物 ID `32132` 识别；直送礼物、其他盒型/日期/来源不参与。进度包含盈亏未知但已确认的有效开盒记录，盈亏汇总仍排除这些行。计算从账本恢复，不依赖展示端累加；其他 `boxName` 查询的 `heartBoxProgress` 为 `null`。
 

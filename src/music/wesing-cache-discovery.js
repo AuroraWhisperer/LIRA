@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('node:path');
-const { findLatestSongEntry, findLatestWeSingLog, hasWeSingCacheData, safeInitialCachePath } = require('./wesing-cache');
+const { createWeSingCacheReader, safeInitialCachePath } = require('./wesing-cache');
 
 function getWeSingCacheCandidates(environment = process.env) {
   const profilePaths = [environment.APPDATA, environment.LOCALAPPDATA]
@@ -11,7 +11,8 @@ function getWeSingCacheCandidates(environment = process.env) {
   return [...profilePaths, ...drivePaths];
 }
 
-async function discoverWeSingCachePath({ cachePath, title = '', candidates = getWeSingCacheCandidates() } = {}) {
+async function discoverWeSingCachePath({ cachePath, title = '', candidates = getWeSingCacheCandidates(),
+  readCache = createWeSingCacheReader().read } = {}) {
   const savedPath = safeInitialCachePath(cachePath);
   const uniquePaths = new Map();
   for (const candidate of [savedPath, ...candidates]) {
@@ -19,10 +20,9 @@ async function discoverWeSingCachePath({ cachePath, title = '', candidates = get
     if (normalized) uniquePaths.set(normalized.toLowerCase(), normalized);
   }
   const results = await Promise.all([...uniquePaths.values()].map(async (candidate) => {
-    if (!await hasWeSingCacheData(candidate)) return null;
-    const entry = await findLatestSongEntry(candidate, title).catch(() => null);
-    const log = entry ? await findLatestWeSingLog(candidate).catch(() => null) : null;
-    return { path: candidate, modifiedMs: log?.modifiedMs || 0 };
+    const snapshot = await readCache(candidate, title);
+    if (!snapshot.cacheReady) return null;
+    return { path: candidate, modifiedMs: snapshot.logEntry ? snapshot.log?.modifiedMs || 0 : 0 };
   }));
   const matches = results.filter(Boolean);
   const active = matches.filter((candidate) => candidate.modifiedMs > 0)

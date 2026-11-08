@@ -56,6 +56,48 @@ test('manual retention yields between bounded batches and keeps its original pol
   assert.equal(response.body.data.hasMoreGiftEvents, false);
 });
 
+test('manual gift retention runs shared maintenance once while draining all bounded batches', async (t) => {
+  const { routes } = require('../../src/server/routes/data-routes');
+  const { createDataMaintenanceRuntime } = require('../../src/server/data-maintenance-runtime');
+  t.mock.timers.enable({ apis: ['Date'], now: NOW });
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-retention-batches-'));
+  const databases = createDatabases({ dataDir });
+  t.after(() => {
+    closeDatabases(databases);
+    fs.rmSync(dataDir, { recursive: true, force: true });
+  });
+  seed(databases);
+  databases.giftDb.exec(`WITH RECURSIVE rows(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM rows WHERE id < 2500)
+    INSERT INTO gift_events (platform_id, gift_name, total_price, raw_json, created_at, updated_at)
+    SELECT 'expired-' || id, 'gift', 1, '{}', '2020-01-01', '2020-01-01' FROM rows`);
+  let songMaintenanceReads = 0;
+  const songDb = new Proxy(databases.songDb, { get(target, key) {
+    if (key === 'prepare') return sql => {
+      if (/SELECT id, data FROM fan_records WHERE kind = 'song'/u.test(sql)) songMaintenanceReads++;
+      return target.prepare(sql);
+    };
+    const value = target[key];
+    return typeof value === 'function' ? value.bind(target) : value;
+  } });
+  const clearUndo = t.mock.fn();
+  const data = createDataMaintenanceRuntime({ db: { ...databases, songDb },
+    getSettings: () => ({}), clearSuperChatUndo: clearUndo });
+  const policy = { giftRawJsonDays: 30, giftEventDays: 30, requestDays: 30,
+    superChatDays: 30, aiRequestLogDays: 0, cooldownDays: 0 };
+  const response = { writeHead(status) { this.status = status; }, end(body) { this.body = JSON.parse(body); } };
+  await routes['POST /api/database/retention']({ data, broadcastSnapshot() {} },
+    { body: async () => ({ confirm: true, policy }) }, response);
+  assert.equal(response.status, 200);
+  assert.equal(response.body.data.giftEventsDeleted, 2501);
+  assert.equal(response.body.data.giftRawJsonCleared, 2501);
+  assert.equal(response.body.data.requestsDeleted, 1);
+  assert.equal(response.body.data.superChatsDeleted, 1);
+  assert.equal(response.body.data.hasMoreGiftEvents, false);
+  assert.equal(databases.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
+  assert.equal(songMaintenanceReads, 1, 'gift continuation must not rescan unrelated song summaries');
+  assert.equal(clearUndo.mock.callCount(), 1);
+});
+
 function seed(databases) {
   const insertGift = databases.giftDb.prepare(`
     INSERT INTO gift_events (platform_id, cmd, gift_name, total_price, raw_json, created_at, updated_at)

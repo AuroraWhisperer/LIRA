@@ -32,7 +32,7 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
   await page.evaluate(async ({ style, flowAxis }) => {
     const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
     window.root = document.getElementById('feed');
-    window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: style !== 'celestial-horizontal', offscreenViewports: 0, autoScroll: false, maxItems: 8 });
+    window.feed = createDanmakuFeed(root, { style, flowAxis, fitWidth: !['celestial-horizontal', 'horizontal-charm'].includes(style), offscreenViewports: 0, autoScroll: false, maxItems: 8 });
     feed.render([
       { name: '云洲来信', message: '提督报到，这一段太好听了', guardLevel: 2 },
       { name: '路过听一首', message: '刚进来，这首歌叫什么名字呀？' },
@@ -53,6 +53,33 @@ async function preview(t, direction, scale, style = 'moonlit', flowAxis = 'verti
     .every(animation => animation.playState !== 'running'));
   return page;
 }
+
+test('astral instant entry finishes so enabling layers only animates new messages', async t => {
+  const page = await preview(t, 'up', 1, 'astral');
+  await page.evaluate(async () => {
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    window.applyAstral = entrance => applyStyleOptions(document, 'astral', {
+      astral: { astralEntrance: entrance, ambientMotion: 'off' },
+    });
+    applyAstral('none');
+    feed.render([]);
+    feed.append({ name: '星河', message: '直接显示的旧消息。' });
+    window.original = root.lastElementChild;
+  });
+  await page.waitForFunction(() => !original.hasAttribute('data-live-entry'));
+  const retained = await page.evaluate(async () => {
+    applyAstral('layered');
+    await new Promise(requestAnimationFrame);
+    return { same: root.firstElementChild === original,
+      opacity: getComputedStyle(original.querySelector('.astral-copy')).opacity,
+      animations: original.querySelector('.astral-copy').getAnimations().length };
+  });
+  assert.equal(retained.same, true);
+  assert.equal(retained.opacity, '1', 'changing entry mode keeps the old message readable');
+  assert.equal(retained.animations, 0, 'the old message does not replay');
+  await page.evaluate(() => feed.append({ name: '新来信', message: '只对新消息播放入场。' }));
+  assert.equal(await page.locator('#feed > :last-child').getAttribute('data-live-entry'), 'true');
+});
 
 test('glass bubble long chat finishes revealing before the shortest stay begins fading', { timeout: 15000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
@@ -125,7 +152,7 @@ test('wireframe keeps the chosen background transparency throughout live entranc
   }
 });
 
-for (const [style, direction, scale] of [['stargazer', 'up', 1], ['stargazer', 'down', 0.63], ['celestial-horizontal', 'up', 1], ['celestial-horizontal', 'up', 0.63]]) {
+for (const [style, direction, scale] of [['stargazer', 'up', 1], ['stargazer', 'down', 0.63], ['celestial-horizontal', 'up', 1], ['celestial-horizontal', 'up', 0.63], ['horizontal-charm', 'up', 1], ['horizontal-charm', 'up', 0.63]]) {
   test(`${style} horizontal ${direction} at ${scale} preserves interrupted positions and releases exited messages`, { timeout: 15000 }, async t => {
     const page = await preview(t, direction, scale, style, 'horizontal');
     const result = await page.evaluate(async () => {
@@ -193,7 +220,9 @@ test('timed fixed messages finish fading during arrivals and reflow after expira
     const fade = timers.values().next().value;
     timers.delete(timers.keys().next().value);
     fade();
-    const fading = old.getAnimations().find(animation => animation.effect.getKeyframes().some(frame => frame.opacity === '0'));
+    const fading = old.getAnimations().find(animation => !animation.animationName);
+    fading.currentTime = 200;
+    const opacity = Number(getComputedStyle(old).opacity);
     feed.append({ id: 'incoming', timestamp: clock, name: '新观众', message: '移动时继续淡出' });
     await new Promise(requestAnimationFrame);
     const keptFade = fading?.playState === 'running';
@@ -204,8 +233,9 @@ test('timed fixed messages finish fading during arrivals and reflow after expira
     await new Promise(requestAnimationFrame);
     const remaining = Array.from(root.children).map(node => node.textContent);
     feed.destroy();
-    return { keptFade, expired: !old.isConnected, remaining, timers: timers.size };
+    return { opacity, keptFade, expired: !old.isConnected, remaining, timers: timers.size };
   });
+  assert.ok(result.opacity > 0 && result.opacity < 1, 'expiration visibly fades the message');
   assert.equal(result.keptFade, true);
   assert.equal(result.expired, true);
   assert.equal(result.remaining.length, 1);

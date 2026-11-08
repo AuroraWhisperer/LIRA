@@ -32,19 +32,19 @@
 .preview-canvas-toolbar .lira-select-trigger { gap: 8px; }
 .component-preview-page .component-preview-body { grid-template-columns: minmax(0, 1fr) clamp(300px, calc(100% - var(--preview-canvas-fit-width, 100%) - 24px), 480px); min-width: 0; overflow: hidden; }
 .component-preview-page .component-preview-body.is-inspector-collapsed { grid-template-columns: minmax(0, 1fr); }
-.component-preview-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; min-width: 0; margin: 0; padding: 8px 12px; border-top: 1px solid var(--border); background: var(--surface); }
+.component-preview-navigation { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; min-width: 0; margin: 0; padding: 4px 12px; border-top: 1px solid var(--border); background: var(--surface); }
 .component-preview-navigation h2 { margin: 0; font-size: var(--type-size-caption); color: var(--muted); font-weight: var(--type-weight-medium); white-space: nowrap; }
 .component-preview-list { display: flex; flex-shrink: 0; gap: 8px; }
 .component-preview-add { font-weight: var(--type-weight-semibold); }
 .preview-canvas-source.copy-url { position: absolute; z-index: 10; top: calc(100% + 8px); right: 0; --copy-url-width: clamp(260px, 35vw, 400px); max-width: none; font-size: var(--type-size-caption); }
-.preview-canvas-layers { display: flex; gap: 8px; min-width: 0; min-height: 40px; overflow: auto hidden; scrollbar-width: none; }
+.preview-canvas-layers { display: flex; gap: 8px; min-width: 0; min-height: 32px; overflow: auto hidden; scrollbar-width: none; }
 .preview-canvas-layer-select { cursor: grab; touch-action: none; user-select: none; }
 .preview-canvas-layers.is-reordering, .preview-canvas-layers.is-reordering button { cursor: grabbing; }
 .preview-canvas-layer.is-dragging { outline: 1px dashed var(--primary-strong); outline-offset: -1px; background: var(--color-primary-light); }
 .preview-canvas-layer.is-dragging > * { visibility: hidden; }
 .preview-canvas-layer { display: grid; grid-template-columns: minmax(0, 1fr) 28px; flex: 0 0 auto; max-width: 216px; gap: 4px; border-radius: var(--radius-md); background: var(--surface-2); }
 .preview-canvas-layer-ghost { position: fixed; top: 0; left: 0; z-index: 100; pointer-events: none; box-shadow: var(--shadow-floating); }
-.preview-canvas-layer button { min-height: 36px; padding: 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); box-shadow: none; font-size: var(--type-size-caption); }
+.preview-canvas-layer button { min-height: 32px; padding: 4px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); box-shadow: none; font-size: var(--type-size-caption); }
 .preview-canvas-layer .preview-canvas-layer-select { min-width: 0; max-width: 180px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .preview-canvas-layer button:hover { background: var(--color-bg-hover, var(--surface-2)); }
 .preview-canvas-layer .preview-canvas-layer-action { display: grid; place-items: center; width: 28px; padding: 0; color: var(--muted); }
@@ -139,7 +139,7 @@
   .component-preview-page .component-preview-body { grid-template-columns: minmax(0, 1fr) 240px; }
   .preview-canvas-toolbar { flex-wrap: wrap; }
   .preview-canvas-actions { flex-basis: 100%; justify-content: flex-end; }
-  .component-preview-navigation { gap: 8px; padding: 8px; }
+  .component-preview-navigation { gap: 8px; padding: 4px 8px; }
   .component-preview-page .component-preview-panel { padding: 16px 8px 16px 12px; }
 }
 

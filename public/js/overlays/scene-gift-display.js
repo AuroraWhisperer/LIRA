@@ -6,10 +6,11 @@ export function createSceneGiftDisplay() {
   const cursors = new Map();
   const pending = new Map();
   return {
-    update(data, activeTypes) {
+    update(data, activeTypes, dataVersions = {}) {
       const result = { ...data };
       for (const type of TYPES) {
         if (!Object.hasOwn(data, type)) {
+          if (Object.hasOwn(dataVersions, type)) continue;
           cursors.delete(type); pending.delete(type);
           continue;
         }

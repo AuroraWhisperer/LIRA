@@ -8,6 +8,39 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('astral preserves room roles, safe emotes, settled gifts and complete removable SC', async () => {
+  const root = new FakeNode('div');
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
+    document: createFakeDocument(),
+  });
+  const feed = module.createDanmakuFeed(root, { style: 'astral', autoScroll: false,
+    resolveEmoteUrl: () => '/approved-emote.png' });
+  const original = '  第一行\n<b>完整留言</b>  ';
+  feed.render([
+    { id: 'chat', name: '<b>观众</b>', guardLevel: 1, roomGuardLevel: 0, message: '[妙]',
+      emotes: [{ text: '[妙]', url: 'https://i0.hdslb.com/emote.png', width: 64, height: 64 }] },
+    { id: 'captain', name: '舰长', roomGuardLevel: 3, message: '你好' },
+    { id: 'gift', kind: 'gift', name: '送礼者', giftName: '<b>星愿</b>', giftCount: 10, giftTotalPrice: 12.5 },
+    { id: 'member', kind: 'gift', name: '续订者', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 },
+    { id: 'sc', kind: 'superchat', name: '留言者', price: 0, message: original },
+  ]);
+  const [chat, captain, gift, member, sc] = root.children;
+  assert.equal(findByClass(chat, 'astral-name').textContent, '<b>观众</b>');
+  assert.equal(findByClass(chat, 'astral-role'), undefined);
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/approved-emote.png');
+  assert.equal(findByClass(captain, 'astral-role').textContent, '舰长');
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<b>星愿</b>');
+  assert.equal(findByClass(gift, 'astral-amount').textContent, '¥12.50');
+  assert.equal(findByClass(member, 'astral-event-label').textContent, '续费提督');
+  assert.equal(findByClass(member, 'astral-amount').textContent, '—');
+  assert.equal(findByClass(sc, 'astral-copy').textContent, original);
+  assert.equal(findByClass(sc, 'astral-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'astral-amount').textContent, '¥0.00');
+  feed.remove(['sc']);
+  assert.equal(root.children.includes(sc), false);
+  feed.destroy();
+});
+
 test('glass bubbles keep safe graphemes, emotes and settled event content through SC removal', async () => {
   const root = new FakeNode('div');
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
@@ -73,7 +106,7 @@ test('animated gradient keeps safe chat, room roles and settled event details wi
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
     document: createFakeDocument(),
   });
-  const feed = module.createDanmakuFeed(root, { style: 'animated-gradient', autoScroll: false, expireItems: false,
+  const feed = module.createDanmakuFeed(root, { style: 'animated-gradient', autoScroll: false,
     resolveEmoteUrl: () => '/approved-emote.png' });
   const message = '  第一行\n<b>完整留言</b>  ';
   feed.render([
@@ -103,29 +136,31 @@ test('animated gradient keeps safe chat, room roles and settled event details wi
   feed.destroy();
 });
 
-test('animated gradient expires snapshots and new messages by event time through the shared feed', async () => {
+test('animated gradient retains snapshots and new messages without timed expiration', async () => {
   const root = new FakeNode('div');
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {
     document: createFakeDocument(),
   });
   const timers = new Map();
   let nextTimer = 0;
-  const feed = module.createDanmakuFeed(root, { style: 'animated-gradient', autoScroll: false, now: () => 20000,
-    scheduleTimeout(callback, delay) { timers.set(++nextTimer, { callback, delay }); return nextTimer; },
+  let clock = 20000;
+  const feed = module.createDanmakuFeed(root, { style: 'animated-gradient', autoScroll: false, now: () => clock,
+    scheduleTimeout(callback, delay) { timers.set(++nextTimer, { callback, at: clock + delay }); return nextTimer; },
     cancelTimeout(id) { timers.delete(id); } });
-  feed.render([{ id: 'old', timestamp: 19000, name: '观众', message: '历史消息' }]);
-  assert.equal(timers.get(1).delay, 9000, 'snapshots retain only their remaining reading time');
+  feed.render([{ id: 'old', timestamp: 1000, name: '观众', message: '历史消息' }]);
+  assert.equal(root.children.length, 1, 'old snapshots remain visible regardless of event age');
   const old = root.children[0];
-  feed.append({ id: 'new', timestamp: 20000, name: '新观众', message: '新消息' });
-  assert.equal(timers.get(2).delay, 10000);
-  assert.equal(root.children[0], old, 'arrivals preserve existing nodes and their deadlines');
-  const expired = timers.get(1);
-  timers.delete(1);
-  expired.callback();
-  assert.equal(root.children.length, 1);
-  assert.equal(findByClass(root.children[0], 'gradient-copy').textContent, '新消息');
-  feed.destroy();
+  feed.append({ id: 'new', timestamp: clock, name: '新观众', message: '新消息' });
+  const latest = root.children[1];
+  clock += 60000;
+  for (const [id, timer] of [...timers]) {
+    if (timer.at > clock) continue;
+    timers.delete(id);
+    timer.callback();
+  }
+  assert.deepEqual(root.children, [old, latest], 'idle time does not remove fixed messages');
   assert.equal(timers.size, 0);
+  feed.destroy();
 });
 
 test('wireframe keeps room roles, safe emotes, settled prices and full removable SC in its separate layouts', async () => {

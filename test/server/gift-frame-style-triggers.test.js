@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
-const { migrateGiftFrameStyleTriggers } = require('../../src/server/gift-frame-style-triggers');
+const { migrateGiftFrameStyleTriggers, listGiftFrameTriggerStyleIds } = require('../../src/server/gift-frame-style-triggers');
+const { createComponentStyleStore } = require('../../src/storage/component-style-store');
 
 const id = (digit) => `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`;
 
@@ -42,4 +43,32 @@ test('an unreadable style library leaves the upgrade for the next start', (t) =>
   const store = settingsStore({ giftFrameEnabled: 'true' });
   assert.equal(migrateGiftFrameStyleTriggers(store, directory), false);
   assert.equal(store.settings.giftFrameStyleTriggers, '');
+});
+
+test('gift ingress reads only media style ids and observes committed, external and recovered indexes', t => {
+  const directory = createScratchDirectory('gift-frame-ids-', t);
+  const packs = [{ id: id('1'), removed: true, styles: [
+    { id: id('2'), type: 'gift-frame', removed: true, config: { mediaStyle: { id: id('2') } } },
+    { id: id('3'), type: 'gift-frame', config: { cssStyle: { id: id('3') } } },
+  ] }];
+  writeLibrary(directory, packs);
+  assert.deepEqual(listGiftFrameTriggerStyleIds(directory), [id('2')]);
+  const clone = global.structuredClone;
+  let wholeIndexes = 0;
+  t.mock.method(global, 'structuredClone', value => {
+    if (value?.packages) wholeIndexes++;
+    return clone(value);
+  });
+  for (let i = 0; i < 20; i++) listGiftFrameTriggerStyleIds(directory).push('caller-mutation');
+  assert.deepEqual(listGiftFrameTriggerStyleIds(directory), [id('2')]);
+  assert.equal(wholeIndexes, 0, 'each gift must not clone unrelated style configurations');
+  packs.push({ id: id('4'), styles: [{ id: id('5'), type: 'gift-frame', config: { mediaStyle: { id: id('5') } } }] });
+  writeLibrary(directory, packs);
+  assert.deepEqual(listGiftFrameTriggerStyleIds(directory), [id('2'), id('5')]);
+  createComponentStyleStore(directory).updateConfig(id('5'), () => ({ cssStyle: { id: id('5') } }));
+  assert.deepEqual(listGiftFrameTriggerStyleIds(directory), [id('2')]);
+  writeLibrary(directory, '{ damaged');
+  assert.deepEqual(listGiftFrameTriggerStyleIds(directory), [id('2')], 'damaged primary recovers the last committed index');
+  writeLibrary(directory, JSON.stringify({ version: 2, packages: packs }));
+  assert.throws(() => listGiftFrameTriggerStyleIds(directory), { code: 'STYLE_LIBRARY_INDEX_VERSION' });
 });

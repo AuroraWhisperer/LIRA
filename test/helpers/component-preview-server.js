@@ -7,7 +7,7 @@ const { createWebSocketHub } = require('../../src/server/ws');
 const { serveFontAsset } = require('../../src/server/font-assets');
 const { serveResourceAsset } = require('../../src/server/resource-assets');
 
-async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary, resourceLibrary, extraContext,
+async function startComponentPreviewServer({ getOwner = () => null, parentHtml, scenes, sceneEvents, danmakuEvents, getState, readDanmakuDisplay, dataDir, overtime, settings, fontLibrary, resourceLibrary, extraContext, ensureGiftImage,
   isLicenseAuthorized = () => true, inflightTracker = { run: (work) => work() },
   publicDir = path.resolve(__dirname, '../../public') } = {}) {
   const token = 'synthetic-desktop-component-preview-token';
@@ -15,6 +15,7 @@ async function startComponentPreviewServer({ getOwner = () => null, parentHtml, 
   const server = createHttpServer({ host: '127.0.0.1', startPort: 0, dataDir,
     getPhase: () => 'ready', getStartedPort: () => server.address()?.port,
     getPreviewOwner: getOwner, isLicenseAuthorized,
+    ensureGiftImage: imagePath => isLicenseAuthorized() ? ensureGiftImage?.(imagePath) : '',
     inflightTracker, createApiContext: () => ({ ...extraContext, sessionToken: token, scenes, sceneEvents, danmakuEvents, readDanmakuDisplay, overtime,
       system: { getState, dataDir }, settings: settings || { get: () => getState?.().settings },
       bilibili: { configure() {} }, broadcastSnapshot() { hub?.broadcastSnapshot({ getState }, 'settings'); } }),

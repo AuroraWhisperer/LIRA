@@ -253,6 +253,48 @@ test('coalesces same-turn hub snapshots and keeps the latest reason', async () =
   hub.stop();
 });
 
+test('music-event snapshot negotiation preserves legacy snapshots and reconnect baselines', async (t) => {
+  const hub = createWebSocketHub();
+  t.after(() => hub.stop());
+  const modern = new FakeSocket();
+  const legacy = new FakeSocket();
+  let timelineReads = 0;
+  const state = { gifts: { count: 1 }, lyricTimeline: { lines: ['original'] }, lyricState: { sequence: 1 } };
+  const context = { sessionToken: 'synthetic-token', getState(fields, { exclude = [] } = {}) {
+    return Object.fromEntries((fields || Object.keys(state)).filter(key => !exclude.includes(key)).map(key => {
+      if (key === 'lyricTimeline') timelineReads++;
+      return [key, state[key]];
+    }));
+  } };
+  const read = socket => {
+    const frame = socket.writes.filter(Buffer.isBuffer).at(-1);
+    const size = frame[1] & 127;
+    return JSON.parse(frame.subarray(size === 126 ? 4 : size === 127 ? 10 : 2).toString());
+  };
+  hub.handleUpgrade(context, upgradeRequest('/ws?snapshot=music-events-v1'), modern);
+  hub.handleUpgrade(context, upgradeRequest(), legacy);
+  assert.equal(read(modern).state.lyricTimeline.lines[0], 'original');
+  hub.broadcastSnapshot(context, 'bilibili:gift');
+  await new Promise(resolve => queueMicrotask(resolve));
+  assert.equal(read(legacy).type, 'snapshot');
+  assert.equal(read(legacy).state.lyricTimeline.lines[0], 'original');
+  assert.equal(read(modern).type, 'snapshot:patch');
+  assert.equal(Object.hasOwn(read(modern).state, 'lyricTimeline'), false);
+  assert.equal(read(modern).state.gifts.count, 1);
+  legacy.emit('close');
+  timelineReads = 0;
+  hub.broadcastSnapshot(context, 'bilibili:gift');
+  await new Promise(resolve => queueMicrotask(resolve));
+  assert.equal(timelineReads, 0, 'ordinary snapshots do not read music fields maintained by events');
+  state.lyricTimeline = { lines: ['changed'] };
+  hub.broadcast({ type: 'lyric-timeline', timeline: state.lyricTimeline });
+  assert.equal(read(modern).timeline.lines[0], 'changed');
+  const reconnected = new FakeSocket();
+  hub.handleUpgrade(context, upgradeRequest('/ws?snapshot=music-events-v1'), reconnected);
+  assert.equal(read(reconnected).type, 'snapshot');
+  assert.equal(read(reconnected).state.lyricTimeline.lines[0], 'changed');
+});
+
 test('WebSocket hub filters topic broadcasts without changing ordinary broadcasts', () => {
   const hub = createWebSocketHub();
   const topicSocket = new FakeSocket();

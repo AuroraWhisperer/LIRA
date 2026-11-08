@@ -248,6 +248,7 @@ test('song library matches any selected complete tag and intersects category fil
 
 test('song library table escapes the language column', async () => {
   const elements = {
+    songsPage: { hidden: false, classList: { contains: () => true } },
     songsTable: { innerHTML: '', addEventListener() {} },
     songNoteColumnHeader: { hidden: false },
     languageFilter: { value: '', innerHTML: '' },

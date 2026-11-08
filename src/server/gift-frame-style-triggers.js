@@ -6,16 +6,12 @@ const { DEFAULT_FRAME_SETTINGS, normalizeThresholdRmb } = require('../bilibili/g
 const {
   GIFT_FRAME_STYLE_TRIGGERS_KEY,
   MAX_GIFT_FRAME_STYLE_TRIGGERS,
-  isGiftFrameTriggerStyle,
 } = require('../../public/js/shared/gift-frame-style-triggers.js');
 
 // Removed library cards stay listed: existing scenes may still play them.
 function listGiftFrameTriggerStyleIds(dataDir) {
   if (!dataDir) return [];
-  return createComponentStyleStore(dataDir).read().packages
-    .flatMap((pack) => pack.styles)
-    .filter(isGiftFrameTriggerStyle)
-    .map((style) => style.id);
+  return createComponentStyleStore(dataDir).listMediaStyleIds('gift-frame');
 }
 
 // Idempotent: runs only while the key is still unset; an unreadable library is retried next start.

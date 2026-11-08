@@ -5,6 +5,7 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { setTimeout: delay } = require('node:timers/promises');
 const { resolveDataPaths } = require('../shared/data-paths');
+const { pruneManagedFiles } = require('../shared/file-retention');
 const { resolveCdnOrigin, readManifest, validateManifest, objectName, downloadResource } = require('./resource-download');
 const { extractResourcePackage } = require('./resource-archive');
 const { isLegacyResource } = require('./resource-packages');
@@ -88,12 +89,17 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     return write;
   }
 
-  async function requestSlot(signal) {
+  async function fetchWithRateLimit(url, options) {
+    const { signal } = options;
     while (true) {
       const now = Date.now();
       requestStarts = requestStarts.filter(started => now - started < 1000);
       // Leave headroom under the CDN's current 10 requests/second setting.
-      if (requestStarts.length < 8) { requestStarts.push(now); return; }
+      if (requestStarts.length < 8) {
+        // An awaited reservation can expire before its actual fetch starts.
+        try { return fetch(url, options); }
+        finally { requestStarts.push(Date.now()); }
+      }
       await delay(Math.max(1, 1000 - (now - requestStarts[0])), undefined, { signal });
     }
   }
@@ -108,9 +114,11 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     pending = (async () => {
       publish({ status: 'checking', total: 0, completed: 0, failed: 0, currentFont: '',
         totalBytes: 0, downloadedBytes: 0, completedAt: '' });
+      pruneManagedFiles(dataDir, directory, { maxAgeMs: 86400000, matches: name =>
+        /^[a-f0-9]{64}\.zip$/.test(name) ||
+        /^(?:index\.json|[a-f0-9]{64}\.[a-z0-9]+)\.[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.tmp$/.test(name) });
       await scan(signal);
-      await requestSlot(signal);
-      const manifest = await readManifest({ origin, fetch, signal, timeoutMs: manifestTimeoutMs });
+      const manifest = await readManifest({ origin, fetch: fetchWithRateLimit, signal, timeoutMs: manifestTimeoutMs });
       const { downloads } = validateManifest(manifest, sharedFiles);
       const needsFile = file => {
         const ready = available.get(file.path)?.file;
@@ -141,8 +149,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
           publish({ currentFont: file.label || path.posix.basename(file.path) });
           let failed = 0;
           try {
-            await requestSlot(signal);
-            const downloaded = await downloadResource(file, { origin, directory, fetch, signal, timeoutMs,
+            const downloaded = await downloadResource(file, { origin, directory, fetch: fetchWithRateLimit, signal, timeoutMs,
               onProgress(bytes) {
                 activeBytes.set(file.id, bytes);
                 if (Date.now() - lastProgressAt >= 100) {

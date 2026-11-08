@@ -1,5 +1,6 @@
 'use strict';
 
+const { randomUUID } = require('node:crypto');
 const { getClockConfig, normalizeClockSettingValue, normalizeClockStyleOptions } = require('./clock-contract');
 const { CLOCK_APPEARANCE_KEYS } = require('../../public/js/shared/clock-settings.js');
 const { normalizeSettingsPatch } = require('./settings-contract');
@@ -152,7 +153,28 @@ function normalizeSceneConfig(type, config) {
   return COMPONENT_PORTS[type].normalizeConfig(config);
 }
 
-function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtraDisplay }) {
+function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtraDisplay, getOwner = () => null, now = Date.now }) {
+  const displayVersions = new Map();
+  function invalidateDisplay(types = ['queue', 'wheel', 'games']) {
+    for (const type of types) displayVersions.delete(type);
+  }
+  function unchanged(type, request) {
+    if (!request?.dataVersions || !['queue', 'wheel', 'games'].includes(type)) return false;
+    const owner = getOwner();
+    let entry = displayVersions.get(type);
+    if (!entry || entry.scope !== owner?.scope || entry.epoch !== owner?.epoch || now() - entry.at >= 5000) {
+      entry = { scope: owner?.scope, epoch: owner?.epoch, at: now(), version: randomUUID() };
+      displayVersions.set(type, entry);
+    }
+    request.dataVersions.current[type] = entry.version;
+    const same = request.dataVersions.known[type] === entry.version;
+    if (same && type === 'games' && request.incrementalParts) {
+      for (const key of ['gamesCanvas', 'gamesScores']) {
+        if (request.dataVersions.known[key]) request.dataVersions.current[key] = request.dataVersions.known[key];
+      }
+    }
+    return same;
+  }
   function getDefaultConfig(type) {
     if (typeof type !== 'string' || !Object.hasOwn(COMPONENT_PORTS, type)) throw invalidConfig();
     const state = getState(type === 'clock' || type === 'queue' ? ['settings'] : type === 'overtime' ? ['overtime'] : []);
@@ -160,13 +182,15 @@ function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtra
     if (!config) throw new SceneError('SCENE_DEFAULT_UNAVAILABLE', 503, '请等待组件默认配置读取完成后再发布。');
     return normalizeSceneConfig(type, config);
   }
-  function getDisplayData(types, request) {
+  function getDisplayData(types, request, displayContext) {
     let state;
+    const changedTypes = types.filter(type => !unchanged(type, request));
     const needsRoomGuard = types.some((type) => ['queue', 'overtime', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'text-box'].includes(type));
     const readState = () => state ??= getState([...new Set([
-      ...types.flatMap((type) => Object.hasOwn(DISPLAY_STATE_FIELDS, type) ? DISPLAY_STATE_FIELDS[type] : []),
+      ...changedTypes.flatMap((type) => Object.hasOwn(DISPLAY_STATE_FIELDS, type) ? DISPLAY_STATE_FIELDS[type] : []),
       ...(needsRoomGuard ? ['roomGuard'] : []),
     ])]);
+    if (displayContext) displayContext.readState = readState;
     const data = {};
     if (needsRoomGuard) {
       const roomGuard = projectOverlayState('queue', readState()).roomGuard;
@@ -174,14 +198,14 @@ function createSceneComponentPorts({ getState, cloud, getDanmakuConfig, getExtra
     }
     const pending = [];
     for (const [type, port] of Object.entries(COMPONENT_PORTS)) {
-      if (!types.includes(type) || !port.getDisplay) continue;
+      if (!changedTypes.includes(type) || !port.getDisplay) continue;
       const display = port.getDisplay(readState, cloud, request, getExtraDisplay);
       if (display?.then) pending.push(display.then((value) => { if (value !== undefined) data[type] = value; }));
       else if (display !== undefined) data[type] = display;
     }
     return pending.length ? Promise.all(pending).then(() => data) : data;
   }
-  return { normalizeConfig: normalizeSceneConfig, getDefaultConfig, getDisplayData };
+  return { normalizeConfig: normalizeSceneConfig, getDefaultConfig, getDisplayData, invalidateDisplay };
 }
 
 module.exports = { COMPONENT_PORTS, normalizeSceneConfig, createSceneComponentPorts };

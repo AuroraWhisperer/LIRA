@@ -113,6 +113,36 @@ test('partial lyric ticks retain static data for new frames without resending it
   assert.deepEqual(messages(replacements[1]).at(-1).data, { lyricTimeline, lyricState: { currentMs: 99 } });
 });
 
+test('partial game updates retain drawing and scores for replacement frames without replaying them to active frames', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const doc = documentOf([item('games', 'independent', { game: 'draw-guess' })]);
+  const state = { round: 1, canvas: { revision: 4, strokes: [{ id: 'stroke' }] },
+    correct: [{ uid: '1' }], scores: [{ uid: '1', score: 10 }] };
+  const session = { sessionId: 'game-a', game: 'draw-guess', state };
+  f.renderer.update({ version: 1, document: doc, data: { games: { session } } });
+  const frame = f.host.children[0].children[0];
+  f.complete(frame);
+  const messages = current => f.messages.get(current).filter(value => value.type === 'component-preview:data');
+  const sparse = { ...session, danmaku: [{ message: 'hello' }], state: { round: 1, remainingMs: 5000 } };
+  f.renderer.update({ version: 1, data: { games: { session: sparse } } });
+  assert.equal(messages(frame).at(-1).data.session.state.canvas, undefined);
+  f.renderer.update({ version: 2, document: { ...doc, items: [item('games', 'independent', { game: 'draw-guess' })] }, data: {} });
+  const replacement = f.host.children.at(-1).children[0];
+  f.complete(replacement);
+  const snapshot = messages(replacement).at(-1).data.session;
+  assert.deepEqual(snapshot.state.canvas, state.canvas);
+  assert.deepEqual(snapshot.state.scores, state.scores);
+  assert.equal(snapshot.danmaku[0].message, 'hello');
+  f.renderer.disconnect();
+  assert.equal(messages(replacement).at(-1).data, null);
+  f.renderer.update({ version: 3, document: { ...doc, items: [item('games', 'independent', { game: 'draw-guess' })] },
+    data: { games: { session: { ...session, state: { round: 2, canvas: { revision: 0, strokes: [] }, scores: [], correct: [] } } } } });
+  const restored = f.host.children.at(-1).children[0];
+  f.complete(restored);
+  assert.equal(messages(restored).at(-1).data.session.state.canvas.revision, 0);
+  assert.deepEqual(messages(restored).at(-1).data.session.state.scores, []);
+});
+
 test('resource preparation retries the same style after a transient read failure', async () => {
   const { COMPONENT_RESOURCE_PRESETS } = require('../../public/js/shared/component-resource-style.js');
   const preset = COMPONENT_RESOURCE_PRESETS['nautical-guard-thanks'];
@@ -357,9 +387,11 @@ test('gift scene replacement delivers new events once and clears pending events 
   f.renderer.update({ version: 1, document: giftDoc, data: snapshot(1) });
   const first = f.host.children[0].children[0];
   f.renderer.update({ version: 1, data: snapshot(2) });
+  f.renderer.update({ version: 1, data: {}, dataVersions: { 'gift-frame': 'gifts_2' } });
   f.complete(first);
   const delivered = (frame) => f.messages.get(frame).filter(message => message.type === 'component-preview:data').flatMap(message => message.data?.events || []);
   assert.deepEqual(delivered(first), [{ eventId: '2' }]);
+  f.renderer.update({ version: 1, data: {}, dataVersions: { 'gift-frame': 'gifts_2' } });
   f.renderer.update({ version: 2, document: documentOf([item('gift-frame', 'independent', {})]), data: snapshot(3) });
   const next = f.host.children[1].children[0];
   f.complete(next);

@@ -40,10 +40,12 @@ test('artwork resolvers index catalog snapshots once without changing ambiguity,
   assert.equal(reads, 5000);
   const entries = [
     { id: '1', name: ' Ａ  B ', variantId: 'first', imagePath: '/overtime-gift-images/first.webp' },
-    { id: '1', name: 'a b', giftIdentity: { variantId: 'second' }, imagePath: '/overtime-gift-images/second.webp' },
+    { id: '1', name: 'a b', giftIdentity: { variantId: 'second' }, imagePath: '/overtime-gift-images/second.png' },
     { id: '2', name: 'bad', variantId: 'bad', imagePath: '/overtime-gift-images/../bad.webp' },
   ];
   const indexed = createGiftArtworkResolver(entries);
+  assert.equal(indexed({ giftId: '1', giftName: 'a b', giftVariantId: 'second' }), '/overtime-gift-images/second.png',
+    'cached PNG artwork must not be replaced by the generic placeholder');
   for (const gift of [{ giftId: '1', giftName: 'a b' }, { giftId: '1', giftName: 'a b', giftVariantId: 'second' },
     { giftId: 'wrong', giftName: 'wrong', giftVariantId: 'first' }, { giftId: '2', giftName: 'bad' },
     { giftId: 'guard-3', giftName: '舰长' }, { giftId: '1', giftName: 'a b', giftVariantId: 'missing' }]) {

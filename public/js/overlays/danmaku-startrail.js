@@ -7,9 +7,13 @@ export function createStartrailMessageRenderer({ document, classNames }, render)
     // Keep a later duration edit from restarting a message's completed entrance.
     node.style.setProperty('--startrail-entry-duration',
       document.documentElement?.style.getPropertyValue('--startrail-entry-duration') || '680ms');
-    // Gifts keep their safe name/count DOM, while using this style's text-only silhouette.
+    // Gifts keep their safe name/count DOM and compact artwork beside the sender.
     node.classList.remove('is-gift');
     const body = node.querySelector(`.${classNames.body}`);
+    if (item.kind === 'gift') {
+      const identity = body.querySelector(`.${classNames.identity}`);
+      identity.replaceChildren(body.querySelector('.draw-danmaku-gift-art'), ...identity.children);
+    }
     const entry = document.createElement('div');
     entry.className = 'startrail-entry';
     const head = document.createElement('span');

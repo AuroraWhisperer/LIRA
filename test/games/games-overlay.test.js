@@ -123,6 +123,46 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
   }
 });
 
+test('scene drawing retains painted history until its revision, session, round or canvas size changes', () => {
+  const { context, nodes } = createGameOverlayFixture();
+  let clears = 0;
+  let segments = 0;
+  const drawing = { fillRect() { clears++; }, beginPath() {}, moveTo() {},
+    lineTo() { segments++; }, stroke() {} };
+  const canvas = context.document.getElementById('drawCanvas');
+  Object.assign(canvas, { width: 800, height: 600, getContext: () => drawing });
+  canvas.classList.toggle = () => {};
+  context.document.querySelectorAll = () => [];
+  Object.assign(context, { crypto: require('node:crypto'), performance });
+  context.next = { game: 'draw-guess', sessionId: 'one', state: {
+    phase: 'round-result', round: 1, totalRounds: 3, correct: [], scores: [], answerRevealed: true,
+    canvas: { revision: 1, strokes: [{ color: 'black', width: 4, points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }] },
+  } };
+  vm.runInContext('drawController = createDrawController({ byId, canDraw: () => false, getSession: () => session, renderDanmaku() {} }); componentConfig = { game: "draw-guess" }', context);
+  const render = () => vm.runInContext('componentData = { session: next }; renderComponent()', context);
+  render();
+  for (let index = 0; index < 20; index++) render();
+  assert.equal(clears, 1, 'disabled tools do not clear an unchanged canvas again');
+  assert.equal(segments, 1);
+  context.next.state.canvas = { revision: 2, strokes: [] };
+  render();
+  assert.equal(clears, 2, 'clear and undo revisions replace the painted history');
+  assert.equal(segments, 1);
+  context.next.state.round++;
+  render();
+  assert.equal(clears, 3);
+  context.next.sessionId = 'two';
+  render();
+  assert.equal(clears, 4);
+  canvas.width = 1000;
+  render();
+  assert.equal(clears, 5);
+  vm.runInContext('componentData = null; renderComponent()', context);
+  render();
+  assert.equal(clears, 6, 'restoring a session restores its drawing baseline');
+  assert.equal(nodes.get('drawGuessView').hidden, false);
+});
+
 test('result actions and late winner profiles follow the current game session', async () => {
   const profiles = [];
   const actions = [];

@@ -12,6 +12,8 @@ async function createForm() {
         value: '',
         textContent: '',
         innerHTML: '',
+        hidden: false,
+        classList: { contains: name => name === 'active' },
         events: {},
         addEventListener(name, handler) {
           this.events[name] = handler;
@@ -58,6 +60,7 @@ async function createForm() {
   const { createSongs } = await loadModuleExports(path.resolve(__dirname, '../../public/js/admin/songs.js'), {
     window,
     document,
+    MutationObserver: class { observe() {} disconnect() {} },
   });
   const songs = createSongs({ utils, state: { reloadAll: async () => {} } });
   songs.initSongForm();

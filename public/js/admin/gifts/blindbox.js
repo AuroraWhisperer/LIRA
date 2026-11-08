@@ -9,7 +9,7 @@ import { eventBus, Events } from '../../shared/event-bus.js';
 import { escapeHtml, escapeAttr } from '../../shared/html-escape.js';
 import { formatMoney } from '../../shared/display-format.js';
 import { readJsonResponse } from '../../shared/json-response.js';
-import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
+import { GIFT_PLACEHOLDER, setGiftArtworkFallbacks } from '../../shared/gift-image.js';
 
 export const giftBlindbox = (() => {
   let statsInitialized = false;
@@ -120,7 +120,7 @@ export const giftBlindbox = (() => {
         : '尚未设置直播间，可展开查看全部盲盒设置';
       container.innerHTML = `<span class="hint">${message}</span>${container.innerHTML}`;
     }
-    setGiftImageFallbacks(container);
+    setGiftArtworkFallbacks(container);
   }
 
   function renderBlindBoxMappingStatus() {

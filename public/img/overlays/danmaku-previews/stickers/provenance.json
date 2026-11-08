@@ -1,0 +1,61 @@
+{
+  "source": "Bilibili live account emote list",
+  "endpoint": "https://api.live.bilibili.com/xlive/web-ucenter/v2/emoticon/GetEmoticons",
+  "retrievedAt": "2026-11-07",
+  "images": [
+    {
+      "file": "tv-clap.png",
+      "name": "小电视·鼓掌",
+      "emoticonId": 48,
+      "emoticonUnique": "upower_[tv_鼓掌]",
+      "sourceUrl": "https://i0.hdslb.com/bfs/emote/1d21793f96ef4e6f48b23e53e3b9e42da833a0f6.png",
+      "width": 96,
+      "height": 96,
+      "packageName": "tv_小电视",
+      "packageItemId": 959,
+      "saleType": "free",
+      "availabilitySource": "https://api.bilibili.com/x/garb/v2/mall/suit/detail?item_id=959&part=suit"
+    },
+    {
+      "file": "rush-duck.png",
+      "name": "冲鸭",
+      "emoticonId": 332,
+      "emoticonUnique": "official_332",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/dea7fbbc1c3d3c80f4c7b27263e13460f21874e4.png",
+      "width": 200,
+      "height": 60,
+      "packageName": "通用表情",
+      "permission": 1,
+      "unlockNeedGift": 0,
+      "unlockNeedLevel": 0,
+      "packageType": 1
+    },
+    {
+      "file": "this-is-great.png",
+      "name": "这个好耶",
+      "emoticonId": 345,
+      "emoticonUnique": "official_345",
+      "sourceUrl": "https://i0.hdslb.com/bfs/live/2ce08b31618d3ad0d34877bf949ef0089a0438b7.png",
+      "width": 200,
+      "height": 60,
+      "packageName": "通用表情",
+      "permission": 1,
+      "unlockNeedGift": 0,
+      "unlockNeedLevel": 0,
+      "packageType": 1
+    },
+    {
+      "file": "tv-laugh.png",
+      "name": "小电视·笑哭",
+      "emoticonId": 52,
+      "emoticonUnique": "upower_[tv_笑哭]",
+      "sourceUrl": "https://i0.hdslb.com/bfs/emote/1abc628f6d4f4caf9d0e7800878f4697abbc8273.png",
+      "width": 96,
+      "height": 96,
+      "packageName": "tv_小电视",
+      "packageItemId": 959,
+      "saleType": "free",
+      "availabilitySource": "https://api.bilibili.com/x/garb/v2/mall/suit/detail?item_id=959&part=suit"
+    }
+  ]
+}

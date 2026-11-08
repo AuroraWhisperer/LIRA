@@ -4,7 +4,7 @@ const { dailyBotCommand } = require('../bilibili/danmaku/command-text');
 const { handleDanmakuMessage, logDanmakuCommand } = require('../bilibili/bilibili-message-handler');
 
 function createMessageApplication({ getSettings, getDefaultSettings, userRequestCooldown,
-  addQueueItem, cancelQueueItem, resolveSongRequest, pickRandomSong, describeRandomSongScope,
+  addQueueItem, cancelQueueItem, resolveSongRequest, pickRandomSong,
   recordRequestResult, customReplies }) {
   const songRequests = {
     settings: getSettings,
@@ -14,7 +14,6 @@ function createMessageApplication({ getSettings, getDefaultSettings, userRequest
     cancelQueueItem,
     resolveSongRequest,
     pickRandomSong,
-    describeRandomSongScope,
   };
 
   function handleDanmaku(danmaku) {

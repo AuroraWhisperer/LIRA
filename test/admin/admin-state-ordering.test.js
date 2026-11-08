@@ -169,6 +169,24 @@ test('HTTP hydration keeps newer partial updates while accepting unrelated field
   assert.equal(service.getAppState().lyricTimeline.sequence, 9);
 });
 
+test('negotiated snapshot patches preserve music events across HTTP hydration and full reconnects', async () => {
+  const { service, requests } = await createFixture();
+  service.ws.receive({ type: 'snapshot', reason: 'connect', state: { lyricTimeline: { sequence: 1 }, gifts: { count: 0 } } });
+  const reload = service.reloadState();
+  service.ws.receive({ type: 'lyric-timeline', timeline: { sequence: 2 } });
+  service.ws.receive({ type: 'snapshot:patch', reason: 'bilibili:gift', state: { gifts: { count: 1 } } });
+  assert.equal(service.getAppState().lyricTimeline.sequence, 2);
+  assert.equal(service.getAppState().gifts.count, 1);
+  requests[0]({ lyricTimeline: { sequence: 1 }, gifts: { count: 0 }, settings: { roomId: '123' } });
+  await reload;
+  assert.equal(service.getAppState().lyricTimeline.sequence, 2);
+  assert.equal(service.getAppState().gifts.count, 1);
+  assert.equal(service.getAppState().settings.roomId, '123');
+  service.ws.receive({ type: 'snapshot', reason: 'connect', state: { lyricTimeline: null, gifts: { count: 0 } } });
+  assert.equal(service.getAppState().lyricTimeline, null);
+  assert.equal(service.getAppState().gifts.count, 0);
+});
+
 test('snapshots preserve newer overtime and lyric revisions', async () => {
   const { service } = await createFixture();
   service.ws.receive({ type: 'overtime:update', state: { revision: 8 } });

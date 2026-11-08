@@ -84,10 +84,11 @@ body[data-style='stardust'] .stardust-item .stardust-event {
   color: inherit;
   font: 400 12px/1.6 var(--danmaku-ui-font);
   letter-spacing: .34em;
-  opacity: .93;
+  opacity: calc(.93 * var(--danmaku-enter-opacity));
 }
 body[data-style='stardust'] .stardust-item:has(.stardust-event) .stardust-copy { margin-top: 10px; }
 .stardust-ornament {
+  opacity: var(--danmaku-enter-opacity);
   position: relative;
   display: flex;
   align-items: center;
@@ -142,26 +143,30 @@ body[data-style='stardust'] .stardust-item:has(.stardust-event) .stardust-copy {
 .stardust-ornament:has(.stardust-orbit)::after { left: calc(100% + 13px); transform: scaleX(-1); }
 .stardust-item[data-stardust-kind='member'] .stardust-ornament::before { right: calc(100% + 4px); }
 .stardust-item[data-stardust-kind='member'] .stardust-ornament::after { left: calc(100% + 4px); }
-.stardust-tail { display: flex; align-items: center; gap: 8px; margin-top: 14px; opacity: .7; }
+.stardust-tail { display: flex; align-items: center; gap: 8px; margin-top: 14px; opacity: calc(.7 * var(--danmaku-enter-opacity)); }
 .stardust-tail::before, .stardust-tail::after { width: 26px; height: .7px; background: currentColor; opacity: .45; content: ''; }
 .stardust-item[data-live-entry][data-stardust-entrance='on'] .stardust-copy {
+  opacity: var(--danmaku-enter-opacity);
+  translate: 0 var(--danmaku-enter-y);
   animation: stardustCopyGather 1100ms cubic-bezier(.16, 1, .3, 1) both;
 }
 .stardust-item[data-live-entry][data-stardust-entrance='on'] .stardust-name {
+  opacity: var(--danmaku-enter-opacity);
+  translate: 0 var(--danmaku-enter-y);
   animation: stardustNameGather 1200ms cubic-bezier(.16, 1, .3, 1) both;
 }
 .stardust-item[data-live-entry][data-stardust-entrance='on'] :is(.stardust-ornament, .stardust-event, .stardust-tail) {
   animation: stardustIgnite 750ms 650ms ease-out backwards;
 }
 @keyframes stardustCopyGather {
-  from { opacity: 0; filter: blur(2px); translate: 0 -12px; }
-  to { opacity: 1; filter: blur(0); translate: 0 0; }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-y: -12px; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
 @keyframes stardustNameGather {
-  from { opacity: 0; filter: blur(2px); translate: 0 24px; }
-  to { opacity: 1; filter: blur(0); translate: 0 0; }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 24px; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
-@keyframes stardustIgnite { from { opacity: 0; } }
+@keyframes stardustIgnite { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes stardustTwinkle { 0%, 100% { opacity: .45; } 50% { opacity: 1; } }
 @keyframes stardustMemberTwinkle { 0%, 100% { opacity: .75; } 50% { opacity: 1; } }
 @keyframes stardustOrbit {

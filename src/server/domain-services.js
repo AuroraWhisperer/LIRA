@@ -88,7 +88,6 @@ function createDomainServices(options) {
     toggle: (id) => songService.toggleSong(songStore, id),
     pickRandom: (scopeText) => songService.pickRandomSong(songStore, scopeText,
       (candidates) => queueService.filterSongsByCooldown(queueContext, candidates)),
-    describeRandomScope: (scopeText) => songService.describeRandomSongScope(songStore, scopeText),
   };
 
   const queueContext = {
@@ -135,6 +134,7 @@ function createDomainServices(options) {
       typeof options.remoteGiftCatalog?.fetch === 'function' && options.dataDir
         ? createHybridGiftSaleCatalogService({
             local: localOvertimeGiftCatalog,
+            visitAssetReferences: options.visitAssetReferences,
             dataDir: options.dataDir,
             fetchRemote: options.remoteGiftCatalog.fetch,
             onUpdated: options.remoteGiftCatalog.onUpdated,
@@ -216,7 +216,6 @@ function createDomainServices(options) {
       cancelQueueItem: input => queue.cancel(input),
       resolveSongRequest: name => songs.findUniqueNameMatch(name),
       pickRandomSong: scope => songs.pickRandom(scope),
-      describeRandomSongScope: scope => songs.describeRandomScope(scope),
       recordRequestResult: input => queue.recordRequestResult(input),
       customReplies,
     });

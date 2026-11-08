@@ -193,7 +193,7 @@ test('preview plays every sample once per round with one timer and stops on clos
   assert.equal(f.renders.at(-1).length, 0, 'examples must arrive incrementally instead of as a snapshot');
   assert.equal(f.appends.length, 1);
   assert.equal(f.timeouts.size, 1);
-  f.advance(1599);
+  f.advance(1230);
   assert.equal(f.appends.length, 1);
   f.advanceMessages(1);
   assert.equal(f.appends.length, 2);

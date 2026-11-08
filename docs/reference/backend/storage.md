@@ -60,9 +60,10 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 汇总覆盖的贡献；同 epoch 重建保留，换 epoch、清空来源或删除许愿时清除对应贡献。
 日汇总不能还原升级前已物理删除的非整日明细，迁移不推测其数量。
 
-`gift-wish-store.countMany` 按相同起止时间分组，一次读取当前 retention 活动快照，
-每组分别聚合明细、完整日和按 wish_id 分组的非整日贡献；单项 count 复用该入口。
-长效条目的创建时间不同时仍保留独立窗口，不用统一日期替代精确起点。
+`gift-wish-store.countMany` 一次读取当前 retention 活动快照，在同一来源内分别用一次
+查询聚合明细、完整日和非整日贡献；每项条件保留自己的精确起止时间与礼物身份，
+活动成员核验由明细共享扫描执行。不同创建时间的长效条目不重复扫描重叠区间，
+也不用统一日期替代精确起点。日汇总和贡献仍按各自窗口排除已覆盖的数量；单项 count 复用该入口。
 
 [gift-retention-store.js](../../../src/storage/gift-retention-store.js) 将页和检查点同事务提交，
 校验固定 epoch、revision、coverage、令牌及 projection generation；下载完成后原子
@@ -108,7 +109,7 @@ songDb v17 通过 `migrateDanmakuAppearance` 追加 `danmaku_appearances(owner_s
 失败不写默认值，已有本地行不再接受远端覆盖。重启及切回账号读取各自配置，
 退出账号不删除记录；本地 API 的授权 generation binding 不进入持久格式。
 
-文本框的用户上传图片由 [scene-text-images.js](../../../src/server/scene-text-images.js) 保存在 `dataDir/scene-text-images/`，属于持久素材，不进入可清理的礼物图片缓存。文件名由服务生成 UUID v4，扩展名仅 png/jpg/gif/webp；单文件上限 5 MiB，原字节保留动画，以同目录独占临时文件写入后重命名，失败清理临时文件。场景结构化 token 仅保存本地图片路径，不保存原始文件路径或二进制；删除 token 或放弃草稿不自动删除素材，防止破坏已发布场景的引用。当前没有自动清理策略；上传/读取权限见 [HTTP API](api.md#本地场景)。
+文本框的用户上传图片由 [scene-text-images.js](../../../src/server/scene-text-images.js) 保存在 `dataDir/scene-text-images/`，属于持久素材，不进入可清理的礼物图片缓存。文件名由服务生成 UUID v4，扩展名仅 png/jpg/gif/webp；单文件上限 5 MiB，原字节保留动画，以同目录独占临时文件写入后重命名，失败清理临时文件。场景结构化 token 仅保存本地图片路径，不保存原始文件路径或二进制；删除 token 或放弃草稿不立即删除素材，防止破坏已发布场景的引用。无引用旧文件遵循下述[文件回收](#文件回收)；上传/读取权限见 [HTTP API](api.md#本地场景)。
 
 songDb 的 v8 迁移通过 `scene-migration.js` 新增 `component_scenes`，不改写旧表。列为 `id`、`owner_scope`、`draft_json`、`revision`、`published_json`、`published_version`、`capability_version`、`capability_hash`、`capability_encrypted`；按 owner_scope 建索引。草稿与发布 JSON 均限制为 256KiB。`scene-store.js` 用单条带归属和期望版本条件的 UPDATE/RETURNING 原子提交；失败不改变旧行。
 
@@ -152,7 +153,7 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 
 索引合同仍为 v1，无需迁移。`component-style-index.js` 在主索引提交后保存同内容的 `index.backup.json`；副本失败只报告恢复能力降级，不回滚已提交的安装。旧库首次读取会补齐副本。主索引缺失、损坏或结构无效时，从有效副本恢复；损坏原件保留为 `index.damaged-<UUID>.json`，`index.recovery.json` 记录恢复提示。两份均不可用时返回 503，不重建空库；高于当前支持版本的索引拒绝读取，不用旧副本降级。每包 `package.json` 是导入快照，后续参数以索引及其恢复副本为准。
 
-同一素材根目录共享已验证的索引缓存。每次读取检查主索引与副本的文件身份、大小和纳秒修改/状态时间；未变化时不再重复读取及解析 JSON。全量 `read()` 返回独立副本；内部 `createStyleReader()` 创建时验证一次索引，返回按 `(id,type)` 取独立样式副本的函数。一次公共外观请求复用同一 reader 和稳定快照，仅复制所选样式；类型与 ID 索引随已验证索引变化重建，包含 removed 历史并保留首个匹配。索引写入立即更新缓存，下一次读取或创建 reader 时，外部改动或文件缺失重新进入上述校验与恢复流程；副本降级期间继续尝试修复。
+同一素材根目录共享已验证的索引缓存。每次读取检查主索引与副本的文件身份、大小和纳秒修改/状态时间；未变化时不再重复读取及解析 JSON。全量 `read()` 返回独立副本；内部 `createStyleReader()` 创建时验证一次索引，返回按 `(id,type)` 取独立样式副本的函数。一次公共外观请求复用同一 reader 和稳定快照，仅复制所选样式；类型与 ID 索引随已验证索引变化重建，包含 removed 历史并保留首个匹配。内部 `listMediaStyleIds(type)` 复用当前索引派生的媒体样式 ID 集合，包含 removed 历史，只返回独立 ID 数组，礼物触发无需复制各样式配置。索引写入立即更新缓存，下一次读取或创建 reader 时，外部改动或文件缺失重新进入上述校验与恢复流程；派生索引随文件指纹变化、已提交写入和备份恢复失效；副本降级期间继续尝试修复。
 
 上传及 ZIP 检查只写 `.pending-<UUID>/`；确认时将整个目录 rename 为最终 UUID，再原子更新索引；索引失败则移回暂存。操作失败或显式取消清理本次暂存。打开库时回收超过 24 小时、且未被本进程导入占用的暂存和索引临时文件；同一目录每小时至多扫描一次，避免场景持续读取触发重复遍历。链接或被锁定文件保留。未登记的正式 UUID 目录保留供核对，不自动删除。
 
@@ -167,6 +168,20 @@ capability_hash 为随机 256 位 token 的 SHA-256，capability_encrypted 保�
 专用备份由 `component-library-transfer.js` 编排资源 ZIP，`scene-transfer.js` 只导出当前账号的显示文档并负责新的场景凭据，场景批量插入由 `scene-store.js` 的 savepoint 事务提交。不改变任何表或索引版本。归档参数来自最新索引，文件保留原相对路径并记录 SHA-256；恢复重映射包、样式、文本框图片及场景身份。恢复副本 ID 由归档摘要、来源 ID（场景另含当前账号的 scope 摘要）确定，重复恢复不会覆盖既有副本上的修改。素材包名加「备份」，作者 ID 使用 `backup.` 命名空间，避免与原安装包或当前参数冲突；版本号保持不变。先登记隐藏素材，再事务创建未发布场景，最后恢复库可见性；失败可用同一备份安全续作，隐藏无引用资源可清理。原直播绑定、原场景和凭据均不覆盖。外部浏览器源、电脑本地加班机背景路径、未保存草稿及业务数据不导出；导入的本地 HTML/CSS 及其配套资源随包迁移。
 
 `component-library-maintenance.js` 盘点实际磁盘体积；每次盘点构建已登记目录集合，每次清理按当次盘点构建条目索引，避免为每个目录或选中包重复扫描整库，不跨请求缓存盘点结果。手动清理重新检查所有账号的保存/发布文档（经场景 owner 解密）、预览中保存/未保存配置及待处理编辑命令，并保留可见样式的依赖。缺失正在使用的资源、索引故障、恢复副本不可写、引用解密失败或目录链接都会阻止清理。仅整包已移除或全部成员已移除且无引用的目录可回收；先 rename 为 `.purged-<UUID>` 再删除，失败可再次检查，异常残留沿用 24 小时回收规则。保留索引中的历史身份、参数和分类，重新导入完全相同的 ZIP 可补回原 UUID 的文件。
+
+## 文件回收
+
+[file-retention.js](../../../src/shared/file-retention.js) 只处理 owner 明确匹配的普通文件，逐级拒绝链接目录，删除前重新核对文件身份、大小和修改时间。未知名称、符号链接、仍受保护的文件及锁定文件保留；回收失败不阻断正常使用。不对整个 data、browser、数据库、账号凭据或音频路由恢复记录实施容量淘汰。
+
+| 内容 | 触发及保留规则 | owner |
+| --- | --- | --- |
+| 文本框上传图片、开播音乐和角色素材 | 上传、清空选择或访问素材管理时检查，每个数据目录每小时最多一次；只回收生成名称匹配、超过 30 天且无引用的文件。被引用文件的维护时间每日最多刷新一次，最近上传继续保留；生成的 `.tmp` 残留保留 24 小时。设置提交失败只删除本次尚未选中的新上传，原选择不变。 | [uploaded-media-retention.js](../../../src/server/uploaded-media-retention.js)、[opening-service.js](../../../src/server/opening-service.js) |
+| 礼物图片 | 复用礼物初始化完成后的完整目录做检查，每小时最多一次；保护当前目录、历史 last-good 映射、全账号场景/素材配置、未保存预览、下载与近期使用文件。只淘汰 LIRA 生成名称的无引用图片：30 天后回收；对应文件总量超过 512 MiB 时，额外淘汰至少 24 小时未用的最旧候选。受保护和近期文件可超过此预算，不牺牲离线回退。HTTP 实际读取及维护保留每日最多刷新一次修改时间。索引不可读且已有图片时，本次进程停止图片淘汰。 | [remote-gift-image-cache.js](../../../src/bilibili/gift/remote-gift-image-cache.js)、[gift-catalog-initializer.js](../../../src/bilibili/gift/gift-catalog-initializer.js) |
+| 礼物缓存临时文件 | 缓存实例创建时回收超过 24 小时、符合原子写入命名的临时文件；不清理其他未知 `.tmp`。 | 同上 |
+| 公共资源下载残留 | 初始化/显式重试时清理超过 24 小时的生成临时文件和字体下载 ZIP；正式摘要文件、旧版本 URL 与旧字体兼容缓存继续保留。 | [resource-library.js](../../../src/resources/resource-library.js) |
+| 音频组件准备残留 | 准备组件时清理超过 24 小时的 `.prepare-*` 目录；目录及所有子项均须超过期限且不含链接。当前/旧正式版本、legacy 与恢复记录不参与清理。 | [audio-component-files.js](../../../src/electron/audio-component-files.js) |
+
+[local-asset-references.js](../../../src/server/local-asset-references.js) 复用场景 owner 的全账号草稿/发布文档解密与预览 owner 的已保存、未保存配置和在途命令，补充本机设置及素材库配置。任一引用或索引不可读、其他预设存在无法完整取得的未保存修改、素材导入/备份在途时保守跳过。文本图片备份另对实际图片路径加占用保护，直到流结束或取消。自动维护不增加服务器/CDN 请求，也不改变素材包的显式清理入口；导入包仍由上节的引用检查和用户清理操作回收。
 
 ## 1. 技术选型
 
@@ -255,7 +270,7 @@ songDb v13 由 [fan-song-migration.js](../../../src/storage/fan-song-migration.j
 
 `fan-record-store` 在写入、档案读取、完整备份导出及启动/每小时 retention 时清理早于上海当天及前 29 天的 `dailyCounts`，保留累计次数和最近三个日期；时钟回退产生的未来日期桶暂存，但不计入当前展示。档案表不参与 clear-all。自动恢复点按 `created_at DESC, rowid DESC` 每个 scope 保留两份，由 [fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js) 清理。新快照插入、旧快照清理及恢复/合并处于同一事务，失败时原档案和恢复点均回滚。
 
-完整备份 `lira-fan-profiles` 导出 v2，接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。完整替换在同一事务内先验证导入集合与保留档案的最终身份唯一性，统一释放明确批准替换的档案后再恢复，支持档案间 UID 互换；失败连同恢复点一起回滚。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
+完整备份 `lira-fan-profiles` 导出 v2，接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。完整替换在同一事务内先验证导入集合与保留档案的最终身份唯一性，通过 `removeMany(scope, ids)` 分批释放明确批准替换的档案，仅清理一次无引用名单模板后再恢复，支持档案间 UID 互换；失败连同恢复点一起回滚。保留档案、其他账号和当前抑制标记不参与批量删除。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
 
 songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-roster-observation-migration.js) 为 `fan_records` 增加可空的 `roster_template_id` 外键。只压缩从未修订、仍被采用且未排除的纯自动名单观察，将除 `observedAt` 外的重复 JSON 保存一次；读取按记录时间完整还原，ID、sourceKey、历史判断和备份格式不变。编辑时在事务中展开原始依据并解除引用；删除、恢复与合并后回收无引用模板。人工记录、手动同步和真实购买事实不参与压缩。每个真实观察日期仍有一条小记录，因此这是无损去重，不是历史数量上限。
 
@@ -341,6 +356,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 三个抽奖 store 通过 `dynamic-lottery-transaction.js` 复用同步事务包装，各自仍拥有连接和事务范围。BEGIN 失败直接抛出；操作或 COMMIT 失败尝试一次 ROLLBACK，并重新抛出原错误对象，保留原 code/cause。ROLLBACK 也失败时附加 `rollbackError`，不覆盖原 cause；不添加异步事务、自动重试或跨库事务。
 
+候选资格与人数统计通过 `getEvidence(scanId, {includeContent:false})` 仅读取来源、记录 ID、UID 和发生时间，保持原证据顺序；默认完整证据 DTO、中奖评论/昵称联表投影不变。状态服务只保留当前授权身份、任务/revision、scan 的一份候选人数，按 store 的 `total_changes()` 与 `PRAGMA data_version` 变更标记复用；本连接写入或其他连接提交后失效，事务内不复用或保存未提交人数。已冻结结果直接取保存的候选数量，开奖仍独立冻结完整随机顺序。结果查询仅在 `paused` 状态查找最后暂停事件。
 
 | 表 | 用途 | 关键约束 |
 | --- | --- | --- |
@@ -398,7 +414,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 `gift-maintenance-store.deleteGiftsWithSettlements` 将待删除 ID 按每批 1000 个参数执行，所有批次仍在同一个 `BEGIN IMMEDIATE` 事务内。删除前将关联 pending 结算置为 ignored，任一批失败则整体回滚；dry-run 只统计候选行，不改礼物或结算状态。
 
-旧本地礼物的自动/手动保留期清理改走 `deleteExpiredLocalBatch`，仅选择 `source_id IS NULL`、早于期限的最多 1000 行；利用已有 `idx_gift_events_created_at` 顺序读，避免每批按 source 索引全量排序。批大小沿用上述参数预算，每一批礼物删除与 pending 结算失效在同一事务提交，批内失败全部回滚，之前已完成的批次保留。`applyRetentionPolicies` 仍同步返回当批计数及 `hasMoreGiftEvents`；自动维护有积压时每隔 25ms 续批并重读开关/策略，停止时撤销续批。手动 HTTP 在批次间让出事件循环，固定策略与开始时间，累计完成后响应；其在途请求由正常 shutdown drain 等待完成，不会在数据库关闭后继续。远程投影的清理路径、dry-run 全量统计和显式全量清空的原子性不变。
+旧本地礼物的自动/手动保留期清理改走 `deleteExpiredLocalBatch`，仅选择 `source_id IS NULL`、早于期限的最多 1000 行；利用已有 `idx_gift_events_created_at` 顺序读，避免每批按 source 索引全量排序。批大小沿用上述参数预算，每一批礼物删除与 pending 结算失效在同一事务提交，批内失败全部回滚，之前已完成的批次保留。`applyRetentionPolicies` 仍同步返回当批计数及 `hasMoreGiftEvents`；首批完成全部维护，续批由内部 `giftEventsOnly:true` 仅继续礼物删除，原始报文检查、粉丝歌曲日计数精简及其他表清理不会随礼物批数重复执行，SC 撤销历史也只在首批清除。自动维护有积压时每隔 25ms 续批并重读开关/策略，停止时撤销续批。手动 HTTP 在批次间让出事件循环，固定策略与开始时间，累计完成后响应；其在途请求由正常 shutdown drain 等待完成，不会在数据库关闭后继续。远程投影的清理路径、dry-run 全量统计和显式全量清空的原子性不变。
 
 ## 6. 清库操作
 
@@ -549,8 +565,8 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | `weSingCachePath` 为 Windows APPDATA 下 Tencent/WeSing/WeSingCache（否则空）、`weSingLyricOffsetMs='0'` | 本机路径/时钟，不同步 | 目录选择 IPC 只返回路径，HTTP 保存先 prepare 再写库；[wesing-cache.js](../../../src/music/wesing-cache.js) 校验绝对目录与偏移 |
 | `giftFrameEnabled='false'`、`giftFrameThresholdRmb='20'` | 林间花信的专属开关/金额，不加入云设置范围；缎带旧设置保留历史行但不再读取或写入 | 设置 HTTP → gift frame/overlay；[frame-config.js](../../../src/bilibili/gift/frame-config.js) |
 | `giftFrameStyleTriggers=''` | 导入的全屏礼物感谢图片/视频样式的独立开关/金额：JSON 对象，键为样式 UUID，值 `{enabled,thresholdRmb}`（`enabled` 为 `'true'` 或 `'false'`），最多 1000 条，非法值整份拒绝。`''` 表示尚未迁移，所有导入图片/视频沿用升级前规则跟随林间花信；已迁移后缺少条目视为关闭、20 元。启动时仅当值为 `''` 且样式库可读才迁移一次：为库中全部（含已移除）图片/视频样式写入当时的林间花信开关与金额；样式库不可读则保持 `''` 并在下次启动重试。不加入云设置范围 | 设置 HTTP → gift frame；[frame-config.js](../../../src/bilibili/gift/frame-config.js)、[gift-frame-style-triggers.js](../../../src/server/gift-frame-style-triggers.js) |
-| `giftDropEnabled='false'`、`giftDropThresholdRmb='0'`、`giftDropSize='96'`、`giftDropDurationSeconds='20'`、`giftDropSpeed='100'`、`giftDropBounce='18'` | 本机礼物掉落；大小 32–240px，存活 3–120 秒，速度 50–200%，弹跳力度 0–80%（0 不反弹），均为整数；金额非负、包含门槛，0 表示所有正金额结算。速度与弹性不改变到期时刻，不加入云设置范围 | 设置 HTTP → [motion-config.js](../../../src/bilibili/gift/motion-config.js) → final 展示事件 |
-| `giftSwingEnabled='false'`、`giftSwingThresholdRmb='0'`、`giftSwingSize='150'`、`giftSwingDurationSeconds='20'`、`giftSwingAngle='24'`、`giftSwingSpeed='100'`、`giftSwingTextMode='full'` | 本机礼物摇摇乐；大小 64–280px，存活 3–120 秒，摆幅 5–45 度，速度 50–200%，均为整数；文字仅接受 `full`（昵称、礼物和数量）、`gift`（礼物和数量）、`none`（仅图片）。独立金额/开关，不加入云设置范围 | 设置 HTTP → 同一 motion owner；缺少新字段时沿用原效果，无新表或迁移 |
+| `giftDropEnabled='false'`、`giftDropThresholdRmb='0'`、`giftDropQuantityMultiplier='4'`、`giftDropSize='96'`、`giftDropDurationSeconds='20'`、`giftDropSpeed='100'`、`giftDropBounce='18'` | 本机礼物掉落；数量倍率 1–8 倍，只放大图片数量，不改变实际送礼数量；大小 32–240px，存活 3–120 秒，速度 50–200%，弹跳力度 0–80%（0 不反弹），均为整数；金额非负、包含门槛，0 表示所有正金额结算。倍率、速度与弹性不改变到期时刻，不加入云设置范围 | 设置 HTTP → [motion-config.js](../../../src/bilibili/gift/motion-config.js) → final 展示事件 |
+| `giftSwingEnabled='false'`、`giftSwingThresholdRmb='0'`、`giftSwingSize='150'`、`giftSwingDurationSeconds='20'`、`giftSwingAngle='36'`、`giftSwingSpeed='150'`、`giftSwingTextMode='full'` | 本机礼物摇摇乐；大小 64–280px，存活 3–120 秒，摆幅 5–45 度，速度 50–200%，均为整数；新默认摆幅与速度均为原默认的 1.5 倍，已有保存值保持原值。文字由送礼人、礼物名、数量三个独立勾选项映射为 `full`（全部）、`gift`（礼物名和数量）、`none`（均不显示）、`name`、`gift-name`、`quantity`（分别只显示一项）、`name-gift`、`name-quantity`。独立金额/开关，不加入云设置范围 | 设置 HTTP → 同一 motion owner；复用既有文字字段，旧三种模式含义不变，无新表或迁移 |
 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`（四键默认 `''`） | 两套本地开关与文字独立保存，不加入云设置范围。空值继承旧配置：仅 `guardThanksStyle` 指定的风格继承旧开关，两者继承旧文字；独立保存后该风格不再受旧键影响。旧默认仍为 `false/bilingual/aurora`，新安装两套均关闭。无数据库结构迁移 | 设置 HTTP → 每个启用风格的 `gift:guard-thanks`/overlay；[guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)、[共用兼容解析](../../../public/js/shared/guard-thanks-settings.js) |
 | `guardThanksNauticalEnabled`（默认 `''`） | 航海旗帜本地开关，`true/false` 独立生效；空值兼容任一内置感谢已启用的旧行为。新安装保持关闭，不加入云设置范围 | 同一 final 上舰行投影为专属 `style:nautical` 场景事件，不广播给旧独立礼物特效页，不触发其他样式 |
 | `openingEnabled='false'`、openingAudioFile/Name、openingCharacterFile/Name、openingPixelCharacterFile/Name | 本机上传素材与开播展示；每次 bootstrap 强制关闭 openingEnabled | 专属上传/删除路由保存素材路径，普通设置不是任意路径导入；目录见本文件 §1 |
@@ -622,7 +638,7 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `gift-query-store.js` 的 `readHistoryPage` 在同一事务内读取总数和页面，按连接保留最多 64 个筛选计数。缓存包含来源、全部筛选/时间参数，并以 `total_changes()`、`data_version`、`schema_version` 失效；任何同连接写入或外部提交均需重新计数，只在成功提交后发布缓存。`asOf` 不承诺排除回填，跨页版本改变时返回当前读快照的新总数。缓存随数据库连接释放，不跨连接复用。
 
-`readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，再分别按总计、礼物身份和北京时间分桶聚合，保留各组原有金额与数量计算。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
+`readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，数量、总价、单价和已知盲盒成本各归一化一次，供总计、礼物身份和北京时间分桶聚合复用。金额精度、数量安全整数及汇总溢出校验保持不变；非盲盒行不归一化无用途的盲盒成本。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
 
 冲刺与当天盲盒缓存的修订由 `gift-aggregate-changes.js` 按数据库连接共享：TEMP 单行计数与触发器分别跟踪冲刺、盲盒的实际输入。礼物更新只在原行或新行满足该统计资格、且查询输入字段改变时推进相应计数；冲刺结转和本机盲盒归档分别推进所属计数。同步校验时间、投递标记等无关写入不使聚合失效，普通礼物不使盲盒缓存失效。计数随事务回滚；事务内读取不安装追踪或复用缓存，首次事务外读取才初始化。令牌含连接追踪实例身份，并以 `data_version` 对其他连接提交保守失效；连接关闭即销毁 TEMP 状态，不新增持久 schema 或迁移。
 

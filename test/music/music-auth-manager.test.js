@@ -190,10 +190,17 @@ test('music cookie snapshots are encrypted, restore only allowed cookies and rep
   assert.equal(partition.set[0].value, 'synthetic-music-secret');
   assert.equal(partition.set[0].domain, '.qq.com');
 
+  const decryptions = t.mock.method(safeStorage, 'decryptString');
+  assert.equal((await authManager.getMusicSessionState('qq')).loggedIn, true);
+  partition.cookieList = [];
+  assert.equal((await authManager.getMusicSessionState('qq')).loggedIn, false, 'session reads stay fresh after Cookie changes');
+  assert.equal(decryptions.mock.calls.length, 0, 'session checks never decrypt the stored snapshot');
+
   const state = await authManager.getMusicAuthState('qq', dataDir);
   assert.equal(state.encryptedSnapshotExists, true);
   assert.equal(state.lastSavedAt, saved.savedAt);
   assert.equal(JSON.stringify(state).includes('synthetic-music-secret'), false);
+  assert.equal(decryptions.mock.calls.length, 1, 'full public state still reads the snapshot metadata');
 
   safeStorage.available = false;
   assert.equal(await authManager.restoreMusicCookieSnapshot('qq', dataDir), null);

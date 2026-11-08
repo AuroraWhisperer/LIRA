@@ -32,7 +32,6 @@ body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item {
   font-family: var(--danmaku-custom-font, var(--danmaku-ui-font));
   clip-path: none;
   animation: none;
-  will-change: transform;
 }
 body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor']) {
   --floating-background: #353535;

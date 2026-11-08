@@ -23,6 +23,7 @@ let superChatUndoHideTimer = null;
 let superChatActions = Promise.resolve();
 let superChatUndoRevision = 0;
 let queueHeadId = null;
+const queueRenderSignatures = new WeakMap();
 
 function initQueueForm() {
   document.getElementById('superChatUndoBtn')?.addEventListener('click', () => {
@@ -137,8 +138,10 @@ function renderState(appState) {
 function renderQueueState(queue = {}, settings = {}) {
   const queueItems = [queue.current, ...(queue.waiting || [])].filter(Boolean);
   queueHeadId = queueItems[0]?.id ?? null;
-  document.getElementById('queueSize').textContent = `${queueItems.length} 首`;
   const list = document.getElementById('queueList');
+  const signature = JSON.stringify([queueItems, queueItems.length ? null : [settings.paused, settings.danmakuMonitoringEnabled]]);
+  if (queueRenderSignatures.get(list) === signature) return;
+  document.getElementById('queueSize').textContent = `${queueItems.length} 首`;
   if (queueItems.length === 0) {
     const paused = settings.paused === true || settings.paused === 'true';
     const monitoringOff = settings.danmakuMonitoringEnabled === false || settings.danmakuMonitoringEnabled === 'false';
@@ -208,6 +211,7 @@ function renderQueueState(queue = {}, settings = {}) {
     });
   });
   bindQueueCopyButtons(list, '歌名已复制');
+  queueRenderSignatures.set(list, signature);
 }
 
 function renderSuperChatQueue(items) {

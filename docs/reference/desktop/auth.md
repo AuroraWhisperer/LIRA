@@ -59,6 +59,8 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`。
 
+内部 `getMusicSessionState(platform)` 与 `getBilibiliSessionState()` 每次读取当前 Electron 分区中允许的 Cookie，使用上述登录判断，只返回会话状态字段，不读取或解密 Cookie 快照。完整 `getMusicAuthState` / `getBilibiliAuthState` 复用该判断后补充 `encryptedSnapshotExists`、`lastSavedAt` 和 `encryptionAvailable`；对外状态字段与快照读取语义不变。
+
 ## 5. Cookie 快照加密(唯一成文处)
 
 ### 5.1 持久化
@@ -108,7 +110,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 内部 `getBilibiliSessionRevision()` 只读暴露既有 Bilibili 账号操作 generation，由主进程注入后端认证 provider 的 `getSessionRevision`。代次在账号操作开始时推进，使此前准入的 AI 任务失效；操作开始后的新任务捕获新代次与当前 UID。该能力不暴露给 renderer 或 IPC，不增加凭据存储或独立认证状态。验证见 [desktop-auth-diagnostics.test.js](../../../test/desktop/desktop-auth-diagnostics.test.js) 和 [AI 会话回归](../../../test/ai/ai-assistant-session.test.js)。
 
-随机点歌通过私有 `getRequestIdentity` / `getIdentityRevision` 注入能力复核真实登录身份：`desktop-auth-controller` 在恢复、导入、退出完成及当前登录窗口的状态读取中记录 UID／登录状态变化，同账号 Cookie 替换和仅打开登录窗口不推进身份代次。`getBilibiliRequestIdentity()` 等当前非交互写入完成后读取状态，读期间账号操作或身份变化则重新读取，避免把 Cookie 替换的临时空分区当作退出；原 `getBilibiliAuthState()`、AI 操作代次和 IPC 返回值保持不变。窗口内状态读取不等待写队列，旧窗口取消后的读取不再更新身份。随机点歌在异步读取后、入队前检查该代次及独立的房间变化代次，见 [随机点歌 API](../backend/api.md#8-播放队列域queue)。
+随机点歌通过私有 `getRequestIdentity` / `getIdentityRevision` 注入能力复核真实登录身份：`desktop-auth-controller` 在恢复、导入、退出完成及当前登录窗口的状态读取中记录 UID／登录状态变化，同账号 Cookie 替换和仅打开登录窗口不推进身份代次。`getBilibiliRequestIdentity()` 等当前非交互写入完成后通过 `getBilibiliSessionState()` 读取当前身份，不读取快照元数据；读期间账号操作或身份变化则重新读取，避免把 Cookie 替换的临时空分区当作退出；原 `getBilibiliAuthState()`、AI 操作代次和 IPC 返回值保持不变。窗口内状态读取不等待写队列，旧窗口取消后的读取不再更新身份。随机点歌在异步读取后、入队前检查该代次及独立的房间变化代次，见 [随机点歌 API](../backend/api.md#8-播放队列域queue)。
 
 ## 8. 会话恢复时序
 
@@ -128,12 +130,14 @@ restoreMusicCookieSnapshots()    # Object.keys(MUSIC_LOGIN_CONFIG) → qq → ne
 
 | 机制                 | 说明                                                                                      | 出处                                                                   |
 | -------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| cookie change 主路径 | `cookies.on('changed')` 在没有进行中认证读取时立即 `getAuthState()`；重叠事件合并，并触发 800ms 防抖快照落盘 | [music-login-window.js](../../../src/electron/music-login-window.js) |
+| cookie change 主路径 | `cookies.on('changed')` 在没有进行中认证读取时立即读取当前 session 状态；重叠事件合并，并触发 800ms 防抖快照落盘 | [music-login-window.js](../../../src/electron/music-login-window.js) |
 | 1.5s 轮询安全网      | `setInterval(checkLoginComplete, 1500)` 兜底(防止漏掉 cookie 事件)                        | [music-login-window.js:73](../../../src/electron/music-login-window.js#L73)        |
 | 自动关闭             | 检测到 `loggedIn` → 登录窗自动 `close()`                                                  | [music-login-window.js:52-61](../../../src/electron/music-login-window.js#L52-L61) |
-| 最终快照             | 窗口 `closed` 时强制 persist 一次,随 promise resolve `{snapshot, state}`                  | [music-login-window.js:75-89](../../../src/electron/music-login-window.js#L75-L89) |
+| 最终快照             | 窗口 `closed` 时强制 persist 一次，再读取含快照元数据的完整 auth state，随 promise resolve `{snapshot, state}` | [music-login-window.js](../../../src/electron/music-login-window.js) |
 
 音乐与 Bilibili 均由 `loginCheckInFlight` 保证同一窗口最多一次未完成的认证检查；读取失败后释放标记，后续 Cookie 事件或 1.5s 轮询重试。音乐窗口仅记录固定失败诊断，不输出 Cookie 或异常详情。窗口销毁后不再开启检查；最终关闭快照/状态读取保持独立。Bilibili 另带 `loginCloseRequested` 防止重复自动关闭(见 [windows.md](windows.md) §3)。
+
+完成检测分别调用 §4 的 `getMusicSessionState` / `getBilibiliSessionState`，不因检测重复读取或解密备份。Bilibili 通用窗口兼容仅提供 `getBilibiliAuthState` 的注入适配器；抽奖和到期同步的独立账号适配器本身只读取各自 session，不调用直播账号的完整状态读取。
 
 ## 10. Cookie → API 请求头
 

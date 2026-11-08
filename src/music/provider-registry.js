@@ -1,5 +1,6 @@
 'use strict';
 
+const { createHash } = require('node:crypto');
 const { NeteaseMusicProvider } = require('./providers/netease-provider');
 const { QQMusicProvider } = require('./providers/qq-provider');
 
@@ -20,6 +21,7 @@ function normalizeMusicPlatform(value) {
 function createMusicProviderRegistry(options = {}) {
   const authStateProvider = typeof options.getAuthState === 'function' ? options.getAuthState : () => null;
   const cookieHeaderProvider = typeof options.getCookieHeader === 'function' ? options.getCookieHeader : () => '';
+  const authorization = new Map();
 
   const providers = {
     qq: new QQMusicProvider({
@@ -38,6 +40,16 @@ function createMusicProviderRegistry(options = {}) {
     },
     list() {
       return Object.values(providers);
+    },
+    async getAuthorizationRevision(platform) {
+      const source = normalizeMusicPlatform(platform);
+      const cookie = await providers[source].getSafeCookieHeader();
+      const signature = createHash('sha256').update(cookie).digest('hex');
+      const previous = authorization.get(source);
+      if (previous?.signature !== signature) {
+        authorization.set(source, { signature, revision: (previous?.revision || 0) + 1 });
+      }
+      return authorization.get(source).revision;
     },
     async healthCheck(platform) {
       if (platform) return providers[normalizeMusicPlatform(platform)].healthCheck();

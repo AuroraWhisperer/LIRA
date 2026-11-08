@@ -7,7 +7,7 @@ const { now, cleanText, cleanTextPreserveLines, getInitial } = require('../share
 const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('./song-import-schema');
 const songInitialCollator = new Intl.Collator('zh-Hans-CN');
 const songNameCollator = new Intl.Collator('zh-Hans-CN-u-co-pinyin');
-const { filterRandomSongCandidates, describeRandomSongScope, randomLanguageAliases } = require('./random-song-filter');
+const { filterRandomSongCandidates, randomLanguageAliases } = require('./random-song-filter');
 const {
   splitSongLanguages,
   splitSongArtists,
@@ -223,10 +223,6 @@ function listRandomSongCandidates(store, scopeText) {
   return filterRandomSongCandidates(store.listRandomRows(), normalizeRandomScopeText(scopeText));
 }
 
-function describeRandomSongScopeInLibrary(store, scopeText) {
-  return describeRandomSongScope(store.listRandomRows(), normalizeRandomScopeText(scopeText));
-}
-
 module.exports = {
   SONG_EXPORT_HEADERS,
   SONG_IMPORT_ALIASES,
@@ -245,7 +241,6 @@ module.exports = {
   normalizeImportedSongRow,
   pickRandomSong,
   listRandomSongCandidates,
-  describeRandomSongScope: describeRandomSongScopeInLibrary,
   randomLanguageAliases,
   normalizeRandomScopeText,
   randomSourceValue,

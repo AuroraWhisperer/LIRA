@@ -3,11 +3,10 @@
 .gift-drop-item { position: absolute; top: 0; left: 0; transform-origin: center; }
 .gift-motion-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .gift-motion-count { position: absolute; right: -4px; bottom: 0; padding: 2px 7px; border-radius: 8px; background: #fff5fb; color: #a42958; font: 700 18px/1.3 'Microsoft YaHei', sans-serif; box-shadow: 0 2px 5px #34131b40; }
-.gift-swing-item { position: absolute; font-family: 'Microsoft YaHei', sans-serif; }
+.gift-swing-item { position: absolute; transform-origin: 50% 100%; font-family: 'Microsoft YaHei', sans-serif; }
 .gift-swing-item > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .gift-swing-item > svg path { fill: none; stroke: #e5eff8; stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 2px 2px #20334350); }
-.gift-swing-card { position: absolute; inset: 0 0 60px; transform-origin: 50% 100%; }
+.gift-swing-card { position: absolute; inset: 0 0 60px; }
 .gift-swing-caption { position: absolute; bottom: calc(100% + 10px); left: 50%; width: 190px; transform: translateX(-50%); text-align: center; font-size: 18px; line-height: 1.45; }
 .gift-swing-name { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: #fff; font-weight: 700; text-shadow: 0 2px 3px #1e253f, 0 0 2px #1e253f; }
 .gift-swing-detail { display: inline-block; max-width: 100%; padding: 1px 9px; border-radius: 5px; background: #fff0f6; color: #9b2d54; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; vertical-align: top; font-weight: 700; }
-.gift-swing-base { position: absolute; bottom: 0; left: calc(50% - 25px); width: 50px; height: 9px; border-radius: 50%; background: #e5eff8; box-shadow: 0 3px 5px #20334340; }

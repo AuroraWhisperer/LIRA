@@ -1,3 +1,5 @@
+import { setGuardIcon } from '../shared/bilibili-guard-icons.js';
+
 const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
 
 function mixedEntrance(item) {
@@ -36,12 +38,32 @@ export function createWindowMessageRenderer({ document, classNames }, render) {
     const avatar = root.querySelector(`.${classNames.avatar}`);
     const nameplate = element('span', 'window-nameplate');
     if (avatar) nameplate.append(avatar);
-    nameplate.append(...heading.children);
+    nameplate.append(heading.children[0]);
+    const sender = element('div', 'window-sender');
+    sender.append(nameplate);
+    if (guard) {
+      const icon = element('img', 'window-guard');
+      icon.alt = GUARDS[guard];
+      setGuardIcon(icon, guard);
+      sender.append(icon);
+    }
+    const medal = item.roomMedal;
+    if (medal?.name && Number.isSafeInteger(medal.level) && medal.level > 0) {
+      const badge = element('span', 'window-medal');
+      if (typeof medal.isLight === 'boolean') badge.dataset.lit = String(medal.isLight);
+      for (const [field, token] of [['colorStart', 'start'], ['colorEnd', 'end'], ['colorBorder', 'border'], ['colorText', 'text']]) {
+        const color = medal[field];
+        if (typeof color === 'string' && /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(color)) {
+          badge.style.setProperty(`--medal-${token}`, color);
+        }
+      }
+      badge.append(element('span', 'window-medal-name', medal.name), element('b', 'window-medal-level', String(medal.level)));
+      sender.append(badge);
+    }
     const controls = element('span', 'window-controls');
     controls.setAttribute('aria-hidden', 'true');
     controls.append(element('i', 'window-minimize'), element('i', 'window-close'));
-    heading.replaceChildren(nameplate, controls);
-    if (guard) nameplate.append(element('span', 'window-role', GUARDS[guard]));
+    heading.replaceChildren(sender, controls);
     body.classList.add('window-content');
     copy.classList.add('window-copy');
     if (gift) {

@@ -120,7 +120,7 @@ test('Glass event text follows the component scale without a second SC zoom', as
   const results = await page.evaluate(async () => {
     const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
     const { createLayout } = await import('/js/shared/danmaku-layout.js');
-    const { applyCanvas } = await import('/js/overlays/danmaku-canvas.js');
+    const { applyCanvas, canvasContentScale } = await import('/js/overlays/danmaku-canvas.js');
     const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
     document.body.dataset.style = 'glass';
     const render = createDanmakuMessageRenderer({ document, style: 'glass', classNames: DEFAULT_DANMAKU_CLASSES });
@@ -141,7 +141,7 @@ test('Glass event text follows the component scale without a second SC zoom', as
           const probe = document.createElement('span');
           probe.style.cssText = 'position:absolute;display:block;width:1em;height:1em';
           copy.append(probe);
-          result.push({ kind: card.dataset.glassKind, fontSize, scale,
+          result.push({ kind: card.dataset.glassKind, fontSize, contentScale: canvasContentScale(layout, 'glass'),
             paintedEm: probe.getBoundingClientRect().width, family: getComputedStyle(copy).fontFamily });
           probe.remove();
         }
@@ -151,7 +151,7 @@ test('Glass event text follows the component scale without a second SC zoom', as
   });
   for (const result of results) {
     const ratio = result.kind === 'chat' ? 1 : 12 / 11;
-    assert.ok(Math.abs(result.paintedEm - result.fontSize * result.scale * ratio) < 0.1, JSON.stringify(result));
+    assert.ok(Math.abs(result.paintedEm - result.fontSize * result.contentScale * ratio) < 0.1, JSON.stringify(result));
     assert.match(result.family, /Georgia/);
   }
 });
@@ -207,7 +207,7 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
     const { DANMAKU_STYLE_OPTIONS } = await import('/js/shared/danmaku-style-options.js');
     const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
     const { createLayout } = await import('/js/shared/danmaku-layout.js');
-    const { applyCanvas } = await import('/js/overlays/danmaku-canvas.js');
+    const { applyCanvas, canvasContentScale } = await import('/js/overlays/danmaku-canvas.js');
     const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
     const root = document.getElementById('feed');
     const results = [];
@@ -254,8 +254,12 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
             const probe = document.createElement('span');
             probe.style.cssText = 'position:absolute;display:block;width:1em;height:1em;padding:0;border:0';
             node.append(probe);
+            const senderStyle = style === 'astral' && kind !== 'chat'
+              ? getComputedStyle(cards[kind === 'gift' ? 1 : 2].querySelector('.astral-name')) : null;
             results.push({ style, fontSize, scale, kind, width: probe.getBoundingClientRect().width,
+              contentScale: canvasContentScale(layout, style),
               family: getComputedStyle(node).fontFamily,
+              ...(senderStyle ? { nameFamily: senderStyle.fontFamily, nameSize: parseFloat(senderStyle.fontSize) } : {}),
               ...(kind === 'superchat' && ['snowfox', 'moonlit'].includes(style)
                 ? { nameFamily: getComputedStyle(cards[2].querySelector('.sc-name')).fontFamily } : {}),
               ...(kind === 'gift' && style === 'dark-moon'
@@ -278,15 +282,19 @@ test('each style applies chosen text sizes and fonts through canvas scaling', as
       || kind === 'superchat' && ['ripploid', 'notebook'].includes(style)
       || kind === 'gift' && ['ripploid', 'spooky'].includes(style);
     const roleScale = style === 'animated-gradient' && kind === 'gift' ? 13 / 19
+      : style === 'astral' && kind === 'chat' ? 1.1
       : style === 'dark-moon' && kind === 'gift' ? 0.88 : style === 'christmas' && kind === 'gift' ? 0.92
+      : style === 'horizontal-charm' && kind !== 'chat' ? .85
       : style === 'glass' && kind !== 'chat' ? 12 / 11 : 1;
     const fontOffset = style === 'stardust' && kind !== 'chat' ? 2 : 0;
-    if (!nativeLettering) assert.ok(Math.abs(width - (fontSize + fontOffset) * scale * roleScale) <= 0.1, JSON.stringify(result));
+    if (!nativeLettering) assert.ok(Math.abs(width - (fontSize + fontOffset) * result.contentScale * roleScale) <= 0.1, JSON.stringify(result));
     if (!baselines.has(key)) baselines.set(key, result);
     const baseline = baselines.get(key);
     // RIPPLOID's gift ticket owns fixed lettering; chat and SC still use the text setting.
     const fontScale = style === 'ripploid' && kind === 'gift' ? 1 : (fontSize + fontOffset) / (baseline.fontSize + fontOffset);
     const expected = baseline.width * fontScale * scale;
     assert.ok(Math.abs(width - expected) <= 0.1, JSON.stringify({ ...result, expected }));
+    if (result.nameSize) assert.ok(Math.abs(result.nameSize - baseline.nameSize * fontScale) <= 0.1,
+      `${key} sender scales with the chosen text size`);
   }
 });

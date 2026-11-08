@@ -280,3 +280,25 @@ test('danmaku registers its shared controller and keeps account reset and single
   assert.equal(Object.hasOwn(controller.getState().draft, 'styleOptions'), false);
   assert.equal(fixture.registry.getComponentPreviews()[0].controller, controller);
 });
+
+test('danmaku added from older layouts uses missing style defaults and preserves saved regions', async () => {
+  const fixture = await loadOwner('danmaku-overlay-settings.js');
+  const elements = Object.fromEntries(['overlayUrl', 'styleChip', 'styleSaveState', 'copyOverlayUrlButton',
+    'openOverlayButton', 'previewOverlayButton'].map((name) => [name, createNode()]));
+  elements.styleButtons = [];
+  const controller = fixture.owner.initDanmakuOverlaySettings(elements, () => {});
+  const [preview] = fixture.registry.getComponentPreviews();
+  const { createLayout, defaultRegion } = require('../../src/shared/danmaku-layout');
+  const layout = createLayout();
+  const savedRegion = { x: 123, y: 234, width: 400, height: 500 };
+  layout.regions = Object.fromEntries(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline', 'cream', 'glow']
+    .map(style => [style, style === 'signal' ? savedRegion : layout.regions[style]]));
+  const savedRegions = structuredClone(layout.regions);
+  controller.receive({ style: 'signal', fullscreenDurationSeconds: 6, layout });
+  const draft = controller.getState().draft;
+  for (const style of Object.keys(createLayout().regions)) {
+    assert.deepEqual(plain(preview.bounds({ ...draft, style }) ?? null),
+      savedRegions[style] || defaultRegion(style, layout.canvas, layout.contentScale), style);
+  }
+  assert.deepEqual(plain(controller.getState().draft.layout.regions), savedRegions);
+});

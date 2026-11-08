@@ -55,10 +55,12 @@ test('scene parent starts at current events, buffers preparation and never repla
   assert.deepEqual(read()['gift-frame'].events, []);
   buffer.receive(frame(1)); buffer.receive(thanks);
   read(); read();
+  display.update({}, [], { 'gift-frame': 'unchanged', 'guard-thanks': 'unchanged' });
   assert.deepEqual(display.takePending()['gift-frame'].events, [frame(1)]);
   assert.deepEqual(display.takePending(), {});
   const active = ['gift-frame', 'guard-thanks'];
   buffer.receive(frame(2));
+  display.update({}, active, { 'gift-frame': 'unchanged', 'guard-thanks': 'unchanged' });
   assert.deepEqual(read(active)['gift-frame'].events, [frame(2)]);
   assert.deepEqual(read(active)['gift-frame'].events, []);
   assert.deepEqual(display.takePending(), {});

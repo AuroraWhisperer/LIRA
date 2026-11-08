@@ -15,6 +15,8 @@ const { createSceneExtraDisplay } = require('../../src/server/scene-extra-displa
 const { createSongStore } = require('../../src/storage/song-store');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { listSongs } = require('../../src/music/song-service');
+const { createGameSessionService } = require('../../src/games/game-session-service');
+const { chooseGameWord } = require('../helpers/draw-guess');
 
 function documentFor(type, config = createSceneExtraDefaults(type)) {
   return { schemaVersion: 1, id: randomUUID(), title: '新组件', canvas: { width: 1920, height: 1080 },
@@ -65,6 +67,121 @@ test('conditional scene data prepares unchanged songs and lyric timelines once b
   owner = { scope: 'b', epoch: 2 };
   assert.ok(ports.getDisplayData(['songlist'], { dataVersions: { known: firstVersions.current, current: {} } }).songlist);
   assert.ok(ports.getDisplayData(['lyrics'], {}).lyrics.lyricTimeline, 'legacy reads remain complete');
+});
+
+test('mixed scenes skip unchanged queue, wheel and game reads but reconcile changes and owner transitions', () => {
+  let time = 0;
+  let owner = { scope: 'a', epoch: 1 };
+  const reads = { queue: 0, wheel: 0, games: 0 };
+  const extra = createSceneExtraDisplay({ getOwner: () => owner, displayPorts: {
+    wheel: { getState() { reads.wheel++; return { entries: [] }; } },
+    games: { getSession() { reads.games++; return null; } },
+  } });
+  const ports = createSceneComponentPorts({ getOwner: () => owner, now: () => time, getExtraDisplay: extra,
+    getState(fields) {
+      if (fields.includes('queue')) reads.queue++;
+      return { queue: [], superChats: [], roomGuard: { roomId: '123', count: 1 },
+        lyricState: { currentMs: time }, lyricTimeline: null };
+    } });
+  let versions = {};
+  function read() {
+    const request = { dataVersions: { known: versions, current: {} } };
+    const result = ports.getDisplayData(['queue', 'wheel', 'games', 'lyrics'], request);
+    versions = request.dataVersions.current;
+    return result;
+  }
+  read();
+  for (let index = 1; index <= 20; index++) {
+    time += 100;
+    const data = read();
+    assert.equal(Object.hasOwn(data, 'queue'), false);
+    assert.equal(Object.hasOwn(data, 'wheel'), false);
+    assert.equal(Object.hasOwn(data, 'games'), false);
+    assert.equal(data.lyrics.lyricState.currentMs, time);
+  }
+  assert.deepEqual(reads, { queue: 1, wheel: 1, games: 1 });
+  ports.invalidateDisplay(['queue']);
+  assert.ok(read().queue);
+  assert.deepEqual(reads, { queue: 2, wheel: 1, games: 1 });
+  time = 5000;
+  assert.ok(read().wheel, 'periodic reconciliation still reads state without a notification');
+  owner = { scope: 'b', epoch: 2 };
+  assert.ok(read().games, 'old-owner versions cannot suppress the new baseline');
+  assert.ok(ports.getDisplayData(['queue', 'wheel', 'games'], {}).queue, 'legacy requests remain complete');
+});
+
+test('negotiated scene game parts follow independent drawing and score revisions while chat stays live', t => {
+  let owner = { scope: 'a', epoch: 1 };
+  let ports;
+  let canvasCopies = 0, scoreCopies = 0;
+  const games = createGameSessionService({ monotonicNow: () => 1000, setTimeout: () => null, clearTimeout() {},
+    drawGuessWords: [{ word: '猫', category: '动物' }], broadcast: () => ports?.invalidateDisplay(['games']) });
+  t.after(() => games.dispose());
+  const extra = createSceneExtraDisplay({ getOwner: () => owner, displayPorts: { games: {
+    getSession: games.getSession,
+    getDisplaySession(known) {
+      const value = games.getDisplaySession(known);
+      if (value.session?.state.canvas) canvasCopies++;
+      if (value.session?.state.scores) scoreCopies++;
+      return value;
+    },
+  } } });
+  ports = createSceneComponentPorts({ getOwner: () => owner, getExtraDisplay: extra, getState: () => ({}) });
+  games.start({ game: 'draw-guess', totalRounds: 2 }); chooseGameWord(games);
+  games.draw({ action: 'append', clientId: 'p', strokeId: 's', color: '#222034', width: 4,
+    points: [{ x: 0.1, y: 0.1 }] });
+  let known = {};
+  function read(incrementalParts = true) {
+    const request = { incrementalParts, dataVersions: { known, current: {} } };
+    const value = ports.getDisplayData(['games'], request);
+    known = request.dataVersions.current;
+    return value.games?.session;
+  }
+  const first = read();
+  assert.equal(first.state.canvas.strokes[0].points.length, 1);
+  const initialVersions = { ...known };
+  assert.equal(read(), undefined);
+  assert.deepEqual(known, initialVersions, 'an unchanged top-level game read retains its part acknowledgements');
+  for (let index = 0; index < 30; index++) {
+    games.handleDanmaku({ uid: String(index + 1), message: `chat-${index}` });
+    const value = read();
+    assert.equal(value.danmaku.at(-1).message, `chat-${index}`);
+    assert.equal(value.state.canvas, undefined);
+    assert.equal(value.state.correct, undefined);
+    assert.equal(value.state.scores, undefined);
+  }
+  assert.equal(canvasCopies, 1);
+  assert.equal(scoreCopies, 1);
+  games.handleDanmaku({ uid: '1', message: '猫' });
+  const scored = read();
+  assert.equal(scored.state.scores[0].score, 10);
+  assert.equal(scored.state.canvas, undefined);
+  games.updateDanmakuAvatar({ uid: '1', avatarUrl: 'https://i0.hdslb.com/a.png' });
+  assert.equal(read().state.scores, undefined, 'avatar hydration does not invalidate drawing or scores');
+  games.draw({ action: 'clear', clientId: 'p' });
+  const cleared = read();
+  assert.equal(cleared.state.canvas.strokes.length, 0);
+  assert.equal(cleared.state.scores, undefined);
+  games.handleDanmaku({ uid: '2', message: 'legacy' });
+  assert.ok(read(false).state.canvas, 'old consumers still receive full nested snapshots after game changes');
+  assert.equal(known.gamesCanvas, undefined);
+  assert.equal(known.gamesScores, undefined);
+  owner = { scope: 'b', epoch: 2 };
+  known = initialVersions;
+  const newOwner = read();
+  assert.ok(newOwner.state.canvas);
+  assert.equal(newOwner.state.scores[0].score, 10);
+  games.move({ action: 'finish-round' }); games.move({ action: 'reveal-answer' }); games.move({ action: 'next-round' });
+  const nextRound = read();
+  assert.equal(nextRound.state.round, 2);
+  assert.deepEqual(nextRound.state.correct, []);
+  assert.equal(nextRound.state.scores[0].score, 10);
+  assert.deepEqual(nextRound.state.canvas.strokes, []);
+  games.stop();
+  assert.equal(read(), null);
+  games.start({ game: 'number-bomb' });
+  assert.equal(read().game, 'number-bomb');
+  assert.equal(games.getSession().state.secret, undefined);
 });
 
 test('scene gift feeds reuse full scans, cards and catalog while checking independent profile changes', async () => {

@@ -30,6 +30,7 @@ export const giftAnalysis = (() => {
     returnFocus: null,
   };
   let datePicker;
+  const optionSignatures = new WeakMap();
 
   function init() {
     const workspace = get('blindBoxAnalysisWorkspace');
@@ -208,9 +209,13 @@ export const giftAnalysis = (() => {
     const select = get(id);
     if (!select) return;
     const selected = options.find((option) => option.value === selectedValue) || options[0];
-    select.replaceChildren(
-      ...options.map((option) => new Option(option.label, option.value, false, option.value === selected.value)),
-    );
+    const signature = JSON.stringify(options);
+    if (optionSignatures.get(select) !== signature) {
+      select.replaceChildren(
+        ...options.map((option) => new Option(option.label, option.value, false, option.value === selected.value)),
+      );
+      optionSignatures.set(select, signature);
+    }
     select.value = selected.value;
   }
 

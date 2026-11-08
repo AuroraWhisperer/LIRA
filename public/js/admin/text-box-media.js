@@ -1,7 +1,7 @@
 import { previewElement } from './component-preview-surface.js';
 import { createWishPicker } from './gifts/wish-picker.js';
 import { normalizeTextBoxImageSource } from '../shared/text-box-config.js';
-import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { setGiftArtwork } from '../shared/gift-image.js';
 
 export async function requestTextBoxMedia(kind, { source, file, signal } = {}, access) {
   const url = new URL(`${access ? '/api/component-preview' : '/api/scenes'}/text-${kind}`, location.origin);
@@ -76,7 +76,7 @@ export function mountTextBoxMedia(host, { composer, request = requestTextBoxMedi
   const picker = createWishPicker(gift => {
     selectedGift = gift;
     giftName.textContent = gift.name;
-    setGiftImage(giftImage, gift.imagePath);
+    setGiftArtwork(giftImage, gift.imagePath);
     giftRow.hidden = false;
   }, { root: scope, requireVariant: false,
     request: (path, _body, signal) => request('gifts', { source: path.endsWith('/catalog') ? 'all' : 'room', signal }) });

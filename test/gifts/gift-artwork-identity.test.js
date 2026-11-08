@@ -82,20 +82,20 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     snapshot: {
       gifts: [
         { ...renamed, imagePath: '' },
-        { ...repriced, imagePath: '/overtime-gift-images/repriced.webp' },
+        { ...repriced, imagePath: '/overtime-gift-images/repriced.png' },
       ],
     },
   });
   assert.equal(recent.getHighValueGiftArtwork(record).src, renamed.imagePath);
   assert.equal(
     getGiftToastArtwork({ ...record, gift_variant_id: repriced.variantId }),
-    '/overtime-gift-images/repriced.webp',
+    '/overtime-gift-images/repriced.png',
   );
   assert.equal(
     recent.getHighValueGiftArtwork({
       ...record,
       gift_variant_id: repriced.variantId,
     }).src,
-    '/overtime-gift-images/repriced.webp',
+    '/overtime-gift-images/repriced.png',
   );
 });

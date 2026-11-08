@@ -11,6 +11,9 @@ import {
 
 export function applyStyleOptions(document, style, allOptions, legacyDurationSeconds) {
   const options = styleOptionsFor(style, allOptions, legacyDurationSeconds);
+  for (const key of ['neonGlassNameColors', 'neonGlassIcons', 'neonGlassEntrance']) document.body.dataset[key] = options[key] || '';
+  document.documentElement.style.setProperty('--neon-glass-highlight', String((options.neonGlassHighlight ?? 100) / 100));
+  document.documentElement.style.setProperty('--neon-glass-entry-duration', `${options.neonGlassEntranceMs ?? 480}ms`);
   const composer = style === 'twitter' ? document.getElementById?.('twitterComposerText') : null;
   if (composer) composer.textContent = options.composerText;
   document.body.dataset.scrollDirection = options.scrollDirection;
@@ -23,6 +26,7 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.startrailEntrance = options.startrailEntrance || 'spark';
   document.body.dataset.decorationShape = options.decorationShape || 'sparkle';
   document.body.dataset.ambientMotion = options.ambientMotion || 'on';
+  document.body.dataset.astralEntrance = options.astralEntrance || 'layered';
   document.body.dataset.startrailDust = options.startrailDust || 'on';
   document.body.dataset.auroraPalette = options.auroraPalette || 'lilac';
   document.body.dataset.sinkingPalette = options.sinkingPalette || 'ivory';
@@ -35,6 +39,8 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.comicEntranceMs = String(options.comicEntranceMs || 420);
   document.body.dataset.windowPalette = options.windowPalette || 'porcelain';
   document.body.dataset.windowControls = options.windowControls || 'show';
+  document.body.dataset.windowGuard = options.windowGuard || 'show';
+  document.body.dataset.windowMedal = options.windowMedal || 'show';
   document.body.dataset.windowEntrance = options.windowEntrance || 'mixed';
   document.body.dataset.windowEntranceMs = String(options.windowEntranceMs || 460);
   document.body.dataset.stardustEntrance = options.stardustEntrance || 'on';
@@ -44,12 +50,16 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   for (const key of ['stargazerPalette', 'stargazerLayout', 'stargazerAlign', 'stargazerFrame', 'stargazerPerspective', 'stargazerGradient']) {
     document.body.dataset[key] = options[key] || '';
   }
-  for (const key of ['gradientPalette', 'gradientUnderline', 'glassBubbleReveal', 'glassBubbleSweep',
+  for (const key of ['glowyLayout', 'glowyAvatar', 'glowyTime', 'gradientPalette', 'gradientUnderline', 'glassBubbleReveal', 'glassBubbleSweep',
     'celestialStarDensity', 'celestialStarShape', 'celestialSeparator', 'glassTime', 'glassDensity',
     'darkMoonPalette', 'darkMoonSparks', 'wireframeOrbit', 'wireframeEntrance']) {
     document.body.dataset[key] = options[key] || '';
   }
   const root = document.documentElement.style;
+  root.setProperty('--charm-gap', `${options.charmGap ?? 32}px`);
+  root.setProperty('--charm-max-width', `${options.charmMaxWidth ?? 560}px`);
+  root.setProperty('--astral-custom-accent', options.astralAccentColor || '#f7e68b');
+  root.setProperty('--glowy-light', String((options.glowyLight ?? 85) / 100));
   root.setProperty('--gradient-cycle', `${options.gradientCycleSeconds ?? 10}s`);
   root.setProperty('--glass-bubble-highlight', String((options.glassBubbleHighlight ?? 100) / 100));
   root.setProperty('--celestial-nebula-opacity', String((options.celestialNebulaOpacity ?? 30) / 100));
@@ -68,7 +78,7 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   root.setProperty('--stargazer-angle', `${(options.stargazerPerspective === 'left' ? -1 : 1) * (options.stargazerAngle ?? 6)}deg`);
   root.setProperty('--stargazer-glow', `${options.stargazerGlow ?? 8}px`);
   root.setProperty('--stargazer-gradient', `${options.stargazerGradientOpacity ?? 40}%`);
-  root.setProperty('--window-width', `${options.windowWidth ?? 340}px`);
+  root.setProperty('--window-width', `${options.windowWidth ?? 380}px`);
   root.setProperty('--window-radius', `${options.windowRadius ?? 22}px`);
   root.setProperty('--danmaku-floating-edge-size', `${options.floatingEdgeFadeSize ?? 28}px`);
   root.setProperty('--aurora-entry-duration', `${options.auroraEntranceMs ?? 520}ms`);

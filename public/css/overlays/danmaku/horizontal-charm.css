@@ -1,0 +1,99 @@
+body[data-style='horizontal-charm'] {
+  --charm-font: 'Spooky Nunito', 'Lira Maiyuan', var(--danmaku-ui-font);
+  --danmaku-enter-animation: charmEntry 650ms linear;
+  --danmaku-enter-offset: 0;
+  --danmaku-move-base-ms: 350;
+  --danmaku-move-max-ms: 650;
+  --danmaku-move-curve: .23, 1, .32, 1;
+}
+body[data-style='horizontal-charm'][data-custom-font='true'] { --charm-font: var(--danmaku-custom-font); }
+body[data-style='horizontal-charm'] .danmaku-signal-header { display: none; }
+body[data-style='horizontal-charm'] .danmaku-signal-stage {
+  position: relative; display: flex; align-items: center; height: 120px; padding: 0; overflow: hidden;
+}
+body[data-style='horizontal-charm'].has-layout .danmaku-signal-stage { height: var(--region-content-height); }
+body[data-style='horizontal-charm']:not(.has-layout) .danmaku-region { display: flex; flex-direction: column; justify-content: flex-end; }
+body[data-style='horizontal-charm'] .draw-danmaku-feed {
+  position: relative; display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
+  width: 100%; height: 100%; padding: 16px 28px; gap: var(--charm-gap, 32px); overflow: hidden;
+  mask: linear-gradient(90deg, transparent, #000 min(20px, 3%), #000 calc(100% - min(20px, 3%)), transparent);
+}
+body[data-style='horizontal-charm'] .draw-danmaku-feed:not([data-flow-overflow='true']) { justify-content: flex-start; }
+body[data-style='horizontal-charm'] .draw-danmaku-item.charm-item {
+  --charm-role-color: #89749e;
+  --charm-pill-tone: 94%;
+  --charm-accent: var(--danmaku-bubble-color, var(--charm-role-color));
+  display: block; flex: none; width: max-content; max-width: none; min-height: 0; margin: 0; padding: 0;
+  border: 0; border-radius: 0; background: none; box-shadow: none; clip-path: none; overflow: visible; animation: none;
+  color: var(--danmaku-text-color, #51465f); font: 700 var(--danmaku-font-size, 20px)/1.5 var(--charm-font); font-synthesis: none; zoom: 1;
+}
+body[data-style='horizontal-charm'] .charm-item::before,
+body[data-style='horizontal-charm'] .draw-danmaku-feed > .charm-item::after { content: none; }
+body[data-style='horizontal-charm'] .draw-danmaku-item.charm-item.is-gift::after { display: none; content: none; animation: none; }
+body[data-style='horizontal-charm'] .charm-item[data-charm-role='streamer'] { --charm-role-color: #aa6685; --charm-pill-tone: 92%; }
+body[data-style='horizontal-charm'] .charm-item[data-charm-role='guard-1'] { --charm-role-color: #a67e49; --charm-pill-tone: 82%; }
+body[data-style='horizontal-charm'] .charm-item[data-charm-role='guard-2'] { --charm-role-color: #8c659e; --charm-pill-tone: 100%; }
+body[data-style='horizontal-charm'] .charm-item[data-charm-role='guard-3'] { --charm-role-color: #5c877a; --charm-pill-tone: 90%; }
+.charm-message { display: flex; align-items: center; gap: 16px; width: max-content; }
+.charm-badge {
+  position: relative; display: grid; place-items: center; flex: none; width: 28px; height: 28px;
+  border-radius: 9px; color: #fff; background: var(--charm-accent);
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 28%);
+}
+.charm-badge::after { position: absolute; left: calc(100% + 7px); width: 3px; height: 3px; border-radius: 50%; background: var(--charm-accent); content: ''; }
+.charm-badge svg { width: 15px; height: 15px; fill: currentColor; }
+body[data-style='horizontal-charm'] .charm-identity {
+  display: flex; flex-direction: column; align-items: flex-end; align-self: center; gap: 3px;
+  min-width: 0; margin: 0; padding: 0; white-space: nowrap;
+}
+body[data-style='horizontal-charm'] .charm-name {
+  display: block; max-width: 28em; padding: 4px 14px; border-radius: 20px;
+  color: #fff; background: color-mix(in srgb, var(--charm-accent) var(--charm-pill-tone), #000); font: 700 15px/20px var(--charm-font);
+  letter-spacing: .03em; overflow-wrap: anywhere; white-space: normal;
+}
+.charm-role { padding-right: 8px; color: color-mix(in srgb, var(--charm-accent) 65%, #fff); font: 500 11px/15px var(--charm-font); letter-spacing: .04em; }
+body[data-style='horizontal-charm'] .charm-content {
+  position: relative; display: block; width: max-content; max-width: var(--charm-max-width, 560px); min-width: 0;
+  margin: 0; padding: 10px 18px; border: 0; border-radius: 4px 22px 22px;
+  color: inherit; background: rgb(255 255 255 / var(--danmaku-background-opacity, 1));
+  box-shadow: inset 0 -2px color-mix(in srgb, var(--charm-accent) 50%, transparent), 0 4px 12px rgb(20 12 34 / 10%);
+}
+.charm-content::before {
+  position: absolute; top: 0; right: calc(100% - 3px); width: 10px; height: 10px; border-radius: 2px 0 0;
+  background: inherit; clip-path: polygon(0 0, 100% 0, 100% 100%); content: '';
+}
+body[data-style='horizontal-charm'] .charm-copy {
+  display: block; margin: 0; padding: 0; font: inherit; color: inherit; letter-spacing: .01em;
+  white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: none;
+}
+.charm-copy .draw-danmaku-emote { display: inline-block; height: 1.5em; width: auto; max-width: 100%; vertical-align: -.35em; object-fit: contain; }
+body[data-style='horizontal-charm'] .charm-copy .draw-danmaku-emote.is-large { height: 2.5em; vertical-align: middle; }
+body[data-style='horizontal-charm'] .charm-item:not([data-charm-kind='chat']) .charm-badge {
+  width: 34px; height: 30px; border: 1px solid rgb(255 255 255 / 70%); border-radius: 10px; background: none; box-shadow: none;
+}
+body[data-style='horizontal-charm'] .charm-item:not([data-charm-kind='chat']) .charm-content {
+  padding: 0 8px 0 0; border-radius: 0; background: none; box-shadow: none; color: #fff;
+  text-shadow: 0 1px 3px rgb(20 12 34 / 55%);
+}
+body[data-style='horizontal-charm'][data-custom-text-color='true'] .charm-item:not([data-charm-kind='chat']) .charm-content { color: var(--danmaku-text-color); }
+body[data-style='horizontal-charm'] .charm-item:not([data-charm-kind='chat']) .charm-content::before { content: none; }
+.charm-event-heading { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 3px; font: 700 15px/21px var(--charm-font); letter-spacing: .02em; }
+body[data-style='horizontal-charm'] .charm-event-heading .charm-name { padding: 0; border-radius: 0; color: inherit; background: none; font: inherit; letter-spacing: inherit; }
+.charm-event-label { font-size: 11px; font-weight: 500; opacity: .76; }
+body[data-style='horizontal-charm'] .charm-event-heading + .charm-copy { font-size: .85em; line-height: 1.5; letter-spacing: .02em; text-shadow: inherit; }
+body[data-style='horizontal-charm'] .charm-copy :is(.draw-danmaku-gift-name, .draw-danmaku-gift-count) { font: inherit; color: inherit; }
+.charm-event-heading .charm-amount { font-size: 13px; }
+.charm-amount { display: inline-block; margin-left: .5em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+body[data-style='horizontal-charm'] .draw-danmaku-empty { width: 100%; padding: 0; margin: 0; border: 0; background: none; color: #bca9db; font: 500 14px/1.5 var(--charm-font); text-align: center; }
+.charm-item[data-live-entry] .charm-identity,
+.charm-item[data-live-entry] .charm-content { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); }
+.charm-item[data-live-entry] .charm-badge { animation: charmBadgeIn 480ms cubic-bezier(.16, 1, .3, 1) both; }
+.charm-item[data-live-entry] .charm-identity { animation: charmNameIn 550ms cubic-bezier(.16, 1, .3, 1) both; }
+.charm-item[data-live-entry] .charm-content { animation: charmBubbleIn 650ms cubic-bezier(.16, 1, .3, 1) both; }
+@keyframes charmEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+@keyframes charmBadgeIn { from { opacity: 0; transform: scale(.45); } to { opacity: 1; transform: scale(1); } }
+@keyframes charmNameIn { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(12px); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0); } }
+@keyframes charmBubbleIn { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(24px); clip-path: inset(0 85% 0 0); } 24% { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0); clip-path: inset(-8px -8px -8px -16px); } }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='horizontal-charm'] :is(.charm-badge, .charm-identity, .charm-content) { animation: none !important; }
+}

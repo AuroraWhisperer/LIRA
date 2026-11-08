@@ -131,7 +131,7 @@ body[data-style='dark-moon'] .dark-moon-item:is(.is-gift,.is-superchat) {
 }
 body[data-style='dark-moon'] .dark-moon-item:is(.is-gift,.is-superchat) > .dark-moon-body { width: 100%; }
 .dark-moon-item:is(.is-gift,.is-superchat) .dark-moon-panel:not(.dark-moon-sc-message) {
-  width: 100%; min-height: 4.4em; padding: 1.25em 1.1em; color: var(--moon-event-ink, #402332);
+  display: flex; align-items: center; width: 100%; min-height: 4.4em; padding: 1.25em 1.1em; color: var(--moon-event-ink, #402332);
 }
 .dark-moon-item:is(.is-gift,.is-superchat) .dark-moon-panel:not(.dark-moon-sc-message)::before {
   border: 0; background: var(--moon-event-paint, linear-gradient(105deg, #ffe69f, #f8cc80));

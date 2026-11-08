@@ -78,6 +78,20 @@ function open(auth, writeLog = () => {}) {
   });
 }
 
+test('login completion uses current session state and keeps full state for the final response', async () => {
+  let fullReads = 0;
+  const completion = open(createAuth({
+    getBilibiliSessionState: async () => ({ loggedIn: true, uid: 123 }),
+    getBilibiliAuthState: async () => { fullReads += 1; return { loggedIn: true, lastSavedAt: 'saved' }; },
+  }));
+  await new Promise(setImmediate);
+  FakeBrowserWindow.latest.webContents.session.cookies.emit('changed');
+  const result = await completion;
+  assert.equal(fullReads, 1, 'only the closed-window response reads backup metadata');
+  assert.equal(result.state.lastSavedAt, 'saved');
+  assert.equal(FakeBrowserWindow.latest.webContents.session.cookies.listenerCount('changed'), 0);
+});
+
 for (const snapshotFailure of [false, true]) {
   test(`login diagnostics report final state and snapshot save failure=${snapshotFailure} without credentials`, async (t) => {
     const lines = [];

@@ -8,6 +8,7 @@ const {
   normalizeMusicPlatform,
   persistMusicCookieSnapshot,
   getMusicAuthState,
+  getMusicSessionState,
 } = require('./music-auth-manager');
 const { isAllowedLoginNavigation, isAllowedExternal } = require('./external-url-policy');
 
@@ -67,7 +68,7 @@ async function loginMusicAccount(mainWindow, platform, dataDir, { signal } = {})
     if (loginCheckInFlight || loginWindow.isDestroyed()) return;
     loginCheckInFlight = true;
     try {
-      const state = await getMusicAuthState(platform, dataDir);
+      const state = await getMusicSessionState(platform);
       if (state.loggedIn && !loginWindow.isDestroyed()) {
         writeLog('music-login-auto-close', `${config.name} 登录成功，自动关闭登录窗口`);
         loginWindow.close();

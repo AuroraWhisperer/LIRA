@@ -182,6 +182,6 @@ body[data-custom-background='true'][data-style='transparent'] .draw-danmaku-item
 }
 
 @keyframes transparentMessageIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { --danmaku-enter-opacity: 0; }
+  to { --danmaku-enter-opacity: 1; }
 }

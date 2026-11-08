@@ -31,8 +31,13 @@ function createSceneGiftEvents({ getOwner }) {
       if (events.length > MAX_EVENTS) events.shift();
       return true;
     },
-    getSnapshot(type) {
+    getSnapshot(type, request) {
       syncOwner();
+      if (request?.incrementalParts === true && request.dataVersions) {
+        const version = `${epoch}_${sequence}`;
+        request.dataVersions.current[type] = version;
+        if (request.dataVersions.known[type] === version) return undefined;
+      }
       return { epoch, sequence, events: structuredClone(events.filter((event) => event.payload.type === EVENT_TYPES[type])) };
     },
   };

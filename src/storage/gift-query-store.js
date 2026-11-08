@@ -15,8 +15,8 @@ const MAX_TIME_SERIES_POINTS = 240;
 const SHANGHAI_OFFSET_MS = 8 * 60 * 60 * 1000;
 const GIFT_METRICS_SQL = `
   COUNT(*) AS eventCount,
-  COALESCE(SUM(giftQuantity(g.num)), 0) AS itemCount,
-  COALESCE(SUM(giftMoneyCents(g.total_price)), 0) AS totalPriceCents,
+  COALESCE(SUM(g.itemCount), 0) AS itemCount,
+  COALESCE(SUM(g.totalPriceCents), 0) AS totalPriceCents,
   COALESCE(SUM(CASE WHEN g.is_blind_box = 1 THEN 1 ELSE 0 END), 0)
     AS blindBoxEventCount,
   COALESCE(SUM(CASE
@@ -25,19 +25,19 @@ const GIFT_METRICS_SQL = `
   END), 0) AS blindBoxUnknownCostEventCount,
   COALESCE(SUM(CASE
     WHEN g.is_blind_box = 1 AND g.blind_box_price IS NOT NULL
-      THEN giftMoneyCents(g.blind_box_price)
+      THEN g.blindBoxPriceCents
     ELSE 0
   END), 0) AS blindBoxPriceCents,
   COALESCE(SUM(CASE
-    WHEN g.is_blind_box = 1 THEN giftMoneyCents(g.total_price)
+    WHEN g.is_blind_box = 1 THEN g.totalPriceCents
     ELSE 0
   END), 0) AS blindBoxValueCents,
   COALESCE(SUM(CASE
     WHEN g.is_blind_box = 1 AND g.blind_box_price IS NOT NULL
-      THEN giftMoneyCents(g.total_price) - giftMoneyCents(g.blind_box_price)
+      THEN g.totalPriceCents - g.blindBoxPriceCents
     ELSE 0
   END), 0) AS blindProfitCents,
-  MIN(giftMoneyCents(g.unit_price)) AS validatedUnitPriceCents
+  MIN(g.unitPriceCents) AS validatedUnitPriceCents
 `;
 const HISTORY_SORT_EXPRESSIONS = Object.freeze({
   created_at: 'g.created_at',
@@ -285,11 +285,14 @@ function createGiftQueryStore(giftDb) {
       const bucketExpression = range === 'all'
         ? "strftime('%Y-%m', g.created_at, '+8 hours')"
         : "strftime('%Y-%m-%d', g.created_at, '+8 hours')";
-      // Reuse the filtered rows while keeping each SQL aggregate independent.
+      // Normalize each matched value once before the three independent aggregates.
       const rows = giftDb.prepare(`
         WITH matching_gifts AS MATERIALIZED (
-          SELECT g.gift_id, g.gift_name, g.created_at, g.num, g.total_price,
-            g.is_blind_box, g.blind_box_price, g.unit_price
+          SELECT g.gift_id, g.gift_name, g.created_at, g.is_blind_box, g.blind_box_price,
+            giftQuantity(g.num) AS itemCount, giftMoneyCents(g.total_price) AS totalPriceCents,
+            giftMoneyCents(g.unit_price) AS unitPriceCents,
+            CASE WHEN g.is_blind_box = 1 AND g.blind_box_price IS NOT NULL
+              THEN giftMoneyCents(g.blind_box_price) ELSE 0 END AS blindBoxPriceCents
           FROM gift_events g WHERE ${filter.sql}
         )
         SELECT 'summary' AS resultType, NULL AS giftId, NULL AS giftName, NULL AS bucketKey,

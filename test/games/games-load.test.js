@@ -9,18 +9,22 @@ const vm = require('node:vm');
 const { createGameSessionService } = require('../../src/games/game-session-service');
 const { chooseGameWord } = require('../helpers/draw-guess');
 
-test('a burst of correct guesses publishes one canvas-free patch per message without dropping scores', () => {
+test('a burst of correct guesses delivers every chat immediately and coalesces canvas-free scores', () => {
   let updates = 0;
   let latest;
+  let scoreRows = 0;
+  const timers = new Map();
+  let timerId = 0;
   const service = createGameSessionService({
     monotonicNow: () => 1000,
     wallNow: () => 1_800_000_000_000,
-    setTimeout: () => null,
-    clearTimeout() {},
+    setTimeout(run, delay) { timers.set(++timerId, { run, delay }); return timerId; },
+    clearTimeout(id) { timers.delete(id); },
     drawGuessWords: [{ word: '猫', category: '动物' }],
     broadcast(event) {
       updates++;
       latest = event;
+      scoreRows += event.state?.scores.length || 0;
     },
   });
   try {
@@ -30,9 +34,15 @@ test('a burst of correct guesses publishes one canvas-free patch per message wit
     for (let index = 0; index < 1000; index++) {
       service.handleDanmaku({ uid: String(index + 1), userName: `Viewer ${index}`, message: '猫' });
     }
-    assert.equal(updates, 1000, 'each accepted message publishes chat and scores together');
+    assert.equal(updates, 1000, 'each accepted message publishes its chat immediately');
     assert.equal(latest.type, 'game:patch');
     assert.equal(latest.item.message, '猫');
+    assert.equal(scoreRows, 0, 'no repeated whole-scoreboard projections during the burst');
+    const pending = [...timers.values()].filter(timer => timer.delay === 40);
+    assert.equal(pending.length, 1);
+    pending[0].run();
+    assert.equal(updates, 1001);
+    assert.equal(scoreRows, 1000);
     assert.equal(latest.state.canvas, undefined);
     assert.equal(latest.session, undefined);
     assert.equal(latest.state.correct.length, 1000);
@@ -44,7 +54,7 @@ test('a burst of correct guesses publishes one canvas-free patch per message wit
     assert.equal(service.getSession().danmaku.length, 500);
     assert.equal(Object.hasOwn(latest.state, 'answer'), false);
     assert.equal(service.handleDanmaku({ uid: '1001', message: '狗' }).accepted, false);
-    assert.equal(updates, 1001, 'an incorrect guess still appears in chat');
+    assert.equal(updates, 1002, 'an incorrect guess still appears in chat');
     assert.equal(latest.state, undefined);
     assert.equal(service.getSession().state.correct.length, 1000);
   } finally {

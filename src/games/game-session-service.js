@@ -17,7 +17,9 @@ function createGameSessionService(options = {}) {
   let viewer = null;
   let winner = null;
   let roundTimer = null;
+  let scoreTimer = null;
   const MAX_DANMAKU = 500;
+  const SCORE_UPDATE_DELAY_MS = 40;
 
   function touchViewer(danmaku = {}) {
     const uid = String(danmaku.uid || '').trim();
@@ -91,6 +93,7 @@ function createGameSessionService(options = {}) {
 
   function stop() {
     cancelDrawGuessTimer();
+    cancelScoreUpdate();
     session = null;
     viewer = null;
     winner = null;
@@ -148,8 +151,8 @@ function createGameSessionService(options = {}) {
       if (session.danmaku.length > MAX_DANMAKU) session.danmaku.splice(0, session.danmaku.length - MAX_DANMAKU);
       const result = isStreamer ? { accepted: false } : drawGuess.submitGuess(session.state, danmaku, monotonicNow());
       if (result.accepted) session.state = result.state;
-      if (result.accepted) publish(false, { item });
-      else publishPatch({ item });
+      publishPatch({ item });
+      if (result.accepted) scheduleScoreUpdate();
       return { ...result, game: 'draw-guess' };
     }
     materializeDrawGuessDeadline();
@@ -208,6 +211,26 @@ function createGameSessionService(options = {}) {
     return publicSessionRaw();
   }
 
+  function getDisplaySession(known = {}) {
+    materializeDrawGuessDeadline();
+    const drawing = session?.game === 'draw-guess';
+    const prefix = drawing ? `${session.sessionId}_${session.state.round}` : '';
+    const canvasVersion = drawing ? `${prefix}_${session.state.canvas.revision}` : null;
+    const scoresVersion = drawing ? `${prefix}_${session.state.correct.length}` : null;
+    return {
+      session: publicSessionRaw({ includeCanvas: !canvasVersion || known.canvasVersion !== canvasVersion,
+        includeScores: !scoresVersion || known.scoresVersion !== scoresVersion }),
+      canvasVersion,
+      scoresVersion,
+    };
+  }
+
+  function getMenuState() {
+    materializeDrawGuessDeadline();
+    return session ? { game: session.game,
+      state: { phase: session.state.phase, turn: session.state.turn, winner: session.state.winner } } : null;
+  }
+
   function getHostState() {
     materializeDrawGuessDeadline();
     return session?.game === 'draw-guess' ? drawGuess.getHostDrawGuessState(session.state) : null;
@@ -217,7 +240,7 @@ function createGameSessionService(options = {}) {
     return drawGuess.getDrawGuessCategories();
   }
 
-  function publicSessionRaw() {
+  function publicSessionRaw(projection = {}) {
     if (!session) return null;
     return {
       sessionId: session.sessionId,
@@ -237,15 +260,16 @@ function createGameSessionService(options = {}) {
             ? drawGuess.publicDrawGuessState(session.state, {
                 nowMs: monotonicNow(),
                 serverNowMs: wallNow(),
+                ...projection,
               })
             : session.state,
     };
   }
 
-  function publish(full = false, extraFields = {}) {
+  function publish(full = false) {
+    cancelScoreUpdate();
     if (session?.game === 'draw-guess' && !full) {
       publishPatch({
-        ...extraFields,
         state: drawGuess.publicDrawGuessState(session.state, {
           nowMs: monotonicNow(),
           serverNowMs: wallNow(),
@@ -267,6 +291,23 @@ function createGameSessionService(options = {}) {
       round: session.state.round,
       ...fields,
     });
+  }
+
+  function scheduleScoreUpdate() {
+    if (scoreTimer !== null) return;
+    const pending = { sessionId: session.sessionId, round: session.state.round };
+    scoreTimer = pending;
+    pending.id = scheduleTimeout(() => {
+      if (scoreTimer !== pending) return;
+      scoreTimer = null;
+      if (session?.sessionId === pending.sessionId && session.state.round === pending.round) publish();
+    }, SCORE_UPDATE_DELAY_MS);
+  }
+
+  function cancelScoreUpdate() {
+    if (scoreTimer === null) return;
+    cancelTimeout(scoreTimer.id);
+    scoreTimer = null;
   }
 
   function controlDrawGuess(input, player) {
@@ -360,6 +401,7 @@ function createGameSessionService(options = {}) {
 
   function dispose() {
     cancelDrawGuessTimer();
+    cancelScoreUpdate();
   }
 
   function pruneViewers() {
@@ -381,6 +423,8 @@ function createGameSessionService(options = {}) {
     handleDanmaku,
     updateDanmakuAvatar,
     getSession,
+    getDisplaySession,
+    getMenuState,
     getHostState,
     listDrawGuessCategories,
     listViewers,

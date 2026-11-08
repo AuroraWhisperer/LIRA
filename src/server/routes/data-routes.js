@@ -142,7 +142,7 @@ const routes = {
     while (result.hasMoreGiftEvents) {
       await new Promise((resolve) => setImmediate(resolve));
       if (res.destroyed) return;
-      const batch = context.data.runRetention({ policy: result.policy, ranAt: result.ranAt });
+      const batch = context.data.runRetention({ policy: result.policy, ranAt: result.ranAt, giftEventsOnly: true });
       for (const key of ['giftRawJsonCleared', 'giftEventsDeleted', 'requestsDeleted', 'superChatsDeleted',
         'aiRequestLogsDeleted', 'cooldownsDeleted', 'songCooldownsDeleted', 'importBatchesDeleted']) {
         result[key] += batch[key];

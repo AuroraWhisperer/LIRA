@@ -64,19 +64,29 @@ function archiveWishContributions(db, sourceId, { syncEpoch, memberSnapshotId, e
   }
 }
 
-function readWishContributionCounts(db, sourceId, wishIds, start, end, { snapshot, window }) {
-  wishIds = [...new Set(wishIds.filter(Boolean))];
+function readWishContributionCounts(db, sourceId, requests, snapshot) {
+  const entries = requests.filter(({ wish }) => wish.id);
+  const wishIds = [...new Set(entries.map(({ wish }) => wish.id))];
   if (!snapshot || !wishIds.length) return new Map();
+  const matches = entries.map(({ wish, start, end, window }) => {
+    let sql = 'c.wish_id=? AND c.created_at>=? AND c.created_at<=?';
+    const params = [wish.id, start, end];
+    if (window) {
+      sql += ' AND NOT (c.created_at>=? AND c.created_at<?)';
+      params.push(window.start, window.end);
+    }
+    return { sql, params };
+  });
+  const start = entries.map(entry => entry.start).sort()[0];
+  const end = entries.map(entry => entry.end).sort().at(-1);
   const params = [sourceId, ...wishIds, snapshot.sync_epoch, start, end, snapshot.member_snapshot_id];
-  let sql = `c.source_id=? AND c.wish_id IN (${wishIds.map(() => '?').join(',')}) AND c.sync_epoch=? AND c.created_at>=? AND c.created_at<=?
+  const sql = `c.source_id=? AND c.wish_id IN (${wishIds.map(() => '?').join(',')}) AND c.sync_epoch=? AND c.created_at>=? AND c.created_at<=?
     AND NOT EXISTS (SELECT 1 FROM gift_events g JOIN gift_retention_members m ON m.event_id=g.id
       WHERE g.source_id=c.source_id AND g.platform_id=c.platform_id AND m.snapshot_id=?)`;
-  if (window) {
-    sql += ' AND NOT (c.created_at>=? AND c.created_at<?)';
-    params.push(window.start, window.end);
-  }
-  return new Map(db.prepare(`SELECT wish_id, SUM(num) AS count FROM gift_wish_contributions c
-    WHERE ${sql} GROUP BY wish_id`).all(...params).map((row) => [row.wish_id, Number(row.count)]));
+  const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql} THEN c.num ELSE 0 END),0) AS c${entries[index].index}`);
+  const counts = db.prepare(`SELECT ${sums.join(',')} FROM gift_wish_contributions c WHERE ${sql}`)
+    .get(...matches.flatMap(match => match.params), ...params);
+  return new Map(entries.map(({ index }) => [index, Number(counts[`c${index}`])]));
 }
 
 module.exports = { wishMatch, archiveWishContributions, readWishContributionCounts };

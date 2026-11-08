@@ -23,8 +23,7 @@ export function parseGiftFrameStyleTriggers(value) {
   } catch { return null; }
 }
 
-export function readGiftFrameStyleTrigger(settings = {}, styleId) {
-  const triggers = parseGiftFrameStyleTriggers(settings[GIFT_FRAME_STYLE_TRIGGERS_KEY]);
+export function readGiftFrameStyleTrigger(settings = {}, styleId, triggers = parseGiftFrameStyleTriggers(settings[GIFT_FRAME_STYLE_TRIGGERS_KEY])) {
   const entry = triggers && Object.hasOwn(triggers, styleId) ? triggers[styleId] : null;
   if (entry) return { enabled: entry.enabled === 'true', thresholdRmb: String(entry.thresholdRmb) };
   if (triggers) return { enabled: false, thresholdRmb: GIFT_FRAME_STYLE_DEFAULT_THRESHOLD };

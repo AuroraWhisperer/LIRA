@@ -180,6 +180,7 @@ function createGiftCatalogInitializer(options = {}) {
           completedAt: isoTime(now()),
         };
         writeCompletion(statePath, completion);
+        imageCache.prune?.(gifts);
         break;
       }
       return publish({

@@ -1,6 +1,19 @@
 // 两款全屏礼物的本机配置；结算与金额判断由礼物领域负责。
+export const GIFT_SWING_TEXT_PARTS = Object.freeze({ userName: '送礼人', giftName: '礼物名', quantity: '数量' });
+export const GIFT_SWING_TEXT_MODES = Object.freeze({
+  full: ['userName', 'giftName', 'quantity'],
+  gift: ['giftName', 'quantity'],
+  none: [],
+  name: ['userName'],
+  'gift-name': ['giftName'],
+  quantity: ['quantity'],
+  'name-gift': ['userName', 'giftName'],
+  'name-quantity': ['userName', 'quantity'],
+});
+
 export const GIFT_MOTION_EFFECTS = Object.freeze([
   { style: 'gift-drop', prefix: 'giftDrop', label: '礼物掉落', fields: {
+    QuantityMultiplier: { label: '数量倍率', unit: '倍', default: 4, min: 1, max: 8 },
     Size: { label: '礼物大小', unit: 'px', default: 96, min: 32, max: 240 },
     DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 3, max: 120 },
     Speed: { label: '掉落速度', unit: '%', default: 100, min: 50, max: 200 },
@@ -9,11 +22,10 @@ export const GIFT_MOTION_EFFECTS = Object.freeze([
   { style: 'gift-swing', prefix: 'giftSwing', label: '礼物摇摇乐', fields: {
     Size: { label: '立牌大小', unit: 'px', default: 150, min: 64, max: 280 },
     DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 3, max: 120 },
-    Speed: { label: '摇摆速度', unit: '%', default: 100, min: 50, max: 200 },
-    Angle: { label: '摆动幅度', unit: '度', default: 24, min: 5, max: 45 },
-    TextMode: { label: '文字显示', default: 'full', options: [
-      ['full', '昵称、礼物和数量'], ['gift', '礼物和数量'], ['none', '仅礼物图片'],
-    ] },
+    Speed: { label: '摇摆速度', unit: '%', default: 150, min: 50, max: 200 },
+    Angle: { label: '摆动幅度', unit: '度', default: 36, min: 5, max: 45 },
+    TextMode: { label: '显示文字', default: 'full', options: Object.entries(GIFT_SWING_TEXT_MODES)
+      .map(([mode, parts]) => [mode, parts.map(part => GIFT_SWING_TEXT_PARTS[part]).join('、') || '仅礼物图片']) },
   } },
 ]);
 

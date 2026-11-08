@@ -23,9 +23,3 @@ export function setGiftImage(image, source) {
   image.hidden = false;
   image.src = !source || source === '/img/overtime-machine/gift-placeholder.svg' ? GIFT_PLACEHOLDER : source;
 }
-
-export function setGiftImageFallbacks(root) {
-  for (const image of root.querySelectorAll('img')) {
-    setGiftImage(image, image.getAttribute('src'));
-  }
-}

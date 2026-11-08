@@ -14,6 +14,97 @@ async function createRenderer(options) {
   return createDanmakuMessageRenderer({ document: createFakeDocument(), classNames: DEFAULT_DANMAKU_CLASSES, ...options });
 }
 
+test('neon glass keeps safe inline content and actual paid-event semantics without discarded images', async () => {
+  const images = [];
+  const render = await createRenderer({ style: 'neon-glass', showAvatar: true,
+    resolveAvatarUrl: value => { images.push(value); return value; },
+    resolveGiftImageUrl: value => { images.push(value); return value; },
+    resolveEmoteUrl: value => `/emote${value}` });
+  const chat = render({ name: '<观众>', message: '晚安[星]', avatarUrl: '/unused.png',
+    guardLevel: 1, roomGuardLevel: 0, emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] });
+  assert.equal(findByClass(chat, 'neon-glass-name').textContent, '<观众>');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(chat.dataset.neonGlassRole, 'viewer');
+  assert.equal(findByClass(chat, 'draw-danmaku-avatar'), undefined);
+  const gift = render({ kind: 'gift', name: '<送礼者>', giftName: '<花>', giftCount: 10,
+    giftTotalPrice: 12.5, giftImageUrl: '/unused-gift.png' });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
+  assert.equal(findByClass(gift, 'neon-glass-amount').textContent, ' · ¥12.5');
+  assert.equal(findByClass(render({ kind: 'gift', giftTotalPrice: 0 }), 'neon-glass-amount').textContent, ' · ¥0');
+  const renewal = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(renewal, 'draw-danmaku-gift-name').textContent, '提督');
+  assert.equal(findByClass(renewal, 'draw-danmaku-gift-action').textContent, '续费 ');
+  assert.equal(findByClass(renewal, 'neon-glass-amount').textContent, ' · —');
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', name: '留言者', message, price: 30 });
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sc-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'neon-glass-amount').textContent, ' · SC ¥30 · ');
+  assert.deepEqual(images, []);
+});
+
+test('glowy keeps safe content and uses current-room or purchased guard icons', async () => {
+  const avatarSources = [];
+  const render = await createRenderer({ style: 'glowy', resolveEmoteUrl: value => `/emote${value}`,
+    resolveAvatarUrl: value => { avatarSources.push(value); return value; } });
+  const chat = { name: '<观众>', message: '你好[星]', guardLevel: 1, roomGuardLevel: 0,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] };
+  const regular = render(chat);
+  assert.equal(findByClass(regular, 'glowy-heading').children[0].textContent, chat.name);
+  assert.equal(findByClass(regular, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(regular, 'glowy-guard'), undefined, 'another room does not confer a guard badge');
+  for (const level of [1, 2, 3]) {
+    const icon = findByClass(render({ ...chat, roomGuardLevel: level }), 'glowy-guard');
+    assert.equal(icon.getAttribute('data-guard-icon'), String(level));
+  }
+  const member = render({ kind: 'gift', name: '舰队', roomGuardLevel: 1, giftGuardLevel: 3,
+    guardAction: 'renew', giftName: '舰长', giftCount: 1, giftTotalPrice: 138, avatarUrl: '/discarded-member.png' });
+  assert.equal(findByClass(member, 'glowy-guard').getAttribute('data-guard-icon'), '3');
+  assert.equal(findByClass(member, 'draw-danmaku-gift-action').textContent, '续费');
+  assert.equal(findByClass(member, 'glowy-amount').textContent, '¥138');
+  const message = '  第一行\n<script>完整留言</script>  ';
+  const sc = render({ kind: 'superchat', name: '留言者', message, price: 100.5, avatarUrl: '/discarded-sc.png' });
+  assert.equal(findByClass(sc, 'sc-copy').textContent, message);
+  assert.equal(findByClass(sc, 'sc-copy').children.length, 0);
+  assert.equal(findByClass(sc, 'glowy-amount').textContent, '¥100.5');
+  assert.deepEqual(avatarSources, []);
+});
+
+test('horizontal charm keeps safe emotes, room identity and complete settled event content', async () => {
+  const render = await createRenderer({ style: 'horizontal-charm', showAvatar: true,
+    resolveEmoteUrl: value => `/emote${value}` });
+  const chat = render({ name: '<小观众>', message: '你好[星]', roomGuardLevel: 3,
+    emotes: [{ text: '[星]', url: '/star.png', kind: 'inline' }] });
+  assert.equal(findByClass(chat, 'charm-name').textContent, '<小观众>');
+  assert.equal(findByClass(chat, 'charm-role').textContent, '舰长');
+  assert.equal(findByClass(chat, 'draw-danmaku-emote').src, '/emote/star.png');
+  assert.equal(findByClass(chat, 'draw-danmaku-avatar'), undefined);
+  assert.equal(findByClass(render({ name: '其他房间', guardLevel: 1, roomGuardLevel: 0 }), 'charm-role'), undefined);
+  const gift = render({ kind: 'gift', name: '礼物观众', giftName: '<小花>', giftCount: 2, giftTotalPrice: 12.5 });
+  assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<小花>');
+  assert.equal(findByClass(gift, 'charm-amount').textContent, '¥12.50');
+  const member = render({ kind: 'gift', name: '新提督', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
+  assert.equal(findByClass(member, 'draw-danmaku-gift-name').textContent, '提督');
+  assert.ok(allNodes(member).some(node => node.textContent === '续费 '));
+  const message = ' 第一行\n<script>完整保留</script>' + '长留言'.repeat(30);
+  const sc = render({ kind: 'superchat', name: '留言观众', message, price: 30 });
+  assert.equal(findByClass(sc, 'charm-copy').textContent, message);
+  assert.equal(findByClass(sc, 'charm-amount').textContent, '¥30.00');
+  assert.equal(sc.dataset.charmKind, 'superchat');
+});
+
+test('real gift artwork uses the purchased guard level and does not fetch a discarded twitter badge', async () => {
+  const sources = [];
+  const render = await createRenderer({ style: 'identity', resolveGiftImageUrl: value => { sources.push(value); return value; } });
+  const member = render({ kind: 'gift', giftGuardLevel: 2, guardLevel: 3, giftImageUrl: 'https://i0.hdslb.com/unneeded.webp' });
+  const image = findByClass(member, 'draw-danmaku-gift-art').children[0];
+  assert.match(image.src, /bilibili-guard-prefect/);
+  assert.equal(image.getAttribute('data-guard-icon'), '2');
+  const twitter = await createRenderer({ style: 'twitter', resolveGiftImageUrl: value => { sources.push(value); return value; } });
+  twitter({ kind: 'gift', giftGuardLevel: 3, giftImageUrl: 'https://i0.hdslb.com/unneeded.webp' });
+  assert.equal(sources.at(-1), '');
+});
+
 test('stargazer preserves native content, room identity and settled events in its card composition', async () => {
   const render = await createRenderer({ style: 'stargazer', showAvatar: true,
     resolveAvatarUrl: value => `/avatar${value}`, resolveEmoteUrl: value => `/emote${value}` });
@@ -30,11 +121,11 @@ test('stargazer preserves native content, room identity and settled events in it
   assert.equal(findByClass(gift, 'stargazer-sender').textContent, '<送礼者>');
   assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
   assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, ' × 10');
-  assert.equal(findByClass(gift, 'stargazer-amount').textContent, ' · ¥12.50');
+  assert.equal(findByClass(gift, 'stargazer-amount').textContent, '¥12.50');
   const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
   assert.equal(findByClass(member, 'draw-danmaku-gift-name').textContent, '提督');
-  assert.ok(allNodes(member).some(node => node.textContent === ' 续费 '));
-  assert.equal(findByClass(member, 'stargazer-amount').textContent, ' · —');
+  assert.ok(allNodes(member).some(node => node.textContent === '续费 '));
+  assert.equal(findByClass(member, 'stargazer-amount').textContent, '—');
   const message = '  第一行\n<script>完整留言</script>  ';
   const sc = render({ kind: 'superchat', name: '原发送者', message, price: 30 });
   assert.equal(findByClass(sc, 'stargazer-copy').textContent, message);
@@ -95,7 +186,7 @@ test('glass preserves safe messages and uses only current-room role markers with
 
 test('glass retains settled gift values, membership actions and complete literal SC', async () => {
   const render = await createRenderer({ style: 'glass',
-    resolveGiftImageUrl: value => { assert.equal(value, '', 'Glass does not request discarded gift artwork'); return ''; } });
+    resolveGiftImageUrl: value => value });
   const gift = render({ kind: 'gift', giftName: '<花>', giftCount: 10, giftTotalPrice: 12.5, giftImageUrl: '/gift.png' });
   assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
   assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 10');
@@ -193,8 +284,13 @@ test('window recomposes safe sender, avatar and emotes using room identity', asy
   assert.equal(findByClass(root, 'window-nameplate').children[1].textContent, item.name);
   assert.equal(findByClass(root, 'draw-danmaku-avatar').children[0].src, '/avatar/real.png');
   assert.equal(findByClass(root, 'draw-danmaku-emote').src, '/emote/star.png');
-  assert.equal(findByClass(root, 'window-role'), undefined, 'other-room guard is not a room badge');
-  assert.equal(findByClass(render({ ...item, roomGuardLevel: 3 }), 'window-role').textContent, '舰长');
+  assert.equal(findByClass(root, 'window-guard'), undefined, 'other-room guard is not a room badge');
+  const member = render({ ...item, roomGuardLevel: 3, roomMedal: { name: '<星旅>', level: 12 } });
+  assert.match(findByClass(member, 'window-guard').src, /bilibili-guard-captain(?:-thousand)?\.webp$/);
+  assert.equal(findByClass(member, 'window-medal-name').textContent, '<星旅>');
+  assert.equal(findByClass(member, 'window-medal-name').children.length, 0);
+  assert.equal(findByClass(member, 'window-medal-level').textContent, '12');
+  assert.equal(findByClass(render({ ...item, medalName: '其他直播间', medalLevel: 20 }), 'window-medal'), undefined);
 });
 
 test('window retains settled gift totals, actual membership action and literal complete SC', async () => {

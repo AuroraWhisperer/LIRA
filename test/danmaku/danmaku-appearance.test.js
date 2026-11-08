@@ -31,7 +31,9 @@ test('legacy settings initialize once; local profiles survive repeated migration
       'glass-bubble': { glassBubbleReveal: 'instant', glassBubbleTypingSpeed: 60, glassBubbleSweep: 'off', glassBubbleHighlight: 0 },
       'celestial-horizontal': { celestialNebulaOpacity: 80, celestialStarDensity: 'dense', celestialStarShape: 'star', celestialSeparator: 'hide' },
       glass: { glassTime: 'hide', glassGlintIntensity: 0, glassDensity: 'compact' },
+      glowy: { glowyLayout: 'horizontal', glowyAvatar: 'hide', glowyTime: 'hide', glowyLight: 60 },
       'dark-moon': { darkMoonPalette: 'ice', darkMoonRingSize: 140, darkMoonSparks: 'hide' },
+      window: { windowGuard: 'hide', windowMedal: 'show' },
       wireframe: { wireframeFadeLength: 0, wireframeOrbit: 'hide', wireframeEntrance: 'none', wireframeEntranceMs: 1400 },
       'sea-breeze': { seaBreezeReflectionOpacity: 0, seaBreezeReflectionLength: 100, seaBreezeReflectionGap: 0 },
       'sea-breeze-random': { seaBreezeReflectionOpacity: 60, seaBreezeReflectionLength: 200, seaBreezeReflectionGap: 30 },
@@ -61,6 +63,53 @@ test('stardust text effects survive local saving and service restart', async t =
   assert.equal(config.styleParameters.stardust.showEntryMessages, false);
   assert.equal(config.styleParameters.stardust.textOutline.width, 1.5);
   assert.equal(config.styleParameters.stardust.shadow.opacity, 60);
+});
+
+test('horizontal charm saves its layout and shared perspective in the local account profile', async t => {
+  const { createLayout } = require('../../public/js/shared/danmaku-layout.js');
+  const f = fixture(t);
+  const initial = await f.service.read();
+  f.service.save({ ...initial, config: { ...initial.config, style: 'horizontal-charm', layout: createLayout(),
+    styleOptions: { 'horizontal-charm': { charmGap: 44, charmMaxWidth: 680 } },
+    styleParameters: { 'horizontal-charm': { transform: { rotateY: -12, perspective: 1400 } } } } });
+  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner,
+    loadLegacy: () => { throw new Error('Local appearance must not fetch remote settings.'); } });
+  const { config } = await restarted.read();
+  assert.equal(config.style, 'horizontal-charm');
+  assert.equal(config.styleOptions['horizontal-charm'].charmGap, 44);
+  assert.equal(config.styleOptions['horizontal-charm'].charmMaxWidth, 680);
+  assert.equal(config.styleParameters['horizontal-charm'].transform.perspective, 1400);
+  assert.equal(config.styleParameters['horizontal-charm'].transform.rotateY, -12);
+  assert.equal(config.layout.regions['horizontal-charm'].width, 1920);
+});
+
+test('astral public perspective survives local saving and service restart', async t => {
+  const f = fixture(t);
+  const initial = await f.service.read();
+  f.service.save({ ...initial, config: { ...initial.config, style: 'astral',
+    styleOptions: { astral: { astralAccentColor: '#aaddff', astralEntrance: 'none' } },
+    styleParameters: { astral: { transform: { perspective: 1600, rotateY: -18, rotateZ: 2 } } } } });
+  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner });
+  const config = (await restarted.read()).config;
+  assert.equal(config.style, 'astral');
+  assert.equal(config.styleOptions.astral.astralEntrance, 'none');
+  assert.equal(config.styleParameters.astral.transform.perspective, 1600);
+  assert.equal(config.styleParameters.astral.transform.rotateY, -18);
+});
+
+test('neon glass and shared perspective survive local saving and service restart', async t => {
+  const f = fixture(t);
+  const initial = await f.service.read();
+  f.service.save({ ...initial, config: { ...initial.config, style: 'neon-glass',
+    styleOptions: { 'neon-glass': { neonGlassNameColors: 'identity', neonGlassHighlight: 70, neonGlassEntranceMs: 700 } },
+    styleParameters: { 'neon-glass': { transform: { perspective: 1600, rotateY: -18, rotateZ: 2 } } } } });
+  const restarted = createDanmakuAppearance({ store: createDanmakuAppearanceStore(f.db), getOwner: () => f.state.owner });
+  const config = (await restarted.read()).config;
+  assert.equal(config.style, 'neon-glass');
+  assert.equal(config.styleOptions['neon-glass'].neonGlassNameColors, 'identity');
+  assert.equal(config.styleOptions['neon-glass'].neonGlassHighlight, 70);
+  assert.equal(config.styleParameters['neon-glass'].transform.perspective, 1600);
+  assert.equal(config.styleParameters['neon-glass'].transform.rotateY, -18);
 });
 
 test('invalid local writes leave the complete saved appearance unchanged', async t => {

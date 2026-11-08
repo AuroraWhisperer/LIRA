@@ -286,6 +286,6 @@ body[data-style='sketch'] {
 }
 
 @keyframes sketchMessageIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { --danmaku-enter-opacity: 0; }
+  to { --danmaku-enter-opacity: 1; }
 }

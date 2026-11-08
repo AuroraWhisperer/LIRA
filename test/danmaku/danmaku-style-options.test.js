@@ -21,6 +21,10 @@ const RANDOM_ENTRANCE_KEYS = ['entranceAnimation', 'entranceDurationMs'];
 const FLOATING_KEYS = ['speedPixelsPerSecond', 'floatingDispersion', 'floatingEdgeFade', 'floatingEdgeFadeSize'];
 const SEA_BREEZE_REFLECTION_KEYS = ['seaBreezeReflectionOpacity', 'seaBreezeReflectionLength', 'seaBreezeReflectionGap'];
 const CONTROLS = {
+  'neon-glass': ['backgroundOpacity', 'bubbleColor', 'neonGlassNameColors', 'neonGlassHighlight', 'neonGlassIcons', 'neonGlassEntrance', 'neonGlassEntranceMs'],
+  'horizontal-charm': ['backgroundOpacity', 'bubbleColor', 'charmGap', 'charmMaxWidth'],
+  astral: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'astralAccentColor', 'astralEntrance'],
+  glowy: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'bubbleColor', 'ambientMotion', 'glowyLayout', 'glowyAvatar', 'glowyTime', 'glowyLight'],
   'celestial-horizontal': ['backgroundOpacity', 'bubbleColor', 'ambientMotion', 'celestialNebulaOpacity', 'celestialStarDensity', 'celestialStarShape', 'celestialSeparator'],
   stargazer: ['scrollDirection', 'edgeFade', 'backgroundOpacity', 'ambientMotion', 'stargazerPalette', 'stargazerColor',
     'stargazerLayout', 'stargazerWidth', 'stargazerGap', 'stargazerAlign', 'stargazerFrame', 'stargazerPerspective',
@@ -54,7 +58,7 @@ const CONTROLS = {
   comic: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'comicWritingMode', 'comicShape',
     'comicStrokeWidth', 'comicTexture', 'comicEntrance', 'comicEntranceMs'],
   window: [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'ambientMotion', 'windowPalette', 'windowWidth',
-    'windowRadius', 'windowControls', 'windowEntrance', 'windowEntranceMs'],
+    'windowRadius', 'windowControls', 'windowGuard', 'windowMedal', 'windowEntrance', 'windowEntranceMs'],
   stardust: [...RANDOM_TIMING_KEYS, 'ambientMotion', 'stardustEntrance', 'stardustKeepCenter',
     'stardustNicknames', 'stardustGiftThreshold', 'stardustSwapAnchors'],
   'glass-bubble': [...RANDOM_TIMING_KEYS, 'backgroundOpacity', 'glassBubbleReveal', 'glassBubbleTypingSpeed', 'glassBubbleSweep', 'glassBubbleHighlight'],
@@ -70,6 +74,19 @@ const CONTROLS = {
   glow: [...RANDOM_TIMING_KEYS, ...RANDOM_ENTRANCE_KEYS, 'backgroundOpacity'],
 };
 const CONTROL_VALUES = {
+  charmGap: { valid: [8, 80], invalid: [7, 81, 32.5], optional: true },
+  charmMaxWidth: { valid: [240, 1000], invalid: [239, 1001, 560.5], optional: true },
+  neonGlassNameColors: { valid: ['original', 'identity', 'text'], invalid: ['unknown'], optional: true },
+  neonGlassHighlight: { valid: [0, 100], invalid: [-1, 101], optional: true },
+  neonGlassIcons: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
+  neonGlassEntrance: { valid: ['layered', 'none'], invalid: ['unknown'], optional: true },
+  neonGlassEntranceMs: { valid: [200, 1000], invalid: [199, 1001, 480.5], optional: true },
+  astralAccentColor: { valid: ['#aabbcc', '#aabbcc80'], invalid: ['blue', '#12345'], optional: true },
+  astralEntrance: { valid: ['layered', 'none'], invalid: ['unknown'], optional: true },
+  glowyLayout: { valid: ['vertical', 'horizontal'], invalid: ['diagonal'], optional: true },
+  glowyAvatar: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
+  glowyTime: { valid: ['show', 'hide'], invalid: ['off'], optional: true },
+  glowyLight: { valid: [0, 100], invalid: [-1, 101, 1.5], optional: true },
   gradientPalette: { valid: ['original', 'sunset', 'ocean', 'lavender'], invalid: ['unknown'], optional: true },
   gradientCycleSeconds: { valid: [6, 24], invalid: [5, 25, 10.5], optional: true },
   gradientUnderline: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
@@ -123,6 +140,8 @@ const CONTROL_VALUES = {
   windowWidth: { valid: [220, 560], invalid: [219, 561], optional: true },
   windowRadius: { valid: [10, 36], invalid: [9, 37], optional: true },
   windowControls: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  windowGuard: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
+  windowMedal: { valid: ['show', 'hide'], invalid: ['unknown'], optional: true },
   windowEntrance: { valid: ['mixed', 'pop', 'unfold', 'rise', 'none'], invalid: ['unknown'], optional: true },
   windowEntranceMs: { valid: [180, 1000], invalid: [179, 1001], optional: true },
   comicWritingMode: { valid: ['horizontal', 'vertical'], invalid: ['sideways', null], optional: true },
@@ -327,6 +346,7 @@ test('styles without gift artwork always use real gift images while accepting le
     }
   }
   assert.equal(contract.styleOptionsFor('signal').giftImage, 'theme');
+  assert.equal(contract.styleOptionsFor('startrail').giftImage, 'gift');
 });
 
 test('scroll direction applies to fixed styles and restores each default', async () => {

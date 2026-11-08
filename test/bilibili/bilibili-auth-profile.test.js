@@ -6,11 +6,11 @@ const Module = require('node:module');
 const path = require('node:path');
 const test = require('node:test');
 
-function loadBilibiliAuth(cookies) {
+function loadBilibiliAuth(cookies, safeStorage = { isEncryptionAvailable: () => false }) {
   const originalLoad = Module._load;
   const modulePath = require.resolve('../../src/electron/bilibili-auth');
   const fakeElectron = {
-    safeStorage: { isEncryptionAvailable: () => false },
+    safeStorage,
     session: {
       fromPartition: () => ({
         cookies: { get: async () => cookies },
@@ -41,6 +41,25 @@ function createDataDir(t) {
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
   return dataDir;
 }
+
+test('Bilibili session identity stays fresh without decrypting snapshot metadata', async (t) => {
+  let decryptions = 0;
+  const cookies = [bilibiliCookie('DedeUserID', '123'), bilibiliCookie('SESSDATA', 'synthetic'), bilibiliCookie('bili_jct', 'synthetic')];
+  const auth = loadBilibiliAuth(cookies, {
+    isEncryptionAvailable: () => true,
+    decryptString() { decryptions += 1; return JSON.stringify({ savedAt: 'saved', cookies: [] }); },
+  });
+  const directory = createDataDir(t);
+  fs.mkdirSync(path.join(directory, 'bilibili-auth'));
+  fs.writeFileSync(path.join(directory, 'bilibili-auth', 'cookies.enc'), Buffer.from('synthetic').toString('base64'));
+  assert.equal((await auth.getBilibiliSessionState()).uid, 123);
+  cookies.length = 0;
+  assert.equal((await auth.getBilibiliSessionState()).loggedIn, false);
+  assert.equal(decryptions, 0);
+  const state = await auth.getBilibiliAuthState(directory);
+  assert.equal(state.lastSavedAt, 'saved');
+  assert.equal(decryptions, 1);
+});
 
 test('Bilibili account profile loads from the logged-in account when user cards are unavailable', async (t) => {
   const requests = [];

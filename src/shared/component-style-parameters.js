@@ -29,8 +29,10 @@ const STYLE_PARAMETER_GROUPS = Object.freeze({
     gamma: number('中间调', 1, 0.1, 3, 0.05), outputBlack: number('输出黑场', 0, 0, 254),
     outputWhite: number('输出白场', 255, 1, 255) } },
   transform: { label: '旋转与倾斜', advanced: true, fields: {
-    rotateX: number('X 轴旋转', 0, -80, 80, 1, '°'), rotateY: number('Y 轴旋转', 0, -80, 80, 1, '°'),
-    rotateZ: number('Z 轴旋转', 0, -180, 180, 1, '°'), skewX: number('X 轴倾斜', 0, -45, 45, 1, '°'),
+    rotateY: number('左右透视', 0, -80, 80, 1, '°'),
+    perspective: number('透视距离', 1000, 400, 4000, 1, 'px'),
+    rotateX: number('X 轴旋转', 0, -80, 80, 1, '°'),
+    rotateZ: number('平面旋转', 0, -180, 180, 1, '°'), skewX: number('X 轴倾斜', 0, -45, 45, 1, '°'),
     skewY: number('Y 轴倾斜', 0, -45, 45, 1, '°') } },
 });
 
@@ -41,6 +43,10 @@ const STYLE_PARAMETER_CAPABILITIES = Object.freeze({
     'timeline-vertical': 'text', digital: 'text', minimal: 'text', orbit: 'art', flip: 'panel', 'moonlit-fan': 'moon',
   },
   danmaku: {
+    'neon-glass': 'panel',
+    'horizontal-charm': 'panel',
+    astral: 'art',
+    glowy: 'panel',
     'celestial-horizontal': 'text',
     'animated-gradient': 'panel',
     startrail: 'text',

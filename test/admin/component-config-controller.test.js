@@ -78,6 +78,26 @@ test('external config updates merge untouched fields and only conflicting edits 
   assert.equal(controller.getState().conflict, false);
 });
 
+test('unchanged configuration does not notify but loaded and recovered conflict states remain observable', async () => {
+  const { controller } = await fixture({ read: async () => ({ fontSize: 24, color: '#ffffff' }) });
+  const states = [];
+  controller.subscribe(state => states.push(state));
+  controller.receive({ fontSize: 24, color: '#ffffff' });
+  assert.equal(states.at(-1).loaded, true);
+  const initialNotifications = states.length;
+  controller.receive({ fontSize: 24, color: '#ffffff' });
+  controller.edit({ fontSize: 24 });
+  controller.discard();
+  assert.equal(states.length, initialNotifications);
+  controller.edit({ fontSize: 28 });
+  controller.receive({ fontSize: 30, color: '#ffffff' });
+  assert.equal(states.at(-1).conflict, true);
+  controller.edit({ fontSize: 30 });
+  controller.receive({ fontSize: 30, color: '#ffffff' });
+  assert.equal(states.at(-1).conflict, false);
+  assert.equal(states.at(-1).dirty, false);
+});
+
 test('save echoes do not report conflicts and later config edits remain dirty', async () => {
   const { controller, writes } = await fixture();
   controller.edit({ fontSize: 28 });

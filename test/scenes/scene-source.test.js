@@ -131,8 +131,9 @@ test('scene notifications parse chunks and CRLF, coalesce during reads and prese
 
 test('scene source acknowledges received data versions and clears them after output failure', async t => {
   const f = await fixture(t);
+  assert.equal(f.outputs[0].url.searchParams.get('incrementalParts'), '1');
   assert.equal(f.outputs[0].url.searchParams.get('dataVersions'), '{}');
-  const versions = { songlist: 'songs-1', lyricTimeline: 'lyrics-1' };
+  const versions = { songlist: 'songs-1', lyricTimeline: 'lyrics-1', gamesCanvas: 'canvas-1', gamesScores: 'scores-1' };
   f.reply(f.outputs[0], { ...data(), dataVersions: versions });
   const stream = f.stream(); stream.send('data: ready\n\n'); await flush();
   await f.advance(100);

@@ -32,19 +32,37 @@ function fixture() {
   };
 }
 
-test('500 profiles reuse near reminders, calculate only a changed profile and extend detail on demand', () => {
+test('full scans of 1001 profiles reuse reminders, calculate only changes and extend detail on demand', () => {
   const f = fixture();
-  const profiles = Array.from({ length: 500 }, (_, id) => ({ ...f.profile, id: `person-${id}` }));
+  const profiles = Array.from({ length: 1001 }, (_, id) => ({ ...f.profile, id: `person-${id}` }));
   for (const profile of profiles) f.read({ profile });
-  assert.deepEqual(f.counts, { preparations: 500, summaries: 1500 });
+  assert.deepEqual(f.counts, { preparations: 1001, summaries: 3003 });
   for (const profile of profiles) f.read({ profile, at: f.at + 30000 });
-  assert.deepEqual(f.counts, { preparations: 500, summaries: 1500 });
+  assert.deepEqual(f.counts, { preparations: 1001, summaries: 3003 });
   profiles[0] = { ...profiles[0], birthday: { calendar: 'solar', monthDay: '10-26' } };
   for (const profile of profiles) f.read({ profile });
-  assert.deepEqual(f.counts, { preparations: 501, summaries: 1503 });
+  assert.deepEqual(f.counts, { preparations: 1002, summaries: 3006 });
   f.read({ profile: profiles[0], daysAhead: 366 });
-  assert.equal(f.counts.preparations, 501);
-  assert.equal(f.counts.summaries, 1507, 'detail reuses near dates and adds only the two distant milestone pairs');
+  assert.equal(f.counts.preparations, 1002);
+  assert.equal(f.counts.summaries, 3010, 'detail reuses near dates and adds only the two distant milestone pairs');
+});
+
+test('full inventories and deletions release removed profiles, and account switches release the old working set', () => {
+  const f = fixture();
+  const removed = { ...f.profile, id: 'removed' };
+  f.read();
+  f.read({ profile: removed });
+  f.project.retain('account-a', [f.profile]);
+  f.read();
+  assert.equal(f.counts.preparations, 2, 'retained profiles remain warm');
+  f.read({ profile: removed });
+  assert.equal(f.counts.preparations, 3, 'restoring a removed ID starts a fresh projection');
+  f.project.drop('account-a', removed.id);
+  f.read({ profile: removed });
+  assert.equal(f.counts.preparations, 4, 'single deletions also release their projection');
+  f.read({ scope: 'account-b' });
+  f.read();
+  assert.equal(f.counts.preparations, 6, 'returning to an account rebuilds its released working set');
 });
 
 test('cached projections isolate accounts, returned objects, reminder state and restore with reused revisions', () => {
@@ -86,15 +104,20 @@ test('midnight, precise start/expiry, observations and clock rollback invalidate
   assert.equal(f.read({ at: Date.parse('2026-10-24T00:00:00+08:00') }).membership.totalDays, 24);
 });
 
-test('reminder settings invalidate while unrelated records and sync cursors do not', () => {
+test('reminder inputs invalidate while identity observations, unrelated records and sync cursors do not', () => {
   const f = fixture();
   f.profile.guardAccompany = { roomId: '123', days: 98, observedAt: '2026-10-23T04:00:00Z', source: 'guard-roster' };
   f.read({ settings: { accompanyMilestones: [100] } });
   const before = f.counts.preparations;
-  f.read({ records: [f.record, { kind: 'note', data: { body: 'unrelated' } }],
+  f.read({ profile: { ...f.profile, revision: 2, platformObservedAt: '2026-10-23T04:00:15Z',
+    lastObservedAt: '2026-10-23T04:00:15Z', updatedAt: '2026-10-23T04:00:15Z', avatar: 'new-avatar' },
+    records: [f.record, { kind: 'note', data: { body: 'unrelated' } }],
     settings: { accompanyMilestones: [100], cursor: 999 } });
   assert.equal(f.counts.preparations, before);
   const changed = f.read({ settings: { accompanyMilestones: [101] } });
   assert.equal(f.counts.preparations, before + 1);
   assert.ok(changed.reminders.some(item => item.metric === 'accompany' && item.threshold === 101));
+  const renamed = f.read({ profile: { ...f.profile, alias: '新称呼' }, settings: { accompanyMilestones: [101] } });
+  assert.equal(f.counts.preparations, before + 2);
+  assert.ok(renamed.reminders.every(item => item.name === '新称呼'));
 });

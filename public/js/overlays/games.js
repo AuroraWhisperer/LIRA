@@ -1,4 +1,4 @@
-import { createGameSessionStream } from './games-session.js';
+import { createGameSessionStream, mergeGameSession } from './games-session.js';
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { createDrawController } from './games-drawing.js';
 import { createGameResult } from './games-result.js';
@@ -22,6 +22,7 @@ let drawDanmakuFeed = null;
 let drawController = null;
 let componentConfig = null;
 let componentData = null;
+let componentCanvasKey = '';
 let bombBoardKey = '';
 let gomokuBoardKey = '';
 const gameResult = createGameResult({
@@ -78,7 +79,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.dataset.hideGameDanmaku = String(!config.showDanmaku);
         renderComponent();
       },
-      onData(data) { componentData = data; renderComponent(); },
+      onData(data) {
+        componentData = data ? { ...data, session: mergeGameSession(componentData?.session, data.session) } : data;
+        renderComponent();
+      },
       onDispose() { clearInterval(timer); stopPages.forEach((stop) => stop()); drawDanmakuFeed?.destroy(); drawController?.resetDanmakuRenderScheduler(); },
     });
     return;
@@ -90,7 +94,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 function renderComponent() {
   const next = componentData?.sessions?.[componentConfig?.game] || componentData?.session;
-  renderGame(next?.game === componentConfig?.game ? next : null);
+  const nextSession = next?.game === componentConfig?.game ? next : null;
+  const canvas = byId('drawCanvas');
+  const key = nextSession?.game === 'draw-guess' && Number.isSafeInteger(nextSession.state.canvas?.revision)
+    ? JSON.stringify([nextSession.sessionId, nextSession.state.round, nextSession.state.canvas.revision, canvas.width, canvas.height]) : '';
+  renderGame(nextSession, !key || key !== componentCanvasKey);
+  componentCanvasKey = key;
   byId('gameEmptyView').hidden = Boolean(session) || !componentData?.preview;
 }
 
@@ -175,7 +184,7 @@ function applyGameDelta(payload, replaying) {
   }
 }
 
-function renderGame(nextSession) {
+function renderGame(nextSession, redraw = true) {
   session = nextSession || null;
   const game = nextSession?.game || '';
   document.body.dataset.game = game;
@@ -192,7 +201,7 @@ function renderGame(nextSession) {
   }
   const state = session.state;
   if (game === 'draw-guess') {
-    renderDrawGuess(state);
+    renderDrawGuess(state, redraw);
     gameResult.hide(session.restartBlocked);
     return;
   }

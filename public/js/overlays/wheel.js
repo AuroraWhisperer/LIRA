@@ -14,6 +14,7 @@ let animationToken = 0;
 let spinRequestPending = false;
 const SNAPSHOT_RETRIES = 4;
 let componentConfig = null;
+let segmentsKey = '';
 
 document.addEventListener('DOMContentLoaded', () => {
   if (isComponentPreview()) {
@@ -89,7 +90,12 @@ function renderState(state) {
     spin: null,
     lastResult: null,
   };
-  drawSegments(currentState.entries || []);
+  const entries = currentState.entries || [];
+  const nextSegmentsKey = JSON.stringify([entries.map(entry => [entry.label, entry.weight]), componentConfig?.labelFontSize || 22]);
+  if (nextSegmentsKey !== segmentsKey) {
+    drawSegments(entries);
+    segmentsKey = nextSegmentsKey;
+  }
   if (componentConfig) {
     byId('wheelMessage').hidden = !componentConfig.showResult;
     for (const label of document.querySelectorAll('.wheel-label')) label.style.fill = componentConfig.textColor;
@@ -98,10 +104,12 @@ function renderState(state) {
   setCenterBusy(Boolean(spin));
   if (spin && spin.id !== renderedSpinId) {
     renderedSpinId = spin.id;
+    clearResultHighlight();
     animateSpin(spin, currentState.entries || []);
     return;
   }
   if (!spin && currentState.lastResult) highlightResult(currentState.lastResult.index);
+  else if (!spin) clearResultHighlight();
   if (!(currentState.entries || []).length) setMessage('等待主播配置转盘');
   else if (!spin && !currentState.lastResult) setMessage(componentConfig ? '等待主播开始抽取' : '点击中心 GO 开始');
 }
@@ -179,6 +187,13 @@ function highlightResult(index) {
   });
   const label = currentState?.entries?.[index]?.label || '已抽取';
   setMessage(`抽中：${label}`);
+}
+
+function clearResultHighlight() {
+  document.querySelectorAll('.wheel-segment, .wheel-label').forEach((element) => {
+    element.classList.toggle('is-selected', false);
+    element.classList.toggle('is-dim', false);
+  });
 }
 
 function segmentPath(start, end) {

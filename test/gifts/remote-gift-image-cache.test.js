@@ -7,6 +7,51 @@ const path = require('node:path');
 const test = require('node:test');
 const { createRemoteGiftImageCache, MAX_IMAGE_BYTES } = require('../../src/bilibili/gift/remote-gift-image-cache');
 const { QUIET_LOGGER, webpBytes } = require('../helpers/remote-catalog-fixture');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+
+test('image maintenance reclaims old redundant files while preserving current, offline fallback and recently used artwork', async t => {
+  const dataDir = createScratchDirectory('gift-image-retention-', t);
+  const savedImage = '4-0123456789abcdef.webp';
+  const options = { dataDir, imageBaseUrl: 'https://api.example.test', logger: QUIET_LOGGER,
+    visitAssetReferences: visit => visit({ text: `/overtime-gift-images/${savedImage}` }),
+    fetch: async () => new Response(webpBytes()) };
+  let cache = createRemoteGiftImageCache(options);
+  const gift = { id: '1', name: 'gift', coinType: 'gold', priceRaw: 100, bagGift: false,
+    sourceUrl: 'https://i0.hdslb.com/original.webp' };
+  const original = await cache.cacheGiftImage(gift);
+  await cache.dispose();
+  cache = createRemoteGiftImageCache({ ...options, fetch: async () => { throw new Error('offline'); } });
+  t.after(() => cache.dispose());
+  const old = new Date(Date.now() - 60 * 86400000);
+  const orphan = '2-0123456789abcdef.webp';
+  const recent = '3-0123456789abcdef.webp';
+  const used = cache.getSourceImagePath('https://i0.hdslb.com/used.webp');
+  for (const name of [orphan, recent, savedImage, path.posix.basename(used)]) fs.writeFileSync(path.join(cache.cacheDir, name), webpBytes());
+  for (const name of [orphan, savedImage, path.posix.basename(original), path.posix.basename(used)]) fs.utimesSync(path.join(cache.cacheDir, name), old, old);
+  const revised = { ...gift, sourceUrl: 'https://i0.hdslb.com/revised.webp' };
+  cache.prune([revised]);
+  assert.equal(fs.existsSync(path.join(cache.cacheDir, orphan)), false);
+  for (const name of [recent, savedImage, path.posix.basename(original), path.posix.basename(used)]) assert.equal(fs.existsSync(path.join(cache.cacheDir, name)), true);
+  assert.equal(await cache.cacheGiftImage(revised), original);
+});
+
+test('image maintenance preserves files when the last-good index is unreadable and removes only expired owned temporary files', async t => {
+  const dataDir = createScratchDirectory('gift-image-retention-index-', t);
+  const directory = path.join(dataDir, 'cache/overtime-gift-images'); fs.mkdirSync(directory, { recursive: true });
+  const orphan = '2-0123456789abcdef.webp';
+  const temporary = '.index.json.tmp-123-0123456789ab';
+  const old = new Date(Date.now() - 60 * 86400000);
+  for (const name of [orphan, temporary, 'unrelated.tmp']) {
+    fs.writeFileSync(path.join(directory, name), webpBytes()); fs.utimesSync(path.join(directory, name), old, old);
+  }
+  fs.writeFileSync(path.join(directory, 'index.json'), '{broken');
+  const cache = createRemoteGiftImageCache({ dataDir, imageBaseUrl: 'https://api.example.test', logger: QUIET_LOGGER });
+  t.after(() => cache.dispose());
+  cache.prune([]);
+  assert.equal(fs.existsSync(path.join(directory, orphan)), true);
+  assert.equal(fs.existsSync(path.join(directory, temporary)), false);
+  assert.equal(fs.existsSync(path.join(directory, 'unrelated.tmp')), true);
+});
 
 test('catalog image revisions invalidate on downloads and recheck external file changes within one second', async (t) => {
   const { createHybridGiftSaleCatalogService } = require('../../src/bilibili/gift/hybrid-catalog');
@@ -570,3 +615,20 @@ test('same-ID image failures reuse only that identity across restart', async (t)
 function pngBytes() {
   return Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 }
+
+test('disposing the image cache aborts active downloads and does not start queued requests', async t => {
+  const { createScratchDirectory } = require('../helpers/scratch-directory');
+  const dataDir = createScratchDirectory('gift-image-stop-', t);
+  let calls = 0, started;
+  const active = new Promise(resolve => { started = resolve; });
+  const cache = createRemoteGiftImageCache({ dataDir, concurrency: 1, logger: QUIET_LOGGER,
+    fetch: async (_url, { signal }) => { calls++; started(); return new Promise((resolve, reject) => {
+      signal.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }); } });
+  const downloads = ['first', 'second'].map(name => cache.cacheSourceImage(`https://i0.hdslb.com/bfs/live/${name}.png`));
+  await active;
+  await cache.dispose();
+  assert.deepEqual(await Promise.all(downloads), ['', '']);
+  assert.equal(calls, 1);
+  assert.deepEqual(fs.readdirSync(cache.cacheDir), []);
+});

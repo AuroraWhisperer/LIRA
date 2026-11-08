@@ -1,0 +1,96 @@
+body[data-style='neon-glass'] {
+  --neon-glass-font: 'Spooky Nunito', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
+  --neon-glass-tint: var(--danmaku-bubble-color, #b5b8ec);
+  --danmaku-enter-animation: neonGlassEntry var(--neon-glass-entry-duration, 480ms) linear;
+  --danmaku-enter-offset: 0;
+  --danmaku-move-base-ms: 360;
+  --danmaku-move-max-ms: 650;
+  --danmaku-move-curve: .22, .61, .36, 1;
+}
+body[data-style='neon-glass'][data-custom-font='true'] { --neon-glass-font: var(--danmaku-custom-font); }
+body[data-style='neon-glass'] .danmaku-signal-header { display: none; }
+body[data-style='neon-glass']:not(.has-layout) .danmaku-region { display: flex; flex-direction: column; }
+body[data-style='neon-glass'] .danmaku-signal-stage {
+  position: relative; display: flex; align-items: center; flex: none; width: 100%; height: 144px;
+  max-width: none; margin-top: auto; padding: 0; background: none; border: 0; box-shadow: none;
+}
+body[data-style='neon-glass'].has-layout .danmaku-signal-stage { height: var(--region-content-height); }
+body[data-style='neon-glass'] .draw-danmaku-feed {
+  position: relative; display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
+  width: 100%; height: 100%; padding: 14px 24px; gap: 16px; overflow: hidden; mask: none;
+}
+body[data-style='neon-glass'] .draw-danmaku-feed:not([data-flow-overflow='true']) { justify-content: flex-start; }
+body[data-style='neon-glass'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  mask: linear-gradient(90deg, transparent, #000 min(20px, 4%), #000 calc(100% - min(20px, 4%)), transparent);
+}
+body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item {
+  --neon-glass-name-color: var(--neon-glass-original-name-color);
+  position: relative; display: block; flex: none; width: max-content;
+  max-width: min(640px, calc(var(--region-content-width, 100vw) - 48px)); min-width: 0; min-height: 0;
+  margin: 0; padding: 10px 22px; border: 0; border-radius: 30px; background: none;
+  box-shadow: none; clip-path: none; overflow: visible; animation: none; zoom: 1;
+  font: 400 var(--danmaku-font-size, 24px)/1.45 var(--neon-glass-font);
+  color: var(--danmaku-text-color, #ffffff); text-shadow: 0 1px 2px rgb(22 27 49 / 48%);
+}
+body[data-style='neon-glass'] .neon-glass-item::before,
+body[data-style='neon-glass'] .neon-glass-item::after { display: none; }
+.neon-glass-panel {
+  position: absolute; inset: 0; display: block; border-radius: inherit; pointer-events: none;
+  border: 1px solid color-mix(in srgb, #e3e9ff 24%, transparent);
+  background: linear-gradient(176deg, color-mix(in srgb, var(--neon-glass-tint) 45%, transparent),
+    color-mix(in srgb, var(--neon-glass-tint) 18%, transparent) 52%, rgb(130 116 190 / 23%)),
+    rgb(34 39 61 / 76%);
+  box-shadow: inset 0 1px 2px rgb(255 255 255 / calc(.45 * var(--neon-glass-highlight, 1))),
+    inset 0 -1px 4px rgb(179 174 243 / calc(.24 * var(--neon-glass-highlight, 1))),
+    0 5px 16px rgb(30 34 72 / 16%);
+  backdrop-filter: blur(12px) saturate(125%);
+  opacity: var(--danmaku-background-opacity, 1);
+}
+body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item .neon-glass-content {
+  position: relative; display: block; width: auto; min-width: 0; min-height: 0; padding: 0;
+  font: inherit; color: inherit; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+body[data-style='neon-glass'] .neon-glass-name {
+  font: 700 24px/1.45 var(--neon-glass-font); color: color-mix(in srgb, var(--neon-glass-name-color) 65%, #fff); white-space: normal;
+  overflow-wrap: anywhere; letter-spacing: 0;
+}
+body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item .neon-glass-copy {
+  display: inline; margin: 0; padding: 0; min-width: 0; border: 0; border-radius: 0;
+  background: none; box-shadow: none; font: inherit; color: inherit; letter-spacing: 0;
+  white-space: pre-wrap; overflow-wrap: anywhere;
+}
+body[data-style='neon-glass'] .neon-glass-copy :is(.draw-danmaku-gift-name, .draw-danmaku-gift-count, .draw-danmaku-gift-action) {
+  font: inherit; color: inherit; white-space: normal;
+}
+body[data-style='neon-glass'] .neon-glass-item[data-neon-glass-kind='sc'] .sc-copy { font: inherit; }
+.neon-glass-amount { font-size: .85em; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.neon-glass-icon { display: inline-block; width: .9em; height: .9em; margin-left: .5em; vertical-align: -.1em; color: #fff; }
+.neon-glass-icon:first-child { margin: 0 .3em 0 0; color: var(--neon-glass-name-color); }
+body[data-style='neon-glass'] .neon-glass-item:not([data-neon-glass-kind='chat']) .neon-glass-name { font: inherit; font-weight: 600; color: inherit; }
+body[data-style='neon-glass'][data-neon-glass-icons='hide'] .neon-glass-icon { display: none; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='text'] .neon-glass-name { color: inherit; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item {
+  --neon-glass-name-color: #c2adff;
+}
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='fan'] { --neon-glass-name-color: #b4df75; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='captain'] { --neon-glass-name-color: #8dd9ef; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='admiral'] { --neon-glass-name-color: #c2adff; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='governor'] { --neon-glass-name-color: #f09bc9; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='streamer'] { --neon-glass-name-color: #ffa58d; }
+body[data-style='neon-glass'] .draw-danmaku-emote {
+  display: inline-block; width: auto; max-width: 100%; height: 1.45em; object-fit: contain; vertical-align: -.25em;
+}
+body[data-style='neon-glass'] .draw-danmaku-empty { width: 100%; padding: 0; font: 400 16px/1.5 var(--neon-glass-font); color: #dce3ff; text-align: center; }
+.neon-glass-item[data-live-entry] .neon-glass-panel { animation: neonGlassSurface var(--neon-glass-entry-duration, 480ms) cubic-bezier(.16, 1, .3, 1) both; }
+.neon-glass-item[data-live-entry] .neon-glass-content {
+  opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y);
+  animation: neonGlassCopy var(--neon-glass-entry-duration, 480ms) cubic-bezier(.16, 1, .3, 1) both;
+}
+@keyframes neonGlassEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
+@keyframes neonGlassSurface { from { opacity: 0; transform: scaleX(.94); } to { opacity: var(--danmaku-background-opacity, 1); transform: scaleX(1); } }
+@keyframes neonGlassCopy { 0%, 20% { --danmaku-enter-opacity: 0; --danmaku-enter-y: 3px; } 100% { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; } }
+body[data-style='neon-glass'][data-neon-glass-entrance='none'] { --danmaku-enter-animation: none; }
+body[data-style='neon-glass'][data-neon-glass-entrance='none'] .neon-glass-item[data-live-entry] :is(.neon-glass-panel, .neon-glass-content) { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  body[data-style='neon-glass'] .neon-glass-item :is(.neon-glass-panel, .neon-glass-content) { animation: none; }
+}

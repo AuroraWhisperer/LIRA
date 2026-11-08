@@ -24,14 +24,18 @@ async function fixture(t) {
   let holdSave = false;
   let signal;
   let subscribed = true;
+  let notifyModel;
+  let items = [item, twin];
+  const reads = [];
   const writes = [];
   const provider = createCanvasSharedAppearance({
-    model: { getSnapshot: () => ({ items: [item, twin] }), subscribeSnapshot(fn) { fn(); return () => { subscribed = false; }; } },
+    model: { getSnapshot: () => ({ items }), subscribeSnapshot(fn) { notifyModel = fn; fn(); return () => { subscribed = false; }; } },
     request: async (body, requestSignal) => {
       signal = requestSignal;
       if (body.action === 'read') {
+        reads.push(body.items);
         if (readError) throw new Error('read failed');
-        const data = { [sceneAppearanceKey(item.type, item.appearance.config)]: { ...values } };
+        const data = Object.fromEntries(body.items.map(item => [sceneAppearanceKey(item.type, item.config), { ...values }]));
         if (holdRead) await new Promise(resolve => { deferredRead = resolve; });
         return data;
       }
@@ -48,7 +52,8 @@ async function fixture(t) {
     timers.delete(id);
     await timer.fn();
   }
-  return { provider, item, twin, values, writes, tick, timers,
+  return { provider, item, twin, values, writes, reads, tick, timers,
+    setItems(next) { items = next; notifyModel(); },
     readError(value) { readError = value; }, saveError(value) { saveError = value; },
     holdRead() { holdRead = true; }, finishRead() { holdRead = false; deferredRead(); },
     holdSave() { holdSave = true; }, finishSave() { holdSave = false; deferredSave(); },
@@ -83,6 +88,24 @@ test('shared appearance follows the desktop, shares instances and retains failed
   assert.equal(f.provider.getState(f.twin).draft.songBoardTitle, 'canvas');
   f.provider.dispose();
   assert.equal(f.isDisposed(), true);
+});
+
+test('geometry keeps the polling deadline while new appearance owners are read promptly', async t => {
+  const f = await fixture(t);
+  await f.tick(0);
+  const deadline = [...f.timers.keys()][0];
+  for (let x = 1; x <= 60; x++) f.setItems([{ ...f.item, x }, { ...f.twin, x }]);
+  assert.equal(f.reads.length, 1);
+  assert.equal(f.timers.has(deadline), true, 'moving layers must not replace the scheduled owner read');
+  f.holdRead();
+  const reading = f.tick(750);
+  const opening = { type: 'opening', appearance: { config: { style: 'original' } } };
+  f.setItems([f.item, opening]);
+  f.finishRead(); await reading;
+  await f.tick(0);
+  assert.equal(f.reads.at(-1).length, 2, 'an owner added during a request is included immediately after that request');
+  f.setItems([]);
+  assert.equal(f.timers.size, 0, 'a canvas without shared owners has no appearance polling task');
 });
 
 test('a stale read cannot undo a save and edits made during a save are serialized', async t => {

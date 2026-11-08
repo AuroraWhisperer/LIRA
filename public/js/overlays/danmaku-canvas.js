@@ -1,11 +1,19 @@
 import { REGION_DEFAULTS } from '../shared/danmaku-layout.js';
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 
+// Default placement can change without enlarging text in saved regions.
+const FIXED_DESIGN_WIDTHS = Object.freeze({
+  'sea-breeze': 480, sketch: 680, prismatic: 640, harbor: 640, snowfox: 640,
+  ripploid: 520, twitter: 530, 'flower-letter': 640, spooky: 530, notebook: 640,
+  glass: 696, 'animated-gradient': 520, christmas: 560, stargazer: 560,
+  'christmas-letter': 560, wireframe: 480, starlight: 520, 'dark-moon': 640, moonlit: 640,
+});
+
 export function canvasContentScale(layout, style, styleOptions = {}) {
-  const width = REGION_DEFAULTS[style]?.[0];
+  const width = FIXED_DESIGN_WIDTHS[style] ?? REGION_DEFAULTS[style]?.[0];
   const region = layout.regions[style];
   // Widening a horizontal strip adds room for cards instead of enlarging each card.
-  if (DANMAKU_STYLE_OPTIONS[style]?.layout === 'horizontal' || styleOptions[style]?.stargazerLayout === 'horizontal') {
+  if (DANMAKU_STYLE_OPTIONS[style]?.layout === 'horizontal' || styleOptions[style]?.stargazerLayout === 'horizontal' || styleOptions[style]?.glowyLayout === 'horizontal') {
     return Math.min(layout.contentScale, region.width / 64, region.height / 64);
   }
   // Keep room for the stage insets and a complete card even in a very short region.

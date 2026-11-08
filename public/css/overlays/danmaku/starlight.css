@@ -188,6 +188,8 @@ body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
   mask: var(--starlight-star) center / contain no-repeat;
   content: '';
   pointer-events: none;
+  opacity: var(--danmaku-enter-opacity);
+  transform: var(--danmaku-enter-transform);
   animation: var(--starlight-decoration-animation) var(--starlight-decoration-duration) var(--starlight-decoration-easing) infinite;
 }
 body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before {
@@ -306,40 +308,40 @@ body[data-style='starlight'][data-custom-font='true'] :is(.draw-danmaku-identity
   font-family: var(--danmaku-custom-font);
 }
 @keyframes starlightTwinkle {
-  0%, 100% { opacity: .95; transform: scale(1); }
-  40% { opacity: .2; transform: scale(.45); }
-  65% { opacity: 1; transform: scale(1.12); }
+  0%, 100% { --danmaku-enter-opacity: .95; --danmaku-enter-transform: scale(1); }
+  40% { --danmaku-enter-opacity: .2; --danmaku-enter-transform: scale(.45); }
+  65% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.12); }
 }
 @keyframes starlightHeartbeat {
-  0%, 38%, 100% { opacity: .9; transform: scale(1); }
-  10% { opacity: 1; transform: scale(1.14); }
-  20% { opacity: .95; transform: scale(.98); }
-  28% { opacity: 1; transform: scale(1.08); }
+  0%, 38%, 100% { --danmaku-enter-opacity: .9; --danmaku-enter-transform: scale(1); }
+  10% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.14); }
+  20% { --danmaku-enter-opacity: .95; --danmaku-enter-transform: scale(.98); }
+  28% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.08); }
 }
 @keyframes starlightJelly {
-  0%, 60%, 100% { transform: translateY(0) rotate(0deg) scale(1); }
-  15% { transform: translateY(-2px) rotate(8deg) scale(.96, 1.04); }
-  28% { transform: translateY(0) rotate(-5deg) scale(1.08, .94); }
-  42% { transform: translateY(-1px) rotate(3deg) scale(1); }
+  0%, 60%, 100% { --danmaku-enter-transform: translateY(0) rotate(0deg) scale(1); }
+  15% { --danmaku-enter-transform: translateY(-2px) rotate(8deg) scale(.96, 1.04); }
+  28% { --danmaku-enter-transform: translateY(0) rotate(-5deg) scale(1.08, .94); }
+  42% { --danmaku-enter-transform: translateY(-1px) rotate(3deg) scale(1); }
 }
 @keyframes starlightSpin {
-  0% { opacity: .8; transform: rotate(0deg) scale(.94); }
-  50% { opacity: 1; transform: rotate(180deg) scale(1.06); }
-  100% { opacity: .8; transform: rotate(360deg) scale(.94); }
+  0% { --danmaku-enter-opacity: .8; --danmaku-enter-transform: rotate(0deg) scale(.94); }
+  50% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: rotate(180deg) scale(1.06); }
+  100% { --danmaku-enter-opacity: .8; --danmaku-enter-transform: rotate(360deg) scale(.94); }
 }
 @keyframes starlightBloom {
-  0%, 100% { opacity: .78; transform: rotate(-8deg) scale(.88); }
-  50% { opacity: 1; transform: rotate(8deg) scale(1.08); }
+  0%, 100% { --danmaku-enter-opacity: .78; --danmaku-enter-transform: rotate(-8deg) scale(.88); }
+  50% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: rotate(8deg) scale(1.08); }
 }
 @keyframes starlightMoonFloat {
-  0%, 100% { opacity: .9; transform: translateY(0) rotate(-8deg); }
-  50% { opacity: 1; transform: translateY(-2px) rotate(8deg); }
+  0%, 100% { --danmaku-enter-opacity: .9; --danmaku-enter-transform: translateY(0) rotate(-8deg); }
+  50% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateY(-2px) rotate(8deg); }
 }
 @keyframes starlightBowSway {
-  0%, 100% { transform: rotate(-10deg) scaleX(1); }
-  25% { transform: rotate(6deg) scaleX(.94); }
-  50% { transform: rotate(10deg) scaleX(1); }
-  75% { transform: rotate(-6deg) scaleX(.94); }
+  0%, 100% { --danmaku-enter-transform: rotate(-10deg) scaleX(1); }
+  25% { --danmaku-enter-transform: rotate(6deg) scaleX(.94); }
+  50% { --danmaku-enter-transform: rotate(10deg) scaleX(1); }
+  75% { --danmaku-enter-transform: rotate(-6deg) scaleX(.94); }
 }
 body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
 body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }
@@ -350,6 +352,6 @@ body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identi
 }
 
 @keyframes starlightMessageIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from { --danmaku-enter-opacity: 0; }
+  to { --danmaku-enter-opacity: 1; }
 }

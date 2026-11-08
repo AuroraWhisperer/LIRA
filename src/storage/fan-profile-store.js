@@ -151,6 +151,19 @@ function createFanProfileStore(db) {
     });
   }
 
+  function removeMany(scope, ids) {
+    return transaction(() => {
+      for (let offset = 0; offset < ids.length; offset += 500) {
+        const batch = ids.slice(offset, offset + 500);
+        const result = db.prepare(`DELETE FROM fan_profiles WHERE scope = ? AND id IN (${batch.map(() => '?').join(', ')})`)
+          .run(scope, ...batch);
+        if (Number(result.changes) !== batch.length) throw new Error('档案不存在。');
+      }
+      if (ids.length) records.pruneRosterTemplates(scope);
+      return ids.length;
+    });
+  }
+
   function suppressions(scope) {
     return db.prepare('SELECT identity_key FROM fan_suppressions WHERE scope = ?').all(scope).map((row) => row.identity_key);
   }
@@ -267,6 +280,7 @@ function createFanProfileStore(db) {
     saveState,
     remove,
     removeAll,
+    removeMany,
     exportScope,
     snapshot,
     restoreProfile,

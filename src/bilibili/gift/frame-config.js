@@ -4,6 +4,7 @@ const { normalizeAvatarUrl } = require('./avatar-url');
 const {
   GIFT_FRAME_STYLE_TRIGGERS_KEY,
   MAX_GIFT_FRAME_STYLE_TRIGGERS,
+  parseGiftFrameStyleTriggers,
   readGiftFrameStyleTrigger,
 } = require('../../../public/js/shared/gift-frame-style-triggers.js');
 const STYLE_ID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
@@ -124,8 +125,9 @@ function buildGiftFrameEvent(item, settings = {}) {
 function buildGiftFrameStyleEvent(item, settings = {}, styleIds = []) {
   const base = buildFrameBase(item);
   if (!base) return null;
+  const triggers = parseGiftFrameStyleTriggers(settings[GIFT_FRAME_STYLE_TRIGGERS_KEY]);
   const matched = [...new Set(styleIds)].filter((id) => {
-    const trigger = readGiftFrameStyleTrigger(settings, id);
+    const trigger = readGiftFrameStyleTrigger(settings, id, triggers);
     const thresholdCents = normalizeRmbCents(trigger.thresholdRmb);
     return trigger.enabled && thresholdCents !== null && base.totalPriceCents >= thresholdCents;
   });

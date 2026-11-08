@@ -65,7 +65,7 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
 
 | 事实       | 行为                                                                                                                                                                                                                                                        | 出处                                                                                                                       |
 | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| 连接 URL | 管理页使用本机 `/ws`，认证由 Electron main 加头；overlay 使用本页 query 凭据。`topic=danmaku` 只订阅事件，不扩展 scope | [state.js](../../../public/js/admin/state.js)、[socket-client.js](../../../public/js/overlays/socket-client.js) |
+| 连接 URL | 管理页使用本机 `/ws?snapshot=music-events-v1` 协商音乐事件更新，认证由 Electron main 加头；overlay 使用本页 query 凭据。`topic=danmaku` 只订阅事件，不扩展 scope | [state.js](../../../public/js/admin/state.js)、[socket-client.js](../../../public/js/overlays/socket-client.js) |
 | 首帧       | 连接建立即收 `{type:'snapshot', reason:'connect', state}` 全量快照(契约见 [ws.md](../backend/ws.md) §2)                                                                                                                                                     | [ws.md](../backend/ws.md) §2                                                                                               |
 | 协议选择   | `location.protocol === 'https:' ? 'wss:' : 'ws:'`,与页面同源(`location.host`)                                                                                                                                                                               | [state.js:30](../../../public/js/admin/state.js#L30)                                                                       |
 | 只读客户端 | 前端**不发送任何业务消息**给服务端;`shutdown` 消息到达后停止重连                                                                                                                                                                                            | [ws.md](../backend/ws.md) §1                                                                                               |
@@ -74,6 +74,8 @@ Admin 的 HTTP 与 WS 全量快照统一经过 `StateService.applySnapshot`。HT
 | 礼物触发   | reason ∈ {`bilibili:gift`,`gift:clear-recent`,`database:clear-gifts`,`database:clear-all`} 时额外发 `gift:received` 事件                                                                                                                                    | [state.js:215-220](../../../public/js/admin/state.js#L215-L220)                                                            |
 
 Admin 首次成功连接不重复初始歌库加载；后续每次成功重连通过现有 240ms 合并计时器重新获取 `/api/songs`，使用当前筛选条件并保留最新请求版本检查，以恢复断线期间遗漏的歌曲变更。关闭状态同时取消连接和歌库重载计时器，已排队的旧回调不能发起请求。
+
+协商成功后，管理页按 `snapshot:patch` 实际携带的字段合并状态并记录字段版本，省略的音乐字段由现有专用消息维护；迟到 HTTP 结果不能覆盖较新的事件。每次连接的 `snapshot` 仍为完整基线；旧服务返回完整快照也能接纳。省略字段及兼容规则由 [WS 契约](../backend/ws.md#2-快照snapshot21-字段) 定义。
 
 ### 3.2 指纹去重(叠加层)
 
@@ -123,7 +125,7 @@ Admin 首次成功连接不重复初始歌库加载；后续每次成功重连�
 ## 5. 状态流总结
 
 ```
-服务端业务变更 ──→ WS 全量 snapshot ──→ 各页面整体替换本地 state ──→ 指纹去重后重渲染
+服务端业务变更 ──→ WS snapshot / 协商后的 patch ──→ 按字段版本接纳 state ──→ 指纹去重后重渲染
        ↑                                                    │
        └────── fetch POST /api/*(命令) ◀── 用户操作/乐观刷新 ◀─┘
        B站礼物: lira-server detector ──→ main SSE/cursor importer ──→ 本地 gift service ──→ snapshot/WS gift:frame

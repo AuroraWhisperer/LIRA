@@ -21,9 +21,17 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
   const getAppearanceOwner = runtimeOptions.getPreviewOwner || getOwner;
   const demand = createDisplayDemand();
   const cloud = createCloudDisplayBuffer({ getOwner, onRead: demand.touch });
+  function readCloud(request) {
+    const snapshot = cloud.getSnapshot(request);
+    const resources = displayPorts.giftImages;
+    if (resources) snapshot.events = snapshot.events.map(event => event.type === 'gift'
+      ? { ...event, giftImageUrl: [1, 2, 3].includes(Number(event.giftGuardLevel))
+        ? '' : resources.resolveSource(event.giftImageUrl) } : event);
+    return snapshot;
+  }
   let roomProfileCache;
   const sceneCloud = { getSnapshot(request) {
-    const snapshot = cloud.getSnapshot(request);
+    const snapshot = readCloud(request);
     const roomId = String(snapshot.state?.roomGuard?.roomId || '');
     const currentKey = () => {
       const owner = getOwner();
@@ -52,25 +60,28 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
     } });
   const gifts = createSceneGiftEvents({ getOwner });
   const getExtraDisplay = createSceneExtraDisplay({ displayPorts, getOwner });
+  const componentPorts = createSceneComponentPorts({ getState, getOwner, cloud: sceneCloud, getDanmakuConfig: () => {
+    const config = appearance.getSettings();
+    if (!config) demand.touch();
+    return config;
+  },
+  getExtraDisplay: (type, readState, request) => ['gift-frame', 'guard-thanks'].includes(type)
+    ? gifts.getSnapshot(type, request) : getExtraDisplay(type, readState, request) });
   function notify({ invalidateTypes, ...change } = {}) {
     if (invalidateTypes) getExtraDisplay.invalidate?.(invalidateTypes);
+    componentPorts.invalidateDisplay(change.types);
     events.notify(change);
   }
   const service = createSceneService({ store: createSceneStore(songDb), getOwner,
-    getSharedAppearances: items => readSceneSharedAppearances({
+    getSharedAppearances: (items, displayContext) => readSceneSharedAppearances({
       settings: displayPorts.settings,
       system: displayPorts.system,
+      readState: displayContext?.readState,
       readDanmakuDisplay: () => ({ config: appearance.getSettings() }),
     }, items),
     onOutputChanged: notify,
     secretCodec: runtimeOptions.sceneSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage),
-    ...createSceneComponentPorts({ getState, cloud: sceneCloud, getDanmakuConfig: () => {
-      const config = appearance.getSettings();
-      if (!config) demand.touch();
-      return config;
-    },
-      getExtraDisplay: (type, readState, request) => ['gift-frame', 'guard-thanks'].includes(type)
-        ? gifts.getSnapshot(type) : getExtraDisplay(type, readState, request) }) });
+    ...componentPorts });
   const renewDemand = ({ types }) => { if (types.includes('danmaku')) demand.touch(); };
   const events = createSceneOutputEvents({ getAccess: (input) => service.getOutputAccess(input), onActivity: renewDemand });
   const danmakuEvents = createDisplayNotifications({ getAccess() {
@@ -99,7 +110,7 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
       if (accepted) events.notify({ types: [payload.type === 'gift:frame' ? 'gift-frame' : 'guard-thanks'] });
       return accepted;
     },
-    readDanmakuDisplay: (request) => ({ config: appearance.getSettings(), data: cloud.getSnapshot(request) }) };
+    readDanmakuDisplay: (request) => ({ config: appearance.getSettings(), data: readCloud(request) }) };
 }
 
 module.exports = { createSceneRuntime };

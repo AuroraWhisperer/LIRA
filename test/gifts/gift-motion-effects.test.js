@@ -38,7 +38,7 @@ test('settlement publication resolves exact artwork once and both scoped styles 
 
 test('each motion effect independently accepts final total and captures its own parameters at settlement', () => {
   const { values: settings, error } = normalizeSettingsPatch({ giftDropEnabled: 'true', giftDropThresholdRmb: '5', giftDropSize: '72',
-    giftDropDurationSeconds: '12', giftDropSpeed: '75', giftDropBounce: '60',
+    giftDropDurationSeconds: '12', giftDropSpeed: '75', giftDropBounce: '60', giftDropQuantityMultiplier: '3',
     giftSwingEnabled: 'true', giftSwingThresholdRmb: '10', giftSwingSpeed: '150', giftSwingTextMode: 'gift' }, DEFAULT_SETTINGS);
   assert.equal(error, undefined);
   const gift = { id: 8, detection_status: 'final', total_price: 5, num: 99, gift_name: '小花花' };
@@ -49,6 +49,8 @@ test('each motion effect independently accepts final total and captures its own 
   assert.equal(drop.motion.durationSeconds, 12);
   assert.equal(drop.motion.speed, 75);
   assert.equal(drop.motion.bounce, 60);
+  assert.equal(drop.motion.quantityMultiplier, 3);
+  assert.equal(drop.num, 99);
   const both = buildGiftMotionEvents({ ...gift, total_price: 10 }, settings);
   assert.deepEqual(both.map(event => event.themeId), ['gift-drop', 'gift-swing']);
   assert.notEqual(both[0].eventId, both[1].eventId);
@@ -57,13 +59,50 @@ test('each motion effect independently accepts final total and captures its own 
   assert.equal(buildGiftMotionEvents({ ...gift, detection_status: 'progress' }, settings).length, 0);
   assert.equal(buildGiftMotionEvents({ ...gift, total_price: 0 }, settings).length, 0);
   assert.equal(normalizeGiftMotionSetting('giftDropSize', 0), null);
+  assert.ok(normalizeSettingsPatch({ giftDropQuantityMultiplier: '9' }, DEFAULT_SETTINGS).error);
+  assert.equal(normalizeGiftMotionSetting('giftDropQuantityMultiplier', 1.5), null);
   assert.equal(normalizeGiftMotionSetting('giftSwingAngle', 100), null);
   assert.equal(normalizeGiftMotionSetting('giftSwingTextMode', 'unknown'), null);
 });
 
+test('drop quantity defaults to four visual copies per gift and accepts a saved multiplier without changing the receipt', () => {
+  const gift = { id: 9, detection_status: 'final', total_price: 5, num: 3 };
+  const settings = { giftDropEnabled: 'true' };
+  const world = createGiftDropWorld({ random: () => 0.5 });
+  const [event] = buildGiftMotionEvents(gift, settings, { startedAt: 1000 });
+  assert.equal(world.addGift(event, 1000).length, 12);
+  assert.equal(event.num, 3);
+  const [adjusted] = buildGiftMotionEvents({ ...gift, id: 10 }, { ...settings, giftDropQuantityMultiplier: '2' }, { startedAt: 1000 });
+  assert.equal(world.addGift(adjusted, 1000).length, 6);
+  assert.equal(adjusted.num, 3);
+});
+
+test('independent swing text choices survive settlement without overwriting saved motion values', () => {
+  const { values: settings, error } = normalizeSettingsPatch({ giftSwingEnabled: 'true',
+    giftSwingTextMode: 'name-quantity', giftSwingSpeed: '100', giftSwingAngle: '24' }, DEFAULT_SETTINGS);
+  assert.equal(error, undefined);
+  const [event] = buildGiftMotionEvents({ id: 11, detection_status: 'final', total_price: 1, num: 4 }, settings);
+  assert.equal(event.motion.textMode, 'name-quantity');
+  assert.equal(event.motion.speed, 100);
+  assert.equal(event.motion.angle, 24);
+});
+
+test('amplified large combos retain their true remainder and never evict existing drops at capacity', () => {
+  const world = createGiftDropWorld({ random: () => 0.5 });
+  const event = { eventId: 'combo', num: 100, startedAt: 1000,
+    motion: { size: 80, durationSeconds: 20, quantityMultiplier: 2 } };
+  const added = world.addGift(event, 1000);
+  assert.equal(added.length, 120);
+  assert.equal(added.at(-1).quantity, 41);
+  const next = world.addGift({ ...event, eventId: 'next', motion: { ...event.motion, quantityMultiplier: 8 } }, 1000);
+  assert.equal(next.length, 280);
+  assert.ok(added.every(body => world.bodies.includes(body)));
+  assert.equal(world.addGift({ ...event, eventId: 'full' }, 1000).length, 0);
+});
+
 test('late arrival and image preparation never restart a drop lifetime', () => {
   const world = createGiftDropWorld({ random: () => 0.5 });
-  const event = { eventId: 'a', num: 3, startedAt: 1000, motion: { size: 80, durationSeconds: 3 } };
+  const event = { eventId: 'a', num: 3, startedAt: 1000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } };
   world.addGift(event, 2500);
   assert.equal(world.bodies.length, 3);
   assert.equal(world.bodies[0].expiresAt, 4000);
@@ -75,8 +114,8 @@ test('late arrival and image preparation never restart a drop lifetime', () => {
 
 test('expired support disappears first and the supported drop falls to the floor', () => {
   const world = createGiftDropWorld({ width: 500, height: 500, random: () => 0.5 });
-  world.addGift({ eventId: 'bottom', num: 1, startedAt: 1000, motion: { size: 80, durationSeconds: 3 } }, 1000);
-  world.addGift({ eventId: 'top', num: 1, startedAt: 2000, motion: { size: 80, durationSeconds: 3 } }, 2000);
+  world.addGift({ eventId: 'bottom', num: 1, startedAt: 1000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } }, 1000);
+  world.addGift({ eventId: 'top', num: 1, startedAt: 2000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } }, 2000);
   const [bottom, top] = world.bodies;
   Object.assign(bottom, { x: 250, y: 460, angle: 0, vx: 0, vy: 0, spin: 0 });
   Object.assign(top, { x: 250, y: 380, angle: 0, vx: 0, vy: 0, spin: 0 });

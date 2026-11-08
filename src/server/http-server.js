@@ -166,7 +166,7 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/overtime-gift-images/')) {
-        serveOvertimeGiftImage(dataDir, req, res, requestUrl);
+        await serveOvertimeGiftImage(dataDir, req, res, requestUrl, options.ensureGiftImage);
         return;
       }
 
@@ -220,6 +220,7 @@ function createHttpServer(options = {}) {
   });
 
   server.on('close', () => componentPreviews.clear());
+  server.visitAssetReferences = componentPreviews.visitAssetReferences;
 
   return server;
 }

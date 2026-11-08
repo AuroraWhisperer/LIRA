@@ -7,7 +7,8 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 
-function createFixture({ loadPending = false, getAuthState = async () => ({ loggedIn: false }) } = {}) {
+function createFixture({ loadPending = false, getAuthState = async () => ({ loggedIn: false }),
+  getSessionState = getAuthState } = {}) {
   const timers = new Set();
   const asyncErrors = [];
   let window;
@@ -61,6 +62,7 @@ function createFixture({ loadPending = false, getAuthState = async () => ({ logg
           normalizeMusicPlatform: (value) => value,
           persistMusicCookieSnapshot: async () => ({ cookieCount: 0 }),
           getMusicAuthState: getAuthState,
+          getMusicSessionState: getSessionState,
         };
       }
       if (name === './external-url-policy') return require('../../src/electron/external-url-policy');
@@ -165,4 +167,23 @@ test('music login coalesces cookie bursts and retries after a failed pending aut
     fixture.window.close();
     await completion;
   }
+});
+
+test('music completion polling uses session state and preserves the final full state', async () => {
+  let checks = 0;
+  let fullReads = 0;
+  const fixture = createFixture({
+    getSessionState: async () => ({ loggedIn: ++checks > 1 }),
+    getAuthState: async () => { fullReads += 1; return { loggedIn: true, lastSavedAt: 'saved' }; },
+  });
+  const completion = fixture.open();
+  await new Promise(setImmediate);
+  const poll = [...fixture.timers][0];
+  await poll();
+  assert.equal(fullReads, 0);
+  await poll();
+  const result = await completion;
+  assert.equal(fullReads, 1);
+  assert.equal(result.state.lastSavedAt, 'saved');
+  assert.equal(fixture.timers.size, 0);
 });

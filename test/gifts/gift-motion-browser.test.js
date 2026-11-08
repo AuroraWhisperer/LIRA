@@ -41,32 +41,46 @@ test('published motion layers isolate styles, retain settlement expiry through d
   const event = { type: 'gift:frame', eventId: 'drop-live', themeId: 'gift-drop',
     userName: '<观众>', giftName: '小花花', num: 4, totalPriceCents: 500,
     artworkPath: '/img/overlays/gift-feed/flower.webp', startedAt,
-    motion: { size: 88, durationSeconds: 3 } };
+    motion: { size: 88, durationSeconds: 3, quantityMultiplier: 2 } };
   let releaseImage;
   const imageGate = new Promise(resolve => { releaseImage = resolve; });
-  await context.route('**/img/overlays/gift-feed/flower.webp', async route => { await imageGate; await route.continue(); });
+  await context.route('**/img/overlays/gift-feed/flower.webp', async route => {
+    await imageGate;
+    await route.fulfill({ contentType: 'image/webp', headers: { 'Access-Control-Allow-Origin': '*' },
+      body: Buffer.from('UklGRoQAAABXRUJQVlA4WAoAAAACAAAAAwAAAwAAQU5JTQYAAAAAAAAAAABBTk1GKAAAAAAAAAAAAAMAAAMAAGQAAAJWUDhMDwAAAC8DwAAABxD9j/4HIqL/AQBBTk1GKAAAAAAAAAAAAAMAAAMAAGQAAABWUDhMDwAAAC8DwAAAB9D/iP4HIqL/AQA=', 'base64') });
+  });
   fixture.receiveGift(event);
   fixture.receiveGift({ ...event, eventId: 'swing-live', themeId: 'gift-swing', motion: { size: 120, durationSeconds: 3, angle: 30 } });
   await drop.locator('.gift-drop-item').first().waitFor();
   await swing.locator('.gift-swing-item').waitFor();
-  assert.equal(await drop.locator('.gift-drop-item').count(), 4);
+  assert.equal(await drop.locator('.gift-drop-item').count(), 8);
   assert.equal(await drop.locator('.gift-swing-item').count(), 0);
   assert.equal(await swing.locator('.gift-drop-item').count(), 0);
   assert.equal(await swing.locator('.gift-swing-name').textContent(), '<观众>');
   assert.equal(Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at')), startedAt + 3000);
   assert.equal(await drop.locator('.gift-drop-item').first().evaluate(node => node.style.width), '88px');
   fixture.receiveGift(event);
-  assert.equal(await drop.locator('.gift-drop-item').count(), 4);
+  assert.equal(await drop.locator('.gift-drop-item').count(), 8);
   releaseImage();
-  await drop.locator('.gift-motion-image').first().evaluate(image => image.decode());
+  await drop.waitForFunction(() => [...document.querySelectorAll('.gift-motion-image')]
+    .every(image => image.src.startsWith('data:image/webp') && image.naturalWidth > 0));
+  const frozen = await drop.locator('.gift-motion-image').first().evaluate(image => {
+    const canvas = document.createElement('canvas'); canvas.width = canvas.height = 4;
+    const context = canvas.getContext('2d'); context.drawImage(image, 0, 0);
+    return { src: image.src, pixel: [...context.getImageData(0, 0, 1, 1).data] };
+  });
+  assert.equal(Buffer.from(frozen.src.split(',')[1], 'base64').includes(Buffer.from('ANIM')), false);
+  assert.ok(frozen.pixel[0] > 240 && frozen.pixel[1] < 15 && frozen.pixel[2] < 15, 'the static WebP retains the red first frame');
+  await swing.waitForFunction(() => document.querySelector('.gift-motion-image')?.src.startsWith('data:image/webp'));
+  assert.equal(await swing.locator('.gift-motion-image').first().getAttribute('src'), frozen.src);
   await drop.locator('.gift-drop-item').first().waitFor({ state: 'detached', timeout: 5000 });
   await swing.locator('.gift-swing-item').waitFor({ state: 'detached', timeout: 5000 });
-  for (const textMode of ['gift', 'none']) {
+  for (const [textMode, text] of [['gift', '小花花 ×4'], ['none', ''], ['name-quantity', '<观众>×4']]) {
     fixture.receiveGift({ ...event, eventId: `swing-${textMode}`, themeId: 'gift-swing', startedAt: Date.now(),
       motion: { size: 120, durationSeconds: 3, angle: 30, speed: 150, textMode } });
     const card = swing.locator(`[data-motion-id="swing-${textMode}"]`);
     await card.waitFor();
-    assert.equal(await card.textContent(), textMode === 'gift' ? '小花花 ×4' : '');
+    assert.equal(await card.textContent(), text);
     assert.equal(await card.locator('img').count(), 1);
   }
   await page.reload();

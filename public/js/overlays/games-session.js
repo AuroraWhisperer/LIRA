@@ -1,3 +1,14 @@
+// Scene updates may omit unchanged drawing and score parts within the same round.
+export function mergeGameSession(previous, next) {
+  if (next?.game !== 'draw-guess' || previous?.sessionId !== next.sessionId
+    || previous?.state?.round !== next.state?.round) return next;
+  const state = { ...next.state };
+  for (const key of ['canvas', 'correct', 'scores']) {
+    if (!Object.hasOwn(state, key) && Object.hasOwn(previous.state, key)) state[key] = previous.state[key];
+  }
+  return { ...next, state };
+}
+
 // A snapshot establishes the session/version; later domain events must be consecutive.
 export function createGameSessionStream({ onSnapshot, onDelta, recover }) {
   let sessionId = null;

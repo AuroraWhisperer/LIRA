@@ -1,15 +1,18 @@
-import { sharedControllerAppearance, mergeSharedAppearancePatch } from '../shared/scene-shared-appearance.js';
+import { sharedControllerAppearance, mergeSharedAppearancePatch, sceneAppearanceKey,
+  SHARED_CONTROLLER_TYPES, hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
 
 export function createSceneItemController(model, itemId, defaultController, sharedAppearance) {
   const getItem = () => model.getItemSnapshot ? model.getItemSnapshot(itemId) : model.getSnapshot().items.find(entry => entry.id === itemId);
   function readState() {
     const item = getItem();
     if (!item || item.appearance.mode === 'shared') return defaultController.getState();
-    const owned = sharedAppearance?.getState(item);
-    const defaults = defaultController.getState();
-    const draft = sharedControllerAppearance(item.type, item.appearance.config, defaults.draft);
-    const saved = sharedControllerAppearance(item.type, item.appearance.config, defaults.saved);
-    const state = owned || (Object.keys(draft).length ? { ...defaults, draft, saved } : null);
+    let state = sharedAppearance?.getState(item);
+    if (!state && SHARED_CONTROLLER_TYPES.includes(item.type) && !hasInstalledAppearance(item.appearance.config)) {
+      const defaults = defaultController.getState();
+      const draft = sharedControllerAppearance(item.type, item.appearance.config, defaults.draft);
+      const saved = sharedControllerAppearance(item.type, item.appearance.config, defaults.saved);
+      if (Object.keys(draft).length) state = { ...defaults, draft, saved };
+    }
     if (state) return { ...state, draft: { ...item.appearance.config, ...state.draft },
       saved: { ...item.appearance.config, ...state.saved } };
     return { loaded: true, loading: false, saving: false, error: '', conflict: false,
@@ -22,7 +25,7 @@ export function createSceneItemController(model, itemId, defaultController, shar
       if (!current || current.locked) return;
       if (current.appearance.mode === 'shared') { defaultController.edit(change); return; }
       const owned = sharedAppearance?.getState(current);
-      const defaults = defaultController.getState();
+      const defaults = owned ? null : defaultController.getState();
       const shared = owned?.draft || sharedControllerAppearance(current.type, current.appearance.config, defaults.draft);
       const changingStyle = ['resourceStyle', 'mediaStyle', 'cssStyle'].some(key => Object.hasOwn(change, key))
         || !owned && ['style', 'displayStyle', 'overlayQueueStyle'].some(key => Object.hasOwn(change, key)
@@ -52,6 +55,8 @@ export function createSceneItemController(model, itemId, defaultController, shar
     subscribe(listener) {
       let previous;
       let previousItem;
+      let sharedKey;
+      let stopShared;
       const notify = () => {
         const state = readState();
         const serialized = JSON.stringify(state);
@@ -63,10 +68,22 @@ export function createSceneItemController(model, itemId, defaultController, shar
         const item = getItem();
         if (previous !== undefined && item?.type === previousItem?.type && item?.appearance === previousItem?.appearance) return;
         previousItem = item;
+        const key = item && item.appearance.mode !== 'shared' ? sceneAppearanceKey(item.type, item.appearance.config) : null;
+        if (key !== sharedKey) {
+          stopShared?.();
+          sharedKey = key;
+          stopShared = key ? sharedAppearance?.subscribe(notify, item) : null;
+        }
         notify();
       });
-      const stopDefault = defaultController.subscribe(notify);
-      const stopShared = sharedAppearance?.subscribe(notify);
+      const defaultChanged = () => {
+        const item = getItem();
+        if (item && item.appearance.mode !== 'shared'
+          && (!SHARED_CONTROLLER_TYPES.includes(item.type) || hasInstalledAppearance(item.appearance.config))) return;
+        notify();
+      };
+      const stopDefault = defaultController.subscribeChanges
+        ? defaultController.subscribeChanges(defaultChanged) : defaultController.subscribe(defaultChanged);
       return () => { stopModel(); stopDefault(); stopShared?.(); };
     },
   };

@@ -1,3 +1,5 @@
+import { getSuperChatColors } from './danmaku-superchat-renderer.js';
+
 const GUARDS = { 1: ['governor', '总督'], 2: ['admiral', '提督'], 3: ['captain', '舰长'] };
 
 function node(document, tag, className, text) {
@@ -42,8 +44,10 @@ export function createSeaBreezeMessageRenderer({ document, classNames }, render)
     const label = sc || gift && !bought ? '赐礼天使' : item.isStreamer === true ? '主播大人' : guard ? `${guard[1]}大人` : '游客大人';
     tags.append(node(document, 'span', 'sea-breeze-role', label));
 
-    if (sc) copy.textContent = String(item.message ?? '');
-    else if (bought) {
+    if (sc) {
+      copy.textContent = String(item.message ?? '');
+      root.style.setProperty('--sc-accent', getSuperChatColors(item).accentColor);
+    } else if (bought) {
       const title = item.guardAction === 'open' ? `欢迎${bought[1]}加入本月航程`
         : item.guardAction === 'renew' ? `感谢${bought[1]}续费本月航程` : `感谢${bought[1]}支持本月航程`;
       copy.textContent = title + (Number(item.giftCount) > 1 ? ` ×${item.giftCount}` : '');

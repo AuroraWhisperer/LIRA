@@ -137,7 +137,10 @@ export function createDanmakuPreview({ controller, source = document, embedded =
     createPanel: (host, targetController = controller, report) => createPanel(host, targetController, source, embedded, panelPrefix, report),
     projectConfig: (draft) => ({ ...draft, ...(Object.hasOwn(draft, 'layout') ? { layout: draft.layout || createLayout() } : {}) }),
     size: (draft) => { const canvas = (draft.layout || createLayout()).canvas; return [canvas.width, canvas.height]; },
-    bounds: (draft) => (draft.layout || createLayout()).regions[draft.style],
+    bounds: (draft) => {
+      const layout = draft.layout || createLayout();
+      return layout.regions[draft.style] || defaultRegion(draft.style, layout.canvas, layout.contentScale);
+    },
     onEdit: (change) => applyDanmakuRegionEdit(controller, change),
   };
 }

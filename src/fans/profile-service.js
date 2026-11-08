@@ -228,8 +228,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     const query = text(input.query, '搜索', 300).toLocaleLowerCase();
     const filters = Array.isArray(input.filters) ? input.filters : [];
     const at = now();
-    const candidates = store
-      .list(scope)
+    const profiles = store.list(scope);
+    project.retain(scope, profiles);
+    const candidates = profiles
       .filter((p) => (input.archived ? p.archived : !p.archived))
       .filter((profile) => {
         const searchable = [
@@ -358,14 +359,18 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           return saveRecord(scope, input);
         case 'preview-merge':
           return merge.preview(scope, input);
-        case 'merge':
-          return merge.merge(scope, input);
+        case 'merge': {
+          const result = merge.merge(scope, input);
+          project.drop(scope, input.id);
+          return result;
+        }
         case 'suppress': {
           const profile = requireProfile(scope, input.id);
           if (profile.revision !== input.revision) throw new Error('档案已更新，请重新打开后核对。');
           const key = identityKey(profile.identity);
           if (!key) throw new Error('请先绑定 B 站账号，再加入黑名单。');
           store.suppress(scope, key);
+          project.drop(scope, profile.id);
           return true;
         }
         case 'suppression-list':
@@ -384,7 +389,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           const settings = store.getScope(scope);
           const at = Date.parse(now());
           const today = dayOf(at);
-          const profiles = store.list(scope).filter((profile) => !profile.archived);
+          const allProfiles = store.list(scope);
+          project.retain(scope, allProfiles);
+          const profiles = allProfiles.filter((profile) => !profile.archived);
           const ids = profiles.map((profile) => profile.id);
           const records = store.records.listForProfiles(scope, ids);
           const states = store.statesForProfiles(scope, ids);
@@ -420,10 +427,20 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           if (input.confirm !== true || typeof input.suppress !== 'boolean')
             throw new Error('请确认删除和自动建档选项。');
           store.remove(scope, input.id, input.suppress);
+          project.drop(scope, input.id);
           return true;
-        case 'delete-all':
+        case 'delete-all': {
           if (input.confirm !== true) throw new Error('请确认清除全部档案。');
-          return { deletedCount: store.removeAll(scope) };
+          const deletedCount = store.removeAll(scope);
+          project.retain(scope, []);
+          return { deletedCount };
+        }
+        case 'restore':
+        case 'restore-snapshot': {
+          const result = transfer.execute(scope, action, input);
+          project.retain(scope, []);
+          return result;
+        }
         default:
           return transfer.execute(scope, action, input);
       }

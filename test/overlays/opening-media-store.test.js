@@ -50,6 +50,7 @@ test('failed selection or clear preserves both media settings and the current me
   databases.songDb.exec(`CREATE TEMP TRIGGER reject_media_name BEFORE UPDATE ON settings
     WHEN NEW.key = 'openingAudioName' BEGIN SELECT RAISE(ABORT, 'name write failed'); END`);
   assert.throws(() => saveOpeningMedia(context, slot, upload('replacement.mp3')), /name write failed/);
+  assert.equal(fs.readdirSync(getMusicDir(dataDir)).length, 1, 'A failed selection must not leave an unreferenced upload.');
   assert.throws(() => clearOpeningMedia(context, slot), /name write failed/);
   for (const values of [store.getSettings(), createSettingsStore(databases.songDb).getSettings()]) {
     assert.equal(values.openingAudioFile, originalFile);

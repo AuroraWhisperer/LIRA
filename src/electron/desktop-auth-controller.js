@@ -125,6 +125,10 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     return bilibiliAuth.getBilibiliAuthState(getDataDir());
   }
 
+  function getBilibiliSessionState() {
+    return bilibiliAuth.getBilibiliSessionState();
+  }
+
   function getBilibiliCookieHeader() {
     return bilibiliAuth.getBilibiliCookieHeader();
   }
@@ -154,7 +158,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
       const revision = bilibiliIdentityRevision;
       // A same-account Cookie import temporarily clears the partition before replacing it.
       await accounts.get('bilibili')?.tail;
-      const state = await getBilibiliAuthState();
+      const state = await getBilibiliSessionState();
       if (generation !== getBilibiliSessionRevision() || revision !== bilibiliIdentityRevision) continue;
       observeBilibiliIdentity(state);
       return { loggedIn: state.loggedIn, uid: state.uid };
@@ -200,6 +204,11 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
               ...bilibiliAuth,
               async getBilibiliAuthState() {
                 const state = await getBilibiliAuthState();
+                if (!signal.aborted) observeBilibiliIdentity(state);
+                return state;
+              },
+              async getBilibiliSessionState() {
+                const state = await getBilibiliSessionState();
                 if (!signal.aborted) observeBilibiliIdentity(state);
                 return state;
               },

@@ -76,6 +76,7 @@ function handleSceneOutput(context, req, res, requestUrl) {
     item: requestUrl.searchParams.get('item'),
     projection: requestUrl.searchParams.get('projection'),
     dataVersions: requestUrl.searchParams.get('dataVersions'),
+    incrementalParts: requestUrl.searchParams.get('incrementalParts') === '1',
     version: Number(requestUrl.searchParams.get('version')), epoch: requestUrl.searchParams.get('epoch'),
     cursor: requestUrl.searchParams.get('cursor') };
   if (requestUrl.pathname === '/api/scene/events') {

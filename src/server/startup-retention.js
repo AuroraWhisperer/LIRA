@@ -5,15 +5,17 @@ const RETENTION_INTERVAL_MS = 60 * 60 * 1000;
 function startRetentionMaintenance(settingsStore, dataService) {
   let disposed = false;
   let continuation = null;
-  function run() {
+  function run(giftEventsOnly = false) {
     if (disposed) return;
     if (continuation) clearTimeout(continuation);
     continuation = null;
     try {
       if (settingsStore.getSettings().autoRetentionOnStartup !== 'true') return;
-      const result = dataService.runRetention();
+      const result = giftEventsOnly
+        ? dataService.runRetention({ giftEventsOnly: true })
+        : dataService.runRetention();
       if (result.hasMoreGiftEvents) {
-        continuation = setTimeout(run, 25);
+        continuation = setTimeout(() => run(true), 25);
         continuation.unref();
       }
       const { importBatchesDeleted = 0, songCooldownsDeleted = 0 } = result;

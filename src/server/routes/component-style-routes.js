@@ -9,6 +9,7 @@ const { createComponentWebLibrary } = require('../component-web-library');
 const { readWebUpload } = require('../component-web-files');
 const { createComponentLibraryMaintenance } = require('../component-library-maintenance');
 const { createComponentLibraryTransfer } = require('../component-library-transfer');
+const { pruneUploadedMedia } = require('../uploaded-media-retention');
 
 async function handleStyles(context, req, res, url, canvas = false) {
   const authorize = () => {
@@ -24,6 +25,7 @@ async function handleStyles(context, req, res, url, canvas = false) {
   try {
     if (!validateOrigin(req, [url.origin])) return sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
     authorize();
+    pruneUploadedMedia(context);
     const library = createComponentStyleLibrary(context.system.dataDir);
     const action = url.pathname.split('/').at(-1);
     let data;

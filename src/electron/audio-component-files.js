@@ -7,6 +7,31 @@ const { createHash, randomUUID } = require('node:crypto');
 const yauzl = require('yauzl');
 const { setTimeout: delay } = require('node:timers/promises');
 const { writeResource } = require('../resources/resource-download');
+const { isOwnedDirectory } = require('../shared/file-retention');
+
+async function pruneAudioPreparations(dataDir, root, signal) {
+  const cutoff = Date.now() - 86400000;
+  async function abandoned(directory) {
+    signal.throwIfAborted();
+    const stat = await fs.lstat(directory);
+    if (stat.isSymbolicLink() || stat.mtimeMs > cutoff) return false;
+    if (stat.isFile()) return true;
+    if (!stat.isDirectory()) return false;
+    for (const entry of await fs.readdir(directory)) if (!await abandoned(path.join(directory, entry))) return false;
+    return true;
+  }
+  if (!isOwnedDirectory(dataDir, root)) return;
+  for (const name of await fs.readdir(root)) {
+    if (!/^\.prepare-[A-Za-z0-9]{6}$/.test(name)) continue;
+    const directory = path.join(root, name);
+    try {
+      if (await abandoned(directory) && isOwnedDirectory(dataDir, directory)) {
+        signal.throwIfAborted();
+        await fs.rm(directory, { recursive: true, force: true });
+      }
+    } catch { if (signal.aborted) return; }
+  }
+}
 
 async function ensureAudioRoot(dataDir) {
   let directory = dataDir;
@@ -90,4 +115,4 @@ async function publishAudioDirectory(staging, destination) {
   if (previous) await fs.rm(replaced, { recursive: true, force: true });
 }
 
-module.exports = { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory };
+module.exports = { ensureAudioRoot, verifyAudioDirectory, extractAudioComponent, publishAudioDirectory, pruneAudioPreparations };

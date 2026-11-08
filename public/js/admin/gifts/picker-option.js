@@ -1,4 +1,4 @@
-import { setGiftImage } from '../../shared/gift-image-fallback.js';
+import { setGiftArtwork } from '../../shared/gift-image.js';
 
 // Selection rules and descriptive text stay with each picker.
 export function createGiftPickerButton(gift, { className, disabled, onSelect }) {
@@ -10,7 +10,7 @@ export function createGiftPickerButton(gift, { className, disabled, onSelect }) 
   image.alt = '';
   image.loading = 'lazy';
   image.decoding = 'async';
-  setGiftImage(image, gift.imagePath);
+  setGiftArtwork(image, gift.imagePath);
   button.append(image);
   button.addEventListener('click', () => onSelect(gift));
   return button;

@@ -6,6 +6,158 @@ const contract = require('../../public/js/shared/component-style-parameters.js')
 
 const openBrowserSession = useSharedBrowser();
 
+test('fixed danmaku keeps perspective separate from filter reset and restores it across style switches', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><button id="reset">恢复默认</button><div id="parameters"></div>' });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { mountDanmakuParameters } = await import('/js/shared/danmaku-parameter-controls.js');
+    const { styleParameterDefaults } = await import('/js/shared/component-style-parameters.js');
+    window.state = { draft: { style: 'glowy', styleOptions: { glowy: { glowyLayout: 'horizontal' } }, styleParameters: {
+      glowy: { transform: { ...styleParameterDefaults('transform'), rotateY: 25, rotateZ: 7 },
+        whiteBalance: { ...styleParameterDefaults('whiteBalance'), temperature: 20 } },
+      'horizontal-charm': { transform: { ...styleParameterDefaults('transform'), rotateY: -15 } },
+    } }, loaded: true };
+    window.edits = 0;
+    const listeners = new Set();
+    window.controller = {
+      getState: () => state,
+      subscribe(listener) { listeners.add(listener); listener(state); return () => listeners.delete(listener); },
+      edit(patch) { edits++; state.draft = { ...state.draft, ...patch }; listeners.forEach(listener => listener(state)); },
+    };
+    const view = mountDanmakuParameters(document.getElementById('parameters'), controller, { resetButton: document.getElementById('reset') });
+    window.disposeParameters = () => { view.dispose(); return listeners.size; };
+  });
+  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-effect-group="transform"] > summary').click();
+  const input = page.locator('[data-effect-field="transform.rotateY"]');
+  assert.equal(await page.locator('#danmakuFixedMotion [data-effect-field="transform.rotateY"]').count(), 1);
+  assert.equal(await page.locator('#danmakuAppearanceEffects [data-effect-group="transform"]').count(), 0);
+  assert.equal(await input.inputValue(), '25');
+  await input.fill('-30');
+  await input.press('Tab');
+  assert.equal(await page.evaluate(() => edits), 1, 'one confirmed change produces one edit');
+  assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform.rotateY), -30);
+  assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform.rotateZ), 7);
+  const resetEffects = page.getByRole('button', { name: '恢复当前样式效果', exact: true });
+  await resetEffects.click();
+  assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.whiteBalance), undefined);
+  assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform.rotateY), -30);
+  assert.equal(await resetEffects.isDisabled(), true, 'perspective alone does not enable filter reset');
+  await page.evaluate(() => controller.edit({ style: 'horizontal-charm' }));
+  assert.equal(await page.locator('#danmakuFixedMotion').isVisible(), false);
+  assert.equal(await page.locator('.component-parameter-advanced [data-effect-field="transform.rotateY"]').count(), 1);
+  await page.locator('.component-parameter-advanced > summary').click();
+  assert.equal(await input.inputValue(), '-15');
+  await resetEffects.click();
+  assert.equal(await page.evaluate(() => state.draft.styleParameters['horizontal-charm'].transform), undefined);
+  await page.evaluate(() => controller.edit({ style: 'glowy' }));
+  assert.equal(await input.inputValue(), '-30');
+  await input.focus();
+  await page.evaluate(() => controller.edit({ styleParameters: { ...state.draft.styleParameters,
+    glowy: { transform: { ...state.draft.styleParameters.glowy.transform, rotateY: 18 } } } }));
+  assert.equal(await input.inputValue(), '-30', 'a shared draft update preserves input until focus leaves');
+  await input.press('Tab');
+  await page.waitForFunction(() => document.querySelector('[data-effect-field="transform.rotateY"]').value === '18');
+  await page.locator('[data-effect-enabled="transform"]').uncheck();
+  assert.equal(await page.evaluate(() => state.draft.styleParameters.glowy.transform), undefined);
+  assert.equal(await page.evaluate(() => disposeParameters()), 0);
+  assert.equal(await input.count(), 0, 'dispose removes the relocated controls');
+});
+
+test('signed perspective control swaps near edges without adding a planar rotation', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <div class="danmaku-signal-stage" style="width:560px;height:300px">
+      <div id="danmakuFeed" class="draw-danmaku-feed"></div>
+    </div><div id="parameters"></div>` });
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const page = await browser.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.evaluate(async () => {
+    const { mountStyleParameters } = await import('/js/shared/component-style-parameter-view.js');
+    const { createComponentStyleEffects } = await import('/js/overlays/component-style-effects.js');
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    document.body.dataset.style = 'glowy';
+    const effects = createComponentStyleEffects(document);
+    window.state = { draft: { style: 'glowy' }, loaded: true };
+    const listeners = new Set();
+    const controller = {
+      getState: () => state,
+      subscribe(listener) { listeners.add(listener); listener(state); return () => listeners.delete(listener); },
+      edit(patch) {
+        state.draft = { ...state.draft, ...patch };
+        effects.update('danmaku', state.draft);
+        listeners.forEach(listener => listener(state));
+      },
+    };
+    const feed = createDanmakuFeed(document.getElementById('danmakuFeed'), { style: 'glowy', autoScroll: false, expireItems: false });
+    feed.render([{ name: '观众', message: '左右两边改变远近，中心保持水平。' }]);
+    const card = document.querySelector('.glowy-item');
+    for (const side of ['left', 'right']) {
+      const edge = document.createElement('span');
+      edge.dataset.edge = side;
+      edge.style.cssText = `position:absolute;${side}:0;top:0;bottom:0;width:0;pointer-events:none`;
+      card.append(edge);
+    }
+    const view = mountStyleParameters(document.getElementById('parameters'), controller, 'danmaku');
+    window.disposePerspective = () => { view.dispose(); effects.dispose(); feed.destroy(); };
+  });
+  await page.locator('.component-parameter-advanced > summary').click();
+  await page.locator('[data-effect-group="transform"] > summary').click();
+  await page.locator('[data-effect-enabled="transform"]').check();
+  const input = page.locator('[data-effect-field="transform.rotateY"]');
+  assert.equal(await input.inputValue(), '0');
+  for (const angle of [-30, 0, 30]) {
+    await input.fill(String(angle));
+    await input.press('Tab');
+    const result = await page.evaluate(async () => {
+      await new Promise(requestAnimationFrame);
+      await new Promise(requestAnimationFrame);
+      const left = document.querySelector('[data-edge="left"]').getBoundingClientRect();
+      const right = document.querySelector('[data-edge="right"]').getBoundingClientRect();
+      return { leftHeight: left.height, rightHeight: right.height,
+        centers: Math.abs((left.top + left.bottom) / 2 - (right.top + right.bottom) / 2),
+        rotateZ: state.draft.styleParameters.glowy.transform.rotateZ };
+    });
+    assert.equal(result.rotateZ, 0);
+    assert.ok(result.centers < .1, 'sideways perspective keeps the edge centers level');
+    if (angle === 0) assert.ok(Math.abs(result.leftHeight - result.rightHeight) < .1);
+    else assert.equal(result.leftHeight > result.rightHeight, angle > 0, `${angle}: near edge appears larger`);
+  }
+  const bubbleOffsets = await page.evaluate(async () => {
+    const { effectTransform } = await import('/js/overlays/component-effect-filters.js');
+    const { projectSinkingPoint } = await import('/js/overlays/danmaku-sinking-geometry.js');
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;left:0;top:0;width:400px;height:160px;transform-origin:0 0';
+    const marker = document.createElement('span');
+    marker.style.cssText = 'position:absolute;width:0;height:0';
+    probe.append(marker); document.body.append(probe);
+    const offsets = [];
+    for (const perspective of [400, 2400]) {
+      const transform = { rotateY: 35, perspective };
+      probe.style.transform = effectTransform(transform);
+      for (const point of [{ x: 40, y: 20 }, { x: 360, y: 130 }]) {
+        marker.style.left = `${point.x}px`; marker.style.top = `${point.y}px`;
+        const actual = marker.getBoundingClientRect();
+        const projected = projectSinkingPoint(point, 400, 160, { pitch: 0, yaw: 0, angle: 0, depth: 0 }, transform);
+        offsets.push(Math.hypot(actual.left - projected.x, actual.top - projected.y));
+      }
+    }
+    probe.remove();
+    return offsets;
+  });
+  assert.ok(bubbleOffsets.every(offset => offset < .1), `sinking bubbles follow the painted perspective: ${bubbleOffsets}`);
+  await page.evaluate(() => disposePerspective());
+});
+
 test('every clock and danmaku preset applies supported effects, preserves animation and restores authored styles', { timeout: 45000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><iframe sandbox="allow-scripts" style="width:900px;height:650px;border:0"></iframe>' });
   const browser = openBrowserSession();
@@ -18,7 +170,7 @@ test('every clock and danmaku preset applies supported effects, preserves animat
   for (const type of ['clock', 'danmaku']) for (const style of Object.keys(contract.STYLE_PARAMETER_CAPABILITIES[type])) {
     const groups = Object.fromEntries(contract.styleParameterCapabilities(type, { style })
       .map(group => [group, contract.styleParameterDefaults(group)]));
-    groups.transform = { rotateX: 15, rotateY: -10, rotateZ: 12, skewX: 4, skewY: 0 };
+    groups.transform = { perspective: 1600, rotateX: 15, rotateY: -10, rotateZ: 12, skewX: 4, skewY: 0 };
     const config = { style, showDate: true, showSeconds: true, styleOptions: {}, fullscreenDurationSeconds: 30 };
     const url = `${fixture.origin}/${type}?componentPreview=1&sceneComponent=1&preview=1&componentLayer=1`;
     assert.equal((await fetch(url)).status, 200);
@@ -58,6 +210,8 @@ test('every clock and danmaku preset applies supported effects, preserves animat
       assert.equal(await frame.locator('.stardust-ornament [style*="text-stroke"]').count(), 0);
     }
     assert.ok(await frame.locator('[style*="--component-transform"]').count(), `${type}/${style}: transform target`);
+    assert.match(await frame.locator('[style*="--component-transform"]').first()
+      .evaluate(node => node.style.getPropertyValue('--component-transform')), /perspective\(1600px\)/, `${type}/${style}: shared perspective`);
     if (groups.innerShadow) assert.ok(await frame.locator('[style*="box-shadow"]').count(), `${type}/${style}: panel target`);
     if (type === 'danmaku' && style === 'window') {
       const superchatFrame = frame.locator('.window-item[data-window-kind="sc"] .window-frame').first();
@@ -65,8 +219,9 @@ test('every clock and danmaku preset applies supported effects, preserves animat
       assert.notEqual(await superchatFrame.evaluate(node => node.style.boxShadow), '', 'Window SC retains the configured panel effects.');
     }
     if (['floating', 'comet'].includes(style)) {
-      assert.ok(await frame.locator(selector).first().evaluate(node => node.getAnimations()
-        .some(animation => animation.effect.getKeyframes().some(key => /component-transform|rotateX|matrix3d/.test(String(key.transform))))), style);
+      assert.ok(await frame.locator(selector).first().evaluate(node =>
+        node.getAnimations().some(animation => !animation.animationName)
+          && !new DOMMatrix(getComputedStyle(node).transform).is2D), `${style}: travel retains the configured 3D rotation`);
     }
     await send(config);
     assert.equal(await frame.locator('[data-component-effect-filters]').count(), 0, `${style}: filter cleanup`);

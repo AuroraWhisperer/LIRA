@@ -32,3 +32,39 @@ test('queue refreshes its receiving hint only when relevant settings change', as
   render({ state: { queue, settings }, changedKeys: ['queue'] });
   assert.equal(calls.length, 4, 'queue changes still render with unchanged settings');
 });
+
+test('settings render reads each component once and projects the current isolated draft to both views', async () => {
+  const entry = file => path.resolve('public/js/admin', file);
+  const [renderer, sync, forms] = await loadModuleExports([
+    entry('state-renderer.js'), entry('component-settings-sync.js'), entry('forms.js'),
+  ], { document: { getElementById: () => null } });
+  const { createComponentConfigController } = await loadModuleExports(entry('component-config-controller.js'));
+  const controller = createComponentConfigController({ initial: { size: 24 } });
+  sync.registerComponentSettings('example', controller, settings => ({ size: settings.size }), draft => draft);
+  controller.edit({ size: 32 });
+  let reads = 0;
+  const getState = controller.getState;
+  controller.getState = () => { reads++; return getState(); };
+  const formValues = [];
+  const styleValues = [];
+  forms.formsService.fillForm = values => formValues.push(values);
+  const render = renderer.createAdminStateRenderer({ renderQueue() {}, renderGifts() {},
+    renderQueueStyle: values => styleValues.push(values) });
+  const settings = { size: 28, requestPrice: 50 };
+  render({ state: { settings }, changedKeys: ['settings'] });
+  assert.equal(reads, 1);
+  assert.equal(formValues[0].size, 32);
+  assert.equal(styleValues[0].size, 32);
+  assert.equal(styleValues[0].requestPrice, 50);
+  assert.equal(getState().saved.size, 28);
+  assert.equal(getState().conflict, true);
+  styleValues[0].size = 99;
+  assert.equal(settings.size, 28);
+  assert.equal(getState().draft.size, 32, 'view snapshots cannot mutate the draft owner');
+
+  controller.edit({ size: 40 });
+  render({ state: { settings }, changedKeys: ['settings'] });
+  assert.equal(reads, 2);
+  assert.equal(formValues[1].size, 40);
+  assert.equal(styleValues[1].size, 40, 'a later render projects fresh draft values');
+});

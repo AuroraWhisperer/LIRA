@@ -25,6 +25,7 @@ function createDynamicLotteryService({
   let active = null;
   let lastError = null;
   let disposed = false;
+  let candidateCountCache = null;
 
   function identity() {
     if (disposed) throw lotteryError('LOTTERY_SESSION_DISPOSED');
@@ -118,6 +119,19 @@ function createDynamicLotteryService({
     };
   }
 
+  function getCandidateCount(task, scan, result, scope) {
+    if (task?.rules.version !== 2 || scan?.status !== 'completed') return null;
+    if (result?.candidateCount !== undefined) return result.candidateCount;
+    const changeToken = store.getChangeToken();
+    const key = JSON.stringify([
+      scope.streamerId, scope.authorizationEpoch, task.id, task.revision, scan.id, changeToken,
+    ]);
+    if (changeToken !== null && candidateCountCache?.key === key) return candidateCountCache.count;
+    const count = buildCandidatePool({ task, scan, evidence: store.getEvidence(scan.id, { includeContent: false }) }).length;
+    candidateCountCache = changeToken === null ? null : { key, count };
+    return count;
+  }
+
   function getState({ taskId } = {}) {
     const scope = identity();
     const tasks = store.listTasks(scope.streamerId);
@@ -126,15 +140,7 @@ function createDynamicLotteryService({
     const task = selectedId ? ownedTask(selectedId, scope) : null;
     const result = task ? drawStore.getResult(task.id) : null;
     const scan = task ? store.getActiveScan(task.id) : null;
-    const candidateCount =
-      task?.rules.version === 2 && scan?.status === 'completed'
-        ? (result?.candidateCount ??
-          buildCandidatePool({
-            task,
-            scan,
-            evidence: store.getEvidence(scan.id),
-          }).length)
-        : null;
+    const candidateCount = getCandidateCount(task, scan, result, scope);
     return {
       tasks: tasks.map(summary),
       task: task

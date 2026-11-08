@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
-const { hasWeSingCacheData, ensureWeSingCacheDirectory } = require('../../src/music/wesing-cache');
+const { createFixture } = require('../helpers/wesing-capture-fixture');
+const { createWeSingCacheReader, hasWeSingCacheData, ensureWeSingCacheDirectory } = require('../../src/music/wesing-cache');
 const { discoverWeSingCachePath, getWeSingCacheCandidates } = require('../../src/music/wesing-cache-discovery');
 
 function cacheFixture(t, name, kind = 'log') {
@@ -93,4 +94,131 @@ test('WeSing follows the cache with the current song instead of a valid stale di
   assert.equal(await discoverWeSingCachePath(options), second, 'newest song log wins between matching caches');
   writeSong(first, 'en', '天若有情', 300);
   assert.equal(await discoverWeSingCachePath({ ...options, cachePath: second }), first);
+});
+
+test('WeSing reuses unchanged log parsing and detects appended, truncated, replaced and rotated songs', async (t) => {
+  const cachePath = cacheFixture(t, 'reused');
+  const logPath = path.join(cachePath, 'Log', 'WeSing', 'WeSing.log');
+  const row = (mid, title = '同名歌曲') => Buffer.from(
+    `\r\nevent "StartKSong" payload ${JSON.stringify({ mid, songname: title })}\r\n`, 'utf16le');
+  fs.writeFileSync(logPath, row('first'));
+  const reader = createWeSingCacheReader();
+  const originalOpen = fs.promises.open;
+  let reads = 0;
+  t.mock.method(fs.promises, 'open', async function (...args) {
+    reads += 1;
+    return Reflect.apply(originalOpen, this, args);
+  });
+  assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry.mid, 'first');
+  assert.equal((await reader.read(cachePath, '另一首歌')).logEntry, null);
+  assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry.mid, 'first');
+  assert.equal(reads, 1, 'title filtering and repeated checks reuse the unchanged parsed log');
+
+  fs.appendFileSync(logPath, row('second'));
+  assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry.mid, 'second');
+  fs.writeFileSync(logPath, row('third'));
+  assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry.mid, 'third');
+
+  const old = fs.statSync(logPath);
+  const replacement = path.join(path.dirname(logPath), 'replacement.tmp');
+  fs.writeFileSync(replacement, row('forth'));
+  fs.utimesSync(replacement, old.atime, old.mtime);
+  fs.renameSync(replacement, logPath);
+  assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry.mid, 'forth', 'same size and mtime do not hide file replacement');
+
+  const rotated = path.join(path.dirname(logPath), 'new.log');
+  fs.writeFileSync(rotated, row('newest', '新歌'));
+  const later = new Date(Date.now() + 1000);
+  fs.utimesSync(rotated, later, later);
+  assert.equal((await reader.read(cachePath, '同名歌曲')).logEntry, null);
+  assert.equal((await reader.read(cachePath, '新歌')).logEntry.mid, 'newest');
+  assert.equal(reads, 5, 'each changed file is parsed once, including a cached title mismatch');
+});
+
+test('WeSing reuses parsed QRC files without sharing mutable results and detects file replacement', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  const filePath = path.join(fixture.cachePath, 'WeSingDL', 'Res', fixture.mid, `${fixture.mid}.qrc`);
+  const reader = createWeSingCacheReader();
+  const options = { cachePath: fixture.cachePath, title: '测试歌曲', logEntry: null };
+  const originalRead = fs.promises.readFile;
+  let reads = 0;
+  t.mock.method(fs.promises, 'readFile', async function (file, ...args) {
+    if (file === filePath) reads += 1;
+    return Reflect.apply(originalRead, this, [file, ...args]);
+  });
+
+  const first = await reader.loadLyrics(options);
+  first.artists.push('unrelated');
+  first.lines[0].words[0].text = 'changed';
+  assert.equal(await reader.loadLyrics({ ...options, title: '不存在的歌曲' }), null);
+  const again = await reader.loadLyrics(options);
+  assert.equal(again.lines[0].words[0].text, '你');
+  assert.deepEqual(again.artists, ['测试歌手']);
+  assert.equal(reads, 1, 'a title miss and repeated selection reuse the decrypted document');
+
+  const stat = fs.statSync(filePath);
+  const replacement = path.join(path.dirname(filePath), 'replacement.tmp');
+  fs.copyFileSync(filePath, replacement);
+  fs.utimesSync(replacement, stat.atime, stat.mtime);
+  fs.renameSync(replacement, filePath);
+  assert.equal((await reader.loadLyrics(options)).songMid, fixture.mid);
+  assert.equal(reads, 2, 'same size and mtime do not hide a replaced QRC');
+  reader.clear();
+  await reader.loadLyrics(options);
+  assert.equal(reads, 3, 'a new capture lifecycle reloads the QRC');
+});
+
+test('WeSing retries failed QRC reads and does not refill a cleared cache from an old read', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  const reader = createWeSingCacheReader();
+  const options = { cachePath: fixture.cachePath, title: '测试歌曲', logEntry: { mid: fixture.mid } };
+  const originalRead = fs.promises.readFile;
+  let reads = 0;
+  let release;
+  let started;
+  const readStarted = new Promise((resolve) => { started = resolve; });
+  const pendingRead = new Promise((resolve) => { release = resolve; });
+  t.mock.method(fs.promises, 'readFile', async function (...args) {
+    reads += 1;
+    if (reads === 1) throw new Error('download is still being written');
+    if (reads === 2) { started(); await pendingRead; }
+    return Reflect.apply(originalRead, this, args);
+  });
+
+  assert.equal(await reader.loadLyrics(options), null);
+  const pending = reader.loadLyrics(options);
+  await readStarted;
+  reader.clear();
+  release();
+  await pending;
+  assert.equal((await reader.loadLyrics(options)).songMid, fixture.mid);
+  assert.equal(reads, 3, 'a failed read is retryable and the prior lifecycle cannot retain parsed data');
+});
+
+test('WeSing bounds parsed QRC retention as new songs replace the active cache set', async (t) => {
+  const fixture = createFixture();
+  t.after(() => fs.rmSync(fixture.root, { recursive: true, force: true }));
+  const resDir = path.join(fixture.cachePath, 'WeSingDL', 'Res');
+  const firstFile = path.join(resDir, fixture.mid, `${fixture.mid}.qrc`);
+  const reader = createWeSingCacheReader();
+  const originalRead = fs.promises.readFile;
+  let firstReads = 0;
+  t.mock.method(fs.promises, 'readFile', async function (file, ...args) {
+    if (file === firstFile) firstReads += 1;
+    return Reflect.apply(originalRead, this, [file, ...args]);
+  });
+  const load = (mid) => reader.loadLyrics({ cachePath: fixture.cachePath, logEntry: { mid } });
+  await Promise.all([load(fixture.mid), load(fixture.mid)]);
+  assert.equal(firstReads, 1, 'concurrent loads share the pending file read');
+  for (let index = 0; index < 80; index += 1) {
+    const mid = `another-${index}`;
+    const directory = path.join(resDir, mid);
+    fs.mkdirSync(directory);
+    fs.copyFileSync(firstFile, path.join(directory, `${mid}.qrc`));
+    await load(mid);
+  }
+  await load(fixture.mid);
+  assert.equal(firstReads, 2, 'least-recently used parsed files are evicted after 80 retained entries');
 });

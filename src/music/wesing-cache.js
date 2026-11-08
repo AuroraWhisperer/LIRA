@@ -10,6 +10,7 @@ const LOG_TAIL_BYTES = 100 * 1024;
 const MAX_LOG_SCAN_BYTES = 4 * 1024 * 1024;
 const MAX_QRC_BYTES = 4 * 1024 * 1024;
 const MAX_FALLBACK_FILES = 80;
+const MAX_QRC_CACHE_BYTES = 16 * 1024 * 1024;
 const MIN_LYRIC_OFFSET_MS = -3000;
 const MAX_LYRIC_OFFSET_MS = 3000;
 const SAFE_SONG_MID = /^[a-zA-Z0-9_-]{1,128}$/;
@@ -67,33 +68,134 @@ async function hasWeSingCacheData(input) {
 }
 
 async function findLatestWeSingLog(cachePath) {
+  const latest = (await scanWeSingLogs(cachePath)).latest;
+  if (!latest) return null;
+  const { filePath, modifiedMs, size } = latest;
+  return { filePath, modifiedMs, size };
+}
+
+async function scanWeSingLogs(cachePath) {
   const basePath = normalizeWeSingCachePath(cachePath);
   const logDir = path.join(basePath, 'Log', 'WeSing');
   let entries;
   try {
     entries = await fs.promises.readdir(logDir, { withFileTypes: true });
   } catch (_) {
-    return null;
+    return { latest: null, hasData: false };
   }
 
-  const logFiles = [];
+  let latest = null;
+  let hasData = false;
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.toLowerCase().endsWith('.log')) continue;
     const filePath = path.join(logDir, entry.name);
     try {
       const stat = await fs.promises.stat(filePath);
-      logFiles.push({ filePath, modifiedMs: stat.mtimeMs, size: stat.size });
+      const log = { filePath, modifiedMs: stat.mtimeMs, size: stat.size,
+        fingerprint: `${stat.dev}:${stat.ino}:${stat.birthtimeMs}:${stat.ctimeMs}:${stat.mtimeMs}:${stat.size}` };
+      if (!latest || log.modifiedMs > latest.modifiedMs) latest = log;
+      if (stat.size > 0) hasData = true;
     } catch (_) {}
   }
-  logFiles.sort((a, b) => b.modifiedMs - a.modifiedMs);
-  return logFiles[0] || null;
+  return { latest, hasData };
 }
 
 async function findLatestSongEntry(cachePath, expectedTitle = '') {
   const latest = await findLatestWeSingLog(cachePath);
+  return matchingSongEntry(await readSongEntry(latest), expectedTitle);
+}
+
+function matchingSongEntry(entry, expectedTitle) {
+  const title = normalizeTitle(expectedTitle);
+  return entry && (!title || normalizeTitle(entry.songName) === title) ? { ...entry } : null;
+}
+
+function createWeSingCacheReader() {
+  const entries = new Map();
+  const qrcEntries = new Map();
+  let qrcBytes = 0;
+  let generation = 0;
+
+  function removeQrc(filePath) {
+    qrcBytes -= qrcEntries.get(filePath)?.bytes || 0;
+    qrcEntries.delete(filePath);
+  }
+
+  async function readQrc(filePath) {
+    const version = generation;
+    const stat = await fs.promises.stat(filePath).catch(() => null);
+    if (!stat?.isFile() || stat.size <= 0 || stat.size > MAX_QRC_BYTES) {
+      if (version === generation) removeQrc(filePath);
+      return null;
+    }
+    if (version !== generation) return tryReadQrc(filePath, stat);
+    const fingerprint = `${stat.dev}:${stat.ino}:${stat.birthtimeMs}:${stat.ctimeMs}:${stat.mtimeMs}:${stat.size}`;
+    let entry = qrcEntries.get(filePath);
+    if (entry?.fingerprint === fingerprint) {
+      qrcEntries.delete(filePath);
+      qrcEntries.set(filePath, entry);
+      return entry.promise;
+    }
+    removeQrc(filePath);
+    entry = { fingerprint, bytes: 0, promise: null };
+    entry.promise = tryReadQrc(filePath, stat).then((parsed) => {
+      if (qrcEntries.get(filePath) !== entry) return parsed;
+      // Partial downloads and transient read failures must be retried next time.
+      if (!parsed?.lines.length) {
+        removeQrc(filePath);
+      } else {
+        entry.bytes = JSON.stringify(parsed).length * 2;
+        qrcBytes += entry.bytes;
+        while (qrcBytes > MAX_QRC_CACHE_BYTES) removeQrc(qrcEntries.keys().next().value);
+      }
+      return parsed;
+    });
+    qrcEntries.set(filePath, entry);
+    while (qrcEntries.size > MAX_FALLBACK_FILES) removeQrc(qrcEntries.keys().next().value);
+    return entry.promise;
+  }
+
+  async function read(input, title = '') {
+    const cachePath = safeInitialCachePath(input);
+    if (!cachePath) return { cacheReady: false, log: null, logEntry: null };
+    // Probe metadata every time so rotation and cache moves recover without watcher events.
+    const { latest: log, hasData } = await scanWeSingLogs(cachePath);
+    let cacheReady = hasData;
+    if (!cacheReady) {
+      for await (const candidates of readQrcFileBatches(path.join(cachePath, 'WeSingDL', 'Res'))) {
+        if (candidates.length) { cacheReady = true; break; }
+      }
+    }
+    let logEntry = null;
+    if (log?.size) {
+      const key = `${log.filePath}:${log.fingerprint}`;
+      let cached = entries.get(cachePath);
+      if (cached?.key !== key) {
+        cached = { key, promise: readSongEntry(log) };
+        entries.set(cachePath, cached);
+      }
+      try { logEntry = matchingSongEntry(await cached.promise, title); }
+      catch (_) { if (entries.get(cachePath) === cached) entries.delete(cachePath); }
+    } else {
+      entries.delete(cachePath);
+    }
+    return { cacheReady, log, logEntry };
+  }
+  return {
+    read,
+    loadLyrics: (options) => loadWeSingLyrics(options, readQrc),
+    clear() {
+      generation += 1;
+      entries.clear();
+      qrcEntries.clear();
+      qrcBytes = 0;
+    },
+  };
+}
+
+async function readSongEntry(latest) {
   if (!latest?.size) return null;
   const minimumStart = Math.floor(Math.max(0, latest.size - MAX_LOG_SCAN_BYTES) / 2) * 2;
-  const wantedTitle = normalizeTitle(expectedTitle);
   let end = latest.size;
   let pendingRow = '';
 
@@ -119,7 +221,6 @@ async function findLatestSongEntry(cachePath, expectedTitle = '') {
         const songName = songMatch ? decodeJsonString(songMatch[1]).trim() : '';
         const artist = artistMatch ? decodeJsonString(artistMatch[1]).trim() : '';
         if (!SAFE_SONG_MID.test(mid)) return null;
-        if (wantedTitle && normalizeTitle(songName) !== wantedTitle) return null;
         return { mid, songName, ...(artist ? { artist } : {}) };
       }
       end = start;
@@ -130,7 +231,7 @@ async function findLatestSongEntry(cachePath, expectedTitle = '') {
   return null;
 }
 
-async function loadWeSingLyrics(options = {}) {
+async function loadWeSingLyrics(options = {}, readQrc = tryReadQrc) {
   const cachePath = normalizeWeSingCachePath(options.cachePath);
   const title = stripWeSingWindowTitle(options.title);
   const resDir = path.join(cachePath, 'WeSingDL', 'Res');
@@ -142,7 +243,7 @@ async function loadWeSingLyrics(options = {}) {
   if (logEntry) {
     if (!SAFE_SONG_MID.test(logEntry.mid)) return null;
     const directPath = path.join(resDir, logEntry.mid, `${logEntry.mid}.qrc`);
-    const direct = await tryReadQrc(directPath);
+    const direct = await readQrc(directPath);
     // A known song ID identifies the rendition; another same-title cache is not a substitute.
     return direct ? toLyricResult(direct, logEntry.mid, title) : null;
   }
@@ -151,14 +252,13 @@ async function loadWeSingLyrics(options = {}) {
   const wantedTitle = normalizeTitle(title);
   let matchingResult = null;
   for (const candidate of candidates) {
-    const parsed = await tryReadQrc(candidate.filePath);
+    const parsed = await readQrc(candidate.filePath);
     if (!parsed) continue;
-    const result = toLyricResult(parsed, candidate.songMid, title);
-    if (wantedTitle && normalizeTitle(result.title) !== wantedTitle) continue;
+    if (wantedTitle && normalizeTitle(parsed.title || title) !== wantedTitle) continue;
     if (matchingResult) return null;
-    matchingResult = result;
+    matchingResult = { parsed, songMid: candidate.songMid };
   }
-  return matchingResult;
+  return matchingResult ? toLyricResult(matchingResult.parsed, matchingResult.songMid, title) : null;
 }
 
 async function listRecentQrcFiles(resDir, maximum) {
@@ -193,9 +293,9 @@ async function* readQrcFileBatches(resDir) {
   }
 }
 
-async function tryReadQrc(filePath) {
+async function tryReadQrc(filePath, metadata) {
   try {
-    const stat = await fs.promises.stat(filePath);
+    const stat = metadata || await fs.promises.stat(filePath);
     if (!stat.isFile() || stat.size <= 0 || stat.size > MAX_QRC_BYTES) return null;
     let payload = await fs.promises.readFile(filePath);
     if (payload.subarray(0, 8).toString('ascii') === '[offset:') {
@@ -243,9 +343,9 @@ function toLyricResult(parsed, songMid, fallbackTitle) {
   return {
     songMid,
     title: parsed.title || fallbackTitle,
-    artists: parsed.artists,
+    artists: [...parsed.artists],
     durationMs: parsed.durationMs,
-    lines: parsed.lines,
+    lines: structuredClone(parsed.lines),
   };
 }
 
@@ -304,6 +404,7 @@ function decodeJsonString(value) {
 }
 
 module.exports = {
+  createWeSingCacheReader,
   ensureWeSingCacheDirectory,
   hasWeSingCacheData,
   extractQrcLyricContent,

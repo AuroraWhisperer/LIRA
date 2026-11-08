@@ -63,12 +63,13 @@ function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ens
     },
     getRetentionStats: () => retention.getRetentionStats(db),
     runRetention(options = {}) {
-      if (options.dryRun !== true) clearSuperChatUndo();
+      if (options.dryRun !== true && options.giftEventsOnly !== true) clearSuperChatUndo();
       const policy = options.policy || retention.readRetentionPolicy(getSettings());
       return retention.applyRetentionPolicies(db, {
         policy,
         dryRun: options.dryRun === true,
         ranAt: options.ranAt,
+        giftEventsOnly: options.giftEventsOnly === true,
       });
     },
   };

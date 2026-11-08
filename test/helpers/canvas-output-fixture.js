@@ -47,6 +47,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     return service.publishCanvas(body);
   } };
   const server = await startComponentPreviewServer({ scenes, dataDir, extraContext, overtime: extraContext?.overtime, getOwner: () => owner, getState: () => runtime,
+    ensureGiftImage: extraContext?.giftImages?.ensureImage,
     settings: { get: () => runtime.settings, defaults: DEFAULT_SETTINGS,
       setMany(patch) {
         Object.assign(runtime.settings, patch);

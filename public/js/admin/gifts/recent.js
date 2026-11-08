@@ -3,7 +3,7 @@
 import { eventBus, Events } from '../../shared/event-bus.js';
 import { escapeHtml } from '../../shared/html-escape.js';
 import { formatTime, formatMoney } from '../../shared/display-format.js';
-import { GIFT_PLACEHOLDER, setGiftImageFallbacks } from '../../shared/gift-image-fallback.js';
+import { GIFT_PLACEHOLDER, resolveGiftImageSource, setGiftArtworkFallbacks } from '../../shared/gift-image.js';
 import { findBlindBoxTheme } from './blindbox-theme.js';
 import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
 
@@ -93,7 +93,7 @@ export function getGiftToastArtwork(item) {
   const imagePath = isGuard
     ? getGuardBadge(item)?.src || ''
     : findGiftArtwork(id, item?.gift_name, item?.gift_variant_id);
-  return /\.webp$/i.test(imagePath) ? imagePath : '';
+  return resolveGiftImageSource(imagePath);
 }
 
 export const giftRecent = (() => {
@@ -276,7 +276,7 @@ export const giftRecent = (() => {
           <span>收到的礼物会显示在这里</span>
         </div>
       `;
-      setGiftImageFallbacks(list);
+      setGiftArtworkFallbacks(list);
       observeGiftSheen(list);
       return;
     }
@@ -330,7 +330,7 @@ export const giftRecent = (() => {
       `;
       })
       .join('');
-    setGiftImageFallbacks(list);
+    setGiftArtworkFallbacks(list);
     limitRecentGiftRows(list);
     observeRecentGiftGrid(list);
     observeGiftSheen(list);

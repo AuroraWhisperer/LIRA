@@ -51,6 +51,9 @@ function createOvertimeService(options = {}) {
   let monotonicAnchorMs = monotonicNow();
   let zeroTimer = null;
   let retryTimer = null;
+  let retryAtMs = null;
+  let retryWithoutCheckpoint = false;
+  let recoveryAfterId = 0;
   let recovering = false;
   let recoveryPaused = false;
   let disposed = false;
@@ -200,7 +203,7 @@ function createOvertimeService(options = {}) {
       const result = store.observeGift(giftEventId, toIso(now()));
       return result.kind === 'pending';
     } catch (error) {
-      scheduleRecovery(Math.floor(now()) + 1000);
+      scheduleRecovery(Math.floor(now()) + 1000, true);
       throw error;
     }
   }
@@ -252,7 +255,7 @@ function createOvertimeService(options = {}) {
       } catch (_) {
         retry = null;
       }
-      scheduleRecovery(retry?.settleAfterMs || currentMs + 1000);
+      scheduleRecovery(retry?.settleAfterMs || currentMs + 1000, !retry);
       if (error.code === 'OVERTIME_QUANTITY_LIMIT' && retry) {
         onUpdate({
           reason: 'quantity-limit',
@@ -293,6 +296,7 @@ function createOvertimeService(options = {}) {
     if (disposed) return;
     state = normalizeState(store.getState() || store.ensureState(toIso(now())));
     clearRetryTimer();
+    recoveryAfterId = 0;
     recoverPersistedClock();
     recoverSettlements();
   }
@@ -328,26 +332,39 @@ function createOvertimeService(options = {}) {
     state = committedState;
     monotonicAnchorMs = nextMonotonicAnchorMs;
     scheduleZeroTimer();
-    if (!state.enabled) clearRetryTimer();
+    if (!state.enabled) {
+      clearRetryTimer();
+      recoveryAfterId = 0;
+    }
     onUpdate({ reason, state: getSnapshot() });
   }
 
   function recoverSettlements() {
     if (disposed || recoveryPaused || recovering || !state.enabled) return;
+    const epoch = state.enableEpoch;
+    const afterId = recoveryAfterId;
+    recoveryAfterId = 0;
     recovering = true;
     try {
-      const giftEventIds = store.listRecoverableFinal(state.enableEpoch, Math.floor(now()));
+      const giftEventIds = store.listRecoverableFinal(epoch, Math.floor(now()), afterId);
+      let failed = false;
       for (const giftEventId of giftEventIds) {
         try {
           finalizeGift({ giftEventId, phase: 'final' });
         } catch (_) {
           // The retry checkpoint and timer are written by finalizeGift.
+          failed = true;
         }
+      }
+      if (!failed && giftEventIds.length === 100 && !recoveryPaused && state.enabled && state.enableEpoch === epoch) {
+        recoveryAfterId = giftEventIds.at(-1);
       }
     } finally {
       recovering = false;
-      scheduleNextRecovery(!retryTimer);
     }
+    // A completed sweep reconciles earlier late finals; failures retain their backoff.
+    if (recoveryAfterId) scheduleRecovery(Math.floor(now()));
+    else scheduleNextRecovery(!retryTimer);
   }
 
   function scheduleNextRecovery(includeUnobserved = false) {
@@ -356,12 +373,23 @@ function createOvertimeService(options = {}) {
     if (nextAt !== null) scheduleRecovery(nextAt);
   }
 
-  function scheduleRecovery(atMs) {
+  function scheduleRecovery(atMs, restartSweep = false) {
     if (disposed || recoveryPaused || !state.enabled) return;
-    clearRetryTimer();
-    const delay = Math.max(0, Math.floor(atMs) - Math.floor(now()));
+    if (restartSweep) {
+      // Without a retry checkpoint, another immediate batch would bypass backoff.
+      recoveryAfterId = 0;
+      if (!retryWithoutCheckpoint) clearRetryTimer();
+      retryWithoutCheckpoint = true;
+    }
+    const nextAtMs = Math.floor(atMs);
+    if (retryTimer && (retryWithoutCheckpoint || retryAtMs <= nextAtMs)) return;
+    if (retryTimer) cancelTimeout(retryTimer);
+    retryAtMs = nextAtMs;
+    const delay = Math.max(0, nextAtMs - Math.floor(now()));
     retryTimer = scheduleTimeout(() => {
       retryTimer = null;
+      retryAtMs = null;
+      retryWithoutCheckpoint = false;
       try {
         recoverSettlements();
       } catch (error) {
@@ -375,6 +403,8 @@ function createOvertimeService(options = {}) {
   function clearRetryTimer() {
     if (retryTimer) cancelTimeout(retryTimer);
     retryTimer = null;
+    retryAtMs = null;
+    retryWithoutCheckpoint = false;
   }
 
   function scheduleZeroTimer() {
@@ -416,6 +446,7 @@ function createOvertimeService(options = {}) {
     if (zeroTimer) cancelTimeout(zeroTimer);
     zeroTimer = null;
     clearRetryTimer();
+    recoveryAfterId = 0;
     return true;
   }
 

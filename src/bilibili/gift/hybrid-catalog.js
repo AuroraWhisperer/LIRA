@@ -4,6 +4,7 @@ const { createRemoteGiftCatalogCache } = require('./remote-catalog-cache');
 const { mergeVariantRoomCatalog } = require('./variant-room-catalog');
 const { createRemoteGiftImageCache } = require('./remote-gift-image-cache');
 const { createGiftCatalogInitializer } = require('./gift-catalog-initializer');
+const { createGiftImageResources } = require('./gift-image-resources');
 const { createHash } = require('node:crypto');
 
 const MAX_REMOTE_SEARCH_RESULTS = 100;
@@ -23,6 +24,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
           fetch: options.fetchImage,
           logger: options.logger,
           concurrency: options.imageConcurrency,
+          visitAssetReferences: options.visitAssetReferences,
         })
       : null);
   const logger = options.logger || console;
@@ -81,6 +83,12 @@ function createHybridGiftSaleCatalogService(options = {}) {
       now: options.now,
     });
   }
+  const imageResources = remoteImageCache?.getSourceImagePath ? createGiftImageResources({
+    imageCache: remoteImageCache,
+    getCatalog: () => remoteCatalog.getSnapshot(),
+    getRevision: remoteCatalog.getRevision ? () => remoteCatalog.getRevision() : undefined,
+    now: options.now,
+  }) : null;
   let roomSnapshot = local.getSnapshot();
   let roomRefreshPending = null;
   let unsubscribe = giftCatalogInitializer?.onStateChanged?.((state) => {
@@ -265,6 +273,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
     getSnapshot,
     getGlobalSnapshot,
     getArtworkResolver,
+    imageResources,
     getInitializationState: () =>
       giftCatalogInitializer?.getState?.() || {
         status: 'ready',
@@ -283,6 +292,8 @@ function createHybridGiftSaleCatalogService(options = {}) {
       if (disposed) return;
       disposed = true;
       stopped = true;
+      imageResources?.dispose();
+      const drainImages = !options.remoteImageCache ? remoteImageCache?.dispose?.() : undefined;
       try {
         unsubscribe?.();
       } finally {
@@ -290,6 +301,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
         // Shared caches and the local catalog retain their existing owners.
         if (!options.remoteCatalog) remoteCatalog.stop?.();
       }
+      return drainImages;
     },
     start() {
       if (disposed) return;

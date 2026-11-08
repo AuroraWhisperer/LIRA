@@ -1,7 +1,7 @@
 import { DEFAULT_DANMAKU_CLASSES, createDanmakuRenderer, measureDanmakuText } from './danmaku-renderer-core.js';
 import { createRipploidGuardCard, decorateRipploidMessage } from './danmaku-ripploid.js';
 import { decorateTwitterMessage } from './danmaku-twitter.js';
-import { bindGuardImage } from '../shared/bilibili-guard-icons.js';
+import { bindGiftImage, resolveGiftImageSource } from '../shared/gift-image.js';
 import { createSpookyMessageRenderer } from './danmaku-spooky.js';
 import { createNotebookMessageRenderer } from './danmaku-notebook.js';
 import { createFlowerLetterMessageRenderer } from './danmaku-flower-letter.js';
@@ -13,6 +13,7 @@ import { createComicMessageRenderer } from './danmaku-comic.js';
 import { createWindowMessageRenderer } from './danmaku-window.js';
 import { createStardustMessageRenderer } from './danmaku-stardust.js';
 import { createSinkingMessageRenderer } from './danmaku-sinking.js';
+import { createGlowyMessageRenderer } from './danmaku-glowy.js';
 import { createGlassMessageRenderer } from './danmaku-glass.js';
 import { createGlassBubbleMessageRenderer } from './danmaku-glass-bubble.js';
 import { createAnimatedGradientMessageRenderer } from './danmaku-animated-gradient.js';
@@ -23,15 +24,29 @@ import { createStargazerMessageRenderer } from './danmaku-stargazer.js';
 import { createRandomEntranceRenderer } from './danmaku-random-entrance.js';
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import { createCelestialHorizontalMessageRenderer } from './danmaku-celestial-horizontal.js';
+import { createNeonGlassMessageRenderer } from './danmaku-neon-glass.js';
+import { createHorizontalCharmMessageRenderer } from './danmaku-horizontal-charm.js';
+import { createAstralMessageRenderer } from './danmaku-astral.js';
 
 export { DEFAULT_DANMAKU_CLASSES, measureDanmakuText };
 
 // Keep the desktop's staggered entrance and existing system-message appearance.
 export function createDanmakuMessageRenderer(options) {
+  const render = createStyleRenderer(options);
+  return (item = {}, index = 0) => {
+    if (item.kind === 'gift' && [1, 2, 3].includes(Number(item.giftGuardLevel))) {
+      item = { ...item, giftImageUrl: options.style === 'twitter' ? '' : resolveGiftImageSource('', item.giftGuardLevel) };
+    }
+    return render(item, index);
+  };
+}
+
+function createStyleRenderer(options) {
+  if (options.style === 'neon-glass') options = { ...options, showAvatar: false };
   const seaBreeze = ['sea-breeze', 'sea-breeze-random'].includes(options.style);
-  if (seaBreeze || options.style === 'celestial-horizontal') options = { ...options, showAvatar: false };
-  const render = createDanmakuRenderer({ bindGiftImage: bindGuardImage, showGiftTotal: options.style === 'aurora', ...options,
-    ...(['dark-moon', 'glass', 'animated-gradient', 'glass-bubble'].includes(options.style) ? { showAvatar: false } : {}),
+  if (seaBreeze || ['celestial-horizontal', 'horizontal-charm'].includes(options.style)) options = { ...options, showAvatar: false };
+  const render = createDanmakuRenderer({ bindGiftImage, showGiftTotal: options.style === 'aurora', ...options,
+    ...(['dark-moon', 'glass', 'animated-gradient', 'glass-bubble', 'astral'].includes(options.style) ? { showAvatar: false } : {}),
   }, {
     decorateSystemMessages: false,
     entranceDelay: (index) => Math.min(index, 8) * 24,
@@ -41,6 +56,9 @@ export function createDanmakuMessageRenderer(options) {
     return options.fullscreen ? createRandomEntranceRenderer(options, decorate, DANMAKU_STYLE_OPTIONS[options.style]) : decorate;
   }
   if (options.style === 'celestial-horizontal') return createCelestialHorizontalMessageRenderer(options, render);
+  if (options.style === 'neon-glass') return createNeonGlassMessageRenderer(options, render);
+  if (options.style === 'horizontal-charm') return createHorizontalCharmMessageRenderer(options, render);
+  if (options.style === 'astral') return createAstralMessageRenderer(options, render);
   if (options.style === 'aurora') return createAuroraMessageRenderer(options, render);
   if (options.style === 'stargazer') return createStargazerMessageRenderer(options, render);
   if (options.style === 'notebook') return createNotebookMessageRenderer(options, render);
@@ -54,6 +72,7 @@ export function createDanmakuMessageRenderer(options) {
   if (options.style === 'window') return createWindowMessageRenderer(options, render);
   if (options.style === 'stardust') return createStardustMessageRenderer(options, render);
   if (options.style === 'sinking') return createSinkingMessageRenderer(options, render);
+  if (options.style === 'glowy') return createGlowyMessageRenderer(options, render);
   if (options.style === 'glass') return createGlassMessageRenderer(options, render);
   if (options.style === 'glass-bubble') return createGlassBubbleMessageRenderer(options, render);
   if (options.style === 'animated-gradient') return createAnimatedGradientMessageRenderer(options, render);

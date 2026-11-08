@@ -33,8 +33,6 @@ const LAYOUT_MOVE_CURVE = Object.freeze([0.3, 0.1, 0.2, 1]);
  * @returns {{render: Function, append: Function, remove: Function, destroy: Function}}
  */
 export function createDanmakuFeed(root, options = {}) {
-  const fixedLifetimeMs = DANMAKU_STYLE_OPTIONS[options.style]?.fixedLifetimeMs;
-  if (fixedLifetimeMs) options = { expireFixedItems: true, itemLifetimeMs: fixedLifetimeMs, ...options };
   if (options.style === 'sinking') return createSinkingDanmakuFeed(root, options);
   if (options.layout === 'floating') return createFloatingDanmakuFeed(root, options);
   if (!root || typeof root.replaceChildren !== 'function') {
@@ -123,6 +121,7 @@ export function createDanmakuFeed(root, options = {}) {
   function cancelAnimations(entry, keepFade = false) {
     if (!keepFade) {
       entry.fade?.cancel();
+      if (entry.fade) entry.node.style.opacity = '';
       entry.fade = null;
     }
     if (entry.motion) {
@@ -279,7 +278,8 @@ export function createDanmakuFeed(root, options = {}) {
       const zoom = Number.parseFloat(styles?.zoom) || 1;
       const offset = Number.parseFloat(styles?.[axis.position]) || 0;
       const rect = entry.node.getBoundingClientRect();
-      const scale = rect.width / entry.node.offsetWidth || 1;
+      // A left/top offset moves in feed coordinates, independently of rounded card widths or rotation.
+      const scale = viewportScale * zoom || 1;
       const top = rect[axis.position] - offset * scale;
       const dy = entry.entering
         ? (previousOffset ?? (Number.isFinite(entryOffset) ? entryOffset * scale : direction * (entry.extent + gap) * scale / zoom)) / scale
@@ -377,11 +377,15 @@ export function createDanmakuFeed(root, options = {}) {
       node.style.setProperty('width', `${width}px`);
       node.style.setProperty('zoom', String(zoom * scale));
     }
-    if (!fullscreen && (bounds.x || bounds.y || bounds.height !== height)) {
-      entry.effectLayout ||= ['margin-top', 'margin-bottom', 'translate'].map(key => [key, node.style.getPropertyValue(key)]);
-      node.style.setProperty('margin-top', -bounds.y + 'px');
-      node.style.setProperty('margin-bottom', (bounds.height + bounds.y - height) + 'px');
-      node.style.setProperty('translate', -bounds.x + 'px 0px');
+    const start = horizontal ? bounds.x : bounds.y;
+    const naturalExtent = horizontal ? width : height;
+    if (!fullscreen && (bounds.x || bounds.y || bounds[axis.size] !== naturalExtent)) {
+      entry.effectLayout ||= [`margin-${axis.position}`, `margin-${axis.end}`, 'translate'].map(key => [key, node.style.getPropertyValue(key)]);
+      node.style.setProperty(`margin-${axis.position}`, -start + 'px');
+      node.style.setProperty(`margin-${axis.end}`, (bounds[axis.size] + start - naturalExtent) + 'px');
+      node.style.setProperty('translate', horizontal
+        ? `var(--danmaku-enter-x, 0px) ${-bounds.y}px`
+        : `calc(${-bounds.x}px + var(--danmaku-enter-x, 0px)) 0px`);
     } else if (entry.effectLayout) {
       for (const [key, value] of entry.effectLayout) node.style.setProperty(key, value);
       entry.effectLayout = null;
@@ -459,7 +463,9 @@ export function createDanmakuFeed(root, options = {}) {
       const fadeMs = Math.max(0, timestamp + itemLifetimeMs - Number(now()));
       if (!fadeMs) return expire();
       if (!reducedMotion?.matches) {
-        entry.fade = entry.node.animate([{ opacity: 1 }, { opacity: 0 }], {
+        // Keep text painted at the canvas scale during expiration as well as entry.
+        entry.node.style.opacity = 'var(--danmaku-exit-opacity)';
+        entry.fade = entry.node.animate([{ '--danmaku-exit-opacity': 1 }, { '--danmaku-exit-opacity': 0 }], {
           duration: fadeMs,
           easing: 'cubic-bezier(0.4, 0, 1, 1)',
           fill: 'forwards',

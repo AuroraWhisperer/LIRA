@@ -28,10 +28,12 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true,
   const createList = () => ({
     buttons: [],
     actions: [],
+    renders: 0,
     style: { setProperty() {} },
     closest() { return this; },
     addEventListener() {},
     set innerHTML(html) {
+      this.renders++;
       this.html = html;
       this.queueActions = [...html.matchAll(/<button\b[^>]*data-action="([^"]*)"[^>]*data-id="([^"]*)"[^>]*>/g)]
         .map(([, action, id]) => {
@@ -203,8 +205,10 @@ test('only the queue head offers LIVE, its state toggles, and repeated clicks su
   const items = [{ id: 1, song_name: '<歌曲>' }, { id: 2, song_name: '待唱' }];
   const render = () => queue.renderQueueState({ waiting: items });
   render();
-  render();
+  const originalAction = elements.queueList.queueActions.find(button => button.dataset.action === 'live');
+  queue.renderQueueState({ waiting: items.map(item => ({ ...item })), requestResult: { id: 'rejected', accepted: false } });
   let actions = elements.queueList.queueActions.filter((button) => button.dataset.action === 'live');
+  assert.equal(actions[0], originalAction, 'request feedback preserves existing queue controls');
   assert.equal(actions.length, 1);
   assert.equal(actions[0].dataset.id, '1');
   assert.match(elements.queueList.html, /&lt;歌曲&gt;/);
@@ -213,12 +217,30 @@ test('only the queue head offers LIVE, its state toggles, and repeated clicks su
   pending.resolve();
   await click;
   assert.deepEqual(requests, [{ action: 'live', id: '1' }]);
+  elements.queueList.hidden = true;
   items[0].is_live = true;
   render();
+  elements.queueList.hidden = false;
   actions = elements.queueList.queueActions.filter((button) => button.dataset.action === 'unlive');
   assert.equal(actions.length, 1);
   await actions[0].fire('click');
   assert.deepEqual(requests[1], { action: 'unlive', id: '1' });
+});
+
+test('request feedback preserves an empty queue while receiving settings still update its hint', async () => {
+  const { queue, elements } = await createQueueRuntime();
+  const settings = { paused: 'false', danmakuMonitoringEnabled: 'true' };
+  queue.renderQueueState({ waiting: [] }, settings);
+  const receiving = elements.queueList.html;
+  queue.renderQueueState({ waiting: [], requestResult: { id: 'rejected', accepted: false } }, settings);
+  assert.equal(elements.queueList.renders, 1);
+  queue.renderQueueState({ waiting: [] }, { ...settings, paused: 'true' });
+  assert.notEqual(elements.queueList.html, receiving);
+  const paused = elements.queueList.html;
+  queue.renderQueueState({ waiting: [] }, { ...settings, paused: 'true', danmakuMonitoringEnabled: 'false' });
+  assert.notEqual(elements.queueList.html, paused);
+  queue.renderQueueState({ waiting: [] }, settings);
+  assert.equal(elements.queueList.html, receiving);
 });
 
 test('SC and song copy buttons copy their own text once after state refresh', async () => {

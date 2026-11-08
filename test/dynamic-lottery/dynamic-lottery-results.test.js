@@ -88,6 +88,7 @@ test('winner metadata uses the frozen comment and scan, including legacy names, 
     await assert.rejects(service.start(task, new AbortController().signal), { code: 'LOTTERY_RELATION_UNKNOWN' });
     const partial = drawStore.getResult(task.id);
     assert.equal(partial.status, 'paused');
+    assert.equal(partial.reason, 'LOTTERY_RELATION_UNKNOWN');
     assert.equal(partial.checkedCount, 1);
     assert.equal(partial.winners[0].displayName, '真实昵称');
     assert.equal(partial.winners[0].commentText, text);
@@ -97,6 +98,7 @@ test('winner metadata uses the frozen comment and scan, including legacy names, 
     await service.start(store.getTask(task.id), new AbortController().signal);
     const result = drawStore.getResult(task.id);
     assert.equal(result.status, 'completed');
+    assert.equal(result.reason, '', 'the previous pause reason is absent after completing the draw');
     assert.equal(result.winners.length, 2);
     assert.equal(result.winners[1].displayName, null);
     assert.equal(result.winners[1].commentText, '历史记录仍有评论');

@@ -28,5 +28,17 @@
     "giftId": 25,
     "name": "小电视飞船",
     "sourceUrl": "https://i0.hdslb.com/bfs/live/29e01d47ca7584754a682171e3644fcec3669280.webp"
+  },
+  {
+    "file": "call-crazy.png",
+    "giftId": 30072,
+    "name": "疯狂打call",
+    "sourceUrl": "https://s1.hdslb.com/bfs/live/4fdff86d1f0c1091ee9b1406790699c226040f8b.png"
+  },
+  {
+    "file": "golden-figure.png",
+    "giftId": 30009,
+    "name": "小金人",
+    "sourceUrl": "https://s1.hdslb.com/bfs/live/d5fe8c52c41b906cb025511de94f264b220d3cdb.png"
   }
 ]

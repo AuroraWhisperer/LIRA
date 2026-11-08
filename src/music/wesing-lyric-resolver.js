@@ -2,14 +2,13 @@
 
 const { findLatestSongEntry, loadWeSingLyrics } = require('./wesing-cache');
 
-async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, resolveFallbackLyrics }) {
+async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, resolveFallbackLyrics, logEntry,
+  readLogEntry = findLatestSongEntry, loadLyrics = loadWeSingLyrics, forceOnline = false }) {
   let result = null;
   let fallbackError = null;
   let detectedArtist = '';
-  let logEntry = null;
-
   try {
-    logEntry = await findLatestSongEntry(cachePath, title);
+    if (logEntry === undefined) logEntry = await readLogEntry(cachePath, title);
     detectedArtist = String(logEntry?.artist || '').trim();
   } catch (_) {
     detectedArtist = '';
@@ -17,7 +16,7 @@ async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, r
 
   if (cacheReady) {
     try {
-      result = await loadWeSingLyrics({ cachePath, title, logEntry });
+      result = await loadLyrics({ cachePath, title, logEntry });
       if (result) {
         result.source = 'wesing';
         if (!result.artists.length && detectedArtist) result.artists = [detectedArtist];
@@ -34,7 +33,7 @@ async function resolveWeSingLyrics({ cachePath, title, cacheReady, durationMs, r
         fallbackInput.artist = detectedArtist;
         fallbackInput.artists = [detectedArtist];
       }
-      result = await resolveFallbackLyrics(fallbackInput);
+      result = await resolveFallbackLyrics(fallbackInput, { songMid: logEntry?.mid || '', force: forceOnline });
     } catch (error) {
       fallbackError = error;
     }

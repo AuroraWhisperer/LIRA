@@ -1,6 +1,6 @@
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
 import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gift-identity.js';
-import { setGiftImage } from '../shared/gift-image-fallback.js';
+import { setGiftArtwork } from '../shared/gift-image.js';
 import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 import { createGiftPickerButton } from './gifts/picker-option.js';
 import { api, readJsonResponse, showError } from '../shared/utils.js';
@@ -126,7 +126,7 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
       if (!imagePath) continue;
       row.dataset.imagePath = imagePath;
       const image = row.querySelector('.overtime-rule-gift img');
-      if (image) setGiftImage(image, imagePath);
+      if (image) setGiftArtwork(image, imagePath);
     }
     const picker = byId('overtimeGiftPicker');
     if (picker?.open) renderGiftPicker();

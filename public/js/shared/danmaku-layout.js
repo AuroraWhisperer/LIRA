@@ -2,31 +2,35 @@ import { CANVAS_PRESETS } from './canvas-presets.js';
 
 // Display contract mirrored by the desktop main process and the server.
 const REGION_DEFAULTS = Object.freeze({
-  'celestial-horizontal': [1920, 96],
-  'sea-breeze': [480, 850],
+  'neon-glass': [1920, 144],
+  'horizontal-charm': [1920, 120],
+  astral: [640, 720],
+  'celestial-horizontal': [1920, 80],
+  'sea-breeze': [480, 700],
   'sea-breeze-random': null,
   startrail: null,
   sinking: null,
   bubble: [570, 560], signal: [560, 600], minimal: [588, 576],
   ranked: [640, 640], transparent: [520, 540], identity: [640, 616],
-  sketch: [680, 720],
-  prismatic: [640, 720],
-  harbor: [640, 720],
-  snowfox: [640, 720],
-  ripploid: [520, 640],
-  twitter: [530, 850],
-  'flower-letter': [640, 850],
-  spooky: [530, 620],
-  notebook: [640, 720],
-  glass: [696, 650],
-  'animated-gradient': [520, 720],
-  christmas: [560, 720],
-  stargazer: [560, 720],
-  'christmas-letter': [560, 720],
-  wireframe: [480, 640],
-  starlight: [520, 640],
-  'dark-moon': [640, 720],
-  moonlit: [640, 720],
+  sketch: [480, 700],
+  prismatic: [480, 700],
+  harbor: [480, 700],
+  snowfox: [480, 700],
+  ripploid: [480, 700],
+  twitter: [480, 700],
+  'flower-letter': [480, 700],
+  spooky: [480, 700],
+  notebook: [480, 700],
+  glowy: [480, 700],
+  glass: [480, 700],
+  'animated-gradient': [480, 700],
+  christmas: [480, 700],
+  stargazer: [480, 700],
+  'christmas-letter': [480, 700],
+  wireframe: [480, 700],
+  starlight: [480, 700],
+  'dark-moon': [480, 700],
+  moonlit: [480, 700],
   comic: null,
   window: null,
   stardust: null,
@@ -50,7 +54,7 @@ function defaultRegion(style, canvas, contentScale = 1) {
   const width = Math.round(size[0] * contentScale);
   const height = Math.round(size[1] * contentScale);
   const margin = Math.round(40 * contentScale);
-  if (style === 'celestial-horizontal') return fitRegion({ x: 0, y: canvas.height - height, width: canvas.width, height }, canvas);
+  if (['celestial-horizontal', 'neon-glass', 'horizontal-charm'].includes(style)) return fitRegion({ x: 0, y: canvas.height - height, width: canvas.width, height }, canvas);
   return fitRegion({ x: margin, y: canvas.height - height - margin, width, height }, canvas);
 }
 
@@ -73,7 +77,7 @@ function normalizeLayout(value) {
     || !Number.isFinite(contentScale) || contentScale < 0.1 || contentScale > 8
     || !regions || typeof regions !== 'object' || Array.isArray(regions)
     || Object.keys(regions).some((style) => !Object.hasOwn(REGION_DEFAULTS, style))
-    || Object.keys(REGION_DEFAULTS).some((style) => !['glass-bubble', 'celestial-horizontal', 'animated-gradient', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'stargazer', 'wireframe'].includes(style) && !Object.hasOwn(regions, style))) fail();
+    || Object.keys(REGION_DEFAULTS).some((style) => !['horizontal-charm', 'neon-glass', 'astral', 'glowy', 'glass-bubble', 'celestial-horizontal', 'animated-gradient', 'sea-breeze', 'sea-breeze-random', 'glass', 'sinking', 'window', 'stardust', 'comic', 'startrail', 'sketch', 'mist', 'whiteframe', 'starveil', 'moonlit', 'floating', 'comet', 'aurora', 'starlight', 'dark-moon', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'stargazer', 'wireframe'].includes(style) && !Object.hasOwn(regions, style))) fail();
   const normalized = {};
   for (const style of Object.keys(REGION_DEFAULTS)) {
     const region = !Object.hasOwn(regions, style)

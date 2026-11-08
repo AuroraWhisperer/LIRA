@@ -9,7 +9,7 @@ import {
   DEFAULT_WISH_TEXT_COLORS,
 } from '../../shared/gift-wish-card.js';
 import { createGiftWishFeed, requestGiftWish } from '../../shared/gift-wish-client.js';
-import { setGiftImage } from '../../shared/gift-image-fallback.js';
+import { setGiftArtwork } from '../../shared/gift-image.js';
 import { createWishPicker } from './wish-picker.js';
 import { createWishTextEditor } from './wish-text-editor.js';
 import { createWishStylePreview } from './wish-style-preview.js';
@@ -81,7 +81,7 @@ export function createGiftWishes() {
   function showSelected() {
     get('giftWishSelectedName').textContent = selected?.name || '选个礼物';
     const image = get('giftWishSelectedImage');
-    if (selected) setGiftImage(image, selected.imagePath);
+    if (selected) setGiftArtwork(image, selected.imagePath);
     else {
       image.src = '/img/admin/nav-icons/nav-gift.webp';
       image.hidden = false;

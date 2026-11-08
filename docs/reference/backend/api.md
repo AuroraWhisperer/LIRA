@@ -139,7 +139,7 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 | `POST /api/scenes/canvas-publish` | `{id,expectedRevision,expectedPublishedVersion,expectedDefaults?}` | 将指定预设发布到当前账号绑定的唯一画布来源；事务检查预设 revision 和来源 publishedVersion，提交发布快照、当前预设和共享尺寸；任一冲突返回 409、失败保留旧输出 |
 | `GET /api/scenes/source?id=UUID` | 场景 ID | `{id,token,itemIds,canvas,itemSizes}`，取已发布版本；canvas 为 `{width,height}`（未发布为 null），itemSizes 按实例 ID 映射 `{width,height}`；仅显式复制来源使用 |
 | `POST /api/scenes/rotate` | `{id}` | 新 `{id,token}`，旧凭据立即失效 |
-| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?,dataVersions?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances,dataVersions?}`；相同发布版本 document 为 null，appearances 仍按已发布可见 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，强制可见、移至原点并使用保存宽高；凭据权限仍属于整个场景 |
+| `GET /api/scene/output` | `id,version,epoch,cursor,item?,projection?,dataVersions?,incrementalParts?` 查询；场景 Bearer | `{sceneId,version,projection,document,data,appearances,dataVersions?}`；相同发布版本 document 为 null，appearances 仍按已发布可见 item ID 返回当前共享字段；item 可选 UUID 只投影该发布实例，强制可见、移至原点并使用保存宽高；凭据权限仍属于整个场景 |
 | `OPTIONS /api/scene/output` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
 | `GET /api/scene/events` | `id,version,item?,projection?` 查询；场景 Bearer | `text/event-stream`，仅通知 `ready` / `change` / `revoked` 与注释心跳；数据仍从 output 读取；本地运行时最多四条连接，超限 429 |
 | `OPTIONS /api/scene/events` | Origin 为 null，请求方法 GET、请求头 Authorization | 204，精确路径预检不带凭据，实际 GET 必须验凭据 |
@@ -149,7 +149,11 @@ canvas 的 state 另含 `presets:[{id,title,dirty}]`、`activeSceneId` 和已发
 
 这里的展示 owner epoch 取主进程当前授权的生命周期 generation，普通后台 token 续期不改变它，也不撤销来源、回执或重建云弹幕连接。换账号、换服务器、重新授权、退出及当前授权失效仍终止旧来源；敏感远端请求继续使用授权管理器原有 token epoch 和校验，不因展示身份稳定而放宽。
 
-可选 `dataVersions` 为最长 1024 字符的 JSON 对象，仅接受 `songlist`、`lyricTimeline`、`gift-feed` 键及 1–128 字符的字母、数字、下划线或连字符版本值。首次传 `{}`，成功接收后回传响应中的版本；已确认且未变化的 `data.songlist`、`data.lyrics.lyricTimeline` 或 `data['gift-feed']` 省略，播放状态仍更新。发布版本不匹配时忽略旧确认；版本不提供权限，仍逐次执行原授权和投影检查。非法值返回 `400 SCENE_INVALID_DATA_VERSION`。旧请求不带此参数时始终返回完整数据，也不增加 `dataVersions` 响应字段。父页保留已接收静态内容供换版准备使用，输出失败或撤销清除确认后重新读取。
+可选 `dataVersions` 为最长 1024 字符的 JSON 对象，仅接受 `songlist`、`lyricTimeline`、`gift-feed`、`queue`、`wheel`、`games`、`blindbox`、`gift-frame`、`guard-thanks`、`gamesCanvas`、`gamesScores` 键及 1–128 字符的字母、数字、下划线或连字符版本值。首次传 `{}`，成功接收后回传响应中的版本；已确认且未变化的对应类型数据（`lyricTimeline` 对应 `data.lyrics.lyricTimeline`）省略，播放状态仍更新。队列、转盘和游戏在对应类型通知后失效，owner scope/epoch 变化也重建基线；即使漏通知，版本最多保留五秒，随后重新读取核对。盲盒每次核验统计 owner 的账本、来源代次与本机日界变更标记，并绑定展示 owner 和心动盲盒筛选；变化后重新投影完整榜单，未变时跳过统计副本、投影及传输，不限制各实例自行选择榜单人数。配置显式失效仍立即生效，无可用变更标记的读取不复用缓存。发布版本不匹配时忽略旧确认；版本不提供权限，仍逐次执行原授权和投影检查。非法值返回 `400 SCENE_INVALID_DATA_VERSION`。旧请求不带此参数时始终返回完整数据，也不增加 `dataVersions` 响应字段。父页保留已接收静态内容供换版准备使用，输出失败或撤销清除确认后重新读取。
+
+`incrementalParts=1` 显式声明支持游戏嵌套数据和礼物事件基线的条件输出；只有同时携带 `dataVersions` 才启用。你画我猜的 `gamesCanvas` 绑定展示 owner、游戏会话、回合和画笔修订；`gamesScores` 绑定 owner、会话、回合和本轮计分修订。版本匹配时分别省略 `data.games.session.state.canvas` 或 `correct/scores`，仍交付最新聊天、阶段和计时字段。父页面和游戏组件只在同会话、同回合内合并缺失部分，换回合、换 owner、断线及重发布重新补齐；不带能力标记的旧页面不会得到这些新版本，也继续取得完整嵌套游戏状态。新页面首次仍发送 `{}`，旧服务忽略未知 query，保持兼容。
+
+同一能力下，`gift-frame` / `guard-thanks` 版本绑定礼物窗口的账号 epoch 和共享事件序号；匹配时省略整段窗口，避免无关更新重复复制最多 200 条事件。新事件及共享窗口淘汰会更新版本；账号切换建立空窗口和新 epoch。父页在版本存在但正文省略时保留事件游标和准备期间的待播事件；组件真正移除或断线时仍清理。不带 `incrementalParts=1` 的页面即使使用其他 `dataVersions` 也继续取得完整礼物窗口。
 
 上述响应均禁止 HTTP 缓存。场景 Bearer 不属于通用 HTTP/WS principal，不能访问管理 API、旧 overlay API 或其他场景。通知使用 fetch SSE、Authorization 请求头和省略凭据模式，不接受查询参数中的 token。流绑定当前 owner scope/epoch、sceneId、capability 和可选 item，复用 output 的 active projection 验证；成功发布/轮换或对应类型的运行时变化触发通知，40ms 合并突发变化。每次通知及每秒心跳都复核访问和 HTTP server 的实际 license/lifecycle；撤销发送 `revoked` 后关闭，不可用或关闭阶段直接断流。消息不含组件数据、外部 URL 或业务事件 ID；慢客户端被关闭，shutdown 在 inflight drain 前释放所有流。
 
@@ -935,7 +939,9 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 
 你画我猜为内存会话，默认五局、每局 90 秒，允许配置 1–12 局和每局 15–300 秒；固定题库由 `src/games/draw-guess-words.js` 拥有，题目可带 `|` 分隔的等价答案，但分类摘要不会暴露这些词条。每局由主播从管理端选词窗选定题词，确认前不作画、不计时、不计分；服务端单计时器从确认时起运行，到时结束作画并等待主播公布答案。会话公开状态保留本局开始后收到的弹幕（最多 500 条，含 uid、昵称、内容和可选头像地址），直到会话结束；观众弹幕按完整答案匹配，同一 UID 每局只计分一次，第 1/2/3 位分别得 10/7/5 分，其余答对者得 3 分，时间到后不再计分。
 
-常规猜题消息完成计分后只发布一次包含新弹幕与最终得分的 `game:patch`；错误答案仍更新聊天。选词确认与下一局准备分别发布完整 `game:update`，公开状态不含可选词表。游戏候选观众缓存按单调时钟保留最近十分钟，刷新 UID 时调整内部过期顺序，公开 `uid/name/lastSeenAt` 字段不变。
+所有猜题消息立即发布仅含新弹幕的 `game:patch`；答对者在内存中同步计分，公开比分 `state` 按 40ms 窗口合并发布，错误答案不触发比分投影。回合状态、可用性和完整会话更新立即包含最新得分并取消待发批次，停止及销毁清理计时器；事件版本仍逐条递增。`GET /api/games/session` 始终读取当前完整结果，不等待批次。选词确认与下一局准备分别发布完整 `game:update`，公开状态不含可选词表。排行榜只复制变化观众的分数对象并按原比较规则插入，保留总分、首答次数、最后得分时间、昵称及同值稳定次序。游戏候选观众缓存按单调时钟保留最近十分钟，刷新 UID 时调整内部过期顺序，公开 `uid/name/lastSeenAt` 字段不变。
+
+内部场景读取由 `getDisplaySession` 按已确认的画布与比分版本选择公开字段，普通 `getSession` 不改变完整响应；云菜单通过 `getMenuState` 只读取游戏、阶段、轮到方和胜负。两个内部读取入口仍先检查回合截止时间，不复制题词、画笔或聊天来构造菜单。
 
 画笔追加只复制当前修改笔画的坐标数组，内部未变化笔画复用原状态，避免每批坐标重拷整张画布；操作不修改先前状态，公开会话快照仍独立复制坐标。画布上限、撤销/清空和 `game:draw` 增量协议不变。
 
@@ -963,6 +969,12 @@ ChatGPT 订阅端点沿用现有 AI 管理授权。不接受 URL、Cookie、acce
 ## 到期同步的云端接口边界
 
 设置页新增大航海到期账号后，不增加本地 HTTP 凭据路由。Electron main 经现有授权请求器调用远端 `/api/device/guard-expiry/account` 的 GET/PUT/DELETE；PUT 只在 main 登录完成后可附 Cookie。状态由[专用 preload 桥](../desktop/preload.md#大航海到期同步桥)安全投影，生命周期由[登录说明](../desktop/auth.md#15-可选的大航海到期账号)维护。
+
+## 共享礼物图片
+
+[gift-image-http.js](../../../src/server/gift-image-http.js) 提供 `GET/HEAD /overtime-gift-images/<basename>`，保留既有公开图片地址；只允许安全文件名、普通文件、最多 5 MiB 且后缀与位图签名匹配。命中缓存返回真实 MIME、Content-Length、CORS、nosniff 与一年 `immutable`；不读取账户或礼物账本。
+
+GET 缺图时，正常授权的本地运行时可调用目录 `imageResources.ensureImage(path)` 等待已登记资源的共享下载。未知路径和请求查询参数不能指定下载来源；未授权运行时或 HEAD 不发起下载，未找到/下载失败返回 404 且 `no-store`。若来源唯一对应的 variant 新图下载失败但有有效旧图，302 到旧本地图片地址并设置 `no-store`，不把旧内容缓存在新图的 immutable URL 下。其他方法返回 405。登记、限流、失败冷却和磁盘复用由[礼物资源 owner](overtime.md#15-服务器全局礼物目录联动)维护。
 
 ## 共享字体资源
 

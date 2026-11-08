@@ -15,7 +15,8 @@ export function receiveComponentSettings(settings) {
 export function projectComponentDrafts(settings) {
   const projected = { ...settings };
   for (const { controller, toSettings } of registrations.values()) {
-    if (controller.getState().loaded) Object.assign(projected, toSettings(controller.getState().draft));
+    const state = controller.getState();
+    if (state.loaded) Object.assign(projected, toSettings(state.draft));
   }
   return projected;
 }

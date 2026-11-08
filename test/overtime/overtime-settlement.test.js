@@ -71,6 +71,7 @@ test('startup compensation drains more than one batch of final events without ch
     service.act('enable');
     service.replaceRules([fixedRule('gift-a', 1)]);
     service.dispose();
+    const lateFinal = fixture.insertProgressGift({ giftId: 'gift-a', overtimeEpoch: 1 });
     const events = Array.from({ length: 250 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
     const oldEpoch = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 0 });
     const progress = fixture.insertProgressGift({ giftId: 'gift-a', overtimeEpoch: 1 });
@@ -78,13 +79,15 @@ test('startup compensation drains more than one batch of final events without ch
     const settledCount = () =>
       fixture.db.giftDb.prepare('SELECT COUNT(*) AS count FROM overtime_settlements').get().count;
     assert.equal(settledCount(), 100, 'startup yields after its first bounded batch');
+    fixture.finalizeGift(lateFinal.giftEventId);
     fixture.clock.advance(0);
-    assert.equal(settledCount(), 250, 'the remaining batches recover without a new gift or restart');
-    assert.equal(service.getSnapshot().effectiveRemainingMs, 250_000);
+    assert.equal(settledCount(), 251, 'the remaining batches and an earlier late final recover without a new gift or restart');
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 251_000);
+    assert.equal(fixture.getSettlement(lateFinal.giftEventId).status, 'applied');
     assert.equal(fixture.getSettlement(oldEpoch.giftEventId), null);
     assert.equal(fixture.getSettlement(progress.giftEventId), null);
     for (const event of events) assert.equal(service.finalizeGift(event), false);
-    assert.equal(service.getSnapshot().effectiveRemainingMs, 250_000);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 251_000);
     assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
   } finally {
     service.dispose();
@@ -99,29 +102,174 @@ test('unobserved recovery backlog keeps its retry delay while checkpoint writes 
     service.act('enable');
     service.replaceRules([fixedRule('gift-a', 1)]);
     service.dispose();
-    const event = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    const events = Array.from({ length: 150 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
     const store = createOvertimeStore(fixture.db.giftDb);
     const observe = store.observeGift;
     let attempts = 0;
     let blocked = true;
     store.observeGift = (...args) => {
       attempts++;
-      if (blocked) throw new Error('synthetic checkpoint unavailable');
+      if (blocked && args[0] === events[0].giftEventId) throw new Error('synthetic checkpoint unavailable');
       return observe(...args);
     };
     service = fixture.createService({ store });
+    assert.equal(attempts, 100);
+    fixture.clock.advance(999);
+    assert.equal(attempts, 100);
+    blocked = false;
+    fixture.clock.advance(1);
+    assert.equal(attempts, 151);
+    assert.equal(fixture.getSettlement(events[0].giftEventId).status, 'applied');
+    assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 150_000);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('an arriving gift failure keeps the queued compensation batch and its own retry delay', () => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  try {
+    service.act('enable');
+    service.replaceRules([fixedRule('gift-a', 1)]);
+    service.dispose();
+    const events = Array.from({ length: 250 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
+    const store = createOvertimeStore(fixture.db.giftDb);
+    const settle = store.settleFinal;
+    let failId = 0;
+    store.settleFinal = (...args) => {
+      if (args[0] === failId) throw new Error('synthetic incoming settlement failure');
+      return settle(...args);
+    };
+    service = fixture.createService({ store });
+    const incoming = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    failId = incoming.giftEventId;
+    assert.throws(() => service.finalizeGift(incoming), /synthetic incoming settlement failure/);
+    service.finalizeGift(events[0]);
+    fixture.clock.advance(0);
+    assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
+    assert.equal(fixture.getSettlement(incoming.giftEventId).status, 'pending');
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 250_000);
+    failId = 0;
+    fixture.clock.advance(999);
+    assert.equal(fixture.getSettlement(incoming.giftEventId).status, 'pending');
+    fixture.clock.advance(1);
+    assert.equal(fixture.getSettlement(incoming.giftEventId).status, 'applied');
+    assert.equal(fixture.countSettlements(incoming.giftEventId), 1);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 251_000);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('an arriving checkpoint failure suspends the sweep until its retry delay', () => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  try {
+    service.act('enable');
+    service.replaceRules([fixedRule('gift-a', 1)]);
+    service.dispose();
+    const events = Array.from({ length: 150 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
+    const store = createOvertimeStore(fixture.db.giftDb);
+    const observe = store.observeGift;
+    let blockedId = 0;
+    let blockedAttempts = 0;
+    store.observeGift = (...args) => {
+      if (args[0] === blockedId) {
+        blockedAttempts++;
+        throw new Error('synthetic incoming checkpoint failure');
+      }
+      return observe(...args);
+    };
+    service = fixture.createService({ store });
+    const incoming = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    blockedId = incoming.giftEventId;
+    assert.throws(() => service.finalizeGift(incoming), /synthetic incoming checkpoint failure/);
+    fixture.clock.advance(999);
+    assert.equal(blockedAttempts, 1);
+    blockedId = 0;
+    fixture.clock.advance(1);
+    assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
+    assert.equal(fixture.getSettlement(incoming.giftEventId).status, 'applied');
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 151_000);
+  } finally {
+    service.dispose();
+    fixture.close();
+  }
+});
+
+test('a pending settlement keeps its fallback delay when the retry checkpoint cannot be saved', () => {
+  const fixture = createFixture();
+  let service = fixture.createService();
+  try {
+    service.act('enable');
+    service.replaceRules([fixedRule('gift-a', 1)]);
+    service.dispose();
+    const event = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    const store = createOvertimeStore(fixture.db.giftDb);
+    const settle = store.settleFinal;
+    const recordFailure = store.recordFailure;
+    let attempts = 0;
+    let blocked = true;
+    store.settleFinal = (...args) => {
+      if (args[0] === event.giftEventId) {
+        attempts++;
+        if (blocked) throw new Error('synthetic settlement unavailable');
+      }
+      return settle(...args);
+    };
+    store.recordFailure = (...args) => {
+      if (blocked) throw new Error('synthetic retry checkpoint unavailable');
+      return recordFailure(...args);
+    };
+    service = fixture.createService({ store });
+    assert.equal(fixture.getSettlement(event.giftEventId).status, 'pending');
     assert.equal(attempts, 1);
+    const incoming = fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+    assert.equal(service.finalizeGift(incoming), true, 'fallback pauses recovery without blocking incoming gifts');
+    assert.equal(fixture.getSettlement(incoming.giftEventId).status, 'applied');
     fixture.clock.advance(999);
     assert.equal(attempts, 1);
     blocked = false;
     fixture.clock.advance(1);
     assert.equal(attempts, 2);
     assert.equal(fixture.getSettlement(event.giftEventId).status, 'applied');
+    assert.equal(fixture.countSettlements(event.giftEventId), 1);
+    assert.equal(service.getSnapshot().effectiveRemainingMs, 2_000);
   } finally {
     service.dispose();
     fixture.close();
   }
 });
+
+for (const restart of ['pause', 'reload']) {
+  test(`${restart} restarts compensation from earlier final rows`, () => {
+    const fixture = createFixture();
+    let service = fixture.createService();
+    try {
+      service.act('enable');
+      service.replaceRules([fixedRule('gift-a', 1)]);
+      service.dispose();
+      const early = fixture.insertProgressGift({ giftId: 'gift-a', overtimeEpoch: 1 });
+      const events = Array.from({ length: 150 }, () => fixture.insertFinalGift({ giftId: 'gift-a', overtimeEpoch: 1 }));
+      service = fixture.createService();
+      if (restart === 'pause') service.pauseRecovery();
+      fixture.finalizeGift(early.giftEventId);
+      if (restart === 'pause') service.resumeRecovery();
+      else service.reloadState();
+      assert.equal(fixture.getSettlement(early.giftEventId).status, 'applied');
+      fixture.clock.advance(0);
+      assert.equal(fixture.getSettlement(events.at(-1).giftEventId).status, 'applied');
+      assert.equal(service.getSnapshot().effectiveRemainingMs, 151_000);
+    } finally {
+      service.dispose();
+      fixture.close();
+    }
+  });
+}
 
 for (const pendingProgress of [false, true]) {
   test(`a failed settlement rolls back and retries with pending progress=${pendingProgress}`, () => {

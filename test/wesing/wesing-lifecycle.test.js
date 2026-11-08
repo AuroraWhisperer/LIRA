@@ -33,7 +33,10 @@ const cachePath = path.join(os.tmpdir(), 'lira-wesing-lifecycle-synthetic', 'WeS
 const cache = {
   ...require('../../src/music/wesing-cache'),
   ensureWeSingCacheDirectory: async (value) => value,
-  hasWeSingCacheData: async () => false,
+  createWeSingCacheReader: () => ({
+    read: async () => ({ cacheReady: false, log: null, logEntry: null }),
+    clear() {},
+  }),
   isDirectory: async () => false,
 };
 
@@ -251,7 +254,10 @@ test('WeSing same-title rendition change invalidates an older lyric request', as
     lines: [{ startMs: 1000, endMs: 60000, text: mid }],
   } });
   const f = captureFixture(t, {
-    './wesing-cache': { ...cache, findLatestSongEntry: async () => ({ mid: 'alin' }) },
+    './wesing-cache': { ...cache, createWeSingCacheReader: () => ({
+      read: async () => ({ cacheReady: false, log: null, logEntry: { mid: 'alin' } }),
+      clear() {},
+    }) },
     './wesing-qrc-watcher': { createWeSingQrcWatcher(options) {
       onSongChange = options.onSongChange;
       return { sync: async () => {}, stop() {} };
@@ -271,6 +277,37 @@ test('WeSing same-title rendition change invalidates an older lyric request', as
   pending.resolve(lyricResult('en'));
   await oldRefresh;
   assert.deepEqual(f.capture.getStatus(), current);
+});
+
+test('WeSing manual refresh does not reuse a log entry after the playing title changes', async (t) => {
+  const pending = deferred();
+  let holdRead = false;
+  const snapshot = (title) => ({ cacheReady: true, logEntry: { mid: title, songName: title } });
+  const f = captureFixture(t, {
+    './wesing-cache': { ...cache, createWeSingCacheReader: () => ({
+      read: async (_path, title) => {
+        if (holdRead) { holdRead = false; return pending.promise; }
+        return snapshot(title);
+      },
+      clear() {},
+    }) },
+    './wesing-lyric-resolver': { async resolveWeSingLyrics({ cachePath, title, logEntry, readLogEntry }) {
+      const entry = logEntry === undefined ? await readLogEntry(cachePath, title) : logEntry;
+      return { songMid: entry.mid, result: { songMid: entry.mid, artists: [], durationMs: 5000,
+        lines: [{ startMs: 0, endMs: 5000, text: entry.songName }] } };
+    } },
+  });
+  await f.capture.setActive(true);
+  f.samples[0]({ detected: true, title: 'first', currentSec: 0 });
+  await f.capture.waitForRefresh();
+  holdRead = true;
+  const refreshing = f.capture.refresh({ discover: false });
+  f.samples[0]({ detected: true, title: 'second', currentSec: 0 });
+  await f.capture.waitForRefresh();
+  pending.resolve(snapshot('first'));
+  await refreshing;
+  assert.equal(f.capture.getStatus().songMid, 'second');
+  assert.equal(f.capture.getStatus().lyricState.lineText, 'second');
 });
 
 test('WeSing watcher cancels pending directory checks and keeps same-path listeners live', async () => {

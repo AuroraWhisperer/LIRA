@@ -136,7 +136,7 @@ test('frame preview route broadcasts a preview event and validates bad input', a
   assert.equal(broadcasts.length, 1);
 });
 
-test('imported gift-frame styles each keep their own switch and threshold', async () => {
+test('imported gift-frame styles each keep their own switch and threshold', async t => {
   const { buildGiftFrameStyleEvent } = require('../../src/bilibili/gift/frame-config');
   const { writeGiftFrameStyleTrigger } = await import('../../public/js/shared/gift-frame-style-triggers.js');
   const [a, b, c] = ['1', '2', '3'].map((digit) => `${digit.repeat(8)}-${digit.repeat(4)}-4${digit.repeat(3)}-8${digit.repeat(3)}-${digit.repeat(12)}`);
@@ -149,7 +149,15 @@ test('imported gift-frame styles each keep their own switch and threshold', asyn
     { [a]: { enabled: 'true', thresholdRmb: '30' }, [b]: { enabled: true, thresholdRmb: '10.5' } });
   assert.deepEqual(JSON.parse(value), { [a]: { enabled: 'true', thresholdRmb: '30' }, [b]: { enabled: 'true', thresholdRmb: '10.50' } });
   const settings = { giftFrameEnabled: 'false', giftFrameThresholdRmb: '20', giftFrameStyleTriggers: value };
+  const parse = JSON.parse;
+  let triggerParses = 0;
+  const parseMock = t.mock.method(JSON, 'parse', (text, ...args) => {
+    if (text === value) triggerParses++;
+    return parse(text, ...args);
+  });
   const event = buildGiftFrameStyleEvent(gift, settings, [a, b, c]);
+  parseMock.mock.restore();
+  assert.equal(triggerParses, 1, 'one gift parses the shared trigger mapping once for all styles');
   assert.deepEqual([event.eventId, event.themeId, event.styleIds], ['gift-frame:9:imported', 'imported', [b]]);
   assert.deepEqual(buildGiftFrameStyleEvent({ ...gift, total_price: 30 }, settings, [a, c]).styleIds, [a], 'threshold is inclusive');
   assert.equal(buildGiftFrameEvent(gift, settings), null, '林间花信 keeps its own switch');

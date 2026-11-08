@@ -12,6 +12,7 @@ const { createComponentLibraryTransfer } = require('../../src/server/component-l
 const { createComponentStyleStore } = require('../../src/storage/component-style-store');
 const { createComponentStyleLibrary } = require('../../src/server/component-style-library');
 const { createComponentWebLibrary } = require('../../src/server/component-web-library');
+const { pruneUploadedMedia } = require('../../src/server/uploaded-media-retention');
 const { storeTextImage } = require('../../src/server/scene-text-images');
 const { createStoredStyleZip } = require('../../scripts/component-style-zip');
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
@@ -87,6 +88,29 @@ test('portable backup restores current parameters, media, local HTML and text im
   assert.equal(roundPreview.packages, 2);
   await final.transfer.restore(roundPreview.id, allow);
   assert.equal(final.store.list().flatMap(pack => pack.styles).find(style => style.type === 'gift-wishes').config.limit, 4);
+});
+
+test('an image-only backup retains its files after scene edits until the stream is cancelled', async t => {
+  const source = await fixture(t, false);
+  const text = storeTextImage(source.dataDir, png, 'image/png');
+  const image = path.join(source.dataDir, text.imagePath);
+  const now = Date.now(); const old = new Date(now - 60 * 86400000);
+  fs.utimesSync(image, old, old);
+  const created = source.server.service.create({ title: '图片备份', canvas: { width: 1920, height: 1080 } });
+  const document = { ...created.document, items: [item('text-box', {
+    ...createTextBoxDefaults(), nodes: [{ type: 'image', name: '配图', src: text.imagePath }],
+  })] };
+  const saved = source.server.service.save({ id: document.id, document, expectedRevision: created.revision });
+  const stream = source.transfer.backup(allow); t.after(() => stream.return());
+  assert.equal((await stream.next()).done, false);
+  source.server.service.save({ id: document.id, document: { ...document, items: [] }, expectedRevision: saved.revision });
+  const context = { system: { dataDir: source.dataDir }, scenes: source.server.service,
+    componentPreviews: { visitAssetReferences() {} }, settings: { get: () => ({}) } };
+  pruneUploadedMedia(context, now);
+  assert.equal(fs.existsSync(image), true);
+  await stream.return();
+  pruneUploadedMedia(context, now + 31 * 86400000);
+  assert.equal(fs.existsSync(image), false);
 });
 
 test('backup stays within the current account and restoration rechecks owner and staged file integrity', async t => {

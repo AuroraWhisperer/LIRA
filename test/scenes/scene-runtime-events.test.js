@@ -10,6 +10,9 @@ const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrat
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
+const { createGiftService } = require('../../src/bilibili/gift');
+const { createFixture: createGiftFixture } = require('../helpers/gift-query-fixture');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 
 function fixture(t, ports = {}, getState = () => ({ settings: DEFAULT_SETTINGS })) {
   const db = new DatabaseSync(':memory:');
@@ -30,7 +33,8 @@ function publish(runtime, types) {
   const { service } = runtime;
   const created = service.create({ title: '场景通知', canvas: { width: 1920, height: 1080 } });
   const items = [].concat(types).map(type => ({ id: randomUUID(), type, name: type, x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
-    appearance: type === 'clock' ? { mode: 'shared' } : { mode: 'independent', config: createSceneExtraDefaults(type) } }));
+    appearance: ['clock', 'overtime'].includes(type) ? { mode: 'shared' }
+      : { mode: 'independent', config: createSceneExtraDefaults(type) } }));
   const saved = service.save({ id: created.document.id, expectedRevision: created.revision,
     document: { ...created.document, items } });
   const published = service.publish({ id: saved.document.id, expectedRevision: saved.revision });
@@ -48,6 +52,39 @@ function response() {
   res.destroy = () => { res.destroyed = true; res.emit('close'); };
   return res;
 }
+
+test('standalone and scene danmaku map accepted gift images without starting downloads', t => {
+  const mapped = [];
+  const { runtime, state } = fixture(t, { giftImages: {
+    resolveSource(source) { mapped.push(source); return '/overtime-gift-images/settled.png'; },
+    ensureImage() { assert.fail('event delivery must not start an image download'); },
+  } });
+  const update = { ownerScope: state.owner.scope, authorizationEpoch: 1, connectionEpoch: 'gift-source', status: 'connecting' };
+  runtime.receiveCloud(update);
+  runtime.receiveCloud({ ...update, status: 'connected', event: { type: 'overlay-state', state: 'running', liveStatus: 1,
+    liveSessionId: 'live', confirmationMessage: '开播' } });
+  const initial = runtime.readDanmakuDisplay({}).data;
+  const cursor = { epoch: initial.epoch, cursor: initial.nextCursor };
+  const created = runtime.service.create({ title: '图片缓存', canvas: { width: 1920, height: 1080 } });
+  const saved = runtime.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [{ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
+      width: 600, height: 800, visible: true, locked: false, appearance: { mode: 'independent',
+        config: { style: 'glass', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null } } }] } });
+  runtime.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const source = runtime.service.getSource(saved.document.id);
+  const gift = { type: 'gift', liveSessionId: 'live', giftName: '礼物', giftCount: 3,
+    giftImageUrl: 'https://i0.hdslb.com/bfs/live/settled.png' };
+  runtime.receiveCloud({ ...update, status: 'connected', event: gift });
+  runtime.receiveCloud({ ...update, status: 'connected', event: { ...gift, giftGuardLevel: 2 } });
+  runtime.receiveCloud({ ...update, authorizationEpoch: 0, status: 'connected', event: { ...gift, giftImageUrl: 'rejected' } });
+  for (const display of [runtime.readDanmakuDisplay(cursor).data, runtime.service.getOutput({ ...source, ...cursor }).data.danmaku]) {
+    assert.equal(display.events[0].giftImageUrl, '/overtime-gift-images/settled.png');
+    assert.equal(display.events[0].giftCount, 3);
+    assert.equal(display.events[1].giftImageUrl, '');
+    assert.equal(display.events[1].giftGuardLevel, 2);
+  }
+  assert.deepEqual(mapped, [gift.giftImageUrl, gift.giftImageUrl], 'only accepted ordinary gifts are mapped');
+});
 
 test('scene danmaku projects only the matching local room profile and rechecks owner after a read', async t => {
   let roomId = '1234', calls = 0, release;
@@ -98,34 +135,107 @@ test('scene danmaku projects only the matching local room profile and rechecks o
 test('scene output uses explicit read ports and shares a fresh local snapshot only where needed', async t => {
   let reads = 0;
   let lineText = '当前歌词';
+  let nowMs = 10000;
   const getState = () => {
     reads++;
     return { settings: DEFAULT_SETTINGS, lyricState: { lineText, private: 'secret' }, lyricTimeline: { lines: [] },
+      overtime: { revision: 1, status: 'running', serverNowMs: nowMs, effectiveRemainingMs: 60000 - nowMs,
+        background: { path: '', fit: 'cover' }, rules: [], private: 'secret' },
       nowPlaying: { trackTitle: '当前歌曲', artists: ['歌手'], playing: true, private: 'secret' },
       giftSprint: { targetRmb: 1000, remainingCrystalBalls: 7, private: 'secret' } };
   };
   const { runtime } = fixture(t, { settings: { get: () => DEFAULT_SETTINGS }, system: { getState },
     songs: { list: () => [{ id: 1, name: '公开歌曲', private: 'secret' }], getChangeToken: () => 1 } }, getState);
-  for (const types of [['lyrics'], ['now-playing'], ['lyrics', 'now-playing'], ['songlist'], ['lyrics', 'songlist'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame']]) {
+  for (const types of [['lyrics'], ['now-playing'], ['lyrics', 'now-playing'], ['songlist'], ['lyrics', 'songlist'], ['gift-sprint'], ['lyrics', 'gift-sprint', 'gift-frame'], ['gift-frame'], ['overtime'], ['lyrics', 'overtime']]) {
     const source = publish(runtime, types);
     reads = 0;
     const output = await runtime.service.getOutput(source);
-    assert.equal(reads, types.some(type => ['lyrics', 'now-playing', 'gift-sprint'].includes(type)) ? 1 : 0);
-    assert.doesNotMatch(JSON.stringify(output.data), /secret|private/);
+    assert.equal(reads, types.some(type => ['lyrics', 'now-playing', 'gift-sprint', 'overtime'].includes(type)) ? 1 : 0);
+    assert.doesNotMatch(JSON.stringify(output), /secret|private/);
     if (types.includes('songlist')) assert.equal(output.data.songlist.songs[0].name, '公开歌曲');
     if (types.includes('gift-sprint')) assert.deepEqual(output.data['gift-sprint'], { targetRmb: 1000, remainingCrystalBalls: 7 });
     if (types.includes('now-playing')) {
       assert.equal(output.data['now-playing'].nowPlaying.trackTitle, '当前歌曲');
       assert.equal(output.data['now-playing'].nowPlaying.playing, true);
     }
-    if (types.includes('lyrics')) {
-      assert.equal(output.data.lyrics.lyricState.lineText, lineText);
+    if (types.includes('overtime')) {
+      const item = runtime.service.get(source.id).document.items.find(item => item.type === 'overtime');
+      assert.equal(output.appearances[item.id].fit, 'cover');
+      assert.equal(output.data.overtime.serverNowMs, nowMs);
+    }
+    if (types.includes('lyrics')) assert.equal(output.data.lyrics.lyricState.lineText, lineText);
+    if (types.includes('lyrics') || types.includes('overtime')) {
       lineText += '更新';
+      nowMs += 250;
       const next = await runtime.service.getOutput(source);
       assert.equal(reads, 2, 'A later output must read the latest state, not a persistent cache.');
-      assert.equal(next.data.lyrics.lyricState.lineText, lineText);
+      if (types.includes('lyrics')) assert.equal(next.data.lyrics.lyricState.lineText, lineText);
+      if (types.includes('overtime')) assert.equal(next.data.overtime.effectiveRemainingMs, 60000 - nowMs);
     }
   }
+});
+
+test('scene blind-box confirmations skip unchanged projections and renew after owner or source transitions', t => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(2026, 8, 18, 12).getTime() });
+  const scratchDir = createScratchDirectory('scene-blindbox-');
+  const ledger = createGiftFixture({ scratchDir });
+  const gifts = createGiftService(ledger.context);
+  t.after(() => { gifts.dispose(); ledger.close(); removeScratchDirectory(scratchDir); });
+  for (let index = 0; index < 10; index++) {
+    ledger.insertGift(null, `local-${index}`, { cmd: 'SEND_GIFT', userName: `Viewer ${index}`,
+      isBlindBox: true, blindBoxPrice: 1, totalPrice: 2, createdAt: new Date().toISOString() });
+  }
+  const stats = t.mock.method(gifts, 'getBlindBoxStats');
+  const { runtime, state } = fixture(t, { gifts });
+  const source = publish(runtime, ['blindbox', 'lyrics']);
+  let known = {};
+  function read() {
+    const output = runtime.service.getOutput({ ...source, dataVersions: known });
+    known = output.dataVersions;
+    return output.data.blindbox;
+  }
+  const first = read();
+  assert.equal(first.perUser.length, 10, 'scene instances retain the full leaderboard for their own filters');
+  const firstUser = first.perUser[0].userName;
+  first.perUser[0].userName = 'consumer mutation';
+  assert.equal(runtime.service.getOutput(source).data.blindbox.perUser[0].userName, firstUser);
+  for (let index = 0; index < 20; index++) assert.equal(read(), undefined);
+  t.mock.timers.tick(6000);
+  assert.equal(read(), undefined, 'reconciliation checks the ledger token without reprojecting unchanged rows');
+  assert.equal(stats.mock.callCount(), 1);
+  runtime.notify({ types: ['blindbox'], invalidateTypes: ['blindbox'] });
+  assert.equal(read().summary.boxCount, 10);
+  state.owner = { ...state.owner, epoch: 2 };
+  assert.equal(read().summary.boxCount, 10, 'an old owner confirmation cannot suppress the baseline');
+  const remote = ledger.resolveSource('a'.repeat(64));
+  ledger.insertGift(remote.id, 'remote', { isBlindBox: true, blindBoxPrice: 1, totalPrice: 2,
+    createdAt: new Date().toISOString() });
+  gifts.setActiveSource({ sourceId: remote.id, syncState: 'READY' });
+  assert.equal(read().summary.boxCount, 1);
+  gifts.setActiveSource({ sourceId: remote.id, syncState: 'SOURCE_SWITCHING' });
+  gifts.setActiveSource({ sourceId: remote.id, syncState: 'READY' });
+  assert.equal(read().summary.boxCount, 1, 'a source transition renews the baseline even if it returns before the next read');
+  ledger.giftDb.exec('BEGIN');
+  try {
+    ledger.insertGift(remote.id, 'uncommitted', { isBlindBox: true, blindBoxPrice: 1, totalPrice: 2,
+      createdAt: new Date().toISOString() });
+    assert.equal(read().summary.boxCount, 2, 'a missing committed token cannot reuse the cached projection');
+  } finally { ledger.giftDb.exec('ROLLBACK'); }
+  assert.equal(read().summary.boxCount, 1);
+});
+
+test('scene notifications invalidate only the changed conditional display type', t => {
+  let reads = 0;
+  const { runtime } = fixture(t, { wheel: { getState() { reads++; return { entries: [] }; } } });
+  const source = publish(runtime, 'wheel');
+  const initial = runtime.service.getOutput({ ...source, dataVersions: {} });
+  const repeat = () => runtime.service.getOutput({ ...source, dataVersions: initial.dataVersions });
+  runtime.notify({ types: ['lyrics'] });
+  assert.equal(Object.hasOwn(repeat().data, 'wheel'), false);
+  assert.equal(reads, 1);
+  runtime.notify({ types: ['wheel'] });
+  assert.ok(repeat().data.wheel);
+  assert.equal(reads, 2);
 });
 
 test('cloud demand follows display reads, leaves other scenes idle and expires after the last read', t => {
@@ -260,6 +370,43 @@ test('scene runtime notifies accepted cloud and gift changes only, preserving th
   state.owner = null;
   assert.equal(runtime.receiveGift({ ...gift, eventId: 'gift-2' }), false);
   assert.deepEqual(changes, []);
+});
+
+test('unchanged scene gift windows skip cloning while new events and owner resets remain visible', t => {
+  const { runtime, state } = fixture(t);
+  const source = publish(runtime, ['gift-frame', 'guard-thanks']);
+  const input = { ...source, incrementalParts: true };
+  for (let i = 0; i < 200; i++) runtime.receiveGift({ type: i % 2 ? 'gift:frame' : 'gift:guard-thanks', eventId: `gift-${i}` });
+  const initial = runtime.service.getOutput({ ...input, dataVersions: {} });
+  let copied = 0;
+  const clone = global.structuredClone;
+  t.mock.method(global, 'structuredClone', value => {
+    if (Array.isArray(value) && value[0]?.payload) copied += value.length;
+    return clone(value);
+  });
+  for (let i = 0; i < 20; i++) {
+    const result = runtime.service.getOutput({ ...input, dataVersions: initial.dataVersions });
+    assert.equal(result.data['gift-frame'], undefined);
+    assert.equal(result.data['guard-thanks'], undefined);
+  }
+  assert.equal(copied, 0, 'unrelated scene updates must not copy the retained gift window');
+  const legacy = runtime.service.getOutput(source);
+  assert.equal(legacy.data['gift-frame'].events.length, 100);
+  assert.equal(legacy.data['guard-thanks'].events.length, 100);
+  const oldPage = runtime.service.getOutput({ ...source, dataVersions: initial.dataVersions });
+  assert.equal(oldPage.data['gift-frame'].events.length, 100, 'old pages acknowledging versions still receive full gift windows');
+  assert.equal(oldPage.dataVersions['gift-frame'], undefined);
+  runtime.receiveGift({ type: 'gift:frame', eventId: 'new-gift' });
+  const changed = runtime.service.getOutput({ ...input, dataVersions: initial.dataVersions });
+  assert.equal(changed.data['gift-frame'].events.at(-1).payload.eventId, 'new-gift');
+  assert.equal(changed.data['guard-thanks'].events.length, 99, 'the shared window still evicts its oldest event');
+  changed.data['gift-frame'].events[0].payload.eventId = 'caller-mutation';
+  assert.notEqual(runtime.service.getOutput(source).data['gift-frame'].events[0].payload.eventId, 'caller-mutation');
+  state.owner = { ...state.owner, epoch: state.owner.epoch + 1 };
+  const reset = runtime.service.getOutput({ ...input, dataVersions: changed.dataVersions });
+  assert.notEqual(reset.data['gift-frame'].epoch, changed.data['gift-frame'].epoch);
+  assert.equal(reset.data['gift-frame'].events.length, 0);
+  assert.equal(reset.data['guard-thanks'].events.length, 0);
 });
 
 test('committed publication and capability rotation reach the runtime event service', t => {

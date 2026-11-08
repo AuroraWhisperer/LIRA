@@ -1,9 +1,13 @@
 'use strict';
 
+const { performance } = require('node:perf_hooks');
+
 const DEFAULT_PLATFORMS = ['qq', 'netease'];
 const DEFAULT_PREFERRED_PLATFORM = 'netease';
 const SUPPORTED_PLATFORMS = new Set(DEFAULT_PLATFORMS);
 const MAX_DURATION_DISTANCE_MS = 5000;
+const FIRST_RETRY_DELAY_MS = 30000;
+const MAX_RETRY_DELAY_MS = 60000;
 
 /**
  * Matches online lyrics for WeSing fallback only.
@@ -22,6 +26,8 @@ function createWeSingOnlineLyricResolver(options = {}) {
         });
   const lyricsService = options.lyricsService;
   const platforms = normalizePlatforms(options.platforms);
+  const now = typeof options.now === 'function' ? options.now : () => performance.now();
+  let current = null;
 
   if (
     !lyricsService ||
@@ -31,7 +37,7 @@ function createWeSingOnlineLyricResolver(options = {}) {
     throw new Error('全民 K 歌在线歌词解析器缺少歌词服务。');
   }
 
-  return async function resolveWeSingOnlineLyrics(input = {}) {
+  async function resolveWeSingOnlineLyrics(input = {}, context = {}) {
     const title = String(input.title || '')
       .trim()
       .slice(0, 120);
@@ -45,30 +51,76 @@ function createWeSingOnlineLyricResolver(options = {}) {
     if (!registry) throw new Error('音乐 Provider 尚未初始化。');
     const preferences = normalizeLyricPreferences(getPreferences(), platforms);
     const requestedPlatforms = preferences.smartMatch ? platforms : [preferences.preferredPlatform];
-
-    // allSettled keeps one unavailable provider from suppressing the other.
-    const settled = await Promise.allSettled(
-      requestedPlatforms.map((platform) =>
-        resolveProviderLyrics({
-          registry,
-          lyricsService,
-          platform,
-          title,
-          artist,
-          durationMs,
-        }),
-      ),
-    );
-    const candidates = settled.filter((item) => item.status === 'fulfilled' && item.value).map((item) => item.value);
-    if (candidates.length === 0) {
-      const rejected = settled.find((item) => item.status === 'rejected');
-      if (rejected) throw rejected.reason;
+    const key = JSON.stringify([title, artist, durationMs, context.songMid || '', preferences]);
+    if (current?.registry !== registry || current.key !== key) {
+      current = { registry, key, authorization: null, authorizationRead: 0, authorizationApplied: 0, generation: 0,
+        pending: null, retryDelay: 0, retryAt: 0, error: null };
+    }
+    const entry = current;
+    if (typeof registry.getAuthorizationRevision === 'function') {
+      const read = ++entry.authorizationRead;
+      const revisions = await Promise.all(requestedPlatforms.map((platform) => registry.getAuthorizationRevision(platform)));
+      if (entry !== current) return null;
+      // An older cookie read must not replace a newer account's request context.
+      if (read < entry.authorizationApplied) return entry.pending;
+      entry.authorizationApplied = read;
+      const authorization = JSON.stringify(revisions);
+      if (entry.authorization !== authorization) {
+        entry.authorization = authorization;
+        entry.generation += 1;
+        entry.pending = null;
+        entry.retryDelay = 0;
+        entry.retryAt = 0;
+        entry.error = null;
+      }
+    }
+    if (entry.pending) return entry.pending;
+    if (!context.force && now() < entry.retryAt) {
+      if (entry.error) throw entry.error;
       return null;
     }
 
-    const selected = selectBestLyricCandidate(candidates, preferences.preferredPlatform);
-    return selected ? selected.result : null;
-  };
+    const generation = entry.generation;
+    const isCurrent = () => entry === current && generation === entry.generation;
+    const rememberMiss = (error) => {
+      entry.error = error;
+      entry.retryDelay = entry.retryDelay ? MAX_RETRY_DELAY_MS : FIRST_RETRY_DELAY_MS;
+      entry.retryAt = now() + entry.retryDelay;
+    };
+    const pending = resolveOnlineLyrics({ registry, lyricsService, requestedPlatforms, title, artist, durationMs,
+      preferredPlatform: preferences.preferredPlatform })
+      .then((result) => {
+        if (!isCurrent()) return null;
+        if (!result) rememberMiss(null);
+        else { entry.retryDelay = 0; entry.retryAt = 0; entry.error = null; }
+        return result;
+      }, (error) => {
+        if (!isCurrent()) return null;
+        rememberMiss(error);
+        throw error;
+      })
+      .finally(() => { if (entry.pending === pending) entry.pending = null; });
+    entry.pending = pending;
+    return pending;
+  }
+
+  resolveWeSingOnlineLyrics.clear = () => { current = null; };
+  return resolveWeSingOnlineLyrics;
+}
+
+async function resolveOnlineLyrics({ requestedPlatforms, preferredPlatform, ...options }) {
+  // allSettled keeps one unavailable provider from suppressing the other.
+  const settled = await Promise.allSettled(
+    requestedPlatforms.map((platform) => resolveProviderLyrics({ ...options, platform })),
+  );
+  const candidates = settled.filter((item) => item.status === 'fulfilled' && item.value).map((item) => item.value);
+  if (candidates.length === 0) {
+    const rejected = settled.find((item) => item.status === 'rejected');
+    if (rejected) throw rejected.reason;
+    return null;
+  }
+  const selected = selectBestLyricCandidate(candidates, preferredPlatform);
+  return selected ? selected.result : null;
 }
 
 async function resolveProviderLyrics(options) {

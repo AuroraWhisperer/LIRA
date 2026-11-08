@@ -115,7 +115,7 @@ async function restoreBilibiliCookieSnapshot(dataDir) {
   }
 }
 
-async function getBilibiliAuthState(dataDir) {
+async function getBilibiliSessionState() {
   const config = BILIBILI_LOGIN_CONFIG;
   const cookies = await getAllowedBilibiliCookies();
   const cookieNames = new Set(cookies.map((c) => c.name));
@@ -126,6 +126,13 @@ async function getBilibiliAuthState(dataDir) {
   const dedeUserId = cookies.find((c) => c.name === 'DedeUserID');
   const uid = dedeUserId ? Number(dedeUserId.value) : 0;
   const sessdata = cookies.find((c) => c.name === 'SESSDATA');
+
+  return { name: config.name, loggedIn: allKeyCookiesPresent, uid, cookieCount: cookies.length,
+    keyCookieNames: presentKeyCookies, hasSessdata: !!sessdata };
+}
+
+async function getBilibiliAuthState(dataDir) {
+  const state = await getBilibiliSessionState();
 
   let snapshotMeta = { exists: false, savedAt: '' };
   const snapshotPath = getBilibiliCookieSnapshotPath(dataDir);
@@ -140,12 +147,7 @@ async function getBilibiliAuthState(dataDir) {
   }
 
   return {
-    name: config.name,
-    loggedIn: allKeyCookiesPresent,
-    uid,
-    cookieCount: cookies.length,
-    keyCookieNames: presentKeyCookies,
-    hasSessdata: !!sessdata,
+    ...state,
     encryptedSnapshotExists: snapshotMeta.exists,
     lastSavedAt: snapshotMeta.savedAt,
     encryptionAvailable: safeStorage.isEncryptionAvailable(),
@@ -248,6 +250,7 @@ module.exports = {
   BILIBILI_LOGIN_CONFIG,
   isAllowedBilibiliLoginUrl,
   getBilibiliAuthState,
+  getBilibiliSessionState,
   getBilibiliAccountProfile,
   getBilibiliCookieHeader,
   getBilibiliUid,

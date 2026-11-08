@@ -79,6 +79,7 @@ function createApiContext(options) {
       resetSprint: domainServices.gifts.resetSprint,
       getHistory: (historyOptions) => domainServices.gifts.getHistory(historyOptions),
       getStatistics: (statisticsOptions) => domainServices.gifts.getStatistics(statisticsOptions),
+      getBlindBoxChangeToken: domainServices.gifts.getBlindBoxChangeToken,
       getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
       getBlindBoxAnalysis: domainServices.gifts.getBlindBoxAnalysis,
       search: domainServices.gifts.search,
@@ -255,6 +256,7 @@ function createGamesContext(games = {}) {
     typeof games.getWinnerProfile === 'function' ? games.getWinnerProfile : async () => ({ avatarUrl: '', name: '' });
   return {
     getSession: service.getSession,
+    getDisplaySession: service.getDisplaySession,
     start: service.start,
     stop: service.stop,
     restart: service.restart,

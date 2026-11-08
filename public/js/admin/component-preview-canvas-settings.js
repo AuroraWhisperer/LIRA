@@ -10,11 +10,11 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   name.maxLength = 10;
   name.placeholder = '最多 10 个字符';
   name.required = true;
-  name.value = model.getDocument().title;
+  name.value = model.getSnapshot().title;
   name.addEventListener('change', () => {
     if (!name.reportValidity()) return;
     try { model.edit(document => { document.title = name.value.trim(); }); }
-    catch (error) { report(error.message); name.value = model.getDocument().title; }
+    catch (error) { report(error.message); name.value = model.getSnapshot().title; }
   });
   nameLabel.append(name);
   host.append(nameLabel);
@@ -33,7 +33,7 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   const fields = previewElement('div', 'component-preview-fields');
   const inputs = {};
   let renderedCanvas = null;
-  let renderedTitle = model.getDocument().title;
+  let renderedTitle = model.getSnapshot().title;
   function resize(canvas) {
     try { model.edit((document) => resizeSceneCanvas(document, canvas)); }
     catch (error) { report(error.message); render(true); }
@@ -46,7 +46,7 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
     wrapper.append(input); fields.append(wrapper);
     input.addEventListener('change', () => {
       if (!input.reportValidity()) { render(true); return; }
-      resize({ ...model.getDocument().canvas, [key]: Number(input.value) });
+      resize({ ...model.getSnapshot().canvas, [key]: Number(input.value) });
     });
   }
   presets.addEventListener('change', () => {
@@ -56,13 +56,12 @@ export function mountPreviewCanvasSettings(host, { model, report }) {
   });
   host.append(label, fields);
   function render(force = false) {
-    const { title } = model.getDocument();
+    const { title, canvas: { width, height } } = model.getSnapshot();
     if (title !== renderedTitle) { name.value = title; renderedTitle = title; }
-    const { width, height } = model.getDocument().canvas;
     if (!force && renderedCanvas?.width === width && renderedCanvas?.height === height) return;
     renderedCanvas = { width, height };
     inputs.width.value = String(width); inputs.height.value = String(height);
     presets.value = CANVAS_PRESETS.some(([w, h]) => w === width && h === height) ? `${width}x${height}` : 'custom';
   }
-  return { dispose: model.subscribe(() => render()) };
+  return { dispose: model.subscribeSnapshot(() => render()) };
 }

@@ -18,7 +18,7 @@ const {
   searchGifts,
   clearRecentGifts,
 } = require('./query-service');
-const { getBlindBoxStats, getBlindBoxAnalysis } = require('./blind-box-analysis');
+const { getBlindBoxChangeToken, getBlindBoxStats, getBlindBoxAnalysis } = require('./blind-box-analysis');
 const { normalizeGiftRow } = require('./normalizer');
 
 function createGiftService({ queryStore, maintenanceStore, projectionStore, statisticsStore, settings, now }, options = {}) {
@@ -52,6 +52,10 @@ function createGiftService({ queryStore, maintenanceStore, projectionStore, stat
     getViewRevision: () => getGiftViewRevision(giftContext),
     getStatistics: (queryOptions) => getGiftStatistics(giftContext, queryOptions),
     getSprintSnapshot: () => getGiftSprintSnapshot(giftContext),
+    getBlindBoxChangeToken() {
+      const token = getBlindBoxChangeToken(giftContext);
+      return token === null ? null : JSON.stringify([viewEpoch, token]);
+    },
     getBlindBoxStats: (queryOptions) => getBlindBoxStats(giftContext, queryOptions),
     getBlindBoxAnalysis: (queryOptions) => getBlindBoxAnalysis(giftContext, queryOptions),
     resetSprint: () => resetGiftSprintProgress(giftContext),

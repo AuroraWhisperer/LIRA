@@ -23,15 +23,19 @@ function summaryWindow(snapshot, { rangeStart, asOf }) {
   return { start: start === null ? null : new Date(start).toISOString(), end: new Date(end).toISOString() };
 }
 
-function statisticsFilter(db, options, filter, snapshot = activeSnapshot(db, options.sourceId)) {
-  const window = summaryWindow(snapshot, options);
-  retentionLedgerFilter(db, options, filter, { statistics: true, snapshot });
+function excludeSummarizedDetails(filter, snapshot, window) {
   if (window) {
     filter.sql += ` AND NOT (g.remote_final_cursor IS NOT NULL AND g.remote_final_cursor<=?
       AND g.created_at<?${window.start ? ' AND g.created_at>=?' : ''})`;
     filter.params.push(snapshot.covered_cursor, window.end);
     if (window.start) filter.params.push(window.start);
   }
+}
+
+function statisticsFilter(db, options, filter, snapshot = activeSnapshot(db, options.sourceId)) {
+  const window = summaryWindow(snapshot, options);
+  retentionLedgerFilter(db, options, filter, { statistics: true, snapshot });
+  excludeSummarizedDetails(filter, snapshot, window);
   return { snapshot, window };
 }
 
@@ -77,4 +81,4 @@ function mergeSummaryStatistics(db, options, plan, raw) {
   return { summaryRow: raw.summaryRow, topRows: [...top.values()], bucketRows: [...buckets.values()].sort((a,b) => a.bucketStart.localeCompare(b.bucketStart)) };
 }
 
-module.exports = { retentionLedgerFilter, statisticsFilter, mergeSummaryStatistics, activeSnapshot };
+module.exports = { retentionLedgerFilter, statisticsFilter, summaryWindow, excludeSummarizedDetails, mergeSummaryStatistics, activeSnapshot };

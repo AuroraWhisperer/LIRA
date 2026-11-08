@@ -19,6 +19,10 @@ test('effect parameters validate finite typed bounds and preserve old empty conf
   }
   assert.throws(() => normalizeStyleParameters('clock', { peach: { showEntryMessages: true } }));
   assert.deepEqual(normalizeStyleParameters('danmaku', { glow: { showEntryMessages: false } }), { glow: { showEntryMessages: false } });
+  const oldTransform = normalizeStyleParameters('danmaku', { signal: { transform: { rotateY: -18 } } }).signal.transform;
+  assert.equal(oldTransform.perspective, 1000, 'existing angles keep the original perspective');
+  assert.equal(normalizeStyleParameters('danmaku', { glowy: { transform: { perspective: 1800 } } }).glowy.transform.perspective, 1800);
+  assert.throws(() => normalizeStyleParameters('danmaku', { signal: { transform: { perspective: 399 } } }), { code: 'INVALID_STYLE_PARAMETERS' });
 });
 
 test('each instance and imported style remembers its own settings without mutating another style', () => {

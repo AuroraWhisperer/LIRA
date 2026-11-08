@@ -11,7 +11,17 @@ const BLIND_BOX_ANALYSIS_SORTS = {
   records: new Set(['createdAt', 'profit', 'cost', 'value', 'num']),
 };
 const statsCache = new WeakMap();
+const analysisCache = new WeakMap();
 const STATS_CACHE_FILTER_LIMIT = 2; // Management totals and heart-box overlays share the same ledger.
+
+function getBlindBoxChangeToken(context, nowDate = new Date()) {
+  const source = resolveGiftSourceScope(context);
+  const revision = context.queryStore.getChangeToken?.('blindBox');
+  const dayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
+  const dayEnd = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).getTime();
+  return revision == null || source.kind === 'unavailable' ? null
+    : JSON.stringify([source, revision, dayStart, dayEnd]);
+}
 
 function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } = {}) {
   if (!/^(?:-1|[0-9]|10)$/.test(String(top)) || ![true, false, '0', '1'].includes(hideLoss)) {
@@ -27,12 +37,7 @@ function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } 
   };
   boxName = cleanText(boxName);
   const nowDate = new Date();
-  const source = resolveGiftSourceScope(context);
-  const revision = context.queryStore.getChangeToken?.('blindBox');
-  const dayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).getTime();
-  const dayEnd = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate() + 1).getTime();
-  const key = revision == null || source.kind === 'unavailable' ? null
-    : JSON.stringify([source, revision, dayStart, dayEnd]);
+  const key = getBlindBoxChangeToken(context, nowDate);
   const cached = statsCache.get(context);
   const values = key !== null && cached?.key === key ? cached.values : new Map();
   if (values.has(boxName)) {
@@ -53,7 +58,8 @@ function getBlindBoxStats(context, { boxName = '', top = -1, hideLoss = false } 
 
 function calculateBlindBoxStats(context, boxName, nowDate) {
   const heartBoxOnly = cleanText(boxName) === '心动盲盒';
-  const { todayStart, rows: openings } = loadBlindBoxRows(context, { boxName, includeUnknownProfit: heartBoxOnly }, nowDate);
+  const { todayStart, query } = prepareBlindBoxQuery(context, { boxName, includeUnknownProfit: heartBoxOnly }, nowDate);
+  const openings = context.queryStore.listBlindBoxRows(query);
   const heartBoxProgress = heartBoxOnly ? summarizeHeartBoxProgress(openings) : null;
   const rows = heartBoxOnly ? openings.filter(row => row.blind_profit !== null) : openings;
   if (rows.length === 0) {
@@ -160,7 +166,14 @@ function getBlindBoxAnalysis(context, options = {}) {
   const requestedPage = Math.max(1, Number.parseInt(options.page, 10) || 1);
   const viewer = cleanText(options.viewer);
   const box = cleanText(options.box);
-  const { todayStart, dateRange, rows } = loadBlindBoxRows(context, options);
+  const nowDate = new Date();
+  const { todayStart, dateRange, query } = prepareBlindBoxQuery(context, options, nowDate);
+  const token = getBlindBoxChangeToken(context, nowDate);
+  const key = token === null ? null
+    : JSON.stringify([token, query, view, sort, direction, limit, requestedPage, viewer, box]);
+  const cached = analysisCache.get(context);
+  if (key !== null && cached?.key === key) return structuredClone(cached.value);
+  const rows = context.queryStore.listBlindBoxRows(query);
 
   const viewerMap = new Map();
   const boxes = new Set();
@@ -183,7 +196,7 @@ function getBlindBoxAnalysis(context, options = {}) {
   const page = Math.min(requestedPage, totalPages);
   const start = (page - 1) * limit;
 
-  return {
+  const value = {
     today: todayStart,
     dateRange,
     summary,
@@ -201,9 +214,16 @@ function getBlindBoxAnalysis(context, options = {}) {
     ...(filteredRows.some((row) => row.legacyArchivedDate) ? { hasLegacyArchivedDates: true } : {}),
     pagination: { page, limit, total, totalPages },
   };
+  // Keep only the latest page response; raw ledger rows are never retained.
+  if (key !== null) {
+    analysisCache.set(context, { key, value });
+    return structuredClone(value);
+  }
+  analysisCache.delete(context);
+  return value;
 }
 
-function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '', includeUnknownProfit = false } = {}, nowDate = new Date()) {
+function prepareBlindBoxQuery(context, { boxName = '', startDate = '', endDate = '', includeUnknownProfit = false } = {}, nowDate = new Date()) {
   normalizeHistoryFilters({ startDate, endDate });
   const todayStart = new Date(nowDate.getFullYear(), nowDate.getMonth(), nowDate.getDate()).toISOString();
   const today = [
@@ -218,13 +238,13 @@ function loadBlindBoxRows(context, { boxName = '', startDate = '', endDate = '',
   return {
     todayStart,
     dateRange,
-    rows: context.queryStore.listBlindBoxRows({
+    query: {
       sourceScope: resolveGiftSourceScope(context),
       from,
       to: end.toISOString(),
       boxName: cleanText(boxName),
       includeUnknownProfit,
-    }),
+    },
   };
 }
 
@@ -333,6 +353,7 @@ function sortBlindBoxAnalysisItems(items, sortField, direction) {
 }
 
 module.exports = {
+  getBlindBoxChangeToken,
   getBlindBoxStats,
   getBlindBoxAnalysis,
 };

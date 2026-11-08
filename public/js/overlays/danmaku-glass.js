@@ -1,7 +1,8 @@
+import { setGiftArtwork } from '../shared/gift-image.js';
+
 const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
 const ICONS = {
   star: 'M12 2.5 15 8.6l6.7 1-4.9 4.7 1.2 6.7-6-3.2-6 3.2 1.2-6.7-4.9-4.7 6.7-1Z',
-  gift: 'M3 10h18V6H3Zm2 0v11h14V10M12 6v15M12 6H8.5A2.5 2.5 0 1 1 11 3.5Zm0 0h3.5A2.5 2.5 0 1 0 13 3.5Z',
   tip: 'M17 5.5c-1.1-1-2.7-1.5-5-1.5-3 0-5 1.5-5 4s2.5 3.5 5 4 5 1.5 5 4-2 4-5 4c-2.3 0-4.3-.8-5.5-2M12 1v22',
   camera: 'M4 5h11a3 3 0 0 1 3 3v1l5-3v12l-5-3v1a3 3 0 0 1-3 3H4a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3Z',
   diamond: 'm2 8 4-5h12l4 5-10 13Z',
@@ -9,7 +10,7 @@ const ICONS = {
 };
 
 // The core keeps ownership of safe text/emotes; Glass only composes the notification.
-export function createGlassMessageRenderer({ document, classNames }, render) {
+export function createGlassMessageRenderer({ document, classNames, resolveGiftImageUrl }, render) {
   const element = (tag, className, text) => {
     const node = document.createElement(tag);
     node.className = className;
@@ -80,7 +81,18 @@ export function createGlassMessageRenderer({ document, classNames }, render) {
     }
     const panel = element('div', 'glass-panel');
     if (gift || sc) {
-      panel.append(icon(sc ? 'tip' : membership ? 'star' : 'gift', 'glass-event-icon'));
+      const art = sc ? icon('tip', 'glass-event-icon') : element('span', 'glass-event-icon');
+      if (gift) {
+        const image = element('img', 'glass-gift-image');
+        image.alt = '';
+        image.decoding = 'async';
+        setGiftArtwork(image, membership ? '' : resolveGiftImageUrl?.(item.giftImageUrl), {
+          format: 'static', mimeType: 'image/webp', guardLevel: Number(item.giftGuardLevel),
+        });
+        art.setAttribute('aria-hidden', 'true');
+        art.append(image);
+      }
+      panel.append(art);
       const divider = element('span', 'glass-divider');
       divider.setAttribute('aria-hidden', 'true');
       panel.append(divider);

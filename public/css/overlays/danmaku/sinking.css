@@ -124,6 +124,13 @@ body[data-style='sinking'] :is(.draw-danmaku-gift-copy, .draw-danmaku-gift-actio
   color: inherit;
   white-space: normal;
 }
+body[data-style='sinking'] .sinking-gift-image {
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 12px;
+  object-fit: contain;
+}
+body[data-style='sinking'] .sinking-gift-image:not([hidden]) { display: block; }
 body[data-style='sinking'] .sinking-event {
   display: flex;
   flex-wrap: wrap;
@@ -138,6 +145,7 @@ body[data-style='sinking'] .sinking-bubble {
   position: absolute;
   left: 0;
   top: 0;
+  transform-origin: 0 0;
   opacity: 0;
   border: 1px solid #c2e5e2b8;
   background: radial-gradient(circle at 28% 24%, #efffff85, transparent 34%);

@@ -4,8 +4,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { readJsModuleBundle } = require('../helpers/js-module-bundle');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -42,6 +44,7 @@ test('wheel module entry binds its controls without relying on classic-script gl
     document: {
       addEventListener: (type, handler) => handlers.set(type, handler),
       getElementById: element,
+      querySelectorAll: () => [],
     },
     location: { protocol: 'http:', host: 'localhost' },
     WebSocket: class {
@@ -64,6 +67,60 @@ test('wheel module entry binds its controls without relying on classic-script gl
   element('wheelCenterButton').handlers.get('click')();
   assert.ok(element('wheelMessage').textContent, 'fewer than two entries explain instead of spinning');
   assert.equal(windowRef.spinFromWheel, undefined);
+});
+
+test('wheel retains unchanged segments while refreshing appearance, spins and cleared results', () => {
+  const elements = new Map();
+  let created = 0;
+  let timers = 0;
+  const node = () => ({ children: [], dataset: {}, style: {}, classes: new Set(),
+    classList: { add() {}, toggle() {} }, setAttribute() {},
+    append(child) { this.children.push(child); }, replaceChildren() { this.children = []; } });
+  const byId = id => { if (!elements.has(id)) elements.set(id, node()); return elements.get(id); };
+  const document = { body: node(), addEventListener() {}, getElementById: byId,
+    createElementNS(_namespace, tag) {
+      created++;
+      const element = node();
+      element.tag = tag;
+      element.classList.toggle = (name, enabled) => enabled ? element.classes.add(name) : element.classes.delete(name);
+      return element;
+    },
+    querySelectorAll(selector) {
+      return byId('wheelSegments').children.filter(element => selector !== '.wheel-label' || element.tag === 'text');
+    } };
+  const context = vm.createContext({ document, URLSearchParams,
+    window: { matchMedia: () => ({ matches: false }), setTimeout() { timers++; } },
+    state: { entries: [{ label: 'A', weight: 1 }, { label: 'B', weight: 2 }], spin: null, lastResult: null } });
+  vm.runInContext(readJsModuleBundle('public', 'js', 'overlays', 'wheel.js'), context);
+  const render = () => vm.runInContext('renderState(state)', context);
+  render();
+  const first = byId('wheelSegments').children[0];
+  const count = created;
+  for (let index = 0; index < 20; index++) render();
+  assert.equal(created, count);
+  context.state.lastResult = { index: 0 };
+  render();
+  assert.equal(first.classes.has('is-selected'), true);
+  context.state.spin = { id: 'spin', index: 1, startedAt: Date.now(), durationMs: 1000, turns: 5 };
+  render(); render();
+  assert.equal(timers, 1, 'repeated snapshots never restart a spin');
+  assert.equal(first.classes.has('is-selected'), false);
+  context.state.spin = null;
+  context.state.lastResult = null;
+  render();
+  assert.equal(byId('wheelSegments').children[0], first);
+  vm.runInContext('componentConfig = { textColor: "red", showResult: false, labelFontSize: 22 }', context);
+  render();
+  assert.equal(document.querySelectorAll('.wheel-label')[0].style.fill, 'red');
+  assert.equal(byId('wheelMessage').hidden, true);
+  assert.equal(created, count);
+  context.state.entries[0].weight = 3;
+  render();
+  assert.notEqual(byId('wheelSegments').children[0], first);
+  const weighted = byId('wheelSegments').children[0];
+  vm.runInContext('componentConfig.labelFontSize = 30', context);
+  render();
+  assert.notEqual(byId('wheelSegments').children[0], weighted);
 });
 
 test('wheel overlay page allows embedding with isolated script origin', async () => {

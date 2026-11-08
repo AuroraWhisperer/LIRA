@@ -1,6 +1,6 @@
 'use strict';
 
-const { statisticsFilter, activeSnapshot } = require('./gift-retention-queries');
+const { retentionLedgerFilter, summaryWindow, excludeSummarizedDetails, activeSnapshot } = require('./gift-retention-queries');
 const { wishMatch, readWishContributionCounts } = require('./gift-wish-retention');
 
 function createGiftWishStore(db) {
@@ -28,45 +28,53 @@ function createGiftWishStore(db) {
 
   function countMany(sourceId, requests) {
     const result = requests.map(() => 0);
-    const groups = new Map();
-    requests.forEach(({ wish, start, end }, index) => {
-      if (!start || !end || start > end) return;
-      const key = JSON.stringify([start, end]);
-      if (!groups.has(key)) groups.set(key, { start, end, entries: [] });
-      groups.get(key).entries.push({ wish, index });
-    });
-    if (!groups.size) return result;
+    const entries = requests.flatMap(({ wish, start, end }, index) =>
+      start && end && start <= end ? [{ wish, start, end, index }] : []);
+    if (!entries.length) return result;
     const snapshot = activeSnapshot(db, sourceId);
-    for (const { start, end, entries } of groups.values()) {
-      const filter = { sql: `g.source_id=? AND g.created_at>=? AND g.created_at<=?
-        AND g.status = 'active' AND g.detection_status='final'
-        AND g.num>0 AND g.num=CAST(g.num AS INTEGER)`, params: [sourceId, start, end] };
-      const plan = statisticsFilter(db, { sourceId, rangeStart: start, asOf: end }, filter, snapshot);
-      const matches = entries.map(({ wish }) => wishMatch(wish));
-      if (matches.length === 1) {
-        filter.sql += ` AND (${matches[0].sql})`;
-        filter.params.push(...matches[0].params);
-      }
-      const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql} THEN g.num ELSE 0 END),0) AS c${index}`);
-      const counts = db.prepare(`SELECT ${sums.join(',')} FROM gift_events g WHERE ${filter.sql}`)
-        .get(...matches.flatMap((match) => match.params), ...filter.params);
-      let summaries = {};
-      if (plan.window) {
-        const { window } = plan;
-        const matches = entries.map(({ wish }) => wishMatch(wish, true));
-        const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql}
-          THEN json_extract(s.metrics_json,'$.itemCount') ELSE 0 END),0) AS c${index}`);
-        summaries = db.prepare(`SELECT ${sums.join(',')} FROM gift_retention_days s
-          WHERE s.source_id=? AND s.sync_epoch=? AND s.day_start>=? AND s.day_start<?
-          AND s.revision=(SELECT MAX(d.revision) FROM gift_retention_days d
-            WHERE d.source_id=s.source_id AND d.sync_epoch=s.sync_epoch AND d.day_start=s.day_start AND d.revision<=?)`)
-          .get(...matches.flatMap((match) => match.params), sourceId, snapshot.sync_epoch, window.start, window.end, snapshot.revision);
-      }
-      const contributions = readWishContributionCounts(db, sourceId, entries.map(({ wish }) => wish.id), start, end, plan);
-      entries.forEach(({ wish, index }, position) => {
-        result[index] = Number(counts[`c${position}`]) + Number(summaries[`c${position}`] || 0) + (contributions.get(wish.id) || 0);
-      });
+    for (const entry of entries) entry.window = summaryWindow(snapshot, { rangeStart: entry.start, asOf: entry.end });
+    const start = entries.map(entry => entry.start).sort()[0];
+    const end = entries.map(entry => entry.end).sort().at(-1);
+    const filter = { sql: `g.source_id=? AND g.created_at>=? AND g.created_at<=?
+      AND g.status = 'active' AND g.detection_status='final'
+      AND g.num>0 AND g.num=CAST(g.num AS INTEGER)`, params: [sourceId, start, end] };
+    retentionLedgerFilter(db, { sourceId }, filter, { statistics: true, snapshot });
+    const matches = entries.map(entry => {
+      const match = wishMatch(entry.wish);
+      match.sql = `(${match.sql}) AND g.created_at>=? AND g.created_at<=?`;
+      match.params.push(entry.start, entry.end);
+      excludeSummarizedDetails(match, snapshot, entry.window);
+      return match;
+    });
+    if (entries.length === 1) {
+      filter.sql += ` AND (${matches[0].sql})`;
+      filter.params.push(...matches[0].params);
     }
+    // Each CASE retains its exact window; the shared scan checks active membership once per row.
+    const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql} THEN g.num ELSE 0 END),0) AS c${entries[index].index}`);
+    const counts = db.prepare(`SELECT ${sums.join(',')} FROM gift_events g WHERE ${filter.sql}`)
+      .get(...matches.flatMap(match => match.params), ...filter.params);
+    let summaries = {};
+    const summarized = entries.filter(entry => entry.window);
+    if (summarized.length) {
+      const matches = summarized.map(({ wish, window }) => {
+        const match = wishMatch(wish, true);
+        return { sql: `(${match.sql}) AND s.day_start>=? AND s.day_start<?`,
+          params: [...match.params, window.start, window.end] };
+      });
+      const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql}
+        THEN json_extract(s.metrics_json,'$.itemCount') ELSE 0 END),0) AS c${summarized[index].index}`);
+      summaries = db.prepare(`SELECT ${sums.join(',')} FROM gift_retention_days s
+        WHERE s.source_id=? AND s.sync_epoch=? AND s.day_start>=? AND s.day_start<?
+        AND s.revision=(SELECT MAX(d.revision) FROM gift_retention_days d
+          WHERE d.source_id=s.source_id AND d.sync_epoch=s.sync_epoch AND d.day_start=s.day_start AND d.revision<=?)`)
+        .get(...matches.flatMap(match => match.params), sourceId, snapshot.sync_epoch,
+          summarized.map(entry => entry.window.start).sort()[0],
+          summarized.map(entry => entry.window.end).sort().at(-1), snapshot.revision);
+    }
+    const contributions = readWishContributionCounts(db, sourceId, entries, snapshot);
+    for (const { index } of entries)
+      result[index] = Number(counts[`c${index}`]) + Number(summaries[`c${index}`] || 0) + (contributions.get(index) || 0);
     return result;
   }
 

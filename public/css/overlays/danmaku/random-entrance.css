@@ -1,6 +1,8 @@
 /* The theme supplies its default fade; the feed authorizes each live entrance. */
 body[data-style] .draw-danmaku-item[data-entrance-animation] {
   animation-duration: var(--random-enter-duration);
+  opacity: var(--danmaku-enter-opacity);
+  translate: 0 var(--danmaku-enter-y);
 }
 body[data-style] .draw-danmaku-item[data-live-entry][data-entrance-animation='rise'] {
   animation: randomMessageRise var(--random-enter-duration) cubic-bezier(.16, 1, .3, 1) backwards;
@@ -20,24 +22,26 @@ body[data-style] .draw-danmaku-item[data-entrance-animation='none'] {
   max-width: 100%;
 }
 .draw-danmaku-item[data-live-entry][data-entrance-animation='rise'] .draw-danmaku-enter-content {
+  opacity: var(--danmaku-enter-opacity);
+  translate: var(--danmaku-enter-x) 0;
   animation: randomMessageSlide var(--random-enter-duration) backwards;
 }
 @keyframes randomMessageRise {
-  from { opacity: 0; translate: 0 100%; }
-  to { opacity: 1; translate: 0 0; }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-y: 100%; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
 @keyframes randomMessageSlide {
   0% {
-    opacity: 0;
-    transform: translateX(-100%);
+    --danmaku-enter-opacity: 0;
+    --danmaku-enter-x: -100%;
     animation-timing-function: cubic-bezier(.16, 1, .3, 1);
   }
   72% {
-    opacity: 1;
-    transform: translateX(2%);
+    --danmaku-enter-opacity: 1;
+    --danmaku-enter-x: 2%;
     animation-timing-function: cubic-bezier(.4, 0, .2, 1);
   }
-  100% { opacity: 1; transform: translateX(0); }
+  100% { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style] .draw-danmaku-item[data-live-entry][data-entrance-animation],
