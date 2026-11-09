@@ -35,6 +35,13 @@ test('sendStableError maps known failures and never exposes internal details', (
   assert.equal(response.statusCode, 400);
   assert.equal(response.body.code, 'LYRIC_EXPANSION_LIMIT');
   assert.equal(response.body.error.includes('internal lyric parser detail'), false);
+  const settingsResponse = createMockResponse();
+  httpUtils.sendStableError(settingsResponse, Object.assign(new Error('private account identity'), {
+    code: 'CLOUD_SETTINGS_NOT_READY',
+  }));
+  assert.equal(settingsResponse.statusCode, 503);
+  assert.equal(settingsResponse.body.code, 'CLOUD_SETTINGS_NOT_READY');
+  assert.equal(settingsResponse.body.error.includes('private account identity'), false);
 });
 
 test('readJsonBody enforces the byte limit and JSON syntax and treats an empty body as an object', async () => {

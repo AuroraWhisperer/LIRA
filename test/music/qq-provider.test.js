@@ -4,7 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { zzcSign } = require('@jixun/qmweb-sign');
 const { QQMusicProvider } = require('../../src/music/providers/qq-provider');
-const { writeMusicPlaylistTracks } = require('../../src/music/lyrics-service');
+const { writeMusicPlaylistTracks } = require('../../src/music/music-catalog-service');
 
 const COOKIE =
   'qqmusic_uin=123456; qqmusic_key=test-key; qm_keyst=test-client-key; qqmusic_guid=987654321; tmeLoginType=2';

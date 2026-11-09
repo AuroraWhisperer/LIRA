@@ -4,13 +4,13 @@
 import {
   copyText,
   value,
-  withMultilingualFallback,
   toast,
   showError,
   api,
   dangerConfirm,
 } from '../shared/utils.js';
 import { escapeHtml, escapeAttr } from '../shared/html-escape.js';
+import { withMultilingualFallback } from '../shared/font-family.js';
 import { formatTime, formatSuperChatPrice } from '../shared/display-format.js';
 import { stateService } from './state.js';
 

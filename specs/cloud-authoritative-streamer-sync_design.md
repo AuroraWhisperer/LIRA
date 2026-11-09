@@ -56,6 +56,8 @@ synchronization.
   is not proof of successful cloud synchronization.
 
 - 歌曲网络请求和响应统一使用 canonical camelCase 字段；服务端 title/enabled 与本地 name/is_enabled 只在既有边界映射，不在网络同时携带别名。测试阶段双方同步升级，无旧客户端双格式分支。
+- 账号切换后，新账号歌库恢复失败时必须保留原歌库与各账号待传快照，阻止编辑或上传当前旧库覆盖新账号已有的云端歌库，并提示等待恢复。同账号离线编辑、待传恢复及云端明确未初始化时的首次播种仍可用；验收覆盖失败切换、重启、恢复后编辑及事务回滚。
+- 账号切换后，新账号设置基线恢复失败时不得把残留的上一账号设置捕获或上传为新账号修改；重启及 A→B→A 回切也不能绕过。基线未就绪时拒绝修改云同步设置并提示联网恢复，仅本机设置仍可修改。快照和所属账号原子恢复后才恢复编辑；旧服务器省略可选云字段时，同账号保留本地值，跨账号按默认值补全。同账号离线待传和明确未初始化时首次播种保持有效，菜单通知不能阻断恢复。
 - 验收：上传后回读所有文本、启用状态、排序和 revision 一致，网络 DTO 不含旧别名；待传快照恢复不重复替换相同歌库；歌库同步按归一化后的完整 `{songs}` JSON 检查 5 MiB UTF-8 请求预算（其他 Device JSON 请求仍为 2 MiB），8 MiB 响应和事务回滚仍验证。手动、兼容 IPC 和自动上传共享该预算，超限返回 `PAYLOAD_TOO_LARGE`，不发送部分歌库。显式工作区联测使用 scripts/verify-song-roundtrip.cjs --working-tree 加两个绝对检出路径；默认发布验证继续检查 server-contract.lock.json，提交发布时更新其固定 revision。
 
 ## Synchronized data

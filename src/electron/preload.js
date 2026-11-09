@@ -63,6 +63,10 @@ contextBridge.exposeInMainWorld('giftExport', {
   },
 });
 
+contextBridge.exposeInMainWorld('weeklySchedule', {
+  exportPng: (template) => ipcRenderer.invoke('weekly-schedule:export-png', template),
+});
+
 contextBridge.exposeInMainWorld('songAssistantDesktop', {
   pickScreenColor: () => ipcRenderer.invoke('desktop:pick-screen-color'),
   cancelScreenColor: () => ipcRenderer.invoke('desktop:cancel-screen-color'),

@@ -24,6 +24,8 @@
 
 ### 按运行依赖选择
 
+周表模型/本机存储由 [weekly-schedule-model.test.js](../../../test/admin/weekly-schedule-model.test.js)、[weekly-schedule-storage.test.js](../../../test/admin/weekly-schedule-storage.test.js) 覆盖日期、模板隔离、清周保时、旧外观字段补齐、读取失败保护与写入顺序；[weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js) 覆盖导出来源、限额、外观参数验证、特定合成错误的有限重试、取消及文件/窗口责任。[weekly-schedule-electron.test.js](../../../test/desktop/weekly-schedule-electron.test.js) 登记desktop组，使用实际preload、百宝箱导航、IndexedDB和导出controller，在隔离目录验证素材/模板重载、精确数值与恢复参数、切周/统一时间、新参数进入真实PNG渲染及导出点击快照；四角像素检查覆盖初始小窗口和完整窗口，输出固定1920×1080。不启动业务主程序，不访问用户账号或数据。版式与完整操作的人工检查仍需在桌面完成，不能用尺寸断言代替可读性。
+
 | 命令 | 实际依赖与边界 |
 | --- | --- |
 | `npm run test:offline` | Node/VM、临时 SQLite/HTTP；含使用合成 Git 仓库的契约校验器测试，无私有服务器读取依赖 |
@@ -98,9 +100,13 @@ npm test -- --file=test/gifts/frontend-blindbox-overlay.test.js --file=test/ui/f
 
 `--list` 只列清单，不启动测试。执行时显示 `File scope: full/partial` 和选中文件数，描述的是文件范围；Node 名称过滤、分片、skip 等仍须另行说明，不能称作完整验收。`--test-name-pattern` 只过滤所选文件内部的用例，不能代替 `--file`：未限定文件时，其他文件仍会加载并执行顶层初始化。
 
+`npm run verify` 使用 `--require-full`：拒绝部分组/目录/文件、失败选择、名称/跳过筛选、`--test-only`、分片、仅列表和 watch 模式，也检查 `NODE_OPTIONS` 或 Node 启动参数继承的筛选；跳过、待办和取消用例不能作为完整通过。普通定向 `npm test` 保留筛选能力。所有运行都要求结构化结果可读且完整，完整验收还必须覆盖全部测试文件；子进程退出 0 不能掩盖结果缺失或损坏。
+
 ### 失败文件重跑与诊断记录
 
-执行器每次运行将选中文件、失败用例和文件耗时写入 `tmp/test-results/run-*/results.json`；`latest.json` 在运行开始时指向本次记录。并行启动的较早任务即使较晚结束，也不会覆盖新任务的指针。记录只用于诊断，不是可复用的通过凭证。
+执行器默认只向终端输出约每 10 秒一次的事件进度、失败详情和最终汇总；显式 `--test-reporter=spec` 或其他 Node reporter 仍可使用。每批完整 spec 输出（含测试 stdout/stderr）自动写入 `tmp/test-results/run-*/batch-*.log`；启动时显示路径，无需额外重定向。完整日志写入失败同样使运行失败。
+
+同目录 `results.json` 记录选中文件、实际文件结果、失败用例、文件耗时、总计数、开始/结束时间、总耗时及日志文件名；终端汇总用于快速判断，定位时按失败文件读取相应日志片段。`latest.json` 在运行开始时指向本次记录。并行启动的较早任务即使较晚结束，也不会覆盖新任务的指针。记录只用于诊断，不是可复用的通过凭证；`complete` 表示诊断记录完整，不代表全部通过，仍须检查退出码、失败与跳过计数。
 
 ```powershell
 # 先查看最近一次运行的失败文件，再重跑这些文件

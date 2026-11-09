@@ -36,6 +36,8 @@ async function installResourceStyles(dataDir) {
 
 async function mountResourceStylePage(page) {
   await page.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  // A reload must not abort the Electron host's still-pending initial loadURL.
+  await page.waitForLoadState('load');
   await page.route('**/api/gifts/wishes', route => route.fulfill({ json: { ok: true, data: {
     viewRevision: 'resource-styles', items: [], partial: false, guards: [], session: { state: 'live' },
   } } }));

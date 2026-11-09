@@ -4,17 +4,41 @@ const { createHash, randomUUID } = require('node:crypto');
 const { now } = require('../shared/utils');
 
 const CLOUD_SONG_SYNC_PENDING_PREFIX = 'cloudSongSyncPending:';
+const CLOUD_SONG_ACCOUNT_KEY = 'cloudSongAccountKey';
 
 function pendingKey(accountKey) {
   return CLOUD_SONG_SYNC_PENDING_PREFIX + createHash('sha256').update(accountKey).digest('hex');
 }
 
 function createCloudSongSyncStore(db) {
+  function assertAccount(accountKey) {
+    const owner = db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_SONG_ACCOUNT_KEY)?.value;
+    if (owner && owner !== accountKey) {
+      throw Object.assign(new Error('当前账号的歌库尚未恢复，请联网后稍候重试。'), {
+        code: 'CLOUD_SONGS_NOT_READY', statusCode: 503,
+      });
+    }
+  }
+
   return {
+    assertAccount,
+
+    initializeAccount(accountKey) {
+      db.prepare('INSERT OR IGNORE INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
+        .run(CLOUD_SONG_ACCOUNT_KEY, accountKey, now());
+    },
+
+    acceptAccount(accountKey) {
+      db.prepare(`INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`)
+        .run(CLOUD_SONG_ACCOUNT_KEY, accountKey, now());
+    },
+
     // The song mutation owns this transaction, so neither write can commit alone.
     capturePending() {
       const accountKey = db.prepare('SELECT value FROM settings WHERE key = ?').get('cloudRoomAccountKey')?.value;
       if (!accountKey) return;
+      assertAccount(accountKey);
       const songs = db
         .prepare(
           `
@@ -55,4 +79,4 @@ function createCloudSongSyncStore(db) {
   };
 }
 
-module.exports = { CLOUD_SONG_SYNC_PENDING_PREFIX, createCloudSongSyncStore };
+module.exports = { CLOUD_SONG_ACCOUNT_KEY, CLOUD_SONG_SYNC_PENDING_PREFIX, createCloudSongSyncStore };

@@ -64,6 +64,21 @@
   color: var(--advanced-accent);
   clip-path: inset(0 100% 0 0);
 }
+.advanced-lyric-highlight.is-soft {
+  clip-path: none;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(50% - 0.2em), transparent calc(50% + 0.2em));
+  mask-image: linear-gradient(to right, #000 calc(50% - 0.2em), transparent calc(50% + 0.2em));
+  -webkit-mask-size: calc(200% + 0.4em) 100%;
+  mask-size: calc(200% + 0.4em) 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+}
+.advanced-lyric-item.is-vertical .advanced-lyric-highlight.is-soft {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(50% - 0.2em), transparent calc(50% + 0.2em));
+  mask-image: linear-gradient(to bottom, #000 calc(50% - 0.2em), transparent calc(50% + 0.2em));
+  -webkit-mask-size: 100% calc(200% + 0.4em);
+  mask-size: 100% calc(200% + 0.4em);
+}
 .advanced-lyric-item.is-vertical .advanced-lyric-text {
   writing-mode: vertical-rl;
   text-orientation: mixed;

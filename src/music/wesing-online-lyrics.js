@@ -24,14 +24,16 @@ function createWeSingOnlineLyricResolver(options = {}) {
           preferredPlatform: options.preferredPlatform,
           smartMatch: options.smartMatch,
         });
+  const catalogService = options.catalogService;
   const lyricsService = options.lyricsService;
   const platforms = normalizePlatforms(options.platforms);
   const now = typeof options.now === 'function' ? options.now : () => performance.now();
   let current = null;
 
   if (
+    !catalogService ||
+    typeof catalogService.searchMusicTracks !== 'function' ||
     !lyricsService ||
-    typeof lyricsService.searchMusicTracks !== 'function' ||
     typeof lyricsService.getMusicTrackLyrics !== 'function'
   ) {
     throw new Error('全民 K 歌在线歌词解析器缺少歌词服务。');
@@ -87,7 +89,7 @@ function createWeSingOnlineLyricResolver(options = {}) {
       entry.retryDelay = entry.retryDelay ? MAX_RETRY_DELAY_MS : FIRST_RETRY_DELAY_MS;
       entry.retryAt = now() + entry.retryDelay;
     };
-    const pending = resolveOnlineLyrics({ registry, lyricsService, requestedPlatforms, title, artist, durationMs,
+    const pending = resolveOnlineLyrics({ registry, catalogService, lyricsService, requestedPlatforms, title, artist, durationMs,
       preferredPlatform: preferences.preferredPlatform })
       .then((result) => {
         if (!isCurrent()) return null;
@@ -124,10 +126,10 @@ async function resolveOnlineLyrics({ requestedPlatforms, preferredPlatform, ...o
 }
 
 async function resolveProviderLyrics(options) {
-  const { registry, lyricsService, platform, title, artist, durationMs } = options;
+  const { registry, catalogService, lyricsService, platform, title, artist, durationMs } = options;
   const searchArtist = artist.replace(/[（(].*?[）)]/g, '').trim();
   const keyword = [title, searchArtist].filter(Boolean).join(' ');
-  const searchResult = await lyricsService.searchMusicTracks(registry, {
+  const searchResult = await catalogService.searchMusicTracks(registry, {
     platform,
     keyword,
     limit: 20,

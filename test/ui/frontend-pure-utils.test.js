@@ -18,8 +18,12 @@ test('pure entry points and playback helpers load as real ESM without publishing
   const globals = { window: forbiddenGlobal, document: forbiddenGlobal, navigator: forbiddenGlobal, fetch: () => assert.fail('Unexpected request') };
   await loadModuleExports(modulePath('shared/html-escape.js'), globals);
   await loadModuleExports(modulePath('shared/display-format.js'), globals);
+  const { withMultilingualFallback } = await loadModuleExports(modulePath('shared/font-family.js'), globals);
   const playback = await loadModuleExports(modulePath('playback/utils.js'), globals);
 
+  const fallback = withMultilingualFallback('');
+  assert.ok(fallback.length > 0);
+  assert.equal(withMultilingualFallback('  Noto Sans  '), `Noto Sans, ${fallback}`);
   const artwork = playback.renderArtwork({ coverUrl: 'https://example.test/a?x="`&y=1' }, { fallback: '<歌>' });
   assert.ok(artwork.includes('src="https://example.test/a?x=&quot;&#96;&amp;y=1"'));
   assert.ok(artwork.includes('<span>&lt;歌&gt;</span>'));

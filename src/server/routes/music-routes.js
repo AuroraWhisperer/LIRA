@@ -4,7 +4,7 @@
 
 const { sendJson, sendStableError } = require('../http-utils');
 const { resolveMusicStream } = require('../../music/stream-resolver');
-const { getMusicProviderHealth } = require('../../music/provider-health');
+const { matchMusicTrackCandidates } = require('../../music/song-matcher');
 
 const prefixes = ['/api/music/'];
 
@@ -26,7 +26,7 @@ const routes = {
     const platform = request.query.get('platform') || '';
     sendJson(res, 200, {
       ok: true,
-      data: await getMusicProviderHealth(context.music.registry, platform),
+      data: await context.music.registry.healthCheck(platform),
     });
   },
 
@@ -58,28 +58,28 @@ const routes = {
   async 'POST /api/music/search'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '搜索 Provider 尚未接入。', () =>
-      context.music.lyrics.searchMusicTracks(context.music.registry, body),
+      context.music.catalog.searchMusicTracks(context.music.registry, body),
     );
   },
 
   async 'POST /api/music/home'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '音乐首页 Provider 尚未接入。', () =>
-      context.music.lyrics.getMusicHomeContent(context.music.registry, body),
+      context.music.catalog.getMusicHomeContent(context.music.registry, body),
     );
   },
 
   async 'POST /api/music/playlists/tracks/add'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '添加到音乐歌单失败。', () =>
-      context.music.lyrics.writeMusicPlaylistTracks(context.music.registry, body, 'add'),
+      context.music.catalog.writeMusicPlaylistTracks(context.music.registry, body, 'add'),
     );
   },
 
   async 'POST /api/music/playlists/tracks/remove'(context, request, res) {
     const body = await request.body();
     await sendProviderResult(res, '从音乐歌单删除失败。', () =>
-      context.music.lyrics.writeMusicPlaylistTracks(context.music.registry, body, 'remove'),
+      context.music.catalog.writeMusicPlaylistTracks(context.music.registry, body, 'remove'),
     );
   },
 
@@ -100,7 +100,7 @@ const routes = {
   async 'POST /api/music/match-track'(context, request, res) {
     sendJson(res, 200, {
       ok: true,
-      data: context.music.lyrics.matchMusicTrackCandidates(await request.body()),
+      data: matchMusicTrackCandidates(await request.body()),
     });
   },
 

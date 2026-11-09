@@ -6,11 +6,26 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports, response } = require('../helpers/frontend-modules');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
-const { createLyricsService } = require('../../src/music/lyrics-service');
+const { createMusicCatalogService } = require('../../src/music/music-catalog-service');
 const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
 const { createDom, createClock } = require('../helpers/toast-dom');
+const { createPlaybackApp, flushAsyncWork } = require('../helpers/playback-app');
 
 const ROOT_DIR = path.join(__dirname, '../..');
+
+test('recent local playback remains available without signing in to the selected music platform', async () => {
+  const app = await createPlaybackApp({
+    current: null, selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+    displayHistory: [{ id: 'local:history', source: 'local', title: '本地历史歌曲', artists: [] }],
+  }, { homeAction: 'recent', authState: { platform: 'qq', loggedIn: false } });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+
+  assert.match(app.element('playbackDrawerBody').innerHTML, /本地历史歌曲/);
+  assert.equal(app.element('toast').prepended.length, 0);
+});
 
 test('track menus release their outside listener on button, keyboard and drawer closure', async () => {
   const { documentRef: document } = createDom();
@@ -83,7 +98,7 @@ test('account invalidation stops liked pagination after the outstanding page', a
 
 test('playlist refresh bypasses old backend entries and caches an empty result after removal', async (t) => {
   const apiCacheDir = createScratchDirectory('playlist-refresh-', t);
-  const service = createLyricsService({ apiCacheDir });
+  const service = createMusicCatalogService({ apiCacheDir });
   const track = { source: 'qq', sourceTrackId: 'song', title: 'Synthetic song' };
   let tracks = [track];
   const provider = {
@@ -136,14 +151,14 @@ test('personalized backend cache follows authorization across account changes an
   };
   const request = { platform: 'qq', action: 'personalized' };
   const read = (service) => service.getMusicHomeContent({ get: () => provider }, request);
-  const service = createLyricsService({ apiCacheDir });
+  const service = createMusicCatalogService({ apiCacheDir });
   assert.equal((await read(service)).playlists[0].id, 'playlist-a');
   assert.equal((await read(service)).cached, true);
   assert.equal(calls, 1);
   cookie = 'fixture-credential-B';
   assert.equal((await read(service)).playlists[0].id, 'playlist-b');
 
-  const restarted = createLyricsService({ apiCacheDir });
+  const restarted = createMusicCatalogService({ apiCacheDir });
   assert.equal((await read(restarted)).cached, true);
   assert.equal(calls, 2);
   cookie = '';
@@ -157,7 +172,7 @@ test('personalized backend cache follows authorization across account changes an
 
 test('an account change during personalized retrieval cannot populate either account cache', async (t) => {
   const apiCacheDir = createScratchDirectory('personalized-pending-cache-', t);
-  const service = createLyricsService({ apiCacheDir });
+  const service = createMusicCatalogService({ apiCacheDir });
   const started = Promise.withResolvers();
   const pending = Promise.withResolvers();
   let cookie = 'old-credential';

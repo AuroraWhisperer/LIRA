@@ -5,6 +5,8 @@ const preset = (id, label, settings) => ({ id, label,
 // Every identifier has a matching composition or treatment in the visual renderer.
 export const ADVANCED_LYRIC_CATALOG = Object.freeze({
   layouts: entries([
+    ['focus-lens', '聚焦镜头', '当前词组始终居中，前文退至两侧上方，长音留在聚光处', true],
+    ['page-turn', '纵向翻页', '词组从下方舒展进入，已唱诗行依次向上收拢', true],
     ['phrase-flow', '逐段让位', '按句长和停顿自动分组，前段缩小上移，为当前词组留出舞台', true],
     ['corner-relay', '两翼接力', '词组在两翼与中央接力，快句自动收敛动作，前文保持可读', true],
     ['type-impact', '重音落版', '大字落下，前段收成题注，以明显延长的演唱时间作为强调线索', true],
@@ -55,13 +57,27 @@ export const ADVANCED_LYRIC_CATALOG = Object.freeze({
   wordMotions: entries([
     ['none', '保持字色'], ['fill', '逐字填色'], ['pop', '逐字弹出'], ['rise', '逐字上浮'],
     ['bounce', '逐字跳动'], ['wave', '逐字波浪'], ['tilt', '逐字轻摆'], ['glow', '逐字发光'],
+    ['sustain', '长音舒展', '跟随真实音长轻抬字面，唱完后自然归位'],
+    ['soft-fill', '柔边填色', '柔和的色彩边缘沿文字方向推进'],
   ]),
   decorations: entries([
     ['none', '无装饰'], ['underline', '下划线'], ['highlight', '荧光底纹'], ['brackets', '引号括边'],
     ['frame', '细线边框'], ['corners', '四角标记'], ['stars', '星点'], ['dots', '圆点'],
     ['tape', '纸胶带'], ['orbit', '环形线条'],
   ]),
+  palettes: [
+    preset('amber', '奶油琥珀', { TextColor: '#fff9ee', AccentColor: '#f5bd6b', SecondaryColor: '#e7a1ba' }),
+    preset('glacier', '冰川银蓝', { TextColor: '#f2f7fc', AccentColor: '#9bcbe5', SecondaryColor: '#b9b8dc' }),
+    preset('camellia', '山茶柔粉', { TextColor: '#fff6f3', AccentColor: '#edb0bc', SecondaryColor: '#e3cb9b' }),
+    preset('mint', '森林薄荷', { TextColor: '#f1f6e9', AccentColor: '#abd9be', SecondaryColor: '#e8cb88' }),
+    preset('ink', '暖纸墨色', { TextColor: '#292c35', AccentColor: '#a34b39', SecondaryColor: '#49677a' }),
+    preset('vermilion', '朱砂月白', { TextColor: '#fff2df', AccentColor: '#ff987b', SecondaryColor: '#d8c0ed' }),
+  ],
   presets: [
+    preset('cinema', '聚焦镜头', { Layout: 'focus-lens', Material: 'solid', WordMotion: 'sustain', MotionDuration: 600, FontWeight: 700, TextColor: '#fff9ee', AccentColor: '#f5bd6b' }),
+    preset('paper-poem', '翻页诗行', { Layout: 'page-turn', Material: 'solid', WordMotion: 'soft-fill', MotionDuration: 650, FontWeight: 600, TextColor: '#f2f7fc', AccentColor: '#9bcbe5', SecondaryColor: '#b9b8dc' }),
+    { ...preset('cinema-relay', '镜头组曲', { Layout: 'focus-lens', RotateLayouts: true, LayoutSequence: 'focus-lens,phrase-flow,page-turn,corner-relay,type-impact', Material: 'solid', WordMotion: 'sustain', MotionDuration: 550, TextColor: '#fff6f3', AccentColor: '#edb0bc', SecondaryColor: '#e3cb9b' }),
+      description: '五种完整编排按句轮换，用同一套配色与长音动作串起整首歌' },
     preset('phrase-pv', '逐段让位', { Layout: 'phrase-flow', Material: 'solid', WordMotion: 'none', MotionDuration: 600, TextColor: '#fff9ee', AccentColor: '#f5bd6b' }),
     preset('relay-pv', '两翼接力', { Layout: 'corner-relay', Material: 'solid', WordMotion: 'none', MotionDuration: 450, TextColor: '#fff9ee', AccentColor: '#b8e4d8', SecondaryColor: '#f4be98' }),
     preset('impact-pv', '重音落版', { Layout: 'type-impact', Material: 'solid', WordMotion: 'none', MotionDuration: 300, FontWeight: 900, TextColor: '#fff9ee', AccentColor: '#ffb493' }),

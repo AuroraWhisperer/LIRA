@@ -23,10 +23,14 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
   desktop.setDefaultTimeout(5000);
   const errors = [];
   desktop.on('pageerror', error => errors.push(error.message));
+  let initialLoadComplete = false;
   async function openTextBoxes() {
     await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
-    // Finish the fixture's initial loadURL before replacing its page or reloading it.
-    await desktop.waitForLoadState('load');
+    if (!initialLoadComplete) {
+      // Only startup awaits loadURL; reopening needs the renderer, not every page resource.
+      await desktop.waitForLoadState('load');
+      initialLoadComplete = true;
+    }
     // Reuse the fixture's authorized desktop session and real scene owner.
     await desktop.evaluate(async markup => {
       const html = new DOMParser().parseFromString(markup, 'text/html');

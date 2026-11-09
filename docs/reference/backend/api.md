@@ -337,9 +337,11 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 端点 | 请求 | 响应(data) | 错误 |
 | --- | --- | --- | --- |
-| `POST /api/settings` | 设置键值 patch；只处理 `settings.defaults` 白名单键，未知键静默忽略；下表说明特殊归一化 | `system.getState()` 业务快照 | 字段无效 400 `设置 <key> 的值无效。`；WeSing prepare 失败为 400；其他未捕获异常走顶层错误映射 |
+| `POST /api/settings` | 设置键值 patch；只处理 `settings.defaults` 白名单键，未知键静默忽略；下表说明特殊归一化 | `system.getState()` 业务快照 | 字段无效 400 `设置 <key> 的值无效。`；WeSing prepare 失败为 400；账号切换后云设置尚未恢复时修改同步字段返回 503 `CLOUD_SETTINGS_NOT_READY`，不落盘；其他未捕获异常走顶层错误映射 |
 
 归一化 owner 是 [settings-contract.js](../../../src/server/settings-contract.js) 的 `normalizeSettingsPatch`；存储默认值与分组见 [storage.md](storage.md) §7。以下字段处理完成后才使用剩余白名单键的 `String(rawValue)` 回退，不能用“其余字符串化”跳过已存在的领域规则。
+
+下表的云快照“省略时保留本地值”适用于同账号恢复；跨账号恢复时，缺失的可选同步字段使用新基线的默认值，不沿用上一账号。旧监控总开关及所属账号门禁详见 [云端 scope 的本地落盘](storage.md#8-云端-scope-的本地落盘)。
 
 | 键/组 | 接受输入与存储形态 |
 | --- | --- |
@@ -512,7 +514,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 
 | 端点                                      | 请求                                                                                                                                                                                                                                                                          | 响应(data)                                                                                | 错误码                                                |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------- |
-| `GET /api/music/health`                   | 查询参数 `platform`(可选,空则全部)                                                                                                                                                                                                                                            | 各音源 Provider 健康状态([provider-health.js](../../../src/music/provider-health.js))     | 400（无效平台） |
+| `GET /api/music/health`                   | 查询参数 `platform`(可选,空则全部)                                                                                                                                                                                                                                            | 各音源 Provider 健康状态([provider-registry.js](../../../src/music/provider-registry.js))     | 400（无效平台） |
 | `GET /api/music/cache`                    | 无                                                                                                                                                                                                                                                                            | 音乐 API/歌词缓存统计                                                                     | —                                                     |
 | `POST /api/music/resolve-stream`          | `{track, forceRefresh?}`(`forceRefresh: true` 跳过缓存)                                                                                                                                                                                                                       | 解析后播放流信息                                                                          | 400/501 |
 | `GET /api/music/qq-encrypted-stream`      | `id` + session token;支持浏览器 `Range`                                                                                                                                                                                                                                       | 服务端短期 QMC2 解密的 FLAC/Ogg 播放流                                                    | 404/416/502                                           |
@@ -525,7 +527,7 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 | `POST /api/music/match-track`             | `{songName                                                                                                                                                                                                                                                                    | title`(必填,截断 120), `artist`(截断 80), `durationMs?`, `candidates[]`(≤ 50)}            | `{request, threshold: 70, results}`                   | 400(缺歌名)                                                |
 | `POST /api/music/cache/clear`             | 无                                                                                                                                                                                                                                                                            | 清空音乐 API/歌词缓存结果                                                                 | —                                                     |
 
-请求体校验与截断规则见 [lyrics-service.js:44-171](../../../src/music/lyrics-service.js#L44-L171)。
+目录查询与歌单写入的校验由 [music-catalog-service.js](../../../src/music/music-catalog-service.js) 拥有；歌词获取/解析见 [lyrics-service.js](../../../src/music/lyrics-service.js)，候选匹配见 [song-matcher.js](../../../src/music/song-matcher.js)。
 
 在线歌词与手动解析均在昂贵消费者之前检查[解析展开预算](music/services.md#14-歌词解析器srcmusiclyric-parserjs)：最多 4096 行、累计文本 512 Ki 个 JS 字符。超预算返回 HTTP 400，`{ok:false,code:"LYRIC_EXPANSION_LIMIT",error:整理提示}`，不返回截断歌词。
 
@@ -589,7 +591,9 @@ opening 页面能力的只读投影包含该字段。管理端通过现有设置
 > 模块文件:[src/server/routes/song-routes.js](../../../src/server/routes/song-routes.js)
 > 前缀:`/api/songs`、`/api/categories`
 
-CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`),其余为 JSON。`save/delete/toggle/import/import-xlsx` 未包 try/catch,校验失败经顶层 500 返回。
+CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`),其余为 JSON。下表列出各路由错误；未单独映射的异常经顶层 500 返回。
+
+账号切换后当前歌库尚未恢复时，歌曲保存、删除、启停、导入及清空事务返回 HTTP 503 `CLOUD_SONGS_NOT_READY`，原内容与待传记录保留。普通路由返回 `{ok:false,code:'CLOUD_SONGS_NOT_READY',error:'当前账号的歌库尚未恢复，请联网后稍候重试。'}`；`import-apply` 沿用导入错误体，将代码放在 `error`、提示放在 `message`。同账号离线编辑仍可写入。
 
 歌曲保存接受可选 `requestPrice` / `songClip`（兼容 `request_price` / `song_clip`）；省略保留已有值，显式空值清空。这两项保留内部空格与换行，规范化 CRLF、控制字符及首尾空白。客户端价格表单超过 1000 UTF-16 code unit 阻止提交，但历史超长值回填不截断；本地 API 不新增截断行为。
 
@@ -749,11 +753,11 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 
 | 端点                                  | 请求                                                                                                         | 响应(data)                                                                          | 错误码                          |
 | ------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------- |
-| `POST /api/database/clear`            | `{confirm: true}`                                                                                            | 清点歌库(songs/分类/导入批次,保留 settings 与主题);广播 `database:clear`            | 400                             |
+| `POST /api/database/clear`            | `{confirm: true}`                                                                                            | 清点歌库(songs/分类/导入批次,保留 settings 与主题);广播 `database:clear`            | 400、503 `CLOUD_SONGS_NOT_READY` |
 | `POST /api/database/clear-superchats` | `{confirm: true}`                                                                                            | 清 SC 库;广播 `database:clear-superchats`                                           | 400                             |
-| `POST /api/database/clear-playback`   | `{confirm: true}`                                                                                            | 清播放历史与队列态(保留收藏/歌单);广播 `database:clear-playback`                    | 400                             |
+| `POST /api/database/clear-playback`   | `{confirm: true}`                                                                                            | 清播放历史与队列业务快照，保留写入撤销元数据及收藏/歌单；拒绝清空前的迟到保存，重载后可保存；广播 `database:clear-playback` | 400                             |
 | `POST /api/database/clear-gifts`      | `{confirm: true}`                                                                                            | 先清当前 Device 认证主播的服务器礼物 ledger/outbox，再清当前本地 source 的礼物事件+结算流水并重建空投影；保留加班机状态/规则；广播 `database:clear-gifts` | 400、502/503(服务器未清理，本地不删除)、500(服务器已清理但本地失败) |
-| `POST /api/database/clear-all`        | `{confirm: true}`                                                                                            | **清五库全部业务数据**(见 §12.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、**500**(部分失败,见 §12.1) |
+| `POST /api/database/clear-all`        | `{confirm: true}`                                                                                            | **清五库全部业务数据**(见 §12.1);调用前静默异步写入器;成功广播 `database:clear-all` | 400、503 `CLOUD_SONGS_NOT_READY`、**500**(部分失败,见 §12.1) |
 | `GET /api/database/stats`             | 无                                                                                                           | `{schemaVersions, tables}`(各库版本 + 保留期统计行数/时间范围/raw_json 字节数)      | —                               |
 | `POST /api/database/retention`        | `{dryRun?`, `confirm?`, `policy?}`:`dryRun: true` 只统计不删除(**免 confirm**,不广播);否则需 `confirm: true` | 保留策略执行统计;非 dryRun 广播 `database:retention`                                | 400(`缺少清理确认。`)           |
 
@@ -762,6 +766,8 @@ CSV/XLSX 端点走 `sendCsv`/`sendBuffer` 下载(带 BOM / `Content-Disposition`
 ### 12.1 Clear-All 部分失败契约
 
 `POST /api/database/clear-all` 使用两阶段协调，默认分类和禁用的加班机状态行在提交前、各自库的事务内重建。重建失败且全部回滚成功时返回普通 HTTP 500，业务数据保留；跨库提交、回滚或提交后的运行状态恢复失败时返回结构化部分失败:
+
+歌库归属检查拒绝且全部回滚成功时，透传 HTTP 503 `CLOUD_SONGS_NOT_READY`，保留原数据；若回滚本身失败，仍按下述 partial 500 处理。播放快照清除业务内容并撤销旧 writer，元数据不计入删除条数，详见 [storage.md](storage.md) §3.4。桌面清空成功后重载，使用新启动 writer 保存后续播放。
 
 **成功响应(HTTP 200)**:
 

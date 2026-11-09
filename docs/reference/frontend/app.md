@@ -440,15 +440,38 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | 使用文档 / 关于与更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [usage-guide-layout.js](../../../public/js/admin/usage-guide-layout.js) / [usage-guide-progress.js](../../../public/js/admin/usage-guide-progress.js) / [usage-guide-lightbox.js](../../../public/js/admin/usage-guide-lightbox.js) / [desktop.js](../../../public/js/desktop.js)                                                                                                                                                                                                   | 目录锚点平滑滚动、章节与小标题定位、本章阅读位置及上下章导航，侧栏收缩时切换双栏目录;截图点击或 Enter/空格以原生 `<dialog>` 查看大图，Esc 或点击任意处关闭;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 首次启动引导        | [interactive-tour.js](../../../public/js/admin/interactive-tour.js)                                                                                                                                                                             | 旧七步弹窗及全局 onboarding 控制器已退役，旧 settings 标记保留兼容；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-直播歌词设置页位于「组件 → 音乐展示 → 直播歌词」。[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 组织基础／高级编辑页签、独立输出开关和常驻展开的共用音乐跟随；设置随整页滚动，宽屏右侧预览保持可见。基础外观使用 `DESKTOP_LYRIC_DEFAULTS`（不提交 `desktopLyricFallbackFontFamily`），高级分类编辑与自存搭配由 [advanced-lyric-editor.js](../../../public/js/admin/advanced-lyric-editor.js) 拥有。外观及 `weSingLyricSource/weSingSmartLyricMatch` 沿用 `/api/settings` 自动保存；切换页签不保存输出开关。两类外观分别重置，保留两开关和自存搭配；基础重置同时恢复共用时间偏移。
+直播歌词设置页位于「组件 → 音乐展示 → 直播歌词」。[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 组织基础／高级编辑页签、独立输出开关和共用音乐跟随；基础模式展开来源设置，高级模式默认收起在「音乐来源」内。设置随整页滚动，隐藏此页滚动条但保留滚轮和键盘滚动；内容区左右内边距 8px、列间距 12px。基础与高级模式在宽窗口中均为左侧设置、右侧预览，预览列上限 560px，其余宽度留给参数，切换模式不改变两栏顺序与宽度；窄窗口将预览放在参数上方。基础外观使用 `DESKTOP_LYRIC_DEFAULTS`（不提交 `desktopLyricFallbackFontFamily`），高级分类编辑与自存搭配由 [advanced-lyric-editor.js](../../../public/js/admin/advanced-lyric-editor.js) 拥有，按「搭配 / 编排 / 外观 / 动效」组织；画面位置和字体等常用小组默认展开，材质与字效等小组按需展开。外观及 `weSingLyricSource/weSingSmartLyricMatch` 沿用 `/api/settings` 自动保存；切换页签不保存输出开关。两类外观分别重置，保留两开关和自存搭配；基础重置同时恢复共用时间偏移。
 
-[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 将当前歌曲的实时事件交给同一 `desktopLyricRenderer`，预览始终跟随左侧基础／高级编辑页签，输出开关关闭时仍可预览对应样式。右侧保留背景切换、播放状态和合并地址复制；共享时钟、视觉模块和资源生命周期见 [歌词 overlay](overlays.md#6-直播歌词页lyrics)。字体选择沿用统一软件／系统字体库；Chromium `queryLocalFonts()` 要求瞬时用户激活时，在用户正常点击／按键后重试，权限边界见 [desktop/main.md](../desktop/main.md) §4。
+[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 将当前歌曲的实时事件交给同一 `desktopLyricRenderer`，预览始终跟随基础／高级编辑页签，输出开关关闭时仍可预览对应样式。预览工具保留背景切换、播放状态和合并地址复制；高级预览可拖动定位，移动时更新预览，松开后通过既有外观保存通道保存位置。「编排 → 画面位置」提供水平居中、垂直居中和重置位置，分别只改 X、只改 Y 或将两轴恢复为 50%，不重置其他外观。共享时钟、视觉模块和资源生命周期见 [歌词 overlay](overlays.md#6-直播歌词页lyrics)。字体选择沿用统一软件／系统字体库；Chromium `queryLocalFonts()` 要求瞬时用户激活时，在用户正常点击／按键后重试，权限边界见 [desktop/main.md](../desktop/main.md) §4。
 
 同页的 [lyric-source-controls.js](../../../public/js/admin/lyric-source-controls.js) 独立管理跟随偏好、实际来源与外部客户端重检，不进入外观自动保存。一级选择为「内置播放器 / 外部播放器 / 全民 K 歌」；仅选中外部播放器时显示「智能 / QQ 音乐 / 网易云音乐」和客户端检测、重检，切回外部分类沿用本页上次选项。`auto / qq-client / netease-client` 映射到外部分类，`internal / wesing` 各自对应一级分类；按 `selection` 控制显示，实际 `source` 的自动切换不改变分类。智能匹配歌词和首选歌词源在选中全民 K 歌后直接展开于同一跟随区域内，沿用设置表单的自动保存；外部播放器保持各自平台歌词。状态同步及播放行为见 [playback.md](playback.md#3-歌词链路)，服务端选择规则见[音乐服务 §13](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
 
 主播工作台的页面状态和统一 commit 仍由 `streamer-planner.js` 拥有；[streamer-planner-storage.js](../../../public/js/admin/streamer-planner-storage.js) 拥有版本迁移、读失败锁写和持久化结果；[streamer-planner-reminders.js](../../../public/js/admin/streamer-planner-reminders.js) 拥有 IPC 快照、签名去重、回复代次和同步状态。仅保存成功后同步提醒，失败不替换已保存的提醒快照；提示文案与渲染保留在页面，过期回复不覆盖当前状态。
 
 `streamer-planner-view.js` 按每份独立视图快照一次分组日程，月历 42 格与当天议程共用日期索引；切日期和粉丝日程更新时两部分使用同一份快照。备忘以当次待办 ID 集合判断「已加入待办」，不逐条扫描所有待办；四种固定日期格式器在模块内复用。日期标签先取当前本地年月日，再用固定时区载体格式化，运行中切换系统时区后下次渲染不会沿用加载时的时区。日程同时间的稳定顺序、全天事件和只读粉丝事项保持原展示规则。
+
+### 周表生成器
+
+入口为「百宝箱 → 主播工具 → 周表生成器」，`otherWeeklyScheduleFeature` 由现有 toolbox lazy loader 按需加载 [weekly-schedule.js](../../../public/js/admin/weekly-schedule.js)。[editor.js](../../../public/js/admin/weekly-schedule/editor.js) 拥有编辑与保存状态、异步素材代次和预览；[model.js](../../../public/js/admin/weekly-schedule/model.js) 统一字段、日期和模板操作；[renderer.js](../../../public/js/admin/weekly-schedule/renderer.js) 与 [weekly-schedule-art.css](../../../public/css/admin/toolbox/weekly-schedule-art.css) 为编辑器和内部导出页提供同一 1920×1080 成品画布。
+
+六种版式为活页手账、星夜来信、复古放送单、横向七日表、杂志封面、国风卷轴，通过几何示意卡选择。编辑区分为外观、排期、素材、模块，页签支持方向键和 Home/End；切换模板或恢复参数时保留当前分类。共用七天主题/备注/双时段、休息/活动标记、周一日期、三种星期写法、标题/主播名、十二套配色与自定义实色、十一内置图标及自定义图标。上一周/下一周/回到本周只改日期；「将周一时间应用整周」确认后只复制两个时间字段。折叠日程保留主题摘要。
+
+立绘、Q版、Logo、背景、二维码和三张榜单头像上传后存于模板；对应素材上传后才显示调整区。数值输入与共享滑杆同步，提交越界值时限制在范围内，清空数值后离开会恢复上次有效值。位置以1920×1080画布像素为单位，大范围调整可将素材移出画布，可用「恢复默认调整」找回。
+
+| 参数 | 范围 / 默认值 |
+| --- | --- |
+| 立绘、Logo、Q版 | 大小10–400%（100%）、x ±1920/y ±1080（0）、旋转 ±180°（0）、不透明度0–100%（100%）；均可水平翻转，立绘另有贴纸白边 |
+| 背景图 | 铺满裁切/完整显示（铺满）；水平/垂直焦点0–100%（50%）；不透明度0–100%（100%）；模糊0–24px（0） |
+| 相对字号 | 标题50–150%、主题/备注/时间70–160%；默认100%为各版式推荐大小，仍由空间适配限制最终字号 |
+| 背景花纹 | 纯色、格纹、波点、方格、小爱心、斜纹、菱格；浓度0–100%（100%）；上传背景图时由背景图替代花纹 |
+
+小标题使用同色系的可读文字色；主题色上的文字按对比度选择深色或浅色。留言、前三名、二维码、福利四模块独立开关并重排；左右对调不镜像文字，花边、闪光、胶带、蝴蝶结、背景图标及LIRA署名可调整。前三名是手动展示内容，不计算B站排名。
+
+[storage.js](../../../public/js/admin/weekly-schedule/storage.js) 在本机 IndexedDB `lira.weeklySchedule` 的版本1数据库、`state` object store / `current` key 保存 `{version:1,activeId,templates}`。新增 `background`、`typography`、图像 `rotation/opacity/flip` 和 `decorations.intensity` 由model补齐缺省值，不升数据库版本。写入采用调用时独立快照、顺序事务，事务完成才显示已保存；读取失败不覆盖原记录。新建为空白模板，复制保留全部素材且编辑独立；清空本周移除主题、备注和状态，保留时间/素材。此存储与既有月历工作台相互独立，不经过后端或远程服务器。
+
+[assets.js](../../../public/js/admin/weekly-schedule/assets.js) 接受 PNG/JPEG/WebP，单张≤12MiB、每模板合计≤48MiB、最大边8192且总像素≤33,554,432；静态SVG仅限自定义图标，检查脚本/外部引用等后转PNG保存。文字输入限制由 `WEEKLY_TEXT_LIMITS` 统一，排版按实际空间缩字；仍无法容纳时预览提示字段，导出拒绝保存残缺内容。字体选择复用软件/系统字体库；周表的站酷小薇为本地打包的[完整OFL字体](../../../public/fonts/weekly-schedule/README.md)。主色/撞色复用共享颜色控件的 `data-color-alpha="false"`，仅显示和保存RGB，其他页面默认RGBA行为保留。
+
+编辑器在模板替换与退出时释放字体注册和既有参数滑块观察；异步图片结果绑定发起模板和槽位代次，切换模板不串图，删除/重置后的过期结果忽略。PNG导出在点击时冻结模板，保存期间的后续编辑不混入本次图片；最终溢出检查由已等待字体和图片的内部导出页完成。桌面导出安全边界与返回见 [preload](../desktop/preload.md)，窗口/文件生命周期见[主进程](../desktop/main.md#周表-png-导出)。
 
 ### 世界地图
 

@@ -63,6 +63,7 @@ function createPicker(document) {
   }
   function edit(color, alpha, type, keepHue = false, remember = true) {
     if (!current || current.input.matches(':disabled')) return;
+    if (!current.alphaEnabled) alpha = 1;
     const focused = document.activeElement;
     if (remember && (color !== current.hex || alpha !== current.alpha)) {
       current.editStart ??= { hex: current.hex, alpha: current.alpha };
@@ -155,7 +156,7 @@ function createPicker(document) {
         if (sampling === controller) {
           sampling = null;
           eyedropper.disabled = false;
-          samplingHint.textContent = failed ? '取色失败，请重试' : '透明 → 不透明';
+          samplingHint.textContent = failed ? '取色失败，请重试' : current?.alphaEnabled === false ? '仅支持不透明颜色' : '透明 → 不透明';
           refresh();
         }
       }
@@ -182,7 +183,14 @@ export function openColorPicker(input, hex, alpha, onEdit, alphaStep = 1) {
     current.input.setAttribute('aria-expanded', 'false');
     current.input.dispatchEvent(new Event('lira-color-edit-end', { bubbles: true }));
   }
-  current = { input, hex, alpha, onEdit };
+  const alphaEnabled = input.dataset.colorAlpha !== 'false';
+  current = { input, hex, alpha: alphaEnabled ? alpha : 1, onEdit, alphaEnabled };
+  picker.panel.setAttribute('aria-label', alphaEnabled ? '颜色与不透明度' : '颜色');
+  picker.panel.querySelector('.lira-color-opacity-label').hidden = !alphaEnabled;
+  picker.panel.querySelector('[data-channel="alpha"]').parentElement.hidden = !alphaEnabled;
+  picker.panel.querySelector('.lira-color-channels').style.gridTemplateColumns = alphaEnabled ? '' : 'repeat(3, minmax(0, 1fr))';
+  picker.panel.querySelector('.lira-color-picker-footer > span').textContent = alphaEnabled ? '透明 → 不透明' : '仅支持不透明颜色';
+  picker.panel.querySelector('[data-undo]').title = alphaEnabled ? '恢复上一次修改前的颜色和不透明度' : '恢复上一次修改前的颜色';
   for (const control of picker.panel.querySelectorAll('.lira-color-opacity, [data-channel="alpha"]')) control.step = String(alphaStep);
   input.dataset.colorEditing = 'true';
   input.setAttribute('aria-expanded', 'true');

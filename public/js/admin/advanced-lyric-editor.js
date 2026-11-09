@@ -6,14 +6,14 @@ import { initParameterRanges, refreshParameterRange, disposeParameterRanges } fr
 import { dangerConfirm, toast } from '../shared/utils.js';
 
 const GROUPS = [
-  ['presets', '整套搭配'], ['layout', '排版与位置'], ['font', '字体与配色'],
-  ['effects', '字效与材质'], ['motion', '动效与轮换'], ['decoration', '装饰'], ['display', '显示内容'],
+  ['presets', '搭配'], ['layout', '编排'], ['appearance', '外观'], ['motion', '动效'],
 ];
 const SEQUENCES = {
   advancedLyricLayout: { key: 'advancedLyricLayoutSequence', enabled: 'advancedLyricRotateLayouts', label: '排版轮换', catalog: 'layouts' },
   advancedLyricEnter: { key: 'advancedLyricMotionSequence', enabled: 'advancedLyricRotateMotions', label: '入场轮换', catalog: 'enters' },
 };
 const DEFAULTS = Object.fromEntries(Object.entries(ADVANCED_LYRIC_FIELDS).map(([key, field]) => [key, String(field.default)]));
+const PLACEMENT_FIELDS = new Set(['advancedLyricWidth', 'advancedLyricScale', 'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricRotate']);
 
 function element(tag, className = '', text = '') {
   const node = document.createElement(tag);
@@ -35,6 +35,7 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
   const navigation = new Map();
   const sequenceLists = new Map();
   const libraries = new Map();
+  const descriptions = new Map();
   let motionIntro;
   const cleanups = [];
 
@@ -81,12 +82,13 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
       word.style.setProperty('--word', index);
       art.append(word);
     });
-    button.append(art, element('strong', '', entry.label));
+    const thumbnail = element('span', 'advanced-lyric-card-preview');
+    thumbnail.append(art);
+    button.append(thumbnail, element('strong', '', entry.label));
     const composition = ADVANCED_LYRIC_CATALOG.layouts.find(layout => layout.id === (entry.settings?.advancedLyricLayout || entry.id));
-    if (composition?.choreography) button.append(element('span', 'advanced-lyric-card-description', composition.description));
-    if (entry.description) button.title = entry.description;
+    if (entry.description || composition?.description) button.title = entry.description || composition.description;
     button.addEventListener('click', () => {
-      if (key === 'preset') changed({ ...DEFAULTS, ...entry.settings });
+      if (key === 'preset') changed(Object.fromEntries(Object.entries({ ...DEFAULTS, ...entry.settings }).filter(([field]) => !PLACEMENT_FIELDS.has(field))));
       else changed({ [key]: entry.id, ...(SEQUENCES[key] ? { [SEQUENCES[key].enabled]: 'false' } : {}) });
     });
     cards.push({ button, entry, key });
@@ -116,6 +118,9 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
     const entries = ADVANCED_LYRIC_CATALOG[field.catalog] || [];
     for (const entry of entries.filter(entry => field.catalog !== 'layouts' || entry.choreography)) grid.append(createCard(entry, key, field.catalog));
     section.append(grid);
+    const description = element('p', 'hint advanced-lyric-selection-description');
+    section.append(description);
+    descriptions.set(key, description);
     if (field.catalog === 'layouts') {
       const free = element('details', 'advanced-lyric-free-layouts');
       free.append(element('summary', 'ui-section-title', '自由构图'));
@@ -213,9 +218,15 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
   function syncCards() {
     for (const { button, entry, key } of cards) {
       const selected = key === 'preset'
-        ? Object.entries({ ...DEFAULTS, ...entry.settings }).every(([field, value]) => ADVANCED_LYRIC_FIELDS[field]?.hidden || String(values[field]) === String(value))
-        : values[key] === entry.id;
+        ? Object.entries({ ...DEFAULTS, ...entry.settings }).every(([field, value]) => PLACEMENT_FIELDS.has(field) || ADVANCED_LYRIC_FIELDS[field]?.hidden || String(values[field]) === String(value))
+        : key === 'palette' ? Object.entries(entry.settings).every(([field, value]) => values[field] === value) : values[key] === entry.id;
       button.setAttribute('aria-pressed', String(selected));
+    }
+    for (const [key, description] of descriptions) {
+      const field = ADVANCED_LYRIC_FIELDS[key];
+      const selected = ADVANCED_LYRIC_CATALOG[field.catalog].find(entry => entry.id === values[key]);
+      description.textContent = selected?.description || '';
+      description.hidden = !description.textContent;
     }
   }
 
@@ -287,14 +298,14 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
     controls.get('advancedLyricRotateMotions').row.hidden = authored;
     controls.get('advancedLyricMotionDuration').row.querySelector('strong').textContent = authored ? '词组交接时长（毫秒）' : '进出场时长（毫秒）';
     motionIntro.textContent = authored
-      ? '完整编排按句长和停顿分组，快句自动收敛动作。交接时长控制快慢，动作幅度控制距离与倾斜。有完整逐字时间时随唱展开；普通歌词按整组出现。关闭“隐藏未唱到的字”后展示当前整句。'
+      ? '完整编排自带进出场。调整交接快慢、动作幅度和逐字表现即可。'
       : '自由构图可分别搭配入场、停留和退场。轮换中的完整编排使用自己的动作；退场只在尾音结束后有空隙时播放。';
     const free = libraries.get('advancedLyricLayout').querySelector('details');
     if (!selected?.choreography) free.open = true;
   }
 
   function createPresets(panel) {
-    const intro = element('p', 'hint advanced-lyric-intro', '先选整句编排，当前句会随演唱逐段展开并重新构图。再到“动效与轮换”调整节奏和幅度。');
+    const intro = element('p', 'hint advanced-lyric-intro', '选择搭配后，可继续调整编排、外观和动效。内置搭配保留画面位置与尺寸。');
     const grid = element('div', 'advanced-lyric-card-grid');
     const free = element('details', 'advanced-lyric-free-layouts');
     free.append(element('summary', 'ui-section-title', '自由组合搭配'));
@@ -333,6 +344,54 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
     panel.append(save, savedList);
   }
 
+  function createPalettes(panel) {
+    const section = element('section', 'advanced-lyric-library');
+    section.append(element('h4', 'ui-section-title', '配色搭配'), element('p', 'hint', '只替换文字、强调和辅助颜色，可与任意编排和材质组合。墨色适合浅色画面。'));
+    const grid = element('div', 'advanced-lyric-palette-grid');
+    for (const entry of ADVANCED_LYRIC_CATALOG.palettes) {
+      const button = element('button', 'advanced-lyric-palette');
+      button.type = 'button';
+      const swatches = element('span', 'advanced-lyric-swatches');
+      swatches.setAttribute('aria-hidden', 'true');
+      for (const color of Object.values(entry.settings)) {
+        const swatch = element('span');
+        swatch.style.backgroundColor = color;
+        swatches.append(swatch);
+      }
+      button.append(swatches, element('span', '', entry.label));
+      button.addEventListener('click', () => changed(entry.settings));
+      cards.push({ button, entry, key: 'palette' });
+      grid.append(button);
+    }
+    section.append(grid);
+    panel.append(section);
+  }
+
+  function createSection(panel, title, open = false) {
+    const section = element('details', 'advanced-lyric-section');
+    section.open = open;
+    section.append(element('summary', 'ui-section-title', title));
+    const body = element('div', 'advanced-lyric-section-body');
+    section.append(body);
+    panel.append(section);
+    return body;
+  }
+
+  function createPositionActions(panel) {
+    const actions = element('div', 'advanced-lyric-position-actions');
+    for (const [label, patch] of [
+      ['水平居中', { advancedLyricPositionX: '50' }],
+      ['垂直居中', { advancedLyricPositionY: '50' }],
+      ['重置位置', { advancedLyricPositionX: DEFAULTS.advancedLyricPositionX, advancedLyricPositionY: DEFAULTS.advancedLyricPositionY }],
+    ]) {
+      const button = element('button', 'secondary', label);
+      button.type = 'button';
+      button.addEventListener('click', () => changed(patch));
+      actions.append(button);
+    }
+    panel.append(actions);
+  }
+
   function activate() {
     if (initialized || !root) return;
     initialized = true;
@@ -366,14 +425,29 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
       body.append(panel);
     }
     createPresets(panels.get('presets'));
+    const position = createSection(panels.get('layout'), '画面位置', true);
+    const size = createSection(panels.get('layout'), '尺寸与旋转');
+    const appearance = panels.get('appearance');
+    const sections = {
+      font: createSection(appearance, '字体', true),
+      colors: createSection(appearance, '配色'),
+      effects: createSection(appearance, '材质与字效'),
+      decoration: createSection(appearance, '装饰'),
+      display: createSection(appearance, '显示内容'),
+    };
+    createPalettes(sections.colors);
     motionIntro = element('p', 'hint advanced-lyric-intro');
     panels.get('motion').append(motionIntro);
     for (const [key, field] of Object.entries(ADVANCED_LYRIC_FIELDS)) {
       if (field.hidden || key.endsWith('Sequence')) continue;
-      const panel = panels.get(field.group) || panels.get('display');
+      const panel = key === 'advancedLyricPositionX' || key === 'advancedLyricPositionY' ? position
+        : PLACEMENT_FIELDS.has(key) ? size
+          : field.group === 'font' && field.type === 'color' ? sections.colors
+            : sections[field.group] || panels.get(field.group);
       if (field.catalog) createLibrary(key, field, panel);
       else createControl(key, field, panel);
     }
+    createPositionActions(position);
     motionIntro.after(controls.get('advancedLyricMotionDuration').row, controls.get('advancedLyricMotionAmount').row);
     const reset = element('button', 'desktop-lyric-reset-button', '恢复高级歌词默认设置');
     reset.type = 'button';
@@ -387,6 +461,18 @@ export function createAdvancedLyricEditor(root, { idPrefix = '', savedPresets = 
   return {
     activate,
     read: () => ({ ...values }),
+    setPosition({ x, y }, commit) {
+      for (const [key, value] of [['advancedLyricPositionX', x], ['advancedLyricPositionY', y]]) {
+        values[key] = String(value);
+        const control = controls.get(key);
+        if (control) {
+          control.input.value = values[key];
+          control.numberInput.value = values[key];
+          refreshParameterRange(control.input);
+        }
+      }
+      root.dispatchEvent(new Event(commit ? 'change' : 'input', { bubbles: true }));
+    },
     load(settings) {
       values = { ...DEFAULTS, ...Object.fromEntries(Object.keys(DEFAULTS).filter(key => settings[key] !== undefined).map(key => [key, String(settings[key])])),
         advancedLyricSavedPresets: settings.advancedLyricSavedPresets ?? '[]' };

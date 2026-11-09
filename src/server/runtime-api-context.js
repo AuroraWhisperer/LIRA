@@ -70,6 +70,7 @@ function createRuntimeApiContextFactory(options = {}) {
       },
       music: {
         registry: musicRuntime.getMusicRegistry(),
+        catalog: musicRuntime.catalogService,
         lyrics: musicRuntime.lyricsService,
         apiCacheDir: options.musicApiCacheDir,
         lyricCacheDir: options.musicLyricCacheDir,

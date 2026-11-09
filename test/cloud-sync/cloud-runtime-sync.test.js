@@ -11,6 +11,47 @@ const { createDesktopRuntime } = require('../../src/electron/desktop-runtime');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createQueueStore } = require('../../src/storage/queue-store');
 const { createSongStore } = require('../../src/storage/song-store');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
+
+test('account recovery gates song edits and current-library reads until the replacement reaches storage', async () => {
+  const dataDir = createScratchDirectory('cloud-song-account-runtime-');
+  const runtime = createServerRuntime({ dataDir, licenseGate: { isAuthorized: () => true } });
+  const adapter = createDesktopRuntime({
+    startServer() {},
+    shutdownApplication() {},
+    prepareCloudRoomAccount: runtime.prepareCloudRoomAccount,
+    getCloudSongsSnapshot: runtime.getCloudSongsSnapshot,
+    replaceCloudSongsSnapshot: runtime.replaceCloudSongsSnapshot,
+  });
+  try {
+    const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+    adapter.prepareCloudRoomAccount('first');
+    adapter.replaceCloudSongsSnapshot([{ title: 'First library' }], 'first');
+    adapter.prepareCloudRoomAccount('second');
+    assert.throws(() => adapter.getCloudSongsSnapshot('second'), { code: 'CLOUD_SONGS_NOT_READY' });
+    const save = () => fetch(`${server.baseUrl}/api/songs/save`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${runtime.getApiToken()}`, 'content-type': 'application/json', origin: server.baseUrl },
+      body: JSON.stringify({ name: 'Second edit' }),
+    });
+    const rejected = await save();
+    assert.equal(rejected.status, 503);
+    const error = await rejected.json();
+    assert.equal(error.code, 'CLOUD_SONGS_NOT_READY');
+    assert.ok(error.error);
+    assert.equal(runtime.getCloudSongsSnapshot()[0].name, 'First library');
+    assert.equal(runtime.hasPendingCloudSongs('second'), false);
+
+    adapter.replaceCloudSongsSnapshot([{ title: 'Second library' }], 'second');
+    const saved = await save();
+    assert.equal(saved.status, 200);
+    assert.deepEqual(adapter.getCloudSongsSnapshot('second').map((song) => song.name).sort(), ['Second edit', 'Second library']);
+    assert.ok(runtime.hasPendingCloudSongs('second'));
+  } finally {
+    await runtime.stop({ exitProcess: false });
+    removeScratchDirectory(dataDir);
+  }
+});
 
 test('room account preparation reaches the runtime without dirty echo or metadata exposure', async () => {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cloud-room-runtime-'));

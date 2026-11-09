@@ -203,6 +203,7 @@ test('pure frontend helper consumers bypass the legacy utility aggregation', () 
   const pureHelpers = new Set([
     'escapeHtml', 'escapeAttr', 'formatTime', 'formatDateTime', 'formatBytes',
     'formatDuration', 'formatSuperChatPrice', 'formatMoney', 'formatCompactNumber',
+    'withMultilingualFallback',
   ]);
   for (const file of listJavaScriptFiles('public/js')) {
     for (const match of read(file).matchAll(/\b(?:import|export)\s*\{([^}]+)\}\s*from\s*['"](\.[^'"]+)['"]/g)) {

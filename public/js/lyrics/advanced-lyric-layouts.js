@@ -179,12 +179,14 @@ export function buildAdvancedLyricLayout(layout, units) {
   const split = (count, byCharacter = false) => partitionAdvancedLyricText(units, count, byCharacter);
   let items;
   switch (layout) {
+    case 'focus-lens':
+    case 'page-turn':
     case 'phrase-flow':
     case 'corner-relay':
     case 'type-impact':
       items = adaptivePhrases(units).map((range, index, parts) => {
         const final = advancedLyricComposition(layout, index, parts.length - 1, parts.length);
-        return group(range, final.x, final.y, 82, layout === 'type-impact' ? 2.1 : 1.7,
+        return group(range, final.x, final.y, layout === 'focus-lens' ? 78 : 82, layout === 'type-impact' ? 2.1 : 1.7,
           { choreography: layout, fitScale: final.scale, maxHeight: parts.length > 3 ? 24 : 30, tone: range.emphasis ? 'accent' : '' });
       });
       break;

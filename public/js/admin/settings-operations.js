@@ -1,6 +1,7 @@
 'use strict';
 
 import { clearSuperChatUndo } from './queue.js';
+import { clearStoredPlaybackState } from '../playback/state/storage.js';
 
 async function finishReconnectAnimation(button) {
   const icon = button.querySelector('svg');
@@ -19,10 +20,23 @@ async function finishReconnectAnimation(button) {
   settle.cancel();
 }
 
-function reloadAfterPartialClearAll(response, { alertRef, locationRef }) {
+function clearLocalPlaybackData(localStorageRef) {
+  try {
+    clearStoredPlaybackState(localStorageRef);
+    for (let index = (localStorageRef?.length || 0) - 1; index >= 0; index--) {
+      const key = localStorageRef.key(index);
+      if (key?.startsWith('playbackCache:')) localStorageRef.removeItem(key);
+    }
+  } catch (error) {
+    void error;
+  }
+}
+
+function reloadAfterPartialClearAll(response, { alertRef, locationRef, localStorageRef }) {
   if (response?.partial !== true) return false;
   const committed = response.data?.committed || [];
   if (committed.includes('superChatDb')) clearSuperChatUndo();
+  if (committed.includes('musicDb')) clearLocalPlaybackData(localStorageRef);
   const failed = response.data?.failed || [];
   const phase = response.data?.phase || response.phase;
   const phaseText = phase === 'runtime-reset' ? '数据库已提交，但运行状态重载失败。'
@@ -91,7 +105,7 @@ export function createSettingsOperations({
   async function clearAll() {
     const confirmed = await dangerConfirm({
       title: '清空歌曲和使用记录',
-      message: '将删除下方列出的歌曲和使用记录，并清理 QQ 音乐、网易云音乐缓存。请先核对删除和保留的内容。',
+      message: '将删除下方列出的歌曲和使用记录，并清理 QQ 音乐、网易云音乐缓存。完成后会重新加载页面并停止当前播放。请先核对删除和保留的内容。',
       deletes: ['歌曲与点歌数据', 'SC、礼物与加班机记录', '播放、签到与 AI 运行数据', 'QQ 音乐、网易云音乐缓存'],
       keeps: [
         '直播间号、主题与其他设置',
@@ -112,16 +126,8 @@ export function createSettingsOperations({
           void error;
         }
       }
-      try {
-        for (let index = (localStorageRef?.length || 0) - 1; index >= 0; index--) {
-          const key = localStorageRef.key(index);
-          if (key?.startsWith('playbackCache:')) localStorageRef.removeItem(key);
-        }
-      } catch (error) {
-        void error;
-      }
-
-      if (reloadAfterPartialClearAll(response, { alertRef, locationRef })) return;
+      if (reloadAfterPartialClearAll(response, { alertRef, locationRef, localStorageRef })) return;
+      clearLocalPlaybackData(localStorageRef);
       clearSuperChatUndo();
 
       const deleted = response.data.deletedCounts;
@@ -135,9 +141,9 @@ export function createSettingsOperations({
           `签到 ${deleted.checkins}（共 ${total} 条），配置已保留`;
       }
       toast(`已清空共 ${total} 条数据，配置已保留`, { type: 'success' });
-      await getState()?.reloadAll?.();
+      locationRef.reload();
     } catch (error) {
-      if (reloadAfterPartialClearAll(error.payload, { alertRef, locationRef })) {
+      if (reloadAfterPartialClearAll(error.payload, { alertRef, locationRef, localStorageRef })) {
         return;
       }
       toast('清空失败：' + (error.message || String(error)), { type: 'error' });

@@ -209,7 +209,7 @@ resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓
 
 ## 8. 在线兜底(wesing-online-lyrics.js)
 
-`createWeSingOnlineLyricResolver({ getRegistry, lyricsService, platforms, getPreferences, preferredPlatform, smartMatch, now? })`([wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs}, {songMid?, force?})`，另有 `clear()` 清理当前请求状态，由 [music-runtime.js](../../../../src/server/music-runtime.js) 注入 weSingCapture 的 `resolveFallbackLyrics`。第二参数仅传递内部版本和刷新上下文；采集器从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；在线搜索关键词为“歌名 歌手”，搜索时去掉歌手的括号别名，匹配时保留别名，例如 `en (王翊恩)` 可匹配 `en` 或 `王翊恩`。
+`createWeSingOnlineLyricResolver({ getRegistry, catalogService, lyricsService, platforms, getPreferences, preferredPlatform, smartMatch, now? })`([wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs}, {songMid?, force?})`，另有 `clear()` 清理当前请求状态，由 [music-runtime.js](../../../../src/server/music-runtime.js) 注入 weSingCapture 的 `resolveFallbackLyrics`。目录查询使用 `catalogService.searchMusicTracks`，歌词获取使用 `lyricsService.getMusicTrackLyrics`。第二参数仅传递内部版本和刷新上下文；采集器从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；在线搜索关键词为“歌名 歌手”，搜索时去掉歌手的括号别名，匹配时保留别名，例如 `en (王翊恩)` 可匹配 `en` 或 `王翊恩`。
 
 仅保留当前歌曲的一组在途请求和短期未命中状态；同一歌曲版本、歌手、时长、偏好、registry 及授权修订的同时请求共用 Promise。无可靠歌词或全部失败后，从完成时起等待 30 秒再自动搜索，连续未命中后等待 60 秒，成功则重置退避；失败期间保留原错误供状态显示。手动刷新可立即重试，同一身份已有请求时仍共用它。切歌、版本/偏好变化、Cookie 授权修订变化及 registry 更换立即失效，启停、`stop()` 和歌词身份重置调用 `clear()`；旧身份或旧生命周期的结果不能覆盖新请求状态。授权修订从既有内存 Cookie provider 取得，不额外读取或解密磁盘授权；未命中结果不写入长期歌词缓存。本地每 3 秒的发现与元数据复查独立进行，迟到 QRC 无需等待在线退避。`now` 默认单调时钟，只用于重试间隔。
 

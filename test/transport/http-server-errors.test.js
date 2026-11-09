@@ -8,6 +8,7 @@ const { once } = require('node:events');
 const test = require('node:test');
 const { readRawBody, sendJson, sendStableError } = require('../../src/server/http-utils');
 const { listenHttpServer } = require('../helpers/transport-fixtures');
+const { createMusicProviderRegistry } = require('../../src/music/provider-registry');
 
 test('route error wrappers preserve request-body 413 without calling domain operations', async (t) => {
   t.mock.method(console, 'error', () => {});
@@ -94,7 +95,7 @@ test('invalid music platform returns a stable 400 through the HTTP transport', a
     inflightTracker: { run: (fn) => fn() },
     createApiContext: () => ({
       sessionToken: 'synthetic-token',
-      music: { registry: { healthCheck: () => ({ ok: true }) } },
+      music: { registry: createMusicProviderRegistry() },
     }),
   });
   const response = await fetch(`${origin}/api/music/health?platform=constructor`, {

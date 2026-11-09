@@ -37,7 +37,7 @@
 | 平台     | 允许 Cookie 域名                                                           | 关键 Cookie(keyCookies)                                                                                     | 认证 Cookie(authCookies)            |
 | -------- | -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | QQ音乐   | `.qq.com`、`.y.qq.com`、`y.qq.com`                                         | `uin`、`qqmusic_uin`、`qqmusic_key`、`qm_keyst`、`p_skey`、`skey`、`wxuin`、`p_uin`、`pt2gguin`、`superuin` | `qqmusic_key`、`qm_keyst`(任一非空) |
-| 网易云   | `.163.com`、`.music.163.com`、`music.163.com`                              | `MUSIC_U`、`__csrf`                                                                                         | 缺省 → 回退 keyCookies              |
+| 网易云   | `.163.com`、`.music.163.com`、`music.163.com`                              | `MUSIC_U`、`__csrf`                                                                                         | `MUSIC_U`(非空)                    |
 | Bilibili | `.bilibili.com`、`bilibili.com`、`.live.bilibili.com`、`live.bilibili.com` | `DedeUserID`、`SESSDATA`、`bili_jct`                                                                        | 三者缺一不可(§4)                    |
 
 Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain === allowed` 或 `domain === hostAllowed`(剥离前导点)或 `domain.endsWith('.' + hostAllowed)` — 子域名通配([music-auth-manager.js:45-53](../../../src/electron/music-auth-manager.js#L45-L53)、[bilibili-auth.js:36-44](../../../src/electron/bilibili-auth.js#L36-L44))。
@@ -54,7 +54,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 
 ## 4. 登录态判断
 
-- **音乐平台** `getMusicAuthState(platform, dataDir)`([music-auth-manager.js:128-154](../../../src/electron/music-auth-manager.js#L128-L154)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 仅 `qqmusic_key`、`qm_keyst` 之一;`p_skey`/`skey` 虽保留在 `keyCookies` 中供 QQ Provider 的 GTK/Web 回退使用,但不单独完成 QQ 音乐登录;网易云回退到 keyCookies,即 `MUSIC_U` 或 `__csrf` 之一)。
+- **音乐平台** `getMusicAuthState(platform, dataDir)`([music-auth-manager.js](../../../src/electron/music-auth-manager.js)):`loggedIn = authCookies 中任一 Cookie 值非空`(QQ 仅 `qqmusic_key`、`qm_keyst` 之一;`p_skey`/`skey` 虽保留在 `keyCookies` 中供 QQ Provider 的 GTK/Web 回退使用,但不单独完成 QQ 音乐登录;网易云仅使用 `MUSIC_U`，辅助 Cookie `__csrf` 保留用于请求，但不单独完成登录)。
 - **Bilibili** `getBilibiliAuthState(dataDir)`([bilibili-auth.js:127-163](../../../src/electron/bilibili-auth.js#L127-L163)):**`DedeUserID`、`SESSDATA`、`bili_jct` 三者全部存在**才 `loggedIn`(比音乐平台严格);`uid = Number(DedeUserID.value) || 0`,并单独标记 `hasSessdata`。
 
 返回结构:音乐 `{platform, name, loggedIn, cookieCount, keyCookieNames, encryptedSnapshotExists, lastSavedAt, encryptionAvailable}`;Bilibili 追加 `uid`、`hasSessdata`。
@@ -97,6 +97,8 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 2. 删除 `.enc` 快照文件
 3. Bilibili 额外删除 `cookies.txt`
 4. 返回最新 auth state
+
+音乐浏览器缓存清理由 `clearMusicBrowserCache` 拥有：对每个音乐分区依次等待 `session.clearCache()` 清除 HTTP 缓存、`clearStorageData({storages:['cachestorage']})` 清除 CacheStorage，完成后加入返回的 `cleared` 名单。该操作保留登录 Cookie 与加密快照；管理页“清空歌曲和使用记录”通过既有 `musicAPI.clearCache()` 调用此入口。
 
 ### 7.1 登录、退出与替换竞争
 
@@ -269,6 +271,8 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 画布预览、本机直播来源与弹幕外观写入通过仅供主进程读取的 `getAuthorizationGeneration()` 绑定上述登录生命周期，正常 token 续期不会撤销来源、正在编辑的连接或重建云弹幕订阅。`getSceneOwner` 与兼容入口 `getComponentPreviewOwner` 仍校验当前授权、服务器 origin 与 streamerId；重新登录、激活/换账号、阻断清理及 dispose 后旧连接失效。该读取方法不进入 preload/IPC，授权管理器的 token epoch 契约不变。预览中继及页面接管规则见 [预览 API](../backend/api.md#浏览器组件预览)。
 
 每日机器人页面上下文同样绑定 `getAuthorizationGeneration()`，正常 token 续期保留草稿和待重试回执；同账号重新登录、换账号、撤销仍使旧上下文失效。其 action 和错误合同见 [preload.md](preload.md#4-每日机器人-action)。
+
+粉丝档案控制器也以该登录生命周期和账号 scope 绑定页面 `contextId`、事实同步、大航海名单及资料补查。正常 token 续期保留在途工作和页面上下文；同账号重新登录、切换账号/服务器、撤销或关闭取消旧工作并使旧上下文失效，A → B → A 不会恢复旧页面写入资格。大航海导入另行复核发起时的房间；房间变化时不提交旧名单。
 
 携带 `AbortSignal` 的内部业务读取在授权等待、请求执行和重认证等待期间均可取消当前调用；取消不会终止其他调用者共用的续期，也不转为会话撤销。完成、失败和取消都会移除等待监听。
 

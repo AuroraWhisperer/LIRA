@@ -51,6 +51,7 @@ function fixture(t, options = {}) {
     streamerId: 'streamer-a',
     accountName: '虚构账号甲',
     epoch: 1,
+    generation: 1,
     origin: 'https://lira.example',
     roomId: '42',
     ...options.state,
@@ -80,6 +81,7 @@ function fixture(t, options = {}) {
     getCloudSyncIdentity: () => ({ streamerId: state.streamerId, accountName: state.accountName }),
     getRemoteBaseUrl: () => state.origin,
     getAuthorizationEpoch: () => state.epoch,
+    getAuthorizationGeneration: () => state.generation,
     onStateChanged(listener) {
       listeners.add(listener);
       return () => {

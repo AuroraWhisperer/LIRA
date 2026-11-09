@@ -6,6 +6,7 @@ import { dangerConfirm, logoutConfirm, showConfirmationDialog } from './confirma
 import { toast, showStackedToast } from './toast.js';
 import { assertApiResponse, readJsonResponse } from './json-response.js';
 import { escapeHtml, escapeAttr } from './html-escape.js';
+import { withMultilingualFallback } from './font-family.js';
 import {
   formatTime,
   formatDateTime,
@@ -17,9 +18,7 @@ import {
 } from './display-format.js';
 
 export { dangerConfirm, logoutConfirm, showConfirmationDialog };
-
-const multilingualFontFallback =
-  '"Microsoft YaHei", "Microsoft JhengHei", "PingFang SC", "Hiragino Sans GB", "Yu Gothic", "Meiryo", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK SC", "Noto Sans JP", "Noto Sans KR", "Segoe UI", Arial, sans-serif';
+export { withMultilingualFallback };
 
 export { toast, showStackedToast };
 export { readJsonResponse };
@@ -72,12 +71,6 @@ export async function copyText(text) {
   const copied = document.execCommand('copy');
   input.remove();
   if (!copied) throw new Error('复制失败，请手动复制地址。');
-}
-
-export function withMultilingualFallback(fontFamily) {
-  const selected = String(fontFamily || '').trim();
-  if (!selected) return multilingualFontFallback;
-  return `${selected}, ${multilingualFontFallback}`;
 }
 
 export async function api(url, body, { notifyError = true, signal } = {}) {

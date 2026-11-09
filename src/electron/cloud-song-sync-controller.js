@@ -18,14 +18,16 @@ function createCloudSongSyncController({ runtime, licenseManager, isCurrent, sho
       // Account preparation and the runtime's SQLite replacement are synchronous.
       // Avoid replacing an unchanged library: it would detach queue/history IDs.
       if (comparableSongs(pending.songs) !== comparableSongs(runtime.getCloudSongsSnapshot())) {
-        runtime.replaceCloudSongsSnapshot(pending.songs.map(mapSongForSync));
+        runtime.replaceCloudSongsSnapshot(pending.songs.map(mapSongForSync), accountKey);
+      } else {
+        runtime.acceptCloudSongsAccount?.(accountKey);
       }
       return true;
     },
 
     async upload(work) {
       const pending = readPending(work.accountKey);
-      const result = await licenseManager.syncSongs(pending ? pending.songs : runtime.getCloudSongsSnapshot(), {
+      const result = await licenseManager.syncSongs(pending ? pending.songs : runtime.getCloudSongsSnapshot(work.accountKey), {
         signal: work.signal,
       });
       if (pending && isCurrent(work)) {
@@ -37,6 +39,7 @@ function createCloudSongSyncController({ runtime, licenseManager, isCurrent, sho
     async reconcile(state, work) {
       if (!isCurrent(work)) return null;
       if (!state?.initialized) {
+        runtime.acceptCloudSongsAccount?.(work.accountKey);
         await seedScope('songs', work);
         return null;
       }
@@ -47,7 +50,7 @@ function createCloudSongSyncController({ runtime, licenseManager, isCurrent, sho
       if (!Array.isArray(result?.songs)) {
         throw Object.assign(new Error('Invalid cloud song snapshot.'), { code: 'INVALID_RESPONSE' });
       }
-      await runtime.replaceCloudSongsSnapshot(result.songs);
+      await runtime.replaceCloudSongsSnapshot(result.songs, work.accountKey);
       return isCurrent(work) ? cloudRevision : null;
     },
   };

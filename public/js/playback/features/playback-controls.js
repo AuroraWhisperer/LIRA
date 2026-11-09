@@ -38,10 +38,13 @@ export function createPlaybackControls(deps) {
   let lyricRequestGeneration = 0;
   let audioRequestGeneration = 0;
   let playRequestSource = null;
+  let playRequested = false;
+  let waitingForRadio = false;
 
   function invalidatePlaybackRequests(source) {
     if (source && source !== playRequestSource) return playRequestGeneration;
     playRequestGeneration += 1;
+    waitingForRadio = false;
     if (source) {
       // Cancelling a pending provider leaves another provider's audio usable.
       audioRequestGeneration = playRequestGeneration;
@@ -111,6 +114,7 @@ export function createPlaybackControls(deps) {
     if (!audio || !track) return;
     const requestGeneration = invalidatePlaybackRequests();
     playRequestSource = track.source;
+    playRequested = true;
 
     // For local tracks, ensure the file is accessible before trying to play
     if (PlaybackUtils.isLocalTrack(track)) {
@@ -175,7 +179,7 @@ export function createPlaybackControls(deps) {
     try {
       await preparePlaybackOutput(audio);
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
-      await audio.play();
+      if (playRequested) await audio.play();
       if (!isCurrentPlaybackRequest(requestGeneration, track)) return;
       if (startAt > 0) {
         const dur = audio.duration;
@@ -282,6 +286,14 @@ export function createPlaybackControls(deps) {
   async function togglePlayback(takeNextPlaybackTrack, showPlaybackLoginPrompt) {
     const audio = getPlaybackAudio();
     if (!audio) return;
+    if (waitingForRadio) {
+      audioRequestGeneration = invalidatePlaybackRequests();
+      playRequested = false;
+      audio.pause();
+      savePlaybackState();
+      renderPlayback();
+      return;
+    }
 
     if (!playbackState.current) {
       const next = takeNextPlaybackTrack();
@@ -321,6 +333,7 @@ export function createPlaybackControls(deps) {
     }
 
     if (audio.paused) {
+      playRequested = true;
       try {
         await preparePlaybackOutput(audio);
         if (playbackState.current !== track || !audio.paused) return;
@@ -329,6 +342,8 @@ export function createPlaybackControls(deps) {
         if (!isInterruptedMediaPlayError(error)) showError(error);
       }
     } else {
+      // Keep the selected track; only cancel its pending automatic start.
+      playRequested = false;
       audio.pause();
       savePlaybackState();
     }
@@ -338,6 +353,7 @@ export function createPlaybackControls(deps) {
   async function playbackPrevious() {
     const audio = getPlaybackAudio();
     if (!audio) return;
+    if (waitingForRadio) audioRequestGeneration = invalidatePlaybackRequests();
     const useHistory = playbackState.queueType !== 'playlist' || playbackState.mode === 'shuffle';
     const historyTrack = useHistory ? playbackState.history.at(-1) : null;
     const playlistIndex = queueManager.getPreviousPlaylistIndex(historyTrack);
@@ -357,6 +373,7 @@ export function createPlaybackControls(deps) {
   function playbackNext(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled, options = {}) {
     const audio = getPlaybackAudio();
     if (!audio) return;
+    if (waitingForRadio) audioRequestGeneration = invalidatePlaybackRequests();
     const automatic = fromEnded || options.skipUnavailable === true;
 
     let repeat = fromEnded && playbackState.mode === 'repeat-one' && playbackState.current
@@ -369,6 +386,7 @@ export function createPlaybackControls(deps) {
     const limit = automatic ? remainingCount + playlistCount + refillCount + (repeat ? 1 : 0) : 1;
     const attempted = new Set();
     let restarted = false;
+    let waitedForRadio = false;
 
     async function advance() {
       for (let index = 0; index < limit; index += 1) {
@@ -383,6 +401,18 @@ export function createPlaybackControls(deps) {
           rebuildPlaybackShuffleOrder();
           savePlaybackState();
         }
+        if (!next && automatic && !waitedForRadio && playbackState.queueType === 'radio') {
+          waitedForRadio = true;
+          const queue = playbackState.radioQueue;
+          const requestGeneration = playRequestGeneration;
+          waitingForRadio = true;
+          await ensurePlaybackRadioQueueFilled();
+          if (requestGeneration !== playRequestGeneration) return;
+          waitingForRadio = false;
+          if (playbackState.queueType !== 'radio' || playbackState.radioQueue !== queue ||
+              playbackState.selectedSource === 'wesing') return;
+          next = takeNextPlaybackTrack();
+        }
         if (!next) break;
         const key = PlaybackUtils.getQueueTrackKey(next.track);
         if (attempted.has(key)) continue;
@@ -393,7 +423,7 @@ export function createPlaybackControls(deps) {
         if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
         if (!automatic) return;
         const played = await playing;
-        if (requestGeneration !== playRequestGeneration || played !== false) return;
+        if (requestGeneration !== playRequestGeneration || !playRequested || played !== false) return;
       }
 
       if (automatic) {
@@ -404,7 +434,7 @@ export function createPlaybackControls(deps) {
       renderPlayback();
       savePlaybackState();
       syncPlaybackLyricWindow();
-      if (playbackState.queueType === 'radio') ensurePlaybackRadioQueueFilled();
+      if (playbackState.queueType === 'radio' && !waitedForRadio) ensurePlaybackRadioQueueFilled();
     }
 
     void advance();

@@ -14,6 +14,7 @@ const {
   Menu,
   Notification,
   net,
+  nativeImage,
   protocol,
   safeStorage,
   session,
@@ -74,6 +75,8 @@ const { registerLicenseIpc } = require('./ipc/license-ipc');
 const { registerGiftInteractionIpc } = require('./ipc/gift-interaction-ipc');
 const { registerGiftExportIpc } = require('./ipc/gift-export-ipc');
 const { createGiftExportController } = require('./gift-export-controller');
+const { createWeeklyScheduleExportController } = require('./weekly-schedule-export-controller');
+const { registerWeeklyScheduleIpc } = require('./ipc/weekly-schedule-ipc');
 const { createLicenseManager, LicenseState } = require('./license/license-manager');
 const { resolveConfiguredBaseUrl } = require('./license/remote-license-client');
 const { createLicenseResumeHandler } = require('./license/license-resume');
@@ -160,6 +163,7 @@ var guardExpiryAuth = null;
 var disposeGuardExpiryIpc = null;
 var disposeGiftInteractionIpc = null;
 var disposeGiftExportIpc = null;
+var disposeWeeklyScheduleIpc = null;
 var fanProfileController = null;
 var disposeFanProfileIpc = null;
 var disposeDailyBotIpc = null;
@@ -315,6 +319,7 @@ async function drainBeforeRuntimeStop() {
   guardExpiryAuth?.dispose();
   disposeGiftInteractionIpc?.();
   disposeGiftExportIpc?.();
+  disposeWeeklyScheduleIpc?.();
   disposeFanProfileIpc?.();
   disposeDailyBotIpc?.();
   disposePlannerReminderIpc?.();
@@ -671,6 +676,17 @@ async function startDesktopApp() {
       shell,
       runtime,
       getBaseUrl: () => serverInfo.baseUrl,
+      getMainWindow: () => desktopWindow.getWindow(),
+    }),
+    getMainWindow: () => desktopWindow.getWindow(),
+    getDesktopBaseUrl: () => serverInfo.baseUrl,
+  });
+  disposeWeeklyScheduleIpc = registerWeeklyScheduleIpc({
+    ipcMain,
+    controller: createWeeklyScheduleExportController({
+      app, BrowserWindow, dialog, nativeImage, session,
+      getBaseUrl: () => serverInfo.baseUrl,
+      getSessionToken: () => runtime.getApiToken(),
       getMainWindow: () => desktopWindow.getWindow(),
     }),
     getMainWindow: () => desktopWindow.getWindow(),

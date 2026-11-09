@@ -95,8 +95,12 @@ function createFixture(t) {
   };
   const runtime = {
     prepareCloudRoomAccount: (accountKey) => store.prepareCloudRoomAccount(accountKey),
-    getCloudSettingsSnapshot: values,
-    applyCloudSettingsSnapshot: (input) => store.setSetting('roomId', input.roomId || ''),
+    getCloudSettingsSnapshot: (accountKey) => {
+      if (accountKey) store.assertCloudSettingsAccount(accountKey);
+      return values();
+    },
+    acceptCloudSettingsAccount: (accountKey) => store.acceptCloudSettingsAccount(accountKey),
+    applyCloudSettingsSnapshot: (input, accountKey) => store.setSettings({ roomId: input.roomId || '' }, { syncPending: false, accountKey }),
     replaceCloudSongsSnapshot() {},
   };
   function restart() {

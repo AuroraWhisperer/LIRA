@@ -1,0 +1,36 @@
+<section id="otherWeeklyScheduleFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="otherWeeklyScheduleFeatureTab" data-other-feature-panel hidden>
+  <div id="weeklyScheduleEditor" class="other-feature-panel-body weekly-schedule-editor">
+    <header class="weekly-editor-header">
+      <div><h2>周表生成器</h2><p>填好一周安排，换一套喜欢的排版。</p></div>
+    </header>
+    <div class="weekly-template-toolbar">
+      <label>我的模板<select data-weekly-template aria-label="我的周表模板" disabled></select></label>
+      <label class="weekly-template-name">模板名称<input data-weekly-template-name type="text" maxlength="60" placeholder="例如：我的直播周表" disabled></label>
+      <button type="button" data-weekly-action="new" disabled>新建</button>
+      <button type="button" data-weekly-action="copy" disabled>复制</button>
+      <button type="button" data-weekly-action="rename" disabled>改名</button>
+      <button type="button" data-weekly-action="delete" disabled>删除</button>
+    </div>
+    <p class="weekly-editor-error" data-weekly-error role="alert" hidden></p>
+    <div class="weekly-editor-workspace">
+      <div class="weekly-editor-fields" data-weekly-fields></div>
+      <section class="weekly-preview-panel" aria-label="周表实时预览">
+        <div class="weekly-preview-heading">
+          <div><h3>实时预览</h3><span>1920 × 1080 · PNG</span></div>
+          <div class="weekly-editor-actions">
+            <span data-weekly-save-state role="status" aria-live="polite">正在读取本机模板…</span>
+            <button type="button" data-weekly-action="retry" hidden>重试保存</button>
+            <button type="button" class="primary" data-weekly-action="export" disabled>导出 PNG</button>
+          </div>
+        </div>
+        <div class="weekly-preview-viewport" data-weekly-preview-viewport><div data-weekly-preview></div></div>
+        <p class="weekly-preview-warning" data-weekly-overflow role="status" hidden></p>
+        <div class="weekly-preview-actions">
+          <button type="button" data-weekly-action="clear" disabled>清空本周内容</button>
+          <button type="button" data-weekly-action="reset" disabled>重置当前模板</button>
+        </div>
+        <p class="weekly-preview-hint">模板与图片自动保存在本机。前三名由你填写；二维码使用上传的图片。</p>
+      </section>
+    </div>
+  </div>
+</section>

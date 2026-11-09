@@ -70,7 +70,7 @@ test('shutdown aborts the pause between UID lookups before requesting the next p
 });
 
 test('profile lookups remain mutually exclusive, drain on shutdown and discard canceled or stale runs', async (t) => {
-  for (const change of ['dispose', 'account', 'epoch', 'room', 'disable']) {
+  for (const change of ['dispose', 'account', 'generation', 'room', 'disable']) {
     const pending = deferred();
     const started = deferred();
     const f = fixture(t, {
@@ -85,10 +85,10 @@ test('profile lookups remain mutually exclusive, drain on shutdown and discard c
     assert.match(f.invoke({ action: 'sync-guard-roster', contextId }).error, /正在同步/);
     if (change === 'dispose') f.controller.dispose();
     if (change === 'account') { f.state.streamerId = 'streamer-b'; f.emit(); }
-    if (change === 'epoch') { f.state.epoch++; f.emit(); }
+    if (change === 'generation') { f.state.generation++; f.emit(); }
     if (change === 'room') f.state.roomId = '77';
     if (change === 'disable') f.invoke({ action: 'configure', contextId, payload: { autoSyncGuardRoster: false } });
-    if (['dispose', 'account', 'epoch'].includes(change)) assert.equal(f.calls.profiles[0].signal.aborted, true);
+    if (['dispose', 'account', 'generation'].includes(change)) assert.equal(f.calls.profiles[0].signal.aborted, true);
     let idle = false;
     const drained = f.controller.whenIdle().then(() => { idle = true; });
     await new Promise(setImmediate);
@@ -215,24 +215,32 @@ test('automatic roster shares manual import exclusion and cancels on shutdown or
   }
 });
 
-test('renewal cancels the old automatic import and allows the current authorization to complete it', async (t) => {
-  const pending = deferred();
-  let reads = 0;
+test('token renewal preserves an in-flight automatic roster and profile refresh through import', async (t) => {
+  const roster = deferred();
+  const profile = deferred();
+  const profileStarted = deferred();
   const f = fixture(t, {
     now: () => Date.parse('2026-09-20T14:00:00+08:00'),
     state: { windowOpen: true },
     autoSyncGuardRoster: true,
-    roster: () => (++reads === 1 ? pending.promise : { roomId: '42', members: [] }),
+    roster: () => roster.promise,
+    targets: () => [refreshTarget],
+    profile: () => { profileStarted.resolve(); return profile.promise; },
   });
   const automatic = f.invoke({ action: 'auto-update-status' });
   f.state.epoch++;
   f.emit();
-  assert.equal(f.calls.roster[0].signal.aborted, true);
-  pending.resolve({ roomId: '42', members: [] });
-  assert.equal((await automatic).data, null);
-  assert.equal(f.calls.imports.length, 0);
-  assert.equal((await f.invoke({ action: 'auto-update-status' })).data.status, 'success');
+  assert.equal(f.calls.roster[0].signal.aborted, false);
+  roster.resolve({ roomId: '42', members: [] });
+  await profileStarted.promise;
+  f.state.epoch++;
+  profile.resolve({ name: '续期后昵称', avatarUrl: '' });
+  assert.equal((await automatic).data.status, 'success');
   assert.equal(f.calls.imports.length, 1);
+  assert.equal(f.calls.imports[0].refresh.observations[0].name, '续期后昵称');
+  assert.equal((await f.invoke({ action: 'auto-update-status' })).data, null);
+  assert.equal(f.calls.roster.length, 1);
+  await f.controller.whenIdle();
 });
 
 test('manual roster IPC uses configured room and authenticated scope, ignoring supplied owner or members', async (t) => {
@@ -276,7 +284,7 @@ test('manual roster IPC prevents overlap and late writes after room/account chan
       f.emit();
     },
     (f) => {
-      f.state.epoch++;
+      f.state.generation++;
     },
     (f) => {
       f.state.authorized = false;

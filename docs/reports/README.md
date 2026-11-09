@@ -6,6 +6,7 @@
 
 ## 历史报告
 
+- [客户端代码职责与拆分粒度复核](2026-11-09-module-granularity-review.md)
 - [客户端职责与模块拆分三轮审计](2026-11-09-client-responsibility-audit.md)
 - [独立组件浏览器源检查](2026-11-06-standalone-component-sources.md)
 - [持续只读审计：安全、正确性、资源与代码质量](2026-11-05-continuous-audit.md)（[审计提示词](2026-11-05-continuous-audit-prompt.md)）

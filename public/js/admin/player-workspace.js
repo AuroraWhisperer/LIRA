@@ -1,9 +1,6 @@
 'use strict';
 
-import { showError } from '../shared/utils.js';
-import { notifyMediaPlayFailure } from '../shared/media-playback-feedback.js';
 import { activateModalFocus } from '../shared/modal-focus.js';
-import { preparePlaybackOutput } from '../playback/features/output-device.js';
 
 export class PlayerWorkspace {
   /**
@@ -65,19 +62,7 @@ export class PlayerWorkspace {
         'button, input, select, textarea, a, summary, [role="button"], [contenteditable="true"]',
       )) {
         e.preventDefault();
-        const audio = document.getElementById('music-player');
-        if (audio) {
-          if (audio.paused) {
-            const source = audio.src;
-            preparePlaybackOutput(audio).then(() => {
-              if (audio.src === source && audio.paused) return audio.play();
-            }, showError).catch((error) => {
-              notifyMediaPlayFailure(error, audio);
-            });
-          } else {
-            audio.pause();
-          }
-        }
+        document.getElementById('playbackPlayPause')?.click();
       }
     };
     fsEl?.addEventListener('keydown', handleFullscreenKeydown);

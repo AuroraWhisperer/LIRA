@@ -8,6 +8,7 @@
 | --- | --- |
 | 荆南麦圆、站酷快乐体、得意黑、小赖字体、猫啃什锦黑 | [原有五款字库](player/README.md)；完整 WOFF2 通过 CDN 补齐，所有组件共同使用 |
 | 志莽行、马善政、悠哉 | [艺术字体](library/README.md)，完整字库；悠哉包含普通 400 与中等 500 两个字重；得意黑直接复用，不重复保存 |
+| 站酷小薇 | [周表字体](weekly-schedule/README.md)，周表专用完整WOFF2随客户端本地打包，按选用加载，不加入共享CDN启动下载 |
 | 霞鹜文楷 Light | [文楷分片](moonlit-wenkai/README.md)，共享库与外部资源样式共用来源 |
 | Nunito | `spooky/nunito-500.ttf` 与 `nunito-700.ttf`，共用现有 OFL 字库和 `Spooky Nunito` 字体族名 |
 | 思源宋体 | [完整宋体字库](sea-breeze/README.md)，Regular 400；郁香海风固定／随机两版及线框星事共用同一文件，也可供其他组件选择 |

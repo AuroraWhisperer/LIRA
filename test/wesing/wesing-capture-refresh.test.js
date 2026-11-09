@@ -27,8 +27,10 @@ test('WeSing keeps local download discovery responsive during online backoff and
     discoverCachePath: (input) => discoverWeSingCachePath({ ...input, candidates: [fixture.cachePath] }),
     resolveFallbackLyrics: createWeSingOnlineLyricResolver({
       registry: {}, platforms: ['qq'], now: () => timestamp,
-      lyricsService: {
+      catalogService: {
         async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+      },
+      lyricsService: {
         async getMusicTrackLyrics() { throw new Error('no search match'); },
       },
     }),

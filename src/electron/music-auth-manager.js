@@ -51,6 +51,7 @@ const MUSIC_LOGIN_CONFIG = {
     ],
     cookieDomains: ['.163.com', '.music.163.com', 'music.163.com'],
     keyCookies: ['MUSIC_U', '__csrf'],
+    authCookies: ['MUSIC_U'],
   },
 };
 
@@ -210,8 +211,9 @@ async function clearMusicBrowserCache(platforms = Object.keys(MUSIC_LOGIN_CONFIG
   for (const value of platforms) {
     const platform = normalizeMusicPlatform(value);
     const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
+    await loginSession.clearCache();
     await loginSession.clearStorageData({
-      storages: ['cache', 'cachestorage'],
+      storages: ['cachestorage'],
     });
     cleared.push(platform);
   }

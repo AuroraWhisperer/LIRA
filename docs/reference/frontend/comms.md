@@ -26,7 +26,7 @@
 
 ### 2.1 工具函数与兼容入口
 
-[shared/utils.js](../../../public/js/shared/utils.js) 保留以下具名导出；已移除没有消费者的聚合对象和全局发布。转义直接使用 [html-escape.js](../../../public/js/shared/html-escape.js)，格式化直接使用 [display-format.js](../../../public/js/shared/display-format.js)；这两个纯入口不加载 UI 或网络能力。通知、确认框与响应解析分别由既有 `toast.js`、`confirmation-dialog.js`、`json-response.js` 拥有。
+[shared/utils.js](../../../public/js/shared/utils.js) 保留以下具名导出；已移除没有消费者的聚合对象和全局发布。转义直接使用 [html-escape.js](../../../public/js/shared/html-escape.js)，格式化直接使用 [display-format.js](../../../public/js/shared/display-format.js)，多语言字体回退直接使用 [font-family.js](../../../public/js/shared/font-family.js)；这些纯入口不加载 UI 或网络能力，`withMultilingualFallback` 仍从 `utils.js` 兼容转出。通知、确认框与响应解析分别由既有 `toast.js`、`confirmation-dialog.js`、`json-response.js` 拥有。
 
 | 函数                                                                                              | 用途                                                                                                                       |
 | ------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |

@@ -214,6 +214,7 @@ function createApiContext(options) {
     },
     music: {
       registry: music.registry,
+      catalog: music.catalog,
       lyrics: music.lyrics,
       getCacheStats: () => getMusicCacheStats(music.apiCacheDir, music.lyricCacheDir),
       clearCache: () => clearMusicCache(music.apiCacheDir, music.lyricCacheDir),

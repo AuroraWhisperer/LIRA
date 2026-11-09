@@ -1,6 +1,6 @@
 # 音乐领域服务:注册表、缓存、曲库、队列与歌词状态
 
-> 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[provider-health.js](../../../../src/music/provider-health.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[song-store.js](../../../../src/storage/song-store.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/storage/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
+> 涉及文件:[provider-registry.js](../../../../src/music/provider-registry.js)、[stream-resolver.js](../../../../src/music/stream-resolver.js)、[track-contract.js](../../../../src/music/track-contract.js)、[music-cache.js](../../../../src/music/music-cache.js)、[music-catalog-service.js](../../../../src/music/music-catalog-service.js)、[lyrics-service.js](../../../../src/music/lyrics-service.js)、[song-service.js](../../../../src/music/song-service.js)、[song-store.js](../../../../src/storage/song-store.js)、[queue-service.js](../../../../src/music/queue-service.js)、[song-matcher.js](../../../../src/music/song-matcher.js)、[random-song-filter.js](../../../../src/music/random-song-filter.js)、[tag-aliases.js](../../../../src/music/tag-aliases.js)、[requester-target-store.js](../../../../src/storage/requester-target-store.js)、[song-import-schema.js](../../../../src/music/song-import-schema.js)、[song-file-codec.js](../../../../src/music/song-file-codec.js)、[lyric-state.js](../../../../src/music/lyric-state.js)、[lyric-timeline.js](../../../../src/music/lyric-timeline.js)
 
 本文档是 `src/music/` 下**非 Provider、非 WeSing** 模块的唯一事实源:模块职责、导出签名、关键算法与常量只在此成表。上游 Provider 逆向工程见 [qq-provider.md](qq-provider.md) / [netease-provider.md](netease-provider.md);全民 K 歌采集见 [wesing.md](wesing.md);HTTP 端点见 [api.md](../api.md)(music-routes / song-routes / queue-routes 节);WebSocket 快照字段与消息见 [ws.md](../ws.md);DB 表结构见 [storage.md](../storage.md);领域装配点见 [server-core.md](../server-core.md) §5。
 
@@ -9,14 +9,14 @@
 | 模块                                       | 职责                                                     | 归属 |
 | ------------------------------------------ | -------------------------------------------------------- | ---- |
 | provider-registry.js                       | Provider 实例注册表 + 平台归一化                         | §3   |
-| provider-health.js                         | 健康检查聚合门面                                         | §3   |
 | stream-resolver.js + track-contract.js     | 播放 URL 解析编排与曲目契约                              | §4   |
 | music-cache.js                             | API/歌词磁盘缓存(TTL + 容量裁剪)                         | §5   |
-| lyrics-service.js                          | 搜索 / 首页 / 歌词 / 匹配 / 歌单写入的门面               | §6   |
+| music-catalog-service.js                   | 音乐搜索、首页推荐与歌单读写                             | §6   |
+| lyrics-service.js                          | 歌词获取、缓存与文本解析                                 | §6   |
 | song-service.js + song-field-utils.js      | 曲库业务规则、字段归一化与解析纯函数；SQL 由 song-store.js 持有 | §7   |
 | queue-service.js                           | 点歌队列统一语义                                         | §8   |
 | song-cooldown.js                           | 歌曲冷却身份、到期计算与用户可读拦截原因                   | §8   |
-| song-matcher.js                            | 曲目匹配打分(自动接受阈值)                               | §9   |
+| song-matcher.js                            | 曲目匹配输入与打分(自动接受阈值)                               | §9   |
 | random-song-filter.js + tag-aliases.js     | 随机点歌纯筛选规则与标签别名                             | §10  |
 | song-import-schema.js + song-file-codec.js | 导入导出列契约与 CSV/XLSX 编解码                         | §11  |
 | requester-target-store.js                  | 随机点歌请求者定位(弹幕机器人用)                         | §12  |
@@ -32,13 +32,14 @@
 
 | 组件 | 创建与注入 |
 | --- | --- |
-| `lyricsService` | `createLyricsService({ apiCacheDir: dataDir.apiCacheDir, lyricCacheDir: dataDir.lyricCacheDir })`；路径从 `runtime-config.js` 传入，分别对应 `<data>/cache/music-api-cache`、`<data>/cache/music-lyrics-cache` |
+| `catalogService` | `createMusicCatalogService({ apiCacheDir: dataDir.apiCacheDir })`；路径从 `runtime-config.js` 传入，对应 `<data>/cache/music-api-cache` |
+| `lyricsService` | `createLyricsService({ lyricCacheDir: dataDir.lyricCacheDir })`；路径从 `runtime-config.js` 传入，对应 `<data>/cache/music-lyrics-cache` |
 | `musicRegistry` | `createMusicProviderRegistry()`；server 启动时通过 `setMusicRegistry(options.musicAuth || {})` 注入认证适配 |
-| `weSingCapture` | `createWeSingCapture({…})`；同一装配模块创建 `createWeSingOnlineLyricResolver({ getRegistry, lyricsService, getPreferences })`，见 [wesing.md](wesing.md) |
+| `weSingCapture` | `createWeSingCapture({…})`；同一装配模块创建 `createWeSingOnlineLyricResolver({ getRegistry, catalogService, lyricsService, getPreferences })`，见 [wesing.md](wesing.md) |
 
 物理目录的完整清单只在 [storage.md](../storage.md) §2 维护；计算入口是 [data-paths.js](../../../../src/shared/data-paths.js) 的 `resolveDataPaths`，经 [runtime-config.js](../../../../src/server/runtime-config.js) 传入。旧根目录缓存迁移归 [data-directory-migration.js](../../../../src/storage/data-directory-migration.js) 所有，旧目录不是当前写入位置。
 
-[domain-services.js](../../../../src/server/domain-services.js) 的 `createDomainServices` 创建 SongStore 并产出 `songs`、`queue`；[runtime-api-context.js](../../../../src/server/runtime-api-context.js) 将 `registry` 与 `lyrics` 接入 API context，领域端口分组见 [server-core.md](../server-core.md) §5。
+[domain-services.js](../../../../src/server/domain-services.js) 的 `createDomainServices` 创建 SongStore 并产出 `songs`、`queue`；[runtime-api-context.js](../../../../src/server/runtime-api-context.js) 将 `registry`、`catalog` 与 `lyrics` 接入 API context；匹配路由直接调用 `song-matcher.js` 的纯函数，领域端口分组见 [server-core.md](../server-core.md) §5。
 
 ## 3. Provider 注册表与健康检查
 
@@ -64,9 +65,9 @@
 
 授权修订仅在当前 registry 生命周期内有效，不持久化、不经 HTTP/IPC 暴露；读取复用 Provider 的 `getSafeCookieHeader()`，保留 Cookie 会话读取失败时的匿名回退。WeSing 在线匹配用修订号使未命中的短期退避在登录状态变化后立即失效。
 
-### 3.2 provider-health.js
+### 3.2 健康检查路由
 
-`getMusicProviderHealth(registry, platform)`([provider-health.js:7-10](../../../../src/music/provider-health.js#L7-L10)):仅转发到 `registry.healthCheck`(有 platform 先归一化),是 `/api/music/health` 的处理核心(见 [api.md](../api.md) 的 music-routes 节)。
+`/api/music/health` 直接调用 `registry.healthCheck(platform)`；平台归一化和单个/全部检查由注册表拥有，无效平台仍返回 HTTP 400。HTTP 返回合同见 [api.md](../api.md) 的 music-routes 节。
 
 ## 4. 流解析编排(stream-resolver.js + track-contract.js)
 
@@ -122,23 +123,25 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `clearMusicCache(apiDir, lyricDir)`    | 删两目录重建,返回 `{clearedBytes, clearedFiles, after}`([music-cache.js:66-77](../../../../src/music/music-cache.js#L66-L77))                                     |
 | `getMusicCacheStats(apiDir, lyricDir)` | `{api, lyrics, totalBytes, totalFiles}`([music-cache.js:79-86](../../../../src/music/music-cache.js#L79-L86))                                                     |
 
-## 6. 歌词与音乐搜索服务(lyrics-service.js)
+## 6. 音乐目录与歌词服务
 
-### 6.1 工厂与门面
+### 6.1 工厂与职责
 
-`createLyricsService({ apiCacheDir, lyricCacheDir })`([lyrics-service.js:17-34](../../../../src/music/lyrics-service.js#L17-L34))返回门面对象;文件底部另有模块级兼容单例 `compatibilityService` 与 `initLyricsService(apiDir, lyricDir)` 重配([lyrics-service.js:15,36-42](../../../../src/music/lyrics-service.js#L15-L42))。常量与 music-cache.js 同名同值([lyrics-service.js:12-13](../../../../src/music/lyrics-service.js#L12-L13))。
+[music-catalog-service.js](../../../../src/music/music-catalog-service.js) 的 `createMusicCatalogService({ apiCacheDir })` 提供搜索、首页和歌单写入；[lyrics-service.js](../../../../src/music/lyrics-service.js) 的 `createLyricsService({ lyricCacheDir })` 只提供歌词获取与解析。两个工厂各自绑定缓存路径，使用 music-cache.js 的既有常量，不共享可变模块级服务实例。
 
-| 门面方法                                              | 行为                                                                                                                                                                                                                              |
-| ----------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `searchMusicTracks(registry, body)`                   | 平台缺省 `netease`;关键词取 `keyword/query/songName`,**截 120 字符**,空抛错;`limit` clamp 1-30 默认 20;返回 `{source, keyword, tracks}`([lyrics-service.js:44-55](../../../../src/music/lyrics-service.js#L44-L55))               |
-| `getMusicHomeContent(registry, body)`                 | 首页内容(带缓存),见 §6.2                                                                                                                                                                                                          |
-| `getMusicTrackLyrics(registry, body)`                 | 歌词(带缓存),见 §6.3                                                                                                                                                                                                              |
-| `parseLyricPayload(body)`                             | 纯文本歌词解析:`lyric/translation/wordLyric(yrc)/roma` 各**截 512 Ki 个 JS 字符**,`cleanTextPreserveLines` 保换行,喂 `parseLyricResult`;超出 §14 展开预算时报 `LYRIC_EXPANSION_LIMIT`；供前端直接粘贴歌词用([lyrics-service.js:150-156](../../../../src/music/lyrics-service.js#L150-L156)) |
-| `matchMusicTrackCandidates(body)`                     | 匹配打分入口:`songName` 截 120 必填、`artist` 截 80、`durationMs`;candidates 截 50;`threshold` 取匹配模块的 `AUTO_ACCEPT_SCORE`(70);返回 `{request, threshold, results}`([lyrics-service.js](../../../../src/music/lyrics-service.js))    |
-| `writeMusicPlaylistTracks(registry, body, operation)` | 歌单写入门面,见 §6.4                                                                                                                                                                                                              |
-| `normalizeMusicTrackForProvider`                      | 透传 §4.1                                                                                                                                                                                                                         |
+内部 CommonJS 消费者已迁移到所属模块；无消费者的 `initLyricsService` 和兼容单例已移除。运行时使用工厂绑定缓存目录；两模块保留各自操作的具名导出，直接调用 `getMusicHomeContent(registry, body, apiCacheDir = '')` 或 `getMusicTrackLyrics(registry, body, lyricCacheDir = '')` 时可显式传缓存目录，不再重配全局实例。HTTP 路径和返回形状不变。
 
-### 6.2 首页内容(`getMusicHomeContentWithCache`,[lyrics-service.js:62-113](../../../../src/music/lyrics-service.js#L62-L113))
+| 所属服务 | 方法 | 行为 |
+| --- | --- | --- |
+| catalog | `searchMusicTracks(registry, body)` | 平台缺省 `netease`；关键词取 `keyword/query/songName`，**截 120 字符**，空抛错；`limit` clamp 1–30 默认 20；返回 `{source, keyword, tracks}` |
+| catalog | `getMusicHomeContent(registry, body)` | 首页内容及推荐缓存，见 §6.2 |
+| catalog | `writeMusicPlaylistTracks(registry, body, operation)` | 歌单写入及加载会话失效，见 §6.4 |
+| lyrics | `getMusicTrackLyrics(registry, body)` | 歌词及缓存，见 §6.3 |
+| lyrics | `parseLyricPayload(body)` | `lyric/translation/wordLyric(yrc)/roma` 各**截 512 Ki 个 JS 字符**；`cleanTextPreserveLines` 保留换行后交给 `parseLyricResult`；超出 §14 展开预算时报 `LYRIC_EXPANSION_LIMIT` |
+
+曲目匹配输入门面归 `song-matcher.js`（§9），Provider 曲目归一化直接使用 `track-contract.js`（§4.1）。
+
+### 6.2 首页内容(`getMusicHomeContent`,[music-catalog-service.js](../../../../src/music/music-catalog-service.js))
 
 `action` 八选一:
 
@@ -160,20 +163,20 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 `liked` 可携带一次加载专用的 `loadingSession`（最长 100 字符）。Provider 仅在同一会话中复用喜欢歌单定位；QQ 客户端接口返回完整歌单时复用该次结果分页，公开接口和网易云仍读取实际分页。不同加载使用不同会话，凭证改变或成功写歌单会清除会话；每个 Provider 最多保留 8 个会话、最长 5 分钟，不写磁盘，也不作为下一次刷新缓存。
 
-### 6.3 歌词(`getMusicTrackLyricsWithCache`,[lyrics-service.js:119-129](../../../../src/music/lyrics-service.js#L119-L129))
+### 6.3 歌词(`getMusicTrackLyrics`,[lyrics-service.js](../../../../src/music/lyrics-service.js))
 
 - 入参先过 `normalizeMusicTrackForProvider`(强制完整契约)
 - 缓存 key:`musicCacheKey(version, { source, sourceTrackId })`；网易云使用 `lyrics-v6`，QQ 保持 `lyrics-v5`。版本前缀参与 hash，旧网易云无逐字缓存不会压制新解析结果。
 - TTL 30 天(§5);命中返回 `{...cached, cached: true}`
-- 未命中 → `provider.getLyrics(normalizedTrack)` → 写缓存
+- 未命中 → `provider.getLyrics(normalizedTrack)` → 仅有效歌词行非空时写缓存，空结果允许下次重试
 
-### 6.4 歌单写入([lyrics-service.js:131-148](../../../../src/music/lyrics-service.js#L131-L148))
+### 6.4 歌单写入([music-catalog-service.js](../../../../src/music/music-catalog-service.js))
 
 - 平台缺省 `qq`;playlist 从 `body.playlist` 归一(纯数字 `id`/`tid` 双取,title 截 200);`tracks` 截 100 首,空抛"缺少要修改的音乐歌曲。"
 - `operation === 'remove'` → `removeTracksFromPlaylist`,否则 `addTracksToPlaylist`;Provider 缺方法抛"当前音乐 Provider 不支持修改歌单。"
-- 返回 `{ source, operation, playlist, result }`
+- Provider 写入成功后调用 `clearLikedTracksSessions(provider)` 清除喜欢歌单加载会话，再返回 `{ source, operation, playlist, result }`
 
-### 6.5 成员标注([lyrics-service.js:173-214](../../../../src/music/lyrics-service.js#L173-L214))
+### 6.5 成员标注([music-catalog-service.js](../../../../src/music/music-catalog-service.js))
 
 `annotatePlaylistMembership(provider, platform, playlists, track)`:**并发 6** 逐个歌单调用 `provider.playlistContainsTrack`(网易云用轻量 trackIds;QQ 无此方法则回退拉 5000 首线性比对,见 [qq-provider.md](qq-provider.md) §8),失败标 `containsTrack: null`。`getProviderTrackId` 对 QQ 优先数值 `sourceSongId`(写入用),否则 mid;网易云恒用数字 id。
 
@@ -292,6 +295,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 `songName` 为空时选择本人点歌时间（`created_at`）最新的一首；指定歌名时按清洗后的完整歌名精确匹配，只在本人同名歌曲中选择最新一首，同一时间以较大 ID 优先，不受置顶或身份排序影响。成功复用 `setStatus(id, 'deleted', now())` 原子移除队列与原始点歌记录，返回被移除的项；释放排队名额，保留已有观众间隔、歌曲冷却、随机避重历史与粉丝档案累计结果。不新增数据库字段或 HTTP 入口；弹幕桥接行为见 [danmaku.md](../bilibili/danmaku.md#53-handledanmakumessage-处理链)。
 
 ## 9. 歌曲匹配(song-matcher.js)
+
+`matchMusicTrackCandidates(body)` 负责匹配请求输入：`songName/title` 截 120 字符且必填、`artist` 截 80 字符、`durationMs` 非负、`candidates` 最多 50 项；调用 `rankTrackCandidates`，返回 `{request, threshold: AUTO_ACCEPT_SCORE, results}`。HTTP `/api/music/match-track` 直接使用该入口。
 
 **打分模型**，用于点歌导入播放器及匹配诊断。WeSing 在线兜底使用独立的版本/时长匹配规则(见 [wesing.md](wesing.md) §7)。
 
@@ -462,7 +467,7 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 
 ### 13.6 外部播放器歌词解析
 
-[external-client-lyrics.js](../../../../src/music/external-client-lyrics.js) 的 `createExternalClientLyricResolver({platform, getRegistry, lyricsService})` 只接受 qq 或 netease，并返回 `resolveLyrics({title, artists?, artist?, durationMs?, sourceTrackId?})`。网易云有可信数值曲目 ID 时直接取该曲歌词；没有 ID 时与 QQ 一样，在本平台按歌名、歌手搜索最多 20 个候选。候选必须属于本平台，且完整歌名规范化后相同，保留 Live、DJ 等版本信息；已知歌手时，按 `/` 拆分并排序后的完整歌手列表也必须相同。歌名与歌手均执行 NFKC 规范化、合并空白、去除首尾空白及忽略大小写。双方时长已知时相差不得超过 5 秒，合格候选按时长距离择近；没有准确候选则返回空，不跨平台兜底。歌词响应声明了其他平台或没有有效行时也返回空；请求失败交给采集器显示错误。
+[external-client-lyrics.js](../../../../src/music/external-client-lyrics.js) 的 `createExternalClientLyricResolver({platform, getRegistry, catalogService, lyricsService})` 只接受 qq 或 netease，并返回 `resolveLyrics({title, artists?, artist?, durationMs?, sourceTrackId?})`。网易云有可信数值曲目 ID 时直接取该曲歌词；没有 ID 时与 QQ 一样，在本平台按歌名、歌手搜索最多 20 个候选。候选必须属于本平台，且完整歌名规范化后相同，保留 Live、DJ 等版本信息；已知歌手时，按 `/` 拆分并排序后的完整歌手列表也必须相同。歌名与歌手均执行 NFKC 规范化、合并空白、去除首尾空白及忽略大小写。双方时长已知时相差不得超过 5 秒，合格候选按时长距离择近；没有准确候选则返回空，不跨平台兜底。歌词响应声明了其他平台或没有有效行时也返回空；请求失败交给采集器显示错误。
 
 外部 QQ 始终查询 QQ，外部网易云始终查询网易云，取得的是对应平台的在线歌词，不是直接复制客户端当前渲染的歌词缓存；翻译和版本匹配取决于该平台返回内容。网易云优先真实 YRC，只有 LRC 时补估算逐字时间（§14.7），QQ 保持平台逐字数据。`weSingLyricSource / weSingSmartLyricMatch` 仅属于 [WeSing 在线兜底](wesing.md#8-在线兜底wesing-online-lyricsjs)，不参与这里的选择。智能播放只决定跟随哪个播放器，智能匹配歌词只为全民 K 歌本地 QRC 不可用时选择在线歌词。
 

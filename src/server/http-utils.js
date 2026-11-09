@@ -152,6 +152,24 @@ function validateOrigin(req, allowedOrigins) {
  * @param {Error} error - Error to map
  */
 function sendStableError(res, error) {
+  if (error?.code === 'CLOUD_SETTINGS_NOT_READY') {
+    sendJson(res, 503, {
+      ok: false,
+      code: 'CLOUD_SETTINGS_NOT_READY',
+      error: '当前账号的设置尚未恢复，请联网后稍候重试。',
+    });
+    return;
+  }
+
+  if (error?.code === 'CLOUD_SONGS_NOT_READY') {
+    sendJson(res, 503, {
+      ok: false,
+      code: 'CLOUD_SONGS_NOT_READY',
+      error: '当前账号的歌库尚未恢复，请联网后稍候重试。',
+    });
+    return;
+  }
+
   // Input owners identify malformed JSON and exceeded resource budgets with stable codes.
   if (error?.code === 'LYRIC_EXPANSION_LIMIT') {
     sendJson(res, 400, {

@@ -111,6 +111,72 @@ test('an error from the old audio cannot cancel a newer track still resolving it
   assert.deepEqual(app.errors(), []);
 });
 
+test('pausing during a next-track lookup keeps the selected track paused and resumable', async () => {
+  const nextStream = Promise.withResolvers();
+  const { app, audio } = await createPlayingApp((_count, request) =>
+    request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request),
+  );
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  nextStream.resolve({ url: 'https://example.test/b-new.mp3' });
+  await flushAsyncWork();
+
+  assert.equal(audio.paused, true);
+  assert.equal(audio.dataset.trackId, 'b');
+  assert.equal(app.audioPlayCalls(), 1);
+  assert.equal(app.savedState().current.id, 'b');
+  assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['c']);
+
+  await app.emit('playbackPlayPause', 'click');
+  assert.equal(audio.paused, false);
+  assert.equal(audio.dataset.trackId, 'b');
+  assert.equal(app.resolveStreamRequestCount(), 2);
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(audio.dataset.trackId, 'c');
+  assert.equal(app.savedState().current.id, 'c');
+});
+
+test('resuming before a pending next-track lookup completes lets the selected track play', async () => {
+  const nextStream = Promise.withResolvers();
+  const { app, audio } = await createPlayingApp((_count, request) =>
+    request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request),
+  );
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await app.emit('playbackPlayPause', 'click');
+  nextStream.resolve({ url: 'https://example.test/b-new.mp3' });
+  await flushAsyncWork();
+
+  assert.equal(audio.paused, false);
+  assert.equal(audio.dataset.trackId, 'b');
+  assert.equal(app.audioPlayCalls(), 3);
+  assert.equal(app.savedState().current.id, 'b');
+  assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['c']);
+});
+
+test('pausing during automatic advancement stops a failed lookup from starting another track', async () => {
+  const nextStream = Promise.withResolvers();
+  const requests = [];
+  const { app, audio } = await createPlayingApp((_count, request) => {
+    requests.push(request.track.sourceTrackId);
+    if (request.forceRefresh) throw new Error('current refresh failed');
+    return request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request);
+  });
+  await app.emit('music-player', 'error');
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  nextStream.resolve({});
+  await flushAsyncWork();
+
+  assert.equal(audio.paused, true);
+  assert.equal(audio.dataset.trackId, 'a');
+  assert.deepEqual(requests, ['a', 'a', 'b']);
+  assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['c']);
+});
+
 test('current stream recovery resumes the track and still skips after its retry is exhausted', async () => {
   const { app, audio } = await createPlayingApp((_count, request) =>
     request.forceRefresh ? { url: 'https://example.test/a-refreshed.mp3' } : streamFor(request),
@@ -284,7 +350,7 @@ for (const stateOverrides of [
   });
 }
 
-test('automatic radio advancement reaches songs refilled while an unavailable song is resolving', async () => {
+test('automatic radio advancement waits for the shared refill after the last candidate fails', async () => {
   const unavailable = Promise.withResolvers();
   const refill = Promise.withResolvers();
   const { app, audio } = await createPlayingApp((_count, request) =>
@@ -296,15 +362,61 @@ test('automatic radio advancement reaches songs refilled while an unavailable so
   audio.paused = true;
   await app.emit('music-player', 'ended');
   await flushAsyncWork();
-  refill.resolve({ tracks: [track('c', '补充的可播歌曲')] });
-  await flushAsyncWork();
   unavailable.resolve({});
+  await flushAsyncWork();
+  assert.equal(app.radioRefillRequests(), 1);
+  refill.resolve({ tracks: ['c', 'd', 'e', 'f'].map(id => track(id, '补充的可播歌曲')) });
   await flushAsyncWork();
 
   assert.equal(audio.dataset.trackId, 'c');
   assert.equal(audio.paused, false);
   assert.equal(app.audioPlayCalls(), 2);
+  assert.equal(app.radioRefillRequests(), 1);
 });
+
+test('automatic radio advancement resumes when an empty queue receives a slow refill', async () => {
+  const refill = Promise.withResolvers();
+  const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+    queueType: 'radio', queueSourceKey: 'qq:radio', currentOrigin: 'radio',
+    normalQueue: [], normalQueueTracks: [], radioQueue: [],
+  }, { loadHome: () => refill.promise });
+  audio.paused = true;
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+  refill.resolve({ tracks: ['b', 'c', 'd', 'e'].map(id => track(id, '新电台歌曲')) });
+  await flushAsyncWork();
+
+  assert.equal(audio.dataset.trackId, 'b');
+  assert.equal(audio.paused, false);
+  assert.equal(app.audioPlayCalls(), 2);
+  assert.equal(app.radioRefillRequests(), 1);
+});
+
+for (const action of ['pause', 'clear', 'wesing']) {
+  test(`late radio refill cannot restart automatic playback after ${action}`, async () => {
+    const refill = Promise.withResolvers();
+    const { app, audio } = await createPlayingApp((_count, request) => streamFor(request), {
+      queueType: 'radio', queueSourceKey: 'qq:radio', currentOrigin: 'radio',
+      normalQueue: [], normalQueueTracks: [], radioQueue: [],
+    }, { loadHome: () => refill.promise, sourceTabs: ['qq', 'wesing'] });
+    audio.paused = true;
+    await app.emit('music-player', 'ended');
+    await flushAsyncWork();
+    const control = action === 'pause' ? 'playbackPlayPause'
+      : action === 'clear' ? 'playbackClearQueue' : 'source-tab-wesing';
+    await app.emit(control, 'click');
+    await flushAsyncWork();
+    assert.equal(audio.paused, true);
+    const current = app.savedState().current?.id;
+    const plays = app.audioPlayCalls();
+    refill.resolve({ tracks: [track('b', '迟到的新歌曲')] });
+    await flushAsyncWork();
+
+    assert.equal(audio.paused, true);
+    assert.equal(app.audioPlayCalls(), plays);
+    assert.equal(app.savedState().current?.id, current);
+  });
+}
 
 test('automatic radio advancement stops even when refills keep returning unavailable songs', async () => {
   let batch = 0;

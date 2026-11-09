@@ -409,7 +409,7 @@ function createSongStore(songDb) {
       );
     },
 
-    replaceAll(rows) {
+    replaceAll(rows, { accountKey } = {}) {
       return withTransaction(() => {
         assertSongImportLimit(rows.length);
         songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
@@ -423,6 +423,7 @@ function createSongStore(songDb) {
           const category = ensureCategoryWithinTransaction(row.categoryName || '默认', categories);
           insertSongWithinTransaction(row, createdAt, category.id);
         }
+        if (accountKey) cloudSync.acceptAccount(accountKey);
         return { count: rows.length };
       });
     },

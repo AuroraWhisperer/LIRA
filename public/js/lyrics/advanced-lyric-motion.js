@@ -73,6 +73,35 @@ export function advancedLyricKeyframes(kind, name, amount = 1, ordinal = 0) {
   return null;
 }
 
+export function advancedLyricWordAnimation(name, { startMs, endMs, lineEndMs, timed = false, amount = 1, ordinal = 0 }) {
+  if (![startMs, endMs, lineEndMs, amount].every(Number.isFinite)
+    || endMs <= startMs || lineEndMs <= startMs || amount <= 0 || name === 'sustain' && !timed) return null;
+  const span = endMs - startMs;
+  let frames;
+  if (name === 'sustain') {
+    const strength = amount * Math.min(1, span / 850);
+    const rest = { transform: REST, filter: 'brightness(1)' };
+    frames = [rest, { transform: transform(0, -0.09 * strength, 0, 1 + 0.08 * strength),
+      filter: `brightness(${1 + 0.24 * strength})` }, rest];
+  } else frames = advancedLyricKeyframes('word', name, amount, ordinal);
+  if (!frames) return null;
+  if (name !== 'sustain' && (!timed || span <= 650 || !['pop', 'rise', 'tilt', 'glow'].includes(name))) {
+    return { frames, startMs, endMs: Math.min(lineEndMs, startMs + Math.min(650, Math.max(220, span + 120))), easing: 'ease-in-out' };
+  }
+  // Sustain belongs to the supplied vocal interval. The release only uses time
+  // after its end, and never steals time from a note cut by the line boundary.
+  const sungDuration = Math.min(endMs, lineEndMs) - startMs;
+  const finish = Math.min(lineEndMs, endMs + 180);
+  const duration = finish - startMs;
+  const attack = Math.min(180, sungDuration * 0.25);
+  return { startMs, endMs: finish, easing: 'linear', frames: [
+    { ...frames[0], offset: 0, easing: EASE_OUT },
+    { ...frames[1], offset: attack / duration, easing: 'linear' },
+    { ...frames[1], offset: sungDuration / duration, easing: 'ease-in-out' },
+    { ...frames.at(-1), offset: 1 },
+  ] };
+}
+
 function applyStaticFrame(entry, frame, state) {
   if (entry.state === state) return;
   entry.animation?.cancel();

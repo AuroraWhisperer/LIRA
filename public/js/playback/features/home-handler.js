@@ -145,14 +145,14 @@ export function createHomeHandler(deps) {
    * @param {Function} getAuthState - 获取认证状态的函数
    */
   async function loadPlaybackHomeContent(action, getAuthState) {
-    const authState = getAuthState();
-    if (!authState || !authState.loggedIn) {
-      toast('请先登录播放器');
+    if (action === 'recent') {
+      loadPlaybackLocalRecentHistory();
       return;
     }
 
-    if (action === 'recent') {
-      loadPlaybackLocalRecentHistory();
+    const authState = getAuthState();
+    if (!authState || !authState.loggedIn) {
+      toast('请先登录播放器');
       return;
     }
 

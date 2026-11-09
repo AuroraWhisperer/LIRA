@@ -7,6 +7,7 @@ const opacitySources = new WeakMap();
 let observerInstalled = false;
 
 function opacitySource(input) {
+  if (input.dataset.colorAlpha === 'false') return null;
   const key = input.dataset.colorOpacity;
   if (!key) return null;
   const selector = ['id', 'data-preview-field', 'data-component-parameter', 'data-effect-field']
@@ -19,6 +20,7 @@ function opacitySource(input) {
 }
 
 function readAlpha(input, state) {
+  if (input.dataset.colorAlpha === 'false') return 1;
   const source = opacitySource(input);
   if (!source) return state.alpha;
   if (!opacitySources.has(source)) {
@@ -41,11 +43,17 @@ function readAlpha(input, state) {
 function syncColorValue(input) {
   const state = enhancedColors.get(input);
   if (!state) return;
+  const alphaEnabled = input.dataset.colorAlpha !== 'false';
+  if (!alphaEnabled) {
+    state.alpha = 1;
+    input.dataset.colorValue = state.hex;
+  }
   const alpha = readAlpha(input, state);
   state.hexLabel.textContent = state.hex.toUpperCase();
   state.alphaLabel.textContent = `${Math.round(alpha * 100)}%`;
+  state.alphaLabel.hidden = !alphaEnabled;
   input.style.setProperty('--color-control-value', colorWithAlpha(state.hex, alpha));
-  input.setAttribute('aria-description', `不透明度 ${Math.round(alpha * 100)}%`);
+  input.setAttribute('aria-description', alphaEnabled ? `不透明度 ${Math.round(alpha * 100)}%` : '仅支持不透明颜色');
   if (input.matches(':disabled') || !input.isConnected) closeColorPicker(input);
 }
 
@@ -76,9 +84,10 @@ function enhanceColor(input) {
   enhancedColors.set(input, state);
   Object.defineProperty(input, 'value', {
     configurable: true,
-    get() { return input.dataset.colorOpacity ? state.hex : colorWithAlpha(state.hex, state.alpha); },
+    get() { return input.dataset.colorOpacity || input.dataset.colorAlpha === 'false' ? state.hex : colorWithAlpha(state.hex, state.alpha); },
     set(nextValue) {
       const color = parseHexColor(nextValue) || parseHexColor('#000000');
+      if (input.dataset.colorAlpha === 'false') color.alpha = 1;
       state.hex = color.hex; state.alpha = color.alpha;
       nativeValue.set.call(this, color.hex);
       input.dataset.colorValue = colorWithAlpha(color.hex, color.alpha);
@@ -154,7 +163,7 @@ function installColorObserver() {
       }
     }
   });
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['value', 'disabled'] });
+  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['value', 'disabled', 'data-color-alpha'] });
 }
 
 /** Enhance colors in place, including later additions and cloned panels. */

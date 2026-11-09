@@ -14,8 +14,10 @@ test('WeSing backs off empty online searches while manual refresh can retry imme
   let searches = 0;
   const resolve = createWeSingOnlineLyricResolver({
     registry: {}, now: () => timestamp,
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() { throw new Error('no search match'); },
     },
   });
@@ -39,8 +41,10 @@ test('WeSing coalesces simultaneous online refreshes and clears retry state with
   const gate = new Promise((resolve) => { release = resolve; });
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks() { searches += 1; await gate; return { tracks: [] }; },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() { throw new Error('no search match'); },
     },
   });
@@ -67,8 +71,10 @@ test('WeSing invalidates a missed search when the rendition, preferences, author
   let registry = makeRegistry();
   const resolve = createWeSingOnlineLyricResolver({
     getRegistry: () => registry, getPreferences: () => preferences,
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() { throw new Error('no search match'); },
     },
   });
@@ -95,8 +101,10 @@ test('WeSing retains a transient provider failure during backoff and retries aft
   const error = new Error('provider unavailable');
   const resolve = createWeSingOnlineLyricResolver({
     registry: {}, platforms: ['qq'], now: () => timestamp,
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks() { searches += 1; throw error; },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() { throw new Error('no search match'); },
     },
   });
@@ -115,7 +123,7 @@ test('WeSing preserves provider anonymous fallback when reading the cookie sessi
   const resolve = createWeSingOnlineLyricResolver({
     registry: createMusicProviderRegistry({ getCookieHeader() { throw new Error('session unavailable'); } }),
     platforms: ['qq'],
-    lyricsService: createTrackingLyricsService(requested),
+    ...createTrackingMusicServices(requested),
   });
   assert.equal((await resolve({ title: '失控', durationMs: 255000 })).source, 'qq');
   assert.deepEqual(requested, ['qq']);
@@ -128,7 +136,7 @@ test('WeSing discards an old authorized request without overwriting the replacem
   const gate = new Promise((resolve) => { release = resolve; });
   const resolve = createWeSingOnlineLyricResolver({
     registry: { getAuthorizationRevision: async () => revision }, platforms: ['qq'],
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks() {
         searches += 1;
         if (searches === 1) {
@@ -137,6 +145,8 @@ test('WeSing discards an old authorized request without overwriting the replacem
         }
         return { tracks: [] };
       },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() { return { source: 'qq', lines: [{ startMs: 0, endMs: 1000, text: '旧账号结果' }] }; },
     },
   });
@@ -159,8 +169,10 @@ test('WeSing does not let a late authorization read restore an older request ide
   const resolve = createWeSingOnlineLyricResolver({
     registry: { getAuthorizationRevision: () => ++reads === 1 ? oldRevision : Promise.resolve(2) },
     platforms: ['qq'],
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks() { searches += 1; return { tracks: [] }; },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() { throw new Error('no search match'); },
     },
   });
@@ -187,7 +199,7 @@ test('WeSing online lyric matching uses the WeSing artist to disambiguate covers
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
     platforms: ['qq'],
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks(_registry, body) {
         requests.push(body);
         return {
@@ -197,6 +209,8 @@ test('WeSing online lyric matching uses the WeSing artist to disambiguate covers
           ],
         };
       },
+    },
+    lyricsService: {
       async getMusicTrackLyrics() {
         return {
           source: 'qq',
@@ -227,13 +241,15 @@ for (const scenario of [
     const resolve = createWeSingOnlineLyricResolver({
       registry: {},
       preferredPlatform: 'netease',
-      lyricsService: {
+      catalogService: {
         async searchMusicTracks(_registry, { platform, keyword }) {
           assert.equal(keyword, `${scenario.title} ${scenario.artist.split(' (')[0]}`);
           const original = createTrack(`${platform}:original`, scenario.otherArtist, 240000, platform, scenario.title);
           const cover = createTrack('qq:cover', scenario.candidateArtist, 240000, 'qq', scenario.candidateTitle);
           return { tracks: platform === 'qq' ? [original, cover] : [original] };
         },
+      },
+      lyricsService: {
         async getMusicTrackLyrics(_registry, { track }) {
           requestedLyrics.push(track.id);
           return { source: track.source, lines: [{ startMs: 1000, endMs: 2000, text: '合成歌词' }] };
@@ -251,10 +267,12 @@ test('WeSing rejects a different singer even when no matching version is availab
   const requestedLyrics = [];
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks(_registry, { platform }) {
         return { tracks: [createTrack(`${platform}:other`, 'Wen', 240000, platform, '天若有情')] };
       },
+    },
+    lyricsService: {
       async getMusicTrackLyrics(_registry, { track }) {
         requestedLyrics.push(track.id);
         return { lines: [{ startMs: 1000, endMs: 2000, text: '其他歌手' }] };
@@ -270,10 +288,12 @@ test('WeSing compares version duration before word timing and preferred platform
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
     preferredPlatform: 'netease',
-    lyricsService: {
+    catalogService: {
       async searchMusicTracks(_registry, { platform }) {
         return { tracks: [createTrack(`${platform}:cover`, '余超颖', platform === 'qq' ? 240000 : 244000, platform, '春泥')] };
       },
+    },
+    lyricsService: {
       async getMusicTrackLyrics(_registry, { track }) {
         return {
           source: track.source,
@@ -312,7 +332,7 @@ test('WeSing rejects incompatible durations and accepts missing duration metadat
 
 test('WeSing online fallback queries both providers and prefers complete word lyrics', async () => {
   const requestedLyrics = [];
-  const lyricsService = {
+  const catalogService = {
     async searchMusicTracks(_registry, body) {
       return {
         tracks:
@@ -321,6 +341,8 @@ test('WeSing online fallback queries both providers and prefers complete word ly
             : [createTrack('netease:original', '井迪儿', 255000, 'netease')],
       };
     },
+  };
+  const lyricsService = {
     async getMusicTrackLyrics(_registry, body) {
       requestedLyrics.push(body.track.id);
       const wordTimed = body.track.source === 'qq';
@@ -339,7 +361,7 @@ test('WeSing online fallback queries both providers and prefers complete word ly
   };
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService,
+    catalogService, lyricsService,
     preferredPlatform: 'netease',
   });
 
@@ -353,12 +375,14 @@ test('WeSing online fallback queries both providers and prefers complete word ly
 });
 
 test('WeSing online fallback does not prefer a nine-line partial timeline over a complete one', async () => {
-  const lyricsService = {
+  const catalogService = {
     async searchMusicTracks(_registry, body) {
       return {
         tracks: [createTrack(`${body.platform}:original`, '井迪', 255000, body.platform)],
       };
     },
+  };
+  const lyricsService = {
     async getMusicTrackLyrics(_registry, body) {
       const lineCount = body.track.source === 'qq' ? 64 : 9;
       return {
@@ -374,7 +398,7 @@ test('WeSing online fallback does not prefer a nine-line partial timeline over a
   };
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService,
+    catalogService, lyricsService,
     preferredPlatform: 'netease',
   });
 
@@ -389,7 +413,7 @@ test('WeSing online fallback reads source and smart-match preferences for every 
   const requestedPlatforms = [];
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService: createTrackingLyricsService(requestedPlatforms),
+    ...createTrackingMusicServices(requestedPlatforms),
     getPreferences: () => preferences,
   });
 
@@ -405,7 +429,7 @@ test('WeSing online fallback reads source and smart-match preferences for every 
 test('WeSing smart lyric matching uses the preferred provider for equal results', async () => {
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService: createTrackingLyricsService([]),
+    ...createTrackingMusicServices([]),
     getPreferences: () => ({ preferredPlatform: 'netease', smartMatch: true }),
   });
 
@@ -418,7 +442,7 @@ test('WeSing smart lyric matching keeps the available provider when the other on
   const requestedPlatforms = [];
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService: createTrackingLyricsService(requestedPlatforms, {
+    ...createTrackingMusicServices(requestedPlatforms, {
       failingPlatform: 'qq',
     }),
     getPreferences: () => ({ preferredPlatform: 'qq', smartMatch: true }),
@@ -434,7 +458,7 @@ test('WeSing lyric source rejects unknown stored values by falling back to NetEa
   const requestedPlatforms = [];
   const resolve = createWeSingOnlineLyricResolver({
     registry: {},
-    lyricsService: createTrackingLyricsService(requestedPlatforms),
+    ...createTrackingMusicServices(requestedPlatforms),
     getPreferences: () => ({
       preferredPlatform: 'https://example.test',
       smartMatch: false,
@@ -501,27 +525,31 @@ test('WeSing lyric preferences default to NetEase smart matching and are read fr
   );
 });
 
-function createTrackingLyricsService(requestedPlatforms, options = {}) {
+function createTrackingMusicServices(requestedPlatforms, options = {}) {
   return {
-    async searchMusicTracks(_registry, body) {
-      requestedPlatforms.push(body.platform);
-      if (body.platform === options.failingPlatform) throw new Error(`${body.platform} unavailable`);
-      return {
-        tracks: [createTrack(`${body.platform}:original`, '井迪', 255000, body.platform)],
-      };
+    catalogService: {
+      async searchMusicTracks(_registry, body) {
+        requestedPlatforms.push(body.platform);
+        if (body.platform === options.failingPlatform) throw new Error(`${body.platform} unavailable`);
+        return {
+          tracks: [createTrack(`${body.platform}:original`, '井迪', 255000, body.platform)],
+        };
+      },
     },
-    async getMusicTrackLyrics(_registry, body) {
-      return {
-        source: body.track.source,
-        lines: [
-          {
-            startMs: 1000,
-            endMs: 2000,
-            text: '请原谅我的词穷',
-            words: [{ text: '请', startMs: 1000, endMs: 1200 }],
-          },
-        ],
-      };
+    lyricsService: {
+      async getMusicTrackLyrics(_registry, body) {
+        return {
+          source: body.track.source,
+          lines: [
+            {
+              startMs: 1000,
+              endMs: 2000,
+              text: '请原谅我的词穷',
+              words: [{ text: '请', startMs: 1000, endMs: 1200 }],
+            },
+          ],
+        };
+      },
     },
   };
 }

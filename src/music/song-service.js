@@ -170,7 +170,7 @@ function importSongs(store, rows) {
   };
 }
 
-function replaceCloudSongs(store, rows) {
+function replaceCloudSongs(store, rows, accountKey) {
   if (!Array.isArray(rows)) throw new Error('云端歌库格式无效。');
   if (rows.length > 5000) throw new Error('云端歌库超过 5000 首限制。');
 
@@ -197,7 +197,7 @@ function replaceCloudSongs(store, rows) {
   }
 
   const songs = [...songsByIdentity.values()];
-  store.replaceAll(songs);
+  store.replaceAll(songs, { accountKey });
   return {
     total: rows.length,
     count: songs.length,

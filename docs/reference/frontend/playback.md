@@ -16,12 +16,12 @@ admin/app.js           显式导入并初始化播放助手，注入 UI 能力�
 
 | 目录          | 模块                                                                                                                                                                   | 职责                                                                                                                                                |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `core/`       | initializer / renderer / event-handlers / queue-coordinator / action-adapters                                                                                          | 初始化时序、渲染与 DOM 事件；队列/播放委托接线；把控制器依赖收窄为各功能实际需要的动作适配器                                                        |
+| `core/`       | initializer / renderer / event-handlers / queue-coordinator / action-adapters                                                                                          | 初始化时序、渲染与 DOM 事件；队列操作、音频清理和播放/电台协调；把控制器依赖收窄为各功能实际需要的动作适配器                                                        |
 | `state/`      | manager / actions / storage                                                                                                                                                      | 初始状态/校验/恢复与显式状态操作;`StorageManager` 状态恢复(服务端优先→localStorage v2→v1 迁移)            |
 | `provider/`   | manager                                                                                                                                                                | 平台选择(QQ/网易云/WeSing)、健康检查、登录态;桌面走 IPC、Web 回退 HTTP(见 [comms.md](comms.md) §4)                                                  |
 | `queue/`      | manager                                                                                                                                                                | `QueueManager`:普通/电台/歌单三种队列、shuffle 顺序、电台自动补量                                                                                   |
 | `services/`   | search / stream / lyric / match / import / home / wesing                                                                                                               | 业务服务(§4)                                                                                                                                        |
-| `features/`   | search-handler / match-handler / stream-handler / queue-operations / playback-controls / radio-mode / home-handler / import-handler / pending-handler / output-device | UI 操作处理器与本机音频输出,注入渲染回调与队列回调                                                                                                                |
+| `features/`   | search-handler / match-handler / stream-handler / playback-controls / radio-mode / home-handler / import-handler / pending-handler / output-device | UI 操作处理器与本机音频输出,注入渲染回调与队列回调                                                                                                                |
 | `operations/` | provider-operations / state-persistence / playlist-operations / cache-operations                                                                                       | 横切操作:登录登出、状态持久化、收藏/歌单、缓存统计                                                                                                  |
 | `ui/`         | index / components / playback-bar / queue-popup / drawer / fullscreen                                                                                                  | `UIRenderer` + 各 UI 组件(DOM 渲染主控)                                                                                                             |
 | `content/`    | loader                                                                                                                                                                 | 首页/推荐/每日/电台/歌单内容加载(内存→localStorage 缓存命中先渲染,后台刷新后回调 `homeService.applyBackgroundUpdate` 静默更新列表)                 |
@@ -29,7 +29,7 @@ admin/app.js           显式导入并初始化播放助手，注入 UI 能力�
 | `cache/`      | manager                                                                                                                                                                | "我喜欢"/歌单 24h localStorage 缓存(`playbackCache:` 前缀,内存→localStorage 两级,过期失效,登录态变化清缓存)                                         |
 | —             | config.js / utils.js                                                                                                                                                   | 配置常量(§2);工具(轨道归一化/序列化/洗牌/本地判定/URL 可用性/时长与元数据格式化/封面渲染/背景主题选取 `pickBackgroundTheme`)                        |
 
-**依赖注入方式**:`controller.js` 是播放域的组合根,功能模块通过 `create*(deps)` 工厂只接收自身实际使用的字段。`queue-coordinator.js` 集中建立队列/播放/电台间的命名委托，`action-adapters.js` 把控制器能力裁剪为各功能所需动作；两者不持有 DOM 或业务状态。播放、渲染和电台之间的初始化顺序由命名委托函数延迟绑定,不使用可变前向声明或通用 `sharedDeps` 依赖包;工厂参数因此可以从源码直接审计。
+**依赖注入方式**:`controller.js` 是播放域的组合根,功能模块通过 `create*(deps)` 工厂只接收自身实际使用的字段。`queue-coordinator.js` 统一编排集合启动、清队列、音频重置及保存/播放/电台补充顺序，通过注入的音频访问、QueueManager 和 state actions 执行，不维护第二套队列或状态；`action-adapters.js` 把控制器能力裁剪为各功能所需动作。播放、渲染和电台之间的初始化顺序由命名委托函数延迟绑定,不使用可变前向声明或通用 `sharedDeps` 依赖包;工厂参数因此可以从源码直接审计。
 
 歌词同步委托 `syncPlaybackLyricWindow` 就近位于 `controller.js`，读取当前内部歌曲与 audio 后直接调用 `LyricService.syncWindow`；选中的平台页签及外部歌词展示状态不阻断内部候选发布，最终来源由音乐运行时仲裁。
 
@@ -77,9 +77,13 @@ playbackControls → audio.load()/play()
 
 登录窗口正常结束后，同样取消该平台的在途播放请求，并通过 `forgetProviderStreams` 清除当前曲目、各播放队列、历史与展示历史中的 URL/过期时间；保留正在播放的音频、歌词及其他平台请求。下次选播重新向当前账号申请音源，不能继续复用登录前的试听 URL。登录窗口关闭不等于认证成功，通知仍以重新读取的认证状态为准。
 
+切歌地址解析期间暂停会撤销自动播放意图。仍有效的迟到结果保留为暂停的当前歌曲，继续播放时复用该音源，后续队列顺序不变；暂停后失败的自动推进不会继续取下一首。结果返回前再次继续播放，则按最新意图播放。全屏空格键复用播放按钮，遵守相同控制与禁用状态。
+
 错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本、原始来源及 `requestedPlaybackQuality`，刷新后复用该品质的结果，避免先降到标准音质再重复解析；入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。全民 K 歌被选中时，保留音频也不能触发在线重试；退出该信源后，显式恢复的音频仍可正常重试。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。手动切歌无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
 
 自然结束后的连播及音频错误恢复后的自动跳歌，在 URL 解析失败或为空时继续取下一首；单曲循环的当前曲目不可播时也可推进。一次自动推进最多检查当时的剩余队列和一轮完整歌单，电台允许再检查一批补歌；同一曲目键只尝试一次，全部不可播时停止音频。每次异步播放尝试完成后复核请求代际，用户切歌、清空队列、切音质或退出平台后，旧推进任务不能继续取歌。
+
+电台耗尽时，自动推进至多等待一次当前电台会话的补歌 Promise，再检查这一批曲目；后台补量和续播共用请求，不重复发起。补歌失败、超时或返回空批次后结束本次推进，不立即发起第二轮。等待结束仍须核对播放代际、队列身份及全民 K 歌选择；等待中点击播放/暂停、上一首、下一首，或清空/更换队列，会取消旧续播意图，即使已结束的 audio 此时处于暂停状态。
 
 播放与持久化共同读取 `PlaybackConfig` 中的历史上限，不再分别硬编码限制。
 
@@ -123,6 +127,8 @@ playbackControls → audio.load()/play()
 
 首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。可修改的歌单详情不再使用服务端第二份内容缓存，后台更新和强制刷新直接读取 Provider 当前结果，空歌单也更新播放器缓存。
 
+`HomeHandler` 在平台登录检查之前处理 `recent`，通过 `HomeService.loadLocalRecentHistory` 读取本机播放历史；未登录 QQ/网易云也可打开此抽屉，其他在线入口仍使用原有登录条件。
+
 「我喜欢」每次加载的分页共用一个 `loadingSession`，让 Provider 复用本次歌单定位和 QQ 全量返回。登录/退出使平台代际失效后，已发出的页面返回即停止后续分页；普通页面导航仍允许同账号后台加载完成并写缓存。
 
 内容抽屉在初始及关闭状态设置 `inert`，打开时恢复键盘操作；关闭时若焦点仍在抽屉内或因遮罩点击回到页面主体，则返回仍有效的原触发控件。歌曲更多菜单由 HomeHandler 保管唯一外部点击监听与待安装定时器；按钮、Escape、Tab、返回、替换或关闭所属抽屉都会释放本次监听，保留正常焦点与 ARIA 行为。
@@ -131,13 +137,15 @@ playbackControls → audio.load()/play()
 
 ## 5. 队列、电台与歌单
 
-`state/actions.js` 是当前曲目、历史、播放偏好和待确认请求的写入入口；恢复保持原状态对象身份，完成的同步变更通过 `commit()` 按保存、渲染顺序通知。异步流解析和请求代次仍由 playback-controls 拥有，只在接受结果后提交状态。`queue/manager.js` 独占队列转换、歌单游标和随机顺序；`features/queue-operations.js` 编排音频清理与队列操作，不再维护第二套队列算法。原先未被实际使用的 StateManager 订阅包装已移除，初始状态、规范化及校验仍在 `state/manager.js`。
+`state/actions.js` 是当前曲目、历史、播放偏好和待确认请求的写入入口；恢复保持原状态对象身份，完成的同步变更通过 `commit()` 按保存、渲染顺序通知。异步流解析和请求代次仍由 playback-controls 拥有，只在接受结果后提交状态。`queue/manager.js` 独占队列转换、歌单游标和随机顺序；`core/queue-coordinator.js` 编排音频清理、队列操作和后续播放，不再经过单独的 queue-operations 转发层。原先未被实际使用的 StateManager 订阅包装已移除，初始状态、规范化及校验仍在 `state/manager.js`。
 
 - **三种队列形态**:`normalQueue`(点歌队列/歌单播放)、`radioQueue`(电台)、`normalQueueTracks`(歌单全量,`playlistIndex` 游标);`queueType` ∈ queue/playlist/radio。待确认请求由 `pendingRequests` 保存，旧 `requestedQueue` 仅兼容读取。`insertTracksNext` 在 playlist 模式从 `playlistIndex+1` 处插入，保留当前曲目、音频和游标；`removeTrack` 同步从全量列表剔除；`clearQueue` 复位全部队列与 shuffle 游标。待确认通知的「下一首播放」使用同一插入操作，空闲时等用户按播放开始。
 - **播放模式**:UI 经 `getNextMode()` 在 sequence/shuffle/repeat-one 间轮换；服务端快照和本地 v2/v1 恢复均接受 repeat-one，旧值 single 归一化为 repeat-one，保留旧值 loop 的兼容接纳。shuffle 用 `shuffleOrder` 曲目键数组 + `shuffleCursor` 游标(`rebuildShuffleOrder` Fisher–Yates,游标越界回退顺序取队首)。普通曲目沿用 ID，导入请求使用 `request:<songRequestKey>`，区分同曲的不同请求。歌单游标按实际取出曲目对齐；相邻曲目键相同时保留顺序位置，避免切回顺序播放后仍高亮随机播放时的位置。明确插入下一首时，活动队列条目标记 `playNext`，快照保留该标记；重新打乱队列后仍先消费这批条目，取出时移除标记，歌单全量副本不保留临时优先级。
 - **电台补量**:`features/radio-mode.js` 在电台队列不足 3 首时按 10 首一批 `POST /api/music/home`(action=radio),过滤最近 30 首历史与队列内重复(请求归 radio-mode，去重入队归 QueueManager.refillRadioQueue)。平台由当前电台的 `queueSourceKey` 固定；旧快照缺少来源时优先从当前曲目或电台曲目推断，浏览平台标签不改变补歌平台。每次建立电台的队列数组身份拥有独立请求锁和失败通知状态；旧响应在入队前校验身份，同平台重开也会使旧请求失效，新电台补量不等待旧请求。
 - **收藏/歌单**:`playlist-operations.js` 通过 `/api/music/playlists/tracks/add|remove` 修改音乐 Provider 歌单，通过 `/api/music/home` 读取歌单；不调用本地 `/api/playback/favorites`。收藏/歌单展示数据经 `CacheManager` 24h 缓存跨启动保留。
 - **缓存统计**:`cache-operations.js` 展示 `GET /api/music/cache` 并支持 `/api/music/cache/clear`。
+
+电台会话保存正在进行的补歌 Promise，完成后释放；请求与响应体读取共用 30 秒取消期限，避免耗尽后的自动推进无限等待。
 
 歌单的「上一首」由 `QueueManager.getPreviousPlaylistIndex` 定位：顺序及单曲循环模式按列表回退，首曲环绕到末曲；随机模式优先使用实际播放历史，无历史时按列表回退。手动上一首不再按已播放 5 秒区分切歌与重置进度。`playback-controls` 接受有效音源后才消费历史，并通过 `jumpToPlaylistTrack` 同步游标、后续队列和随机顺序；失败或过时请求不提交回退状态。普通队列和电台仍回退实际历史，无历史但有当前歌曲时回到本曲开头。歌单高亮核对当前曲目键，游标不匹配时查找实际歌曲；同键重复条目优先保留匹配的游标位置。已播放条目保持正常显示，不作灰显。
 
@@ -158,6 +166,10 @@ playbackControls → audio.load()/play()
 **恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移（[state/storage.js](../../../public/js/playback/state/storage.js)）。HTTP/IPC 快照保存音频的 `currentTime`，恢复时归一到 `restoredTime`；只有 `StorageManager._doSave` 的 localStorage 写入把 `restoredTime` 置为 0，不能据此认为服务端快照不保存播放位置。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
 
 常规 HTTP 保存失败保留当前发送端的最新待存快照；连续两次失败显示一次「播放队列和进度还没保存成功，先别关闭 LIRA。」，随后成功显示「播放队列和进度已保存。」并重置失败计数。旧序号的晚到结果不能覆盖新保存结果或重复提示。普通请求尚未 settle 时，最新 in-flight 快照也可由显式 flush 复用；卸载时 IPC 与 beacon/keepalive 同时提交同一版本，正常桌面关闭先等待 IPC，失败才回退 keepalive HTTP。
+
+可等待的 HTTP 保存必须同时满足 HTTP 成功、`ok:true` 和 `data.saved:true`；关机 IPC 必须返回 `saved:true`。业务拒绝也按保存失败保留最新 pending，不能仅凭 HTTP 200 或 IPC resolve 清除。卸载时的即发请求仍不等待确认。
+
+设置中的「清空歌曲和使用记录」成功后清理播放内容缓存及旧 localStorage v1/v2 状态，再重载页面、停止当前音频并领取新的启动 writer。部分失败仅在 `musicDb` 已提交时清理本地播放副本，未提交时保留回退数据。服务端全清空保留并推进 writer 撤销元数据，清空前迟到的 HTTP、IPC 和卸载保存均不能复活旧队列。
 
 QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最后一项必须跨重启送回 Provider,否则 HAR 中 `songtype: 1` 的付费歌曲会被错误降为类型 `0`。`qualityPreferences` 按 Provider 保存:QQ 为 `standard/high/lossless/premium/immersive`,网易云为 `standard/higher/exhigh/lossless/hires`;后两项通过本地 QMC2 Range 代理，不能承诺 QQ 客户端的 Dolby/空间 DSP 效果。
 

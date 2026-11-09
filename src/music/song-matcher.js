@@ -9,6 +9,23 @@ const VERSION_RULES = [
   { pattern: /\b(?:speed up|sped up|slowed)\b|加速|慢速/i, value: -20, label: '加速版 / 慢速版' },
 ];
 
+function matchMusicTrackCandidates(body) {
+  const request = {
+    songName: cleanText(body.songName || body.title).slice(0, 120),
+    artist: cleanText(body.artist).slice(0, 80),
+    durationMs: Math.max(0, Number(body.durationMs) || 0),
+  };
+  if (!request.songName) throw new Error('缺少要匹配的歌名。');
+
+  const candidates = Array.isArray(body.candidates) && body.candidates.length > 0 ? body.candidates.slice(0, 50) : []; // local candidates need db access — pass from caller
+
+  return {
+    request,
+    threshold: AUTO_ACCEPT_SCORE,
+    results: rankTrackCandidates(request, candidates),
+  };
+}
+
 function rankTrackCandidates(request, candidates) {
   return (Array.isArray(candidates) ? candidates : [])
     .map((candidate) => scoreTrackMatch(request, candidate))
@@ -152,6 +169,7 @@ function cleanText(value) {
 
 module.exports = {
   AUTO_ACCEPT_SCORE,
+  matchMusicTrackCandidates,
   rankTrackCandidates,
   scoreTrackMatch,
 };

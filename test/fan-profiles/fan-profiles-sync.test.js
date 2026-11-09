@@ -52,7 +52,7 @@ test('late remote responses are rejected when origin or authorization changes wi
       state.authorized = false;
     },
     (state) => {
-      state.epoch++;
+      state.generation++;
     },
   ]) {
     const delayed = deferred();

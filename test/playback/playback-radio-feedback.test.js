@@ -28,6 +28,7 @@ test('playback save notifications follow the latest response and allow a new fai
   for (let i = 0; i < 3; i++) {
     const saving = save();
     if (i === 0) requests.at(-1).reject(new Error('offline'));
+    else if (i === 1) requests.at(-1).resolve({ ok: true, json: async () => ({ ok: true, data: { saved: false } }) });
     else requests.at(-1).resolve({ ok: false });
     await saving;
     assert.equal(notices.length, i === 0 ? 0 : 1);
@@ -36,7 +37,7 @@ test('playback save notifications follow the latest response and allow a new fai
   const late = save();
   const lateRequest = requests.at(-1);
   const recovery = save();
-  requests.at(-1).resolve({ ok: true });
+  requests.at(-1).resolve({ ok: true, json: async () => ({ ok: true, data: { saved: true } }) });
   await recovery;
   assert.equal(notices.length, 2);
   assert.equal(notices[1].type, 'success');
@@ -115,10 +116,10 @@ test('radio refill keeps its provider when another music tab is selected', async
   const filling = refill();
   assert.equal(requests[0].body.platform, 'qq');
   assert.equal(requests[0].body.action, 'radio');
-  await refill();
+  const waitingAgain = refill();
   assert.equal(requests.length, 1, 'the active radio has only one refill in flight');
   requests[0].resolve({ ok: true, data: { tracks: [{ id: 'qq:new', source: 'qq' }] } });
-  await filling;
+  await Promise.all([filling, waitingAgain]);
   assert.deepEqual(Array.from(state.radioQueue, (track) => track.id), ['qq:last', 'qq:new']);
 });
 
@@ -145,10 +146,10 @@ for (const source of ['netease', 'qq']) {
     assert.deepEqual(Array.from(state.radioQueue, (track) => track.id), [`${source}:last`]);
     assert.deepEqual(updates, [], 'the old response does not save or rerender the new radio');
     assert.deepEqual(notices, []);
-    await refill();
+    const waitingAgain = refill();
     assert.equal(requests.length, 2, 'completion of the old request cannot unlock the new refill');
     requests[1].resolve({ ok: true, data: { tracks: [{ id: `${source}:new-result`, source }] } });
-    await newFilling;
+    await Promise.all([newFilling, waitingAgain]);
     assert.deepEqual(Array.from(state.radioQueue, (track) => track.id), [`${source}:last`, `${source}:new-result`]);
     assert.deepEqual(updates, ['save', 'render']);
   });

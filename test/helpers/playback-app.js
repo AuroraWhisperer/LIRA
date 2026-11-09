@@ -134,7 +134,7 @@ async function createPlaybackApp(initialState, options = {}) {
         if (parsed.payload) {
           serverState = JSON.parse(JSON.stringify(parsed.payload));
         }
-        return response({ ok: true, data: {} });
+        return response({ ok: true, data: { saved: true } });
       }
       return response({
         ok: true,

@@ -2,6 +2,7 @@
 
 const { now } = require('../shared/utils');
 const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
+const { clearAllQueueStatesInTransaction } = require('./playback-store');
 
 const { CLEAR_ALL_MATRIX, clearGiftScopeInTransaction, countRows } = require('./database-clear-operations');
 const { coordinateClearAll } = require('./database-clear-coordinator');
@@ -61,7 +62,7 @@ function clearPlaybackData(musicDb) {
   try {
     const history = (musicDb.prepare('SELECT COUNT(*) AS count FROM play_history').get() || {}).count || 0;
     musicDb.prepare('DELETE FROM play_history').run();
-    musicDb.prepare('DELETE FROM play_queue_state').run();
+    clearAllQueueStatesInTransaction(musicDb);
     musicDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'").run();
     musicDb.exec('COMMIT');
     return { cleared: true, scope: 'playback', deletedCount: history };

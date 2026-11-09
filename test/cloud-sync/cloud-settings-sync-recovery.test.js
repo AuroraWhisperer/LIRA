@@ -7,6 +7,8 @@ const test = require('node:test');
 const { openSqliteDatabase } = require('../../src/storage/database');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSettingsStore } = require('../../src/storage/settings-store');
+const { createCloudSyncRuntime } = require('../../src/server/cloud-sync-runtime');
+const { createDesktopRuntime } = require('../../src/electron/desktop-runtime');
 const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('../../src/server/settings-contract');
 const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
 
@@ -57,8 +59,12 @@ function fixture(t) {
       },
       runtime: {
         prepareCloudRoomAccount: (account) => settings.prepareCloudRoomAccount(account),
-        getCloudSettingsSnapshot: () => serializeCloudSettings(settings.getSettings()),
-        applyCloudSettingsSnapshot: (values) => settings.setSettings(normalizeCloudSettingsSnapshot(values), { syncPending: false }),
+        getCloudSettingsSnapshot: (accountKey) => {
+          if (accountKey) settings.assertCloudSettingsAccount(accountKey);
+          return serializeCloudSettings(settings.getSettings());
+        },
+        acceptCloudSettingsAccount: (accountKey) => settings.acceptCloudSettingsAccount(accountKey),
+        applyCloudSettingsSnapshot: (values, accountKey) => settings.setSettings(normalizeCloudSettingsSnapshot(values), { syncPending: false, accountKey }),
         getPendingCloudSettings: (account) => {
           const pending = settings.getPendingCloudSettings?.(account);
           return pending ? { ...pending, values: serializeCloudSettings(pending.values) } : null;
@@ -174,6 +180,142 @@ test('pending settings stay with their owner across account switches and late re
   assert.equal(f.settings.getSettings().songRequestMinMedalLevel, '5');
   assert.equal(f.settings.getSettings().songRequestUserBlacklist, blacklist);
   assert.equal(f.settings.getPendingCloudSettings(firstKey), null);
+});
+
+test('failed account restoration cannot capture or upload the previous account settings', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  const firstKey = f.key();
+  const blacklist = JSON.stringify([{ uid: '123', name: 'First account only', expiresAt: 0 }]);
+  f.setUpload(async () => { throw new Error('OFFLINE'); });
+  f.edit({ queueLimit: '77', songRequestUserBlacklist: blacklist });
+  await f.controller.whenIdle();
+  // Upgrade from a database that predates the separate settings snapshot owner.
+  f.db.prepare('DELETE FROM settings WHERE key = ?').run('cloudSettingsAccountKey');
+  const secondKey = JSON.stringify(['https://api.example.test', 'second', 2]);
+  f.cloud.set(secondKey, {
+    revision: 5,
+    values: { ...serializeCloudSettings(f.settings.getDefaultSettings()), roomId: '222', queueLimit: 20,
+      giftAutoThanksEnabled: false, giftStatsQueryEnabled: false },
+  });
+  f.setRead(async () => { throw new Error('OFFLINE'); });
+  f.setAccount('second', 2);
+  await f.controller.whenIdle();
+  assert.throws(() => f.edit({ paused: 'true' }), { code: 'CLOUD_SETTINGS_NOT_READY' });
+  assert.equal(f.settings.getPendingCloudSettings(secondKey), null);
+  assert.equal(f.settings.getPendingCloudSettings(firstKey).values.queueLimit, '77');
+
+  await assert.rejects(f.restart(), /OFFLINE/);
+  assert.throws(() => f.edit({ queueLimit: '88' }), { code: 'CLOUD_SETTINGS_NOT_READY' });
+  f.setUpload(async () => {});
+  const interaction = await f.controller.setGiftInteraction({ key: 'giftAutoThanksEnabled', enabled: true });
+  assert.equal(interaction.ok, false);
+  assert.equal(interaction.error, 'CLOUD_SETTINGS_NOT_READY');
+  // Menu changes can request a sync without changing persisted cloud settings.
+  f.controller.markDirty('settings');
+  await f.controller.whenIdle();
+  assert.equal(f.uploads.some(entry => entry.account === secondKey), false);
+
+  f.setRead(async () => {});
+  await f.controller.syncNow();
+  assert.equal(f.settings.getSettings().roomId, '222');
+  assert.equal(f.settings.getSettings().queueLimit, '20');
+  assert.equal(f.settings.getSettings().songRequestUserBlacklist, '[]');
+  assert.equal(f.cloud.get(secondKey).revision, 5);
+  f.edit({ paused: 'true' });
+  await f.controller.whenIdle();
+  assert.equal(f.cloud.get(secondKey).values.queueLimit, 20);
+  assert.deepEqual(f.cloud.get(secondKey).values.songRequestUserBlacklist, []);
+  f.setAccount('first', 1);
+  await f.controller.whenIdle();
+  assert.equal(f.cloud.get(firstKey).values.queueLimit, 77);
+  assert.equal(f.settings.getSettings().songRequestUserBlacklist, blacklist);
+  assert.equal(f.settings.getPendingCloudSettings(firstKey), null);
+});
+
+test('settings runtime restores the snapshot owner atomically before enabling edits', (t) => {
+  const f = fixture(t);
+  const runtime = createDesktopRuntime({
+    startServer() {},
+    shutdownApplication() {},
+    ...createCloudSyncRuntime({
+      getSettingsStore: () => f.settings,
+      getBilibiliRuntime: () => ({ configure() {} }),
+      getAiConfig: () => ({}),
+      getGameSession: () => null,
+      getInteractionSession: () => null,
+      broadcastSnapshot() {},
+    }),
+  });
+  runtime.prepareCloudRoomAccount('first');
+  const first = runtime.getCloudSettingsSnapshot('first');
+  runtime.prepareCloudRoomAccount('second');
+  assert.throws(() => runtime.getCloudSettingsSnapshot('second'), { code: 'CLOUD_SETTINGS_NOT_READY' });
+  const second = { ...first, roomId: '222', queueLimit: 20 };
+  f.db.exec(`CREATE TRIGGER reject_settings_owner BEFORE UPDATE ON settings
+    WHEN NEW.key = 'cloudSettingsAccountKey' BEGIN SELECT RAISE(ABORT, 'owner write failed'); END;`);
+  assert.throws(() => runtime.applyCloudSettingsSnapshot(second, 'second'), /owner write failed/);
+  assert.equal(f.settings.getSettings().roomId, '');
+  assert.throws(() => runtime.getCloudSettingsSnapshot('second'), { code: 'CLOUD_SETTINGS_NOT_READY' });
+  f.db.exec('DROP TRIGGER reject_settings_owner');
+  runtime.applyCloudSettingsSnapshot(second, 'second');
+  assert.equal(runtime.getCloudSettingsSnapshot('second').queueLimit, 20);
+  f.edit({ queueLimit: '21' }, false);
+  assert.equal(f.settings.getPendingCloudSettings('second').values.queueLimit, '21');
+  assert.equal(f.settings.getSettings().cloudSettingsAccountKey, undefined);
+});
+
+test('returning to the previous account still requires restoring its detached room', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  const firstKey = f.key();
+  assert.equal(f.settings.getSettings().roomId, '123');
+  f.setRead(async () => { throw new Error('OFFLINE'); });
+  f.setAccount('second', 2);
+  await f.controller.whenIdle();
+  f.setAccount('first', 1);
+  await f.controller.whenIdle();
+  assert.throws(() => f.edit({ paused: 'true' }), { code: 'CLOUD_SETTINGS_NOT_READY' });
+  f.setRead(async () => {});
+  await f.controller.syncNow();
+  assert.equal(f.settings.getSettings().roomId, '123');
+  assert.equal(f.cloud.get(firstKey).values.roomId, '123');
+  assert.equal(f.uploads.length, 0);
+});
+
+test('old cloud snapshots preserve optional controls only for the same settings owner', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  const firstKey = f.key();
+  const blacklist = JSON.stringify([{ uid: '123', name: 'First account only', expiresAt: 0 }]);
+  f.edit({ songRequestUserBlacklist: blacklist, songCooldownMode: 'days', songCooldownValue: '2',
+    danmakuMonitoringEnabled: 'false',
+    openingTitle: 'Local opening title' });
+  await f.controller.whenIdle();
+  const oldValues = { ...f.cloud.get(firstKey).values };
+  delete oldValues.songRequestUserBlacklist;
+  delete oldValues.songCooldownMode;
+  delete oldValues.songCooldownValue;
+  delete oldValues.danmakuMonitoringEnabled;
+  delete oldValues.giftMonitoringEnabled;
+  f.cloud.set(firstKey, { revision: 3, values: oldValues });
+  await f.controller.syncNow();
+  assert.equal(f.settings.getSettings().songRequestUserBlacklist, blacklist);
+  assert.equal(f.settings.getSettings().songCooldownValue, '2');
+  assert.equal(f.settings.getSettings().danmakuMonitoringEnabled, 'false');
+
+  const secondKey = JSON.stringify(['https://api.example.test', 'second', 2]);
+  f.cloud.set(secondKey, { revision: 3, values: { ...oldValues, roomId: '222', enableBilibili: false } });
+  f.setAccount('second', 2);
+  await f.controller.whenIdle();
+  assert.equal(f.settings.getSettings().songRequestUserBlacklist, '[]');
+  assert.equal(f.settings.getSettings().songCooldownMode, f.settings.getDefaultSettings().songCooldownMode);
+  assert.equal(f.settings.getSettings().danmakuMonitoringEnabled, 'false');
+  assert.equal(f.settings.getSettings().giftMonitoringEnabled, 'false');
+  assert.equal(f.settings.getSettings().openingTitle, 'Local opening title');
+  f.edit({ paused: 'true' });
+  await f.controller.whenIdle();
+  assert.deepEqual(f.cloud.get(secondKey).values.songRequestUserBlacklist, []);
 });
 
 test('settings and their pending record roll back together when persistence fails', async (t) => {

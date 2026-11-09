@@ -114,6 +114,7 @@ Changing the remote server address does not change the `127.0.0.1` URLs used by 
 **Streamer Planner**
 
 - A local workbench with calendar events; pre-stream, live, and post-stream tasks; notes; promises to viewers; and reviews. The v3 model migrates older planner data
+- Weekly schedule generator in Toolbox → Streamer Tools: six layouts, editable text and images, local templates, and 1920×1080 PNG export
 
 **Desktop Features**
 

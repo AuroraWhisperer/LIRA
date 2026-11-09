@@ -87,17 +87,12 @@ test('canvas discard restores its shared and independent edits without clearing 
   const url = await openCanvasDesktop(desktop, fixture);
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
-  const receivedDrafts = Promise.all(['queue', 'clock'].map(type => page.waitForResponse(async response => {
-    if (!response.url().endsWith('/api/component-preview')
-      || !['read', 'read-batch'].includes(response.request().postDataJSON()?.action)) return false;
-    const { data } = await response.json();
-    return (data?.updates || [data]).some(update => update?.component === type && update.state?.dirty);
-  })));
+  await page.locator(`.preview-canvas-layer-select[data-item-id="${sharedId}"]`).click();
   await desktop.evaluate(() => {
     window.controllers.queue.edit({ overlayTitle: 'Keep unrelated work' });
     window.controllers.clock.edit({ label: 'Shared draft' });
   });
-  await receivedDrafts;
+  await page.waitForFunction(() => document.querySelector('[data-preview-field="clockCustomLabel"]')?.value === 'Shared draft');
   await page.locator(`.preview-canvas-layer-select[data-item-id="${independentId}"]`).click();
   await page.locator('[data-preview-field="clockCustomLabel"]').fill('Local draft');
   await desktop.waitForFunction(() => window.controllers.clock.getState().draft.label === 'Local draft');

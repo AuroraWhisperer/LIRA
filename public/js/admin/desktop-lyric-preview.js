@@ -28,8 +28,8 @@ function sampleTimeline() {
   });
   lines.push({ text: 'We keep moving through the night, until the morning comes', startMs: 18500, endMs: 25000, words: [] },
     { text: '把此刻唱成一首歌', startMs: 25000, endMs: 31000, words: [
-      { text: '把此刻', startMs: 25000, endMs: 25900 }, { text: '唱成', startMs: 26100, endMs: 29100 },
-      { text: '一首歌', startMs: 29300, endMs: 30200 },
+      { text: '把此刻', startMs: 25000, endMs: 25900 }, { text: '唱', startMs: 26100, endMs: 29100 },
+      { text: '成', startMs: 29100, endMs: 29400 }, { text: '一首歌', startMs: 29600, endMs: 30500 },
     ] });
   return { status: 'ready', trackTitle: '编排试播', lines };
 }
@@ -49,6 +49,40 @@ function init(form, options = {}) {
   const appState = stateService.getAppState();
   const events = new AbortController();
   const { signal } = events;
+  const positionStage = document.getElementById('advancedLyricPreviewStage');
+  let positionDrag = null;
+  const finishPositionDrag = event => {
+    if (!positionDrag || event.pointerId !== positionDrag.pointerId) return;
+    const drag = positionDrag;
+    positionDrag = null;
+    positionStage.classList.remove('is-positioning');
+    if (positionStage.hasPointerCapture(event.pointerId)) positionStage.releasePointerCapture(event.pointerId);
+    if (drag.moved) options.onPositionChange(event.type === 'pointercancel' ? drag.origin : drag.position, true);
+  };
+  positionStage?.addEventListener('pointerdown', event => {
+    if (event.button !== 0 || positionDrag || !options.onPositionChange
+      || !form.closest('#desktopLyricPage')?.classList.contains('is-advanced')) return;
+    const bounds = positionStage.getBoundingClientRect();
+    const settings = readSettings();
+    const origin = { x: Number(settings.advancedLyricPositionX), y: Number(settings.advancedLyricPositionY) };
+    positionDrag = { pointerId: event.pointerId, clientX: event.clientX, clientY: event.clientY,
+      width: bounds.width, height: bounds.height, origin, position: origin, moved: false };
+    positionStage.setPointerCapture(event.pointerId);
+    positionStage.classList.add('is-positioning');
+    event.preventDefault();
+  }, { signal });
+  positionStage?.addEventListener('pointermove', event => {
+    const drag = positionDrag;
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const percent = value => Math.max(0, Math.min(100, Math.round(value)));
+    const position = { x: percent(drag.origin.x + (event.clientX - drag.clientX) / drag.width * 100),
+      y: percent(drag.origin.y + (event.clientY - drag.clientY) / drag.height * 100) };
+    if (position.x === drag.position.x && position.y === drag.position.y) return;
+    drag.position = position;
+    drag.moved = true;
+    options.onPositionChange(position, false);
+  }, { signal });
+  for (const type of ['pointerup', 'pointercancel', 'lostpointercapture']) positionStage?.addEventListener(type, finishPositionDrag, { signal });
   let liveState = appState?.lyricState;
   let liveTimeline = appState?.lyricTimeline;
   let liveReceivedAt = performance.now();
@@ -56,6 +90,7 @@ function init(form, options = {}) {
   let sampleTimer = null;
   let previewVisible = true;
   const play = document.getElementById('desktopLyricSampleBtn');
+  const sampleSegment = document.getElementById('desktopLyricSampleSegment');
   const current = document.getElementById('desktopLyricCurrentBtn');
   const timeline = sampleTimeline();
   const sampleEnd = timeline.lines.at(-1).endMs;
@@ -94,6 +129,16 @@ function init(form, options = {}) {
     if (!visible && sample?.running) { resumeSample = true; updateSample(samplePosition(), false); }
     else if (visible && sample && resumeSample) { resumeSample = false; updateSample(sample.position, true); }
   };
+  sampleSegment?.addEventListener('change', () => {
+    const line = timeline.lines[Number(sampleSegment.value)];
+    const running = !sample || sample.running || resumeSample;
+    const position = line.startMs + (running ? 0 : Math.min(350, (line.endMs - line.startMs) * 0.1));
+    if (!sample) desktopLyricRenderer.updateLyricTimeline(timeline);
+    resumeSample = false;
+    updateSample(position, running);
+    sampleSegment.value = '';
+    updateVisibility();
+  }, { signal });
   const observer = new IntersectionObserver(([entry]) => { previewVisible = entry.isIntersecting; updateVisibility(); });
   observer.observe(document.getElementById('desktopLyricPreviewStage'));
   document.addEventListener('visibilitychange', updateVisibility, { signal });

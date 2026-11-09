@@ -1,5 +1,4 @@
 import { setGiftArtwork } from './gift-image.js';
-import { setGiftWishTextImage } from './gift-wish-image.js';
 import { mountMoonlitGiftWish, updateMoonlitGiftWish } from './gift-wish-moonlit.js';
 import { mountRibbonGiftWish, updateRibbonGiftWish } from './gift-wish-ribbon.js';
 import { applyTextStyle } from './text-style.js';
@@ -83,7 +82,7 @@ export function createGiftWishCard(wish, documentRef = document) {
         if (index > 0) {
           const image = element('img', 'wish-card-text-image');
           image.alt = '';
-          setGiftWishTextImage(image, wish.imagePath, wish.textImageFormat);
+          setGiftArtwork(image, wish.imagePath, { format: wish.textImageFormat });
           span.append(image);
         }
         if (part) span.append(documentRef.createTextNode(formatGiftWishText(wish, part)));

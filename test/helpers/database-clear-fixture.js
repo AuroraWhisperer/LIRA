@@ -2,6 +2,7 @@
 
 const assert = require('node:assert');
 const { now } = require('../../src/shared/utils');
+const { createPlaybackStore } = require('../../src/storage/playback-store');
 
 function seedClearAllConfiguration({ songDb, musicDb, giftDb }) {
   // Seed configuration data
@@ -226,7 +227,7 @@ function seedPlaybackBusinessData(musicDb, checkinDb, timestamp) {
     .prepare(
       `
     INSERT INTO play_queue_state (client_id, payload, updated_at)
-    VALUES ('default', '{}', ?)
+    VALUES ('default', '{"current":{"id":"clear-test-track"}}', ?)
   `,
     )
     .run(timestamp);
@@ -347,8 +348,7 @@ function assertEventAndPlaybackCleared({ superChatDb, giftDb, musicDb, checkinDb
   const playHistoryCount = musicDb.prepare('SELECT COUNT(*) AS count FROM play_history').get().count;
   assert.strictEqual(playHistoryCount, 0, 'play_history should be cleared');
 
-  const playQueueStateCount = musicDb.prepare('SELECT COUNT(*) AS count FROM play_queue_state').get().count;
-  assert.strictEqual(playQueueStateCount, 0, 'play_queue_state should be cleared');
+  assert.strictEqual(createPlaybackStore(musicDb).getQueueState(), null, 'playback content should be cleared');
 
   const checkinsCount = checkinDb.prepare('SELECT COUNT(*) AS count FROM checkin_users').get().count;
   assert.strictEqual(checkinsCount, 0, 'checkin_users should be cleared');

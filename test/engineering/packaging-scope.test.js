@@ -116,12 +116,13 @@ test('packaging omits external media and maintenance metadata while retaining re
     'public/img/overlays/danmaku-flower-letter/SOURCES.md',
     'public/img/admin/gifts/guard-icon-sources.json', 'public/img/overlays/danmaku-harbor/sources.json',
     'src/shared/danmaku-source-manifest.json', 'public/fonts/README.md',
-    'public/fonts/lyrics-fallback/README.md');
+    'public/fonts/lyrics-fallback/README.md', 'public/fonts/weekly-schedule/README.md');
   for (const relative of excluded) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), false, relative);
   }
   for (const relative of ['public/js/overlays/gift-effects-frame.js', 'public/css/overlays/gift-effects.css',
     'public/img/gift-avatar-placeholder.svg', 'public/fonts/OFL-NotoSerifSC.txt',
+    'public/fonts/weekly-schedule/zcool-xiaowei.woff2', 'public/fonts/weekly-schedule/OFL.txt',
     'public/css/playback/turntable.LICENSE.txt', 'public/fonts/lyrics-fallback/notosans-OFL.txt',
     'public/js/lyrics/desktop-lyric-fonts.js', 'public/img/overlays/danmaku-comet/crane-frame.webp',
     'public/img/admin/gifts/bilibili-guard-captain-thousand.webp',

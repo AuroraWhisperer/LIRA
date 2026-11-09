@@ -66,9 +66,9 @@ AI configuration receives `src/storage/ai-state-store.js` from `server/ai-runtim
 
 ### Frontend pure helpers and compatibility
 
-`public/js/shared/html-escape.js` owns HTML/attribute escaping; `display-format.js` owns display formatting. Direct consumers, including playback helpers, import these modules without loading dialogs, toast, requests or legacy global publication. The original falsy-input semantics remain unchanged; classic overlays and confirmation-dialog escaping retain their separate contracts.
+`public/js/shared/html-escape.js` owns HTML/attribute escaping; `display-format.js` owns display formatting; `font-family.js` owns multilingual font fallback. Direct consumers, including playback helpers, now-playing rendering and the Admin queue, import these modules without loading unrelated dialogs or requests for pure helpers. The original falsy-input semantics remain unchanged; classic overlays and confirmation-dialog escaping retain their separate contracts.
 
-`shared/utils.js` retains its named exports for existing explicit UI/request consumers. Its unused aggregate object and global publication are removed; playback provider operations use the already injected utility capability for logout confirmation. `module-boundaries.test.js` prevents named pure-helper imports from returning to the UI/request entry; `test/ui/frontend-pure-utils.test.js` exercises real ESM imports without UI globals or network access.
+`shared/utils.js` retains its named exports for existing explicit UI/request consumers, including a compatibility re-export of `withMultilingualFallback`. Current font consumers use `font-family.js` directly; retire the old export only when the retained utils import contract is explicitly removed. Its unused aggregate object and global publication are removed; playback provider operations use the already injected utility capability for logout confirmation. `module-boundaries.test.js` prevents named pure-helper imports from returning to the UI/request entry; `test/ui/frontend-pure-utils.test.js` exercises real ESM imports and font selection without UI globals or network access.
 
 ## Mutable Behavior In Composition Roots
 

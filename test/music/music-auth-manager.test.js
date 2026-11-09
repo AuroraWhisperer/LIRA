@@ -154,6 +154,15 @@ test('QQ auth still filters auth cookies outside the allowed domains', async () 
   assert.equal(state.cookieCount, 0);
 });
 
+test('Netease auxiliary cookies do not finish login before a session arrives', async () => {
+  const cookies = [{ name: '__csrf', value: 'synthetic-csrf', domain: '.music.163.com' }];
+  const authManager = loadAuthManager(cookies);
+  assert.equal((await authManager.getMusicSessionState('netease')).loggedIn, false);
+
+  cookies.push({ name: 'MUSIC_U', value: 'synthetic-session', domain: '.music.163.com' });
+  assert.equal((await authManager.getMusicSessionState('netease')).loggedIn, true);
+});
+
 function snapshotFixture(t, { available = true } = {}) {
   const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-music-auth-'));
   t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));

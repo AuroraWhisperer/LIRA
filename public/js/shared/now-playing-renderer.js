@@ -1,5 +1,5 @@
 import { NOW_PLAYING_DEFAULTS } from './now-playing-appearance.js';
-import { withMultilingualFallback } from './utils.js';
+import { withMultilingualFallback } from './font-family.js';
 
 export function createNowPlayingRenderer(root, { part } = {}) {
   const document = root.ownerDocument;

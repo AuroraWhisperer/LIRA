@@ -171,17 +171,20 @@ test('losing authorization invalidates the old context even when the same accoun
   }
 });
 
-test('switching back to a previous streamer or server never revives its old context', (t) => {
-  for (const [key, value] of [
-    ['streamerId', 'streamer-b'],
-    ['origin', 'https://other.example'],
+test('switching back to a previous streamer or server never revives its old context, even without an intermediate read', (t) => {
+  for (const [key, value, observeSwitch] of [
+    ['streamerId', 'streamer-b', true],
+    ['origin', 'https://other.example', true],
+    ['streamerId', 'streamer-b', false],
   ]) {
     const f = fixture(t);
     const originalValue = f.state[key];
     const opened = f.invoke({ action: 'open' });
     f.state[key] = value;
-    assert.notEqual(f.invoke({ action: 'open' }).contextId, opened.contextId);
+    f.state.generation++;
+    if (observeSwitch) assert.notEqual(f.invoke({ action: 'open' }).contextId, opened.contextId);
     f.state[key] = originalValue;
+    f.state.generation++;
     assert.equal(f.invoke({ action: 'save', contextId: opened.contextId }).ok, false);
     assert.equal(
       f.calls.execute.some((call) => call.action === 'save'),

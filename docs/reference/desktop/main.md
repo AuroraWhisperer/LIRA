@@ -298,6 +298,8 @@ IPC 通道定义见 [preload.md](preload.md)。
 
 账号边界使用 `licenseManager.getCloudSyncIdentity()` 返回的已保存 `accountName` 和 `streamerId`，与认证服务器 origin 一起构成同步 owner；该方法仅供 main process 内部使用，不新增 IPC。控制器在首轮同步及身份变化时，先通过 runtime 的 `prepareCloudRoomAccount` 同步完成[房间归属事务](../backend/storage.md#8-云端-scope-的本地落盘)，再允许 HTTP/SSE。无有效身份或事务失败时不发请求；房间变化后配置本地 runtime 并广播 `cloud:settings`，不发 dirty 回声。同一 owner 的重启或临时授权中断保留房间，其他/未知 owner 的旧房间不能进入新账号的首次播种或 dirty 上传。没有已建立账号边界时的 settings mutation 不取得待上传归属。
 
+磁盘歌库另以私有 `cloudSongAccountKey` 记录实际归属；切换账号后，待传恢复或云端拉取成功之前，不将旧歌库视为新账号内容。`getCloudSongsSnapshot(accountKey)` 在当前库上传与手动数量确认前检查归属，未就绪返回 `CLOUD_SONGS_NOT_READY`，不标记 songs dirty。`replaceCloudSongsSnapshot(input, accountKey)` 原子替换歌曲与归属；内容相同的待传恢复及云端明确未初始化时由 `acceptCloudSongsAccount(accountKey)` 接纳归属，后者继续原有首次播种。同账号离线编辑仍可保存并产生待传快照。
+
 每轮同步在入队时捕获生命周期代际和取消信号；停止时递增代际并取消在途 HTTP/SSE，请求返回及每次本地写入前再次检查代际。旧轮次不能因新的 `start()` 恢复为有效，也不能在 `dispose()` 后发起下一 scope 或修改本地状态。云端与礼物控制器保持独立，共用远端 SSE 读取/reader 清理和 [cancellable-delay.js](../../../src/shared/cancellable-delay.js) 的可取消长延迟调度；各自维护业务恢复与退避状态。
 
 Device SSE 使用 15 秒连接期限和 60 秒完整事件块空闲期限；注释心跳也续期（服务器心跳为 25 秒）。调用方取消信号同时传给 fetch 和有界 reader，同一缓冲块内取消后不再交付后续事件。超时返回可重试的 REQUEST_TIMEOUT，由各控制器恢复；停止/账号变更仍取消并释放 reader。重连等待遵守 Retry-After，超出 Node 计时上限时分段等待，不重新增加业务退避或重算原期限；替换/停止后旧 timer 回调无效。
@@ -314,7 +316,7 @@ settings 也保留账号所属的持久待传快照：启动或切回账号先�
 
 上传遇到 `INVALID_GIFT_BLIND_BOX_CONFIG` 时，只按服务器当前有效自定义身份移除已被接管/删除的旧 `customId`，保留其他本地设置、有效项的编辑和未分配身份的新草稿，再尝试一次。读取期间发生新编辑或换账号则放弃该次修复，成功回执之前保留持久待传记录；没有可确定移除的旧身份时报告冲突并保留原记录，不放宽服务端校验。普通网络失败沿用原重试行为。
 
-手动歌库同步先由主进程返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。请求入队即标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
+手动歌库同步先由主进程核对歌库归属并返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。归属检查通过后、请求入队前标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
 
 `song-protocol.js` 的 `syncSongs` 授权操作在授权生命周期复核后验证服务器上传确认：`ok` 必须为 true，`count` 必须与提交快照长度一致。缺失、非法或不匹配的确认返回 `INVALID_RESPONSE`，不确认 pending、不清除 dirty，也不把本地数量作为服务器成功数量。
 
@@ -387,6 +389,18 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 本机字体权限:`desktop-permissions.js` 只处理 Chromium `localFonts` 请求,并用 `hasExactOrigin(requestingUrl, baseUrl)` 拒绝非 LIRA origin 与所有其他权限。可信页面请求时显示 Electron 原生对话框,明确说明只读取字体名称、不读取字体文件/路径/内容;用户选择“允许”才向 Chromium 放行。管理页的直播歌词、点歌板风格 3–6 与大播放器字体选择器通过 `shared/local-font-library.js` 共用一次 `window.queryLocalFonts()` 查询,去重、排序后分别保留各自的内置选项和当前值;若 Chromium 首次调用要求瞬时用户激活,管理页在用户首次正常点击/按键时自动重试,不新增 IPC 或文件访问桥。
 
+### 周表 PNG 导出
+
+[weekly-schedule-export-controller.js](../../../src/electron/weekly-schedule-export-controller.js) 拥有周表保存任务，通过[窄IPC桥](preload.md)只接收主窗口模板数据。默认原生保存位置为系统图片目录 `LIRA/周表/主播或模板名_周一日期.png`；不读取后端日程或榜单，不新增图片服务器。编辑器与固定内部页共用 [renderer.js](../../../public/js/admin/weekly-schedule/renderer.js)。
+
+隐藏窗口的画布固定1920×1080，`sandbox`、`contextIsolation`、`webSecurity`开启，无Node/preload，拒绝导航、重定向及新窗口。使用非持久 `lira-weekly-schedule-export` session，拒绝权限请求；只允许固定本地导出页、同origin静态资源和本机data/blob图片。首次固定页loadURL仅通过header传本次管理凭据，不改主session的请求鉴权，不将token放URL/DOM，也不增加overlay scope。
+
+固定页加载后用 `setContentSize` 恢复1920×1080内容区，避免构造窗口时被当前显示器尺寸限制。字体、图片解码及布局完成后，要求画布为1920×1080、实际renderer viewport至少覆盖整张画布，且最终文字适配无溢出，才允许capturePage；按系统DPI必要调整捕获结果后，再核验PNG头中的1920×1080像素尺寸。仅对 Chromium 的 `UnknownVizError` 在下一渲染帧重试截图一次；其他错误或第二次失败按原错误路径退出，仍受任务取消/超时约束。[真实Electron回归](../../../test/desktop/weekly-schedule-electron.test.js)覆盖初始窗口960×540及1920×1080，并核对导出PNG四角的最新标记像素，防止旧帧、裁切局部后放大仍通过尺寸检查。
+
+主进程接受缺少新增外观参数的旧模板；存在 `background`、`typography`、图像旋转/不透明度/翻转、花纹浓度时检查类型及限额，防止畸形参数进入渲染。编辑器范围与默认值见[Admin周表说明](../frontend/app.md#周表生成器)。
+
+同一controller只允许一项任务。主frame导航、窗口销毁或IPC释放取消任务、销毁隐藏窗口；结束移除请求拦截并清理session存储。保存用同目录排他临时文件、flush后rename，渲染失败不覆盖目的文件，异常清理自己创建的临时文件。实现/安全聚焦证据见 [weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js)，模板与界面存储见[Admin周表说明](../frontend/app.md#周表生成器)。
+
 ## 5. local-media:// 协议(唯一成文处)
 
 用途:让前端 `<audio>` 播放本地音频文件,同时绕开 Chromium 对本地文件的加载限制。
@@ -450,7 +464,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 | [dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js)，main 创建 | 先移除其 IPC，再 dispose 授权会话，等待 `whenIdle()`（登录/登出及串行队列） | 持有独立 Cookie session/加密快照；后端抽奖任务与 lotteryDb 另由 runtime.stop 取消并排空 |
 | [remote-gift-controller.js](../../../src/electron/remote-gift-controller.js) | `dispose()` + `whenIdle()` | SQLite 礼物投影、cursor/source；abort HTTP/SSE、清 timer、来源/授权/controller/projection fence 拒绝晚提交 |
 | [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) | `dispose()` + `whenIdle()`；礼物互动 IPC disposer 只解除 IPC/订阅 | 本地 settings/songs 与 Bilibili 认证；待传歌曲快照不会因退出删除，授权/dirty 代次隔离晚结果 |
-| [fan-profile-controller.js](../../../src/electron/fan-profile-controller.js) | IPC disposer 仅 removeHandler；main 执行 dispose + whenIdle（allSettled 的同步/大航海/自动更新、身份预览与曾用名查询/提交工作） | songDb 私人档案；停止 timer、abort 请求、移除授权订阅，scope/epoch 拒绝旧结果 |
+| [fan-profile-controller.js](../../../src/electron/fan-profile-controller.js) | IPC disposer 仅 removeHandler；main 执行 dispose + whenIdle（allSettled 的同步/大航海/自动更新、身份预览与曾用名查询/提交工作） | songDb 私人档案；停止 timer、abort 请求、移除授权订阅，scope/授权 generation 拒绝旧结果；正常 token 续期保留在途任务 |
 | [desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)，main 初始化 | `dispose()` abort 登录；`whenIdle()` 等账号操作队列和交互登录完成 | 分区 Cookie/本地加密快照，disposed 与账号代次保护；不依赖业务 SQLite |
 | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) 创建时注入导出 controller | disposer 自行 unbind、controller.dispose/cancel、removeHandler；**没有单独 whenIdle** | prepare 读取礼物投影，save 写用户选定图片目录；任务/准备代次与 viewRevision 检查阻止失效任务继续，不重复调用 controller.dispose |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) 创建时注入每日机器人 controller | disposer 自行 removeHandler + controller.dispose；**没有单独 whenIdle** | 云端开关、词库条件读取/保存及旧签到库只读接管入口；清 context/draft/内存词库缓存并移除授权订阅，await 后复核 context，不再读失效账号数据；远端请求可能已经执行 |

@@ -48,6 +48,7 @@ function coordinateClearAll({ songDb, superChatDb, giftDb, musicDb, checkinDb, g
   ];
   const begun = [];
   const errors = [];
+  let failure;
   for (const entry of databases) {
     if (entry.optional && !entry.db) continue;
     try {
@@ -55,6 +56,7 @@ function coordinateClearAll({ songDb, superChatDb, giftDb, musicDb, checkinDb, g
       begun.push(entry);
       entry.clear(entry.db, counts);
     } catch (error) {
+      failure = error;
       errors.push({ db: entry.name, phase: 'delete', error: error.message });
       break;
     }
@@ -68,11 +70,13 @@ function coordinateClearAll({ songDb, superChatDb, giftDb, musicDb, checkinDb, g
       defaultDb = 'giftDb';
       restoreGiftDefaults(giftDb, timestamp);
     } catch (error) {
+      failure = error;
       errors.push({ db: defaultDb, phase: 'recreate', error: error.message });
     }
   }
   if (errors.length > 0) {
     return preCommitFailure({
+      failure,
       errors,
       ...rollbackDatabases(begun, true),
       counts,

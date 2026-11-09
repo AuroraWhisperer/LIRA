@@ -3,7 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { NeteaseMusicProvider } = require('../../src/music/providers/netease-provider');
-const { getMusicHomeContent, writeMusicPlaylistTracks } = require('../../src/music/lyrics-service');
+const { getMusicHomeContent, writeMusicPlaylistTracks } = require('../../src/music/music-catalog-service');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 

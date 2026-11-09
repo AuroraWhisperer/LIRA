@@ -110,6 +110,42 @@ test('RGBA editing preserves alpha through RGB changes, form submission, cloning
   assert.equal(await picker.isVisible(), false);
 });
 
+test('RGB-only fields keep opaque values and restore alpha controls when switching back to RGBA', async t => {
+  const page = await pageFor(t, '<form><input id="solid" type="color" name="solid" value="#12345680" data-color-alpha="false"><input id="rgba" type="color" name="rgba" value="#44556680"></form>');
+  const solid = page.locator('#solid');
+  const rgba = page.locator('#rgba');
+  assert.equal(await solid.evaluate(input => input.value), '#123456');
+  assert.equal(await page.locator('#solid + .lira-color-value .lira-color-alpha-value').isVisible(), false);
+  await page.evaluate(() => { document.getElementById('solid').value = '#aabbcc35'; });
+  assert.equal(await solid.evaluate(input => input.value), '#aabbcc');
+  await page.evaluate(() => {
+    window.EyeDropper = class { async open() { return { sRGBHex: '#abcdef' }; } };
+  });
+  await solid.click();
+  let picker = page.getByRole('dialog', { name: '颜色', exact: true });
+  assert.equal(await picker.getByLabel('不透明度滑块', { exact: true }).isVisible(), false);
+  assert.equal(await picker.getByLabel('不透明度（%）', { exact: true }).isVisible(), false);
+  await picker.getByLabel('红色 R', { exact: true }).fill('17');
+  assert.equal(await solid.evaluate(input => input.value), '#11bbcc');
+  await picker.getByRole('button', { name: '撤回', exact: true }).click();
+  assert.equal(await solid.evaluate(input => input.value), '#aabbcc');
+  await picker.getByRole('button', { name: '取色', exact: true }).click();
+  assert.equal(await solid.evaluate(input => input.value), '#abcdef');
+  assert.equal(await page.evaluate(() => new FormData(document.querySelector('form')).get('solid')), '#abcdef');
+  await rgba.click();
+  picker = page.getByRole('dialog', { name: '颜色与不透明度', exact: true });
+  assert.equal(await picker.getByLabel('不透明度滑块', { exact: true }).isVisible(), true);
+  await picker.getByLabel('不透明度（%）', { exact: true }).fill('25');
+  assert.equal(await rgba.evaluate(input => input.value), '#44556640');
+  await solid.click();
+  picker = page.getByRole('dialog', { name: '颜色', exact: true });
+  assert.equal(await picker.getByLabel('不透明度（%）', { exact: true }).isVisible(), false);
+  await picker.getByLabel('十六进制颜色', { exact: true }).fill('#102030');
+  assert.equal(await solid.evaluate(input => input.value), '#102030');
+  assert.equal(await rgba.evaluate(input => input.value), '#44556640');
+  await picker.getByRole('button', { name: '完成' }).click();
+});
+
 test('existing opacity is edited through its original field without adding a second alpha or crossing cloned panels', async t => {
   const page = await pageFor(t, '<form><label>背景<input id="background" type="color" value="#123456" data-color-opacity="opacity"></label><label>背景不透明度<input id="opacity" type="number" value="0.35" min="0" max="1" step="0.01"></label></form>');
   assert.equal(await page.locator('.lira-color-alpha-value').textContent(), '35%');

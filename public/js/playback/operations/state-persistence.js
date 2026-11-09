@@ -136,8 +136,10 @@ export function createStatePersistence(deps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ clientId: playbackClientId, payload }),
       });
-      if (!response.ok) retainPendingPayload(payload);
-      reportSaveResult(payload, response.ok);
+      const result = response.ok ? await response.json() : null;
+      const saved = result?.ok === true && result.data?.saved === true;
+      if (!saved) retainPendingPayload(payload);
+      reportSaveResult(payload, saved);
     } catch (_) {
       retainPendingPayload(payload);
       reportSaveResult(payload, false);
@@ -229,7 +231,7 @@ export function createStatePersistence(deps) {
     if (window.musicAPI && typeof window.musicAPI.savePlaybackState === 'function') {
       try {
         const result = await window.musicAPI.savePlaybackState(playbackClientId, payload);
-        if (!result || result.ok !== false) return;
+        if (result?.saved === true) return;
       } catch (_) {}
     }
 
@@ -240,7 +242,8 @@ export function createStatePersistence(deps) {
         body: JSON.stringify({ clientId: playbackClientId, payload }),
         keepalive: true,
       });
-      if (!response.ok) retainPendingPayload(payload);
+      const result = response.ok ? await response.json() : null;
+      if (result?.ok !== true || result.data?.saved !== true) retainPendingPayload(payload);
     } catch (_) {
       retainPendingPayload(payload);
     }

@@ -29,6 +29,7 @@ function servePageOrAsset(publicDir, req, res, requestUrl, sessionToken, beginPl
     ['/background', 'pages/overlays/background.html'],
     ['/imported-danmaku', 'pages/overlays/imported-danmaku.html'],
     ['/component-preview', 'pages/component-preview.html'],
+    ['/weekly-schedule-export', 'pages/weekly-schedule-export.html'],
     ['/c', 'pages/component-preview.html'],
     ...Object.entries(OVERLAY_PAGES).map(([scope, file]) => [`/${scope}`, `pages/overlays/${file}`]),
   ]);

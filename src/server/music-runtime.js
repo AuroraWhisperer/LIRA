@@ -1,6 +1,7 @@
 'use strict';
 
 const { createMusicProviderRegistry } = require('../music/provider-registry');
+const { createMusicCatalogService } = require('../music/music-catalog-service');
 const { createLyricsService } = require('../music/lyrics-service');
 const { normalizeLyricTimeline } = require('../music/lyric-timeline');
 const { normalizeLyricState } = require('../music/lyric-state');
@@ -13,9 +14,8 @@ const { createNeteaseClientCapture } = require('../music/netease-client-capture'
 const { LYRIC_SOURCES, chooseLyricSource } = require('../music/lyric-source-selection');
 
 function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSocketHub, onLyricsChanged, onNowPlayingChanged }) {
-  const lyricsService = createLyricsService({
-    apiCacheDir: dataDir.apiCacheDir, lyricCacheDir: dataDir.lyricCacheDir,
-  });
+  const catalogService = createMusicCatalogService({ apiCacheDir: dataDir.apiCacheDir });
+  const lyricsService = createLyricsService({ lyricCacheDir: dataDir.lyricCacheDir });
   let musicRegistry = createMusicProviderRegistry();
   let lyricState = normalizeLyricState({});
   let lyricTimeline = normalizeLyricTimeline({});
@@ -106,7 +106,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     monitorFactory: runtimeOptions.weSingMonitorFactory,
     discoverCachePath: runtimeOptions.weSingCacheDiscovery || discoverWeSingCachePath,
     resolveFallbackLyrics: runtimeOptions.weSingLyricResolver || createWeSingOnlineLyricResolver({
-      getRegistry: () => musicRegistry, lyricsService,
+      getRegistry: () => musicRegistry, catalogService, lyricsService,
       getPreferences() {
         const settings = settingsStore.getSettings();
         return { preferredPlatform: settings.weSingLyricSource, smartMatch: settings.weSingSmartLyricMatch };
@@ -125,7 +125,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     platform: runtimeOptions.qqClientPlatform || process.platform,
     monitorFactory: runtimeOptions.qqClientMonitorFactory,
     resolveLyrics: runtimeOptions.qqClientLyricResolver || createExternalClientLyricResolver({
-      platform: 'qq', getRegistry: () => musicRegistry, lyricsService,
+      platform: 'qq', getRegistry: () => musicRegistry, catalogService, lyricsService,
     }),
     onState: (status, state) => acceptExternalState('qq-client', status, state),
     onTimeline: (timeline) => acceptExternalTimeline('qq-client', timeline),
@@ -134,7 +134,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     platform: runtimeOptions.neteaseClientPlatform || process.platform,
     monitorFactory: runtimeOptions.neteaseClientMonitorFactory,
     resolveLyrics: runtimeOptions.neteaseClientLyricResolver || createExternalClientLyricResolver({
-      platform: 'netease', getRegistry: () => musicRegistry, lyricsService,
+      platform: 'netease', getRegistry: () => musicRegistry, catalogService, lyricsService,
     }),
     onState: (status, state) => acceptExternalState('netease-client', status, state),
     onTimeline: (timeline) => acceptExternalTimeline('netease-client', timeline),
@@ -172,6 +172,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   }
 
   return {
+    catalogService,
     lyricsService,
     start,
     weSingCapture: {

@@ -1,170 +1,29 @@
 // 编写人：Aurora
-// 歌词获取 + 搜索 + 推荐内容。
+// 歌词获取、缓存与文本解析。
 'use strict';
 
-const { cleanText, cleanTextPreserveLines } = require('../shared/utils');
+const { cleanTextPreserveLines } = require('../shared/utils');
 const {
   musicCacheKey,
   readMusicJsonCache,
   writeMusicJsonCache,
-  MUSIC_API_CACHE_TTL_MS,
   MUSIC_LYRIC_CACHE_TTL_MS,
-  MUSIC_API_CACHE_MAX_BYTES,
   MUSIC_LYRIC_CACHE_MAX_BYTES,
 } = require('./music-cache');
 const { parseLyricResult } = require('./lyric-parser');
-const { AUTO_ACCEPT_SCORE, rankTrackCandidates } = require('./song-matcher');
-const { normalizeMusicPlatform } = require('./provider-registry');
 const { normalizeMusicTrackForProvider } = require('./track-contract');
-const { clearLikedTracksSessions } = require('./providers/liked-tracks-session');
-
-let compatibilityService = createLyricsService();
 
 function createLyricsService(options = {}) {
-  const apiCacheDir = String(options.apiCacheDir || '');
   const lyricCacheDir = String(options.lyricCacheDir || '');
-
   return {
-    searchMusicTracks,
-    getMusicHomeContent(registry, body) {
-      return getMusicHomeContentWithCache(registry, body, apiCacheDir);
-    },
     getMusicTrackLyrics(registry, body) {
-      return getMusicTrackLyricsWithCache(registry, body, lyricCacheDir);
+      return getMusicTrackLyrics(registry, body, lyricCacheDir);
     },
     parseLyricPayload,
-    matchMusicTrackCandidates,
-    normalizeMusicTrackForProvider,
-    writeMusicPlaylistTracks,
   };
 }
 
-function initLyricsService(apiDir, lyricDir) {
-  compatibilityService = createLyricsService({
-    apiCacheDir: apiDir,
-    lyricCacheDir: lyricDir,
-  });
-  return compatibilityService;
-}
-
-async function searchMusicTracks(registry, body) {
-  const input = body && typeof body === 'object' ? body : {};
-  const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
-  const keyword = cleanText(input.keyword || input.query || input.songName).slice(0, 120);
-  if (!keyword) throw new Error('缺少搜索关键词。');
-
-  const limit = Math.max(1, Math.min(30, Number(input.limit) || 20));
-  const provider = registry.get(platform);
-  return {
-    source: platform,
-    keyword,
-    tracks: await provider.searchTracks(keyword, { limit }),
-  };
-}
-
-function getMusicHomeContent(registry, body) {
-  return compatibilityService.getMusicHomeContent(registry, body);
-}
-
-async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
-  const input = body && typeof body === 'object' ? body : {};
-  const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
-  const action = cleanText(input.action || 'personalized');
-  const limit = Math.max(1, Math.min(5000, Number(input.limit) || 100));
-  const offset = Math.max(0, Number(input.offset) || 0);
-  const provider = registry.get(platform);
-  // 歌单详情由播放器缓存并后台刷新，服务端不再缓存，避免写入后的刷新读到旧内容。
-  const cacheable = action === 'personalized';
-  const page = Math.max(1, Math.min(50, Number(input.page) || 1));
-  const bypassCache = input.refresh === true || page > 1;
-  const authorization = cacheable && !bypassCache ? await provider.getSafeCookieHeader() : '';
-  const cacheKey =
-    cacheable && !bypassCache
-      ? musicCacheKey('home', {
-          platform,
-          action,
-          limit,
-          playlistId: cleanText(input.playlistId),
-          authorization,
-        })
-      : '';
-  if (cacheKey) {
-    const cached = readMusicJsonCache(apiCacheDir, cacheKey, MUSIC_API_CACHE_TTL_MS);
-    if (cached) return { ...cached, cached: true };
-  }
-
-  if (action === 'personalized') {
-    const result = {
-      source: platform,
-      action,
-      playlists: await provider.getPersonalizedPlaylists({
-        limit: Math.min(limit, 30),
-        page,
-      }),
-    };
-    // Credentials only enter the hashed key. Do not cache a result across an account change.
-    if (cacheKey && authorization === await provider.getSafeCookieHeader()) {
-      writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
-    }
-    return result;
-  }
-  if (action === 'playlist-tracks') {
-    const playlistId = cleanText(input.playlistId);
-    if (!playlistId) throw new Error('缺少歌单 ID。');
-    return {
-      source: platform,
-      action,
-      playlistId,
-      tracks: await provider.getPlaylistTracks(playlistId, { limit }),
-    };
-  }
-  if (action === 'daily')
-    return {
-      source: platform,
-      action,
-      tracks: await provider.getDailyTracks({ limit, page }),
-    };
-  if (action === 'radio')
-    return {
-      source: platform,
-      action,
-      tracks: await provider.getRadioTracks({ limit, page }),
-    };
-  if (action === 'liked')
-    return {
-      source: platform,
-      action,
-      tracks: await provider.getLikedTracks({ limit, offset, loadingSession: cleanText(input.loadingSession).slice(0, 100) }),
-    };
-  if (action === 'created-playlists') {
-    const playlists = await provider.getCreatedPlaylists({ limit });
-    return {
-      source: platform,
-      action,
-      playlists: input.track ? await annotatePlaylistMembership(provider, platform, playlists, input.track) : playlists,
-    };
-  }
-  if (action === 'collected-playlists')
-    return {
-      source: platform,
-      action,
-      playlists: await provider.getCollectedPlaylists({ limit }),
-    };
-  if (action === 'recent')
-    return {
-      source: platform,
-      action,
-      tracks: await provider.getRecentTracks({ limit }),
-    };
-
-  throw new Error('未知音乐首页动作。');
-}
-
-function getMusicTrackLyrics(registry, body) {
-  return compatibilityService.getMusicTrackLyrics(registry, body);
-}
-
-async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
+async function getMusicTrackLyrics(registry, body, lyricCacheDir = '') {
   const input = body && typeof body === 'object' ? body : {};
   const normalizedTrack = normalizeMusicTrackForProvider(input.track || input);
   const cacheKey = musicCacheKey(normalizedTrack.source === 'netease' ? 'lyrics-v6' : 'lyrics-v5', {
@@ -183,26 +42,6 @@ async function getMusicTrackLyricsWithCache(registry, body, lyricCacheDir) {
   return result;
 }
 
-async function writeMusicPlaylistTracks(registry, body, operation) {
-  const input = body && typeof body === 'object' ? body : {};
-  const platform = normalizeMusicPlatform(input.platform || input.source || 'qq');
-  const provider = registry.get(platform);
-  const playlistInput = input.playlist && typeof input.playlist === 'object' ? input.playlist : {};
-  const playlist = {
-    id: cleanText(playlistInput.id || playlistInput.tid),
-    tid: cleanText(playlistInput.tid || playlistInput.id),
-    dirId: cleanText(playlistInput.dirId),
-    title: cleanText(playlistInput.title || playlistInput.dirName).slice(0, 200),
-  };
-  const tracks = Array.isArray(input.tracks) ? input.tracks.slice(0, 100) : [];
-  if (tracks.length === 0) throw new Error('缺少要修改的音乐歌曲。');
-  const method = operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
-  if (typeof provider[method] !== 'function') throw new Error('当前音乐 Provider 不支持修改歌单。');
-  const result = await provider[method](playlist, tracks);
-  clearLikedTracksSessions(provider);
-  return { source: platform, operation, playlist, result };
-}
-
 function parseLyricPayload(body) {
   const lyric = cleanTextPreserveLines(body.lyric).slice(0, 512 * 1024);
   const translation = cleanTextPreserveLines(body.translation).slice(0, 512 * 1024);
@@ -211,76 +50,8 @@ function parseLyricPayload(body) {
   return { lines: parseLyricResult(lyric, translation, wordLyric, roma) };
 }
 
-function matchMusicTrackCandidates(body) {
-  const request = {
-    songName: cleanText(body.songName || body.title).slice(0, 120),
-    artist: cleanText(body.artist).slice(0, 80),
-    durationMs: Math.max(0, Number(body.durationMs) || 0),
-  };
-  if (!request.songName) throw new Error('缺少要匹配的歌名。');
-
-  const candidates = Array.isArray(body.candidates) && body.candidates.length > 0 ? body.candidates.slice(0, 50) : []; // local candidates need db access — pass from caller
-
-  return {
-    request,
-    threshold: AUTO_ACCEPT_SCORE,
-    results: rankTrackCandidates(request, candidates),
-  };
-}
-
-async function annotatePlaylistMembership(provider, platform, playlists, track) {
-  const trackId = getProviderTrackId(platform, track);
-  if (!trackId) throw new Error('缺少要检查的歌曲 ID。');
-  return mapWithConcurrency(Array.isArray(playlists) ? playlists : [], 6, async (playlist) => {
-    try {
-      const containsTrack =
-        typeof provider.playlistContainsTrack === 'function'
-          ? await provider.playlistContainsTrack(playlist.id, track)
-          : (await provider.getPlaylistTracks(playlist.id, { limit: 5000 })).some(
-              (item) => getProviderTrackId(platform, item) === trackId,
-            );
-      return {
-        ...playlist,
-        containsTrack,
-      };
-    } catch (_) {
-      return { ...playlist, containsTrack: null };
-    }
-  });
-}
-
-function getProviderTrackId(platform, track) {
-  if (!track || typeof track !== 'object') return '';
-  if (platform === 'qq') {
-    const sourceSongId = Number(track.sourceSongId);
-    if (Number.isSafeInteger(sourceSongId) && sourceSongId > 0) return String(sourceSongId);
-    return cleanText(track.sourceTrackId || track.id).replace(/^qq:/, '');
-  }
-  return cleanText(track.sourceTrackId || track.id).replace(/^netease:/, '');
-}
-
-async function mapWithConcurrency(items, concurrency, mapper) {
-  const results = new Array(items.length);
-  let nextIndex = 0;
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, async () => {
-    while (nextIndex < items.length) {
-      const index = nextIndex;
-      nextIndex += 1;
-      results[index] = await mapper(items[index], index);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
 module.exports = {
   createLyricsService,
-  initLyricsService,
-  searchMusicTracks,
-  getMusicHomeContent,
   getMusicTrackLyrics,
   parseLyricPayload,
-  matchMusicTrackCandidates,
-  normalizeMusicTrackForProvider,
-  writeMusicPlaylistTracks,
 };

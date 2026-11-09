@@ -3,6 +3,14 @@ const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)';
 // Positions are percentages of the composition, scales relative to the fitted
 // phrase. Every scene keeps earlier phrases readable while the new one arrives.
 export function advancedLyricComposition(layout, index, phase, count) {
+  if (layout === 'focus-lens') return index === phase || count === 1
+    ? { x: 50, y: 55, scale: 1, rotation: 0 }
+    : { x: index % 2 ? 74 : 26, y: 14 + Math.floor(index / 2) * 15, scale: 0.44, rotation: index % 2 ? 2 : -2 };
+  if (layout === 'page-turn') {
+    const age = phase - index;
+    return age === 0 || count === 1 ? { x: 50, y: 65, scale: 1, rotation: 0, tilt: 0 }
+      : { x: 50, y: 43 - (age - 1) * 13, scale: Math.max(0.32, 0.43 - (age - 1) * 0.035), rotation: 0, tilt: 0 };
+  }
   if (phase === 0 || count === 1) return { x: 50, y: 48, scale: 1, rotation: 0 };
   const active = index === phase;
   if (layout === 'corner-relay') {
@@ -25,7 +33,8 @@ export function advancedLyricComposition(layout, index, phase, count) {
 }
 
 function transform(state, final, amount) {
-  return `translate(calc(var(--advanced-stage-width) * ${(state.x - final.x) / 100}), calc(var(--advanced-stage-height) * ${(state.y - final.y) / 100})) rotate(${state.rotation * amount}deg) scale(${state.scale})`;
+  const fold = state.tilt === undefined ? '' : ` perspective(900px) rotateX(${state.tilt * amount}deg)`;
+  return `translate(calc(var(--advanced-stage-width) * ${(state.x - final.x) / 100}), calc(var(--advanced-stage-height) * ${(state.y - final.y) / 100})) rotate(${state.rotation * amount}deg)${fold} scale(${state.scale})`;
 }
 
 // One spatial track per phrase prevents overlapping animations from writing the
@@ -42,7 +51,14 @@ export function buildAdvancedLyricChoreography(layout, items, units, { startMs, 
       poses: [{ ...final, rotation: final.rotation * strength }], startMs, endMs };
     const first = advancedLyricComposition(layout, index, index, items.length);
     const enter = { ...first };
-    if (layout === 'corner-relay') {
+    if (layout === 'focus-lens') {
+      enter.y += 19 * strength;
+      enter.scale *= 0.9;
+    } else if (layout === 'page-turn') {
+      enter.y += 13 * strength;
+      enter.scale *= 0.92;
+      enter.tilt = -28;
+    } else if (layout === 'corner-relay') {
       enter.x += (index % 2 ? 1 : -1) * 7 * strength;
       if (index) enter.y += 4 * strength;
       if (!index) enter.rotation -= 8;
@@ -75,7 +91,8 @@ export function buildAdvancedLyricChoreography(layout, items, units, { startMs, 
         Math.max(points.at(-1).time, begin - span, item.phraseReveal ? starts[phase - 1] : sungEnd));
       if (phase > index) add(moveStart, settled, opacity);
       settled = advancedLyricComposition(layout, index, phase, items.length);
-      opacity = phase === index ? 1 : item.emphasis ? 0.94 : 0.78;
+      const age = phase - index;
+      opacity = age === 0 ? 1 : Math.max(item.emphasis ? 0.68 : 0.5, (item.emphasis ? 0.88 : 0.76) - (age - 1) * 0.08);
       add(moveStart + span, settled, opacity);
     }
     add(endMs, settled, opacity, 'linear');

@@ -48,6 +48,7 @@ function fixture(t) {
   };
   put('scripts/run-tests.js', fs.readFileSync(RUNNER, 'utf8'));
   put('scripts/test-results-reporter.js', fs.readFileSync(path.join(ROOT, 'scripts/test-results-reporter.js'), 'utf8'));
+  put('scripts/test-progress-reporter.js', fs.readFileSync(path.join(ROOT, 'scripts/test-progress-reporter.js'), 'utf8'));
   for (const group of runtimeGroups.filter((name) => name !== 'offline')) {
     for (const file of configuredGroups[group]) put(file);
   }
@@ -204,6 +205,10 @@ test('execution forwards Node options, keeps VM modules and process isolation, a
   assert.equal(pids.length, 2);
   assert.equal(new Set(pids).size, 2);
   assert.ok(pids.every((pid) => pid !== process.pid));
+  const sharded = run(root, '--file=test/sample/first.test.js', '--file=test/sample/second.test.js',
+    '--test-shard=1/2', '--test-name-pattern=^selected$');
+  assert.equal(sharded.status, 0, sharded.stdout + sharded.stderr);
+  assert.equal(fs.readFileSync(path.join(root, 'pids.txt'), 'utf8').trim().split(/\r?\n/).length, 3);
   put(
     'test/failing/failure.test.js',
     "require('node:test')('expected failure', () => { throw new Error('synthetic failure'); });",
@@ -226,6 +231,111 @@ test('file concurrency defaults to the bounded release value and an explicit fla
   assert.deepEqual(build([]), [`--test-concurrency=${defaultConcurrency}`]);
   assert.deepEqual(build(['--test-concurrency=3']), ['--test-concurrency=3']);
   assert.deepEqual(build(['--test-name-pattern', '^selected$']), [`--test-concurrency=${defaultConcurrency}`]);
+});
+
+test('a successful test process cannot hide an incomplete result report', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/passing.test.js', "require('node:test')('pass', () => {});");
+  for (const report of [
+    '{',
+    JSON.stringify({ version: 1, complete: false, files: [], failures: [] }),
+    JSON.stringify({ version: 1, complete: true, files: [], failures: [] }),
+  ]) {
+    put('scripts/test-results-reporter.js', `
+      module.exports = async function* (source) {
+        for await (const event of source) {}
+        yield ${JSON.stringify(report)};
+      };
+    `);
+    const result = run(root, '--domain=sample');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    const latest = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results/latest.json'), 'utf8'));
+    const saved = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results', latest.run, 'results.json'), 'utf8'));
+    assert.equal(saved.complete, false);
+  }
+  put('scripts/full-reporter.js', fs.readFileSync(path.join(ROOT, 'scripts/test-results-reporter.js'), 'utf8'));
+  put('scripts/test-results-reporter.js', `
+    process.env.LIRA_TEST_LOG_PATH = __dirname;
+    module.exports = require('./full-reporter.js');
+  `);
+  const logFailure = run(root, '--domain=sample');
+  assert.ifError(logFailure.error);
+  assert.notEqual(logFailure.status, 0, logFailure.stdout + logFailure.stderr);
+});
+
+test('compact output preserves failure details and complete logs without printing passing test noise', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/failure.cjs', `
+    require('node:test')('failure', () => require('node:assert/strict').equal('actual-value', 'expected-value'));
+  `);
+  put('test/sample/logging.test.js', `
+    const test = require('node:test');
+    test('passing noise', () => {
+      console.log('stdout-marker ' + 'noise '.repeat(2000));
+      console.error('stderr-marker');
+    });
+    require('./failure.cjs');
+  `);
+  const result = run(root, '--domain=sample');
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stdout, /actual-value/);
+  assert.match(result.stdout, /expected-value/);
+  assert.match(result.stdout, /FAIL test\/sample\/failure\.cjs:/);
+  assert.doesNotMatch(result.stdout, /stdout-marker/);
+  const latest = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results/latest.json'), 'utf8'));
+  const directory = path.join(root, 'tmp/test-results', latest.run);
+  const report = JSON.parse(fs.readFileSync(path.join(directory, 'results.json'), 'utf8'));
+  const log = fs.readFileSync(path.join(directory, report.logs[0]), 'utf8');
+  assert.match(log, /stdout-marker/);
+  assert.match(log, /stderr-marker/);
+  assert.match(log, /expected-value/);
+  assert.ok(result.stdout.length < log.length);
+  assert.equal(report.totals.tests, 2);
+  assert.equal(report.totals.failed, 1);
+  assert.deepEqual(report.failedFiles, ['test/sample/logging.test.js']);
+  assert.ok(report.durationMs > 0);
+});
+
+test('full acceptance rejects selection and filter options before executing any files', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/only.test.js', "require('node:fs').writeFileSync('executed.txt', 'yes');");
+  for (const args of [
+    ['offline'], ['--file=test/sample/only.test.js'], ['--domain=sample'], ['--failed'],
+    ['--test-name-pattern=only'], ['--test-skip-pattern', 'only'], ['--test-only'],
+    ['--test-shard=1/2'], ['--list'], ['--help'],
+  ]) {
+    const result = run(root, ...args, '--require-full');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+  }
+  const env = { ...process.env, NODE_OPTIONS: '--test-name-pattern=never' };
+  delete env.NODE_TEST_CONTEXT;
+  const inherited = spawnSync(process.execPath, [path.join(root, 'scripts/run-tests.js'), '--require-full'], {
+    cwd: root, env, encoding: 'utf8', windowsHide: true, timeout: 15000,
+  });
+  assert.equal(inherited.status, 1, inherited.stdout + inherited.stderr);
+  assert.equal(fs.existsSync(path.join(root, 'executed.txt')), false);
+});
+
+test('full acceptance rejects skipped and todo cases while focused debugging allows them', (t) => {
+  const { root, put } = fixture(t);
+  put('test/sample/unfinished.test.js', `
+    const test = require('node:test');
+    test.skip('missing tool', () => {});
+    test('unfinished behavior', { todo: true }, () => { throw new Error('expected todo failure'); });
+  `);
+  const focused = run(root, '--domain=sample');
+  assert.equal(focused.status, 0, focused.stdout + focused.stderr);
+  const full = run(root, '--require-full');
+  assert.equal(full.status, 1, full.stdout + full.stderr);
+  const latest = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results/latest.json'), 'utf8'));
+  const report = JSON.parse(fs.readFileSync(path.join(root, 'tmp/test-results', latest.run, 'results.json'), 'utf8'));
+  assert.equal(report.complete, true, full.stdout + full.stderr);
+  assert.equal(report.totals.skipped, 1);
+  assert.equal(report.totals.todo, 1);
+  assert.match(full.stderr, /test\/sample\/unfinished\.test\.js/);
+  put('test/sample/unfinished.test.js', "require('node:test')('finished', () => {});");
+  const fixed = run(root, '--require-full');
+  assert.equal(fixed.status, 0, fixed.stdout + fixed.stderr);
 });
 
 test('requiring the runner only exposes its functions and never runs the suite', (t) => {
@@ -254,6 +364,7 @@ test('failed-file selection is explicit, deduplicated, and rejects unavailable o
   put('test/sample/crashing.test.js', 'process.exit(17);');
   const initial = run(root, '--domain=sample');
   assert.equal(initial.status, 1, initial.stdout + initial.stderr);
+  assert.match(initial.stdout, /import failure/);
   assert.match(initial.stdout, /Focused rerun: npm test -- --failed/);
   assert.deepEqual(list(root, '--failed'), ['test/sample/crashing.test.js', 'test/sample/failing.test.js']);
   put('test/sample/failing.test.js', "require('node:test')('fixed', () => {});");

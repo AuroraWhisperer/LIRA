@@ -162,7 +162,6 @@ test('lyric and stream provider calls retain QQ numeric source identifiers', asy
     title: 'Example Song',
   };
   const lyricsService = createLyricsService({
-    apiCacheDir: path.join(cacheRoot, 'api'),
     lyricCacheDir: path.join(cacheRoot, 'lyrics'),
   });
 

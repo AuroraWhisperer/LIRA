@@ -16,8 +16,8 @@ function createCloudSettingsSyncController({
     return runtime.getPendingCloudSettings?.(accountKey) || null;
   }
 
-  function uploadValues(pending) {
-    const current = runtime.getCloudSettingsSnapshot();
+  function uploadValues(pending, accountKey) {
+    const current = runtime.getCloudSettingsSnapshot(accountKey);
     if (Array.isArray(current.menuCommands)) lastMenuUploadSignature = JSON.stringify(current.menuCommands);
     if (!pending) return current;
     return {
@@ -32,7 +32,7 @@ function createCloudSettingsSyncController({
       && getPending(work.accountKey)?.mutationId === pending?.mutationId;
     const applied = unchanged && Boolean(result?.values);
     if (applied) {
-      await runtime.applyCloudSettingsSnapshot(result.values);
+      await runtime.applyCloudSettingsSnapshot(result.values, work.accountKey);
       if (!isCurrent(work)) return false;
     }
     if (pending) runtime.acknowledgePendingCloudSettings(work.accountKey, pending.mutationId);
@@ -64,13 +64,14 @@ function createCloudSettingsSyncController({
     runtime.applyCloudFixedReplySettingsSnapshot?.(state?.values, state?.revision);
     if (state?.initialized) confirmState(state.values);
     if (!state?.initialized) {
+      runtime.acceptCloudSettingsAccount?.(work.accountKey);
       await seedScope('settings', work);
       return;
     }
     if (!shouldApply('settings', state.revision, work)) return;
     const values = state.values || {};
     const isMissingBlindBoxConfig = !Object.prototype.hasOwnProperty.call(values, 'giftBlindBoxConfig');
-    await runtime.applyCloudSettingsSnapshot(values);
+    await runtime.applyCloudSettingsSnapshot(values, work.accountKey);
     if (!isCurrent(work)) return;
     runtime.setBlindBoxMappingState?.(state.blindBoxMapping || null);
     recordRevision(Number(state.revision) || 0);

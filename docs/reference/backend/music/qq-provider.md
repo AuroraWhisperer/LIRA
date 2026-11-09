@@ -134,7 +134,7 @@ GET https://c.y.qq.com/soso/fcgi-bin/client_search_cp
 | `w`                                                        | 关键词(必填,空抛错)                  | [qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js) |
 | `format` `inCharset` `outCharset` `platform` `needNewCode` | `json`/`utf8`/`utf-8`/`yqq.json`/`0` | 固定                                                                           |
 
-响应路径 `data.data.song.list[]` → `mapQQSong`(见 §8.1)。关键词长度由 lyrics-service 层限制(见 [services.md](services.md) §6)。
+响应路径 `data.data.song.list[]` → `mapQQSong`(见 §8.1)。关键词长度由 music-catalog-service 层限制(见 [services.md](services.md) §6)。
 
 ### 7.2 播放 URL 解析([qq-provider-streams.js](../../../../src/music/providers/qq-provider-streams.js))
 

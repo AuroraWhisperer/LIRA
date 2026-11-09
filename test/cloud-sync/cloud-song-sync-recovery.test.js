@@ -37,7 +37,7 @@ function fixture(t) {
         getRemoteBaseUrl: () => origin,
         getCloudState: async () => ({
           settings: { initialized: true, revision: 1, values: { giftBlindBoxConfig: [] } },
-          songs: { initialized: true, revision: currentCloud().revision },
+          songs: { initialized: currentCloud().initialized !== false, revision: currentCloud().revision },
           bilibili: { initialized: false, revision: 0 },
         }),
         getCloudSongs: async () => {
@@ -56,13 +56,17 @@ function fixture(t) {
       },
       runtime: {
         prepareCloudRoomAccount: (account) => settings.prepareCloudRoomAccount(account),
-        getCloudSongsSnapshot: () => songService.listSongs(songs),
+        getCloudSongsSnapshot: (account) => {
+          if (account) pending.assertAccount(account);
+          return songService.listSongs(songs);
+        },
+        acceptCloudSongsAccount: (account) => pending.acceptAccount(account),
         hasPendingCloudSongs: (account) => pending.hasPending(account),
         getPendingCloudSongs: (account) => { pendingReads++; return pending.readPending(account); },
         acknowledgePendingCloudSongs: (account, mutation) => pending.acknowledge(account, mutation),
-        replaceCloudSongsSnapshot: (input) => {
+        replaceCloudSongsSnapshot: (input, account) => {
           replacements += 1;
-          return songService.replaceCloudSongs(songs, input);
+          return songService.replaceCloudSongs(songs, input, account);
         },
       },
     });
@@ -145,6 +149,53 @@ test('failed uploads retain song edits across controller restarts until upload s
     f.names(),
   );
   assert.equal(f.pending.readPending(f.key()), null);
+});
+
+test('a failed account switch keeps the old library read-only until the new cloud baseline is restored', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  f.setUpload(async () => { throw new Error('OFFLINE'); });
+  f.edit('First account offline edit');
+  await f.controller.whenIdle();
+  const firstKey = f.key();
+  const firstPending = f.pending.readPending(firstKey);
+  const firstNames = f.names();
+  const uploadCount = f.uploads.length;
+  f.setAccount('second');
+  f.setPull(async () => { throw new Error('PULL_FAILED'); });
+  await assert.rejects(f.controller.start(), /PULL_FAILED/);
+  await assert.rejects(f.restart().start(), /PULL_FAILED/);
+
+  assert.throws(() => f.edit('Cannot edit the previous account'), { code: 'CLOUD_SONGS_NOT_READY' });
+  assert.deepEqual(f.names(), firstNames);
+  assert.equal(f.pending.readPending(f.key()), null);
+  assert.deepEqual(f.pending.readPending(firstKey), firstPending);
+  assert.throws(() => f.controller.getLocalSongCount(), { code: 'CLOUD_SONGS_NOT_READY' });
+  await assert.rejects(f.controller.syncCurrentSongs(), { code: 'CLOUD_SONGS_NOT_READY' });
+  assert.equal(f.uploads.length, uploadCount);
+
+  f.setPull(async () => {});
+  f.setUpload(async () => {});
+  await f.controller.syncNow();
+  assert.deepEqual(f.names(), ['Cloud second']);
+  f.edit('Second account edit');
+  await f.controller.whenIdle();
+  assert.deepEqual(f.cloud.get(f.key()).songs.map((song) => song.title).sort(), ['Cloud second', 'Second account edit']);
+  f.setAccount('first', 1);
+  await f.controller.start();
+  assert.deepEqual(f.names(), firstNames);
+});
+
+test('an explicitly uninitialized account can still seed the local library', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  f.setAccount('second');
+  f.cloud.set(f.key(), { initialized: false, songs: [], revision: 0 });
+  await f.controller.start();
+  assert.equal(f.cloud.get(f.key()).songs[0].title, 'Cloud first');
+  f.edit('New account edit');
+  await f.controller.whenIdle();
+  assert.ok(f.cloud.get(f.key()).songs.some((song) => song.title === 'New account edit'));
 });
 
 for (const change of ['account', 'origin', 'recreated account']) {

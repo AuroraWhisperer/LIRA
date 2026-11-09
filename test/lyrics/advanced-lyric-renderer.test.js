@@ -111,8 +111,32 @@ test('adaptive emphasis follows supplied sustained timing and incomplete timing 
   assert.equal(partial[0].startMs, 0);
 });
 
+test('sustained words retain focus through the supplied vocal interval and release within the line', async () => {
+  const { advancedLyricWordAnimation } = await load('motion');
+  const timing = { startMs: 1000, endMs: 4000, lineEndMs: 4500, timed: true };
+  for (const name of ['sustain', 'rise']) {
+    const track = advancedLyricWordAnimation(name, timing);
+    const rest = track.frames[0].transform;
+    const held = track.frames.at(-2);
+    assert.notEqual(held.transform, rest);
+    assert.equal(track.startMs + held.offset * (track.endMs - track.startMs), timing.endMs);
+    assert.ok(track.endMs > timing.endMs && track.endMs <= timing.lineEndMs);
+    assert.equal(track.frames.at(-1).transform, rest);
+  }
+  const clipped = advancedLyricWordAnimation('sustain', { ...timing, lineEndMs: 2500 });
+  assert.equal(clipped.endMs, 2500);
+  assert.equal(clipped.frames.at(-2).offset, 1, 'a clipped line must not release before its sung boundary');
+  assert.ok(clipped.frames.every((frame, index, frames) => Number.isFinite(frame.offset)
+    && frame.offset >= 0 && frame.offset <= 1 && (!index || frame.offset >= frames[index - 1].offset)));
+  assert.equal(advancedLyricWordAnimation('sustain', { ...timing, timed: false }), null,
+    'estimated timing must not imply a sustained note');
+  assert.equal(advancedLyricWordAnimation('sustain', { ...timing, amount: 0 }), null);
+  const short = advancedLyricWordAnimation('sustain', { ...timing, endMs: 1001, lineEndMs: 1001 });
+  assert.ok(short.frames.every(frame => Number.isFinite(frame.offset) && frame.offset >= 0 && frame.offset <= 1));
+});
+
 test('motion follows pause and backward seek, cancels hidden work, and resumes from host time', async () => {
-  const { createAdvancedLyricMotion, advancedLyricKeyframes } = await load('motion');
+  const { createAdvancedLyricMotion, advancedLyricWordAnimation } = await load('motion');
   const animations = [];
   const element = { style: {}, animate() {
     const animation = { playState: 'running', currentTime: 0, playbackRate: 1, cancelled: false,
@@ -121,7 +145,8 @@ test('motion follows pause and backward seek, cancels hidden work, and resumes f
     return animation;
   } };
   const motion = createAdvancedLyricMotion();
-  motion.add(element, advancedLyricKeyframes('enter', 'rise'), { startMs: 1000, endMs: 2000 });
+  const track = advancedLyricWordAnimation('sustain', { startMs: 1000, endMs: 4000, lineEndMs: 4500, timed: true });
+  motion.add(element, track.frames, track);
   motion.sync({ currentMs: 1600, playing: true });
   assert.equal(animations[0].currentTime, 600);
   motion.sync({ currentMs: 1650, playing: true, playbackRate: 2 });
@@ -132,13 +157,16 @@ test('motion follows pause and backward seek, cancels hidden work, and resumes f
   assert.equal(animations[0].currentTime, 700);
   motion.sync({ currentMs: 1200, playing: false, discontinuity: true });
   assert.equal(animations[0].currentTime, 200);
+  motion.sync({ currentMs: 3500, playing: true });
+  assert.equal(animations[0].currentTime, 2500);
+  assert.equal(animations.length, 1, 'the same track stays alive throughout the long note');
   motion.suspend();
   assert.equal(animations[0].cancelled, true);
-  motion.sync({ currentMs: 1800, playing: true });
-  assert.equal(animations[1].currentTime, 800);
-  motion.sync({ currentMs: 2100, playing: true });
+  motion.sync({ currentMs: 3800, playing: true });
+  assert.equal(animations[1].currentTime, 2800);
+  motion.sync({ currentMs: 4300, playing: true });
   assert.equal(animations[1].cancelled, true);
-  assert.equal(element.style.opacity, 1);
+  assert.equal(element.style.transform, track.frames[0].transform);
   motion.clear();
   motion.sync({ currentMs: 1300, playing: true });
   assert.equal(animations.length, 2);

@@ -20,9 +20,10 @@ function createCloudSyncRuntime({
   let menuRefreshQueued = false;
   const cloudSyncListeners = new Set();
 
-  function getCloudSettingsSnapshot() {
+  function getCloudSettingsSnapshot(accountKey) {
     const settingsStore = getSettingsStore();
     if (!settingsStore) throw new Error('Settings store not ready.');
+    if (accountKey) settingsStore.assertCloudSettingsAccount(accountKey);
     return { ...serializeCloudSettings(settingsStore.getSettings()), menuCommands: getDesktopMenuCommands() };
   }
 
@@ -73,13 +74,13 @@ function createCloudSyncRuntime({
     return changed;
   }
 
-  function applyCloudSettingsSnapshot(input) {
+  function applyCloudSettingsSnapshot(input, accountKey) {
     const settingsStore = getSettingsStore();
     const bilibiliRuntime = getBilibiliRuntime();
     if (!settingsStore || !bilibiliRuntime) {
       throw new Error('Application runtime not ready.');
     }
-    settingsStore.setSettings(normalizeCloudSettingsSnapshot(input), { syncPending: false });
+    settingsStore.setSettings(normalizeCloudSettingsSnapshot(input), { syncPending: false, accountKey });
     bilibiliRuntime.configure();
     broadcastSnapshot('cloud:settings');
     return getCloudSettingsSnapshot();
@@ -101,16 +102,17 @@ function createCloudSyncRuntime({
     });
   }
 
-  function getCloudSongsSnapshot() {
+  function getCloudSongsSnapshot(accountKey) {
     const songs = getSongs();
     if (!songs) throw new Error('Song library not ready.');
+    if (accountKey) songs.assertCloudSongAccount(accountKey);
     return songs.list({});
   }
 
-  function replaceCloudSongsSnapshot(input) {
+  function replaceCloudSongsSnapshot(input, accountKey) {
     const songs = getSongs();
     if (!songs) throw new Error('Song library not ready.');
-    const result = songs.replaceCloud(input);
+    const result = songs.replaceCloud(input, accountKey);
     broadcastSnapshot('cloud:songs');
     return result;
   }
@@ -137,6 +139,7 @@ function createCloudSyncRuntime({
     scheduleMenuSync,
     requestCloudSync,
     getCloudSettingsSnapshot,
+    acceptCloudSettingsAccount: (key) => getSettingsStore().acceptCloudSettingsAccount(key),
     getPendingCloudSettings,
     acknowledgePendingCloudSettings: (key, mutationId) => getSettingsStore().acknowledgePendingCloudSettings(key, mutationId),
     prepareCloudRoomAccount,
@@ -147,6 +150,7 @@ function createCloudSyncRuntime({
     getBlindBoxMappingState: () => blindBoxMappingState,
     setBlindBoxMappingState,
     getCloudSongsSnapshot,
+    acceptCloudSongsAccount: (key) => getSongs().acceptCloudSongAccount(key),
     hasPendingCloudSongs: (key) => getSongs().hasPendingCloudSongs(key),
     getPendingCloudSongs: (key) => getSongs().getPendingCloudSongs(key),
     acknowledgePendingCloudSongs: (key, mutationId) => getSongs().acknowledgePendingCloudSongs(key, mutationId),

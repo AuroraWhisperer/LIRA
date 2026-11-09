@@ -21,7 +21,7 @@ export function createRadioMode(deps) {
 
   let refillSession = null;
 
-  async function ensurePlaybackRadioQueueFilled() {
+  function ensurePlaybackRadioQueueFilled() {
     if (playbackState.queueType !== 'radio') return;
     if (playbackState.radioQueue.length >= playbackRadioRefillThreshold) return;
 
@@ -35,19 +35,24 @@ export function createRadioMode(deps) {
       refillSession = {
         queue: playbackState.radioQueue,
         platform: sources.find((source) => source === 'qq' || source === 'netease'),
-        running: false,
+        pending: null,
         failedRefills: 0,
         failureNotified: false,
       };
     }
     const session = refillSession;
-    if (session.running) return;
+    if (!session.pending) {
+      session.pending = refillRadioQueue(session).finally(() => { session.pending = null; });
+    }
+    return session.pending;
+  }
 
-    session.running = true;
+  async function refillRadioQueue(session) {
     try {
       const response = await fetch('/api/music/home', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(30_000),
         body: JSON.stringify({
           platform: session.platform,
           action: 'radio',
@@ -76,8 +81,6 @@ export function createRadioMode(deps) {
     } catch (error) {
       console.warn('[playback] radio refill failed:', error.message || error);
       if (isActiveSession(session)) reportRefillFailure(session);
-    } finally {
-      session.running = false;
     }
   }
 

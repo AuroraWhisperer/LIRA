@@ -85,6 +85,7 @@ const groups = {
     'admin/text-box-editor',
   ],
   desktop: [
+    'desktop/weekly-schedule-electron',
     'desktop/ai-persona-editor-electron',
     'desktop/daily-bot-editor-electron',
     'desktop/fixed-reply-editor-electron',
@@ -176,7 +177,8 @@ function buildNodeArguments({ nodeArgs, reporterArgs, reportPath, batch }) {
 }
 
 function main() {
-  const testArgs = process.argv.slice(2);  const group = testArgs[0]?.startsWith('--') ? 'all' : testArgs.shift() || 'all';
+  const testArgs = process.argv.slice(2);
+  const group = testArgs[0]?.startsWith('--') ? 'all' : testArgs.shift() || 'all';
   if (!Object.hasOwn(groups, group)) {
     throw new Error(`Unknown test group ${group}; use ${Object.keys(groups).join(', ')}`);
   }
@@ -189,6 +191,7 @@ function main() {
   let failedOnly = false;
   let list = false;
   let help = false;
+  let requireFull = false;
   for (let index = 0; index < testArgs.length; index += 1) {
     const arg = testArgs[index];
     if (arg === '--domain' || arg.startsWith('--domain=')) {
@@ -210,9 +213,18 @@ function main() {
       list = true;
     } else if (arg === '--help') {
       help = true;
+    } else if (arg === '--require-full') {
+      requireFull = true;
     } else {
       nodeArgs.push(arg);
     }
+  }
+  const executionOptions = [...nodeArgs, ...process.execArgv, process.env.NODE_OPTIONS || ''];
+  const partialFileRun = executionOptions.some((arg) => /(?:^|\s|["'])--test-(?:shard|rerun-failures)(?:=|\s|["']|$)/.test(arg));
+  if (requireFull && (group !== 'all' || selectedDomains.size || filePatterns.size || failedOnly || list || help
+    || executionOptions.some((arg) =>
+      /(?:^|\s|["'])--(?:test-(?:name-pattern|skip-pattern|only|shard|rerun-failures)|watch(?:-path)?)(?:=|\s|["']|$)/.test(arg)))) {
+    throw new Error('--require-full requires all files and cases; selectors, filters (including NODE_OPTIONS), listing and watch mode are not allowed.');
   }
   let failedFiles;
   if (failedOnly && !help) {
@@ -243,6 +255,8 @@ function main() {
     console.log('Repeat --file to combine test/ paths or quoted globs; files are deduplicated and intersected with the group and domains.');
     console.log('Node --test-name-pattern filters cases inside the selected files; it does not prevent other files from loading.');
     console.log('--failed selects failed files from the last completed run; it does not replace full release acceptance.');
+    console.log('--require-full rejects partial selection, skipped/todo cases and incomplete results; used by npm run verify.');
+    console.log('The default reporter shows progress and failures; complete spec logs and JSON results are saved in tmp/test-results/.');
   } else if (!selectedFiles.length) {
     throw new Error(`No tests selected for group ${group}, domains ${[...selectedDomains].join(', ')}, files ${[...filePatterns].join(', ')}`);
   } else if (list) {
@@ -253,7 +267,11 @@ function main() {
     fs.mkdirSync(resultsDirectory, { recursive: true });
     const runDirectory = fs.mkdtempSync(path.join(resultsDirectory, 'run-'));
     const savedPath = path.join(runDirectory, 'results.json');
-    const results = { version: 1, complete: false, scope, selectedFiles, failedFiles: [], files: [], failures: [] };
+    const started = performance.now();
+    const results = {
+      version: 1, complete: false, scope, requireFull, startedAt: new Date().toISOString(),
+      selectedFiles, failedFiles: [], files: [], failures: [], logs: [],
+    };
     // Point to the newest attempt at start; an older run finishing cannot replace it.
     fs.writeFileSync(savedPath, JSON.stringify(results));
     const latestTemporaryPath = `${latestResultsPath}.${process.pid}.tmp`;
@@ -262,8 +280,12 @@ function main() {
     const reporterArgs = [];
     const reporterCount = nodeArgs.filter((arg) => /^--test-reporter(?:=|$)/.test(arg)).length;
     const destinationCount = nodeArgs.filter((arg) => /^--test-reporter-destination(?:=|$)/.test(arg)).length;
-    if (!reporterCount && !destinationCount) reporterArgs.push('--test-reporter=spec', '--test-reporter-destination=stdout');
-    else if (reporterCount === 1 && !destinationCount) reporterArgs.push('--test-reporter-destination=stdout');
+    if (!reporterCount && !destinationCount) {
+      reporterArgs.push(
+        `--test-reporter=${pathToFileURL(path.join(root, 'scripts/test-progress-reporter.js')).href}`,
+        '--test-reporter-destination=stdout',
+      );
+    } else if (reporterCount === 1 && !destinationCount) reporterArgs.push('--test-reporter-destination=stdout');
     // Native ownership queries keep their production deadline; run them without
     // competing browser, Electron or installer processes from the rest of the suite.
     const nativeOwnershipFile = 'test/desktop/local-instance-windows.test.js';
@@ -275,10 +297,16 @@ function main() {
     for (const [index, batch] of batches.entries()) {
       if (!batch.length) continue;
       const reportPath = path.join(runDirectory, `batch-${index}.json`);
+      const logName = `batch-${index}.log`;
+      results.logs.push(logName);
+      console.log(`[test] Batch ${index + 1}: ${batch.length} files; log=${path.relative(root, path.join(runDirectory, logName)).replaceAll('\\', '/')}`);
       const result = spawnSync(
         process.execPath,
         buildNodeArguments({ nodeArgs, reporterArgs, reportPath, batch }),
-        { cwd: root, stdio: 'inherit', windowsHide: true },
+        {
+          cwd: root, stdio: 'inherit', windowsHide: true,
+          env: { ...process.env, LIRA_TEST_LOG_PATH: path.join(runDirectory, logName) },
+        },
       );
       if (result.error) throw result.error;
       if (result.status !== 0) process.exitCode = result.status ?? 1;
@@ -288,7 +316,13 @@ function main() {
       } catch {
         complete = false;
       }
-      if (report?.version !== 1 || report.complete !== true) complete = false;
+      const reportedFiles = new Set(Array.isArray(report?.files) ? report.files.map((entry) => entry?.file) : []);
+      if (report?.version !== 1 || report.complete !== true || !Array.isArray(report.files) || !Array.isArray(report.failures)
+        || reportedFiles.size !== report.files.length || report.files.some((entry) => !batch.includes(entry?.file))
+        || (!partialFileRun && batch.some((file) => !reportedFiles.has(file)))
+        || report.files.some((entry) => !entry?.counts || ['tests', 'passed', 'failed', 'cancelled', 'skipped', 'todo']
+          .some((key) => !Number.isInteger(entry.counts[key]) || entry.counts[key] < 0))
+        || report.failures.some((entry) => !entry || !batch.includes(entry.file))) complete = false;
       else {
         results.files.push(...report.files);
         results.failures.push(...report.failures);
@@ -298,10 +332,24 @@ function main() {
     results.complete = complete;
     results.failedFiles = [...new Set(results.failures.map(({ file }) => file))];
     if (results.failedFiles.some((file) => !selectedFiles.includes(file))) results.complete = false;
+    results.finishedAt = new Date().toISOString();
+    results.durationMs = performance.now() - started;
+    results.totals = Object.fromEntries(['tests', 'passed', 'failed', 'cancelled', 'skipped', 'todo']
+      .map((key) => [key, results.files.reduce((sum, { counts }) => sum + counts[key], 0)]));
+    const { tests, passed, failed, cancelled, skipped, todo } = results.totals;
+    if (!results.complete || failed || cancelled || results.failedFiles.length) process.exitCode ||= 1;
+    if (requireFull && (skipped || todo)) {
+      process.exitCode ||= 1;
+      console.error('[test] Full verification requires every case to run; skipped/todo cases:');
+      for (const { file, counts } of results.files.filter(({ counts }) => counts.skipped || counts.todo)) {
+        console.error(`[test] ${file}: ${counts.skipped} skipped, ${counts.todo} todo`);
+      }
+    }
     const temporaryPath = `${savedPath}.tmp`;
     fs.writeFileSync(temporaryPath, JSON.stringify(results, null, 2));
     fs.renameSync(temporaryPath, savedPath);
     console.log(`[test] Results: ${path.relative(root, savedPath).replaceAll('\\', '/')}`);
+    console.log(`[test] ${results.files.length}/${selectedFiles.length} files; ${passed}/${tests} passed; ${failed} failed; ${cancelled} cancelled; ${skipped} skipped; ${todo} todo; ${(results.durationMs / 1000).toFixed(2)}s`);
     if (!results.complete) console.error('[test] Results are incomplete; use an explicit test scope for diagnosis.');
     const slowest = results.files.filter(({ durationMs }) => Number.isFinite(durationMs))
       .sort((left, right) => right.durationMs - left.durationMs).slice(0, 5);

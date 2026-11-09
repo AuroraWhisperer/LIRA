@@ -2,7 +2,7 @@ import { resolveAdvancedLyricSettings } from '../shared/advanced-lyric-appearanc
 import { ADVANCED_LYRIC_CATALOG } from '../shared/advanced-lyric-catalog.js';
 import { parseHexColor } from '../shared/color-value.js';
 import { createAdvancedLyricText, buildAdvancedLyricLayout } from './advanced-lyric-layouts.js';
-import { advancedLyricKeyframes, createAdvancedLyricMotion } from './advanced-lyric-motion.js';
+import { advancedLyricKeyframes, advancedLyricWordAnimation, createAdvancedLyricMotion } from './advanced-lyric-motion.js';
 import { buildAdvancedLyricChoreography } from './advanced-lyric-choreography.js';
 import { createLyricFontStack } from './desktop-lyric-styles.js';
 
@@ -284,11 +284,19 @@ export function createAdvancedLyricRenderer(root) {
         const highlight = element(document, 'span', 'advanced-lyric-highlight');
         highlight.textContent = unit.text;
         glyph.append(highlight);
-        pendingMotion.push(() => motion.add(highlight, [{ clipPath: 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0% 0 0)' }],
-          { startMs: begin, endMs: end, easing: 'linear' }));
-        if (!reducedMotion) pendingMotion.push(() => motion.add(glyph,
-          advancedLyricKeyframes('word', s.advancedLyricWordMotion, s.advancedLyricMotionAmount, index),
-          { startMs: begin, endMs: Math.min(window.endMs, begin + Math.min(650, Math.max(220, end - begin + 120))), easing: 'ease-in-out' }));
+        const soft = ['soft-fill', 'sustain'].includes(s.advancedLyricWordMotion);
+        if (soft) highlight.classList.add('is-soft');
+        const fillFrames = soft
+          ? [{ maskPosition: item.vertical ? '0 100%' : '100% 0', webkitMaskPosition: item.vertical ? '0 100%' : '100% 0' },
+            { maskPosition: '0% 0%', webkitMaskPosition: '0% 0%' }]
+          : [{ clipPath: item.vertical ? 'inset(0 0 100% 0)' : 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }];
+        pendingMotion.push(() => motion.add(highlight, fillFrames, { startMs: begin, endMs: end, easing: 'linear' }));
+        if (!reducedMotion) pendingMotion.push(() => {
+          const track = advancedLyricWordAnimation(s.advancedLyricWordMotion, { startMs: begin, endMs: end,
+            lineEndMs: window.endMs, timed: unit.timed === true && !unit.revealAsRun,
+            amount: s.advancedLyricMotionAmount, ordinal: index });
+          if (track) motion.add(glyph, track.frames, track);
+        });
       });
       exit.append(text); hold.append(exit); stage.append(hold); enter.append(stage); node.append(enter); art.append(node);
       items.push({ item, node, text, units: itemUnits, poses: choreography[ordinal]?.poses });

@@ -8,6 +8,7 @@ const path = require('node:path');
 const { describe, it, beforeEach, afterEach } = require('node:test');
 const { createDatabases, clearAllData, closeDatabases } = require('../../src/storage/database');
 const { now } = require('../../src/shared/utils');
+const { createPlaybackStore } = require('../../src/storage/playback-store');
 const {
   seedClearAllConfiguration,
   seedClearAllBusinessData,
@@ -66,6 +67,31 @@ describe('clearAllData Matrix', () => {
 
     const overtimeState = giftDb.prepare('SELECT * FROM overtime_machine_state WHERE id = 1').get();
     assert.strictEqual(overtimeState.enabled, 0);
+  });
+
+  it('retires pre-clear playback writers and accepts the reloaded page after clearing', () => {
+    const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
+    const playback = createPlaybackStore(musicDb);
+    const active = playback.beginQueueStateSession();
+    playback.saveQueueState({ current: { id: 'before-clear' }, snapshotVersion: { ...active, sequence: 1 } });
+    const unopened = playback.beginQueueStateSession();
+
+    const result = clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb);
+    assert.strictEqual(result.cleared, true);
+    const restored = createPlaybackStore(musicDb);
+    for (const writer of [active, unopened]) {
+      assert.strictEqual(restored.saveQueueState({
+        current: { id: 'late-before-clear' }, snapshotVersion: { ...writer, sequence: 2 },
+      }).saved, false);
+    }
+    assert.strictEqual(restored.getQueueState(), null);
+
+    const next = restored.beginQueueStateSession();
+    assert.ok(next.generation > unopened.generation, 'reloading must not reuse a retired writer generation');
+    assert.strictEqual(restored.saveQueueState({
+      current: { id: 'after-clear' }, snapshotVersion: { ...next, sequence: 1 },
+    }).saved, true);
+    assert.strictEqual(restored.getQueueState().payload.current.id, 'after-clear');
   });
 
   for (const [databaseName, table] of [

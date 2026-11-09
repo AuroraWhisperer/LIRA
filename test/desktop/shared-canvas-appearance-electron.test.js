@@ -317,14 +317,26 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   await desktop.waitForFunction(() => document.getElementById('giftSwingTextMode').value === 'name-quantity');
   await add('lyrics', '直播歌词');
   const advanced = canvas.locator('.advanced-lyric-canvas-settings');
-  await advanced.getByRole('tab', { name: '字体与配色', exact: true }).click();
+  await advanced.getByRole('tab', { name: '外观', exact: true }).click();
   await advanced.locator('[data-advanced-lyric-parameter="advancedLyricFontWeight"]').selectOption('900');
   await desktop.locator('#desktopLyricAdvancedTab').click();
   await desktop.waitForFunction(() => document.getElementById('advancedLyricFontWeight')?.value === '900');
-  await desktop.locator('#advancedLyricEditor').getByRole('tab', { name: '字效与材质', exact: true }).click();
+  await desktop.locator('#advancedLyricEditor').getByRole('tab', { name: '外观', exact: true }).click();
+  await desktop.locator('#advancedLyricEditor summary').filter({ hasText: /^材质与字效$/ }).click();
   await desktop.locator('#advancedLyricEditor [data-lyric-field="advancedLyricMaterial"][data-lyric-choice="chalk"]').click();
-  await advanced.getByRole('tab', { name: '字效与材质', exact: true }).click();
+  await advanced.locator('summary').filter({ hasText: /^材质与字效$/ }).click();
   await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-lyric-field="advancedLyricMaterial"][data-lyric-choice="chalk"]').getAttribute('aria-pressed') === 'true');
+  await advanced.getByRole('tab', { name: '编排', exact: true }).click();
+  const horizontal = advanced.getByRole('spinbutton', { name: '水平位置（%）数值', exact: true });
+  const vertical = advanced.getByRole('spinbutton', { name: '垂直位置（%）数值', exact: true });
+  await horizontal.fill('24'); await horizontal.dispatchEvent('change');
+  await vertical.fill('72'); await vertical.dispatchEvent('change');
+  await desktop.waitForFunction(() => document.getElementById('advancedLyricPositionX').value === '24'
+    && document.getElementById('advancedLyricPositionY').value === '72');
+  await desktop.locator('#advancedLyricEditor').getByRole('tab', { name: '编排', exact: true }).click();
+  await desktop.locator('#advancedLyricEditor').getByRole('button', { name: '水平居中', exact: true }).click();
+  await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-advanced-lyric-parameter="advancedLyricPositionX"]').value === '50'
+    && document.querySelector('.advanced-lyric-canvas-settings [data-advanced-lyric-parameter="advancedLyricPositionY"]').value === '72');
   await add('heart-box-collection');
   await canvas.locator('[data-component-parameter="showRewards"]').uncheck();
   await desktop.waitForFunction(() => !document.getElementById('heartBoxCollectionShowRewards').checked);
@@ -333,7 +345,8 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="showRewards"]').checked);
   await add('live-rankings');
   const rankingList = desktop.locator('[data-rankings="boards"] .ranking-card').first().locator('.ranking-list');
-  await rankingList.locator('.ranking-place').first().filter({ hasText: /^1$/ }).waitFor();
+  assert.equal(await desktop.locator('[data-rankings="range"]').inputValue(), 'all');
+  await rankingList.locator('.ranking-place').first().waitFor();
   await canvas.getByRole('button', { name: '展示方式', exact: true }).click();
   await canvas.getByRole('option', { name: '跟随本房间名次', exact: true }).click();
   await desktop.waitForFunction(() => document.querySelector('[data-rankings="range"]').value === 'nearby');
@@ -346,6 +359,7 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   const rangeRefresh = canvas.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
     && response.ok() && (await response.text()).includes('"range":"all"'));
   await desktop.locator('[data-rankings="range"]').selectOption('all');
+  await rankingList.locator('.ranking-place').first().filter({ hasText: /^1$/ }).waitFor();
   await rangeRefresh;
   await canvas.getByRole('button', { name: '展示方式', exact: true }).press('Tab');
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="range"]').value === 'all');
@@ -354,6 +368,8 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   const output = await app.evaluate(() => global.canvasTest.output());
   const appearance = type => output.appearances[output.document.items.find(item => item.type === type).id];
   assert.equal(appearance('lyrics').advancedLyricMaterial, 'chalk');
+  assert.equal(appearance('lyrics').advancedLyricPositionX, '50');
+  assert.equal(appearance('lyrics').advancedLyricPositionY, '72', 'horizontal centering preserves the other position axis');
   assert.equal(Object.hasOwn(appearance('lyrics'), 'advancedLyricSavedPresets'), false);
   assert.equal(appearance('heart-box-collection').showRewards, true);
   assert.equal(appearance('live-rankings').range, 'all');

@@ -9,6 +9,11 @@ const STORAGE_KEY_V2 = 'playbackState:v2';
 const CLIENT_ID = 'default';
 const SAVE_DEBOUNCE_MS = 1500;
 
+export function clearStoredPlaybackState(storage = localStorage) {
+  storage?.removeItem(STORAGE_KEY_V2);
+  storage?.removeItem(STORAGE_KEY_V1);
+}
+
 /**
  * 存储管理器类
  */
@@ -182,8 +187,7 @@ export class StorageManager {
    * 清空存储的状态
    */
   clearState() {
-    localStorage.removeItem(STORAGE_KEY_V2);
-    localStorage.removeItem(STORAGE_KEY_V1);
+    clearStoredPlaybackState();
   }
 
   /**

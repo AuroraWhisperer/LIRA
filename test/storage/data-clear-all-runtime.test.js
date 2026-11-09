@@ -20,6 +20,7 @@ const { createSettingsStore } = require('../../src/storage/settings-store');
 const { createDomainServices } = require('../../src/server/domain-services');
 const { createRuntimeApiContextFactory } = require('../../src/server/runtime-api-context');
 const { routes } = require('../../src/server/routes/data-routes');
+const { sendStableError } = require('../../src/server/http-utils');
 const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 const clearAll = routes['POST /api/database/clear-all'];
 
@@ -116,6 +117,13 @@ function assertPaused(f) {
   assert.deepEqual(f.syncs, []);
 }
 
+function prepareUnrestoredSongAccount(f) {
+  const settings = createSettingsStore(f.db.songDb);
+  settings.prepareCloudRoomAccount('first');
+  f.services.songs.save({ name: 'First account song' });
+  settings.prepareCloudRoomAccount('second');
+}
+
 test('real runtime context exposes writer controls and resumes after successful clear', async (t) => {
   const f = fixture(t);
   const res = response();
@@ -147,6 +155,24 @@ test('default insertion failure rolls back and resumes real writers', async (t) 
   assert.ok(f.timers.size > 0);
   assert.equal(importGift(f).detection_status, 'final');
   assert.deepEqual(f.broadcasts, []);
+});
+
+test('unrestored song account rolls back clear-all and preserves the recovery response', async (t) => {
+  const f = fixture(t);
+  prepareUnrestoredSongAccount(f);
+  const res = response();
+  await assert.rejects(clearAll(f.context, request(), res), (error) => {
+    assert.equal(error.code, 'CLOUD_SONGS_NOT_READY');
+    sendStableError(res, error);
+    return true;
+  });
+  assert.equal(res.status, 503);
+  assert.equal(res.payload.code, 'CLOUD_SONGS_NOT_READY');
+  assert.deepEqual(f.services.songs.list({}).map((song) => song.name), ['First account song']);
+  assert.ok(f.timers.size > 0);
+  assert.equal(importGift(f).detection_status, 'final');
+  assert.deepEqual(f.broadcasts, []);
+  assert.deepEqual(f.syncs, []);
 });
 
 test('partial commit keeps real timers and imports paused, including a failed retry', async (t) => {
@@ -209,20 +235,26 @@ test('writer resume failure returns partial and pauses both writers again', asyn
   assertPaused(f);
 });
 
-test('failed rollback is partial and never resumes real writers', async (t) => {
-  const f = fixture(t);
-  f.db.giftDb.exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
-    BEGIN SELECT RAISE(ABORT, 'default insert failed'); END`);
-  const exec = f.db.songDb.exec;
-  t.mock.method(f.db.songDb, 'exec', function (sql) {
-    if (sql === 'ROLLBACK') throw new Error('rollback failed');
-    return exec.call(this, sql);
+for (const failure of ['default insertion', 'unrestored song account']) {
+  test(`failed rollback after ${failure} is partial and never resumes real writers`, async (t) => {
+    const f = fixture(t);
+    if (failure === 'unrestored song account') {
+      prepareUnrestoredSongAccount(f);
+    } else {
+      f.db.giftDb.exec(`CREATE TEMP TRIGGER fail_defaults BEFORE INSERT ON overtime_machine_state
+        BEGIN SELECT RAISE(ABORT, 'default insert failed'); END`);
+    }
+    const exec = f.db.songDb.exec;
+    t.mock.method(f.db.songDb, 'exec', function (sql) {
+      if (sql === 'ROLLBACK') throw new Error('rollback failed');
+      return exec.call(this, sql);
+    });
+    const res = response();
+    await clearAll(f.context, request(), res);
+    assert.equal(res.status, 500);
+    assert.equal(res.payload.partial, true);
+    assert.deepEqual(res.payload.data.committed, []);
+    assert.deepEqual(res.payload.data.rollbackFailed, ['songDb']);
+    assertPaused(f);
   });
-  const res = response();
-  await clearAll(f.context, request(), res);
-  assert.equal(res.status, 500);
-  assert.equal(res.payload.partial, true);
-  assert.deepEqual(res.payload.data.committed, []);
-  assert.deepEqual(res.payload.data.rollbackFailed, ['songDb']);
-  assertPaused(f);
-});
+}

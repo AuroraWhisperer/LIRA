@@ -7,6 +7,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { DatabaseSync } = require('node:sqlite');
 const { createPlaybackStore } = require('../../src/storage/playback-store');
+const { clearPlaybackData } = require('../../src/storage/database-maintenance');
 const { MUSIC_SCHEMA } = require('../../src/storage/schema');
 const { routes } = require('../../src/server/routes/playback-routes');
 const { registerMusicIpc } = require('../../src/electron/ipc/music-ipc');
@@ -152,6 +153,26 @@ async function sender(store, options = {}) {
     },
   };
 }
+
+test('clearing playback retires old writers before a new page first saves', (t) => {
+  const { db, store } = fixture(t);
+  const oldWriter = store.beginQueueStateSession();
+  store.saveQueueState({
+    current: { id: 'before-clear' }, snapshotVersion: { ...oldWriter, sequence: 1 },
+  });
+
+  clearPlaybackData(db);
+  assert.equal(store.getQueueState(), null);
+  const newWriter = store.beginQueueStateSession();
+  assert.equal(store.saveQueueState({
+    current: { id: 'late-before-clear' }, snapshotVersion: { ...oldWriter, sequence: 2 },
+  }).saved, false);
+  assert.equal(store.getQueueState(), null);
+  assert.equal(store.saveQueueState({
+    current: { id: 'after-clear' }, snapshotVersion: { ...newWriter, sequence: 1 },
+  }).saved, true);
+  assert.equal(store.getQueueState().payload.current.id, 'after-clear');
+});
 
 test('progress notifications defer track serialization until the debounced save captures the latest state', async (t) => {
   const { store } = fixture(t);
@@ -497,6 +518,21 @@ test('shutdown HTTP fallback preserves the failed IPC snapshot version', async (
     JSON.parse(JSON.stringify(app.calls.ipc[0].snapshotVersion)),
   );
   assert.equal(app.calls.sessions.length, 0);
+});
+
+test('shutdown retains an empty-current snapshot when both channels decline its save', async (t) => {
+  const { store } = fixture(t);
+  const app = await sender(store);
+  const newer = store.beginQueueStateSession();
+  store.saveQueueState({ currentTime: 72, snapshotVersion: { ...newer, sequence: 1 } });
+  app.state.current = null;
+  app.state.normalQueue = [{ id: 'unsaved', source: 'qq', title: 'Unsaved queue' }];
+  app.persistence.savePlaybackState();
+  await app.persistence.flushPlaybackStateForShutdown();
+  await app.persistence.flushPlaybackStateForShutdown();
+  assert.equal(app.calls.http.length, 2, 'a declined IPC save must not suppress fallback or discard pending state');
+  assert.equal(app.calls.http[1].payload.normalQueue[0].id, 'unsaved');
+  assert.equal(store.getQueueState().payload.currentTime, 72);
 });
 
 test('persisted writer generations survive reopening the database and remain client scoped', (t) => {

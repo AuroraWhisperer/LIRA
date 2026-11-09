@@ -3,6 +3,7 @@
 const { resetGiftProjectionMetadataInTransaction } = require('./gift-projection-reset');
 
 const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
+const { clearAllQueueStatesInTransaction } = require('./playback-store');
 
 // All operations run inside transactions owned by the clear coordinator.
 // counts records attempted deletions, including progress before a SQL failure.
@@ -43,7 +44,7 @@ const CLEAR_ALL_MATRIX = {
     'gift_events',
     'overtime_settlements',
     'play_history',
-    'play_queue_state',
+    'play_queue_state', // 清除业务快照，保留撤销旧页面写入会话的版本元数据。
     'checkin_users',
   ],
   recreate: [
@@ -115,9 +116,8 @@ function clearSuperChatInTransaction(superChatDb, counts) {
 
 function clearMusicInTransaction(musicDb, counts) {
   counts.playHistory = countRows(musicDb, 'play_history');
-  counts.playQueueState = countRows(musicDb, 'play_queue_state');
+  counts.playQueueState = clearAllQueueStatesInTransaction(musicDb);
   musicDb.prepare('DELETE FROM play_history').run();
-  musicDb.prepare('DELETE FROM play_queue_state').run();
   musicDb.prepare("DELETE FROM sqlite_sequence WHERE name = 'play_history'").run();
 }
 

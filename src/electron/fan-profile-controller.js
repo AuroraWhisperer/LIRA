@@ -61,18 +61,14 @@ function createFanProfileController({
       syncStatus = 'offline';
       return null;
     }
-    const epoch = licenseManager.getAuthorizationEpoch();
-    if (!current || current.scope !== scope || current.epoch !== epoch) {
+    const generation = licenseManager.getAuthorizationGeneration();
+    if (!current || current.scope !== scope || current.generation !== generation) {
       abortController?.abort();
       rosterAbortController?.abort();
       expiryJob?.controller.abort();
       identityPreviewJob?.controller.abort();
       abortFormerNames();
-      // Renewal preserves the page context while replacing the authorization
-      // generation used to fence in-flight work.
-      const id = current?.scope === scope ? current.id : randomUUID();
-      current = { ...(current?.id === id ? current : {}), scope, epoch, id };
-      if (automaticOperation) current.automaticAttempt = null;
+      current = { scope, generation, id: randomUUID() };
       syncStatus = 'pending';
     }
     return current;
@@ -80,7 +76,7 @@ function createFanProfileController({
 
   function same(captured) {
     const active = context();
-    return active?.id === captured.id && active.epoch === captured.epoch;
+    return active?.id === captured.id && active.generation === captured.generation;
   }
 
   async function sync() {
@@ -179,7 +175,7 @@ function createFanProfileController({
       selected = identity({ platform: 'bilibili', type: 'uid', value: payload.uid });
       if (!selected) throw new Error('请填写 B 站 UID。');
     }
-    const key = JSON.stringify([captured.id, captured.epoch, selected.value]);
+    const key = JSON.stringify([captured.id, captured.generation, selected.value]);
     let job = formerNameJobs.get(key);
     if (!job || job.controller.signal.aborted) {
       const controller = new AbortController();

@@ -5,8 +5,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { mapQQSong } = require('../../src/music/providers/qq-provider-utils');
 const { QQMusicProvider } = require('../../src/music/providers/qq-provider');
-const { matchMusicTrackCandidates } = require('../../src/music/lyrics-service');
-const { scoreTrackMatch } = require('../../src/music/song-matcher');
+const { matchMusicTrackCandidates, scoreTrackMatch } = require('../../src/music/song-matcher');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 test('a one-letter title typo selects the related song instead of an unrelated prefixed title', () => {

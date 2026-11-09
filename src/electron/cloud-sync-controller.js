@@ -98,7 +98,7 @@ function createCloudSyncController(options = {}) {
       const pending = settingsSync.getPending(work.accountKey);
       // Omit the untouched flag: the server preserves its current value.
       const result = await settingsSync.upload(
-        { ...settingsSync.uploadValues(pending), [intent.key]: intent.key === 'giftThanksTemplates' ? intent.value : intent.enabled },
+        { ...settingsSync.uploadValues(pending, work.accountKey), [intent.key]: intent.key === 'giftThanksTemplates' ? intent.value : intent.enabled },
         pending, dirtyGeneration, work,
       );
       if (!isCurrent(work)) return null;
@@ -175,7 +175,7 @@ function createCloudSyncController(options = {}) {
     }
     const pendingSettings = settingsSync.getPending(nextAccountKey);
     if (pendingSettings) {
-      runtime.applyCloudSettingsSnapshot(pendingSettings.values);
+      runtime.applyCloudSettingsSnapshot(pendingSettings.values, nextAccountKey);
       markScopeDirty('settings');
     }
     if (songSync.restorePending(nextAccountKey)) markScopeDirty('songs');
@@ -314,7 +314,7 @@ function createCloudSyncController(options = {}) {
     let pendingSettings;
     if (scope === 'settings') {
       pendingSettings = settingsSync.getPending(work.accountKey);
-      result = await settingsSync.upload(settingsSync.uploadValues(pendingSettings), pendingSettings, dirtyGeneration, work);
+      result = await settingsSync.upload(settingsSync.uploadValues(pendingSettings, work.accountKey), pendingSettings, dirtyGeneration, work);
     } else if (scope === 'songs') {
       result = await songSync.upload(work);
     } else {
@@ -343,7 +343,9 @@ function createCloudSyncController(options = {}) {
       try {
         await flushScope(scope, work);
       } catch (error) {
-        // Keep the scope dirty. The next scheduled or explicit sync retries it.
+        // Menu-only notifications cannot protect a previous account's settings from restoration.
+        if (scope === 'settings' && error?.code === 'CLOUD_SETTINGS_NOT_READY' && isCurrent(work)) dirty.delete(scope);
+        // Other failed uploads remain dirty for the next scheduled or explicit retry.
         if (error?.retryAfterMs > 0) throw error;
         if (error?.code === 'INVALID_GIFT_BLIND_BOX_CONFIG') conflict = error;
         void error;
@@ -501,7 +503,7 @@ function createCloudSyncController(options = {}) {
   function getLocalSongCount() {
     if (!isAuthorized()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
     if (!prepareAccount()) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
-    return { count: runtime.getCloudSongsSnapshot().length, generation: lifecycleGeneration };
+    return { count: runtime.getCloudSongsSnapshot(accountKey).length, generation: lifecycleGeneration };
   }
 
   async function syncSongs(songs, expectedGeneration) {
@@ -511,7 +513,10 @@ function createCloudSyncController(options = {}) {
     }
     const currentLibrary = songs === undefined;
     // Protect the local library from an already-running cloud pull immediately.
-    if (currentLibrary) markScopeDirty('songs');
+    if (currentLibrary) {
+      runtime.getCloudSongsSnapshot(work.accountKey);
+      markScopeDirty('songs');
+    }
     return enqueue(async () => {
       try {
         if (!isCurrent(work)) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });

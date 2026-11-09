@@ -1,6 +1,6 @@
 # preload 桥与 IPC 全量注册表
 
-[preload.js](../../../src/electron/preload.js) 暴露 `playbackOutput`、`audioAssistant`、`plannerReminders`、`desktopNotifications`、`dailyBots`、`fanProfiles`、`giftExport`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十三个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
+[preload.js](../../../src/electron/preload.js) 暴露 `playbackOutput`、`audioAssistant`、`plannerReminders`、`desktopNotifications`、`dailyBots`、`fanProfiles`、`giftExport`、`weeklySchedule`、`songAssistantDesktop`、`musicAPI`、`bilibiliAuth`、`dynamicLotteryAuth`、`guardExpiryAuth`、`liraLicense` 十四个命名空间。本文是通道、方向、载荷与 action 的唯一成表处；窗口生命周期见 [main.md](main.md)，更新状态见 [update.md](update.md)，登录与会话见 [auth.md](auth.md)。invoke、事件和复用通道中的 action 分别核对，不混算。
 
 ## 内置播放输出
 
@@ -48,6 +48,7 @@
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) | 必须 | 必须 | `/`、`/admin`、`/settings` |
 | [planner-reminder-ipc.js](../../../src/electron/ipc/planner-reminder-ipc.js) | 必须 | 必须 | 仅 `/admin` |
 | [desktop-notifications-ipc.js](../../../src/electron/ipc/desktop-notifications-ipc.js) | 必须 | 必须 | 仅 `/admin` |
+| [weekly-schedule-ipc.js](../../../src/electron/ipc/weekly-schedule-ipc.js)：周表PNG导出，复用main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js)：复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)、[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) | 必须 | 必须 | 不另检查路径，包含同 origin 的 `/license` |
 | [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET、fixed-reply-settings GET/PUT | 必须 | 必须 | 不另检查路径 |
@@ -209,6 +210,9 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 | `gift-export:save` | `giftExport.save(id)` → `{id}` | **直接**返回 `{ok:true,saved,directory}` 或 `{ok:false,cancelled,saved,directory,error}`；启动前异常可仅 `{ok:false,error}` | 同上 |
 | `gift-export:cancel` | `giftExport.cancel(id?)`，原始 id | `{ok:true,data:undefined}`；不匹配的非空 id 不取消当前任务 | 同上 |
 | `gift-export:open-folder` | `giftExport.openFolder(id)` → `{id}` | `{ok:true,data:{ok:true}}`，要求该任务已保存≥1张 | 同上 |
+| `weekly-schedule:export-png` | `weeklySchedule.exportPng(template)`，一个完整周表模板对象 | `{ok:true,saved:true,filePath}`、原生取消 `{ok:true,cancelled:true}` 或 `{ok:false,error}`；参数个数错误 `IPC_ARGUMENTS_INVALID` | [weekly-schedule-ipc.js](../../../src/electron/ipc/weekly-schedule-ipc.js) / [weekly-schedule/editor.js](../../../public/js/admin/weekly-schedule/editor.js) |
+
+周表导出复用主窗口 registrar，要求主窗口、主frame、实际主session、精确本地origin及管理页面路径；非法来源为 `IPC_SOURCE_INVALID`。renderer只提交模板数据，不提交任意输出路径、页面URL、HTML或脚本。主进程校验固定六版式、七天、四模块与前三名、字段安全上限和PNG/JPEG/WebP dataURL；单图12MiB、合计48MiB、最大边8192且总像素32Mi。传入原始SVG、远程URL或超量内容失败。保存路径只来自原生PNG对话框，文件覆盖由原生确认；无额外订阅事件。详细窗口、取消及写入责任见[周表导出生命周期](main.md#周表-png-导出)。
 
 礼物导出其他方法失败统一 `{ok:false,error}`，保留中文错误，否则“礼物导出失败，请重新打开预览。”；来源非法仍用 IPC_SOURCE_INVALID。参数与任务时序见 §6。
 

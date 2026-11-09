@@ -1,10 +1,10 @@
 'use strict';
 
-import { createQueueOperations } from '../features/queue-operations.js';
+import { createPlaybackStateActions } from '../state/actions.js';
 
 export function createPlaybackQueueCoordinator({
   playbackState,
-  stateActions,
+  stateActions: suppliedStateActions,
   queueManager,
   savePlaybackState,
   renderPlayback,
@@ -16,41 +16,61 @@ export function createPlaybackQueueCoordinator({
   ensurePlaybackRadioQueueFilled,
   toast,
 }) {
-  const queueOps = createQueueOperations({
-    playbackState,
-    stateActions,
-    queueManager,
-    savePlaybackState,
-    renderPlayback,
-    getPlaybackAudio,
-    syncPlaybackLyricWindow,
-    invalidatePlaybackRequests,
-    invalidateImports,
-  });
+  const stateActions =
+    suppliedStateActions ||
+    createPlaybackStateActions(playbackState, {
+      save: savePlaybackState,
+      render: renderPlayback,
+    });
+
+  function resetAudio() {
+    const audio = getPlaybackAudio();
+    if (!audio) return;
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+  }
 
   function rebuildPlaybackShuffleOrder() {
-    return queueOps.rebuildPlaybackShuffleOrder();
+    return queueManager.rebuildShuffleOrder();
   }
 
   async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
-    const result = queueOps.startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey);
-    if (!result) return;
+    if (!Array.isArray(tracks) || !tracks.some(Boolean)) return;
+    invalidateImports?.();
+    resetAudio();
+    stateActions.clearCurrent();
+    stateActions.clearPending();
+    const track = queueManager.startCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey);
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
-    await playPlaybackTrack(result.track, { origin: result.origin });
+    await playPlaybackTrack(track, { origin: queueType === 'radio' ? 'radio' : 'normal' });
     if (queueType === 'radio') ensurePlaybackRadioQueueFilled();
   }
 
+  function clearPlaybackQueue() {
+    invalidatePlaybackRequests();
+    invalidateImports?.();
+    resetAudio();
+    stateActions.clearCurrent();
+    stateActions.clearPending();
+    stateActions.clearHistory();
+    queueManager.clearQueue();
+    stateActions.commit();
+    syncPlaybackLyricWindow();
+  }
+
   function appendPlaybackTracks(tracks) {
-    queueOps.appendPlaybackTracks(tracks);
+    queueManager.appendTracks(tracks);
   }
 
   function insertPlaybackTracksNext(tracks) {
-    queueOps.insertPlaybackTracksNext(tracks);
+    queueManager.insertTracksNext(tracks);
+    queueManager.rebuildShuffleOrder();
   }
 
   async function insertAndPlayPlaybackTrack(track) {
-    const result = queueOps.insertAndPlayPlaybackTrack(track);
+    const result = queueManager.insertAndPlayTrack(track);
     if (!result) return;
     if (result.shouldStartCollection) {
       await startPlaybackCollection(result.tracks, 0, result.queueType, result.title);
@@ -61,7 +81,7 @@ export function createPlaybackQueueCoordinator({
   }
 
   function takeNextPlaybackTrack() {
-    const result = queueOps.takeNextPlaybackTrack();
+    const result = queueManager.takeNext();
     if (result && playbackState.queueType === 'radio') {
       ensurePlaybackRadioQueueFilled();
     }
@@ -69,7 +89,9 @@ export function createPlaybackQueueCoordinator({
   }
 
   function jumpToPlaylistTrack(index) {
-    queueOps.jumpToPlaylistTrack(index, playPlaybackTrack);
+    const track = playbackState.normalQueueTracks?.[index];
+    if (!track) return;
+    playPlaybackTrack(track, { origin: 'normal', playlistIndex: index });
   }
 
   function queuePlaybackTrack(track, action, options = {}) {
@@ -100,8 +122,8 @@ export function createPlaybackQueueCoordinator({
     insertPlaybackTracksNext,
     insertAndPlayPlaybackTrack,
     takeNextPlaybackTrack,
-    takePlaybackQueueTrack: (...args) => queueOps.takePlaybackQueueTrack(...args),
-    clearPlaybackQueue: (...args) => queueOps.clearPlaybackQueue(...args),
+    takePlaybackQueueTrack: (origin, index) => queueManager.takeQueueTrack(origin, index),
+    clearPlaybackQueue,
     jumpToPlaylistTrack,
     queuePlaybackTrack,
     rebuildPlaybackShuffleOrder,

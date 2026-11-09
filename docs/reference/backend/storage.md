@@ -342,6 +342,8 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 `play_queue_state.payload` 的 `snapshotVersion` 保存最后接受的 writerId/generation/senderGeneration/sequence，另保存已分配页面代次的高水位，无 SQL schema 变更。领取代次与保存检查均在 `BEGIN IMMEDIATE` 事务中完成；领取不改变已接受版本，只有新页面实际保存才推进门槛，避免未执行的 HTML 请求使活动播放器停止保存。重建 store/重启进程不会遗失已分配和已接受的顺序。单独清除队列保留排序元数据，只有元数据时读取仍返回空，避免已接受旧版本重放复活队列。尚未接受版本化快照前保留无版本写入兼容；接受后禁止无版本降级。请求和返回合同见 [api.md](api.md) §5。
 
+全清空和兼容 `clearPlaybackData` 均通过 `clearAllQueueStatesInTransaction` 在调用者持有的 musicDb 事务内移除每个 client 的业务快照，保留已发放代次高水位，并用该高水位与已接受代次的最大值（至少 1）和新 writerId 写入仅元数据的撤销记录。清空前已保存及已领取但尚未使用的 writer 均被拒绝；重载后的新 writer 可保存，事务回滚则恢复原快照和写入资格。读取仍返回空，队列删除计数只统计原先包含业务内容的记录；兼容接口的 `deletedCount` 继续只统计播放历史。
+
 | 表                 | 用途                                    | 关键列/索引                                                                             |
 | ------------------ | --------------------------------------- | --------------------------------------------------------------------------------------- |
 | `play_history`     | 播放历史                                | client_id/track_key/source/track_id/play_count/played_at;唯一 idx(client_id, track_key) |
@@ -455,7 +457,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 - 点歌业务:`songs`、`song_categories`(清空后重建默认分类)、`queue`、`requests`、`random_request_history`、`import_batches`、`user_cooldowns`、`song_cooldowns`
 - AI 运行时:`ai_request_logs`、`ai_api_usage`、`ai_viewer_context`、`ai_query_cache`、`ai_blacklist`
 - 直播数据:`super_chats`、当前 source 的 `gift_events` 与关联 `overtime_settlements`、`checkin_users`
-- 播放器数据:`play_history`、`play_queue_state`
+- 播放器数据:`play_history`、`play_queue_state` 的业务快照；后者保留并推进 writer 撤销元数据，阻止清空前的迟到保存恢复旧内容。
 
 **重建(Recreate)**:业务必需的默认行
 
@@ -511,7 +513,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 服务入口直接调用存储门面 `bootstrapSettingsStore(db)`：在同一 `BEGIN IMMEDIATE` 事务内读取旧版本、补齐默认值、转换设置并写入版本检查点；全部成功才提交，任何异常回滚整次初始化。新库的默认滚动速度同步保存当前版本，重启不会按旧范围再次转换。故障回归使用独立临时 SQLite 库与版本写入触发器，不读取用户数据。
 
-批量写能力 `setSettings(values)` 由存储层持有 `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK`，返回实际变化的键；没有变化时不写入。只有提交成功才清除内存缓存，失败同时保留数据库旧值与缓存旧值。`setSetting(key, value)` 继续供既有单键调用者使用。HTTP 设置 patch 与云端设置快照都走批量能力，字段校验归属 [API 设置契约](api.md#2-设置域settings)，不由存储层重复定义。
+批量写能力 `setSettings(values)` 由存储层持有 `BEGIN IMMEDIATE` / `COMMIT` / `ROLLBACK`，返回实际变化的键；普通本地写入没有变化时不写库，云快照承接即使值相同仍原子确认所属账号。只有提交成功才清除内存缓存，失败同时保留数据库旧值与缓存旧值。`setSetting(key, value)` 继续供既有单键调用者使用。HTTP 设置 patch 与云端设置快照都走批量能力，字段校验归属 [API 设置契约](api.md#2-设置域settings)，不由存储层重复定义。
 
 `createSettingsStore(db)`（[settings-store.js](../../../src/storage/settings-store.js)）为缺失键插入默认值；`getSettings()` 合并默认值与数据库并缓存，写入使缓存失效。无参数读取仍返回完整独立副本；内部消费者可用 `getSettings(keys)` 只复制所需键，省略不存在或已隐藏的内部键。两种读取共享相同失效规则，均不暴露缓存对象。生产启动使用 `bootstrapSettingsStore` 将默认值、兼容迁移与检查点放在同一事务。默认键按组：
 
@@ -625,9 +627,17 @@ SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新�
 
 应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
 
-歌曲待上传状态由 [cloud-song-sync-store.js](../../../src/storage/cloud-song-sync-store.js) 持久化在现有 `settings` 表的私有 `cloudSongSyncPending:<accountKey SHA-256>` 行；值包含唯一 `mutationId` 与完整歌曲快照。归属沿用已保存的 `cloudRoomAccountKey`，尚无 owner 时保留原初次播种规则。保存、删除、启停、两类导入和两类清空路径在歌曲事务提交前捕获快照，写入失败整体回滚；空数组表示明确清空。其他账号的待上传快照不随当前歌库替换或清空而删除。这些行不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 设置快照，不新增表或 schema 版本。同步与拉取保护通过 `hasPendingCloudSongs` 使用同账号的 `SELECT 1` 检查存在性，不读取或解析整份歌库；恢复和实际上传仍通过 `readPending` 获取当时最新快照，不跨检查缓存内容。
+云端或待传快照替换时，同一歌曲事务还更新私有 `cloudSongAccountKey`，记录磁盘歌库实际归属。账号准备仅在该键缺失时初始化：优先使用已有 `cloudRoomAccountKey`，否则采用首次账号；后续切换房间归属不会提前改变歌库归属。待传快照与当前内容相同时只接纳归属，保留歌曲 ID；云端明确未初始化的歌库沿用首次播种规则。
 
-设置待上传状态由 [cloud-settings-sync-store.js](../../../src/storage/cloud-settings-sync-store.js) 保存于私有 `cloudSettingsSyncPending:<accountKey SHA-256>` 行，包含唯一 `mutationId` 与同步白名单的完整本地 `values`。`settings-store.setSettings` 在同一事务内保存设置及待传记录；单键同步设置也走此事务，尚无账号 owner 或仅修改本机设置时不捕获。白名单由 [cloud-settings.js](../../../src/shared/cloud-settings.js) 拥有，记录不包含 Cookie、设备凭据或服务器专属礼物互动意图，也不进入普通设置、defaults 和公开快照。云端应用显式使用 `{ syncPending: false }`，不产生上传回声；不新增表或 schema 版本。
+歌曲待上传状态由 [cloud-song-sync-store.js](../../../src/storage/cloud-song-sync-store.js) 持久化在现有 `settings` 表的私有 `cloudSongSyncPending:<accountKey SHA-256>` 行；值包含唯一 `mutationId` 与完整歌曲快照。捕获前核对磁盘歌库归属与当前 `cloudRoomAccountKey`：不一致时抛出 `CLOUD_SONGS_NOT_READY`，原歌曲修改与待传写入一同回滚，保留原歌库。归属一致时仍允许离线编辑；尚无 owner 时保留原初次播种规则。保存、删除、启停、导入和清空路径在歌曲事务提交前捕获快照，写入失败整体回滚；空数组表示明确清空。其他账号的待上传快照不随当前歌库替换或清空而删除。待传行及 `cloudSongAccountKey` 不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 设置快照，不新增表或 schema 版本。同步与拉取保护通过 `hasPendingCloudSongs` 使用同账号的 `SELECT 1` 检查存在性，不读取或解析整份歌库；恢复和实际上传仍通过 `readPending` 获取当时最新快照，不跨检查缓存内容。
+
+设置待上传状态由 [cloud-settings-sync-store.js](../../../src/storage/cloud-settings-sync-store.js) 保存于私有 `cloudSettingsSyncPending:<accountKey SHA-256>` 行，包含唯一 `mutationId` 与同步白名单的完整本地 `values`。`settings-store.setSettings` 在同一事务内保存设置及待传记录；单键同步设置也走此事务，尚无账号 owner 或仅修改本机设置时不捕获。白名单由 [cloud-settings.js](../../../src/shared/cloud-settings.js) 拥有，记录不包含 Cookie、设备凭据或服务器专属礼物互动意图，也不进入普通设置、defaults 和公开快照。云端应用及待传恢复显式传入 `{ syncPending: false, accountKey }`，不产生上传回声；不新增表或 schema 版本。
+
+私有 `cloudSettingsAccountKey` 标记当前同步设置基线归属，与房间归属独立；旧库缺失时在账号准备阶段承接已有账号。真实切换账号会在清空房间的同一事务内将此标记置空，表示基线未恢复，即使立即切回原账号也须先恢复。未就绪时修改同步字段抛出 `CLOUD_SETTINGS_NOT_READY`，整批设置和待传记录回滚；整份设置上传（含礼物互动写入）同样受阻。仅本机设置仍可修改。同账号云快照或待传快照与归属标记原子提交后才解除门禁；旧服务器省略可选云字段时，同一 owner 沿用本地值，切换后的新基线按同步白名单默认值补全，不继承前账号的值，也不重置本机字段。服务器明确 `initialized=false` 时仍允许既有首次播种。该标记不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 快照。
+
+菜单变化可在基线未就绪时标记 dirty，但被上述门禁拒绝后会清除此临时 dirty，让同一轮继续读取并恢复云设置；恢复后按既有菜单比较补传，不让菜单通知阻断账号恢复。同账号离线待传与重启恢复保持有效。
+
+跨账号接纳旧监控快照时，缺失的 `danmakuMonitoringEnabled` / `giftMonitoringEnabled` 从传入的 `enableBilibili` 补齐，显式通道值优先；旧总开关关闭不会因默认值而重新开启监控。
 
 本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。设置与歌曲上传确认只删除同账号、同 `mutationId` 的记录；上传期间的新修改、过期生命周期的响应和网络失败均保留待上传内容。重启或切回账号时优先恢复并上传该账号的待传快照，当前歌库内容一致时不重复替换，以保留队列和历史的歌曲引用。每轮同步及拉取落盘前也检查持久记录，保护通知遗漏的提交。设置上传的规范化返回值也须确认没有较新的待传记录后才能应用。云端应用和待传恢复路径均不捕获新待传记录或发 dirty 通知；Bilibili 凭据仍使用原进程内 dirty 重试机制。
 

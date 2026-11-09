@@ -35,6 +35,22 @@ function normalizeTrackFields(track) {
   };
 }
 
+/** 全量清空由数据库协调器持有事务；留下版本墓碑，拒绝旧页面的迟到保存。 */
+function clearAllQueueStatesInTransaction(db) {
+  const update = db.prepare('UPDATE play_queue_state SET payload = ?, updated_at = ? WHERE client_id = ?');
+  let cleared = 0;
+  for (const row of db.prepare('SELECT client_id, payload FROM play_queue_state').all()) {
+    const payload = safeParseJson(row.payload) || {};
+    if (Object.keys(payload).some((key) => key !== 'snapshotVersion' && key !== 'issuedGeneration')) cleared++;
+    const generation = Math.max(1, payload.issuedGeneration || 0, payload.snapshotVersion?.generation || 0);
+    update.run(JSON.stringify({
+      issuedGeneration: generation,
+      snapshotVersion: { writerId: randomUUID(), generation, senderGeneration: 0, sequence: 0 },
+    }), now(), row.client_id);
+  }
+  return cleared;
+}
+
 function createPlaybackStore(db) {
   function queueTransaction(run) {
     db.exec('BEGIN IMMEDIATE');
@@ -473,6 +489,7 @@ function mapTrackRow(row) {
 
 module.exports = {
   createPlaybackStore,
+  clearAllQueueStatesInTransaction,
   trackKeyOf,
   DEFAULT_CLIENT_ID,
   PLAY_HISTORY_LIMIT,

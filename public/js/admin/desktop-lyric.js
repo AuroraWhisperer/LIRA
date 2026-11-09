@@ -80,6 +80,7 @@ export function createDesktopLyric({
     if (!form) return;
     advancedEditor = createAdvancedLyricEditor(document.getElementById('advancedLyricEditor'));
     let editorMode = 'basic';
+    let positioning = false;
     const modeTabs = [...document.querySelectorAll('#desktopLyricForm [data-lyric-editor]')];
     syncEditorMode = () => {
       for (const tab of modeTabs) {
@@ -89,7 +90,13 @@ export function createDesktopLyric({
         document.getElementById(tab.getAttribute('aria-controls')).hidden = !active;
       }
       if (editorMode === 'advanced') advancedEditor.activate();
-      document.getElementById('desktopLyricPage')?.classList.toggle('is-advanced', editorMode === 'advanced');
+      const page = document.getElementById('desktopLyricPage');
+      const advanced = editorMode === 'advanced';
+      if (page && page.classList.contains('is-advanced') !== advanced) {
+        const source = form.querySelector('.desktop-lyric-source-disclosure');
+        if (source) source.open = !advanced;
+      }
+      page?.classList.toggle('is-advanced', advanced);
       preview.setPreviewLayer?.(editorMode);
     };
     modeTabs.forEach((tab, index) => {
@@ -122,7 +129,11 @@ export function createDesktopLyric({
     const fontSelect = document.getElementById('desktopLyricFontFamily');
     ensureSavedFontOption(fontSelect, DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily);
     fontSelect.value = DESKTOP_LYRIC_DEFAULTS.desktopLyricFontFamily;
-    preview.init(form, { readSettings: collectDesktopLyric });
+    preview.init(form, { readSettings: collectDesktopLyric,
+      onPositionChange: (position, commit) => {
+        positioning = !commit;
+        advancedEditor.setPosition(position, commit);
+      } });
 
     // Range ↔ Number 双向绑定
     if (forms.bindRangePair) {
@@ -199,6 +210,7 @@ export function createDesktopLyric({
         return;
       }
       editForm();
+      if (positioning) return;
       if (immediate) void saveDesktopLyric();
       else autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     };

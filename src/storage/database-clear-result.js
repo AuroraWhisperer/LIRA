@@ -23,8 +23,10 @@ function createDeletedCounts() {
   };
 }
 
-function preCommitFailure({ errors, rolledBack, rollbackFailed, counts, giftProjectionReset }) {
-  const error = new Error(`Clear-all pre-commit failed: ${errors.map((e) => `${e.db} ${e.phase}`).join(', ')}`);
+function preCommitFailure({ failure, errors, rolledBack, rollbackFailed, counts, giftProjectionReset }) {
+  const error = rollbackFailed.length === 0 && failure?.code === 'CLOUD_SONGS_NOT_READY'
+    ? failure
+    : new Error(`Clear-all pre-commit failed: ${errors.map((e) => `${e.db} ${e.phase}`).join(', ')}`);
   error.details = errors;
   if (rollbackFailed.length === 0) throw error;
   return {

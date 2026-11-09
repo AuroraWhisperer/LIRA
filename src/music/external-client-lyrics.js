@@ -2,7 +2,7 @@
 
 // External players keep their own catalog. WeSing's multi-provider preference
 // deliberately does not participate in this resolver.
-function createExternalClientLyricResolver({ platform, getRegistry, lyricsService }) {
+function createExternalClientLyricResolver({ platform, getRegistry, catalogService, lyricsService }) {
   if (!['qq', 'netease'].includes(platform)) throw new Error('外部播放器平台无效。');
   return async function resolveLyrics(input = {}) {
     const title = String(input.title || '').trim().slice(0, 120);
@@ -16,7 +16,7 @@ function createExternalClientLyricResolver({ platform, getRegistry, lyricsServic
     if (platform === 'netease' && /^\d+$/.test(sourceTrackId)) {
       track = { id: `netease:${sourceTrackId}`, source: platform, sourceTrackId, title, artists, durationMs };
     } else {
-      const result = await lyricsService.searchMusicTracks(registry, {
+      const result = await catalogService.searchMusicTracks(registry, {
         platform, keyword: [title, artist].filter(Boolean).join(' '), limit: 20,
       });
       const requestedArtists = artistKey(artists);

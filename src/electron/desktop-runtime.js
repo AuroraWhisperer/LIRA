@@ -75,7 +75,11 @@ function createDesktopRuntime(serverModule, options = {}) {
     getSetting: typeof serverModule.getSetting === 'function' ? (key) => serverModule.getSetting(key) : () => undefined,
     getCloudSettingsSnapshot:
       typeof serverModule.getCloudSettingsSnapshot === 'function'
-        ? () => serverModule.getCloudSettingsSnapshot()
+        ? (accountKey) => serverModule.getCloudSettingsSnapshot(accountKey)
+        : null,
+    acceptCloudSettingsAccount:
+      typeof serverModule.acceptCloudSettingsAccount === 'function'
+        ? (accountKey) => serverModule.acceptCloudSettingsAccount(accountKey)
         : null,
     prepareCloudRoomAccount:
       typeof serverModule.prepareCloudRoomAccount === 'function'
@@ -83,7 +87,7 @@ function createDesktopRuntime(serverModule, options = {}) {
         : null,
     applyCloudSettingsSnapshot:
       typeof serverModule.applyCloudSettingsSnapshot === 'function'
-        ? (settings) => serverModule.applyCloudSettingsSnapshot(settings)
+        ? (settings, accountKey) => serverModule.applyCloudSettingsSnapshot(settings, accountKey)
         : null,
     applyCloudFixedReplySettingsSnapshot:
       typeof serverModule.applyCloudFixedReplySettingsSnapshot === 'function'
@@ -94,7 +98,9 @@ function createDesktopRuntime(serverModule, options = {}) {
         ? (state) => serverModule.setBlindBoxMappingState(state)
         : null,
     getCloudSongsSnapshot:
-      typeof serverModule.getCloudSongsSnapshot === 'function' ? () => serverModule.getCloudSongsSnapshot() : null,
+      typeof serverModule.getCloudSongsSnapshot === 'function' ? (accountKey) => serverModule.getCloudSongsSnapshot(accountKey) : null,
+    acceptCloudSongsAccount:
+      typeof serverModule.acceptCloudSongsAccount === 'function' ? (accountKey) => serverModule.acceptCloudSongsAccount(accountKey) : null,
     hasPendingCloudSongs:
       typeof serverModule.hasPendingCloudSongs === 'function'
         ? (accountKey) => serverModule.hasPendingCloudSongs(accountKey)
@@ -109,7 +115,7 @@ function createDesktopRuntime(serverModule, options = {}) {
         : null,
     replaceCloudSongsSnapshot:
       typeof serverModule.replaceCloudSongsSnapshot === 'function'
-        ? (songs) => serverModule.replaceCloudSongsSnapshot(songs)
+        ? (songs, accountKey) => serverModule.replaceCloudSongsSnapshot(songs, accountKey)
         : null,
     onCloudSyncRequested:
       typeof serverModule.onCloudSyncRequested === 'function'

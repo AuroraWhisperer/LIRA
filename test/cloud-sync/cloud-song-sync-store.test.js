@@ -101,6 +101,7 @@ test('pending metadata is private and cloud replacements do not create upload ec
   mutations.save(f);
   const settings = createSettingsStore(f.db).getSettings();
   assert.equal(settings.cloudRoomAccountKey, undefined);
+  assert.equal(settings.cloudSongAccountKey, undefined);
   assert.equal(
     Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')),
     false,
@@ -131,6 +132,25 @@ test('pending existence checks stay within the account without materializing its
   assert.ok(rows.every((row) => !row || Object.values(row).every((value) => typeof value !== 'string')));
 });
 
+test('legacy library ownership is retained until a replacement and its owner can commit together', (t) => {
+  const f = fixture(t);
+  f.db.prepare('DELETE FROM settings WHERE key = ?').run('cloudSongAccountKey');
+  f.settings.prepareCloudRoomAccount(ACCOUNT_B);
+  assert.throws(() => mutations.clear(f), { code: 'CLOUD_SONGS_NOT_READY' });
+  assert.equal(f.songs.listRows()[0].name, 'Original');
+  f.db.exec(`CREATE TRIGGER reject_song_owner BEFORE INSERT ON settings
+    WHEN NEW.key = 'cloudSongAccountKey'
+    BEGIN SELECT RAISE(ABORT, 'OWNER_WRITE_FAILED'); END`);
+  assert.throws(() => songService.replaceCloudSongs(f.songs, [{ title: 'Cloud B' }], ACCOUNT_B), /OWNER_WRITE_FAILED/);
+  assert.equal(f.songs.listRows()[0].name, 'Original');
+  assert.throws(() => f.pending.assertAccount(ACCOUNT_B), { code: 'CLOUD_SONGS_NOT_READY' });
+
+  f.db.exec('DROP TRIGGER reject_song_owner');
+  songService.replaceCloudSongs(f.songs, [{ title: 'Cloud B' }], ACCOUNT_B);
+  mutations.save(f);
+  assert.deepEqual(f.pending.readPending(ACCOUNT_B).songs.map((song) => song.name).sort(), ['Added', 'Cloud B']);
+});
+
 test('acknowledgement matches the account and mutation, preserving newer edits and other accounts', (t) => {
   const f = fixture(t);
   mutations.save(f);
@@ -141,6 +161,7 @@ test('acknowledgement matches the account and mutation, preserving newer edits a
   assert.equal(f.pending.acknowledge(ACCOUNT_A, first.mutationId), false);
   assert.equal(f.pending.acknowledge(ACCOUNT_B, second.mutationId), false);
   f.settings.prepareCloudRoomAccount(ACCOUNT_B);
+  songService.replaceCloudSongs(f.songs, [{ title: 'Cloud B' }], ACCOUNT_B);
   mutations.clear(f);
   assert.equal(f.pending.hasPending(ACCOUNT_B), true, 'an empty snapshot is a pending clear');
   assert.deepEqual(f.pending.readPending(ACCOUNT_A), second);

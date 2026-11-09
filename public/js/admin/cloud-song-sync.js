@@ -30,6 +30,7 @@ function songSyncErrorMessage(error) {
   if (code === 'NETWORK_UNAVAILABLE') return '暂时连不上云端，请检查网络后重试。';
   if (code === 'REQUEST_TIMEOUT') return '连接云端超时了，请再试一次。';
   if (code === 'CLOUD_SONGS_CHANGED') return '账号或授权状态已变化，请重新确认同步。';
+  if (code === 'CLOUD_SONGS_NOT_READY') return '当前账号的歌库尚未恢复，请联网后稍候重试。';
   return '请稍后重试。';
 }
 
