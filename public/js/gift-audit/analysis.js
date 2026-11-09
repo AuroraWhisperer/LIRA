@@ -32,6 +32,7 @@ export function parseBubbleHtml(html) {
     return results;
   }
 
+  const seen = new Set();
   for (const itemHtml of itemFragments) {
     // 提取用户名
     const userNameMatch = itemHtml.match(/<div[^>]*class="[^"]*user-name[^"]*"[^>]*>([^<]+)<\/div>/);
@@ -49,10 +50,9 @@ export function parseBubbleHtml(html) {
 
     if (userName && giftName) {
       // 去重：相同用户+相同礼物+相同连击数视为同一条
-      const dup = results.find(
-        (r) => r.userName === userName && r.giftName === giftName && r.comboCount === comboCount,
-      );
-      if (!dup) {
+      const key = JSON.stringify([userName, giftName, comboCount]);
+      if (!seen.has(key)) {
+        seen.add(key);
         results.push({ userName, giftName, giftId, comboCount });
       }
     }
@@ -79,67 +79,80 @@ export function crossReference(bubbles, servers, captureTimeMs) {
   const results = [];
   const matchedServerIndexes = new Set();
   const TIME_WINDOW_MS = 5 * 60 * 1000; // 5分钟时间窗口
+  const serverInputs = servers.map((server) => {
+    const userName = normalizeName(server.user_name || '');
+    const giftName = normalizeName(server.gift_name || '');
+    const timeDiff = server.created_at
+      ? Math.abs(new Date(server.created_at).getTime() - captureTimeMs)
+      : NaN;
+    return {
+      userName,
+      giftName,
+      userChars: new Set(userName.split('')),
+      giftChars: new Set(giftName.split('')),
+      giftId: String(server.gift_id || ''),
+      count: Number(server.num || 1),
+      timeScore: timeDiff < TIME_WINDOW_MS ? Math.round((1 - timeDiff / TIME_WINDOW_MS) * 10) : 0,
+    };
+  });
 
   for (const bubble of bubbles) {
     let bestMatch = null;
     let bestScore = 0;
+    const bubbleUser = normalizeName(bubble.userName);
+    const bubbleGift = normalizeName(bubble.giftName);
+    const bubbleUserChars = new Set(bubbleUser.split(''));
+    const bubbleGiftChars = new Set(bubbleGift.split(''));
 
     for (let i = 0; i < servers.length; i++) {
       if (matchedServerIndexes.has(i)) continue;
       const server = servers[i];
+      const input = serverInputs[i];
 
       // 计算匹配分数
       let score = 0;
 
       // 用户名匹配（模糊）
-      const bubbleUser = normalizeName(bubble.userName);
-      const serverUser = normalizeName(server.user_name || '');
+      const serverUser = input.userName;
       if (bubbleUser === serverUser) {
         score += 40;
       } else if (bubbleUser.includes(serverUser) || serverUser.includes(bubbleUser)) {
         score += 25;
       } else {
         // 计算字符重叠度
-        const overlap = charOverlap(bubbleUser, serverUser);
+        const overlap = charOverlap(bubbleUserChars, input.userChars);
         if (overlap > 0.7) score += 15;
         else if (overlap > 0.5) score += 8;
         else continue; // 用户名完全不匹配，跳过
       }
 
       // 礼物名匹配
-      const bubbleGift = normalizeName(bubble.giftName);
-      const serverGift = normalizeName(server.gift_name || '');
+      const serverGift = input.giftName;
       if (bubbleGift === serverGift) {
         score += 40;
       } else if (bubbleGift.includes(serverGift) || serverGift.includes(bubbleGift)) {
         score += 30;
       } else {
-        const overlap = charOverlap(bubbleGift, serverGift);
+        const overlap = charOverlap(bubbleGiftChars, input.giftChars);
         if (overlap > 0.7) score += 20;
         else if (overlap > 0.5) score += 10;
         else continue; // 礼物名完全不匹配
       }
 
       // Gift ID 匹配（精确）
-      if (bubble.giftId && String(server.gift_id || '') === bubble.giftId) {
+      if (bubble.giftId && input.giftId === bubble.giftId) {
         score += 15;
       }
 
       // 连击数匹配
-      if (bubble.comboCount > 0 && Number(server.num || 1) === bubble.comboCount) {
+      if (bubble.comboCount > 0 && input.count === bubble.comboCount) {
         score += 10;
-      } else if (Math.abs(Number(server.num || 1) - bubble.comboCount) <= 2) {
+      } else if (Math.abs(input.count - bubble.comboCount) <= 2) {
         score += 5;
       }
 
       // 时间接近度加分
-      if (server.created_at) {
-        const serverTime = new Date(server.created_at).getTime();
-        const timeDiff = Math.abs(serverTime - captureTimeMs);
-        if (timeDiff < TIME_WINDOW_MS) {
-          score += Math.round((1 - timeDiff / TIME_WINDOW_MS) * 10);
-        }
-      }
+      score += input.timeScore;
 
       if (score > bestScore) {
         bestScore = score;
@@ -200,10 +213,8 @@ function normalizeName(name) {
   return (name || '').trim().replace(/\s+/g, '').toLowerCase();
 }
 
-function charOverlap(a, b) {
-  if (!a || !b) return 0;
-  const setA = new Set(a.split(''));
-  const setB = new Set(b.split(''));
+function charOverlap(setA, setB) {
+  if (!setA.size || !setB.size) return 0;
   let overlap = 0;
   for (const c of setA) {
     if (setB.has(c)) overlap++;

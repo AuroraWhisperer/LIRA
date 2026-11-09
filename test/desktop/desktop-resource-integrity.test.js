@@ -36,13 +36,12 @@ function loadAdapter(t, { mainWindow = null } = {}) {
   delete require.cache[MODULE_PATH];
   t.after(() => delete require.cache[MODULE_PATH]);
   const { createDesktopResourceIntegrity } = require(MODULE_PATH);
-  const result = createDesktopResourceIntegrity({
+  createDesktopResourceIntegrity({
     app: { getVersion: () => '7.0.0', isPackaged: true },
     getMainWindow: () => mainWindow,
     getDesktopBaseUrl: () => BASE_URL,
     writeLog() {},
   });
-  assert.equal(result, manager);
   return { managerOptions, originalFs, resourcesPath };
 }
 

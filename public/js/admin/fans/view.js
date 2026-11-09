@@ -137,7 +137,7 @@ function overview(profile) {
   return `<section class="fan-section"><h4>基本资料</h4>
     <dl class="fan-facts fan-basic-facts"><div><dt>生日</dt><dd>${html(profile.birthday ? `${profile.birthday.monthDay}${profile.birthday.calendar === 'lunar' ? '（农历）' : '（公历）'}` : '待补充')}</dd></div>
     <div><dt>星座</dt><dd>${html(profile.zodiacHint || '未知')}</dd></div><div><dt>MBTI</dt><dd>${html(profile.mbti || '未知')}${profile.mbtiNote ? ` · ${html(profile.mbtiNote)}` : ''}</dd></div>
-    <div class="fan-former-names"><dt>曾用名</dt><dd>${profile.formerNames?.length ? profile.formerNames.map(html).join('、') : '暂无'}</dd></div></dl></section>
+    ${formerNames(profile)}</dl></section>
     <section class="fan-section"><div class="fan-section-title"><h4>可以聊的话题</h4><div class="fan-actions">${button('new-topic', '添加话题')}${button('new-followup', '记一个约定')}</div></div>${topics.length ? topics.map(recordRow).join('') : '<p class="fan-muted">从一次聊天开始记录。</p>'}
     ${profile.nextTopic ? `<p>下次想聊：${html(profile.nextTopic)}</p>` : ''}${followups.length ? `<div class="fan-followups"><h5>待办约定</h5>${followups.map(recordRow).join('')}</div>` : ''}</section>
     <section class="fan-section fan-cautions"><details><summary>相处提醒${cautions.length ? ` · ${cautions.length} 条` : ''}</summary><p class="fan-muted">哪些话题不适合提起，仅自己可见。</p>${cautions.map(recordRow).join('')}${button('new-caution', '添加相处提醒')}</details></section>
@@ -146,6 +146,15 @@ function overview(profile) {
       .filter((r) => r.kind === 'anniversary' && !r.data.archived)
       .map(recordRow)
       .join('')}</section>${recordHistory(archived, '已完成或收起的资料')}`;
+}
+
+function formerNames(profile) {
+  const selected = profile.formerName || '';
+  const others = (profile.formerNames || []).filter(name => name !== selected);
+  const primary = selected ? `<span class="fan-name-pill">${html(selected)}</span>` : '<span class="fan-muted">暂无</span>';
+  return `<div class="fan-former-names"><dt class="fan-former-heading"><span>曾用名</span><span class="fan-actions">${button('replace-former-name', '替换')}${button('supplement-former-names', '补充', profile.archived || profile.identity?.type !== 'uid' ? 'disabled title="请先绑定 B 站 UID，归档档案需先恢复"' : '')}</span></dt><dd>${others.length
+    ? `<details class="fan-former-details"><summary>${primary}<span class="fan-name-count">另 ${others.length} 个</span></summary><div class="fan-name-pills">${others.map(name => `<span class="fan-name-pill">${html(name)}</span>`).join('')}</div></details>`
+    : primary}</dd></div>`;
 }
 
 function music(profile) {

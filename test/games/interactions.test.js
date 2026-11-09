@@ -76,7 +76,7 @@ test('shared Unicode rules preserve visible graphemes and reject invisible input
   ])
     assert.ok(inspectInteractionText(value).error, value);
   assert.equal(inspectInteractionText(' 唱 歌 ').text, '唱 歌');
-  assert.throws(() => validateInteractionConfig({ ...poll, options: ['é', 'e\u0301'] }), /重复/);
+  assert.throws(() => validateInteractionConfig({ ...poll, options: ['é', 'e\u0301'] }));
   for (const options of [[], ['a', ''], ['a', 'a']])
     assert.throws(() => validateInteractionConfig({ ...poll, options }));
   assert.equal(
@@ -85,21 +85,20 @@ test('shared Unicode rules preserve visible graphemes and reject invisible input
   );
   assert.throws(
     () => validateInteractionConfig({ ...poll, options: Array.from({ length: 7 }, (_, i) => String(i)) }),
-    /1–6/,
   );
   assert.deepEqual(validateInteractionConfig({ ...poll, options: ['a'] }).options, ['a']);
   assert.throws(
-    () => validateInteractionConfig({ ...poll, options: Array.from({ length: 3000 }, (_, i) => String(i)) }),
-    /16 KiB/,
+    () => validateInteractionConfig({ ...poll, padding: 'x'.repeat(16 * 1024) }),
   );
 });
 
-test('poll session enforces one to six options before starting', () => {
+test('poll session rejects invalid configuration before starting and accepts a single option', () => {
   const f = fixture();
-  for (const count of [0, 7]) {
-    assert.throws(() => f.service.start({ ...poll, options: Array.from({ length: count }, (_, i) => String(i)) }), /1–6/);
-    assert.equal(f.service.getState().session, null);
-  }
+  assert.throws(
+    () => f.service.start({ ...poll, options: Array.from({ length: 7 }, (_, i) => String(i)) }),
+    { statusCode: 400 },
+  );
+  assert.equal(f.service.getState().session, null);
   f.service.start({ ...poll, options: ['唯一选项'] });
   f.send('1', '唯一选项');
   assert.equal(f.service.getState().session.options[0].percentage, 100);

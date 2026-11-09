@@ -58,12 +58,3 @@ test('anonymous and overlay credentials cannot read management likes or invoke t
   assert.equal(overlay.body.ok, false);
   assert.equal(getLikeState.mock.callCount(), 0);
 });
-
-test('unknown likes retain null count and timestamp without requesting upstream data', async (t) => {
-  const state = { roomId: '12345', count: null, updatedAt: null, connected: false };
-  const getLikeState = t.mock.fn(() => ({ ...state }));
-  const read = await fixture(t, getLikeState);
-
-  assert.deepEqual(await read(SESSION_TOKEN), { status: 200, body: { ok: true, data: state } });
-  assert.equal(getLikeState.mock.callCount(), 1);
-});

@@ -66,12 +66,13 @@ function createRuntimeTransport({
     const startedAt = Date.now();
     const message = getDanmakuFeedBuffer().pushGift(item);
     broadcastSnapshot('bilibili:gift');
-    const frameEvent = buildGiftFrameEvent(item, getSettings());
+    const settings = getSettings();
+    const frameEvent = buildGiftFrameEvent(item, settings);
     if (frameEvent) { getWebSocketHub()?.broadcast(frameEvent); publishSceneGift?.(frameEvent); }
     // Imported styles exist only as scene layers; the legacy overlay page would replay them as woodland.
-    const styleEvent = buildGiftFrameStyleEvent(item, getSettings(), readGiftFrameStyleIds());
+    const styleEvent = buildGiftFrameStyleEvent(item, settings, readGiftFrameStyleIds());
     if (styleEvent) publishSceneGift?.(styleEvent);
-    const motionEvents = buildGiftMotionEvents(item, getSettings(), { startedAt });
+    const motionEvents = buildGiftMotionEvents(item, settings, { startedAt });
     if (motionEvents.length) {
       const artworkPath = resolveGiftMotionArtwork?.(item) || createGiftArtworkResolver([])({
         giftId: String(item.gift_id || ''), giftName: item.gift_name, coinType: item.coin_type });
@@ -80,10 +81,10 @@ function createRuntimeTransport({
         getWebSocketHub()?.broadcast(event); publishSceneGift?.(event);
       }
     }
-    for (const event of buildGuardThanksEvents(item, getSettings())) {
+    for (const event of buildGuardThanksEvents(item, settings)) {
       getWebSocketHub()?.broadcast(event); publishSceneGift?.(event);
     }
-    const nauticalEvent = buildNauticalGuardThanksEvent(item, getSettings());
+    const nauticalEvent = buildNauticalGuardThanksEvent(item, settings);
     if (nauticalEvent) publishSceneGift?.(nauticalEvent);
     publishDanmakuItem(message);
   }

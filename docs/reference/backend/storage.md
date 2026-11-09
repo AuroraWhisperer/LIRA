@@ -246,6 +246,8 @@ data/
 
 ### 粉丝档案（songDb v6 新增六表）
 
+2026-11-09：档案 JSON 复用完整 `nameHistory`，新增可选 `lastEntry: {name,observedAt}`、`preferredFormerName` 与 `excludedFormerNames`；分别记录最近可靠进房名、手动默认展示和人工移除名单。无 SQL schema 改动；新旧 v1/v2 备份兼容，恢复前校验可选字段，实际规则见[粉丝档案规格](../../../specs/fan-profiles.md)。
+
 2026-10-09：档案 JSON 增加可选 `guardAccompany: {days,roomId,observedAt,source}` 平台观察，scope JSON 增加 `accompanyMilestones` 和 `showAccompanyInCalendar`。复用现有事务/乐观 revision，旧数据无须 schema 迁移；新观察、重复会员事实补全及游标原子提交。完整备份保留并校验这些字段，兼容 v1 导入；预计日历事项只作内存投影，处理状态继续存入 `fan_reminder_states`。规则和默认值由 [粉丝档案规格](../../../specs/fan-profiles.md#平台陪伴天数与日历纪念日2026-10-09) 维护。
 
 `fan-profile-migration.js` 在现有 songDb 的迁移事务内新增以下六表；`fan-profile-store.js` / `fan-record-store.js` 持有 SQL，`src/fans/` 持有领域规则。
@@ -263,6 +265,8 @@ data/
 songDb v15 为 `fan_records` 和 `fan_reminder_states` 分别增加 `idx_fan_records_profile_id`、`idx_fan_reminder_states_profile_id`，均以 `profile_id` 为索引键。父档案删除的外键级联由这些索引定位子行，不依赖 ANALYZE 后的 skip-scan；原有 scope 查询索引、外键和事务保持不变。
 
 `fan-profile-store.list(scope)` 默认排除黑名单，不额外读取每份档案的抑制状态；完整备份导出显式传入 `{includeSuppressed:true}`。`get` / `byIdentity` 供内部身份匹配及备份使用，应用服务对详情、手动写入与自动写入执行黑名单规则。完整备份保留黑名单及被屏蔽的原资料，恢复时合并当前黑名单，仅 `unsuppress` 明确解除；黑名单不新增 schema。完整本机恢复点在原恢复事务内通过 `removeAll(scope)` 一次删除当前 scope 的档案及级联明细，并仅清理一次无引用名单模板；其他 scope、当前抑制标记及恢复失败回滚规则保持不变。
+
+列表、提醒和日历通过 `fan-record-store.listProjectionInputs` 分批读取日期、提醒数据和名单依据，不加载修订历史、手记正文或歌曲计数桶；原始依据仅省略这些视图不使用的 `body`，其余字段及名单模板的观察时间仍参与投影。详情、修改、合并和完整备份继续使用完整记录读取，不复用此投影，也不删改持久数据。
 
 `requests` 保存 `stable_id`（唯一 UUID）、`owner_scope`、`identity_type` 和 v13 新增的 `fan_recorded`。普通点歌入队、更新档案歌曲汇总与标记已归档在同一事务提交；仍在队列中的请求通过稳定标识和标记避免重复计数。旧流水不猜归属，也不补记以前遗漏的档案记录。`done`、`deleted`、`skipped` 及清空队列会物理删除对应的 `queue` / `requests` 行，已计入档案的次数不扣除；`done` 只表示队列已处理。
 
@@ -539,6 +543,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 ### 7.1 关键设置的归属与约束
 
+`heartBoxCollectionShowRewards='true'` 与 `liveRankingsRange='all'` 是客户端和画布共用的本地显示设置，由 [scene-shared-appearance.js](../../../public/js/shared/scene-shared-appearance.js) 映射至 `showRewards` / `range` 并复用场景字段校验。前者为布尔值；后者仅接受 `all`（从第 1 名开始自动翻页）或 `nearby`（跟随本房间名次）。两端人数由实际高度计算，旧场景 `nearby/pageSize` 字段只保留兼容，不新增人数设置。沿用缺失键补齐，无表结构迁移，不加入云设置同步。心动收集的显隐只投影至自身 scope；旧 URL 的显式 `showRewards` 覆盖仍有效。
+
 `nowPlayingAppearance` 默认 `'{}'`，是歌曲信息组件的本机外观 JSON，不加入云设置同步。默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 定义，专属配置接口与普通 settings 写入均经过同一场景字段校验；缺失/非法存量回退默认黑胶横排。默认键补齐不覆盖旧设置，无数据库结构迁移。画布共享外观写回同一配置，场景自身的唱片样式、位置、尺寸和显隐保持独立；保存机制见 [now-playing-settings.js](../../../src/server/now-playing-settings.js)。
 
 直播歌词已唱颜色由本地 settings 的 `desktopLyricSungColor` 保存，默认 `''` 表示跟随样式高亮色；显式值使用十六进制颜色，支持透明度，渲染器对无效值回退继承。未唱颜色复用原 `desktopLyricTextColor`（默认 `#000000`），普通整句、翻译和关闭逐字时同样使用它，不新增另一套未唱设置。原 `desktopLyricOpacity` 保持统一文字不透明度，颜色按钮各自的 Alpha 不改写该值。旧库沿用缺失键默认补齐，无 schema 迁移，不覆盖已存颜色。两项颜色只投影至歌词 scope；与现有歌词外观一样同步到同样式画布组件，独立资源样式保留自己的外观。
@@ -546,6 +552,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 #### 歌词视觉设置
 
 高级输出只显示当前句。`advancedLyricHideUnsung='true'` 默认隐藏未唱到的字，可关闭并随命名搭配保存，桌面和画布共用。旧 `advancedLyricShowNextLine` 继续接受布尔值，供已有设置和预设读取兼容；默认值为 `'false'`，编辑器不提供该控制，渲染不使用它显示下一句。旧预设缺少新字段时补齐默认开启。
+
+`advancedLyricLayout` 缺省与重置值为 `'phrase-flow'`；另有 `'corner-relay'`、`'type-impact'` 两种完整句内编排。已有明确保存的静态布局 ID 保留，不执行强制替换。完整编排复用 `advancedLyricMotionDuration` / `advancedLyricMotionAmount`，范围和存储类型不变，分别控制词组交接时长、动作幅度；自由构图的 Enter/Hold/Exit 值继续存储，但完整编排不读取它们安排动作。没有新增设置键或数据库迁移；示例试播状态仅在管理页内存中存在。
 
 `desktopLyricEnabled='true'`、`advancedLyricEnabled='false'` 是基础/高级两个独立的本地显示开关；切换编辑页签不持久化。高级字段 `advancedLyric*` 的视觉类型、范围、默认值与目录由 [advanced-lyric-appearance.js](../../../public/js/shared/advanced-lyric-appearance.js) 统一定义，服务端设置写入和场景配置使用同一归一化规则；存储层在 `settings-defaults.js` 显式登记相同的持久化默认值，不依赖浏览器模块。数值、布尔值保存为字符串，颜色接受六/八位十六进制，排版/材质/动作值只接受目录 ID。排版/入场轮换序列保存为逗号分隔的已知 ID，至多 12 项并按顺序去重。非法值拒绝整批写入。沿用缺失默认值补齐，不新增数据库 schema 迁移，不覆盖原基础外观。
 
@@ -568,7 +576,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 | `giftFrameEnabled='false'`、`giftFrameThresholdRmb='20'` | 林间花信的专属开关/金额，不加入云设置范围；缎带旧设置保留历史行但不再读取或写入 | 设置 HTTP → gift frame/overlay；[frame-config.js](../../../src/bilibili/gift/frame-config.js) |
 | `giftFrameStyleTriggers=''` | 导入的全屏礼物感谢图片/视频样式的独立开关/金额：JSON 对象，键为样式 UUID，值 `{enabled,thresholdRmb}`（`enabled` 为 `'true'` 或 `'false'`），最多 1000 条，非法值整份拒绝。`''` 表示尚未迁移，所有导入图片/视频沿用升级前规则跟随林间花信；已迁移后缺少条目视为关闭、20 元。启动时仅当值为 `''` 且样式库可读才迁移一次：为库中全部（含已移除）图片/视频样式写入当时的林间花信开关与金额；样式库不可读则保持 `''` 并在下次启动重试。不加入云设置范围 | 设置 HTTP → gift frame；[frame-config.js](../../../src/bilibili/gift/frame-config.js)、[gift-frame-style-triggers.js](../../../src/server/gift-frame-style-triggers.js) |
 | `giftDropEnabled='false'`、`giftDropThresholdRmb='0'`、`giftDropQuantityMultiplier='4'`、`giftDropSize='96'`、`giftDropDurationSeconds='20'`、`giftDropSpeed='100'`、`giftDropBounce='18'` | 本机礼物掉落；数量倍率 1–8 倍，只放大图片数量，不改变实际送礼数量；大小 32–240px，存活 3–120 秒，速度 50–200%，弹跳力度 0–80%（0 不反弹），均为整数；金额非负、包含门槛，0 表示所有正金额结算。倍率、速度与弹性不改变到期时刻，不加入云设置范围 | 设置 HTTP → [motion-config.js](../../../src/bilibili/gift/motion-config.js) → final 展示事件 |
-| `giftSwingEnabled='false'`、`giftSwingThresholdRmb='0'`、`giftSwingSize='150'`、`giftSwingDurationSeconds='20'`、`giftSwingAngle='36'`、`giftSwingSpeed='150'`、`giftSwingTextMode='full'` | 本机礼物摇摇乐；大小 64–280px，存活 3–120 秒，摆幅 5–45 度，速度 50–200%，均为整数；新默认摆幅与速度均为原默认的 1.5 倍，已有保存值保持原值。文字由送礼人、礼物名、数量三个独立勾选项映射为 `full`（全部）、`gift`（礼物名和数量）、`none`（均不显示）、`name`、`gift-name`、`quantity`（分别只显示一项）、`name-gift`、`name-quantity`。独立金额/开关，不加入云设置范围 | 设置 HTTP → 同一 motion owner；复用既有文字字段，旧三种模式含义不变，无新表或迁移 |
+| `giftSwingEnabled='false'`、`giftSwingThresholdRmb='0'`、`giftSwingSize='150'`、`giftSwingDurationSeconds='20'`、`giftSwingAngle='36'`、`giftSwingSpeed='100'`、`giftSwingTextMode='full'` | 本机礼物摇摇乐；大小 64–280px，存活 3–120 秒，摆幅 5–45 度，速度 50–200%，均为整数；已有保存值保持原值。文字由送礼人、礼物名、数量三个独立勾选项映射为 `full`（全部）、`gift`（礼物名和数量）、`none`（均不显示）、`name`、`gift-name`、`quantity`（分别只显示一项）、`name-gift`、`name-quantity`。独立金额/开关，不加入云设置范围 | 设置 HTTP → 同一 motion owner；复用既有文字字段，旧三种模式含义不变，无新表或迁移 |
 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode`（四键默认 `''`） | 两套本地开关与文字独立保存，不加入云设置范围。空值继承旧配置：仅 `guardThanksStyle` 指定的风格继承旧开关，两者继承旧文字；独立保存后该风格不再受旧键影响。旧默认仍为 `false/bilingual/aurora`，新安装两套均关闭。无数据库结构迁移 | 设置 HTTP → 每个启用风格的 `gift:guard-thanks`/overlay；[guard-thanks-config.js](../../../src/bilibili/gift/guard-thanks-config.js)、[共用兼容解析](../../../public/js/shared/guard-thanks-settings.js) |
 | `guardThanksNauticalEnabled`（默认 `''`） | 航海旗帜本地开关，`true/false` 独立生效；空值兼容任一内置感谢已启用的旧行为。新安装保持关闭，不加入云设置范围 | 同一 final 上舰行投影为专属 `style:nautical` 场景事件，不广播给旧独立礼物特效页，不触发其他样式 |
 | `openingEnabled='false'`、openingAudioFile/Name、openingCharacterFile/Name、openingPixelCharacterFile/Name | 本机上传素材与开播展示；每次 bootstrap 强制关闭 openingEnabled | 专属上传/删除路由保存素材路径，普通设置不是任意路径导入；目录见本文件 §1 |
@@ -617,7 +625,7 @@ SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新�
 
 应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
 
-歌曲待上传状态由 [cloud-song-sync-store.js](../../../src/storage/cloud-song-sync-store.js) 持久化在现有 `settings` 表的私有 `cloudSongSyncPending:<accountKey SHA-256>` 行；值包含唯一 `mutationId` 与完整歌曲快照。归属沿用已保存的 `cloudRoomAccountKey`，尚无 owner 时保留原初次播种规则。保存、删除、启停、两类导入和两类清空路径在歌曲事务提交前捕获快照，写入失败整体回滚；空数组表示明确清空。其他账号的待上传快照不随当前歌库替换或清空而删除。这些行不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 设置快照，不新增表或 schema 版本。
+歌曲待上传状态由 [cloud-song-sync-store.js](../../../src/storage/cloud-song-sync-store.js) 持久化在现有 `settings` 表的私有 `cloudSongSyncPending:<accountKey SHA-256>` 行；值包含唯一 `mutationId` 与完整歌曲快照。归属沿用已保存的 `cloudRoomAccountKey`，尚无 owner 时保留原初次播种规则。保存、删除、启停、两类导入和两类清空路径在歌曲事务提交前捕获快照，写入失败整体回滚；空数组表示明确清空。其他账号的待上传快照不随当前歌库替换或清空而删除。这些行不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 设置快照，不新增表或 schema 版本。同步与拉取保护通过 `hasPendingCloudSongs` 使用同账号的 `SELECT 1` 检查存在性，不读取或解析整份歌库；恢复和实际上传仍通过 `readPending` 获取当时最新快照，不跨检查缓存内容。
 
 设置待上传状态由 [cloud-settings-sync-store.js](../../../src/storage/cloud-settings-sync-store.js) 保存于私有 `cloudSettingsSyncPending:<accountKey SHA-256>` 行，包含唯一 `mutationId` 与同步白名单的完整本地 `values`。`settings-store.setSettings` 在同一事务内保存设置及待传记录；单键同步设置也走此事务，尚无账号 owner 或仅修改本机设置时不捕获。白名单由 [cloud-settings.js](../../../src/shared/cloud-settings.js) 拥有，记录不包含 Cookie、设备凭据或服务器专属礼物互动意图，也不进入普通设置、defaults 和公开快照。云端应用显式使用 `{ syncPending: false }`，不产生上传回声；不新增表或 schema 版本。
 

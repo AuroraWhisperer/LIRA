@@ -250,7 +250,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       const item = { id, type: component.id,
         name: name || `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
         x: Math.round((document.canvas.width - width) / 2),
-        y: component.id === 'danmaku' && DANMAKU_STYLE_OPTIONS[draft.style]?.layout === 'horizontal'
+        y: (component.id === 'danmaku' && DANMAKU_STYLE_OPTIONS[draft.style]?.layout === 'horizontal')
+          || (component.id === 'gift-frame' && draft.style === 'gift-swing' && !draft.mediaStyle && !draft.resourceStyle)
           ? document.canvas.height - height : Math.round((document.canvas.height - height) / 2),
         width, height, visible: true, locked: false,
         appearance: config || component.sceneOnly ? { mode: 'independent', config: draft } : { mode: 'shared' } };
@@ -351,7 +352,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
         toggle.setAttribute('aria-expanded', String(open));
         if (!open) return;
         const rect = toggle.getBoundingClientRect();
-        menu.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - 72, window.innerWidth - 152))}px`;
+        const width = Number.parseFloat(window.getComputedStyle(menu).width);
+        menu.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8))}px`;
         menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
       });
       toggle.addEventListener('keydown', (event) => {
@@ -383,6 +385,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     const sharedStates = sharedAppearance.getStatuses().map(state => ({ id: 'appearance', title: '共享参数', ...state }));
     const states = [...controllers.map(({ id, title, controller }) => ({ id, title, ...controllerStates.get(controller) })), ...sharedStates];
     const saving = states.some((state) => state.saving);
+    const controllerSaving = controllers.some(({ controller }) => controllerStates.get(controller).saving);
     const dirty = states.filter((state) => state.dirty);
     const failures = states.filter((state) => state.error);
     const recoveryState = recovery?.getState();
@@ -417,7 +420,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     library.inert = canvasControls.inert = layers.inert = stageHost.inert = inspectorHost.inert = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
     canvasButton.disabled = !connected || !hasScene || outputBusy || Boolean(recoveryState?.pending);
     stage?.setEmptyMessage(hasScene ? '添加组件，开始编排直播画面。' : '暂无场景，请从顶部“场景操作”新建场景。');
-    output?.render(connected && hasScene && !recoveryState?.pending && !outputBusy, saving);
+    // Publishing drains shared autosaves; disabling here can swallow an in-progress click.
+    output?.render(connected && hasScene && !recoveryState?.pending && !outputBusy, controllerSaving);
     presets?.render(outputBusy || Boolean(recoveryState?.pending), canvasState);
   }
   if (recovery) subscriptions.push(recovery.subscribe(renderStatus));

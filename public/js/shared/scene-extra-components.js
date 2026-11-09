@@ -53,9 +53,12 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     },
   },
   'now-playing': {
-    title: '歌曲信息', size: [480, 200], path: '/now-playing', variantKey: 'style',
-    variants: [variant('vinyl', '黑胶唱片', '唱片 · 歌名 · 歌手'),
-      variant('cover', '圆形封面', '封面 · 歌名 · 歌手'), variant('turntable', '唱片机', '唱片机 · 歌名 · 歌手')],
+    title: '歌曲信息', size: [480, 200], path: '/now-playing',
+    variants: Object.entries(NOW_PLAYING_FIELDS.style.options).map(([style, label]) => ({
+      ...variant(style, label, '独立唱片'), config: { nowPlayingPart: 'record', style },
+      image: `/img/component-previews/now-playing-record-${style}.webp`,
+    })).concat({ ...variant('text', '歌名 / 歌手'), config: { nowPlayingPart: 'text' },
+      image: '/img/component-previews/now-playing-text.webp' }),
     fields: NOW_PLAYING_FIELDS,
   },
   lyrics: {
@@ -138,7 +141,8 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
   'gift-frame': {
     title: '全屏礼物感谢', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
     variantKey: 'style',
-    variants: [variant('gift-drop', '礼物掉落', '重力掉落 · 碰撞堆积'), variant('gift-swing', '礼物摇摇乐', '底部立牌 · 弹性回摆')],
+    variants: [variant('gift-drop', '礼物掉落', '重力掉落 · 碰撞堆积'),
+      { ...variant('gift-swing', '礼物摇摇乐', '底部随机出现 · 匀速回摆'), size: [1920, 420] }],
     fields: { style: { ...select('动画风格', 'follow', {
       follow: '跟随已启用效果', 'gift-drop': '礼物掉落', 'gift-swing': '礼物摇摇乐',
     }), optional: true } },

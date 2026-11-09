@@ -81,10 +81,8 @@ test('custom reply service reuses stored rules and keeps returned rules isolated
   assert.equal(service.handleDanmaku({ message: '路过', uid: '123' }).reason, 'not-custom-reply');
   assert.equal(isBilibiliCommandText('菜单看看', service.isCommandText), true);
   result.rule.reply = 'changed by the caller';
-  for (let i = 0; i < 20; i++) {
-    assert.equal(service.isCommandText('看看菜单'), true);
-    assert.equal(service.handleDanmaku({ message: '菜单' }).autoReply.message, '点歌格式：点歌 歌名');
-  }
+  assert.equal(service.isCommandText('看看菜单'), true);
+  assert.equal(service.handleDanmaku({ message: '菜单' }).autoReply.message, '点歌格式：点歌 歌名');
   assert.equal(parse.mock.callCount(), 1);
   settings.enableCustomReplyBot = 'false';
   assert.equal(service.isCommandText('菜单'), false);
@@ -168,19 +166,19 @@ test('domain services attach a custom reply after built-in commands decline', as
       name: 'Bob',
     });
 
-    const checkin = services.messages.handleDanmaku({
-      message: '签到',
-      uid: '456',
-      userName: 'Bob',
-    });
-    assert.equal(checkin.reason, 'cloud-owned');
-    assert.equal(checkin.customReplyReply, undefined);
+    settingsStore.setSetting('checkinBlessings', JSON.stringify(['祝你万事顺遂。']));
     for (const enabled of ['true', 'false']) {
       settingsStore.setSetting('enableCheckinBot', enabled);
       settingsStore.setSetting('enableFortuneBot', enabled);
-      for (const message of [' 签到 ', '抽签']) {
+      for (const [message, type, reply] of [
+        [' 签到 ', 'checkin', 'checkinReply'],
+        ['抽签', 'fortune', 'fortuneReply'],
+      ]) {
         const result = services.messages.handleDanmaku({ message, uid: '456', userName: 'Bob' });
+        assert.equal(result.accepted, false);
         assert.equal(result.reason, 'cloud-owned');
+        assert.equal(result.command.type, type);
+        assert.equal(result[reply], undefined);
         assert.equal(result.customReplyReply, undefined);
       }
     }

@@ -8,7 +8,7 @@
 
 本轮以客户端维护中实现为主，按实际调用检查服务器契约。尚未完成全仓覆盖，不把旧报告、扫描清单、通过的测试或子代理摘要当作逐文件完整审计。生产账户、用户数据、在线服务、实际声卡和正式安装升级不在隔离复现中使用。
 
-历史 10 月 29 日审计的 F-001—F-044 已有 10 月 31 日修复记录；只在当前代码重现且有新证据时重开。原始证据保存于 `tmp/continuous-audit-2026-11-05/`，不是需随产品打包的内容。
+历史 10 月 29 日审计的 F-001—F-044 已有 10 月 31 日修复记录；只在当前代码重现且有新证据时重开。原始证据当时保存于 `tmp/continuous-audit-2026-11-05/`，不是需随产品打包的内容。2026-11-09 核对时，本报告引用的该目录附件已不在当前工作区；下文保留证据名称与原路径供追溯，不再提供失效链接，也不表示本次重新验证了历史结果。
 
 ## 累计结论（截至第八批，当前基线收束）
 
@@ -54,7 +54,7 @@
 
 **建议：** 原生文件选择不能静默授权祖先目录。遇到越界依赖时，要求明确选择包含资源的素材根，或显示扩大后的读取范围再由用户选择。保留合法相邻 CSS/图片及浏览器源读取；不能用新增文件名黑名单解决。扩展 `test/desktop/component-web-picker.test.js` 的跨目录引用用例，加入不相关兄弟文件反证。修复时核对 `docs/guides/component-style-packages.md` 的选择步骤及 API owner。
 
-复现：`node tmp/continuous-audit-2026-11-05/security/repro-component-directory-expansion.cjs`。详细链与限制见[安全证据](../../tmp/continuous-audit-2026-11-05/security/report.md)。历史报告仅覆盖温和目录提升及命名个人目录保护，未记录本根因。
+复现：`node tmp/continuous-audit-2026-11-05/security/repro-component-directory-expansion.cjs`。详细链与限制见安全证据（原附件：`tmp/continuous-audit-2026-11-05/security/report.md`）。历史报告仅覆盖温和目录提升及命名个人目录保护，未记录本根因。
 
 ### SEC-02：文件大小限制没有限制正则计算量
 
@@ -78,7 +78,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 在 I/O owner 中使用有限异步等待，连贯修改 `writeAtomic`、`persistImageIndex` 及调用方的 await；保持原子替换、旧文件保留和清理。异步化索引提交还需串行化或版本保护，不能简单替换为一个未等待的 setTimeout。扩展既有图片原子替换测试验证等待期间事件循环可继续处理任务。修复须核对存储/礼物 owner，用户操作无需改变。
 
-复现：`node tmp/continuous-audit-2026-11-05/backend/repro-gift-image-event-loop.cjs`；结果为 [gift-image-event-loop-result.json](../../tmp/continuous-audit-2026-11-05/backend/gift-image-event-loop-result.json)。现有相关重试用例 2/2 通过，只证明恢复与旧数据保留。该重试相对 10 月 31 日修复基线是新变更。
+复现：`node tmp/continuous-audit-2026-11-05/backend/repro-gift-image-event-loop.cjs`；结果为 gift-image-event-loop-result.json（原附件：`tmp/continuous-audit-2026-11-05/backend/gift-image-event-loop-result.json`）。现有相关重试用例 2/2 通过，只证明恢复与旧数据保留。该重试相对 10 月 31 日修复基线是新变更。
 
 ### FRONT-01：内存有界不能证明持久缓存有界
 
@@ -90,7 +90,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 缓存 owner 对自身 `playbackCache:v2:` 前缀建立持久预算和过期回收；首次使用/写入清理过期项，配额失败有限回收再重试。不得清空其它偏好、草稿或账号数据。扩展 `test/playback/playback-cache.test.js` 的重启用例，保留真实 Map 存储替身并不重新访问旧键；同步 `docs/reference/frontend/playback.md` 的缓存规则即可，无须新增用户操作。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend/repro-playlist-storage.cjs`；[结果](../../tmp/continuous-audit-2026-11-05/frontend/playlist-storage-result.json)。既有跨重启测试重新访问同一键，容量测试只断言内存，未覆盖此路径。与历史播放状态 flush 问题不同。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend/repro-playlist-storage.cjs`；结果（原附件：`tmp/continuous-audit-2026-11-05/frontend/playlist-storage-result.json`）。既有跨重启测试重新访问同一键，容量测试只断言内存，未覆盖此路径。与历史播放状态 flush 问题不同。
 
 ### FRONT-02：旧保存回执倒退界面保存基线
 
@@ -100,7 +100,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 在现有 owner 序列化保存并保留随后编辑的草稿；如保留并发，需请求归属和广播权威顺序。复用已有设置控制器模式，避免另造通用框架。扩展 `test/gifts/gift-frame-draft.test.js` 的双提交逆序完成场景；当前接口与操作步骤可保持不变。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend/repro-gift-frame-ack.cjs`；[结果](../../tmp/continuous-audit-2026-11-05/frontend/gift-frame-ack-result.json)。历史类似问题发生在其它 owner，这里是新确认的覆盖缺口，不宣称新漏洞类型。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend/repro-gift-frame-ack.cjs`；结果（原附件：`tmp/continuous-audit-2026-11-05/frontend/gift-frame-ack-result.json`）。历史类似问题发生在其它 owner，这里是新确认的覆盖缺口，不宣称新漏洞类型。
 
 ### DATA-02：字节统计使用了字符长度
 
@@ -110,7 +110,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** owner 使用 `LENGTH(CAST(raw_json AS BLOB))` 或运行时支持的字节长度函数，维持字段契约。扩展现有 `test/storage/retention.test.js` 一个代表性 Unicode 统计断言。参考契约已正确，无须把文档改成字符数。
 
-复现：`node tmp/continuous-audit-2026-11-05/backend/repro-retention-byte-count.cjs`；[结果](../../tmp/continuous-audit-2026-11-05/backend/retention-byte-count-result.json)。此为旧实现中的新确认问题，不是本次代码引入。
+复现：`node tmp/continuous-audit-2026-11-05/backend/repro-retention-byte-count.cjs`；结果（原附件：`tmp/continuous-audit-2026-11-05/backend/retention-byte-count-result.json`）。此为旧实现中的新确认问题，不是本次代码引入。
 
 ### SEC-03：抽奖账号持久化未包含发行 ID 的服务器
 
@@ -122,7 +122,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 可信主进程用规范化服务器 origin + streamerId 构造主体 scope，贯穿登录分区、加密快照、活动、结果、回执和预算；保留 generation 检查。旧数据没有 origin，不能按当前服务器自动认领或删除；需可验证的归属迁移及安全的重新登录流程。现行 [auth.md](../reference/desktop/auth.md) §14 如实写着单 ID hash，本项是隔离合同遗漏，修复需同步该合同、存储说明及相关规格。扩展现有抽奖认证/生命周期测试，覆盖同 origin 重启、异 origin 同 ID、不同 ID 和旧数据迁移；用户提示仅随实际迁移决策调整。
 
-复现：`node tmp/continuous-audit-2026-11-05/security-round2/repro-lottery-server-scope.cjs`；详见[第二轮安全证据](../../tmp/continuous-audit-2026-11-05/security-round2/report.md)。没有继承历史已修项目的结论。
+复现：`node tmp/continuous-audit-2026-11-05/security-round2/repro-lottery-server-scope.cjs`；详见第二轮安全证据（原附件：`tmp/continuous-audit-2026-11-05/security-round2/report.md`）。没有继承历史已修项目的结论。
 
 ### DATA-03：合法恢复集合在中间状态撞上唯一键
 
@@ -134,7 +134,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 在现有事务内先解析并验证完整替换计划和保留集合的最终唯一性，再统一释放本次明确批准替换的目标，随后恢复。不能删除账号全部资料、撤掉唯一约束或仅换排序。扩展 `test/fan-profiles/fan-profiles-transfer.test.js` 的原样备份与身份交换案例；保持同 scope、预览摘要、记录去重和回滚。核对 [storage.md](../reference/backend/storage.md) 的恢复 owner 说明及 `specs/fan-profiles.md`；用户入口可保持不变，冲突提示有变化时再同步指南。
 
-复现：`node tmp/continuous-audit-2026-11-05/backend-round2/repro-fan-restore-identity-cycle.cjs`；详见[第二轮数据证据](../../tmp/continuous-audit-2026-11-05/backend-round2/report.md)。没有操作用户数据库。
+复现：`node tmp/continuous-audit-2026-11-05/backend-round2/repro-fan-restore-identity-cycle.cjs`；详见第二轮数据证据（原附件：`tmp/continuous-audit-2026-11-05/backend-round2/report.md`）。没有操作用户数据库。
 
 ### FRONT-03：迟到的恢复预览覆盖新档案草稿
 
@@ -146,7 +146,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 在文件选择开始时捕获编辑意图，文件读取和 IPC 返回后均校验；新建、编辑、关闭或页面/账号切换应使旧意图失效。由现有编辑器/transfer owner 管理，不新增全局异步框架。扩展既有粉丝编辑器测试的迟到预览场景，保留正常预览与失败反馈。修复核对前端编辑生命周期参考，接口、备份格式和用户操作可保持不变。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round2/repro-fan-restore-draft.cjs`；[结果](../../tmp/continuous-audit-2026-11-05/frontend-round2/fan-restore-draft-result.json)。DOM/File/IPC 为合成替身，owner 为真实代码。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round2/repro-fan-restore-draft.cjs`；结果（原附件：`tmp/continuous-audit-2026-11-05/frontend-round2/fan-restore-draft-result.json`）。DOM/File/IPC 为合成替身，owner 为真实代码。
 
 ### FRONT-04：删除确认的对象与实际删除对象不一致
 
@@ -158,7 +158,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 发起破坏性操作时捕获 ID 与显示名称，确认和请求使用同一份快照，并让管理/新建入口在已有操作期间遵守 busy。不要通过移除保存等待来修复，否则会引入主配置覆盖问题。扩展既有人格 UI 测试的“确认 A→等待保存→打开 B”场景，验证实际配置只删除批准目标；核对 AI 前端保存/确认流程参考。HTTP 形状、预设格式和用户步骤可保持不变。没有删除任何真实预设。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round2/repro-persona-delete-target.cjs`；[结果](../../tmp/continuous-audit-2026-11-05/frontend-round2/persona-delete-target-result.json)。两项前端发现的完整反证及测试命令见[第二轮前端证据](../../tmp/continuous-audit-2026-11-05/frontend-round2/report.md)。只有合成传输和内存数据库，未运行用户应用。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round2/repro-persona-delete-target.cjs`；结果（原附件：`tmp/continuous-audit-2026-11-05/frontend-round2/persona-delete-target-result.json`）。两项前端发现的完整反证及测试命令见第二轮前端证据（原附件：`tmp/continuous-audit-2026-11-05/frontend-round2/report.md`）。只有合成传输和内存数据库，未运行用户应用。
 
 ### PERF-01：歌词兼容回退的失败匹配阻塞同线程
 
@@ -170,7 +170,7 @@ Windows 临时占用产生 `EPERM/EBUSY` 时，四次 `Atomics.wait` 分别阻�
 
 **建议：** 在 parser 内按时间标记/分隔符单向推进，使缺失、截断及多个无效标记都不会重复扫描尾部；保留正常 YRC/QRC 和翻译兼容。catch 或同线程 timeout 无法中断同步正则。扩展 `test/lyrics/lyrics.test.js` 的受控子进程异常输入对照，避免脆弱的毫秒快照；检查 [music/services.md](../reference/backend/music/services.md) §6，格式和操作不变时用户指南无需新步骤。同类别风险也出现在 SEC-02，但这里是独立 owner 与修复；同 parser 的多个调用方只计一项。
 
-复现：`node tmp/continuous-audit-2026-11-05/root/repro-lyric-parser-cost.cjs`；[详细证据与反证](../../tmp/continuous-audit-2026-11-05/root/round2-report.md)。所有子进程均已结束。
+复现：`node tmp/continuous-audit-2026-11-05/root/repro-lyric-parser-cost.cjs`；详细证据与反证（原附件：`tmp/continuous-audit-2026-11-05/root/round2-report.md`）。所有子进程均已结束。
 
 ### DATA-04：成功迁移的去重规则丢掉不同金额的 SC
 
@@ -182,7 +182,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 **建议：** 在迁移 owner 的实际回退条件中至少纳入规范化金额，保留平台 ID、已删除收据及事务规则；不可靠的冲突应保留记录或明确失败并保留源表。分别验证首次迁移无损与重试幂等。扩展 `test/storage/database-maintenance.test.js` 的不同金额/反向顺序案例；同步 [storage.md](../reference/backend/storage.md) 的回退合同，用户指南仅随冲突处理或提示变化调整。这里仅建议，未运行真实用户库或修改历史数据。
 
-复现：`node tmp/continuous-audit-2026-11-05/backend-round3/repro-legacy-superchat-dedup.cjs`；[第三轮数据证据](../../tmp/continuous-audit-2026-11-05/backend-round3/report.md)。五个双内存库场景使用当前基础 schema 的兼容列，不是归档版本安装器或完整应用重启验收。
+复现：`node tmp/continuous-audit-2026-11-05/backend-round3/repro-legacy-superchat-dedup.cjs`；第三轮数据证据（原附件：`tmp/continuous-audit-2026-11-05/backend-round3/report.md`）。五个双内存库场景使用当前基础 schema 的兼容列，不是归档版本安装器或完整应用重启验收。
 
 ### FRONT-05：取消日程删除会丢掉未保存编辑
 
@@ -192,7 +192,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 **建议：** 取消时重开保留原控件值的 dialog，保留编辑 ID、焦点、校验及提醒字段；必要的重建应先保存当前草稿。不要把取消变成自动保存，不新增存储层。现有 planner 测试主要验证模型和存储，修复应补编辑后取消确认的真实事件链。核对 [app.md](../reference/frontend/app.md) 的工作台 owner，现行持久格式及用户步骤可保持不变。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round3/repro-planner-delete-cancel.cjs`；[第三轮前端证据](../../tmp/continuous-audit-2026-11-05/frontend-round3/report.md)。DOM/localStorage/时钟为合成，没有浏览器或原生通知验收；与 FRONT-03 的迟到预览、FRONT-04 的误删目标是独立原因。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round3/repro-planner-delete-cancel.cjs`；第三轮前端证据（原附件：`tmp/continuous-audit-2026-11-05/frontend-round3/report.md`）。DOM/localStorage/时钟为合成，没有浏览器或原生通知验收；与 FRONT-03 的迟到预览、FRONT-04 的误删目标是独立原因。
 
 ### PERF-02：输入预算没有约束歌词展开与后续处理
 
@@ -204,7 +204,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 下游时间线有 500 行、48 Ki 字符等预算，但不覆盖先前的歌词解析、Provider 估算和 HTTP 序列化；API 也保留原有鉴权，本轮不声称匿名可控平台歌词。**建议：** 共享解析 owner 在昂贵消费者之前限制展开后的总行数/文本预算，保留普通多时间戳语义，超预算给可诊断错误。分词复用可减重复工作，但不能单独解决巨大输出，也无须增加长寿命全局缓存。扩展已有歌词测试的正常/超预算对照；新增用户可见限制需同步 [music/services.md](../reference/backend/music/services.md) §6/§14、错误契约及受影响说明。
 
-复现：`node tmp/continuous-audit-2026-11-05/root/repro-lyric-output-expansion.cjs`；[第三轮资源证据](../../tmp/continuous-audit-2026-11-05/root/round3-report.md)。十个规模/对照均在限时独立子进程内结束；数字为本机观测，不作为普通歌曲表现或跨机器承诺。
+复现：`node tmp/continuous-audit-2026-11-05/root/repro-lyric-output-expansion.cjs`；第三轮资源证据（原附件：`tmp/continuous-audit-2026-11-05/root/round3-report.md`）。十个规模/对照均在限时独立子进程内结束；数字为本机观测，不作为普通歌曲表现或跨机器承诺。
 
 ### FRONT-06：删除另一条许愿清空当前未保存草稿
 
@@ -216,7 +216,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 **建议：** 让具体操作决定是否重置编辑器；成功保存当前草稿、删除正在编辑的对象可以结束编辑，删除其它对象只刷新列表并保留草稿。捕获操作目标，不隐式保存无关输入，也不要求用户为删除 B 放弃 A。保留共用请求和失败处理，无需新增通用表单框架。扩展 `test/gifts/frontend-gift-wishes.test.js` 的现有夹具，增加“编辑 A→删除 B 成功”；核对 [app.md](../reference/frontend/app.md) 与 [gift.md](../reference/backend/bilibili/gift.md) 的 owner 说明，接口、格式及用户步骤可以保持不变。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round4/repro-wish-delete-other-draft.cjs`；[第四批前端证据](../../tmp/continuous-audit-2026-11-05/frontend-round4/report.md)。DOM/时钟、卡片和富文本等配套依赖为替身，没有真实 Electron、布局或富文本撤销验收。与 FRONT-04 的删除目标漂移及 FRONT-05 的取消回填不同。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round4/repro-wish-delete-other-draft.cjs`；第四批前端证据（原附件：`tmp/continuous-audit-2026-11-05/frontend-round4/report.md`）。DOM/时钟、卡片和富文本等配套依赖为替身，没有真实 Electron、布局或富文本撤销验收。与 FRONT-04 的删除目标漂移及 FRONT-05 的取消回填不同。
 
 ### DATA-05：归档后本机日期的盲盒统计错位
 
@@ -228,7 +228,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 **建议：** 本地归档需保留能支持现有本机日期边界的时间信息，在验证保全前保留相关明细；不能悄改查询为北京时间，也不能用 `last_opened_at` 重分整桶。旧桶只保留总量和最后时间，无法凭空恢复跨日分布；格式/迁移方案须评估兼容与一致备份，无法精确恢复时要明确范围。扩展既有保留期测试的跨时区清理前后对照，核对存储/礼物 owner；若日期解释或恢复能力有用户可见变化，再同步说明。这里没有实施迁移或打开清理开关。
 
-复现：`node tmp/continuous-audit-2026-11-05/root/repro-blind-archive-timezone.cjs`；[第五批主证据](../../tmp/continuous-audit-2026-11-05/root/round5-report.md)。数据子代理只读复核同意条件性 P2；未运行真实上游或完整桌面同步。
+复现：`node tmp/continuous-audit-2026-11-05/root/repro-blind-archive-timezone.cjs`；第五批主证据（原附件：`tmp/continuous-audit-2026-11-05/root/round5-report.md`）。数据子代理只读复核同意条件性 P2；未运行真实上游或完整桌面同步。
 
 ### FRONT-07：复制地址与完成提示使用了不同选择
 
@@ -238,7 +238,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 **建议：** 点击时捕获对象 ID，已发布成员检查、地址及已发布尺寸都使用同一对象；跨剪贴板 await 保留这份结果，完成提示标明对象或避免覆盖新选择的状态。保留画布输出绑定检查，不用草稿尺寸替代已发布尺寸，也无需通用异步框架。补现有文本框 UI 夹具的两种延迟，验证副作用参数与提示一致。接口、存储和用户步骤不变，技术契约/指南无需新增操作规则。
 
-复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round5/repro-text-box-copy-selection.cjs`；[第五批前端证据](../../tmp/continuous-audit-2026-11-05/frontend-round5/report.md)。两条等待链属于同一根因，只计一项 P3，不声称数据丢失、权限绕过或真实发生率。
+复现：`node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round5/repro-text-box-copy-selection.cjs`；第五批前端证据（原附件：`tmp/continuous-audit-2026-11-05/frontend-round5/report.md`）。两条等待链属于同一根因，只计一项 P3，不声称数据丢失、权限绕过或真实发生率。
 
 ### FRONT-08：一次字体加载失败使当前页面失去恢复入口
 
@@ -250,7 +250,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 四组隔离诊断中，桌面最终 CSS 失败后推进合成 60 秒并重复 ready，仍为 1 次样式尝试、0 个附着样式、0 次重试；浏览器 ready 后 CSS 失败、首次 status 失败均停留。重建 loader 可在相同 ready 状态成功。成功签名正确去重、失败保留旧 CSS、新 completedAt 可恢复、dispose 正确退订等对照均通过。使用真实 loader/imports、合成 DOM/桥接/请求/时钟，没有请求真实网络、下载字体或做像素验收。
 
-**建议：** 在当前 loader 区分已应用和在途签名，仅在成功后确认版本；对状态读取或 CSS 的暂时失败安排有界重试，保留旧 CSS，销毁时取消重试并忽略旧回执。复用 `test/ui/font-library-loader.test.js` 的环境补充“失败后同状态成功、释放待重试任务”行为覆盖，不固定具体重试毫秒值。修复时核对 `docs/reference/frontend/app.md`、`pages.md`、`playback.md` 的资源就绪机制；不改变共享字体目录、用户选择值或要求重新下载，用户步骤没有必要扩展。证据见[第七批前端报告](../../tmp/continuous-audit-2026-11-05/frontend-round7/report.md)。
+**建议：** 在当前 loader 区分已应用和在途签名，仅在成功后确认版本；对状态读取或 CSS 的暂时失败安排有界重试，保留旧 CSS，销毁时取消重试并忽略旧回执。复用 `test/ui/font-library-loader.test.js` 的环境补充“失败后同状态成功、释放待重试任务”行为覆盖，不固定具体重试毫秒值。修复时核对 `docs/reference/frontend/app.md`、`pages.md`、`playback.md` 的资源就绪机制；不改变共享字体目录、用户选择值或要求重新下载，用户步骤没有必要扩展。证据见第七批前端报告（原附件：`tmp/continuous-audit-2026-11-05/frontend-round7/report.md`）。
 
 ### FRONT-09：歌曲菜单关闭后临时累积外部点击回调
 
@@ -260,7 +260,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 真实 HomeHandler、事件委托、Drawer 和 HomeService 的合成 DOM 诊断中，1/10/50 轮 × 三种关闭方式各残留 N 个回调；下一次菜单内点击执行 N 次相同判断，首次外部点击重复隐藏后全部解绑。连续 50 次外部关闭及真实关闭按钮冒泡对照无残留。计数扣除正常常驻控件监听，完成后无待执行定时器。这证明临时闭包保留及重复工作，不证明永久内存泄漏、跨文档存活或实际卡顿。
 
-**建议：** 在现有菜单 owner 保存唯一关闭回调及待安装定时器，按钮、键盘、替换菜单和所属抽屉关闭共用局部释放动作；保留焦点、ARIA 和外部点击行为，无需新框架。复用既有播放菜单/键盘 fixture 覆盖连续开关后无残留及正常外部关闭，不添加源码形状断言。修复时核对 `docs/reference/frontend/playback.md`；预期不改用户操作、HTTP/IPC 或持久化合同，用户指南无需扩展。证据见[第八批前端报告](../../tmp/continuous-audit-2026-11-05/frontend-round8/report.md)，命令为 `node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round8/probe-track-menu-listeners.cjs`。
+**建议：** 在现有菜单 owner 保存唯一关闭回调及待安装定时器，按钮、键盘、替换菜单和所属抽屉关闭共用局部释放动作；保留焦点、ARIA 和外部点击行为，无需新框架。复用既有播放菜单/键盘 fixture 覆盖连续开关后无残留及正常外部关闭，不添加源码形状断言。修复时核对 `docs/reference/frontend/playback.md`；预期不改用户操作、HTTP/IPC 或持久化合同，用户指南无需扩展。证据见第八批前端报告（原附件：`tmp/continuous-audit-2026-11-05/frontend-round8/report.md`），命令为 `node --experimental-vm-modules tmp/continuous-audit-2026-11-05/frontend-round8/probe-track-menu-listeners.cjs`。
 
 ## 维护与优化建议（不计缺陷）
 
@@ -292,7 +292,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 **建议：** 每次保存用一份局部 `files`，首张尺寸、循环与进度共用。2,000 张分图的保存阶段只需构建 2,000 条布局是代码推导。运行中的任务本就禁止配置变更，不需要长期缓存或额外框架；保留取消、任务版本、图片尺寸和独占写入保护。可复用现有控制器行为测试，不增加布局调用数或毫秒快照作为永久测试；对外输出和用户步骤不变，契约/指南无需新增规则。
 
-证据：[第四批查询与资源报告](../../tmp/continuous-audit-2026-11-05/root/round4-report.md)、[计数结果](../../tmp/continuous-audit-2026-11-05/root/export-layout-cost-result.json)。主代理执行，数据子代理只读交叉复核；首次夹具漏传 URL 的失败及修正已在原始报告记录，未当作产品问题。
+证据：第四批查询与资源报告（原附件：`tmp/continuous-audit-2026-11-05/root/round4-report.md`）、计数结果（原附件：`tmp/continuous-audit-2026-11-05/root/export-layout-cost-result.json`）。主代理执行，数据子代理只读交叉复核；首次夹具漏传 URL 的失败及修正已在原始报告记录，未当作产品问题。
 
 ### CACHE-O1：头像暖命中反复扫描整个用户资料缓存
 
@@ -302,7 +302,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 这些是合成分页和资料 provider 下的 Node 证据；实际授权读取、网络、Electron/渲染及优化后收益未测。10 ms timer 在本探针准备后才运行，不能外推为真实桌面必然连续停顿。当前单列优化建议，不计 P 级缺陷。
 
-**建议：** 在现有 UserInfoService 让全量回收遵守既有间隔，对正在读的 UID 保留 O(1) TTL 校验与按需失效，同时保持失败冷却、身份索引和房间/生命周期一致性。不新增全局缓存，不以删掉过期检查换速度。复用用户服务与卡片测试覆盖过期、失败和补全；规模诊断增加不同 UID，避免只堆同一人的礼物行数。实现保持公开合同和用户步骤时，无需改指南；若回收时机约定改变，核对 `docs/reference/backend/bilibili/danmaku.md`。证据：[第七批主报告](../../tmp/continuous-audit-2026-11-05/root/round7-report.md)、[11 个样本](../../tmp/continuous-audit-2026-11-05/root/avatar-cache-scans-result.json)，数据子代理已只读交叉复核。
+**建议：** 在现有 UserInfoService 让全量回收遵守既有间隔，对正在读的 UID 保留 O(1) TTL 校验与按需失效，同时保持失败冷却、身份索引和房间/生命周期一致性。不新增全局缓存，不以删掉过期检查换速度。复用用户服务与卡片测试覆盖过期、失败和补全；规模诊断增加不同 UID，避免只堆同一人的礼物行数。实现保持公开合同和用户步骤时，无需改指南；若回收时机约定改变，核对 `docs/reference/backend/bilibili/danmaku.md`。证据：第七批主报告（原附件：`tmp/continuous-audit-2026-11-05/root/round7-report.md`）、11 个样本（原附件：`tmp/continuous-audit-2026-11-05/root/avatar-cache-scans-result.json`），数据子代理已只读交叉复核。
 
 ## 验证与反证
 
@@ -390,7 +390,7 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 | 批量队列六场景、菜单十场景 | 全部完成 | 真实 owner、合成音频/DOM/计时器；记录计数，不测堆或卡顿 |
 | 备份 HTTP 暂停/恢复、中止、发头前后失败 | 四场景首次通过 | 32 MiB 合成载荷及实际本机 HTTP；不代表 2 GiB/真实 Electron 边界 |
 
-第八批新增 25 项既有测试通过，累计 429 项；诊断和文档检查不混入该数字。文档门禁在报告更新后单独执行并保存本批日志。未运行全套，未将“通过现有测试”描述为已修复。原始命令见各分区 scratch 报告及[第八批主记录](../../tmp/continuous-audit-2026-11-05/root/round8-report.md)；没有为补日志重跑。通过只证明已覆盖断言。第三批被中止的安全分区没有计入测试或覆盖，后续未恢复该分区。
+第八批新增 25 项既有测试通过，累计 429 项；诊断和文档检查不混入该数字。文档门禁在报告更新后单独执行并保存本批日志。未运行全套，未将“通过现有测试”描述为已修复。原始命令见各分区 scratch 报告及第八批主记录（原附件：`tmp/continuous-audit-2026-11-05/root/round8-report.md`）；没有为补日志重跑。通过只证明已覆盖断言。第三批被中止的安全分区没有计入测试或覆盖，后续未恢复该分区。
 
 重要反证：
 
@@ -408,22 +408,22 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 - 第三批的歌曲替换在事务内重验计划、拒绝坏行并在提交后单次发布；场景删除/切换输出的 savepoint 覆盖绑定与尺寸，失败保留原状态。旧 SC 复制失败的回滚也有效，DATA-04 指向成功去重的等价关系。
 - 曲库行删除、场景预设删除、素材移除、互动取消有目标快照或版本/忙锁；“清空全部”按既有合同作用于整个集合，不能凭确认后集合变化杜撰仅清理旧快照的要求。日程取消的草稿丢失不等于误删保存记录。
 - 歌词时间线和单词归一化确有预算，但保护发生在上游解析及 Provider 响应之后。合法多时间戳需保留正常语义；暂时高 heapUsed/RSS 样本也不能当作泄漏。
-- 第四批的点歌 v13 汇总按已接受规范替代逐次原文；长说明可以原样备份/恢复，时钟回退不丢未来日桶。名单 v14 只压缩未编辑的自动观察，展开后完整记录及历史会员/提醒判断一致。两者的源更新故障均使数据、DDL 与版本一起回滚；不能把有意汇总或压缩误报为数据丢失。详见[数据证据](../../tmp/continuous-audit-2026-11-05/backend-round4/report.md)。
+- 第四批的点歌 v13 汇总按已接受规范替代逐次原文；长说明可以原样备份/恢复，时钟回退不丢未来日桶。名单 v14 只压缩未编辑的自动观察，展开后完整记录及历史会员/提醒判断一致。两者的源更新故障均使数据、DDL 与版本一起回滚；不能把有意汇总或压缩误报为数据丢失。详见数据证据（原附件：`tmp/continuous-audit-2026-11-05/backend-round4/report.md`）。
 - 启动设置的旧值/默认值和版本标记在事务内转换；失败回滚、重启不重复映射、独立字体之后可分别修改。已修复的旧默认文案检查点没有重开为新问题。加班机 action 的空 catch 上游已显示失败，未因此认定静默吞错。
 - 真实礼物查询在 1,000/5,000/10,000 条合成记录、25 类礼物/30 天下，两页共享一次 COUNT，统计只返回 56 个 SQL 聚合行、约 13 KB JSON，单次聚合约 4/20/36 ms。未见足以立项的受测查询缺陷；这些单次数字不代表百万行库、retention 汇总、高基数或真实调用频率，不能据此宣布全库性能合格。
 - 第五批补齐 50 天、每版 1,000/5,000/10,000 行的保留期汇总诊断：暂存新版不改变旧统计，激活替换后不双算，清旧版前后结果完全一致。清理后单次查询约 9/51/142 ms、输出约 6.5 KB；这是普通礼物、25 个礼物分组且原始明细为空的单次观测，未覆盖百万行、真实请求频率或全部过滤组合，也不与第四批原始明细样本直接比较优化收益。
-- gift v10 的四类旧规则保留原九列，当前领域的重新选择保持加减时、按件及启用规则；wish v15→v20 的旧文案/图片位置经真实 helper 和领域保存往返。转换后版本检查点失败使 schema、行与版本一起回滚，解除合成故障后重试成功。没有把有意的兼容表示转换说成原字段必须字面不变，详见[第五批数据证据](../../tmp/continuous-audit-2026-11-05/backend-round5/report.md)。
+- gift v10 的四类旧规则保留原九列，当前领域的重新选择保持加减时、按件及启用规则；wish v15→v20 的旧文案/图片位置经真实 helper 和领域保存往返。转换后版本检查点失败使 schema、行与版本一起回滚，解除合成故障后重试成功。没有把有意的兼容表示转换说成原字段必须字面不变，详见第五批数据证据（原附件：`tmp/continuous-audit-2026-11-05/backend-round5/report.md`）。
 - 文本框场景保存有草稿比较与绑定保护，但不能替代页面复制对象的捕获。转盘、精确/定时回复、日词库、欢迎和答谢的所查回调有 dirty/提交版本或禁用保护；互动完成后的 host 读取补充特定就绪信息，未仅因再次读取就判冗余。这些静态检查不等于相应账号生命周期或全部 UI 已验收。
-- 第六批普通统计在完整流水参照与混合表示间进行 300 次对照：15 条初始记录（其中一条恰等于 asOf，按既有接口边界排除）及一条迟到 final，覆盖普通礼物、已知/未知成本、负利润、旧名称与 90/30/7 天边界。激活、迟到事件进汇总、部分/完整裁剪、同 epoch 重建和清旧版后，总量/排行/日期均一致。这里的上海统计合同与 DATA-05 本机盲盒日期不同；不是性能、高基数或全部过滤验收。见[第六批主证据](../../tmp/continuous-audit-2026-11-05/root/round6-report.md)。
-- 心愿原始事件 oracle 与真实服务在部分日两端、午夜含终点、stale checked_at、旧/新成员共用近期事件、v19→v20 和每批 `[4,4,4,1,0]` 删除后保持一致。活动指针更新的晚期失败撤回已保存贡献及 phase/generation，重试可用；首次较早故障注入仅能证明旧状态保留，其限制已明确。见[第六批数据证据](../../tmp/continuous-audit-2026-11-05/backend-round6/report.md)。
-- 真实组件预览 owner 的 dispose-before-ready、重复 ready/模式替换与五次重挂载诊断中，订阅、监听、计时器、观察器及 iframe 都回到初始零值，旧回调不能影响新实例。隐藏页可能按合同保留模块，不能因此报告泄漏；这些是合成计数，不是实际内存、字体或解码器测量。见[第六批前端证据](../../tmp/continuous-audit-2026-11-05/frontend-round6/report.md)。
+- 第六批普通统计在完整流水参照与混合表示间进行 300 次对照：15 条初始记录（其中一条恰等于 asOf，按既有接口边界排除）及一条迟到 final，覆盖普通礼物、已知/未知成本、负利润、旧名称与 90/30/7 天边界。激活、迟到事件进汇总、部分/完整裁剪、同 epoch 重建和清旧版后，总量/排行/日期均一致。这里的上海统计合同与 DATA-05 本机盲盒日期不同；不是性能、高基数或全部过滤验收。见第六批主证据（原附件：`tmp/continuous-audit-2026-11-05/root/round6-report.md`）。
+- 心愿原始事件 oracle 与真实服务在部分日两端、午夜含终点、stale checked_at、旧/新成员共用近期事件、v19→v20 和每批 `[4,4,4,1,0]` 删除后保持一致。活动指针更新的晚期失败撤回已保存贡献及 phase/generation，重试可用；首次较早故障注入仅能证明旧状态保留，其限制已明确。见第六批数据证据（原附件：`tmp/continuous-audit-2026-11-05/backend-round6/report.md`）。
+- 真实组件预览 owner 的 dispose-before-ready、重复 ready/模式替换与五次重挂载诊断中，订阅、监听、计时器、观察器及 iframe 都回到初始零值，旧回调不能影响新实例。隐藏页可能按合同保留模块，不能因此报告泄漏；这些是合成计数，不是实际内存、字体或解码器测量。见第六批前端证据（原附件：`tmp/continuous-audit-2026-11-05/frontend-round6/report.md`）。
 - 导出在 loadURL、render、动画帧、capture 和 write 等待中取消/销毁时，窗口均释放且不开始下一张；在途写入按既有契约允许完成一张，返回数量准确。虚拟 20 秒超时后的迟到结果没有写文件，合成第二次 ENOSPC 保留首张；定时器在完成后归零。这不验证真实 Electron/GPU/磁盘，也不重复 EXPORT-O1 的布局成本结论。
-- 第七批将图片解码期限与整个就绪链分开：decode 失败后可回退，但后续仍等待字体和两帧。真实保存消费者外有 20 秒 bounded；预览在旧字体等待中关闭/重开后，迟到结果不能保存旧设置或覆盖新任务。因此不把局部无总超时报成永久导出挂起。见[前端分区](../../tmp/continuous-audit-2026-11-05/frontend-round7/report.md)，字体 CSS 的恢复缺口仍单列 FRONT-08。
-- 素材备份正在读文件时，真实清理被 409 阻止；取消解除引用后遇到 Windows 尚未关闭文件流的 EPERM，返回 failed，流关闭后重试成功。恢复副本写失败会以 503 阻止删除；已真实删掉一个合成文件后的部分失败，剩余字节/索引可核对，另一包完成，再次清理及同 ZIP 重导保留原 UUID/参数。见[数据分区](../../tmp/continuous-audit-2026-11-05/backend-round7/report.md)。没有把逻辑解除引用当成句柄立即关闭，也没有把有回执、可重试的部分清理说成静默损坏。
+- 第七批将图片解码期限与整个就绪链分开：decode 失败后可回退，但后续仍等待字体和两帧。真实保存消费者外有 20 秒 bounded；预览在旧字体等待中关闭/重开后，迟到结果不能保存旧设置或覆盖新任务。因此不把局部无总超时报成永久导出挂起。见前端分区（原附件：`tmp/continuous-audit-2026-11-05/frontend-round7/report.md`），字体 CSS 的恢复缺口仍单列 FRONT-08。
+- 素材备份正在读文件时，真实清理被 409 阻止；取消解除引用后遇到 Windows 尚未关闭文件流的 EPERM，返回 failed，流关闭后重试成功。恢复副本写失败会以 503 阻止删除；已真实删掉一个合成文件后的部分失败，剩余字节/索引可核对，另一包完成，再次清理及同 ZIP 重导保留原 UUID/参数。见数据分区（原附件：`tmp/continuous-audit-2026-11-05/backend-round7/report.md`）。没有把逻辑解除引用当成句柄立即关闭，也没有把有回执、可重试的部分清理说成静默损坏。
 
-- 第八批实时组合诊断中，游标依次为 `10→11→11→14→15→16`，最终六条终态、六次 final 投递，重复/迟到输入未增加次数；缺口补拉期间断线，数据提交后仍保持 OFFLINE，重连后恢复 LIVE。夹具初次错误地对 after=14 重复返回旧页，被生产校验拒绝；修正响应后通过，断言未放宽。新 controller 复用同进程、同 SQLite 句柄和 projection，不能当作进程崩溃/数据库重开验收，也没有完成高吞吐排队容量验证。见[主记录](../../tmp/continuous-audit-2026-11-05/root/round8-report.md)。
-- 批量播放 100/1,000/5,000 首的真实入口，每次只有一次 QueueManager 随机顺序重建及一次 coordinator 保存通知；shuffle-all 另有初始顺序处理，不推断整链只打乱一次。50 次相同渲染或关闭期间渲染不增加 HTML 写入，修改元数据后重新打开正确显示；合成播放边界不证明实际音频/网络调用次数。菜单残留单列 FRONT-09，见[前端记录](../../tmp/continuous-audit-2026-11-05/frontend-round8/report.md)。
-- 真实 HTTP 下载暂停后，两次相隔 350 ms 的文件读取量同为 524,288 B；恢复后约 32 MiB ZIP 完整且摘要/CRC 一致。中止后迭代器、文件句柄和锁释放；发头前缺文件返回单一 JSON，发头后 EIO 结束部分 ZIP，没有追加错误 JSON。既有 pipeline 已承担背压；响应队列字节不等同进程内存，`response.blob()` 也不直接证明堆泄漏。见[后端记录](../../tmp/continuous-audit-2026-11-05/backend-round8/report.md)。
+- 第八批实时组合诊断中，游标依次为 `10→11→11→14→15→16`，最终六条终态、六次 final 投递，重复/迟到输入未增加次数；缺口补拉期间断线，数据提交后仍保持 OFFLINE，重连后恢复 LIVE。夹具初次错误地对 after=14 重复返回旧页，被生产校验拒绝；修正响应后通过，断言未放宽。新 controller 复用同进程、同 SQLite 句柄和 projection，不能当作进程崩溃/数据库重开验收，也没有完成高吞吐排队容量验证。见主记录（原附件：`tmp/continuous-audit-2026-11-05/root/round8-report.md`）。
+- 批量播放 100/1,000/5,000 首的真实入口，每次只有一次 QueueManager 随机顺序重建及一次 coordinator 保存通知；shuffle-all 另有初始顺序处理，不推断整链只打乱一次。50 次相同渲染或关闭期间渲染不增加 HTML 写入，修改元数据后重新打开正确显示；合成播放边界不证明实际音频/网络调用次数。菜单残留单列 FRONT-09，见前端记录（原附件：`tmp/continuous-audit-2026-11-05/frontend-round8/report.md`）。
+- 真实 HTTP 下载暂停后，两次相隔 350 ms 的文件读取量同为 524,288 B；恢复后约 32 MiB ZIP 完整且摘要/CRC 一致。中止后迭代器、文件句柄和锁释放；发头前缺文件返回单一 JSON，发头后 EIO 结束部分 ZIP，没有追加错误 JSON。既有 pipeline 已承担背压；响应队列字节不等同进程内存，`response.blob()` 也不直接证明堆泄漏。见后端记录（原附件：`tmp/continuous-audit-2026-11-05/backend-round8/report.md`）。
 
 ## 覆盖与续审条件
 
@@ -446,6 +446,6 @@ SQL 只比较 UID、正文和时间，没有比较金额。`legacySuperChatFinge
 
 复现未连接真实 B 站、音乐或模型账户，没有控制用户 Electron、声卡或数据库。字体与原生成本不得冒充实测卡顿/泄漏，安全源码组合不得冒充实际外带事故。
 
-第三批安全子代理在检查账号切换候选期间被平台自动安全审查中止，提示 `This content was flagged for possible cybersecurity risk.` 未取得可用诊断结果或终稿；已有脚本不证明执行成功。该路径未赋予确认 ID，未计入新增测试或完成覆盖；主代理未换代理、改写请求或直接运行脚本继续被中止的检查。详见[分区状态](../../tmp/continuous-audit-2026-11-05/security-round3/status.md)。随后只读查询本次审计标识的 Node 进程，匹配数为 0。
+第三批安全子代理在检查账号切换候选期间被平台自动安全审查中止，提示 `This content was flagged for possible cybersecurity risk.` 未取得可用诊断结果或终稿；已有脚本不证明执行成功。该路径未赋予确认 ID，未计入新增测试或完成覆盖；主代理未换代理、改写请求或直接运行脚本继续被中止的检查。详见分区状态（原附件：`tmp/continuous-audit-2026-11-05/security-round3/status.md`）。随后只读查询本次审计标识的 Node 进程，匹配数为 0。
 
 自动审批拒绝删除自建的微小夹具目录 `tmp/continuous-audit-2026-11-05/backend/gift-event-loop-2cQLJN/`，仅返回 `blocked by policy`。目录原样保留，未切换工具或 API 绕过。其它分区自有测试已结束，无遗留测试服务或子进程。

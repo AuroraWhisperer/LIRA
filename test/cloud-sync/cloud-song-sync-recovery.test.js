@@ -24,6 +24,7 @@ function fixture(t) {
   let pull = async () => {};
   let active;
   let replacements = 0;
+  let pendingReads = 0;
   const uploads = [];
   const cloud = new Map();
   const key = () => JSON.stringify([origin, identity.accountName.toLowerCase(), identity.streamerId]);
@@ -56,7 +57,8 @@ function fixture(t) {
       runtime: {
         prepareCloudRoomAccount: (account) => settings.prepareCloudRoomAccount(account),
         getCloudSongsSnapshot: () => songService.listSongs(songs),
-        getPendingCloudSongs: (account) => pending.readPending(account),
+        hasPendingCloudSongs: (account) => pending.hasPending(account),
+        getPendingCloudSongs: (account) => { pendingReads++; return pending.readPending(account); },
         acknowledgePendingCloudSongs: (account, mutation) => pending.acknowledge(account, mutation),
         replaceCloudSongsSnapshot: (input) => {
           replacements += 1;
@@ -84,6 +86,9 @@ function fixture(t) {
     },
     get replacements() {
       return replacements;
+    },
+    get pendingReads() {
+      return pendingReads;
     },
     setAccount(accountName, streamerId = 2) {
       identity = { accountName, streamerId };
@@ -202,6 +207,7 @@ test('a committed edit without a dirty notification is recovered and cannot be o
 test('an older successful upload cannot acknowledge newer edits without a dirty notification', async (t) => {
   const f = fixture(t);
   await f.controller.start();
+  const initialReads = f.pendingReads;
   const waiting = Promise.withResolvers();
   const started = Promise.withResolvers();
   f.setUpload(() => {
@@ -213,9 +219,11 @@ test('an older successful upload cannot acknowledge newer edits without a dirty 
   f.edit('Newer edit', false);
   waiting.resolve();
   await f.controller.whenIdle();
+  assert.equal(f.pendingReads - initialReads, 1, 'only the upload reads its full snapshot');
   assert.ok(f.pending.readPending(f.key()));
   assert.ok(f.names().includes('Newer edit'));
   await f.controller.syncNow();
+  assert.equal(f.pendingReads - initialReads, 2, 'retry reads the latest snapshot once, without existence-check decoding');
   assert.equal(f.pending.readPending(f.key()), null);
   assert.ok(f.cloud.get(f.key()).songs.some((song) => song.title === 'Newer edit'));
 });

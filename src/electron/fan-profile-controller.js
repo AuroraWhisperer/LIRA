@@ -4,6 +4,8 @@ const { randomUUID } = require('node:crypto');
 const { setTimeout: pause } = require('node:timers/promises');
 const { dayOf } = require('../fans/dates');
 const { projectGuardExpiry } = require('../fans/guard-expiry');
+const { identity } = require('../fans/validation');
+const { fetchBilibiliFormerNames } = require('../shared/bilibili-former-names');
 
 function fanScopeFor(licenseManager) {
   if (!licenseManager?.isAuthorized()) return null;
@@ -19,6 +21,7 @@ function createFanProfileController({
   getRoomId = () => '',
   fetchGuardRoster,
   fetchUserProfile,
+  fetchFormerNames = fetchBilibiliFormerNames,
   timers = globalThis,
   now = Date.now,
   isWindowOpen = () => false,
@@ -37,6 +40,14 @@ function createFanProfileController({
   let automaticOperation = null;
   let expiryJob = null;
   const expiryOperations = new Set();
+  let identityPreviewJob = null;
+  const identityPreviewOperations = new Set();
+  const formerNameJobs = new Map();
+  const formerNameOperations = new Set();
+
+  function abortFormerNames() {
+    for (const job of formerNameJobs.values()) job.controller.abort();
+  }
 
   function context() {
     const scope = fanScopeFor(licenseManager);
@@ -44,6 +55,8 @@ function createFanProfileController({
       abortController?.abort();
       rosterAbortController?.abort();
       expiryJob?.controller.abort();
+      identityPreviewJob?.controller.abort();
+      abortFormerNames();
       current = null;
       syncStatus = 'offline';
       return null;
@@ -53,6 +66,8 @@ function createFanProfileController({
       abortController?.abort();
       rosterAbortController?.abort();
       expiryJob?.controller.abort();
+      identityPreviewJob?.controller.abort();
+      abortFormerNames();
       // Renewal preserves the page context while replacing the authorization
       // generation used to fence in-flight work.
       const id = current?.scope === scope ? current.id : randomUUID();
@@ -128,6 +143,57 @@ function createFanProfileController({
       roomId: String(getRoomId() || ''),
       accountName: licenseManager.getCloudSyncIdentity()?.accountName || '',
     };
+  }
+
+  function previewIdentity(captured, payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('账号预览请求无效。');
+    const selected = identity({ platform: 'bilibili', type: 'uid', value: payload.uid });
+    if (!selected) throw new Error('请填写 B 站 UID。');
+    const uid = selected.value;
+    if (identityPreviewJob?.captured === captured && identityPreviewJob.uid === uid && !identityPreviewJob.controller.signal.aborted)
+      return identityPreviewJob.promise;
+    identityPreviewJob?.controller.abort();
+    const controller = new AbortController();
+    const job = { captured, uid, controller };
+    job.promise = fetchUserProfile(uid, { signal: controller.signal }).then((profile) => {
+      if (!same(captured) || controller.signal.aborted) throw new Error('账号或输入已变化，请重新读取头像。');
+      return response(captured, { uid, name: profile?.name || '', avatarUrl: profile?.avatarUrl || '' });
+    }).finally(() => {
+      identityPreviewOperations.delete(job.promise);
+      if (identityPreviewJob === job) identityPreviewJob = null;
+    });
+    identityPreviewJob = job;
+    identityPreviewOperations.add(job.promise);
+    return job.promise;
+  }
+
+  async function readFormerNames(captured, service, payload, supplement) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('曾用名请求无效。');
+    let profile;
+    let selected;
+    if (supplement) {
+      profile = service.execute(captured.scope, 'detail', { id: payload.id });
+      if (profile.archived || profile.identity?.type !== 'uid') throw new Error('请先为当前档案绑定 B 站 UID。');
+      selected = profile.identity;
+    } else {
+      selected = identity({ platform: 'bilibili', type: 'uid', value: payload.uid });
+      if (!selected) throw new Error('请填写 B 站 UID。');
+    }
+    const key = JSON.stringify([captured.id, captured.epoch, selected.value]);
+    let job = formerNameJobs.get(key);
+    if (!job || job.controller.signal.aborted) {
+      const controller = new AbortController();
+      job = { controller };
+      job.promise = Promise.resolve().then(() => fetchFormerNames(selected.value, { signal: controller.signal }))
+        .finally(() => { if (formerNameJobs.get(key) === job) formerNameJobs.delete(key); });
+      formerNameJobs.set(key, job);
+    }
+    const names = await job.promise;
+    if (!same(captured) || job.controller.signal.aborted) throw new Error('登录状态已变化，本次没有补充。');
+    const data = supplement
+      ? service.supplementFormerNames(captured.scope, { id: profile.id, identity: selected, names })
+      : { uid: selected.value, names };
+    return response(captured, data);
   }
 
   async function readGuardExpiry(captured, service, payload) {
@@ -266,6 +332,13 @@ function createFanProfileController({
       throw new Error('登录状态已变化，请重新打开粉丝档案。');
     const service = getService();
     if (!service) throw new Error('档案存储尚未就绪。');
+    if (action === 'preview-identity') return previewIdentity(captured, payload);
+    if (action === 'lookup-former-names' || action === 'supplement-former-names') {
+      const operation = readFormerNames(captured, service, payload, action === 'supplement-former-names')
+        .finally(() => formerNameOperations.delete(operation));
+      formerNameOperations.add(operation);
+      return operation;
+    }
     if (action === 'guard-expiry') return readGuardExpiry(captured, service, payload);
     if (action === 'auto-update-status') {
       if (!automaticTimer) scheduleAutomaticUpdate();
@@ -300,7 +373,8 @@ function createFanProfileController({
       scheduleAutomaticUpdate();
       return Promise.all([run(), runAutomaticUpdate().catch(() => null)]);
     },
-    whenIdle: () => Promise.allSettled([operation, rosterOperation, automaticOperation, ...expiryOperations]),
+    whenIdle: () => Promise.allSettled([operation, rosterOperation, automaticOperation, ...expiryOperations, ...identityPreviewOperations,
+      ...formerNameOperations]),
     dispose() {
       if (disposed) return;
       disposed = true;
@@ -309,6 +383,8 @@ function createFanProfileController({
       abortController?.abort();
       rosterAbortController?.abort();
       expiryJob?.controller.abort();
+      identityPreviewJob?.controller.abort();
+      abortFormerNames();
       unsubscribe?.();
       current = null;
     },

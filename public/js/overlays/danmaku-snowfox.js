@@ -39,6 +39,7 @@ export function decorateSnowfoxMessage(bubble, item) {
 export function createSnowfoxGuardCard(document, item, classNames) {
   const root = document.createElement('article');
   root.className = `${classNames.item} is-guard-thanks`;
+  root.dataset.danmakuFit = 'font-size';
   root.dataset.guard = String(item.giftGuardLevel);
   const name = String(item.name || '观众').trim() || '观众';
   const role = { 1: '总督', 2: '提督', 3: '舰长' }[item.giftGuardLevel];

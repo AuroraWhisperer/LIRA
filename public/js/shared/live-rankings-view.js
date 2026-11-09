@@ -15,12 +15,22 @@ function avatarSource(value) {
   } catch { return ''; }
 }
 
-export function createRankingsView(host, { scrollable = false, now = Date.now } = {}) {
+export function createRankingsView(host, { scrollable = false, now = Date.now, onConfigure } = {}) {
   const cards = new Map();
   let snapshot;
   let config = rankingDefaults();
   let pageStarted = now();
   let configKey;
+  let resizeFrame = 0;
+  const resizeObserver = scrollable ? null : new ResizeObserver(() => {
+    if (resizeFrame) return;
+    resizeFrame = requestAnimationFrame(() => {
+      resizeFrame = 0;
+      for (const card of cards.values()) {
+        if (!card.root.hidden && card.board && rowCapacity(card) !== card.capacity) renderRows(card, card.page);
+      }
+    });
+  });
   host.classList.add('rankings-grid');
   host.classList.toggle('rankings-scrollable', scrollable);
 
@@ -63,6 +73,16 @@ export function createRankingsView(host, { scrollable = false, now = Date.now } 
     const countdown = element('strong', 'ranking-countdown');
     timer.append(element('span', '', '本轮剩余'), countdown);
     heading.append(title, unit); header.append(heading, timer);
+    let configure;
+    if (onConfigure) {
+      configure = element('button', 'secondary ranking-configure', '配置直播画面');
+      configure.type = 'button';
+      configure.addEventListener('click', async () => {
+        configure.disabled = true;
+        try { await onConfigure(id); } finally { configure.disabled = false; }
+      });
+      header.append(configure);
+    }
     const body = element('div', 'ranking-body');
     const list = element('ol', 'ranking-list');
     const empty = element('p', 'ranking-empty');
@@ -75,13 +95,25 @@ export function createRankingsView(host, { scrollable = false, now = Date.now } 
     footer.append(mineList, note, status);
     root.append(header, body, footer);
     host.append(root);
-    const card = { id, root, title, unit, countdown, list, empty, mine, mineList, note, status, rows: new Map(), page: null, board: null };
+    const card = { id, root, title, unit, countdown, configure, body, list, empty, mine, mineList, note, status,
+      rows: new Map(), page: null, capacity: null, rowHeight: 0, board: null };
     cards.set(id, card);
+    resizeObserver?.observe(body);
+    resizeObserver?.observe(list);
     return card;
+  }
+  function rowCapacity(card) {
+    const row = card.list.firstElementChild || card.mine.root;
+    card.rowHeight = row.getBoundingClientRect().height || card.rowHeight;
+    if (!card.rowHeight) return config.pageSize;
+    const style = getComputedStyle(card.body);
+    const available = card.body.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+    return Math.max(0, Math.floor(available / card.rowHeight));
   }
   function renderRows(card, page) {
     const board = card.board;
-    const rows = selectRankingRows(board, config, scrollable && config.range === 'all' ? null : page);
+    const capacity = scrollable ? null : rowCapacity(card);
+    const rows = selectRankingRows(board, config, scrollable && config.range === 'all' ? null : page, capacity);
     const keep = new Set();
     rows.forEach((row, index) => {
       const key = row.roomId || row.uid;
@@ -93,12 +125,13 @@ export function createRankingsView(host, { scrollable = false, now = Date.now } 
     });
     for (const [key, view] of card.rows) if (!keep.has(key)) { view.root.remove(); card.rows.delete(key); }
     card.mineList.hidden = !board.current || config.range === 'nearby' && rows.some(row => row.roomId === board.current.roomId);
-    card.empty.hidden = rows.length > 0;
+    card.empty.hidden = rows.length > 0 || capacity === 0;
     write(card.empty, board.status === 'loading' ? '正在读取榜单…' : board.status === 'unavailable' ? board.message
       : config.range === 'nearby' ? board.eligible === false ? '本房间暂不参与此榜' : board.current?.rank
         ? 'B 站暂未返回附近名次' : `本房间未进入前 ${board.limit} 名，暂无附近排名`
         : board.status === 'stale' ? '榜单连接暂不可用，正在重试' : '本轮暂时无人上榜');
     card.page = page;
+    card.capacity = capacity;
     const start = rows[0]?.rank;
     const end = rows.at(-1)?.rank;
     write(card.unit, `${board.unit}${start && !scrollable && config.range === 'all' ? ` · ${start}–${end} / ${board.rows.length}` : ''}`);
@@ -114,7 +147,7 @@ export function createRankingsView(host, { scrollable = false, now = Date.now } 
       const delayed = board.status === 'stale' || age > 2000 && board.status === 'ready';
       write(card.status, board.status === 'loading' ? '连接中' : board.status === 'unavailable' ? board.message
         : delayed ? `更新延迟${Number.isFinite(age) ? ` · ${Math.floor(age / 1000)} 秒前的数据` : ' · 正在重试'}`
-          : `每秒查询 2 次 · ${board.requestMs || 0} ms`);
+          : '');
       card.status.classList.toggle('is-delayed', delayed);
       const page = scrollable || config.range !== 'all' ? 0 : Math.floor((time - pageStarted) / (config.pageSeconds * 1000));
       if (page !== card.page) renderRows(card, page);
@@ -136,6 +169,7 @@ export function createRankingsView(host, { scrollable = false, now = Date.now } 
       const card = cards.get(board.id) || createCard(board.id);
       card.root.hidden = false; card.board = board;
       write(card.title, board.title);
+      card.configure?.setAttribute('aria-label', `配置${board.title}直播画面`);
       card.mineList.hidden = !board.current;
       if (board.current) updateRow(card.mine, board.current, board, true);
       write(card.note, rankingCurrentNote(board));
@@ -145,5 +179,5 @@ export function createRankingsView(host, { scrollable = false, now = Date.now } 
     for (const card of cards.values()) card.root.hidden = !visible.has(card.id);
     tick();
   }
-  return { update, tick, dispose() { cards.clear(); host.replaceChildren(); } };
+  return { update, tick, dispose() { resizeObserver?.disconnect(); cancelAnimationFrame(resizeFrame); cards.clear(); host.replaceChildren(); } };
 }

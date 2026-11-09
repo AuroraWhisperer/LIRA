@@ -400,7 +400,8 @@ test('guard thanks preserves legacy event styles and saves each explicit built-i
 test('each extra component accepts all declared presets and preserves its geometry and parameter types', () => {
   for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
     for (const preset of definition.variants) {
-      const config = { ...createSceneExtraDefaults(type), ...(definition.variantKey ? { [definition.variantKey]: preset.value } : {}) };
+      const config = { ...createSceneExtraDefaults(type), ...(definition.variantKey ? { [definition.variantKey]: preset.value } : {}),
+        ...preset.config };
       const input = documentFor(type, config);
       const output = normalizeSceneDocument(input, { normalizeConfig: normalizeSceneConfig });
       assert.deepEqual(output, input);

@@ -7,51 +7,72 @@
         <lira-help>与直播歌词共用音乐来源。调整后，歌词和歌曲信息组件一起跟随所选播放器。</lira-help>
       </div>
       <div class="component-toolbar-group">
-        <button id="nowPlayingOpenCanvas" class="secondary" type="button">在画布中使用</button>
-        <button id="nowPlayingCopyUrl" class="secondary" type="button">复制浏览器源</button>
+        <label class="component-inline-field">
+          <span>预览内容</span>
+          <select id="nowPlayingPreviewMode" aria-label="预览内容">
+            <option value="live">当前歌曲</option>
+            <option value="sample">示例歌曲</option>
+          </select>
+        </label>
       </div>
     </div>
-    <div class="now-playing-workspace">
-      <div class="now-playing-settings">
-        <section class="now-playing-styles" aria-labelledby="nowPlayingStylesTitle">
-          <h3 id="nowPlayingStylesTitle" class="ui-section-title">唱片样式</h3>
-          <div class="now-playing-style-options">
-            <button class="now-playing-style-option" type="button" data-now-playing-style="vinyl" aria-pressed="true">
-              <span class="now-playing-style-art" aria-hidden="true"></span>
-              <span>黑胶唱片</span>
-            </button>
-            <button class="now-playing-style-option" type="button" data-now-playing-style="cover" aria-pressed="false">
-              <span class="now-playing-style-art" aria-hidden="true"></span>
-              <span>圆形封面</span>
-            </button>
-            <button class="now-playing-style-option" type="button" data-now-playing-style="turntable" aria-pressed="false">
-              <span class="now-playing-style-art" aria-hidden="true"></span>
-              <span>唱片机</span>
-            </button>
+    <p class="hint">唱片和文字分别添加到画布，可各自拖动、调整宽高和隐藏，也可分别复制到 OBS 或直播姬。</p>
+    <p id="nowPlayingPreviewStatus" class="hint" role="status">预览跟随当前歌曲。</p>
+    <fieldset id="nowPlayingParameters" class="now-playing-parameters now-playing-components" disabled>
+      <legend class="sr-only">歌曲信息外观与显示设置</legend>
+      <section class="now-playing-widget" aria-labelledby="nowPlayingRecordTitle">
+        <header class="now-playing-widget-header">
+          <h3 id="nowPlayingRecordTitle" class="ui-section-title">唱片</h3>
+          <div class="component-toolbar-group">
+            <button class="secondary" type="button" data-now-playing-canvas="record">在画布中调整</button>
+            <button class="secondary" type="button" data-now-playing-copy="record">复制浏览器源</button>
           </div>
-        </section>
-        <fieldset id="nowPlayingParameters" class="now-playing-parameters" disabled>
-          <legend class="sr-only">歌曲信息外观与显示设置</legend>
-        </fieldset>
-      </div>
-      <section class="now-playing-preview-card" aria-labelledby="nowPlayingPreviewTitle">
-        <header class="now-playing-preview-header">
-          <h3 id="nowPlayingPreviewTitle" class="ui-section-title">实时预览</h3>
-          <label class="component-inline-field">
-            <span class="sr-only">预览内容</span>
-            <select id="nowPlayingPreviewMode" aria-label="预览内容">
-              <option value="live">当前歌曲</option>
-              <option value="sample">示例歌曲</option>
-            </select>
-          </label>
         </header>
-        <div class="now-playing-preview-stage">
-          <div id="nowPlayingPreview" class="now-playing-preview-content"></div>
-          <p id="nowPlayingPreviewEmpty" class="now-playing-preview-empty">等待播放，也可以切换到示例歌曲调试样式。</p>
+        <div class="now-playing-workspace">
+          <div class="now-playing-settings">
+            <div class="now-playing-style-options" aria-label="唱片样式">
+              <button class="now-playing-style-option" type="button" data-now-playing-style="vinyl" aria-pressed="true">
+                <span class="now-playing-style-art" aria-hidden="true"></span>
+                <span>黑胶唱片</span>
+              </button>
+              <button class="now-playing-style-option" type="button" data-now-playing-style="cover" aria-pressed="false">
+                <span class="now-playing-style-art" aria-hidden="true"></span>
+                <span>圆形封面</span>
+              </button>
+              <button class="now-playing-style-option" type="button" data-now-playing-style="turntable" aria-pressed="false">
+                <span class="now-playing-style-art" aria-hidden="true"></span>
+                <span>唱片机</span>
+              </button>
+            </div>
+            <div id="nowPlayingRecordParameters"></div>
+          </div>
+          <div class="now-playing-preview-stage" aria-label="唱片实时预览">
+            <div id="nowPlayingPreview" class="now-playing-preview-content now-playing-record-preview"></div>
+            <p id="nowPlayingRecordEmpty" class="now-playing-preview-empty">等待播放，也可以切换到示例歌曲调试样式。</p>
+          </div>
         </div>
-        <p id="nowPlayingPreviewStatus" class="hint now-playing-preview-status" role="status">预览跟随当前歌曲。</p>
       </section>
-    </div>
+      <section class="now-playing-widget" aria-labelledby="nowPlayingTextTitle">
+        <header class="now-playing-widget-header">
+          <h3 id="nowPlayingTextTitle" class="ui-section-title">歌名 / 歌手</h3>
+          <div class="component-toolbar-group">
+            <button class="secondary" type="button" data-now-playing-canvas="text">在画布中调整</button>
+            <button class="secondary" type="button" data-now-playing-copy="text">复制浏览器源</button>
+          </div>
+        </header>
+        <div class="now-playing-workspace">
+          <div id="nowPlayingTextParameters" class="now-playing-settings"></div>
+          <div class="now-playing-preview-stage" aria-label="歌名与歌手实时预览">
+            <div id="nowPlayingTextPreview" class="now-playing-preview-content"></div>
+            <p id="nowPlayingTextEmpty" class="now-playing-preview-empty">等待播放，也可以切换到示例歌曲调试样式。</p>
+          </div>
+        </div>
+      </section>
+      <section aria-labelledby="nowPlayingBehaviorTitle">
+        <h3 id="nowPlayingBehaviorTitle" class="ui-section-title">共同显示规则</h3>
+        <div id="nowPlayingBehaviorParameters"></div>
+      </section>
+    </fieldset>
     <div class="now-playing-savebar">
       <p id="nowPlayingSaveState" class="hint" role="status">正在读取外观…</p>
       <div class="component-toolbar-group">

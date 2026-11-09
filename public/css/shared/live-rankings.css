@@ -16,6 +16,8 @@
 .rankings-grid[data-theme='light'] { --ranking-surface: #fff; --ranking-text: #20222a; --ranking-muted: #697080; --ranking-border: #e8e9ee; }
 .rankings-grid[data-theme='dark'] { --ranking-surface: #1b1e29; --ranking-text: #f6f6fa; --ranking-muted: #abb2c5; --ranking-border: #353a4c; }
 .rankings-grid[data-theme='transparent'] { --ranking-surface: transparent; --ranking-text: #fff; --ranking-muted: #d9dce7; --ranking-border: #ffffff32; }
+.rankings-grid:not(.rankings-scrollable) { grid-auto-rows: minmax(0, 1fr); }
+.rankings-grid:not(.rankings-scrollable) .ranking-body { overflow: hidden; }
 .ranking-card { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--ranking-surface); border: 1px solid var(--ranking-border); border-radius: 14px; overflow: hidden; }
 .ranking-card[hidden], .ranking-avatar[hidden], .ranking-empty[hidden], .ranking-current[hidden] { display: none; }
 .ranking-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--ranking-border); }
@@ -41,6 +43,7 @@
 .ranking-footer { margin-top: auto; padding: 10px 10px 9px; border-top: 1px solid var(--ranking-border); }
 .ranking-distance { margin: 6px 8px 0; color: var(--ranking-muted); font-size: .73em; }
 .ranking-freshness { margin: 5px 8px 0; color: var(--ranking-muted); font-size: .62em; }
+.ranking-freshness:empty { display: none; }
 .ranking-freshness.is-delayed { color: #b77914; }
 .ranking-empty { margin: 0; min-height: 6em; display: grid; place-items: center; padding: 18px; color: var(--ranking-muted); font-size: .82em; text-align: center; }
 .rankings-scrollable .ranking-body { overflow-y: auto; scrollbar-gutter: stable; }

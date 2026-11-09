@@ -62,6 +62,15 @@ function registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncContr
     const { count } = await licenseManager.getCloudSongCount();
     return { ok: true, count };
   });
+  safeHandle('license:get-song-page-access', async () => {
+    const { enabled } = await licenseManager.getSongPageAccess();
+    return { ok: true, enabled };
+  });
+  safeHandle('license:set-song-page-access', async (enabled) => {
+    if (typeof enabled !== 'boolean') throw Object.assign(new Error(), { code: 'INVALID_SONG_PAGE_ACCESS' });
+    const access = await licenseManager.setSongPageAccess(enabled);
+    return { ok: true, enabled: access.enabled };
+  });
   safeHandle('license:upload-song-page-background', (payload) => {
     const bytes = payload?.bytes;
     if (!(bytes instanceof Uint8Array) || !bytes.length) {

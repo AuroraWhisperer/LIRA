@@ -3,6 +3,7 @@ import { ADVANCED_LYRIC_CATALOG } from '../shared/advanced-lyric-catalog.js';
 import { parseHexColor } from '../shared/color-value.js';
 import { createAdvancedLyricText, buildAdvancedLyricLayout } from './advanced-lyric-layouts.js';
 import { advancedLyricKeyframes, createAdvancedLyricMotion } from './advanced-lyric-motion.js';
+import { buildAdvancedLyricChoreography } from './advanced-lyric-choreography.js';
 import { createLyricFontStack } from './desktop-lyric-styles.js';
 
 const HEIGHT_BUDGET = { center: 46, duet: 29, offset: 25, split: 47, corners: 27, staircase: 22,
@@ -131,6 +132,8 @@ export function createAdvancedLyricRenderer(root) {
     if (!visible || disposed || !items.length) return;
     const width = position.clientWidth, height = position.clientHeight;
     if (!width || !height) return;
+    art.style.setProperty('--advanced-stage-width', `${width}px`);
+    art.style.setProperty('--advanced-stage-height', `${height}px`);
     fit.style.transform = 'none';
     // First estimate all sizes, then read them in one batch. No frame-loop
     // measurement and no per-character measurement is needed.
@@ -156,19 +159,32 @@ export function createAdvancedLyricRenderer(root) {
       entry.maxHeight / Math.max(1, entry.node.offsetHeight)) }));
     for (const { entry, ratio } of corrections) if (ratio < 0.99) entry.node.style.fontSize = `${Math.max(3, entry.size * ratio)}px`;
     let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity;
-    for (const { node, item } of items) {
-      const radians = item.rotation * Math.PI / 180;
-      const w = node.offsetWidth, h = node.offsetHeight;
-      const halfWidth = (Math.abs(Math.cos(radians)) * w + Math.abs(Math.sin(radians)) * h) / 2;
-      const halfHeight = (Math.abs(Math.sin(radians)) * w + Math.abs(Math.cos(radians)) * h) / 2;
-      const x = width * item.x / 100, y = height * item.y / 100;
-      left = Math.min(left, x - halfWidth); right = Math.max(right, x + halfWidth);
-      top = Math.min(top, y - halfHeight); bottom = Math.max(bottom, y + halfHeight);
+    for (const { node, item, poses } of items) {
+      const nodeWidth = node.offsetWidth, nodeHeight = node.offsetHeight;
+      for (const pose of poses || [{ ...item, scale: item.fitScale || 1 }]) {
+        const radians = pose.rotation * Math.PI / 180;
+        const w = nodeWidth * pose.scale, h = nodeHeight * pose.scale;
+        const halfWidth = (Math.abs(Math.cos(radians)) * w + Math.abs(Math.sin(radians)) * h) / 2;
+        const halfHeight = (Math.abs(Math.sin(radians)) * w + Math.abs(Math.cos(radians)) * h) / 2;
+        const x = width * pose.x / 100, y = height * pose.y / 100;
+        left = Math.min(left, x - halfWidth); right = Math.max(right, x + halfWidth);
+        top = Math.min(top, y - halfHeight); bottom = Math.max(bottom, y + halfHeight);
+      }
+      if (item.choreography) {
+        left = Math.min(left, width * 0.05); right = Math.max(right, width * 0.95);
+        top = Math.min(top, height * 0.05); bottom = Math.max(bottom, height * 0.9);
+      }
     }
     const scale = Math.min(1, width * 0.96 / Math.max(1, right - left), height * 0.94 / Math.max(1, bottom - top));
     const x = (left + right) / 2, y = (top + bottom) / 2;
     fit.style.transformOrigin = `${x}px ${y}px`;
     fit.style.transform = `translate(${width / 2 - x}px, ${height / 2 - y}px) scale(${scale})`;
+    // Re-resolve percentage-based spatial tracks after a resize/font change.
+    // This only runs for measurement events, never in the playback frame loop.
+    if (frame) {
+      motion.suspend();
+      if (contentVisible) motion.sync({ ...frame, discontinuity: true });
+    }
   }
 
   function addDecoration(type) {
@@ -205,6 +221,9 @@ export function createAdvancedLyricRenderer(root) {
     const sungEnd = Math.max(...units.map(unit => unit.startMs + (unit.endMs - unit.startMs) * unit.fillEnd));
     const exitStart = Math.max(window.endMs - duration * 0.55, sungEnd);
     const plan = buildAdvancedLyricLayout(layout, units);
+    const choreographed = Boolean(plan[0]?.choreography);
+    const choreography = choreographed ? buildAdvancedLyricChoreography(layout, plan, units,
+      { ...window, duration, amount: reducedMotion ? 0 : s.advancedLyricMotionAmount, hideUnsung: !reducedMotion && s.advancedLyricHideUnsung }) : [];
     if (s.advancedLyricShowTranslation && line.translation) {
       plan.push({ start: 0, end: 1, x: 50, y: 97, width: 85, size: 0.38, rotation: 0, source: 'translation', translation: true });
     }
@@ -213,7 +232,7 @@ export function createAdvancedLyricRenderer(root) {
     plan.forEach((item, ordinal) => {
       const itemUnits = item.translation ? createAdvancedLyricText({ text: line.translation,
         startMs: Math.min(...units.map(unit => unit.startMs)), endMs: sungEnd }) : units.slice(item.start, item.end);
-      const itemStart = Math.min(...itemUnits.map(unit => unit.startMs + (unit.endMs - unit.startMs) * unit.fillStart));
+      const itemStart = item.startMs ?? Math.min(...itemUnits.map(unit => unit.startMs + (unit.endMs - unit.startMs) * unit.fillStart));
       const node = element(document, 'div', 'advanced-lyric-item');
       node.dataset.source = item.source;
       if (item.plate) node.dataset.plate = item.plate;
@@ -224,6 +243,7 @@ export function createAdvancedLyricRenderer(root) {
       node.style.transform = `translate(-50%, -50%) rotate(${item.rotation}deg)`;
       node.style.textAlign = item.align || 'center';
       const enter = element(document, 'div', 'advanced-lyric-enter');
+      const stage = element(document, 'div', 'advanced-lyric-stage');
       const hold = element(document, 'div', 'advanced-lyric-hold');
       const exit = element(document, 'div', 'advanced-lyric-exit');
       const text = element(document, 'div', 'advanced-lyric-text');
@@ -245,8 +265,8 @@ export function createAdvancedLyricRenderer(root) {
         }
         const begin = unit.startMs + (unit.endMs - unit.startMs) * unit.fillStart;
         const end = unit.startMs + (unit.endMs - unit.startMs) * unit.fillEnd;
-        if (s.advancedLyricHideUnsung) {
-          const revealDuration = Math.min(duration, 280, Math.max(80, (end - begin) * 0.7));
+        if (s.advancedLyricHideUnsung && !item.phraseReveal) {
+          const revealDuration = Math.min(duration, 280, Math.max(1, (end - begin) * 0.7));
           if (unit.revealAsRun) {
             pendingMotion.push(() => motion.add(reveal,
               [{ clipPath: item.vertical ? 'inset(0 0 100% 0)' : 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }],
@@ -256,11 +276,11 @@ export function createAdvancedLyricRenderer(root) {
               { startMs: begin - 1, endMs: begin, easing: 'steps(1, end)' }));
           } else {
             pendingMotion.push(() => motion.add(reveal,
-              advancedLyricKeyframes('enter', entrance, s.advancedLyricMotionAmount, item.start + index),
+              advancedLyricKeyframes('enter', item.choreography ? 'fade' : entrance, s.advancedLyricMotionAmount, item.start + index),
               { startMs: begin, endMs: begin + revealDuration }));
           }
         }
-        if (item.source !== 'current' || item.decorative || s.advancedLyricWordMotion === 'none') return;
+        if (item.source !== 'current' || item.decorative || item.phraseReveal || s.advancedLyricWordMotion === 'none') return;
         const highlight = element(document, 'span', 'advanced-lyric-highlight');
         highlight.textContent = unit.text;
         glyph.append(highlight);
@@ -270,18 +290,24 @@ export function createAdvancedLyricRenderer(root) {
           advancedLyricKeyframes('word', s.advancedLyricWordMotion, s.advancedLyricMotionAmount, index),
           { startMs: begin, endMs: Math.min(window.endMs, begin + Math.min(650, Math.max(220, end - begin + 120))), easing: 'ease-in-out' }));
       });
-      exit.append(text); hold.append(exit); enter.append(hold); node.append(enter); art.append(node);
-      items.push({ item, node, text, units: itemUnits });
+      exit.append(text); hold.append(exit); stage.append(hold); enter.append(stage); node.append(enter); art.append(node);
+      items.push({ item, node, text, units: itemUnits, poses: choreography[ordinal]?.poses });
+      if (item.choreography) pendingMotion.push(() => {
+        const track = choreography[ordinal];
+        motion.add(stage, track.frames, track);
+      });
       if (s.advancedLyricHideUnsung) pendingMotion.push(() => motion.add(enter, [{ opacity: 0 }, { opacity: 1 }],
-        { startMs: itemStart - 1, endMs: itemStart, easing: 'steps(1, end)' }));
+        item.phraseReveal && !reducedMotion
+          ? { startMs: itemStart, endMs: itemStart + Math.min(180, duration, (item.endMs - itemStart) * 0.15) }
+          : { startMs: itemStart - 1, endMs: itemStart, easing: 'steps(1, end)' }));
       if (!reducedMotion && !item.decorative) {
         const delay = Math.min(duration * 0.3, ordinal * 28);
         pendingMotion.push(() => {
-          if (!s.advancedLyricHideUnsung) motion.add(enter, advancedLyricKeyframes('enter', entrance, s.advancedLyricMotionAmount, ordinal),
+          if (!s.advancedLyricHideUnsung) motion.add(enter, advancedLyricKeyframes('enter', item.choreography ? 'fade' : entrance, s.advancedLyricMotionAmount, ordinal),
             { startMs: window.startMs + delay, endMs: window.startMs + duration, duration: Math.max(1, duration - delay) });
-          motion.add(hold, advancedLyricKeyframes('hold', s.advancedLyricHold, s.advancedLyricMotionAmount, ordinal),
+          if (!item.choreography) motion.add(hold, advancedLyricKeyframes('hold', s.advancedLyricHold, s.advancedLyricMotionAmount, ordinal),
             { startMs: Math.max(window.startMs, itemStart) + duration, endMs: exitStart, duration: 2600 + ordinal * 80, loop: true, easing: 'ease-in-out' });
-          if (exitStart < window.endMs) motion.add(exit, advancedLyricKeyframes('exit', s.advancedLyricExit, s.advancedLyricMotionAmount, ordinal),
+          if (exitStart < window.endMs) motion.add(exit, advancedLyricKeyframes('exit', item.choreography ? 'rise' : s.advancedLyricExit, s.advancedLyricMotionAmount, ordinal),
             { startMs: exitStart, endMs: window.endMs, easing: 'cubic-bezier(0.7, 0, 0.84, 0)' });
         });
       }

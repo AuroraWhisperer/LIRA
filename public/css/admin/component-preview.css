@@ -75,15 +75,16 @@
 .scene-parameter-group.desktop-lyric-settings-group > summary { min-height: 40px; padding: 8px 12px; gap: 8px; }
 .scene-parameter-group.desktop-lyric-settings-group > summary strong { font-size: var(--type-size-body); font-weight: var(--type-weight-semibold); }
 .scene-parameter-group > .desktop-lyric-group-body { padding: 0 12px 4px; }
-.scene-parameter-group .scene-parameter-control {
+.desktop-lyric-control.scene-parameter-control {
   grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.5fr);
   gap: 8px;
   margin: 0;
   padding: 8px 0;
   line-height: 1.5;
 }
+.desktop-lyric-control.scene-parameter-control:has(> .switch-control) { grid-template-columns: minmax(0, 1fr) auto; }
 .scene-parameter-control > .desktop-lyric-control-copy { font-size: var(--type-size-control); }
-.scene-parameter-control:has(textarea) { grid-template-columns: minmax(0, 1fr); }
+.desktop-lyric-control.scene-parameter-control:has(textarea) { grid-template-columns: minmax(0, 1fr); }
 .scene-parameter-control:has(.hint) > .hint { grid-column: 1 / -1; margin: 0; }
 .scene-parameter-control:has(.hint) > .scene-parameter-value { grid-column: 1 / -1; }
 .scene-parameter-value { display: flex; gap: 8px; align-items: center; min-width: 0; }

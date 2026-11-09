@@ -110,6 +110,27 @@ test('pending metadata is private and cloud replacements do not create upload ec
   assert.deepEqual(f.pending.readPending(ACCOUNT_A), saved);
 });
 
+test('pending existence checks stay within the account without materializing its song JSON', (t) => {
+  const f = fixture(t);
+  mutations.save(f);
+  const rows = [];
+  const prepare = f.db.prepare.bind(f.db);
+  t.mock.method(f.db, 'prepare', (sql) => {
+    const statement = prepare(sql);
+    const get = statement.get.bind(statement);
+    statement.get = (...params) => {
+      const row = get(...params);
+      rows.push(row);
+      return row;
+    };
+    return statement;
+  });
+  assert.equal(f.pending.hasPending(ACCOUNT_A), true);
+  assert.equal(f.pending.hasPending(ACCOUNT_B), false);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every((row) => !row || Object.values(row).every((value) => typeof value !== 'string')));
+});
+
 test('acknowledgement matches the account and mutation, preserving newer edits and other accounts', (t) => {
   const f = fixture(t);
   mutations.save(f);
@@ -121,9 +142,11 @@ test('acknowledgement matches the account and mutation, preserving newer edits a
   assert.equal(f.pending.acknowledge(ACCOUNT_B, second.mutationId), false);
   f.settings.prepareCloudRoomAccount(ACCOUNT_B);
   mutations.clear(f);
+  assert.equal(f.pending.hasPending(ACCOUNT_B), true, 'an empty snapshot is a pending clear');
   assert.deepEqual(f.pending.readPending(ACCOUNT_A), second);
   assert.deepEqual(f.pending.readPending(ACCOUNT_B).songs, []);
   assert.equal(f.pending.acknowledge(ACCOUNT_A, second.mutationId), true);
+  assert.equal(f.pending.hasPending(ACCOUNT_A), false);
   assert.equal(f.pending.readPending(ACCOUNT_A), null);
   assert.deepEqual(f.pending.readPending(ACCOUNT_B).songs, []);
 });

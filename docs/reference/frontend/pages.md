@@ -1,6 +1,6 @@
 # 前端页面与入口清单
 
-「组件 → 实时榜单」由 [live-components/live-rankings.html](../../../public/pages/admin/live-components/live-rankings.html) 和 [admin/live-rankings.js](../../../public/js/admin/live-rankings.js) 提供四榜观察、范围切换及画布入口。房间跟随当前账号配置；隐藏标签页停止该查看订阅。直播输出使用保存后的场景地址，内部 `/live-rankings` 不直接提供榜单数据。操作见[实时榜单指南](../../guides/component-sources.md#实时榜单)。
+「组件 → 实时榜单」由 [live-components/live-rankings.html](../../../public/pages/admin/live-components/live-rankings.html) 和 [admin/live-rankings.js](../../../public/js/admin/live-rankings.js) 提供四榜观察、展示方式切换及各榜独立的画布入口；每榜显示高度至少 480px。默认从第 1 名开始自动翻页，也可选择跟随本房间名次；展示方式与画布双向同步，两端显示人数随实际高度计算。房间跟随当前账号配置；隐藏标签页停止该查看订阅。直播输出使用保存后的独立组件地址或场景地址，内部 `/live-rankings` 不直接提供榜单数据。操作见[实时榜单指南](../../guides/component-sources.md#实时榜单)。
 
 音乐展示位于「组件 → 音乐展示」，包含「直播歌词」与「歌曲信息」。歌词分片 `song/desktop-lyric.html` 由 `live-components/page.html` 嵌入一次；其中基础／高级页签只切换编辑面板，两个显示开关独立控制输出，音乐跟随和右侧预览共用。高级编辑由 `admin/advanced-lyric-editor.js` 拥有，提供分类效果、轮换和自存搭配，完整输出规则见[歌词 overlay](overlays.md#6-直播歌词页lyrics)。点歌页不再组合该标签。歌曲信息分片为 `live-components/now-playing.html`，模块为 `admin/now-playing.js`，共享渲染器和浏览器源入口见[overlay 参考](overlays.md#歌曲信息now-playing)。两个组件共用音乐来源并独立加入画布；导航兼容与保存方式见 [Admin 应用](app.md#2-公共框架shared)。
 
@@ -11,6 +11,8 @@
 档案手动同步与自动更新通知共用 `fans/view.js` 的 `rosterUpdateNotices`：成功统计、跳过说明、名单外资料查询失败分别为 success/info/warning toast；无跳过或失败时不生成对应通知，单次最多三条，成功统计不显示“跳过 0 位”。`fans/editor.js` 在关闭同步表单后消费 `notices`，普通保存仍沿用单条 `message`。最近一次手动结果保留在同步状态左侧的 `lira-help#fanRosterHelp`，内容节点 `fanRosterResult` 随组件初始化保留，不单独占行；尚无结果或账号上下文变化时隐藏并清空。自动整次失败只显示一条 error toast。IPC 结果字段不变。
 
 档案页提醒横幅的“不再显示”只写本机 localStorage 界面偏好 `liraFanReminderSummaryHidden=true`，后续打开仍隐藏横幅；不按账号保存，不调用提醒状态接口，不改变档案提醒、日历投影或其他页面。存储不可用时仍在当前页面生效。提醒页及“查看提醒”的跳转行为保留。
+
+基本资料的曾用名以胶囊统一展示，不区分来源或日期；默认位置使用服务返回的 `formerName`，其余通过原生 details 展开，列表限高滚动。“替换”复用档案编辑器保存手动默认值，“补充”调用受限 IPC；新建表单查询结果只留草稿，UID 改变时清理本次追加名字并忽略迟到返回。`fans/former-name-batch.js` 持有设置页批量调度、间隔计时器及停止/退出清理，目标和保存规则由领域层维护；入口与兼容规则见[粉丝档案规格](../../../specs/fan-profiles.md)。
 
 返回档案列表与切换档案/归档范围一样，会推进当前选择代次；返回前发出的详情 IPC 迟到时不能重新打开详情，之后主动选择仍正常读取。
 
@@ -190,7 +192,7 @@ bindCopyUrl(button);
 
 礼物姬「全屏礼物感谢」面板 `#giftFramePanel` 同样位于 `toolbox/gift.html`，样式为 `css/admin/toolbox/gift-effects.css`。`#giftEffectList` 是一组自适应两列的效果卡片：礼物掉落、礼物摇摇乐（标注「内置」）、林间花信（`#giftFrameSettings`，导入后显示，标注样式包版本）、`gift-frame-styles.js` 生成的其他导入样式卡片，最后是横跨整行的「添加样式」（`#giftFrameAddStyle`）。每张卡片由头部（图标或缩略图、名称、标签、一句说明、启用开关）、参数区（触发金额「元及以上」，可选预览示例）和底栏（状态、动作、「保存设置」）组成；已开启的卡片边框和图标使用组件强调色。共享样式库挂载在 `#giftFrameStyleLibrary`，其缩略图列表隐藏，只保留导入状态与确认流程。
 
-两张内置卡片的参数区按卡片宽度排为三列、两列或单列，用间距和细分隔线区分字段。只有触发金额保留 88px 输入框，非法金额由原生校验阻止保存和预览；大小、时长、速度、弹跳、摆幅及掉落数量倍率直接使用带最小/最大值的共享参数滑块，旁边的 `output` 只读显示当前值和单位，不再附加数值输入框。数量倍率默认 4 倍、可调 1–8 倍，只影响图片数量；摇摇乐的送礼人、礼物名、数量使用三个独立勾选项，可全部关闭，并映射回既有 `giftSwingTextMode` 保存字段。草稿、保存状态及预览仍由 `gift-motion-settings.js` 逐卡维护。
+两张内置卡片的参数区按卡片宽度排为三列、两列或单列，用间距和细分隔线区分字段。只有触发金额保留 88px 输入框，非法金额由原生校验阻止保存和预览；大小、时长、速度、弹跳、摆幅及掉落数量倍率直接使用带最小/最大值的共享参数滑块，旁边的 `output` 只读显示当前值和单位，不再附加数值输入框。数量倍率默认 4 倍、可调 1–8 倍，只影响图片数量；摇摇乐的送礼人、礼物名、数量使用三个独立勾选项，可全部关闭，并映射回既有 `giftSwingTextMode` 保存字段。`gift-motion-parameters.js` 同时生成客户端和画布控件；草稿、保存状态及预览由 `gift-motion-settings.js` 逐卡维护并按修改字段提交，画布适配器自动保存至同一设置。
 
 礼物姬最后一个子导航「大航海感谢」的独立面板直接位于 `toolbox/gift.html`，样式为 `css/admin/gift-guard-thanks.css`，动画样式 `css/shared/guard-thanks.css`（经典）与 `css/shared/guard-thanks-aurora.css`（辉光，默认）由管理页与 `/gift-effects` 共同加载，辉光与经典分别显示独立开关、动画文字、保存和预览，设置与模拟参数紧凑分组；辉光不提供观众昵称输入。两套内置设置之后直接列出已导入的大航海感谢样式（`#guardThanksStyleLibrary`，继续使用本机样式库）：配套样式显示完整设置条目，图片/视频为同宽条目，最后是「＋ 添加样式」，不再单列“更多样式”标题。旧 `guardThanksStyle` 仅用于未独立保存的配置兼容。
 
@@ -211,7 +213,7 @@ bindCopyUrl(button);
 
 ### 心动盲盒菜单
 
-「组件 → 礼物姬 → 心动盲盒」位于礼物许愿之后，片段 `live-components/heart-box-collection.html`、控制器 `admin/gifts/heart-box-collection.js`。显示本期日期、真实进度、固定奖励节点，以及刷新、复制源地址、打开画布；「显示倍率和限开数量」控制本页预览与复制地址。开启前本期已记录的心动盲盒自动纳入。显隐由 `gift-assistant.js` 统一管理，离开暂停请求。画布中的「心动收集」「紧凑进度」与独立 `/heart-box-collection` 地址共用 renderer，详见 [收集组件](overlays.md#心动盲盒收集组件)；内置指南位于 `usage-guide-guard-thanks.html#ug-heart-box-collection`。
+「组件 → 礼物姬 → 心动盲盒」位于礼物许愿之后，片段 `live-components/heart-box-collection.html`、控制器 `admin/gifts/heart-box-collection.js`。显示本期日期、真实进度、固定奖励节点，以及刷新、复制源地址、打开画布；「显示倍率和限开数量」自动保存并与画布及未指定 URL 覆盖的独立来源同步，失败保留修改并可重试。开启前本期已记录的心动盲盒自动纳入。页面显隐由 `gift-assistant.js` 统一管理，离开暂停请求。画布中的「心动收集」「紧凑进度」与独立 `/heart-box-collection` 地址共用 renderer，详见 [收集组件](overlays.md#心动盲盒收集组件)；内置指南位于 `usage-guide-guard-thanks.html#ug-heart-box-collection`。
 
 ## 3. 页面清单(每个页面一行)
 
@@ -270,7 +272,8 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | `settings.js`                                                                       | 设置表单、Bilibili 登录、清库、盲盒映射、退出/重新连接直播间；账号中心只读展示当前登录账户、本机设备和凭据保存说明，设备授权由服务器管理员管理   | [app.md](app.md) §4                       |
 | `theme.js`                                                                          | 点歌板主题(经典/身份/奶油画框样式、预设卡片、一键美化)                                                                                     | [app.md](app.md) §4                       |
 | `display.js`                                                                        | 展示板(歌单板)配置与主题                                                                                                                   | [app.md](app.md) §4                       |
-| `forms.js`                                                                          | `FormsService`:range↔number 绑定、选项卡、播放器全屏/收起、表单填充                                                                        | [app.md](app.md) §2                       |
+| `forms.js`                                                                          | `FormsService`:range↔number 绑定、选项卡、表单填充                                                                        | [app.md](app.md) §2                       |
+| [player-workspace.js](../../../public/js/admin/player-workspace.js) | `PlayerWorkspace`:播放器全屏、dock 展开/收起、快捷键、焦点与依赖弹窗联动 | [app.md](app.md) §2 |
 | `song-import.js` / `song-import-parser.js` / `cloud-song-sync.js` / `song-background.js` / `song-background-image.js` | 导入入口保留文件读取与兼容连接；纯 TSV/CSV 解析由导入和歌单更新共用；云同步拥有覆盖确认、数量与本机同步记录，背景 UI 调用图片模块完成静态压缩和本地版本缓存 | [app.md](app.md) §4                       |
 | `metrics.js`                                                                        | 系统性能检测(`/api/system/metrics` 5 秒采样)                                                                                               | [app.md](app.md) §4                       |
 | `danmaku-tool.js`                                                                   | 弹幕工具组合入口：连接状态与发送、点歌/固定回复开关，以及本机弹幕外观、过滤和云端回复模块；外观预览由 `danmaku-overlay-settings.js` 接入统一画布，来源地址在「点歌 → 浏览器源」复制 | [app.md](app.md) §6 |
@@ -364,8 +367,8 @@ Admin 使用文档的 `toolbox/usage-guide.html` 保留面板、目录容器和�
 | 资源                                                                                                                                                         | 说明                                                                                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `img/overtime-machine/`                                                                                                                                      | 加班机内置背景:`midnight-grid.svg`、`gift-placeholder.svg`(占位图),选型见 ADR [0005-built-in-overtime-backgrounds](../../architecture/adr/0005-built-in-overtime-backgrounds.md)                                                                                      |
-| `img/admin/gifts/bilibili-guard-*.png`                                                                                                                       | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物                                                                                                                                                                                                     |
-| `img/playback/qqmusic-icon.png` / `img/playback/player-turntable-chassis.png` / `img/admin/gifts/gift-section-icon.png` / `img/shared/live-refresh-icon.png` | 播放器/礼物面板图标                                                                                                                                                                                                                                   |
+| `img/admin/gifts/bilibili-guard-*.webp`                                                                                                                       | 大航海(总督/提督/舰长)图标,加班机内置三档守护礼物                                                                                                                                                                                                     |
+| `img/playback/qqmusic-icon.webp` / `img/playback/player-turntable-chassis.webp` / `img/admin/gifts/gift-section-icon.webp` | 播放器/礼物面板图标                                                                                                                                                                                                                                   |
 | `data/theme-presets.json`                                                                                                                                    | 点歌板/歌单板主题预设，字段 schema 见 §6.1                                                                                                                                                                                                            |
 | `data/cache/overtime-gift-catalog-v2.json` / `data/cache/overtime-gift-images/` / `data/cache/overtime-gift-assets-state-v2.json`                            | 运行时用户数据，不属于 `public/` 静态资源；分别保存服务器付费礼物元数据、首次授权后按精确 ID 准备的图片缓存和版本化扫描完成状态，不进入源码或安装包                                                                                                   |
 | 字体                                                                                                                                                         | 管理界面沿用系统字体栈；所有字体选择入口共用 13 款完整 OFL 字体，经 CDN 补齐后从本机缓存读取；来源、缓存与首次联网要求见[字体说明](../../../public/fonts/README.md)，可调字段见[播放器外观](playback.md#81-大播放器外观)。两个微型标题裁剪字体由各组件拥有并随安装包提供 |

@@ -50,11 +50,65 @@ test('joining scripts remain one shaped text run', async () => {
   }
 });
 
+test('phrase partitions preserve dictionary words, punctuation and the entire current sentence', async () => {
+  const { createAdvancedLyricText, partitionAdvancedLyricText } = await load('layouts');
+  const split = (text, count) => {
+    const units = createAdvancedLyricText({ text, startMs: 0, endMs: 6000 });
+    return Array.from(partitionAdvancedLyricText(units, count), ({ start, end }) => units.slice(start, end).map(unit => unit.text).join(''));
+  };
+  assert.deepEqual(split('把此刻唱成一首歌', 3), ['把此刻', '唱成', '一首歌']);
+  assert.deepEqual(split('一首歌', 4), ['一首歌']);
+  for (const text of ['晚风穿过窗边，带来你的消息', 'We keep moving through the night']) {
+    const parts = split(text, 3);
+    assert.equal(parts.join(''), text);
+    const ends = new Set([...new Intl.Segmenter(undefined, { granularity: 'word' }).segment(text)].map(entry => entry.index + entry.segment.length));
+    let offset = 0;
+    for (const part of parts) {
+      offset += part.length;
+      assert.ok(ends.has(offset), 'a phrase cannot break a word');
+      assert.ok(!/^[\s，。！？,.!?]/u.test(part), 'punctuation stays with the preceding phrase');
+    }
+  }
+});
+
 test('advanced lyric retires after a sung line before a long interlude and uses the supplied next-line boundary', async () => {
   const { advancedLyricLineWindow } = await load('renderer');
   const line = { text: '唱完这一句', startMs: 1000, endMs: 10000, words: [{ text: '唱完这一句', startMs: 1000, endMs: 4000 }] };
   assert.equal(advancedLyricLineWindow(line, { startMs: 10000 }).endMs, 4800);
   assert.equal(advancedLyricLineWindow({ text: '普通歌词', startMs: 1000 }, { startMs: 5000 }).endMs, 5000);
+});
+
+test('adaptive phrases keep natural pauses and merge fast text into readable groups', async () => {
+  const { createAdvancedLyricText, buildAdvancedLyricLayout } = await load('layouts');
+  const text = '晚风穿过窗边，带来你的消息，照亮了漫长的黑夜，也照亮远方';
+  const compose = (value, duration) => {
+    const units = createAdvancedLyricText({ text: value, startMs: 0, endMs: duration });
+    return Array.from(buildAdvancedLyricLayout('phrase-flow', units), item => ({ ...item,
+      text: units.slice(item.start, item.end).map(unit => unit.text).join('') }));
+  };
+  const slow = compose(text, 12000), fast = compose(text, 1400);
+  assert.ok(fast.length < slow.length, 'rapid lines must not spend their time changing composition');
+  assert.equal(slow.map(item => item.text).join(''), text);
+  assert.ok(slow.slice(0, -1).every(item => item.text.endsWith('，')), 'available punctuation wins over equal-width chopping');
+  assert.equal(compose('好', 3000).length, 1, 'a short answer stays intact');
+});
+
+test('adaptive emphasis follows supplied sustained timing and incomplete timing uses phrase entrances', async () => {
+  const { createAdvancedLyricText, buildAdvancedLyricLayout } = await load('layouts');
+  const words = [
+    { text: '把此刻', startMs: 0, endMs: 900 },
+    { text: '唱成', startMs: 1100, endMs: 4100 },
+    { text: '一首歌', startMs: 4300, endMs: 5200 },
+  ];
+  const line = { text: '把此刻唱成一首歌', startMs: 0, endMs: 6000, words };
+  const units = createAdvancedLyricText(line);
+  const plan = buildAdvancedLyricLayout('phrase-flow', units);
+  const focus = plan.find(item => item.emphasis);
+  assert.equal(units.slice(focus.start, focus.end).map(unit => unit.text).join(''), '唱成');
+  assert.ok(plan.every(item => !item.phraseReveal));
+  const partial = buildAdvancedLyricLayout('phrase-flow', createAdvancedLyricText({ ...line, words: words.slice(1) }));
+  assert.ok(partial.every(item => item.phraseReveal && !item.emphasis), 'missing words cannot imply accurate syllable timing or stress');
+  assert.equal(partial[0].startMs, 0);
 });
 
 test('motion follows pause and backward seek, cancels hidden work, and resumes from host time', async () => {

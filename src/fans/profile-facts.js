@@ -1,7 +1,7 @@
 'use strict';
 
 const { randomUUID } = require('node:crypto');
-const { identity, identityKey, timestamp, text, recordData, recentNameHistory } = require('./validation');
+const { identity, identityKey, timestamp, text, recordData, recentNameHistory, entrySnapshot } = require('./validation');
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
 const { normalizeGuardAccompany, newerGuardAccompany } = require('./guard-accompany');
 
@@ -15,13 +15,17 @@ function createFanFactConsumer({ store, now, create }) {
     if (!profile || profile.archived) return profile;
     const at = timestamp(observation.observedAt);
     const name = text(observation.name, '昵称', 200);
-    if (
-      !observation.nameComplete ||
-      !name ||
-      /^(观众|用户)$|[.*…]{2,}|\*|\.\.\./.test(name) ||
-      at <= (profile.platformObservedAt || '')
-    )
+    const complete = observation.nameComplete && name && !/^(观众|用户)$|[.*…]{2,}|\*|\.\.\./.test(name);
+    const incomingEntry = entrySnapshot(observation.lastEntry ||
+      (complete && ['INTERACT_WORD', 'INTERACT_WORD_V2', 'ENTRY_EFFECT'].includes(observation.source)
+        ? { name, observedAt: at } : null));
+    const lastEntry = incomingEntry && incomingEntry.observedAt > (profile.lastEntry?.observedAt || '')
+      ? incomingEntry : profile.lastEntry;
+    if (!complete || at <= (profile.platformObservedAt || '')) {
+      if (lastEntry !== profile.lastEntry)
+        return store.save(scope, { ...profile, lastEntry }, identityKey(person), now());
       return profile;
+    }
     const history = [...(profile.nameHistory || [])];
     if (profile.platformName && profile.platformName !== name)
       history.push({
@@ -38,6 +42,7 @@ function createFanFactConsumer({ store, now, create }) {
         ...profile,
         platformName: name,
         platformObservedAt: at,
+        ...(lastEntry ? { lastEntry } : {}),
         avatar,
         firstObservedAt: profile.firstObservedAt || at,
         lastObservedAt: at,

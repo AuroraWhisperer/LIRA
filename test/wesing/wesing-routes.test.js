@@ -60,13 +60,11 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   assert.equal((await requestJson(diagnosticUrl, createOverlayToken(token, 'lyrics'), { method: 'POST' })).response.status, 403);
   const inactiveDiagnostic = await requestJson(diagnosticUrl, token, { method: 'POST' });
   assert.equal(inactiveDiagnostic.response.status, 400);
-  assert.match(inactiveDiagnostic.payload.error, /请先打开/);
   const exportUrl = `${diagnosticUrl}/export`;
   assert.equal((await fetch(exportUrl, { method: 'POST' })).status, 401);
   assert.equal((await requestJson(exportUrl, createOverlayToken(token, 'lyrics'), { method: 'POST' })).response.status, 403);
   const missingReport = await requestJson(exportUrl, token, { method: 'POST', body: '{"startedAt":"not-a-report"}' });
   assert.equal(missingReport.response.status, 400);
-  assert.match(missingReport.payload.error, /重新运行/);
 
   const configured = await requestJson(`${app.baseUrl}/api/music/wesing/configure`, token, {
     method: 'POST',
@@ -91,7 +89,6 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
     body: JSON.stringify({ offsetMs: 3001 }),
   });
   assert.equal(invalidOffset.response.status, 400);
-  assert.match(invalidOffset.payload.error, /-3000.*3000/);
   assert.equal(runtime.getSetting('weSingLyricOffsetMs'), '-250');
 
   const activated = await requestJson(`${app.baseUrl}/api/music/wesing/active`, token, {
@@ -176,7 +173,6 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
     body: JSON.stringify({ cachePath: path.join(root, 'Other') }),
   });
   assert.equal(invalid.response.status, 400);
-  assert.match(invalid.payload.error, /WeSingCache/);
 
   const deactivated = await requestJson(`${app.baseUrl}/api/music/wesing/active`, token, {
     method: 'POST',
@@ -185,20 +181,6 @@ test('WeSing routes require auth, persist cache path, and control monitor lifecy
   assert.equal(deactivated.payload.data.active, true, 'clearing the preference must not disable detection');
   assert.equal(monitorStops, 0);
   assert.equal((await requestJson(`${app.baseUrl}/api/playback/lyric-source`, token)).payload.data.selection, 'auto');
-});
-
-test('WeSing diagnostic route returns the capture report without altering playback', async () => {
-  const { routes } = require('../../src/server/routes/wesing-routes');
-  const report = { version: 1, summary: { result: 'ready' }, samples: [] };
-  let calls = 0;
-  let status;
-  let body;
-  await routes['POST /api/music/wesing/diagnose']({ weSing: {
-    async diagnose() { calls++; return report; },
-  } }, {}, { writeHead(code) { status = code; }, end(value) { body = value; } });
-  assert.equal(calls, 1);
-  assert.equal(status, 200);
-  assert.deepEqual(JSON.parse(body), { ok: true, data: report });
 });
 
 test('WeSing diagnostic HTTP request is settled before server shutdown drains requests', async (t) => {

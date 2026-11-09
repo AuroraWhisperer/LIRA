@@ -1,7 +1,8 @@
 import { createComponentConfigController } from './component-config-controller.js';
 import { hasInstalledAppearance, sceneAppearanceKey } from '../shared/scene-shared-appearance.js';
 
-const LOCAL_TYPES = ['opening', 'songlist', 'now-playing', 'lyrics', 'interactions', 'blindbox', 'gift-feed', 'guard-thanks'];
+const LOCAL_TYPES = ['opening', 'songlist', 'now-playing', 'lyrics', 'interactions', 'blindbox', 'gift-feed', 'guard-thanks',
+  'gift-frame', 'heart-box-collection', 'live-rankings'];
 
 export function createCanvasSharedAppearance({ model, request }) {
   const entries = new Map();

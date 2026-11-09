@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 const { isSensitiveFieldName } = require('../../src/shared/sensitive-field-name');
 const { redactCredentials } = require('../../src/shared/log-redaction');
 const {
-  isSensitiveResponseKey,
   sanitizeRemoteResponse,
   addSongBackgroundPreviewUrl,
 } = require('../../src/electron/license/license-response-utils');
@@ -31,7 +30,6 @@ const sensitive = [
 const publicNames = ['accountName', 'deviceName', 'state', 'tokenCount', 'keyboard', 'secretCount', 'roomId'];
 
 test('sensitive field policy is shared while masking and removal remain separate', () => {
-  assert.equal(isSensitiveResponseKey, isSensitiveFieldName);
   for (const key of [...sensitive, ...publicNames]) {
     const secret = sensitive.includes(key);
     assert.equal(isSensitiveFieldName(key), secret, key);

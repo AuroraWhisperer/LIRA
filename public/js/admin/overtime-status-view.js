@@ -59,7 +59,7 @@ export function createOvertimeStatusView({
     byId('overtimeControlHint').textContent = running
       ? '正在倒计时，收到礼物会按已保存规则调整时间。'
       : enabled
-        ? '倒计时已停，礼物仍会按规则结算。要停止收礼，请在「更多操作」中关闭加班机。'
+        ? '倒计时已停，礼物仍会按规则结算。要停止收礼，请点「关闭加班机」。'
         : hasTime
           ? '已保留剩余时间，点击继续加班即可恢复。'
           : '填写初始时长，点击开始；有礼物规则时会一起保存。';

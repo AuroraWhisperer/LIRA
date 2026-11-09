@@ -60,7 +60,8 @@ API 响应均 `no-store`。400 为格式/清单/文件错误，401 为管理身�
 `POST /api/component-preview/appearance?id=…&attachmentId=…` 要求当前已连接 canvas 会话的 Bearer；拒绝管理 token、其他组件能力、外站及 opaque Origin，读取请求体后再次授权。JSON 最大 2 MiB，响应 `{ok:true,data}`，禁止缓存。
 
 - `{action:'read',items:[{type,config}]}`：最多 100 项，逐项使用场景配置合同验证；返回以 `sceneAppearanceKey(type,config)` 为键的公共参数。
-- `{action:'patch',type,config,patch}`：只写入该样式已公开的公共字段。资源型样式复用库 config 校验；礼物滚动复用礼物显示配置校验；展示板、歌词、互动、盲盒、开播和感谢语言复用各自 settings 键。全部补丁校验后再写入；禁止业务字段及素材身份替换。
+- `{action:'patch',type,config,patch}`：只写入该样式已公开的公共字段。资源型样式复用库 config 校验；礼物滚动复用礼物显示配置校验；展示板、歌词、互动、盲盒、开播和感谢语言复用各自 settings 键。礼物掉落／摇摇乐仅公开所选效果的既有启用、金额和动效键，禁止跨效果写入；心动收集仅共享 `showRewards`，榜单仅共享 `range`。全部补丁校验后再写入；禁止其他业务字段及素材身份替换。
+- 原生歌词公开完整高级视觉字段、轮换及 `advancedLyricSavedPresets`，预设库沿用 settings 校验，仅返回编辑接口，不进入场景配置或直播投影。资源歌词仍写样式库，不共享原生预设库，`lyricLayer` 保留为实例字段。
 - 原生 clock/queue/danmaku/overtime 的写入仍通过已有桌面会话控制器；此入口不能代替远端弹幕授权。保存广播 settings 更新；失败保留客户端草稿。400 参数无效，403 权限或 Origin 无效，404 样式已移除，409 接管冲突，410 会话失效，413 体积超限，503 暂不可用。
 
 ### 浏览器组件预览
@@ -303,7 +304,7 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 | `PUT /api/device/songs/sync` | 上传本地完整歌库并推进云端 song revision。 |
 | `GET/PUT/DELETE /api/device/bilibili-credentials` | 在 Electron main 与云端间读取、上传或清除 Bilibili 登录凭据；这些方法不进入本地 HTTP、preload 或 renderer。 |
 | `GET /api/device/gift-history`、`GET /api/device/gift-events`、`GET /api/device/gift-events/stream` | 构建当前认证主播的本地礼物投影，并以 epoch/cursor 对账和 SSE 在线加速保持连续。 |
-| `GET /api/device/gift-card-profiles` | 只读获取当前认证主播北京时间今日的送礼人 UID 与展示证据，用于滚动卡片和 PNG 导出；每页最多 200 条，仅接受公开 eventId cursor，不修改礼物同步 DTO 或流水。 |
+| `GET /api/device/gift-card-profiles` | 只读获取当前认证主播北京时间今日的送礼人 UID 与展示证据，用于滚动卡片和 PNG 导出；每页最多 200 条，公开 eventId cursor 分页、revision 未变确认及协商后的 afterRevision 追加读取；无法证明旧资料稳定时完整刷新，不修改礼物同步 DTO 或流水。 |
 | `POST /api/device/gift-history/clear` | 以固定 `{confirm:true}` 清空当前认证主播的服务端礼物 ledger/outbox；只由 Electron main 调用，不接收租户选择字段。 |
 
 本地 renderer 仍只调用既有 `/api/settings`、`/api/songs/*` 与 `/api/database/*`，不持有远端凭据。云端 scope 写入成功后通过运行时内部 `requestCloudSync(scope)` 通知 [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 标记 dirty；云端应用使用 `applyCloudSettingsSnapshot` / `replaceCloudSongsSnapshot` 直接写本地 owner，不再发出 dirty 回声。授权后立即同步、SSE 失效通知、10 分钟自动兜底、resume/重连同步和冲突规则见 [../desktop/main.md](../desktop/main.md) §2.2。

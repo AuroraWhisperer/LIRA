@@ -379,6 +379,9 @@ test('local preview restores the last style on reload and rejects unknown initia
 test('danmaku avatars load directly from the allowed Bilibili CDN while emotes retain their proxy', async () => {
   const f = await fixture();
   const { resolveAvatarUrl, resolveEmoteUrl } = f.options.at(-1);
+  for (const avatar of new Set(createDanmakuPreviewItems().map(item => item.avatarUrl))) {
+    assert.equal(resolveAvatarUrl(avatar), avatar, 'bundled viewer avatars must reach the renderer');
+  }
   const avatarUrl = 'https://i0.hdslb.com/bfs/face/viewer.webp';
   assert.equal(resolveAvatarUrl(avatarUrl), avatarUrl);
   assert.equal(resolveEmoteUrl(avatarUrl), `/api/bilibili/avatar?url=${encodeURIComponent(avatarUrl)}`);

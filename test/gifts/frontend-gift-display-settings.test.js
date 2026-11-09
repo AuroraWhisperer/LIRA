@@ -91,6 +91,29 @@ test('gift appearance choices preview independently, save, and restore without l
   await page.locator('#giftDisplayCancel').click();
   assert.equal(await texture.inputValue(), 'argyle');
   assert.equal(await page.locator('#giftFeedRows').inputValue(), '5');
+  await page.evaluate(() => {
+    const fetchConfig = window.fetch;
+    window.fetch = (url, options = {}) => {
+      if (options.method !== 'POST') return fetchConfig(url, options);
+      const submitted = JSON.parse(options.body);
+      window.displaySaves.push(submitted);
+      return new Promise(resolve => {
+        window.finishDisplaySave = () => {
+          window.savedDisplay = { ...submitted, scrollSpeed: 40 };
+          window.dispatchEvent(new CustomEvent('app:settings-state', {
+            detail: { giftDisplayConfig: JSON.stringify(window.savedDisplay) },
+          }));
+          resolve({ ok: true, json: async () => ({ ok: true, data: submitted }) });
+        };
+      });
+    };
+  });
+  await page.locator('#giftFeedSpeed').fill('50');
+  await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
+  await page.waitForFunction(() => typeof window.finishDisplaySave === 'function');
+  await page.evaluate(() => window.finishDisplaySave());
+  await page.waitForFunction(() => !document.getElementById('giftDisplayFields').disabled);
+  assert.equal(await page.locator('#giftFeedSpeed').inputValue(), '40');
   await page.locator('#giftDisplayDefaults').click();
   assert.equal(await tail.inputValue(), 'slant');
   assert.equal(await texture.inputValue(), 'solid');

@@ -31,9 +31,11 @@ test('admin form refresh preserves the active edit and updates inactive fields',
   const inactive = { value: '旧值', dataset: {}, closest: () => null };
   const guardThanksAuroraTextMode = { value: 'en', dataset: {},
     closest: selector => selector.split(',').some(part => part.trim() === '#guardThanksPanel') ? {} : null };
+  const desktopLyricFontSize = { value: '64', dataset: {},
+    closest: selector => selector.split(',').some(part => part.trim() === '#desktopLyricForm') ? {} : null };
   const document = {
     activeElement: edited,
-    getElementById: (id) => ({ edited, inactive, guardThanksAuroraTextMode })[id] || null,
+    getElementById: (id) => ({ edited, inactive, guardThanksAuroraTextMode, desktopLyricFontSize })[id] || null,
     querySelectorAll: () => [],
     querySelector: () => null,
   };
@@ -41,8 +43,9 @@ test('admin form refresh preserves the active edit and updates inactive fields',
     document,
     window: { AdminApp: {} },
   });
-  new FormsService().fillForm({ edited: '服务端值', inactive: '新值', guardThanksAuroraTextMode: '' });
+  new FormsService().fillForm({ edited: '服务端值', inactive: '新值', guardThanksAuroraTextMode: '', desktopLyricFontSize: '56' });
   assert.equal(edited.value, '正在输入');
   assert.equal(inactive.value, '新值');
   assert.equal(guardThanksAuroraTextMode.value, 'en', 'generic hydration cannot replace resolved legacy guard settings with empty storage values');
+  assert.equal(desktopLyricFontSize.value, '64', 'generic hydration cannot overwrite the lyric owner draft after a settings broadcast');
 });

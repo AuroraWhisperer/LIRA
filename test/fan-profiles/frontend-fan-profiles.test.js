@@ -113,7 +113,6 @@ test('a current restore preview opens the existing confirmation form', async t =
   });
   await transfer.restoreFile({ size: 2, text: async () => '{}' });
   assert.equal(ui.editor.open, true);
-  assert.equal(ui.nodes.get('fanSaveButton').textContent, '确认恢复');
 });
 
 function deferred() {
@@ -257,6 +256,19 @@ async function archiveUi(t, storage = new Map()) {
   ui.calls.length = 0;
   return ui;
 }
+
+test('stopping former-name supplementation during the interval prevents the next profile request', async t => {
+  const ui = await archiveUi(t);
+  const response = data => ({ ok: true, contextId: ui.contextId, syncStatus: 'offline', data });
+  ui.handlers.set('former-name-targets', () => response({ ids: [ui.a.id, ui.b.id] }));
+  ui.handlers.set('supplement-former-names', () => response({ added: 1 }));
+  await ui.click({ fanAction: 'supplement-all-former-names' });
+  assert.equal(ui.calls.filter(call => call.action === 'supplement-former-names').length, 1);
+  await ui.click({ fanAction: 'stop-former-names' });
+  ui.clock.tick(2000);
+  await ui.flush();
+  assert.equal(ui.calls.filter(call => call.action === 'supplement-former-names').length, 1);
+});
 
 test('search and filters refresh only the list while polling and explicit refresh still update reminders', async t => {
   const ui = await archiveUi(t);

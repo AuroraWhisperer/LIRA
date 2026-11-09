@@ -17,4 +17,4 @@ const component = mountSceneExtraClient('live-rankings', {
   onDispose() { clearInterval(timer); view.dispose(); },
 });
 if (component) timer = setInterval(() => view.tick(), 250);
-else status.textContent = '请从组件 → 实时榜单 → 配置直播画面，保存并复制独立地址。';
+else status.textContent = '请从组件 → 实时榜单，点击对应榜单的「配置直播画面」，保存并复制独立地址。';

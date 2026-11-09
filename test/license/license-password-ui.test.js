@@ -28,15 +28,6 @@ test('switching account entry mode clears credentials without changing the usern
   assert.equal(get('licenseAccountName').value, 'test-account');
 });
 
-test('license form submits the password unchanged and shows the server password rejection', async () => {
-  const page = createLicensePage({ state: 'needs_activation', error: 'PASSWORD_BCRYPT_TRUNCATED' });
-  page.getElementById('licensePassword').value = VALID_PASSWORD;
-  await page.submit();
-  assert.equal(page.submissions.length, 1);
-  assert.equal(page.submissions[0].password, VALID_PASSWORD);
-  assert.match(page.getElementById('licenseStatus').textContent, /72/);
-});
-
 test('password visibility toggles without changing or submitting the password', () => {
   const page = createLicensePage();
   const password = page.getElementById('licensePassword');

@@ -44,6 +44,50 @@ test('fan IPC applies the shared source policy before reading profiles', (t) => 
   assert.equal(f.calls.execute.at(-1).action, 'list');
 });
 
+test('identity preview validates UID and projects public profile fields without writing a fan', async (t) => {
+  const f = fixture(t, { profile: async () => ({
+    name: '预览昵称', avatarUrl: 'https://i0.hdslb.com/bfs/face/preview.jpg', cookieHeader: 'private',
+  }) });
+  const { contextId } = f.invoke({ action: 'open' });
+  const request = (uid) => f.invoke({ action: 'preview-identity', contextId, payload: { uid } });
+  assert.equal((await request('invalid')).ok, false);
+  assert.equal(f.calls.profiles.length, 0);
+  const result = await request('123');
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.data, { uid: '123', name: '预览昵称', avatarUrl: 'https://i0.hdslb.com/bfs/face/preview.jpg' });
+  assert.equal(f.calls.execute.length, 1, 'preview does not read or write stored fan records');
+});
+
+test('identity preview shares an in-flight UID and rejects replaced or invalidated results', async (t) => {
+  const pending = deferred();
+  const f = fixture(t, { profile: () => pending.promise });
+  const { contextId } = f.invoke({ action: 'open' });
+  const request = (uid) => f.invoke({ action: 'preview-identity', contextId, payload: { uid } });
+  const first = request('123');
+  const shared = request('123');
+  const replacement = request('456');
+  assert.equal(f.calls.profiles.length, 2);
+  assert.equal(f.calls.profiles[0].signal.aborted, true);
+  f.state.streamerId = 'streamer-b';
+  f.state.epoch++;
+  f.invoke({ action: 'open' });
+  assert.equal(f.calls.profiles[1].signal.aborted, true);
+  pending.resolve({ name: '迟到资料', avatarUrl: '' });
+  for (const result of await Promise.all([first, shared, replacement])) assert.equal(result.ok, false);
+});
+
+test('disposing the fan controller cancels identity preview and waits for its completion', async (t) => {
+  const pending = deferred();
+  const f = fixture(t, { profile: () => pending.promise });
+  const { contextId } = f.invoke({ action: 'open' });
+  const preview = f.invoke({ action: 'preview-identity', contextId, payload: { uid: '123' } });
+  f.controller.dispose();
+  assert.equal(f.calls.profiles[0].signal.aborted, true);
+  pending.resolve({ name: '迟到资料' });
+  assert.equal((await preview).ok, false);
+  await f.controller.whenIdle();
+});
+
 test('fan IPC rejects unauthenticated access and old contexts after streamer or origin changes', async (t) => {
   const f = fixture(t);
   let opened = f.invoke({ action: 'open' });

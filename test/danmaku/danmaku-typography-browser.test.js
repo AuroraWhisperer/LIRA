@@ -241,6 +241,63 @@ test('dark moon keeps inline and standalone emotes inside its revealed copy', as
   for (const result of measurements) assert.ok(result.contained, JSON.stringify(result));
 });
 
+test('prismatic and snowfox reflow paid cards when the feed region shrinks', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <style>*, *::before, *::after { transition: none !important; }</style>
+    <div class="danmaku-signal-stage" style="width:440px;height:180px">
+      <div id="feed" class="draw-danmaku-feed"></div>
+    </div>` });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage({ viewport: { width: 640, height: 480 }, reducedMotion: 'reduce' });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const results = await page.evaluate(async () => {
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    const root = document.getElementById('feed');
+    const results = [];
+    for (const style of ['prismatic', 'snowfox']) {
+      document.body.dataset.style = style;
+      for (const item of [
+        { kind: 'superchat', name: '留言者', price: 30, message: '完整的长留言内容\n'.repeat(16) },
+        { kind: 'gift', name: '完整守护者'.repeat(18), giftGuardLevel: 3, giftCount: 1, giftTotalPrice: 138 },
+      ]) {
+        root.parentElement.style.height = '2000px';
+        const feed = createDanmakuFeed(root, { style, offscreenViewports: 0, autoScroll: false });
+        feed.render([item]);
+        await document.fonts.ready;
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const original = root.firstElementChild;
+        const before = { width: original.offsetWidth, height: original.offsetHeight,
+          fontSize: Number.parseFloat(getComputedStyle(original).fontSize), text: original.textContent };
+        root.parentElement.style.height = '180px';
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        const fitted = root.firstElementChild;
+        const bounds = fitted.getBoundingClientRect();
+        results.push({ style, kind: item.kind, before, availableHeight: root.clientHeight,
+          width: bounds.width, height: bounds.height, text: fitted.textContent,
+          fontSize: Number.parseFloat(getComputedStyle(fitted).fontSize) });
+        feed.destroy();
+      }
+    }
+    return results;
+  });
+  for (const result of results) {
+    const label = `${result.style} ${result.kind}`;
+    assert.ok(result.before.height > result.availableHeight, `${label} requires fitting: ${result.before.height} > ${result.availableHeight}`);
+    assert.ok(result.fontSize > 0 && result.fontSize < result.before.fontSize, `${label} reflows at a smaller type size`);
+    assert.ok(Math.abs(result.width - result.before.width) < 1,
+      `${label} retains its full panel width: ${result.before.width} -> ${result.width}`);
+    assert.ok(result.height <= result.availableHeight, `${label} fits inside the feed`);
+    assert.equal(result.text, result.before.text, `${label} retains all event content`);
+  }
+});
+
 test('style text responds to chosen fonts and sizes; representative layouts retain canvas scaling', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">

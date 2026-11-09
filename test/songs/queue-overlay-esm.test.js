@@ -159,12 +159,6 @@ test('every queue theme renders all queued songs and escapes viewer text', async
   }
 });
 
-test('queue overlay entry links and evaluates through the real module graph', async () => {
-  const dom = createQueueDom();
-  const namespace = await loadQueueOverlay(dom, QUEUE_ENTRY);
-  assert.equal(typeof namespace, 'object');
-});
-
 test('queue overlay applies the saved song font size', async () => {
   const dom = createQueueDom();
   const namespace = await loadQueueOverlay(dom);

@@ -103,3 +103,30 @@ test('track changes clear old artwork immediately and delayed image loads cannot
   assert.equal(await page.locator('.now-playing-cover').count(), 0);
   assert.equal(await page.locator('.now-playing-disc').isVisible(), true);
 });
+
+test('record and text widgets keep separate content and the record fills its resized box', async t => {
+  const page = await mountRenderer(t);
+  const state = { trackTitle: '独立歌名', artists: ['独立歌手'], playing: true, coverUrl: 'https://covers.example/unused.webp' };
+  const coverRequests = [];
+  await page.route('https://covers.example/**', route => { coverRequests.push(route.request().url()); return route.abort(); });
+  await page.evaluate(async state => {
+    const { createNowPlayingRenderer } = await import('/js/shared/now-playing-renderer.js');
+    const text = document.createElement('div');
+    text.id = 'metadata'; text.style.cssText = 'width:360px;height:160px';
+    document.body.append(text);
+    window.textRenderer = createNowPlayingRenderer(text, { part: 'text' });
+    window.textRenderer.updateState(state);
+    window.recordRenderer.updateConfig({ nowPlayingPart: 'record' });
+    window.recordRenderer.updateState({ ...state, coverUrl: '' });
+    document.getElementById('record').style.cssText = 'width:240px;height:240px';
+  }, state);
+  assert.equal(await page.locator('#record .now-playing-copy').isVisible(), false);
+  assert.equal(await page.locator('#metadata .now-playing-visual').isVisible(), false);
+  assert.equal(await page.locator('#metadata .now-playing-title').innerText(), state.trackTitle);
+  assert.equal(await page.locator('#metadata .now-playing-artist').innerText(), state.artists[0]);
+  assert.equal(Math.round((await page.locator('#record .now-playing-visual').boundingBox()).width), 240);
+  await page.locator('#record').evaluate(root => { root.style.width = '180px'; root.style.height = '150px'; });
+  assert.equal(Math.round((await page.locator('#record .now-playing-visual').boundingBox()).width), 150);
+  assert.deepEqual(coverRequests, []);
+  await page.evaluate(() => { window.textRenderer.dispose(); window.recordRenderer.dispose(); });
+});

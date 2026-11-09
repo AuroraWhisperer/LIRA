@@ -3,6 +3,7 @@ import { renderHeartBoxCollection } from '../../shared/heart-box-collection.js';
 import { bindCopyUrl } from '../../shared/copy-url.js';
 import { localOverlayOrigin, toast } from '../../shared/utils.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
+import { createSharedSceneSettingsController } from '../shared-scene-settings-controller.js';
 
 export function createHeartBoxCollection() {
   const get = (id) => document.getElementById(id);
@@ -10,6 +11,7 @@ export function createHeartBoxCollection() {
   const status = get('heartBoxCollectionStatus');
   const error = get('heartBoxCollectionError');
   const rewards = get('heartBoxCollectionShowRewards');
+  const settings = createSharedSceneSettingsController('heart-box-collection');
   let currentData;
   const render = () => renderHeartBoxCollection(preview, currentData, { showRewards: rewards.checked });
   const date = new Intl.DateTimeFormat('zh-CN', { timeZone: 'Asia/Shanghai', month: 'numeric', day: 'numeric' });
@@ -35,13 +37,25 @@ export function createHeartBoxCollection() {
     },
   });
   const address = get('heartBoxCollectionUrl');
-  const updateAddress = () => {
-    address.textContent = `${localOverlayOrigin(location)}/heart-box-collection${rewards.checked ? '' : '?showRewards=false'}`;
-  };
-  updateAddress();
-  rewards.addEventListener('change', () => { render(); updateAddress(); });
+  address.textContent = `${localOverlayOrigin(location)}/heart-box-collection`;
+  const saveState = get('heartBoxCollectionSaveState');
+  const retry = get('heartBoxCollectionSaveRetry');
+  const stopSettings = settings.controller.subscribe(state => {
+    rewards.checked = state.draft.showRewards;
+    rewards.disabled = !state.loaded;
+    saveState.textContent = state.error ? '显示设置未保存，修改已保留，请重试。'
+      : state.saving ? '正在保存…' : state.dirty ? '等待保存…' : '显示设置与画布同步。';
+    retry.hidden = !state.error;
+    render();
+  });
+  rewards.addEventListener('change', () => {
+    settings.controller.edit({ showRewards: rewards.checked });
+    void settings.save();
+  });
+  retry.addEventListener('click', () => { void settings.save(); });
   bindCopyUrl(address, { onCopied: () => toast('心动盲盒收集任务地址已复制') });
   get('heartBoxCollectionRefresh').addEventListener('click', () => feed.refresh());
   get('heartBoxCollectionPreview').addEventListener('click', () => openComponentPreview({ id: 'heart-box-collection' }));
+  window.addEventListener('pagehide', () => { stopSettings(); settings.dispose(); }, { once: true });
   return { open: feed.start, close: feed.stop };
 }

@@ -8,6 +8,7 @@ const { chromium } = require('playwright');
 const { launchElectron } = require('../helpers/shared-electron');
 const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const { installResourceStyles, mountResourceStylePage } = require('../helpers/resource-style-fixture');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 test('overtime canvas changes the real desktop countdown and saved output in both directions', { timeout: 60000 }, async t => {
   const root = path.resolve(__dirname, '../..');
@@ -71,7 +72,6 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
   await canvas.getByRole('button', { name: '开始倒计时', exact: true }).waitFor();
   await desktop.locator('#overtimeInitialHours').fill('1');
   await desktop.locator('#overtimeInitialMinutes').fill('7');
-  await desktop.getByText('更多操作', { exact: true }).click();
   await desktop.locator('#overtimeApplyTimeBtn').click();
   await desktop.getByRole('dialog').getByRole('button', { name: '设置并重置', exact: true }).click();
   await canvas.waitForFunction(() => document.querySelector('[aria-label="初始时长（小时）"]').value === '1'
@@ -84,7 +84,6 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
   await canvas.getByRole('option', { name: '拉伸', exact: true }).click();
   await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
   await canvas.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-  await desktop.getByText('直播画面与背景', { exact: true }).click();
   assert.equal(await desktop.locator('#overtimeBackgroundFit').inputValue(), 'fill');
   await desktop.getByRole('button', { name: '适配', exact: true }).click();
   await desktop.getByRole('option', { name: '完整显示', exact: true }).click();
@@ -113,6 +112,7 @@ test('desktop and canvas share local settings and imported resources across inst
   const errors = []; desktop.on('pageerror', error => errors.push(error.message));
   await app.evaluate(() => Object.assign(global.canvasTest.openingSettings, { songBoardSyncTheme: 'false', songBoardTitle: '客户端已保存',
     nowPlayingAppearance: JSON.stringify({ style: 'vinyl', nowPlayingTitleFontSize: 44 }) }));
+  await app.evaluate(() => { global.canvasTest.nowPlaying = { trackTitle: '双组件实播歌曲', artists: ['合成歌手'], playing: true }; });
   await mountResourceStylePage(desktop);
   await desktop.evaluate(async markup => {
     const source = new DOMParser().parseFromString(markup, 'text/html');
@@ -164,6 +164,16 @@ test('desktop and canvas share local settings and imported resources across inst
     await layer.frameLocator('iframe').locator('#songBoardTitle').filter({ hasText: '客户端修改' }).waitFor();
   }
   await add('now-playing', '圆形封面');
+  const geometry = canvas.locator('.scene-editor-geometry');
+  for (const [label, value] of [['X', 180], ['Y', 230], ['宽度', 240], ['高度', 240]]) {
+    await geometry.getByLabel(label, { exact: true }).fill(String(value));
+    await geometry.getByLabel(label, { exact: true }).dispatchEvent('change');
+  }
+  await add('now-playing', '歌名 / 歌手');
+  for (const [label, value] of [['X', 520], ['Y', 240], ['宽度', 460], ['高度', 220]]) {
+    await geometry.getByLabel(label, { exact: true }).fill(String(value));
+    await geometry.getByLabel(label, { exact: true }).dispatchEvent('change');
+  }
   const canvasTitleSize = canvas.locator('[data-component-parameter="nowPlayingTitleFontSize"]');
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nowPlayingTitleFontSize"]').value === '44');
   await canvasTitleSize.fill('58'); await canvasTitleSize.dispatchEvent('change'); await canvasTitleSize.blur();
@@ -174,7 +184,7 @@ test('desktop and canvas share local settings and imported resources across inst
   await desktop.locator('#nowPlayingSave').click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nowPlayingTitleFontSize"]').value === '64'
     && !document.querySelector('[data-component-parameter="nowPlayingShowArtist"]').checked);
-  assert.equal(await canvas.locator('[data-component-parameter="style"]').inputValue(), 'cover');
+  assert.equal(await canvas.locator('[data-component-parameter="style"]').isVisible(), false);
   assert.equal(await desktop.locator('[data-now-playing-style="vinyl"]').getAttribute('aria-pressed'), 'true');
   const resource = desktop.getByRole('region', { name: '航海旗帜设置', exact: true });
   await resource.getByText('外观设置', { exact: true }).click();
@@ -195,11 +205,162 @@ test('desktop and canvas share local settings and imported resources across inst
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');
   await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
   await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const songWidgets = await app.evaluate(() => global.canvasTest.output().document.items.filter(item => item.type === 'now-playing'));
+  const recordWidget = songWidgets.find(item => item.appearance.config.nowPlayingPart === 'record');
+  const textWidget = songWidgets.find(item => item.appearance.config.nowPlayingPart === 'text');
+  assert.deepEqual([recordWidget.x, recordWidget.y, recordWidget.width, recordWidget.height], [180, 230, 240, 240]);
+  assert.deepEqual([textWidget.x, textWidget.y, textWidget.width, textWidget.height], [520, 240, 460, 220]);
+  assert.equal(recordWidget.appearance.config.style, 'cover');
+  await canvas.getByRole('button', { name: '复制场景地址', exact: true }).click();
+  await canvas.locator('#previewCanvasSource').waitFor({ state: 'visible' });
+  const sourceUrl = await canvas.locator('#previewCanvasSource').textContent();
+  assert.equal((await fetch(sourceUrl)).status, 200);
+  const live = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
+  await live.goto(sourceUrl);
+  const liveRecord = live.frameLocator('iframe[title*="圆形封面"]');
+  const liveText = live.frameLocator('iframe[title*="歌名 / 歌手"]');
+  await liveRecord.locator('.now-playing-visual').waitFor({ state: 'visible' });
+  await liveText.getByText('双组件实播歌曲', { exact: true }).waitFor();
+  assert.equal(await liveRecord.locator('.now-playing-copy').isVisible(), false);
+  assert.equal(await liveText.locator('.now-playing-visual').isVisible(), false);
+  assert.equal(Math.round((await liveRecord.locator('.now-playing-visual').boundingBox()).width), 240);
+  await live.close();
   await canvas.reload();
   await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '航海旗帜' }).click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');
-  await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '圆形封面' }).click();
+  await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '歌名 / 歌手' }).click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nowPlayingTitleFontSize"]').value === '64'
     && !document.querySelector('[data-component-parameter="nowPlayingShowArtist"]').checked);
+  assert.deepEqual(errors, []);
+});
+
+test('motion, advanced lyrics and shared viewing controls save through desktop and canvas without replacing layers', { timeout: 90000 }, async t => {
+  const root = path.resolve(__dirname, '../..');
+  const directory = createScratchDirectory('aligned-parameters-electron-');
+  let app;
+  let browser;
+  t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
+  await desktop.waitForFunction(() => document.getElementById('liveDanmakuFeature')?.parentElement === document.body);
+  const errors = []; desktop.on('pageerror', error => errors.push(error.message));
+  const rows = Array.from({ length: 50 }, (_, index) => ({ rank: index + 1, roomId: String(index + 1), name: `主播 ${index + 1}`, score: 10000 - index }));
+  await desktop.route('**/api/bilibili/live-rankings*', route => route.fulfill({ json: {
+    ok: true, data: { status: 'ready', room: { roomId: '15' }, boards: [{ id: 'hot', title: '热门全站', unit: '热度值', limit: 100,
+      status: 'ready', rows, current: { ...rows[14], distance: 1 }, endsAt: Date.now() + 600000, updatedAt: Date.now() }] },
+  } }));
+  const markup = ['toolbox/gift', 'song/desktop-lyric', 'live-components/heart-box-collection', 'live-components/live-rankings']
+    .map(name => readAdminFragmentHtml(`pages/admin/${name}.html`)).join('\n');
+  await desktop.evaluate(async markup => {
+    const source = new DOMParser().parseFromString(markup, 'text/html');
+    const wrapper = document.createElement('div'); wrapper.id = 'liveComponentsPage'; wrapper.className = 'live-components-page';
+    document.body.append(wrapper);
+    for (const section of [...source.body.children]) {
+      section.hidden = false; section.style.display = 'block'; wrapper.append(section);
+    }
+    const status = document.createElement('span'); status.id = 'wsStatus'; document.body.append(status);
+    const { createAdminStateRenderer } = await import('/js/admin/state-renderer.js');
+    const { eventBus, Events } = await import('/js/shared/event-bus.js');
+    eventBus.on(Events.STATE_LOADED, createAdminStateRenderer({ renderGifts() {}, renderQueueStyle() {}, renderQueue() {} }));
+    const { initGiftMotionSettings } = await import('/js/admin/gift-motion-settings.js'); initGiftMotionSettings();
+    const { desktopLyric } = await import('/js/admin/desktop-lyric.js'); desktopLyric.initDesktopLyricForm();
+    const { createHeartBoxCollection } = await import('/js/admin/gifts/heart-box-collection.js'); createHeartBoxCollection();
+    const { initLiveRankings } = await import('/js/admin/live-rankings.js'); initLiveRankings();
+    const { stateService } = await import('/js/admin/state.js'); stateService.connectSocket();
+    const { openComponentPreview } = await import('/js/admin/component-preview-dialog.js'); openComponentPreview();
+  }, markup);
+  let url;
+  for (let i = 0; i < 100 && !url; i++) {
+    url = await app.evaluate(() => global.canvasTest.externalUrls.at(-1));
+    if (!url) await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.equal((await fetch(url)).status, 200);
+  browser = await chromium.launch({ headless: true });
+  const canvas = await browser.newPage({ viewport: { width: 1600, height: 1000 } }); canvas.setDefaultTimeout(8000);
+  canvas.on('pageerror', error => errors.push(error.message));
+  await canvas.goto(url);
+  async function add(type, name) {
+    await canvas.getByRole('button', { name: '添加组件', exact: true }).click();
+    await canvas.locator(`[data-category="${type}"]`).click();
+    if (name) await canvas.getByRole('button', { name: `添加${name}`, exact: true }).click();
+    else await canvas.locator('.preview-picker-style').first().click();
+  }
+  await add('gift-frame', '礼物掉落');
+  const size = canvas.locator('[data-component-parameter="giftDropSize"]');
+  await size.fill('134'); await size.dispatchEvent('input');
+  await desktop.waitForFunction(() => document.getElementById('giftDropSize').value === '134');
+  const refresh = canvas.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
+    && response.ok() && (await response.text()).includes('"giftDropSize":"152"'));
+  await desktop.locator('#giftDropSize').fill('152'); await desktop.locator('#giftDropSize').dispatchEvent('input');
+  const bounce = canvas.locator('[data-component-parameter="giftDropBounce"]');
+  await bounce.fill('60'); await bounce.dispatchEvent('input'); await bounce.blur();
+  await desktop.waitForFunction(() => document.getElementById('giftDropBounce').value === '60');
+  const submitted = desktop.waitForRequest(request => request.url().endsWith('/api/settings')
+    && request.method() === 'POST' && request.postDataJSON()?.giftDropSize === '152');
+  await size.focus();
+  await desktop.locator('#giftDropSaveBtn').click();
+  assert.deepEqual((await submitted).postDataJSON(), { giftDropSize: '152' }, 'saving a desktop draft preserves other canvas changes');
+  await refresh;
+  await size.blur();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '152');
+  await desktop.route('**/api/settings', route => route.fulfill({ status: 500,
+    json: { ok: false, error: 'Synthetic local write failure' } }), { times: 1 });
+  await desktop.locator('#giftDropSize').fill('160'); await desktop.locator('#giftDropSize').dispatchEvent('input');
+  await desktop.locator('#giftDropSaveBtn').click();
+  await desktop.locator('#giftDropSaveState[data-state="error"]').waitFor();
+  assert.equal(await desktop.locator('#giftDropSize').inputValue(), '160');
+  assert.equal(await size.inputValue(), '152');
+  await desktop.locator('#giftDropSaveBtn').click();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '160');
+  await add('gift-frame', '礼物摇摇乐');
+  await canvas.locator('.gift-motion-canvas-settings:not([hidden])').getByRole('checkbox', { name: '礼物名', exact: true }).uncheck();
+  await desktop.waitForFunction(() => document.getElementById('giftSwingTextMode').value === 'name-quantity');
+  await add('lyrics', '直播歌词');
+  const advanced = canvas.locator('.advanced-lyric-canvas-settings');
+  await advanced.getByRole('tab', { name: '字体与配色', exact: true }).click();
+  await advanced.locator('[data-advanced-lyric-parameter="advancedLyricFontWeight"]').selectOption('900');
+  await desktop.locator('#desktopLyricAdvancedTab').click();
+  await desktop.waitForFunction(() => document.getElementById('advancedLyricFontWeight')?.value === '900');
+  await desktop.locator('#advancedLyricEditor').getByRole('tab', { name: '字效与材质', exact: true }).click();
+  await desktop.locator('#advancedLyricEditor [data-lyric-field="advancedLyricMaterial"][data-lyric-choice="chalk"]').click();
+  await advanced.getByRole('tab', { name: '字效与材质', exact: true }).click();
+  await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-lyric-field="advancedLyricMaterial"][data-lyric-choice="chalk"]').getAttribute('aria-pressed') === 'true');
+  await add('heart-box-collection');
+  await canvas.locator('[data-component-parameter="showRewards"]').uncheck();
+  await desktop.waitForFunction(() => !document.getElementById('heartBoxCollectionShowRewards').checked);
+  assert.equal(new URL(await desktop.locator('#heartBoxCollectionUrl').textContent()).search, '', 'new addresses follow the saved visibility');
+  await desktop.locator('.heart-box-rewards-toggle').click();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="showRewards"]').checked);
+  await add('live-rankings');
+  const rankingList = desktop.locator('[data-rankings="boards"] .ranking-card').first().locator('.ranking-list');
+  await rankingList.locator('.ranking-place').first().filter({ hasText: /^1$/ }).waitFor();
+  await canvas.getByRole('button', { name: '展示方式', exact: true }).click();
+  await canvas.getByRole('option', { name: '跟随本房间名次', exact: true }).click();
+  await desktop.waitForFunction(() => document.querySelector('[data-rankings="range"]').value === 'nearby');
+  await rankingList.locator('.is-current .ranking-place').filter({ hasText: /^15$/ }).waitFor();
+  assert.ok(Number(await rankingList.locator('.ranking-place').first().textContent()) > 1, 'nearby mode follows rank 15');
+  const initialRows = await rankingList.locator('.ranking-row').count();
+  await desktop.locator('.live-rankings-page').evaluate(page => { page.style.height = '1600px'; });
+  await desktop.waitForFunction(previous => document.querySelector('[data-rankings="boards"] .ranking-list').children.length > previous, initialRows);
+  assert.equal(await rankingList.locator('.is-current').count(), 1);
+  const rangeRefresh = canvas.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
+    && response.ok() && (await response.text()).includes('"range":"all"'));
+  await desktop.locator('[data-rankings="range"]').selectOption('all');
+  await rangeRefresh;
+  await canvas.getByRole('button', { name: '展示方式', exact: true }).press('Tab');
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="range"]').value === 'all');
+  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const output = await app.evaluate(() => global.canvasTest.output());
+  const appearance = type => output.appearances[output.document.items.find(item => item.type === type).id];
+  assert.equal(appearance('lyrics').advancedLyricMaterial, 'chalk');
+  assert.equal(Object.hasOwn(appearance('lyrics'), 'advancedLyricSavedPresets'), false);
+  assert.equal(appearance('heart-box-collection').showRewards, true);
+  assert.equal(appearance('live-rankings').range, 'all');
+  const motionLayer = output.document.items.find(item => item.type === 'gift-frame');
+  assert.equal(Object.hasOwn(motionLayer.appearance.config, 'giftDropSize'), false);
+  await canvas.reload();
+  await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '礼物掉落' }).click();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '160');
   assert.deepEqual(errors, []);
 });

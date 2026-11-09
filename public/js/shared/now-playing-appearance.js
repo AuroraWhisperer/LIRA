@@ -1,5 +1,6 @@
 export const NOW_PLAYING_FIELDS = Object.freeze({
   style: { label: '唱片样式', type: 'select', default: 'vinyl', options: { vinyl: '黑胶唱片', cover: '圆形封面', turntable: '唱片机' } },
+  nowPlayingPart: { label: '组件内容', type: 'select', default: 'all', options: { all: '唱片与文字', record: '唱片', text: '歌名 / 歌手' } },
   nowPlayingLayout: { label: '布局', type: 'select', default: 'horizontal', options: { horizontal: '唱片在左', vertical: '唱片在上' } },
   nowPlayingRecordSize: { label: '唱片大小', type: 'number', default: 120, min: 48, max: 360, step: 1 },
   nowPlayingGap: { label: '唱片与文字间距', type: 'number', default: 24, min: 0, max: 100, step: 1 },
@@ -17,6 +18,21 @@ export const NOW_PLAYING_FIELDS = Object.freeze({
   nowPlayingHideWhenEmpty: { label: '没有歌曲时隐藏', type: 'checkbox', default: true },
   nowPlayingOpacity: { label: '整体不透明度', type: 'number', default: 1, min: 0, max: 1, step: 0.05 },
 });
+
+export const NOW_PLAYING_PART_FIELDS = Object.freeze({
+  record: ['style', 'nowPlayingRecordSize', 'nowPlayingShowRecord', 'nowPlayingRotation', 'nowPlayingRotationSeconds'],
+  text: ['nowPlayingShowTitle', 'nowPlayingShowArtist', 'nowPlayingFontFamily', 'nowPlayingTitleFontSize',
+    'nowPlayingArtistFontSize', 'nowPlayingTitleColor', 'nowPlayingArtistColor'],
+});
+
+export function nowPlayingSize(config = {}) {
+  if (config.nowPlayingPart === 'record') {
+    const width = Number(config.nowPlayingRecordSize) || 120;
+    return [width, Math.round(config.style === 'turntable' ? width / 1.2 : width)];
+  }
+  return config.nowPlayingPart === 'text' ? [360, Math.ceil(Math.max(160,
+    Number(config.nowPlayingTitleFontSize ?? 32) * 2.6 + Number(config.nowPlayingArtistFontSize ?? 18) * 2.8 + 7))] : [480, 200];
+}
 
 export const NOW_PLAYING_DEFAULTS = Object.freeze(Object.fromEntries(
   Object.entries(NOW_PLAYING_FIELDS).map(([key, field]) => [key, field.default]),

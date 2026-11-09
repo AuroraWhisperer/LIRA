@@ -147,6 +147,7 @@ function createCloudSyncRuntime({
     getBlindBoxMappingState: () => blindBoxMappingState,
     setBlindBoxMappingState,
     getCloudSongsSnapshot,
+    hasPendingCloudSongs: (key) => getSongs().hasPendingCloudSongs(key),
     getPendingCloudSongs: (key) => getSongs().getPendingCloudSongs(key),
     acknowledgePendingCloudSongs: (key, mutationId) => getSongs().acknowledgePendingCloudSongs(key, mutationId),
     replaceCloudSongsSnapshot,

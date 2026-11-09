@@ -79,6 +79,7 @@ function createGiftEndpoints({ request, readEventStream }) {
       const query = new URLSearchParams();
       if (cursor) query.set('cursor', cursor);
       if (options.revision) query.set('revision', options.revision);
+      if (options.afterRevision) query.set('afterRevision', options.afterRevision);
       return read(
         `/api/device/gift-card-profiles${query.size ? `?${query}` : ''}`,
         token,
@@ -237,7 +238,8 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
     getGiftCardProfilesInternal: (input = {}) =>
       withAuthorizedToken(
         (token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal,
-          ...(input.revision ? { revision: input.revision } : {}) }), { signal: input.signal },
+          ...(input.revision ? { revision: input.revision } : {}),
+          ...(input.afterRevision ? { afterRevision: input.afterRevision } : {}) }), { signal: input.signal },
       ),
   };
 }

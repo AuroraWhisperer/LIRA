@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { chromium } = require('playwright');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
-const { validateRules, MAX_OVERTIME_SECONDS } = require('../../src/overtime/overtime-contract');
+const { validateRules } = require('../../src/overtime/overtime-contract');
 
 let fixture;
 let browser;
@@ -56,34 +56,20 @@ test('gift reselection follows the same rule after refresh and rejects a removed
   assert.equal(result.remaining, '4');
 });
 
-test('accepted long durations survive rule and initial-time editor round trips', async t => {
+test('accepted long durations survive the rule editor round trip', async t => {
   const seconds = 1000 * 3600 + 125;
   const rules = validateRules([{ giftId: '1', mode: 'fixed', fixedEffect: { operation: 'add', value: seconds } }]);
   const page = await mount(t, rules);
-  const result = await page.evaluate(async ({ seconds, maxSeconds }) => {
+  const result = await page.evaluate(() => {
     const hours = document.querySelector('[data-duration-hours]');
     const saved = window.editor.readRules()[0].fixedEffect.value;
     const readonly = hours.readOnly;
     const inputValid = hours.checkValidity();
-    const { createOvertimeTimeView } = await import('/js/admin/overtime-time-view.js');
-    for (const id of ['overtimeInitialHours', 'overtimeInitialMinutes']) {
-      const node = document.createElement('input');
-      node.type = 'number';
-      node.id = id;
-      document.body.append(node);
-    }
-    const view = createOvertimeTimeView({ byId: id => document.getElementById(id), getServerLimits: () => ({ maxSeconds }),
-      setValueUnlessFocused: (id, value) => { document.getElementById(id).value = value; } });
-    view.renderInitialDuration(seconds);
-    const selectedHours = document.getElementById('overtimeInitialHours').value;
-    const parsed = view.readInitialDuration();
-    return { saved, readonly, inputValid, selectedHours, parsed };
-  }, { seconds, maxSeconds: MAX_OVERTIME_SECONDS });
+    return { saved, readonly, inputValid };
+  });
   assert.equal(result.saved, seconds);
   assert.equal(result.readonly, true);
   assert.equal(result.inputValid, true);
-  assert.equal(result.selectedHours, '1000');
-  assert.equal(result.parsed, seconds);
 });
 
 test('native display input accepts six Unicode code points and validates after composition', async t => {

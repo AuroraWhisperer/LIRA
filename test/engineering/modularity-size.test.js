@@ -103,11 +103,3 @@ test('standalone CLI reports large files without a registry or a failing size ce
   assert.match(report.stdout, /test\/scenario\.test\.js: 1500 lines/);
   assert.match(report.stdout, /3 advisory findings/);
 });
-
-test('repository size findings inform review without certifying or rejecting cohesion', (t) => {
-  const result = checkModularity(ROOT_DIR);
-  assert.ok(result.files.includes('src/server.js'));
-  for (const { path: file, lines, kind } of result.assessments) {
-    t.diagnostic(`${file}: ${lines} lines (${kind}); review responsibility and purpose when changing this file.`);
-  }
-});

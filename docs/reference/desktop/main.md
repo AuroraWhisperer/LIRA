@@ -26,6 +26,8 @@
 
 `PlaybackOutputContext` 等待设备首次读取才确认打开，PCM 缓冲最多 500ms，IPC 两端有界排队、流代次和序号校验。超时、设备失联、缓冲溢出或 worker 退出会暂停播放；重载、主 frame 导航、renderer 崩溃和桌面退出停止本实例输出。数据目录为 `<dataDir>/playback-output`，不存储 PCM 或歌曲文件。Windows 启动使用 Electron 支持的 `disable-renderer-backgrounding`，主窗口从创建时设置 backgroundThrottling=false。实测仅运行中切换页面节流不足以保证隐藏窗口的 PCM 时钟；代价是 Windows renderer 不再因不可见而降低进程优先级，主窗口后台任务也保持运行。
 
+`playback-output.js` 普通命令最多排队 4 个；队列满时仍允许额外 1 个停止命令，接收 stop 后立即使当前流失效。同代次重复 stop 合并，新的 open 改变代次后，后续 stop 独立排队，避免清理被拥堵丢弃或迟到的 open 重新激活已停止的流。
+
 为使媒体元素进入 Web Audio，`audio-media-cors.js` 只对本实例主窗口主 frame、精确桌面 origin、GET/media、已知音乐 CDN 的响应设置该 origin 的 CORS 头。`local-media` 开启标准 CORS 支持，但仍逐文件验证 allowlist，仅给精确桌面 origin 返回许可头；不关闭 webSecurity，不扩大文件访问。IPC 载荷见 [播放输出桥](preload.md#内置播放输出)。
 
 ## 使用中的本机画面与退出
@@ -448,7 +450,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 | [dynamic-lottery-auth.js](../../../src/electron/dynamic-lottery-auth.js)，main 创建 | 先移除其 IPC，再 dispose 授权会话，等待 `whenIdle()`（登录/登出及串行队列） | 持有独立 Cookie session/加密快照；后端抽奖任务与 lotteryDb 另由 runtime.stop 取消并排空 |
 | [remote-gift-controller.js](../../../src/electron/remote-gift-controller.js) | `dispose()` + `whenIdle()` | SQLite 礼物投影、cursor/source；abort HTTP/SSE、清 timer、来源/授权/controller/projection fence 拒绝晚提交 |
 | [cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) | `dispose()` + `whenIdle()`；礼物互动 IPC disposer 只解除 IPC/订阅 | 本地 settings/songs 与 Bilibili 认证；待传歌曲快照不会因退出删除，授权/dirty 代次隔离晚结果 |
-| [fan-profile-controller.js](../../../src/electron/fan-profile-controller.js) | IPC disposer 仅 removeHandler；main 执行 dispose + whenIdle（allSettled 的同步/大航海/自动更新工作） | songDb 私人档案；停止 timer、abort 请求、移除授权订阅，scope/epoch 拒绝旧结果 |
+| [fan-profile-controller.js](../../../src/electron/fan-profile-controller.js) | IPC disposer 仅 removeHandler；main 执行 dispose + whenIdle（allSettled 的同步/大航海/自动更新、身份预览与曾用名查询/提交工作） | songDb 私人档案；停止 timer、abort 请求、移除授权订阅，scope/epoch 拒绝旧结果 |
 | [desktop-auth-controller.js](../../../src/electron/desktop-auth-controller.js)，main 初始化 | `dispose()` abort 登录；`whenIdle()` 等账号操作队列和交互登录完成 | 分区 Cookie/本地加密快照，disposed 与账号代次保护；不依赖业务 SQLite |
 | [gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js) 创建时注入导出 controller | disposer 自行 unbind、controller.dispose/cancel、removeHandler；**没有单独 whenIdle** | prepare 读取礼物投影，save 写用户选定图片目录；任务/准备代次与 viewRevision 检查阻止失效任务继续，不重复调用 controller.dispose |
 | [daily-bot-ipc.js](../../../src/electron/ipc/daily-bot-ipc.js) 创建时注入每日机器人 controller | disposer 自行 removeHandler + controller.dispose；**没有单独 whenIdle** | 云端开关、词库条件读取/保存及旧签到库只读接管入口；清 context/draft/内存词库缓存并移除授权订阅，await 后复核 context，不再读失效账号数据；远端请求可能已经执行 |

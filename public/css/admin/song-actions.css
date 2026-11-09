@@ -61,7 +61,7 @@
   right: 0;
   z-index: 40;
   display: grid;
-  min-width: 152px;
+  min-width: 128px;
   gap: 2px;
   padding: 4px;
   border: 1px solid var(--border);
@@ -111,7 +111,7 @@
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  text-align: left;
+  text-align: center;
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
 }

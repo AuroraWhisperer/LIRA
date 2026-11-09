@@ -18,7 +18,7 @@ implementation_status: client-query-batch-complete
 
 已完成队列关联索引、礼物最近列表索引、历史双向边界分页与有效版本内的计数复用、粉丝候选批量读取。song v7 / gift v12 均走正式迁移；旧时间解释、同时间 ID 降序、现有灯牌排序与来源隔离保留。参见[实施记录](../../specs/plans/archive/2026-09-19-query-optimization.md)和[存储事实源](../reference/backend/storage.md)。没有发布或修改真实用户数据库。
 
-基准入口：[benchmark-client-queries.js](../../scripts/benchmark-client-queries.js)，使用临时磁盘库及合成数据：10 万礼物、1,000 档案/50,000 明细、10 万条点歌流水。每项单列首次读取，随后保存 30 次热态原始样本，运行环境、commit、相关未提交差异与查询计划见[修改前](2026-09-19-client-queries-before.json)和[修改后](2026-09-19-client-queries-after.json)。执行命令分别为 `node scripts/benchmark-client-queries.js docs/reports/2026-09-19-client-queries-before.json`、`node scripts/benchmark-client-queries.js docs/reports/2026-09-19-client-queries-after.json`；before 文件在修改运行代码前生成。
+当时基准入口：`scripts/benchmark-client-queries.js`（2026-11-09 已移至根 `tmp/`；其旧 SQL `sourceScope` 参数已不适用于现行查询契约，原始测量结果继续保留），使用临时磁盘库及合成数据：10 万礼物、1,000 档案/50,000 明细、10 万条点歌流水。每项单列首次读取，随后保存 30 次热态原始样本，运行环境、commit、相关未提交差异与查询计划见[修改前](2026-09-19-client-queries-before.json)和[修改后](2026-09-19-client-queries-after.json)。执行命令分别为 `node scripts/benchmark-client-queries.js docs/reports/2026-09-19-client-queries-before.json`、`node scripts/benchmark-client-queries.js docs/reports/2026-09-19-client-queries-after.json`；before 文件在修改运行代码前生成。
 
 | 场景 | 修改前 P50 / P95（ms） | 修改后 P50 / P95（ms） |
 | --- | --- | --- |

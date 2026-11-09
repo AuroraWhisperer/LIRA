@@ -55,19 +55,39 @@ test('heart-box collection opens in the canvas and publishes either style with l
   assert.equal(castles.length, 4);
   assert.ok(castles.every(image => image.source === '/img/heart-box-collection/castle.webp' && image.width > 0));
   const rewards = canvas.locator('[data-component-parameter="showRewards"]');
+  const rewardSaved = value => canvas.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/component-preview/appearance'
+      && response.request().postDataJSON()?.patch?.showRewards === value && response.status() === 200);
+  const hiddenSaved = rewardSaved(false);
   await rewards.uncheck();
+  await hiddenSaved;
   await preview.locator('.heart-collection-reward').first().waitFor({ state: 'hidden' });
   const style = canvas.locator('[data-component-parameter="displayStyle"]');
   await style.selectOption('compact');
   await preview.locator('.heart-collection.is-compact').waitFor();
+  const visibleSaved = rewardSaved(true);
   await rewards.check();
+  await visibleSaved;
   await preview.locator('.heart-collection-reward').first().waitFor();
+  const appearanceStarted = Promise.withResolvers();
+  const finishAppearance = Promise.withResolvers();
+  t.after(() => finishAppearance.resolve());
+  await canvas.route(url => url.pathname === '/api/component-preview/appearance', async route => {
+    if (route.request().postDataJSON()?.action !== 'patch') return route.continue();
+    appearanceStarted.resolve();
+    await finishAppearance.promise;
+    await route.continue();
+  });
   await rewards.uncheck();
   await preview.locator('.heart-collection-reward').first().waitFor({ state: 'hidden' });
-  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await canvas.getByRole('button', { name: '保存并应用', exact: true }).hover();
+  await canvas.mouse.down();
+  await appearanceStarted.promise;
+  await canvas.mouse.up();
+  finishAppearance.resolve();
   await canvas.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
-  assert.equal(saved.document.items[0].appearance.config.showRewards, false);
+  assert.equal(fixture.runtime.settings.heartBoxCollectionShowRewards, 'false');
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(outputUrl)).status, 200);

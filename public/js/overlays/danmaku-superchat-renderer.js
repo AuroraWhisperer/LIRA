@@ -75,11 +75,13 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
     header.append(avatar(), profile);
     card.append(header, copy);
   } else if (style === 'snowfox') {
+    root.dataset.danmakuFit = 'font-size';
     const header = node('div', 'sc-snowfox-head');
     header.append(node('span', 'sc-name', name), amount);
     card.append(header, copy);
     root.append(avatar());
   } else if (style === 'prismatic') {
+    root.dataset.danmakuFit = 'font-size';
     const header = node('div', 'sc-prismatic-head');
     header.append(node('span', 'sc-name', name), amount);
     card.append(header, copy);

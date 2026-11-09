@@ -310,7 +310,7 @@
 .world-clock-city-menu {
   position: fixed;
   inset: auto;
-  width: 168px;
+  width: 136px;
   max-width: calc(100vw - 16px);
   margin: 0;
   padding: 4px;
@@ -322,6 +322,7 @@
 
 .world-clock-city-menu > button {
   display: flex;
+  justify-content: center;
   align-items: center;
   gap: 8px;
   width: 100%;
@@ -333,7 +334,7 @@
   color: var(--color-danger);
   font-size: var(--type-size-control);
   font-weight: var(--type-weight-medium);
-  text-align: left;
+  text-align: center;
 }
 
 .world-clock-city-menu > button > svg {

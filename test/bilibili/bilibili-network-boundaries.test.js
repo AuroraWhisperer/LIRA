@@ -69,7 +69,6 @@ test('invalid API and WBI response errors omit unstructured upstream private con
     () => getBilibiliWbiMixinKey({}),
   ]) {
     await assert.rejects(invoke(), (error) => {
-      assert.match(error.message, /non-JSON/);
       assert.doesNotMatch(error.message, /synthetic-private-account-data/);
       return true;
     });

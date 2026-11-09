@@ -315,6 +315,36 @@ test('supported random SC styles retain snapshots, increments, removal and timed
   }
 });
 
+test('stardust gift and membership anchors place cards at opposite centered edges and can swap', async () => {
+  const root = Object.assign(new FakeNode('div'), { clientWidth: 1000, clientHeight: 800 });
+  const document = createFakeDocument();
+  document.body = { dataset: {} };
+  document.createElement = tag => Object.assign(new FakeNode(tag), {
+    offsetWidth: tag === 'article' ? 120 : 0,
+    offsetHeight: tag === 'article' ? 42 : 0,
+  });
+  const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), { document });
+  const feed = module.createDanmakuFeed(root, {
+    style: 'stardust', layout: 'fullscreen-random', expireItems: false, autoScroll: false,
+  });
+  for (const swapped of [false, true]) {
+    document.body.dataset.stardustSwapAnchors = swapped ? 'on' : 'off';
+    feed.render([
+      { id: 'gift', kind: 'gift', name: '赠送者', giftName: '花', giftCount: 1, giftTotalPrice: 10 },
+      { id: 'member', kind: 'gift', name: '守护者', giftGuardLevel: 3, giftCount: 1 },
+    ]);
+    assert.equal(root.children.length, 2);
+    const [gift, member] = root.children;
+    for (const card of root.children) {
+      assert.ok(Math.abs(Number.parseFloat(card.style.left) + card.offsetWidth / 2 - root.clientWidth / 2) < 1,
+        'highlighted events remain horizontally centered');
+    }
+    assert.equal(Number.parseFloat(gift.style.top) < root.clientHeight / 2, !swapped);
+    assert.equal(Number.parseFloat(member.style.top) < root.clientHeight / 2, swapped);
+  }
+  feed.destroy();
+});
+
 test('harbor gift minimum filters snapshots and increments by total and never filters SC', async () => {
   const root = new FakeNode('div');
   const module = await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/danmaku-feed.js'), {

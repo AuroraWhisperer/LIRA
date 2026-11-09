@@ -26,7 +26,7 @@
 .advanced-lyric-item[data-tone="accent"] { --item-color: var(--advanced-accent); }
 .advanced-lyric-item[data-tone="secondary"] { --item-color: var(--advanced-secondary); --item-tone: var(--advanced-secondary); --item-ribbon: var(--advanced-secondary-ribbon); }
 .advanced-lyric-item[data-source="translation"] { opacity: 0.7; font-weight: 400; }
-.advanced-lyric-enter, .advanced-lyric-hold, .advanced-lyric-exit { transform-origin: center; }
+.advanced-lyric-enter, .advanced-lyric-stage, .advanced-lyric-hold, .advanced-lyric-exit { transform-origin: center; }
 .advanced-lyric-text {
   position: relative;
   box-sizing: border-box;

@@ -13,6 +13,8 @@ const DEFAULT_WESING_CACHE_PATH =
     : '';
 
 const DEFAULT_SETTINGS = {
+  heartBoxCollectionShowRewards: 'true',
+  liveRankingsRange: 'all',
   interactionOverlayTitle: '',
   interactionOverlayHint: '',
   interactionRatingRules: '弹幕发送整数 1–10\n重复评分取最后一次',
@@ -53,7 +55,7 @@ const DEFAULT_SETTINGS = {
   giftSwingSize: '150',
   giftSwingDurationSeconds: '20',
   giftSwingAngle: '36',
-  giftSwingSpeed: '150',
+  giftSwingSpeed: '100',
   giftSwingTextMode: 'full',
   giftFrameEnabled: 'false',
   giftEffectDanmakuEnabled: 'false',
@@ -255,7 +257,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricVisibleLines: '0',
   desktopLyricEnabled: 'true',
   advancedLyricEnabled: 'false',
-  advancedLyricLayout: 'center',
+  advancedLyricLayout: 'phrase-flow',
   advancedLyricShowNextLine: 'false',
   advancedLyricHideUnsung: 'true',
   advancedLyricShowTranslation: 'false',

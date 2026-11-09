@@ -57,14 +57,14 @@ test('cooldown starts at acceptance, is shared by viewers, and rejects without e
   t.mock.timers.tick(60 * 60 * 1000);
   const rejected = f.message('点歌晴天');
   assert.equal(rejected.accepted, false);
-  assert.equal(rejected.autoReply.message, '《晴天》冷却中，还需 5小时。');
+  assert.equal(rejected.code, 'SONG_COOLDOWN');
   assert.deepEqual(rejected.autoReply.target, { uid: '2', name: '乙' });
   assert.equal(f.context.store.countActive(), 1);
   assert.equal(f.userCooldowns.getLastRequestAt('2'), 0);
   f.settings.enableRandomTagReply = 'false';
   assert.equal(f.message('点歌晴天').autoReply, null);
   t.mock.timers.tick(5 * 60 * 60 * 1000 - 1);
-  assert.throws(() => f.add(), /还需 1分/);
+  assert.throws(() => f.add(), { code: 'SONG_COOLDOWN' });
   t.mock.timers.tick(1);
   assert.equal(f.message('点歌晴天').accepted, true);
 });
@@ -73,7 +73,7 @@ for (const days of [1, 2]) {
   test(`${days} natural days expire at the correct Beijing midnight`, (t) => {
     const f = fixture(t, { songCooldownMode: 'days', songCooldownValue: String(days) });
     f.add();
-    assert.throws(() => f.add(), days === 1 ? /明天 00:00/ : /后天 00:00/);
+    assert.throws(() => f.add(), { code: 'SONG_COOLDOWN' });
     t.mock.timers.tick(5 * 60 * 1000 + (days - 1) * 86400000 - 1);
     assert.throws(() => f.add(), { code: 'SONG_COOLDOWN' });
     t.mock.timers.tick(1);
@@ -111,7 +111,7 @@ test('changing a rule recalculates the last acceptance and queue duplicates rema
   assert.throws(() => f.add(), { code: 'SONG_COOLDOWN' });
   t.mock.timers.tick(2 * 3600000);
   f.settings.songCooldownValue = '1';
-  assert.throws(() => f.add(), /队列里已经有/);
+  assert.throws(() => f.add(), { code: 'SONG_ALREADY_QUEUED' });
   queue.handleQueueAction(f.context, 'clear');
   assert.ok(f.add().id);
   f.settings.songCooldownMode = 'off';
@@ -130,8 +130,10 @@ test('matched abbreviations share cooldown, artists stay distinct, and random se
   assert.equal(random.queueItem.song_name, '七里香');
   const exhausted = f.message('随机点歌 国语');
   assert.equal(exhausted.accepted, false);
-  assert.match(exhausted.autoReply.message, /冷却/);
-  assert.match(f.message('随机点歌 英语').autoReply.message, /没有「英语」/);
+  assert.equal(exhausted.code, 'SONG_COOLDOWN');
+  const unmatched = f.message('随机点歌 英语');
+  assert.equal(unmatched.accepted, false);
+  assert.notEqual(unmatched.autoReply.message, exhausted.autoReply.message);
   f.saveSong({ name: '晴天', artist: '另一位歌手' });
   assert.ok(f.add({ artist: '另一位歌手' }).id);
 });
@@ -147,7 +149,7 @@ test('cooldown write failure rolls back admission and a retry can succeed', (t) 
   assert.ok(f.add().id);
 });
 
-test('manual admission returns a readable cooldown error without broadcasting another queue item', async (t) => {
+test('manual admission rejects a cooling song without broadcasting another queue item', async (t) => {
   const f = fixture(t);
   const broadcasts = [];
   const context = { queue: { add: f.add, recordRequestResult: result => queue.recordQueueRequestResult(f.context, result) },
@@ -163,7 +165,7 @@ test('manual admission returns a readable cooldown error without broadcasting an
   assert.equal((await request()).status, 200);
   const rejected = await request();
   assert.equal(rejected.status, 400);
-  assert.match(rejected.body.error, /《晴天》冷却中/);
+  assert.equal(rejected.body.code, 'SONG_COOLDOWN');
   assert.deepEqual(broadcasts, ['queue:add', 'queue:request-result']);
   assert.equal(f.context.store.countActive(), 1);
 });

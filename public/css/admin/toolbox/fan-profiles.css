@@ -52,7 +52,6 @@
 .fan-toolbar {
   margin-bottom: 12px;
   padding-bottom: 0;
-  border-bottom: 1px solid var(--color-border-light, var(--border));
 }
 #fanPageError {
   margin: 0 0 12px;
@@ -75,6 +74,7 @@
 .fan-nav {
   flex: 1;
   justify-content: flex-start;
+  border-bottom: 1px solid var(--color-border-light, var(--border));
 }
 .fan-nav [role='tab'],
 .fan-detail-tabs button {
@@ -530,12 +530,51 @@
 }
 .fan-basic-facts > .fan-former-names {
   grid-column: 1 / -1;
+  display: block;
+}
+.fan-former-heading {
   display: flex;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 12px;
 }
-.fan-former-names dt {
-  flex-shrink: 0;
+.fan-former-details summary {
+  cursor: pointer;
+}
+.fan-name-count {
+  margin-left: 10px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+}
+.fan-name-pill {
+  display: inline-block;
+  max-width: 100%;
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow-wrap: anywhere;
+}
+.fan-name-pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-top: 10px;
+  padding-right: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+.fan-former-batch {
+  margin: 12px 0;
+}
+.fan-former-batch progress {
+  width: 100%;
+  height: 6px;
+  accent-color: var(--color-control-accent);
 }
 .fan-basic-facts .fan-former-names dd {
   margin-top: 0;

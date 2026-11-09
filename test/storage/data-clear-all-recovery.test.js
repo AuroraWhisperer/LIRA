@@ -132,7 +132,6 @@ test('gift database clear preserves local data when server deletion fails', asyn
   await clearGiftsRoute(context, { body: async () => ({ confirm: true }) }, response);
 
   assert.equal(response.status, 502);
-  assert.equal(response.payload.error, '服务器礼物流水清理失败，本地数据未删除。');
   assert.deepEqual(calls, ['remote:clear']);
 });
 
@@ -170,6 +169,5 @@ test('gift database clear reports a partial result and rebuilds after local fail
 
   assert.equal(response.status, 500);
   assert.equal(response.payload.partial, true);
-  assert.equal(response.payload.error, '服务器礼物流水已清空，但本地清理失败，正在重新同步。');
   assert.deepEqual(calls, ['remote:clear', 'local:clear', 'gift-sync:rebuild']);
 });

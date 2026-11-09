@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports, response } = require('../helpers/frontend-modules');
@@ -120,6 +121,67 @@ test('playlist refresh bypasses old backend entries and caches an empty result a
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(cache.get('qq:playlist-tracks:synthetic').items.length, 0);
   assert.equal((await service.getMusicHomeContent(registry, request)).tracks.length, 0);
+});
+
+test('personalized backend cache follows authorization across account changes and service restarts', async (t) => {
+  const apiCacheDir = createScratchDirectory('personalized-account-cache-', t);
+  let cookie = 'fixture-credential-A';
+  let calls = 0;
+  const provider = {
+    async getSafeCookieHeader() { return cookie; },
+    async getPersonalizedPlaylists() {
+      calls++;
+      return [{ id: cookie === 'fixture-credential-A' ? 'playlist-a' : cookie ? 'playlist-b' : 'anonymous' }];
+    },
+  };
+  const request = { platform: 'qq', action: 'personalized' };
+  const read = (service) => service.getMusicHomeContent({ get: () => provider }, request);
+  const service = createLyricsService({ apiCacheDir });
+  assert.equal((await read(service)).playlists[0].id, 'playlist-a');
+  assert.equal((await read(service)).cached, true);
+  assert.equal(calls, 1);
+  cookie = 'fixture-credential-B';
+  assert.equal((await read(service)).playlists[0].id, 'playlist-b');
+
+  const restarted = createLyricsService({ apiCacheDir });
+  assert.equal((await read(restarted)).cached, true);
+  assert.equal(calls, 2);
+  cookie = '';
+  assert.equal((await read(restarted)).playlists[0].id, 'anonymous');
+  cookie = 'fixture-credential-A';
+  assert.equal((await read(restarted)).playlists[0].id, 'playlist-a');
+  assert.equal(calls, 3);
+  const disk = fs.readdirSync(apiCacheDir).map(name => name + fs.readFileSync(path.join(apiCacheDir, name), 'utf8')).join('');
+  assert.doesNotMatch(disk, /fixture-credential-/);
+});
+
+test('an account change during personalized retrieval cannot populate either account cache', async (t) => {
+  const apiCacheDir = createScratchDirectory('personalized-pending-cache-', t);
+  const service = createLyricsService({ apiCacheDir });
+  const started = Promise.withResolvers();
+  const pending = Promise.withResolvers();
+  let cookie = 'old-credential';
+  let calls = 0;
+  const provider = {
+    async getSafeCookieHeader() { return cookie; },
+    async getPersonalizedPlaylists() {
+      if (++calls === 1) {
+        started.resolve();
+        return pending.promise;
+      }
+      return [{ id: cookie === 'old-credential' ? 'old-fresh' : 'new-fresh' }];
+    },
+  };
+  const read = () => service.getMusicHomeContent({ get: () => provider }, { platform: 'qq', action: 'personalized' });
+  const oldRequest = read();
+  await started.promise;
+  cookie = 'new-credential';
+  pending.resolve([{ id: 'in-flight-result' }]);
+  await oldRequest;
+  assert.equal((await read()).playlists[0].id, 'new-fresh');
+  cookie = 'old-credential';
+  assert.equal((await read()).playlists[0].id, 'old-fresh');
+  assert.equal(calls, 3);
 });
 
 test('cached readers share refresh work without invalidating its cache write', async () => {

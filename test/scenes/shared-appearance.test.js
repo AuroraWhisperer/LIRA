@@ -19,6 +19,7 @@ const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture')
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { readNowPlayingConfig, saveNowPlayingConfig } = require('../../src/server/now-playing-settings');
 const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
+const { buildGiftMotionEvents } = require('../../src/bilibili/gift/motion-config');
 
 function context(t) {
   const values = { ...DEFAULT_SETTINGS, songBoardSyncTheme: 'false', songBoardTitle: '客户端标题' };
@@ -32,20 +33,75 @@ test('lyric layers share visual settings while retaining their own output filter
   const advanced = normalizeSceneConfig('lyrics', { lyricLayer: 'advanced' });
   const owner = createSceneSharedAppearance(ctx);
   owner.patch('lyrics', advanced, { advancedLyricEnabled: 'true', advancedLyricLayout: 'corners',
-    advancedLyricMaterial: 'metallic', advancedLyricLayoutSequence: 'corners,arc', advancedLyricStrokeLayers: '3', advancedLyricHideUnsung: 'false' });
+    advancedLyricMaterial: 'metallic', advancedLyricLayoutSequence: 'corners,arc', advancedLyricStrokeLayers: '3', advancedLyricHideUnsung: 'false',
+    advancedLyricSavedPresets: JSON.stringify([{ id: 'canvas-look', name: '画布搭配', settings: { advancedLyricMaterial: 'metallic' } }]) });
   const next = createSceneSharedAppearance(ctx);
   for (const config of [basic, advanced]) {
     const appearance = next.read('lyrics', config);
     assert.equal(appearance.advancedLyricEnabled, 'true');
     assert.equal(appearance.advancedLyricMaterial, 'metallic');
     assert.equal(appearance.advancedLyricHideUnsung, 'false');
+    assert.equal(JSON.parse(appearance.advancedLyricSavedPresets)[0].name, '画布搭配');
     assert.equal(Object.hasOwn(appearance, 'lyricLayer'), false);
   }
   assert.equal(basic.lyricLayer, 'basic');
   assert.equal(advanced.lyricLayer, 'advanced');
+  const item = { id: 'lyrics', type: 'lyrics', appearance: { config: advanced } };
+  assert.equal(Object.hasOwn(readSceneSharedAppearances(ctx, [item]).lyrics, 'advancedLyricSavedPresets'), false,
+    'the editor library must not be copied into the broadcast appearance');
   assert.throws(() => owner.patch('lyrics', advanced, { lyricLayer: 'basic' }));
   assert.throws(() => normalizeSceneConfig('lyrics', { advancedLyricLayoutSequence: 'corners,missing' }));
   assert.throws(() => normalizeSceneConfig('lyrics', { advancedLyricStrokeLayers: '8' }));
+});
+
+test('canvas motion edits use each effect owner and reach settlement without copying settings into the layer', t => {
+  const ctx = context(t);
+  const drop = normalizeSceneConfig('gift-frame', { style: 'gift-drop' });
+  const swing = normalizeSceneConfig('gift-frame', { style: 'gift-swing' });
+  const owner = createSceneSharedAppearance(ctx);
+  owner.patch('gift-frame', drop, { giftDropEnabled: 'true', giftDropThresholdRmb: '1.25', giftDropSize: '128',
+    giftDropDurationSeconds: '12', giftDropQuantityMultiplier: '3', giftDropSpeed: '75', giftDropBounce: '40' });
+  owner.patch('gift-frame', swing, { giftSwingEnabled: 'true', giftSwingTextMode: 'name-quantity', giftSwingAngle: '24' });
+  const current = createSceneSharedAppearance(ctx);
+  assert.equal(current.read('gift-frame', drop).giftDropSize, '128');
+  assert.equal(Object.hasOwn(current.read('gift-frame', drop), 'giftSwingAngle'), false);
+  const [dropEvent, swingEvent] = buildGiftMotionEvents({ id: 19, detection_status: 'final', total_price: 2, num: 4 }, ctx.values);
+  assert.equal(dropEvent.motion.size, 128);
+  assert.equal(dropEvent.motion.quantityMultiplier, 3);
+  assert.equal(dropEvent.motion.durationSeconds, 12);
+  assert.equal(swingEvent.motion.textMode, 'name-quantity');
+  ctx.values.giftDropSize = '160';
+  assert.equal(createSceneSharedAppearance(ctx).read('gift-frame', drop).giftDropSize, '160');
+  assert.equal(Object.hasOwn(drop, 'giftDropSize'), false);
+  assert.throws(() => current.patch('gift-frame', drop, { giftSwingAngle: '30' }));
+  assert.throws(() => current.patch('gift-frame', drop, { giftDropSize: '180', giftDropQuantityMultiplier: '9' }));
+  assert.equal(ctx.values.giftDropSize, '160', 'an invalid multi-field edit must not partially save');
+});
+
+test('heart box reward visibility follows the shared setting through both entry points', t => {
+  const ctx = context(t);
+  const config = normalizeSceneConfig('heart-box-collection', { displayStyle: 'compact', showRewards: true });
+  createSceneSharedAppearance(ctx).patch('heart-box-collection', config, { showRewards: false });
+  assert.equal(ctx.values.heartBoxCollectionShowRewards, 'false');
+  assert.equal(createSceneSharedAppearance(ctx).read('heart-box-collection', config).showRewards, false);
+  ctx.values.heartBoxCollectionShowRewards = 'true';
+  assert.equal(createSceneSharedAppearance(ctx).read('heart-box-collection', config).showRewards, true);
+  assert.equal(config.displayStyle, 'compact');
+  assert.throws(() => createSceneSharedAppearance(ctx).patch('heart-box-collection', config, { displayStyle: 'task' }));
+});
+
+test('rankings share viewing mode while retaining each layer board selection and appearance', t => {
+  const ctx = context(t);
+  const config = normalizeSceneConfig('live-rankings', { showHot: false, showNew: true, showPopular: false, showArea: false, fontSize: 24 });
+  createSceneSharedAppearance(ctx).patch('live-rankings', config, { range: 'all' });
+  assert.equal(ctx.values.liveRankingsRange, 'all');
+  ctx.values.liveRankingsRange = 'nearby';
+  assert.equal(createSceneSharedAppearance(ctx).read('live-rankings', config).range, 'nearby');
+  assert.equal(config.showNew, true);
+  assert.equal(config.fontSize, 24);
+  assert.throws(() => createSceneSharedAppearance(ctx).patch('live-rankings', config, { range: 'invalid' }));
+  assert.equal(ctx.values.liveRankingsRange, 'nearby');
+  assert.throws(() => createSceneSharedAppearance(ctx).patch('live-rankings', config, { showHot: true }));
 });
 
 test('resource lyric appearances preserve each scene layer through reads and saved appearance responses', t => {
@@ -113,7 +169,7 @@ test('now-playing settings are shared by desktop and canvas while each scene ret
   const ctx = context(t);
   const snapshots = [];
   ctx.broadcastSnapshot = reason => snapshots.push(reason);
-  const config = { ...createSceneExtraDefaults('now-playing'), style: 'turntable' };
+  const config = { ...createSceneExtraDefaults('now-playing'), style: 'turntable', nowPlayingPart: 'record' };
   saveNowPlayingConfig(ctx, { ...createSceneExtraDefaults('now-playing'), style: 'cover',
     nowPlayingShowArtist: false, nowPlayingRotationSeconds: 28 });
   assert.equal(readNowPlayingConfig(ctx.values).style, 'cover');
@@ -121,6 +177,12 @@ test('now-playing settings are shared by desktop and canvas while each scene ret
   assert.equal(shared.nowPlayingShowArtist, false);
   assert.equal(shared.nowPlayingRotationSeconds, 28);
   assert.equal(Object.hasOwn(shared, 'style'), false);
+  assert.equal(Object.hasOwn(shared, 'nowPlayingPart'), false);
+  const text = { ...config, nowPlayingPart: 'text' };
+  assert.notEqual(sceneAppearanceKey('now-playing', config), sceneAppearanceKey('now-playing', text));
+  assert.equal({ ...config, ...shared }.nowPlayingPart, 'record');
+  assert.equal({ ...text, ...shared }.nowPlayingPart, 'text');
+  assert.throws(() => createSceneSharedAppearance(ctx).patch('now-playing', config, { nowPlayingPart: 'text' }));
   createSceneSharedAppearance(ctx).patch('now-playing', config, { nowPlayingShowArtist: true, nowPlayingLayout: 'vertical' });
   const reread = readNowPlayingConfig(ctx.values);
   assert.equal(reread.nowPlayingShowArtist, true);

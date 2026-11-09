@@ -40,6 +40,8 @@ Status: Complete（仅本计划列出的客户端查询批次，2026-09-19）。
 
 v3 升级 fixture 需要同时移除新索引后才能删掉 v4 列；已更新 fixture，保持真正迁移路径的验证。一次新增测试的清理顺序先关闭主库而外部句柄尚存导致 Temp 清理失败；已修正句柄释放顺序并通过回归，遗留目录的单独清理被自动审批策略阻止，未改仓库或用户数据。
 
+2026-11-09 维护注记：下方命令属于当时的合成基准；原脚本已移至根 `tmp/`，不再作为当前性能验证入口。旧 SQL `sourceScope` 参数在现行存储契约下返回空集，不能用其结果推断查询性能。历史 before/after JSON 与本计划中的验收记录保留。
+
 ## Verification
 
 `node scripts/benchmark-client-queries.js <output.json>`：10 万礼物、1000 档案/5 万记录，固定合成输入、首次访问和 30 次热态样本，记录 SQLite/Node/OS/CPU/内存、PRAGMA、commit/工作区差异及查询计划。该基准不替代 Electron 停顿和服务器 10 分钟持续负载门槛。

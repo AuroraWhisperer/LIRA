@@ -1,7 +1,7 @@
 'use strict';
 
 const { createHash } = require('node:crypto');
-const { profilePatch, identity, identityKey, timestamp, recordData } = require('./validation');
+const { profilePatch, identity, identityKey, timestamp, recordData, entrySnapshot, text } = require('./validation');
 const { DAY_MS, dateValue, dayStart } = require('./dates');
 const { normalizeGuardAccompany, accompanySettings } = require('./guard-accompany');
 const { validateSongSummary } = require('./song-summary');
@@ -44,7 +44,17 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       if (typeof profile.id !== 'string' || profileIds.has(profile.id)) throw new Error('备份中有重复或无效档案。');
       profileIds.add(profile.id);
       const patch = profilePatch(profile);
-      profiles.push({ ...profile, identity: patch.identity });
+      const lastEntry = entrySnapshot(profile.lastEntry);
+      let excludedFormerNames;
+      if (profile.excludedFormerNames !== undefined) {
+        if (!Array.isArray(profile.excludedFormerNames)) throw new Error('备份中的曾用名排除记录无效。');
+        excludedFormerNames = [...new Set(profile.excludedFormerNames.map(name => text(name, '曾用名', 200)).filter(Boolean))];
+      }
+      profiles.push({ ...profile, identity: patch.identity,
+        ...(profile.lastEntry !== undefined ? { lastEntry } : {}),
+        ...(profile.preferredFormerName !== undefined ? { preferredFormerName: patch.preferredFormerName } : {}),
+        ...(excludedFormerNames ? { excludedFormerNames } : {}),
+      });
       if (profile.guardAccompany != null && !normalizeGuardAccompany(profile.guardAccompany))
         throw new Error('备份中的平台陪伴天数无效。');
       if (profile.guardRoster !== undefined && profile.guardRoster !== null) {

@@ -94,6 +94,7 @@ export function createPrismaticIdentity(document, item, name, classNames, resolv
 export function createPrismaticGuardCard(document, item, classNames, createAvatar) {
   const root = document.createElement('article');
   root.className = `${classNames.item} ${classNames.bubble} is-gift is-guard-thanks`;
+  root.dataset.danmakuFit = 'font-size';
   root.dataset.guard = String(item.giftGuardLevel);
   const card = document.createElement('div');
   card.className = 'prismatic-guard-card';

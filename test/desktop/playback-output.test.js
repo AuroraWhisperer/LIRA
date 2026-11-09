@@ -44,7 +44,7 @@ test('playback IPC accepts only bounded PCM and enumerated output families from 
   assert.equal(handlers.size, 0);
 });
 
-test('native playback serializes writes, rejects stale streams, bounds backlog and closes its own worker', async () => {
+test('native playback serializes writes, rejects stale streams, bounds backlog and closes its own worker', async (t) => {
   let launches = 0;
   const child = new EventEmitter();
   Object.assign(child, { pid: 1234, stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough() });
@@ -70,6 +70,7 @@ test('native playback serializes writes, rejects stale streams, bounds backlog a
       return child;
     },
   });
+  t.after(() => output.dispose());
   assert.equal(launches, 0);
   assert.equal((await output.invoke('stop')).ok, true);
   const opened = await output.invoke('open', { deviceId: 'waveout:default' });
@@ -92,6 +93,36 @@ test('native playback serializes writes, rejects stale streams, bounds backlog a
   assert.equal(launches, 1);
   await output.invoke('open', { deviceId: 'asio:driver' });
   assert.equal(output.getCaptureProcessId(), null, 'ASIO cannot be advertised as a Windows process-loopback source');
+
+  await output.invoke('open', { deviceId: 'waveout:default' });
+  hold = true;
+  const refreshes = Array.from({ length: 4 }, () => output.invoke('list'));
+  await new Promise(resolve => setImmediate(resolve));
+  const stopsBefore = commands.filter(command => command.op === 'stop').length;
+  const saturatedStop = output.invoke('stop');
+  assert.equal(output.getCaptureProcessId(), null, 'stop must invalidate the active stream even when ordinary work is full');
+  const repeatedStop = output.invoke('stop');
+  assert.equal((await output.invoke('list')).ok, false, 'reserving a stop slot must not unbound ordinary work');
+  hold = false;
+  respond(held);
+  await Promise.all(refreshes);
+  assert.equal((await saturatedStop).ok, true);
+  assert.equal((await repeatedStop).ok, true);
+  assert.equal(commands.filter(command => command.op === 'stop').length, stopsBefore + 1,
+    'repeated stops must not create an unbounded cleanup backlog');
+  assert.equal(commands.at(-1).op, 'stop');
+
+  hold = true;
+  const opening = output.invoke('open', { deviceId: 'waveout:default' });
+  await new Promise(resolve => setImmediate(resolve));
+  const firstStop = output.invoke('stop');
+  const newerOpen = output.invoke('open', { deviceId: 'waveout:default' });
+  const newerStop = output.invoke('stop');
+  hold = false;
+  respond(held);
+  await Promise.all([opening, firstStop, newerOpen, newerStop]);
+  assert.deepEqual(commands.slice(-4).map(command => command.op), ['open', 'stop', 'open', 'stop']);
+  assert.equal(output.getCaptureProcessId(), null, 'late opens must not reactivate a stopped stream');
   await output.dispose();
   assert.equal(output.getProcessId(), null);
   assert.equal((await output.invoke('list')).ok, false, 'closed owners cannot restart after app exit');

@@ -25,7 +25,12 @@ const feed = createGiftWishFeed({
 });
 const socket = createOverlaySocket({
   onMessage(message) {
-    if (message.type !== 'snapshot' || message.state?.gifts?.viewRevision === revision) return;
+    if (message.type !== 'snapshot') return;
+    if (!query.has('showRewards')) {
+      showRewards = message.state?.settings?.heartBoxCollectionShowRewards !== 'false';
+      render();
+    }
+    if (message.state?.gifts?.viewRevision === revision) return;
     data = null;
     revision = message.state?.gifts?.viewRevision;
     render();

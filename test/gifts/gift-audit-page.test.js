@@ -86,6 +86,33 @@ test('gift audit analysis separates matches, misses, and server-only gifts', asy
   );
 });
 
+test('gift bubble deduplication keeps the first exact tuple and leaves fallback entries intact', async () => {
+  const { parseBubbleHtml } = await loadAnalysisModule();
+  const item = (userName, giftName, giftId, count) => `<div class="gift-item">
+    <div class="user-name">${userName}</div><span class="gift-name">${giftName}</span>
+    <div class="gift-${giftId}-50"></div><div class="numbers"><span class="number-${count}"></span></div>
+  </div>`;
+  const html = `<div>${item('a|b', 'c', 1, 1)}${item('a|b', 'c', 2, 1)}
+    ${item('a', 'b|c', 3, 1)}${item('a|b', 'c', 4, 2)}</div>`;
+  assert.deepEqual(toPlain(parseBubbleHtml(html).map(({ giftId }) => giftId)), ['1', '3', '4']);
+  const fallback = '<div class="user-name">A</div><span class="gift-name">花</span>';
+  assert.equal(parseBubbleHtml(fallback + fallback).length, 2);
+});
+
+test('gift matching preserves fuzzy Unicode scores, greedy tie order and unmatched records', async () => {
+  const { crossReference } = await loadAnalysisModule();
+  const bubble = { userName: ' 😀😁 A ', giftName: '花', giftId: '', comboCount: 10 };
+  const server = { user_name: '😀😆a', gift_name: '花', num: 1 };
+  const results = crossReference(
+    [bubble, bubble, bubble, { ...bubble, userName: 'ab' }],
+    [{ ...server, id: 'first' }, { ...server, id: 'second' }, { ...server, id: 'unmatched', user_name: 'ac' }],
+    0,
+  );
+  assert.deepEqual(toPlain(results.map(({ status }) => status)), ['match', 'match', 'miss', 'miss', 'extra']);
+  assert.deepEqual(toPlain(results.slice(0, 2).map(({ serverId }) => serverId)), ['first', 'second']);
+  assert.equal(results[4].userName, 'ac');
+});
+
 function loadAnalysisModule() {
   return loadModuleExports(path.join(ROOT_DIR, 'public/js/gift-audit/analysis.js'));
 }

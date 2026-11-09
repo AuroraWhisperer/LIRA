@@ -14,12 +14,16 @@ import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.j
 import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
 import { LYRIC_DISPLAY_FIELDS } from '../shared/advanced-lyric-appearance.js';
 import { createAdvancedLyricEditor } from './advanced-lyric-editor.js';
+import { createComponentConfigController } from './component-config-controller.js';
+import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
   forms = formsService,
   state = stateService,
   preview = desktopLyricPreview,
+  saveSettings = saveComponentSettings,
+  confirmSettings = confirmComponentSettings,
 } = {}) {
   const AUTOSAVE_DELAY_MS = 500;
   const { setValue, api, dangerConfirm } = utils;
@@ -133,14 +137,17 @@ export function createDesktopLyric({
 
     const autosaveState = document.getElementById('desktopLyricAutosaveState');
     let autosaveTimer = null;
-    let dirty = false;
-    let saving = false;
+    let pendingInput = false;
     let pendingSave = false;
+    let editingForm = false;
     const currentSettings = state.getAppState()?.settings;
     let settingsLoaded = Boolean(currentSettings);
-    if (currentSettings) loadDesktopLyricSettings(currentSettings);
-    let savedValues = currentSettings ? collectDesktopLyric() : {};
-    let latestSettings = currentSettings || {};
+    let renderedValues = collectDesktopLyric();
+    const controller = createComponentConfigController({
+      initial: currentSettings || {},
+      persist: (_draft, patch) => saveSettings(patch),
+      confirm: confirmSettings,
+    });
 
     const setAutosaveState = (text, state = '') => {
       if (!autosaveState) return;
@@ -148,69 +155,66 @@ export function createDesktopLyric({
       autosaveState.className = `desktop-lyric-autosave-state${state ? ` ${state}` : ''}`;
     };
 
+    const stopController = controller.subscribe(config => {
+      if (!settingsLoaded) return;
+      if (!editingForm) loadDesktopLyricSettings(config.draft);
+      renderedValues = collectDesktopLyric();
+      if (config.error) setAutosaveState(config.error, 'is-error');
+      else if (config.saving) setAutosaveState('正在自动保存…', 'is-saving');
+      else if (config.dirty) setAutosaveState('等待自动保存…', 'is-saving');
+      else setAutosaveState(config.applied ? '已自动保存' : '修改后自动保存', config.applied ? 'is-saved' : '');
+    });
+
+    const editForm = () => {
+      const values = collectDesktopLyric();
+      // Compare with the rendered form so defaults and unrelated settings are never submitted.
+      const patch = Object.fromEntries(Object.entries(values).filter(([key, value]) => value !== renderedValues[key]));
+      // Range pairs may clamp the saved value while the user is still typing the number.
+      editingForm = true;
+      try { controller.edit(patch); } finally { editingForm = false; }
+    };
+
     const saveDesktopLyric = async () => {
-      if (!dirty || !settingsLoaded) return;
-      if (saving) {
+      if (!settingsLoaded) return;
+      editForm();
+      if (controller.getStatus().saving) {
         pendingSave = true;
         return;
       }
-
-      saving = true;
-      dirty = false;
-      const patch = Object.fromEntries(Object.entries(collectDesktopLyric()).filter(([key, value]) => value !== savedValues[key]));
-      setAutosaveState('正在自动保存…', 'is-saving');
-      try {
-        const response = Object.keys(patch).length ? await api('/api/settings', patch) : null;
-        savedValues = { ...savedValues, ...patch };
-        latestSettings = response?.data?.settings || { ...latestSettings, ...patch };
-        if (!dirty) {
-          loadDesktopLyricSettings(latestSettings);
-          savedValues = collectDesktopLyric();
-          setAutosaveState('已自动保存', 'is-saved');
-        }
-      } catch (_) {
-        dirty = true;
-        setAutosaveState('自动保存失败，请重试', 'is-error');
-      } finally {
-        saving = false;
-        if (pendingSave) {
-          pendingSave = false;
-          void saveDesktopLyric();
-        }
+      if (!controller.getStatus().dirty) return;
+      await controller.save();
+      if (pendingSave) {
+        pendingSave = false;
+        void saveDesktopLyric();
       }
     };
 
     const scheduleAutosave = (immediate = false) => {
-      dirty = true;
+      syncParameterLayout();
+      syncEditorMode();
       clearTimeout(autosaveTimer);
       if (!settingsLoaded) {
+        pendingInput = true;
         setAutosaveState('正在读取设置…', 'is-saving');
         return;
       }
-      setAutosaveState(immediate ? '正在自动保存…' : '等待自动保存…', 'is-saving');
+      editForm();
       if (immediate) void saveDesktopLyric();
       else autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
     };
 
-    window.addEventListener('app:settings-state', (event) => {
-      latestSettings = event.detail;
-      if (!settingsLoaded || (!dirty && !saving)) loadWeSingLyricSettings(event.detail);
-      if (!settingsLoaded) {
-        settingsLoaded = true;
-        loadDesktopLyricSettings(event.detail);
-        savedValues = collectDesktopLyric();
-      } else if (!dirty && !saving) {
-        loadDesktopLyricSettings(event.detail);
-        savedValues = collectDesktopLyric();
+    const receiveSettings = event => {
+      settingsLoaded = true;
+      controller.receive(event.detail);
+      if (pendingInput) {
+        pendingInput = false;
+        autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
       }
-      if (!dirty) return;
-      setAutosaveState('等待自动保存…', 'is-saving');
-      clearTimeout(autosaveTimer);
-      autosaveTimer = setTimeout(() => void saveDesktopLyric(), AUTOSAVE_DELAY_MS);
-    });
+    };
+    window.addEventListener('app:settings-state', receiveSettings);
 
-    form.addEventListener('input', () => { syncParameterLayout(); syncEditorMode(); scheduleAutosave(); });
-    form.addEventListener('change', () => { syncParameterLayout(); syncEditorMode(); scheduleAutosave(true); });
+    form.addEventListener('input', () => scheduleAutosave());
+    form.addEventListener('change', () => scheduleAutosave(true));
     document.getElementById('desktopLyricResetBtn')?.addEventListener('click', async () => {
       if (!await dangerConfirm({ title: '恢复基础歌词默认设置？',
         message: '将恢复基础歌词的外观、显示行为和共用时间偏移。高级歌词外观、显示开关和音乐来源设置会保留。',
@@ -229,7 +233,14 @@ export function createDesktopLyric({
       advancedEditor.reset();
     });
     syncEditorMode();
-    window.addEventListener('pagehide', () => advancedEditor?.dispose(), { once: true });
+    window.addEventListener('pagehide', () => {
+      clearTimeout(autosaveTimer);
+      pendingSave = false;
+      stopController();
+      controller.reset();
+      window.removeEventListener('app:settings-state', receiveSettings);
+      advancedEditor?.dispose();
+    }, { once: true });
   }
 
   function selectedWeSingLyricSource() {

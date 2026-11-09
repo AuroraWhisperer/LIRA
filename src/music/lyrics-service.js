@@ -77,6 +77,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
   const cacheable = action === 'personalized';
   const page = Math.max(1, Math.min(50, Number(input.page) || 1));
   const bypassCache = input.refresh === true || page > 1;
+  const authorization = cacheable && !bypassCache ? await provider.getSafeCookieHeader() : '';
   const cacheKey =
     cacheable && !bypassCache
       ? musicCacheKey('home', {
@@ -84,6 +85,7 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
           action,
           limit,
           playlistId: cleanText(input.playlistId),
+          authorization,
         })
       : '';
   if (cacheKey) {
@@ -100,7 +102,10 @@ async function getMusicHomeContentWithCache(registry, body, apiCacheDir) {
         page,
       }),
     };
-    if (cacheKey) writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
+    // Credentials only enter the hashed key. Do not cache a result across an account change.
+    if (cacheKey && authorization === await provider.getSafeCookieHeader()) {
+      writeMusicJsonCache(apiCacheDir, cacheKey, result, MUSIC_API_CACHE_MAX_BYTES);
+    }
     return result;
   }
   if (action === 'playlist-tracks') {

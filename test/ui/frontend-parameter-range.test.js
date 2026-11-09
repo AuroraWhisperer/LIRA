@@ -26,17 +26,23 @@ test('balanced ranges reserve usable space on the short side without changing ac
 });
 
 test('balanced pointer input uses actual values, binds once and releases listeners on disposal', async () => {
+  const observed = new Set();
+  class ResizeObserver {
+    observe(node) { observed.add(node); }
+    unobserve(node) { observed.delete(node); }
+  }
   const { initParameterRanges, disposeParameterRanges } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'shared', 'parameter-range.js'),
-    { Event },
+    { Event, ResizeObserver },
   );
+  let styleUpdates = 0;
   class RangeInput extends EventTarget {
     min = '-0.1';
     max = '2';
     step = '0.01';
     value = '0';
     dataset = { rangeScale: 'balanced' };
-    style = { setProperty() {} };
+    style = { setProperty: () => styleUpdates++ };
     matches() { return true; }
     getBoundingClientRect() { return { left: 10, width: 218 }; }
     focus() { this.focused = true; }
@@ -54,6 +60,7 @@ test('balanced pointer input uses actual values, binds once and releases listene
   }));
   initParameterRanges(input);
   initParameterRanges(input);
+  assert.equal(observed.size, 1);
   pointer('pointerdown', 44);
   assert.equal(input.value, '-0.05');
   pointer('pointermove', 144);
@@ -72,11 +79,18 @@ test('balanced pointer input uses actual values, binds once and releases listene
   assert.equal(input.captured, null);
   assert.equal(changes, 2);
   disposeParameterRanges(input);
+  assert.equal(observed.size, 0);
   pointer('pointerdown', 219);
   assert.equal(input.value, '-0.1');
   initParameterRanges(input);
+  assert.equal(observed.has(input), true);
   pointer('pointerdown', 219);
   pointer('pointerup', 219);
   assert.equal(input.value, '2');
   assert.equal(changes, 3);
+  disposeParameterRanges(input);
+  const disposedUpdates = styleUpdates;
+  input.dispatchEvent(new Event('input'));
+  input.dispatchEvent(new Event('change'));
+  assert.equal(styleUpdates, disposedUpdates, 'Disposed ranges no longer refresh in response to input or change events.');
 });

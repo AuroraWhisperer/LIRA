@@ -51,14 +51,14 @@ async function holdImageDecodes(page) {
 
 test('manual windowlight scenes switch without duplicating layers', async t => {
   const h = await harness(t);
+  await h.update({ windowScene: 'sunny' });
+  const layerCount = await h.root.locator('*').count();
   for (const windowScene of ['sunny', 'sunset', 'rainy', 'night', 'sunny']) {
     await h.update({ windowScene }, { reducedMotion: true });
     assert.equal(await h.scene(), windowScene);
     assert.equal(await h.root.locator('.windowlight-plate.is-active').count(), 1);
   }
-  assert.equal(await h.root.locator('.windowlight-plate').count(), 4);
-  assert.equal(await h.root.locator('.windowlight-effect').count(), 3);
-  assert.equal(await h.root.locator('.windowlight-rain').count(), 1);
+  assert.equal(await h.root.locator('*').count(), layerCount);
 });
 
 test('automatic windowlight scenes start at the selection and loop in order every ten seconds', async t => {

@@ -1,12 +1,15 @@
-const entries = (items) => items.map(([id, label, description]) => ({ id, label, description }));
+const entries = (items) => items.map(([id, label, description, choreography = false]) => ({ id, label, description, choreography }));
 const preset = (id, label, settings) => ({ id, label,
   settings: Object.fromEntries(Object.entries(settings).map(([key, value]) => [`advancedLyric${key}`, String(value)])) });
 
 // Every identifier has a matching composition or treatment in the visual renderer.
 export const ADVANCED_LYRIC_CATALOG = Object.freeze({
   layouts: entries([
-    ['center', '单句聚焦', '当前句居中，下一句轻轻衬托'],
-    ['duet', '双句交替', '上下两句，主次分明'],
+    ['phrase-flow', '逐段让位', '按句长和停顿自动分组，前段缩小上移，为当前词组留出舞台', true],
+    ['corner-relay', '两翼接力', '词组在两翼与中央接力，快句自动收敛动作，前文保持可读', true],
+    ['type-impact', '重音落版', '大字落下，前段收成题注，以明显延长的演唱时间作为强调线索', true],
+    ['center', '单句聚焦', '当前句居中显示'],
+    ['duet', '上下呼应', '当前句分成上下两组，主次分明'],
     ['offset', '错位双行', '上下错开，留出呼吸感'],
     ['split', '左右对话', '歌词分成左右两组'],
     ['corners', '四角构图', '四组文字分布在画面四角'],
@@ -50,7 +53,7 @@ export const ADVANCED_LYRIC_CATALOG = Object.freeze({
     ['zoom', '放大离开'], ['scatter', '散字离开'], ['wipe', '擦除'], ['squeeze', '压缩消失'],
   ]),
   wordMotions: entries([
-    ['none', '整句显示'], ['fill', '逐字填色'], ['pop', '逐字弹出'], ['rise', '逐字上浮'],
+    ['none', '保持字色'], ['fill', '逐字填色'], ['pop', '逐字弹出'], ['rise', '逐字上浮'],
     ['bounce', '逐字跳动'], ['wave', '逐字波浪'], ['tilt', '逐字轻摆'], ['glow', '逐字发光'],
   ]),
   decorations: entries([
@@ -59,6 +62,9 @@ export const ADVANCED_LYRIC_CATALOG = Object.freeze({
     ['tape', '纸胶带'], ['orbit', '环形线条'],
   ]),
   presets: [
+    preset('phrase-pv', '逐段让位', { Layout: 'phrase-flow', Material: 'solid', WordMotion: 'none', MotionDuration: 600, TextColor: '#fff9ee', AccentColor: '#f5bd6b' }),
+    preset('relay-pv', '两翼接力', { Layout: 'corner-relay', Material: 'solid', WordMotion: 'none', MotionDuration: 450, TextColor: '#fff9ee', AccentColor: '#b8e4d8', SecondaryColor: '#f4be98' }),
+    preset('impact-pv', '重音落版', { Layout: 'type-impact', Material: 'solid', WordMotion: 'none', MotionDuration: 300, FontWeight: 900, TextColor: '#fff9ee', AccentColor: '#ffb493' }),
     preset('spotlight', '聚光诗句', { Layout: 'center', Material: 'solid', Enter: 'rise', Hold: 'still', Exit: 'fade', WordMotion: 'fill' }),
     preset('conversation', '一句一答', { Layout: 'speech', Material: 'solid', Enter: 'pop', WordMotion: 'bounce', TextColor: '#242230', AccentColor: '#f5c6d6', StrokeEnabled: false }),
     preset('four-corners', '四角漫游', { Layout: 'corners', Material: 'gradient', Enter: 'scatter', Exit: 'scatter', WordMotion: 'pop', Decoration: 'corners', ExtrudeEnabled: true }),

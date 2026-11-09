@@ -94,6 +94,17 @@
         </div>
         <div class="fan-setting-row">
           <div>
+            <h4>补充曾用名</h4>
+            <p class="fan-muted">为当前账号未归档、已绑定 UID 的档案补充历史名字，已有记录保留。来源 Aicu，收录可能不完整。</p>
+          </div>
+          <button type="button" id="fanFormerBatchStart" data-fan-action="supplement-all-former-names">补充全部</button>
+        </div>
+        <div id="fanFormerBatch" class="fan-former-batch" hidden>
+          <progress id="fanFormerBatchProgress" max="1" value="0" aria-label="曾用名补充进度"></progress>
+          <div class="fan-former-heading"><p id="fanFormerBatchStatus" class="fan-muted" role="status"></p><button type="button" id="fanFormerBatchStop" data-fan-action="stop-former-names">停止</button></div>
+        </div>
+        <div class="fan-setting-row">
+          <div>
             <h4>自动更新</h4>
             <p class="fan-muted">设置哪些资料自动更新，以及是否每天核对大航海名单。</p>
           </div>

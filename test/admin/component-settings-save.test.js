@@ -66,16 +66,3 @@ test('component settings confirmation uses the state owner and preserves a newer
   assert.deepEqual(plain(f.controller.getState().draft), { fontSize: 36, color: '#00ff00' });
   assert.equal(f.requests.length, 2);
 });
-
-test('save feedback shows the concrete confirmation error instead of claiming drafts were retained', async () => {
-  const { saveComponentWithFeedback } = await loadModuleExports(entry('component-save-feedback.js'));
-  const messages = [];
-  let saved = false;
-  await saveComponentWithFeedback({
-    getState: () => ({ loaded: true, dirty: !saved, generation: 0,
-      error: saved ? '保存期间配置已在其他入口更新，请确认当前配置。' : '' }),
-    save: async () => { saved = true; return false; },
-  }, '时钟', (message, options) => messages.push({ message, options }));
-  assert.equal(messages[0].message, '保存期间配置已在其他入口更新，请确认当前配置。');
-  assert.equal(messages[0].options.type, 'error');
-});

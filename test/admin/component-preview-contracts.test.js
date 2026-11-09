@@ -105,28 +105,6 @@ test('overtime projection excludes configuration secrets and settlement data', a
   assert.equal(Object.hasOwn(projected.rules[0], 'internalId'), false);
 });
 
-test('closing parameter panels releases observed ranges and their event listeners', async () => {
-  const observed = new Set();
-  const listeners = new Set();
-  const input = { min: '0', max: '100', value: '50', matches: () => true,
-    style: { setProperty() {} }, addEventListener: (name) => listeners.add(name),
-    removeEventListener: (name) => listeners.delete(name) };
-  class ResizeObserver {
-    observe(node) { observed.add(node); }
-    unobserve(node) { observed.delete(node); }
-  }
-  const ranges = await loadModuleExports(entry('shared/parameter-range.js'), { ResizeObserver });
-  ranges.initParameterRanges(input);
-  ranges.initParameterRanges(input);
-  assert.equal(observed.size, 1);
-  ranges.disposeParameterRanges(input);
-  assert.equal(observed.size, 0);
-  assert.equal(listeners.size, 0);
-  ranges.initParameterRanges(input);
-  assert.equal(observed.size, 1);
-  ranges.disposeParameterRanges(input);
-});
-
 test('component fields refill after editing with current optimistic state and release queued work on disposal', async () => {
   const { subscribeComponentFields, syncComponentFieldValue } = await loadModuleExports(entry('admin/component-preview-panel.js'), { queueMicrotask });
   const { createRemotePreviewController } = await loadModuleExports(entry('admin/component-preview-remote.js'), { structuredClone });

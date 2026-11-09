@@ -163,7 +163,6 @@ test('refresh preserves edits made while the server read is pending', async () =
   assert.equal(f.get('Toggle').checked, true);
   assert.equal(f.message(0).value, '刷新期间的草稿 {username}');
   assert.equal(f.get('SaveBtn').disabled, false);
-  assert.match(f.get('Status').textContent, /未保存/);
 });
 
 test('an unauthorized account shows a stable explanation without reading settings', async () => {

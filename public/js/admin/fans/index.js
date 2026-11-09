@@ -6,6 +6,7 @@ import { fitTextToWidth } from '../../shared/fit-text-to-width.js';
 import { renderPeople, renderDetail, renderReminders, rosterUpdateNotices } from './view.js';
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { settingsForm, guardRosterForm } from './forms.js';
+import { createFormerNameBatch } from './former-name-batch.js';
 
 let initialized = false;
 const REMINDER_SUMMARY_HIDDEN_KEY = 'liraFanReminderSummaryHidden';
@@ -58,6 +59,14 @@ function createFanUi() {
   const renderedMarkup = new WeakMap();
   const formEditor = createFanEditor({ editor, form, onError: (error) => showError(error, true) });
   const openForm = formEditor.open;
+  const formerNameBatch = createFormerNameBatch({
+    request,
+    getContext: () => state.contextId,
+    async onChanged(contextId) {
+      await load(false, false, false);
+      if (state.contextId === contextId && state.profile) await select(state.profile.id, false);
+    },
+  });
   async function receiveProfile(profile, tab) {
     state.profile = profile;
     if (tab) state.tab = tab;
@@ -66,6 +75,7 @@ function createFanUi() {
   }
   const profileActions = createFanProfileActions({
     request,
+    apiToken: window.__API_TOKEN__,
     openForm,
     onProfile: receiveProfile,
     async onChanged(profile, profileId, selection) {
@@ -112,6 +122,7 @@ function createFanUi() {
     }
     if (action !== 'open' && state.contextId !== contextId) throw new Error('登录状态已变化，请重新打开粉丝档案。');
     if (action === 'open' && state.contextId && state.contextId !== result.contextId) {
+      formerNameBatch.reset();
       formEditor.invalidate();
       state.profile = null;
       state.selection++;
@@ -399,6 +410,14 @@ function createFanUi() {
       return;
     }
     if (!state.contextId) await load(true);
+    if (name === 'supplement-all-former-names') {
+      await formerNameBatch.run();
+      return;
+    }
+    if (name === 'stop-former-names') {
+      formerNameBatch.stop();
+      return;
+    }
     if (name === 'guard-roster') {
       await load(true);
       if (!state.roomId) throw new Error('请先在连接设置中填写直播间号。');
@@ -488,6 +507,15 @@ function createFanUi() {
       return;
     }
     if (!state.profile) return;
+    if (name === 'supplement-former-names') {
+      if (element.disabled) return;
+      element.disabled = true;
+      const label = element.textContent;
+      element.textContent = '正在补充…';
+      try { await profileActions.handle(name, state.profile, state.selection); }
+      finally { element.disabled = false; element.textContent = label; }
+      return;
+    }
     if (name === 'legacy') {
       transfer.legacy();
       return;
@@ -575,6 +603,7 @@ function createFanUi() {
       disposed = true;
       state.sequence++;
       formEditor.dispose();
+      formerNameBatch.dispose();
       observer.disconnect();
       namesObserver.disconnect();
       clearInterval(pollTimer);

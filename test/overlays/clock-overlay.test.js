@@ -47,23 +47,13 @@ test('clock overlay script never writes markup through innerHTML', () => {
 test('clock settings are persisted through validated keys and exposed by the clock page read-only capability', async () => {
   assert.equal(cleanClockLabel('\u0000  今晚   一起值班  '), '今晚 一起值班');
   assert.equal(cleanClockLabel('abcdefghijklmnopq'), 'abcdefghijklmnop');
-  assert.deepEqual(
-    getClockConfig({
-      clockStyle: 'space',
-      clockShowDate: 'maybe',
-      clockShowSeconds: 'maybe',
-      clockHourFormat: '48',
-      clockLabel: '',
-    }),
-    {
-      style: 'peach',
-      showDate: true,
-      showSeconds: true,
-      hourFormat: '24',
-      label: DEFAULT_LABELS.peach,
-      ...FLIP_COLORS, ...MOON_DEFAULTS,
-    },
-  );
+  const fallback = getClockConfig({ clockStyle: 'space', clockShowDate: 'maybe', clockShowSeconds: 'maybe',
+    clockHourFormat: '48', clockLabel: '' });
+  assert.equal(fallback.style, 'peach');
+  assert.equal(fallback.showDate, true);
+  assert.equal(fallback.showSeconds, true);
+  assert.equal(fallback.hourFormat, '24');
+  assert.equal(fallback.label, DEFAULT_LABELS.peach);
 
   const writes = [];
   let configureCalls = 0;
@@ -314,11 +304,12 @@ test('moon palettes round-trip through settings, scene appearances and scoped ov
   const overlay = await loadModuleExports(CLOCK_ENTRY, { URLSearchParams });
   for (const mode of ['light', 'dark', 'auto']) {
     const config = { ...getClockConfig({ clockStyle: 'moonlit-fan' }), moonMode: mode, moonIntervalSeconds: 7 };
-    assertClockRoundTrip(config);
+    assert.equal(normalizeClockSettingValue('clockMoonMode', mode), mode);
     const params = new URL(admin.buildClockUrl('http://127.0.0.1:3000/clock', config)).searchParams;
     assert.equal(overlay.readClockConfig(params).moonMode, mode);
     assert.equal(overlay.readClockConfig(params).moonIntervalSeconds, 7);
   }
+  assertClockRoundTrip({ ...getClockConfig({ clockStyle: 'moonlit-fan' }), moonMode: 'auto', moonIntervalSeconds: 7 });
   for (const value of ['', 'night', true, null]) {
     assert.ok(normalizeSettingsPatch({ clockMoonMode: value }, DEFAULT_SETTINGS).error);
   }

@@ -5,6 +5,21 @@ const test = require('node:test');
 const { mapSongForSync } = require('../../src/electron/license/license-manager');
 const { createHarness } = require('../helpers/license-manager-harness');
 
+test('song page access uses the current authorized account and rejects invalid values and responses', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  let saved = false;
+  remote.getSongPageAccess = async () => ({ enabled: saved, token: 'private' });
+  remote.setSongPageAccess = async (enabled) => { saved = enabled; return { enabled }; };
+  assert.deepEqual(await manager.getSongPageAccess(), { enabled: false });
+  assert.deepEqual(await manager.setSongPageAccess(true), { enabled: true });
+  await assert.rejects(async () => manager.setSongPageAccess('false'), { code: 'INVALID_SONG_PAGE_ACCESS' });
+  assert.equal(saved, true);
+  remote.getSongPageAccess = async () => ({ enabled: 'false' });
+  await assert.rejects(manager.getSongPageAccess(), { code: 'INVALID_RESPONSE' });
+});
+
 test('profile reads share only the current in-flight request and retry after failure', async (t) => {
   const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
   t.after(() => manager.dispose());
@@ -240,9 +255,11 @@ test('gift card profiles retain sender evidence and reject replies after authori
     assert.equal(token, 'token');
     assert.equal(options.signal, signal);
     assert.equal(options.revision, 'a'.repeat(64));
+    assert.equal(options.afterRevision, 'a'.repeat(64));
     return result;
   };
-  assert.deepEqual(await manager.getGiftCardProfilesInternal({ cursor: 'event:1', signal, revision: 'a'.repeat(64) }), result);
+  assert.deepEqual(await manager.getGiftCardProfilesInternal({ cursor: 'event:1', signal,
+    revision: 'a'.repeat(64), afterRevision: 'a'.repeat(64) }), result);
   let resolve;
   let started;
   const ready = new Promise((done) => {

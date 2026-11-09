@@ -277,7 +277,8 @@
 }
 
 #importResult:empty,
-.song-cloud-result:empty {
+.song-cloud-result:empty,
+#licenseLastCloudSync:empty {
   position: absolute;
 }
 
@@ -316,32 +317,40 @@
 
 .song-cloud-facts {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px 24px;
   padding-block: 14px;
   border-block: 1px solid var(--border);
 }
 
+.song-cloud-facts > div {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+  gap: 8px;
+}
+
 .song-cloud-facts dt {
-  margin-bottom: 4px;
   color: var(--muted);
   font-size: var(--type-size-caption);
+  flex-shrink: 0;
 }
 
 .song-cloud-facts dd {
   margin: 0;
-  font-size: var(--type-size-card-title);
+  min-width: 0;
+  font-size: var(--type-size-control);
   font-weight: var(--type-weight-semibold);
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.song-cloud-notice {
-  display: grid;
-  gap: 4px;
-  padding: 10px 12px;
-  border-left: 2px solid var(--accent);
-  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-  background: var(--surface-2);
+.song-cloud-access {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 
 .song-cloud-actions {

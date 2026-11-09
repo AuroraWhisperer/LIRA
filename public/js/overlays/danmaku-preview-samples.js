@@ -42,15 +42,21 @@ const STICKER_EMOTES = [
   { text: '这个好耶', url: '/img/overlays/danmaku-previews/stickers/this-is-great.png', width: 200, height: 60 },
   { text: '笑哭', url: '/img/overlays/danmaku-previews/stickers/tv-laugh.png', width: 162, height: 162 },
 ];
-const AVATAR = '/img/overlays/danmaku-ranked/viewer.webp';
-// The current Bilibili account editor caps nicknames at 16 characters.
-const VIEWER_NAMES = {
-  anime: ['小凛', '团子酱ovo', '猫猫单推人', '咕咕咕_咕咕', '今天也想和猫耳少女一起抬头看星星', 'Misaki-0721'],
-  everyday: ['阿哲', '想吃火锅不想洗碗', '摸鱼小王_233', 'bili_804672193', '下班以后只想窝在沙发上听两首老歌', 'LateNightFM_2026'],
-};
+const VIEWERS = [
+  { uid: '1091', name: '猫猫单推人', guardLevel: 1, medalLevel: 28, avatarUrl: '/img/overlays/danmaku-ranked/governor.webp' },
+  { uid: '1822', name: '团子酱ovo', guardLevel: 2, medalLevel: 23, avatarUrl: '/img/overlays/danmaku-ranked/admiral.webp' },
+  { uid: '4714', name: '小凛', guardLevel: 3, medalLevel: 18, avatarUrl: '/img/overlays/danmaku-ranked/captain.webp' },
+  { uid: '565', name: 'Mio', guardLevel: 0, medalLevel: 9, avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp' },
+  { uid: '1092', name: '今天也想和猫耳少女一起抬头看星星', guardLevel: 1, medalLevel: 28, avatarUrl: '/img/overlays/danmaku-ranked/governor.webp' },
+  { uid: '1823', name: 'Misaki-0721', guardLevel: 2, medalLevel: 23, avatarUrl: '/img/overlays/danmaku-ranked/admiral.webp' },
+  { uid: '4715', name: '咕咕咕_咕咕', guardLevel: 3, medalLevel: 18, avatarUrl: '/img/overlays/danmaku-ranked/captain.webp' },
+  { uid: '566', name: 'NekoMoon_0721', guardLevel: 0, medalLevel: 9, avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp' },
+];
+
+export const DANMAKU_PREVIEW_AVATARS = Object.freeze(VIEWERS.map(viewer => viewer.avatarUrl));
 
 export const DANMAKU_PREVIEW_WELCOME = Object.freeze({
-  id: 'preview-welcome', kind: 'danmaku', name: 'LIRA 机器人', message: '欢迎 路过的咸鱼_07 来到直播间～', isWelcome: true,
+  id: 'preview-welcome', kind: 'danmaku', name: 'LIRA 机器人', message: `欢迎 ${VIEWERS[3].name} 来到直播间～`, isWelcome: true,
 });
 
 // Amounts are synthetic RMB totals for layout coverage, not a current price list.
@@ -64,59 +70,53 @@ const GIFTS = [
   { id: 'golden-figure', giftName: '小金人', giftCount: 1, giftTotalPrice: 520, giftImageUrl: '/img/overlays/danmaku-previews/gifts/golden-figure.png' },
 ];
 const GUARDS = [
-  { giftGuardLevel: 3, name: VIEWER_NAMES.anime[5], giftName: '舰长', giftTotalPrice: 138, giftImageUrl: '/img/admin/gifts/bilibili-guard-captain.webp' },
-  { giftGuardLevel: 2, name: VIEWER_NAMES.everyday[5], giftName: '提督', giftTotalPrice: 1998, giftImageUrl: '/img/admin/gifts/bilibili-guard-prefect.webp' },
-  { giftGuardLevel: 1, name: VIEWER_NAMES.anime[4], giftName: '总督', giftTotalPrice: 19998, giftImageUrl: '/img/admin/gifts/bilibili-guard-governor.webp' },
+  { giftGuardLevel: 3, giftName: '舰长', giftTotalPrice: 138, giftImageUrl: '/img/admin/gifts/bilibili-guard-captain.webp' },
+  { giftGuardLevel: 2, giftName: '提督', giftTotalPrice: 1998, giftImageUrl: '/img/admin/gifts/bilibili-guard-prefect.webp' },
+  { giftGuardLevel: 1, giftName: '总督', giftTotalPrice: 19998, giftImageUrl: '/img/admin/gifts/bilibili-guard-governor.webp' },
 ];
 
 export const DANMAKU_PREVIEW_GIFT_IMAGES = Object.freeze([...GIFTS, ...GUARDS].map((gift) => gift.giftImageUrl));
 
 export function createDanmakuPreviewItems(style = 'signal') {
   const samples = [
-    ...[
-      ['1091', GUARDS[2].name, 1, 28, TEXT_POOLS.anime.mixed[0]],
-      ['1822', GUARDS[1].name, 2, 23, TEXT_POOLS.everyday.mixed[0]],
-      ['4714', GUARDS[0].name, 3, 18, TEXT_POOLS.anime.mixed[1]],
-      ['565', VIEWER_NAMES.everyday[1], 0, 9, TEXT_POOLS.everyday.mixed[1]],
-    ].map(([id, name, guardLevel, medalLevel, message]) => ({
-      id: `preview-${id}`, name, message, guardLevel, medalName: '粉丝团灯牌', medalLevel, emotes: [{ ...EMOTE }],
+    ...VIEWERS.map((viewer, index) => ({
+      ...viewer, id: `preview-${viewer.uid}`,
+      message: [TEXT_POOLS.anime.mixed[0], TEXT_POOLS.everyday.mixed[0], TEXT_POOLS.anime.mixed[1], TEXT_POOLS.everyday.mixed[1]][index % 4],
+      emotes: [{ ...EMOTE }],
     })),
     ...Object.entries(TEXT_POOLS).flatMap(([tone, pool]) => pool.chat.map((message, index) => ({
-      id: `preview-chat-${tone}-${index}`, name: VIEWER_NAMES[tone][index], message,
+      id: `preview-chat-${tone}-${index}`, message,
     }))),
-    { id: 'preview-inline', name: VIEWER_NAMES.anime[0], message: EMOTE.text, emotes: [{ ...EMOTE }] },
-    { id: 'preview-inline-repeat', name: VIEWER_NAMES.anime[1], message: EMOTE.text.repeat(5), emotes: [{ ...EMOTE }] },
+    { id: 'preview-inline', message: EMOTE.text, emotes: [{ ...EMOTE }] },
+    { id: 'preview-inline-repeat', message: EMOTE.text.repeat(5), emotes: [{ ...EMOTE }] },
     ...STICKER_EMOTES.map((emote, index) => ({
-      id: index === 0 ? 'preview-emote' : `preview-emote-${index + 1}`, name: '小眠Mio', isStreamer: true,
+      id: index === 0 ? 'preview-emote' : `preview-emote-${index + 1}`,
       message: emote.text, emotes: [{ ...emote, kind: 'sticker' }],
     })),
-    ...GIFTS.map(({ id, ...gift }, index) => ({
-      ...gift, id: `preview-gift-${id}`, kind: 'gift', name: VIEWER_NAMES.everyday[index % VIEWER_NAMES.everyday.length],
+    ...GIFTS.map(({ id, ...gift }) => ({
+      ...gift, id: `preview-gift-${id}`, kind: 'gift',
       message: `送出 ${gift.giftName} × ${gift.giftCount}`,
     })),
     ...GUARDS.flatMap((gift) => ['open', 'renew'].map((guardAction) => ({
-      ...gift, id: `preview-guard-${gift.giftGuardLevel}-${guardAction}`, kind: 'gift', giftCount: 1, avatarUrl: AVATAR,
+      ...gift, id: `preview-guard-${gift.giftGuardLevel}-${guardAction}`, kind: 'gift', giftCount: 1,
       guardAction, guardAccompanyDays: guardAction === 'renew' ? 360 : 1,
       message: `${guardAction === 'renew' ? '续费' : '开通'}了${gift.giftName}`,
     }))),
-    ...Object.entries(TEXT_POOLS).flatMap(([tone, pool]) => pool.superchat.map(([price, message], index) => ({
+    ...Object.entries(TEXT_POOLS).flatMap(([tone, pool]) => pool.superchat.map(([price, message]) => ({
       id: `preview-superchat-${price}-${tone}`, kind: 'superchat',
-      name: VIEWER_NAMES[tone][index % VIEWER_NAMES[tone].length], avatarUrl: AVATAR, message, price,
+      message, price,
     }))),
-  ];
+  ].map((item) => {
+    const viewers = item.giftGuardLevel ? VIEWERS.filter(viewer => viewer.guardLevel === item.giftGuardLevel) : VIEWERS;
+    const viewer = item.uid ? item : viewers[Math.floor(Math.random() * viewers.length)];
+    return { ...viewer, ...item, medalName: '粉丝团灯牌', roomGuardLevel: viewer.guardLevel };
+  });
   if (style === 'stargazer') return samples.map((item) => ({
     ...item, roomGuardLevel: item.guardLevel || 0,
     ...(item.medalLevel ? { roomMedal: { name: item.medalName, level: item.medalLevel } } : {}),
   }));
-  if (style === 'twitter') return samples.map((item, index) => ({
-    ...item, uid: String(100000 + index), avatarUrl: item.avatarUrl || AVATAR,
-    roomGuardLevel: item.guardLevel || 0,
-  }));
-  if (['glowy', 'mist', 'comic', 'wireframe'].includes(style)) return samples.map((item) => ({
-    ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
-  }));
   if (style === 'harbor') return samples.map((item, index) => ({
-    ...item, avatarUrl: item.avatarUrl || AVATAR, roomGuardLevel: item.guardLevel || 0,
+    ...item,
     ...(index < 3 ? { onlineRank: index + 1 } : {}),
   }));
   if (!['prismatic', 'snowfox', 'ripploid', 'flower-letter', 'notebook', 'christmas', 'christmas-letter', 'window'].includes(style)) return samples;
@@ -129,7 +129,7 @@ export function createDanmakuPreviewItems(style = 'signal') {
     const roomGuardLevel = item.guardLevel || christmasMember || 0;
     const [level, color, border] = palettes[roomGuardLevel];
     return {
-      ...item, avatarUrl: item.avatarUrl || AVATAR,
+      ...item,
       honorLevel: [70, 45, 32, 19, 28][index % 5], roomGuardLevel,
       ...(item.medalLevel || christmasMember ? { roomMedal: { name: christmasMember ? item.medalName || '小铃铛' : item.medalName, level, guardLevel: roomGuardLevel, isLight: true,
         colorStart: color, colorEnd: color, colorBorder: border, colorText: '#FFFFFF' } } : {}),

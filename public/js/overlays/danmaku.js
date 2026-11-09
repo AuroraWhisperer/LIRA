@@ -1,6 +1,6 @@
 import { createDanmakuFeed } from './danmaku-feed.js';
 import { initDanmakuPreview } from './danmaku-preview.js';
-import { createDanmakuPreviewItems, DANMAKU_PREVIEW_WELCOME, DANMAKU_PREVIEW_GIFT_IMAGES } from './danmaku-preview-samples.js';
+import { createDanmakuPreviewItems, DANMAKU_PREVIEW_AVATARS, DANMAKU_PREVIEW_WELCOME, DANMAKU_PREVIEW_GIFT_IMAGES } from './danmaku-preview-samples.js';
 import { createComponentStyleEffects } from './component-style-effects.js';
 import { styleParametersFor } from '../shared/component-style-parameters.js';
 import { isSceneComponent, isComponentPreview } from './component-preview-client.js';
@@ -430,7 +430,7 @@ export function calculateRankedOverlayScale(viewportWidth) {
 }
 
 function bilibiliAvatarSource(value) {
-  if (previewMode && value === '/img/overlays/danmaku-ranked/viewer.webp') return value;
+  if (previewMode && DANMAKU_PREVIEW_AVATARS.includes(value)) return value;
   try {
     const url = new URL(String(value || ''));
     if (url.protocol !== 'https:' || !url.hostname.endsWith('.hdslb.com') || url.username || url.password) return '';

@@ -1,6 +1,6 @@
 import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scene-extra-components.js';
 import { previewElement } from './component-preview-surface.js';
-import { syncComponentFieldValue } from './component-preview-panel.js';
+import { syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { COMPONENT_RESOURCE_PRESETS, isExternalComponentStyle } from '../shared/component-resource-style.js';
@@ -14,12 +14,12 @@ import { enhanceColorControls } from '../shared/color-control.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
 import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } from '../shared/font-library.js';
+import { RANKING_FLAGS, rankingSelection, singleRankingId } from '../shared/live-rankings.js';
+import { mountGiftMotionCanvasSettings } from './gift-motion-canvas-settings.js';
+import { mountAdvancedLyricCanvasSettings } from './advanced-lyric-canvas-settings.js';
+import { NOW_PLAYING_PART_FIELDS, nowPlayingSize } from '../shared/now-playing-appearance.js';
 
-const LYRIC_CANVAS_ADVANCED_FIELDS = new Set(['advancedLyricEnabled', 'advancedLyricLayout', 'advancedLyricFontSize',
-  'advancedLyricTextColor', 'advancedLyricAccentColor', 'advancedLyricHideUnsung',
-  'advancedLyricPositionX', 'advancedLyricPositionY', 'advancedLyricScale']);
-
-export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, hideStyleControl = false, previewHint, restrictResourceStyle = false } = {}) {
+export function createSceneExtraPreview(type, { controller, startPreviewData, openingSettings, embedded = false, hideStyleControl = false, fieldKeys, previewHint, restrictResourceStyle = false } = {}) {
   const definition = SCENE_EXTRA_COMPONENTS[type];
   const previewFields = type === 'guard-thanks' ? {
     tier: { label: '预览等级', type: 'select', default: 'captain', options: { captain: '舰长', admiral: '提督', governor: '总督' } },
@@ -37,10 +37,15 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
   }
   return { id: type, title: definition.title, controller, sceneOnly: true,
     url: new URL(SCENE_COMPONENTS[type].rendererUrl, location.href).href,
-    size: config => definition.variants.find(variant => variant.value === config?.[definition.variantKey])?.size || definition.size,
-    projectConfig: config => type === 'lyrics' ? { ...config, desktopLyricHideOnPause: 'false', advancedLyricHideOnPause: 'false',
-      ...(config.lyricLayer === 'advanced' ? { advancedLyricEnabled: 'true' }
-        : config.lyricLayer === 'basic' ? { desktopLyricEnabled: 'true' } : {}) } : config,
+    size: config => type === 'now-playing' ? nowPlayingSize(config)
+      : definition.variants.find(variant => variant.value === config?.[definition.variantKey])?.size || definition.size,
+    projectConfig: config => {
+      if (type !== 'lyrics') return config;
+      const { advancedLyricSavedPresets: _presets, ...appearance } = config;
+      return { ...appearance, desktopLyricHideOnPause: 'false', advancedLyricHideOnPause: 'false',
+        ...(config.lyricLayer === 'advanced' ? { advancedLyricEnabled: 'true' }
+          : config.lyricLayer === 'basic' ? { desktopLyricEnabled: 'true' } : {}) };
+    },
     startData({ emit, controller: target = controller }) {
       const sample = type === 'games' ? { preview: true, session: null } : sceneExtraPreviewData(type);
       let display;
@@ -81,9 +86,28 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       const disposeFontPickers = [];
       const grid = previewElement('div', 'scene-extra-parameters');
       const initialConfig = target.getState().draft;
+      let rankingInput; let rankingLabel; let legacyRanking;
+      if (type === 'live-rankings') {
+        rankingLabel = previewElement('label');
+        rankingLabel.append(previewElement('span', 'desktop-lyric-control-copy', '榜单'));
+        rankingInput = previewElement('select');
+        rankingInput.setAttribute('aria-label', '榜单');
+        legacyRanking = previewElement('option', '', '原多榜布局');
+        legacyRanking.value = ''; legacyRanking.disabled = true;
+        rankingInput.append(legacyRanking);
+        for (const board of definition.variants) {
+          const option = previewElement('option', '', board.label);
+          option.value = board.value; rankingInput.append(option);
+        }
+        rankingInput.addEventListener('change', () => target.edit(rankingSelection(rankingInput.value)));
+        appendSceneParameterControl(rankingLabel, rankingInput);
+        grid.append(rankingLabel);
+      }
       const openingFields = type === 'opening' ? openingAppearanceFields(
         initialConfig.resourceStyle?.preset === 'moonlit-opening' ? 'moonlit-fan' : initialConfig.style) : {};
       for (const [key, field] of Object.entries({ ...definition.fields, ...openingFields, ...previewFields })) {
+        if (fieldKeys && !fieldKeys.includes(key)) continue;
+        if (type === 'live-rankings' && (Object.values(RANKING_FLAGS).includes(key) || ['nearby', 'pageSize'].includes(key))) continue;
         if (hideStyleControl && key === 'style') continue;
         if (type === 'background' && Object.hasOwn(BACKGROUND_FIELDS, key)) continue;
         // Keep the legacy config key, but don't offer a color the song board doesn't render.
@@ -95,7 +119,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         if (type === 'gift-wishes' && ['textPendingColor', 'textReceivedColor', 'ribbonDecorations'].includes(key)) continue;
         // Preserve the legacy setting in saved scenes; font fallback is automatic now.
         if (type === 'lyrics' && key === 'desktopLyricFallbackFontFamily') continue;
-        if (type === 'lyrics' && key.startsWith('advancedLyric') && !LYRIC_CANVAS_ADVANCED_FIELDS.has(key)) continue;
+        if (type === 'lyrics' && key.startsWith('advancedLyric') && key !== 'advancedLyricEnabled') continue;
         const previewOnly = Object.hasOwn(previewFields, key);
         const label = previewElement(field.allowEmpty ? 'div' : 'label');
         label.append(previewElement('span', 'desktop-lyric-control-copy', field.label));
@@ -160,29 +184,42 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         slider?.addEventListener('input', () => { input.value = slider.value; save(); });
         grid.append(label); fields.set(key, { input, slider, cents, scale, inherit, label });
       }
-      const syncGroups = groupSceneExtraParameters(grid, type, fields);
+      const syncGroups = embedded && type === 'now-playing' ? () => {}
+        : groupSceneExtraParameters(grid, type, rankingLabel
+          ? new Map([...fields, ['rankingBoard', { label: rankingLabel }]]) : fields);
       host.append(grid);
       enhanceColorControls(grid);
       initParameterRanges(grid);
       const backgroundPanel = type === 'background' ? mountBackgroundParameters(host, target) : null;
       const openingPanel = type === 'opening' && openingSettings && !initialConfig.resourceStyle && !initialConfig.mediaStyle
         ? mountOpeningCanvasSettings(host, { target, request: openingSettings, startPreviewData }) : null;
+      if (type === 'live-rankings') host.append(previewElement('p', 'hint', '拖动榜单上下边框调整高度，显示条数会自动增减；附近模式围绕本房间展开，完整榜按当前高度自动翻页。'));
+      const giftMotionPanel = type === 'gift-frame' ? mountGiftMotionCanvasSettings(host, target) : null;
+      const advancedLyricPanel = type === 'lyrics' ? mountAdvancedLyricCanvasSettings(host, target) : null;
       if (type === 'opening' && !embedded) host.append(previewElement('p', 'hint', '画布始终预览动画；直播显示由开播总开关控制。'));
       if (type === 'lyrics') host.append(previewElement('p', 'hint',
-        '画布展示静态示例歌词；单层示例始终可见，直播输出遵循显示开关。完整搭配在「组件 → 音乐展示 → 直播歌词 → 高级样式」中编辑。'));
+        '画布展示静态示例歌词；单层示例始终可见，直播输出遵循显示开关。高级歌词的排版、字效、动作和搭配与客户端同步。'));
       if (definition.category === '直播小游戏') host.append(previewElement('p', 'hint', '在客户端“直播小游戏”中开始和管理游戏，这里调整展示画面。'));
       if (type === 'gift-sprint') host.append(previewElement('p', 'hint', '这里显示示例进度。直播画面跟随“组件 → 礼物姬 → 月底冲刺”的目标与进度，未设目标时隐藏。'));
       if (type === 'heart-box-collection') host.append(previewElement('p', 'hint', '画布展示示例进度；直播自动统计北京时间每周六 00:00 至周五 00:00 收到的心动盲盒，包含开启前本期已收到的数量，出城堡不清零。'));
       if (type === 'gift-wishes') host.append(previewElement('p', 'hint', previewHint || '画布读取已保存的礼物许愿，礼物、目标、进度、文字和颜色与客户端同步。高度随条数和间距自动调整，最多显示设定条数；许愿内容在客户端编辑。'));
-      if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint',
-        '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
+      if (['gift-frame', 'guard-thanks'].includes(type)) host.append(previewElement('p', 'hint', type === 'gift-frame'
+        ? '画布循环展示示例；直播仅在触发时播放。礼物掉落和摇摇乐可在这里启用并设置参数，其他样式在“礼物姬”中启用。'
+        : '画布循环展示示例；直播仅在触发时播放。请在“礼物姬”中启用对应效果。'));
       const render = ({ draft, loaded }) => {
         const nautical = draft.resourceStyle?.preset === 'nautical-guard-thanks';
+        const ranking = type === 'live-rankings' ? singleRankingId(draft) : null;
+        if (rankingInput) {
+          rankingInput.value = ranking || '';
+          rankingInput.disabled = !loaded;
+          legacyRanking.hidden = Boolean(ranking);
+        }
         for (const [key, { input, slider, cents, scale, inherit, label }] of fields) {
+          const playingPart = type === 'now-playing' ? draft.nowPlayingPart : null;
           label.hidden = type === 'opening' && (key === 'style' ? Boolean(draft.resourceStyle)
             : !draft.resourceStyle || !Object.hasOwn(openingFields, key))
-            || type === 'live-rankings' && (key === 'nearby' && draft.range !== 'nearby'
-              || ['pageSize', 'pageSeconds'].includes(key) && draft.range !== 'all')
+            || type === 'live-rankings' && (key === 'pageSeconds' && draft.range !== 'all'
+              || key === 'columns' && Boolean(ranking))
             || type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
             || type === 'background' && key === 'style' && Boolean(draft.mediaStyle)
             || type === 'gift-frame' && key === 'style' && Boolean(draft.mediaStyle || draft.resourceStyle)
@@ -194,7 +231,10 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             || type === 'blindbox' && key.startsWith('blindbox') && key !== 'blindboxOverlayTitle' && (!draft.heartBoxOnly
               || key === 'blindboxCastlesRemaining' && ![true, 'true'].includes(draft.blindboxShowCastlesRemaining))
             || type === 'guard-thanks' && (nautical ? ['style', 'textMode', 'months'].includes(key)
-              : ['showAvatar', 'showUserName', 'nameFontSize'].includes(key));
+              : ['showAvatar', 'showUserName', 'nameFontSize'].includes(key))
+            || Boolean(NOW_PLAYING_PART_FIELDS[playingPart]) && (['nowPlayingLayout', 'nowPlayingGap'].includes(key)
+              || NOW_PLAYING_PART_FIELDS[playingPart === 'record' ? 'text' : 'record'].includes(key)
+              || !embedded && playingPart === 'record' && key === 'nowPlayingRecordSize');
           const value = type === 'gift-wishes' && key === 'ribbonDecorationStyle' ? getRibbonDecorationStyle(draft)
             : Object.hasOwn(previewFields, key) ? previewValues[key]
             : draft[key] ?? openingFields[key]?.default ?? definition.fields[key].default;
@@ -226,10 +266,10 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         }
         syncGroups();
       };
-      const stop = target.subscribe(render);
+      const stop = subscribeComponentFields(grid, target, render);
       const syncPreview = () => render(target.getState());
       previewPanels.add(syncPreview);
-      return { dispose() { stop(); disposeFontPickers.forEach(dispose => dispose?.()); disposeParameterRanges(grid); backgroundPanel?.dispose(); openingPanel?.dispose(); previewPanels.delete(syncPreview); } };
+      return { dispose() { stop(); disposeFontPickers.forEach(dispose => dispose?.()); disposeParameterRanges(grid); backgroundPanel?.dispose(); openingPanel?.dispose(); giftMotionPanel?.dispose(); advancedLyricPanel?.dispose(); previewPanels.delete(syncPreview); } };
     },
   };
 }

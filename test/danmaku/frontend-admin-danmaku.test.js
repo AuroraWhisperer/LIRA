@@ -1,6 +1,6 @@
 'use strict';
 
-const { readAdminFragmentHtml, readAdminHtml } = require('../helpers/admin-html');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
@@ -206,7 +206,9 @@ test('successful Bilibili login refreshes danmaku once and enables sending', asy
 });
 
 test('opening a disconnected danmaku panel reconnects once and refreshes the state', async (t) => {
-  const page = await createDanmakuPage(t, { connected: false }, readAdminHtml());
+  const html = ['shell-start.html', 'danmaku.html', 'performance.html', 'shell-end.html']
+    .map(file => readAdminFragmentHtml(`pages/admin/toolbox/${file}`)).join('\n');
+  const page = await createDanmakuPage(t, { connected: false }, html);
   await page.evaluate(async () => {
     window.localStorage.setItem('admin.toolboxSelectedFeature', 'otherPerformanceFeature');
     window.other = (await import('/js/admin/toolbox-navigation.js')).other;

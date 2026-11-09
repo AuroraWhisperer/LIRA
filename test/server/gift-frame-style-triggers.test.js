@@ -59,7 +59,7 @@ test('gift ingress reads only media style ids and observes committed, external a
     if (value?.packages) wholeIndexes++;
     return clone(value);
   });
-  for (let i = 0; i < 20; i++) listGiftFrameTriggerStyleIds(directory).push('caller-mutation');
+  listGiftFrameTriggerStyleIds(directory).push('caller-mutation');
   assert.deepEqual(listGiftFrameTriggerStyleIds(directory), [id('2')]);
   assert.equal(wholeIndexes, 0, 'each gift must not clone unrelated style configurations');
   packs.push({ id: id('4'), styles: [{ id: id('5'), type: 'gift-frame', config: { mediaStyle: { id: id('5') } } }] });

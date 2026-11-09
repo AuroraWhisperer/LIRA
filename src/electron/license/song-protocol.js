@@ -19,6 +19,8 @@ function createSongEndpoints({ request, requestRaw }) {
         retryResponseTooLarge: false,
         signal: requestOptions.signal,
       }),
+    getSongPageAccess: (token) => request('GET', '/api/device/song-page/access', undefined, token),
+    setSongPageAccess: (enabled, token) => request('PUT', '/api/device/song-page/access', { enabled }, token),
     getSongPageBackground: (token) => request('GET', '/api/device/song-page/background', undefined, token),
     uploadSongPageBackground: (bytes, contentType, token) =>
       requestRaw('PUT', '/api/device/song-page/background', bytes, contentType, token),
@@ -27,6 +29,20 @@ function createSongEndpoints({ request, requestRaw }) {
 }
 
 function createSongOperations({ remote, withAuthorizedToken }) {
+  function acceptSongPageAccess(result) {
+    if (typeof result?.enabled !== 'boolean') throw new RemoteLicenseError('INVALID_RESPONSE');
+    return { enabled: result.enabled };
+  }
+
+  function getSongPageAccess() {
+    return withAuthorizedToken((token) => remote.getSongPageAccess(token), { acceptResult: acceptSongPageAccess });
+  }
+
+  function setSongPageAccess(enabled) {
+    if (typeof enabled !== 'boolean') throw new RemoteLicenseError('INVALID_SONG_PAGE_ACCESS');
+    return withAuthorizedToken((token) => remote.setSongPageAccess(enabled, token), { acceptResult: acceptSongPageAccess });
+  }
+
   async function syncSongs(songs, requestOptions = {}) {
     if (!Array.isArray(songs)) throw new RemoteLicenseError('SONG_LIST_INVALID', '歌库格式无效。');
     if (songs.length > 5000)
@@ -97,7 +113,7 @@ function createSongOperations({ remote, withAuthorizedToken }) {
     return withAuthorizedToken((token) => remote.deleteSongPageBackground(token));
   }
 
-  return { syncSongs, getCloudSongs, getCloudSongCount, getSongPageBackground, uploadSongPageBackground, deleteSongPageBackground };
+  return { syncSongs, getCloudSongs, getCloudSongCount, getSongPageAccess, setSongPageAccess, getSongPageBackground, uploadSongPageBackground, deleteSongPageBackground };
 }
 
 module.exports = { createSongEndpoints, createSongOperations };

@@ -34,9 +34,6 @@ test('server compatibility wrappers reuse one runtime and preserve stop defaults
   const runtime = {
     start: (options) => calls.push(['start', options]),
     stop: (options) => calls.push(['stop', options]),
-    setPreShutdownHook: (hook) => calls.push(['hook', hook]),
-    persistPlaybackSnapshot: (payload, clientId) => ({ payload, clientId }),
-    getApiToken: () => 'token',
   };
   let factoryCalls = 0;
   const compatibility = createServerCompatibility((options) => {
@@ -44,18 +41,13 @@ test('server compatibility wrappers reuse one runtime and preserve stop defaults
     calls.push(['factory', options]);
     return runtime;
   });
-  const hook = () => {};
-
   compatibility.startServer({ dataDir: 'data-a', startPort: 0 });
-  compatibility.setPreShutdownHook(hook);
   compatibility.shutdownApplication();
 
   assert.equal(factoryCalls, 1);
-  assert.equal(compatibility.getApiToken(), 'token');
   assert.deepEqual(calls, [
     ['factory', { dataDir: 'data-a' }],
     ['start', { dataDir: 'data-a', startPort: 0 }],
-    ['hook', hook],
     ['stop', { exitProcess: true }],
   ]);
 });

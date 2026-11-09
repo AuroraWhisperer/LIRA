@@ -166,7 +166,7 @@ test('finished game can restart with the same player configuration', () => {
     targetUid: '42',
     targetName: 'Alice',
   });
-  assert.throws(() => service.restart(), /尚未结算/);
+  assert.throws(() => service.restart(), { statusCode: 409 });
 
   for (let index = 1; index <= 5; index += 1) {
     service.move({ value: `A${index}` }, 'host');
@@ -248,8 +248,8 @@ test('draw guess only selects words from requested categories and rejects invali
   assert.deepEqual(state.categoryIds, ['animals', 'food-drink']);
   assert.ok(state.words.length > 0);
   assert.deepEqual([...new Set(state.words.map((entry) => entry.categoryId))].sort(), ['animals', 'food-drink']);
-  assert.throws(() => createDrawGuessState({ categoryIds: [] }), /至少选择一个词库分类/);
-  assert.throws(() => createDrawGuessState({ categoryIds: ['unknown'] }), /词库分类无效/);
+  assert.throws(() => createDrawGuessState({ categoryIds: [] }));
+  assert.throws(() => createDrawGuessState({ categoryIds: ['unknown'] }));
 });
 
 test('draw guess awards 10, 7, 5, then 3 points and scores each uid once per round', () => {

@@ -65,8 +65,14 @@ function recentNameHistory(history = [], currentName = '') {
       seen.add(item.name);
       return true;
     })
-    .slice(0, 3)
     .reverse();
+}
+
+function entrySnapshot(value) {
+  if (value == null) return null;
+  const name = text(value.name, '进房昵称', 200);
+  if (!name || /^(观众|用户)$|[.*…]{2,}|\*|\.\.\./.test(name)) throw new Error('进房昵称无效。');
+  return { name, observedAt: timestamp(value.observedAt, '进房时间') };
 }
 
 function profilePatch(input) {
@@ -78,6 +84,7 @@ function profilePatch(input) {
     nextTopic: 2000,
     zodiac: 30,
     mbtiNote: 500,
+    preferredFormerName: 200,
   };
   for (const [key, max] of Object.entries(fields)) {
     if (Object.hasOwn(input, key)) result[key] = text(input[key], key, max);
@@ -101,7 +108,7 @@ function profilePatch(input) {
     result.tags = [...new Set(input.tags.map((tag) => text(tag, '标签', 50)).filter(Boolean))];
   }
   if (Object.hasOwn(input, 'formerNames')) {
-    if (!Array.isArray(input.formerNames) || input.formerNames.length > 3) throw new Error('最多填写 3 个曾用名。');
+    if (!Array.isArray(input.formerNames)) throw new Error('曾用名格式无效。');
     result.nameHistory = recentNameHistory(
       input.formerNames
         .map((name) => ({
@@ -222,5 +229,6 @@ module.exports = {
   birthday,
   profilePatch,
   recentNameHistory,
+  entrySnapshot,
   recordData,
 };

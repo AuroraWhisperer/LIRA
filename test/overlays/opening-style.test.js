@@ -9,32 +9,6 @@ const { getOpeningConfig } = require('../../src/server/opening-service');
 const { projectOverlayResponse } = require('../../src/server/overlay-projection');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-// Progress cells are found from the drawing itself: rows of five equal cells
-// that stay in place while their colour changes. Filled cells are those whose
-// colour differs from the empty first frame, so artwork coordinates and palette
-// values can change without editing this test.
-function fiveCellRows(rects) {
-  const rows = new Map();
-  for (const rect of rects) {
-    const key = `${rect.y}:${rect.width}:${rect.height}`;
-    if (!rows.has(key)) rows.set(key, []);
-    rows.get(key).push(rect);
-  }
-  return new Map([...rows].filter(([, cells]) => cells.length === 5 && new Set(cells.map(cell => cell.x)).size === 5));
-}
-
-function progressCounter(emptyFrame) {
-  const empty = fiveCellRows(emptyFrame);
-  return (rects) => {
-    const counts = [...fiveCellRows(rects)]
-      .filter(([key, cells]) => empty.has(key) && cells.every((cell, index) => cell.x === empty.get(key)[index].x))
-      .map(([key, cells]) => cells.filter((cell, index) => cell.color !== empty.get(key)[index].color).length)
-      .filter(count => count > 0);
-    assert.ok(counts.every(count => count === counts[0]), 'every progress indicator agrees');
-    return counts[0] || 0;
-  };
-}
-
 test('opening style validates before settings are written and falls back to the classic stage', () => {
   for (const style of ['classic', 'pixel-cassette', 'moonlit-fan']) {
     const patch = normalizeSettingsPatch({ openingStyle: ` ${style} ` }, DEFAULT_SETTINGS);
@@ -115,14 +89,13 @@ test('pixel rendering owns one animation loop and releases it on hide, style swi
   assert.equal(callbacks.size, 0);
 });
 
-test('pixel avatars start empty, accept only uploaded images and update without restarting the scene', async () => {
+test('pixel avatars accept only uploaded images, reuse them and clear stale replacements', async () => {
   const images = [];
   const drawn = [];
   let nextFrame;
-  let rectangles = [];
   const ctx = {
-    fillRect(x, y, width, height) { rectangles.push({ x, y, width, height, color: this.fillStyle }); },
-    drawImage(image, x, y, width, height) { drawn.push({ image, x, y, width, height }); },
+    fillRect() {},
+    drawImage(image) { drawn.push(image); },
   };
   const { createPixelOpening, mergeConfig } = {
     ...await loadModuleExports(path.join(__dirname, '../../public/js/overlays/opening-pixel.js'), {
@@ -139,23 +112,21 @@ test('pixel avatars start empty, accept only uploaded images and update without 
   const config = { active: true, quality: 'normal', characterUrl: '/opening-character/classic.png' };
   runtime.update(config);
   nextFrame(0);
-  const progress = progressCounter(rectangles);
-  const frame = (time) => { rectangles = []; nextFrame(time); return progress(rectangles); };
   assert.equal(images.length, 0, 'classic images and bundled assets are not pixel defaults');
   assert.equal(drawn.length, 0);
-  const sizes = [[32, 32], [4096, 4096], [2048, 1024], [800, 1600]];
-  sizes.forEach(([naturalWidth, naturalHeight], index) => {
+  for (let index = 0; index < 2; index += 1) {
     const next = { ...config, pixelCharacterUrl: `/opening-character/avatar-${index}.png` };
     runtime.update(next);
     runtime.update(next);
     assert.equal(images.length, index + 1, 'config polling must reuse the current image');
-    frame((index + 1) * 1000 - 100);
+    nextFrame((index + 1) * 1000 - 100);
     assert.equal(drawn.length, index, 'pending replacement must not draw the previous image');
-    Object.assign(images.at(-1), { complete: true, naturalWidth, naturalHeight });
-    assert.equal(frame((index + 1) * 1000), index + 1, 'uploading must not reset elapsed progress');
-  });
+    Object.assign(images.at(-1), { complete: true, naturalWidth: 64, naturalHeight: 64 });
+    nextFrame((index + 1) * 1000);
+    assert.equal(drawn.at(-1), images.at(-1));
+  }
   runtime.update(config);
-  assert.equal(frame(5000), 5, 'clearing must not reset elapsed progress');
-  assert.equal(drawn.length, 4);
+  nextFrame(3000);
+  assert.equal(drawn.length, 2);
   runtime.dispose();
 });

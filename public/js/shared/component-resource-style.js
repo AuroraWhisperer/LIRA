@@ -58,10 +58,6 @@ export const COMPONENT_RESOURCE_PRESETS = Object.freeze({
     sheets: ['/css/overlays/base/queue-moonlit.css'] },
 });
 
-export function hasResourceStyles(type) {
-  return Object.values(COMPONENT_RESOURCE_PRESETS).some(preset => preset.type === type);
-}
-
 const SOURCE = /^\/component-media\/([a-f0-9-]{36})\/[a-f0-9]{64}\.(png|jpg|gif|webp|mp4|webm|svg|woff2)$/;
 const UUID = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/;
 const KEYS = ['id', 'preset', 'preview', 'width', 'height', 'resources'];

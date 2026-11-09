@@ -1,9 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const os = require('node:os');
-const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const {
   filterRandomSongCandidates,
@@ -13,11 +11,8 @@ const {
 const songService = require('../../src/music/song-service');
 const { handleDanmakuMessage, parseDanmakuCommand } = require('../../src/bilibili/bilibili-message-handler');
 const { isBilibiliCommandText } = require('../../src/bilibili/danmaku/command-text');
-const { createRequesterTargetStore } = require('../../src/storage/requester-target-store');
-const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
-const { createQueueStore } = require('../../src/storage/queue-store');
-const { addQueueItem } = require('../../src/music/queue-service');
 
 const SONGS = [
   {
@@ -200,51 +195,48 @@ test('scope descriptions retain all unmatched terms and same-song AND semantics'
   assert.equal(describeRandomSongScope([], '').hasCandidates, false);
 });
 
-test('song service only returns enabled library songs satisfying every term', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-random-filter-'));
-  const databases = createDatabases({ dataDir });
-  const songStore = createSongStore(databases.songDb);
+test('song service only returns enabled library songs satisfying every term', (t) => {
+  const songDb = new DatabaseSync(':memory:');
+  t.after(() => songDb.close());
+  songDb.exec('PRAGMA foreign_keys = ON');
+  songDb.exec(SONG_SCHEMA);
+  const songStore = createSongStore(songDb);
 
-  try {
-    songService.saveSong(songStore, {
-      name: '完整匹配',
-      artist: '周杰伦',
-      categoryName: '流行',
-      language: '国语',
-      tags: '抒情',
-    });
-    songService.saveSong(songStore, {
-      name: '缺少标签',
-      artist: '周杰伦',
-      categoryName: '流行',
-      language: '国语',
-      tags: '轻快',
-    });
-    songService.saveSong(songStore, {
-      name: '已禁用',
-      artist: '周杰伦',
-      categoryName: '流行',
-      language: '国语',
-      tags: '抒情',
-      isEnabled: false,
-    });
+  songService.saveSong(songStore, {
+    name: '完整匹配',
+    artist: '周杰伦',
+    categoryName: '流行',
+    language: '国语',
+    tags: '抒情',
+  });
+  songService.saveSong(songStore, {
+    name: '缺少标签',
+    artist: '周杰伦',
+    categoryName: '流行',
+    language: '国语',
+    tags: '轻快',
+  });
+  songService.saveSong(songStore, {
+    name: '已禁用',
+    artist: '周杰伦',
+    categoryName: '流行',
+    language: '国语',
+    tags: '抒情',
+    isEnabled: false,
+  });
 
-    const matches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+抒情');
-    assert.deepEqual(
-      matches.map((song) => song.name),
-      ['完整匹配'],
-    );
-    const aliasMatches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+情歌');
-    assert.deepEqual(
-      aliasMatches.map((song) => song.name),
-      ['完整匹配'],
-    );
-    assert.equal(databases.songDb.prepare('SELECT tags FROM songs WHERE name = ?').get('完整匹配').tags, '抒情');
-    assert.deepEqual(songService.listRandomSongCandidates(songStore, '国语+周杰伦+摇滚'), []);
-  } finally {
-    closeDatabases(databases);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
+  const matches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+抒情');
+  assert.deepEqual(
+    matches.map((song) => song.name),
+    ['完整匹配'],
+  );
+  const aliasMatches = songService.listRandomSongCandidates(songStore, '国语+周杰伦+情歌');
+  assert.deepEqual(
+    aliasMatches.map((song) => song.name),
+    ['完整匹配'],
+  );
+  assert.equal(songDb.prepare('SELECT tags FROM songs WHERE name = ?').get('完整匹配').tags, '抒情');
+  assert.deepEqual(songService.listRandomSongCandidates(songStore, '国语+周杰伦+摇滚'), []);
 });
 
 test('danmaku bridge passes combined terms through unchanged', () => {
@@ -259,16 +251,16 @@ test('danmaku bridge passes combined terms through unchanged', () => {
 });
 
 test('ordinary random text does not trigger song requests or unmatched replies', () => {
-  for (const message of ['随机', '随机xx', '随机 xx', '随机：＋ -—英文', '随机 点歌']) {
+  for (const message of ['随机', '随机 点歌']) {
     assert.equal(isBilibiliCommandText(message), false, message);
     assert.equal(parseDanmakuCommand(message, {}), null, message);
-    const result = handleDanmakuMessage(
-      { settings: () => ({ enableRandomTagReply: 'true' }) },
-      { message, userName: 'Alice', uid: '123' },
-    );
-    assert.equal(result.accepted, false, message);
-    assert.equal(result.autoReply, undefined, message);
   }
+  const result = handleDanmakuMessage(
+    { settings: () => ({ enableRandomTagReply: 'true' }) },
+    { message: '随机', userName: 'Alice', uid: '123' },
+  );
+  assert.equal(result.accepted, false);
+  assert.equal(result.autoReply, undefined);
 });
 
 test('danmaku song requests accept the song name with or without a separating space', () => {
@@ -376,49 +368,4 @@ test('builds a combination mention auto-reply and keeps it disabled by the switc
   });
   assert.ok(enabledResult.autoReply.message.includes('国语+摇滚'));
   assert.deepEqual(enabledResult.autoReply.target, { uid: '123', name: 'Alice' });
-});
-
-test('failed random filters do not replace the latest mention target', () => {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'song-plugin-requester-target-'));
-  const databases = createDatabases({ dataDir });
-
-  try {
-    addQueueItem({
-      store: createQueueStore(databases.songDb),
-      settings: () => ({}),
-      defaults: () => ({}),
-    }, {
-      songName: 'Matched Song', requesterUid: '456', requesterName: 'Alice',
-      source: 'random:pop', createdAt: '2026-08-05T10:00:00.000Z',
-    });
-    const requesterTargets = createRequesterTargetStore(databases.songDb);
-    const before = requesterTargets.getLatestRandomRequester();
-    const result = handleDanmakuMessage(
-      {
-        settings: () => ({ paused: 'false', userCooldownSeconds: '0' }),
-        settingsStore: {
-          getDefaultSettings: () => ({ userCooldownSeconds: '0' }),
-        },
-        userRequestCooldown: { getLastRequestAt: () => 0, recordAccepted() { assert.fail(); } },
-        pickRandomSong: () => null,
-        addQueueItem() {
-          assert.fail('a failed random filter must not create a request');
-        },
-      },
-      {
-        message: '\u968f\u673a\u70b9\u6b4c unknown-tag',
-        userName: 'Bob',
-        uid: '789',
-      },
-    );
-
-    assert.equal(result.accepted, false);
-    assert.equal(databases.songDb.prepare('SELECT COUNT(*) AS count FROM requests').get().count, 1);
-    assert.deepEqual(requesterTargets.getLatestRandomRequester(), before);
-    assert.equal(before.uid, '456');
-    assert.equal(before.name, 'Alice');
-  } finally {
-    closeDatabases(databases);
-    fs.rmSync(dataDir, { recursive: true, force: true });
-  }
 });

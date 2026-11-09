@@ -2,7 +2,10 @@ import { createNowPlayingRenderer } from '../shared/now-playing-renderer.js';
 import { mountSceneExtraClient } from './scene-extra-client.js';
 import { createOverlaySocket } from './socket-client.js';
 
-const renderer = createNowPlayingRenderer(document.getElementById('nowPlayingSurface'));
+const selectedPart = new URLSearchParams(location.search).get('part');
+const renderer = createNowPlayingRenderer(document.getElementById('nowPlayingSurface'), {
+  part: ['record', 'text'].includes(selectedPart) ? selectedPart : undefined,
+});
 const client = mountSceneExtraClient('now-playing', {
   onConfig: config => renderer.updateConfig(config),
   onData: data => renderer.updateState(data?.nowPlaying),

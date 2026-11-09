@@ -9,13 +9,19 @@ import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 import { getActiveComponentPreview } from './component-preview-session.js';
 import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scene-extra-components.js';
+import { createComponentConfigController } from './component-config-controller.js';
+import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 
 const settingIds = GUARD_THANKS_EFFECTS.flatMap(({ prefix }) => [`${prefix}Enabled`, `${prefix}TextMode`]);
-const draftFields = new Set();
-const savingFields = new Set();
+const controllers = new Map();
 let initialized = false;
 let currentSettings = {};
 const field = (effect, name) => document.getElementById(`${effect.prefix}${name}`);
+
+function configFromSettings(effect, settings) {
+  const values = readGuardThanksEffect(settings, effect);
+  return { [`${effect.prefix}Enabled`]: String(values.enabled), [`${effect.prefix}TextMode`]: values.textMode };
+}
 
 export function initGuardThanks() {
   if (initialized) return;
@@ -25,43 +31,50 @@ export function initGuardThanks() {
   const markDraft = (event) => {
     if (!settingIds.includes(event.target.id)) return;
     const effect = GUARD_THANKS_EFFECTS.find(effect => event.target.id.startsWith(effect.prefix));
-    syncDraftFields(effect);
-    setStatus(effect, '', '');
+    controllers.get(effect.prefix).edit({
+      [event.target.id]: event.target.id.endsWith('Enabled') ? String(event.target.checked) : event.target.value,
+    });
   };
   for (const id of settingIds) document.getElementById(id).dataset.preserveDirty = 'true';
   panel.addEventListener('input', markDraft);
   panel.addEventListener('change', markDraft);
+  const subscriptions = [];
   for (const effect of GUARD_THANKS_EFFECTS) {
+    const fromSettings = settings => configFromSettings(effect, settings);
+    const controller = createComponentConfigController({
+      initial: fromSettings(currentSettings),
+      persist: async draft => fromSettings(await saveComponentSettings(draft)),
+      confirm: async () => fromSettings(await confirmComponentSettings()),
+    });
+    controllers.set(effect.prefix, controller);
     field(effect, 'SaveBtn').addEventListener('click', () => saveSettings(effect));
     field(effect, 'PlayBtn').addEventListener('click', () => playPreview(effect));
+    subscriptions.push(controller.subscribe(state => renderEffect(effect, state)));
   }
-  window.addEventListener('app:settings-state', (event) => renderGuardThanks(event.detail || {}));
-  renderGuardThanks(currentSettings);
+  const receiveSettings = event => renderGuardThanks(event.detail || {});
+  window.addEventListener('app:settings-state', receiveSettings);
+  window.addEventListener('pagehide', () => {
+    window.removeEventListener('app:settings-state', receiveSettings);
+    subscriptions.forEach(stop => stop());
+  }, { once: true });
 }
 
 export function renderGuardThanks(settings = {}) {
   currentSettings = settings;
   for (const effect of GUARD_THANKS_EFFECTS) {
-    const enabled = field(effect, 'Enabled');
-    if (!enabled) continue;
-    const values = readGuardThanksEffect(settings, effect);
-    if (!draftFields.has(enabled.id)) enabled.checked = values.enabled;
-    const text = field(effect, 'TextMode');
-    if (!draftFields.has(text.id)) text.value = values.textMode;
-    syncDraftFields(effect);
-    if (field(effect, 'SaveState').dataset.state === 'pending') setStatus(effect, '', '');
+    controllers.get(effect.prefix)?.receive(configFromSettings(effect, settings));
   }
 }
 
-function syncDraftFields(effect) {
-  const saved = readGuardThanksEffect(currentSettings, effect);
-  for (const [name, same] of [['Enabled', field(effect, 'Enabled').checked === saved.enabled],
-    ['TextMode', field(effect, 'TextMode').value === saved.textMode]]) {
+function renderEffect(effect, state) {
+  for (const name of ['Enabled', 'TextMode']) {
     const node = field(effect, name);
-    const dirty = savingFields.has(node.id) || !same;
-    if (dirty) draftFields.add(node.id); else draftFields.delete(node.id);
-    node.dataset.dirty = String(dirty);
+    if (name === 'Enabled') node.checked = state.draft[node.id] === 'true';
+    else node.value = state.draft[node.id];
+    node.dataset.dirty = String(state.draft[node.id] !== state.saved[node.id]);
   }
+  field(effect, 'SaveBtn').disabled = state.saving;
+  setStatus(effect);
 }
 
 async function playPreview(effect) {
@@ -113,43 +126,29 @@ async function playPreview(effect) {
 async function saveSettings(effect) {
   const button = field(effect, 'SaveBtn');
   if (button.disabled) return;
-  const enabledKey = `${effect.prefix}Enabled`;
-  const textKey = `${effect.prefix}TextMode`;
-  const submitted = {
-    [enabledKey]: String(field(effect, 'Enabled').checked),
-    [textKey]: field(effect, 'TextMode').value,
-  };
-  button.disabled = true;
-  for (const id of [enabledKey, textKey]) savingFields.add(id);
-  setStatus(effect, '正在保存…', '');
-  try {
-    await api('/api/settings', submitted, { notifyError: false });
-    currentSettings = { ...currentSettings, ...submitted };
-    for (const id of [enabledKey, textKey]) savingFields.delete(id);
-    syncDraftFields(effect);
-    renderGuardThanks(currentSettings);
-    const dirty = [enabledKey, textKey].some(id => draftFields.has(id));
-    const message = dirty ? `${effect.label}设置已保存，刚才的新修改还没保存。`
-      : `${effect.label}设置已保存，${submitted[enabledKey] === 'true' ? '已启用' : '已关闭'}。`;
+  const controller = controllers.get(effect.prefix);
+  if (!controller.getStatus().dirty) return;
+  const saved = await controller.save();
+  const state = controller.getState();
+  currentSettings = { ...currentSettings, ...state.saved };
+  if (saved) {
+    const message = state.dirty ? `${effect.label}设置已保存，刚才的新修改还没保存。`
+      : `${effect.label}设置已保存，${state.saved[`${effect.prefix}Enabled`] === 'true' ? '已启用' : '已关闭'}。`;
     setStatus(effect, message, 'success');
-    if (dirty) toast(message, { type: 'success' });
-  } catch (_) {
-    const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
+    if (state.dirty) toast(message, { type: 'success' });
+  } else {
+    const message = state.error || `${effect.label}设置没保存成功，修改还在，请再试一次。`;
     setStatus(effect, message, 'error');
     toast(message, { type: 'error' });
-  } finally {
-    for (const id of [enabledKey, textKey]) savingFields.delete(id);
-    syncDraftFields(effect);
-    button.disabled = false;
   }
 }
 
-function setStatus(effect, message, state) {
+function setStatus(effect, message = '', state = '') {
   const node = field(effect, 'SaveState');
-  const dirty = ['Enabled', 'TextMode'].some(name => draftFields.has(`${effect.prefix}${name}`));
-  node.textContent = dirty && !message.includes('保存')
-    ? `${message}${message ? ' ' : ''}有未保存修改，点击“保存设置”后生效。` : message;
-  node.dataset.state = state || (dirty ? 'pending' : '');
+  const current = controllers.get(effect.prefix).getStatus();
+  node.textContent = message || current.error || (current.saving ? '正在保存…'
+    : current.dirty ? '有未保存修改，点击“保存设置”后生效。' : '');
+  node.dataset.state = state || (current.error ? 'error' : current.dirty ? 'pending' : '');
 }
 
 export function mountNauticalGuardToggle(host) {

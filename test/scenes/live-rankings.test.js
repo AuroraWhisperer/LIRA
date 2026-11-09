@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { selectRankingRows, rankingCountdown } = require('../../public/js/shared/live-rankings.js');
+const { selectRankingRows } = require('../../public/js/shared/live-rankings.js');
 const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { normalizeSceneConfig } = require('../../src/server/scene-components');
 const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
@@ -13,7 +13,6 @@ test('nearby mode uses absolute ranks and never fabricates neighbors outside the
   assert.deepEqual(selectRankingRows({ ...board, current: { rank: null } }, { range: 'nearby' }), []);
   assert.deepEqual(selectRankingRows({ ...board, eligible: false }, { range: 'nearby' }), []);
   assert.deepEqual(selectRankingRows(board, { range: 'all', pageSize: 4 }, 2).map(row => row.rank), [9, 10]);
-  assert.equal(rankingCountdown({ endsAt: 3000 }, 3001), '等待新一轮榜单');
 });
 
 test('ranking display configuration follows scene validation and data versions avoid duplicate payloads', () => {
@@ -25,4 +24,22 @@ test('ranking display configuration follows scene validation and data versions a
   const versions = { known: {}, current: {} };
   assert.equal(display('live-rankings', null, { dataVersions: versions }).room.roomId, '8');
   assert.equal(display('live-rankings', null, { dataVersions: { known: versions.current, current: {} } }), undefined);
+});
+
+test('height-based nearby rows keep the current room visible and use available neighbors at either end', () => {
+  const rows = Array.from({ length: 12 }, (_, index) => ({ rank: index + 1 }));
+  const board = { current: { rank: 6 }, rows };
+  const ranks = (current, capacity) => selectRankingRows({ ...board, current: { rank: current } }, { range: 'nearby' }, 0, capacity).map(row => row.rank);
+  assert.deepEqual(ranks(6, 4), [5, 6, 7, 8]);
+  assert.deepEqual(ranks(1, 4), [1, 2, 3, 4]);
+  assert.deepEqual(ranks(12, 4), [9, 10, 11, 12]);
+  assert.deepEqual(ranks(20, 4), []);
+});
+
+test('height-based pagination covers every rank once and wraps after the last partial page', () => {
+  const rows = Array.from({ length: 11 }, (_, index) => ({ rank: index + 1 }));
+  const read = page => selectRankingRows({ rows }, { range: 'all', pageSize: 5 }, page, 4).map(row => row.rank);
+  assert.deepEqual([0, 1, 2].flatMap(read), rows.map(row => row.rank));
+  assert.deepEqual(read(3), read(0));
+  assert.deepEqual(selectRankingRows({ rows }, { range: 'all' }, 0, 0), []);
 });

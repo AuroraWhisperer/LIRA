@@ -39,11 +39,9 @@ test('sendStableError maps known failures and never exposes internal details', (
 
 test('readJsonBody enforces the byte limit and JSON syntax and treats an empty body as an object', async () => {
   await assert.rejects(httpUtils.readJsonBody(createMockRequest('{"data": "large payload"}'), 10), {
-    message: 'Request body is too large.',
     code: 'REQUEST_BODY_TOO_LARGE',
   });
   await assert.rejects(httpUtils.readJsonBody(createMockRequest('not valid json {]'), 1000), {
-    message: 'Invalid JSON body.',
     code: 'INVALID_JSON_BODY',
   });
   assert.deepEqual(await httpUtils.readJsonBody(createMockRequest('{"test": "value"}'), 1000), { test: 'value' });

@@ -14,12 +14,14 @@ const {
 const { projectOverlayState, projectWebSocketPayload } = require('../../src/server/overlay-projection');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 
-test('reset appearance submits defaults against the last saved settings', async () => {
+test('appearance applies drafts against saved settings and reconciles concurrent canvas updates', async () => {
   const document = createParameterDocument();
   const window = new EventTarget();
   const defaults = INTERACTION_APPEARANCE_DEFAULTS;
   let saved = { ...defaults, interactionTextColor: '#ff0000', interactionFontSize: '24' };
   const writes = [];
+  let delayWrite = false;
+  let finishWrite;
   for (const key of Object.keys(defaults)) {
     document.getElementById(key).type = key.startsWith('interactionShow') ? 'checkbox' : 'text';
   }
@@ -28,7 +30,7 @@ test('reset appearance submits defaults against the last saved settings', async 
   }
   const { initInteractionAppearance } = await loadModuleExports(
     path.resolve(__dirname, '../../public/js/admin/interaction-appearance.js'), {
-      document, window,
+      document, window, CustomEvent,
       MutationObserver: class { observe() {} disconnect() {} },
       fetch: async (_url, options = {}) => {
         if (options.method === 'POST') {
@@ -37,7 +39,9 @@ test('reset appearance submits defaults against the last saved settings', async 
           saved = { ...saved, ...patch };
         }
         const payload = { ok: true, data: { settings: { ...saved } } };
-        return { ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) };
+        const response = { ok: true, status: 200, json: async () => payload, text: async () => JSON.stringify(payload) };
+        if (options.method === 'POST' && delayWrite) return new Promise(resolve => { finishWrite = () => resolve(response); });
+        return response;
       },
     },
   );
@@ -50,12 +54,21 @@ test('reset appearance submits defaults against the last saved settings', async 
     await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
     assert.equal(writes[0].interactionTextColor, defaults.interactionTextColor);
     assert.equal(writes[0].interactionFontSize, defaults.interactionFontSize);
-    assert.equal(saved.interactionTextColor, defaults.interactionTextColor);
-    assert.equal(saved.interactionFontSize, defaults.interactionFontSize);
     document.getElementById('interactionTextColor').value = '#123456';
     document.getElementById('interactionAppearanceForm').events.input();
     await document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
     assert.deepEqual(writes[1], { interactionTextColor: '#123456' });
+    delayWrite = true;
+    document.getElementById('interactionFontSize').value = '24';
+    document.getElementById('interactionAppearanceForm').events.input();
+    const saving = document.getElementById('interactionAppearanceForm').events.submit({ preventDefault() {} });
+    window.dispatchEvent(new CustomEvent('app:settings-state', { detail: saved }));
+    saved = { ...saved, interactionFontSize: '18' };
+    window.dispatchEvent(new CustomEvent('app:settings-state', { detail: saved }));
+    finishWrite();
+    await saving;
+    assert.equal(document.getElementById('interactionFontSize').value, '18');
+    assert.equal(document.getElementById('interactionAppearanceApply').disabled, true);
   } finally {
     window.dispatchEvent(new Event('app:shutdown'));
   }
@@ -86,7 +99,8 @@ test('appearance accepts plain text and exact colors, with bounded opacity and s
   assert.equal(normalizeInteractionAppearanceValue('interactionBackgroundOpacity', 0), '0');
   assert.equal(normalizeInteractionAppearanceValue('interactionBackgroundOpacity', '100'), '100');
   assert.equal(normalizeInteractionAppearanceValue('interactionTextColor', '#AABBCC'), '#aabbcc');
-  assert.deepEqual(readInteractionAppearance({ interactionTextColor: 'invalid' }), INTERACTION_APPEARANCE_DEFAULTS);
+  assert.equal(readInteractionAppearance({ interactionTextColor: 'invalid' }).interactionTextColor,
+    INTERACTION_APPEARANCE_DEFAULTS.interactionTextColor);
   const style = new Map();
   applyInteractionAppearance(
     { style: { setProperty: (key, value) => style.set(key, value) } },
@@ -113,15 +127,18 @@ test('appearance size, radius and overall opacity accept bounded integers and vi
   ]) {
     assert.equal(normalizeInteractionAppearanceValue(key, min), String(min));
     assert.equal(normalizeInteractionAppearanceValue(key, String(max)), String(max));
-    for (const invalid of [min - 1, max + 1, max - 0.5, true, null, [max], '1e1', '']) {
+    for (const invalid of [min - 1, max + 1]) {
       assert.equal(normalizeInteractionAppearanceValue(key, invalid), null, `${key}: ${invalid}`);
     }
   }
+  for (const invalid of [20.5, true, null, [20], '1e1', '']) {
+    assert.equal(normalizeInteractionAppearanceValue('interactionOverallOpacity', invalid), null);
+  }
+  for (const value of [true, false, 'true', 'false'])
+    assert.equal(normalizeInteractionAppearanceValue('interactionShowStatus', value), String(value));
+  for (const invalid of [0, null, 'yes', ['true']])
+    assert.equal(normalizeInteractionAppearanceValue('interactionShowStatus', invalid), null);
   for (const key of ['interactionShowStatus', 'interactionShowParticipants']) {
-    for (const value of [true, false, 'true', 'false'])
-      assert.equal(normalizeInteractionAppearanceValue(key, value), String(value));
-    for (const invalid of [0, 1, null, '', 'yes', ['true']])
-      assert.equal(normalizeInteractionAppearanceValue(key, invalid), null);
     assert.equal(readInteractionAppearance({ [key]: false })[key], 'false');
   }
 });

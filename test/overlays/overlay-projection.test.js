@@ -21,6 +21,7 @@ const scopes = [
   'gift-effects',
   'gift-feed',
   'gift-wishes',
+  'heart-box-collection',
   'gift-sprint',
   'gift-export',
   'lyrics',
@@ -77,6 +78,7 @@ const state = {
     danmakuOverlayStyle: 'glow',
     giftEffectDanmakuEnabled: 'true',
     giftDisplayConfig: secret,
+    heartBoxCollectionShowRewards: 'false',
     unknown: secret,
   },
   queue: {
@@ -135,6 +137,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     'gift-effects': ['settings'],
     'gift-feed': ['gifts'],
     'gift-wishes': ['gifts'],
+    'heart-box-collection': ['gifts', 'settings'],
     'gift-sprint': ['giftSprint'],
     lyrics: ['settings', 'lyricState', 'lyricTimeline'],
     'now-playing': ['nowPlaying', 'nowPlayingConfig'],
@@ -151,6 +154,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     assert.deepEqual(Object.keys(result.state).sort(), (allowed[scope] || []).sort(), scope);
     assert.doesNotMatch(JSON.stringify(result), /PRIVATE_SENTINEL/, scope);
     assert.deepEqual(projectOverlayResponse(scope, '/api/state', state), result.state);
+    assert.equal(result.state.settings?.heartBoxCollectionShowRewards, scope === 'heart-box-collection' ? 'false' : undefined);
     if (scope === 'queue') {
       assert.equal(result.state.queue.current.is_live, true);
       assert.equal(result.state.queue.requestResult.id, 'request');

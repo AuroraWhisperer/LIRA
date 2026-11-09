@@ -3,13 +3,23 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const songService = require('../../src/music/song-service');
 const { createDomainServices } = require('../../src/server/domain-services');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
+const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 const { createSettingsStore } = require('../../src/storage/settings-store');
 const { songRequestReason } = require('../../src/bilibili/diagnostics');
+
+function createTestSongStore(t) {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec('PRAGMA foreign_keys = ON');
+  db.exec(SONG_SCHEMA);
+  return createSongStore(db);
+}
 
 function createTestDatabases(prefix) {
   const tempRoot = path.resolve(__dirname, '../../tmp/song-request-autocomplete');
@@ -26,32 +36,26 @@ function closeTestDatabases(testContext) {
   fs.rmSync(testContext.dataDir, { recursive: true, force: true });
 }
 
-test('unique song-name matching prefers exact names and ignores disabled or ambiguous matches', () => {
-  const testContext = createTestDatabases('song-plugin-autocomplete-match-');
-  const { songDb } = testContext.databases;
-  const songStore = createSongStore(songDb);
+test('unique song-name matching prefers exact names and ignores disabled or ambiguous matches', (t) => {
+  const songStore = createTestSongStore(t);
 
-  try {
-    songService.saveSong(songStore, { name: '不醉不会', artist: '田馥甄' });
-    songService.saveSong(songStore, {
-      name: '不醉不会现场版',
-      artist: '田馥甄',
-    });
-    songService.saveSong(songStore, {
-      name: '1022比尔的歌',
-      artist: 'Bomb比尔',
-    });
-    songService.saveSong(songStore, { name: '比尔隐藏版', isEnabled: false });
-    songService.saveSong(songStore, { name: '100%真心', artist: '测试歌手' });
-    songService.saveSong(songStore, { name: '1000真心', artist: '测试歌手' });
+  songService.saveSong(songStore, { name: '不醉不会', artist: '田馥甄' });
+  songService.saveSong(songStore, {
+    name: '不醉不会现场版',
+    artist: '田馥甄',
+  });
+  songService.saveSong(songStore, {
+    name: '1022比尔的歌',
+    artist: 'Bomb比尔',
+  });
+  songService.saveSong(songStore, { name: '比尔隐藏版', isEnabled: false });
+  songService.saveSong(songStore, { name: '100%真心', artist: '测试歌手' });
+  songService.saveSong(songStore, { name: '1000真心', artist: '测试歌手' });
 
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉不会').name, '不醉不会');
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉'), null);
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '比尔').name, '1022比尔的歌');
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '100%').name, '100%真心');
-  } finally {
-    closeTestDatabases(testContext);
-  }
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉不会').name, '不醉不会');
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '不醉'), null);
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '比尔').name, '1022比尔的歌');
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '100%').name, '100%真心');
 });
 
 test('danmaku requests enqueue the complete unique library name and preserve the original message', () => {
@@ -116,26 +120,22 @@ test('danmaku requests preserve the submitted name when multiple library songs m
   }
 });
 
-test('prefix matching prefers an enabled title prefix without guessing between multiple prefixes', () => {
-  const testContext = createTestDatabases('prefix-match-');
-  const songStore = createSongStore(testContext.databases.songDb);
-  try {
-    songService.saveSong(songStore, { name: '如果你也听说' });
-    songService.saveSong(songStore, { name: '我曾听说' });
-    songService.saveSong(songStore, { name: '听说你', artist: '于冬然' });
-    songService.saveSong(songStore, { name: '听说再见', isEnabled: false });
-    songService.saveSong(songStore, { name: '100%真心' });
-    songService.saveSong(songStore, { name: '1000真心' });
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix').name, '听说你');
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '你也', 'prefix').name, '如果你也听说');
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '100%', 'prefix').name, '100%真心');
-    songService.saveSong(songStore, { name: '听说爱情回来过' });
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix'), null);
-    songService.saveSong(songStore, { name: '听说' });
-    assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix').name, '听说');
-  } finally {
-    closeTestDatabases(testContext);
-  }
+test('prefix matching prefers an enabled title prefix without guessing between multiple prefixes', (t) => {
+  const songStore = createTestSongStore(t);
+
+  songService.saveSong(songStore, { name: '如果你也听说' });
+  songService.saveSong(songStore, { name: '我曾听说' });
+  songService.saveSong(songStore, { name: '听说你', artist: '于冬然' });
+  songService.saveSong(songStore, { name: '听说再见', isEnabled: false });
+  songService.saveSong(songStore, { name: '100%真心' });
+  songService.saveSong(songStore, { name: '1000真心' });
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix').name, '听说你');
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '你也', 'prefix').name, '如果你也听说');
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '100%', 'prefix').name, '100%真心');
+  songService.saveSong(songStore, { name: '听说爱情回来过' });
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix'), null);
+  songService.saveSong(songStore, { name: '听说' });
+  assert.equal(songService.findUniqueSongNameMatch(songStore, '听说', 'prefix').name, '听说');
 });
 
 test('changing the matching mode applies to the next request and preserves earlier queue entries', () => {

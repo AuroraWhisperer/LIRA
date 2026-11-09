@@ -66,9 +66,11 @@ test('previewed song updates run through the API facade and request one complete
     const adapter = createDesktopRuntime({
       startServer() {},
       shutdownApplication() {},
+      hasPendingCloudSongs: runtime.hasPendingCloudSongs,
       getPendingCloudSongs: runtime.getPendingCloudSongs,
       acknowledgePendingCloudSongs: runtime.acknowledgePendingCloudSongs,
     });
+    assert.equal(adapter.hasPendingCloudSongs(accountKey), false);
     assert.equal(adapter.getPendingCloudSongs(accountKey), null);
     const headers = {
       authorization: `Bearer ${runtime.getApiToken()}`,
@@ -115,6 +117,8 @@ test('previewed song updates run through the API facade and request one complete
     assert.equal(snapshots[0].length, 2);
     assert.equal(snapshots[0].find((song) => song.name === '本地原曲').request_price, '30元SC');
     assert.equal(snapshots[0].find((song) => song.name === '本地原曲').source_platform, 'QQ音乐');
+    assert.equal(adapter.hasPendingCloudSongs(accountKey), true);
+    assert.equal(adapter.hasPendingCloudSongs('other-account'), false);
     const pending = adapter.getPendingCloudSongs(accountKey);
     assert.equal(pending.songs.length, 2);
     assert.equal(pending.songs.find((song) => song.name === '本地原曲').request_price, '30元SC');
@@ -126,6 +130,7 @@ test('previewed song updates run through the API facade and request one complete
       false,
     );
     assert.equal(adapter.acknowledgePendingCloudSongs(accountKey, pending.mutationId), true);
+    assert.equal(adapter.hasPendingCloudSongs(accountKey), false);
     assert.equal(adapter.getPendingCloudSongs(accountKey), null);
     assert.equal(snapshots.length, 1, 'acknowledgement does not emit a dirty echo');
   } finally {
@@ -226,7 +231,6 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
     const localBlindBoxConfig = runtime.getCloudSettingsSnapshot().giftBlindBoxConfig;
-    const initialSettings = runtime.getCloudSettingsSnapshot();
     runtime.applyCloudSettingsSnapshot({
       roomId: 'https://live.bilibili.com/1963694209',
       enableBilibili: false,
@@ -236,9 +240,8 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       onlyFromLibrary: true,
       allowDuplicate: false,
     });
-    assert.deepEqual(runtime.getCloudSettingsSnapshot(), {
-      ...initialSettings,
-      giftEffectDanmakuEnabled: false,
+    const appliedSettings = runtime.getCloudSettingsSnapshot();
+    for (const [key, value] of Object.entries({
       roomId: '1963694209',
       enableBilibili: false,
       danmakuMonitoringEnabled: false,
@@ -246,13 +249,10 @@ test('runtime applies cloud snapshots without echo and emits dirty scopes after 
       paused: true,
       queueLimit: 75,
       userCooldownSeconds: 12,
-      songCooldownMode: 'off',
-      songCooldownValue: 1,
       onlyFromLibrary: true,
       allowDuplicate: false,
-      giftBlindBoxConfig: localBlindBoxConfig,
-      menuCommands: [],
-    });
+    })) assert.equal(appliedSettings[key], value, key);
+    assert.deepEqual(appliedSettings.giftBlindBoxConfig, localBlindBoxConfig);
 
     runtime.applyCloudSettingsSnapshot({
       roomId: '1963694209',

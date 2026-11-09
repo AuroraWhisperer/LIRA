@@ -115,10 +115,10 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
         },
       },
     },
-    './forms.js': {
-      formsService: {
+    './forms.js': { formsService: { initTabs: noop } },
+    './player-workspace.js': {
+      playerWorkspace: {
         initWorkspaceControls: () => calls.push('workspace'),
-        initTabs: noop,
         closeFullscreenPlayer: () => { fullscreenClosed++; },
       },
     },

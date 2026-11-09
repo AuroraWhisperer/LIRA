@@ -54,6 +54,48 @@ test('runtime publication preserves gift snapshot/frame order, danmaku topic and
   ]);
 });
 
+test('gift effects share one settlement settings snapshot and later settings apply to the next gift', () => {
+  const styleId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+  const settings = {
+    giftFrameEnabled: 'true', giftFrameThresholdRmb: '0',
+    giftFrameStyleTriggers: JSON.stringify({ [styleId]: { enabled: 'true', thresholdRmb: '0' } }),
+    giftDropEnabled: 'true', giftDropSpeed: '75', giftSwingEnabled: 'true',
+    guardThanksAuroraEnabled: 'true', guardThanksClassicEnabled: 'true', guardThanksNauticalEnabled: 'true',
+  };
+  const events = [];
+  let settingsReads = 0;
+  const transport = createRuntimeTransport({
+    defaultPort: 3000, getHost: () => '127.0.0.1', getStartedPort: () => 3000,
+    getSessionToken: () => 'test-session', getState: () => ({}),
+    getSettings: () => { settingsReads++; return Object.freeze({ ...settings }); },
+    getDanmakuFeedBuffer: () => ({ pushGift: () => null }), getWebSocketHub: () => null,
+    getGiftFrameStyleIds: () => [styleId],
+    resolveGiftMotionArtwork: () => '/img/overlays/gift-feed/flower.webp',
+    publishSceneGift(event) {
+      events.push(event);
+      if (event.giftEventId === 1 && event.themeId === 'woodland-bloom') {
+        settings.giftDropSpeed = '150';
+        settings.giftSwingEnabled = 'false';
+      }
+    },
+  });
+  const gift = { id: 1, gift_id: 'guard-3', gift_name: '舰长', num: 1,
+    total_price: 198, detection_status: 'final' };
+  transport.publishGiftFlushed(gift);
+  assert.equal(settingsReads, 1);
+  assert.deepEqual(events.map(event => event.themeId || event.style),
+    ['woodland-bloom', 'imported', 'gift-drop', 'gift-swing', 'aurora', 'classic', 'nautical']);
+  assert.deepEqual(events[1].styleIds, [styleId]);
+  const firstDrop = events.find(event => event.themeId === 'gift-drop');
+  assert.equal(firstDrop.motion.speed, 75);
+  events.length = 0;
+  transport.publishGiftFlushed({ ...gift, id: 2 });
+  assert.equal(settingsReads, 2);
+  assert.equal(events.find(event => event.themeId === 'gift-drop').motion.speed, 150);
+  assert.equal(events.some(event => event.themeId === 'gift-swing'), false);
+  assert.equal(firstDrop.motion.speed, 75);
+});
+
 test('finalized gifts reach the danmaku topic and reconnect snapshot without a gift-frame threshold', () => {
   const { createDanmakuFeedBuffer } = require('../../src/bilibili/danmaku/feed-buffer');
   const feed = createDanmakuFeedBuffer();

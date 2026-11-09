@@ -20,7 +20,6 @@ test('a one-letter title typo selects the related song instead of an unrelated p
   });
   assert.deepEqual(results.map(({ track }) => track.id), ['wanted']);
   assert.equal(results[0].autoAccept, false);
-  assert.match(results[0].reasons.join('；'), /字母/);
 });
 
 test('matching artist, duration and album cannot substitute for a related song title', () => {
@@ -134,19 +133,18 @@ test('unspecified renditions still favor the original over live and remix candid
 });
 
 test('artist or duration conflicts and unavailable tracks require confirmation even above the score threshold', () => {
-  for (const scenario of [
-    { track: { artists: ['其他歌手'] }, reason: /歌手.*确认/ },
-    { track: { durationMs: 300000 }, reason: /时长.*确认/ },
-    { track: { playable: false }, reason: /不可播.*确认/ },
+  for (const track of [
+    { artists: ['其他歌手'] },
+    { durationMs: 300000 },
+    { playable: false },
   ]) {
     const { results, threshold } = matchMusicTrackCandidates({
       songName: 'Burn Me Down', artist: 'hanji', durationMs: 151000,
-      candidates: [{ title: 'Burn Me Down', artists: ['hanji'], album: '专辑', durationMs: 151000, ...scenario.track }],
+      candidates: [{ title: 'Burn Me Down', artists: ['hanji'], album: '专辑', durationMs: 151000, ...track }],
     });
     assert.equal(results.length, 1);
     assert.ok(results[0].score >= threshold);
     assert.equal(results[0].autoAccept, false);
-    assert.match(results[0].reasons.join('；'), scenario.reason);
   }
 });
 

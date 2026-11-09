@@ -95,6 +95,10 @@ function createDesktopRuntime(serverModule, options = {}) {
         : null,
     getCloudSongsSnapshot:
       typeof serverModule.getCloudSongsSnapshot === 'function' ? () => serverModule.getCloudSongsSnapshot() : null,
+    hasPendingCloudSongs:
+      typeof serverModule.hasPendingCloudSongs === 'function'
+        ? (accountKey) => serverModule.hasPendingCloudSongs(accountKey)
+        : null,
     getPendingCloudSongs:
       typeof serverModule.getPendingCloudSongs === 'function'
         ? (accountKey) => serverModule.getPendingCloudSongs(accountKey)

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
-const { fanFixture, interval, SCOPE, IDENTITY, NOW } = require('../helpers/fan-profile-fixture');
+const { fanFixture } = require('../helpers/fan-profile-fixture');
 
 const ROOT = path.join(__dirname, '../..');
 
@@ -97,6 +97,16 @@ test('people names escape aliases and omit missing or duplicate platform names',
   }
 });
 
+test('manual profiles bind a UID while editing retains an existing open platform identity', async () => {
+  const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'), {
+    FormData: class { constructor(form) { return Object.entries(form); } },
+  });
+  const data = { alias: '小海', tags: '', formerNames: '', identityValue: '123', identityType: 'open_id' };
+  assert.equal(forms.profileForm().read(data).identity.type, 'uid');
+  const profile = { identity: { platform: 'bilibili', type: 'open_id', value: 'open-identity' } };
+  assert.deepEqual({ ...forms.profileForm(profile).read({ ...data, identityValue: 'open-identity', identityType: 'uid' }).identity }, profile.identity);
+});
+
 test('daily update settings default off and return the selected values', async () => {
   const forms = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/forms.js'));
   const description = forms.settingsForm({});
@@ -117,13 +127,12 @@ test('daily update settings default off and return the selected values', async (
   assert.equal(values.showAccompanyInCalendar, true);
 });
 
-test('fan detail renders platform companion days independently of unknown local duration', async (t) => {
-  const f = fanFixture(t);
-  f.service.importGuardRoster(SCOPE, {
-    roomId: '1234', ownerUid: '99', observedAt: NOW, skipped: 0,
-    members: [{ uid: IDENTITY.value, name: '测试粉丝', level: 3, accompanyDays: 499 }],
-  });
-  const profile = f.run('find', { identity: IDENTITY });
+test('fan detail renders platform companion days independently of unknown local duration', async () => {
+  const profile = {
+    platformName: '测试粉丝', records: [],
+    guardAccompany: { days: 499, observedAt: '2026-09-18T04:00:00.000Z' },
+    membership: { status: 'unknown', totalDays: null, continuousDays: null },
+  };
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const rendered = view.renderDetail(profile, 'membership');
   assert.match(rendered, /499 天/);
@@ -209,19 +218,16 @@ test('guard roster confirmation escapes the room identity and keeps the expected
   assert.equal(description.read().expectedRoomId, '1743356673');
 });
 
-test('detail uses the existing avatar proxy for synced faces and collections without changing the list', async (t) => {
-  const f = fanFixture(t);
+test('detail proxies face and collection avatars and rejects unsafe sources', async () => {
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'), { URL, URLSearchParams });
-  const p = f.create();
+  const profile = { records: [] };
   const token = 'synthetic&avatar';
   const avatars = [
     'https://i0.hdslb.com/bfs/face/viewer.jpg',
     'https://i0.hdslb.com/bfs/garb/collection.png',
   ];
-  for (const [index, avatar] of avatars.entries()) {
-    f.consume([{ avatar, observedAt: `2026-09-${18 + index}T04:00:00.000Z` }]);
-    const profile = f.detail(p.id);
-    const detail = view.renderDetail(profile, 'overview', token);
+  for (const avatar of avatars) {
+    const detail = view.renderDetail({ ...profile, avatar }, 'overview', token);
     const images = [...detail.matchAll(/<img\b[^>]*\ssrc="([^"]+)"[^>]*>/g)];
     assert.equal(images.length, 1);
     const source = new URL(images[0][1].replaceAll('&amp;', '&'), 'http://localhost');
@@ -230,7 +236,7 @@ test('detail uses the existing avatar proxy for synced faces and collections wit
     assert.equal(source.searchParams.get('token'), token);
   }
   for (const avatar of ['', 'javascript:alert(1)', 'https://hdslb.com.attacker.test/avatar.webp']) {
-    assert.doesNotMatch(view.renderDetail({ ...f.detail(p.id), avatar }), /fan-detail-avatar|<img\b/);
+    assert.doesNotMatch(view.renderDetail({ ...profile, avatar }), /fan-detail-avatar|<img\b/);
   }
 });
 
@@ -272,14 +278,21 @@ test('manual song entry converts local time and omits per-request preference fie
   assert.equal(Object.hasOwn(payload.data, 'excluded'), false);
 });
 
-test('membership conflicts retain both resolution choices and escape raw data', async (t) => {
-  const f = fanFixture(t);
-  const p = f.create({ expiryReminders: true });
-  f.record(p.id, 'membership', interval('2026-09-01', '2026-12-31', { reason: '<上次确认>' }));
-  f.consume([{ kind: 'membership', membership: interval('2026-09-01', '2026-11-30', { evidenceVerified: true }) }]);
-  const profile = f.detail(p.id);
-  const pending = profile.records.find((record) => record.data.decision === 'pending');
-  assert.ok(pending);
+test('membership conflicts retain both resolution choices and escape raw data', async () => {
+  const confirmed = {
+    id: 'confirmed-membership', kind: 'membership', original: { source: 'manual' },
+    data: { type: 'interval', level: 3, startAt: '2026-08-31T16:00:00.000Z',
+      endAt: '2026-12-31T16:00:00.000Z', decision: 'adopted', reason: '<上次确认>' },
+  };
+  const pending = {
+    id: 'pending-membership', kind: 'membership', original: { source: 'platform' },
+    data: { type: 'interval', level: 3, startAt: '2026-08-31T16:00:00.000Z',
+      endAt: '2026-11-30T16:00:00.000Z', decision: 'pending', conflicts: [confirmed.id] },
+  };
+  const profile = {
+    membership: { status: 'pending', totalDays: null, continuousDays: null },
+    records: [confirmed, pending],
+  };
   const view = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/view.js'));
   const rendered = view.renderDetail(profile, 'membership');
   assert.match(rendered, /&lt;上次确认&gt;/);
@@ -288,7 +301,7 @@ test('membership conflicts retain both resolution choices and escape raw data', 
     assert.equal(buttons.length, 1);
     assert.match(buttons[0], new RegExp(`\\sdata-record-id=["']${pending.id}["']`));
   }
-  assert.doesNotMatch(rendered, /<pre|<上次确认>|JSON|evidenceVerified|Asia\/Shanghai/);
+  assert.doesNotMatch(rendered, /<pre|<上次确认>|decision|conflicts/);
 });
 
 test('merge preview uses readable escaped fields and preserves the selected merge policy', async (t) => {

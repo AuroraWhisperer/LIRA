@@ -60,7 +60,7 @@ const SETTING_KEYS = {
   wheel: '',
   'gift-feed': '',
   'gift-wishes': '',
-  'heart-box-collection': '',
+  'heart-box-collection': 'heartBoxCollectionShowRewards',
   'gift-sprint': '',
   'gift-export': '',
   'now-playing': '',

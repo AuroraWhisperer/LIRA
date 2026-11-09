@@ -12,7 +12,7 @@ export const LYRIC_DISPLAY_FIELDS = Object.freeze({
 });
 
 export const ADVANCED_LYRIC_FIELDS = Object.freeze({
-  advancedLyricLayout: select('排版', 'center', 'layouts', 'layout'),
+  advancedLyricLayout: select('编排与构图', 'phrase-flow', 'layouts', 'layout'),
   // Retained for saved settings/presets; advanced output only renders the current line.
   advancedLyricShowNextLine: { ...check('显示下一句', false, 'display'), hidden: true },
   advancedLyricHideUnsung: check('隐藏未唱到的字', true, 'display'),
@@ -43,7 +43,7 @@ export const ADVANCED_LYRIC_FIELDS = Object.freeze({
   advancedLyricHold: select('停留', 'still', 'holds', 'motion'),
   advancedLyricExit: select('退场', 'fade', 'exits', 'motion'),
   advancedLyricWordMotion: select('逐字动作', 'fill', 'wordMotions', 'motion'),
-  advancedLyricMotionDuration: number('进出场时长（毫秒）', 600, 100, 1600, 50, 'motion'),
+  advancedLyricMotionDuration: number('转场时长（毫秒）', 600, 100, 1600, 50, 'motion'),
   advancedLyricMotionAmount: number('动作幅度', 1, 0.25, 2, 0.05, 'motion'),
   advancedLyricRotateLayouts: check('按句轮换排版', false, 'layout'),
   advancedLyricLayoutSequence: { label: '排版轮换组合', type: 'text', default: '', maxLength: 256, group: 'layout', sequence: 'layouts' },

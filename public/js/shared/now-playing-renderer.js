@@ -1,7 +1,7 @@
 import { NOW_PLAYING_DEFAULTS } from './now-playing-appearance.js';
 import { withMultilingualFallback } from './utils.js';
 
-export function createNowPlayingRenderer(root) {
+export function createNowPlayingRenderer(root, { part } = {}) {
   const document = root.ownerDocument;
   const element = (tag, className) => {
     const node = document.createElement(tag);
@@ -45,9 +45,10 @@ export function createNowPlayingRenderer(root) {
 
   function renderVisibility() {
     const hasTrack = Boolean(state.trackTitle);
-    visual.hidden = !enabled(config.nowPlayingShowRecord);
-    title.hidden = !enabled(config.nowPlayingShowTitle);
-    artist.hidden = !enabled(config.nowPlayingShowArtist) || !artist.textContent;
+    const content = part || config.nowPlayingPart;
+    visual.hidden = content === 'text' || !enabled(config.nowPlayingShowRecord);
+    title.hidden = content === 'record' || !enabled(config.nowPlayingShowTitle);
+    artist.hidden = content === 'record' || !enabled(config.nowPlayingShowArtist) || !artist.textContent;
     copy.hidden = title.hidden && artist.hidden;
     surface.dataset.recordOnly = String(copy.hidden);
     surface.hidden = !hasTrack && enabled(config.nowPlayingHideWhenEmpty)
@@ -66,11 +67,12 @@ export function createNowPlayingRenderer(root) {
   }
 
   function updateArtwork() {
-    const key = JSON.stringify([state.source, state.trackTitle, state.artists, state.coverUrl]);
+    const showRecord = (part || config.nowPlayingPart) !== 'text' && enabled(config.nowPlayingShowRecord);
+    const key = JSON.stringify([showRecord, state.source, state.trackTitle, state.artists, state.coverUrl]);
     if (key === artworkKey) return;
     artworkKey = key;
     discardImage();
-    if (!state.trackTitle || !state.coverUrl) return;
+    if (!showRecord || !state.trackTitle || !state.coverUrl) return;
     let source;
     try {
       source = new URL(state.coverUrl, document.baseURI);
@@ -94,6 +96,7 @@ export function createNowPlayingRenderer(root) {
     if (disposed) return;
     config = { ...NOW_PLAYING_DEFAULTS, ...value };
     surface.dataset.style = config.style;
+    surface.dataset.part = part || config.nowPlayingPart;
     surface.dataset.layout = config.nowPlayingLayout;
     surface.style.setProperty('--now-playing-record-size', `${config.nowPlayingRecordSize}px`);
     surface.style.setProperty('--now-playing-gap', `${config.nowPlayingGap}px`);
@@ -104,6 +107,7 @@ export function createNowPlayingRenderer(root) {
     surface.style.setProperty('--now-playing-rotation-seconds', `${config.nowPlayingRotationSeconds}s`);
     surface.style.fontFamily = withMultilingualFallback(config.nowPlayingFontFamily);
     surface.style.opacity = String(config.nowPlayingOpacity);
+    updateArtwork();
     renderVisibility();
   }
 

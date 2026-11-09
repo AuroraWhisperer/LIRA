@@ -28,8 +28,16 @@ import { createNeonGlassMessageRenderer } from './danmaku-neon-glass.js';
 import { createHorizontalCharmMessageRenderer } from './danmaku-horizontal-charm.js';
 import { createAstralMessageRenderer } from './danmaku-astral.js';
 import { createCoffeeMessageRenderer } from './danmaku-coffee.js';
+import { isHarborGiftVisible } from './danmaku-harbor.js';
 
 export { DEFAULT_DANMAKU_CLASSES, measureDanmakuText };
+
+export function createDanmakuMessageFilter(options, fullscreen) {
+  const showSuperchat = !fullscreen || ['mist', 'comic', 'window', 'stardust'].includes(options.style)
+    || DANMAKU_STYLE_OPTIONS[options.style]?.fullscreenSuperchat === true;
+  return (item) => (showSuperchat || item?.kind !== 'superchat')
+    && (options.style !== 'harbor' || isHarborGiftVisible(item, options.minGiftAmount));
+}
 
 // Keep the desktop's staggered entrance and existing system-message appearance.
 export function createDanmakuMessageRenderer(options) {

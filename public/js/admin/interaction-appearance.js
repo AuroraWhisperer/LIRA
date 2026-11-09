@@ -1,4 +1,3 @@
-import { api } from '../shared/utils.js';
 import {
   INTERACTION_APPEARANCE_DEFAULTS,
   readInteractionAppearance,
@@ -6,6 +5,8 @@ import {
 } from '../shared/interaction-appearance.js';
 import { renderPollRows } from '../shared/interaction-view.js';
 import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
+import { createComponentConfigController } from './component-config-controller.js';
+import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 
 export function initInteractionAppearance() {
   const get = (id) => document.getElementById(id);
@@ -20,12 +21,12 @@ export function initInteractionAppearance() {
       .map((key) => [key, get(key)]),
   );
   initParameterRanges(form);
-  let loaded = false;
-  let saving = false;
-  let dirty = false;
+  const controller = createComponentConfigController({
+    read: async () => readInteractionAppearance(await confirmComponentSettings()),
+    persist: async (_draft, patch) => readInteractionAppearance(await saveComponentSettings(patch)),
+  });
   let disposed = false;
   let kind = 'poll';
-  let saved = readInteractionAppearance({});
 
   function draft() {
     return Object.fromEntries(
@@ -35,8 +36,7 @@ export function initInteractionAppearance() {
       ]),
     );
   }
-  function fill(settings) {
-    const appearance = readInteractionAppearance(settings);
+  function fill(appearance) {
     for (const [key, input] of Object.entries(controls)) {
       if (input.type === 'checkbox') input.checked = appearance[key] === 'true';
       else input.value = appearance[key];
@@ -84,34 +84,30 @@ export function initInteractionAppearance() {
     });
   }
   function edit() {
-    if (!loaded || saving) return;
-    dirty = true;
-    apply.disabled = false;
-    status.textContent = '未应用';
+    const state = controller.getStatus();
+    if (!state.loaded || state.saving) return;
+    controller.edit(draft());
+    const dirty = controller.getStatus().dirty;
+    apply.disabled = !dirty;
+    status.textContent = dirty ? '未应用' : '';
     preview();
   }
   async function load() {
     fields.disabled = true;
     retry.hidden = true;
     status.textContent = '正在读取…';
-    try {
-      const response = await fetch('/api/state', { cache: 'no-store' });
-      const payload = await response.json();
-      if (!response.ok || !payload.ok) throw new Error(payload.error || '读取失败');
-      if (disposed) return;
-      saved = readInteractionAppearance(payload.data.settings);
-      fill(saved);
-      loaded = true;
-      dirty = false;
-      apply.disabled = true;
-      status.textContent = '';
-    } catch (error) {
-      if (disposed) return;
-      status.textContent = `读取失败：${error.message}`;
+    await controller.reload();
+    if (disposed) return;
+    const state = controller.getState();
+    if (state.error) {
+      status.textContent = `读取失败：${state.error}`;
       retry.hidden = false;
-    } finally {
-      if (!disposed) fields.disabled = !loaded;
+    } else if (state.loaded) {
+      fill(state.draft);
+      apply.disabled = !state.dirty;
+      status.textContent = '';
     }
+    fields.disabled = !state.loaded;
   }
   form.addEventListener('input', edit);
   get('interactionAppearanceReset').addEventListener('click', () => {
@@ -121,27 +117,19 @@ export function initInteractionAppearance() {
   retry.addEventListener('click', load);
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (!loaded || saving || !dirty) return;
-    saving = true;
+    const before = controller.getStatus();
+    if (!before.loaded || before.saving || !before.dirty) return;
+    controller.edit(draft());
     fields.disabled = true;
     status.textContent = '正在应用…';
-    try {
-      const patch = Object.fromEntries(Object.entries(draft()).filter(([key, value]) => value !== saved[key]));
-      const response = await api('/api/settings', patch, { notifyError: false });
-      if (disposed) return;
-      saved = readInteractionAppearance(response.data.settings);
-      fill(saved);
-      dirty = false;
-      status.textContent = '已应用';
-    } catch (error) {
-      if (!disposed) status.textContent = `应用失败，修改已保留：${error.message}`;
-    } finally {
-      saving = false;
-      if (!disposed) {
-        fields.disabled = false;
-        apply.disabled = !dirty;
-      }
-    }
+    const applied = await controller.save();
+    if (disposed) return;
+    const state = controller.getState();
+    fill(state.draft);
+    status.textContent = applied ? '已应用'
+      : state.dirty ? `应用失败，修改已保留：${state.error}` : state.error;
+    fields.disabled = false;
+    apply.disabled = !state.dirty;
   });
   get('pollForm').addEventListener('input', preview);
   get('ratingForm').addEventListener('input', preview);
@@ -150,18 +138,11 @@ export function initInteractionAppearance() {
   fill(INTERACTION_APPEARANCE_DEFAULTS);
   void load();
   const receive = event => {
-    if (!loaded || disposed) return;
-    const incoming = readInteractionAppearance(event.detail);
-    const current = draft();
-    for (const [key, input] of Object.entries(controls)) {
-      if (current[key] !== saved[key]) continue;
-      if (input.type === 'checkbox') input.checked = incoming[key] === 'true';
-      else input.value = incoming[key];
-    }
-    saved = incoming;
-    dirty = Object.entries(draft()).some(([key, value]) => value !== saved[key]);
-    apply.disabled = saving || !dirty;
-    preview();
+    if (disposed) return;
+    controller.receive(readInteractionAppearance(event.detail));
+    const state = controller.getState();
+    apply.disabled = state.saving || !state.dirty;
+    fill(state.draft);
   };
   window.addEventListener('app:settings-state', receive);
   window.addEventListener(

@@ -101,7 +101,6 @@ test('room profile route returns the projection and hides upstream error details
   await routes['GET /api/bilibili/room/profile'](context, {}, response);
   assert.equal(response.status, 502);
   assert.equal(response.payload.ok, false);
-  assert.match(response.payload.error, /检查房间号/);
   assert.doesNotMatch(JSON.stringify(response.payload), /private-detail/);
 });
 

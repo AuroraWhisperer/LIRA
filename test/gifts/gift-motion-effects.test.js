@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { buildGiftMotionEvents, normalizeGiftMotionSetting } = require('../../src/bilibili/gift/motion-config');
-const { createGiftDropWorld } = require('../../public/js/shared/gift-drop-physics.js');
+const { createGiftDropWorld, GIFT_DROP_EXIT_MS } = require('../../public/js/shared/gift-drop-physics.js');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 const { createSceneGiftEvents } = require('../../src/server/scene-gift-events');
 const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
@@ -107,16 +107,16 @@ test('staggered drops expire independently and late arrival never restarts their
   world.addGift(event, 2500);
   assert.equal(world.bodies.length, 3);
   const deadlines = world.bodies.map(body => body.expiresAt);
-  assert.ok(deadlines.every(deadline => deadline >= 4000 && deadline < 5000));
-  world.step(0, Math.min(...deadlines));
+  assert.ok(deadlines.every(deadline => deadline >= 4000 && deadline < 5500));
+  world.step(0, Math.min(...deadlines) + GIFT_DROP_EXIT_MS);
   assert.ok(world.bodies.length > 0 && world.bodies.length < 3);
-  world.step(0, Math.max(...deadlines));
+  world.step(0, Math.max(...deadlines) + GIFT_DROP_EXIT_MS);
   assert.equal(world.bodies.length, 0);
-  world.addGift({ ...event, eventId: 'late' }, 5000);
+  world.addGift({ ...event, eventId: 'late' }, 5500);
   assert.equal(world.bodies.length, 0);
 });
 
-test('expired support disappears first and the supported drop falls to the floor', () => {
+test('expired support falls through the floor while releasing the supported drop', () => {
   const world = createGiftDropWorld({ width: 500, height: 500, random: () => 0.5 });
   world.addGift({ eventId: 'bottom', num: 1, startedAt: 1000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } }, 1000);
   world.addGift({ eventId: 'top', num: 1, startedAt: 2000, motion: { size: 80, durationSeconds: 3, quantityMultiplier: 1 } }, 2000);
@@ -127,9 +127,12 @@ test('expired support disappears first and the supported drop falls to the floor
   for (let index = 0; index < 60; index++) world.step(1 / 60, 3000 + index * 10);
   assert.ok(top.y < supportedY + 10, `supported at ${top.y}`);
   world.step(1 / 60, bottom.expiresAt);
-  assert.equal(world.bodies.includes(bottom), false);
+  assert.equal(world.bodies.includes(bottom), true);
   for (let index = 0; index < 45; index++) world.step(1 / 60, bottom.expiresAt + 10 + index * 10);
+  assert.ok(bottom.y > 500, `exiting through the floor at ${bottom.y}`);
   assert.ok(top.y > floorY - 10, `fell to ${top.y}`);
-  world.step(0, top.expiresAt);
+  world.step(0, bottom.expiresAt + GIFT_DROP_EXIT_MS);
+  assert.equal(world.bodies.includes(bottom), false);
+  world.step(0, top.expiresAt + GIFT_DROP_EXIT_MS);
   assert.equal(world.bodies.length, 0);
 });

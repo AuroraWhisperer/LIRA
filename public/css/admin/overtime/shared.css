@@ -127,30 +127,6 @@
   margin: 0;
 }
 #overtimeBackgroundSaveState:empty { display: none; }
-.overtime-disclosure {
-  padding: 14px 0;
-  border-top: 1px solid var(--border);
-}
-.overtime-disclosure > summary,
-.overtime-more-controls > summary {
-  width: fit-content;
-  cursor: pointer;
-  font-size: var(--type-size-control);
-}
-.overtime-disclosure > summary {
-  font-weight: 600;
-}
-.overtime-disclosure[open] > summary {
-  margin-bottom: 16px;
-}
-.overtime-disclosure > .overtime-admin-section {
-  padding: 0;
-  border: 0;
-  background: transparent;
-}
-.overtime-disclosure > .overtime-settlement-list {
-  margin-top: 12px;
-}
 .overtime-settlement-row {
   display: grid;
   grid-template-columns: minmax(140px, 1fr) auto auto auto;

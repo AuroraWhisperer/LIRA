@@ -23,52 +23,84 @@ function createGiftCardRuntime({ getGifts, fetchPage, ensureAvatar, now = Date.n
       if (current !== generation || getGifts().getViewRevision() !== viewRevision || today() !== day) throw stale();
     };
     const promise = (async () => {
+      const baseline = cached;
       let result;
-      let remoteRevision = cached?.remoteRevision;
-      let acceptedEpoch = cached?.syncEpoch;
+      let remoteRevision = baseline?.remoteRevision;
+      let acceptedEpoch = baseline?.syncEpoch;
+      let incremental = baseline?.incremental;
+      let syncEpoch = null;
       try {
         const items = [];
         const cursors = new Set();
+        const eventIds = new Set();
         let cursor = null;
-        let syncEpoch = null;
-        let consistent = true;
+        let append = false;
+        let afterRevision = baseline?.incremental ? baseline.remoteRevision : undefined;
         const signal = AbortSignal.timeout(30000);
         do {
-          const page = normalizeGiftCardProfilePage(await fetchPage({ cursor, signal,
-            ...(!cursor && cached?.remoteRevision ? { revision: cached.remoteRevision } : {}) }));
+          let page;
+          try {
+            page = normalizeGiftCardProfilePage(await fetchPage({ cursor, signal,
+              ...(!cursor && baseline?.remoteRevision ? { revision: baseline.remoteRevision } : {}),
+              ...(afterRevision ? { afterRevision } : {}) }));
+          } catch (error) {
+            if (cursor || !afterRevision || error.status !== 400 || error.code !== 'INVALID_GIFT_CARD_CURSOR') throw error;
+            assertCurrent();
+            afterRevision = undefined;
+            page = normalizeGiftCardProfilePage(await fetchPage({ cursor, signal }));
+          }
           assertCurrent();
           if (page.day !== day || (syncEpoch && page.syncEpoch !== syncEpoch)) throw stale();
           syncEpoch = page.syncEpoch;
           if (page.unchanged) {
-            if (cursor || !cached?.remoteRevision || page.revision !== cached.remoteRevision || page.syncEpoch !== cached.syncEpoch) throw stale();
-            result = { ...cached.result, partial: false };
+            if (cursor || !baseline?.remoteRevision || page.revision !== baseline.remoteRevision || page.syncEpoch !== baseline.syncEpoch) throw stale();
+            incremental = page.incremental === true;
+            result = { ...baseline.result, partial: false };
             break;
           }
-          if (!cursor) remoteRevision = page.revision;
-          else if (remoteRevision !== page.revision) consistent = false;
+          if (!cursor) {
+            remoteRevision = page.revision;
+            incremental = page.incremental === true;
+            append = page.append === true;
+            if (append) {
+              if (!afterRevision) throw new Error('INVALID_GIFT_CARD_PROFILES');
+              if (syncEpoch !== baseline.syncEpoch) throw stale();
+              for (const item of baseline.result.items) eventIds.add(item.eventId);
+            }
+          } else if (remoteRevision !== page.revision || append !== (page.append === true)) {
+            throw new Error('INVALID_GIFT_CARD_PROFILES');
+          }
+          for (const item of page.items) {
+            if (eventIds.has(item.eventId)) throw new Error('INVALID_GIFT_CARD_PROFILES');
+            eventIds.add(item.eventId);
+          }
           items.push(...page.items);
           cursor = page.nextCursor;
           if (cursor && cursors.has(cursor)) throw new Error('INVALID_GIFT_CARD_CURSOR');
           cursors.add(cursor);
         } while (cursor);
-        if (!consistent) remoteRevision = undefined;
         acceptedEpoch = syncEpoch;
-        result ??= { viewRevision, day, items, partial: false };
+        if (append && !items.length) result = { ...baseline.result, partial: false };
+        result ??= { viewRevision, day, items: append ? [...baseline.result.items, ...items] : items, partial: false };
       } catch (error) {
         assertCurrent();
-        if (error.code === 'GIFT_VIEW_STALE') throw error;
-        result = { ...(cached?.result || { viewRevision, day, items: [] }), partial: true };
-        remoteRevision = cached?.remoteRevision;
-        acceptedEpoch = cached?.syncEpoch;
+        if (error.code === 'GIFT_VIEW_STALE' || (baseline?.syncEpoch && syncEpoch && baseline.syncEpoch !== syncEpoch)) {
+          cached = null;
+          throw error.code === 'GIFT_VIEW_STALE' ? error : stale();
+        }
+        result = { ...(baseline?.result || { viewRevision, day, items: [] }), partial: true };
+        remoteRevision = baseline?.remoteRevision;
+        acceptedEpoch = baseline?.syncEpoch;
+        incremental = baseline?.incremental;
       }
-      const avatars = result.items === cached?.result.items ? cached.avatars
-        : prepareAvatars(result.items, cached?.result.items || []);
+      const avatars = result.items === baseline?.result.items ? baseline.avatars
+        : prepareAvatars(result.items, acceptedEpoch === baseline?.syncEpoch ? baseline?.result.items || [] : []);
       if (avatars.missing.length || avatars.appliedSize < 0) {
         result.items = await resolveAvatars(result.items, avatars, assertCurrent);
       }
       assertCurrent();
-      result.contentRevision = result.items === cached?.result.items ? cached.result.contentRevision : randomUUID();
-      cached = { key, result, remoteRevision, syncEpoch: acceptedEpoch, avatars };
+      result.contentRevision = result.items === baseline?.result.items ? baseline.result.contentRevision : randomUUID();
+      cached = { key, result, remoteRevision, syncEpoch: acceptedEpoch, incremental, avatars };
       return result;
     })();
     pending = { key, promise };

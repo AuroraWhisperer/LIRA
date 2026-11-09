@@ -7,6 +7,21 @@ const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
 const PUBLIC_STREAMER = { accountName: 'mlbb', displayName: 'mlbb', subdomain: '' };
 const PUBLIC_DEVICE = { id: 'd', name: '', status: '', licenseId: '' };
 
+test('song page access IPC rejects untrusted sources and non-boolean writes without exposing private fields', async () => {
+  const writes = [];
+  const ipc = createLicenseIpcFixture({ licenseManager: {
+    getSongPageAccess: async () => ({ enabled: false, token: 'private' }),
+    setSongPageAccess: async (enabled) => { writes.push(enabled); return { enabled, token: 'private' }; },
+  } });
+  assert.deepEqual(await ipc.invoke('license:get-song-page-access'), { ok: true, enabled: false });
+  const write = ipc.handlers.get('license:set-song-page-access');
+  assert.equal((await write(ipc.eventFrom('https://attacker.test'), true)).error, 'IPC_SOURCE_INVALID');
+  assert.equal((await ipc.invoke('license:set-song-page-access', { enabled: true })).error, 'INVALID_SONG_PAGE_ACCESS');
+  assert.equal(writes.length, 0);
+  assert.deepEqual(await ipc.invoke('license:set-song-page-access', true), { ok: true, enabled: true });
+  assert.deepEqual(writes, [true]);
+});
+
 test('font IPC permits only authorized main-frame retries and exposes progress without URLs or paths', async () => {
   let starts = 0; let stateListener;
   const snapshot = { status: 'downloading', total: 8, completed: 2, failed: 0, currentFont: '小赖字体', totalBytes: 100, downloadedBytes: 25,

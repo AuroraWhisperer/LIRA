@@ -30,6 +30,7 @@ async function run() {
   const { readSceneSharedAppearances } = require('../../src/server/scene-shared-appearance');
   const { readNowPlayingConfig } = require('../../src/server/now-playing-settings');
   const { createSceneComponentPorts } = require('../../src/server/scene-components');
+  const { createSceneExtraDisplay } = require('../../src/server/scene-extra-display');
   const { createDanmakuAppearance } = require('../../src/server/danmaku-appearance');
   const { createDanmakuAppearanceStore, migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
   const { getComponentPreviewOwner } = require('../../src/electron/scene-cloud-controller');
@@ -59,6 +60,7 @@ async function run() {
   const openingSettings = {};
   let overtime;
   const getState = () => ({ settings: { ...DEFAULT_SETTINGS, ...openingSettings }, nowPlayingConfig: readNowPlayingConfig(openingSettings),
+    nowPlaying: global.canvasTest?.nowPlaying,
     ...(overtime ? { overtime: overtime.getSnapshot() } : {}) });
   const hub = createWebSocketHub({ closeTimeoutMs: 20 });
   const overtimeDatabases = process.argv.includes('--overtime') ? createDatabases({ dataDir: path.join(directory, 'overtime') }) : null;
@@ -82,12 +84,14 @@ async function run() {
     return result;
   } };
   const display = createCloudDisplayBuffer({ getOwner: () => ({ scope: 'canvas-test', epoch: 1 }) });
+  const musicDisplay = createSceneExtraDisplay({ displayPorts: {} });
   const scenes = createSceneService({ store: createSceneStore(db), getOwner: () => ({ scope: 'canvas-test', epoch: 1 }),
     getSharedAppearances: items => readSceneSharedAppearances({ settings: { get: () => openingSettings },
       system: { dataDir: directory, getState }, readDanmakuDisplay: () => ({ config: appearance.getSettings() }) }, items),
     secretCodec: { isAvailable: () => true, encrypt: value => Buffer.from(value).toString('base64'),
       decrypt: value => Buffer.from(value, 'base64').toString() },
-    ...createSceneComponentPorts({ getState, cloud: display, getDanmakuConfig: appearance.getSettings }) });
+    ...createSceneComponentPorts({ getState, cloud: display, getDanmakuConfig: appearance.getSettings,
+      getExtraDisplay: (type, readState, request) => type === 'now-playing' ? musicDisplay(type, readState, request) : null }) });
   global.canvasTest = { writes: [], attempts: 0, requests: [], externalUrls: [], failNext: false,
     display,
     openingSettings,

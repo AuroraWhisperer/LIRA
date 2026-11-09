@@ -2,12 +2,14 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { chromium } = require('playwright');
+const { useSharedBrowser } = require('../helpers/shared-browser');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
+
+const openBrowserSession = useSharedBrowser();
 
 test('standalone component sources load saved styles and live data without a canvas or editor', { timeout: 30000 }, async t => {
   const fixture = await startCanvasOutputFixture();
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const errors = [];
   t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
   fixture.runtime.settings.clockLabel = '独立时钟';
@@ -80,7 +82,7 @@ test('standalone music, gift and interaction sources render through their own HT
     wheel: { getState: () => ({ entries: [{ label: '合成转盘选项', weight: 1 }], spin: null, lastResult: null }) },
     interactions: { getState: () => interaction },
   } });
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   const failures = [];
   t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(failures, []); });
   Object.assign(fixture.runtime.settings, { openingEnabled: 'true', openingTitle: '独立开播标题',
@@ -100,7 +102,6 @@ test('standalone music, gift and interaction sources render through their own HT
   ]) {
     const page = await browser.newPage({ viewport: { width: 1920, height: 1080 } });
     page.setDefaultTimeout(5000);
-    pages[route] = page;
     page.on('pageerror', error => failures.push({ route, error: error.message }));
     page.on('response', response => {
       if (response.status() >= 400) failures.push({ route, path: new URL(response.url()).pathname, status: response.status() });
@@ -112,6 +113,8 @@ test('standalone music, gift and interaction sources render through their own HT
     await page.goto(url);
     if (ready) await ready;
     if (content) await page.getByText(content, { exact: !['gift-sprint', 'lyrics'].includes(route) }).first().waitFor();
+    if (['now-playing', 'interactions', 'gift-effects'].includes(route)) pages[route] = page;
+    else await page.context().close();
   }
   fixture.broadcast({ type: 'gift:guard-thanks', eventId: 'standalone-guard', tier: 'captain',
     userName: '独立上舰观众', months: 1, textMode: 'zh', style: 'classic' });
@@ -135,12 +138,41 @@ test('standalone music, gift and interaction sources render through their own HT
   assert.deepEqual(fixture.service.list(), [], 'Fixed component sources do not require a published canvas.');
 });
 
+test('heart collection sources follow shared reward visibility while explicit old URL choices remain fixed', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture({ extraContext: { heartBoxCollection: {
+    getSnapshot: () => ({ viewRevision: 'same-progress', status: 'collecting', count: 37, target: 40, completed: false,
+      stages: [[20, 4, 1], [40, 4, 2], [80, 5, 1], [120, 5, 2]].map(([target, multiplier, castles]) =>
+        ({ target, multiplier, castles, unlocked: target <= 37 })) }),
+  } } });
+  fixture.runtime.gifts = { viewRevision: 'same-progress' };
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const pages = {};
+  for (const [name, query] of [['follow', ''], ['hidden', '?showRewards=false'], ['shown', '?showRewards=true']]) {
+    const page = await browser.newPage(); page.setDefaultTimeout(4000); pages[name] = page;
+    const url = `${fixture.origin}/heart-box-collection${query}`;
+    assert.equal((await fetch(url)).status, 200);
+    await page.goto(url);
+    await page.getByText('37', { exact: true }).waitFor();
+  }
+  fixture.runtime.settings.heartBoxCollectionShowRewards = 'false';
+  fixture.broadcast();
+  await pages.follow.locator('.heart-collection-reward').first().waitFor({ state: 'hidden' });
+  assert.equal(await pages.shown.locator('.heart-collection-reward').first().isVisible(), true);
+  assert.equal(await pages.hidden.locator('.heart-collection-reward').first().isVisible(), false);
+  fixture.runtime.settings.heartBoxCollectionShowRewards = 'true';
+  fixture.broadcast();
+  await pages.follow.locator('.heart-collection-reward').first().waitFor({ state: 'visible' });
+  assert.equal(await pages.hidden.locator('.heart-collection-reward').first().isVisible(), false);
+  assert.equal(await pages.follow.getByText('37', { exact: true }).isVisible(), true);
+});
+
 test('standalone sources keep visible bounds without dynamic viewport units', { timeout: 15000 }, async t => {
   const fixture = await startCanvasOutputFixture({ extraContext: { gifts: {
     getBlindBoxStats: () => ({ summary: { boxCount: 20, totalCost: 200, totalValue: 300, totalProfit: 100 },
       perUser: Array.from({ length: 20 }, (_, index) => ({ userName: `高度回归观众${index + 1}`, boxCount: 1, totalProfit: 5 })) }),
   } } });
-  const browser = await chromium.launch({ headless: true });
+  const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
   const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
   page.setDefaultTimeout(4000);

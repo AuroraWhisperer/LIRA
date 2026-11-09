@@ -168,7 +168,9 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 本机滚动源与场景读取还可在 `conditional=1`、`created_at asc` 下选择 `delta=1`。首次仍读全量，各行额外含 `sortTime/sortId`，保持数据库原始时间文本升序、同时间 ID 降序；之后只在有完整且一致的基础版本时请求增量。有效增量返回 `delta:true/items/removedEventIds/contentRevision`、空 `nextCursor` 和当前同步状态，不提供全量 `total/totalPages`；先移除变动身份，再按原顺序合入当前仍可见的记录，因此更正、迟到 final 和成员移除不会漏掉。只使用连接内最近 1000 次变更、最多 64 个已读版本，候选超过本次页大小、基础版本丢失、物理删除、身份变化、外部提交或保留快照切换时回到普通完整分页。普通历史表格和旧调用无需选择该扩展。
 
-`gift-card-runtime.js` 对支持可选 `revision` 的远端 `gift-card-profiles` 做同样的完整分页确认；旧服务没有版本时继续全量读取。远端版本按租户、北京时间日、syncEpoch 和账本变更生成，与普通弹幕/进场写入无关。资料未变时复用 UID/头像准备结果，只重试仍缺失的 UID；头像修复后本地 `contentRevision` 变化。本地 `/api/gifts/card-profiles` 可携带 `contentRevision`，未变时返回空 `items` 和 `unchanged:true`；同来源同日的失败回退仍标 `partial:true`。两份完整输入未变时滚动源与画布复用卡片分组，独立变化的送礼人资料仍触发更新。
+`gift-card-runtime.js` 对支持可选 `revision` 的远端 `gift-card-profiles` 做同样的完整分页确认；旧服务没有版本时继续全量读取。远端版本按租户、北京时间日、syncEpoch、账本变更及失效依据生成，与同一服务端连接的普通弹幕/进场写入无关；外部连接提交保守失效。资料未变时复用 UID/头像准备结果，只重试仍缺失的 UID；头像修复后本地 `contentRevision` 变化。本地 `/api/gifts/card-profiles` 可携带 `contentRevision`，未变时返回空 `items` 和 `unchanged:true`；同来源同日的失败回退仍标 `partial:true`。两份完整输入未变时滚动源与画布复用卡片分组，独立变化的送礼人资料仍触发更新。
+
+远端报告 `incremental:true` 后，该 runtime 可携带已完整接受的 `afterRevision` 读取新增资料；`append:true` 才合入旧缓存，没有 append 则按完整页替换。追加分页始终使用同一基础版本，全部页的版本、日期、epoch 和模式一致后才提交；重复 eventId、版本/模式混页或分页失败保留已接受缓存并标 partial，不发布半轮结果，也不改写已返回的数组。日期、来源、reset 或 epoch 变化仍走失效隔离。服务端更正/删除旧记录、乱序终结或无法证明基线时回退全量；旧服务器不收到未协商参数，已协商服务器降级拒绝 afterRevision 时最多重试一次完整读取。完整 wire 契约由 lira-server 的 `docs/protocol/client-server-api.md` 和 Device OpenAPI 维护。
 
 `getGiftSelection` 用同一存储读事务冻结最多 10000 条当前来源记录，不合并同用户同礼物；显式 eventIds 必须全部仍在当前筛选中。一次请求可选择全部筛选结果，partial 仍明确标示仅已同步记录。导出 runtime 冻结选择、展示设置和本地素材目录，后续新礼物不进入已有任务。
 

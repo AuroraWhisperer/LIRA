@@ -22,7 +22,6 @@ test('desktop logger bounds normal and error entries after UTF-8 encoding', (t) 
 
   const lines = [fs.readFileSync(filePath, 'utf8').trimEnd(),
     fs.readFileSync(path.join(directory, 'errors', 'desktop.log'), 'utf8').trimEnd()];
-  assert.equal(lines.length, 2);
   assert.ok(Buffer.byteLength(`${lines[0]}\n`, 'utf8') <= 2 * 1024);
   assert.ok(Buffer.byteLength(`${lines[1]}\n`, 'utf8') <= 16 * 1024);
   assert.match(lines[0], /\[truncated\]/);

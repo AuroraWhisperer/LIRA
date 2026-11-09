@@ -17,6 +17,7 @@ function createPlaybackOutput({ executable, getExecutable, dataDir, onFault = ()
   let packetSequence = 0;
   let queued = 0;
   let chain = Promise.resolve();
+  let pendingStop = null;
   const requests = new Map();
 
   function launch() {
@@ -89,7 +90,9 @@ function createPlaybackOutput({ executable, getExecutable, dataDir, onFault = ()
 
   function invoke(op, value) {
     if (closed) return Promise.resolve({ ok: false, error: '播放输出正在关闭。' });
-    if (queued >= 4) return Promise.resolve({ ok: false, error: '音频发送拥堵，播放已暂停，请重试。' });
+    // A full data queue must still admit cleanup. Coalesce only until another open changes the stream.
+    if (op === 'stop' && pendingStop?.generation === generation) return pendingStop.promise;
+    if (op !== 'stop' && queued >= 4) return Promise.resolve({ ok: false, error: '音频发送拥堵，播放已暂停，请重试。' });
     const epoch = op === 'open' || op === 'stop' ? ++generation : generation;
     if (op === 'open' || op === 'stop') activeStream = 0;
     queued++;
@@ -114,8 +117,12 @@ function createPlaybackOutput({ executable, getExecutable, dataDir, onFault = ()
       }
       return response;
     }).catch(() => ({ ok: false, error: '音频输出失败，请检查设备连接后重新选择。' }))
-      .finally(() => { queued--; });
+      .finally(() => {
+        queued--;
+        if (pendingStop?.promise === work) pendingStop = null;
+      });
     chain = work;
+    if (op === 'stop') pendingStop = { generation: epoch, promise: work };
     return work;
   }
 

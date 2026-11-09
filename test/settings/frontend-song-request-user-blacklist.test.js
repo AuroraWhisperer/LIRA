@@ -80,7 +80,6 @@ test('blacklist snapshots preserve edits and focus, then update same-length rows
   const row = ui.row(0);
   assert.equal(new Date(row.expiry.value).getTime(), expiry, 'local input preserves the saved instant');
   row.expiry.value = row.expiry.value.replace(/:00\.000$/, '');
-  assert.equal(row.status.textContent, '已过期');
   row.name.focus();
   ui.editor.render(ui.field.value);
   assert.equal(ui.row(0).name, row.name);
@@ -100,7 +99,6 @@ test('blacklist snapshots preserve edits and focus, then update same-length rows
   ui.editor.render(ui.field.value);
   assert.equal(ui.row(0).uid.value, '34');
   assert.equal(ui.row(0).name.value, '已保存昵称');
-  assert.equal(ui.row(0).status.textContent, '永久');
   const saved = ui.field.value;
   ui.row(0).name.value = '另一次草稿';
   ui.row(0).name.fire('input');

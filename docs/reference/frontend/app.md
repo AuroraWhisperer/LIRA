@@ -23,7 +23,9 @@ token。连续删除合并，最后一次删除后 10 秒失效；出现、消�
 
 点歌展示板的外观修改自动保存并更新输出，界面显示保存状态，仍保留“保存展示板”
 手动入口；展示板与画布的背景不透明度均以百分比显示，存储值仍为 0～1。歌库编辑显示正在编辑的歌曲，
-文件导入和粘贴导入互斥；网页歌单显示的是手动同步记录，不据此推断自动同步状态。
+文件导入和粘贴导入互斥；网页歌单仅在有记录时显示本机手动同步时间，不据此推断自动同步状态。同步说明使用 `lira-help`，账号与歌曲数量的标签和值各自同行。
+
+`cloud-song-sync.js` 通过受限桌面桥读写账号的“启用网页歌单”开关，默认关闭；服务端关闭直达页面及公开歌曲、资料、外观和社区接口，不影响本地歌库与云端同步。读取失败保持开关禁用，保存失败恢复已确认值；仅在已确认开启且账号链接有效时显示“查看网页歌单”。接口见 [preload](../desktop/preload.md)。
 删除成功后，仅在表单仍编辑被删歌曲时重置；等待删除期间已切换歌曲则保留新草稿。
 清空或替换歌库后，若不带筛选的完整歌库里已没有正在编辑的歌曲，同样重置；刚保存、
 尚未出现在列表中的新歌不按删除处理，筛选结果也不作判断。
@@ -43,7 +45,7 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 
 导入样式在组件页按用途呈现：按礼物事件播放的效果页（全屏礼物感谢、大航海感谢）把每个导入样式与内置效果并列为完整设置卡片或条目，各自显示启用、触发条件、预览与保存，并在导入后才出现；只选择外观的页面（时钟、弹幕、点歌板、礼物许愿、开播动画）以缩略图选择样式，选中后再显示参数。新增效果类组件按前者实现，不把导入样式放在底部缩略图区。
 
-`scene-item-controller.js` 合并场景配置和共享 owner，`canvas-shared-appearance.js` 按组件及样式缓存公共草稿，合并轮询并串行保存本地补丁。内置时钟/点歌板/弹幕/加班机的画布参数进入桌面控制器草稿，随“保存并应用”生效；其余由 sharedAppearance 持有状态的公共字段通过受限画布入口自动保存。初次以客户端已保存值为准，双向刷新保留正在编辑字段，失败可重试或放弃；迟到读取不能覆盖较新写入。位置、尺寸、图层、锁定、名称及预览输入仍归场景。自动保存的共享参数会更新已发布画面；布局需“保存并应用”。
+`scene-item-controller.js` 合并场景配置和共享 owner，`canvas-shared-appearance.js` 按组件及样式缓存公共草稿，合并轮询并串行保存本地补丁。内置时钟/点歌板/弹幕/加班机的画布参数进入桌面控制器草稿，随“保存并应用”生效；其余由 sharedAppearance 持有状态的公共字段通过受限画布入口自动保存。初次以客户端已保存值为准，双向刷新保留正在编辑字段，失败可重试或放弃；迟到读取不能覆盖较新写入。位置、尺寸、图层、锁定、名称及预览输入仍归场景。自动保存的共享参数会更新已发布画面；布局需“保存并应用”。共享自动保存期间仍可点击“保存并应用”，发布流程会等待共享参数保存完成；普通控制器保存和发布自身仍保持互斥。
 
 共享外观按当前组件及样式键合并读取；键集合变化时立即刷新，在途读取结束后补读新增键。纯几何、名称或图层顺序变化不重置正常的 750ms 读取间隔，没有外部共享 owner 时停止轮询。不变结果不重复通知；变化只通知对应样式的实例，每批读取合并一次总状态通知，读取错误的设置与清除仍可观察。配置控制器提供状态元数据和不携带快照的变化订阅；普通 `getState()` 与订阅继续提供隔离的 saved/draft 副本，重复快照仍推进权威代次以阻止旧读取或保存确认覆盖新状态。
 
@@ -96,6 +98,8 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 
 粉丝档案由 `fans/index.js` 持有选中项、请求上下文和页面生命周期；`editor.js` 拥有表单弹窗、提交锁定与分步确认，`profile-actions.js` 组合档案和记录的编辑/删除、会员纠正、特别关注、归档和屏蔽操作，通过入口的结果回调更新选中项或移除列表项；选择代次、当前范围和迟到结果检查仍由入口拥有。`forms.js` 定义字段读取，`view.js` 只做转义后的展示，`transfer-ui.js` 拥有备份/导出、恢复点、认领与合并的多步预览。保存失败保留输入；请求/选择代次拒绝迟到显示。档案在百宝箱中查看和编辑，点歌队列不提供快捷档案入口；私人资料不并入 StateService 或 legacy globals。
 
+档案编辑弹窗头部只显示紧凑分段标签，标题仅保留为无障碍名称；底部操作区使用紧凑按钮与间距。手动新建只填写可选 B 站 UID，填写后离开输入框时通过现有桌面通道只读预览昵称与头像；已有头像先显示本机资料，改动或清空 UID 立即移除旧预览，迟到或已关闭弹窗的结果不回填。图片沿用 `bilibiliAvatarSource` 代理，读取失败不阻止保存。已有 open_id 档案显示只读开放平台账号，不提供 UID/open_id 类型切换。生日历法注明公历（阳历）和农历（俗称阴历），农历提示手工填写今年对应的阳历日期，提醒换算规则不变。IPC 载荷与生命周期见 [preload.md](../desktop/preload.md#5-粉丝档案-action-与-dto)。
+
 粉丝面板同时观察子面板 `hidden` 和百宝箱主页面的 `active` 状态；仅两者均可见时执行 30 秒轮询，返回该面板时立即刷新。搜索、筛选和清空筛选只重取列表，不重复读取全局提醒；首次载入、手动刷新、档案修改及可见时的轮询仍刷新提醒，以接收事实更新及跨日变化。页面释放时清理观察器和定时器。
 
 「特别关注」保存绑定点击时的档案和选择代次；保存成功仍刷新列表中的星标和排序，仅在选择未变化且仍展示原档案时更新详情。等待期间切换档案、返回列表或切走再切回，不接受旧保存结果覆盖当前详情；原档案的保存不取消。
@@ -129,6 +133,10 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 最近礼物图片目录的成功空结果可缓存；读取失败不写入空缓存，后续目录读取或非空礼物列表刷新可重试，相邻失败重试至少间隔 5 秒，并发读取共用请求。实时目录事件仍优先于迟到的 HTTP 结果。
 
 `gift-frame.js` 按字段保存未提交草稿，并与通用表单的 `preserveDirty` 标记协作。设置同步不覆盖草稿；保存成功只清理仍等于本次提交内容的字段，保存等待期间的新输入继续保留。
+
+`gift-motion-parameters.js` 由客户端卡片与 `gift-motion-canvas-settings.js` 复用，画布自动保存到同款效果的既有 settings；`gift-motion-settings.js` 每卡复用 `component-config-controller.js`，只提交本次脏字段，回执与广播竞争时向 settings owner 重新确认，保留保存期间的新输入。`advanced-lyric-canvas-settings.js` 复用完整高级歌词编辑器，以独立 ID 前缀隔离控件，原生搭配库仅在编辑端读写。心动收集显隐与榜单展示方式通过 `shared-scene-settings-controller.js` 复用现有 settings 广播、补丁确认和失败重试，不增加连接或轮询。
+
+`gifts/display-settings.js`、`gift-guard-thanks.js` 与 `interaction-appearance.js` 的手动保存也由同一配置控制器处理广播／回执竞争。滚动礼物沿用 `/api/gifts/display-settings` 读写和金额换算；大航海感谢按风格确认开关与文字模式，互动外观按组件确认设置，两者复用 settings 保存／确认适配器。保存期间仍接收画布更新，无法确认或被后续写入覆盖时保留错误提示，不误报已保存；无竞争时不额外读取。
 
 百宝箱“动态抽奖”由 [dynamic-lottery.js](../../../public/js/admin/dynamic-lottery.js) 管理独立登录与授权失效，由 [dynamic-lottery-workflow.js](../../../public/js/admin/dynamic-lottery-workflow.js) 管理规则表单、最近 50 个活动、采集进度、暂停/继续与中奖结果。账号管理与本地抽奖记录使用展开入口；设置使用单列输入和复选条件，创建后保留内容链接、作者与截止时间的摘要。采集明细在结果出现后默认收起，刷新和采集/核验的暂停、继续入口始终按状态保留。独立结果框每页展示 5 人，包含真实昵称（旧记录回退 UID）、主页链接、关注核验和完整参与评论，以 DOM textContent 渲染；同时保留核验/排除/缺额统计及开奖凭证。使用现有工具箱标签、原生 CSS token 和命名 ESM；不增加 AdminApp 全局。只在用户提交时开始采集/开奖，后台忙时通过受保护状态接口读取进度。renderer 不计算资格或随机顺序、不保存 Cookie；授权变化和页面卸载取消页面请求并丢弃旧响应，后台进度持久化后需手动继续。相关端点见 [api.md](../backend/api.md)。
 
@@ -196,19 +204,20 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ## 2. 公共框架(shared/)
 
-「组件 → 音乐展示」是可展开的导航组，两个子页独立选择与记忆。直播歌词保留 `desktopLyricPage` 与原表单身份，整页（来源选择、样式与预览）只组合和初始化一次；旧 `#desktopLyricPage`、`#desktop-lyric`、`#lyrics` 入口进入该组件页。`#now-playing` 直达「歌曲信息」。唱片页复用 `createSceneExtraPreview` 的字段面板与 `createNowPlayingRenderer`，提供当前/示例歌曲预览、显式保存/重新读取/放弃草稿、浏览器源复制及画布入口；「调整音乐来源」跳转同组歌词来源控件，读取同一个运行时来源。
+「组件 → 音乐展示」是可展开的导航组，两个子页独立选择与记忆。直播歌词保留 `desktopLyricPage` 与原表单身份，整页（来源选择、样式与预览）只组合和初始化一次；旧 `#desktopLyricPage`、`#desktop-lyric`、`#lyrics` 入口进入该组件页。`#now-playing` 直达「歌曲信息」。该页通过 `createSceneExtraPreview` 的字段筛选和 `createNowPlayingRenderer` 分别提供唱片、歌名／歌手两个组件的设置与预览，每个组件有「在画布中调整」和浏览器源复制入口；当前/示例歌曲、共同显示规则及显式保存/重新读取/放弃草稿共用。「调整音乐来源」跳转同组歌词来源控件，读取同一个运行时来源。
 
-「歌曲信息」外观由本机 `nowPlayingAppearance` 保存，管理页与画布共享参数；画布各图层保留自己的样式身份、位置、大小、层级及可见状态。保存默认唱片样式只影响独立 `/now-playing` 和后续按该配置添加的组件，不批量改写已存在图层的样式。接口与字段边界见[歌曲信息配置](../backend/api.md#26-正在播放配置now-playing)。
+「歌曲信息」外观由本机 `nowPlayingAppearance` 保存，管理页与画布共享参数；画布各图层保留自己的组件内容（`nowPlayingPart`）、样式身份、位置、大小、层级及可见状态。保存默认唱片样式只影响独立唱片来源和后续按该配置添加的唱片，不批量改写已存在图层的样式。旧组合配置与地址保留兼容，输出规则见[歌曲信息](overlays.md#歌曲信息now-playing)。接口与字段边界见[歌曲信息配置](../backend/api.md#26-正在播放配置now-playing)。
 
-「在画布中使用」通过现有 `addStyleToCanvas` 加入当前保存的配置并聚焦新图层；独立组件不注册额外的原生预览会话。`now-playing-canvas-data.js` 在当前画布含该类型时复用管理页 `app:now-playing` 订阅，打开即读现有快照，移除或关闭时释放。无曲目时仅画布预览显示示例，正式输出始终使用实际曲目；不新增轮询或网络连接。
+「在画布中调整」通过现有 `addStyleToCanvas` 加入当前保存的配置和选定组件内容并聚焦新图层；独立组件不注册额外的原生预览会话。`now-playing-canvas-data.js` 在当前画布含该类型时复用管理页 `app:now-playing` 订阅，打开即读现有快照，移除或关闭时释放。无曲目时仅画布预览显示示例，正式输出始终使用实际曲目；不新增轮询或网络连接。
 
-`desktop-lyric.js` 自动保存仅提交相对已确认表单实际修改的字段；待保存期间接收到的画布设置保留为最新回填，串行保存结束后合并显示，避免整份旧表单覆盖另一端的修改。恢复外观默认值仍保留全民 K 歌的歌词源设置。
+`desktop-lyric.js` 自动保存复用 `component-config-controller.js` 和 settings 保存／确认适配器，仅提交相对已显示表单实际修改的字段；保存期间的广播合并未编辑字段，回执与广播不一致时向 settings owner 重新确认，保留保存期间的新输入，并提示被其他入口覆盖的保存。输入仍防抖 500ms，change 立即提交，连续写入串行；通用 `forms.fillForm` 跳过歌词表单，避免状态广播后第二次回填覆盖草稿。恢复外观默认值仍保留全民 K 歌的歌词源设置。
 
 | 模块          | 文件                                                                            | 说明                                                                                                                                                                                                                                                                      |
 | ------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | EventBus      | [shared/event-bus.js](../../../public/js/shared/event-bus.js)                   | 应用内事件总线(`on/off/once/emit/clear`)，通过具名 ESM 导入同一单例与 `Events` 常量；调试日志直接调用共享 logger |
 | StateService  | [admin/state.js](../../../public/js/admin/state.js)                             | 全局状态唯一入口:WS 客户端 + `/api/state` + `/api/songs` 加载,快照经 EventBus 派发 `STATE_LOADED`/`SONG_UPDATED`,同时以 CustomEvent(`app:wesing-state` 等)广播实时状态(详见 [comms.md](comms.md) §3)                                                                      |
-| FormsService  | [admin/forms.js](../../../public/js/admin/forms.js)                             | 表单工具:`bindRangePair`(range↔number 双向)、`initTabs`、`fillForm`(快照设置→表单,正在编辑的输入框不被覆盖,[forms.js:174-179](../../../public/js/admin/forms.js#L174-L179))、播放器全屏/收起、滚动速度与字号归一化                                                        |
+| FormsService  | [admin/forms.js](../../../public/js/admin/forms.js)                             | 表单工具:`bindRangePair`(range↔number 双向)、`initTabs`、`fillForm`(快照设置→表单,正在编辑的输入框不被覆盖)、滚动速度与字号归一化                                                        |
+| PlayerWorkspace | [admin/player-workspace.js](../../../public/js/admin/player-workspace.js) | 播放器工作区:`initWorkspaceControls` 绑定全屏开关、ESC/空格快捷键与 dock 展开/收起，管理全屏焦点及收起时依赖弹窗的联动关闭 |
 | Logger        | [shared/logger.js](../../../public/js/shared/logger.js)                         | 默认仅 localhost/127.0.0.1 启用 debug，可通过具名导入实例的 `enabled` 显式设置；不读取 Admin 状态 |
 | Theme         | [shared/theme.js](../../../public/js/shared/theme.js)                           | `loadThemeConfig()` 拉取 `/data/theme-presets.json`，具名导出经典/歌单板预设、色板、标签访问器 |
 | Utils         | [shared/utils.js](../../../public/js/shared/utils.js)                           | `api/readJsonResponse/toast/escapeHtml/formatBytes/dangerConfirm/…`(清单见 [comms.md](comms.md) §2)                                                                                                                                                                       |
@@ -285,7 +294,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 1. 初始化桌面外壳与设置表单入口；窗口按钮在账号信息读取前绑定
 2. `initMainPages()` 绑定主页面 Tab(按 hash 选中初始页)
-3. `formsService.initWorkspaceControls()` + `initTabs()`(播放器默认收起、ESC/空格快捷键)
+3. `playerWorkspace.initWorkspaceControls()` + `formsService.initTabs()`(播放器默认收起、ESC/空格快捷键)
 4. `await Theme.loadThemeConfig()` 预载主题配置，再直接调用 `initPlaybackAssistant(options)`；首次构造时注入 `toast/showError/readJsonResponse`、`getWeSingState` getter 和 `closeFullscreenPlayer` 回调。播放器收起通过 `closeQueuePopup` 交由队列 UI 同步关闭状态与焦点
 5. 通过显式 ESM 入口初始化常驻表单、档案以外的业务面板及礼物历史抽屉；可选工具编辑器通过上述激活入口初始化，动态抽奖的 dispose 在卸载时调用
 6. `stateService.connectSocket()` + `await stateService.reloadAll()`(先 WS 后 HTTP 兜底)
@@ -390,7 +399,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 画布加班机在“实际倒计时 · 与客户端同步”模式下可设置小时/分钟/秒及启停，复用 `overtime-preview.js` 的原 time/action 接口。`component-preview-dialog.js` 只为 overtime 执行受限 control 命令，并将结果放在 `display.operation`；实际状态仍由原数据订阅回填客户端与画布。示例模式只展示，不提供假的加时或暂停操作。
 
-加班机控制台以小时/分钟输入和一个主按钮完成开始、暂停、继续。`overtime.js` 在开始时先保存未提交规则，仅在初始时长改变或剩余时间为零时调用既有 `/api/overtime/time`，随后按需 `enable` 并 `start`；继续沿用剩余时间，暂停不保存规则或重置时间。覆盖非零剩余时间前确认，任一步失败停止后续步骤，操作期间阻止重复提交。`overtime-time-view.js` 保留时间草稿，实时快照不覆盖未提交输入，未编辑的已保存值保留秒精度。单独启用/关闭、应用时长并暂停和重置放在「更多操作」；直播画面与背景、最近结算按需展开。目录刷新随礼物选择器展示，规则重选/排序/删除随规则编辑展开。回归见 [frontend-overtime.test.js](../../../test/overtime/frontend-overtime.test.js)，HTTP、状态机及结算契约保持不变。
+加班机控制台以小时/分钟输入和一个主按钮完成开始、暂停、继续。`overtime.js` 在开始时先保存未提交规则，仅在初始时长改变或剩余时间为零时调用既有 `/api/overtime/time`，随后按需 `enable` 并 `start`；继续沿用剩余时间，暂停不保存规则或重置时间。覆盖非零剩余时间前确认，任一步失败停止后续步骤，操作期间阻止重复提交。`overtime-time-view.js` 保留时间草稿，实时快照不覆盖未提交输入，未编辑的已保存值保留秒精度。单独启用/关闭、应用时长并暂停和重置直接显示在控制台下方，与收礼服务状态同排；操作说明使用帮助提示。礼物规则、直播画面与背景、最近结算使用统一的常驻分区，不再折叠。目录刷新随礼物选择器展示，规则重选/排序/删除随规则编辑展开。回归见 [frontend-overtime.test.js](../../../test/overtime/frontend-overtime.test.js)，HTTP、状态机及结算契约保持不变。
 
 加班机状态视图拒绝较旧 revision 的 HTTP 回执，外观保存不能借由 `onSavedState` 把旧背景提升为新权威状态。若仅计时发生更新而背景与保存回执一致，允许保存成功但保留较新时钟；背景已被其他入口改动则提示冲突。StateService 接受的重连快照通过内部 `STATE_LOADED.isConnectionSnapshot` 明确允许 revision 重置，外观模块在实际降代时使重置前的保存失效，保留尚未确认的本地草稿。没有修改 HTTP/WS 报文或新增状态请求。验证见 [overtime-appearance-order.test.js](../../../test/overtime/overtime-appearance-order.test.js)。
 

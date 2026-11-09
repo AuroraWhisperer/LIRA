@@ -13,12 +13,16 @@
         AI 连接」确认。
       </p>
 <figure class="usage-guide-figure">
-<img alt="AI 互动助手旧版 API 接入示例，未包含 Kimi、ChatGPT 订阅及豆包账号登录" class="usage-guide-image" decoding="async" height="902" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>旧版 API 接入示例；Kimi、ChatGPT 订阅及豆包账号的操作以本页文字为准。</figcaption>
+<img alt="AI 平台菜单展开，包含 Kimi / Moonshot 官方、OpenAI 官方和豆包账号登录等八个选项" class="usage-guide-image" decoding="async" height="913" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>AI 平台选择入口；图中尚未配置模型，AI 未启用。</figcaption>
 </figure>
 <p>在「百宝箱 → 弹幕互动 → AI 互动助手」设置。API 模式下粘贴密钥后等待「已保存」，获取并选择模型，再点「测试 AI 连接」。已保存密钥显示前 6 位加掩码，例如 sk-abc********；较短密钥全部遮住。输入新密钥可替换，留空保留现有密钥。</p>
 <p><strong>Kimi：</strong>选择「Kimi / Moonshot 官方」，通过「打开官方 API 控制台」创建 Moonshot API Key，保存后获取模型并测试。Kimi 会员和 Kimi Code 订阅不用于此处的弹幕回复。</p>
 <p><strong>ChatGPT 订阅：</strong>选择「OpenAI 官方」，把「接入方式」改成「ChatGPT 订阅（官方授权）」，点击「Continue with ChatGPT」。在系统浏览器完成登录并授权使用订阅，返回后状态自动更新；再获取模型并测试连接。人格、上下文、审核与可选工具继续生效，可用模型和额度以账号为准。</p>
+<figure class="usage-guide-figure usage-guide-figure--compact">
+<img alt="OpenAI 官方的 ChatGPT 订阅接入方式，显示尚未连接及 Continue with ChatGPT 按钮" class="usage-guide-image" decoding="async" height="540" loading="lazy" src="/img/usage-guide/E/ai-assistant-chatgpt-subscription.webp" style="--usage-guide-image-width: 536px" width="536"/>
+<figcaption>ChatGPT 订阅的未登录状态；完成官方授权后，再获取模型并测试连接。</figcaption>
+</figure>
 <p>订阅登录信息由本机系统加密保存并自动刷新；加密不可用时不能登录。可以取消登录、添加或切换账号。「退出当前账号」清除该账号的本地凭据并请求撤销，其他账号和 API Key 保留。API 与订阅每次只使用所选方式，额度不足不会自动切到收费 API；可点「管理订阅用量」查看。切回 API 后重新获取适用模型。Claude、Gemini、DeepSeek 在这里仍使用 API Key，网页会员不等于 API 权限。</p>
 <p><strong>豆包账号登录：</strong>选择「豆包（账号登录·实验性）」，点击「扫码登录豆包」，用手机豆包扫码并确认。电脑无需安装豆包，不需要 API Key，也不走火山引擎计费 API。填写触发关键词，再点「测试 AI 连接」确认。</p>
 <p>豆包模式只提供文字对话，沿用当前人格和短期上下文；不提供函数工具或模型选择，原 API 配置会保留。登录态加密保存，加密不可用时仅本次运行有效。「退出豆包」会取消未完成请求并清除登录态；发送的对话可能保留在豆包账号内。</p>
@@ -166,8 +170,8 @@
 <li>「发送间隔（毫秒）」不能改：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网与思考，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="906" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1100px" width="1100"/>
-<figcaption>旧版通用预设与可选工具示例；新增 Kimi 与 ChatGPT 订阅操作见本页开头。</figcaption>
+<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网与思考，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="934" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
+<figcaption>尚未配置模型时的设置面板；填好接入信息、触发关键词并测试连接后，再启用 AI。</figcaption>
 </figure>
 <p>触发关键词没有默认值，必须自定义并保存；未设置时不会触发。先测试连接，再打开「启用 AI」，发一条带关键词的弹幕检查回复。</p>
 </article>

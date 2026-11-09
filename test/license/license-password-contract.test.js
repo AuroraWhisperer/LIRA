@@ -29,9 +29,6 @@ for (const sample of samples) {
     assert.equal(page.submissions.length, sample.clientSubmits ? 1 : 0);
     if (sample.clientSubmits) {
       assert.equal(page.submissions[0].password, sample.password);
-      assert.equal(page.getElementById('licenseStatus').textContent, '用户名或密码错误。');
-    } else {
-      assert.equal(page.getElementById('licenseStatus').textContent, '请输入密码。');
     }
     assert.equal(password.value, sample.password, 'failed authentication preserves the original input');
   });

@@ -1,118 +1,79 @@
-import { api, toast } from '../shared/utils.js';
-import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, GIFT_SWING_TEXT_PARTS, GIFT_SWING_TEXT_MODES } from '../shared/gift-motion-settings.js';
+import { toast } from '../shared/utils.js';
+import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, giftMotionSettingKeys } from '../shared/gift-motion-settings.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
-import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
+import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
+import { mountGiftMotionParameters } from './gift-motion-parameters.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 import { getActiveComponentPreview } from './component-preview-session.js';
 import { openComponentPreview } from './component-preview-dialog.js';
+import { createComponentConfigController } from './component-config-controller.js';
+import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 
 let initialized = false;
-let currentSettings = {};
-const dirty = new Set(); const saving = new Set();
+const controllers = new Map();
 const node = id => document.getElementById(id);
-const keys = effect => [`${effect.prefix}Enabled`, `${effect.prefix}ThresholdRmb`,
-  ...Object.keys(effect.fields).map(name => `${effect.prefix}${name}`)];
+const keys = giftMotionSettingKeys;
+const parameterViews = new Map();
 const value = key => key.endsWith('Enabled') ? String(node(key).checked) : node(key).value;
+const configFromSettings = (effect, settings) => Object.fromEntries(keys(effect).map(key => [key, settings[key] ?? GIFT_MOTION_DEFAULTS[key]]));
 
 export function initGiftMotionSettings() {
   if (initialized || !node('giftDropSettings')) return;
   initialized = true;
+  const subscriptions = [];
   for (const effect of GIFT_MOTION_EFFECTS) {
-    const host = node(`${effect.prefix}Fields`);
-    for (const [name, field] of Object.entries(effect.fields)) {
-      const label = document.createElement('div'); label.className = 'gift-effect-field';
-      const title = document.createElement(field.options ? 'span' : 'label'); title.className = 'gift-effect-field-label'; title.textContent = field.label;
-      const control = document.createElement('span'); control.className = 'gift-effect-field-control';
-      const input = document.createElement('input'); input.id = `${effect.prefix}${name}`;
-      if (!field.options) title.htmlFor = input.id;
-      title.id = `${input.id}Label`;
-      input.required = true;
-      if (field.options) {
-        input.type = 'hidden'; control.append(input);
-        control.classList.add('gift-motion-text-options');
-        control.setAttribute('role', 'group'); control.setAttribute('aria-labelledby', title.id);
-        for (const [part, text] of Object.entries(GIFT_SWING_TEXT_PARTS)) {
-          const option = document.createElement('label'); option.className = 'gift-motion-text-option';
-          const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.dataset.textPart = part;
-          option.append(checkbox, document.createTextNode(text)); control.append(option);
-          checkbox.addEventListener('change', () => {
-            const selected = [...control.querySelectorAll('[data-text-part]')].filter(node => node.checked).map(node => node.dataset.textPart);
-            input.value = Object.entries(GIFT_SWING_TEXT_MODES).find(([, parts]) =>
-              parts.length === selected.length && selected.every(part => parts.includes(part)))[0];
-            input.dispatchEvent(new Event('change', { bubbles: true }));
-          });
-        }
-      } else {
-        label.classList.add('gift-motion-parameter');
-        input.type = 'range'; input.className = 'parameter-range';
-        input.min = field.min; input.max = field.max; input.step = 1; input.dataset.unit = field.unit || '';
-        input.setAttribute('aria-labelledby', title.id);
-        const output = document.createElement('output'); output.className = 'gift-motion-value';
-        output.id = `${input.id}Value`; output.htmlFor = input.id; control.append(output);
-      }
-      label.append(title, control);
-      if (!field.options) {
-        const row = document.createElement('div'); row.className = 'gift-motion-range';
-        const minimum = document.createElement('span'); minimum.textContent = field.min;
-        const maximum = document.createElement('span'); maximum.textContent = field.max;
-        row.append(minimum, input, maximum); label.append(row);
-      }
-      host.append(label);
-    }
-    initParameterRanges(host);
+    const fromSettings = settings => configFromSettings(effect, settings);
+    const controller = createComponentConfigController({
+      initial: fromSettings({}),
+      persist: async (_draft, patch) => fromSettings(await saveComponentSettings(patch)),
+      confirm: async () => fromSettings(await confirmComponentSettings()),
+    });
+    controllers.set(effect.prefix, controller);
+    const view = mountGiftMotionParameters(node(`${effect.prefix}Fields`), effect, { onEdit: patch => controller.edit(patch) });
+    parameterViews.set(effect.prefix, view);
     for (const key of keys(effect)) {
       const input = node(key); input.dataset.preserveDirty = 'true';
-      const edit = () => { syncControl(key); syncDirty(key); status(effect); };
+      if (view.inputs.has(key)) continue;
+      const edit = () => controller.edit({ [key]: value(key) });
       input.addEventListener('input', edit); input.addEventListener('change', edit);
     }
     node(`${effect.prefix}SaveBtn`).addEventListener('click', () => save(effect));
     node(`${effect.prefix}PreviewBtn`).addEventListener('click', () => preview(effect));
+    subscriptions.push(controller.subscribe(state => renderEffect(effect, state)));
   }
-  window.addEventListener('app:settings-state', event => render(event.detail || {}));
-  render(currentSettings);
+  const receiveSettings = event => {
+    const settings = event.detail || {};
+    for (const effect of GIFT_MOTION_EFFECTS) controllers.get(effect.prefix).receive(configFromSettings(effect, settings));
+  };
+  window.addEventListener('app:settings-state', receiveSettings);
+  window.addEventListener('pagehide', () => {
+    window.removeEventListener('app:settings-state', receiveSettings);
+    subscriptions.forEach(stop => stop()); parameterViews.forEach(view => view.dispose());
+  }, { once: true });
 }
 
 function syncControl(key) {
-  const input = node(key);
-  if (input.type === 'range') {
-    const text = `${input.value}${input.dataset.unit === '%' ? '' : ' '}${input.dataset.unit}`.trim();
-    node(`${key}Value`).value = text;
-    input.setAttribute('aria-valuetext', text); refreshParameterRange(input);
-  } else if (input.type === 'hidden') {
-    for (const checkbox of input.parentElement.querySelectorAll('[data-text-part]')) {
-      checkbox.checked = GIFT_SWING_TEXT_MODES[input.value].includes(checkbox.dataset.textPart);
-    }
-  }
+  for (const view of parameterViews.values()) if (view.inputs.has(key)) view.sync(key);
 }
 
-function syncDirty(key) {
-  const saved = currentSettings[key] ?? GIFT_MOTION_DEFAULTS[key];
-  const same = key.endsWith('Enabled') || node(key).type === 'hidden' ? value(key) === saved
-    : value(key).trim() !== '' && Number(value(key)) === Number(saved);
-  if (saving.has(key) || !same) dirty.add(key); else dirty.delete(key);
-  node(key).dataset.dirty = String(dirty.has(key));
-}
-
-function render(settings) {
-  currentSettings = settings;
-  for (const effect of GIFT_MOTION_EFFECTS) {
-    for (const key of keys(effect)) {
-      if (!dirty.has(key)) {
-        const saved = settings[key] ?? GIFT_MOTION_DEFAULTS[key];
-        if (key.endsWith('Enabled')) node(key).checked = saved === 'true'; else node(key).value = saved;
-      }
-      syncControl(key);
-      syncDirty(key);
-    }
-    status(effect);
+function renderEffect(effect, state) {
+  for (const key of keys(effect)) {
+    const input = node(key);
+    if (key.endsWith('Enabled')) input.checked = state.draft[key] === 'true';
+    else if (input.value !== state.draft[key]) input.value = state.draft[key];
+    input.dataset.dirty = String(state.draft[key] !== state.saved[key]);
+    syncControl(key);
   }
+  node(`${effect.prefix}SaveBtn`).disabled = state.saving;
+  status(effect);
 }
 
 function status(effect, message = '', state = '') {
-  const unsaved = keys(effect).some(key => dirty.has(key));
+  const current = controllers.get(effect.prefix).getStatus();
   const target = node(`${effect.prefix}SaveState`);
-  target.textContent = message || (unsaved ? '有未保存修改，点击“保存设置”后生效。' : '');
-  target.dataset.state = state || (unsaved ? 'pending' : '');
+  target.textContent = message || current.error || (current.saving ? '正在保存…'
+    : current.dirty ? '有未保存修改，点击“保存设置”后生效。' : '');
+  target.dataset.state = state || (current.error ? 'error' : current.dirty ? 'pending' : '');
 }
 
 function valid(effect) {
@@ -123,20 +84,11 @@ function valid(effect) {
 async function save(effect) {
   const button = node(`${effect.prefix}SaveBtn`);
   if (button.disabled || !valid(effect)) return;
-  const submitted = Object.fromEntries(keys(effect).map(key => [key, value(key)]));
-  for (const key of keys(effect)) saving.add(key);
-  button.disabled = true; status(effect, '正在保存…');
-  try {
-    await api('/api/settings', submitted, { notifyError: false });
-    currentSettings = { ...currentSettings, ...submitted };
-    for (const key of keys(effect)) { saving.delete(key); syncDirty(key); }
-    const unsaved = keys(effect).some(key => dirty.has(key));
+  const controller = controllers.get(effect.prefix);
+  if (!controller.getStatus().dirty) return;
+  if (await controller.save()) {
+    const unsaved = controller.getStatus().dirty;
     status(effect, unsaved ? '设置已保存，刚才的新修改还没保存。' : '设置已保存。', 'success');
-  } catch (error) {
-    status(effect, error.message || '设置未保存，修改已保留，请重试。', 'error');
-  } finally {
-    for (const key of keys(effect)) { saving.delete(key); syncDirty(key); }
-    button.disabled = false;
   }
 }
 
@@ -154,8 +106,10 @@ async function preview(effect) {
       && !item.appearance.config.mediaStyle && !item.appearance.config.resourceStyle);
     if (!item) {
       if (document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('当前场景已满，请在画布中新建场景。');
-      item = { id: crypto.randomUUID(), type: 'gift-frame', name: effect.label, x: 0, y: 0,
-        width: document.canvas.width, height: document.canvas.height, visible: true, locked: false,
+      const variant = SCENE_EXTRA_COMPONENTS['gift-frame'].variants.find(variant => variant.value === effect.style);
+      const height = Math.min(document.canvas.height, variant.size?.[1] || document.canvas.height);
+      item = { id: crypto.randomUUID(), type: 'gift-frame', name: effect.label, x: 0, y: document.canvas.height - height,
+        width: document.canvas.width, height, visible: true, locked: false,
         appearance: { mode: 'independent', config: { style: effect.style } } };
       document.items.push(item); canvas.controller.edit({ document });
     }

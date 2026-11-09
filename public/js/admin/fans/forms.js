@@ -1,4 +1,5 @@
 import { html, attr } from './view.js';
+import { bilibiliAvatarSource } from '../settings-auth.js';
 
 function field(name, label, value = '', type = 'text', extra = '') {
   return `<label class="fan-field">${label}<input name="${name}" type="${type}" value="${attr(value ?? '')}" ${extra} /></label>`;
@@ -22,15 +23,32 @@ function day() {
   return localTime().slice(0, 10);
 }
 
-export function profileForm(profile = {}) {
+export function formerNameForm(profile) {
+  return {
+    title: '替换默认展示名',
+    hint: `留空时使用上次进房名${profile.lastEntry?.name ? `：${profile.lastEntry.name}` : '；尚未记录进房名时显示暂无'}。`,
+    fields: field('preferredFormerName', '默认展示名', profile.preferredFormerName, 'text',
+      'maxlength="200" list="fanFormerNameChoices" placeholder="留空使用上次进房名"') +
+      `<datalist id="fanFormerNameChoices">${[...new Set([profile.lastEntry?.name, ...(profile.formerNames || [])].filter(Boolean))]
+        .map(name => `<option value="${attr(name)}"></option>`).join('')}</datalist>`,
+    read(form) {
+      return { id: profile.id, revision: profile.revision, preferredFormerName: form.elements.preferredFormerName.value };
+    },
+  };
+}
+
+export function profileForm(profile = {}, { previewIdentity, lookupFormerNames, apiToken = '' } = {}) {
+  let namesPending = false;
   const birthday = profile.birthday || {};
+  const identityType = profile.identity?.type || 'uid';
+  const openIdentity = identityType === 'open_id';
+  const avatarSource = bilibiliAvatarSource(profile.avatar, apiToken);
   return {
     title: profile.id ? '编辑粉丝档案' : '新建粉丝档案',
     profileEditor: true,
     saveLabel: profile.id ? '保存修改' : '创建档案',
     fields:
       `<div class="fan-profile-form fan-field-wide">
-        <p class="fan-profile-intro">${profile.platformName ? '列表优先显示常用称呼，括号内为最新平台昵称；未填称呼时显示平台昵称。' : profile.id ? '除常用称呼外，其余信息均为选填。' : '填写常用称呼即可创建，其余信息可稍后补充。'}</p>
         <div class="fan-profile-tabs" role="tablist" aria-label="档案信息">
           <button type="button" id="fanProfileBasicTab" role="tab" aria-controls="fanProfileBasic" aria-selected="true">基本信息</button>
           <button type="button" id="fanProfilePersonalTab" role="tab" aria-controls="fanProfilePersonal" aria-selected="false" tabindex="-1">生日与性格</button>
@@ -46,23 +64,22 @@ export function profileForm(profile = {}) {
         `${profile.platformName ? '' : 'required '}maxlength="100" autofocus placeholder="你平时怎么称呼这位粉丝"`,
       ) +
       '</div>' +
-      area('formerNames', '曾用名（最多 3 个，每行一个，由近到远）', profile.formerNames?.join('\n'), 3) +
-      choice(
-        'identityType',
-        'B 站账号类型',
-        [
-          ['uid', 'B 站 UID（个人主页可查看）'],
-          ['open_id', '开放平台账号'],
-        ],
-        profile.identity?.type || 'uid',
-      ) +
+      area('formerNames', '曾用名（每行一个）', profile.formerNames?.join('\n'), 2) +
+      `<div class="fan-former-fetch fan-field-wide"><button type="button" data-former-fetch ${openIdentity || !profile.identity?.value ? 'disabled' : ''}>获取曾用名</button><span class="fan-field-help" data-former-status role="status"></span></div>` +
+      `<div class="fan-identity fan-field-wide">
+        <span class="fan-identity-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true" ${avatarSource ? 'hidden' : ''}><circle cx="12" cy="8" r="4"/><path d="M4 21v-2a8 8 0 0 1 16 0v2"/></svg>
+          <img ${avatarSource ? `src="${attr(avatarSource)}"` : 'hidden'} alt="B 站账号头像" decoding="async" />
+        </span>
+        <div class="fan-identity-fields">` +
       field(
         'identityValue',
-        'B 站账号 ID',
+        openIdentity ? '开放平台账号 ID' : 'B 站 UID',
         profile.identity?.value,
         'text',
-        'maxlength="128" placeholder="不清楚可以先留空"',
+        `aria-describedby="fanIdentityStatus" ${openIdentity ? 'readonly maxlength="128"' : 'inputmode="numeric" maxlength="25" placeholder="个人主页可查看，选填"'}`,
       ) +
+      `<span id="fanIdentityStatus" class="fan-field-help" role="status">${html(profile.platformName || (openIdentity ? '由 B 站开放平台自动识别' : '填写 UID 后显示头像和昵称'))}</span></div></div>` +
       '<div class="fan-field-wide">' +
       field(
         'summary',
@@ -79,12 +96,13 @@ export function profileForm(profile = {}) {
         'calendar',
         '生日历法',
         [
-          ['solar', '公历'],
-          ['lunar', '农历'],
+          ['solar', '公历（阳历）'],
+          ['lunar', '农历（俗称阴历）'],
         ],
         birthday.calendar || 'solar',
       ) +
       field('monthDay', '生日（月-日）', birthday.monthDay, 'text', 'placeholder="例如：09-18" maxlength="5"') +
+      '<p class="fan-field-help fan-field-wide" id="fanBirthdayHelp">公历按日常日历日期填写；农历按传统月日填写，如八月十五填 08-15。</p>' +
       field('year', '出生年份', birthday.year, 'number', 'min="1900" step="1" placeholder="不清楚可以留空"') +
       check('advance', '提前 7 天提醒生日', birthday.advance) +
       choice(
@@ -96,7 +114,7 @@ export function profileForm(profile = {}) {
         ],
         birthday.leapDay || 'feb28',
       ) +
-      field('thisYearDate', '今年的公历生日（用于农历提醒）', birthday.thisYearDate, 'date') +
+      field('thisYearDate', '今年对应的阳历日期（农历提醒需填写）', birthday.thisYearDate, 'date') +
       check('leapMonth', '农历闰月', birthday.leapMonth) +
       '<div class="fan-profile-divider fan-field-wide"></div>' +
       field('zodiac', '星座', profile.zodiac, 'text', 'maxlength="30" placeholder="留空时按公历生日提示"') +
@@ -145,6 +163,87 @@ export function profileForm(profile = {}) {
       const root = form.querySelector('.fan-profile-form');
       const tabs = [...root.querySelectorAll('[role="tab"]')];
       const panels = [...root.querySelectorAll('[role="tabpanel"]')];
+      const identityInput = form.elements.identityValue;
+      const avatar = root.querySelector('.fan-identity-avatar img');
+      const avatarPlaceholder = root.querySelector('.fan-identity-avatar svg');
+      const identityStatus = root.querySelector('#fanIdentityStatus');
+      const namesButton = root.querySelector('[data-former-fetch]');
+      const namesStatus = root.querySelector('[data-former-status]');
+      let namesRevision = 0;
+      let appendedNames = new Set();
+      const readNames = () => form.elements.formerNames.value.split(/\r?\n/).map(name => name.trim()).filter(Boolean);
+      namesButton.addEventListener('click', async () => {
+        if (!lookupFormerNames || namesButton.disabled) return;
+        const uid = identityInput.value.trim();
+        const revision = ++namesRevision;
+        const isCurrent = () => root.isConnected && root.closest('dialog')?.open &&
+          revision === namesRevision && uid === identityInput.value.trim();
+        namesButton.disabled = true;
+        namesPending = true;
+        namesStatus.textContent = '正在获取…';
+        try {
+          const result = await lookupFormerNames(uid);
+          if (!isCurrent()) return;
+          const existing = readNames();
+          const seen = new Set([profile.platformName, ...existing]);
+          const added = result.names.filter(name => !seen.has(name));
+          for (const name of added) appendedNames.add(name);
+          form.elements.formerNames.value = [...new Set([...existing, ...added])].join('\n');
+          namesStatus.textContent = added.length ? `已获取 ${added.length} 个名字，保存档案时一起保存` : '没有新增名字，已有内容已保留';
+        } catch (error) {
+          if (isCurrent()) namesStatus.textContent = error.message;
+        } finally {
+          if (isCurrent()) {
+            namesButton.disabled = false;
+            namesPending = false;
+          }
+        }
+      });
+      let identityRevision = 0;
+      let previewedUid = avatarSource ? identityInput.value.trim() : '';
+      function showAvatar(source) {
+        avatar.hidden = !source;
+        avatarPlaceholder.toggleAttribute('hidden', !!source);
+        if (source) avatar.src = source;
+        else avatar.removeAttribute('src');
+      }
+      avatar.addEventListener('error', () => {
+        if (avatar.hidden) return;
+        showAvatar('');
+        identityStatus.textContent = '头像暂时无法显示，可继续保存';
+      });
+      async function updateIdentityPreview() {
+        const uid = identityInput.value.trim();
+        if (openIdentity || !previewIdentity || !uid || uid === previewedUid) return;
+        const revision = ++identityRevision;
+        const isCurrent = () => root.isConnected && root.closest('dialog')?.open &&
+          revision === identityRevision && uid === identityInput.value.trim();
+        identityStatus.textContent = '正在读取头像和昵称…';
+        try {
+          const result = await previewIdentity(uid);
+          if (!isCurrent()) return;
+          previewedUid = uid;
+          showAvatar(bilibiliAvatarSource(result.avatarUrl, apiToken));
+          identityStatus.textContent = result.name || '未获取到账号资料，可继续保存';
+        } catch (_) {
+          if (!isCurrent()) return;
+          identityStatus.textContent = '暂时无法读取账号资料，请核对 UID；可继续保存';
+        }
+      }
+      identityInput.addEventListener('input', () => {
+        namesRevision++;
+        if (appendedNames.size) form.elements.formerNames.value = readNames().filter(name => !appendedNames.has(name)).join('\n');
+        appendedNames = new Set();
+        namesStatus.textContent = '';
+        namesButton.disabled = openIdentity || !identityInput.value.trim();
+        namesPending = false;
+        identityRevision++;
+        previewedUid = '';
+        showAvatar('');
+        identityStatus.textContent = identityInput.value.trim() ? '填写完成后显示头像和昵称' : '填写 UID 后显示头像和昵称';
+      });
+      identityInput.addEventListener('change', updateIdentityPreview);
+      void updateIdentityPreview();
       function selectTab(tab) {
         for (const item of tabs) {
           item.setAttribute('aria-selected', String(item === tab));
@@ -178,6 +277,9 @@ export function profileForm(profile = {}) {
       );
       function updateFields() {
         const lunar = form.elements.calendar.value === 'lunar';
+        root.querySelector('#fanBirthdayHelp').textContent = lunar
+          ? '按农历月日填写，如八月十五填 08-15；提醒还需填写今年对应的阳历日期，不会自动换算。'
+          : '按日常日历的阳历月日填写，如 9 月 18 日填 09-18。';
         const hasMbti = !!form.elements.mbti.value;
         for (const name of ['thisYearDate', 'leapMonth']) form.elements[name].closest('label').hidden = !lunar;
         form.elements.leapDay.closest('label').hidden = lunar || form.elements.monthDay.value !== '02-29';
@@ -189,6 +291,7 @@ export function profileForm(profile = {}) {
       updateFields();
     },
     read(form) {
+      if (namesPending) throw new Error('曾用名仍在获取，请等待完成后保存，或修改 UID 后继续。');
       const data = Object.fromEntries(new FormData(form));
       return {
         id: profile.id,
@@ -202,7 +305,7 @@ export function profileForm(profile = {}) {
         identity: data.identityValue
           ? {
               platform: 'bilibili',
-              type: data.identityType,
+              type: identityType,
               value: data.identityValue,
             }
           : null,

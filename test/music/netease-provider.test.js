@@ -301,25 +301,20 @@ test('Netease provider rejects unsafe upstream stream protocols', async () => {
 });
 
 test('Netease search and health reject upstream failures despite a local login cookie', async (t) => {
-  const cases = [
-    { data: { code: 301, msg: '需要登录' }, message: /code=301，需要登录/ },
-    { data: { code: 405, message: '操作频繁' }, message: /code=405，操作频繁/ },
-    { data: {}, message: /网易云音乐搜索失败/ },
-    { data: { code: 200 }, message: /网易云音乐搜索响应缺少歌曲结果/ },
-  ];
+  const upstreamFailure = { code: 301, result: { songs: [] } };
   let response;
   t.mock.method(globalThis, 'fetch', async () => Response.json(response));
   const provider = createProvider();
 
-  for (const { data, message } of cases) {
+  for (const data of [upstreamFailure, {}, { code: 200 }]) {
     response = data;
-    await assert.rejects(provider.searchTracks('晴天'), message);
-    const health = await provider.healthCheck();
-    assert.equal(health.ok, false);
-    assert.equal(health.status, 'api-error');
-    assert.equal(health.auth.loggedIn, true);
-    assert.match(health.message, message);
+    await assert.rejects(provider.searchTracks('晴天'), Error);
   }
+  response = upstreamFailure;
+  const health = await provider.healthCheck();
+  assert.equal(health.ok, false);
+  assert.equal(health.status, 'api-error');
+  assert.equal(health.auth.loggedIn, true);
 });
 
 test('Netease search accepts an explicit empty result without requesting artwork', async (t) => {

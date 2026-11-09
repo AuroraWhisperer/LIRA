@@ -1,10 +1,12 @@
 // A bounded rigid-body world for gift artwork. Wall-clock expiry is independent
 // of simulation steps, so removing a support always releases the stack above it.
 export const MAX_GIFT_DROP_BODIES = 400;
+export const GIFT_DROP_EXIT_MS = 600;
+const MAX_SPAWN_DELAY_MS = 1500;
 const FIXED_STEP = 1 / 120;
 
 function support(body, nx, ny) {
-  const c = Math.cos(body.angle); const s = Math.sin(body.angle);
+  const c = body.cosine; const s = body.sine;
   const ux = c * nx + s * ny; const uy = -s * nx + c * ny;
   const x = Math.abs(ux) < 0.001 ? 0 : Math.sign(ux) * body.half;
   const y = Math.abs(uy) < 0.001 ? 0 : Math.sign(uy) * body.half;
@@ -12,8 +14,10 @@ function support(body, nx, ny) {
 }
 
 function collide(a, b) {
-  const ac = Math.cos(a.angle); const as = Math.sin(a.angle);
-  const bc = Math.cos(b.angle); const bs = Math.sin(b.angle);
+  const extent = a.extent + b.extent;
+  if (Math.abs(b.x - a.x) > extent || Math.abs(b.y - a.y) > extent) return;
+  const ac = a.cosine; const as = a.sine;
+  const bc = b.cosine; const bs = b.sine;
   let depth = Infinity; let nx; let ny;
   for (const [x, y] of [[ac, as], [-as, ac], [bc, bs], [-bs, bc]]) {
     const distance = (b.x - a.x) * x + (b.y - a.y) * y;
@@ -59,15 +63,16 @@ function walls(body, width, height) {
 
 function pairs(bodies, size) {
   const cells = new Map(); const result = [];
+  // At most 400 bodies: index + 1 safely marks each body's visited neighbours.
+  const found = new Uint16Array(bodies.length);
   for (let index = 0; index < bodies.length; index++) {
     const body = bodies[index]; const radius = body.half * Math.SQRT2;
     const minX = Math.floor((body.x - radius) / size); const maxX = Math.floor((body.x + radius) / size);
     const minY = Math.floor((body.y - radius) / size); const maxY = Math.floor((body.y + radius) / size);
-    const found = new Set();
     for (let x = minX; x <= maxX; x++) for (let y = minY; y <= maxY; y++) {
       const key = `${x}:${y}`;
       const cell = cells.get(key) || [];
-      for (const other of cell) if (!found.has(other)) { result.push([bodies[other], body]); found.add(other); }
+      for (const other of cell) if (found[other] !== index + 1) { result.push(bodies[other], body); found[other] = index + 1; }
       cell.push(index); cells.set(key, cell);
     }
   }
@@ -85,13 +90,13 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
       const bounce = (event.motion.bounce ?? 18) / 100;
       const multiplier = event.motion.quantityMultiplier ?? 4;
       const expiresAt = event.startedAt + event.motion.durationSeconds * 1000;
-      if (expiresAt + 1000 <= now) return [];
+      if (expiresAt + MAX_SPAWN_DELAY_MS <= now) return [];
       // Large combos keep their true quantity on the last representative image.
       // Existing gifts are never evicted early to make room for a newer gift.
       const count = Math.min(event.num * multiplier, 60 * multiplier, MAX_GIFT_DROP_BODIES - bodies.length);
       const added = [];
       for (let index = 0; index < count; index++) {
-        const delay = random() * 1000;
+        const delay = random() * MAX_SPAWN_DELAY_MS;
         if (expiresAt + delay <= now) continue;
         const body = { id: `${event.eventId}:${index}`, eventId: event.eventId,
           quantity: index === count - 1 ? Math.max(1, event.num - Math.ceil(count / multiplier) + 1) : 1,
@@ -105,19 +110,28 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
       return added;
     },
     step(elapsed, now) {
-      bodies = bodies.filter(body => body.expiresAt > now);
+      bodies = bodies.filter(body => body.expiresAt + GIFT_DROP_EXIT_MS > now);
       const active = bodies.filter(body => body.spawnAt <= now);
+      // Expired gifts fall through the floor and release the stack while fading.
+      const collidable = active.filter(body => body.expiresAt > now);
       remainder += Math.max(0, Math.min(elapsed, 1 / 15));
       while (remainder >= FIXED_STEP) {
         remainder -= FIXED_STEP;
         for (const body of active) {
+          if (body.expiresAt <= now) body.vy = Math.max(0, body.vy);
           body.vy += 1500 * body.motionSpeed ** 2 * FIXED_STEP;
           body.vx *= 0.999; body.spin *= 0.998;
           body.x += body.vx * FIXED_STEP; body.y += body.vy * FIXED_STEP;
           body.angle += body.spin * FIXED_STEP;
+          // Collision impulses change spin, but orientation stays fixed during the solver iterations.
+          body.cosine = Math.cos(body.angle);
+          body.sine = Math.sin(body.angle);
+          body.extent = body.half * (Math.abs(body.cosine) + Math.abs(body.sine));
         }
         for (let iteration = 0; iteration < 5; iteration++) {
-          for (const [a, b] of pairs(active, 240)) {
+          const candidates = pairs(collidable, 240);
+          for (let index = 0; index < candidates.length; index += 2) {
+            const a = candidates[index]; const b = candidates[index + 1];
             const hit = collide(a, b);
             if (!hit) continue;
             const correction = Math.max(0, hit.depth - 0.08) * 0.4;
@@ -125,7 +139,7 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
             b.x += hit.nx * correction; b.y += hit.ny * correction;
             impulse(a, b, hit.nx, hit.ny, hit.x, hit.y);
           }
-          for (const body of active) walls(body, width, height);
+          for (const body of collidable) walls(body, width, height);
         }
       }
     },

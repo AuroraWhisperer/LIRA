@@ -1,6 +1,33 @@
+import { SCENE_EXTRA_COMPONENTS } from './scene-extra-components.js';
+
 // Scene placement and the selected style belong to the scene. These fields belong
 // to the existing component owner, including when the item was saved as a snapshot.
 export const SHARED_CONTROLLER_TYPES = ['clock', 'queue', 'danmaku', 'overtime'];
+
+export const SHARED_SCENE_SETTING_FIELDS = Object.freeze({
+  'heart-box-collection': { showRewards: 'heartBoxCollectionShowRewards' },
+  'live-rankings': { range: 'liveRankingsRange' },
+});
+
+export const SHARED_SCENE_SETTING_DEFAULTS = Object.freeze(Object.fromEntries(
+  Object.entries(SHARED_SCENE_SETTING_FIELDS).flatMap(([type, fields]) => Object.entries(fields)
+    .map(([field, key]) => [key, String(SCENE_EXTRA_COMPONENTS[type].fields[field].default)])),
+));
+
+export function sceneAppearanceFromSettings(type, settings = {}) {
+  return Object.fromEntries(Object.entries(SHARED_SCENE_SETTING_FIELDS[type]).map(([field, key]) => {
+    const definition = SCENE_EXTRA_COMPONENTS[type].fields[field];
+    const value = settings[key] ?? definition.default;
+    return [field, definition.type === 'checkbox' ? value === true || value === 'true'
+      : definition.type === 'number' ? Number(value) : value];
+  }));
+}
+
+export function sceneAppearanceSettingsPatch(type, patch) {
+  return Object.fromEntries(Object.entries(patch).filter(([field]) =>
+    Object.hasOwn(SHARED_SCENE_SETTING_FIELDS[type], field))
+    .map(([field, value]) => [SHARED_SCENE_SETTING_FIELDS[type][field], String(value)]));
+}
 
 export function hasInstalledAppearance(config = {}) {
   return Boolean(config.resourceStyle || config.mediaStyle || config.cssStyle);
@@ -21,7 +48,8 @@ export function sharedControllerAppearance(type, config, defaults) {
 
 export function sceneAppearanceKey(type, config = {}) {
   return JSON.stringify([type, config.resourceStyle?.id || config.mediaStyle?.id || config.cssStyle?.id || '',
-    config.resourceStyle ? '' : config.style || config.displayStyle || config.overlayQueueStyle || config.kind || '']);
+    config.resourceStyle ? '' : config.style || config.displayStyle || config.overlayQueueStyle || config.kind || '',
+    ...(type === 'now-playing' ? [config.nowPlayingPart || 'all'] : [])]);
 }
 
 export function mergeSharedAppearancePatch(current, patch, config, type) {

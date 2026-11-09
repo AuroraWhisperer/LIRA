@@ -66,6 +66,7 @@ function createDomainServices(options) {
   }
 
   const songs = {
+    hasPendingCloudSongs: cloudSongSync.hasPending,
     getPendingCloudSongs: cloudSongSync.readPending,
     acknowledgePendingCloudSongs: cloudSongSync.acknowledge,
     getMetadata: createSongMetadataReader(songStore),

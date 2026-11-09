@@ -144,7 +144,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 | action                | 行为                                                          | 缓存                                                                                           |
 | --------------------- | ------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| `personalized`        | 推荐歌单,`limit` 转发时截 30,带 `page`                        | **缓存**(key 含 platform/action/limit/playlistId,**page 不入 key**,故 `page > 1` 必须绕过缓存) |
+| `personalized`        | 推荐歌单,`limit` 转发时截 30,带 `page`                        | **缓存**(key 含 platform/action/limit/playlistId 及当前授权凭证派生的作用域，**page 不入 key**，故 `page > 1` 必须绕过缓存) |
 | `playlist-tracks`     | 歌单详情,`playlistId` 必填                                    | **不缓存**，直接读取 Provider；由播放器内容缓存及后台刷新负责                                                                       |
 | `daily`               | 每日推荐                                                      | **不缓存**——注释:radio/daily 的重点是每次给新歌,缓存会让它们永远返回同一批                     |
 | `radio`               | 电台                                                          | 不缓存                                                                                         |
@@ -155,6 +155,8 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | 其他                  | 抛"未知音乐首页动作。"                                        | —                                                                                              |
 
 缓存规则:仅 `personalized` 可缓存;`refresh === true` 或 `page > 1` **绕过缓存**;命中时返回 `{...cached, cached: true}`。`limit` clamp 1-5000 默认 100,`offset` ≥ 0,`page` clamp 1-50。
+
+推荐缓存从 Provider 的 `getSafeCookieHeader()` 读取授权快照，参与既有 `musicCacheKey` 哈希；磁盘文件名和内容不保存原始凭证。账号切换、退出登录和服务重建后按该作用域隔离，同凭证保留五分钟暖缓存。上游请求结束时再次读取凭证，若与开始时不同则跳过此次缓存写入。
 
 `liked` 可携带一次加载专用的 `loadingSession`（最长 100 字符）。Provider 仅在同一会话中复用喜欢歌单定位；QQ 客户端接口返回完整歌单时复用该次结果分页，公开接口和网易云仍读取实际分页。不同加载使用不同会话，凭证改变或成功写歌单会清除会话；每个 Provider 最多保留 8 个会话、最长 5 分钟，不写磁盘，也不作为下一次刷新缓存。
 

@@ -24,15 +24,22 @@ async function createFixture() {
   }
   const handlers = new Map();
   const requests = [];
+  let settings = {};
   const module = await loadModuleExports(path.resolve('public/js/admin/gift-guard-thanks.js'), {
     document: Object.assign(documentRef, { getElementById: id => id === 'toast' ? toasts : node(id) }),
     window: Object.assign(windowRef, { addEventListener: (name, fn) => handlers.set(name, fn) }),
     ...createClock(), location: { protocol: 'http:', port: '3000' },
-    fetch: (url, options) => new Promise((resolve, reject) => requests.push({ url, body: JSON.parse(options.body), reject,
-      resolve: () => resolve({ ok: true, text: async () => JSON.stringify({ ok: true }) }) })),
+    fetch: (url, options) => {
+      if (url === '/api/state') return Promise.resolve({ ok: true, json: async () => ({ ok: true, data: { settings } }) });
+      const body = JSON.parse(options.body);
+      const acknowledged = { ...settings, ...body };
+      settings = acknowledged;
+      return new Promise((resolve, reject) => requests.push({ url, body, reject,
+        resolve: () => resolve({ ok: true, text: async () => JSON.stringify({ ok: true, data: { settings: acknowledged } }) }) }));
+    },
   });
   module.initGuardThanks();
-  const render = settings => handlers.get('app:settings-state')({ detail: settings });
+  const render = next => { settings = next; handlers.get('app:settings-state')({ detail: settings }); };
   const edit = (id, value) => {
     node(id)[id.endsWith('Enabled') ? 'checked' : 'value'] = value;
     node('guardThanksPanel').handlers.get('input')({ target: node(id) });
@@ -64,7 +71,7 @@ test('each style saves only its own fields and leaves the other draft intact', a
   requests[1].resolve(); await classic;
 });
 
-test('settings pushes and a pending save preserve later edits and prevent duplicate submission', async () => {
+test('settings pushes and pending saves preserve later edits and reconcile newer canvas values', async () => {
   const { node, requests, render, edit, click } = await createFixture();
   edit('guardThanksAuroraTextMode', 'zh');
   const save = click('guardThanksAuroraSaveBtn');
@@ -76,6 +83,12 @@ test('settings pushes and a pending save preserve later edits and prevent duplic
   assert.equal(node('guardThanksAuroraTextMode').value, 'en');
   assert.equal(node('guardThanksClassicEnabled').checked, true);
   assert.equal(node('guardThanksAuroraSaveBtn').disabled, false);
+  const retry = click('guardThanksAuroraSaveBtn');
+  render({ guardThanksAuroraTextMode: 'en', guardThanksClassicEnabled: 'true' });
+  render({ guardThanksAuroraTextMode: 'bilingual', guardThanksClassicEnabled: 'true' });
+  requests[1].resolve(); await retry;
+  assert.equal(node('guardThanksAuroraTextMode').value, 'bilingual');
+  assert.equal(node('guardThanksAuroraTextMode').dataset.dirty, 'false');
 });
 
 test('a failed save keeps the style draft', async () => {

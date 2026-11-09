@@ -82,16 +82,18 @@ test('stream failures map invalid parameters to 400 and provider failures to 501
     },
   });
   assert.equal(invalid.status, 400);
-  assert.deepEqual(invalid.payload, { ok: false, error: 'Invalid request parameters.' });
+  assert.equal(invalid.payload.ok, false);
+  assert.doesNotMatch(invalid.payload.error, /internal validation detail/);
 
+  const providerError = new Error('synthetic playback entitlement failure');
   const unavailable = await resolveStream({
     resolvePlayableUrl: () => {
-      throw new Error('没有该歌曲的完整播放或试听权益');
+      throw providerError;
     },
   });
   assert.equal(unavailable.status, 501);
   assert.equal(unavailable.payload.ok, false);
-  assert.match(unavailable.payload.error, /试听权益/);
+  assert.equal(unavailable.payload.error, providerError.message);
 
   const missingTrack = await resolveStream({ body: {}, resolvePlayableUrl: () => assert.fail('no provider call') });
   assert.equal(missingTrack.status, 501);

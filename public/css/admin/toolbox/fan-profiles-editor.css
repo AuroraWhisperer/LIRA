@@ -78,7 +78,8 @@
 }
 .fan-profile-editor {
   width: min(680px, calc(100vw - 48px));
-  height: min(640px, calc(100dvh - 48px));
+  height: min(536px, calc(100dvh - 48px));
+  padding: 16px 20px;
   max-height: none;
   overflow: hidden;
 }
@@ -90,13 +91,13 @@
   height: 100%;
 }
 .fan-profile-editor .fan-editor-heading {
-  flex-shrink: 0;
-  margin-bottom: 8px;
-}
-.fan-profile-editor h2 {
-  font-size: var(--type-size-section-title);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-section-title);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 .fan-profile-editor #fanEditorFields {
   display: flex;
@@ -106,34 +107,33 @@
 .fan-profile-form {
   flex: 1;
 }
-.fan-profile-intro {
-  flex-shrink: 0;
-  margin: 0 0 16px;
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  line-height: var(--type-leading-body);
-}
 .fan-profile-tabs {
   display: flex;
   flex-shrink: 0;
-  gap: 24px;
-  margin-bottom: 20px;
-  border-bottom: 1px solid var(--border);
+  align-self: flex-start;
+  gap: 4px;
+  padding: 3px;
+  margin-bottom: 16px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
 }
 .fan-profile-tabs [role='tab'] {
-  padding: 8px 0 12px;
+  min-height: 28px;
+  padding: 3px 12px;
   border: 0;
-  border-radius: 0;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--muted);
   font-size: var(--type-size-control);
+  line-height: var(--type-leading-control);
 }
 .fan-profile-tabs [role='tab']:hover {
   color: var(--text);
 }
-.fan-profile-tabs [aria-selected='true'] {
+.fan-profile-tabs [aria-selected='true'],
+.fan-profile-tabs [aria-selected='true']:hover {
+  background: var(--surface);
   color: var(--color-selection-text);
-  box-shadow: inset 0 -2px var(--color-selection-marker);
   font-weight: var(--type-weight-semibold);
 }
 .fan-profile-editor .fan-profile-panel {
@@ -142,7 +142,7 @@
   align-content: start;
   flex: 1;
   min-height: 0;
-  gap: 16px;
+  gap: 12px;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: none;
@@ -155,6 +155,58 @@
   color: var(--text);
   font-size: var(--type-size-control);
   line-height: var(--type-leading-control);
+}
+.fan-profile-panel textarea[name='formerNames'] {
+  min-height: 60px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.fan-former-fetch {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fan-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.fan-identity-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.fan-identity-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fan-identity-avatar svg {
+  width: 24px;
+  height: 24px;
+}
+.fan-identity-fields {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+  gap: 4px;
+}
+.fan-field-help {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  line-height: var(--type-leading-caption);
+  overflow-wrap: anywhere;
+}
+.fan-profile-tabs [role='tab']:focus-visible {
+  outline-offset: 1px;
 }
 .fan-profile-panel input,
 .fan-profile-panel select,
@@ -200,8 +252,12 @@
 }
 .fan-profile-editor .fan-editor-footer {
   flex-shrink: 0;
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 6px;
+  padding-top: 6px;
+}
+.fan-profile-editor .fan-editor-actions button {
+  min-height: 30px;
+  padding: 4px 14px;
 }
 .fan-merge-preview {
   display: grid;

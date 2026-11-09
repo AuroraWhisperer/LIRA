@@ -183,6 +183,24 @@
   width: min(var(--now-playing-record-size, 120px), 90cqw, calc(100cqh - 24px));
 }
 
+.now-playing[data-part='record'],
+.now-playing[data-part='text'] {
+  padding: 0;
+}
+
+.now-playing[data-part='record'] .now-playing-visual {
+  width: min(100cqw, 100cqh);
+}
+
+.now-playing[data-part='record'][data-style='turntable'] .now-playing-visual {
+  width: min(100cqw, 120cqh);
+}
+
+.now-playing[data-part='text'] .now-playing-copy {
+  flex: 1 1 auto;
+  text-align: left;
+}
+
 @keyframes now-playing-rotation {
   to { transform: rotate(360deg); }
 }

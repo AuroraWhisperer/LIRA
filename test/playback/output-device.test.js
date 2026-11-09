@@ -152,6 +152,7 @@ test('switch failure preserves the usable channel and save failure is reported w
   assert.equal(f.state.deviceId, 'a');
   assert.equal(f.audio.sinkId, 'a');
   assert.equal(f.savedPreference().deviceId, 'a');
+  const switchError = f.state.message;
   await f.output.prepare();
   f.setChangeSink(async () => {});
   f.failSave();
@@ -159,7 +160,8 @@ test('switch failure preserves the usable channel and save failure is reported w
   assert.equal(f.audio.sinkId, 'b');
   assert.equal(f.state.deviceId, 'b');
   assert.equal(f.savedPreference().deviceId, 'a');
-  assert.match(f.state.message, /未能保存/);
+  assert.ok(f.state.message);
+  assert.notEqual(f.state.message, switchError);
   f.output.dispose();
 });
 

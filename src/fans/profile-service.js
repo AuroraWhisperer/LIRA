@@ -76,6 +76,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     }
     return {
       ...profile,
+      formerName: profile.preferredFormerName || profile.lastEntry?.name || '',
       formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
         .reverse()
         .map((item) => item.name),
@@ -238,6 +239,8 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           profile.platformName,
           profile.identity?.value,
           profile.summary,
+          profile.preferredFormerName,
+          profile.lastEntry?.name,
           ...recentNameHistory(profile.nameHistory, profile.platformName).map((item) => item.name),
           ...(profile.tags || []),
         ]
@@ -250,7 +253,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         );
       });
     const ids = candidates.map((profile) => profile.id);
-    const recordsByProfile = store.records.listForProfiles(scope, ids);
+    const recordsByProfile = store.records.listProjectionInputs(scope, ids);
     const statesByProfile = store.statesForProfiles(scope, ids);
     return candidates
       .map((profile) => {
@@ -263,6 +266,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original.medalLevel;
         return {
           ...profile,
+          formerName: profile.preferredFormerName || profile.lastEntry?.name || '',
           formerNames: recentNameHistory(profile.nameHistory, profile.platformName)
             .reverse()
             .map((item) => item.name),
@@ -329,6 +333,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
             profiles: list(scope, input),
             settings: { ...store.getScope(scope), ...accompanySettings(store.getScope(scope)) },
           };
+        case 'former-name-targets':
+          return { ids: store.list(scope).filter(profile => !profile.archived && profile.identity?.type === 'uid')
+            .map(profile => profile.id) };
         case 'detail':
           return detail(scope, input.id);
         case 'find': {
@@ -346,8 +353,16 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           requireAllowedIdentity(scope, patch.identity);
           if (!patch.alias && !previous.alias && !previous.platformName) throw new Error('请填写常用称呼。');
           const profile = { ...previous, ...patch };
-          if (identityKey(profile.identity) !== identityKey(previous.identity)) delete profile.guardAccompany;
+          if (identityKey(profile.identity) !== identityKey(previous.identity)) {
+            delete profile.guardAccompany;
+            delete profile.lastEntry;
+          }
           if (patch.nameHistory) {
+            const retained = new Set(patch.nameHistory.map(item => item.name));
+            profile.excludedFormerNames = [...new Set([
+              ...(previous.excludedFormerNames || []),
+              ...(previous.nameHistory || []).filter(item => !retained.has(item.name)).map(item => item.name),
+            ])].filter(name => !retained.has(name));
             profile.nameHistory = recentNameHistory(patch.nameHistory, profile.platformName).map(
               (item) => previous.nameHistory?.findLast((old) => old.name === item.name) || item,
             );
@@ -393,7 +408,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           project.retain(scope, allProfiles);
           const profiles = allProfiles.filter((profile) => !profile.archived);
           const ids = profiles.map((profile) => profile.id);
-          const records = store.records.listForProfiles(scope, ids);
+          const records = store.records.listProjectionInputs(scope, ids);
           const states = store.statesForProfiles(scope, ids);
           const reminders = profiles.flatMap((profile) => project(
             scope, profile, records.get(profile.id) || [], states.get(profile.id) || [], at, settings,
@@ -463,6 +478,27 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
     }),
     consumeFacts: facts.consume,
     observeIdentity: facts.observe,
+    supplementFormerNames(scope, { id, identity: person, names }) {
+      return store.transaction(() => {
+        const profile = requireProfile(scope, id);
+        if (profile.archived || profile.identity?.type !== 'uid' || identityKey(person) !== identityKey(profile.identity))
+          throw new Error('档案身份或状态已变化，请重新打开后补充。');
+        if (!Array.isArray(names)) throw new Error('曾用名格式无效。');
+        const seen = new Set([profile.platformName, ...(profile.excludedFormerNames || []),
+          ...(profile.nameHistory || []).map(item => item.name)]);
+        const added = [];
+        for (const value of names) {
+          const name = text(value, '曾用名', 200);
+          if (!name || seen.has(name)) continue;
+          seen.add(name);
+          added.push({ name, observedAt: '' });
+        }
+        if (added.length) store.save(scope, {
+          ...profile, nameHistory: [...added.reverse(), ...(profile.nameHistory || [])],
+        }, identityKey(profile.identity), now());
+        return { added: added.length, profile: detail(scope, id) };
+      });
+    },
     archiveAccepted: facts.archiveAccepted,
   };
 }

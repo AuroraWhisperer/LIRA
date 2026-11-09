@@ -10,7 +10,7 @@ function createCloudSongSyncController({ runtime, licenseManager, isCurrent, sho
   const readPending = (accountKey) => runtime.getPendingCloudSongs?.(accountKey) || null;
 
   return {
-    hasPending: (accountKey) => Boolean(readPending(accountKey)),
+    hasPending: (accountKey) => Boolean(runtime.hasPendingCloudSongs?.(accountKey)),
 
     restorePending(accountKey) {
       const pending = readPending(accountKey);

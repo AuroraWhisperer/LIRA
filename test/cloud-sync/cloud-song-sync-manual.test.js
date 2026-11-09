@@ -94,6 +94,7 @@ test('failed manual sync preserves pending songs for an automatic retry and ackn
     },
     runtime: {
       getCloudSongsSnapshot: () => pending?.songs || [{ name: 'Pending local edit' }],
+      hasPendingCloudSongs: () => Boolean(pending),
       getPendingCloudSongs: () => pending,
       acknowledgePendingCloudSongs: (_account, id) => { acknowledgements.push(id); pending = null; },
     },
@@ -115,6 +116,7 @@ test('stopped manual work rejects and cannot acknowledge pending songs', async (
       syncSongs: () => new Promise((resolve) => { finishUpload = resolve; }),
     },
     runtime: {
+      hasPendingCloudSongs: () => true,
       getPendingCloudSongs: () => ({ mutationId: 1, songs: [{ name: 'Pending' }] }),
       acknowledgePendingCloudSongs: (...args) => acknowledgements.push(args),
     },

@@ -3,10 +3,71 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { startCanvasOutputFixture, openCanvasDesktop } = require('../helpers/canvas-output-fixture');
+const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { randomUUID } = require('node:crypto');
 const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
+
+test('ranking output adapts row count to frame height and keeps the current room in nearby mode', { timeout: 15000 }, async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><body></body>' });
+  const browser = openBrowserSession();
+  const page = await browser.newPage();
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
+  assert.equal((await fetch(`${fixture.origin}/preview-test-host`)).status, 200);
+  assert.equal((await fetch(`${fixture.origin}/live-rankings?componentPreview=1&sceneComponent=1`)).status, 200);
+  await page.goto(`${fixture.origin}/preview-test-host`);
+  await page.evaluate(async () => {
+    const { rankingDefaults } = await import('/js/shared/live-rankings.js');
+    let config = { ...rankingDefaults(), range: 'all', pageSeconds: 30 };
+    const rows = Array.from({ length: 50 }, (_, index) => ({ rank: index + 1, roomId: String(index + 1), name: `主播 ${index + 1}`, score: 10000 - index }));
+    const data = { room: { roomId: '25' }, boards: [{ id: 'hot', title: '热门全站', unit: '热度值', limit: 100,
+      status: 'ready', rows, current: { ...rows[24], distance: 1 }, endsAt: Date.now() + 600000, updatedAt: Date.now() }] };
+    const iframe = document.createElement('iframe');
+    iframe.id = 'rankingFrame'; iframe.style.width = '540px'; iframe.style.height = '420px';
+    iframe.setAttribute('sandbox', 'allow-scripts');
+    window.updateRankingConfig = change => {
+      config = { ...config, ...change };
+      iframe.contentWindow.postMessage({ type: 'component-preview:config', config }, '*');
+    };
+    window.addEventListener('message', event => {
+      if (event.source !== iframe.contentWindow || event.data?.type !== 'component-preview:ready') return;
+      iframe.contentWindow.postMessage({ type: 'component-preview:init', config }, '*');
+      iframe.contentWindow.postMessage({ type: 'component-preview:data', data }, '*');
+    });
+    iframe.src = '/live-rankings?componentPreview=1&sceneComponent=1';
+    document.body.append(iframe);
+  });
+  await page.frameLocator('#rankingFrame').locator('.ranking-list .ranking-row').first().waitFor();
+  const frame = page.frames().find(child => new URL(child.url()).pathname === '/live-rankings');
+  const count = () => frame.locator('.ranking-list .ranking-row').count();
+  async function assertRowsFit() {
+    assert.equal(await frame.locator('.ranking-body').evaluate(body => {
+      const last = body.querySelector('.ranking-list .ranking-row:last-child');
+      return last && last.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom - parseFloat(getComputedStyle(body).paddingBottom) + 1;
+    }), true);
+  }
+  const initial = await count();
+  await page.locator('#rankingFrame').evaluate(iframe => { iframe.style.height = '800px'; });
+  await frame.waitForFunction(previous => document.querySelector('.ranking-list').children.length > previous, initial);
+  const tall = await count();
+  await assertRowsFit();
+  await page.locator('#rankingFrame').evaluate(iframe => { iframe.style.height = '300px'; });
+  await frame.waitForFunction(previous => document.querySelector('.ranking-list').children.length < previous, initial);
+  await assertRowsFit();
+  await page.evaluate(() => window.updateRankingConfig({ range: 'nearby' }));
+  await frame.locator('.ranking-list .is-current').waitFor();
+  const nearby = await count();
+  await page.locator('#rankingFrame').evaluate(iframe => { iframe.style.height = '800px'; });
+  await frame.waitForFunction(previous => document.querySelector('.ranking-list').children.length > previous, nearby);
+  assert.equal(await frame.locator('.ranking-list .is-current').count(), 1);
+  await assertRowsFit();
+  await page.evaluate(() => window.updateRankingConfig({ range: 'all', fontSize: 30 }));
+  await frame.waitForFunction(previous => document.querySelector('.ranking-list').children.length < previous, tall);
+  await assertRowsFit();
+});
 
 test('canvas discard restores its shared and independent edits without clearing unrelated drafts', { timeout: 20000 }, async t => {
   const fixture = await startCanvasOutputFixture();

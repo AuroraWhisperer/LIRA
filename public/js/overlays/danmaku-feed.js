@@ -1,4 +1,3 @@
-import { isHarborGiftVisible } from './danmaku-harbor.js';
 /* global document */
 import { componentEffectBounds } from './component-effect-filters.js';
 import { createFloatingDanmakuFeed } from './danmaku-floating.js';
@@ -7,6 +6,7 @@ import { FULLSCREEN_SAFE_INSET_PX, findRandomDanmakuPosition } from './danmaku-r
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import {
   DEFAULT_DANMAKU_CLASSES,
+  createDanmakuMessageFilter,
   createDanmakuMessageRenderer,
   measureDanmakuText,
 } from './danmaku-message-renderer.js';
@@ -54,8 +54,7 @@ export function createDanmakuFeed(root, options = {}) {
   const axis = horizontal
     ? { size: 'width', clientSize: 'clientWidth', position: 'left', end: 'right', paddingStart: 'paddingLeft', paddingEnd: 'paddingRight', gap: 'columnGap', reverse: 'row-reverse' }
     : { size: 'height', clientSize: 'clientHeight', position: 'top', end: 'bottom', paddingStart: 'paddingTop', paddingEnd: 'paddingBottom', gap: 'rowGap', reverse: 'column-reverse' };
-  const showSuperchat = !fullscreen || ['mist', 'comic', 'window', 'stardust'].includes(options.style)
-    || DANMAKU_STYLE_OPTIONS[options.style]?.fullscreenSuperchat === true;
+  const acceptsMessage = createDanmakuMessageFilter(options, fullscreen);
   const createBubble = createDanmakuMessageRenderer({
     document,
     classNames,
@@ -179,8 +178,7 @@ export function createDanmakuFeed(root, options = {}) {
   }
 
   function append(item) {
-    if (options.style === 'harbor' && !isHarborGiftVisible(item, options.minGiftAmount)) return;
-    if (!showSuperchat && item?.kind === 'superchat') return;
+    if (!acceptsMessage(item)) return;
     if (root.children.length === 1 && root.children[0].className === classNames.empty) {
       root.replaceChildren();
     }
@@ -340,8 +338,7 @@ export function createDanmakuFeed(root, options = {}) {
     const node = entry.node;
     node.style.setProperty('width', '');
     node.style.setProperty('zoom', '');
-    if (['prismatic', 'snowfox'].includes(options.style) && (entry.item.kind === 'superchat' ||
-      (entry.item.kind === 'gift' && [1, 2, 3].includes(entry.item.giftGuardLevel)))) {
+    if (node.dataset.danmakuFit === 'font-size') {
       // Full-width cards reflow at a smaller type size instead of narrowing the panel.
       node.style.setProperty('font-size', '');
       node.style.setProperty('--danmaku-font-size', '');
@@ -483,7 +480,7 @@ export function createDanmakuFeed(root, options = {}) {
     const occupied = [];
     const measured = renderedEntries.map((entry) => ({
       entry,
-      anchor: options.style === 'stardust' ? entry.node.dataset.stardustAnchor : undefined,
+      anchor: entry.node.dataset.danmakuAnchor,
       ...fitItem(entry, width - FULLSCREEN_SAFE_INSET_PX * 2, height - FULLSCREEN_SAFE_INSET_PX * 2),
     }));
     for (const item of measured) {
@@ -524,8 +521,7 @@ export function createDanmakuFeed(root, options = {}) {
 
   function selectMessages(items, bypassViewportPruning = false) {
     const bounded = Array.isArray(items)
-      ? items.filter((item) => (showSuperchat || item?.kind !== 'superchat')
-        && (options.style !== 'harbor' || isHarborGiftVisible(item, options.minGiftAmount))).slice(-maxItems) : [];
+      ? items.filter(acceptsMessage).slice(-maxItems) : [];
     if (fullscreen || fitViewport || bypassViewportPruning || viewportExtent <= 0 || bounded.length <= 1)
       return bounded;
 

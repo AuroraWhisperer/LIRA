@@ -23,20 +23,19 @@
         </div>
       </div>
       <p id="overtimeControlHint" role="status">正在读取加班机状态…</p>
-      <details class="overtime-more-controls">
-        <summary>更多操作</summary>
+      <div class="overtime-secondary-controls">
         <div class="overtime-actions">
           <button id="overtimeApplyTimeBtn" class="secondary" type="button" disabled>应用时长并暂停</button>
           <button id="overtimeResetBtn" class="secondary" type="button" disabled>重置倒计时</button>
           <button id="overtimeEnableBtn" class="secondary" type="button" disabled>只启用收礼</button>
+          <lira-help label="时间操作说明">应用时长或重置会替换剩余时间并暂停。只启用收礼可让礼物调整时间；关闭加班机会停止计时和收礼，保留剩余时间。</lira-help>
         </div>
-        <p>应用时长或重置会替换剩余时间并暂停。只启用收礼可让礼物调整时间；关闭加班机会停止计时和收礼，保留剩余时间。</p>
         <div class="overtime-consumer-status" aria-label="收礼服务状态">
           <span id="overtimeCoreStatus" class="pill warn">礼物处理：未运行</span>
           <span id="overtimeGiftStatsStatus" class="pill">礼物统计：关闭</span>
           <span id="overtimeConsumerStatus" class="pill">加班机：关闭</span>
         </div>
-      </details>
+      </div>
     </section>
 
     <section class="overtime-admin-section">
@@ -56,47 +55,48 @@
       <div id="overtimeRules" class="overtime-rule-list" aria-live="polite"></div>
     </section>
 
-    <details class="overtime-disclosure">
-      <summary>直播画面与背景</summary>
-      <div class="overtime-admin-section overtime-screen-section">
-        <div class="overtime-section-heading">
-          <h3 class="ui-section-title">
-            直播画面
-            <lira-help>背景与前景独立；透明背景适合叠加到直播画面。</lira-help>
-          </h3>
-          <button id="overtimeSaveBackgroundBtn" class="primary" type="button">保存画面</button>
-        </div>
-        <div id="overtimeAppearanceFields" class="overtime-appearance-fields">
-          <label
-            >背景
-            <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
-              <option value="">透明</option>
-              <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
-            </select>
-          </label>
-          <label
-            >适配
-            <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
-              <option value="cover">铺满</option>
-              <option value="contain">完整显示</option>
-              <option value="fill">拉伸</option>
-            </select>
-          </label>
-        </div>
-        <div class="overtime-screen-actions">
-          <p id="overtimeBackgroundSaveState" role="status" aria-live="polite"></p>
-          <button id="overtimeOpenOverlayBtn" class="secondary" type="button">预览与调整</button>
-          <button id="overtimeCopyOverlayBtn" class="secondary" type="button">复制地址</button>
-          <button id="overtimeDiscardBackgroundBtn" class="secondary" type="button" disabled>放弃修改</button>
+    <section class="overtime-admin-section overtime-screen-section" aria-labelledby="overtimeScreenTitle">
+      <div class="overtime-section-heading">
+        <h3 id="overtimeScreenTitle" class="ui-section-title">
+          直播画面与背景
+          <lira-help>背景与前景独立；透明背景适合叠加到直播画面。</lira-help>
+        </h3>
+        <button id="overtimeSaveBackgroundBtn" class="primary" type="button">保存画面</button>
+      </div>
+      <div id="overtimeAppearanceFields" class="overtime-appearance-fields">
+        <label
+          >背景
+          <select id="overtimeBackgroundPath" data-dropdown-variant="overtime">
+            <option value="">透明</option>
+            <option value="/img/overtime-machine/midnight-grid.svg">深夜票券</option>
+          </select>
+        </label>
+        <label
+          >适配
+          <select id="overtimeBackgroundFit" data-dropdown-variant="overtime">
+            <option value="cover">铺满</option>
+            <option value="contain">完整显示</option>
+            <option value="fill">拉伸</option>
+          </select>
+        </label>
+      </div>
+      <div class="overtime-screen-actions">
+        <p id="overtimeBackgroundSaveState" role="status" aria-live="polite"></p>
+        <button id="overtimeOpenOverlayBtn" class="secondary" type="button">预览与调整</button>
+        <button id="overtimeCopyOverlayBtn" class="secondary" type="button">复制地址</button>
+        <button id="overtimeDiscardBackgroundBtn" class="secondary" type="button" disabled>放弃修改</button>
+      </div>
+    </section>
+
+    <section class="overtime-admin-section" aria-labelledby="overtimeSettlementsTitle">
+      <div class="overtime-section-heading">
+        <div>
+          <h3 id="overtimeSettlementsTitle">最近结算</h3>
+          <p>最近 20 组已完成或忽略的礼物。</p>
         </div>
       </div>
-    </details>
-
-    <details class="overtime-disclosure">
-      <summary>最近结算</summary>
-      <p>最近 20 组已完成或忽略的礼物。</p>
       <div id="overtimeSettlements" class="overtime-settlement-list"></div>
-    </details>
+    </section>
   </div>
 
   <dialog id="overtimeGiftPicker" class="overtime-gift-picker">

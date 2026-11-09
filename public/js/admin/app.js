@@ -45,6 +45,7 @@ import { initSongImportUpdate } from './song-import-update.js';
 
 import { stateService } from './state.js';
 import { formsService } from './forms.js';
+import { playerWorkspace } from './player-workspace.js';
 import { initQueueForm } from './queue.js';
 import { createAdminStateRenderer, renderConnectionStatus } from './state-renderer.js';
 import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
@@ -165,7 +166,7 @@ async function initializeApp() {
   initMainPages();
 
   // 初始化表单和工作区
-  formsService.initWorkspaceControls({
+  playerWorkspace.initWorkspaceControls({
     getCloseQueuePopup: () => playback.closeQueuePopup,
   });
   formsService.initTabs();
@@ -300,7 +301,7 @@ function initPlaybackAssistant() {
     toast: Utils.toast,
     showError: Utils.showError,
     readJsonResponse: Utils.readJsonResponse,
-    closeFullscreenPlayer: () => formsService.closeFullscreenPlayer(),
+    closeFullscreenPlayer: () => playerWorkspace.closeFullscreenPlayer(),
   });
 }
 

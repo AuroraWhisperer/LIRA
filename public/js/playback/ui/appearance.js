@@ -318,7 +318,7 @@ export function initPlayerAppearance(playerRoot, { documentRef = document, stora
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     preview.style.aspectRatio = `${width} / ${height}`;
-    preview.style.setProperty('--player-preview-ratio', String(width / height));
+    preview.parentElement.style.setProperty('--player-preview-ratio', String(width / height));
     canvas.style.zoom = String(preview.clientWidth / width);
     positionPreviewLyric();
   });

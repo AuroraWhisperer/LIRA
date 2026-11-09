@@ -68,16 +68,21 @@
   flex-wrap: wrap;
   justify-content: flex-start;
 }
-.overtime-more-controls,
+.overtime-secondary-controls,
 #overtimeControlHint {
   flex-basis: 100%;
 }
-.overtime-more-controls > .overtime-actions {
-  margin-top: 12px;
-  justify-content: flex-start;
+.overtime-secondary-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
-.overtime-more-controls > .overtime-consumer-status {
-  margin-top: 12px;
+.overtime-secondary-controls > .overtime-actions {
+  justify-content: flex-start;
 }
 .overtime-actions {
   flex-wrap: wrap;

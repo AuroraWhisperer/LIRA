@@ -10,6 +10,8 @@ const { parseCustomReplyRules } = require('../bilibili/custom-reply-service');
 const { normalizeFrameSettingValue } = require('../bilibili/gift/frame-config');
 const { normalizeGiftMotionSetting } = require('../bilibili/gift/motion-config');
 const { GIFT_MOTION_DEFAULTS } = require('../../public/js/shared/gift-motion-settings.js');
+const { SHARED_SCENE_SETTING_FIELDS, SHARED_SCENE_SETTING_DEFAULTS } = require('../../public/js/shared/scene-shared-appearance.js');
+const { normalizeSceneExtraConfig } = require('./scene-extra-config');
 const { normalizeGuardThanksSettingValue } = require('../bilibili/gift/guard-thanks-config');
 const {
   normalizeGiftBlindBoxConfig,
@@ -44,6 +46,12 @@ const GUARD_THANKS_SETTING_KEYS = new Set(['guardThanksEnabled', 'guardThanksTex
 const DANMAKU_OVERLAY_STYLES = new Set(['bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'outline']);
 
 function normalizeSettingValue(key, rawValue) {
+  if (Object.hasOwn(SHARED_SCENE_SETTING_DEFAULTS, key)) {
+    const [type, fields] = Object.entries(SHARED_SCENE_SETTING_FIELDS).find(([, fields]) => Object.values(fields).includes(key));
+    const field = Object.keys(fields).find(field => fields[field] === key);
+    try { return String(normalizeSceneExtraConfig(type, { [field]: rawValue })[field]); }
+    catch (_) { return null; }
+  }
   if (Object.hasOwn(LYRIC_VISUAL_DEFAULTS, key)) return normalizeLyricVisualSetting(key, rawValue);
   if (key === ADVANCED_LYRIC_PRESETS_SETTING) return normalizeAdvancedLyricPresets(rawValue);
   if (Object.hasOwn(GIFT_MOTION_DEFAULTS, key)) return normalizeGiftMotionSetting(key, rawValue);

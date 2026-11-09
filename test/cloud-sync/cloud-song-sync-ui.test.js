@@ -6,7 +6,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
-async function fixture() {
+async function fixture({ accessResponse = { ok: true, enabled: false } } = {}) {
   const elements = new Map();
   const stored = new Map();
   const uploads = [];
@@ -32,7 +32,9 @@ async function fixture() {
     return elements.get(id);
   }
   const bridge = {
-    getState: async () => ({ streamer: { accountName: 'viewer' } }),
+    getState: async () => ({ streamer: { accountName: 'viewer', songPageUrl: 'https://viewer.example.test' } }),
+    getSongPageAccess: async () => accessResponse,
+    setSongPageAccess: async (enabled) => ({ ok: true, enabled }),
     getCloudSongCount: () => count,
     getLocalSongCount: async () => ({ ok: true, count: songs.length, generation: 7 }),
     syncCurrentSongs: async (...args) => {
@@ -80,6 +82,53 @@ async function fixture() {
     },
   };
 }
+
+test('song page access shows the link only after saving enabled and rolls back failed changes', async () => {
+  const ui = await fixture();
+  ui.finishCount({ ok: true, count: 2 });
+  await ui.initialized;
+  const toggle = ui.element('licenseSongPageEnabled');
+  const link = ui.element('licenseSongPageLink');
+  assert.equal(toggle.checked, false);
+  assert.equal(toggle.disabled, false);
+  assert.equal(link.hidden, true);
+  toggle.checked = true;
+  await toggle.events.change();
+  assert.equal(toggle.checked, true);
+  assert.equal(link.hidden, false);
+  let finish;
+  let writes = 0;
+  ui.bridge.setSongPageAccess = () => {
+    writes += 1;
+    return new Promise((resolve) => { finish = resolve; });
+  };
+  toggle.checked = false;
+  const saving = toggle.events.change();
+  assert.equal(toggle.disabled, true);
+  await toggle.events.change();
+  assert.equal(writes, 1);
+  finish({ ok: false, error: 'NETWORK_UNAVAILABLE' });
+  await saving;
+  assert.equal(toggle.checked, true);
+  assert.equal(link.hidden, false);
+  assert.equal(toggle.disabled, false);
+  assert.equal(ui.notices.at(-1).type, 'error');
+  ui.bridge.setSongPageAccess = async (enabled) => ({ ok: true, enabled });
+  toggle.checked = false;
+  await toggle.events.change();
+  assert.equal(toggle.checked, false);
+  assert.equal(link.hidden, true);
+});
+
+test('unreadable song page access stays disabled instead of reporting a confirmed off state', async () => {
+  const ui = await fixture({ accessResponse: { ok: false, error: 'NETWORK_UNAVAILABLE' } });
+  ui.finishCount({ ok: true, count: 0 });
+  await ui.initialized;
+  assert.equal(ui.element('licenseSongPageEnabled').disabled, true);
+  assert.equal(ui.element('licenseSongPageLink').hidden, true);
+  assert.ok(ui.element('licenseSongPageAccessResult').textContent);
+  assert.equal(ui.element('licenseSyncSongsBtn').disabled, false);
+});
 
 test('cloud sync reports a readable failure and the next successful result', async () => {
   const ui = await fixture();

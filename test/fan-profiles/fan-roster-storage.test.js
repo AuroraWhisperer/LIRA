@@ -71,13 +71,14 @@ test('v14 preserves every observation and historical result while storing repeat
   assert.equal(getSchemaVersion(db, 'song_db'), 14);
   const store = createFanRecordStore(db);
   const after = store.list(SCOPE, 'profile');
+  const projected = store.listProjectionInputs(SCOPE, ['profile']).get('profile');
   assert.deepEqual(after, before);
   assert.deepEqual(store.listForProfiles(SCOPE, ['profile']).get('profile'), before);
   assert.equal(templateCount(db), 2);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM fan_records WHERE data = '{}' AND original = '{}' AND roster_template_id IS NOT NULL").get().n, 4);
   assert.equal(store.bySource(SCOPE, before[0].sourceKey)?.id, before[0].id);
-  const newSummary = prepareMembership(after);
-  assert.deepEqual(asOf.map((at) => ({ membership: newSummary(at), reminders: buildReminders(profile, after, states, Date.parse(at)) })), expected);
+  const newSummary = prepareMembership(projected);
+  assert.deepEqual(asOf.map((at) => ({ membership: newSummary(at), reminders: buildReminders(profile, projected, states, Date.parse(at)) })), expected);
   assert.equal(newSummary('2026-09-19T04:00:00Z').status, 'expired');
   assert.equal(newSummary('2026-09-21T04:00:00Z').status, 'unknown');
   assert.equal(upgrade(db).applied, 0);
@@ -87,6 +88,15 @@ test('v14 preserves every observation and historical result while storing repeat
   assert.deepEqual(store.list(SCOPE, 'profile'), before);
   assert.equal(templateCount(db), 2);
   assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
+});
+
+test('full and projection reads reject roster evidence owned by another account', (t) => {
+  const f = fanFixture(t);
+  const p = f.create();
+  sync(f, NOW);
+  f.db.songDb.prepare('UPDATE fan_roster_templates SET scope = ? WHERE scope = ?').run('other', SCOPE);
+  assert.throws(() => f.store.records.listForProfiles(SCOPE, [p.id]), /原始依据缺失/);
+  assert.throws(() => f.store.records.listProjectionInputs(SCOPE, [p.id]), /原始依据缺失/);
 });
 
 test('only pristine automatic observations compact; decisions, revisions, manual facts and purchases stay intact', (t) => {

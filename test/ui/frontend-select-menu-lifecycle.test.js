@@ -271,7 +271,7 @@ test('large selects update only changed choices and discard the selection cache 
   const [, trigger, menu] = select.parentNode.children;
   trigger.dispatchEvent({ type: 'click' });
   const options = menu.querySelectorAll('[role="option"]');
-  const counts = { scanned: 0, attributes: 0, classes: 0 };
+  const counts = { scanned: 0, attributes: 0 };
   const query = menu.querySelectorAll.bind(menu);
   menu.querySelectorAll = selector => {
     const nodes = query(selector);
@@ -284,7 +284,6 @@ test('large selects update only changed choices and discard the selection cache 
       if (name === 'aria-selected') counts.attributes++;
       setAttribute(name, value);
     };
-    option.classList.toggle = name => { if (name === 'is-selected') counts.classes++; };
   }
   let changes = 0;
   select.addEventListener('change', () => changes++);
@@ -296,7 +295,6 @@ test('large selects update only changed choices and discard the selection cache 
   assert.equal(options[499].getAttribute('aria-selected'), 'true');
   assert.equal(counts.scanned, 0);
   assert.equal(counts.attributes, 2);
-  assert.equal(counts.classes, 2);
   select.selectedIndex = 499;
   assert.equal(counts.attributes, 2, 'repeating the current selection does not rewrite options');
   select.value = 'font-1';

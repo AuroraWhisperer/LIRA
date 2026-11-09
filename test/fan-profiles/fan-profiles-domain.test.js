@@ -45,14 +45,14 @@ test('resolved reminder history checks each key without rescanning the growing o
   assert.ok(keyReads < states.length * 10, `history key reads grew to ${keyReads}`);
 });
 
-test('former names keep the latest three distinct names, support edits and survive restart and restore', (t) => {
+test('former names retain distinct history, support edits and survive restart and restore', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const observe = (name, day) => f.consume([{ name, observedAt: `2026-09-${day}T04:00:00Z` }]);
   for (const [index, name] of ['a', 'b', 'c', 'd', 'e', 'e'].entries()) observe(name, 10 + index);
-  assert.deepEqual(f.detail(p.id).formerNames, ['d', 'c', 'b']);
+  assert.deepEqual(f.detail(p.id).formerNames, ['d', 'c', 'b', 'a']);
   observe('c', 16);
-  assert.deepEqual(f.detail(p.id).formerNames, ['e', 'd', 'b']);
+  assert.deepEqual(f.detail(p.id).formerNames, ['e', 'd', 'b', 'a']);
   observe('stale', 11);
   assert.equal(f.detail(p.id).platformName, 'c');
   const before = f.detail(p.id);
@@ -72,13 +72,13 @@ test('former names keep the latest three distinct names, support edits and survi
   f.run('restore', { backup, ...preview, conflicts: 'replace' });
   assert.deepEqual(f.detail(p.id).formerNames, ['c', '手动昵称']);
   const revision = f.detail(p.id).revision;
-  for (const formerNames of [['a', 'b', 'c', 'd'], [123], ['x'.repeat(201)], 'wrong']) {
+  for (const formerNames of [[123], ['x'.repeat(201)], 'wrong']) {
     assert.throws(() => f.run('save', { id: p.id, revision, formerNames }), /曾用名/);
   }
   assert.equal(f.detail(p.id).revision, revision);
 });
 
-test('old backups with long name history retain compatibility and project only recent distinct names', (t) => {
+test('old backups with long name history retain all distinct former names', (t) => {
   const f = fanFixture(t);
   const p = f.create();
   const backup = f.run('backup');
@@ -86,8 +86,53 @@ test('old backups with long name history retain compatibility and project only r
   backup.profiles[0].nameHistory = ['a', 'b', 'c', 'b', 'd', 'e'].map((name) => ({ name, observedAt: NOW }));
   const preview = f.run('preview-restore', { backup });
   f.run('restore', { backup, ...preview, conflicts: 'replace' });
-  assert.deepEqual(f.detail(p.id).formerNames, ['d', 'b', 'c']);
+  assert.deepEqual(f.detail(p.id).formerNames, ['d', 'b', 'c', 'a']);
   assert.equal(f.detail(p.id).nameHistory.length, 6);
+});
+
+test('former-name summary follows room entries independently of later profiles and preserves a manual choice', (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ formerNames: ['接口中的旧名'] });
+  assert.equal(p.formerName, '');
+  f.consume([{ name: '进房时的名字', source: 'INTERACT_WORD_V2' }]);
+  f.consume([{ name: '后来弹幕的名字', source: 'DANMU_MSG', observedAt: '2026-09-20T04:00:00Z' }]);
+  assert.equal(f.detail(p.id).formerName, '进房时的名字');
+  f.consume([{ name: '迟到的新进房名', source: 'INTERACT_WORD', observedAt: '2026-09-19T04:00:00Z' }]);
+  assert.equal(f.detail(p.id).platformName, '后来弹幕的名字');
+  assert.equal(f.detail(p.id).formerName, '迟到的新进房名');
+  let current = f.detail(p.id);
+  f.run('save', { id: p.id, revision: current.revision, preferredFormerName: '手动选中的名字' });
+  f.consume([{ name: '再次进房的名字', source: 'ENTRY_EFFECT', observedAt: '2026-09-21T04:00:00Z' }]);
+  f.restart();
+  assert.equal(f.detail(p.id).formerName, '手动选中的名字');
+  const backup = f.run('backup');
+  backup.profiles[0].lastEntry.observedAt = '2026-09-21T12:00:00+08:00';
+  current = f.detail(p.id);
+  f.run('save', { id: p.id, revision: current.revision, preferredFormerName: '' });
+  assert.equal(f.detail(p.id).formerName, '再次进房的名字');
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(f.detail(p.id).formerName, '手动选中的名字');
+  assert.equal(f.detail(p.id).lastEntry.observedAt, '2026-09-21T04:00:00.000Z');
+});
+
+test('supplement merges many names without replacing local choices or resurrecting manually removed names', (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ formerNames: ['本机旧名'], preferredFormerName: '我的选择' });
+  f.consume([{ name: '现在的名字' }]);
+  const names = Array.from({ length: 40 }, (_, index) => `旧名${index}`);
+  const supplement = (values = names, identity = IDENTITY) => f.service.supplementFormerNames(SCOPE, { id: p.id, identity, names: values });
+  const first = supplement([...names, names[0], '现在的名字']);
+  assert.equal(first.added, 40);
+  assert.equal(first.profile.formerNames.length, 41);
+  assert.equal(first.profile.formerName, '我的选择');
+  assert.equal(supplement().added, 0);
+  const current = f.detail(p.id);
+  f.run('save', { id: p.id, revision: current.revision, formerNames: current.formerNames.filter(name => name !== names[0]) });
+  assert.equal(supplement().added, 0);
+  f.restart();
+  assert.ok(!f.detail(p.id).formerNames.includes(names[0]));
+  assert.throws(() => supplement(['不应写入'], { ...IDENTITY, value: '900000002' }));
+  assert.ok(!f.detail(p.id).formerNames.includes('不应写入'));
 });
 
 test('a new baseline does not invent dates for smaller historical milestones', (t) => {
@@ -529,7 +574,8 @@ test('A28: moving a one-time or annual anniversary retains its handled occurrenc
 
 test('membership auto-creation recovers a newer identity snapshot already consumed on an earlier page', (t) => {
   const f = fanFixture(t);
-  const latest = { identity: IDENTITY, name: '当前完整昵称', nameComplete: true, observedAt: NOW };
+  const latest = { identity: IDENTITY, name: '当前完整昵称', nameComplete: true, observedAt: NOW,
+    lastEntry: { name: '之前进房的昵称', observedAt: '2026-09-17T04:00:00.000Z' } };
   f.consume([{ ...latest, kind: 'identity' }]);
   assert.equal(f.run('find', { identity: IDENTITY }), null, 'ordinary identity observations do not auto-create fans');
   const earlier = '2026-06-18T04:00:00.000Z';
@@ -544,6 +590,7 @@ test('membership auto-creation recovers a newer identity snapshot already consum
   ]);
   const p = f.run('find', { identity: IDENTITY });
   assert.equal(p.platformName, '当前完整昵称');
+  assert.equal(p.formerName, '之前进房的昵称');
   assert.equal(p.platformObservedAt, NOW);
   assert.equal(p.membership.observedAt, earlier);
   assert.equal(p.records[0].original.observedAt, earlier);

@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-11-09-v6.1.4-release](2026-11-09-v6.1.4-release.md) | In Progress | B 流程审查与修复、界面复核及完整验证 5351 项通过；待提交推送并由发布脚本验包、创建 v6.1.4 标签及安装包 Release。 |
 | [2026-11-06-gift-frame-independent-styles](2026-11-06-gift-frame-independent-styles.md) | Awaiting Verification | 导入样式独立触发、统一效果卡片、林间花信导入后才显示及文档已完成；聚焦/桌面 E2E/文档/架构门禁通过。待真实礼物在直播软件中驱动导入图片/视频图层的实播验收。 |
 | [2026-11-06-standalone-component-sources](2026-11-06-standalone-component-sources.md) | Awaiting Verification | 已修复加班机零高度、投票/评分旧正则解析和盲盒高度限制；当前 17 个、6.0.0 的 15 个入口在 Chromium 106 通过，相关检查 40/40 通过；待含修复版本在用户另一台电脑的直播姬实机验收。 |
 | [2026-11-06-efficient-client-update](2026-11-06-efficient-client-update.md) | Awaiting Verification | 实现及安装器 78 项、更新 15 项、相关回归和 quick 门禁通过，隔离 NSIS 构建与资源验证完成；待 CDN 补传新旧 blockmap 及已发布客户端真实升级验收。 |

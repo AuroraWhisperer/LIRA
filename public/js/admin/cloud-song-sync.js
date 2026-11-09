@@ -48,7 +48,7 @@ function renderLastCloudSync(lastSyncEl) {
   }
   lastSyncEl.textContent = record?.time
     ? `本机上次手动同步：${new Date(record.time).toLocaleString()}，共 ${Number(record.count) || 0} 首。`
-    : '本机没有手动同步记录；此处不代表自动同步状态。';
+    : '';
 }
 
 export async function initCloudSongSync({ toast, showConfirmationDialog }) {
@@ -60,11 +60,33 @@ export async function initCloudSongSync({ toast, showConfirmationDialog }) {
   const link = document.getElementById('licenseSongPageLink');
   const cloudCountEl = document.getElementById('licenseCloudCount');
   const lastSyncEl = document.getElementById('licenseLastCloudSync');
+  const pageToggle = document.getElementById('licenseSongPageEnabled');
+  const accessResult = document.getElementById('licenseSongPageAccessResult');
   if (!section || !syncButton || !window.liraLicense) return;
   section.hidden = false;
 
   let cloudSongCount = null;
   let syncConfirmationPending = false;
+  let songPageEnabled = null;
+  let songPageUrl = '';
+
+  function renderSongPageAccess() {
+    pageToggle.checked = songPageEnabled === true;
+    pageToggle.disabled = songPageEnabled === null;
+    link.hidden = !songPageEnabled || !songPageUrl;
+    if (songPageUrl) link.href = songPageUrl;
+  }
+
+  async function refreshSongPageAccess() {
+    try {
+      const response = await window.liraLicense.getSongPageAccess();
+      if (!response?.ok || typeof response.enabled !== 'boolean') throw createSongSyncError(response);
+      songPageEnabled = response.enabled;
+    } catch (_) {
+      accessResult.textContent = '暂时无法读取网页歌单开关，请检查网络后重新打开页面。';
+    }
+    renderSongPageAccess();
+  }
 
   async function refreshCloudSongCount() {
     try {
@@ -86,17 +108,37 @@ export async function initCloudSongSync({ toast, showConfirmationDialog }) {
       const streamer = profile?.streamer;
       status.textContent = streamer?.accountName ? streamer.accountName : '已授权，但暂时无法读取主播资料。';
       if (streamer?.songPageUrl && /^https:\/\//i.test(streamer.songPageUrl)) {
-        link.href = streamer.songPageUrl;
-        link.hidden = false;
+        songPageUrl = streamer.songPageUrl;
       }
     } catch (_) {
       status.textContent = '暂时无法读取云端账号信息。';
     }
-    await refreshCloudSongCount();
+    status.title = status.textContent;
+    await Promise.all([refreshCloudSongCount(), refreshSongPageAccess()]);
     renderLastCloudSync(lastSyncEl);
   } finally {
     syncButton.disabled = false;
   }
+
+  pageToggle.addEventListener('change', async () => {
+    if (pageToggle.disabled || songPageEnabled === null) return;
+    const enabled = pageToggle.checked;
+    const restoreFocus = document.activeElement === pageToggle;
+    pageToggle.disabled = true;
+    accessResult.textContent = '';
+    try {
+      const response = await window.liraLicense.setSongPageAccess(enabled);
+      if (!response?.ok || typeof response.enabled !== 'boolean') throw createSongSyncError(response);
+      songPageEnabled = response.enabled;
+      toast(songPageEnabled ? '网页歌单已开启，可通过链接访问。' : '网页歌单已关闭，直达链接也无法访问。', { type: 'success' });
+    } catch (_) {
+      accessResult.textContent = '网页歌单开关未能保存，请检查网络后重试。';
+      toast(accessResult.textContent, { type: 'error' });
+    } finally {
+      renderSongPageAccess();
+      if (restoreFocus) pageToggle.focus();
+    }
+  });
 
   syncButton.addEventListener('click', async () => {
     if (syncButton.disabled || syncConfirmationPending) return;

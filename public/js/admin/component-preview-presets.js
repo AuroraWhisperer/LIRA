@@ -35,7 +35,8 @@ export function mountPreviewPresets(host, { controller, connection, beforeChange
     more.setAttribute('aria-expanded', String(event.newState === 'open'));
     if (event.newState !== 'open') return;
     const rect = more.getBoundingClientRect();
-    menu.style.left = `${Math.max(8, Math.min(rect.right - 176, window.innerWidth - 184))}px`;
+    const width = Number.parseFloat(window.getComputedStyle(menu).width);
+    menu.style.left = `${Math.max(8, Math.min(rect.right - width, window.innerWidth - width - 8))}px`;
     menu.style.top = `${rect.bottom + 8}px`;
   });
   more.addEventListener('keydown', event => {

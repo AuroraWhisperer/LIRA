@@ -22,7 +22,7 @@ export function createStardustMessageRenderer({ document, classNames }, render) 
       && item.giftTotalPrice >= Number(settings.stardustGiftThreshold ?? .01));
     if (highlighted) {
       const top = !member;
-      root.dataset.stardustAnchor = (settings.stardustSwapAnchors === 'on' ? !top : top) ? 'top' : 'bottom';
+      root.dataset.danmakuAnchor = (settings.stardustSwapAnchors === 'on' ? !top : top) ? 'top' : 'bottom';
     }
     const body = root.querySelector(`.${classNames.body}`);
     const identity = body.children[0];

@@ -14,7 +14,7 @@
 }
 
 .playback-head-inner {
-  min-height: 48px;
+  min-height: 44px;
   flex-wrap: wrap;
 }
 
@@ -39,14 +39,15 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  min-height: 36px;
   justify-content: flex-end;
 }
 
 .playback-account-status .pill {
   flex-shrink: 0;
+  min-height: 24px;
   font-size: var(--type-size-caption);
-  padding: 3px 9px;
+  padding: 2px 9px;
 }
 
 .playback-account-status button,
@@ -55,6 +56,11 @@
   padding: 6px 12px;
   font-size: var(--type-size-control);
   white-space: nowrap;
+}
+
+.playback-account-status button {
+  min-height: 32px;
+  padding-block: 4px;
 }
 
 /* 音乐分组保持固定几何尺寸，切换工作区时仅接续遮罩与选中底板。 */
@@ -82,8 +88,8 @@
 
 .playback-navigation .playback-workspace-button {
   width: 100%;
-  min-height: 40px;
-  padding: 7px 12px;
+  min-height: 36px;
+  padding: 5px 12px;
   border: 0;
   border-radius: 999px;
   background: transparent;
@@ -113,7 +119,7 @@
   align-items: center;
   justify-content: center;
   gap: 1px;
-  min-height: 44px;
+  min-height: 40px;
   padding: 3px 8px;
   clip-path: inset(0 0 0 0 round 999px);
   transition: clip-path var(--playback-switch-motion), background-color 160ms ease, color 160ms ease;
@@ -182,8 +188,8 @@
   justify-content: center;
   gap: 6px;
   min-width: 0;
-  min-height: 40px;
-  padding: 7px 10px;
+  min-height: 36px;
+  padding: 5px 10px;
   border: 0;
   border-radius: 999px;
   background: transparent;

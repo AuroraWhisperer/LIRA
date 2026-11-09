@@ -33,6 +33,10 @@ function createCloudSongSyncStore(db) {
       ).run(pendingKey(accountKey), JSON.stringify({ mutationId: randomUUID(), songs }), now());
     },
 
+    hasPending(accountKey) {
+      return Boolean(db.prepare('SELECT 1 FROM settings WHERE key = ?').get(pendingKey(accountKey)));
+    },
+
     readPending(accountKey) {
       const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(pendingKey(accountKey));
       return row ? JSON.parse(row.value) : null;

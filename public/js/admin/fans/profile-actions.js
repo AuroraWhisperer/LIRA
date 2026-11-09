@@ -1,10 +1,13 @@
-import { profileForm, recordForm } from './forms.js';
+import { profileForm, formerNameForm, recordForm } from './forms.js';
 import { html } from './view.js';
 import { toast } from '../../shared/utils.js';
 
-export function createFanProfileActions({ request, openForm, onProfile, onDeleted, onChanged, onArchived, onSuppressed, reload }) {
+export function createFanProfileActions({ request, openForm, onProfile, onDeleted, onChanged, onArchived, onSuppressed, reload, apiToken = '' }) {
   function editProfile(profile = {}) {
-    openForm(profileForm(profile), async (payload) => {
+    openForm(profileForm(profile, {
+      previewIdentity: (uid) => request('preview-identity', { uid }),
+      lookupFormerNames: (uid) => request('lookup-former-names', { uid }), apiToken,
+    }), async (payload) => {
       let saved;
       try {
         saved = await request(profile.id ? 'save' : 'create', payload);
@@ -45,6 +48,19 @@ export function createFanProfileActions({ request, openForm, onProfile, onDelete
   }
 
   async function handle(name, profile, selection, recordId) {
+    if (name === 'replace-former-name') {
+      openForm(formerNameForm(profile), async payload => {
+        const saved = await request('save', payload);
+        await onChanged(saved, profile.id, selection);
+      });
+      return true;
+    }
+    if (name === 'supplement-former-names') {
+      const result = await request('supplement-former-names', { id: profile.id });
+      await onChanged(result.profile, profile.id, selection);
+      toast(result.added ? `已补充 ${result.added} 个曾用名` : '没有新增名字，已有记录已保留');
+      return true;
+    }
     if (name === 'edit-profile') {
       editProfile(profile);
     } else if (name.startsWith('new-')) {

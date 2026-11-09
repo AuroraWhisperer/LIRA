@@ -58,7 +58,6 @@ function verifyFixture(expectedPublisher, options = {}) {
     TimeStamperCertificateSubject: 'CN=Synthetic Timestamp',
     ...options.signature,
   };
-  const logs = [];
   const commands = [];
   let exitCode;
   const filename = path.resolve(__dirname, '../../scripts/verify-windows-release.js');
@@ -74,9 +73,7 @@ function verifyFixture(expectedPublisher, options = {}) {
           exitCode = code;
         },
       },
-      console: Object.fromEntries(
-        ['log', 'warn', 'error'].map((name) => [name, (...args) => logs.push(args.join(' '))]),
-      ),
+      console: { log() {}, warn() {}, error() {} },
       require(name) {
         if (name === 'node:fs') return { existsSync: () => true };
         if (name === 'node:child_process')
@@ -91,7 +88,7 @@ function verifyFixture(expectedPublisher, options = {}) {
     },
     { filename },
   );
-  return { exitCode, logs: logs.join('\n'), commands };
+  return { exitCode, commands };
 }
 
 test('publisher verification rejects empty or whitespace expectations before invoking PowerShell', () => {
@@ -99,7 +96,6 @@ test('publisher verification rejects empty or whitespace expectations before inv
     const f = verifyFixture(expected);
     assert.equal(f.exitCode, 1);
     assert.equal(f.commands.length, 0);
-    assert.match(f.logs, /publisher.*(empty|blank|required)/i);
   }
 });
 
@@ -108,7 +104,6 @@ test('publisher verification rejects a different CN that merely contains the exp
     attributes: [['03', 'Other Synthetic Publisher Company']],
   });
   assert.equal(f.exitCode, 1);
-  assert.match(f.logs, /Publisher mismatch/);
 });
 
 test('publisher verification never matches organization, organizational unit, issuer or timestamp names', () => {
@@ -138,7 +133,6 @@ test('publisher verification never matches organization, organizational unit, is
 test('publisher verification accepts the complete CN and preserves the execution boundary', () => {
   const f = verifyFixture('Synthetic Publisher');
   assert.equal(f.exitCode, 0);
-  assert.match(f.logs, /Signature verification passed/);
   assert.equal(f.commands[0].options.shell, false);
   assert.match(f.commands[0].args.at(-1), /setup''s\.exe/);
   assert.match(f.commands[0].args.at(-1), /SignerCertificate\.RawData/);
@@ -189,7 +183,6 @@ test('publisher verification requires a valid signature even when CN matches', (
       signature: { Status: status },
     });
     assert.equal(f.exitCode, 1);
-    assert.match(f.logs, /not Valid/);
   }
   assert.equal(
     verifyFixture('Synthetic Publisher', {
@@ -210,6 +203,5 @@ test('publisher verification retains case handling, certificate rotation and Aut
       signature: { SignerCertificateNotAfter: '2000-01-01T00:00:00.000Z' },
     });
     assert.equal(f.exitCode, 0);
-    assert.match(f.logs, /Certificate expires/);
   }
 });

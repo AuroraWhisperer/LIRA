@@ -44,6 +44,19 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('shared canvas viewing settings persist locally and reject invalid batches without changing the other entry point', async t => {
+  const f = fixture(t);
+  assert.equal((await f.post({ heartBoxCollectionShowRewards: false, liveRankingsRange: 'all' })).status, 200);
+  const saved = createSettingsStore(f.db).getSettings();
+  assert.equal(saved.heartBoxCollectionShowRewards, 'false');
+  assert.equal(saved.liveRankingsRange, 'all');
+  assert.deepEqual(f.dirtyScopes, [], 'display settings stay local');
+  for (const invalid of [{ liveRankingsRange: 'invalid' }, { heartBoxCollectionShowRewards: 'invalid' }]) {
+    assert.equal((await f.post({ liveRankingsRange: 'nearby', ...invalid })).status, 400);
+    assert.equal(f.store.getSettings().liveRankingsRange, 'all');
+  }
+});
+
 test('basic and advanced lyrics save independently, restore presets and reject invalid combinations atomically', async t => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().desktopLyricEnabled, 'true');
@@ -71,6 +84,8 @@ test('basic and advanced lyrics save independently, restore presets and reject i
   assert.equal(JSON.parse(f.store.getSettings().advancedLyricSavedPresets)[0].settings.advancedLyricHideUnsung, 'false');
   assert.equal(Object.hasOwn(restored.settings, 'desktopLyricEnabled'), false);
   assert.deepEqual(f.dirtyScopes, [], 'visual changes stay local and do not start a cloud settings sync');
+  assert.equal((await f.post({ advancedLyricLayout: 'type-impact', advancedLyricLayoutSequence: 'phrase-flow,corner-relay,type-impact' })).status, 200);
+  assert.equal(createSettingsStore(f.db).getSettings().advancedLyricLayout, 'type-impact');
 
   for (const patch of [
     { advancedLyricLayoutSequence: 'corners,unknown' },

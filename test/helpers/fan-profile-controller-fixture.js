@@ -129,7 +129,7 @@ function fixture(t, options = {}) {
   };
   const controller = createFanProfileController({
     licenseManager,
-    getService: () => service,
+    getService: () => options.service || service,
     timers,
     now: options.now,
     isWindowOpen: () => state.windowOpen === true,
@@ -142,6 +142,7 @@ function fixture(t, options = {}) {
       calls.profiles.push({ uid, ...input });
       return options.profile ? options.profile(uid, input) : { name: '新昵称', avatarUrl: 'https://i0.hdslb.com/bfs/garb/new.webp' };
     },
+    fetchFormerNames: options.formerNames,
   });
   const handlers = new Map();
   const frame = { url: `${ORIGIN}/admin?desktop=1` };

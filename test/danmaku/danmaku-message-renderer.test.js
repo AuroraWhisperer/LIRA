@@ -213,10 +213,10 @@ test('stardust preserves safe copy, emotes and settled event data in its transpa
   assert.equal(findByClass(gift, 'draw-danmaku-gift-name').textContent, '<花>');
   assert.equal(findByClass(gift, 'draw-danmaku-gift-count').textContent, '× 5');
   assert.match(findByClass(gift, 'stardust-event').textContent, /¥52.1$/);
-  assert.equal(gift.dataset.stardustAnchor, 'top');
+  assert.equal(gift.dataset.danmakuAnchor, 'top');
   const member = render({ kind: 'gift', giftGuardLevel: 2, guardAction: 'renew', giftCount: 1 });
   assert.match(findByClass(member, 'stardust-copy').textContent, /提督.*续费/);
-  assert.equal(member.dataset.stardustAnchor, 'bottom');
+  assert.equal(member.dataset.danmakuAnchor, 'bottom');
   const message = '  第一行\n<script>完整留言</script>  ';
   const sc = render({ kind: 'superchat', message, price: 30 });
   assert.equal(findByClass(sc, 'stardust-copy').textContent, message);

@@ -194,6 +194,8 @@ contextBridge.exposeInMainWorld('liraLicense', {
   syncCurrentSongs: (generation) => ipcRenderer.invoke('license:sync-current-songs', generation),
   getCloudSongs: () => ipcRenderer.invoke('license:get-cloud-songs'),
   getCloudSongCount: () => ipcRenderer.invoke('license:get-cloud-song-count'),
+  getSongPageAccess: () => ipcRenderer.invoke('license:get-song-page-access'),
+  setSongPageAccess: (enabled) => ipcRenderer.invoke('license:set-song-page-access', enabled),
   getSongPageBackground: () => ipcRenderer.invoke('license:get-song-page-background'),
   uploadSongPageBackground: (bytes, fileName) =>
     ipcRenderer.invoke('license:upload-song-page-background', {

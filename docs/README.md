@@ -8,6 +8,7 @@
 
 | 要了解什么 | 入口 | 内容边界 |
 | --- | --- | --- |
+| 功能在哪里、如何配置和使用 | 桌面「百宝箱 → 使用文档」（[源码入口](../public/pages/admin/toolbox/usage-guide.html)） | 完整操作手册、截图与新手引导入口；在桌面应用中阅读 |
 | 系统如何划分职责、进程和信任边界 | [架构](architecture/README.md) | 稳定组件、数据流、依赖规范、ADR |
 | 当前接口、字段、算法、配置和操作 | [技术参考](reference/README.md) | 每类完整契约只在一个 owner 文档维护 |
 | 功能要求和验收条件 | [规格](../specs/README.md) | Accepted / In Progress / Implemented 等状态及证据 |

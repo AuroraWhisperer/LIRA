@@ -23,6 +23,19 @@ function decodeRecord(row) {
     : null;
 }
 
+function decodeProjectionInput(row) {
+  if (row.roster_template_id && (!row.roster_data || !row.roster_original))
+    throw new Error('大航海名单原始依据缺失。');
+  return {
+    id: row.id,
+    profileId: row.profile_id,
+    kind: row.kind,
+    occurredAt: row.occurred_at,
+    data: row.roster_template_id ? { ...JSON.parse(row.roster_data), observedAt: row.occurred_at } : JSON.parse(row.data),
+    original: row.roster_template_id ? { ...JSON.parse(row.roster_original), observedAt: row.occurred_at } : JSON.parse(row.original),
+  };
+}
+
 function createFanRecordStore(db) {
   // v13's song migration also uses this store before the v14 template table exists.
   const hasRosterTemplates = Boolean(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'fan_roster_templates'").get());
@@ -30,6 +43,14 @@ function createFanRecordStore(db) {
     ? `SELECT r.*, t.data AS roster_data, t.original AS roster_original FROM fan_records r
         LEFT JOIN fan_roster_templates t ON t.id = r.roster_template_id AND t.scope = r.scope`
     : 'SELECT r.* FROM fan_records r';
+  // Projection consumers need interaction dates and reminder/roster evidence,
+  // not note bodies, song-count buckets or the full edit history.
+  const selectProjectionInputs = `SELECT r.id, r.profile_id, r.kind, r.occurred_at,
+    CASE WHEN r.kind IN ('membership', 'anniversary', 'followup', 'caution') THEN r.data ELSE '{}' END AS data,
+    json_remove(r.original, '$.body') AS original
+    ${hasRosterTemplates ? ', r.roster_template_id, t.data AS roster_data, t.original AS roster_original' : ''}
+    FROM fan_records r
+    ${hasRosterTemplates ? 'LEFT JOIN fan_roster_templates t ON t.id = r.roster_template_id AND t.scope = r.scope' : ''}`;
   function list(scope, profileId) {
     return db
       .prepare(`${selectRecords} WHERE r.scope = ? AND r.profile_id = ? ORDER BY r.occurred_at DESC, r.id`)
@@ -37,14 +58,14 @@ function createFanRecordStore(db) {
       .map(decodeRecord);
   }
 
-  function listForProfiles(scope, profileIds) {
+  function readForProfiles(scope, profileIds, select, decode) {
     const grouped = new Map();
     for (let offset = 0; offset < profileIds.length; offset += 500) {
       const batch = profileIds.slice(offset, offset + 500);
       const rows = db
         .prepare(
           `
-        ${selectRecords} WHERE r.scope = ?
+        ${select} WHERE r.scope = ?
           AND r.profile_id IN (${batch.map(() => '?').join(', ')})
         ORDER BY r.profile_id, r.occurred_at DESC, r.id
       `,
@@ -52,7 +73,7 @@ function createFanRecordStore(db) {
         .all(scope, ...batch);
       for (const row of rows) {
         if (!grouped.has(row.profile_id)) grouped.set(row.profile_id, []);
-        grouped.get(row.profile_id).push(decodeRecord(row));
+        grouped.get(row.profile_id).push(decode(row));
       }
     }
     return grouped;
@@ -167,7 +188,8 @@ function createFanRecordStore(db) {
 
   return {
     list,
-    listForProfiles,
+    listForProfiles: (scope, ids) => readForProfiles(scope, ids, selectRecords, decodeRecord),
+    listProjectionInputs: (scope, ids) => readForProfiles(scope, ids, selectProjectionInputs, decodeProjectionInput),
     insert,
     update,
     pruneSongCounts,

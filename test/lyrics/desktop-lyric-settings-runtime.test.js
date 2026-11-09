@@ -197,6 +197,12 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     advancedLyricMaterial: 'chalk',
   };
   const elements = new Map(Object.entries(values).map(([id, value]) => [id, { value }]));
+  const rangeListeners = new Map();
+  const numberListeners = new Map();
+  elements.get('desktopLyricFontSize').addEventListener = (type, handler) => rangeListeners.set(type, handler);
+  elements.set('desktopLyricFontSizeNumber', {
+    value: '56', addEventListener: (type, handler) => numberListeners.set(type, handler),
+  });
   elements.set('desktopLyricEnabled', { checked: false });
   elements.set('advancedLyricEnabled', { checked: true });
   elements.set('desktopLyricSungColorInherited', { checked: true });
@@ -222,6 +228,10 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   });
   let scheduledTimer = null;
   let resolveFirstSave;
+  let resolveDelayedSave;
+  let delayedAcknowledgement;
+  let holdSave = false;
+  let authoritativeSettings = {};
   const sandbox = {
     document: {
       createElement: createFontNode,
@@ -263,12 +273,18 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
           },
           api: (url, body) => {
             apiCalls.push({ url, body });
+            authoritativeSettings = { ...authoritativeSettings, ...body };
+            const response = { ok: true, data: { settings: authoritativeSettings } };
             if (apiCalls.length === 1) {
               return new Promise((resolve) => {
-                resolveFirstSave = resolve;
+                resolveFirstSave = () => resolve(response);
               });
             }
-            return Promise.resolve({ ok: true });
+            if (holdSave) {
+              delayedAcknowledgement = response;
+              return new Promise(resolve => { resolveDelayedSave = resolve; });
+            }
+            return Promise.resolve(response);
           },
           dangerConfirm: async () => confirmReset,
         },
@@ -283,10 +299,18 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     path.join(ROOT_DIR, 'public', 'js', 'admin', 'desktop-lyric.js'),
     sandbox,
   );
+  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), sandbox);
+  const rangeForms = new FormsService();
+  rangeForms.refreshParameterRanges = () => {};
+  dependencies.forms.bindRangePair = (id, ...args) => {
+    if (id === 'desktopLyricFontSize') rangeForms.bindRangePair(id, ...args);
+  };
   const desktopLyric = createDesktopLyric({
     utils: dependencies.utils,
     forms: dependencies.forms,
     preview: dependencies.desktopLyricPreview,
+    saveSettings: async patch => (await dependencies.utils.api('/api/settings', patch)).data.settings,
+    confirmSettings: async () => authoritativeSettings,
   });
   sandbox.window.AdminApp = {};
   desktopLyric.initDesktopLyricForm();
@@ -294,14 +318,23 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   listeners.get('input')();
   assert.equal(apiCalls.length, 0);
   assert.equal(scheduledTimer, null);
-  windowListeners.get('app:settings-state')({
-    detail: {
-      ...values,
-      weSingLyricSource: 'netease',
-      weSingSmartLyricMatch: 'true',
-    },
+  const receiveSettings = settings => {
+    authoritativeSettings = settings;
+    windowListeners.get('app:settings-state')({ detail: settings });
+  };
+  receiveSettings({
+    ...values,
+    weSingLyricSource: 'netease',
+    weSingSmartLyricMatch: 'true',
   });
-  elements.get('desktopLyricFontSize').value = '60';
+  const fontSizeNumber = elements.get('desktopLyricFontSizeNumber');
+  fontSizeNumber.value = '6';
+  numberListeners.get('input')();
+  listeners.get('input')();
+  assert.equal(fontSizeNumber.value, '6', 'A partially typed number must survive local draft updates.');
+  fontSizeNumber.value = '60';
+  numberListeners.get('input')();
+  listeners.get('input')();
   scheduledTimer.callback();
   assert.equal(apiCalls.length, 1);
   assert.equal(apiCalls[0].body.desktopLyricFontSize, '60');
@@ -315,9 +348,9 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   lyricSourceInputs[1].checked = true;
   smartLyricMatch.checked = false;
   listeners.get('change')();
-  windowListeners.get('app:settings-state')({ detail: { ...values,
+  receiveSettings({ ...authoritativeSettings,
     desktopLyricShadowBlur: '19',
-    weSingLyricSource: 'netease', weSingSmartLyricMatch: 'true' } });
+    weSingLyricSource: 'netease', weSingSmartLyricMatch: 'true' });
   assert.equal(lyricSourceInputs[0].checked, false);
   assert.equal(lyricSourceInputs[1].checked, true);
   assert.equal(smartLyricMatch.checked, false);
@@ -327,7 +360,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   elements.get('desktopLyricTextColor').value = '#abcdef80';
   listeners.get('change')();
   assert.equal(apiCalls.length, 1, 'a second write waits for the in-flight request');
-  resolveFirstSave({ ok: true });
+  resolveFirstSave();
   await new Promise((resolve) => setImmediate(resolve));
 
   assert.equal(apiCalls.length, 2);
@@ -367,4 +400,15 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls.at(-1).body.desktopLyricEnabled, 'true');
   assert.equal(Object.hasOwn(apiCalls.at(-1).body, 'advancedLyricEnabled'), false, 'The output switches persist independently.');
   assert.equal(elements.get('advancedLyricEnabled').checked, true);
+
+  holdSave = true;
+  elements.get('desktopLyricFontSize').value = '68';
+  listeners.get('change')();
+  receiveSettings(authoritativeSettings);
+  receiveSettings({ ...authoritativeSettings, desktopLyricFontSize: '70' });
+  resolveDelayedSave(delayedAcknowledgement);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(elements.get('desktopLyricFontSize').value, '70',
+    'A late automatic-save response must not overwrite a newer canvas setting.');
+  assert.ok(autosaveState.className.includes('is-error'), 'A superseded save must not claim success.');
 });

@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { chromium } = require('playwright');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
+const { readAdminFragmentHtml } = require('../helpers/admin-html');
 
 let browser;
 let fixture;
@@ -72,7 +73,8 @@ test('unsung visibility toggles immediately and restores after pause, backward s
   await page.emulateMedia({ reducedMotion: 'reduce' });
   const result = await page.evaluate(async () => {
     const root = document.getElementById('stage');
-    const line = { text: '一二三四', startMs: 1000, endMs: 5000 };
+    const line = { text: '一二三四', startMs: 1000, endMs: 5000,
+      words: [...'一二三四'].map((text, index) => ({ text, startMs: 1000 + index * 1000, endMs: 2000 + index * 1000 })) };
     const frame = { line, index: 0, currentMs: 2500, playing: false };
     const shown = () => [...root.querySelectorAll('.advanced-lyric-glyph')].filter(glyph => {
       for (let node = glyph; node && node !== root; node = node.parentElement) {
@@ -111,7 +113,7 @@ test('unsung visibility toggles immediately and restores after pause, backward s
 test('advanced layouts retain complete long lyrics inside the output', async t => {
   const page = await openRenderer(t);
   const text = '把长长的一句歌词唱完 Remember every word with 👨‍👩‍👧‍👦 and Cafe\u0301 in the moonlight';
-  for (const layout of ['center', 'vertical', 'tiles', 'orbit']) {
+  for (const layout of ['center', 'vertical', 'tiles', 'orbit', 'phrase-flow', 'corner-relay', 'type-impact']) {
     const result = await page.evaluate(async ({ text, layout }) => {
       window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: layout });
       window.frame = { line: { text, startMs: 0, endMs: 10000 }, index: 1, currentMs: 4500, playing: false };
@@ -132,13 +134,36 @@ test('advanced layouts retain complete long lyrics inside the output', async t =
   }
 });
 
+test('line-only choreography reveals whole phrases without fabricated per-glyph highlights', async t => {
+  const page = await openRenderer(t);
+  const result = await page.evaluate(async () => {
+    const { createAdvancedLyricText, buildAdvancedLyricLayout } = await import('/js/lyrics/advanced-lyric-layouts.js');
+    const root = document.getElementById('stage');
+    const line = { text: '晚风穿过窗边，带来你的消息', startMs: 0, endMs: 8000 };
+    const units = createAdvancedLyricText(line), plan = buildAdvancedLyricLayout('phrase-flow', units);
+    const shown = () => [...root.querySelectorAll('.advanced-lyric-enter')]
+      .filter(node => Number(getComputedStyle(node).opacity) > 0.99).map(node => node.textContent).join('');
+    window.renderer.renderFrame({ line, index: 0, currentMs: 500, playing: false });
+    const first = shown();
+    window.renderer.renderFrame({ line, index: 0, currentMs: plan.at(-1).startMs + 500, playing: false });
+    const next = shown();
+    window.renderer.renderFrame({ line, index: 0, currentMs: 500, playing: false, discontinuity: true });
+    return { first, next, seeked: shown(), firstPhrase: units.slice(plan[0].start, plan[0].end).map(unit => unit.text).join(''),
+      highlights: root.querySelectorAll('.advanced-lyric-highlight').length };
+  });
+  assert.equal(result.first, result.firstPhrase);
+  assert.equal(result.next, '晚风穿过窗边，带来你的消息');
+  assert.equal(result.seeked, result.first);
+  assert.equal(result.highlights, 0);
+});
+
 test('timed groups keep future backplates hidden and retain the final sung glyph until the line ends', async t => {
   const page = await openRenderer(t);
   const result = await page.evaluate(() => {
     const root = document.getElementById('stage');
     window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'tiles', advancedLyricExit: 'shrink' });
     const line = { text: '唱完', startMs: 1000, endMs: 5000, words: [
-      { text: '唱', startMs: 1000, endMs: 2000 }, { text: '完', startMs: 4000, endMs: 5000 },
+      { text: '唱', startMs: 1000, endMs: 2000 }, { text: '完', startMs: 4980, endMs: 5000 },
     ] };
     window.renderer.renderFrame({ line, index: 0, currentMs: 2500, playing: false });
     const futurePlate = getComputedStyle(root.querySelectorAll('.advanced-lyric-enter')[1]).opacity;
@@ -153,6 +178,47 @@ test('timed groups keep future backplates hidden and retain the final sung glyph
   assert.equal(result.tailOpacity, 1);
   assert.equal(result.current, '下一句');
   assert.equal(result.previous, false);
+});
+
+test('relay phrases use pauses to clear the incoming text at large motion settings', async t => {
+  const page = await openRenderer(t);
+  const overlaps = await page.evaluate(async () => {
+    const { createAdvancedLyricText, buildAdvancedLyricLayout } = await import('/js/lyrics/advanced-lyric-layouts.js');
+    const parts = ['沿着河岸向前走，', '听见晚风轻轻唱，', '把城市灯光收藏，', '让心跳慢慢回响，', '一起走向有光的地方'];
+    const line = { text: parts.join(''), startMs: 0, endMs: 15000,
+      words: parts.map((text, index) => ({ text, startMs: index * 3000, endMs: index * 3000 + 2700 })) };
+    const root = document.getElementById('stage'), problems = [];
+    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'corner-relay',
+      advancedLyricFontSize: 110, advancedLyricWidth: 100, advancedLyricMotionAmount: 2, advancedLyricWordMotion: 'none' });
+    for (const current of [line, { ...line, words: [] }]) {
+      const plan = buildAdvancedLyricLayout('corner-relay', createAdvancedLyricText(current));
+      for (const item of plan.slice(1)) {
+        for (const offset of [50, 100, 400]) {
+          window.renderer.renderFrame({ line: current, index: 0, currentMs: item.startMs + offset, playing: false, discontinuity: true });
+          const rectangles = [];
+          for (const group of root.querySelectorAll('.advanced-lyric-item')) {
+            const rects = [...group.querySelectorAll('.advanced-lyric-ink')].filter(node => {
+              if (!node.textContent.trim()) return false;
+              for (let parent = node; parent && parent !== root; parent = parent.parentElement) {
+                if (Number(getComputedStyle(parent).opacity) < 0.05) return false;
+              }
+              return true;
+            }).map(node => node.getBoundingClientRect());
+            if (!rects.length) continue;
+            const box = { left: Math.min(...rects.map(rect => rect.left)), right: Math.max(...rects.map(rect => rect.right)),
+              top: Math.min(...rects.map(rect => rect.top)), bottom: Math.max(...rects.map(rect => rect.bottom)) };
+            for (const previous of rectangles) {
+              if (Math.min(previous.right, box.right) - Math.max(previous.left, box.left) > 3
+                && Math.min(previous.bottom, box.bottom) - Math.max(previous.top, box.top) > 3) problems.push(group.textContent);
+            }
+            rectangles.push(box);
+          }
+        }
+      }
+    }
+    return problems;
+  });
+  assert.deepEqual(overlaps, [], 'the new phrase must not obscure the preceding phrase');
 });
 
 test('advanced fill interpolates, pauses and seeks from the shared clock and releases hidden animations', async t => {
@@ -226,6 +292,61 @@ test('steady frames and color changes reuse glyphs without layout measurement', 
   assert.equal(result.material, 'glass');
 });
 
+test('phrase choreography moves earlier text, seeks deterministically and applies its tempo and amplitude controls', async t => {
+  const page = await openRenderer(t);
+  const results = await page.evaluate(async () => {
+    const root = document.getElementById('stage');
+    const line = { text: '把此刻唱成一首歌', startMs: 1000, endMs: 7500, words: [
+      { text: '把此刻', startMs: 1000, endMs: 2900 }, { text: '唱成', startMs: 3100, endMs: 4500 },
+      { text: '一首歌', startMs: 4800, endMs: 7500 },
+    ] };
+    const results = [];
+    for (const layout of ['phrase-flow', 'corner-relay', 'type-impact']) {
+      const settings = { ...window.lyricSettings, advancedLyricLayout: layout, advancedLyricWordMotion: 'none' };
+      window.renderer.applySettings(settings);
+      const seek = currentMs => window.renderer.renderFrame({ line, index: 0, currentMs, playing: false, discontinuity: true });
+      const pose = () => getComputedStyle(root.querySelector('.advanced-lyric-stage')).transform;
+      seek(1120);
+      const initial = pose();
+      window.renderer.applySettings({ ...settings, advancedLyricMotionDuration: '100' });
+      const faster = pose();
+      window.renderer.applySettings({ ...settings, advancedLyricMotionAmount: '2' });
+      const wider = pose();
+      window.renderer.applySettings(settings);
+      seek(2000);
+      const first = pose();
+      seek(3600);
+      const moved = pose();
+      await new Promise(resolve => setTimeout(resolve, 80));
+      const paused = pose();
+      seek(2000);
+      const seeked = pose();
+      window.renderer.setVisible(false);
+      seek(3600);
+      window.renderer.setVisible(true);
+      const resumed = pose();
+      seek(7499);
+      let tailOpacity = 1;
+      for (let node = root.querySelectorAll('.advanced-lyric-glyph')[7]; node && node !== root; node = node.parentElement) {
+        tailOpacity *= Number(getComputedStyle(node).opacity);
+      }
+      results.push({ layout, initial, faster, wider, first, moved, paused, seeked, resumed, tailOpacity,
+        text: [...root.querySelectorAll('.advanced-lyric-ink')].map(node => node.textContent).join('') });
+    }
+    return results;
+  });
+  for (const result of results) {
+    assert.notEqual(result.faster, result.initial, `${result.layout}: tempo must affect the transition`);
+    assert.notEqual(result.wider, result.initial, `${result.layout}: amplitude must affect the transition`);
+    assert.notEqual(result.first, result.moved, `${result.layout}: earlier phrases must make room`);
+    assert.equal(result.paused, result.moved);
+    assert.equal(result.seeked, result.first);
+    assert.equal(result.resumed, result.moved);
+    assert.equal(result.tailOpacity, 1, 'choreography must not discard the final sung character for an exit');
+    assert.equal(result.text, '把此刻唱成一首歌');
+  }
+});
+
 test('switching marker material refits long lyrics without clipping the last characters', async t => {
   const page = await openRenderer(t);
   const clipped = await page.evaluate(async () => {
@@ -246,4 +367,37 @@ test('switching marker material refits long lyrics without clipping the last cha
     }).map(node => node.textContent);
   });
   assert.deepEqual(clipped, []);
+});
+
+test('local sample controls pause on hiding and restore the latest accepted live song without publishing', async t => {
+  const page = await openRenderer(t);
+  const writes = [];
+  page.on('request', request => { if (request.method() !== 'GET') writes.push(request.url()); });
+  await page.evaluate(async markup => {
+    window.renderer.dispose();
+    const host = new DOMParser().parseFromString(markup, 'text/html').body.firstElementChild;
+    document.body.replaceChildren(host);
+    document.getElementById('desktopLyricPreviewStage').style.cssText = 'width:680px;height:250px';
+    const { desktopLyricPreview } = await import('/js/admin/desktop-lyric-preview.js');
+    desktopLyricPreview.init(null, { readSettings: () => ({ desktopLyricEnabled: 'false', advancedLyricEnabled: 'true' }) });
+    window.sendLive = (sequence, text) => {
+      window.dispatchEvent(new CustomEvent('app:lyric-timeline', { detail: { status: 'ready', trackTitle: '实时歌曲', lines: [{ text: '最新歌曲', startMs: 0, endMs: 20000 }] } }));
+      window.dispatchEvent(new CustomEvent('app:lyric-state', { detail: { status: 'ready', generation: 2, sequence, trackTitle: '实时歌曲',
+        lineText: text, words: [], currentMs: 15000, durationMs: 20000, playing: false, discontinuity: true } }));
+    };
+    window.sendLive(1, '实时歌曲');
+  }, readAdminFragmentHtml('pages/admin/song/desktop-lyric-preview.html'));
+  await page.locator('#desktopLyricSampleBtn').click();
+  await page.waitForFunction(() => document.getElementById('advancedLyricPreviewStage').getAttribute('aria-label') === '把此刻唱成一首歌');
+  await page.evaluate(() => { window.sendLive(3, '最新歌曲'); window.sendLive(2, '旧歌曲'); });
+  assert.equal(await page.locator('#advancedLyricPreviewStage').getAttribute('aria-label'), '把此刻唱成一首歌');
+  await page.locator('#desktopLyricPreviewStage').evaluate(node => { node.style.display = 'none'; });
+  await page.waitForFunction(() => document.getElementById('desktopLyricSampleBtn').textContent === '继续试播');
+  assert.equal(await page.locator('#advancedLyricPreviewStage').evaluate(node => node.getAnimations({ subtree: true }).filter(animation => animation.playState === 'running').length), 0);
+  await page.locator('#desktopLyricPreviewStage').evaluate(node => { node.style.display = ''; });
+  await page.waitForFunction(() => document.getElementById('desktopLyricSampleBtn').textContent === '暂停试播');
+  await page.locator('#desktopLyricCurrentBtn').click();
+  assert.equal(await page.locator('#desktopLyricPreviewPlayback').textContent(), '最新歌曲');
+  assert.equal(await page.locator('#advancedLyricPreviewStage').getAttribute('aria-label'), '最新歌曲');
+  assert.deepEqual(writes, [], 'sample playback cannot send state to the player or live output');
 });

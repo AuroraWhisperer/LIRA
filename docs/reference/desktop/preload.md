@@ -159,6 +159,8 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数；与兼容入口和自动上传共享归一化后的 5 MiB UTF-8 请求预算 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY，超限报 PAYLOAD_TOO_LARGE；失败走公共错误脱敏 | 同上 |
 | `license:get-cloud-songs` | `getCloudSongs()` | `{songs:[SongPublic]}`，没有统一 ok 外层 | 同上 |
 | `license:get-cloud-song-count` | `getCloudSongCount()` | `{ok:true,count}`；优先读取 cloud-state.songs.count，旧服务器缺字段时才回退完整歌库；非法数量报 INVALID_RESPONSE | cloud-song-sync |
+| `license:get-song-page-access` | `getSongPageAccess()` | `{ok:true,enabled:boolean}`；读取授权账号的网页访问开关 | 同上 |
+| `license:set-song-page-access` | `setSongPageAccess(enabled)`；只接受 boolean | 同上；INVALID_SONG_PAGE_ACCESS / INVALID_RESPONSE；沿用授权代次与来源校验，不暴露凭据 | 同上 |
 | `license:get-song-page-background` | `getSongPageBackground()` | BackgroundResponse | [song-background.js](../../../public/js/admin/song-background.js) |
 | `license:upload-song-page-background` | `uploadSongPageBackground(bytes,fileName)` → `{bytes,fileName}`，非空 Uint8Array ≤5 MiB，fileName 为提示 | BackgroundResponse；BACKGROUND_IMAGE_REQUIRED / PAYLOAD_TOO_LARGE | 同上 |
 | `license:delete-song-page-background` | `deleteSongPageBackground()` | BackgroundResponse，background 可 null | 同上 |
@@ -270,6 +272,10 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 | `open` / `list` | `{query?,archived?,filters?}`；query≤300，filters 可 favorite/incomplete/active/past/unknown | `{profiles,settings}` |
 | `auto-update-status` | {} | 一次性通知或 null；通知含 reason=scheduled/startup、status=success/error、成功计数或 error |
 | `sync-guard-roster` | `{expectedRoomId?}`，提供时须匹配当前 roomId | `{roomId,ownerUid,total,created,updated,skipped,skippedDetails,profileRefresh:{updated,failed,skipped}}`；并发同步拒绝 |
+| `preview-identity` | `{uid:string}`，沿用档案 UID 校验，必须带当前 `contextId` | `{uid,name,avatarUrl}`；只读 B 站公开资料，不修改档案或事实；Cookie 留在 main，头像经既有代理展示。同上下文和 UID 的在途请求复用，更换 UID、授权变化或 dispose 取消旧读取并拒绝迟到结果；whenIdle 等待预览任务。 |
+| `lookup-former-names` | `{uid:string}`，必须带当前 `contextId` | `{uid,names:string[]}`；主进程只向 Aicu 传 UID，不传 B 站凭证，10 秒超时；仅查询，不保存草稿。 |
+| `supplement-former-names` | `{id}`，当前账号未归档且已绑定 UID 的档案 | `{added,profile:ProfileDetail}`；合并去重，保留默认选择及手动删除；请求返回后再核对身份和授权，拒绝迟到写入。 |
+| `former-name-targets` | {} | `{ids:string[]}`；当前账号未归档、未屏蔽且有 UID 的档案 ID；用于串行批量补充。 |
 | `settings` | {} | 当前 scope 设置 |
 | `configure` | `{autoCreate:boolean,autoUpdate:boolean,autoSyncGuardRoster?:boolean,accompanyMilestones?:number[],showAccompanyInCalendar?:boolean}` | 更新后的 scope 设置；陪伴节点校验及默认值见粉丝档案规格 |
 | `guard-expiry` | 与 `list` 相同的筛选条件；必须带当前 `contextId` | `{state,observedAt,badges:[{profileId,level,days}]}`；state 为 ready/loginRequired/ownerMismatch/roomNotConfigured/sourceChanged/unavailable/unsupported；非 ready 时 observedAt=null、badges=[]。主进程读取认证设备的服务端名单，核对 roomId 并按当前档案投影；不返回凭据或整份 B 站名单，不写入本机档案。 |
@@ -303,7 +309,9 @@ Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller
 
 名单跳过明细 `skippedDetails` 同时随手动结果及自动成功通知返回：上游身份不可用时为 `{rank,reason:'hidden-identity'|'invalid-uid'}`，`rank` 为名单位置字符串，隐藏身份不附带上游 UID/昵称；本机跳过时为 `{uid,name,reason:'archived'|'suppressed'}`，`name` 优先档案称呼，其次名单昵称、本机平台昵称。Owner 为 [bilibili-guard-roster.js](../../../src/shared/bilibili-guard-roster.js) 与 [guard-roster-import.js](../../../src/fans/guard-roster-import.js)。前端以纯文本显示成员及原因；旧快照未提供明细时保留计数并提示重新同步，不猜测原因。该数组只解释名单 `skipped`，不改变 `profileRefresh` 契约。
 
-ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)：alias≤100、summary≤300、notes≤20000、nextTopic≤2000、zodiac≤30、mbtiNote≤500；长度按 JavaScript String.length（UTF-16 code unit）在 trim **前**检查，null 文本转空。tags≤30项、每项≤50，先检查再过滤空值/去重；formerNames≤3项、每项≤200。favorite/archived/milestoneReminders/expiryReminders 严格 boolean；MBTI 为空或规范16型，mbtiConfirmedAt 为日期。
+ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)：alias≤100、summary≤300、notes≤20000、nextTopic≤2000、zodiac≤30、mbtiNote≤500、preferredFormerName≤200；长度按 JavaScript String.length（UTF-16 code unit）在 trim **前**检查，null 文本转空。tags≤30项、每项≤50，先检查再过滤空值/去重；formerNames 为字符串数组，每项≤200，不再裁剪为三项。favorite/archived/milestoneReminders/expiryReminders 严格 boolean；MBTI 为空或规范16型，mbtiConfirmedAt 为日期。
+
+曾用名查询的在途请求按上下文/授权代次/UID 合并；切换授权或 dispose 取消，whenIdle 等全部查询及提交完成。批量由 renderer 调度已有单人接口，逐人间隔一秒；停止不发下一人，成功部分保留。默认展示投影 `formerName` 使用人工 `preferredFormerName` 或最近可靠 `lastEntry.name`，外部补充不决定默认顺序；字段与兼容规则由[粉丝档案规格](../../../specs/fan-profiles.md)维护。
 
 `save` 切换 `archived` 保留 `guardRoster` 和会员记录，`detail`/`list` 的 `currentGuardLevel` 不因归档而清空。名单导入跳过归档档案时既不更新也不清除其身份；恢复后继续展示已有确认身份，再由后续名单同步更新。
 

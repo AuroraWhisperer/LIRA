@@ -712,6 +712,7 @@ function createServerRuntime(runtimeOptions = {}) {
     applyCloudFixedReplySettingsSnapshot: cloudSync.applyCloudFixedReplySettingsSnapshot,
     setBlindBoxMappingState: cloudSync.setBlindBoxMappingState,
     getCloudSongsSnapshot: cloudSync.getCloudSongsSnapshot,
+    hasPendingCloudSongs: cloudSync.hasPendingCloudSongs,
     getPendingCloudSongs: cloudSync.getPendingCloudSongs,
     acknowledgePendingCloudSongs: cloudSync.acknowledgePendingCloudSongs,
     replaceCloudSongsSnapshot: cloudSync.replaceCloudSongsSnapshot,

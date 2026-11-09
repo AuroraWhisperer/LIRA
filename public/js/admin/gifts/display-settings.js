@@ -1,6 +1,7 @@
 import { localOverlayOrigin, toast } from '../../shared/utils.js';
 import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
+import { createComponentConfigController } from '../component-config-controller.js';
 import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from '../../shared/gift-banner-styles.js';
 import {
   createGiftBanner,
@@ -21,14 +22,15 @@ export function createGiftDisplaySettings() {
       get(id).append(option);
     }
   }
-  let config;
+  const controller = createComponentConfigController({
+    read: () => requestConfig(),
+    persist: draft => requestConfig(draft),
+  });
   const sample = {
     eventId: 'sample',
     gift: { giftId: '', giftName: '礼物', userName: '礼物样式预览', unitPrice: 1000, num: 1, guardLevel: null },
   };
   let artwork = createGiftArtworkResolver([]);
-  let sequence = 0;
-  let saving = false;
   let previewVisible = false;
   function updatePreviewPlayback() {
     previewRoot.classList.toggle('is-playing', previewVisible && !document.hidden);
@@ -60,6 +62,16 @@ export function createGiftDisplaySettings() {
       swatch.style.setProperty('--gift-end', end);
     });
 
+  async function requestConfig(draft) {
+    const response = await fetch('/api/gifts/display-settings', {
+      ...(draft ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) } : {}),
+      signal: AbortSignal.timeout(10000),
+    });
+    const result = await response.json();
+    if (!response.ok || !result.ok) throw new Error(result.error || '礼物显示设置读取或保存失败。');
+    return { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
+  }
+
   function values() {
     return {
       palette: 'bilibili-four',
@@ -89,6 +101,7 @@ export function createGiftDisplaySettings() {
   }
 
   function updateCancelVisibility() {
+    const config = controller.getState().saved;
     const savedValues = [
       ...[1, 2, 3].map((n) => [`giftTier${n}`, config.thresholds[n - 1] / 100]),
       ['giftFeedRows', config.visibleRows],
@@ -116,12 +129,14 @@ export function createGiftDisplaySettings() {
   }
 
   get('giftDisplayCancel')?.addEventListener('click', () => {
-    fill(config);
+    controller.discard();
+    fill(controller.getState().draft);
     get('giftDisplayError').textContent = '';
   });
-  get('giftDisplayDefaults')?.addEventListener('click', () =>
-    fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 }),
-  );
+  get('giftDisplayDefaults')?.addEventListener('click', () => {
+    fill({ thresholds: [3000, 10000, 100000], visibleRows: 3, scrollSpeed: 12, minGiftAmountCents: 0 });
+    controller.edit(values());
+  });
   get('giftDisplayForm')?.addEventListener('input', (event) => {
     if (event.target.tagName === 'SELECT') return;
     const boundary = event.target.dataset.giftBoundary;
@@ -130,41 +145,35 @@ export function createGiftDisplaySettings() {
         if (input !== event.target && input.dataset.giftBoundary === boundary) input.value = event.target.value;
       }
     }
+    controller.edit(values());
     preview();
     updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('change', (event) => {
     if (event.target.tagName !== 'SELECT') return;
+    controller.edit(values());
     preview();
     updateCancelVisibility();
   });
   get('giftDisplayForm')?.addEventListener('submit', (event) => {
     event.preventDefault();
     run(async () => {
-      if (saving) return;
-      saving = true;
-      const current = sequence;
+      if (!controller.getStatus().loaded || controller.getStatus().saving) return;
       const draft = values();
       // Decimal input precision is checked by the native form; remove floating point noise in cents.
       draft.thresholds = draft.thresholds.map(Math.round);
       draft.minGiftAmountCents = Math.round(draft.minGiftAmountCents);
+      controller.edit(draft);
+      if (!controller.getStatus().dirty) return;
       get('giftDisplayFields').disabled = true;
       try {
-        const response = await fetch('/api/gifts/display-settings', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(draft),
-          signal: AbortSignal.timeout(10000),
-        });
-        const result = await response.json();
-        if (current !== sequence) return;
-        if (!result.ok) throw new Error(result.error);
-        config = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
-        fill(config);
+        const saved = await controller.save();
+        const state = controller.getState();
+        fill(state.draft);
+        if (!saved) throw new Error(state.error);
         get('giftDisplayError').textContent = '';
         toast('滚动礼物与词条样式已保存');
       } finally {
-        saving = false;
         get('giftDisplayFields').disabled = false;
       }
     });
@@ -175,35 +184,28 @@ export function createGiftDisplaySettings() {
   });
   get('giftFeedPreviewBtn')?.addEventListener('click', () => openComponentPreview({ id: 'gift-feed' }));
   const receiveSettings = event => {
-    if (!config || saving || !event.detail?.giftDisplayConfig) return;
+    if (!controller.getStatus().loaded || !event.detail?.giftDisplayConfig) return;
     let next;
     try { next = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...JSON.parse(event.detail.giftDisplayConfig) }; } catch { return; }
-    const draft = values();
-    const merged = { ...next };
-    for (const key of ['visibleRows', 'scrollSpeed', 'minGiftAmountCents', 'thresholds', 'tailStyle', 'textureStyle']) {
-      if (JSON.stringify(draft[key]) !== JSON.stringify(config[key])) merged[key] = draft[key];
-    }
-    config = next;
-    fill(merged);
+    controller.receive(next);
+    fill(controller.getState().draft);
   };
   window.addEventListener('app:settings-state', receiveSettings);
   window.addEventListener('pagehide', () => window.removeEventListener('app:settings-state', receiveSettings), { once: true });
 
   return {
     async open() {
-      if (config) return;
-      const current = ++sequence;
-      const response = await fetch('/api/gifts/display-settings', { signal: AbortSignal.timeout(10000) });
-      const result = await response.json();
-      if (!result.ok) throw new Error(result.error);
+      if (controller.getStatus().loaded) return;
+      if (!await controller.reload()) {
+        if (controller.getStatus().error) throw new Error(controller.getStatus().error);
+        return;
+      }
       const nextCatalog = await loadGiftArtworkCatalog(AbortSignal.timeout(5000)).catch(() => []);
-      if (current !== sequence) return;
-      config = { ...DEFAULT_GIFT_BANNER_APPEARANCE, ...result.data };
       artwork = createGiftArtworkResolver(nextCatalog);
       const url = `${localOverlayOrigin(location)}/gift-feed`;
       get('giftFeedUrl').textContent = url;
       get('giftDisplayError').textContent = '';
-      fill(config);
+      fill(controller.getState().draft);
       get('giftDisplayFields').disabled = false;
     },
   };

@@ -6,6 +6,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { SCENE_TYPES } = require('../../src/shared/scene-component-types');
 
 const adminPath = path.join(__dirname, '../../public/js/admin');
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -89,23 +90,26 @@ async function loadOwner(filename, overrides = {}) {
     registry: modules.get(path.join(adminPath, 'component-preview-registry.js')).namespace };
 }
 
-test('registry stays lazy and creates fresh descriptions with shared controllers', async () => {
+test('registry rejects unknown types and lazily creates ordered descriptions with shared controllers', async () => {
   const registry = await loadModuleExports(path.join(adminPath, 'component-preview-registry.js'));
   assert.equal(registry.getComponentPreviews().length, 0);
   let calls = 0;
   const controllers = new Map();
-  for (const id of ['overtime', 'queue', 'danmaku', 'clock']) {
+  for (const id of [...SCENE_TYPES].reverse()) {
     const controller = {};
     controllers.set(id, controller);
     const factory = () => { calls++; return { id, controller }; };
     registry.registerComponentPreview(id, factory);
     registry.registerComponentPreview(id, factory);
   }
+  for (const id of ['canvas', 'unknown', 'constructor', '__proto__']) {
+    assert.throws(() => registry.registerComponentPreview(id, () => ({ id })));
+  }
   assert.equal(calls, 0);
   const first = registry.getComponentPreviews();
   const second = registry.getComponentPreviews();
-  assert.deepEqual(plain(first.map(({ id }) => id)).sort(), ['clock', 'danmaku', 'overtime', 'queue']);
-  assert.equal(calls, 8);
+  assert.deepEqual(plain(first.map(({ id }) => id)), SCENE_TYPES);
+  assert.equal(calls, SCENE_TYPES.length * 2);
   first.forEach((description, index) => {
     assert.notEqual(description, second[index]);
     assert.equal(description.controller, controllers.get(description.id));
@@ -113,11 +117,11 @@ test('registry stays lazy and creates fresh descriptions with shared controllers
   });
 });
 
-test('now playing adds its saved native appearance to the canvas without a standalone relay session', async () => {
+test('now playing widgets add separate saved appearances to the canvas without standalone relay sessions', async () => {
   const notices = [];
   const writes = [];
   const nativePreview = (_type, { controller } = {}) => ({ id: 'now-playing', sceneOnly: true, controller,
-    size: () => [480, 200], createPanel: () => ({ dispose() {} }) });
+    size: require('../../public/js/shared/now-playing-appearance.js').nowPlayingSize, createPanel: () => ({ dispose() {} }) });
   const fixture = await loadOwner('now-playing.js', {
     '../shared/utils.js': { api: async (url, config) => { writes.push(url); return { data: config }; },
       copyText() {}, localOverlayOrigin: () => 'http://127.0.0.1:3000', toast: message => notices.push(message) },
@@ -131,7 +135,9 @@ test('now playing adds its saved native appearance to the canvas without a stand
     './component-preview-surface.js': { previewElement: createNode },
     './gift-frame.js': { renderGiftFrameStyleState() {} },
   });
-  fixture.document.getElementById('nowPlayingPreview').parentElement = { classList: { toggle() {} } };
+  for (const id of ['nowPlayingPreview', 'nowPlayingTextPreview']) {
+    Object.assign(fixture.document.getElementById(id), { style: {}, parentElement: { classList: { toggle() {} } } });
+  }
   let scene = { schemaVersion: 1, id: '11111111-1111-4111-8111-111111111111', title: '直播场景',
     canvas: { width: 1920, height: 1080 }, items: [] };
   fixture.registry.setComponentPreviewPreparation(() => ({ id: 'canvas', controller: {
@@ -141,19 +147,25 @@ test('now playing adds its saved native appearance to the canvas without a stand
   const controller = fixture.owner.initNowPlaying();
   controller.receive(controller.getState().draft);
   controller.edit({ style: 'cover', nowPlayingLayout: 'vertical', nowPlayingShowArtist: false });
-  await fixture.document.getElementById('nowPlayingOpenCanvas').fire('click');
+  const root = fixture.document.getElementById('nowPlayingPage');
+  await root.querySelector('[data-now-playing-canvas="record"]').fire('click');
+  await root.querySelector('[data-now-playing-canvas="text"]').fire('click');
   assert.deepEqual(notices, []);
   assert.deepEqual(writes, ['/api/now-playing/config']);
   assert.equal(fixture.registry.getComponentPreviews().length, 0);
-  assert.equal(scene.items.length, 1);
+  assert.equal(scene.items.length, 2);
   const item = scene.items[0];
   assert.equal(item.type, 'now-playing');
   assert.equal(item.appearance.mode, 'independent');
   assert.equal(item.appearance.config.style, 'cover');
+  assert.equal(item.appearance.config.nowPlayingPart, 'record');
+  assert.equal(scene.items[1].appearance.config.nowPlayingPart, 'text');
   assert.equal(item.appearance.config.nowPlayingLayout, 'vertical');
   assert.equal(item.appearance.config.nowPlayingShowArtist, false);
-  assert.equal(item.width, 480);
+  assert.equal(item.width, 120);
+  assert.equal(scene.items[1].width, 360);
   assert.equal(fixture.opened[0].selectedItemId, item.id);
+  assert.equal(fixture.opened[1].selectedItemId, scene.items[1].id);
 });
 
 test('clock factory keeps the small preview live while shared editor sessions are open', async () => {

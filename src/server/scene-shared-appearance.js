@@ -12,7 +12,10 @@ const { GIFT_DISPLAY_SETTING, readGiftDisplaySettings, validateGiftDisplaySettin
 const { SCENE_EXTRA_COMPONENTS } = require('../../public/js/shared/scene-extra-components.js');
 const { GUARD_THANKS_EFFECTS, readGuardThanksEffect } = require('../../public/js/shared/guard-thanks-settings.js');
 const { openingStyleSettingsPatch } = require('../../public/js/shared/opening-settings.js');
-const { hasInstalledAppearance, sharedControllerAppearance, sceneAppearanceKey } = require('../../public/js/shared/scene-shared-appearance.js');
+const { hasInstalledAppearance, sharedControllerAppearance, sceneAppearanceKey, SHARED_SCENE_SETTING_FIELDS,
+  sceneAppearanceFromSettings, sceneAppearanceSettingsPatch } = require('../../public/js/shared/scene-shared-appearance.js');
+const { GIFT_MOTION_EFFECTS, giftMotionSettingKeys } = require('../../public/js/shared/gift-motion-settings.js');
+const { ADVANCED_LYRIC_PRESETS_SETTING } = require('../../public/js/shared/advanced-lyric-appearance.js');
 const { SONG_BOARD_THEME_FIELDS } = require('../../public/js/shared/song-board-theme-fields.js');
 const { NOW_PLAYING_SETTING, readNowPlayingConfig } = require('./now-playing-settings');
 
@@ -22,8 +25,9 @@ const BLINDBOX_KEYS = { top: 'blindboxOverlayTop', winnersOnly: 'blindboxWinners
 const invalid = () => Object.assign(new Error('只能调整此样式的公共显示参数。'), { statusCode: 400 });
 
 function settingsKeys(type) {
-  return LOCAL_TYPES.includes(type) ? Object.keys(SCENE_EXTRA_COMPONENTS[type].fields)
+  const fields = LOCAL_TYPES.includes(type) ? Object.keys(SCENE_EXTRA_COMPONENTS[type].fields)
     .filter(key => Object.hasOwn(DEFAULT_SETTINGS, key)) : [];
+  return type === 'lyrics' ? [...fields, ADVANCED_LYRIC_PRESETS_SETTING] : fields;
 }
 
 function sharedResourceAppearance(type, config = {}) {
@@ -45,8 +49,13 @@ function createSceneSharedAppearance(context) {
   function read(type, config, defaults) {
     if (config.resourceStyle) return sharedResourceAppearance(type, resource(config, type)?.config);
     if (hasInstalledAppearance(config)) return {};
+    if (Object.hasOwn(SHARED_SCENE_SETTING_FIELDS, type)) return sceneAppearanceFromSettings(type, settings);
+    if (type === 'gift-frame') {
+      const effects = GIFT_MOTION_EFFECTS.filter(effect => !config.style || config.style === 'follow' || config.style === effect.style);
+      return Object.fromEntries(effects.flatMap(effect => giftMotionSettingKeys(effect).map(key => [key, settings[key]])));
+    }
     if (type === 'now-playing') {
-      const { style: _style, ...appearance } = readNowPlayingConfig(settings);
+      const { style: _style, nowPlayingPart: _part, ...appearance } = readNowPlayingConfig(settings);
       return appearance;
     }
     if (type === 'clock') defaults ??= getClockConfig(settings);
@@ -93,10 +102,17 @@ function createSceneSharedAppearance(context) {
     }
     // The desktop relay remains the only writer of clock/queue/overtime drafts
     // and remote danmaku settings. This capability never acquires their authority.
-    if (!LOCAL_TYPES.includes(type) && !['gift-feed', 'guard-thanks', 'opening', 'now-playing'].includes(type)) throw invalid();
-    const next = normalizeSceneConfig(type, { ...config, ...current, ...patch });
+    if (!LOCAL_TYPES.includes(type) && !Object.hasOwn(SHARED_SCENE_SETTING_FIELDS, type)
+      && !['gift-frame', 'gift-feed', 'guard-thanks', 'opening', 'now-playing'].includes(type)) throw invalid();
+    const nextConfig = { ...config, ...current, ...patch };
+    if (type === 'lyrics') delete nextConfig[ADVANCED_LYRIC_PRESETS_SETTING];
+    const next = type === 'gift-frame' ? null : normalizeSceneConfig(type, nextConfig);
     let values;
-    if (type === 'now-playing') {
+    if (type === 'gift-frame') {
+      values = patch;
+    } else if (Object.hasOwn(SHARED_SCENE_SETTING_FIELDS, type)) {
+      values = sceneAppearanceSettingsPatch(type, patch);
+    } else if (type === 'now-playing') {
       const saved = readNowPlayingConfig(context.settings.get());
       const appearance = normalizeSceneConfig(type, { ...saved, ...patch });
       context.settings.setMany({ [NOW_PLAYING_SETTING]: JSON.stringify(appearance) });
@@ -111,7 +127,8 @@ function createSceneSharedAppearance(context) {
       const effect = GUARD_THANKS_EFFECTS.find(effect => effect.style === config.style);
       values = { [`${effect.prefix}TextMode`]: next.textMode };
     } else {
-      values = Object.fromEntries(Object.keys(patch).map(key => [type === 'blindbox' ? BLINDBOX_KEYS[key] || key : key, String(next[key])]));
+      values = Object.fromEntries(Object.keys(patch).map(key => [type === 'blindbox' ? BLINDBOX_KEYS[key] || key : key,
+        key === ADVANCED_LYRIC_PRESETS_SETTING ? patch[key] : String(next[key])]));
       if (type === 'lyrics' && Object.hasOwn(patch, 'desktopLyricKaraokeMode')) values.desktopLyricKaraokeEnabled = String(next.desktopLyricKaraokeMode !== 'off');
     }
     const normalized = normalizeSettingsPatch(values, context.settings.defaults || DEFAULT_SETTINGS);
@@ -128,7 +145,11 @@ function readSceneSharedAppearances(context, items, getDefaultConfig) {
   return Object.fromEntries(items.map(item => {
     const config = item.appearance.config || getDefaultConfig?.(item.type) || {};
     const key = sceneAppearanceKey(item.type, config);
-    if (!configurations.has(key)) configurations.set(key, owner.read(item.type, config));
+    if (!configurations.has(key)) {
+      const appearance = owner.read(item.type, config);
+      if (item.type === 'lyrics') delete appearance[ADVANCED_LYRIC_PRESETS_SETTING];
+      configurations.set(key, appearance);
+    }
     return [item.id, configurations.get(key)];
   }));
 }

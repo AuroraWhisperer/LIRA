@@ -1,4 +1,4 @@
-import { createGiftDropWorld } from '../shared/gift-drop-physics.js';
+import { createGiftDropWorld, GIFT_DROP_EXIT_MS } from '../shared/gift-drop-physics.js';
 import { GIFT_MOTION_EFFECTS, GIFT_SWING_TEXT_MODES, readGiftMotionSettings } from '../shared/gift-motion-settings.js';
 import { setGiftArtwork } from '../shared/gift-image.js';
 
@@ -12,7 +12,8 @@ function element(tag, className, text) {
 }
 
 export function createGiftMotionPlayer({ root }) {
-  const stage = element('div', 'gift-motion-stage'); root.append(stage);
+  const stage = element('div', 'gift-motion-stage');
+  const swingStage = element('div', 'gift-motion-stage gift-swing-stage'); root.append(stage, swingStage);
   const dropWorld = createGiftDropWorld();
   const drops = new Map(); const swings = new Map(); const seen = new Set();
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -20,6 +21,7 @@ export function createGiftMotionPlayer({ root }) {
   const resize = new ResizeObserver(() => {
     const scale = Math.min(root.clientWidth / WIDTH, root.clientHeight / HEIGHT);
     stage.style.transform = `translate(-50%, -50%) scale(${scale})`;
+    swingStage.style.transform = `translateX(-50%) scale(${root.clientWidth / WIDTH})`;
   });
   resize.observe(root);
 
@@ -48,21 +50,16 @@ export function createGiftMotionPlayer({ root }) {
       const node = drops.get(body.id);
       node.hidden = now < body.spawnAt;
       if (node.hidden) continue;
-      node.style.transform = `translate(${body.x - body.size / 2}px, ${body.y - body.size / 2}px) rotate(${body.angle}rad)`;
-      node.style.opacity = Math.min(1, (body.expiresAt - now) / 600);
+      if (!reduced.matches || now < body.expiresAt) {
+        node.style.transform = `translate(${body.x - body.size / 2}px, ${body.y - body.size / 2}px) rotate(${body.angle}rad)`;
+      }
+      node.style.opacity = Math.min(1, (body.expiresAt + GIFT_DROP_EXIT_MS - now) / GIFT_DROP_EXIT_MS);
     }
     for (const [id, swing] of swings) {
       if (now >= swing.expiresAt) { swing.node.remove(); swings.delete(id); continue; }
-      // Independent spring states; later cards do not restart an existing card.
-      const steps = Math.max(1, Math.ceil(elapsed * 120 * swing.motionSpeed)); const dt = elapsed / steps;
-      for (let step = 0; step < steps; step++) {
-        const age = (now - swing.startedAt) / 1000;
-        const target = reduced.matches ? 0 : Math.sin(age * 3.8 * swing.motionSpeed + swing.phase) * swing.angle * 0.24;
-        const motionDt = dt * swing.motionSpeed;
-        swing.speed += ((target - swing.rotation) * 90 - swing.speed * 5) * motionDt;
-        swing.rotation += swing.speed * motionDt;
-      }
-      const angle = reduced.matches ? 0 : swing.rotation;
+      // Keep each card's rhythm and amplitude constant throughout its lifetime.
+      const age = (now - swing.startedAt) / 1000;
+      const angle = reduced.matches ? 0 : Math.cos(age * 3.8 * swing.motionSpeed + swing.phase) * swing.angle;
       swing.node.style.transform = `rotate(${angle}deg)`;
       swing.node.style.opacity = Math.min(1, (swing.expiresAt - now) / 600, (now - swing.startedAt) / 200);
     }
@@ -98,14 +95,12 @@ export function createGiftMotionPlayer({ root }) {
       }
     } else {
       if (swings.size >= 80) return false;
-      const size = motion.size; const slotWidth = size + 44;
-      const columns = Math.max(1, Math.floor(WIDTH / slotWidth));
-      const occupied = new Set([...swings.values()].map(swing => swing.slot));
-      let slot = 0; while (occupied.has(slot)) slot++;
+      const size = motion.size;
+      const margin = Math.max(size, 190) / 2 + (size + 125) * Math.sin(motion.angle * Math.PI / 180);
       const node = element('div', 'gift-swing-item');
       node.dataset.motionId = payload.eventId; node.dataset.expiresAt = String(expiresAt);
       node.style.width = `${size}px`; node.style.height = `${size + 60}px`;
-      node.style.left = `${(WIDTH - columns * slotWidth) / 2 + (slot % columns) * slotWidth + 22}px`;
+      node.style.left = `${margin - size / 2 + Math.random() * (WIDTH - margin * 2)}px`;
       node.style.bottom = '0';
       const svg = document.createElementNS(SVG, 'svg'); svg.setAttribute('viewBox', `0 0 ${size} ${size + 60}`);
       const rod = document.createElementNS(SVG, 'path');
@@ -122,10 +117,10 @@ export function createGiftMotionPlayer({ root }) {
         card.append(caption);
       }
       card.append(image(payload, 'gift-motion-image')); node.append(card);
-      stage.append(node);
-      swings.set(payload.eventId, { node, slot, expiresAt, startedAt,
-        angle: motion.angle, motionSpeed: motion.speed / 100, rotation: motion.angle * (slot % 2 ? -1 : 1), speed: 0,
-        phase: slot * 1.7 });
+      swingStage.append(node);
+      swings.set(payload.eventId, { node, expiresAt, startedAt,
+        angle: motion.angle, motionSpeed: motion.speed / 100,
+        phase: Math.random() * Math.PI * 2 });
     }
     start(); return true;
   }
@@ -142,7 +137,7 @@ export function createGiftMotionPlayer({ root }) {
   }
   document.addEventListener('visibilitychange', visibility);
   return { enqueue, clear, dispose() {
-    disposed = true; clear(); seen.clear(); resize.disconnect(); stage.remove();
+    disposed = true; clear(); seen.clear(); resize.disconnect(); stage.remove(); swingStage.remove();
     document.removeEventListener('visibilitychange', visibility);
   } };
 }
