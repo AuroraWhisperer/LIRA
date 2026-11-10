@@ -96,7 +96,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     './gift-motion-settings.js': { initGiftMotionSettings: noop },
     './gift-guard-thanks.js': { initGuardThanks: noop },
     './gifts/history.js': { initGiftHistoryDrawer: noop },
-    './gifts/index.js': { renderGiftPanel: noop },
+    './gifts/index.js': { initGiftPanel: noop, renderGiftPanel: noop },
     './gifts/blindbox-analysis.js': { giftAnalysis: { close: noop } },
     './song-import-update.js': { initSongImportUpdate: noop },
     './state.js': {
@@ -123,6 +123,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
       },
     },
     './queue.js': { initQueueForm: noop },
+    './superchat.js': { initSuperChatForm: noop, disposeSuperChats: noop },
     './songs.js': { songs: { initSongForm: noop, readSongFilters: () => songFilters,
       renderSongs: noop } },
     './metrics.js': { metrics: { initPerformanceMonitor: noop } },

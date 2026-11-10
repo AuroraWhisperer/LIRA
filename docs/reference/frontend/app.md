@@ -1,6 +1,6 @@
 # Admin 应用与公共框架
 
-实时榜单由 `app.js` 在组件标签首次选择时加载 `admin/live-rankings.js`；[live-rankings-client.js](../../../public/js/admin/live-rankings-client.js) 合并该页与画布预览的订阅，每 500ms 读取管理快照。最后一个订阅退出后取消本机读取；画布订阅还受编辑网页连接状态与榜单图层可见性约束。呈现和配置契约见[实时榜单](overlays.md#实时榜单)。
+实时榜单由 `app.js` 在组件标签首次选择时加载 `admin/live-rankings.js`；[live-rankings-client.js](../../../public/js/admin/live-rankings-client.js) 合并该页与画布预览的订阅，每 500ms 读取管理快照。短暂读取失败保留最后成功的数据并提示延迟，成功的未变化版本回复也会解除本机错误状态。最后一个订阅退出后取消本机读取；画布订阅还受编辑网页连接状态与榜单图层可见性约束。呈现和配置契约见[实时榜单](overlays.md#实时榜单)。
 
 SC 行内删除后，在“清空 SC 记录”左侧显示单一批次的数量和“撤销”，使用客户端颜色
 token。连续删除合并，最后一次删除后 10 秒失效；出现、消失各用 1 秒淡入淡出，
@@ -69,6 +69,8 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 
 客户端「组件」左侧底部提供「打开画布」，与「点歌 → 浏览器源 → 直播场景 → 编辑场景」由 `canvas-overlay-source.js` 统一绑定，直接调用 `openComponentPreview()` 打开已有画布，不自动添加组件；礼物姬的六个子导航使用各自的线性图标区分功能。
 
+`component-preview-canvas-view.js` 协调文档模型、选择、历史、参数与发布；`component-preview-definitions.js` 的 `createInitialPreviewItem` 拥有组件初始尺寸、对齐和外观归属规则。`component-preview-layers.js` 拥有完整图层条、操作菜单、焦点及拖动视图生命周期，通过明确的选择、切换、删除和排序回调提交操作，不持有可变文档。
+
 画布场景由 `component-preview-canvas-controller.js` 持有独立草稿控制器，
 `component-preview-presets.js` 提供选择、新建、复制、仅保存场景和确认删除；新建、复制、保存和删除
 统一放在场景旁的「⋯ / 场景操作」菜单。画布设置、参数面板和复制场景地址使用带 title 与可访问名称的图标；
@@ -85,6 +87,7 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 `component-preview-remote.js` 仅在权威状态变化或待确认命令被移除时通知订阅者，display 省略时不重复通知显示监听器；同值编辑以及 ACK 先于命令回执到达时仍会完成 `flush()`，连接错误设置与清除独立通知。命令序号重试、草稿恢复、租约及实际显示数据来源不变；等待与撤销规则见[预览 API](../backend/api.md#浏览器组件预览)。
 队列、弹幕及公共效果参数通过 `component-preview-panel.js` 的局部字段订阅处理编辑结束：焦点离开整个增强下拉控件或颜色弹窗关闭后，在当前输入提交完成的微任务中读取最新乐观状态回填；下拉触发框、搜索框与选项之间的内部焦点切换不触发整表刷新。其他字段失焦继续回填，包含尚未确认的本地编辑。颜色选择器只发出只读的 `lira-color-edit-end` 事件，不额外触发 input/change 或请求；保留键盘焦点，面板释放时移除监听并取消已排队回填。这样相同快照被去重后，先前受焦点保护的字段仍能恢复最新值，避免后续整表采集写回旧值。
 `scene-editor-stage.js` 只写变化的图层几何、名称和 ARIA 属性；画布适配尺寸按宽、高及缩放缓存。拖拽同一动画帧只应用最新位置，松手先应用最终坐标再提交一次历史，取消丢弃待处理位置。`scene-document-model.js` 的几何手势复用已完整校验且冻结的外观，仅修改几何，每次核对位置与尺寸；有限几何数值的 JSON 表示可能增长时，执行完整的 256 KiB UTF-8 文档大小校验，数值表示未增长时不重复序列化。通用编辑、重置和导入仍完整校验。模型按快照索引图层 ID、保留未变外观引用，`scene-item-controller.js` 在读取共享 owner 和序列化前跳过纯几何通知。画布设置及撤销状态读取不可变快照，总状态复用控制器订阅值和共享外观元数据，避免拖动时复制完整草稿。同次模型刷新在更新选中状态后定位标签一次，容器缩放和单独选择变化仍重新定位；iframe、自动高度与撤销语义不变。画布内部及外围留白统一在 viewport 处理左键取消选择，先聚焦工作区让当前输入正常提交，再切换参数面板；取消选择本身不改动场景草稿，组件与拖拽事件保留原语义。
+实时榜单图层的滚轮由 `scene-editor-stage.js` 按当前画布缩放换算坐标与位移，经 `component-preview-surface.js` 发送 `component-preview:scroll`；沿用子页面的父窗口及来源校验，榜单消费有限数值并滚动命中的正文。该操作不写场景、不产生几何手势；左键移动和边框缩放沿用原行为。投屏的活动榜单 iframe 接收原生滚轮输入，完整榜同样手动滚动，暂存版本不接收交互。
 场景控制器在各预设变更通知中维护标题与未保存标记，列表读取不复制其他场景的完整文档；当前场景仍返回独立的 saved/draft 副本。画布一次状态刷新复用同一快照显示连接、场景列表及操作状态，保存、放弃、重新读取和切换预设仍由原控制器处理。
 `component-preview-canvas-output.js` 的地址框支持点击外部、按 Esc 或再次点击同一复制按钮收起；点击另一复制按钮会复制并展示对应地址，框内仍可选中文字手动复制。Esc 从地址框返回触发按钮，释放模块时移除关闭监听。
 重新打开画布时，若初始旧快照触发恢复冲突，后续客户端草稿追上全部缓存改动后自动解除该冲突并恢复编辑；仍有差异时继续要求明确选择，不自动覆盖客户端草稿或保存。
@@ -104,7 +107,7 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 
 「特别关注」保存绑定点击时的档案和选择代次；保存成功仍刷新列表中的星标和排序，仅在选择未变化且仍展示原档案时更新详情。等待期间切换档案、返回列表或切走再切回，不接受旧保存结果覆盖当前详情；原档案的保存不取消。
 
-音乐页由 `fans/view.js` 直接展示领域返回的每首歌曲汇总，使用 `data.count` 和 `data.recentDates` 显示累计次数及最近三个不同的北京时间日期，按最新点歌排序；次数沿用当前外观强调色，日期以 ` · ` 横向分隔。近 30 天次数与分类来自 `musicStats`。页面不再提供逐次展开、歌曲编辑或旧流水导入入口；「补记一次点歌」仅填写歌名、歌手、分类、北京时间和说明。喜欢／不喜欢及已收起偏好的编辑保留。持久化、去重与统计规则由领域和存储层拥有，见[点歌汇总展示](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
+音乐页由 `fans/view.js` 直接展示领域返回的每首歌曲汇总，使用 `data.count` 和 `data.recentDates` 显示累计次数及最近三个不同的北京时间日期，按最新点歌排序；次数沿用当前外观强调色，日期以 ` · ` 横向分隔。近 30 天次数与曲风来自 `musicStats`。页面不再提供逐次展开、歌曲编辑或旧流水导入入口；「补记一次点歌」仅填写歌名、歌手、曲风、北京时间和说明。喜欢／不喜欢及已收起偏好的编辑保留。持久化、去重与统计规则由领域和存储层拥有，见[点歌汇总展示](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
 
 档案列表与提醒页的近期日期筛选由 `src/fans/profile-service.js` 拥有，消费 `reminders.js` 的日期分组；前端不再显示「之后」分组。列表、近期提醒和日历共用未来七天的计算结果，日历再筛选未来三天；详情保留一年预测。已处理/忽略的会员里程碑仍核对完整预测范围，保留基线修订后的历史日期与状态。七天提醒窗口、三天日历窗口及下舰后的暂停规则见[粉丝档案规格](../../../specs/fan-profiles.md)。
 
@@ -112,9 +115,9 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 
 `fans/index.js` 在本机列表显示后通过现有 IPC 的 `guard-expiry` action 异步读取安全标记，沿用页面刷新周期并拒绝旧请求回填；`fans/view.js` 将标记与身份图标放在整行右侧居中。状态、相对日数与失效规则见[到期提示](../../../specs/fan-profiles.md#b-站到期提示2026-10-12)，不加入 StateService、备份或日历。
 
-档案详情在姓名与 UID 左侧显示圆形头像，直径跟随这两行资料的总高度；一句话印象不计入头像尺寸。头像沿用手动名单同步、每日自动名单同步和身份事实中的 `avatar` 字段，复用 `settings-auth.js` 的 `bilibiliAvatarSource` 与既有 `/api/bilibili/avatar` 图片代理；收藏集原图由代理读取 WebP 缩略图。缺少有效地址或图片加载失败时隐藏头像，不改动名单展示。
+档案详情在姓名与 UID 左侧显示圆形头像，直径跟随这两行资料的总高度；一句话印象不计入头像尺寸。头像沿用手动名单同步、每日自动名单同步和身份事实中的 `avatar` 字段，复用 `shared/bilibili-avatar.js` 的 `bilibiliAvatarSource` 与既有 `/api/bilibili/avatar` 图片代理；收藏集原图由代理读取 WebP 缩略图。缺少有效地址或图片加载失败时隐藏头像，不改动名单展示。
 
-`state-renderer.js` 消费 StateService 的 `changedKeys`，分别调度设置、队列、SC、直播状态、礼物和歌库元数据视图。设置刷新先交给组件 owner 合并，再从每个控制器读取一次隔离快照，把同一轮草稿投影用于表单和队列样式；下一轮重新读取，不缓存可能过期的草稿。StateService 对 JSON 快照字段逐项结构比较，遇到差异即退出，避免新旧大型字段双重序列化；直接比较当前值，兼容既有消费者的原地修改，不缓存可能过期的指纹。`queue.js` 以具名 ESM 导出队列操作和渲染；它不再回填设置或渲染礼物、直播与分类。礼物专属快照不会重建队列或覆盖表单。
+`state-renderer.js` 消费 StateService 的 `changedKeys`，分别调度设置、队列、SC、直播状态、礼物和歌库元数据视图。设置刷新先交给组件 owner 合并，再从每个控制器读取一次隔离快照，把同一轮草稿投影用于表单和队列样式；下一轮重新读取，不缓存可能过期的草稿。StateService 对 JSON 快照字段逐项结构比较，遇到差异即退出，避免新旧大型字段双重序列化；直接比较当前值，兼容既有消费者的原地修改，不缓存可能过期的指纹。`queue.js` 以具名 ESM 导出点歌队列操作和渲染，SC 由 `superchat.js` 独立拥有；它不再回填设置或渲染礼物、直播与分类。礼物专属快照不会重建队列或覆盖表单。
 
 「完成队首」捕获点击时已渲染的队首 ID，通过既有 `done` 动作完成该项；请求期间禁止重复点击，空队列不发送请求。请求途中身份优先或置顶改变顺序时，不会改为完成新队首；失败提示一次并恢复按钮供重试。
 
@@ -156,6 +159,8 @@ LIRA 配套资源样式在时钟、弹幕、许愿和点歌板功能页选中后
 | `interactive-tour.js`      | `interactive-tour-config.js` / `interactive-tour-position.js`                                                                                 | 门面拥有引导生命周期；步骤配置和定位计算不访问全局状态                                    |
 | `topbar-status.js` / `interactive-tour-config.js` / `gifts/detection.js` / `danmaku-tool.js` | `live-status-presentation.js` | 共用既有直播状态的降级判定；辅助模块只读取状态，不访问 DOM 或发起请求 |
 
+加班机礼物选择与图片索引的身份 key 由 `overtime-gift-picker.js` 内部持有，选择 key 与图片 key 保留不同语义；不单独导出选择器的行节点解析。
+
 AI 预设删除和恢复默认先临时关闭原生编辑对话框，让页面确认框可操作；确认结束后重新打开。
 取消或请求失败保留未保存草稿，恢复可编辑状态；不改变预设 API 与保存格式。
 
@@ -190,7 +195,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 | Tab          | 主要内容                                                                                                        |
 | ------------ | --------------------------------------------------------------------------------------------------------------- |
-| 歌库         | 歌曲表格 + 搜索/分类/语言/歌手/标签/启停筛选 + 编辑表单                                                         |
+| 歌库         | 歌曲表格 + 搜索/曲风/语言/歌手/标签/启停筛选 + 编辑表单                                                         |
 | 账号登录     | B 站账号与直播间、可选的大航海到期同步账号                                                                               |
 | 点歌规则     | 接收与排队、SC/取消点歌、重复与身份优先、队列上限和冷却                                                         |
 | 点歌板       | 点歌板样式与预设、规则与置顶文案、主题色/字号/滚动/字体                                                                 |
@@ -210,13 +215,14 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 「在画布中调整」通过现有 `addStyleToCanvas` 加入当前保存的配置和选定组件内容并聚焦新图层；独立组件不注册额外的原生预览会话。`now-playing-canvas-data.js` 在当前画布含该类型时复用管理页 `app:now-playing` 订阅，打开即读现有快照，移除或关闭时释放。无曲目时仅画布预览显示示例，正式输出始终使用实际曲目；不新增轮询或网络连接。
 
-`desktop-lyric.js` 自动保存复用 `component-config-controller.js` 和 settings 保存／确认适配器，仅提交相对已显示表单实际修改的字段；保存期间的广播合并未编辑字段，回执与广播不一致时向 settings owner 重新确认，保留保存期间的新输入，并提示被其他入口覆盖的保存。输入仍防抖 500ms，change 立即提交，连续写入串行；通用 `forms.fillForm` 跳过歌词表单，避免状态广播后第二次回填覆盖草稿。恢复外观默认值仍保留全民 K 歌的歌词源设置。
+`desktop-lyric.js` 自动保存复用 `component-config-controller.js` 和 settings 保存／确认适配器，仅提交相对已显示表单实际修改的字段；保存期间的广播合并未编辑字段，回执与广播不一致时向 settings owner 重新确认，保留保存期间的新输入，并提示被其他入口覆盖的保存。输入仍防抖 500ms，change 立即提交，连续写入串行；通用 `state-renderer.fillSettings` 跳过歌词表单，避免状态广播后第二次回填覆盖草稿。恢复外观默认值仍保留全民 K 歌的歌词源设置。
 
 | 模块          | 文件                                                                            | 说明                                                                                                                                                                                                                                                                      |
 | ------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | EventBus      | [shared/event-bus.js](../../../public/js/shared/event-bus.js)                   | 应用内事件总线(`on/off/once/emit/clear`)，通过具名 ESM 导入同一单例与 `Events` 常量；调试日志直接调用共享 logger |
 | StateService  | [admin/state.js](../../../public/js/admin/state.js)                             | 全局状态唯一入口:WS 客户端 + `/api/state` + `/api/songs` 加载,快照经 EventBus 派发 `STATE_LOADED`/`SONG_UPDATED`,同时以 CustomEvent(`app:wesing-state` 等)广播实时状态(详见 [comms.md](comms.md) §3)                                                                      |
-| FormsService  | [admin/forms.js](../../../public/js/admin/forms.js)                             | 表单工具:`bindRangePair`(range↔number 双向)、`initTabs`、`fillForm`(快照设置→表单,正在编辑的输入框不被覆盖)、滚动速度与字号归一化                                                        |
+| FormsService | [admin/forms.js](../../../public/js/admin/forms.js) | 通用控件：range↔number 双向绑定、参数滑块刷新和选项卡；不读取业务设置 |
+| StateRenderer | [admin/state-renderer.js](../../../public/js/admin/state-renderer.js) | 快照分发、普通设置回填和队列/SC 组合刷新；保留焦点与 dirty 字段，各独立表单由自己的 controller 回填 |
 | PlayerWorkspace | [admin/player-workspace.js](../../../public/js/admin/player-workspace.js) | 播放器工作区:`initWorkspaceControls` 绑定全屏开关、ESC/空格快捷键与 dock 展开/收起，管理全屏焦点及收起时依赖弹窗的联动关闭 |
 | Logger        | [shared/logger.js](../../../public/js/shared/logger.js)                         | 默认仅 localhost/127.0.0.1 启用 debug，可通过具名导入实例的 `enabled` 显式设置；不读取 Admin 状态 |
 | Theme         | [shared/theme.js](../../../public/js/shared/theme.js)                           | `loadThemeConfig()` 拉取 `/data/theme-presets.json`，具名导出经典/歌单板预设、色板、标签访问器 |
@@ -226,6 +232,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 纯 HTML/属性转义由 [shared/html-escape.js](../../../public/js/shared/html-escape.js) 拥有，日期、金额、数量等展示格式由 [shared/display-format.js](../../../public/js/shared/display-format.js) 拥有；Admin 和 playback 的实际纯函数消费者直接导入这些入口。`shared/utils.js` 保留具名出口供界面、请求与退出登录消费者使用，移除无人消费的 `utils` 对象和全局发布。仅导入纯入口或 `playback/utils.js` 不加载通知、确认框或请求模块；边界见 [遗留边界](../../architecture/engineering/legacy-boundaries.md#frontend-pure-helpers-and-compatibility)。
 
 `EventBus.once()` 在调用回调前标记已触发并注销；回调抛错、回调再次触发同一事件，或嵌套分发仍持有旧监听器快照时，该订阅均只执行一次。异常仍由 `emit()` 记录，不中断其他订阅者。
+
+`admin/component-preview-elements.js` 提供画布、参数面板和文本编辑共用的 DOM / SVG 构造；`component-preview-surface.js` 只拥有 iframe 预览、通信、数据订阅及其销毁。基础控件消费者直接导入 elements，不经过预览运行时。
 
 **模块组合惯例**：使用具名 import/export 和显式工厂参数；Admin 不再发布或读取 `window.AdminApp`，共享层不依赖管理页。EventBus 只承担一对多通知，不作为隐藏的请求/响应依赖。
 
@@ -237,7 +245,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | `Events.SONG_UPDATED`                                                                            | app.js(接 stateService)→ songs.renderSongs      | 歌库列表/筛选器重渲染；`complete` 表示本次请求为不带筛选的完整歌库 |
 | `Events.GIFT_RECEIVED`                                                                           | stateService(礼物类 reason)→ 礼物通知模块       | 新礼物 toast 触发                                                    |
 | `Events.OVERTIME_UPDATED`                                                                        | stateService(overtime:update)→ overtime.js      | 加班机面板增量刷新(带 revision 去重)                                 |
-| `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js / gifts/recent.js  | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 assetsUpdatedAt；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
+| `Events.GIFT_CATALOG_UPDATED`                                                                    | stateService(gift-catalog:update)→ overtime.js / gifts/artwork-catalog.js / gifts/blindbox.js  | 图片扫描完成后按精确 ID 刷新本地图片，去重包含图片路径和 assetsUpdatedAt；不得覆盖当前直播间成员，不触发歌库或礼物事件重载 |
 | CustomEvent `app:lyric-state` / `app:lyric-timeline` / `app:lyric-source` / `app:wesing-state` / `app:settings-state` | stateService → 各页面 `window.addEventListener` | 歌词跟随与外部客户端状态、WeSing 面板、直播歌词预览、设置自动保存就绪信号 |
 
 **组合调用示例**：`app.js` 将 `STATE_LOADED` 交给具名导入的 `createAdminStateRenderer`，并显式注入礼物渲染函数；协调器直接调用队列、歌曲和表单 ESM 接口。歌曲入口通过 `createSongs({state, utils})` 接收既有状态服务和工具，再向编辑器和筛选器传入具体能力。礼物入口通过具名 import 组装通知、检测、冲刺、最近礼物、盲盒和历史模块；通知工厂可注入 toast 能力。盲盒直接导入最近礼物图标及分析能力，并独立订阅 `GIFT_CATALOG_UPDATED`。
@@ -246,7 +254,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 `reloadSongs()` 默认只读取歌曲；显式 `reloadState: true` 或 `reloadAll()` 才补读管理快照。同一筛选、失效代次和刷新选项的在途请求复用；直接刷新消费此前等待的歌曲防抖通知，请求开始后收到的新通知仍产生后续刷新，旧结果不能覆盖新筛选或新版本。
 
-`songs.js` 完整显示歌库或筛选结果，不分页；搜索和筛选覆盖整个歌库，行内编辑、入队和删除沿用表格事件委托，刷新列表不重复绑定。隐藏歌库、隐藏点歌工作区或文档不可见时只保留最新待渲染结果，恢复可见后更新一次；分类元数据仍及时同步，避免后续请求携带已删除分类。同值表格与筛选选项复用原节点，不改变既有表格、布局和操作方式。
+`songs.js` 完整显示歌库或筛选结果，不分页；搜索和筛选覆盖整个歌库，行内编辑、入队和删除沿用表格事件委托，刷新列表不重复绑定。隐藏歌库、隐藏点歌工作区或文档不可见时只保留最新待渲染结果，恢复可见后更新一次；曲风元数据仍及时同步，避免后续请求携带已删除曲风。同值表格与筛选选项复用原节点，不改变既有表格、布局和操作方式。
 
 `StateService` 对 `songs:*` 和 `cloud:songs` 快照原因防抖重载歌库，其他快照不触发额外歌库请求。HTTP `reloadState()` 对歌词版本只接纳一次并复用结果：新版本派发 `app:lyric-state`，重复/旧版本保留已接纳状态且不重复派发，与 WebSocket 路径共享版本检查。
 
@@ -266,7 +274,7 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 最近礼物与盲盒映射共用 `gifts/blindbox-theme.js` 的盒型匹配和 `css/admin/gifts/blindbox-themes.css` 的固定专属配色，卡片背景、边框和文字不随客户端外观切换；未匹配盒型使用紫色。波仔盲盒（`36062`）采用草绿色，完整名称必须匹配，记录提供盒 ID 时还须与该 ID 一致。映射卡片不显示“官方”标签，自定义项保留删除入口。
 
-礼物通知通过 `recent.js` 的 `getGiftToastArtwork` 复用本地目录图片索引，优先按 `gift_variant_id` 匹配；旧记录仅在 ID 与名称唯一匹配时使用图片。盲盒通知使用实际产物图片，大航海使用客户端内置徽章。通知只读取本地 WebP，统一在 40×40px 区域内等比完整显示并异步解码；同一通知数量更新时复用相同图片节点。目录未就绪、无匹配图片或加载失败时显示 `gift-toast-fallback.svg`，不发起额外图片下载或全库预加载。
+礼物通知通过 `gifts/artwork-catalog.js` 的 `getGiftToastArtwork` 复用本地目录图片索引，优先按 `gift_variant_id` 匹配；旧记录仅在 ID 与名称唯一匹配时使用图片。盲盒通知使用实际产物图片，大航海使用客户端内置徽章。通知只读取本地 WebP，统一在 40×40px 区域内等比完整显示并异步解码；同一通知数量更新时复用相同图片节点。目录未就绪、无匹配图片或加载失败时显示 `gift-toast-fallback.svg`，不发起额外图片下载或全库预加载。
 
 `utils.api(url, body, { notifyError: false })` 允许已有业务 catch 独占错误反馈；省略该选项时保留默认 `showError`，错误对象、HTTP 状态和 payload 仍原样传递。字段就地错误由 `shared/field-feedback.js` 关联 `aria-describedby`/`aria-invalid`，保留原字段说明，输入修改后清理。
 
@@ -316,13 +324,13 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 页面初始化仍通过授权 IPC 查询当前版本元数据，缓存命中不请求图片；未命中才以不带凭据的低优先级 fetch 下载一次（15 秒超时、兼容旧图 5 MiB），失败提示重新打开，不自动重试。缓存属于可重建副本，可随桌面 origin 变化或浏览器清理而失效；不承诺离线原图备份。旧背景不会自动压缩，重新上传才应用新尺寸/体积策略。此功能不新增轮询、运行依赖或直播事件连接。
 
-### 4.1 queue.js(队列与 SC)
+### 4.1 queue.js 与 superchat.js(点歌队列与 SC)
 
-- 渲染:点歌队列 = `current + waiting` 拼表,置顶📌、序号、来源标签(`admin/danmaku/superchat/random:<scope>`/history)、SC 列表(价格降序、已处理状态);长歌名分级字号(`data-length="long|very-long"`);管理员队列字体预览(`--admin-queue-font-family`,[queue.js:236-243](../../../public/js/admin/queue.js#L236-L243))。
-- 操作:`/api/queue/action`(done/clear/pin/unpin/live/unlive/delete)、`/api/superchats/action`(assist/unassist/delete),成功后 `reloadState()` 乐观刷新;清空队列走 `dangerConfirm` 二次确认;未置顶首行不显示置顶按钮；仅首行显示 LIVE 切换按钮（aria-pressed），标记后保留第 1 位，取消恢复规则排序,置顶按钮行为随 `is_pinned` 切换(↧/↑)。
+- 渲染：`queue.js` 将点歌队列 `current + waiting` 拼表，显示置顶、序号、来源标签（`admin/danmaku/superchat/random:<scope>`/history）、长歌名字号和管理员队列字体预览。`superchat.js` 按快照顺序显示 SC 价格、留言及已处理状态。两者由 `state-renderer.js` 分别调度，需要组合刷新时使用 `renderQueuePanels()`。
+- 操作：点歌队列经 `/api/queue/action` 提交 done/clear/pin/unpin/live/unlive/delete，成功后 `reloadState()` 刷新；清空走 `dangerConfirm`，未置顶首行不显示置顶按钮，仅首行显示 LIVE 切换（aria-pressed），标记后保留第 1 位，取消恢复规则排序。SC 标记处理走 `/api/superchats/action`，删除与撤销分别走 `/api/superchats/delete` 和 `/api/superchats/undo`；操作串行，撤销 token、批次代次、过期与退场计时器由 `superchat.js` 一起管理。`app.js` 显式初始化并在退出页面时释放监听器和计时器；释放后的排队操作与迟到响应不能修改下一轮视图。清库操作直接调用该 owner 清除撤销。
 - 状态条归属：`queue.js` 更新队列计数 `#queueSize`；歌库计数 `#songCount` 与 `#liveStatus` 由 `state-renderer.js` 按对应字段变化更新。
 - 队列仅在实际列表数据或空态接收设置变化时重建；仅点歌结果提示变化的快照复用现有行和按钮，真实顺序、内容与 LIVE 状态变化照常刷新。
-- 滚轮处理：SC 与点歌队列共用 [queue.js](../../../public/js/admin/queue.js) 的 `bindQueueWheel`，按 `deltaMode` 换算后以 0.3 倍速度滚动列表。触底后拦截当前向下滚动，750 毫秒后放行外层页面；若相邻纵向滚轮事件间隔达到 180 毫秒，视为新手势并提前放行，后续连续输入保持放行。首次在已触底列表上滚动也进入缓冲；反向滚动或列表重新可向下滚动时重置缓冲。空列表、无需滚动的短列表及顶部向上滚动直接交给页面；两个队列分别维护缓冲状态。
+- 滚轮处理：SC 与点歌队列共用 [queue-list-view.js](../../../public/js/admin/queue-list-view.js) 的复制按钮绑定和 `bindQueueWheel`，按 `deltaMode` 换算后以 0.3 倍速度滚动列表。触底后拦截当前向下滚动，750 毫秒后放行外层页面；若相邻纵向滚轮事件间隔达到 180 毫秒，视为新手势并提前放行，后续连续输入保持放行。首次在已触底列表上滚动也进入缓冲；反向滚动或列表重新可向下滚动时重置缓冲。空列表、无需滚动的短列表及顶部向上滚动直接交给页面；两个队列分别维护缓冲状态，滚轮绑定返回释放函数。
 
 点歌规则的 `guardPriorityEnabled` 默认关闭，通过现有表单统一保存并保留未保存草稿；排序说明放在问号中。冷却模式保留问号说明，不再渲染控件下方重复段落。LIVE 是点歌队列标记，与播放器运行状态独立；各点歌板样式显示 LIVE，并把它纳入渲染变更判断。
 
@@ -330,11 +338,11 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 `songs.js` 拥有列表渲染、菜单和行操作。[song-editor.js](../../../public/js/admin/song-editor.js) 独立拥有编辑草稿、价格输入、保存版本与放弃确认：保存期间继续输入保留新草稿，切换歌曲后的旧保存结果不能重置当前表单。完整歌库更新用于判断正在编辑的已知歌曲是否被删除，筛选结果缺项不清空编辑器。
 
-- 渲染:`/api/songs` 列表(首字母/歌名/歌手/分类/标签/语言/可点状态/点歌价格/核对备注)。歌手、分类、标签和语言固定显示；仅点歌价格和核对备注在当前列表或筛选结果中整列为空（含纯空白）时，隐藏列头和单元格，有内容时恢复；数值 `0` 不当作空值。首字母、歌名、状态和操作同样始终保留，空列表提示跨八个固定列。空价格单元格留空；歌名下可展开歌切纯文本。行操作:编辑(载入表单)、入队(`/api/queue/add`,source=admin)、删除(`dangerConfirm` + `/api/songs/delete`)。
+- 渲染:`/api/songs` 列表(首字母/歌名/歌手/曲风/标签/语言/可点状态/点歌价格/核对备注)。歌手、曲风、标签和语言固定显示；仅点歌价格和核对备注在当前列表或筛选结果中整列为空（含纯空白）时，隐藏列头和单元格，有内容时恢复；数值 `0` 不当作空值。首字母、歌名、状态和操作同样始终保留，空列表提示跨八个固定列。空价格单元格留空；歌名下可展开歌切纯文本。行操作:编辑(载入表单)、入队(`/api/queue/add`,source=admin)、删除(`dangerConfirm` + `/api/songs/delete`)。
 - 价格与歌切始终显示自由文本输入，编辑完整回填 `request_price/song_clip`，保存传 `requestPrice/songClip`；显式空值清空，表单重置清除 id、价格、歌切和快捷状态。价格快捷填写为免费/舰长/提督/总督/可编辑 SC 文本，不设置默认收费金额；预览用纯文本，空值留空。
 - 价格显示 UTF-16 code unit 长度，超过 1000 通过输入有效性阻止提交，历史超长回填不截断。停用说明歌曲不出现在公开歌单；保存反馈仅确认本地成功，网页更新以云端同步结果为准。验收见 [点歌资料规范](../../../specs/song-request-metadata.md)。
-- 筛选由 [song-library-filters.js](../../../public/js/admin/song-library-filters.js) 拥有：搜索框 180ms 防抖、分类/标签多选(`details.lira-multiselect`，勾选框表示选中，点击外部收起)、语言/歌手下拉、`enabledOnly` 开关；任何变化触发 `reloadSongs()`。它同时拥有候选更新和已有选项保留。
-- 分类选项按中英文斜杠、分号、逗号及顿号拆成独立名称，修剪空白、去重并排除空项和“默认”；`R&B` 和含空格的名称保持完整。例如“儿歌；流行”分别提供“儿歌”和“流行”两个复选项。分类与标签入口均提示“匹配任一”，选择摘要用顿号分隔；刷新保留已选项，不改写原始分类或同步数据。组内并集、组间交集及空选行为见 [歌库 API](../backend/api.md#7-歌库域songs)。
+- 筛选由 [song-library-filters.js](../../../public/js/admin/song-library-filters.js) 拥有：搜索框 180ms 防抖、曲风/标签多选(`details.lira-multiselect`，勾选框表示选中，点击外部收起)、语言/歌手下拉、`enabledOnly` 开关；任何变化触发 `reloadSongs()`。它同时拥有候选更新和已有选项保留。
+- 曲风选项按中英文斜杠、分号、逗号及顿号拆成独立名称，修剪空白、去重并排除空项和“默认”；`R&B` 和含空格的名称保持完整。例如“儿歌；流行”分别提供“儿歌”和“流行”两个复选项。曲风与标签入口均提示“匹配任一”，选择摘要用顿号分隔；刷新保留已选项，不改写原始曲风或同步数据。组内并集、组间交集及空选行为见 [歌库 API](../backend/api.md#7-歌库域songs)。
 
 ### 4.3 settings.js(设置)
 
@@ -351,8 +359,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ### 4.4 theme.js(点歌板)与 display.js(展示板)
 
-- 点歌板由 `queue-theme-view.js` / `queue-theme-config.js` 管理主题草稿，`input/change` 只编辑本地状态，显式保存后才发布到展示端。歌单板由 `song-board-settings.js` 管理独立草稿、回填、range/number 配对和预设；保留 180ms 防抖自动保存及“保存展示板”按钮。`display.js` 组合 controller、设置同步和保存接口，并继续管理展示地址。
-- 两者复用 `component-config-controller.js`：快照合并未编辑字段；保存期间的新修改按字段编辑代次保留，包括改回原值的操作。歌单板即时捕获输入并顺序保存，前次完成后继续提交待保存草稿；失败保留修改，通过后续编辑或保存按钮重试。`FormsService.fillForm()` 不再重复写入这两个表单。
+- 点歌板由 `queue-theme-view.js` / `queue-theme-config.js` 管理主题控件和设置投影，字号与旧滚动速度换算只用于显示；视图在赋值前准备已保存字体选项，并从当前控件值同步透明度百分比（包括 0），不会改写持久化单位。主题草稿由 controller 持有，`input/change` 只编辑本地状态，显式保存后才发布到展示端。歌单板由 `song-board-settings.js` 管理独立草稿、回填、range/number 配对和预设；保留 180ms 防抖自动保存及“保存展示板”按钮。`display.js` 组合 controller、设置同步和保存接口，并继续管理展示地址。
+- 两者复用 `component-config-controller.js`：快照合并未编辑字段；保存期间的新修改按字段编辑代次保留，包括改回原值的操作。歌单板即时捕获输入并顺序保存，前次完成后继续提交待保存草稿；失败保留修改，通过后续编辑或保存按钮重试。`state-renderer.fillSettings()` 不再重复写入这两个表单。
 - 保存期间收到与 HTTP 确认不同的权威快照时，控制器通过 `confirm`（默认复用 `read`）补读确认，不按两条通道的抵达顺序直接覆盖配置。点歌板、歌单板和时钟的确认适配器共用 `StateService.reloadState()` 的 HTTP/WS 排序；该方法返回实际接受的快照，被后继读取取代的调用等待后继结果并传播其失败。正常保存和自己的广播回声不增加确认请求；确认期间的新编辑、广播及账号 reset 仍受保护。若本次提交字段已被后续修改覆盖，保留最新配置、返回 false 并提示确认，不误报“已应用”或继续批量发布。
 - 歌单板歌名颜色，以及点歌板歌名／点歌人颜色，使用明确的“跟随文字色／自定义颜色”选择。继承仍保存原来的空串，自定义黑色是有效颜色；模式选择器和配对数值框不新增持久化键。`songBoardSyncTheme` 开启时展示端跟随点歌板主题，歌单板表单只提交滚动、排序、整体字号及同步开关。
 - `shared/local-font-library.js` 统一查询、净化、去重并分发本机字体族；点歌板风格 3–6、直播歌词与大播放器选择器共用一次查询，各自保留内置选项和已保存值；`admin/local-font-library.js` 保留兼容转导出。
@@ -364,10 +372,10 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 [song-import.js](../../../public/js/admin/song-import.js) 提供文件读取、编码回退及云歌单面板初始化；[song-import-parser.js](../../../public/js/admin/song-import-parser.js) 解析 CSV/TSV/粘贴文本。管理页由 [song-import-update.js](../../../public/js/admin/song-import-update.js) 统一拥有预览和确认替换，不再提供模式或空值选项。
 
 - 上传完整 XLSX、CSV、TSV 或粘贴完整表格，点击「下一步：检查歌单」。文本使用 `parseTable(text,{preserveMissing:true})` 保留实际列和无效行；XLSX 原样提交 base64。两种输入均向 preview/apply 传 `replaceAll: true`。
-- 新表格作为完整歌库：同歌名同歌手更新，未匹配歌曲新增，未列出的旧歌曲删除。空白或缺失文本清空，分类为默认、是否可点为是。匹配和校验在领域层执行；空表、冲突或无效行阻止整批应用。
+- 新表格作为完整歌库：同歌名同歌手更新，未匹配歌曲新增，未列出的旧歌曲删除。空白或缺失文本清空，曲风为默认、是否可点为是。匹配和校验在领域层执行；空表、冲突或无效行阻止整批应用。
 - 检查完成后聚焦并滚动到结果，明确提示「尚未导入」，显示非零的新增/更新/删除/未改变/冲突/无效数量。状态、数量和「确认替换歌库」按钮并排显示，空间不足时换行；删除提醒和明细入口紧随其后。检查入口与导入说明并排，检查后变为次要操作「重新检查歌单」。进行中、成功及失败反馈均位于检查入口下方。
 - 明细默认收起，有冲突或无效行时自动展开，并明确要求修正后重新检查；没有变更时提示「无需导入」。明细每页 25 行、在有限高度内滚动，翻页回到表格顶部。每首歌的信息或字段变更按需展开；删除项数据行显示「—」，已有点歌记录保留。所有差异用 textContent 展示。
-- 文件或粘贴内容变化会废弃预览及异步旧响应；确认仅提交已预览输入和 token，禁止重复提交。过期或失败需重新预览。成功刷新歌库、分类和计数，显示本地替换结果，网页以云同步结果为准。
+- 文件或粘贴内容变化会废弃预览及异步旧响应；确认仅提交已预览输入和 token，禁止重复提交。过期或失败需重新预览。成功刷新歌库、曲风和计数，显示本地替换结果，网页以云同步结果为准。
 
 ### 4.6 metrics.js(性能检测)
 
@@ -377,6 +385,8 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 
 ## 5. 礼物主页面(gifts/)
 
+`app.js` 在 DOM 就绪后显式调用 `gifts/index.js` 的 `initGiftPanel()`，统一初始化图片目录、盲盒映射与统计面板；`pagehide` 释放订阅、观察器、卡片计时器与待处理统计/图片读取。导入图片查询或视图模块本身不启动这些请求和订阅。
+
 渲染入口 `gifts/index.js` 的 `renderGiftPanel(gifts, sprint, live, diagnostics, settings)`,由 `state-renderer.js` 在相关快照字段变化时经 `app.js` 注入的回调调用:
 
 礼物检测的权威端是 LIRA Server。客户端原始礼物检测器已删除；Electron main 通过 DeviceBearer SSE 与 final cursor pull/history 接收已处理 DTO，由 [remote-gift-controller.js](../../../src/electron/remote-gift-controller.js) 调用 runtime 的投影提交入口和 `importProcessedGiftEvent`，供本地 snapshot、历史、统计及符合资格的实时消费者使用；完整恢复与消费边界见 [gift.md](../backend/bilibili/gift.md)。renderer 不持有远端 token、不访问 lira-server 礼物接口，也不解析原始 B 站报文。弹幕、点歌、SC、用户信息和小游戏仍沿本地连接运行。
@@ -385,9 +395,11 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | ------------------------------------------------------- | ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | detection.js                                            | 礼物检测状态(toggle + 共享收礼核心状态)                                   | snapshot `giftDetection`/`giftSprint`/`liveStatus`                                              |
 | notification.js                                         | 礼物提示(桌面 toast,`gift-notify-toast`,最多 6 条)                        | snapshot `gifts.recent` 新增比对                                                                |
-| sprint.js                                               | 月底冲刺(目标/已收/剩余,水晶球)                                           | snapshot `giftSprint`                                                                           |
-| recent.js                                               | 最近礼物(最多 6 行,按精确礼物 ID 使用本地全局目录图片或占位图)             | snapshot `gifts.recent` + `/api/overtime/gifts/catalog` + `Events.GIFT_CATALOG_UPDATED` 图片映射 |
-| blindbox.js                                             | 今日盲盒盈亏(汇总/盈亏榜/映射列表)                                        | `GET /api/gifts/blind-box-stats`                                                                |
+| sprint.js | 月底冲刺统计、Admin 文字预览与浏览器源入口 | snapshot `giftSprint` |
+| artwork-catalog.js | Admin 共用图片目录、身份索引、请求合并、版本防回退与订阅 | `/api/overtime/gifts/catalog` + `Events.GIFT_CATALOG_UPDATED` |
+| recent.js | 最近礼物最多 6 行及卡片动画资源 | snapshot `gifts.recent` + artwork-catalog 图片查询和刷新回调 |
+| blindbox.js | 盲盒映射编辑、官方奖池与房间在售目录，保留切房请求排序及草稿 | `/api/overtime/gifts/catalog`、`/api/overtime/gifts/refresh`、settings 与目录事件 |
+| blindbox-stats.js | 今日盲盒汇总/盈亏榜、折叠/可见性、分析入口及完整请求清理 | `GET /api/gifts/blind-box-stats?top=10`、`Events.GIFT_RECEIVED` |
 | blindbox-analysis.js / blindbox-analysis-dates.js         | 盲盒分析工作区(单日/日期区间日历,观众/盲盒筛选为共享原生下拉,观众排行/盲盒汇总/开盒记录三视图,25 条分页) | `GET /api/gifts/blind-box-analysis?...`                                               |
 | history.js                                              | 礼物历史抽屉(时间范围/平台筛选)                                           | `GET /api/gifts/history`;清最近/清礼物走 `/api/gifts/clear-recent`、`/api/database/clear-gifts` |
 | [gift-frame.js](../../../public/js/admin/gift-frame.js) | 礼物姬中特效 1 · 林间花信的开关、金额阈值与画布模拟预览 | `/api/settings`、`app:settings-state` |
@@ -440,9 +452,9 @@ topbar: 品牌 Logo + 主页面 Tab(点歌 / 播放 / 礼物 / 组件 / 百宝�
 | 使用文档 / 关于与更新 | [usage-guide.js](../../../public/js/admin/usage-guide.js) / [usage-guide-layout.js](../../../public/js/admin/usage-guide-layout.js) / [usage-guide-progress.js](../../../public/js/admin/usage-guide-progress.js) / [usage-guide-lightbox.js](../../../public/js/admin/usage-guide-lightbox.js) / [desktop.js](../../../public/js/desktop.js)                                                                                                                                                                                                   | 目录锚点平滑滚动、章节与小标题定位、本章阅读位置及上下章导航，侧栏收缩时切换双栏目录;截图点击或 Enter/空格以原生 `<dialog>` 查看大图，Esc 或点击任意处关闭;更新检查/下载/安装进度条、重启确认弹窗、`desktop-set-auto-update`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | 首次启动引导        | [interactive-tour.js](../../../public/js/admin/interactive-tour.js)                                                                                                                                                                             | 旧七步弹窗及全局 onboarding 控制器已退役，旧 settings 标记保留兼容；交互式导览只在用户配置首次使用时自动展示一次，并立即写入 `localStorage.liraTourFirstRunShown`，已有任意 `liraTourCompleted` 值也视为展示过，覆盖安装、版本升级和手动重看均不重新启用自动展示                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 
-直播歌词设置页位于「组件 → 音乐展示 → 直播歌词」。[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 组织基础／高级编辑页签、独立输出开关和共用音乐跟随；基础模式展开来源设置，高级模式默认收起在「音乐来源」内。设置随整页滚动，隐藏此页滚动条但保留滚轮和键盘滚动；内容区左右内边距 8px、列间距 12px。基础与高级模式在宽窗口中均为左侧设置、右侧预览，预览列上限 560px，其余宽度留给参数，切换模式不改变两栏顺序与宽度；窄窗口将预览放在参数上方。基础外观使用 `DESKTOP_LYRIC_DEFAULTS`（不提交 `desktopLyricFallbackFontFamily`），高级分类编辑与自存搭配由 [advanced-lyric-editor.js](../../../public/js/admin/advanced-lyric-editor.js) 拥有，按「搭配 / 编排 / 外观 / 动效」组织；画面位置和字体等常用小组默认展开，材质与字效等小组按需展开。外观及 `weSingLyricSource/weSingSmartLyricMatch` 沿用 `/api/settings` 自动保存；切换页签不保存输出开关。两类外观分别重置，保留两开关和自存搭配；基础重置同时恢复共用时间偏移。
+直播歌词设置页位于「组件 → 音乐展示 → 直播歌词」。[desktop-lyric.js](../../../public/js/admin/desktop-lyric.js) 组织基础／高级编辑页签和共用音乐跟随；基础模式展开来源设置，高级模式默认收起在「音乐来源」卡片内，标题右侧显示当前来源。设置随整页滚动，隐藏此页滚动条但保留滚轮和键盘滚动；内容区左右内边距 8px、列间距 12px。基础与高级模式在宽窗口中均为左侧设置、右侧预览，预览列上限 396px，其余宽度留给参数，切换模式不改变两栏顺序与宽度；窄窗口将预览放在参数上方。基础外观使用 `DESKTOP_LYRIC_DEFAULTS`（不提交 `desktopLyricFallbackFontFamily`），高级分类编辑与自存搭配由 [advanced-lyric-editor.js](../../../public/js/admin/advanced-lyric-editor.js) 拥有，按「搭配 / 编排 / 外观 / 动效」组织，分类栏在页面滚动时固定在顶部；各小组为可折叠卡片，收起时显示当前值，「我的搭配」位于「搭配」首位，恢复默认位于底部「操作」卡片。字体、编排与构图等常用卡片默认展开，位置与尺寸、材质、描边、投影等按需展开。外观及 `weSingLyricSource/weSingSmartLyricMatch` 沿用 `/api/settings` 自动保存；切换页签只选择预览和复制地址，不写入设置。两类外观分别重置，保留自存搭配及历史合并输出设置；基础重置同时恢复共用时间偏移。
 
-[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 将当前歌曲的实时事件交给同一 `desktopLyricRenderer`，预览始终跟随基础／高级编辑页签，输出开关关闭时仍可预览对应样式。预览工具保留背景切换、播放状态和合并地址复制；高级预览可拖动定位，移动时更新预览，松开后通过既有外观保存通道保存位置。「编排 → 画面位置」提供水平居中、垂直居中和重置位置，分别只改 X、只改 Y 或将两轴恢复为 50%，不重置其他外观。共享时钟、视觉模块和资源生命周期见 [歌词 overlay](overlays.md#6-直播歌词页lyrics)。字体选择沿用统一软件／系统字体库；Chromium `queryLocalFonts()` 要求瞬时用户激活时，在用户正常点击／按键后重试，权限边界见 [desktop/main.md](../desktop/main.md) §4。
+[desktop-lyric-preview.js](../../../public/js/admin/desktop-lyric-preview.js) 将当前歌曲的实时事件交给同一 `desktopLyricRenderer`，预览只使用当前音乐来源的实时歌词，不提供示例试播。基础歌词在管理页以设置字号的 65% 显示，直播输出字号不变；高级构图按预览容器适配。预览及右侧可点击复制的地址随基础／高级编辑页签切换，分别使用 `/lyrics?layer=basic` 和 `/lyrics?layer=advanced`；预览工具保留背景切换和播放状态；高级预览可拖动定位，移动时更新预览，松开后通过既有外观保存通道保存位置。「编排 → 画面位置」提供水平居中、垂直居中和重置位置，分别只改 X、只改 Y 或将两轴恢复为 50%，不重置其他外观。共享时钟、视觉模块和资源生命周期见 [歌词 overlay](overlays.md#6-直播歌词页lyrics)。字体选择沿用统一软件／系统字体库；Chromium `queryLocalFonts()` 要求瞬时用户激活时，在用户正常点击／按键后重试，权限边界见 [desktop/main.md](../desktop/main.md) §4。
 
 同页的 [lyric-source-controls.js](../../../public/js/admin/lyric-source-controls.js) 独立管理跟随偏好、实际来源与外部客户端重检，不进入外观自动保存。一级选择为「内置播放器 / 外部播放器 / 全民 K 歌」；仅选中外部播放器时显示「智能 / QQ 音乐 / 网易云音乐」和客户端检测、重检，切回外部分类沿用本页上次选项。`auto / qq-client / netease-client` 映射到外部分类，`internal / wesing` 各自对应一级分类；按 `selection` 控制显示，实际 `source` 的自动切换不改变分类。智能匹配歌词和首选歌词源在选中全民 K 歌后直接展开于同一跟随区域内，沿用设置表单的自动保存；外部播放器保持各自平台歌词。状态同步及播放行为见 [playback.md](playback.md#3-歌词链路)，服务端选择规则见[音乐服务 §13](../backend/music/services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。
 
@@ -518,7 +530,7 @@ AI 模型列表由 [ai-model-picker.js](../../../public/js/admin/ai-model-picker
 - 有草稿的表单由其 controller 区分已保存值和本地编辑，快照不能直接覆盖待保存修改；其他字段通过通用回填更新。AI 配置等含密钥的设置不走通用 settings（见 [storage.md](../backend/storage.md) §3.1 `ai_configuration`）。
 - 各表单的保存节奏不同：点歌板主题显式保存；歌单板 180ms 防抖自动保存；账号登录页提交时保存；点歌规则与直播歌词 500ms 自动保存；AI 互动助手 700ms 自动保存。
 - AI 保存只在编辑代次仍匹配时解除草稿字段保护；较旧保存完成后，功能页刷新不能覆盖尚在下一次保存中的新输入。
-- `fillForm` 保留 `data-preserve-dirty` 字段，并将 range/number 的 `.range-row`、增强下拉的 `.lira-select` 视为逻辑编辑控件；焦点位于其中任一成员时，不回写整组。表单已有专门 owner 时，由 owner 负责草稿和回填，避免第二套写入路径。
+- `state-renderer.fillSettings` 保留 `data-preserve-dirty` 字段，并将 range/number 的 `.range-row`、增强下拉的 `.lira-select` 视为逻辑编辑控件；焦点位于其中任一成员时，不回写整组。表单已有专门 owner 时，由 owner 负责草稿和回填，避免第二套写入路径。
 
 ## 8. 播放助手页(playbackAssistantPage)
 

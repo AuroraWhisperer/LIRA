@@ -21,6 +21,7 @@ const { createDomainServices } = require('../../src/server/domain-services');
 const { createRuntimeApiContextFactory } = require('../../src/server/runtime-api-context');
 const { routes } = require('../../src/server/routes/data-routes');
 const { sendStableError } = require('../../src/server/http-utils');
+const { giftVariantId } = require('../../src/shared/gift-identity');
 const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/processed-gift-fixture');
 const clearAll = routes['POST /api/database/clear-all'];
 
@@ -126,12 +127,16 @@ function prepareUnrestoredSongAccount(f) {
 
 test('real runtime context exposes writer controls and resumes after successful clear', async (t) => {
   const f = fixture(t);
+  const previousEpoch = f.services.overtime.getCurrentEpoch();
   const res = response();
   await clearAll(f.context, request(), res);
   assert.equal(res.status, 200);
   assert.equal(res.payload.data.cleared, true);
   assert.equal(f.requestSong().accepted, true, 'full database success resets the in-memory user cooldown');
   assert.equal(f.services.overtime.getSnapshot().enabled, false);
+  assert.equal(f.services.overtime.getSnapshot().enableEpoch, previousEpoch);
+  f.services.overtime.act('enable');
+  assert.ok(f.services.overtime.getCurrentEpoch() > previousEpoch, 'clearing without an active source retires the old round');
   assert.deepEqual(
     f.services.songs.listCategories().map((row) => row.name),
     ['默认'],
@@ -139,6 +144,61 @@ test('real runtime context exposes writer controls and resumes after successful 
   assert.equal(importGift(f).detection_status, 'final');
   assert.deepEqual(f.broadcasts, ['database:clear-all']);
   assert.deepEqual(f.syncs, ['songs']);
+});
+
+test('clear-all retires old-source pending gifts without deleting their history or terminal settlements', async (t) => {
+  const f = fixture(t);
+  const { gifts, overtime } = f.services;
+  overtime.act('pause');
+  overtime.setTime({ remainingSeconds: 0 });
+  const sourceA = createGiftSource(f.db.giftDb, 'a'.repeat(64));
+  const sourceB = createGiftSource(f.db.giftDb, 'b'.repeat(64));
+  const gift = { giftId: '34832', giftName: '测试加时礼物', unitPrice: 1, totalPrice: 1 };
+  const giftIdentity = { priceRaw: 1000, coinType: 'gold', bagGift: false };
+  giftIdentity.variantId = giftVariantId({ ...gift, ...giftIdentity });
+  gift.giftVariantId = giftIdentity.variantId;
+  const send = (eventId, phase, sourceId = sourceA) =>
+    gifts.importProcessedEvent(makeProcessedGiftEvent(gift, { eventId, phase }), sourceId);
+  const settlement = (id) => f.db.giftDb.prepare(`
+    SELECT status, applied_delta_seconds, updated_at FROM overtime_settlements WHERE gift_event_id = ?
+  `).get(id);
+
+  gifts.setActiveSource({ sourceId: sourceA, syncState: 'LIVE' });
+  const ignored = send('no-rule', 'final');
+  overtime.replaceRules([{
+    ...gift, giftIdentity, imagePath: '', mode: 'fixed', fixedSeconds: 60, enabled: true, sortOrder: 0,
+  }]);
+  const previousEpoch = overtime.getCurrentEpoch();
+  const pending = send('before-clear', 'progress');
+  const applied = send('same-round-switch', 'progress');
+  gifts.setActiveSource({ sourceId: sourceB, syncState: 'LIVE' });
+  send('same-round-switch', 'final');
+  assert.equal(overtime.getCurrentEpoch(), previousEpoch);
+  assert.equal(overtime.getSnapshot().effectiveRemainingMs, 60_000, 'an ordinary source switch keeps the round eligible');
+  send('current-source', 'progress', sourceB);
+  const terminalBefore = [settlement(ignored.id), settlement(applied.id)];
+  assert.deepEqual(terminalBefore.map((row) => row.status), ['ignored', 'applied']);
+  assert.equal(settlement(pending.id).status, 'pending');
+  const previousRevision = overtime.getSnapshot().revision;
+
+  const res = response();
+  await clearAll(f.context, request(), res);
+  assert.equal(res.payload.data.cleared, true);
+  assert.equal(overtime.getSnapshot().enableEpoch, previousEpoch);
+  assert.ok(overtime.getSnapshot().revision > previousRevision);
+  assert.equal(settlement(pending.id).status, 'ignored');
+  assert.deepEqual([settlement(ignored.id), settlement(applied.id)], terminalBefore);
+  assert.equal(f.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events WHERE source_id = ?').get(sourceA).count, 3);
+  assert.equal(f.db.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events WHERE source_id = ?').get(sourceB).count, 0);
+
+  overtime.act('enable');
+  assert.ok(overtime.getCurrentEpoch() > previousEpoch);
+  gifts.setActiveSource({ sourceId: sourceA, syncState: 'LIVE' });
+  send('before-clear', 'final');
+  assert.equal(settlement(pending.id).status, 'ignored');
+  assert.equal(overtime.getSnapshot().effectiveRemainingMs, 0, 'the old final cannot add time to the new round');
+  send('after-clear', 'final');
+  assert.equal(overtime.getSnapshot().effectiveRemainingMs, 60_000);
 });
 
 test('default insertion failure rolls back and resumes real writers', async (t) => {

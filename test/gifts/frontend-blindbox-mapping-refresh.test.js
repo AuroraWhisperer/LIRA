@@ -8,6 +8,21 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('blind-box mapping releases room listeners and ignores pending reads after disposal', async () => {
+  const fixture = await createBlindboxFixture({ roomId: '123' });
+  const dispose = fixture.module.init();
+  assert.equal(fixture.refreshRequests.length, 1, 'repeated initialization shares the current lifecycle');
+  const rendered = fixture.container.innerHTML;
+  dispose();
+  assert.equal(fixture.eventBus.listenerCount('state:saved'), 0);
+  fixture.dispatchSettings('456');
+  fixture.dispatchAuthChanged();
+  fixture.dispatchSavedSettings('789');
+  await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: 'old', name: '旧房间盲盒' }] });
+  assert.equal(fixture.container.innerHTML, rendered);
+  assert.equal(fixture.refreshRequests.length, 0);
+});
+
 test('settings form announces the saved room only after a successful save, including an unchanged room', async () => {
   const elements = new Map();
   const documentRef = {
@@ -211,12 +226,11 @@ test('blind-box JSON draft survives state refresh and a failed save', async () =
     querySelector: () => null,
   };
   const window = { AdminApp: {} };
-  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'forms.js'), {
+  const { fillSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'admin', 'state-renderer.js'), {
     document,
     window,
   });
-  const forms = new FormsService();
-  forms.fillForm({ giftBlindBoxCustomConfigV2: '[]' });
+  fillSettings({ giftBlindBoxCustomConfigV2: '[]' });
   assert.equal(textarea.value, draft);
 
   const elements = new Map();

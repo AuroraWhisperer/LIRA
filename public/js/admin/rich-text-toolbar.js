@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { mountRichTextFormatControls } from './rich-text-format-controls.js';
 import { colorPickerContains } from '../shared/color-picker.js';
 import { registerFontSelect, ensureSavedFontOption } from '../shared/font-library.js';

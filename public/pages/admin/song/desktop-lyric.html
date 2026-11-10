@@ -8,18 +8,8 @@
           <button id="desktopLyricBasicTab" type="button" role="tab" aria-selected="true" aria-controls="desktopLyricBasicPanel" data-lyric-editor="basic">基础样式</button>
           <button id="desktopLyricAdvancedTab" type="button" role="tab" aria-selected="false" aria-controls="desktopLyricAdvancedPanel" data-lyric-editor="advanced" tabindex="-1">高级样式</button>
         </div>
-        <div class="lyric-output-switches" aria-label="直播画面显示">
-          <label class="lyric-output-switch">
-            <strong>显示基础歌词</strong>
-            <span class="switch-control"><input id="desktopLyricEnabled" type="checkbox" checked /><span class="switch-track" aria-hidden="true"></span></span>
-          </label>
-          <label class="lyric-output-switch">
-            <strong>显示高级歌词</strong>
-            <span class="switch-control"><input id="advancedLyricEnabled" type="checkbox" /><span class="switch-track" aria-hidden="true"></span></span>
-          </label>
-        </div>
         <details class="desktop-lyric-source-disclosure" open>
-          <summary class="ui-section-title">音乐来源</summary>
+          <summary class="ui-section-title"><span>音乐来源</span><span id="desktopLyricSourceSummary" class="desktop-lyric-source-summary"></span></summary>
         <fieldset id="desktopLyricSourceControls" class="theme-section desktop-lyric-source-settings" disabled>
           <legend>
             <span id="desktopLyricSourceLabel">音乐跟随</span>
@@ -129,11 +119,8 @@
               </label>
             </div>
           </div>
-          <div class="desktop-lyric-follow-status">
-            <p class="desktop-lyric-follow-current" role="status" aria-atomic="true"
-              ><span id="desktopLyricFollowLabel" class="desktop-lyric-follow-label" hidden>当前跟随</span
-              ><strong id="desktopLyricSourceStatus">正在读取歌词来源…</strong></p
-            >
+          <div id="desktopLyricFollowStatus" class="desktop-lyric-follow-status">
+            <p id="desktopLyricSourceStatus" class="muted" role="status" aria-atomic="true">正在读取歌词来源…</p>
             <p id="desktopLyricSourceTrack" class="muted" hidden></p>
           </div>
         </fieldset>

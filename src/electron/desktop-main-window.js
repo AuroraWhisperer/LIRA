@@ -13,8 +13,8 @@ function createDesktopMainWindow({
   function create(url, authorized = false) {
     baseUrl = url;
     const options = {
-      width: 1200,
-      height: 750,
+      width: 1260,
+      height: 820,
       minWidth: 1024,
       minHeight: 680,
       show: false,

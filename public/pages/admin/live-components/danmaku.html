@@ -11,19 +11,119 @@
             <span class="switch-track" aria-hidden="true"></span>
           </label>
         </div>
-        <div class="danmaku-overlay-actions">
-          <!-- The save action stays primary; preview is secondary. -->
-          <button id="danmakuPreviewOverlayBtn" class="secondary component-icon-button" type="button">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
-            预览与调整
-          </button>
-        </div>
       </div>
-      <section class="danmaku-settings-block" aria-labelledby="danmakuAppearanceTitle">
+      <!-- Receiving settings save on change, so they sit above the appearance draft and its save bar. -->
+      <details
+        id="danmakuOverlayFilters"
+        class="danmaku-settings-block danmaku-overlay-filters"
+        aria-labelledby="danmakuFiltersTitle"
+      >
+        <summary class="danmaku-settings-heading">
+          <div>
+            <h4 id="danmakuFiltersTitle">弹幕过滤 <lira-help label="弹幕过滤说明">按用户 UID 或敏感词屏蔽弹幕；自动保存，仅影响弹幕姬的新弹幕。</lira-help></h4>
+          </div>
+          <span id="danmakuFiltersSummary" class="component-expander-summary"></span>
+          <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path
+              d="m5 8 5 5 5-5"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </summary>
+        <div class="danmaku-filter-body">
+          <div class="danmaku-filter-toolbar">
+            <button id="danmakuFiltersReload" class="secondary" type="button">重新读取</button>
+          </div>
+          <div class="danmaku-filter-grid">
+            <section class="danmaku-filter-group" aria-labelledby="danmakuBlacklistTitle">
+              <div class="danmaku-filter-heading">
+                <h5 id="danmakuBlacklistTitle">用户黑名单</h5>
+                <span id="danmakuBlacklistCount" class="hint">0 人</span>
+              </div>
+              <form id="danmakuBlacklistForm" class="danmaku-filter-form">
+                <label for="danmakuBlacklistUid">用户 UID</label>
+                <div class="danmaku-filter-input-row">
+                  <input
+                    id="danmakuBlacklistUid"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[1-9][0-9]{0,19}"
+                    maxlength="20"
+                    placeholder="输入 B 站 UID"
+                    required
+                    disabled
+                  />
+                  <button class="secondary" type="submit" disabled>添加</button>
+                </div>
+              </form>
+              <div>
+                <button id="danmakuReadViewers" class="secondary" type="button" disabled>读取在线观众</button>
+              </div>
+              <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
+                <div class="danmaku-filter-toolbar">
+                  <strong id="danmakuViewerTitle">选择观众</strong>
+                  <button id="danmakuCloseViewers" class="secondary" type="button">收起</button>
+                </div>
+                <p class="hint">在线榜不含所有观众，可手动输入 UID。</p>
+                <label for="danmakuViewerSearch">查找观众</label>
+                <input id="danmakuViewerSearch" type="search" placeholder="搜索昵称或 UID" />
+                <p id="danmakuViewerState" class="hint" role="status" aria-live="polite"></p>
+                <ul id="danmakuViewerList" class="danmaku-filter-list danmaku-viewer-list" aria-label="可选择的观众"></ul>
+                <button id="danmakuAddViewers" class="primary" type="button" disabled>加入黑名单</button>
+              </div>
+              <ul id="danmakuBlacklist" class="danmaku-filter-list" aria-label="已屏蔽的用户"></ul>
+              <p id="danmakuBlacklistEmpty" class="hint">暂无屏蔽用户</p>
+            </section>
+            <section class="danmaku-filter-group" aria-labelledby="danmakuKeywordTitle">
+              <div class="danmaku-filter-heading">
+                <h5 id="danmakuKeywordTitle">
+                  敏感词屏蔽
+                  <lira-help label="敏感词匹配规则">包含即屏蔽，英文不区分大小写。</lira-help>
+                </h5>
+                <span id="danmakuKeywordCount" class="hint">0 个词</span>
+              </div>
+              <form id="danmakuKeywordForm" class="danmaku-filter-form">
+                <label for="danmakuKeywordInput">屏蔽词</label>
+                <div class="danmaku-filter-input-row">
+                  <input
+                    id="danmakuKeywordInput"
+                    type="text"
+                    maxlength="100"
+                    placeholder="输入要屏蔽的文字"
+                    required
+                    disabled
+                  />
+                  <button class="secondary" type="submit" disabled>添加</button>
+                </div>
+              </form>
+              <div>
+                <button id="danmakuClearKeywords" class="secondary" type="button" disabled>清空屏蔽词</button>
+              </div>
+              <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
+              <p id="danmakuKeywordsEmpty" class="hint">暂无屏蔽词</p>
+            </section>
+          </div>
+          <p id="danmakuFiltersState" class="hint" role="status" aria-live="polite"></p>
+        </div>
+      </details>
+      <section class="danmaku-settings-block danmaku-appearance-block" aria-labelledby="danmakuAppearanceSectionTitle">
+        <div class="danmaku-appearance-heading">
+          <h3 id="danmakuAppearanceSectionTitle" class="ui-section-title">弹幕外观</h3>
+          <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 青墨笺</span>
+          <div class="danmaku-overlay-actions">
+            <!-- The save action stays primary; preview is secondary. -->
+            <button id="danmakuPreviewOverlayBtn" class="secondary component-icon-button" type="button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" /></svg>
+              预览与调整
+            </button>
+          </div>
+        </div>
         <div class="danmaku-style-picker">
           <div class="danmaku-style-heading">
             <h4 id="danmakuAppearanceTitle">最近使用</h4>
-            <span id="danmakuStyleChip" class="danmaku-style-chip">当前样式 · 青墨笺</span>
             <button id="danmakuAllStylesBtn" class="secondary" type="button">全部样式</button>
           </div>
           <div id="danmakuRecentStyles" class="danmaku-style-options danmaku-recent-styles" role="group" aria-label="最近使用的弹幕样式"></div>
@@ -291,102 +391,6 @@
           <p id="danmakuParametersHint" class="hint" hidden></p>
           <div id="danmakuParameterFields"></div>
         </section>
-        <details
-          id="danmakuOverlayFilters"
-          class="danmaku-settings-block danmaku-overlay-filters"
-          aria-labelledby="danmakuFiltersTitle"
-        >
-          <summary class="danmaku-settings-heading">
-            <div>
-              <h4 id="danmakuFiltersTitle">弹幕过滤 <lira-help label="弹幕过滤说明">按用户 UID 或敏感词屏蔽弹幕；自动保存，仅影响弹幕姬的新弹幕。</lira-help></h4>
-            </div>
-            <span id="danmakuFiltersSummary" class="component-expander-summary"></span>
-            <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-              <path
-                d="m5 8 5 5 5-5"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              />
-            </svg>
-          </summary>
-          <div class="danmaku-filter-body">
-            <div class="danmaku-filter-toolbar">
-              <button id="danmakuFiltersReload" class="secondary" type="button">重新读取</button>
-            </div>
-            <div class="danmaku-filter-grid">
-              <section class="danmaku-filter-group" aria-labelledby="danmakuBlacklistTitle">
-                <div class="danmaku-filter-heading">
-                  <h5 id="danmakuBlacklistTitle">用户黑名单</h5>
-                  <span id="danmakuBlacklistCount" class="hint">0 人</span>
-                </div>
-                <form id="danmakuBlacklistForm" class="danmaku-filter-form">
-                  <label for="danmakuBlacklistUid">用户 UID</label>
-                  <div class="danmaku-filter-input-row">
-                    <input
-                      id="danmakuBlacklistUid"
-                      type="text"
-                      inputmode="numeric"
-                      pattern="[1-9][0-9]{0,19}"
-                      maxlength="20"
-                      placeholder="输入 B 站 UID"
-                      required
-                      disabled
-                    />
-                    <button class="secondary" type="submit" disabled>添加</button>
-                  </div>
-                </form>
-                <div>
-                  <button id="danmakuReadViewers" class="secondary" type="button" disabled>读取在线观众</button>
-                </div>
-                <div id="danmakuViewerPicker" class="danmaku-viewer-picker" hidden>
-                  <div class="danmaku-filter-toolbar">
-                    <strong id="danmakuViewerTitle">选择观众</strong>
-                    <button id="danmakuCloseViewers" class="secondary" type="button">收起</button>
-                  </div>
-                  <p class="hint">在线榜不含所有观众，可手动输入 UID。</p>
-                  <label for="danmakuViewerSearch">查找观众</label>
-                  <input id="danmakuViewerSearch" type="search" placeholder="搜索昵称或 UID" />
-                  <p id="danmakuViewerState" class="hint" role="status" aria-live="polite"></p>
-                  <ul id="danmakuViewerList" class="danmaku-filter-list danmaku-viewer-list" aria-label="可选择的观众"></ul>
-                  <button id="danmakuAddViewers" class="primary" type="button" disabled>加入黑名单</button>
-                </div>
-                <ul id="danmakuBlacklist" class="danmaku-filter-list" aria-label="已屏蔽的用户"></ul>
-                <p id="danmakuBlacklistEmpty" class="hint">暂无屏蔽用户</p>
-              </section>
-              <section class="danmaku-filter-group" aria-labelledby="danmakuKeywordTitle">
-                <div class="danmaku-filter-heading">
-                  <h5 id="danmakuKeywordTitle">
-                    敏感词屏蔽
-                    <lira-help label="敏感词匹配规则">包含即屏蔽，英文不区分大小写。</lira-help>
-                  </h5>
-                  <span id="danmakuKeywordCount" class="hint">0 个词</span>
-                </div>
-                <form id="danmakuKeywordForm" class="danmaku-filter-form">
-                  <label for="danmakuKeywordInput">屏蔽词</label>
-                  <div class="danmaku-filter-input-row">
-                    <input
-                      id="danmakuKeywordInput"
-                      type="text"
-                      maxlength="100"
-                      placeholder="输入要屏蔽的文字"
-                      required
-                      disabled
-                    />
-                    <button class="secondary" type="submit" disabled>添加</button>
-                  </div>
-                </form>
-                <div>
-                  <button id="danmakuClearKeywords" class="secondary" type="button" disabled>清空屏蔽词</button>
-                </div>
-                <ul id="danmakuKeywords" class="danmaku-filter-list" aria-label="已添加的屏蔽词"></ul>
-                <p id="danmakuKeywordsEmpty" class="hint">暂无屏蔽词</p>
-              </section>
-            </div>
-            <p id="danmakuFiltersState" class="hint" role="status" aria-live="polite"></p>
-          </div>
-        </details>
         <div class="danmaku-style-footer">
           <p id="danmakuStyleSaveState" class="danmaku-style-save-state" role="status" aria-live="polite"></p>
           <div class="danmaku-overlay-actions">

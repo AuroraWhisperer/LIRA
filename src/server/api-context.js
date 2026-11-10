@@ -4,7 +4,6 @@ const { clearMusicCache, getMusicCacheStats } = require('../music/music-cache');
 const { createUnavailableGiftSaleCatalogService } = require('../bilibili/gift/sale-catalog');
 const lifecycle = require('./lifecycle');
 const systemMetrics = require('./system-metrics');
-const { isAiReady } = require('../ai/config');
 
 function createApiContext(options) {
   const {
@@ -154,15 +153,7 @@ function createApiContext(options) {
     },
     ai: {
       getConfig: () => ai.configStore.getPublicConfig(),
-      updateConfig(input) {
-        const before = ai.configStore.getConfig();
-        const result = ai.service.updateConfig(input);
-        const after = ai.configStore.getConfig();
-        const previousCommand = isAiReady(before) ? before.trigger : null;
-        const nextCommand = isAiReady(after) ? after.trigger : null;
-        if (previousCommand !== nextCommand) requestCloudSync?.('settings');
-        return result;
-      },
+      updateConfig: (input) => ai.updateConfig(input),
       importPersona: (input) => ai.configStore.importPersona(input),
       createPersona: (input) => ai.configStore.createPersona(input),
       updatePersona: (input) => ai.configStore.updatePersona(input),
@@ -252,7 +243,6 @@ function createGamesContext(games = {}) {
     listDrawGuessCategories: () => [],
     listViewers: () => [],
   };
-  const listOnlineViewers = typeof games.listOnlineViewers === 'function' ? games.listOnlineViewers : () => [];
   const refreshViewers = typeof games.refreshViewers === 'function' ? games.refreshViewers : async () => {};
   const getWinnerProfile =
     typeof games.getWinnerProfile === 'function' ? games.getWinnerProfile : async () => ({ avatarUrl: '', name: '' });
@@ -267,25 +257,9 @@ function createGamesContext(games = {}) {
     getHostState: service.getHostState,
     listDrawGuessCategories: service.listDrawGuessCategories,
     refreshViewers: () => refreshViewers(),
-    listViewers: () => mergeViewerCandidates(listOnlineViewers()),
-    getWinnerProfile: () => getWinnerProfile(service.getSession()?.winner),
+    listViewers: typeof games.listViewers === 'function' ? games.listViewers : service.listViewers,
+    getWinnerProfile,
   };
-}
-
-function mergeViewerCandidates(...groups) {
-  const byKey = new Map();
-  for (const viewer of groups.flat()) {
-    const uid = String(viewer?.uid || '').trim();
-    const name = String(viewer?.name || viewer?.userName || '观众').trim() || '观众';
-    const key = uid || `name:${name}`;
-    const previous = byKey.get(key);
-    byKey.set(key, {
-      uid,
-      name,
-      lastSeenAt: Math.max(Number(previous?.lastSeenAt) || 0, Number(viewer?.lastSeenAt || viewer?.seenAt) || 0),
-    });
-  }
-  return [...byKey.values()].filter((viewer) => viewer.uid).sort((a, b) => b.lastSeenAt - a.lastSeenAt);
 }
 
 module.exports = { createApiContext };

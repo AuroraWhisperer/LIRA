@@ -1,4 +1,5 @@
-import { mountComponentPreview, previewElement } from '../component-preview-surface.js';
+import { mountComponentPreview } from '../component-preview-surface.js';
+import { previewElement } from '../component-preview-elements.js';
 import { mountBrowserSourcePreview } from '../browser-source-preview.js';
 import { componentStyleMedia } from '../../shared/component-resource-style.js';
 import { componentCssRendererUrl } from '../../shared/component-css-style.js';

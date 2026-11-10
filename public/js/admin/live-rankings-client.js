@@ -2,6 +2,7 @@ const listeners = new Set();
 let request;
 let timer;
 let snapshot;
+let successfulSnapshot;
 
 function publish(data) {
   snapshot = data;
@@ -17,13 +18,20 @@ async function refresh() {
     const response = await fetch(`/api/bilibili/live-rankings${query}`, {
       cache: 'no-store', signal: AbortSignal.any([current.signal, AbortSignal.timeout(4000)]),
     });
+    if (request !== current) return;
+    if (response.status === 401 || response.status === 403) successfulSnapshot = null;
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error('榜单读取失败');
     if (request !== current) return;
-    if (!payload.data.unchanged) publish(payload.data);
+    if (!payload.data.unchanged) {
+      successfulSnapshot = payload.data;
+      publish(successfulSnapshot);
+    } else if (successfulSnapshot && snapshot !== successfulSnapshot) publish(successfulSnapshot);
   } catch {
     if (request !== current || current.signal.aborted) return;
-    publish({ status: 'stale', message: '榜单连接中断，正在重试', room: null, boards: [] });
+    const previous = successfulSnapshot || { room: null, boards: [] };
+    publish({ ...previous, status: 'stale', message: '榜单连接中断，正在重试',
+      boards: previous.boards.map(board => ({ ...board, status: board.status === 'ready' ? 'stale' : board.status })) });
   } finally {
     if (request === current) {
       request = null;
@@ -40,7 +48,7 @@ export function subscribeLiveRankings(listener) {
     listeners.delete(listener);
     if (listeners.size) return;
     clearTimeout(timer); timer = null;
-    request?.abort(); request = null; snapshot = null;
+    request?.abort(); request = null; snapshot = null; successfulSnapshot = null;
   };
 }
 

@@ -61,6 +61,10 @@ test('filter IPC requires the main frame, validates patches and strips private r
   assert.deepEqual(await update(event, { blockedKeywords: [] }), safe);
   assert.deepEqual(writes, [{ blockedKeywords: [] }]);
   assert.deepEqual(await viewers(event), { ok: true, roomId: '99', viewers: safe.blockedUsers });
+  settings.blockedUsers = Array.from({ length: 200 }, (_, index) => ({ uid: String(index + 1), name: '观众' }));
+  assert.equal((await viewers(event)).viewers.length, 200);
+  settings.blockedUsers.push({ uid: '201', name: '超限观众' });
+  assert.equal((await viewers(event)).error, 'INVALID_RESPONSE');
   settings.blockedKeywords = null;
   assert.equal((await read(event)).error, 'INVALID_RESPONSE');
 });
@@ -87,6 +91,7 @@ test('new remote operations use only fixed Device URLs with main-process bearer 
     ],
   );
   assert.ok(calls.every(({ init }) => init.headers.Authorization === 'Bearer synthetic'));
+  assert.equal(new URL(calls.at(-1).url).searchParams.get('limit'), '200');
 });
 
 test('filter operations reject late account responses and surface unsupported servers', async () => {

@@ -12,7 +12,7 @@
 
 .desktop-lyric-workspace {
   display: grid;
-  grid-template-columns: minmax(420px, 1fr) minmax(320px, 560px);
+  grid-template-columns: minmax(420px, 1fr) minmax(280px, 396px);
   align-items: start;
   gap: 12px;
 }
@@ -110,29 +110,6 @@
   gap: var(--spacing-xs);
   padding-top: 12px;
   border-top: 1px solid var(--border);
-}
-
-.desktop-lyric-follow-current {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-
-.desktop-lyric-follow-label {
-  flex: 0 0 auto;
-  color: var(--muted);
-}
-
-.desktop-lyric-follow-current strong {
-  min-width: 0;
-  color: var(--text);
-  font-weight: var(--type-weight-semibold);
-  overflow-wrap: anywhere;
-}
-
-.desktop-lyric-follow-label[hidden] + strong {
-  font-weight: inherit;
 }
 
 .desktop-lyric-client-list {

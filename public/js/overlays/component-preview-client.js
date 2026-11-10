@@ -12,7 +12,7 @@ export function isSceneComponent() {
   return isComponentPreview() && new URLSearchParams(location.search).get('sceneComponent') === '1';
 }
 
-export function createComponentPreviewClient({ onConfig, onData, onDispose }) {
+export function createComponentPreviewClient({ onConfig, onData, onScroll, onDispose }) {
   const decoration = createMediaDecoration();
   const resources = createComponentResources();
   const css = createComponentCss();
@@ -64,6 +64,8 @@ export function createComponentPreviewClient({ onConfig, onData, onDispose }) {
       applyRoomGuardState(message.roomGuard);
     } else if (message?.type === 'component-preview:data') {
       onData?.(message.data, message.source);
+    } else if (message?.type === 'component-preview:scroll') {
+      onScroll?.(message);
     } else if (message?.type === 'component-preview:dispose') {
       dispose();
     }

@@ -82,7 +82,7 @@ function bilibiliFetch(input) {
   if (url.pathname.endsWith('/getDanmuInfo')) {
     return jsonResponse({ code: 0, data: { token: 'test-token', host_list: [{ host: 'example.test', wss_port: 443 }] } });
   }
-  if (url.pathname.endsWith('/getOnlineGoldRank')) return jsonResponse({ code: 0, data: { list: [], onlineNum: 0 } });
+  if (url.pathname.endsWith('/queryContributionRank')) return jsonResponse({ code: 0, data: { item: [], count: 0 } });
   if (url.pathname.endsWith('/getFansMembersRank')) return jsonResponse({ code: 0, data: { item: [], num: 0 } });
   return Promise.reject(new Error(`Unexpected URL: ${url}`));
 }

@@ -70,15 +70,6 @@ function readMedalLevel(medalInfo) {
   );
 }
 
-function readBilibiliOnlineRankItems(data) {
-  if (!data || typeof data !== 'object') return [];
-  const candidates = [data.OnlineRankItem, data.onlineRankItem, data.online_rank_item, data.list, data.items];
-  for (const candidate of candidates) {
-    if (Array.isArray(candidate)) return candidate;
-  }
-  return [];
-}
-
 function readBilibiliFansMembersRankItems(data) {
   if (!data || typeof data !== 'object') return [];
   const candidates = [data.item, data.items, data.list, data.fans_members, data.fansMembers];
@@ -96,6 +87,5 @@ module.exports = {
   normalizeRequesterIdentity,
   readMedalName,
   readMedalLevel,
-  readBilibiliOnlineRankItems,
   readBilibiliFansMembersRankItems,
 };

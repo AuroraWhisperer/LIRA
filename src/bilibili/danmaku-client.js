@@ -6,7 +6,6 @@
 const { cleanText } = require('../shared/utils');
 const { publicBilibiliErrorMessage } = require('./api-error');
 const { BilibiliApiClient } = require('./danmaku/api-client');
-const { getRealtimeState } = require('./danmaku/realtime-state');
 const { WebSocketConnection } = require('./danmaku/websocket-connection');
 const { HistoryPoller } = require('./danmaku/history-poller');
 const { OnlineRankPoller } = require('./danmaku/online-rank-poller');
@@ -557,7 +556,22 @@ class BilibiliDanmakuClient {
   }
 
   getRealtimeState() {
-    return getRealtimeState(this);
+    // A socket open or history-poller status is not authentication evidence.
+    const ready =
+      !this.stopped &&
+      this.wsConnection.ws?.readyState === 1 &&
+      this.wsConnection.connectionTrace?.authStatus === 'accepted' &&
+      /^[1-9]\d*$/.test(String(this.resolvedRoomId || '')) &&
+      /^[1-9]\d*$/.test(this.ownerUid) &&
+      Boolean(this.apiClient.uid);
+    return {
+      ready,
+      roomId: String(this.resolvedRoomId || ''),
+      ownerUid: this.ownerUid,
+      accountUid: String(this.apiClient.uid || ''),
+      connectionKey: `${this.options.clientGeneration || 0}:${this.connectionGeneration}:${this.connectionAttempt}`,
+      reason: ready ? '' : '请登录账号并等待实时弹幕鉴权成功',
+    };
   }
   isConnectionCurrent(generation, connectionAttempt = this.connectionAttempt) {
     return !this.stopped && generation === this.connectionGeneration && connectionAttempt === this.connectionAttempt;

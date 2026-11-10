@@ -1,7 +1,6 @@
-import { giftRecent } from './recent.js';
-import { giftAnalysis } from './blindbox-analysis.js';
+import { getBlindBoxIcon, loadGiftArtworkCatalog } from './artwork-catalog.js';
 // 编写人：Aurora
-// 盲盒统计模块 - 负责盲盒映射配置和统计数据显示
+// 盲盒映射编辑、官方奖池与房间在售目录。
 ('use strict');
 
 import { stateService } from '../state.js';
@@ -12,7 +11,8 @@ import { readJsonResponse } from '../../shared/json-response.js';
 import { GIFT_PLACEHOLDER, setGiftArtworkFallbacks } from '../../shared/gift-image.js';
 
 export const giftBlindbox = (() => {
-  let statsInitialized = false;
+  let disposeMapping = null;
+  let lifecycleRevision = 0;
   let officialBlindBoxes = [];
   let officialCatalogLoadPromise = null;
   let saleGiftIds = new Set();
@@ -69,9 +69,6 @@ export const giftBlindbox = (() => {
       container.innerHTML = '<span class="hint">暂无盲盒配置</span>';
       return;
     }
-
-    // 使用 recent 模块的工具函数
-    const getBlindBoxIcon = giftRecent.getBlindBoxIcon;
 
     container.innerHTML = entries
       .map((item) => {
@@ -246,267 +243,52 @@ export const giftBlindbox = (() => {
 
   function loadOfficialCatalog() {
     if (officialCatalogLoadPromise) return officialCatalogLoadPromise;
-    officialCatalogLoadPromise = fetch('/api/overtime/gifts/catalog')
+    const requestLifecycle = lifecycleRevision;
+    const pending = fetch('/api/overtime/gifts/catalog')
       .then((response) => readJsonResponse(response, '礼物目录加载失败'))
       .then(async (payload) => {
         if (payload?.ok === false) throw new Error(payload.error);
         // Initial icons must refresh without waiting for unrelated state pushes.
-        await giftRecent.loadGiftArtworkCatalog();
-        applyOfficialCatalogSnapshot(payload?.data);
+        if (requestLifecycle !== lifecycleRevision) return;
+        await loadGiftArtworkCatalog();
+        if (requestLifecycle === lifecycleRevision) applyOfficialCatalogSnapshot(payload?.data);
       })
       .catch((error) => {
         console.warn('[BlindBox] catalog refresh failed:', error.message || error);
       })
       .finally(() => {
-        officialCatalogLoadPromise = null;
+        if (officialCatalogLoadPromise === pending) officialCatalogLoadPromise = null;
       });
-    return officialCatalogLoadPromise;
+    officialCatalogLoadPromise = pending;
+    return pending;
   }
 
-  // ── 盲盒统计 ──
-
-  let blindBoxStatsDirty = true;
-  let blindBoxStatsController = null;
-  let blindBoxStatsDisposed = false;
-
-  function isBlindBoxStatsVisible() {
-    const page = document.getElementById('giftAssistantPage');
-    const section = document.querySelector('.gift-blindbox-panel');
-    const workspace = document.getElementById('blindBoxAnalysisWorkspace');
-    return !blindBoxStatsDisposed && !document.hidden && page?.classList.contains('active') &&
-      !section?.classList.contains('is-collapsed') && (!workspace || workspace.hidden);
-  }
-
-  function syncBlindBoxStatsVisibility() {
-    if (!isBlindBoxStatsVisible()) {
-      blindBoxStatsDirty = true;
-      blindBoxStatsController?.abort();
-      blindBoxStatsController = null;
-      return;
-    }
-    void refreshBlindBoxStats();
-  }
-
-  /**
-   * 加载盲盒统计数据
-   */
-  function loadBlindBoxStats() {
-    blindBoxStatsDirty = true;
-    return refreshBlindBoxStats();
-  }
-
-  async function refreshBlindBoxStats() {
-    if (!blindBoxStatsDirty || blindBoxStatsController || !isBlindBoxStatsVisible()) return;
-    blindBoxStatsDirty = false;
-    const controller = new AbortController();
-    blindBoxStatsController = controller;
-    try {
-      const response = await fetch('/api/gifts/blind-box-stats?top=10', { signal: controller.signal });
-      const payload = await readJsonResponse(response, '盲盒统计加载失败');
-      if (controller !== blindBoxStatsController) return;
-      if (!isBlindBoxStatsVisible()) { blindBoxStatsDirty = true; return; }
-      if (!response.ok || !payload.ok) {
-        throw new Error(payload.error || `盲盒统计加载失败（HTTP ${response.status}）`);
-      }
-      renderBlindBoxStats(payload.data);
-    } catch (error) {
-      if (controller !== blindBoxStatsController) return;
-      if (!isBlindBoxStatsVisible()) { blindBoxStatsDirty = true; return; }
-      const summary = document.getElementById('blindBoxStatsSummary');
-      const section = summary && summary.closest('.gift-blindbox-panel');
-      if (section) section.dataset.state = 'error';
-      if (summary) {
-        summary.innerHTML = `
-          <div class="blind-stats-status is-error" role="status">
-            <span class="blind-stats-status-icon" aria-hidden="true">!</span>
-            <strong>统计加载失败</strong>
-            <span>请稍后重试</span>
-          </div>
-        `;
-      }
-      const body = document.getElementById('blindBoxStatsBody');
-      if (body) body.innerHTML = '<tr><td colspan="6" class="empty">加载失败</td></tr>';
-    } finally {
-      if (controller === blindBoxStatsController) {
-        blindBoxStatsController = null;
-        if (blindBoxStatsDirty) void refreshBlindBoxStats();
-      }
-    }
-  }
-
-  /**
-   * 渲染盲盒统计数据
-   * @param {Object} stats - 统计数据
-   */
-  function renderBlindBoxStats(stats) {
-    if (!stats) return;
-
-    const { summary, perUser } = stats;
-
-    // 汇总行
-    const summaryEl = document.getElementById('blindBoxStatsSummary');
-    const section = summaryEl && summaryEl.closest('.gift-blindbox-panel');
-    if (summaryEl) {
-      if (!summary || summary.boxCount === 0) {
-        if (section) section.dataset.state = 'empty';
-        summaryEl.innerHTML = `
-          <div class="blind-stats-status" role="status">
-            <span class="blind-stats-status-icon" aria-hidden="true">◇</span>
-            <strong>今天还没有盲盒礼物</strong>
-            <span>收到盲盒后，这里会自动汇总成本、开出价值和盈亏</span>
-          </div>
-        `;
-      } else {
-        const profitSign = summary.totalProfit > 0 ? '+' : summary.totalProfit < 0 ? '-' : '';
-        const profitClass = summary.totalProfit > 0 ? 'profit-up' : summary.totalProfit < 0 ? 'profit-down' : '';
-        if (section) section.dataset.state = 'ready';
-        summaryEl.innerHTML = `
-          <div class="stats-summary-row">
-            <div class="stat-chip">
-              <span class="stat-chip-icon">盒</span>
-              <span class="stat-chip-copy"><small>盲盒数量</small><strong>${summary.boxCount}</strong></span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-chip-icon">¥</span>
-              <span class="stat-chip-copy"><small>总成本</small><strong>${formatMoney(summary.totalCost)}</strong></span>
-            </div>
-            <div class="stat-chip">
-              <span class="stat-chip-icon">礼</span>
-              <span class="stat-chip-copy"><small>开出价值</small><strong>${formatMoney(summary.totalValue)}</strong></span>
-            </div>
-            <div class="stat-chip ${profitClass}">
-              <span class="stat-chip-icon">${summary.totalProfit >= 0 ? '↗' : '↘'}</span>
-              <span class="stat-chip-copy"><small>观众盈亏</small><strong>${profitSign}${formatMoney(Math.abs(summary.totalProfit))}</strong></span>
-            </div>
-          </div>
-        `;
-      }
-    }
-
-    // 首页只展示按观众汇总；完整记录放在独立分析工作区。
-    const body = document.getElementById('blindBoxStatsBody');
-    if (!body) return;
-
-    const users = Array.isArray(perUser) ? perUser : [];
-    if (users.length === 0) {
-      body.innerHTML = '<tr><td colspan="6" class="empty">暂无数据</td></tr>';
-      return;
-    }
-
-    body.innerHTML = users
-      .slice(0, 10)
-      .map((user) => {
-        const profitSign = user.totalProfit > 0 ? '+' : user.totalProfit < 0 ? '-' : '';
-        const profitClass = user.totalProfit > 0 ? 'profit-up' : user.totalProfit < 0 ? 'profit-down' : '';
-        return `
-        <tr class="blind-stats-user-row" tabindex="0" data-viewer="${escapeAttr(user.viewer || '')}" title="查看${escapeAttr(user.userName || '观众')}的开盒记录">
-          <td class="user-cell">${escapeHtml(user.userName || '观众')}</td>
-          <td>${Number(user.boxCount || 0)}</td>
-          <td>${Number(user.boxTypeCount || 0)} 种</td>
-          <td>${formatMoney(user.totalCost)}</td>
-          <td>${formatMoney(user.totalValue)}</td>
-          <td class="${profitClass}">${profitSign}${formatMoney(Math.abs(user.totalProfit))}</td>
-        </tr>
-      `;
-      })
-      .join('');
-  }
-
-  /**
-   * 初始化盲盒盈亏面板折叠功能
-   */
-  function initBlindBoxStatsToggle() {
-    if (statsInitialized) return;
-    statsInitialized = true;
-    const section = document.querySelector('.gift-blindbox-panel');
-    const toggle = document.getElementById('blindBoxStatsToggle');
-    const panelHeader = section?.querySelector('.panel-header');
-    const content = document.getElementById('blindBoxStatsCollapsible');
-
-    const setCollapsed = (collapsed) => {
-      if (collapsed && content?.contains(document.activeElement)) toggle?.focus();
-      section?.classList.toggle('is-collapsed', collapsed);
-      if (content) {
-        content.inert = collapsed;
-        content.setAttribute('aria-hidden', String(collapsed));
-      }
-      if (toggle) {
-        toggle.setAttribute('aria-expanded', String(!collapsed));
-        toggle.title = collapsed ? '展开盲盒盈亏' : '折叠盲盒盈亏';
-      }
+  function init() {
+    if (disposeMapping) return disposeMapping;
+    const onSettings = (event) => updateSaleRoom(event.detail);
+    const unsubscribeCatalog = eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => {
+      if (Array.isArray(snapshot?.gifts)) applyOfficialCatalogSnapshot(snapshot);
+    });
+    const unsubscribeSaved = eventBus.on(Events.STATE_SAVED, ({ settings }) => updateSaleRoom(settings, { force: true }));
+    window.addEventListener('app:settings-state', onSettings);
+    document.addEventListener('app:bilibili-auth-changed', loadSaleCatalog);
+    const dispose = () => {
+      if (disposeMapping !== dispose) return;
+      unsubscribeCatalog();
+      unsubscribeSaved();
+      window.removeEventListener('app:settings-state', onSettings);
+      document.removeEventListener('app:bilibili-auth-changed', loadSaleCatalog);
+      saleCatalogRevision += 1;
+      lifecycleRevision += 1;
+      officialCatalogLoadPromise = null;
+      saleRoomId = '';
+      disposeMapping = null;
     };
-    setCollapsed(section?.classList.contains('is-collapsed') || false);
-    panelHeader?.addEventListener('click', (e) => {
-      if (e.target.closest('#blindBoxAnalysisOpenBtn')) return;
-      setCollapsed(!section.classList.contains('is-collapsed'));
-    });
-
-    document.getElementById('blindBoxAnalysisOpenBtn')?.addEventListener('click', () => {
-      giftAnalysis.open({ view: 'users' });
-    });
-
-    document.getElementById('blindBoxStatsBody')?.addEventListener('click', (event) => {
-      const row = event.target.closest('[data-viewer]');
-      if (row)
-        giftAnalysis.open({
-          viewer: row.dataset.viewer,
-          view: 'records',
-        });
-    });
-
-    document.getElementById('blindBoxStatsBody')?.addEventListener('keydown', (event) => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      const row = event.target.closest('[data-viewer]');
-      if (!row) return;
-      event.preventDefault();
-      giftAnalysis.open({
-        viewer: row.dataset.viewer,
-        view: 'records',
-      });
-    });
-
-    const observer = new MutationObserver(syncBlindBoxStatsVisibility);
-    for (const element of [section, document.getElementById('giftAssistantPage')]) {
-      if (element) observer.observe(element, { attributes: true, attributeFilter: ['class'] });
-    }
-    const workspace = document.getElementById('blindBoxAnalysisWorkspace');
-    if (workspace) observer.observe(workspace, { attributes: true, attributeFilter: ['hidden'] });
-    document.addEventListener('visibilitychange', syncBlindBoxStatsVisibility);
-    const unsubscribe = eventBus.on(Events.GIFT_RECEIVED, loadBlindBoxStats);
-    window.addEventListener('pagehide', () => {
-      blindBoxStatsDisposed = true;
-      unsubscribe();
-      observer.disconnect();
-      document.removeEventListener('visibilitychange', syncBlindBoxStatsVisibility);
-      blindBoxStatsController?.abort();
-      blindBoxStatsController = null;
-    }, { once: true });
-    syncBlindBoxStatsVisibility();
+    disposeMapping = dispose;
+    void loadOfficialCatalog();
+    updateSaleRoom(stateService.getAppState()?.settings);
+    return dispose;
   }
 
-  // 在 DOM 就绪后初始化
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initBlindBoxStatsToggle);
-  } else {
-    initBlindBoxStatsToggle();
-  }
-
-  // 导出
-  const module = {
-    renderBlindBoxList,
-    renderBlindBoxMappingStatus,
-    applyOfficialCatalogSnapshot,
-    loadBlindBoxStats,
-    renderBlindBoxStats,
-    initBlindBoxStatsToggle,
-  };
-  loadOfficialCatalog();
-  eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => {
-    if (Array.isArray(snapshot?.gifts)) applyOfficialCatalogSnapshot(snapshot);
-  });
-  window.addEventListener('app:settings-state', (event) => updateSaleRoom(event.detail));
-  eventBus.on(Events.STATE_SAVED, ({ settings }) => updateSaleRoom(settings, { force: true }));
-  document.addEventListener('app:bilibili-auth-changed', loadSaleCatalog);
-  updateSaleRoom(stateService.getAppState()?.settings);
-  return module;
+  return { init, renderBlindBoxList, renderBlindBoxMappingStatus, applyOfficialCatalogSnapshot };
 })();

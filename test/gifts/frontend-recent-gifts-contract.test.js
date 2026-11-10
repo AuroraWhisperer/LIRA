@@ -14,6 +14,7 @@ test('heart-box output cards require source identity evidence for artwork and pr
     querySelectorAll: () => [],
   };
   const globals = {
+    AbortController,
     window: {
       AdminApp: {
         utils: {
@@ -46,11 +47,13 @@ test('heart-box output cards require source identity evidence for artwork and pr
     },
     document: { getElementById: () => list },
   };
-  const { giftRecent: recent } = await loadModuleExports(
+  const [{ giftRecent: recent }, artwork] = await loadModuleExports([
     path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    path.join(__dirname, '../../public/js/admin/gifts/artwork-catalog.js'),
+  ],
     globals,
   );
-  await recent.loadGiftArtworkCatalog();
+  await artwork.loadGiftArtworkCatalog();
   for (const name of [heartBox.box.name, '']) {
     for (const item of heartBox.outputs) {
       const row = {

@@ -7,6 +7,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { DatabaseSync } = require('node:sqlite');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createParameterDocument } = require('../helpers/parameter-dom');
 const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -36,53 +37,40 @@ test('queue reconnect renders new requests and visible identity changes once', (
   assert.equal(renders, before + 2, 'removing LIVE also updates the overlay');
 });
 
-test('queue opacity percentages survive form refresh and preset sync without changing the saved scale', async () => {
-  const fields = new Map(
-    ['themeOpacity', 'themeOpacityNumber'].map((id) => [
-      id,
-      {
-        _value: '0.48',
-        get value() {
-          return this._value;
-        },
-        set value(next) {
-          this._value = String(next);
-        },
-        dataset: {},
-        closest() {
-          return null;
-        },
-      },
-    ]),
-  );
-  const document = {
-    getElementById: (id) => fields.get(id) || null,
-    querySelectorAll: () => [],
-    querySelector: () => null,
-  };
-  const window = { AdminApp: {} };
-  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), {
-    document,
-    window,
+test('queue opacity percentages survive snapshot and preset refresh without changing the saved scale', async (t) => {
+  const document = createParameterDocument();
+  const root = document.body;
+  root.getElementById = document.getElementById;
+  const { bindQueueTheme } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue-theme-view.js'), {
+    document, window: {}, queueMicrotask,
   });
-  const service = new FormsService();
-  for (const [stored, displayed] of [
-    ['0.57', 57],
-    ['0', 0],
-  ]) {
-    service.fillForm({ themeOpacity: stored });
-    assert.equal(fields.get('themeOpacity').value, stored);
-    assert.equal(Number(fields.get('themeOpacityNumber').value), displayed);
+  const { createComponentConfigController } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/component-config-controller.js'));
+  const controller = createComponentConfigController({ initial: { overlayQueueStyle: 'classic', themeOpacity: '0.48' } });
+  const binding = bindQueueTheme(root, controller);
+  t.after(() => binding.dispose());
+  for (const [stored, displayed] of [['0.57', 57], ['0', 0]]) {
+    controller.receive({ overlayQueueStyle: 'classic', themeOpacity: stored });
+    assert.equal(document.getElementById('themeOpacity').value, stored);
+    assert.equal(Number(document.getElementById('themeOpacityNumber').value), displayed);
+    assert.equal(controller.getState().dirty, false, 'display conversion cannot edit the saved draft');
   }
+  controller.edit({ themeOpacity: 0.85 });
+  assert.equal(document.getElementById('themeOpacityNumber').value, '85');
+  controller.edit({ themeOpacity: 0 });
+  assert.equal(document.getElementById('themeOpacityNumber').value, '0');
+  assert.equal(controller.getState().draft.themeOpacity, 0);
+});
 
-  const { theme } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/theme.js'), { document, window });
-  window.AdminApp = {};
-  fields.get('themeOpacity').value = '0.85';
-  theme.syncAllRangeInputs({ themeOpacity: 0 });
-  assert.equal(fields.get('themeOpacityNumber').value, '0');
-  theme.syncAllRangeInputs();
-  assert.equal(fields.get('themeOpacityNumber').value, '85');
-  assert.equal(theme.collectTheme().themeOpacity, '0.85');
+test('queue theme controls retain legacy font and scroll units without rewriting the draft', async () => {
+  const { queueThemeControlValues } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue-theme-config.js'));
+  const settings = Object.freeze({ overlayQueueStyle: 'storybook', themeFontScale: '1.25',
+    queueScrollSpeed: '125', storybookQueueFontSize: '42', storybookQueueScrollSpeed: '200' });
+  const controls = queueThemeControlValues(settings);
+  assert.equal(Number(controls.queueSongFontSize), 35);
+  assert.equal(Number(controls.queueTitleFontSize), 38);
+  assert.equal(Number(controls.identityQueueFontSize), 42);
+  assert.equal(controls.queueScrollSpeed, '51');
+  assert.equal(controls.identityQueueScrollSpeed, '100');
 });
 
 test('queue theme payloads persist only the selected style', async () => {

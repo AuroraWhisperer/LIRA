@@ -17,7 +17,7 @@ const { createWebSearchTool } = require('../ai/tools/web-search-tool');
 const { createAiAssistantService } = require('../ai/ai-assistant-service');
 const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifier');
 
-function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender }) {
+function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender, onConfigUpdated = () => {} }) {
   const persistence = createAiStateStore(songDb);
   const secretCodec = runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage);
   const configStore = createAiConfigStore(persistence, secretCodec);
@@ -80,6 +80,11 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender 
     deliveryVerifier,
     requestLogger,
     service,
+    updateConfig(input) {
+      const result = service.updateConfig(input);
+      onConfigUpdated();
+      return result;
+    },
     shutdown,
   };
 }

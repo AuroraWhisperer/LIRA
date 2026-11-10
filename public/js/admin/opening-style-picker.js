@@ -1,7 +1,7 @@
 import { mountComponentStyleLibrary } from './component-style-library.js';
 import { createResourceStyleSettings } from './resource-style-settings.js';
 import { addStyleToCanvas } from './component-style-client.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 
 export function mountOpeningStylePicker({ onBuiltin, beforeSelect }) {
   const host = document.getElementById('openingStyleOptions');

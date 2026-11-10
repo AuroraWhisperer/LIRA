@@ -3,7 +3,7 @@ import { formatMoney } from '../../shared/display-format.js';
 import { showStackedToast } from '../../shared/toast.js';
 // 编写人：Aurora
 // 礼物通知模块 - 负责礼物到账的 toast 通知显示
-import { getGiftToastArtwork } from './recent.js';
+import { getGiftToastArtwork } from './artwork-catalog.js';
 import { bindGiftImage } from '../../shared/gift-image.js';
 
 ('use strict');

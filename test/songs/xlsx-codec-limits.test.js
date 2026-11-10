@@ -330,7 +330,7 @@ test('song import keeps namespaced shared strings, rich text, inline strings and
       name: 'xl/worksheets/sheet1.xml',
       text:
         '<x:worksheet xmlns:x="urn:test"><x:sheetData>' +
-        '<x:row><x:c r="A1" t="s"><x:v>0</x:v></x:c><x:c r="B1" t="inlineStr"><x:is><x:t>原唱</x:t></x:is></x:c><x:c r="C1" t="str"><x:v>核对备注</x:v></x:c><x:c r="D1" t="str"><x:v>是否可点</x:v></x:c></x:row>' +
+        '<x:row><x:c r="A1" t="s"><x:v>0</x:v></x:c><x:c r="B1" t="inlineStr"><x:is><x:t>歌手</x:t></x:is></x:c><x:c r="C1" t="str"><x:v>核对备注</x:v></x:c><x:c r="D1" t="str"><x:v>是否可点</x:v></x:c></x:row>' +
         '<x:row><x:c r="A2" t="s"><x:v>2</x:v></x:c><x:c r="B2" t="s"><x:v>1</x:v></x:c><x:c r="C2" t="inlineStr"><x:is><x:t>含&lt;标记&gt;与&#10;换行</x:t></x:is></x:c><x:c r="D2" t="b"><x:v>0</x:v></x:c></x:row>' +
         '<x:row/><x:row><x:c r="A4" t="str"><x:v>=1+1</x:v></x:c><x:c r="B4"/></x:row></x:sheetData></x:worksheet>',
     },
@@ -338,11 +338,11 @@ test('song import keeps namespaced shared strings, rich text, inline strings and
   const rows = parseSongsFromXlsx(zip);
   assert.equal(rows.length, 2);
   assert.equal(rows[0]['歌曲名字'], '中文&😀');
-  assert.equal(rows[0]['原唱'], '');
+  assert.equal(rows[0]['歌手'], '');
   assert.equal(rows[0]['核对备注'], '含<标记>与\n换行');
   assert.equal(rows[0]['是否可点'], '否');
   assert.equal(rows[1]['歌曲名字'], '=1+1');
-  assert.equal(rows[1]['原唱'], '');
+  assert.equal(rows[1]['歌手'], '');
 });
 
 test('malformed nested or unclosed XML elements fail with bounded small inputs', () => {

@@ -274,8 +274,8 @@ function createShutdownHarness(options = {}) {
       createDesktopAuthController: () => ({
         dispose: () => calls.push('auth:dispose'),
         whenIdle: () => options.authIdle?.promise,
-        restoreMusicCookieSnapshots: () => {},
-        restoreBilibiliCookieSnapshot: () => {},
+        restoreMusicCookieSnapshots: () => calls.push('music:restore-cookies'),
+        restoreBilibiliCookieSnapshot: () => calls.push('bilibili:restore-cookies'),
       }),
     },
     './doubao-session': {
@@ -337,7 +337,9 @@ function createShutdownHarness(options = {}) {
       },
     },
     './desktop-user-data': {
-      migrateLegacyPartitions() {},
+      migrateLegacyPartitions() {
+        if (options.partitionMigrationError) throw options.partitionMigrationError;
+      },
       resolveDesktopUserDataPaths: () => ({
         ...require('../../src/shared/data-paths').resolveDataPaths(app.getPath()),
         recoveryDataDir: options.recoveryDataDir,

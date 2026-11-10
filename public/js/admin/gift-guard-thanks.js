@@ -3,7 +3,7 @@
 
 import { api, toast } from '../shared/utils.js';
 import { GUARD_THANKS_EFFECTS, readGuardThanksEffect, readNauticalGuardEnabled } from '../shared/guard-thanks-settings.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';

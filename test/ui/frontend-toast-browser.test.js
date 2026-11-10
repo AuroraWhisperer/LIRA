@@ -81,8 +81,8 @@ test('browser gift toasts reuse safe local artwork and top-layer notifications s
         return currentGiftNotice;
       },
     });
-    const { giftRecent } = await import('/js/admin/gifts/recent.js');
-    await giftRecent.loadGiftArtworkCatalog();
+    const { loadGiftArtworkCatalog } = await import('/js/admin/gifts/artwork-catalog.js');
+    await loadGiftArtworkCatalog();
     window.giftRecord = {
       id: 1,
       gift_id: '100',

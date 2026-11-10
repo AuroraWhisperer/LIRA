@@ -1,4 +1,5 @@
-import { previewElement, mountComponentPreview } from './component-preview-surface.js';
+import { mountComponentPreview } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { createSceneItemController } from './scene-item-controller.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { createBrowserSourcePreview, mountBrowserSourcePreview } from './browser-source-preview.js';
@@ -192,6 +193,14 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
           node.append(handle);
         }
         node.addEventListener('pointerdown', (event) => pointerDown(event, item.id));
+        if (item.type === 'live-rankings') node.addEventListener('wheel', (event) => {
+          if (gesture || event.ctrlKey || event.metaKey || !event.deltaY) return;
+          event.preventDefault();
+          const bounds = node.getBoundingClientRect();
+          const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? node.clientHeight * scale : 1;
+          surface.scroll({ x: (event.clientX - bounds.left) / scale, y: (event.clientY - bounds.top) / scale,
+            deltaY: event.deltaY * unit / scale });
+        }, { passive: false });
         node.addEventListener('keydown', (event) => {
           if (event.key === ' ' || event.key === 'Enter') {
             event.preventDefault();

@@ -94,12 +94,24 @@ function migrateLegacyPartitions({ app, writeLog, fileSystem = fs }) {
   const oldPartitions = path.join(oldUserData, 'Partitions');
   const newPartitions = path.join(newUserData, 'Partitions');
   if (fileSystem.existsSync(oldPartitions) && !fileSystem.existsSync(newPartitions)) {
+    const stagingDir = path.join(newUserData, `.Partitions.migration-${crypto.randomUUID()}`);
     try {
-      fileSystem.cpSync(oldPartitions, newPartitions, { recursive: true });
-      writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
+      fileSystem.cpSync(oldPartitions, stagingDir, { recursive: true });
+      for (let attempt = 0; ; attempt++) {
+        try { fileSystem.renameSync(stagingDir, newPartitions); break; }
+        catch (error) {
+          if (attempt >= 4 || fileSystem.existsSync(newPartitions) || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
+          // Windows can briefly hold the completed copy; never repeat the copy.
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
+        }
+      }
     } catch (error) {
+      removeStagingDirectory(fileSystem, stagingDir);
       writeLog('migration-error', error);
+      // Stop startup before a persistent session creates a target that blocks retry.
+      throw error;
     }
+    writeLog('migration', '已将旧 Chromium 分区数据从 ' + oldPartitions + ' 迁移至 ' + newPartitions);
   }
 }
 

@@ -1,5 +1,5 @@
-import { DANMAKU_STYLE_OPTIONS, isFloatingDanmakuStyle } from '../shared/danmaku-style-options.js';
-import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
+import { createInitialPreviewItem } from './component-preview-definitions.js';
+import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { createSceneDocumentModel } from './scene-document-model.js';
 import { mountSceneEditorStage } from './scene-editor-stage.js';
 import { mountSceneEditorInspector } from './scene-editor-inspector.js';
@@ -8,7 +8,7 @@ import { enhanceSelects } from '../shared/select-menu.js';
 import { mountComponentPreviewPicker } from './component-preview-picker.js';
 import { openComponentLibraryManager } from './component-library-manager.js';
 import { mountPreviewCanvasOutput } from './component-preview-canvas-output.js';
-import { mountPreviewLayerDrag } from './component-preview-layer-drag.js';
+import { mountPreviewLayers } from './component-preview-layers.js';
 import { mountPreviewPresets } from './component-preview-presets.js';
 import { createCanvasSharedAppearance } from './canvas-shared-appearance.js';
 import { SHARED_CONTROLLER_TYPES, hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
@@ -48,8 +48,6 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   navigation.setAttribute('aria-label', '组件和图层');
   const library = previewElement('div', 'component-preview-list');
   const layers = previewElement('div', 'preview-canvas-layers');
-  layers.setAttribute('aria-label', '图层，左侧在上；拖动排序，松开应用');
-  layers.title = '拖动调整图层：左侧在上，右侧在下；拖出此栏松开可取消';
   const layerHeading = previewElement('h2', '', '组件');
   const center = previewElement('section', 'component-preview-canvas');
   const canvasControls = previewElement('div', 'preview-canvas-controls');
@@ -93,9 +91,16 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     report(reason.includes(label) ? reason : `${label}：${reason}`);
   }, true);
   const sharedAppearance = createCanvasSharedAppearance({ model, request: canvasConnection?.requestAppearance });
-  const layerDrag = mountPreviewLayerDrag(layers, { report,
-    beforeDrag() { closeLayerMenu(); stage?.cancelGesture(); },
-    commit(ids) {
+  const layerView = mountPreviewLayers(layers, layerHeading, {
+    report,
+    beforeAction() { message = ''; },
+    beforeDrag() { stage?.cancelGesture(); },
+    select(id) { select(id); setInspectorOpen(true); },
+    toggle(id, field) {
+      edit(document => { const item = document.items.find(entry => entry.id === id); item[field] = !item[field]; });
+    },
+    remove,
+    reorder(ids) {
       edit(document => {
         const items = new Map(document.items.map(item => [item.id, item]));
         document.items = ids.toReversed().map(id => items.get(id));
@@ -170,7 +175,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   });
   function validateInputs() {
     stage.cancelGesture();
-    layerDrag.cancel();
+    layerView.cancelDrag();
     const invalid = [...inspectorHost.querySelectorAll('input, select, textarea')].find((input) => input.willValidate && !input.validity.valid);
     if (invalid) { setInspectorOpen(true); invalid.focus(); invalid.reportValidity(); return false; }
     return true;
@@ -199,7 +204,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   function edit(mutator) {
     if (canvasController && (!canvasController.getState().loaded || canvasController.getState().presets?.length === 0)) return;
     stage?.cancelGesture();
-    layerDrag.cancel();
+    layerView.cancelDrag();
     model.edit(mutator);
   }
   function remove(id) {
@@ -223,7 +228,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     } catch (error) { report(error.message); }
   }
   function changeHistory(action) {
-    closeLayerMenu();
+    layerView.closeMenu();
     stage.cancelGesture();
     const previousIds = new Set(model.getSnapshot().items.map((item) => item.id));
     if (model[action]()) {
@@ -237,24 +242,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     const id = crypto.randomUUID();
     edit((document) => {
       if (component.id !== 'text-box' && document.items.filter(item => item.type !== 'text-box').length >= 32) throw new Error('一个场景最多添加 32 个非文本框组件。');
-      const draft = config || component.controller.getState().draft;
-      const region = !config && selectedSize ? selectedSize : component.bounds?.(draft);
-      const fillCanvas = component.id === 'background' || (component.id === 'danmaku' && isFloatingDanmakuStyle(draft.style)
-        && !size && (!draft.layout || (region?.x === 0 && region?.y === 0
-          && region.width === draft.layout.canvas.width && region.height === draft.layout.canvas.height)));
-      const [defaultWidth, defaultHeight] = fillCanvas ? [document.canvas.width, document.canvas.height]
-        : size || (region ? [region.width, region.height] : component.size(draft));
-      const scale = component.id === 'browser' ? Math.min(1, document.canvas.width / defaultWidth, document.canvas.height / defaultHeight) : 1;
-      const width = Math.max(32, Math.min(defaultWidth * scale, document.canvas.width));
-      const height = Math.max(32, Math.min(defaultHeight * scale, document.canvas.height));
-      const item = { id, type: component.id,
-        name: name || `${component.title} ${document.items.filter((item) => item.type === component.id).length + 1}`,
-        x: Math.round((document.canvas.width - width) / 2),
-        y: (component.id === 'danmaku' && DANMAKU_STYLE_OPTIONS[draft.style]?.layout === 'horizontal')
-          || (component.id === 'gift-frame' && draft.style === 'gift-swing' && !draft.mediaStyle && !draft.resourceStyle)
-          ? document.canvas.height - height : Math.round((document.canvas.height - height) / 2),
-        width, height, visible: true, locked: false,
-        appearance: config || component.sceneOnly ? { mode: 'independent', config: draft } : { mode: 'shared' } };
+      const item = createInitialPreviewItem(component, document, { id, config, name, size, selectedSize });
       document.items.push(item);
     });
     select(id);
@@ -285,95 +273,10 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
       inspectorHost.append(actions);
     } else inspector = mountPreviewCanvasSettings(inspectorHost, { model, report });
     stage?.syncSelection();
-    renderLayers();
-    layers.querySelector('.preview-canvas-layer-select[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    layerView.render({ items: model.getSnapshot().items, selected });
+    layerView.scrollToSelection();
     renderStatus();
     enhanceSelects();
-  }
-  let layerSignature;
-  function closeLayerMenu() {
-    layers.querySelector(':popover-open')?.hidePopover();
-  }
-  layers.addEventListener('scroll', closeLayerMenu);
-  window.addEventListener('resize', closeLayerMenu);
-  function renderLayers() {
-    const document = model.getSnapshot();
-    const signature = JSON.stringify([selected, document.items.map(({ id, name, visible, locked }) => [id, name, visible, locked])]);
-    if (signature === layerSignature) return;
-    layerDrag.cancel();
-    layerSignature = signature;
-    const scrollLeft = layers.scrollLeft;
-    closeLayerMenu();
-    layers.replaceChildren();
-    layerHeading.textContent = `组件 · ${document.items.length}`;
-    for (const item of document.items.toReversed()) {
-      const row = previewElement('div', 'preview-canvas-layer');
-      row.dataset.itemId = item.id;
-      const choose = button(row, item.name, () => { select(item.id); setInspectorOpen(true); }, 'preview-canvas-layer-select');
-      choose.dataset.itemId = item.id;
-      choose.setAttribute('aria-pressed', String(selected === item.id));
-      const toggle = button(row, '', () => {}, 'preview-canvas-layer-action');
-      toggle.setAttribute('aria-label', `${item.name}操作`);
-      toggle.setAttribute('aria-haspopup', 'menu');
-      toggle.setAttribute('aria-expanded', 'false');
-      toggle.title = '更多操作';
-      const chevron = previewElement('span', 'preview-canvas-layer-chevron');
-      chevron.setAttribute('aria-hidden', 'true');
-      toggle.append(chevron);
-      const menu = previewElement('div', 'preview-canvas-layer-menu');
-      menu.id = `preview-layer-menu-${item.id}`;
-      menu.popover = 'auto';
-      menu.setAttribute('role', 'menu');
-      menu.setAttribute('aria-label', `${item.name}操作`);
-      toggle.setAttribute('aria-controls', menu.id);
-      toggle.popoverTargetElement = menu;
-      for (const [field, label] of [
-        ['visible', item.visible ? '隐藏组件' : '显示组件'],
-        ['locked', item.locked ? '解锁组件' : '锁定组件'],
-      ]) {
-        const control = button(menu, label, () => {
-          menu.hidePopover();
-          edit((next) => { const current = next.items.find((entry) => entry.id === item.id); current[field] = !current[field]; });
-          [...layers.children].find((layer) => layer.dataset.itemId === item.id)
-            ?.querySelector('.preview-canvas-layer-action').focus({ preventScroll: true });
-        }, `preview-canvas-layer-state preview-canvas-layer-${field}`);
-        control.setAttribute('role', 'menuitem');
-        control.autofocus = field === 'visible';
-        control.dataset.active = String(item[field]);
-        const icon = previewElement('span', 'preview-canvas-layer-state-icon');
-        icon.setAttribute('aria-hidden', 'true');
-        control.prepend(icon);
-      }
-      const removeButton = button(menu, '删除', () => { menu.hidePopover(); remove(item.id); }, 'danger');
-      removeButton.setAttribute('role', 'menuitem');
-      removeButton.disabled = item.locked;
-      menu.addEventListener('beforetoggle', (event) => {
-        const open = event.newState === 'open';
-        toggle.setAttribute('aria-expanded', String(open));
-        if (!open) return;
-        const rect = toggle.getBoundingClientRect();
-        const width = Number.parseFloat(window.getComputedStyle(menu).width);
-        menu.style.left = `${Math.max(8, Math.min(rect.left + rect.width / 2 - width / 2, window.innerWidth - width - 8))}px`;
-        menu.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-      });
-      toggle.addEventListener('keydown', (event) => {
-        if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
-        event.preventDefault();
-        if (!menu.matches(':popover-open')) menu.showPopover({ source: toggle });
-      });
-      menu.addEventListener('keydown', (event) => {
-        if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
-        event.preventDefault();
-        const actions = [...menu.querySelectorAll('button:not(:disabled)')];
-        const index = actions.indexOf(host.ownerDocument.activeElement);
-        const next = event.key === 'Home' ? 0 : event.key === 'End' ? actions.length - 1
-          : (index + (event.key === 'ArrowDown' ? 1 : -1) + actions.length) % actions.length;
-        actions[next]?.focus();
-      });
-      row.append(menu);
-      layers.append(row);
-    }
-    layers.scrollLeft = scrollLeft;
   }
   function renderStatus() {
     if (closed) return;
@@ -452,7 +355,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     updateLayout();
     if (canvasController && !receiving && !model.isGestureActive()
       && JSON.stringify(document) !== JSON.stringify(canvasController.getState().draft.document)) canvasController.edit({ document });
-    renderLayers();
+    layerView.render({ items: model.getSnapshot().items, selected });
     renderStatus();
   }));
   let pendingFocus;
@@ -491,10 +394,8 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   return { focus, dispose() {
     closed = true;
     sharedAppearance.dispose();
-    layerDrag.dispose();
-    closeLayerMenu();
+    layerView.dispose();
     document.removeEventListener('keydown', keydown);
-    window.removeEventListener('resize', closeLayerMenu);
     layoutObserver.disconnect();
     toastContainer?.style.removeProperty('--toast-anchor-bottom');
     for (const stop of subscriptions) stop();

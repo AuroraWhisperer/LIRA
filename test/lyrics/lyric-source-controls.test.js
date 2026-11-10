@@ -18,7 +18,7 @@ async function controlsFixture(api, initial = sourceState('internal')) {
   const groups = ['internal', 'external', 'wesing'].map((value) => ({ name: 'desktopLyricSourceGroup', value }));
   const listeners = new Map();
   const elements = new Map();
-  for (const id of ['SourceControls', 'SourceStatus', 'FollowLabel', 'SourceTrack', 'SourceRetry', 'QQStatus', 'NetEaseStatus', 'NetEaseRetry', 'ExternalControls', 'WeSingSettings']) elements.set(`desktopLyric${id}`, {
+  for (const id of ['SourceControls', 'SourceStatus', 'FollowStatus', 'SourceTrack', 'SourceRetry', 'QQStatus', 'NetEaseStatus', 'NetEaseRetry', 'ExternalControls', 'WeSingSettings']) elements.set(`desktopLyric${id}`, {
     querySelectorAll: (selector) => selector === 'input[name="desktopLyricSourceGroup"]' ? groups : inputs,
     addEventListener(type, fn) { listeners.set(`${id}:${type}`, [...(listeners.get(`${id}:${type}`) || []), fn]); },
   });
@@ -55,6 +55,8 @@ test('failed selection restores the preference', async () => {
   await f.change('wesing');
   assert.equal(f.inputs.find((input) => input.checked).value, 'auto');
   assert.equal(f.groups.find((input) => input.checked).value, 'external');
+  assert.equal(f.elements.get('desktopLyricSourceStatus').hidden, false);
+  assert.equal(f.elements.get('desktopLyricFollowStatus').hidden, false);
 });
 
 test('categories retain the last external preference', async () => {
@@ -73,8 +75,11 @@ test('source controls stay disabled until the source preference is loaded', asyn
   const f = await controlsFixture(async () => {}, null);
   assert.equal(f.elements.get('desktopLyricSourceControls').disabled, true);
   assert.equal(f.groups.some((input) => input.checked), false);
+  assert.equal(f.elements.get('desktopLyricSourceStatus').hidden, false);
   f.window.dispatchEvent(new CustomEvent('app:lyric-source', { detail: sourceState('wesing', 'qq-client') }));
   assert.equal(f.groups.find((input) => input.checked).value, 'external');
+  assert.equal(f.elements.get('desktopLyricSourceStatus').hidden, true);
+  assert.equal(f.elements.get('desktopLyricFollowStatus').hidden, true);
 });
 
 test('nested WeSing preferences bubble to autosave without changing the followed player', async () => {

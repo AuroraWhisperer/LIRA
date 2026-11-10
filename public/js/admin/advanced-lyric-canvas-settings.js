@@ -1,7 +1,7 @@
 import { ADVANCED_LYRIC_FIELDS, ADVANCED_LYRIC_PRESETS_SETTING } from '../shared/advanced-lyric-appearance.js';
 import { hasInstalledAppearance } from '../shared/scene-shared-appearance.js';
 import { createAdvancedLyricEditor } from './advanced-lyric-editor.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 
 export function mountAdvancedLyricCanvasSettings(host, target) {
   const section = previewElement('details', 'desktop-lyric-settings-group scene-parameter-group advanced-lyric-canvas-settings');

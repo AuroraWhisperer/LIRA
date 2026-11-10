@@ -40,20 +40,21 @@ async function loadOwner(filename, overrides = {}) {
   document.createElement = createNode;
   const opened = [];
   const bindings = [];
+  const { normalizeRangeValue } = await loadModuleExports(path.resolve(adminPath, '../shared/utils.js'));
+  const { subscribeComponentFields } = await loadModuleExports(path.resolve(adminPath, '../shared/component-parameter-fields.js'), { queueMicrotask });
   const replacements = {
     '../shared/copy-url.js': { bindCopyUrl: () => () => {} },
     '../shared/utils.js': { api: async () => { throw new Error('Unexpected business write'); },
-      localOverlayOrigin: () => 'http://127.0.0.1:3000', copyText() {}, toast() {}, value() {}, setValue() {},
+      localOverlayOrigin: () => 'http://127.0.0.1:3000', copyText() {}, toast() {}, value() {}, setValue() {}, normalizeRangeValue,
       showConfirmationDialog: async () => { throw new Error('Unexpected confirmation'); } },
     './component-preview-dialog.js': { openComponentPreview(options) {
       opened.push(options);
       return { close() { options.onClose?.(); } };
     } },
-    './component-preview-panel.js': { cloneComponentPanel: createNode,
+    './component-preview-panel.js': { cloneComponentPanel: createNode, subscribeComponentFields,
       componentField: (root, id) => root.getElementById(id), componentFieldLabel: () => '参数',
       syncComponentFieldValue: (input, value) => { input.value = String(value); } },
-    './forms.js': { formsService: {} },
-    './component-style-parameters.js': { mountStyleParameters: () => ({ dispose() {} }) },
+    '../shared/component-style-parameter-view.js': { mountStyleParameters: () => ({ dispose() {} }) },
     './state.js': { stateService: { getAppState: () => ({ settings: {} }) } },
     './queue.js': { applyAdminQueueFontPreview() {} },
     './theme-style-view.js': { setOverlayStyle() {} },

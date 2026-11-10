@@ -67,6 +67,8 @@ test('basic and advanced lyrics save independently, restore presets and reject i
   } }];
   assert.equal((await f.post({ desktopLyricEnabled: true, advancedLyricEnabled: true,
     desktopLyricFontSize: '64', advancedLyricLayout: 'corners', advancedLyricGlowEnabled: true, advancedLyricHideUnsung: false,
+    advancedLyricFontStyle: 'italic', advancedLyricLineHeight: 1.6, advancedLyricLetterSpacing: 0.6,
+    advancedLyricShadowAngle: -45,
     advancedLyricLayoutSequence: 'corners,arc,corners', advancedLyricSavedPresets: presets })).status, 200);
   assert.equal((await f.post({ desktopLyricEnabled: false })).status, 200);
   const saved = createSettingsStore(f.db).getSettings();
@@ -75,13 +77,24 @@ test('basic and advanced lyrics save independently, restore presets and reject i
   assert.equal(saved.desktopLyricFontSize, '64');
   assert.equal(saved.advancedLyricLayoutSequence, 'corners,arc');
   assert.equal(saved.advancedLyricHideUnsung, 'false');
+  assert.equal(saved.advancedLyricFontStyle, 'italic');
+  assert.equal(saved.advancedLyricLineHeight, '1.6');
+  assert.equal(saved.advancedLyricLetterSpacing, '0.6');
+  assert.equal(saved.advancedLyricShadowAngle, '-45');
   const restored = JSON.parse(saved.advancedLyricSavedPresets)[0];
   assert.equal(restored.name, '四角手记');
   assert.equal(restored.settings.advancedLyricLayout, 'corners');
   assert.equal(restored.settings.advancedLyricGlowEnabled, 'true');
   assert.equal(restored.settings.advancedLyricHideUnsung, 'true', 'old presets inherit timed reveal without rejecting their legacy next-line key');
-  assert.equal((await f.post({ advancedLyricSavedPresets: [{ ...presets[0], settings: { advancedLyricHideUnsung: false } }] })).status, 200);
-  assert.equal(JSON.parse(f.store.getSettings().advancedLyricSavedPresets)[0].settings.advancedLyricHideUnsung, 'false');
+  assert.equal(restored.settings.advancedLyricFontStyle, 'normal', 'old presets keep their original upright text');
+  assert.equal(restored.settings.advancedLyricLineHeight, '1.2', 'old presets retain the previous line spacing');
+  assert.equal((await f.post({ advancedLyricSavedPresets: [{ ...presets[0], settings: {
+    advancedLyricHideUnsung: false, advancedLyricFontStyle: 'italic', advancedLyricHighlightOpacity: 0.35,
+  } }] })).status, 200);
+  const updatedPreset = JSON.parse(f.store.getSettings().advancedLyricSavedPresets)[0];
+  assert.equal(updatedPreset.settings.advancedLyricHideUnsung, 'false');
+  assert.equal(updatedPreset.settings.advancedLyricFontStyle, 'italic');
+  assert.equal(updatedPreset.settings.advancedLyricHighlightOpacity, '0.35');
   assert.equal(Object.hasOwn(restored.settings, 'desktopLyricEnabled'), false);
   assert.deepEqual(f.dirtyScopes, [], 'visual changes stay local and do not start a cloud settings sync');
   assert.equal((await f.post({ advancedLyricLayout: 'type-impact', advancedLyricLayoutSequence: 'phrase-flow,corner-relay,type-impact' })).status, 200);
@@ -90,6 +103,8 @@ test('basic and advanced lyrics save independently, restore presets and reject i
   for (const patch of [
     { advancedLyricLayoutSequence: 'corners,unknown' },
     { advancedLyricFontSize: Infinity },
+    { advancedLyricFontStyle: 'oblique' },
+    { advancedLyricHighlightOpacity: 1.1 },
     { advancedLyricEnabled: 'yes' },
     { advancedLyricSavedPresets: [{ ...presets[0], settings: { desktopLyricEnabled: false } }] },
   ]) {

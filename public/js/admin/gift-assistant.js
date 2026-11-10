@@ -1,6 +1,6 @@
 import { createGiftDisplaySettings } from './gifts/display-settings.js';
 import { createGiftWishes } from './gifts/wishes.js';
-import { initGiftSprintOverlay } from './gifts/sprint-overlay.js';
+import { initGiftSprintOverlay } from './gifts/sprint.js';
 import { createHeartBoxCollection } from './gifts/heart-box-collection.js';
 
 let initialized = false;

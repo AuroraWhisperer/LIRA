@@ -4,8 +4,8 @@ const { cleanText, cleanTextPreserveLines } = require('../shared/utils');
 
 const SONG_EXPORT_HEADERS = [
   '歌曲名字',
-  '原唱/首发歌手',
-  '歌曲分类',
+  '歌手',
+  '曲风',
   '歌曲标签',
   '是否可点',
   '语言',
@@ -21,8 +21,8 @@ const SONG_TEMPLATE_HEADERS = SONG_EXPORT_HEADERS.map((header) =>
 
 const SONG_IMPORT_ALIASES = {
   name: ['name', 'songName', '歌曲名字', '歌曲名称', '歌名', '曲名'],
-  artist: ['artist', 'singer', '原唱/首发歌手', '歌手', '演唱者', '原唱'],
-  categoryName: ['categoryName', 'category', '歌曲分类', '类别', '分类', '分组'],
+  artist: ['artist', 'singer', '歌手'],
+  categoryName: ['categoryName', 'category', '曲风'],
   note: ['note', '核对备注', '备注', '说明'],
   tags: ['tags', 'tag', '歌曲标签', '标签', SONG_TEMPLATE_HEADERS[3]],
   isEnabled: ['isEnabled', 'enabled', '是否可点', '可点', '是否启用', '启用'],

@@ -1,5 +1,5 @@
-import { mountStyleParameters } from './component-style-parameters.js';
-import { previewElement } from './component-preview-surface.js';
+import { mountStyleParameters } from '../shared/component-style-parameter-view.js';
+import { previewElement } from './component-preview-elements.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { BROWSER_SOURCE_DEFAULTS, normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { configureBrowserSourceFrame, disposeBrowserSourceFrame } from '../overlays/browser-source-frame.js';

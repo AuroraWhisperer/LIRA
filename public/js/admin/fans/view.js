@@ -1,5 +1,5 @@
 import { escapeHtml, escapeAttr } from '../../shared/html-escape.js';
-import { bilibiliAvatarSource } from '../settings-auth.js';
+import { bilibiliAvatarSource } from '../../shared/bilibili-avatar.js';
 import { getGuardIcon } from '../../shared/bilibili-guard-icons.js';
 
 export const html = escapeHtml;

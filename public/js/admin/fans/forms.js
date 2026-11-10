@@ -1,5 +1,5 @@
 import { html, attr } from './view.js';
-import { bilibiliAvatarSource } from '../settings-auth.js';
+import { bilibiliAvatarSource } from '../../shared/bilibili-avatar.js';
 
 function field(name, label, value = '', type = 'text', extra = '') {
   return `<label class="fan-field">${label}<input name="${name}" type="${type}" value="${attr(value ?? '')}" ${extra} /></label>`;
@@ -415,7 +415,7 @@ export function recordForm(kind, record) {
     fields =
       field('songName', '歌名', data.songName, 'text', 'required maxlength="300"') +
       field('artist', '歌手', data.artist) +
-      field('category', '歌曲分类', data.category) +
+      field('category', '曲风', data.category) +
       area('note', '说明', data.note);
   else if (kind === 'preference')
     fields =
@@ -428,7 +428,7 @@ export function recordForm(kind, record) {
         ],
         data.sentiment || 'like',
       ) +
-      field('label', '歌曲、歌手、风格或类别', data.label, 'text', 'required maxlength="300"') +
+      field('label', '歌曲、歌手或曲风', data.label, 'text', 'required maxlength="300"') +
       area('reason', '备注（选填）', data.reason);
   else if (kind === 'anniversary')
     fields =

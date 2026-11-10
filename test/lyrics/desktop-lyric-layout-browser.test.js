@@ -91,7 +91,7 @@ async function render(page, text, tokens, settings) {
   }, { text, tokens, settings });
 }
 
-test('configured lyric sizes remain exact in a narrow output and the client preview', async t => {
+test('configured lyric sizes remain exact in the output and scale to 65% in the client preview', async t => {
   const page = await openRenderer(t);
   await page.setViewportSize({ width: 720, height: 800 });
   for (const surface of ['output', 'preview']) {
@@ -117,7 +117,8 @@ test('configured lyric sizes remain exact in a narrow output and the client prev
           document.querySelector(`.desktop-lyric-preview-row-${kind}`),
         ).fontSize));
       }, fontSize);
-      for (const [index, expected] of [fontSize, fontSize * 0.5, fontSize * 0.5 * 0.86].entries()) {
+      const expectedSize = fontSize * (surface === 'preview' ? 0.65 : 1);
+      for (const [index, expected] of [expectedSize, expectedSize * 0.5, expectedSize * 0.5 * 0.86].entries()) {
         assert.ok(Math.abs(actual[index] - expected) < 0.01,
           `${surface}/${fontSize}px: text ${index} rendered at ${actual[index]}px instead of ${expected}px`);
       }

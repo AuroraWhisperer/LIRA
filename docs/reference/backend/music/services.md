@@ -186,15 +186,15 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 | 函数                                       | 行为                                                                                                                                                                                                                                                                                    | 出处                                                                       |
 | ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `saveSong(store, input)`                   | **upsert 语义**:有 `input.id` 走 UPDATE(不存在抛"歌曲不存在",UNIQUE 冲突翻译成"歌曲名称和艺术家与已有歌曲重复");无 id 时先按 `(name, artist)` 精确查重,存在则 UPDATE 其余字段,否则 INSERT。`name` 必填;分类缺省"默认"(`ensureCategory`);`name_pinyin = name_initial = getInitial(name)` | [song-service.js](../../../../src/music/song-service.js) |
-| `listSongs(store, filters)`                | store 保留关键词/分类的 SQL LIKE 语义，将分类候选以 OR 组合后与其他条件取交集；领域层做语言/歌手完整字段及任一完整 tag 匹配，再按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`) 稳定排序并布尔化 `is_enabled` | [song-service.js](../../../../src/music/song-service.js) |
+| `saveSong(store, input)`                   | **upsert 语义**:有 `input.id` 走 UPDATE(不存在抛"歌曲不存在",UNIQUE 冲突翻译成"歌曲名称和艺术家与已有歌曲重复");无 id 时先按 `(name, artist)` 精确查重,存在则 UPDATE 其余字段,否则 INSERT。`name` 必填;曲风缺省"默认"(`ensureCategory`);`name_pinyin = name_initial = getInitial(name)` | [song-service.js](../../../../src/music/song-service.js) |
+| `listSongs(store, filters)`                | store 保留关键词/曲风的 SQL LIKE 语义，将曲风候选以 OR 组合后与其他条件取交集；领域层做语言/歌手完整字段及任一完整 tag 匹配，再按 `name_initial` + `name`(`zh-Hans-CN-u-co-pinyin`) 稳定排序并布尔化 `is_enabled` | [song-service.js](../../../../src/music/song-service.js) |
 | `findSong(store, songName, artist?)`       | 有 artist 先精确 `(name, artist)`;否则按 name 取 `updated_at` 最新;仅启用歌曲 | [song-service.js](../../../../src/music/song-service.js) |
 | `findUniqueSongNameMatch(store, songName, matchMode = 'unique')` | 两种模式都先查完整歌名。`unique` 保留唯一包含匹配；`prefix` 先查唯一歌名开头候选，没有前缀候选时再尝试唯一包含匹配。多候选返回 null，不猜测；只查询启用歌曲并转义 LIKE 字面关键词。领域装配每次读取当前 `songRequestMatchMode` | [song-service.js](../../../../src/music/song-service.js) |
 | `deleteSong` / `toggleSong` / `countSongs` | 委托 store 的单曲写操作(删除时在同一事务解除 queue/request 引用);切换启用返回 `{ok}`;总数 | [song-service.js](../../../../src/music/song-service.js) |
 
-### 7.2 分类与标签
+### 7.2 曲风与标签
 
-快照通过 `domainServices.songs.getMetadata()` 读取分类、标签和歌曲总数。`song-metadata.js` 按 SongStore 的 `getChangeToken()` 缓存这些查询结果；连接级 TEMP 触发器只累计 `songs` / `song_categories` 写入，组合 `PRAGMA data_version` 识别其他连接提交。同连接 settings、queue 写入不使歌库缓存失效，直接 SQL、批量导入和清库仍可见；事务内读取不复用，避免回滚后版本复用造成旧快照。TEMP 状态随连接关闭销毁，不改变持久数据库格式。歌曲和标签排序复用相同 locale 的 `Intl.Collator`，排序规则不变。
+快照通过 `domainServices.songs.getMetadata()` 读取曲风、标签和歌曲总数。`song-metadata.js` 按 SongStore 的 `getChangeToken()` 缓存这些查询结果；连接级 TEMP 触发器只累计 `songs` / `song_categories` 写入，组合 `PRAGMA data_version` 识别其他连接提交。同连接 settings、queue 写入不使歌库缓存失效，直接 SQL、批量导入和清库仍可见；事务内读取不复用，避免回滚后版本复用造成旧快照。TEMP 状态随连接关闭销毁，不改变持久数据库格式。歌曲和标签排序复用相同 locale 的 `Intl.Collator`，排序规则不变。
 
 - `listCategories`:`sort_order ASC, name` 排序,`is_enabled` 布尔化(store 查询)
 - `ensureCategory(name)`:`INSERT OR 返回` 语义,新建时 `sort_order=0, is_enabled=1`(store 原子写入)
@@ -205,19 +205,19 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 旧 JSON/XLSX 导入现在也遵守最终完整歌库容量约束，去重与超限原子拒绝由 [SongStore](../storage.md) 拥有；失败不广播或请求云同步。旧入口没有额外限制重复原始行数量，显式更新导入的输入行限制仍按其独立契约执行。
 
-- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 在单个事务中写入有效歌曲和新分类，失败 `ROLLBACK`，不新增 `import_batches` 记录
-- 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新分类计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
+- `normalizeImportedSongRow` 与空歌名/云快照校验由领域层负责(§11);`store.importRows` 在单个事务中写入有效歌曲和新曲风，失败 `ROLLBACK`，不新增 `import_batches` 记录
+- 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新曲风计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
 - 返回 `{total, inserted, duplicate, failed, createdCategories, failures}`；导入计数只通过当次响应返回，不在结束时写入批次记录
 
 云端快照与表格导入是不同契约：上传边界 [mapSongForSync](../../../../src/electron/license/license-response-utils.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载由 `replaceCloudSongs` 将 canonical 字段映射回本地模型。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 的表格导入别名继续使用各自契约。跨端字段与配套升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)。
 
-表格预览和应用由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲。管理页固定传 `replaceAll: true`，完整覆盖匹配歌曲的所有导入字段并删除表格中未列出的旧歌曲；文本空白/缺列清空、分类默认为「默认」、是否可点默认为是。不传替换选项的旧调用仅新增和更新，不删除无关记录。兼容更新的缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，分类空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
+表格预览和应用由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲。管理页固定传 `replaceAll: true`，完整覆盖匹配歌曲的所有导入字段并删除表格中未列出的旧歌曲；文本空白/缺列清空、曲风默认为「默认」、是否可点默认为是。不传替换选项的旧调用仅新增和更新，不删除无关记录。兼容更新的缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，曲风空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
 
-预览给新增/更新/未改变/冲突/无效计数，替换时额外给删除计数和删除明细（row 为 null）；同身份同指定内容重复折叠，不同内容的全组冲突，任何冲突或无效禁止整批提交。预览 token 绑定完整歌曲（含更新时间）、全部分类与输入/空值/替换选项；提交委托 `store.applyImportUpdate(buildPlan)` 在事务内重算并检查，避免预览后歌曲/分类变化时覆盖编辑。通过后一次事务写入，失败全部回滚，匹配歌曲保持原 song id；删除仅解除队列和历史的歌曲关联，保留其文本快照。替换以最终表格计容量，允许将超限旧库缩减至 5000 首以内；空表仍拒绝。详细 API 和错误见 [API 歌库域](../api.md)。
+预览给新增/更新/未改变/冲突/无效计数，替换时额外给删除计数和删除明细（row 为 null）；同身份同指定内容重复折叠，不同内容的全组冲突，任何冲突或无效禁止整批提交。预览 token 绑定完整歌曲（含更新时间）、全部曲风与输入/空值/替换选项；提交委托 `store.applyImportUpdate(buildPlan)` 在事务内重算并检查，避免预览后歌曲/曲风变化时覆盖编辑。通过后一次事务写入，失败全部回滚，匹配歌曲保持原 song id；删除仅解除队列和历史的歌曲关联，保留其文本快照。替换以最终表格计容量，允许将超限旧库缩减至 5000 首以内；空表仍拒绝。详细 API 和错误见 [API 歌库域](../api.md)。
 
 ### 7.4 随机选歌(pickRandomSong,[song-service.js](../../../../src/music/song-service.js))
 
-1. store 只取 `is_enabled=1` 的全量行 + 分类启用标记,组合筛选交给纯模块 `filterRandomSongCandidates`(§10)
+1. store 只取 `is_enabled=1` 的全量行 + 曲风启用标记,组合筛选交给纯模块 `filterRandomSongCandidates`(§10)
 2. store 提供最近 10 次 `source = 'random' 或 'random:%'` 的点歌流水歌名(`requests` 表),领域层排除它们——避免随机重复刚点过的歌
 3. 排除后为空则回退全池;`randomSourceValue(scopeText)` 生成 `source = 'random'` 或 `random:<scope>`(弹幕机器人据此定位请求者,见 §12)
 
@@ -333,7 +333,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ## 10. 随机点歌筛选(random-song-filter.js + tag-aliases.js)
 
-每次筛选先编译完整条件和空格子条件，语言/分类别名组只在模块初始化时归一化；标签查询词的归一化和单向别名查询也在条件编译时完成，由该次扫描复用。每首歌曲的歌手、语言、分类字段只准备一次，再与所有条件比对；标签仍在前面维度未命中时按需比对。`describeRandomSongScope` 在同次扫描中累计各条件是否出现及是否由同一首歌满足全部条件，不再次筛选整份歌曲。匹配结果、顺序、分类停用和标签单向别名语义不变；不跨请求保存歌曲缓存。
+每次筛选先编译完整条件和空格子条件，语言/曲风别名组只在模块初始化时归一化；标签查询词的归一化和单向别名查询也在条件编译时完成，由该次扫描复用。每首歌曲的歌手、语言、曲风字段只准备一次，再与所有条件比对；标签仍在前面维度未命中时按需比对。`describeRandomSongScope` 在同次扫描中累计各条件是否出现及是否由同一首歌满足全部条件，不再次筛选整份歌曲。匹配结果、顺序、曲风停用和标签单向别名语义不变；不跨请求保存歌曲缓存。
 
 随机抽取在已有条件匹配后通过 `queueService.filterSongsByCooldown` 排除冷却项，再应用既有最近随机歌曲避让。条件无匹配仍返回空；有匹配但全部冷却抛 `SONG_COOLDOWN`，点歌桥生成专门回复。最终入队仍校验冷却。
 
@@ -352,7 +352,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 歌手 | 整串或按 `/\s*(?:\/                                                                                                                                                                                                                                  | &                                                            | ＆)\s*/`切分后逐段`normalizeComparable` 相等 |
 | 语言 | `randomLanguageAliases(term)` 命中组内任一别名(`LANGUAGE_ALIAS_GROUPS`:[random-song-filter.js:8-14](../../../../src/music/random-song-filter.js#L8-L14):日语/韩语/英语/粤语/国语组,含 ja/jp/ko/en/chinese 等码),歌曲 language 按 `/、，,` 切分后比对 |
-| 分类 | 歌曲分类启用(`category_is_enabled !== 0`)且 `randomCategoryAliases` 命中(`CATEGORY_ALIAS_GROUPS`:[random-song-filter.js:16-24](../../../../src/music/random-song-filter.js#L16-L24):流行/R&B/说唱/摇滚/民谣/舞曲/影视原声)                           |
+| 曲风 | 曲风启用(`category_is_enabled !== 0`)且 `randomCategoryAliases` 命中(`CATEGORY_ALIAS_GROUPS`:[random-song-filter.js:16-24](../../../../src/music/random-song-filter.js#L16-L24):流行/R&B/说唱/摇滚/民谣/舞曲/影视原声)                           |
 | 标签 | `splitSongTags`(分隔符 `[,，、;；                                                                                                                                                                                                                    | ]`,**整项匹配**避免"情"误中"抒情")逐项使用编译后的标签条件 |
 
 ### 10.3 标签别名(tag-aliases.js)
@@ -363,11 +363,13 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ### 11.1 列契约(song-import-schema.js)
 
-`SONG_EXPORT_HEADERS` 10 列([song-import-schema.js:5-16](../../../../src/music/song-import-schema.js#L5-L16)):`歌曲名字 / 原唱/首发歌手 / 歌曲分类 / 歌曲标签 / 是否可点 / 语言 / 点歌价格 / 歌切 / 核对平台 / 核对备注`。`点歌价格` 是自由文本说明，例如 `免费 / 心动 / 30元SC / 舰长 / 冠歌`;`歌切` 是可放链接、BV 号、时间点或其他说明的自由文本。两列均不参与点歌资格或排序判断。
+`SONG_EXPORT_HEADERS` 10 列([song-import-schema.js:5-16](../../../../src/music/song-import-schema.js#L5-L16)):`歌曲名字 / 歌手 / 曲风 / 歌曲标签 / 是否可点 / 语言 / 点歌价格 / 歌切 / 核对平台 / 核对备注`。`点歌价格` 是自由文本说明，例如 `免费 / 心动 / 30元SC / 舰长 / 冠歌`;`歌切` 是可放链接、BV 号、时间点或其他说明的自由文本。两列均不参与点歌资格或排序判断。
+
+网页、导出及模板统一使用「歌手」「曲风」，这两项导入字段的中文表头仅接受这两个名称；`曲风` 映射到 `categoryName` 字段。
 
 下载模板使用 `SONG_TEMPLATE_HEADERS`，只将标签列表头改为 `歌曲标签（如：怀旧、抒情、治愈）`；其余列名与顺序沿用导出表头。CSV/XLSX 模板仅含表头，不含示例歌曲。XLSX 标签列加宽以容纳提示。后端导入和前端 CSV/TSV/粘贴解析均接受该表头别名，普通歌库导出的表头不变。
 
-`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空，布尔 `false` 和数值 `0` 不当作缺值。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集，原生 `false/0` 与字符串 `false/0` 均表示停用，空值或未识别值回退默认值。`normalizeImportedSongRow` 产出清洗后的行,分类缺省"默认"，点歌价格与歌切均缺省空字符串。
+`SONG_IMPORT_ALIASES` 每字段维护中英文别名([song-import-schema.js](../../../../src/music/song-import-schema.js));`requestPrice` 接受 `requestPrice / request_price / 点歌价格 / 点歌价 / 点歌门槛 / 点歌要求 / 点歌条件 / 点歌说明`;`songClip` 接受 `songClip / song_clip / 歌切 / 歌切链接 / 歌曲切片 / 切片链接`。价格所有非空别名经文本规范化后必须相同，否则该数据行失败；其他字段的 `firstValue` 仍按别名顺序取首个非空，布尔 `false` 和数值 `0` 不当作缺值。`parseEnabled` 识别 `是/可点/启用/true/yes/y/1` 与反向集，原生 `false/0` 与字符串 `false/0` 均表示停用，空值或未识别值回退默认值。`normalizeImportedSongRow` 产出清洗后的行,曲风缺省"默认"，点歌价格与歌切均缺省空字符串。
 
 按 [点歌资料规范](../../../../specs/song-request-metadata.md)，价格和歌切在导入、保存中使用 `cleanTextPreserveLines`，保留内部空格和换行，统一 CRLF、去除控制字符及首尾空白；价格数值 0 变为文本 `0`。显式升级原先的空白折叠和价格首别名规则，其余字段不变。普通保存省略价格/歌切保留旧值，显式空字符串清空。
 
@@ -378,7 +380,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`；表头检测为任一行单元格命中别名，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
 | `buildSongsCsv(rows, options?)` | 表头 + `csvCell` 转义逐行；`template:true` 使用模板表头，下载模板传入空 rows |
 | `buildSongsWorkbook(rows, options?)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)；`template:true` 使用模板表头及标签列宽，下载模板传入空 rows |
-| `songToExportRow(song)`      | 行映射(分类缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
+| `songToExportRow(song)`      | 行映射(曲风缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
 
 `parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于替换及兼容更新预览：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
 

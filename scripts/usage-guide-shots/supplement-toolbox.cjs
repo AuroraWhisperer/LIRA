@@ -2,7 +2,14 @@
 
 const SHOTS = [
   { id: 'E1', file: 'toolbox-nav', title: '百宝箱导航', main: 'otherAssistantPage', feature: 'otherDanmakuFeature' },
-  { id: 'E1c', file: 'live-components', title: '组件：六项画面组件', main: 'liveComponentsPage', feature: 'liveDanmakuFeature' },
+  {
+    id: 'E1c',
+    file: 'live-components',
+    title: '组件：六项画面组件',
+    main: 'liveComponentsPage',
+    feature: 'liveDanmakuFeature',
+    license: { state: 'authorized' },
+  },
   {
     id: 'E1b',
     file: 'toolbox-nav-help',
@@ -60,6 +67,7 @@ const SHOTS = [
     file: 'danmaku-apply-style',
     title: '青墨笺参数与应用到直播画面',
     feature: 'liveDanmakuFeature',
+    license: { state: 'authorized' },
     scroll: '.danmaku-parameters',
     mustShow: ['#danmakuApplyOverlayBtn'],
   },

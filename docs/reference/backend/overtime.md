@@ -41,7 +41,7 @@
 
 ### 1.3 服务构造时的恢复顺序
 
-运行中的“清空全部数据”成功后，`domain-services.data.clearAll()` 调用内部 `overtime.reloadState()`，重新读取已提交的状态并同步单调时钟锚点、归零与补偿定时器。后续暂停或礼物操作不能写回清空前的时间；存储失败或部分提交失败时不执行该重载。禁用默认行随 giftDb 事务提交，已有单例的 revision 在同一事务内递增而不归零，使现有 浏览器源连接接受清空快照及后续操作，并继续拒绝清空前晚到的 HTTP 状态；仅缺失单例时从 revision 0 创建。部分失败时 `data-maintenance-runtime.runClearAll()` 保持后台结算/计时写入暂停；完整回滚时恢复当前请求取得的暂停，详见 [storage.md](storage.md#63-并发写入静默quiesce)。此操作不增加 HTTP/IPC 接口。
+运行中的“清空全部数据”成功后，`domain-services.data.clearAll()` 调用内部 `overtime.reloadState()`，重新读取已提交的状态并同步单调时钟锚点、归零与补偿定时器。后续暂停或礼物操作不能写回清空前的时间；存储失败或部分提交失败时不执行该重载。禁用默认行随 giftDb 事务提交，保留已有 `enable_epoch`，下次启用继续递增；同一事务把保留来源的 pending 置 ignored，保留其礼物历史和 applied/ignored 终态，防止清空前的 final 进入新一轮。已有单例的 revision 在同一事务内递增而不归零，使现有 浏览器源连接接受清空快照及后续操作，并继续拒绝清空前晚到的 HTTP 状态；仅缺失单例时从 epoch/revision 0 创建。部分失败时 `data-maintenance-runtime.runClearAll()` 保持后台结算/计时写入暂停；完整回滚时恢复当前请求取得的暂停，详见 [storage.md](storage.md#63-并发写入静默quiesce)。此操作不增加 HTTP/IPC 接口。
 
 `createOvertimeService` 构造即执行两步恢复([overtime-service.js:27-35](../../../src/overtime/overtime-service.js#L27-L35)):
 
@@ -140,7 +140,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 - **服务器收尾**：平台结束标记和 6 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
 - **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js](../../../src/storage/overtime-store.js))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
 
-同一启用轮次内，已经收到但尚未结算的礼物继续保留资格；切换账号、直播间或 active source 不会自动结束本轮，也不取消旧来源的待结算工作。收到 final 或补偿恢复后，符合本轮资格的礼物仍结算到本地同一个计时器。`disable` 才结束本轮并忽略 pending；再次 `enable` 递增 epoch，旧轮礼物不再补算。启停不清零已累计时间，恢复初始时间仍由独立的 `reset` 操作完成。此约定仅针对本轮已接收的礼物，不改变历史同步的消费者资格或终态幂等规则。
+同一启用轮次内，已经收到但尚未结算的礼物继续保留资格；切换账号、直播间或 active source 不会自动结束本轮，也不取消旧来源的待结算工作。收到 final 或补偿恢复后，符合本轮资格的礼物仍结算到本地同一个计时器。`disable` 或“清空全部数据”结束本轮并忽略保留的 pending；再次 `enable` 递增 epoch，旧轮礼物不再补算。普通启停不清零已累计时间，恢复初始时间仍由独立的 `reset` 操作完成；清空全部则恢复禁用且剩余时间为零的状态。此约定仅针对本轮已接收的礼物，不改变历史同步的消费者资格或终态幂等规则。
 
 ### 3.2 observeGift / settleFinal 返回语义
 

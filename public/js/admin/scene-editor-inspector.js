@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { createSceneItemController } from './scene-item-controller.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
 import { getSceneItemPositionBounds } from '../shared/scene-geometry.js';

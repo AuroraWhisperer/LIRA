@@ -112,7 +112,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 失败保留草稿，账号切换清空草稿和未添加文案。同步中和失败时
 保持最近确认状态，关闭失败显示“关闭尚未同步，服务器可能仍在播报”；不离线重放。
 账号切换清空旧状态并忽略迟到结果；旧服务器显示暂不可用，允许刷新。退出客户端
-不关闭云端开关。第一版播报大航海/高能榜及榜内身份，受限或跨页标注本次可见；
+不关闭云端开关。播报大航海、在线榜人数及榜内身份；身份和金额档统一使用“榜内”“对面在线榜”，
 金额档位按用户确认的 1 元＝10 贡献值估算，百元/千元/万元档互不重叠，
 只展示正人数；说明中明确贡献值估算。串门欢迎仅在 PK 期间对进入本直播间的观众生效，
 服务器复用对手在线榜中取得的 UID 和来访者佩戴的对手粉丝牌推断归属，不增加对面直播间连接或轮询。
@@ -249,7 +249,7 @@ IPC 通道定义见 [preload.md](preload.md)。
 模块初始化时先由 `desktop-user-data.js` 解析稳定目录。需要一次性旧 AppData 迁移时，先在来源业务数据根申请旧版单实例锁，持锁检查来源 runtime 已停止并完成复制/发布，随后释放来源锁；再在安装目录的业务数据根申请运行期单实例锁，迁移浏览器/缓存并设置 Electron `userData` 与 `sessionData`。迁移失败保留数据并停止启动，避免应用以空 profile 继续运行。`app.whenReady()` 后执行:
 
 1. `configureDesktopEnvironment()` — 配置迁移后的数据/日志目录、环境变量、terminal 日志及 local-media 访问控制；随后创建播放输出、电音助手与外观适配器，注册各自 IPC(§3/§5/§8)
-2. `migrateLegacyPartitions({ app, writeLog })` — 旧 `%APPDATA%` 登录分区迁移(§3.2)
+2. `migrateLegacyPartitions({ app, writeLog })` — 旧 `%APPDATA%` 登录分区完整复制后发布；Windows 短暂占用导致发布返回 `EPERM`/`EBUSY` 时，仅重试已完成副本的重命名，最多 5 次，间隔为 50/100/150/200 ms，不重复复制。发布期间正式目标已出现、其他错误或重试耗尽时抛错，沿用异步启动失败清理与退出，不继续初始化账号会话(§3.2)
 3. `configureMenu()` — `Menu.setApplicationMenu(null)`([main.js](../../../src/electron/main.js))
 4. `configureLocalMediaProtocol()` — 注册 `local-media` handler(§5)
 5. `registerDesktopShellIpc()` / `registerMusicIpc()` / `registerBilibiliIpc()` — 注册桌面外壳、音乐和 Bilibili IPC handler；桌面外壳 owner 为 [desktop-shell-ipc.js](../../../src/electron/ipc/desktop-shell-ipc.js)，不改变通道和来源校验(通道清单见 [preload.md](preload.md) §2)
@@ -361,7 +361,9 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 兼容路径在程序替换完成后、启动新版前，将备份恢复为 `<新安装目录>/data`；快路径直接使用原数据。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
 
-只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移在复制前持有来源旧版单实例锁，并检查 `.server-runtime.json`；来源实例仍在运行、runtime 标记损坏或无法确认进程已退出时停止启动，不发布目标。来源锁一直保持到唯一 staging 目录完成复制和重命名，防止检查后旧客户端重新启动造成主库/WAL 不一致；进程锁文件不复制，成功与失败均释放来源锁，之后才申请安装目录的运行期锁。复制失败清理本次 staging、保留来源供重试；已有目标不获取来源锁，也不会被历史副本覆盖。更早期 `%APPDATA%/LIRA/Partitions/` 仍在目标缺失时兼容读取。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
+只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移在复制前持有来源旧版单实例锁，并检查 `.server-runtime.json`；来源实例仍在运行、runtime 标记损坏或无法确认进程已退出时停止启动，不发布目标。来源锁一直保持到唯一 staging 目录完成复制和重命名，防止检查后旧客户端重新启动造成主库/WAL 不一致；进程锁文件不复制，成功与失败均释放来源锁，之后才申请安装目录的运行期锁。复制失败清理本次 staging、保留来源供重试；已有目标不获取来源锁，也不会被历史副本覆盖。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
+
+更早期 `%APPDATA%/LIRA/Partitions/` 仅在当前 browser profile 的 `Partitions/` 不存在时兼容迁移：先复制到同级唯一 `.Partitions.migration-*` 目录，完整成功后重命名发布。复制或发布失败时尽力清理本次暂存目录，保留旧来源并中止启动；不会继续恢复音乐、Bilibili 或豆包账号会话，以免创建空目标阻断下一次重试。现有目标始终保留，不自动覆盖或补并旧分区；旧版本已经留下的残缺目标没有可靠完成标记，无法与迁移后新增状态安全区分，应在应用关闭、来源与当前目标均已备份后单独评估恢复，不能直接删除目标重跑。回归见 [分区迁移测试](../../../test/desktop/desktop-user-data.test.js)、[启动失败隔离](../../../test/desktop/electron-startup-data.test.js)及[隔离 Electron 恢复](../../../test/desktop/desktop-user-data-electron.test.js)。
 
 ## 4. 主窗口
 
@@ -375,7 +377,7 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
-| 尺寸           | **1200×750**,minWidth 1024,minHeight 680                                                                           | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
+| 尺寸           | **1260×820**,minWidth 1024,minHeight 680                                                                           | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 | 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 | 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js)、[desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 | webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |

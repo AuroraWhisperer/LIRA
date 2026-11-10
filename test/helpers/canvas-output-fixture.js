@@ -59,7 +59,7 @@ async function startCanvasOutputFixture({ extraContext, notifications = false, d
     danmakuEvents: notifications ? sceneRuntime.danmakuEvents : undefined,
     readDanmakuDisplay: sceneRuntime.readDanmakuDisplay,
     parentHtml: '<!doctype html><html><body></body></html>' });
-  return { ...server, service, runtime, owner, appearance: sceneRuntime.appearance, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,
+  return { ...server, service, runtime, owner, liveRankings: sceneRuntime.liveRankings, appearance: sceneRuntime.appearance, updateCloud, receiveGift: sceneRuntime.receiveGift, notify: sceneRuntime.notify,
     configs,
     failPublication(value) { failPublish = value; },
     async close() { sceneRuntime.dispose(); await server.close(); db.close(); },

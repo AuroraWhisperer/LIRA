@@ -12,7 +12,7 @@ export const LIVE_RANKING_COMPONENT = Object.freeze({
   ],
   fields: {
     showHot: check('热门全站'), showNew: check('热门新人', false), showPopular: check('人气全站', false), showArea: check('人气分区', false),
-    range: select('展示方式', 'all', { all: '从第 1 名开始（自动翻页）', nearby: '跟随本房间名次' }),
+    range: select('展示方式', 'all', { all: '完整榜单（手动滚动）', nearby: '跟随本房间名次' }),
     nearby: number('上下各几名', 2, 0, 10), pageSize: number('完整榜每页行数', 5, 3, 20),
     pageSeconds: number('翻页间隔（秒）', 8, 3, 30),
     columns: select('每行榜单数', '1', { 1: '一栏', 2: '两栏', 4: '四栏' }),

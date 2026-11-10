@@ -1,6 +1,7 @@
 'use strict';
 
 import { PlaybackConfig } from '../config.js';
+import { getQueueTrackKey } from '../utils.js';
 
 // One owner for current track, history, preferences and pending requests.
 // QueueManager owns queue transitions. Readers keep the same state identity.
@@ -49,7 +50,7 @@ export function createPlaybackStateActions(state, { save = () => {}, render = ()
       state.currentOrigin = origin;
     },
     beginTrack(track, options = {}) {
-      if (state.current && state.current.id !== track.id && !options.fromHistory) {
+      if (state.current && getQueueTrackKey(state.current) !== getQueueTrackKey(track) && !options.fromHistory) {
         state.history = [...state.history, state.current].slice(-PlaybackConfig.HISTORY_MAX_SIZE);
       }
       if (!options.fromHistory) {

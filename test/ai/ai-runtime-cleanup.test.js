@@ -23,3 +23,19 @@ test('runtime cleans expired idle records without new messages and stops mainten
   t.mock.timers.tick(60000);
   assert.equal(count(), 1);
 });
+
+test('runtime notifies configuration changes only after a successful update', async t => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  const changedTriggers = [];
+  const runtime = buildAiRuntime({ songDb: db, aiLogPath: 'unused', danmakuSender: {},
+    runtimeOptions: { aiSecretCodec: {}, aiRequestLogger: { log() {}, flush() {} } },
+    onConfigUpdated: () => changedTriggers.push(runtime.configStore.getConfig().trigger),
+  });
+  t.after(async () => { await runtime.shutdown(); db.close(); });
+  assert.equal(runtime.updateConfig({ trigger: '小梨' }).trigger, '小梨');
+  assert.deepEqual(changedTriggers, ['小梨']);
+  assert.throws(() => runtime.updateConfig({ trigger: 'x'.repeat(13) }));
+  assert.deepEqual(changedTriggers, ['小梨']);
+  assert.equal(runtime.configStore.getConfig().trigger, '小梨');
+});

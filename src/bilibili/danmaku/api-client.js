@@ -197,11 +197,15 @@ class BilibiliApiClient {
     }
   }
 
-  async fetchOnlineRank(roomId, ruid, page, pageSize) {
-    const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getOnlineGoldRank?roomId=${encodeURIComponent(roomId)}&ruid=${encodeURIComponent(ruid)}&page=${page}&pageSize=${pageSize}`;
-    const { payload, response } = await this.fetchJson('online_gold_rank', url);
-    if (payload.code !== 0 || !payload.data) {
-      throw new Error(formatBilibiliApiError('online_gold_rank', response, payload, '在线榜身份缓存获取失败。'));
+  async fetchOnlineRank(roomId, ruid, sort = 'contribution_rank') {
+    const query = new URLSearchParams({
+      room_id: String(roomId), ruid: String(ruid), page: '1', page_size: '100',
+      type: 'online_rank', switch: sort, platform: 'web', web_location: '444.8',
+    });
+    const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?${query}`;
+    const { payload, response } = await this.fetchJson('online_rank', url);
+    if (payload.code !== 0 || !Array.isArray(payload.data?.item)) {
+      throw new Error(formatBilibiliApiError('online_rank', response, payload, '在线榜身份缓存获取失败。'));
     }
     return payload.data;
   }
@@ -285,7 +289,7 @@ class BilibiliApiClient {
 
   async fetchJson(endpointName, url, options = {}) {
     const quiet =
-      endpointName === 'gethistory' || endpointName === 'online_gold_rank' || endpointName === 'fans_members_rank' || endpointName === 'room_guard_count';
+      endpointName === 'gethistory' || endpointName === 'online_rank' || endpointName === 'fans_members_rank' || endpointName === 'room_guard_count';
     if (!quiet) {
       console.log(`[Bilibili] request ${endpointName}: ${redactUrl(url)}`);
     }

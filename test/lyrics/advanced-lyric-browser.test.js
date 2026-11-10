@@ -48,7 +48,7 @@ test('every advanced layout reveals only reached current-line glyphs, including 
         advancedLyricShowNextLine: 'true', advancedLyricWordMotion: 'none', advancedLyricEchoEnabled: 'true' });
       window.renderer.renderFrame({ line, nextLine: { text: '下一句', startMs: 6000, endMs: 10000 },
         index: 0, currentMs: 2500, playing: false });
-      const visible = [...root.querySelectorAll('.advanced-lyric-glyph')].filter(glyph => {
+      const visible = [...root.querySelectorAll('.advanced-lyric-glyph, .advanced-lyric-echo, .advanced-lyric-outline')].filter(glyph => {
         for (let node = glyph; node && node !== root; node = node.parentElement) {
           const style = getComputedStyle(node);
           if (style.visibility === 'hidden' || Number(style.opacity) === 0 || style.clipPath === 'inset(0px 100% 0px 0px)') return false;
@@ -57,7 +57,7 @@ test('every advanced layout reveals only reached current-line glyphs, including 
       });
       results.push({ layout: id, label: root.getAttribute('aria-label'),
         future: root.querySelectorAll('[data-source="next"]').length,
-        visible: [...new Set(visible.map(node => node.dataset.text))].join('') });
+        visible: [...new Set(visible.map(node => node.dataset.text || node.textContent))].join('') });
     }
     return results;
   });
@@ -113,7 +113,8 @@ test('unsung visibility toggles immediately and restores after pause, backward s
 test('advanced layouts retain complete long lyrics inside the output', async t => {
   const page = await openRenderer(t);
   const text = '把长长的一句歌词唱完 Remember every word with 👨‍👩‍👧‍👦 and Cafe\u0301 in the moonlight';
-  for (const layout of ['center', 'vertical', 'tiles', 'orbit', 'phrase-flow', 'corner-relay', 'type-impact', 'focus-lens', 'page-turn']) {
+  for (const layout of ['center', 'vertical', 'tiles', 'orbit', 'phrase-flow', 'corner-relay', 'type-impact', 'focus-lens', 'page-turn',
+    'paper-fold', 'ink-trace', 'echo-trail', 'block-handoff', 'ribbon-arc', 'prism-scatter', 'adaptive']) {
     const result = await page.evaluate(async ({ text, layout }) => {
       window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: layout });
       window.frame = { line: { text, startMs: 0, endMs: 10000 }, index: 1, currentMs: 4500, playing: false };
@@ -301,6 +302,59 @@ test('a sustained glyph stays lifted through a long vocal and reduced motion kee
   assert.ok(reduced.fill > 0 && reduced.fill < 100, 'reduced motion retains the timed fill');
 });
 
+test('decorative lyric treatments share pause and cleanup and omit particles for dense or reduced motion', async t => {
+  const page = await openRenderer(t);
+  const result = await page.evaluate(async () => {
+    const root = document.getElementById('stage');
+    const text = '晚风把星光带到窗边让我们一起唱出心底最温柔的那首歌';
+    const line = { text, startMs: 0, endMs: 16000,
+      words: [...text].map((text, index) => ({ text, startMs: index * 500, endMs: (index + 1) * 500 })) };
+    const frame = { line, index: 0, currentMs: 80, playing: false };
+    const paused = [];
+    for (const layout of ['echo-trail', 'prism-scatter']) {
+      window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: layout, advancedLyricWordMotion: 'none' });
+      window.renderer.renderFrame(frame);
+      await document.fonts.ready;
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      const tracks = root.getAnimations({ subtree: true }).filter(animation =>
+        animation.effect.target.matches('.advanced-lyric-echo, .advanced-lyric-particle'));
+      const times = tracks.map(animation => animation.currentTime);
+      await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      paused.push({ layout, count: tracks.length, held: tracks.every((animation, index) =>
+        animation.playState === 'paused' && animation.currentTime === times[index]) });
+    }
+    const particles = root.querySelectorAll('.advanced-lyric-particle').length;
+    window.renderer.setVisible(false);
+    const hiddenAnimations = root.getAnimations({ subtree: true }).length;
+    window.renderer.setVisible(true);
+    window.renderer.renderFrame({ ...frame, line: { text, startMs: 0, endMs: 1000 } });
+    const denseParticles = root.querySelectorAll('.advanced-lyric-particle').length;
+    window.renderer.renderFrame(frame);
+    window.treatmentFrame = frame;
+    return { paused, particles, hiddenAnimations, denseParticles, text };
+  });
+  for (const item of result.paused) {
+    assert.ok(item.count > 0, `${item.layout}: the treatment must have active clock-owned work`);
+    assert.equal(item.held, true, `${item.layout}: pause must also hold decorative tracks`);
+  }
+  assert.ok(result.particles > 0 && result.particles <= 48, 'decorative particles have a per-line work budget');
+  assert.equal(result.hiddenAnimations, 0);
+  assert.equal(result.denseParticles, 0, 'rapid lines omit decorative particle work');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const reduced = await page.evaluate(async () => {
+    await new Promise(resolve => requestAnimationFrame(resolve));
+    window.renderer.renderFrame(window.treatmentFrame);
+    const root = document.getElementById('stage');
+    const result = { decorations: root.querySelectorAll('.advanced-lyric-echo, .advanced-lyric-particle').length,
+      text: [...root.querySelectorAll('.advanced-lyric-ink')].map(node => node.textContent).join('') };
+    window.renderer.dispose();
+    return { ...result, remainingAnimations: document.getAnimations().length };
+  });
+  assert.equal(reduced.decorations, 0);
+  assert.equal(reduced.text, result.text, 'reducing motion preserves the full lyric');
+  assert.equal(reduced.remainingAnimations, 0);
+});
+
 test('vertical filling follows the writing direction and soft edges advance and seek on the same clock', async t => {
   const page = await openRenderer(t);
   const result = await page.evaluate(() => {
@@ -347,15 +401,25 @@ test('vertical filling follows the writing direction and soft edges advance and 
   }
 });
 
-test('steady frames and color changes reuse glyphs without layout measurement', async t => {
+test('steady frames and effect changes reuse glyphs and preserve sung progress without layout measurement', async t => {
   const page = await openRenderer(t);
   const result = await page.evaluate(async () => {
     const root = document.getElementById('stage');
-    window.frame = { line: { text: '这一句持续演唱', startMs: 0, endMs: 10000 }, index: 0, currentMs: 1000, playing: false };
+    const settings = { ...window.lyricSettings, advancedLyricLayout: 'center', advancedLyricMaterial: 'striped' };
+    window.renderer.applySettings(settings);
+    window.frame = { line: { text: '这一句持续演唱', startMs: 0, endMs: 10000,
+      words: [...'这一句持续演唱'].map((text, index) => ({ text, startMs: index * 1000, endMs: (index + 1) * 1000 })) },
+      index: 0, currentMs: 1000, playing: false };
     window.renderer.renderFrame(window.frame);
     await document.fonts.ready;
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const glyph = root.querySelector('.advanced-lyric-glyph');
+    const glyph = root.querySelectorAll('.advanced-lyric-glyph')[2];
+    const appearance = () => ({
+      progress: getComputedStyle(glyph.querySelector('.advanced-lyric-highlight')).clipPath,
+      opacity: Number(getComputedStyle(glyph.querySelector('.advanced-lyric-highlight')).opacity),
+      material: getComputedStyle(glyph.querySelector('.advanced-lyric-ink')).backgroundImage,
+      shadow: getComputedStyle(glyph, '::before').textShadow,
+    });
     let reads = 0;
     const restores = [];
     for (const [proto, keys] of [[Element.prototype, ['clientWidth', 'clientHeight', 'scrollWidth']],
@@ -368,13 +432,29 @@ test('steady frames and color changes reuse glyphs without layout measurement', 
     }
     try {
       for (let index = 0; index < 80; index++) window.renderer.renderFrame({ ...window.frame, currentMs: 1000 + index * 20 });
-      window.renderer.applySettings({ ...window.lyricSettings, advancedLyricTextColor: '#ddccff', advancedLyricMaterial: 'glass' });
-      return { reads, sameGlyph: glyph === root.querySelector('.advanced-lyric-glyph'), material: root.dataset.material };
+      const before = appearance();
+      const effects = { ...settings, advancedLyricTextColor: '#ddccff', advancedLyricHighlightOpacity: '0.35',
+        advancedLyricGradientAngle: '250', advancedLyricTextureScale: '2', advancedLyricShadowColor: '#682ab3cc',
+        advancedLyricShadowAngle: '-45', advancedLyricShadowDistance: '3', advancedLyricShadowBlur: '0',
+        advancedLyricGlowEnabled: 'true', advancedLyricGlowRadius: '2', advancedLyricGlowOpacity: '0.4' };
+      window.renderer.applySettings(effects);
+      const after = appearance();
+      window.renderer.applySettings({ ...effects, advancedLyricMaterial: 'glass', advancedLyricHighlightOpacity: '0' });
+      return { reads, sameGlyph: glyph === root.querySelectorAll('.advanced-lyric-glyph')[2], before, after,
+        transparent: appearance(), material: root.dataset.material };
     } finally { restores.forEach(restore => restore()); }
   });
   assert.equal(result.reads, 0);
   assert.equal(result.sameGlyph, true);
   assert.equal(result.material, 'glass');
+  const unfilled = parseFloat(result.before.progress.slice(6, -1).split(' ')[1]);
+  assert.ok(unfilled > 0 && unfilled < 100, 'the checked word must be partway through its fill');
+  assert.equal(result.after.progress, result.before.progress);
+  assert.equal(result.transparent.progress, result.before.progress, 'turning fill transparent must preserve its playback position');
+  assert.equal(result.after.opacity, 0.35);
+  assert.equal(result.transparent.opacity, 0);
+  assert.notEqual(result.after.material, result.before.material);
+  assert.notEqual(result.after.shadow, result.before.shadow);
 });
 
 test('phrase choreography moves earlier text, seeks deterministically and applies its tempo and amplitude controls', async t => {
@@ -386,7 +466,8 @@ test('phrase choreography moves earlier text, seeks deterministically and applie
       { text: '一首歌', startMs: 4800, endMs: 7500 },
     ] };
     const results = [];
-    for (const layout of ['phrase-flow', 'corner-relay', 'type-impact', 'focus-lens', 'page-turn']) {
+    for (const layout of ['phrase-flow', 'corner-relay', 'type-impact', 'focus-lens', 'page-turn',
+      'paper-fold', 'ink-trace', 'echo-trail', 'block-handoff', 'ribbon-arc', 'prism-scatter']) {
       const settings = { ...window.lyricSettings, advancedLyricLayout: layout, advancedLyricWordMotion: 'none' };
       window.renderer.applySettings(settings);
       const seek = currentMs => window.renderer.renderFrame({ line, index: 0, currentMs, playing: false, discontinuity: true });
@@ -432,9 +513,9 @@ test('phrase choreography moves earlier text, seeks deterministically and applie
   }
 });
 
-test('switching marker material refits long lyrics without clipping the last characters', async t => {
+test('marker material and typography changes refit long lyrics without clipping the last characters', async t => {
   const page = await openRenderer(t);
-  const clipped = await page.evaluate(async () => {
+  const result = await page.evaluate(async () => {
     const settings = { ...window.lyricSettings, advancedLyricLayout: 'corners', advancedLyricWidth: '100',
       advancedLyricShowNextLine: 'true', advancedLyricWordMotion: 'none' };
     window.renderer.applySettings(settings);
@@ -445,60 +526,24 @@ test('switching marker material refits long lyrics without clipping the last cha
     window.renderer.applySettings({ ...settings, advancedLyricMaterial: 'marker' });
     const root = document.getElementById('stage');
     const bounds = root.getBoundingClientRect();
-    return [...root.querySelectorAll('[data-source="current"] .advanced-lyric-ink')].filter(node => {
+    const clipped = () => [...root.querySelectorAll('[data-source="current"] .advanced-lyric-ink')].filter(node => {
       const rect = node.getBoundingClientRect();
       return node.textContent.trim() && (rect.left < bounds.left - 1 || rect.right > bounds.right + 1
         || rect.top < bounds.top - 1 || rect.bottom > bounds.bottom + 1);
     }).map(node => node.textContent);
+    const markerClipped = clipped();
+    window.renderer.applySettings({ ...settings, advancedLyricMaterial: 'marker', advancedLyricFontStyle: 'italic',
+      advancedLyricLetterSpacing: '0.6', advancedLyricLineHeight: '1.8' });
+    const style = getComputedStyle(root.querySelector('.advanced-lyric-item'));
+    return { markerClipped, typographyClipped: clipped(),
+      text: [...root.querySelectorAll('.advanced-lyric-ink')].map(node => node.textContent).join(''),
+      fontStyle: style.fontStyle, lineHeight: parseFloat(style.lineHeight) / parseFloat(style.fontSize) };
   });
-  assert.deepEqual(clipped, []);
-});
-
-test('local sample segment controls preserve pauses and restore the latest accepted live song without publishing', async t => {
-  const page = await openRenderer(t);
-  const writes = [];
-  page.on('request', request => { if (request.method() !== 'GET') writes.push(request.url()); });
-  await page.evaluate(async markup => {
-    window.renderer.dispose();
-    const host = new DOMParser().parseFromString(markup, 'text/html').body.firstElementChild;
-    document.body.replaceChildren(host);
-    document.getElementById('desktopLyricPreviewStage').style.cssText = 'width:680px;height:250px';
-    const { desktopLyricPreview } = await import('/js/admin/desktop-lyric-preview.js');
-    desktopLyricPreview.init(null, { readSettings: () => ({ desktopLyricEnabled: 'false', advancedLyricEnabled: 'true' }) });
-    window.sendLive = (sequence, text) => {
-      window.dispatchEvent(new CustomEvent('app:lyric-timeline', { detail: { status: 'ready', trackTitle: '实时歌曲', lines: [{ text: '最新歌曲', startMs: 0, endMs: 20000 }] } }));
-      window.dispatchEvent(new CustomEvent('app:lyric-state', { detail: { status: 'ready', generation: 2, sequence, trackTitle: '实时歌曲',
-        lineText: text, words: [], currentMs: 15000, durationMs: 20000, playing: false, discontinuity: true } }));
-    };
-    window.sendLive(1, '实时歌曲');
-  }, readAdminFragmentHtml('pages/admin/song/desktop-lyric-preview.html'));
-  await page.locator('#desktopLyricSampleBtn').click();
-  await page.waitForFunction(() => document.getElementById('advancedLyricPreviewStage').getAttribute('aria-label') === '把此刻唱成一首歌');
-  await page.evaluate(() => { window.sendLive(3, '最新歌曲'); window.sendLive(2, '旧歌曲'); });
-  assert.equal(await page.locator('#advancedLyricPreviewStage').getAttribute('aria-label'), '把此刻唱成一首歌');
-  await page.locator('#desktopLyricSampleBtn').click();
-  await page.getByRole('combobox', { name: '跳到试播片段' }).selectOption('1');
-  await page.waitForFunction(() => document.getElementById('advancedLyricPreviewStage').getAttribute('aria-label').startsWith('晚风'));
-  assert.equal(await page.locator('#advancedLyricPreviewStage').evaluate(node => node.getAnimations({ subtree: true }).filter(animation => animation.playState === 'running').length), 0,
-    'selecting another segment must preserve a manually paused sample');
-  assert.equal(await page.locator('#advancedLyricPreviewStage').evaluate(root => [...root.querySelectorAll('[data-source="current"] .advanced-lyric-ink')]
-    .some(node => node.textContent.trim() && node.checkVisibility({ opacityProperty: true, visibilityProperty: true }))), true,
-    'a paused segment must show readable lyric content immediately');
-  await page.locator('#desktopLyricSampleBtn').click();
-  await page.locator('#desktopLyricPreviewStage').evaluate(node => { node.style.display = 'none'; });
-  await page.waitForFunction(() => document.getElementById('desktopLyricSampleBtn').textContent === '继续试播');
-  assert.equal(await page.locator('#advancedLyricPreviewStage').evaluate(node => node.getAnimations({ subtree: true }).filter(animation => animation.playState === 'running').length), 0);
-  await page.locator('#desktopLyricPreviewStage').evaluate(node => { node.style.display = ''; });
-  await page.waitForFunction(() => document.getElementById('desktopLyricSampleBtn').textContent === '暂停试播');
-  await page.locator('#desktopLyricCurrentBtn').click();
-  assert.equal(await page.locator('#desktopLyricPreviewPlayback').textContent(), '最新歌曲');
-  assert.equal(await page.locator('#advancedLyricPreviewStage').getAttribute('aria-label'), '最新歌曲');
-  await page.getByRole('combobox', { name: '跳到试播片段' }).selectOption('3');
-  await page.waitForFunction(() => document.getElementById('advancedLyricPreviewStage').getAttribute('aria-label').startsWith('We keep moving'));
-  await page.waitForFunction(() => document.getElementById('advancedLyricPreviewStage').getAnimations({ subtree: true }).some(animation => animation.playState === 'running'));
-  await page.locator('#desktopLyricCurrentBtn').click();
-  assert.equal(await page.locator('#advancedLyricPreviewStage').getAttribute('aria-label'), '最新歌曲');
-  assert.deepEqual(writes, [], 'sample playback cannot send state to the player or live output');
+  assert.deepEqual(result.markerClipped, []);
+  assert.deepEqual(result.typographyClipped, []);
+  assert.equal(result.text, 'Remember every word in the moonlight');
+  assert.equal(result.fontStyle, 'italic');
+  assert.ok(Math.abs(result.lineHeight - 1.8) < 0.01);
 });
 
 test('advanced preview dragging edits bounded positions and commits on release or restores on cancellation', async t => {
@@ -529,7 +574,10 @@ test('advanced preview dragging edits bounded positions and commits on release o
     desktopLyricPreview.setPreviewLayer('advanced');
     document.getElementById('advancedLyricPreviewStage').addEventListener('pointerdown', event => { window.dragPointerId = event.pointerId; });
   }, readAdminFragmentHtml('pages/admin/song/desktop-lyric-preview.html'));
-  await page.locator('#desktopLyricSampleBtn').click();
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('app:lyric-state', {
+    detail: { status: 'ready', generation: 1, sequence: 1, lineText: '当前播放器歌词',
+      currentMs: 1000, playing: false, words: [] },
+  })));
   const stage = page.locator('#advancedLyricPreviewStage');
   const rect = await stage.boundingBox();
   const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };

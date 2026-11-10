@@ -1,5 +1,5 @@
 import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS } from '../shared/gift-motion-settings.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { appendSceneParameterControl } from './scene-extra-parameter-layout.js';
 import { mountGiftMotionParameters } from './gift-motion-parameters.js';

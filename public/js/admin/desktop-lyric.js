@@ -12,7 +12,6 @@ import { ensureSavedFontOption, registerFontSelect, populateSystemFontOptions } 
 import { createLyricSourceControls } from './lyric-source-controls.js';
 import { syncDesktopLyricKaraokeColorControls } from './desktop-lyric-controls.js';
 import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
-import { LYRIC_DISPLAY_FIELDS } from '../shared/advanced-lyric-appearance.js';
 import { createAdvancedLyricEditor } from './advanced-lyric-editor.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
@@ -229,18 +228,17 @@ export function createDesktopLyric({
     form.addEventListener('change', () => scheduleAutosave(true));
     document.getElementById('desktopLyricResetBtn')?.addEventListener('click', async () => {
       if (!await dangerConfirm({ title: '恢复基础歌词默认设置？',
-        message: '将恢复基础歌词的外观、显示行为和共用时间偏移。高级歌词外观、显示开关和音乐来源设置会保留。',
+        message: '将恢复基础歌词的外观、显示行为和共用时间偏移。高级歌词外观和音乐来源设置会保留。',
         confirmLabel: '恢复基础默认' })) return;
       loadDesktopLyricSettings(DESKTOP_LYRIC_DEFAULTS, {
         includeWeSing: false,
         includeAdvanced: false,
-        includeDisplay: false,
       });
       scheduleAutosave(true);
     });
     document.getElementById('advancedLyricEditor')?.addEventListener('lyric:reset-advanced', async () => {
       if (!await dangerConfirm({ title: '恢复高级歌词默认设置？',
-        message: '将恢复高级歌词的排版、配色和动效。已保存的搭配与显示开关会保留。',
+        message: '将恢复高级歌词的排版、配色和动效。已保存的搭配会保留。',
         confirmLabel: '恢复高级默认' })) return;
       advancedEditor.reset();
     });
@@ -269,10 +267,6 @@ export function createDesktopLyric({
       weSingLyricSource: selectedWeSingLyricSource(),
       weSingSmartLyricMatch: checkedValue('weSingSmartLyricMatch'),
     };
-    for (const [key, field] of Object.entries(LYRIC_DISPLAY_FIELDS)) {
-      const input = document.getElementById(key);
-      settings[key] = input ? String(input.checked) : String(field.default);
-    }
     Object.entries(DESKTOP_LYRIC_DEFAULTS).forEach(([key, fallback]) => {
       if (key === 'desktopLyricFallbackFontFamily') return;
       if (key === 'desktopLyricTextAlign') {
@@ -310,12 +304,6 @@ export function createDesktopLyric({
 
     if (options.includeWeSing !== false) loadWeSingLyricSettings(settings);
     if (options.includeAdvanced !== false) advancedEditor?.load(settings);
-    if (options.includeDisplay !== false) {
-      for (const [key, field] of Object.entries(LYRIC_DISPLAY_FIELDS)) {
-        const input = document.getElementById(key);
-        if (input) input.checked = String(settings[key] ?? field.default) !== 'false';
-      }
-    }
     const karaokeMode = ['off', 'continuous', 'discrete'].includes(settings.desktopLyricKaraokeMode)
       ? settings.desktopLyricKaraokeMode
       : settings.desktopLyricKaraokeEnabled === 'false'

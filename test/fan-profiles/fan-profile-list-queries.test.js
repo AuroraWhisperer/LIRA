@@ -97,7 +97,7 @@ test('list projections omit private history while preserving reminder inputs and
   const body = '仅供详情读取的手记'.repeat(100);
   const note = f.store.records.insert(SCOPE, p.id, {
     kind: 'note', occurredAt: NOW, data: recordData('note', { body }),
-    original: { body, evidence: 'guard-roster', observedAt: NOW, roomId: '1234', ownerUid: '99', level: 2, medalLevel: 23 },
+    original: { body, evidence: 'guard-roster', identity: p.identity, observedAt: NOW, roomId: '1234', ownerUid: '99', level: 2, medalLevel: 23 },
   });
   const edited = f.record(p.id, 'note', { body: `${body}第一次修改` }, { id: note.id, revision: note.revision });
   const full = f.detail(p.id);

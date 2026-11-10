@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { normalizeSessionInput, routes } = require('../../src/server/routes/game-routes');
 const { createGameSessionService } = require('../../src/games/game-session-service');
+const { createGameRuntime, createGameAudience } = require('../../src/server/game-runtime');
 
 test('single-player game requires a selected numeric viewer uid', () => {
   assert.throws(() => normalizeSessionInput({ game: 'gomoku', mode: 'single' }));
@@ -26,22 +27,27 @@ test('single-player game requires a selected numeric viewer uid', () => {
   assert.equal(drawGuess.targetUid, '');
 });
 
-test('games viewers route refreshes the online snapshot before listing candidates', async () => {
-  const events = [];
+test('games viewers include recent speakers outside the rank and deduplicate ranked speakers', async (t) => {
+  const service = createGameSessionService();
+  t.after(() => service.dispose());
+  service.handleDanmaku({ uid: '123', userName: 'Alice', message: '一起玩' });
+  service.handleDanmaku({ uid: '456', userName: 'Bob', message: '来了' });
+  service.handleDanmaku({ userName: 'Anonymous', message: 'hello' });
+  let ranked = [];
+  const rankedLastSeenAt = Date.now() + 1000;
+  const context = {
+    games: createGameAudience({
+      service,
+      listOnlineViewers: () => ranked,
+      refreshViewers: async () => {
+        ranked = [{ uid: '456', userName: 'Ranked Bob', seenAt: rankedLastSeenAt }, { uid: '789', userName: 'Carol' }];
+      },
+    }),
+  };
   let status;
   let payload;
   await routes['GET /api/games/viewers'](
-    {
-      games: {
-        refreshViewers: async () => {
-          events.push('refresh');
-        },
-        listViewers: () => {
-          events.push('list');
-          return [{ uid: '123', name: 'Alice' }];
-        },
-      },
-    },
+    context,
     {},
     {
       writeHead(nextStatus) {
@@ -53,12 +59,52 @@ test('games viewers route refreshes the online snapshot before listing candidate
     },
   );
 
-  assert.deepEqual(events, ['refresh', 'list']);
   assert.equal(status, 200);
-  assert.deepEqual(payload, {
-    ok: true,
-    data: [{ uid: '123', name: 'Alice' }],
+  assert.deepEqual(payload.data.map((viewer) => viewer.uid).sort(), ['123', '456', '789']);
+  assert.equal(payload.data[0].uid, '456', 'the most recent appearance sorts first');
+  assert.equal(payload.data[0].name, 'Bob', 'recent speaker names take precedence over ranked names');
+  assert.equal(payload.data[0].lastSeenAt, rankedLastSeenAt);
+  ranked = [];
+  assert.deepEqual(context.games.listViewers().map((viewer) => viewer.uid).sort(), ['123', '456']);
+});
+
+test('games viewer refresh failure preserves known candidates but does not hide an empty failure', async (t) => {
+  t.mock.method(console, 'warn', () => {});
+  const service = createGameSessionService();
+  t.after(() => service.dispose());
+  service.handleDanmaku({ uid: '123', userName: 'Alice', message: '一起玩' });
+  const failure = new Error('synthetic rank failure');
+  const context = { games: { ...service, refreshViewers: async () => { throw failure; } } };
+  let payload;
+  await routes['GET /api/games/viewers'](context, {}, {
+    writeHead(status) { assert.equal(status, 200); },
+    end(body) { payload = JSON.parse(body); },
   });
+  assert.equal(payload.data[0].uid, '123');
+  context.games.listViewers = () => [];
+  await assert.rejects(routes['GET /api/games/viewers'](context, {}, {}), failure);
+});
+
+test('game runtime discards viewer candidates from a previous room or connection', (t) => {
+  const source = { roomId: '100', accountUid: '200', connectionKey: '1' };
+  const { games, interactions } = createGameRuntime({
+    getSourceState: () => source,
+    subscribe: () => () => {},
+  });
+  t.after(() => { games.dispose(); interactions.dispose(); });
+  games.handleDanmaku({ uid: '123', userName: 'Alice' });
+  source.configuredRoomChanged = true;
+  games.handleDanmaku({ uid: '456', userName: 'Old room message' });
+  assert.equal(games.listViewers().length, 0);
+  source.configuredRoomChanged = false;
+  source.roomId = '101';
+  games.handleDanmaku({ uid: '456', userName: 'Bob' });
+  assert.deepEqual(games.listViewers().map((viewer) => viewer.uid), ['456']);
+  source.connectionKey = '2';
+  assert.equal(games.listViewers().length, 0);
+  games.handleDanmaku({ uid: '789', userName: 'Carol' });
+  source.accountUid = '201';
+  assert.equal(games.listViewers().length, 0);
 });
 
 test('draw guess route preserves round and duration configuration', () => {

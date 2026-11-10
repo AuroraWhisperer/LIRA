@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { createWishPicker } from './gifts/wish-picker.js';
 import { normalizeTextBoxImageSource } from '../shared/text-box-config.js';
 import { setGiftArtwork } from '../shared/gift-image.js';

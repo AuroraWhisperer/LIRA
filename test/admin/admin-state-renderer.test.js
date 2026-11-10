@@ -35,8 +35,8 @@ test('queue refreshes its receiving hint only when relevant settings change', as
 
 test('settings render reads each component once and projects the current isolated draft to both views', async () => {
   const entry = file => path.resolve('public/js/admin', file);
-  const [renderer, sync, forms] = await loadModuleExports([
-    entry('state-renderer.js'), entry('component-settings-sync.js'), entry('forms.js'),
+  const [renderer, sync] = await loadModuleExports([
+    entry('state-renderer.js'), entry('component-settings-sync.js'),
   ], { document: { getElementById: () => null } });
   const { createComponentConfigController } = await loadModuleExports(entry('component-config-controller.js'));
   const controller = createComponentConfigController({ initial: { size: 24 } });
@@ -47,8 +47,8 @@ test('settings render reads each component once and projects the current isolate
   controller.getState = () => { reads++; return getState(); };
   const formValues = [];
   const styleValues = [];
-  forms.formsService.fillForm = values => formValues.push(values);
   const render = renderer.createAdminStateRenderer({ renderQueue() {}, renderGifts() {},
+    renderSettings: (settings, projected) => formValues.push(projected),
     renderQueueStyle: values => styleValues.push(values) });
   const settings = { size: 28, requestPrice: 50 };
   render({ state: { settings }, changedKeys: ['settings'] });

@@ -125,9 +125,17 @@ function createHybridGiftSaleCatalogService(options = {}) {
   function getSnapshot() { return structuredClone(readRoomSnapshot()); }
 
   async function refresh(options = {}) {
-    if (roomRefreshPending) return roomRefreshPending;
-    roomRefreshPending = (async () => {
+    const roomId = local.getRoomId?.();
+    if (roomRefreshPending && roomRefreshPending.roomId === roomId) return roomRefreshPending.promise;
+    const request = { roomId };
+    const assertCurrent = () => {
+      if (roomRefreshPending !== request || local.getRoomId?.() !== roomId) {
+        throw new Error('直播间已切换，请重新刷新在售礼物。');
+      }
+    };
+    request.promise = (async () => {
       const localSnapshot = await local.refresh(options);
+      assertCurrent();
       let serverSnapshot;
       try {
         serverSnapshot = await remoteCatalog.refresh({ reason: 'room' });
@@ -135,16 +143,19 @@ function createHybridGiftSaleCatalogService(options = {}) {
         serverSnapshot = remoteCatalog.getSnapshot();
         logger.warn?.('[GiftCatalog] room artwork refresh failed:', error?.message || error);
       }
-      roomSnapshot = localSnapshot;
+      assertCurrent();
       const snapshot = await decorateRoomSnapshot(localSnapshot, serverSnapshot, remoteImageCache, getCustomBlindBoxes());
+      assertCurrent();
+      roomSnapshot = localSnapshot;
       roomCache = null;
       globalCache = null;
       artworkCatalog = null;
       return cloneRoomSnapshot(snapshot, localSnapshot.cached === true);
     })().finally(() => {
-      roomRefreshPending = null;
+      if (roomRefreshPending === request) roomRefreshPending = null;
     });
-    return roomRefreshPending;
+    roomRefreshPending = request;
+    return request.promise;
   }
 
   async function refreshRemote(options = {}) {

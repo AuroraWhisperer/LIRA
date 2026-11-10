@@ -1,8 +1,105 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
+const { createGiftSaleCatalogService } = require('../../src/bilibili/gift/sale-catalog');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const { createHybridGiftSaleCatalogService, mergeRoomCatalog } = require('../../src/bilibili/gift/hybrid-catalog');
+
+test('hybrid room refresh rejects stale artwork completion without releasing another room request', async (t) => {
+  const { hybrid, requests, imageGates, refresh, setRoom } = createRoomRefreshFixture(t);
+  const first = refresh();
+  await new Promise(setImmediate);
+  setRoom('222222');
+  const second = refresh();
+  refresh();
+  await new Promise(setImmediate);
+  assert.equal(requests.filter(room => room === '222222').length, 2);
+  assert.equal(imageGates.length, 2, 'concurrent callers share the room artwork request');
+  imageGates[1].resolve();
+  assert.equal((await second).value?.roomId, '222222');
+
+  const repeated = refresh();
+  await new Promise(setImmediate);
+  imageGates[0].resolve();
+  assert.ok((await first).error, 'a room switch during artwork preparation must reject the old response');
+  assert.equal(hybrid.resolveGiftImagePath('111111'), '', 'stale artwork must not replace the current room fallback');
+  refresh();
+  await new Promise(setImmediate);
+  assert.equal(requests.filter(room => room === '222222').length, 4, 'old cleanup must not release the current room refresh');
+  assert.equal(imageGates.length, 3);
+  imageGates[2].resolve();
+  assert.equal((await repeated).value?.roomId, '222222');
+  assert.equal(hybrid.getSnapshot().roomId, '222222');
+});
+
+test('revisiting a room during artwork preparation refreshes the local snapshot replaced by another room', async (t) => {
+  const { dataDir, local, hybrid, requests, imageGates, refresh, setRoom } = createRoomRefreshFixture(t);
+  const first = refresh();
+  await new Promise(setImmediate);
+  setRoom('222222');
+  const second = refresh();
+  await new Promise(setImmediate);
+  imageGates[1].resolve();
+  assert.equal((await second).value?.roomId, '222222');
+
+  setRoom('111111');
+  const revisited = refresh();
+  await new Promise(setImmediate);
+  assert.equal(requests.filter(room => room === '111111').length, 4, 'the former local result no longer owns the room snapshot');
+  imageGates[0].resolve();
+  assert.ok((await first).error);
+  refresh();
+  await new Promise(setImmediate);
+  assert.equal(imageGates.length, 3, 'obsolete completion must not release the replacement request for the same room');
+  imageGates[2].resolve();
+  assert.equal((await revisited).value?.roomId, '111111');
+  assert.equal(local.getSnapshot().roomId, '111111');
+  assert.equal(hybrid.getSnapshot().roomId, '111111');
+  assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'overtime-gift-sale.json'), 'utf8')).roomId, '111111');
+});
+
+function createRoomRefreshFixture(t) {
+  const dataDir = createScratchDirectory('hybrid-gift-room-race-');
+  const imageGates = [];
+  const requests = [];
+  const results = [];
+  let roomId = '111111';
+  const local = createGiftSaleCatalogService({ dataDir, getRoomId: () => roomId,
+    async fetchJson(endpoint, _url, capturedRoom) {
+      requests.push(capturedRoom);
+      return endpoint === 'gift_data'
+        ? { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: Number(capturedRoom) }] } } }
+        : { code: 0, data: { list: [{ id: Number(capturedRoom), name: `Gift ${capturedRoom}`, price: 1000, coin_type: 'gold' }] } };
+    },
+  });
+  const hybrid = createHybridGiftSaleCatalogService({ local,
+    remoteCatalog: { getSnapshot: () => null, refresh: async () => null },
+    remoteImageCache: {
+      async cacheGifts(gifts) {
+        const gate = Promise.withResolvers();
+        imageGates.push(gate);
+        await gate.promise;
+        return gifts;
+      },
+      getCachedGiftImagePath: gift => `image-${gift.id}`,
+    },
+  });
+  const refresh = () => {
+    const result = hybrid.refresh({ force: true }).then(value => ({ value }), error => ({ error }));
+    results.push(result);
+    return result;
+  };
+  t.after(async () => {
+    for (const gate of imageGates) gate.resolve();
+    await Promise.all(results);
+    removeScratchDirectory(dataDir);
+  });
+
+  return { dataDir, local, hybrid, requests, imageGates, refresh, setRoom(value) { roomId = value; } };
+}
 
 test('hybrid memoization invalidates for local, remote, custom and image changes and protects returned snapshots', () => {
   let localRevision = 0;

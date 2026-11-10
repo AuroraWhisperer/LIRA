@@ -5,8 +5,31 @@ import { giftDetection } from './detection.js';
 import { giftSprint } from './sprint.js';
 import { giftRecent } from './recent.js';
 import { giftBlindbox } from './blindbox.js';
+import { initGiftArtworkCatalog } from './artwork-catalog.js';
+import { initBlindBoxStats } from './blindbox-stats.js';
 // 礼物历史抽屉由 app.js 直接调用，这里保留显式依赖以免组合顺序依赖副作用导入。
 import './history.js';
+
+let disposePanel = null;
+
+export function initGiftPanel() {
+  if (disposePanel) return disposePanel;
+  const disposeArtwork = initGiftArtworkCatalog(giftRecent.refreshArtwork);
+  const disposeMapping = giftBlindbox.init();
+  const disposeStats = initBlindBoxStats();
+  const dispose = () => {
+    if (disposePanel !== dispose) return;
+    disposeStats();
+    disposeMapping();
+    disposeArtwork();
+    giftRecent.dispose();
+    window.removeEventListener('pagehide', dispose);
+    disposePanel = null;
+  };
+  disposePanel = dispose;
+  window.addEventListener('pagehide', dispose, { once: true });
+  return dispose;
+}
 
 export function renderGiftPanel(gifts, sprint, live, diagnostics, settings = {}, changedKeys = null) {
   const changed = (key) => !changedKeys || changedKeys.includes(key);

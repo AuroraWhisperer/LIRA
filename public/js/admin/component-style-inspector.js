@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { canImportComponentStyle, openComponentStyleLibrary } from './component-style-library.js';
 import { mountMediaStyleFields } from './component-style-editor.js';
 import { MEDIA_STYLE_TYPES } from '../shared/component-media-style.js';

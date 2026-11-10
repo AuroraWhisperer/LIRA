@@ -1,6 +1,6 @@
 import { GIFT_SWING_TEXT_PARTS, GIFT_SWING_TEXT_MODES } from '../shared/gift-motion-settings.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 
 export function mountGiftMotionParameters(host, effect, { idPrefix = '', onEdit } = {}) {
   const inputs = new Map();

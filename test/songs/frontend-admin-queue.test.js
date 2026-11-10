@@ -31,7 +31,12 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true,
     renders: 0,
     style: { setProperty() {} },
     closest() { return this; },
-    addEventListener() {},
+    listeners: new Map(),
+    addEventListener(type, listener) {
+      if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+      this.listeners.get(type).add(listener);
+    },
+    removeEventListener(type, listener) { this.listeners.get(type)?.delete(listener); },
     set innerHTML(html) {
       this.renders++;
       this.html = html;
@@ -127,9 +132,13 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true,
       },
     },
   };
-  const queue = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/queue.js'), globals);
+  const [renderer, queue, superChats] = await loadModuleExports([
+    'state-renderer.js', 'queue.js', 'superchat.js',
+  ].map(file => path.join(ROOT_DIR, 'public/js/admin', file)), globals);
   return {
     queue,
+    superChats,
+    renderPanels: renderer.renderQueuePanels,
     elements,
     copied,
     messages,
@@ -138,8 +147,8 @@ async function createQueueRuntime({ clipboardMode = 'native', fallbackOk = true,
   };
 }
 
-function renderState(queue, message = MESSAGE) {
-  queue.renderState(
+function renderState(renderPanels, message = MESSAGE) {
+  renderPanels(
     {
       queue: { current: { id: 2, song_name: '测试歌名' }, waiting: [] },
       superChats: [{ id: 1, price: 30, message }],
@@ -244,34 +253,34 @@ test('request feedback preserves an empty queue while receiving settings still u
 });
 
 test('SC and song copy buttons copy their own text once after state refresh', async () => {
-  const { queue, elements, copied } = await createQueueRuntime();
-  renderState(queue);
+  const { renderPanels, elements, copied } = await createQueueRuntime();
+  renderState(renderPanels);
   await elements.superChatList.buttons[0].click();
   await elements.queueList.buttons[0].click();
-  renderState(queue, '更新后的 SC');
+  renderState(renderPanels, '更新后的 SC');
   await elements.superChatList.buttons[0].click();
 
   assert.deepEqual(copied, [MESSAGE, '测试歌名', '更新后的 SC']);
 });
 
 test('SC copy remains bound after the SC queue renders independently', async () => {
-  const { queue, elements, copied } = await createQueueRuntime();
-  renderState(queue);
-  queue.renderSuperChatQueue([{ id: 3, price: 2, message: MESSAGE }]);
+  const { superChats, renderPanels, elements, copied } = await createQueueRuntime();
+  renderState(renderPanels);
+  superChats.renderSuperChatQueue([{ id: 3, price: 2, message: MESSAGE }]);
   await elements.superChatList.buttons[0].click();
 
   assert.deepEqual(copied, [MESSAGE]);
 });
 
 test('SC copy falls back when the clipboard API is denied', async () => {
-  const { queue, elements, copied, messages, inputs } = await createQueueRuntime({ clipboardMode: 'denied' });
-  renderState(queue);
+  const { renderPanels, elements, copied, messages, inputs } = await createQueueRuntime({ clipboardMode: 'denied' });
+  renderState(renderPanels);
   await elements.superChatList.buttons[0].click();
 
   assert.deepEqual(copied, [MESSAGE]);
   assert.equal(inputs.size, 0);
   const failed = await createQueueRuntime({ clipboardMode: 'denied', fallbackOk: false });
-  renderState(failed.queue);
+  renderState(failed.renderPanels);
   await failed.elements.superChatList.buttons[0].click();
   assert.deepEqual(failed.copied, []);
   assert.equal(failed.messages.length, 1);
@@ -283,7 +292,7 @@ for (const scenario of ['response-after-expiry', 'delete-during-fade', 'explicit
     let pending;
     let requestCount = 0;
     const response = (undo) => ({ ok: true, text: async () => JSON.stringify({ ok: true, undo }) });
-    const { queue, elements, clock } = await createQueueRuntime({ fetch: async (url) => {
+    const { superChats, elements, clock } = await createQueueRuntime({ fetch: async (url) => {
       if (url === '/api/state') return { json: async () => ({ ok: true, data: {} }) };
       assert.equal(url, '/api/superchats/delete');
       requestCount++;
@@ -291,8 +300,8 @@ for (const scenario of ['response-after-expiry', 'delete-during-fade', 'explicit
       pending = Promise.withResolvers();
       return pending.promise;
     } });
-    queue.initQueueForm();
-    queue.renderSuperChatQueue([{ id: 1, price: 30 }, { id: 2, price: 30 }]);
+    superChats.initSuperChatForm();
+    superChats.renderSuperChatQueue([{ id: 1, price: 30 }, { id: 2, price: 30 }]);
     const deletes = elements.superChatList.actions.filter((button) => button.dataset.scAction === 'delete');
     await deletes[0].fire('click');
     assert.equal(elements.superChatUndo.hidden, false);
@@ -301,7 +310,7 @@ for (const scenario of ['response-after-expiry', 'delete-during-fade', 'explicit
     clock.tick(scenario === 'delete-during-fade' ? 10500 : 9990);
     const second = deletes[1].fire('click');
     await Promise.resolve();
-    if (scenario === 'explicit-clear') queue.clearSuperChatUndo();
+    if (scenario === 'explicit-clear') superChats.clearSuperChatUndo();
     else if (scenario === 'response-after-expiry') clock.tick(20);
     pending.resolve(response({ token: 'new-batch', count: 2, expiresAt: clock.now() + 10000 }));
     await second;
@@ -374,4 +383,47 @@ test('queue random click stays disabled while pending and recovers after success
   await failedClick;
   assert.equal(button.disabled, false);
   assert.equal(calls.length, 3);
+});
+
+test('disposing SC cancels queued work and keeps late responses out of a remounted view', async () => {
+  const pending = Promise.withResolvers();
+  const requests = [];
+  let reloads = 0;
+  const response = undo => ({ ok: true, text: async () => JSON.stringify({ ok: true, undo }) });
+  const { superChats, elements, clock } = await createQueueRuntime({ fetch: async (url, options) => {
+    if (url === '/api/state') { reloads++; return { json: async () => ({ ok: true, data: {} }) }; }
+    requests.push({ url, body: JSON.parse(options.body) });
+    if (requests.length === 1) return pending.promise;
+    return response({ token: 'current-view', count: 3, expiresAt: 10000 });
+  } });
+  superChats.initSuperChatForm();
+  superChats.initSuperChatForm();
+  assert.equal(elements.superChatList.listeners.get('wheel').size, 1);
+  superChats.renderSuperChatQueue([{ id: 1, price: 30 }, { id: 2, price: 30 }]);
+  const deletes = elements.superChatList.actions.filter(button => button.dataset.scAction === 'delete');
+  const first = deletes[0].fire('click');
+  const queued = deletes[1].fire('click');
+  await Promise.resolve();
+  superChats.disposeSuperChats();
+  superChats.disposeSuperChats();
+  assert.equal(elements.superChatList.listeners.get('wheel').size, 0);
+  assert.equal(elements.superChatUndoBtn.listeners.has('click'), false);
+  assert.equal(elements.superChatUndo.hidden, true);
+
+  superChats.initSuperChatForm();
+  superChats.renderSuperChatQueue([{ id: 3, price: 30 }]);
+  await elements.superChatList.actions.find(button => button.dataset.scAction === 'delete').fire('click');
+  pending.resolve(response({ token: 'previous-view', count: 1, expiresAt: 100 }));
+  await Promise.all([first, queued]);
+  assert.deepEqual(requests.map(request => request.body.id), ['1', '3'], 'the disposed queue must never send its second deletion');
+  assert.equal(reloads, 1, 'a late response cannot reload the remounted view');
+  clock.tick(1100);
+  assert.equal(elements.superChatUndo.hidden, false, 'the old response cannot replace the current undo timer');
+  await elements.superChatUndoBtn.fire('click');
+  assert.equal(requests.at(-1).url, '/api/superchats/undo');
+  assert.equal(requests.at(-1).body.token, 'current-view');
+  superChats.disposeSuperChats();
+  clock.tick(10000);
+  assert.equal(elements.superChatUndo.hidden, true);
+  assert.equal(elements.superChatList.listeners.get('wheel').size, 0);
 });

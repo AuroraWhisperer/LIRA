@@ -93,6 +93,26 @@ test('adaptive phrases keep natural pauses and merge fast text into readable gro
   assert.equal(compose('好', 3000).length, 1, 'a short answer stays intact');
 });
 
+test('lyric variation keeps repeated lyrics consistent while shortening fast-line movement', async () => {
+  const { createAdvancedLyricText } = await load('layouts');
+  const { describeAdvancedLyricLine, resolveAdvancedLyricLayout } = await load('variation');
+  const text = '晚风穿过窗边，带来你的消息，照亮了漫长的黑夜，也照亮远方';
+  const profile = (startMs, duration) => describeAdvancedLyricLine(createAdvancedLyricText({ text,
+    startMs, endMs: startMs + duration }), '同一首歌');
+  const first = profile(1000, 14000), repeated = profile(40000, 14000), fast = profile(60000, 1400);
+  for (const next of [repeated, fast]) {
+    assert.equal(next.seed, first.seed, 'a repeated lyric keeps its visual identity');
+    assert.equal(next.direction, first.direction);
+    assert.equal(next.variant, first.variant);
+    assert.equal(resolveAdvancedLyricLayout('adaptive', next), resolveAdvancedLyricLayout('adaptive', first));
+  }
+  assert.ok(fast.density > first.density);
+  assert.ok(fast.pace < first.pace, 'dense lyrics reserve more time for reading');
+  assert.equal(fast.compact, true);
+  assert.equal(resolveAdvancedLyricLayout('paper-fold', fast), 'paper-fold', 'a chosen style is not replaced by adaptive selection');
+  assert.notEqual(resolveAdvancedLyricLayout('adaptive', first), 'adaptive', 'the automatic choice resolves to a rendering style');
+});
+
 test('adaptive emphasis follows supplied sustained timing and incomplete timing uses phrase entrances', async () => {
   const { createAdvancedLyricText, buildAdvancedLyricLayout } = await load('layouts');
   const words = [

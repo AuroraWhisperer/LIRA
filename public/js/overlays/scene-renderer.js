@@ -184,6 +184,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       const external = SCENE_COMPONENTS[item.type].external;
       const frame = window.document.createElement('iframe');
       frame.setAttribute('sandbox', 'allow-scripts');
+      frame.setAttribute('data-component', item.type);
       frame.allow = 'autoplay';
       const entry = { item, frame, external, ready: false, prepared: false };
       if (external) {

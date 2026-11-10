@@ -1,7 +1,18 @@
 'use strict';
 
-import { clearSuperChatUndo } from './queue.js';
+import { clearSuperChatUndo } from './superchat.js';
 import { clearStoredPlaybackState } from '../playback/state/storage.js';
+
+function reconnectErrorMessage(error) {
+  const text = String((error && error.message) || error || '');
+  if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
+    return '重新连接直播间失败：本地服务未响应，请重启 LIRA 后再试。';
+  }
+  if (/Unexpected end of JSON input|非 JSON/i.test(text)) {
+    return text;
+  }
+  return text || '重新连接直播间失败，请稍后重试。';
+}
 
 async function finishReconnectAnimation(button) {
   const icon = button.querySelector('svg');
@@ -70,13 +81,12 @@ export function createSettingsOperations({
   showConfirmationDialog,
   getState,
   getQueue,
-  getForms,
 }) {
   async function clearDatabase() {
     const confirmed = await dangerConfirm({
       title: '清空歌库',
-      message: '只会删除歌曲和分类，直播间号、主题颜色和其他设置会保留。',
-      deletes: ['歌曲', '分类'],
+      message: '只会删除歌曲和曲风，直播间号、主题颜色和其他设置会保留。',
+      deletes: ['歌曲', '曲风'],
       keeps: ['直播间号', '主题颜色', '所有设置'],
       confirmLabel: '确认清空歌库',
     });
@@ -266,8 +276,7 @@ export function createSettingsOperations({
         throw new Error('重新连接直播间失败：服务未返回直播状态。');
       }
     } catch (error) {
-      const customMessage = getForms()?.reconnectErrorMessage?.(error);
-      if (!silent) toast(customMessage || error.message || String(error), { type: 'error' });
+      if (!silent) toast(reconnectErrorMessage(error), { type: 'error' });
     } finally {
       if (!silent) {
         await finishReconnectAnimation(button);

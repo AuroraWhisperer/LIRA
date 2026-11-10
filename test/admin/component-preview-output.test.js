@@ -9,7 +9,7 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
-test('ranking output adapts row count to frame height and keeps the current room in nearby mode', { timeout: 15000 }, async t => {
+test('ranking output adapts nearby rows to frame height and keeps the current room visible', { timeout: 15000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><body></body>' });
   const browser = openBrowserSession();
   const page = await browser.newPage();
@@ -21,7 +21,7 @@ test('ranking output adapts row count to frame height and keeps the current room
   await page.goto(`${fixture.origin}/preview-test-host`);
   await page.evaluate(async () => {
     const { rankingDefaults } = await import('/js/shared/live-rankings.js');
-    let config = { ...rankingDefaults(), range: 'all', pageSeconds: 30 };
+    let config = { ...rankingDefaults(), range: 'nearby' };
     const rows = Array.from({ length: 50 }, (_, index) => ({ rank: index + 1, roomId: String(index + 1), name: `主播 ${index + 1}`, score: 10000 - index }));
     const data = { room: { roomId: '25' }, boards: [{ id: 'hot', title: '热门全站', unit: '热度值', limit: 100,
       status: 'ready', rows, current: { ...rows[24], distance: 1 }, endsAt: Date.now() + 600000, updatedAt: Date.now() }] };
@@ -64,9 +64,103 @@ test('ranking output adapts row count to frame height and keeps the current room
   await frame.waitForFunction(previous => document.querySelector('.ranking-list').children.length > previous, nearby);
   assert.equal(await frame.locator('.ranking-list .is-current').count(), 1);
   await assertRowsFit();
-  await page.evaluate(() => window.updateRankingConfig({ range: 'all', fontSize: 30 }));
+  await page.evaluate(() => window.updateRankingConfig({ fontSize: 30 }));
   await frame.waitForFunction(previous => document.querySelector('.ranking-list').children.length < previous, tall);
   await assertRowsFit();
+});
+
+test('ranking previews and published sources manually scroll live rows and preserve their reading position', { timeout: 20000 }, async t => {
+  const now = Date.now();
+  const rows = Array.from({ length: 50 }, (_, index) => ({ rank: index + 1, roomId: String(index + 1), name: `主播 ${index + 1}`, score: 10000 - index }));
+  const snapshot = { version: 'one', status: 'ready', room: { roomId: '25' }, boards: [{ id: 'hot', title: '热门全站', unit: '热度值', limit: 50,
+    status: 'ready', rows, current: { ...rows[24], distance: 1 }, endsAt: now + 600000, updatedAt: now }] };
+  const fixture = await startCanvasOutputFixture({ extraContext: { liveRankings: { getSnapshot: () => snapshot } } });
+  t.mock.method(fixture.liveRankings, 'getSnapshot', () => snapshot);
+  const browser = openBrowserSession();
+  const desktop = await browser.newPage();
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  await page.clock.setFixedTime(now);
+  page.setDefaultTimeout(5000);
+  const errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  t.after(async () => { await browser.close(); await fixture.close(); assert.deepEqual(errors, []); });
+  const url = await openCanvasDesktop(desktop, fixture);
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  await page.locator('[data-category="live-rankings"]').click();
+  await page.locator('.preview-picker-style').first().click();
+  const item = page.locator('.scene-editor-item[data-component="live-rankings"]');
+  const frame = await item.locator('iframe').elementHandle().then(handle => handle.contentFrame());
+  await frame.waitForFunction(count => document.querySelector('.ranking-list')?.children.length === count, rows.length);
+  const previewBody = frame.locator('.ranking-body');
+  const freshness = frame.locator('.ranking-freshness');
+  const lastRankFits = body => body.querySelector('.ranking-row:last-child').getBoundingClientRect().bottom
+    <= body.getBoundingClientRect().bottom;
+  assert.equal(await previewBody.evaluate(body => body.scrollTop), 0, 'newly loaded ranks start at the top');
+  const geometry = () => item.evaluate(node => ({ x: node.offsetLeft, y: node.offsetTop }));
+  const position = await geometry();
+  const bounds = await item.boundingBox();
+  await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+  await page.mouse.wheel(0, 5000);
+  await frame.waitForFunction(() => {
+    const body = document.querySelector('.ranking-body');
+    const last = body.querySelector('.ranking-row:last-child');
+    return body.scrollTop > 0 && last.getBoundingClientRect().bottom <= body.getBoundingClientRect().bottom;
+  });
+  assert.deepEqual(await geometry(), position, 'reading ranks does not move the canvas layer');
+  rows[49].score = 3210;
+  snapshot.boards[0].updatedAt = now - 5000;
+  snapshot.version = 'two';
+  await frame.locator('.ranking-list .ranking-row').last().locator('.ranking-score').filter({ hasText: '3,210' }).waitFor();
+  await freshness.waitFor();
+  assert.equal(await previewBody.evaluate(lastRankFits), true, 'a delayed snapshot keeps the bottom rank readable');
+  snapshot.boards[0].updatedAt = now;
+  snapshot.version = 'fresh';
+  await freshness.waitFor({ state: 'hidden' });
+  assert.equal(await previewBody.evaluate(lastRankFits), true, 'clearing the delay notice preserves the bottom position');
+  await page.clock.setFixedTime(now + 5000);
+  await freshness.waitFor();
+  assert.equal(await previewBody.evaluate(lastRankFits), true, 'the freshness timer also preserves the bottom position');
+  const middle = await previewBody.evaluate(body => { body.scrollTop /= 2; return body.scrollTop; });
+  snapshot.boards[0].updatedAt = now + 5000;
+  snapshot.version = 'middle';
+  await freshness.waitFor({ state: 'hidden' });
+  assert.equal(await previewBody.evaluate(body => body.scrollTop), middle, 'live refreshes do not pull a middle reader to the bottom');
+  await page.clock.setFixedTime(now + 10000);
+  await freshness.waitFor();
+  assert.equal(await previewBody.evaluate(body => body.scrollTop), middle, 'the freshness timer keeps a middle reader in place');
+  await page.getByRole('button', { name: '展示方式', exact: true }).click();
+  await page.getByRole('option', { name: '跟随本房间名次', exact: true }).click();
+  await frame.waitForFunction(count => document.querySelector('.ranking-list').children.length < count
+    && document.querySelector('.ranking-list .is-current'), rows.length);
+  await page.getByRole('button', { name: '展示方式', exact: true }).click();
+  await page.getByRole('option', { name: '完整榜单（手动滚动）', exact: true }).click();
+  await frame.waitForFunction(count => document.querySelector('.ranking-list').children.length === count, rows.length);
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const document = fixture.service.list()[0].document;
+  const ranking = document.items.find(item => item.type === 'live-rankings');
+  const source = fixture.service.getSource(document.id);
+  const output = await browser.newPage({ viewport: { width: 540, height: 800 } });
+  await output.clock.setFixedTime(snapshot.boards[0].updatedAt);
+  output.setDefaultTimeout(5000);
+  output.on('pageerror', error => errors.push(error.message));
+  const outputUrl = `${fixture.origin}/scene?id=${source.id}&item=${ranking.id}#token=${source.token}`;
+  assert.equal((await fetch(outputUrl)).status, 200);
+  await output.goto(outputUrl);
+  const outputFrame = await output.locator('.scene-version:not(.is-staging) iframe').elementHandle().then(handle => handle.contentFrame());
+  const body = outputFrame.locator('.ranking-body');
+  await body.hover();
+  await output.mouse.wheel(0, 5000);
+  await outputFrame.waitForFunction(() => document.querySelector('.ranking-body').scrollTop > 0);
+  rows[49].score = 7890;
+  snapshot.boards[0].updatedAt -= 5000;
+  snapshot.version = 'three';
+  fixture.notify({ types: ['live-rankings'] });
+  const lastOutputRow = outputFrame.locator('.ranking-list .ranking-row').last();
+  await lastOutputRow.locator('.ranking-score').filter({ hasText: '7,890' }).waitFor();
+  assert.equal(await body.evaluate(lastRankFits), true, 'published output keeps the last rank visible through live refreshes');
 });
 
 test('canvas discard restores its shared and independent edits without clearing unrelated drafts', { timeout: 20000 }, async t => {

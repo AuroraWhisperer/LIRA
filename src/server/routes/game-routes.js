@@ -6,7 +6,12 @@ const prefixes = ['/api/games', '/api/wheel'];
 
 const routes = {
   async 'GET /api/games/viewers'(context, request, res) {
-    await context.games.refreshViewers();
+    try {
+      await context.games.refreshViewers();
+    } catch (error) {
+      if (!context.games.listViewers().length) throw error;
+      console.warn('[Games] Online rank refresh failed; using known viewer candidates.');
+    }
     sendJson(res, 200, { ok: true, data: context.games.listViewers() });
   },
   'GET /api/games/draw-guess/categories'(context, request, res) {
@@ -117,7 +122,7 @@ function normalizeSessionInput(input = {}) {
   const targetName = String(input.targetName || '')
     .trim()
     .slice(0, 80);
-  if (mode === 'single' && !/^\d{1,20}$/.test(targetUid)) throw new Error('请选择一位在线观众。');
+  if (mode === 'single' && !/^\d{1,20}$/.test(targetUid)) throw new Error('请选择一位观众。');
   return { game, mode, targetUid, targetName };
 }
 

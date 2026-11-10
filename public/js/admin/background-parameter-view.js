@@ -1,5 +1,5 @@
 import { BACKGROUND_FIELDS, BACKGROUND_GROUPS, getBackgroundAppearance, isVideoBackground } from '../shared/background-appearance.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 

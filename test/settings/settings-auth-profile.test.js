@@ -41,8 +41,7 @@ test('Bilibili account changes reconnect the existing listener once without reco
     './settings-guard-expiry.js': { initGuardExpirySettings: () => ({ refresh: noop }) },
     '../shared/event-bus.js': { eventBus: { on: noop }, Events: {} },
     './state.js': { stateService: {} },
-    './forms.js': { formsService: {} },
-    './queue.js': { renderState: noop },
+    './state-renderer.js': { renderQueuePanels: noop },
     './gifts/blindbox.js': { giftBlindbox: {} },
   };
   const entry = new vm.SourceTextModule(fs.readFileSync(path.join(ROOT, 'public/js/admin/settings.js'), 'utf8'), { context });
@@ -132,7 +131,8 @@ test('Bilibili profile avatars load only through the authenticated proxy for Bil
   assert.equal(avatarUrl.pathname, '/api/bilibili/avatar');
   assert.equal(avatarUrl.searchParams.get('url'), 'https://i0.hdslb.com/bfs/face/host.jpg');
   assert.equal(avatarUrl.searchParams.get('token'), 'desktop-session-token');
-  assert.equal(module.bilibiliAvatarSource('https://images.example.com/avatar.jpg'), '');
+  const { bilibiliAvatarSource } = await loadModuleExports(path.join(ROOT, 'public/js/shared/bilibili-avatar.js'), { URL, URLSearchParams });
+  assert.equal(bilibiliAvatarSource('https://images.example.com/avatar.jpg'), '');
 });
 
 test('Bilibili login and confirmed logout announce each auth change once', async () => {

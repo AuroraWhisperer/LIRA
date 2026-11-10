@@ -1,12 +1,5 @@
 'use strict';
 
-const SOURCE_LABELS = {
-  internal: '内置播放器',
-  'qq-client': '外部 QQ 音乐',
-  'netease-client': '外部网易云音乐',
-  wesing: '全民 K 歌',
-};
-
 export function createLyricSourceControls({ api, state }) {
   let initialized = false;
   let current = null;
@@ -21,8 +14,9 @@ export function createLyricSourceControls({ api, state }) {
     if (!root || initialized) return;
     initialized = true;
     const status = document.getElementById('desktopLyricSourceStatus');
-    const followLabel = document.getElementById('desktopLyricFollowLabel');
+    const followStatus = document.getElementById('desktopLyricFollowStatus');
     const track = document.getElementById('desktopLyricSourceTrack');
+    const summary = document.getElementById('desktopLyricSourceSummary');
     const externalControls = document.getElementById('desktopLyricExternalControls');
     const weSingSettings = document.getElementById('desktopLyricWeSingSettings');
     const clients = [
@@ -41,18 +35,24 @@ export function createLyricSourceControls({ api, state }) {
       });
       externalControls.hidden = group !== 'external';
       weSingSettings.hidden = group !== 'wesing';
+      if (summary) {
+        const choice = (name, value) => root.querySelector(`input[name="${name}"][value="${value}"]`)?.closest('label')?.textContent.trim() || '';
+        summary.textContent = group ? [choice('desktopLyricSourceGroup', group), group === 'external' ? choice('desktopLyricSource', externalSelection) : '']
+          .filter(Boolean).join(' · ') : '';
+      }
       root.querySelectorAll('input[name="desktopLyricSource"]').forEach((input) => {
         input.checked = input.value === externalSelection;
         const client = clients.find((item) => item.source === input.value);
         input.disabled = !!client && current?.[client.key]?.supported === false;
       });
-      followLabel.hidden = !!requestError || !current;
-      status.textContent = requestError || (current ? SOURCE_LABELS[current.source] : '正在读取歌词来源…');
+      status.textContent = requestError || (!current ? '正在读取歌词来源…' : '');
+      status.hidden = !status.textContent;
       const followedClient = clients.find((client) => client.source === current?.source);
       const followed = followedClient && current[followedClient.key];
       track.textContent = followed?.trackTitle
         ? [followed.trackTitle, followed.artists?.join(' / '), followed.lyricSource ? `歌词：${followedClient.label}` : ''].filter(Boolean).join(' · ') : '';
       track.hidden = !track.textContent;
+      followStatus.hidden = status.hidden && track.hidden;
       for (const client of clients) {
         const detail = current?.[client.key];
         client.status.textContent = detail?.message || '正在检测…';

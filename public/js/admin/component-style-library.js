@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { requestComponentStyles, loadComponentStyleCss } from './component-style-api.js';
 import { editComponentMediaFile } from './component-style-editor.js';
 import { MEDIA_STYLE_TITLES } from '../shared/component-media-style.js';

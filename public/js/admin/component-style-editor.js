@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { createMediaStyle, MEDIA_STYLE_TITLES } from '../shared/component-media-style.js';
 import { loadComponentStyleCss } from './component-style-api.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';

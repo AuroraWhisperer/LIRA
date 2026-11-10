@@ -559,6 +559,43 @@ test('only the accepted playlist jump commits its cursor and remaining queue', a
   assert.equal(app.audioPlayCalls(), 1);
 });
 
+test('a playlist jump keeps the selected duplicate entry when a request is inserted while resolving', async (t) => {
+  const tracks = [track('first', '第一首'), track('repeated', '重复歌曲'),
+    track('repeated', '重复歌曲'), track('last', '最后一首')];
+  const delayed = Promise.withResolvers();
+  t.after(() => delayed.resolve({ url: 'https://example.test/repeated.mp3' }));
+  const app = await createPlaybackApp({ current: tracks[0], currentOrigin: 'normal',
+    normalQueueTracks: tracks, normalQueue: tracks.slice(1), playlistIndex: 0,
+    queueType: 'playlist', mode: 'sequence', selectedSource: 'qq', volume: 0.75,
+    pendingRequests: [{ songName: '重复歌曲', songRequestKey: 'request-1',
+      requesterName: '观众', track: track('repeated', '重复歌曲') }],
+  }, {
+    resolveStream: (_count, request) => request.track.id === 'repeated'
+      ? delayed.promise : { url: `https://example.test/${request.track.id}.mp3` },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackQueueList', 'click', {
+    target: closestTarget({ playbackPlaylistJump: '2' }, 'data-playback-playlist-jump'),
+  });
+  await flushAsyncWork();
+  assert.equal(app.resolveStreamRequestCount(), 1);
+  await app.emit('pendingConfirmAcceptBtn', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().playlistIndex, 0);
+  assert.equal(app.savedState().normalQueueTracks[1].songRequestKey, 'request-1');
+
+  delayed.resolve({ url: 'https://example.test/repeated.mp3' });
+  await flushAsyncWork();
+  const saved = app.savedState();
+  assert.equal(saved.current.id, 'repeated');
+  assert.equal(saved.playlistIndex, 3);
+  assert.deepEqual(saved.normalQueue.map(item => item.id), ['last']);
+  await app.emit('music-player', 'ended');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.id, 'last');
+});
+
 for (const mode of ['sequence', 'repeat-one', 'shuffle']) {
   test(`playlist previous wraps from the first track (${mode})`, async () => {
     const tracks = [track('first', '第一首'), track('last', '最后一首')];
@@ -629,15 +666,17 @@ test('single-track playlist previous replays the same track', async () => {
   assert.equal(app.audioPlayCalls(), 1);
 });
 
-test('previous playback pops history once without pushing the current track back', async () => {
+test('previous playback returns to the prior request of the same song without recording retries', async () => {
+  const first = { ...track('same-song', 'Same song'), songRequestKey: 'request-1' };
+  const second = { ...first, songRequestKey: 'request-2' };
   const app = await createPlaybackApp({
-    current: track('current', 'Current'),
+    current: first,
     currentOrigin: 'normal',
     requestedQueue: [],
-    normalQueue: [],
+    normalQueue: [second],
     normalQueueTracks: [],
     radioQueue: [],
-    history: [track('older', 'Older'), track('previous', 'Previous')],
+    history: [track('older', 'Older')],
     mode: 'sequence',
     selectedSource: 'qq',
     queueType: 'queue',
@@ -647,11 +686,19 @@ test('previous playback pops history once without pushing the current track back
 
   await app.init();
   await flushAsyncWork();
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.equal(app.savedState().current.songRequestKey, second.songRequestKey);
+  assert.equal(app.savedState().history.at(-1).songRequestKey, first.songRequestKey);
+
+  await app.emit('music-player', 'error');
+  await flushAsyncWork();
+  assert.equal(app.savedState().history.length, 2);
   await app.emit('playbackPrev', 'click');
   await flushAsyncWork();
 
   const persisted = app.savedState();
-  assert.equal(persisted.current.id, 'previous');
+  assert.equal(persisted.current.songRequestKey, first.songRequestKey);
   assert.deepEqual(
     persisted.history.map((item) => item.id),
     ['older'],

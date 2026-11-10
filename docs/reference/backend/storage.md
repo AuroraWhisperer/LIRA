@@ -95,11 +95,11 @@ gift_db v20 由 [gift-wish-migration.js](../../../src/storage/gift-wish-migratio
 
 ### 歌库显式更新事务
 
-`songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及分类，将稳定行对象传给音乐域计划器重新校验预览，然后执行该计划的 INSERT/UPDATE，整份替换计划还会 DELETE 未列出的歌曲。匹配歌曲保留 id 和引用；删除歌曲先解除 queue/requests 的 song_id 关联，保留点歌记录文本。保留独立分类目录；插入新分类、歌曲增删改、引用变更及云同步 pending 快照一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。
+`songStore.applyImportUpdate(buildPlan)` 在单个事务中读取完整歌曲及曲风，将稳定行对象传给音乐域计划器重新校验预览，然后执行该计划的 INSERT/UPDATE，整份替换计划还会 DELETE 未列出的歌曲。匹配歌曲保留 id 和引用；删除歌曲先解除 queue/requests 的 song_id 关联，保留点歌记录文本。保留独立曲风目录；插入新曲风、歌曲增删改、引用变更及云同步 pending 快照一起提交或回滚。事务内不发生网络调用，成功后的同步由路由触发。
 
-`importRows`、`applyImportUpdate` 与 `replaceAll` 在各自事务内按分类名复用分类行；新分类只解析一次，映射不跨事务保存，失败回滚后下一批重新读取。歌曲 INSERT 与导入 UPDATE 复用连接上的预编译语句。批量入口不逐首读回已插入的歌曲，单首保存仍读取并返回完整行；不改变每首歌曲的写入、导入计数或同步 pending 的提交规则。
+`importRows`、`applyImportUpdate` 与 `replaceAll` 在各自事务内按曲风名复用曲风行；新曲风只解析一次，映射不跨事务保存，失败回滚后下一批重新读取。歌曲 INSERT 与导入 UPDATE 复用连接上的预编译语句。批量入口不逐首读回已插入的歌曲，单首保存仍读取并返回完整行；不改变每首歌曲的写入、导入计数或同步 pending 的提交规则。
 
-导入数量只通过实时响应返回，包括新增、未改变、更新、新分类及替换时的删除数量；不再写入没有历史读取用途的 `import_batches`。旧表保留兼容，已有批次由保留期维护清空，不影响歌曲或当次导入结果。预览 token 含全部歌曲与分类内容、时间戳和导入选项（包括 replaceAll），不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
+导入数量只通过实时响应返回，包括新增、未改变、更新、新曲风及替换时的删除数量；不再写入没有历史读取用途的 `import_batches`。旧表保留兼容，已有批次由保留期维护清空，不影响歌曲或当次导入结果。预览 token 含全部歌曲与曲风内容、时间戳和导入选项（包括 replaceAll），不依赖内存全局租户状态。要求见 [点歌资料规范](../../../specs/song-request-metadata.md)。
 
 ### 本地场景持久化
 
@@ -270,7 +270,7 @@ songDb v15 为 `fan_records` 和 `fan_reminder_states` 分别增加 `idx_fan_rec
 
 `requests` 保存 `stable_id`（唯一 UUID）、`owner_scope`、`identity_type` 和 v13 新增的 `fan_recorded`。普通点歌入队、更新档案歌曲汇总与标记已归档在同一事务提交；仍在队列中的请求通过稳定标识和标记避免重复计数。旧流水不猜归属，也不补记以前遗漏的档案记录。`done`、`deleted`、`skipped` 及清空队列会物理删除对应的 `queue` / `requests` 行，已计入档案的次数不扣除；`done` 只表示队列已处理。
 
-songDb v13 由 [fan-song-migration.js](../../../src/storage/fan-song-migration.js) 将每份档案中规范化歌名与歌手相同的 `song` 合为一条：`data` 保存 `songName`、`artist`、累计 `count`、最新三个不同上海日期 `recentDates`、按日期/分类计数的 `dailyCounts` 和合并的手写 `note`，`original` 为 `{}`、`revisions` 为 `[]`。不保留逐次原始记录或歌曲修订；其他记录类型保持原始依据与修订。旧 `excluded` 和随机点歌不贡献汇总；旧 `excludeFromStats` 仅排除近 30 天计数，仍贡献累计次数和最近日期。汇总和校验规则由 [song-summary.js](../../../src/fans/song-summary.js) 持有。
+songDb v13 由 [fan-song-migration.js](../../../src/storage/fan-song-migration.js) 将每份档案中规范化歌名与歌手相同的 `song` 合为一条：`data` 保存 `songName`、`artist`、累计 `count`、最新三个不同上海日期 `recentDates`、按日期/曲风计数的 `dailyCounts` 和合并的手写 `note`，`original` 为 `{}`、`revisions` 为 `[]`。不保留逐次原始记录或歌曲修订；其他记录类型保持原始依据与修订。旧 `excluded` 和随机点歌不贡献汇总；旧 `excludeFromStats` 仅排除近 30 天计数，仍贡献累计次数和最近日期。汇总和校验规则由 [song-summary.js](../../../src/fans/song-summary.js) 持有。
 
 `fan-record-store` 在写入、档案读取、完整备份导出及启动/每小时 retention 时清理早于上海当天及前 29 天的 `dailyCounts`，保留累计次数和最近三个日期；时钟回退产生的未来日期桶暂存，但不计入当前展示。档案表不参与 clear-all。自动恢复点按 `created_at DESC, rowid DESC` 每个 scope 保留两份，由 [fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js) 清理。新快照插入、旧快照清理及恢复/合并处于同一事务，失败时原档案和恢复点均回滚。
 
@@ -297,7 +297,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 | `ai_viewer_context` | 观众短期多轮对话 | uid PK 保存可信房间/观众/人格作用域摘要；payload v2 含 sessionId、exchanges、truncated，兼容旧一问一答结构；expires_at 为到期时间。历史预算、按送达续期与周期清理由 [AI 契约](ai.md#33-连续互动与空闲清理) 定义；旧键不猜测房间迁移 |
 | `ai_query_cache`    | 查询缓存                                                     | cache_key PK、expires_at                                                                                                                                                                                                                                              |
 | `ai_blacklist`      | AI 黑名单                                                    | uid PK、reason                                                                                                                                                                                                                                                        |
-| `song_categories`   | 歌曲分类                                                     | name UNIQUE、sort_order、is_enabled                                                                                                                                                                                                                                   |
+| `song_categories`   | 曲风                                                     | name UNIQUE、sort_order、is_enabled                                                                                                                                                                                                                                   |
 | `songs`             | 曲库                                                         | name/name_pinyin/name_initial/artist/category_id/tags/language/source_platform/request_price/song_clip/original_group;`request_price` 保存自由文本点歌价格说明，`song_clip` 保存自由文本歌切链接或说明；唯一索引 `idx_songs_name_artist(name, artist)` 由迁移 v3 创建 |
 | `queue`             | 当前点歌队列；处理、移除或清空时物理删除                      | song_id(FK)、requester_* 元数据、source(admin/danmaku/…)、status、is_pinned/pinned_at、is_live（默认 0，部分唯一索引限制最多一条 LIVE）;idx(status, is_pinned, pinned_at, created_at)                                                                                                                                   |
 | `requests`          | 活动队列的点歌信息，与队列同时删除                           | queue_id/song_id(FK)、message、stable_id、owner_scope、identity_type、fan_recorded;idx created_at、idx(requester_uid, created_at)、idx song_name                                                                                                                                                                           |
@@ -445,16 +445,18 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 - `settings`:直播间号、主题颜色、所有功能开关
 - `ai_configuration`:AI 提供商配置与凭证
 - `theme_presets`:主题预设(内置 + 用户自建)
-- `overtime_machine_state`:加班机状态(清空后重置为 id=1 禁用行；同一事务内递增已有 revision，单例缺失时才从 0 创建)
+- `overtime_machine_state`:加班机状态(清空后重置为 id=1 禁用行，保留已有 enable_epoch 供下次启用递增；同一事务内递增已有 revision，单例缺失时 epoch/revision 才从 0 创建)
 - `overtime_gift_rules`:加班机礼物规则
 - `favorites`:播放器收藏
 - `playlists` + `playlist_tracks`:播放器歌单
 - `super_chat_receipts`:仅已移除 SC 的平台 ID，防止重复消息重新出现
 - 非当前 source 与 `source_id IS NULL` 的 legacy 礼物行，以及 `gift_sources` 字典
 
+清空全部会结束当前加班机轮次：在同一 giftDb 事务内，将上述保留来源的 pending 结算置 ignored；已 applied/ignored 的结算终态不变。没有 active source 时也执行状态重置和 pending 失效，不能因保留礼物历史而复用旧轮次。单独 `clearGiftData` 不重置加班机轮次。
+
 **删除(Delete)**:全部业务数据
 
-- 点歌业务:`songs`、`song_categories`(清空后重建默认分类)、`queue`、`requests`、`random_request_history`、`import_batches`、`user_cooldowns`、`song_cooldowns`
+- 点歌业务:`songs`、`song_categories`(清空后重建默认曲风)、`queue`、`requests`、`random_request_history`、`import_batches`、`user_cooldowns`、`song_cooldowns`
 - AI 运行时:`ai_request_logs`、`ai_api_usage`、`ai_viewer_context`、`ai_query_cache`、`ai_blacklist`
 - 直播数据:`super_chats`、当前 source 的 `gift_events` 与关联 `overtime_settlements`、`checkin_users`
 - 播放器数据:`play_history`、`play_queue_state` 的业务快照；后者保留并推进 writer 撤销元数据，阻止清空前的迟到保存恢复旧内容。
@@ -468,7 +470,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 **Phase 1**(预提交验证):
 
-1. 对所有 5 个数据库依次执行 `BEGIN` + `DELETE` + 统计行数,但**不提交**；在各自事务内重建默认分类与禁用的加班机状态行
+1. 对所有 5 个数据库依次执行 `BEGIN` + `DELETE` + 统计行数,但**不提交**；在各自事务内重建默认曲风与禁用的加班机状态行
 2. 若任一 BEGIN/DELETE/默认行重建失败，只回滚本次已经开启的事务；全部回滚成功后抛出聚合错误(`error.details` 包含库名与 `delete`/`recreate` 阶段)，不报告清空成功
 3. 若回滚失败，返回 `partial: true`、`phase: 'pre-commit'`、`committed: []` 与 `rolledBack`/`rollbackFailed`，保持写入器暂停
 
@@ -484,7 +486,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 清空全部的应用流程由 [data-maintenance-runtime.js](../../../src/server/data-maintenance-runtime.js) 的同步 `runClearAll` 拥有。[路由](../../../src/server/routes/data-routes.js)从 [API 上下文](../../../src/server/api-context.js)传入窄能力，运行时依次暂停写入、清库并恢复，全程不插入 `await`:
 
-同文件的 `createDataMaintenanceRuntime` 提供 `domainServices.data`：它拥有活动礼物来源选择、SC 撤销状态清理、清库成功后的倒计时/冷却/默认分类/队列恢复，以及保留策略与 schema 版本缓存。组合根只注入数据库和必要的运行期操作；跨库提交、回滚与 SQL 继续由 storage 拥有。
+同文件的 `createDataMaintenanceRuntime` 提供 `domainServices.data`：它拥有活动礼物来源选择、SC 撤销状态清理、清库成功后的倒计时/冷却/默认曲风/队列恢复，以及保留策略与 schema 版本缓存。组合根只注入数据库和必要的运行期操作；跨库提交、回滚与 SQL 继续由 storage 拥有。
 
 - `context.gifts.pauseDetection()`:暂停本地检测、finalize 与消费重试，取消计时器且不强制 flush；暂停期间销毁也不 flush。远端实时/历史导入抛出 `GIFT_DETECTION_PAUSED`，使礼物与同步游标所属事务一起回滚，避免丢事件
 - `context.overtime.pauseRecovery()`:暂停礼物结算、后台补偿与倒计时归零写入，取消零点/重试计时器
@@ -545,7 +547,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 ### 7.1 关键设置的归属与约束
 
-`heartBoxCollectionShowRewards='true'` 与 `liveRankingsRange='all'` 是客户端和画布共用的本地显示设置，由 [scene-shared-appearance.js](../../../public/js/shared/scene-shared-appearance.js) 映射至 `showRewards` / `range` 并复用场景字段校验。前者为布尔值；后者仅接受 `all`（从第 1 名开始自动翻页）或 `nearby`（跟随本房间名次）。两端人数由实际高度计算，旧场景 `nearby/pageSize` 字段只保留兼容，不新增人数设置。沿用缺失键补齐，无表结构迁移，不加入云设置同步。心动收集的显隐只投影至自身 scope；旧 URL 的显式 `showRewards` 覆盖仍有效。
+`heartBoxCollectionShowRewards='true'` 与 `liveRankingsRange='all'` 是本地显示设置，由 [scene-shared-appearance.js](../../../public/js/shared/scene-shared-appearance.js) 映射至 `showRewards` / `range` 并复用场景字段校验。前者为布尔值，由客户端和画布共用；后者仅接受 `all`（从第 1 名开始完整加载，手动滚动）或 `nearby`（跟随本房间名次），供画布和直播输出使用。客户端榜单完整加载已返回名次供手动滚动，不读取该展示方式。画布与直播输出的附近模式人数由实际高度计算；旧场景 `nearby/pageSize/pageSeconds` 字段及校验保留兼容，完整榜不再自动翻页，不新增人数设置。沿用缺失键补齐，无表结构迁移，不加入云设置同步。心动收集的显隐只投影至自身 scope；旧 URL 的显式 `showRewards` 覆盖仍有效。
 
 `nowPlayingAppearance` 默认 `'{}'`，是歌曲信息组件的本机外观 JSON，不加入云设置同步。默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 定义，专属配置接口与普通 settings 写入均经过同一场景字段校验；缺失/非法存量回退默认黑胶横排。默认键补齐不覆盖旧设置，无数据库结构迁移。画布共享外观写回同一配置，场景自身的唱片样式、位置、尺寸和显隐保持独立；保存机制见 [now-playing-settings.js](../../../src/server/now-playing-settings.js)。
 
@@ -555,9 +557,26 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 高级输出只显示当前句。`advancedLyricHideUnsung='true'` 默认隐藏未唱到的字，可关闭并随命名搭配保存，桌面和画布共用。旧 `advancedLyricShowNextLine` 继续接受布尔值，供已有设置和预设读取兼容；默认值为 `'false'`，编辑器不提供该控制，渲染不使用它显示下一句。旧预设缺少新字段时补齐默认开启。
 
-`advancedLyricLayout` 缺省与重置值为 `'phrase-flow'`；另有 `'corner-relay'`、`'type-impact'` 两种完整句内编排。已有明确保存的静态布局 ID 保留，不执行强制替换。完整编排复用 `advancedLyricMotionDuration` / `advancedLyricMotionAmount`，范围和存储类型不变，分别控制词组交接时长、动作幅度；自由构图的 Enter/Hold/Exit 值继续存储，但完整编排不读取它们安排动作。没有新增设置键或数据库迁移；示例试播状态仅在管理页内存中存在。
+`advancedLyricLayout` 缺省与重置值为 `'phrase-flow'`；完整编排、随句编排与自由构图的可选 ID 由 [advanced-lyric-catalog.js](../../../public/js/shared/advanced-lyric-catalog.js) 定义。已有明确保存的静态布局 ID 保留，不执行强制替换。完整编排复用 `advancedLyricMotionDuration` / `advancedLyricMotionAmount`，范围和存储类型不变，分别控制词组交接时长、动作幅度；自由构图的 Enter/Hold/Exit 值继续存储，但完整编排不读取它们安排动作。
 
 `desktopLyricEnabled='true'`、`advancedLyricEnabled='false'` 是基础/高级两个独立的本地显示开关；切换编辑页签不持久化。高级字段 `advancedLyric*` 的视觉类型、范围、默认值与目录由 [advanced-lyric-appearance.js](../../../public/js/shared/advanced-lyric-appearance.js) 统一定义，服务端设置写入和场景配置使用同一归一化规则；存储层在 `settings-defaults.js` 显式登记相同的持久化默认值，不依赖浏览器模块。数值、布尔值保存为字符串，颜色接受六/八位十六进制，排版/材质/动作值只接受目录 ID。排版/入场轮换序列保存为逗号分隔的已知 ID，至多 12 项并按顺序去重。非法值拒绝整批写入。沿用缺失默认值补齐，不新增数据库 schema 迁移，不覆盖原基础外观。
+
+高级字体与字效的细调字段如下，键均以 `advancedLyric` 开头。旧设置与旧搭配缺少字段时补齐下列默认值，继续使用原有外观；已有字距上限扩展至 `0.6em`。
+
+| 字段后缀 | 默认值 | 范围与语义 |
+| --- | --- | --- |
+| `FontStyle` | `normal` | `normal` / `italic`，正体或斜体 |
+| `LetterSpacing` | `0` | −0.05–0.6em，步长 0.01 |
+| `LineHeight` | `1.2` | 0.9–1.8，步长 0.05；同一词组换行后的行距倍数，参与适配测量 |
+| `HighlightOpacity` | `1` | 0–1，步长 0.05；演唱填色浓度，0 仍保留逐字动作与时间 |
+| `ShadowColor` | `#00000085` | 投影颜色及 Alpha，沿用六/八位十六进制校验 |
+| `ShadowDistance` | `1` | 0–8，步长 0.25；原投影距离的倍数 |
+| `ShadowAngle` | `90` | −180–180°，步长 5；0° 向右、90° 向下 |
+| `ShadowBlur` | `1` | 0–4，步长 0.1；原投影模糊半径的倍数，0 为硬边 |
+| `GlowRadius` | `1` | 0.25–3，步长 0.25；原发光范围的倍数 |
+| `GlowOpacity` | `1` | 0–1，步长 0.05；沿用强调色的发光浓度 |
+| `GradientAngle` | `160` | 0–360°，步长 5；160 保留各材质的原方向，其余值按差值旋转 |
+| `TextureScale` | `1` | 0.5–3，步长 0.1；条纹、圆点及粉笔颗粒的大小倍数 |
 
 `advancedLyricSavedPresets='[]'` 保存命名搭配的 JSON 数组，每项为 `{id,name,settings}`，至多 20 份、序列化总长至多 65536 个 JS 字符；ID 为 1–64 位字母、数字、下划线或连字符，名称为 1–64 个 Unicode 字符。`settings` 只允许高级外观字段并补齐默认值，不包含两个显示开关、音乐来源或其他预设。预设库仅供本机编辑，不投影至歌词浏览器源，也不参与云端设置同步；实际高级外观与显示开关投影至 `lyrics` scope，并与普通画布歌词组件共享。场景实例的 `lyricLayer` 不在 settings 中保存。
 
@@ -615,9 +634,9 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 
 ## 8. 云端 scope 的本地落盘
 
-SongStore 的缓存变更令牌使用连接级 TEMP 触发器观测歌曲/分类表，外部连接提交以 `data_version` 兜底；不会给持久数据库新增表或触发器。清空、替换均沿用表内写操作，照常推进令牌；连接关闭时 TEMP 状态销毁，重开后重新建立。事务内读取不复用缓存，详见 [音乐服务](music/services.md)。
+SongStore 的缓存变更令牌使用连接级 TEMP 触发器观测歌曲/曲风表，外部连接提交以 `data_version` 兜底；不会给持久数据库新增表或触发器。清空、替换均沿用表内写操作，照常推进令牌；连接关闭时 TEMP 状态销毁，重开后重新建立。事务内读取不复用缓存，详见 [音乐服务](music/services.md)。
 
-SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新建与合并导入计入已有停用歌曲，并对新行按 `(name,artist)` 去重；替换检查替换后的数量。超限不改歌曲、分类、历史引用或导入批次；已有超限库仍可读取、编辑、删除，但不能继续新增，不会自动删歌。失败由调用方返回 `SONG_IMPORT_LIMIT_EXCEEDED`，成功路径沿用原有广播和同步。显式替换为上限内的完整快照仍可用于整理历史超量库。云端上传前对完整数组独立校验，历史超量返回 `TOO_MANY_SONGS`，不会截断上传；非数组仍为 `SONG_LIST_INVALID`。
+SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新建与合并导入计入已有停用歌曲，并对新行按 `(name,artist)` 去重；替换检查替换后的数量。超限不改歌曲、曲风、历史引用或导入批次；已有超限库仍可读取、编辑、删除，但不能继续新增，不会自动删歌。失败由调用方返回 `SONG_IMPORT_LIMIT_EXCEEDED`，成功路径沿用原有广播和同步。显式替换为上限内的完整快照仍可用于整理历史超量库。云端上传前对完整数组独立校验，历史超量返回 `TOO_MANY_SONGS`，不会截断上传；非数组仍为 `SONG_LIST_INVALID`。
 
 房间归属由 `settings-store.prepareCloudRoomAccount(accountKey)` 保存于现有 `settings` 表的内部 `cloudRoomAccountKey`，值为 `JSON.stringify([origin, accountName, streamerId])`，来自 main process 的设备身份。首次缺失或身份不同（含同名重建的新 streamerId）时，以一个 `BEGIN IMMEDIATE` 事务同时清空 `roomId` 并保存新标记；失败整体回滚，同一 owner 重复调用不写库。标记不进入 `getSettings()`、可编辑 defaults、WS/HTTP settings 或 Device 快照，也不作为服务端授权依据。它不是云端 revision，不新增表或更改 schema 版本。其他设置和歌库的初次播种规则不变；已有云端房间可在随后同步时恢复。
 
@@ -625,7 +644,7 @@ SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新�
 
 云端 revision 保存在独立 lira-server，本地 SQLite 不复制 revision；[cloud-sync-controller.js](../../../src/electron/cloud-sync-controller.js) 在当前授权进程内维护 `settings`、`songs`、`bilibili` 三个已应用 revision、dirty 标志和本地 mutation 代次。上传完成时只有未出现更新代次才清除 dirty；远端 songs/Bilibili 内容返回后会在本地写入前重新检查 dirty。应用云端 settings 时，`applyCloudSettingsSnapshot` 写入同步白名单（包括验证后的 legacy `giftBlindBoxConfig` 与 `giftBlindBoxCustomConfigV2`），并把只读 `blindBoxMapping` 状态单独放入运行时快照；设置页只上传私有 v2 数组，dirty JSON 在刷新或失败时保留。随后重新配置本地 Bilibili runtime 并广播 `cloud:settings` 快照。
 
-应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和分类、重建默认分类并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
+应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和曲风、重建默认曲风并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
 
 云端或待传快照替换时，同一歌曲事务还更新私有 `cloudSongAccountKey`，记录磁盘歌库实际归属。账号准备仅在该键缺失时初始化：优先使用已有 `cloudRoomAccountKey`，否则采用首次账号；后续切换房间归属不会提前改变歌库归属。待传快照与当前内容相同时只接纳归属，保留歌曲 ID；云端明确未初始化的歌库沿用首次播种规则。
 

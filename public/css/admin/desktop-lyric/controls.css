@@ -277,7 +277,7 @@
 .desktop-lyric-unit {
   grid-column: 3;
   grid-row: 1;
-  justify-self: start;
+  justify-self: end;
   color: var(--muted);
   font-family: 'Segoe UI', sans-serif;
   font-size: var(--type-size-control);

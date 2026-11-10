@@ -80,6 +80,17 @@ test('room identity remains available when optional avatar lookup fails', async 
   });
 });
 
+test('room profile rejects another room before loading its owner details', async (t) => {
+  const runtime = createRuntime(t);
+  t.mock.method(BilibiliApiClient.prototype, 'resolveRoomInfo', async () => ({
+    roomId: 123000, shortId: 123, uid: 456,
+  }));
+  t.mock.method(BilibiliApiClient.prototype, 'fetchUserProfile', () => {
+    assert.fail('A mismatching room must not load owner details');
+  });
+  assert.equal(await runtime.getRoomProfile({ expectedRoomId: '999' }), null);
+});
+
 test('room profile route returns the projection and hides upstream error details', async () => {
   const profile = { roomId: '123', uid: '456', name: '房主', avatarUrl: '' };
   const response = {

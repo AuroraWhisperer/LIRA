@@ -203,8 +203,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   elements.set('desktopLyricFontSizeNumber', {
     value: '56', addEventListener: (type, handler) => numberListeners.set(type, handler),
   });
-  elements.set('desktopLyricEnabled', { checked: false });
-  elements.set('advancedLyricEnabled', { checked: true });
+  elements.delete('desktopLyricEnabled');
+  elements.delete('advancedLyricEnabled');
   elements.set('desktopLyricSungColorInherited', { checked: true });
   elements.set('desktopLyricFontFamily', Object.assign(createFontNode(), { value: values.desktopLyricFontFamily }));
   const lyricSourceInputs = [
@@ -390,16 +390,8 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(Object.hasOwn(apiCalls[2].body, 'advancedLyricLayout'), false, 'Basic reset must preserve the advanced composition.');
   assert.equal(desktopLyric.collectDesktopLyric().advancedLyricLayout, 'corners');
   assert.equal(desktopLyric.collectDesktopLyric().advancedLyricMaterial, 'chalk');
-  assert.equal(elements.get('desktopLyricEnabled').checked, false, 'Resetting appearance must not enable basic output.');
-  assert.equal(elements.get('advancedLyricEnabled').checked, true, 'Basic reset must not disable advanced output.');
-
-  await new Promise(resolve => setImmediate(resolve));
-  elements.get('desktopLyricEnabled').checked = true;
-  listeners.get('change')();
-  await new Promise(resolve => setImmediate(resolve));
-  assert.equal(apiCalls.at(-1).body.desktopLyricEnabled, 'true');
-  assert.equal(Object.hasOwn(apiCalls.at(-1).body, 'advancedLyricEnabled'), false, 'The output switches persist independently.');
-  assert.equal(elements.get('advancedLyricEnabled').checked, true);
+  assert.equal(Object.hasOwn(apiCalls[2].body, 'desktopLyricEnabled'), false, 'Appearance edits preserve legacy output settings.');
+  assert.equal(Object.hasOwn(apiCalls[2].body, 'advancedLyricEnabled'), false);
 
   holdSave = true;
   elements.get('desktopLyricFontSize').value = '68';

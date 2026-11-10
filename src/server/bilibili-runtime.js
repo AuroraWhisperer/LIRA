@@ -114,11 +114,14 @@ function createBilibiliRuntime(options) {
     return profile?.avatarUrl || '';
   }
 
-  async function getRoomProfile() {
+  async function getRoomProfile({ expectedRoomId } = {}) {
     const roomId = getConfiguredRoomId();
     if (!roomId) return { roomId: '', uid: '', name: '', avatarUrl: '' };
     await refreshAuthCache();
     const room = await new BilibiliApiClient(roomId, authCache).resolveRoomInfo();
+    // The expected display room must belong to this configured room's trusted resolution.
+    if (expectedRoomId !== undefined &&
+      ![roomId, String(room.roomId), String(room.shortId || '')].includes(String(expectedRoomId))) return null;
     const profile = await userInfoService.ensure(room.uid, {
       fields: ['name', 'avatarUrl'],
     });

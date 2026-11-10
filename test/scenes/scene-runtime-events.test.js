@@ -6,6 +6,8 @@ const { randomUUID } = require('node:crypto');
 const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
 const { createSceneRuntime } = require('../../src/server/scene-runtime');
+const { createBilibiliRuntime } = require('../../src/server/bilibili-runtime');
+const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
 const { migrateScenes, migrateComponentOutputSizes, migrateCanvasPresets, migrateSceneDeletion } = require('../../src/storage/scene-migration');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
 const { migrateDanmakuAppearance } = require('../../src/storage/danmaku-appearance-store');
@@ -34,7 +36,9 @@ function publish(runtime, types) {
   const created = service.create({ title: '场景通知', canvas: { width: 1920, height: 1080 } });
   const items = [].concat(types).map(type => ({ id: randomUUID(), type, name: type, x: 0, y: 0, width: 320, height: 180, visible: true, locked: false,
     appearance: ['clock', 'overtime'].includes(type) ? { mode: 'shared' }
-      : { mode: 'independent', config: createSceneExtraDefaults(type) } }));
+      : { mode: 'independent', config: type === 'danmaku'
+        ? { style: 'twitter', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null }
+        : createSceneExtraDefaults(type) } }));
   const saved = service.save({ id: created.document.id, expectedRevision: created.revision,
     document: { ...created.document, items } });
   const published = service.publish({ id: saved.document.id, expectedRevision: saved.revision });
@@ -86,24 +90,61 @@ test('standalone and scene danmaku map accepted gift images without starting dow
   assert.deepEqual(mapped, [gift.giftImageUrl, gift.giftImageUrl], 'only accepted ordinary gifts are mapped');
 });
 
-test('scene danmaku projects only the matching local room profile and rechecks owner after a read', async t => {
-  let roomId = '1234', calls = 0, release;
+test('scene danmaku resolves configured and cloud room aliases through the Bilibili runtime', async t => {
+  let roomId = '123', roomRevision = 0;
+  const settingsStore = { getSettings: () => ({ ...DEFAULT_SETTINGS, roomId, enableBilibili: 'false', danmakuMonitoringEnabled: 'false' }),
+    getRoomRevision: () => roomRevision };
+  const bilibili = createBilibiliRuntime({ settingsStore,
+    domainServices: { requesterTargets: { getLatestRandomRequester: () => null } },
+    broadcastSnapshot() {}, readRoomGuardCount: async () => 0,
+    buildClient() { assert.fail('Room profiles must not start a listener'); } });
+  t.after(() => bilibili.stop());
+  const resolveRoom = t.mock.method(BilibiliApiClient.prototype, 'resolveRoomInfo', async function () {
+    assert.equal(this.roomId, roomId);
+    return { roomId: 123000, shortId: 123, uid: 456, ownerName: '房主' };
+  });
+  t.mock.method(BilibiliApiClient.prototype, 'fetchUserProfile', async () => ({ name: '房主', avatarUrl: '' }));
+  const { runtime, state } = fixture(t, {
+    settings: { get: settingsStore.getSettings, getRoomRevision: settingsStore.getRoomRevision },
+    bilibili: { getRoomProfile: options => bilibili.getRoomProfile(options) },
+  }, () => ({ liveStatus: bilibili.getLiveStatus() }));
+  const update = { ownerScope: state.owner.scope, authorizationEpoch: 1, connectionEpoch: 'profile-alias', status: 'connecting' };
+  runtime.receiveCloud(update);
+  runtime.receiveCloud({ ...update, status: 'connected', event: { type: 'overlay-state', state: 'running', liveStatus: 1,
+    liveSessionId: 'live', confirmationMessage: '开播' } });
+  const source = publish(runtime, 'danmaku');
+  for (const [configuredRoom, cloudRoom] of [['123', '123'], ['123', '123000'], ['123000', '123'], ['123000', '999']]) {
+    if (roomId !== configuredRoom) { roomId = configuredRoom; roomRevision++; }
+    bilibili.configure();
+    runtime.receiveCloud({ ...update, status: 'connected', event: { type: 'room-guard', roomId: cloudRoom, count: 0 } });
+    assert.equal(runtime.service.getOutput(source).data.danmaku.roomProfile, null);
+    await new Promise(setImmediate);
+    const profile = runtime.service.getOutput(source).data.danmaku.roomProfile;
+    if (cloudRoom === '999') assert.equal(profile, null);
+    else {
+      assert.equal(profile.roomId, '123000');
+      assert.equal(profile.uid, '456');
+    }
+  }
+  assert.equal(resolveRoom.mock.callCount(), 4, 'repeated scene reads share each room lookup and cached result');
+});
+
+test('scene danmaku projects room profiles only within their owner and room generation', async t => {
+  let roomId = '1234', roomRevision = 0, calls = 0, release;
   const getState = () => ({ liveStatus: { roomId } });
-  const { runtime, state } = fixture(t, { bilibili: { getRoomProfile() {
-    calls++;
-    return new Promise(resolve => { release = resolve; });
-  } } }, getState);
+  const { runtime, state } = fixture(t, {
+    settings: { get: () => ({ ...DEFAULT_SETTINGS, roomId }), getRoomRevision: () => roomRevision },
+    bilibili: { getRoomProfile({ expectedRoomId }) {
+      assert.equal(expectedRoomId, '1234');
+      calls++;
+      return new Promise(resolve => { release = resolve; });
+    } },
+  }, getState);
   const update = { ownerScope: state.owner.scope, authorizationEpoch: 1, connectionEpoch: 'profile-connection', status: 'connecting' };
   runtime.receiveCloud(update);
   runtime.receiveCloud({ ...update, status: 'connected', event: { type: 'overlay-state', state: 'running', liveStatus: 1,
     liveSessionId: 'live', confirmationMessage: '开播', roomGuard: { roomId } } });
-  const created = runtime.service.create({ title: '房主资料', canvas: { width: 1920, height: 1080 } });
-  const saved = runtime.service.save({ id: created.document.id, expectedRevision: created.revision,
-    document: { ...created.document, items: [{ id: randomUUID(), type: 'danmaku', name: '弹幕', x: 0, y: 0,
-      width: 600, height: 800, visible: true, locked: false, appearance: { mode: 'independent',
-        config: { style: 'twitter', fullscreenDurationSeconds: 6, styleOptions: {}, layout: null } } }] } });
-  runtime.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
-  const source = runtime.service.getSource(saved.document.id);
+  const source = publish(runtime, 'danmaku');
   const first = runtime.service.getOutput(source);
   const second = runtime.service.getOutput(source);
   assert.equal(first.data.danmaku.roomProfile, null, 'Profile loading never delays event delivery');
@@ -116,20 +157,57 @@ test('scene danmaku projects only the matching local room profile and rechecks o
     assert.deepEqual(output.data.danmaku.roomProfile, { roomId, uid: 'owner', name: '当前房主', avatarUrl: '' });
     assert.doesNotMatch(JSON.stringify(output.data), /PRIVATE|cookie/);
   }
-  roomId = '5678';
-  assert.equal((await runtime.service.getOutput(source)).data.danmaku.roomProfile, null);
-  assert.equal(calls, 1);
+  roomId = '5678'; roomRevision++;
+  assert.equal(runtime.service.getOutput(source).data.danmaku.roomProfile, null);
+  roomId = '1234'; roomRevision++;
+  assert.equal(runtime.service.getOutput(source).data.danmaku.roomProfile, null, 'a room round trip cannot reuse cached data');
+  await Promise.resolve();
+  assert.equal(calls, 2, 'the superseded queued read must not start');
+  const notify = t.mock.method(runtime.events, 'notify', () => {});
   state.owner = { ...state.owner, epoch: 2 };
-  roomId = '1234';
+  release({ roomId, uid: 'late-owner', name: '旧账号房主' });
+  await new Promise(setImmediate);
+  assert.equal(notify.mock.callCount(), 0);
   runtime.receiveCloud({ ...update, authorizationEpoch: 2, connectionEpoch: 'profile-next', status: 'connecting' });
   runtime.receiveCloud({ ...update, authorizationEpoch: 2, connectionEpoch: 'profile-next', status: 'connected',
     event: { type: 'overlay-state', state: 'running', liveStatus: 1, liveSessionId: 'next', confirmationMessage: '开播', roomGuard: { roomId } } });
   runtime.service.getOutput(source);
   await Promise.resolve();
-  roomId = '5678';
+  roomId = '5678'; roomRevision++;
+  roomId = '1234'; roomRevision++;
+  const notifications = notify.mock.callCount();
   release({ roomId: '1234', uid: 'late', name: '迟到房主' });
   await new Promise(setImmediate);
+  assert.equal(notify.mock.callCount(), notifications, 'a completed read cannot survive a room configuration round trip');
   assert.equal(runtime.service.getOutput(source).data.danmaku.roomProfile, null);
+});
+
+test('scene disposal cancels queued room profile reads and ignores in-flight completion', async t => {
+  for (const started of [false, true]) {
+    await t.test(started ? 'in-flight read' : 'queued read', async t => {
+      const roomId = '1234';
+      let calls = 0, release;
+      const { runtime, state } = fixture(t, { settings: { get: () => ({ ...DEFAULT_SETTINGS, roomId }) }, bilibili: { getRoomProfile() {
+        calls++;
+        return new Promise(resolve => { release = resolve; });
+      } } }, () => ({ liveStatus: { roomId } }));
+      const update = { ownerScope: state.owner.scope, authorizationEpoch: 1,
+        connectionEpoch: 'profile-dispose', status: 'connecting' };
+      runtime.receiveCloud(update);
+      runtime.receiveCloud({ ...update, status: 'connected', event: { type: 'overlay-state', state: 'running',
+        liveStatus: 1, liveSessionId: 'live', confirmationMessage: '开播', roomGuard: { roomId } } });
+      const source = publish(runtime, 'danmaku');
+      const notify = t.mock.method(runtime.events, 'notify', () => {});
+      runtime.service.getOutput(source);
+      if (started) await Promise.resolve();
+      runtime.dispose();
+      await Promise.resolve();
+      release?.({ roomId, uid: 'late', name: '迟到房主' });
+      await new Promise(setImmediate);
+      assert.equal(calls, started ? 1 : 0, 'disposing must prevent a queued upstream read from starting');
+      assert.equal(notify.mock.callCount(), 0, 'completed reads must not notify disposed scene resources');
+    });
+  }
 });
 
 test('scene output uses explicit read ports and shares a fresh local snapshot only where needed', async t => {

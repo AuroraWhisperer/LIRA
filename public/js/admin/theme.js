@@ -1,5 +1,3 @@
-import { value, setValue } from '../shared/utils.js';
-import { formsService } from './forms.js';
 import { stateService } from './state.js';
 import { applyAdminQueueFontPreview } from './queue.js';
 import { setOverlayStyle } from './theme-style-view.js';
@@ -46,41 +44,9 @@ export const theme = (() => {
     return collectQueueTheme(document);
   }
 
-  function syncAllRangeInputs(values) {
-    const v = values || {};
-    setValue('backdropBlurNumber', v.backdropBlur || value('backdropBlur'));
-    setValue('glowIntensityNumber', v.glowIntensity || value('glowIntensity'));
-    setValue('themeOpacityNumber', Math.round(Number(v.themeOpacity ?? value('themeOpacity')) * 100));
-    setValue('queueSongFontSizeNumber', v.queueSongFontSize || value('queueSongFontSize'));
-    setValue('queueTitleFontSizeNumber', v.queueTitleFontSize || value('queueTitleFontSize'));
-    setValue('identityQueueFontSizeNumber', v.identityQueueFontSize || value('identityQueueFontSize'));
-    setValue('overlayRuleFontSizeNumber', v.overlayRuleFontSize || value('overlayRuleFontSize'));
-    if (formsService && formsService.normalizeQueueScrollSpeedForDisplay) {
-      const queueScrollSpeed = formsService.normalizeQueueScrollSpeedForDisplay(
-        v.queueScrollSpeed || value('queueScrollSpeed'),
-      );
-      setValue('queueScrollSpeed', queueScrollSpeed);
-      setValue('queueScrollSpeedRange', queueScrollSpeed);
-      const identityScrollSpeed = formsService.normalizeQueueScrollSpeedForDisplay(
-        v.identityQueueScrollSpeed || value('identityQueueScrollSpeed'),
-      );
-      setValue('identityQueueScrollSpeed', identityScrollSpeed);
-      setValue('identityQueueScrollSpeedRange', identityScrollSpeed);
-    }
-    if (formsService && formsService.normalizeSongScrollSpeedForDisplay) {
-      const songScrollSpeed = formsService.normalizeSongScrollSpeedForDisplay(
-        v.scrollSeconds || value('scrollSeconds'),
-      );
-      setValue('scrollSeconds', songScrollSpeed);
-      setValue('scrollSecondsRange', songScrollSpeed);
-    }
-    formsService?.refreshParameterRanges?.();
-  }
-
   return {
     initThemeForm,
     collectTheme,
-    syncAllRangeInputs,
     setOverlayStyle,
     renderPresetCards,
   };

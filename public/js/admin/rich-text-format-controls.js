@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 import { colorPickerContains } from '../shared/color-picker.js';
 

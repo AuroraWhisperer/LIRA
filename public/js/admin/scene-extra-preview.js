@@ -1,5 +1,5 @@
 import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scene-extra-components.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { SCENE_COMPONENTS } from '../shared/scene-components.js';
@@ -107,7 +107,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
         initialConfig.resourceStyle?.preset === 'moonlit-opening' ? 'moonlit-fan' : initialConfig.style) : {};
       for (const [key, field] of Object.entries({ ...definition.fields, ...openingFields, ...previewFields })) {
         if (fieldKeys && !fieldKeys.includes(key)) continue;
-        if (type === 'live-rankings' && (Object.values(RANKING_FLAGS).includes(key) || ['nearby', 'pageSize'].includes(key))) continue;
+        if (type === 'live-rankings' && (Object.values(RANKING_FLAGS).includes(key) || ['nearby', 'pageSize', 'pageSeconds'].includes(key))) continue;
         if (hideStyleControl && key === 'style') continue;
         if (type === 'background' && Object.hasOwn(BACKGROUND_FIELDS, key)) continue;
         // Keep the legacy config key, but don't offer a color the song board doesn't render.
@@ -193,7 +193,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
       const backgroundPanel = type === 'background' ? mountBackgroundParameters(host, target) : null;
       const openingPanel = type === 'opening' && openingSettings && !initialConfig.resourceStyle && !initialConfig.mediaStyle
         ? mountOpeningCanvasSettings(host, { target, request: openingSettings, startPreviewData }) : null;
-      if (type === 'live-rankings') host.append(previewElement('p', 'hint', '拖动榜单上下边框调整高度，显示条数会自动增减；附近模式围绕本房间展开，完整榜按当前高度自动翻页。'));
+      if (type === 'live-rankings') host.append(previewElement('p', 'hint', '完整榜可手动滚动，投屏时在浏览器源的交互窗口中操作；附近模式围绕本房间展开。'));
       const giftMotionPanel = type === 'gift-frame' ? mountGiftMotionCanvasSettings(host, target) : null;
       const advancedLyricPanel = type === 'lyrics' ? mountAdvancedLyricCanvasSettings(host, target) : null;
       if (type === 'opening' && !embedded) host.append(previewElement('p', 'hint', '画布始终预览动画；直播显示由开播总开关控制。'));
@@ -218,8 +218,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           const playingPart = type === 'now-playing' ? draft.nowPlayingPart : null;
           label.hidden = type === 'opening' && (key === 'style' ? Boolean(draft.resourceStyle)
             : !draft.resourceStyle || !Object.hasOwn(openingFields, key))
-            || type === 'live-rankings' && (key === 'pageSeconds' && draft.range !== 'all'
-              || key === 'columns' && Boolean(ranking))
+            || type === 'live-rankings' && key === 'columns' && Boolean(ranking)
             || type === 'games' && key === 'showDanmaku' && draft.game !== 'draw-guess'
             || type === 'background' && key === 'style' && Boolean(draft.mediaStyle)
             || type === 'gift-frame' && key === 'style' && Boolean(draft.mediaStyle || draft.resourceStyle)

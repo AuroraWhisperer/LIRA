@@ -1,19 +1,10 @@
 <section id="liveRankingsFeature" class="other-feature-panel" role="tabpanel" aria-labelledby="liveRankingsFeatureTab" data-other-feature-panel hidden>
   <div class="live-rankings-page">
     <header class="live-rankings-heading">
-      <div><h2>实时榜单</h2><p data-rankings="room">跟随当前账号配置的直播间</p></div>
-      <div class="live-rankings-actions">
-        <button class="secondary" type="button" data-rankings="pause" aria-pressed="false">暂停查看</button>
-      </div>
-    </header>
-    <div class="live-rankings-toolbar">
-      <label>展示方式 <select data-rankings="range"><option value="all">从第 1 名开始（自动翻页）</option><option value="nearby">跟随本房间名次</option></select></label>
+      <h2>实时榜单</h2>
+      <p data-rankings="room">跟随当前账号配置的直播间</p>
       <p class="live-rankings-status" data-rankings="status" role="status">正在连接榜单…</p>
-    </div>
-    <div class="live-rankings-actions">
-      <p class="hint" data-rankings="settings-status" role="status"></p>
-      <button class="secondary" type="button" data-rankings="settings-retry" hidden>重试保存</button>
-    </div>
+    </header>
     <div data-rankings="boards" aria-label="B 站实时四榜"></div>
   </div>
 </section>

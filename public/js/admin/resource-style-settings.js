@@ -1,6 +1,6 @@
 import { createComponentConfigController } from './component-config-controller.js';
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { requestComponentStyles } from './component-style-api.js';
 import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
 

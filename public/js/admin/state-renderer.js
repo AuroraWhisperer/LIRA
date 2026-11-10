@@ -1,10 +1,12 @@
 'use strict';
 
-import { formsService } from './forms.js';
+import { initParameterRanges } from '../shared/parameter-range.js';
+import { isComponentFieldEditing } from './component-preview-panel.js';
 import { receiveComponentSettings, projectComponentDrafts } from './component-settings-sync.js';
 import { songs } from './songs.js';
 import { renderSongCooldownControls } from './song-cooldown-settings.js';
-import { renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview } from './queue.js';
+import { renderQueueState, applyAdminQueueFontPreview } from './queue.js';
+import { renderSuperChatQueue } from './superchat.js';
 import { renderLiveStatus, renderConnectionStatus } from './topbar-status.js';
 export { renderConnectionStatus };
 
@@ -53,8 +55,15 @@ export function createAdminStateRenderer({
   };
 }
 
-function fillSettings(settings, projected) {
-  formsService.fillForm(projected);
+export function fillSettings(settings, projected = settings) {
+  for (const [key, inputValue] of Object.entries(projected || {})) {
+    const element = document.getElementById(key);
+    // These forms own their drafts and hydrate through their component controller.
+    if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm, #guardThanksPanel, #desktopLyricForm')) continue;
+    if (element.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') continue;
+    if (!isComponentFieldEditing(element)) element.value = inputValue;
+  }
+  initParameterRanges();
   renderSongCooldownControls();
   for (const key of ['danmakuMonitoringEnabled', 'giftMonitoringEnabled']) {
     const toggle = document.getElementById(key);
@@ -68,4 +77,11 @@ function fillSettings(settings, projected) {
     autoUpdateToggle.checked = settings.enableAutoUpdate === 'true';
     if (autoUpdateLabel) autoUpdateLabel.textContent = autoUpdateToggle.checked ? '已开启' : '已关闭';
   }
+}
+
+export function renderQueuePanels(appState) {
+  if (!appState) return;
+  renderQueueState(appState.queue, appState.settings);
+  renderSuperChatQueue(appState.superChats || []);
+  applyAdminQueueFontPreview(appState.settings || {});
 }

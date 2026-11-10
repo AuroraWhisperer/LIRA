@@ -76,7 +76,9 @@ test('people and detail escape platform and former names while former names rema
   });
   const description = forms.profileForm(profile);
   assert.match(description.fields, /<textarea\b[^>]*\sname=["']formerNames["'][^>]*>&lt;旧昵称&gt;\n较早昵称/);
-  const payload = description.read({ alias: '', tags: '', formerNames: ' 修订名字\n较早昵称\n' });
+  const payload = description.read({
+    alias: '', tags: '', formerNames: ' 修订名字\n较早昵称\n', identityValue: profile.identity.value,
+  });
   assert.deepEqual(Array.from(payload.formerNames), ['修订名字', '较早昵称']);
   const saved = f.run('save', payload);
   assert.deepEqual(saved.formerNames, ['修订名字', '较早昵称']);

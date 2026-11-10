@@ -39,11 +39,11 @@ test('admin form refresh preserves the active edit and updates inactive fields',
     querySelectorAll: () => [],
     querySelector: () => null,
   };
-  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), {
+  const { fillSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/state-renderer.js'), {
     document,
     window: { AdminApp: {} },
   });
-  new FormsService().fillForm({ edited: '服务端值', inactive: '新值', guardThanksAuroraTextMode: '', desktopLyricFontSize: '56' });
+  fillSettings({ edited: '服务端值', inactive: '新值', guardThanksAuroraTextMode: '', desktopLyricFontSize: '56' });
   assert.equal(edited.value, '正在输入');
   assert.equal(inactive.value, '新值');
   assert.equal(guardThanksAuroraTextMode.value, 'en', 'generic hydration cannot replace resolved legacy guard settings with empty storage values');

@@ -56,6 +56,23 @@ test('failed profile migration stops before Chromium ready and backend initializ
   assert.equal(h.count('app:exit'), 1);
 });
 
+test('failed legacy partition migration exits before account sessions or runtime initialize', async () => {
+  const h = createShutdownHarness({
+    partitionMigrationError: new Error('partition copy failed'),
+    expectedExitCode: 1,
+    startupReportError: new Error('error dialog unavailable'),
+  });
+  await h.start({ expectStartupError: true });
+  await h.shutdownPromise;
+  assert.equal(h.startupErrors.length, 1);
+  assert.equal(h.count('music:restore-cookies'), 0);
+  assert.equal(h.count('bilibili:restore-cookies'), 0);
+  assert.equal(h.count('runtime:start'), 0);
+  assert.equal(h.count('auth:dispose'), 1);
+  assert.equal(h.count('app:exit'), 1);
+  assert.equal(h.clock.pending, 0);
+});
+
 for (const stage of ['runtimeStart', 'licenseBootstrap']) {
   test(`failed ${stage} exits through cleanup even when the startup error dialog fails`, async () => {
     const pending = Promise.withResolvers();

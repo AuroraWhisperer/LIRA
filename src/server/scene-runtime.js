@@ -13,7 +13,7 @@ const { createDisplayNotifications } = require('./display-notifications');
 const { readSceneSharedAppearances } = require('./scene-shared-appearance');
 const { createDanmakuAppearanceStore } = require('../storage/danmaku-appearance-store');
 const { createDanmakuAppearance } = require('./danmaku-appearance');
-const { projectOverlayResponse } = require('./overlay-projection');
+const { createSceneRoomProfile } = require('./scene-room-profile');
 const { createLiveRankProvider } = require('../bilibili/live-rank-provider');
 const { createLiveRankService } = require('../bilibili/live-rank-service');
 
@@ -37,28 +37,16 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
         ? '' : resources.resolveSource(event.giftImageUrl) } : event);
     return snapshot;
   }
-  let roomProfileCache;
+  const roomProfile = createSceneRoomProfile({
+    getOwner,
+    getRoomId: () => displayPorts.settings.get().roomId,
+    getRoomRevision: displayPorts.settings.getRoomRevision,
+    loadProfile: displayPorts.bilibili?.getRoomProfile,
+    onUpdate: () => events.notify({ types: ['danmaku'] }),
+  });
   const sceneCloud = { getSnapshot(request) {
     const snapshot = readCloud(request);
-    const roomId = String(snapshot.state?.roomGuard?.roomId || '');
-    const currentKey = () => {
-      const owner = getOwner();
-      const localRoomId = String(getState(['liveStatus']).liveStatus?.roomId || '');
-      return owner && roomId && localRoomId === roomId ? JSON.stringify([owner.scope, owner.epoch, roomId]) : '';
-    };
-    const key = currentKey();
-    if (!key || !displayPorts.bilibili?.getRoomProfile) return { ...snapshot, roomProfile: null };
-    if (roomProfileCache?.key !== key || !roomProfileCache.pending && Date.now() - roomProfileCache.at >= 30000) {
-      const entry = { key, pending: true, at: Date.now() };
-      void Promise.resolve().then(() => displayPorts.bilibili.getRoomProfile()).then(profile =>
-        String(profile?.roomId || '') === roomId ? projectOverlayResponse('danmaku', '/api/bilibili/room/profile', profile) : null,
-      ).catch(() => null).then(profile => {
-        entry.pending = false; entry.at = Date.now(); entry.value = profile;
-        if (roomProfileCache === entry && currentKey() === key) events.notify({ types: ['danmaku'] });
-      });
-      roomProfileCache = entry;
-    }
-    return { ...snapshot, roomProfile: roomProfileCache.value ?? null };
+    return { ...snapshot, roomProfile: roomProfile.getSnapshot(snapshot.state?.roomGuard?.roomId) };
   } };
   const appearance = createDanmakuAppearance({ store: createDanmakuAppearanceStore(songDb), getOwner: getAppearanceOwner,
     loadLegacy: runtimeOptions.loadDanmakuAppearance || (async () => ({ style: 'signal', fullscreenDurationSeconds: 6 })),
@@ -101,7 +89,7 @@ function createSceneRuntime({ songDb, runtimeOptions, displayPorts }) {
     return { binding: JSON.stringify([owner.scope, owner.epoch]), version: 0, types: ['danmaku'] };
   }, onActivity: renewDemand });
   return { service, events, danmakuEvents, appearance, liveRankings, notify, subscribeCloudDemand: demand.subscribe,
-    dispose() { liveRankings.dispose(); events.dispose(); danmakuEvents.dispose(); demand.dispose(); },
+    dispose() { roomProfile.dispose(); liveRankings.dispose(); events.dispose(); danmakuEvents.dispose(); demand.dispose(); },
     receiveCloud(update) {
       const accepted = cloud.receive(update);
       if (accepted) {

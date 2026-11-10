@@ -7,7 +7,7 @@ const PAGE_SIZE = 25;
 const FIELD_LABELS = {
   name: '歌名',
   artist: '歌手',
-  categoryName: '分类',
+  categoryName: '曲风',
   tags: '标签',
   isEnabled: '是否可点',
   language: '语言',

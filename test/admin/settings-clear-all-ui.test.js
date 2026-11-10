@@ -143,9 +143,6 @@ test('Admin clear-all alerts and reloads for a structured partial failure', asyn
     getQueue() {
       return null;
     },
-    getForms() {
-      return null;
-    },
   });
 
   await operations.clearAll();

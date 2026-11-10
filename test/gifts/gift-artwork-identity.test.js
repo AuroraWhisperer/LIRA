@@ -22,6 +22,7 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
   const renamed = makeGift('新上架礼物', 1200000, 'new-gift');
   const repriced = makeGift('新上架礼物', 1300000, '');
   const sandbox = {
+    AbortController,
     window: {
       fetch: async () => ({
         ok: true,
@@ -32,13 +33,16 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
       }),
     },
   };
-  const [{ getGiftToastArtwork, giftRecent: recent }, { eventBus }] = await loadModuleExports([
+  const [{ giftRecent: recent }, { eventBus }, artwork] = await loadModuleExports([
     path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
     path.join(__dirname, '../../public/js/shared/event-bus.js'),
+    path.join(__dirname, '../../public/js/admin/gifts/artwork-catalog.js'),
   ],
     sandbox,
   );
-  await recent.loadGiftArtworkCatalog();
+  const { getGiftToastArtwork, getBlindBoxIcon } = artwork;
+  artwork.initGiftArtworkCatalog();
+  await artwork.loadGiftArtworkCatalog();
   const output = {
     is_blind_box: true,
     gift_id: '900',
@@ -47,9 +51,9 @@ test('recent gifts and source-box icons keep reused IDs and repriced identities 
     blind_box_name: old.name,
     blind_box_variant_id: old.variantId,
   };
-  assert.equal(recent.getBlindBoxIcon(output).src, old.imagePath);
+  assert.equal(getBlindBoxIcon(output).src, old.imagePath);
   assert.equal(
-    recent.getBlindBoxIcon({
+    getBlindBoxIcon({
       ...output,
       blind_box_name: renamed.name,
       blind_box_variant_id: renamed.variantId,

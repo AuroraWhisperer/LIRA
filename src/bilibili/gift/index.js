@@ -7,17 +7,15 @@ const { createGiftProjectionService } = require('./projection-service');
 const { createGiftConsumerRegistry } = require('./consumer-registry');
 const { createGiftStatisticsConsumer } = require('./statistics-consumer');
 const {
-  CRYSTAL_BALL_VALUE_RMB,
-  resetGiftSprintProgress,
   getGiftSnapshot,
   getGiftHistory,
   getGiftSelection,
   getGiftViewRevision,
   getGiftStatistics,
-  getGiftSprintSnapshot,
   searchGifts,
   clearRecentGifts,
 } = require('./query-service');
+const { CRYSTAL_BALL_VALUE_RMB, resetGiftSprintProgress, getGiftSprintSnapshot } = require('./sprint-service');
 const { getBlindBoxChangeToken, getBlindBoxStats, getBlindBoxAnalysis } = require('./blind-box-analysis');
 const { normalizeGiftRow } = require('./normalizer');
 

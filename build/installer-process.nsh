@@ -5,6 +5,7 @@ Var liraProcessId
 Var liraAudioDirectory
 Var liraAudioFindHandle
 Var liraAudioVersion
+Var liraSignalAllAudio
 
 !ifdef BUILD_UNINSTALLER
   !define LIRA_PROCESS_PREFIX "un."
@@ -65,25 +66,20 @@ Function ${LIRA_PROCESS_PREFIX}liraEnsureAudioExited
   StrCpy $liraProcessName "LiraAudioAssistant.exe"
   StrCpy $liraProcessRelativePath "resources\audio-assistant\$liraProcessName"
   liraRestartAudioWait:
+    ; Notify every owned helper before starting their shared shutdown window.
+    StrCpy $liraSignalAllAudio 1
+    Call ${LIRA_PROCESS_PREFIX}liraFindAudioProcess
+    StrCpy $liraSignalAllAudio 0
+    StrCpy $R5 "无法检查或通知电音助手退出，返回码：$R0。请关闭 LIRA 后重试。"
+    StrCmp $R0 603 0 liraAudioExitFailed
     System::Call 'kernel32::GetTickCount() i.R2'
   liraWaitForAudioExit:
     Call ${LIRA_PROCESS_PREFIX}liraFindAudioProcess
     StrCmp $R0 603 liraAudioExited
     StrCpy $R5 "无法确认电音助手是否退出，进程检查返回码：$R0。"
     StrCmp $R0 0 0 liraAudioExitFailed
-    ; Only signal a PID after its full executable path has matched this install.
-    System::Call 'kernel32::OpenEventW(i 2, i 0, w "Local\LiraAudioAssistant-Install-$liraProcessId") p.R1 ?e'
-    Pop $R0
-    StrCmp $R1 0 liraAudioEventUnavailable
-    System::Call 'kernel32::SetEvent(p R1) i.R0'
-    System::Call 'kernel32::CloseHandle(p R1)'
-    StrCmp $R0 0 0 liraAudioExitPoll
-    StrCpy $R0 5
-    Goto liraAudioSignalFailed
-  liraAudioEventUnavailable:
-    ; Earlier helpers have no event; wait, then report them without killing them.
-    StrCmp $R0 2 liraAudioExitPoll
-  liraAudioSignalFailed:
+    Call ${LIRA_PROCESS_PREFIX}liraSignalAudioExit
+    StrCmp $R0 0 liraAudioExitPoll
     StrCpy $R5 "无法通知电音助手退出，返回码：$R0。请关闭 LIRA 后重试。"
     Return
   liraAudioExitPoll:
@@ -103,6 +99,24 @@ Function ${LIRA_PROCESS_PREFIX}liraEnsureAudioExited
     Return
   liraAudioExited:
     StrCpy $R0 0
+FunctionEnd
+
+Function ${LIRA_PROCESS_PREFIX}liraSignalAudioExit
+    ; Only signal a PID after its full executable path has matched this install.
+    System::Call 'kernel32::OpenEventW(i 2, i 0, w "Local\LiraAudioAssistant-Install-$liraProcessId") p.R1 ?e'
+    Pop $R0
+    StrCmp $R1 0 liraAudioEventUnavailable
+    System::Call 'kernel32::SetEvent(p R1) i.R0'
+    System::Call 'kernel32::CloseHandle(p R1)'
+    StrCmp $R0 0 0 liraAudioSignalAccepted
+    StrCpy $R0 5
+    Return
+  liraAudioEventUnavailable:
+    ; Earlier helpers have no event; wait, then report them without killing them.
+    StrCmp $R0 2 0 liraAudioSignalDone
+  liraAudioSignalAccepted:
+    StrCpy $R0 0
+  liraAudioSignalDone:
 FunctionEnd
 
 ; NSIS is a 32-bit Unicode process; PROCESSENTRY32W has 556 bytes here.
@@ -201,6 +215,9 @@ Function ${LIRA_PROCESS_PREFIX}liraFindOwnedProcess
   liraProcessFound:
     StrCpy $liraProcessId $3
     StrCpy $R0 0
+    StrCmp $liraSignalAllAudio 1 0 liraProcessFreeEntry
+    Call ${LIRA_PROCESS_PREFIX}liraSignalAudioExit
+    StrCmp $R0 0 liraProcessNext
   liraProcessFreeEntry:
     System::Free $1
     Goto liraProcessCloseSnapshot

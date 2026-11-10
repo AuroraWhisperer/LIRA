@@ -1,5 +1,4 @@
 import { createGiftCatalogRoleLookup } from '../shared/gift-catalog-roles.js';
-import { giftSelectionKey, giftArtworkKey, rowGiftIdentity } from './overtime-gift-identity.js';
 import { setGiftArtwork } from '../shared/gift-image.js';
 import { getGuardIcon } from '../shared/bilibili-guard-icons.js';
 import { createGiftPickerButton } from './gifts/picker-option.js';
@@ -374,4 +373,20 @@ export function createOvertimeGiftPicker({ getLiveStatus, onSelect }) {
 
 function byId(id) {
   return document.getElementById(id);
+}
+
+function giftSelectionKey(gift) {
+  return gift.giftIdentity?.variantId || gift.variantId || String(gift.giftId ?? gift.id);
+}
+
+function giftArtworkKey(gift) {
+  return (
+    gift.giftIdentity?.variantId ||
+    gift.variantId ||
+    JSON.stringify([String(gift.giftId ?? gift.id), String(gift.giftName ?? gift.name), gift.rmb ?? null])
+  );
+}
+
+function rowGiftIdentity(row) {
+  return JSON.parse(row.dataset.giftIdentity || 'null');
 }

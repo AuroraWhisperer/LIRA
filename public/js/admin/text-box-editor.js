@@ -1,6 +1,6 @@
 import { renderTextBox } from '../shared/text-box-renderer.js';
 import { normalizeTextBoxConfig } from '../shared/text-box-config.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { mountRichTextToolbar } from './rich-text-toolbar.js';
 import { readTextStyle } from '../shared/text-style.js';
 

@@ -1,4 +1,5 @@
 import { advancedLyricComposition } from './advanced-lyric-choreography.js';
+import { describeAdvancedLyricLine, resolveAdvancedLyricLayout } from './advanced-lyric-variation.js';
 
 const graphemeSegmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' });
 const wordSegmenter = new Intl.Segmenter(undefined, { granularity: 'word' });
@@ -136,7 +137,7 @@ export function partitionAdvancedLyricText(units, requested, byCharacter = false
   return adaptive?.ranges || [{ start: 0, end: units.length }];
 }
 
-function adaptivePhrases(units) {
+function adaptivePhrases(units, maxPhrases = 5) {
   const letters = units.filter(unit => /[\p{L}\p{N}\p{S}]/u.test(unit.text));
   const timed = letters.length > 0 && letters.every((unit, index) => unit.timed
     && (!index || unitStart(unit) >= unitStart(letters[index - 1])));
@@ -154,7 +155,7 @@ function adaptivePhrases(units) {
   const wordCount = [...wordSegmenter.segment(text)].filter(segment => segment.isWordLike).length;
   const languageLimit = /[\u3040-\u30ff]/u.test(text) && !timed ? Math.max(1, breaks + 1)
     : /\p{Script=Han}/u.test(text) ? 5 : Math.max(1, Math.floor(wordCount / 3));
-  const requested = Math.min(timed ? 5 : 4, languageLimit, Math.max(count, Math.min(count + 1, breaks + 1)));
+  const requested = Math.min(maxPhrases, timed ? 5 : 4, languageLimit, Math.max(count, Math.min(count + 1, breaks + 1)));
   const ranges = partitionAdvancedLyricText(timeline, requested, false, timed ? 700 : 1100);
   const lengths = letters.map(unit => (unitEnd(unit) - unitStart(unit)) / Math.max(1, [...unit.text].length)).sort((a, b) => a - b);
   const median = lengths[Math.floor(lengths.length / 2)] || 1;
@@ -173,12 +174,29 @@ function group(range, x, y, width, size = 1, extra = {}) {
   return { ...range, x, y, width, size, rotation: 0, source: 'current', ...extra };
 }
 
-export function buildAdvancedLyricLayout(layout, units) {
+export function buildAdvancedLyricLayout(layout, units, { profile = describeAdvancedLyricLine(units) } = {}) {
   if (!units.length) return [];
+  layout = resolveAdvancedLyricLayout(layout, profile);
   const all = { start: 0, end: units.length };
   const split = (count, byCharacter = false) => partitionAdvancedLyricText(units, count, byCharacter);
   let items;
   switch (layout) {
+    case 'paper-fold':
+    case 'ink-trace':
+    case 'echo-trail':
+    case 'block-handoff':
+    case 'ribbon-arc':
+    case 'prism-scatter': {
+      const maxPhrases = profile.compact ? 3 : layout === 'prism-scatter' ? 5 : 4;
+      items = adaptivePhrases(units, maxPhrases).map((range, index, parts) => {
+        const final = advancedLyricComposition(layout, index, parts.length - 1, parts.length, profile);
+        const width = layout === 'block-handoff' ? 60 : layout === 'echo-trail' ? 76 : 82;
+        const maxHeight = layout === 'ink-trace' && parts.length > 1 ? 16 : parts.length > 3 ? 24 : 30;
+        return group(range, final.x, final.y, width, layout === 'ink-trace' ? 1.35 : 1.7,
+          { choreography: layout, fitScale: final.scale, maxHeight, tone: range.emphasis ? 'accent' : '' });
+      });
+      break;
+    }
     case 'focus-lens':
     case 'page-turn':
     case 'phrase-flow':
@@ -190,6 +208,23 @@ export function buildAdvancedLyricLayout(layout, units) {
           { choreography: layout, fitScale: final.scale, maxHeight: parts.length > 3 ? 24 : 30, tone: range.emphasis ? 'accent' : '' });
       });
       break;
+    case 'depth-stack':
+    case 'flow-drift':
+    case 'color-block':
+    case 'vertical-relay': {
+      const vertical = layout === 'vertical-relay';
+      items = adaptivePhrases(units, profile.compact ? 3 : 4).map((range, index, parts) => {
+        const final = advancedLyricComposition(layout, index, parts.length - 1, parts.length, profile);
+        const extra = { choreography: layout, fitScale: final.scale, rotation: 0,
+          maxHeight: vertical ? 64 : parts.length > 3 ? 24 : 30, tone: range.emphasis ? 'accent' : '' };
+        if (vertical) Object.assign(extra, { vertical: true });
+        // Blocks alternate their two colours; a held keyword keeps the accent.
+        if (layout === 'color-block') Object.assign(extra, { plate: 'block', tone: range.emphasis || index % 2 === 0 ? 'accent' : 'secondary' });
+        return group(range, final.x, final.y, vertical ? 18 : layout === 'color-block' ? 72 : 80,
+          vertical ? 1.3 : layout === 'color-block' ? 1.45 : 1.7, extra);
+      });
+      break;
+    }
     case 'duet':
       items = split(2).map((range, index) => group(range, 50, 32 + index * 35, 88, index ? 1.05 : 1.4));
       break;
@@ -271,8 +306,9 @@ export function buildAdvancedLyricLayout(layout, units) {
       const parts = split(Math.min(24, units.length), true);
       items = parts.map((range, index) => {
         const angle = -Math.PI / 2 + index / parts.length * Math.PI * 2;
+        const tangent = angle * 180 / Math.PI + 90;
         return group(range, 50 + Math.cos(angle) * 37, 46 + Math.sin(angle) * 30,
-          Math.max(7, 96 / parts.length), 0.9, { rotation: angle * 180 / Math.PI + 90 });
+          Math.max(7, 96 / parts.length), 0.9, { rotation: Math.sin(angle) > 0.35 ? tangent - 180 : tangent });
       });
       break;
     }

@@ -119,34 +119,19 @@ test('identical timeline snapshots retain rows and word animations', async () =>
   assert.equal(animation.cancelled, true);
 });
 
-test('local sample preview preserves live version filtering through restoration', async () => {
+test('live preview rejects older and unversioned updates after a current song arrives', async () => {
   const { renderer, elements, frames, state } = await createLiveRenderer({ advanced: true });
-  const timeline = { status: 'ready', lines: [
-    { startMs: 0, text: '第一句', words: state.words }, { startMs: 5000, text: '第二句' },
-  ] };
   renderer.applySettings({ advancedLyricEnabled: 'true' });
-  renderer.updateLyricTimeline(timeline);
-  assert.equal(renderer.updateLyricState(state), true);
-  renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0, text: '预览样例', endMs: 9000 }] });
-  renderer.updatePreviewState({ trackTitle: '本地样例', lineText: '预览样例', words: [],
-    currentMs: 1000, durationMs: 9000, playing: true, status: 'ready', discontinuity: true });
-  const playback = elements.get('desktopLyricPreviewPlayback');
-  assert.equal(playback.textContent, '预览样例', 'a sample must work after a versioned live state');
-  assert.equal(frames.size, 1, 'sample playback reuses the existing frame loop');
-
-  const cachedLive = { ...state, trackTitle: '实时歌曲', sequence: 4, currentMs: 6000,
+  renderer.updateLyricState(state);
+  const current = { ...state, trackTitle: '实时歌曲', sequence: 4, currentMs: 6000,
     lineText: '第二句', words: [{ text: '第二句', startMs: 5000, endMs: 10000 }] };
-  assert.equal(renderer.updateLyricState(cachedLive, { render: false }), true);
-  assert.equal(playback.textContent, '预览样例', 'live samples are accepted without interrupting the local sample');
-  assert.equal(renderer.updateLyricState({ ...cachedLive, sequence: 3 }, { render: false }), false);
-  renderer.updateLyricTimeline(timeline);
-  renderer.updatePreviewState({ ...cachedLive, discontinuity: true });
+  assert.equal(renderer.updateLyricState(current), true);
+  const playback = elements.get('desktopLyricPreviewPlayback');
   assert.equal(playback.textContent, '第二句');
-  assert.ok(elements.get('desktopLyricPreviewTimeline').children[1].classList.contains('is-active'));
   assert.equal(renderer.updateLyricState({ ...state, sequence: 3 }), false);
   assert.equal(renderer.updateLyricState({ lineText: '无版本旧状态' }), false);
-  assert.equal(playback.textContent, '第二句', 'restoration must not weaken the live stream version guard');
-  assert.equal(renderer.updateLyricState({ ...cachedLive, sequence: 5, playing: false }), true);
+  assert.equal(playback.textContent, '第二句');
+  assert.equal(renderer.updateLyricState({ ...current, sequence: 5, playing: false }), true);
   assert.equal(frames.size, 0);
   renderer.dispose();
 });
@@ -250,7 +235,7 @@ test('basic and advanced lyrics share one frame loop and preserve their independ
 
 test('output layer filters and pause hiding stay independent of the other lyric layer', async () => {
   const { renderer, elements, frames, state } = await createLiveRenderer({ advanced: true, layer: 'advanced' });
-  renderer.applySettings({ desktopLyricEnabled: 'true', advancedLyricEnabled: 'true', advancedLyricHideOnPause: 'true' });
+  renderer.applySettings({ desktopLyricEnabled: 'false', advancedLyricEnabled: 'false', advancedLyricHideOnPause: 'true' });
   renderer.updateLyricState(state);
   const stage = elements.get('desktopLyricPreviewStage');
   assert.equal(stage.dataset.lyricLayers, 'advanced');
@@ -258,7 +243,11 @@ test('output layer filters and pause hiding stay independent of the other lyric 
   renderer.updateLyricState({ ...state, sequence: 2, playing: false });
   assert.equal(stage.dataset.lyricLayers, 'none');
   assert.equal(frames.size, 0);
-  renderer.applySettings({ lyricLayer: 'both' });
+  renderer.applySettings({ lyricLayer: 'basic' });
+  assert.equal(stage.dataset.lyricLayers, 'basic', 'an explicit basic source ignores the legacy output switch');
+  renderer.applySettings({ desktopLyricHideOnPause: 'true' });
+  assert.equal(stage.dataset.lyricLayers, 'none', 'an explicit source still honors pause hiding');
+  renderer.applySettings({ lyricLayer: 'both', desktopLyricEnabled: 'true', advancedLyricEnabled: 'true', desktopLyricHideOnPause: 'false' });
   assert.equal(stage.dataset.lyricLayers, 'basic', 'advanced pause hiding does not hide the basic layer');
   const seeked = { ...state, currentMs: 6000, lineText: '第二句', words: [] };
   renderer.updateLyricState({ ...seeked, sequence: 3, playing: false, discontinuity: true });
@@ -306,7 +295,7 @@ test('preview contrast follows the selected lyric layer and its current text col
 test('reduced motion keeps timed line changes while inactive output stops its shared clock loop', async () => {
   const { renderer, elements, frames, advance, state } = await createLiveRenderer({ advanced: true, reducedMotion: true });
   renderer.applySettings({ advancedLyricEnabled: 'true' });
-  renderer.updatePreviewState(state);
+  renderer.updateLyricState(state);
   const advanced = elements.get('advancedLyricPreviewStage');
   assert.equal(advanced.getAttribute('aria-label'), '第一句');
   assert.equal(frames.size, 1, 'the shared clock must still drive line changes when motion is reduced');

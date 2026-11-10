@@ -290,18 +290,19 @@ for (const style of ['starlight', 'notebook', 'christmas', 'stargazer', 'dark-mo
 for (const [direction, scale] of [['up', 1], ['down', 0.63]]) {
   test(`moonlit ${direction} at ${scale} preserves visible rows and interrupted spacing`, { timeout: 15000 }, async t => {
     const page = await preview(t, direction, scale);
-    await page.evaluate(async () => {
+    const start = await page.evaluate(async () => {
       window.oldNodes = Array.from(root.children);
       window.oldTops = oldNodes.map(node => node.getBoundingClientRect().top);
       feed.append({ name: '新观众', message: '新弹幕加入测试' });
       feed.append({ name: '另一位', message: '同一帧追加消息' });
       await new Promise(requestAnimationFrame);
       freezeMoves(0);
+      // Read this frozen frame before a ResizeObserver callback can retarget motion.
+      return oldNodes.map((node, index) => ({
+        connected: node.isConnected,
+        delta: node.getBoundingClientRect().top - oldTops[index],
+      }));
     });
-    const start = await page.evaluate(() => oldNodes.map((node, index) => ({
-      connected: node.isConnected,
-      delta: node.getBoundingClientRect().top - oldTops[index],
-    })));
     assert.ok(start.every(row => row.connected && Math.abs(row.delta) < 0.1));
 
     const interrupted = await page.evaluate(async () => {

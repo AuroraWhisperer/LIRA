@@ -1,21 +1,133 @@
 /* Danmaku settings sections, filters and sticky save actions. */
+/* Two groups: receiving settings (monitoring, filters) save on change and sit on top as setting
+   rows; 弹幕外观 is a draft with its own heading, cards and the save bar. Cards share one quiet
+   tint so inputs read lighter than their container on every client theme. */
+.live-components-page .danmaku-style-section {
+  --danmaku-card-bg: color-mix(in srgb, var(--text) 2.5%, var(--surface));
+  --danmaku-card-border: var(--color-border-light, var(--border));
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+}
+
 .live-components-page .danmaku-style-tools + .hint {
   margin-top: 16px;
 }
-.live-components-page .danmaku-style-heading {
+
+/* 监控弹幕 is a setting row: title and description on the left, switch at the far right. */
+.live-components-page .danmaku-style-tools.component-toolbar {
+  padding: 0;
+  border-bottom: 0;
+}
+
+.live-components-page .danmaku-monitoring-control {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'title help . switch'
+    'hint hint hint switch';
+  align-items: center;
+  gap: 2px 8px;
+  min-height: 60px;
+  padding: 10px 16px;
+  border: 1px solid var(--danmaku-card-border);
+  border-radius: var(--radius-md);
+  background: var(--danmaku-card-bg);
+}
+
+.live-components-page .danmaku-monitoring-control > label:first-child {
+  grid-area: title;
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 20px;
+}
+
+.live-components-page .danmaku-monitoring-control > .hint {
+  grid-area: hint;
+  color: var(--muted);
+  white-space: normal;
+}
+
+.live-components-page .danmaku-monitoring-control > lira-help {
+  grid-area: help;
+}
+
+.live-components-page .danmaku-monitoring-control > .switch-control {
+  grid-area: switch;
+}
+
+/* Filters follow as the second row of the receiving group: same card, title level and height. */
+.live-components-page .danmaku-overlay-filters {
+  margin-top: 4px;
+  padding: 0;
+  border: 1px solid var(--danmaku-card-border);
+  border-radius: var(--radius-md);
+  background: var(--danmaku-card-bg);
+}
+
+.live-components-page .danmaku-overlay-filters > summary {
+  align-items: center;
+  gap: 12px;
+  min-height: 60px;
+  margin-inline: 0;
+  padding: 10px 16px;
+  border-radius: var(--radius-md);
+}
+
+.live-components-page .danmaku-overlay-filters[open] > summary {
+  border-end-start-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.live-components-page .danmaku-overlay-filters > summary:hover {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .other-feature-panel .danmaku-overlay-filters > summary h4 {
+  font-size: var(--type-size-card-title);
+  line-height: 20px;
+}
+
+.live-components-page .danmaku-overlay-filters > summary .component-section-note {
+  margin-top: 2px;
+}
+
+.live-components-page .danmaku-filter-body {
+  padding: 0 var(--spacing-md) var(--spacing-md);
+}
+
+.live-components-page .danmaku-details-chevron {
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
+}
+
+/* 弹幕外观: section heading carries the draft state and the preview action for the whole area. */
+.live-components-page .danmaku-settings-block.danmaku-appearance-block {
+  gap: 12px;
+  padding: 32px 0 0;
+  border-top: 0;
+}
+
+.live-components-page .danmaku-appearance-heading {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 12px 16px;
+  gap: 8px 12px;
+  min-height: 36px;
 }
-.live-components-page .danmaku-style-heading h4 {
+
+.live-components-page .danmaku-appearance-heading h3 {
   margin: 0;
-  font-size: var(--type-size-section-title);
   line-height: 24px;
 }
-.live-components-page .danmaku-style-heading .danmaku-style-chip {
+
+.live-components-page .danmaku-appearance-heading .danmaku-overlay-actions {
   margin-left: auto;
 }
+
 .live-components-page .danmaku-style-chip {
   display: inline-flex;
   align-items: center;
@@ -27,74 +139,145 @@
   font-weight: var(--type-weight-medium);
 }
 
-/* The style picker and filters have distinct boundaries within the settings surface. */
-.live-components-page .danmaku-style-section {
-  overflow: visible;
-  border: 0;
-  border-radius: 0;
+/* Style picker and parameters are sibling cards with card-level titles. */
+.live-components-page .danmaku-style-picker {
+  border-color: var(--danmaku-card-border);
+  background: var(--danmaku-card-bg);
 }
 
-.live-components-page .danmaku-settings-block {
-  padding: 24px 0;
-}
-
-.live-components-page .danmaku-settings-block:last-child {
-  padding-bottom: 0;
-}
-
-/* Expandable sections read as one clickable row: hover fill, a summary next to the chevron and
-   the same heading level as the sections they sit between. */
-.live-components-page .danmaku-overlay-filters {
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-
-.live-components-page .danmaku-overlay-filters > summary {
+.live-components-page .danmaku-style-heading {
+  display: flex;
   align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  margin-inline: 0;
-  padding: var(--spacing-sm) var(--spacing-md);
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+
+.live-components-page .danmaku-style-heading h4 {
+  margin: 0;
+  font-size: var(--type-size-card-title);
+  line-height: 20px;
+}
+
+.live-components-page .danmaku-style-heading #danmakuAllStylesBtn {
+  margin-left: auto;
+}
+
+.live-components-page .danmaku-parameters {
+  gap: 16px;
+  margin-top: 0;
+  padding: 16px;
+  border: 1px solid var(--danmaku-card-border);
   border-radius: var(--radius-md);
+  background: var(--danmaku-card-bg);
 }
 
-.live-components-page .danmaku-overlay-filters > summary:hover {
-  background: var(--components-row-hover);
+.live-components-page .danmaku-parameters > .danmaku-filter-heading {
+  min-height: 36px;
 }
 
-.live-components-page .danmaku-overlay-filters > summary .component-section-note {
-  margin-top: 2px;
-}
-
-.live-components-page .danmaku-details-chevron {
-  flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
-  color: var(--muted);
-}
-
-/* The save bar stays in reach while styles and parameters scroll (contextual save bar). */
-.live-components-page .danmaku-style-footer {
-  position: sticky;
-  bottom: calc(-1 * var(--component-page-padding));
-  z-index: 3;
-  margin: 24px calc(-1 * var(--component-page-padding)) calc(-1 * var(--component-page-padding));
-  padding: 12px var(--component-page-padding);
-  background: color-mix(in srgb, var(--surface) 94%, transparent);
-  backdrop-filter: blur(8px);
-}
-
-.live-components-page .danmaku-filter-body {
-  padding: 0 var(--spacing-md) var(--spacing-md);
+.live-components-page .danmaku-parameters > .danmaku-filter-heading h5 {
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-semibold);
+  line-height: 20px;
 }
 
 .live-components-page .danmaku-parameter-grid {
   gap: 16px 24px;
 }
 
-/* Inside 高级参数, 外观效果 is a group heading, not a page section. */
+/* Field names stay regular and values muted, so card titles and group labels lead. */
+.live-components-page .danmaku-parameter-field strong {
+  font-weight: var(--type-weight-regular);
+}
+
+.live-components-page .danmaku-parameter-field output {
+  color: var(--muted);
+}
+
+.live-components-page #danmakuParameterFields > .danmaku-advanced-section {
+  margin-top: 20px;
+}
+
+.live-components-page .danmaku-advanced-section {
+  gap: 14px;
+}
+
+/* Groups inside a card are small labelled dividers (消息显示, 外观效果, …), not headings. */
+.live-components-page .danmaku-advanced-section > h6,
 .live-components-page .other-feature-panel .danmaku-advanced .component-style-parameters > .ui-section-title {
-  font-size: var(--type-size-card-title);
-  line-height: var(--type-leading-card-title);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--muted);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-semibold);
+  line-height: 18px;
+  letter-spacing: 0.02em;
+}
+
+/* 外观效果 already starts with its own row divider, so only the h6 groups draw the rule; its help
+   icon stays next to the label. */
+.live-components-page .other-feature-panel .danmaku-advanced .component-style-parameters > .ui-section-title {
+  gap: 6px;
+}
+
+
+.live-components-page .danmaku-advanced-section > h6::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--danmaku-card-border);
+}
+
+/* 高级参数 closes the parameter card as a full-width expander row, like the filter row above. */
+.live-components-page .danmaku-advanced {
+  margin: 20px -16px -16px;
+  border-top-color: var(--danmaku-card-border);
+}
+
+.live-components-page .danmaku-advanced > summary {
+  min-height: 48px;
+  padding: 12px 16px;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  font-weight: var(--type-weight-semibold);
+}
+
+.live-components-page .danmaku-advanced[open] > summary {
+  border-radius: 0;
+}
+
+.live-components-page .danmaku-advanced > summary:hover {
+  background: var(--components-row-hover);
+}
+
+.live-components-page .danmaku-advanced > summary .danmaku-details-chevron {
+  margin-left: auto;
+}
+
+.live-components-page .danmaku-advanced-body {
+  padding: 8px 16px 16px;
+}
+
+/* The save bar stays in reach while styles and parameters scroll (contextual save bar). Only
+   保存外观 is filled; reload and discard are quiet buttons. */
+.live-components-page .danmaku-style-footer {
+  position: sticky;
+  bottom: calc(-1 * var(--component-page-padding));
+  z-index: 3;
+  margin: 24px calc(-1 * var(--component-page-padding)) calc(-1 * var(--component-page-padding));
+  padding: 12px var(--component-page-padding);
+  border-top-color: var(--danmaku-card-border);
+  background: color-mix(in srgb, var(--surface) 94%, transparent);
+  box-shadow: 0 -10px 18px -14px color-mix(in srgb, var(--text) 28%, transparent);
+  backdrop-filter: blur(8px);
+}
+
+.live-components-page .danmaku-style-footer :is(#danmakuReloadOverlayBtn, #danmakuDiscardOverlayBtn) {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: none;
+}
+
+.live-components-page .danmaku-style-footer :is(#danmakuReloadOverlayBtn, #danmakuDiscardOverlayBtn):hover:not(:disabled) {
+  background: var(--components-row-hover);
 }

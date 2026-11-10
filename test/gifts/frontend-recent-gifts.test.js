@@ -36,6 +36,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     resolveFetch = resolve;
   });
   const sandbox = {
+    AbortController,
     window: {
       AdminApp: {
         utils: {
@@ -50,11 +51,13 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
     document: { getElementById: () => list },
   };
 
-  const [{ giftRecent: recent }, { eventBus }] = await loadModuleExports([
+  const [{ giftRecent: recent }, { eventBus }, artwork] = await loadModuleExports([
     path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+    path.join(ROOT_DIR, 'public/js/admin/gifts/artwork-catalog.js'),
   ],
     sandbox,
   );
+  artwork.initGiftArtworkCatalog(recent.refreshArtwork);
   recent.renderGiftRecentList([
     {
       gift_id: '35792',
@@ -65,7 +68,7 @@ test('recent gift artwork refreshes from live catalog events without a slow fetc
       total_price: 1200,
     },
   ]);
-  const initialPromise = recent.loadGiftArtworkCatalog();
+  const initialPromise = artwork.loadGiftArtworkCatalog();
 
   eventBus.emit('gift:catalog_updated', {
     snapshot: {
@@ -122,7 +125,11 @@ test('failed gift artwork reads can retry after a bounded delay and valid empty 
   let now = 0;
   let requests = 0;
   const list = { classList: { toggle() {} }, querySelectorAll: () => [], innerHTML: '' };
-  const { giftRecent } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'), {
+  const [{ giftRecent }, artwork] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/gifts/recent.js'),
+    path.join(ROOT_DIR, 'public/js/admin/gifts/artwork-catalog.js'),
+  ], {
+    AbortController,
     Date: class extends Date { static now() { return now; } },
     console: { warn() {} },
     window: {
@@ -134,15 +141,15 @@ test('failed gift artwork reads can retry after a bounded delay and valid empty 
     },
     document: { getElementById: () => list },
   });
-  await giftRecent.loadGiftArtworkCatalog();
-  await giftRecent.loadGiftArtworkCatalog();
+  await artwork.loadGiftArtworkCatalog();
+  await artwork.loadGiftArtworkCatalog();
   assert.equal(requests, 1, 'a failed request must not cause a retry storm');
   now = 5000;
   giftRecent.renderGiftRecentList([{ gift_name: '测试礼物', total_price: 1 }]);
-  await giftRecent.loadGiftArtworkCatalog();
+  await artwork.loadGiftArtworkCatalog();
   assert.equal(requests, 2, 'a later render retries the failed catalog');
   now = 10000;
-  await giftRecent.loadGiftArtworkCatalog();
+  await artwork.loadGiftArtworkCatalog();
   assert.equal(requests, 2, 'an accepted empty catalog is a valid cache result');
 });
 
@@ -162,8 +169,10 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
     },
     document: { getElementById: () => list },
   };
-  const { giftRecent: recent } = await loadModuleExports(
+  const [{ giftRecent: recent }, { getBlindBoxIcon }] = await loadModuleExports([
     path.join(__dirname, '../../public/js/admin/gifts/recent.js'),
+    path.join(__dirname, '../../public/js/admin/gifts/artwork-catalog.js'),
+  ],
     globals,
   );
   const names = [
@@ -186,7 +195,7 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
       const row = { is_blind_box: true, gift_name: '普通礼物', [field]: raw };
       recent.renderGiftRecentList([row]);
 
-      assert.equal(recent.getBlindBoxIcon(row).name, raw);
+      assert.equal(getBlindBoxIcon(row).name, raw);
       assert.equal(row[field], raw);
       assert.ok(
         list.innerHTML.includes(`alt="${escaped}图标" title="${escaped}"`),
@@ -196,4 +205,45 @@ test('recent blind-box icon names stay escaped at the HTML attribute boundary', 
       assert.doesNotMatch(list.innerHTML, /<span data-audit-probe=/);
     }
   }
+});
+
+test('gift artwork lifecycle subscribes once and discards pending reads after disposal', async () => {
+  const requests = [];
+  let changes = 0;
+  const [artwork, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/gifts/artwork-catalog.js'),
+    path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  ], {
+    AbortController,
+    window: { fetch: (_url, { signal }) => {
+      const request = Promise.withResolvers();
+      requests.push({ ...request, signal });
+      return request.promise;
+    } },
+  });
+  assert.equal(requests.length, 0, 'importing an artwork reader does not initialize the catalog');
+  const dispose = artwork.initGiftArtworkCatalog(() => { changes += 1; });
+  artwork.initGiftArtworkCatalog(() => { changes += 1; });
+  assert.equal(requests.length, 1);
+  assert.equal(eventBus.listenerCount('gift:catalog_updated'), 1);
+  const stale = artwork.loadGiftArtworkCatalog();
+  dispose();
+  assert.equal(requests[0].signal.aborted, true);
+  assert.equal(eventBus.listenerCount('gift:catalog_updated'), 0);
+
+  const finish = artwork.initGiftArtworkCatalog(() => { changes += 1; });
+  const current = artwork.loadGiftArtworkCatalog();
+  const payload = (image) => ({ ok: true, json: async () => ({ ok: true,
+    data: { gifts: [{ id: '1', name: '礼物', imagePath: `/overtime-gift-images/${image}.webp` }] },
+  }) });
+  requests[0].resolve(payload('stale'));
+  await stale;
+  assert.equal(changes, 0);
+  requests[1].resolve(payload('current'));
+  await current;
+  assert.equal(changes, 1);
+  assert.equal(artwork.getGiftToastArtwork({ gift_id: '1', gift_name: '礼物' }), '/overtime-gift-images/current.webp');
+  finish();
+  eventBus.emit('gift:catalog_updated', { snapshot: { gifts: [] } });
+  assert.equal(changes, 1);
 });

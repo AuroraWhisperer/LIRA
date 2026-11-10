@@ -5,10 +5,18 @@ const { dayOf } = require('./dates');
 const { normalizeGuardAccompany, newerGuardAccompany } = require('./guard-accompany');
 
 function getGuardRoster(profile, records) {
-  if (profile.guardRoster) return profile.guardRoster;
-  const latest = records
-    .filter((record) => record.original.evidence === 'guard-roster')
-    .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original;
+  const roster = profile.guardRoster;
+  if (roster) {
+    // Absence has no source record; active snapshots may be newer than same-day deduplicated evidence.
+    const source = roster.level === null ? null : records
+      .filter(({ original }) => original.evidence === 'guard-roster' &&
+        original.roomId === roster.roomId && original.ownerUid === roster.ownerUid &&
+        original.observedAt <= roster.observedAt)
+      .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original;
+    if (!source || source.level !== roster.level || !identityKey(source.identity) ||
+      identityKey(source.identity) === identityKey(profile.identity)) return roster;
+  }
+  const latest = getLatestGuardRosterObservation(profile, records);
   return latest
     ? {
         roomId: latest.roomId,
@@ -17,6 +25,14 @@ function getGuardRoster(profile, records) {
         level: latest.status === 'inactive' ? null : latest.level,
       }
     : null;
+}
+
+function getLatestGuardRosterObservation(profile, records) {
+  const key = identityKey(profile.identity);
+  if (!key) return null;
+  return records
+    .filter((record) => record.original.evidence === 'guard-roster' && identityKey(record.original.identity) === key)
+    .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original || null;
 }
 
 function createGuardRosterImporter({ store, create, observe }) {
@@ -192,4 +208,4 @@ function createGuardRosterImporter({ store, create, observe }) {
   };
 }
 
-module.exports = { createGuardRosterImporter, getGuardRoster };
+module.exports = { createGuardRosterImporter, getGuardRoster, getLatestGuardRosterObservation };

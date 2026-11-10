@@ -112,6 +112,9 @@ export function createPlaybackControls(deps) {
   async function playPlaybackTrack(track, options = {}) {
     const audio = getPlaybackAudio();
     if (!audio || !track) return;
+    // Queue insertions can move this entry while its stream resolves.
+    const playlistEntry = Number.isInteger(options.playlistIndex)
+      ? playbackState.normalQueueTracks[options.playlistIndex] : null;
     const requestGeneration = invalidatePlaybackRequests();
     playRequestSource = track.source;
     playRequested = true;
@@ -152,8 +155,9 @@ export function createPlaybackControls(deps) {
     Object.assign(track, streamTrack);
 
     if (!options.isRetry) streamService.resetRetryCount();
-    if (Number.isInteger(options.playlistIndex) && options.playlistIndex >= 0) {
-      queueManager.jumpToPlaylistTrack(options.playlistIndex);
+    if (playlistEntry) {
+      const playlistIndex = playbackState.normalQueueTracks.indexOf(playlistEntry);
+      if (!queueManager.jumpToPlaylistTrack(playlistIndex)) return false;
     }
     if (options.consumeHistory) stateActions.takePrevious();
     stateActions.beginTrack(track, options);

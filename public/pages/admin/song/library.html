@@ -9,11 +9,11 @@
           <input id="songName" required />
         </label>
         <label>
-          原唱/首发歌手
+          歌手
           <input id="songArtist" />
         </label>
         <label>
-          歌曲分类
+          曲风
           <input id="songCategory" value="默认" />
         </label>
         <label>
@@ -84,13 +84,13 @@
     <div class="grid-3">
       <label>
         搜索
-        <input id="songSearch" placeholder="歌名、歌手、分类或标签" />
+        <input id="songSearch" placeholder="歌名、歌手、曲风或标签" />
       </label>
       <div class="category-filter-field">
-        <span>分类</span>
+        <span>曲风</span>
         <details id="categoryFilter" class="lira-multiselect" name="songLibraryFilter">
           <summary class="lira-select-trigger">
-            <span id="categoryFilterSummary" class="lira-select-value">全部分类</span>
+            <span id="categoryFilterSummary" class="lira-select-value">全部曲风</span>
             <span class="lira-multiselect-hint">匹配任一</span>
             <span class="lira-select-chevron" aria-hidden="true"></span>
           </summary>
@@ -99,7 +99,7 @@
               id="categoryFilterOptions"
               class="lira-multiselect-options"
               role="group"
-              aria-label="分类（可多选）"
+              aria-label="曲风（可多选）"
             ></div>
             <button id="clearCategoryFilter" class="lira-multiselect-clear" type="button">清除选择</button>
           </div>
@@ -148,8 +148,8 @@
           <tr>
             <th>首字母</th>
             <th>歌曲名字</th>
-            <th>原唱/首发歌手</th>
-            <th>歌曲分类</th>
+            <th>歌手</th>
+            <th>曲风</th>
             <th>歌曲标签</th>
             <th>语言</th>
             <th>状态</th>

@@ -8,7 +8,7 @@ const { createFanProfileProjection } = require('./profile-projection');
 const { createFanBackupService } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
-const { createGuardRosterImporter, getGuardRoster } = require('./guard-roster-import');
+const { createGuardRosterImporter, getGuardRoster, getLatestGuardRosterObservation } = require('./guard-roster-import');
 const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 const { SONG_STATS_DAYS, recentSongCounts } = require('./song-summary');
 
@@ -261,9 +261,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
         const { membership, reminders } = project(scope, profile, records, statesByProfile.get(profile.id) || [],
           Date.parse(at), settings);
         const guardRoster = getGuardRoster(profile, records);
-        const medalLevel = records
-          .filter((r) => r.original.evidence === 'guard-roster')
-          .sort((a, b) => b.original.observedAt.localeCompare(a.original.observedAt))[0]?.original.medalLevel;
+        const medalLevel = getLatestGuardRosterObservation(profile, records)?.medalLevel;
         return {
           ...profile,
           formerName: profile.preferredFormerName || profile.lastEntry?.name || '',
@@ -354,8 +352,14 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           if (!patch.alias && !previous.alias && !previous.platformName) throw new Error('请填写常用称呼。');
           const profile = { ...previous, ...patch };
           if (identityKey(profile.identity) !== identityKey(previous.identity)) {
+            delete profile.guardRoster;
             delete profile.guardAccompany;
             delete profile.lastEntry;
+            delete profile.firstObservedAt;
+            delete profile.lastObservedAt;
+            profile.platformName = '';
+            profile.platformObservedAt = '';
+            profile.avatar = '';
           }
           if (patch.nameHistory) {
             const retained = new Set(patch.nameHistory.map(item => item.name));

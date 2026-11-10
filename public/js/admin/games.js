@@ -127,14 +127,14 @@ async function refreshViewers(options = {}) {
   for (let attempt = 0; attempt <= VIEWER_REFRESH_RETRY_DELAYS_MS.length; attempt += 1) {
     if (attempt > 0) await wait(VIEWER_REFRESH_RETRY_DELAYS_MS[attempt - 1]);
     const response = await fetch('/api/games/viewers');
-    const payload = await readJsonResponse(response, '读取在线观众失败');
-    if (!payload.ok) throw new Error(payload.error || '读取在线观众失败');
+    const payload = await readJsonResponse(response, '读取观众名单失败');
+    if (!payload.ok) throw new Error(payload.error || '读取观众名单失败');
     viewers = payload.data || [];
     if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length) break;
   }
   for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), viewers);
   clearPanelRefreshFailure();
-  if (notify) toast(`已找到 ${viewers.length} 位当前在线观众`);
+  if (notify) toast(`已找到 ${viewers.length} 位可选观众`);
 }
 
 function wait(delayMs) {
@@ -148,7 +148,7 @@ function renderViewerOptions(select, viewers) {
   placeholder.value = '';
   placeholder.disabled = true;
   placeholder.selected = true;
-  placeholder.textContent = viewers.length ? '请选择观众' : '暂无当前在线观众';
+  placeholder.textContent = viewers.length ? '请选择观众' : '暂无可选观众，请发弹幕后刷新';
   select.append(placeholder);
   for (const viewer of viewers) {
     const option = document.createElement('option');

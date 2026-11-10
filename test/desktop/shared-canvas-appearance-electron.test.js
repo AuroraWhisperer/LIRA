@@ -319,14 +319,25 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   const advanced = canvas.locator('.advanced-lyric-canvas-settings');
   await advanced.getByRole('tab', { name: '外观', exact: true }).click();
   await advanced.locator('[data-advanced-lyric-parameter="advancedLyricFontWeight"]').selectOption('900');
+  await advanced.locator('[data-advanced-lyric-parameter="advancedLyricFontStyle"]').selectOption('italic');
+  const lineHeight = advanced.getByRole('spinbutton', { name: '换行行距（倍）数值', exact: true });
+  await lineHeight.fill('1.6'); await lineHeight.dispatchEvent('change');
   await desktop.locator('#desktopLyricAdvancedTab').click();
-  await desktop.waitForFunction(() => document.getElementById('advancedLyricFontWeight')?.value === '900');
+  await desktop.waitForFunction(() => document.getElementById('advancedLyricFontWeight')?.value === '900'
+    && document.getElementById('advancedLyricFontStyle').value === 'italic'
+    && document.getElementById('advancedLyricLineHeight').value === '1.6');
   await desktop.locator('#advancedLyricEditor').getByRole('tab', { name: '外观', exact: true }).click();
-  await desktop.locator('#advancedLyricEditor summary').filter({ hasText: /^材质与字效$/ }).click();
+  await desktop.locator('#advancedLyricEditor summary').filter({ hasText: /^文字材质/ }).click();
   await desktop.locator('#advancedLyricEditor [data-lyric-field="advancedLyricMaterial"][data-lyric-choice="chalk"]').click();
-  await advanced.locator('summary').filter({ hasText: /^材质与字效$/ }).click();
+  await advanced.locator('summary').filter({ hasText: /^文字材质/ }).click();
   await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-lyric-field="advancedLyricMaterial"][data-lyric-choice="chalk"]').getAttribute('aria-pressed') === 'true');
+  const texture = desktop.locator('#advancedLyricEditor').getByRole('spinbutton', { name: '纹理大小（倍）数值', exact: true });
+  await texture.fill('2.2'); await texture.dispatchEvent('change');
+  await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-advanced-lyric-parameter="advancedLyricTextureScale"]').value === '2.2');
   await advanced.getByRole('tab', { name: '编排', exact: true }).click();
+  await advanced.locator('[data-lyric-field="advancedLyricLayout"][data-lyric-choice="paper-fold"]').click();
+  await desktop.waitForFunction(() => document.querySelector('#advancedLyricEditor [data-lyric-field="advancedLyricLayout"][data-lyric-choice="paper-fold"]').getAttribute('aria-pressed') === 'true');
+  await advanced.locator('summary').filter({ hasText: /^位置与尺寸/ }).click();
   const horizontal = advanced.getByRole('spinbutton', { name: '水平位置（%）数值', exact: true });
   const vertical = advanced.getByRole('spinbutton', { name: '垂直位置（%）数值', exact: true });
   await horizontal.fill('24'); await horizontal.dispatchEvent('change');
@@ -334,9 +345,12 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   await desktop.waitForFunction(() => document.getElementById('advancedLyricPositionX').value === '24'
     && document.getElementById('advancedLyricPositionY').value === '72');
   await desktop.locator('#advancedLyricEditor').getByRole('tab', { name: '编排', exact: true }).click();
+  await desktop.locator('#advancedLyricEditor summary').filter({ hasText: /^位置与尺寸/ }).click();
   await desktop.locator('#advancedLyricEditor').getByRole('button', { name: '水平居中', exact: true }).click();
   await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-advanced-lyric-parameter="advancedLyricPositionX"]').value === '50'
     && document.querySelector('.advanced-lyric-canvas-settings [data-advanced-lyric-parameter="advancedLyricPositionY"]').value === '72');
+  await desktop.locator('#advancedLyricEditor [data-lyric-field="advancedLyricLayout"][data-lyric-choice="adaptive"]').click();
+  await canvas.waitForFunction(() => document.querySelector('.advanced-lyric-canvas-settings [data-lyric-field="advancedLyricLayout"][data-lyric-choice="adaptive"]').getAttribute('aria-pressed') === 'true');
   await add('heart-box-collection');
   await canvas.locator('[data-component-parameter="showRewards"]').uncheck();
   await desktop.waitForFunction(() => !document.getElementById('heartBoxCollectionShowRewards').checked);
@@ -345,34 +359,28 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="showRewards"]').checked);
   await add('live-rankings');
   const rankingList = desktop.locator('[data-rankings="boards"] .ranking-card').first().locator('.ranking-list');
-  assert.equal(await desktop.locator('[data-rankings="range"]').inputValue(), 'all');
-  await rankingList.locator('.ranking-place').first().waitFor();
+  await desktop.waitForFunction(count => document.querySelector('[data-rankings="boards"] .ranking-list').children.length === count, rows.length);
   await canvas.getByRole('button', { name: '展示方式', exact: true }).click();
   await canvas.getByRole('option', { name: '跟随本房间名次', exact: true }).click();
-  await desktop.waitForFunction(() => document.querySelector('[data-rankings="range"]').value === 'nearby');
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="range"]').value === 'nearby');
   await rankingList.locator('.is-current .ranking-place').filter({ hasText: /^15$/ }).waitFor();
-  assert.ok(Number(await rankingList.locator('.ranking-place').first().textContent()) > 1, 'nearby mode follows rank 15');
-  const initialRows = await rankingList.locator('.ranking-row').count();
-  await desktop.locator('.live-rankings-page').evaluate(page => { page.style.height = '1600px'; });
-  await desktop.waitForFunction(previous => document.querySelector('[data-rankings="boards"] .ranking-list').children.length > previous, initialRows);
+  assert.equal(await rankingList.locator('.ranking-place').first().textContent(), '1', 'desktop keeps the complete list when canvas follows the current room');
+  assert.equal(await rankingList.locator('.ranking-place').last().textContent(), String(rows.length));
   assert.equal(await rankingList.locator('.is-current').count(), 1);
-  const rangeRefresh = canvas.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
-    && response.ok() && (await response.text()).includes('"range":"all"'));
-  await desktop.locator('[data-rankings="range"]').selectOption('all');
-  await rankingList.locator('.ranking-place').first().filter({ hasText: /^1$/ }).waitFor();
-  await rangeRefresh;
-  await canvas.getByRole('button', { name: '展示方式', exact: true }).press('Tab');
-  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="range"]').value === 'all');
   await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
   await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
   const output = await app.evaluate(() => global.canvasTest.output());
   const appearance = type => output.appearances[output.document.items.find(item => item.type === type).id];
+  assert.equal(appearance('lyrics').advancedLyricLayout, 'adaptive');
   assert.equal(appearance('lyrics').advancedLyricMaterial, 'chalk');
+  assert.equal(appearance('lyrics').advancedLyricFontStyle, 'italic');
+  assert.equal(appearance('lyrics').advancedLyricLineHeight, '1.6');
+  assert.equal(appearance('lyrics').advancedLyricTextureScale, '2.2');
   assert.equal(appearance('lyrics').advancedLyricPositionX, '50');
   assert.equal(appearance('lyrics').advancedLyricPositionY, '72', 'horizontal centering preserves the other position axis');
   assert.equal(Object.hasOwn(appearance('lyrics'), 'advancedLyricSavedPresets'), false);
   assert.equal(appearance('heart-box-collection').showRewards, true);
-  assert.equal(appearance('live-rankings').range, 'all');
+  assert.equal(appearance('live-rankings').range, 'nearby');
   const motionLayer = output.document.items.find(item => item.type === 'gift-frame');
   assert.equal(Object.hasOwn(motionLayer.appearance.config, 'giftDropSize'), false);
   await canvas.reload();

@@ -17,7 +17,7 @@
 .advanced-lyric-item {
   position: absolute;
   box-sizing: border-box;
-  line-height: 1.2;
+  line-height: var(--advanced-line-height, 1.2);
   transform-origin: center;
   --item-color: var(--advanced-text);
   --item-tone: var(--advanced-accent);
@@ -45,6 +45,44 @@
   transform-origin: center 65%;
 }
 .advanced-lyric-word-run { display: inline-block; white-space: nowrap; }
+.advanced-lyric-face { position: relative; display: inline-block; transform-origin: 50% 65%; }
+.advanced-lyric-outline, .advanced-lyric-echo, .advanced-lyric-fold-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.advanced-lyric-outline {
+  color: transparent;
+  -webkit-text-stroke: 0.016em var(--item-color);
+}
+.advanced-lyric-echo {
+  opacity: 0;
+  color: transparent;
+  -webkit-text-stroke: 0.012em var(--advanced-accent);
+}
+.advanced-lyric-echo[data-depth="2"] { -webkit-text-stroke-color: var(--advanced-secondary); }
+.advanced-lyric-fold-shade {
+  opacity: 0;
+  background: linear-gradient(to bottom, transparent 42%, #1b172438 50%, transparent 58%);
+}
+.advanced-lyric-particle {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 0.065em;
+  height: 0.065em;
+  background: var(--advanced-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+.advanced-lyric-particle:nth-child(2) { background: var(--advanced-secondary); }
+.advanced-lyric-renderer[data-layout="block-handoff"] .advanced-lyric-text {
+  padding-block: 0.1em 0.19em;
+  border-bottom: 0.035em solid var(--advanced-accent-70);
+}
+.advanced-lyric-renderer[data-layout="block-handoff"] .advanced-lyric-item[data-source="translation"] .advanced-lyric-text {
+  border: 0;
+}
 .advanced-lyric-glyph::before {
   content: attr(data-text);
   position: absolute;
@@ -62,6 +100,7 @@
   position: absolute;
   inset: 0;
   color: var(--advanced-accent);
+  opacity: var(--advanced-highlight-opacity, 1);
   clip-path: inset(0 100% 0 0);
 }
 .advanced-lyric-highlight.is-soft {
@@ -92,44 +131,67 @@
 /* The fill and the outline/shadow are separate, so materials remain compatible
    with every layout and with the sung overlay. */
 .advanced-lyric-renderer:is([data-material="gradient"], [data-material="sunset"], [data-material="aurora"],
-  [data-material="metallic"], [data-material="glass"], [data-material="striped"], [data-material="dots"], [data-material="chalk"]) .advanced-lyric-ink {
+  [data-material="metallic"], [data-material="glass"], [data-material="striped"], [data-material="dots"], [data-material="chalk"],
+  [data-material="holo"], [data-material="ink-wash"], [data-material="film"]) .advanced-lyric-ink {
   color: transparent;
   background-clip: text;
   -webkit-background-clip: text;
 }
 .advanced-lyric-renderer[data-material="gradient"] .advanced-lyric-ink {
-  background-image: linear-gradient(160deg, var(--advanced-text) 15%, var(--advanced-accent) 85%);
+  background-image: linear-gradient(var(--advanced-gradient-angle, 160deg), var(--advanced-text) 15%, var(--advanced-accent) 85%);
 }
 .advanced-lyric-renderer[data-material="sunset"] .advanced-lyric-ink {
-  background-image: linear-gradient(180deg, var(--advanced-text), var(--advanced-accent) 48%, var(--advanced-secondary));
+  background-image: linear-gradient(calc(var(--advanced-gradient-angle, 160deg) + 20deg), var(--advanced-text), var(--advanced-accent) 48%, var(--advanced-secondary));
 }
 .advanced-lyric-renderer[data-material="aurora"] .advanced-lyric-ink {
-  background-image: linear-gradient(125deg, var(--advanced-secondary), var(--advanced-text) 45%, var(--advanced-accent) 75%, var(--advanced-secondary));
+  background-image: linear-gradient(calc(var(--advanced-gradient-angle, 160deg) - 35deg), var(--advanced-secondary), var(--advanced-text) 45%, var(--advanced-accent) 75%, var(--advanced-secondary));
 }
 .advanced-lyric-renderer[data-material="metallic"] .advanced-lyric-ink {
-  background-image: linear-gradient(180deg, var(--advanced-text) 6%, var(--advanced-accent) 24%, #fff 35%, #3f3e4c 49%, var(--advanced-text) 53%, var(--advanced-accent) 75%, #fff 94%);
+  background-image: linear-gradient(calc(var(--advanced-gradient-angle, 160deg) + 20deg), var(--advanced-text) 6%, var(--advanced-accent) 24%, #fff 35%, #3f3e4c 49%, var(--advanced-text) 53%, var(--advanced-accent) 75%, #fff 94%);
 }
 .advanced-lyric-renderer[data-material="glass"] .advanced-lyric-ink {
-  background-image: linear-gradient(145deg, #ffffffed 5%, var(--advanced-text-35) 34%, #ffffffdd 36%, var(--advanced-secondary-28) 62%, var(--advanced-text));
+  background-image: linear-gradient(calc(var(--advanced-gradient-angle, 160deg) - 15deg), #ffffffed 5%, var(--advanced-text-35) 34%, #ffffffdd 36%, var(--advanced-secondary-28) 62%, var(--advanced-text));
 }
 .advanced-lyric-renderer[data-material="glass"] .advanced-lyric-glyph::before {
   -webkit-text-stroke: max(0.6px, var(--advanced-stroke-width)) var(--advanced-text-75);
 }
 .advanced-lyric-renderer[data-material="striped"] .advanced-lyric-ink {
-  background-image: repeating-linear-gradient(-35deg, var(--advanced-text) 0 0.07em, var(--advanced-accent) 0.07em 0.13em);
+  background-image: repeating-linear-gradient(calc(var(--advanced-gradient-angle, 160deg) - 195deg),
+    var(--advanced-text) 0 calc(0.07em * var(--advanced-texture-scale, 1)),
+    var(--advanced-accent) calc(0.07em * var(--advanced-texture-scale, 1)) calc(0.13em * var(--advanced-texture-scale, 1)));
 }
 .advanced-lyric-renderer[data-material="dots"] .advanced-lyric-ink {
   background-image: radial-gradient(circle, var(--advanced-accent) 30%, transparent 34%), linear-gradient(var(--advanced-text), var(--advanced-text));
-  background-size: 0.13em 0.13em, 100% 100%;
+  background-size: calc(0.13em * var(--advanced-texture-scale, 1)) calc(0.13em * var(--advanced-texture-scale, 1)), 100% 100%;
 }
 .advanced-lyric-renderer[data-material="chalk"] .advanced-lyric-ink {
-  background-image: repeating-radial-gradient(ellipse at 22% 38%, var(--advanced-text) 0 0.018em, transparent 0.021em 0.028em, var(--advanced-text) 0.031em 0.07em);
-  background-size: 0.23em 0.19em;
+  background-image: repeating-radial-gradient(ellipse at 22% 38%,
+    var(--advanced-text) 0 calc(0.018em * var(--advanced-texture-scale, 1)),
+    transparent calc(0.021em * var(--advanced-texture-scale, 1)) calc(0.028em * var(--advanced-texture-scale, 1)),
+    var(--advanced-text) calc(0.031em * var(--advanced-texture-scale, 1)) calc(0.07em * var(--advanced-texture-scale, 1)));
+  background-size: calc(0.23em * var(--advanced-texture-scale, 1)) calc(0.19em * var(--advanced-texture-scale, 1));
 }
 .advanced-lyric-renderer[data-material="chalk"] .advanced-lyric-glyph::before {
   -webkit-text-stroke: 0.02em var(--advanced-text-55);
 }
 .advanced-lyric-renderer[data-material="neon"] .advanced-lyric-ink { color: var(--advanced-text); }
+.advanced-lyric-renderer[data-material="holo"] .advanced-lyric-ink {
+  background-image: linear-gradient(calc(var(--advanced-gradient-angle, 160deg) - 30deg), var(--advanced-secondary) 4%,
+    var(--advanced-text) 24%, var(--advanced-accent) 40%, #fff 50%, var(--advanced-secondary) 62%, var(--advanced-accent) 80%, var(--advanced-text) 96%);
+  background-size: calc(160% * var(--advanced-texture-scale, 1)) 100%;
+  background-position: 30% 0;
+}
+.advanced-lyric-renderer[data-material="ink-wash"] .advanced-lyric-ink {
+  /* Dense at the stroke start, thinning out like ink on rice paper. */
+  background-image: linear-gradient(calc(var(--advanced-gradient-angle, 160deg) + 10deg), var(--advanced-text) 30%, var(--advanced-text-75) 62%, var(--advanced-text-35) 100%);
+  text-shadow: 0 0 0.05em var(--advanced-text-35);
+}
+.advanced-lyric-renderer[data-material="film"] .advanced-lyric-ink {
+  background-image: repeating-linear-gradient(0deg, transparent 0 calc(0.05em * var(--advanced-texture-scale, 1)),
+      #00000024 calc(0.05em * var(--advanced-texture-scale, 1)) calc(0.075em * var(--advanced-texture-scale, 1))),
+    linear-gradient(calc(var(--advanced-gradient-angle, 160deg) + 20deg), var(--advanced-text) 20%, var(--advanced-accent-77) 120%);
+  filter: sepia(0.18) contrast(0.96);
+}
 .advanced-lyric-renderer[data-material="marker"] .advanced-lyric-ink {
   background: linear-gradient(175deg, transparent 40%, var(--advanced-accent-77) 42% 82%, transparent 84%);
   padding-inline: 0.025em;
@@ -153,6 +215,21 @@
 .advanced-lyric-item[data-treatment="echo"] .advanced-lyric-glyph::before { display: none; }
 
 .advanced-lyric-item[data-plate] .advanced-lyric-text { padding: 0.18em 0.3em; }
+/* Plates and brackets wrap the words they carry, not the whole layout slot. */
+.advanced-lyric-item:is([data-plate="tile"], [data-plate="speech-left"], [data-plate="speech-right"], [data-plate="postcard"],
+  [data-plate="fan"], [data-plate="label"], [data-plate="block"], [data-treatment="bracket"]) .advanced-lyric-text {
+  width: fit-content;
+  max-width: 100%;
+  margin-inline: auto;
+}
+.advanced-lyric-item[data-align="left"]:is([data-plate], [data-treatment="bracket"]) .advanced-lyric-text { margin-inline: 0 auto; }
+.advanced-lyric-item[data-align="right"]:is([data-plate], [data-treatment="bracket"]) .advanced-lyric-text { margin-inline: auto 0; }
+.advanced-lyric-item[data-plate="block"] .advanced-lyric-text {
+  padding: 0.1em 0.42em 0.16em;
+  background: linear-gradient(var(--item-tone), var(--item-tone)) no-repeat;
+  background-size: 100% 100%;
+  --item-color: var(--advanced-text);
+}
 .advanced-lyric-item[data-plate] .advanced-lyric-ink { opacity: 0.78; }
 .advanced-lyric-item[data-plate] .advanced-lyric-highlight { color: var(--advanced-text); }
 .advanced-lyric-item[data-plate="tile"] .advanced-lyric-text {
@@ -229,12 +306,55 @@
 .advanced-lyric-decoration[data-decoration="tape"]::after { right: 1%; bottom: 2%; transform: rotate(-18deg); }
 .advanced-lyric-decoration[data-decoration="orbit"]::before { inset: 6% 8%; border: 1px solid var(--advanced-accent-70); border-radius: 50%; transform: rotate(-16deg); }
 .advanced-lyric-decoration[data-decoration="orbit"]::after { inset: 14% 13%; border: 1px solid var(--advanced-secondary-45); border-radius: 50%; transform: rotate(14deg); }
+.advanced-lyric-decoration[data-decoration="letterbox"]::before,
+.advanced-lyric-decoration[data-decoration="letterbox"]::after {
+  left: -20%;
+  right: -20%;
+  height: 11%;
+  background: linear-gradient(#000000b8, #0000009c);
+}
+.advanced-lyric-decoration[data-decoration="letterbox"] { inset: 0; }
+.advanced-lyric-decoration[data-decoration="letterbox"]::before { top: 0; box-shadow: 0 1px 0 var(--advanced-accent-24); }
+.advanced-lyric-decoration[data-decoration="letterbox"]::after { bottom: 0; box-shadow: 0 -1px 0 var(--advanced-accent-24); }
+.advanced-lyric-decoration[data-decoration="viewfinder"] { inset: 7% 4% 12%; font-size: calc(var(--advanced-stage-height, 300px) * 0.04); }
+.advanced-lyric-decoration[data-decoration="viewfinder"]::before {
+  content: 'REC';
+  left: 4.5%;
+  top: 6%;
+  padding-left: 1.1em;
+  color: var(--advanced-text-75);
+  font: 600 1em/1 sans-serif;
+  letter-spacing: 0.12em;
+  background: radial-gradient(circle at 0.35em 50%, var(--advanced-accent) 0.3em, transparent 0.34em);
+}
+.advanced-lyric-decoration[data-decoration="viewfinder"]::after {
+  left: calc(50% - 0.6em);
+  top: calc(50% - 0.6em);
+  width: 1.2em;
+  height: 1.2em;
+  opacity: 0.45;
+  background: linear-gradient(currentColor, currentColor) center / 100% 1px no-repeat, linear-gradient(currentColor, currentColor) center / 1px 100% no-repeat;
+}
+.advanced-lyric-decoration[data-decoration="rules"] { inset: 10% 0 14%; }
+.advanced-lyric-decoration[data-decoration="rules"]::before,
+.advanced-lyric-decoration[data-decoration="rules"]::after { left: -10%; right: -10%; height: 0.5em; border-top: 1px solid var(--advanced-accent-70); }
+.advanced-lyric-decoration[data-decoration="rules"]::before { top: 0; }
+.advanced-lyric-decoration[data-decoration="rules"]::after {
+  bottom: 0;
+  background: repeating-linear-gradient(90deg, var(--advanced-accent-70) 0 1px, transparent 1px 2.5%) top / 100% 40% no-repeat;
+}
+.advanced-lyric-decoration[data-decoration="halo"]::before {
+  inset: 8% 10%;
+  background: radial-gradient(closest-side, var(--advanced-accent-24), transparent);
+  filter: blur(12px);
+}
 .advanced-lyric-mark { position: absolute; display: block; width: 1.3%; aspect-ratio: 1; background: currentColor; }
 .advanced-lyric-mark:nth-child(3n) { color: var(--advanced-secondary); width: 1.8%; }
 .advanced-lyric-decoration[data-decoration="stars"] .advanced-lyric-mark { clip-path: polygon(50% 0, 62% 35%, 100% 50%, 62% 65%, 50% 100%, 38% 65%, 0 50%, 38% 35%); }
 .advanced-lyric-decoration[data-decoration="dots"] .advanced-lyric-mark { border-radius: 50%; opacity: 0.7; width: 0.75%; }
-.advanced-lyric-decoration[data-decoration="corners"] .advanced-lyric-mark { width: 4%; background: none; border-top: 2px solid; border-left: 2px solid; }
-.advanced-lyric-decoration[data-decoration="corners"] .advanced-lyric-mark:nth-child(1) { left: 0 !important; top: 0 !important; }
-.advanced-lyric-decoration[data-decoration="corners"] .advanced-lyric-mark:nth-child(2) { left: auto !important; right: 0; top: 0 !important; transform: rotate(90deg); }
-.advanced-lyric-decoration[data-decoration="corners"] .advanced-lyric-mark:nth-child(3) { left: 0 !important; top: auto !important; bottom: 0; transform: rotate(-90deg); }
-.advanced-lyric-decoration[data-decoration="corners"] .advanced-lyric-mark:nth-child(4) { left: auto !important; right: 0; top: auto !important; bottom: 0; transform: rotate(180deg); }
+.advanced-lyric-decoration:is([data-decoration="corners"], [data-decoration="viewfinder"]) .advanced-lyric-mark { width: 4%; background: none; border-top: 2px solid; border-left: 2px solid; }
+.advanced-lyric-decoration[data-decoration="viewfinder"] .advanced-lyric-mark { width: 5%; color: var(--advanced-text-75); border-width: 1.5px; }
+.advanced-lyric-decoration:is([data-decoration="corners"], [data-decoration="viewfinder"]) .advanced-lyric-mark:nth-child(1) { left: 0 !important; top: 0 !important; }
+.advanced-lyric-decoration:is([data-decoration="corners"], [data-decoration="viewfinder"]) .advanced-lyric-mark:nth-child(2) { left: auto !important; right: 0; top: 0 !important; transform: rotate(90deg); }
+.advanced-lyric-decoration:is([data-decoration="corners"], [data-decoration="viewfinder"]) .advanced-lyric-mark:nth-child(3) { left: 0 !important; top: auto !important; bottom: 0; transform: rotate(-90deg); }
+.advanced-lyric-decoration:is([data-decoration="corners"], [data-decoration="viewfinder"]) .advanced-lyric-mark:nth-child(4) { left: auto !important; right: 0; top: auto !important; bottom: 0; transform: rotate(180deg); }

@@ -57,7 +57,7 @@ const CLEAR_ALL_MATRIX = {
       row: {
         id: 1,
         enabled: 0,
-        enable_epoch: 0,
+        enable_epoch: 0, // Missing singleton default; clearing preserves an existing epoch.
         initial_seconds: 0,
         remaining_ms: 0,
         anchor_at_ms: 0,
@@ -144,8 +144,19 @@ function restoreGiftDefaults(giftDb, timestamp) {
     INSERT OR REPLACE INTO overtime_machine_state (
       id, enabled, enable_epoch, initial_seconds, remaining_ms,
       anchor_at_ms, status, background_path, background_fit, revision, updated_at
-    ) VALUES (1, 0, 0, 0, 0, 0, 'paused', '', 'cover',
+    ) VALUES (1, 0, COALESCE((SELECT enable_epoch FROM overtime_machine_state WHERE id = 1), 0),
+      0, 0, 0, 'paused', '', 'cover',
       COALESCE((SELECT revision + 1 FROM overtime_machine_state WHERE id = 1), 0), ?)
+  `,
+    )
+    .run(timestamp);
+  giftDb
+    .prepare(
+      `
+    UPDATE overtime_settlements
+    SET status = 'ignored', rule_mode = 'ignored', settle_after_ms = 0,
+        last_error = '', updated_at = ?
+    WHERE status = 'pending'
   `,
     )
     .run(timestamp);

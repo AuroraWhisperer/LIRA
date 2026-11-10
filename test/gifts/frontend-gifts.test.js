@@ -24,9 +24,15 @@ async function createStatsHarness({ active = true } = {}) {
   const page = { classList: classes(active ? ['active'] : []) };
   const workspace = { hidden: true };
   const summary = { innerHTML: '', closest: () => section };
-  const body = { innerHTML: '', addEventListener() {} };
+  const bodyListeners = new Map();
+  const body = { innerHTML: '',
+    addEventListener: (type, listener) => bodyListeners.set(type, listener),
+    removeEventListener: (type, listener) => {
+      if (bodyListeners.get(type) === listener) bodyListeners.delete(type);
+    },
+  };
   const requests = [];
-  const documentListeners = new Map(), windowListeners = new Map();
+  const documentListeners = new Map();
   const observers = [];
   const document = {
     readyState: 'loading', hidden: false,
@@ -36,10 +42,10 @@ async function createStatsHarness({ active = true } = {}) {
     getElementById: (id) => ({ blindBoxStatsSummary: summary, blindBoxStatsBody: body,
       giftAssistantPage: page, blindBoxAnalysisWorkspace: workspace })[id] || null,
   };
-  const [{ giftBlindbox }, { eventBus }] = await loadModuleExports([
-    path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
+  const [{ initBlindBoxStats }, { eventBus }] = await loadModuleExports([
+    path.join(ROOT_DIR, 'public/js/admin/gifts/blindbox-stats.js'), path.join(ROOT_DIR, 'public/js/shared/event-bus.js'),
   ], {
-    window: { addEventListener: (type, fn) => windowListeners.set(type, fn) },
+    window: {},
     document, AbortController,
     MutationObserver: class {
       constructor(callback) { this.callback = callback; this.targets = new Map(); observers.push(this); }
@@ -55,18 +61,19 @@ async function createStatsHarness({ active = true } = {}) {
       return request.promise;
     },
   });
-  giftBlindbox.initBlindBoxStatsToggle();
+  const dispose = initBlindBoxStats();
   function changed(node, attribute) {
     for (const observer of observers) {
       if (observer.targets.get(node)?.attributeFilter.includes(attribute)) observer.callback();
     }
   }
-  return { giftBlindbox, eventBus, requests, body,
+  return { initBlindBoxStats, eventBus, requests, body,
+    bodyListenerCount: () => bodyListeners.size,
     setActive(value) { page.classList.toggle('active', value); changed(page, 'class'); },
     setCollapsed(value) { section.classList.toggle('is-collapsed', value); changed(section, 'class'); },
     setAnalysisOpen(value) { workspace.hidden = !value; changed(workspace, 'hidden'); },
     setHidden(value) { document.hidden = value; documentListeners.get('visibilitychange')?.(); },
-    close() { windowListeners.get('pagehide')?.(); },
+    close() { dispose(); },
     async finish(index, data = empty) {
       requests[index].resolve(response({ ok: true, data }));
       await new Promise(setImmediate);
@@ -86,7 +93,7 @@ function statsFor(userName) {
 }
 
 test('visible blind box summary requests the displayed ranking and coalesces in-flight updates', async () => {
-  const { giftBlindbox, eventBus, requests, body, finish } = await createStatsHarness();
+  const { initBlindBoxStats, eventBus, requests, body, finish } = await createStatsHarness();
 
   assert.equal(requests.length, 1);
   assert.equal(new URL(requests[0].url, 'http://localhost').searchParams.get('top'), '10');
@@ -104,7 +111,7 @@ test('visible blind box summary requests the displayed ranking and coalesces in-
   await finish(2, statsFor('Test viewer'));
   assert.match(body.innerHTML, /Test viewer/);
 
-  giftBlindbox.initBlindBoxStatsToggle();
+  initBlindBoxStats();
   assert.equal(eventBus.listenerCount('gift:received'), 1);
   assert.equal(requests.length, 3);
   eventBus.emit('gift:received', { reason: 'database:clear-gifts' });
@@ -149,12 +156,19 @@ test('hidden blind box summary defers invalidation and rejects reads from an ear
   const html = f.body.innerHTML;
   f.close();
   assert.equal(f.requests[4].signal.aborted, true);
+  assert.equal(f.bodyListenerCount(), 0, 'disposal releases row click and keyboard listeners');
   received();
   f.setHidden(true);
   f.setHidden(false);
   assert.equal(f.requests.length, 5, 'closed pages release refresh triggers');
   await f.finish(4, statsFor('Closed viewer'));
   assert.equal(f.body.innerHTML, html);
+  const disposeAgain = f.initBlindBoxStats();
+  assert.equal(f.eventBus.listenerCount('gift:received'), 1);
+  assert.equal(f.bodyListenerCount(), 2);
+  assert.equal(f.requests.length, 6, 'remounting resumes a visible panel once');
+  disposeAgain();
+  assert.equal(f.requests[5].signal.aborted, true);
 });
 
 test('a failed blind box read waits for the next invalidation before retrying', async () => {

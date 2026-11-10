@@ -24,8 +24,7 @@ import { createBilibiliRoomProfile } from './settings-room-profile.js';
 import { initGuardExpirySettings } from './settings-guard-expiry.js';
 import { eventBus, Events } from '../shared/event-bus.js';
 import { stateService } from './state.js';
-import { formsService } from './forms.js';
-import { renderState } from './queue.js';
+import { renderQueuePanels } from './state-renderer.js';
 import { giftBlindbox } from './gifts/blindbox.js';
 
 const documentRef = document;
@@ -36,8 +35,7 @@ const alertRef = typeof alert === 'undefined' ? () => {} : (...args) => alert(..
 const fetchRef = typeof fetch === 'undefined' ? null : fetch;
 
 const getState = () => stateService;
-const getQueue = () => ({ renderState });
-const getForms = () => formsService;
+const getQueue = () => ({ renderState: renderQueuePanels });
 const getGifts = () => giftBlindbox;
 const saveSettings = (updates) => api('/api/settings', updates);
 
@@ -56,7 +54,6 @@ const operations = createSettingsOperations({
   showConfirmationDialog,
   getState,
   getQueue,
-  getForms,
 });
 const blindboxSettings = createBlindboxSettings({
   documentRef,

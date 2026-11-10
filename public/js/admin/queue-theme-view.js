@@ -7,7 +7,7 @@ import { componentSaveMessage } from './component-config-controller.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { setOverlayStyle } from './theme-style-view.js';
 import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
-import { collectQueueTheme, pickQueueSettings, QUEUE_STYLE_CONTROLS } from './queue-theme-config.js';
+import { collectQueueTheme, pickQueueSettings, queueThemeControlValues } from './queue-theme-config.js';
 
 const RANGE_PAIRS = [
   ['themeOpacity', 'themeOpacityNumber', 0, 1, 0.48, 100],
@@ -26,7 +26,7 @@ export function bindQueueTheme(root, controller) {
   const unregisterFonts = ['overlayFontFamily', 'illustratedQueueFontFamily'].map(id => registerFontSelect(node(id)));
   for (const [rangeId, numberId, min, max, fallback, scale = 1] of RANGE_PAIRS) {
     const range = node(rangeId), number = node(numberId);
-    range.addEventListener('input', () => { number.value = String(Number(range.value) * scale); });
+    range.addEventListener('input', () => { number.value = String(Number((Number(range.value) * scale).toFixed(6))); });
     number.addEventListener('input', () => {
       if (!number.value || !number.checkValidity()) return;
       range.value = normalizeRangeValue(Number(number.value) / scale, min, max, fallback);
@@ -61,9 +61,11 @@ export function bindQueueTheme(root, controller) {
     const { draft } = state;
     const active = readQueueStyleSettings(draft, draft.overlayQueueStyle);
     const fontFamily = active.style === 'identity' ? active.fontFamily : draft.overlayFontFamily;
+    const controls = queueThemeControlValues(draft);
+    ensureSavedFontOption(node('illustratedQueueFontFamily'), active.fontFamily);
     ensureSavedFontOption(node('overlayFontFamily'), fontFamily);
     syncComponentFieldValue(node('overlayFontFamily'), fontFamily);
-    for (const [key, value] of Object.entries(draft)) {
+    for (const [key, value] of Object.entries({ ...draft, ...controls })) {
       if (key === 'overlaySongColor' || key === 'overlayRequesterColor' || key === 'overlayFontFamily') continue;
       const control = node(key);
       if (control) syncComponentFieldValue(control, value);
@@ -73,11 +75,9 @@ export function bindQueueTheme(root, controller) {
       syncComponentFieldValue(node(`${key}Mode`), draft[key] ? 'custom' : 'inherit');
       syncComponentFieldValue(node(key), draft[key] || draft.themeText || '#fff7fb');
     }
-    ensureSavedFontOption(node('illustratedQueueFontFamily'), active.fontFamily);
-    for (const [field, id] of Object.entries(QUEUE_STYLE_CONTROLS)) syncComponentFieldValue(node(id), active[field]);
-    node('queueScrollSpeedRange').value = draft.queueScrollSpeed;
-    node('identityQueueScrollSpeedRange').value = active.scrollSpeed;
-    for (const [rangeId, numberId, , , , scale = 1] of RANGE_PAIRS) syncComponentFieldValue(node(numberId), Number(node(rangeId).value) * scale);
+    node('queueScrollSpeedRange').value = controls.queueScrollSpeed;
+    node('identityQueueScrollSpeedRange').value = controls.identityQueueScrollSpeed;
+    for (const [rangeId, numberId, , , , scale = 1] of RANGE_PAIRS) syncComponentFieldValue(node(numberId), Number((Number(node(rangeId).value) * scale).toFixed(6)));
     setOverlayStyle(draft.overlayQueueStyle, root, draft.resourceStyle?.preset);
     initParameterRanges(root);
     const save = node('queueThemeSave');

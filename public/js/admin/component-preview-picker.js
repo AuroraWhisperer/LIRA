@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 import { mountBrowserSourceFields } from './browser-source-preview.js';
 import { createTextBoxDefaults } from '../shared/text-box-config.js';

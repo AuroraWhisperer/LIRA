@@ -25,6 +25,51 @@ test('UID refresh targets exclude roster members, archives, blacklists, unbound 
   }]);
 });
 
+test('rebinding a UID clears current platform state while preserving private history through backup restore', (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ notes: '私人备注', preferredFormerName: '手动展示名', formerNames: ['手动曾用名'] });
+  f.service.importGuardRoster(SCOPE, roster([
+    { uid: IDENTITY.value, name: '原账号', avatar: 'https://i0.hdslb.com/bfs/face/original.jpg',
+      level: 1, medalLevel: 35, accompanyDays: 100 },
+  ]));
+  const before = f.detail(p.id);
+  const edited = f.run('save', { id: p.id, revision: before.revision, identity: IDENTITY, summary: '手写简介' });
+  assert.equal(edited.currentGuardLevel, 1);
+  assert.equal(edited.platformName, '原账号');
+  const reboundIdentity = { ...IDENTITY, value: '900000002' };
+  const rebound = f.run('save', { id: p.id, revision: edited.revision, identity: reboundIdentity });
+  assert.equal(rebound.currentGuardLevel, null);
+  assert.equal(f.run('list').profiles.find(item => item.id === p.id).medalLevel, null);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 0);
+  assert.equal(rebound.platformName, '');
+  assert.equal(rebound.avatar, '');
+  assert.equal(rebound.guardAccompany, null);
+  assert.equal(rebound.alias, p.alias);
+  assert.equal(rebound.notes, '私人备注');
+  assert.equal(rebound.summary, '手写简介');
+  assert.equal(rebound.formerName, '手动展示名');
+  assert.ok(rebound.formerNames.includes('手动曾用名'));
+  assert.deepEqual(rebound.records, before.records);
+  const backup = f.run('backup');
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  f.restart();
+  assert.equal(f.detail(p.id).currentGuardLevel, null);
+  assert.equal(f.run('list').profiles.find(item => item.id === p.id).medalLevel, null);
+
+  // The new identity's earlier observation must not be blocked by the old identity's timestamp.
+  f.service.importGuardRoster(SCOPE, { ...roster([
+    { uid: reboundIdentity.value, name: '新账号', avatar: 'https://i0.hdslb.com/bfs/face/new.jpg', level: 3, medalLevel: 5 },
+  ]), observedAt: '2026-09-17T04:00:00.000Z' });
+  const refreshed = f.detail(p.id);
+  assert.equal(refreshed.currentGuardLevel, 3);
+  assert.equal(refreshed.platformName, '新账号');
+  assert.equal(refreshed.avatar, 'https://i0.hdslb.com/bfs/face/new.jpg');
+  assert.equal(f.run('list').profiles.find(item => item.id === p.id).medalLevel, 5);
+  assert.deepEqual(refreshed.records.find(record => record.id === before.records[0].id), before.records[0]);
+  f.service.importGuardRoster(SCOPE, { ...roster([]), observedAt: '2026-09-19T04:00:00.000Z' });
+  assert.equal(f.detail(p.id).currentGuardLevel, null);
+});
+
 test('off-roster UID refresh updates identity and name history while preserving private fields and guard history', (t) => {
   const f = fanFixture(t);
   const original = f.create({ notes: '保留备注', summary: '常听民谣' });
@@ -375,6 +420,49 @@ test('old backups derive roster roles without requiring new fields and reject in
   const invalid = f.run('backup');
   invalid.profiles[0].guardRoster = { roomId: '1234', ownerUid: '99', observedAt: NOW, level: 4 };
   assert.throws(() => f.run('preview-restore', { backup: invalid }), /大航海名单/);
+});
+
+test('legacy roster fallback and medals require the current typed identity after restore', (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, roster([{ uid: IDENTITY.value, name: '原账号', level: 1, medalLevel: 35 }]));
+  const backup = f.run('backup');
+  const profile = backup.profiles[0];
+  delete profile.guardRoster;
+  profile.identity = { ...IDENTITY, type: 'open_id' };
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(f.detail(profile.id).currentGuardLevel, null);
+  assert.equal(f.run('list').profiles[0].medalLevel, null);
+  assert.equal(f.detail(profile.id).records[0].original.identity.type, 'uid');
+});
+
+test('legacy rebound snapshots use source identity even when same-day imports deduplicated the latest record', (t) => {
+  const f = fanFixture(t);
+  const members = [{ uid: IDENTITY.value, name: '原账号', level: 1, medalLevel: 35 }];
+  f.service.importGuardRoster(SCOPE, roster(members));
+  f.service.importGuardRoster(SCOPE, { ...roster(members), observedAt: '2026-09-18T05:00:00.000Z' });
+  const backup = f.run('backup');
+  const profile = backup.profiles[0];
+  const before = f.detail(profile.id);
+  assert.equal(profile.records.length, 1);
+  // Older releases retained the roster snapshot when changing a binding.
+  profile.identity = { ...IDENTITY, value: '900000002' };
+  delete profile.guardAccompany;
+  delete profile.lastEntry;
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  f.restart();
+  assert.equal(f.detail(profile.id).currentGuardLevel, null);
+  assert.equal(f.run('list', { filters: ['active'] }).profiles.length, 0);
+  assert.equal(f.run('list').profiles[0].medalLevel, null);
+  assert.deepEqual(f.detail(profile.id).records, before.records);
+});
+
+test('snapshot-only backups preserve a confirmed role when no identity evidence can invalidate it', (t) => {
+  const f = fanFixture(t);
+  f.service.importGuardRoster(SCOPE, roster());
+  const backup = f.run('backup');
+  backup.profiles[0].records = [];
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+  assert.equal(f.detail(backup.profiles[0].id).currentGuardLevel, 3);
 });
 
 test('repeated same-day imports retain an actual level change back to a previously observed level', (t) => {

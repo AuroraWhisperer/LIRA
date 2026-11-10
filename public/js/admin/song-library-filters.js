@@ -186,7 +186,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
     if (!optionsChanged('categories', names)) return;
     options.innerHTML =
       names.length === 0
-        ? '<span class="lira-select-empty">暂无分类</span>'
+        ? '<span class="lira-select-empty">暂无曲风</span>'
         : names
             .map(
               (name) => `
@@ -202,7 +202,7 @@ export function createSongLibraryFilters({ value, escapeHtml, escapeAttr, deboun
 
   function updateCategoryFilterSummary() {
     const selected = readSelectedCategories();
-    document.getElementById('categoryFilterSummary').textContent = selected.length ? selected.join('、') : '全部分类';
+    document.getElementById('categoryFilterSummary').textContent = selected.length ? selected.join('、') : '全部曲风';
     document.getElementById('clearCategoryFilter').disabled = selected.length === 0;
   }
 

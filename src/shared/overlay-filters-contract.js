@@ -54,7 +54,7 @@ function sanitizeOverlayFilters(value) {
 
 function sanitizeOverlayViewers(value) {
   if (typeof value?.roomId !== 'string' || !/^[1-9]\d{0,19}$/u.test(value.roomId)) fail('INVALID_RESPONSE');
-  return { ok: true, roomId: value.roomId, viewers: sanitizeUsers(value.viewers, 150, 'INVALID_RESPONSE') };
+  return { ok: true, roomId: value.roomId, viewers: sanitizeUsers(value.viewers, 200, 'INVALID_RESPONSE') };
 }
 
 module.exports = { overlayFilterParameters, sanitizeOverlayFilters, sanitizeOverlayViewers };

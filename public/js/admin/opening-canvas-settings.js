@@ -1,5 +1,5 @@
 import { openingAppearanceFields } from '../shared/opening-appearance.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { syncComponentFieldValue } from './component-preview-panel.js';
 import { appendSceneParameterControl, groupSceneExtraParameters } from './scene-extra-parameter-layout.js';
 

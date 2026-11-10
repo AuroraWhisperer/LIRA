@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { mountComponentStyleLibrary, openComponentStyleLibrary } from './component-style-library.js';
 import { openComponentLibraryManager } from './component-library-manager.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';

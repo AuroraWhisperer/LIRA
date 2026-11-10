@@ -234,7 +234,10 @@ test('legacy moon clock settings remain editable, publish and alternate tones au
   fixture.configs.clock = require('../../src/server/clock-contract').getClockConfig(fixture.runtime.settings);
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const errors = [];
+  let releaseModeAck;
+  const modeAckReleased = new Promise(resolve => { releaseModeAck = resolve; });
   t.after(async () => {
+    releaseModeAck();
     await context.close();
     await fixture.close();
     assert.deepEqual(errors, []);
@@ -244,6 +247,22 @@ test('legacy moon clock settings remain editable, publish and alternate tones au
   page.on('pageerror', error => errors.push(error.message));
   desktop.on('pageerror', error => errors.push(error.message));
   page.setDefaultTimeout(5000);
+  desktop.setDefaultTimeout(5000);
+  let holdModeAck = true;
+  let receiveModeAck;
+  const modeAckHeld = new Promise(resolve => { receiveModeAck = resolve; });
+  await page.route('**/api/component-preview', async route => {
+    if (!holdModeAck || route.request().postDataJSON().action !== 'read-batch') return route.continue();
+    const response = await route.fetch();
+    const payload = await response.json();
+    const clock = payload.data?.updates?.find(update => update.state?.draft?.moonMode === 'auto');
+    if (clock) {
+      holdModeAck = false;
+      receiveModeAck(clock);
+      await modeAckReleased;
+    }
+    await route.fulfill({ response });
+  });
   const url = await openCanvasDesktop(desktop, fixture, 'clock');
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
@@ -253,12 +272,23 @@ test('legacy moon clock settings remain editable, publish and alternate tones au
   const interval = page.locator('[data-preview-field="clockMoonIntervalSeconds"]');
   await frame.locator('#clockCard[data-moon-tone="light"]').waitFor();
   await mode.selectOption('auto', { force: true });
-  await interval.fill('2');
+  const clockAck = await modeAckHeld;
+  await interval.fill('02');
+  const ackConsumed = page.waitForRequest(request => {
+    if (!request.url().endsWith('/api/component-preview')) return false;
+    const body = request.postDataJSON();
+    return body?.action === 'read-batch' && body.entries.some(entry => entry.id === clockAck.id
+      && entry.stateRevision === clockAck.stateRevision && entry.ack === clockAck.ack);
+  });
+  releaseModeAck();
+  await ackConsumed;
+  assert.equal(await interval.inputValue(), '02', 'a delayed mode acknowledgement preserves the focused interval edit');
   await interval.press('Tab');
   await desktop.waitForFunction(() => {
     const draft = window.controllers.clock.getState().draft;
     return draft.moonMode === 'auto' && draft.moonIntervalSeconds === 2;
   });
+  assert.equal(await interval.inputValue(), '2', 'leaving the field restores the normalized committed value');
   // The fixture's controller returns its draft; mirror the pending write into
   // its synthetic runtime for the shared-scene publication consistency check.
   const { clockSettingsPayload } = require('../../public/js/shared/clock-settings.js');

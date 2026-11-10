@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { pathToFileURL } = require('node:url');
 const { FakeNode } = require('../helpers/fake-dom');
+const { createSceneDanmakuDisplay } = require('../../public/js/overlays/scene-danmaku-display.js');
 
 function fixture(loadProfile) {
   const nodes = new Map();
@@ -36,6 +37,22 @@ test('authorized scene projection updates its owner without HTTP and rejects mis
   assert.notEqual(f.node('twitterProfileName').textContent, '其他房主');
   assert.doesNotMatch(f.node('twitterProfileUid').textContent, /private/);
   f.profile.dispose();
+});
+
+test('scene short-room projections render their verified canonical owner and clear unavailable profiles', async t => {
+  const f = await fixture(() => assert.fail('Scene frames must never fetch a room profile'));
+  t.after(() => f.profile.dispose());
+  const display = createSceneDanmakuDisplay({ clear() {}, append() {}, status() {}, getStyle: () => 'twitter',
+    room: (roomId, profile) => f.profile.update('twitter', roomId, profile) });
+  const snapshot = { status: 'connected', epoch: 'owner:1',
+    state: { liveStatus: 1, liveSessionId: 'live', roomGuard: { roomId: '100' } },
+    roomProfile: { roomId: '100000', uid: '456', name: '已验证房主' }, events: [] };
+  display.update(snapshot);
+  assert.equal(f.node('twitterProfileName').textContent, '已验证房主');
+  assert.equal(f.node('twitterProfileUid').textContent, '@456');
+  display.update({ ...snapshot, roomProfile: null });
+  assert.notEqual(f.node('twitterProfileName').textContent, '已验证房主');
+  assert.doesNotMatch(f.node('twitterProfileUid').textContent, /456/);
 });
 
 test('Twitter preview never loads a room profile', async () => {

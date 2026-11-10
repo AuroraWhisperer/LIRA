@@ -1,5 +1,5 @@
 import { CANVAS_PRESETS } from '../shared/canvas-presets.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { resizeSceneCanvas } from './scene-document-model.js';
 
 export function mountPreviewCanvasSettings(host, { model, report }) {

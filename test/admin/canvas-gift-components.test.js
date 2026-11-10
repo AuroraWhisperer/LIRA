@@ -135,12 +135,12 @@ test('sprint opens from its component tab, saves a canvas layer and follows live
   await desktop.evaluate(async html => {
     document.body.innerHTML = html;
     document.getElementById('giftSprintFeature').hidden = false;
-    const { initGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
+    const { initGiftSprintOverlay } = await import('/js/admin/gifts/sprint.js');
     initGiftSprintOverlay();
     window.externalPreviewUrl = '';
   }, fs.readFileSync('public/pages/admin/live-components/gift-sprint.html', 'utf8'));
   await desktop.evaluate(async () => {
-    const { renderGiftSprintOverlay } = await import('/js/admin/gifts/sprint-overlay.js');
+    const { renderGiftSprintOverlay } = await import('/js/admin/gifts/sprint.js');
     renderGiftSprintOverlay({ targetRmb: 1000, remainingCrystalBalls: 7 });
   });
   await desktop.locator('#giftSprintPreview').click();

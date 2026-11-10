@@ -188,7 +188,6 @@ async function loadOvertimeModule({ document, window, state, saleGifts }) {
   for (const specifier of [
     '../shared/gift-image-fallback.js',
     '../shared/gift-catalog-roles.js',
-    './overtime-gift-identity.js',
   ]) {
     const file = path.resolve(path.dirname(OVERTIME_ENTRY), specifier);
     dependencies[specifier] = new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), {

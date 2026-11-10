@@ -1,7 +1,7 @@
 'use strict';
 
 const { normalizeGiftRow } = require('./normalizer');
-const { now, normalizeMoney } = require('../../shared/utils');
+const { now } = require('../../shared/utils');
 const { canonicalGiftId, canonicalGiftText, canonicalCoinType } = require('../../shared/processed-gift-contract');
 const { resolveGiftSourceScope } = require('./source-scope');
 const {
@@ -12,12 +12,10 @@ const {
   queryError,
 } = require('./history-filters');
 
-const CRYSTAL_BALL_VALUE_RMB = 100;
 const DEFAULT_HISTORY_LIMIT = 50;
 const MAX_HISTORY_LIMIT = 100;
 const MAX_SEARCH_LENGTH = 100;
 const MAX_CURSOR_LENGTH = 4096;
-const sprintAggregates = new WeakMap();
 const DEFAULT_HISTORY_SORT_FIELD = 'created_at';
 const DEFAULT_HISTORY_SORT_DIRECTION = 'desc';
 const HISTORY_SORT_FIELDS = Object.freeze(['created_at', 'gift_name', 'price', 'remarks']);
@@ -38,19 +36,6 @@ const GIFT_RANGES = Object.freeze({
   all: null,
   today: 0,
 });
-function resetGiftSprintProgress(context) {
-  const sourceScope = resolveGiftSourceScope(context);
-  const changedCount = context.queryStore.resetSprint({
-    sourceScope,
-    updatedAt: now(),
-  });
-  return {
-    reset: true,
-    changedCount: Number(changedCount || 0),
-    giftSprint: getGiftSprintSnapshot(context),
-  };
-}
-
 function getGiftSnapshot(context) {
   const sourceScope = resolveGiftSourceScope(context);
   const recent = context.queryStore.listRecent({ sourceScope, limit: 30 }).map(normalizeGiftRow);
@@ -177,31 +162,6 @@ function getGiftStatistics(context, options = {}) {
       bucketStart: String(row.bucketStart || ''),
       ...mapIntegerFields(row, GIFT_METRIC_FIELDS),
     })),
-  };
-}
-
-function getGiftSprintSnapshot(context) {
-  const settings = context.settings();
-  const targetRmb = normalizeMoney(settings.giftSprintTargetRmb);
-  const sourceScope = resolveGiftSourceScope(context);
-  const store = context.queryStore;
-  const revision = store.getChangeToken?.('sprint');
-  const key = revision == null || sourceScope.kind === 'unavailable' ? null : JSON.stringify([sourceScope, revision]);
-  const cached = sprintAggregates.get(store);
-  const row = key !== null && cached?.key === key ? cached.row : store.readSprint(sourceScope);
-  if (key !== null) sprintAggregates.set(store, { key, row });
-  else sprintAggregates.delete(store);
-  const receivedRmb = normalizeMoney(row.receivedRmb);
-  const remainingRmb = Math.max(0, normalizeMoney(targetRmb - receivedRmb));
-
-  return {
-    enabled: settings.enableGiftSprint === 'true',
-    targetRmb,
-    receivedRmb,
-    remainingRmb,
-    crystalBallValueRmb: CRYSTAL_BALL_VALUE_RMB,
-    remainingCrystalBalls: Math.ceil(remainingRmb / CRYSTAL_BALL_VALUE_RMB),
-    countedGiftCount: Number(row.countedGiftCount || 0),
   };
 }
 
@@ -473,12 +433,9 @@ function normalizeOptionalIsoTimestamp(value) {
 module.exports = {
   getGiftSelection,
   getGiftViewRevision,
-  CRYSTAL_BALL_VALUE_RMB,
-  resetGiftSprintProgress,
   getGiftSnapshot,
   getGiftHistory,
   getGiftStatistics,
-  getGiftSprintSnapshot,
   searchGifts,
   clearRecentGifts,
   normalizeHistorySortField,

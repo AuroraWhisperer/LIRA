@@ -49,8 +49,10 @@ test(
       'audio-legacy',
       'audio-silent-timeout',
       'audio-multiple',
+      'audio-multiple-slow-discovery',
       'audio-failed-process-check',
       'audio-component',
+      'audio-component-slow-discovery',
       'audio-component-selected-directory',
       'audio-component-other-directory',
     ]) {
@@ -59,15 +61,19 @@ test(
         const installDir = path.join(root, '旧版 LIRA');
         const newInstallDir = path.join(root, '新版 LIRA');
         const otherDir = scenario.endsWith('other-directory-prefix') ? newInstallDir + '-other' : path.join(root, 'other-application');
-        const dataDir = path.join(scenario === 'audio-component-selected-directory' ? newInstallDir : installDir, 'data');
+        const dataDir = path.join(['audio-component-selected-directory', 'audio-multiple-slow-discovery'].includes(scenario)
+          ? newInstallDir : installDir, 'data');
         const dataFile = path.join(dataDir, 'fixture.txt');
+        const secondDataFile = path.join(dataDir, 'second-fixture.txt');
         const backup = newInstallDir + '.lira-data-backup';
         const ready = path.join(root, 'ready.txt');
         const requests = path.join(root, 'close-requests.txt');
         const prompts = path.join(root, 'prompts.txt');
+        const audioTrace = path.join(root, 'audio-exit-trace.txt');
         const preserved = path.join(root, 'preserved.txt');
         const appName = path.basename(root) + '.exe';
         const audio = scenario.startsWith('audio-');
+        const multipleAudio = scenario.startsWith('audio-multiple');
         const unrelated = scenario.includes('other-directory');
         const noApp = scenario === 'no-running-app';
         const windowless = scenario === 'windowless';
@@ -101,14 +107,21 @@ test(
             `FileWrite $9 "${value}$\\r$\\n"`,
             'FileClose $9',
           ].join('\n');
+        const traceAudio = value => [
+          'Push $8', 'Push $9',
+          "System::Call 'kernel32::GetTickCount() i.r8'",
+          record(audioTrace, '$8 ' + value),
+          'Pop $9', 'Pop $8',
+        ].join('\n');
 
         try {
           for (const directory of [dataDir, newInstallDir, otherDir, appDirectory]) fs.mkdirSync(directory, { recursive: true });
           fs.writeFileSync(dataFile, 'before close');
+          if (scenario === 'audio-multiple-slow-discovery') fs.writeFileSync(secondDataFile, 'before close');
 
-          // Only dialog responses are simulated; close requests, process checks,
-          // delayed final writes and backup all execute through native Windows APIs.
-          const functions = (checkFails
+          // Close requests, process checks, final writes and backup use native APIs;
+          // individual failure/latency cases inject only their named condition.
+          let functions = (checkFails
             ? source.replace("System::Call 'kernel32::CreateToolhelp32Snapshot(i 2, i 0) p.r0 ?e'", 'StrCpy $0 -1\nPush 5')
             : source)
             .replaceAll('LiraAudioAssistant.exe', audio ? appName : 'LiraAudioAssistant.exe')
@@ -133,6 +146,37 @@ test(
                 return `DetailPrint ${message}`;
               },
             );
+          if (scenario === 'audio-component-slow-discovery') {
+            // Process discovery can consume the former entire exit budget before
+            // a healthy helper has even received its first shutdown event.
+            functions = functions.replace('Function ${LIRA_PROCESS_PREFIX}liraFindAudioProcess', [
+              'Function ${LIRA_PROCESS_PREFIX}liraFindAudioProcess',
+              '    StrCmp $fixtureDiscoveryDelayed 1 fixtureDiscoveryDone',
+              '    StrCpy $fixtureDiscoveryDelayed 1',
+              '    Sleep 10500',
+              '    fixtureDiscoveryDone:',
+            ].join('\n'));
+          }
+          if (scenario === 'audio-multiple-slow-discovery') {
+            const openEvent = '    System::Call \'kernel32::OpenEventW(i 2, i 0, w "Local\\LiraAudioAssistant-Install-$liraProcessId") p.R1 ?e\'';
+            functions = functions.replace(openEvent, [
+              '    StrCmp $fixtureFirstAudioPid "" 0 fixtureCompareAudioPid',
+              '    StrCpy $fixtureFirstAudioPid $liraProcessId',
+              '    fixtureCompareAudioPid:',
+              '    StrCmp $liraProcessId $fixtureFirstAudioPid fixtureAudioDelayDone',
+              '    StrCmp $fixtureSecondAudioDelayed 1 fixtureAudioDelayDone',
+              '    StrCpy $fixtureSecondAudioDelayed 1',
+              '    Sleep 10500',
+              '    fixtureAudioDelayDone:',
+              openEvent,
+            ].join('\n'));
+          }
+          functions = functions
+            .replaceAll('    Call ${LIRA_PROCESS_PREFIX}liraFindAudioProcess',
+              '    Call ${LIRA_PROCESS_PREFIX}liraFindAudioProcess\n' + traceAudio('lookup=$R0 pid=$liraProcessId'))
+            .replace("    System::Call 'kernel32::SetEvent(p R1) i.R0'",
+              "    System::Call 'kernel32::SetEvent(p R1) i.R0'\n" + traceAudio('signal=$R0 pid=$liraProcessId'))
+            .replace('  liraAudioExitTimeout:', '  liraAudioExitTimeout:\n' + traceAudio('timeout elapsed=$R1'));
           assert.doesNotMatch(functions, /\$(?:APPDATA|TEMP|LOCALAPPDATA)\b|ReadReg|WriteReg|DeleteReg/);
           compile('installer', [
             'Unicode true',
@@ -147,11 +191,17 @@ test(
             `!define FIXTURE_APPDATA "${quote(path.join(root, 'roaming'))}"`,
             `!define FIXTURE_TEMP "${quote(root)}"`,
             'Var fixtureRetries',
+            'Var fixtureDiscoveryDelayed',
+            'Var fixtureFirstAudioPid',
+            'Var fixtureSecondAudioDelayed',
             functions,
             'Function .onInit',
             `StrCpy $INSTDIR "${quote(newInstallDir)}"`,
             `StrCpy $liraPreviousInstallDir "${quote(installDir)}"`,
             'StrCpy $fixtureRetries 0',
+            'StrCpy $fixtureDiscoveryDelayed 0',
+            'StrCpy $fixtureFirstAudioPid ""',
+            'StrCpy $fixtureSecondAudioDelayed 0',
             `SetSilent ${silent ? 'silent' : 'normal'}`,
             'Call liraWaitForAppExit',
             // Do not show the unrelated preservation banner in fixtures.
@@ -216,7 +266,12 @@ test(
             ]),
             'fixtureExit:',
             'Sleep 600',
-            `FileOpen $9 "${quote(dataFile)}" w`,
+            ...(scenario === 'audio-multiple-slow-discovery' ? [
+              `StrCpy $8 "${quote(dataFile)}"`,
+              `StrCmp $EXEDIR "${quote(appDirectory)}" +2`,
+              `StrCpy $8 "${quote(secondDataFile)}"`,
+              'FileOpen $9 "$8" w',
+            ] : [`FileOpen $9 "${quote(dataFile)}" w`]),
             'FileWrite $9 "saved before exit"',
             'FileClose $9',
             audio ? '' : 'System::Free $2',
@@ -235,8 +290,15 @@ test(
             while (!fs.existsSync(ready) && Date.now() < deadline && holder.exitCode === null)
               await new Promise((resolve) => setTimeout(resolve, 25));
             assert.ok(fs.existsSync(ready), 'the isolated application process must be ready');
-            if (scenario === 'audio-multiple') {
-              secondHolder = spawn(appFile, ['/S'], { windowsHide: true, stdio: 'ignore' });
+            if (multipleAudio) {
+              let secondAppFile = appFile;
+              if (scenario === 'audio-multiple-slow-discovery') {
+                const componentDirectory = path.join(newInstallDir, 'data/components/audio/0123456789abcdef01234567');
+                fs.mkdirSync(componentDirectory, { recursive: true });
+                secondAppFile = path.join(componentDirectory, appName);
+                fs.copyFileSync(appFile, secondAppFile);
+              }
+              secondHolder = spawn(secondAppFile, ['/S'], { windowsHide: true, stdio: 'ignore' });
               const secondDeadline = Date.now() + 10000;
               while (fs.readFileSync(ready, 'utf8').trim().split('\r\n').length < 2
                 && Date.now() < secondDeadline && secondHolder.exitCode === null)
@@ -255,17 +317,21 @@ test(
             installer.once('close', resolve);
           });
           const succeeds = noApp || unrelated || ['approved', 'selected-directory', 'retry', 'silent-exit', 'visible-update',
-            'audio-approved', 'audio-selected-directory', 'audio-silent', 'audio-multiple',
-            'audio-component', 'audio-component-selected-directory'].includes(scenario);
+            'audio-approved', 'audio-selected-directory', 'audio-silent', 'audio-multiple', 'audio-multiple-slow-discovery',
+            'audio-component', 'audio-component-slow-discovery', 'audio-component-selected-directory'].includes(scenario);
           const report = path.join(root, 'LIRA-install-error.txt');
           assert.equal(
             status,
             succeeds ? 0 : 2,
-            fs.existsSync(report) ? fs.readFileSync(report, 'utf16le') : scenario,
+            [scenario, fs.existsSync(report) ? fs.readFileSync(report, 'utf16le') : '',
+              fs.existsSync(audioTrace) ? fs.readFileSync(audioTrace, 'utf8') : '',
+              fs.existsSync(prompts) ? fs.readFileSync(prompts, 'utf8') : ''].join('\n'),
           );
           assert.equal(fs.existsSync(preserved), succeeds);
           if (succeeds) {
             assert.equal(fs.readFileSync(preserved, 'utf8'), noApp || unrelated ? 'before close' : 'saved before exit');
+            if (scenario === 'audio-multiple-slow-discovery')
+              assert.equal(fs.readFileSync(path.join(backup, 'second-fixture.txt'), 'utf8'), 'saved before exit');
             if (unrelated) assert.equal(holder.exitCode, null, 'another installation must keep running');
           } else {
             assert.equal(fs.existsSync(backup), false);
@@ -284,7 +350,7 @@ test(
             assert.equal(fs.existsSync(requests), false, 'no close request should be sent');
           } else {
             const received = fs.readFileSync(requests, 'utf8').trim().split('\r\n');
-            assert.equal(received.length, audio ? scenario === 'audio-multiple' ? 2 : 1 : scenario === 'retry' ? 4 : 2);
+            assert.equal(received.length, audio ? multipleAudio ? 2 : 1 : scenario === 'retry' ? 4 : 2);
           }
         } finally {
           for (const process of [holder, secondHolder]) {

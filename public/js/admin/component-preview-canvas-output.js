@@ -1,4 +1,4 @@
-import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
+import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { copyText, localOverlayOrigin } from '../shared/utils.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
 import { sceneSourceUrl } from './scene-source-url.js';

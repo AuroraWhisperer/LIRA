@@ -1,6 +1,6 @@
 import { createTextBoxDefaults, TEXT_BOX_SIZE, TEXT_BOX_SCROLL_SPEED } from '../shared/text-box-config.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { mountTextBoxEditor } from './text-box-editor.js';
 import { mountTextBoxMedia } from './text-box-media.js';
 

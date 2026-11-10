@@ -55,7 +55,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `blindBoxMapping` | `blindBoxMappingState` | 当前盲盒映射配置与同步状态 |
 | `overtime`            | `domainServices.overtime.getSnapshot()`    | 加班机状态,见 [overtime.md](overtime.md)                                                                          |
 | `settings`            | `settingsStore.getSettings()`              | 全部设置键值,见 [storage.md](storage.md)                                                                          |
-| `categories`          | `domainServices.songs.getMetadata()`    | 歌曲分类                                                                                                          |
+| `categories`          | `domainServices.songs.getMetadata()`    | 曲风                                                                                                          |
 | `tags`                | `domainServices.songs.getMetadata()`          | 歌曲标签                                                                                                          |
 | `songCount`           | `domainServices.songs.getMetadata()`             | 曲库歌曲总数                                                                                                      |
 | `roomGuard` | `bilibiliRuntime.getRoomGuardState()` | 当前配置直播间的 `{ roomId, count }`；人数未知为 `null`，变化原因 `bilibili:room-guard` |

@@ -1,4 +1,4 @@
-import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
+import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { loadComponentStyleCss, requestComponentStyles } from './component-style-api.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 

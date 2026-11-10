@@ -45,7 +45,7 @@
 [json-response.js](../../../public/js/shared/json-response.js) 拥有无 UI 依赖的 JSON 解析与信封验证。`assertApiResponse(response,payload,message)` 统一检查 HTTP/业务失败，错误保留 status、code 和 payload；`readApiResponse` 读取 JSON 后应用同一规则。原 `utils.readJsonResponse` 继续转出带正文预览的解析器，保持空成功响应返回 `{}` 的兼容语义。场景、组件样式、开播设置、礼物许愿和弹幕工具共用验证；各调用方仍拥有提示、取消/超时、认证、上传格式、领域错误字段及成功事件，二进制下载先在领域模块处理。
 
 - 普通 JSON `/api/*` 接口通常成功返回 `{ok:true, data:…}`、失败返回 `{ok:false, error:…}`，具体形状由领域 handler 构造，例外以 [API 注册表](../backend/api.md) 为准。`sendJson` 只序列化传入 payload 并设置响应头，不自动添加 `ok` 或 `data`。
-- 前端错误呈现:普通失败 `toast(错误信息)`;表单提交失败走 `showError`;直播刷新失败走 `forms.reconnectErrorMessage()` 把网络类错误翻译成可操作文案([forms.js:316-325](../../../public/js/admin/forms.js#L316-L325))。
+- 前端错误呈现:普通失败 `toast(错误信息)`;表单提交失败走 `showError`;直播刷新失败由 [settings-operations.js](../../../public/js/admin/settings-operations.js) 内的 `reconnectErrorMessage()` 把网络类错误翻译成可操作文案。
 - 404/501 探测:`ProviderManager` 把 `auth-state` 类可选接口的 404/501 标记为"不可用",避免重复请求([provider/manager.js:86-100](../../../public/js/playback/provider/manager.js#L86-L100))。
 
 ### 2.3 状态获取与乐观更新

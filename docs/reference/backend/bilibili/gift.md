@@ -63,7 +63,9 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
   │    └─ ConsumerRegistry.dispatch(toStandardEvent) 扇出标准事件
   │         ├─ giftStatistics (statistics-consumer.js)  礼物冲刺统计
   │         └─ overtime     (overtime-consumer, 见 overtime.md)
-  └─ query-service: getSnapshot/getHistory/getSprintSnapshot/盲盒统计
+  ├─ query-service: getSnapshot/getHistory/getStatistics
+  ├─ sprint-service: getSprintSnapshot/resetSprint（含聚合缓存）
+  └─ blind-box-analysis: 盲盒统计与分析
 ```
 
 全屏礼物感谢事件由 `src/bilibili/gift/frame-config.js` 作为 final 行之后的具名 Frame Adapter 负责：
@@ -87,7 +89,7 @@ createGiftService (gift/index.js)                    ← domainServices.gifts
 
 查询装配由 `domainServices` 一次性创建并注入 `queryStore`、`maintenanceStore`。
 同一装配点创建 `projectionStore`、`statisticsStore`；`gift/index.js` 只组合领域服务与活动来源状态，不再接收数据库句柄或提供隐式存储构造。`createGiftProjectionService` 使用 `{ store, settings }`，`createGiftStatisticsConsumer` 使用 `{ store }`，查询函数直接消费查询端口。
-`query-service.js` 与 `blind-box-analysis.js` 不访问数据库；来源仅表达
+`query-service.js`、`sprint-service.js` 与 `blind-box-analysis.js` 不访问数据库；来源仅表达
 `{kind: 'local'}`、`{kind: 'source', sourceId}`、`{kind: 'unavailable'}`，由
 `gift-query-store.js` 翻译成 SQL。切换中或无效来源继续返回空查询且不重置冲刺。
 盲盒行筛选和排序由 query store 执行，领域层保留日期边界、聚合及展示投影。
@@ -158,7 +160,7 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 ## 5. 礼物冲刺与查询
 
-礼物冲刺聚合在查询 owner 按来源和冲刺输入变更标记复用；队列等无关快照通知及空同步仅更新校验时间时不会重复求和。目标值与开关仍每次读取，计入冲刺的礼物金额、资格或来源改变，以及结转、重置、外部连接提交或来源切换使聚合失效；事务内读取不复用或发布缓存，避免回滚的临时结果进入后续快照。
+礼物冲刺快照、重置和聚合缓存由 `sprint-service.js` 拥有，按来源和冲刺输入变更标记复用；队列等无关快照通知及空同步仅更新校验时间时不会重复求和。目标值与开关仍每次读取，计入冲刺的礼物金额、资格或来源改变，以及结转、重置、外部连接提交或来源切换使聚合失效；事务内读取不复用或发布缓存，避免回滚的临时结果进入后续快照。
 
 ### 流水筛选、选择快照与展示资料（2026-09-18）
 
@@ -183,10 +185,10 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 | 开关/目标  | `enableGiftSprint`(默认 `'true'`)、`giftSprintTargetRmb`(默认 `'0'`,见 [storage.md](../storage.md) §7)                                                                                                                                                                                                                                                                                                                                                            | [settings-store.js:19-21](../../../../src/storage/settings-store.js#L19-L21)                                                     |
 | 全屏礼物感谢   | `giftFrameEnabled`(默认 `'false'`)、`giftFrameThresholdRmb`(默认 `'20'`)；这两个键专属特效 1 · 林间花信，固定 8 秒，不再配置主题/动效。导入的图片/视频样式使用 `giftFrameStyleTriggers`(默认 `''`)，按样式 ID 各自保存开关与金额                                                                                                                                                                                                                                                                                                                         | [frame-config.js](../../../../src/bilibili/gift/frame-config.js)、[settings-store.js](../../../../src/storage/settings-store.js) |
 | 大航海感谢 | `guardThanksAuroraEnabled/TextMode`、`guardThanksClassicEnabled/TextMode` 分别控制两套动画（默认空值继承旧配置，见 [存储契约](../storage.md)） | [guard-thanks-config.js](../../../../src/bilibili/gift/guard-thanks-config.js) |
-| 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`(RMB)                                                                                                                                                                                                                                                                                                                                                                                                                               | [query-service.js:6](../../../../src/bilibili/gift/query-service.js#L6)                                                          |
-| 冲刺快照   | `receivedRmb = SUM(total_price)`(final + 资格 + `counted_in_sprint=1`);`remainingRmb = max(0, target - received)`;**`remainingCrystalBalls = ceil(remaining / 100)`**                                                                                                                                                                                                                                                                                             | [query-service.js:99-122](../../../../src/bilibili/gift/query-service.js#L99-L122)                                               |
+| 水晶球价值 | `CRYSTAL_BALL_VALUE_RMB = 100`(RMB)                                                                                                                                                                                                                                                                                                                                                                                                                               | [sprint-service.js](../../../../src/bilibili/gift/sprint-service.js)                                                          |
+| 冲刺快照   | `receivedRmb = SUM(total_price)`(final + 资格 + `counted_in_sprint=1`);`remainingRmb = max(0, target - received)`;**`remainingCrystalBalls = ceil(remaining / 100)`**                                                                                                                                                                                                                                                                                             | [sprint-service.js](../../../../src/bilibili/gift/sprint-service.js)                                               |
 | 列表快照   | `getGiftSnapshot` 最近 **30** 条(final + 资格 + 付费,[query-service.js](../../../../src/bilibili/gift/query-service.js));`getGiftHistory` 解析当前授权 source，分页 limit ≤ **100**，以 allowlist `sortField: created_at/gift_name/price/remarks` + `sortDirection: asc/desc` 做复合 keyset 排序并返回 `total/totalPages`([query-service.js](../../../../src/bilibili/gift/query-service.js)、[gift-query-store.js](../../../../src/storage/gift-query-store.js)) | —                                                                                                                                |
-| 重置       | `resetSprintProgress` 全表 `counted_in_sprint=0`                                                                                                                                                                                                                                                                                                                                                                                                                  | [query-service.js:8-19](../../../../src/bilibili/gift/query-service.js#L8-L19)                                                   |
+| 重置       | `resetGiftSprintProgress` 按当前来源清零 `counted_in_sprint` 并清除对应冲刺结转；事务由 `gift-query-store.js` 持有                                                                                                                                                                                                                                                                                                                                                                                                                  | [sprint-service.js](../../../../src/bilibili/gift/sprint-service.js)                                                   |
 
 `counted_in_sprint` 由 `giftStatistics` 消费者在 **final** 时落定(§2.3),因此冲刺统计天然只含已收尾事件。
 

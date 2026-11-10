@@ -43,6 +43,9 @@ async function createBlindboxFixture({
     addEventListener(type, handler) {
       documentListeners.set(type, handler);
     },
+    removeEventListener(type, handler) {
+      if (documentListeners.get(type) === handler) documentListeners.delete(type);
+    },
     dispatchEvent(event) {
       documentListeners.get(event.type)?.(event);
     },
@@ -60,6 +63,9 @@ async function createBlindboxFixture({
   const window = {
     addEventListener(type, handler) {
       windowListeners.set(type, handler);
+    },
+    removeEventListener(type, handler) {
+      if (windowListeners.get(type) === handler) windowListeners.delete(type);
     },
     dispatchEvent(event) {
       windowListeners.get(event.type)?.(event);
@@ -100,11 +106,12 @@ async function createBlindboxFixture({
   };
 
   if (includePanel) window.fetch = fetch;
-  const { giftBlindbox, giftNotification, renderGiftPanel, stateService, eventBus } = await loadModuleExports(
+  const { giftBlindbox, giftNotification, renderGiftPanel, stateService, eventBus, initGiftArtworkCatalog, giftRecent } = await loadModuleExports(
     path.join(__dirname, 'gift-admin-graph.js'),
     {
       document,
       window,
+      AbortController,
       fetch,
       CustomEvent: class {
         constructor(type, { detail }) {
@@ -114,6 +121,8 @@ async function createBlindboxFixture({
       },
     },
   );
+  initGiftArtworkCatalog(giftRecent.refreshArtwork);
+  giftBlindbox.init();
   await stateService.reloadState();
   await flushBlindboxTasks();
   giftBlindbox.renderBlindBoxList();

@@ -1,6 +1,6 @@
 'use strict';
 
-import { bilibiliAvatarSource } from './settings-auth.js';
+import { bilibiliAvatarSource } from '../shared/bilibili-avatar.js';
 
 let currentRoomProfile = null;
 

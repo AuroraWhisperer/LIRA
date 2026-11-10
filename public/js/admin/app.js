@@ -39,7 +39,7 @@ import { initGiftFrameStyles } from './gift-frame-styles.js';
 import { initGiftMotionSettings } from './gift-motion-settings.js';
 import { initGuardThanks } from './gift-guard-thanks.js';
 import { initGiftHistoryDrawer } from './gifts/history.js';
-import { renderGiftPanel } from './gifts/index.js';
+import { initGiftPanel, renderGiftPanel } from './gifts/index.js';
 import { giftAnalysis } from './gifts/blindbox-analysis.js';
 import { initSongImportUpdate } from './song-import-update.js';
 
@@ -47,6 +47,7 @@ import { stateService } from './state.js';
 import { formsService } from './forms.js';
 import { playerWorkspace } from './player-workspace.js';
 import { initQueueForm } from './queue.js';
+import { initSuperChatForm, disposeSuperChats } from './superchat.js';
 import { createAdminStateRenderer, renderConnectionStatus } from './state-renderer.js';
 import { setComponentPreviewPreparation, getComponentPreviews } from './component-preview-registry.js';
 import { waitForAuthorizedAccountInitialization } from './authorized-account.js';
@@ -125,6 +126,7 @@ window.addEventListener('beforeunload', () => {
   disposeAudioAssistant?.();
   disposePlaybackOutputSettings?.();
   disposeTopbarStatus?.();
+  disposeSuperChats();
   toolbox.dispose();
   liveComponents.dispose();
 }, {
@@ -178,6 +180,7 @@ async function initializeApp() {
 
   // 初始化各模块表单
   initQueueForm();
+  initSuperChatForm();
   songPanel.initSongForm();
   initSongImportUpdate({
     imports: songImports,
@@ -244,6 +247,7 @@ async function initializeApp() {
   } else if (initialNavigationHash === '#now-playing') {
     liveComponentsNavigation.selectFeatureById('nowPlayingPage');
   }
+  initGiftPanel();
   initGiftHistoryDrawer();
 
   eventBus.on(

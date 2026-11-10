@@ -1,6 +1,7 @@
 import { RANKING_FLAGS, rankingDefaults, selectRankingRows, rankingCountdown, rankingCurrentNote } from './live-rankings.js';
 
-const formatScore = value => Number.isFinite(value) ? value.toLocaleString('zh-CN') : '—';
+const scoreFormatter = new Intl.NumberFormat('zh-CN');
+const formatScore = value => Number.isFinite(value) ? scoreFormatter.format(value) : '—';
 function element(tag, className, text = '') {
   const node = document.createElement(tag);
   node.className = className;
@@ -8,6 +9,8 @@ function element(tag, className, text = '') {
   return node;
 }
 function write(node, value) { if (node.textContent !== value) node.textContent = value; }
+function writeAttribute(node, name, value) { if (node.getAttribute(name) !== value) node.setAttribute(name, value); }
+function setHidden(node, hidden) { if (node.hidden !== hidden) node.hidden = hidden; }
 function avatarSource(value) {
   try {
     const url = new URL(value);
@@ -49,19 +52,20 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
   function updateRow(view, row, board, current = false) {
     write(view.rank, row.rank ? String(row.rank) : `${board.limit}+`);
     write(view.name, row.name || '当前直播间');
-    view.name.title = row.name || '';
+    writeAttribute(view.name, 'title', row.name || '');
     write(view.detail, current ? '本房间' : board.unit === '助力值' && row.supporters !== null
       ? `${formatScore(row.supporters)} 人助力` : row.areaName || '直播中');
-    write(view.score, formatScore(row.score));
+    const score = formatScore(row.score);
+    write(view.score, score);
     const src = config.showAvatar ? avatarSource(row.avatarUrl) : '';
-    if (view.avatar.getAttribute('src') !== src) {
+    if ((view.avatar.getAttribute('src') || '') !== src) {
       if (src) view.avatar.src = src;
       else view.avatar.removeAttribute('src');
     }
-    view.avatar.hidden = !src;
+    setHidden(view.avatar, !src);
     view.root.classList.toggle('is-current', current);
-    view.root.dataset.place = row.rank <= 3 && row.rank ? String(row.rank) : '';
-    view.root.setAttribute('aria-label', `${row.rank || '未上榜'} ${row.name} ${formatScore(row.score)} ${board.unit}${current ? '，本房间' : ''}`);
+    writeAttribute(view.root, 'data-place', row.rank <= 3 && row.rank ? String(row.rank) : '');
+    writeAttribute(view.root, 'aria-label', `${row.rank || '未上榜'} ${row.name} ${score} ${board.unit}${current ? '，本房间' : ''}`);
   }
   function createCard(id) {
     const root = element('section', 'ranking-card');
@@ -124,8 +128,8 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
       if (card.list.children[index] !== view.root) card.list.insertBefore(view.root, card.list.children[index] || null);
     });
     for (const [key, view] of card.rows) if (!keep.has(key)) { view.root.remove(); card.rows.delete(key); }
-    card.mineList.hidden = !board.current || config.range === 'nearby' && rows.some(row => row.roomId === board.current.roomId);
-    card.empty.hidden = rows.length > 0 || capacity === 0;
+    setHidden(card.mineList, !board.current || config.range === 'nearby' && rows.some(row => row.roomId === board.current.roomId));
+    setHidden(card.empty, rows.length > 0 || capacity === 0);
     write(card.empty, board.status === 'loading' ? '正在读取榜单…' : board.status === 'unavailable' ? board.message
       : config.range === 'nearby' ? board.eligible === false ? '本房间暂不参与此榜' : board.current?.rank
         ? 'B 站暂未返回附近名次' : `本房间未进入前 ${board.limit} 名，暂无附近排名`
@@ -136,7 +140,12 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
     const end = rows.at(-1)?.rank;
     write(card.unit, `${board.unit}${start && !scrollable && config.range === 'all' ? ` · ${start}–${end} / ${board.rows.length}` : ''}`);
   }
-  function tick() {
+  function getBottomAnchors() {
+    if (!scrollable) return [];
+    return [...cards.values()].filter(({ root, body }) => !root.hidden && body.scrollTop > 0
+      && body.scrollHeight - body.clientHeight - body.scrollTop <= 1).map(card => card.body);
+  }
+  function tick(bottomAnchors = getBottomAnchors()) {
     const time = now();
     for (const card of cards.values()) {
       if (card.root.hidden || !card.board) continue;
@@ -152,32 +161,35 @@ export function createRankingsView(host, { scrollable = false, now = Date.now, o
       const page = scrollable || config.range !== 'all' ? 0 : Math.floor((time - pageStarted) / (config.pageSeconds * 1000));
       if (page !== card.page) renderRows(card, page);
     }
+    for (const body of bottomAnchors) body.scrollTop = body.scrollHeight;
   }
   function update(data, appearance = config) {
+    const bottomAnchors = getBottomAnchors();
     snapshot = data;
     config = { ...rankingDefaults(), ...appearance };
     const key = JSON.stringify(config);
-    if (key !== configKey) { configKey = key; pageStarted = now(); }
-    host.dataset.theme = config.theme;
-    host.style.setProperty('--ranking-columns', config.columns);
-    host.style.setProperty('--ranking-font-size', `${config.fontSize}px`);
-    host.style.setProperty('--ranking-accent', config.accent);
+    if (key !== configKey) {
+      configKey = key; pageStarted = now();
+      host.dataset.theme = config.theme;
+      host.style.setProperty('--ranking-columns', config.columns);
+      host.style.setProperty('--ranking-font-size', `${config.fontSize}px`);
+      host.style.setProperty('--ranking-accent', config.accent);
+    }
     const visible = new Set();
     for (const board of data?.boards || []) {
       if (!config[RANKING_FLAGS[board.id]]) continue;
       visible.add(board.id);
       const card = cards.get(board.id) || createCard(board.id);
-      card.root.hidden = false; card.board = board;
+      setHidden(card.root, false); card.board = board;
       write(card.title, board.title);
-      card.configure?.setAttribute('aria-label', `配置${board.title}直播画面`);
-      card.mineList.hidden = !board.current;
+      if (card.configure) writeAttribute(card.configure, 'aria-label', `配置${board.title}直播画面`);
       if (board.current) updateRow(card.mine, board.current, board, true);
       write(card.note, rankingCurrentNote(board));
       const page = scrollable || config.range !== 'all' ? 0 : Math.floor((now() - pageStarted) / (config.pageSeconds * 1000));
       renderRows(card, page);
     }
-    for (const card of cards.values()) card.root.hidden = !visible.has(card.id);
-    tick();
+    for (const card of cards.values()) setHidden(card.root, !visible.has(card.id));
+    tick(bottomAnchors);
   }
   return { update, tick, dispose() { resizeObserver?.disconnect(); cancelAnimationFrame(resizeFrame); cards.clear(); host.replaceChildren(); } };
 }

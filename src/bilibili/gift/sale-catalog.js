@@ -53,7 +53,7 @@ function createGiftSaleCatalogService(options = {}) {
   fs.mkdirSync(dataDir, { recursive: true });
   let snapshot = readSnapshot(snapshotPath);
   let lastRefreshMs = snapshot.refreshedAt ? Date.parse(snapshot.refreshedAt) || 0 : 0;
-  let pending = null;
+  const pendingByRoom = new Map();
   let revision = 0;
 
   function getSnapshot() {
@@ -70,9 +70,9 @@ function createGiftSaleCatalogService(options = {}) {
     if (!force && snapshot.roomId === roomId && lastRefreshMs > 0 && currentMs - lastRefreshMs < minRefreshMs) {
       return getSnapshot();
     }
-    if (pending) return pending;
+    if (pendingByRoom.has(roomId)) return pendingByRoom.get(roomId);
 
-    pending = (async () => {
+    const pending = (async () => {
       const [giftData, giftConfig] = await Promise.all([
         fetchJson('gift_data', giftDataUrl(roomId), roomId),
         fetchJson('gift_config', giftConfigUrl(roomId), roomId),
@@ -84,7 +84,7 @@ function createGiftSaleCatalogService(options = {}) {
       const configById = parseGiftConfig(giftConfig);
       const saleIds = expandBlindBoxSaleIds(panelSaleIds, configById, getBlindBoxConfig());
       const gifts = buildGiftCatalog(saleIds, configById);
-      snapshot = {
+      const nextSnapshot = {
         roomId,
         refreshedAt: new Date(currentMs).toISOString(),
         count: gifts.length,
@@ -92,21 +92,25 @@ function createGiftSaleCatalogService(options = {}) {
         gifts,
         cached: false,
       };
-      revision += 1;
+      if (validateRoomId(getRoomId()) !== roomId) throw new Error('直播间已切换，请重新刷新在售礼物。');
       writeJsonAtomic(snapshotPath, {
         schemaVersion: SNAPSHOT_SCHEMA_VERSION,
-        ...snapshot,
+        ...nextSnapshot,
       });
+      snapshot = nextSnapshot;
+      revision += 1;
       lastRefreshMs = currentMs;
       console.log(`[Bilibili][GiftSale] roomId=${roomId} refreshed=${gifts.length}`);
       return getUncachedSnapshot(snapshot);
     })().finally(() => {
-      pending = null;
+      pendingByRoom.delete(roomId);
     });
+    pendingByRoom.set(roomId, pending);
     return pending;
   }
 
   return {
+    getRoomId: () => validateRoomId(getRoomId()),
     getRevision: () => revision,
     getSnapshot,
     refresh,

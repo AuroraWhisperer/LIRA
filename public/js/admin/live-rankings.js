@@ -5,28 +5,24 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { prepareComponentPreviews } from './component-preview-registry.js';
 import { getActiveComponentPreview } from './component-preview-session.js';
 import { toast } from '../shared/toast.js';
-import { createSharedSceneSettingsController } from './shared-scene-settings-controller.js';
-import { syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 
 export function initLiveRankings() {
   const root = document.getElementById('liveRankingsFeature');
   if (!root || root.dataset.initialized) return;
   root.dataset.initialized = 'true';
   const get = name => root.querySelector(`[data-rankings="${name}"]`);
-  const settings = createSharedSceneSettingsController('live-rankings');
-  const view = createRankingsView(get('boards'), { onConfigure: configureBoard });
+  const view = createRankingsView(get('boards'), { scrollable: true, onConfigure: configureBoard });
   let snapshot;
   let stop;
   let clock;
-  let paused = false;
-  const appearance = () => ({ ...rankingDefaults(), ...Object.fromEntries(Object.values(RANKING_FLAGS).map(flag => [flag, true])),
-    columns: '2', ...settings.controller.getState().draft, fontSize: 15, theme: 'inherit' });
+  const appearance = { ...rankingDefaults(), ...Object.fromEntries(Object.values(RANKING_FLAGS).map(flag => [flag, true])),
+    columns: '2', fontSize: 15, theme: 'inherit' };
   function render() {
     const boards = LIVE_RANKING_COMPONENT.variants.map(({ value, label }) => snapshot?.boards?.find(board => board.id === value)
       || { id: value, title: label, unit: value.startsWith('hot') ? '热度值' : '助力值', rows: [], current: null,
         status: !snapshot || snapshot.status === 'loading' ? 'loading' : 'unavailable',
         message: snapshot?.message || '正在连接榜单…' });
-    view.update({ ...snapshot, boards }, appearance());
+    view.update({ ...snapshot, boards }, appearance);
   }
   async function configureBoard(id) {
     try {
@@ -57,39 +53,18 @@ export function initLiveRankings() {
     render();
   }
   function sync() {
-    const visible = !paused && !document.hidden && root.getClientRects().length > 0;
+    const visible = !document.hidden && root.getClientRects().length > 0;
     if (visible && !stop) {
       stop = subscribeLiveRankings(receive);
-      clock = setInterval(() => view.tick(), 250);
+      clock = setInterval(() => view.tick(), 1000);
     } else if (!visible && stop) {
       stop(); stop = null; clearInterval(clock);
     }
   }
-  const renderSettings = () => {
-    const state = settings.controller.getState();
-    syncComponentFieldValue(get('range'), state.draft.range);
-    get('settings-status').textContent = state.error ? '显示设置未保存，修改已保留，请重试。'
-      : state.saving ? '正在保存显示设置…' : state.dirty ? '等待保存…' : '';
-    get('settings-retry').hidden = !state.error;
-    render();
-  };
-  const stopSettings = subscribeComponentFields(root, settings.controller, renderSettings);
-  get('range').addEventListener('change', () => {
-    settings.controller.edit({ range: get('range').value });
-    void settings.save();
-  });
-  get('settings-retry').addEventListener('click', () => { void settings.save(); });
-  get('pause').addEventListener('click', () => {
-    paused = !paused;
-    get('pause').textContent = paused ? '继续刷新' : '暂停查看';
-    get('pause').setAttribute('aria-pressed', String(paused));
-    if (paused) get('status').textContent = '当前查看已暂停，直播画面的订阅继续运行';
-    sync();
-  });
   const observer = new MutationObserver(sync);
   observer.observe(root, { attributes: true, attributeFilter: ['hidden', 'class'] });
   observer.observe(document.getElementById('liveComponentsPage'), { attributes: true, attributeFilter: ['hidden', 'class'] });
   document.addEventListener('visibilitychange', sync);
-  window.addEventListener('pagehide', () => { observer.disconnect(); stop?.(); clearInterval(clock); view.dispose(); stopSettings(); settings.dispose(); document.removeEventListener('visibilitychange', sync); }, { once: true });
+  window.addEventListener('pagehide', () => { observer.disconnect(); stop?.(); clearInterval(clock); view.dispose(); document.removeEventListener('visibilitychange', sync); }, { once: true });
   render(); sync();
 }

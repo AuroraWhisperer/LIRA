@@ -123,9 +123,13 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 `server.js` 注入 getter，由 [runtime-api-context.js](../../../src/server/runtime-api-context.js) 的 `createRuntimeApiContextFactory` 在每次请求时读取当前运行时依赖，再由 [api-context.js](../../../src/server/api-context.js) 构建 Context。Context 按歌曲、礼物、播放、互动等领域分组，包含场景、动态抽奖、礼物卡片/心愿等端口；各组内部函数来自领域服务或显式注入的运行时组件。HTTP owner 另注入预览会话与场景可用性 getter，不把这些生命周期状态放到领域服务中。
 
+AI 配置写入通过 `ai-runtime.js` 的 `updateConfig()` 进入既有 service；成功提交后调用组合根注入的 `onConfigUpdated`，由 `cloud-sync-runtime.js` 的 `scheduleMenuSync()` 合并通知并比较当前菜单签名。失败不通知，无关配置不额外上传；AI 领域服务不依赖云同步。`game-runtime.js` 的 `createGameAudience()` 拥有在线榜与近期发言者的 UID 合并、名称选择、最近时间排序和当前胜者资料读取，`runtime-api-context.js` 显式装配，`api-context.js` 只映射 API 能力。
+
 Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游戏和转盘服务创建后组装一次只读 `displayPorts`，交给 `scene-runtime.js` / `scene-extra-display.js`：设置读取、数据目录与状态读取、歌曲列表/版本、礼物版本/历史/盲盒统计、礼物卡片/心愿、小游戏/转盘/互动状态和全局礼物目录。共享外观读取使用其中的 settings/system 与 runtime 自有 cloud danmaku reader；外观写路由仍使用自己的 settings 写入上下文。Scene 不经 API Context 取回自身，也不取得 session token、音乐 registry 或 shutdown 能力。
 
 场景管理的账号校验、修订、发布与事务由 `scene-service.js` 拥有；[scene-output-reader.js](../../../src/scenes/scene-output-reader.js) 拥有输出读取、投影凭据和数据版本，异步读取结束后仍复核账号代次与来源凭据。[scene-capability-codec.js](../../../src/scenes/scene-capability-codec.js) 统一来源凭据的签发、加密内容校验和 token 比较，供管理与输出两条路径使用。
+
+[scene-room-profile.js](../../../src/server/scene-room-profile.js) 单独拥有场景房主资料的账号/房间缓存、异步读取与公共字段投影，`scene-runtime.js` 只接线和补入 cloud snapshot。缓存键包含 owner scope/epoch、本地配置房号、设置存储的房间代次及云端房号；排队读取启动前和结果回填前均复核，切走再切回也不能复用旧结果。内部 `getRoomProfile({ expectedRoomId })` 仍只解析当前配置房间，用同一次 [room_init](bilibili/protocol.md) 的配置输入、标准长号或 short_id 核验云端房号，不匹配返回 `null`；公开资料仍只返回四个字段，roomId 保持标准长号。运行时销毁时同时清理此拥有者：未启动的读取不再调用上游，已在途结果不再回填或通知。底层资料读取没有取消参数，因此不承诺中断已开始的网络请求；缓存和输出合同见[弹幕房主资料](../frontend/overlays.md)。
 
 ### 4.3 静态页面服务与页面能力
 
@@ -177,7 +181,7 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 1. 无 I/O 校验端口参数；`createServerRuntime()` 本身只保存配置并创建未监听的 HTTP server，不创建数据目录、数据库、token 或日志。
 2. `cleanupOwnPortOccupant` 请求可信旧实例关闭并等待端口释放。
 3. `listenExactly` 绑定精确端口，phase 进入 `starting`;此时仅最小 `/api/health` 可用，其余请求返回 503。
-4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认分类、队列清理和 retention。
+4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认曲风、队列清理和 retention。
 5. 生成 `sessionToken`,写入 `.session-token` 与 `.server-runtime.json`，原子切换 phase 为 `ready`。
 6. `AUTO_OPEN_ADMIN=1` 时尝试打开管理页；启动浏览器的同步异常和子进程异步 `error` 都只记录手动打开提示，不中断服务。最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物功能。礼物服务只创建服务器结果投影器，本地消息不再注册礼物记账回调，仅保留用户身份提示。
 

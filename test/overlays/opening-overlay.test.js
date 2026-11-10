@@ -78,14 +78,14 @@ test('opening settings keep payload names, legacy fallbacks and unsaved form dra
   const openingTitle = { value: '未保存的标题', dataset: {},
     closest: (selector) => selector.split(',').map((part) => part.trim()).includes('#openingAnimationForm') ? {} : null };
   const ordinarySetting = { value: '旧值', dataset: {}, closest: () => null };
-  const { FormsService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/forms.js'), {
+  const { fillSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/state-renderer.js'), {
     document: {
       getElementById: (id) => ({ openingTitle, ordinarySetting })[id] || null,
       querySelectorAll: () => [],
       querySelector: () => null,
     },
   });
-  new FormsService().fillForm({ openingTitle: '服务端旧标题', ordinarySetting: '服务端新值' });
+  fillSettings({ openingTitle: '服务端旧标题', ordinarySetting: '服务端新值' });
   assert.equal(openingTitle.value, '未保存的标题');
   assert.equal(ordinarySetting.value, '服务端新值');
 });

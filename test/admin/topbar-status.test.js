@@ -76,7 +76,7 @@ test('refresh blocks repeated reconnects while busy and reports a failure', asyn
   const operations = createSettingsOperations({
     documentRef: { getElementById: () => button },
     fetchRef: () => new Promise((resolve, reject) => { rejectFetch = reject; }),
-    getForms: () => null, toast: (message) => errors.push(message),
+    toast: (message) => errors.push(message),
   });
   const work = operations.reconnectBilibili();
   assert.equal(button.disabled, true);
@@ -95,7 +95,7 @@ test('refresh does not report a missing live status as success', async () => {
     documentRef: { getElementById: () => button },
     fetchRef: async () => ({ ok: true }),
     readJsonResponse: async () => ({ ok: true, data: {} }),
-    getState: () => null, getForms: () => null,
+    getState: () => null,
     toast: (message) => errors.push(message), showStackedToast: (result) => results.push(result),
   });
   await operations.reconnectBilibili();

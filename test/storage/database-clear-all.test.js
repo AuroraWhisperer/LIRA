@@ -230,4 +230,26 @@ describe('clearAllData Matrix', () => {
       db.exec('ROLLBACK');
     }
   });
+
+  it('rolls back the reset state and other deletions when retiring pending settlements fails', () => {
+    const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
+    seedClearAllBusinessData(databases);
+    giftDb.exec(`UPDATE overtime_machine_state
+      SET enabled = 1, enable_epoch = 3, remaining_ms = 120000, revision = 8 WHERE id = 1`);
+    const previousState = giftDb.prepare('SELECT * FROM overtime_machine_state').get();
+    giftDb.exec(`CREATE TEMP TRIGGER fail_pending_reset BEFORE UPDATE ON overtime_settlements
+      BEGIN SELECT RAISE(ABORT, 'pending reset failed'); END`);
+
+    assert.throws(
+      () => clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb),
+      (error) => {
+        assert.strictEqual(error.details[0].db, 'giftDb');
+        assert.strictEqual(error.details[0].phase, 'recreate');
+        return true;
+      },
+    );
+    assert.deepStrictEqual(giftDb.prepare('SELECT * FROM overtime_machine_state').get(), previousState);
+    assert.strictEqual(giftDb.prepare('SELECT status FROM overtime_settlements').get().status, 'pending');
+    assert.strictEqual(songDb.prepare('SELECT COUNT(*) AS count FROM songs').get().count, 1);
+  });
 });

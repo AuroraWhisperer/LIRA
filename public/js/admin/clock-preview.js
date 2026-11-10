@@ -1,6 +1,6 @@
-import { mountStyleParameters } from './component-style-parameters.js';
+import { mountStyleParameters } from '../shared/component-style-parameter-view.js';
 import { CLOCK_STYLE_LABELS, FLIP_PALETTES, clockAppearanceChange } from '../shared/clock-settings.js';
-import { cloneComponentPanel, componentField } from './component-preview-panel.js';
+import { cloneComponentPanel, componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
 import { enhanceColorControls } from '../shared/color-control.js';
 
 const CLOCK_STYLE_VALUES = new Set(Object.keys(CLOCK_STYLE_LABELS));
@@ -72,12 +72,12 @@ export function bindClockParameters(root, controller) {
     controller.edit(clockAppearanceChange(controller.getState().draft, { flipFrameColor, flipFaceColor, flipTextColor }));
   });
   const effects = mountStyleParameters(node('clockShowDate').closest('.clock-parameter-section'), controller, 'clock');
-  const stop = controller.subscribe(({ draft, loaded }) => {
+  const stop = subscribeComponentFields(root, controller, ({ draft, loaded }) => {
     const transparent = isTransparentClockStyle(draft.style);
     for (const [key, id] of Object.entries(fields)) {
       const control = node(id);
       if (key.startsWith('show')) control.checked = draft[key];
-      else if (control.value !== String(draft[key])) control.value = draft[key];
+      else syncComponentFieldValue(control, draft[key]);
       control.disabled = !loaded || (key === 'label' && transparent)
         || (key === 'showDate' && draft.style === 'minimal')
         || (key === 'moonIntervalSeconds' && draft.moonMode !== 'auto');

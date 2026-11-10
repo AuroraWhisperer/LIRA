@@ -36,7 +36,8 @@ const scopes = [
 test('lyrics project both visual layers without exposing saved libraries or unrelated settings', () => {
   const settings = { desktopLyricSungColor: '#ff220080', desktopLyricTextColor: '#123456',
     desktopLyricEnabled: 'true', advancedLyricEnabled: 'true', advancedLyricLayout: 'corners',
-    advancedLyricLayoutSequence: 'corners,arc', advancedLyricGlowEnabled: 'true' };
+    advancedLyricLayoutSequence: 'corners,arc', advancedLyricGlowEnabled: 'true',
+    advancedLyricFontStyle: 'italic', advancedLyricHighlightOpacity: '0.35' };
   const projected = projectOverlayState('lyrics', { settings: { ...settings, aiApiKey: 'private', advancedLyricSavedPresets: 'private library' } });
   assert.deepEqual(projected.settings, settings);
 });

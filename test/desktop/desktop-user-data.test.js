@@ -9,6 +9,7 @@ const { createScratchDirectory, removeScratchDirectory } = require('../helpers/s
 const {
   PACKAGED_USER_DATA_DIR_NAME,
   migrateLegacyUserData,
+  migrateLegacyPartitions,
   resolveDesktopUserDataPaths,
 } = require('../../src/electron/desktop-user-data');
 
@@ -222,3 +223,86 @@ for (const marker of ['invalid JSON', '{"pid":0}']) {
     assert.equal(app.hasSingleInstanceLock(), false);
   });
 }
+
+for (const stage of ['copy', 'publish']) {
+  test(`failed legacy partition ${stage} leaves no active target and a later launch retries`, (t) => {
+    const root = createScratchDirectory('legacy-partitions-', t);
+    const appData = path.join(root, 'appdata');
+    const userData = path.join(root, 'browser');
+    const source = path.join(appData, 'LIRA', 'Partitions');
+    const target = path.join(userData, 'Partitions');
+    const app = { getPath: name => name === 'appData' ? appData : userData, getName: () => 'LIRA' };
+    fs.mkdirSync(path.join(source, 'music-qq'), { recursive: true });
+    fs.mkdirSync(path.join(source, 'bilibili'), { recursive: true });
+    fs.mkdirSync(userData);
+    fs.writeFileSync(path.join(source, 'music-qq', 'fixture'), 'music');
+    fs.writeFileSync(path.join(source, 'bilibili', 'fixture'), 'bilibili');
+    const failure = Object.assign(new Error('injected migration failure'), stage === 'publish' ? { code: 'EPERM' } : {});
+    const fileSystem = {
+      ...fs,
+      cpSync(from, to, options) {
+        assert.equal(fs.existsSync(target), false);
+        if (stage === 'copy') {
+          fs.cpSync(path.join(from, 'music-qq'), path.join(to, 'music-qq'), options);
+          throw failure;
+        }
+        fs.cpSync(from, to, options);
+      },
+      renameSync() { throw failure; },
+    };
+    assert.throws(() => migrateLegacyPartitions({ app, fileSystem, writeLog() {} }), error => error === failure);
+    assert.equal(fs.existsSync(target), false);
+    assert.deepEqual(fs.readdirSync(userData), []);
+    assert.equal(fs.readFileSync(path.join(source, 'bilibili', 'fixture'), 'utf8'), 'bilibili');
+
+    migrateLegacyPartitions({ app, writeLog() {} });
+    assert.equal(fs.readFileSync(path.join(target, 'music-qq', 'fixture'), 'utf8'), 'music');
+    assert.equal(fs.readFileSync(path.join(target, 'bilibili', 'fixture'), 'utf8'), 'bilibili');
+  });
+}
+
+test('a temporary legacy partition publish lock retries the prepared copy without recopying', (t) => {
+  const root = createScratchDirectory('legacy-partitions-locked-', t);
+  const appData = path.join(root, 'appdata');
+  const userData = path.join(root, 'browser');
+  const source = path.join(appData, 'LIRA', 'Partitions');
+  const target = path.join(userData, 'Partitions');
+  const app = { getPath: name => name === 'appData' ? appData : userData, getName: () => 'LIRA' };
+  fs.mkdirSync(source, { recursive: true });
+  fs.mkdirSync(userData);
+  fs.writeFileSync(path.join(source, 'fixture'), 'original');
+  let copies = 0;
+  let publishes = 0;
+  migrateLegacyPartitions({
+    app, writeLog() {}, fileSystem: {
+      ...fs,
+      cpSync(...args) { copies++; fs.cpSync(...args); },
+      renameSync(...args) {
+        if (++publishes === 1) throw Object.assign(new Error('transient Windows directory lock'), { code: 'EPERM' });
+        fs.renameSync(...args);
+      },
+    },
+  });
+  assert.equal(copies, 1);
+  assert.equal(fs.readFileSync(path.join(target, 'fixture'), 'utf8'), 'original');
+  assert.equal(fs.readFileSync(path.join(source, 'fixture'), 'utf8'), 'original');
+});
+
+test('existing browser partitions keep their current state without merging legacy data', (t) => {
+  const root = createScratchDirectory('legacy-partitions-existing-', t);
+  const appData = path.join(root, 'appdata');
+  const userData = path.join(root, 'browser');
+  const source = path.join(appData, 'LIRA', 'Partitions');
+  const target = path.join(userData, 'Partitions');
+  fs.mkdirSync(source, { recursive: true });
+  fs.mkdirSync(target, { recursive: true });
+  fs.writeFileSync(path.join(source, 'shared'), 'legacy');
+  fs.writeFileSync(path.join(source, 'legacy-only'), 'legacy');
+  fs.writeFileSync(path.join(target, 'shared'), 'current');
+  migrateLegacyPartitions({
+    app: { getPath: name => name === 'appData' ? appData : userData, getName: () => 'LIRA' },
+    writeLog() {},
+  });
+  assert.equal(fs.readFileSync(path.join(target, 'shared'), 'utf8'), 'current');
+  assert.equal(fs.existsSync(path.join(target, 'legacy-only')), false);
+});

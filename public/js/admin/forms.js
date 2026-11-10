@@ -1,13 +1,9 @@
-import { setOverlayStyle } from './theme-style-view.js';
 // 编写人：Aurora
 // 表单工具和通用组件
 ('use strict');
 
 import { value, setValue, normalizeRangeValue } from '../shared/utils.js';
 import { initParameterRanges } from '../shared/parameter-range.js';
-import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
-import { ensureSavedFontOption } from '../shared/font-library.js';
-import { isComponentFieldEditing } from './component-preview-panel.js';
 
 /**
  * 表单服务
@@ -73,135 +69,6 @@ export class FormsService {
       });
       select(tabs.find((tab) => tab.classList.contains('active')) || tabs[0]);
     });
-  }
-
-  /**
-   * 填充表单
-   */
-  fillForm(values) {
-    const setField = (key, inputValue) => {
-      const element = document.getElementById(key);
-      if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm, #guardThanksPanel, #desktopLyricForm')) return;
-      if (element.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') return;
-      if (!isComponentFieldEditing(element)) element.value = inputValue;
-    };
-    const overlayStyle = values?.overlayQueueStyle || value('overlayQueueStyle') || 'classic';
-    const activeQueueSettings = readQueueStyleSettings(values, overlayStyle);
-    ensureSavedFontOption(document.getElementById('illustratedQueueFontFamily'), activeQueueSettings.fontFamily);
-    for (const key of ['overlayFontFamily', 'songBoardFontFamily']) {
-      ensureSavedFontOption(document.getElementById(key), values?.[key]);
-    }
-    for (const [key, inputValue] of Object.entries(values || {})) setField(key, inputValue);
-    setOverlayStyle(overlayStyle);
-
-    const songFontSize = this.normalizeFontSize(
-      values && values.queueSongFontSize,
-      this.scaleToFontSize(values && values.themeFontScale, 28),
-      70,
-      10,
-    );
-    const titleFontSize = this.normalizeFontSize(
-      values && values.queueTitleFontSize,
-      this.scaleToFontSize(values && values.themeFontScale, 30),
-      40,
-      10,
-    );
-    setField('queueSongFontSize', songFontSize);
-    if (document.getElementById('queueSongFontSizeNumber')) {
-      setField('queueSongFontSizeNumber', songFontSize);
-    }
-
-    setField('queueTitleFontSize', titleFontSize);
-    if (document.getElementById('queueTitleFontSizeNumber')) {
-      setField('queueTitleFontSizeNumber', titleFontSize);
-    }
-    const identityFontSize = this.normalizeFontSize(activeQueueSettings.fontSize, 28, 78, 9);
-    if (document.getElementById('identityQueueFontSize')) {
-      setField('identityQueueFontSize', identityFontSize);
-    }
-    if (document.getElementById('identityQueueFontSizeNumber')) {
-      setField('identityQueueFontSizeNumber', identityFontSize);
-    }
-    setField('illustratedQueueFontFamily', activeQueueSettings.fontFamily);
-    setField('illustratedQueueFontWeight', activeQueueSettings.fontWeight);
-    setField('illustratedQueueUseCustomTextColor', activeQueueSettings.useCustomTextColor);
-    setField('illustratedQueueTextColor', activeQueueSettings.textColor);
-    setField('identityQueueScrollMode', activeQueueSettings.scrollMode);
-    const ruleFontSize = this.normalizeFontSize(values && values.overlayRuleFontSize, 10, 18);
-    if (document.getElementById('overlayRuleFontSize')) {
-      setField('overlayRuleFontSize', ruleFontSize);
-    }
-    if (document.getElementById('overlayRuleFontSizeNumber')) {
-      setField('overlayRuleFontSizeNumber', ruleFontSize);
-    }
-    if (document.getElementById('themeOpacityNumber')) {
-      setField('themeOpacityNumber', Math.round(Number(value('themeOpacity')) * 100));
-    }
-    if (document.getElementById('backdropBlurNumber')) {
-      setField('backdropBlurNumber', value('backdropBlur'));
-    }
-    if (document.getElementById('glowIntensityNumber')) {
-      setField('glowIntensityNumber', value('glowIntensity'));
-    }
-    if (document.getElementById('queueScrollSpeedRange')) {
-      const queueScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(values && values.queueScrollSpeed);
-      setField('queueScrollSpeed', queueScrollSpeed);
-      setField('queueScrollSpeedRange', queueScrollSpeed);
-    }
-    if (document.getElementById('identityQueueScrollSpeedRange')) {
-      const identityScrollSpeed = this.normalizeQueueScrollSpeedForDisplay(activeQueueSettings.scrollSpeed);
-      setField('identityQueueScrollSpeed', identityScrollSpeed);
-      setField('identityQueueScrollSpeedRange', identityScrollSpeed);
-    }
-    this.refreshParameterRanges();
-  }
-
-  /**
-   * 规范化队列滚动速度用于显示
-   */
-  normalizeQueueScrollSpeedForDisplay(input) {
-    const valueNumber = Number(input);
-    if (!Number.isFinite(valueNumber)) return '80';
-    if (valueNumber > 100) {
-      const actualSpeed = Math.max(50, Math.min(200, valueNumber));
-      return String(Math.round(1 + ((actualSpeed - 50) / 150) * 99));
-    }
-    return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
-  }
-
-  normalizeSongScrollSpeedForDisplay(input) {
-    const valueNumber = Number(input);
-    if (!Number.isFinite(valueNumber)) return '20';
-    return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
-  }
-
-  /**
-   * 规范化字体大小
-   */
-  normalizeFontSize(input, fallback, max = 20, min = 5) {
-    return normalizeRangeValue(input, min, max, fallback);
-  }
-
-  /**
-   * 缩放到字体大小
-   */
-  scaleToFontSize(scale, baseSize) {
-    const normalizedScale = Number(normalizeRangeValue(scale, 0.25, 2, 1));
-    return Math.round(normalizedScale * baseSize);
-  }
-
-  /**
-   * 重连错误消息
-   */
-  reconnectErrorMessage(error) {
-    const text = String((error && error.message) || error || '');
-    if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION_REFUSED|ECONNREFUSED/i.test(text)) {
-      return '重新连接直播间失败：本地服务未响应，请重启 LIRA 后再试。';
-    }
-    if (/Unexpected end of JSON input|非 JSON/i.test(text)) {
-      return text;
-    }
-    return text || '重新连接直播间失败，请稍后重试。';
   }
 }
 

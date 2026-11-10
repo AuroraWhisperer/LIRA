@@ -5,10 +5,9 @@ const test = require('node:test');
 const {
   getGiftSnapshot,
   getGiftHistory,
-  getGiftSprintSnapshot,
-  resetGiftSprintProgress,
   searchGifts,
 } = require('../../src/bilibili/gift/query-service');
+const { getGiftSprintSnapshot, resetGiftSprintProgress } = require('../../src/bilibili/gift/sprint-service');
 const { getBlindBoxStats, getBlindBoxAnalysis } = require('../../src/bilibili/gift/blind-box-analysis');
 const { createFixture } = require('../helpers/gift-query-fixture');
 

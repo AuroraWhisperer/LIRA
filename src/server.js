@@ -227,8 +227,8 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       const displayPorts = {
         giftImages: domainServices.overtimeGiftCatalog.imageResources,
-        bilibili: { getRoomProfile: () => bilibiliRuntime.getRoomProfile() },
-        settings: { get: settingsStore.getSettings },
+        bilibili: { getRoomProfile: (options) => bilibiliRuntime.getRoomProfile(options) },
+        settings: { get: settingsStore.getSettings, getRoomRevision: settingsStore.getRoomRevision },
         system: { dataDir: DATA_DIR, getState },
         songs: { list: domainServices.songs.list, getChangeToken: domainServices.songs.getChangeToken },
         gifts: {
@@ -296,6 +296,7 @@ function createServerRuntime(runtimeOptions = {}) {
         runtimeOptions,
         aiLogPath: AI_LOG_PATH,
         danmakuSender,
+        onConfigUpdated: cloudSync.scheduleMenuSync,
       });
 
       musicRuntime.setMusicRegistry(options.musicAuth || {});

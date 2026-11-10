@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { normalizeBrowserSourceConfig } from '../shared/scene-browser-source.js';
 import { MEDIA_STYLE_TYPES } from '../shared/component-media-style.js';
 

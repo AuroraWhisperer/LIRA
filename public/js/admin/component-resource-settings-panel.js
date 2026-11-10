@@ -1,7 +1,8 @@
 import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.js';
 import { componentSaveMessage } from './component-config-controller.js';
 import { createResourceStyleSettings } from './resource-style-settings.js';
-import { mountComponentPreview, previewElement, previewToolbarIcon } from './component-preview-surface.js';
+import { mountComponentPreview } from './component-preview-surface.js';
+import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
 import { mountNauticalGuardToggle } from './gift-guard-thanks.js';
 

@@ -2,6 +2,7 @@
 
 const { createApiContext } = require('./api-context');
 const { createHardwareSummaryService } = require('./hardware-summary');
+const { createGameAudience } = require('./game-runtime');
 
 function createRuntimeApiContextFactory(options = {}) {
   const hardware = createHardwareSummaryService();
@@ -11,6 +12,7 @@ function createRuntimeApiContextFactory(options = {}) {
     const bilibiliRuntime = options.getBilibiliRuntime();
     const aiRuntime = options.getAiRuntime();
     const settingsStore = options.getSettingsStore();
+    const gameService = options.getGameSessionService();
 
     return createApiContext({
       worldClock: options.getWorldClock?.(),
@@ -50,13 +52,16 @@ function createRuntimeApiContextFactory(options = {}) {
         getLikeState: bilibiliRuntime.getLikeState,
         requestRandomSong: bilibiliRuntime.requestRandomSong,
       },
-      ai: { configStore: aiRuntime.configStore, service: aiRuntime.service, doubao: aiRuntime.doubao,
+      ai: { configStore: aiRuntime.configStore, service: aiRuntime.service, updateConfig: aiRuntime.updateConfig, doubao: aiRuntime.doubao,
         chatgptSession: aiRuntime.chatgptSession },
       games: {
-        service: options.getGameSessionService(),
-        listOnlineViewers: bilibiliRuntime.getViewerCandidates,
-        refreshViewers: bilibiliRuntime.refreshViewerCandidates,
-        getWinnerProfile: bilibiliRuntime.getGameWinnerProfile,
+        service: gameService,
+        ...createGameAudience({
+          service: gameService,
+          listOnlineViewers: bilibiliRuntime.getViewerCandidates,
+          refreshViewers: bilibiliRuntime.refreshViewerCandidates,
+          getWinnerProfile: bilibiliRuntime.getGameWinnerProfile,
+        }),
       },
       wheel: { service: options.getWheelSessionService() },
       interactions: options.getInteractionSessionService?.(),

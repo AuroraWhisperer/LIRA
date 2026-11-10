@@ -1,8 +1,7 @@
-// 队列和 SuperChat 的交互与展示。
+// 点歌队列的交互与展示。
 'use strict';
 
 import {
-  copyText,
   value,
   toast,
   showError,
@@ -11,35 +10,14 @@ import {
 } from '../shared/utils.js';
 import { escapeHtml, escapeAttr } from '../shared/html-escape.js';
 import { withMultilingualFallback } from '../shared/font-family.js';
-import { formatTime, formatSuperChatPrice } from '../shared/display-format.js';
+import { formatTime } from '../shared/display-format.js';
 import { stateService } from './state.js';
+import { bindQueueCopyButtons, bindQueueWheel } from './queue-list-view.js';
 
-const QUEUE_BOTTOM_HOLD_MS = 750;
-const QUEUE_WHEEL_GESTURE_GAP_MS = 180;
-
-let superChatUndo = null;
-let superChatUndoTimer = null;
-let superChatUndoHideTimer = null;
-let superChatActions = Promise.resolve();
-let superChatUndoRevision = 0;
 let queueHeadId = null;
 const queueRenderSignatures = new WeakMap();
 
 function initQueueForm() {
-  document.getElementById('superChatUndoBtn')?.addEventListener('click', () => {
-    if (!superChatUndo) return;
-    const token = superChatUndo.token;
-    enqueueSuperChatAction(async () => {
-      try {
-        await api('/api/superchats/undo', { token }, { notifyError: false });
-        clearSuperChatUndo();
-        await stateService.reloadState();
-      } catch (error) {
-        if (error.status === 409 || error.statusCode === 409 || error.code === 'SUPERCHAT_UNDO_EXPIRED') clearSuperChatUndo();
-        throw error;
-      }
-    });
-  });
   const randomButton = document.getElementById('randomSongBtn');
   randomButton.addEventListener('click', async () => {
     if (randomButton.disabled) return;
@@ -77,62 +55,7 @@ function initQueueForm() {
     if (confirmed) await queueAction('clear');
   });
 
-  // 将 wheel 事件的 deltaY 归一化为像素值（Windows 普通鼠标报告行模式 deltaMode=1）
-  function normalizedWheelDelta(event, el) {
-    switch (event.deltaMode) {
-      case 1:
-        return event.deltaY * 40; // 行模式：行高约 40px
-      case 2:
-        return event.deltaY * el.clientHeight; // 页模式：按容器高度换算
-      default:
-        return event.deltaY; // 像素模式：直接使用
-    }
-  }
-
-  // 触底后缓冲当前滚动；停顿后的新手势可以提前交给页面。
-  function bindQueueWheel(list) {
-    if (!list) return;
-    const panel = list.closest('.queue-panel') || list;
-    let bottomReleaseAt = null;
-    let lastWheelAt = null;
-    panel.addEventListener(
-      'wheel',
-      (event) => {
-        const delta = normalizedWheelDelta(event, list);
-        if (delta === 0) return;
-        const now = event.timeStamp;
-        const newGesture = lastWheelAt !== null && now - lastWheelAt >= QUEUE_WHEEL_GESTURE_GAP_MS;
-        lastWheelAt = now;
-        const maxScrollTop = Math.max(0, list.scrollHeight - list.clientHeight);
-        if (delta > 0 && maxScrollTop > 0 && list.scrollTop >= maxScrollTop) {
-          if (bottomReleaseAt === null) bottomReleaseAt = now + QUEUE_BOTTOM_HOLD_MS;
-          else if (newGesture) bottomReleaseAt = now;
-          if (now < bottomReleaseAt) event.preventDefault();
-          return;
-        }
-
-        bottomReleaseAt = null;
-        const canScroll =
-          maxScrollTop > 0 && (delta < 0 ? list.scrollTop > 0 : delta > 0 && list.scrollTop < maxScrollTop);
-        if (!canScroll) return;
-
-        event.preventDefault();
-        list.scrollTop += delta * 0.3;
-        if (delta > 0 && list.scrollTop >= maxScrollTop) bottomReleaseAt = now + QUEUE_BOTTOM_HOLD_MS;
-      },
-      { passive: false },
-    );
-  }
-
-  bindQueueWheel(document.getElementById('superChatList'));
   bindQueueWheel(document.getElementById('queueList'));
-}
-
-function renderState(appState) {
-  if (!appState) return;
-  renderQueueState(appState.queue, appState.settings);
-  renderSuperChatQueue(appState.superChats || []);
-  applyAdminQueueFontPreview(appState.settings || {});
 }
 
 function renderQueueState(queue = {}, settings = {}) {
@@ -214,63 +137,6 @@ function renderQueueState(queue = {}, settings = {}) {
   queueRenderSignatures.set(list, signature);
 }
 
-function renderSuperChatQueue(items) {
-  const list = document.getElementById('superChatList');
-  const size = document.getElementById('superChatSize');
-  if (!list || !size) return;
-
-  size.textContent = `${items.length} 条`;
-  if (items.length === 0) {
-    list.innerHTML = `
-      <div class="empty sc-empty">
-        <div class="empty-icon" aria-hidden="true"><img class="empty-queue-image" src="/img/admin/queue/admin-queue-sc.webp" alt="" draggable="false"></div>
-        <div class="empty-text">暂无醒目留言</div>
-        <div class="empty-hint">收到醒目留言后，会优先显示在这里</div>
-      </div>
-    `;
-    return;
-  }
-
-  list.innerHTML = items
-    .map(
-      (item, index) => `
-    <div class="queue-row sc-row ${item.status === 'assisted' ? 'assisted' : ''}">
-      <div>
-        <div class="song">
-          <span class="sc-admin-price">SC ¥${escapeHtml(formatSuperChatPrice(item.price))}</span>
-          ${index + 1}. ${escapeHtml(item.message || '醒目留言')}
-        </div>
-        <div class="meta">${escapeHtml(item.user_name || '观众')} · ${formatTime(item.created_at)}${item.status === 'assisted' ? ' <span class="sc-badge-assisted">✓ 已处理</span>' : ''}</div>
-      </div>
-      <div class="queue-actions">
-        <button class="icon" title="${item.status === 'assisted' ? '取消处理' : '标记已处理'}" type="button" data-sc-action="${item.status === 'assisted' ? 'unassist' : 'assist'}" data-id="${item.id}">${item.status === 'assisted' ? '↺' : '✓'}</button>
-        <button class="icon" title="复制 SC" type="button" data-copy="${escapeAttr(item.message || '')}">⧉</button>
-        <button class="icon" title="删除 SC" type="button" data-sc-action="delete" data-id="${item.id}">×</button>
-      </div>
-    </div>
-  `,
-    )
-    .join('');
-
-  list.querySelectorAll('[data-sc-action]').forEach((button) => {
-    button.addEventListener('click', () => superChatAction(button.dataset.scAction, button.dataset.id));
-  });
-  bindQueueCopyButtons(list, 'SC 已复制');
-}
-
-function bindQueueCopyButtons(list, successMessage) {
-  list.querySelectorAll('[data-copy]').forEach((button) => {
-    button.addEventListener('click', async () => {
-      try {
-        await copyText(button.dataset.copy);
-        toast(successMessage);
-      } catch (_) {
-        toast('复制失败，请重试');
-      }
-    });
-  });
-}
-
 function applyAdminQueueFontPreview(settings = {}) {
   const list = document.getElementById('queueList');
   if (!list) return;
@@ -285,68 +151,6 @@ async function queueAction(action, id) {
   const result = await api('/api/queue/action', { action, id });
   console.log('[queueAction] result:', result);
   await stateService.reloadState();
-}
-
-async function superChatAction(action, id) {
-  return enqueueSuperChatAction(async () => {
-    if (action === 'delete') {
-      const revision = superChatUndoRevision;
-      const response = await api('/api/superchats/delete', { id }, { notifyError: false });
-      if (revision === superChatUndoRevision) showSuperChatUndo(response.undo);
-    } else {
-      await api('/api/superchats/action', { action, id }, { notifyError: false });
-    }
-    await stateService.reloadState();
-  });
-}
-
-function enqueueSuperChatAction(action) {
-  superChatActions = superChatActions.then(async () => {
-    const button = document.getElementById('superChatUndoBtn');
-    if (button) button.disabled = true;
-    try { await action(); }
-    catch (error) { showError(error); }
-    finally { if (button) button.disabled = !superChatUndo; }
-  });
-  return superChatActions;
-}
-
-function showSuperChatUndo(undo) {
-  if (!undo || undo.expiresAt <= Date.now()) { clearSuperChatUndo(); return; }
-  clearTimeout(superChatUndoTimer);
-  clearTimeout(superChatUndoHideTimer);
-  superChatUndoHideTimer = null;
-  superChatUndo = undo;
-  const panel = document.getElementById('superChatUndo');
-  const message = document.getElementById('superChatUndoMessage');
-  if (message) message.textContent = `已删除 ${undo.count} 条 SC`;
-  if (panel) {
-    panel.hidden = false;
-    panel.classList.remove('is-leaving');
-  }
-  superChatUndoTimer = setTimeout(expireSuperChatUndo, undo.expiresAt - Date.now());
-}
-
-export function clearSuperChatUndo() {
-  superChatUndoRevision += 1;
-  expireSuperChatUndo();
-}
-
-function expireSuperChatUndo() {
-  clearTimeout(superChatUndoTimer);
-  superChatUndoTimer = null;
-  superChatUndo = null;
-  const panel = document.getElementById('superChatUndo');
-  const button = document.getElementById('superChatUndoBtn');
-  if (button) button.disabled = true;
-  clearTimeout(superChatUndoHideTimer);
-  if (!panel || panel.hidden) return;
-  panel.classList.add('is-leaving');
-  superChatUndoHideTimer = setTimeout(() => {
-    panel.hidden = true;
-    panel.classList.remove('is-leaving');
-    superChatUndoHideTimer = null;
-  }, 1000);
 }
 
 function requesterLabel(item) {
@@ -400,4 +204,4 @@ function stripRandomScopePrefix(val) {
   return text;
 }
 
-export { initQueueForm, renderState, renderQueueState, renderSuperChatQueue, applyAdminQueueFontPreview };
+export { initQueueForm, renderQueueState, applyAdminQueueFontPreview };

@@ -187,7 +187,7 @@ test('games admin retries an empty viewer list with backoff and fills both viewe
   for (const delay of [250, 500, 1000, 2000]) await runRetry(delay);
   assert.equal(viewerRequests, 8, 'an empty room stops after the last backoff step');
   assert.equal(viewerBodies.length, 0);
-  assert.deepEqual(pickerTexts('gomokuViewer'), ['暂无当前在线观众']);
+  assert.equal(node('gomokuViewer').children.length, 1, 'an empty list leaves only the placeholder');
   for (const id of ['numberBombViewer', 'gomokuViewer']) {
     assert.equal(node(id).children[0].disabled, true);
     assert.equal(node(id).value, '', 'an unavailable opponent returns to the placeholder');

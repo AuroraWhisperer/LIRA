@@ -177,10 +177,10 @@ function syncLayerVisibility() {
   const previousAdvanced = advancedVisible;
   const paused = latestState?.playing === false;
   basicVisible = outputLayer !== 'advanced' && (previewLayer === 'basic'
-    || previewLayer === 'both' && rawSettings.desktopLyricEnabled !== 'false' && rawSettings.desktopLyricEnabled !== false
+    || previewLayer === 'both' && (outputLayer === 'basic' || rawSettings.desktopLyricEnabled !== 'false' && rawSettings.desktopLyricEnabled !== false)
       && !(paused && currentDisplaySettings.hideOnPause));
   advancedVisible = Boolean(advancedRenderer) && outputLayer !== 'basic' && (previewLayer === 'advanced'
-    || previewLayer === 'both' && (rawSettings.advancedLyricEnabled === 'true' || rawSettings.advancedLyricEnabled === true)
+    || previewLayer === 'both' && (outputLayer === 'advanced' || rawSettings.advancedLyricEnabled === 'true' || rawSettings.advancedLyricEnabled === true)
       && !(paused && (rawSettings.advancedLyricHideOnPause === 'true' || rawSettings.advancedLyricHideOnPause === true)));
   if (viewport) viewport.hidden = !basicVisible;
   if (previewStage) previewStage.dataset.lyricLayers = basicVisible ? advancedVisible ? 'both' : 'basic' : advancedVisible ? 'advanced' : 'none';
@@ -196,17 +196,10 @@ function syncLayerVisibility() {
   advancedRenderer?.setVisible(advancedVisible && renderer?.isVisible() !== false);
 }
 
-function updateLyricState(state, { render = true } = {}) {
+function updateLyricState(state) {
   if (!state || typeof state !== 'object' || !acceptLyricVersion(state)) return false;
-  if (render) applyLyricState(state);
-  return true;
-}
-
-// Local preview samples and cached live restoration share the renderer without
-// changing the live stream's generation/sequence guard.
-function updatePreviewState(state) {
-  if (!state || typeof state !== 'object') return;
   applyLyricState(state);
+  return true;
 }
 
 function applyLyricState(state) {
@@ -728,7 +721,6 @@ export const desktopLyricRenderer = Object.freeze({
   init,
   applySettings,
   updateLyricState,
-  updatePreviewState,
   updateLyricTimeline,
   setPreviewLayer,
   dispose,

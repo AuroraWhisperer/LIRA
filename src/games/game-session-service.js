@@ -13,6 +13,7 @@ function createGameSessionService(options = {}) {
   const scheduleTimeout = typeof options.setTimeout === 'function' ? options.setTimeout : setTimeout;
   const cancelTimeout = typeof options.clearTimeout === 'function' ? options.clearTimeout : clearTimeout;
   const viewers = new Map();
+  let viewerSourceKey = '';
   let session = null;
   let viewer = null;
   let winner = null;
@@ -22,6 +23,7 @@ function createGameSessionService(options = {}) {
   const SCORE_UPDATE_DELAY_MS = 40;
 
   function touchViewer(danmaku = {}) {
+    if (!syncViewerSource()) return;
     const uid = String(danmaku.uid || '').trim();
     const name = String(danmaku.userName || '观众').trim() || '观众';
     if (!uid && name === '观众') return;
@@ -33,10 +35,22 @@ function createGameSessionService(options = {}) {
   }
 
   function listViewers() {
+    syncViewerSource();
     pruneViewers();
     return [...viewers.values()]
       .map(({ uid, name, lastSeenAt }) => ({ uid, name, lastSeenAt }))
       .sort((a, b) => b.lastSeenAt - a.lastSeenAt);
+  }
+
+  function syncViewerSource() {
+    if (!options.getSourceState) return true;
+    const source = options.getSourceState();
+    const key = source.configuredRoomChanged ? '' : JSON.stringify([source.roomId, source.accountUid, source.connectionKey]);
+    if (key !== viewerSourceKey) {
+      viewers.clear();
+      viewerSourceKey = key;
+    }
+    return !source.configuredRoomChanged;
   }
 
   function assertCanCollect() {

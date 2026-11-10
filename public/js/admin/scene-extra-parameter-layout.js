@@ -1,4 +1,4 @@
-import { previewElement } from './component-preview-surface.js';
+import { previewElement } from './component-preview-elements.js';
 import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js';
 
 // Keep the canvas sections in the same vocabulary as their client settings pages.

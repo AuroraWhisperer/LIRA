@@ -5,7 +5,7 @@ function transform(x = 0, y = 0, rotation = 0, scaleX = 1, scaleY = scaleX) {
   return `translate(${x}em, ${y}em) rotate(${rotation}deg) scale(${scaleX}, ${scaleY})`;
 }
 
-export function advancedLyricKeyframes(kind, name, amount = 1, ordinal = 0) {
+export function advancedLyricKeyframes(kind, name, amount = 1, ordinal = 0, color = '') {
   const a = Math.max(0, amount);
   if (kind === 'enter') {
     const from = { opacity: 0, transform: REST };
@@ -25,6 +25,8 @@ export function advancedLyricKeyframes(kind, name, amount = 1, ordinal = 0) {
         break;
       }
       case 'stretch': from.transform = transform(0, 0, 0, 1 + 1.2 * a, Math.max(0.2, 1 - 0.6 * a)); break;
+      case 'focus': return [{ opacity: 0, transform: transform(0, 0, 0, 1 + 0.22 * a), filter: `blur(${0.16 * a}em)` },
+        { opacity: 1, transform: REST, filter: 'blur(0em)' }];
     }
     return [from, { opacity: 1, transform: REST }];
   }
@@ -42,6 +44,8 @@ export function advancedLyricKeyframes(kind, name, amount = 1, ordinal = 0) {
       }
       case 'wipe': return [{ clipPath: 'inset(0 0% 0 0)' }, { clipPath: 'inset(0 0% 0 100%)' }];
       case 'squeeze': to.transform = transform(0, 0, 0, 1 + 0.5 * a, Math.max(0.02, 1 - 0.95 * a)); break;
+      case 'defocus': return [{ opacity: 1, transform: REST, filter: 'blur(0em)' },
+        { opacity: 0, transform: transform(0, 0, 0, 1 + 0.12 * a), filter: `blur(${0.18 * a}em)` }];
     }
     return [{ opacity: 1, transform: REST }, to];
   }
@@ -66,24 +70,36 @@ export function advancedLyricKeyframes(kind, name, amount = 1, ordinal = 0) {
       case 'bounce': return [rest, { transform: transform(0, -0.22 * a), offset: 0.3 }, { transform: transform(0, 0.035 * a), offset: 0.7 }, rest];
       case 'wave': return [rest, { transform: transform(0, -0.1 * a, -7 * a) }, { transform: transform(0, 0.05 * a, 5 * a) }, rest];
       case 'tilt': return [rest, { transform: transform(0, -0.04 * a, (ordinal % 2 ? 1 : -1) * 11 * a) }, rest];
-      case 'glow': return [{ filter: 'brightness(1)' }, { filter: `brightness(${1 + 0.7 * a})` }, { filter: 'brightness(1)' }];
+      case 'glow': {
+        // Brightness alone is invisible on near-white text; the halo uses the accent.
+        const halo = color ? ` drop-shadow(0 0 ${0.18 * a}em ${color})` : '';
+        const off = color ? ' drop-shadow(0 0 0em transparent)' : '';
+        return [{ filter: `brightness(1)${off}` }, { filter: `brightness(${1 + 0.7 * a})${halo}` }, { filter: `brightness(1)${off}` }];
+      }
       default: return null;
     }
   }
   return null;
 }
 
-export function advancedLyricWordAnimation(name, { startMs, endMs, lineEndMs, timed = false, amount = 1, ordinal = 0 }) {
+export function advancedLyricWordAnimation(name, { startMs, endMs, lineEndMs, timed = false, amount = 1, ordinal = 0, color = '' }) {
   if (![startMs, endMs, lineEndMs, amount].every(Number.isFinite)
     || endMs <= startMs || lineEndMs <= startMs || amount <= 0 || name === 'sustain' && !timed) return null;
   const span = endMs - startMs;
+  if (name === 'focus') {
+    // Unsung glyphs wait out of focus; each sharpens as its own interval begins.
+    const soft = Math.min(0.11, 0.06 * amount);
+    return { startMs, endMs: Math.min(lineEndMs, startMs + Math.max(160, Math.min(600, span))), easing: EASE_OUT, frames: [
+      { filter: `blur(${soft}em)`, opacity: 0.55, transform: transform(0, 0, 0, 1 + 0.06 * amount) },
+      { filter: 'blur(0em)', opacity: 1, transform: REST }] };
+  }
   let frames;
   if (name === 'sustain') {
     const strength = amount * Math.min(1, span / 850);
     const rest = { transform: REST, filter: 'brightness(1)' };
     frames = [rest, { transform: transform(0, -0.09 * strength, 0, 1 + 0.08 * strength),
       filter: `brightness(${1 + 0.24 * strength})` }, rest];
-  } else frames = advancedLyricKeyframes('word', name, amount, ordinal);
+  } else frames = advancedLyricKeyframes('word', name, amount, ordinal, color);
   if (!frames) return null;
   if (name !== 'sustain' && (!timed || span <= 650 || !['pop', 'rise', 'tilt', 'glow'].includes(name))) {
     return { frames, startMs, endMs: Math.min(lineEndMs, startMs + Math.min(650, Math.max(220, span + 120))), easing: 'ease-in-out' };

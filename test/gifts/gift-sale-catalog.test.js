@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 const {
   buildGiftCatalog,
   collectPanelGiftIds,
@@ -133,6 +134,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
   let nowMs = Date.parse('2026-08-16T06:00:00.000Z');
   let roomId = '22637261';
   let fetchCount = 0;
+  let failure = false;
   const endpoints = [];
   const service = createGiftSaleCatalogService({
     dataDir: fixture.dataDir,
@@ -142,6 +144,7 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
     minRefreshMs: 10_000,
     async fetchJson(name) {
       fetchCount += 1;
+      if (failure) throw new Error('Synthetic upstream failure');
       endpoints.push(name);
       if (name === 'gift_data')
         return {
@@ -214,7 +217,70 @@ test('gift sale service validates room ID, caches refreshes, persists snapshots,
   nowMs += 10_001;
   await service.refresh();
   assert.equal(fetchCount, 8);
+
+  failure = true;
+  await assert.rejects(service.refresh({ force: true }));
+  assert.equal(service.getSnapshot().roomId, '6');
+  assert.equal(service.getSnapshot().gifts.length, 2);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(fixture.dataDir, 'overtime-gift-sale.json'), 'utf8')).roomId, '6');
 });
+
+for (const revisitFirstRoom of [false, true]) {
+  test(`room refreshes keep independent requests and ${revisitFirstRoom ? 'reuse a revisited room without a late rollback' : 'retain the new room request when the old one finishes'}`, async (t) => {
+    const dataDir = createScratchDirectory('gift-sale-room-race-');
+    const gates = new Map(['111111', '222222'].map(room => [room, Promise.withResolvers()]));
+    const requests = [];
+    const results = [];
+    let roomId = '111111';
+    const service = createGiftSaleCatalogService({ dataDir, getRoomId: () => roomId,
+      async fetchJson(endpoint, _url, capturedRoom) {
+        requests.push(capturedRoom);
+        await gates.get(capturedRoom).promise;
+        return endpoint === 'gift_data'
+          ? { code: 0, data: { room_gift_list: { gold_list: [{ gift_id: Number(capturedRoom) }] } } }
+          : { code: 0, data: { list: [{ id: Number(capturedRoom), name: `Gift ${capturedRoom}`, price: 1000, coin_type: 'gold' }] } };
+      },
+    });
+    const refresh = () => {
+      const result = service.refresh({ force: true }).then(value => ({ value }), error => ({ error }));
+      results.push(result);
+      return result;
+    };
+    t.after(async () => {
+      for (const gate of gates.values()) gate.resolve();
+      await Promise.all(results);
+      removeScratchDirectory(dataDir);
+    });
+
+    const first = refresh();
+    roomId = '222222';
+    const second = refresh();
+    refresh();
+    if (revisitFirstRoom) {
+      roomId = '111111';
+      refresh();
+    }
+    assert.equal(requests.filter(room => room === '111111').length, 2);
+    assert.equal(requests.filter(room => room === '222222').length, 2);
+
+    gates.get('111111').resolve();
+    const firstResult = await first;
+    if (revisitFirstRoom) assert.equal(firstResult.value?.roomId, roomId);
+    else {
+      assert.ok(firstResult.error);
+      assert.equal(fs.existsSync(path.join(dataDir, 'overtime-gift-sale.json')), false);
+      refresh();
+      assert.equal(requests.filter(room => room === '222222').length, 2, 'the old room completion must not release the new room request');
+    }
+    gates.get('222222').resolve();
+    const secondResult = await second;
+    if (revisitFirstRoom) assert.ok(secondResult.error);
+    else assert.equal(secondResult.value?.roomId, roomId);
+    assert.equal(service.getSnapshot().roomId, roomId);
+    assert.equal(service.getSnapshot().gifts[0].id, roomId);
+    assert.equal(JSON.parse(fs.readFileSync(path.join(dataDir, 'overtime-gift-sale.json'), 'utf8')).roomId, roomId);
+  });
+}
 
 test('gift sale service does not call upstream without a configured room', async (t) => {
   let called = false;

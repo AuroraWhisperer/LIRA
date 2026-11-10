@@ -1,3 +1,4 @@
+import { normalizeRangeValue } from '../shared/utils.js';
 import { normalizePersistedQueueStyle, readQueueStyleSettings, queueStyleSettingsPayload } from '../shared/queue-style-settings.js';
 import { componentField } from './component-preview-panel.js';
 
@@ -48,4 +49,29 @@ export function collectQueueTheme(root) {
 
 export function queueSettingsPayload(draft, changed) {
   return { ...pickQueueSettings(changed), overlayQueueStyle: draft.overlayQueueStyle };
+}
+
+// Project legacy settings to controls without rewriting the saved draft.
+export function queueThemeControlValues(settings) {
+  const active = readQueueStyleSettings(settings, settings.overlayQueueStyle);
+  const scale = Number(normalizeRangeValue(settings.themeFontScale, 0.25, 2, 1));
+  return {
+    ...Object.fromEntries(Object.entries(QUEUE_STYLE_CONTROLS).map(([field, id]) => [id, active[field]])),
+    queueSongFontSize: normalizeRangeValue(settings.queueSongFontSize, 10, 70, Math.round(scale * 28)),
+    queueTitleFontSize: normalizeRangeValue(settings.queueTitleFontSize, 10, 40, Math.round(scale * 30)),
+    identityQueueFontSize: normalizeRangeValue(active.fontSize, 9, 78, 28),
+    overlayRuleFontSize: normalizeRangeValue(settings.overlayRuleFontSize, 5, 18, 10),
+    queueScrollSpeed: normalizeQueueScrollSpeedForDisplay(settings.queueScrollSpeed),
+    identityQueueScrollSpeed: normalizeQueueScrollSpeedForDisplay(active.scrollSpeed),
+  };
+}
+
+function normalizeQueueScrollSpeedForDisplay(input) {
+  const valueNumber = Number(input);
+  if (!Number.isFinite(valueNumber)) return '80';
+  if (valueNumber > 100) {
+    const actualSpeed = Math.max(50, Math.min(200, valueNumber));
+    return String(Math.round(1 + ((actualSpeed - 50) / 150) * 99));
+  }
+  return String(Math.max(1, Math.min(100, Math.round(valueNumber))));
 }

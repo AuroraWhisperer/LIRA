@@ -1,6 +1,5 @@
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 import { colorDistance, createShapePoints, isShapeTool } from './games-drawing-geometry.js';
-import { createDrawControls } from './games-drawing-controls.js';
 
 const DRAW_TOOLS = ['pen', 'eraser', 'line', 'rectangle', 'ellipse', 'picker'];
 const DRAW_TOOL_BUTTONS = {
@@ -26,18 +25,30 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
   let drawDanmakuLastRenderDurationMs = 0;
   let drawClock = null;
 
-  const drawControls = createDrawControls({
-    byId,
-    canDraw,
-    getSession,
-    onDisable: () => {
+  function setToolsEnabled(enabled) {
+    if (!enabled) {
       const hadActiveStroke = Boolean(activeStroke);
       clearTimeout(drawFlushTimer);
       drawFlushTimer = null;
       activeStroke = null;
       if (hadActiveStroke) redrawCanvas(getSession()?.state?.canvas);
-    },
-  });
+    }
+    byId('drawCanvas').classList.toggle('is-disabled', !enabled);
+    document
+      .querySelectorAll(
+        '[data-draw-color], [data-draw-width], #drawClearBtn, #drawUndoBtn, #drawPenBtn, #drawEraserBtn, #drawLineBtn, #drawRectangleBtn, #drawEllipseBtn, #drawPickerBtn',
+      )
+      .forEach((button) => {
+        button.disabled = !enabled;
+      });
+    syncUndoState();
+  }
+
+  function syncUndoState() {
+    const button = byId('drawUndoBtn');
+    if (!button) return;
+    button.disabled = !canDraw() || !getSession()?.state?.canvas?.strokes?.length;
+  }
 
   const drawClientId = `draw-${
     typeof crypto.randomUUID === 'function' ? crypto.randomUUID() : Math.random().toString(36).slice(2)
@@ -392,7 +403,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
       canvasState.totalPoints = 0;
       canvasState.revision = Number(operation.revision) || canvasState.revision;
       redrawCanvas(canvasState);
-      drawControls.syncUndoState();
+      syncUndoState();
       return;
     }
     if (operation.action === 'undo') {
@@ -403,7 +414,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
         redrawCanvas(canvasState);
       }
       canvasState.revision = Number(operation.revision) || canvasState.revision;
-      drawControls.syncUndoState();
+      syncUndoState();
       return;
     }
     if (operation.action !== 'append' || !Array.isArray(operation.points)) return;
@@ -430,7 +441,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
       if (activeStroke) activeStroke.background = null;
       drawCanvasPoints(previous ? [previous, ...operation.points] : operation.points, operation.color, operation.width);
     }
-    drawControls.syncUndoState();
+    syncUndoState();
   }
 
   function redrawCanvas(canvasState = {}) {
@@ -484,7 +495,7 @@ export function createDrawController({ byId, canDraw, getSession, loadSnapshot, 
     redrawCanvas,
     resetDanmakuRenderScheduler,
     scheduleDrawDanmakuRender,
-    setToolsEnabled: drawControls.setToolsEnabled,
+    setToolsEnabled,
     setDrawingClock,
     updateCountdown,
   };

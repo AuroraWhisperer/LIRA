@@ -82,7 +82,7 @@ const SHOTS = [
     tab: 'importPage',
     setup: async (page) => {
       await page.locator('#importText').fill(
-        '歌曲名字\t原唱/首发歌手\t歌曲分类\n说明用示例歌曲\t示例歌手\t示例',
+        '歌曲名字\t歌手\t曲风\n说明用示例歌曲\t示例歌手\t示例',
       );
       await page.locator('#songImportPreviewBtn').click();
       await page.locator('#songImportApplyBtn:enabled').waitFor();
@@ -98,7 +98,7 @@ const SHOTS = [
       await page
         .locator('#importText')
         .fill(
-          '歌曲名字\t原唱/首发歌手\t歌曲分类\t歌曲标签\t是否可点\t语言\t点歌价格\n说明用示例歌曲\t示例歌手\t示例\t文档\t是\t华语\t免费',
+          '歌曲名字\t歌手\t曲风\t歌曲标签\t是否可点\t语言\t点歌价格\n说明用示例歌曲\t示例歌手\t示例\t文档\t是\t华语\t免费',
         );
       await page.locator('#songImportPreviewBtn').click();
       await page.locator('#songImportApplyBtn').click();

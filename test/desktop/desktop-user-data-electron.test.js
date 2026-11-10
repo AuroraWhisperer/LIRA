@@ -144,3 +144,102 @@ test('real Electron protects the legacy copy and switches to the installed insta
     removeScratchDirectory(root);
   }
 });
+
+test('real Electron retries a failed legacy partition migration before opening account sessions', {
+  skip: process.platform !== 'win32',
+  timeout: 45_000,
+}, async () => {
+  const root = createScratchDirectory('legacy-partitions-electron-');
+  const appData = path.join(root, 'appdata');
+  const sourceDir = path.join(appData, 'LIRA');
+  const targetDir = path.join(root, 'browser');
+  const probe = path.join(root, 'probe.cjs');
+  fs.mkdirSync(sourceDir, { recursive: true });
+  fs.mkdirSync(targetDir);
+  fs.writeFileSync(probe, `
+    const fs = require('node:fs');
+    const path = require('node:path');
+    const { app, session } = require('electron');
+    const { migrateLegacyPartitions } = require(${JSON.stringify(require.resolve('../../src/electron/desktop-user-data'))});
+    const mode = process.argv[2];
+    const profile = mode === 'seed' ? ${JSON.stringify(sourceDir)} : ${JSON.stringify(targetDir)};
+    app.setName('LIRA');
+    app.setPath('appData', ${JSON.stringify(appData)});
+    app.setPath('userData', profile);
+    app.setPath('sessionData', profile);
+    app.setPath('crashDumps', path.join(profile, 'crashes'));
+    app.disableHardwareAcceleration();
+    let exitCode = 0;
+    process.on('message', () => app.exit(exitCode));
+    app.whenReady().then(async () => {
+      if (mode !== 'seed') migrateLegacyPartitions({
+        app, writeLog() {},
+        fileSystem: mode === 'fail' ? {
+          ...fs,
+          cpSync(from, to, options) {
+            fs.cpSync(path.join(from, 'music-qq'), path.join(to, 'music-qq'), options);
+            throw new Error('partition copy failed');
+          },
+        } : fs,
+      });
+      const restored = {};
+      for (const name of ['music-qq', 'bilibili']) {
+        const account = session.fromPartition('persist:' + name);
+        const filter = { url: 'https://partition-migration.invalid', name: 'fixture' };
+        if (mode === 'seed') {
+          await account.cookies.set({ ...filter, value: name, expirationDate: Math.floor(Date.now() / 1000) + 86400 });
+          await account.cookies.flushStore();
+        } else {
+          restored[name] = (await account.cookies.get(filter))[0]?.value;
+        }
+      }
+      process.send({ restored });
+    }).catch(error => {
+      exitCode = 1;
+      process.send({ error: error.message });
+    });
+  `);
+
+  async function launch(mode, expectedCode) {
+    const env = { ...process.env };
+    delete env.ELECTRON_RUN_AS_NODE;
+    const child = spawn(require('electron'), [probe, mode], {
+      env, windowsHide: true, stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+    });
+    let errors = '';
+    child.stderr.on('data', data => { errors = (errors + data).slice(-4000); });
+    const closed = new Promise((resolve, reject) => {
+      child.once('close', resolve);
+      child.once('error', reject);
+    });
+    const timer = setTimeout(() => child.kill(), 12_000);
+    try {
+      const result = await new Promise((resolve, reject) => {
+        child.once('message', resolve);
+        child.once('error', reject);
+        child.once('close', code => reject(new Error('Electron exited before reporting: ' + code + ' ' + errors)));
+      });
+      child.send('quit');
+      assert.equal(await closed, expectedCode, JSON.stringify({ mode, result, stderr: errors }));
+      return result;
+    } finally {
+      clearTimeout(timer);
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill();
+        await closed.catch(() => {});
+      }
+    }
+  }
+
+  try {
+    await launch('seed', 0);
+    const failed = await launch('fail', 1);
+    assert.ok(failed.error);
+    assert.equal(fs.existsSync(path.join(targetDir, 'Partitions')), false);
+    const recovered = await launch('retry', 0);
+    assert.equal(recovered.restored['music-qq'], 'music-qq');
+    assert.equal(recovered.restored.bilibili, 'bilibili');
+  } finally {
+    removeScratchDirectory(root);
+  }
+});

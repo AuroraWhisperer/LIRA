@@ -1,4 +1,4 @@
-import { previewElement, previewToolbarIcon } from './component-preview-surface.js';
+import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { enhanceSelects } from '../shared/select-menu.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 
