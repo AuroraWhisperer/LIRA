@@ -289,7 +289,6 @@ export function renderWeeklySchedule(container, template, { documentRef = contai
     buildModules(template, builder),
     buildAssets(template, builder),
   );
-  if (template.showCredit) root.append(builder.node('small', 'wsa-credit', '周表制作 · LIRA'));
   container.replaceChildren(root);
   fitWeeklyScheduleText(root);
   return root;

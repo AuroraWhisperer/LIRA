@@ -80,6 +80,7 @@ const state = {
     giftEffectDanmakuEnabled: 'true',
     giftDisplayConfig: secret,
     heartBoxCollectionShowRewards: 'false',
+    heartBoxCollectionBackgroundStyle: 'lavender',
     unknown: secret,
   },
   queue: {
@@ -156,6 +157,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
     assert.doesNotMatch(JSON.stringify(result), /PRIVATE_SENTINEL/, scope);
     assert.deepEqual(projectOverlayResponse(scope, '/api/state', state), result.state);
     assert.equal(result.state.settings?.heartBoxCollectionShowRewards, scope === 'heart-box-collection' ? 'false' : undefined);
+    assert.equal(result.state.settings?.heartBoxCollectionBackgroundStyle, scope === 'heart-box-collection' ? 'lavender' : undefined);
     if (scope === 'queue') {
       assert.equal(result.state.queue.current.is_live, true);
       assert.equal(result.state.queue.requestResult.id, 'request');

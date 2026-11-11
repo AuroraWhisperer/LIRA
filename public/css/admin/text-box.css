@@ -1,7 +1,7 @@
 @import url('./rich-text-toolbar.css');
 @import url('../shared/text-box.css');
 
-.text-box-page { width: 100%; max-width: 1200px; margin-inline: auto; }
+.text-box-page { width: 100%; }
 .text-box-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .text-box-heading-actions { display: flex; align-items: center; margin-left: auto; flex-wrap: wrap; gap: 8px; }
 .text-box-scene-context p { margin: 0; }

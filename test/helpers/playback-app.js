@@ -103,6 +103,8 @@ async function createPlaybackApp(initialState, options = {}) {
       async providerHealth() {
         return { ok: true, message: 'ok' };
       },
+      resolveLocalMediaUrls: options.resolveLocalMediaUrls,
+      selectLocalFiles: options.selectLocalFiles,
       async savePlaybackState(_clientId, payload) {
         ipcSavedState = JSON.parse(JSON.stringify(payload));
         serverState = ipcSavedState;

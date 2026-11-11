@@ -54,6 +54,12 @@ test('heart-box collection opens in the canvas and publishes either style with l
   });
   assert.equal(castles.length, 4);
   assert.ok(castles.every(image => image.source === '/img/heart-box-collection/castle.webp' && image.width > 0));
+  const backgroundSaved = canvas.waitForResponse(response =>
+    new URL(response.url()).pathname === '/api/component-preview/appearance'
+      && response.request().postDataJSON()?.patch?.backgroundStyle === 'midnight' && response.status() === 200);
+  await canvas.locator('[data-component-parameter="backgroundStyle"]').selectOption('midnight');
+  await backgroundSaved;
+  await preview.locator('.heart-collection[data-background="midnight"]').waitFor();
   const rewards = canvas.locator('[data-component-parameter="showRewards"]');
   const rewardSaved = value => canvas.waitForResponse(response =>
     new URL(response.url()).pathname === '/api/component-preview/appearance'
@@ -88,6 +94,7 @@ test('heart-box collection opens in the canvas and publishes either style with l
   await canvas.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
   const saved = fixture.service.list()[0];
   assert.equal(fixture.runtime.settings.heartBoxCollectionShowRewards, 'false');
+  assert.equal(fixture.runtime.settings.heartBoxCollectionBackgroundStyle, 'midnight');
   const source = fixture.service.getSource(saved.document.id);
   const outputUrl = `${fixture.origin}/scene?id=${source.id}#token=${source.token}`;
   assert.equal((await fetch(outputUrl)).status, 200);
@@ -101,6 +108,7 @@ test('heart-box collection opens in the canvas and publishes either style with l
   const standalone = await context.newPage();
   await standalone.goto(standaloneUrl);
   await standalone.locator('.heart-collection-count').filter({ hasText: '37' }).waitFor();
+  await standalone.locator('.heart-collection[data-background="midnight"]').waitFor();
   assert.equal(await standalone.locator('.heart-collection-reward:visible').count(), 0);
   progress.status = 'ended';
   progress.count = 39;

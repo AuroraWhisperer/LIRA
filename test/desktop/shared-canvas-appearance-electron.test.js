@@ -234,6 +234,62 @@ test('desktop and canvas share local settings and imported resources across inst
   assert.deepEqual(errors, []);
 });
 
+test('heart box backgrounds save from desktop and canvas into the published appearance', { timeout: 40000 }, async t => {
+  const root = path.resolve(__dirname, '../..');
+  const directory = createScratchDirectory('heart-backgrounds-electron-');
+  let app;
+  let browser;
+  t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
+  app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
+  await desktop.waitForFunction(() => document.getElementById('liveDanmakuFeature')?.parentElement === document.body);
+  const errors = []; desktop.on('pageerror', error => errors.push(error.message));
+  await desktop.evaluate(async markup => {
+    const source = new DOMParser().parseFromString(markup, 'text/html');
+    const panel = source.body.firstElementChild;
+    panel.hidden = false; panel.style.display = 'block'; document.body.prepend(panel);
+    const status = document.createElement('span'); status.id = 'wsStatus'; document.body.append(status);
+    const { createAdminStateRenderer } = await import('/js/admin/state-renderer.js');
+    const { eventBus, Events } = await import('/js/shared/event-bus.js');
+    eventBus.on(Events.STATE_LOADED, createAdminStateRenderer({ renderGifts() {}, renderQueueStyle() {}, renderQueue() {} }));
+    const { createHeartBoxCollection } = await import('/js/admin/gifts/heart-box-collection.js'); createHeartBoxCollection();
+    const { stateService } = await import('/js/admin/state.js'); stateService.connectSocket();
+  }, readAdminFragmentHtml('pages/admin/live-components/heart-box-collection.html'));
+  await Promise.all([
+    desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/settings'
+      && response.request().postDataJSON()?.heartBoxCollectionBackgroundStyle === 'sakura' && response.status() === 200),
+    desktop.getByLabel('背景样式', { exact: true }).selectOption('sakura'),
+  ]);
+  await desktop.getByRole('button', { name: '打开画布', exact: true }).click();
+  let url;
+  for (let i = 0; i < 100 && !url; i++) {
+    url = await app.evaluate(() => global.canvasTest.externalUrls.at(-1));
+    if (!url) await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.equal((await fetch(url)).status, 200);
+  browser = await chromium.launch({ headless: true });
+  const canvas = await browser.newPage({ viewport: { width: 1600, height: 1000 } }); canvas.setDefaultTimeout(8000);
+  canvas.on('pageerror', error => errors.push(error.message));
+  await canvas.goto(url);
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="backgroundStyle"]')?.value === 'sakura');
+  const preview = canvas.frameLocator('.scene-editor-item[data-component="heart-box-collection"] iframe');
+  await preview.locator('.heart-collection[data-background="sakura"]').waitFor();
+  const canvasSaved = canvas.waitForResponse(response => new URL(response.url()).pathname === '/api/component-preview/appearance'
+    && response.request().postDataJSON()?.patch?.backgroundStyle === 'midnight' && response.status() === 200);
+  await canvas.locator('[data-component-parameter="backgroundStyle"]').selectOption('midnight');
+  await canvasSaved;
+  await desktop.waitForFunction(() => document.getElementById('heartBoxCollectionBackgroundStyle').value === 'midnight');
+  await preview.locator('.heart-collection[data-background="midnight"]').waitFor();
+  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const output = await app.evaluate(() => global.canvasTest.output());
+  const item = output.document.items.find(item => item.type === 'heart-box-collection');
+  assert.equal(output.appearances[item.id].backgroundStyle, 'midnight');
+  await canvas.reload();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="backgroundStyle"]')?.value === 'midnight');
+  assert.deepEqual(errors, []);
+});
+
 test('motion, advanced lyrics and shared viewing controls save through desktop and canvas without replacing layers', { timeout: 90000 }, async t => {
   const root = path.resolve(__dirname, '../..');
   const directory = createScratchDirectory('aligned-parameters-electron-');
@@ -257,6 +313,10 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
     document.body.append(wrapper);
     for (const section of [...source.body.children]) {
       section.hidden = false; section.style.display = 'block'; wrapper.append(section);
+      if (section.id === 'desktopLyricPage') {
+        section.style.display = 'flex';
+        section.style.height = 'calc(100vh - 48px)';
+      }
     }
     const status = document.createElement('span'); status.id = 'wsStatus'; document.body.append(status);
     const { createAdminStateRenderer } = await import('/js/admin/state-renderer.js');

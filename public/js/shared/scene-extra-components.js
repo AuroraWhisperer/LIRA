@@ -5,6 +5,7 @@ import { NOW_PLAYING_FIELDS } from './now-playing-appearance.js';
 import { GIFT_WISH_RIBBON_FIELDS } from './gift-wish-ribbon-appearance.js';
 import { ADVANCED_LYRIC_FIELDS, LYRIC_DISPLAY_FIELDS } from './advanced-lyric-appearance.js';
 import { LIVE_RANKING_COMPONENT } from './live-rankings.js';
+import { HEART_COLLECTION_BACKGROUNDS } from './heart-box-collection-appearance.js';
 
 // Canvas appearance only. Sessions, gift accounting and library edits keep their existing owners.
 const text = (label, value = '', maxLength = 80) => ({ label, type: 'text', default: value, maxLength });
@@ -211,6 +212,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     variants: [variant('task', '心动收集', '解锁本周心动奖励'), variant('compact', '紧凑进度', '收集心动盲盒')],
     fields: {
       displayStyle: select('展示样式', 'task', { task: '心动收集', compact: '紧凑进度' }),
+      backgroundStyle: select('背景样式', 'white', HEART_COLLECTION_BACKGROUNDS),
       showRewards: check('显示倍率和限开数量'),
     },
   },

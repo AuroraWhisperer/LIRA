@@ -129,7 +129,7 @@ playbackControls → audio.load()/play()
 
 首页请求在开始时固定平台、action、歌单 ID 和缓存键。HomeService 的代际决定页面是否接受结果，ContentLoader 的每键请求代际决定缓存是否接受写入：切换分类、最近历史、音源或返回历史后，旧成功和旧失败均不能覆盖新页面。后台刷新使用局部结果，不把页面状态当临时工作区；重复缓存读取可复用在途刷新，同键较新的实际请求优先，完成后清理请求记录。可缓存 action 只由 ContentLoader 的 `CACHEABLE_ACTIONS` 定义，HomeService 复用该集合。可修改的歌单详情不再使用服务端第二份内容缓存，后台更新和强制刷新直接读取 Provider 当前结果，空歌单也更新播放器缓存。
 
-`HomeHandler` 在平台登录检查之前处理 `recent`，通过 `HomeService.loadLocalRecentHistory` 读取本机播放历史；未登录 QQ/网易云也可打开此抽屉，其他在线入口仍使用原有登录条件。
+`HomeHandler` 在平台登录检查之前处理 `recent`，通过 `HomeService.loadLocalRecentHistory` 读取本机播放历史；未登录 QQ/网易云也可打开此抽屉，其他在线入口仍使用原有登录条件。历史的单曲播放、入队和批量操作只对在线曲目调用在线规范化，本地曲目保留 `filePath`、`fileName` 和当前会话的 `objectUrl`。恢复后的历史缺少 `objectUrl` 时，播放前由 `ensureLocalTrackPlayable` 沿用桌面授权 IPC 解析路径；文件不可用时仍提示重新选择，不转为在线歌曲。
 
 「我喜欢」每次加载的分页共用一个 `loadingSession`，让 Provider 复用本次歌单定位和 QQ 全量返回。登录/退出使平台代际失效后，已发出的页面返回即停止后续分页；普通页面导航仍允许同账号后台加载完成并写缓存。
 

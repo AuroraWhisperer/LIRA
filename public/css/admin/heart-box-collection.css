@@ -1,5 +1,5 @@
 .heart-box-settings { display: grid; gap: var(--spacing-lg); container: heart-box-settings / inline-size; }
-.heart-box-toolbar, .heart-box-workspace { width: 100%; max-width: 1120px; }
+.heart-box-toolbar, .heart-box-workspace { width: 100%; }
 .heart-box-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
 .heart-box-period { display: grid; gap: 4px; }
 .heart-box-period strong { color: var(--color-text-primary); font-size: var(--type-size-section-title); font-weight: 600; }
@@ -9,9 +9,9 @@
 .heart-box-settings h3, .heart-box-preview-pane > .hint { margin: 0; }
 .heart-box-preview-pane > .hint:empty { display: none; }
 .heart-box-live-preview { display: grid; place-items: center; min-height: 300px; padding: var(--spacing-lg); border-radius: var(--radius-lg); background: var(--color-bg-settings); }
-.heart-box-live-preview > .heart-collection { max-width: 620px; }
 .heart-box-live-preview:has(> [hidden]) { display: none; }
 .heart-box-controls { display: grid; gap: var(--spacing-lg); min-width: 0; padding-left: var(--spacing-lg); border-left: 1px solid var(--color-border-light); }
+.heart-box-background-select { display: grid; gap: 8px; }
 .heart-box-controls .heart-box-rewards-toggle { font-size: var(--type-size-control); font-weight: var(--type-weight-regular); line-height: 20px; }
 .heart-box-source-row .copy-url { height: auto; min-height: var(--component-control-height); padding: 8px 12px; overflow-wrap: anywhere; white-space: normal; font-size: var(--type-size-caption); line-height: 20px; }
 .heart-box-rules { margin: 0; padding-left: 1.25em; line-height: 1.8; }

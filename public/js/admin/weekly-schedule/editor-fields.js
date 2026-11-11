@@ -151,7 +151,6 @@ export function renderWeeklyScheduleFields(container, template) {
     { id: 'en', label: 'MON · 英文缩写' }, { id: 'zh', label: '周一 · 中文' }, { id: 'short', label: '一 · 简写' },
   ] });
   field(appearance, '整张左右对调', 'flippedLayout', template.flippedLayout, { type: 'checkbox' });
-  field(appearance, '显示 LIRA 署名', 'showCredit', template.showCredit, { type: 'checkbox' });
 
   const icons = group('人设图标');
   const choices = element('div', 'weekly-icon-grid');
@@ -281,6 +280,13 @@ export function renderWeeklyScheduleFields(container, template) {
   parameter(decorations, '花纹浓度', 'decorations.intensity', template.decorations.intensity, { min: 0, max: 100, unit: '%' });
   for (const [key, label] of [['lace', '上下花边'], ['sparkles', '星星闪光'], ['tape', '纸胶带'], ['bow', '书脊蝴蝶结'], ['backgroundIcons', '背景小图标']]) {
     field(decorations, label, `decorations.${key}`, template.decorations[key], { type: 'checkbox' });
+  }
+  for (const panel of Object.values(panels)) {
+    if (panel.childElementCount !== 1) continue;
+    const details = panel.firstElementChild;
+    const section = element('section', 'weekly-editor-group');
+    section.append(element('h3', 'weekly-group-title', details.firstElementChild.textContent), details.lastElementChild);
+    details.replaceWith(section);
   }
   container.replaceChildren(fragment);
   return container.querySelector('[data-weekly-field="fontId"]');

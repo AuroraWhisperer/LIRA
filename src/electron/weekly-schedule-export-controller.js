@@ -195,7 +195,7 @@ function createWeeklyScheduleExportController({ app, BrowserWindow, dialog, nati
     active = current;
     try {
       const template = validateWeeklyScheduleExportTemplate(input, nativeImage);
-      const directory = path.join(app.getPath('pictures'), 'LIRA', '周表');
+      const directory = path.join(path.dirname(app.getPath('exe')), '周表');
       await fileSystem.mkdir(directory, { recursive: true });
       assertCurrent(current);
       const result = await dialog.showSaveDialog(getMainWindow(), {

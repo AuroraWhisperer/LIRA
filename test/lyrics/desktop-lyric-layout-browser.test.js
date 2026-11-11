@@ -255,35 +255,11 @@ test('single and freshly laid out long lyrics follow the selected vertical ancho
   }
 });
 
-test('preview backgrounds contrast with the selected text while the output stays transparent', async t => {
+test('lyrics output stays transparent with light and dark text', async t => {
   const page = await openRenderer(t);
   for (const color of ['#000000', '#ffffff']) {
     await page.evaluate(color => window.testLyricRenderer.applySettings({ desktopLyricTextColor: color }), color);
     assert.equal(await page.locator('#desktopLyricPreviewStage').evaluate(element => getComputedStyle(element).backgroundColor),
       'rgba(0, 0, 0, 0)');
-  }
-  await page.evaluate(() => {
-    document.getElementById('desktopLyricSurface').classList.remove('lyric-window-card');
-    document.getElementById('desktopLyricPreviewStage').classList.remove('lyric-window-stage');
-  });
-  const luminance = rgb => {
-    const [r, g, b] = rgb.match(/[\d.]+/g).slice(0, 3).map(Number).map(value => {
-      const channel = value / 255;
-      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-    });
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  for (const [color, foreground] of [['#000000', 0], ['#ffffff', 1]]) {
-    for (const solid of [false, true]) {
-      const background = await page.evaluate(({ color, solid }) => {
-        window.testLyricRenderer.applySettings({ desktopLyricTextColor: color });
-        const stage = document.getElementById('desktopLyricPreviewStage');
-        stage.classList.toggle('is-solid', solid);
-        return getComputedStyle(stage).backgroundColor;
-      }, { color, solid });
-      const light = luminance(background);
-      assert.ok((Math.max(light, foreground) + 0.05) / (Math.min(light, foreground) + 0.05) > 7,
-        `${color} lyrics must remain readable on the ${solid ? 'solid' : 'checker'} preview`);
-    }
   }
 });

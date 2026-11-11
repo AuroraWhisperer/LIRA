@@ -7,12 +7,13 @@ const stage = document.getElementById('heartBoxCollectionStage');
 const status = document.getElementById('heartBoxOverlayStatus');
 const query = new URLSearchParams(location.search);
 let displayStyle = query.get('displayStyle') === 'compact' ? 'compact' : 'task';
+let backgroundStyle = query.get('backgroundStyle') || 'white';
 let showRewards = !['false', '0'].includes(query.get('showRewards'));
 let data;
 let revision;
 let observer;
 function render() {
-  renderHeartBoxCollection(stage, data, { displayStyle, showRewards });
+  renderHeartBoxCollection(stage, data, { displayStyle, backgroundStyle, showRewards });
 }
 const feed = createGiftWishFeed({
   path: '/api/gifts/heart-box-collection',
@@ -28,8 +29,9 @@ const socket = createOverlaySocket({
     if (message.type !== 'snapshot') return;
     if (!query.has('showRewards')) {
       showRewards = message.state?.settings?.heartBoxCollectionShowRewards !== 'false';
-      render();
     }
+    if (!query.has('backgroundStyle')) backgroundStyle = message.state?.settings?.heartBoxCollectionBackgroundStyle || 'white';
+    render();
     if (message.state?.gifts?.viewRevision === revision) return;
     data = null;
     revision = message.state?.gifts?.viewRevision;
@@ -38,7 +40,12 @@ const socket = createOverlaySocket({
   },
 });
 const component = mountSceneExtraClient('heart-box-collection', {
-  onConfig(config) { displayStyle = config.displayStyle; showRewards = config.showRewards !== false; render(); },
+  onConfig(config) {
+    displayStyle = config.displayStyle;
+    backgroundStyle = config.backgroundStyle;
+    showRewards = config.showRewards !== false;
+    render();
+  },
   onData(value) { data = value; render(); },
   onDispose() { observer?.disconnect(); },
 });

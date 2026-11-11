@@ -118,7 +118,7 @@
 | 开关行 | 文字在前，开关在后 | 同页多处开关的阅读方向一致，与 Windows 设置的开关行相同 |
 | 开播动画 | 工具栏第一行显示样式选择、自动保存状态和显示开关；第二行明文显示完整地址，点击地址复制，右侧为预览；下方将文案与画面效果、图片与音乐分成两列，容器不足 760px 时改为单列 | 不再单独显示复制按钮或链接问号。图片格式与大小限制保持可见；像素样式的大头贴建议随对应字段的问号出现 |
 | 顶部工具栏 | 同一任务的选择、状态与操作并排，组内 8px、组间 16px，必要时用 1px 分隔线；控件高 36px，空间不足按组换行 | 弹幕姬见上方「弹幕姬分组」；时钟将复制与预览放到样式区上方；礼物感谢将启用、触发金额或文字语言、保存放在样式标题旁，模拟预览独立成行；滚动礼物将源地址与保存操作置顶；许愿周期与源操作同行，月底冲刺与盲盒盈亏榜各有独立标签；文本框列表与新建、保存共用工具栏 |
-| 工作区 / 内容区 | 双栏时顶部及右侧外边距 4px，左侧外边距及栏间距 16px；面板内边距 24px，窄窗口 20px；正文容器填满面板可用宽度 | 沿用 4px 节奏；侧栏与内容面板靠近顶栏，右侧保留细间隙；窗口放大或最大化时正文随面板展开，滚动条预留空间避免内容左右跳动 |
+| 工作区 / 内容区 | 双栏时顶部及右侧外边距 4px，左侧外边距及栏间距 16px；面板内边距 24px，窄窗口 20px；正文容器填满面板可用宽度 | 沿用 4px 节奏；侧栏与内容面板靠近顶栏，右侧保留细间隙；窗口放大或最大化时正文随面板展开，心动盲盒（含预览）、文本框及 PK 算分同样不设固定正文宽度上限；滚动条预留空间避免内容左右跳动 |
 | 字段与分组 | 相关字段间距 8/12/16px；不同分组间距 24px | 距离表达关系，代替多层同色边框 |
 | 弹幕样式卡片 | 最小宽 208px，间隔 12px；预览高 104px，卡片至少 152px | 保留素材辨识度与 14px 名称；常规窗口容纳五列，1024px 窗口降为三列。素材等比例包含，不裁掉弹幕样式 |
 | 时钟样式 / 预览 | 样式最小宽 152px、高 64px；预览区最小高 192px | 48px 色样与中文名称需要独立空间；实际时钟保持自身横竖比例，192px 预览区容纳常见外观 |
@@ -210,7 +210,7 @@ Admin 礼物图片查询统一由 `admin/gifts/artwork-catalog.js` 提供，最�
 | 入口 URL | 实际 HTML | 打开者 | 行为说明 |
 | --- | --- | --- | --- |
 | `/gift-wishes` | [overlays/gift-wishes.html](../../../public/pages/overlays/gift-wishes.html) | 浏览器源、管理页预览 | `period=long/day/session` 分别筛选长效/本日/本场，未指定有效周期时展示全部周期；`preview=1` 显示预览底色与状态提示。正式源透明底，建议宽度 440；每 3 秒读取服务端整数进度，来源变更即时清空旧展示。 |
-| `/heart-box-collection` | [overlays/heart-box-collection.html](../../../public/pages/overlays/heart-box-collection.html) | 浏览器源、管理页预览 | 每周心动盲盒收集任务；`displayStyle=task/compact` 选择任务卡或紧凑进度，`showRewards=false` 隐藏城堡、倍率和限开数量（默认显示）。周期与解锁由服务端计算，来源变化清空旧展示。 |
+| `/heart-box-collection` | [overlays/heart-box-collection.html](../../../public/pages/overlays/heart-box-collection.html) | 浏览器源、管理页预览 | 每周心动盲盒收集任务；`displayStyle=task/compact` 选择任务卡或紧凑进度，任务卡支持五种 `backgroundStyle` 背景（默认经典白）；`showRewards=false` 隐藏城堡、倍率和限开数量（默认显示）。周期与解锁由服务端计算，来源变化清空旧展示。 |
 
 排查页面(无 URL 映射,只能按文件路径访问):
 
@@ -220,7 +220,7 @@ Admin 礼物图片查询统一由 `admin/gifts/artwork-catalog.js` 提供，最�
 
 ### 心动盲盒菜单
 
-「组件 → 礼物姬 → 心动盲盒」位于礼物许愿之后，片段 `live-components/heart-box-collection.html`、控制器 `admin/gifts/heart-box-collection.js`。显示本期日期、真实进度、固定奖励节点，以及刷新、复制源地址、打开画布；「显示倍率和限开数量」自动保存并与画布及未指定 URL 覆盖的独立来源同步，失败保留修改并可重试。开启前本期已记录的心动盲盒自动纳入。页面显隐由 `gift-assistant.js` 统一管理，离开暂停请求。画布中的「心动收集」「紧凑进度」与独立 `/heart-box-collection` 地址共用 renderer，详见 [收集组件](overlays.md#心动盲盒收集组件)；内置指南位于 `usage-guide-guard-thanks.html#ug-heart-box-collection`。
+「组件 → 礼物姬 → 心动盲盒」位于礼物许愿之后，片段 `live-components/heart-box-collection.html`、控制器 `admin/gifts/heart-box-collection.js`。显示本期日期、真实进度、固定奖励节点，以及刷新、复制源地址、打开画布；「背景样式」和「显示倍率和限开数量」自动保存并与画布及未指定 URL 覆盖的独立来源同步，失败保留修改并可重试。开启前本期已记录的心动盲盒自动纳入。页面显隐由 `gift-assistant.js` 统一管理，离开暂停请求。画布中的「心动收集」「紧凑进度」与独立 `/heart-box-collection` 地址共用 renderer，详见 [收集组件](overlays.md#心动盲盒收集组件)；内置指南位于 `usage-guide-guard-thanks.html#ug-heart-box-collection`。
 
 ## 3. 页面清单(每个页面一行)
 

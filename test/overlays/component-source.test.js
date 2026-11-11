@@ -138,7 +138,7 @@ test('standalone music, gift and interaction sources render through their own HT
   assert.deepEqual(fixture.service.list(), [], 'Fixed component sources do not require a published canvas.');
 });
 
-test('heart collection sources follow shared reward visibility while explicit old URL choices remain fixed', { timeout: 15000 }, async t => {
+test('heart collection sources follow shared appearance while explicit URL choices remain fixed', { timeout: 15000 }, async t => {
   const fixture = await startCanvasOutputFixture({ extraContext: { heartBoxCollection: {
     getSnapshot: () => ({ viewRevision: 'same-progress', status: 'collecting', count: 37, target: 40, completed: false,
       stages: [[20, 4, 1], [40, 4, 2], [80, 5, 1], [120, 5, 2]].map(([target, multiplier, castles]) =>
@@ -148,7 +148,7 @@ test('heart collection sources follow shared reward visibility while explicit ol
   const browser = openBrowserSession();
   t.after(async () => { await browser.close(); await fixture.close(); });
   const pages = {};
-  for (const [name, query] of [['follow', ''], ['hidden', '?showRewards=false'], ['shown', '?showRewards=true']]) {
+  for (const [name, query] of [['follow', ''], ['hidden', '?showRewards=false&backgroundStyle=cream'], ['shown', '?showRewards=true']]) {
     const page = await browser.newPage(); page.setDefaultTimeout(4000); pages[name] = page;
     const url = `${fixture.origin}/heart-box-collection${query}`;
     assert.equal((await fetch(url)).status, 200);
@@ -156,13 +156,19 @@ test('heart collection sources follow shared reward visibility while explicit ol
     await page.getByText('37', { exact: true }).waitFor();
   }
   fixture.runtime.settings.heartBoxCollectionShowRewards = 'false';
+  fixture.runtime.settings.heartBoxCollectionBackgroundStyle = 'midnight';
   fixture.broadcast();
   await pages.follow.locator('.heart-collection-reward').first().waitFor({ state: 'hidden' });
+  await pages.follow.locator('.heart-collection[data-background="midnight"]').waitFor();
+  assert.equal(await pages.hidden.locator('.heart-collection[data-background="cream"]').isVisible(), true);
   assert.equal(await pages.shown.locator('.heart-collection-reward').first().isVisible(), true);
   assert.equal(await pages.hidden.locator('.heart-collection-reward').first().isVisible(), false);
   fixture.runtime.settings.heartBoxCollectionShowRewards = 'true';
+  fixture.runtime.settings.heartBoxCollectionBackgroundStyle = 'sakura';
   fixture.broadcast();
   await pages.follow.locator('.heart-collection-reward').first().waitFor({ state: 'visible' });
+  await pages.follow.locator('.heart-collection[data-background="sakura"]').waitFor();
+  assert.equal(await pages.hidden.locator('.heart-collection[data-background="cream"]').isVisible(), true);
   assert.equal(await pages.hidden.locator('.heart-collection-reward').first().isVisible(), false);
   assert.equal(await pages.follow.getByText('37', { exact: true }).isVisible(), true);
 });

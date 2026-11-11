@@ -14,6 +14,7 @@ const DEFAULT_WESING_CACHE_PATH =
 
 const DEFAULT_SETTINGS = {
   heartBoxCollectionShowRewards: 'true',
+  heartBoxCollectionBackgroundStyle: 'white',
   liveRankingsRange: 'all',
   interactionOverlayTitle: '',
   interactionOverlayHint: '',

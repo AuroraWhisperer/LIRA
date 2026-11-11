@@ -5,7 +5,7 @@ import { SCENE_EXTRA_COMPONENTS } from './scene-extra-components.js';
 export const SHARED_CONTROLLER_TYPES = ['clock', 'queue', 'danmaku', 'overtime'];
 
 export const SHARED_SCENE_SETTING_FIELDS = Object.freeze({
-  'heart-box-collection': { showRewards: 'heartBoxCollectionShowRewards' },
+  'heart-box-collection': { showRewards: 'heartBoxCollectionShowRewards', backgroundStyle: 'heartBoxCollectionBackgroundStyle' },
   'live-rankings': { range: 'liveRankingsRange' },
 });
 

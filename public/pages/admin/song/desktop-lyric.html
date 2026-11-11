@@ -4,12 +4,6 @@
       <section id="desktopLyricForm" class="desktop-lyric-settings stack" aria-labelledby="desktopLyricSettingsTitle">
         <h3 id="desktopLyricSettingsTitle" class="sr-only">歌词样式</h3>
         <span id="desktopLyricAutosaveState" class="desktop-lyric-autosave-state" aria-live="polite">修改会自动保存并应用到直播画面</span>
-        <div class="lyric-editor-modes" role="tablist" aria-label="编辑歌词样式">
-          <button id="desktopLyricBasicTab" type="button" role="tab" aria-selected="true" aria-controls="desktopLyricBasicPanel" data-lyric-editor="basic">基础样式</button>
-          <button id="desktopLyricAdvancedTab" type="button" role="tab" aria-selected="false" aria-controls="desktopLyricAdvancedPanel" data-lyric-editor="advanced" tabindex="-1">高级样式</button>
-        </div>
-        <details class="desktop-lyric-source-disclosure" open>
-          <summary class="ui-section-title"><span>音乐来源</span><span id="desktopLyricSourceSummary" class="desktop-lyric-source-summary"></span></summary>
         <fieldset id="desktopLyricSourceControls" class="theme-section desktop-lyric-source-settings" disabled>
           <legend>
             <span id="desktopLyricSourceLabel">音乐跟随</span>
@@ -124,7 +118,10 @@
             <p id="desktopLyricSourceTrack" class="muted" hidden></p>
           </div>
         </fieldset>
-        </details>
+        <div class="lyric-editor-modes" role="tablist" aria-label="编辑歌词样式">
+          <button id="desktopLyricBasicTab" type="button" role="tab" aria-selected="true" aria-controls="desktopLyricBasicPanel" data-lyric-editor="basic">基础样式</button>
+          <button id="desktopLyricAdvancedTab" type="button" role="tab" aria-selected="false" aria-controls="desktopLyricAdvancedPanel" data-lyric-editor="advanced" tabindex="-1">高级样式</button>
+        </div>
 
         <section id="desktopLyricBasicPanel" role="tabpanel" aria-labelledby="desktopLyricBasicTab">
         <div id="desktopLyricSettingGroups" class="desktop-lyric-setting-groups">

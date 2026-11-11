@@ -47,7 +47,7 @@ tmp/screenshots/usage-guide/
   webp/<组>/     发布候选图
 ```
 
-以上目录均在 `.gitignore`。选用的 WebP 另存到 `docs/images/usage-guide/<组>/`，随方案保留；正式手册的既有素材仍在 `public/img/usage-guide/`。不要把数据库或 Electron 配置复制到文档目录。
+以上目录均在 `.gitignore`。正式选用的 WebP 放到 `public/img/usage-guide/<组>/`；历史报告可共用字节完全一致的正式图片，仅内容不同且仍有引用价值的候选图保留在 `docs/images/usage-guide/<组>/`。替换共用图片前，先为仍引用旧版的历史材料保留原图并更新链接。不要把数据库或 Electron 配置复制到文档目录。
 
 ## 本轮截图环境
 

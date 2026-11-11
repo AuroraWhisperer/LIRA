@@ -393,7 +393,7 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 ### 周表 PNG 导出
 
-[weekly-schedule-export-controller.js](../../../src/electron/weekly-schedule-export-controller.js) 拥有周表保存任务，通过[窄IPC桥](preload.md)只接收主窗口模板数据。默认原生保存位置为系统图片目录 `LIRA/周表/主播或模板名_周一日期.png`；不读取后端日程或榜单，不新增图片服务器。编辑器与固定内部页共用 [renderer.js](../../../public/js/admin/weekly-schedule/renderer.js)。
+[weekly-schedule-export-controller.js](../../../src/electron/weekly-schedule-export-controller.js) 拥有周表保存任务，通过[窄IPC桥](preload.md)只接收主窗口模板数据。默认原生保存位置为当前程序 EXE 同级的 `周表/主播或模板名_周一日期.png`，由 `app.getPath('exe')` 定位程序目录；不读取后端日程或榜单，不新增图片服务器。编辑器与固定内部页共用 [renderer.js](../../../public/js/admin/weekly-schedule/renderer.js)。
 
 隐藏窗口的画布固定1920×1080，`sandbox`、`contextIsolation`、`webSecurity`开启，无Node/preload，拒绝导航、重定向及新窗口。使用非持久 `lira-weekly-schedule-export` session，拒绝权限请求；只允许固定本地导出页、同origin静态资源和本机data/blob图片。首次固定页loadURL仅通过header传本次管理凭据，不改主session的请求鉴权，不将token放URL/DOM，也不增加overlay scope。
 

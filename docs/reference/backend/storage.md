@@ -547,7 +547,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 
 ### 7.1 关键设置的归属与约束
 
-`heartBoxCollectionShowRewards='true'` 与 `liveRankingsRange='all'` 是本地显示设置，由 [scene-shared-appearance.js](../../../public/js/shared/scene-shared-appearance.js) 映射至 `showRewards` / `range` 并复用场景字段校验。前者为布尔值，由客户端和画布共用；后者仅接受 `all`（从第 1 名开始完整加载，手动滚动）或 `nearby`（跟随本房间名次），供画布和直播输出使用。客户端榜单完整加载已返回名次供手动滚动，不读取该展示方式。画布与直播输出的附近模式人数由实际高度计算；旧场景 `nearby/pageSize/pageSeconds` 字段及校验保留兼容，完整榜不再自动翻页，不新增人数设置。沿用缺失键补齐，无表结构迁移，不加入云设置同步。心动收集的显隐只投影至自身 scope；旧 URL 的显式 `showRewards` 覆盖仍有效。
+`heartBoxCollectionShowRewards='true'`、`heartBoxCollectionBackgroundStyle='white'` 与 `liveRankingsRange='all'` 是本地显示设置，由 [scene-shared-appearance.js](../../../public/js/shared/scene-shared-appearance.js) 映射至 `showRewards` / `backgroundStyle` / `range` 并复用场景字段校验。心动收集的显隐为布尔值，背景为固定枚举，两者由客户端和画布共用；背景选项与 URL 覆盖规则见 [心动盲盒收集组件](../frontend/overlays.md#心动盲盒收集组件)。榜单方式仅接受 `all`（从第 1 名开始完整加载，手动滚动）或 `nearby`（跟随本房间名次），供画布和直播输出使用。客户端榜单完整加载已返回名次供手动滚动，不读取该展示方式。画布与直播输出的附近模式人数由实际高度计算；旧场景 `nearby/pageSize/pageSeconds` 字段及校验保留兼容，完整榜不再自动翻页，不新增人数设置。沿用缺失键补齐，无表结构迁移，不加入云设置同步。心动收集的显示设置只投影至自身 scope；旧 URL 的显式 `showRewards` 覆盖仍有效。
 
 `nowPlayingAppearance` 默认 `'{}'`，是歌曲信息组件的本机外观 JSON，不加入云设置同步。默认值与范围由 [now-playing-appearance.js](../../../public/js/shared/now-playing-appearance.js) 定义，专属配置接口与普通 settings 写入均经过同一场景字段校验；缺失/非法存量回退默认黑胶横排。默认键补齐不覆盖旧设置，无数据库结构迁移。画布共享外观写回同一配置，场景自身的唱片样式、位置、尺寸和显隐保持独立；保存机制见 [now-playing-settings.js](../../../src/server/now-playing-settings.js)。
 

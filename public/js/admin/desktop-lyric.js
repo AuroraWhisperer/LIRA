@@ -91,10 +91,6 @@ export function createDesktopLyric({
       if (editorMode === 'advanced') advancedEditor.activate();
       const page = document.getElementById('desktopLyricPage');
       const advanced = editorMode === 'advanced';
-      if (page && page.classList.contains('is-advanced') !== advanced) {
-        const source = form.querySelector('.desktop-lyric-source-disclosure');
-        if (source) source.open = !advanced;
-      }
       page?.classList.toggle('is-advanced', advanced);
       preview.setPreviewLayer?.(editorMode);
     };

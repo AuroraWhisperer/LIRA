@@ -130,7 +130,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 生产依赖额外排除 `@jixun/qmweb-sign/src/` 的 TypeScript 源码和单元测试、该包的 `tsconfig.json`、`pend/test.js`、`.d.cts` / `.d.mts` 类型声明、`semver/range.bnf` 语法说明和 `@clamber_l/crypto/Readme.MD` 开发说明。`pako/dist/*.js`、`js-yaml/dist/*.js` 与 `@jixun/qmweb-sign/dist/web.{cjs,mjs}` 是未使用的浏览器构建副本，亦不分发。QQ 签名由 Node 消费者使用 `node.cjs` / `node.mjs`；音频解密只使用 `@clamber_l/crypto` 默认入口和独立 WASM，排除未引用且内嵌同份 WASM 的 `dist/loader-inline.js`。Node 的 CommonJS 入口及其 `lib/`、默认 ESM 入口 `.mjs`、解密 WASM 和许可证保留。`pako/lib/zlib/README` 包含 zlib 许可，不能按普通 README 排除；依赖文件也不能仅因名称带 `tmp` 就判为垃圾。开发环境 `node_modules` 保持完整，由打包过滤器控制上述范围。
 
-琉璃与杏花白统一显示 B 站礼物原图，旧猫咪 / 兔子 PNG 和专属生成说明已移至 `tmp/`；图片缺失或失败时图位留空，不再回退这些插画。未使用的五张旧鹤映鎏金 `frame-*` / `ribbon-*` / `flag-tail.webp`、两张旧礼物插画 SVG（`outline.svg`、`transparent.svg`）和未引用的 `server-manage-danmaku-url.webp` 截图已移至仓库根目录 `tmp/`。闲置的 `public/img/shared/live-refresh-icon.webp`、月渡花汀旧版 `silk.svg` 和未被文档引用的 37 张历史候选截图也已移至根 `tmp/`；当前手册图片与仍被审阅报告引用的历史截图保留。当前 `crane-*` 装饰、动态加载的组件缩略图、千舰徽章/头像框与文档约定的旧字体模块兼容入口继续分发。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
+琉璃与杏花白统一显示 B 站礼物原图，旧猫咪 / 兔子 PNG 和专属生成说明已移至 `tmp/`；图片缺失或失败时图位留空，不再回退这些插画。未使用的五张旧鹤映鎏金 `frame-*` / `ribbon-*` / `flag-tail.webp`、两张旧礼物插画 SVG（`outline.svg`、`transparent.svg`）和未引用的 `server-manage-danmaku-url.webp` 截图已移至仓库根目录 `tmp/`。闲置的 `public/img/shared/live-refresh-icon.webp`、月渡花汀旧版 `silk.svg` 和未被文档引用的 37 张历史候选截图也已移至根 `tmp/`；当前手册图片与内容不同的历史截图保留；41 份字节完全相同的历史副本已移入 `tmp/`，报告链接复用保留图片。当前 `crane-*` 装饰、动态加载的组件缩略图、千舰徽章/头像框与文档约定的旧字体模块兼容入口继续分发。验收须检查实际 `app.asar`，不能仅以源码目录大小推断安装包大小；已有 EXE 不会被这些规则自动改写。
 
 | 产物                                | 说明                                     |
 | ----------------------------------- | ---------------------------------------- |

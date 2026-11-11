@@ -277,21 +277,6 @@ test('a playing song without lyrics stops frame work until lyric content arrives
   renderer.dispose();
 });
 
-test('preview contrast follows the selected lyric layer and its current text color', async () => {
-  const { renderer, elements } = await createLiveRenderer({ advanced: true });
-  const card = elements.get('desktopLyricSurface');
-  renderer.applySettings({ desktopLyricTextColor: '#000000' });
-  assert.equal(card.classList.contains('is-light-text'), false);
-  renderer.setPreviewLayer('advanced');
-  assert.equal(card.classList.contains('is-light-text'), true, 'the default light advanced text needs a dark preview surface');
-  renderer.applySettings({ advancedLyricTextColor: '#111111' });
-  assert.equal(card.classList.contains('is-light-text'), false);
-  renderer.applySettings({ advancedLyricTextColor: '#ffffff' });
-  renderer.setPreviewLayer('basic');
-  assert.equal(card.classList.contains('is-light-text'), false, 'returning to basic restores its own text contrast');
-  renderer.dispose();
-});
-
 test('reduced motion keeps timed line changes while inactive output stops its shared clock loop', async () => {
   const { renderer, elements, frames, advance, state } = await createLiveRenderer({ advanced: true, reducedMotion: true });
   renderer.applySettings({ advancedLyricEnabled: 'true' });

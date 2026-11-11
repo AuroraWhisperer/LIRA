@@ -9,14 +9,16 @@ const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { createMusicCatalogService } = require('../../src/music/music-catalog-service');
 const { musicCacheKey, writeMusicJsonCache } = require('../../src/music/music-cache');
 const { createDom, createClock } = require('../helpers/toast-dom');
-const { createPlaybackApp, flushAsyncWork } = require('../helpers/playback-app');
+const { createPlaybackApp, flushAsyncWork, closestTarget } = require('../helpers/playback-app');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
 test('recent local playback remains available without signing in to the selected music platform', async () => {
+  const local = { id: 'local:history', source: 'local', title: '本地历史歌曲', artists: [],
+    filePath: 'D:\\music-fixture\\history.mp3', objectUrl: 'local-media://media/history' };
   const app = await createPlaybackApp({
     current: null, selectedSource: 'qq', mode: 'sequence', volume: 0.75,
-    displayHistory: [{ id: 'local:history', source: 'local', title: '本地历史歌曲', artists: [] }],
+    displayHistory: [local],
   }, { homeAction: 'recent', authState: { platform: 'qq', loggedIn: false } });
   await app.init();
   await flushAsyncWork();
@@ -25,6 +27,90 @@ test('recent local playback remains available without signing in to the selected
 
   assert.match(app.element('playbackDrawerBody').innerHTML, /本地历史歌曲/);
   assert.equal(app.element('toast').prepended.length, 0);
+
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackAction: 'play', playbackHomeTrackIndex: '0' },
+      'playback-home-track-action'),
+  });
+  await flushAsyncWork();
+  assert.equal(app.element('music-player').src, local.objectUrl);
+  assert.equal(app.audioPlayCalls(), 1);
+  assert.equal(app.resolveStreamRequestCount(), 0);
+});
+
+test('restored mixed history retains local files through queueing and bulk playback', async () => {
+  const local = { id: 'local:history', source: 'local', title: '本地历史歌曲', artists: [],
+    filePath: 'D:\\music-fixture\\history.mp3', fileName: 'history.mp3' };
+  const resolvedPaths = [];
+  const onlineSources = [];
+  const app = await createPlaybackApp({
+    current: null, selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+    displayHistory: [local, { id: 'qq:123', source: 'qq', title: 'QQ 历史歌曲', artists: [] },
+      { id: 'netease:456', source: 'netease', title: '网易云历史歌曲', artists: [] }],
+  }, {
+    homeAction: 'recent', localState: null,
+    async resolveLocalMediaUrls(paths) {
+      resolvedPaths.push(...paths);
+      return { results: { [local.filePath]: { ok: true, url: 'local-media://media/restored' } } };
+    },
+    resolveStream(_count, request) {
+      onlineSources.push(request.track.source);
+      return { url: `https://example.test/${request.track.source}.mp3` };
+    },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackAction: 'requested', playbackHomeTrackIndex: '0' },
+      'playback-home-track-action'),
+  });
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  assert.equal(app.element('music-player').src, 'local-media://media/restored');
+  assert.equal(app.audioPlayCalls(), 1);
+  assert.equal(resolvedPaths[0], local.filePath);
+
+  await app.emit('playbackDrawerActions', 'click', { target: { id: 'playbackDrawerPlayAll' } });
+  await flushAsyncWork();
+  const persisted = app.savedState();
+  assert.deepEqual(persisted.normalQueueTracks.map(item => item.source), ['local', 'qq', 'netease']);
+  assert.equal(persisted.current.filePath, local.filePath);
+  assert.equal(app.audioPlayCalls(), 2);
+  assert.equal(app.resolveStreamRequestCount(), 0);
+
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  await app.emit('playbackNext', 'click');
+  await flushAsyncWork();
+  assert.deepEqual(onlineSources, ['qq', 'netease']);
+});
+
+test('an unavailable local history file uses file recovery without online resolution', async () => {
+  let reselections = 0;
+  const app = await createPlaybackApp({
+    current: null, selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+    displayHistory: [{ id: 'local:unavailable', source: 'local', title: '不可用的本地歌曲', artists: [],
+      filePath: 'D:\\music-fixture\\unavailable.mp3' }],
+  }, {
+    homeAction: 'recent', localState: null,
+    resolveLocalMediaUrls: async () => ({ results: {} }),
+    async selectLocalFiles() {
+      reselections += 1;
+      return { canceled: true };
+    },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await app.emit('playbackDrawerBody', 'click', {
+    target: closestTarget({ playbackHomeTrackAction: 'play', playbackHomeTrackIndex: '0' },
+      'playback-home-track-action'),
+  });
+  await flushAsyncWork();
+  assert.equal(reselections, 1);
+  assert.equal(app.audioPlayCalls(), 0);
+  assert.equal(app.resolveStreamRequestCount(), 0);
 });
 
 test('track menus release their outside listener on button, keyboard and drawer closure', async () => {

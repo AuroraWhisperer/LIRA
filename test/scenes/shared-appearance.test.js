@@ -78,14 +78,18 @@ test('canvas motion edits use each effect owner and reach settlement without cop
   assert.equal(ctx.values.giftDropSize, '160', 'an invalid multi-field edit must not partially save');
 });
 
-test('heart box reward visibility follows the shared setting through both entry points', t => {
+test('heart box background and reward visibility follow the shared settings through both entry points', t => {
   const ctx = context(t);
   const config = normalizeSceneConfig('heart-box-collection', { displayStyle: 'compact', showRewards: true });
-  createSceneSharedAppearance(ctx).patch('heart-box-collection', config, { showRewards: false });
+  createSceneSharedAppearance(ctx).patch('heart-box-collection', config, { showRewards: false, backgroundStyle: 'midnight' });
   assert.equal(ctx.values.heartBoxCollectionShowRewards, 'false');
   assert.equal(createSceneSharedAppearance(ctx).read('heart-box-collection', config).showRewards, false);
+  assert.equal(ctx.values.heartBoxCollectionBackgroundStyle, 'midnight');
+  assert.equal(createSceneSharedAppearance(ctx).read('heart-box-collection', config).backgroundStyle, 'midnight');
   ctx.values.heartBoxCollectionShowRewards = 'true';
+  ctx.values.heartBoxCollectionBackgroundStyle = 'lavender';
   assert.equal(createSceneSharedAppearance(ctx).read('heart-box-collection', config).showRewards, true);
+  assert.equal(createSceneSharedAppearance(ctx).read('heart-box-collection', config).backgroundStyle, 'lavender');
   assert.equal(config.displayStyle, 'compact');
   assert.throws(() => createSceneSharedAppearance(ctx).patch('heart-box-collection', config, { displayStyle: 'task' }));
 });

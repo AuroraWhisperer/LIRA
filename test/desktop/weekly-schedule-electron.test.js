@@ -42,10 +42,10 @@ async function fixture(t) {
 }
 
 async function openGroup(page, text) {
-  const details = page.locator('details.weekly-editor-group').filter({ has: page.getByText(text, { exact: true }) });
-  const category = await details.evaluate(node => node.closest('[data-weekly-panel]').dataset.weeklyPanel);
+  const group = page.locator('.weekly-editor-group').filter({ has: page.getByText(text, { exact: true }) });
+  const category = await group.evaluate(node => node.closest('[data-weekly-panel]').dataset.weeklyPanel);
   await page.locator(`[data-weekly-tab="${category}"]`).click();
-  if (!await details.evaluate(node => node.open)) await details.locator(':scope > summary').click();
+  if (await group.evaluate(node => node.tagName === 'DETAILS' && !node.open)) await group.locator(':scope > summary').click();
 }
 
 async function saved(page) {

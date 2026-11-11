@@ -3,7 +3,7 @@
     <strong class="ui-section-title">歌词预览</strong>
     <span id="desktopLyricPreviewStatus" class="pill warn">等待播放</span>
   </header>
-  <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage">
+  <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage is-solid">
     <div
       id="desktopLyricPreviewViewport"
       class="desktop-lyric-preview-viewport"
@@ -18,20 +18,13 @@
     <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
   </div>
   <footer class="desktop-lyric-preview-footer">
-    <div class="desktop-lyric-preview-tools">
-      <div class="desktop-lyric-preview-backgrounds" aria-label="预览背景">
-        <button class="active" type="button" data-lyric-preview-background="grid" aria-pressed="true">网格背景</button>
-        <button type="button" data-lyric-preview-background="solid" aria-pressed="false">纯色背景</button>
-      </div>
+    <div class="desktop-lyric-preview-backgrounds" role="group" aria-label="预览背景">
+      <button class="active" type="button" data-lyric-preview-background="solid" aria-pressed="true">纯色</button>
+      <button type="button" data-lyric-preview-background="grid" aria-pressed="false">网格</button>
     </div>
     <div class="desktop-lyric-preview-source">
-      <div class="desktop-lyric-preview-source-label">
-        <strong id="desktopLyricUrlLabel">基础歌词地址</strong>
-        <span class="muted">点击复制</span>
-        <lira-help>复制当前样式的地址，添加到 OBS / 哔哩哔哩直播姬浏览器源。基础与高级歌词可分别摆放。外观设置会同步到画布中同样式的歌词组件。画布的位置、尺寸和图层需点击「保存并应用」。</lira-help>
-      </div>
-      <button id="desktopLyricCopyUrlBtn" type="button" aria-labelledby="desktopLyricUrlLabel desktopLyricUrl" title="点击复制基础歌词地址"><span id="desktopLyricUrl"></span></button>
+      <button id="desktopLyricCopyUrlBtn" type="button">复制基础歌词地址</button>
+      <lira-help label="歌词预览说明">复制地址，添加到 OBS / 哔哩哔哩直播姬的浏览器源。预览底色仅辅助查看，直播背景透明。高级样式可拖动预览调整位置，松开后自动保存；精确调整见「编排」。</lira-help>
     </div>
-    <p class="hint advanced-lyric-position-hint">拖动画面调整歌词位置，松开后自动保存；精确调整见「编排」。</p>
   </footer>
 </section>

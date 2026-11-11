@@ -227,6 +227,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
             || type === 'interactions' && key === 'interactionRatingRules' && draft.kind !== 'rating'
             || type === 'interactions' && ['interactionBarColor', 'interactionTrackColor'].includes(key) && draft.kind !== 'poll'
             || type === 'gift-wishes' && key.startsWith('ribbon') && draft.displayStyle !== 'ribbon'
+            || type === 'heart-box-collection' && key === 'backgroundStyle' && draft.displayStyle === 'compact'
             || type === 'blindbox' && key.startsWith('blindbox') && key !== 'blindboxOverlayTitle' && (!draft.heartBoxOnly
               || key === 'blindboxCastlesRemaining' && ![true, 'true'].includes(draft.blindboxShowCastlesRemaining))
             || type === 'guard-thanks' && (nautical ? ['style', 'textMode', 'months'].includes(key)

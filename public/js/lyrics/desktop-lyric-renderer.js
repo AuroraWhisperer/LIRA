@@ -17,10 +17,9 @@ import {
   getVisibleLyricRange,
   stepSpringScroll,
 } from './desktop-lyric-timeline.js';
-import { applyDesktopLyricStyles, applyLyricPreviewContrast } from './desktop-lyric-styles.js';
+import { applyDesktopLyricStyles } from './desktop-lyric-styles.js';
 import { createLyricLineTransition } from './desktop-lyric-line-transition.js';
 import { createAdvancedLyricRenderer } from './advanced-lyric-renderer.js';
-import { LYRIC_VISUAL_DEFAULTS } from '../shared/advanced-lyric-appearance.js';
 
 export { calculateFollowTarget, findActiveLyricIndex, getLyricCountdown, getVisibleLyricRange, stepSpringScroll };
 
@@ -184,9 +183,6 @@ function syncLayerVisibility() {
       && !(paused && (rawSettings.advancedLyricHideOnPause === 'true' || rawSettings.advancedLyricHideOnPause === true)));
   if (viewport) viewport.hidden = !basicVisible;
   if (previewStage) previewStage.dataset.lyricLayers = basicVisible ? advancedVisible ? 'both' : 'basic' : advancedVisible ? 'advanced' : 'none';
-  const card = document.getElementById('desktopLyricLivePreview') || document.getElementById('desktopLyricSurface');
-  if (card) applyLyricPreviewContrast(card, advancedVisible && !basicVisible
-    ? rawSettings.advancedLyricTextColor || LYRIC_VISUAL_DEFAULTS.advancedLyricTextColor : currentDisplaySettings.textColor);
   if (previousBasic !== basicVisible) renderTimeline();
   else if (advancedVisible && !previousAdvanced) renderAdvancedFrame(resolveLyricTime(currentPreviewPosition(), currentDisplaySettings));
   const hasContent = (latestTimeline.lines.length > 0 || Boolean(fallbackLine))

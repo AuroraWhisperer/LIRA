@@ -8,6 +8,10 @@ import * as PlaybackUtils from '../utils.js';
 import { HomeService } from '../services/home-service.js';
 import { renderTrackRowMain } from '../ui/components.js';
 
+function normalizeHomeTrack(track) {
+  return track.source === 'local' ? { ...track } : PlaybackUtils.normalizeOnlineTrack(track);
+}
+
 /**
  * 创建首页处理模块
  * @param {Object} deps - 依赖对象
@@ -223,7 +227,7 @@ export function createHomeHandler(deps) {
     const homeState = homeService.getHomeState();
     if (homeState.itemType !== 'track' || !homeState.items.length) return;
 
-    let tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
+    let tracks = homeState.items.map(normalizeHomeTrack);
     if (action === 'shuffle-all') {
       tracks = PlaybackUtils.shuffleTracks(tracks);
       stateActions.setMode('shuffle');
@@ -317,7 +321,7 @@ export function createHomeHandler(deps) {
     const homeState = homeService.getHomeState();
 
     if (action === 'play-context' || action === 'play') {
-      const tracks = homeState.items.map(PlaybackUtils.normalizeOnlineTrack);
+      const tracks = homeState.items.map(normalizeHomeTrack);
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
       const collection = getHomeCollectionContext(homeState);
       const selectedTrack = tracks[index];
@@ -336,7 +340,7 @@ export function createHomeHandler(deps) {
       return;
     }
 
-    callbacks.queuePlaybackTrack(PlaybackUtils.normalizeOnlineTrack(track), action, {
+    callbacks.queuePlaybackTrack(normalizeHomeTrack(track), action, {
       requestedBy: '音乐首页',
     });
   }

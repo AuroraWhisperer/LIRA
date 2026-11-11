@@ -93,7 +93,7 @@ function fixture(t, options = {}) {
     isDestroyed() { return this.destroyed; }
   }
   const controller = createWeeklyScheduleExportController({
-    app: { getPath: () => root }, BrowserWindow: Window, dialog, nativeImage,
+    app: { getPath: () => path.join(root, 'LIRA.exe') }, BrowserWindow: Window, dialog, nativeImage,
     session: { fromPartition(name, settings) {
       const isolated = {
         name, settings, cleared: false,
@@ -137,6 +137,7 @@ test('weekly PNG export uses only the authenticated fixed page and isolates its 
   assert.equal(f.sessions[0].cleared, true);
   assert.equal(f.sessions[0].filter, null);
   assert.match(f.dialog.settings.defaultPath, /测试主播_2026-11-09\.png$/);
+  assert.equal(path.dirname(f.dialog.settings.defaultPath), path.join(f.root, '周表'));
   assert.ok(f.dialog.settings.properties.includes('showOverwriteConfirmation'));
   assert.deepEqual(fs.readdirSync(f.root).filter(name => name.endsWith('.tmp')), []);
 });

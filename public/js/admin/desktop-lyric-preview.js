@@ -86,12 +86,11 @@ function setPreviewLayer(layer) {
   previewLayer = layer === 'advanced' ? 'advanced' : 'basic';
   desktopLyricRenderer.setPreviewLayer(previewLayer);
   const label = previewLayer === 'advanced' ? '高级歌词地址' : '基础歌词地址';
-  const title = document.getElementById('desktopLyricUrlLabel');
-  const url = document.getElementById('desktopLyricUrl');
   const button = document.getElementById('desktopLyricCopyUrlBtn');
-  if (title) title.textContent = label;
-  if (url) url.textContent = desktopLyricUrl();
-  if (button) button.title = `点击复制${label}`;
+  if (button) {
+    button.textContent = `复制${label}`;
+    button.title = desktopLyricUrl();
+  }
 }
 
 function desktopLyricUrl() {

@@ -20,12 +20,11 @@ async function run() {
   const scratch = path.join(root, 'tmp');
   const directory = path.resolve(process.argv[2] || '');
   if (!directory.startsWith(scratch + path.sep)) throw new Error('Expected an isolated repository tmp directory.');
-  for (const name of ['profile', 'sessions', 'logs', 'crashes', 'pictures']) fs.mkdirSync(path.join(directory, name), { recursive: true });
+  for (const name of ['profile', 'sessions', 'logs', 'crashes']) fs.mkdirSync(path.join(directory, name), { recursive: true });
   app.setPath('userData', path.join(directory, 'profile'));
   app.setPath('sessionData', path.join(directory, 'sessions'));
   app.setPath('logs', path.join(directory, 'logs'));
   app.setPath('crashDumps', path.join(directory, 'crashes'));
-  app.setPath('pictures', path.join(directory, 'pictures'));
   await app.whenReady();
 
   const token = 'synthetic-weekly-schedule-desktop';
@@ -99,7 +98,7 @@ async function run() {
     callback({ requestHeaders: details.requestHeaders });
   });
   const controller = createWeeklyScheduleExportController({
-    app, BrowserWindow, nativeImage, session,
+    app: { getPath: () => path.join(directory, 'LIRA.exe') }, BrowserWindow, nativeImage, session,
     dialog: { async showSaveDialog() {
       return state.cancelSaveDialog ? { canceled: true } : { canceled: false, filePath: state.outputPath };
     } },

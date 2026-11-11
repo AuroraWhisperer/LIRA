@@ -27,9 +27,11 @@ function documentFor(type, config = createSceneExtraDefaults(type)) {
 test('heart collection loads older style-only configurations and preserves the explicit rewards switch', () => {
   for (const displayStyle of ['task', 'compact']) {
     assert.equal(normalizeSceneConfig('heart-box-collection', { displayStyle }).showRewards, true);
-    const config = normalizeSceneConfig('heart-box-collection', { displayStyle, showRewards: false });
+    assert.equal(normalizeSceneConfig('heart-box-collection', { displayStyle }).backgroundStyle, 'white');
+    const config = normalizeSceneConfig('heart-box-collection', { displayStyle, showRewards: false, backgroundStyle: 'midnight' });
     const saved = normalizeSceneDocument(documentFor('heart-box-collection', config), { normalizeConfig: normalizeSceneConfig });
     assert.equal(saved.items[0].appearance.config.showRewards, false);
+    assert.equal(saved.items[0].appearance.config.backgroundStyle, 'midnight');
   }
 });
 

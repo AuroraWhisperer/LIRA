@@ -16,7 +16,6 @@ export function createLyricSourceControls({ api, state }) {
     const status = document.getElementById('desktopLyricSourceStatus');
     const followStatus = document.getElementById('desktopLyricFollowStatus');
     const track = document.getElementById('desktopLyricSourceTrack');
-    const summary = document.getElementById('desktopLyricSourceSummary');
     const externalControls = document.getElementById('desktopLyricExternalControls');
     const weSingSettings = document.getElementById('desktopLyricWeSingSettings');
     const clients = [
@@ -35,11 +34,6 @@ export function createLyricSourceControls({ api, state }) {
       });
       externalControls.hidden = group !== 'external';
       weSingSettings.hidden = group !== 'wesing';
-      if (summary) {
-        const choice = (name, value) => root.querySelector(`input[name="${name}"][value="${value}"]`)?.closest('label')?.textContent.trim() || '';
-        summary.textContent = group ? [choice('desktopLyricSourceGroup', group), group === 'external' ? choice('desktopLyricSource', externalSelection) : '']
-          .filter(Boolean).join(' · ') : '';
-      }
       root.querySelectorAll('input[name="desktopLyricSource"]').forEach((input) => {
         input.checked = input.value === externalSelection;
         const client = clients.find((item) => item.source === input.value);

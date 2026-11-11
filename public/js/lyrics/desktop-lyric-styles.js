@@ -29,17 +29,7 @@ export function createLyricFontStack(fontFamily, fallbackFontFamily = '') {
   ].filter(Boolean).join(', ');
 }
 
-export function applyLyricPreviewContrast(card, textColor) {
-  const previewColor = parseHexColor(textColor);
-  const channels = previewColor ? [previewColor.r, previewColor.g, previewColor.b].map(value => {
-    const channel = value / 255;
-    return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
-  }) : [0, 0, 0];
-  card.classList.toggle('is-light-text', channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722 > 0.179);
-}
-
 export function applyDesktopLyricStyles(card, values) {
-  applyLyricPreviewContrast(card, values.textColor);
   card.style.setProperty(
     '--preview-font',
     createLyricFontStack(values.fontFamily, values.fallbackFontFamily),

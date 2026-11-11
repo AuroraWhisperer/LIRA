@@ -46,12 +46,16 @@ function fixture(t) {
 
 test('shared canvas viewing settings persist locally and reject invalid batches without changing the other entry point', async t => {
   const f = fixture(t);
-  assert.equal((await f.post({ heartBoxCollectionShowRewards: false, liveRankingsRange: 'all' })).status, 200);
+  assert.equal(f.store.getSettings().heartBoxCollectionBackgroundStyle, 'white');
+  assert.equal((await f.post({ heartBoxCollectionShowRewards: false,
+    heartBoxCollectionBackgroundStyle: 'sakura', liveRankingsRange: 'all' })).status, 200);
   const saved = createSettingsStore(f.db).getSettings();
   assert.equal(saved.heartBoxCollectionShowRewards, 'false');
+  assert.equal(saved.heartBoxCollectionBackgroundStyle, 'sakura');
   assert.equal(saved.liveRankingsRange, 'all');
   assert.deepEqual(f.dirtyScopes, [], 'display settings stay local');
-  for (const invalid of [{ liveRankingsRange: 'invalid' }, { heartBoxCollectionShowRewards: 'invalid' }]) {
+  for (const invalid of [{ liveRankingsRange: 'invalid' }, { heartBoxCollectionShowRewards: 'invalid' },
+    { heartBoxCollectionBackgroundStyle: 'invalid' }]) {
     assert.equal((await f.post({ liveRankingsRange: 'nearby', ...invalid })).status, 400);
     assert.equal(f.store.getSettings().liveRankingsRange, 'all');
   }

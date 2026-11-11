@@ -31,8 +31,8 @@
   --preview-brightness: 1;
   --preview-contrast: 1;
   --preview-saturation: 1;
-  --preview-surface: #f4f3ef;
-  --preview-checker: #e7e6e1;
+  --preview-surface: #777777;
+  --preview-checker: #858585;
   position: sticky;
   top: 0;
   display: flex;
@@ -45,11 +45,6 @@
   border: 1px solid var(--border);
   border-radius: 14px;
   background: var(--surface);
-}
-
-.desktop-lyric-preview-card.is-light-text {
-  --preview-surface: #15171b;
-  --preview-checker: #202328;
 }
 
 .desktop-lyric-preview-stage {

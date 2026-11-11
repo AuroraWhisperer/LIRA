@@ -40,7 +40,7 @@
 ## 图片与内容归属
 
 - 正式采用的截图由手册 HTML 引用确定，文件位于 `public/img/usage-guide/`。
-- `docs/images/usage-guide/` 为 2026-09 历史候选图库，仍由[原审阅报告](../../docs/reports/2026-09-22-usage-guide-review.md)引用；不将它当作当前截图清单。
+- `docs/images/usage-guide/` 保留 2026-09 历史候选图；[原审阅报告](../../docs/reports/2026-09-22-usage-guide-review.md)中与正式图片完全一致的图位共用 `public/img/usage-guide/` 原图，不再另存重复副本。不将历史候选图库当作当前截图清单。
 - 拍摄、隔离环境和新增镜头的方法只在[截图工具说明](../../scripts/usage-guide-shots/README.md)维护。
 - 具体接口与参数以[技术参考](../../docs/reference/README.md)为准；本计划不重复维护事实表。
 

@@ -1,3 +1,5 @@
+import { HEART_COLLECTION_BACKGROUNDS } from './heart-box-collection-appearance.js';
+
 const views = new WeakMap();
 
 function createView(root) {
@@ -63,10 +65,10 @@ function createView(root) {
   });
   milestones.append(track, collected, stages);
   root.replaceChildren(heading, milestones);
-  return { count, target, state, track, fill, collected, entries };
+  return { count, target, state, track, entries };
 }
 
-export function renderHeartBoxCollection(root, data, { displayStyle = 'task', showRewards = true } = {}) {
+export function renderHeartBoxCollection(root, data, { displayStyle = 'task', backgroundStyle = 'white', showRewards = true } = {}) {
   root.hidden = !data;
   if (!data) return;
   let view = views.get(root);
@@ -75,14 +77,13 @@ export function renderHeartBoxCollection(root, data, { displayStyle = 'task', sh
     views.set(root, view);
   }
   const compact = displayStyle === 'compact';
+  root.dataset.background = Object.hasOwn(HEART_COLLECTION_BACKGROUNDS, backgroundStyle) ? backgroundStyle : 'white';
   root.classList.toggle('is-compact', compact);
   root.classList.toggle('is-ended', data.status === 'ended');
   root.classList.toggle('is-complete', data.completed);
   view.count.textContent = String(data.count);
   view.target.textContent = ` / ${data.target}`;
   view.state.textContent = data.status === 'ended' ? '收集已结束' : data.completed ? '全部解锁' : '收集中';
-  view.track.hidden = data.count === 0;
-  view.collected.hidden = data.count === 0;
   view.track.setAttribute('aria-valuemin', '0');
   view.track.setAttribute('aria-valuemax', '120');
   view.track.setAttribute('aria-valuenow', String(Math.min(data.count, 120)));
@@ -109,5 +110,5 @@ export function renderHeartBoxCollection(root, data, { displayStyle = 'task', sh
     previousTarget = stage.target;
     previousPosition = nodePosition;
   });
-  view.fill.style.transform = `scaleX(${position})`;
+  root.style.setProperty('--heart-progress', String(position));
 }
