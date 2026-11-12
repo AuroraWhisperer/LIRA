@@ -62,6 +62,7 @@ ManifestDPIAware true
     !undef MUI_PAGE_CUSTOMFUNCTION_PRE
   !endif
   Page custom liraShowAgreement liraLeaveAgreement
+  !define LIRA_AGREEMENT_PAGE_DEFINED
 
   Function liraShowAgreement
     ${If} ${isUpdated}

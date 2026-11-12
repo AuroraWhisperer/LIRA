@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { NsisScriptGenerator } = require('app-builder-lib/out/targets/nsis/nsisScriptGenerator');
+const { LangConfigurator, addCustomMessageFileInclude } = require('app-builder-lib/out/targets/nsis/nsisLang');
 const { resolveInstallerTools } = require('../helpers/installer-tools');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
 
@@ -109,6 +110,8 @@ test('NSIS updates show progress and close automatically while preserving restar
     '!insertmacro customFinishPage',
     '!insertmacro MUI_LANGUAGE "SimpChinese"',
     'Function .onInit',
+    `StrCpy $perUserInstallationFolder "${quote(path.join(root, 'user'))}"`,
+    `StrCpy $perMachineInstallationFolder "${quote(path.join(root, 'machine'))}"`,
     'StrCpy $installMode CurrentUser',
     '${If} ${isMachine}',
     'StrCpy $installMode all',
@@ -170,30 +173,41 @@ test('NSIS updates show progress and close automatically while preserving restar
     });
   }
 
-  await t.test('production progress layout compiles and completes an update', () => {
-    const license = path.join(root, 'license.txt');
-    fs.writeFileSync(license, 'Isolated fixture');
-    // Instantiate the production DPI/layout callbacks with all MUI controls.
-    // Manual page clicks are covered above; this run needs no simulated clicks.
+  await t.test('production progress layout compiles and completes an update', async () => {
+    const buildResources = path.resolve(__dirname, '../../build');
+    const installer = fs.readFileSync(path.join(buildResources, 'installer.nsh'), 'utf8');
+    const agreementPage = installer.match(/!macro licensePage\b[\s\S]*?!macroend/)[0];
+    const messages = new NsisScriptGenerator();
+    for (const file of ['messages.yml', 'assistedMessages.yml']) {
+      await addCustomMessageFileInclude(file, { getTempFile: () => path.join(root, `${file}.nsh`) },
+        messages, new LangConfigurator({ installerLanguages: ['zh_CN'] }));
+    }
+    // Use the actual custom agreement and directory hook: an MUI license fixture
+    // would hide dependencies on symbols that the production page never defines.
     const layout = source
+      .replace('Var launchLink\n', '')
+      .replace('!insertmacro MUI_LANGUAGE "SimpChinese"', '!insertmacro MUI_LANGUAGE "SimpChinese"\n' + messages.build())
       .replace('!insertmacro PAGE_INSTALL_MODE', [
-        '!define MUI_PAGE_CUSTOMFUNCTION_PRE fixtureSkipUpdatePage',
-        `!insertmacro MUI_PAGE_LICENSE "${quote(license)}"`,
+        `!define BUILD_RESOURCES_DIR "${quote(buildResources)}"`,
+        '!define VERSION "test"',
+        agreementPage,
+        '!macro skipPageIfUpdated',
+        '!macroend',
+        `!include "${quote(path.join(buildResources, 'installer-directory.nsh'))}"`,
+        '!insertmacro skipPageIfUpdated',
+        '!insertmacro licensePage',
         '!insertmacro PAGE_INSTALL_MODE',
-        '!define MUI_PAGE_CUSTOMFUNCTION_PRE fixtureSkipUpdatePage',
+        '!insertmacro skipPageIfUpdated',
         '!insertmacro MUI_PAGE_DIRECTORY',
       ].join('\n'))
-      .replace(/Function (?:liraInitInstallerUi|liraShowInstallProgress|liraShowInstallMode|liraSkipUpdateFinish|liraShowInstallFinish)\b[\s\S]*?FunctionEnd\n/g, '') + [
+      .replace(/Function (?:fixtureBuilderStartApp|liraInitInstallerUi|liraShowInstallProgress|liraShowInstallMode|liraSkipUpdateFinish|liraShowInstallFinish)\b[\s\S]*?FunctionEnd\n/g, '') + [
         '',
-        'Function fixtureSkipUpdatePage',
-        '${If} ${isUpdated}',
-        'Abort',
-        '${EndIf}',
+        'Function liraSelectDefaultDirectory',
         'FunctionEnd',
         '!insertmacro liraInstallerUi',
       ].join('\n');
     fs.writeFileSync(script, layout);
-    const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+    const build = spawnSync(compiler, ['/V2', '/WX', '-INPUTCHARSET', 'UTF8', script], {
       encoding: 'utf8', windowsHide: true, timeout: 30000,
     });
     assert.equal(build.error, undefined);
