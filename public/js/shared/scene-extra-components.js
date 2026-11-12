@@ -144,7 +144,7 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     title: '全屏礼物感谢', size: [1920, 1080], path: '/gift-effects?giftComponent=frame',
     variantKey: 'style',
     variants: [variant('gift-drop', '礼物掉落', '重力掉落 · 碰撞堆积'),
-      { ...variant('gift-swing', '礼物摇摇乐', '底部随机出现 · 匀速回摆'), size: [1920, 420] }],
+      { ...variant('gift-swing', '礼物摇摇乐', '随机错开 · 伸缩摇摆'), size: [1920, 420] }],
     fields: { style: { ...select('动画风格', 'follow', {
       follow: '跟随已启用效果', 'gift-drop': '礼物掉落', 'gift-swing': '礼物摇摇乐',
     }), optional: true } },

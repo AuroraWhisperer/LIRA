@@ -2,6 +2,29 @@
 
 const { sendJson } = require('./http-utils');
 
+function statusSignature(state) {
+  return `${state.status}:${state.completed || 0}:${state.completedAt || ''}`;
+}
+
+function waitForStatusChange(library, res, after) {
+  return new Promise(resolve => {
+    const finish = () => {
+      clearTimeout(timer);
+      unsubscribe();
+      res.off('close', finish);
+      resolve();
+    };
+    const onState = state => { if (statusSignature(state) !== after) finish(); };
+    const timer = setTimeout(finish, 30000);
+    timer.unref();
+    const unsubscribe = library.onStateChanged(onState);
+    res.once('close', finish);
+    // Subscribe before checking again so a retry between requests is not lost.
+    if (res.destroyed) finish();
+    else onState(library.getState());
+  });
+}
+
 async function serveFontAsset(library, req, res, url) {
   const stylesheet = url.pathname === '/css/shared/display-fonts.css';
   const status = url.pathname === '/font-library/status';
@@ -15,6 +38,9 @@ async function serveFontAsset(library, req, res, url) {
     return true;
   }
   if (status) {
+    const after = url.searchParams.get('after');
+    if (req.method === 'GET' && after) await waitForStatusChange(library, res, after);
+    if (res.destroyed) return true;
     const snapshot = library.getState();
     if (req.method === 'HEAD') { res.writeHead(200); res.end(); }
     else sendJson(res, 200, { status: snapshot.status, completed: snapshot.completed, completedAt: snapshot.completedAt });

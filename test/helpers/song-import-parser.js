@@ -1,16 +1,14 @@
 'use strict';
 
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('./js-module-bundle');
+const path = require('node:path');
+const { loadModuleExports } = require('./frontend-modules');
 
-// Evaluates the admin text-import parser as the browser bundle does and returns its parsing entry points.
+// Loads the same module graph as the admin text-import UI.
 function loadSongImportParser() {
-  const context = { window: { AdminApp: { utils: {} } } };
-  vm.runInNewContext(
-    `${readJsModuleBundle('public', 'js', 'admin', 'song-import-parser.js')}\nthis.parser = { parseTable, parseDelimited };`,
-    context,
+  return loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/song-import-parser.js'),
+    { window: { AdminApp: { utils: {} } } },
   );
-  return context.parser;
 }
 
 module.exports = { loadSongImportParser };

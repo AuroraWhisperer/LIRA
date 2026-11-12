@@ -1,7 +1,7 @@
 'use strict';
 
 const { normalizeGiftSummaryPage } = require('../shared/gift-summary-contract');
-const { normalizeProcessedGiftHistoryPage } = require('../shared/processed-gift-contract');
+const { canonicalizeProcessedGiftHistoryPage } = require('../shared/processed-gift-contract');
 const { publishDetailCoverage } = require('./gift-detail-coverage');
 
 function transaction(db, operation) {
@@ -98,7 +98,7 @@ function createGiftRetentionStore({ giftDb: db, importHistoryRecord, importLiveE
     db.prepare('INSERT OR IGNORE INTO gift_retention_members VALUES (?,?)').run(snapshotId, row.id);
   }
   function historyPage({ sourceId, projectionGeneration, page: supplied, pageToken }) {
-    const page = normalizeProcessedGiftHistoryPage(supplied);
+    const page = canonicalizeProcessedGiftHistoryPage(supplied);
     if (page.giftRetentionVersion !== 1) throw mismatch();
     return transaction(db, () => {
       fence(sourceId, projectionGeneration);

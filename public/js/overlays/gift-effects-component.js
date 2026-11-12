@@ -10,6 +10,7 @@ import { resolveComponentResource } from './component-resources.js';
 import { WOODLAND_GIFT_VIDEO } from '../shared/component-resource-style.js';
 import { createGiftMotionPlayer } from './gift-motion-player.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
+import { GIFT_DROP_SPAWN_DELAY_MS, GIFT_DROP_EXIT_MS } from '../shared/gift-drop-physics.js';
 import { isGiftFrameEventForLayer } from '../shared/gift-frame-style-triggers.js';
 
 export function mountGiftEffectComponent() {
@@ -83,11 +84,13 @@ export function mountGiftEffectComponent() {
   function preview() {
     clear();
     const motion = frame && ['gift-drop', 'gift-swing'].includes(config.style) && !config.mediaStyle && !config.resourceStyle;
+    const drop = motion && config.style === 'gift-drop';
+    const startedAt = Date.now();
     const events = motion ? sample.events.some(event => event.themeId === config.style)
       ? sample.events.filter(event => event.themeId === config.style) : createGiftMotionSamples(config.style) : sample.events;
     events.forEach((payload, index) => {
-      const play = () => enqueue({ ...payload, preview: true, startedAt: Date.now(), eventId: `${payload.eventId}-${++previewSequence}` });
-      if (!motion || index === 0) play();
+      const play = () => enqueue({ ...payload, preview: true, startedAt: drop ? startedAt : Date.now(), eventId: `${payload.eventId}-${++previewSequence}` });
+      if (!motion || drop || index === 0) play();
       else {
         const task = setTimeout(() => { sampleTimers.delete(task); play(); }, index * 1500);
         sampleTimers.add(task);
@@ -97,7 +100,8 @@ export function mountGiftEffectComponent() {
     void Promise.resolve(mediaPlayer?.ready()).then(() => {
       if (current !== generation) return;
       const interval = mediaPlayer ? Math.max(3000, mediaPlayer.durationMs * sample.events.length + 1000)
-        : motion ? Math.max(...events.map(event => (event.motion?.durationSeconds || 20) * 1000)) + events.length * 1500 + 1000
+        : motion ? Math.max(...events.map(event => (event.motion?.durationSeconds || 20) * 1000))
+          + (drop ? GIFT_DROP_SPAWN_DELAY_MS + GIFT_DROP_EXIT_MS : events.length * 1500) + 1000
           : frame ? FRAME_DURATION_MS * sample.events.length + 1500 : 8000;
       timer = setTimeout(preview, interval);
     }).catch(() => {});

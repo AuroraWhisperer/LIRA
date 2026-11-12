@@ -1,7 +1,7 @@
 'use strict';
 
-// Real ES module smoke test for the queue overlay. Unlike js-module-bundle.js,
-// loadModuleExports links the actual import graph with vm.SourceTextModule, so
+// Real ES module smoke test for the queue overlay. loadModuleExports links
+// the actual import graph with vm.SourceTextModule, so
 // an identifier referenced across a module boundary without an import throws a
 // ReferenceError here exactly as it does in the browser.
 

@@ -190,6 +190,7 @@ async function refreshSession() {
 
 async function startGame(game) {
   if (game === 'draw-guess') return drawAdmin.start();
+  const request = ++sessionRequest;
   const isBomb = game === 'number-bomb';
   const mode = isBomb ? byId('numberBombMode').value : 'single';
   const select = byId(isBomb ? 'numberBombViewer' : 'gomokuViewer');
@@ -200,12 +201,17 @@ async function startGame(game) {
     targetUid: mode === 'multi' ? '' : select.value,
     targetName: mode === 'multi' ? '直播间观众' : option?.dataset.name || '',
   });
+  // The start broadcast may arrive first, but its newer state must not be rolled back.
+  if (request !== sessionRequest
+    && (activeGameSession?.sessionId !== result.data.sessionId
+      || activeGameSession.eventRevision > result.data.eventRevision)) return;
   renderSession(result.data);
 }
 
 async function stopGame() {
+  const request = ++sessionRequest;
   await api('/api/games/session', { action: 'stop' });
-  renderSession(null);
+  if (request === sessionRequest) renderSession(null);
 }
 
 function renderSession(session) {

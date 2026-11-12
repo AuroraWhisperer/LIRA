@@ -24,6 +24,8 @@ function createDynamicLotteryAuth({
   let logoutJob = null;
   let disposed = false;
   let queue = Promise.resolve();
+  let observedScope = null;
+  let sessionController = new AbortController();
 
   function getScope() {
     if (disposed) fail('LOTTERY_SESSION_DISPOSED');
@@ -43,7 +45,10 @@ function createDynamicLotteryAuth({
     }
     // The lottery's legacy streamerId field is a private persistence namespace,
     // never the server-issued accountId. It is not sent to Bilibili or renderers.
-    return { streamerId: lotteryAccountScope(serverOrigin, accountId), accountId, serverOrigin, authorizationEpoch };
+    const scope = { streamerId: lotteryAccountScope(serverOrigin, accountId), accountId, serverOrigin, authorizationEpoch };
+    if (observedScope && !sameScope(observedScope, scope)) invalidate();
+    observedScope = scope;
+    return { ...scope, signal: sessionController.signal };
   }
 
   function sameScope(left, right) {
@@ -62,10 +67,18 @@ function createDynamicLotteryAuth({
     return result;
   }
 
-  function invalidate() {
+  function invalidateSession() {
     lotterySession.invalidate();
+    const previous = sessionController;
+    sessionController = new AbortController();
+    previous.abort(Object.assign(new Error('LOTTERY_SESSION_CHANGED'), { code: 'LOTTERY_SESSION_CHANGED' }));
+  }
+
+  function invalidate() {
+    invalidateSession();
     loginJob?.abort.abort();
     account = null;
+    observedScope = null;
   }
 
   async function getAccount() {
@@ -110,14 +123,12 @@ function createDynamicLotteryAuth({
   });
 
   const unsubscribe = licenseManager.onStateChanged(() => {
-    if (!account && !loginJob) return;
+    if (!observedScope && !account && !loginJob) return;
     try {
-      if (sameScope(account?.scope, getScope())) return;
+      getScope();
     } catch {
       invalidate();
-      return;
     }
-    invalidate();
   });
 
   async function readState(selected) {
@@ -153,7 +164,7 @@ function createDynamicLotteryAuth({
       if (job.abort.signal.aborted) fail('LOTTERY_SESSION_CHANGED');
       if (!safeStorage.isEncryptionAvailable()) fail('LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE');
       if ((await readState(selected)).loggedIn) return { selected };
-      lotterySession.invalidate();
+      invalidateSession();
       const auth = {
         BILIBILI_LOGIN_CONFIG: {
           name: '抽奖专用账号',
@@ -207,7 +218,7 @@ function createDynamicLotteryAuth({
     const expectedScope = getScope();
     const pendingLogin = loginJob?.promise;
     loginJob?.abort.abort();
-    lotterySession.invalidate();
+    invalidateSession();
     logoutJob = Promise.resolve(pendingLogin)
       .catch(() => {})
       .then(() =>
@@ -230,6 +241,7 @@ function createDynamicLotteryAuth({
     disposed = true;
     unsubscribe();
     loginJob?.abort.abort();
+    sessionController.abort(Object.assign(new Error('LOTTERY_SESSION_DISPOSED'), { code: 'LOTTERY_SESSION_DISPOSED' }));
     lotterySession.dispose();
   }
 

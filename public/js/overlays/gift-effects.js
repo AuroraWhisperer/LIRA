@@ -56,7 +56,8 @@ import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
     );
     const motionStyle = params.get('giftStyle');
     if (PREVIEW_MODE && ['gift-drop', 'gift-swing'].includes(motionStyle)) {
-      for (const sample of createGiftMotionSamples(motionStyle)) motionPlayer.enqueue(sample);
+      const startedAt = Date.now();
+      for (const sample of createGiftMotionSamples(motionStyle)) motionPlayer.enqueue({ ...sample, startedAt });
     } else if (PREVIEW_MODE && GUARD_PREVIEW_TIER) {
       window.setTimeout(() => guardThanks.enqueue(createGuardPreviewPayload(GUARD_PREVIEW_TIER)), 80);
     } else if (PREVIEW_MODE) {

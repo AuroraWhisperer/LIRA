@@ -101,15 +101,25 @@ test('installer accepts only ordinary-user writable targets before touching an o
   const sid = identity.stdout.match(/S-1-5-[\d-]+/)?.[0];
   assert.ok(sid);
   let denied;
+  let junction;
   try {
-    for (const scenario of ['fresh', 'update', 'mixed-context-update', 'protected-target', 'protected-data', 'all-users', 'elevated']) {
+    for (const scenario of ['fresh', 'update', 'mixed-context-update', 'junction-target', 'protected-target', 'protected-data', 'all-users', 'elevated']) {
       const target = path.join(root, scenario, 'LIRA');
       const executable = path.join(root, scenario + '.exe');
       const script = path.join(root, scenario + '.nsi');
       const passed = path.join(root, scenario + '-passed.txt');
-      fs.mkdirSync(target, { recursive: true });
-      fs.writeFileSync(path.join(target, 'old-program.txt'), 'old program');
-      if (scenario !== 'fresh') fs.mkdirSync(path.join(target, 'data'));
+      if (scenario === 'junction-target') {
+        const linkedDirectory = path.join(root, scenario, 'actual-LIRA');
+        fs.mkdirSync(linkedDirectory, { recursive: true });
+        fs.symlinkSync(linkedDirectory, target, 'junction');
+        junction = target;
+      } else if (scenario !== 'fresh') {
+        fs.mkdirSync(target, { recursive: true });
+      }
+      if (scenario !== 'fresh') {
+        fs.writeFileSync(path.join(target, 'old-program.txt'), 'old program');
+        fs.mkdirSync(path.join(target, 'data'));
+      }
       if (scenario.startsWith('protected-')) {
         denied = scenario === 'protected-data' ? path.join(target, 'data') : target;
         const acl = spawnSync('icacls', [denied, '/deny', `*${sid}:(W)`], { encoding: 'utf8', windowsHide: true });
@@ -147,17 +157,18 @@ test('installer accepts only ordinary-user writable targets before touching an o
       assert.equal(run.status, allowed ? 0 : 2, scenario);
       assert.equal(fs.existsSync(passed), allowed, scenario);
       if (allowed) assert.equal(fs.readFileSync(passed, 'utf8'), 'CurrentUser|0|1', 'silent updates must not request machine elevation');
-      assert.equal(fs.readFileSync(path.join(target, 'old-program.txt'), 'utf8'), 'old program');
+      if (scenario !== 'fresh') assert.equal(fs.readFileSync(path.join(target, 'old-program.txt'), 'utf8'), 'old program');
       if (denied) {
         const restored = spawnSync('icacls', [denied, '/remove:d', `*${sid}`], { windowsHide: true });
         assert.equal(restored.status, 0);
         denied = null;
       }
-      assert.deepEqual(fs.readdirSync(target).sort(), scenario === 'fresh' ? ['old-program.txt'] : ['data', 'old-program.txt']);
+      assert.deepEqual(fs.readdirSync(target).sort(), scenario === 'fresh' ? [] : ['data', 'old-program.txt']);
     }
   } finally {
     if (denied) spawnSync('icacls', [denied, '/remove:d', `*${sid}`], { windowsHide: true });
     assert.equal(path.dirname(fs.realpathSync(root)), fs.realpathSync(scratch));
+    if (junction) fs.unlinkSync(junction);
     fs.rmSync(root, { recursive: true, force: true });
   }
 });

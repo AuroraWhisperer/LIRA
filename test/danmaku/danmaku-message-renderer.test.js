@@ -400,6 +400,22 @@ test('spooky gifts keep the gift name literal and resolve avatars', async () => 
   assert.equal(findByClass(gift, 'spooky-avatar').src, '/resolved/avatar.png');
 });
 
+test('spooky membership gifts preserve renewal, opening and unknown-action semantics', async () => {
+  const render = await createRenderer({ style: 'spooky' });
+  const membership = { kind: 'gift', giftGuardLevel: 3, giftCount: 2, giftTotalPrice: 276 };
+  const renewal = findByClass(render({ ...membership, guardAction: 'renew' }), 'spooky-event-copy').textContent;
+  assert.match(renewal, /续费/);
+  assert.doesNotMatch(renewal, /开通/);
+  assert.match(renewal, /舰长/);
+  assert.match(renewal, /×2/);
+  assert.match(renewal, /¥276/);
+  const opening = findByClass(render({ ...membership, guardAction: 'open' }), 'spooky-event-copy').textContent;
+  assert.match(opening, /开通/);
+  const unknown = findByClass(render({ ...membership, guardAction: 'unknown' }), 'spooky-event-copy').textContent;
+  assert.match(unknown, /支持/);
+  assert.doesNotMatch(unknown, /开通|续费/);
+});
+
 test('spooky SC preserves literal content, sender and price', async () => {
   const render = await createRenderer({ style: 'spooky' });
   const message = '<script>留言</script>\n'.repeat(20);

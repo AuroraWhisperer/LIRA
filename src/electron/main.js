@@ -500,7 +500,6 @@ async function startDesktopApp() {
     onGiftFlushed: (item) => {
       if (licenseManager?.isAuthorized()) desktopNotifications.notifyGift(item);
     },
-    fontFetch: (url, options) => net.fetch(url, options),
     host: process.env.HOST || '127.0.0.1',
     startPort: 3000,
     musicAuth: {
@@ -541,6 +540,7 @@ async function startDesktopApp() {
   if (desktopLifecycle.isShuttingDown()) return;
   runtime = createDesktopRuntime(serverRuntimeModule, {
     dataDir: paths.dataDir,
+    resourceFetch: (url, options) => net.fetch(url, options),
     nativeMusicCapture: true,
     pickComponentWebFile: createComponentWebPicker({ dialog, getWindow: () => desktopWindow.getWindow() }),
     getClientTheme: clientAppearance.getThemeId,

@@ -15,6 +15,7 @@ async function editorUi(t) {
   const clock = createClock();
   const nodes = new Map(['fanEditorTitle', 'fanEditorFields', 'fanEditorHint', 'fanEditorError', 'fanSaveButton']
     .map((id) => [id, documentRef.createElement('div')]));
+  nodes.get('fanEditorFields').inert = false;
   documentRef.getElementById = (id) => id === 'toast' ? container : nodes.get(id);
   const editor = documentRef.createElement('dialog');
   editor.classList.toggle = (name, enabled) => editor.classList[enabled ? 'add' : 'remove'](name);
@@ -41,13 +42,17 @@ test('fan editor prevents repeated saves and cancellation while pending, preserv
   const pending = deferred();
   const failure = new Error('保存失败');
   let writes = 0;
-  ui.controller.open({ title: '编辑档案', fields: '<textarea>未保存内容</textarea>', read: () => '草稿' }, async (value) => {
+  ui.controller.open({ title: '编辑档案', fields: '<textarea>未保存内容</textarea>', read: () => {
+    assert.equal(ui.nodes.get('fanEditorFields').inert, false);
+    return '草稿';
+  } }, async (value) => {
     assert.equal(value, '草稿');
     writes++;
     await pending.promise;
     throw failure;
   });
   const saving = ui.submit();
+  assert.equal(ui.nodes.get('fanEditorFields').inert, true);
   await ui.submit();
   let prevented = false;
   ui.editor.fire('cancel', { preventDefault() { prevented = true; } });
@@ -56,6 +61,7 @@ test('fan editor prevents repeated saves and cancellation while pending, preserv
   pending.resolve();
   await saving;
   assert.equal(ui.editor.open, true);
+  assert.equal(ui.nodes.get('fanEditorFields').inert, false);
   assert.match(ui.nodes.get('fanEditorFields').innerHTML, /未保存内容/);
   assert.deepEqual(ui.errors, [failure]);
   ui.controller.dispose();
@@ -65,20 +71,34 @@ test('fan editor prevents repeated saves and cancellation while pending, preserv
 
 test('fan editor keeps the next confirmation step open and submits its current description', async (t) => {
   const ui = await editorUi(t);
+  const preview = deferred();
+  const confirmation = deferred();
+  t.after(() => { preview.resolve(); confirmation.resolve(); });
   let confirmed = 0;
   ui.controller.open({ title: '预览', fields: '', read: () => 'preview' }, async () => {
     ui.controller.open({ title: '确认恢复', fields: '', saveLabel: '确认恢复', read: () => 'confirmed' }, async (value) => {
       assert.equal(value, 'confirmed');
       confirmed++;
+      await confirmation.promise;
       return { message: '恢复完成' };
     });
+    await preview.promise;
     return { keepOpen: true };
   });
-  await ui.submit();
+  const previewing = ui.submit();
   assert.equal(ui.editor.open, true);
-  await ui.submit();
+  assert.equal(ui.nodes.get('fanEditorFields').inert, false);
+  const confirming = ui.submit();
   assert.equal(confirmed, 1);
+  preview.resolve();
+  await previewing;
+  assert.equal(ui.editor.open, true);
+  assert.equal(ui.nodes.get('fanEditorFields').inert, true);
+  assert.equal(ui.nodes.get('fanSaveButton').disabled, true);
+  confirmation.resolve();
+  await confirming;
   assert.equal(ui.editor.open, false);
+  assert.equal(ui.nodes.get('fanEditorFields').inert, false);
 });
 
 for (const wait of ['file', 'preview']) {
@@ -114,6 +134,29 @@ test('a current restore preview opens the existing confirmation form', async t =
   await transfer.restoreFile({ size: 2, text: async () => '{}' });
   assert.equal(ui.editor.open, true);
 });
+
+for (const { action, response, marker } of [
+  { action: 'snapshots', response: [{ id: 'snapshot-a', createdAt: '2026-11-12T00:00:00Z', reason: 'merge' }], marker: 'snapshot-a' },
+  { action: 'suppressions', response: [{ name: 'Example', identity: ['bilibili', 'uid', '12345'] }], marker: '12345' },
+]) {
+  test(`fan ${action} only opens while its editor intent is current`, async (t) => {
+    const ui = await editorUi(t);
+    const { createFanTransferUi } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/transfer-ui.js'));
+    const pending = deferred();
+    const transfer = createFanTransferUi({
+      openForm: ui.controller.open,
+      beginIntent: ui.controller.beginIntent,
+      request: () => pending.promise,
+    });
+    const loading = transfer[action]();
+    ui.controller.open({ title: '新建档案', fields: '<textarea>尚未保存的备注</textarea>' }, async () => {});
+    pending.resolve(response);
+    await loading;
+    assert.match(ui.nodes.get('fanEditorFields').innerHTML, /尚未保存的备注/);
+    await transfer[action]();
+    assert.ok(ui.nodes.get('fanEditorFields').innerHTML.includes(marker));
+  });
+}
 
 function deferred() {
   let resolve;

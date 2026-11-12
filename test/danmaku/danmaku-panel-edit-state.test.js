@@ -93,7 +93,13 @@ test('RIPPLOID colors edit independently, switch styles safely and reset only th
     document.querySelector('.danmaku-advanced').open = true;
   });
   assert.equal(await page.locator('#danmakuGiftColor50').inputValue(), '#123456');
-  for (const [id, value] of [['danmakuGiftColor50', '#a1b2c3'], ['danmakuGuardColorAdmiral', '#654321'], ['danmakuSuperchatColor2000', '#abcdef']]) {
+  await page.locator('#danmakuGiftColor50').click();
+  const picker = page.locator('.lira-color-picker');
+  assert.equal(await picker.getByLabel('不透明度（%）', { exact: true }).isVisible(), false,
+    'event colors cannot offer opacity that the saved style contract rejects');
+  await picker.getByLabel('十六进制颜色', { exact: true }).fill('#a1b2c3');
+  await picker.getByRole('button', { name: '完成', exact: true }).click();
+  for (const [id, value] of [['danmakuGuardColorAdmiral', '#654321'], ['danmakuSuperchatColor2000', '#abcdef']]) {
     await page.locator(`#${id}`).evaluate((input, color) => {
       input.value = color;
       input.dispatchEvent(new Event('change', { bubbles: true }));

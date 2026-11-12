@@ -74,7 +74,7 @@ test('canvas motion edits use each effect owner and reach settlement without cop
   assert.equal(createSceneSharedAppearance(ctx).read('gift-frame', drop).giftDropSize, '160');
   assert.equal(Object.hasOwn(drop, 'giftDropSize'), false);
   assert.throws(() => current.patch('gift-frame', drop, { giftSwingAngle: '30' }));
-  assert.throws(() => current.patch('gift-frame', drop, { giftDropSize: '180', giftDropQuantityMultiplier: '9' }));
+  assert.throws(() => current.patch('gift-frame', drop, { giftDropSize: '180', giftDropQuantityMultiplier: '21' }));
   assert.equal(ctx.values.giftDropSize, '160', 'an invalid multi-field edit must not partially save');
 });
 

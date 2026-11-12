@@ -86,7 +86,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 本机导入的组件素材存储在 `dataDir/component-library/`，位于打包白名单之外。月渡花汀专用背景/开播/时钟/弹幕/许愿图片、WebM 和缩略图从 `build.files` 排除，源码保留；小型受信 JS/CSS 继续打包。`node scripts/package-moonlit-suite.js` 生成独立 ZIP，格式见[套装指南](../../guides/component-style-packages.md)。
 
-`public/fonts/` 下共享完整字库的 WOFF2、TTF、OTF 不进入安装包；`clock-moon-serif-400.woff2` 和 `guard-thanks-serif-400.woff2` 两个标题裁剪字体（共 6,524 字节）保留在包内。世界地图 8K PNG 也从 `build.files` 排除；三张航海旗帜由导入样式 ZIP 提供，CDN 条目仅为旧客户端保留，当前启动不再下载。字体目录、公共资源路径清单及小型 OFL 许可继续打包。`npm run export:resources` 按字体目录与 `resource-packages.js` 的明确声明更新 `src/resources/catalog.json`，生成按字体名称归组的 ZIP、具名图片、更新清单与上传总 ZIP，并报告当前启动与兼容资源的下载字节；不再按文件大小扫描纳入，必要文件缺失时导出失败。操作与准入规则见 [CDN 资源分发](../../guides/cdn-resources.md)。首次补齐需要联网，后续由主进程检查更新并使用设备缓存，通过原本地 HTTP 路径供客户端和浏览器源读取。packaging-scope 验证全部清单二进制均被排除；bundled-fonts-electron 在含中文和空格的安装路径、仅保留两个标题字体的 ASAR、真实 preload 与 IPC 下验证仅下载 13 个共享字体包和 8K 地图、全部字体实际显示，再关闭重开验证断网缓存与静默结果。原始大小见[字体说明](../../../public/fonts/README.md)，实际 EXE 压缩体积仍须重新构建后测量。
+`public/fonts/` 下共享完整字库的 WOFF2、TTF、OTF 不进入安装包；`clock-moon-serif-400.woff2` 和 `guard-thanks-serif-400.woff2` 两个标题裁剪字体（共 6,524 字节）保留在包内。世界地图 8K PNG 也从 `build.files` 排除；三张航海旗帜由导入样式 ZIP 提供，CDN 条目仅为旧客户端保留，当前启动不再下载。字体目录、公共资源路径清单及小型 OFL 许可继续打包。`npm run export:resources` 按字体目录与 `resource-packages.js` 的明确声明更新 `src/resources/catalog.json`，生成按字体名称归组的 ZIP、具名图片、更新清单与上传总 ZIP，并报告当前启动与兼容资源的下载字节；不再按文件大小扫描纳入，必要文件缺失时导出失败。操作与准入规则见 [CDN 资源分发](../../guides/cdn-resources.md)。首次补齐需要联网，后续由主进程检查更新并使用设备缓存，通过原本地 HTTP 路径供客户端和浏览器源读取。packaging-scope 验证全部清单二进制均被排除；bundled-fonts-electron 在含中文和空格的安装路径、仅保留两个标题字体的 ASAR、真实 preload 与 IPC 下验证仅下载 19 个共享字体包和 8K 地图、全部字体实际显示，再关闭重开验证断网缓存与静默结果。原始大小见[字体说明](../../../public/fonts/README.md)，实际 EXE 压缩体积仍须重新构建后测量。
 
 全部配置内联在 [package.json](../../../package.json) 的 `build` 字段,无独立 electron-builder 配置文件。
 
@@ -160,7 +160,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 当前用户模式校验成功后，同时归一 builder 的 per-user/per-machine 内存标记，避免 HKCU/HKLM 均有历史安装项时，静默安装 section 仍因旧 machine 标记触发提权；不删除另一上下文的注册表记录或安装。
 
-- [installer-per-user.nsh](../../../build/installer-per-user.nsh) 要求以普通权限运行、只安装给当前用户；不展示全用户选择，拒绝提权运行、`/allusers` 和旧全用户安装的自动更新模式。选定目录后，在退出旧程序、备份或卸载之前实际探测安装根与既有 `data/`、`logs/`、`updates/` 的写权限；静默 `/D` 和更新也不能跳过。探测只创建并删除自己的临时文件，不创建这些运行子目录。失败非零退出并保留旧安装/数据；旧全用户安装须先备份并在卸载时保留数据，再普通安装到可写位置，不自动迁移或修改 ACL。普通可写路径升级沿用原数据保留流程。验收：[installer-directory.test.js](../../../test/engineering/installer-directory.test.js) 覆盖真实目录/拒绝写 ACL、显式目录和更新目录，模式与提权分支用隔离 NSIS fixture 验证。
+- [installer-per-user.nsh](../../../build/installer-per-user.nsh) 要求以普通权限运行、只安装给当前用户；不展示全用户选择，拒绝提权运行、`/allusers` 和旧全用户安装的自动更新模式。选定目录后，安装根目录本身为 junction 等重解析点时提前拒绝，与卸载的路径准入一致；随后在退出旧程序、备份或卸载之前实际探测安装根与既有 `data/`、`logs/`、`updates/` 的写权限；静默 `/D` 和更新也不能跳过。探测只创建并删除自己的临时文件，不创建这些运行子目录。失败非零退出并保留旧安装/数据；旧全用户安装须先备份并在卸载时保留数据，再普通安装到可写位置，不自动迁移或修改 ACL。普通可写路径升级沿用原数据保留流程。验收：[installer-directory.test.js](../../../test/engineering/installer-directory.test.js) 覆盖真实目录/拒绝写 ACL、junction 根目录拒绝、显式目录和更新目录，模式与提权分支用隔离 NSIS fixture 验证。
 
 - `ManifestDPIAware true`([installer.nsh:1](../../../build/installer.nsh#L1)):安装器进程高 DPI 感知。
 - `customInstallMode` 只在 [installer-ui.nsh](../../../build/installer-ui.nsh) 定义；普通安装自动选择当前用户，更新保留既有范围选择分支及页面钩子，入口不重复定义宏。旧全用户安装仍由 `customInit` 的权限检查提前拒绝。实际 include 图由 [installer-update.test.js](../../../test/engineering/installer-update.test.js) 使用 NSIS 预处理校验，避免单文件静态检查漏掉宏冲突。

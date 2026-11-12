@@ -32,6 +32,11 @@ FunctionEnd
 
 Function liraRequireWritableInstallDirectory
   Call liraRequireUserInstall
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR") i .R0'
+  IntCmp $R0 -1 liraInstallDirectoryResolved
+  IntOp $R0 $R0 & 0x400
+  StrCmp $R0 0 0 liraInstallDirectoryLinked
+  liraInstallDirectoryResolved:
   ClearErrors
   CreateDirectory "$INSTDIR"
   IfErrors liraInstallDirectoryDenied
@@ -48,6 +53,10 @@ Function liraRequireWritableInstallDirectory
   Call liraCheckDirectoryWrite
   StrCmp $R0 0 0 liraInstallDirectoryDenied
   Return
+  liraInstallDirectoryLinked:
+    SetErrorLevel 2
+    MessageBox MB_OK|MB_ICONSTOP "安装已停止，旧程序和数据未改动。$\r$\n所选安装目录是目录链接或重解析点。请重新运行安装程序并选择普通目录。$\r$\n$\r$\n$INSTDIR" /SD IDOK
+    Quit
   liraInstallDirectoryDenied:
     SetErrorLevel 2
     MessageBox MB_OK|MB_ICONSTOP "安装已停止，旧程序和数据未改动。$\r$\n当前用户无法写入所选目录或其中的 data、logs、updates。请重新运行安装程序并选择当前用户可写的位置。$\r$\n$\r$\n$INSTDIR" /SD IDOK

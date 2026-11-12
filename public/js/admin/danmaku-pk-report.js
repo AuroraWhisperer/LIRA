@@ -1,4 +1,5 @@
 import { validMessages } from './danmaku-welcome-model.js';
+import { revealEditorItem } from './danmaku-editor-pagination.js';
 
 const SWITCHES = { enabled: 'Toggle', reportEnabled: 'ReportToggle', visitorWelcomeEnabled: 'VisitorToggle' };
 const EXTENSION_FIELDS = ['reportEnabled', 'visitorWelcomeEnabled', 'visitorWelcomeDelaySeconds', 'visitorWelcomeMessages'];
@@ -23,7 +24,7 @@ export function initDanmakuPkReport({
   const toggle = element('Toggle'), status = element('Status'), list = element('List'), input = element('Input');
   if (!toggle || !status || !list || !input) return;
   const available = Boolean(bridge?.getPkReportSettings && bridge?.updatePkReportSettings);
-  const draft = { delay: '', messages: [], addition: '', dirty: false, revision: 0, page: 0 };
+  const draft = { delay: '', messages: [], addition: '', dirty: false, revision: 0 };
   let owner = '', generation = 0, settings = null, pending = false, saving = false, disposed = false, notice = '';
   const supported = () => Boolean(settings && Object.hasOwn(settings, 'reportEnabled'));
   function controls() {
@@ -47,8 +48,8 @@ export function initDanmakuPkReport({
     element('SaveStatus').textContent = saving ? '正在同步服务器设置…' : draft.dirty ? '欢迎设置有未保存修改' :
       draft.addition ? '输入尚未添加，不会随设置保存' : supported() ? '欢迎设置已确认' : '欢迎设置尚未确认';
     status.textContent = notice || (!settings ? available ? '连接 LIRA 账号后可设置 PK 播报与欢迎' : '请升级桌面客户端后设置 PK 播报与欢迎' :
-      !settings.enabled ? '总开关已关闭 · 设置已保留' : !supported() ? 'PK 开始时播报对手概况' :
-      [settings.reportEnabled ? '开场播报' : '', settings.visitorWelcomeEnabled ? settings.visitorWelcomeDelaySeconds + ' 秒后欢迎串门观众' : ''].filter(Boolean).join(' · ') || '请在设置中开启播报或欢迎');
+      !supported() ? 'PK 开始时播报对手信息' :
+      [settings.reportEnabled ? '对手信息播报' : '', settings.visitorWelcomeEnabled ? settings.visitorWelcomeDelaySeconds + ' 秒后欢迎串门观众' : ''].filter(Boolean).join(' · ') || '请在设置中开启播报或欢迎');
   }
   function changed() {
     draft.dirty = true;
@@ -56,11 +57,8 @@ export function initDanmakuPkReport({
     controls();
   }
   function renderLibrary() {
-    const pages = Math.max(1, Math.ceil(draft.messages.length / 6));
-    draft.page = Math.min(draft.page, pages - 1);
     list.replaceChildren();
     draft.messages.forEach((text, index) => {
-      if (Math.floor(index / 6) !== draft.page) return;
       const row = documentRef.createElement('div'), number = documentRef.createElement('span');
       row.className = 'danmaku-blessing-row';
       number.className = 'danmaku-blessing-index';
@@ -81,10 +79,6 @@ export function initDanmakuPkReport({
       row.append(number, field, remove);
       list.appendChild(row);
     });
-    element('Pagination').hidden = pages <= 1;
-    element('PageLabel').textContent = '第 ' + (draft.page + 1) + ' / ' + pages + ' 页';
-    element('PrevPage').disabled = draft.page === 0;
-    element('NextPage').disabled = draft.page >= pages - 1;
     input.value = draft.addition;
   }
   function accept(result, submitted) {
@@ -143,7 +137,7 @@ export function initDanmakuPkReport({
     pending = false;
     saving = false;
     notice = '';
-    Object.assign(draft, { delay: '', messages: [], addition: '', dirty: false, revision: draft.revision + 1, page: 0 });
+    Object.assign(draft, { delay: '', messages: [], addition: '', dirty: false, revision: draft.revision + 1 });
     element('Delay').value = '';
     element('DelayError').hidden = true;
     element('Delay').setAttribute('aria-invalid', 'false');
@@ -163,15 +157,13 @@ export function initDanmakuPkReport({
     if (!validMessages([text])) { toast('请输入 1～80 字的串门欢迎词，不能换行', { type: 'error' }); input.focus(); return; }
     draft.messages.push(text);
     draft.addition = '';
-    draft.page = Math.floor((draft.messages.length - 1) / 6);
     changed();
     renderLibrary();
+    revealEditorItem(list, draft.messages.length - 1);
     input.focus();
   }
   element('AddBtn').addEventListener('click', addMessage);
   input.addEventListener('keydown', (event) => { if (event.key === 'Enter') { event.preventDefault(); addMessage(); } });
-  element('PrevPage').addEventListener('click', () => { draft.page--; renderLibrary(); });
-  element('NextPage').addEventListener('click', () => { draft.page++; renderLibrary(); });
   element('DiscardBtn').addEventListener('click', () => {
     if (!supported() || pending) return;
     draft.dirty = false;

@@ -38,13 +38,16 @@ export function createPlaybackControls(deps) {
   let playRequestGeneration = 0;
   let lyricRequestGeneration = 0;
   let audioRequestGeneration = 0;
+  let pendingQualityRequest = null;
   let playRequestSource = null;
   let playRequested = false;
   let waitingForRadio = false;
 
-  function invalidatePlaybackRequests(source) {
+  function invalidatePlaybackRequests(source, { keepLyrics = false } = {}) {
     if (source && source !== playRequestSource) return playRequestGeneration;
     playRequestGeneration += 1;
+    pendingQualityRequest = null;
+    if (!keepLyrics) lyricRequestGeneration += 1;
     waitingForRadio = false;
     if (source) {
       // Cancelling a pending provider leaves another provider's audio usable.
@@ -238,9 +241,9 @@ export function createPlaybackControls(deps) {
   async function loadPlaybackLyrics(track) {
     if (!track) return;
     const request = ++lyricRequestGeneration;
-    const playbackRequest = playRequestGeneration;
     const lyrics = await lyricService.loadLyrics(track);
-    if (request !== lyricRequestGeneration || !isCurrentPlaybackRequest(playbackRequest, track)) return;
+    if (request !== lyricRequestGeneration || playbackState.current?.id !== track.id ||
+        playbackState.selectedSource === 'wesing') return;
     if (stateActions.setLyrics(track.id, lyrics)) {
       syncPlaybackLyricWindow(true);
     }
@@ -265,7 +268,8 @@ export function createPlaybackControls(deps) {
     );
     const songPosition = (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
       PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
-    const requestGeneration = invalidatePlaybackRequests();
+    const requestGeneration = invalidatePlaybackRequests(undefined, { keepLyrics: true });
+    pendingQualityRequest = { generation: requestGeneration, track };
     playRequestSource = track.source;
     try {
       const streamTrack = { ...track };
@@ -282,6 +286,8 @@ export function createPlaybackControls(deps) {
         );
         return;
       }
+      // A lyric refresh may have completed while the stream snapshot was resolving.
+      delete streamTrack.lyrics;
       Object.assign(track, streamTrack);
       const resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000);
 
@@ -308,6 +314,7 @@ export function createPlaybackControls(deps) {
       audioRequestGeneration = requestGeneration;
       showError(error);
     } finally {
+      if (pendingQualityRequest?.generation === requestGeneration) pendingQualityRequest = null;
       if (isCurrentPlaybackRequest(requestGeneration, track)) {
         stateActions.setQuality(source, PlaybackUtils.normalizeQuality(source, track.playbackQuality || previousQuality));
         stateActions.commit();
@@ -398,6 +405,14 @@ export function createPlaybackControls(deps) {
   function playbackNext(fromEnded, takeNextPlaybackTrack, ensurePlaybackRadioQueueFilled, options = {}) {
     const audio = getPlaybackAudio();
     if (!audio) return;
+    if (fromEnded) {
+      const currentTrack = playbackState.current;
+      const qualityPending = pendingQualityRequest && audio.dataset.trackId === pendingQualityRequest.track.id &&
+        isCurrentPlaybackRequest(pendingQualityRequest.generation, pendingQualityRequest.track);
+      if (!currentTrack || (!qualityPending && !isCurrentPlaybackRequest(audioRequestGeneration, currentTrack))) return;
+      // Natural completion wins over a same-track quality replacement, even with no next track.
+      if (qualityPending) invalidatePlaybackRequests();
+    }
     if (waitingForRadio) audioRequestGeneration = invalidatePlaybackRequests();
     const automatic = fromEnded || options.skipUnavailable === true;
 

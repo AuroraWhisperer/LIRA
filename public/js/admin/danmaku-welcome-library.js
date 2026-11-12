@@ -1,4 +1,5 @@
 import { LIBRARIES } from './danmaku-welcome-model.js';
+import { revealEditorItem } from './danmaku-editor-pagination.js';
 import { WELCOME_TIME_PERIODS, welcomeTimePeriod } from '../shared/welcome-time-periods.js';
 
 export function createWelcomeLibrary({ documentRef, element, libraries, changed }) {
@@ -17,11 +18,8 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
   }
   function render() {
     const domain = libraries[key];
-    const pages = Math.max(1, Math.ceil(domain.items.length / 6));
-    domain.page = Math.min(domain.page, pages - 1);
     list.replaceChildren();
     domain.items.forEach((text, index) => {
-      if (Math.floor(index / 6) !== domain.page) return;
       const row = documentRef.createElement('div');
       row.className = 'danmaku-blessing-row';
       const number = documentRef.createElement('span');
@@ -60,22 +58,10 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
     input.setAttribute('aria-label', returning ? '新增多天未到欢迎语' : '新增欢迎语');
     element('ReturningLibraryHint').hidden = !returning;
     element('TemplateHelp').hidden = returning;
-    element('Pagination').hidden = pages <= 1;
-    element('PageLabel').textContent = `第 ${domain.page + 1} / ${pages} 页`;
-    element('PrevPage').disabled = domain.page === 0;
-    element('NextPage').disabled = domain.page >= pages - 1;
   }
   input.addEventListener('input', () => {
     libraries[key].addition = input.value;
     changed(null);
-  });
-  element('PrevPage').addEventListener('click', () => {
-    libraries[key].page -= 1;
-    render();
-  });
-  element('NextPage').addEventListener('click', () => {
-    libraries[key].page += 1;
-    render();
   });
   selector.addEventListener('change', () => {
     select(selector.value);
@@ -87,6 +73,7 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
   function select(next) {
     key = next === 'messages' && timeMode ? `time:${periodId}` : next;
     render();
+    revealEditorItem(list, 0);
     changed(null);
   }
   function setTimeMode(enabled) {
@@ -94,5 +81,5 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
     if (key === 'messages' || key.startsWith('time:')) key = enabled ? `time:${periodId}` : 'messages';
     render();
   }
-  return { render, select, setTimeMode, current: () => key };
+  return { render, select, setTimeMode, current: () => key, revealLast: () => revealEditorItem(list, libraries[key].items.length - 1) };
 }

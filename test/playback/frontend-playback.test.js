@@ -223,6 +223,48 @@ test('fullscreen lyric lookup preserves boundaries and selects the last simultan
   assert.equal(player.findCurrentLyricIndex([], 1000), -1);
 });
 
+test('fullscreen lyric mode changes preserve paused current-line navigation and manual browsing', async () => {
+  const audio = { paused: true, currentTime: 6 };
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'), {
+    document: { getElementById: () => audio },
+  });
+  const player = new FullscreenPlayer();
+  let rows = [];
+  let scrollWrites = 0;
+  player.lyricsContainer = {
+    clientHeight: 200,
+    classList: { toggle() {} },
+    addEventListener() {},
+    querySelectorAll: () => rows,
+    querySelector: () => rows.find(row => row.active) || null,
+    set scrollTop(value) { scrollWrites++; },
+    set innerHTML(markup) {
+      rows = [...markup.matchAll(/data-lyric-index="(\d+)"/g)].map(([, index]) => {
+        const row = { index: Number(index), active: false, offsetTop: Number(index) * 300, clientHeight: 40 };
+        row.classList = { toggle(name, value) { if (name === 'active') row.active = value; } };
+        row.querySelector = () => null;
+        return row;
+      });
+    },
+  };
+  const track = { lyrics: { lines: [
+    { startMs: 0, text: 'First line', translation: '第一句', roma: 'dai ichi' },
+    { startMs: 5000, text: 'Current line', translation: '当前句', roma: 'ima' },
+  ] } };
+  player.renderLyrics(track, audio);
+  player._toggleLyricMode('trans');
+  assert.equal(rows.find(row => row.active)?.index, 1);
+
+  player.setManualBrowsing(true);
+  scrollWrites = 0;
+  player._toggleLyricMode('roma');
+  assert.equal(rows.find(row => row.active)?.index, 1);
+  assert.equal(scrollWrites, 0, 'changing lyric mode does not interrupt manual browsing');
+  player.setManualBrowsing(false);
+  player.scrollToActiveLyric();
+  assert.equal(scrollWrites, 1, 'returning to the current line still has a highlighted row to locate');
+});
+
 test('reopening fullscreen refreshes same-track lyrics and seek times', async () => {
   const audio = { currentTime: 1.8, duration: 180, paused: false };
   const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'), {

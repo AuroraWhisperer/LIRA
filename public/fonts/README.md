@@ -23,7 +23,7 @@
 
 `css/shared/display-fonts.css` 是统一样式入口，由本地 HTTP 根据已就绪资源提供。[字体目录](../../src/fonts/catalog.json) 保留字体族、字重及分片范围；`bundled[].aliases` 让歌词旧字体族复用同一文件，[公共资源清单](../../src/resources/catalog.json) 提供允许下载的逻辑路径。每次已授权启动只检查一次远程清单，比较本地文件大小和 SHA-256，只补齐缺失、损坏或变化的文件；没有下载时不显示 toast。全部使用 `font-display: swap`，字体选择器确认本地字体解码成功后才列为可选字体，尚未就绪的已有选择保留并标记「未就绪」。艺术字体缺字仍由原有回退链补齐，不保证全部 Unicode。
 
-共享库的 65 个字体文件合计约 74.45 MiB，经 CDN 分发；两个标题裁剪字库共 6,524 字节，与小型 OFL 许可一起随应用保留。字体与大图共用下载进度，在首次准备页和 Admin toast 中按字节显示，也可在「百宝箱 → 桌面更新」查看；失败保留已有资源并允许重试。旧 `cache/fonts/` 仍可为旧字体路由提供兼容数据，正常桌面资源同步不再访问 GitHub 或 jsDelivr。源码目录仍保留完整文件，开发态可复用与清单匹配的源文件。`shared/font-library-loader.js` 随已就绪文件刷新样式；桌面使用现有 IPC，浏览器源只在检查或下载期间轮询。缓存位置见[存储参考](../../docs/reference/backend/storage.md#公共资源缓存)，本地资源读取见[HTTP 参考](../../docs/reference/backend/api.md#共享字体资源)，上传与更新步骤见[CDN 资源分发](../../docs/guides/cdn-resources.md)。
+共享库的 65 个字体文件合计约 74.45 MiB，经 CDN 分发；两个标题裁剪字库共 6,524 字节，与小型 OFL 许可一起随应用保留。字体与大图共用下载进度，在首次准备页和 Admin toast 中按字节显示，也可在「百宝箱 → 桌面更新」查看；失败保留已有资源并允许重试。旧 `cache/fonts/` 仍可为旧字体路由提供兼容数据，正常桌面资源同步不再访问 GitHub 或 jsDelivr。源码目录仍保留完整文件，开发态可复用与清单匹配的源文件。`shared/font-library-loader.js` 随已就绪文件刷新样式；桌面使用现有 IPC，浏览器源在检查或下载期间轮询，错误后继续等待本地状态变化，接收桌面重试的结果并自动刷新样式；就绪后停止读取，页面释放时取消在途等待。缓存位置见[存储参考](../../docs/reference/backend/storage.md#公共资源缓存)，本地状态等待和资源读取见[HTTP 参考](../../docs/reference/backend/api.md#共享字体资源)，上传与更新步骤见[CDN 资源分发](../../docs/guides/cdn-resources.md)。
 
 新选择使用单个带双引号的 CSS 字体族；旧播放器 `maiyuan`/`kuaile`/`smiley` ID 和未加引号的旧字体名原样保留，不迁移持久化数据。场景参数继续限制原有字体名长度。资源样式中的文楷仍映射到资源包版本专用名称，旧 ZIP 的独立字体副本仍可使用。
 

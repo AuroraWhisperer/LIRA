@@ -2,18 +2,18 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const path = require('node:path');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const STORAGE_KEY = 'admin.streamerWorkbench.v3';
 const PREVIOUS_STORAGE_KEY = 'admin.streamerWorkbench.v2';
 const LEGACY_STORAGE_KEY = 'admin.streamerPlanner.v1';
-const sandbox = {};
-vm.runInNewContext(
-  `${readJsModuleBundle('public', 'js', 'admin', 'streamer-planner-storage.js')}\nthis.createStorage = createPlannerStorage;`,
-  sandbox,
-);
-const createStorage = sandbox.createStorage;
+let createStorage;
+test.before(async () => {
+  ({ createPlannerStorage: createStorage } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/streamer-planner-storage.js'),
+  ));
+});
 
 test('corrupt current records block writes even when older records are valid', () => {
   const stored = new Map([

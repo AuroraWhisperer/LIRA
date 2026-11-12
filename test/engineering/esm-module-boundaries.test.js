@@ -5,9 +5,37 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const vm = require('node:vm');
+const { fileURLToPath, pathToFileURL } = require('node:url');
 const { sanitizeSource, auditPublicEsModules } = require('../helpers/esm-scope-audit');
 
 const PUBLIC_JS_DIR = path.join(__dirname, '../..', 'public', 'js');
+
+test('every public module links its imports and re-exports to the declared source', async () => {
+  const modules = new Map();
+  function collect(directory) {
+    for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+      const file = path.join(directory, entry.name);
+      if (entry.isDirectory()) collect(file);
+      else if (entry.name.endsWith('.js')) {
+        const identifier = pathToFileURL(file).href;
+        modules.set(identifier, new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), { identifier }));
+      }
+    }
+  }
+  collect(PUBLIC_JS_DIR);
+  const root = new vm.SourceTextModule([...modules.keys()].map(url => `import ${JSON.stringify(url)};`).join('\n'));
+  // Linking validates the whole graph without running browser code or side effects.
+  await root.link((specifier, referencingModule) => {
+    const url = specifier.startsWith('/js/')
+      ? new URL(specifier.slice(4), `${pathToFileURL(PUBLIC_JS_DIR).href}/`)
+      : new URL(specifier, referencingModule.identifier);
+    const identifier = pathToFileURL(fileURLToPath(url)).href;
+    const dependency = modules.get(identifier);
+    if (!dependency) throw new Error(`Missing module ${specifier} imported by ${referencingModule.identifier}`);
+    return dependency;
+  });
+});
 
 test('every public ES module only references identifiers it declares or imports', () => {
   const findings = auditPublicEsModules(PUBLIC_JS_DIR);

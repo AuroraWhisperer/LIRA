@@ -4,25 +4,23 @@ const assert = require('node:assert/strict');
 
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
 const { DatabaseSync } = require('node:sqlite');
-const { loadModuleExports } = require('../helpers/frontend-modules');
+const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 const { createParameterDocument } = require('../helpers/parameter-dom');
-const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const settingsStoreModule = require('../../src/storage/settings-store');
 
-test('queue reconnect renders new requests and visible identity changes once', () => {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+test('queue reconnect renders new requests and visible identity changes once', async () => {
   let renders = 0;
   const sandbox = { window: {}, location: { search: '' }, URLSearchParams,
     document: { addEventListener() {} }, recordRender: () => renders++ };
-  vm.runInNewContext(source, sandbox);
-  vm.runInNewContext('render = recordRender;', sandbox);
+  const evaluate = await loadModuleScope(path.join(ROOT_DIR, 'public/js/overlays/queue.js'), sandbox);
+  evaluate('render = recordRender;');
+  const applyState = evaluate('applyState');
   const item = { id: 1, song_name: '相同歌曲', requester_name: '相同观众', requester_guard_level: 0,
     requester_medal_level: 0, requester_medal_name: '' };
-  const apply = (current, style = 'identity') => sandbox.applyState({ queue: { current, waiting: [] }, settings: { overlayQueueStyle: style } });
+  const apply = (current, style = 'identity') => applyState({ queue: { current, waiting: [] }, settings: { overlayQueueStyle: style } });
   apply(item); apply(structuredClone(item));
   assert.equal(renders, 1, 'identical snapshots preserve playback');
   apply({ ...item, id: 2, requester_guard_level: 3, requester_medal_level: 21, requester_medal_name: '粉丝牌' });

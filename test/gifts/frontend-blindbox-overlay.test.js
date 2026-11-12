@@ -3,11 +3,10 @@
 const assert = require('node:assert/strict');
 
 const test = require('node:test');
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const path = require('node:path');
+const { loadModuleScope } = require('../helpers/frontend-modules');
 
-function createOverlay(search = '') {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'blindbox.js');
+async function createOverlay(search = '') {
   const elements = {
     blindboxTitle: { textContent: '' },
     blindboxSummary: { innerHTML: '' },
@@ -26,12 +25,12 @@ function createOverlay(search = '') {
       documentElement: { style: { setProperty() {} } },
     },
   };
-  vm.runInNewContext(source, sandbox);
-  return { sandbox, elements };
+  const evaluate = await loadModuleScope(path.join(__dirname, '../../public/js/overlays/blindbox.js'), sandbox);
+  return { sandbox, elements, evaluate, api: evaluate('({ render, loadStats, connectSocket })') };
 }
 
 test('blindbox overlay renders signed summary and per-user profit text', async (t) => {
-  const { sandbox, elements } = createOverlay();
+  const { api, elements } = await createOverlay();
   const cases = [
     { totalProfit: -12.345, totalValue: 62.9, valueText: '¥62.90', text: '-¥12.35' },
     { totalProfit: 0, totalValue: 75.25, valueText: '¥75.25', text: '+¥0.00' },
@@ -45,7 +44,7 @@ test('blindbox overlay renders signed summary and per-user profit text', async (
 
   for (const { totalProfit, totalValue, valueText, text } of cases) {
     await t.test(`summary ${text} with mixed user profits`, () => {
-      sandbox.render({
+      api.render({
         summary: { boxCount: 3, totalCost: 75.25, totalValue, totalProfit },
         perUser,
       });
@@ -68,7 +67,7 @@ test('blindbox overlay renders signed summary and per-user profit text', async (
   }
 });
 
-test('blindbox ranking renders all, summary-only and bounded audience counts from URL settings', () => {
+test('blindbox ranking renders all, summary-only and bounded audience counts from URL settings', async () => {
   const perUser = Array.from({ length: 12 }, (_, index) => ({
     userName: `Viewer-${index + 1}`,
     boxCount: 1,
@@ -77,29 +76,29 @@ test('blindbox ranking renders all, summary-only and bounded audience counts fro
   for (const [search, count] of [
     ['?top=-1', 12], ['?top=0', 0], ['?top=25', 10], ['?top=invalid', 3], ['?t=2', 2],
   ]) {
-    const { sandbox, elements } = createOverlay(search);
-    sandbox.render({ summary: { boxCount: 12, totalCost: 300, totalValue: 378, totalProfit: 78 }, perUser });
+    const { api, elements } = await createOverlay(search);
+    api.render({ summary: { boxCount: 12, totalCost: 300, totalValue: 378, totalProfit: 78 }, perUser });
     const names = [...elements.blindboxLeaderboard.innerHTML.matchAll(/Viewer-\d+/g)].map(([name]) => name);
     assert.deepEqual(names, perUser.slice(0, count).map(({ userName }) => userName), search);
     if (count === 0) assert.equal(elements.blindboxLeaderboard.innerHTML, '', search);
   }
 });
 
-test('blindbox saved appearance updates existing sources while explicit legacy URL filters win', () => {
+test('blindbox saved appearance updates existing sources while explicit legacy URL filters win', async () => {
   for (const [search, expected] of [['', [6, true, true, true, false]], ['?top=2&winners=0&heartBox=0&c=0&ns=1', [2, false, false, false, true]]]) {
-    const { sandbox } = createOverlay(search);
-    vm.runInNewContext('state = { settings: { blindboxOverlayTop: "6", blindboxWinnersOnly: "true", blindboxHeartBoxOnly: "true", blindboxCompact: "true", blindboxAutoPages: "false" } }; receiveAppearance();', sandbox);
-    assert.deepEqual(Array.from(vm.runInNewContext('[TOP_N, WINNERS_ONLY, HEART_BOX_ONLY, COMPACT, NO_SCROLL]', sandbox)), expected);
+    const { evaluate } = await createOverlay(search);
+    evaluate('state = { settings: { blindboxOverlayTop: "6", blindboxWinnersOnly: "true", blindboxHeartBoxOnly: "true", blindboxCompact: "true", blindboxAutoPages: "false" } }; receiveAppearance();');
+    assert.deepEqual(Array.from(evaluate('[TOP_N, WINNERS_ONLY, HEART_BOX_ONLY, COMPACT, NO_SCROLL]')), expected);
   }
 });
 
-test('blindbox summary-only changes repaint a stable ranking', () => {
-  const { sandbox, elements } = createOverlay();
+test('blindbox summary-only changes repaint a stable ranking', async () => {
+  const { api, evaluate, elements } = await createOverlay();
   const stats = { summary: { boxCount: 1, totalCost: 1, totalValue: 2, totalProfit: 1 },
     perUser: [{ userName: 'Viewer', boxCount: 1, totalProfit: 1 }] };
   for (const top of [0, 3, 0]) {
-    vm.runInNewContext(`state = { settings: { blindboxOverlayTop: '${top}', blindboxAutoPages: 'false' } }; receiveAppearance();`, sandbox);
-    sandbox.render(stats);
+    evaluate(`state = { settings: { blindboxOverlayTop: '${top}', blindboxAutoPages: 'false' } }; receiveAppearance();`);
+    api.render(stats);
     assert.equal(elements.blindboxLeaderboard.innerHTML.includes('Viewer'), top !== 0);
   }
 });
@@ -111,13 +110,13 @@ test('blindbox filtering requests the selected box and hides losses only in winn
     { userName: 'Loss', boxCount: 1, totalProfit: -2 },
   ];
   for (const search of ['', '?heartBox=1&winners=1']) {
-    const { sandbox, elements } = createOverlay(search);
+    const { sandbox, api, elements } = await createOverlay(search);
     const requests = [];
     sandbox.fetch = async (url) => {
       requests.push(url);
       return { json: async () => ({ ok: true, data: { summary: {}, perUser } }) };
     };
-    await sandbox.loadStats();
+    await api.loadStats();
     assert.equal(requests.length, 1);
     const query = new URLSearchParams(requests[0].split('?')[1]);
     assert.equal(query.get('top'), '3');
@@ -130,16 +129,20 @@ test('blindbox filtering requests the selected box and hides losses only in winn
 });
 
 test('changed leaderboard filters refresh even when a coalesced snapshot has another reason', async () => {
-  const { sandbox, elements } = createOverlay();
+  const { sandbox, api, elements } = await createOverlay();
   let onMessage;
-  sandbox.createOverlaySocket = (options) => { onMessage = options.onMessage; return { start() {} }; };
+  sandbox.WebSocket = class {
+    addEventListener(type, listener) {
+      if (type === 'message') onMessage = payload => listener({ data: JSON.stringify(payload) });
+    }
+  };
   const requests = [];
   sandbox.fetch = async url => {
     requests.push(url);
     return { json: async () => ({ ok: true, data: { summary: {},
       perUser: Array.from({ length: 6 }, (_, index) => ({ userName: `User-${index}`, totalProfit: 1 })) } }) };
   };
-  sandbox.connectSocket();
+  api.connectSocket();
   const snapshot = { type: 'snapshot', reason: 'lyrics',
     state: { settings: { blindboxOverlayTop: '6', blindboxAutoPages: 'false' } } };
   onMessage(snapshot);
@@ -152,11 +155,11 @@ test('changed leaderboard filters refresh even when a coalesced snapshot has ano
 });
 
 test('blindbox refreshes share one pending request and read the last dirty update', async () => {
-  const { sandbox, elements } = createOverlay();
+  const { sandbox, api, elements } = await createOverlay();
   const pending = [];
   sandbox.fetch = () => new Promise((resolve) => pending.push(resolve));
-  const first = sandbox.loadStats();
-  for (let index = 0; index < 20; index++) assert.equal(sandbox.loadStats(), first);
+  const first = api.loadStats();
+  for (let index = 0; index < 20; index++) assert.equal(api.loadStats(), first);
   assert.equal(pending.length, 1);
   pending[0]({ json: async () => ({ ok: true, data: { summary: {}, perUser: [{ userName: 'Old', totalProfit: 1 }] } }) });
   await new Promise(setImmediate);

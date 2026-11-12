@@ -411,7 +411,13 @@ export class FullscreenPlayer {
     // 重新渲染歌词以反映新模式
     const lines = this._lastLyricLines;
     if (lines?.length > 0) {
+      const audio = document.getElementById('music-player');
+      const currentMs = audio && Number.isFinite(audio.currentTime) ? audio.currentTime * 1000 + this.lyricOffsetMs : 0;
+      const currentIndex = this.findCurrentLyricIndex(lines, currentMs);
       this.renderLyricLines(lines);
+      this.updateLyricHighlight(currentIndex);
+      this.scrollToActiveLyric();
+      this.lastActiveLyricIndex = currentIndex;
     }
   }
 

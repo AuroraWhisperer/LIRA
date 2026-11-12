@@ -93,23 +93,65 @@ for (const action of ['next', 'clear', 'quality']) {
   }
 }
 
-test('an error from the old audio cannot cancel a newer track still resolving its URL', async () => {
-  const nextStream = Promise.withResolvers();
-  const { app, audio } = await createPlayingApp((_count, request) =>
-    request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request),
-  );
-  await app.emit('playbackNext', 'click');
-  await flushAsyncWork();
-  await app.emit('music-player', 'error');
-  nextStream.resolve({ url: 'https://example.test/b-new.mp3' });
-  await flushAsyncWork();
+for (const event of ['error', 'ended']) {
+  test(`an ${event} event from the old audio cannot cancel a newer track still resolving its URL`, async () => {
+    const nextStream = Promise.withResolvers();
+    const { app, audio } = await createPlayingApp((_count, request) =>
+      request.track.sourceTrackId === 'b' ? nextStream.promise : streamFor(request),
+    );
+    await app.emit('playbackNext', 'click');
+    await flushAsyncWork();
+    if (event === 'ended') {
+      audio.paused = true;
+      audio.ended = true;
+    }
+    await app.emit('music-player', event);
+    nextStream.resolve({ url: 'https://example.test/b-new.mp3' });
+    await flushAsyncWork();
 
-  assert.equal(app.resolveStreamRequestCount(), 2);
-  assert.equal(app.savedState().current.id, 'b');
-  assert.equal(audio.dataset.trackId, 'b');
-  assert.equal(audio.src, 'https://example.test/b-new.mp3');
-  assert.deepEqual(app.errors(), []);
-});
+    assert.equal(app.resolveStreamRequestCount(), 2);
+    assert.equal(app.savedState().current.id, 'b');
+    assert.equal(audio.dataset.trackId, 'b');
+    assert.equal(audio.src, 'https://example.test/b-new.mp3');
+    assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['c']);
+    assert.deepEqual(app.errors(), []);
+  });
+}
+
+for (const event of ['error', 'ended']) {
+  test(`a pending quality replacement ${event === 'ended' ? 'allows natural advancement' : 'ignores old audio errors'}`, async () => {
+    const qualityStream = Promise.withResolvers();
+    const { app, audio } = await createPlayingApp((_count, request) =>
+      request.quality === 'high' ? qualityStream.promise : streamFor(request),
+    );
+    const selection = app.emit('playbackQualityPanel', 'click', {
+      stopPropagation() {},
+      target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+    });
+    await flushAsyncWork();
+    if (event === 'ended') {
+      audio.currentTime = audio.duration;
+      audio.paused = true;
+      audio.ended = true;
+    }
+    await app.emit('music-player', event);
+    await flushAsyncWork();
+    const currentWhilePending = app.savedState().current.id;
+    qualityStream.resolve({ url: 'https://example.test/a-high.mp3', quality: 'high' });
+    await selection;
+    await flushAsyncWork();
+
+    const ended = event === 'ended';
+    assert.equal(currentWhilePending, ended ? 'b' : 'a');
+    assert.equal(app.resolveStreamRequestCount(), ended ? 3 : 2);
+    assert.equal(app.savedState().current.id, ended ? 'b' : 'a');
+    assert.equal(audio.dataset.trackId, ended ? 'b' : 'a');
+    assert.equal(audio.src, ended ? 'https://example.test/b-standard.mp3' : 'https://example.test/a-high.mp3');
+    assert.equal(audio.paused, false);
+    assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ended ? ['c'] : ['b', 'c']);
+    assert.deepEqual(app.errors(), []);
+  });
+}
 
 test('pausing during a next-track lookup keeps the selected track paused and resumable', async () => {
   const nextStream = Promise.withResolvers();

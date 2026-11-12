@@ -501,6 +501,7 @@ export function guardRosterForm(roomId, roomProfile = null) {
 export function settingsForm(settings) {
   return {
     title: '粉丝档案自动更新',
+    closeOnBackdrop: true,
     hint: '普通观众需要手动建档。生日、备注与话题仅保存在本机。',
     fields:
       check('autoUpdate', '自动更新已有档案的昵称、点歌和上舰记录', settings.autoUpdate !== false) +

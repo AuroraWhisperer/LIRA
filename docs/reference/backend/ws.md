@@ -138,7 +138,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `bilibili:gift` | [runtime-transport.js](../../../src/server/runtime-transport.js) `publishGiftFlushed`；另独立广播全屏礼物感谢和弹幕提示 | 发出 `Events.GIFT_RECEIVED` |
 | `live:status` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新直播状态后 | 仅状态应用 |
 | `bilibili:room-guard` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新房间大航海人数后 | 仅状态应用 |
-| `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 来源 viewEpoch 变化，或退出 SOURCE_SWITCHING | 仅状态应用，不自动伪造礼物收到通知 |
+| `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 来源 viewEpoch 变化、退出 SOURCE_SWITCHING，或历史激活后从 BOOTSTRAPPING 进入 CATCHING_UP | 仅状态应用，不自动伪造礼物收到通知 |
 | `gift:wishes` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 非 getSnapshot 动作成功 | 仅状态应用 |
 | `gift:heart-box-collection` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 心动盲盒校准成功 | 状态快照；使心动收集场景投影缓存失效，独立源沿用共享进度轮询 |
 | `component:styles` | [component-style-routes.js](../../../src/server/routes/component-style-routes.js) 组件样式配置成功后 | 仅状态应用 |

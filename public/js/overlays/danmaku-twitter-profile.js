@@ -4,6 +4,7 @@ const PREVIEW_PROFILE = Object.freeze({
   name: '合成房主',
   avatarUrl: '/img/overlays/danmaku-ranked/viewer.webp',
 });
+const PROFILE_RETRY_DELAY_MS = 30_000;
 
 // The header has its own request lifetime; it never owns or delays message playback.
 export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) => value, loadProfile }) {
@@ -14,6 +15,8 @@ export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) 
   let generation = 0;
   let avatarGeneration = 0;
   let key = '';
+  let requestState = 'idle';
+  let retryAfter = 0;
   let controller = null;
   let disposed = false;
 
@@ -40,7 +43,7 @@ export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) 
       return;
     }
     const nextKey = `room:${roomId}`;
-    if (key === nextKey) return;
+    if (key === nextKey && (requestState !== 'failed' || Date.now() < retryAfter)) return;
     invalidate();
     key = nextKey;
     if (!roomId || typeof loadProfile !== 'function') {
@@ -49,17 +52,25 @@ export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) 
     }
     const activeGeneration = generation;
     controller = typeof AbortController === 'function' ? new AbortController() : null;
+    requestState = 'pending';
     render(null, '正在读取');
     Promise.resolve(loadProfile({ signal: controller?.signal })).then((profile) => {
       if (disposed || activeGeneration !== generation || key !== nextKey) return;
       if (String(profile?.roomId || '').trim() !== roomId) {
-        render(null, '等待当前房间');
+        fail('等待当前房间');
         return;
       }
+      requestState = 'success';
       render(profile);
     }).catch(() => {
-      if (!disposed && activeGeneration === generation && key === nextKey) render(null, '读取失败');
+      if (!disposed && activeGeneration === generation && key === nextKey) fail('读取失败');
     });
+  }
+
+  function fail(text) {
+    requestState = 'failed';
+    retryAfter = Date.now() + PROFILE_RETRY_DELAY_MS;
+    render(null, text);
   }
 
   function clear() {
@@ -70,6 +81,8 @@ export function createTwitterRoomProfile({ document, resolveAvatarUrl = (value) 
 
   function invalidate() {
     generation += 1;
+    requestState = 'idle';
+    retryAfter = 0;
     controller?.abort();
     controller = null;
   }

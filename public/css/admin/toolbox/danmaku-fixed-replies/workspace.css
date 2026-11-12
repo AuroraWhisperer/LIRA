@@ -149,7 +149,7 @@
 .danmaku-fixed-editor-dialog {
   position: fixed;
   inset: 0 0 0 auto;
-  width: min(900px, calc(100vw - 64px));
+  width: min(800px, calc(100vw - 64px));
   max-width: none;
   height: 100dvh;
   max-height: none;
@@ -201,7 +201,6 @@
   width: 34px;
   height: 34px;
   padding: 7px;
-  border: 0;
   background: transparent;
   color: var(--muted);
 }

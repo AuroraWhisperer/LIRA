@@ -4,9 +4,9 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createToolboxRuntime } = require('../helpers/toolbox-runtime');
 
-test('toolbox sidebar restores the durable preference when the legacy cache is absent', () => {
+test('toolbox sidebar restores the durable preference when the legacy cache is absent', async () => {
   const persisted = [];
-  const runtime = createToolboxRuntime();
+  const runtime = await createToolboxRuntime();
   runtime.other.initOtherPage({
     persistSidebarCollapsed: (collapsed) => persisted.push(collapsed),
   });
@@ -20,9 +20,9 @@ test('toolbox sidebar restores the durable preference when the legacy cache is a
   assert.deepEqual(persisted, []);
 });
 
-test('toolbox sidebar migrates the legacy preference and saves explicit toggles', () => {
+test('toolbox sidebar migrates the legacy preference and saves explicit toggles', async () => {
   const persisted = [];
-  const runtime = createToolboxRuntime({
+  const runtime = await createToolboxRuntime({
     initialStorage: { 'admin.toolboxSidebarCollapsed': 'true' },
   });
   runtime.other.initOtherPage({
@@ -40,9 +40,9 @@ test('toolbox sidebar migrates the legacy preference and saves explicit toggles'
   assert.deepEqual(persisted, [true, false]);
 });
 
-test('toolbox feature groups restore after a full application restart', () => {
+test('toolbox feature groups restore after a full application restart', async () => {
   let durableGroups = '';
-  const firstRuntime = createToolboxRuntime();
+  const firstRuntime = await createToolboxRuntime();
   firstRuntime.other.initOtherPage({
     persistCollapsedFeatureGroups: (groupIds) => {
       durableGroups = JSON.stringify(groupIds);
@@ -56,7 +56,7 @@ test('toolbox feature groups restore after a full application restart', () => {
   firstRuntime.headings[1].dispatch('click');
   assert.equal(durableGroups, '["live-interaction","live-scene"]');
 
-  const secondRuntime = createToolboxRuntime();
+  const secondRuntime = await createToolboxRuntime();
   secondRuntime.other.initOtherPage();
   secondRuntime.dispatchWindowEvent('app:settings-state', {
     toolboxCollapsedFeatureGroups: durableGroups,
@@ -66,9 +66,9 @@ test('toolbox feature groups restore after a full application restart', () => {
   assert.equal(secondRuntime.stored.get('admin.toolboxCollapsedFeatureGroups'), '["live-interaction","live-scene"]');
 });
 
-test('toolbox feature groups migrate cached state and ignore malformed or stale IDs', () => {
+test('toolbox feature groups migrate cached state and ignore malformed or stale IDs', async () => {
   const migrated = [];
-  const cachedRuntime = createToolboxRuntime({
+  const cachedRuntime = await createToolboxRuntime({
     initialStorage: {
       'admin.toolboxCollapsedFeatureGroups': '["live-interaction"]',
       'admin.toolboxSelectedFeature': 'otherDanmakuFeature',
@@ -85,7 +85,7 @@ test('toolbox feature groups migrate cached state and ignore malformed or stale 
   assert.equal(cachedRuntime.buttons[8].getAttribute('aria-selected'), 'true');
   assert.deepEqual(migrated, [['live-interaction']]);
 
-  const durableRuntime = createToolboxRuntime({
+  const durableRuntime = await createToolboxRuntime({
     initialStorage: { 'admin.toolboxCollapsedFeatureGroups': '{invalid' },
   });
   durableRuntime.other.initOtherPage();

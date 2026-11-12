@@ -45,6 +45,15 @@
   align-items: center;
   gap: 8px;
 }
+#danmakuQueryRepliesPanel > .danmaku-library-pagination,
+#danmakuExactFields > .danmaku-library-pagination,
+#danmakuViewerNamesPanel > .danmaku-library-pagination,
+#danmakuViewerNamesNotice:not(:empty) {
+  margin-top: var(--spacing-md);
+}
+#danmakuViewerNamesPanel > .daily-library-list-actions {
+  margin-bottom: var(--spacing-md);
+}
 .danmaku-fixed-reply-section .danmaku-viewer-name-row {
   grid-template-columns: minmax(150px, 0.8fr) minmax(120px, 1fr) auto;
   gap: 12px;

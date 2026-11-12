@@ -29,6 +29,7 @@ test('settings form announces the saved room only after a successful save, inclu
     getElementById(id) {
       if (!elements.has(id)) {
         elements.set(id, {
+          dataset: {},
           addEventListener(type, handler) {
             this[type] = handler;
           },

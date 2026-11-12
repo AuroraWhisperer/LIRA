@@ -7,7 +7,7 @@ export function createGiftMotionSamples(style, settings = {}) {
   return gifts.map(([giftName, image], index) => ({
     type: 'gift:frame', themeId: style, eventId: `motion-preview-${style}-${index}`,
     userName: ['观众A', '观众B', '观众C'][index], giftName,
-    num: style === 'gift-drop' ? 8 : index + 1, totalPriceCents: 100,
+    num: style === 'gift-drop' ? 5 : index + 1, totalPriceCents: 100,
     artworkPath: `/img/overlays/gift-feed/${image}.webp`,
     motion: readGiftMotionSettings(settings, effect), preview: true,
   }));

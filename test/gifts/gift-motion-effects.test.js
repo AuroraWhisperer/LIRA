@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { buildGiftMotionEvents, normalizeGiftMotionSetting } = require('../../src/bilibili/gift/motion-config');
-const { createGiftDropWorld, GIFT_DROP_EXIT_MS } = require('../../public/js/shared/gift-drop-physics.js');
+const { createGiftDropWorld, GIFT_DROP_EXIT_MS, GIFT_DROP_SPAWN_DELAY_MS } = require('../../public/js/shared/gift-drop-physics.js');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 const { createSceneGiftEvents } = require('../../src/server/scene-gift-events');
 const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
@@ -59,21 +59,21 @@ test('each motion effect independently accepts final total and captures its own 
   assert.equal(buildGiftMotionEvents({ ...gift, detection_status: 'progress' }, settings).length, 0);
   assert.equal(buildGiftMotionEvents({ ...gift, total_price: 0 }, settings).length, 0);
   assert.equal(normalizeGiftMotionSetting('giftDropSize', 0), null);
-  assert.ok(normalizeSettingsPatch({ giftDropQuantityMultiplier: '9' }, DEFAULT_SETTINGS).error);
+  assert.ok(normalizeSettingsPatch({ giftDropQuantityMultiplier: '21' }, DEFAULT_SETTINGS).error);
   assert.equal(normalizeGiftMotionSetting('giftDropQuantityMultiplier', 1.5), null);
   assert.equal(normalizeGiftMotionSetting('giftSwingAngle', 100), null);
   assert.equal(normalizeGiftMotionSetting('giftSwingTextMode', 'unknown'), null);
 });
 
-test('drop quantity defaults to four visual copies per gift and accepts a saved multiplier without changing the receipt', () => {
+test('drop quantity defaults to eight visual copies per gift and accepts a saved multiplier without changing the receipt', () => {
   const gift = { id: 9, detection_status: 'final', total_price: 5, num: 3 };
-  const settings = { giftDropEnabled: 'true' };
+  const settings = { ...DEFAULT_SETTINGS, giftDropEnabled: 'true' };
   const world = createGiftDropWorld({ random: () => 0.5 });
   const [event] = buildGiftMotionEvents(gift, settings, { startedAt: 1000 });
-  assert.equal(world.addGift(event, 1000).length, 12);
+  assert.equal(world.addGift(event, 1000).length, 24);
   assert.equal(event.num, 3);
-  const [adjusted] = buildGiftMotionEvents({ ...gift, id: 10 }, { ...settings, giftDropQuantityMultiplier: '2' }, { startedAt: 1000 });
-  assert.equal(world.addGift(adjusted, 1000).length, 6);
+  const [adjusted] = buildGiftMotionEvents({ ...gift, id: 10 }, { ...settings, giftDropQuantityMultiplier: '3' }, { startedAt: 1000 });
+  assert.equal(world.addGift(adjusted, 1000).length, 9);
   assert.equal(adjusted.num, 3);
 });
 
@@ -107,12 +107,12 @@ test('staggered drops expire independently and late arrival never restarts their
   world.addGift(event, 2500);
   assert.equal(world.bodies.length, 3);
   const deadlines = world.bodies.map(body => body.expiresAt);
-  assert.ok(deadlines.every(deadline => deadline >= 4000 && deadline < 5500));
+  assert.ok(deadlines.every(deadline => deadline >= 4000 && deadline < 4000 + GIFT_DROP_SPAWN_DELAY_MS));
   world.step(0, Math.min(...deadlines) + GIFT_DROP_EXIT_MS);
   assert.ok(world.bodies.length > 0 && world.bodies.length < 3);
   world.step(0, Math.max(...deadlines) + GIFT_DROP_EXIT_MS);
   assert.equal(world.bodies.length, 0);
-  world.addGift({ ...event, eventId: 'late' }, 5500);
+  world.addGift({ ...event, eventId: 'late' }, 4000 + GIFT_DROP_SPAWN_DELAY_MS);
   assert.equal(world.bodies.length, 0);
 });
 

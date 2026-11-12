@@ -99,17 +99,15 @@ test('query indexes upgrade without changing rows and migrate idempotently', (t)
   );
   const { queries, prepare } = observe(f.giftDb);
   const store = createGiftQueryStore(f.giftDb);
-  for (const sourceScope of [{ kind: 'source', sourceId: source.id }, { kind: 'local' }]) {
-    queries.length = 0;
-    store.listRecent({ sourceScope, limit: 30 });
-    const { sql, params } = queries[0];
-    const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`)
-      .all(...params)
-      .map((r) => r.detail)
-      .join('\n');
-    assert.match(plan, /idx_gift_events_source_recent/u);
-    assert.doesNotMatch(plan, /TEMP B-TREE/u);
-  }
+  // The v12 partial index still owns local eligible rows; remote visibility is covered on the current schema below.
+  store.listRecent({ sourceScope: { kind: 'local' }, limit: 30 });
+  const { sql, params } = queries.find(({ sql }) => /FROM gift_events g/u.test(sql));
+  const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`)
+    .all(...params)
+    .map((r) => r.detail)
+    .join('\n');
+  assert.match(plan, /idx_gift_events_source_recent/u);
+  assert.doesNotMatch(plan, /TEMP B-TREE/u);
 });
 
 test('fan cascade indexes upgrade without ANALYZE and preserve scope data', (t) => {
@@ -381,23 +379,58 @@ test('count cache is bounded and failed pages do not publish counts', (t) => {
   assert.equal(queries.filter(({ sql }) => /COUNT\(\*\)/u.test(sql)).length, 1);
 });
 
-test('recent expression index preserves legacy timestamp, zone and same-second ID order', (t) => {
-  const f = createFixture();
+test('remote recent index upgrades without data changes and preserves source and local time ordering', (t) => {
+  const f = createVersionedFixture(t, { gift_db: 23 });
   t.after(() => f.close());
   const source = f.resolveSource('a'.repeat(64));
+  const retained = f.resolveSource('b'.repeat(64));
+  const db = f.giftDb;
+  const snapshotId = db.prepare(`INSERT INTO gift_retention_snapshots
+    (source_id, projection_generation, sync_epoch, revision, base_revision, covered_cursor,
+     phase, updated_at) VALUES (?, 1, 'epoch-1', 1, 0, 0, 'active', '2026-09-02')`)
+    .run(retained.id).lastInsertRowid;
+  db.prepare('UPDATE gift_retention_snapshots SET member_snapshot_id = ? WHERE id = ?').run(snapshotId, snapshotId);
+  db.prepare('INSERT INTO gift_retention_state (source_id, active_snapshot_id) VALUES (?, ?)').run(retained.id, snapshotId);
   for (const [i, createdAt] of [
     '2026-09-01T04:00:00.900Z',
     '2026-09-01 04:00:00',
     '2026-09-01T12:00:00+08:00',
     '2026-09-01T04:00:01.000Z',
-  ].entries())
-    f.insertGift(source.id, `time-${i}`, { createdAt });
-  const rows = createGiftQueryStore(f.giftDb).listRecent({
-    sourceScope: { kind: 'source', sourceId: source.id },
-    limit: 30,
-  });
-  assert.deepEqual(
-    rows.map((row) => row.platform_id),
-    ['time-3', 'time-2', 'time-1', 'time-0'].map((id) => `lira-server:${id}`),
-  );
+  ].entries()) {
+    f.insertGift(source.id, `time-${i}`, { createdAt, giftStatsEligible: 0 });
+    f.insertGift(retained.id, `retained-${i}`, { createdAt, giftStatsEligible: 0,
+      status: i % 2 ? 'retention-staged' : 'active' });
+    f.insertGift(null, `local-${i}`, { createdAt, cmd: 'SEND_GIFT' });
+  }
+  const latest = { createdAt: '2026-09-01T04:00:02.000Z' };
+  f.insertGift(source.id, 'hidden', { ...latest, status: 'hidden' });
+  f.insertGift(null, 'local-ineligible', { ...latest, cmd: 'SEND_GIFT', giftStatsEligible: 0 });
+  const missingMember = f.insertGift(retained.id, 'unpublished', latest).lastInsertRowid;
+  db.prepare('DELETE FROM gift_retention_members WHERE event_id = ?').run(missingMember);
+
+  const tables = ['gift_events', 'gift_retention_snapshots', 'gift_retention_members', 'gift_sync_state'];
+  const before = tables.map(table => db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all());
+  runAllMigrations(f.databases);
+  runAllMigrations(f.databases);
+  for (const [i, table] of tables.entries()) {
+    assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(), before[i]);
+  }
+  assert.equal(db.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'sqlite_stat1'").get(), undefined);
+
+  const { queries, prepare } = observe(db);
+  const store = createGiftQueryStore(db);
+  for (const [sourceScope, prefix, index] of [
+    [{ kind: 'source', sourceId: source.id }, 'time', 'idx_gift_events_remote_recent'],
+    [{ kind: 'source', sourceId: retained.id }, 'retained', 'idx_gift_events_remote_recent'],
+    [{ kind: 'local' }, 'local', 'idx_gift_events_source_recent'],
+  ]) {
+    queries.length = 0;
+    const rows = store.listRecent({ sourceScope, limit: 3 });
+    assert.deepEqual(rows.map(row => row.platform_id), [3, 2, 1].map(i => `lira-server:${prefix}-${i}`));
+    const { sql, params } = queries.find(({ sql }) => /FROM gift_events g/u.test(sql));
+    const plan = prepare(`EXPLAIN QUERY PLAN ${sql}`).all(...params).map(row => row.detail).join('\n');
+    assert.match(plan, new RegExp(`SEARCH g USING INDEX ${index} \\(source_id=\\?\\)`, 'u'));
+    assert.doesNotMatch(plan, /TEMP B-TREE/u);
+  }
+  assert.equal(schema.getSchemaVersion(db, 'gift_db'), 24);
 });

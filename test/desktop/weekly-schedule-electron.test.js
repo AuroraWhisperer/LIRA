@@ -236,6 +236,54 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
   assert.deepEqual(errors, []);
 });
 
+test('expanded schedule confirmation stays visible and restores editing after cancel, Escape or approval', { timeout: 45000 }, async t => {
+  const { page, errors } = await fixture(t);
+  await openGroup(page, '一周安排');
+  await page.locator('[data-weekly-field="days.0.time1"]').fill('19:30');
+  await page.locator('[data-weekly-day="1"] > summary').click();
+  const tuesday = page.locator('[data-weekly-field="days.1.time1"]');
+  await tuesday.fill('21:00');
+  await page.locator('[data-weekly-action="expand"]').click();
+  const apply = page.locator('[data-weekly-action="apply-times"]');
+  const backdrop = page.locator('.lira-confirm-backdrop');
+  async function openConfirmation() {
+    await apply.click();
+    const dialog = page.getByRole('dialog');
+    await dialog.waitFor();
+    const unobscured = await dialog.evaluate(node => {
+      // Inert elements still paint; include them in hit-testing to catch a covering top-layer surface.
+      const inert = [...document.querySelectorAll('[inert]')];
+      inert.forEach(element => { element.inert = false; });
+      try {
+        const rect = node.getBoundingClientRect();
+        return node.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+      } finally {
+        inert.forEach(element => { element.inert = true; });
+      }
+    });
+    assert.equal(unobscured, true, 'The confirmation must be painted above the editor.');
+  }
+  for (const dismiss of ['cancel', 'escape']) {
+    await openConfirmation();
+    if (dismiss === 'cancel') await page.locator('.lira-confirm-cancel').click();
+    else await page.keyboard.press('Escape');
+    await backdrop.waitFor({ state: 'detached' });
+    assert.equal(await tuesday.inputValue(), '21:00');
+    assert.equal(await apply.evaluate(node => document.activeElement === node), true);
+    assert.equal(await page.locator('#weeklyScheduleEditor').evaluate(node => node.matches(':popover-open')), true);
+  }
+  await openConfirmation();
+  await page.locator('.lira-confirm-confirm').click();
+  await backdrop.waitFor({ state: 'detached' });
+  assert.equal(await tuesday.inputValue(), '19:30');
+  assert.equal(await apply.evaluate(node => document.activeElement === node), true);
+  await tuesday.fill('22:00');
+  await page.locator('[data-weekly-action="exit-expanded"]').click();
+  await saved(page);
+  assert.equal(await tuesday.inputValue(), '22:00');
+  assert.deepEqual(errors, []);
+});
+
 test('direct image gestures use canvas coordinates and autosave independent adjustments after leaving the expanded editor', { timeout: 90000 }, async t => {
   const { page, assets, errors } = await fixture(t);
   await page.locator('[data-weekly-layout="celestial"]').click();

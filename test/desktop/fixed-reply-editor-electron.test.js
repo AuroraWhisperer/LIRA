@@ -4,6 +4,103 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { launchElectron } = require('../helpers/shared-electron');
 
+test('interaction editors paginate to the available height without hiding content or actions', { timeout: 45000 }, async (t) => {
+  const root = path.resolve(__dirname, '../../tmp');
+  await fs.mkdir(root, { recursive: true });
+  const directory = await fs.mkdtemp(path.join(root, 'interaction-layout-desktop-'));
+  let app;
+  t.after(async () => {
+    await app?.close();
+    assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(root));
+    await fs.rm(directory, { recursive: true, force: true });
+  });
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/daily-bot-editor.cjs', directory, 'layout'], timeout: 15000 });
+  const page = await app.firstWindow();
+  page.setDefaultTimeout(7000);
+  await page.waitForURL('**/admin');
+  const settle = () => page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  async function checkFit(name) {
+    await settle();
+    const result = await page.evaluate(() => {
+      const dialog = document.getElementById('danmakuFixedEditorDialog');
+      const body = dialog.querySelector('.danmaku-fixed-editor-body');
+      const visible = node => node.getBoundingClientRect().height > 0 && !node.closest('[hidden]');
+      const lists = [...dialog.querySelectorAll('.danmaku-editor-list')].filter(visible);
+      return {
+        overflow: lists.filter(list => list.scrollHeight > list.clientHeight + 1).map(list => list.id),
+        bodyOverflow: body.scrollHeight > body.clientHeight + 1,
+        blocked: [...dialog.querySelectorAll('button,input,[role="textbox"]')].filter(visible)
+          .filter(node => node.getBoundingClientRect().bottom > innerHeight + 1).map(node => node.id || node.getAttribute('aria-label')),
+        dailyCount: document.querySelectorAll('#dailyLibraryList > :not([hidden])').length,
+      };
+    });
+    assert.deepEqual(result.overflow, [], `${name}: every displayed entry fits`);
+    assert.equal(result.bodyOverflow, false, `${name}: the whole editor fits`);
+    assert.deepEqual(result.blocked, [], `${name}: all actions remain visible`);
+    return result;
+  }
+  const cases = [
+    ['exact', 'replies'], ['diy', 'replies'], ['checkin', 'replies'], ['fortune', 'replies'],
+    ['random', 'replies'], ['query', 'replies'], ['thanks', 'welcome'],
+    ['likeThanks', 'welcome'], ['shareThanks', 'welcome'], ['followThanks', 'welcome'],
+    ['names', 'welcome'], ['pk', 'welcome'], ['scheduled', 'send'],
+    ...['parameters', 'libraries', 'custom', 'audience'].map(view => ['welcome', 'welcome', view]),
+  ];
+  let tallCount;
+  for (const height of [900, 592]) {
+    await app.evaluate(({ BrowserWindow }, height) => BrowserWindow.getAllWindows()[0].setContentSize(1440, height), height);
+    for (const [key, tab, view] of cases) {
+      if (await page.locator('#danmakuFixedEditorDialog').isVisible()) await page.keyboard.press('Escape');
+      await page.locator(`[data-danmaku-tab="${tab}"]`).click();
+      await page.locator(`[data-fixed-open="${key}"]`).click();
+      if (view) await page.locator(`[data-welcome-view="${view}"]`).click();
+      const result = await checkFit(`${key}:${view || ''} at ${height}`);
+      if (key === 'checkin') {
+        if (height === 900) tallCount = result.dailyCount;
+        else assert.ok(result.dailyCount > 0 && result.dailyCount < tallCount, 'a taller editor displays more entries');
+      }
+    }
+  }
+  await page.keyboard.press('Escape');
+  await page.locator('[data-danmaku-tab="welcome"]').click();
+  await page.locator('[data-fixed-open="names"]').click();
+  const readsBeforeResize = await app.evaluate(() => global.dailyLibraryTest.requests.filter(item => item.operation === 'viewer-names-read').length);
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 900));
+  await checkFit('resized nickname list');
+  assert.equal(await app.evaluate(() => global.dailyLibraryTest.requests.filter(item => item.operation === 'viewer-names-read').length), readsBeforeResize);
+  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setContentSize(1440, 592));
+  await page.keyboard.press('Escape');
+  await page.locator('[data-danmaku-tab="replies"]').click();
+  await page.locator('[data-fixed-open="checkin"]').click();
+  await page.getByLabel('第 1 条祝福语', { exact: true }).fill('跨页草稿');
+  await page.locator('#dailyLibraryNext').click();
+  assert.equal(await page.getByLabel('第 1 条祝福语', { exact: true }).isVisible(), false);
+  await page.locator('#dailyLibraryPrevious').click();
+  assert.equal(await page.getByLabel('第 1 条祝福语', { exact: true }).inputValue(), '跨页草稿');
+  await page.locator('#dailyLibraryAdd').click();
+  assert.equal(await page.getByLabel('第 31 条祝福语', { exact: true }).evaluate(node => node === document.activeElement), true);
+  await checkFit('new entry on the final page');
+  await page.locator('#dailyLibrarySearch').fill('没有匹配的验证词');
+  assert.equal(await page.locator('#dailyLibraryList input:visible').count(), 0);
+  await checkFit('empty search');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-fixed-open="query"]').click();
+  await page.locator('#danmakuQueryReplySearch').fill('2026年');
+  assert.ok(await page.locator('.danmaku-query-reply-row:visible').count() > 0);
+  await checkFit('filtered query groups');
+  await page.keyboard.press('Escape');
+  await page.locator('[data-danmaku-tab="welcome"]').click();
+  await page.locator('[data-fixed-open="thanks"]').click();
+  await page.getByRole('textbox', { name: '礼物答谢第 1 条', exact: true }).fill('祝你每天开心快乐'.repeat(15));
+  await checkFit('long gift reply and preview');
+  await app.evaluate(() => { delete global.dailyLibraryTest.giftState.replies; });
+  await page.reload();
+  await page.locator('[data-danmaku-tab="welcome"]').click();
+  await page.locator('[data-fixed-open="thanks"]').click();
+  await checkFit('legacy gift templates');
+});
+
 test('three interaction thanks switches and libraries save independently through desktop IPC', { timeout: 45000 }, async (t) => {
   const root = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(root, { recursive: true });
@@ -123,10 +220,12 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   assert.equal(await page.locator('#danmakuViewerNamesPanel').isHidden(), true);
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.viewerNames.enabled), true);
   await page.getByRole('button', { name: '管理观众昵称', exact: true }).click();
-  await page.locator('#danmakuViewerNamesList > div').nth(19).waitFor();
+  await page.locator('#danmakuViewerNamesList > div').nth(19).waitFor({ state: 'attached' });
   assert.equal(await page.locator('#danmakuViewerNamesToggle').isChecked(), true);
-  await page.locator('#danmakuViewerNamesNext').click();
   const lastRow = page.locator('#danmakuViewerNamesList > div').filter({ hasText: 'UID 120' });
+  for (let count = 0; count < 21 && !await lastRow.isVisible(); count++) {
+    await page.locator('#danmakuViewerNamesNext').click();
+  }
   await lastRow.getByRole('button', { name: '修改', exact: true }).click();
   const input = page.getByRole('textbox', { name: 'UID 120 的昵称', exact: true });
   await input.fill('星星🌟');
@@ -140,7 +239,7 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   await lastRow.getByRole('button', { name: '删除', exact: true }).click();
   await lastRow.getByRole('button', { name: '确认删除', exact: true }).click();
   await page.locator('#danmakuViewerNamesList > div').nth(19).waitFor();
-  assert.equal(await page.locator('#danmakuViewerNamesPagination').isHidden(), true);
+  assert.equal(await page.locator('#danmakuViewerNamesNext').isDisabled(), true);
   await page.keyboard.press('Escape');
   await page.locator('#danmakuViewerNamesToggle + .switch-track').click();
   await page.waitForFunction(() => {

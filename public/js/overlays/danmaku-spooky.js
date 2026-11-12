@@ -137,7 +137,8 @@ export function createSpookyMessageRenderer(options, render) {
         const suffix = count > 1 ? ` ×${count}` : '';
         const total = Number(item.giftTotalPrice);
         const amount = total > 0 ? ` · ¥${total.toLocaleString('zh-CN', { maximumFractionDigits: 2 })}` : '';
-        copy.textContent = `开通 ${GUARDS[boughtGuard]}${suffix}${amount}`;
+        const action = item.guardAction === 'open' ? '开通' : item.guardAction === 'renew' ? '续费' : '支持';
+        copy.textContent = `${action} ${GUARDS[boughtGuard]}${suffix}${amount}`;
       }
       copy.classList.add('spooky-event-copy');
       eventHeader(document, stack, board, item, copy, resolveAvatarUrl);

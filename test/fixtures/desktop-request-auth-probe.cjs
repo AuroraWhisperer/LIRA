@@ -106,6 +106,29 @@ app
         return;
       }
       if (url.pathname === '/report') requests.at(-1).isolated = url.searchParams.get('isolated') === 'true';
+      if (url.pathname === '/api/music/qq-encrypted-stream') {
+        if (req.headers.authorization !== `Bearer ${token}`) {
+          res.writeHead(401);
+          res.end();
+          return;
+        }
+        const audio = Buffer.alloc(44 + 1600);
+        audio.write('RIFF');
+        audio.writeUInt32LE(audio.length - 8, 4);
+        audio.write('WAVEfmt ', 8);
+        audio.writeUInt32LE(16, 16);
+        audio.writeUInt16LE(1, 20);
+        audio.writeUInt16LE(1, 22);
+        audio.writeUInt32LE(8000, 24);
+        audio.writeUInt32LE(16000, 28);
+        audio.writeUInt16LE(2, 32);
+        audio.writeUInt16LE(16, 34);
+        audio.write('data', 36);
+        audio.writeUInt32LE(1600, 40);
+        res.writeHead(200, { 'Content-Type': 'audio/wav', 'Content-Length': audio.length });
+        res.end(audio);
+        return;
+      }
       if (url.pathname === '/api/redirect') {
         res.writeHead(302, { Location: `${externalUrl}/target` });
         res.end();
@@ -173,7 +196,19 @@ app
     assert.equal(await overlayFrame.executeJavaScript('typeof window.liraLicense'), 'undefined');
     await mainWindow.webContents.executeJavaScript(`Promise.all([
     fetch('/api/main'), fetch('/api/redirect'), fetch('/api/redirect-overlay'),
-    fetch('/api/media').then(()=>{}),
+    new Promise((resolve, reject) => {
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.preload = 'metadata';
+      const cleanup = () => { audio.removeAttribute('src'); audio.load(); };
+      audio.addEventListener('loadedmetadata', () => { cleanup(); resolve(); }, { once: true });
+      audio.addEventListener('error', () => {
+        const message = audio.error?.message || 'Tokenless media failed to load';
+        cleanup(); reject(new Error(message));
+      }, { once: true });
+      audio.src = '/api/music/qq-encrypted-stream?id=fixture';
+      audio.load();
+    }),
     Promise.resolve(navigator.sendBeacon('/api/beacon','{}')),
     new Promise(resolve=>{const ws=new WebSocket('ws://'+location.host+'/ws');ws.onerror=resolve;})
   ]).then(()=>null)`);
@@ -200,7 +235,7 @@ app
     await mainWindow.webContents.executeJavaScript("fetch('/api/reloaded').then(()=>null)");
     await waitFor(() => requests.some((row) => row.path === '/api/beacon'));
     assert.ok(requests.some((row) => row.path === '/report' && row.isolated));
-    for (const route of ['/api/main', '/api/media', '/api/beacon', '/ws', '/api/reloaded'])
+    for (const route of ['/api/main', '/api/music/qq-encrypted-stream', '/api/beacon', '/ws', '/api/reloaded'])
       assert.ok(
         requests.some((row) => row.path === route && row.management),
         route,

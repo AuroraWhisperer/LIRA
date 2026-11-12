@@ -166,6 +166,8 @@ final 分发失败后按 `min(30s, 1000 * 2^attempt)` 退避重投；指数上�
 
 礼物冲刺快照、重置和聚合缓存由 `sprint-service.js` 拥有，按来源和冲刺输入变更标记复用；队列等无关快照通知及空同步仅更新校验时间时不会重复求和。目标值与开关仍每次读取，计入冲刺的礼物金额、资格或来源改变，以及结转、重置、外部连接提交或来源切换使聚合失效；事务内读取不复用或发布缓存，避免回滚的临时结果进入后续快照。
 
+最近礼物从当前来源的已发布明细读取，包括云端恢复的历史记录；沿用明细成员证明和本机保留期限，不以 `gift_stats_eligible` 作为展示条件。暂存历史在原子激活前不可见。恢复从 `BOOTSTRAPPING` 进入 `CATCHING_UP` 时，现有 `gift:source` 快照刷新首页，无需等待新礼物；前端通知跳过 `gift_stats_eligible=0` 的记录，历史资格仍不触发冲刺或加班消费者。旧本地来源继续保留原统计资格筛选。
+
 ### 流水筛选、选择快照与展示资料（2026-09-18）
 
 `history-filters.js` 拥有北京时间日期边界、独立用户/礼物名称过滤与来源版本。`getGiftHistory` 在完整有效流水上先筛选再分页，支持 today 和起止日期；游标绑定筛选、排序、asOf 与 viewRevision。viewRevision 包含 source、持久化 projection generation 及进程内来源切换代次。排序保留勾选，筛选、清库/重建、换来源使选择失效。
@@ -219,6 +221,8 @@ pull/history 与 SSE 的请求头统一由 [gift-protocol.js](../../../../src/el
 `display={version:1,avatarUrl,guardLevel}`：avatarUrl 为 null 或长度≤2048的 HTTPS hdslb.com/其子域 URL，无用户名、密码、非默认端口、query、fragment；guardLevel 为 null 或0/1/2/3。null 表示未知，0 表示已知无大航海等级。不能按昵称补齐身份；头像补查只更新展示投影（§5）。wire 不含 UID、roomId、streamerId、cmd、平台/连击 ID、raw JSON、Cookie、CSRF 或 token。
 
 live 事件严格为 `{eventId,cursor,phase,gift}`；eventId 为1–64字符，首位字母/数字，后续仅字母/数字/点/下划线/冒号/连字符。progress.cursor 必须 null，final.cursor 为正安全整数；history record 严格为 `{eventId,gift}`，不伪造 live cursor。gift 的 num 为正安全整数，价格为数值（可空字段仅 blindBoxPrice/blindProfit），blindBoxId 为1–20位非零开头十进制字符串或 null。canonical 要求金额可表示为安全整数分（浮点容差1e-7），拒绝超过两位小数的有效精度，派生 `unitPriceCents,totalPriceCents,blindBoxPriceCents,blindProfitCents` 并规范时间；totalPrice 对应整数分必须大于0，0.001直接校验失败，不能舍入后入库。这些 Cents 字段仅供内部计算，不能再塞回 wire 白名单。
+
+网络入口 `normalizeProcessedGiftHistoryPage` 严格校验 wire 后生成内部金额分字段；保留存储使用 `canonicalizeProcessedGiftHistoryPage` 校验该内部页的分页、游标及金额，再核对快照 fence 并事务写入。内部页不重复经过 wire 字段白名单；网络响应仍不能携带内部金额分字段。
 
 客户端接收预算：pull/history 每个响应≤512 KiB，每页 events≤200；history page token≤4096字符，syncEpoch≤128字符。历史页还要求 historyBootstrapVersion=1、非负安全整数 recoveryCursor；hasMore=true 时必须有 nextPageToken，结束时必须 null。增量页只允许 final，cursor 严格递增，末条等于 nextCursor；版本页附 historyBootstrapVersion/syncEpoch/earliestCursor/latestCursor。以上是客户端验证条件，不外推服务器吞吐承诺；完整页字段集合见同一 contract 的 HISTORY_PAGE_KEYS/EVENT_PAGE_KEYS，异常整页拒绝。
 

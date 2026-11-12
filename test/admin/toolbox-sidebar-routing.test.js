@@ -4,8 +4,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createToolboxRuntime } = require('../helpers/toolbox-runtime');
 
-test('toolbox navigation and feature capabilities work without the legacy registry', () => {
-  const runtime = createToolboxRuntime();
+test('toolbox navigation and feature capabilities work without the legacy registry', async () => {
+  const runtime = await createToolboxRuntime();
   runtime.sandbox.window.AdminApp = {};
   const calls = [];
   let navigate;
@@ -43,9 +43,9 @@ test('toolbox navigation and feature capabilities work without the legacy regist
   assert.deepEqual(calls, ['ai:init', 'songAssistantPage', 'settingsPage', true, 'ai:refresh']);
 });
 
-test('explicit toolbox feature selection reopens and persists its collapsed group', () => {
+test('explicit toolbox feature selection reopens and persists its collapsed group', async () => {
   const persisted = [];
-  const runtime = createToolboxRuntime({
+  const runtime = await createToolboxRuntime({
     initialStorage: { 'admin.toolboxCollapsedFeatureGroups': '["live-scene"]' },
   });
   runtime.other.initOtherPage({

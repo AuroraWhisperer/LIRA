@@ -89,18 +89,26 @@ function createGiftQueryStore(giftDb) {
 
   function listRecent({ sourceScope, limit }) {
     const scope = normalizeSourceScope(sourceScope);
+    const filter = {
+      sql: `g.status = 'active' AND g.total_price > 0
+        AND g.detection_status = 'final' AND ${scope.sql}`,
+      params: scope.params,
+    };
+    if (scope.params.length === 1) {
+      retentionLedgerFilter(giftDb, { sourceId: scope.params[0] }, filter);
+    } else {
+      filter.sql += ' AND g.gift_stats_eligible = 1';
+    }
     return giftDb
       .prepare(
         `
-        SELECT * FROM gift_events
-        WHERE status = 'active' AND total_price > 0
-          AND detection_status = 'final' AND gift_stats_eligible = 1
-          AND ${scope.sql}
-        ORDER BY datetime(created_at) DESC, id DESC
+        SELECT g.* FROM gift_events g
+        WHERE ${filter.sql}
+        ORDER BY datetime(g.created_at) DESC, g.id DESC
         LIMIT ?
       `,
       )
-      .all(...scope.params, limit);
+      .all(...filter.params, limit);
   }
 
   function listHistoryRows({

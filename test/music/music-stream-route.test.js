@@ -36,7 +36,7 @@ async function resolveStream({ body = { track: TRACK }, sessionToken = 'session-
   return { ...response, calls };
 }
 
-test('encrypted streams receive the session token only on a same-origin relative URL', async () => {
+test('encrypted streams keep same-origin relative URLs without exposing the session token', async () => {
   for (const url of [
     '/api/music/qq-encrypted-stream?id=abc',
     'https://cdn.example.test/api/music/qq-encrypted-stream?id=abc',
@@ -47,7 +47,7 @@ test('encrypted streams receive the session token only on a same-origin relative
     const resolved = new URL(payload.data.url, 'http://lira.local');
     assert.equal(resolved.pathname, '/api/music/qq-encrypted-stream');
     assert.equal(resolved.searchParams.get('id'), 'abc');
-    assert.equal(resolved.searchParams.get('token'), 'session-token');
+    assert.equal(resolved.searchParams.has('token'), false);
   }
 });
 

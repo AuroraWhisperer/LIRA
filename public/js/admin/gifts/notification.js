@@ -31,7 +31,7 @@ export function createGiftNotification({ notify = showStackedToast } = {}) {
     const changed = items
       .filter((item) => {
         const id = Number((item && item.id) || 0);
-        return id && giftNoticeKeys.get(id) !== currentKeys.get(id);
+        return id && Number(item.gift_stats_eligible) !== 0 && giftNoticeKeys.get(id) !== currentKeys.get(id);
       })
       .sort((a, b) => Number(a.id || 0) - Number(b.id || 0));
 

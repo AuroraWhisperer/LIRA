@@ -382,6 +382,14 @@ function getMigrationPlan(options = {}) {
       migrateGiftRetentionTiers,
       // v23: per-source, per-period manual heart-box collection adjustment.
       migrateHeartBoxCollectionAdjustments,
+      // v24: remote recent rows share timestamp ordering across active and retained visibility.
+      (db) => {
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_gift_events_remote_recent
+            ON gift_events(source_id, datetime(created_at) DESC, id DESC)
+            WHERE source_id IS NOT NULL AND total_price > 0 AND detection_status = 'final';
+        `);
+      },
     ] },
 
     { name: 'musicDb', key: 'music_db', steps: [

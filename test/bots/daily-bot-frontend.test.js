@@ -53,13 +53,13 @@ async function libraryFixture(t) {
   return page;
 }
 
-test('daily libraries reuse the fixed editor and keep edits, search and paging local', async (t) => {
+test('daily libraries show all entries and keep edits and search local', async (t) => {
   const page = await libraryFixture(t);
   assert.deepEqual(await page.evaluate(() => window.libraryRequests.map(x => x.action)), ['open']);
   await page.getByRole('button', { name: '编辑签到词库', exact: true }).click();
   await page.locator('#dailyLibraryCount').filter({ hasText: '8 条' }).waitFor();
+  assert.equal(await page.locator('#dailyLibraryList input').count(), 8);
   await page.getByRole('textbox', { name: '第 1 条祝福语', exact: true }).fill('修改后的祝福。');
-  await page.locator('#dailyLibraryNext').click();
   await page.getByRole('textbox', { name: '第 7 条祝福语', exact: true }).fill('第七条修改。');
   await page.locator('#dailyLibrarySearch').fill('修改');
   assert.equal(await page.locator('#dailyLibraryList input').count(), 2);

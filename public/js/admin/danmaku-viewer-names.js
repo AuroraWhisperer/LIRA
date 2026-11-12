@@ -1,3 +1,5 @@
+import { setEditorPageContext } from './danmaku-editor-pagination.js';
+
 export function initDanmakuViewerNames({
   documentRef = globalThis.document,
   windowRef = globalThis.window,
@@ -18,15 +20,15 @@ export function initDanmakuViewerNames({
     toggle.disabled = !owner || !available || !settings || busy;
     open.disabled = !owner || !available || !settings;
     get('Status').textContent = !available ? '请更新客户端后使用昵称管理' : !owner ? '连接 LIRA 账号后可设置' :
-      stateNotice || (!settings ? notice || '正在读取云端状态…' : settings.enabled ? '云端已开启' : '已关闭 · 已存昵称保留');
+      stateNotice || (!settings ? notice || '正在读取云端状态…' : '');
     get('Notice').textContent = notice;
     get('Refresh').disabled = !owner || !available || busy || Boolean(editing);
     get('Count').textContent = loaded ? `共 ${total} 人` : '';
     get('Empty').hidden = !loaded || items.length > 0;
-    get('Pagination').hidden = total <= 20;
-    get('PageLabel').textContent = `第 ${page} / ${Math.max(1, Math.ceil(total / 20))} 页`;
-    get('Prev').disabled = busy || Boolean(editing) || page <= 1;
-    get('Next').disabled = busy || Boolean(editing) || page * 20 >= total;
+    setEditorPageContext(list, { offset: (page - 1) * 20, total,
+      previous: page > 1 ? () => void load(page - 1) : null,
+      next: page * 20 < total ? () => void load(page + 1) : null,
+      disabled: busy || Boolean(editing) });
     for (const row of list.children) {
       for (const field of row.querySelectorAll('input, button')) {
         field.disabled = busy || Boolean(editing && editing.uid !== row.dataset.uid);
@@ -35,10 +37,10 @@ export function initDanmakuViewerNames({
     panel.setAttribute('aria-busy', String(busy));
   }
 
-  function action(label, onClick) {
+  function action(label, onClick, className = 'secondary') {
     const button = documentRef.createElement('button');
     button.type = 'button';
-    button.className = 'danmaku-text-action';
+    button.className = className;
     button.textContent = label;
     button.addEventListener('click', onClick);
     return button;
@@ -70,7 +72,7 @@ export function initDanmakuViewerNames({
         name.className = 'danmaku-viewer-name-value';
         name.textContent = item.name;
         if (editing?.uid === item.uid) {
-          actions.append(action('确认删除', () => void remove(item.uid)), action('取消', cancelEdit));
+          actions.append(action('确认删除', () => void remove(item.uid), 'danger'), action('取消', cancelEdit));
         } else {
           actions.append(action('修改', () => {
             editing = { uid: item.uid, name: item.name, mode: 'edit' };
@@ -182,8 +184,6 @@ export function initDanmakuViewerNames({
       enabled ? '已开启昵称功能' : '已关闭昵称功能，已存昵称保留', true);
   });
   get('Refresh').addEventListener('click', refresh);
-  get('Prev').addEventListener('click', () => void load(page - 1));
-  get('Next').addEventListener('click', () => void load(page + 1));
   root.addEventListener('fixed-reply:select', select);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initial = generation;

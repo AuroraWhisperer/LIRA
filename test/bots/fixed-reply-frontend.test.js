@@ -281,7 +281,7 @@ test('timer interval and selection modes save together; invalid ranges and failu
   assert.equal(await page.locator('#danmakuScheduledToggle').isChecked(), false);
 });
 
-test('scheduled library edits across search and pages up to capacity without auto-saving', async (t) => {
+test('scheduled library keeps distant edits and searches up to capacity without auto-saving', async (t) => {
   const page = await editorFixture(t, 'send');
   const original = Array.from({ length: 299 }, (_, index) => `文案 ${index + 1}`);
   await page.evaluate(async (messages) => {
@@ -294,9 +294,9 @@ test('scheduled library edits across search and pages up to capacity without aut
   assert.equal(await list.locator('input').count(), 1);
   assert.equal(await page.locator('#danmakuScheduledSave').isDisabled(), true);
   await page.getByLabel('定时弹幕第 299 条', { exact: true }).fill('末条已编辑');
-  await page.locator('#danmakuScheduledLibrarySearch').fill('');
-  await page.locator('#danmakuScheduledLibraryNext').click();
+  await page.locator('#danmakuScheduledLibrarySearch').fill('文案 7');
   await page.getByLabel('定时弹幕第 7 条', { exact: true }).fill('第二页已编辑');
+  await page.locator('#danmakuScheduledLibrarySearch').fill('文案 8');
   await page.getByRole('button', { name: '删除第 8 条定时弹幕', exact: true }).click();
   await page.locator('#danmakuScheduledLibraryAdd').click();
   await page.getByLabel('定时弹幕第 299 条', { exact: true }).fill('新增文案');

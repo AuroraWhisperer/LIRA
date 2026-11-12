@@ -68,10 +68,11 @@ function createCollectionService({ store, provider, getContext, clock }) {
     }
   }
 
-  async function collect(taskId, controller, resumeExisting) {
+  async function collect(taskId, signal, resumeExisting) {
     const task = store.getTask(taskId);
     assertTaskReady(task);
     const context = await getContext();
+    signal.throwIfAborted();
     assertTaskScope(task, context);
     const sources = requiredSources(task.rules);
     let scan = store.getActiveScan(taskId);
@@ -100,7 +101,7 @@ function createCollectionService({ store, provider, getContext, clock }) {
         // Both reaction sources share the upstream cursor and are committed together.
         const pageSources = source === 'comment' ? ['comment'] : sources.filter((value) => value !== 'comment');
         for (;;) {
-          controller.signal.throwIfAborted();
+          signal.throwIfAborted();
           scan = store.getActiveScan(taskId);
           const state = scan?.sources?.[source];
           if (!state) {
@@ -113,10 +114,10 @@ function createCollectionService({ store, provider, getContext, clock }) {
             target: task.target,
             source,
             cursor: state.cursor,
-            signal: controller.signal,
+            signal,
           });
           const currentContext = await getContext();
-          controller.signal.throwIfAborted();
+          signal.throwIfAborted();
           assertSameSession(context, currentContext);
           assertTaskScope(task, currentContext);
           const commit = {
@@ -150,14 +151,14 @@ function createCollectionService({ store, provider, getContext, clock }) {
       }
       return store.getTask(taskId);
     } catch (error) {
-      const reason = controller.signal.aborted
-        ? controller.signal.reason?.code || 'LOTTERY_COLLECTION_PAUSED'
+      const reason = signal.aborted
+        ? signal.reason?.code || 'LOTTERY_COLLECTION_PAUSED'
         : error?.code || 'LOTTERY_COLLECTION_FAILED';
       return store.pauseScan({ taskId, reason, nowMs: readNow(clock) });
     }
   }
 
-  function run(taskId, resumeExisting) {
+  function run(taskId, resumeExisting, parentSignal) {
     if (disposed) {
       return Promise.reject(collectionError('LOTTERY_COLLECTION_DISPOSED', 'Collection service has been disposed.'));
     }
@@ -167,19 +168,20 @@ function createCollectionService({ store, provider, getContext, clock }) {
     if (current) return current.promise;
 
     const controller = new AbortController();
-    const operation = collect(id, controller, resumeExisting).finally(() => {
+    const signal = parentSignal ? AbortSignal.any([controller.signal, parentSignal]) : controller.signal;
+    const operation = collect(id, signal, resumeExisting).finally(() => {
       if (activeCollections.get(id)?.controller === controller) activeCollections.delete(id);
     });
     activeCollections.set(id, { controller, promise: operation });
     return operation;
   }
 
-  function start({ taskId } = {}) {
-    return run(taskId, false);
+  function start({ taskId, signal } = {}) {
+    return run(taskId, false, signal);
   }
 
-  function resume(taskId) {
-    return run(taskId, true);
+  function resume(taskId, signal) {
+    return run(taskId, true, signal);
   }
 
   function pause(taskId) {

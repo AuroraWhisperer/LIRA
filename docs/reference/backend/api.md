@@ -1015,4 +1015,6 @@ GET 缺图时，正常授权的本地运行时可调用目录 `imageResources.en
 
 [font-assets.js](../../../src/server/font-assets.js) 在本地 HTTP 提供 `GET/HEAD /css/shared/display-fonts.css`、`GET/HEAD /font-library/<id>` 和 `GET/HEAD /font-library/status`。它们是公开、只读的非敏感资源，允许 CORS；不接受磁盘路径或外部 URL，不启动下载。CSS 只声明已可用的字体，旧字体 ID 缓存缺失立即 404，未知 ID 返回 404，非 GET/HEAD 返回 405。旧字体缓存返回真实 `font/ttf` 或 `font/woff2`，HEAD 无 body，响应 `Cache-Control: no-store`。状态保持 `{status,completed,completedAt}`，无路径、账号或下载地址。
 
+`GET /font-library/status` 可携带 `after` 查询参数，值为上次状态的 `status:completed:completedAt`（缺省完成数为 `0`、完成时间为空串）。该签名未变化时订阅本地资源状态，最多等待 30 秒后返回当前三个字段；签名已变化立即返回。状态变化、超时或连接关闭均释放本次订阅和计时器，不触发 CDN 请求。无 `after` 的 GET 和所有 HEAD 保持立即响应。
+
 [resource-assets.js](../../../src/server/resource-assets.js) 保留资源清单中 `/fonts/...`、世界地图与三张旧航海旗帜的原 URL，通过本机公共缓存响应 GET/HEAD，设置真实 MIME、Content-Length、CORS、nosniff 和 no-store。旗帜 URL 只兼容已有资源，当前样式使用导入 ZIP 的 `component-media` 地址，启动不再下载或更新这三张公共图片。字体 CSS 的摘要查询参数可选取同一资源的已缓存版本。若首次图片请求到达时已有下载进行中，可等待该任务完成再读取；HTTP 请求自身不发起 CDN 检查或下载。资源仍不可用时返回 404，非 GET/HEAD 返回 405。共享完整字体与大图不进入安装包，两个固定标题裁剪字体随安装包提供；CDN 下载及进度见[桌面主进程](../desktop/main.md#共享字体初始化)，缓存见[存储](storage.md#公共资源缓存)。

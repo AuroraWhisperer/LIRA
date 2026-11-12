@@ -25,6 +25,7 @@ async function run() {
   const { DEFAULT_GIFT_THANKS_TEMPLATES, createGiftThanksReplies } = require('../../public/js/shared/gift-thanks-templates.js');
   const root = path.resolve(__dirname, '../..');
   const directory = path.resolve(process.argv[2]);
+  const layoutMode = process.argv[3] === 'layout';
   if (path.dirname(directory) !== path.join(root, 'tmp')) throw new Error('Expected an isolated tmp directory.');
   fs.mkdirSync(directory, { recursive: true });
   app.setPath('userData', directory);
@@ -48,6 +49,11 @@ async function run() {
     followThanksEnabled: false, followThanksMessages: ['谢谢 {username} 的关注！'],
     scheduledDanmaku: { mode: 'fixed', intervalSeconds: 300, minSeconds: 300, maxSeconds: 600, selection: 'sequential', messages: [] },
   };
+  if (layoutMode) {
+    fixedReplies.customExactReplies = Array.from({ length: 30 }, (_, index) => ({ trigger: `指令${index + 1}`, reply: `测试回复 ${index + 1}` }));
+    fixedReplies.scheduledDanmaku.messages = Array.from({ length: 199 }, (_, index) => `定时测试文案 ${index + 1}`);
+    for (const kind of ['like', 'share', 'follow']) fixedReplies[`${kind}ThanksMessages`] = Array.from({ length: 30 }, (_, index) => `谢谢 {username} 的支持 ${index + 1}`);
+  }
   global.dailyLibraryTest = { requests: [], libraries, failNext: false, fixedReplies };
   const viewerNames = { enabled: true,
     items: Array.from({ length: 21 }, (_, index) => ({ uid: String(100 + index), name: `观众${index + 1}` })) };
@@ -72,9 +78,20 @@ async function run() {
     welcomeWhitelist: [], welcomeBlacklist: [],
   };
   global.dailyLibraryTest.welcomeSettings = welcomeSettings;
+  if (layoutMode) {
+    welcomeSettings.messages = Array.from({ length: 30 }, (_, index) => `欢迎 {username}，测试文案 ${index + 1}`);
+    welcomeSettings.userWelcomeMessages = Array.from({ length: 30 }, (_, index) => ({ uid: String(100 + index), message: `欢迎观众 ${index + 1}` }));
+    welcomeSettings.welcomeWhitelist = Array.from({ length: 30 }, (_, index) => String(1000 + index));
+    welcomeSettings.welcomeBlacklist = Array.from({ length: 30 }, (_, index) => String(2000 + index));
+  }
+  const pkSettings = { ok: true, enabled: true, reportEnabled: true, visitorWelcomeEnabled: true,
+    visitorWelcomeDelaySeconds: 5, visitorWelcomeMessages: Array.from({ length: 30 }, (_, index) => `欢迎 {username} 来串门 ${index + 1}`) };
   const giftState = { ok: true, status: 'confirmed', templates: { ...DEFAULT_GIFT_THANKS_TEMPLATES },
     values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
-  if (process.argv[3] === 'gift-thanks') giftState.replies = createGiftThanksReplies();
+  if (process.argv[3] === 'gift-thanks' || layoutMode) giftState.replies = createGiftThanksReplies();
+  if (layoutMode) for (const value of Object.values(giftState.replies)) {
+    value.messages = Array.from({ length: 6 }, (_, index) => ({ text: `谢谢{称呼}送来的{礼物}，支持收到啦！文案 ${index + 1}` }));
+  }
   const giftListeners = new Set();
   global.dailyLibraryTest.giftState = giftState;
   const manager = {
@@ -101,6 +118,8 @@ async function run() {
       return structuredClone(welcomeSettings);
     },
     async getFixedReplySettings() { return structuredClone(fixedReplies); },
+    async getPkReportSettings() { return structuredClone(pkSettings); },
+    async updatePkReportSettings(patch) { Object.assign(pkSettings, patch); return structuredClone(pkSettings); },
     async getViewerNameSettings() { return { enabled: viewerNames.enabled }; },
     async updateViewerNameSettings({ enabled }) {
       if (global.dailyLibraryTest.failNext) {
@@ -111,6 +130,7 @@ async function run() {
       return { enabled };
     },
     async listViewerNames({ page }) {
+      global.dailyLibraryTest.requests.push({ operation: 'viewer-names-read', input: { page } });
       page = Math.min(page, Math.max(1, Math.ceil(viewerNames.items.length / 20)));
       const result = { items: structuredClone(viewerNames.items.slice((page - 1) * 20, page * 20)),
         total: viewerNames.items.length, page, pageSize: 20 };
@@ -187,6 +207,8 @@ async function run() {
           import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
           import { initDanmakuWelcome } from './danmaku-welcome.js';
           import { initDanmakuViewerNames } from './danmaku-viewer-names.js';
+          import { initDanmakuPkReport } from './danmaku-pk-report.js';
+          import { createCustomReplyEditor } from './danmaku-libraries.js';
           import { initDanmakuQueryReplies } from './danmaku-query-replies.js';
           import { initGiftInteractionControls } from './gifts/interaction-controls.js';
           import './contextual-help.js';
@@ -197,7 +219,10 @@ async function run() {
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           initDanmakuTabs();
           ${process.argv[3] === 'gift-thanks' ? '' : 'initDanmakuDailyBots(); initDanmakuCloudReplies(); initDanmakuQueryReplies(); initDanmakuWelcome();'}
-          ${process.argv[3] === 'viewer-names' ? 'initDanmakuViewerNames();' : ''}
+          ${process.argv[3] === 'viewer-names' || layoutMode ? 'initDanmakuViewerNames();' : ''}
+          ${layoutMode ? `initDanmakuPkReport();
+            const keyword = createCustomReplyEditor({ document, saveSetting: async () => {}, toast: () => {} });
+            keyword.load(JSON.stringify(Array.from({ length: 30 }, (_, index) => ({ keyword: '关键词' + index, reply: '测试回复 ' + index, enabled: true }))));` : ''}
           const { initDanmakuGiftThanks } = await import('/js/admin/danmaku-gift-thanks.js');
           const thanks = initDanmakuGiftThanks();
           initGiftInteractionControls({ surface: 'danmaku', onState: thanks.updateState }); initFixedReplyEditor();`);

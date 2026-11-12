@@ -18,12 +18,10 @@ export function createWelcomeAudience({ documentRef, element, states, changed, s
   function render(key) {
     const state = states[key];
     const { label: title } = AUDIENCE_LISTS[key];
-    const pages = Math.max(1, Math.ceil(state.items.length / 6));
-    state.page = Math.min(state.page, pages - 1);
     const list = get(key, 'List');
     list.replaceChildren();
     fields[key] = [];
-    for (let index = state.page * 6; index < Math.min(state.items.length, (state.page + 1) * 6); index += 1) {
+    for (let index = 0; index < state.items.length; index += 1) {
       const row = documentRef.createElement('div');
       row.className = 'danmaku-welcome-audience-row';
       const input = documentRef.createElement('input');
@@ -55,10 +53,6 @@ export function createWelcomeAudience({ documentRef, element, states, changed, s
       row.append(input, remove);
       list.append(row);
     }
-    get(key, 'PageLabel').textContent = `第 ${state.page + 1} / ${pages} 页`;
-    get(key, 'Pagination').hidden = pages === 1;
-    get(key, 'PrevPage').disabled = state.page === 0;
-    get(key, 'NextPage').disabled = state.page >= pages - 1;
   }
 
   function controls({ supported, loaded, busy }) {
@@ -79,21 +73,12 @@ export function createWelcomeAudience({ documentRef, element, states, changed, s
       const state = states[key];
       if (!available || state.items.length >= 100) return;
       state.items.push('');
-      state.page = Math.floor((state.items.length - 1) / 6);
       edit(key);
       render(key);
       fields[key][fields[key].length - 2]?.focus();
     });
     get(key, 'SaveBtn').addEventListener('click', () => {
       if (available) save(key, states[key].items.map((uid) => uid.trim()));
-    });
-    get(key, 'PrevPage').addEventListener('click', () => {
-      states[key].page -= 1;
-      render(key);
-    });
-    get(key, 'NextPage').addEventListener('click', () => {
-      states[key].page += 1;
-      render(key);
     });
   }
 

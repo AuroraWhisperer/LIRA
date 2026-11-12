@@ -28,12 +28,12 @@ export function initDanmakuWelcome({
     refresh = element('RefreshBtn');
   if (![toggle, list, input, status, refresh].every(Boolean)) return;
   const libraries = Object.fromEntries(
-    Object.keys(LIBRARIES).map((key) => [key, { items: [], dirty: false, revision: 0, addition: '', page: 0 }]),
+    Object.keys(LIBRARIES).map((key) => [key, { items: [], dirty: false, revision: 0, addition: '' }]),
   );
   const parameters = { values: {}, dirty: false, revision: 0 };
-  const custom = { items: [], dirty: false, revision: 0, page: 0 };
+  const custom = { items: [], dirty: false, revision: 0 };
   const audience = Object.fromEntries(
-    Object.keys(AUDIENCE_LISTS).map((key) => [key, { items: [], dirty: false, revision: 0, page: 0 }]),
+    Object.keys(AUDIENCE_LISTS).map((key) => [key, { items: [], dirty: false, revision: 0 }]),
   );
   let owner = '',
     generation = 0,
@@ -71,6 +71,7 @@ export function initDanmakuWelcome({
     view = next;
     element('Parameters').hidden = view !== 'parameters';
     element('Libraries').hidden = view !== 'libraries';
+    element('Custom').hidden = view !== 'custom';
     element('Audience').hidden = view !== 'audience';
     for (const button of documentRef.querySelectorAll('[data-welcome-view]'))
       button.setAttribute('aria-pressed', String(button.dataset.welcomeView === view));
@@ -181,7 +182,7 @@ export function initDanmakuWelcome({
     element('Summary').textContent = !loaded
       ? '尚未确认服务器设置'
       : isV2()
-        ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `至少 ${settings.welcomeMinHonorLevel} 级` : '等级不限'}${settings.welcomeOwnMedalOnly ? ' · 仅本房间粉丝牌（白名单除外）' : ''}`
+        ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `荣耀 ${settings.welcomeMinHonorLevel} 级起` : '不限荣耀等级'}${settings.welcomeOwnMedalOnly ? ' · 仅本房间粉丝牌（白名单除外）' : ''}`
         : '服务器暂不支持新增设置';
   }
   function libraryChanged(key) {
@@ -306,7 +307,7 @@ export function initDanmakuWelcome({
         showErrors(fieldErrors, true);
         if (response.fieldErrors.some(({ field }) => field === 'userWelcomeMessages')) {
           customEditor.setError('请检查 UID：需为 1～20 位正整数且不能重复；欢迎词需为 1～80 字，不能换行。');
-          showView('libraries');
+          showView('custom');
           element('Panel').dispatchEvent(new windowRef.CustomEvent('welcome:show-editor', { bubbles: true }));
           element('CustomError').focus();
         }
@@ -408,9 +409,9 @@ export function initDanmakuWelcome({
     }
     domain.items.push(text);
     domain.addition = '';
-    domain.page = Math.floor((domain.items.length - 1) / 6);
     libraryChanged(editor.current());
     editor.render();
+    editor.revealLast();
     input.focus();
   }
   function account(snapshot) {
@@ -431,16 +432,16 @@ export function initDanmakuWelcome({
     parameters.values = {};
     parameters.dirty = false;
     parameters.revision += 1;
-    Object.assign(custom, { items: [], dirty: false, revision: custom.revision + 1, page: 0 });
+    Object.assign(custom, { items: [], dirty: false, revision: custom.revision + 1 });
     customEditor.setError('');
     customEditor.render();
     for (const [key, domain] of Object.entries(audience)) {
-      Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1, page: 0 });
+      Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1 });
       audienceEditor.setError(key, '');
       audienceEditor.render(key);
     }
     for (const domain of Object.values(libraries))
-      Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1, addition: '', page: 0 });
+      Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1, addition: '' });
     parameterInputs();
     showErrors({});
     editor.setTimeMode(false);

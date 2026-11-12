@@ -26,8 +26,11 @@ function fixture(t) {
   };
 }
 
+let parser;
+test.before(async () => { parser = await loadSongImportParser(); });
+
 function textParser() {
-  return loadSongImportParser().parseTable;
+  return parser.parseTable;
 }
 
 test('legacy and previewed imports return their counts without accumulating unused batch rows', (t) => {

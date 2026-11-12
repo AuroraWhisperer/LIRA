@@ -352,7 +352,18 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     }
   }
   async function confirm(title, message, confirmLabel) {
-    return showConfirmationDialog({ title, message, confirmLabel, variant: 'caution' });
+    const restoreExpanded = expanded;
+    const previousFocus = root.ownerDocument.activeElement;
+    // The shared dialog is outside the top layer occupied by the expanded editor.
+    if (restoreExpanded) setExpanded(false, false);
+    try {
+      return await showConfirmationDialog({ title, message, confirmLabel, variant: 'caution' });
+    } finally {
+      if (restoreExpanded && !disposed && root.isConnected) {
+        setExpanded(true);
+        if (root.contains(previousFocus)) previousFocus.focus({ preventScroll: true });
+      }
+    }
   }
   async function action(name) {
     if (name === 'retry') {

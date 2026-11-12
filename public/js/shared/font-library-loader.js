@@ -18,6 +18,7 @@ export function startFontLibraryLoader({ window: windowRef = window, document: d
   let unsubscribe = () => {};
   const bridge = windowRef.liraLicense;
   const desktop = bridge?.onFontLibraryStateChanged && bridge?.getFontLibraryState;
+  const controller = desktop ? null : new windowRef.AbortController();
 
   function apply(state = {}) {
     if (disposed) return;
@@ -70,14 +71,16 @@ export function startFontLibraryLoader({ window: windowRef = window, document: d
         state = await bridge.getFontLibraryState();
         if (eventSeen) return;
       } else {
-        const response = await windowRef.fetch('/font-library/status');
+        const url = latestState.status === 'error'
+          ? `/font-library/status?after=${encodeURIComponent(latestSignature)}` : '/font-library/status';
+        const response = await windowRef.fetch(url, { signal: controller.signal });
         if (!response.ok) throw new Error('Font status unavailable');
         state = await response.json();
       }
       if (disposed) return;
       readFailures = 0;
       apply(state);
-      if (!desktop && ['checking', 'downloading'].includes(state.status)) timer = windowRef.setTimeout(read, 2000);
+      if (!desktop && ['checking', 'downloading', 'error'].includes(state.status)) timer = windowRef.setTimeout(read, 2000);
     } catch {
       if (!disposed && !eventSeen && readFailures++ < 3) timer = windowRef.setTimeout(read, 2000 * 2 ** (readFailures - 1));
     }
@@ -90,6 +93,7 @@ export function startFontLibraryLoader({ window: windowRef = window, document: d
 
   function dispose() {
     disposed = true;
+    controller?.abort();
     pendingLink?.remove();
     windowRef.clearTimeout(timer);
     windowRef.clearTimeout(styleTimer);

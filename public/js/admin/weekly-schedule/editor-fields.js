@@ -116,7 +116,7 @@ export function renderWeeklyScheduleFields(container, template) {
     choice.append(sketch, element('span', '', layout.label));
   }
   appearance.append(layouts);
-  appearance.append(element('p', 'weekly-field-help', '示意图标出了立绘位置。在「素材」上传主播立绘后自动排入，仍可调整大小、位置和左右对调。'));
+  appearance.append(element('p', 'weekly-field-help', '在「素材」上传主播立绘后自动排入，仍可调整大小、位置和左右对调。'));
   const palettes = element('div', 'weekly-palette-grid');
   palettes.setAttribute('aria-label', '预设配色');
   WEEKLY_PALETTES.forEach(palette => {

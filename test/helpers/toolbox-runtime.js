@@ -1,9 +1,9 @@
 'use strict';
 
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('./js-module-bundle');
+const path = require('node:path');
+const { loadModuleExports } = require('./frontend-modules');
 
-function createToolboxRuntime({ initialStorage = {} } = {}) {
+async function createToolboxRuntime({ initialStorage = {} } = {}) {
   function createNode({ dataset = {}, id = '', textContent = '' } = {}) {
     const attributes = new Map();
     const listeners = new Map();
@@ -141,8 +141,8 @@ function createToolboxRuntime({ initialStorage = {} } = {}) {
       },
     },
   };
-  const other = vm.runInNewContext(
-    `${readJsModuleBundle('public', 'js', 'admin', 'toolbox-navigation.js')}\nother;`,
+  const { other } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/toolbox-navigation.js'),
     sandbox,
   );
   return {

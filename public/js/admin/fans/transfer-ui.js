@@ -54,7 +54,9 @@ export function createFanTransferUi({ request, openForm, beginIntent, getProfile
   }
 
   async function snapshots() {
+    const isCurrent = beginIntent();
     const points = await request('snapshots');
+    if (!isCurrent()) return;
     if (!points.length) {
       toast('尚无本机恢复点；合并或恢复备份前会自动创建。');
       return;
@@ -92,7 +94,9 @@ export function createFanTransferUi({ request, openForm, beginIntent, getProfile
   }
 
   async function suppressions() {
+    const isCurrent = beginIntent();
     const items = await request('suppression-list');
+    if (!isCurrent()) return;
     if (!items.length) {
       toast('黑名单为空。');
       return;

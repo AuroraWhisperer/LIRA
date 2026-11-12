@@ -1,6 +1,7 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const { EventEmitter } = require('node:events');
 const fs = require('node:fs/promises');
 const path = require('node:path');
 const test = require('node:test');
@@ -9,6 +10,7 @@ const { fonts } = require('../../src/fonts/catalog.json');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { createResourceLibrary } = require('../../src/resources/resource-library');
 const { sha256 } = require('../../src/fonts/font-download');
+const { serveFontAsset } = require('../../src/server/font-assets');
 
 test('cold font HTTP never blocks rendering, then serves verified fonts with HEAD/CORS', async t => {
   const scratch = path.resolve(__dirname, '../../tmp/font-tests');
@@ -87,4 +89,54 @@ test('CDN fonts and a cold image keep their original local URLs and never expose
   assert.equal(Number(head.headers.get('content-length')), image.length);
   assert.equal((await head.arrayBuffer()).byteLength, 0);
   assert.equal(requests, 3, 'Local requests share the startup downloads.');
+});
+
+test('font status waits observe retries and release subscriptions on change, timeout and disconnect', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  let state = { status: 'error', completed: 0, completedAt: 'failed' };
+  const listeners = new Set();
+  const library = {
+    getState: () => state,
+    onStateChanged(listener) { listeners.add(listener); return () => listeners.delete(listener); },
+  };
+  const request = () => {
+    const response = Object.assign(new EventEmitter(), {
+      destroyed: false,
+      setHeader() {},
+      writeHead() {},
+      end(body) { this.body = JSON.parse(body); },
+    });
+    const pending = serveFontAsset(library, { method: 'GET' }, response,
+      new URL('http://local.test/font-library/status?after=error%3A0%3Afailed'));
+    return { response, pending };
+  };
+
+  const waiting = request();
+  assert.equal(listeners.size, 1);
+  state = { status: 'checking', completed: 0, completedAt: '' };
+  for (const listener of listeners) listener(state);
+  await waiting.pending;
+  assert.equal(waiting.response.body.status, 'checking');
+  assert.equal(listeners.size, 0);
+
+  const alreadyChanged = request();
+  await alreadyChanged.pending;
+  assert.equal(alreadyChanged.response.body.status, 'checking', 'Changes before subscription are returned immediately.');
+  assert.equal(listeners.size, 0);
+
+  state = { status: 'error', completed: 0, completedAt: 'failed' };
+  const expired = request();
+  t.mock.timers.tick(29999);
+  assert.equal(expired.response.body, undefined);
+  t.mock.timers.tick(1);
+  await expired.pending;
+  assert.equal(expired.response.body.status, 'error');
+  assert.equal(listeners.size, 0);
+
+  const cancelled = request();
+  cancelled.response.destroyed = true;
+  cancelled.response.emit('close');
+  await cancelled.pending;
+  assert.equal(cancelled.response.body, undefined);
+  assert.equal(listeners.size, 0);
 });

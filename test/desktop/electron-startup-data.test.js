@@ -1,9 +1,70 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
 const path = require('node:path');
+const vm = require('node:vm');
+const { createHash } = require('node:crypto');
+const { createRequire } = require('node:module');
 const test = require('node:test');
 const { createShutdownHarness } = require('../helpers/electron-shutdown');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+const { createResourceLibrary } = require('../../src/resources/resource-library');
+
+test('main resource initialization downloads through Electron net.fetch', async (t) => {
+  const dataDir = createScratchDirectory('desktop-resource-fetch-', t);
+  const bytes = Buffer.from('desktop resource fixture');
+  const file = { path: 'img/startup.png', size: bytes.length,
+    sha256: createHash('sha256').update(bytes).digest('hex') };
+  const requests = [];
+  t.mock.method(globalThis, 'fetch', async () => { throw new Error('Unexpected Node network request'); });
+  let resources;
+  t.after(async () => { await resources?.close(); });
+  const stopAfterResources = new Error('Resource library constructed');
+  const server = { listening: false, close(done) { this.listening = false; done(); }, closeAllConnections() {} };
+  const overrides = {
+    'node:fs': { mkdirSync() {} },
+    './server/http-server': { createHttpServer: () => server },
+    './storage/data-directory-migration': { migrateCacheData() {} },
+    './storage/database': { createDatabases: () => ({ lotteryDb: {} }), closeDatabases() {}, optimizeDatabases() {} },
+    './server/dynamic-lottery-runtime': { createDynamicLotteryRuntime: () => ({ dispose() {} }) },
+    './server/lifecycle': {
+      cleanupOwnPortOccupant: async () => {},
+      listenExactly: async () => { server.listening = true; return 0; },
+      removeSessionToken() {}, removeRuntimeInfo() {},
+    },
+    './resources/resource-library': {
+      createResourceLibrary(options) {
+        resources = createResourceLibrary({ ...options, dataDir, publicDir: path.join(dataDir, 'public'),
+          files: [file], logger: { warn() {} } });
+        // Stop unrelated startup after the real server has constructed its resource owner.
+        throw stopAfterResources;
+      },
+    },
+  };
+  const filename = require.resolve('../../src/server');
+  const localRequire = createRequire(filename);
+  const module = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(filename, 'utf8'), {
+    module, require: name => Object.hasOwn(overrides, name) ? overrides[name] : localRequire(name),
+    __dirname: path.dirname(filename), __filename: filename,
+    console: { ...console, warn() {}, log() {} }, process, Buffer, setTimeout, clearTimeout, setInterval, clearInterval,
+  }, { filename });
+  const h = createShutdownHarness({ serverModule: module.exports, expectedExitCode: 1,
+    netFetch: async (url, options) => {
+      requests.push({ url, options });
+      return new URL(url).pathname.endsWith('/manifest.json')
+        ? Response.json({ version: 1, files: [file] }) : new Response(bytes);
+    } });
+  await h.start({ expectStartupError: true });
+  await h.shutdownPromise;
+  assert.ok(resources, 'main must reach the real resource constructor');
+  assert.equal(server.listening, false);
+  const state = await resources.initialize();
+  assert.equal(state.status, 'ready');
+  assert.deepEqual(fs.readFileSync(resources.resolveAsset(file.path)), bytes);
+  assert.equal(requests.length, 2, 'the manifest and resource both use the desktop transport');
+});
 
 test('main locks the durable root before migration and separates browser paths before ready', async () => {
   const h = createShutdownHarness();

@@ -37,9 +37,8 @@ const routes = {
         forceRefresh: body.forceRefresh === true,
         quality: String(body.quality || ''),
       });
-      if (stream && stream.encrypted && stream.url && context.sessionToken) {
+      if (stream && stream.encrypted && stream.url) {
         const url = new URL(stream.url, 'http://lira.local');
-        url.searchParams.set('token', context.sessionToken);
         stream.url = `${url.pathname}${url.search}`;
       }
       return stream;

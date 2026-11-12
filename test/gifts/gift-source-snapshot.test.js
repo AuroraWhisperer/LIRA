@@ -63,6 +63,10 @@ test('recent gift snapshots recover when the active source becomes readable agai
   const beforeLive = snapshots.length;
   runtime.setActiveGiftSource({ sourceId: sourceB.id, syncState: 'LIVE' });
   assert.equal(snapshots.length, beforeLive);
+  runtime.setActiveGiftSource({ sourceId: sourceB.id, syncState: 'BOOTSTRAPPING' });
+  const beforeRestored = snapshots.length;
+  runtime.setActiveGiftSource({ sourceId: sourceB.id, syncState: 'CATCHING_UP' });
+  assert.equal(snapshots.length, beforeRestored + 1, 'activated history refreshes the recent list before live gifts arrive');
   runtime.setActiveGiftSource({ sourceId: null, syncState: 'OFFLINE' });
   assert.deepEqual(snapshots.at(-1).recent, []);
   assert.equal(snapshots.at(-1).viewRevision, null);

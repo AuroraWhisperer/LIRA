@@ -1,28 +1,22 @@
 'use strict';
 
 // Actual Electron renderer, real fragments/CSS/IPC, synthetic configuration only.
+// LIRA_VERIFY_OUTPUT_DIR can place the unique check directory under another scratch root.
 const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
-const { composeAdminHtml } = require('../src/server/admin-page');
+const { readAdminFragment } = require('../src/server/admin-page');
 const { registerLicenseIpc } = require('../src/electron/ipc/license-ipc');
-const scratch = path.resolve(__dirname, '../tmp');
+const scratch = path.resolve(process.env.LIRA_VERIFY_OUTPUT_DIR || path.join(__dirname, '../tmp'));
 fs.mkdirSync(scratch, { recursive: true });
 const output = fs.mkdtempSync(path.join(scratch, 'welcome-check-'));
 app.setPath('userData', path.join(output, 'electron'));
 app.setPath('sessionData', path.join(output, 'electron'));
+app.setPath('crashDumps', path.join(output, 'crashes'));
 const publicDir = path.resolve(__dirname, '../public');
-const complete = composeAdminHtml(publicDir);
-const start = complete.indexOf('id="otherDanmakuFeature"');
-const begin = complete.search(/<section\s+class="danmaku-feature-section danmaku-fixed-reply-section"/);
-let depth = 0, end = 0;
-for (const match of complete.slice(begin).matchAll(/<\/?section\b[^>]*>/g)) {
-  depth += match[0].startsWith('</') ? -1 : 1;
-  if (depth === 0) { end = match.index + match[0].length; break; }
-}
-const fixed = complete.slice(begin, begin + end);
+const fragment = readAdminFragment(publicDir, 'pages/admin/toolbox/danmaku.html');
 let settings = {
   schemaVersion: 2,
   enabled: true,
@@ -56,6 +50,7 @@ const script = `
 import { initDanmakuWelcome } from '/js/admin/danmaku-welcome.js';
 import { initDanmakuPkReport } from '/js/admin/danmaku-pk-report.js';
 import { initFixedReplyEditor } from '/js/admin/danmaku-fixed-replies.js';
+import { initDanmakuTabs } from '/js/admin/danmaku-tabs.js';
 import { createCustomReplyEditor } from '/js/admin/danmaku-libraries.js';
 import { toast as showToast } from '/js/shared/toast.js';
 import '/js/admin/contextual-help.js';
@@ -65,14 +60,17 @@ const toast = (message, options) => {
   return showToast(message, options);
 };
 const saveSetting = async (key, value) => ({ [key]: value });
+document.getElementById('otherDanmakuFeature').hidden = false;
+document.getElementById('otherDanmakuFeature').classList.add('active');
 createCustomReplyEditor({ document, saveSetting, toast }).load('[]');
-initDanmakuWelcome({ toast }); initDanmakuPkReport({ toast }); initFixedReplyEditor();
+initDanmakuWelcome({ toast }); initDanmakuPkReport({ toast }); initFixedReplyEditor(); initDanmakuTabs();
+document.querySelector('[data-danmaku-tab="welcome"]').click();
 window.fixtureReady = true;
 `;
 const html = `<!doctype html><html class="desktop-shell" lang="zh-CN"><head><meta charset="utf-8">
 ${['styles-base', 'styles-admin', 'overlays/desktop'].map((name) => `<link rel="stylesheet" href="/css/${name}.css">`).join('')}
-<style>body{margin:0;padding:20px;overflow:auto}.fixture-shell{max-width:1000px;margin:auto}.danmaku-tool-panel{display:block}.fixture-shell>.danmaku-feature-section{margin:0}</style>
-</head><body class="desktop-shell"><div class="fixture-shell danmaku-tool-panel">${fixed}</div><div id="toast" class="toast-stack"></div><script type="module">${script}</script></body></html>`;
+<style>body{margin:0;padding:20px;overflow:auto}.fixture-shell{max-width:1000px;margin:auto}</style>
+</head><body class="desktop-shell"><div class="fixture-shell">${fragment}</div><div id="toast" class="toast-stack"></div><script type="module">${script}</script></body></html>`;
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/admin') {
@@ -97,6 +95,18 @@ const wait = (expression) =>
     `(async () => { const until=Date.now()+8000; while (!(${expression})) { if(Date.now()>until) throw Error(${JSON.stringify('UI condition timed out: ' + expression)}); await new Promise(r=>setTimeout(r,20)); } })()`,
   );
 const click = (selector) => evaluate(`document.querySelector(${JSON.stringify(selector)}).click()`);
+async function closeEditor() {
+  if (!await evaluate('document.getElementById("danmakuFixedEditorDialog").open')) return;
+  await click('#danmakuFixedEditorDismiss');
+  await wait('!document.getElementById("danmakuFixedEditorDialog").open && document.getElementById("danmakuFixedEditorHeading").hidden');
+}
+async function openEditor(key) {
+  await closeEditor();
+  await click(`[data-danmaku-tab="${['welcome', 'pk'].includes(key) ? 'welcome' : 'replies'}"]`);
+  await click(`[data-fixed-open="${key}"]`);
+  await wait('document.getElementById("danmakuFixedEditorDialog").open');
+  await evaluate('Promise.all(document.getElementById("danmakuFixedEditorDialog").getAnimations().map(animation => animation.finished))');
+}
 const input = (id, value) =>
   evaluate(
     `{const e=document.getElementById(${JSON.stringify(id)});e.value=${JSON.stringify(value)};e.dispatchEvent(new Event('input',{bubbles:true}));}`,
@@ -124,13 +134,12 @@ async function capture(name) {
 }
 async function geometry() {
   return evaluate(`(() => {
-    const root=document.querySelector('.danmaku-fixed-reply-section');
+    const root=document.getElementById('danmakuFixedEditorDialog');
     const overflow=[...root.querySelectorAll('*')].filter(e=>e.getClientRects().length && getComputedStyle(e).position!=='absolute' && e.getBoundingClientRect().right > document.documentElement.clientWidth+1).map(e=>e.id||e.className);
-    return { height:root.getBoundingClientRect().height, gap:getComputedStyle(root).gap, parts:[...root.children].filter(e=>e.getClientRects().length).map(e=>[e.id||e.className,e.getBoundingClientRect().height]), columns:getComputedStyle(document.querySelector('.danmaku-fixed-overview')).gridTemplateColumns.split(' ').length, overflow, visible:[...document.querySelectorAll('[data-fixed-editor]')].filter(e=>!e.hidden).map(e=>e.dataset.fixedEditor) };
+    return { open:root.open, height:root.getBoundingClientRect().height, overflow, visible:[...root.querySelectorAll('[data-fixed-editor]')].filter(e=>!e.hidden).map(e=>e.dataset.fixedEditor) };
   })()`);
 }
 async function run() {
-  assert.ok(start >= 0 && begin > start && end > 0);
   await app.whenReady();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
@@ -185,15 +194,14 @@ async function run() {
   await win.webContents.debugger.sendCommand('Emulation.setFocusEmulationEnabled', { enabled: true });
   await wait('window.fixtureReady && !document.getElementById("danmakuWelcomeToggle").disabled');
   const collapsed = await geometry();
-  assert.equal(collapsed.columns, 2);
+  assert.equal(collapsed.open, false);
   assert.deepEqual(collapsed.visible, []);
   assert.equal(await evaluate('document.getElementById("danmakuWelcomePinyinToggle").getClientRects().length'), 0);
-  assert.equal(await evaluate('document.querySelectorAll(".switch-caption").length'), 0);
   await capture('collapsed');
-  await click('[data-fixed-open="pk"]');
   await wait('!document.getElementById("danmakuPkReportToggle").disabled');
   await click('#danmakuPkReportToggle');
   await wait('document.getElementById("danmakuPkReportToggle").checked && !document.getElementById("danmakuPkReportToggle").disabled');
+  await openEditor('pk');
   await click('#danmakuPkReportReportToggle');
   await wait('!document.getElementById("danmakuPkReportReportToggle").disabled');
   await click('#danmakuPkReportVisitorToggle');
@@ -201,8 +209,8 @@ async function run() {
   await input('danmakuPkReportDelay', '8');
   await input('danmakuPkReportInput', '欢迎 {username} 来坐坐～');
   await click('#danmakuPkReportAddBtn');
-  await click('[data-fixed-open="welcome"]');
-  await click('[data-fixed-open="pk"]');
+  await openEditor('welcome');
+  await openEditor('pk');
   assert.equal(await evaluate('document.getElementById("danmakuPkReportDelay").value'), '8');
   await click('#danmakuPkReportSaveBtn');
   await wait('document.getElementById("danmakuPkReportSaveBtn").disabled && !document.getElementById("danmakuPkReportToggle").disabled');
@@ -210,16 +218,16 @@ async function run() {
     visitorWelcomeMessages: ['欢迎 {username} 从对面来串门～', '欢迎 {username} 来坐坐～'] });
   await win.loadURL(origin + '/admin?desktop=1');
   await wait('window.fixtureReady && !document.getElementById("danmakuPkReportToggle").disabled');
-  await click('[data-fixed-open="pk"]');
+  await openEditor('pk');
   assert.equal(await evaluate('document.getElementById("danmakuPkReportDelay").value'), '8');
   assert.equal(await evaluate('document.querySelectorAll("#danmakuPkReportList input").length'), 2);
   assert.equal(await evaluate('document.getElementById("danmakuPkReportReportToggle").checked'), false);
   assert.equal(await evaluate('document.getElementById("danmakuPkReportVisitorToggle").checked'), true);
   await evaluate('document.getElementById("danmakuFixedEditorHeading").scrollIntoView({block:"start"})');
   await capture('pk');
-  await click('#danmakuFixedEditorClose');
-  await click('[data-fixed-open="welcome"]');
+  await openEditor('welcome');
   const expanded = await geometry();
+  assert.equal(expanded.open, true);
   assert.deepEqual(expanded.visible, ['welcome']);
   assert.equal(
     await evaluate('document.getElementById("danmakuWelcomePinyinToggle").closest("#danmakuWelcomePanel") !== null'),
@@ -231,12 +239,14 @@ async function run() {
   await evaluate('document.documentElement.style.colorScheme="dark"');
   await capture('dark-tokens');
   await evaluate('document.documentElement.style.colorScheme="light"');
-  await evaluate('document.getElementById("danmakuFixedEditorClose").focus()');
+  await evaluate('document.getElementById("danmakuFixedEditorDismiss").focus()');
   await key('Enter');
+  await wait('document.getElementById("danmakuFixedEditorHeading").hidden');
   assert.deepEqual((await geometry()).visible, []);
   assert.equal(await evaluate('document.activeElement.dataset.fixedOpen'), 'welcome');
   await key('Enter');
   assert.deepEqual((await geometry()).visible, ['welcome']);
+  await closeEditor();
   await key('Tab');
   assert.equal(await evaluate('document.activeElement.id'), 'danmakuWelcomeToggle');
   await key('Space');
@@ -248,24 +258,27 @@ async function run() {
   await key('Space');
   await wait('!document.getElementById("danmakuWelcomeToggle").disabled');
   assert.equal(settings.enabled, true);
+  await openEditor('welcome');
   writes.length = 0;
   await input('danmakuWelcomewelcomeDelaySeconds', '5');
-  await click('[data-fixed-open="diy"]');
+  await openEditor('diy');
   await input('danmakuCustomKeywordInput', '未添加的关键词草稿');
-  await click('[data-fixed-open="welcome"]');
+  await openEditor('welcome');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomewelcomeDelaySeconds").value'), '5');
   await click('#danmakuWelcomeParameterSaveBtn');
   await wait('document.getElementById("danmakuWelcomeParameterSaveBtn").disabled');
   assert.equal(writes[0].welcomeDelaySeconds, 5);
   assert.ok(!writes[0].messages);
-  await click('[data-fixed-open="diy"]');
+  await openEditor('diy');
   assert.equal(await evaluate('document.getElementById("danmakuCustomKeywordInput").value'), '未添加的关键词草稿');
-  await click('[data-fixed-open="welcome"]');
+  await openEditor('welcome');
   await click('[data-welcome-library="messages"]');
+  await wait('!document.getElementById("danmakuWelcomePagination").hidden && !document.getElementById("danmakuWelcomeNextPage").disabled');
   await click('#danmakuWelcomeNextPage');
+  await wait('!document.getElementById("danmakuWelcomePrevPage").disabled');
   await input('danmakuWelcomeInput', '未添加的欢迎草稿');
-  await click('[data-fixed-open="random"]');
-  await click('[data-fixed-open="welcome"]');
+  await openEditor('random');
+  await openEditor('welcome');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeInput").value'), '未添加的欢迎草稿');
   assert.match(await evaluate('document.getElementById("danmakuWelcomePageLabel").textContent'), /第 2/);
   await click('[data-welcome-view="parameters"]');
@@ -300,33 +313,30 @@ async function run() {
   assert.equal(await evaluate('document.getElementById("danmakuWelcomegreetingDelaySeconds").value'), '4');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeOverviewStatus").textContent'), overviewText);
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeSummary").textContent'), summaryText);
-  assert.equal(await evaluate('window.fixtureToasts.length'), 1);
-  assert.equal(await evaluate('window.fixtureToasts[0].message'), '昵称生僻字自动注音已开启');
-  await wait(`Array.from(document.querySelectorAll('#toast .toast')).some(node =>
-    !node.hidden && node.getBoundingClientRect().height > 0 && getComputedStyle(node).opacity === '1'
-    && node.textContent.includes('昵称生僻字自动注音已开启'))`);
-  await capture('pinyin-toast');
+  assert.equal(await evaluate('document.getElementById("danmakuWelcomePinyinToggle").checked'), true);
+  await capture('pinyin-saved');
   failWrite = true;
   await click('#danmakuWelcomePinyinToggle');
-  await wait('window.fixtureToasts.length === 2');
+  await wait('window.fixtureToasts.length === 1');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomePinyinToggle").checked'), true);
-  assert.equal(await evaluate('window.fixtureToasts[1].options.type'), 'error');
+  assert.equal(await evaluate('window.fixtureToasts[0].options.type'), 'error');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeOverviewStatus").textContent'), overviewText);
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeServerStatus").hidden'), true);
   await wait(`Array.from(document.querySelectorAll('#toast .toast-error')).some(node =>
     !node.hidden && node.getBoundingClientRect().height > 0 && getComputedStyle(node).opacity === '1'
     && node.textContent.includes('昵称生僻字自动注音关闭尚未确认'))`);
   await capture('pinyin-error');
+  await closeEditor();
   await click('#danmakuWelcomeToggle');
-  await wait('window.fixtureToasts.length === 3');
-  assert.match(await evaluate('window.fixtureToasts[2].message'), /关闭尚未确认/);
+  await wait('window.fixtureToasts.length === 2');
+  assert.match(await evaluate('window.fixtureToasts[1].message'), /关闭尚未确认/);
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeToggle").checked'), true);
   await capture('unconfirmed');
   legacy = true;
   failWrite = false;
   await win.reload();
   await wait('window.fixtureReady && !document.getElementById("danmakuWelcomeToggle").disabled');
-  await click('[data-fixed-open="welcome"]');
+  await openEditor('welcome');
   assert.equal(await evaluate('document.getElementById("danmakuWelcomeCapability").hidden'), false);
   await capture('legacy');
   console.log(
@@ -335,8 +345,9 @@ async function run() {
       collapsed,
       expanded,
       screenshots: output,
+      isolation: { pid: process.pid, userData: app.getPath('userData'), sessionData: app.getPath('sessionData'), origin },
       checks:
-        'real Electron/IPC, one retained editor, PK master/subswitches and welcome settings save/readback, keyboard and disabled state, local and server drafts, pagination counts, responsive widths, 200% zoom, invalid input, independent pinyin toggle, single success/error toast, unconfirmed close, legacy capability',
+        'real Electron/IPC, current toolbox fragment and shared dialog, PK master/subswitches and welcome settings save/readback, keyboard and disabled state, local and server drafts, pagination counts, responsive widths, 200% zoom, invalid input, independent pinyin toggle, single error toast, unconfirmed close, legacy capability',
     }),
   );
 }
@@ -356,6 +367,7 @@ run().then(
 );
 function finish(code) {
   if (win && !win.isDestroyed()) win.destroy();
+  server.closeAllConnections();
   server.close();
   app.exit(code);
 }

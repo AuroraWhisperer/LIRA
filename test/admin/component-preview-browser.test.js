@@ -365,6 +365,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
     window.closedComponents = [];
     window.controllers = {};
     window.open = url => { window.externalPreviewUrl = url; };
+    const publication = new Promise(resolve => { window.finishPublication = resolve; });
     const configs = { clock: clockConfigFromSettings(settings), queue: queueConfigFromSettings(settings),
       danmaku: { style: 'signal', fullscreenDurationSeconds: 6, layout: createLayout() },
       overtime: { path: '', fit: 'cover' },
@@ -379,6 +380,7 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
       const options = () => ({ id, controller, onClose: () => window.closedComponents.push(id),
         async publish() {
           for (const current of Object.values(window.controllers)) if (current.getState().dirty) await current.save();
+          await publication;
           return { publishedVersion: 1 };
         } });
       if (id === 'canvas') setComponentPreviewPreparation(options);
@@ -425,6 +427,9 @@ test('shared canvas retains multiple layers, custom resolution and drafts, and d
   await desktop.waitForFunction(() => window.writes.length === 2);
   assert.deepEqual(await desktop.evaluate(() => window.writes.map(write => write.id).sort()), ['canvas', 'clock']);
   assert.equal(await desktop.evaluate(() => window.controllers.queue.getState().dirty), false);
+  // Persisted writes precede the browser's completion notice and editable canvas.
+  await desktop.evaluate(() => window.finishPublication());
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click({ trial: true });
   const width = page.getByRole('spinbutton', { name: '宽度', exact: true });
   const savedWidth = await width.inputValue();
   await width.fill('581');

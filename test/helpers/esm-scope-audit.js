@@ -2,10 +2,10 @@
 
 // Static audit for public ES modules: flags identifiers that are referenced
 // inside a module but are neither declared in it, imported by it, nor a known
-// browser/JavaScript global. This is the class of bug the test bundler cannot
-// see (js-module-bundle.js inlines every import into one shared scope), e.g.
-// a name imported nowhere but expected from a sibling module, or a module-local
-// `let` read from another module.
+// browser/JavaScript global, e.g. a name imported nowhere but expected from a
+// sibling module, or a module-local `let` read from another module. Real ESM
+// linking checks declared imports separately; this scan also visits function
+// bodies that behavior tests may not execute.
 //
 // This is a heuristic scope check, not a full parser: it flattens nested scopes
 // (so a name declared anywhere in a file counts as declared) and therefore only

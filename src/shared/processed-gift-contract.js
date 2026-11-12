@@ -142,6 +142,14 @@ function canonicalizeProcessedGiftHistoryRecord(input) {
 }
 
 function normalizeProcessedGiftHistoryPage(input) {
+  return mapProcessedGiftHistoryPage(input, normalizeProcessedGiftHistoryRecord);
+}
+
+function canonicalizeProcessedGiftHistoryPage(input) {
+  return mapProcessedGiftHistoryPage(input, canonicalizeProcessedGiftHistoryRecord);
+}
+
+function mapProcessedGiftHistoryPage(input, mapRecord) {
   if (isPlainObject(input) && Object.hasOwn(input, 'giftRetentionVersion')) {
     const { giftRetentionVersion, summaryRevision, detailStart, ...legacy } = input;
     if (giftRetentionVersion !== 1 || !Number.isSafeInteger(summaryRevision) || summaryRevision < 0 ||
@@ -150,7 +158,7 @@ function normalizeProcessedGiftHistoryPage(input) {
     const cursors = input.events.map((record) => record.finalCursor);
     if (cursors.some((cursor) => !Number.isSafeInteger(cursor) || cursor < 0 || cursor > input.recoveryCursor)) throw invalidHistoryPage();
     legacy.events = input.events.map(({ finalCursor, ...record }) => record);
-    const page = normalizeProcessedGiftHistoryPage(legacy);
+    const page = mapProcessedGiftHistoryPage(legacy, mapRecord);
     return Object.freeze({ ...page, giftRetentionVersion, summaryRevision, detailStart,
       events: Object.freeze(page.events.map((event, index) => Object.freeze({ ...event, finalCursor: cursors[index] }))) });
   }
@@ -176,7 +184,7 @@ function normalizeProcessedGiftHistoryPage(input) {
   let events;
   let syncEpoch;
   try {
-    events = input.events.map(normalizeProcessedGiftHistoryRecord);
+    events = input.events.map(mapRecord);
     syncEpoch = normalizeEpoch(input.syncEpoch, invalidHistoryPage);
   } catch {
     throw invalidHistoryPage();
@@ -484,6 +492,7 @@ function invalidHistoryPage() {
 
 module.exports = {
   canonicalizeProcessedGiftEvent,
+  canonicalizeProcessedGiftHistoryPage,
   canonicalizeProcessedGiftHistoryRecord,
   canonicalCoinType,
   canonicalGiftId,

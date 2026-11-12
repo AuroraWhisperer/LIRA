@@ -1,3 +1,5 @@
+import { revealEditorItem } from './danmaku-editor-pagination.js';
+
 const NAMES = { checkin: '签到词库', fortune: '抽签词库' };
 const FIELDS = { level: '签级', name: '签名', text: '签文', advice: '建议' };
 const ERRORS = {
@@ -7,7 +9,7 @@ const ERRORS = {
   DAILY_BOT_TAKEOVER_REQUIRED: '旧数据正在导入，完成后可编辑词库。',
   DAILY_BOT_BUSY: '上一项操作尚未完成，请稍后重试。',
 };
-const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, page: 0, search: '', notice: '', conflict: false });
+const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', conflict: false });
 
 export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   const element = (suffix) => documentRef.getElementById(`dailyLibrary${suffix}`);
@@ -17,7 +19,6 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   let states = { checkin: fresh(), fortune: fresh() };
   let kind = 'checkin', enabled = false, busy = false, generation = 0;
   const state = () => states[kind];
-  const pageSize = () => kind === 'checkin' ? 6 : 3;
   function controls() {
     const data = state();
     for (const key of Object.keys(NAMES)) {
@@ -40,18 +41,17 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   function render() {
     const data = state();
     const list = element('List');
-    list.className = kind === 'checkin' ? 'danmaku-blessing-list' : 'danmaku-fortune-list';
+    list.classList.toggle('danmaku-blessing-list', kind === 'checkin');
+    list.classList.toggle('danmaku-fortune-list', kind === 'fortune');
     list.replaceChildren();
     const matches = (data.items || []).map((item, index) => ({ item, index })).filter(({ item }) =>
       (typeof item === 'string' ? item : Object.values(item).join(' ')).includes(data.search));
-    const pages = Math.max(1, Math.ceil(matches.length / pageSize()));
-    data.page = Math.min(data.page, pages - 1);
-    for (const { item, index } of matches.slice(data.page * pageSize(), (data.page + 1) * pageSize())) {
+    for (const { item, index } of matches) {
       const row = documentRef.createElement('div');
       row.className = kind === 'checkin' ? 'danmaku-blessing-row' : 'danmaku-fortune-row';
       const remove = documentRef.createElement('button');
       remove.type = 'button';
-      remove.className = 'danmaku-text-action daily-library-delete';
+      remove.className = 'secondary daily-library-delete';
       remove.textContent = '删除';
       remove.setAttribute('aria-label', `删除第 ${index + 1} 条`);
       remove.addEventListener('click', () => { data.items.splice(index, 1); changed(data); render(); });
@@ -94,10 +94,6 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     }
     element('Search').value = data.search;
     element('Count').textContent = data.items ? `${data.items.length} 条${data.search ? ` · 找到 ${matches.length} 条` : ''}` : '尚未读取';
-    element('Page').textContent = `第 ${data.page + 1} / ${pages} 页`;
-    element('Pagination').hidden = pages <= 1;
-    element('Previous').disabled = data.page === 0;
-    element('Next').disabled = data.page === pages - 1;
     element('Add').textContent = kind === 'checkin' ? '添加祝福语' : '添加签文';
     element('Save').textContent = `保存${NAMES[kind]}`;
     controls();
@@ -170,23 +166,24 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     data.notice = '';
     render();
   });
-  element('Search').addEventListener('input', () => { state().search = element('Search').value; state().page = 0; render(); });
-  element('Previous').addEventListener('click', () => { state().page--; render(); });
-  element('Next').addEventListener('click', () => { state().page++; render(); });
+  element('Search').addEventListener('input', () => {
+    state().search = element('Search').value;
+    render();
+    revealEditorItem(element('List'), 0);
+  });
   element('Add').addEventListener('click', () => {
     const data = state();
     data.items.push(kind === 'checkin' ? '' : { level: '', name: '', text: '', advice: '' });
     data.search = '';
-    const index = data.items.length - 1;
-    data.page = Math.floor(index / pageSize());
     changed(data);
     render();
-    element('List').querySelectorAll('input')[kind === 'checkin' ? index % pageSize() : (index % pageSize()) * 4]?.focus();
+    element('List').lastElementChild?.querySelector('input')?.focus();
   });
   const select = (event) => {
     if (!NAMES[event.detail]) return;
     kind = event.detail;
     render();
+    revealEditorItem(element('List'), 0);
     void read();
   };
   root.addEventListener('fixed-reply:select', select);

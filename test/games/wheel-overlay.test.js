@@ -6,8 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const { servePageOrAsset } = require('../../src/server/page-assets');
-const { loadModuleExports } = require('../helpers/frontend-modules');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const PUBLIC_DIR = path.join(ROOT_DIR, 'public');
@@ -69,7 +68,7 @@ test('wheel module entry binds its controls without relying on classic-script gl
   assert.equal(windowRef.spinFromWheel, undefined);
 });
 
-test('wheel retains unchanged segments while refreshing appearance, spins and cleared results', () => {
+test('wheel retains unchanged segments while refreshing appearance, spins and cleared results', async () => {
   const elements = new Map();
   let created = 0;
   const timers = [];
@@ -94,8 +93,8 @@ test('wheel retains unchanged segments while refreshing appearance, spins and cl
   const context = vm.createContext({ document, URLSearchParams,
     window: { matchMedia: () => ({ matches: false }), setTimeout(callback) { timers.push(callback); } },
     state: { entries: [{ label: 'A', weight: 1 }, { label: 'B', weight: 2 }], spin: null, lastResult: null } });
-  vm.runInContext(readJsModuleBundle('public', 'js', 'overlays', 'wheel.js'), context);
-  const render = () => vm.runInContext('renderState(state)', context);
+  const evaluate = await loadModuleScope(path.join(PUBLIC_DIR, 'js/overlays/wheel.js'), context);
+  const render = () => evaluate('renderState(state)');
   render();
   const first = byId('wheelSegments').children[0];
   const count = created;
@@ -121,7 +120,7 @@ test('wheel retains unchanged segments while refreshing appearance, spins and cl
   timers[0]();
   assert.equal(byId('wheelSegments').children.some(element => element.classes.has('is-selected')), false, 'a cleared result is not revived by the old animation callback');
   assert.equal(byId('wheelSegments').children[0], first);
-  vm.runInContext('componentConfig = { textColor: "red", showResult: false, labelFontSize: 22 }', context);
+  evaluate('componentConfig = { textColor: "red", showResult: false, labelFontSize: 22 }');
   render();
   assert.equal(document.querySelectorAll('.wheel-label')[0].style.fill, 'red');
   assert.equal(byId('wheelMessage').hidden, true);
@@ -130,7 +129,7 @@ test('wheel retains unchanged segments while refreshing appearance, spins and cl
   render();
   assert.notEqual(byId('wheelSegments').children[0], first);
   const weighted = byId('wheelSegments').children[0];
-  vm.runInContext('componentConfig.labelFontSize = 30', context);
+  evaluate('componentConfig.labelFontSize = 30');
   render();
   assert.notEqual(byId('wheelSegments').children[0], weighted);
 });

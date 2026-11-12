@@ -295,6 +295,32 @@ test('an authorization change during a job cannot run it for the new identity', 
   assert.equal(f.drawStore.getResult(task.id), null, 'no draw result is written');
 });
 
+test('identity cancellation reaches a collecting page and drains it without storing stale evidence', async (t) => {
+  const f = createFixture(t);
+  const authorization = new AbortController();
+  f.setIdentity({ streamerId: '42', authorizationEpoch: 3, signal: authorization.signal });
+  const task = f.store.createTask({
+    id: 'pending-page', streamerId: '42', ownerUid: '999', dynamicId: '888', requestId: 'pending-page-request',
+    target: { kind: 'dynamic', url: URL, ownerUid: '999', commentOid: '777', commentType: 11 },
+    rules: { version: 2, entryAction: 'comment', requiredActions: [], winnerCount: 1, requireFollow: false, endsAtMs: 1_000 },
+    nowMs: 1_000,
+  });
+  f.service.actOnTask({ taskId: task.id, action: 'resume', revision: task.revision });
+  (await f.nextRequest()).resolve(new Response(JSON.stringify({ code: 0, data: { isLogin: true, mid: '999',
+    wbi_img: { img_url: 'https://i0.hdslb.com/bfs/wbi/7cd084941338484aae1ad9425b84077c.png',
+      sub_url: 'https://i0.hdslb.com/bfs/wbi/4932caff0ff746eab6f01bf08b70ac45.png' } } }),
+  { headers: { 'content-type': 'application/json' } }));
+  const page = await f.nextRequest();
+  assert.equal(page.input.kind, 'comment_page');
+  authorization.abort(Object.assign(new Error('identity changed'), { code: 'LOTTERY_SESSION_CHANGED' }));
+  await f.service.drainInvalidated();
+  assert.equal(page.input.signal.aborted, true);
+  assert.equal(f.service.getState().job, null);
+  const scan = f.store.getActiveScan(task.id);
+  assert.equal(scan.status, 'paused');
+  assert.equal(f.store.getEvidence(scan.id).length, 0);
+});
+
 test('routes map public lottery codes to HTTP statuses without raw errors', async () => {
   const call = async (dynamicLottery) => {
     const res = { headers: {}, setHeader(name, value) { this.headers[name] = value; },

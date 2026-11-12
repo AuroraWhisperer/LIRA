@@ -4,7 +4,7 @@ import { formatBytes } from '../shared/display-format.js';
 
 export function createFontLibraryToast({ window: windowRef = globalThis.window,
   document: documentRef = globalThis.document, bridge = windowRef?.liraLicense,
-  eventBus = defaultEventBus, onState = () => {} } = {}) {
+  eventBus = defaultEventBus, onState = () => {}, showToast = true } = {}) {
   let handle = null;
   let disposed = false;
   let initialized = false;
@@ -16,7 +16,7 @@ export function createFontLibraryToast({ window: windowRef = globalThis.window,
   function handleState(state = {}) {
     if (disposed) return;
     onState(state);
-    if (!['downloading', 'ready', 'error'].includes(state.status)) return;
+    if (!showToast || !['downloading', 'ready', 'error'].includes(state.status)) return;
     const done = state.status !== 'downloading';
     if (done && state.completedAt && lastCompletedAt === state.completedAt) return;
     if (done && !state.total && !handle) return;

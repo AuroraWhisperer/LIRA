@@ -30,10 +30,11 @@ function createGiftExportRuntime({ getServices, getSettingsStore, broadcastSnaps
       if (!gifts) throw new Error('Gift service not ready.');
       const previous = gifts.getActiveSource();
       const next = gifts.setActiveSource(source);
-      // Leaving source switching makes cached gifts readable without changing viewEpoch.
+      // Source recovery and activated history can reveal records without changing viewEpoch.
       if (
         previous?.viewEpoch !== next?.viewEpoch ||
-        (previous?.syncState === 'SOURCE_SWITCHING' && next?.syncState !== 'SOURCE_SWITCHING')
+        (previous?.syncState === 'SOURCE_SWITCHING' && next?.syncState !== 'SOURCE_SWITCHING') ||
+        (previous?.syncState === 'BOOTSTRAPPING' && next?.syncState === 'CATCHING_UP')
       ) {
         broadcastSnapshot('gift:source');
       }

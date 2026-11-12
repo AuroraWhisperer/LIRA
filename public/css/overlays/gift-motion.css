@@ -5,7 +5,7 @@
 .gift-motion-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .gift-motion-count { position: absolute; right: -4px; bottom: 0; padding: 2px 7px; border-radius: 8px; background: #fff5fb; color: #a42958; font: 700 18px/1.3 'Microsoft YaHei', sans-serif; box-shadow: 0 2px 5px #34131b40; }
 .gift-swing-item { position: absolute; transform-origin: 50% 100%; font-family: 'Microsoft YaHei', sans-serif; }
-.gift-swing-item > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.gift-swing-item > svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; transform-origin: 50% 100%; }
 .gift-swing-item > svg path { fill: none; stroke: #e5eff8; stroke-width: 7; stroke-linecap: round; filter: drop-shadow(0 2px 2px #20334350); }
 .gift-swing-card { position: absolute; inset: 0 0 60px; }
 .gift-swing-caption { position: absolute; bottom: calc(100% + 10px); left: 50%; width: 190px; transform: translateX(-50%); text-align: center; font-size: 18px; line-height: 1.45; }

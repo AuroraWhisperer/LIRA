@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { randomUUID } = require('node:crypto');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { GIFT_DROP_EXIT_MS, GIFT_DROP_SPAWN_DELAY_MS } = require('../../public/js/shared/gift-drop-physics.js');
 
 const openBrowserSession = useSharedBrowser();
 
@@ -37,11 +38,13 @@ test('published motion layers isolate styles, retain settlement expiry through d
   const children = page.frames().filter(frame => frame.parentFrame());
   const [drop, swing] = children;
   assert.equal(await drop.locator('.gift-drop-item, .gift-swing-item').count(), 0);
+  await drop.evaluate(() => { let calls = 0; Math.random = () => calls++ === 0 ? 0 : 0.999; });
   const startedAt = Date.now();
+  await page.clock.setFixedTime(startedAt);
   const event = { type: 'gift:frame', eventId: 'drop-live', themeId: 'gift-drop',
     userName: '<观众>', giftName: '小花花', num: 4, totalPriceCents: 500,
     artworkPath: '/img/overlays/gift-feed/flower.webp', startedAt,
-    motion: { size: 88, durationSeconds: 3, quantityMultiplier: 2 } };
+    motion: { size: 88, durationSeconds: 3, quantityMultiplier: 3 } };
   let releaseImage;
   const imageGate = new Promise(resolve => { releaseImage = resolve; });
   await context.route('**/img/overlays/gift-feed/flower.webp', async route => {
@@ -51,16 +54,18 @@ test('published motion layers isolate styles, retain settlement expiry through d
   });
   fixture.receiveGift(event);
   fixture.receiveGift({ ...event, eventId: 'swing-live', themeId: 'gift-swing', motion: { size: 120, durationSeconds: 3, angle: 30 } });
+  await drop.locator('.gift-drop-item').first().waitFor({ state: 'attached' });
+  await page.clock.setFixedTime(startedAt + GIFT_DROP_SPAWN_DELAY_MS);
   await drop.locator('.gift-drop-item').first().waitFor();
   await swing.locator('.gift-swing-item').waitFor();
-  assert.equal(await drop.locator('.gift-drop-item').count(), 8);
+  assert.equal(await drop.locator('.gift-drop-item').count(), 12);
   assert.equal(await drop.locator('.gift-swing-item').count(), 0);
   assert.equal(await swing.locator('.gift-drop-item').count(), 0);
   assert.equal(await swing.locator('.gift-swing-name').textContent(), '<观众>');
   const dropDeadline = Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at'));
   assert.equal(await drop.locator('.gift-drop-item').first().evaluate(node => node.style.width), '88px');
   fixture.receiveGift(event);
-  assert.equal(await drop.locator('.gift-drop-item').count(), 8);
+  assert.equal(await drop.locator('.gift-drop-item').count(), 12);
   releaseImage();
   await drop.waitForFunction(() => [...document.querySelectorAll('.gift-motion-image')]
     .every(image => image.src.startsWith('data:image/webp') && image.naturalWidth > 0));
@@ -74,10 +79,13 @@ test('published motion layers isolate styles, retain settlement expiry through d
   await swing.waitForFunction(() => document.querySelector('.gift-motion-image')?.src.startsWith('data:image/webp'));
   assert.equal(await swing.locator('.gift-motion-image').first().getAttribute('src'), frozen.src);
   assert.equal(Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at')), dropDeadline);
+  const endedAt = await drop.locator('.gift-drop-item').evaluateAll((nodes, exitMs) =>
+    Math.ceil(Math.max(...nodes.map(node => Number(node.dataset.expiresAt))) + exitMs), GIFT_DROP_EXIT_MS);
+  await page.clock.setFixedTime(endedAt);
   await drop.waitForFunction(() => !document.querySelector('.gift-drop-item'), null, { timeout: 5000 });
   await swing.locator('.gift-swing-item').waitFor({ state: 'detached', timeout: 5000 });
   for (const [textMode, text] of [['gift', '小花花 ×4'], ['none', ''], ['name-quantity', '<观众>×4']]) {
-    fixture.receiveGift({ ...event, eventId: `swing-${textMode}`, themeId: 'gift-swing', startedAt: Date.now(),
+    fixture.receiveGift({ ...event, eventId: `swing-${textMode}`, themeId: 'gift-swing', startedAt: endedAt,
       motion: { size: 120, durationSeconds: 3, angle: 30, speed: 150, textMode } });
     const card = swing.locator(`[data-motion-id="swing-${textMode}"]`);
     await card.waitFor();

@@ -1,6 +1,7 @@
 'use strict';
 
 import { showFieldError } from '../shared/field-feedback.js';
+import { revealEditorItem } from './danmaku-editor-pagination.js';
 
 const DELETE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -95,6 +96,7 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
     elements.replyInput.value = '';
     render();
     markDirty();
+    revealEditorItem(elements.list, elements.list.children.length - 1);
     elements.keywordInput.focus();
   };
 

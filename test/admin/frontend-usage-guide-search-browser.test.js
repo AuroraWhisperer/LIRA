@@ -1,9 +1,10 @@
 'use strict';
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
 const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
@@ -29,13 +30,14 @@ async function setup(t) {
       <details class="usage-guide-faq"><summary>Question</summary><p>collapsed-match</p></details>
     </section>
   </section>`);
-  await page.addScriptTag({ content: readJsModuleBundle('public', 'js', 'admin', 'usage-guide-search.js') });
-  await page.evaluate(() => {
+  await page.addScriptTag({ type: 'module', content: `${fs.readFileSync(
+    path.join(__dirname, '../../public/js/admin/usage-guide-search.js'), 'utf8',
+  )}
     initUsageGuideSearch(document.querySelector('#otherUsageGuideFeature'), (target, sectionId) => {
       window.guideSearchTarget = target;
       window.guideSearchSection = sectionId;
     });
-  });
+  ` });
   return page;
 }
 

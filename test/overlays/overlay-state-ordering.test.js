@@ -1,15 +1,14 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const { loadModuleScope } = require('../helpers/frontend-modules');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-function fixture(name) {
+async function fixture(name) {
   const requests = [];
   const sockets = [];
   const timers = new Map();
@@ -94,47 +93,37 @@ function fixture(name) {
       setPixelsPerSecond() {},
       setRecords: (next) => records.push(next),
     },
-    desktopLyricRenderer: {
-      init() {},
-      applySettings: (value) => observed.push(['settings', value]),
-      updateLyricState: (value) => observed.push(['state', value]),
-      updateLyricTimeline: (value) => observed.push(['timeline', value]),
-    },
-    mountSceneExtraClient: () => null,
   });
-  const source =
-    name === 'lyric-window'
-      ? fs
-          .readFileSync(path.join(__dirname, '../..', 'public', 'js', 'overlays', `${name}.js`), 'utf8')
-          .replace(/^import[^\n]+\n/gm, '')
-      : readJsModuleBundle('public', 'js', 'overlays', `${name}.js`).replace(
-          /^\s*\{\s*applyTheme,\s*setIdentityRuleThemeVars\s*\}\s+from\s+['"]\.\/queue-theme\.js['"];\s*/gm,
-          '',
-        );
+  const moduleFixtures = new Map();
   if (name === 'lyric-window') {
-    // 该页面通过公共连接模块建连，这里运行真实实现而不是复制重连逻辑。
-    vm.runInContext(
-      readJsModuleBundle('public', 'js', 'overlays', 'socket-client.js'),
-      context,
-    );
+    // Observe delivery to the renderer while linking the real socket client.
+    moduleFixtures.set(path.join(__dirname, '../../public/js/lyrics/desktop-lyric-renderer.js'), {
+      desktopLyricRenderer: {
+        init() {},
+        applySettings: (value) => observed.push(['settings', value]),
+        updateLyricState: (value) => observed.push(['state', value]),
+        updateLyricTimeline: (value) => observed.push(['timeline', value]),
+      },
+    });
   }
-  vm.runInContext(source, context);
-  if (name === 'queue') vm.runInContext('render = () => observed.push(state);', context);
-  if (name === 'games') vm.runInContext('renderGame = (value) => { session = value; observed.push(value); };', context);
+  const evaluate = await loadModuleScope(path.join(__dirname, '../../public/js/overlays', `${name}.js`), context, moduleFixtures);
+  if (name === 'queue') evaluate('render = () => observed.push(state);');
+  if (name === 'games') evaluate('renderGame = (value) => { session = value; observed.push(value); };');
   if (name === 'wheel')
-    vm.runInContext('renderState = (value) => { currentState = value; observed.push(value); };', context);
+    evaluate('renderState = (value) => { currentState = value; observed.push(value); };');
   if (name === 'songs')
-    vm.runInContext(
+    evaluate(
       `
     scroller = fakeScroller;
     songListElement = document.getElementById('songScrollList');
     applyTheme = () => {};
     scheduleRelayout = () => {};
   `,
-      context,
     );
   return {
     context,
+    evaluate,
+    call: (name, ...args) => evaluate(name)(...args),
     requests,
     sockets,
     timers,
@@ -142,7 +131,7 @@ function fixture(name) {
     records,
     element,
     handlers,
-    read: (expression) => JSON.parse(vm.runInContext(`JSON.stringify(${expression})`, context)),
+    read: (expression) => JSON.parse(evaluate(`JSON.stringify(${expression})`)),
     message: (payload) => sockets.at(-1).emit('message', { data: JSON.stringify(payload) }),
     async timer(delay) {
       const entry = [...timers].find(([, timer]) => timer.delay === delay);
@@ -161,17 +150,17 @@ const snapshot = (settings, reason = 'settings') => ({
 });
 
 test('songs retain newer WS settings, discard older HTTP loads and avoid rebuilding unchanged records', async () => {
-  const f = fixture('songs');
-  f.context.connectSocket();
-  const first = f.context.loadAll();
+  const f = await fixture('songs');
+  f.call('connectSocket');
+  const first = f.call('loadAll');
   f.message(snapshot({ songBoardTitle: '新标题' }));
   f.requests[0].resolve({ settings: { songBoardTitle: '旧标题' } });
   f.requests[1].resolve([{ id: 1, name: '新歌' }]);
   await first;
   assert.equal(f.read('state').settings.songBoardTitle, '新标题');
   const renders = f.records.length;
-  const older = f.context.loadAll();
-  const newer = f.context.loadAll();
+  const older = f.call('loadAll');
+  const newer = f.call('loadAll');
   f.requests[4].resolve({ settings: { songBoardTitle: '最新标题' } });
   f.requests[5].resolve([{ id: 1, name: '新歌' }]);
   await newer;
@@ -184,9 +173,9 @@ test('songs retain newer WS settings, discard older HTTP loads and avoid rebuild
 });
 
 test('songs invalidation rejects in-flight content immediately and clear-all refreshes the library', async () => {
-  const f = fixture('songs');
-  f.context.connectSocket();
-  const pending = f.context.loadAll();
+  const f = await fixture('songs');
+  f.call('connectSocket');
+  const pending = f.call('loadAll');
   f.message(snapshot({}, 'database:clear-all'));
   f.requests[0].resolve({ settings: {} });
   f.requests[1].resolve([{ id: 1, name: '清空前' }]);
@@ -200,31 +189,31 @@ test('songs invalidation rejects in-flight content immediately and clear-all ref
   assert.deepEqual(f.read('songs'), []);
 });
 
-test('songs schedule a library reload for cloud and local song invalidations only', () => {
+test('songs schedule a library reload for cloud and local song invalidations only', async () => {
   for (const [reason, reloads] of [['cloud:songs', true], ['songs:created', true], ['live:status', false]]) {
-    const f = fixture('songs');
-    f.context.connectSocket();
+    const f = await fixture('songs');
+    f.call('connectSocket');
     f.message(snapshot({}, reason));
     assert.equal([...f.timers.values()].some((timer) => timer.delay === 220), reloads, reason);
   }
 });
 
 test('queue keeps newer WS and HTTP state, deduplicates unchanged loads and invalidates deferred refreshes', async () => {
-  const f = fixture('queue');
-  f.context.connectSocket();
-  const pending = f.context.loadState();
+  const f = await fixture('queue');
+  f.call('connectSocket');
+  const pending = f.call('loadState');
   f.message(snapshot({ overlayTitle: '新队列' }));
   f.requests[0].resolve({ settings: { overlayTitle: '旧队列' } });
   await pending;
   assert.equal(f.read('state').settings.overlayTitle, '新队列');
-  const older = f.context.loadState();
-  const newer = f.context.loadState();
+  const older = f.call('loadState');
+  const newer = f.call('loadState');
   f.requests[2].resolve(f.read('state'));
   await newer;
   f.requests[1].resolve({ settings: { overlayTitle: '迟到' } });
   await older;
   assert.equal(f.observed.length, 1);
-  const stale = f.context.loadState();
+  const stale = f.call('loadState');
   f.message(snapshot({ overlayTitle: '下一次' }, 'queue:add'));
   f.requests[3].resolve({ settings: { overlayTitle: '无效旧响应' } });
   await stale;
@@ -236,8 +225,8 @@ test('queue keeps newer WS and HTTP state, deduplicates unchanged loads and inva
 });
 
 test('queue style refresh survives a live-status patch while retaining the latest live status', async () => {
-  const f = fixture('queue');
-  f.context.connectSocket();
+  const f = await fixture('queue');
+  f.call('connectSocket');
   f.message(snapshot({ overlayQueueStyle: 'classic' }));
   f.message(snapshot({ overlayQueueStyle: 'identity' }));
   await f.timer(80);
@@ -253,10 +242,10 @@ test('queue style refresh survives a live-status patch while retaining the lates
 });
 
 test('songs HTTP settings survive a live-status patch without reverting the live status', async () => {
-  const f = fixture('songs');
-  f.context.connectSocket();
+  const f = await fixture('songs');
+  f.call('connectSocket');
   f.message(snapshot({ songBoardTitle: '原始标题' }));
-  const pending = f.context.loadAll();
+  const pending = f.call('loadAll');
   f.message({
     type: 'snapshot',
     reason: 'live:status',
@@ -272,10 +261,10 @@ test('songs HTTP settings survive a live-status patch without reverting the live
 const stats = (profit) => ({ summary: { boxCount: 1, totalCost: 10, totalProfit: profit }, perUser: [] });
 
 test('blindbox applies WS settings without rebuilding unchanged data or accepting late settings', { timeout: 5000 }, async () => {
-  const f = fixture('blindbox');
-  f.context.connectSocket();
-  const pending = f.context.loadStateThenStats();
-  f.context.render(stats(5));
+  const f = await fixture('blindbox');
+  f.call('connectSocket');
+  const pending = f.call('loadStateThenStats');
+  f.call('render', stats(5));
   const writes = f.element('blindboxSummary').writes;
   f.message(snapshot({ blindboxOverlayTitle: '最新盲盒标题', themePrimary: '#123456' }));
   assert.equal(f.element('blindboxTitle').textContent, '最新盲盒标题');
@@ -298,9 +287,9 @@ test('blindbox applies WS settings without rebuilding unchanged data or acceptin
 });
 
 test('blindbox gift invalidation queues fresh statistics and discards the in-flight response', async () => {
-  const f = fixture('blindbox');
-  f.context.connectSocket();
-  const pending = f.context.loadStats();
+  const f = await fixture('blindbox');
+  f.call('connectSocket');
+  const pending = f.call('loadStats');
   f.message(snapshot({}, 'bilibili:gift'));
   assert.equal(f.requests.length, 1);
   f.requests[0].resolve(stats(-1));
@@ -317,12 +306,12 @@ for (const name of ['games', 'wheel']) {
   const update = (value) =>
     name === 'games' ? { type: 'game:update', session: value } : { type: 'wheel:update', state: value };
   test(`${name} reconciles on first connection after REST failure and reconnects only once`, async () => {
-    const f = fixture(name);
-    const pending = f.context[load]();
+    const f = await fixture(name);
+    const pending = f.call(load);
     f.requests[0].reject(new Error('offline'));
     await pending;
-    f.context.connectSocket();
-    f.context.connectSocket();
+    f.call('connectSocket');
+    f.call('connectSocket');
     assert.equal(f.sockets.length, 1);
     f.sockets[0].emit('open');
     assert.equal(f.requests.length, 2);
@@ -345,13 +334,13 @@ for (const name of ['games', 'wheel']) {
   });
 
   test(`${name} rejects stale REST state and errors after a dedicated WS update`, async () => {
-    const f = fixture(name);
-    f.context.connectSocket();
-    const first = f.context[load]();
+    const f = await fixture(name);
+    f.call('connectSocket');
+    const first = f.call(load);
     f.message(update({ id: 'new-ws' }));
     f.requests[0].resolve({ id: 'old-http' });
     await first;
-    const second = f.context[load]();
+    const second = f.call(load);
     f.message(update({ id: 'latest-ws' }));
     f.requests[1].reject(new Error('late failure'));
     await second;
@@ -363,8 +352,8 @@ for (const name of ['games', 'wheel']) {
   });
 
   test(`${name} bounds REST retry work without reopening a healthy socket`, async () => {
-    const f = fixture(name);
-    f.context.connectSocket();
+    const f = await fixture(name);
+    f.call('connectSocket');
     f.sockets[0].emit('open');
     for (let attempt = 0; attempt < 5; attempt += 1) {
       assert.equal(f.requests.length, attempt + 1);
@@ -388,10 +377,10 @@ for (const name of ['games', 'wheel']) {
   });
 
   test(`${name} keeps newer HTTP results and ignores action responses superseded by WS`, async () => {
-    const f = fixture(name);
-    f.context.connectSocket();
-    const older = f.context[load]();
-    const newer = f.context[load]();
+    const f = await fixture(name);
+    f.call('connectSocket');
+    const older = f.call(load);
+    const newer = f.call(load);
     f.requests[1].resolve({ id: 'new-http' });
     await newer;
     f.requests[0].resolve({ id: 'old-http' });
@@ -401,7 +390,7 @@ for (const name of ['games', 'wheel']) {
       ['new-http'],
     );
     f.message(update({ id: 'ready', entries: [{ weight: 1 }, { weight: 1 }] }));
-    const action = name === 'games' ? f.context.submitMove(3) : f.context.spinFromWheel();
+    const action = name === 'games' ? f.call('submitMove', 3) : f.call('spinFromWheel');
     assert.equal(f.requests[2].url, name === 'games' ? '/api/games/session/move' : '/api/wheel/spin');
     assert.equal(f.requests[2].options.method, 'POST');
     f.message(update({ id: 'after-action' }));
@@ -411,13 +400,12 @@ for (const name of ['games', 'wheel']) {
   });
 }
 
-test('games merge chat, avatar and score patches without reloading or replacing the canvas', () => {
-  const f = fixture('games');
-  f.context.connectSocket();
-  vm.runInContext(
+test('games merge chat, avatar and score patches without reloading or replacing the canvas', async () => {
+  const f = await fixture('games');
+  f.call('connectSocket');
+  f.evaluate(
     `drawController = { scheduleDrawDanmakuRender: () => observed.push('chat') };
     renderDrawGuess = (state, redraw) => observed.push({ phase: state.phase, redraw });`,
-    f.context,
   );
   f.message({ type: 'game:update', session: {
     sessionId: 'a', eventRevision: 1, game: 'draw-guess', danmaku: [],
@@ -438,12 +426,12 @@ test('games merge chat, avatar and score patches without reloading or replacing 
 });
 
 test('games replay chat received during reconnect and ignore older complete updates', async () => {
-  const f = fixture('games');
-  f.context.connectSocket();
+  const f = await fixture('games');
+  f.call('connectSocket');
   f.message({ type: 'game:update', session: {
     sessionId: 'a', eventRevision: 1, game: 'draw-guess', danmaku: [], state: {},
   } });
-  const pending = f.context.loadSnapshot();
+  const pending = f.call('loadSnapshot');
   f.message({ type: 'game:patch', sessionId: 'a', eventRevision: 3,
     item: { uid: '1', message: 'new message' } });
   f.requests[0].resolve({ sessionId: 'a', eventRevision: 2, game: 'draw-guess', danmaku: [], state: {} });
@@ -457,10 +445,10 @@ test('games replay chat received during reconnect and ignore older complete upda
 });
 
 test('games accept an authoritative empty session on later reconciliation', async () => {
-  const f = fixture('games');
-  f.context.connectSocket();
+  const f = await fixture('games');
+  f.call('connectSocket');
   f.message({ type: 'game:update', session: { id: 'running' } });
-  const pending = f.context.loadSnapshot();
+  const pending = f.call('loadSnapshot');
   f.requests[0].resolve(null);
   await pending;
   assert.equal(f.observed.at(-1), null);
@@ -468,7 +456,7 @@ test('games accept an authoritative empty session on later reconciliation', asyn
 });
 
 test('lyrics load settings and timeline from first and reconnected snapshots without invalid GET settings', async () => {
-  const f = fixture('lyric-window');
+  const f = await fixture('lyric-window');
   f.handlers.get('DOMContentLoaded')();
   f.message({
     type: 'snapshot',

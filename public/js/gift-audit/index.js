@@ -9,8 +9,7 @@ import {
 } from './view.js';
 
 // ── 全局状态 ──
-let bubbleGifts = [];
-let comparisonResults = [];
+let comparisonRevision = 0;
 let ws = null;
 let serverGiftCache = []; // 累积的服务器礼物
 let disposed = false;
@@ -129,6 +128,7 @@ async function fetchServerGifts() {
 
 // ── 主流程：解析并对比 ──
 async function parseAndCompare() {
+  const revision = ++comparisonRevision;
   const html = document.getElementById('bubbleHtml').value.trim();
   if (!html) {
     showToast('请先粘贴气泡 HTML', 'warn');
@@ -137,10 +137,11 @@ async function parseAndCompare() {
 
   document.getElementById('comparisonSection').style.display = 'none';
   document.getElementById('statsRow').style.display = 'none';
-  comparisonResults = [];
+  const captureTimeStr = document.getElementById('captureTime').value;
+  const captureTime = captureTimeStr ? new Date(captureTimeStr).getTime() : Date.now();
 
   // 解析气泡
-  bubbleGifts = parseBubbleHtml(html);
+  const bubbleGifts = parseBubbleHtml(html);
   document.getElementById('bubbleCount').textContent = bubbleGifts.length + ' 条';
   renderBubbleTable(bubbleGifts);
 
@@ -149,16 +150,15 @@ async function parseAndCompare() {
     showToast('未识别到礼物，请检查粘贴的气泡 HTML', 'warn');
     return;
   }
-  if (serverGiftCache.length === 0 && !(await fetchServerGifts())) {
+  const recordsLoaded = serverGiftCache.length > 0 || (await fetchServerGifts());
+  if (revision !== comparisonRevision) return;
+  if (!recordsLoaded) {
     showToast('记录获取失败，暂时无法核对', 'warn');
     return;
   }
 
   // 执行对比
-  const captureTimeStr = document.getElementById('captureTime').value;
-  const captureTime = captureTimeStr ? new Date(captureTimeStr).getTime() : Date.now();
-
-  comparisonResults = crossReference(bubbleGifts, serverGiftCache, captureTime);
+  const comparisonResults = crossReference(bubbleGifts, serverGiftCache, captureTime);
   renderComparison(comparisonResults);
   updateStats({
     bubbleCount: bubbleGifts.length,
@@ -182,9 +182,8 @@ async function parseAndCompare() {
 
 // ── 工具函数 ──
 function clearAll() {
+  comparisonRevision++;
   document.getElementById('bubbleHtml').value = '';
-  bubbleGifts = [];
-  comparisonResults = [];
   document.getElementById('bubbleTableBody').innerHTML =
     '<tr><td colspan="5" class="empty-state">等待解析...</td></tr>';
   document.getElementById('serverTableBody').innerHTML =

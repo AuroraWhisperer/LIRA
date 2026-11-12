@@ -2,24 +2,19 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
-
-function loadModel() {
-  const source = readJsModuleBundle('public', 'js', 'admin', 'streamer-planner-model.js');
-  const sandbox = { console, crypto: { randomUUID: () => 'generated-id' } };
-  vm.runInNewContext(
-    `${source}\nthis.model = { STAGES, NOTE_LABELS, NOTE_STAGE, EVENT_LABELS, createItemId, toDateValue, getCalendarDays, shiftMonth, normalizeEvent, getEventReminderTimestamp, normalizeTask, normalizeTasks, normalizeNote, createDefaultState, normalizeState };`,
-    sandbox,
-  );
-  return sandbox.model;
-}
+const path = require('node:path');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 function plain(value) {
   return JSON.parse(JSON.stringify(value));
 }
 
-const model = loadModel();
+let model;
+test.before(async () => {
+  model = await loadModuleExports(path.join(__dirname, '../../public/js/admin/streamer-planner-model.js'), {
+    crypto: { randomUUID: () => 'generated-id' },
+  });
+});
 
 test('old events keep reminders off; timed reminders follow the event and all-day reminders use their own time', () => {
   const original = { id: 'event-1', title: '学歌', date: '2026-10-02', time: '20:00' };

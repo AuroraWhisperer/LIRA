@@ -8,8 +8,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const { readCssBundle } = require('../helpers/css-bundle');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
-const { loadModuleExports } = require('../helpers/frontend-modules');
+const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 const { createDom } = require('../helpers/toast-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -146,9 +145,10 @@ test('song board applies the saved font size within its bounds', async () => {
     },
   };
   vm.runInNewContext(fs.readFileSync(path.join(ROOT_DIR, 'public/js/overlays/overlay-utils.js'), 'utf8'), sandbox);
-  vm.runInNewContext(readJsModuleBundle('public', 'js', 'overlays', 'songs.js'), sandbox);
+  const evaluate = await loadModuleScope(path.join(ROOT_DIR, 'public/js/overlays/songs.js'), sandbox);
+  const applyTheme = evaluate('applyTheme');
   for (const [input, expected] of [['36', 36], ['4', 10], ['99', 80]]) {
-    sandbox.applyTheme({ songBoardFontSize: input });
+    applyTheme({ songBoardFontSize: input });
     assert.equal(Number(values.get('--overlay-font-scale')) * baseFontSize, expected, input);
   }
 });

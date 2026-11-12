@@ -14,11 +14,9 @@ export function createWelcomeCustom({ documentRef, element, state, changed }) {
 
   function render() {
     const list = element('CustomList');
-    const pages = Math.max(1, Math.ceil(state.items.length / 6));
-    state.page = Math.min(state.page, pages - 1);
     list.replaceChildren();
     fields = [];
-    for (let index = state.page * 6; index < Math.min(state.items.length, (state.page + 1) * 6); index += 1) {
+    for (let index = 0; index < state.items.length; index += 1) {
       const item = state.items[index];
       const row = documentRef.createElement('div');
       row.className = 'danmaku-welcome-custom-row';
@@ -65,10 +63,6 @@ export function createWelcomeCustom({ documentRef, element, state, changed }) {
       list.append(row);
     }
     element('CustomEmpty').hidden = Boolean(state.items.length);
-    element('CustomPageLabel').textContent = `第 ${state.page + 1} / ${pages} 页`;
-    element('CustomPagination').hidden = pages === 1;
-    element('CustomPrevPage').disabled = state.page === 0;
-    element('CustomNextPage').disabled = state.page >= pages - 1;
   }
 
   function controls({ supported, loaded, busy }) {
@@ -84,18 +78,9 @@ export function createWelcomeCustom({ documentRef, element, state, changed }) {
   element('CustomAddBtn').addEventListener('click', () => {
     if (!available || state.items.length >= 100) return;
     state.items.push({ uid: '', message: '' });
-    state.page = Math.floor((state.items.length - 1) / 6);
     edit();
     render();
     fields[fields.length - 3]?.focus();
-  });
-  element('CustomPrevPage').addEventListener('click', () => {
-    state.page -= 1;
-    render();
-  });
-  element('CustomNextPage').addEventListener('click', () => {
-    state.page += 1;
-    render();
   });
 
   return { render, controls, setError };

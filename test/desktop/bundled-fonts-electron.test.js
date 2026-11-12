@@ -50,7 +50,8 @@ test('an ASAR bundles tiny title subsets, downloads shared fonts once, renders t
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
-  await page.waitForFunction(() => document.getElementById('toast').textContent.includes('正在下载字体和图片'));
+  await page.getByRole('progressbar', { name: '资源下载进度' }).waitFor();
+  await app.evaluate(() => global.releaseCdnTestDownloads());
   await page.waitForFunction(count => document.querySelectorAll('[data-font-id]').length === count, fonts.length);
   await page.waitForFunction(() => document.getElementById('map').naturalWidth === 8192);
   const cdp = await page.context().newCDPSession(page);

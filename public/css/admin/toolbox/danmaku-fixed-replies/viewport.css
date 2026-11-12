@@ -1,0 +1,143 @@
+/* The editor owns one viewport; lists paginate inside the remaining space. */
+.danmaku-fixed-editor-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.danmaku-fixed-reply-section [data-fixed-editor] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+}
+#danmakuCustomRepliesPanel::details-content {
+  display: contents;
+}
+.danmaku-fixed-reply-section :is(.danmaku-reply-fields, .danmaku-blessings-body),
+#danmakuWelcomeParameters,
+#danmakuWelcomeLibraries,
+#danmakuWelcomeCustom,
+#danmakuWelcomeAudience,
+#danmakuGiftThanksLibrary {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  gap: 12px;
+}
+.danmaku-fixed-reply-section :is([data-fixed-editor], .danmaku-reply-fields, .danmaku-blessings-body) > *,
+#danmakuWelcomeParameters > *,
+#danmakuWelcomeLibraries > *,
+#danmakuWelcomeCustom > *,
+#danmakuWelcomeAudience > *,
+#danmakuGiftThanksLibrary > * {
+  flex-shrink: 0;
+}
+.danmaku-fixed-reply-section :is(.danmaku-blessing-actions, .danmaku-welcome-parameter-actions, .danmaku-welcome-custom-actions) {
+  margin-top: 0;
+  padding-top: 12px;
+}
+.danmaku-fixed-reply-section .danmaku-editor-list {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  align-content: start;
+  overflow: hidden;
+}
+.danmaku-fixed-reply-section .danmaku-editor-list.is-measuring-rows :is(.danmaku-fortune-row, .danmaku-custom-reply-row) label {
+  font-size: 0;
+  gap: 0;
+}
+#danmakuWelcomeParameters,
+#danmakuWelcomeLibraries,
+#danmakuWelcomeCustom,
+#danmakuWelcomeAudience {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+#danmakuWelcomeParameters .danmaku-welcome-rule-summary,
+#danmakuWelcomeParameters .danmaku-welcome-options-footer,
+#danmakuWelcomeLibraries .danmaku-welcome-time-mode,
+#danmakuWelcomeTimePeriodRow {
+  margin: 0;
+}
+#danmakuWelcomeCustomEmpty {
+  flex: 1;
+  padding: 24px 16px;
+}
+#danmakuWelcomeCustom > .danmaku-welcome-custom-add {
+  align-self: stretch;
+  margin: 0;
+}
+.danmaku-welcome-audience-lists {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+#danmakuWelcomeAudience .danmaku-welcome-audience-section {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  gap: 8px;
+}
+.danmaku-welcome-audience-lists > .danmaku-welcome-audience-section {
+  display: flex;
+  flex-direction: column;
+}
+.danmaku-welcome-audience-lists > .danmaku-welcome-audience-section > * {
+  flex-shrink: 0;
+}
+.danmaku-welcome-audience-lists .danmaku-library-pagination {
+  justify-content: space-between;
+  gap: 4px;
+}
+.danmaku-welcome-audience-lists .danmaku-library-pagination button {
+  padding-inline: 8px;
+}
+#danmakuGiftThanksLibrary {
+  gap: 8px;
+}
+.danmaku-fixed-reply-section .danmaku-thanks-library-controls :is(select, .lira-select) {
+  min-width: 110px;
+}
+.danmaku-thanks-library-description {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.danmaku-thanks-library-description > p {
+  flex: 1;
+}
+.danmaku-thanks-reply {
+  gap: 8px;
+  padding-block: 8px;
+}
+.danmaku-thanks-reply-heading .danmaku-thanks-insert {
+  margin-left: auto;
+}
+.danmaku-thanks-reply-heading > strong {
+  margin-right: 0;
+}
+.danmaku-thanks-library-actions {
+  padding-block: 0;
+}
+.danmaku-thanks-preview {
+  padding: 8px 12px;
+}
+.danmaku-thanks-preview output {
+  flex: 1;
+  min-width: 0;
+  flex-basis: 0;
+}
+#danmakuGiftThanksLibrary [data-thanks-validation]:empty,
+#danmakuViewerNamesNotice:empty {
+  display: none;
+}
+.danmaku-song-reply-examples {
+  margin: 0;
+}

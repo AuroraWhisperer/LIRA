@@ -2,7 +2,7 @@
 // of simulation steps, so removing a support always releases the stack above it.
 export const MAX_GIFT_DROP_BODIES = 400;
 export const GIFT_DROP_EXIT_MS = 600;
-const MAX_SPAWN_DELAY_MS = 1500;
+export const GIFT_DROP_SPAWN_DELAY_MS = 2000;
 const FIXED_STEP = 1 / 120;
 
 function support(body, nx, ny) {
@@ -88,15 +88,15 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
       const collisionSize = size * 0.8;
       const motionSpeed = (event.motion.speed ?? 100) / 100;
       const bounce = (event.motion.bounce ?? 18) / 100;
-      const multiplier = event.motion.quantityMultiplier ?? 4;
+      const multiplier = event.motion.quantityMultiplier ?? 8;
       const expiresAt = event.startedAt + event.motion.durationSeconds * 1000;
-      if (expiresAt + MAX_SPAWN_DELAY_MS <= now) return [];
+      if (expiresAt + GIFT_DROP_SPAWN_DELAY_MS <= now) return [];
       // Large combos keep their true quantity on the last representative image.
       // Existing gifts are never evicted early to make room for a newer gift.
       const count = Math.min(event.num * multiplier, 60 * multiplier, MAX_GIFT_DROP_BODIES - bodies.length);
       const added = [];
       for (let index = 0; index < count; index++) {
-        const delay = random() * MAX_SPAWN_DELAY_MS;
+        const delay = random() * GIFT_DROP_SPAWN_DELAY_MS;
         if (expiresAt + delay <= now) continue;
         const body = { id: `${event.eventId}:${index}`, eventId: event.eventId,
           quantity: index === count - 1 ? Math.max(1, event.num - Math.ceil(count / multiplier) + 1) : 1,

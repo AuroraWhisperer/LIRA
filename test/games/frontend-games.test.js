@@ -353,3 +353,73 @@ test('host words follow the current round and ignore late reads after a round ch
   reads.shift()({ game: 'draw-guess', phase: 'choosing', round: 1, choices: [] }); await flush();
   assert.equal(node('drawHostWord').textContent, '已选题词', 'a late choice list cannot replace the selected word in the same round');
 });
+
+test('game command replies preserve a later stop or replacement session', async () => {
+  const nodes = new Map();
+  const listeners = new Map();
+  function node(id) {
+    if (!nodes.has(id)) {
+      const value = new FakeNode('div');
+      Object.assign(value, { id, value: '', selectedOptions: [], disabled: false,
+        classList: { toggle() {}, add() {}, remove() {}, contains: () => false },
+        closest: () => null, querySelector: selector => node(`${id} ${selector}`), querySelectorAll: () => [] });
+      Object.defineProperty(value, 'options', { get: () => value.children });
+      nodes.set(id, value);
+    }
+    return nodes.get(id);
+  }
+  const start = node('start');
+  start.dataset.startGame = 'number-bomb';
+  node('numberBombMode').value = 'multi';
+  const commands = [];
+  const response = data => ({ ok: true, status: 200, text: async () => JSON.stringify({ ok: true, data }) });
+  const games = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/games.js'), {
+    document: { hidden: false, getElementById: node, querySelector: node,
+      querySelectorAll: selector => selector === '[data-start-game]' ? [start] : [],
+      createElement: tag => new FakeNode(tag), addEventListener() {} },
+    window: { addEventListener: (type, fn) => listeners.set(type, fn), removeEventListener() {} },
+    location: { protocol: 'http:', host: '127.0.0.1', origin: 'http://127.0.0.1' },
+    setTimeout: () => 1, clearTimeout() {}, setInterval: () => 1, clearInterval() {},
+    fetch: async (url, options) => {
+      if (url === '/api/games/session' && options?.method === 'POST') {
+        return new Promise(resolve => commands.push({
+          input: JSON.parse(options.body), reply: data => resolve(response(data)),
+        }));
+      }
+      return response(url === '/api/games/viewers' ? [{ uid: '1', name: 'Viewer' }]
+        : url.startsWith('/api/interactions/') ? { runtimeId: 'one', revision: 1, session: null } : null);
+    },
+  });
+  const flush = () => new Promise(setImmediate);
+  const broadcast = session => listeners.get('app:game-update')({ detail: session });
+  const first = { sessionId: 'first', eventRevision: 1, game: 'number-bomb', mode: 'multi', state: { phase: 'playing' } };
+  games.initGames(); await flush();
+
+  start.listeners.click();
+  const firstStart = commands.shift();
+  broadcast(first);
+  assert.equal(node('gamesStopBtn').disabled, false, 'the start broadcast enables stopping before its HTTP response');
+  node('gamesStopBtn').listeners.click();
+  const firstStop = commands.shift();
+  assert.equal(firstStop.input.action, 'stop');
+  broadcast(null);
+  firstStop.reply(null); await flush();
+  firstStart.reply(first); await flush();
+  assert.equal(start.disabled, false, 'a late start reply must not resurrect the stopped game');
+  assert.equal(node('gamesStopBtn').disabled, true);
+
+  start.listeners.click();
+  commands.shift().reply({ ...first, sessionId: 'second' }); await flush();
+  assert.equal(node('gamesStopBtn').disabled, false, 'an uncontested HTTP response still applies without a broadcast');
+  node('gamesStopBtn').listeners.click();
+  const lateStop = commands.shift();
+  broadcast(null);
+  start.listeners.click();
+  const replacement = { ...first, sessionId: 'replacement', mode: 'single', targetName: 'Next opponent' };
+  broadcast(replacement);
+  commands.shift().reply(replacement); await flush();
+  lateStop.reply(null); await flush();
+  assert.equal(start.disabled, true, 'a late stop reply must not clear the replacement game');
+  assert.equal(node('gamesStopBtn').disabled, false);
+  assert.ok(node('gamesSessionStatus').textContent.includes(replacement.targetName));
+});

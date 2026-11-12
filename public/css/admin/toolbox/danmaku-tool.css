@@ -186,7 +186,7 @@
   flex: 0 0 auto;
   padding: 6px;
   color: var(--muted);
-  border-color: transparent;
+  border-color: var(--color-button-border, var(--border));
   background: transparent;
 }
 .danmaku-section-heading .icon svg {

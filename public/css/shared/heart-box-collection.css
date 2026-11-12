@@ -35,14 +35,14 @@
 .heart-collection-state { margin-left: auto; color: var(--heart-accent); font-size: 13px; white-space: nowrap; }
 .heart-collection-milestones { position: relative; margin-top: 12px; }
 .heart-collection-track { position: absolute; top: 6px; right: 10%; left: 0; height: 34px; border-radius: 17px; background: var(--heart-track); overflow: hidden; }
-.heart-collection-fill { position: relative; width: 100%; height: 100%; background: var(--heart-fill); border-radius: inherit; transform: scaleX(var(--heart-progress, 0)); transform-origin: left; transition: transform 420ms cubic-bezier(0.16, 1, 0.3, 1); }
+.heart-collection-fill { position: relative; width: calc(var(--heart-progress, 0) * 100%); height: 100%; border-radius: 0 10px 10px 0; background: var(--heart-fill); transition: width 420ms cubic-bezier(0.16, 1, 0.3, 1); }
 .heart-collection-collected-background, .heart-collection-collected { position: absolute; left: 8px; width: 52px; height: 26px; border-radius: 13px; }
 .heart-collection-collected-background { top: 4px; background: var(--heart-node); }
 .heart-collection-collected { top: 10px; z-index: 1; display: grid; place-items: center; color: #fff; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .heart-collection-stages { position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 96%; margin: 0 0 0 6%; padding: 0; list-style: none; }
 .heart-collection-stage { display: flex; flex-direction: column; align-items: center; min-width: 0; }
 .heart-collection-node { position: relative; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--heart-node); color: #fff; }
-.heart-collection-threshold { font-size: 26px; line-height: 1; }
+.heart-collection-threshold { font-size: 22px; line-height: 1; }
 .heart-collection-lock, .heart-collection-check { position: absolute; right: -1px; bottom: -1px; display: grid; place-items: center; width: 20px; height: 20px; border: 2px solid var(--heart-badge-border); border-radius: 50%; background: var(--heart-lock); color: #fff; }
 .heart-collection-lock svg, .heart-collection-check svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
 .heart-collection-check { display: none; background: var(--heart-fill); }

@@ -63,3 +63,31 @@ test('font toast unsubscribes on disposal and does not revive after navigation',
   controller.handleState({ status: 'downloading', total: 8 });
   assert.equal(container.children.length, 0);
 });
+
+test('license preparation keeps resource download feedback inline without toasts', async t => {
+  const dom = createDom();
+  dom.documentRef.head = dom.documentRef.createElement('head');
+  const status = dom.documentRef.createElement('p');
+  const getElementById = dom.documentRef.getElementById;
+  dom.documentRef.getElementById = id => id === 'fontLibraryInitializationStatus' ? status : getElementById(id);
+  let stateChanged;
+  dom.windowRef.liraLicense = {
+    getFontLibraryState: async () => ({ status: 'idle' }),
+    onFontLibraryStateChanged(listener) { stateChanged = listener; return () => {}; },
+  };
+  t.after(() => {
+    for (const listener of [...dom.windowListeners.get('pagehide') || []]) listener();
+  });
+  await loadModuleExports(path.resolve(__dirname, '../../public/js/license-resource-downloads.js'), {
+    document: dom.documentRef, window: dom.windowRef, setTimeout: () => 0, clearTimeout() {},
+  });
+  stateChanged({ status: 'downloading', total: 20, completed: 5 });
+  const downloading = status.textContent;
+  assert.ok(downloading);
+  assert.equal(dom.container.children.length, 0);
+  stateChanged({ status: 'error', total: 20, completed: 5 });
+  assert.ok(status.textContent && status.textContent !== downloading);
+  assert.equal(dom.container.children.length, 0);
+  stateChanged({ status: 'ready', total: 20, completed: 20 });
+  assert.equal(dom.container.children.length, 0);
+});

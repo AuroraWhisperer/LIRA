@@ -2,15 +2,16 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const path = require('node:path');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jQ1sAAAAASUVORK5CYII=';
-const sandbox = { atob, crypto: { randomUUID: () => 'new-template' } };
-vm.runInNewContext(`${readJsModuleBundle('public', 'js', 'admin', 'weekly-schedule', 'model.js')}
-this.model = { createWeeklyScheduleTemplate, normalizeWeeklyScheduleTemplate, cloneWeeklyScheduleTemplate,
-  clearWeeklyScheduleWeek, getWeekDates, isWeeklyScheduleAsset, getWeeklyScheduleAssetBytes };`, sandbox);
-const model = sandbox.model;
+let model;
+test.before(async () => {
+  model = await loadModuleExports(path.join(__dirname, '../../public/js/admin/weekly-schedule/model.js'), {
+    atob, crypto: { randomUUID: () => 'new-template' },
+  });
+});
 const plain = value => JSON.parse(JSON.stringify(value));
 
 test('week dates begin on Monday and preserve real dates across month and leap-year boundaries', () => {

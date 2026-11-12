@@ -400,6 +400,8 @@ test('snapshot pages stay hidden until atomic activation, preserve old values on
   f.retention.summaryPage({ ...f.scope(), full: true, page: summary() });
   f.retention.historyPage({ ...f.scope(), pageToken: 'history-1', page: history([record('recent',3)], { hasMore: true, nextPageToken: 'history-2' }) });
   assert.deepEqual(f.statistics(), before);
+  const recent = () => f.context.queryStore.listRecent({ sourceScope: { kind: 'source', sourceId: f.source.id }, limit: 30 });
+  assert.equal(recent().some((item) => item.platform_id === 'lira-server:recent'), false);
   assert.equal(f.retention.progress(f.source.id).active, null);
   assert.throws(() => f.retention.historyPage({ ...f.scope(), pageToken: 'history-2',
     page: history([], { recoveryCursor: 4 }) }), /MISMATCH/);
@@ -411,6 +413,7 @@ test('snapshot pages stay hidden until atomic activation, preserve old values on
   assert.equal(f.statistics().summaryRow.totalPriceCents, 300);
   assert.equal(f.statistics().summaryRow.eventCount, 3);
   assert.equal(f.context.queryStore.countHistory({ sourceId: f.source.id, asOf: NOW }), 1);
+  assert.deepEqual(recent().map((item) => item.platform_id), ['lira-server:recent']);
   assert.throws(() => f.retention.activate({ sourceId: f.source.id, projectionGeneration: 1 }), /STALE/);
   assert.equal(f.context.queryStore.readStatistics({ sourceId: f.other.id, asOf: NOW, range: 'all' }).summaryRow.totalPriceCents, 99900);
 });
@@ -489,6 +492,8 @@ test('retention protocol rejects unknown/private fields, bad arithmetic and inva
     giftRetentionVersion: 1, prunedThroughCursor: 0 }));
   assert.throws(() => normalizeProcessedGiftPage({ ...empty, nextCursor: 6 }));
   assert.throws(() => normalizeProcessedGiftHistoryPage(history([{ ...record('x',3), finalCursor: 4 }])));
+  assert.throws(() => normalizeProcessedGiftHistoryPage(normalizeProcessedGiftHistoryPage(history())),
+    /INVALID_PROCESSED_GIFT_HISTORY_PAGE/);
 });
 
 test('rate-limited history resumes and activates at its covered snapshot; subsequent finals retain live catch-up ownership', async (t) => {
@@ -616,6 +621,7 @@ test('expired incremental revisions switch to a full snapshot; a clear during do
 for (const previousEpoch of [null, 'old-epoch']) test(`retention controller activates before live catch-up and respects an existing ${previousEpoch} epoch`, async (t) => {
   const { createFixture: controllerFixture, capabilityPage } = require('../helpers/remote-gift-controller-fixture');
   const { createRemoteGiftController } = require('../../src/electron/remote-gift-controller');
+  const { createGiftOperations } = require('../../src/electron/license/gift-protocol');
   const { createGiftSyncStore } = require('../../src/storage/gift-sync-store');
   const delivered = [];
   const f = fixture(t, { consumerRegistry: { dispatch: (event) => {
@@ -628,8 +634,11 @@ for (const previousEpoch of [null, 'old-epoch']) test(`retention controller acti
   }
   const final = { eventId: 'live-4', phase: 'final', cursor: 4, gift: record('live-4',4).gift };
   const controllerF = controllerFixture({ discovery: capabilityPage({ latestCursor: 4, giftRetentionVersion: 1, prunedThroughCursor: 0 }),
-    historyPages: new Map([['history-1',history()]]),
     catchUpPages: new Map([[3,capabilityPage({ latestCursor: 4, nextCursor: 4, events: [final] })]]) });
+  controllerF.options.licenseManager.getGiftHistoryInternal = createGiftOperations({
+    remote: { getGiftHistory: async () => history() },
+    withAuthorizedToken: (operation) => operation('test-device'),
+  }).getGiftHistoryInternal;
   controllerF.options.licenseManager.getGiftSummariesInternal = async () => summary();
   const syncStore = createGiftSyncStore({ giftDb: f.giftDb,
     importLiveEvent: (event,id,options) => f.projection.importProcessedEvent(event,id,options) });

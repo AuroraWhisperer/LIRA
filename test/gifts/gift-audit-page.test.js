@@ -2,8 +2,10 @@
 
 const assert = require('node:assert/strict');
 
+const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
+const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -112,6 +114,95 @@ test('gift matching preserves fuzzy Unicode scores, greedy tie order and unmatch
   assert.deepEqual(toPlain(results.slice(0, 2).map(({ serverId }) => serverId)), ['first', 'second']);
   assert.equal(results[4].userName, 'ac');
 });
+
+test('clearing gift audit discards pending comparison success and failure', async (t) => {
+  for (const ok of [true, false]) await t.test(ok ? 'successful fetch' : 'failed fetch', async () => {
+    const page = await loadAuditPage();
+    page.get('bubbleHtml').value = giftBubbleHtml('Synthetic User');
+    const pending = page.get('parseAndCompareBtn').listeners.get('click')();
+    page.get('clearAllBtn').listeners.get('click')();
+    page.stateRequest.resolve({ json: async () => ({ ok, data: { gifts: { recent: [{
+      id: 'synthetic-gift', user_name: 'Synthetic User', gift_name: 'Synthetic Gift', gift_id: 1, num: 1,
+    }] } } }) });
+    await pending;
+    assert.equal(page.comparisons.length, 0, 'cleared input must not produce a late comparison');
+    assert.equal(page.toasts.length, 0, 'a cancelled comparison must not report success or failure');
+    assert.equal(page.get('comparisonSection').style.display, 'none');
+  });
+});
+
+test('gift audit compares the submitted bubble and capture time while records load', async () => {
+  const page = await loadAuditPage();
+  page.get('bubbleHtml').value = giftBubbleHtml('Synthetic User');
+  page.get('captureTime').value = '2026-11-12T12:00';
+  const pending = page.get('parseAndCompareBtn').listeners.get('click')();
+  page.get('bubbleHtml').value = giftBubbleHtml('Replacement User');
+  page.get('captureTime').value = '2026-11-12T13:00';
+  const gift = { user_name: 'Synthetic User', gift_name: 'Synthetic Gift', gift_id: 1, num: 1 };
+  page.stateRequest.resolve({ json: async () => ({ ok: true, data: { gifts: { recent: [
+    { ...gift, id: 'at-submitted-time', created_at: '2026-11-12T12:00:00' },
+    { ...gift, id: 'at-edited-time', created_at: '2026-11-12T13:00:00' },
+  ] } } }) });
+  await pending;
+  const match = page.comparisons.at(-1).find(result => result.source === 'bubble');
+  assert.equal(match.userName, 'Synthetic User');
+  assert.equal(match.serverId, 'at-submitted-time');
+});
+
+function giftBubbleHtml(userName) {
+  return `<div class="gift-item"><div class="user-name">${userName}</div>
+    <span class="gift-name">Synthetic Gift</span><div class="gift-1-50"></div></div>`;
+}
+
+async function loadAuditPage() {
+  const elements = new Map();
+  const get = id => {
+    if (!elements.has(id)) elements.set(id, {
+      value: '', style: {}, listeners: new Map(),
+      addEventListener(type, listener) { this.listeners.set(type, listener); },
+      scrollIntoView() {},
+    });
+    return elements.get(id);
+  };
+  const comparisons = [];
+  const toasts = [];
+  const stateRequest = Promise.withResolvers();
+  let firstFetch = true;
+  const context = vm.createContext({
+    document: { getElementById: get },
+    window: { addEventListener() {} },
+    location: { protocol: 'http:', host: 'synthetic.invalid' },
+    WebSocket: class { static OPEN = 1; close() {} },
+    setTimeout() {}, clearTimeout() {}, setInterval() {}, clearInterval() {},
+    fetch() {
+      if (!firstFetch) return stateRequest.promise;
+      firstFetch = false;
+      return Promise.resolve({ json: async () => ({ ok: true, data: {} }) });
+    },
+  });
+  const view = {
+    renderBubbleTable() {}, renderConnBar() {}, renderServerTable() {}, updateStats() {},
+    renderComparison(results) { comparisons.push(results); },
+    showToast(message, type) { toasts.push({ message, type }); },
+  };
+  const modules = new Map([
+    ['./view.js', new vm.SyntheticModule(Object.keys(view), function () {
+      for (const [name, value] of Object.entries(view)) this.setExport(name, value);
+    }, { context })],
+    ['./analysis.js', new vm.SourceTextModule(
+      fs.readFileSync(path.join(ROOT_DIR, 'public/js/gift-audit/analysis.js'), 'utf8'), { context },
+    )],
+  ]);
+  const entry = new vm.SourceTextModule(
+    fs.readFileSync(path.join(ROOT_DIR, 'public/js/gift-audit/index.js'), 'utf8'), { context },
+  );
+  await entry.link(specifier => {
+    if (!modules.has(specifier)) throw new Error(`Unexpected audit import: ${specifier}`);
+    return modules.get(specifier);
+  });
+  await entry.evaluate();
+  return { get, comparisons, toasts, stateRequest };
+}
 
 function loadAnalysisModule() {
   return loadModuleExports(path.join(ROOT_DIR, 'public/js/gift-audit/analysis.js'));

@@ -73,9 +73,16 @@ export function createSettingsForm({
     initDesktopControls();
     blacklistEditor?.init();
     userBlacklistEditor?.init();
+    const roomInput = documentRef.getElementById('roomId');
+    roomInput.addEventListener('input', () => {
+      roomInput.dataset.preserveDirty = 'true';
+      roomInput.dataset.dirty = 'true';
+    });
     documentRef.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
-      const result = await api('/api/settings', collectSettings());
+      const updates = collectSettings();
+      const result = await api('/api/settings', updates);
+      if (value('roomId') === updates.roomId) roomInput.dataset.dirty = 'false';
       eventBus.emit(Events.STATE_SAVED, { settings: result.data.settings });
       toast('设置已保存', { type: 'success' });
       await reloadState();

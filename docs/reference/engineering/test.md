@@ -10,10 +10,10 @@
 
 - **框架**:Node 内置 `node:test` + `node:assert/strict`，测试运行器不依赖第三方框架；浏览器与 Electron 自动化使用开发依赖 Playwright（[package.json](../../../package.json)）。测试文件全部基于 `node:test`。
 - **全量运行**:`npm test` 通过 [run-tests.js](../../../scripts/run-tests.js) 递归收集 `test/` 各业务目录中的 `*.test.js`，排除 `helpers/` 和 `fixtures/`，再运行 `node --experimental-vm-modules --test --test-concurrency=<默认 8>`。默认并发取 8 与可用 CPU 数的较小值；显式转发的 `--test-concurrency` **替换**该默认值，运行器不会同时传入两个同名参数。实测同一台 32 逻辑 CPU 发布机：desktop 与 browser 两组 158 秒（并发 4 为 227 秒、并发 12 为 169 秒且桌面组开始因负载丢失用例），且并发 8 下桌面组 0 失败；因此默认停在 8，不再上调。选中 Windows 原生进程归属测试时，先独立运行该文件，再并发执行其余文件，避免其他测试进程竞争原生查询的固定期限；各批分别输出统计，任一批失败都会使整体失败。helper 和探针仍由拥有者导入或显式启动；保留进程隔离，收集清单按文件名排序。
-- **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、前端行为和 AI 测试并显式启用 ESM VM 模块;测试辅助加载器在未启用该 flag 时自动回退到静态 bundle,因此直接执行管理页测试也不会跳过 ESM 用例。
+- **管理页回归**:`npm run test:admin` 固定运行 Admin 页面组合、前端行为和 AI 测试并显式启用 ESM VM 模块；前端测试辅助加载器使用 `vm.SourceTextModule` 保留真实 import/export、别名、只读导入绑定和模块作用域。直接运行这些测试也须传入 `--experimental-vm-modules`，缺少 flag 时明确报错，不再回退到剥离 import 的静态拼接。个别依赖通过 `vm.SyntheticModule` 提供显式 fixture，仍参与真实链接检查。
 - **文档门禁**:`npm run verify:docs` 检查治理文件、相对链接、AI 路由表和规格索引。
 - **原生卸载夹具**:`installer-uninstall.test.js` 通过独立就绪文件区分进程启动与删除执行；启动限时 30 秒，进入夹具后删除仍限时 10 秒。超时终止自己启动的进程，等待退出后再清理隔离目录；所有保留、删除、升级、链接及失败退出断言继续执行。
-- **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模报告测试；行数本身不是硬门禁。模块依赖图覆盖 `src/` 和 `public/js/` 的静态 ESM 与可执行字面量 require/import，检查循环、领域向存储/传输/桌面的反向导入、shared 向上导入及已退役的 Admin 全局注册表。计算路径和运行时回调仍需审查消费者与生命周期。
+- **架构门禁**:`npm run verify:architecture` 运行模块边界、遗留债务预算、前端 ESM 边界与源码规模报告测试；行数本身不是硬门禁。模块依赖图覆盖 `src/` 和 `public/js/` 的静态 ESM 与可执行字面量 require/import，检查循环、领域向存储/传输/桌面的反向导入、shared 向上导入及已退役的 Admin 全局注册表。前端 ESM 门禁还将全部 `public/js/` 模块用真实 VM 链接，检查 import/re-export 的来源与导出是否存在，但不执行浏览器模块。计算路径和运行时回调仍需审查消费者与生命周期。
 - **规模审查提示**:`npm run verify:modularity` 按文件类型报告物理行数，超过提示线不单独导致失败；职责与用途由正常变更审查判断，同一报告已接入架构和全量测试，口径见 [modularity-standard.md](../../architecture/engineering/modularity-standard.md#file-size-review)。
 - **快速门禁**:`npm run verify:quick` 按文档 → 语法 → 架构顺序运行,用于日常评审前反馈。
 - **契约输入门禁**:`npm run verify:contracts` 核对固定服务器提交和全部 fixture 的 SHA-256；不下载或切换检出目录。
@@ -122,7 +122,7 @@ npm test -- --failed
 
 浏览器测试不因存放在 `admin/` 或 `scenes/` 而成为 offline；经 helper 间接启动 Chromium 的文件同样必须登记到 browser。同一文件的多个浏览器用例用 [shared-browser.js](../../../test/helpers/shared-browser.js) 共用一个 Chromium，每个用例使用独立 context；只在用例需要独立进程状态时自行启动浏览器。桌面测试统一经 [shared-electron.js](../../../test/helpers/shared-electron.js) 的 `launchElectron` 启动 Playwright 的 Electron 宿主：它在传给被测应用的进程环境里删除 `ELECTRON_RUN_AS_NODE`，该变量会让 Electron 以纯 Node 启动、握手永不完成，表现为整组桌面用例只报 `Process failed to launch!`。该变量只影响这一个被测进程，直接以 Node 方式启动 Electron 的测试（如 build-integrity）仍自行管理环境。contracts 组只放必须读取锁定服务器 fixture 的用例，同文件中不依赖 fixture 的用例拆到离线文件，避免被服务器检出版本锁住。历史报告与归档计划中的原始执行记录保留当时路径，可点击的本仓库测试链接更新为现位置。
 
-并发运行的界面测试须区分页面导航、模块就绪和业务操作：Electron 窗口创建不代表 `/admin` 已加载；只验证重载后业务状态时，等待 `domcontentloaded` 后继续等待目标组件就绪，避免无关图片阻塞整页 `load`；需要检查图片时等待该图解码。画布发布前须等待组件自动尺寸回传到草稿，否则迟到的尺寸会形成真实的未保存修改。保存失败后的重试准备使用目标按钮的 `click({ trial: true })` 检查真实可操作性，避免在两次异步读取间把瞬时 `disabled` 快照当成稳定结果；继续保留失败、重试与发布结果断言。等待明确状态，保留发布与草稿断言。
+并发运行的界面测试须区分页面导航、模块就绪和业务操作：Electron 窗口创建不代表 `/admin` 已加载；只验证重载后业务状态时，等待 `domcontentloaded` 后继续等待目标组件就绪，避免无关图片阻塞整页 `load`；需要检查图片时等待该图解码。画布发布前须等待组件自动尺寸回传到草稿，否则迟到的尺寸会形成真实的未保存修改；写入完成也不代表浏览器已收到发布完成通知，后续编辑须等画布恢复可操作。保存失败后的重试准备使用目标按钮的 `click({ trial: true })` 检查真实可操作性，避免在两次异步读取间把瞬时 `disabled` 快照当成稳定结果；继续保留失败、重试与发布结果断言。下载进度在合成下载暂停期间检查，随后放行下载；按绝对时间退场的动效使用受控时钟推进到实际截止点，保留延迟图片不重置期限的断言。等待明确状态，保留发布与草稿断言。
 
 Windows 发布环境的隐藏 Electron 夹具使用 `offscreen: true`、`backgroundThrottling: false` 初始化渲染表面，保留真实 preload、IPC 与沙箱，无需显示测试窗口。三个交互夹具（自动回复编辑器、弹幕画布编辑器和到期设置）在 `app.whenReady()` 前关闭硬件加速，使用软件离屏渲染，避免多个隐藏 GPU 表面并发时的随机停顿；资源与媒体生命周期探针保留硬件加速，继续检查 WebGL 和 GPU 资源释放。仅关闭后台限流时，未初始化原生表面的隐藏窗口仍可能停在低帧率，导致操作稳定性、导航或媒体等待超时。动画像素回归先暂停入场，再等待字体和布局就绪，避免异步准备期间完整时间轴已经结束。不得以延长等待、降低整套并发或移除断言代替这些准备条件。
 
@@ -320,7 +320,7 @@ npm run verify
 | [playback-snapshot-ordering.test.js](../../../test/playback/playback-snapshot-ordering.test.js)                       | `storage/playback-store`(播放快照顺序、写入者代次与播放历史)                                    | 同上                                                                                              |
 | [superchat-store.test.js](../../../test/gifts/superchat-store.test.js)                                             | `storage/superchat-store` 的 SQLite 映射与领域对象契约                                          | 同上                                                                                              |
 | **前端**                                                                                                     |                                                                                                 | 见各列                                                                                            |
-| [esm-module-boundaries.test.js](../../../test/engineering/esm-module-boundaries.test.js)                                 | `public/js/` ESM 未声明标识符边界审计                                                           | [frontend/app.md](../frontend/app.md)                                                             |
+| [esm-module-boundaries.test.js](../../../test/engineering/esm-module-boundaries.test.js)                                 | `public/js/` ESM 未声明标识符审计及全部模块的真实 import/re-export 链接检查                        | [frontend/app.md](../frontend/app.md)                                                             |
 | [frontend-admin-toolbox.test.js](../../../test/admin/frontend-admin-toolbox.test.js)                               | 硬件指标不可用与零负载显示、桌面更新入口                                                         | 同上                                                                                              |
 | [frontend-usage-guide-search-browser.test.js](../../../test/admin/frontend-usage-guide-search-browser.test.js) | 最小片段验证正文定位、折叠内容展开与高亮清理；实际指南验证内部链接唯一目标 | [frontend/pages.md](../frontend/pages.md) |
 | [text-box-editor.test.js](../../../test/admin/text-box-editor.test.js)、[text-box-electron.test.js](../../../test/desktop/text-box-electron.test.js) | 浏览器负责连续格式切换与 DOM 不累积；Electron 验证真实输入、撤销、保存发布和重开 | [frontend/pages.md](../frontend/pages.md) |
@@ -382,7 +382,9 @@ npm run verify
 - 登录态捕获：`--bilibili-user-data` 需以 Electron 运行，入口 [scripts/bilibili-capture-electron/index.js](../../../scripts/bilibili-capture-electron/index.js) 复用桌面登录状态。采样文件保留上游 UID、昵称、正文等原始信息，**不做匿名化**；它不是可直接公开的脱敏样本。
 - 配套离线测试：[capture-bilibili-events.test.js](../../../test/bilibili/capture-bilibili-events.test.js) 覆盖完整消息、过滤、输出预算及停止/写入清理；[packet-decoder.test.js](../../../test/bilibili/packet-decoder.test.js) 覆盖解码边界与丢弃原因。样本或零错误计数均不代表断线窗口已补齐。
 
-独立 Electron 检查脚本 [verify-gift-export.cjs](../../../scripts/verify-gift-export.cjs)、[verify-gift-history.cjs](../../../scripts/verify-gift-history.cjs) 和 [verify-overlay-filters.cjs](../../../scripts/verify-overlay-filters.cjs) 的截图、导出文件与 Electron 配置保存在仓库 `tmp/` 下各自唯一的检查目录，便于复核与清理。
+独立 Electron 检查脚本 [verify-gift-export.cjs](../../../scripts/verify-gift-export.cjs)、[verify-gift-history.cjs](../../../scripts/verify-gift-history.cjs)、[verify-overlay-filters.cjs](../../../scripts/verify-overlay-filters.cjs) 和 [verify-welcome-settings.cjs](../../../scripts/verify-welcome-settings.cjs) 的截图、导出文件与 Electron 配置保存在仓库 `tmp/` 下各自唯一的检查目录，便于复核与清理。
+
+过滤器与欢迎检查通过现有 Admin fragment 组合器加载当前组件/工具箱片段及共享 dialog，使用隔离的合成数据、随机 loopback 端口和真实 preload/IPC；分别拥有本次 userData、sessionData、crashDumps 与 HTTP 退出清理。可用 `LIRA_VERIFY_OUTPUT_DIR` 指定唯一检查目录的父目录，默认仍为仓库 `tmp/`。
 
 `verify-gift-history.cjs` 以 Electron 独立入口运行，使用随机本地端口、独立 userData、检查目录内的合成 SQLite 数据以及真实导出 preload/IPC，不启动或连接用户的 LIRA 实例。浏览器源复用现有页面服务和 API 分发，按正常的 scoped token、sandbox、CORS 与 WebSocket 鉴权加载。设置检查挂载现行 `toolbox/gift.html` 的滚动礼物面板，验证 `scrollSpeed` 保存与 72px 单行画面；不再从历史抽屉寻找旧设置页或 `intervalSeconds` 控件。它是可选桌面验收，不在发布脚本的自动门禁内；设置表单的浏览器回归由 `test/gifts/frontend-gift-display-settings.test.js` 覆盖。
 

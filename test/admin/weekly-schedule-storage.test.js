@@ -2,13 +2,16 @@
 
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const path = require('node:path');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
-const sandbox = { atob, crypto: { randomUUID: () => 'template-1' } };
-vm.runInNewContext(`${readJsModuleBundle('public', 'js', 'admin', 'weekly-schedule', 'storage.js')}
-this.createStorage = createWeeklyScheduleStorage;`, sandbox);
-const createStorage = sandbox.createStorage;
+let createStorage;
+test.before(async () => {
+  ({ createWeeklyScheduleStorage: createStorage } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/weekly-schedule/storage.js'),
+    { atob, crypto: { randomUUID: () => 'template-1' } },
+  ));
+});
 
 function memoryIndexedDB(initial) {
   let stored = initial;

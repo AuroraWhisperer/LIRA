@@ -24,6 +24,8 @@ async function run() {
   const manifest = JSON.parse(await fs.readFile(path.join(cdnDir, 'resources/manifest.json'), 'utf8'));
   let downloads = 0;
   let checks = 0;
+  const downloadsReady = Promise.withResolvers();
+  global.releaseCdnTestDownloads = downloadsReady.resolve;
   const resources = createResourceLibrary({ dataDir: path.join(directory, 'data'), publicDir,
     fetch: async url => {
       if (url.endsWith('/manifest.json')) {
@@ -32,6 +34,7 @@ async function run() {
         return Response.json(manifest);
       }
       downloads++;
+      await downloadsReady.promise;
       const source = decodeURIComponent(new URL(url).pathname);
       if (!/^\/resources\/(fonts|images)\/[^/]+$/.test(source)) throw new Error('Unexpected CDN file');
       return new Response(await fs.readFile(path.join(cdnDir, source.slice(1))));
@@ -89,5 +92,5 @@ async function run() {
   });
   void library.initialize();
   await window.loadURL(url);
-  app.once('before-quit', () => { unsubscribe(); void resources.close(); void library.close(); void fixture.close(); });
+  app.once('before-quit', () => { downloadsReady.resolve(); unsubscribe(); void resources.close(); void library.close(); void fixture.close(); });
 }

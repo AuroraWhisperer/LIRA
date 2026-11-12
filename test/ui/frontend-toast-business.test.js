@@ -36,7 +36,7 @@ test('blind boxes show the actual output and update the same event identity', as
   assert.match(notices[1].html, /测试产物 x2/);
 });
 
-test('gift notifications detect delayed records that are not first in the list', async () => {
+test('gift notifications skip restored history while detecting delayed live records', async () => {
   const toasts = [];
   const sandbox = {
     window: {},
@@ -61,6 +61,7 @@ test('gift notifications detect delayed records that are not first in the list',
   notify([newestByTime]);
   notify([
     newestByTime,
+    { id: 12, gift_name: 'Restored Gift', num: 1, total_price: 10, gift_stats_eligible: 0 },
     {
       id: 11,
       gift_id: '2',

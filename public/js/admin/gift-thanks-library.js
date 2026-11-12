@@ -25,9 +25,10 @@ export function createGiftThanksLibrary(root, changed) {
     <label class="danmaku-thanks-enabled"><input type="checkbox" data-thanks-enabled>启用这个场景</label>
     <label data-thanks-sample-label>预览礼物<select data-thanks-sample><option value="paid">普通礼物</option><option value="blind">盲盒礼物</option><option value="free">免费礼物</option></select></label>
   </div>
-  <p class="hint" data-thanks-description></p>
-  <p class="hint">每个场景独立选择普通或 @，该场景下所有文案共用，每次随机选一条。普通回复优先使用已保存的昵称；@ 直接提及观众，正文可写“谢谢你”。</p>
-  <div data-thanks-rows></div>
+  <div class="danmaku-thanks-library-description"><p class="hint" data-thanks-description></p>
+    <lira-help label="场景文案说明">每个场景独立选择普通或 @，该场景下所有文案共用，每次随机选一条。普通回复优先使用已保存的昵称；@ 直接提及观众，正文可写“谢谢你”。</lira-help>
+  </div>
+  <div id="danmakuGiftThanksList" data-thanks-rows></div>
   <div class="danmaku-thanks-library-actions">
     <button type="button" class="secondary" data-thanks-add>添加文案</button>
     <label>示例文案<select data-thanks-example></select></label>
@@ -88,9 +89,9 @@ export function createGiftThanksLibrary(root, changed) {
       const wrapper = doc.createElement('div');
       wrapper.className = 'danmaku-thanks-reply';
       wrapper.innerHTML = `<div class="danmaku-thanks-reply-heading"><strong></strong>
+        <div class="danmaku-thanks-insert" role="group"></div>
         <button type="button" class="secondary">删除</button></div>
         <div class="danmaku-thanks-text" role="textbox" contenteditable="false" aria-multiline="false" spellcheck="false"></div>
-        <div class="danmaku-thanks-insert" role="group"></div>
         <div class="danmaku-thanks-preview"><span class="hint">示例预览 · 不会发送</span><output></output></div>`;
       const label = `${GIFT_THANKS_SCENES[kind]}第 ${index + 1} 条`;
       wrapper.querySelector('strong').textContent = `文案 ${index + 1}`;

@@ -96,12 +96,12 @@
   min-width: 30px;
   min-height: 30px;
   padding: 6px;
-  border-color: transparent;
+  border-color: var(--color-button-border, var(--border));
   background: transparent;
   color: var(--muted);
 }
 .danmaku-blessing-delete:hover {
-  border-color: transparent;
+  border-color: var(--danger);
   background: var(--color-danger-light);
   color: var(--danger);
 }

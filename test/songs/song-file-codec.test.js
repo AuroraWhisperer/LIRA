@@ -2,7 +2,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { loadSongImportParser: loadCsvParser } = require('../helpers/song-import-parser');
+const { loadSongImportParser } = require('../helpers/song-import-parser');
 const { DatabaseSync } = require('node:sqlite');
 const { buildSongsCsv, buildSongsWorkbook, parseSongsFromXlsx } = require('../../src/music/song-file-codec');
 const {
@@ -16,6 +16,9 @@ const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSongStore } = require('../../src/storage/song-store');
 const songService = require('../../src/music/song-service');
 const { routes } = require('../../src/server/routes/song-routes');
+
+let parser;
+test.before(async () => { parser = await loadSongImportParser(); });
 
 function namespaceWorksheetTags(buffer) {
   const files = readZipFiles(buffer);
@@ -151,7 +154,7 @@ test('song import follows workbook sheet order regardless of ZIP order and rejec
 });
 
 test('song CSV protects formula prefixes and leading whitespace/control characters', () => {
-  const { parseDelimited } = loadCsvParser();
+  const { parseDelimited } = parser;
   const inputs = [
     '=1+1',
     '+1+1',
@@ -190,7 +193,7 @@ test('song CSV protects formula prefixes and leading whitespace/control characte
 });
 
 test('song CSV applies one text policy to every exported external field without mutating songs', () => {
-  const { parseDelimited } = loadCsvParser();
+  const { parseDelimited } = parser;
   const song = Object.freeze({
     name: '=1+1',
     artist: '+1+1',
@@ -222,7 +225,7 @@ test('song CSV applies one text policy to every exported external field without 
 });
 
 test('ordinary CSV text, original apostrophes, punctuation and empty fields keep their content', () => {
-  const { parseDelimited } = loadCsvParser();
+  const { parseDelimited } = parser;
   for (const name of ['晴天', '夜-曲', 'A+B', '123', "'原有前缀", "'=1+1", "''=1+1", '中文,逗号"引号"\n第二行']) {
     const csv = buildSongsCsv([{ name, note: null }]);
     const row = parseDelimited(csv, ',')[1];
@@ -233,7 +236,7 @@ test('ordinary CSV text, original apostrophes, punctuation and empty fields keep
 });
 
 test('CSV reimport retains the text marker instead of stripping original apostrophes', () => {
-  const { parseTable } = loadCsvParser();
+  const { parseTable } = parser;
   for (const name of ['=1+1', '-夜曲', "'=1+1", "'原有前缀", '晴天']) {
     const [row] = parseTable(buildSongsCsv([{ name, note: '=1+1', is_enabled: true }]));
     const expected = /^[=-]/.test(name) ? `'${name}` : name;
@@ -279,7 +282,7 @@ test('CSV library route uses the song codec output', () => {
 });
 
 test('template downloads contain only headers with a tag example', () => {
-  const { parseDelimited, parseTable } = loadCsvParser();
+  const { parseDelimited, parseTable } = parser;
   const expectedHeaders = [...SONG_EXPORT_HEADERS];
   expectedHeaders[3] = '歌曲标签（如：怀旧、抒情、治愈）';
   for (const format of ['csv', 'xlsx']) {
@@ -300,7 +303,7 @@ test('template downloads contain only headers with a tag example', () => {
 });
 
 test('filled templates preserve tags through XLSX, CSV and pasted table imports', () => {
-  const { parseTable } = loadCsvParser();
+  const { parseTable } = parser;
   const song = { name: '模板填写测试', tags: '抒情,治愈', is_enabled: true };
   for (const preserveMissing of [false, true]) {
     const [xlsxRow] = parseSongsFromXlsx(buildSongsWorkbook([song], { template: true }), { preserveMissing });
@@ -365,7 +368,7 @@ test('price and clip retain internal text whitespace through save, export and re
     const [song] = songService.listSongs(store);
     assert.equal(song.request_price, '舰长  原文\t"说明"\n第二行');
     assert.equal(song.song_clip, 'BV1  说明\t片段\n01:30');
-    const { parseTable } = loadCsvParser();
+    const { parseTable } = parser;
     for (const row of [
       parseSongsFromXlsx(buildSongsWorkbook([song]))[0],
       parseTable(buildSongsCsv([song]))[0],
@@ -404,7 +407,7 @@ test('legacy song import preserves explicit false and zero while blank flags kee
 });
 
 test('text import detects delimiters outside quoted cells in the first logical record', () => {
-  const { parseTable } = loadCsvParser();
+  const { parseTable } = parser;
   const csv = '\n"歌,""曲""\t\n第二行",测试歌手,,,,,免费,,,\n另一首,另一位,,,,,"价格\t说明",,,';
   const tsv = '\n歌,曲\t测试歌手\t\t\t\t\t"免费\t说明"\t\t\t';
   for (const preserveMissing of [false, true]) {
@@ -458,7 +461,7 @@ test('song workbook import preserves the supported 5000-song scale within defaul
 });
 
 test('text song import maps the permanent metadata columns', () => {
-  const { parseTable } = loadCsvParser();
+  const { parseTable } = parser;
   const [headered] = parseTable(
     '歌曲名字\t歌手\t曲风\t歌曲标签\t是否可点\t语言\t点歌价格\t歌切\t核对平台\t核对备注\n' +
       '测试歌曲\t测试歌手\t流行\t抒情\t是\t国语\t舰长\tBV1HeaderedClip\tQQ音乐\t待核对',
@@ -488,7 +491,7 @@ test('text song import maps the permanent metadata columns', () => {
 });
 
 test('text imports use backend price aliases and retain conflicting aliases for row validation', () => {
-  const { parseTable } = loadCsvParser();
+  const { parseTable } = parser;
   for (const alias of SONG_IMPORT_ALIASES.requestPrice) {
     for (const separator of [',', '\t']) {
       const [row] = parseTable(`歌曲名字${separator}${alias}\n别名测试${separator}"30元SC, ""原文""\n第二行"`);

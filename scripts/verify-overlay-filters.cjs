@@ -1,36 +1,33 @@
 'use strict';
 
 // Real Electron, shipped markup/styles/preload, synthetic configuration only.
+// LIRA_VERIFY_OUTPUT_DIR can place the unique check directory under another scratch root.
 const { app, BrowserWindow, ipcMain } = require('electron');
 const fs = require('node:fs');
 const path = require('node:path');
 const http = require('node:http');
 const assert = require('node:assert/strict');
-const { composeAdminHtml } = require('../src/server/admin-page');
+const { readAdminFragment } = require('../src/server/admin-page');
 const { registerLicenseIpc } = require('../src/electron/ipc/license-ipc');
-const scratch = path.resolve(__dirname, '../tmp');
+const scratch = path.resolve(process.env.LIRA_VERIFY_OUTPUT_DIR || path.join(__dirname, '../tmp'));
 fs.mkdirSync(scratch, { recursive: true });
 const output = fs.mkdtempSync(path.join(scratch, 'lira-overlay-filter-check-'));
 app.setPath('userData', path.join(output, 'electron'));
+app.setPath('sessionData', path.join(output, 'electron'));
+app.setPath('crashDumps', path.join(output, 'crashes'));
 const publicDir = path.resolve(__dirname, '../public');
-const complete = composeAdminHtml(publicDir).replace(/\r\n/g, '\n');
-const start = complete.indexOf('    <section\n      class="danmaku-feature-section danmaku-style-section"');
-const end = complete.indexOf('    <section\n      class="danmaku-feature-section danmaku-compose-section"', start);
-assert.ok(start >= 0 && end > start);
+const fragment = readAdminFragment(publicDir, 'pages/admin/live-components/danmaku.html');
 const script = `
 import { initDanmakuOverlayFilters } from '/js/admin/danmaku-overlay-filters.js';
-import { initDanmakuOverlaySettings } from '/js/admin/danmaku-overlay-settings.js';
-const get = id => document.getElementById('danmaku' + id);
-initDanmakuOverlaySettings({ overlayUrl:get('OverlayUrl'), styleChip:get('StyleChip'), styleSaveState:get('StyleSaveState'),
-  fullscreenDurationField:get('FullscreenDurationField'), fullscreenDuration:get('FullscreenDurationSeconds'),
-  copyOverlayUrlButton:get('CopyOverlayUrlBtn'), openOverlayButton:get('OpenOverlayBtn'), previewOverlayButton:get('PreviewOverlayBtn'),
-  styleButtons:[...document.querySelectorAll('[data-danmaku-style]')] }, () => {});
+document.getElementById('liveDanmakuFeature').hidden = false;
+document.getElementById('liveDanmakuFeature').classList.add('active');
 initDanmakuOverlayFilters();
+window.fixtureReady = true;
 `;
 const html = `<!doctype html><html class="desktop-shell" lang="zh-CN"><head><meta charset="utf-8">
 ${['styles-base', 'styles-admin', 'overlays/desktop'].map((name) => `<link rel="stylesheet" href="/css/${name}.css">`).join('')}
 <style>body{margin:0;padding:20px;overflow:auto}.fixture-shell{max-width:1080px;margin:auto}</style>
-</head><body class="desktop-shell"><div class="fixture-shell danmaku-tool-panel">${complete.slice(start, end)}</div><script type="module">${script}</script></body></html>`;
+</head><body class="desktop-shell"><div class="fixture-shell">${fragment}</div><script type="module">${script}</script></body></html>`;
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, 'http://localhost');
   if (url.pathname === '/admin') {
@@ -87,6 +84,7 @@ async function run() {
   await app.whenReady();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
   const origin = `http://127.0.0.1:${server.address().port}`;
+  assert.equal((await fetch(origin + '/admin?desktop=1')).status, 200);
   win = new BrowserWindow({
     width: 1280,
     height: 1100,
@@ -130,13 +128,9 @@ async function run() {
     },
   });
   await win.loadURL(origin + '/admin?desktop=1');
-  await wait('!document.getElementById("danmakuBlacklistUid").disabled');
-  assert.equal(
-    await evaluate(
-      'document.getElementById("danmakuOverlayUrl").getBoundingClientRect().top < document.querySelector(".danmaku-style-picker").getBoundingClientRect().top',
-    ),
-    true,
-  );
+  await wait('window.fixtureReady && !document.getElementById("danmakuBlacklistUid").disabled');
+  await evaluate('document.querySelector("#danmakuOverlayFilters > summary").click()');
+  assert.ok(await evaluate('document.getElementById("danmakuBlacklistUid").getBoundingClientRect().height > 0'));
   await submit('danmakuBlacklistForm', 'danmakuBlacklistUid', '123456');
   await wait('document.querySelectorAll("#danmakuBlacklist li").length === 1');
   await submit('danmakuKeywordForm', 'danmakuKeywordInput', '示例广告');
@@ -161,6 +155,8 @@ async function run() {
   await wait('document.querySelectorAll("#danmakuBlacklist li").length === 2');
   assert.deepEqual(settings.blockedUsers[1], { uid: '10002', name: '晚风听众' });
   await click('danmakuClearKeywords');
+  await wait('document.querySelector(".lira-confirm-dialog")');
+  await evaluate('document.querySelector(".lira-confirm-confirm").click()');
   await wait('document.querySelectorAll("#danmakuKeywords li").length === 0');
   assert.equal(settings.blockedUsers.length, 2);
   failWrite = true;
@@ -175,9 +171,10 @@ async function run() {
     JSON.stringify({
       ok: true,
       screenshots: output,
+      isolation: { pid: process.pid, userData: app.getPath('userData'), sessionData: app.getPath('sessionData'), origin },
       writes: writes.length,
       checks:
-        'real Electron/IPC, link position, add UID, add word, search/select viewer, clear words, failed save retains input',
+        'real Electron/IPC, current live-component fragment, expand filters, add UID, add word, search/select viewer, confirm clear words, failed save retains input',
     }),
   );
 }
@@ -190,6 +187,7 @@ run().then(
 );
 function finish(code) {
   if (win && !win.isDestroyed()) win.destroy();
+  server.closeAllConnections();
   server.close();
   app.exit(code);
 }

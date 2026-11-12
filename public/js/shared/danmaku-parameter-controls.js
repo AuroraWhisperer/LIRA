@@ -182,6 +182,7 @@ export function mountDanmakuParameters(host, controller, {
         if (definition.input === 'range') input.className = 'parameter-range';
       }
       if (definition.type === 'text') input.placeholder = definition.default;
+      if (definition.type === 'color') input.dataset.colorAlpha = String(definition.alpha === true);
       if (SPOOKY_COLOR_KEYS.includes(key) && key !== 'textColor' && key !== 'spookyAccentColor') {
         input.dataset.colorOpacity = `${prefix}${capitalize(key.replace('Color', 'Opacity'))}`;
       }

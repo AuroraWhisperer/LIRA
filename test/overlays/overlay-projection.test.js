@@ -3,9 +3,8 @@
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const vm = require('node:vm');
 const test = require('node:test');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 const {
   projectOverlayState,
   projectOverlayResponse,
@@ -458,9 +457,8 @@ test('REST projections retain display fields, strip nested ledger/config metadat
   assert.equal(projectOverlayResponse('gift-export', '/api/gifts/selection', {}), null);
 });
 
-test('dynamic queue styles, songboard theme fallback and lyric settings survive explicit key projection', () => {
-  const context = vm.createContext({});
-  vm.runInContext(readJsModuleBundle('public', 'js', 'shared', 'queue-style-settings.js'), context);
+test('dynamic queue styles, songboard theme fallback and lyric settings survive explicit key projection', async () => {
+  const { readQueueStyleSettings } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/queue-style-settings.js'));
   const input = { unknown: secret, roomId: secret, overlayRuleColor6: '#abcdef', identityQueueScrollMode: 'loop' };
   for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
     Object.assign(input, {
@@ -475,7 +473,7 @@ test('dynamic queue styles, songboard theme fallback and lyric settings survive 
   }
   const projected = projectOverlayState('queue', { settings: input }).settings;
   for (const style of ['identity', 'storybook', 'neon-vinyl', 'cherry-ribbon', 'golden-lily']) {
-    assert.deepEqual(context.readQueueStyleSettings(projected, style), context.readQueueStyleSettings(input, style));
+    assert.deepEqual(readQueueStyleSettings(projected, style), readQueueStyleSettings(input, style));
   }
   assert.equal(projected.overlayRuleColor6, '#abcdef');
   assert.equal(projected.unknown, undefined);
@@ -563,7 +561,7 @@ test('real game owner retains moves, canvas recovery, results and restart throug
   }
 });
 
-test('actual shared gift banner renders the same avatar, guard, artwork, amount and text from projected REST data', () => {
+test('actual shared gift banner renders the same avatar, guard, artwork, amount and text from projected REST data', async () => {
   function element(tag) {
     const node = {
       tag,
@@ -586,8 +584,9 @@ test('actual shared gift banner renders the same avatar, guard, artwork, amount 
     };
     return node;
   }
-  const context = vm.createContext({ document: { createElement: element }, window: { __API_TOKEN__: 'scoped-token' } });
-  vm.runInContext(readJsModuleBundle('public', 'js', 'shared', 'gift-banner.js'), context);
+  const { createGiftBanner } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/gift-banner.js'), {
+    document: { createElement: element }, window: { __API_TOKEN__: 'scoped-token' },
+  });
   const data = {
     items: [
       {
@@ -626,7 +625,7 @@ test('actual shared gift banner renders the same avatar, guard, artwork, amount 
   const projectedCatalog = projectOverlayResponse('gift-feed', '/api/overtime/gifts/catalog', catalog);
   const projectedConfig = projectOverlayResponse('gift-feed', '/api/gifts/display-settings', config);
   assert.equal(
-    JSON.stringify(context.createGiftBanner(projected.items[0], projectedConfig, projectedCatalog.gifts)),
-    JSON.stringify(context.createGiftBanner(data.items[0], config, catalog.gifts)),
+    JSON.stringify(createGiftBanner(projected.items[0], projectedConfig, projectedCatalog.gifts)),
+    JSON.stringify(createGiftBanner(data.items[0], config, catalog.gifts)),
   );
 });

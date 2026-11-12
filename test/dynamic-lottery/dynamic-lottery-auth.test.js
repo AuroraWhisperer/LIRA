@@ -46,7 +46,9 @@ test('dedicated login, provider context, encrypted restore and logout never touc
   });
   await assert.rejects(provider.inspectDynamic('https://www.bilibili.com/opus/123'));
   assert.equal(called, true);
+  const sessionSignal = f.auth.getIdentity().signal;
   await f.auth.logout();
+  assert.equal(sessionSignal.aborted, true);
   assert.equal((await f.auth.getAuthState()).loggedIn, false);
   assert.equal(fs.existsSync(path.join(f.dataDir, 'dynamic-lottery-auth', snapshots[0])), false);
   await assert.rejects(f.auth.getContext(), {
@@ -96,6 +98,19 @@ test('LIRA identity changes cancel old login and select a different isolated par
   await assert.rejects(f.auth.getContext(), {
     code: 'LOTTERY_IDENTITY_UNAVAILABLE',
   });
+});
+
+test('an identity obtained before account restoration is invalidated on authorization changes and disposal', (t) => {
+  const f = createFixture(t);
+  const previous = f.auth.getIdentity();
+  f.license.generation += 1;
+  f.stateChanges.emit('state');
+  assert.equal(previous.signal.aborted, true);
+  const current = f.auth.getIdentity();
+  assert.equal(current.signal.aborted, false);
+  f.auth.dispose();
+  assert.equal(current.signal.aborted, true);
+  assert.equal(f.sessions.size, 0, 'identity cancellation does not need to restore account cookies');
 });
 
 test('same server restarts restore login while a different server with the same account ID remains isolated', async t => {
@@ -167,6 +182,7 @@ test('normal token renewal preserves a collecting session and an in-flight cooki
   const f = createFixture(t);
   await f.signIn();
   const before = await f.auth.getContext();
+  const sessionSignal = f.auth.getIdentity().signal;
   const read = Promise.withResolvers();
   const cookies = f.lotteryCookies();
   const originalGet = cookies.get;
@@ -179,6 +195,8 @@ test('normal token renewal preserves a collecting session and an in-flight cooki
   read.resolve(authCookies());
   assert.deepEqual(await pending, before);
   assert.deepEqual(await f.auth.getContext(), before);
+  assert.equal(f.auth.getIdentity().signal, sessionSignal);
+  assert.equal(sessionSignal.aborted, false);
 });
 
 test('a queued logout cannot clear the next LIRA identity after authorization changes', async (t) => {

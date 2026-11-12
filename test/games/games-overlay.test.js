@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const { loadModuleScope } = require('../helpers/frontend-modules');
 
 // Static checks are limited to the overlay's untrusted-content and request boundaries; drawing tools and
 // snapshot behavior run in games-drawing.test.js and below.
@@ -20,7 +20,7 @@ test('games overlay avoids HTML injection and lets only the authenticated server
   assert.doesNotMatch(script, /URLSearchParams|params\.get\(['"]game/, 'the server session selects the game, not the URL');
 });
 
-function createGameOverlayFixture(fetchResult) {
+async function createGameOverlayFixture(fetchResult) {
   const nodes = new Map();
   const requests = [];
   let created = 0;
@@ -54,20 +54,20 @@ function createGameOverlayFixture(fetchResult) {
       return { json: async () => ({ ok: true, data: context.incoming.session }) };
     },
   });
-  vm.runInContext(readJsModuleBundle('public', 'js', 'overlays', 'games.js'), context);
+  const evaluate = await loadModuleScope(path.join(__dirname, '../../public/js/overlays/games.js'), context);
   let revision = 0;
   const receive = (game, state, fields = {}) => {
     context.incoming = { type: 'game:update', session: state ? {
       ...fields,
       sessionId: 'synthetic-game', eventRevision: ++revision, game, state: structuredClone(state),
     } : null };
-    vm.runInContext('gameStream.receive(incoming)', context);
+    evaluate('gameStream.receive(incoming)');
   };
-  return { nodes, requests, context, receive, created: () => created };
+  return { nodes, requests, context, evaluate, receive, created: () => created };
 }
 
 test('game snapshots retain unchanged boards and refresh moves, turns, results and resets', async () => {
-  const { nodes, requests, receive, created } = createGameOverlayFixture();
+  const { nodes, requests, receive, created } = await createGameOverlayFixture();
   const { createNumberBombState, publicNumberBombState } = require('../../src/games/number-bomb');
   const { createGomokuState } = require('../../src/games/gomoku');
   for (const [game, state, rootId] of [
@@ -122,8 +122,8 @@ test('game snapshots retain unchanged boards and refresh moves, turns, results a
   assert.match(nodes.get('gameTurn').textContent, /7/);
 });
 
-test('scene drawing retains painted history until its revision, session, round or canvas size changes', () => {
-  const { context, nodes } = createGameOverlayFixture();
+test('scene drawing retains painted history until its revision, session, round or canvas size changes', async () => {
+  const { context, evaluate, nodes } = await createGameOverlayFixture();
   let clears = 0;
   let segments = 0;
   const drawing = { fillRect() { clears++; }, beginPath() {}, moveTo() {},
@@ -137,8 +137,8 @@ test('scene drawing retains painted history until its revision, session, round o
     phase: 'round-result', round: 1, totalRounds: 3, correct: [], scores: [], answerRevealed: true,
     canvas: { revision: 1, strokes: [{ color: 'black', width: 4, points: [{ x: 0, y: 0 }, { x: 1, y: 1 }] }] },
   } };
-  vm.runInContext('drawController = createDrawController({ byId, canDraw: () => false, getSession: () => session, renderDanmaku() {} }); componentConfig = { game: "draw-guess" }', context);
-  const render = () => vm.runInContext('componentData = { session: next }; renderComponent()', context);
+  evaluate('drawController = createDrawController({ byId, canDraw: () => false, getSession: () => session, renderDanmaku() {} }); componentConfig = { game: "draw-guess" }');
+  const render = () => evaluate('componentData = { session: next }; renderComponent()');
   render();
   for (let index = 0; index < 20; index++) render();
   assert.equal(clears, 1, 'disabled tools do not clear an unchanged canvas again');
@@ -156,7 +156,7 @@ test('scene drawing retains painted history until its revision, session, round o
   canvas.width = 1000;
   render();
   assert.equal(clears, 5);
-  vm.runInContext('componentData = null; renderComponent()', context);
+  evaluate('componentData = null; renderComponent()');
   render();
   assert.equal(clears, 6, 'restoring a session restores its drawing baseline');
   assert.equal(nodes.get('drawGuessView').hidden, false);
@@ -166,14 +166,14 @@ test('result actions and late winner profiles follow the current game session', 
   const profiles = [];
   const actions = [];
   const snapshots = [];
-  const { nodes, context, receive } = createGameOverlayFixture((url, options) => new Promise(resolve => {
-    const request = { options, resolve: (data, ok = true) => resolve({ ok, json: async () => ({ ok, data }) }) };
+  const { nodes, context, evaluate, receive } = await createGameOverlayFixture((url, options) => new Promise((resolve, reject) => {
+    const request = { options, reject, resolve: (data, ok = true) => resolve({ ok, json: async () => ({ ok, data }) }) };
     if (url === '/api/games/winner-profile') profiles.push(request);
     else if (url === '/api/games/session' && options.method === 'POST') actions.push(request);
     else if (url === '/api/games/session') snapshots.push(request);
     else assert.fail(`Unexpected request: ${url}`);
   }));
-  vm.runInContext('window.__API_TOKEN__ = "result-test-token"; gameResult.bind()', context);
+  evaluate('window.__API_TOKEN__ = "result-test-token"; gameResult.bind()');
   const { createNumberBombState, publicNumberBombState } = require('../../src/games/number-bomb');
   const state = publicNumberBombState(createNumberBombState(() => 0.5));
   const flush = () => new Promise(setImmediate);
@@ -224,6 +224,13 @@ test('result actions and late winner profiles follow the current game session', 
   assert.equal(result().hidden, true);
 
   receive('number-bomb', { ...state, winner: 'host' });
+  profiles[3].resolve({ avatarUrl: 'https://example.test/next.png' });
+  await flush();
+  const currentAvatar = avatar().src;
+  profiles[2].reject(new TypeError('Obsolete profile request failed'));
+  await flush();
+  assert.equal(avatar().hidden, false, 'a previous profile failure cannot hide the current avatar');
+  assert.equal(avatar().src, currentAvatar);
   const stale = click('gameResultNext');
   receive('number-bomb', { ...state, winner: 'host' }, { restartBlocked: false });
   assert.equal(nodes.get('gameResultNext').disabled, true, 'a same-result update keeps an in-flight action disabled');
@@ -235,7 +242,7 @@ test('result actions and late winner profiles follow the current game session', 
   profiles.slice(2).forEach(request => request.resolve({ avatarUrl: 'https://example.test/late.png' }));
   await flush();
   assert.equal(avatar().hidden, true);
-  vm.runInContext('gameResult.dispose()', context);
+  evaluate('gameResult.dispose()');
   assert.equal(nodes.get('gameResultNext').handlers.get('click').length, 0);
   assert.equal(context.window.handlers.get('resize').length, 0);
 });

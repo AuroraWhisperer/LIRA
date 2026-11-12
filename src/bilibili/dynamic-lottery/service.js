@@ -45,7 +45,7 @@ function createDynamicLotteryService({
     if (!job || job !== active || !sameIdentity(job.identity, identity()) || !sameIdentity(job.identity, context)) {
       throw lotteryError('LOTTERY_SESSION_CHANGED');
     }
-    job.controller.signal.throwIfAborted();
+    job.signal.throwIfAborted();
     if (job.context) assertSameContext(job.context, context);
     else job.context = context;
     return context;
@@ -87,6 +87,7 @@ function createDynamicLotteryService({
       context: null,
       promise: null,
     };
+    job.signal = scope.signal ? AbortSignal.any([job.controller.signal, scope.signal]) : job.controller.signal;
     active = job;
     lastError = null;
     job.promise = Promise.resolve()
@@ -209,7 +210,7 @@ function createDynamicLotteryService({
     if (active) throw lotteryError('LOTTERY_BUSY');
     resumeRequests(scope.streamerId);
     launch(scope, null, 'collect', async (job) => {
-      const inspected = await provider.inspectDynamic(link.url, job.controller.signal);
+      const inspected = await provider.inspectDynamic(link.url, job.signal);
       await getContext();
       if (inspected.target.kind === 'video' && rules.requiredActions.length > 0)
         throw lotteryError('LOTTERY_VIDEO_SOURCE_UNAVAILABLE');
@@ -233,7 +234,7 @@ function createDynamicLotteryService({
         nowMs: clock.nowMs(),
       });
       job.taskId = task.id;
-      await collection.start({ taskId: task.id });
+      await collection.start({ taskId: task.id, signal: job.signal });
       handleCollectionPause(task.id, scope);
     });
     active.requestId = input.requestId;
@@ -276,15 +277,20 @@ function createDynamicLotteryService({
       return getState({ taskId });
     resumeRequests(scope.streamerId);
     launch(scope, taskId, round || action === 'draw' ? 'draw' : 'collect', async (job) => {
-      await provider.verifyOwner(task.ownerUid, job.controller.signal);
+      await provider.verifyOwner(task.ownerUid, job.signal);
       await getContext();
-      if (round || action === 'draw') await draw.start(task, job.controller.signal);
+      if (round || action === 'draw') await draw.start(task, job.signal);
       else {
-        await collection.resume(taskId);
+        await collection.resume(taskId, job.signal);
         handleCollectionPause(taskId, scope);
       }
     });
     return getState({ taskId });
+  }
+
+  async function drainInvalidated() {
+    const job = active;
+    if (job?.signal.aborted) await job.promise;
   }
 
   async function dispose() {
@@ -295,7 +301,7 @@ function createDynamicLotteryService({
     await job?.promise;
   }
 
-  return { getState, createTask, actOnTask, dispose };
+  return { getState, createTask, actOnTask, drainInvalidated, dispose };
 }
 
 module.exports = { createDynamicLotteryService, publicCode };

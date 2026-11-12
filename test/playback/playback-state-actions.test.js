@@ -46,6 +46,51 @@ test('lyric results retain their request generation when playback returns to the
   assert.deepEqual(publications, [lyrics, latest]);
 });
 
+for (const outcome of ['success', 'failure']) {
+  test(`a ${outcome === 'success' ? 'successful' : 'failed'} quality switch retains the current lyric request`, async () => {
+    const { createPlaybackControls } = await loadModuleExports(entry('features/playback-controls.js'));
+    const { createInitialState } = await loadModuleExports(entry('state/manager.js'));
+    const state = createInitialState();
+    state.current = { id: 'a', source: 'qq', playbackQuality: 'standard' };
+    if (outcome === 'success') state.current.lyrics = { lines: [{ text: 'Before refresh' }] };
+    const lyricResponse = Promise.withResolvers();
+    const streamResponse = Promise.withResolvers();
+    const publications = [];
+    let lyricRequests = 0;
+    const audio = { currentTime: 6, paused: true, load() {}, addEventListener() {} };
+    const controls = createPlaybackControls({
+      playbackState: state,
+      getPlaybackAudio: () => audio,
+      lyricService: { loadLyrics() { lyricRequests++; return lyricResponse.promise; } },
+      streamService: { async getTrackUrl(track) {
+        await streamResponse.promise;
+        track.playbackQuality = 'high';
+        return 'https://example.test/high.mp3';
+      } },
+      savePlaybackState() {}, renderPlayback() {}, showError() {},
+      syncPlaybackLyricWindow: () => publications.push(state.current.lyrics),
+    });
+    const loading = controls.loadPlaybackLyrics(state.current);
+    const switching = controls.changePlaybackQuality('high');
+    const lyrics = { lines: [{ startMs: 0, text: 'Current lyric' }] };
+    if (outcome === 'failure') {
+      streamResponse.reject(new Error('quality unavailable'));
+      await switching;
+    }
+    lyricResponse.resolve(lyrics);
+    await loading;
+    if (outcome === 'success') {
+      streamResponse.resolve();
+      await switching;
+    }
+
+    assert.equal(state.current.lyrics, lyrics);
+    assert.equal(lyricRequests, 1);
+    assert.equal(publications.length, 1);
+    assert.equal(publications[0], lyrics);
+  });
+}
+
 test('forgetting provider streams covers every playable collection while retaining other providers and lyrics', async () => {
   const { createPlaybackStateActions } = await loadModuleExports(entry('state/actions.js'));
   const { createInitialState } = await loadModuleExports(entry('state/manager.js'));

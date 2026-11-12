@@ -60,10 +60,26 @@ function createDynamicLotteryRuntime({ db, auth, fetchImpl = globalThis.fetch })
     resumeRequests: scheduler.resume,
     pauseRequests: scheduler.pause,
   });
+
+  async function runInCurrentScope(operation) {
+    const expected = getIdentity();
+    await service.drainInvalidated();
+    const current = getIdentity();
+    if (
+      expected?.streamerId !== current?.streamerId ||
+      expected?.authorizationEpoch !== current?.authorizationEpoch ||
+      expected?.signal !== current?.signal
+    ) {
+      throw lotteryError('LOTTERY_SESSION_CHANGED');
+    }
+    expected?.signal?.throwIfAborted();
+    return operation();
+  }
+
   return {
     getState: service.getState,
-    createTask: service.createTask,
-    actOnTask: service.actOnTask,
+    createTask: (input) => runInCurrentScope(() => service.createTask(input)),
+    actOnTask: (input) => runInCurrentScope(() => service.actOnTask(input)),
     async dispose() {
       await service.dispose();
       await scheduler.dispose();

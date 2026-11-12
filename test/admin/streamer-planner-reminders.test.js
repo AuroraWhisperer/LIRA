@@ -2,15 +2,15 @@
 
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const vm = require('node:vm');
-const { readJsModuleBundle } = require('../helpers/js-module-bundle');
+const path = require('node:path');
+const { loadModuleExports } = require('../helpers/frontend-modules');
 
-const sandbox = {};
-vm.runInNewContext(
-  `${readJsModuleBundle('public', 'js', 'admin', 'streamer-planner-reminders.js')}\nthis.createReminderSync = createPlannerReminderSync;`,
-  sandbox,
-);
-const createReminderSync = sandbox.createReminderSync;
+let createReminderSync;
+test.before(async () => {
+  ({ createPlannerReminderSync: createReminderSync } = await loadModuleExports(
+    path.join(__dirname, '../../public/js/admin/streamer-planner-reminders.js'),
+  ));
+});
 const event = { id: 'event-1', title: '学歌', detail: '', date: '2026-10-02', reminderTime: '20:00' };
 
 function deferred() {

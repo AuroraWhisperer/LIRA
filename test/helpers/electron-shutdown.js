@@ -223,6 +223,7 @@ function createShutdownHarness(options = {}) {
           }),
       },
       Menu: { setApplicationMenu() {} },
+      net: { fetch: options.netFetch },
       protocol: { registerSchemesAsPrivileged() {} },
       safeStorage,
       session: { defaultSession: {} },
@@ -470,7 +471,7 @@ function createShutdownHarness(options = {}) {
     },
     './license/remote-license-client': { resolveConfiguredBaseUrl: () => '' },
     './license/license-resume': require('../../src/electron/license/license-resume'),
-    '../server': {
+    '../server': options.serverModule || {
       createServerRuntime(options) {
         runtimeOptions = options;
         return runtime;

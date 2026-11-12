@@ -249,6 +249,8 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 | 展示状态 | API origin 下三项有效 Cookie 均非空、UID 是十进制字符串；只供登录展示，不是动态作者或在线有效性证明 |
 | 内部读取 | `getIdentity()` 只返回可信 LIRA scope；`getContext()` 绑定本专用分区与既有 `createLotterySession`。桌面组合根将这两个读取回调注入内嵌抽奖 runtime，不能调用直播 Cookie getter，也不向 preload 导出这两个端口 |
 | 退出/切换 | 等待取消的登录窗口与在途写入，再只清除当前作用域分区/快照；授权变化丢弃旧结果，退出与重新登录使旧 sessionEpoch 失效；不删抽奖历史 |
+
+`getIdentity()` 的内部 `signal` 由认证所有者持有；切换授权生命周期、专用账号重新登录/退出或释放时取消旧 signal，正常 token 续期保留它。领域采集、开奖和请求退避沿用该取消信号；runtime 在接纳新操作前只排空已取消的旧任务，再核对 namespace、授权代次与 signal，避免旧退避阻塞新账号或切走再切回时恢复旧操作。该端口不向 renderer 暴露，已消耗预算和限流规则保持不变。
 | 退出软件 | 注销 IPC、取消窗口、排空认证操作，与已有同步控制器一并排空后，继续原有播放快照/后端停机流程 |
 | 网络与同步 | 状态读取不请求 B站；作者/关注验证仍由 provider 的受控调度执行。专用凭据不注入直播或云同步，也不暴露给 renderer |
 

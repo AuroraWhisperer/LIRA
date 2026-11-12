@@ -63,6 +63,38 @@ test('Twitter preview never loads a room profile', async () => {
   f.profile.dispose();
 });
 
+test('failed room profiles recover on a later update without repeated pending or cooled-down requests', async t => {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: Date.parse('2026-11-12T00:00:00Z') });
+  const requests = [];
+  const f = await fixture(() => {
+    const next = deferred();
+    requests.push(next);
+    return next.promise;
+  });
+  t.after(() => f.profile.dispose());
+  f.profile.update('twitter', '100');
+  f.profile.update('twitter', '100');
+  assert.equal(requests.length, 1, 'updates reuse the pending request');
+  requests[0].reject(new Error('Temporary room profile failure'));
+  await new Promise(resolve => setImmediate(resolve));
+
+  for (let index = 0; index < 50; index += 1) f.profile.update('twitter', '100');
+  t.mock.timers.tick(29_999);
+  f.profile.update('twitter', '100');
+  assert.equal(requests.length, 1, 'dense updates respect the failure cooldown');
+  t.mock.timers.tick(1);
+  assert.equal(requests.length, 1, 'cooldown expiry alone does not start a request');
+  f.profile.update('twitter', '100');
+  f.profile.update('twitter', '100');
+  assert.equal(requests.length, 2, 'a later update starts only one recovery request');
+  requests[1].resolve({ roomId: '100', uid: '456', name: '已恢复房主' });
+  await Promise.resolve();
+  assert.equal(f.node('twitterProfileName').textContent, '已恢复房主');
+  t.mock.timers.tick(60_000);
+  f.profile.update('twitter', '100');
+  assert.equal(requests.length, 2, 'successful room profiles stay cached');
+});
+
 test('room profile requests invalidate stale work and never show another room identity', async () => {
   const requests = [];
   const f = await fixture(({ signal }) => {

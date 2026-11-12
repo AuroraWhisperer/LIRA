@@ -3,9 +3,7 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const vm = require('node:vm');
-const { readQueueOverlayBundle: readJsModuleBundle } = require('../helpers/queue-overlay-bundle');
-const { loadModuleExports } = require('../helpers/frontend-modules');
+const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
@@ -39,8 +37,7 @@ test('identity song text scrolls only when its rendered width overflows', async 
   assert.equal(longAnimated, true);
 });
 
-test('queue resize preserves real rows while removing stale loop copies', () => {
-  const source = readJsModuleBundle('public', 'js', 'overlays', 'queue.js');
+test('queue resize preserves real rows while removing stale loop copies', async () => {
   let scheduledResize;
   const sandbox = {
     console,
@@ -56,7 +53,7 @@ test('queue resize preserves real rows while removing stale loop copies', () => 
     },
     window: {},
   };
-  vm.runInNewContext(source, sandbox);
+  const evaluate = await loadModuleScope(path.join(ROOT_DIR, 'public/js/overlays/queue.js'), sandbox);
 
   const removed = [];
   const realRow = {
@@ -95,8 +92,8 @@ test('queue resize preserves real rows while removing stale loop copies', () => 
     set innerHTML(_html) { assert.fail('resize must not rebuild the queue DOM'); },
   };
 
-  vm.runInNewContext("state = { settings: { overlayQueueStyle: 'classic' } };", sandbox);
-  sandbox.handleQueueViewportResize();
+  evaluate("state = { settings: { overlayQueueStyle: 'classic' } };");
+  evaluate('handleQueueViewportResize()');
   assert.equal(typeof scheduledResize, 'function');
   scheduledResize();
   assert.deepEqual(removed, ['first', 'second']);

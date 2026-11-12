@@ -56,6 +56,7 @@ export function createGameResult({ onAction, resolveAvatarUrl }) {
       avatar.src = resolveAvatarUrl(profile.avatarUrl);
       avatar.hidden = false;
     } catch (_) {
+      if (requestId !== profileRequest) return;
       hideAvatar();
     }
   }

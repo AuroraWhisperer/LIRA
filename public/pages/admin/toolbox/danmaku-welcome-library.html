@@ -4,7 +4,7 @@
   </p>
   <div id="danmakuWelcomeParameters">
     <p class="hint danmaku-welcome-rule-summary">首次欢迎只选一句：个人文案 → 多天未到 → 高荣耀 → 时段或普通。二次问候是首次发送成功后的可选追加；粉丝牌筛选和黑白名单在「欢迎对象」中设置。</p>
-    <div class="danmaku-welcome-rules">
+    <div id="danmakuWelcomeRules" class="danmaku-welcome-rules">
       <div class="danmaku-welcome-rule">
         <div class="danmaku-welcome-rule-heading">
           <strong>首次欢迎<lira-help label="首次欢迎规则">0 秒表示进场后立即处理，0 级表示等级不限。与「欢迎对象」中的粉丝牌筛选共同决定发送资格；白名单豁免这两项门槛，黑名单优先。先开启进场欢迎，再按需开启二次问候、高荣耀文案或多天未到欢迎。</lira-help></strong>
@@ -215,8 +215,8 @@
       <span id="danmakuWelcomeLibraryStatus" class="hint" role="status"></span>
       <button id="danmakuWelcomeSaveBtn" class="primary" type="button" disabled>保存欢迎词库</button>
     </div>
-    <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-custom.html -->
   </div>
+  <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-custom.html -->
   <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-audience.html -->
   <div id="danmakuWelcomeServerStatus" class="danmaku-welcome-server-status">
     <span id="danmakuWelcomeStatus" class="hint" role="status" aria-live="polite">正在读取账号信息…</span>
