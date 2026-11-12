@@ -229,6 +229,33 @@ test('URL policy: allows navigation to allowedHosts domains', async () => {
   assert.equal(isAllowedLoginNavigation('https://api.live.bilibili.com', config.allowedHosts), true);
 });
 
+test('login redirects stay inside the provider without opening an external browser', async () => {
+  const external = [];
+  const completion = openBilibiliLoginWindow({
+    BrowserWindow: FakeBrowserWindow,
+    shell: { openExternal: async (url) => external.push(url) },
+    auth: createAuth(), dataDir: 'test-data',
+  });
+  await new Promise(setImmediate);
+  const win = FakeBrowserWindow.latest;
+  try {
+    for (const [url, isMainFrame, allowed] of [
+      ['https://passport.bilibili.com/login', true, true],
+      ['https://outside.example/login', true, false],
+      ['http://passport.bilibili.com/login', true, false],
+      ['https://outside.example/captcha', false, true],
+    ]) {
+      let prevented = false;
+      win.webContents.emit('will-redirect', { preventDefault() { prevented = true; } }, url, false, isMainFrame);
+      assert.equal(prevented, !allowed, url);
+    }
+    assert.deepEqual(external, []);
+  } finally {
+    win.close();
+    await completion;
+  }
+});
+
 test('URL policy: rejects navigation to disallowed domains', async () => {
   const { isAllowedLoginNavigation } = require('../../src/electron/external-url-policy');
   const config = createAuth().BILIBILI_LOGIN_CONFIG;

@@ -12,13 +12,17 @@
 }
 .danmaku-thanks-templates {
   display: grid;
-  gap: 24px;
-  margin-block: 20px;
+  gap: 16px;
+  margin-block: 16px;
 }
 .danmaku-thanks-template {
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+.danmaku-thanks-template + .danmaku-thanks-template {
+  padding-top: 16px;
+  border-top: 1px solid var(--fixed-divider);
 }
 .danmaku-thanks-insert button,
 .danmaku-thanks-token {
@@ -32,13 +36,13 @@
   font-size: 13px;
 }
 .danmaku-thanks-text {
-  min-height: 76px;
-  padding: 12px;
+  min-height: 44px;
+  padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius-control);
   background: var(--surface);
   color: var(--text);
-  line-height: 2;
+  line-height: 1.6;
   overflow-wrap: anywhere;
   cursor: text;
 }
@@ -80,4 +84,50 @@
   width: auto;
   min-width: 130px;
   max-width: 100%;
+}
+
+.danmaku-thanks-library-controls,
+.danmaku-thanks-library-actions,
+.danmaku-thanks-reply-heading {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+}
+.danmaku-thanks-library-controls > label,
+.danmaku-thanks-library-actions > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  white-space: nowrap;
+}
+.danmaku-fixed-reply-section .danmaku-thanks-library-controls select,
+.danmaku-fixed-reply-section .danmaku-thanks-library-controls .lira-select {
+  width: auto;
+  min-width: 150px;
+}
+.danmaku-thanks-library-actions > label {
+  flex: 1;
+}
+.danmaku-thanks-library-actions select,
+.danmaku-thanks-library-actions .lira-select {
+  width: auto;
+  min-width: 0;
+  flex: 1;
+}
+.danmaku-thanks-reply {
+  display: grid;
+  gap: 10px;
+  padding-block: 16px;
+  border-top: 1px solid var(--border);
+}
+.danmaku-thanks-reply-heading > strong {
+  margin-right: auto;
+}
+.danmaku-thanks-library-actions {
+  padding-block: 16px;
+}
+.danmaku-thanks-enabled input {
+  width: auto;
 }

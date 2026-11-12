@@ -41,7 +41,7 @@ The overtime machine was implemented as a new domain module inside the existing 
 
 ## References
 
-- ../backend/server-core.md
-- ../backend/storage.md
-- ../backend/overtime.md
+- [server-core.md](../../reference/backend/server-core.md)
+- [storage.md](../../reference/backend/storage.md)
+- [overtime.md](../../reference/backend/overtime.md)
 - `src/storage/database.js` (`giftDb: 'gift-data.db'`, migration v5)

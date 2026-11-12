@@ -6,7 +6,7 @@ const GROUPS = [
     ['更多排版', 'desktopLyricLetterSpacing', 'desktopLyricTraditionalMode'],
   ], true],
   ['content', '显示内容', [
-    'desktopLyricVisibleLines', 'desktopLyricHidePassedLines', 'desktopLyricShowTranslation',
+    'desktopLyricVisibleLines', 'desktopLyricHidePassedLines', 'desktopLyricShowTranslation', 'desktopLyricShowRoma',
     'desktopLyricTranslationScale', 'desktopLyricTranslationOpacity',
   ], true],
   ['highlight', '高亮与配色', [
@@ -36,7 +36,7 @@ const GROUPS = [
 ];
 
 const DEPENDENCIES = [
-  ['desktopLyricShowTranslation', ['desktopLyricTranslationScale', 'desktopLyricTranslationOpacity']],
+  ['desktopLyricShowTranslation', ['desktopLyricTranslationOpacity']],
   ['desktopLyricStrokeEnabled', ['desktopLyricStrokeColor', 'desktopLyricStrokeWidth']],
   ['desktopLyricShadowEnabled', ['desktopLyricShadowColor', 'desktopLyricShadowIntensity',
     'desktopLyricShadowBlur', 'desktopLyricShadowOffsetX', 'desktopLyricShadowOffsetY']],
@@ -148,12 +148,14 @@ export function groupDesktopLyricParameters(root, fields, { scene = false } = {}
         if (field) field.label.hidden = !value(parent);
       }
     }
+    const translationScale = fields.get('desktopLyricTranslationScale');
+    if (translationScale) translationScale.label.hidden = !value('desktopLyricShowTranslation') && !value('desktopLyricShowRoma');
     const sung = fields.get('desktopLyricSungColor');
     if (sung) sung.label.hidden = value('desktopLyricKaraokeMode') === 'off';
     for (const { section, controls } of advancedGroups) section.hidden = controls.every(control => control.hidden);
     const enabled = key => value(key) ? '开' : '关';
     const states = {
-      content: `${Number(value('desktopLyricVisibleLines')) === 0 ? '整首' : `${value('desktopLyricVisibleLines')} 行`} · 翻译${enabled('desktopLyricShowTranslation')}`,
+      content: `${Number(value('desktopLyricVisibleLines')) === 0 ? '整首' : `${value('desktopLyricVisibleLines')} 行`} · 翻译${enabled('desktopLyricShowTranslation')} · 罗马音${enabled('desktopLyricShowRoma')}`,
       highlight: { off: '整句显示', continuous: '连续填充', discrete: '逐字点亮' }[value('desktopLyricKaraokeMode')],
       effect: `描边${enabled('desktopLyricStrokeEnabled')} · 阴影${enabled('desktopLyricShadowEnabled')}`,
     };

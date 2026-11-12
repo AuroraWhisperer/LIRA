@@ -136,6 +136,24 @@ test('live preview rejects older and unversioned updates after a current song ar
   renderer.dispose();
 });
 
+test('local suspension stops lyric work without losing the source version barrier', async () => {
+  const { renderer, frames, state } = await createLiveRenderer({ advanced: true });
+  renderer.applySettings({ advancedLyricEnabled: 'true' });
+  renderer.updateLyricState(state);
+  renderer.suspend();
+  assert.equal(frames.size, 0);
+  assert.equal(renderer.updateLyricState({ ...state, generation: 0, sequence: 20 }), false);
+  assert.equal(renderer.updateLyricState({ playing: true }), false);
+  assert.equal(frames.size, 0, 'stale data cannot resume a disconnected output');
+  assert.equal(renderer.updateLyricState(state), true, 'reconnect can restore the last authoritative snapshot');
+  assert.equal(frames.size, 1);
+  assert.equal(renderer.updateLyricState(state), false, 'duplicates remain rejected after resuming');
+  renderer.suspend();
+  assert.equal(renderer.updateLyricState({ ...state, sequence: 2, playing: false }), true);
+  assert.equal(frames.size, 0);
+  renderer.dispose();
+});
+
 test('settings updates cannot restart spring scrolling on a hidden lyric surface', async () => {
   const { renderer, elements, frames, setVisible } = await createLiveRenderer();
   const viewport = elements.get('desktopLyricPreviewViewport');

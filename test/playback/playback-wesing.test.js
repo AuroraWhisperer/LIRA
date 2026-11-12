@@ -113,6 +113,48 @@ test('WeSing status pushes do not request online streams', async () => {
   assert.equal(fullscreenClosed, 1, 'switching to the external playback source closes the app fullscreen view');
 });
 
+test('fullscreen lyrics seek internal audio but cannot resume it after selecting WeSing', async () => {
+  const current = { ...track('song', '歌曲'), lyrics: { lines: [{ startMs: 1000, text: '已有歌词' }] } };
+  const app = await createPlaybackApp({ current, selectedSource: 'qq', mode: 'sequence', volume: 0.75 },
+    { sourceTabs: ['qq', 'wesing'] });
+  let fullscreenOpen = true;
+  app.element('playerFullscreen').classList.contains = name => name === 'open' && fullscreenOpen;
+  await app.init({ closeFullscreenPlayer: () => { fullscreenOpen = false; } });
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  await flushAsyncWork();
+  const audio = app.element('music-player');
+  const lyrics = app.element('playerFsLyrics');
+  const clickLyric = () => {
+    const lyricStartMs = /data-lyric-start-ms="([^"]+)"/.exec(lyrics.innerHTML)?.[1];
+    assert.equal(lyricStartMs, '1000');
+    return app.emit('playerFsLyrics', 'click', { target: { closest: () => ({ dataset: { lyricStartMs } }) } });
+  };
+  audio.pause();
+  await clickLyric();
+  await flushAsyncWork();
+  assert.equal(audio.currentTime, 1);
+  assert.equal(audio.paused, false, 'internal lyrics still seek and resume playback');
+
+  audio.pause();
+  const playCallsBeforeSwitch = app.audioPlayCalls();
+  const pendingSeek = clickLyric();
+  await app.emit('source-tab-wesing', 'click');
+  await pendingSeek;
+  await flushAsyncWork();
+  assert.equal(app.audioPlayCalls(), playCallsBeforeSwitch, 'source changes cancel a resume awaiting output preparation');
+  assert.equal(fullscreenOpen, false);
+  fullscreenOpen = true;
+  audio.currentTime = 7;
+  await app.emit('music-player', 'timeupdate');
+  const playCalls = app.audioPlayCalls();
+  await clickLyric();
+  await flushAsyncWork();
+  assert.equal(audio.currentTime, 7, 'retained internal lyrics cannot seek external playback');
+  assert.equal(app.audioPlayCalls(), playCalls);
+  assert.equal(audio.paused, true);
+});
+
 test('playback state accepts WeSing as a persisted source', async () => {
   const { createInitialState, validateState } = await loadModuleExports(
     path.join(ROOT_DIR, 'public', 'js', 'playback', 'state', 'manager.js'),

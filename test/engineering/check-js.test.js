@@ -150,21 +150,22 @@ function fixture(t) {
   return { root, put, run };
 }
 
-test('checker CLI preserves native CommonJS and ESM syntax checks without executing files', (t) => {
+test('checker CLI checks maintained JS, CJS and MJS sources without executing files', (t) => {
   const { put, run } = fixture(t);
   put('package.json', '{"type":"commonjs"}');
   put('src/空 格.js', 'throw new Error("must not execute");');
-  put('src/ignored.cjs', 'const invalid = ;');
+  put('src/common.cjs', 'if (false) return; throw new Error("must not execute");');
   put('public/package.json', '{"type":"module"}');
   put('public/module.js', 'import missing from "./missing.js"; await missing();');
   put('test/fixture.js', 'module.exports = 1;');
+  put('tools/nested/module.mjs', 'import missing from "./missing.js"; await missing();');
   const valid = run();
   assert.equal(valid.status, 0, valid.stderr);
-  assert.match(valid.stdout, /Syntax check passed for 5 JavaScript files\./);
-  put('public/module.js', 'export const invalid = ;');
+  assert.match(valid.stdout, /Syntax check passed for 7 JavaScript files\./);
+  put('src/common.cjs', 'const invalid = ;');
   const invalid = run();
   assert.equal(invalid.status, 1, invalid.stderr);
-  assert.match(invalid.stderr, /module\.js[\s\S]*SyntaxError/);
+  assert.match(invalid.stderr, /common\.cjs[\s\S]*SyntaxError/);
   assert.doesNotMatch(invalid.stdout, /Syntax check passed/);
 });
 

@@ -15,8 +15,74 @@ const {
   assertSmokeQueueAndClearing,
 } = require('../helpers/server-smoke-scenarios');
 const lifecycle = require('../../src/server/lifecycle');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 let _testToken = '';
+
+test('server SC retractions remove feed entries and suppress late packets without filtering display-only prices', async (t) => {
+  const { BilibiliDanmakuClient } = require('../../src/bilibili/danmaku-client');
+  const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
+  const { createServerRuntime } = require('../../src/server');
+  let client;
+  t.mock.method(BilibiliDanmakuClient.prototype, 'start', function () { client = this; });
+  t.mock.method(BilibiliDanmakuClient.prototype, 'restart', async function () { client = this; });
+  t.mock.method(BilibiliApiClient.prototype, 'fetchRoomGuardCount', async () => 0);
+  const originalFetch = globalThis.fetch;
+  t.mock.method(globalThis, 'fetch', (url, options) => {
+    assert.equal(new URL(url).hostname, '127.0.0.1', 'SC regression must not access external services');
+    return originalFetch(url, options);
+  });
+  const autoOpen = process.env.AUTO_OPEN_ADMIN;
+  process.env.AUTO_OPEN_ADMIN = '0';
+  t.after(() => {
+    if (autoOpen === undefined) delete process.env.AUTO_OPEN_ADMIN;
+    else process.env.AUTO_OPEN_ADMIN = autoOpen;
+  });
+  const dataDir = createScratchDirectory('server-sc-retraction-', t);
+  const runtime = createServerRuntime({ dataDir });
+  try {
+    const app = await runtime.start({ startPort: 0, deferMaintenance: true });
+    const request = async (pathname, options = {}) => {
+      const response = await fetch(app.baseUrl + pathname, {
+        ...options,
+        headers: { Authorization: `Bearer ${runtime.getApiToken()}`, 'Content-Type': 'application/json' },
+      });
+      assert.equal(response.status, 200);
+      return (await response.json()).data;
+    };
+    await request('/api/settings', {
+      method: 'POST', body: JSON.stringify({ roomId: '123', danmakuMonitoringEnabled: true }),
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.ok(client);
+    const receive = (id, price = 30) => client.handlers.onSuperChat({
+      source: 'superchat', id, price, uid: '42', userName: 'Synthetic viewer',
+      message: 'SC regression', messageTimestamp: Date.now(),
+    });
+    receive('sc-current');
+    const before = await request('/api/state');
+    assert.equal(before.superChats.length, 1);
+    assert.equal(before.danmakuFeed[0].messageId, 'sc-current');
+
+    client.handlers.onSuperChatDelete(['sc-current']);
+    const removed = await request('/api/state');
+    assert.equal(removed.superChats.length, 0);
+    assert.equal(removed.danmakuFeed.length, 0);
+
+    receive('sc-current');
+    client.handlers.onSuperChatDelete(['sc-late']);
+    receive('sc-late', 1);
+    const replayed = await request('/api/state');
+    assert.equal(replayed.danmakuFeed.length, 0, 'deleted IDs stay suppressed even below the recording threshold');
+    receive('sc-display-only', 1);
+    const displayed = await request('/api/state');
+    assert.equal(displayed.superChats.length, 0);
+    assert.equal(displayed.danmakuFeed.length, 1);
+    assert.equal(displayed.danmakuFeed[0].messageId, 'sc-display-only');
+  } finally {
+    await runtime.stop({ exitProcess: false });
+  }
+});
 
 function findAvailablePort() {
   return new Promise((resolve, reject) => {

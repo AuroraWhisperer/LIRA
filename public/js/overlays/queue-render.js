@@ -124,16 +124,16 @@ export function renderIdentityQueue(settings, current, waiting, content, superCh
     settings.overlayRule5,
     settings.overlayRule6,
   ]
-    .map((item) => String(item || '').trim())
-    .filter(Boolean);
+    .map((item, index) => ({ text: String(item || '').trim(), slot: index + 1 }))
+    .filter((rule) => rule.text);
   const ruleHtml = rules.length
     ? `
     <div class="identity-rules">
       ${rules
         .map(
-          (rule, index) => `
-        <span class="identity-rule identity-rule-${(index % 6) + 1}">
-          <span class="identity-rule-text">${escapeHtml(rule)}</span>
+          (rule) => `
+        <span class="identity-rule identity-rule-${rule.slot}">
+          <span class="identity-rule-text">${escapeHtml(rule.text)}</span>
         </span>
       `,
         )

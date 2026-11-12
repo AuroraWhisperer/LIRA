@@ -1,12 +1,8 @@
-import { WEEKLY_LAYOUTS, WEEKLY_PALETTES, WEEKLY_ICONS, WEEKLY_FONTS, WEEKLY_TEXT_LIMITS, WEEKLY_IMAGE_RANGES, WEEKLY_BACKGROUND_RANGES, WEEKLY_TYPE_RANGES, WEEKLY_PATTERNS, getWeekDates } from './model.js';
+import { WEEKLY_LAYOUTS, WEEKLY_PALETTES, WEEKLY_ICONS, WEEKLY_FONTS, WEEKLY_TEXT_LIMITS, WEEKLY_IMAGE_RANGES, WEEKLY_IMAGE_EFFECT_RANGES, WEEKLY_BACKGROUND_RANGES, WEEKLY_OUTLINE_RANGE, WEEKLY_TYPE_RANGES, WEEKLY_PATTERNS, WEEKLY_ASSET_LABELS, getWeeklyImagePath, getWeekDates } from './model.js';
 import { createWeeklyScheduleIcon } from './icons.js';
 
 const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-const ASSETS = [
-  ['portrait', '主播立绘'], ['chibi', 'Q 版小人'], ['logo', '主播 Logo'],
-  ['background', '背景图片'], ['qrcode', '粉丝群二维码'],
-  ['rank1', '榜一头像'], ['rank2', '榜二头像'], ['rank3', '榜三头像'], ['icon', '自定义图标'],
-];
+const ASSETS = Object.entries(WEEKLY_ASSET_LABELS);
 
 export function renderWeeklyScheduleFields(container, template) {
   const doc = container.ownerDocument;
@@ -120,6 +116,7 @@ export function renderWeeklyScheduleFields(container, template) {
     choice.append(sketch, element('span', '', layout.label));
   }
   appearance.append(layouts);
+  appearance.append(element('p', 'weekly-field-help', '示意图标出了立绘位置。在「素材」上传主播立绘后自动排入，仍可调整大小、位置和左右对调。'));
   const palettes = element('div', 'weekly-palette-grid');
   palettes.setAttribute('aria-label', '预设配色');
   WEEKLY_PALETTES.forEach(palette => {
@@ -169,7 +166,61 @@ export function renderWeeklyScheduleFields(container, template) {
   icons.append(element('p', 'weekly-field-help', '在「图片素材」上传自定义图标，可随时切回内置图标。建议正方形 512 × 512。'));
 
   const assets = group('图片素材', true, 'assets');
-  assets.append(element('p', 'weekly-field-help', 'PNG / JPG / WebP，单张最多 12 MiB，每模板合计 48 MiB；最大边 8192 像素、总像素 33,554,432。图标也支持静态 SVG。'));
+  const selection = field(assets, '正在调整', '', '', { options: [{ id: '', label: '选择已上传的图片' }, ...ASSETS.map(([id, label]) => ({ id, label }))] });
+  delete selection.dataset.weeklyField;
+  selection.dataset.weeklyImageSelect = '';
+  for (const option of selection.options) if (option.value) option.disabled = !template.assets[option.value];
+  const help = element('p', 'weekly-field-help', '每张图片独立保存调整。移出画面时可用「恢复默认调整」找回。');
+  assets.append(help);
+  const selectionNote = element('p', 'weekly-field-help');
+  selectionNote.dataset.weeklySelectionNote = '';
+  selectionNote.hidden = true;
+  assets.append(selectionNote);
+  for (const [key, label] of ASSETS) {
+    const path = getWeeklyImagePath(key);
+    const settings = template[path];
+    const ranges = key === 'background' ? WEEKLY_BACKGROUND_RANGES : WEEKLY_IMAGE_RANGES;
+    const transform = element('fieldset', 'weekly-transform');
+    transform.dataset.weeklyTransform = key;
+    transform.hidden = true;
+    transform.append(element('legend', '', `${label}调整`));
+    for (const [fieldKey, title] of [['scale', '大小'], [key === 'background' ? 'offsetX' : 'x', '左右位置'], [key === 'background' ? 'offsetY' : 'y', '上下位置'], ['rotation', '旋转角度'], ['opacity', '不透明度']]) {
+      parameter(transform, title, `${path}.${fieldKey}`, settings[fieldKey], ranges[fieldKey]);
+    }
+    field(transform, '水平翻转', `${path}.flip`, settings.flip, { type: 'checkbox' });
+    if (key === 'portrait') {
+      field(transform, '立绘贴纸白边', 'portrait.outline', settings.outline, { type: 'checkbox' });
+      const outlineControls = element('div');
+      outlineControls.dataset.weeklyOutlineControls = '';
+      outlineControls.hidden = !settings.outline;
+      parameter(outlineControls, '描边厚度', 'portrait.outlineWidth', settings.outlineWidth, WEEKLY_OUTLINE_RANGE);
+      transform.append(outlineControls);
+    }
+    if (key === 'background') {
+      field(transform, '图片适配', 'background.fit', settings.fit, { options: [
+        { id: 'cover', label: '铺满画布（裁切边缘）' }, { id: 'contain', label: '完整显示（保留留白）' },
+      ] });
+      for (const [fieldKey, title] of [['x', '水平焦点'], ['y', '垂直焦点'], ['blur', '背景模糊']]) {
+        parameter(transform, title, `background.${fieldKey}`, settings[fieldKey], ranges[fieldKey]);
+      }
+    }
+    const effects = element('details', 'weekly-parameter-details');
+    effects.append(element('summary', '', '光影与色彩'));
+    const effectFields = element('div', 'weekly-group-content');
+    for (const [fieldKey, title] of [['brightness', '亮度'], ['contrast', '对比度'], ['saturation', '饱和度'], ['shadow', '阴影'], ['glow', '柔光']]) {
+      parameter(effectFields, title, `${path}.${fieldKey}`, settings[fieldKey], WEEKLY_IMAGE_EFFECT_RANGES[fieldKey]);
+    }
+    effects.append(effectFields);
+    transform.append(effects);
+    if (key === 'icon') transform.append(element('p', 'weekly-field-help', '同一自定义图标在画面中的各处使用这组参数。'));
+    if (key === 'qrcode') transform.append(element('p', 'weekly-field-help', '二维码建议保留清晰对比度，调整后请扫码确认。'));
+    button(transform, '恢复默认调整', 'weeklyReset', path);
+    assets.append(transform);
+  }
+  const uploadDetails = element('details', 'weekly-upload-details');
+  uploadDetails.open = true;
+  uploadDetails.append(element('summary', '', '上传与替换图片'));
+  uploadDetails.append(element('p', 'weekly-field-help', 'PNG / JPG / WebP，单张最多 12 MiB，每模板合计 48 MiB；最大边 8192 像素、总像素 33,554,432。图标也支持静态 SVG。'));
   const uploads = element('div', 'weekly-upload-grid');
   ASSETS.forEach(([key, title]) => {
     const slot = element('div', 'weekly-upload');
@@ -186,40 +237,15 @@ export function renderWeeklyScheduleFields(container, template) {
     preview.hidden = !template.assets[key];
     if (template.assets[key]) preview.src = template.assets[key];
     const status = element('span', 'weekly-upload-status', template.assets[key] ? '已上传' : '未上传');
+    const edit = button(slot, '调整图片', 'weeklyEditImage', key);
+    edit.hidden = !template.assets[key];
     const remove = button(slot, '移除', 'weeklyRemoveAsset', key);
     remove.hidden = !template.assets[key];
     slot.prepend(label, preview, status);
     uploads.append(slot);
   });
-  assets.append(uploads);
-  for (const [key, label] of [['portrait', '立绘'], ['logo', 'Logo'], ['chibi', 'Q 版']]) {
-    const transform = element('fieldset', 'weekly-transform');
-    transform.dataset.weeklyTransform = key;
-    transform.hidden = !template.assets[key];
-    transform.append(element('legend', '', `${label}调整`));
-    for (const [fieldKey, title] of [['scale', '大小'], ['x', '左右位置'], ['y', '上下位置'], ['rotation', '旋转角度'], ['opacity', '不透明度']]) {
-      parameter(transform, title, `${key}.${fieldKey}`, template[key][fieldKey], WEEKLY_IMAGE_RANGES[fieldKey]);
-    }
-    field(transform, `左右翻转${label}`, `${key}.flip`, template[key].flip, { type: 'checkbox' });
-    if (key === 'portrait') {
-      field(transform, '立绘贴纸白边', 'portrait.outline', template.portrait.outline, { type: 'checkbox' });
-    }
-    button(transform, '恢复默认调整', 'weeklyReset', key);
-    assets.append(transform);
-  }
-  const background = element('fieldset', 'weekly-transform');
-  background.dataset.weeklyTransform = 'background';
-  background.hidden = !template.assets.background;
-  background.append(element('legend', '', '背景图调整'));
-  field(background, '图片适配', 'background.fit', template.background.fit, { options: [
-    { id: 'cover', label: '铺满画布（裁切边缘）' }, { id: 'contain', label: '完整显示（保留留白）' },
-  ] });
-  for (const [key, label] of [['x', '水平焦点'], ['y', '垂直焦点'], ['opacity', '不透明度'], ['blur', '背景模糊']]) {
-    parameter(background, label, `background.${key}`, template.background[key], WEEKLY_BACKGROUND_RANGES[key]);
-  }
-  background.append(element('p', 'weekly-field-help', '焦点位置决定裁切或留白方向；无需移动文字和信息模块。'));
-  button(background, '恢复背景调整', 'weeklyReset', 'background');
-  assets.append(background);
+  uploadDetails.append(uploads);
+  assets.append(uploadDetails);
 
   const schedule = group('一周安排', true, 'schedule');
   field(schedule, '本周周一', 'monday', template.monday, { type: 'date' });
@@ -300,9 +326,8 @@ export function refreshWeeklyScheduleAsset(container, template, key) {
   else image.removeAttribute('src');
   image.hidden = !value;
   slot.querySelector('.weekly-upload-status').textContent = value ? '已上传' : '未上传';
-  slot.querySelector('button').hidden = !value;
-  const transform = container.querySelector(`[data-weekly-transform="${key}"]`);
-  if (transform) transform.hidden = !value;
+  slot.querySelectorAll('button').forEach(button => { button.hidden = !value; });
+  container.querySelector(`[data-weekly-image-select] option[value="${key}"]`).disabled = !value;
   if (key === 'icon') {
     container.querySelector('[data-weekly-icon="custom"]').hidden = !value;
     container.querySelectorAll('[data-weekly-icon]').forEach(button => {

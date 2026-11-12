@@ -1,11 +1,11 @@
 'use strict';
 
 const SHOTS = [
-  { id: 'D1', file: 'gift-page-overview', title: '礼物统计与最近礼物', main: 'giftAssistantPage' },
+  { id: 'D1', file: 'gift-records-overview', title: '礼物统计与最近礼物', main: 'giftAssistantPage' },
   {
     id: 'D2',
-    file: 'gift-auto-thanks',
-    title: '自动答谢、礼物查询与服务器运行说明（演示设置）',
+    file: 'gift-query-controls',
+    title: '礼物查询开关（演示设置）',
     main: 'giftAssistantPage',
     clip: '.gift-controls-grid',
   },

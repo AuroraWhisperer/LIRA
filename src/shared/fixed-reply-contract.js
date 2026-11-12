@@ -1,8 +1,13 @@
 'use strict';
 
-const FIXED_REPLY_KEYS = Object.freeze([
+const BASE_REPLY_KEYS = [
   'customExactReplyEnabled', 'customExactReplies', 'scheduledDanmakuEnabled', 'scheduledDanmaku',
+];
+const INTERACTION_THANKS_KEYS = Object.freeze([
+  'likeThanksEnabled', 'likeThanksMessages', 'shareThanksEnabled', 'shareThanksMessages',
+  'followThanksEnabled', 'followThanksMessages',
 ]);
+const FIXED_REPLY_KEYS = Object.freeze([...BASE_REPLY_KEYS, ...INTERACTION_THANKS_KEYS]);
 const SCHEDULE_KEYS = ['mode', 'intervalSeconds', 'minSeconds', 'maxSeconds', 'selection', 'messages'];
 
 function invalid(code = 'INVALID_FIXED_REPLY_SETTINGS') {
@@ -22,10 +27,16 @@ function text(value, limit) {
 function fixedReplyParameters(value) {
   if (!object(value) || !Object.keys(value).length || Object.keys(value).some((key) => !FIXED_REPLY_KEYS.includes(key))) invalid();
   const result = {};
-  for (const key of ['customExactReplyEnabled', 'scheduledDanmakuEnabled']) {
+  for (const key of ['customExactReplyEnabled', 'scheduledDanmakuEnabled',
+    'likeThanksEnabled', 'shareThanksEnabled', 'followThanksEnabled']) {
     if (!Object.hasOwn(value, key)) continue;
     if (typeof value[key] !== 'boolean') invalid();
     result[key] = value[key];
+  }
+  for (const key of ['likeThanksMessages', 'shareThanksMessages', 'followThanksMessages']) {
+    if (!Object.hasOwn(value, key)) continue;
+    if (!Array.isArray(value[key]) || value[key].length > 30) invalid();
+    result[key] = value[key].map((message) => text(message, 120));
   }
   if (Object.hasOwn(value, 'customExactReplies')) {
     if (!Array.isArray(value.customExactReplies) || value.customExactReplies.length > 30) invalid();
@@ -46,7 +57,7 @@ function fixedReplyParameters(value) {
     for (const key of ['intervalSeconds', 'minSeconds', 'maxSeconds']) {
       if (!Number.isInteger(schedule[key]) || schedule[key] < 10 || schedule[key] > 86400) invalid();
     }
-    if (schedule.minSeconds > schedule.maxSeconds || !Array.isArray(schedule.messages) || schedule.messages.length > 100) invalid();
+    if (schedule.minSeconds > schedule.maxSeconds || !Array.isArray(schedule.messages) || schedule.messages.length > 300) invalid();
     result.scheduledDanmaku = {
       mode: schedule.mode,
       intervalSeconds: schedule.intervalSeconds,
@@ -61,9 +72,11 @@ function fixedReplyParameters(value) {
 
 function sanitizeFixedReplySettings(value) {
   if (value?.ok !== true) invalid('INVALID_RESPONSE');
-  if (FIXED_REPLY_KEYS.some((key) => !Object.hasOwn(value, key))) invalid('FIXED_REPLY_UNSUPPORTED');
+  if (BASE_REPLY_KEYS.some((key) => !Object.hasOwn(value, key))) invalid('FIXED_REPLY_UNSUPPORTED');
+  const interactionKeys = INTERACTION_THANKS_KEYS.filter((key) => Object.hasOwn(value, key));
+  if (interactionKeys.length && interactionKeys.length !== INTERACTION_THANKS_KEYS.length) invalid('INVALID_RESPONSE');
   try {
-    const input = Object.fromEntries(FIXED_REPLY_KEYS.map((key) => [key, value[key]]));
+    const input = Object.fromEntries([...BASE_REPLY_KEYS, ...interactionKeys].map((key) => [key, value[key]]));
     if (Array.isArray(input.customExactReplies)) {
       input.customExactReplies = input.customExactReplies.map((rule) => ({ trigger: rule?.trigger, reply: rule?.reply }));
     }
@@ -76,4 +89,4 @@ function sanitizeFixedReplySettings(value) {
   }
 }
 
-module.exports = { FIXED_REPLY_KEYS, fixedReplyParameters, sanitizeFixedReplySettings };
+module.exports = { FIXED_REPLY_KEYS, INTERACTION_THANKS_KEYS, fixedReplyParameters, sanitizeFixedReplySettings };

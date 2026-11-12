@@ -17,10 +17,13 @@
           <div class="weekly-editor-actions">
             <span data-weekly-save-state role="status" aria-live="polite">正在读取本机模板…</span>
             <button type="button" data-weekly-action="retry" hidden>重试保存</button>
+            <button type="button" data-weekly-action="expand" disabled>大屏编辑</button>
             <button type="button" class="primary" data-weekly-action="export" disabled>导出 PNG</button>
+            <button type="button" data-weekly-action="exit-expanded" aria-label="退出大屏编辑" title="退出大屏编辑（Esc）" hidden><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg><span>退出 <kbd>Esc</kbd></span></button>
           </div>
         </div>
-        <div class="weekly-preview-viewport" data-weekly-preview-viewport><div data-weekly-preview></div></div>
+        <div class="weekly-preview-stage" data-weekly-stage><div class="weekly-preview-viewport" data-weekly-preview-viewport tabindex="0" aria-label="周表图片画布，点选并拖动图片，方向键微调位置"><div data-weekly-preview></div></div></div>
+        <p class="weekly-canvas-help">点选图片后拖动 · 右下角缩放 · 上方控制点旋转 · 方向键微调</p>
         <p class="weekly-preview-warning" data-weekly-overflow role="status" hidden></p>
         <div class="weekly-preview-actions">
           <button type="button" data-weekly-action="clear" disabled>清空本周内容</button>

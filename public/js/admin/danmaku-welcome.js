@@ -2,13 +2,17 @@ import {
   PARAMETER_FIELDS,
   LIBRARIES,
   SWITCHES,
+  AUDIENCE_LISTS,
   SUGGESTED,
   parameterValues,
   validMessages,
   confirmedSettings,
+  libraryMessages,
+  libraryPatch,
 } from './danmaku-welcome-model.js';
 import { createWelcomeLibrary } from './danmaku-welcome-library.js';
 import { createWelcomeCustom } from './danmaku-welcome-custom.js';
+import { createWelcomeAudience } from './danmaku-welcome-audience.js';
 
 export function initDanmakuWelcome({
   documentRef = globalThis.document,
@@ -28,6 +32,9 @@ export function initDanmakuWelcome({
   );
   const parameters = { values: {}, dirty: false, revision: 0 };
   const custom = { items: [], dirty: false, revision: 0, page: 0 };
+  const audience = Object.fromEntries(
+    Object.keys(AUDIENCE_LISTS).map((key) => [key, { items: [], dirty: false, revision: 0, page: 0 }]),
+  );
   let owner = '',
     generation = 0,
     settings = null,
@@ -39,10 +46,18 @@ export function initDanmakuWelcome({
     errors = {};
   const editor = createWelcomeLibrary({ documentRef, element, libraries, changed: libraryChanged });
   const customEditor = createWelcomeCustom({ documentRef, element, state: custom, changed: customChanged });
+  const audienceEditor = createWelcomeAudience({
+    documentRef, element, states: audience, changed: audienceChanged,
+    save: (key, uids) => void write({ [key]: uids }, [key]),
+  });
   const isV2 = () => settings?.schemaVersion === 2;
   const supportsReturning = () => isV2() && typeof settings.returningEnabled === 'boolean';
+  const supportsTimeWelcome = () => isV2() && typeof settings.timeWelcomeEnabled === 'boolean';
+  const supportsAudience = () => isV2() && Object.keys(AUDIENCE_LISTS).every((key) => Array.isArray(settings[key]));
+  const supportsOwnMedal = () => isV2() && typeof settings.welcomeOwnMedalOnly === 'boolean';
+  const hasAudienceDrafts = () => Object.values(audience).some((domain) => domain.dirty);
   const hasDrafts = () =>
-    parameters.dirty || custom.dirty || Object.values(libraries).some((domain) => domain.dirty || domain.addition);
+    parameters.dirty || custom.dirty || hasAudienceDrafts() || Object.values(libraries).some((domain) => domain.dirty || domain.addition);
   const parameterInputs = () => {
     for (const key of Object.keys(PARAMETER_FIELDS)) element(key).value = parameters.values[key] ?? '';
   };
@@ -56,6 +71,7 @@ export function initDanmakuWelcome({
     view = next;
     element('Parameters').hidden = view !== 'parameters';
     element('Libraries').hidden = view !== 'libraries';
+    element('Audience').hidden = view !== 'audience';
     for (const button of documentRef.querySelectorAll('[data-welcome-view]'))
       button.setAttribute('aria-pressed', String(button.dataset.welcomeView === view));
   }
@@ -78,6 +94,7 @@ export function initDanmakuWelcome({
     const loaded = Boolean(settings),
       busy = loading || saving;
     customEditor.controls({ supported: isV2() && Array.isArray(settings.userWelcomeMessages), loaded, busy });
+    audienceEditor.controls({ supported: supportsAudience(), loaded, busy });
     for (const [key, suffix] of Object.entries(SWITCHES)) {
       const field = element(suffix);
       field.checked = Boolean(settings?.[key]);
@@ -86,8 +103,10 @@ export function initDanmakuWelcome({
         busy ||
         (key !== 'enabled' && !isV2()) ||
         (key === 'returningEnabled' && !supportsReturning()) ||
+        (key === 'timeWelcomeEnabled' && !supportsTimeWelcome()) ||
+        (key === 'welcomeOwnMedalOnly' && !supportsOwnMedal()) ||
         (['greetingEnabled', 'attentionEnabled', 'returningEnabled'].includes(key) && !settings?.enabled);
-      field.title = key !== 'rareNamePinyinEnabled' && parameters.dirty && !settings?.[key] ? '开启并保存参数' : '';
+      field.title = !['rareNamePinyinEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'].includes(key) && parameters.dirty && !settings?.[key] ? '开启并保存参数' : '';
     }
     const libraryAvailable = loaded && (editor.current() !== 'returningMessages' || supportsReturning());
     input.disabled = !libraryAvailable;
@@ -99,6 +118,9 @@ export function initDanmakuWelcome({
     element('ReturningLibraryOption').disabled = !supportsReturning();
     element('ReturningLibraryBtn').disabled = !supportsReturning();
     element('ReturningCapability').hidden = !loaded || supportsReturning();
+    element('TimeCapability').hidden = !loaded || supportsTimeWelcome();
+    element('OwnMedalCapability').hidden = !loaded || supportsOwnMedal();
+    element('TimePeriod').disabled = !supportsTimeWelcome();
     element('Count').textContent = loaded ? `${library.items.length} 条` : '未读取';
     element('LibraryStatus').textContent = library.addition
       ? '输入尚未添加，不会随词库保存'
@@ -112,7 +134,8 @@ export function initDanmakuWelcome({
       .map(([key]) => LIBRARIES[key]);
     element('LibraryDrafts').textContent = dirtyNames.length ? `未保存：${dirtyNames.join('、')}` : '';
     refresh.disabled = !owner || busy;
-    refresh.textContent = hasDrafts() ? '保留草稿并刷新' : '刷新';
+    refresh.textContent = loading ? '刷新中…' : hasDrafts() ? '保留草稿并刷新' : '刷新';
+    refresh.setAttribute('aria-busy', String(loading));
     element('RefreshHint').hidden = !hasDrafts();
     element('Capability').hidden = !loaded || isV2();
     for (const key of Object.keys(PARAMETER_FIELDS)) element(key).disabled = !isV2();
@@ -130,14 +153,18 @@ export function initDanmakuWelcome({
         ? '词库尚未保存，启用时使用已保存词库。'
         : custom.dirty
           ? '用户欢迎词尚未保存，启用时使用已保存设置。'
-          : '';
+          : hasAudienceDrafts()
+            ? '欢迎名单尚未保存，启用时使用已保存名单。'
+            : '';
     element('OverviewStatus').textContent = /未确认|正在/.test(notice)
       ? notice
       : parameters.dirty
         ? '参数未保存 · 开启并保存参数'
         : dirtyNames.length || custom.dirty
           ? '欢迎词有未保存修改'
-          : '';
+          : hasAudienceDrafts()
+            ? '欢迎名单有未保存修改'
+            : '';
     const parsed = parameterValues(parameters.values, settings || {});
     const p = parsed.values;
     element('DependencyHint').textContent = !isV2()
@@ -145,14 +172,16 @@ export function initDanmakuWelcome({
       : !settings.greetingEnabled && p.greetingDelaySeconds <= p.welcomeDelaySeconds
         ? '重新开启问候前，需要把问候时间调到首次欢迎之后。'
         : p.greetingMinHonorLevel < p.welcomeMinHonorLevel
-          ? `问候仍需首次欢迎发送成功，实际至少 ${p.welcomeMinHonorLevel} 级；高荣耀文案也需满足阶段条件。`
+          ? settings.welcomeWhitelist?.length
+            ? '二次问候仍需首次欢迎发送成功，白名单不豁免问候的荣耀门槛。'
+            : `问候仍需首次欢迎发送成功，实际至少 ${p.welcomeMinHonorLevel} 级；高荣耀文案也需满足阶段条件。`
           : settings.attentionEnabled && p.attentionMinHonorLevel < p.welcomeMinHonorLevel
             ? '高荣耀文案仍需满足对应阶段条件。'
             : '';
     element('Summary').textContent = !loaded
       ? '尚未确认服务器设置'
       : isV2()
-        ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `至少 ${settings.welcomeMinHonorLevel} 级` : '等级不限'}`
+        ? `${settings.welcomeDelaySeconds} 秒后欢迎 · ${settings.welcomeMinHonorLevel ? `至少 ${settings.welcomeMinHonorLevel} 级` : '等级不限'}${settings.welcomeOwnMedalOnly ? ' · 仅本房间粉丝牌（白名单除外）' : ''}`
         : '服务器暂不支持新增设置';
   }
   function libraryChanged(key) {
@@ -169,6 +198,12 @@ export function initDanmakuWelcome({
     displayNotice('有尚未保存的用户欢迎词');
     controls();
   }
+  function audienceChanged(key) {
+    audience[key].dirty = true;
+    audience[key].revision += 1;
+    displayNotice(`有尚未保存的欢迎${AUDIENCE_LISTS[key].label}`);
+    controls();
+  }
   function parametersChanged() {
     parameters.revision += 1;
     parameters.dirty = true;
@@ -177,6 +212,7 @@ export function initDanmakuWelcome({
   }
   function accept(result, submitted = {}) {
     const next = confirmedSettings(result);
+    const timeModeChanged = Boolean(next.timeWelcomeEnabled) !== Boolean(settings?.timeWelcomeEnabled);
     settings = next;
     if (!parameters.dirty || submitted.parameters === parameters.revision) {
       parameters.values = Object.fromEntries(
@@ -190,7 +226,7 @@ export function initDanmakuWelcome({
     for (const key of Object.keys(LIBRARIES)) {
       const domain = libraries[key];
       if (!domain.dirty || submitted[key] === domain.revision) {
-        domain.items = [...(next[key] || [])];
+        domain.items = [...(libraryMessages(next, key) || [])];
         domain.dirty = false;
         if (editor.current() === key) render = true;
       }
@@ -201,16 +237,25 @@ export function initDanmakuWelcome({
       customEditor.setError('');
       customEditor.render();
     }
+    for (const [key, domain] of Object.entries(audience)) {
+      if (!domain.dirty || submitted[key] === domain.revision) {
+        domain.items = [...(next[key] || [])];
+        domain.dirty = false;
+        audienceEditor.setError(key, '');
+        audienceEditor.render(key);
+      }
+    }
     if (!isV2()) {
+      editor.setTimeMode(false);
       editor.select('messages');
       showView('libraries');
-    } else if (render) editor.render();
+    } else if (render || timeModeChanged) editor.setTimeMode(Boolean(next.timeWelcomeEnabled));
   }
   async function reload() {
     if (!owner || loading || saving || disposed) return;
     const requested = generation;
     loading = true;
-    displayNotice('正在读取服务器设置…');
+    if (!settings) displayNotice('正在读取服务器设置…');
     controls();
     try {
       const result = bridge.getWelcomeSettingsV2
@@ -239,7 +284,8 @@ export function initDanmakuWelcome({
     const submitted = Object.fromEntries(
       domains.map((key) => [
         key,
-        key === 'parameters' ? parameters.revision : key === 'userWelcomeMessages' ? custom.revision : libraries[key].revision,
+        key === 'parameters' ? parameters.revision : key === 'userWelcomeMessages' ? custom.revision :
+          (audience[key] || libraries[key]).revision,
       ]),
     );
     saving = true;
@@ -264,26 +310,45 @@ export function initDanmakuWelcome({
           element('Panel').dispatchEvent(new windowRef.CustomEvent('welcome:show-editor', { bubbles: true }));
           element('CustomError').focus();
         }
+        const audienceError = response.fieldErrors.find(({ field }) => AUDIENCE_LISTS[field]);
+        if (audienceError) {
+          const key = audienceError.field;
+          audienceEditor.setError(key, '请填写 1～20 位正整数 UID，同一名单不能重复，最多添加 100 人。');
+          showView('audience');
+          element('Panel').dispatchEvent(new windowRef.CustomEvent('welcome:show-editor', { bubbles: true }));
+          element(`${AUDIENCE_LISTS[key].suffix}Error`).focus();
+        }
       }
       if (domains.includes('userWelcomeMessages') && response?.ok && !Array.isArray(response.userWelcomeMessages))
         throw new Error('服务器尚未确认用户欢迎词');
+      if (domains.some((key) => AUDIENCE_LISTS[key]) && response?.ok &&
+        !Object.keys(AUDIENCE_LISTS).every((key) => Array.isArray(response[key])))
+        throw new Error('服务器尚未确认欢迎名单');
       if (('returningEnabled' in patch || domains.includes('returningMessages')) && response?.ok &&
         (typeof response.returningEnabled !== 'boolean' || !validMessages(response.returningMessages)))
-        throw new Error('服务器尚未确认久别重逢设置');
+        throw new Error('服务器尚未确认多天未到欢迎设置');
+      if (('timeWelcomeEnabled' in patch || 'timeWelcomeMessages' in patch) && response?.ok &&
+        (typeof response.timeWelcomeEnabled !== 'boolean' || !response.timeWelcomeMessages))
+        throw new Error('服务器尚未确认时段欢迎设置');
+      if ('welcomeOwnMedalOnly' in patch && response?.ok && typeof response.welcomeOwnMedalOnly !== 'boolean')
+        throw new Error('服务器尚未确认粉丝牌筛选');
       accept(isV2() ? response : { ...response, schemaVersion: 1 }, submitted);
       if (switchKey) {
         displayNotice('');
         return;
       }
       const libraryKey = domains.find((key) => LIBRARIES[key]);
+      const audienceKey = domains.find((key) => AUDIENCE_LISTS[key]);
       displayNotice(
         hasDrafts()
           ? '本次已保存，仍有未保存的更改'
           : libraryKey
-            ? `已保存 ${settings[libraryKey].length} 条${LIBRARIES[libraryKey]}`
+            ? `已保存 ${libraryMessages(settings, libraryKey).length} 条${LIBRARIES[libraryKey]}`
             : domains.includes('userWelcomeMessages')
               ? `已保存 ${settings.userWelcomeMessages.length} 位用户的欢迎词`
-              : '参数已保存',
+              : audienceKey
+                ? `欢迎${AUDIENCE_LISTS[audienceKey].label}已保存，共 ${settings[audienceKey].length} 人`
+                : '参数已保存',
       );
     } catch (error) {
       if (requested !== generation || disposed) return;
@@ -302,8 +367,10 @@ export function initDanmakuWelcome({
   }
   function setSwitch(key) {
     if (key === 'returningEnabled' && !supportsReturning()) return;
+    if (key === 'timeWelcomeEnabled' && !supportsTimeWelcome()) return;
+    if (key === 'welcomeOwnMedalOnly' && !supportsOwnMedal()) return;
     const target = element(SWITCHES[key]).checked;
-    if (key === 'rareNamePinyinEnabled') {
+    if (['rareNamePinyinEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'].includes(key)) {
       void write({ [key]: target });
       return;
     }
@@ -367,10 +434,16 @@ export function initDanmakuWelcome({
     Object.assign(custom, { items: [], dirty: false, revision: custom.revision + 1, page: 0 });
     customEditor.setError('');
     customEditor.render();
+    for (const [key, domain] of Object.entries(audience)) {
+      Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1, page: 0 });
+      audienceEditor.setError(key, '');
+      audienceEditor.render(key);
+    }
     for (const domain of Object.values(libraries))
       Object.assign(domain, { items: [], dirty: false, revision: domain.revision + 1, addition: '', page: 0 });
     parameterInputs();
     showErrors({});
+    editor.setTimeMode(false);
     editor.select('messages');
     displayNotice('连接 LIRA 账号后可设置进场欢迎');
     controls();
@@ -415,7 +488,7 @@ export function initDanmakuWelcome({
       toast('请保留 1～30 条文案，每条不超过 80 字');
       return;
     }
-    void write({ [key]: messages }, [key]);
+    void write(libraryPatch(key, messages), [key]);
   });
   element('CustomSaveBtn').addEventListener('click', () => {
     if (!Array.isArray(settings?.userWelcomeMessages)) return;
@@ -453,6 +526,7 @@ export function initDanmakuWelcome({
   parameterInputs();
   editor.render();
   customEditor.render();
+  for (const key of Object.keys(AUDIENCE_LISTS)) audienceEditor.render(key);
   controls();
   showView('parameters');
   displayNotice(bridge?.getWelcomeSettings ? '正在读取账号信息…' : '请在已连接服务器的桌面客户端中设置');

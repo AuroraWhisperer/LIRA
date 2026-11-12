@@ -4,6 +4,8 @@ const { registerLicenseOverlayIpc } = require('./license-overlay-ipc');
 const { registerLicenseSongsIpc } = require('./license-songs-ipc');
 const { registerFontLibraryIpc } = require('./font-library-ipc');
 const { registerLicenseFixedReplyIpc } = require('./license-fixed-reply-ipc');
+const { registerLicenseViewerNameIpc } = require('./license-viewer-name-ipc');
+const { createMainWindowIpcRegistrar } = require('./main-window-ipc');
 const { safeState, safeErrorCode, safeErrorIndex, safeString, sanitizePublicUrl } = require('./license-public-values');
 const { sanitizeWelcomeFieldErrors } = require('../../shared/welcome-settings-contract');
 
@@ -16,32 +18,20 @@ function registerLicenseIpc(options = {}) {
     giftCatalog = null,
     getMainWindow = () => null,
     getDesktopBaseUrl = () => '',
-    hasExactOrigin = () => false,
   } = options;
   if (!ipcMain || !licenseManager) throw new Error('License IPC dependencies are required.');
 
-  const safeHandle = (channel, handler, mainFrameOnly = false) => {
+  const register = createMainWindowIpcRegistrar({
+    ipcMain, getMainWindow, getDesktopBaseUrl, allowLicense: true,
+    onInvalidSource: () => ({ ok: false, state: safeState(licenseManager.getState()), error: 'IPC_SOURCE_INVALID' }),
+  });
+  const safeHandle = (channel, handler) => {
     try {
       ipcMain.removeHandler?.(channel);
     } catch (error) {
       void error;
     }
-    ipcMain.handle(channel, async (event, payload) => {
-      const window = getMainWindow();
-      const senderUrl = event?.senderFrame?.url || '';
-      if (
-        !window ||
-        window.isDestroyed?.() ||
-        event?.sender !== window.webContents ||
-        (mainFrameOnly && event?.senderFrame !== window.webContents.mainFrame) ||
-        !hasExactOrigin(senderUrl, getDesktopBaseUrl())
-      ) {
-        return {
-          ok: false,
-          state: safeState(licenseManager.getState()),
-          error: 'IPC_SOURCE_INVALID',
-        };
-      }
+    register(channel, async (_event, payload) => {
       try {
         return await handler(payload);
       } catch (error) {
@@ -99,6 +89,7 @@ function registerLicenseIpc(options = {}) {
   );
   registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettings: options.onOverlaySettings });
   registerLicenseFixedReplyIpc({ safeHandle, licenseManager, onFixedReplySettings: options.onFixedReplySettings });
+  registerLicenseViewerNameIpc({ safeHandle, licenseManager });
   registerLicenseSongsIpc({ safeHandle, licenseManager, getCloudSyncController: options.getCloudSyncController });
   const disposeFontLibrary = registerFontLibraryIpc({ safeHandle, licenseManager, getMainWindow,
     fontLibrary: options.fontLibrary });

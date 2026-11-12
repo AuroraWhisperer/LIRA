@@ -6,7 +6,7 @@ import { createPlaybackStateActions } from '../state/actions.js';
 
 import * as PlaybackUtils from '../utils.js';
 import { HomeService } from '../services/home-service.js';
-import { renderTrackRowMain } from '../ui/components.js';
+import { renderHomeTrackRow } from '../ui/components.js';
 
 function normalizeHomeTrack(track) {
   return track.source === 'local' ? { ...track } : PlaybackUtils.normalizeOnlineTrack(track);
@@ -40,6 +40,7 @@ export function createHomeHandler(deps) {
   // === Drawer 管理 ===
   function openPlaybackDrawer(title, subtitle, loading, loadingHint = '') {
     closeTrackMenu();
+    homeService.clearHistory();
     uiRenderer.getDrawer().open(title, subtitle, loading, loadingHint);
   }
 
@@ -56,7 +57,7 @@ export function createHomeHandler(deps) {
     if (previous) {
       renderPlaybackHomeResults(previous.action, previous.title);
     } else {
-      uiRenderer.getDrawer().goBack();
+      closePlaybackDrawer();
     }
   }
 
@@ -123,22 +124,7 @@ export function createHomeHandler(deps) {
     }
 
     body.innerHTML = result.items
-      .map(
-        (track, index) => `
-      <div class="queue-row playback-home-row" data-playback-home-track-row-index="${index}">
-        ${renderTrackRowMain(track)}
-        <div class="queue-actions">
-          <button type="button" data-playback-home-track-action="normal" data-playback-home-track-index="${index}" title="添加到播放队列末尾">入队</button>
-          ${
-            result.action === 'radio'
-              ? `<button type="button" data-playback-home-track-action="radio" data-playback-home-track-index="${index}" title="切换到电台队列并播放">电台</button>`
-              : `<button type="button" data-playback-home-track-action="requested" data-playback-home-track-index="${index}" title="插入到当前播放歌曲之后">插队</button>`
-          }
-          <button type="button" data-playback-home-track-action="play" data-playback-home-track-index="${index}" title="立即播放这首歌">播放</button>
-        </div>
-      </div>
-    `,
-      )
+      .map((track, index) => renderHomeTrackRow(track, index, 'home', result.action))
       .join('');
     updateDrawerActions(true);
   }
@@ -216,7 +202,9 @@ export function createHomeHandler(deps) {
     const source = playbackState.selectedSource || 'qq';
     const sourceId =
       homeState.action === 'playlist-tracks' ? `playlist:${currentPlaylist?.id || title}` : homeState.action;
-    return { title, sourceKey: `${source}:${sourceId}` };
+    // Both radio providers cap the home request to 50 tracks per page.
+    const radioOffset = homeState.action === 'radio' ? Math.max(1, Math.min(50, homeState.page || 1)) * 50 : undefined;
+    return { title, sourceKey: `${source}:${sourceId}`, radioOffset };
   }
 
   /**
@@ -236,7 +224,7 @@ export function createHomeHandler(deps) {
     if (action === 'play-all' || action === 'shuffle-all') {
       const queueType = homeState.action === 'radio' ? 'radio' : 'playlist';
       const collection = getHomeCollectionContext(homeState);
-      queueCallbacks.startPlaybackCollection(tracks, 0, queueType, collection.title, collection.sourceKey);
+      queueCallbacks.startPlaybackCollection(tracks, 0, queueType, collection.title, collection.sourceKey, collection.radioOffset);
       toast(
         queueType === 'radio' ? `开始播放电台，共载入 ${tracks.length} 首` : `开始播放歌单，共 ${tracks.length} 首`,
       );
@@ -273,9 +261,18 @@ export function createHomeHandler(deps) {
     });
 
     if (isHidden) {
+      menu.classList.remove('opens-up');
       menu.removeAttribute('hidden');
       menuButton?.setAttribute('aria-expanded', 'true');
-      menu.querySelector('[role="menuitem"]')?.focus();
+      const bodyBounds = document.getElementById('playbackDrawerBody')?.getBoundingClientRect();
+      const buttonBounds = menuButton?.getBoundingClientRect();
+      if (bodyBounds && buttonBounds) {
+        const availableBelow = bodyBounds.bottom - buttonBounds.bottom;
+        const availableAbove = buttonBounds.top - bodyBounds.top;
+        menu.classList.toggle('opens-up', availableBelow < menu.getBoundingClientRect().height + 4 &&
+          availableAbove > availableBelow);
+      }
+      menu.querySelector('[role="menuitem"]')?.focus({ preventScroll: true });
       const outsideClick = (event) => {
         if (!event.target.closest('.track-menu-wrapper')) closeTrackMenu();
       };
@@ -306,6 +303,7 @@ export function createHomeHandler(deps) {
   function handlePlaybackHomeTrackAction(action, index, callbacks) {
     const track = homeService.getItemByIndex(index);
     if (!track) return;
+    closeTrackMenu(true);
 
     if (action === 'remove') {
       const homeState = homeService.getHomeState();
@@ -335,7 +333,7 @@ export function createHomeHandler(deps) {
       if (activeIndex >= 0) {
         callbacks.jumpToPlaylistTrack(activeIndex);
       } else {
-        callbacks.startPlaybackCollection(tracks, index, queueType, collection.title, collection.sourceKey);
+        callbacks.startPlaybackCollection(tracks, index, queueType, collection.title, collection.sourceKey, collection.radioOffset);
       }
       return;
     }

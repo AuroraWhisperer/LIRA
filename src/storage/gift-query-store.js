@@ -6,6 +6,7 @@ const { createGiftAggregateChanges } = require('./gift-aggregate-changes');
 const { retentionLedgerFilter, statisticsFilter, mergeSummaryStatistics, activeSnapshot } = require('./gift-retention-queries');
 const { readLocalBlindArchives } = require('./gift-local-retention');
 const { transaction } = require('./gift-retention-store');
+const { readDetailAvailability } = require('./gift-detail-coverage');
 
 const registeredGiftSqlFunctions = new WeakSet();
 const historyCountCaches = new WeakMap();
@@ -402,9 +403,9 @@ function createGiftQueryStore(giftDb) {
 
   return {
     getChangeToken: aggregateChanges.read,
-    getRetention: (sourceId) => {
+    getRetention: (sourceId, options) => {
       const snapshot = activeSnapshot(giftDb, sourceId);
-      return snapshot ? { detailStart: snapshot.detail_start, summaryRevision: snapshot.revision } : null;
+      return readDetailAvailability(giftDb, sourceId, snapshot, options);
     },
     listBlindBoxRows,
     readHistorySnapshot: (options) => withReadTransaction(giftDb, () => listHistoryRows(options)),

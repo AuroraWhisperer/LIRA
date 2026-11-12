@@ -19,7 +19,6 @@ export class Drawer {
     this.actionsEl = null;
     this.backBtn = null;
     this.refreshBtn = null;
-    this.history = [];
     this.returnFocus = null;
   }
 
@@ -56,7 +55,7 @@ export class Drawer {
     if (this.subtitleEl) this.subtitleEl.textContent = subtitle || '';
 
     if (this.backBtn) {
-      this.backBtn.style.display = this.history.length > 0 ? '' : 'none';
+      this.backBtn.style.display = 'none';
     }
 
     if (loading) {
@@ -72,7 +71,6 @@ export class Drawer {
     if (this.drawer) this.drawer.inert = true;
     this.drawer?.classList.remove('open');
     this.backdrop?.classList.remove('open');
-    this.history = [];
     if (restoreFocus && this.returnFocus?.isConnected && !this.returnFocus.disabled &&
         !this.returnFocus.closest('[inert], [hidden]')) {
       this.returnFocus.focus({ preventScroll: true });
@@ -82,41 +80,6 @@ export class Drawer {
     // 取消卡片高亮
     document.querySelectorAll('[data-playback-home-action]').forEach((btn) => {
       btn.classList.remove('active');
-    });
-  }
-
-  /**
-   * 返回上一级
-   */
-  goBack() {
-    if (!this.history.length) {
-      this.close();
-      return;
-    }
-
-    const prev = this.history.pop();
-    this.renderContent(prev.items, prev.itemType, prev.action, prev.title, prev.page);
-
-    if (this.backBtn) {
-      this.backBtn.style.display = this.history.length > 0 ? '' : 'none';
-    }
-  }
-
-  /**
-   * 保存当前状态到历史
-   * @param {Array} items - 项目列表
-   * @param {string} itemType - 项目类型
-   * @param {string} action - 操作类型
-   * @param {string} title - 标题
-   * @param {number} page - 页码
-   */
-  pushHistory(items, itemType, action, title, page) {
-    this.history.push({
-      items: items.slice(),
-      itemType,
-      action,
-      title,
-      page,
     });
   }
 
@@ -149,9 +112,10 @@ export class Drawer {
    * @param {string} itemType - 项目类型 ('playlist' 或 'track')
    * @param {string} action - 操作类型
    * @param {string} title - 标题（可选）
-   * @param {number} page - 页码（可选）
+   * @param {boolean} canGoBack - 是否可以返回上一层
    */
-  renderContent(items, itemType, action = '', title = '', page = 1) {
+  renderContent(items, itemType, action = '', title = '', canGoBack = false) {
+    if (this.backBtn) this.backBtn.style.display = canGoBack ? '' : 'none';
     if (!this.bodyEl) return;
 
     if (!items || !items.length) {
@@ -228,12 +192,5 @@ export class Drawer {
     }
 
     this.actionsEl.hidden = !showPlayAll;
-  }
-
-  /**
-   * 清空历史
-   */
-  clearHistory() {
-    this.history = [];
   }
 }

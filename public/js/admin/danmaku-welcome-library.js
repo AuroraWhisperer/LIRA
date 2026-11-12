@@ -1,10 +1,20 @@
 import { LIBRARIES } from './danmaku-welcome-model.js';
+import { WELCOME_TIME_PERIODS, welcomeTimePeriod } from '../shared/welcome-time-periods.js';
 
 export function createWelcomeLibrary({ documentRef, element, libraries, changed }) {
   let key = 'messages';
+  let timeMode = false;
+  let periodId = welcomeTimePeriod(Date.now()).id;
   const list = element('List'),
     input = element('Input'),
     selector = element('LibraryKind');
+  const periodSelector = element('TimePeriod');
+  for (const { id, label, range } of WELCOME_TIME_PERIODS) {
+    const option = documentRef.createElement('option');
+    option.value = id;
+    option.textContent = `${label} · ${range}`;
+    periodSelector.appendChild(option);
+  }
   function render() {
     const domain = libraries[key];
     const pages = Math.max(1, Math.ceil(domain.items.length / 6));
@@ -40,10 +50,14 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
       list.appendChild(row);
     });
     input.value = domain.addition;
-    selector.value = key;
+    const timed = key.startsWith('time:');
+    selector.value = timed ? 'messages' : key;
+    element('MessagesOption').textContent = timeMode ? '时段欢迎词库' : '欢迎词库';
+    element('TimePeriodRow').hidden = !timed;
+    periodSelector.value = periodId;
     const returning = key === 'returningMessages';
-    input.placeholder = returning ? '例如：最近过得怎么样呀？' : '例如：欢迎 {username} 来到直播间～';
-    input.setAttribute('aria-label', returning ? '新增重逢客套话' : '新增欢迎语');
+    input.placeholder = returning ? '例如：{username}，{days}天不见，弹幕区想你啦～' : '例如：欢迎 {username} 来到直播间～';
+    input.setAttribute('aria-label', returning ? '新增多天未到欢迎语' : '新增欢迎语');
     element('ReturningLibraryHint').hidden = !returning;
     element('TemplateHelp').hidden = returning;
     element('Pagination').hidden = pages <= 1;
@@ -64,14 +78,21 @@ export function createWelcomeLibrary({ documentRef, element, libraries, changed 
     render();
   });
   selector.addEventListener('change', () => {
-    key = selector.value;
-    render();
-    changed(null);
+    select(selector.value);
+  });
+  periodSelector.addEventListener('change', () => {
+    periodId = periodSelector.value;
+    select('messages');
   });
   function select(next) {
-    key = next;
+    key = next === 'messages' && timeMode ? `time:${periodId}` : next;
     render();
     changed(null);
   }
-  return { render, select, current: () => key };
+  function setTimeMode(enabled) {
+    timeMode = enabled;
+    if (key === 'messages' || key.startsWith('time:')) key = enabled ? `time:${periodId}` : 'messages';
+    render();
+  }
+  return { render, select, setTimeMode, current: () => key };
 }

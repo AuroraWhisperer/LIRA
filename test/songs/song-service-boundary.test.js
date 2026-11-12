@@ -19,6 +19,19 @@ function fixture(t) {
   return { db, store: createSongStore(db) };
 }
 
+test('song creation, renaming and cloud restoration derive the Chinese initial from the song name', (t) => {
+  const { store } = fixture(t);
+  for (const [name, initial] of [['江南', 'J'], ['富士山下', 'F'], ['告白', 'G'], ['来日方长', 'L'], ['妈妈', 'M'], ['Alpha', 'A'], ['123', '#']]) {
+    const saved = songService.saveSong(store, { name });
+    assert.equal(saved.name_initial, initial, name);
+  }
+  const song = songService.listSongs(store, { query: '江南' })[0];
+  songService.saveSong(store, { id: song.id, name: '富士山下', artist: '另一个版本' });
+  assert.equal(songService.listSongs(store, { artist: '另一个版本' })[0].name_initial, 'F');
+  songService.replaceCloudSongs(store, [{ title: '江南', artist: '云端歌手' }]);
+  assert.equal(songService.listSongs(store)[0].name_initial, 'J');
+});
+
 test('song store migration preserves LIKE filtering and stable artist ordering', (t) => {
   const { store } = fixture(t);
   songService.saveSong(store, { name: 'Alpha', categoryName: 'Folk' });

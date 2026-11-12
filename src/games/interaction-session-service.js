@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const { createPoll } = require('./poll');
@@ -33,7 +35,7 @@ function createInteractionSessionService(options = {}) {
   const timestamps = new Map();
 
   function fail(message, statusCode = 409) {
-    throw Object.assign(new Error(message), { statusCode });
+    throw createPublicError(message, statusCode);
   }
   function state() {
     expire();

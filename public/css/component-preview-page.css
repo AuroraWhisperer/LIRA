@@ -83,7 +83,7 @@
 .lira-select[data-select-variant='canvas-background'] .lira-select-option:focus-visible { outline: 1px solid var(--select-accent); outline-offset: -1px; }
 .component-preview-page .scene-editor-viewport { display: flex; align-items: center; overflow: hidden; background: var(--preview-workspace); }
 .component-preview-page .scene-editor-extent { flex-shrink: 0; outline: 1px solid var(--color-border-strong, #c2cad6); }
-.component-preview-page .scene-editor-canvas { background-color: #e1e6ec; background-image: conic-gradient(#f4f6f9 25%, transparent 0 50%, #f4f6f9 0 75%, transparent 0); background-size: calc(24px * var(--scene-inverse-scale)) calc(24px * var(--scene-inverse-scale)); }
+.component-preview-page .scene-editor-canvas { background-color: #e6e9ed; background-image: conic-gradient(#eef0f3 25%, transparent 0 50%, #eef0f3 0 75%, transparent 0); background-size: calc(24px * var(--scene-inverse-scale)) calc(24px * var(--scene-inverse-scale)); }
 .component-preview-page .scene-editor-empty { color: #465166; }
 .component-preview-page .scene-editor-stage-host[data-background='dark'] .scene-editor-canvas { background: #20252d; }
 .component-preview-page .scene-editor-stage-host[data-background='dark'] .scene-editor-empty { color: #f3f4f5; }

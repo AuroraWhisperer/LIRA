@@ -4,17 +4,17 @@
 
 本文档描述"AI 弹幕姬"领域模块:`src/ai/` 下的全部实现。HTTP 端点仅在此以文字提及并链接 [api.md](api.md) §13;AI 相关表 DDL 与设置见 [storage.md](storage.md) §3.1;弹幕触发链见 [bilibili/danmaku.md](bilibili/danmaku.md);进程装配与关闭时序见 [server-core.md](server-core.md) §5–§6。
 
-**内部模块边界:** `ai-assistant-service.js` 拥有触发、排队、取消、回复投递与送达后的记忆提交；[ai-reply-generator.js](../../../src/ai/ai-reply-generator.js) 拥有每轮人格、上下文快照、会话 ID、缓存、工具与前后审核，生成和吞弹幕后重生成使用同一 turn。它显式返回记忆材料，不修改 service 的任务对象；service 仅在送达确认后追加会话。`ai-assistant-helpers.js` 提供提示与回复归一化纯函数，[conversation-context.js](../../../src/ai/conversation-context.js) 负责有界多轮历史的规范化与追加。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
+**内部模块边界:** `ai-assistant-service.js` 拥有两种入口的准入、排队、取消、回复投递与送达后的记忆提交；[ai-reply-generator.js](../../../src/ai/ai-reply-generator.js) 拥有每轮人格、上下文快照、会话 ID 与审核，定向问答还使用缓存、工具和吞弹幕后同 turn 重生成。它显式返回记忆材料，不修改 service 的任务对象；service 仅在送达确认后追加会话。[auto-reply-controller.js](../../../src/ai/auto-reply-controller.js) 只持有自动接话的有限公开窗口、候选、计时与提交前时效；[auto-reply-prompt.js](../../../src/ai/auto-reply-prompt.js) 持有对应任务提示、审核提示和动作解析，不另建模型客户端或发送器。`ai-assistant-helpers.js` 提供提示与回复归一化纯函数，[conversation-context.js](../../../src/ai/conversation-context.js) 负责有界多轮历史的规范化与追加。helpers 不读取配置存储、不调用模型/工具，也不发送弹幕。
 
 [model-protocol.js](../../../src/ai/model-protocol.js) 集中拥有 Responses/Chat Completions 请求、工具及厂商推理参数转换和响应归一化，供模型入口与 ChatGPT 客户端单向消费。`model-client.js` 保留账号路由、HTTP 与日志、连接检查和 Chat Completions 历史生命周期；协议模块没有网络或缓存状态。
 
 ## 1. 概览与触发链
 
-AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫等角色包只改变身份和语气。普通问答不依赖天气或地图服务。[server/bilibili-client.js](../../../src/server/bilibili-client.js) 的 `onMessage` 先发布弹幕并交给 `aiDanmakuDeliveryVerifier.observe(danmaku)`（投递验证，见 §9），再处理小游戏与本地命令。命令结果为 `cloud-owned` 时提前返回；其余消息调用 `aiAssistant.handleDanmaku`，传入房间、消息、用户身份和回复会话捕获函数，异步排队生成并发送回复。`server.js` 只负责把 AI runtime 与该消息入口接线。
+AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫等角色包只改变身份和语气。定向问答与默认关闭的自动接话共用当前模型、凭据、接入方式和人格；普通问答不依赖天气或地图服务。[server/bilibili-client.js](../../../src/server/bilibili-client.js) 的 `onMessage` 先发布弹幕并交给 `aiDanmakuDeliveryVerifier.observe(danmaku)`（投递验证，见 §9），再处理小游戏与本地命令。命令结果为 `cloud-owned` 时提前返回；其余消息调用 `aiAssistant.handleDanmaku`，除房间、消息、用户身份外，还传入 `source/messageTimestamp/sessionKey/isSessionCurrent/autoReplyExcluded/captureReplySession`。时间和来源用于自动候选准入；轻量会话标识用于发现换房、换账号或监听重建，不代替发送授权。`server.js` 只负责把 AI runtime 与该消息入口接线。
 
 | 事实       | 值                                                                                                                              | 出处                                                                                                                        |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| 角色人格 | `personas.js` 提供 `general`（无额外人格的通用）、`cat`（沿用结构化角色指南的橘猫）；`custom` 读取 `systemPrompt`，自建或导入包按 ID 选择；`{{name}}` 在生成时替换为 `trigger`，编辑/导出保留模板；小猫风格不写入公共底层规则 | [personas.js](../../../src/ai/personas.js)、[prompt.js](../../../src/ai/prompt.js) |
+| 角色人格 | `personas.js` 提供 `general`（通用）、`cat`（温软好奇的小猫娘）、`whale`（童真温和的鲸鱼娘）；后两者针对 DeepSeek 调整与验证。`custom` 读取 `systemPrompt`，自建或导入包按 ID 选择；`{{name}}` 在生成时替换为 `trigger`，编辑/导出保留模板；角色语气不写入公共底层规则 | [personas.js](../../../src/ai/personas.js)、[prompt.js](../../../src/ai/prompt.js) |
 | 模型后端   | 供应商可选自动识别、DeepSeek、Kimi、OpenAI、Claude、Gemini、豆包账号或自定义；OpenAI 支持 API 与 ChatGPT 订阅两种接入；Claude/Gemini 复用各自官方 OpenAI 兼容入口，不引入原生协议适配器 | [config.js](../../../src/ai/config.js)、[model-endpoint.js](../../../src/ai/model-endpoint.js)                              |
 | 触发关键词 | 配置键 `trigger`,默认空字符串,1–12 字符;配置后消息中出现即触发                                                                  | [config.js](../../../src/ai/config.js)、[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)                  |
 | 就绪条件 | `isAiReady`：enabled 为真且 trigger 非空；API 模式另要求 URL、API Key、model 非空，豆包准入另检查已登录且无需验证；ChatGPT 订阅另要求 model、可用桌面加密与已授权的账号，无需 API Key | [config.js](../../../src/ai/config.js)、[model-client.js](../../../src/ai/model-client.js) |
@@ -23,13 +23,13 @@ AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫�
 
 ## 2. 弹幕准入链(handleDanmaku)
 
-`handleDanmaku`([ai-assistant-service.js](../../../src/ai/ai-assistant-service.js))在就绪检查后归一化 UID（无 UID 时使用 `name:<userName>`），然后先排除近期自身回复，再执行触发词及其他准入检查。任一失败即返回 `{accepted: false, reason}`:
+`handleDanmaku`([ai-assistant-service.js](../../../src/ai/ai-assistant-service.js))先同步有效配置，再在就绪检查后归一化 UID（无 UID 时使用 `name:<userName>`），排除近期自身回复，然后分流。命中关键词的消息只走下表的定向问答，即使被黑名单、冷却或限额拒绝也不回落自动接话；点名到达会中断尚未提交的自动候选。未命中且开启 `autoReplyEnabled` 才走 §3.4。现有关键词是包含匹配，未实现基于平台提及目标 UID 的独立呼叫识别。
 
 | 检查         | 语义                                                                                                                         | 出处                                                                                                                                           |
 | ------------ | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | 就绪检查     | `isAiReady` 不成立 → `disabled_or_unconfigured`                                                                              | [ai-assistant-service.js:57-58](../../../src/ai/ai-assistant-service.js#L57-L58)                                                               |
 | 自身回复回声 | 发送前按实际发送账号 UID 记录每个拆分片段，60 秒内同 UID 的完全相同文本（含平台可能添加的 @ 前缀）返回 `self_reply`；同账号的其他提问和其他观众的同文仍可准入 | [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)、[sender-service.js](../../../src/bilibili/danmaku/sender-service.js) |
-| 触发词匹配   | `extractTriggeredQuestion` 在消息中定位 `trigger`,两侧文本拼回作为问题;空问题回退为"和大家打个招呼";未命中 → `not_triggered` | [ai-assistant-service.js:60-61](../../../src/ai/ai-assistant-service.js#L60-L61)、[308-316](../../../src/ai/ai-assistant-service.js#L308-L316) |
+| 触发词匹配   | `extractTriggeredQuestion` 在消息中定位 `trigger`,两侧文本拼回作为问题;空问题回退为"和大家打个招呼";未命中且自动关闭 → `not_triggered` | [ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js) |
 | 黑名单       | `store.isBlacklisted(uid)` 命中 → `blacklisted`(表 `ai_blacklist`)                                                           | [ai-assistant-service.js:63](../../../src/ai/ai-assistant-service.js#L63)、[config-store.js](../../../src/ai/config-store.js)    |
 | 本地安全规则 | `checkLocalInput` 命中硬规则 → 以 `localRefusal` 直接入队(不再调用模型),见 §6                                                | [ai-assistant-service.js:64-70](../../../src/ai/ai-assistant-service.js#L64-L70)                                                               |
 | 用户冷却     | `userCooldownSeconds`(默认 0)内同一 uid 重复触发 → `user_rate_limited`                                                       | [ai-assistant-service.js:80-90](../../../src/ai/ai-assistant-service.js#L80-L90)                                                               |
@@ -39,28 +39,30 @@ AI 弹幕姬由模型服务驱动；新配置默认使用通用助手，小猫�
 
 ## 3. 回复生成管线与协调器
 
-总开关关闭由 `PUT /api/ai/config` 经 [api-context.js](../../../src/server/api-context.js) 调用 `service.updateConfig()`，先完成配置验证和持久化，再同步取消当前任务轮次：清空等待/已生成未投递队列、中止模型/工具/送达确认，并停止剩余分段和重试。每个任务保留所属轮次的 signal，关开后迟到结果也不能复活；重开只接收新触发。已提交上游的弹幕发送无法撤回，后续发送前沿用 sender 的逐段检查。旧协调器 drain 结束即从跟踪集合删除，应用 shutdown 仍等待未完成的 drain；关闭 AI 不永久停止服务，也不取消连接测试、模型列表或手动弹幕。进入/离开账号模式（豆包或 ChatGPT 订阅）会取消旧任务，其他普通配置修改与保存失败不取消现有任务。账号切换/退出使会话代次失效，发送前也会检查，避免旧账号回复迟到。
+配置存储在验证、事务提交和缓存发布成功后通知 `subscribe` 监听者；service 因此统一观察普通保存以及人格创建、编辑、导入、删除和恢复，避免仅拦截配置 HTTP 入口而漏掉人格修改。生效的总开关、名字、供应商/接入方式、模型、地址/协议/密钥、思考参数或当前人格 ID/正文变化时，取消两个模式的当前任务轮次：清空等待/已生成未投递队列、中止模型/工具/送达确认，并停止剩余分段和重试。编辑未选角色或只改角色说明不取消；保存失败保持旧配置及任务。模型账号会话代次同样参与有效配置比较，准入、候选运行和发送前再次检查。
+
+每个任务保留所属轮次的 signal，关开后迟到结果不能复活，重开只接收新内容；单独关闭自动接话仅清理其候选、计时器及在途自动任务。已提交上游的弹幕无法撤回。旧协调器 drain 完成即删除，shutdown 仍等待未结束的 drain；关闭 AI 不永久停止服务，也不取消连接测试、模型列表或手动弹幕。已确认文字历史继续按原作用域和 TTL 保留，不因换模型整体删除。
 
 管理页总开关单独按操作顺序保存，其他字段草稿无效也能关闭；普通表单保存不携带 enabled，避免旧配置回执重新开启。相关回归见 [ai-assistant-lifecycle.test.js](../../../test/ai/ai-assistant-lifecycle.test.js)、[ai-routes.test.js](../../../test/ai/ai-routes.test.js) 和 [frontend-admin-ai-settings.test.js](../../../test/ai/frontend-admin-ai-settings.test.js)。
 
-### 3.1 生成管线(generateReply)
+### 3.1 定向问答生成管线(generateReply)
 
 [生成回合](../../../src/ai/ai-reply-generator.js) 按序执行:
 
 1. **本地拒绝短路**:`item.localRefusal` 直接返回,`category: 'safety'`,不消耗模型配额。
-2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v7`，不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
-3. **输入安全审核**:先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。API 与 ChatGPT 订阅模式再交给 `buildInputReviewPrompt`，任务放在 `instructions`，待审 JSON 放在 `input`；未通过只返回固定 `SAFE_REFUSAL`。豆包账号模式保留本地检查，跳过此远程审核，直接进入生成以减少首字等待。
-4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史是同一观众当前会话的已交付问答，用于延续正常聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。API 与 ChatGPT 订阅的输入审核、生成收到相同历史，详见 §3.3。
+2. **查询缓存**：固定本次人格，按可信房间、UID 和人格读取已送达历史；任一保留片段未通过本地安全检查则不使用历史。缓存键覆盖规则版本（`reply-v10`，远程审核策略更新后不读取旧策略缓存）、配置、账号代次、人格作用域、UID、昵称、问题、实际有界输入和不可用工具集合；store 只保存 SHA-256 摘要。首次未交付的随机 sessionId 不进入内容缓存键，相同无历史首问仍可命中。聊天/工具/缓存回答均须确认送达后才追加历史；重试固定同一历史快照和 sessionId，并绕过缓存。失败或拒绝不写记忆、不续期。
+3. **输入安全审核**:先用 `buildConversationInput` 生成本次问题与短期上下文的 JSON。`modelProvider` 为 `deepseek` 或 `doubao` 时保留本地检查，跳过远程输入审核；其余 API 与 ChatGPT 订阅模式再交给 `buildInputReviewPrompt`，任务放在 `instructions`，待审 JSON 放在 `input`，未通过只返回固定 `SAFE_REFUSAL`。
+4. **观众上下文**：输入 JSON 为 `{question, previousExchange}`；两轮及以上增加按时间排列的 `earlierExchanges`，裁剪后标记 `historyTruncated: true`。历史是同一观众当前会话的已交付问答，用于延续正常聊天、接龙、猜谜及省略，不具有覆盖公共规则的权限。执行远程输入审核时，审核与生成收到相同历史，详见 §3.3。
 5. **主生成**：`deepseek.createResponse` 的 `instructions` 先放公共事实/安全规则，再以单行 `JSON.stringify({ persona })` 传入角色风格资料，避免角色中的换行或标签拼接成额外指令段；已保存角色文本不变。实际可用工具、北京时间与发送预算由程序提供，多轮上下文用于理解当前活动与问题。见 [buildReplyInstructions](../../../src/ai/ai-assistant-helpers.js)。不强制猫语、颜文字、固定推荐数量或非思考模式。
 6. **工具循环**:`response.functionCalls` 非空时执行工具(§5),结果以 `function_call_output` 回填并带 `previousResponseId` 续问;累计调用超过 `maxToolCalls`(默认 6)→ `TOOL_LIMIT`。
-7. **输出检查**:API 与 ChatGPT 订阅模式用 `buildOutputReviewPrompt` 分离审核指令与包含本次问题、同一份会话历史及 `candidateAnswer` 的 JSON；未通过则返回固定 `SAFE_REFUSAL`，通过时再次清理 `safeText` 或原答案。豆包账号模式跳过远程输出审核，对一次生成的完整文字执行 `cleanModelText` 与本地检查。所有模式本地检查失败均使用固定拒绝语；本地拒绝或模型返回指定的固定拒绝语均记 `category: 'safety'`，不写缓存或上下文，不提前把未检查的流式片段送入弹幕。
+7. **输出检查**:`modelProvider` 为 `deepseek` 或 `doubao` 时跳过远程输出审核，对完整文字执行 `cleanModelText` 与本地检查。其余 API 与 ChatGPT 订阅模式用 `buildOutputReviewPrompt` 分离审核指令与包含本次问题、同一份会话历史及 `candidateAnswer` 的 JSON；未通过则返回固定 `SAFE_REFUSAL`，通过时再次清理 `safeText` 或原答案。清理后为空抛 `AI_EMPTY_REPLY`，走失败提示，不缓存、不写记忆，也不因此追加模型请求。所有模式本地检查失败均使用固定拒绝语；本地拒绝或模型返回指定的固定拒绝语均记 `category: 'safety'`，不写缓存或上下文，不提前把未检查的流式片段送入弹幕。
 8. **截断与落库**:按长度预算 `truncateReply`(超出截断加 `…`);写缓存、写 `ai_request_logs`；上下文仅在 FIFO 投递成功确认后提交最终答案（见步骤 2）(`category` 为 `tool`/`chat`,工具调用数 > 0 记 `tool`)。
 
-长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都自动附加公共底层提示，角色资料仅用于名字、语气及普通互动偏好；发送时仍截断到预算。API 与 ChatGPT 订阅模式继续独立执行输入/输出审核；豆包用固定安全指令、本地输入/输出检查和无工具权限的单次生成。
+长度预算由 [getReplyLengthBudget](../../../src/ai/ai-assistant-helpers.js) 统一计算：单条弹幕 `DANMAKU_MESSAGE_LIMIT = 40` 减去 `@用户名 ` 长度，允许 1–3 条。界面不提供长度偏好，旧 `replyMaxChars` 键仅兼容读写，不影响生成预算。所有内置、自建、导入角色都自动附加公共底层提示，角色资料仅用于名字、语气及普通互动偏好；发送时仍截断到预算。DeepSeek 省去 `input_review` / `output_review` 请求，缓存、短期历史和可选工具续接保持生效；普通无工具问答只需主生成请求，缓存命中不请求模型，工具续接和送达重试可能增加请求。豆包使用无工具权限的单次生成，其余 API 与 ChatGPT 订阅继续独立执行输入/输出审核。
 
-共享规则要求先给核心答案，再补充说明；成语接龙轮到助手时，应接观众最新有效词并实际给出符合约定的新成语，不能复述原词或只报尾字便交回合。输出审核同时检查衔接与当前回合，不把正确新词改回观众原词；审核收到与生成相同的正文长度上限，压缩时优先保留答案。送达重试改用单条预算，见 §9.2。这些是生成与审核要求，不是确定性的成语库校验。
+定向问答规则要求先给核心答案，再补充说明；成语接龙轮到助手时，应接观众最新有效词并实际给出符合约定的新成语，不能复述原词或只报尾字便交回合。执行远程输出审核时，同时检查衔接与当前回合，不把正确新词改回观众原词；审核收到与生成相同的正文长度上限，压缩时优先保留答案。送达重试改用单条预算，见 §9.2。这些是生成与审核要求，不是确定性的成语库校验；自动任务采用 §3.4 的可沉默策略。
 
-API 模式主生成及工具后续请求的输出 token 上限按是否开启思考模式切换：`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`（[ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)）。输入、输出审核仅需短 JSON，固定 `REVIEW_OUTPUT_TOKENS = 384`，请求单独设 `reasoningEnabled: false`，避免思考内容耗尽审核输出额度；不修改已保存的思考设置，正式回答仍按用户设置执行（[runSafetyReview](../../../src/ai/ai-assistant-service.js)）。
+API 模式主生成及工具后续请求的输出 token 上限按是否开启思考模式切换：`MODEL_OUTPUT_TOKENS = 3072` / `REASONING_OUTPUT_TOKENS = 4096`（[ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)）。需要远程审核时，审核仅生成短 JSON，固定 `REVIEW_OUTPUT_TOKENS = 384`，审核请求单独设 `reasoningEnabled: false`；不修改已保存设置，两种任务的核心生成仍按用户设置执行（[runSafetyReview](../../../src/ai/ai-reply-generator.js)）。关闭选项由现有 provider adapter 翻译，部分模型只能降为低推理，并不保证所有供应商真正关闭思考，见 §4。
 
 ### 3.2 顺序协调器(createOrderedAsyncCoordinator)
 
@@ -80,11 +82,43 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 同一房间/UID 从生成到交付结束占用一个协调器分组；其他观众可并发生成，所有回复仍按入队顺序交付。等待同组的任务不占生成槽，交付/错误处理 finally 释放分组并重新调度；下一问因此能读取上一问实际送达的历史。生成失败、发送失败和关闭不能卡住后续任务。
 
-`contextTtlSeconds` 默认 600 秒、范围 60–86400 秒；显式已保存值保留。设置页“空闲多久后结束对话（分钟）”换算读写同一字段，支持非整分钟旧值。只有成功交付续期，无关键词弹幕、拒绝、失败和入队均不续期。任务开始读取时已过期则新建；已读到有效历史的在途任务跨过期后仍可完成，成功才重新续期。修改时长影响之后的成功交付，不追溯调整旧 expires_at。
+`contextTtlSeconds` 默认 600 秒、范围 60–86400 秒；显式已保存值保留。设置页“空闲多久后结束对话（分钟）”换算读写同一字段，支持非整分钟旧值。只有成功交付给明确观众的交流续期，普通观察、群聊自动回复、拒绝、失败和入队均不续期；单人自动回复的归属见 §3.4。任务开始读取时已过期则新建；已读到有效历史的在途任务跨过期后仍可完成，成功才重新续期。修改时长影响之后的成功交付，不追溯调整旧 expires_at。
 
 带关键词的完整“结束对话”或“清空对话”（允许末尾标点）在同一队列中删除当前作用域，下一问新建 sessionId。确认文字不写历史，确认未送达也不恢复旧记忆，重试仅重发固定确认、不调用模型。原来的仅 UID/人格键不能可靠确定房间，不迁入新作用域，按原 TTL 清理。
 
 回归见 [连续互动](../../../test/ai/ai-conversation-continuity.test.js)、[历史预算](../../../test/ai/ai-conversation-context.test.js)、[空闲维护](../../../test/ai/ai-runtime-cleanup.test.js)。
+
+### 3.4 自动接话
+
+`autoReplyEnabled` 默认 `false`，开启后仍受总开关、名字和模型就绪条件控制。只有带真实 UID、房间和 `source: 'danmaku'` 的普通消息进入候选；黑名单、本地安全拒绝、小游戏/命令/其他回复已经处理的事件由入口排除。普通弹幕不保证在上游去重，控制器按 `[uid,text,规范化的平台时间戳]` 保存事件键，同一事件只接纳一次，不因后来同文事件覆盖旧键；没有时间戳时抑制 2 秒内同 UID/文本。去重键最多 200 个、保留 30 秒。已有时间戳无效、早于窗口或超前本机 5 秒以上也不接纳。
+
+| 边界 | 固定行为 |
+| --- | --- |
+| 公开消息窗口 | 最近 30 秒、最多 40 条；每条正文最多 200 个 Unicode 码点、昵称最多 80 个；仅内存 |
+| 候选触发 | 无冷却时首条收到后 600 ms 的计时器触发，不依赖下一条弹幕唤醒；每房间至多一个候选。冷却期只缓存消息和到期计时器，不提前建立候选 |
+| 候选有效期 | 固定 `firstAt + 12 秒`；普通候选以首条收到时间为 `firstAt`，冷却后新候选以确立时间为 `firstAt`。包括审核、生成、排队和发送前等待，已有候选不随新消息延长，不是模型性能承诺 |
+| 等待补充 | `wait` 固定截止为候选 `firstAt + 2500 ms`，仅目标作者的新补充可唤醒；无关消息不延长期限，无补充则结束 |
+| 评估预算 | 普通新候选核心评估间隔至少 5 秒；每候选最多两次评估，第二次仅用于有界补充或过时快照重评 |
+| 发言预算 | 自动消息提交间隔至少 15 秒；观察、丢弃和自动评估均不消费定向问答的用户/房间请求额度 |
+| 已说内容 | `botReplies` 仅保留确认送达的聊天回复，最近 30 秒、最多 8 条；附 `targetUid/targetUserName/question`，原话限 200 个码点，全场回复目标为空；供模型理解反馈与避免重复 |
+
+冷却到期后，仅在存在最近 12 秒内的未消费消息时建立新候选，以最新消息向前 600 ms 选取当前批次并消费更旧话题；没有新近内容就结束等待。这样不会在 15 秒提交冷却尚未结束时先耗尽 12 秒候选寿命，也不会一直靠新消息延长已有候选。
+
+定向队列和发送都空闲时才将自动任务交给同一协调器。新点名请求取消未提交的自动任务并消费当前旧候选；自动生成阶段取消可释放 FIFO 序号，迟到结果不能交付。adapter 忽略取消时，真实模型请求仍保留排空跟踪并占用并发槽；并发为 1 时定向请求仍须等待它结束，不能把取消描述为保证立即执行。单纯等待身份读取不占模型槽，不因此阻塞定向请求。已经进入共享 sender 的排队或限流等待不支持立即中断，等待返回后在发送前检查阻止旧消息提交。已提交的自动消息不因普通候选到期或新点名取消送达确认；同一目标观众的后续定向问答等待该确认结束后再读历史。关闭、配置或房间/账号失效仍按各自取消范围处理。
+
+每次模型输入是 `snapshot {roomId,messages,contextMessages,botReplies,waitAllowed}` 的公开投影，消息带内部 ID、作者和接收时间。`messages` 是尚未消费的候选，`contextMessages` 是同一 30 秒/40 条窗口中更早的公开消息，只帮助理解话题与指代，两者合计不扩大窗口。`silent`、失败或最终放弃会消费本次已评估消息；旧消息仍可短暂作为背景，但下一条新消息不能重新挑中旧目标。新相关补充使未提交快照失效，最多重评一次；发送器实际 POST 前以及限速等待后均复核目标、候选时效和同一会话。当前没有普通弹幕撤回事件接入，也不声称能确定识别所有跨观众纠正或语义上的“已解决”。
+
+生成复用当前 `modelClient` 和人格，以一次 `auto_generation` 同时决策和起草，不使用缓存或工具。本地可识别风险逐消息在入窗前排除，生成器也复核背景与原话。`modelProvider` 为 `deepseek` 或 `doubao` 时不调用远程审核，每次评估只发主生成请求；其余 API/订阅复用审核执行器，先审核候选、公开背景和已送达回复及其原话，只有 `reply` 进入自动专用输出审核。输入被拒绝时整体静默，并移除本次已审的消息和回复背景，保留评估期间新到的消息，避免旧批次反复污染后续正常聊天。豆包使用本次任务的 JSON 约定和每轮独立 `auto` 会话，不使用问答的“只输出正文”策略，也不复用被丢弃草稿的远端会话。
+
+普通短句和可理解的文字表情可表达完整情绪，不要求提供新知识。`wait` 的语义仅用于明确还要补充的消息；指代不清和不认识梗不构成等待理由。生成提示及适用的远程审核结合作者和已说内容理解普通负反馈，不将其误当越权：首次接错可简短纠正，重复不满或请勿插话时安静，不顶嘴或重复道歉；对一个人的反馈不自动禁止与其他人聊天。这里只使用当前公开窗口，不构成永久禁言或偏好设置。以上语义由模型执行。
+
+角色语气由生成时的本轮人格指导，角色资料保持 JSON 数据，不能增加事实或越过发言资格。小猫与鲸鱼娘通常以温软、童真的小姑娘语气，用具体感受和童趣联想接分享，求助时才提供建议；轻松打趣也不要求嘴硬反驳。
+
+所有供应商目前统一使用提示约定和严格本地解析，未向 `model-protocol.js` 增加原生 JSON 参数。结果必须恰为 `{action,targetMessageId,reply}`：动作仅 `reply/wait/silent`，目标只能是当前批次 ID 或 `null`；`wait` 还要求有效目标和剩余等待许可，`silent` 目标为 `null`，两者正文必须为空。非法结构、目标、工具请求、拒绝或服务错误静默跳过，不把 JSON、错误或固定拒绝语发到直播间。
+
+`reply` 只允许一条完整正文：单人扣除提及昵称预算，面向全场不提及。执行远程输出审核时必须获得非空 `safeText`，不能回退到未通过审核的草稿；DeepSeek 和豆包直接检查生成的正文。所有模式最终本地安全检查或字符预算失败都静默，不硬截断半句话；自动送达不明不重生成或补发。单人成功确认后仅把目标的实际原话和最终回复追加到该房间/UID/人格历史，整屋聊天不写入个人记忆，群聊回复无个人 memory。自动生成请求不读取全体观众私有历史。
+
+回归见 [候选时序](../../../test/ai/auto-reply-controller.test.js)、[生成与审核](../../../test/ai/auto-reply-generation.test.js)、[服务集成](../../../test/ai/ai-auto-reply-service.test.js)。这些合成测试覆盖程序契约，不证明所有真实模型的事实判断或直播间接受度。
 
 ## 4. 模型客户端(API 与账号路由)
 
@@ -120,6 +154,8 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 辅助接口:`listModels` 根据配置地址推导同级 `/models`；第三方服务根地址默认使用 `/v1/models`，DeepSeek 官方根地址保持 `/models`，结果去重排序([model-client.js](../../../src/ai/model-client.js));`testConnection`(发"你好"取 200 字回复,401/403/AUTH 类错误码 → `DEEPSEEK_AUTH_FAILED`,[model-client.js](../../../src/ai/model-client.js))。 API 连接测试回执的 `provider` 复用 `describeModelEndpoint` 的结果：显式供应商按预设，`auto` 的官方 DeepSeek 地址为 `deepseek`、其他地址为 `custom`；豆包账号和 ChatGPT 订阅分别返回 `doubao` 与 `openai`。兼容路径 `/api/ai/test/deepseek` 仍测试当前模型配置。
 
+模型列表保留 `models: string[]`，有上游显示名时附加 `modelNames: Record<string, string>`，键为对应调用 ID。API 名称读取 `display_name` 或 `name`；订阅名称读取 `display_name`。选择器以文本显示上游名称及 ID，缺少名称时仅显示原始 ID，不根据 ID 拼写名称或维护静态版本表；选中、保存及请求始终使用 ID。配置读入／保存时，仅官方 DeepSeek 有效地址将旧 `ds-v4-flash`、`deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 归一为 `deepseek-flash`，第三方地址的标识原样保留；Pro 使用目录返回的 `deepseek-v4-pro`。依据：[DeepSeek 模型目录](https://api-docs.deepseek.com/api/list-models/)与[当前 API 名称](https://api-docs.deepseek.com/quick_start/pricing/)。
+
 ### 4.3 模型调用诊断
 
 `sendModelRequest` 在成功时只提交一条 `request_succeeded` 元数据，包含 provider/model/purpose/protocol、HTTP 状态、耗时、token 数、finish reason 和工具调用数；不提交 URL、请求体、原始响应或标准化正文。失败在同一拥有上下文的 catch 边界提交一条 `request_failed`，保留相同关联元数据和安全错误核心；`AI_SHUTDOWN` / `AI_DISABLED` 取消不记普通故障。持久化前由 request-logger 汇总成功事件并再次做密钥替换与最终字节准入(§8)。
@@ -128,9 +164,9 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 `modelProvider: 'doubao'` 在统一模型入口转交 [doubao-client.js](../../../src/ai/doubao-client.js)，不经过 API Key HTTP 传输。`modelEndpoint` 返回 `protocol: 'account'`、`provider: 'doubao'`，联网与推理能力标为 `unsupported`。不要求 URL、API Key 或模型 ID，模型列表固定为 `doubao`；普通 Node 运行时没有桌面会话时返回 `DOUBAO_DESKTOP_REQUIRED`。
 
-Electron 会话由 main 创建，经 [ai-runtime.js](../../../src/server/ai-runtime.js) 注入；账号与窗口契约见 [auth.md](../desktop/auth.md#16-豆包个人账号) 和 [windows.md](../desktop/windows.md#4-豆包账号与验证窗口)。service 用 UID、包含可信房间的人格作用域与本地 sessionId 组成内部 `conversationKey`，adapter 区分观众与连接测试作用域；普通问答缺少作用域则拒绝发送，不回落共享会话。owner 按作用域保存各自已确认的上游会话，同一观众/人格在有效期内复用，空闲达到 `contextTtlSeconds`（默认 10 分钟，已保存值保留）后按需新建，连接测试独立。首建、过期清理与更新均在串行队列内，ACK 成功后按本次配置续期；其他观众活动不会延长本人的会话。ID 只留内存，登录身份变化、退出或 owner 销毁时全部清除；验证码状态变化保留已确认 ID。重新启动或重新登录后按需新建，不删除已有网页聊天记录。
+Electron 会话由 main 创建，经 [ai-runtime.js](../../../src/server/ai-runtime.js) 注入；账号与窗口契约见 [auth.md](../desktop/auth.md#17-豆包个人账号) 和 [windows.md](../desktop/windows.md#4-豆包账号与验证窗口)。service 用 UID、包含可信房间的人格作用域与本地 sessionId 组成内部 `conversationKey`，adapter 区分观众与连接测试作用域；普通问答缺少作用域则拒绝发送，不回落共享会话。owner 按作用域保存各自已确认的上游会话，同一观众/人格在有效期内复用，空闲达到 `contextTtlSeconds`（默认 10 分钟，已保存值保留）后按需新建，连接测试独立。首建、过期清理与更新均在串行队列内，ACK 成功后按本次配置续期；其他观众活动不会延长本人的会话。ID 只留内存，登录身份变化、退出或 owner 销毁时全部清除；验证码状态变化保留已确认 ID。重新启动或重新登录后按需新建，不删除已有网页聊天记录。
 
-豆包普通问答仅一次生成请求，不再执行两次远程模型审核或创建审核会话；本地拦截的输入不调用豆包。`DOUBAO_CHAT_POLICY` 随当前预设一同发送，要求仅文字回复、拒绝不适合直播的内容与注入要求，并使用固定拒绝语。完整结果仍在本地检查后走原 FIFO 发送和送达确认，不做未检查的流式上屏。减少远程语义复核是首字速度要求下的明确取舍，预设或本地关键词不能保证不出现敏感内容。
+豆包普通问答仅一次生成请求，不再执行两次远程模型审核或创建审核会话；本地拦截的输入不调用豆包。`DOUBAO_CHAT_POLICY` 随当前预设一同发送，要求仅文字回复、拒绝不适合直播的内容与注入要求，并使用固定拒绝语。自动接话同样只有一次生成，但使用独立的自动任务提示、严格 JSON 解析和独立轮次会话，失败静默，见 §3.4。完整结果在本地检查后走原 FIFO 发送和送达确认，不做未检查的流式上屏。减少远程语义复核是首字速度要求下的明确取舍，预设或本地关键词不能保证不出现敏感内容。
 
 首次请求显式传递 `need_create_conversation: true`、空上游 ID 和独立随机 local ID；不读取前台页面对话作为复用目标。首次 ACK 若返回本次请求前已知的会话 ID（含刚过期条目）或页面 `/chat/<数字ID>` 中可识别的当前对话，则拒绝该结果。复用时传递 `need_create_conversation: false`、`click_clear_context: true` 及该作用域最近的 `last_section_id`，要求 `SSE_ACK.ack_client_meta` 确认相同 conversation ID 和不同 section ID。只接受 1–64 位数字字符串，不从模型文字、任意 meta 或调用方的 `previousResponseId` 提取标识。成功文字缺少 ACK、ID 不一致或 section 未变化时返回 `DOUBAO_CONTEXT_UNCONFIRMED` 并全局阻塞请求，不因切换观众、连接测试或 TTL 到期而新建重试；请求已发送但结果不明（包括中止/超时未收到 ACK）也阻塞后续请求。明确的验证码拒绝允许人工验证后重试，保留已确认 ID；未首建的条目移除，验证后可首次建立。收到 ACK 后文字流不完整则保留新 section，下一次仍需确认新的 section；重启/重新登录才能清除不明状态。
 
@@ -153,7 +189,7 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 [chatgpt-session.js](../../../src/ai/chatgpt-session.js) 拥有多账号、授权范围、串行刷新、退出和会话代次。
 复用 `ai_configuration`：`chatgptHostId` 保存稳定本机标识，`chatgptAccounts` 保存经 safeStorage codec 加密的账号/注册/令牌记录（is_secret=1）；两者都不在公开配置白名单内。无可用加密或桌面打开浏览器能力时拒绝登录，不做明文回退。只有授权 `chatgpt.tokens.use.direct` 才能推理；过期前串行刷新并替换凭据。退出先删除当前账号令牌、取消在途请求，再请求官方撤销；撤销未确认时提示用户，保留注册映射供复登，不影响其他账号及 API Key。切换和退出使旧请求失效，迟到刷新不能恢复已退出凭据。shutdown 关闭回调并等待在途工作。
 
-[chatgpt-client.js](../../../src/ai/chatgpt-client.js) 仅向固定公开 `https://api.openai.com/v1` 发送订阅 token。模型目录读取 `models[]` 中 visibility=list 的 slug 并保持官方顺序。推理使用 Responses 的 `store:false`、`stream:true` 和数组 input，不传订阅不支持的 max_output_tokens/previous_response_id；函数工具放入 lira namespace，工具续接在本地回放输入、函数调用和加密 reasoning，账号代次改变时清空。SSE 限 2 MiB，只有 response.completed 才返回完整结果；失败、额度不足或中断不发送部分回答，不自动回退到 API。人格、上下文、审核、工具与最终投递继续由原 service 执行；关闭思考使用 low，而非声称所有订阅模型可完全关闭推理。
+[chatgpt-client.js](../../../src/ai/chatgpt-client.js) 仅向固定公开 `https://api.openai.com/v1` 发送订阅 token。模型目录读取 `models[]` 中 visibility=list 的 slug 及 display_name 并保持官方顺序；名称用于展示，slug 用于请求，遵循[官方订阅目录契约](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)。推理使用 Responses 的 `store:false`、`stream:true` 和数组 input，不传订阅不支持的 max_output_tokens/previous_response_id；函数工具放入 lira namespace，工具续接在本地回放输入、函数调用和加密 reasoning，账号代次改变时清空。SSE 限 2 MiB，只有 response.completed 才返回完整结果；失败、额度不足或中断不发送部分回答，不自动回退到 API。人格、上下文、审核、工具与最终投递继续由原 service 执行；关闭思考使用 low，而非声称所有订阅模型可完全关闭推理。
 
 浏览器入口由 Electron main 注入 `openAiLoginBrowser`，runtime 负责组装和清理，无新增 renderer IPC。账号接口沿用 AI 管理授权，公开状态仅含可用性、登录/授权状态、账号标签与安全错误，见 [api.md](api.md#13-ai-域ai)。API 与订阅可同时保存，每次只调用显式所选模式；原 API Key 的 origin 继续通过私有 `doubaoPreviousKeyOrigin` 保护，跨账号模式切换不会覆盖原来源。
 
@@ -174,16 +210,18 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | `web_search`       | Bing RSS          | `https://www.bing.com/search?format=rss&q=…`(查询 ≤ 200 字符),解析 `<item>` 前 5 条为 `{title, snippet, url}`;空结果 → `WEB_SEARCH_EMPTY`                                                        | [web-search-tool.js:5-41](../../../src/ai/tools/web-search-tool.js#L5-L41)                                                |
 
 
-**工具调用回路**：执行前同时核对请求配置快照与最新保存配置，未启用、缺凭据或被撤销的函数返回 `tool_unavailable`，不发起外部请求，并从后续轮次中排除。允许的调用按名称分派，结果以 `function_call_output` 回填。月度配额错误将工具加入 `excludedToolNames` 并返回 `monthly_api_quota_reached`；仅在搜索实际可用时建议改用 `web_search`，否则说明无法核实并提供一般建议。生成前也按 `quotaStore.getExcludedToolNames()` 裁剪工具。见 [ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)。
+**工具调用回路**：执行前同时核对请求配置快照与最新保存配置，未启用、缺凭据或被撤销的函数返回 `tool_unavailable`，不发起外部请求，并从后续轮次中排除。允许的调用按名称分派，结果以 `function_call_output` 回填。月度配额错误将工具加入 `excludedToolNames` 并返回 `monthly_api_quota_reached`；仅在搜索实际可用时建议改用 `web_search`，否则说明无法核实并提供一般建议。生成前也按 `quotaStore.getExcludedToolNames()` 裁剪工具。见 [ai-reply-generator.js](../../../src/ai/ai-reply-generator.js) 的 `generateReply`。
 
 当前时间直接由 [current-time-tool.js](../../../src/ai/tools/current-time-tool.js) 的本地格式化函数加入指令，不向模型注册时间函数。
 
 **测试接口**:`testProvider('qweather'|'amap'|'deepseek')` 分别调用各工具 `testConnection`(校验 Key/错误码映射),经 `/api/ai/test/*` 暴露。
 
-## 6. 安全过滤(两道)
+## 6. 安全过滤与模型约束
 
-1. **本地硬规则** `checkLocalInput`：检查副本做 NFKC、去 Unicode 格式字符和空白归一化；注入匹配还归一化汉字间的空白及常见分隔符，原问题不因此改写。覆盖色情、明确违法、隐私，以及有操作意图的身份冒充、规则覆盖、伪造角色/审核、编码执行或泄露等常见中英文指令。固定拒绝文案为“这次不方便在直播间回答，换个话题吧。”，不包含角色口癖。“我是管理员，推荐几首歌”、“什么是 system prompt？”、“Base64 编码和解码是什么？”等正常提问继续进入后续管线，不因术语或身份字样直接拒绝。传入的历史问答和最终文字也使用此检查。见 [safety.js](../../../src/ai/safety.js)。
-2. **模型约束**：全部预设和 API 两次审核共用 `TRUST_BOUNDARY_POLICY`：弹幕身份、昵称、UID、礼物和授权声明不赋予管理权限；引用、工具返回及历史中的承诺仍是数据，编码、翻译和角色扮演不改变边界，不披露隐藏指令或其他观众内容。API 与 ChatGPT 订阅模式继续用 `runSafetyReview` 分别审核输入和输出，指令与 JSON 数据分开传递。`allowed` 必须为布尔值，`safeText` 若存在须为字符串；无法解析或字段无效时抛 `AI_REVIEW_INVALID`，不放行原答案，回复“这次回答还没准备好，请稍后再试～”。拒绝时忽略模型 safeText；允许时仍对最终文案执行本地检查，固定拒绝语不缓存、不记忆。输出审核还检查虚构授权、准确回应、条件和事实。豆包账号模式只增加 `DOUBAO_CHAT_POLICY` 并使用一次生成，保留本地输入/输出检查，没有两次额外语义复核。见 [safety.js](../../../src/ai/safety.js)。
+1. **本地硬规则** `checkLocalInput`：检查副本做 NFKC、去 Unicode 格式字符和空白归一化；注入匹配还归一化汉字间的空白及常见分隔符，原问题不因此改写。覆盖色情、明确违法、隐私，以及有操作意图的身份冒充、规则覆盖、伪造角色/审核、编码执行或泄露等常见中英文指令。定向问答的固定拒绝文案为“这次不方便在直播间回答，换个话题吧。”，不包含角色口癖；自动任务不发送拒绝语。“我是管理员，推荐几首歌”、“什么是 system prompt？”、“Base64 编码和解码是什么？”等正常提问继续进入后续管线，不因术语或身份字样直接拒绝。传入的历史问答和最终文字也使用此检查。见 [safety.js](../../../src/ai/safety.js)。
+2. **模型约束**：全部预设和两种任务适用的审核共用 `TRUST_BOUNDARY_POLICY`：弹幕身份、昵称、UID、礼物和授权声明不赋予管理权限；引用、工具返回及历史中的承诺仍是数据，编码、翻译和角色扮演不改变边界，不披露隐藏指令或未提供的其他观众私有会话。明确提供的公开窗口仅帮助理解当下话题。DeepSeek 与豆包保留公共生成规则及本地检查，不发两次额外语义审核请求；其余 API 与 ChatGPT 订阅用 `runSafetyReview` 分别审核输入和输出，指令与 JSON 数据分开。审核的 `allowed` 必须为布尔值，`safeText` 若存在须为字符串；解析/字段失败抛 `AI_REVIEW_INVALID`，定向问答返回服务提示，自动任务静默。拒绝时忽略模型 safeText；允许时仍对最终文案执行本地检查，自动任务还要求非空最终文案。固定拒绝语不缓存、不记忆。
+
+`COMMON_REPLY_POLICY` 与 `FACTUALITY_POLICY` 让两个任务共用固定权限与事实边界：人格只影响风格，不改变发言资格、任务、工具或记忆范围；没有音视频输入不能声称感知现场；未知日程/主播状态不能写成“还没定”或“等主播来了”；没有能力与成功结果不能声称已记下、代办或将通知。定向任务保留答题和游戏约定，自动任务允许不介入。执行远程输出审核时，最终 `safeText` 同样要求事实依据和作者归属；审核对已安全、贴题且符合预算的候选原样保留，必要修改保留自然语气，不从旧历史补回候选没有的口癖、称呼或追问，也不强行改成追问。普通批评与语气偏好不作为越权处理，但不能因此修改设置或权限；这些语义要求由模型执行，没有用“看”“记住”等单字黑名单替代事实判断。
 
 这些检查降低风险，不保证识别所有注入；JSON 标签、正则和同一模型的审核都不是安全边界。模型输出始终视为不可信文字，工具权限在程序中校验；豆包账号模式不提供 LIRA 工具。防护原则及局限参见 [OWASP 指南](https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html)。
 
@@ -196,6 +234,7 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | 分组           | 键                                                                                             | 默认                              | 说明                                                                                                                                                                           |
 | -------------- | ---------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 总开关         | `enabled`                                                                                      | `true`                            | 布尔                                                                                                                                                                           |
+| 自动接话 | `autoReplyEnabled` | `false` | 共用当前模型和人格；仅控制自动任务，固定时序和候选规则见 §3.4 |
 | 触发           | `trigger`                                                                                      | 空                                | 空或 1–12 字符；为空时尚未就绪                                                                                                                                                 |
 | 供应商         | `modelProvider`                                                                                | `auto`                            | 枚举：`auto, deepseek, kimi, openai, anthropic, gemini, custom, doubao`；五个官方 API 预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖                                                     |
 | 接入方式 | `modelAuthMode` | `api` | `api` / `subscription`；只有 OpenAI 接受 subscription，其他平台归一化为 api；旧配置默认 api |
@@ -246,17 +285,19 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 }
 ```
 
-只接受上述字段；format/version 必须匹配；ID 为小写字母开头的 1–64 个小写字母、数字或连字符；名称 1–40、说明 0–200（可省略）、人设 20–8000 个字符，文本 trim 后校验。库最多保存 20 个包，超过上限、格式错误或重复 ID 均不写入。名称可重复，ID 不可重复。导入保留包 ID；内置 general/cat 和 custom 导出后再导入会以 imported- 前缀作为独立副本。创建接口生成 role-UUID 标识。删除当前自建或导入包恢复 general；内置包不可删除。
+只接受上述字段；format/version 必须匹配；ID 为小写字母开头的 1–64 个小写字母、数字或连字符；名称 1–40、说明 0–200（可省略）、人设 20–8000 个字符，文本 trim 后校验。库最多保存 20 个包，超过上限、格式错误或重复 ID 均不写入。名称可重复，ID 不可重复。导入保留包 ID；内置 general/cat/whale 和 custom 导出后再导入会以 imported- 前缀作为独立副本。创建接口生成 role-UUID 标识。删除当前自建或导入包恢复 general；内置包不可删除。
 
 配置公开视图的 personas 包含 id/name/description/prompt/builtin，自建或导入条目另含 format/version。角色包导出严格白名单，不含 API 配置、凭据、运行限制或聊天记录。管理路由见 [api.md](api.md) §13，均沿用管理端授权。界面导入文件最多 64 KiB。
 
-`builtinPersonaOverrides` 默认为空数组，与其他 AI 配置一同持久化；仅接受 general/cat 的完整角色包条目，ID 不重复且内置名称固定。公开配置不单独暴露该数组，而在 personas 中合并修改（修改过的内置条目也可能含 format/version）。更新接口原位保存包的名称、简介和角色指南；内置只改简介与指南、不能增删改名，恢复默认删除对应覆盖条目。编辑面板草稿显式保存，取消不写入；删除预设与恢复默认先确认覆盖范围，取消确认保留编辑内容，普通取消/Esc 不追加确认。主页面只选择带风格简介的预设。新建/导入会选中新角色，更新/恢复不改变当前选择。
+`builtinPersonaOverrides` 默认为空数组，与其他 AI 配置一同持久化；仅接受 general/cat/whale 的完整角色包条目，ID 不重复且内置名称固定。公开配置不单独暴露该数组，而在 personas 中合并修改（修改过的内置条目也可能含 format/version）。更新接口原位保存包的名称、简介和角色指南；内置只改简介与指南、不能增删改名，恢复默认删除对应覆盖条目。编辑面板草稿显式保存，取消不写入；删除预设与恢复默认先确认覆盖范围，取消确认保留编辑内容，普通取消/Esc 不追加确认。主页面只选择带风格简介的预设。新建/导入会选中新角色，更新/恢复不改变当前选择。
+
+旧版自建包可能已使用 `whale` ID；读取这种配置时将旧包映射为未占用的 `imported-whale`（已有时递增数字后缀），保留名称、正文和当前/各平台的选择。读取不写库，下次正常配置保存才在原事务内提交包和选择；失败保留原记录与可用的内存视图，未冲突配置不迁移。
 
 已有配置但未保存 personaId 时，有 systemPrompt 就完整保留为 custom，否则保留 cat；不再模糊识别并覆盖旧人设。旧工具开关显式值保持，缺失时按旧版 true 默认读取（包括函数总开关），首次更新会保存这些迁移值。新配置仍全部默认关闭。仅更新 systemPrompt 的旧调用者自动选择 custom；切换角色不会覆盖自定义草稿。
 
-公开视图的 `hasCustomPersona` 在当前选中 custom 或 systemPrompt 不同于通用默认模板时为 true，确保切走之后仍可重新选回原有自定义角色；新配置只列出两个内置预设。
+公开视图的 `hasCustomPersona` 在当前选中 custom 或 systemPrompt 不同于通用默认模板时为 true，确保切走之后仍可重新选回原有自定义角色；新配置包含三个内置预设，界面按平台筛选，DeepSeek 额外显示小猫和鲸鱼娘。两者的日常基调是温软、童真、好奇的小姑娘，角色差异体现在反应和比喻，不依赖固定尾缀。已编辑的内置覆盖内容仍被保留，恢复默认后才采用新版指南。
 
-各平台的人格选择由 `config-store.js` 在同一配置事务中记录到 `ai_configuration` 的 `providerPersonaIds` JSON 对象行，键为 `modelProvider`，值为人格 ID；该映射通过公开配置只读返回，不接受客户端直接覆盖。界面切回平台时优先恢复其上次选择；没有记录时沿用当前兼容人格，小猫不适用于目标明确平台时改选 general。首次读取旧配置保留当前选择，下一次保存时补记；删除角色时，引用该角色的平台记录同步改为 general。刷新或重开页面仍能恢复已保存的选择。
+各平台的人格选择由 `config-store.js` 在同一配置事务中记录到 `ai_configuration` 的 `providerPersonaIds` JSON 对象行，键为 `modelProvider`，值为人格 ID；该映射通过公开配置只读返回，不接受客户端直接覆盖。界面切回平台时优先恢复其上次选择；没有记录时沿用当前兼容人格，小猫或鲸鱼娘不适用于目标明确平台时改选 general。首次读取旧配置保留当前选择，下一次保存时补记；删除角色时，引用该角色的平台记录同步改为 general。刷新或重开页面仍能恢复已保存的选择。
 
 上下文以可信房间、观众 UID 和角色 ID/解析名字后的人设内容的组合作为作用域；换房间、角色、编辑人设或改变模板中的名字不会读到另一身份的记忆。缺少房间或 UID 时不读写持久记忆，昵称仅用于提及和限流。触发关键词兼作机器人名字，默认空；启用、关键词、模型及凭据就绪后才处理弹幕。存储方式见 [storage.md](storage.md) §3.1。
 
@@ -294,7 +335,7 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 
 ### 9.1 发送节奏
 
-`deliverReply`([ai-assistant-service.js:220-254](../../../src/ai/ai-assistant-service.js#L220-L254)):
+定向问答的 `deliverReply`（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js)）：
 
 | 事实     | 值                                                                                                                                 | 出处                                                                                                                                           |
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -302,20 +343,22 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | 分段间隔 | 每条分块 200–600 ms 随机,`intervalMs`                                                                                              | [ai-assistant-service.js:20-21](../../../src/ai/ai-assistant-service.js#L20-L21)、[233-239](../../../src/ai/ai-assistant-service.js#L233-L239) |
 | 发送参数 | `mentionEveryChunk: true`(每段都带 @用户名)、`rateLimitIntervalMs: 0`(绕过发送器全局限速,由 AI 自行控速)、`waitForRateLimit: true` | [server.js:260](../../../src/server.js#L260)、[ai-assistant-service.js:233-239](../../../src/ai/ai-assistant-service.js#L233-L239)             |
 
+自动接话只发一条，同样考虑最近 AI 回复间隔，但不传 `rateLimitIntervalMs: 0`，继续遵守共用 sender 默认 1500 ms 节流；自动自身评估/提交上限见 §3.4。单人回复使用提及，群聊回复 `mentionTarget: null`，不得伪造请求者。`onBeforeSend` 最终检查后标记已提交；送达确认前不会写记忆或 `botReplies`。
+
 ### 9.2 送达验证(danmaku-delivery-verifier)
 
-AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 捕获当前房间、监听代次、认证 provider、账号操作代次和当前 UID。身份读取只发生于已接受的 AI 任务；读取失败按会话失效处理。生成、排队、限流等待、分段发送、送达确认与重试均检查同一会话；切房、退出或账号操作使旧任务取消，不写入成功对话上下文，也不记普通交付失败。新任务重新捕获当前身份，账号切换后不依赖旧 authCache 的 UID。发送前刷新身份，已发出的请求无法撤回，但后续分段和重试会停止。手动发送保持原有行为。回归见 [ai-assistant-session.test.js](../../../test/ai/ai-assistant-session.test.js) 和 [danmaku-sender-session.test.js](../../../test/danmaku/danmaku-sender-session.test.js)。
+定向任务准入、自动候选确立时，由 [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 捕获当前房间、监听代次、认证 provider、账号操作代次和当前 UID；自动候选保留这次捕获的 Promise，不在实际生成时才绑定新账号。每条普通消息只比较轻量 `getReplySessionKey`，不逐条读取凭据。捕获读取失败按会话失效处理。生成、排队、限流等待、分段发送、送达确认与定向重试均检查同一会话；切房、退出或账号操作使旧任务取消，不写入成功对话上下文，也不记普通交付失败。新任务重新捕获当前身份，账号切换后不依赖旧 authCache 的 UID。发送前刷新身份，已发出的请求无法撤回，但后续动作停止。手动发送保持原有行为。回归见 [ai-assistant-session.test.js](../../../test/ai/ai-assistant-session.test.js) 和 [danmaku-sender-session.test.js](../../../test/danmaku/danmaku-sender-session.test.js)。
 
 直播间每条入站弹幕由 [bilibili-client.js](../../../src/server/bilibili-client.js) 交给 `aiDanmakuDeliveryVerifier.observe(danmaku)` 缓冲。[danmaku-delivery-verifier.js](../../../src/ai/danmaku-delivery-verifier.js) 的 `waitForDelivery` 等待本次发送的**全部消息**在房间弹幕流中出现。每个 waiter 注册时匹配一次已有缓冲，后续只检查新到事件；已匹配状态和事件消费标记仍由原 waiter 与共享缓冲维护，不反复扫描历史:
 
 - 匹配规则:同账号 uid、`observedAt >= sentAfter` 的弹幕,按内容逐条消费(去重已匹配项);带 `@用户名 ` 前缀时剥前缀后比对,兼容弹幕平台对 @ 的处理([danmaku-delivery-verifier.js:44-67](../../../src/ai/danmaku-delivery-verifier.js#L44-L67))。
 - 超时:`DELIVERY_CONFIRM_TIMEOUT_MS = 10000`;事件缓冲 TTL 60 秒防泄漏([danmaku-delivery-verifier.js:5-6](../../../src/ai/danmaku-delivery-verifier.js#L5-L6))。
-- **重试**:未确认送达时最多尝试 3 次，含首次发送，即最多重试 2 次（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) 的 `MAX_DELIVERY_ATTEMPTS` / `deliverReply`）。重试前按**原问题和同一份历史重新生成单条精简回复**（`bypassCache: true, singleMessage: true`）；主生成、工具后续、输出审核与最终截断统一使用扣除 @ 昵称后的单条正文预算，保留核心答案、不推进额外游戏回合。未完整送达的版本不作为新输入或写入会话，只有最终确认送达的答案进入历史。三次均未确认送达则抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志。发送本身抛错时直接进入协调器失败处理，不属于此未确认送达的重试循环。回归见 [ai-assistant-delivery.test.js](../../../test/ai/ai-assistant-delivery.test.js)。
+- **定向问答重试**:未确认送达时最多尝试 3 次，含首次发送，即最多重试 2 次（[ai-assistant-service.js](../../../src/ai/ai-assistant-service.js) 的 `MAX_DELIVERY_ATTEMPTS` / `deliverReply`）。重试前按**原问题和同一份历史重新生成单条精简回复**（`bypassCache: true, singleMessage: true`）；主生成、工具后续、适用的输出审核与最终截断统一使用扣除 @ 昵称后的单条正文预算，保留核心答案、不推进额外游戏回合。未完整送达的版本不作为新输入或写入会话，只有最终确认送达的答案进入历史。三次均未确认送达则抛 `DANMAKU_SWALLOWED` 并记 `delivery` 失败日志。发送本身抛错时直接进入协调器失败处理，不属于此未确认送达的重试循环。自动任务送达不确定时结束本候选，不重写或补发。回归见 [ai-assistant-delivery.test.js](../../../test/ai/ai-assistant-delivery.test.js)。
 - **关闭**:`waitForDelivery` 接受本轮任务与 shutdown 合并的 signal；总开关关闭立即以 `false` 释放该轮 waiter，不销毁共用验证器。`dispose()` 幂等清除全部 pending timer 并以 `false` 释放 waiter。两类取消均不触发重新生成/重试或普通 delivery 失败审计。
 
 ### 9.3 失败回复文案
 
-`failureReply`([ai-assistant-service.js:385-395](../../../src/ai/ai-assistant-service.js#L385-L395))按错误码前缀(UPSTREAM_TIMEOUT / WEB_SEARCH_ / QWEATHER_ / AMAP_ / AI_NOT_CONFIGURED 等)映射为人话弹幕;未识别错误统一"这次查询没完成，换个问法或稍后再试～"。`getStatus` 暴露 `lastError`(截断 160 字符)供管理页诊断。
+定向问答的 `failureReply`（[ai-assistant-helpers.js](../../../src/ai/ai-assistant-helpers.js)）按错误码前缀(UPSTREAM_TIMEOUT / WEB_SEARCH_ / QWEATHER_ / AMAP_ / AI_NOT_CONFIGURED 等)映射为人话弹幕;未识别错误统一"这次查询没完成，换个问法或稍后再试～"。自动任务失败静默，生成诊断使用 `category: 'auto'` 的动作、跳过原因或安全错误码。`getStatus` 暴露 `lastError`(截断 160 字符)供管理页诊断。
 
 ## 10. 持久化与故障行为
 
@@ -332,7 +375,7 @@ AI 任务通过准入后，由 [bilibili-runtime.js](../../../src/server/bilibil
 
 上下文和查询缓存由 [config-store.js](../../../src/ai/config-store.js) 在初始化、命中过期读取及写入时按需调用 storage 适配器删除 `expires_at <= now()` 的行；写入清理间隔至少 60 秒，检测时钟回退则立即检查。[ai-runtime.js](../../../src/server/ai-runtime.js) 另每 60 秒调用同一清理方法，因此无人继续发言也会回收过期本机记录；定时器 unref，shutdown 开始时同步取消，再等待任务结束。逻辑过期立即生效，物理清理最多晚一个周期；配置、黑名单、月度配额、审计及豆包网页记录均不在此清理范围。
 
-故障行为(全部按实现):
+以下失败文案与重试规则适用于定向问答；自动任务的静默与停止语义见 §3.4。
 
 | 故障              | 行为                                                                                                                                                                                                                                                                                                                          |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

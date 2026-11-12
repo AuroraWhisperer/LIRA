@@ -9,6 +9,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { FakeNode } = require('../helpers/fake-dom');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 const QUEUE_ENTRY = path.join(ROOT_DIR, 'public', 'js', 'overlays', 'queue.js');
@@ -178,6 +179,63 @@ test('queue style changes are detected so the overlay can reload the authoritati
   assert.equal(namespace.queueStyleChanged(null, state('classic')), false);
   assert.equal(namespace.normalizeQueueStyle('festival'), 'identity');
   assert.equal(namespace.normalizeQueueStyle('unknown'), 'classic');
+});
+
+test('queue preview updates orientation when switching resource packages with the same preset', async () => {
+  const dom = createQueueDom();
+  const documentListeners = new Map();
+  const windowListeners = new Map();
+  const messages = [];
+  const parent = { postMessage: message => messages.push(message) };
+  const location = new URL('http://127.0.0.1/queue?componentPreview=1');
+  const notice = new FakeNode('div');
+  notice.ownerDocument = dom.document;
+  const window = {
+    parent, document: dom.document, innerWidth: 900, innerHeight: 506,
+    addEventListener: (name, callback) => windowListeners.set(name, callback),
+    removeEventListener: name => windowListeners.delete(name),
+    matchMedia: () => ({ matches: false }),
+    ResizeObserver: class { observe() {} disconnect() {} },
+  };
+  dom.document.defaultView = window;
+  dom.document.documentElement.style.getPropertyValue = name => dom.rootVars.get(name) || '';
+  dom.document.addEventListener = (name, callback) => documentListeners.set(name, callback);
+  dom.document.getElementById = id => id === 'queueContent' ? dom.content : id === 'queueRequestNotice' ? notice : null;
+  dom.document.createElement = tag => new FakeNode(tag);
+  dom.document.head = new FakeNode('head');
+  dom.panel.style.setProperty = () => {};
+  dom.panel.getBoundingClientRect = () => ({ width: 430, height: 506, left: 0, top: 0 });
+  let renders = 0;
+  Object.defineProperty(dom.content, 'innerHTML', { set() { renders++; } });
+  await loadModuleExports(QUEUE_ENTRY, {
+    document: dom.document, window, location, URL, URLSearchParams,
+    fetch: async () => ({ ok: true, text: async () => '' }),
+    Image: class { async decode() {} },
+    requestAnimationFrame() {}, clearTimeout() {},
+  });
+  documentListeners.get('DOMContentLoaded')();
+  const resource = (id, landscape) => ({
+    id, preset: 'moonlit-queue', preview: `/component-media/${id}/${'1'.repeat(64)}.webp`,
+    width: landscape ? 900 : 391, height: 506,
+    resources: {
+      '/img/overlays/opening-moon-fan/flowers-ne.webp': `/component-media/${id}/${'2'.repeat(64)}.webp`,
+      [landscape ? '/img/overlays/queue-moonlit/moon-lake-frame-hd-v4.webp'
+        : '/img/overlays/queue-moonlit/vine-frame-hd-v3.webp']: `/component-media/${id}/${'3'.repeat(64)}.webp`,
+    },
+  });
+  const portrait = resource('11111111-1111-4111-8111-111111111111', false);
+  const landscape = resource('22222222-2222-4222-8222-222222222222', true);
+  const receive = windowListeners.get('message');
+  for (const [resourceStyle, expectedLandscape] of [[portrait, false], [landscape, true], [portrait, false]]) {
+    const data = { type: 'component-preview:config', config: { overlayQueueStyle: 'identity', resourceStyle } };
+    await receive({ source: parent, origin: location.origin, data });
+    assert.equal(messages.at(-1).type, 'component-preview:prepared');
+    assert.equal(dom.panelClasses.has('queue-moonlit-landscape'), expectedLandscape);
+    const before = renders;
+    await receive({ source: parent, origin: location.origin, data: structuredClone(data) });
+    assert.equal(renders, before, 'identical configuration preserves the rendered queue');
+  }
+  windowListeners.get('pagehide')();
 });
 
 test('queue style settings resolve and persist only the selected style', async () => {

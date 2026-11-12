@@ -2,6 +2,23 @@
 
 const { once } = require('node:events');
 
+function webSocketUpgradeRequest({ url = '/ws', headers = {}, ...request } = {}) {
+  return {
+    method: 'GET',
+    httpVersion: '1.1',
+    url,
+    ...request,
+    headers: {
+      host: '127.0.0.1:3000',
+      connection: 'Upgrade',
+      upgrade: 'websocket',
+      'sec-websocket-version': '13',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      ...headers,
+    },
+  };
+}
+
 // Encodes one client-to-server WebSocket frame. Clients must mask payloads;
 // the mask value is irrelevant to the server and only needs to be four bytes.
 function maskedFrame(payload, { opcode = 0x1, fin = true, mask = [0x12, 0x34, 0x56, 0x78] } = {}) {
@@ -51,4 +68,4 @@ async function listenHttpServer(t, options = {}) {
   return { server, port, origin: `http://127.0.0.1:${port}` };
 }
 
-module.exports = { maskedFrame, listenHttpServer };
+module.exports = { maskedFrame, listenHttpServer, webSocketUpgradeRequest };

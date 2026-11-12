@@ -6,6 +6,7 @@ const net = require('node:net');
 const { once, EventEmitter } = require('node:events');
 const test = require('node:test');
 const { createWebSocketHub } = require('../../src/server/ws');
+const { webSocketUpgradeRequest } = require('../helpers/transport-fixtures');
 
 async function openUpgradedConnection(t, { halfOpen = false } = {}) {
   const hub = createWebSocketHub({ closeTimeoutMs: 40 });
@@ -139,7 +140,7 @@ test('stop retains the first close deadline and rejects subsequent upgrades', (t
     socket.emit('close');
   };
   const context = { sessionToken: 'synthetic-token', getState: () => ({}) };
-  const request = { url: '/ws', headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' } };
+  const request = webSocketUpgradeRequest({ headers: { authorization: 'Bearer synthetic-token' } });
   hub.handleUpgrade(context, request, socket);
   hub.stop({ shutdownPayload: { type: 'shutdown', reason: 'first' } });
   const writes = socket.writes.length;
@@ -170,10 +171,7 @@ test('physical close cancels the reap timer', (t) => {
   };
   hub.handleUpgrade(
     { sessionToken: 'synthetic-token', getState: () => ({}) },
-    {
-      url: '/ws',
-      headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' },
-    },
+    webSocketUpgradeRequest({ headers: { authorization: 'Bearer synthetic-token' } }),
     socket,
   );
   hub.stop();

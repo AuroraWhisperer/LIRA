@@ -3,6 +3,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const { routes } = require('../../src/server/routes/interaction-routes');
+const { createPublicError } = require('../../src/shared/public-error');
 const { projectOverlayResponse, projectWebSocketPayload } = require('../../src/server/overlay-projection');
 const { OVERLAY_PAGES, isOverlayRequestAllowed } = require('../../src/server/access-policy');
 
@@ -20,7 +21,7 @@ test('interaction routes require session identity and propagate conflict/validat
     interactions: {
       finish(id) {
         assert.equal(id, 'old');
-        throw Object.assign(new Error('changed'), { statusCode: 409 });
+        throw createPublicError('changed', 409);
       },
     },
   };

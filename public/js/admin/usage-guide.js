@@ -241,7 +241,9 @@ export function initUsageGuide() {
     // Align the first line, not an article's padding above its heading.
     target = target.querySelector('.usage-guide-section-title, .usage-guide-feature-head strong') || target;
     target.classList.add('usage-guide-navigation-target');
-    moveToPosition({ target, fraction: 0 }, () => {
+    const context = target.matches('.usage-guide-search-match')
+      ? target.closest('article')?.querySelector('.usage-guide-feature-head strong') : null;
+    moveToPosition({ target, fraction: 0, context }, () => {
       if (focusTarget) {
         target.setAttribute('tabindex', '-1');
         target.focus({ preventScroll: true });

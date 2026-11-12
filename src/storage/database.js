@@ -31,6 +31,9 @@ function createDatabases(options = {}) {
   const databases = {};
 
   try {
+    for (const { name, key, steps } of databaseMigrations.getMigrationPlan(options)) {
+      checkDatabaseVersion(path.join(dataDir, DB_FILE_NAMES[name]), key, steps.length);
+    }
     databases.songDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.songDb), { foreignKeys: true });
     databases.superChatDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.superChatDb));
     databases.giftDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.giftDb), { foreignKeys: true });
@@ -61,7 +64,10 @@ function createDatabases(options = {}) {
 function createLotteryDatabase(dataDir) {
   let lotteryDb = null;
   try {
-    lotteryDb = openSqliteDatabase(path.join(dataDir, DB_FILE_NAMES.lotteryDb), { foreignKeys: true });
+    const filePath = path.join(dataDir, DB_FILE_NAMES.lotteryDb);
+    const { key, steps } = dynamicLotteryMigrations.migrationPlan;
+    checkDatabaseVersion(filePath, key, steps.length);
+    lotteryDb = openSqliteDatabase(filePath, { foreignKeys: true });
     dynamicLotteryMigrations.runDynamicLotteryMigrations(lotteryDb);
     return lotteryDb;
   } catch (error) {
@@ -69,6 +75,16 @@ function createLotteryDatabase(dataDir) {
     const reason = typeof error?.code === 'string' && error.code ? error.code : error?.name || 'initialization failed';
     console.warn(`[Startup] dynamic lottery database unavailable: ${reason}`);
     return null;
+  }
+}
+
+function checkDatabaseVersion(filePath, key, target) {
+  if (!fs.existsSync(filePath)) return;
+  const database = new DatabaseSync(filePath, { readOnly: true });
+  try {
+    schema.assertSchemaCompatible(database, key, target);
+  } finally {
+    database.close();
   }
 }
 

@@ -1,6 +1,7 @@
 'use strict';
 
-const { sendJson } = require('../http-utils');
+const { sendJson, sendStableError } = require('../http-utils');
+const { createPublicError } = require('../../shared/public-error');
 
 const prefixes = ['/api/games', '/api/wheel'];
 
@@ -9,7 +10,9 @@ const routes = {
     try {
       await context.games.refreshViewers();
     } catch (error) {
-      if (!context.games.listViewers().length) throw error;
+      if (!context.games.listViewers().length) {
+        throw Object.assign(createPublicError('观众名单刷新失败，请检查直播间连接后重试。', 503), { cause: error });
+      }
       console.warn('[Games] Online rank refresh failed; using known viewer candidates.');
     }
     sendJson(res, 200, { ok: true, data: context.games.listViewers() });
@@ -49,11 +52,8 @@ const routes = {
         data: context.games.start(normalizeSessionInput(body)),
       });
     } catch (error) {
-      const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;
-      sendJson(res, status, {
-        ok: false,
-        error: error.message || '无法开始游戏。',
-      });
+      if (!error?.publicMessage) throw error;
+      sendStableError(res, error);
     }
   },
   async 'POST /api/games/session/move'(context, request, res) {
@@ -82,29 +82,23 @@ const routes = {
         data: context.wheel.configure(normalizeWheelConfigInput(body)),
       });
     } catch (error) {
-      const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;
-      sendJson(res, status, {
-        ok: false,
-        error: error.message || '转盘配置无效。',
-      });
+      if (!error?.publicMessage) throw error;
+      sendStableError(res, error);
     }
   },
   async 'POST /api/wheel/spin'(context, request, res) {
     try {
       sendJson(res, 200, { ok: true, data: context.wheel.spin() });
     } catch (error) {
-      const status = Number.isInteger(error.statusCode) ? error.statusCode : 400;
-      sendJson(res, status, {
-        ok: false,
-        error: error.message || '转盘暂时无法抽取。',
-      });
+      if (!error?.publicMessage) throw error;
+      sendStableError(res, error);
     }
   },
 };
 
 function normalizeSessionInput(input = {}) {
   const game = String(input.game || '');
-  if (!['number-bomb', 'gomoku', 'draw-guess'].includes(game)) throw new Error('不支持这个游戏。');
+  if (!['number-bomb', 'gomoku', 'draw-guess'].includes(game)) throw createPublicError('不支持这个游戏。');
   if (game === 'draw-guess') {
     const result = {
       game,
@@ -122,13 +116,13 @@ function normalizeSessionInput(input = {}) {
   const targetName = String(input.targetName || '')
     .trim()
     .slice(0, 80);
-  if (mode === 'single' && !/^\d{1,20}$/.test(targetUid)) throw new Error('请选择一位观众。');
+  if (mode === 'single' && !/^\d{1,20}$/.test(targetUid)) throw createPublicError('请选择一位观众。');
   return { game, mode, targetUid, targetName };
 }
 
 function normalizeDrawGuessCategoryIds(value) {
-  if (!Array.isArray(value) || value.length < 1) throw new Error('请至少选择一个词库分类。');
-  if (value.length > 16) throw new Error('词库分类数量过多。');
+  if (!Array.isArray(value) || value.length < 1) throw createPublicError('请至少选择一个词库分类。');
+  if (value.length > 16) throw createPublicError('词库分类数量过多。');
   const categoryIds = [
     ...new Set(
       value.map((item) =>
@@ -138,12 +132,12 @@ function normalizeDrawGuessCategoryIds(value) {
       ),
     ),
   ];
-  if (categoryIds.some((id) => !/^[a-z0-9-]{1,32}$/.test(id))) throw new Error('词库分类无效。');
+  if (categoryIds.some((id) => !/^[a-z0-9-]{1,32}$/.test(id))) throw createPublicError('词库分类无效。');
   return categoryIds;
 }
 
 function normalizeWheelConfigInput(input = {}) {
-  if (!Array.isArray(input.entries)) throw new Error('请至少配置两个转盘选项。');
+  if (!Array.isArray(input.entries)) throw createPublicError('请至少配置两个转盘选项。');
   return input.entries.map((entry) => ({
     label: String(entry?.label || '').trim(),
     weight: entry?.weight,

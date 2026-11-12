@@ -105,6 +105,86 @@ test('invalid music platform returns a stable 400 through the HTTP transport', a
   assert.equal((await response.json()).ok, false);
 });
 
+test('domain route wrappers send unknown failures through the stable HTTP boundary', async (t) => {
+  const logs = [];
+  t.mock.method(console, 'error', (...args) => logs.push(util.format(...args)));
+  const fail = () => { throw new Error('synthetic storage failure /private/database?token=test-secret'); };
+  const { origin } = await listenHttpServer(t, {
+    inflightTracker: { run: (run) => run() },
+    createApiContext: () => ({
+      sessionToken: 'synthetic-token',
+      overtime: { act: fail },
+      interactions: { start: fail },
+      games: { start: fail },
+      wheel: { spin: fail },
+      playback: { addFavorite: fail },
+      music: { registry: {}, catalog: { searchMusicTracks: fail } },
+    }),
+  });
+  for (const [path, body] of [
+    ['/api/overtime/action', { action: 'start' }],
+    ['/api/interactions/session', {}],
+    ['/api/games/session', { game: 'gomoku', mode: 'multi' }],
+    ['/api/wheel/spin', {}],
+    ['/api/playback/favorites', { track: {} }],
+    ['/api/music/search', { keyword: 'test' }],
+  ]) {
+    const response = await fetch(origin + path, {
+      method: 'POST', headers: { Authorization: 'Bearer synthetic-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    assert.equal(response.status, 500, path);
+    assert.doesNotMatch(JSON.stringify(await response.json()), /private|database|test-secret/, path);
+  }
+  assert.equal(logs.length, 6);
+  assert.ok(logs.every((line) => line.includes('synthetic storage failure')));
+  assert.doesNotMatch(logs.join('\n'), /test-secret/);
+});
+
+test('domain validation and login errors keep their existing public statuses', async (t) => {
+  const { DatabaseSync } = require('node:sqlite');
+  const { MUSIC_SCHEMA } = require('../../src/storage/schema');
+  const { createPlaybackStore } = require('../../src/storage/playback-store');
+  const { validateAction, validateRules } = require('../../src/overtime/overtime-contract');
+  const { createInteractionSessionService } = require('../../src/games/interaction-session-service');
+  const { createWheelSessionService } = require('../../src/games/wheel-session-service');
+  const { createGameSessionService } = require('../../src/games/game-session-service');
+  const { createMusicCatalogService } = require('../../src/music/music-catalog-service');
+  const db = new DatabaseSync(':memory:');
+  db.exec(MUSIC_SCHEMA);
+  t.after(() => db.close());
+  const interactions = createInteractionSessionService();
+  const wheel = createWheelSessionService();
+  const games = createGameSessionService();
+  t.after(() => { interactions.dispose(); wheel.dispose(); games.dispose(); });
+  const { origin } = await listenHttpServer(t, {
+    inflightTracker: { run: (run) => run() },
+    createApiContext: () => ({
+      sessionToken: 'synthetic-token', overtime: { act: validateAction, replaceRules: validateRules }, interactions, wheel, games,
+      playback: createPlaybackStore(db),
+      music: { registry: createMusicProviderRegistry(), catalog: createMusicCatalogService() },
+    }),
+  });
+  for (const [path, body, status, message] of [
+    ['/api/overtime/action', { action: 'invalid' }, 400, /action/],
+    ['/api/overtime/rules', {
+      rules: [{ giftId: '1', giftName: 'Synthetic gift', mode: 'fixed', fixedSeconds: 1, giftIdentity: {} }],
+    }, 400, /重新选择/],
+    ['/api/interactions/session/finish', { sessionId: 'old' }, 409, /刷新/],
+    ['/api/games/session', { game: 'invalid' }, 400, /不支持/],
+    ['/api/wheel/spin', {}, 400, /配置/],
+    ['/api/playback/favorites', { track: {} }, 400, /曲目/],
+    ['/api/music/playlists/tracks/add', { platform: 'qq', tracks: [{ sourceSongId: 1 }] }, 501, /登录/],
+  ]) {
+    const response = await fetch(origin + path, {
+      method: 'POST', headers: { Authorization: 'Bearer synthetic-token', 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    assert.equal(response.status, status, path);
+    assert.match((await response.json()).error, message, path);
+  }
+});
+
 test('standalone HTTP failures log only a safe path and redacted error details', async (t) => {
   const output = [];
   t.mock.method(console, 'error', (...args) => output.push(util.format(...args)));

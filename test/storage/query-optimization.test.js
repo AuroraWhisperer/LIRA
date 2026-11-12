@@ -39,6 +39,16 @@ function createVersionedFixture(t, versions) {
   }
 }
 
+function upgradeQueryIndexes(t, databases) {
+  const run = schema.runMigrations;
+  const scoped = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
+    run(db, key, key === 'gift_db' ? steps.slice(0, 21) : steps));
+  try {
+    runAllMigrations(databases);
+    runAllMigrations(databases);
+  } finally { scoped.mock.restore(); }
+}
+
 test('LIVE migration preserves an existing v15 queue and enforces a single marker after repeated startup', (t) => {
   const f = createVersionedFixture(t, { song_db: 15 });
   t.after(() => f.close());
@@ -73,8 +83,8 @@ test('query indexes upgrade without changing rows and migrate idempotently', (t)
   assert.equal(f.giftDb.prepare("SELECT 1 FROM sqlite_master WHERE name = 'gift_retention_state'").get(), undefined);
   assert.equal(Object.hasOwn(gifts[0], 'remote_final_cursor'), false);
   assert.equal(Object.hasOwn(requests[0], 'fan_recorded'), false);
-  runAllMigrations(f.databases);
-  runAllMigrations(f.databases);
+  // Test index upgrades independently of the separately covered pre-release reset.
+  upgradeQueryIndexes(t, f.databases);
   assert.deepEqual(f.giftDb.prepare(`SELECT ${Object.keys(gifts[0]).join(', ')} FROM gift_events`).all(), gifts);
   assert.deepEqual(songDb.prepare(`SELECT ${Object.keys(requests[0]).join(', ')} FROM requests`).all(), requests);
   assert.equal(f.giftDb.prepare('SELECT remote_final_cursor FROM gift_events').get().remote_final_cursor, null);
@@ -137,7 +147,7 @@ test('fan cascade indexes upgrade without ANALYZE and preserve scope data', (t) 
   assert.match(plan, /SEARCH fan_records USING COVERING INDEX idx_fan_records_profile_id \(profile_id=\?\)/u);
   assert.match(plan, /SEARCH fan_reminder_states USING COVERING INDEX idx_fan_reminder_states_profile_id \(profile_id=\?\)/u);
   assert.doesNotMatch(plan, /SCAN fan_(records|reminder_states)/u);
-  assert.equal(schema.getSchemaVersion(db, 'song_db'), 17);
+  assert.equal(schema.getSchemaVersion(db, 'song_db'), 18);
   db.prepare('DELETE FROM fan_profiles WHERE scope = ?').run('first');
   for (const [i, table] of tables.entries()) {
     assert.deepEqual(db.prepare(`SELECT * FROM ${table} ORDER BY rowid`).all(),
@@ -177,8 +187,7 @@ test('retained history upgrades without ANALYZE and seeks both time directions a
   f.giftDb.exec('COMMIT');
   const originalRows = f.giftDb.prepare('SELECT * FROM gift_events ORDER BY id').all();
   const originalMembers = f.giftDb.prepare('SELECT * FROM gift_retention_members ORDER BY event_id').all();
-  runAllMigrations(f.databases);
-  runAllMigrations(f.databases);
+  upgradeQueryIndexes(t, f.databases);
   assert.deepEqual(f.giftDb.prepare('SELECT * FROM gift_events ORDER BY id').all(), originalRows);
   assert.deepEqual(f.giftDb.prepare('SELECT * FROM gift_retention_members ORDER BY event_id').all(), originalMembers);
   assert.equal(f.giftDb.prepare("SELECT 1 FROM sqlite_schema WHERE name = 'sqlite_stat1'").get(), undefined);
@@ -191,7 +200,7 @@ test('retained history upgrades without ANALYZE and seeks both time directions a
     let cursor;
     queries.length = 0;
     while (true) {
-      const rows = store.listHistory({ sourceId: source.id, asOf, sortDirection, cursor, limit: 4 });
+      const rows = store.listHistory({ sourceId: source.id, rangeStart: detailStart, asOf, sortDirection, cursor, limit: 4 });
       actual.push(...rows.map((row) => row.id));
       if (!rows.length) break;
       cursor = { sortValue: rows.at(-1).history_sort_value, id: rows.at(-1).id };

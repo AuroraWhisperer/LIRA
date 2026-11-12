@@ -7,7 +7,7 @@ const { BilibiliDanmakuClient } = require('../../src/bilibili/danmaku-client');
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
 async function fixture(t, { liveStatus = 1 } = {}) {
-  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: 10000 });
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: Date.parse('2026-11-12T00:00:00Z') });
   const sockets = [];
   const control = { autoOpen: true };
   class Socket {
@@ -58,7 +58,12 @@ async function fixture(t, { liveStatus = 1 } = {}) {
   const original = global.WebSocket;
   global.WebSocket = Socket;
   const statuses = [];
-  const client = new BilibiliDanmakuClient('123', { onStatus: (status) => statuses.push(status) });
+  const messages = [];
+  const historyMessages = [];
+  const client = new BilibiliDanmakuClient('123', {
+    onStatus: (status) => statuses.push(status),
+    onMessage: (message) => messages.push(message),
+  });
   t.after(() => {
     client.stop();
     global.WebSocket = original;
@@ -66,18 +71,13 @@ async function fixture(t, { liveStatus = 1 } = {}) {
   for (const method of ['info', 'warn', 'log']) t.mock.method(console, method, () => {});
   client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus });
   client.apiClient.resolveDanmuInfo = async () => ({ token: 'synthetic', host_list: [{ host: 'synthetic.invalid' }] });
+  client.apiClient.fetchHistory = async () => ({ room: historyMessages, admin: [] });
   for (const poller of [client.onlineRankPoller, client.fansMedalPoller]) {
     poller.start = () => {};
   }
-  client.historyPoller.start = () => {
-    client.historyPoller.timer = {};
-  };
-  client.historyPoller.stop = () => {
-    client.historyPoller.timer = null;
-  };
   client.start();
   await flush();
-  return { client, sockets, control, statuses };
+  return { client, sockets, control, statuses, messages, historyMessages };
 }
 
 test('open-close failures back off 1/2/4/8/16/30 seconds and remain capped', async (t) => {
@@ -153,6 +153,44 @@ test('manual restart cancels the old recovery timer and resets the failure count
   t.mock.timers.tick(1);
   await flush();
   assert.equal(sockets.length, 3);
+});
+
+test('failed live-start retries keep delivering history while rejecting the previous socket', async (t) => {
+  const { client, messages, historyMessages } = await fixture(t, { liveStatus: 0 });
+  const previousSocket = client.ws;
+  previousSocket.packet(8, { code: 0 });
+  await flush();
+  let deliveredFrames = 0;
+  t.mock.method(client.messageHandlers, 'handlePackets', async (data) => {
+    if (data.readUInt32BE(8) === 5) deliveredFrames++;
+  });
+  client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus: 1 });
+  const resolveDanmuInfo = client.apiClient.resolveDanmuInfo;
+  client.apiClient.resolveDanmuInfo = async () => { throw new Error('synthetic getDanmuInfo failure'); };
+
+  await client.liveStatusMonitor.checkLiveStatus();
+  assert.ok(client.historyPoller.timer);
+  historyMessages.push({ uid: 42, nickname: 'Viewer', text: '点歌历史', timeline: new Date().toISOString() });
+  previousSocket.packet(5, {});
+  for (const delay of [1000, 2000, 4000]) {
+    t.mock.timers.tick(delay);
+    await flush();
+    assert.ok(client.historyPoller.timer);
+  }
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].source, 'history');
+  assert.equal(messages[0].message, '点歌历史');
+  assert.equal(deliveredFrames, 0, 'the superseded socket cannot deliver during recovery');
+
+  client.apiClient.resolveDanmuInfo = resolveDanmuInfo;
+  t.mock.timers.tick(8000);
+  await flush();
+  assert.notEqual(client.ws, previousSocket);
+  assert.equal(client.historyPoller.timer, null);
+  client.ws.packet(8, { code: 0 });
+  client.ws.packet(5, {});
+  await flush();
+  assert.equal(deliveredFrames, 1);
 });
 
 for (const outcome of ['success', 'failure']) {

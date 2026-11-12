@@ -21,6 +21,7 @@ export function createPlaybackControls(deps) {
     streamService,
     savePlaybackState,
     renderPlayback,
+    renderPlaybackProgress,
     updatePlaybackMediaSession,
     syncPlaybackLyricWindow,
     getPlaybackAuthState,
@@ -69,6 +70,33 @@ export function createPlaybackControls(deps) {
     // 错误属于当前音频；新曲尚在解析时也不能让旧音频抢回播放权。
     const requestGeneration = audioRequestGeneration;
     return () => isCurrentPlaybackRequest(requestGeneration, track);
+  }
+
+  async function resumePlayback(audio, track) {
+    const requestGeneration = playRequestGeneration;
+    const isCurrent = () => isCurrentPlaybackRequest(requestGeneration, track);
+    const source = audio.src;
+    if (!isCurrent()) return;
+    playRequested = true;
+    try {
+      await preparePlaybackOutput(audio);
+      if (!isCurrent() || audio.src !== source || !audio.paused) return;
+      await audio.play();
+    } catch (error) {
+      if (isCurrent() && !isInterruptedMediaPlayError(error)) showError(error);
+    }
+  }
+
+  async function seekPlayback(time) {
+    const audio = getPlaybackAudio();
+    const track = playbackState.current;
+    if (!audio?.src || !track || audio.dataset.trackId !== track.id || playbackState.selectedSource === 'wesing') return false;
+    audio.currentTime = time;
+    renderPlaybackProgress();
+    syncPlaybackLyricWindow(true);
+    savePlaybackState();
+    if (audio.paused) await resumePlayback(audio, track);
+    return true;
   }
 
   async function ensureLocalTrackPlayable(track) {
@@ -337,14 +365,7 @@ export function createPlaybackControls(deps) {
     }
 
     if (audio.paused) {
-      playRequested = true;
-      try {
-        await preparePlaybackOutput(audio);
-        if (playbackState.current !== track || !audio.paused) return;
-        await audio.play();
-      } catch (error) {
-        if (!isInterruptedMediaPlayError(error)) showError(error);
-      }
+      await resumePlayback(audio, track);
     } else {
       // Keep the selected track; only cancel its pending automatic start.
       playRequested = false;
@@ -448,6 +469,7 @@ export function createPlaybackControls(deps) {
     playPlaybackTrack,
     changePlaybackQuality,
     togglePlayback,
+    seekPlayback,
     playbackPrevious,
     playbackNext,
     loadPlaybackLyrics,

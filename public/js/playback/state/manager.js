@@ -14,6 +14,7 @@ export function createInitialState() {
     normalQueue: [],
     normalQueueTracks: [], // 完整歌单备份，用于循环重播
     radioQueue: [],
+    radioOffset: 0,
     queueType: 'queue',
     queueTitle: '播放队列',
     queueSourceKey: '',
@@ -149,6 +150,9 @@ export function normalizeState(state) {
   const validQueueTypes = ['queue', 'playlist', 'radio'];
   if (!validQueueTypes.includes(normalized.queueType)) {
     normalized.queueType = 'queue';
+  }
+  if (!Number.isSafeInteger(normalized.radioOffset) || normalized.radioOffset < 0) {
+    normalized.radioOffset = 0;
   }
 
   // 确保 playlistIndex 是数字

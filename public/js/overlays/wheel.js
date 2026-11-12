@@ -98,6 +98,7 @@ function renderState(state) {
   }
   if (componentConfig) {
     byId('wheelMessage').hidden = !componentConfig.showResult;
+    byId('wheelLegend').style.color = componentConfig.textColor;
     for (const label of document.querySelectorAll('.wheel-label')) label.style.fill = componentConfig.textColor;
   }
   const spin = currentState.spin;
@@ -108,15 +109,26 @@ function renderState(state) {
     animateSpin(spin, currentState.entries || []);
     return;
   }
-  if (!spin && currentState.lastResult) highlightResult(currentState.lastResult.index);
-  else if (!spin) clearResultHighlight();
+  if (!spin) {
+    animationToken += 1;
+    if (currentState.lastResult) {
+      rotation = resultAngle(currentState.lastResult.index, entries);
+      byId('wheelGroup').style.transition = 'none';
+      byId('wheelGroup').style.transform = `rotate(${rotation}deg)`;
+      orientLabels();
+      highlightResult(currentState.lastResult.index);
+    } else clearResultHighlight();
+  }
   if (!(currentState.entries || []).length) setMessage('等待主播配置转盘');
   else if (!spin && !currentState.lastResult) setMessage(componentConfig ? '等待主播开始抽取' : '点击中心 GO 开始');
 }
 
 function drawSegments(entries) {
   const root = byId('wheelSegments');
+  const legend = byId('wheelLegend');
   root.replaceChildren();
+  legend.replaceChildren();
+  byId('wheelStage').classList.toggle('has-legend', false);
   const total = entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
   if (!total) return;
   let cursor = -Math.PI / 2;
@@ -129,40 +141,72 @@ function drawSegments(entries) {
     path.setAttribute('d', segmentPath(cursor, cursor + angle));
     root.append(path);
     const middle = cursor + angle / 2;
-    root.append(createRadialLabel(entry.label, index, middle));
+    const label = createRadialLabel(entry.label, index, middle, angle);
+    if (label) root.append(label);
     cursor += angle;
   });
+  orientLabels();
 }
 
-function createRadialLabel(value, index, middle) {
+function createRadialLabel(value, index, middle, angle) {
   const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-  const chars = Array.from(String(value || '')).slice(0, 12);
-  const fontSize = Math.min(componentConfig?.labelFontSize || 22, Math.max(12, 156 / Math.max(chars.length, 1)));
-  const point = polar(300, 300, 205, middle);
+  let chars = Array.from(String(value || ''));
+  const preferredSize = componentConfig?.labelFontSize || 22;
+  // The text box spans radii 108–224; keep its corners inside the segment edges.
+  const width = Math.max(0, 216 * Math.tan(Math.min(angle / 2, Math.PI / 4)) - 16);
+  let fontSize = preferredSize;
+  while (fontSize > 16 && Math.ceil(chars.length / Math.floor(width / fontSize)) * fontSize * 1.15 > 116) fontSize -= 1;
+  if (Math.ceil(chars.length / Math.floor(width / fontSize)) * fontSize * 1.15 > 116) {
+    const item = document.createElement('li');
+    item.className = 'wheel-legend-item';
+    item.dataset.index = String(index);
+    item.style.setProperty('--entry-color', palette[index % palette.length]);
+    item.textContent = `${index + 1}. ${value}`;
+    byId('wheelLegend').append(item);
+    byId('wheelStage').classList.toggle('has-legend', true);
+    chars = [String(index + 1)];
+    fontSize = Math.min(preferredSize, 22);
+    if (width < 32) return null;
+  }
+  const point = polar(300, 300, 166, middle);
+  const perLine = Math.floor(width / fontSize);
+  const lineCount = Math.ceil(chars.length / perLine);
   label.classList.add('wheel-label');
   label.dataset.index = String(index);
+  label.dataset.angle = String((middle * 180) / Math.PI + 90);
   label.setAttribute('x', String(point.x));
   label.setAttribute('y', String(point.y));
   label.style.fontSize = `${fontSize}px`;
-  label.setAttribute('transform', `rotate(${(middle * 180) / Math.PI + 90} ${point.x} ${point.y})`);
-  chars.forEach((char, charIndex) => {
+  for (let line = 0; line < lineCount; line++) {
     const tspan = document.createElementNS('http://www.w3.org/2000/svg', 'tspan');
     tspan.setAttribute('x', String(point.x));
-    tspan.setAttribute('dy', String(charIndex === 0 ? -((chars.length - 1) * fontSize) / 2 : fontSize));
-    tspan.textContent = char === ' ' ? '·' : char;
+    tspan.setAttribute('dy', String(line === 0 ? -((lineCount - 1) * fontSize * 1.15) / 2 : fontSize * 1.15));
+    tspan.textContent = chars.slice(line * perLine, (line + 1) * perLine).join('');
     label.append(tspan);
-  });
+  }
   return label;
+}
+
+function orientLabels() {
+  for (const label of document.querySelectorAll('.wheel-label')) {
+    const angle = Number(label.dataset.angle);
+    const visibleAngle = ((angle + rotation) % 360 + 360) % 360;
+    const flip = visibleAngle > 90 && visibleAngle <= 270 ? 180 : 0;
+    label.setAttribute('transform', `rotate(${angle + flip} ${label.getAttribute('x')} ${label.getAttribute('y')})`);
+  }
+}
+
+function resultAngle(index, entries) {
+  const total = entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
+  const before = entries.slice(0, index).reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
+  return -((before + Number(entries[index].weight || 0) / 2) / total) * 360;
 }
 
 function animateSpin(spin, entries) {
   if (!entries.length) return;
   const elapsed = Math.max(0, Date.now() - Number(spin.startedAt));
   const remaining = Math.max(0, Number(spin.durationMs) - elapsed);
-  const total = entries.reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
-  const before = entries.slice(0, spin.index).reduce((sum, entry) => sum + Number(entry.weight || 0), 0);
-  const selectedAngle = ((before + Number(entries[spin.index].weight || 0) / 2) / total) * 360 - 90;
-  const targetAngle = -90 - selectedAngle;
+  const targetAngle = resultAngle(spin.index, entries);
   const target = rotation + Number(spin.turns || 5) * 360 + ((((targetAngle - rotation) % 360) + 360) % 360);
   const group = byId('wheelGroup');
   group.style.transition =
@@ -171,6 +215,7 @@ function animateSpin(spin, entries) {
       : 'none';
   group.style.transform = `rotate(${target}deg)`;
   rotation = target;
+  orientLabels();
   setMessage('转盘转动中…');
   const token = ++animationToken;
   window.setTimeout(() => {
@@ -180,7 +225,7 @@ function animateSpin(spin, entries) {
 }
 
 function highlightResult(index) {
-  document.querySelectorAll('.wheel-segment, .wheel-label').forEach((element) => {
+  document.querySelectorAll('.wheel-segment, .wheel-label, .wheel-legend-item').forEach((element) => {
     const selected = Number(element.dataset.index) === Number(index);
     element.classList.toggle('is-selected', selected);
     element.classList.toggle('is-dim', !selected);
@@ -190,7 +235,7 @@ function highlightResult(index) {
 }
 
 function clearResultHighlight() {
-  document.querySelectorAll('.wheel-segment, .wheel-label').forEach((element) => {
+  document.querySelectorAll('.wheel-segment, .wheel-label, .wheel-legend-item').forEach((element) => {
     element.classList.toggle('is-selected', false);
     element.classList.toggle('is-dim', false);
   });

@@ -1,6 +1,6 @@
 'use strict';
 
-const { sendJson } = require('../http-utils');
+const { sendJson, sendStableError } = require('../http-utils');
 
 function mutate(action) {
   return async (context, request, res) => {
@@ -10,7 +10,8 @@ function mutate(action) {
       const data = action === 'start' ? service.start(input) : service[action](input.sessionId);
       sendJson(res, 200, { ok: true, data });
     } catch (error) {
-      sendJson(res, error.statusCode || 400, { ok: false, error: error.message });
+      if (!error?.publicMessage) throw error;
+      sendStableError(res, error);
     }
   };
 }

@@ -40,12 +40,18 @@ test('closed playback drawer leaves Tab order and restores its trigger', async (
   await page.evaluate(async () => {
     const { Drawer } = await import('/js/playback/ui/drawer.js');
     const { createEventHandlers } = await import('/js/playback/core/event-handlers.js');
+    const { createHomeHandler } = await import('/js/playback/features/home-handler.js');
     window.drawer = new Drawer();
     window.drawer.init();
+    window.homeHandler = createHomeHandler({
+      playbackState: {},
+      homeService: { goBack: () => null, clearHomeState() {}, clearHistory() {} },
+      uiRenderer: { getDrawer: () => window.drawer },
+    });
     createEventHandlers({
       playbackState: {}, getPlaybackAudio: () => null,
-      closePlaybackDrawer: () => window.drawer.close(),
-      playbackDrawerGoBack: () => window.drawer.goBack(),
+      closePlaybackDrawer: window.homeHandler.closePlaybackDrawer,
+      playbackDrawerGoBack: window.homeHandler.playbackDrawerGoBack,
     }).setupEventHandlers();
     document.getElementById('opener').addEventListener('click', () => {
       window.drawer.open('歌单', '测试歌曲');
@@ -58,7 +64,7 @@ test('closed playback drawer leaves Tab order and restores its trigger', async (
     await page.locator('#playbackDrawerShuffleAll').focus();
     if (close === 'button') await page.locator('#playbackDrawerClose').click();
     else if (close === 'backdrop') await page.locator('#playbackDrawerBackdrop').click({ position: { x: 20, y: 600 } });
-    else await page.evaluate(() => window.drawer.goBack());
+    else await page.evaluate(() => window.homeHandler.playbackDrawerGoBack());
     assert.equal(await page.evaluate(() => document.activeElement.id), 'opener', `focus after ${close}`);
     await checkClosedTabOrder();
   }

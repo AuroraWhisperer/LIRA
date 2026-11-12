@@ -7,7 +7,6 @@ const {
   DANMAKU_MESSAGE_LIMIT,
   splitDanmakuEveryMentionMessage,
 } = require('../../src/bilibili/danmaku/sender-service');
-const { buildMentionedMessage } = require('../../src/bilibili/danmaku/mention-policy');
 
 test('sender reuses only room mappings and refreshes them on room, credential or TTL changes', async () => {
   const { BilibiliApiClient } = require('../../src/bilibili/danmaku/api-client');
@@ -50,13 +49,6 @@ test('sender reuses only room mappings and refreshes them on room, credential or
   await service.send({ message: 'retry' });
   assert.equal(roomReads, 5);
   assert.equal(ownerReads, 0);
-});
-
-test('mention policy formats a visible mention without transport dependencies', () => {
-  assert.deepEqual(buildMentionedMessage('选中了一首歌', { uid: '42', name: 'Alice' }), {
-    message: '@Alice 选中了一首歌',
-    target: { uid: '42', name: 'Alice' },
-  });
 });
 
 test('sender service gets the mention target only when requested', async () => {

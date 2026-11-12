@@ -28,7 +28,7 @@ Platform terminology follows the [documentation entry](../docs/README.md): the l
 | `specs/desktop-auth-boundaries.md` | Design specification | Implemented | `src/electron/desktop-auth-controller.js`<br>`src/electron/ipc/main-window-ipc.js`<br>`test/desktop/desktop-auth-race-electron.test.js`<br>`test/bilibili/bilibili-cookie-storage.test.js` | 2026-09-25 |
 | `specs/games-poll-rating_design.md` | Design specification | In Progress | `src/games/interaction-session-service.js`<br>`public/js/shared/interaction-rules.js`<br>`public/pages/admin/live-components/interactions.html`<br>`test/games/interactions.test.js`<br>`test/games/interactions-overlay.test.js` | 2026-10-12 |
 | `specs/cloud-daily-bots.md` | Design specification | In Progress | `src/electron/daily-bot-controller.js`<br>`src/storage/daily-bot-legacy-reader.js`<br>`public/js/admin/danmaku-daily-bots.js`<br>`public/js/admin/danmaku-daily-library.js`<br>`test/bots/daily-bot-controller.test.js`<br>`test/bots/daily-bot-takeover.test.js`<br>`test/desktop/daily-bot-editor-electron.test.js` | 2026-10-10 |
-| `specs/client-server-logging-design.md` | Design specification | In Progress | `src/electron/desktop-logger.js`<br>`src/electron/terminal-log.js`<br>`src/ai/request-logger.js`<br>`test/desktop/terminal-log.test.js`<br>`test/shared/log-redaction.test.js` | 2026-09-14 |
+| `specs/client-server-logging-design.md` | Design specification | In Progress | `src/shared/log-size-limit.js`<br>`src/electron/log-maintenance.js`<br>`src/electron/desktop-diagnostics.js`<br>`test/desktop/log-maintenance.test.js`<br>`test/shared/log-redaction.test.js` | 2026-11-11 |
 | `specs/bilibili-dynamic-lottery_design.md` | Design specification | Draft | `src/electron/bilibili-auth.js`<br>`src/electron/main.js`<br>`src/bilibili/wbi-signer.js`<br>`src/server/routes/bilibili-routes.js` | 2026-09-14 |
 | `specs/local-gift-catalog-bootstrap_design.md` | Design specification | Implemented | `src/bilibili/gift/gift-catalog-initializer.js`<br>`src/bilibili/gift/remote-gift-image-cache.js`<br>`src/electron/main.js`<br>`public/js/license.js`<br>`test/gifts/gift-catalog-initializer.test.js`<br>`test/license/license-ipc.test.js` | 2026-09-05 |
 | `specs/gift-ledger-projection-sync_design.md` | Design specification | Implemented | `src/storage/gift-sync-store.js`<br>`src/electron/remote-gift-controller.js`<br>`src/electron/license/remote-license-client.js`<br>`src/electron/desktop-runtime.js`<br>`src/electron/main.js`<br>`src/bilibili/gift/query-service.js`<br>`src/server/routes/gift-routes.js`<br>`public/js/admin/gifts/history.js`<br>`test/gifts/gift-sync-store.test.js`<br>`test/gifts/processed-gift-import.test.js`<br>`test/gifts/remote-gift-controller.test.js`<br>`test/gifts/gift-query-service.test.js`<br>`test/gifts/gift-ledger-maintenance.test.js`<br>`test/gifts/gift-projection-runtime-surface.test.js` | 2026-09-07 |
@@ -71,9 +71,11 @@ Platform terminology follows the [documentation entry](../docs/README.md): the l
 
 | `specs/fan-profiles.md` | Design specification | In Progress | `src/fans/profile-service.js`<br>`src/storage/fan-profile-store.js`<br>`src/electron/fan-profile-controller.js`<br>`public/js/admin/fans/index.js`<br>`test/fan-profiles/fan-profiles-domain.test.js`<br>`test/fan-profiles/fan-profiles-ipc.test.js` | 2026-09-18 |
 
-| `specs/gift-retention.md` | Design specification | Implemented | `src/storage/gift-retention-store.js`<br>`src/storage/gift-retention-cleanup.js`<br>`test/gifts/gift-retention.test.js` | 2026-10-12 |
+| `specs/gift-retention.md` | Design specification | In Progress | `src/storage/gift-retention-store.js`<br>`src/storage/gift-retention-cleanup.js`<br>`test/gifts/gift-retention.test.js` | 2026-11-11 |
 
 <!-- SPEC_INDEX_END -->
+
+2026-11-11 确认的服务器 90 天、本地 365 天及调度扩展已在工作区实现，并按用户授权一次性重置不兼容的旧本地投影。功能和隔离桌面验证已有证据；百万条规模的批次延迟目标、完整规模周期和发布验收仍待完成，见[当前执行计划](plans/2026-11-11-gift-retention-tiers.md)。未启用生产物理删除。
 
 ## Status Vocabulary
 

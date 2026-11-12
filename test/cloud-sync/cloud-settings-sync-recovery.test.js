@@ -8,7 +8,6 @@ const { openSqliteDatabase } = require('../../src/storage/database');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createSettingsStore } = require('../../src/storage/settings-store');
 const { createCloudSyncRuntime } = require('../../src/server/cloud-sync-runtime');
-const { createDesktopRuntime } = require('../../src/electron/desktop-runtime');
 const { normalizeCloudSettingsSnapshot, serializeCloudSettings } = require('../../src/server/settings-contract');
 const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
 
@@ -235,17 +234,13 @@ test('failed account restoration cannot capture or upload the previous account s
 
 test('settings runtime restores the snapshot owner atomically before enabling edits', (t) => {
   const f = fixture(t);
-  const runtime = createDesktopRuntime({
-    startServer() {},
-    shutdownApplication() {},
-    ...createCloudSyncRuntime({
-      getSettingsStore: () => f.settings,
-      getBilibiliRuntime: () => ({ configure() {} }),
-      getAiConfig: () => ({}),
-      getGameSession: () => null,
-      getInteractionSession: () => null,
-      broadcastSnapshot() {},
-    }),
+  const runtime = createCloudSyncRuntime({
+    getSettingsStore: () => f.settings,
+    getBilibiliRuntime: () => ({ configure() {} }),
+    getAiConfig: () => ({}),
+    getGameSession: () => null,
+    getInteractionSession: () => null,
+    broadcastSnapshot() {},
   });
   runtime.prepareCloudRoomAccount('first');
   const first = runtime.getCloudSettingsSnapshot('first');

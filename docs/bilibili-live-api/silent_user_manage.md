@@ -30,7 +30,7 @@ _请求方式：post_
 | ------- | ---- | -------- | ---------- |
 | code    | num  | 返回值   | 0：成功    |
 | message | str  | 错误信息 | 默认为 "0" |
-| ttl     | str  | 1        |            |
+| ttl     | num  | 1        |            |
 | data    | obj  | 信息本体 | 成功为空   |
 
 **示例：**
@@ -72,7 +72,7 @@ _请求方式：post_
 | 参数名     | 类型 | 内容       | 必要性 | 备注                   |
 | ---------- | ---- | ---------- | ------ | ---------------------- |
 | room_id    | str  | 直播间Id   | 必要   |                        |
-| ps1        | str  | 列表页码   | 必要   |                        |
+| ps         | str  | 列表页码   | 必要   |                        |
 | csrf_token | str  | CSRF Token | 必要   | cookie中的bili_jct字段 |
 | csrf       | str  | CSRF Token | 必要   | cookie中的bili_jct字段 |
 | visit_id   | str  | 不明       | 非必要 |                        |
@@ -85,7 +85,7 @@ _请求方式：post_
 | ------- | ---- | -------- | ---------- |
 | code    | num  | 返回值   | 0：成功    |
 | message | str  | 错误信息 | 默认为 "0" |
-| ttl     | str  | 1        |            |
+| ttl     | num  | 1        |            |
 | data    | obj  | 信息本体 |            |
 
 `data`对象：

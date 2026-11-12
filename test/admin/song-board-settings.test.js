@@ -129,3 +129,33 @@ test('reset and presets save only persisted fields', async (t) => {
   await page.waitForFunction(() => window.writes.length === 2);
   assert.equal(Object.keys(await page.evaluate(() => window.writes[1].body)).some(key => /Number$|Mode$/.test(key)), false);
 });
+
+test('immediate theme sync saves independent edits, including a cleared title, for the next unsynced view', async (t) => {
+  const page = await fixture(t, { songBoardSyncTheme: 'false', songBoardTitle: '旧标题' });
+  for (const title of ['新标题', '']) {
+    await page.evaluate(title => {
+      const input = document.getElementById('songBoardTitle');
+      input.value = title;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      const size = document.getElementById('songBoardTitleFontSizeNumber');
+      size.value = '30';
+      size.dispatchEvent(new Event('input', { bubbles: true }));
+      document.getElementById('songBoardSyncTheme').click();
+      document.getElementById('displayForm').requestSubmit();
+    }, title);
+    await page.waitForFunction(() => window.writes.length > 0);
+    const patch = await page.evaluate(() => window.writes.at(-1).body);
+    assert.equal(patch.songBoardTitle, title);
+    assert.equal(patch.songBoardSyncTheme, 'true');
+    await page.evaluate(() => window.writes.at(-1).finish());
+    await page.waitForFunction(() => !window.controller.getState().dirty);
+    await page.locator('#songBoardSyncTheme').uncheck();
+    await page.getByRole('button', { name: '保存展示板', exact: true }).click();
+    await page.waitForFunction(() => window.writes.at(-1).body.songBoardSyncTheme === 'false');
+    await page.evaluate(() => window.writes.at(-1).finish());
+    await page.waitForFunction(() => !window.controller.getState().dirty);
+    assert.equal(await page.locator('#songBoardTitle').inputValue(), title);
+    assert.equal(await page.locator('#songBoardTitleFontSizeNumber').inputValue(), '30');
+    await page.evaluate(() => { window.writes.length = 0; });
+  }
+});

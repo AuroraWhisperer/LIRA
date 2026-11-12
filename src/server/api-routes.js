@@ -57,10 +57,13 @@ function findRoute(pathName, method) {
 }
 
 // body 只在路由真正需要时读取一次，避免 GET 请求也等待请求体
-function createBodyReader(req, maxBodyBytes) {
+function createBodyReader(req, maxBodyBytes, authorize) {
   let pending = null;
   return () => {
-    if (!pending) pending = readJsonBody(req, maxBodyBytes).then((body) => body || {});
+    if (!pending) pending = readJsonBody(req, maxBodyBytes).then((body) => {
+      authorize();
+      return body || {};
+    });
     return pending;
   };
 }
@@ -115,12 +118,15 @@ async function handleApi(context, req, res, requestUrl) {
     return;
   }
 
+  const authorize = context.authorizeRequest || (() => {});
+  authorize();
   const request = {
     method,
     pathName,
     query: requestUrl.searchParams,
     req,
-    body: createBodyReader(req, pathName.startsWith('/api/interactions/') ? 16 * 1024 : context.maxBodyBytes),
+    authorize,
+    body: createBodyReader(req, pathName.startsWith('/api/interactions/') ? 16 * 1024 : context.maxBodyBytes, authorize),
   };
   if (principal?.type === 'overlay' && pathName !== '/api/health') {
     if (!isOverlayRequestAllowed(principal.scope, method, pathName)) {

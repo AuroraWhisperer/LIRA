@@ -24,69 +24,45 @@ function wishMatch(wish, summary = false) {
 
 // Only partial-day windows need exact events once the shared ledger is replaced or pruned.
 // The caller owns the same transaction that removes their visibility.
-function archiveWishContributions(db, sourceId, { syncEpoch, memberSnapshotId, excludedMemberSnapshotId, eventIds }) {
+function archiveWishContributions(db, sourceId, { syncEpoch, eventIds }) {
+  if (!eventIds?.length) return;
   const session = db.prepare('SELECT * FROM gift_wish_sessions WHERE source_id=?').get(sourceId);
   for (const wish of db.prepare("SELECT * FROM gift_wishes WHERE source_id=? AND period IN ('long','session')").all(sourceId)) {
     const start = wish.period === 'long' ? wish.created_at : !session?.ended_at && session?.started_at;
-    if (!start) continue;
-    const windows = [];
-    const bounds = [];
-    if (Date.parse(start) !== dayStart(start)) {
-      windows.push('(g.created_at>=? AND g.created_at<?)');
-      bounds.push(start, new Date(dayStart(start) + DAY_MS).toISOString());
-    }
-    if (wish.period === 'session' && session.checked_at) {
-      windows.push('(g.created_at>=? AND g.created_at<=?)');
-      bounds.push(new Date(dayStart(session.checked_at)).toISOString(), session.checked_at);
-    }
-    if (!windows.length) continue;
+    if (!start || Date.parse(start) === dayStart(start)) continue;
+    const end = new Date(dayStart(start) + DAY_MS).toISOString();
+    if (wish.period === 'session' && session.checked_at < end) continue;
     const match = wishMatch(wish);
-    const params = [wish.id, sourceId, syncEpoch, sourceId, ...bounds, ...match.params];
-    let sql = `g.source_id=? AND (${windows.join(' OR ')}) AND ${match.sql}
-      AND g.detection_status='final' AND g.num>0 AND g.num=CAST(g.num AS INTEGER)`;
-    if (memberSnapshotId == null) sql += " AND g.status='active'";
-    else {
-      sql += " AND g.status IN ('active','retention-staged') AND EXISTS (SELECT 1 FROM gift_retention_members m WHERE m.snapshot_id=? AND m.event_id=g.id)";
-      params.push(memberSnapshotId);
-    }
-    if (excludedMemberSnapshotId != null) {
-      sql += ' AND NOT EXISTS (SELECT 1 FROM gift_retention_members m WHERE m.snapshot_id=? AND m.event_id=g.id)';
-      params.push(excludedMemberSnapshotId);
-    }
-    if (eventIds) {
-      if (!eventIds.length) continue;
-      sql += ` AND g.id IN (${eventIds.map(() => '?').join(',')})`;
-      params.push(...eventIds);
-    }
-    db.prepare(`INSERT OR IGNORE INTO gift_wish_contributions
-      (wish_id,source_id,sync_epoch,platform_id,created_at,num)
-      SELECT ?,?,?,g.platform_id,g.created_at,g.num FROM gift_events g WHERE ${sql}`).run(...params);
+    db.prepare(`INSERT INTO gift_wish_boundary_totals
+      (wish_id,source_id,sync_epoch,boundary_start,boundary_end,num)
+      SELECT ?,?,?,?,?,SUM(g.num) FROM gift_events g WHERE g.source_id=? AND g.created_at>=? AND g.created_at<?
+        AND (${match.sql}) AND g.id IN (${eventIds.map(() => '?').join(',')}) HAVING COUNT(*)>0
+      ON CONFLICT(wish_id,source_id,sync_epoch,boundary_start,boundary_end) DO UPDATE SET num=num+excluded.num`)
+      .run(wish.id,sourceId,syncEpoch,start,end,sourceId,start,end,...match.params,...eventIds);
+    const total = db.prepare(`SELECT num FROM gift_wish_boundary_totals
+      WHERE wish_id=? AND source_id=? AND sync_epoch=? AND boundary_start=? AND boundary_end=?`)
+      .get(wish.id,sourceId,syncEpoch,start,end);
+    if (total && !Number.isSafeInteger(total.num)) throw new Error('INVALID_GIFT_METRICS');
   }
+}
+
+function readMutableWishBoundary(db, sourceId) {
+  const session = db.prepare(`SELECT s.* FROM gift_wish_sessions s WHERE source_id=? AND ended_at IS NULL
+    AND EXISTS (SELECT 1 FROM gift_wishes w WHERE w.source_id=s.source_id AND w.period='session')`).get(sourceId);
+  return session ? { start: new Date(dayStart(session.checked_at)).toISOString(),
+    end: new Date(dayStart(session.checked_at) + DAY_MS).toISOString() } : null;
 }
 
 function readWishContributionCounts(db, sourceId, requests, snapshot) {
   const entries = requests.filter(({ wish }) => wish.id);
-  const wishIds = [...new Set(entries.map(({ wish }) => wish.id))];
-  if (!snapshot || !wishIds.length) return new Map();
-  const matches = entries.map(({ wish, start, end, window }) => {
-    let sql = 'c.wish_id=? AND c.created_at>=? AND c.created_at<=?';
-    const params = [wish.id, start, end];
-    if (window) {
-      sql += ' AND NOT (c.created_at>=? AND c.created_at<?)';
-      params.push(window.start, window.end);
-    }
-    return { sql, params };
-  });
-  const start = entries.map(entry => entry.start).sort()[0];
-  const end = entries.map(entry => entry.end).sort().at(-1);
-  const params = [sourceId, ...wishIds, snapshot.sync_epoch, start, end, snapshot.member_snapshot_id];
-  const sql = `c.source_id=? AND c.wish_id IN (${wishIds.map(() => '?').join(',')}) AND c.sync_epoch=? AND c.created_at>=? AND c.created_at<=?
-    AND NOT EXISTS (SELECT 1 FROM gift_events g JOIN gift_retention_members m ON m.event_id=g.id
-      WHERE g.source_id=c.source_id AND g.platform_id=c.platform_id AND m.snapshot_id=?)`;
-  const sums = matches.map((match, index) => `COALESCE(SUM(CASE WHEN ${match.sql} THEN c.num ELSE 0 END),0) AS c${entries[index].index}`);
-  const counts = db.prepare(`SELECT ${sums.join(',')} FROM gift_wish_contributions c WHERE ${sql}`)
-    .get(...matches.flatMap(match => match.params), ...params);
-  return new Map(entries.map(({ index }) => [index, Number(counts[`c${index}`])]));
+  if (!snapshot || !entries.length) return new Map();
+  const sums = entries.map(({ index }) => `COALESCE(SUM(CASE WHEN wish_id=? AND boundary_start>=?
+    AND boundary_end<=? THEN num ELSE 0 END),0) AS c${index}`);
+  const ids = [...new Set(entries.map(({ wish }) => wish.id))];
+  const counts = db.prepare(`SELECT ${sums.join(',')} FROM gift_wish_boundary_totals c
+    WHERE source_id=? AND sync_epoch=? AND wish_id IN (${ids.map(() => '?').join(',')})`)
+    .get(...entries.flatMap(({ wish, start, end }) => [wish.id,start,end]),sourceId,snapshot.sync_epoch,...ids);
+  return new Map(entries.map(({ index }) => [index, counts[`c${index}`]]));
 }
 
-module.exports = { wishMatch, archiveWishContributions, readWishContributionCounts };
+module.exports = { wishMatch, archiveWishContributions, readWishContributionCounts, readMutableWishBoundary };

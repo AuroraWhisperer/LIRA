@@ -21,6 +21,12 @@ function createLyricToggleButton() {
       contains(name) {
         return classes.has(name);
       },
+      toggle(name, force) {
+        const enabled = force === undefined ? !classes.has(name) : Boolean(force);
+        if (enabled) classes.add(name);
+        else classes.delete(name);
+        return enabled;
+      },
     },
   };
 }

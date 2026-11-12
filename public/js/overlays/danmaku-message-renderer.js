@@ -22,7 +22,7 @@ import { createAuroraMessageRenderer } from './danmaku-aurora.js';
 import { createSeaBreezeMessageRenderer } from './danmaku-sea-breeze.js';
 import { createStargazerMessageRenderer } from './danmaku-stargazer.js';
 import { createRandomEntranceRenderer } from './danmaku-random-entrance.js';
-import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, supportsDanmakuSuperchat } from '../shared/danmaku-style-options.js';
 import { createCelestialHorizontalMessageRenderer } from './danmaku-celestial-horizontal.js';
 import { createNeonGlassMessageRenderer } from './danmaku-neon-glass.js';
 import { createHorizontalCharmMessageRenderer } from './danmaku-horizontal-charm.js';
@@ -33,8 +33,7 @@ import { isHarborGiftVisible } from './danmaku-harbor.js';
 export { DEFAULT_DANMAKU_CLASSES, measureDanmakuText };
 
 export function createDanmakuMessageFilter(options, fullscreen) {
-  const showSuperchat = !fullscreen || ['mist', 'comic', 'window', 'stardust'].includes(options.style)
-    || DANMAKU_STYLE_OPTIONS[options.style]?.fullscreenSuperchat === true;
+  const showSuperchat = supportsDanmakuSuperchat(options.style, Boolean(fullscreen));
   return (item) => (showSuperchat || item?.kind !== 'superchat')
     && (options.style !== 'harbor' || isHarborGiftVisible(item, options.minGiftAmount));
 }

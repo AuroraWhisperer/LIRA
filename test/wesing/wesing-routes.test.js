@@ -211,6 +211,45 @@ test('WeSing diagnostic HTTP request is settled before server shutdown drains re
   assert.equal(result.payload.data.reason, 'stopped');
 });
 
+test('WeSing HTTP configuration keeps its admitted account through asynchronous directory preparation', async t => {
+  const root = createScratchDirectory('wesing-http-account-');
+  const cachePath = path.join(root, 'WeSingCache');
+  const logDir = path.join(cachePath, 'Log', 'WeSing');
+  fs.mkdirSync(logDir, { recursive: true });
+  fs.writeFileSync(path.join(logDir, 'test.log'), 'synthetic cache');
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const readdir = fs.promises.readdir.bind(fs.promises);
+  t.mock.method(fs.promises, 'readdir', async (directory, options) => {
+    if (directory === logDir) { entered.resolve(); await release.promise; }
+    return readdir(directory, options);
+  });
+  let owner = { scope: 'first', epoch: 1 };
+  const runtime = createServerRuntime({ dataDir: path.join(root, 'data'), getSceneOwner: () => owner,
+    weSingPlatform: 'linux', qqClientPlatform: 'linux', neteaseClientPlatform: 'linux',
+  });
+  t.after(async () => {
+    release.resolve();
+    await runtime.stop({ exitProcess: false });
+    fs.rmSync(root, { recursive: true, force: true });
+  });
+  const { baseUrl } = await runtime.start({ host: '127.0.0.1', startPort: 0 });
+  const originalCachePath = runtime.getSetting('weSingCachePath');
+  const url = `${baseUrl}/api/music/wesing/configure`;
+  const input = { method: 'POST', body: JSON.stringify({ cachePath }) };
+  const pending = requestJson(url, runtime.getApiToken(), input);
+  await entered.promise;
+  owner = { scope: 'second', epoch: 2 };
+  release.resolve();
+  const stale = await pending;
+  assert.equal(stale.response.status, 409);
+  assert.equal(stale.payload.code, 'REQUEST_AUTHORIZATION_CHANGED');
+  assert.equal(runtime.getSetting('weSingCachePath'), originalCachePath);
+  const current = await requestJson(url, runtime.getApiToken(), input);
+  assert.equal(current.response.status, 200);
+  assert.equal(runtime.getSetting('weSingCachePath'), cachePath);
+});
+
 test('WeSing export route accepts only a report identity and delegates file ownership', async () => {
   const { routes } = require('../../src/server/routes/wesing-routes');
   let received;

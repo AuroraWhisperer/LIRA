@@ -21,7 +21,8 @@ async function run() {
   const { createDailyBotController } = require('../../src/electron/daily-bot-controller');
   const { digest } = require('../../src/shared/daily-bot-contract');
   const { CHECKIN_BLESSINGS, FORTUNES } = require('../../src/shared/bot-defaults');
-  const { DEFAULT_GIFT_THANKS_TEMPLATES } = require('../../public/js/shared/gift-thanks-templates.js');
+  const { WELCOME_TIME_PERIODS } = require('../../public/js/shared/welcome-time-periods.js');
+  const { DEFAULT_GIFT_THANKS_TEMPLATES, createGiftThanksReplies } = require('../../public/js/shared/gift-thanks-templates.js');
   const root = path.resolve(__dirname, '../..');
   const directory = path.resolve(process.argv[2]);
   if (path.dirname(directory) !== path.join(root, 'tmp')) throw new Error('Expected an isolated tmp directory.');
@@ -42,21 +43,38 @@ async function run() {
   const libraries = { checkin: structuredClone(CHECKIN_BLESSINGS), fortune: structuredClone(FORTUNES) };
   const fixedReplies = {
     ok: true, customExactReplyEnabled: false, customExactReplies: [], scheduledDanmakuEnabled: false,
+    likeThanksEnabled: false, likeThanksMessages: ['谢谢 {username} 的点赞！'],
+    shareThanksEnabled: false, shareThanksMessages: ['谢谢 {username} 的分享！'],
+    followThanksEnabled: false, followThanksMessages: ['谢谢 {username} 的关注！'],
     scheduledDanmaku: { mode: 'fixed', intervalSeconds: 300, minSeconds: 300, maxSeconds: 600, selection: 'sequential', messages: [] },
   };
   global.dailyLibraryTest = { requests: [], libraries, failNext: false, fixedReplies };
+  const viewerNames = { enabled: true,
+    items: Array.from({ length: 21 }, (_, index) => ({ uid: String(100 + index), name: `观众${index + 1}` })) };
+  global.dailyLibraryTest.viewerNames = viewerNames;
+  global.dailyLibraryTest.switchNamesAccount = () => {
+    snapshot.streamer.accountName = 'other-names-test';
+    viewerNames.items = [{ uid: '900', name: '另一账号' }];
+    listeners.forEach(listener => listener(structuredClone(snapshot)));
+  };
   const welcomeSettings = {
     schemaVersion: 2, enabled: true, welcomeDelaySeconds: 0, welcomeMinHonorLevel: 0,
     greetingEnabled: false, greetingDelaySeconds: 10, greetingMinHonorLevel: 0,
     attentionEnabled: false, attentionMinHonorLevel: 31, rareNamePinyinEnabled: false,
     returningEnabled: false, returningMessages: ['最近过得怎么样呀？', '很高兴又见到你～'],
+    timeWelcomeEnabled: false,
+    welcomeOwnMedalOnly: false,
+    timeWelcomeMessages: Object.fromEntries(WELCOME_TIME_PERIODS.map(({ id, label }) =>
+      [id, Array.from({ length: 12 }, (_, index) => `${label}好 {username}，测试文案 ${index + 1}`)])),
     messages: ['欢迎 {username} 来到直播间～'], greetingMessages: ['{username}，你好呀～'],
     attentionWelcomeMessages: ['欢迎 {username}～'], attentionGreetingMessages: ['{username}，来听歌吧～'],
     userWelcomeMessages: [],
+    welcomeWhitelist: [], welcomeBlacklist: [],
   };
   global.dailyLibraryTest.welcomeSettings = welcomeSettings;
   const giftState = { ok: true, status: 'confirmed', templates: { ...DEFAULT_GIFT_THANKS_TEMPLATES },
     values: { giftAutoThanksEnabled: true, giftStatsQueryEnabled: false } };
+  if (process.argv[3] === 'gift-thanks') giftState.replies = createGiftThanksReplies();
   const giftListeners = new Set();
   global.dailyLibraryTest.giftState = giftState;
   const manager = {
@@ -74,12 +92,43 @@ async function run() {
         global.dailyLibraryTest.failNext = false;
         throw Object.assign(new Error('UNAVAILABLE'), { code: 'UNAVAILABLE' });
       }
-      Object.assign(welcomeSettings, structuredClone(patch));
+      const next = structuredClone(patch);
+      if (next.timeWelcomeMessages)
+        next.timeWelcomeMessages = { ...welcomeSettings.timeWelcomeMessages, ...next.timeWelcomeMessages };
+      Object.assign(welcomeSettings, next);
       if (!welcomeSettings.enabled)
         Object.assign(welcomeSettings, { greetingEnabled: false, attentionEnabled: false, returningEnabled: false });
       return structuredClone(welcomeSettings);
     },
     async getFixedReplySettings() { return structuredClone(fixedReplies); },
+    async getViewerNameSettings() { return { enabled: viewerNames.enabled }; },
+    async updateViewerNameSettings({ enabled }) {
+      if (global.dailyLibraryTest.failNext) {
+        global.dailyLibraryTest.failNext = false;
+        throw Object.assign(new Error('UNAVAILABLE'), { code: 'UNAVAILABLE' });
+      }
+      viewerNames.enabled = enabled;
+      return { enabled };
+    },
+    async listViewerNames({ page }) {
+      page = Math.min(page, Math.max(1, Math.ceil(viewerNames.items.length / 20)));
+      const result = { items: structuredClone(viewerNames.items.slice((page - 1) * 20, page * 20)),
+        total: viewerNames.items.length, page, pageSize: 20 };
+      if (global.dailyLibraryTest.holdNamesRead) {
+        global.dailyLibraryTest.holdNamesRead = false;
+        return new Promise(resolve => { global.dailyLibraryTest.releaseNamesRead = () => resolve(result); });
+      }
+      return result;
+    },
+    async updateViewerName({ uid, name }) {
+      if (global.dailyLibraryTest.failNext) {
+        global.dailyLibraryTest.failNext = false;
+        throw Object.assign(new Error('UNAVAILABLE'), { code: 'UNAVAILABLE' });
+      }
+      viewerNames.items.find(item => item.uid === uid).name = name;
+      return { uid, name };
+    },
+    async deleteViewerName(uid) { viewerNames.items = viewerNames.items.filter(item => item.uid !== uid); return { ok: true }; },
     async updateFixedReplySettings(patch) {
       global.dailyLibraryTest.requests.push({ operation: 'fixed-reply-update', input: structuredClone(patch) });
       if (global.dailyLibraryTest.failNext) {
@@ -134,15 +183,21 @@ async function run() {
         }
         res.end(`import { initDanmakuDailyBots } from './danmaku-daily-bots.js';
           import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
+          import { initDanmakuTabs } from './danmaku-tabs.js';
           import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
           import { initDanmakuWelcome } from './danmaku-welcome.js';
+          import { initDanmakuViewerNames } from './danmaku-viewer-names.js';
           import { initDanmakuQueryReplies } from './danmaku-query-replies.js';
           import { initGiftInteractionControls } from './gifts/interaction-controls.js';
           import './contextual-help.js';
-          const panel = document.querySelector('.danmaku-fixed-reply-section');
+          const panel = document.getElementById('otherDanmakuFeature');
+          panel.hidden = false;
+          panel.classList.add('active');
           document.body.replaceChildren(panel);
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
-          initDanmakuDailyBots(); initDanmakuCloudReplies(); initDanmakuQueryReplies(); initDanmakuWelcome();
+          initDanmakuTabs();
+          ${process.argv[3] === 'gift-thanks' ? '' : 'initDanmakuDailyBots(); initDanmakuCloudReplies(); initDanmakuQueryReplies(); initDanmakuWelcome();'}
+          ${process.argv[3] === 'viewer-names' ? 'initDanmakuViewerNames();' : ''}
           const { initDanmakuGiftThanks } = await import('/js/admin/danmaku-gift-thanks.js');
           const thanks = initDanmakuGiftThanks();
           initGiftInteractionControls({ surface: 'danmaku', onState: thanks.updateState }); initFixedReplyEditor();`);
@@ -183,6 +238,12 @@ async function run() {
           return { ...structuredClone(giftState), ok: false, status: 'unconfirmed', error: 'CLOUD_SYNC_FAILED' };
         }
         giftState.templates = structuredClone(templates);
+        giftListeners.forEach(listener => listener(structuredClone(giftState)));
+        return structuredClone(giftState);
+      },
+      async setGiftThanksReplies(replies) {
+        global.dailyLibraryTest.requests.push({ operation: 'gift-thanks-replies', replies: structuredClone(replies) });
+        giftState.replies = structuredClone(replies);
         giftListeners.forEach(listener => listener(structuredClone(giftState)));
         return structuredClone(giftState);
       },

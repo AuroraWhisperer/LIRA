@@ -14,7 +14,7 @@ function createQQClientCapture({
   const initial = {
     active: false, supported: platform === 'win32', detected: false, status: 'inactive',
     message: '未启用外部 QQ 音乐', trackTitle: '', artists: [], currentMs: 0, durationMs: 0,
-    playing: false, lyricSource: '', coverUrl: '',
+    playing: false, playbackRate: 1, lyricSource: '', coverUrl: '',
   };
   let state = { ...initial };
   let monitor = null;
@@ -48,6 +48,7 @@ function createQQClientCapture({
       trackTitle: state.trackTitle, artists: [...state.artists], currentMs: state.currentMs,
       durationMs: state.durationMs, progress: state.durationMs > 0 ? state.currentMs / state.durationMs : 0,
       playing: state.playing && state.status === 'ready',
+      playbackRate: state.playbackRate,
       status: state.status === 'ready' || state.status === 'empty' ? state.status
         : state.status === 'loading' ? 'loading' : 'idle',
       lineText: line?.text || '', translation: line?.translation || '', words: structuredClone(line?.words || []),
@@ -195,6 +196,7 @@ function createQQClientCapture({
     clockReady = true;
     // SMTC Position is current as of LastUpdatedTime, not as of this poll.
     const rate = Number.isFinite(sample.playbackRate) && sample.playbackRate > 0 ? sample.playbackRate : 1;
+    state.playbackRate = rate;
     const elapsed = playing ? Math.max(0, now() - stamp) * rate : 0;
     state.currentMs = Math.round(Math.min(duration, position + elapsed));
     state.durationMs = Math.round(duration);

@@ -44,18 +44,44 @@
           </legend>
           <div class="bilibili-room-row" aria-live="polite">
             <span id="bilibiliRoomStatus" class="pill warn" style="padding: 2px 7px">未设置</span>
-            <span class="bilibili-auth-profile">
-              <img id="bilibiliRoomAvatar" class="bilibili-auth-avatar" alt="" hidden />
-              <span class="bilibili-auth-identity">
-                <strong id="bilibiliRoomName" class="bilibili-auth-name">填写直播间号后保存设置</strong>
-              </span>
-            </span>
+            <strong id="bilibiliRoomHint" class="bilibili-auth-name">填写直播间号后保存设置</strong>
             <input
               id="roomId"
               class="bilibili-room-input"
               aria-label="B 站直播间号或链接"
               placeholder="例如：123456，或粘贴 B 站直播间链接"
             />
+          </div>
+        </fieldset>
+        <fieldset id="bilibiliRoomOverview" class="theme-section bilibili-room-overview" hidden>
+          <legend id="bilibiliRoomTitle">直播间资料</legend>
+          <div class="bilibili-room-details">
+            <div class="bilibili-auth-profile">
+              <img id="bilibiliRoomAvatar" class="bilibili-auth-avatar" alt="" hidden />
+              <div class="bilibili-auth-identity">
+                <div class="bilibili-room-owner-heading">
+                  <strong id="bilibiliRoomName" class="bilibili-auth-name"></strong>
+                  <span id="bilibiliRoomLevel" class="bilibili-room-level ui-caption" hidden></span>
+                </div>
+                <div class="bilibili-room-owner-facts ui-caption">
+                  <span>粉丝 <span id="bilibiliRoomFollowers">—</span></span>
+                  <span>UID <span id="bilibiliRoomUid">—</span></span>
+                  <span>粉丝牌 <span id="bilibiliRoomMedal">—</span></span>
+                </div>
+              </div>
+            </div>
+            <div class="bilibili-room-info ui-caption">
+              <div class="bilibili-room-owner-heading">
+                <span>房间号 <span id="bilibiliRoomId"></span></span>
+                <span id="bilibiliRoomLiveStatus" class="pill">状态未知</span>
+              </div>
+              <div>直播分区 <span id="bilibiliRoomArea">—</span></div>
+            </div>
+            <div class="bilibili-room-news ui-caption">
+              <span class="muted">主播公告</span>
+              <span id="bilibiliRoomAnnouncement">—</span>
+            </div>
+            <button id="bilibiliRoomRefreshBtn" type="button">刷新资料</button>
           </div>
         </fieldset>
         <fieldset id="guardExpirySettings" class="theme-section guard-expiry-settings">

@@ -84,11 +84,17 @@ function createBilibiliClient(roomId, context) {
           domainServices.messages.logDanmaku(danmaku, result);
           stage = 'after-request';
           if (result.reason === 'cloud-owned') return;
+          const replySessionKey = context.getReplySessionKey?.();
           aiAssistant.handleDanmaku({
             roomId: String(roomId),
             message: danmaku.message,
             userName: danmaku.userName,
             uid: String(danmaku.uid || ''),
+            source: danmaku.source,
+            messageTimestamp: danmaku.messageTimestamp,
+            sessionKey: replySessionKey,
+            isSessionCurrent: () => !isShuttingDown() && replySessionKey === context.getReplySessionKey?.(),
+            autoReplyExcluded: Boolean(result.accepted || result.command || result.customReply?.command || result.autoReply || result.customReplyReply || gameResult?.game),
             captureReplySession: context.captureReplySession,
           });
           if (result.autoReply) {
@@ -131,8 +137,9 @@ function createBilibiliClient(roomId, context) {
       },
       onSuperChat: (superChat) => {
         if (isShuttingDown()) return;
-        publishDanmaku?.(superChat);
         try {
+          if (domainServices.superChats.isDeleted(superChat.id)) return;
+          publishDanmaku?.(superChat);
           const item = domainServices.superChats.add({
             platformId: superChat.id,
             message: superChat.message,

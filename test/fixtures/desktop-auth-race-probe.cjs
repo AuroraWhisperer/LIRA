@@ -99,6 +99,21 @@ async function runProbe() {
     assert.equal((await login.completion).state.loggedIn, false);
   });
 
+  await check('a revoked LIRA owner cancels its login window and removes partial cookies and snapshots', async (controller) => {
+    const owner = new AbortController();
+    const count = windows.length;
+    const completion = track(controller.loginBilibiliAccount({ signal: owner.signal }));
+    await waitFor(() => windows.length > count);
+    const window = windows.at(-1);
+    await cookies.set({ url: 'https://www.bilibili.com', name: 'SESSDATA', value: 'synthetic-partial' });
+    await auth.persistBilibiliCookieSnapshot(dataDir);
+    owner.abort();
+    assert.equal((await completion).state.loggedIn, false);
+    assert.equal(window.isDestroyed(), true);
+    assert.equal((await cookies.get({})).length, 0);
+    assert.equal(fs.existsSync(path.join(dataDir, 'bilibili-auth', 'cookies.enc')), false);
+  });
+
   await check('a new login invalidates the previous login', async (controller) => {
     const first = await openLogin(controller);
     const second = await openLogin(controller);

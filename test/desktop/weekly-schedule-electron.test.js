@@ -53,11 +53,18 @@ async function saved(page) {
 }
 
 async function uploadAsset(page, key, file) {
+  const uploads = page.locator('.weekly-upload-details');
+  if (!await uploads.evaluate(node => node.open)) await uploads.locator('summary').click();
   const input = page.locator(`[data-weekly-asset="${key}"]`);
   await input.setInputFiles(file);
-  await input.locator(':scope:enabled').waitFor();
+  await page.waitForFunction(key => !document.querySelector(`[data-weekly-asset="${key}"]`).disabled, key);
   const status = await page.locator(`[data-weekly-upload-slot="${key}"] .weekly-upload-status`).textContent();
   assert.equal(status, '已上传', await page.locator('[data-weekly-error]').textContent());
+}
+
+async function chooseImage(page, name) {
+  await page.getByRole('button', { name: '正在调整', exact: true }).click();
+  await page.getByRole('option', { name, exact: true }).click();
 }
 
 async function chooseTemplate(page, name) {
@@ -106,6 +113,7 @@ test('weekly templates retain real uploaded assets and independent edits across 
   await page.locator('[data-weekly-field="modules.benefits.enabled"]').check();
   await page.locator('[data-weekly-field="modules.benefits.text"]').fill('专属点歌\n月度壁纸');
   await openGroup(page, '排版与配色');
+  await page.locator('[data-weekly-layout="letterpress"]').click();
   await page.getByRole('button', { name: '日程字体', exact: true }).click();
   await page.getByRole('option', { name: '站酷小薇', exact: true }).click();
   await saved(page);
@@ -120,6 +128,7 @@ test('weekly templates retain real uploaded assets and independent edits across 
   await saved(page);
   await page.reload();
   await page.locator('[data-weekly-action="export"]:enabled').waitFor();
+  assert.equal(await page.locator('.weekly-schedule-art').getAttribute('data-layout'), 'letterpress');
   assert.equal(await page.locator('[data-weekly-field="days.0.theme"]').inputValue(), '第一周歌回');
   assert.equal(await page.locator('[data-weekly-field="days.0.time2"]').inputValue(), '23:00');
   assert.equal(await page.locator('[data-weekly-field="modules.message.text"]').inputValue(), '周五生日会\n欢迎一起听歌');
@@ -152,11 +161,14 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
 
   await openGroup(page, '排版与配色');
   await page.locator('[data-weekly-layout="celestial"]').click();
-  await page.locator('.weekly-parameter-details > summary').click();
+  await page.locator('[data-weekly-panel="appearance"] .weekly-parameter-details > summary').click();
   await page.locator('[data-weekly-number="typography.theme"]').fill('135');
   await openGroup(page, '图片素材');
+  await uploadAsset(page, 'portrait', assets.png);
+  await page.locator('[data-weekly-number="portrait.outlineWidth"]').fill('12');
   await uploadAsset(page, 'logo', assets.png);
   await uploadAsset(page, 'background', assets.png);
+  await chooseImage(page, '主播 Logo');
   const scale = page.locator('[data-weekly-number="logo.scale"]');
   await scale.fill('350');
   assert.equal(await page.locator('[data-weekly-field="logo.scale"]').inputValue(), '350');
@@ -169,16 +181,23 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
   assert.equal(await x.inputValue(), '1920');
   await page.locator('[data-weekly-reset="logo"]').click();
   assert.equal(await scale.inputValue(), '100');
-  for (const [key, value] of [['logo.scale', '350'], ['logo.rotation', '-25'], ['logo.opacity', '55'], ['background.x', '75'], ['background.blur', '8']]) {
+  for (const [key, value] of [['logo.scale', '350'], ['logo.rotation', '-25'], ['logo.opacity', '55']]) {
     await page.locator(`[data-weekly-number="${key}"]`).fill(value);
   }
   await page.locator('[data-weekly-field="logo.flip"]').check();
+  await page.locator('[data-weekly-transform="logo"] .weekly-parameter-details > summary').click();
+  await page.locator('[data-weekly-number="logo.brightness"]').fill('125');
+  await page.locator('[data-weekly-number="logo.shadow"]').fill('40');
+  await chooseImage(page, '背景图片');
+  await page.locator('[data-weekly-number="background.x"]').fill('75');
+  await page.locator('[data-weekly-number="background.blur"]').fill('8');
   await page.getByRole('button', { name: '图片适配', exact: true }).click();
   await page.getByRole('option', { name: '完整显示（保留留白）', exact: true }).click();
   await saved(page);
   await page.reload();
   await page.locator('[data-weekly-action="export"]:enabled').waitFor();
   assert.equal(await page.locator('[data-weekly-number="logo.scale"]').inputValue(), '350');
+  assert.equal(await page.locator('[data-weekly-number="portrait.outlineWidth"]').inputValue(), '12');
   assert.equal(await page.locator('[data-weekly-number="typography.theme"]').inputValue(), '135');
   assert.equal(await page.locator('[data-weekly-field="days.6.time1"]').inputValue(), '19:30');
   await app.evaluate(({ app }) => {
@@ -192,7 +211,9 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
             const logo = root.querySelector('.wsa-logo');
             const background = getComputedStyle(root.querySelector('.wsa-background-image'));
             return { opacity: getComputedStyle(logo).opacity, rotation: logo.style.getPropertyValue('--wsa-asset-rotation'),
-              scale: logo.style.getPropertyValue('--wsa-asset-scale'), theme: root.style.getPropertyValue('--wsa-theme-scale'),
+              scale: logo.style.getPropertyValue('--wsa-asset-scale'), imageFilter: getComputedStyle(logo).filter,
+              outline: getComputedStyle(root.querySelector('.wsa-portrait > img')).filter,
+              theme: root.style.getPropertyValue('--wsa-theme-scale'),
               fit: background.objectFit, position: background.objectPosition, filter: background.filter };
           })()`);
         }
@@ -205,10 +226,72 @@ test('expanded appearance and schedule controls persist and reach the real PNG r
   assert.equal(appearance.opacity, '0.55');
   assert.equal(appearance.rotation, '-25deg');
   assert.equal(appearance.scale, '3.5');
+  assert.match(appearance.imageFilter, /brightness\(1\.25\)/);
+  assert.match(appearance.imageFilter, /drop-shadow/);
+  assert.match(appearance.outline, /drop-shadow\(rgb\(255, 255, 255\) 12px 0px 0px\)/);
   assert.equal(appearance.theme, '1.35');
   assert.equal(appearance.fit, 'contain');
   assert.equal(appearance.position, '75% 50%');
   assert.equal(appearance.filter, 'blur(8px)');
+  assert.deepEqual(errors, []);
+});
+
+test('direct image gestures use canvas coordinates and autosave independent adjustments after leaving the expanded editor', { timeout: 90000 }, async t => {
+  const { page, assets, errors } = await fixture(t);
+  await page.locator('[data-weekly-layout="celestial"]').click();
+  await openGroup(page, '图片素材');
+  await uploadAsset(page, 'portrait', assets.png);
+  await uploadAsset(page, 'rank1', assets.png);
+  await uploadAsset(page, 'rank2', assets.png);
+  await chooseImage(page, '主播立绘');
+  await page.locator('[data-weekly-action="expand"]').click();
+  const viewport = page.locator('[data-weekly-preview-viewport]');
+  const canvas = await viewport.boundingBox();
+  const picture = await page.locator('[data-weekly-image="portrait"]').boundingBox();
+  const start = { x: picture.x + picture.width * 0.65, y: picture.y + picture.height * 0.65 };
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+  await page.mouse.move(start.x + 60, start.y - 30, { steps: 8 });
+  await page.mouse.up();
+  const x = Number(await page.locator('[data-weekly-number="portrait.x"]').inputValue());
+  const y = Number(await page.locator('[data-weekly-number="portrait.y"]').inputValue());
+  assert.equal(x, Math.round(60 * 1920 / canvas.width));
+  assert.equal(y, Math.round(-30 * 1920 / canvas.width));
+  await viewport.focus();
+  await page.keyboard.press('Shift+ArrowRight');
+  assert.equal(Number(await page.locator('[data-weekly-number="portrait.x"]').inputValue()), x + 10);
+
+  const resize = await page.locator('[data-weekly-handle="scale"]').boundingBox();
+  await page.mouse.move(resize.x + 9, resize.y + 9);
+  await page.mouse.down();
+  await page.mouse.move(resize.x + 50, resize.y + 9, { steps: 8 });
+  await page.mouse.up();
+  const scale = await page.locator('[data-weekly-number="portrait.scale"]').inputValue();
+  assert.ok(Number(scale) > 100);
+  const rotate = await page.locator('[data-weekly-handle="rotate"]').boundingBox();
+  await page.mouse.move(rotate.x + 9, rotate.y + 9);
+  await page.mouse.down();
+  await page.mouse.move(rotate.x + 70, rotate.y + 30, { steps: 8 });
+  await page.mouse.up();
+  const rotation = await page.locator('[data-weekly-number="portrait.rotation"]').inputValue();
+  assert.notEqual(Number(rotation), 0);
+
+  await chooseImage(page, '榜一头像');
+  await page.locator('[data-weekly-transform="rank1"] .weekly-parameter-details > summary').click();
+  await page.locator('[data-weekly-number="rank1.glow"]').fill('65');
+  await page.locator('.weekly-upload-details > summary').click();
+  await page.locator('[data-weekly-remove-asset="rank2"]').click();
+  await page.keyboard.press('Escape');
+  assert.equal(await page.locator('[data-weekly-action="expand"]').isVisible(), true);
+  await saved(page);
+  await page.reload();
+  await page.locator('[data-weekly-action="export"]:enabled').waitFor();
+  assert.equal(await page.locator('[data-weekly-number="portrait.x"]').inputValue(), String(x + 10));
+  assert.equal(await page.locator('[data-weekly-number="portrait.y"]').inputValue(), String(y));
+  assert.equal(await page.locator('[data-weekly-number="portrait.scale"]').inputValue(), scale);
+  assert.equal(await page.locator('[data-weekly-number="portrait.rotation"]').inputValue(), rotation);
+  assert.equal(await page.locator('[data-weekly-number="rank1.glow"]').inputValue(), '65');
+  assert.equal(await page.locator('[data-weekly-number="rank2.glow"]').inputValue(), '0');
   assert.deepEqual(errors, []);
 });
 
@@ -244,6 +327,7 @@ test('WebP assets export through the real bridge and rejected SVG replacements p
   await uploadAsset(page, 'portrait', assets.webp);
   await uploadAsset(page, 'icon', { name: 'good.svg', mimeType: 'image/svg+xml', buffer: Buffer.from(SVG) });
   const original = await page.locator('[data-weekly-upload-slot="icon"] img').getAttribute('src');
+  await page.locator('.weekly-upload-details > summary').click();
   for (const source of [
     '<svg xmlns="http://www.w3.org/2000/svg"><script>window.svgAttack=1</script></svg>',
     '<svg xmlns="http://www.w3.org/2000/svg"><use href="https://invalid-weekly-asset.test/icon.svg#shape"/></svg>',

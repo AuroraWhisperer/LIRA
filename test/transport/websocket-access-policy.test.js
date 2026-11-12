@@ -5,8 +5,8 @@ const { EventEmitter } = require('node:events');
 const http = require('node:http');
 const path = require('node:path');
 const test = require('node:test');
-const { maskedFrame } = require('../helpers/transport-fixtures');
-const { broadcastSnapshot, createWebSocketHub, handleWebSocketUpgrade, sendWebSocket } = require('../../src/server/ws');
+const { maskedFrame, webSocketUpgradeRequest } = require('../helpers/transport-fixtures');
+const { createWebSocketHub, sendWebSocket } = require('../../src/server/ws');
 const { createRuntimeTransport } = require('../../src/server/runtime-transport');
 
 const ADMIN_TOKEN = 'synthetic-admin-token';
@@ -36,10 +36,10 @@ function connect(t, { context = {}, headers = {}, query = '' } = {}) {
   const socket = new FakeSocket();
   hub.handleUpgrade(
     { getState: () => ({ secret: 'admin-only' }), ...context },
-    {
+    webSocketUpgradeRequest({
       url: `/ws${query}`,
-      headers: { 'sec-websocket-key': 'synthetic-key', ...headers },
-    },
+      headers,
+    }),
     socket,
   );
   t.after(() => {
@@ -87,10 +87,10 @@ test('broadcasts read only active scopes and share encoded frames without sharin
   const context = { sessionToken: ADMIN_TOKEN, getState(fields) { reads.push(fields); return fullState; } };
   const sockets = ['queue', 'queue', 'lyrics', 'queue'].map((scope) => {
     const socket = new FakeSocket();
-    hub.handleUpgrade(context, {
+    hub.handleUpgrade(context, webSocketUpgradeRequest({
       url: `/ws?token=${createOverlayToken(ADMIN_TOKEN, scope)}`,
-      headers: { 'sec-websocket-key': 'synthetic-key', origin: 'null' },
-    }, socket);
+      headers: { origin: 'null' },
+    }), socket);
     return socket;
   });
   t.after(() => { hub.stop(); for (const socket of sockets) socket.destroy(); });
@@ -316,25 +316,6 @@ test('overlay ping/pong and projected shutdown preserve normal transport lifecyc
   assert.equal(messages(socket)[0].type, 'shutdown');
   assert.equal(JSON.stringify(messages(socket)).includes('private-stop'), false);
   assert.equal(socket.writes.at(-1).readUInt16BE(2), 1001);
-});
-
-test('compatibility broadcasts use the same per-socket projection', (t) => {
-  const { createOverlayToken } = require('../../src/server/access-policy');
-  const socket = new FakeSocket();
-  const context = { sessionToken: ADMIN_TOKEN, state: { sockets: new Set() }, getState: () => fullState };
-  handleWebSocketUpgrade(
-    context,
-    {
-      url: `/ws?token=${createOverlayToken(ADMIN_TOKEN, 'lyrics')}`,
-      headers: { 'sec-websocket-key': 'synthetic-key', origin: 'null' },
-    },
-    socket,
-  );
-  t.after(() => socket.destroy());
-  broadcastSnapshot(context, 'lyric:update');
-  assert.equal(messages(socket).length, 2);
-  assert.equal(messages(socket)[1].state.lyricState.lineText, 'Current lyric');
-  assert.equal(JSON.stringify(messages(socket)).includes('private-'), false);
 });
 
 test(

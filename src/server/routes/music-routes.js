@@ -8,16 +8,12 @@ const { matchMusicTrackCandidates } = require('../../music/song-matcher');
 
 const prefixes = ['/api/music/'];
 
-// Provider 尚未接入时统一回 501，避免每个路由重复写 try/catch
-async function sendProviderResult(res, fallbackMessage, run) {
+async function sendProviderResult(res, run) {
   try {
     sendJson(res, 200, { ok: true, data: await run() });
   } catch (error) {
-    if (error.statusCode === 400) {
-      sendStableError(res, error);
-      return;
-    }
-    sendJson(res, 501, { ok: false, error: error.message || fallbackMessage });
+    if (!error?.publicMessage && error?.statusCode !== 400) throw error;
+    sendStableError(res, error);
   }
 }
 
@@ -36,7 +32,7 @@ const routes = {
 
   async 'POST /api/music/resolve-stream'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '在线音源 Provider 尚未接入。', async () => {
+    await sendProviderResult(res, async () => {
       const stream = await resolveMusicStream(context.music.registry, body.track, {
         forceRefresh: body.forceRefresh === true,
         quality: String(body.quality || ''),
@@ -57,35 +53,35 @@ const routes = {
 
   async 'POST /api/music/search'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '搜索 Provider 尚未接入。', () =>
+    await sendProviderResult(res, () =>
       context.music.catalog.searchMusicTracks(context.music.registry, body),
     );
   },
 
   async 'POST /api/music/home'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '音乐首页 Provider 尚未接入。', () =>
+    await sendProviderResult(res, () =>
       context.music.catalog.getMusicHomeContent(context.music.registry, body),
     );
   },
 
   async 'POST /api/music/playlists/tracks/add'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '添加到音乐歌单失败。', () =>
+    await sendProviderResult(res, () =>
       context.music.catalog.writeMusicPlaylistTracks(context.music.registry, body, 'add'),
     );
   },
 
   async 'POST /api/music/playlists/tracks/remove'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '从音乐歌单删除失败。', () =>
+    await sendProviderResult(res, () =>
       context.music.catalog.writeMusicPlaylistTracks(context.music.registry, body, 'remove'),
     );
   },
 
   async 'POST /api/music/lyrics'(context, request, res) {
     const body = await request.body();
-    await sendProviderResult(res, '在线歌词 Provider 尚未接入。', () =>
+    await sendProviderResult(res, () =>
       context.music.lyrics.getMusicTrackLyrics(context.music.registry, body),
     );
   },

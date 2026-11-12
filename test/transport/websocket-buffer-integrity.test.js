@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
-const { maskedFrame } = require('../helpers/transport-fixtures');
+const { maskedFrame, webSocketUpgradeRequest } = require('../helpers/transport-fixtures');
 const { createWebSocketHub } = require('../../src/server/ws');
 
 const frame = (body, opcode = 9, fin = true) => maskedFrame(body, { opcode, fin });
@@ -30,10 +30,7 @@ function fixture(t) {
   });
   hub.handleUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: { authorization: 'Bearer synthetic-integrity-token', 'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==' },
-    },
+    webSocketUpgradeRequest({ headers: { authorization: 'Bearer synthetic-integrity-token' } }),
     socket,
   );
   t.after(() => hub.stop());

@@ -6,7 +6,7 @@ const vm = require('node:vm');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createDanmakuPreviewItems } = require('../../public/js/overlays/danmaku-preview-samples.js');
 
-const styles = ['window', 'comic', 'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
+const styles = ['stardust', 'window', 'comic', 'bubble', 'signal', 'minimal', 'ranked', 'transparent', 'identity', 'sketch', 'prismatic', 'harbor', 'snowfox', 'ripploid', 'twitter', 'spooky', 'starlight', 'moonlit', 'outline', 'mist', 'whiteframe', 'cream', 'glow', 'starveil'];
 
 async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   const document = createParameterDocument();
@@ -184,6 +184,14 @@ test('preview welcome toggle adds only a simulated robot welcome instead of an e
     }
     f.pagehide();
   }
+});
+
+test('Stardust preview includes SC samples in its normal playback round', async () => {
+  const f = await fixture('?preview=1&style=stardust');
+  f.advanceMessages(createDanmakuPreviewItems('stardust').length);
+  assert.equal(f.options.at(-1).style, 'stardust');
+  assert.ok(f.appends.some(item => item.kind === 'superchat'));
+  f.pagehide();
 });
 
 test('preview plays every sample once per round with one timer and stops on close', async () => {

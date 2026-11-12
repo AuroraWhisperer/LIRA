@@ -64,6 +64,10 @@ async function openBilibiliLoginWindow(options = {}) {
     event.preventDefault();
     openExternal(url, 'bilibili-login-external');
   });
+  loginWindow.webContents.on('will-redirect', (event, url, _isInPlace, isMainFrame) => {
+    if (isMainFrame === false) return;
+    if (!isAllowedLoginNavigation(url, config.allowedHosts)) event.preventDefault();
+  });
 
   let cookieSaveTimer = null;
   let loginCheckTimer = null;

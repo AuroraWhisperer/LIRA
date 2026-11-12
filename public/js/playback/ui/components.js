@@ -5,6 +5,7 @@
 import * as PlaybackUtils from '../utils.js';
 import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
 import { showConfirmationDialog } from '../../shared/confirmation-dialog.js';
+import { renderTrackMenu } from './track-menu.js';
 
 /**
  * 渲染当前播放封面
@@ -271,38 +272,21 @@ export function renderPendingRow(item, index) {
  */
 export function renderHomeTrackRow(track, index, context, action = '') {
   const dataPrefix = context === 'search' ? 'playback-search' : 'playback-home-track';
-  const showRadioButton = action === 'radio';
-  const canAddToPlaylist = PlaybackUtils.canAddTrackToPlaylist(track);
-  const playHint = context === 'search' ? '立即播放这首歌' : '从这首开始播放整个列表，替换当前播放队列';
 
-  // 我喜欢和歌单详情显示菜单按钮（带删除功能）
-  const showMenuButton = action === 'liked' || action === 'playlist-tracks';
-
-  if (showMenuButton) {
-    const menuId = `${dataPrefix}-menu-${index}`;
+  if (context === 'home') {
     return `
       <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">
         ${renderTrackRowMain(track)}
         <div class="queue-actions">
-          <div class="track-menu-wrapper">
-            <button type="button" class="track-menu-btn" data-${dataPrefix}-menu-index="${index}" title="更多操作" aria-label="更多操作" aria-haspopup="menu" aria-expanded="false" aria-controls="${menuId}">
-              <svg viewBox="0 0 24 24" fill="currentColor" width="20" height="20">
-                <circle cx="12" cy="5" r="2"/>
-                <circle cx="12" cy="12" r="2"/>
-                <circle cx="12" cy="19" r="2"/>
-              </svg>
-            </button>
-            <div class="track-menu" id="${menuId}" data-${dataPrefix}-menu-for="${index}" role="menu" aria-label="歌曲操作" hidden>
-              <button type="button" role="menuitem" data-${dataPrefix}-action="normal" data-${dataPrefix}-index="${index}">入队</button>
-              <button type="button" role="menuitem" data-${dataPrefix}-action="requested" data-${dataPrefix}-index="${index}">插队</button>
-              <button type="button" role="menuitem" data-${dataPrefix}-action="play" data-${dataPrefix}-index="${index}" title="${playHint}">播放</button>
-              <button type="button" role="menuitem" data-${dataPrefix}-action="remove" data-${dataPrefix}-index="${index}" class="danger">删除</button>
-            </div>
-          </div>
+          ${renderTrackMenu(track, index, action)}
         </div>
       </div>
     `;
   }
+
+  const showRadioButton = action === 'radio';
+  const canAddToPlaylist = PlaybackUtils.canAddTrackToPlaylist(track);
+  const playHint = context === 'search' ? '立即播放这首歌' : '从这首开始播放整个列表，替换当前播放队列';
 
   return `
     <div class="queue-row playback-home-row" data-${dataPrefix}-row-index="${index}">

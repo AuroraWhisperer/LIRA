@@ -12,6 +12,24 @@ const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { compiler, plugins } = resolveInstallerTools();
 const quote = (value) => value.replaceAll('$', () => '$$');
 
+test('NSIS configured include graph preprocesses without macro collisions', {
+  skip: process.platform !== 'win32' || !compiler ? 'Requires Windows and cached NSIS compiler' : false,
+}, (t) => {
+  const scratch = createScratchDirectory('installer-includes-', t);
+  const root = path.resolve(__dirname, '../..');
+  const { build } = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
+  const include = path.join(root, build.nsis.include);
+  for (const name of fs.readdirSync(path.dirname(include)).filter(name => name.endsWith('.nsh'))) {
+    const source = fs.readFileSync(path.join(path.dirname(include), name), 'utf8').replace(/^\uFEFF/, '');
+    fs.writeFileSync(path.join(scratch, name), '\uFEFF' + source);
+  }
+  const result = spawnSync(compiler, ['/PPO', '-INPUTCHARSET', 'UTF8', path.join(scratch, path.basename(include))], {
+    cwd: scratch, encoding: 'utf8', windowsHide: true, timeout: 10000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+});
+
 test('NSIS updates show progress and close automatically while preserving restart intent', {
   skip: process.platform !== 'win32' || !compiler || !plugins
     ? 'Requires Windows and cached NSIS compiler/plugins'
@@ -146,7 +164,7 @@ test('NSIS updates show progress and close automatically while preserving restar
       assert.equal(run.status, status);
       assert.equal(fs.readFileSync(progress, 'utf8').trim(), visible ? '1' : '0');
       assert.equal(fs.existsSync(finish), showFinish);
-      assert.equal(fs.existsSync(mode), showFinish, 'updates must skip install-scope selection');
+      assert.equal(fs.existsSync(mode), false, 'current-user installs and updates skip install-scope selection');
       if (visible) assert.equal(fs.readFileSync(selection, 'utf8').trim(), args.includes('--machine') ? 'machine' : 'user');
       assert.deepEqual(fs.existsSync(launch) ? fs.readFileSync(launch, 'utf8').trim().split('\r\n') : [], launches);
     });

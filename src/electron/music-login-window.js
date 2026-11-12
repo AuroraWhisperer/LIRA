@@ -49,6 +49,10 @@ async function loginMusicAccount(mainWindow, platform, dataDir, { signal } = {})
       shell.openExternal(url).catch((error) => writeLog('music-login-external', error));
     }
   });
+  loginWindow.webContents.on('will-redirect', (event, url, _isInPlace, isMainFrame) => {
+    if (isMainFrame === false) return;
+    if (!isAllowedLoginNavigation(url, config.allowedHosts)) event.preventDefault();
+  });
 
   let cookieSaveTimer = null;
   let loginCheckTimer = null;

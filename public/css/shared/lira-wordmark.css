@@ -1,0 +1,7 @@
+.lira-wordmark {
+  display: block;
+  width: auto;
+  height: 24px;
+  flex-shrink: 0;
+  color: var(--text, #1d1419);
+}

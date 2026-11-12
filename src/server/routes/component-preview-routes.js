@@ -10,6 +10,7 @@ async function handleComponentPreview(context, req, res, url) {
   if (req.headers.origin === 'null') return sendJson(res, 403, { ok: false, error: 'Origin not allowed.' });
   try {
     const body = await readJsonBody(req, MAX_PREVIEW_REQUEST_BYTES);
+    context.authorizeRequest?.();
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return sendJson(res, 400, { ok: false, error: '预览请求无效。' });
     }
@@ -48,6 +49,7 @@ async function handleComponentPreview(context, req, res, url) {
     if (data?.then) void data.then(complete, failed);
     else complete(data);
   } catch (error) {
+    if (error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
     sendJson(res, error.statusCode || 400, { ok: false, error: error.statusCode ? error.message : '预览请求无效。' });
   }
 }

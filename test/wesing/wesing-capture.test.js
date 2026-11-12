@@ -172,6 +172,61 @@ test('WeSing serializes directory saves and recovers after an invalid path', asy
   assert.equal(saved.at(-1), firstPath);
 });
 
+test('WeSing request authorization rejects queued and prepared cache saves without blocking a later request', async t => {
+  const { root, cachePath } = createFixture();
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const readdir = fs.promises.readdir.bind(fs.promises);
+  t.mock.method(fs.promises, 'readdir', async (directory, options) => {
+    if (directory === path.join(cachePath, 'Log', 'WeSing')) {
+      entered.resolve();
+      await release.promise;
+    }
+    return readdir(directory, options);
+  });
+  let authorized = true;
+  const authorize = () => {
+    if (!authorized) throw Object.assign(new Error('authorization changed'), { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+  };
+  const saved = [];
+  const capture = createWeSingCapture({ platform: 'win32', saveCachePath: value => saved.push(value) });
+  t.after(() => { release.resolve(); capture.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+  const preparing = capture.setCachePath(cachePath, { authorize });
+  await entered.promise;
+  const queued = capture.setCachePath(cachePath, { authorize });
+  authorized = false;
+  release.resolve();
+  const results = await Promise.allSettled([preparing, queued]);
+  assert.deepEqual(results.map(result => [result.status, result.reason?.code]), [
+    ['rejected', 'REQUEST_AUTHORIZATION_CHANGED'], ['rejected', 'REQUEST_AUTHORIZATION_CHANGED'],
+  ]);
+  assert.deepEqual(saved, []);
+  assert.equal(capture.getStatus().cachePath, '');
+  await capture.setCachePath(cachePath);
+  assert.deepEqual(saved, [cachePath]);
+});
+
+test('WeSing request authorization stops offset saves and preserves values committed before revocation', async t => {
+  for (const phase of ['before-save', 'after-save']) {
+    await t.test(phase, async t => {
+      let authorized = true;
+      const saved = [];
+      const capture = createWeSingCapture({ platform: 'win32', saveLyricOffsetMs(value) {
+        saved.push(value);
+        authorized = false;
+      } });
+      t.after(() => capture.stop());
+      const pending = capture.setLyricOffsetMs(250, { authorize() {
+        if (!authorized) throw Object.assign(new Error('authorization changed'), { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+      } });
+      if (phase === 'before-save') authorized = false;
+      await assert.rejects(pending, { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+      assert.deepEqual(saved, phase === 'before-save' ? [] : [250]);
+      assert.equal(capture.getStatus().lyricOffsetMs, 0);
+    });
+  }
+});
+
 test('WeSing activation keeps monitoring without creating a missing cache directory', async (t) => {
   const root = createScratchDirectory('wesing-initial-cache-');
   const cachePath = path.join(root, 'Tencent', 'WeSing', 'WeSingCache');

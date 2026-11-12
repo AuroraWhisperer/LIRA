@@ -84,6 +84,7 @@ export class QueueManager {
     this.state.normalQueueTracks = [];
     this.state.radioQueue = [];
     this.state.queueType = 'queue';
+    this.state.radioOffset = 0;
     this.state.queueTitle = '播放队列';
     this.state.queueSourceKey = '';
     this.state.playlistIndex = -1;
@@ -231,12 +232,15 @@ export class QueueManager {
    * @param {Array} tracks - 曲目列表
    */
   refillRadioQueue(tracks) {
+    const before = this.state.radioQueue.length;
     const recentIds = new Set(this.state.history.slice(-30).map((track) => track.id));
+    if (this.state.current) recentIds.add(this.state.current.id);
     for (const track of tracks) {
       if (!recentIds.has(track.id) && !this.state.radioQueue.some((item) => item.id === track.id)) {
         this.state.radioQueue.push(track);
       }
     }
+    return this.state.radioQueue.length - before;
   }
 
   /**
@@ -246,9 +250,10 @@ export class QueueManager {
    * @param {string} queueType - 队列类型
    * @param {string} queueTitle - 队列标题
    * @param {string} queueSourceKey - 队列来源标识
+   * @param {number} radioOffset - 电台已读取的上游位置
    * @returns {Object|null} 第一首曲目
    */
-  startCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
+  startCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '', radioOffset) {
     const items = Array.isArray(tracks) ? tracks.filter(Boolean) : [];
     if (!items.length) return;
 
@@ -260,6 +265,8 @@ export class QueueManager {
     this.state.normalQueueTracks = [];
     this.state.radioQueue = [];
     this.state.queueType = type;
+    this.state.radioOffset = type === 'radio'
+      ? (Number.isSafeInteger(radioOffset) && radioOffset >= 0 ? radioOffset : items.length) : 0;
     this.state.queueTitle = queueTitle || (type === 'radio' ? '电台队列' : '歌单队列');
     this.state.queueSourceKey = String(queueSourceKey || '');
     if (type === 'radio' && !this.state.queueSourceKey) {

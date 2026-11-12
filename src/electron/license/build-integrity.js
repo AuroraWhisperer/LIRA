@@ -2,7 +2,6 @@
 
 // Electron's patched fs treats app.asar as a directory; hash the raw archive.
 const fs = process.versions.electron ? require('original-fs') : require('node:fs');
-const path = require('node:path');
 const crypto = require('node:crypto');
 
 async function getBuildInfo(options = {}) {
@@ -52,8 +51,4 @@ async function getBuildInfo(options = {}) {
   }
 }
 
-function getPackagedAsarPath(resourcesPath) {
-  return path.join(String(resourcesPath || ''), 'app.asar');
-}
-
-module.exports = { getBuildInfo, getPackagedAsarPath };
+module.exports = { getBuildInfo };

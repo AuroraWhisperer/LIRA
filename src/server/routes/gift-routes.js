@@ -32,7 +32,7 @@ const routes = {
     try {
       config = validateGiftDisplaySettings(await request.body());
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       return sendJson(res, 400, { ok: false, error: error.message });
     }
     context.settings.set(GIFT_DISPLAY_SETTING, JSON.stringify(config));
@@ -155,6 +155,7 @@ const routes = {
       });
       return;
     }
+    request.authorize?.();
     context.gifts.previewEffect({
       type: 'gift:effect',
       eventId: 0,

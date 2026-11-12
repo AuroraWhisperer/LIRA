@@ -50,7 +50,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 | 网易云   | `music.163.com`、`interface.music.163.com`、`interface3.music.163.com`、`passport.163.com`、`reg.163.com`、`163.com`                                                                                                                                                                                      |
 | Bilibili | `bilibili.com`、`www.bilibili.com`、`live.bilibili.com`,以及 passport、`api.bilibili.com`、`api.live.bilibili.com`、`space.bilibili.com`、`message.bilibili.com`、`member.bilibili.com`、`account.bilibili.com` 子域(完整清单见 [bilibili-auth.js:14-19](../../../src/electron/bilibili-auth.js#L14-L19)) |
 
-匹配方式 `host === allowed || host.endsWith('.' + allowed)`,仅接受 `https:`/`http:`([music-auth-manager.js:55-64](../../../src/electron/music-auth-manager.js#L55-L64)、[bilibili-auth.js:46-55](../../../src/electron/bilibili-auth.js#L46-L55))。
+匹配方式 `host === allowed || host.endsWith('.' + allowed)`，仅接受 `https:`；音乐与 B 站登录窗口共用 [external-url-policy.js](../../../src/electron/external-url-policy.js) 的 `isAllowedLoginNavigation` 域名及协议校验。
 
 ## 4. 登录态判断
 
@@ -71,7 +71,7 @@ Cookie 域名匹配(`isAllowedMusicCookie`/`isAllowedBilibiliCookie`):`domain ==
 2. 构建 payload `{platform?, savedAt: ISO时间, cookies:[{name, value, domain, path:'/', secure, httpOnly, expirationDate}]}`(`toSerializableCookie`,secure/httpOnly 语义化布尔)
 3. **安全门**:`safeStorage.isEncryptionAvailable() === false` → **抛异常,绝不写明文快照**(分区内 Cookie 保留)
 4. `safeStorage.encryptString(JSON.stringify(payload))` — Windows 上后端为 **DPAPI**(每用户/每机器绑定)
-5. `encrypted.toString('base64')` 以 UTF-8 文本写入快照文件
+5. `encrypted.toString('base64')` 保持 UTF-8 文本格式，经 [atomic-file.js](../../../src/electron/atomic-file.js) 写入同目录唯一临时文件（排他创建、mode 0600），写完后 rename 替换快照；写入或替换失败保留原快照并清理本次临时文件。平台路径、payload 和分区不变，不改为明文或新的凭据格式。
 
 | 平台     | 快照文件                              | 出处                                                                     |
 | -------- | ------------------------------------- | ------------------------------------------------------------------------ |
@@ -208,9 +208,9 @@ detached 文档的 beacon 不放宽认证，桌面退出继续使用既有 IPC �
 
 验证：[desktop-request-auth.test.js](../../../test/desktop/desktop-request-auth.test.js) 与
 [desktop-request-auth-electron.test.js](../../../test/desktop/desktop-request-auth-electron.test.js)。后者在
-Windows Electron 43.2 使用临时 profile 和本地测试服务，覆盖管理引导/重载/许可恢复、
+仓库当前 Windows Electron 使用临时 profile 和本地测试服务，覆盖管理引导/重载/许可恢复、
 HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真实时钟预览、开场音频及
-带头像和礼物图片的主进程导出截图；主窗口沿用 `sandbox: false`，不使用真实用户数据。
+带头像和礼物图片的主进程导出截图；实际主窗口 owner 启用 `sandbox: true`，并验证真实 preload 的许可调用和事件订阅，不使用真实用户数据。
 
 ## 12. 安全要点
 
@@ -230,9 +230,11 @@ HTTP/WS/beacon、重定向、opaque iframe、四类 Worker 被 CSP 阻止、真�
 
 云端导入调用 `replaceBilibiliCookieHeader(dataDir, cookieHeader)`：先拒绝空值、超过 12000 字符、CR/LF/NUL、非法 Cookie 名或缺少 `DedeUserID` / `SESSDATA` / `bili_jct` 的 header；再清空 `persist:bilibili` 的 Cookie/localStorage/indexDB/webSQL，把解析出的 Cookie 写到 `.bilibili.com`，最后立即调用 `persistBilibiliCookieSnapshot` 生成 `safeStorage` 加密快照。云端解绑调用既有 `logoutBilibiliAccount`，清除分区、加密快照和兼容明文导出文件。
 
-本地扫码登录完成或本地退出后，main process 将 Bilibili scope 标记 dirty：已登录时读取分区 Cookie header 上传，退出时调用 Device `DELETE`。上传失败保留 dirty 并重试；云端应用不会再次触发本地登录/退出 IPC，因此不会产生同步回声。凭据 wire contract 见 [../backend/api.md](../backend/api.md) §0.3，轮询与生命周期见 [main.md](main.md) §2.2。
+本地扫码登录和退出由 `cloud-sync-controller.loginBilibili/logoutBilibili` 在开始时绑定当前 LIRA owner 与既有同步生命周期；切号或失去授权会取消旧登录窗口，等待其落盘工作结束后清理残留分区和快照。迟到登录结果不能为新账号标记 dirty。成功登录仍从分区读取 Cookie header 上传，不新增凭据副本。退出先保存按 owner 隔离的持久意图，再清本地登录；Device `DELETE` 失败或进程重启后继续重试，成功确认前不能导入旧云端 Cookie。同 owner 的成功显式登录可以取代旧退出意图，其他账号不能消费它。持久格式见[存储合同](../backend/storage.md#8-云端-scope-的本地落盘)。云端应用不触发本地 IPC，没有同步回声。凭据 wire contract 见 [../backend/api.md](../backend/api.md) §0.3，轮询与生命周期见 [main.md](main.md) §2.2。
 
 云端读取捕获桌面会话代次，导入/解绑携带仅限主进程的 `isCurrent` 检查。`desktop-auth-controller.js` 在认证队列实际执行前复核会话、账号、同步生命周期及 dirty 状态；本地登录/退出进行中直接放弃云写入，不取消交互登录。用户操作入队即推进会话代次，旧 GET 或排队导入不能在退出完成后重新写 Cookie/快照。主动本地操作仍串行执行并保留原结果，未失效的后续云同步可正常恢复。
+
+交互认证收尾后立即为当前授权 owner 再对账，补上旧登录清理期间被认证队列跳过的云端恢复；这个对账不把旧操作标成新账号 dirty，也不等待 10 分钟兜底。
 
 ## 14. 动态抽奖专用账号
 
@@ -278,13 +280,13 @@ IPC/返回字段只在 [preload.md](preload.md) 登记。百宝箱已接入用�
 
 内部凭据读取和 SSE 的完成/失败同样经过该约束；流的取消与事件消费仍由云同步、礼物控制器现有的 `AbortSignal` 和主体检查负责。旧续期、心跳的完成或 `finally` 不得替换新生命周期的共享任务引用或维护计时器。回归场景见 [license-manager-identity.test.js](../../../test/license/license-manager-identity.test.js)，使用合成身份、可控 Promise 与隔离的 manager，不访问真实服务。
 
-## 15. 可选的大航海到期账号
+## 16. 可选的大航海到期账号
 
 `guard-expiry-auth.js` 选择 `shared` 时让服务器内部复用原 B 站直播凭据；`separate` 时每次新建不带 persist 的 `guard-expiry-<uuid>` 分区，使用 passport 登录页和现有受限登录窗。只读取能发送给 api.live.bilibili.com 的 Cookie，在 main 上传至当前授权租户的专用接口；服务器验证房主后独立加密存储。临时 session 结束即清理，无本地 Cookie 快照或主账号恢复。切回 shared 清除云端独立凭据，独立退出不退出原直播账号。
 
 操作绑定发起时 streamerId 与授权 generation；授权变更、来源切换、退出和应用关闭取消未完成登录。状态仅返回安全元数据，主窗口 IPC 不接受凭据。服务器未支持时显示明确提示。要求和验收见[到期同步规格](../../../specs/guard-expiry-sync.md)。
 
-## 16. 豆包个人账号
+## 17. 豆包个人账号
 
 [豆包会话 owner](../../../src/electron/doubao-session.js) 独立于音乐、B 站及 LIRA 服务器授权。系统 safeStorage 可用时使用 `persist:lira-doubao`；不可用时使用内存分区 `lira-doubao`，不写任何登录快照。入口固定为 `https://www.doubao.com/chat/`，用手机豆包扫码；电脑只使用 Electron 自带 Chromium。
 

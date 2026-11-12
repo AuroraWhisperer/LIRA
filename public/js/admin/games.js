@@ -115,7 +115,23 @@ export function initGames() {
 
 function requestViewerRefresh(options = {}) {
   if (viewerRefreshPromise) return viewerRefreshPromise;
-  viewerRefreshPromise = refreshViewers(options).finally(() => {
+  const button = byId('gamesRefreshViewersBtn');
+  const status = byId('gamesViewerStatus');
+  button.disabled = true;
+  status.textContent = '正在刷新观众名单…';
+  viewerRefreshPromise = refreshViewers(options).catch((error) => {
+    const message = '观众名单刷新失败，请检查直播间连接后重试。';
+    status.textContent = message;
+    for (const id of ['numberBombViewer', 'gomokuViewer']) {
+      const select = byId(id);
+      if (select.options.length <= 1) {
+        renderViewerOptions(select, []);
+        select.options[0].textContent = '名单刷新失败，请重试';
+      }
+    }
+    throw new Error(message, { cause: error });
+  }).finally(() => {
+    button.disabled = false;
     viewerRefreshPromise = null;
   });
   return viewerRefreshPromise;
@@ -133,6 +149,7 @@ async function refreshViewers(options = {}) {
     if (viewers.length > 0 || attempt === VIEWER_REFRESH_RETRY_DELAYS_MS.length) break;
   }
   for (const id of ['numberBombViewer', 'gomokuViewer']) renderViewerOptions(byId(id), viewers);
+  byId('gamesViewerStatus').textContent = viewers.length ? `已找到 ${viewers.length} 位可选观众` : '暂无可选观众，可稍后刷新。';
   clearPanelRefreshFailure();
   if (notify) toast(`已找到 ${viewers.length} 位可选观众`);
 }

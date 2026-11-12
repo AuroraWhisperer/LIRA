@@ -19,7 +19,13 @@ export function captureUsageGuidePosition(scroller, sections, offset) {
 export function getUsageGuideScrollTop(scroller, position, offset) {
   const internalScroll = window.getComputedStyle(scroller).overflowY === 'auto';
   if (!position) return internalScroll ? 0 : window.scrollY + scroller.getBoundingClientRect().top;
-  const rect = position.target.getBoundingClientRect();
+  let rect = position.target.getBoundingClientRect();
+  if (position.context) {
+    const heading = position.context.getBoundingClientRect();
+    const available = (internalScroll ? scroller.clientHeight : window.innerHeight) - offset;
+    // Nearby search hits retain their heading; distant passages still scroll directly into view.
+    if (heading.height && rect.top >= heading.top && rect.bottom - heading.top <= available / 2) rect = heading;
+  }
   const marker = Math.max(0, scroller.getBoundingClientRect().top) + offset + 1;
   const delta = rect.top + rect.height * position.fraction - marker;
   // Scroll positions round to CSS pixels; keep the target on the reached side of the marker.

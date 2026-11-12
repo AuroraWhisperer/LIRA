@@ -39,6 +39,6 @@ V1 supports a transparent background or built-in images under `public/img/overti
 
 ## References
 
-- ../backend/overtime.md
+- [overtime.md](../../reference/backend/overtime.md)
 - `src/overtime/overtime-contract.js` (`validateBackground`, `isAllowedImagePath`)
 - `public/img/overtime-machine/`

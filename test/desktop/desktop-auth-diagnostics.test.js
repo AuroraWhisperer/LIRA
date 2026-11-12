@@ -16,6 +16,7 @@ function controller(auth, login) {
     {
       module,
       AbortController,
+      AbortSignal,
       require(request) {
         if (request === './bilibili-auth') return { getBilibiliSessionState: auth.getBilibiliAuthState, ...auth };
         if (request === './bilibili-login-window' && login) return { openBilibiliLoginWindow: login };
@@ -81,6 +82,65 @@ test('a cloud credential read started before logout cannot restore or re-upload 
   assert.equal(writes, 0);
   assert.equal(f.calls.filter(call => call[0] === 'clear-bilibili').length, 1);
   assert.equal(f.calls.filter(call => call[0] === 'push-bilibili').length, 0);
+});
+
+test('new owner credentials restore immediately after obsolete login cleanup releases the auth queue', async (t) => {
+  let cookie = '';
+  let identity = { accountName: 'first', streamerId: 1 };
+  const opened = Promise.withResolvers();
+  const clearing = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const imports = [];
+  const auth = controller({
+    getBilibiliAuthState: async () => ({ loggedIn: Boolean(cookie) }),
+    async logoutBilibiliAccount() {
+      clearing.resolve();
+      await release.promise;
+      cookie = '';
+      return { loggedIn: false };
+    },
+    async replaceBilibiliCookieHeader(_directory, next) {
+      imports.push(next);
+      cookie = next;
+      return { loggedIn: true };
+    },
+  }, async ({ signal }) => {
+    opened.resolve();
+    await new Promise(resolve => signal.addEventListener('abort', resolve, { once: true }));
+    return { state: { loggedIn: false } };
+  });
+  const f = createCloudFixture({
+    licenseManager: {
+      getCloudSyncIdentity: () => identity,
+      watchCloudStateChangesInternal: undefined,
+      getBilibiliCredentialsInternal: async () => ({ loggedIn: true, revision: 4, cookie: identity.accountName }),
+    },
+    bilibiliAuth: {
+      getAuthState: auth.getBilibiliAuthState,
+      getSessionRevision: auth.getBilibiliSessionRevision,
+      replaceCookieHeader: auth.replaceBilibiliCookieHeader,
+      login: auth.loginBilibiliAccount,
+      logout: auth.logoutBilibiliAccount,
+    },
+  });
+  t.after(async () => {
+    release.resolve(); f.controller.dispose(); auth.dispose();
+    await Promise.all([f.controller.whenIdle(), auth.whenIdle()]);
+  });
+  await f.controller.start();
+  const loggingIn = f.controller.loginBilibili();
+  await opened.promise;
+  identity = { accountName: 'second', streamerId: 2 };
+  f.emitState('authorized');
+  await clearing.promise;
+  await f.controller.whenIdle();
+  assert.deepEqual(imports, ['first']);
+  release.resolve();
+  assert.equal((await loggingIn).state.loggedIn, false);
+  await f.controller.whenIdle();
+  assert.equal(cookie, 'second', 'the current owner must recover without waiting for the fallback timer');
+  assert.deepEqual(imports, ['first', 'second']);
+  assert.equal(f.calls.filter(([action]) => action === 'push-bilibili' || action === 'clear-bilibili').length, 0);
 });
 
 test('queued cloud writes recheck caller ownership and cannot interrupt a local login', async (t) => {

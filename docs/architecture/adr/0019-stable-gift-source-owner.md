@@ -10,7 +10,7 @@ Server tenant removal permits account-name reuse with a new immutable Streamer I
 The previous gift-source-v1 hash contained only origin and account name, so a new
 owner could read the previous owner's local projection before discovery succeeded.
 The earlier client specification's immutable-account assumption conflicts with
-the server identity contract and ADR-0016.
+the server identity contract and [LIRA Server ADR-0016: Permanent Streamer Removal](https://github.com/AuroraWhisperer/LIRA-server/blob/b4e7447c5a83c03b3e0bfc62a733782886f05da9/docs/architecture/decisions/0016-permanent-streamer-removal.md).
 
 ## Decision
 

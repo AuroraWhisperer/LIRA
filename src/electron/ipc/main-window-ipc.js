@@ -3,7 +3,8 @@
 const { hasExactOrigin } = require('../local-media-access');
 const ADMIN_PATHS = new Set(['/', '/admin', '/settings', '/songs']);
 
-function createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl, allowLicense = false }) {
+function createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUrl, allowLicense = false,
+  onInvalidSource = () => ({ ok: false, error: 'IPC_SOURCE_INVALID' }) }) {
   return (channel, handler) => {
     ipcMain.handle(channel, (event, ...args) => {
       const window = getMainWindow();
@@ -15,10 +16,10 @@ function createMainWindowIpcRegistrar({ ipcMain, getMainWindow, getDesktopBaseUr
         frame !== window.webContents.mainFrame ||
         !hasExactOrigin(frame?.url, getDesktopBaseUrl())
       )
-        return { ok: false, error: 'IPC_SOURCE_INVALID' };
+        return onInvalidSource();
       const pathname = new URL(frame.url).pathname;
       if (!ADMIN_PATHS.has(pathname) && !(allowLicense && pathname === '/license')) {
-        return { ok: false, error: 'IPC_SOURCE_INVALID' };
+        return onInvalidSource();
       }
       return handler(event, ...args);
     });

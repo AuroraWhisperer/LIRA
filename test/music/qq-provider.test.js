@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { zzcSign } = require('@jixun/qmweb-sign');
 const { QQMusicProvider } = require('../../src/music/providers/qq-provider');
+const { QQMusicClient } = require('../../src/music/providers/qq-provider-client');
 const { writeMusicPlaylistTracks } = require('../../src/music/music-catalog-service');
 
 const COOKIE =
@@ -54,6 +55,33 @@ function createProvider() {
     getCookieHeader: () => COOKIE,
   });
 }
+
+test('QQ requests keep their signed identity and Cookie on one credential snapshot', async (t) => {
+  let captured;
+  t.mock.method(global, 'fetch', async (url, options) => {
+    captured = { url: new URL(url), options };
+    return new Response(JSON.stringify({ code: 0,
+      'music.musicasset.PlaylistDetailWrite.AddSonglist': { code: 0, data: { retCode: 0, result: {} } },
+    }));
+  });
+  const requests = [
+    (client) => client.requestPlaylistWrite('AddSonglist', { dirId: 1, tid: 42, dirName: 'test' }, [{ songId: 1 }]),
+    (client) => client.requestMusicsClient(),
+    (client) => client.requestQQEncryptedVkey(),
+    (client) => client.requestMusicu(),
+  ];
+  for (const request of requests) {
+    let reads = 0;
+    const client = new QQMusicClient({
+      getCookieHeader: async () => reads++ === 0 ? COOKIE : COOKIE.replace('123456', '654321'),
+    });
+    await request(client);
+    const body = captured.options.body || captured.url.searchParams.get('data');
+    assert.equal(JSON.parse(body).comm.uin, '123456');
+    assert.equal(captured.options.headers.Cookie, COOKIE);
+    if (captured.url.searchParams.has('sign')) assert.equal(captured.url.searchParams.get('sign'), zzcSign(body));
+  }
+});
 
 test('QQ liked removal resolves the UI alias through the current account playlist', async () => {
   const provider = createProvider();

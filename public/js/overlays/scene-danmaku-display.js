@@ -1,4 +1,4 @@
-import { DANMAKU_STYLE_OPTIONS, isFloatingDanmakuStyle, isRandomDanmakuStyle } from '../shared/danmaku-style-options.js';
+import { supportsDanmakuSuperchat } from '../shared/danmaku-style-options.js';
 import { applyRoomGuardState } from '../shared/bilibili-guard-icons.js';
 
 export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, status, getStyle, room = () => {}, showWelcomeMessages = () => true }) {
@@ -33,9 +33,7 @@ export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, st
       }
       if (!['danmaku', 'gift', 'superchat'].includes(event.type)) continue;
       if (event.type === 'danmaku' && event.isWelcome === true && !showWelcomeMessages()) continue;
-      if (event.type === 'superchat' && !['mist', 'comic', 'window', 'sinking', 'stardust'].includes(getStyle())
-        && !DANMAKU_STYLE_OPTIONS[getStyle()]?.fullscreenSuperchat
-        && (isRandomDanmakuStyle(getStyle()) || isFloatingDanmakuStyle(getStyle()))) continue;
+      if (event.type === 'superchat' && !supportsDanmakuSuperchat(getStyle())) continue;
       append({ ...event, id: `scene-event-${++sequence}`, kind: event.type, timestamp: Date.now(),
         message: event.type === 'gift' ? `送出 ${event.giftName} × ${event.giftCount}` : event.message });
     }

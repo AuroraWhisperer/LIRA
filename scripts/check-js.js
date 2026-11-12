@@ -15,10 +15,10 @@ function collectFiles(root) {
     for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
       const target = path.join(directory, entry.name);
       if (entry.isDirectory()) visit(target);
-      else if (entry.isFile() && entry.name.endsWith('.js')) files.push(path.relative(root, target).replaceAll('\\', '/'));
+      else if (entry.isFile() && /\.(?:c|m)?js$/.test(entry.name)) files.push(path.relative(root, target).replaceAll('\\', '/'));
     }
   }
-  for (const source of ['src', 'public', 'scripts', 'test']) visit(path.join(root, source));
+  for (const source of ['src', 'public', 'scripts', 'test', 'tools']) visit(path.join(root, source));
   return files.sort();
 }
 

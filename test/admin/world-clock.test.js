@@ -74,18 +74,21 @@ test('catalog disambiguates repeated city names by region and zone', () => {
   assert.ok(lasVegas.some(city => city.region === 'New Mexico' && city.zone === 'America/Denver'));
 });
 
-test('Prague and Macau retain stable catalog IDs with their own seasonal clocks', () => {
+test('corrected catalog entries retain stable IDs and their seasonal local times', () => {
   const winter = new Date('2026-01-15T12:00:00Z');
   const summer = new Date('2026-07-15T12:00:00Z');
-  for (const [id, name, zone, hours] of [
-    ['ne-1159151359', '布拉格', 'Europe/Prague', ['13', '14']],
-    ['ne-1159149085', '澳门', 'Asia/Macau', ['20', '20']],
+  for (const [id, name, zone, times] of [
+    ['ne-1159151359', '布拉格', 'Europe/Prague', ['13:00', '14:00']],
+    ['ne-1159149085', '澳门', 'Asia/Macau', ['20:00', '20:00']],
+    ['ne-1159151737', '怀唐伊', 'Pacific/Chatham', ['01:45', '00:45']],
   ]) {
     const city = CITIES.find(value => value.id === id);
     assert.ok(matchesCity(city, name));
     assert.equal(city.zone, zone);
-    assert.equal(clockAt(city.zone, winter).hour, hours[0]);
-    assert.equal(clockAt(city.zone, summer).hour, hours[1]);
+    const winterClock = clockAt(city.zone, winter);
+    const summerClock = clockAt(city.zone, summer);
+    assert.equal(`${winterClock.hour}:${winterClock.minute}`, times[0]);
+    assert.equal(`${summerClock.hour}:${summerClock.minute}`, times[1]);
   }
 });
 
@@ -94,6 +97,7 @@ test('catalog generation corrects known erroneous source fallback zones before w
   const places = [
     { NE_ID: 1159151359, ISO_A2: 'CZ', NAME: 'Prague', TIMEZONE: 'America/Chicago', LATITUDE: 50.085283, LONGITUDE: 14.464034 },
     { NE_ID: 1159149085, ISO_A2: 'MO', NAME: 'Macau', TIMEZONE: 'America/Fortaleza', LATITUDE: 22.202998, LONGITUDE: 113.545048 },
+    { NE_ID: 1159151737, ISO_A2: 'NZ', NAME: 'Waitangi', TIMEZONE: 'Pacific/Auckland', LATITUDE: -44.026253, LONGITUDE: -176.369579 },
   ];
   let generated;
   vm.runInNewContext(fs.readFileSync(generator, 'utf8'), {
@@ -108,6 +112,7 @@ test('catalog generation corrects known erroneous source fallback zones before w
     .trim().replace(/;$/, '').replace(/,\s*]$/, ']'));
   assert.equal(rows.find(row => row[0] === 'ne-1159151359')[4], 'Europe/Prague');
   assert.equal(rows.find(row => row[0] === 'ne-1159149085')[4], 'Asia/Macau');
+  assert.equal(rows.find(row => row[0] === 'ne-1159151737')[4], 'Pacific/Chatham');
 });
 
 test('day/night approximation puts Greenwich in daylight at equinox noon', () => {

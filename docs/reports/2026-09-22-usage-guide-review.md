@@ -5,7 +5,7 @@
 > 2026-11-10 素材去重：下表 41 处图片链接改为共用 SHA-256 完全一致的保留图片，历史评审内容不变。重复副本及移动清单保存在 `tmp/redundant-files-2026-11-10/`；后续替换共用图片时，按[截图维护约定](../../scripts/usage-guide-shots/README.md)保留历史原图。
 
 
-审阅对象为 2026-09-22 的客户端使用文档补充方案；原正文已在 Git 保留，查询方式及当前剩余事项见[手册维护与验收清单](../../specs/plans/2026-09-22-usage-guide-supplement.md)。核对当前客户端、相邻服务器工作区和文档实际引用的图片。
+审阅对象为 2026-09-22 的客户端使用文档补充方案；原正文已在 Git 保留，查询方式及旧镜头范围裁决见[手册维护收口记录](../../specs/plans/archive/2026-09-22-usage-guide-supplement.md)。核对当时客户端、相邻服务器工作区和文档实际引用的图片。
 
 **结论：方案方向合理，素材数量充足，但尚未达到“截图完整、入口一眼可辨、说明准确”的发布条件。不能认定已经没有遗漏或文字错误。**
 
@@ -112,7 +112,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | A10 | [查看原图](../images/usage-guide/A/client-topbar-status.webp) | 修正文案 | 有导航和 ×；没有文字退出程序按钮，状态为未设置直播间。 |
 | B1 | [查看原图](../images/usage-guide/A/client-main-first-open.webp) | 可保留 | SC、点歌队列、七个页签齐全；可共用 A8。 |
 | B2 | [查看原图](../images/usage-guide/B/song-queue-item-actions.webp) | 补标签/上下文 | 显示置顶、复制、删除；没有详情。保留点歌队列标题并分别标三图标。 |
-| B3 | [查看原图](../../public/img/usage-guide/B/song-library-list.webp) | 补上下文 | 列表和筛选清楚，但歌库页签已滚出视口；需定位图。 |
+| B3 | [查看原图](../images/usage-guide/B/song-library-list-before-20261112.webp) | 补上下文 | 列表和筛选清楚，但歌库页签已滚出视口；需定位图。 |
 | B4 | [查看原图](../images/usage-guide/B/song-library-edit.webp) | 修正文案/上下文 | 这是内嵌表单；补点歌→歌库入口，不叫弹窗。 |
 | B5 | [查看原图](../images/usage-guide/B/song-settings-account.webp) | 仅入口 | 未登录状态；与 B7 完全相同，不能覆盖本机已登录。 |
 | B6 | [查看原图](../images/usage-guide/B/song-settings-room.webp) | 仅入口/补上下文 | 未配置直播间，没有房主资料；补设置页签与成功状态。 |
@@ -120,7 +120,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | B8 | [查看原图](../images/usage-guide/B/song-theme-styles.webp) | 补上下文 | 六种风格按钮齐全，但点歌板页签已滚出；需要入口说明。 |
 | B9 | [查看原图](../images/usage-guide/B/song-theme-detail.webp) | 补上下文 | 风格参数基本齐全；保留具体风格名，底部按钮边缘勿裁切。 |
 | B10 | [查看原图](../images/usage-guide/B/song-board-settings.webp) | 补上下文 | 展示板四项和保存按钮齐全；当前默认字号是 28。 |
-| B11 | [查看原图](../../public/img/usage-guide/B/song-overlay-addresses.webp) | 需补拍 | 前 7 项完整，后 4 项未完整拍到；见第 3 节。 |
+| B11 | [查看原图](../images/usage-guide/B/song-overlay-addresses-before-20261112.webp) | 需补拍 | 前 7 项完整，后 4 项未完整拍到；见第 3 节。 |
 | B12 | [查看原图](../images/usage-guide/B/song-import-export.webp) | 需补结果 | 有导入表单，云端歌曲显示读取失败；补导入结果/同步成功，入口页签需保留。 |
 | B13 | [查看原图](../images/usage-guide/B/desktop-lyric-appearance.webp) | 需补下半部 | 只显示基础字体部分；描边、透明度、逐字等未覆盖。 |
 | C1 | [查看原图](../images/usage-guide/C/playback-platform-tabs.webp) | 仅入口 | 三个平台与登录按钮清楚；没有音乐平台成功登录状态。 |
@@ -173,7 +173,7 @@ D1 的标题“礼物页整页”与实际上半页不一致，但下半页已�
 | F3 | [查看原图](../images/usage-guide/F/public-song-page-appearance.webp) | 可保留/补展开态 | 网页导航、名称和背景完整；歌单外观折叠，精细设置未展示。 |
 | F3a | [查看原图](../images/usage-guide/F/client-song-page-background.webp) | 需补背景状态 | 默认背景导致恢复默认背景按钮隐藏；补已上传示例背景后的状态。 |
 | F4 | [查看原图](../images/usage-guide/F/public-overlay-blindbox.webp) | 示例效果可用 | 排行、金额、布局完整；图注注明透明背景及示例记录。 |
-| F5 | [查看原图](../../public/img/usage-guide/F/public-overlay-danmaku.webp) | 内置预览可用 | 含样式选择侧栏，是预览页；不要当作实际 OBS 纯投屏截图。 |
+| F5 | [查看原图](../images/usage-guide/F/public-overlay-danmaku-before-20261112.webp) | 内置预览可用 | 含样式选择侧栏，是预览页；不要当作实际 OBS 纯投屏截图。 |
 | F6 | [查看原图](../../public/img/usage-guide/F/gift-wishes-overlay.webp) | 示例效果可用 | 卡片和文字状态齐全；兜底图标使礼物难区分，正式示例可补礼物名/正常图片。 |
 | S1 | [查看原图](../images/usage-guide/S/server-manage-login.webp) | 修正入口文案 | 实际链接是使用重置码；图内无浏览器地址栏，图注要明确网页登录入口。 |
 | S1b | [查看原图](../../public/img/usage-guide/S/server-password-reset.webp) | 可保留 | 重置字段及返回登录齐全；修正“忘记密码按钮”说法。 |

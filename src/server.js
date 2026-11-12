@@ -110,6 +110,7 @@ function createServerRuntime(runtimeOptions = {}) {
     publishGiftCatalogUpdate,
     publishGiftEffect,
     publishDanmaku,
+    publishSuperChatDelete,
     publishOvertimeUpdate: broadcastOvertimeUpdate,
     servePageOrAsset,
   } = createRuntimeTransport({
@@ -149,6 +150,13 @@ function createServerRuntime(runtimeOptions = {}) {
     broadcastSnapshot,
   });
   const giftSyncRuntime = createGiftSyncRuntime();
+
+  function startBackgroundMaintenance() {
+    if (isShuttingDown || stopRetentionMaintenance || !domainServices) return;
+    giftSyncRuntime.startMaintenance();
+    stopRetentionMaintenance = startRetentionMaintenance(settingsStore, domainServices.data,
+      () => giftSyncRuntime.requestMaintenance());
+  }
 
   async function initializeApplication(options = {}) {
     if (applicationInitialized) return;
@@ -196,6 +204,7 @@ function createServerRuntime(runtimeOptions = {}) {
       });
       giftEffectResolver = giftEffectModule.createGiftEffectResolver();
       domainServices = createDomainServices({
+        runGiftMaintenance: operation => giftSyncRuntime.runLocalMaintenance(operation),
         db,
         visitAssetReferences: visit => visitLocalAssetReferences({
           system: { dataDir: DATA_DIR }, scenes: sceneRuntime?.service,
@@ -235,11 +244,12 @@ function createServerRuntime(runtimeOptions = {}) {
           getViewRevision: () => domainServices.gifts.getViewRevision(),
           getHistory: (options) => domainServices.gifts.getHistory(options),
           getBlindBoxStats: domainServices.gifts.getBlindBoxStats,
+          getBlindBoxChangeToken: domainServices.gifts.getBlindBoxChangeToken,
         },
         giftCards: { getProfiles: giftRuntime.giftCards.getProfiles },
         giftWishes: { getSnapshot: domainServices.giftWishes.getSnapshot },
         heartBoxCollection: { getSnapshot: domainServices.heartBoxCollection.getSnapshot },
-        games: { getSession: gameSessionService.getSession },
+        games: { getSession: gameSessionService.getSession, getDisplaySession: gameSessionService.getDisplaySession },
         wheel: { getState: wheelSessionService.getState },
         interactions: { getState: interactionSessionService.getState },
         overtime: {
@@ -251,6 +261,8 @@ function createServerRuntime(runtimeOptions = {}) {
       sceneRuntime = createSceneRuntime({ songDb: db.songDb, runtimeOptions, displayPorts });
       giftSyncRuntime.initialize({
         giftDb: db.giftDb,
+        getActiveSource: () => domainServices.gifts.getActiveSource(),
+        automaticEnabled: () => !isShuttingDown && isLicenseAuthorized() && settingsStore.getSettings().autoRetentionOnStartup === 'true',
         importHistoryRecord: (record, sourceId) => domainServices.gifts.importProcessedHistoryRecord(record, sourceId),
         importLiveEvent: (event, sourceId, importOptions) =>
           domainServices.gifts.importProcessedEvent(event, sourceId, importOptions),
@@ -284,6 +296,7 @@ function createServerRuntime(runtimeOptions = {}) {
             aiAssistant: aiRuntime.service,
             broadcastSnapshot,
             publishDanmaku,
+            publishSuperChatDelete,
             games: gameSessionService,
           });
         },
@@ -304,7 +317,7 @@ function createServerRuntime(runtimeOptions = {}) {
       bilibiliRuntime.setAuthProvider(options.bilibiliAuth);
       domainServices.songs.ensureCategory('默认');
       domainServices.queue.ensureUnified();
-      stopRetentionMaintenance = startRetentionMaintenance(settingsStore, domainServices.data);
+      if (!options.deferMaintenance) startBackgroundMaintenance();
       domainServices.overtimeGiftCatalog.start?.();
       reportPhase('startup-repair', Date.now() - phaseStartedAt);
       applicationInitialized = true;
@@ -366,6 +379,7 @@ function createServerRuntime(runtimeOptions = {}) {
   });
 
   const server = createHttpServer({
+    getRequestOwner: runtimeOptions.getSceneOwner,
     getPreviewOwner: runtimeOptions.getPreviewOwner || runtimeOptions.getSceneOwner,
     host: HOST,
     startPort: START_PORT,
@@ -515,6 +529,7 @@ function createServerRuntime(runtimeOptions = {}) {
     inflightTracker.quiesce();
     stopRetentionMaintenance?.();
     stopRetentionMaintenance = null;
+    void giftSyncRuntime.stopMaintenance();
     console.log('Shutting down local song request service...');
 
     shutdownPromise = (async () => {
@@ -572,6 +587,7 @@ function createServerRuntime(runtimeOptions = {}) {
       ['fonts', () => fontLibrary?.close()],
       ['world clock', () => worldClock?.close()],
       ['retention', () => stopRetentionMaintenance?.()],
+      ['gift retention', () => giftSyncRuntime.stopMaintenance()],
       ['Bilibili', () => bilibiliRuntime?.stop()],
       ['scene events', () => sceneRuntime?.dispose()],
       [
@@ -702,6 +718,7 @@ function createServerRuntime(runtimeOptions = {}) {
     setPreShutdownHook,
     persistPlaybackSnapshot,
     resumeAuthorizedWork,
+    startBackgroundMaintenance,
     pauseAuthorizedWork,
     ...giftSyncRuntime.operations,
     publishGiftEffect,
@@ -709,6 +726,9 @@ function createServerRuntime(runtimeOptions = {}) {
     acceptCloudSettingsAccount: cloudSync.acceptCloudSettingsAccount,
     getPendingCloudSettings: cloudSync.getPendingCloudSettings,
     acknowledgePendingCloudSettings: cloudSync.acknowledgePendingCloudSettings,
+    capturePendingCloudBilibiliLogout: cloudSync.capturePendingCloudBilibiliLogout,
+    getPendingCloudBilibiliLogout: cloudSync.getPendingCloudBilibiliLogout,
+    acknowledgePendingCloudBilibiliLogout: cloudSync.acknowledgePendingCloudBilibiliLogout,
     prepareCloudRoomAccount: cloudSync.prepareCloudRoomAccount,
     applyCloudSettingsSnapshot: cloudSync.applyCloudSettingsSnapshot,
     applyCloudFixedReplySettingsSnapshot: cloudSync.applyCloudFixedReplySettingsSnapshot,
@@ -725,8 +745,6 @@ function createServerRuntime(runtimeOptions = {}) {
     isGiftCatalogInitialized,
     onGiftCatalogInitializationStateChanged,
     getApiToken: () => sessionToken,
-    hasActiveOverlayConnections: () => Boolean(webSocketHub?.hasOverlayConnections()
-      || sceneRuntime?.events.hasConnections() || sceneRuntime?.danmakuEvents.hasConnections()),
     getFanProfiles: () => domainServices?.fans,
     receiveSceneCloud: (update) => sceneRuntime?.receiveCloud(update),
     receiveSceneCloudSettings: (update) => sceneRuntime?.receiveCloudSettings(update),

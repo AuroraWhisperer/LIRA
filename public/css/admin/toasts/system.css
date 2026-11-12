@@ -73,6 +73,10 @@
 .toast-error {
   --toast-accent: var(--toast-error);
   --toast-on-accent: var(--color-toast-on-error);
+  background: color-mix(in srgb, var(--toast-error) 10%, var(--surface));
+  color: var(--text);
+  --toast-text: var(--text);
+  --toast-secondary: var(--muted);
 }
 .toast-detailed {
   width: 400px;

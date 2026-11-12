@@ -20,9 +20,13 @@ function createChatGptClient({ session, fetchImpl = globalThis.fetch, logEvent }
       });
       if (!response.ok) { await response.body?.cancel(); throw responseError(response.status); }
       const payload = JSON.parse(await readResponseText(response, MAX_BYTES, responseError));
-      return { models: (Array.isArray(payload.models) ? payload.models : [])
-        .filter(model => model.visibility === 'list' && typeof model.slug === 'string' && model.slug.length <= 80)
-        .map(model => model.slug) };
+      const catalog = (Array.isArray(payload.models) ? payload.models : [])
+        .filter(model => model.visibility === 'list' && typeof model.slug === 'string' && model.slug.length <= 80);
+      const models = catalog.map(model => model.slug);
+      const modelNames = Object.fromEntries(catalog
+        .filter(model => typeof model.display_name === 'string' && model.display_name.trim())
+        .map(model => [model.slug, model.display_name]));
+      return { models, ...(Object.keys(modelNames).length ? { modelNames } : {}) };
     }, request.signal).catch(error => { throw publicError(error); });
   }
 

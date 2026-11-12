@@ -226,9 +226,46 @@ test('choreographed phrases use pauses to clear incoming text at large motion se
   assert.deepEqual(overlaps, [], 'the new phrase must not obscure the preceding phrase');
 });
 
+test('word progress switches between whole glyphs and continuous fill independently of unsung visibility', async t => {
+  const page = await openRenderer(t);
+  const result = await page.evaluate(() => {
+    const root = document.getElementById('stage');
+    const settings = { ...window.lyricSettings, advancedLyricLayout: 'center' };
+    const frame = { line: { text: '有时', startMs: 1000, endMs: 5000, words: [
+      { text: '有', startMs: 1000, endMs: 2000 }, { text: '时', startMs: 2000, endMs: 4000 },
+    ] }, index: 0, currentMs: 2500, playing: false };
+    const unfilled = () => [...root.querySelectorAll('.advanced-lyric-highlight')].map(node => {
+      const [top, right = top] = getComputedStyle(node).clipPath.slice(6, -1).split(' ').map(parseFloat);
+      return right;
+    });
+    window.renderer.applySettings(settings);
+    window.renderer.renderFrame(frame);
+    const whole = unfilled();
+    window.renderer.renderFrame({ ...frame, currentMs: 1500, discontinuity: true });
+    const seeked = unfilled();
+    window.renderer.applySettings({ ...settings, advancedLyricHideUnsung: 'false' });
+    const visibleUnsung = Number(getComputedStyle(root.querySelectorAll('.advanced-lyric-reveal')[1]).opacity);
+    const fullLine = unfilled();
+    window.renderer.renderFrame(frame);
+    window.renderer.applySettings({ ...settings, advancedLyricWordProgress: 'true' });
+    const continuous = unfilled();
+    window.renderer.applySettings({ ...settings, advancedLyricWordMotion: 'soft-fill', advancedLyricWordProgress: 'false' });
+    return { whole, seeked, visibleUnsung, fullLine, continuous, switchedOff: unfilled(),
+      mask: getComputedStyle(root.querySelector('.advanced-lyric-highlight')).maskImage };
+  });
+  assert.deepEqual(result.whole, [0, 0], 'reached glyphs should be fully filled by default');
+  assert.deepEqual(result.seeked, [0, 100], 'seeking restores which glyphs have started');
+  assert.equal(result.visibleUnsung, 1);
+  assert.deepEqual(result.fullLine, [0, 100], 'showing unsung glyphs must not fill them early');
+  assert.ok(result.continuous[1] > 0 && result.continuous[1] < 100, 'enabling progress restores the partial fill immediately');
+  assert.deepEqual(result.switchedOff, [0, 0]);
+  assert.equal(result.mask, 'none', 'soft fill cannot retain an internal gradient when progress is off');
+});
+
 test('advanced fill interpolates, pauses and seeks from the shared clock and releases hidden animations', async t => {
   const page = await openRenderer(t);
   const result = await page.evaluate(async () => {
+    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricWordProgress: 'true' });
     window.frame = { line: { text: '唱', startMs: 0, endMs: 10000, words: [{ text: '唱', startMs: 0, endMs: 10000 }] },
       index: 0, currentMs: 1000, playing: true, playbackRate: 2 };
     window.renderer.renderFrame(window.frame);
@@ -271,7 +308,8 @@ test('a sustained glyph stays lifted through a long vocal and reduced motion kee
   const page = await openRenderer(t);
   const result = await page.evaluate(() => {
     const root = document.getElementById('stage');
-    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'center', advancedLyricWordMotion: 'sustain' });
+    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'center', advancedLyricWordMotion: 'sustain',
+      advancedLyricWordProgress: 'true' });
     window.frame = { line: { text: '长音', startMs: 1000, endMs: 6000, words: [
       { text: '长', startMs: 1000, endMs: 4000 }, { text: '音', startMs: 4500, endMs: 5000 },
     ] }, index: 0, currentMs: 2800, playing: false };
@@ -366,14 +404,16 @@ test('vertical filling follows the writing direction and soft edges advance and 
       const [top, right = top, bottom = top, left = right] = highlightStyle().clipPath.slice(6, -1).split(' ').map(parseFloat);
       return [top, right, bottom, left];
     };
-    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'vertical', advancedLyricWordMotion: 'fill' });
+    window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: 'vertical', advancedLyricWordMotion: 'fill',
+      advancedLyricWordProgress: 'true' });
     seek(2000);
     const verticalStart = clipEdges();
     seek(4000);
     const verticalEnd = clipEdges();
     const soft = [];
     for (const layout of ['center', 'vertical']) {
-      window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: layout, advancedLyricWordMotion: 'soft-fill' });
+      window.renderer.applySettings({ ...window.lyricSettings, advancedLyricLayout: layout, advancedLyricWordMotion: 'soft-fill',
+        advancedLyricWordProgress: 'true' });
       const progress = () => {
         const [x, y] = highlightStyle().maskPosition.split(' ').map(parseFloat);
         return { x, y };
@@ -405,7 +445,8 @@ test('steady frames and effect changes reuse glyphs and preserve sung progress w
   const page = await openRenderer(t);
   const result = await page.evaluate(async () => {
     const root = document.getElementById('stage');
-    const settings = { ...window.lyricSettings, advancedLyricLayout: 'center', advancedLyricMaterial: 'striped' };
+    const settings = { ...window.lyricSettings, advancedLyricLayout: 'center', advancedLyricMaterial: 'striped',
+      advancedLyricWordProgress: 'true' };
     window.renderer.applySettings(settings);
     window.frame = { line: { text: '这一句持续演唱', startMs: 0, endMs: 10000,
       words: [...'这一句持续演唱'].map((text, index) => ({ text, startMs: index * 1000, endMs: (index + 1) * 1000 })) },

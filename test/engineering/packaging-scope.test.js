@@ -116,7 +116,10 @@ test('packaging omits external media and maintenance metadata while retaining re
     'public/img/overlays/danmaku-flower-letter/SOURCES.md',
     'public/img/admin/gifts/guard-icon-sources.json', 'public/img/overlays/danmaku-harbor/sources.json',
     'src/shared/danmaku-source-manifest.json', 'public/fonts/README.md',
-    'public/fonts/lyrics-fallback/README.md', 'public/fonts/weekly-schedule/README.md');
+    'public/fonts/lyrics-fallback/README.md', 'public/fonts/weekly-schedule/README.md',
+    'public/img/usage-guide/S/server-manage-overview.webp', 'public/pages/gift-audit.html',
+    'public/css/gift-audit.css', 'public/js/gift-audit/index.js',
+    'public/js/gift-audit/analysis.js', 'public/js/gift-audit/view.js');
   for (const relative of excluded) {
     const file = path.join(projectDir, relative); assert.equal(filter(file, await fs.stat(file)), false, relative);
   }

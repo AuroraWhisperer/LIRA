@@ -143,6 +143,8 @@ async function handleOverlayApi(context, principal, request, res) {
         if (!['append', 'undo', 'clear'].includes(body.action)) return forbidden(res);
         const result = context.games.draw({
           action: body.action,
+          sessionId: body.sessionId,
+          round: body.round,
           clientId: body.clientId,
           strokeId: body.strokeId,
           color: body.color,

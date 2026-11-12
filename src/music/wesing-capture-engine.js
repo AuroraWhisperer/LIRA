@@ -128,22 +128,27 @@ function createWeSingCapture(options = {}) {
     };
   }
 
-  function setCachePath(input) {
+  function setCachePath(input, { authorize = () => {} } = {}) {
     cachePathVersion += 1;
     const update = cachePathQueue.then(async () => {
+      authorize();
       const prepared = await prepareConfiguration({ cachePath: input });
+      authorize();
       if (typeof options.saveCachePath === 'function') await options.saveCachePath(prepared.cachePath);
+      authorize();
       return prepared.cachePath === cachePath ? refresh({ discover: false }) : prepared.apply();
     });
     cachePathQueue = update.catch(() => {});
     return update;
   }
 
-  async function setLyricOffsetMs(input) {
+  async function setLyricOffsetMs(input, { authorize = () => {} } = {}) {
     const prepared = await prepareConfiguration({ lyricOffsetMs: input });
+    authorize();
     if (typeof options.saveLyricOffsetMs === 'function') {
       await options.saveLyricOffsetMs(prepared.lyricOffsetMs);
     }
+    authorize();
     return prepared.apply();
   }
 

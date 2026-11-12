@@ -55,7 +55,8 @@ export function createAiModelPicker({ readApi, onSelect }) {
         item.setAttribute('role', 'option');
         item.tabIndex = -1;
         item.setAttribute('aria-selected', String(model === modelInput.value));
-        item.textContent = model;
+        const name = result.modelNames?.[model];
+        item.textContent = typeof name === 'string' && name && name !== model ? `${name} (${model})` : model;
         item.addEventListener('click', () => {
           if (!isCurrent()) return;
           modelInput.value = model;

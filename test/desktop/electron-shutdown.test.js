@@ -7,42 +7,18 @@ const { acknowledgePlaybackFlush } = require('../../src/electron/playback-flush'
 const { createHarness: createLicenseHarness } = require('../helpers/license-manager-harness');
 const { createSceneCloudController } = require('../../src/electron/scene-cloud-controller');
 
-test('connected output prompts once and cancellation leaves the runtime and renderer intact', async () => {
-  const answer = Promise.withResolvers();
-  let connected = true;
-  const h = createShutdownHarness({ hasActiveOverlayConnections: () => connected,
-    closeDialog: (_window, options) => {
-      assert.equal(options.cancelId, 0);
-      assert.equal(options.defaultId, 0);
-      return answer.promise;
-    } });
+test('ordinary close never prompts and repeated close shares the ordered shutdown', async () => {
+  const h = createShutdownHarness();
   await h.start();
   h.window.close();
   h.quit();
-  assert.equal(h.count('dialog:close'), 1);
-  assert.equal(h.shutdownPromise, null);
-  assert.deepEqual(h.clock.delays, [], 'shutdown deadline starts only after approval');
-  answer.resolve({ response: 0 });
-  await h.closePromise;
+  assert.equal(h.count('dialog:close'), 0);
+  assert.ok(h.shutdownPromise);
+  assert.deepEqual(h.clock.delays, [5000]);
   assert.equal(h.runtimeOpen, true);
-  assert.equal(h.count('cloud:dispose'), 0);
   assert.equal(h.window.isDestroyed(), false);
-  connected = false;
-  h.window.close();
-  assert.equal(h.count('dialog:close'), 1, 'disconnected outputs do not prompt again');
   h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
   await h.shutdownPromise;
-  assert.equal(h.count('app:exit'), 1);
-});
-
-test('confirming connected output close runs the existing ordered shutdown once', async () => {
-  const h = createShutdownHarness({ hasActiveOverlayConnections: () => true,
-    closeDialog: () => Promise.resolve({ response: 1 }) });
-  await h.start();
-  h.quit();
-  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
-  await h.closePromise;
-  assert.equal(h.count('dialog:close'), 1);
   assert.equal(h.count('runtime:stop'), 1);
   assert.equal(h.count('screen-color-picker:dispose'), 1);
   assert.ok(h.calls.indexOf('screen-color-picker:dispose') < h.calls.indexOf('runtime:stop'));
@@ -50,8 +26,8 @@ test('confirming connected output close runs the existing ordered shutdown once'
   assert.equal(h.count('app:exit'), 1);
 });
 
-test('updater quit bypasses the usage prompt and still drains before playback flush and exit', async () => {
-  const h = createShutdownHarness({ hasActiveOverlayConnections: () => true });
+test('updater quit drains before playback flush and exit without prompting', async () => {
+  const h = createShutdownHarness();
   await h.start();
   h.quitForUpdate();
   assert.equal(h.count('dialog:close'), 0);
@@ -67,15 +43,18 @@ test('updater quit bypasses the usage prompt and still drains before playback fl
   assert.ok(h.calls.indexOf('runtime:stopped') < h.calls.indexOf('app:exit'));
 });
 
-test('a downloaded update does not bypass the prompt for an ordinary close', async () => {
-  const h = createShutdownHarness({ hasActiveOverlayConnections: () => true });
+test('a downloaded update still uses normal ordered shutdown on ordinary close', async () => {
+  const h = createShutdownHarness();
   await h.start();
   h.publishUpdate({ status: 'downloaded', canInstall: true });
   h.quit();
-  await h.closePromise;
-  assert.equal(h.count('dialog:close'), 1);
-  assert.equal(h.shutdownPromise, null);
-  assert.equal(h.runtimeOpen, true);
+  assert.equal(h.count('dialog:close'), 0);
+  assert.ok(h.shutdownPromise);
+  h.cloudIdle.resolve(); h.remoteIdle.resolve(); h.backendStop.resolve();
+  await h.shutdownPromise;
+  assert.equal(h.count('playback:flush'), 1);
+  assert.equal(h.count('app:exit'), 1);
+  assert.equal(h.count('app:relaunch'), 0);
 });
 
 test('quit drains a scene waiting for scheduled renewal and reaches the actual playback flush', async (t) => {

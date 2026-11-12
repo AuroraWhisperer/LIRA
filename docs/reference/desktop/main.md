@@ -32,20 +32,18 @@
 
 ## 使用中的本机画面与退出
 
-窗口关闭或普通退出时，`requestDesktopClose()` 读取当前 runtime 的
-`hasActiveOverlayConnections()`：授权的 overlay WebSocket，或场景/弹幕显示 SSE
-仍有连接时，先提示“仍有本机画面正在使用”。管理页连接和组件编辑预览不计入。
-最后一个画面断开后直接退出；独立网页打开本机画面也算使用，这不是推流状态检测。
-确认框只保留一份，取消不会启动清理；确认后才进入原有关闭期限、同步排空和播放
-快照 flush。启动失败退出、已确认的程序重启沿用原流程。
+窗口关闭或普通退出时，`requestDesktopClose()` 直接进入原有有序关闭流程，不因
+浏览器源连接而弹出确认框。重复关闭复用同一个关闭任务和五秒期限；先排空同步
+控制器并保存播放快照，再关闭本地服务和退出进程。退出后本机浏览器源停止更新。
+启动失败退出和程序重启沿用各自的原流程。
 
 更新器启动安装后发出的 Electron `before-quit-for-update` 事件直接调用
-`desktopLifecycle.requestShutdown()`，随后 `before-quit` 复用同一关闭任务，不再弹出使用确认。
-仅下载完成不会绕过普通关窗确认；安装发起后的退出仍等待原有同步排空和播放快照 flush。
+`desktopLifecycle.requestShutdown()`，随后 `before-quit` 复用同一关闭任务。
+仅下载完成不会把普通关窗改为安装或重启；所有退出仍等待原有同步排空和播放快照 flush。
 
 ## 豆包账号会话
 
-豆包账号会话在 `createDesktopRuntime` 前由 main 创建并初始化，经 runtime options 注入 AI 域；退出时和其他认证 controller 一起先 `dispose()`、再等待 `whenIdle()`，终止本会话的请求及窗口。具体持久化与登录合同见 [auth.md](auth.md#16-豆包个人账号)。
+豆包账号会话在 `createDesktopRuntime` 前由 main 创建并初始化，经 runtime options 注入 AI 域；退出时和其他认证 controller 一起先 `dispose()`、再等待 `whenIdle()`，终止本会话的请求及窗口。具体持久化与登录合同见 [auth.md](auth.md#17-豆包个人账号)。
 
 main 另将 `shell.openExternal` 以 `openAiLoginBrowser` 注入 AI runtime，供固定官方 ChatGPT OAuth 地址在系统浏览器授权。账号、加密存储、loopback 与关闭由 AI 域拥有，无新增 renderer IPC；见 [AI 订阅契约](../backend/ai.md#45-chatgpt-订阅与-kimi-api)。
 
@@ -55,15 +53,19 @@ main 另将 `shell.openExternal` 以 `openAiLoginBrowser` 注入 AI runtime，�
 remote-gift-controller 调用，沿用 main 持有的 DeviceBearer、来源和授权代次。
 探测 giftRetentionVersion=1 后，首次或游标失效时下载完整汇总及匹配近期明细；
 正常运行每 10 分钟检查变化日，限流保存页位置，失效令牌重新取快照。
-激活后由原 catch-up/SSE 处理后续 final，每次协调另做一批本地回收。
+激活后由原 catch-up/SSE 处理后续 final；同步协调只唤醒同一个本地回收 owner。
+桌面启动传入 `deferMaintenance:true`，在主窗口 onReady 后调用
+`startBackgroundMaintenance()`；自动保留开关、授权来源及可信汇总共同控制删除。
+启动、同步激活、每小时维护合并请求，批间让出 25ms，停止登记及 timer 后才关闭数据库。
 授权切换、清库与停机沿用原 fence 和 AbortController，不新增进程或 renderer 通道。
 远端 epoch 变化仍先走原投影重建入口，清除旧来源副本及结转；同 epoch 的过期
-游标恢复则保留旧完整副本，直到新快照原子激活。
+游标恢复保留同 epoch 已收到的一年明细；若跳过了未消费 cursor，旧日期完整性证明
+失效并显示“部分明细”，不会用旧副本冒充完整恢复。
 存储事务与本地消费者保护见 [storage.md](../backend/storage.md)。
 
 ## 服务器固定回复设置
 
-固定回复九项中，签到和抽签全天可用，其他项目仅在确认直播中生效。下播保留设置、取消未发送工作；下一次开播恢复新事件处理，不补发旧消息。云端统一使用本场直播回复 source，桌面点歌与关键词回复共用直播发送入口，见[弹幕客户端参考](../backend/bilibili/danmaku.md)。
+固定文案回复中，签到和抽签全天可用，其他项目（含点赞、分享和关注感谢）仅在确认直播中生效。下播保留设置、取消未发送工作；下一次开播恢复新事件处理，不补发旧消息。云端统一使用本场直播回复 source，桌面点歌与关键词回复共用直播发送入口，见[弹幕客户端参考](../backend/bilibili/danmaku.md)。
 
 自定义回复和定时/随机弹幕由服务器配置、匹配和发送。桌面通过
 `getFixedReplySettings()` 读取既有 `GET /api/device/cloud-state` 的 `settings.values`，
@@ -72,15 +74,17 @@ remote-gift-controller 调用，沿用 main 持有的 DeviceBearer、来源和�
 主进程及 IPC 回包后再次检查账号代次，不把凭据或服务端其他设置交给 renderer。
 通道、来源检查和返回值见 [preload.md](preload.md)。
 
-[fixed-reply-contract.js](../../../src/shared/fixed-reply-contract.js) 校验四个可选 patch 字段，
+[fixed-reply-contract.js](../../../src/shared/fixed-reply-contract.js) 校验精确/定时回复与互动感谢的可选 patch 字段，
 每次至少一个：`customExactReplyEnabled` 与 `scheduledDanmakuEnabled` 均为 boolean、默认关闭；
 `customExactReplies` 为最多 30 条 `{trigger,reply}`，去掉首尾空白后分别为 1–30 和 1–120
 Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDanmaku` 保存完整配置：
 `mode` 为 `fixed`/`random`、`intervalSeconds` 默认 300、`minSeconds` 默认 300、
 `maxSeconds` 默认 600，秒数均为 10–86400 的整数且最小值不大于最大值；
-`selection` 为 `sequential`/`random`、默认顺序，`messages` 为最多 100 条、每条 1–120 字，
-未保存定时配置时由服务器提供 15 条可编辑的 B 站文案；已有配置（包括显式空词库）保留。
+`selection` 为 `sequential`/`random`、默认顺序，`messages` 为最多 300 条、每条 1–120 字，
+未保存定时配置时由服务器提供 199 条可编辑的 B 站文案；已有配置（包括显式空词库）保留。容量升级需两端配套发布：旧客户端拒绝读取超过 100 条的词库，旧服务器拒绝保存超过 100 条的词库。
 参数拒绝未知字段及控制字符。旧服务器缺少新字段明确返回不支持，不回落成本地发送。
+
+互动感谢新增 like/share/follow 各自的 ThanksEnabled 与 ThanksMessages 六字段；前三者为 boolean，词库为 0–30 条、每条 1–120 Unicode 字符，禁止控制字符。开关默认关闭，各类服务器默认提供 3 条文案，支持 {username}，随机选词并只使用对应词库；保存文案不联动开关。全部六字段缺失时保留旧四字段响应并禁用新增 UI；部分缺失拒绝 INVALID_RESPONSE。相同 IPC 与云设置请求承载三类读写，renderer 不另起订阅；三份草稿独立，失败保留、切换账号清空。运行时由服务器既有 RoomMonitor/FixedReplyService 拥有，本机不额外捕捉或发送个人感谢。
 
 桌面只在 `custom-reply-service` 内存中保存已确认的精确触发词、开关与云端 revision，
 不会持久化这份投影，也不会加入默认云同步上传键。云同步读取/写入回包和固定回复 IPC
@@ -107,7 +111,9 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 固定回复中的“PK 播报与欢迎”沿用默认关闭的 `enabled` 总开关，服务端持久化独立设置。
 `reportEnabled` 默认 true，保留旧开场播报意愿；`visitorWelcomeEnabled` 默认 false。
 总开关关闭时停止两项功能，保留子开关和欢迎设置；子开关各自只提交一个字段。
-欢迎延时默认 5 秒，词库默认 `欢迎 {username} 从对面来串门～`；延时和词库共用一个独立草稿域，
+欢迎延时默认 5 秒，服务器提供 8 条默认串门欢迎词，每次随机选一条并替换 `{username}`。
+服务器升级时一次性补齐仍为原始默认单句的词库，保留自定义词库及其他偏好；之后的编辑不会被再次补齐。
+延时和词库共用一个独立草稿域，
 点击“保存欢迎设置”只提交这两个字段。读取和开关操作保留草稿，保存期间继续编辑以代次保护，
 失败保留草稿，账号切换清空草稿和未添加文案。同步中和失败时
 保持最近确认状态，关闭失败显示“关闭尚未同步，服务器可能仍在播报”；不离线重放。
@@ -116,7 +122,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 金额档位按用户确认的 1 元＝10 贡献值估算，百元/千元/万元档互不重叠，
 只展示正人数；说明中明确贡献值估算。串门欢迎仅在 PK 期间对进入本直播间的观众生效，
 服务器复用对手在线榜中取得的 UID 和来访者佩戴的对手粉丝牌推断归属，不增加对面直播间连接或轮询。
-它独立于普通进场欢迎的开关和荣耀门槛，经既有欢迎流程、冷却和发送队列处理，同次进场不重复欢迎；
+它独立于普通进场欢迎的开关、荣耀门槛和本房间粉丝牌筛选，经既有欢迎流程、冷却和发送队列处理，同次进场不重复欢迎；
 延时不证明观众仍在房间。客户端不实现取数、统计、识别或发送。
 
 服务器权威合同：lira-server `docs/protocol/pk-opponent-report.md` 和 Device OpenAPI。
@@ -148,7 +154,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 
 [client-appearance.js](../../../src/electron/client-appearance.js) 在创建 runtime 和主窗口前读取
 `dataDir/client-appearance.json`，只持久化 `{ themeId }`。合法值由
-[client-theme.js](../../../src/shared/client-theme.js) 的统一配色目录定义，包含 `dusty-rose`（烟粉 · 灰玫瑰）；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
+[client-theme.js](../../../src/shared/client-theme.js) 的统一配色目录定义，包含 `dusty-rose`（烟粉 · 灰玫瑰）、`moss-linen`（雾苔 · 亚麻）和 `cocoa-champagne`（墨咖 · 香槟）；未设置默认 `terracotta`（暖陶），坏 JSON、未知 ID 或读取失败本次回退默认并记录适度诊断，
 不覆盖原文件。外观保存按请求顺序写临时文件并原子替换；成功才更新内存快照，失败保留旧状态。
 替换遇到 `EPERM` / `EBUSY` 时按 50、100、150、200 毫秒间隔最多重试四次；持续占用或其他写入错误仍返回原有保存失败结果，不删除旧记录。
 关停先移除写入 IPC 并等待已接受的写入完成。
@@ -156,7 +162,7 @@ Unicode 字符，触发词唯一且不能占用内置“菜单”。`scheduledDa
 它与账号、直播间、业务 settings、云同步和浏览器缓存分离，普通缓存清理不删除外观记录。
 runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 [server-core.md](../backend/server-core.md)。桥与错误码见 [preload.md](preload.md)。
-主窗口原生底色使用统一配色目录中的对应页面底，与 `desktop/palettes.css` 一致；烟粉 · 灰玫瑰为 `#d4b6bd`。
+主窗口原生底色使用统一配色目录中的对应页面底，与 `desktop/palettes.css` 一致；烟粉 · 灰玫瑰为 `#d4b6bd`，雾苔 · 亚麻为 `#f0f1e9`，墨咖 · 香槟为 `#1c1916`。
 主 frame 导航时重新选择，登录仍为 `#f7f3ef`，不更改 `nativeTheme`。
 
 ## 本机系统通知
@@ -171,6 +177,8 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 大额礼物通知复用 `src/server.js` 的结算后 `onGiftFlushed` 回调，仅在当前授权有效时传给桌面 owner，
 不新增订阅或轮询，不参与入账。单次 final 的 `total_price` 按整数分严格大于门槛才通知，不重复乘数量；
 以 `updated_at` 排除本次启动或重新启用前的旧礼物。历史导入、final 重放与消费者重试继续沿用投影层既有去重。
+
+Windows 启动时由 `configureNotificationIdentity` 设置应用身份：安装版继续使用 `com.aurorawhisperer.lira`，开发运行使用其 `.development` 后缀。开发启动仅在用户开始菜单 `Electron.lnk` 仍使用生产身份且目标路径精确匹配当前开发可执行文件时，将该快捷方式的 AUMID 更新为开发身份。安装版也处理这一遗留冲突，但须同时确认目标为项目内的 `node_modules/electron/dist/electron.exe`、项目 `package.json` 的名称为 `lira` 且构建 appId 与生产身份一致。不改链接其他字段、正式 LIRA 快捷方式或其他应用链接；无冲突时不写入。读取或更新失败只记录固定错误代码，下次启动仍可重试。这样避免旧开发快捷方式使任务栏和通知把正式应用识别为 Electron。
 
 两类提醒都使用 Electron `Notification`，窗口最小化或切页不取消，退出后不提醒。
 点击礼物通知恢复并聚焦主窗口；关闭礼物通知或退出时释放仍持有的原生通知，退出移除设置 IPC 并等待写入完成。
@@ -193,25 +201,47 @@ runtime 只收到 `getClientTheme()` 只读 getter；HTML 初始化边界见
 上述 V1 桥保留。新页面使用 `getWelcomeSettingsV2()` / `updateWelcomeSettingsV2(patch)`，
 读写固定 `/api/device/welcome-settings/v2`。完整字段和依赖由服务器 Device OpenAPI
 维护；主进程以 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)
-白名单验证参数、五份词库与完整回包，错误只投影字段/原因。仅 GET 明确 HTTP 404
+白名单验证参数、各类词库与完整回包，错误只投影字段/原因。仅 GET 明确 HTTP 404
 才回落 V1，并显示新增能力不可用；网络、鉴权、畸形成功及写入均不自动回落。
 
 V2 的 `userWelcomeMessages` 通过同一 IPC/API 按精确 B 站 UID 保存个人欢迎词，
 主进程验证 UID 字符串、唯一性和文案并仅投影已知字段。新服务器返回数组；
 旧 V2 缺少该字段时保留缺失，只禁用个人欢迎编辑器。独立保存只提交该列表，
-空数组清空，参数/通用词库等其他写入省略它。久别重逢的 `returningEnabled` 与 `returningMessages` 增量字段由共享欢迎契约校验；旧 V2 缺少能力时只禁用新项，独立保存客套话，服务器回包缺少新能力时不得确认成功。首次欢迎在原门槛内优先个人文案，
-未匹配时优先符合条件的久别重逢，再沿用重点关注/通用词库；二次问候、延迟与发送限制保持，服务器仍为发送 owner。
+空数组清空，参数/通用词库等其他写入省略它。多天未到欢迎的 `returningEnabled` 与 `returningMessages` 增量字段由共享欢迎契约校验；旧 V2 缺少能力时只禁用新项，独立保存统一完整文案词库，服务器回包缺少新能力时不得确认成功。首次欢迎满足参数及欢迎名单条件后优先个人文案，
+未匹配时优先符合条件的多天未到欢迎，再沿用重点关注/通用词库；二次问候、延迟与发送限制保持，服务器仍为发送 owner。词库不按天数分组，初始 20 条，支持 `{username}` / `{uname}` 和 `{days}`；完整模板不再叠加固定前缀。服务器保留无变量旧客套话的拼接方式，只将完全未改动的旧默认库替换为新默认，自定义内容不覆盖。配套发布先更新服务端，再启用客户端完整模板编辑。
 
-参数、五库和用户欢迎词各有草稿代次，写入串行、输入可继续编辑；开启有数值草稿时原子提交
+V2 的 `timeWelcomeEnabled` 与 `timeWelcomeMessages` 扩展提供默认关闭的时段欢迎。
+词库页关闭时编辑普通欢迎，开启时选择北京时间的 5 个固定时段，每段初始 20 条；
+`public/js/shared/welcome-time-periods.js` 为界面与主进程共用的时段契约，与 Server 同源模块保持一致。
+主进程校验固定时段键及每段 1–30 条、每条最多 80 字。旧 V2 同时缺少两项时只禁用时段能力，
+半缺失或非法回包拒绝；写回未确认新字段时保留草稿。普通首次欢迎由 Server 按进场北京时间选词，
+个人、多天未到欢迎和高荣耀文案优先，PK 与二次问候不变。普通/时段词库分别保留，模式开关只提交开关；
+每个时段有独立草稿代次，保存只提交当前时段，服务端在事务内合并其余时段的现有值，避免跨设备覆盖。
+请求允许非空时段子集，完整回包必须包含五段。主欢迎关闭不清除模式选择。
+
+V2 的 `welcomeOwnMedalOnly` 为可选 boolean，默认 false；独立即时保存，省略保留，主欢迎关闭也保留偏好。
+旧 V2 未返回时仅禁用粉丝牌筛选，非法类型拒绝；保存未回显该 boolean 时不确认成功。
+服务器以本次进场的粉丝牌房间匹配当前真实房间，缺失或他房间证据不通过，不从大航海或缓存推断；无需点亮。
+白名单豁免筛选及首次荣耀门槛；黑名单优先，PK 保留独立资格。客户端不复制资格逻辑。
+
+V2 的 `welcomeWhitelist` / `welcomeBlacklist` 使用同一 IPC/API 与租户欢迎设置保存精确 UID 字符串列表。
+主进程校验唯一性和范围，拒绝数字 UID、重复或非法值，错误只投影 `INVALID_USERS` 字段原因。
+旧 V2 同时缺少两项时仅禁用名单编辑；半缺失或非法回包拒绝，名单写回未确认完整能力时保留草稿。
+白名单豁免普通首次欢迎的荣耀门槛和本房间粉丝牌筛选；黑名单优先，阻止普通/个人/PK 欢迎及二次问候，并取消命中 UID 的未发送任务。
+普通欢迎开关、直播准入、冷却与发送限制保持，白名单不改变二次问候和高荣耀文案门槛；画面屏蔽名单继续独立。
+两份名单各自保存，只提交正在保存的字段，空数组清空；其他保存省略名单字段，V1 不暴露或覆盖名单。
+
+参数、各词库、用户欢迎词及两份欢迎名单各有草稿代次，写入串行、输入可继续编辑；开启欢迎阶段且有数值草稿时原子提交
 并明示“开启并保存参数”，词库仍使用已确认值。纯关闭只带开关，失败保持未确认；
 欢迎关闭联动子功能由服务器执行。独立昵称注音也经同一账号配置保存。读取可保留
 草稿，切账号清空所有草稿/未添加输入并忽略旧响应。延时不证明观众仍在房间。
 
 固定回复前四行按两列排列：签到/抽签、欢迎/点歌回复、自定义回复/关键词回复、PK/定时随机弹幕；查询回复独立放在最后一行。「清单」按常用时间、指定时间和名称分组，并排展示礼物与盲盒指令，详细规则收进问号说明，开关和礼物页共用 `giftStatsQueryEnabled` 与原有受限 IPC。标题、问号与开关就近排列。点歌回复保留共享问号，并复用“说明”按钮展开系统生成的无匹配／冷却回复示例，无需词库；PK 播报说明使用共享问号。PK 状态保留在总览，手动重读并入底部统一“刷新云端状态”（同时读取签到/抽签、欢迎、PK、查询和新增回复设置）。
 `danmaku-fixed-replies.js` 协调点歌回复说明、欢迎、PK 播报与欢迎、两类自定义回复、定时弹幕、签到与抽签的单个活动编辑器，
-切换时只隐藏、不卸载编辑区。欢迎参数与词库位于同一编辑器；
+切换时只隐藏、不卸载编辑区。「欢迎规则」「欢迎词库」「欢迎对象」位于同一编辑器的三个页签；欢迎对象集中粉丝牌筛选与黑白名单；
+`danmaku-welcome-audience.js` 拥有名单页的两个独立 UID 编辑列表、每页六人的分页和保存入口，沿用共享保存/账号代次；
 `danmaku-welcome-custom.js` 拥有词库视图中的用户规则列表和分页。每项欢迎规则将标题/开关、
-参数和对应词库入口就近分组。首次欢迎、二次问候、重点关注、久别重逢四卡按两列两行排列，
+参数和对应词库入口就近分组。首次欢迎、二次问候、高荣耀文案、多天未到欢迎四卡按两列两行排列，
 延时与荣耀输入同行且保留间距，同排卡片的词库按钮底部对齐；容器小于 760px 时卡片改为单列，
 小于 480px 时双输入改为纵排。注音与保存操作位于规则下方。
 固定回复的自定义下拉沿用共享单选样式，选中项以竖条与高亮表示，不显示对勾，
@@ -265,7 +295,7 @@ IPC 通道定义见 [preload.md](preload.md)。
 15. 创建 `readinessController`，按其 `initialRoute` 创建主窗口，再调用 `readinessController.start()`。未授权或首次目录尚未完成时加载 `/license`，初始化卡通过受限 IPC 展示目录/图片进度，完成后导航 `/admin?desktop=1`；已有完成状态的授权启动立即进入 Admin。每次启动强制执行一次条件请求（仍携带 ETag），持续运行每 12 小时检查并增量补图；后续实际下载使用同一受限 IPC 在 Admin 显示单条进度 toast，无变化时保持安静
 16. 就绪控制器在已授权启动时先调用 `remoteGiftController.start()` 建立来源切换隔离，再调用 `cloudSyncController.start()`；云同步完成且授权与恢复代次仍有效后，恢复本地 Bilibili 工作。授权离开 `AUTHORIZED` 时停止远程礼物流，并按授权状态切回 `/license`；不由 main 另行重复启动恢复
 
-`createDesktopRuntime` 定义于 [desktop-runtime.js](../../../src/electron/desktop-runtime.js)，由 main 调用，是兼容适配器:若传入模块已是运行时(具备 `start/stop/setPreShutdownHook`)直接返回;若暴露 `createServerRuntime(options)` 则调用之;否则退化为包装 `startServer`/`shutdownApplication` 的旧兼容层。
+`createDesktopRuntime` 定义于 [desktop-runtime.js](../../../src/electron/desktop-runtime.js)，由 main 调用：若传入模块已是运行时（具备 `start/stop/setPreShutdownHook`）则直接返回；若暴露 `createServerRuntime(options)` 则将 options 传入工厂创建运行时；其他模块会报运行时不可用。
 
 开发模式(未打包)在窗口就绪后把更新状态置为 `dev-disabled`([main.js](../../../src/electron/main.js),见 [update.md](update.md) §2)。
 
@@ -314,13 +344,15 @@ Device SSE 使用 15 秒连接期限和 60 秒完整事件块空闲期限；注�
 
 settings 也保留账号所属的持久待传快照：启动或切回账号先恢复，再上传；存在待传记录时拒绝云端拉取覆盖。上传确认同时检查生命周期、修改代次和 `mutationId`，包括携带普通设置的礼物互动提交；迟到响应不能清除更新的修改。原子写入与私有记录格式见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。
 
+Bilibili 交互登录/退出也从操作开始绑定同一同步 owner，旧窗口不能在切号后为新账号上传。退出意图在清本地 Cookie 前持久保存，重启或切回账号先清本地登录并重试云端 DELETE；失败时阻止旧云凭据恢复，只有匹配的成功确认或该 owner 随后的成功显式登录才清除意图。此持久保证仅覆盖退出；登录 Cookie 仍使用原加密快照与进程内 dirty 重试，完整认证边界见[auth.md §13](auth.md#13-云端-bilibili-凭据同步边界)。
+
 上传遇到 `INVALID_GIFT_BLIND_BOX_CONFIG` 时，只按服务器当前有效自定义身份移除已被接管/删除的旧 `customId`，保留其他本地设置、有效项的编辑和未分配身份的新草稿，再尝试一次。读取期间发生新编辑或换账号则放弃该次修复，成功回执之前保留持久待传记录；没有可确定移除的旧身份时报告冲突并保留原记录，不放宽服务端校验。普通网络失败沿用原重试行为。
 
 手动歌库同步先由主进程核对歌库归属并返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。归属检查通过后、请求入队前标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
 
 `song-protocol.js` 的 `syncSongs` 授权操作在授权生命周期复核后验证服务器上传确认：`ok` 必须为 true，`count` 必须与提交快照长度一致。缺失、非法或不匹配的确认返回 `INVALID_RESPONSE`，不确认 pending、不清除 dirty，也不把本地数量作为服务器成功数量。
 
-[gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有自动感谢、数据查询两个开关及礼物答谢文案的提交状态、订阅和公开结果。它使用 `cloud-sync-controller.js` 注入的同一账号代次与串行队列；设置上传和持久待传确认复用 `cloud-settings-sync-controller.js`，revision/dirty 更新和重试仍由父同步控制器完成，不维护第二套同步状态。文案以可选 `giftThanksTemplates` 写入完整云设置，省略保留服务器值，不写本机 settings。旧服务不返回该字段时仍支持原有开关，文案保存返回 GIFT_THANKS_UNSUPPORTED；完整模板确认后才报告保存成功，账号切换拒绝旧结果。受限模板与快照见 [preload](preload.md)。
+[gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有自动感谢、数据查询两个开关及礼物答谢文案的提交状态、订阅和公开结果。它使用 `cloud-sync-controller.js` 注入的同一账号代次与串行队列；设置上传和持久待传确认复用 `cloud-settings-sync-controller.js`，revision/dirty 更新和重试仍由父同步控制器完成，不维护第二套同步状态。四组候选文案以可选 `giftThanksReplies` 写入完整云设置，保留旧 `giftThanksTemplates` 通道；省略保留服务器值，不写本机 settings。服务器不返回文案库时回退原双模板编辑器，对不支持的格式保存返回 GIFT_THANKS_UNSUPPORTED。完整配置确认后才报告保存成功，账号切换拒绝旧结果并清理草稿。受限文案与快照见 [preload](preload.md)。
 
 ### 2.3 服务端权威礼物接收生命周期
 
@@ -380,7 +412,7 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 | 尺寸           | **1260×820**,minWidth 1024,minHeight 680                                                                           | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 | 窗口形态       | `frame: false`(自绘标题栏)、`backgroundColor` 跟随本机客户端外观（登录仍为 `#f7f3ef`）、`show: false` 等 `ready-to-show` 再显示 | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 | 加载 URL       | 已授权且礼物目录已初始化时 `{baseUrl}/admin?desktop=1`，否则 `{baseUrl}/license`                                  | [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js)、[desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
-| webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: false`                        | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
+| webPreferences | `preload: preload.js`、`contextIsolation: true`、`nodeIntegration: false`、`sandbox: true`                        | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 | 图标           | 打包资源 `build/icon.png` 存在时附加                                                                               | [desktop-main-window.js](../../../src/electron/desktop-main-window.js) |
 
 导航与管理认证由 [desktop-request-auth.js](../../../src/electron/desktop-request-auth.js) 在 loadURL 前绑定，实例由 main 创建并通过 `bindRequestAuth` 接入窗口 owner。`setWindowOpenHandler` 拒绝创建窗口，只对现有外链规则允许的目标调用 `shell.openExternal`；`will-navigate` 仅放行精确服务 origin 的管理 aliases、`/license` 和管理页发起的 `/api/*` 下载，其余允许的外链交系统浏览器。`will-redirect` 对同一范围重新校验，拒绝跳入展示页或外域。管理 Bearer 只由 main 为受信任主 frame 的请求附加，完整契约见 [auth.md](auth.md) §11.1。
@@ -397,9 +429,9 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 隐藏窗口的画布固定1920×1080，`sandbox`、`contextIsolation`、`webSecurity`开启，无Node/preload，拒绝导航、重定向及新窗口。使用非持久 `lira-weekly-schedule-export` session，拒绝权限请求；只允许固定本地导出页、同origin静态资源和本机data/blob图片。首次固定页loadURL仅通过header传本次管理凭据，不改主session的请求鉴权，不将token放URL/DOM，也不增加overlay scope。
 
-固定页加载后用 `setContentSize` 恢复1920×1080内容区，避免构造窗口时被当前显示器尺寸限制。字体、图片解码及布局完成后，要求画布为1920×1080、实际renderer viewport至少覆盖整张画布，且最终文字适配无溢出，才允许capturePage；按系统DPI必要调整捕获结果后，再核验PNG头中的1920×1080像素尺寸。仅对 Chromium 的 `UnknownVizError` 在下一渲染帧重试截图一次；其他错误或第二次失败按原错误路径退出，仍受任务取消/超时约束。[真实Electron回归](../../../test/desktop/weekly-schedule-electron.test.js)覆盖初始窗口960×540及1920×1080，并核对导出PNG四角的最新标记像素，防止旧帧、裁切局部后放大仍通过尺寸检查。
+固定页加载后用 `setContentSize` 恢复1920×1080内容区，避免构造窗口时被当前显示器尺寸限制。字体、图片解码及布局完成后，最终文字适配再等待两次动画帧，使离屏窗口绘出调整后的字号；要求画布为1920×1080、实际renderer viewport至少覆盖整张画布，且最终文字适配无溢出，才允许capturePage；按系统DPI必要调整捕获结果后，再核验PNG头中的1920×1080像素尺寸。仅对 Chromium 的 `UnknownVizError` 在下一渲染帧重试截图一次；其他错误或第二次失败按原错误路径退出，仍受任务取消/超时约束。[真实Electron回归](../../../test/desktop/weekly-schedule-electron.test.js)覆盖初始窗口960×540及1920×1080，并核对导出PNG四角的最新标记像素，防止旧帧、裁切局部后放大仍通过尺寸检查。
 
-主进程接受缺少新增外观参数的旧模板；存在 `background`、`typography`、图像旋转/不透明度/翻转、花纹浓度时检查类型及限额，防止畸形参数进入渲染。编辑器范围与默认值见[Admin周表说明](../frontend/app.md#周表生成器)。
+主进程接受缺少新增外观参数的旧模板；存在 `background`、`typography`、图像旋转/不透明度/翻转、花纹浓度时检查类型及限额。二维码、三个头像和自定义图标的可选变换，以及每张图片的亮度/对比度/饱和度/阴影/柔光、背景像素位移和缩放也在此校验，防止畸形参数进入渲染。编辑器范围、默认值与本机兼容方式见[Admin周表说明](../frontend/app.md#周表生成器)。
 
 同一controller只允许一项任务。主frame导航、窗口销毁或IPC释放取消任务、销毁隐藏窗口；结束移除请求拦截并清理session存储。保存用同目录排他临时文件、flush后rename，渲染失败不覆盖目的文件，异常清理自己创建的临时文件。实现/安全聚焦证据见 [weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js)，模板与界面存储见[Admin周表说明](../frontend/app.md#周表生成器)。
 
@@ -543,11 +575,10 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 | 窗口             | contextIsolation | nodeIntegration | sandbox   | preload        |
 | ---------------- | ---------------- | --------------- | --------- | -------------- |
-| 主窗口           | true             | false           | **false** | 有(preload.js) |
-| 歌词窗           | true             | false           | true      | 有(preload.js) |
+| 主窗口           | true             | false           | true      | 有(preload.js) |
 | 登录窗(音乐/B站) | true             | false           | true      | 无             |
 
-主窗口 `sandbox: false`([main.js](../../../src/electron/main.js)):preload 桥需在页面上下文暴露 `contextBridge` API 并访问完整 `ipcRenderer`;辅助窗口无此需求,保持 `sandbox: true` 收紧。IPC 安全边界见 [preload.md](preload.md) §1。
+主窗口由 [desktop-main-window.js](../../../src/electron/desktop-main-window.js) 启用 `sandbox: true`。[preload.js](../../../src/electron/preload.js) 仅通过沙箱支持的 `require('electron')` 使用 `contextBridge` 与 `ipcRenderer`，向页面暴露固定方法；页面仍无 Node 集成。真实沙箱中的首次许可、管理页调用和事件订阅由 [桌面请求隔离测试](../../../test/desktop/desktop-request-auth-electron.test.js) 覆盖。IPC 安全边界见 [preload.md](preload.md) §1。
 
 ## 10. 礼物 source 切换与完整投影
 
@@ -556,6 +587,8 @@ ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection
 授权 principal 变化时，`main.js` 先冻结本地礼物 API、递增 controller generation、abort HTTP/SSE 并 `await whenIdle()`，然后解析新 source 并只开放该分区。清库使用相同的 quiesce 边界并在 SQLite transaction 内递增 projection generation。Device token、source hash 输入、bootstrap token 和远端句柄始终只在 main process；日志不记录页 token 或完整礼物响应。完整时序见 [gift-ledger-projection-sync_design.md](../../../specs/gift-ledger-projection-sync_design.md)。
 
 ## 共享字体初始化
+
+公共资源准备失败通过既有终端日志记录阶段、受限错误码和最多200字符的已批准资源ID；不写原始网络异常、URL、磁盘路径或凭据。每个失败资源记录一次，清单等全局错误只在影响可用性时记录；完整离线缓存和正常关闭取消不记失败日志。日志沿用桌面统一的脱敏、限流和文件保留策略，不增加请求或自动重试。
 
 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时沿用 runtime 的 `initializeFontLibrary()` 入口，启动公共资源检查，与礼物目录初始化并行。每个 runtime 只检查一次 CDN 清单，授权状态重复通知不重复检查；明确重试可再次检查。启动补齐共享完整字体与世界地图；三张航海旗帜只保留旧 CDN 清单及缓存读取兼容，当前样式从导入 ZIP 读取，不再公共预下载。共享完整字体和地图不随安装包分发，首次补齐需要联网；两个微型标题裁剪字库仍随安装包提供。只有实际缺失或变化的共享资源才显示下载进度，检查及零下载结果静默；资源失败不阻塞桌面就绪条件，也不重新统计礼物进度。
 

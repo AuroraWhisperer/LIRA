@@ -16,6 +16,11 @@ test('song page access IPC rejects untrusted sources and non-boolean writes with
   assert.deepEqual(await ipc.invoke('license:get-song-page-access'), { ok: true, enabled: false });
   const write = ipc.handlers.get('license:set-song-page-access');
   assert.equal((await write(ipc.eventFrom('https://attacker.test'), true)).error, 'IPC_SOURCE_INVALID');
+  assert.equal((await write(ipc.eventFrom(ipc.trustedEvent.senderFrame.url), true)).error, 'IPC_SOURCE_INVALID');
+  const mainFrame = ipc.trustedEvent.senderFrame;
+  mainFrame.url = 'http://127.0.0.1:3210/pages/gift-audit.html';
+  assert.equal((await write(ipc.trustedEvent, true)).error, 'IPC_SOURCE_INVALID');
+  mainFrame.url = 'http://127.0.0.1:3210/admin';
   assert.equal((await ipc.invoke('license:set-song-page-access', { enabled: true })).error, 'INVALID_SONG_PAGE_ACCESS');
   assert.equal(writes.length, 0);
   assert.deepEqual(await ipc.invoke('license:set-song-page-access', true), { ok: true, enabled: true });
@@ -34,8 +39,7 @@ test('font IPC permits only authorized main-frame retries and exposes progress w
   const result = await ipc.invoke('license:get-font-library-state');
   assert.deepEqual(result, { ok: true, status: 'downloading', total: 8, completed: 2, failed: 0,
     currentFont: '小赖字体', completedAt: '', totalBytes: 100, downloadedBytes: 25 });
-  assert.equal((await ipc.invoke('license:retry-font-library')).error, 'IPC_SOURCE_INVALID');
-  ipc.trustedEvent.sender.mainFrame = ipc.trustedEvent.senderFrame;
+  assert.equal((await ipc.handlers.get('license:retry-font-library')(ipc.eventFrom(ipc.trustedEvent.senderFrame.url))).error, 'IPC_SOURCE_INVALID');
   assert.equal((await ipc.invoke('license:retry-font-library', { url: 'https://evil.test' })).ok, true);
   assert.equal(starts, 1);
   ipc.licenseManager.getState = () => 'blocked';
@@ -44,6 +48,23 @@ test('font IPC permits only authorized main-frame retries and exposes progress w
   stateListener(snapshot);
   const { ok, ...progress } = result;
   assert.deepEqual(ipc.sent.at(-1), ['license:font-library-state-changed', progress]);
+});
+
+test('license bootstrap remains available to the main license page and management aliases', async () => {
+  let activations = 0;
+  const ipc = createLicenseIpcFixture({ framePath: '/license', licenseManager: {
+    getSnapshot: () => ({ state: 'needs_activation' }),
+    activate: async () => { activations++; return { ok: true, state: 'authorized' }; },
+  } });
+  assert.equal((await ipc.invoke('license:get-state')).state, 'needs_activation');
+  assert.equal((await ipc.invoke('license:activate', {
+    accountName: 'synthetic', password: 'synthetic-password', activationCode: 'synthetic-code',
+  })).ok, true);
+  assert.equal(activations, 1);
+  for (const route of ['/', '/admin', '/settings', '/songs']) {
+    ipc.trustedEvent.senderFrame.url = `http://127.0.0.1:3210${route}`;
+    assert.equal((await ipc.invoke('license:get-state')).ok, true);
+  }
 });
 
 test('current-library IPC passes only a confirmation generation and sanitizes the result', async () => {

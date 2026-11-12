@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
-const { maskedFrame } = require('../helpers/transport-fixtures');
+const { maskedFrame, webSocketUpgradeRequest } = require('../helpers/transport-fixtures');
 const { createWebSocketHub } = require('../../src/server/ws');
 
 class CountingSocket extends EventEmitter {
@@ -37,13 +37,7 @@ function openSocket(hub, context) {
   const socket = new CountingSocket();
   hub.handleUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: {
-        authorization: 'Bearer synthetic-resource-token',
-        'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
-      },
-    },
+    webSocketUpgradeRequest({ headers: { authorization: 'Bearer synthetic-resource-token' } }),
     socket,
   );
   return socket;

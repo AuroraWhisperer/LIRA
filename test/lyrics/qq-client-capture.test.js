@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createQQClientCapture } = require('../../src/music/qq-client-capture');
+const { normalizeLyricState } = require('../../src/music/lyric-state');
 
 const LYRICS = { source: 'qq', lines: [{ startMs: 0, text: 'First' }, { startMs: 10000, text: 'Second' }] };
 const tick = () => new Promise(setImmediate);
@@ -147,11 +148,12 @@ test('QQ rejects absent or regressing timeline samples and recovers without relo
 });
 
 test('QQ advances a stable SMTC anchor at the reported playback rate', async (t) => {
-  const { capture, send, setNow } = fixture(t);
+  const { capture, send, setNow, states } = fixture(t);
   const anchor = { positionMs: 2000, timelineUpdatedAt: 90000, playbackRate: 1.5 };
   send(anchor); send(anchor); await tick();
   assert.equal(capture.getStatus().status, 'ready', 'LastUpdatedTime is not a freshness deadline');
   assert.equal(capture.getStatus().currentMs, 17000);
+  assert.equal(normalizeLyricState(states.at(-1).lyricState).playbackRate, 1.5, 'consumer clocks receive the sampled rate');
   setNow(105000); send(anchor);
   assert.equal(capture.getStatus().currentMs, 24500);
   send({ playbackStatus: 'Paused', positionMs: 24500, timelineUpdatedAt: 105000 });

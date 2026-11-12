@@ -194,6 +194,8 @@ test('scene notifications select dynamic projections even with no ordinary WebSo
   assert.deepEqual(changes, [], 'Scene danmaku consumes accepted cloud projection events, not the local topic.');
   transport.broadcastSnapshot('gift:wishes');
   assert.deepEqual(changes.pop(), { types: ['gift-wishes'], invalidateTypes: ['gift-wishes'] });
+  transport.broadcastSnapshot('gift:heart-box-collection');
+  assert.deepEqual(changes.pop(), { types: ['heart-box-collection'], invalidateTypes: ['heart-box-collection'] });
   transport.publishGiftCatalogUpdate({ gifts: [] });
   assert.deepEqual(changes.pop(), { types: ['gift-feed', 'gift-wishes', 'heart-box-collection'],
     invalidateTypes: ['gift-feed', 'gift-wishes', 'heart-box-collection'] });

@@ -320,4 +320,26 @@ node --experimental-vm-modules --test --test-reporter=spec test/admin/component-
 - 单实例 URL 使用场景级 capability、opaque iframe 的 `postMessage('*')`、独立外观共享真实业务数据均有现有契约，不仅因形式相似就认定为安全或独立性 bug。
 - 未进行真实直播长时运行、OBS/直播姬全组合测试，也未测量多实例 Electron 性能；本次浏览器证据不能代替 Electron preload/IPC 集成证明。
 
-后续修复状态以实施计划和代码/测试为准；本报告保留审查时点的证据。
+## 9. 后续修复映射（2026-11-11 复核）
+
+原 A01–A09 均已有现行修复与正式回归。本次针对九项运行 10 个既有用例，全部通过；包括现有混合恢复浏览器夹具，不涉及用户运行的桌面实例。以下是当前 owner 与证据映射，原发现保留 10-01 时点和历史路径，不应再作为九项当前待修缺陷执行。
+
+| 原项 | 当前处理 | 本次核对的正式证据 |
+| --- | --- | --- |
+| A01 | [publication owner](../../public/js/admin/component-preview-publication.js) 按场景实际引用选择参与者 | [canvas-controller 测试](../../test/admin/component-preview-canvas-controller.test.js)：独立时钟忽略未加载的无关 owner，并保留无关队列草稿（2 项） |
+| A02 | [canvas controller](../../public/js/admin/component-preview-canvas-controller.js) 在批量保存后复查各参与者及场景版本 | 同套件：前一 owner 在后一 owner 保存期间产生新草稿时停止发布 |
+| A03 | [preview routes](../../src/server/routes/component-preview-routes.js) 使用中继 owner 的封装限额，保留文档独立限额 | [transport 测试](../../test/transport/component-preview.test.js) 的 A03：UTF-8 双快照可 open/edit/exchange，超限仍拒绝 |
+| A04 | [scene renderer](../../public/js/overlays/scene-renderer.js) 断线同步清空待提交版本的数据 | [renderer state 测试](../../test/scenes/scene-renderer-state.test.js) 的 A04：staging 提交后仍为离线状态 |
+| A05 | 同一 renderer 有界保留准备期间的增量事件 | 同套件 A05：首次准备跨空轮询不丢事件 |
+| A06 | [preview page](../../public/js/admin/component-preview-page.js) 为失效会话恢复提供只读离线数据 provider | [混合恢复浏览器测试](../../test/admin/component-preview-drafts-browser.test.js)：缺失完整 owner 缓存时四类组件均可恢复显示，无 pageerror |
+| A07 | [draft recovery](../../public/js/admin/component-preview-drafts.js) 按已初始化 owner 合并快照，未就绪项保留旧快照 | [drafts 测试](../../test/admin/component-preview-drafts.test.js)：未加载、已就绪和断线 owner 的草稿分别保留 |
+| A08 | [scene item controller](../../public/js/admin/scene-item-controller.js) 按外观与可编辑状态去重通知 | [item notifications 测试](../../test/admin/scene-item-notifications.test.js)：移动 32 个实例中的一个不重建未变外观；后续开销记录见[性能优化](../../specs/plans/archive/2026-10-15-canvas-runtime-performance.md) |
+| A09 | [scene output reader](../../src/scenes/scene-output-reader.js) 用受控 projection receipt 维持 active 版本所需的数据 | renderer state 同套件 A09：新版本去掉队列且准备失败时，旧队列继续收更新 |
+
+复核命令：
+
+~~~sh
+node --experimental-vm-modules --test --test-name-pattern='independent clock publication|concurrent work on an earlier owner|A0[3459]:|unloaded owners preserve|moving one item does not|expired mixed recovery' test/admin/component-preview-canvas-controller.test.js test/admin/component-preview-drafts.test.js test/admin/scene-item-notifications.test.js test/admin/component-preview-drafts-browser.test.js test/transport/component-preview.test.js test/scenes/scene-renderer-state.test.js
+~~~
+
+以上没有重新验收真实直播、OBS/直播姬全组合或长时性能。S01–S03 原为扩展建议，不计作三项缺陷；相关能力定义、实例适配和保存编排已由当前 owner 拆分，但新增组件仍应按[前端技术参考](../reference/frontend/app.md)核对其具体接入边界，不从本次九项回归推断所有扩展均已验收。

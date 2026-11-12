@@ -41,6 +41,7 @@ test('daily libraries use the authenticated desktop bridge, retain cache across 
   await page.locator('#dailyLibrarySave').click();
   await page.locator('#dailyLibraryStatus').filter({ hasText: '保存尚未确认' }).waitFor();
   assert.equal(await field.inputValue(), '失败保留的草稿。');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '编辑抽签词库', exact: true }).click();
   await page.locator('#dailyLibraryCount').filter({ hasText: '20 条' }).waitFor();
   assert.equal(await page.getByRole('textbox', { name: '第 1 条签级', exact: true }).inputValue(), '上上签');

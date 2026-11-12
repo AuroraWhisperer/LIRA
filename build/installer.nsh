@@ -20,6 +20,7 @@ ManifestDPIAware true
 !macroend
 
 !macro customInit
+  Call liraRequireUserInstall
   !insertmacro liraInitUpdateProgress
   Call liraSelectDefaultDirectory
   ; Only inspect this app's key in electron-builder's selected install context.
@@ -44,64 +45,128 @@ ManifestDPIAware true
 !macroend
 
 !macro licensePage
-  Var liraAgreementFont
+  !define LIRA_AGREEMENT_URL "https://lirahub.cn/legal/terms"
+  !define LIRA_PRIVACY_URL "https://lirahub.cn/legal/privacy"
+  Var liraAgreementPage
+  Var liraAgreementAccept
+  Var liraAgreementDecline
+  Var liraAgreementAccepted
+  Var liraAgreementLogo
+  Var liraAgreementLogoBitmap
+  Var liraAgreementTextFont
 
-  ; Decline starts selected; Next stays disabled until the user accepts.
-  !define MUI_PAGE_HEADER_TEXT "用户协议与隐私说明"
-  !define MUI_PAGE_HEADER_SUBTEXT "请阅读以下内容，同意后继续安装。"
-  !define MUI_LICENSEPAGE_TEXT_TOP ""
-  !define MUI_LICENSEPAGE_TEXT_BOTTOM ""
-  !define MUI_PAGE_CUSTOMFUNCTION_SHOW liraShowAgreement
-  !define MUI_LICENSEPAGE_RADIOBUTTONS
-  !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_ACCEPT "我已阅读并同意以上协议(&A)"
-  !define MUI_LICENSEPAGE_RADIOBUTTONS_TEXT_DECLINE "我不同意(&D)"
-  !insertmacro MUI_PAGE_LICENSE "${BUILD_RESOURCES_DIR}\..\public\pages\admin\toolbox\user-agreement.txt"
+  ; The builder reserves this slot and supplies an MUI-only update pre-hook.
+  ; Our custom page applies the same skip before creating any controls.
+  !ifdef MUI_PAGE_CUSTOMFUNCTION_PRE
+    !define LIRA_AGREEMENT_PRE "${MUI_PAGE_CUSTOMFUNCTION_PRE}"
+    !undef MUI_PAGE_CUSTOMFUNCTION_PRE
+  !endif
+  Page custom liraShowAgreement liraLeaveAgreement
 
   Function liraShowAgreement
-    Call liraLayoutAgreement
-    Push $0
-    Push $1
-    Push $2
-    Push $3
-    Push $4
-    Push $5
+    ${If} ${isUpdated}
+      Abort
+    ${EndIf}
+    !ifdef LIRA_AGREEMENT_PRE
+      Call "${LIRA_AGREEMENT_PRE}"
+    !endif
+    !insertmacro MUI_HEADER_TEXT "LIRA" "版本 ${VERSION} · 用户协议与隐私政策"
+    InitPluginsDir
+    File /oname=$PLUGINSDIR\lira-wordmark.bmp "${BUILD_RESOURCES_DIR}\installer-wordmark.bmp"
+    System::Call 'user32::CreateWindowExW(i 0, w "STATIC", w "LIRA", i 0x5000000E, i 0, i 0, i 0, i 0, p $HWNDPARENT, p 0, p 0, p 0) p .r0'
+    StrCpy $liraAgreementLogo $0
+    !insertmacro liraPlaceControl $liraAgreementLogo 24 10 62 24
+    IntOp $1 62 * $liraUiDpi
+    IntOp $1 $1 / 96
+    IntOp $2 24 * $liraUiDpi
+    IntOp $2 $2 / 96
+    System::Call 'user32::LoadImageW(p 0, w "$PLUGINSDIR\lira-wordmark.bmp", i 0, i r1, i r2, i 0x2010) p .r0'
+    StrCpy $liraAgreementLogoBitmap $0
+    SendMessage $liraAgreementLogo ${STM_SETIMAGE} 0 $liraAgreementLogoBitmap
+    ShowWindow $mui.Header.Text ${SW_HIDE}
+    nsDialogs::Create 1018
+    Pop $liraAgreementPage
+    StrCpy $liraUiPage $liraAgreementPage
+    Call liraPrepareInstallerPage
 
-    ShowWindow $mui.LicensePage.TopText ${SW_HIDE}
-    ShowWindow $mui.LicensePage.Text ${SW_HIDE}
-    StrCmp $liraAgreementFont "" 0 liraAgreementFontReady
-    CreateFont $liraAgreementFont "Microsoft YaHei UI" 9
-    liraAgreementFontReady:
-      SendMessage $mui.LicensePage.LicenseText ${WM_SETFONT} $liraAgreementFont 0
-
-    ; Use the space above the consent controls, measured in the current DPI.
-    GetDlgItem $0 $mui.LicensePage 1034
-    System::Call '*(i, i, i, i) p .r1'
-    System::Call 'user32::GetWindowRect(p r0, p r1)'
-    System::Call 'user32::MapWindowPoints(p 0, p $mui.LicensePage, p r1, i 2)'
-    System::Call '*$1(i .r2, i .r3, i .r4, i .r5)'
-    IntOp $5 $5 - $3
-    IntOp $5 $5 / 2
-    IntOp $3 $3 - $5
-    IntOp $4 $4 - $2
-    System::Call 'user32::SetWindowPos(p $mui.LicensePage.LicenseText, p 0, i r2, i 0, i r4, i r3, i 0x14)'
-
-    ; Keep native word wrapping and scrolling, with an inset around the text.
-    System::Call 'user32::GetClientRect(p $mui.LicensePage.LicenseText, p r1)'
-    System::Call '*$1(i, i, i .r4, i .r3)'
-    IntOp $4 $4 - $5
-    IntOp $3 $3 - $5
-    System::Call '*$1(i r5, i r5, i r4, i r3)'
-    SendMessage $mui.LicensePage.LicenseText ${EM_SETRECT} 0 $1
-    System::Free $1
-    System::Call 'user32::SetFocus(p $mui.LicensePage.LicenseText)'
-
-    Pop $5
-    Pop $4
-    Pop $3
-    Pop $2
-    Pop $1
+    System::Call '*(i 8, i 0x8000) p .r0'
+    System::Call 'comctl32::InitCommonControlsEx(p r0)'
+    System::Free $0
+    nsDialogs::CreateControl "SysLink" ${WS_CHILD}|${WS_VISIBLE}|${WS_TABSTOP} 0 0 0 100% 0 '欢迎使用 LIRA。本软件提供直播互动与内容管理辅助功能，部分功能依赖网络及第三方服务，并涉及账号凭据、配置及互动数据的云端处理。安装前，请仔细阅读<a href="${LIRA_AGREEMENT_URL}">《用户协议》</a>和<a href="${LIRA_PRIVACY_URL}">《隐私政策》</a>，了解使用规则、信息处理及责任限制。选择同意并继续安装，即表示您接受用户协议并已阅读隐私政策；如不同意，请取消安装。'
     Pop $0
+    !insertmacro liraPlaceControl $0 0 0 $liraUiPageWidth 88
+    SendMessage $liraAgreementPage ${WM_GETFONT} 0 0 $1
+    ; Add two logical pixels and keep the installer's Microsoft YaHei UI typeface.
+    System::Alloc 92
+    Pop $2
+    System::Call 'gdi32::GetObjectW(p r1, i 92, p r2)'
+    System::Call '*$2(i .r3)'
+    IntOp $4 2 * $liraUiDpi
+    IntOp $4 $4 / 96
+    IntOp $3 $3 - $4
+    System::Call 'gdi32::CreateFontW(i r3, i 0, i 0, i 0, i 400, i 0, i 0, i 0, i 1, i 0, i 0, i 5, i 0, w "Microsoft YaHei UI") p .r1'
+    StrCpy $liraAgreementTextFont $1
+    System::Free $2
+    SendMessage $0 ${WM_SETFONT} $liraAgreementTextFont 0
+    ${NSD_OnNotify} $0 liraOpenOnlineAgreement
+    ${NSD_CreateRadioButton} 0 0 100% 0 "我同意用户协议，并已阅读隐私政策(&A)"
+    Pop $liraAgreementAccept
+    ${NSD_AddStyle} $liraAgreementAccept ${WS_GROUP}
+    !insertmacro liraPlaceControl $liraAgreementAccept 0 104 $liraUiPageWidth 24
+    ${NSD_CreateRadioButton} 0 0 100% 0 "我不同意(&D)"
+    Pop $liraAgreementDecline
+    !insertmacro liraPlaceControl $liraAgreementDecline 0 134 $liraUiPageWidth 24
+    ${If} $liraAgreementAccepted == ${BST_CHECKED}
+      ${NSD_Check} $liraAgreementAccept
+    ${Else}
+      ${NSD_Check} $liraAgreementDecline
+    ${EndIf}
+    ${NSD_OnClick} $liraAgreementAccept liraAgreementClicked
+    ${NSD_OnClick} $liraAgreementDecline liraAgreementClicked
+    Call liraAgreementChanged
+    nsDialogs::Show
   FunctionEnd
+
+  Function liraAgreementChanged
+    ${NSD_GetState} $liraAgreementAccept $liraAgreementAccepted
+    GetDlgItem $0 $HWNDPARENT 1
+    EnableWindow $0 $liraAgreementAccepted
+  FunctionEnd
+
+  Function liraAgreementClicked
+    Pop $0
+    Call liraAgreementChanged
+  FunctionEnd
+
+  Function liraLeaveAgreement
+    ${NSD_GetState} $liraAgreementAccept $liraAgreementAccepted
+    ${If} $liraAgreementAccepted != ${BST_CHECKED}
+      Abort
+    ${EndIf}
+    System::Call 'user32::DestroyWindow(p $liraAgreementLogo)'
+    System::Call 'gdi32::DeleteObject(p $liraAgreementLogoBitmap)'
+    System::Call 'gdi32::DeleteObject(p $liraAgreementTextFont)'
+    ShowWindow $mui.Header.Text ${SW_SHOW}
+  FunctionEnd
+
+  Function liraOpenOnlineAgreement
+    Pop $0
+    Pop $1
+    Pop $2
+    ; SysLink reports both mouse activation (NM_CLICK) and Enter (NM_RETURN).
+    ${If} $1 == -2
+    ${OrIf} $1 == -4
+      ; NMLINK contains NMHDR, then LITEM.mask and the zero-based link index.
+      System::Call '*$2(p, p, i, i, i .r3)'
+      ${If} $3 == 0
+        ExecShell "open" "${LIRA_AGREEMENT_URL}"
+      ${ElseIf} $3 == 1
+        ExecShell "open" "${LIRA_PRIVACY_URL}"
+      ${EndIf}
+    ${EndIf}
+    ${NSD_Return} 0
+  FunctionEnd
+
 !macroend
 
 !macro customHeader
@@ -109,6 +174,7 @@ ManifestDPIAware true
   !ifndef BUILD_UNINSTALLER
     !insertmacro liraInstallerUi
     !include "installer-data.nsh"
+    !include "installer-per-user.nsh"
     Function liraSelectDefaultDirectory
       ReadRegStr $liraPreviousInstallDir SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"
       !insertmacro GetDParameter $R0
@@ -124,6 +190,7 @@ ManifestDPIAware true
     ; This section runs after directory selection and before the builder's install
     ; section. An unelevated all-users instance leaves preservation to its child.
     Section "-LIRA Preserve Data"
+      Call liraRequireWritableInstallDirectory
       ${If} $installMode == "all"
       ${AndIfNot} ${UAC_IsAdmin}
         Goto liraPreservationDeferred

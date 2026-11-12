@@ -12,11 +12,6 @@ const DEFAULT_RETRY_MS = 60 * 1000;
 const MAX_LAYOUT_DIMENSION = 8192;
 const TRUSTED_EFFECT_HOSTS = ['hdslb.com', 'bilibili.com', 'bilivideo.com'];
 
-function pickEffect(entries) {
-  if (!Array.isArray(entries) || entries.length === 0) return null;
-  return entries.reduce((best, entry) => (Number(entry?.id) > Number(best?.id) ? entry : best), entries[0]);
-}
-
 function isTrustedEffectUrl(value) {
   try {
     const url = new URL(String(value || ''));
@@ -191,35 +186,6 @@ function createGiftEffectResolver(options = {}) {
   return { getEffectMap, resolve, resolveEffect };
 }
 
-async function buildGiftEffectEvent(item, resolver) {
-  const giftId = Number(item && (item.giftId ?? item.gift_id));
-  if (!Number.isSafeInteger(giftId) || giftId <= 0) return null;
-
-  let effect = null;
-  try {
-    if (typeof resolver.resolveEffect === 'function') {
-      effect = await resolver.resolveEffect(giftId);
-    } else {
-      const effectMap = await resolver.getEffectMap();
-      effect = effectMap.get(giftId) || null;
-    }
-  } catch (_) {
-    return null;
-  }
-  if (!effect) return null;
-
-  return {
-    type: 'gift:effect',
-    eventId: Number(item.id) || 0,
-    giftId,
-    giftName: String(item.giftName ?? item.gift_name ?? '').trim() || '礼物',
-    num: Math.max(1, Number(item.num) || 1),
-    unitPrice: Math.max(0, Number(item.unitPrice ?? item.unit_price) || 0),
-    userName: String(item.userName ?? item.user_name ?? '').trim(),
-    effect,
-  };
-}
-
 function numberOption(value, fallback) {
   if (value === undefined || value === null) return fallback;
   const parsed = Number(value);
@@ -270,10 +236,8 @@ module.exports = {
   EFFECT_API_URL,
   DEFAULT_REFRESH_MS,
   DEFAULT_RETRY_MS,
-  pickEffect,
   isTrustedEffectUrl,
   parseEffectLayout,
   buildEffectMap,
   createGiftEffectResolver,
-  buildGiftEffectEvent,
 };

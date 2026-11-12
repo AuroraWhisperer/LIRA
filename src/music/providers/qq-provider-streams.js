@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../../shared/public-error');
+
 const crypto = require('node:crypto');
 const { parseLyricResult } = require('../lyric-parser');
 const { QQMusicClient } = require('./qq-provider-client');
@@ -81,7 +83,7 @@ class QQMusicStreamProvider extends QQMusicClient {
 
   async searchTracks(keyword, options = {}) {
     const query = String(keyword || '').trim();
-    if (!query) throw new Error('缺少搜索关键词。');
+    if (!query) throw createPublicError('缺少搜索关键词。', 501);
     const limit = clampInteger(options.limit, 1, 30, 20);
     const data = await this.requestJson(QQ_SEARCH_URL, {
       new_json: '1',
@@ -127,7 +129,7 @@ class QQMusicStreamProvider extends QQMusicClient {
         });
         const inner = response && response.req_0;
         if (Number(response && response.code) !== 0 || Number(inner && inner.code) !== 0 || !inner || !inner.data) {
-          throw new Error('QQ 音乐未返回完整歌词数据。');
+          throw createPublicError('QQ 音乐未返回完整歌词数据。', 501);
         }
 
         const data = inner.data;
@@ -143,7 +145,7 @@ class QQMusicStreamProvider extends QQMusicClient {
             : decodeQQPlayableLyric(qrcPayload, encrypted);
         const lines = parseLyricResult(lyric, translation, wordLyric, roma);
         if (lines.length > 0) return { source: this.source, sourceTrackId, lines };
-        throw new Error('QQ 音乐返回的歌词无法解析。');
+        throw createPublicError('QQ 音乐返回的歌词无法解析。', 501);
       } catch (error) {
         richLyricError = error;
       }
@@ -155,7 +157,9 @@ class QQMusicStreamProvider extends QQMusicClient {
       if (error.code === 'LYRIC_EXPANSION_LIMIT') throw error;
       if (richLyricError?.code === 'LYRIC_EXPANSION_LIMIT') throw richLyricError;
       if (!richLyricError) throw error;
-      throw new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`);
+      throw Object.assign(new Error(`QQ 音乐歌词获取失败：${richLyricError.message || String(richLyricError)}`), {
+        statusCode: richLyricError.statusCode, publicMessage: richLyricError.publicMessage,
+      });
     }
   }
 
@@ -255,9 +259,9 @@ class QQMusicStreamProvider extends QQMusicClient {
     const purl = midUrlInfo && midUrlInfo.purl ? String(midUrlInfo.purl) : '';
     if (!purl) {
       if (!hasQQMusicAuthCookie(cookieHeader)) {
-        throw new Error('请先登录 QQ 音乐后再播放该歌曲。');
+        throw createPublicError('请先登录 QQ 音乐后再播放该歌曲。', 501);
       }
-      throw new Error('当前 QQ 音乐账号没有该歌曲的完整播放或试听权益，可能需要 VIP 或受版权、地区限制。');
+      throw createPublicError('当前 QQ 音乐账号没有该歌曲的完整播放或试听权益，可能需要 VIP 或受版权、地区限制。', 501);
     }
     const sip = data && data.req_0 && data.req_0.data && Array.isArray(data.req_0.data.sip) ? data.req_0.data.sip : [];
     const baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/';
@@ -316,7 +320,7 @@ class QQMusicStreamProvider extends QQMusicClient {
         : null;
     const purl = info && String(info.purl || '');
     const ekey = info && String(info.ekey || '');
-    if (!purl || !ekey) throw new Error('QQ 音乐未返回可解密的臻品媒体。');
+    if (!purl || !ekey) throw createPublicError('QQ 音乐未返回可解密的臻品媒体。', 501);
     const sip = data.queryvkey.data && Array.isArray(data.queryvkey.data.sip) ? data.queryvkey.data.sip : [];
     const baseUrl = sip.find(Boolean) || 'https://isure.stream.qqmusic.qq.com/';
     const id = crypto.randomUUID();

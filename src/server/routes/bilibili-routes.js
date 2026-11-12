@@ -18,11 +18,12 @@ const routes = {
     sendJson(res, 200, { ok: true, data: context.bilibili.getLikeState() });
   },
 
-  async 'GET /api/bilibili/room/profile'(context, _request, res, project = (data) => data) {
+  async 'GET /api/bilibili/room/profile'(context, _request, res, project) {
     try {
+      const profile = await context.bilibili.getRoomProfile({ includeDetails: !project });
       sendJson(res, 200, {
         ok: true,
-        data: project(await context.bilibili.getRoomProfile()),
+        data: project ? project(profile) : profile,
       });
     } catch (_) {
       sendJson(res, 502, {
@@ -130,7 +131,7 @@ const routes = {
       });
       sendJson(res, 200, { ok: true, data: result });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       console.warn(`[Bilibili] send danmaku failed: ${error.message}`);
       sendJson(res, 502, {
         ok: false,

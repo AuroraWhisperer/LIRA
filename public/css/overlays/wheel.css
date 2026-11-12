@@ -19,16 +19,48 @@ body {
   font-family: Bahnschrift, 'Microsoft YaHei', sans-serif;
 }
 .wheel-stage {
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
   padding: clamp(10px, 2vw, 24px);
   background: transparent;
 }
 .wheel-wrap {
   position: relative;
-  width: min(86vmin, 760px);
+  width: min(82vmin, 760px);
   aspect-ratio: 1;
+}
+.has-legend .wheel-wrap {
+  width: min(48vmin, 430px);
+}
+.wheel-legend {
+  display: none;
+  width: min(100%, 920px);
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 20px;
+  font-size: clamp(12px, 1.8vmin, 18px);
+  font-weight: 700;
+  line-height: 1.4;
+  text-shadow: 0 1px 4px #000;
+}
+.has-legend .wheel-legend {
+  display: grid;
+}
+.wheel-legend-item {
+  border-left: 5px solid var(--entry-color);
+  padding-left: 8px;
+  overflow-wrap: anywhere;
+}
+.wheel-legend-item:only-child {
+  grid-column: 1 / -1;
+}
+.wheel-legend-item.is-selected {
+  text-shadow: 0 0 8px var(--entry-color), 0 1px 4px #000;
 }
 .wheel-svg {
   display: block;
@@ -113,6 +145,8 @@ body {
   font-weight: 700;
   text-align: center;
   text-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  overflow-wrap: anywhere;
+  max-width: min(100%, 920px);
 }
 .wheel-segment.is-dim,
 .wheel-label.is-dim {

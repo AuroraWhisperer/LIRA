@@ -23,7 +23,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (Object.hasOwn(data || {}, 'lyricTimeline')) {
         desktopLyricRenderer.updateLyricTimeline(data.lyricTimeline || { lines: [] });
       }
-      desktopLyricRenderer.updateLyricState(data?.lyricState || { playing: false, lineText: '', words: [], currentMs: 0, status: 'idle' });
+      if (data?.lyricState) desktopLyricRenderer.updateLyricState(data.lyricState);
+      else desktopLyricRenderer.suspend();
     },
     onDispose: () => desktopLyricRenderer.dispose(),
   })) return;

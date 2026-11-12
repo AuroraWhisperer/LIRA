@@ -3,6 +3,8 @@
 // 对应 music-data.db，替代原先只存在浏览器 localStorage 的播放状态。
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID } = require('node:crypto');
 const { now, cleanText, safeParseJson } = require('../shared/utils');
 
@@ -193,7 +195,7 @@ function createPlaybackStore(db) {
         const payload = (row && safeParseJson(row.payload)) || {};
         const generation = Math.max(payload.issuedGeneration || 0, payload.snapshotVersion?.generation || 0) + 1;
         if (!Number.isSafeInteger(generation)) {
-          throw new Error('播放快照代次超出范围。');
+          throw createPublicError('播放快照代次超出范围。');
         }
         const snapshotVersion = {
           writerId: randomUUID(),
@@ -223,7 +225,7 @@ function createPlaybackStore(db) {
           !Number.isSafeInteger(version.sequence) ||
           version.sequence < 1)
       ) {
-        throw new Error('无效播放快照版本。');
+        throw createPublicError('无效播放快照版本。');
       }
       return queueTransaction(() => {
         const row = readQueueRow(clientId);
@@ -291,7 +293,7 @@ function createPlaybackStore(db) {
 
     addFavorite(track) {
       const fields = normalizeTrackFields(track);
-      if (!fields.title && !fields.trackId) throw new Error('缺少曲目信息。');
+      if (!fields.title && !fields.trackId) throw createPublicError('缺少曲目信息。');
       const key = trackKeyOf(track);
       const nextOrder = (db.prepare('SELECT MAX(sort_order) AS max FROM favorites').get() || {}).max || 0;
       db.prepare(
@@ -356,9 +358,9 @@ function createPlaybackStore(db) {
 
     createPlaylist(input = {}) {
       const name = cleanText(input.name).slice(0, 80);
-      if (!name) throw new Error('缺少歌单名称。');
+      if (!name) throw createPublicError('缺少歌单名称。');
       const existing = db.prepare('SELECT id FROM playlists WHERE name = ?').get(name);
-      if (existing) throw new Error('已有同名歌单。');
+      if (existing) throw createPublicError('已有同名歌单。');
       const nextOrder = (db.prepare('SELECT MAX(sort_order) AS max FROM playlists').get() || {}).max || 0;
       const timestamp = now();
       const result = db
@@ -402,7 +404,7 @@ function createPlaybackStore(db) {
     addPlaylistTracks(id, tracks) {
       const playlistId = Number(id) || 0;
       const playlist = db.prepare('SELECT id FROM playlists WHERE id = ?').get(playlistId);
-      if (!playlist) throw new Error('歌单不存在。');
+      if (!playlist) throw createPublicError('歌单不存在。');
       const list = Array.isArray(tracks) ? tracks : [tracks];
       const nextOrderRow = db
         .prepare('SELECT MAX(sort_order) AS max FROM playlist_tracks WHERE playlist_id = ?')

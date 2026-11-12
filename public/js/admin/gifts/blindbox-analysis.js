@@ -174,7 +174,7 @@ export const giftAnalysis = (() => {
     renderViewControls();
     renderTable(data.items || [], data.hasArchivedDetails === true);
     renderPagination(data.pagination || {});
-    renderContext(data.hasArchivedDetails === true, data.hasLegacyArchivedDates === true);
+    renderContext(data.hasArchivedDetails === true, data.hasLegacyArchivedDates === true, data.archiveTimeZones, data.hasArchivedTimezoneMismatch);
     const results = document.querySelector('.blind-analysis-results');
     results?.setAttribute('aria-busy', 'false');
   }
@@ -309,9 +309,11 @@ export const giftAnalysis = (() => {
     if (get('blindBoxAnalysisNext')) get('blindBoxAnalysisNext').disabled = page >= totalPages;
   }
 
-  function renderContext(hasArchivedDetails, hasLegacyArchivedDates) {
+  function renderContext(hasArchivedDetails, hasLegacyArchivedDates, archiveTimeZones, timezoneMismatch) {
     setText('blindBoxAnalysisTitle', state.dateRange ? '盲盒分析' : '今日盲盒分析');
-    setText('blindBoxAnalysisUpdated', hasLegacyArchivedDates
+    setText('blindBoxAnalysisUpdated', archiveTimeZones?.length
+      ? `一年外记录按归档日汇总（${archiveTimeZones.join('、')}）${timezoneMismatch ? '，无法精确换算为当前时区的自然日' : ''}`
+      : hasLegacyArchivedDates
       ? '含旧版历史汇总，单日统计可能存在时区偏差'
       : hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '刚刚更新');
   }

@@ -51,8 +51,8 @@ _请求方式: GET_
 | room_silent_level       | num       | 禁言等级     |                                         |
 | room_silent_second      | num       | 禁言时间     | 单位是秒                                |
 | area_name               | str       | 分区名称     |                                         |
-| pardants                | str       | 未知         | 未知                                    |
-| area_pardants           | str       | 未知         | 未知                                    |
+| pendants                | str       | 未知         | 未知                                    |
+| area_pendants           | str       | 未知         | 未知                                    |
 | hot_words               | list(str) | 热词         |                                         |
 | hot_words_status        | num       | 热词状态     |                                         |
 | verify                  | str       | 未知         | 未知                                    |
@@ -584,11 +584,11 @@ _请求方式：GET/POST_
 
 **示例：**
 
-查询用户`mid=672328094的直播间信息
+查询用户 `mid=672328094` 的直播间信息
 
 ```shell
 # GET方式
-curl -G 'https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids'
+curl -G 'https://api.live.bilibili.com/room/v1/Room/get_status_info_by_uids' \
 --data-urlencode 'uids[]=672328094'
 
 # POST方式

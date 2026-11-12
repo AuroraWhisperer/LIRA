@@ -44,7 +44,9 @@ async function libraryFixture(t) {
     } };
     const { initDanmakuDailyBots } = await import('/js/admin/danmaku-daily-bots.js');
     const { initFixedReplyEditor } = await import('/js/admin/danmaku-fixed-replies.js');
+    const { initDanmakuTabs } = await import('/js/admin/danmaku-tabs.js');
     initDanmakuDailyBots({ bridge, license });
+    initDanmakuTabs();
     initFixedReplyEditor();
   }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'));
   await page.waitForFunction(() => !document.querySelector('[data-fixed-open="checkin"]').disabled);
@@ -62,7 +64,9 @@ test('daily libraries reuse the fixed editor and keep edits, search and paging l
   await page.locator('#dailyLibrarySearch').fill('修改');
   assert.equal(await page.locator('#dailyLibraryList input').count(), 2);
   assert.equal(await page.evaluate(() => window.libraryRequests.length), 2);
-  await page.locator('#danmakuFixedEditorClose').click();
+  await page.keyboard.press('Escape');
+  await page.locator('[data-danmaku-tab="welcome"]').click();
+  await page.locator('[data-danmaku-tab="replies"]').click();
   await page.getByRole('button', { name: '编辑签到词库', exact: true }).click();
   assert.equal(await page.getByRole('textbox', { name: '第 1 条祝福语', exact: true }).inputValue(), '修改后的祝福。');
   await page.locator('#dailyLibrarySave').click();
@@ -70,6 +74,7 @@ test('daily libraries reuse the fixed editor and keep edits, search and paging l
   assert.equal(await page.locator('#danmakuCheckinToggle').isChecked(), false);
   assert.equal((await page.evaluate(() => window.libraryRequests.at(-1))).action, 'library-save');
   assert.deepEqual(await page.evaluate(() => [window.remoteLibraries.checkin[0], window.remoteLibraries.checkin[6]]), ['修改后的祝福。', '第七条修改。']);
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: '编辑抽签词库', exact: true }).click();
   await page.getByRole('textbox', { name: '第 1 条签文', exact: true }).fill('春风又至');
   await page.locator('#dailyLibraryAdd').click();

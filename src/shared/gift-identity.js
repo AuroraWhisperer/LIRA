@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { createPublicError } = require('./public-error');
 
 function giftVariantId(gift) {
   const id = Number(gift?.giftId ?? gift?.id);
@@ -36,7 +37,7 @@ function validateRuleGiftIdentity(rule) {
     !/^gv_[a-f0-9]{64}$/u.test(identity.variantId) ||
     giftVariantId({ ...identity, giftId: rule.giftId, name: rule.giftName }) !== identity.variantId
   ) {
-    throw new Error('礼物身份不完整，请从礼物目录重新选择。');
+    throw createPublicError('礼物身份不完整，请从礼物目录重新选择。');
   }
   return {
     variantId: identity.variantId,

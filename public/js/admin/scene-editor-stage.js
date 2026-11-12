@@ -72,7 +72,8 @@ export function mountSceneEditorStage(host, { model, components, getSelection, s
     if (node.style[name] !== value) node.style[name] = value;
   }
   function positionContentLabel(entry) {
-    if (!SCENE_COMPONENTS[entry.host.dataset.component].contentHeight && entry.host.dataset.component !== 'gift-sprint') return;
+    if (!SCENE_COMPONENTS[entry.host.dataset.component].contentHeight
+      && !['gift-sprint', 'text-box'].includes(entry.host.dataset.component)) return;
     const space = entry.label.offsetHeight + 6;
     const above = entry.host.offsetTop * scale >= space;
     const below = (canvas.clientHeight - entry.host.offsetTop - entry.host.offsetHeight) * scale >= space;

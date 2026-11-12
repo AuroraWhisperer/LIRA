@@ -11,7 +11,8 @@ const GROUPS = [
 ];
 const EFFECT_TOGGLES = [['advancedLyricGlowEnabled', '外发光'], ['advancedLyricExtrudeEnabled', '长投影'], ['advancedLyricChromaticEnabled', '色差'],
   ['advancedLyricEmbossEnabled', '浮雕'], ['advancedLyricEchoEnabled', '回声'], ['advancedLyricHollowEnabled', '空心']];
-const DISPLAY_TOGGLES = [['advancedLyricHideUnsung', '隐藏未唱'], ['advancedLyricShowTranslation', '翻译'], ['advancedLyricHideOnPause', '暂停隐藏']];
+const DISPLAY_TOGGLES = [['advancedLyricHideUnsung', '隐藏未唱'], ['advancedLyricWordProgress', '字内进度'],
+  ['advancedLyricShowTranslation', '翻译'], ['advancedLyricHideOnPause', '暂停隐藏']];
 const SEQUENCES = {
   advancedLyricLayout: { key: 'advancedLyricLayoutSequence', enabled: 'advancedLyricRotateLayouts', label: '排版轮换', catalog: 'layouts' },
   advancedLyricEnter: { key: 'advancedLyricMotionSequence', enabled: 'advancedLyricRotateMotions', label: '入场轮换', catalog: 'enters' },

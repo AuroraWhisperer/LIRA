@@ -1,4 +1,6 @@
 'use strict';
+
+const { createPublicError } = require('../../shared/public-error');
 const { getLikedTracksSession } = require('./liked-tracks-session');
 
 const { readResponseText } = require('../../shared/response-body');
@@ -6,7 +8,7 @@ const { readResponseText } = require('../../shared/response-body');
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 function responseLimitError() {
-  return Object.assign(new Error('网易云音乐响应过大，无法处理。'), { code: 'MUSIC_RESPONSE_TOO_LARGE' });
+  return Object.assign(createPublicError('网易云音乐响应过大，无法处理。', 501), { code: 'MUSIC_RESPONSE_TOO_LARGE' });
 }
 
 const { estimateWordTimings, parseLyricResult } = require('../lyric-parser');
@@ -31,13 +33,13 @@ function readSearchSongs(data) {
   const code = Number(data?.code);
   if (code !== 200) {
     const message = data && (data.message || data.msg);
-    throw new Error(
+    throw Object.assign(new Error(
       `网易云音乐搜索失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`,
-    );
+    ), { statusCode: 501, publicMessage: '网易云音乐搜索失败，请稍后重试。' });
   }
   if (Array.isArray(data.result?.songs)) return data.result.songs;
   if (data.result?.songCount === 0) return [];
-  throw new Error('网易云音乐搜索响应缺少歌曲结果。');
+  throw createPublicError('网易云音乐搜索响应缺少歌曲结果。', 501);
 }
 
 class NeteaseMusicProvider {
@@ -83,7 +85,7 @@ class NeteaseMusicProvider {
 
   async searchTracks(keyword, options = {}) {
     const query = String(keyword || '').trim();
-    if (!query) throw new Error('缺少搜索关键词。');
+    if (!query) throw createPublicError('缺少搜索关键词。', 501);
 
     const limit = clampInteger(options.limit, 1, 30, 20);
     const offset = clampInteger(options.offset, 0, 300, 0);
@@ -181,7 +183,7 @@ class NeteaseMusicProvider {
     });
     const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title));
     if (!likedPlaylist) {
-      throw new Error('没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。');
+      throw createPublicError('没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。', 501);
     }
     return likedPlaylist.id;
   }
@@ -222,7 +224,7 @@ class NeteaseMusicProvider {
 
   async getPlaylistTracks(playlistId, options = {}) {
     const id = String(playlistId || '').trim();
-    if (!id) throw new Error('缺少网易云歌单 ID。');
+    if (!id) throw createPublicError('缺少网易云歌单 ID。', 501);
     const limit = clampInteger(options.limit, 1, 5000, 1000);
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const readPlaylist = () => this.requestJson('/api/v6/playlist/detail', { id, n: '0', s: '0' });
@@ -232,24 +234,24 @@ class NeteaseMusicProvider {
     const playlist = data?.playlist || {};
     if (!Array.isArray(playlist.trackIds)) {
       const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
-      if (Number(playlist.trackCount) > tracks.length) throw new Error('网易云歌单未返回完整曲目索引，请重试。');
+      if (Number(playlist.trackCount) > tracks.length) throw createPublicError('网易云歌单未返回完整曲目索引，请重试。', 501);
       return this.mapTracksWithArtwork(tracks.slice(offset, offset + limit));
     }
-    if (Number(playlist.trackCount) > playlist.trackIds.length) throw new Error('网易云歌单未返回完整曲目索引，请重试。');
+    if (Number(playlist.trackCount) > playlist.trackIds.length) throw createPublicError('网易云歌单未返回完整曲目索引，请重试。', 501);
     const ids = playlist.trackIds.slice(offset, offset + limit).map((item) => String(item?.id ?? item));
-    if (ids.some((trackId) => !/^\d+$/.test(trackId))) throw new Error('网易云歌单曲目 ID 无效。');
+    if (ids.some((trackId) => !/^\d+$/.test(trackId))) throw createPublicError('网易云歌单曲目 ID 无效。', 501);
     const songs = new Map();
     for (let index = 0; index < ids.length; index += 100) {
       const detail = await this.requestJson('/api/song/detail', { ids: JSON.stringify(ids.slice(index, index + 100)) });
       for (const song of Array.isArray(detail?.songs) ? detail.songs : []) songs.set(String(song.id), song);
     }
-    if (ids.some((trackId) => !songs.has(trackId))) throw new Error('网易云歌单部分曲目未返回，加载未完成，请重试。');
+    if (ids.some((trackId) => !songs.has(trackId))) throw createPublicError('网易云歌单部分曲目未返回，加载未完成，请重试。', 501);
     return this.mapTracksWithArtwork(ids.map((trackId) => songs.get(trackId)));
   }
 
   async playlistContainsTrack(playlistId, track) {
     const id = String(playlistId || '').trim();
-    if (!/^\d+$/.test(id)) throw new Error('缺少网易云歌单 ID。');
+    if (!/^\d+$/.test(id)) throw createPublicError('缺少网易云歌单 ID。', 501);
     const trackId = extractSourceTrackId(track);
     const data = await this.requestJson('/api/v6/playlist/detail', {
       id,
@@ -266,7 +268,7 @@ class NeteaseMusicProvider {
 
   async getUserPlaylists(userId, options = {}) {
     const uid = String(userId || '').trim();
-    if (!uid) throw new Error('缺少网易云用户 ID。');
+    if (!uid) throw createPublicError('缺少网易云用户 ID。', 501);
     const limit = clampInteger(options.limit, 1, 500, 200);
     const data = await this.requestJson('/api/user/playlist', {
       uid,
@@ -289,7 +291,7 @@ class NeteaseMusicProvider {
     await this.requireLogin('修改网易云音乐歌单需要先登录。');
     const requestedId = String((playlist && playlist.id) || '').trim();
     const playlistId = requestedId === 'liked' ? String(await this.getLikedPlaylistId()) : requestedId;
-    if (!/^\d+$/.test(playlistId)) throw new Error('缺少网易云歌单 ID。');
+    if (!/^\d+$/.test(playlistId)) throw createPublicError('缺少网易云歌单 ID。', 501);
     const trackIds = normalizeNeteasePlaylistTrackIds(tracks);
     const data = await this.requestWeapiJson('/weapi/playlist/manipulate/tracks', {
       op: operation,
@@ -307,9 +309,9 @@ class NeteaseMusicProvider {
     }
     if (code !== 200) {
       const message = data && (data.message || data.msg);
-      throw new Error(
+      throw Object.assign(new Error(
         `网易云音乐歌单写入失败（code=${Number.isFinite(code) ? code : 'unknown'}${message ? `，${message}` : ''}）。`,
-      );
+      ), { statusCode: 501, publicMessage: '网易云音乐歌单写入失败，请稍后重试。' });
     }
     return {
       playlistId,
@@ -345,7 +347,7 @@ class NeteaseMusicProvider {
 
   async resolvePlayableUrl(track, options = {}) {
     const sourceTrackId = extractSourceTrackId(track);
-    if (!/^\d+$/.test(sourceTrackId)) throw new Error('网易云歌曲 ID 必须是正整数。');
+    if (!/^\d+$/.test(sourceTrackId)) throw createPublicError('网易云歌曲 ID 必须是正整数。', 501);
     const supportedLevels = new Set(['standard', 'higher', 'exhigh', 'lossless', 'hires']);
     const requestedQuality = supportedLevels.has(options.quality) ? options.quality : 'standard';
     const encodeType = requestedQuality === 'lossless' || requestedQuality === 'hires' ? 'flac' : 'mp3';
@@ -358,17 +360,17 @@ class NeteaseMusicProvider {
     const stream = payload && Array.isArray(payload.data) ? payload.data[0] : null;
     const streamUrl = String((stream && stream.url) || '').trim();
     if (!streamUrl) {
-      throw new Error('当前网易云音乐账号无法播放或试听该歌曲。');
+      throw createPublicError('当前网易云音乐账号无法播放或试听该歌曲。', 501);
     }
 
     let parsedUrl;
     try {
       parsedUrl = new URL(streamUrl);
     } catch (_) {
-      throw new Error('网易云音乐返回的播放地址无效。');
+      throw createPublicError('网易云音乐返回的播放地址无效。', 501);
     }
     if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-      throw new Error('网易云音乐返回的播放地址无效。');
+      throw createPublicError('网易云音乐返回的播放地址无效。', 501);
     }
 
     const expiresInSeconds = Number(stream.expi);
@@ -474,7 +476,7 @@ class NeteaseMusicProvider {
   async requireLogin(message) {
     const auth = await this.getSafeAuthState();
     if (!auth || !auth.loggedIn) {
-      throw new Error(message || '需要先登录网易云音乐。');
+      throw createPublicError(message || '需要先登录网易云音乐。', 501);
     }
     return auth;
   }
@@ -483,7 +485,7 @@ class NeteaseMusicProvider {
     const data = await this.requestJson('/api/nuser/account/get');
     const profile = data && data.profile ? data.profile : null;
     const userId = profile && profile.userId ? String(profile.userId) : '';
-    if (!userId) throw new Error('未能读取网易云用户资料，请重新登录后再试。');
+    if (!userId) throw createPublicError('未能读取网易云用户资料，请重新登录后再试。', 501);
     return {
       userId,
       nickname: profile.nickname || '',

@@ -3,8 +3,8 @@
 const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
-const { maskedFrame } = require('../helpers/transport-fixtures');
-const { broadcastSnapshot, createWebSocketHub, handleWebSocketUpgrade } = require('../../src/server/ws');
+const { maskedFrame, webSocketUpgradeRequest } = require('../helpers/transport-fixtures');
+const { createWebSocketHub } = require('../../src/server/ws');
 
 class FakeSocket extends EventEmitter {
   constructor() {
@@ -36,14 +36,13 @@ class FakeSocket extends EventEmitter {
 }
 
 function upgradeRequest(url = '/ws') {
-  return {
+  return webSocketUpgradeRequest({
     url,
     headers: {
       host: '127.0.0.1:3000',
       authorization: 'Bearer synthetic-token',
-      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
     },
-  };
+  });
 }
 
 function openTestSocket(t) {
@@ -52,10 +51,7 @@ function openTestSocket(t) {
   const context = { sessionToken: 'synthetic-token', state: { sockets: new Set() }, getState: () => ({}) };
   hub.handleUpgrade(
     context,
-    {
-      url: '/ws',
-      headers: { authorization: 'Bearer synthetic-token', 'sec-websocket-key': 'test' },
-    },
+    upgradeRequest(),
     socket,
   );
   socket.writes = [];
@@ -67,6 +63,30 @@ function openTestSocket(t) {
 }
 
 const frame = (payload, opcode = 0x1, fin = true) => maskedFrame(payload, { opcode, fin });
+
+test('WebSocket handshake rejects invalid protocol fields before registering a socket', (t) => {
+  const hub = createWebSocketHub();
+  t.after(() => hub.stop());
+  const context = { sessionToken: 'synthetic-token', state: { sockets: new Set() }, getState: () => ({}) };
+  const invalidRequests = [
+    { method: 'POST' },
+    { httpVersion: '1.0' },
+    { headers: { upgrade: 'h2c' } },
+    { headers: { connection: 'keep-alive' } },
+    { headers: { 'sec-websocket-version': '12' } },
+    { headers: { 'sec-websocket-key': 'bad-key' } },
+    { headers: { 'sec-websocket-key': Buffer.alloc(15).toString('base64') } },
+  ];
+  for (const invalid of invalidRequests) {
+    const request = upgradeRequest();
+    Object.assign(request, { ...invalid, headers: { ...request.headers, ...invalid.headers } });
+    const socket = new FakeSocket();
+    hub.handleUpgrade(context, request, socket);
+    assert.match(socket.writes[0], /^HTTP\/1\.1 400 /);
+    assert.equal(socket.destroyed, true);
+    assert.equal(context.state.sockets.size, 0);
+  }
+});
 const invalidFrames = [
   ['unmasked', Buffer.from([0x81, 0]), 1002],
   ['reserved bits', Buffer.from([0xc1, 0x80]), 1002],
@@ -141,19 +161,8 @@ test('valid close is echoed once and removed from broadcasts before peer FIN', (
   assert.equal(socket.destroyed, true);
 });
 
-test('fragmented WebSocket messages are capped across frames', () => {
-  const socket = new FakeSocket();
-  const context = {
-    sessionToken: 'synthetic-token',
-    state: { sockets: new Set() },
-    getState: () => ({ ok: true }),
-  };
-
-  handleWebSocketUpgrade(
-    context,
-    upgradeRequest(),
-    socket,
-  );
+test('fragmented WebSocket messages are capped across frames', (t) => {
+  const { socket, context } = openTestSocket(t);
 
   socket.emit('data', maskedFrame(Buffer.alloc(200 * 1024, 0x61), { opcode: 0x1, fin: false }));
   socket.emit('data', maskedFrame(Buffer.alloc(100 * 1024, 0x62), { opcode: 0x0, fin: true }));
@@ -166,20 +175,8 @@ test('fragmented WebSocket messages are capped across frames', () => {
   assert.equal(context.state.sockets.has(socket), false);
 });
 
-test('ignores data events that arrive after WebSocket cleanup', () => {
-  const socket = new FakeSocket();
-  const context = {
-    sessionToken: 'synthetic-token',
-    state: { sockets: new Set() },
-    getState: () => ({ ok: true }),
-  };
-
-  handleWebSocketUpgrade(
-    context,
-    upgradeRequest(),
-    socket,
-  );
-  socket.writes = [];
+test('ignores data events that arrive after WebSocket cleanup', (t) => {
+  const { socket, context } = openTestSocket(t);
 
   socket.emit('close');
   socket.emit('error', new Error('late socket error'));
@@ -346,30 +343,13 @@ test('WebSocket hub drops a client before its pending write queue exceeds the ce
   hub.stop();
 });
 
-test('compatibility broadcasts remain isolated to their context sockets', () => {
-  const firstSocket = new FakeSocket();
-  const secondSocket = new FakeSocket();
-  const firstContext = {
-    sessionToken: 'synthetic-token',
-    state: { sockets: new Set() },
-    getState: () => ({ runtime: 'first' }),
-  };
-  const secondContext = {
-    sessionToken: 'synthetic-token',
-    state: { sockets: new Set() },
-    getState: () => ({ runtime: 'second' }),
-  };
-  const request = upgradeRequest();
+test('WebSocket hubs isolate broadcasts between runtimes', async (t) => {
+  const { hub: firstHub, socket: firstSocket, context: firstContext } = openTestSocket(t);
+  const { socket: secondSocket } = openTestSocket(t);
 
-  handleWebSocketUpgrade(firstContext, request, firstSocket);
-  handleWebSocketUpgrade(secondContext, request, secondSocket);
-  firstSocket.writes = [];
-  secondSocket.writes = [];
-
-  broadcastSnapshot(firstContext, 'first:update');
+  firstHub.broadcastSnapshot(firstContext, 'first:update');
+  await new Promise((resolve) => queueMicrotask(resolve));
 
   assert.equal(firstSocket.writes.length, 1);
   assert.equal(secondSocket.writes.length, 0);
-  firstSocket.emit('close');
-  secondSocket.emit('close');
 });

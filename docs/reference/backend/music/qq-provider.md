@@ -20,7 +20,7 @@
 
 ## 2. 请求头
 
-`buildHeaders()`([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js))构造所有接口的公共头:
+`buildHeaders(cookieHeader?)`([qq-provider-client.js](../../../../src/music/providers/qq-provider-client.js))构造所有接口的公共头。请求体/查询参数含账号或签名的 `requestPlaylistWrite`、`requestMusicsClient`、`requestQQEncryptedVkey`、`requestMusicu` 复用本次读取的 Cookie 快照构造身份、签名及请求头；普通请求未传快照时读取当前 Cookie，不在一次请求内混用两次会话读取:
 
 ```javascript
 {
@@ -58,7 +58,7 @@ GTK 源提取顺序固定为 `qqmusic_key > qm_keyst > p_skey > skey`(`extractQQ
 3. `/(?:^|;\s*)([\w-]*uin)=o?(\d{5,15})/i` — 泛化回退(`qm_hideuin`、`p_uin` 等)
 4. `/(?:^|;\s*)ptnick_(\d{5,15})=/` — 昵称兜底
 
-全部失败返回空串(调用方报"没有从 QQ 音乐 Cookie 中读取到 QQ 号"并附 Cookie 名诊断)。
+全部失败返回空串，调用方的内部错误附 Cookie 名诊断；HTTP 响应仅返回重新登录提示，不暴露 Cookie 名或上游原始消息。
 
 ### 3.3 客户端 API 额外字段(`requestMusicsClient`)
 
@@ -309,9 +309,9 @@ UI 的 `playlist: { id: 'liked' }` 由 Provider 复用 `getLikedPlaylist()`，�
 POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 ```
 
-请求体(comm + 模块):
+请求体结构示意（comm + 模块，尖括号为待填占位值）:
 
-```json
+```text
 {
   "comm": { "format":"json", "ct":20, "cv":2241, "platform":"wk_v20",
             "uid":"<QQ号>", "guid":"<qqmusic_guid 或随机>", "uin":"<QQ号>",
@@ -381,7 +381,7 @@ POST https://u6.y.qq.com/cgi-bin/musics.fcg?_=<Date.now()>&sign=<zzcSign(body)>
 | `stripJsonp`                       | `/^[^(]*\(([\s\S]*)\)\s*;?$/` 剥掉 JSONP 回调壳           | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 | `buildGuid`                        | `1000000000 + floor(random()*9000000000)` 的 10 位数字串  | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 | `clampInteger`                     | 有限数值截断到 [min,max],否则回退值                       | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
-| `extractCookieValue`               | `(?:^                                                     | ;\s*)<name>=([^;]+)` 取单个 Cookie 值                                                  | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
+| `extractCookieValue` | `(?:^\|;\s*)<name>=([^;]+)` 取单个 Cookie 值 | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 | `readQQModuleData`                 | 模块级 code 非 0 抛"<动作>失败(code=…)",返回 `inner.data` | [qq-provider-utils.js](../../../../src/music/providers/qq-provider-utils.js) |
 
 ## 9. 登录态要求总表

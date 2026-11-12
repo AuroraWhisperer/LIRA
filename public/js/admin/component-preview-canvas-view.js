@@ -54,6 +54,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   const canvasTools = previewElement('div', 'preview-canvas-tools');
   const dimensions = previewElement('span', 'preview-canvas-resolution');
   const stageHost = previewElement('div', 'scene-editor-stage-host');
+  stageHost.dataset.background = 'dark';
   stageHost.tabIndex = -1;
   const sidebar = previewElement('aside', 'preview-canvas-sidebar');
   sidebar.id = 'previewCanvasInspector';
@@ -131,7 +132,7 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
   const background = previewElement('select');
   background.dataset.dropdownVariant = 'canvas-background';
   background.setAttribute('aria-label', '公共画布检查底色');
-  for (const [value, text] of [['checker', '透明'], ['dark', '深色'], ['light', '浅色']]) {
+  for (const [value, text] of [['dark', '深色'], ['light', '浅色'], ['checker', '透明']]) {
     const option = previewElement('option', '', text); option.value = value; background.append(option);
   }
   backgroundLabel.append(background); canvasControls.append(backgroundLabel);

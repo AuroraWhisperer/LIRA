@@ -27,9 +27,8 @@ test('filter IPC requires the main frame, validates patches and strips private r
       },
       getOverlayViewers: async () => ({ roomId: '99', viewers: settings.blockedUsers, cookie: 'secret' }),
     },
-    getMainWindow: () => ({ webContents }),
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
     getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
-    hasExactOrigin: (value, expected) => new URL(value).origin === expected,
   });
   const read = handlers.get('license:get-overlay-filters'),
     update = handlers.get('license:update-overlay-filters');

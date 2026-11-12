@@ -73,13 +73,14 @@ test(
     const phases = [];
     const nativeExec = childProcess.execFileSync;
     const ownerQueries = [];
-    t.mock.method(childProcess, 'execFileSync', (...args) => {
+    t.mock.method(childProcess, 'execFileSync', (file, args, options) => {
       try {
-        const output = nativeExec(...args);
+        const output = nativeExec(file, args, { ...options, stdio: ['ignore', 'pipe', 'pipe'] });
         ownerQueries.push(String(output));
         return output;
       } catch (error) {
-        ownerQueries.push({ code: error.code, status: error.status });
+        ownerQueries.push({ code: error.code, status: error.status, signal: error.signal,
+          stderr: String(error.stderr || '').slice(0, 2000) });
         throw error;
       }
     });

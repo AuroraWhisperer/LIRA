@@ -40,7 +40,8 @@ function createView(root) {
   track.setAttribute('role', 'progressbar');
   track.setAttribute('aria-label', '本期心动盲盒收集进度');
   const fill = element('div', 'heart-collection-fill');
-  track.append(fill);
+  const collectedBackground = element('span', 'heart-collection-collected-background');
+  track.append(collectedBackground, fill);
   const collected = element('span', 'heart-collection-collected', '已收集');
   const stages = element('ol', 'heart-collection-stages');
   const entries = Array.from({ length: 4 }, () => {

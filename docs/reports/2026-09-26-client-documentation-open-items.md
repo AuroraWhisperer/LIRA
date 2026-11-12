@@ -142,7 +142,7 @@
 
 ### 14. 使用指南成功状态与发布确认
 
-- **原文**：[补充方案](../../specs/plans/2026-09-22-usage-guide-supplement.md)第十章、附录 D.2；[复核报告](2026-09-22-usage-guide-review.md)。
+- **原文**：补充方案第十章、附录 D.2（历史查询及后续范围裁决见[手册维护收口记录](../../specs/plans/archive/2026-09-22-usage-guide-supplement.md)）；[复核报告](2026-09-22-usage-guide-review.md)。
 - **剩余证据**：与真实操作一致的登录/连接、实际歌词、抽奖结果、AI 成功反馈、真实同步及更新成功状态、OBS 添加来源；隔离档案的提醒/恢复与游戏/结算配图按 D.2 补齐。独立网页文档的发布位置及正式链接仍需确认。
 - **已剔除范围**：不能把正式手册 HTML、粉丝档案章节、动态抽奖说明等整体写成没落地；[toolbox](../../public/pages/admin/toolbox/usage-guide-toolbox.html)、[FAQ](../../public/pages/admin/toolbox/usage-guide-faq.html)等已经存在实际内容。
 - **边界**：旧配图说明中的 `getGlobalSnapshot` 报错不直接作为当前产品 bug；这里要求的是成功流程证据，而非未经复现地安排修复。演示截图可作操作说明，但不能替代实测。

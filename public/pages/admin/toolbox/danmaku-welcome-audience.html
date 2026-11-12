@@ -1,0 +1,54 @@
+<div id="danmakuWelcomeAudience" hidden>
+  <section class="danmaku-welcome-audience-section" aria-labelledby="danmakuWelcomeOwnMedalTitle">
+    <div class="danmaku-welcome-audience-heading">
+      <strong id="danmakuWelcomeOwnMedalTitle">只欢迎佩戴本直播间粉丝牌的观众</strong>
+      <label class="switch-control">
+        <input id="danmakuWelcomeOwnMedalToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeOwnMedalTitle" aria-describedby="danmakuWelcomeOwnMedalHint" />
+        <span class="switch-track"></span>
+      </label>
+    </div>
+    <p id="danmakuWelcomeOwnMedalHint" class="hint">开启后，普通进场欢迎还需满足「欢迎规则」中的首次荣耀门槛。未佩戴、佩戴其他房间或进场消息未带粉丝牌信息时不欢迎，白名单除外。切换即时保存。</p>
+    <p class="hint">PK 对面观众欢迎按自己的开关和识别规则执行，不受此筛选与普通荣耀门槛限制，仍遵守下方黑名单。</p>
+    <p id="danmakuWelcomeOwnMedalCapability" class="hint" role="status" hidden>当前服务暂不支持粉丝牌筛选，请更新服务端后刷新。</p>
+  </section>
+  <p class="hint">按 B 站 UID 识别观众，改名不影响名单。UID 可在个人空间网址中找到，每份名单最多 100 人。</p>
+  <p id="danmakuWelcomeAudienceCapability" class="hint" role="status" hidden>当前服务暂不支持欢迎名单，请更新服务端后刷新。</p>
+  <section class="danmaku-welcome-audience-section" aria-labelledby="danmakuWelcomeWhitelistTitle">
+    <div class="danmaku-welcome-audience-heading">
+      <strong id="danmakuWelcomeWhitelistTitle">欢迎白名单</strong>
+      <span id="danmakuWelcomeWhitelistCount" class="hint"></span>
+    </div>
+    <p class="hint">豁免粉丝牌筛选和首次荣耀门槛，仍遵守欢迎开关、延时和冷却。二次问候与高荣耀文案沿用各自条件。</p>
+    <div id="danmakuWelcomeWhitelistList" class="danmaku-welcome-audience-list"></div>
+    <p id="danmakuWelcomeWhitelistError" class="danmaku-field-error" role="alert" tabindex="-1" hidden></p>
+    <div id="danmakuWelcomeWhitelistPagination" class="danmaku-library-pagination" hidden>
+      <button id="danmakuWelcomeWhitelistPrevPage" class="ghost" type="button" disabled>上一页</button>
+      <span id="danmakuWelcomeWhitelistPageLabel" class="hint"></span>
+      <button id="danmakuWelcomeWhitelistNextPage" class="ghost" type="button" disabled>下一页</button>
+    </div>
+    <button id="danmakuWelcomeWhitelistAddBtn" class="secondary danmaku-welcome-audience-add" type="button" disabled>添加观众</button>
+    <div class="danmaku-blessing-actions">
+      <span id="danmakuWelcomeWhitelistStatus" class="hint" role="status"></span>
+      <button id="danmakuWelcomeWhitelistSaveBtn" class="primary" type="button" disabled>保存白名单</button>
+    </div>
+  </section>
+  <section class="danmaku-welcome-audience-section" aria-labelledby="danmakuWelcomeBlacklistTitle">
+    <div class="danmaku-welcome-audience-heading">
+      <strong id="danmakuWelcomeBlacklistTitle">欢迎黑名单</strong>
+      <span id="danmakuWelcomeBlacklistCount" class="hint"></span>
+    </div>
+    <p class="hint">不发送进场欢迎、二次问候和 PK 串门欢迎，个人欢迎词也不例外。黑名单优先于白名单。</p>
+    <div id="danmakuWelcomeBlacklistList" class="danmaku-welcome-audience-list"></div>
+    <p id="danmakuWelcomeBlacklistError" class="danmaku-field-error" role="alert" tabindex="-1" hidden></p>
+    <div id="danmakuWelcomeBlacklistPagination" class="danmaku-library-pagination" hidden>
+      <button id="danmakuWelcomeBlacklistPrevPage" class="ghost" type="button" disabled>上一页</button>
+      <span id="danmakuWelcomeBlacklistPageLabel" class="hint"></span>
+      <button id="danmakuWelcomeBlacklistNextPage" class="ghost" type="button" disabled>下一页</button>
+    </div>
+    <button id="danmakuWelcomeBlacklistAddBtn" class="secondary danmaku-welcome-audience-add" type="button" disabled>添加观众</button>
+    <div class="danmaku-blessing-actions">
+      <span id="danmakuWelcomeBlacklistStatus" class="hint" role="status"></span>
+      <button id="danmakuWelcomeBlacklistSaveBtn" class="primary" type="button" disabled>保存黑名单</button>
+    </div>
+  </section>
+</div>

@@ -75,6 +75,7 @@ let latestWordSignature = '';
 let performanceProfile = null;
 let lastLyricGeneration = null;
 let lastLyricSequence = 0;
+let suspended = false;
 let manualFollowUntil = 0;
 let followResumeTimer = 0;
 let followAnimationFrame = 0;
@@ -194,8 +195,14 @@ function syncLayerVisibility() {
 
 function updateLyricState(state) {
   if (!state || typeof state !== 'object' || !acceptLyricVersion(state)) return false;
+  suspended = false;
   applyLyricState(state);
   return true;
+}
+
+function suspend() {
+  suspended = true;
+  applyLyricState({ playing: false, lineText: '', words: [], currentMs: 0, status: 'idle' });
 }
 
 function applyLyricState(state) {
@@ -463,7 +470,8 @@ function acceptLyricVersion(state) {
     lastLyricSequence = sequence;
     return true;
   }
-  if (generation < lastLyricGeneration || sequence <= lastLyricSequence) return false;
+  if (generation < lastLyricGeneration || sequence < lastLyricSequence) return false;
+  if (sequence === lastLyricSequence) return suspended;
   lastLyricSequence = sequence;
   return true;
 }
@@ -705,6 +713,7 @@ function dispose() {
   visibleLineRange = null;
   countdownSignature = timelineSignature = settingsSignature = activeWordSignature = latestWordSignature = '';
   lastLyricGeneration = null;
+  suspended = false;
   lastLyricSequence = manualFollowUntil = followResumeTimer = 0;
   outputLayer = previewLayer = 'both';
   basicVisible = true;
@@ -717,6 +726,7 @@ export const desktopLyricRenderer = Object.freeze({
   init,
   applySettings,
   updateLyricState,
+  suspend,
   updateLyricTimeline,
   setPreviewLayer,
   dispose,

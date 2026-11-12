@@ -2,15 +2,18 @@
 
 const { DAY_MS, dayStart, METRIC_KEYS } = require('../shared/gift-summary-contract');
 const { activeSnapshot } = require('./gift-retention-store');
+const { localDetailStart } = require('./gift-detail-coverage');
 
 function retentionLedgerFilter(db, options, filter, { statistics = false, snapshot = activeSnapshot(db, options.sourceId) } = {}) {
   if (!snapshot) return filter;
   filter.sql = filter.sql.replace("g.status = 'active'", "g.status IN ('active','retention-staged')");
-  filter.sql += ' AND EXISTS (SELECT 1 FROM gift_retention_members m WHERE m.snapshot_id=? AND m.event_id=g.id)';
-  filter.params.push(snapshot.member_snapshot_id);
-  if (!statistics && snapshot.detail_start) {
+  filter.sql += ` AND EXISTS (SELECT 1 FROM gift_retention_members m JOIN gift_retention_snapshots s ON s.id=m.snapshot_id
+    WHERE m.event_id=g.id AND s.source_id=g.source_id AND s.sync_epoch=? AND s.phase='active')`;
+  filter.params.push(snapshot.sync_epoch);
+  const cutoff = localDetailStart(snapshot);
+  if (!statistics && cutoff) {
     filter.sql += ' AND g.created_at>=?';
-    filter.params.push(snapshot.detail_start);
+    filter.params.push(cutoff);
   }
   return filter;
 }

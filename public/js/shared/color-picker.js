@@ -86,7 +86,8 @@ function createPicker(document) {
     });
     opacity.addEventListener(type, () => edit(current.hex, Number(opacity.value) / 100, type, true));
     for (const [key, input] of Object.entries(channels)) input.addEventListener(type, () => {
-      if (!input.checkValidity()) return;
+      const inputs = key === 'alpha' ? [input] : [channels.r, channels.g, channels.b];
+      if (!inputs.every(channel => channel.checkValidity())) return;
       const color = key === 'alpha' ? current.hex : `#${['r', 'g', 'b'].map(channel => Number(channels[channel].value).toString(16).padStart(2, '0')).join('')}`;
       edit(color, key === 'alpha' ? Number(input.value) / 100 : current.alpha, type);
     });

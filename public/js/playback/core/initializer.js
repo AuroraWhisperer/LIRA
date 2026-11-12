@@ -17,6 +17,7 @@ export function createInitializer(deps) {
     syncPlaybackLyricWindow,
     updatePlaybackMediaSession,
     playbackNext,
+    seekPlayback,
     handlePlaybackError,
     flushPlaybackStateOnUnload,
     flushPlaybackStateForShutdown,
@@ -42,11 +43,7 @@ export function createInitializer(deps) {
     uiRenderer.init();
 
     // 设置全屏播放器 seek 回调
-    uiRenderer.getFullscreenPlayer().setSeekCallback(() => {
-      renderPlaybackProgress();
-      syncPlaybackLyricWindow(true);
-      savePlaybackState();
-    });
+    uiRenderer.getFullscreenPlayer().setSeekCallback(seekPlayback);
 
     await restorePlaybackState();
     audio.volume = playbackState.volume;

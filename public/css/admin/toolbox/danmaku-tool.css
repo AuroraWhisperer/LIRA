@@ -10,6 +10,85 @@
   color: var(--text);
   font-size: var(--type-size-body);
 }
+#otherDanmakuFeature > .danmaku-tool-panel {
+  row-gap: var(--spacing-md);
+}
+.danmaku-category-navigation {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.danmaku-category-tabs {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 2px;
+  width: max-content;
+  max-width: 100%;
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  background: var(--client-main-nav-bg, var(--color-bg-secondary));
+  box-shadow: var(--client-main-nav-shadow, none);
+}
+.danmaku-category-tabs > button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  min-height: 38px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+  font-size: var(--type-size-body);
+  font-weight: var(--type-weight-semibold);
+  white-space: nowrap;
+  transition: background-color var(--motion-ui-duration) ease, box-shadow var(--motion-ui-duration) ease, color var(--motion-ui-duration) ease;
+}
+.danmaku-category-tabs > button > svg {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  opacity: 0.7;
+}
+.danmaku-category-tabs > button:hover:not([aria-selected='true']) {
+  background: color-mix(in srgb, var(--text) 5%, transparent);
+  color: var(--text);
+}
+.danmaku-category-tabs > button[aria-selected='true'] {
+  background: var(--client-main-nav-active-bg, var(--surface));
+  box-shadow: var(--client-main-nav-active-shadow, 0 1px 2px color-mix(in srgb, var(--text) 10%, transparent), 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent));
+  color: var(--text);
+}
+.danmaku-category-tabs > button[aria-selected='true'] > svg {
+  color: var(--color-selection-marker);
+  opacity: 1;
+}
+.danmaku-category-tabs > button:focus-visible {
+  outline: 2px solid var(--color-selection-marker);
+  outline-offset: 1px;
+}
+.danmaku-cloud-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 32px;
+  margin-left: auto;
+}
+.danmaku-cloud-toolbar .hint {
+  margin: 0;
+  font-size: var(--type-size-caption);
+}
+.danmaku-category-panel[hidden] {
+  display: none;
+}
+.danmaku-send-panel {
+  display: grid;
+  gap: var(--spacing-md);
+}
 .danmaku-tool-panel button:is(.primary, .secondary, .ghost) {
   min-height: 32px;
   padding: 5px 12px;
@@ -53,6 +132,9 @@
   border: 2px solid var(--danmaku-section-border);
   border-radius: var(--radius-lg);
   background: var(--surface);
+}
+#otherDanmakuFeature .danmaku-feature-section {
+  border-width: 1px;
 }
 .danmaku-connection-section {
   gap: 12px;
@@ -520,16 +602,15 @@
 }
 .danmaku-status-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.25fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .danmaku-status-grid > div {
   display: grid;
+  justify-items: center;
   gap: 4px;
   min-width: 0;
   padding: 4px var(--spacing-md);
-}
-.danmaku-status-grid > div:first-child {
-  padding-left: 0;
+  text-align: center;
 }
 .danmaku-status-grid > div + div {
   border-left: 1px solid var(--danmaku-section-border);

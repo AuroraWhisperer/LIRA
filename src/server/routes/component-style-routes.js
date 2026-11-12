@@ -13,6 +13,7 @@ const { pruneUploadedMedia } = require('../uploaded-media-retention');
 
 async function handleStyles(context, req, res, url, canvas = false) {
   const authorize = () => {
+    context.authorizeRequest?.();
     if (req.aborted || res.destroyed) throw Object.assign(new Error('操作已取消。'), { statusCode: 400 });
     if (canvas) {
       const token = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization || '')?.[1];
@@ -93,6 +94,7 @@ async function handleStyles(context, req, res, url, canvas = false) {
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
     if (res.headersSent || res.destroyed) return;
+    if (error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
     const status = [400, 403, 404, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 400;
     return sendJson(res, status, { ok: false, error: error.statusCode ? error.message : '素材或套装无法读取，请检查文件格式与清单。',
       ...(error.statusCode && error.code ? { code: error.code } : {}),

@@ -123,7 +123,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 - **有效剩余时间**:`effectiveRemainingMs = max(0, remaining_ms - (now_ms - anchor_at_ms))`,仅 `running` 状态按流逝扣减;`paused/finished` 恒返回物化值([getEffectiveRemainingMs:290-294](../../../src/overtime/overtime-service.js#L290-L294))。
 - **运行中单调时钟**:进程内流逝用 `performance.now()`(单调,不受 NTP/手工校时影响,见 [server-core.md](server-core.md) 的 Node 运行时假设);每次开始/暂停/调整/结算先 `materialize()` 把时间物化到候选状态，持久化成功后再更新活跃状态和单调锚点。**墙钟只用于持久化与跨重启恢复**。
 - **重启恢复**:启动时若持久状态为 `running`,按墙钟锚点扣减停机流逝 `offlineElapsedMs = max(0, now - anchor_at_ms)`,归零则置 `finished` 并 revision+1,随后重建归零定时器([recoverPersistedClock:268-288](../../../src/overtime/overtime-service.js#L268-L288))。**系统时钟回拨时停机流逝按 0 计,绝不反向增加时间**;大幅前跳按真实墙钟扣减(无法与长时间停机可靠区分)。
-- **上限**:`MAX_OVERTIME_MS = 315_328_464_000_000`,`clampMs` 双向钳制([overtime-service.js:14](../../../src/overtime/overtime-service.js#L14)、[516-519](../../../src/overtime/overtime-service.js#L516-L519))。
+- **上限**:`MAX_OVERTIME_MS = 315_328_464_000_000`，由 [overtime-contract.js](../../../src/overtime/overtime-contract.js) 的 `MAX_OVERTIME_SECONDS` 换算；[overtime-effects.js](../../../src/overtime/overtime-effects.js) 的 `clampMs` 负责双向钳制。
 
 ### 2.4 归零定时器与 revision
 
@@ -135,10 +135,10 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 ### 3.1 结算键与生命周期
 
-- 一个 `gift_events.id` 就是一次连击最终封账后的礼物组,也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`quantityMode='group'` 时整组执行一次规则；`quantityMode='item'` 时按封账数量 `num` 执行对应次数。
-- 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态,重复包、迟到包、数量继续增长都不再修改(`isComplete`,[overtime-store.js](../../../src/storage/overtime-store.js))。
-- **服务器收尾**：平台结束标记和 6 秒静默窗口由服务器判定。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
-- **资格冻结**:`gift_events.overtime_epoch` 在组内第一个平台包到达时写入当时的 `enable_epoch`(未启用为 0),后续连击不得改变;加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件(`isEligible`,[overtime-store.js](../../../src/storage/overtime-store.js))——关闭期间开始的组即使重新启用后封账也不补投、不回放。
+- 一个 `gift_events.id` 对应一条服务器礼物事件（同一上游连击可产生迟到补差分段），也是唯一结算键:`overtime_settlements.gift_event_id UNIQUE`([schema.js:344-347](../../../src/storage/schema.js#L344-L347))。`quantityMode='group'` 时该事件执行一次规则；`quantityMode='item'` 时按该事件封账数量 `num` 执行对应次数。
+- 结算行状态:`pending → applied | ignored`(CHECK 约束);`applied/ignored` 是终态，同一事件的重复包、迟到包不再修改已有结算(`isComplete`,[overtime-store.js](../../../src/storage/overtime-store.js))；新的补差事件使用自己的结算键。
+- **服务器收尾**：有连击标识的礼物在服务端最后收到该组包后等待 6 秒，`COMBO_SEND` 和重复累计值都刷新期限，不提前封账；没有连击标识的礼物仍立即封账。每个最终事件/分段不可变，已封账连击的迟到正增量以新事件仅补未记录差额，重复或较小累计值不新增交付。依据见 [LIRA Server ADR-0107](https://github.com/AuroraWhisperer/LIRA-server/blob/d125d93c52190d377973dfaecfae8388b6c17b92/docs/architecture/decisions/0107-six-second-gift-combo-continuations.md)。客户端收到服务器 `final` 后，加班机立即结算，不增加第二个静默窗口。
+- **资格冻结**:`gift_events.overtime_epoch` 在该服务器事件首次导入本地（`progress` 或 `final`）时写入当时的 `enable_epoch`（未启用为 0），后续同事件不改变；新的补差事件独立冻结资格（[projection-service.js](../../../src/bilibili/gift/projection-service.js)）。加班机只在 `enabled=1 且 overtime_epoch === enable_epoch` 时处理事件（`isEligible`，[overtime-store.js](../../../src/storage/overtime-store.js)）——关闭期间首次导入的同一事件，即使重新启用后封账也不补投、不回放。
 
 同一启用轮次内，已经收到但尚未结算的礼物继续保留资格；切换账号、直播间或 active source 不会自动结束本轮，也不取消旧来源的待结算工作。收到 final 或补偿恢复后，符合本轮资格的礼物仍结算到本地同一个计时器。`disable` 或“清空全部数据”结束本轮并忽略保留的 pending；再次 `enable` 递增 epoch，旧轮礼物不再补算。普通启停不清零已累计时间，恢复初始时间仍由独立的 `reset` 操作完成；清空全部则恢复禁用且剩余时间为零的状态。此约定仅针对本轮已接收的礼物，不改变历史同步的消费者资格或终态幂等规则。
 
@@ -266,6 +266,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 | `config`   | 背景等配置变更                         |
 | `rules`    | 规则集替换                             |
 | `finished` | 倒计时自然归零定时器触发               |
+| `quantity-limit` | 随机规则自动执行次数超限；保留 pending，附 `pendingCount/quantityLimitedCount`，不改变 revision 或倒计时，不携带成功 adjustment |
 
 快照侧:`state.overtime`(生产者 `domainServices.overtime.getSnapshot()`,[ws.md](ws.md) §2)与 `state.giftDetection`(`gifts.getStatus()`:`coreActive/consumers/pendingCount`,[projection-service.js](../../../src/bilibili/gift/projection-service.js))在每次连接与业务变更时全量下发。
 
@@ -300,7 +301,7 @@ schema 3 的 `metadata` 及其 `countMap` 条目允许服务器追加说明资�
 
 | 故障                                       | 实际行为                                                                                                                                  |
 | ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| 暂停期间收到礼物                           | `materialize()` 冻结当前值,结算只改 `remainingMs`、不改状态;恢复 `start` 后续走(时间不补减、不跳变)                                       |
+| 暂停期间收到礼物 | `materialize()` 冻结当前值；结算后仍大于零时保持 `paused`，手动 `start` 后继续；结算归零则置 `finished`，后续礼物加时的恢复规则见 §3.3 |
 | 程序重启(运行中)                           | 按墙钟锚点扣减停机流逝,归零 → `finished`;补偿扫描恢复未完成结算(§3.4)                                                                     |
 | 系统时钟回拨                               | 停机流逝按 `max(0, …)` 计 0,不反向加时;运行中走单调时钟不受影响                                                                           |
 | 长时间倒计时                               | 单一定时器按 24h 分段重排(`MAX_TIMER_CHUNK_MS`),不每秒写库;触发后 `commit('finished')` 广播                                               |

@@ -212,6 +212,11 @@ function getBlindBoxAnalysis(context, options = {}) {
     items: allItems.slice(start, start + limit),
     ...(filteredRows.some((row) => row.archived) ? { hasArchivedDetails: true } : {}),
     ...(filteredRows.some((row) => row.legacyArchivedDate) ? { hasLegacyArchivedDates: true } : {}),
+    ...(filteredRows.some((row) => row.archived) ? {
+      archiveTimeZones: [...new Set(filteredRows.filter(row => row.archived).map(row => row.archiveTimeZone))],
+      hasArchivedTimezoneMismatch: filteredRows.some(row => row.archivedTimezoneMismatch),
+      archivePrecision: 'day',
+    } : {}),
     pagination: { page, limit, total, totalPages },
   };
   // Keep only the latest page response; raw ledger rows are never retained.

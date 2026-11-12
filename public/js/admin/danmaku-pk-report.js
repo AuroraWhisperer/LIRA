@@ -24,9 +24,10 @@ export function initDanmakuPkReport({
   if (!toggle || !status || !list || !input) return;
   const available = Boolean(bridge?.getPkReportSettings && bridge?.updatePkReportSettings);
   const draft = { delay: '', messages: [], addition: '', dirty: false, revision: 0, page: 0 };
-  let owner = '', generation = 0, settings = null, pending = false, disposed = false, notice = '';
+  let owner = '', generation = 0, settings = null, pending = false, saving = false, disposed = false, notice = '';
   const supported = () => Boolean(settings && Object.hasOwn(settings, 'reportEnabled'));
   function controls() {
+    element('Panel').setAttribute('aria-busy', String(pending));
     for (const [key, suffix] of Object.entries(SWITCHES)) {
       const field = element(suffix);
       field.checked = Boolean(settings?.[key]);
@@ -43,7 +44,7 @@ export function initDanmakuPkReport({
     element('DiscardBtn').disabled = !supported() || !draft.dirty || pending;
     element('SaveBtn').disabled = !supported() || !draft.dirty || pending;
     element('Count').textContent = supported() ? draft.messages.length + ' 条' : '未读取';
-    element('SaveStatus').textContent = pending ? '正在同步服务器设置…' : draft.dirty ? '欢迎设置有未保存修改' :
+    element('SaveStatus').textContent = saving ? '正在同步服务器设置…' : draft.dirty ? '欢迎设置有未保存修改' :
       draft.addition ? '输入尚未添加，不会随设置保存' : supported() ? '欢迎设置已确认' : '欢迎设置尚未确认';
     status.textContent = notice || (!settings ? available ? '连接 LIRA 账号后可设置 PK 播报与欢迎' : '请升级桌面客户端后设置 PK 播报与欢迎' :
       !settings.enabled ? '总开关已关闭 · 设置已保留' : !supported() ? 'PK 开始时播报对手概况' :
@@ -103,7 +104,9 @@ export function initDanmakuPkReport({
     if (!owner || !available || disposed || pending || (writing && !settings)) { controls(); return; }
     const requested = generation;
     pending = true;
-    notice = writing ? '' : '正在读取 PK 播报与欢迎设置…';
+    saving = writing;
+    if (writing) notice = '';
+    else if (!settings) notice = '正在读取 PK 播报与欢迎设置…';
     controls();
     try {
       const result = confirmed(writing ? await bridge.updatePkReportSettings(patch) : await bridge.getPkReportSettings());
@@ -125,7 +128,7 @@ export function initDanmakuPkReport({
       if (writing) toast(message, { type: 'error' });
       else notice = message;
     } finally {
-      if (!disposed && generation === requested) { pending = false; controls(); }
+      if (!disposed && generation === requested) { pending = false; saving = false; controls(); }
     }
   }
   const reload = () => sync();
@@ -138,6 +141,7 @@ export function initDanmakuPkReport({
     generation++;
     settings = null;
     pending = false;
+    saving = false;
     notice = '';
     Object.assign(draft, { delay: '', messages: [], addition: '', dirty: false, revision: draft.revision + 1, page: 0 });
     element('Delay').value = '';

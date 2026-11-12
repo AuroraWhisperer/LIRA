@@ -56,6 +56,7 @@ async function fixture(t, contents) {
   let files = Object.entries(contents).map(([name, bytes]) => file(name, bytes));
   const objects = new Map(Object.entries(contents).map(([name, bytes]) => [file(name, bytes).sha256, bytes]));
   const requests = [];
+  const diagnostics = [];
   let offline = false;
   let corrupt = false;
   let gate = null;
@@ -76,13 +77,14 @@ async function fixture(t, contents) {
       return new Response(corrupt ? Buffer.alloc(bytes.length, 0xff) : bytes);
     } finally { active--; }
   };
-  const options = { dataDir, publicDir: path.join(dataDir, 'public'), files, fetch };
+  const options = { dataDir, publicDir: path.join(dataDir, 'public'), files, fetch,
+    logger: { warn: (_message, diagnostic) => diagnostics.push(diagnostic) } };
   const create = () => {
     const library = createResourceLibrary(options);
     t.after(() => library.close());
     return library;
   };
-  return { dataDir, requests, create, get peak() { return peak; },
+  return { dataDir, requests, diagnostics, create, get peak() { return peak; },
     offline(value = true) { offline = value; }, corrupt(value = true) { corrupt = value; },
     block() { gate = Promise.withResolvers(); return gate; },
     update(name, bytes) {
@@ -240,6 +242,10 @@ test('changed files replace atomically; failed hash checks keep the previous ver
   const failed = await library.initialize();
   assert.equal(failed.status, 'error');
   assert.equal(failed.failed, 1);
+  assert.equal(f.diagnostics.length, 1);
+  assert.equal(f.diagnostics[0].resourceId, name);
+  assert.equal(f.diagnostics[0].phase, 'download');
+  assert.equal(f.diagnostics[0].code, 'RESOURCE_HASH_INVALID');
   assert.deepEqual(await fs.readFile(library.resolveAsset(name)), old);
   assert.equal((await fs.readdir(path.join(f.dataDir, 'cache/resources'))).some(name => name.endsWith('.tmp')), false);
   f.corrupt(false);
@@ -259,6 +265,24 @@ test('an offline check retains a complete cache without a download notification'
   assert.equal(state.total, 0);
   assert.equal(states.some(state => state.status === 'downloading'), false);
   assert.ok(library.resolveAsset('fonts/one.woff2'));
+  assert.equal(f.diagnostics.length, 0, 'A usable offline cache needs no failure warning.');
+});
+
+test('an unavailable manifest records a bounded cause without the raw network error', async t => {
+  const name = 'fonts/one.woff2';
+  const bytes = Buffer.from('font');
+  const f = await fixture(t, { [name]: bytes });
+  const diagnostics = [];
+  const library = createResourceLibrary({ dataDir: f.dataDir, files: [file(name, bytes)],
+    fetch: async () => { throw new Error('request https://private.example/?token=secret failed'); },
+    logger: { warn: (_message, diagnostic) => diagnostics.push(diagnostic) } });
+  t.after(() => library.close());
+  assert.equal((await library.initialize()).status, 'error');
+  assert.equal(diagnostics.length, 1);
+  assert.equal(diagnostics[0].phase, 'manifest');
+  assert.equal(diagnostics[0].code, 'RESOURCE_OPERATION_FAILED');
+  assert.equal(JSON.stringify(diagnostics).includes('secret'), false);
+  assert.equal(JSON.stringify(diagnostics).includes('private.example'), false);
 });
 
 test('invalid manifest paths and excessive sizes cannot introduce filesystem or network targets', async t => {
@@ -320,7 +344,9 @@ test('closing removes partial files while keeping committed resources for the ne
   const files = Object.entries(contents).map(([name, bytes]) => file(name, bytes));
   const packaged = packageFixture(files, file => contents[file.path]);
   const fontPackage = [...packaged.responses].find(([url]) => url.endsWith('.zip'))[1];
-  const resources = createResourceLibrary({ dataDir: f.dataDir, files, fetch: async (url, options) => {
+  const diagnostics = [];
+  const resources = createResourceLibrary({ dataDir: f.dataDir, files,
+    logger: { warn: (_message, diagnostic) => diagnostics.push(diagnostic) }, fetch: async (url, options) => {
     if (url.endsWith('/manifest.json')) return Response.json(packaged.manifest);
     if (url.endsWith('.zip')) return new Response(fontPackage);
     return new Response(new ReadableStream({ start(controller) {
@@ -337,6 +363,7 @@ test('closing removes partial files while keeping committed resources for the ne
   await partial.promise;
   await resources.close();
   await pending;
+  assert.equal(diagnostics.length, 0, 'Closing the library is not a failed download.');
   assert.equal((await fs.readdir(path.join(f.dataDir, 'cache/resources'))).some(name => name.endsWith('.tmp')), false);
   const restored = f.create();
   assert.equal((await restored.initialize()).total, 1);

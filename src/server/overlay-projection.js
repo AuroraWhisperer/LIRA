@@ -45,7 +45,7 @@ const SETTING_KEYS = {
     desktopLyricOpacity desktopLyricPerspective desktopLyricRotateX desktopLyricRotateY desktopLyricSaturation
     desktopLyricScale desktopLyricScaleEffect desktopLyricShadowBlur desktopLyricShadowColor
     desktopLyricShadowEnabled desktopLyricShadowIntensity desktopLyricShadowOffsetX desktopLyricShadowOffsetY
-    desktopLyricShowTitleWhenNoLyric desktopLyricShowTranslation desktopLyricSpringAnimation
+    desktopLyricShowTitleWhenNoLyric desktopLyricShowTranslation desktopLyricShowRoma desktopLyricSpringAnimation
     desktopLyricStrokeColor desktopLyricStrokeEnabled desktopLyricStrokeWidth desktopLyricTextAlign
     desktopLyricTextColor desktopLyricSungColor
     desktopLyricTimeOffsetMs desktopLyricTraditionalMode desktopLyricTranslateX

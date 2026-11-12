@@ -110,6 +110,24 @@ test('RGBA editing preserves alpha through RGB changes, form submission, cloning
   assert.equal(await picker.isVisible(), false);
 });
 
+test('an invalid RGB channel cannot turn another channel edit into a committed color', async t => {
+  const page = await pageFor(t, '<input id="color" type="color" value="#112233">');
+  const color = page.locator('#color');
+  await color.click();
+  const picker = page.getByRole('dialog', { name: '颜色与不透明度' });
+  await picker.getByLabel('红色 R', { exact: true }).fill('300');
+  await picker.getByLabel('绿色 G', { exact: true }).fill('100');
+  await picker.getByRole('button', { name: '完成', exact: true }).click();
+  assert.equal(await color.inputValue(), '#112233');
+  assert.deepEqual(await page.evaluate(() => window.colorEvents), []);
+
+  await color.click();
+  await picker.getByLabel('绿色 G', { exact: true }).fill('100');
+  await picker.getByRole('button', { name: '完成', exact: true }).click();
+  assert.equal(await color.inputValue(), '#116433');
+  assert.deepEqual(await page.evaluate(() => window.colorEvents.map(event => event.type)), ['input', 'change']);
+});
+
 test('RGB-only fields keep opaque values and restore alpha controls when switching back to RGBA', async t => {
   const page = await pageFor(t, '<form><input id="solid" type="color" name="solid" value="#12345680" data-color-alpha="false"><input id="rgba" type="color" name="rgba" value="#44556680"></form>');
   const solid = page.locator('#solid');

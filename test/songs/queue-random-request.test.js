@@ -171,6 +171,20 @@ for (const phase of ['initial identity', 'final identity']) {
   });
 }
 
+test('random song rechecks the LIRA request authorization before inserting for an unchanged Bilibili identity', async t => {
+  const f = await randomFixture(t);
+  let authorized = true;
+  const pending = f.runtime.requestRandomSong({ authorize() {
+    if (!authorized) throw Object.assign(new Error('authorization changed'), { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+  } });
+  await f.profileEntered.promise;
+  authorized = false;
+  f.profile.resolve({ name: '账号42' });
+  await assert.rejects(pending, { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+  assert.deepEqual(f.rows, []);
+  assert.equal(f.cooldown.size, 0);
+});
+
 test('same-account renewal and reconnect preserve a random request and later switches keep its queued song', async (t) => {
   const f = await randomFixture(t);
   const pending = f.runtime.requestRandomSong();
@@ -233,8 +247,8 @@ test('a failed room commit preserves the pending random request', async (t) => {
   assert.equal(f.rows.length, 1);
 });
 
-test('desktop random applies verified room gates and guard cooldowns without trusting absent medal evidence', async (t) => {
-  const f = await randomFixture(t);
+test('desktop random applies verified short-room gates and guard cooldowns only for the configured client', async (t) => {
+  const f = await randomFixture(t, { resolvedRoomId: '100123' });
   f.profile.resolve({ name: '账号42' });
   f.settingsStore.setSettings({ songRequestMinMedalLevel: '1', userCooldownSeconds: '60', userCooldownCaptainSeconds: '0' });
   assert.equal((await f.runtime.requestRandomSong()).code, 'REQUESTER_MEDAL_REQUIRED');
@@ -244,12 +258,14 @@ test('desktop random applies verified room gates and guard cooldowns without tru
   f.settingsStore.setSetting('songRequestGuardLevel', '3');
   assert.equal((await f.runtime.requestRandomSong()).accepted, true);
   assert.equal((await f.runtime.requestRandomSong()).accepted, true, 'verified captain override zero bypasses the general interval');
+  f.settingsStore.setSetting('roomId', '200');
+  assert.equal((await f.runtime.requestRandomSong()).code, 'REQUESTER_GUARD_REQUIRED', 'a previous client cannot supply the new room identity');
   f.settingsStore.setSetting('songRequestUserBlacklist', JSON.stringify([{ uid: '42', expiresAt: 0 }]));
   assert.equal((await f.runtime.requestRandomSong()).code, 'REQUESTER_BLACKLISTED');
   assert.equal(f.rows.length, 2);
 });
 
-async function randomFixture(t) {
+async function randomFixture(t, { resolvedRoomId = '100' } = {}) {
   const db = new DatabaseSync(':memory:');
   db.exec('CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL, updated_at TEXT NOT NULL)');
   const settingsStore = createSettingsStore(db);
@@ -280,12 +296,13 @@ async function randomFixture(t) {
     readRoomGuardCount: async () => null,
     buildClient(roomId, context) {
       const users = context.userInfoService;
-      users.setRoom({ roomId, ownerUid: roomId === '100' ? '900' : '901' });
+      users.setRoom({ roomId: roomId === '100' ? resolvedRoomId : roomId, ownerUid: roomId === '100' ? '900' : '901' });
       const run = users.beginRoomRun();
       users.ingestHint({ uid: '42', roomIdentity: { guardKnown: true, guardLevel: roomId === '100' ? 3 : 1 } },
         { ...run, source: 'danmaku', roomIdentityVerified: true });
       return {
         roomId,
+        roomRunContext: run,
         apiClient: { fetchUserProfile: () => { profileEntered.resolve(); return profile.promise; } },
         start() {},
         async restart() {},

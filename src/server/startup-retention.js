@@ -2,7 +2,7 @@
 
 const RETENTION_INTERVAL_MS = 60 * 60 * 1000;
 
-function startRetentionMaintenance(settingsStore, dataService) {
+function startRetentionMaintenance(settingsStore, dataService, requestGiftMaintenance = () => {}) {
   let disposed = false;
   let continuation = null;
   function run(giftEventsOnly = false) {
@@ -11,6 +11,7 @@ function startRetentionMaintenance(settingsStore, dataService) {
     continuation = null;
     try {
       if (settingsStore.getSettings().autoRetentionOnStartup !== 'true') return;
+      requestGiftMaintenance();
       const result = giftEventsOnly
         ? dataService.runRetention({ giftEventsOnly: true })
         : dataService.runRetention();

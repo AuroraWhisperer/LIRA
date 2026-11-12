@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../../shared/public-error');
+
 const fs = require('node:fs');
 const path = require('node:path');
 const saleCatalogParser = require('./sale-catalog-parser');
@@ -80,7 +82,7 @@ function createGiftSaleCatalogService(options = {}) {
       validateBilibiliPayload(giftData, '礼物面板');
       validateBilibiliPayload(giftConfig, '礼物配置');
       const panelSaleIds = collectPanelGiftIds(giftData);
-      if (panelSaleIds.size === 0) throw new Error('礼物面板没有返回可用礼物。');
+      if (panelSaleIds.size === 0) throw createPublicError('礼物面板没有返回可用礼物。');
       const configById = parseGiftConfig(giftConfig);
       const saleIds = expandBlindBoxSaleIds(panelSaleIds, configById, getBlindBoxConfig());
       const gifts = buildGiftCatalog(saleIds, configById);
@@ -92,7 +94,7 @@ function createGiftSaleCatalogService(options = {}) {
         gifts,
         cached: false,
       };
-      if (validateRoomId(getRoomId()) !== roomId) throw new Error('直播间已切换，请重新刷新在售礼物。');
+      if (validateRoomId(getRoomId()) !== roomId) throw createPublicError('直播间已切换，请重新刷新在售礼物。');
       writeJsonAtomic(snapshotPath, {
         schemaVersion: SNAPSHOT_SCHEMA_VERSION,
         ...nextSnapshot,
@@ -123,14 +125,16 @@ function createGiftSaleCatalogService(options = {}) {
 function validateRoomId(value) {
   const text = String(value || '').trim();
   if (!/^\d{1,20}$/.test(text) || BigInt(text) <= 0n) {
-    throw new Error('请先在设置中填写有效的直播间号。');
+    throw createPublicError('请先在设置中填写有效的直播间号。');
   }
   return text;
 }
 
 function validateBilibiliPayload(payload, label) {
   if (!payload || Number(payload.code) !== 0 || !payload.data) {
-    throw new Error(`${label}接口返回错误：${payload?.message || payload?.msg || payload?.code || '无数据'}`);
+    throw Object.assign(new Error(`${label}接口返回错误：${payload?.message || payload?.msg || payload?.code || '无数据'}`), {
+      statusCode: 400, publicMessage: `${label}接口返回错误，请稍后重试。`,
+    });
   }
 }
 

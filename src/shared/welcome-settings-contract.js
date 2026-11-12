@@ -1,5 +1,7 @@
 'use strict';
 
+const { normalizeTimeWelcomeMessages } = require('../../public/js/shared/welcome-time-periods.js');
+
 const NUMBER_RANGES = {
   welcomeDelaySeconds: [0, 300],
   welcomeMinHonorLevel: [0, 999],
@@ -7,14 +9,16 @@ const NUMBER_RANGES = {
   greetingMinHonorLevel: [0, 999],
   attentionMinHonorLevel: [1, 999],
 };
-const BOOLEAN_FIELDS = ['enabled', 'greetingEnabled', 'attentionEnabled', 'rareNamePinyinEnabled', 'returningEnabled'];
+const BOOLEAN_FIELDS = ['enabled', 'greetingEnabled', 'attentionEnabled', 'rareNamePinyinEnabled', 'returningEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'];
 const LIBRARY_FIELDS = ['messages', 'greetingMessages', 'attentionWelcomeMessages', 'attentionGreetingMessages', 'returningMessages'];
-const WELCOME_FIELDS = [...BOOLEAN_FIELDS, ...Object.keys(NUMBER_RANGES), ...LIBRARY_FIELDS, 'userWelcomeMessages'];
-const REQUIRED_FIELDS = WELCOME_FIELDS.filter((key) => !['userWelcomeMessages', 'returningEnabled', 'returningMessages'].includes(key));
+const AUDIENCE_FIELDS = ['welcomeWhitelist', 'welcomeBlacklist'];
+const WELCOME_FIELDS = [...BOOLEAN_FIELDS, ...Object.keys(NUMBER_RANGES), ...LIBRARY_FIELDS, ...AUDIENCE_FIELDS, 'userWelcomeMessages', 'timeWelcomeMessages'];
+const REQUIRED_FIELDS = WELCOME_FIELDS.filter((key) => ![...AUDIENCE_FIELDS, 'userWelcomeMessages', 'returningEnabled', 'returningMessages', 'timeWelcomeEnabled', 'timeWelcomeMessages', 'welcomeOwnMedalOnly'].includes(key));
 const ERROR_REASONS = [
   'BOOLEAN_REQUIRED',
   'OUT_OF_RANGE',
   'INVALID_MESSAGES',
+  'INVALID_USERS',
   'WELCOME_REQUIRED',
   'AFTER_WELCOME_REQUIRED',
 ];
@@ -58,7 +62,15 @@ function welcomeV2Parameters(value) {
     if (BOOLEAN_FIELDS.includes(key) && typeof field !== 'boolean') fail();
     const range = NUMBER_RANGES[key];
     if (range && (!Number.isInteger(field) || field < range[0] || field > range[1])) fail();
-    if (key === 'userWelcomeMessages') {
+    if (AUDIENCE_FIELDS.includes(key)) {
+      if (!Array.isArray(field) || field.length > 100 || new Set(field).size !== field.length ||
+        field.some((uid) => typeof uid !== 'string' || !/^[1-9]\d{0,19}$/.test(uid)))
+        throw Object.assign(new Error(), {
+          code: 'INVALID_WELCOME_SETTINGS',
+          fieldErrors: [{ field: key, reason: 'INVALID_USERS' }],
+        });
+      result[key] = [...field];
+    } else if (key === 'userWelcomeMessages') {
       try {
         if (!Array.isArray(field) || field.length > 100) fail('INVALID_WELCOME_MESSAGES');
         const uids = new Set();
@@ -82,6 +94,15 @@ function welcomeV2Parameters(value) {
           fieldErrors: [{ field: key, reason: 'INVALID_MESSAGES' }],
         });
       }
+    } else if (key === 'timeWelcomeMessages') {
+      try {
+        result[key] = normalizeTimeWelcomeMessages(field, normalizeWelcomeMessages, true);
+      } catch {
+        throw Object.assign(new Error(), {
+          code: 'INVALID_WELCOME_MESSAGES',
+          fieldErrors: [{ field: key, reason: 'INVALID_MESSAGES' }],
+        });
+      }
     } else if (LIBRARY_FIELDS.includes(key)) {
       result[key] = normalizeWelcomeMessages(field);
     } else result[key] = field;
@@ -96,8 +117,12 @@ function sanitizeWelcomeV2(value) {
     const settings = welcomeV2Parameters(Object.fromEntries(
       WELCOME_FIELDS.filter((key) => Object.hasOwn(value, key)).map((key) => [key, value[key]]),
     ));
+    if (Object.hasOwn(settings, 'timeWelcomeMessages'))
+      normalizeTimeWelcomeMessages(settings.timeWelcomeMessages, normalizeWelcomeMessages);
     if (
       (Object.hasOwn(settings, 'returningEnabled') !== Object.hasOwn(settings, 'returningMessages')) ||
+      (Object.hasOwn(settings, 'timeWelcomeEnabled') !== Object.hasOwn(settings, 'timeWelcomeMessages')) ||
+      (Object.hasOwn(settings, 'welcomeWhitelist') !== Object.hasOwn(settings, 'welcomeBlacklist')) ||
       (!settings.enabled && (settings.greetingEnabled || settings.attentionEnabled || settings.returningEnabled)) ||
       (settings.greetingEnabled && settings.greetingDelaySeconds <= settings.welcomeDelaySeconds)
     )

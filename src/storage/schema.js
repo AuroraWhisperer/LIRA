@@ -10,6 +10,7 @@
  * 已执行过的步骤不会重复执行；新增步骤只需往数组末尾追加。
  */
 function runMigrations(db, key, steps) {
+  const current = assertSchemaCompatible(db, key, steps.length);
   db.exec(`
     CREATE TABLE IF NOT EXISTS schema_version (
       key TEXT PRIMARY KEY,
@@ -17,13 +18,10 @@ function runMigrations(db, key, steps) {
     )
   `);
 
-  const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
-  const current = row ? Number(row.version) || 0 : 0;
   const target = steps.length;
 
-  // 库版本高于代码版本时（用户降级过程序）不做任何事，避免把新表结构改坏
-  if (current >= target) {
-    writeSchemaVersion(db, key, Math.max(current, target));
+  if (current === target) {
+    writeSchemaVersion(db, key, target);
     return { key, from: current, to: current, applied: 0 };
   }
 
@@ -57,12 +55,19 @@ function writeSchemaVersion(db, key, version) {
 }
 
 function getSchemaVersion(db, key) {
-  try {
-    const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
-    return row ? Number(row.version) || 0 : 0;
-  } catch (_) {
-    return 0;
+  if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_version'").get()) return 0;
+  const row = db.prepare('SELECT version FROM schema_version WHERE key = ?').get(key);
+  return row ? Number(row.version) || 0 : 0;
+}
+
+function assertSchemaCompatible(db, key, target) {
+  const current = getSchemaVersion(db, key);
+  if (current > target) {
+    throw Object.assign(new Error(`数据库 ${key} 的版本 v${current} 高于此应用支持的 v${target}，请使用新版 LIRA 打开。`), {
+      code: 'DATABASE_SCHEMA_TOO_NEW',
+    });
   }
+  return current;
 }
 
 // ── 点歌库 DDL ──
@@ -541,6 +546,7 @@ const CHECKIN_SCHEMA = `
 `;
 
 module.exports = {
+  assertSchemaCompatible,
   runMigrations,
   getSchemaVersion,
   SONG_TABLE_SCHEMA,

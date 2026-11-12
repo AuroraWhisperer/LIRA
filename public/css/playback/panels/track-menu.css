@@ -1,26 +1,30 @@
-/* 轨道菜单（我喜欢/歌单详情） */
+/* 快捷入口曲目共用菜单 */
 .track-menu-wrapper {
   position: relative;
 }
 
 .track-menu-btn {
-  min-width: 40px;
-  min-height: 36px;
-  padding: 6px;
+  width: 36px;
+  min-width: 36px;
+  height: 28px;
+  min-height: 28px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border);
+  border: 1px solid var(--color-border-default);
   border-radius: var(--radius-control);
-  background: var(--surface);
-  color: var(--text);
+  background: transparent;
+  color: var(--muted);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 150ms ease, color 150ms ease, transform 150ms ease;
 }
 
-.track-menu-btn:hover {
+.track-menu-btn:hover,
+.track-menu-btn[aria-expanded='true'] {
   background: var(--color-bg-hover, var(--color-bg-tertiary));
-  border-color: var(--color-border-strong);
+  border-color: var(--color-border-default);
+  color: var(--text);
 }
 
 .track-menu-btn:active {
@@ -31,8 +35,9 @@
   position: absolute;
   top: calc(100% + 4px);
   right: 0;
-  min-width: 96px;
-  padding: 6px;
+  width: max-content;
+  min-width: 80px;
+  padding: 4px;
   background: var(--color-floating-surface, var(--surface));
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);
@@ -44,18 +49,29 @@
   display: none;
 }
 
+.track-menu.opens-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
 .track-menu button {
+  display: block;
   width: 100%;
   min-height: 36px;
   padding: 8px 12px;
   text-align: center;
+  white-space: nowrap;
   border: none;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   color: var(--text);
   font-size: var(--type-size-control);
   cursor: pointer;
   transition: background 0.15s ease;
+}
+
+.track-menu button + button {
+  border-top: 1px solid var(--color-border-default);
 }
 
 .track-menu button:hover {

@@ -61,6 +61,6 @@ LIRA 已经按目录拆分为模块化单体，但部分边界仍依赖大型编
 
 - `../engineering/modularity-standard.md`
 - `0001-runtime-boundaries.md`
-- `../backend/server-core.md`
-- `../frontend/app.md`
-- `../frontend/playback.md`
+- [server-core.md](../../reference/backend/server-core.md)
+- [app.md](../../reference/frontend/app.md)
+- [playback.md](../../reference/frontend/playback.md)

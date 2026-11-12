@@ -61,15 +61,18 @@ export function renderGiftHistoryView(view) {
   const items = view.ledger.items;
   const detailStart = view.ledger.retention?.detailStart;
   const retentionText = detailStart
-    ? `${new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Shanghai' }).format(new Date(detailStart))}之前的逐笔明细已过保留期，历史汇总仍保留。`
+    ? `本机保留已接收的约一年明细，服务器可恢复约90天，历史统计长期保留。${
+      view.ledger.retention.availability === 'expired' ? '所选日期已过本机明细保留期。'
+        : view.ledger.retention.availability === 'partial' ? '所选范围明细不完整，仅展示本机已有记录。' : ''}`
     : '';
   setText('giftHistoryTotal', `共 ${view.ledger.total} 条`);
   const total = get('giftHistoryTotal');
   if (total) total.hidden = false;
   setText('giftHistoryState', retentionText || (items.length === 0 ? '暂无礼物记录' : '已加载'));
+  get('giftHistoryState')?.classList.toggle('sr-only', !retentionText);
   setHistoryBody(
     items.length === 0
-      ? `<tr><td colspan="7" class="empty"><strong>${detailStart ? '当前范围没有可用明细' : '暂无礼物记录'}</strong><span>${escapeHtml(retentionText || '收到礼物后，记录会显示在这里。')}</span></td></tr>`
+      ? `<tr><td colspan="7" class="empty"><strong>${detailStart ? '当前范围没有可用明细' : '暂无礼物记录'}</strong>${detailStart ? '' : '<span>收到礼物后，记录会显示在这里。</span>'}</td></tr>`
       : items.map(renderGiftHistoryRow).join(''),
   );
   renderGiftHistorySortView(view);
@@ -168,6 +171,7 @@ export function describeGiftSyncStatus(syncState, partial) {
 export function renderHistoryNoticeView({ state = 'partial', label, detail = '', retry = false }, view) {
   const hasRows = view.hasRows;
   setText('giftHistoryState', label);
+  get('giftHistoryState')?.classList.add('sr-only');
   setSyncNotice({ state, label }, !hasRows);
   const total = get('giftHistoryTotal');
   if (total) total.hidden = !hasRows;

@@ -37,6 +37,7 @@ test('display overlay URLs use explicit settings capabilities without the legacy
   });
   window.AdminApp = {};
   display.initOverlayUrls();
+  assert.equal(nodes.get('localDanmakuUrl').textContent, 'http://127.0.0.1:3012/danmaku?source=component');
   assert.equal(nodes.get('songsUrl').textContent, 'http://127.0.0.1:3012/songlist');
   assert.equal(nodes.get('liveGiftWishUrl').textContent, 'http://127.0.0.1:3012/gift-wishes');
   assert.equal(nodes.get('blindboxOverlayUrl').textContent, 'http://127.0.0.1:3012/blindbox');

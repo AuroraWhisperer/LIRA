@@ -29,18 +29,15 @@ function registerLicenseOverlayIpc({ safeHandle, licenseManager, onOverlaySettin
   safeHandle(
     'license:get-overlay-filters',
     async () => sanitizeOverlayFilters(await licenseManager.getOverlayFilters()),
-    true,
   );
   safeHandle(
     'license:update-overlay-filters',
     async (settings) =>
       sanitizeOverlayFilters(await licenseManager.updateOverlayFilters(overlayFilterParameters(settings))),
-    true,
   );
   safeHandle(
     'license:get-overlay-viewers',
     async () => sanitizeOverlayViewers(await licenseManager.getOverlayViewers()),
-    true,
   );
   safeHandle('license:get-welcome-settings', async () =>
     sanitizeWelcomeSettings(await licenseManager.getWelcomeSettings()),

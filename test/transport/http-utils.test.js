@@ -4,6 +4,7 @@ const assert = require('node:assert/strict');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
 const httpUtils = require('../../src/server/http-utils');
+const { createPublicError } = require('../../src/shared/public-error');
 
 test('sendStableError maps known failures and never exposes internal details', () => {
   const stackError = new Error('Critical failure');
@@ -14,6 +15,9 @@ test('sendStableError maps known failures and never exposes internal details', (
     ['XLSX resource limit', Object.assign(new Error('Excel file is too large (expanded bytes).'), { code: 'XLSX_RESOURCE_LIMIT_EXCEEDED' }), 413, 'Request body exceeds size limit.'],
     ['upstream JSON error', new Error('Upstream returned invalid JSON'), 500, 'Internal server error.'],
     ['upstream size error', new Error('Upstream image too large'), 500, 'Internal server error.'],
+    ['unmarked dependency conflict', Object.assign(new Error('/private/path'), { statusCode: 409 }), 500, 'Internal server error.'],
+    ['public domain conflict', createPublicError('Please finish the active session.', 409), 409, 'Please finish the active session.'],
+    ['separate public message', Object.assign(createPublicError('Please retry.', 501), { message: 'private upstream detail' }), 501, 'Please retry.'],
     [
       'unexpected exception',
       new Error('Unexpected database connection failed at /internal/path/db.js:42'),

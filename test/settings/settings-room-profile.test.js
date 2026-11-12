@@ -11,7 +11,8 @@ async function fixture(loadProfile) {
     { URL, URLSearchParams },
   );
   const elements = Object.fromEntries(
-    ['roomId', 'bilibiliRoomStatus', 'bilibiliRoomAvatar', 'bilibiliRoomName'].map((id) => [
+    ['roomId', ...['Status', 'Hint', 'Avatar', 'Name', 'Overview', 'RefreshBtn', 'Title', 'Level',
+      'Followers', 'Uid', 'Medal', 'Id', 'LiveStatus', 'Area', 'Announcement'].map((field) => `bilibiliRoom${field}`)].map((id) => [
       id,
       {
         value: '123',
@@ -56,12 +57,24 @@ test('room card renders owner identity with the existing authenticated avatar pr
         uid: '456',
         name: '房主名字',
         avatarUrl: 'https://i0.hdslb.com/bfs/face/owner.jpg',
+        title: '<直播标题>', liveStatus: 2, level: 23, followers: 2444264,
+        medalName: '粉丝牌', parentAreaName: '娱乐', areaName: '视频唱见', announcement: '',
       },
     };
   });
   await view.refresh('123');
   assert.equal(elements.bilibiliRoomName.textContent, '房主名字');
   assert.equal(elements.roomId.value, '123');
+  assert.equal(elements.bilibiliRoomOverview.hidden, false);
+  assert.equal(elements.bilibiliRoomHint.textContent, '');
+  assert.equal(elements.bilibiliRoomTitle.textContent, '<直播标题>');
+  assert.match(elements.bilibiliRoomLevel.textContent, /23/);
+  assert.equal(elements.bilibiliRoomFollowers.textContent, '2,444,264');
+  assert.equal(elements.bilibiliRoomUid.textContent, '456');
+  assert.equal(elements.bilibiliRoomId.textContent, '123000');
+  assert.equal(elements.bilibiliRoomMedal.textContent, '粉丝牌');
+  assert.match(elements.bilibiliRoomArea.textContent, /娱乐.*视频唱见/);
+  assert.match(elements.bilibiliRoomLiveStatus.textContent, /轮播/);
   const avatar = elements.bilibiliRoomAvatar;
   assert.equal(avatar.hidden, false);
   const source = new URL(avatar.src, 'http://127.0.0.1');
@@ -76,6 +89,9 @@ test('room card renders owner identity with the existing authenticated avatar pr
   assert.equal(module.getBilibiliRoomProfileSnapshot('456'), null);
   await view.refresh('123');
   assert.equal(requests, 1, 'Unrelated snapshots must not repeat the profile lookup');
+  await elements.bilibiliRoomRefreshBtn.listeners.click();
+  assert.equal(requests, 2, 'Manual refresh reloads the saved room without changing the input');
+  assert.equal(elements.bilibiliRoomRefreshBtn.disabled, false);
   avatar.listeners.error();
   assert.equal(avatar.hidden, true);
   assert.equal(avatar.src, '');
@@ -98,6 +114,7 @@ test('editing a room clears the previous identity and invalidates pending respon
   await loading;
   assert.doesNotMatch(elements.bilibiliRoomName.textContent, /旧房主/);
   assert.equal(elements.bilibiliRoomAvatar.hidden, true);
+  assert.equal(elements.bilibiliRoomOverview.hidden, true);
   assert.equal(module.getBilibiliRoomProfileSnapshot('123'), null);
   assert.equal(profiles.at(-1), null);
 });
@@ -132,4 +149,6 @@ test('an empty room skips lookup and a failed lookup can be retried on save', as
   assert.notEqual(elements.bilibiliRoomStatus.textContent, failedStatus);
   assert.equal(elements.bilibiliRoomName.textContent, '房主');
   assert.equal(elements.bilibiliRoomAvatar.hidden, true);
+  assert.equal(elements.bilibiliRoomLevel.hidden, true);
+  assert.equal(elements.bilibiliRoomFollowers.textContent, '—', 'Missing data must not appear as zero followers');
 });

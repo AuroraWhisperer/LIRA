@@ -48,6 +48,7 @@ export function normalizeDesktopLyricSettings(settings = {}, defaults = {}) {
     shadowOffsetX: clamp(numberSetting(values.desktopLyricShadowOffsetX, 0), -20, 20),
     shadowOffsetY: clamp(numberSetting(values.desktopLyricShadowOffsetY, 3), -20, 20),
     showTranslation: boolSetting(values.desktopLyricShowTranslation, true),
+    showRoma: boolSetting(values.desktopLyricShowRoma, true),
     translationScale: clamp(numberSetting(values.desktopLyricTranslationScale, 0.65), 0.4, 1),
     karaokeEnabled: karaokeMode !== 'off',
     karaokeMode,

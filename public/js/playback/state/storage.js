@@ -72,6 +72,7 @@ export class StorageManager {
         normalQueue: state.normalQueue,
         normalQueueTracks: state.normalQueueTracks,
         radioQueue: state.radioQueue,
+        radioOffset: state.radioOffset,
         queueType: state.queueType,
         queueTitle: state.queueTitle,
         queueSourceKey: state.queueSourceKey,

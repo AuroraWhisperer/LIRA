@@ -19,6 +19,16 @@ const SUBSCRIPTION_TOPICS = new Set(['danmaku']);
 // music baseline only when connecting, not again on unrelated gift snapshots.
 const MUSIC_EVENT_FIELDS = ['lyricState', 'lyricTimeline', 'nowPlaying', 'lyricSource', 'weSing'];
 
+function isValidHandshake(req) {
+  const headers = req.headers;
+  const key = headers['sec-websocket-key'];
+  return req.method === 'GET' && Number(req.httpVersion) >= 1.1 &&
+    typeof headers.upgrade === 'string' && headers.upgrade.toLowerCase() === 'websocket' &&
+    typeof headers.connection === 'string' && headers.connection.toLowerCase().split(',').some((token) => token.trim() === 'upgrade') &&
+    headers['sec-websocket-version'] === '13' && typeof key === 'string' &&
+    /^[A-Za-z0-9+/]{22}==$/.test(key) && Buffer.from(key, 'base64').toString('base64') === key;
+}
+
 function createWebSocketHub(options = {}) {
   const sockets = new Set();
   const closingSockets = new Map();
@@ -36,11 +46,12 @@ function createWebSocketHub(options = {}) {
       socket.destroy();
       return;
     }
-    const key = req.headers['sec-websocket-key'];
-    if (!key) {
+    if (!isValidHandshake(req)) {
+      socket.write('HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
       socket.destroy();
       return;
     }
+    const key = req.headers['sec-websocket-key'];
 
     const requestUrl = new URL(req.url, `http://${req.headers.host || '127.0.0.1'}`);
     const principal = resolveRequestPrincipal(context, req, requestUrl);
@@ -475,25 +486,7 @@ function parseSubscriptionTopics(searchParams) {
   return topics;
 }
 
-const compatibilityHub = createWebSocketHub();
-
-function handleWebSocketUpgrade(context, req, socket, head) {
-  compatibilityHub.handleUpgrade(context, req, socket, head);
-}
-
-function broadcastSnapshot(context, reason) {
-  const sockets = context && context.state && context.state.sockets;
-  if (!sockets) return;
-  const payload = { type: 'snapshot', reason, state: readSnapshot(context, sockets) };
-  const frames = new Map();
-  for (const socket of Array.from(sockets)) {
-    sendWebSocket(socket, payload, frames);
-  }
-}
-
 module.exports = {
   createWebSocketHub,
-  handleWebSocketUpgrade,
-  broadcastSnapshot,
   sendWebSocket,
 };

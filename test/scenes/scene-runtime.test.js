@@ -184,6 +184,25 @@ for (const type of ['gift-feed', 'gift-wishes']) {
   });
 }
 
+test('runtime blind-box output acknowledges unchanged projection revisions', async (t) => {
+  const { runtime, request } = await fixture(t);
+  const giftSource = runtime.resolveGiftSource('a'.repeat(64));
+  runtime.setActiveGiftSource({ sourceId: giftSource.id, syncState: 'LIVE', partial: false });
+  const saved = await createScene(request, [{ ...component('blindbox'),
+    appearance: { mode: 'independent', config: createSceneExtraDefaults('blindbox') } }]);
+  const id = saved.document.id;
+  await request('/api/scenes/publish', { body: { id, expectedRevision: saved.revision } });
+  const source = await request(`/api/scenes/source?id=${id}`);
+  const output = (versions, version = 0) => request(`/api/scene/output?id=${id}&version=${version}${versions === undefined ? ''
+    : `&dataVersions=${encodeURIComponent(JSON.stringify(versions))}`}`, { token: source.token });
+  const first = await output({});
+  assert.ok(first.data.blindbox);
+  const unchanged = await output(first.dataVersions, first.version);
+  assert.equal(unchanged.data.blindbox, undefined);
+  assert.equal(unchanged.dataVersions.blindbox, first.dataVersions.blindbox);
+  assert.ok((await output()).data.blindbox, 'consumers without acknowledgements still receive full data');
+});
+
 test('runtime gift preview broadcasts reach only their independent scene projections', async (t) => {
   const { request, state } = await fixture(t);
   const items = ['gift-frame', 'guard-thanks'].map(type => ({ ...component(type),
@@ -370,8 +389,15 @@ test('runtime scene streams notify game updates, drawing operations and round pa
       sessionId: started.sessionId, round: 1, color: '#222034', width: 4, points: [{ x: 0.1, y: 0.1 }] } });
     await expectEvent('change');
     assert.equal((await session()).state.canvas.strokes[0].id, 'stroke-1');
+    const first = await request(`/api/scene/output?id=${id}&incrementalParts=1&dataVersions={}`, { token: source.token });
+    assert.equal(first.data.games.session.state.canvas.strokes[0].id, 'stroke-1');
     await request('/api/games/session/move', { body: { value: { action: 'finish-round' } } });
     await expectEvent('change');
+    const changed = await request(`/api/scene/output?id=${id}&version=${first.version}&incrementalParts=1&dataVersions=${
+      encodeURIComponent(JSON.stringify(first.dataVersions))}`, { token: source.token });
+    assert.equal(changed.data.games.session.state.phase, 'round-result');
+    assert.equal(changed.data.games.session.state.canvas, undefined, 'round updates omit the unchanged canvas');
+    assert.equal((await session()).state.canvas.strokes[0].id, 'stroke-1', 'unnegotiated consumers still receive the canvas');
     assert.equal((await session()).state.phase, 'round-result');
   } finally {
     abort.abort();

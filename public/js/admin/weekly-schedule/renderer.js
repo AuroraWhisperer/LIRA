@@ -1,4 +1,4 @@
-import { getWeekDates } from './model.js';
+import { getWeekDates, getWeeklyImagePath } from './model.js';
 import { createWeeklyScheduleIcon } from './icons.js';
 
 const WEEKDAYS = {
@@ -61,9 +61,12 @@ function setPalette(root, template) {
     'on-accent': contrastColor(accent),
   };
   const papers = [colors.paper, colors['accent-soft']];
-  colors['accent-ink'] = template.layout === 'celestial'
-    ? readableTint(accent, [mixColor(primary, '#243c52', 0.82)], '#fff1cb')
+  if (template.layout === 'letterpress') papers.push(mixColor(primary, '#fbf6eb', 0.9));
+  const darkPaper = { celestial: mixColor(primary, '#243c52', 0.82), nocturne: mixColor(primary, '#1b2532', 0.8) }[template.layout];
+  colors['accent-ink'] = darkPaper
+    ? readableTint(accent, [darkPaper], '#fff1cb')
     : readableTint(accent, papers);
+  if (template.layout === 'nocturne') colors.line = mixColor(accent, '#344252', 0.65);
   colors.muted = readableTint(colors.muted, papers);
   for (const [name, color] of Object.entries(colors)) {
     const prefix = ['paper', 'base', 'soft', 'ink', 'muted'].includes(name) ? '--wsa-color-' : '--wsa-';
@@ -95,11 +98,14 @@ function createArtBuilder(documentRef, template) {
     wrapper.setAttribute('aria-hidden', 'true');
     if (template.icon === 'custom' && template.assets.icon) {
       wrapper.classList.add('wsa-custom-icon');
-      wrapper.append(image(template.assets.icon, '', ''));
+      const artwork = node('span', 'wsa-custom-art');
+      artwork.append(image(template.assets.icon, '', ''));
       if (template.iconTint) {
-        wrapper.classList.add('is-tinted');
-        wrapper.style.maskImage = `url("${template.assets.icon}")`;
+        artwork.classList.add('is-tinted');
+        artwork.style.maskImage = `url("${template.assets.icon}")`;
       }
+      applyWeeklyImageSettings(artwork, template, 'icon');
+      wrapper.append(artwork);
     } else wrapper.append(createWeeklyScheduleIcon(documentRef, template.icon));
     return wrapper;
   };
@@ -111,11 +117,7 @@ function buildDecorations(template, { node, image, icon }, documentRef) {
   decorations.setAttribute('aria-hidden', 'true');
   if (template.assets.background) {
     const background = image(template.assets.background, 'wsa-background-image', '');
-    const settings = template.background;
-    background.style.objectFit = settings?.fit || 'cover';
-    background.style.objectPosition = `${settings?.x ?? 50}% ${settings?.y ?? 50}%`;
-    background.style.opacity = (settings?.opacity ?? 100) / 100;
-    background.style.filter = `blur(${settings?.blur ?? 0}px)`;
+    applyWeeklyImageSettings(background, template, 'background');
     decorations.append(background);
   }
   else {
@@ -217,7 +219,10 @@ function buildModules(template, { node, image, icon }) {
     template.modules.rank.names.forEach((name, index) => {
       const rank = node('div', 'wsa-rank');
       const avatar = node('div', 'wsa-avatar');
-      avatar.append(template.assets[`rank${index + 1}`] ? image(template.assets[`rank${index + 1}`], '', `榜${index + 1}头像`) : icon());
+      const key = `rank${index + 1}`;
+      const portrait = template.assets[key] ? image(template.assets[key], '', `榜${index + 1}头像`) : icon();
+      if (template.assets[key]) applyWeeklyImageSettings(portrait, template, key);
+      avatar.append(portrait);
       avatar.append(node('span', 'wsa-rank-number', `榜${['一', '二', '三'][index]}`));
       if (index === 0) avatar.append(node('span', 'wsa-crown'));
       rank.append(avatar, node('span', 'wsa-rank-name', name));
@@ -230,7 +235,11 @@ function buildModules(template, { node, image, icon }) {
     const bottom = node('div', 'wsa-module-row');
     if (template.modules.qr.enabled) {
       const qr = makeModule('qr');
-      if (template.assets.qrcode) qr.append(image(template.assets.qrcode, 'wsa-qr-image', '粉丝群二维码'));
+      if (template.assets.qrcode) {
+        const code = image(template.assets.qrcode, 'wsa-qr-image', '粉丝群二维码');
+        applyWeeklyImageSettings(code, template, 'qrcode');
+        qr.append(code);
+      }
       else qr.append(node('div', 'wsa-qr-empty', '二维码'));
       qr.append(node('p', 'wsa-qr-caption', template.modules.qr.caption));
       bottom.append(qr);
@@ -256,20 +265,40 @@ function buildAssets(template, { node, image, icon }) {
   for (const key of ['portrait', 'logo', 'chibi']) {
     if (!template.assets[key]) continue;
     const figure = node('figure', `wsa-${key}`);
-    const settings = template[key];
-    figure.style.setProperty('--wsa-asset-x', `${settings.x}px`);
-    figure.style.setProperty('--wsa-asset-y', `${settings.y}px`);
-    figure.style.setProperty('--wsa-asset-scale', settings.scale / 100);
-    figure.style.setProperty('--wsa-asset-rotation', `${settings.rotation ?? 0}deg`);
-    figure.style.opacity = (settings.opacity ?? 100) / 100;
-    figure.style.setProperty('--wsa-asset-flip', settings.flip ? -1 : 1);
-    if (key === 'portrait') {
-      figure.classList.toggle('has-outline', settings.outline);
-    }
+    applyWeeklyImageSettings(figure, template, key);
     figure.append(image(template.assets[key], '', { portrait: '主播立绘', logo: '主播 Logo', chibi: 'Q版小人' }[key]));
     layer.append(figure);
   }
   return layer;
+}
+
+// Used by both print rendering and in-place pointer edits in the preview.
+export function applyWeeklyImageSettings(node, template, key) {
+  const settings = template[getWeeklyImagePath(key)] || {};
+  node.dataset.weeklyImage = key;
+  node.classList.add('wsa-adjustable-image');
+  node.style.setProperty('--wsa-asset-x', `${settings[key === 'background' ? 'offsetX' : 'x'] ?? 0}px`);
+  node.style.setProperty('--wsa-asset-y', `${settings[key === 'background' ? 'offsetY' : 'y'] ?? 0}px`);
+  node.style.setProperty('--wsa-asset-scale', (settings.scale ?? 100) / 100);
+  node.style.setProperty('--wsa-asset-rotation', `${settings.rotation ?? 0}deg`);
+  node.style.setProperty('--wsa-asset-flip', settings.flip ? -1 : 1);
+  node.style.opacity = (settings.opacity ?? 100) / 100;
+  const filters = [];
+  if (key === 'background') {
+    node.style.objectFit = settings.fit || 'cover';
+    node.style.objectPosition = `${settings.x ?? 50}% ${settings.y ?? 50}%`;
+    filters.push(`blur(${settings.blur ?? 0}px)`);
+  }
+  for (const [field, filter] of [['brightness', 'brightness'], ['contrast', 'contrast'], ['saturation', 'saturate']]) {
+    if (settings[field] !== undefined && settings[field] !== 100) filters.push(`${filter}(${settings[field]}%)`);
+  }
+  if (settings.shadow) filters.push(`drop-shadow(0 ${settings.shadow * 0.16}px ${settings.shadow * 0.24}px rgb(0 0 0 / ${settings.shadow * 0.006}))`);
+  if (settings.glow) filters.push(`drop-shadow(0 0 ${settings.glow * 0.3}px rgb(255 255 255 / ${settings.glow / 100}))`);
+  node.style.filter = filters.join(' ') || 'none';
+  if (key === 'portrait') {
+    node.classList.toggle('has-outline', settings.outline);
+    node.style.setProperty('--wsa-outline-width', `${settings.outlineWidth ?? 7}px`);
+  }
 }
 
 export function renderWeeklySchedule(container, template, { documentRef = container.ownerDocument } = {}) {
@@ -277,6 +306,7 @@ export function renderWeeklySchedule(container, template, { documentRef = contai
   const root = builder.node('article', 'weekly-schedule-art');
   root.dataset.layout = template.layout;
   root.dataset.flipped = String(template.flippedLayout);
+  root.classList.toggle('wsa-edition', ['editorial', 'letterpress', 'nocturne', 'gallery'].includes(template.layout));
   root.classList.toggle('has-portrait', Boolean(template.assets.portrait));
   root.classList.toggle('no-modules', !Object.values(template.modules).some(module => module.enabled));
   root.setAttribute('aria-label', `${template.streamerName ? `${template.streamerName}的` : ''}周表预览`);
@@ -319,7 +349,13 @@ export function fitWeeklyScheduleText(root) {
     }
     if (!fits(element, height)) overflow.push(label);
   };
-  fit(root.querySelector('.wsa-title'), '大标题', 28, contentHeight(root.querySelector('.wsa-heading')));
+  const heading = root.querySelector('.wsa-heading');
+  let titleHeight = contentHeight(heading);
+  const headingStyle = view.getComputedStyle(heading);
+  if (root.classList.contains('wsa-edition') && headingStyle.flexDirection === 'column') {
+    titleHeight -= heading.querySelector('.wsa-date-label').offsetHeight + Number.parseFloat(headingStyle.rowGap);
+  }
+  fit(root.querySelector('.wsa-title'), '大标题', 28, titleHeight);
   fit(root.querySelector('.wsa-week-label'), '周范围标签');
   fit(root.querySelector('.wsa-identity > span:last-child'), '主播名字', 18);
   const moduleFields = [
@@ -333,7 +369,7 @@ export function fitWeeklyScheduleText(root) {
   root.querySelectorAll('.wsa-day').forEach(day => {
     const weekday = day.querySelector('.wsa-weekday strong').textContent;
     const program = day.querySelector('.wsa-program');
-    const height = root.dataset.layout === 'week-grid' ? program.clientHeight : contentHeight(day);
+    const height = root.dataset.layout === 'week-grid' || root.classList.contains('wsa-edition') ? program.clientHeight : contentHeight(day);
     const fields = Array.from(program.children);
     while (!fits(program, height)) {
       let changed = false;

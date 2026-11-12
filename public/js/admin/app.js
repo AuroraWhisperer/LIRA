@@ -122,7 +122,8 @@ const liveComponents = createToolboxLifecycle({
 let disposeAudioAssistant;
 let disposePlaybackOutputSettings;
 let disposeTopbarStatus;
-window.addEventListener('beforeunload', () => {
+// A beforeunload attempt may be cancelled while this page remains active.
+window.addEventListener('pagehide', () => {
   disposeAudioAssistant?.();
   disposePlaybackOutputSettings?.();
   disposeTopbarStatus?.();

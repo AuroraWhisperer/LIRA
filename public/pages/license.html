@@ -14,10 +14,6 @@
   <body>
     <div class="license-shell">
       <header class="license-titlebar">
-        <div class="license-brand">
-          <span class="license-brand-mark" aria-hidden="true">L</span>
-          <span>LIRA</span>
-        </div>
         <div class="license-window-controls" aria-label="窗口控制">
           <button id="licenseMinimizeBtn" type="button" aria-label="最小化" title="最小化">
             <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -44,13 +40,20 @@
         <div class="license-stage">
           <aside class="license-intro" aria-labelledby="licenseWelcomeHeading">
             <div>
+              <div class="license-brand">
+                <svg class="lira-wordmark" width="83" height="32" viewBox="0 0 516.1275080721146 200" role="img" aria-label="LIRA">
+                  <use href="/img/shared/lira-wordmark.svg#wordmark"></use>
+                </svg>
+              </div>
               <h2 id="licenseWelcomeHeading">「欢迎来到 LIRA」</h2>
             </div>
             <div id="licenseArt" class="license-art" aria-hidden="true">
               <span class="license-echo"></span>
               <div class="license-record">
                 <div class="license-record-label">
-                  <span class="license-record-wordmark">LIRA</span>
+                  <svg class="license-record-wordmark lira-wordmark" width="36" height="14" viewBox="0 0 516.1275080721146 200">
+                    <use href="/img/shared/lira-wordmark.svg#wordmark"></use>
+                  </svg>
                   <svg class="license-record-wave" viewBox="0 0 24 12">
                     <path d="M2 5v2"></path>
                     <path d="M6 3v6"></path>

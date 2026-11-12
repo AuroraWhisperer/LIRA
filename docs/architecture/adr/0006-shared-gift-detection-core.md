@@ -56,7 +56,7 @@ Both options were considered and rejected in the source specification; neither i
 
 ## References
 
-- ../backend/overtime.md
+- [overtime.md](../../reference/backend/overtime.md)
 - `src/bilibili/gift/detection-service.js`
 - `src/bilibili/gift/consumer-registry.js`
 - `src/bilibili/gift/statistics-consumer.js`

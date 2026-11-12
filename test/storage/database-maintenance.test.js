@@ -16,6 +16,34 @@ const {
   openSqliteDatabase,
 } = require('../../src/storage/database');
 
+test('song initial upgrade repairs only derived columns and is idempotent', () => {
+  const { getMigrationPlan } = require('../../src/storage/database-migrations');
+  const { runMigrations, SONG_SCHEMA } = require('../../src/storage/schema');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(SONG_SCHEMA);
+    const steps = getMigrationPlan().find(plan => plan.key === 'song_db').steps;
+    runMigrations(db, 'song_db', steps.slice(0, 17));
+    db.prepare(`INSERT INTO songs (id, name, name_pinyin, name_initial, is_enabled, request_price, note, created_at, updated_at)
+      VALUES (7, '江南', 'M', 'M', 0, '舰长', '原备注', 'created', 'updated')`).run();
+    db.prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
+      .run('cloudSongSyncPending:fixture', '{"mutationId":"original","songs":[]}', 'original');
+    runMigrations(db, 'song_db', steps);
+    const repaired = db.prepare('SELECT * FROM songs WHERE id = 7').get();
+    assert.equal(repaired.name_initial, 'J');
+    assert.equal(repaired.name_pinyin, 'J');
+    for (const [key, expected] of Object.entries({ id: 7, is_enabled: 0, request_price: '舰长', note: '原备注', created_at: 'created', updated_at: 'updated' })) {
+      assert.equal(repaired[key], expected, key);
+    }
+    assert.equal(db.prepare('SELECT value FROM settings WHERE key = ?').get('cloudSongSyncPending:fixture').value,
+      '{"mutationId":"original","songs":[]}');
+    const writes = db.prepare('SELECT total_changes() AS count').get().count;
+    steps.at(-1)(db);
+    assert.equal(db.prepare('SELECT total_changes() AS count').get().count, writes);
+    assert.equal(runMigrations(db, 'song_db', steps).applied, 0);
+  } finally { db.close(); }
+});
+
 function createPreV1SongDatabase(filePath) {
   const db = new DatabaseSync(filePath);
   try {
@@ -148,9 +176,9 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       databases = createDatabases({ dataDir });
 
       assert.deepEqual(getSchemaVersions(databases), {
-        songDb: 17,
+        songDb: 18,
         superChatDb: 2,
-        giftDb: 21,
+        giftDb: 23,
         musicDb: 1,
         checkinDb: 1,
         lotteryDb: 2,
@@ -259,7 +287,7 @@ test('createDatabases closes every opened handle when initialization fails', () 
 
   try {
     assert.throws(() => createDatabases({ dataDir }), /song_db migration to v3 failed/);
-    assert.equal(closeCount, 5);
+    assert.equal(closeCount, 6); // One read-only version check, then all five writable handles.
   } finally {
     DatabaseSync.prototype.close = originalClose;
     fs.rmSync(dataDir, { recursive: true, force: true });

@@ -126,6 +126,30 @@ test('configured lyric sizes remain exact in the output and scale to 65% in the 
   }
 });
 
+test('translation and romanization can be shown independently without changing the original lyric', async t => {
+  const page = await openRenderer(t);
+  await page.evaluate(() => {
+    const renderer = window.testLyricRenderer;
+    renderer.applySettings({ desktopLyricHideOnPause: 'false' });
+    renderer.updateLyricTimeline({ status: 'ready', lines: [
+      { startMs: 0, text: '널 사랑해', translation: '我爱你', roma: 'neol saranghae' },
+    ] });
+  });
+  const original = page.locator('.desktop-lyric-preview-row-text');
+  const translation = page.locator('.desktop-lyric-preview-row-translation');
+  const roma = page.locator('.desktop-lyric-preview-row-roma');
+  assert.equal(await roma.isVisible(), true, 'Existing configurations keep romanization visible.');
+  for (const [showTranslation, showRoma] of [[true, false], [false, true], [false, false], [true, true]]) {
+    await page.evaluate(({ showTranslation, showRoma }) => window.testLyricRenderer.applySettings({
+      desktopLyricShowTranslation: String(showTranslation), desktopLyricShowRoma: String(showRoma),
+    }), { showTranslation, showRoma });
+    assert.equal(await translation.isVisible(), showTranslation);
+    assert.equal(await roma.isVisible(), showRoma);
+    assert.equal(await original.innerText(), '널 사랑해');
+    assert.equal(await original.isVisible(), true);
+  }
+});
+
 async function measure(page) {
   return page.locator('.desktop-lyric-preview-row').evaluateAll(rows => rows.map(row => {
     const text = row.querySelector('.desktop-lyric-preview-row-text');

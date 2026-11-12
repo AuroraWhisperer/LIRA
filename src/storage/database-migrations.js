@@ -1,6 +1,6 @@
 'use strict';
 
-const { now, cleanText, normalizePositiveInteger } = require('../shared/utils');
+const { now, cleanText, normalizePositiveInteger, getInitial } = require('../shared/utils');
 const {
   migrateLegacySuperChatsToDedicatedDatabase,
   dropLegacySuperChatTable,
@@ -11,7 +11,9 @@ const { seedThemePresets } = require('./theme-store');
 const { migrateGiftIdentities } = require('./gift-identity-migration');
 const { migrateGiftDisplay } = require('./gift-display-migration');
 const { migrateGiftRetention, migrateExactLocalGiftArchives } = require('./gift-retention-migration');
+const { migrateGiftRetentionTiers } = require('./gift-retention-tiers-migration');
 const { migrateGiftWishes, migrateGiftWishDisplay, migrateGiftWishTextImages, migrateGiftWishTextColors, migrateGiftWishTextRuns, migrateGiftWishContributions } = require('./gift-wish-migration');
+const { migrateHeartBoxCollectionAdjustments } = require('./heart-box-collection-migration');
 const { migrateFanProfiles } = require('./fan-profile-migration');
 const { migrateFanSongRetention } = require('./fan-song-migration');
 const { migrateFanRosterObservations } = require('./fan-roster-observation-migration');
@@ -22,13 +24,10 @@ const { migrateDanmakuAppearance } = require('./danmaku-appearance-store');
 // ── 迁移注册表 ──
 // 数组下标 + 1 即版本号。只能往末尾追加，不能改动已发布的步骤。
 
-function runAllMigrations(databases, options = {}) {
-  const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
+function getMigrationPlan(options = {}) {
   const defaultSettings = options.defaultSettings || {};
-  const results = [];
-
-  results.push(
-    schema.runMigrations(songDb, 'song_db', [
+  return [
+    { name: 'songDb', key: 'song_db', steps: [
       // v1：老版本遗留的列补全
       (db) => {
         ensureSongColumns(db);
@@ -126,22 +125,26 @@ function runAllMigrations(databases, options = {}) {
       },
       // v17：弹幕外观按授权账号在本机持久化。
       migrateDanmakuAppearance,
-    ]),
-  );
+      // v18：修正旧拼音界标生成的首字母，不改歌曲内容、时间戳或同步任务。
+      (db) => {
+        const update = db.prepare('UPDATE songs SET name_pinyin = ?, name_initial = ? WHERE id = ?');
+        for (const song of db.prepare('SELECT id, name, name_pinyin, name_initial FROM songs').all()) {
+          const initial = getInitial(song.name);
+          if (song.name_pinyin !== initial || song.name_initial !== initial) update.run(initial, initial, song.id);
+        }
+      },
+    ] },
 
-  // 醒目留言库此前完全没有迁移入口，v1 建立基线以便后续加列
-  results.push(
-    schema.runMigrations(superChatDb, 'super_chat_db', [
+    // 醒目留言库此前完全没有迁移入口，v1 建立基线以便后续加列
+    { name: 'superChatDb', key: 'super_chat_db', steps: [
       () => {
         /* 基线：建表已在 SUPER_CHAT_SCHEMA 完成 */
       },
       // v2：移除 SC 历史正文，只保留阻止旧消息重现的平台标识。
       migrateSuperChatReceipts,
-    ]),
-  );
+    ] },
 
-  results.push(
-    schema.runMigrations(giftDb, 'gift_db', [
+    { name: 'giftDb', key: 'gift_db', steps: [
       (db) => {
         ensureGiftColumns(db);
       },
@@ -376,25 +379,29 @@ function runAllMigrations(databases, options = {}) {
       migrateGiftWishContributions,
       // v21: retain exact local blind-box times without inventing dates for legacy buckets.
       migrateExactLocalGiftArchives,
-    ]),
-  );
+      migrateGiftRetentionTiers,
+      // v23: per-source, per-period manual heart-box collection adjustment.
+      migrateHeartBoxCollectionAdjustments,
+    ] },
 
-  results.push(
-    schema.runMigrations(musicDb, 'music_db', [
+    { name: 'musicDb', key: 'music_db', steps: [
       () => {
         /* 基线：建表已在 MUSIC_SCHEMA 完成 */
       },
-    ]),
-  );
+    ] },
 
-  results.push(
-    schema.runMigrations(checkinDb, 'checkin_db', [
+    { name: 'checkinDb', key: 'checkin_db', steps: [
       () => {
         /* 基线：建表已在 CHECKIN_SCHEMA 完成 */
       },
-    ]),
-  );
+    ] },
+  ];
+}
 
+function runAllMigrations(databases, options = {}) {
+  const results = getMigrationPlan(options).map(({ name, key, steps }) =>
+    schema.runMigrations(databases[name], key, steps),
+  );
   for (const result of results) {
     if (result.applied > 0) {
       console.log(`[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`);
@@ -610,6 +617,7 @@ function collapseDuplicateGiftIdentities(db) {
 }
 
 module.exports = {
+  getMigrationPlan,
   runAllMigrations,
   getSchemaVersions,
   ensureSongColumns,

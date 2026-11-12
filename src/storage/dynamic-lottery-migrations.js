@@ -3,11 +3,16 @@
 const schema = require('./schema');
 const { DYNAMIC_LOTTERY_SCHEMA } = require('./dynamic-lottery-schema');
 
-function runDynamicLotteryMigrations(lotteryDb) {
-  const result = schema.runMigrations(lotteryDb, 'lottery_db', [
+const migrationPlan = {
+  key: 'lottery_db',
+  steps: [
     (db) => db.exec(DYNAMIC_LOTTERY_SCHEMA),
     (db) => db.exec('ALTER TABLE lottery_evidence ADD COLUMN display_name TEXT'),
-  ]);
+  ],
+};
+
+function runDynamicLotteryMigrations(lotteryDb) {
+  const result = schema.runMigrations(lotteryDb, migrationPlan.key, migrationPlan.steps);
   if (result.applied > 0) {
     console.log(`[Schema] ${result.key}: v${result.from} → v${result.to} (${result.applied} step(s))`);
   }
@@ -19,6 +24,7 @@ function getDynamicLotterySchemaVersion(lotteryDb) {
 }
 
 module.exports = {
+  migrationPlan,
   getDynamicLotterySchemaVersion,
   runDynamicLotteryMigrations,
 };

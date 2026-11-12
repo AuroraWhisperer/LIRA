@@ -106,7 +106,7 @@ test('wish overlay can read only its progress and never mutate or expose source 
   assert.equal(result.items[0].todayCount, 1);
 });
 
-test('heart-box collection is a read-only source-scoped API and exposes only public task progress', async () => {
+test('heart-box overlay reads only public progress and cannot adjust it', async () => {
   const path = '/api/gifts/heart-box-collection';
   const handler = routes[`GET ${path}`];
   const rejected = response();
@@ -122,6 +122,7 @@ test('heart-box collection is a read-only source-scoped API and exposes only pub
   assert.equal(unavailable.status, 409);
   assert.equal(isOverlayRequestAllowed('heart-box-collection', 'GET', path), true);
   assert.equal(isOverlayRequestAllowed('heart-box-collection', 'POST', path), false);
+  assert.equal(isOverlayRequestAllowed('heart-box-collection', 'POST', `${path}/adjust`), false);
   assert.equal(isOverlayRequestAllowed('heart-box-collection', 'GET', '/api/gifts/history'), false);
   assert.equal(isOverlayRequestAllowed('gift-wishes', 'GET', path), false);
   const projected = projectOverlayResponse('heart-box-collection', path, {
@@ -131,4 +132,30 @@ test('heart-box collection is a read-only source-scoped API and exposes only pub
   assert.equal(projected.count, 37);
   assert.equal(projected.stages[0].unlocked, true);
   assert.doesNotMatch(JSON.stringify(projected), /private/);
+});
+
+test('heart-box adjustment rejects source selection and reports write conflicts without broadcasting', async () => {
+  const handler = routes['POST /api/gifts/heart-box-collection/adjust'];
+  const reasons = [];
+  let writes = 0;
+  const context = {
+    heartBoxCollection: { adjust: () => { writes++; return { count: 12 }; } },
+    broadcastSnapshot: (reason) => reasons.push(reason),
+  };
+  const rejected = response();
+  await handler(context, { body: async () => ({ sourceId: 9, count: 12 }) }, rejected);
+  assert.equal(rejected.status, 400);
+  assert.equal(writes, 0);
+  const saved = response();
+  await handler(context, { body: async () => ({ count: 12 }) }, saved);
+  assert.equal(saved.status, 200);
+  assert.equal(writes, 1);
+  assert.deepEqual(reasons, ['gift:heart-box-collection']);
+  for (const [code, status] of [['INVALID_HEART_BOX_PROGRESS', 400], ['GIFT_VIEW_STALE', 409]]) {
+    context.heartBoxCollection.adjust = () => { throw Object.assign(new Error('rejected'), { code }); };
+    const result = response();
+    await handler(context, { body: async () => ({ count: 12 }) }, result);
+    assert.equal(result.status, status);
+  }
+  assert.equal(reasons.length, 1);
 });

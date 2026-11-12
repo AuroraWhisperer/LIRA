@@ -46,6 +46,7 @@ function createCloudSyncController(options = {}) {
     seedScope,
   });
   const bilibiliSync = createCloudBilibiliSyncController({
+    runtime,
     licenseManager,
     bilibiliAuth,
     isCurrent,
@@ -98,7 +99,7 @@ function createCloudSyncController(options = {}) {
       const pending = settingsSync.getPending(work.accountKey);
       // Omit the untouched flag: the server preserves its current value.
       const result = await settingsSync.upload(
-        { ...settingsSync.uploadValues(pending, work.accountKey), [intent.key]: intent.key === 'giftThanksTemplates' ? intent.value : intent.enabled },
+        { ...settingsSync.uploadValues(pending, work.accountKey), [intent.key]: Object.hasOwn(intent, 'value') ? intent.value : intent.enabled },
         pending, dirtyGeneration, work,
       );
       if (!isCurrent(work)) return null;
@@ -179,6 +180,7 @@ function createCloudSyncController(options = {}) {
       markScopeDirty('settings');
     }
     if (songSync.restorePending(nextAccountKey)) markScopeDirty('songs');
+    if (bilibiliSync.getPendingLogout(nextAccountKey)) markScopeDirty('bilibili');
     accountKey = nextAccountKey;
     retryNotBefore = 0;
     retryError = null;
@@ -330,7 +332,8 @@ function createCloudSyncController(options = {}) {
     revisions[scope] = Number(result?.revision) || revisions[scope];
     if (dirtyGenerations[scope] === dirtyGeneration
       && (scope !== 'settings' || !settingsSync.getPending(work.accountKey))
-      && (scope !== 'songs' || !songSync.hasPending(work.accountKey)))
+      && (scope !== 'songs' || !songSync.hasPending(work.accountKey))
+      && (scope !== 'bilibili' || !bilibiliSync.getPendingLogout(work.accountKey)))
       dirty.delete(scope);
     return result;
   }
@@ -370,6 +373,7 @@ function createCloudSyncController(options = {}) {
     if (!isCurrent(work) || dirty.has(scope)) return false;
     if (scope === 'settings' && settingsSync.getPending(work.accountKey)) return false;
     if (scope === 'songs' && songSync.hasPending(work.accountKey)) return false;
+    if (scope === 'bilibili' && bilibiliSync.getPendingLogout(work.accountKey)) return false;
     const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
     return current === null || incoming > current;
@@ -390,6 +394,7 @@ function createCloudSyncController(options = {}) {
     try {
       if (settingsSync.getPending(work.accountKey) && !dirty.has('settings')) markScopeDirty('settings');
       if (songSync.hasPending(work.accountKey) && !dirty.has('songs')) markScopeDirty('songs');
+      if (bilibiliSync.getPendingLogout(work.accountKey) && !dirty.has('bilibili')) markScopeDirty('bilibili');
       await flushDirty(work);
       if (!isCurrent(work)) return false;
       const state = await licenseManager.getCloudState({ signal: work.signal });
@@ -491,6 +496,43 @@ function createCloudSyncController(options = {}) {
     return operation;
   }
 
+  function prepareBilibiliWork() {
+    if (!isAuthorized() || !prepareAccount()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
+    if (!active) requestController = new AbortController();
+    active = true;
+    startEventStream();
+    return { generation: lifecycleGeneration, accountKey, signal: requestController.signal };
+  }
+
+  async function loginBilibili() {
+    const work = prepareBilibiliWork();
+    const pending = bilibiliSync.getPendingLogout(work.accountKey);
+    try {
+      const result = await bilibiliAuth.login({ signal: work.signal });
+      if (!isCurrent(work)) return { cancelled: true, snapshot: null, state: { loggedIn: false } };
+      if (result?.state?.loggedIn) {
+        if (pending) runtime.acknowledgePendingCloudBilibiliLogout(work.accountKey, pending.mutationId);
+        markScopeDirty('bilibili');
+      }
+      return result;
+    } finally {
+      // A new owner's first pull may have yielded to this operation's cleanup.
+      if (isAuthorized()) start().catch((error) => { void error; });
+    }
+  }
+
+  async function logoutBilibili() {
+    const work = prepareBilibiliWork();
+    // Commit intent before clearing the only local Cookie/snapshot copy.
+    runtime.capturePendingCloudBilibiliLogout(work.accountKey);
+    markScopeDirty('bilibili');
+    try {
+      return await bilibiliAuth.logout({ signal: work.signal });
+    } finally {
+      if (isAuthorized()) start().catch((error) => { void error; });
+    }
+  }
+
   function prepareSongWork() {
     if (!isAuthorized()) throw Object.assign(new Error(), { code: 'LICENSE_NOT_AUTHORIZED' });
     if (!prepareAccount()) throw Object.assign(new Error(), { code: 'CLOUD_SONGS_CHANGED' });
@@ -554,7 +596,10 @@ function createCloudSyncController(options = {}) {
     refreshGiftInteractionState: giftInteraction.refresh,
     setGiftInteraction: giftInteraction.set,
     setGiftThanksTemplates: giftInteraction.setTemplates,
+    setGiftThanksReplies: giftInteraction.setReplies,
     markDirty,
+    loginBilibili,
+    logoutBilibili,
     start,
     stop,
     syncNow,

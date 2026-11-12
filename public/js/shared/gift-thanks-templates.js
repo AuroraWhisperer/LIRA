@@ -35,13 +35,56 @@ export function normalizeGiftThanksTemplates(value) {
   return result;
 }
 
-export function renderGiftThanksTemplate(template, { name, gifts, amount, amountBlocks }, limit = 40) {
+export const GIFT_THANKS_SCENES = Object.freeze({
+  gift: '礼物答谢', captain: '舰长答谢', admiral: '提督答谢', governor: '总督答谢',
+});
+export const GIFT_THANKS_MESSAGE_LIMIT = 20;
+
+export function createGiftThanksReplies(templates = DEFAULT_GIFT_THANKS_TEMPLATES) {
+  const legacy = normalizeGiftThanksTemplates(templates);
+  return Object.fromEntries(Object.keys(GIFT_THANKS_SCENES).map(kind => [kind, {
+    enabled: true, mode: 'plain', messages: [{ text: legacy[kind === 'gift' ? 'gift' : 'guard'] }],
+  }]));
+}
+
+export function normalizeGiftThanksReplies(value) {
+  const invalid = () => {
+    throw Object.assign(new Error('INVALID_GIFT_THANKS_REPLIES'), { code: 'INVALID_GIFT_THANKS_REPLIES' });
+  };
+  const exactKeys = (object, keys) => object && typeof object === 'object' && !Array.isArray(object)
+    && Object.keys(object).length === keys.length && keys.every(key => Object.hasOwn(object, key));
+  if (!exactKeys(value, Object.keys(GIFT_THANKS_SCENES))) invalid();
+  return Object.fromEntries(Object.keys(GIFT_THANKS_SCENES).map(kind => {
+    const group = value[kind];
+    if (!exactKeys(group, ['enabled', 'mode', 'messages']) || typeof group.enabled !== 'boolean'
+      || !['plain', 'mention'].includes(group.mode)
+      || !Array.isArray(group.messages) || !group.messages.length || group.messages.length > GIFT_THANKS_MESSAGE_LIMIT) invalid();
+    const messages = group.messages.map(message => {
+      if (!exactKeys(message, ['text'])
+        || typeof message.text !== 'string' || !message.text.trim() || Array.from(message.text.trim()).length > 120
+        || /[\x00-\x1f\x7f]/u.test(message.text)) invalid();
+      const parts = splitGiftThanksTemplate(message.text);
+      if (Object.keys(GIFT_THANKS_TOKENS).some(token => parts.filter(part => part === token).length > 1)
+        || parts.some(part => !Object.hasOwn(GIFT_THANKS_TOKENS, part) && /[{}]/u.test(part))) invalid();
+      return { text: message.text.trim() };
+    });
+    return [kind, { enabled: group.enabled, mode: group.mode, messages }];
+  }));
+}
+
+export function chooseGiftThanksReply(replies, kind, random = Math.random) {
+  const group = replies[kind];
+  if (!group?.enabled) return null;
+  return { mode: group.mode, text: group.messages[Math.floor(random() * group.messages.length)].text };
+}
+
+export function renderGiftThanksTemplate(template, { name, gifts, amount, amountBlocks }, limit = 40, { requireName = true } = {}) {
   if (!Number.isInteger(limit) || limit < 1 || limit > 40) return null;
   const parts = splitGiftThanksTemplate(template);
   if (!amount) {
     const index = parts.indexOf('{金额}');
     if (index > 0 && !Object.hasOwn(GIFT_THANKS_TOKENS, parts[index - 1])) {
-      parts[index - 1] = parts[index - 1].replace(/[；;，,、：: ]+$/u, '');
+      parts[index - 1] = parts[index - 1].replace(/[；;，,、：:\s]+$/u, '');
     }
   }
   const values = { '{称呼}': name, '{礼物}': gifts.join('、'), '{金额}': amount };
@@ -78,5 +121,5 @@ export function renderGiftThanksTemplate(template, { name, gifts, amount, amount
     }
   }
   if (line) segments.push(line);
-  return segments.length <= 4 && segments[0]?.includes(name) ? segments : null;
+  return segments.length <= 4 && (!requireName || segments[0]?.includes(name)) ? segments : null;
 }

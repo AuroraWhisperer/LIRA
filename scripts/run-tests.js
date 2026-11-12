@@ -99,6 +99,7 @@ const groups = {
     'engineering/build-integrity',
     'desktop/desktop-auth-race-electron',
     'desktop/desktop-request-auth-electron',
+    'desktop/desktop-user-data-electron',
     'desktop/bundled-fonts-electron',
     'desktop/electron-data-layout',
     'desktop/electron-startup',

@@ -28,14 +28,25 @@ remain. Without history capability, the client still uses source-partitioned
 SQLite progress but retains the no-replay baseline and reports `LEGACY_PARTIAL`
 rather than claiming complete history.
 
+The Accepted [LIRA Server ADR-0107](https://github.com/AuroraWhisperer/LIRA-server/blob/d125d93c52190d377973dfaecfae8388b6c17b92/docs/architecture/decisions/0107-six-second-gift-combo-continuations.md)
+updates the original five-second/explicit-final rule: identified combos now wait
+six seconds, and late positive growth is delivered as an additive segment with
+its own immutable final. The requirements below include that accepted extension;
+the Device DTO and per-event consumer idempotency remain unchanged.
+
 ## Requirements
 
 - While a tenant RoomMonitor is connected, when it receives any supported gift
   command, the server shall normalize it with the same rules as the current
   desktop parser and pass it to that tenant's detector.
-- While a combo is still progressing, when the server receives cumulative
-  packets, it shall keep one ledger row and finalize it once after 5 seconds of
-  platform silence, unless the platform supplies an explicit final packet.
+- While a combo is still progressing, the server shall keep one ledger row per
+  segment and finalize it six seconds after the last server-received group
+  packet. COMBO_SEND and repeated cumulative values shall refresh that deadline,
+  not finalize early. Gifts without a combo identity shall finalize immediately.
+- When an already-finalized combo receives positive cumulative quantity and
+  value growth, the server shall create a new segment containing only the
+  unrecorded difference, with its own public event ID. Each final shall remain
+  immutable; replayed or smaller totals shall not create another delivery.
 - While a Device session is authorized, when it subscribes to gift events, the
   server shall scope the stream from the verified Device identity and shall not
   accept a client-supplied `streamerId` as authorization evidence.
@@ -114,9 +125,9 @@ flowchart LR
   authenticated/configured Streamer runtime before detection.
 - `gift-detector.js` owns business identity, compatibility duplicate matching,
   cumulative maxima, evidence-gated blind-box resolution, frozen source/cost
-  basis, and the 5-second quiet window. Official relations and private custom
-  mappings are composed per tenant; relation metadata never creates event
-  evidence.
+  basis, the six-second quiet window, and additive late segments. Official
+  relations and private custom mappings are composed per tenant; relation
+  metadata never creates event evidence.
 - `streamer-storage.js` owns the tenant ledger migration and the final-delivery
   cursor transaction. The nullable source box ID is fixed when the row is first
   established; a final row and its delivery cursor commit atomically.
@@ -211,10 +222,11 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 - The public official catalog never contains tenant custom mappings or settings
   revisions. Custom edits use the authenticated settings scope, and the client
   cannot upload an official relation or claim that a detector adopted a version.
-- The server publishes no more than two Device messages per detected gift group.
-  Keepalive comments contain no event or identity data. Final recovery and
-  periodic reconciliation use cursor-pull pages of at most 200; admission and
-  scheduling follow the failure and ordering semantics below.
+- The server publishes no more than one progress and one final Device message
+  per event ID/segment; later positive growth of the same upstream combo uses
+  a new segment. Keepalive comments contain no event or identity data. Final
+  recovery and periodic reconciliation use cursor-pull pages of at most 200;
+  admission and scheduling follow the failure and ordering semantics below.
 - Neither event payloads nor credentials are logged by the new client
   controller. The renderer receives the existing local snapshots and WebSocket
   events only; it never receives the Device token or remote SSE handle.
@@ -263,9 +275,12 @@ selector; unknown, ambiguous, name-only custom, and legacy history use null.
 
 1. Parser fixtures that pass in the desktop implementation produce equivalent
    normalized server gifts for all supported command families.
-2. Repeated/cumulative packets create one tenant row, one first progress event,
-   and one final outbox cursor; explicit platform finals and the 5-second quiet
-   window finalize only once.
+2. Each segment creates one tenant row, one first progress event, and one final
+   outbox cursor. Identified combos finalize after six seconds of server-received
+   silence, with COMBO_SEND and repeated totals refreshing the deadline; gifts
+   without a combo identity finalize immediately. Late positive growth produces
+   only the unrecorded difference in a new segment, without changing prior finals;
+   duplicate or smaller totals do not create another delivery.
 3. Device A cannot read or subscribe to Device B's Streamer events, and neither
    route succeeds without Device authentication.
 4. The Device payload contains only the documented allowlist and never contains

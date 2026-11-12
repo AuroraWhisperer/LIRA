@@ -91,7 +91,7 @@ test('server Bilibili client has no raw gift writer and preserves identity, danm
         logDanmaku() {},
       },
       customReplies: { isCommandText: () => false },
-      superChats: { add: () => (superChats += 1) },
+      superChats: { add: () => (superChats += 1), isDeleted: () => false },
       gifts: { add: () => (gifts += 1) },
     },
     aiAssistant: { handleDanmaku() {} },

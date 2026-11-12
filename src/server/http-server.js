@@ -122,7 +122,21 @@ function createHttpServer(options = {}) {
       }
 
       if (requestUrl.pathname.startsWith('/api/')) {
+        const writes = !['GET', 'HEAD', 'OPTIONS'].includes(req.method);
+        const owner = writes ? options.getRequestOwner?.() : null;
+        const scope = owner?.scope;
+        const epoch = owner?.epoch;
+        const authorizeRequest = () => {
+          if (!writes) return;
+          const current = options.getRequestOwner?.();
+          const statusCode = !isLicenseAuthorized() || (options.getRequestOwner && !current) ? 423
+            : options.getRequestOwner && (!owner || current.scope !== scope || current.epoch !== epoch) ? 409 : 200;
+          if (statusCode !== 200) throw Object.assign(new Error('账号授权已变化，请重新打开页面后重试。'), {
+            code: 'REQUEST_AUTHORIZATION_CHANGED', statusCode,
+          });
+        };
         await inflightTracker.run(() => apiRoutes.handleApi({ ...createApiContext(), componentPreviews,
+          authorizeRequest,
           getComponentPreviewStatus: () => getPhase() !== 'ready' ? 503 : isLicenseAuthorized() ? 200 : 423,
           getSceneOutputStatus: () => getPhase() !== 'ready' ? 503 : isLicenseAuthorized() ? 200 : 423,
         }, req, res, requestUrl));
@@ -174,6 +188,10 @@ function createHttpServer(options = {}) {
     } catch (error) {
       if (error?.code === 'SERVER_QUIESCING' || getPhase() !== 'ready') {
         if (!res.headersSent) serviceUnavailable(res);
+        return;
+      }
+      if (error?.code === 'REQUEST_AUTHORIZATION_CHANGED') {
+        if (!res.headersSent) httpUtils.sendStableError(res, error);
         return;
       }
 

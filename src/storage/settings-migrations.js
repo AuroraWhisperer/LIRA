@@ -153,19 +153,6 @@ function migrateQueueStyleSettings(db, savedVersion) {
   }
 }
 
-function getQueueStyleSettingsVersion(db) {
-  const row = db
-    .prepare(
-      `
-    SELECT value
-    FROM settings
-    WHERE key = 'queueStyleSettingsVersion'
-  `,
-    )
-    .get();
-  return row && row.value;
-}
-
 function migrateSongScrollSpeedSetting(db, savedVersion) {
   if (String(savedVersion || '') === '2') return;
 
@@ -340,7 +327,6 @@ module.exports = {
   migrateSongScrollSpeedSetting,
   migrateQueueFontSizeSettings,
   migrateIdentityQueueFontFamily,
-  getQueueStyleSettingsVersion,
   migrateQueueStyleSettings,
   migrateBlindBoxConfig,
 };

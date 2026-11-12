@@ -9,7 +9,7 @@ import { createTwitterRoomProfile } from './danmaku-twitter-profile.js';
 import { applySpookyColorFallback } from './danmaku-spooky.js';
 import { initDanmakuComponentSource } from './danmaku-component-source.js';
 import { createOverlaySocket } from './socket-client.js';
-import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
+import { DANMAKU_STYLE_OPTIONS, isRandomDanmakuStyle, isFloatingDanmakuStyle, supportsDanmakuSuperchat, parseStyleOptions, styleOptionsFor } from '../shared/danmaku-style-options.js';
 import { applyStyleOptions } from './danmaku-style-application.js';
 import { syncCelestialBackdrop } from './danmaku-celestial-horizontal.js';
 import { resolveGiftImageSource } from '../shared/gift-image.js';
@@ -124,8 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sampleContentKey = nextContentKey;
         const samples = createDanmakuPreviewItems(style).filter((item) =>
-          ['mist', 'comic', 'window', 'sinking'].includes(style) || DANMAKU_STYLE_OPTIONS[style]?.fullscreenSuperchat
-          || (!isRandomDanmakuStyle(style) && !isFloatingDanmakuStyle(style)) || item.kind !== 'superchat');
+          item.kind !== 'superchat' || supportsDanmakuSuperchat(style));
         if (styleParametersFor(config).showEntryMessages !== false) samples.push({ ...DANMAKU_PREVIEW_WELCOME });
         clearTimeout(previewTimer);
         applyConfiguration(style, duration, options, true);

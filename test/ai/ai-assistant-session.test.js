@@ -174,7 +174,46 @@ for (const change of ['disconnect', 'account']) {
   }
 }
 
-async function createSessionFixture(t, modelClient, waitForDelivery) {
+for (const change of ['room', 'disconnect', 'account', 'same-account-login']) {
+  test(`automatic collection binds the Bilibili ${change} scope before its first timer fires`, async t => {
+    const timers = new Map();
+    let timerId = 0;
+    const requests = [];
+    const fixture = await createSessionFixture(t, {
+      async createResponse(request) {
+        requests.push(request);
+        const input = JSON.parse(request.input);
+        return { text: request.purpose === 'auto_generation'
+          ? JSON.stringify({ action: 'silent', targetMessageId: null, reply: '' })
+          : JSON.stringify({ allowed: true, safeText: input.candidateReply?.reply || '' }),
+        functionCalls: [], usage: {} };
+      },
+    }, false, {
+      config: { autoReplyEnabled: true },
+      setTimer(callback) { const id = ++timerId; timers.set(id, callback); return id; },
+      clearTimer: id => timers.delete(id),
+    });
+    fixture.ask('这个话题有意思');
+    assert.equal(timers.size, 1, 'ordinary ingress supplies source and time to automatic collection');
+    if (change === 'room') {
+      fixture.settings.roomId = '200';
+      await fixture.runtime.reconnect();
+    } else if (change === 'disconnect') fixture.runtime.disconnect();
+    else {
+      if (change === 'account') fixture.account.uid = 10;
+      fixture.account.revision += 1;
+    }
+    const callbacks = [...timers.values()];
+    timers.clear();
+    for (const callback of callbacks) callback();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(requests.length, 0, 'the old timer cannot generate with the new account or room');
+    assert.equal(timers.size, 0);
+    assert.equal(fixture.sent.length, 0);
+  });
+}
+
+async function createSessionFixture(t, modelClient, waitForDelivery, serviceOptions = {}) {
   const network = t.mock.method(globalThis, 'fetch', () => {
     throw new Error('Unexpected external request in AI session test');
   });
@@ -238,6 +277,7 @@ async function createSessionFixture(t, modelClient, waitForDelivery) {
     },
   };
   service = createTestService({
+    ...serviceOptions,
     store: { setContext: (...args) => contexts.push(args) },
     modelClient: {
       createResponse(request) {
@@ -263,7 +303,8 @@ async function createSessionFixture(t, modelClient, waitForDelivery) {
     contexts,
     generations,
     identityReads,
-    ask: (message = '小米 你好', uid = '42') => clients.at(-1).handlers.onMessage({ uid, userName: '观众', message }),
+    ask: (message = '小米 你好', uid = '42') => clients.at(-1).handlers.onMessage({ uid, userName: '观众', message,
+      source: 'danmaku', messageTimestamp: Date.now() }),
     waitForIdle: () =>
       waitUntil(() => {
         const status = service.getStatus();

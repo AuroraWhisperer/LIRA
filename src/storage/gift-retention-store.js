@@ -2,7 +2,7 @@
 
 const { normalizeGiftSummaryPage } = require('../shared/gift-summary-contract');
 const { normalizeProcessedGiftHistoryPage } = require('../shared/processed-gift-contract');
-const { archiveWishContributions } = require('./gift-wish-retention');
+const { publishDetailCoverage } = require('./gift-detail-coverage');
 
 function transaction(db, operation) {
   db.exec('BEGIN IMMEDIATE');
@@ -39,7 +39,8 @@ function createGiftRetentionStore({ giftDb: db, importHistoryRecord, importLiveE
       let { active, staging } = progress(sourceId);
       if (!staging) {
         if (pageToken !== null || page.baseRevision !== (full ? 0 : active?.revision ?? 0) ||
-          (!full && active && active.sync_epoch !== page.syncEpoch)) throw mismatch();
+          (!full && active && active.sync_epoch !== page.syncEpoch) ||
+          (active?.sync_epoch === page.syncEpoch && page.revision < active.revision)) throw mismatch();
         const result = db.prepare(`INSERT INTO gift_retention_snapshots
           (source_id,projection_generation,sync_epoch,revision,base_revision,summarized_before,covered_cursor,
             detail_start,phase,member_snapshot_id,updated_at) VALUES (?,?,?,?,?,?,?,?,'summaries',?,?)`)
@@ -122,13 +123,9 @@ function createGiftRetentionStore({ giftDb: db, importHistoryRecord, importLiveE
       const cursor = full ? staging.recovery_cursor : state.final_cursor;
       if (!Number.isSafeInteger(cursor) || cursor < staging.covered_cursor || (!full && state.sync_epoch !== staging.sync_epoch)) throw mismatch();
       if (full) {
-        if (!state.sync_epoch || state.sync_epoch === staging.sync_epoch) {
-          archiveWishContributions(db, sourceId, { syncEpoch: staging.sync_epoch,
-            memberSnapshotId: activeSnapshot(db, sourceId)?.member_snapshot_id,
-            excludedMemberSnapshotId: staging.member_snapshot_id });
-        }
         db.prepare('DELETE FROM gift_wish_contributions WHERE source_id=? AND sync_epoch<>?').run(sourceId, staging.sync_epoch);
       }
+      publishDetailCoverage(db, sourceId, state, activeSnapshot(db, sourceId), staging, cursor);
       for (const pending of db.prepare('SELECT * FROM gift_retention_pending_finals WHERE snapshot_id=?').all(staging.id)) {
         const { finalCursor, ...record } = JSON.parse(pending.record_json);
         importLiveEvent({ ...record, phase: 'final', cursor: finalCursor }, sourceId,
@@ -137,7 +134,9 @@ function createGiftRetentionStore({ giftDb: db, importHistoryRecord, importLiveE
       }
       db.prepare('DELETE FROM gift_retention_pending_finals WHERE snapshot_id=?').run(staging.id);
       db.prepare(`UPDATE gift_retention_snapshots SET phase='active',recovery_cursor=?,updated_at=? WHERE id=?`).run(cursor, now(), staging.id);
-      db.prepare(`UPDATE gift_retention_state SET active_snapshot_id=?,staging_snapshot_id=NULL WHERE source_id=?`).run(staging.id, sourceId);
+      db.prepare(`UPDATE gift_retention_state SET active_snapshot_id=?,staging_snapshot_id=NULL,
+        cleanup_event_id=0,cleanup_day_rowid=0,cleanup_event_upper_id=NULL,cleanup_day_upper_rowid=NULL WHERE source_id=?`).run(staging.id, sourceId);
+      db.prepare("UPDATE gift_retention_work SET phase='cleanup' WHERE source_id=? AND phase IN ('done','waiting')").run(sourceId);
       db.prepare(`UPDATE gift_sync_state SET sync_epoch=?,final_cursor=?,bootstrap_complete=1,
         bootstrap_page_token=NULL,bootstrap_recovery_cursor=NULL,bootstrap_sync_epoch=NULL,
         last_validated_at=?,projection_generation=projection_generation+1,updated_at=? WHERE source_id=?`)

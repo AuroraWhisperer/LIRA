@@ -1,13 +1,13 @@
 # LIRA 客户端与服务器日志、诊断及问题中心设计
 
-状态：**In Progress**。首次调查：2026-09-13；容量复查与生产服务器只读核查：2026-09-14；同日用户要求按报告开始实施。当前已完成阶段 A1（源头降噪、AI 成功汇总、现有客户端日志适配器的单条/队列/单文件保护），统一分流轮转、跨重启日预算、故障上下文、两端页面、服务器仓库和部署配置尚未实现。
+状态：**In Progress**。首次调查：2026-09-13；2026-09-14 用户要求按报告开始实施。2026-11-11 对本地两仓代码复核：客户端已实现源头降噪、AI 成功汇总、普通/错误分流、固定容量轮转、跨重启保留、按时间清理、统一凭据脱敏及桌面异常采集；服务器 logger 已有脱敏、错误序列化、单条大小与频率限制。统一事件格式、持久化日写入预算、有限故障上下文、礼物管线汇总、两端诊断页面及授权上报仍属后续阶段，不能把整个设计标为完成。生产部署现状未在此次复核。
 
 2026-09-17 增量：针对偶发“重新登录后弹幕点歌无响应”，在现有 terminal.log 中
 定向保留安全的 Bilibili 诊断 INFO，涵盖登录/凭据读取、连接认证与点歌结果。
 只记录关键阶段、首次收包和有限统计，不全量恢复 console INFO 落盘，不改业务
 连接行为。字段与排查说明见 [弹幕诊断契约](../docs/reference/backend/bilibili/danmaku.md#81-登录到点歌的本地日志)。
 
-本轮交付现状调查和设计，不改变运行程序、线上配置或既有日志。依据本地 `Live`、相邻 `lira-server` 工作区和 2026-09-14 经用户授权的生产服务器只读核查；包括本地旧日志匿名计数、临时合成实验、线上进程/配置/文件元数据。没有查询生产业务数据库，报告不复制用户日志正文或凭据。截图只用于确定客户端入口位置。
+原始调查依据本地 `Live`、相邻 `lira-server` 工作区和 2026-09-14 经用户授权的生产服务器只读核查；包括当时的本地旧日志匿名计数、临时合成实验、线上进程/配置/文件元数据。后续本地代码核验与原始部署证据分开记录；本次未读取用户日志、真实凭据或生产环境。截图只用于确定客户端入口位置。
 
 容量、正常输出精简及验证证据详见 [2026-09-14 专项报告](../docs/reports/2026-09-14-log-volume-and-signal-report.md)，第 6 节新增本机实际部署、目录配置和轮转责任。本草案已同步取消成功请求默认逐条落盘和错误全文双份保存，并保留线上现有 PM2 日志路径。
 
@@ -19,36 +19,38 @@
 
 交付后应能回答：什么时候、哪个版本、哪个模块、哪次操作失败；影响哪些已观测设备/主播；是否重试、是否恢复；管理员何时处理、哪个版本修复、后来是否复发。
 
-相关决策：[ADR-0018](../docs/architecture/adr/0018-unified-logging-and-diagnostics.md)。本文中的目录、限额与新增接口均为建议，不能视为已部署配置。
+相关决策：[ADR-0018](../docs/architecture/adr/0018-unified-logging-and-diagnostics.md)。§2 记录当前实现；§3—§8 保留完整设计目标，尚未交付的目录、限额与新增接口不能视为已部署配置。
 
 ## 2. 目前是什么样
 
+以下客户端及服务器代码事实已于 2026-11-11 复核；生产部署事实仍以明确标注的调查日期为限。当前客户端文件、容量与保留契约由[桌面日志参考](../docs/reference/desktop/main.md#8-日志)维护。
+
 | 位置 | 已有能力与存储 | 当前不足 |
 | --- | --- | --- |
-| 客户端桌面壳 | `desktop.log` 追加记录启动、窗口、登录、更新、退出等；有时间、runId、顺序号、进程和 scope，并做凭据脱敏 | 文本与内嵌 JSON 混用，没有统一 level/errorCode；同步逐条写文件；没有轮转上限 |
-| 客户端内嵌 Node 后端 | Electron 包裹主进程 `console.log/info/debug/warn/error`，镜像到 `terminal.log` | 初始化清空旧文件；只包裹所在进程 console；先向原 console 输出，再对文件内容脱敏；单独 `npm start` 不经过这层桌面镜像 |
-| 客户端 AI | `ai.log` 记录 request、response、normalized_response、error，带独立 requestId；遮盖已知密钥、截断长字符串 | 创建 logger 时覆盖旧会话；仍保存非 system 请求内容、响应正文等；脱敏规则与桌面日志分离；日志写入被请求链等待 |
-| 客户端页面 | `public/js/shared/logger.js` 输出到页面 console；个别功能有专用 IPC 日志 | 未发现统一的页面异常落盘、未处理 Promise 捕获及 renderer 崩溃接线；用 localhost 判断 debug，而正式 Electron 页面也从回环地址加载 |
+| 客户端桌面壳 | `desktop.log` 与 `errors/desktop.log` 追加记录；有时间、runId、顺序号、进程和 scope；脱敏、限频、轮转与年龄清理，重启不清空 | 文本与内嵌 JSON 混用，没有统一 level/errorCode；仍同步写文件，尚无持久化日写入预算 |
+| 客户端内嵌 Node 后端 | Electron 包裹主进程 `console.info/warn/error`，输出原 console 前脱敏；仅选定 Bilibili INFO 写 `terminal.log`，warn/error 写 `errors/terminal.log`；追加、限频及轮转 | 只覆盖所在进程及这些方法；单独 `npm start` 不经过桌面镜像；未包裹输出仍由其 owner 保护 |
+| 客户端 AI | `runtime/ai.jsonl` 保存有界窗口统计，`errors/ai.jsonl` 保存安全失败字段；不记 prompt/响应正文，复用共享脱敏；有界队列、轮转与错误限频 | 现有有序队列的默认写入仍是同步 append；失败日志被请求链等待；尚无跨重启日写入预算 |
+| 客户端页面 | `desktop-diagnostics` 收集精确本地 Origin 的 console warning/error（含脚本异常及未处理 Promise）、preload/加载失败及进程退出；主进程 fatal 使用只观察、不吞异常的监听 | 尚无统一事件关联与故障前上下文；页面 logger 的 debug 判断仍需与后续统一级别方案一起处理 |
 | 截图入口 | 桌面更新页“本地数据 → 日志目录”，经 preload/IPC 调用 `shell.openPath(logDir)` | 只是打开文件夹，没有筛选、问题详情、导出或发送诊断 |
-| 服务器运行 | `src/lib/logger.js` 输出一行 JSON，包含 time、level、msg；B 站连接、备份、维护等已部分使用 | 只有 info/warn/error；仍混有普通 console；没有统一脱敏、Error 序列化和上下文约束 |
-| 服务器 HTTP | 分配/回传 `x-request-id`；未处理 HTTP 错误记录 requestId、method、path、message，生产响应隐藏异常正文 | 缺少统一请求耗时/完成记录和堆栈；部分异步任务没有关联 ID；传入 requestId 目前只截长，不做严格格式校验 |
+| 服务器运行 | `src/lib/logger.js` 输出一行 JSON；`log-record` 统一脱敏、规范化 Error 与安全代码位置；对象深度/数量、单条大小及输出频率有界，错误容量独立 | 仍以 console 为 sink，尚无本设计的应用日志目录、持久化日预算和问题索引；普通 console 调用未全量归并 |
+| 服务器 HTTP | 分配/回传 `x-request-id`；未处理 HTTP 错误记录 requestId、method、安全 path、脱敏错误及安全代码位置，生产响应隐藏异常正文 | 缺少统一请求耗时/完成统计；部分异步任务没有关联 ID；传入 requestId 目前只截长，不做严格格式校验 |
 | 服务器审计 | 默认 `admin/admin.db` 的 `audit_logs` 表；Admin 已有“审计日志”；API 返回最近最多 200 条，前端每页 50 条 | 记录管理行为，不是服务器错误检索/处理系统；没有问题分组、修复状态及客户端报告 |
-| 部署侧 | 已核实宝塔 Nginx → 回环 3000 → root 所属 PM2 单实例；access 使用不含 query 的格式 | 已检查的线上 logrotate/cron 入口无 LIRA 匹配规则，PM2 无轮转模块；LIRA 原生代理错误继承全局 crit，存在覆盖缺口 |
+| 部署侧（2026-09-14 调查） | 当时核实宝塔 Nginx → 回环 3000 → root 所属 PM2 单实例；access 使用不含 query 的格式 | 当时检查的 logrotate/cron 入口无 LIRA 匹配规则、PM2 无轮转模块，代理错误继承全局 crit；不能据此断言当前生产配置仍相同 |
 
 ### 2.1 现有目录的准确含义
 
-- **已安装客户端**：`<LIRA.exe 所在目录>/logs/{desktop.log,terminal.log,ai.log}`。当前实现按安装目录解析，不能套用通用 Electron 默认路径，把它误写成 `%APPDATA%/LIRA/logs`。
+- **已安装客户端**：`<LIRA.exe 所在目录>/logs/` 下保留 `desktop.log`、`terminal.log`，AI 普通统计位于 `runtime/ai.jsonl`，三个 logger 的错误位于 `errors/`；活动文件各有最多两份归档。当前实现按安装目录解析，不能套用通用 Electron 默认路径，把它误写成 `%APPDATA%/LIRA/logs`。
 - **客户端开发环境**：`<客户端仓库>/logs/`；独立后端 AI 路径随其 `dataDir` 的父目录解析。
-- **服务器**：已核实程序在 `/www/wwwroot/lira-server`，logger 只写 console；PM2 的实际应用文件为 `/root/.pm2/logs/lira-server-out-0.log`、`lira-server-error-0.log`，守护事件另在 `/root/.pm2/pm2.log`。当前项目 logs 及拟议的 `/var/log/lira-server` 均不存在；其他部署仍按其有效 PM2 配置解析路径。[PM2 官方说明](https://pm2.keymetrics.io/docs/usage/log-management/)
-- **Nginx**：已核实实际访问日志为 `/var/log/nginx/lirahub.cn.access.log`，LIRA 站点配置在 `/www/server/panel/vhost/nginx/lirahub.cn.conf`；目前继承 `/www/wwwlogs/nginx_error.log crit`，没有专用 LIRA error 文件。
+- **服务器（2026-09-14 部署证据）**：程序在 `/www/wwwroot/lira-server`，logger 只写 console；PM2 的应用文件为 `/root/.pm2/logs/lira-server-out-0.log`、`lira-server-error-0.log`，守护事件另在 `/root/.pm2/pm2.log`。当时项目 logs 及拟议的 `/var/log/lira-server` 均不存在；其他部署仍按其有效 PM2 配置解析路径。[PM2 官方说明](https://pm2.keymetrics.io/docs/usage/log-management/)
+- **Nginx（2026-09-14 部署证据）**：访问日志为 `/var/log/nginx/lirahub.cn.access.log`，LIRA 站点配置在 `/www/server/panel/vhost/nginx/lirahub.cn.conf`；当时继承 `/www/wwwlogs/nginx_error.log crit`，没有专用 LIRA error 文件。
 - **安装失败**：已有安装迁移错误文件 `%TEMP%/LIRA-install-error.txt`；`collect-install-diagnostics.ps1` 汇总相关 Windows 事件、安装包校验等，TXT 输出到脚本旁，写入失败则回退临时目录。它与应用运行日志分开。
 - **原生崩溃目录**：现有 [ADR-0016](../docs/architecture/adr/0016-separated-client-data-lifecycles.md) 将 Crashpad 归于 `data/browser/Crashpad`。本设计保留该布局；目录约定不代表当前已开启完整 crashReporter 链路。
 
 ### 2.2 现状证据
 
-客户端：[桌面 logger](../src/electron/desktop-logger.js)、[终端镜像](../src/electron/terminal-log.js)、[AI logger](../src/ai/request-logger.js)、[AI 内容记录](../src/ai/model-client.js)、[页面 logger](../public/js/shared/logger.js)、[路径解析](../src/electron/desktop-user-data.js)、[共享目录](../src/shared/data-paths.js)、[独立后端配置](../src/server/runtime-config.js)、[截图页面](../public/pages/admin/toolbox/desktop-update.html)、[按钮接线](../public/js/desktop.js)、[IPC](../src/electron/ipc/desktop-shell-ipc.js)、[安装诊断](../scripts/collect-install-diagnostics.ps1)。
+客户端：[桌面 logger](../src/electron/desktop-logger.js)、[终端镜像](../src/electron/terminal-log.js)、[AI logger](../src/ai/request-logger.js)、[AI 调用接线](../src/ai/model-client.js)、[轮转与容量](../src/shared/log-size-limit.js)、[启动/定时维护](../src/electron/log-maintenance.js)、[桌面异常采集](../src/electron/desktop-diagnostics.js)、[页面 logger](../public/js/shared/logger.js)、[路径解析](../src/electron/desktop-user-data.js)、[共享目录](../src/shared/data-paths.js)、[独立后端配置](../src/server/runtime-config.js)、[截图页面](../public/pages/admin/toolbox/desktop-update.html)、[按钮接线](../public/js/desktop.js)、[IPC](../src/electron/ipc/desktop-shell-ipc.js)、[安装诊断](../scripts/collect-install-diagnostics.ps1)。
 
-服务器链接指向相邻工作区：[logger](../../lira-server/src/lib/logger.js)、[HTTP/启动/退出](../../lira-server/src/app.js)、[审计写入](../../lira-server/src/lib/audit.js)、[审计查询](../../lira-server/src/modules/admin/audit-logs.js)、[Admin 页面](../../lira-server/public/admin/index.html)、[PM2 配置](../../lira-server/ecosystem.config.cjs)、[Nginx 示例](../../lira-server/nginx/lirahub.cn.conf.example)、[B 站连接](../../lira-server/src/modules/bilibili/room-monitor.js)。
+服务器链接指向相邻工作区：[logger](../../lira-server/src/lib/logger.js)、[脱敏与错误字段](../../lira-server/src/lib/log-record.js)、[HTTP/启动/退出](../../lira-server/src/app.js)、[审计写入](../../lira-server/src/lib/audit.js)、[审计查询](../../lira-server/src/modules/admin/audit-logs.js)、[Admin 页面](../../lira-server/public/admin/index.html)、[PM2 配置](../../lira-server/ecosystem.config.cjs)、[Nginx 示例](../../lira-server/nginx/lirahub.cn.conf.example)、[B 站连接](../../lira-server/src/modules/bilibili/room-monitor.js)。
 
 ## 3. 日志如何分类、输出什么
 
@@ -136,6 +138,8 @@
 
 ### 4.1 客户端
 
+以下为完整统一事件方案的目标布局；当前分流、轮转和保留实现见 §2 及桌面日志参考。现有容量保护不会因进程重启失效，但它不等同于尚未交付的持久化每日写入额度。
+
 继续使用当前解析得到的 `<安装目录>/logs/`；开发环境使用 `<客户端仓库>/logs/`。
 
 ```text
@@ -152,11 +156,11 @@
 
 同一客户端主进程拥有文件写入；renderer 通过窄 IPC 提交规范化事件，不能选择文件名/目录。独立 Node 调试进程不能与 Electron 同时写同一活动文件：检测所有权冲突，使用单独 runId 文件或直接报运行冲突。窗口/worker 的上下文由其可信宿主注入。
 
-原有 `desktop.log`、`terminal.log`、`ai.log` 首次升级时保留在原地，标为 legacy，只读且默认不进入上报包。新 logger 停止向旧文件写入；不在启动时清空它们。旧版无结构、无统一脱敏的数据不能直接导入问题中心。
+未来切换到上述统一事件文件时，原有 `desktop.log`、`terminal.log`、`ai.log` 保留在原地，标为 legacy，只读且默认不进入上报包。新 logger 停止向旧文件写入；不在启动时清空它们。当前适配器仍使用 desktop/terminal 文件并执行已有保留维护，尚未进行这次格式迁移。旧版无结构、无统一脱敏的数据不能直接导入问题中心。
 
 ### 4.2 服务器
 
-新增可配置的 `LIRA_LOG_DIR`，开发默认 `<serverProjectRoot>/logs`，本机部署建议 `/var/log/lira-server`。线上旧版本尚未支持该配置，必须先实现配置读取与新 logger。使用实际运行账号拥有的专用目录；当前为 root，目录建议 0750、文件 0640，未来切换服务账号时再配套迁移所有权。业务逻辑不硬编码本机路径。
+新增可配置的 `LIRA_LOG_DIR`，开发默认 `<serverProjectRoot>/logs`，本机部署建议 `/var/log/lira-server`。本地服务器实现尚未支持该应用日志配置，必须先实现配置读取与新 logger。使用实际运行账号拥有的专用目录；2026-09-14 调查时为 root，目录建议 0750、文件 0640，部署时重新核对账号并配套所有权。业务逻辑不硬编码本机路径。
 
 ```text
 /var/log/lira-server/
@@ -369,6 +373,8 @@ Admin 第一版复用现有 `adminAuth + superAdmin`，仅 `super_admin` 可跨�
 
 ### 8.1 实施顺序
 
+阶段 A 已部分交付：客户端容量、重启保留、脱敏与桌面异常采集已有实现和聚焦测试；服务器 logger 的脱敏与有界输出也已有实现。剩余统一格式、持久化日预算、故障上下文及诊断入口继续按具体场景分阶段推进，不把这些后续能力的缺席视为当前日志无限增长或重启丢失的证据。
+
 | 阶段 | 交付 | 对用户的价值 |
 | --- | --- | --- |
 | A：先保证日志可信且有界 | 源头精简/格式/脱敏/级别/容量准入；有限故障上下文；停止覆盖旧会话；分级后补齐页面异常、服务器错误和 requestId；保留安装兜底 | 正常少写，出问题有可用证据，重启后还能查 |
@@ -399,15 +405,16 @@ Admin 第一版复用现有 `adminAuth + superAdmin`，仅 `super_admin` 可跨�
 13. 单条普通/错误/上下文、每日普通写入、活动与临时文件、总文件数及有界内存同时受限；跨日、重启、时钟异常不绕过容量保护。PM2/Nginx 的部署验证与应用验证分开。
 14. 错误风暴保留首次详情、原因变化、重复增量与恢复；上下文按租户/操作筛选且显示实际覆盖范围，超预算显示损失而不宣称无错误。具体负载与限额见专项报告第 9 节。
 
-### 8.3 本轮已经完成的验证
+### 8.3 验证记录与范围
 
-- Node.js v24.15.0 下，客户端 `node --test test/desktop/terminal-log.test.js test/ai/ai-request-logger.test.js test/shared/log-redaction.test.js`：13/13 通过。现有测试也明确验证 terminal/AI 覆盖旧会话，这是待改变的当前行为，并非本方案已实现。
-- 服务器 `node --test test/http-log-privacy.test.js`：2/2 通过，验证 HTTP/Nginx 的 path-only 约束。
-- 2026-09-14 复查补充本地旧日志匿名计数、AI logger 临时合成大事件实验、容量算例与线上部署只读核查；已验证 PM2 实际路径、账号、模式、Nginx 配置和日志文件描述符，当前 Nginx 配置检查通过。这不代表已实现新容量控制。
-- 新文档本地链接与代码围栏检查通过，`git diff --check` 通过；2026-09-14 的 `npm run verify:docs` 为 5/5 通过。本次仅修改报告/设计，未重复运行前次的运行代码测试。
-- 线上仅查询允许的 PM2 运行字段、部署配置及文件元数据，未导出生产日志正文、秘密或业务数据；未执行部署、日志清理、PM2 重开/重启、Nginx 重载或原生崩溃试验。
+- 原始调查时，Node.js v24.15.0 下，客户端 `node --test test/desktop/terminal-log.test.js test/ai/ai-request-logger.test.js test/shared/log-redaction.test.js`：13/13 通过。当时测试验证 terminal/AI 覆盖旧会话；该历史行为已被当前追加、轮转与重启保留实现替代。
+- 原始调查时，服务器 `node --test test/http-log-privacy.test.js`：2/2 通过，验证 HTTP/Nginx 的 path-only 约束。
+- 2026-09-14 复查补充本地旧日志匿名计数、AI logger 临时合成大事件实验、容量算例与线上部署只读核查；已验证 PM2 实际路径、账号、模式、Nginx 配置和日志文件描述符，当时 Nginx 配置检查通过。该次调查不代表已实现新容量控制。
+- 2026-09-14 新文档本地链接与代码围栏检查通过，`git diff --check` 通过，`npm run verify:docs` 为 5/5 通过；该次仅修改报告/设计，未重复运行前次的运行代码测试。
+- 2026-09-14 线上核查仅查询允许的 PM2 运行字段、部署配置及文件元数据，未导出生产日志正文、秘密或业务数据；未执行部署、日志清理、PM2 重开/重启、Nginx 重载或原生崩溃试验。
+- 2026-11-11 本地核验：`node --test test/shared/log-size-limit.test.js test/shared/log-rate-limit.test.js test/shared/log-redaction.test.js test/shared/log-redaction-boundaries.test.js test/desktop/desktop-logger.test.js test/desktop/terminal-log.test.js test/desktop/log-maintenance.test.js test/desktop/desktop-diagnostics.test.js test/ai/ai-request-logger.test.js`：44/44 通过。覆盖固定磁盘容量、跨 writer 保留、轮转、过期/旧错误提取、脱敏、限频、有界 AI 队列及异常监听清理；使用合成数据，没有访问用户日志或生产服务器。此次未重跑真实 Electron 场景，未验证尚未实现的日预算、诊断页面或上传协议。
 
-**完成条件**：上述仅是设计交付。只有各阶段对应的功能、协议、验收测试和必要的 Electron/Admin 运行检查通过后，才可把规格状态改为 Implemented。
+**完成条件**：已交付的阶段 A 子项不代表整个方案完成。只有各阶段对应的功能、协议、验收测试和必要的 Electron/Admin 运行检查通过后，才可把规格状态改为 Implemented。
 
 ## 9. 参考实践与取舍
 

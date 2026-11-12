@@ -181,11 +181,22 @@ test('games admin retries an empty viewer list with backoff and fills both viewe
   }
   assert.equal(timers.length, pendingTimers - 1, 'a non-empty answer schedules no further retry');
 
+  viewerBodies.push({ ok: false, error: 'Internal server error.' });
+  node('gamesRefreshViewersBtn').listeners.click();
+  assert.equal(node('gamesRefreshViewersBtn').disabled, true);
+  await settle();
+  assert.equal(node('gamesRefreshViewersBtn').disabled, false);
+  assert.equal(node('numberBombViewer').value, '7', 'failure preserves the selected known viewer');
+  assert.equal(node('gomokuViewer').children.length, 2);
+  assert.equal(timers.filter(timer => [250, 500, 1000, 2000].includes(timer.delay)).length, 0,
+    'a failed response does not start the empty-list retry loop');
+  assert.match(node('gamesViewerStatus').textContent, /刷新失败/);
+
   viewerBodies.push(...Array.from({ length: 5 }, () => ({ ok: true, data: [] })));
   node('gamesRefreshViewersBtn').listeners.click();
   await settle();
   for (const delay of [250, 500, 1000, 2000]) await runRetry(delay);
-  assert.equal(viewerRequests, 8, 'an empty room stops after the last backoff step');
+  assert.equal(viewerRequests, 9, 'an empty room stops after the last backoff step');
   assert.equal(viewerBodies.length, 0);
   assert.equal(node('gomokuViewer').children.length, 1, 'an empty list leaves only the placeholder');
   for (const id of ['numberBombViewer', 'gomokuViewer']) {

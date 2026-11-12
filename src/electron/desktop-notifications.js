@@ -11,6 +11,31 @@ const DEFAULT_SETTINGS = Object.freeze({
   largeGiftThresholdRmb: 1000,
 });
 
+function configureNotificationIdentity({ app, shell, writeLog = () => {}, fileSystem = fs }) {
+  const productionId = 'com.aurorawhisperer.lira';
+  const appId = app.isPackaged ? productionId : `${productionId}.development`;
+  app.setAppUserModelId(appId);
+  // Older development runs registered Electron under the installed application's ID.
+  const shortcut = path.join(app.getPath('appData'), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Electron.lnk');
+  if (!fileSystem.existsSync(shortcut)) return;
+  try {
+    const link = shell.readShortcutLink(shortcut);
+    if (link.appUserModelId !== productionId) return;
+    const target = path.resolve(link.target);
+    if (app.isPackaged) {
+      // An upgrade must also repair the old collision without claiming another app's shortcut.
+      const projectRoot = path.resolve(path.dirname(target), '../../..');
+      const developmentExe = path.join(projectRoot, 'node_modules', 'electron', 'dist', 'electron.exe');
+      if (target.toLowerCase() !== developmentExe.toLowerCase()) return;
+      const manifest = JSON.parse(fileSystem.readFileSync(path.join(projectRoot, 'package.json'), 'utf8'));
+      if (manifest.name !== 'lira' || manifest.build?.appId !== productionId) return;
+    } else if (target.toLowerCase() !== path.resolve(app.getPath('exe')).toLowerCase()) return;
+    if (!shell.writeShortcutLink(shortcut, 'update', { appUserModelId: `${productionId}.development` })) throw new Error('Shortcut update failed');
+  } catch {
+    writeLog('desktop-notifications', { event: 'DEVELOPMENT_IDENTITY_REPAIR_FAILED' });
+  }
+}
+
 function isValidSettings(value) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const keys = Object.keys(value);
@@ -128,4 +153,4 @@ function createDesktopNotifications({
   return { getState, update, notifyGift, dispose, whenIdle: () => pending };
 }
 
-module.exports = { createDesktopNotifications };
+module.exports = { createDesktopNotifications, configureNotificationIdentity };

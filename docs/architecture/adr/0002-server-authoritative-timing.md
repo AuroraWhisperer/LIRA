@@ -48,5 +48,5 @@ Clients receive `effectiveRemainingMs` and `serverNowMs`, subtract transport del
 
 ## References
 
-- ../backend/overtime.md
+- [overtime.md](../../reference/backend/overtime.md)
 - `src/overtime/overtime-service.js` (`getEffectiveRemainingMs`, `materialize`, `recoverPersistedClock`, `scheduleZeroTimer`)

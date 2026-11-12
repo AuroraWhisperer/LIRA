@@ -11,6 +11,7 @@ function createFixture({ loadPending = false, getAuthState = async () => ({ logg
   getSessionState = getAuthState } = {}) {
   const timers = new Set();
   const asyncErrors = [];
+  const external = [];
   let window;
   let finishLoad;
   const load = loadPending ? new Promise((resolve) => (finishLoad = resolve)) : Promise.resolve();
@@ -53,7 +54,7 @@ function createFixture({ loadPending = false, getAuthState = async () => ({ logg
     clearInterval: (timer) => timers.delete(timer),
     clearTimeout: (timer) => timers.delete(timer),
     require(name) {
-      if (name === 'electron') return { BrowserWindow, shell: { openExternal: async () => {} } };
+      if (name === 'electron') return { BrowserWindow, shell: { openExternal: async (url) => external.push(url) } };
       if (name === './music-auth-manager') {
         return {
           MUSIC_LOGIN_CONFIG: {
@@ -76,6 +77,7 @@ function createFixture({ loadPending = false, getAuthState = async () => ({ logg
     },
     timers,
     asyncErrors,
+    external,
     finishLoad: () => finishLoad(),
   };
 }
@@ -127,6 +129,28 @@ test('music login remains usable after a subframe fails to load', async () => {
     );
     assert.equal(fixture.window.isDestroyed(), false);
     assert.equal(fixture.window.webContents.session.cookies.listenerCount('changed'), 1);
+  } finally {
+    fixture.window.close();
+    await completion;
+  }
+});
+
+test('music login rejects off-provider redirects without opening an external browser', async () => {
+  const fixture = createFixture();
+  const completion = fixture.open();
+  await new Promise(setImmediate);
+  try {
+    for (const [url, isMainFrame, allowed] of [
+      ['https://y.qq.com/login', true, true],
+      ['https://outside.example/login', true, false],
+      ['http://y.qq.com/login', true, false],
+      ['https://outside.example/captcha', false, true],
+    ]) {
+      let prevented = false;
+      fixture.window.webContents.emit('will-redirect', { preventDefault() { prevented = true; } }, url, false, isMainFrame);
+      assert.equal(prevented, !allowed, url);
+    }
+    assert.deepEqual(fixture.external, []);
   } finally {
     fixture.window.close();
     await completion;

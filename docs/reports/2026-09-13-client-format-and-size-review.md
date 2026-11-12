@@ -1,6 +1,6 @@
 # 客户端格式化与 800 行文件审查报告
 
-> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。
+> 历史记录：本文的发现、建议和验证仅对应文内日期/基线，不是当前缺陷或执行清单。现状见 [技术参考](../reference/README.md)，剩余工作见 [计划索引](../../specs/plans/README.md) 与 [未结项台账](../../specs/plans/open-items.md)。原结论和后续执行记录保留，不据此恢复未获批准的提案。文内源码/测试路径及行号属于原审查时点，部分文件已迁移或删除；本机绝对路径不保证跨机器可用。按文内日期/基线查询历史，未提交快照或已丢失的临时附件不能保证完整重现。
 
 
 日期：2026-09-13。统计对象为本次工作区的现有代码，包含任务开始前尚未提交的修改。
@@ -11,7 +11,7 @@
 
 ## 1. 结论
 
-- 已在[模块化规范](../architecture/engineering/modularity-standard.md#file-size-review-threshold)中定义：生产 JavaScript **超过 800 行**进入审查，恰好 800 行不超限。
+- 当时在模块化规范中定义：生产 JavaScript **超过 800 行**进入审查，恰好 800 行不超限。现行规则已由[按职责评审的规模政策](../architecture/engineering/modularity-standard.md#file-size-review)取代，本段仅保留历史阈值。
 - 最终有 **749 个代码与配置文件**通过 Prettier 检查；与任务开始时相比，**221 个文件**存在内容变化，包含格式化及必要的测试适配。
 - **399 个生产 JavaScript 文件中，只有 1 个超过 800 行**：`src/electron/remote-gift-controller.js`，847 行。
 - 扩展查看 CSS、HTML、测试和声明式数据后，共有 **30 个文件超过 800 行**。逐项审查结果为：**20 个保留，10 个建议拆分**。
@@ -22,7 +22,7 @@
 
 ### 2.1 800 行规则
 
-规则写在当前有效的[模块化规范](../architecture/engineering/modularity-standard.md)，而不是只写在本报告中。
+当时规则写在模块化规范中；现行[模块化规范](../architecture/engineering/modularity-standard.md#file-size-review)已采用按源码种类、职责和目的评审的政策。
 
 1. 统计 Prettier 格式化后的单文件物理行数，包含注释和空行；文件末尾的换行符不额外计一行。
 2. 生产 JavaScript 范围是 `src/`、`public/js/`、`scripts/`、`tools/` 下的 JavaScript 源码。

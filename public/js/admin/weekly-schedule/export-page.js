@@ -10,7 +10,8 @@ window.renderWeeklyScheduleExport = async (template) => {
   await waitForWeeklyScheduleImages(root);
   await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   const overflow = fitWeeklyScheduleText(root);
-  await new Promise(resolve => requestAnimationFrame(resolve));
+  // The second frame lets the offscreen compositor paint the fitted text before capturePage.
+  await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   return {
     width: root.offsetWidth,
     height: root.offsetHeight,

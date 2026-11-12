@@ -47,6 +47,11 @@ function createDisplaySettingsEndpoints({ request }) {
     updateWelcomeSettingsV2: (settings, token) => request('PUT', '/api/device/welcome-settings/v2', settings, token),
     getPkReportSettings: (token) => request('GET', '/api/device/pk-report-settings', undefined, token),
     updatePkReportSettings: (settings, token) => request('PUT', '/api/device/pk-report-settings', settings, token),
+    getViewerNameSettings: (token) => request('GET', '/api/device/viewer-name-settings', undefined, token),
+    updateViewerNameSettings: (settings, token) => request('PUT', '/api/device/viewer-name-settings', settings, token),
+    listViewerNames: ({ page }, token) => request('GET', `/api/device/viewer-names?page=${page}`, undefined, token),
+    updateViewerName: ({ uid, name }, token) => request('PUT', `/api/device/viewer-names/${encodeURIComponent(uid)}`, { name }, token),
+    deleteViewerName: (uid, token) => request('DELETE', `/api/device/viewer-names/${encodeURIComponent(uid)}`, undefined, token),
   };
 }
 
@@ -157,6 +162,24 @@ function createDisplaySettingsOperations({ remote, withAuthorizedToken, getAutho
     return overlayOperation((token) => remote.updateWelcomeSettings(settings, token));
   }
 
+  function viewerNameOperation(operation) {
+    return overlayOperation(async (token) => {
+      try { return await operation(token); }
+      catch (error) {
+        if ([404, 405].includes(error.status) && error.code !== 'VIEWER_NAME_NOT_FOUND') {
+          throw new RemoteLicenseError('VIEWER_NAMES_UNSUPPORTED', '请更新服务器后使用昵称管理。');
+        }
+        throw error;
+      }
+    });
+  }
+
+  const getViewerNameSettings = () => viewerNameOperation((token) => remote.getViewerNameSettings(token));
+  const updateViewerNameSettings = (settings) => viewerNameOperation((token) => remote.updateViewerNameSettings(settings, token));
+  const listViewerNames = (query) => viewerNameOperation((token) => remote.listViewerNames(query, token));
+  const updateViewerName = (value) => viewerNameOperation((token) => remote.updateViewerName(value, token));
+  const deleteViewerName = (uid) => viewerNameOperation((token) => remote.deleteViewerName(uid, token));
+
   function overlayOperation(operation, signal) {
     const owner = getOverlayOwner();
     const assertOwner = () => {
@@ -175,7 +198,8 @@ function createDisplaySettingsOperations({ remote, withAuthorizedToken, getAutho
     );
   }
 
-  return { getOverlaySettings, updateOverlaySettings, getOverlayFilters, updateOverlayFilters, getOverlayViewers, getWelcomeSettings, dailyBotRequestInternal, getWelcomeSettingsV2, updateWelcomeSettingsV2, getPkReportSettings, getFixedReplySettings, updateFixedReplySettings, updatePkReportSettings, updateWelcomeSettings };
+  return { getOverlaySettings, updateOverlaySettings, getOverlayFilters, updateOverlayFilters, getOverlayViewers, getWelcomeSettings, dailyBotRequestInternal, getWelcomeSettingsV2, updateWelcomeSettingsV2, getPkReportSettings, getFixedReplySettings, updateFixedReplySettings, updatePkReportSettings, updateWelcomeSettings,
+    getViewerNameSettings, updateViewerNameSettings, listViewerNames, updateViewerName, deleteViewerName };
 }
 
 module.exports = { createDisplaySettingsEndpoints, createDisplaySettingsOperations };

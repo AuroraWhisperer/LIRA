@@ -13,8 +13,8 @@ _请求方式：GET_
 
 | 参数名    | 类型 | 内容         | 必要性 | 备注                                              |
 | --------- | ---- | ------------ | ------ | ------------------------------------------------- |
-| page_size | num  | 每页的数量   | 必要   | 最大为 10，超出 `1002002：参数异常`               |
-| page      | num  | 返回结果页数 | 必要   | 两个参数不填返回空，只 page 不填或错误则 500 异常 |
+| page_size | num  | 每页的数量   | 必要   | 最大为 10；超限错误码待核实               |
+| page      | num  | 返回结果页数 | 必要   | 两个参数不填返回空；page 缺失或错误时的错误码待核实 |
 
 **json 回复：**
 
@@ -22,7 +22,7 @@ _请求方式：GET_
 
 | 字段    | 类型 | 内容     | 备注                                              |
 | ------- | ---- | -------- | ------------------------------------------------- |
-| code    | num  | 返回值   | 0：成功<br>-1002002：参数异常<br>-500：服务器异常 |
+| code    | num  | 返回值   | 0：成功；参数异常及服务器异常的错误码待核实（原资料正负号冲突） |
 | message | str  | 错误信息 | 默认为 "0"                                        |
 | ttl     | num  | 1        |                                                   |
 | data    | obj  | 信息本体 |                                                   |
@@ -39,7 +39,7 @@ _请求方式：GET_
 
 | 字段               | 类型   | 内容                 | 备注                                   |
 | ------------------ | ------ | -------------------- | -------------------------------------- |
-| can_delete         | bool   | 可否删除             |                                        |
+| can_deleted        | bool   | 可否删除             |                                        |
 | day_limit          | num    | 日经验上限（原力值） | eg: 1500                               |
 | guard_level        | num    |                      |                                        |
 | guard_medal_title  | str    | 加成状态             |                                        |
@@ -69,7 +69,7 @@ _请求方式：GET_
 **示例：**
 
 ```shell
-curl https://api.live.bilibili.com/xlive/app-ucenter/v1/user/GetMyMedals?page=1&page_size=10 \
+curl 'https://api.live.bilibili.com/xlive/app-ucenter/v1/user/GetMyMedals?page=1&page_size=10' \
 -b "SESSDATA=xxx"
 ```
 
@@ -230,7 +230,7 @@ _请求方式：GET_
 | curMonth          | num   | 当前月                       |                        |
 | curYear           | num   | 当前年                       |                        |
 | curDay            | num   | 当前日                       |                        |
-| curData           | str   | 当前日期（格式化）           | eg: 2023-2-19          |
+| curDate           | str   | 当前日期（格式化）           | eg: 2023-2-19          |
 | hadSignDays       | num   | 当月已签到天数               | 默认为0                |
 | newTask           | num   | 作用未知                     | 默认为0                |
 | signDaysList      | array | 当月已签到日列表             | 默认为空               |

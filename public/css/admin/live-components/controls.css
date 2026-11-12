@@ -42,6 +42,9 @@
   width: 112px;
   min-width: 0;
 }
+.live-components-page #nowPlayingPage .component-inline-field :is(select, .lira-select) {
+  width: 132px;
+}
 .live-components-page .component-toolbar-group > .component-inline-field {
   padding-left: 16px;
   border-left: 1px solid var(--border);

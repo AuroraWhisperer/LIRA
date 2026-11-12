@@ -32,10 +32,10 @@ function createLicenseIpcFixture({ licenseManager = {}, giftCatalog, fontLibrary
     fontLibrary,
     getMainWindow: () => mainWindow,
     getDesktopBaseUrl: () => DESKTOP_BASE_URL,
-    hasExactOrigin: (candidate, expected) => new URL(candidate).origin === new URL(expected).origin,
   });
   const eventFrom = (url) => ({ sender: webContents, senderFrame: { url } });
   const trustedEvent = eventFrom(`${DESKTOP_BASE_URL}${framePath}`);
+  webContents.mainFrame = trustedEvent.senderFrame;
   return {
     handlers,
     sent,

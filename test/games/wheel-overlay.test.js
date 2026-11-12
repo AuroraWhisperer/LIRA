@@ -72,12 +72,15 @@ test('wheel module entry binds its controls without relying on classic-script gl
 test('wheel retains unchanged segments while refreshing appearance, spins and cleared results', () => {
   const elements = new Map();
   let created = 0;
-  let timers = 0;
-  const node = () => ({ children: [], dataset: {}, style: {}, classes: new Set(),
-    classList: { add() {}, toggle() {} }, setAttribute() {},
+  const timers = [];
+  const node = () => ({ children: [], dataset: {}, style: { setProperty() {} }, classes: new Set(), attributes: new Map(),
+    classList: { add() {}, toggle() {} },
+    setAttribute(name, value) { this.attributes.set(name, value); },
+    getAttribute(name) { return this.attributes.get(name); },
     append(child) { this.children.push(child); }, replaceChildren() { this.children = []; } });
   const byId = id => { if (!elements.has(id)) elements.set(id, node()); return elements.get(id); };
   const document = { body: node(), addEventListener() {}, getElementById: byId,
+    createElement(tag) { return this.createElementNS('', tag); },
     createElementNS(_namespace, tag) {
       created++;
       const element = node();
@@ -89,7 +92,7 @@ test('wheel retains unchanged segments while refreshing appearance, spins and cl
       return byId('wheelSegments').children.filter(element => selector !== '.wheel-label' || element.tag === 'text');
     } };
   const context = vm.createContext({ document, URLSearchParams,
-    window: { matchMedia: () => ({ matches: false }), setTimeout() { timers++; } },
+    window: { matchMedia: () => ({ matches: false }), setTimeout(callback) { timers.push(callback); } },
     state: { entries: [{ label: 'A', weight: 1 }, { label: 'B', weight: 2 }], spin: null, lastResult: null } });
   vm.runInContext(readJsModuleBundle('public', 'js', 'overlays', 'wheel.js'), context);
   const render = () => vm.runInContext('renderState(state)', context);
@@ -101,13 +104,22 @@ test('wheel retains unchanged segments while refreshing appearance, spins and cl
   context.state.lastResult = { index: 0 };
   render();
   assert.equal(first.classes.has('is-selected'), true);
+  assert.equal(byId('wheelGroup').style.transform, 'rotate(-60deg)', 'restored result points to the weighted segment center');
+  assert.equal(byId('wheelGroup').style.transition, 'none', 'restoration does not replay a spin');
   context.state.spin = { id: 'spin', index: 1, startedAt: Date.now(), durationMs: 1000, turns: 5 };
   render(); render();
-  assert.equal(timers, 1, 'repeated snapshots never restart a spin');
+  assert.equal(timers.length, 1, 'repeated snapshots never restart a spin');
+  const spinningTarget = Number(byId('wheelGroup').style.transform.match(/[-\d.]+/)[0]);
   assert.equal(first.classes.has('is-selected'), false);
   context.state.spin = null;
+  context.state.lastResult = { index: 1 };
+  render();
+  const restoredTarget = Number(byId('wheelGroup').style.transform.match(/[-\d.]+/)[0]);
+  assert.equal(((spinningTarget - restoredTarget) % 360 + 360) % 360, 0, 'finished and reopened views share the same result angle');
   context.state.lastResult = null;
   render();
+  timers[0]();
+  assert.equal(byId('wheelSegments').children.some(element => element.classes.has('is-selected')), false, 'a cleared result is not revived by the old animation callback');
   assert.equal(byId('wheelSegments').children[0], first);
   vm.runInContext('componentConfig = { textColor: "red", showResult: false, labelFontSize: 22 }', context);
   render();

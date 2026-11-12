@@ -4,6 +4,17 @@
 
 本报告只提出问题和修复方向，没有修改业务实现、测试、配置、依赖或锁文件，也没有把建议标记为 Accepted。快照覆盖 2,458 个源码、测试、脚本、native/build、契约和文档文本输入，包括非忽略未跟踪文件；三份报告输出不纳入清单，避免报告写入改变自身摘要。
 
+## 后续处理映射
+
+2026-10-25 的四份完成计划已承接全部八项；下文保留 10-24 的发现、版本和测试时点，不将旧依赖版本作为当前事实。完成记录也不代替真实硬件或后续发布验收。
+
+| 原发现 | 完成证据 |
+| --- | --- |
+| F-01 / F-04 / F-07 | [依赖与构建依赖整改](../../specs/plans/archive/2026-10-25-audit-dependency-remediation.md) |
+| F-02 / F-06 | [冷却隔离与未来时间整改](../../specs/plans/archive/2026-10-25-audit-cooldown-remediation.md) |
+| F-03 | [在途播放快照整改](../../specs/plans/archive/2026-10-25-audit-playback-inflight-remediation.md) |
+| F-05 / F-08 | [原生运行时及可复现构建整改](../../specs/plans/archive/2026-10-25-audit-native-build-remediation.md) |
+
 ## 结论
 
 本轮形成 **8 项结论**：4 项已确认、1 项条件性风险、3 项改进建议；按严重度为 **Critical 0、High 1、Medium 4、Low 2、Info 1**。唯一的 High 是实际桌面运行时 Electron 落入已知公告范围，不代表已经证明 LIRA 可被利用。

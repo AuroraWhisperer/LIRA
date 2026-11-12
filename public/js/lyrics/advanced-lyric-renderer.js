@@ -308,13 +308,15 @@ export function createAdvancedLyricRenderer(root) {
         const highlight = element(document, 'span', 'advanced-lyric-highlight');
         highlight.textContent = unit.text;
         glyph.append(highlight);
-        const soft = ['soft-fill', 'sustain'].includes(s.advancedLyricWordMotion);
+        const soft = s.advancedLyricWordProgress && ['soft-fill', 'sustain'].includes(s.advancedLyricWordMotion);
         if (soft) highlight.classList.add('is-soft');
         const fillFrames = soft
           ? [{ maskPosition: item.vertical ? '0 100%' : '100% 0', webkitMaskPosition: item.vertical ? '0 100%' : '100% 0' },
             { maskPosition: '0% 0%', webkitMaskPosition: '0% 0%' }]
           : [{ clipPath: item.vertical ? 'inset(0 0 100% 0)' : 'inset(0 100% 0 0)' }, { clipPath: 'inset(0 0 0 0)' }];
-        pendingMotion.push(() => motion.add(highlight, fillFrames, { startMs: begin, endMs: end, easing: 'linear' }));
+        pendingMotion.push(() => motion.add(highlight, fillFrames, s.advancedLyricWordProgress
+          ? { startMs: begin, endMs: end, easing: 'linear' }
+          : { startMs: begin - 1, endMs: begin, easing: 'steps(1, end)' }));
         if (!reducedMotion) pendingMotion.push(() => {
           const track = advancedLyricWordAnimation(s.advancedLyricWordMotion, { startMs: begin, endMs: end,
             lineEndMs: window.endMs, timed: unit.timed === true && !unit.revealAsRun,
@@ -384,7 +386,7 @@ export function createAdvancedLyricRenderer(root) {
     const { desktopLyricEnabled, advancedLyricEnabled, ...appearance } = next;
     const signature = JSON.stringify(appearance);
     if (signature === settingsSignature) return;
-    const structural = ['Layout', 'HideUnsung', 'ShowTranslation', 'FontFamily', 'FontWeight', 'FontStyle', 'FontSize', 'LetterSpacing', 'LineHeight',
+    const structural = ['Layout', 'HideUnsung', 'WordProgress', 'ShowTranslation', 'FontFamily', 'FontWeight', 'FontStyle', 'FontSize', 'LetterSpacing', 'LineHeight',
       'Enter', 'Hold', 'Exit', 'WordMotion', 'MotionDuration', 'MotionAmount', 'RotateLayouts', 'LayoutSequence',
       'RotateMotions', 'MotionSequence', 'Decoration'];
     const rebuild = structural.some(key => settings[`advancedLyric${key}`] !== next[`advancedLyric${key}`]);

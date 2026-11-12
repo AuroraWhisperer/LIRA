@@ -2,13 +2,13 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const Module = require('node:module');
 const test = require('node:test');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 function fixture(t) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-cookie-storage-'));
+  const dataDir = createScratchDirectory('lira-cookie-storage-', t);
   const authDir = path.join(dataDir, 'bilibili-auth');
   fs.mkdirSync(authDir);
   let cookies = [
@@ -53,7 +53,6 @@ function fixture(t) {
   t.after(() => {
     if (previousSwitch === undefined) delete process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT;
     else process.env.BILIBILI_PLAINTEXT_COOKIE_EXPORT = previousSwitch;
-    fs.rmSync(dataDir, { recursive: true, force: true });
   });
   return {
     auth,
@@ -107,3 +106,24 @@ test('unavailable encryption never falls back to plaintext or erases the live lo
   assert.equal(fs.existsSync(path.join(f.authDir, 'cookies.enc')), false);
   assert.equal((await f.auth.getBilibiliAuthState(f.dataDir)).loggedIn, true);
 });
+
+for (const failure of ['writeFileSync', 'renameSync']) {
+  test(`failed cookie snapshot ${failure} preserves the previous encrypted login`, async (t) => {
+    const f = fixture(t);
+    await f.auth.persistBilibiliCookieSnapshot(f.dataDir);
+    const snapshotPath = path.join(f.authDir, 'cookies.enc');
+    const previous = fs.readFileSync(snapshotPath);
+    f.clearCookies();
+    const write = fs.writeFileSync;
+    const fault = t.mock.method(fs, failure, (file) => {
+      if (failure === 'writeFileSync') write(file, 'partial-encrypted-data');
+      throw new Error('synthetic snapshot failure');
+    });
+    await assert.rejects(f.auth.persistBilibiliCookieSnapshot(f.dataDir), /synthetic snapshot failure/);
+    fault.mock.restore();
+    assert.deepEqual(fs.readFileSync(snapshotPath), previous);
+    assert.deepEqual(fs.readdirSync(f.authDir), ['cookies.enc']);
+    await f.auth.restoreBilibiliCookieSnapshot(f.dataDir);
+    assert.equal((await f.auth.getBilibiliAuthState(f.dataDir)).loggedIn, true);
+  });
+}

@@ -133,6 +133,7 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
     writes = [];
   const webContents = {};
   const event = { sender: webContents, senderFrame: { url: 'http://127.0.0.1:3000/admin' } };
+  webContents.mainFrame = event.senderFrame;
   let reply = {
     style: 'outline',
     fullscreenDurationSeconds: 12,
@@ -152,9 +153,8 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
         return reply;
       },
     },
-    getMainWindow: () => ({ webContents }),
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
     getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
-    hasExactOrigin: (value, expected) => new URL(value).origin === expected,
   });
   const read = handlers.get('license:get-overlay-settings');
   const update = handlers.get('license:update-overlay-settings');

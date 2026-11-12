@@ -7,31 +7,15 @@ const { settle, pngSize } = require('./lib/page-tools.cjs');
 
 const SHOTS = [
   {
-    id: 'S6',
-    file: 'server-manage-danmaku',
-    title: '网页主播中心：弹幕姬样式',
-    route: '/manage',
-    workspace: 'overlay',
-  },
-  {
-    id: 'S6b',
-    file: 'server-manage-danmaku-url',
-    title: '网页主播中心：直播画面地址与复制按钮',
-    route: '/manage',
-    workspace: 'overlay',
-    scroll: '#overlayUrl',
-    mustShow: ['#overlayUrl', '#overlayCopyBtn', '[data-workspace-link="overlay"]'],
-  },
-  {
     id: 'F3b',
     file: 'public-song-page-appearance-expanded',
-    title: '网页主播中心：展开歌单外观设置',
+    title: '网页主播中心：歌单外观设置',
     route: '/manage',
     workspace: 'song-page',
-    click: '#songAppearanceDetails summary',
-    scroll: '#songAppearanceHeading',
-    block: 'start',
-    mustShow: ['#songAppearanceReset'],
+    viewport: { width: 1440, height: 1320 },
+    scroll: '[aria-labelledby="songAppearanceHeading"]',
+    block: 'center',
+    mustShow: ['#songAppearanceHeading', '#songAppearanceReset'],
   },
   { id: 'F7', file: 'public-overlay-queue', title: '点歌板实际输出（隔离示例队列）', route: '/queue', local: true },
   {
@@ -51,7 +35,6 @@ async function capture(page, baseUrl, shot) {
   await response.dispose();
   await page.goto(baseUrl + shot.route, { waitUntil: 'domcontentloaded' });
   if (shot.workspace) await page.locator(`[data-workspace-link="${shot.workspace}"]`).click();
-  if (shot.click) await page.locator(shot.click).click();
   await settle(page, 300);
   if (shot.scroll)
     await page

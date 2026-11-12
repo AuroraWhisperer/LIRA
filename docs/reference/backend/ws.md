@@ -13,14 +13,14 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 | 事实                 | 值                                                                                                                                                                                     | 出处                                                  |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- |
 | 连接路径             | `/ws`,升级请求经 `server.on('upgrade')` 分发(其他路径直接 destroy)；固定弹幕层额外传 `topic=danmaku`                                                                                   | [server.js:285-292](../../../src/server.js#L285-L292) |
-| 握手                 | `Sec-WebSocket-Key` + 魔数 `258EAFA5-E914-47DA-95CA-C5AB0DC85B11` 做 SHA1 → Base64 `Sec-WebSocket-Accept`                                                                              | [ws.js:38-48](../../../src/server/ws.js#L38-L48)      |
+| 握手                 | GET、HTTP ≥1.1、Upgrade websocket、Connection 含 Upgrade、版本 13、规范 Base64 编码的 16 字节 key 均通过后，才以 key + 魔数 `258EAFA5-E914-47DA-95CA-C5AB0DC85B11` 做 SHA1 → Base64 `Sec-WebSocket-Accept`；非法握手返回 400 并销毁连接，不登记 socket | [ws.js](../../../src/server/ws.js) |
 | **Origin 验证**(H06) | 先验证凭据，再检查 Origin。普通 Origin 必须精确匹配 `context.allowedOrigins`；只有已验证 overlay 额外允许沙箱页面的字面 `null`，Admin 明确拒绝 `null`。已认证的无 Origin 非浏览器客户端保留支持；不匹配返回 403 后销毁连接 | [ws.js](../../../src/server/ws.js) |
 | 鉴权 | 与 HTTP 共用 `resolveRequestPrincipal(context, req, requestUrl)`：Bearer 优先于 `?token=`，显式无效 Authorization 不回退。运行时管理凭据解析为 Admin，服务器签名的页面凭据解析为 overlay(scope)；空运行时密钥或无效凭据返回 401 | [access-policy.js](../../../src/server/access-policy.js) |
 | 帧上限               | 单帧 `MAX_FRAME_BYTES = 256 KB`,跨分片消息 `MAX_MESSAGE_BYTES = 256 KB`,超限回 close code 1009                                                                                         | [ws.js:8-9](../../../src/server/ws.js#L8-L9)          |
 | 待发送上限           | 每个 socket 的 Node 待发送字节数 + 新帧不得超过 `MAX_PENDING_BYTES = 2 MB`；超过时立即销毁并清理该慢客户端，由客户端重连后通过 snapshot 恢复                                           | [ws.js](../../../src/server/ws.js)                    |
 | 心跳                 | 每 `HEARTBEAT_INTERVAL_MS = 30000` 发一次 ping;以 `performance.now()` 单调历时判断，超过 `SOCKET_TIMEOUT_MS = 90000` 未收到 pong 则销毁连接;心跳定时器 `unref()` | [ws.js](../../../src/server/ws.js) |
 | 客户端消息 | 服务端不执行业务客户端消息。Admin 文本/二进制消息校验重组后丢弃；overlay 业务数据帧（包括 clear-history、控制消息和分片起始帧）使用 Close(1008) 拒绝。两类连接均允许协议 ping/pong/close | [ws.js](../../../src/server/ws.js) |
-| 发送 | 服务端业务消息为 JSON 文本帧；连接初始、合并快照、普通/主题广播、shutdown 和兼容导出均经统一 `sendWebSocket` 按 socket principal 投影。被 scope 禁止的消息跳过；topic 只增加订阅条件，不扩大权限 | [ws.js](../../../src/server/ws.js)、[overlay-projection.js](../../../src/server/overlay-projection.js) |
+| 发送 | 服务端业务消息为 JSON 文本帧；连接初始、合并快照、普通/主题广播和 shutdown 均经统一 `sendWebSocket` 按 socket principal 投影。被 scope 禁止的消息跳过；topic 只增加订阅条件，不扩大权限 | [ws.js](../../../src/server/ws.js)、[overlay-projection.js](../../../src/server/overlay-projection.js) |
 | 停止                 | `webSocketHub.stop({shutdownPayload})` 首次调用停止新升级和心跳，依次发送 shutdown、Close(1001)、FIN；仍未物理关闭的 socket 在 1 秒期限后销毁，重复 stop 不续期或重复发送 | [ws.js](../../../src/server/ws.js) |
 
 入站帧按 [RFC 6455 §5](https://www.rfc-editor.org/rfc/rfc6455.html#section-5) 校验：客户端必须掩码，未协商扩展时 RSV 必须为零；保留 opcode、非最短长度编码、非法分片顺序、被分片或超过 125 字节的控制帧以 1002 关闭。Admin 分片文本使用严格增量 UTF-8 校验（允许字符跨分片，并在 FIN 检查未完成字符），不保留已校验的消息正文；非法文本或两类连接的 close reason 使用 1007；帧/消息超限使用 1009。合法 Close 载荷回显，非法/保留状态码不回显。服务端仍不执行业务客户端消息。
@@ -28,8 +28,6 @@ Admin 完整消息的礼物身份扩展沿用既有封套；overlay 仅接收下
 HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，恰好处理一次。TCP 未完整帧的缓冲按几何容量增长，已消费的前缀在需要追加时压实；单字节网络分块和 WebSocket continuation 不再重复拷贝整个累积正文。回归和加速生命周期证据见 `test/server/http-websocket-boundary.test.js`、`test/transport/websocket-resource-bounds.test.js`。
 
 所有 Close 路径立即移出广播集合并释放输入缓冲，但 hub 保留关闭期限直到物理 `close`；正常关闭取消计时器，超时销毁，写入失败/背压则立即销毁。`closeAllConnections()` 不拥有 HTTP 升级后的连接，不能代替这项回收责任。关闭期限不延长 Electron 的总退出期限；测试可用 `closeTimeoutMs` 缩短等待。
-
-文件底部另有一套模块级兼容导出(`handleWebSocketUpgrade`/`broadcastSnapshot` 走模块级 `compatibilityHub`),运行时不使用。
 
 **WebSocket Context**:升级时传入的 `context` 对象包含 `getState`、`sessionToken` 和 **`allowedOrigins`**(当前仅运行时 baseUrl)。`getWebSocketContext()` 在 [runtime-transport.js](../../../src/server/runtime-transport.js) 中构造。每个已升级 socket 保存服务器验证并冻结的 `_wsPrincipal`，关闭清理时移除；客户端 query、消息体或 topic 不能声明或替换身份。
 
@@ -90,6 +88,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `danmaku` | 弹幕展示设置、公开直播连接状态、`danmakuFeed` | `danmaku:message`、`danmaku:superchat-delete`，另需 topic 订阅 |
 | `games` | 当前全局快照无游戏字段；兼容专用 `games` 字段时仍投影公开会话 | `game:update`、`game:patch`、`game:draw`；不含未公布答案 |
 | `wheel` | 空 state | `wheel:update` |
+| `interactions` | 本页互动外观设置；全局 snapshot 不含互动 session | `interaction:update`；公开状态与恢复规则见下方“类别 3 互动结果” |
 | `clock` | `overlay-projection.js` 的 clock 设置白名单，含 `clockMoonMode`、`clockMoonIntervalSeconds` 和 JSON 字符串 `clockStyleParameters`；不按前缀放行其他设置 | 无；通过 settings 快照更新 |
 | `gift-export`、`opening` | 空 state | 无 |
 
@@ -115,9 +114,10 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `gift-catalog:update` | `{type:'gift-catalog:update', snapshot}`；`snapshot` 包含付费全局目录、`version`、`stale`、来源时间、本地 `imagePath` 及 `assetsUpdatedAt`（ISO 字符串或空） | 本地图片扫描完成后广播；目录元数据变化及同版本缺图修复均可触发。Admin 去重包含图片 ID/路径和资源时间，按 ID 更新图片，不替换当前直播间成员，不改变礼物事件或规则结算 |
 | `shutdown`            | `{type:'shutdown', reason:'manual'}`                                                                                 | 服务关闭前(`webSocketHub.stop` 的 `shutdownPayload`,见 §1)                                                                                                                                                                                                                                                                                                         |
 | `game:update` | `{type:'game:update', session}` | 开局、换回合和非画猜游戏变化的完整公开会话；停止时 session=null。会话增加 sessionId/eventRevision；画猜包含完整画布和最近 500 条弹幕，答案公布前 revealedAnswer 为空。 |
-| `game:draw` | `{type:'game:draw', sessionId, eventRevision, round, operation, revision}` | 沿用画笔/清空/撤销操作及其 canvas revision；eventRevision 是所有游戏事件共用的会话顺序。绘图请求附带 sessionId/round，过期回合拒绝；自有乐观回声通常跳过，快照后重放正常应用。 |
+| `game:draw` | `{type:'game:draw', sessionId, eventRevision, round, operation, revision}` | 沿用画笔/清空/撤销操作及其 canvas revision；eventRevision 是所有游戏事件共用的会话顺序。当前前端的绘图请求携带 sessionId/round；服务端对兼容性可选字段执行过期校验，见 [绘图 API](api.md)；自有乐观回声通常跳过，快照后重放正常应用。 |
 | `game:patch` | `{type:'game:patch', sessionId, eventRevision, round, item?, avatar?, state?, restartBlocked?}` | 所有聊天立即发送 item；头像后补仅 avatar={uid,avatarUrl}；答对比分按 40ms 窗口合并发送不含 canvas 的公开 state，回合状态/可用性变化立即发送最新 state 并取消待发批次。省略字段保留现值，不重传聊天历史。Admin 消费 state，games overlay 消费全部增量；HTTP 快照不等待比分批次。 |
 | `wheel:update`        | `{type:'wheel:update', state}`                                                                                       | 独立转盘配置或抽取状态变更；管理页与 `/wheel` 透明浏览器源消费，不受 `game:update` 会话互斥影响                                                                                                                                                                                                                                                                    |
+| `interaction:update` | `{type:'interaction:update',state:{runtimeId,revision,session}}`；仅管理端及 interactions scope 可见 | 投票/评分的公开状态变化；HTTP 与 WS 使用同一公开状态，合并与恢复规则见下方“类别 3 互动结果” |
 
 ### 3.1 `snapshot` 的 reason 枚举
 
@@ -140,6 +140,7 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `bilibili:room-guard` | [bilibili-runtime.js](../../../src/server/bilibili-runtime.js) 更新房间大航海人数后 | 仅状态应用 |
 | `gift:source` | [gift-export-runtime.js](../../../src/server/gift-export-runtime.js) 来源 viewEpoch 变化，或退出 SOURCE_SWITCHING | 仅状态应用，不自动伪造礼物收到通知 |
 | `gift:wishes` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 非 getSnapshot 动作成功 | 仅状态应用 |
+| `gift:heart-box-collection` | [gift-wish-routes.js](../../../src/server/routes/gift-wish-routes.js) 心动盲盒校准成功 | 状态快照；使心动收集场景投影缓存失效，独立源沿用共享进度轮询 |
 | `component:styles` | [component-style-routes.js](../../../src/server/routes/component-style-routes.js) 组件样式配置成功后 | 仅状态应用 |
 | `gift:sprint:reset` | gift-routes 重置冲刺后 | 仅状态应用 |
 | `gift:clear-recent` | gift-routes 清除最近显示后 | 发出 `Events.GIFT_RECEIVED` |
@@ -151,11 +152,9 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 
 `createWebSocketHub.broadcastSnapshot` 在同一 microtask 窗口覆盖 `pendingSnapshot`，flush 时读取最新 `getState()`，**只保留最后一个 reason**，不保存 reason 数组。连接初始快照直接发送；兼容层导出的广播函数不经此合并。消费者不能假定每次业务操作都有一条 reason，也不能据此补造事件。相关证据：[websocket-transport.test.js](../../../test/transport/websocket-transport.test.js)、[admin-state-ordering.test.js](../../../test/admin/admin-state-ordering.test.js)、[runtime-event-publication.test.js](../../../test/server/runtime-event-publication.test.js)。
 
-只有 overlay 连接时，状态读取字段由同一投影 owner 的 schema 推导并合并，通过 `getState(fields)` 避免计算无关域；存在 Admin 或兼容旧专用 games 快照的连接时仍读完整状态。一次广播内按已认证 principal 类型/scope 复用投影、JSON 和帧，缓存不跨广播；每个 socket 独立执行订阅过滤、背压检查与失败清理。连接初始快照也按该连接 scope 选择读取字段，封套和字段投影契约保持不变。
+只有 overlay 连接时，状态读取字段由同一投影 owner 的 schema 推导并合并，通过 `getState(fields)` 避免计算无关域。Admin 初始快照、未协商 Admin 或兼容旧专用 games 快照需要完整状态；后续仅有已协商 Admin 时，读取前排除 §2 所列音乐字段，混有 overlay 时仍读取这些 overlay 所需的音乐字段。一次广播内按已认证 principal 类型/scope 复用投影、JSON 和帧，缓存不跨广播；每个 socket 独立执行订阅过滤、背压检查与失败清理。连接初始快照也按该连接 scope 选择读取字段，封套和字段投影契约保持不变。
 
 ### 3.2 `overtime:update` 的 reason 枚举
-
-`quantity-limit` 表示完整礼物因自动随机次数超限保留为待结算。此通知的 state 附带 `pendingCount` 与 `quantityLimitedCount`，不改变 revision/倒计时、不携带成功 adjustment；Admin 实时显示尚未结算。
 
 | reason     | 含义                                   | 出处                                                                      |
 | ---------- | -------------------------------------- | ------------------------------------------------------------------------- |
@@ -164,13 +163,14 @@ HTTP upgrade 的 `head` 在鉴权及握手成功后进入同一帧解析器，�
 | `config`   | 背景等配置变更                         | overtime-service.js:134                                                   |
 | `rules`    | 规则集替换                             | overtime-service.js:142                                                   |
 | `finished` | 倒计时归零                             | overtime-service.js:377                                                   |
+| `quantity-limit` | 完整礼物因随机自动执行次数超限保留 pending；state 附 `pendingCount/quantityLimitedCount`，不改 revision/倒计时、不携带成功 adjustment | [overtime-service.js](../../../src/overtime/overtime-service.js) 的 `finalizeGift` |
 
 详见 [overtime.md](overtime.md)。
 
 
 ## 类别 3 互动结果
 
-`interaction:update` 使用 `{type:'interaction:update',state:{runtimeId,revision,session}}`，仅管理端及 interactions scope 可见；HTTP 与 WS 使用同一公开状态。revision 在同一 runtime 内跨场次递增；clear 保留 envelope 并令 session=null。投票计数立即落内存，推送约 200ms 合并；finish/clear 取消合并任务并立即推送。评分收集中不推送分数变化，主持界面可见时每秒读取 host-state 人数。
+消息与权限见 §3 主表。revision 在同一 runtime 内跨场次递增；clear 保留 envelope 并令 session=null。投票计数立即落内存，推送约 200ms 合并；finish/clear 取消合并任务并立即推送。评分收集中不推送分数变化，主持界面可见时每秒读取 host-state 人数。
 
 `public/js/shared/interaction-client.js` 用连接代次、请求代次和 runtimeId/revision 丢弃迟到响应；每个重连从专用 GET 建立新 runtime。全局 snapshot 不含 interactions，字段缺失不代表清空；game:update 不影响本类。跨类收集资格变化同时刷新游戏的 restartBlocked（你画我猜通过 game:patch，其他游戏通过 game:update），转盘独立。
 

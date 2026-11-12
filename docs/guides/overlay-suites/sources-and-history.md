@@ -64,7 +64,7 @@
 
 | 责任 | 当前入口 |
 | --- | --- |
-| 套装成员 | [component-preview-suites.js](../../../scripts/package-moonlit-suite.js) |
+| 套装成员 | [package-moonlit-suite.js](../../../scripts/package-moonlit-suite.js) |
 | 背景选择与播放 | [background.js](../../../public/js/overlays/background.js)、[background-moonlit.js](../../../public/js/overlays/background-moonlit.js) |
 | 背景素材说明 | [backgrounds/README.md](../../../public/img/overlays/backgrounds/README.md) |
 | 开播绘制与生命周期 | [opening-moon-fan-art.js](../../../public/js/overlays/opening-moon-fan-art.js)、[opening-moon-fan.js](../../../public/js/overlays/opening-moon-fan.js) |

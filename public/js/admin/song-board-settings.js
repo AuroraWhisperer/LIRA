@@ -29,8 +29,8 @@ export function songBoardConfigFromSettings(settings) {
 }
 
 export function songBoardSettingsPayload(draft, changed = draft) {
-  return Object.fromEntries(Object.entries(changed).filter(([key]) => Object.hasOwn(DEFAULTS, key)
-    && (draft.songBoardSyncTheme === 'false' || !Object.hasOwn(THEME_DEFAULTS, key))));
+  // Sync chooses the rendered theme; independent edits still need to survive toggling it.
+  return Object.fromEntries(Object.entries(changed).filter(([key]) => Object.hasOwn(DEFAULTS, key)));
 }
 
 export function collectSongBoardSettings(form) {

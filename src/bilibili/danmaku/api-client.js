@@ -66,14 +66,39 @@ class BilibiliApiClient {
   }
 
   async fetchOwnerName(uid) {
+    return (await this.fetchOwnerProfile(uid))?.name || '';
+  }
+
+  async fetchOwnerProfile(uid) {
     const { payload } = await this.fetchJson(
       'master_info',
       `https://api.live.bilibili.com/live_user/v1/Master/info?uid=${encodeURIComponent(uid)}`,
     );
-    if (payload.code === 0 && payload.data && payload.data.info && payload.data.info.uname) {
-      return payload.data.info.uname;
-    }
-    return '';
+    const data = payload.data;
+    if (payload.code !== 0 || !data?.info) return null;
+    return {
+      name: cleanText(data.info.uname),
+      avatarUrl: normalizeBilibiliAvatarUrl(data.info.face),
+      level: Number.isInteger(data.exp?.master_level?.level) ? data.exp.master_level.level : null,
+      followers: Number.isInteger(data.follower_num) ? data.follower_num : null,
+      medalName: typeof data.medal_name === 'string' ? cleanText(data.medal_name) : null,
+      announcement: typeof data.room_news?.content === 'string' ? cleanText(data.room_news.content) : null,
+    };
+  }
+
+  async fetchRoomDetails(roomId) {
+    const { payload } = await this.fetchJson(
+      'room_info',
+      `https://api.live.bilibili.com/room/v1/Room/get_info?room_id=${encodeURIComponent(roomId)}`,
+    );
+    const data = payload.data;
+    if (payload.code !== 0 || !data || String(data.room_id) !== String(roomId)) return null;
+    return {
+      title: cleanText(data.title),
+      liveStatus: [0, 1, 2].includes(data.live_status) ? data.live_status : null,
+      parentAreaName: cleanText(data.parent_area_name),
+      areaName: cleanText(data.area_name),
+    };
   }
 
   async fetchRoomGuardCount({ signal } = {}) {
@@ -204,6 +229,10 @@ class BilibiliApiClient {
     });
     const url = `https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?${query}`;
     const { payload, response } = await this.fetchJson('online_rank', url);
+    // The live API returns null, rather than an array, for an explicitly empty rank.
+    if (payload.code === 0 && payload.data?.count === 0 && payload.data.item === null) {
+      return { ...payload.data, item: [] };
+    }
     if (payload.code !== 0 || !Array.isArray(payload.data?.item)) {
       throw new Error(formatBilibiliApiError('online_rank', response, payload, '在线榜身份缓存获取失败。'));
     }

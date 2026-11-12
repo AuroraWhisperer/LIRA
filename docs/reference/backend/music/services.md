@@ -34,7 +34,7 @@
 | --- | --- |
 | `catalogService` | `createMusicCatalogService({ apiCacheDir: dataDir.apiCacheDir })`；路径从 `runtime-config.js` 传入，对应 `<data>/cache/music-api-cache` |
 | `lyricsService` | `createLyricsService({ lyricCacheDir: dataDir.lyricCacheDir })`；路径从 `runtime-config.js` 传入，对应 `<data>/cache/music-lyrics-cache` |
-| `musicRegistry` | `createMusicProviderRegistry()`；server 启动时通过 `setMusicRegistry(options.musicAuth || {})` 注入认证适配 |
+| `musicRegistry` | `createMusicProviderRegistry()`；server 启动时通过 `setMusicRegistry(options.musicAuth \|\| {})` 注入认证适配 |
 | `weSingCapture` | `createWeSingCapture({…})`；同一装配模块创建 `createWeSingOnlineLyricResolver({ getRegistry, catalogService, lyricsService, getPreferences })`，见 [wesing.md](wesing.md) |
 
 物理目录的完整清单只在 [storage.md](../storage.md) §2 维护；计算入口是 [data-paths.js](../../../../src/shared/data-paths.js) 的 `resolveDataPaths`，经 [runtime-config.js](../../../../src/server/runtime-config.js) 传入。旧根目录缓存迁移归 [data-directory-migration.js](../../../../src/storage/data-directory-migration.js) 所有，旧目录不是当前写入位置。
@@ -84,7 +84,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 | `id` / `sourceTrackId` / `title`                                      | `cleanText` 后**必填**,缺失抛"歌曲信息不完整。" |
 | `source`                                                              | `normalizeMusicPlatform` 归一                   |
 | `artists`                                                             | 清洗过滤后 **`slice(0, 8)` 最多 8 位**          |
-| `sourceSongId`                                                        | `max(0, Number(sourceSongId                     |     | songId))` — 非数值置 0 |
+| `sourceSongId` | `max(0, Number(sourceSongId \|\| songId) \|\| 0)` — 非数值置 0 |
 | `sourceSongType`                                                      | 安全非负整数;兼容读取 `songType`,缺失或非法置 0 |
 | `playable` / `vip`                                                    | 仅显式 `false` / `true` 生效                    |
 | 其余(`album`/`durationMs`/`coverUrl`/`sourceMediaId`/`sourceAlbumId`) | 归一化容错                                      |
@@ -218,7 +218,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 ### 7.4 随机选歌(pickRandomSong,[song-service.js](../../../../src/music/song-service.js))
 
 1. store 只取 `is_enabled=1` 的全量行 + 曲风启用标记,组合筛选交给纯模块 `filterRandomSongCandidates`(§10)
-2. store 提供最近 10 次 `source = 'random' 或 'random:%'` 的点歌流水歌名(`requests` 表),领域层排除它们——避免随机重复刚点过的歌
+2. `song-store.listRecentRandomSongNames()` 从 `random_request_history` 读取最近 10 次随机点歌的歌名，领域层排除它们；历史与入队同事务更新，保留规则见 [存储合同](../storage.md) §3.1。
 3. 排除后为空则回退全池;`randomSourceValue(scopeText)` 生成 `source = 'random'` 或 `random:<scope>`(弹幕机器人据此定位请求者,见 §12)
 
 随机点歌未命中时的自动回复只使用输入条件，由 message handler 直接解析 `scopeText`，不再通过 song service 第二次读取整库生成说明。§10 的纯函数 `describeRandomSongScope` 保留独立条件诊断能力。`normalizeRandomScopeText` 会剥掉前导 `+＋:：-—` 符号。
@@ -350,10 +350,10 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 维度 | 匹配方式                                                                                                                                                                                                                                             |
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 歌手 | 整串或按 `/\s*(?:\/                                                                                                                                                                                                                                  | &                                                            | ＆)\s*/`切分后逐段`normalizeComparable` 相等 |
+| 歌手 | 整串或通过 `splitSongArtists(value, {preservePunctuation:true})` 按 `/`、`／`、`&`、`＆` 切分后逐段 `normalizeComparable` 相等；分隔规则由 [song-field-utils.js](../../../../src/music/song-field-utils.js) 维护 |
 | 语言 | `randomLanguageAliases(term)` 命中组内任一别名(`LANGUAGE_ALIAS_GROUPS`:[random-song-filter.js:8-14](../../../../src/music/random-song-filter.js#L8-L14):日语/韩语/英语/粤语/国语组,含 ja/jp/ko/en/chinese 等码),歌曲 language 按 `/、，,` 切分后比对 |
 | 曲风 | 曲风启用(`category_is_enabled !== 0`)且 `randomCategoryAliases` 命中(`CATEGORY_ALIAS_GROUPS`:[random-song-filter.js:16-24](../../../../src/music/random-song-filter.js#L16-L24):流行/R&B/说唱/摇滚/民谣/舞曲/影视原声)                           |
-| 标签 | `splitSongTags`(分隔符 `[,，、;；                                                                                                                                                                                                                    | ]`,**整项匹配**避免"情"误中"抒情")逐项使用编译后的标签条件 |
+| 标签 | `splitSongTags`（分隔符 `[,，、;；\|]`，**整项匹配**避免"情"误中"抒情"）逐项使用编译后的标签条件 |
 
 ### 10.3 标签别名(tag-aliases.js)
 
@@ -449,7 +449,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 [qq-client-monitor.js](../../../../src/music/qq-client-monitor.js) 在 Windows 上以隐藏的 PowerShell 子进程只读采样系统媒体会话，每 500 ms 检查 QQMusic 会话的歌名、歌手、播放状态、速率及时间轴；不控制客户端、不读取客户端凭据。辅助进程启动失败、error 或退出时按 500 / 1000 / 2000 ms 最多自动重试三次，有效样本重置重试预算；停用或服务退出取消重试并关闭进程，旧进程及已缓冲回调失效。
 
-[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 负责曲目及解析代际：新歌名至少经过连续两次样本；连续的旧曲时钟须等待超过切换边界的新时间戳，已随新歌名更新且时长变化或进度明显回跳的时钟可在歌名稳定后接受。无效或倒退的时间戳保持 loading。SMTC 的 Position 是 LastUpdatedTime 时刻的位置；播放中按经过时间及 PlaybackRate 外推并限制在曲目时长内，暂停不外推，不能仅因锚点超过 3 秒未更新而判定失效。有效时钟下短暂无会话容忍 1.5 秒，持续失联、明确 Stopped/Closed 或采集错误清除旧曲。
+[qq-client-capture.js](../../../../src/music/qq-client-capture.js) 负责曲目及解析代际：新歌名至少经过连续两次样本；连续的旧曲时钟须等待超过切换边界的新时间戳，已随新歌名更新且时长变化或进度明显回跳的时钟可在歌名稳定后接受。无效或倒退的时间戳保持 loading。SMTC 的 Position 是 LastUpdatedTime 时刻的位置；播放中按经过时间及 PlaybackRate 外推并限制在曲目时长内，同一有效速率随歌词状态的 `playbackRate` 输出；暂停不外推，不能仅因锚点超过 3 秒未更新而判定失效。有效时钟下短暂无会话容忍 1.5 秒，持续失联、明确 Stopped/Closed 或采集错误清除旧曲。
 
 QQ / 网易云采集器都提供 `getStatus()`、`getLyricState()`、`getTimeline()` 快照。采集状态区分 inactive、waiting、loading、ready、empty、error；只有有效时钟和非空歌词同时就绪才 ready。管理状态 `playing` 保留实际播放状态，即使歌词缺失或加载中；歌词状态的 `playing` 只在 ready 时为真。歌词读取错误映射为 overlay idle，清除旧内容；无歌词为 empty。异步歌词结果不能覆盖新曲或停用后的状态；暂停、继续及同曲 seek 不重复解析歌词。手动重新检测会重建该采集器与当前曲目解析，不修改跟随偏好。
 

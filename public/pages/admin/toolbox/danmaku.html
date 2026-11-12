@@ -41,348 +41,409 @@
         <div><span>发送状态</span><strong id="danmakuToolStatus">检查中</strong></div>
       </div>
     </section>
-    <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
-      <div class="danmaku-section-heading">
-        <div>
-          <h3 id="danmakuComposeTitle" class="ui-section-title">
-            <svg
-              class="danmaku-heading-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-              focusable="false"
+    <div class="danmaku-category-navigation">
+      <div class="danmaku-category-tabs" role="tablist" aria-label="弹幕互动分类">
+        <button id="danmakuRepliesTab" type="button" role="tab" data-danmaku-tab="replies" aria-controls="danmakuRepliesPanel" aria-selected="true" tabindex="0">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.4 8.4 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.4 8.4 0 0 1-3.8-.9L3 21l1.9-5.7a8.4 8.4 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.4 8.4 0 0 1 3.8-.9h.5a8.5 8.5 0 0 1 8 8v.5Z" /></svg>
+          互动回复
+        </button>
+        <button id="danmakuWelcomeTab" type="button" role="tab" data-danmaku-tab="welcome" aria-controls="danmakuWelcomeCategoryPanel" aria-selected="false" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8L12 21l8.8-8.6a5.5 5.5 0 0 0 0-7.8Z" /></svg>
+          欢迎答谢
+        </button>
+        <button id="danmakuSendTab" type="button" role="tab" data-danmaku-tab="send" aria-controls="danmakuSendPanel" aria-selected="false" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13" /></svg>
+          弹幕发送
+        </button>
+        <button id="danmakuAiTab" type="button" role="tab" data-danmaku-tab="ai" aria-controls="danmakuAiPanel" aria-selected="false" tabindex="-1">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="7" width="16" height="13" rx="4" /><path d="M12 3v4M8 12v2m8-2v2m-7 3h6M1 12v3m22-3v3" /></svg>
+          AI 助手
+        </button>
+      </div>
+      <div class="danmaku-cloud-toolbar">
+        <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
+        <lira-help label="自动互动使用说明">开关即时保存；修改参数或词库后，需点击对应的保存按钮。签到、抽签、昵称管理和礼物答谢全天可用，其余项目仅直播中生效。关键词与点歌回复需客户端在线，其余在云端运行。</lira-help>
+        <button id="dailyBotRefresh" type="button" class="ghost" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
+      </div>
+    </div>
+    <section id="danmakuRepliesPanel" class="danmaku-feature-section danmaku-fixed-reply-section danmaku-category-panel" role="tabpanel" aria-labelledby="danmakuRepliesTab">
+      <section class="danmaku-function-group" aria-labelledby="danmakuReplyRulesTitle">
+        <h3 id="danmakuReplyRulesTitle" class="danmaku-function-title">回复规则</h3>
+        <div class="danmaku-fixed-overview">
+          <div class="danmaku-fixed-item" data-fixed-item="exact">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">观众发送的弹幕与触发词完全一致时，回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表；与系统指令重名时，系统指令优先。开启后在云端运行，每条回复都会 @ 触发观众。</lira-help>
+              </div>
+              <span class="danmaku-fixed-summary">完整匹配触发词后回复</span>
+              <span id="danmakuExactState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
+            </div>
+            <button class="danmaku-fixed-open" type="button" data-fixed-open="exact" aria-label="编辑完整匹配回复" aria-controls="danmakuExactRepliesPanel" aria-expanded="false" disabled>
+              编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuExactReplyToggle" type="checkbox" aria-labelledby="danmakuExactReplyTitle" disabled /><span class="switch-track"></span></label>
+          </div>
+          <div class="danmaku-fixed-item" data-fixed-item="diy">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。修改后请保存；需客户端保持运行并连接直播间。</lira-help>
+              </div
+              ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
+              ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
+            </div>
+            <button
+              class="danmaku-fixed-open"
+              type="button"
+              data-fixed-open="diy"
+              aria-label="编辑关键词回复"
+              aria-controls="danmakuCustomRepliesPanel"
+              aria-expanded="false"
             >
-              <path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13" />
-            </svg>
-            发送弹幕
-            <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help>
-          </h3>
+              编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span class="switch-track"></span></label>
+          </div>
         </div>
-      </div>
-      <form id="danmakuSendForm">
-        <label for="danmakuMessage">弹幕内容</label>
-        <textarea id="danmakuMessage" rows="1" required aria-describedby="danmakuCounter" placeholder="输入内容，Ctrl + Enter 发送"></textarea>
-        <span id="danmakuCounter" class="hint">0 字</span>
-        <button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">
-          自动钓鱼/打劫（15 条）</button>
-        <button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button>
-      </form>
-      <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">
-        发送结果会显示在这里
-      </div>
+      </section>
+      <section class="danmaku-function-group" aria-labelledby="danmakuBotsTitle">
+        <h3 id="danmakuBotsTitle" class="danmaku-function-title">互动机器人</h3>
+        <div class="danmaku-fixed-overview">
+          <div class="danmaku-fixed-item" data-fixed-item="checkin">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuCheckinTitle">签到机器人</strong><lira-help label="签到机器人说明">观众单独发送“签到”，每天记录一次，回复累计天数和祝福语。开启后在云端运行，关闭客户端也不影响。</lira-help>
+              </div
+              ><span class="danmaku-fixed-summary">收到“签到”后回复累计天数</span
+              ><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
+            </div>
+            <button class="danmaku-fixed-open" type="button" data-fixed-open="checkin" disabled
+              aria-label="编辑签到词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
+              词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span class="switch-track"></span></label>
+          </div>
+          <div class="danmaku-fixed-item" data-fixed-item="fortune">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”时，当天重复抽取结果不变，次日可重新抽取。开启后在云端运行，关闭客户端也不影响。</lira-help>
+              </div
+              ><span class="danmaku-fixed-summary">收到“抽签”后回复每日一签</span
+              ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
+            </div>
+            <button class="danmaku-fixed-open" type="button" data-fixed-open="fortune" disabled
+              aria-label="编辑抽签词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
+              词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span></label>
+          </div>
+        </div>
+      </section>
+      <section class="danmaku-function-group" aria-labelledby="danmakuSongQueryTitle">
+        <h3 id="danmakuSongQueryTitle" class="danmaku-function-title">点歌与查询</h3>
+        <div class="danmaku-fixed-overview">
+          <div class="danmaku-fixed-item" data-fixed-item="random">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌没有匹配结果、歌曲仍在冷却、队列已满、歌曲重复，或点歌仅被歌库规则拦截时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
+              </div
+              ><span class="danmaku-fixed-summary">点歌未通过规则时自动回复</span
+              ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
+            </div>
+            <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-label="查看点歌回复说明" aria-controls="danmakuSongReplyPanel" aria-expanded="false">
+              说明<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span></label>
+          </div>
+          <div id="danmakuQueryControls" class="danmaku-fixed-item" data-fixed-item="query">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">通过弹幕查询礼物或盲盒统计，也可按指定礼物单独查询。观众查询本人，主播查询全房；回复按账本动态生成。支持上月、去年和指定年月，开关与「礼物 → 弹幕查询」同步，关闭客户端后仍在云端运行。</lira-help>
+              </div>
+              <span class="danmaku-fixed-summary">礼物与盲盒统计 · 支持指定年月</span>
+              <span id="danmakuQueryStatus" class="danmaku-fixed-note" role="status">正在读取云端状态…</span>
+            </div>
+            <button class="danmaku-fixed-open" type="button" data-fixed-open="query" aria-label="查看查询回复指令清单" aria-controls="danmakuQueryRepliesPanel" aria-expanded="false">
+              清单<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuQueryToggle" type="checkbox" aria-labelledby="danmakuQueryTitle" aria-describedby="danmakuQueryStatus" disabled /><span class="switch-track"></span></label>
+          </div>
+        </div>
+      </section>
     </section>
-    <!-- admin-fragment: pages/admin/toolbox/danmaku-ai.html -->
-    <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuFixedReplyTitle">
-      <div class="danmaku-section-heading">
-        <div>
-          <h3 id="danmakuFixedReplyTitle">
-            <svg
-              class="danmaku-heading-icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-              focusable="false"
-            >
-              <path d="M7 10a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v12l-4-4H9a2 2 0 0 1-2-2v-6Z" />
-              <path d="M17 8V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v12l4-4h1" />
-            </svg>
-            固定回复<lira-help label="固定回复使用说明">开关即时保存；修改参数或词库后，需点击对应的保存按钮。签到、抽签和礼物答谢全天可用，其余项目仅直播中生效。关键词与点歌回复需客户端在线，其余在云端运行。</lira-help>
-          </h3>
-          <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
+    <section id="danmakuWelcomeCategoryPanel" class="danmaku-feature-section danmaku-fixed-reply-section danmaku-category-panel" role="tabpanel" aria-labelledby="danmakuWelcomeTab" hidden>
+      <section class="danmaku-function-group" aria-labelledby="danmakuWelcomeGroupTitle">
+        <h3 id="danmakuWelcomeGroupTitle" class="danmaku-function-title">欢迎与播报</h3>
+        <div class="danmaku-fixed-overview">
+          <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
+          <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
         </div>
-        <button id="dailyBotRefresh" type="button" class="secondary" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
-      </div>
-      <div class="danmaku-fixed-overview">
-        <div class="danmaku-fixed-item" data-fixed-item="checkin">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuCheckinTitle">签到机器人</strong><lira-help label="签到机器人说明">观众单独发送“签到”，每天记录一次，回复累计天数和祝福语。开启后在云端运行，关闭客户端也不影响。</lira-help>
-            </div
-            ><span class="danmaku-fixed-summary">收到“签到”后回复累计天数</span
-            ><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
-          </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="checkin" disabled
-            aria-label="编辑签到词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
-            词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuCheckinToggle" type="checkbox" aria-labelledby="danmakuCheckinTitle" disabled /><span class="switch-track"></span></label>
-        </div>
-        <div class="danmaku-fixed-item" data-fixed-item="fortune">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”时，当天重复抽取结果不变，次日可重新抽取。开启后在云端运行，关闭客户端也不影响。</lira-help>
-            </div
-            ><span class="danmaku-fixed-summary">收到“抽签”后回复每日一签</span
-            ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
-          </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="fortune" disabled
-            aria-label="编辑抽签词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
-            词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span></label>
-        </div>
-        <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
-        <div class="danmaku-fixed-item" data-fixed-item="random">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌没有匹配结果、歌曲仍在冷却、队列已满、歌曲重复，或点歌仅被歌库规则拦截时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
-            </div
-            ><span class="danmaku-fixed-summary">点歌未通过规则时自动回复</span
-            ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
-          </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="random" aria-label="查看点歌回复说明" aria-controls="danmakuSongReplyPanel" aria-expanded="false">
-            说明<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuReplyToggle" type="checkbox" aria-labelledby="danmakuReplyTitle" /><span class="switch-track"></span></label>
-        </div>
-        <div class="danmaku-fixed-item" data-fixed-item="exact">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">观众发送的弹幕与触发词完全一致时，回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表；与系统指令重名时，系统指令优先。开启后在云端运行，每条回复都会 @ 触发观众。</lira-help>
+      </section>
+      <section class="danmaku-function-group" aria-labelledby="danmakuThanksGroupTitle">
+        <h3 id="danmakuThanksGroupTitle" class="danmaku-function-title">礼物答谢</h3>
+        <div class="danmaku-fixed-overview">
+          <div id="danmakuGiftThanksControls" class="danmaku-fixed-item" data-fixed-item="thanks">
+            <div class="danmaku-fixed-copy">
+              <div class="danmaku-fixed-item-heading">
+                <strong id="danmakuGiftThanksTitle">礼物答谢</strong><lira-help label="礼物答谢说明">收到付费礼物、已确认的免费礼物或大航海后，自动发送感谢弹幕，不含醒目留言。登录 B 站并同步后可开启，关闭客户端后仍在云端运行。修改文案后需保存，不会自动开启答谢。</lira-help>
+              </div>
+              <span class="danmaku-fixed-summary">礼物与大航海 · 文案库与回复方式</span>
+              <span id="danmakuGiftThanksStatus" class="danmaku-fixed-note" role="status"></span>
             </div>
-            <span class="danmaku-fixed-summary">完整匹配触发词后回复</span>
-            <span id="danmakuExactState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
+            <button class="danmaku-fixed-open" type="button" data-fixed-open="thanks" aria-label="编辑礼物答谢文案" aria-controls="danmakuGiftThanksPanel" aria-expanded="false" disabled>
+              编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+            </button>
+            <label class="switch-control"><input id="danmakuGiftThanksToggle" type="checkbox" aria-labelledby="danmakuGiftThanksTitle" aria-describedby="danmakuGiftThanksStatus" disabled /><span class="switch-track"></span></label>
           </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="exact" aria-label="编辑完整匹配回复" aria-controls="danmakuExactRepliesPanel" aria-expanded="false" disabled>
-            编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuExactReplyToggle" type="checkbox" aria-labelledby="danmakuExactReplyTitle" disabled /><span class="switch-track"></span></label>
         </div>
-        <div class="danmaku-fixed-item" data-fixed-item="diy">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。修改后请保存；需客户端保持运行并连接直播间。</lira-help>
-            </div
-            ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
-            ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
+      </section>
+      <section class="danmaku-function-group" aria-labelledby="danmakuInteractionThanksTitle">
+        <h3 id="danmakuInteractionThanksTitle" class="danmaku-function-title">互动感谢</h3>
+        <div class="danmaku-fixed-overview">
+          <!-- admin-fragment: pages/admin/toolbox/danmaku-interaction-thanks-switch.html -->
+        </div>
+      </section>
+      <section class="danmaku-function-group" aria-labelledby="danmakuNamesGroupTitle">
+        <h3 id="danmakuNamesGroupTitle" class="danmaku-function-title">观众称呼</h3>
+        <div class="danmaku-fixed-overview">
+          <!-- admin-fragment: pages/admin/toolbox/danmaku-viewer-names-switch.html -->
+        </div>
+      </section>
+    </section>
+    <section id="danmakuSendPanel" class="danmaku-category-panel danmaku-send-panel" role="tabpanel" aria-labelledby="danmakuSendTab" hidden>
+      <section class="danmaku-feature-section danmaku-compose-section" aria-labelledby="danmakuComposeTitle">
+        <div class="danmaku-section-heading">
+          <div>
+            <h3 id="danmakuComposeTitle" class="ui-section-title">
+              <svg
+                class="danmaku-heading-icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path d="m22 2-7 20-4-9-9-4 20-7ZM22 2 11 13" />
+              </svg>
+              发送弹幕
+              <lira-help>手动发送只在这里操作，没有单独网页地址。</lira-help>
+            </h3>
           </div>
-          <button
-            class="danmaku-fixed-open"
-            type="button"
-            data-fixed-open="diy"
-            aria-label="编辑关键词回复"
-            aria-controls="danmakuCustomRepliesPanel"
-            aria-expanded="false"
-          >
-            编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuCustomReplyToggle" type="checkbox" aria-labelledby="danmakuCustomReplyTitle" /><span class="switch-track"></span></label>
         </div>
-        <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
-        <div class="danmaku-fixed-item" data-fixed-item="scheduled">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuScheduledTitle">定时／随机弹幕</strong><lira-help label="定时随机弹幕说明">开启后在云端运行，直播中可按固定或随机时间间隔，从词库中按顺序或随机发送一条。首次发送前会先等待一个间隔；停播、断线或关闭功能后停止，恢复时重新计时，不补发。</lira-help>
+        <form id="danmakuSendForm">
+          <label for="danmakuMessage">弹幕内容</label>
+          <textarea id="danmakuMessage" rows="1" required aria-describedby="danmakuCounter" placeholder="输入内容，Ctrl + Enter 发送"></textarea>
+          <span id="danmakuCounter" class="hint">0 字</span>
+          <button id="danmakuAutoBtn" class="secondary" type="button" title="自动发送 钓鱼×10、打劫×5，每 5 秒一条">
+            自动钓鱼/打劫（15 条）</button>
+          <button id="danmakuSendBtn" class="primary" type="submit">发送弹幕</button>
+        </form>
+        <div id="danmakuSendResult" class="danmaku-send-result" role="status" aria-live="polite">
+          发送结果会显示在这里
+        </div>
+      </section>
+      <section class="danmaku-feature-section danmaku-fixed-reply-section" aria-labelledby="danmakuScheduledGroupTitle">
+        <section class="danmaku-function-group" aria-labelledby="danmakuScheduledGroupTitle">
+          <h3 id="danmakuScheduledGroupTitle" class="danmaku-function-title">自动发送</h3>
+          <div class="danmaku-fixed-overview">
+            <div class="danmaku-fixed-item" data-fixed-item="scheduled">
+              <div class="danmaku-fixed-copy">
+                <div class="danmaku-fixed-item-heading">
+                  <strong id="danmakuScheduledTitle">定时／随机弹幕</strong><lira-help label="定时随机弹幕说明">开启后在云端运行，直播中可按固定或随机时间间隔，从词库中按顺序或随机发送一条。首次发送前会先等待一个间隔；停播、断线或关闭功能后停止，恢复时重新计时，不补发。</lira-help>
+                </div>
+                <span id="danmakuScheduledSummary" class="danmaku-fixed-summary">直播中按间隔发送词库</span>
+                <span id="danmakuScheduledState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
+              </div>
+              <button class="danmaku-fixed-open" type="button" data-fixed-open="scheduled" aria-label="设置定时随机弹幕" aria-controls="danmakuScheduledPanel" aria-expanded="false" disabled>
+                设置<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+              </button>
+              <label class="switch-control"><input id="danmakuScheduledToggle" type="checkbox" aria-labelledby="danmakuScheduledTitle" disabled /><span class="switch-track"></span></label>
             </div>
-            <span id="danmakuScheduledSummary" class="danmaku-fixed-summary">直播中按间隔发送词库</span>
-            <span id="danmakuScheduledState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
           </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="scheduled" aria-label="设置定时随机弹幕" aria-controls="danmakuScheduledPanel" aria-expanded="false" disabled>
-            设置<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuScheduledToggle" type="checkbox" aria-labelledby="danmakuScheduledTitle" disabled /><span class="switch-track"></span></label>
-        </div>
-        <div id="danmakuQueryControls" class="danmaku-fixed-item" data-fixed-item="query">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">通过弹幕查询礼物或盲盒统计，也可按指定礼物单独查询。观众查询本人，主播查询全房；回复按账本动态生成。支持上月、去年和指定年月，开关与「礼物 → 弹幕查询」同步，关闭客户端后仍在云端运行。</lira-help>
-            </div>
-            <span class="danmaku-fixed-summary">礼物与盲盒统计 · 支持指定年月</span>
-            <span id="danmakuQueryStatus" class="danmaku-fixed-note" role="status">正在读取云端状态…</span>
-          </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="query" aria-label="查看查询回复指令清单" aria-controls="danmakuQueryRepliesPanel" aria-expanded="false">
-            清单<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuQueryToggle" type="checkbox" aria-labelledby="danmakuQueryTitle" aria-describedby="danmakuQueryStatus" disabled /><span class="switch-track"></span></label>
-        </div>
-        <div id="danmakuGiftThanksControls" class="danmaku-fixed-item" data-fixed-item="thanks">
-          <div class="danmaku-fixed-copy">
-            <div class="danmaku-fixed-item-heading">
-              <strong id="danmakuGiftThanksTitle">礼物答谢</strong><lira-help label="礼物答谢说明">收到付费礼物、已确认的免费礼物或大航海后，自动发送感谢弹幕，不含醒目留言。登录 B 站并同步后可开启，关闭客户端后仍在云端运行。开关与「礼物 → 自动答谢」同步；修改文案后需保存，不会自动开启答谢。</lira-help>
-            </div>
-            <span class="danmaku-fixed-summary">收到礼物后感谢 · 可自定义文案</span>
-            <span id="danmakuGiftThanksStatus" class="danmaku-fixed-note" role="status"></span>
-          </div>
-          <button class="danmaku-fixed-open" type="button" data-fixed-open="thanks" aria-label="编辑礼物答谢文案" aria-controls="danmakuGiftThanksPanel" aria-expanded="false" disabled>
-            编辑<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
-          </button>
-          <label class="switch-control"><input id="danmakuGiftThanksToggle" type="checkbox" aria-labelledby="danmakuGiftThanksTitle" aria-describedby="danmakuGiftThanksStatus" disabled /><span class="switch-track"></span></label>
-        </div>
-      </div>
+        </section>
+      </section>
+    </section>
+    <section id="danmakuAiPanel" class="danmaku-category-panel" role="tabpanel" aria-labelledby="danmakuAiTab" hidden>
+      <!-- admin-fragment: pages/admin/toolbox/danmaku-ai.html -->
+    </section>
+    <dialog id="danmakuFixedEditorDialog" class="danmaku-fixed-reply-section danmaku-fixed-editor-dialog" aria-labelledby="danmakuFixedEditorTitle">
       <div id="danmakuFixedEditorHeading" class="danmaku-fixed-editor-heading" hidden>
         <h4 id="danmakuFixedEditorTitle"></h4>
         <div id="danmakuWelcomeTabs" class="danmaku-welcome-tabs" role="group" aria-label="欢迎设置视图" hidden>
-          <button type="button" data-welcome-view="parameters" aria-pressed="true">参数</button>
-          <button type="button" data-welcome-view="libraries" aria-pressed="false">词库</button>
+          <button type="button" data-welcome-view="parameters" aria-pressed="true">欢迎规则</button>
+          <button type="button" data-welcome-view="libraries" aria-pressed="false">欢迎词库</button>
+          <button type="button" data-welcome-view="audience" aria-pressed="false">欢迎对象</button>
         </div>
         <button id="danmakuWelcomeRefreshBtn" class="danmaku-text-action" type="button" disabled hidden>刷新</button>
-        <button id="danmakuFixedEditorClose" class="danmaku-text-action" type="button">收起</button>
+        <button id="danmakuFixedEditorDismiss" class="icon danmaku-editor-dismiss" type="button" aria-label="关闭编辑面板" autofocus>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18" /></svg>
+        </button>
       </div>
-      <div id="danmakuSongReplyPanel" data-fixed-editor="random" hidden>
-        <p class="hint">回复内容由系统根据点歌条件、歌曲和剩余时间生成，无需设置词库。以下为示例，发送时会自动 @ 发起点歌的观众。</p>
-        <dl class="danmaku-song-reply-examples">
-          <div><dt>随机点歌无匹配</dt><dd>歌库里暂时没有「摇滚」类歌曲，换个条件试试～</dd></div>
-          <div><dt>多个条件无匹配</dt><dd>暂时没有同时符合「粤语＋民谣」的歌曲，换个条件试试～</dd></div>
-          <div><dt>歌曲正在冷却</dt><dd>《晴天》冷却中，还需 2小时15分。<br />按自然日设置时：《晴天》冷却中，明天 00:00 后可再点。</dd></div>
-          <div><dt>随机候选全部冷却</dt><dd>符合条件的歌曲都在冷却，请稍后再试。</dd></div>
-          <div><dt>队列已满</dt><dd>点歌队列满啦，稍后再来试试～</dd></div>
-          <div><dt>不允许重复点歌</dt><dd>这首歌已经在队列里啦～</dd></div>
-          <div><dt>只允许歌库歌曲</dt><dd>歌库里没找到这首，换一首试试～</dd></div>
-        </dl>
-        <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，点歌规则仍然生效。点歌回复需保持客户端运行并登录直播账号。</p>
-      </div>
-      <div id="danmakuExactRepliesPanel" data-fixed-editor="exact" hidden>
-        <p class="hint"><span id="danmakuExactReplyCount">0 条</span>自定义规则，最多 30 条。</p>
-        <template id="danmakuExactBuiltInReply">
-          <div class="danmaku-custom-reply-row">
-            <span class="danmaku-blessing-index">内置</span>
-            <div class="danmaku-custom-reply-fields">
-              <label>触发词<input type="text" value="菜单" aria-label="内置回复的触发词" readonly /></label>
-              <label>回复内容<input type="text" value="签到、抽签、今日礼物、今日盲盒；礼物特效后接数字ID" aria-label="内置菜单的回复内容" readonly /></label>
-            </div>
-          </div>
-        </template>
-        <fieldset id="danmakuExactFields" class="danmaku-reply-fields" disabled>
-          <legend class="sr-only">完整匹配回复规则</legend>
-          <div id="danmakuExactReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
-          <div class="danmaku-custom-reply-add-grid">
-            <label>触发词<input id="danmakuExactKeywordInput" type="text" placeholder="例如：歌单，最多 30 字" /></label>
-            <label>回复内容<input id="danmakuExactReplyInput" type="text" placeholder="例如：发送 点歌 歌名 即可点歌，最多 120 字" /></label>
-            <button id="danmakuExactReplyAddBtn" class="secondary" type="button">添加回复</button>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span id="danmakuExactReplyStatus" class="hint" role="status" aria-live="polite">正在读取完整匹配回复</span>
-            <button id="danmakuExactReplySaveBtn" class="primary" type="button">保存完整匹配回复</button>
-          </div>
-        </fieldset>
-      </div>
-      <div id="danmakuQueryRepliesPanel" data-fixed-editor="query" hidden>
-        <p class="hint">在直播间发送对应弹幕，即可自动查询统计结果。</p>
-        <label class="daily-library-search">查找指令<input id="danmakuQueryReplySearch" type="search" placeholder="例如：今日礼物、本月盲盒、2026年" /></label>
-        <div id="danmakuQueryReplyList" class="danmaku-custom-reply-list"></div>
-        <p id="danmakuQuerySearchEmpty" class="hint" role="status" hidden>没有匹配的指令。</p>
-      </div>
-      <form id="danmakuGiftThanksPanel" data-fixed-editor="thanks" hidden>
-        <fieldset id="danmakuGiftThanksFields" class="danmaku-reply-fields" disabled>
-          <legend class="sr-only">礼物答谢文案</legend>
-          <div class="danmaku-thanks-toolbar">
-            <p class="hint">直接修改文字，点下方按钮插入参数块；发送时会自动填入真实内容。<lira-help label="答谢文案参数说明">每段文案请各保留一个观众称呼、礼物和数量、金额与差额参数块，可剪切后粘贴到新位置。称呼使用观众设置的称呼或原昵称，并保留航海等级；礼物自动合并数量；金额以电池显示，盲盒附上差额或成本未知说明，免费礼物不显示金额。每段文案最多 120 字；实际发送按 B 站长度限制分条，无法完整表达时不发送。预览使用示例数据，不会发送弹幕。</lira-help></p>
-            <button id="danmakuGiftThanksReset" type="button" class="secondary">恢复默认文案</button>
-          </div>
-          <div class="danmaku-thanks-templates">
-            <div class="danmaku-thanks-template">
-              <strong id="danmakuThanksgiftLabel">礼物答谢</strong>
-              <div class="danmaku-thanks-insert" role="group" aria-label="插入礼物答谢参数">
-                <span class="hint">插入：</span>
-                <button type="button" data-thanks-kind="gift" data-thanks-token="{称呼}">观众称呼</button>
-                <button type="button" data-thanks-kind="gift" data-thanks-token="{礼物}">礼物和数量</button>
-                <button type="button" data-thanks-kind="gift" data-thanks-token="{金额}">金额与差额</button>
-              </div>
-              <div id="danmakuThanksgiftEditor" class="danmaku-thanks-text" role="textbox" aria-labelledby="danmakuThanksgiftLabel" aria-multiline="false" contenteditable="false" spellcheck="false"></div>
-              <div class="danmaku-thanks-preview">
-                <label class="hint" for="danmakuGiftThanksSample">示例预览（不会发送）</label>
-                <select id="danmakuGiftThanksSample" aria-label="礼物答谢预览示例"><option value="paid">普通礼物</option><option value="blind">盲盒礼物</option><option value="free">免费礼物</option></select>
-                <output id="danmakuThanksgiftPreview"></output>
-              </div>
-            </div>
-            <div class="danmaku-thanks-template">
-              <strong id="danmakuThanksguardLabel">大航海答谢</strong>
-              <div class="danmaku-thanks-insert" role="group" aria-label="插入大航海答谢参数">
-                <span class="hint">插入：</span>
-                <button type="button" data-thanks-kind="guard" data-thanks-token="{称呼}">观众称呼</button>
-                <button type="button" data-thanks-kind="guard" data-thanks-token="{礼物}">礼物和数量</button>
-                <button type="button" data-thanks-kind="guard" data-thanks-token="{金额}">金额与差额</button>
-              </div>
-              <div id="danmakuThanksguardEditor" class="danmaku-thanks-text" role="textbox" aria-labelledby="danmakuThanksguardLabel" aria-multiline="false" contenteditable="false" spellcheck="false"></div>
-              <div class="danmaku-thanks-preview"><span class="hint">示例预览（不会发送）</span><output id="danmakuThanksguardPreview"></output></div>
-            </div>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span id="danmakuGiftThanksSaveState" class="hint" role="status" aria-live="polite">正在读取云端文案…</span>
-            <button id="danmakuGiftThanksSave" class="primary" type="submit" disabled>保存答谢文案</button>
-          </div>
-        </fieldset>
-      </form>
-      <form id="danmakuScheduledPanel" data-fixed-editor="scheduled" hidden>
-        <fieldset id="danmakuScheduledFields" class="danmaku-reply-fields" disabled>
-          <legend class="sr-only">定时随机弹幕设置</legend>
-          <div class="danmaku-scheduled-grid">
-            <label>发送间隔<select id="danmakuScheduledMode" data-dropdown-variant="toolbox"><option value="fixed">固定秒数</option><option value="random">随机秒数</option></select></label>
-            <label id="danmakuScheduledFixedField">间隔（秒）<input id="danmakuScheduledInterval" type="number" min="10" max="86400" step="1" value="300" required /></label>
-            <label id="danmakuScheduledMinField" hidden>最短（秒）<input id="danmakuScheduledMin" type="number" min="10" max="86400" step="1" value="300" required /></label>
-            <label id="danmakuScheduledMaxField" hidden>最长（秒）<input id="danmakuScheduledMax" type="number" min="10" max="86400" step="1" value="600" required /></label>
-            <label>词库顺序<select id="danmakuScheduledSelection" data-dropdown-variant="toolbox"><option value="sequential">顺序轮播</option><option value="random">随机一条</option></select></label>
-          </div>
-          <div class="danmaku-blessings-body">
-            <div class="danmaku-welcome-library-heading">
-              <label class="daily-library-search">搜索词库<input id="danmakuScheduledLibrarySearch" type="search" placeholder="查找文案" /></label>
-              <span id="danmakuScheduledLibraryCount" class="hint">0 条</span>
-              <lira-help label="定时弹幕词库说明">初始词库有 15 句文案，参考 B 站官方说明和站内直播公告整理，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 100 条，每条最多 120 字；保存后用于后续发送，空词库不会发送。</lira-help>
-            </div>
-            <div id="danmakuScheduledLibraryList" class="danmaku-blessing-list"></div>
-            <div class="daily-library-list-actions">
-              <button id="danmakuScheduledLibraryAdd" class="secondary" type="button">添加文案</button>
-              <div id="danmakuScheduledLibraryPagination" class="danmaku-library-pagination" hidden>
-                <button id="danmakuScheduledLibraryPrevious" class="ghost" type="button">上一页</button>
-                <span id="danmakuScheduledLibraryPage" class="hint"></span>
-                <button id="danmakuScheduledLibraryNext" class="ghost" type="button">下一页</button>
-              </div>
-            </div>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span id="danmakuScheduledSaveState" class="hint" role="status" aria-live="polite">修改后请保存设置</span>
-            <button id="danmakuScheduledSave" class="primary" type="submit" disabled>保存设置</button>
-          </div>
-        </fieldset>
-      </form>
-      <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
-        <summary>
-          <div>
-            <h3>关键词回复 <lira-help>弹幕包含关键词就回复固定文案；英文字母不区分大小写，多条命中时只回复第一条启用规则。</lira-help></h3>
-            <p><span id="danmakuCustomReplyCount">0 条</span></p>
-          </div>
-          <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-            <path
-              d="m5 8 5 5 5-5"
-              stroke="currentColor"
-              stroke-width="1.8"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            />
-          </svg>
-        </summary>
-        <div class="danmaku-blessings-body">
-          <div id="danmakuCustomReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
-          <div class="danmaku-custom-reply-add-grid">
-            <label
-              >关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：你好"
-            /></label>
-            <label
-              >回复内容<input
-                id="danmakuCustomReplyInput"
-                type="text"
-                maxlength="120"
-                placeholder="例如：点歌格式是 点歌 歌名"
-            /></label>
-            <button id="danmakuCustomReplyAddBtn" class="secondary" type="button">添加回复</button>
-          </div>
-          <div class="danmaku-blessing-actions">
-            <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取关键词回复</span>
-            <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存关键词回复</button>
-          </div>
+      <div class="danmaku-fixed-editor-body">
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-viewer-names.html -->
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-interaction-thanks-libraries.html -->
+        <div id="danmakuSongReplyPanel" data-fixed-editor="random" hidden>
+          <p class="hint">回复内容由系统根据点歌条件、歌曲和剩余时间生成，无需设置词库。以下为示例，发送时会自动 @ 发起点歌的观众。</p>
+          <dl class="danmaku-song-reply-examples">
+            <div><dt>随机点歌无匹配</dt><dd>歌库里暂时没有「摇滚」类歌曲，换个条件试试～</dd></div>
+            <div><dt>多个条件无匹配</dt><dd>暂时没有同时符合「粤语＋民谣」的歌曲，换个条件试试～</dd></div>
+            <div><dt>歌曲正在冷却</dt><dd>《晴天》冷却中，还需 2小时15分。<br />按自然日设置时：《晴天》冷却中，明天 00:00 后可再点。</dd></div>
+            <div><dt>随机候选全部冷却</dt><dd>符合条件的歌曲都在冷却，请稍后再试。</dd></div>
+            <div><dt>队列已满</dt><dd>点歌队列满啦，稍后再来试试～</dd></div>
+            <div><dt>不允许重复点歌</dt><dd>这首歌已经在队列里啦～</dd></div>
+            <div><dt>只允许歌库歌曲</dt><dd>歌库里没找到这首，换一首试试～</dd></div>
+          </dl>
+          <p class="hint">成功点歌不发送此类回复。关闭开关只停止回复，点歌规则仍然生效。点歌回复需保持客户端运行并登录直播账号。</p>
         </div>
-      </details>
-      <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-library.html -->
-      <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-settings.html -->
-      <!-- admin-fragment: pages/admin/toolbox/danmaku-daily-library.html -->
-    </section>
+        <div id="danmakuExactRepliesPanel" data-fixed-editor="exact" hidden>
+          <p class="hint"><span id="danmakuExactReplyCount">0 条</span>自定义规则，最多 30 条。</p>
+          <template id="danmakuExactBuiltInReply">
+            <div class="danmaku-custom-reply-row">
+              <span class="danmaku-blessing-index">内置</span>
+              <div class="danmaku-custom-reply-fields">
+                <label>触发词<input type="text" value="菜单" aria-label="内置回复的触发词" readonly /></label>
+                <label>回复内容<input type="text" value="签到、抽签、今日礼物、今日盲盒；礼物特效后接数字ID" aria-label="内置菜单的回复内容" readonly /></label>
+              </div>
+            </div>
+          </template>
+          <fieldset id="danmakuExactFields" class="danmaku-reply-fields" disabled>
+            <legend class="sr-only">完整匹配回复规则</legend>
+            <div id="danmakuExactReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
+            <div class="danmaku-custom-reply-add-grid">
+              <label>触发词<input id="danmakuExactKeywordInput" type="text" placeholder="例如：歌单，最多 30 字" /></label>
+              <label>回复内容<input id="danmakuExactReplyInput" type="text" placeholder="例如：发送 点歌 歌名 即可点歌，最多 120 字" /></label>
+              <button id="danmakuExactReplyAddBtn" class="secondary" type="button">添加回复</button>
+            </div>
+            <div class="danmaku-blessing-actions">
+              <span id="danmakuExactReplyStatus" class="hint" role="status" aria-live="polite">正在读取完整匹配回复</span>
+              <button id="danmakuExactReplySaveBtn" class="primary" type="button">保存完整匹配回复</button>
+            </div>
+          </fieldset>
+        </div>
+        <div id="danmakuQueryRepliesPanel" data-fixed-editor="query" hidden>
+          <p class="hint">在直播间发送对应弹幕，即可自动查询统计结果。</p>
+          <label class="daily-library-search">查找指令<input id="danmakuQueryReplySearch" type="search" placeholder="例如：今日礼物、本月盲盒、2026年" /></label>
+          <div id="danmakuQueryReplyList" class="danmaku-custom-reply-list"></div>
+          <p id="danmakuQuerySearchEmpty" class="hint" role="status" hidden>没有匹配的指令。</p>
+        </div>
+        <form id="danmakuGiftThanksPanel" data-fixed-editor="thanks" hidden>
+          <fieldset id="danmakuGiftThanksFields" class="danmaku-reply-fields" disabled>
+            <legend class="sr-only">礼物答谢文案</legend>
+            <div class="danmaku-thanks-toolbar">
+              <p class="hint">修改文字或插入参数，发送时自动填入真实内容。<lira-help label="答谢文案参数说明">普通回复中的观众称呼优先使用已保存的昵称，没有时用 B 站昵称，并保留航海等级。@ 使用观众真实身份，正文无需重复昵称。礼物参数包含合并数量；金额参数以电池显示，盲盒附上差额或成本未知说明，免费礼物不显示金额。每条最多 120 字，实际发送按平台长度限制分段，无法完整表达时不发送。各场景开关还受上方礼物答谢总开关控制。</lira-help></p>
+              <button id="danmakuGiftThanksReset" type="button" class="secondary">恢复默认文案</button>
+            </div>
+            <div id="danmakuGiftThanksLibrary" hidden></div>
+            <p id="danmakuGiftThanksLegacyHelp" class="hint">当前服务器使用单条文案：三个参数各保留一次。升级服务器后可使用分等级文案库和 @ 回复。</p>
+            <div id="danmakuGiftThanksLegacy" class="danmaku-thanks-templates">
+              <div class="danmaku-thanks-template">
+                <strong id="danmakuThanksgiftLabel">礼物答谢</strong>
+                <div class="danmaku-thanks-insert" role="group" aria-label="插入礼物答谢参数">
+                  <span class="hint">插入：</span>
+                  <button type="button" data-thanks-kind="gift" data-thanks-token="{称呼}">观众称呼</button>
+                  <button type="button" data-thanks-kind="gift" data-thanks-token="{礼物}">礼物和数量</button>
+                  <button type="button" data-thanks-kind="gift" data-thanks-token="{金额}">金额与差额</button>
+                </div>
+                <div id="danmakuThanksgiftEditor" class="danmaku-thanks-text" role="textbox" aria-labelledby="danmakuThanksgiftLabel" aria-multiline="false" contenteditable="false" spellcheck="false"></div>
+                <div class="danmaku-thanks-preview">
+                  <label class="hint" for="danmakuGiftThanksSample">示例预览（不会发送）</label>
+                  <select id="danmakuGiftThanksSample" aria-label="礼物答谢预览示例"><option value="paid">普通礼物</option><option value="blind">盲盒礼物</option><option value="free">免费礼物</option></select>
+                  <output id="danmakuThanksgiftPreview"></output>
+                </div>
+              </div>
+              <div class="danmaku-thanks-template">
+                <strong id="danmakuThanksguardLabel">大航海答谢</strong>
+                <div class="danmaku-thanks-insert" role="group" aria-label="插入大航海答谢参数">
+                  <span class="hint">插入：</span>
+                  <button type="button" data-thanks-kind="guard" data-thanks-token="{称呼}">观众称呼</button>
+                  <button type="button" data-thanks-kind="guard" data-thanks-token="{礼物}">礼物和数量</button>
+                  <button type="button" data-thanks-kind="guard" data-thanks-token="{金额}">金额与差额</button>
+                </div>
+                <div id="danmakuThanksguardEditor" class="danmaku-thanks-text" role="textbox" aria-labelledby="danmakuThanksguardLabel" aria-multiline="false" contenteditable="false" spellcheck="false"></div>
+                <div class="danmaku-thanks-preview"><span class="hint">示例预览（不会发送）</span><output id="danmakuThanksguardPreview"></output></div>
+              </div>
+            </div>
+            <div class="danmaku-blessing-actions">
+              <span id="danmakuGiftThanksSaveState" class="hint" role="status" aria-live="polite">正在读取云端文案…</span>
+              <button id="danmakuGiftThanksSave" class="primary" type="submit" disabled>保存答谢文案</button>
+            </div>
+          </fieldset>
+        </form>
+        <form id="danmakuScheduledPanel" data-fixed-editor="scheduled" hidden>
+          <fieldset id="danmakuScheduledFields" class="danmaku-reply-fields" disabled>
+            <legend class="sr-only">定时随机弹幕设置</legend>
+            <div class="danmaku-scheduled-grid">
+              <label>发送间隔<select id="danmakuScheduledMode" data-dropdown-variant="toolbox"><option value="fixed">固定秒数</option><option value="random">随机秒数</option></select></label>
+              <label id="danmakuScheduledFixedField">间隔（秒）<input id="danmakuScheduledInterval" type="number" min="10" max="86400" step="1" value="300" required /></label>
+              <label id="danmakuScheduledMinField" hidden>最短（秒）<input id="danmakuScheduledMin" type="number" min="10" max="86400" step="1" value="300" required /></label>
+              <label id="danmakuScheduledMaxField" hidden>最长（秒）<input id="danmakuScheduledMax" type="number" min="10" max="86400" step="1" value="600" required /></label>
+              <label>词库顺序<select id="danmakuScheduledSelection" data-dropdown-variant="toolbox"><option value="sequential">顺序轮播</option><option value="random">随机一条</option></select></label>
+            </div>
+            <div class="danmaku-blessings-body">
+              <div class="danmaku-welcome-library-heading">
+                <label class="daily-library-search">搜索词库<input id="danmakuScheduledLibrarySearch" type="search" placeholder="查找文案" /></label>
+                <span id="danmakuScheduledLibraryCount" class="hint">0 条</span>
+                <lira-help label="定时弹幕词库说明">初始词库有 199 句文案，包含关注、粉丝团、大航海和互动暖场，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 300 条，每条最多 120 字；保存后用于后续发送，空词库不会发送。已有词库保持不变。</lira-help>
+              </div>
+              <div id="danmakuScheduledLibraryList" class="danmaku-blessing-list"></div>
+              <div class="daily-library-list-actions">
+                <button id="danmakuScheduledLibraryAdd" class="secondary" type="button">添加文案</button>
+                <div id="danmakuScheduledLibraryPagination" class="danmaku-library-pagination" hidden>
+                  <button id="danmakuScheduledLibraryPrevious" class="ghost" type="button">上一页</button>
+                  <span id="danmakuScheduledLibraryPage" class="hint"></span>
+                  <button id="danmakuScheduledLibraryNext" class="ghost" type="button">下一页</button>
+                </div>
+              </div>
+            </div>
+            <div class="danmaku-blessing-actions">
+              <span id="danmakuScheduledSaveState" class="hint" role="status" aria-live="polite">修改后请保存设置</span>
+              <button id="danmakuScheduledSave" class="primary" type="submit" disabled>保存设置</button>
+            </div>
+          </fieldset>
+        </form>
+        <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
+          <summary>
+            <div>
+              <h3>关键词回复 <lira-help>弹幕包含关键词就回复固定文案；英文字母不区分大小写，多条命中时只回复第一条启用规则。</lira-help></h3>
+              <p><span id="danmakuCustomReplyCount">0 条</span></p>
+            </div>
+            <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+              <path
+                d="m5 8 5 5 5-5"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+              />
+            </svg>
+          </summary>
+          <div class="danmaku-blessings-body">
+            <div id="danmakuCustomReplyList" class="danmaku-custom-reply-list" aria-live="polite"></div>
+            <div class="danmaku-custom-reply-add-grid">
+              <label
+                >关键词<input id="danmakuCustomKeywordInput" type="text" maxlength="30" placeholder="例如：你好"
+              /></label>
+              <label
+                >回复内容<input
+                  id="danmakuCustomReplyInput"
+                  type="text"
+                  maxlength="120"
+                  placeholder="例如：点歌格式是 点歌 歌名"
+              /></label>
+              <button id="danmakuCustomReplyAddBtn" class="secondary" type="button">添加回复</button>
+            </div>
+            <div class="danmaku-blessing-actions">
+              <span id="danmakuCustomReplyStatus" class="hint" role="status" aria-live="polite">正在读取关键词回复</span>
+              <button id="danmakuCustomReplySaveBtn" class="primary" type="button">保存关键词回复</button>
+            </div>
+          </div>
+        </details>
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-library.html -->
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-settings.html -->
+        <!-- admin-fragment: pages/admin/toolbox/danmaku-daily-library.html -->
+      </div>
+    </dialog>
   </div>
 </section>

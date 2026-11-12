@@ -123,6 +123,14 @@ is the cookie-backed account identity required by server-side Bilibili requests.
   not a Bilibili UID or room. Switching account/origin aborts old work and clears
   its dirty/revision baselines; late old-account responses are discarded. A
   same-account temporary authorization interruption retains pending retries.
+- Interactive Bilibili login captures that same owner and lifecycle before
+  opening its window. Invalidating it cancels the window and clears unfinished
+  local credentials; its late result cannot mark another owner dirty. A logout
+  intent is persisted per owner before local credentials are removed. Restart
+  retries local cleanup and cloud DELETE before importing credentials, until a
+  matching acknowledgement or that owner's later successful explicit login
+  supersedes it. The intent contains no Cookie and does not make unsent login
+  replacements durable across process restarts.
 - Before any cloud request for a new identity, the settings store atomically
   binds the local room to that identity and detaches an old/unowned room. The
   internal owner marker persists across restart, is not a cloud revision or an
@@ -207,6 +215,9 @@ write. This limitation is visible in the specification and tests.
 6. A pending transient desktop upload is retried, a mutation during upload is
    uploaded again, and polling/content fetches do not replace that dirty scope
    with an older cloud snapshot.
+   Bilibili logout also survives database reopen: a failed DELETE cannot restore
+   the old login, and an old acknowledgement cannot clear a newer logout intent.
+   Successful explicit login may replace the same owner's pending logout.
 7. Closing Electron stops only its local listener; the independently deployed
    server monitor remains eligible and running.
 8. An online Streamer web write emits only the changed scope revision and causes
@@ -217,6 +228,10 @@ write. This limitation is visible in the specification and tests.
    upload cannot be retried under B, a late A response cannot replace B's local
    Cookie, and switching back to A restores A's saved state independently of B's
    revision. An empty B account never receives unowned local credentials.
+   Switching owners while A's interactive login is open cancels that window;
+   a late completion performs no upload for B. Once cleanup finishes, B's
+   credentials recover immediately without waiting for the fallback timer.
+   Pending logout stays with A.
 10. Given an old local room and a new/unknown room owner, startup and account
     changes detach the room before any settings upload. First-sync failure and
     restart cannot resurrect it. The same owner retains its configured room and

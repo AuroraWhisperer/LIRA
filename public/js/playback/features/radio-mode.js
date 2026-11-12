@@ -48,6 +48,8 @@ export function createRadioMode(deps) {
   }
 
   async function refillRadioQueue(session) {
+    const offset = playbackState.radioOffset;
+    const page = session.platform === 'qq' ? 2 : Math.floor(offset / playbackRadioRefillBatchSize) % 50 + 1;
     try {
       const response = await fetch('/api/music/home', {
         method: 'POST',
@@ -57,6 +59,7 @@ export function createRadioMode(deps) {
           platform: session.platform,
           action: 'radio',
           limit: playbackRadioRefillBatchSize,
+          page,
         }),
       });
       const payload = await readJsonResponse(response, '补充电台队列失败');
@@ -66,9 +69,13 @@ export function createRadioMode(deps) {
       const tracks = Array.isArray(payload.data && payload.data.tracks)
         ? payload.data.tracks.map(PlaybackUtils.normalizeOnlineTrack)
         : [];
-      queueManager.refillRadioQueue(tracks);
-
+      const skip = session.platform === 'netease' ? offset % playbackRadioRefillBatchSize : 0;
+      const added = queueManager.refillRadioQueue(tracks.slice(skip));
       if (tracks.length) {
+        playbackState.radioOffset = (Math.floor(offset / playbackRadioRefillBatchSize) + 1) * playbackRadioRefillBatchSize;
+      }
+
+      if (added > 0) {
         if (session.failureNotified) toast('电台已补上新歌，可以继续听了。', { key: 'radio-refill', update: true, type: 'success' });
         session.failedRefills = 0;
         session.failureNotified = false;

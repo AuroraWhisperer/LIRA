@@ -45,7 +45,7 @@ Keep the application as a modular monolith with the existing four SQLite files. 
 
 ## References
 
-- ../backend/server-core.md
-- ../backend/ws.md
-- ../backend/storage.md
-- ../desktop/main.md
+- [server-core.md](../../reference/backend/server-core.md)
+- [ws.md](../../reference/backend/ws.md)
+- [storage.md](../../reference/backend/storage.md)
+- [main.md](../../reference/desktop/main.md)

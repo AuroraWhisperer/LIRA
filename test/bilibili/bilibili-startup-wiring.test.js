@@ -1,13 +1,27 @@
 'use strict';
 
 const assert = require('node:assert/strict');
-const fs = require('node:fs');
-const path = require('node:path');
 const test = require('node:test');
+const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
 
-const ROOT_DIR = path.resolve(__dirname, '../..');
+test('only a completed Bilibili login uploads cloud credentials', async (t) => {
+  let result = { cancelled: true, state: { loggedIn: false } };
+  const cookie = 'DedeUserID=42; SESSDATA=local; bili_jct=local-csrf';
+  const fixture = createFixture({
+    bilibiliAuth: {
+      login: async () => result,
+      getAuthState: async () => ({ loggedIn: true, uid: 42 }),
+      getCookieHeader: async () => cookie,
+    },
+  });
+  t.after(() => fixture.controller.dispose());
+  await fixture.controller.start();
+  await fixture.controller.loginBilibili();
+  await fixture.controller.whenIdle();
+  assert.equal(fixture.calls.filter(([operation]) => operation === 'push-bilibili').length, 0);
 
-test('only a completed Bilibili login marks cloud credentials dirty', () => {
-  const source = fs.readFileSync(path.join(ROOT_DIR, 'src', 'electron', 'main.js'), 'utf8');
-  assert.match(source, /if \(result\?\.state\?\.loggedIn\) cloudSyncController\?\.markDirty\('bilibili'\)/);
+  result = { state: { loggedIn: true } };
+  await fixture.controller.loginBilibili();
+  await fixture.controller.whenIdle();
+  assert.deepEqual(fixture.calls.filter(([operation]) => operation === 'push-bilibili'), [['push-bilibili', cookie]]);
 });

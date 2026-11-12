@@ -57,6 +57,11 @@ function getSuperChatSnapshot(context) {
   return context.store.listActive();
 }
 
+function isSuperChatDeleted(context, rawPlatformId) {
+  const platformId = cleanText(rawPlatformId);
+  return Boolean(platformId) && context.store.findByPlatformId(platformId)?.status === 'deleted';
+}
+
 function retractSuperChatItems(context, platformIds) {
   if (!Array.isArray(platformIds) || !platformIds.length) return 0;
   return context.store.markDeletedByPlatformIds(platformIds);
@@ -68,5 +73,6 @@ module.exports = {
   addSuperChatItem,
   handleSuperChatAction,
   getSuperChatSnapshot,
+  isSuperChatDeleted,
   retractSuperChatItems,
 };

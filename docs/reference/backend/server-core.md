@@ -43,7 +43,6 @@
 | 默认主机 | `127.0.0.1`；`localhost` 经 `normalizeServerHost` 归一化 | [runtime-config.js](../../../src/server/runtime-config.js) |
 | **主机验证** | `validateServerHost` 仅接受 `127.0.0.1` 或 `localhost`；拒绝非环回地址及其他主机名 | [runtime-config.js](../../../src/server/runtime-config.js) |
 | 监听方式 | `lifecycle.listenExactly` 绑定指定端口，失败即报错；桌面、Node 调试与兼容入口均走此路径 | [server.js](../../../src/server.js)、[lifecycle.js](../../../src/server/lifecycle.js) |
-| 回退辅助 | `listenWithFallback` 是仍导出的独立辅助函数：扫描 `startPort..startPort+19`，`startPort=0` 时由系统分配；当前运行时启动不调用它 | [lifecycle.js](../../../src/server/lifecycle.js)、[server-lifecycle.test.js](../../../test/server/server-lifecycle.test.js) |
 | 端口冲突处理 | 启动前 `cleanupOwnPortOccupant` 验证当前连接归属后请求旧实例关闭，再绑定精确端口 | [lifecycle.js](../../../src/server/lifecycle.js) |
 
 `SERVICE_ID = 'lira'` 仅为公开服务标记，不构成身份证明。旧实例清理由 [lifecycle.js](../../../src/server/lifecycle.js) 编排，[local-instance.js](../../../src/server/local-instance.js) 拥有验证与连接：无凭据 GET health，发送 32 字节随机挑战；ready 实例返回 session token 的 HMAC-SHA256，固定域与实际监听端口绑定。客户端验证后，只有同一条 TCP socket 才能写入 Bearer 并 POST shutdown；断开、重连和重定向不转交令牌，响应上限 16 KiB、每次 HTTP 交换总期限 1 秒。
@@ -98,6 +97,10 @@ Token。不向 license、scene 或任何 overlay 注入主题，不新增写入 
 
 phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:port 校验，不匹配返回 400，再把通过许可门的 `/ws` 交给 `webSocketHub.handleUpgrade`，继续独立校验 Origin/token；无 Origin 的非浏览器客户端同样必须匹配运行时 Host。starting/quiescing 阶段返回 503。`inflight-tracker` 只统计 quiesce 前已接纳的 API handler，quiesce 后的 health/503 不进入 drain 集合。
 
+桌面 API 写请求在接纳时捕获主进程 `getSceneOwner()` 提供的账号 scope 与授权代次，HTTP context 提供本次请求的 `authorizeRequest`，常规路由通过 `request.authorize()` 复核。JSON 请求体读完后先复核再交给领域操作；原始上传复用已有授权回调。设置在异步准备完成、持久化之前复核，并在 capture apply 完成后、配置运行时和发布通知之前再复核；随机点歌在资料解析完成、同步入队之前复核。远端礼物清理返回后的本地清理、保留期下一批清理和异步礼物预览发布也检查同一请求归属。
+
+切换账号、退出后重新登录及 A→B→A 都使旧请求失效，同账号续期保留有效请求。该限制不回滚切换前已提交的数据或已完成的外部操作；它阻止旧请求继续修改新账号数据、生成其待传快照或发布后续通知。Node 独立调试未提供账号 getter 时只复用现有许可检查，不虚构桌面账号。专用画布、场景能力仍执行各自的绑定校验。HTTP 错误合同见 [API 通用约定](api.md#0-路由机制与通用约定)；验收覆盖真实 HTTP 延迟 body、上传、异步设置、清理与预览，以及 `settings-service` 和随机点歌的提交边界（`test/server/http-account-isolation.test.js`、`test/settings/settings-service.test.js`、`test/songs/queue-random-request.test.js`）。
+
 **Host/Origin 验证辅助函数**(`http-utils.js`):
 
 - `validateRequestHost(req, runtimeBaseUrl)`:提取 `req.headers.host` 与运行时 baseUrl 的 host:port 比较,确保请求目标与服务实际绑定地址一致。
@@ -106,9 +109,11 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 ### 4.1 API 路由分发
 
-请求体累计超过预算后，读取器清除缓存并丢弃后续数据，避免 Windows 在关闭仍有未读数据的连接时重置错误响应；413 响应携带 `Connection: close` 和准确的 `Content-Length`，先写出完整错误响应，再等待请求读完后结束响应；未完成的上传另有 1 秒强制回收上界。完整超量、大块缓冲、未发完和继续发送的请求均由真实 TCP 测试覆盖。稳定错误映射识别 owner 标记的 400 参数错误，仍不向客户端暴露内部堆栈。
+请求体累计超过预算后，读取器清除缓存并丢弃后续数据，避免 Windows 在关闭仍有未读数据的连接时重置错误响应；413 响应携带 `Connection: close` 和准确的 `Content-Length`，先写出完整错误响应，再等待请求读完后结束响应；未完成的上传另有 1 秒强制回收上界。完整超量、大块缓冲、未发完和继续发送的请求均由真实 TCP 测试覆盖。
 
-读取器以 `REQUEST_BODY_TOO_LARGE` / `statusCode: 413` 标记限额异常；包裹 body 读取的领域路由必须透传该异常，交由统一响应处理，不能重新归类为 400、500 或上游 502。
+稳定错误映射优先识别已有固定错误码，再接受 owner 明确设置的 `statusCode` 与 `publicMessage`；[public-error.js](../../../src/shared/public-error.js) 为可公开的业务提示提供构造方法。仅有 `statusCode: 400` 的既有参数错误使用固定提示。加班机、播放存储、游戏、互动及音乐路由不再直接回传任意 `error.message`；未分类异常交给 HTTP 入口记录脱敏诊断，响应固定 500 `Internal server error.`。音乐已知业务失败沿用 501，上游原始消息和 Cookie 诊断只保留在内部错误中。
+
+读取器以 `REQUEST_BODY_TOO_LARGE` / `statusCode: 413` 标记限额异常；包裹 body 读取的领域路由必须透传该异常及请求归属复核的 `REQUEST_AUTHORIZATION_CHANGED`，交由统一响应处理，不能重新归类为参数、导入或上游服务失败。
 
 [src/server/api-routes.js](../../../src/server/api-routes.js) 无状态:业务状态全部通过 context 注入。
 
@@ -125,7 +130,7 @@ phase 为 `ready` 时，`server.on('upgrade')` 先复用 HTTP 的严格 Host:por
 
 AI 配置写入通过 `ai-runtime.js` 的 `updateConfig()` 进入既有 service；成功提交后调用组合根注入的 `onConfigUpdated`，由 `cloud-sync-runtime.js` 的 `scheduleMenuSync()` 合并通知并比较当前菜单签名。失败不通知，无关配置不额外上传；AI 领域服务不依赖云同步。`game-runtime.js` 的 `createGameAudience()` 拥有在线榜与近期发言者的 UID 合并、名称选择、最近时间排序和当前胜者资料读取，`runtime-api-context.js` 显式装配，`api-context.js` 只映射 API 能力。
 
-Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游戏和转盘服务创建后组装一次只读 `displayPorts`，交给 `scene-runtime.js` / `scene-extra-display.js`：设置读取、数据目录与状态读取、歌曲列表/版本、礼物版本/历史/盲盒统计、礼物卡片/心愿、小游戏/转盘/互动状态和全局礼物目录。共享外观读取使用其中的 settings/system 与 runtime 自有 cloud danmaku reader；外观写路由仍使用自己的 settings 写入上下文。Scene 不经 API Context 取回自身，也不取得 session token、音乐 registry 或 shutdown 能力。
+Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游戏和转盘服务创建后组装一次只读 `displayPorts`，交给 `scene-runtime.js` / `scene-extra-display.js`：设置读取、数据目录与状态读取、歌曲列表/版本、礼物版本/历史/盲盒统计、礼物卡片/心愿、小游戏/转盘/互动状态和全局礼物目录。其中 `gifts.getBlindBoxChangeToken` 接入已有盲盒版本确认，`games.getDisplaySession` 接入已协商消费者的画布和成绩增量读取；未协商的消费者仍通过 `getSession` 读取完整状态。共享外观读取使用其中的 settings/system 与 runtime 自有 cloud danmaku reader；外观写路由仍使用自己的 settings 写入上下文。Scene 不经 API Context 取回自身，也不取得 session token、音乐 registry 或 shutdown 能力。
 
 场景管理的账号校验、修订、发布与事务由 `scene-service.js` 拥有；[scene-output-reader.js](../../../src/scenes/scene-output-reader.js) 拥有输出读取、投影凭据和数据版本，异步读取结束后仍复核账号代次与来源凭据。[scene-capability-codec.js](../../../src/scenes/scene-capability-codec.js) 统一来源凭据的签发、加密内容校验和 token 比较，供管理与输出两条路径使用。
 
@@ -181,7 +186,7 @@ Scene 显示不读取完整 API Context。`server.js` 在领域服务、小游�
 1. 无 I/O 校验端口参数；`createServerRuntime()` 本身只保存配置并创建未监听的 HTTP server，不创建数据目录、数据库、token 或日志。
 2. `cleanupOwnPortOccupant` 请求可信旧实例关闭并等待端口释放。
 3. `listenExactly` 绑定精确端口，phase 进入 `starting`;此时仅最小 `/api/health` 可用，其余请求返回 503。
-4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认曲风、队列清理和 retention。
+4. 打开/迁移数据库，装配 domain/music/Bilibili/AI runtimes，执行数据修复、默认曲风和队列清理。后台 retention 由 `startBackgroundMaintenance()` 启动；桌面传 `deferMaintenance:true`，等待窗口可用。礼物专用及通用 giftDb 维护共用 gift-sync-runtime 的维护入口，关闭先停止计时器和后续批次。
 5. 生成 `sessionToken`,写入 `.session-token` 与 `.server-runtime.json`，原子切换 phase 为 `ready`。
 6. `AUTO_OPEN_ADMIN=1` 时尝试打开管理页；启动浏览器的同步异常和子进程异步 `error` 都只记录手动打开提示，不中断服务。最后仍调用 `bilibiliRuntime.reconnect()`，建立本地 Bilibili 连接并继续处理非礼物功能。礼物服务只创建服务器结果投影器，本地消息不再注册礼物记账回调，仅保留用户身份提示。
 

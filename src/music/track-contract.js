@@ -1,11 +1,13 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { cleanText } = require('../shared/utils');
 const { normalizeMusicPlatform } = require('./provider-registry');
 
 function normalizeMusicTrackForProvider(track) {
   if (!track || typeof track !== 'object') {
-    throw new Error('缺少歌曲信息。');
+    throw createPublicError('缺少歌曲信息。', 501);
   }
 
   const source = normalizeMusicPlatform(track.source);
@@ -13,7 +15,7 @@ function normalizeMusicTrackForProvider(track) {
   const sourceTrackId = cleanText(track.sourceTrackId || track.id);
   const title = cleanText(track.title);
   if (!id || !sourceTrackId || !title) {
-    throw new Error('歌曲信息不完整。');
+    throw createPublicError('歌曲信息不完整。', 501);
   }
 
   const artists = Array.isArray(track.artists) ? track.artists.map(cleanText).filter(Boolean).slice(0, 8) : [];

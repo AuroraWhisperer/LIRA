@@ -2,6 +2,8 @@
 // 音乐目录搜索、首页内容与歌单写入。
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { cleanText } = require('../shared/utils');
 const {
   musicCacheKey,
@@ -28,7 +30,7 @@ async function searchMusicTracks(registry, body) {
   const input = body && typeof body === 'object' ? body : {};
   const platform = normalizeMusicPlatform(input.platform || input.source || 'netease');
   const keyword = cleanText(input.keyword || input.query || input.songName).slice(0, 120);
-  if (!keyword) throw new Error('缺少搜索关键词。');
+  if (!keyword) throw createPublicError('缺少搜索关键词。', 501);
 
   const limit = Math.max(1, Math.min(30, Number(input.limit) || 20));
   const provider = registry.get(platform);
@@ -83,7 +85,7 @@ async function getMusicHomeContent(registry, body, apiCacheDir = '') {
   }
   if (action === 'playlist-tracks') {
     const playlistId = cleanText(input.playlistId);
-    if (!playlistId) throw new Error('缺少歌单 ID。');
+    if (!playlistId) throw createPublicError('缺少歌单 ID。', 501);
     return {
       source: platform,
       action,
@@ -130,7 +132,7 @@ async function getMusicHomeContent(registry, body, apiCacheDir = '') {
       tracks: await provider.getRecentTracks({ limit }),
     };
 
-  throw new Error('未知音乐首页动作。');
+  throw createPublicError('未知音乐首页动作。', 501);
 }
 
 async function writeMusicPlaylistTracks(registry, body, operation) {
@@ -145,9 +147,9 @@ async function writeMusicPlaylistTracks(registry, body, operation) {
     title: cleanText(playlistInput.title || playlistInput.dirName).slice(0, 200),
   };
   const tracks = Array.isArray(input.tracks) ? input.tracks.slice(0, 100) : [];
-  if (tracks.length === 0) throw new Error('缺少要修改的音乐歌曲。');
+  if (tracks.length === 0) throw createPublicError('缺少要修改的音乐歌曲。', 501);
   const method = operation === 'remove' ? 'removeTracksFromPlaylist' : 'addTracksToPlaylist';
-  if (typeof provider[method] !== 'function') throw new Error('当前音乐 Provider 不支持修改歌单。');
+  if (typeof provider[method] !== 'function') throw createPublicError('当前音乐 Provider 不支持修改歌单。', 501);
   const result = await provider[method](playlist, tracks);
   clearLikedTracksSessions(provider);
   return { source: platform, operation, playlist, result };
@@ -155,7 +157,7 @@ async function writeMusicPlaylistTracks(registry, body, operation) {
 
 async function annotatePlaylistMembership(provider, platform, playlists, track) {
   const trackId = getProviderTrackId(platform, track);
-  if (!trackId) throw new Error('缺少要检查的歌曲 ID。');
+  if (!trackId) throw createPublicError('缺少要检查的歌曲 ID。', 501);
   return mapWithConcurrency(Array.isArray(playlists) ? playlists : [], 6, async (playlist) => {
     try {
       const containsTrack =

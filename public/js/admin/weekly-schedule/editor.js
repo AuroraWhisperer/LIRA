@@ -1,7 +1,8 @@
-import { createWeeklyScheduleTemplate, cloneWeeklyScheduleTemplate, clearWeeklyScheduleWeek, normalizeWeeklyScheduleTemplate, getWeekDates, WEEKLY_PALETTES, WEEKLY_FONTS, ASSET_KEYS, MAX_TEMPLATE_ASSET_BYTES, getWeeklyScheduleAssetBytes } from './model.js';
+import { createWeeklyScheduleTemplate, cloneWeeklyScheduleTemplate, clearWeeklyScheduleWeek, normalizeWeeklyScheduleTemplate, getWeekDates, WEEKLY_PALETTES, WEEKLY_FONTS, ASSET_KEYS, MAX_TEMPLATE_ASSET_BYTES, getWeeklyScheduleAssetBytes, getWeeklyImagePath } from './model.js';
 import { createWeeklyScheduleStorage } from './storage.js';
 import { readWeeklyScheduleAsset } from './assets.js';
-import { renderWeeklySchedule, fitWeeklyScheduleText, waitForWeeklyScheduleImages } from './renderer.js';
+import { renderWeeklySchedule, fitWeeklyScheduleText, waitForWeeklyScheduleImages, applyWeeklyImageSettings } from './renderer.js';
+import { createWeeklyImageInteraction } from './image-interaction.js';
 import { renderWeeklyScheduleFields, refreshWeeklyScheduleAsset } from './editor-fields.js';
 import { registerFontSelect, ensureSavedFontOption } from '../../shared/font-library.js';
 import { findSharedFont } from '../../shared/font-catalog.js';
@@ -15,6 +16,9 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   const fields = root.querySelector('[data-weekly-fields]');
   const preview = root.querySelector('[data-weekly-preview]');
   const viewport = root.querySelector('[data-weekly-preview-viewport]');
+  const stage = root.querySelector('[data-weekly-stage]');
+  const expandButton = root.querySelector('[data-weekly-action="expand"]');
+  const exitButton = root.querySelector('[data-weekly-action="exit-expanded"]');
   const templateSelect = root.querySelector('[data-weekly-template]');
   const nameInput = root.querySelector('[data-weekly-template-name]');
   const saveState = root.querySelector('[data-weekly-save-state]');
@@ -35,9 +39,17 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   let lastSaveError = null;
   let previewGeneration = 0;
   let activeCategory = 'appearance';
+  let selectedImage = '';
+  let expanded = false;
   const uploadGenerations = new Map();
   const pendingUploads = new Map();
   const current = () => state.templates.find(template => template.id === state.activeId);
+  const imageInteraction = createWeeklyImageInteraction(viewport, {
+    getTemplate: () => state && current(),
+    onSelect: key => selectImage(key, { fromCanvas: true }),
+    onChange: changeImage,
+    onCommit: flush,
+  });
 
   function status(text, error = false) {
     if (disposed) return;
@@ -51,9 +63,15 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     errorLine.textContent = error?.message || String(error || '');
   }
   function resizePreview() {
-    const scale = viewport.clientWidth / 1920;
+    if (expanded) {
+      const top = root.ownerDocument.querySelector('.topbar')?.getBoundingClientRect().bottom || 0;
+      root.style.setProperty('--weekly-workspace-top', `${Math.max(0, top)}px`);
+    }
+    const scale = expanded ? Math.min(stage.clientWidth / 1920, stage.clientHeight / 1080) : stage.clientWidth / 1920;
+    viewport.style.width = `${1920 * scale}px`;
     preview.style.transform = `scale(${scale})`;
     viewport.style.height = `${1080 * scale}px`;
+    imageInteraction.refresh();
   }
   function updatePreview() {
     if (disposed || !state) return;
@@ -66,7 +84,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       root.ownerDocument.fonts.load(`32px ${template.fontId}`, art.textContent || '直播周表'),
       waitForWeeklyScheduleImages(art),
     ]).then(() => {
-      if (!disposed && generation === previewGeneration) fitPreview();
+      if (!disposed && generation === previewGeneration) { fitPreview(); imageInteraction.refresh(); }
     }).catch(error => {
       if (!disposed && generation === previewGeneration) showError(error);
     });
@@ -105,13 +123,13 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     savePending = pending;
     return pending;
   }
-  function changed() {
+  function changed(render = true) {
     revision += 1;
     status('尚未保存');
     showError(null);
     clearTimeout(saveTimer);
     saveTimer = setTimeout(persist, 300);
-    queuePreview();
+    if (render) queuePreview();
   }
   function renderTemplateControls() {
     templateSelect.replaceChildren(...state.templates.map(template => {
@@ -146,6 +164,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     initParameterRanges(fields);
     enhanceSelects(fields);
     enhanceColorControls(fields);
+    selectImage(current().assets[selectedImage] ? selectedImage : '', { reveal: false });
     renderTemplateControls();
     updatePreview();
   }
@@ -160,6 +179,68 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     fields.querySelectorAll('[data-weekly-panel]').forEach(panel => {
       panel.hidden = panel.dataset.weeklyPanel !== category;
     });
+  }
+  function selectImage(key, { reveal = true, fromCanvas = false } = {}) {
+    selectedImage = current().assets[key] ? key : '';
+    if (!fromCanvas) imageInteraction.select(selectedImage);
+    const select = fields.querySelector('[data-weekly-image-select]');
+    select.value = selectedImage;
+    enhanceSelects(fields);
+    fields.querySelectorAll('[data-weekly-transform]').forEach(panel => {
+      panel.hidden = panel.dataset.weeklyTransform !== selectedImage;
+    });
+    fields.querySelectorAll('[data-weekly-edit-image]').forEach(button => {
+      button.setAttribute('aria-pressed', String(button.dataset.weeklyEditImage === selectedImage));
+    });
+    const note = fields.querySelector('[data-weekly-selection-note]');
+    const hiddenModule = selectedImage.startsWith('rank') && !current().modules.rank.enabled ? '请在「模块」打开上周榜单，让头像显示在画布中。'
+      : selectedImage === 'qrcode' && !current().modules.qr.enabled ? '请在「模块」打开粉丝群二维码，让图片显示在画布中。'
+        : selectedImage === 'icon' && current().icon !== 'custom' ? '请在「外观 → 人设图标」选择自定义，让这张图片显示在画布中。' : '';
+    note.textContent = hiddenModule;
+    note.hidden = !hiddenModule;
+    if (reveal) {
+      selectCategory('assets');
+      const uploads = fields.querySelector('.weekly-upload-details');
+      uploads.open = !selectedImage;
+      if (expanded) fields.scrollTop = 0;
+      else if (!fromCanvas) select.closest('.weekly-field').scrollIntoView({ block: 'nearest' });
+    }
+  }
+  function changeImage(key, values) {
+    const path = getWeeklyImagePath(key);
+    const settings = current()[path];
+    if (Object.entries(values).every(([field, value]) => settings[field] === value)) return;
+    Object.assign(settings, values);
+    preview.querySelectorAll(`[data-weekly-image="${key}"]`).forEach(node => applyWeeklyImageSettings(node, current(), key));
+    for (const [field, value] of Object.entries(values)) {
+      const input = fields.querySelector(`[data-weekly-field="${path}.${field}"]`);
+      input.value = value;
+      fields.querySelector(`[data-weekly-number="${path}.${field}"]`).value = value;
+      refreshParameterRange(input);
+    }
+    changed(false);
+  }
+  function setExpanded(value, restoreFocus = true) {
+    if (expanded === value) return;
+    expanded = value;
+    if (expanded) {
+      root.setAttribute('popover', 'manual');
+      root.dataset.weeklyExpanded = 'true';
+      root.showPopover();
+      exitButton.hidden = false;
+      expandButton.hidden = true;
+      resizePreview();
+      exitButton.focus({ preventScroll: true });
+    } else {
+      root.hidePopover();
+      root.removeAttribute('popover');
+      delete root.dataset.weeklyExpanded;
+      exitButton.hidden = true;
+      expandButton.hidden = false;
+      resizePreview();
+      flush();
+      if (restoreFocus) expandButton.focus({ preventScroll: true });
+    }
   }
   function replaceCurrent(template) {
     const index = state.templates.findIndex(item => item.id === state.activeId);
@@ -205,6 +286,8 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     if (exact) exact.value = input.value;
     if (path === 'monday' || path.startsWith('days.')) updateDaySummaries();
     if (path === 'primaryColor' || path === 'accentColor') updatePaletteButtons();
+    if (path === 'portrait.outline') fields.querySelector('[data-weekly-outline-controls]').hidden = !value;
+    if (path.startsWith('modules.') && path.endsWith('.enabled')) selectImage(selectedImage, { reveal: false });
     changed();
   }
   function readNumber(input, commit = false) {
@@ -254,7 +337,10 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       if (bytes > MAX_TEMPLATE_ASSET_BYTES) throw new Error('每个模板的图片合计不能超过 48 MiB，请缩小图片后重试。');
       template.assets[key] = data;
       if (key === 'icon') template.icon = 'custom';
-      if (current() === template) refreshWeeklyScheduleAsset(fields, template, key);
+      if (current() === template) {
+        refreshWeeklyScheduleAsset(fields, template, key);
+        selectImage(key);
+      }
       changed();
     } catch (error) {
       showError(error);
@@ -276,7 +362,9 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     }
     if (!state || disposed) return;
     const template = current();
-    if (name === 'expand-days') {
+    if (name === 'expand') setExpanded(true);
+    else if (name === 'exit-expanded') setExpanded(false);
+    else if (name === 'expand-days') {
       const days = Array.from(fields.querySelectorAll('[data-weekly-day]'));
       const open = days.some(day => !day.open);
       days.forEach(day => { day.open = open; });
@@ -351,7 +439,8 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   }
   function onChange(event) {
     const input = event.target;
-    if (input.matches('[data-weekly-number]')) readNumber(input, true);
+    if (input.matches('[data-weekly-image-select]')) selectImage(input.value);
+    else if (input.matches('[data-weekly-number]')) readNumber(input, true);
     else if (input.matches('[data-weekly-asset]')) void upload(input);
     else if (input === templateSelect && state) {
       state.activeId = input.value;
@@ -365,7 +454,8 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       if (button === retry) void action('retry');
       return;
     }
-    if (button.dataset.weeklyTab) selectCategory(button.dataset.weeklyTab);
+    if (button.dataset.weeklyEditImage) selectImage(button.dataset.weeklyEditImage);
+    else if (button.dataset.weeklyTab) selectCategory(button.dataset.weeklyTab);
     else if (button.dataset.weeklyLayout) {
       current().layout = button.dataset.weeklyLayout;
       fields.querySelectorAll('[data-weekly-layout]').forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
@@ -389,6 +479,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     } else if (button.dataset.weeklyIcon) {
       current().icon = button.dataset.weeklyIcon;
       fields.querySelectorAll('[data-weekly-icon]').forEach(choice => choice.setAttribute('aria-pressed', String(choice === button)));
+      selectImage(selectedImage, { reveal: false });
       changed();
     } else if (button.dataset.weeklyRemoveAsset) {
       const key = button.dataset.weeklyRemoveAsset;
@@ -398,13 +489,32 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       template.assets[key] = '';
       if (key === 'icon' && template.icon === 'custom') template.icon = 'heart';
       refreshWeeklyScheduleAsset(fields, template, key);
+      if (selectedImage === key) selectImage('');
       changed();
     }
   }
   function flush() {
     if (state && revision > savedRevision) void persist();
   }
+  function onEscape(event) {
+    if (event.key === 'Escape' && expanded && !event.defaultPrevented) {
+      const otherPopover = Array.from(root.ownerDocument.querySelectorAll(':popover-open')).some(node => node !== root);
+      if (otherPopover || root.ownerDocument.querySelector('dialog[open]')) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setExpanded(false);
+    }
+  }
   function onKeyDown(event) {
+    if (event.key === 'Tab' && expanded) {
+      const controls = Array.from(root.querySelectorAll('button, input, select, textarea, summary, [tabindex="0"]'))
+        .filter(node => !node.disabled && node.tabIndex >= 0 && node.getClientRects().length && !node.closest('[inert]'));
+      const end = event.shiftKey ? controls[0] : controls.at(-1);
+      if (event.target === end) {
+        event.preventDefault();
+        (event.shiftKey ? controls.at(-1) : controls[0])?.focus();
+      }
+    }
     const tab = event.target.closest('[data-weekly-tab]');
     if (!tab || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     const tabs = Array.from(fields.querySelectorAll('[data-weekly-tab]'));
@@ -418,13 +528,18 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   root.addEventListener('change', onChange);
   root.addEventListener('click', onClick);
   root.addEventListener('keydown', onKeyDown);
+  root.ownerDocument.addEventListener('keydown', onEscape);
   window.addEventListener('pagehide', flush);
   const resize = new ResizeObserver(() => { resizePreview(); fitPreview(); });
-  resize.observe(viewport);
+  resize.observe(stage);
+  const titlebar = root.ownerDocument.querySelector('.topbar');
+  if (titlebar) resize.observe(titlebar);
   root.ownerDocument.fonts.addEventListener('loadingdone', fitPreview);
   await load();
   return {
     dispose() {
+      imageInteraction.dispose();
+      setExpanded(false, false);
       flush();
       disposed = true;
       clearTimeout(saveTimer);
@@ -437,6 +552,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       root.removeEventListener('change', onChange);
       root.removeEventListener('click', onClick);
       root.removeEventListener('keydown', onKeyDown);
+      root.ownerDocument.removeEventListener('keydown', onEscape);
       window.removeEventListener('pagehide', flush);
       void savePending.finally(() => storage.close());
     },

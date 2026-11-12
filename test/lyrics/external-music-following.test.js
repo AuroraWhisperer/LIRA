@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { buildMusicRuntime } = require('../../src/server/music-runtime');
+const { routes } = require('../../src/server/routes/playback-routes');
 
 async function fixture(t, extra = {}) {
   const samples = {};
@@ -142,6 +143,22 @@ test('playing without lyrics stays its own source and late inactive results cann
   await sample('netease', 'Paused');
   await sample('qq', 'Stopped');
   assert.equal(runtime.getNowPlayingState().playing, false);
+});
+
+test('internal lyric HTTP publications preserve artwork without extending lyric responses', async (t) => {
+  const { runtime } = await fixture(t);
+  const context = { playbackLyrics: { publish: runtime.publishLyricState, publishTimeline: runtime.publishLyricTimeline } };
+  for (const kind of ['lyric-state', 'lyric-timeline']) {
+    const input = { trackTitle: 'Internal song', artists: ['Artist'], coverUrl: `https://example.test/${kind}.jpg`,
+      playing: true, status: 'empty', lines: [], generation: 10, sequence: 1 };
+    let result;
+    await routes[`POST /api/playback/${kind}`](context, { body: async () => input }, {
+      writeHead(status) { assert.equal(status, 200); },
+      end(body) { result = JSON.parse(body); },
+    });
+    assert.equal(runtime.getNowPlayingState().coverUrl, input.coverUrl, kind);
+    assert.equal(Object.hasOwn(result.data, 'coverUrl'), false, 'artwork belongs to now-playing, not lyric responses');
+  }
 });
 
 test('now-playing publishes track and playback changes once, rejects stale artwork, and clears it on a new track', async (t) => {

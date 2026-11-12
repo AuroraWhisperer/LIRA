@@ -6,6 +6,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
+const { createTestService, waitUntil } = require('../helpers/ai-assistant-service-fixture');
 
 function createStore(options = {}) {
   const db = new DatabaseSync(':memory:');
@@ -21,6 +22,18 @@ function createStore(options = {}) {
   const persistence = createAiStateStore(db);
   return { db, persistence, store: createAiConfigStore(persistence, codec, options) };
 }
+
+test('automatic replies require a saved opt-in and retain their preference while AI is off', (t) => {
+  const { db, store } = createStore();
+  t.after(() => db.close());
+  assert.equal(store.getPublicConfig().autoReplyEnabled, false);
+  store.updateConfig({ autoReplyEnabled: true, enabled: false });
+  const reopened = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
+  assert.equal(reopened.getPublicConfig().autoReplyEnabled, true);
+  assert.equal(reopened.getConfig().enabled, false);
+  reopened.updateConfig({ autoReplyEnabled: false });
+  assert.equal(reopened.getConfig().autoReplyEnabled, false);
+});
 
 test('AI config masks secrets in public projection while storing them encrypted', (t) => {
   const { db, persistence, store } = createStore();
@@ -125,11 +138,19 @@ test('failed commits preserve cached configuration, platform personas and key or
   assert.equal(store.getPublicConfig().providerPersonaIds.doubao, 'general');
 });
 
-test('AI config normalizes the legacy DeepSeek model to its official name', () => {
-  const { store } = createStore();
-  assert.equal(store.updateConfig({ model: 'ds-v4-flash' }).model, 'deepseek-v4-flash');
-  assert.equal(store.getConfig().model, 'deepseek-v4-flash');
-  assert.equal(store.updateConfig({ model: 'custom-model' }).model, 'custom-model');
+test('AI config updates legacy Flash names only for the official DeepSeek API', (t) => {
+  const { db, persistence, store } = createStore();
+  t.after(() => db.close());
+  persistence.updateConfiguration([
+    { key: 'deepseekResponsesUrl', value: 'https://api.deepseek.com', isSecret: false },
+    { key: 'model', value: 'deepseek-v4-flash', isSecret: false },
+  ], '2026-11-12T00:00:00.000Z', () => {});
+  assert.equal(store.getConfig().model, 'deepseek-flash');
+  assert.equal(store.updateConfig({ modelProvider: 'deepseek', model: 'ds-v4-flash' }).model, 'deepseek-flash');
+  assert.equal(db.prepare("SELECT value FROM ai_configuration WHERE key = 'model'").get().value, 'deepseek-flash');
+  assert.equal(store.updateConfig({
+    modelProvider: 'custom', deepseekResponsesUrl: 'https://gateway.example.test/v1', model: 'ds-v4-flash',
+  }).model, 'ds-v4-flash');
 });
 
 test('AI config allows an empty trigger and model while the assistant is being configured', () => {
@@ -353,4 +374,46 @@ test('AI cache cleanup recovers after the system clock moves backwards', (t) => 
   assert.equal(f.count('ai_query_cache'), 2);
   assert.deepEqual(f.store.getCache('future-live'), { text: 'future' });
   assert.deepEqual(f.store.getCache('past-live'), { text: 'new' });
+});
+
+test('only a successful effective persona edit aborts the service through the config store', async (t) => {
+  const { db, persistence, store } = createStore();
+  const pending = Promise.withResolvers();
+  const sent = [];
+  let signal;
+  store.updateConfig({ enabled: true, trigger: '小米', model: 'test-model', personaId: 'general',
+    deepseekResponsesUrl: 'https://model.test/responses', deepseekApiKey: 'test-key' });
+  const selected = store.getPublicConfig().personas.find((persona) => persona.id === 'general');
+  const remember = t.mock.method(store, 'setContext');
+  const service = createTestService({
+    store,
+    modelClient: { async createResponse(request) {
+      if (request.purpose !== 'generation') return { text: '{"allowed":true}', functionCalls: [], usage: {} };
+      signal = request.signal;
+      await pending.promise;
+      return { text: '旧风格回答', functionCalls: [], usage: {} };
+    } },
+    sendReply: async (reply) => sent.push(reply.message),
+  });
+  t.after(async () => { pending.resolve(); await service.shutdown(); db.close(); });
+  service.handleDanmaku({ uid: 'viewer', userName: '观众', message: '小米 你好' });
+  await waitUntil(() => signal);
+
+  store.updatePersona({ id: 'cat', prompt: '你是一只喜欢安静聊天的橘猫，请用自然简洁的中文回复观众。' });
+  assert.equal(signal.aborted, false, 'an unselected persona does not change the active reply');
+  store.updatePersona({ id: 'general', description: '仅修改管理列表中的说明', prompt: selected.prompt });
+  assert.equal(signal.aborted, false, 'display metadata does not change the active reply');
+
+  const changedPrompt = '你是一位风趣的直播间聊天伙伴，请用简短自然的中文与观众交流。';
+  const failedSave = t.mock.method(persistence, 'updateConfiguration', () => { throw new Error('Synthetic save failure'); });
+  assert.throws(() => store.updatePersona({ id: 'general', prompt: changedPrompt }), /Synthetic save failure/);
+  assert.equal(signal.aborted, false, 'failed persistence cannot invalidate accepted work');
+  failedSave.mock.restore();
+
+  store.updatePersona({ id: 'general', prompt: changedPrompt });
+  assert.equal(signal.aborted, true, 'the bypass persona route cancels immediately after a successful save');
+  pending.resolve();
+  await service.shutdown();
+  assert.deepEqual(sent, []);
+  assert.equal(remember.mock.calls.length, 0);
 });

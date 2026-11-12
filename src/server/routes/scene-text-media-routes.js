@@ -27,6 +27,7 @@ async function handleTextMedia(context, req, res, url, authorize = () => {}) {
     }
     return sendJson(res, 200, { ok: true, data });
   } catch (error) {
+    if (error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
     const status = [400, 403, 409, 410, 413, 503].includes(error.statusCode) ? error.statusCode : 500;
     return sendJson(res, status, { ok: false, error: status === 500 ? '画布素材暂时不可用，请重试。' : error.message });
   }
@@ -40,7 +41,7 @@ function handleCanvasTextMedia(context, req, res, url) {
 }
 
 const protectedRoute = (context, request, res) => handleTextMedia(context, request.req, res,
-  new URL(request.req.url, `http://${request.req.headers.host}`));
+  new URL(request.req.url, `http://${request.req.headers.host}`), request.authorize);
 const routes = {
   'POST /api/scenes/text-image': protectedRoute,
   'GET /api/scenes/text-gifts': protectedRoute,

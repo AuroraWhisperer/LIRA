@@ -22,7 +22,7 @@ function registerFontLibraryIpc({ safeHandle, fontLibrary, licenseManager, getMa
       return { ok: false, error: 'LICENSE_REQUIRED' };
     const state = publicFontState(await fontLibrary.initialize());
     return { ok: state.status === 'ready', ...state };
-  }, true);
+  });
   return fontLibrary.onStateChanged(snapshot => {
     const window = getMainWindow();
     if (window && !window.isDestroyed())

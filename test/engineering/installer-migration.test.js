@@ -23,7 +23,11 @@ test(
       .map(name => fs.readFileSync(path.join(__dirname, '../../build', name), 'utf8')).join('\n');
     const functions = source.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
     const installer = fs.readFileSync(path.join(__dirname, '../../build/installer-uninstall.nsh'), 'utf8');
-    const removal = installer.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}');
+    const removal = installer.replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}')
+      .replace('  liraRemoveFailed:', `  liraRemoveFailed:
+    FileOpen $R2 "\${FIXTURE_TEMP}\\removal-failure.txt" w
+    FileWriteUTF16LE /BOM $R2 "$R6"
+    FileClose $R2`);
     assert.doesNotMatch(functions + removal, /\$(?:APPDATA|TEMP|LOCALAPPDATA)\b|ReadReg|DeleteReg/);
 
     for (const scenario of [
@@ -232,10 +236,20 @@ test(
             scenario.includes('conflict') ||
             scenario === 'locked-data';
           const reportPath = path.join(reportDir, 'LIRA-install-error.txt');
+          const removalReport = path.join(reportDir, 'removal-failure.txt');
+          if (run.status !== (failed ? 2 : 0)) {
+            scenarioTest.diagnostic(JSON.stringify({
+              prepared: fs.existsSync(prepared) ? fs.readFileSync(prepared, 'utf8') : null,
+              copied: fs.existsSync(copied) ? fs.readFileSync(copied, 'utf8') : null,
+              remaining: fs.readdirSync(root, { recursive: true }),
+            }));
+          }
           assert.equal(
             run.status,
             failed ? 2 : 0,
-            fs.existsSync(reportPath) ? fs.readFileSync(reportPath, 'utf16le') : 'installer exit code',
+            fs.existsSync(reportPath) ? fs.readFileSync(reportPath, 'utf16le')
+              : fs.existsSync(removalReport) ? `Removal failed: ${fs.readFileSync(removalReport, 'utf16le')}`
+                : 'installer exit code',
           );
           assert.equal(fs.existsSync(completed), !failed);
           if (!failed && scenario !== 'recover-backup') {

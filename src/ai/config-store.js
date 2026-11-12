@@ -9,7 +9,7 @@ const {
   normalizeAiConfig,
   usesAccountModel,
 } = require('./config');
-const { GENERAL_PROMPT, normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
+const { GENERAL_PROMPT, BUILT_IN_PERSONAS, normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
 const { describeModelEndpoint } = require('./model-endpoint');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
@@ -19,6 +19,7 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
   const now = options.now || Date.now;
   let cached = null;
   let lastPrunedAt = null;
+  const configListeners = new Set();
 
   function getConfig() {
     if (!cached) cached = decodeConfiguration(persistence.readConfiguration());
@@ -44,10 +45,24 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
         if (!Object.hasOwn(stored, key)) stored[key] = true;
       }
     }
+    let providerPersonaIds = safeJsonParse(rows.find(row => row.key === 'providerPersonaIds')?.value) || {};
+    const needsPersonaMigration = Array.isArray(stored.personaPacks) && stored.personaPacks.some(pack => pack?.id === 'whale');
+    if (needsPersonaMigration) {
+      // Older packages could use this newly built-in ID. Rename only that saved package.
+      const ids = new Set(stored.personaPacks.map(pack => pack?.id));
+      let replacementId = 'imported-whale';
+      let suffix = 2;
+      while (ids.has(replacementId)) replacementId = `imported-whale-${suffix++}`;
+      stored.personaPacks = stored.personaPacks.map(pack => pack?.id === 'whale' ? { ...pack, id: replacementId } : pack);
+      if (stored.personaId === 'whale') stored.personaId = replacementId;
+      providerPersonaIds = Object.fromEntries(Object.entries(providerPersonaIds).map(([provider, id]) =>
+        [provider, id === 'whale' ? replacementId : id]));
+    }
     return {
       config: normalizeAiConfig(stored, AI_CONFIG_DEFAULTS),
       previousKeyOrigin: rows.find(row => row.key === 'doubaoPreviousKeyOrigin')?.value || '',
-      providerPersonaIds: safeJsonParse(rows.find(row => row.key === 'providerPersonaIds')?.value) || {},
+      providerPersonaIds,
+      needsPersonaMigration,
     };
   }
 
@@ -89,6 +104,7 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
     const updatedAt = new Date(now()).toISOString();
     const entries = [];
     const keys = new Set([...Object.keys(changes), 'modelAuthMode', 'personaId', 'webSearchEnabled', 'functionCallingEnabled', 'weatherEnabled', 'placesEnabled', 'routesEnabled']);
+    if (cached.needsPersonaMigration) keys.add('personaPacks');
     for (const key of keys) {
       if (!(key in AI_CONFIG_DEFAULTS)) continue;
       if (
@@ -119,12 +135,13 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
         nextConfiguration.config, Object.hasOwn(changes, 'deepseekApiKey'));
     });
     cached = nextConfiguration;
+    for (const listener of configListeners) listener();
     return getPublicConfig();
   }
 
   function importPersona(input) {
     const pack = normalizePersonaPack(input);
-    if (['general', 'cat', 'custom'].includes(pack.id)) pack.id = `imported-${pack.id}`;
+    if (pack.id === 'custom' || BUILT_IN_PERSONAS.some((persona) => persona.id === pack.id)) pack.id = `imported-${pack.id}`;
     const config = getConfig();
     if (config.personaPacks.some((entry) => entry.id === pack.id)) throw new Error('此角色包已存在，请先删除旧包或更换文件中的标识。');
     return updateConfig({ personaPacks: [...config.personaPacks, pack], personaId: pack.id });
@@ -264,6 +281,10 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
     getConfig,
     getPublicConfig,
     updateConfig,
+    subscribe(listener) {
+      configListeners.add(listener);
+      return () => configListeners.delete(listener);
+    },
     importPersona,
     createPersona,
     updatePersona,

@@ -1,7 +1,7 @@
 'use strict';
 
 import { eventBus, Events } from '../shared/event-bus.js';
-import { renderSongCooldownControls } from './song-cooldown-settings.js';
+import { renderSongCooldownControls, renderSongCooldownValidity } from './song-cooldown-settings.js';
 
 export function createSettingsForm({
   documentRef,
@@ -73,7 +73,6 @@ export function createSettingsForm({
     initDesktopControls();
     blacklistEditor?.init();
     userBlacklistEditor?.init();
-    await initLicenseAccountDevice();
     documentRef.getElementById('settingsForm').addEventListener('submit', async (event) => {
       event.preventDefault();
       const result = await api('/api/settings', collectSettings());
@@ -98,9 +97,11 @@ export function createSettingsForm({
       requestDirty = true;
       if (requestSaveState) requestSaveState.textContent = '等待自动保存…';
       if (target.id === 'songCooldownMode') renderSongCooldownControls(documentRef);
+      if (target.id === 'songCooldownValue') renderSongCooldownValidity(documentRef);
       scheduleRequestSave();
     };
     songRequestForm.addEventListener('input', markRequestSettingDirty);
+    documentRef.getElementById('songCooldownValue').addEventListener('blur', () => renderSongCooldownValidity(documentRef));
     songRequestForm.addEventListener('change', (event) => {
       if (event.target.tagName === 'SELECT') markRequestSettingDirty(event);
     });
@@ -208,6 +209,7 @@ export function createSettingsForm({
 
     blindboxSettings.init();
     initWindowActions();
+    await initLicenseAccountDevice();
   }
 
   function collectSettings() {

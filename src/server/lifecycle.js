@@ -11,24 +11,6 @@ const SESSION_TOKEN_FILE_NAME = '.session-token';
 const RUNTIME_FILE_NAME = '.server-runtime.json';
 const SERVICE_ID = 'lira';
 
-async function listenWithFallback(server, options) {
-  const startPort = Number(options.startPort);
-  const host = options.host;
-  if (startPort === 0) {
-    const ok = await tryListen(server, 0, host);
-    if (ok) {
-      const address = server.address();
-      return address && typeof address === 'object' ? address.port : 0;
-    }
-    throw new Error('Could not bind to an automatically assigned local port.');
-  }
-  for (let port = startPort; port < startPort + 20; port += 1) {
-    const ok = await tryListen(server, port, host);
-    if (ok) return port;
-  }
-  throw new Error(`No available local port from ${startPort} to ${startPort + 19}.`);
-}
-
 function listenExactly(server, options) {
   const port = Number(options.port);
   return new Promise((resolve, reject) => {
@@ -44,22 +26,6 @@ function listenExactly(server, options) {
     server.once('error', onError);
     server.once('listening', onListening);
     server.listen(port, options.host);
-  });
-}
-
-function tryListen(server, port, host) {
-  return new Promise((resolve) => {
-    const onError = () => {
-      server.off('listening', onListening);
-      resolve(false);
-    };
-    const onListening = () => {
-      server.off('error', onError);
-      resolve(true);
-    };
-    server.once('error', onError);
-    server.once('listening', onListening);
-    server.listen(port, host);
   });
 }
 
@@ -255,7 +221,6 @@ module.exports = {
   SERVICE_ID,
   cleanupOwnPortOccupant,
   listenExactly,
-  listenWithFallback,
   readSessionToken,
   writeSessionToken,
   removeSessionToken,

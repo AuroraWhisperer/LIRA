@@ -6438,7 +6438,7 @@ export const CITY_CATALOG = [
   ["ne-1159122507","阿克茹特","Akjoujt","毛里塔尼亚","Africa/Nouakchott",19.74163,-14.38534,"Inchiri","Mauritania"],
   ["ne-1159151727","奥本","Oban","新西兰","Pacific/Auckland",-46.88765,168.166594,"Southland","奧本|New Zealand"],
   ["ne-1159143181","巴斯特尔","Basse-Terre","瓜德罗普","America/Guadeloupe",15.99714,-61.73214,"Guadeloupe","巴斯特爾|Basse-terre|Guadeloupe"],
-  ["ne-1159151737","怀唐伊","Waitangi","新西兰","Pacific/Auckland",-44.026253,-176.369579,"Chatham Is. aggregation","New Zealand"],
+  ["ne-1159151737","怀唐伊","Waitangi","新西兰","Pacific/Chatham",-44.026253,-176.369579,"Chatham Is. aggregation","New Zealand"],
   ["ne-1159138727","廷贝德拉","Timbedra","毛里塔尼亚","Africa/Nouakchott",16.24137,-8.17321,"Hodh ech Chargui","廷貝德拉|Tembedgha|Mauritania"],
   ["ne-1159136999","维兰库洛","Vilankulo","莫桑比克","Africa/Maputo",-22,35.31667,"Inhambane","維蘭庫洛|Vilanculos|Mozambique"],
   ["ne-1159146957","林芝","Nyingchi","中国","Asia/Shanghai",29.533299,94.416707,"Xizang","林芝地區|China"],

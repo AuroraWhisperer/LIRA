@@ -24,7 +24,11 @@
 .danmaku-welcome-rules {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 12px;
+}
+.danmaku-fixed-reply-section .danmaku-welcome-rule-summary {
+  margin-bottom: 12px;
 }
 .danmaku-welcome-rule {
   display: flex;
@@ -147,6 +151,31 @@
 #danmakuWelcomeCount {
   font-variant-numeric: tabular-nums;
 }
+.danmaku-welcome-time-mode {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.danmaku-welcome-time-mode p {
+  margin: 4px 0 0;
+}
+.danmaku-welcome-time-period {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+#danmakuWelcomeTimePeriodRow label {
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+#danmakuWelcomeTimePeriodRow .lira-select {
+  width: 224px;
+  max-width: 100%;
+}
 .danmaku-welcome-custom {
   display: grid;
   gap: 12px;
@@ -214,6 +243,54 @@
 }
 .danmaku-welcome-custom-list:empty {
   display: none;
+}
+.danmaku-welcome-audience-section {
+  display: grid;
+  gap: 12px;
+  margin-top: 20px;
+}
+.danmaku-welcome-audience-section:first-child {
+  margin-top: 0;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--fixed-divider);
+}
+.danmaku-welcome-audience-section + .danmaku-welcome-audience-section {
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--fixed-divider);
+}
+.danmaku-welcome-audience-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.danmaku-welcome-audience-heading > strong {
+  font-size: 15px;
+  font-weight: 600;
+}
+.danmaku-welcome-audience-heading > .hint {
+  font-variant-numeric: tabular-nums;
+}
+.danmaku-welcome-audience-list {
+  display: grid;
+  gap: 12px;
+}
+.danmaku-welcome-audience-list:empty {
+  display: none;
+}
+.danmaku-welcome-audience-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+}
+.danmaku-welcome-audience-row > input {
+  min-width: 0;
+}
+.danmaku-welcome-audience-add {
+  width: 100%;
+  border-style: dashed;
 }
 .danmaku-welcome-pinyin {
   display: grid;

@@ -78,31 +78,91 @@ test('invalid and duplicate imports leave the active role and stored library int
   assert.throws(() => store.importPersona({ ...pack, deepseekApiKey: 'injected' }), /不接受其他配置/);
   assert.throws(() => store.importPersona(pack), /已存在/);
   assert.throws(() => store.importPersona({ ...pack, version: 2 }), /版本/);
+  assert.throws(() => store.updateConfig({ personaPacks: [{ ...pack, id: 'whale' }] }), /内置角色冲突/);
   assert.deepEqual(store.getConfig(), before);
   const mutable = store.getConfig();
   mutable.personaPacks[0].prompt = 'mutated';
   assert.equal(store.exportPersona().prompt, pack.prompt);
 });
 
-test('built-in edits persist without replacing identity, reset restores the guide, and export keeps name templates', (t) => {
-  const { store, reopen } = fixture(t);
-  store.updateConfig({ personaId: 'cat', trigger: '栗子' });
-  const original = store.exportPersona();
-  const resolved = resolvePersona(store.getConfig());
-  assert.match(resolved.prompt, /“栗子”/);
-  assert.doesNotMatch(resolved.prompt, /\{\{name\}\}/);
-  store.updatePersona({ id: 'cat', name: '不能改名', description: '更安静的小猫', prompt: pack.prompt });
-  assert.equal(reopen().getConfig().personaId, 'cat');
-  assert.equal(reopen().exportPersona().name, '小猫');
-  assert.equal(reopen().exportPersona().prompt, pack.prompt);
-  assert.throws(() => store.deletePersona('cat'), /只能删除/);
-  store.updatePersona({ id: 'cat', reset: true });
-  assert.deepEqual(reopen().exportPersona(), original);
-  store.updateConfig({ trigger: '豆包' });
-  assert.notEqual(resolvePersona(store.getConfig()).prompt, resolved.prompt);
-  assert.equal(store.exportPersona().prompt, original.prompt);
-  assert.equal(store.getPublicConfig().builtinPersonaOverrides, undefined);
+test('a legacy whale package is renamed without loss and persisted atomically on the next save', (t) => {
+  const { db, store, reopen } = fixture(t);
+  const legacy = { ...pack, id: 'whale', name: '原来的鲸鱼朋友', description: '保留旧说明' };
+  const packages = [legacy,
+    { ...pack, id: 'imported-whale', name: '已有同名副本' },
+    { ...pack, id: 'imported-whale-2', name: '已有第二份副本' }];
+  const savedSelections = { deepseek: 'whale', openai: 'whale', kimi: 'imported-whale' };
+  const write = db.prepare('INSERT INTO ai_configuration (key, value, is_secret, updated_at) VALUES (?, ?, 0, ?)');
+  for (const [key, value] of Object.entries({ modelProvider: 'deepseek', personaId: 'whale',
+    personaPacks: JSON.stringify(packages), providerPersonaIds: JSON.stringify(savedSelections) })) {
+    write.run(key, value, '2026-11-11T00:00:00.000Z');
+  }
+  const storedRows = () => db.prepare('SELECT * FROM ai_configuration ORDER BY key').all();
+  const beforeRows = storedRows();
+  const remappedId = 'imported-whale-3';
+  const expectedPackages = [{ ...legacy, id: remappedId }, ...packages.slice(1)];
+  const config = store.getPublicConfig();
+  assert.equal(config.personaId, remappedId);
+  assert.equal(config.providerPersonaIds.openai, remappedId);
+  assert.equal(config.providerPersonaIds.kimi, 'imported-whale');
+  assert.equal(config.personas.find(persona => persona.id === 'whale').builtin, true);
+  assert.equal(config.personas.find(persona => persona.id === remappedId).builtin, false);
+  assert.deepEqual(store.getConfig().personaPacks, expectedPackages);
+  assert.deepEqual(store.exportPersona(), { ...legacy, id: remappedId });
+  assert.deepEqual(storedRows(), beforeRows, 'reading the legacy configuration does not rewrite it');
+  assert.deepEqual(reopen().exportPersona(), store.exportPersona());
+
+  db.exec(`
+    PRAGMA foreign_keys = ON;
+    CREATE TABLE legacy_persona_commit_failure (
+      configuration_key TEXT REFERENCES ai_configuration(key) DEFERRABLE INITIALLY DEFERRED
+    );
+    CREATE TRIGGER fail_legacy_persona_commit AFTER UPDATE OF value ON ai_configuration
+    WHEN NEW.key = 'personaPacks'
+    BEGIN
+      INSERT INTO legacy_persona_commit_failure (configuration_key) VALUES ('missing-fixture-key');
+    END;
+  `);
+  assert.throws(() => store.updateConfig({ autoReplyEnabled: true }), /FOREIGN KEY constraint failed/);
+  assert.deepEqual(storedRows(), beforeRows, 'a commit failure rolls back both package and selections');
+  assert.equal(store.getConfig().autoReplyEnabled, false);
+  assert.deepEqual(store.exportPersona(), { ...legacy, id: remappedId });
+  assert.deepEqual(reopen().getConfig().personaPacks, expectedPackages);
+
+  db.exec('DROP TRIGGER fail_legacy_persona_commit');
+  store.updateConfig({ autoReplyEnabled: true });
+  const readValue = key => db.prepare('SELECT value FROM ai_configuration WHERE key = ?').get(key).value;
+  assert.deepEqual(JSON.parse(readValue('personaPacks')), expectedPackages);
+  assert.equal(readValue('personaId'), remappedId);
+  assert.deepEqual(JSON.parse(readValue('providerPersonaIds')),
+    { ...savedSelections, deepseek: remappedId, openai: remappedId });
+  const reopened = reopen();
+  assert.equal(reopened.getConfig().autoReplyEnabled, true);
+  assert.equal(reopened.getConfig().personaId, remappedId);
+  assert.deepEqual(reopened.exportPersona(), { ...legacy, id: remappedId });
 });
+
+for (const personaId of ['cat', 'whale']) {
+  test(`${personaId} edits persist without replacing identity, reset restores the guide, and export keeps name templates`, (t) => {
+    const { store, reopen } = fixture(t);
+    store.updateConfig({ personaId, trigger: '栗子' });
+    const original = store.exportPersona();
+    const resolved = resolvePersona(store.getConfig());
+    assert.match(resolved.prompt, /栗子/);
+    assert.doesNotMatch(resolved.prompt, /\{\{name\}\}/);
+    store.updatePersona({ id: personaId, name: '不能改名', description: '安静陪聊', prompt: pack.prompt });
+    assert.equal(reopen().getConfig().personaId, personaId);
+    assert.equal(reopen().exportPersona().name, original.name);
+    assert.equal(reopen().exportPersona().prompt, pack.prompt);
+    assert.throws(() => store.deletePersona(personaId), /只能删除/);
+    store.updatePersona({ id: personaId, reset: true });
+    assert.deepEqual(reopen().exportPersona(), original);
+    store.updateConfig({ trigger: '豆包' });
+    assert.notEqual(resolvePersona(store.getConfig()).prompt, resolved.prompt);
+    assert.equal(store.exportPersona().prompt, original.prompt);
+    assert.equal(store.getPublicConfig().builtinPersonaOverrides, undefined);
+  });
+}
 
 test('updating a custom pack preserves its id and rejects invalid edits atomically', (t) => {
   const { store, reopen } = fixture(t);
@@ -137,14 +197,19 @@ test('only imported roles can be deleted and deleting the active role restores g
   assert.equal(store.getConfig().personaPacks.length, 0);
 });
 
-test('exported built-in roles can be imported as independent copies', (t) => {
-  const { store } = fixture(t);
-  store.updateConfig({ personaId: 'cat' });
-  const exported = store.exportPersona();
-  const config = store.importPersona(exported);
-  assert.equal(config.personaId, 'imported-cat');
-  assert.equal(store.exportPersona().prompt, exported.prompt);
-});
+for (const personaId of ['cat', 'whale']) {
+  test(`exported ${personaId} can be imported as an independent copy`, (t) => {
+    const { store } = fixture(t);
+    store.updateConfig({ personaId });
+    const exported = store.exportPersona();
+    const config = store.importPersona(exported);
+    assert.equal(config.personaId, `imported-${personaId}`);
+    assert.equal(store.exportPersona().prompt, exported.prompt);
+    assert.equal(config.personas.find((entry) => entry.id === config.personaId).builtin, false);
+    store.updateConfig({ personaId });
+    assert.deepEqual(store.exportPersona(), exported);
+  });
+}
 
 test('viewer memory is isolated by persona content and by viewer', (t) => {
   const { store } = fixture(t);
@@ -208,7 +273,9 @@ test('history and review candidates remain data and cannot close the prompt stru
   assert.equal(review.input, input);
   assert.doesNotMatch(review.instructions, /marker-question|marker-history/);
   const output = buildOutputReviewPrompt(question, context.answer);
-  assert.deepEqual(JSON.parse(output.input), { question, candidateAnswer: context.answer });
+  const outputData = JSON.parse(output.input);
+  assert.equal(outputData.question, question);
+  assert.equal(outputData.candidateAnswer, context.answer);
   assert.doesNotMatch(output.instructions, /marker-question|marker-history/);
 });
 

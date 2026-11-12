@@ -33,7 +33,7 @@ const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 const { createDailyBotController } = require('./daily-bot-controller');
 const { createPlannerReminderController } = require('./planner-reminder-controller');
 const { registerPlannerReminderIpc } = require('./ipc/planner-reminder-ipc');
-const { createDesktopNotifications } = require('./desktop-notifications');
+const { createDesktopNotifications, configureNotificationIdentity } = require('./desktop-notifications');
 const { registerDesktopNotificationsIpc } = require('./ipc/desktop-notifications-ipc');
 const { registerDailyBotIpc } = require('./ipc/daily-bot-ipc');
 const { createRemoteGiftController } = require('./remote-gift-controller');
@@ -183,6 +183,7 @@ const desktopWindow = createDesktopMainWindow({
   bindRequestAuth: window => requestAuth.bindWindow(window, shell),
   onCloseRequest: () => desktopLifecycle.requestClose(),
   onReady: () => {
+    runtime?.startBackgroundMaintenance?.();
     logStartupPhase('ready-to-show', startupTiming.startedAt || Date.now());
     sendUpdateState();
     desktopUpdate.scheduleStartupCheck();
@@ -190,10 +191,8 @@ const desktopWindow = createDesktopMainWindow({
   writeLog,
 });
 const desktopLifecycle = createDesktopLifecycle({
-  app, dialog,
-  getMainWindow: desktopWindow.getWindow,
+  app,
   hasRuntime: () => runtime !== null,
-  hasActiveOverlayConnections: () => runtime?.hasActiveOverlayConnections?.() === true,
   stopResourceIntegrity: () => resourceIntegrity.stop(),
   drainBeforeRuntimeStop,
   stopRuntime: () => runtime?.stop({ exitProcess: false }),
@@ -393,7 +392,7 @@ async function startDesktopApp() {
     getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl() });
   disposeScreenColorPicker = registerScreenColorPicker({ ipcMain, BrowserWindow, desktopCapturer, screen,
     getMainWindow: () => desktopWindow.getWindow(), getDesktopBaseUrl: () => desktopWindow.getBaseUrl() });
-  if (process.platform === 'win32') app.setAppUserModelId('com.aurorawhisperer.lira');
+  if (process.platform === 'win32') configureNotificationIdentity({ app, shell, writeLog });
   writeLog('user-data-migration', userDataMigrationState.migration);
   const startupStartedAt = Date.now();
   startupTiming.startedAt = startupStartedAt;
@@ -476,16 +475,8 @@ async function startDesktopApp() {
     getDesktopBaseUrl: () => desktopWindow.getBaseUrl(),
     getAuthState: getBilibiliAuthState,
     getProfile: getBilibiliAccountProfile,
-    login: async () => {
-      const result = await loginBilibiliAccount();
-      if (result?.state?.loggedIn) cloudSyncController?.markDirty('bilibili');
-      return result;
-    },
-    logout: async () => {
-      const result = await logoutBilibiliAccount();
-      cloudSyncController?.markDirty('bilibili');
-      return result;
-    },
+    login: () => cloudSyncController.loginBilibili(),
+    logout: () => cloudSyncController.logoutBilibili(),
   });
   requestAuth = createDesktopRequestAuth({
     desktopSession: session.defaultSession,
@@ -583,7 +574,7 @@ async function startDesktopApp() {
   runtime.setPreShutdownHook(requestPlaybackFlush);
 
   phaseStartedAt = Date.now();
-  var serverInfo = await runtime.start(serverOptions);
+  var serverInfo = await runtime.start({ ...serverOptions, deferMaintenance: true });
   if (desktopLifecycle.isShuttingDown()) return;
   logStartupPhase('runtime-ready', phaseStartedAt);
 
@@ -642,7 +633,6 @@ async function startDesktopApp() {
     },
     getMainWindow: () => desktopWindow.getWindow(),
     getDesktopBaseUrl: () => serverInfo.baseUrl,
-    hasExactOrigin,
   });
   await licenseManager.bootstrap();
   if (desktopLifecycle.isShuttingDown()) return;
@@ -658,6 +648,7 @@ async function startDesktopApp() {
       getCookieHeader: getBilibiliCookieHeader,
       getSessionRevision: desktopAuth.getBilibiliSessionRevision,
       replaceCookieHeader: replaceBilibiliCookieHeader,
+      login: loginBilibiliAccount,
       logout: logoutBilibiliAccount,
     },
   });

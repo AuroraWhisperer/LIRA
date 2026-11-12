@@ -5,8 +5,79 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { EventEmitter } = require('node:events');
 const test = require('node:test');
-const { createDesktopNotifications } = require('../../src/electron/desktop-notifications');
+const { createDesktopNotifications, configureNotificationIdentity } = require('../../src/electron/desktop-notifications');
 const { registerDesktopNotificationsIpc } = require('../../src/electron/ipc/desktop-notifications-ipc');
+
+test('notification identity separates development and repairs only its own legacy shortcut', () => {
+  const productionId = 'com.aurorawhisperer.lira';
+  const exe = path.resolve('tmp/qa-electron/electron.exe');
+  const ids = [];
+  const writes = [];
+  let link = { target: exe, appUserModelId: productionId };
+  const app = { isPackaged: false, setAppUserModelId: id => ids.push(id), getPath: key => key === 'exe' ? exe : path.resolve('tmp/qa-appdata') };
+  const shell = { readShortcutLink: () => link, writeShortcutLink: (...args) => { writes.push(args); return true; } };
+  const run = () => configureNotificationIdentity({ app, shell, fileSystem: { existsSync: () => true } });
+  run();
+  assert.equal(ids.at(-1), `${productionId}.development`);
+  assert.equal(writes[0][1], 'update');
+  assert.deepEqual(writes[0][2], { appUserModelId: `${productionId}.development` });
+  link = { ...link, target: path.resolve('tmp/other-electron/electron.exe') };
+  run();
+  assert.equal(writes.length, 1, 'another checkout is not modified');
+  app.isPackaged = true;
+  run();
+  assert.equal(ids.at(-1), productionId);
+  assert.equal(writes.length, 1, 'the installed application keeps its existing production identity');
+});
+
+test('installed startup separates a verified legacy LIRA development shortcut and is idempotent', () => {
+  const productionId = 'com.aurorawhisperer.lira';
+  const project = path.resolve('tmp/legacy-lira');
+  let link = { target: path.join(project, 'node_modules/electron/dist/electron.exe'), appUserModelId: productionId };
+  const writes = [];
+  const ids = [];
+  const app = { isPackaged: true, setAppUserModelId: id => ids.push(id), getPath: key => path.resolve('tmp', key) };
+  const shell = {
+    readShortcutLink: () => link,
+    writeShortcutLink: (shortcut, operation, patch) => { writes.push({ operation, patch }); link = { ...link, ...patch }; return true; },
+  };
+  const fileSystem = {
+    existsSync: () => true,
+    readFileSync: filename => {
+      assert.equal(filename, path.join(project, 'package.json'));
+      return JSON.stringify({ name: 'lira', build: { appId: productionId } });
+    },
+  };
+  for (let startup = 0; startup < 2; startup++) configureNotificationIdentity({ app, shell, fileSystem });
+  assert.deepEqual(ids, [productionId, productionId]);
+  assert.deepEqual(writes, [{ operation: 'update', patch: { appUserModelId: `${productionId}.development` } }]);
+});
+
+test('installed identity repair leaves unrelated targets intact and retries a failed write on next startup', () => {
+  const productionId = 'com.aurorawhisperer.lira';
+  let link = { target: path.resolve('tmp/other/node_modules/electron/dist/electron.exe'), appUserModelId: productionId };
+  let manifest = { name: 'other-app', build: { appId: productionId } };
+  let writes = 0;
+  let writable = false;
+  const logs = [];
+  const app = { isPackaged: true, setAppUserModelId() {}, getPath: key => path.resolve('tmp', key) };
+  const shell = { readShortcutLink: () => link, writeShortcutLink: () => { writes++; return writable; } };
+  const fileSystem = { existsSync: () => true, readFileSync: () => JSON.stringify(manifest) };
+  const run = () => configureNotificationIdentity({ app, shell, fileSystem, writeLog: (...args) => logs.push(args) });
+  run();
+  assert.equal(writes, 0);
+  manifest = { name: 'lira', build: { appId: productionId } };
+  link = { ...link, target: path.resolve('tmp/other/random.exe') };
+  run();
+  assert.equal(writes, 0);
+  link = { ...link, target: path.resolve('tmp/lira/node_modules/electron/dist/electron.exe') };
+  run();
+  assert.equal(logs.length, 1);
+  writable = true;
+  run();
+  assert.equal(writes, 2);
+  assert.equal(logs.length, 1);
+});
 
 function fixture(t, overrides = {}) {
   const root = path.resolve(__dirname, '../../tmp');

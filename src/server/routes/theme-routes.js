@@ -11,7 +11,7 @@ function themeRoute(run) {
     try {
       sendJson(res, 200, { ok: true, data: await run(context, request) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, {
         ok: false,
         error: error.message || '主题预设操作失败。',

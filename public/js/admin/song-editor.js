@@ -3,6 +3,7 @@ import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
 export function createSongEditor({ value, setValue, api, toast, onSaved }) {
   let savedForm = null;
   let formVersion = 0;
+  let saving = false;
   // 上一次完整歌库的 ID；新保存、尚未出现在列表里的歌曲不会被当成已删除。
   let completeSongIds = null;
 
@@ -41,36 +42,45 @@ export function createSongEditor({ value, setValue, api, toast, onSaved }) {
     });
     document.getElementById('songForm').addEventListener('submit', async (event) => {
       event.preventDefault();
+      if (saving) return;
       updateSongPricePreview();
       if (!document.getElementById('songRequestPrice').reportValidity()) return;
       const submittedForm = readSongForm();
       const submittedVersion = formVersion;
-      const result = await api('/api/songs/save', {
-        id: value('songId') || undefined,
-        name: value('songName'),
-        categoryName: value('songCategory') || '默认',
-        artist: value('songArtist'),
-        tags: value('songTags'),
-        isEnabled: value('songIsEnabled') === 'true',
-        language: value('songLanguage'),
-        requestPrice: value('songRequestPrice'),
-        songClip: value('songClip'),
-        sourcePlatform: value('songSourcePlatform'),
-        note: value('songNote'),
-      });
-      if (submittedVersion === formVersion) {
-        if (readSongForm() === submittedForm) {
-          resetSongForm();
-        } else {
-          const savedValues = JSON.parse(submittedForm);
-          savedValues[0] = String(result.data.id);
-          setValue('songId', savedValues[0]);
-          savedForm = JSON.stringify(savedValues);
-          renderSongEditMode(savedValues[1]);
+      const submitButton = document.querySelector('#songForm button[type="submit"]');
+      saving = true;
+      submitButton.disabled = true;
+      try {
+        const result = await api('/api/songs/save', {
+          id: value('songId') || undefined,
+          name: value('songName'),
+          categoryName: value('songCategory') || '默认',
+          artist: value('songArtist'),
+          tags: value('songTags'),
+          isEnabled: value('songIsEnabled') === 'true',
+          language: value('songLanguage'),
+          requestPrice: value('songRequestPrice'),
+          songClip: value('songClip'),
+          sourcePlatform: value('songSourcePlatform'),
+          note: value('songNote'),
+        });
+        if (submittedVersion === formVersion) {
+          if (readSongForm() === submittedForm) {
+            resetSongForm();
+          } else {
+            const savedValues = JSON.parse(submittedForm);
+            savedValues[0] = String(result.data.id);
+            setValue('songId', savedValues[0]);
+            savedForm = JSON.stringify(savedValues);
+            renderSongEditMode(savedValues[1]);
+          }
         }
+        toast('歌曲已保存到本地', { type: 'success' });
+        await onSaved();
+      } finally {
+        saving = false;
+        submitButton.disabled = false;
       }
-      toast('歌曲已保存到本地', { type: 'success' });
-      await onSaved();
     });
 
     document.getElementById('resetSongForm').addEventListener('click', async () => {

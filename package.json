@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "6.2.1",
+  "version": "6.2.2",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -111,6 +111,10 @@
       "!public/img/playback/player-turntable-chassis.png",
       "!public/img/playback/qqmusic-icon.png",
       "!public/img/usage-guide/*.png",
+      "!public/img/usage-guide/S/server-manage-overview.webp",
+      "!public/pages/gift-audit.html",
+      "!public/css/gift-audit.css",
+      "!public/js/gift-audit/**/*",
       "!node_modules/@clamber_l/crypto/Readme.MD",
       "!node_modules/@clamber_l/crypto/dist/loader-inline.js",
       "!node_modules/@jixun/qmweb-sign/src/**/*",
@@ -148,6 +152,7 @@
       "include": "build/installer.nsh",
       "oneClick": false,
       "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "shortcutName": "LIRA",
       "uninstallDisplayName": "LIRA",
@@ -169,6 +174,7 @@
     ]
   },
   "overrides": {
-    "js-yaml": "^4.3.2"
+    "js-yaml": "^4.3.2",
+    "minimatch@>=7 <11.0.1": "11.0.1"
   }
 }

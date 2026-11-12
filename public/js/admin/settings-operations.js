@@ -206,11 +206,6 @@ export function createSettingsOperations({
     const buttonText = shutdownBtn.textContent;
     shutdownBtn.disabled = true;
     shutdownBtn.textContent = '正在退出';
-    const wsStatus = documentRef.getElementById('wsStatus');
-    const previousStatus = { hidden: wsStatus.hidden, textContent: wsStatus.textContent, className: wsStatus.className };
-    wsStatus.hidden = false;
-    wsStatus.textContent = '正在退出';
-    wsStatus.className = 'pill warn';
     try {
       await api('/api/system/shutdown', { confirm: true }, { notifyError: false });
     } catch (error) {
@@ -218,7 +213,6 @@ export function createSettingsOperations({
       if (!getState()?.shuttingDown) {
         shutdownBtn.disabled = false;
         shutdownBtn.textContent = buttonText;
-        if (wsStatus.textContent === '正在退出') Object.assign(wsStatus, previousStatus);
         toast('退出请求失败：' + (error.message || String(error)), { type: 'error' });
         return;
       }

@@ -56,8 +56,9 @@ function createGameOverlayFixture(fetchResult) {
   });
   vm.runInContext(readJsModuleBundle('public', 'js', 'overlays', 'games.js'), context);
   let revision = 0;
-  const receive = (game, state) => {
+  const receive = (game, state, fields = {}) => {
     context.incoming = { type: 'game:update', session: state ? {
+      ...fields,
       sessionId: 'synthetic-game', eventRevision: ++revision, game, state: structuredClone(state),
     } : null };
     vm.runInContext('gameStream.receive(incoming)', context);
@@ -194,6 +195,12 @@ test('result actions and late winner profiles follow the current game session', 
   assert.equal(avatarUrl.searchParams.get('token'), 'result-test-token');
   assert.equal(profiles[1].options.headers.Authorization, 'Bearer result-test-token');
 
+  receive('number-bomb', { ...state, winner: 'viewer' }, { restartBlocked: true });
+  assert.equal(nodes.get('gameResultNext').disabled, true);
+  receive('number-bomb', { ...state, winner: 'viewer' }, { restartBlocked: false });
+  assert.equal(nodes.get('gameResultNext').disabled, false);
+  assert.equal(profiles.length, 2, 'availability updates do not reload the unchanged winner');
+
   const stop = click('gameResultExit');
   assert.equal(nodes.get('gameResultExit').disabled, true);
   assert.equal(nodes.get('gameResultNext').disabled, true);
@@ -218,6 +225,8 @@ test('result actions and late winner profiles follow the current game session', 
 
   receive('number-bomb', { ...state, winner: 'host' });
   const stale = click('gameResultNext');
+  receive('number-bomb', { ...state, winner: 'host' }, { restartBlocked: false });
+  assert.equal(nodes.get('gameResultNext').disabled, true, 'a same-result update keeps an in-flight action disabled');
   receive('number-bomb', null);
   actions[2].resolve(null, false);
   await stale;

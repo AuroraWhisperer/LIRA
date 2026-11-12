@@ -2,6 +2,7 @@
 
 const { SYSTEM_PROMPT } = require('./prompt');
 const { normalizePersonaPacks, normalizeBuiltinPersonaOverrides, resolvePersona } = require('./personas');
+const { isOfficialDeepSeekUrl } = require('./model-endpoint');
 
 const AI_SECRET_KEYS = Object.freeze(['deepseekApiKey', 'qweatherApiKey', 'amapApiKey']);
 
@@ -30,6 +31,7 @@ const MODEL_PROVIDER_PRESETS = Object.freeze({
 
 const AI_CONFIG_DEFAULTS = Object.freeze({
   enabled: true,
+  autoReplyEnabled: false,
   trigger: '',
   modelProvider: 'auto',
   modelAuthMode: 'api',
@@ -66,6 +68,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
 
 const BOOLEAN_KEYS = new Set([
   'enabled',
+  'autoReplyEnabled',
   'webSearchEnabled',
   'functionCallingEnabled',
   'reasoningEnabled',
@@ -139,7 +142,6 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
       continue;
     }
     let value = String(rawValue ?? '').trim();
-    if (key === 'model' && value === 'ds-v4-flash') value = 'deepseek-v4-flash';
     if (key === 'qweatherApiHost' && value && !value.includes('://')) value = `https://${value}`;
     if (URL_KEYS.has(key) && value) validateHttpUrl(key, value);
     if (key === 'trigger' && Array.from(value).length > 12) {
@@ -154,7 +156,12 @@ function normalizeAiConfig(input = {}, current = AI_CONFIG_DEFAULTS) {
   if (Object.hasOwn(input, 'systemPrompt') && !Object.hasOwn(input, 'personaId')) result.personaId = 'custom';
   resolvePersona(result);
   if (result.modelProvider !== 'openai') result.modelAuthMode = 'api';
-  return applyModelProviderPreset(result);
+  const config = applyModelProviderPreset(result);
+  if (config.deepseekResponsesUrl && isOfficialDeepSeekUrl(config.deepseekResponsesUrl)
+    && ['ds-v4-flash', 'deepseek-v4-flash', 'deepseek-v4-flash-vision-exp'].includes(config.model)) {
+    config.model = 'deepseek-flash';
+  }
+  return config;
 }
 
 function applyModelProviderPreset(config = {}) {

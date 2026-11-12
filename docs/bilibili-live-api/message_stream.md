@@ -467,23 +467,14 @@ data字段
 <details>
 <summary>查看消息示例：</summary>
 
+历史摘录的首字段名缺失，下面保留空字符串键及原值；`data` 是 JSON 字符串。首字段名待核实，不能据此构造完整协议消息。
+
 ```json
 {
-    '': 6785480089600,
-    'status': 4,
-    'type': 102,
-    'data': '{
-        "combo":[{
-            "id":6785480089600,
-            "status":4,
-            "content":"晚安",
-            "cnt":3,
-            "guide":"他们都在说:",
-            "left_duration":20000,
-            "fade_duration":60000}],
-        "merge_interval":1000,
-        "card_appear_interval":1000,
-        "send_interval":1000}'
+  "": 6785480089600,
+  "status": 4,
+  "type": 102,
+  "data": "{\"combo\":[{\"id\":6785480089600,\"status\":4,\"content\":\"晚安\",\"cnt\":3,\"guide\":\"他们都在说:\",\"left_duration\":20000,\"fade_duration\":60000}],\"merge_interval\":1000,\"card_appear_interval\":1000,\"send_interval\":1000}"
 }
 ```
 
@@ -648,8 +639,8 @@ data字段
 | room_group_effect_id | num  | 待调查           |                        |
 | start_time           | num  | 待调查           |                        |
 | svga_block           | num  | 待调查           |                        |
-| target_guard_count   | str  | 庆祝消息正文     |                        |
-| toast_msg            | num  | 待调查           |                        |
+| target_guard_count   | num  | 待调查           |                        |
+| toast_msg            | str  | 庆祝消息正文     |                        |
 | uid                  | num  | 上舰人UID        |                        |
 | unit                 | str  | 购买身份时间单位 |                        |
 | user_show            | bool | 待调查           |                        |
@@ -661,34 +652,35 @@ data字段
 
 ```json
 {
-    'anchor_show': True,
-    'color': '#00D1F1',
-    'dmscore': 90,
-    'effect_id': 397,
-    'end_time': 1702580687,
-    'face_effect_id': 44,
-    'gift_id': 10003,
-    'group_name': '',
-    'group_op_type': 0,
-    'group_role_name': '',
-    'guard_level': 3,
-    'is_group': 0,
-    'is_show': 0,
-    'num': 1,
-    'op_type': 1,
-    'payflow_id':'2312150304155852173446521',
-    'price': 138000,
-    'role_name': '舰长',
-    'room_effect_id': 590,
-    'room_group_effect_id': 1337,
-    'start_time': 1702580687,
-    'svga_block': 0,
-    'target_guard_count': 146,
-    'toast_msg': '<%无光之日%> 在主播Mia米娅-的直播间开通了舰长，今天是TA陪伴主播的第1天',
-    'uid': 79667344,
-    'unit': '月',
-    'user_show': True,
-    'username': '无光之日'}
+  "anchor_show": true,
+  "color": "#00D1F1",
+  "dmscore": 90,
+  "effect_id": 397,
+  "end_time": 1702580687,
+  "face_effect_id": 44,
+  "gift_id": 10003,
+  "group_name": "",
+  "group_op_type": 0,
+  "group_role_name": "",
+  "guard_level": 3,
+  "is_group": 0,
+  "is_show": 0,
+  "num": 1,
+  "op_type": 1,
+  "payflow_id": "2312150304155852173446521",
+  "price": 138000,
+  "role_name": "舰长",
+  "room_effect_id": 590,
+  "room_group_effect_id": 1337,
+  "start_time": 1702580687,
+  "svga_block": 0,
+  "target_guard_count": 146,
+  "toast_msg": "<%无光之日%> 在主播Mia米娅-的直播间开通了舰长，今天是TA陪伴主播的第1天",
+  "uid": 79667344,
+  "unit": "月",
+  "user_show": true,
+  "username": "无光之日"
+}
 ```
 
 </details>
@@ -765,7 +757,7 @@ user_info字段
 
 | 字段        | 类型 | 内容       | 备注                   |
 | ----------- | ---- | ---------- | ---------------------- |
-| face        | num  | 用户头像   |                        |
+| face        | str  | 用户头像 URL   |                        |
 | face_frame  | num  | 头像边框   |                        |
 | guard_level | num  | 大航海等级 | 1: 总督 2: 提督 3:舰长 |
 | is_main_vip | num  | 待调查     |                        |
@@ -874,7 +866,7 @@ data字段
 | coin_type            | str    | 待调查                                  |                   |
 | combo_resources_id   | num    | 待调查                                  |                   |
 | combo_send           |        | 待调查                                  |                   |
-| comber_stay_time     | num    | 待调查                                  |                   |
+| combo_stay_time     | num    | 待调查                                  |                   |
 | combo_total_coin     | num    | 待调查                                  |                   |
 | crit_prob            | num    | 待调查                                  |                   |
 | demarcation          | num    | 待调查                                  |                   |
@@ -946,7 +938,7 @@ medal_info字段
 | icon_id            | num  | 待调查                       |                                |
 | is_lighted         | num  | 待调查                       |                                |
 | medal_color        | num  | 礼物投喂者的粉丝奖牌颜色     | 十六进制颜色值转为了十进制表示 |
-| medal_border_color | num  | 礼物投喂者的粉丝奖牌边框颜色 | 十六进制颜色值的十进制表示     |
+| medal_color_border | num  | 礼物投喂者的粉丝奖牌边框颜色 | 十六进制颜色值的十进制表示     |
 | medal_color_end    | num  | 待调查                       |                                |
 | medal_color_start  | num  | 待调查                       |                                |
 | medal_level        | num  | 礼物投喂者的粉丝奖牌等级     |                                |
@@ -1215,7 +1207,7 @@ json格式
 | real_roomid | num  | 目标直播间真实ID  |                                |
 | msg_common  | str  | 显示的消息内容    |                                |
 | msg_self    | str  | 消息内容本身      | 剔除额外文本                   |
-| link_rel    | str  | 通知消息跳转的URL |                                |
+| link_url    | str  | 通知消息跳转的URL |                                |
 | msg_type    | num  | 待调查            |                                |
 | shield_uid  | num  | 待调查            |                                |
 | business_id | str  | 待调查            |                                |
@@ -1350,6 +1342,8 @@ json格式
 </details>
 
 #### 直播开始
+
+资料缺口：本节尚无可核对的消息字段与样例；该空缺不表示 LIRA 不支持直播状态事件。客户端处理范围见[协议参考](../reference/backend/bilibili/protocol.md)。
 
 #### 主播信息更新
 
@@ -1542,7 +1536,7 @@ data字段
 | rank      | num  | 人气榜排名             |      |
 | countdown | num  | 人气榜下轮结算剩余时长 |      |
 | timestamp | num  | 触发时的Unix时间戳     |      |
-| timestamp | str  | 待调查                 |      |
+| cache_key | str  | 待调查                 |      |
 
 <details>
 <summary>查看消息示例：</summary>
@@ -1678,7 +1672,7 @@ data字段
 | current_time     | num   | 服务器发送数据包的Unix时间戳       |                       |
 | start_time       | num   | 可以开始抢红包的Unix时间戳         |                       |
 | end_time         | num   | 抢红包的结束时间Unix时间戳         |                       |
-| last_time        | num   | 红包的持续时间（秒）               | start_time - end_time |
+| last_time        | num   | 红包的持续时间（秒）               | end_time - start_time（与下方历史样例一致） |
 | remove_time      | num   | 待调查                             |                       |
 | replace_time     | num   | 待调查                             |                       |
 | lot_status       | num   | 待调查                             |                       |
@@ -1718,7 +1712,7 @@ awards数组中的对象
     "remove_time": 1673684826,
     "replace_time": 1673684821,
     "lot_status": 1,
-    "h5_url": "https://live.bilibili.com/p/html/live-app-red-envelope/popularity.html?is_live_half_webview=1&hybrid_half_ui=1,5,100p,100p,000000,0,50,0,0,1;2,5,100p,100p,000000,0,50,0,0,1;3,5,100p,100p,000000,0,50,0,0,1;4,5,100p,100p,000000,0,50,0,0,1;5,5,100p,100p,000000,0,50,0,0,1;6,5,100p,100p,000000,0,50,0,0,1;7,5,100p,100p,000000,0,50,0,0,1;8,5,100p,100p,000000,0,50,0,0,1\&hybrid_rotate_d=1&hybrid_biz=popularityRedPacket&lotteryId=8445764",
+    "h5_url": "https://live.bilibili.com/p/html/live-app-red-envelope/popularity.html?is_live_half_webview=1&hybrid_half_ui=1,5,100p,100p,000000,0,50,0,0,1;2,5,100p,100p,000000,0,50,0,0,1;3,5,100p,100p,000000,0,50,0,0,1;4,5,100p,100p,000000,0,50,0,0,1;5,5,100p,100p,000000,0,50,0,0,1;6,5,100p,100p,000000,0,50,0,0,1;7,5,100p,100p,000000,0,50,0,0,1;8,5,100p,100p,000000,0,50,0,0,1&hybrid_rotate_d=1&hybrid_biz=popularityRedPacket&lotteryId=8445764",
     "user_status": 2,
     "awards": [
       {
@@ -2101,7 +2095,7 @@ data字段
 | biz_id           | num   | 待调查       |      |
 | content_segments | array | 文本分段     |      |
 | danmaku_style    | obj   | 文本样式信息 |      |
-| danmaku_url      | str   | 待调查       |      |
+| danmaku_uri      | str   | 待调查       |      |
 | dmscore          | num   | 待调查       |      |
 | terminals        | array | 待调查       |      |
 

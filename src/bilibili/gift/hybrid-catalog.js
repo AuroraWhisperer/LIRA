@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../../shared/public-error');
+
 const { createRemoteGiftCatalogCache } = require('./remote-catalog-cache');
 const { mergeVariantRoomCatalog } = require('./variant-room-catalog');
 const { createRemoteGiftImageCache } = require('./remote-gift-image-cache');
@@ -130,7 +132,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
     const request = { roomId };
     const assertCurrent = () => {
       if (roomRefreshPending !== request || local.getRoomId?.() !== roomId) {
-        throw new Error('直播间已切换，请重新刷新在售礼物。');
+        throw createPublicError('直播间已切换，请重新刷新在售礼物。');
       }
     };
     request.promise = (async () => {
@@ -242,7 +244,7 @@ function createHybridGiftSaleCatalogService(options = {}) {
   function searchLocal(value) {
     const query = validateRemoteGiftQuery(value);
     const snapshot = remoteCatalog.getSnapshot();
-    if (!snapshot) throw new Error('服务器礼物目录本地缓存尚不可用。');
+    if (!snapshot) throw createPublicError('服务器礼物目录本地缓存尚不可用。');
     const matches = searchSnapshot(snapshot, query);
     const gifts = remoteImageCache
       ? matches.map((gift) => ({
@@ -433,10 +435,10 @@ function searchSnapshot(snapshot, query) {
 }
 
 function validateRemoteGiftQuery(value) {
-  if (typeof value !== 'string') throw new Error('服务器礼物搜索词必须是字符串。');
+  if (typeof value !== 'string') throw createPublicError('服务器礼物搜索词必须是字符串。');
   const query = value.trim();
   const length = Array.from(query).length;
-  if (length < 1 || length > 100) throw new Error('请输入 1–100 个字符的礼物名称或 ID。');
+  if (length < 1 || length > 100) throw createPublicError('请输入 1–100 个字符的礼物名称或 ID。');
   return query;
 }
 

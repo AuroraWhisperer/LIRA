@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../../shared/public-error');
+
 const { QQMusicStreamProvider } = require('./qq-provider-streams');
 const { getLikedTracksSession } = require('./liked-tracks-session');
 const {
@@ -233,7 +235,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
     });
     const liked = playlists.find((playlist) => playlist.dirId === '201' || /我喜欢|喜欢/.test(playlist.title));
     if (!liked) {
-      throw new Error('没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。');
+      throw createPublicError('没有从 QQ 音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录 QQ 音乐。', 501);
     }
     return liked;
   }
@@ -396,7 +398,7 @@ class QQMusicProvider extends QQMusicStreamProvider {
     const songs = songlist.map(mapQQSong).filter(Boolean).slice(0, limit);
     if (songs.length > 0) return songs;
     const legacyKeys = rawData ? Object.keys(rawData) : 'null';
-    throw new Error(
+    throw Object.assign(new Error(
       `QQ 音乐没有返回最近播放歌曲。` +
         `[musicu:${JSON.stringify(
           musicuDiagnostic && {
@@ -405,12 +407,12 @@ class QQMusicProvider extends QQMusicStreamProvider {
           },
         )}]` +
         `[legacy keys:${JSON.stringify(legacyKeys)}]`,
-    );
+    ), { statusCode: 501, publicMessage: 'QQ 音乐没有返回最近播放歌曲，请稍后重试。' });
   }
 
   async getPlaylistTracks(playlistId, options = {}) {
     const id = String(playlistId || '').trim();
-    if (!id) throw new Error('缺少 QQ 音乐歌单 ID。');
+    if (!id) throw createPublicError('缺少 QQ 音乐歌单 ID。', 501);
     const limit = clampInteger(options.limit, 1, 5000, 1000);
     const offset = clampInteger(options.offset, 0, 200000, 0);
     const cookieHeader = await this.getSafeCookieHeader();

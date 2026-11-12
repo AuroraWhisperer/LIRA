@@ -60,5 +60,6 @@ Status: Awaiting Verification
 - `npm run verify:docs` 10/10，`npm run verify:architecture` 30/30，`git diff --check` 通过。
 - `npm run check` 跑完 1751 个文件但因运行期间工作区文件被并行修改而未记录结果；本任务触及的全部 JS 逐一 `node --check` 通过。
 - 约 18:09–18:12 工作区另有并行改动修改场景/预览共享路径（`overlay-projection.js`、`scene-extra-display.js`、`component-preview-*` 等，非本任务）。此后 `canvas-gift-components` 三项（含与本任务无关的心动盲盒、月底冲刺）均在等待场景输出时超时；此前同一套件 3/3 通过。需待并行改动稳定后重跑该套件。
+- 2026-11-11 已完成上述复核：`node --experimental-vm-modules --test test/admin/canvas-gift-components.test.js` 3/3 通过（12.2 秒），覆盖心动盲盒、月底冲刺和礼物/大航海图层的预览、保存及场景事件分流。夹具使用内存数据库、合成账号/事件、随机本机端口和独立浏览器上下文；服务及浏览器由既有清理钩子关闭。日志在 `tmp/necessary-work-2026-11-11/canvas-gift-components.log`。旧三项超时不再作为未完成的本地复核；此结果不代表真实礼物或直播软件实播。
 - 隔离验证时共享截图夹具因并行会话修改 `media-request-headers.js` 签名而无法启动，仅在本任务 `tmp/` 夹具内加适配，未改共享文件。
 - 未验证：真实礼物在 OBS／哔哩哔哩直播姬中驱动导入图片/视频图层的实播；未打包、提交或发布。

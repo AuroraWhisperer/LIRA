@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { performance } = require('node:perf_hooks');
 
 const MIN_ENTRIES = 2;
@@ -20,7 +22,7 @@ const WHEEL_LIMITS = Object.freeze({
 
 function normalizeWheelEntries(input) {
   if (!Array.isArray(input) || input.length < MIN_ENTRIES || input.length > MAX_ENTRIES) {
-    throw new Error(`转盘需要 ${MIN_ENTRIES}-${MAX_ENTRIES} 个选项。`);
+    throw createPublicError(`转盘需要 ${MIN_ENTRIES}-${MAX_ENTRIES} 个选项。`);
   }
 
   const labels = new Set();
@@ -28,17 +30,17 @@ function normalizeWheelEntries(input) {
   const entries = input.map((entry, index) => {
     const label = String(entry?.label || '').trim();
     const weight = Number(entry?.weight);
-    if (!label || label.length > MAX_LABEL_LENGTH) throw new Error(`第 ${index + 1} 个选项内容无效。`);
-    if (labels.has(label)) throw new Error('转盘选项内容不能重复。');
+    if (!label || label.length > MAX_LABEL_LENGTH) throw createPublicError(`第 ${index + 1} 个选项内容无效。`);
+    if (labels.has(label)) throw createPublicError('转盘选项内容不能重复。');
     if (!Number.isInteger(weight) || weight < 1 || weight > MAX_WEIGHT) {
-      throw new Error(`第 ${index + 1} 个选项的份数应为 1-${MAX_WEIGHT} 的整数。`);
+      throw createPublicError(`第 ${index + 1} 个选项的份数应为 1-${MAX_WEIGHT} 的整数。`);
     }
     labels.add(label);
     totalWeight += weight;
     return { label, weight };
   });
 
-  if (totalWeight > MAX_TOTAL_WEIGHT) throw new Error(`转盘总份数不能超过 ${MAX_TOTAL_WEIGHT}。`);
+  if (totalWeight > MAX_TOTAL_WEIGHT) throw createPublicError(`转盘总份数不能超过 ${MAX_TOTAL_WEIGHT}。`);
   return { entries, totalWeight };
 }
 
@@ -85,9 +87,7 @@ function createWheelSessionService(options = {}) {
 
   function configure(input) {
     if (isSpinning()) {
-      const error = new Error('转盘正在转动，请稍候再修改。');
-      error.statusCode = 409;
-      throw error;
+      throw createPublicError('转盘正在转动，请稍候再修改。', 409);
     }
     const normalized = normalizeWheelEntries(input);
     entries = normalized.entries;
@@ -99,11 +99,9 @@ function createWheelSessionService(options = {}) {
   }
 
   function spin() {
-    if (entries.length < MIN_ENTRIES) throw new Error('请先配置至少两个转盘选项。');
+    if (entries.length < MIN_ENTRIES) throw createPublicError('请先配置至少两个转盘选项。');
     if (isSpinning()) {
-      const error = new Error('转盘正在转动，请稍候再抽取。');
-      error.statusCode = 409;
-      throw error;
+      throw createPublicError('转盘正在转动，请稍候再抽取。', 409);
     }
     const index = chooseWeightedEntry(entries, random);
     const now = wallNow();

@@ -59,8 +59,9 @@
                   <option value="hours">按小时</option>
                   <option value="days">按自然日</option>
                 </select>
-                <span id="songCooldownAmount" class="song-request-number" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" /><span id="songCooldownUnit" class="song-request-unit" aria-hidden="true">小时</span></span>
+                <span id="songCooldownAmount" class="song-request-number" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" aria-describedby="songCooldownError" /><span id="songCooldownUnit" class="song-request-unit" aria-hidden="true">小时</span></span>
               </div>
+              <small id="songCooldownError" class="song-request-field-error" role="status" hidden></small>
             </div>
           </div>
           <div class="song-request-row-group">

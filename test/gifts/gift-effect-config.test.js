@@ -11,11 +11,9 @@ const { createGiftSource, makeProcessedGiftEvent } = require('../helpers/process
 const {
   EFFECT_API_URL,
   buildEffectMap,
-  buildGiftEffectEvent,
   createGiftEffectResolver,
   isTrustedEffectUrl,
   parseEffectLayout,
-  pickEffect,
 } = require('../../src/bilibili/gift/effect-config');
 const { createGiftProjectionService } = require('../../src/bilibili/gift');
 const { createGiftProjectionStore } = require('../../src/storage/gift-projection-store');
@@ -154,8 +152,6 @@ test('buildEffectMap maps gift ids to the newest trusted MP4 effect', () => {
 test('effect helpers tolerate missing entries and reject untrusted URLs', () => {
   assert.equal(buildEffectMap(null).size, 0);
   assert.equal(buildEffectMap({ data: {} }).size, 0);
-  assert.equal(pickEffect([confEntry(2, [1]), confEntry(9, [1])]).id, 9);
-  assert.equal(pickEffect([]), null);
   assert.equal(isTrustedEffectUrl('https://i0.hdslb.com/bfs/live/a.mp4'), true);
   assert.equal(isTrustedEffectUrl('http://i0.hdslb.com/bfs/live/a.mp4'), false);
   assert.equal(isTrustedEffectUrl('https://hdslb.com.example.com/a.mp4'), false);
@@ -333,46 +329,6 @@ test('resolver throttles failed layout requests and retries after the retry wind
   nowMs += 1;
   assert.equal((await resolver.resolveEffect(32132)).effectId, 806);
   assert.equal(layoutCalls, 2);
-});
-
-test('buildGiftEffectEvent supports normalized database rows and camelCase inputs', async () => {
-  const effect = {
-    effectId: 584,
-    type: 1,
-    mp4Url: 'https://i0.hdslb.com/bfs/live/effect.mp4',
-    md5: '',
-    fileSize: 417612,
-  };
-  const resolver = {
-    getEffectMap: async () => new Map([[35457, effect]]),
-  };
-
-  const fromRow = await buildGiftEffectEvent(
-    {
-      id: 77,
-      gift_id: '35457',
-      gift_name: '马上来财',
-      num: 2,
-      unit_price: 10,
-      user_name: '观众A',
-    },
-    resolver,
-  );
-  assert.deepEqual(fromRow, {
-    type: 'gift:effect',
-    eventId: 77,
-    giftId: 35457,
-    giftName: '马上来财',
-    num: 2,
-    unitPrice: 10,
-    userName: '观众A',
-    effect,
-  });
-
-  const fromCamelCase = await buildGiftEffectEvent({ id: 78, giftId: 35457 }, resolver);
-  assert.equal(fromCamelCase.giftName, '礼物');
-  assert.equal(await buildGiftEffectEvent({ id: 79, gift_id: '0' }, resolver), null);
-  assert.equal(await buildGiftEffectEvent({ id: 80, gift_id: '31643' }, resolver), null);
 });
 
 test('gift effect capture stays active when sprint and overtime consumers are disabled', () => {

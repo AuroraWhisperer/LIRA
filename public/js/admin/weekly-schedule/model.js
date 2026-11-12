@@ -5,6 +5,10 @@ export const WEEKLY_LAYOUTS = Object.freeze([
   { id: 'week-grid', label: '横向七日表' },
   { id: 'magazine', label: '杂志封面' },
   { id: 'scroll', label: '国风卷轴' },
+  { id: 'editorial', label: '留白刊物' },
+  { id: 'letterpress', label: '花笺信札' },
+  { id: 'nocturne', label: '午夜剧场' },
+  { id: 'gallery', label: '晴窗画廊' },
 ].map(item => Object.freeze(item)));
 
 export const WEEKLY_PALETTES = Object.freeze([
@@ -20,6 +24,14 @@ export const WEEKLY_PALETTES = Object.freeze([
   { id: 'coffee', label: '拿铁', primaryColor: '#c4a78a', accentColor: '#70544b' },
   { id: 'jade', label: '青玉', primaryColor: '#669b91', accentColor: '#bd9555' },
   { id: 'ink', label: '墨与朱', primaryColor: '#64717b', accentColor: '#bd6353' },
+  { id: 'porcelain', label: '瓷白钴蓝', primaryColor: '#b5c9de', accentColor: '#315b91' },
+  { id: 'olive', label: '橄榄纸', primaryColor: '#b7bc97', accentColor: '#596345' },
+  { id: 'camellia', label: '山茶胭脂', primaryColor: '#d8b2b3', accentColor: '#9a475b' },
+  { id: 'champagne', label: '香槟金', primaryColor: '#d7c29a', accentColor: '#8a673e' },
+  { id: 'lagoon', label: '深海青', primaryColor: '#477c83', accentColor: '#d3b87c' },
+  { id: 'wine', label: '勃艮第', primaryColor: '#79475b', accentColor: '#d4bda1' },
+  { id: 'lilac', label: '雾丁香', primaryColor: '#b6aed0', accentColor: '#636b96' },
+  { id: 'terracotta', label: '陶土杏', primaryColor: '#d3a08b', accentColor: '#766c50' },
 ].map(item => Object.freeze(item)));
 
 export const WEEKLY_ICONS = Object.freeze([
@@ -41,9 +53,18 @@ export const WEEKLY_FONTS = Object.freeze([
 export const ASSET_KEYS = Object.freeze([
   'portrait', 'chibi', 'logo', 'background', 'qrcode', 'rank1', 'rank2', 'rank3', 'icon',
 ]);
+export const WEEKLY_ASSET_LABELS = Object.freeze({
+  portrait: '主播立绘', chibi: 'Q 版小人', logo: '主播 Logo', background: '背景图片',
+  qrcode: '粉丝群二维码', rank1: '榜一头像', rank2: '榜二头像', rank3: '榜三头像', icon: '自定义图标',
+});
+
+export function getWeeklyImagePath(key) {
+  return key === 'icon' ? 'customIcon' : key;
+}
 
 export const MAX_ASSET_BYTES = 12 * 1024 * 1024;
 export const MAX_TEMPLATE_ASSET_BYTES = 48 * 1024 * 1024;
+export const WEEKLY_OUTLINE_RANGE = Object.freeze({ min: 1, max: 30, value: 7, unit: 'px' });
 export const WEEKLY_IMAGE_RANGES = Object.freeze({
   scale: { min: 10, max: 400, value: 100, unit: '%' },
   x: { min: -1920, max: 1920, value: 0, unit: 'px' },
@@ -52,10 +73,21 @@ export const WEEKLY_IMAGE_RANGES = Object.freeze({
   opacity: { min: 0, max: 100, value: 100, unit: '%' },
 });
 export const WEEKLY_BACKGROUND_RANGES = Object.freeze({
+  scale: WEEKLY_IMAGE_RANGES.scale,
+  offsetX: WEEKLY_IMAGE_RANGES.x,
+  offsetY: WEEKLY_IMAGE_RANGES.y,
+  rotation: WEEKLY_IMAGE_RANGES.rotation,
   x: { min: 0, max: 100, value: 50, unit: '%' },
   y: { min: 0, max: 100, value: 50, unit: '%' },
   opacity: { min: 0, max: 100, value: 100, unit: '%' },
   blur: { min: 0, max: 24, value: 0, unit: 'px' },
+});
+export const WEEKLY_IMAGE_EFFECT_RANGES = Object.freeze({
+  brightness: { min: 0, max: 200, value: 100, unit: '%' },
+  contrast: { min: 0, max: 200, value: 100, unit: '%' },
+  saturation: { min: 0, max: 200, value: 100, unit: '%' },
+  shadow: { min: 0, max: 100, value: 0, unit: '%' },
+  glow: { min: 0, max: 100, value: 0, unit: '%' },
 });
 export const WEEKLY_TYPE_RANGES = Object.freeze({
   title: { min: 50, max: 150, value: 100, unit: '%' },
@@ -68,6 +100,9 @@ export const WEEKLY_PATTERNS = Object.freeze([
   { id: 'dots', label: '波点' }, { id: 'grid', label: '方格' },
   { id: 'hearts', label: '小爱心' }, { id: 'stripes', label: '斜纹' },
   { id: 'diamonds', label: '菱格' },
+  { id: 'linen', label: '织纹' }, { id: 'pinstripe', label: '细条' },
+  { id: 'arches', label: '扇弧' }, { id: 'rings', label: '圆环' },
+  { id: 'wash', label: '柔光' },
 ]);
 export const WEEKLY_TEXT_LIMITS = Object.freeze({
   name: 60,
@@ -168,10 +203,12 @@ function transform(value = {}, portrait = false) {
   const input = value && typeof value === 'object' ? value : {};
   const result = {
     ...parameters(input, WEEKLY_IMAGE_RANGES),
+    ...parameters(input, WEEKLY_IMAGE_EFFECT_RANGES),
     flip: flag(input.flip, false),
   };
   if (portrait) {
     result.outline = flag(input.outline, true);
+    result.outlineWidth = number(input.outlineWidth, WEEKLY_OUTLINE_RANGE.value, WEEKLY_OUTLINE_RANGE.min, WEEKLY_OUTLINE_RANGE.max);
   }
   return result;
 }
@@ -211,8 +248,15 @@ export function normalizeWeeklyScheduleTemplate(value) {
     portrait: transform(input.portrait, true),
     logo: transform(input.logo),
     chibi: transform(input.chibi),
+    qrcode: transform(input.qrcode),
+    rank1: transform(input.rank1),
+    rank2: transform(input.rank2),
+    rank3: transform(input.rank3),
+    customIcon: transform(input.customIcon),
     background: {
       ...parameters(input.background, WEEKLY_BACKGROUND_RANGES),
+      ...parameters(input.background, WEEKLY_IMAGE_EFFECT_RANGES),
+      flip: flag(input.background?.flip, false),
       fit: oneOf(input.background?.fit, ['cover', 'contain'], 'cover'),
     },
     typography: parameters(input.typography, WEEKLY_TYPE_RANGES),

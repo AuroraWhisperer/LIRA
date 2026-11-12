@@ -84,7 +84,7 @@
   gap: var(--spacing-md);
   min-width: 0;
   margin: 0;
-  padding: var(--spacing-lg);
+  padding: var(--spacing-md);
   border: 1px solid var(--danmaku-section-border);
   border-radius: 8px;
   background: var(--surface);
@@ -509,8 +509,10 @@
 }
 .xiaomi-ai-persona-editor textarea {
   width: 100%;
-  height: clamp(160px, 36dvh, 280px);
-  min-height: 160px;
+  height: auto;
+  min-height: 96px;
+  max-height: clamp(160px, 36dvh, 280px);
+  field-sizing: content;
   resize: vertical;
   line-height: 1.6;
 }

@@ -80,8 +80,8 @@ test('online rank merges both orderings beyond 100 viewers and uses available re
     assert.equal(url.searchParams.get('page'), '1');
     assert.equal(url.searchParams.get('page_size'), '100');
     if (failedSorts.includes(sort)) throw new Error('synthetic offline');
-    const item = empty ? [] : rows(sort === 'contribution_rank' ? 1 : 51);
-    return new Response(JSON.stringify({ code: 0, data: { item, count: sort === 'contribution_rank' ? 179 : 0 } }));
+    const item = empty ? null : rows(sort === 'contribution_rank' ? 1 : 51);
+    return new Response(JSON.stringify({ code: 0, data: { item, count: empty ? 0 : (sort === 'contribution_rank' ? 179 : 0) } }));
   });
   const poller = new OnlineRankPoller(new BilibiliApiClient('100'), service);
   t.after(() => poller.stop());
@@ -111,6 +111,20 @@ test('online rank merges both orderings beyond 100 viewers and uses available re
   await poller.pollOnlineRank(context);
   assert.equal(service.listOnline().length, 0);
   assert.equal(requests, 10);
+  empty = false;
+  await poller.pollOnlineRank(context);
+  assert.equal(service.listOnline().length, 150, 'viewers recover after the upstream null empty list');
+});
+
+test('online rank does not treat failed or malformed responses as empty success', async (t) => {
+  let payload;
+  t.mock.method(globalThis, 'fetch', async () => new Response(JSON.stringify(payload)));
+  const api = new BilibiliApiClient('100');
+  for (payload of [
+    { code: -101, data: { count: 0, item: null } },
+    { code: 0, data: { count: 2, item: null } },
+    { code: 0, data: { count: 0 } },
+  ]) await assert.rejects(api.fetchOnlineRank('100', '999'));
 });
 
 test('a manual online rank refresh waits for the existing request without another upstream read', async (t) => {

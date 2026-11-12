@@ -120,7 +120,9 @@ export function getPlaybackOutput(audio, options = {}) {
         if (disposed || request !== revision) return false;
         selected = { ...next };
         if (next.backend === 'asio') {
-          devices = await enumerate();
+          const available = await enumerate();
+          if (disposed || request !== revision) return false;
+          devices = available;
           selected = { ...(devices.find(device => device.deviceId === deviceId) || next) };
         }
         blocked = Boolean(deferredPreference);

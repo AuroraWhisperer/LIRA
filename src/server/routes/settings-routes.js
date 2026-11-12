@@ -14,6 +14,7 @@ const routes = {
       bilibili: context.bilibili,
       broadcastSnapshot: context.broadcastSnapshot,
       cloudSync: context.cloudSync,
+      authorize: request.authorize,
     }, await request.body());
     if (result.error) {
       sendJson(res, 400, { ok: false, error: result.error });

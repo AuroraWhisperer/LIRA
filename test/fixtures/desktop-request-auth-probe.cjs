@@ -3,13 +3,16 @@
 // node --test discovers fixtures too; this entrypoint only owns an Electron app.
 if (!process.versions.electron) return;
 
-const { app, BrowserWindow, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const assert = require('node:assert/strict');
+const { once } = require('node:events');
 const fs = require('node:fs');
 const http = require('node:http');
 const path = require('node:path');
 const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
 const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
+const { createDesktopMainWindow } = require('../../src/electron/desktop-main-window');
+const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
 
 const directory = process.argv[2];
 app.setPath('userData', path.join(directory, 'profile'));
@@ -46,7 +49,7 @@ function createWindow(partition, webPreferences = {}) {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
+      sandbox: true,
       ...(partition ? { partition } : {}),
       ...webPreferences,
     },
@@ -128,14 +131,46 @@ app
       getToken: () => token,
     });
     configureMediaRequestHeaders(session.defaultSession, auth);
-    mainWindow = createWindow();
-    auth.bindWindow(mainWindow, {
-      openExternal() {
-        assert.fail('probe must not open external browsers');
+    let licenseState = 'needs_activation';
+    const disposeLicense = registerLicenseIpc({
+      ipcMain, getMainWindow: () => mainWindow, getDesktopBaseUrl: () => baseUrl,
+      licenseManager: {
+        LicenseState: { AUTHORIZED: 'authorized' },
+        getState: () => licenseState,
+        getSnapshot: () => ({ state: licenseState }),
+        activate: async () => { licenseState = 'authorized'; return { ok: true, state: licenseState }; },
+        onStateChanged: () => () => {},
       },
     });
+    const desktop = createDesktopMainWindow({
+      BrowserWindow: class extends BrowserWindow { show() {} },
+      preloadPath: path.resolve(__dirname, '../../src/electron/preload.js'),
+      iconPath: '', exists: () => false, getThemeId: () => 'light',
+      bindRequestAuth: (window) => auth.bindWindow(window, {
+        openExternal() { assert.fail('probe must not open external browsers'); },
+      }),
+      onCloseRequest() {}, onReady() {}, writeLog() {},
+    });
+    assert.equal((await fetch(`${baseUrl}/license`)).status, 200);
+    mainWindow = desktop.create(baseUrl);
+    windows.push(mainWindow);
+    await once(mainWindow.webContents, 'did-finish-load');
+    assert.equal(mainWindow.webContents.getLastWebPreferences().sandbox, true);
+    assert.equal(await mainWindow.webContents.executeJavaScript('typeof require'), 'undefined');
+    assert.equal((await mainWindow.webContents.executeJavaScript('window.liraLicense.getState()')).state, 'needs_activation');
+    assert.equal((await mainWindow.webContents.executeJavaScript(`window.liraLicense.activate({
+      accountName:'synthetic',password:'synthetic-password',activationCode:'synthetic-code'
+    })`)).state, 'authorized');
     await mainWindow.loadURL(`${baseUrl}/admin`);
+    assert.equal((await mainWindow.webContents.executeJavaScript('window.liraLicense.getState()')).state, 'authorized');
+    await mainWindow.webContents.executeJavaScript(`window.licenseEvents = [];
+      window.stopLicenseEvents = window.liraLicense.onStateChanged(state => window.licenseEvents.push(state.state)); null;`);
+    mainWindow.webContents.send('license:state-changed', { state: 'blocked' });
+    await waitFor(() => mainWindow.webContents.executeJavaScript("window.licenseEvents[0] === 'blocked'"));
+    await mainWindow.webContents.executeJavaScript('window.stopLicenseEvents()');
     await waitFor(() => requests.some((row) => row.path === '/report'));
+    const overlayFrame = mainWindow.webContents.mainFrame.frames.find((frame) => new URL(frame.url).pathname === '/clock');
+    assert.equal(await overlayFrame.executeJavaScript('typeof window.liraLicense'), 'undefined');
     await mainWindow.webContents.executeJavaScript(`Promise.all([
     fetch('/api/main'), fetch('/api/redirect'), fetch('/api/redirect-overlay'),
     fetch('/api/media').then(()=>{}),
@@ -151,8 +186,9 @@ app
     await assert.rejects(mainWindow.loadURL(`${baseUrl}/api/redirect`));
     assert.equal(requests.filter((row) => row.path === '/external').length, externalRequests);
     await assert.rejects(mainWindow.loadURL(`${baseUrl}/api/redirect-overlay`));
-    const otherWindow = createWindow();
+    const otherWindow = createWindow(undefined, { preload: path.resolve(__dirname, '../../src/electron/preload.js') });
     await otherWindow.loadURL(`${baseUrl}/gift-export`);
+    assert.equal((await otherWindow.webContents.executeJavaScript('window.liraLicense.getState()')).error, 'IPC_SOURCE_INVALID');
     await otherWindow.webContents.executeJavaScript("fetch('/api/export-window').then(()=>null)");
     const loginWindow = createWindow('synthetic-login-isolated');
     await loginWindow.loadURL(`${baseUrl}/login`);
@@ -201,6 +237,7 @@ app
       assert.match(mainWindow.webContents.getURL(), /\/admin\?reload=1$/);
     }
     auth.dispose();
+    disposeLicense();
     await mainWindow.webContents.executeJavaScript("fetch('/api/disposed').then(()=>null)");
     assert.equal(requests.find((row) => row.path === '/api/disposed').management, false);
     await require('./desktop-overlay-probe.cjs')({ directory, createWindow, servers, waitFor });

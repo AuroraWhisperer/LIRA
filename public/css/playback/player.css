@@ -1,5 +1,5 @@
 :root {
-  --player-dock-height: 96px;
+  --player-dock-height: 80px;
   --player-dock-expanded-height: 218px;
   --player-dock-collapsed-height: 0px;
 }
@@ -93,13 +93,13 @@ body.player-dock-collapsed {
 /* ===== 播放器整体布局 ===== */
 .playback-player {
   display: grid;
-  grid-template-columns: 58px minmax(240px, 1fr) auto;
+  grid-template-columns: 52px minmax(240px, 1fr) auto;
   align-items: center;
   gap: 20px;
   width: min(100%, 1680px);
   height: 100%;
   margin: 0 auto;
-  padding: 11px 22px 10px;
+  padding: 8px 22px;
   transition:
     opacity 160ms ease,
     transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -113,8 +113,8 @@ body.player-dock-collapsed {
 
 /* ===== 封面（合并所有层级） ===== */
 .playback-cover {
-  width: 58px;
-  height: 58px;
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
   display: grid;
   place-items: center;

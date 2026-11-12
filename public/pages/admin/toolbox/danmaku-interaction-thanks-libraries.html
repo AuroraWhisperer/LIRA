@@ -1,0 +1,78 @@
+<form id="danmakulikeThanksPanel" class="danmaku-interaction-thanks-panel" data-fixed-editor="likeThanks" hidden>
+  <fieldset id="danmakulikeThanksFields" class="danmaku-reply-fields" disabled>
+    <legend class="sr-only">点赞感谢词库</legend>
+    <p class="hint">每次点赞随机发送一条。用 {username} 代入观众称呼；保存词库不会开启感谢。</p>
+    <div class="danmaku-blessings-body">
+      <div class="danmaku-welcome-library-heading">
+        <label class="daily-library-search">搜索词库<input id="danmakulikeThanksLibrarySearch" type="search" placeholder="查找点赞感谢文案" /></label>
+        <span id="danmakulikeThanksLibraryCount" class="hint">0 条</span>
+        <lira-help label="点赞感谢词库限制">最多 30 条，每条最多 120 字。可修改、添加或删除；清空后不发送。这里的文案仅用于点赞感谢。</lira-help>
+      </div>
+      <div id="danmakulikeThanksLibraryList" class="danmaku-blessing-list"></div>
+      <div class="daily-library-list-actions">
+        <button id="danmakulikeThanksLibraryAdd" class="secondary" type="button">添加文案</button>
+        <div id="danmakulikeThanksLibraryPagination" class="danmaku-library-pagination" hidden>
+          <button id="danmakulikeThanksLibraryPrevious" class="ghost" type="button">上一页</button>
+          <span id="danmakulikeThanksLibraryPage" class="hint"></span>
+          <button id="danmakulikeThanksLibraryNext" class="ghost" type="button">下一页</button>
+        </div>
+      </div>
+    </div>
+    <div class="danmaku-blessing-actions">
+      <span id="danmakulikeThanksSaveState" class="hint" role="status" aria-live="polite"></span>
+      <button id="danmakulikeThanksSave" class="primary" type="submit" disabled>保存点赞词库</button>
+    </div>
+  </fieldset>
+</form>
+<form id="danmakushareThanksPanel" class="danmaku-interaction-thanks-panel" data-fixed-editor="shareThanks" hidden>
+  <fieldset id="danmakushareThanksFields" class="danmaku-reply-fields" disabled>
+    <legend class="sr-only">分享感谢词库</legend>
+    <p class="hint">每次分享随机发送一条。用 {username} 代入观众称呼；保存词库不会开启感谢。</p>
+    <div class="danmaku-blessings-body">
+      <div class="danmaku-welcome-library-heading">
+        <label class="daily-library-search">搜索词库<input id="danmakushareThanksLibrarySearch" type="search" placeholder="查找分享感谢文案" /></label>
+        <span id="danmakushareThanksLibraryCount" class="hint">0 条</span>
+        <lira-help label="分享感谢词库限制">最多 30 条，每条最多 120 字。可修改、添加或删除；清空后不发送。这里的文案仅用于分享感谢。</lira-help>
+      </div>
+      <div id="danmakushareThanksLibraryList" class="danmaku-blessing-list"></div>
+      <div class="daily-library-list-actions">
+        <button id="danmakushareThanksLibraryAdd" class="secondary" type="button">添加文案</button>
+        <div id="danmakushareThanksLibraryPagination" class="danmaku-library-pagination" hidden>
+          <button id="danmakushareThanksLibraryPrevious" class="ghost" type="button">上一页</button>
+          <span id="danmakushareThanksLibraryPage" class="hint"></span>
+          <button id="danmakushareThanksLibraryNext" class="ghost" type="button">下一页</button>
+        </div>
+      </div>
+    </div>
+    <div class="danmaku-blessing-actions">
+      <span id="danmakushareThanksSaveState" class="hint" role="status" aria-live="polite"></span>
+      <button id="danmakushareThanksSave" class="primary" type="submit" disabled>保存分享词库</button>
+    </div>
+  </fieldset>
+</form>
+<form id="danmakufollowThanksPanel" class="danmaku-interaction-thanks-panel" data-fixed-editor="followThanks" hidden>
+  <fieldset id="danmakufollowThanksFields" class="danmaku-reply-fields" disabled>
+    <legend class="sr-only">关注感谢词库</legend>
+    <p class="hint">每次关注随机发送一条。用 {username} 代入观众称呼；保存词库不会开启感谢。</p>
+    <div class="danmaku-blessings-body">
+      <div class="danmaku-welcome-library-heading">
+        <label class="daily-library-search">搜索词库<input id="danmakufollowThanksLibrarySearch" type="search" placeholder="查找关注感谢文案" /></label>
+        <span id="danmakufollowThanksLibraryCount" class="hint">0 条</span>
+        <lira-help label="关注感谢词库限制">最多 30 条，每条最多 120 字。可修改、添加或删除；清空后不发送。这里的文案仅用于关注感谢。</lira-help>
+      </div>
+      <div id="danmakufollowThanksLibraryList" class="danmaku-blessing-list"></div>
+      <div class="daily-library-list-actions">
+        <button id="danmakufollowThanksLibraryAdd" class="secondary" type="button">添加文案</button>
+        <div id="danmakufollowThanksLibraryPagination" class="danmaku-library-pagination" hidden>
+          <button id="danmakufollowThanksLibraryPrevious" class="ghost" type="button">上一页</button>
+          <span id="danmakufollowThanksLibraryPage" class="hint"></span>
+          <button id="danmakufollowThanksLibraryNext" class="ghost" type="button">下一页</button>
+        </div>
+      </div>
+    </div>
+    <div class="danmaku-blessing-actions">
+      <span id="danmakufollowThanksSaveState" class="hint" role="status" aria-live="polite"></span>
+      <button id="danmakufollowThanksSave" class="primary" type="submit" disabled>保存关注词库</button>
+    </div>
+  </fieldset>
+</form>

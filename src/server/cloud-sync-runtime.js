@@ -142,6 +142,9 @@ function createCloudSyncRuntime({
     acceptCloudSettingsAccount: (key) => getSettingsStore().acceptCloudSettingsAccount(key),
     getPendingCloudSettings,
     acknowledgePendingCloudSettings: (key, mutationId) => getSettingsStore().acknowledgePendingCloudSettings(key, mutationId),
+    capturePendingCloudBilibiliLogout: (key) => getSettingsStore().capturePendingCloudBilibiliLogout(key),
+    getPendingCloudBilibiliLogout: (key) => getSettingsStore().getPendingCloudBilibiliLogout(key),
+    acknowledgePendingCloudBilibiliLogout: (key, mutationId) => getSettingsStore().acknowledgePendingCloudBilibiliLogout(key, mutationId),
     prepareCloudRoomAccount,
     applyCloudSettingsSnapshot,
     applyCloudFixedReplySettingsSnapshot(input, revision) {

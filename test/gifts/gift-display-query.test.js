@@ -165,13 +165,13 @@ test('history deltas respect retention activation, membership changes and detail
   const source = fx.resolveSource('e'.repeat(64));
   fx.setActiveSource(source.id);
   const ids = ['one', 'two', 'three'].map(event => Number(fx.insertGift(source.id, event,
-    { createdAt: '2026-09-01T17:00:00.000Z' }).lastInsertRowid));
-  const options = { range: 'today', conditional: true, delta: true, sortDirection: 'asc' };
+    { createdAt: '2025-08-31T17:00:00.000Z' }).lastInsertRowid));
+  const options = { range: 'all', conditional: true, delta: true, sortDirection: 'asc' };
   let result = getGiftHistory(fx.context, options);
   const read = () => getGiftHistory(fx.context, { ...options, contentRevision: result.contentRevision });
   const snapshot = Number(fx.giftDb.prepare(`INSERT INTO gift_retention_snapshots
-    (source_id,projection_generation,sync_epoch,revision,base_revision,covered_cursor,phase,updated_at)
-    VALUES (?,1,'epoch',1,0,3,'active','2026-09-02T00:00:00.000Z')`).run(source.id).lastInsertRowid);
+    (source_id,projection_generation,sync_epoch,revision,base_revision,summarized_before,covered_cursor,phase,updated_at)
+    VALUES (?,1,'epoch',1,0,'2026-08-31T16:00:00.000Z',3,'active','2026-09-02T00:00:00.000Z')`).run(source.id).lastInsertRowid);
   fx.giftDb.prepare('UPDATE gift_retention_snapshots SET member_snapshot_id=? WHERE id=?').run(snapshot, snapshot);
   fx.giftDb.prepare('INSERT INTO gift_retention_state(source_id,active_snapshot_id) VALUES (?,?)').run(source.id, snapshot);
   const member = fx.giftDb.prepare('INSERT INTO gift_retention_members(snapshot_id,event_id) VALUES (?,?)');
@@ -185,7 +185,16 @@ test('history deltas respect retention activation, membership changes and detail
   assert.equal(result.delta, true);
   assert.deepEqual(result.items.map(item => item.eventId), ['two']);
   assert.ok(result.removedEventIds.includes('one'));
-  fx.giftDb.prepare('UPDATE gift_retention_snapshots SET detail_start=? WHERE id=?').run('2026-09-01T18:00:00.000Z', snapshot);
+  fx.giftDb.prepare('UPDATE gift_retention_snapshots SET detail_start=? WHERE id=?').run('2026-06-03T16:00:00.000Z', snapshot);
+  result = read();
+  assert.equal(result.delta, undefined);
+  assert.deepEqual(result.items.map(item => item.eventId), ['three', 'two'], 'the server recovery window does not expire local details');
+  const nextSnapshot = Number(fx.giftDb.prepare(`INSERT INTO gift_retention_snapshots
+    (source_id,projection_generation,sync_epoch,revision,base_revision,summarized_before,
+      covered_cursor,phase,member_snapshot_id,updated_at)
+    VALUES (?,1,'epoch',2,1,'2026-09-01T16:00:00.000Z',3,'active',?,'2026-09-02T00:00:00.000Z')`)
+    .run(source.id, snapshot).lastInsertRowid);
+  fx.giftDb.prepare('UPDATE gift_retention_state SET active_snapshot_id=? WHERE source_id=?').run(nextSnapshot, source.id);
   result = read();
   assert.equal(result.delta, undefined);
   assert.equal(result.items.length, 0);

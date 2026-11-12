@@ -3,7 +3,8 @@
 // Caller owns the existing transaction and all event deletion scope.
 function resetGiftProjectionMetadataInTransaction(giftDb, sourceId, timestamp) {
   for (const table of ['gift_retention_state', 'gift_retention_snapshots', 'gift_retention_days',
-    'gift_retention_receipts', 'gift_local_archives', 'gift_sprint_carry', 'gift_wish_contributions']) {
+    'gift_retention_receipts', 'gift_local_archives', 'gift_sprint_carry', 'gift_wish_contributions',
+    'gift_local_detail_coverage', 'gift_retention_work', 'gift_wish_boundary_totals']) {
     giftDb.prepare(`DELETE FROM ${table} WHERE source_id=?`).run(sourceId);
   }
   const reset = giftDb

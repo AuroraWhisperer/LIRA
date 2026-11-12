@@ -2,23 +2,19 @@
 // 播放器持久化域路由：播放历史、队列快照、收藏、自建歌单。
 'use strict';
 
-const { sendJson } = require('../http-utils');
+const { sendJson, sendStableError } = require('../http-utils');
 const { normalizeLyricState } = require('../../music/lyric-state');
 const { normalizeLyricTimeline } = require('../../music/lyric-timeline');
 
 const prefixes = ['/api/playback/'];
 
-// store 抛错统一回 400，避免每个路由重复写 try/catch
 function storeRoute(run) {
   return async (context, request, res) => {
     try {
       sendJson(res, 200, { ok: true, data: await run(context, request) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
-      sendJson(res, 400, {
-        ok: false,
-        error: error.message || '播放器数据操作失败。',
-      });
+      if (!error?.publicMessage) throw error;
+      sendStableError(res, error);
     }
   };
 }
@@ -41,13 +37,15 @@ const routes = {
   }),
 
   'POST /api/playback/lyric-state': storeRoute(async (context, request) => {
-    const state = normalizeLyricState(await request.body());
-    return context.playbackLyrics.publish(state) || state;
+    const body = await request.body();
+    const state = normalizeLyricState(body);
+    return context.playbackLyrics.publish({ ...state, coverUrl: body?.coverUrl }) || state;
   }),
 
   'POST /api/playback/lyric-timeline': storeRoute(async (context, request) => {
-    const timeline = normalizeLyricTimeline(await request.body());
-    context.playbackLyrics.publishTimeline(timeline);
+    const body = await request.body();
+    const timeline = normalizeLyricTimeline(body);
+    context.playbackLyrics.publishTimeline({ ...timeline, coverUrl: body?.coverUrl });
     return timeline;
   }),
 

@@ -9,6 +9,11 @@
   display: none !important;
 }
 
+#giftHistoryState:not(.sr-only) {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+}
+
 #giftHistoryClose {
   display: inline-flex;
   align-items: center;

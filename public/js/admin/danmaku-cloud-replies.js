@@ -1,5 +1,6 @@
 import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { createScheduledLibraryEditor } from './danmaku-scheduled-library.js';
+import { initDanmakuInteractionThanks } from './danmaku-interaction-thanks.js';
 
 export function initDanmakuCloudReplies({
   documentRef = globalThis.document,
@@ -24,6 +25,7 @@ export function initDanmakuCloudReplies({
   const library = createScheduledLibraryEditor({ documentRef, changed: () => markDirty() });
   const available = Boolean(bridge?.getFixedReplySettings && bridge?.updateFixedReplySettings);
   let owner = '', generation = 0, saved = null, pending = false, dirty = false, disposed = false;
+  const interactionThanks = initDanmakuInteractionThanks({ documentRef, windowRef, saveSettings: sync });
   const exactEditor = createCustomReplyEditor({
     document: documentRef, kind: 'exact', toast,
     saveSetting: async (_key, value) => {
@@ -41,6 +43,7 @@ export function initDanmakuCloudReplies({
       documentRef.querySelector(`[data-fixed-open="${kind}"]`).disabled = !owner || !available || !saved;
     }
     save.disabled = disabled || !dirty;
+    interactionThanks.updateState({ saved, owner, available, pending, message: exactState.textContent });
   }
 
   function timingFields() {

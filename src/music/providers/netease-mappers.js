@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../../shared/public-error');
+
 const { sanitizeAuthState } = require('../auth-state');
 
 function mapNeteaseSong(song, searchCoverUrl) {
@@ -51,14 +53,14 @@ function extractSourceTrackId(track) {
   const sourceTrackId = String((track && (track.sourceTrackId || track.id)) || '')
     .replace(/^netease:/, '')
     .trim();
-  if (!sourceTrackId) throw new Error('缺少网易云歌曲 ID。');
+  if (!sourceTrackId) throw createPublicError('缺少网易云歌曲 ID。', 501);
   return sourceTrackId;
 }
 
 function normalizeNeteasePlaylistTrackIds(tracks) {
   const trackIds = (Array.isArray(tracks) ? tracks : []).map((track) => extractSourceTrackId(track));
-  if (trackIds.length === 0) throw new Error('缺少网易云歌曲 ID。');
-  if (trackIds.some((id) => !/^\d+$/.test(id))) throw new Error('网易云歌曲 ID 必须是正整数。');
+  if (trackIds.length === 0) throw createPublicError('缺少网易云歌曲 ID。', 501);
+  if (trackIds.some((id) => !/^\d+$/.test(id))) throw createPublicError('网易云歌曲 ID 必须是正整数。', 501);
   return trackIds;
 }
 

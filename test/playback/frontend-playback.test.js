@@ -186,6 +186,8 @@ test('fullscreen trial lyrics highlight and seek within the playable excerpt', a
     { document: { getElementById: () => audio } },
   );
   const player = new FullscreenPlayer();
+  const seeks = [];
+  player.setSeekCallback(time => { seeks.push(time); return true; });
   const lines = [{ startMs: 0, text: '开头' }, { startMs: 30000, text: '试听' }];
   const track = { playbackTrial: true, playbackTrialStartMs: 30000, lyrics: { lines } };
   player.lyricsContainer = { querySelectorAll: () => lines, classList: { toggle() {} }, addEventListener() {} };
@@ -198,17 +200,16 @@ test('fullscreen trial lyrics highlight and seek within the playable excerpt', a
   player.renderLyrics(track, audio);
   assert.equal(highlighted.at(-1), 1);
   clickLyric(35000);
-  assert.equal(audio.currentTime, 5);
+  assert.equal(seeks.at(-1), 5);
   clickLyric(0);
-  assert.equal(audio.currentTime, 5, 'lyrics before the excerpt cannot seek to the wrong line');
   clickLyric(70000);
-  assert.equal(audio.currentTime, 5, 'lyrics after the excerpt cannot seek outside the audio');
+  assert.equal(seeks.length, 1, 'lyrics outside the excerpt do not request a seek');
   track.playbackTrial = false;
   audio.duration = 180;
   player.renderLyrics(track, audio);
   assert.equal(highlighted.at(-1), 0);
   clickLyric(35000);
-  assert.equal(audio.currentTime, 35);
+  assert.equal(seeks.at(-1), 35);
 });
 
 test('fullscreen lyric lookup preserves boundaries and selects the last simultaneous line', async () => {
@@ -229,6 +230,8 @@ test('reopening fullscreen refreshes same-track lyrics and seek times', async ()
   });
   const { createPlaybackStateActions } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/state/actions.js'));
   const player = new FullscreenPlayer();
+  let seekTime;
+  player.setSeekCallback(time => { seekTime = time; return true; });
   const state = { current: { id: 'qq:same-song', lyrics: { lines: [
     { startMs: 0, text: '旧歌词' }, { startMs: 5000, text: '旧第二句' },
   ] } }, history: [], displayHistory: [] };
@@ -264,7 +267,7 @@ test('reopening fullscreen refreshes same-track lyrics and seek times', async ()
   assert.deepEqual(rows.map(row => row.textContent), ['更新歌词', '更新第二句']);
   assert.notEqual(rows[0], oldRow);
   listeners.get('click')({ target: { closest: () => rows[0] } });
-  assert.equal(audio.currentTime, 1.5, 'the existing click handler reads the replacement lyric timestamp');
+  assert.equal(seekTime, 1.5, 'the existing click handler reads the replacement lyric timestamp');
 });
 
 test('fullscreen lyrics escape lyric text without changing source data', async () => {

@@ -210,6 +210,99 @@
   min-width: 0;
 }
 
+.bilibili-room-overview {
+  grid-column: 1 / -1;
+}
+
+.bilibili-room-overview[hidden],
+.bilibili-room-level[hidden] {
+  display: none;
+}
+
+.bilibili-room-overview legend {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bilibili-room-details {
+  display: grid;
+  grid-template-columns: minmax(330px, 1.4fr) minmax(180px, 1fr) minmax(100px, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.bilibili-room-details .bilibili-auth-avatar {
+  width: 36px;
+  height: 36px;
+  flex-basis: 36px;
+}
+
+.bilibili-room-owner-heading,
+.bilibili-room-owner-facts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.bilibili-room-owner-facts {
+  flex-wrap: wrap;
+  column-gap: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bilibili-room-owner-facts > span,
+.bilibili-room-level {
+  white-space: nowrap;
+}
+
+.bilibili-room-level {
+  color: var(--color-primary-text, var(--primary-strong));
+}
+
+.bilibili-room-info,
+.bilibili-room-news {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bilibili-room-info .pill {
+  min-height: 0;
+  border: 0;
+  padding: 0 6px;
+}
+
+#bilibiliRoomAnnouncement {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .bilibili-room-details {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr) auto;
+  }
+
+  .bilibili-room-news {
+    grid-column: 1 / 3;
+    grid-row: 2;
+    flex-direction: row;
+    gap: 8px;
+  }
+
+  .bilibili-room-news > .muted {
+    flex-shrink: 0;
+  }
+
+  #bilibiliRoomRefreshBtn {
+    grid-column: 3;
+    grid-row: 1;
+  }
+}
+
 .guard-expiry-settings {
   grid-column: 1 / -1;
 }

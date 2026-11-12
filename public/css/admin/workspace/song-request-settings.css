@@ -156,6 +156,17 @@
   padding-right: 36px;
 }
 
+.song-request-row input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.song-request-field-error {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  color: var(--danger);
+  font-size: var(--type-size-caption);
+}
+
 .song-request-unit {
   position: absolute;
   top: 50%;

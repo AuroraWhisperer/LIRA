@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomInt: cryptoRandomInt } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const {
@@ -136,7 +138,7 @@ function createOvertimeService(options = {}) {
   }
 
   function start() {
-    if (!state.enabled) throw new Error('overtime must be enabled before start.');
+    if (!state.enabled) throw createPublicError('overtime must be enabled before start.');
     const nextState = materialize();
     if (nextState.remainingMs <= 0) nextState.status = 'finished';
     else nextState.status = 'running';

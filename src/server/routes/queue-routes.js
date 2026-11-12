@@ -8,10 +8,10 @@ const { isQueueRequestRejection } = require('../../music/queue-service');
 const prefixes = ['/api/queue/'];
 
 const routes = {
-  async 'POST /api/queue/random'(context, _request, res) {
+  async 'POST /api/queue/random'(context, request, res) {
     let result;
     try {
-      result = await context.queue.requestRandom();
+      result = await context.queue.requestRandom({ authorize: request.authorize });
     } catch (error) {
       if (!isQueueRequestRejection(error)) throw error;
       sendJson(res, 400, { ok: false, error: error.message, code: error.code });

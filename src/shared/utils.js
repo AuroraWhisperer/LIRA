@@ -138,7 +138,7 @@ function getInitial(text) {
     ['J', '丌'],
     ['K', '咔'],
     ['L', '垃'],
-    ['M', '嘸'],
+    ['M', '妈'], // 嘸 sorts under F in current ICU and would overwrite F–L initials.
     ['N', '拏'],
     ['O', '噢'],
     ['P', '妑'],

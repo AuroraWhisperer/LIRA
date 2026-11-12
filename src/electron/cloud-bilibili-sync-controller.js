@@ -1,8 +1,19 @@
 'use strict';
 
-function createCloudBilibiliSyncController({ licenseManager, bilibiliAuth, isCurrent, shouldApply, recordRevision }) {
+function createCloudBilibiliSyncController({ runtime, licenseManager, bilibiliAuth, isCurrent, shouldApply, recordRevision }) {
+  const getPendingLogout = (accountKey) => runtime.getPendingCloudBilibiliLogout?.(accountKey) || null;
+
   async function upload(work) {
     const requestOptions = { signal: work.signal };
+    const pending = getPendingLogout(work.accountKey);
+    if (pending) {
+      const cleared = await bilibiliAuth.logout({ isCurrent: () => isCurrent(work)
+        && getPendingLogout(work.accountKey)?.mutationId === pending.mutationId });
+      if (cleared === null || !isCurrent(work)) return false;
+      const result = await licenseManager.clearBilibiliCredentialsInternal(requestOptions);
+      if (isCurrent(work)) runtime.acknowledgePendingCloudBilibiliLogout(work.accountKey, pending.mutationId);
+      return result;
+    }
     const state = await bilibiliAuth.getAuthState();
     if (!isCurrent(work)) return false;
     if (state?.loggedIn) {
@@ -46,7 +57,7 @@ function createCloudBilibiliSyncController({ licenseManager, bilibiliAuth, isCur
     if (applied !== null && isCurrent(work)) recordRevision(cloudRevision);
   }
 
-  return { upload, reconcile };
+  return { upload, reconcile, getPendingLogout };
 }
 
 module.exports = { createCloudBilibiliSyncController };

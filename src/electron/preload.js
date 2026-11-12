@@ -160,6 +160,7 @@ contextBridge.exposeInMainWorld('liraLicense', {
   getGiftInteractionState: () => ipcRenderer.invoke('license:get-gift-interaction-state'),
   setGiftInteraction: (key, enabled) => ipcRenderer.invoke('license:set-gift-interaction', { key, enabled }),
   setGiftThanksTemplates: (templates) => ipcRenderer.invoke('license:set-gift-thanks-templates', templates),
+  setGiftThanksReplies: (replies) => ipcRenderer.invoke('license:set-gift-thanks-replies', replies),
   onGiftInteractionStateChanged: (callback) => {
     if (typeof callback !== 'function') return () => {};
     const listener = (_event, state) => callback(state);
@@ -189,6 +190,11 @@ contextBridge.exposeInMainWorld('liraLicense', {
   updateWelcomeSettingsV2: (settings) => ipcRenderer.invoke('license:update-welcome-settings-v2', settings),
   getPkReportSettings: () => ipcRenderer.invoke('license:get-pk-report-settings'),
   getFixedReplySettings: () => ipcRenderer.invoke('license:get-fixed-reply-settings'),
+  getViewerNameSettings: () => ipcRenderer.invoke('license:get-viewer-name-settings'),
+  updateViewerNameSettings: (settings) => ipcRenderer.invoke('license:update-viewer-name-settings', settings),
+  listViewerNames: (query) => ipcRenderer.invoke('license:list-viewer-names', query),
+  updateViewerName: (value) => ipcRenderer.invoke('license:update-viewer-name', value),
+  deleteViewerName: (uid) => ipcRenderer.invoke('license:delete-viewer-name', uid),
   updateFixedReplySettings: (settings) => ipcRenderer.invoke('license:update-fixed-reply-settings', settings),
   updatePkReportSettings: (settings) => ipcRenderer.invoke('license:update-pk-report-settings', settings),
   updateWelcomeSettings: (settings) => ipcRenderer.invoke('license:update-welcome-settings', settings),

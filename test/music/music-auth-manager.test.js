@@ -2,9 +2,9 @@
 
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
-const os = require('node:os');
 const path = require('node:path');
 const test = require('node:test');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 
 const ENCRYPTED_PREFIX = 'synthetic-encrypted:';
 
@@ -79,7 +79,6 @@ test('music platform normalization rejects inherited configuration keys', () => 
   const authManager = loadAuthManager([]);
   for (const platform of ['constructor', '__proto__', 'toString', 'unknown']) {
     assert.throws(() => authManager.normalizeMusicPlatform(platform), /qq 或 netease/);
-    assert.equal(authManager.isAllowedMusicLoginUrl(platform, 'https://y.qq.com/'), false);
   }
   assert.equal(authManager.normalizeMusicPlatform(' QQ '), 'qq');
   assert.equal(authManager.normalizeMusicPlatform('NETEASE'), 'netease');
@@ -164,8 +163,7 @@ test('Netease auxiliary cookies do not finish login before a session arrives', a
 });
 
 function snapshotFixture(t, { available = true } = {}) {
-  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), 'lira-music-auth-'));
-  t.after(() => fs.rmSync(dataDir, { recursive: true, force: true }));
+  const dataDir = createScratchDirectory('lira-music-auth-', t);
   const safeStorage = createSafeStorage(available);
   const session = createPartitions({
     'persist:music-qq': [

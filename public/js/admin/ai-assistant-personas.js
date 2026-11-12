@@ -6,6 +6,7 @@ import { dangerConfirm } from '../shared/confirmation-dialog.js';
 const BUILTIN_PRESENTATION = {
   general: { name: '通用人格' },
   cat: { name: '小猫人格', provider: 'deepseek', providerNote: '针对 DeepSeek' },
+  whale: { name: '鲸鱼娘', provider: 'deepseek', providerNote: '针对 DeepSeek' },
 };
 
 export function createPersonaControls({ flushPendingSave, acceptConfig, confirm: confirmAction = dangerConfirm }) {

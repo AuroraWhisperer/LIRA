@@ -238,6 +238,9 @@ test('later edits to a newly saved song keep its id for the next save', async (t
   await page.getByRole('button', { name: '保存歌曲', exact: true }).click();
   await page.waitForFunction(() => window.pendingSaves.length === 1);
   await page.locator('#songName').fill('新歌曲的后续标题');
+  await page.locator('#songForm').dispatchEvent('submit');
+  assert.equal(await page.evaluate(() => window.pendingSaves.length), 1, 'a pending save cannot dispatch another write');
+  assert.equal(await page.getByRole('button', { name: '保存歌曲', exact: true }).isDisabled(), true);
   await page.evaluate(() => window.pendingSaves[0].resolve({ ok: true, data: { id: 3 } }));
   await page.waitForFunction(() => document.getElementById('songId').value === '3');
   assert.equal(await page.locator('#songName').inputValue(), '新歌曲的后续标题');
@@ -247,6 +250,29 @@ test('later edits to a newly saved song keep its id for the next save', async (t
     const { id, name } = window.pendingSaves[1].body;
     return { id, name };
   }), { id: '3', name: '新歌曲的后续标题' });
+  await page.evaluate(() => window.pendingSaves[1].resolve({ ok: true, data: { id: 3 } }));
+  await page.waitForFunction(() => document.getElementById('songName').value === '');
+});
+
+test('a failed song save releases the submit control and preserves the draft for retry', async (t) => {
+  const page = await open(t);
+  await page.evaluate(() => {
+    window.addEventListener('unhandledrejection', (event) => {
+      if (event.reason.message !== 'synthetic save failure') return;
+      event.preventDefault();
+      window.saveRejected = true;
+    });
+  });
+  await page.locator('#songName').fill('待重试的歌曲');
+  const save = page.getByRole('button', { name: '保存歌曲', exact: true });
+  await save.click();
+  await page.waitForFunction(() => window.pendingSaves.length === 1);
+  await page.evaluate(() => window.pendingSaves[0].reject(new Error('synthetic save failure')));
+  await page.waitForFunction(() => window.saveRejected);
+  assert.equal(await save.isDisabled(), false);
+  assert.equal(await page.locator('#songName').inputValue(), '待重试的歌曲');
+  await save.click();
+  await page.waitForFunction(() => window.pendingSaves.length === 2);
   await page.evaluate(() => window.pendingSaves[1].resolve({ ok: true, data: { id: 3 } }));
   await page.waitForFunction(() => document.getElementById('songName').value === '');
 });

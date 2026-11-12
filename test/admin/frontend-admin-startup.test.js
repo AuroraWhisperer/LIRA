@@ -16,6 +16,8 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   const dataRequested = Promise.withResolvers();
   const classes = new Set(['desktop-shell', 'admin-starting']);
   const calls = [];
+  const windowEvents = new EventTarget();
+  const disposed = [];
   const errors = [];
   const listeners = new Map();
   const connectionStates = [];
@@ -41,7 +43,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
   const context = vm.createContext({
     location,
     history: { replaceState: (_state, _title, url) => { location.hash = url.startsWith('#') ? url : ''; } },
-    window: { addEventListener: noop, location: { reload: () => calls.push('reload') } },
+    window: { addEventListener: windowEvents.addEventListener.bind(windowEvents), location: { reload: () => calls.push('reload') } },
     document: {
       body: { dataset: pageState },
       readyState: 'interactive',
@@ -87,7 +89,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     './usage-guide.js': { initUsageGuide: noop },
     './toolbox-lifecycle.js': { createToolboxLifecycle: (options) => {
       toolboxOptions.push(options);
-      return { dispose: noop, setPage: noop };
+      return { dispose: () => disposed.push(options.ownerPageId || 'toolbox'), setPage: noop };
     } },
     './dynamic-lottery.js': { initDynamicLottery: () => ({ dispose: noop }) },
     './interactive-tour.js': { initInteractiveTour: () => ({ claimAutoOpen: () => false }) },
@@ -142,7 +144,7 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     './client-settings.js': { initClientSettings: noop },
     './playback-output-settings.js': { initPlaybackOutputSettings: noop },
     './audio-assistant.js': { initAudioAssistant: noop },
-    './topbar-status.js': { initTopbarStatus: noop },
+    './topbar-status.js': { initTopbarStatus: () => () => disposed.push('topbar') },
     './world-clock/index.js': { initWorldClock: () => featureInitializations.push('world-clock') },
     './settings.js': {
       settings: {
@@ -176,11 +178,27 @@ async function createStartupFixture({ confirm = async () => false, hash } = {}) 
     );
   });
   await entry.evaluate();
-  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions,
+  return { start, theme, data, dataRequested, classes, calls, errors, connectionStates, toolboxOptions, windowEvents, disposed,
     featureInitializations, toolboxBindings, preferenceWrites, selectedFeatures, pageState,
     selectedToolboxFeatures, desktopOptions, get playbackOptions() { return playbackOptions; },
     get aboutOpened() { return aboutOpened; }, get fullscreenClosed() { return fullscreenClosed; } };
 }
+
+test('cancelled page departure keeps lazy editors and connection details alive until pagehide', async () => {
+  const fixture = await createStartupFixture();
+  const starting = fixture.start();
+  fixture.theme.resolve();
+  await fixture.dataRequested.promise;
+  fixture.data.resolve();
+  await starting;
+  fixture.windowEvents.addEventListener('beforeunload', event => event.preventDefault());
+  assert.equal(fixture.windowEvents.dispatchEvent(new Event('beforeunload', { cancelable: true })), false);
+  assert.deepEqual(fixture.disposed, []);
+  fixture.windowEvents.dispatchEvent(new Event('pagehide'));
+  assert.deepEqual(fixture.disposed, ['topbar', 'toolbox', 'liveComponentsPage']);
+  fixture.windowEvents.dispatchEvent(new Event('pagehide'));
+  assert.equal(fixture.disposed.length, 3);
+});
 
 test('music display links open the matching component after its navigation is initialized', async () => {
   for (const [hash, feature] of [['#desktopLyricPage', 'desktopLyricPage'], ['#now-playing', 'nowPlayingPage']]) {
@@ -270,17 +288,34 @@ test('failed initial state loading exits the startup screen and reports the erro
   assert.deepEqual(fixture.errors, [error]);
 });
 
-test('window controls work while account initialization is still pending', async () => {
-  const { createSettingsForm } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-form.js'));
+test('window controls and local settings work while account initialization is still pending', async (t) => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  const { createSettingsForm } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-form.js'), {
+    setTimeout, clearTimeout,
+  });
   const account = Promise.withResolvers();
   const listeners = new Map();
+  const elements = new Map();
   const actions = [];
-  const form = createSettingsForm({
-    documentRef: {
-      getElementById: (id) => ({
+  const requests = [];
+  const documentRef = {
+    getElementById(id) {
+      if (!elements.has(id)) elements.set(id, {
+        id, value: '', dataset: {}, checkValidity: () => true,
         addEventListener: (event, listener) => listeners.set(`${id}:${event}`, listener),
-      }),
+      });
+      return elements.get(id);
     },
+  };
+  const form = createSettingsForm({
+    documentRef,
+    value: (id) => documentRef.getElementById(id).value,
+    api: async (url, payload) => {
+      requests.push({ url, payload });
+      return { data: { settings: payload } };
+    },
+    toast: noop,
+    getState: () => ({ reloadState: async () => {} }),
     initLicenseAccountDevice: () => account.promise,
     blindboxSettings: { init: noop },
     desktopRef: {
@@ -291,10 +326,34 @@ test('window controls work while account initialization is still pending', async
     },
   });
   const initializing = form.init();
-  for (const id of ['winMinBtn', 'winMaxBtn', 'winCloseBtn']) {
-    listeners.get(`${id}:click`)();
+  try {
+    for (const id of ['winMinBtn', 'winMaxBtn', 'winCloseBtn']) {
+      listeners.get(`${id}:click`)();
+    }
+    assert.deepEqual(actions, ['minimize', 'maximize', 'close']);
+
+    documentRef.getElementById('roomId').value = '123';
+    const submit = new Event('submit', { cancelable: true });
+    const savingRoom = listeners.get('settingsForm:submit')?.(submit);
+    assert.equal(submit.defaultPrevented, true, 'submitting settings must not navigate away');
+    await savingRoom;
+    assert.equal(requests[0]?.payload.roomId, '123');
+
+    const paused = documentRef.getElementById('paused');
+    paused.value = 'true';
+    paused.tagName = 'SELECT';
+    listeners.get('songRequestSettingsForm:change')?.({ target: paused });
+    t.mock.timers.tick(500);
+    await new Promise(setImmediate);
+    assert.equal(requests[1]?.payload.paused, 'true');
+
+    const monitoring = documentRef.getElementById('danmakuMonitoringEnabled');
+    monitoring.checked = false;
+    await listeners.get('danmakuMonitoringEnabled:change')?.({ target: monitoring });
+    assert.equal(requests[2]?.payload.danmakuMonitoringEnabled, 'false');
+    assert.equal(requests.length, 3);
+  } finally {
+    account.resolve();
+    await initializing;
   }
-  assert.deepEqual(actions, ['minimize', 'maximize', 'close']);
-  account.resolve();
-  await initializing;
 });

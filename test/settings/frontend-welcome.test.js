@@ -55,6 +55,8 @@ async function fixture(initialProfile = account('one'), v2 = false) {
   };
   const descendants = (root) => root.children.flatMap(child => [child, ...descendants(child)]);
   const message = (index) => descendants(get('List')).filter(control => control.tagName === 'input')[index];
+  const audienceField = (suffix, index) => descendants(get(`${suffix}List`))
+    .filter(control => control.tagName === 'input')[index];
   const customField = (index, key) => descendants(get('CustomList')).find(control =>
     control['aria-label'] === `第 ${index + 1} 位用户的${key === 'uid' ? 'B 站 UID' : '欢迎词'}`);
   let listener;
@@ -62,8 +64,9 @@ async function fixture(initialProfile = account('one'), v2 = false) {
   for (const [suffix, title] of Object.entries({
     Title: '进场欢迎',
     GreetingTitle: '二次问候',
-    AttentionTitle: '重点关注',
-    ReturningTitle: '久别重逢',
+    AttentionTitle: '高荣耀文案',
+    OwnMedalTitle: '只欢迎佩戴本直播间粉丝牌的观众',
+    ReturningTitle: '多天未到欢迎',
     PinyinTitle: '昵称生僻字自动注音',
   }))
     get(suffix).textContent = title;
@@ -109,6 +112,14 @@ async function fixture(initialProfile = account('one'), v2 = false) {
     toastOptions,
     message,
     customField,
+    audienceField,
+    audienceEdit: (suffix, index, value) => {
+      const field = audienceField(suffix, index);
+      field.value = value;
+      field.events.input();
+    },
+    audienceRemove: (suffix, index) => descendants(get(`${suffix}List`))
+      .filter(control => control.tagName === 'button')[index].events.click(),
     remove: (index, custom = false) => descendants(get(custom ? 'CustomList' : 'List'))
       .filter(control => control.tagName === 'button')[index].events.click(),
     account: (name) => listener(account(name)),
@@ -236,6 +247,7 @@ const savedV2 = (patch = {}) => ({
   enabled: false,
   welcomeDelaySeconds: 0,
   welcomeMinHonorLevel: 0,
+  welcomeOwnMedalOnly: false,
   greetingEnabled: false,
   greetingDelaySeconds: 10,
   greetingMinHonorLevel: 0,
@@ -247,9 +259,105 @@ const savedV2 = (patch = {}) => ({
   attentionWelcomeMessages: ['专属 {username}'],
   attentionGreetingMessages: ['{username}，来点歌吧'],
   userWelcomeMessages: [],
+  welcomeWhitelist: [],
+  welcomeBlacklist: [],
   returningEnabled: false,
   returningMessages: ['最近好吗？'],
   ...patch,
+});
+
+test('own-room medal toggle saves independently and requires acknowledgment without losing drafts', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  f.parameter('welcomeDelaySeconds', '999');
+  f.click('WhitelistAddBtn');
+  f.audienceEdit('Whitelist', 0, '42');
+  f.get('OwnMedalToggle').checked = true;
+  f.change('OwnMedalToggle');
+  assert.deepEqual(f.writes[0].patch, { welcomeOwnMedalOnly: true });
+  f.writes[0].resolve(savedV2({ welcomeOwnMedalOnly: true }));
+  await flush();
+  assert.equal(f.get('OwnMedalToggle').checked, true);
+  assert.equal(f.get('welcomeDelaySeconds').value, '999');
+  assert.equal(f.audienceField('Whitelist', 0).value, '42');
+  f.get('OwnMedalToggle').checked = false;
+  f.change('OwnMedalToggle');
+  f.writes[1].resolve(savedV2({ welcomeOwnMedalOnly: undefined }));
+  await flush();
+  assert.equal(f.get('OwnMedalToggle').checked, true);
+  assert.equal(f.toastOptions.at(-1).type, 'error');
+  f.click('RefreshBtn');
+  f.reads[1].resolve(savedV2({ welcomeOwnMedalOnly: undefined }));
+  await flush();
+  assert.equal(f.get('OwnMedalToggle').disabled, true);
+  assert.equal(f.get('OwnMedalCapability').hidden, false);
+  assert.equal(f.get('WhitelistSaveBtn').disabled, false);
+  f.get('OwnMedalToggle').checked = true;
+  f.change('OwnMedalToggle');
+  assert.equal(f.writes.length, 2);
+});
+
+test('time welcome switches libraries while keeping each draft and saving only the selected period', async () => {
+  const { WELCOME_TIME_PERIODS } = require('../../public/js/shared/welcome-time-periods.js');
+  const timeWelcomeMessages = Object.fromEntries(WELCOME_TIME_PERIODS.map(({ id, label }) => [id, [`${label}好 {username}`]]));
+  let settings = savedV2({ timeWelcomeEnabled: false, timeWelcomeMessages });
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(settings);
+  await flush();
+  f.edit(0, '普通草稿');
+  f.parameter('welcomeDelaySeconds', '999');
+  f.get('TimeToggle').checked = true;
+  f.change('TimeToggle');
+  assert.deepEqual(f.writes[0].patch, { timeWelcomeEnabled: true });
+  settings = { ...settings, ...f.writes[0].patch };
+  f.writes[0].resolve(settings);
+  await flush();
+  assert.equal(f.get('TimePeriodRow').hidden, false);
+  f.get('TimePeriod').value = 'afternoon';
+  f.change('TimePeriod');
+  f.edit(0, '下午草稿');
+  f.get('TimePeriod').value = 'evening';
+  f.change('TimePeriod');
+  f.edit(0, '晚上草稿');
+  f.click('SaveBtn');
+  assert.deepEqual(Object.keys(f.writes[1].patch), ['timeWelcomeMessages']);
+  assert.deepEqual(Object.keys(f.writes[1].patch.timeWelcomeMessages), ['evening']);
+  assert.equal(f.writes[1].patch.timeWelcomeMessages.evening[0], '晚上草稿');
+  f.edit(0, '写入中的新草稿');
+  settings = { ...settings, timeWelcomeMessages: { ...settings.timeWelcomeMessages, ...f.writes[1].patch.timeWelcomeMessages } };
+  f.writes[1].resolve(settings);
+  await flush();
+  assert.equal(f.message(0).value, '写入中的新草稿');
+  assert.equal(f.get('SaveBtn').disabled, false);
+  f.get('TimeToggle').checked = false;
+  f.change('TimeToggle');
+  settings = { ...settings, ...f.writes[2].patch };
+  f.writes[2].resolve(settings);
+  await flush();
+  assert.equal(f.get('TimePeriodRow').hidden, true);
+  assert.equal(f.message(0).value, '普通草稿');
+  f.get('TimeToggle').checked = true;
+  f.change('TimeToggle');
+  settings = { ...settings, ...f.writes[3].patch };
+  f.writes[3].resolve(settings);
+  await flush();
+  f.get('TimePeriod').value = 'afternoon';
+  f.change('TimePeriod');
+  assert.equal(f.message(0).value, '下午草稿');
+  f.click('SaveBtn');
+  f.writes[4].resolve(savedV2());
+  await flush();
+  assert.equal(f.get('SaveBtn').disabled, false);
+  assert.equal(f.message(0).value, '下午草稿');
+  f.click('SaveBtn');
+  f.account('two');
+  f.writes[5].resolve({ ...settings, ...f.writes[5].patch });
+  f.reads[1].resolve(savedV2());
+  await flush();
+  assert.equal(f.get('TimeToggle').disabled, true);
+  assert.equal(f.get('TimePeriodRow').hidden, true);
+  assert.equal(f.message(0).value, savedV2().messages[0]);
 });
 
 test('returning welcome toggles and saves its own library, retaining unconfirmed drafts', async () => {
@@ -264,15 +372,15 @@ test('returning welcome toggles and saves its own library, retaining unconfirmed
   await flush();
   f.get('LibraryKind').value = 'returningMessages';
   f.change('LibraryKind');
-  f.edit(0, '欢迎回来听歌～');
+  f.edit(0, '{username}，{days}天不见，来听歌～');
   f.click('SaveBtn');
-  assert.deepEqual(f.writes[1].patch, { returningMessages: ['欢迎回来听歌～'] });
+  assert.deepEqual(f.writes[1].patch, { returningMessages: ['{username}，{days}天不见，来听歌～'] });
   f.writes[1].resolve(savedV2({ enabled: true, returningEnabled: undefined, returningMessages: undefined }));
   await flush();
-  assert.equal(f.message(0).value, '欢迎回来听歌～');
+  assert.equal(f.message(0).value, '{username}，{days}天不见，来听歌～');
   assert.equal(f.get('SaveBtn').disabled, false);
   f.click('SaveBtn');
-  f.writes[2].resolve(savedV2({ enabled: true, returningEnabled: true, returningMessages: ['欢迎回来听歌～'] }));
+  f.writes[2].resolve(savedV2({ enabled: true, returningEnabled: true, returningMessages: ['{username}，{days}天不见，来听歌～'] }));
   await flush();
   assert.equal(f.get('SaveBtn').disabled, true);
 });
@@ -530,4 +638,106 @@ test('a user welcome write without echoed rules does not clear its draft', async
   assert.equal(f.customField(0, 'message').value, '欢迎老朋友');
   assert.equal(f.get('CustomSaveBtn').disabled, false);
   assert.match(f.toasts.at(-1), /保存未确认/);
+});
+
+test('welcome audience saves each list independently and retains newer edits and failed drafts', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  f.edit(0, '词库草稿');
+  f.click('WhitelistAddBtn');
+  f.audienceEdit('Whitelist', 0, ' 18446744073709551615 ');
+  f.click('BlacklistAddBtn');
+  f.audienceEdit('Blacklist', 0, '42');
+  f.click('WhitelistSaveBtn');
+  assert.deepEqual(f.writes[0].patch, { welcomeWhitelist: ['18446744073709551615'] });
+  f.audienceEdit('Whitelist', 0, '123');
+  f.writes[0].resolve(savedV2(f.writes[0].patch));
+  await flush();
+  assert.equal(f.audienceField('Whitelist', 0).value, '123');
+  assert.equal(f.audienceField('Blacklist', 0).value, '42');
+  assert.equal(f.message(0).value, '词库草稿');
+  f.click('BlacklistSaveBtn');
+  f.writes[1].reject(new Error('offline'));
+  await flush();
+  assert.equal(f.audienceField('Blacklist', 0).value, '42');
+  assert.equal(f.get('BlacklistSaveBtn').disabled, false);
+  f.click('BlacklistSaveBtn');
+  assert.deepEqual(f.writes[2].patch, { welcomeBlacklist: ['42'] });
+  f.writes[2].resolve(savedV2(f.writes[2].patch));
+  await flush();
+  assert.equal(f.get('BlacklistSaveBtn').disabled, true);
+  assert.equal(f.get('WhitelistSaveBtn').disabled, false);
+  f.audienceRemove('Blacklist', 0);
+  f.click('BlacklistSaveBtn');
+  assert.deepEqual(f.writes[3].patch, { welcomeBlacklist: [] });
+  f.writes[3].resolve(savedV2());
+  await flush();
+  assert.equal(f.audienceField('Blacklist', 0), undefined);
+});
+
+test('welcome audience refresh keeps drafts while switching account discards stale writes', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2({ welcomeWhitelist: ['42'], welcomeBlacklist: ['43'] }));
+  await flush();
+  f.click('RefreshBtn');
+  f.audienceEdit('Whitelist', 0, '44');
+  f.reads[1].resolve(savedV2({ welcomeWhitelist: ['45'], welcomeBlacklist: ['46'] }));
+  await flush();
+  assert.equal(f.audienceField('Whitelist', 0).value, '44');
+  assert.equal(f.audienceField('Blacklist', 0).value, '46');
+  f.click('WhitelistSaveBtn');
+  f.account('two');
+  f.reads[2].resolve(savedV2({ welcomeWhitelist: ['99'] }));
+  await flush();
+  f.writes[0].resolve(savedV2(f.writes[0].patch));
+  await flush();
+  assert.equal(f.audienceField('Whitelist', 0).value, '99');
+  assert.equal(f.audienceField('Blacklist', 0), undefined);
+  assert.equal(f.get('WhitelistSaveBtn').disabled, true);
+});
+
+test('unsupported welcome audience cannot write and missing confirmation preserves drafts', async () => {
+  const f = await fixture(account('one'), true);
+  const older = savedV2({ welcomeWhitelist: undefined, welcomeBlacklist: undefined });
+  f.reads[0].resolve(older);
+  await flush();
+  f.click('WhitelistAddBtn');
+  f.click('WhitelistSaveBtn');
+  f.click('BlacklistSaveBtn');
+  assert.equal(f.writes.length, 0);
+  f.edit(0, '原词库仍可保存');
+  f.click('SaveBtn');
+  assert.deepEqual(Object.keys(f.writes[0].patch), ['messages']);
+  f.writes[0].resolve(older);
+  await flush();
+  f.click('RefreshBtn');
+  f.reads[1].resolve(savedV2());
+  await flush();
+  f.click('WhitelistAddBtn');
+  f.audienceEdit('Whitelist', 0, '42');
+  f.click('WhitelistSaveBtn');
+  f.writes[1].resolve(older);
+  await flush();
+  assert.equal(f.audienceField('Whitelist', 0).value, '42');
+  assert.equal(f.get('WhitelistSaveBtn').disabled, false);
+  assert.equal(f.toastOptions.at(-1).type, 'error');
+});
+
+test('invalid welcome audience stays editable in the matching error view', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  f.click('BlacklistAddBtn');
+  f.audienceEdit('Blacklist', 0, 'invalid');
+  f.click('BlacklistSaveBtn');
+  f.writes[0].resolve({ ok: false, error: 'INVALID_WELCOME_SETTINGS',
+    fieldErrors: [{ field: 'welcomeBlacklist', reason: 'INVALID_USERS' }] });
+  await flush();
+  assert.equal(f.audienceField('Blacklist', 0).value, 'invalid');
+  assert.equal(f.get('Audience').hidden, false);
+  assert.equal(f.get('BlacklistError').hidden, false);
+  assert.equal(f.get('BlacklistSaveBtn').disabled, false);
+  f.audienceEdit('Blacklist', 0, '42');
+  assert.equal(f.get('BlacklistError').hidden, true);
 });

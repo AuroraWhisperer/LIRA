@@ -83,6 +83,7 @@ test('browser and Electron test dependencies belong to their runtime groups', ()
         const source = fs.readFileSync(filename, 'utf8');
         for (const [, dependency] of source.matchAll(/\brequire\(\s*['"]([^'"]+)['"]\s*\)/g)) {
           if (dependency === 'playwright') runtimes.add('browser');
+          if (dependency === 'electron') runtimes.add('desktop');
           if (dependency.startsWith('.')) {
             const target = path.resolve(path.dirname(filename), dependency);
             if (target.startsWith(helpers)) inspect(require.resolve(target));

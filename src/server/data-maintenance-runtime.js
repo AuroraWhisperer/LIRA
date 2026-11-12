@@ -4,7 +4,8 @@ const database = require('../storage/database');
 const retention = require('../storage/retention');
 
 function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ensureUnifiedQueue,
-  clearSuperChatUndo, getActiveGiftSource, reloadOvertimeState, resetUserCooldowns }) {
+  clearSuperChatUndo, getActiveGiftSource, reloadOvertimeState, resetUserCooldowns,
+  runGiftMaintenance = operation => operation() }) {
   // Schema versions only change during startup migration.
   let schemaVersionsCache = null;
 
@@ -65,12 +66,12 @@ function createDataMaintenanceRuntime({ db, getSettings, ensureSongCategory, ens
     runRetention(options = {}) {
       if (options.dryRun !== true && options.giftEventsOnly !== true) clearSuperChatUndo();
       const policy = options.policy || retention.readRetentionPolicy(getSettings());
-      return retention.applyRetentionPolicies(db, {
+      return runGiftMaintenance(() => retention.applyRetentionPolicies(db, {
         policy,
         dryRun: options.dryRun === true,
         ranAt: options.ranAt,
         giftEventsOnly: options.giftEventsOnly === true,
-      });
+      }));
     },
   };
 }

@@ -7,6 +7,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { safeStorage, session } = require('electron');
 const { toSerializableCookie, toElectronCookieDetails } = require('./cookie-details');
+const { writeAtomicFile } = require('./atomic-file');
 const { BilibiliApiClient } = require('../bilibili/danmaku/api-client');
 
 const BILIBILI_LOGIN_CONFIG = {
@@ -51,21 +52,6 @@ function isAllowedBilibiliCookie(cookie) {
   });
 }
 
-function isAllowedBilibiliLoginUrl(rawUrl) {
-  let parsed;
-  try {
-    parsed = new URL(rawUrl);
-  } catch (_) {
-    return false;
-  }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-  const host = parsed.hostname.toLowerCase();
-  return BILIBILI_LOGIN_CONFIG.allowedHosts.some((allowed) => {
-    const cleanAllowed = allowed.toLowerCase();
-    return host === cleanAllowed || host.endsWith(`.${cleanAllowed}`);
-  });
-}
-
 async function getAllowedBilibiliCookies() {
   const loginSession = session.fromPartition(BILIBILI_LOGIN_CONFIG.partition);
   const cookies = await loginSession.cookies.get({});
@@ -86,7 +72,7 @@ async function persistBilibiliCookieSnapshot(dataDir) {
   const authDir = getBilibiliAuthDir(dataDir);
   fs.mkdirSync(authDir, { recursive: true });
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
-  fs.writeFileSync(getBilibiliCookieSnapshotPath(dataDir), encrypted.toString('base64'), 'utf8');
+  writeAtomicFile(getBilibiliCookieSnapshotPath(dataDir), encrypted.toString('base64'));
 
   removeLegacyCookieExport(dataDir);
 
@@ -248,7 +234,6 @@ async function logoutBilibiliAccount(dataDir) {
 
 module.exports = {
   BILIBILI_LOGIN_CONFIG,
-  isAllowedBilibiliLoginUrl,
   getBilibiliAuthState,
   getBilibiliSessionState,
   getBilibiliAccountProfile,

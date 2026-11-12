@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { DEFAULT_WORDS, getWordCategorySummaries } = require('./draw-guess-words');
 const { createCanvasState, cloneCanvasState, applyCanvasOperation } = require('./draw-guess-canvas');
 
@@ -19,7 +21,7 @@ function createDrawGuessState(options = {}) {
     requestedCategoryIds === null
       ? normalizedWords
       : normalizedWords.filter((entry) => requestedCategoryIds.includes(entry.categoryId));
-  if (!words.length) throw new Error('你画我猜词库不能为空。');
+  if (!words.length) throw createPublicError('你画我猜词库不能为空。');
   const totalRounds = normalizeTotalRounds(options.totalRounds);
   const roundDurationSeconds = normalizeRoundDurationSeconds(options.roundDurationSeconds);
   const roundDurationMs = roundDurationSeconds * 1000;
@@ -230,8 +232,8 @@ function normalizeWords(words) {
 
 function normalizeCategoryIds(value, words) {
   if (value === undefined) return null;
-  if (!Array.isArray(value) || value.length < 1) throw new Error('请至少选择一个词库分类。');
-  if (value.length > 16) throw new Error('词库分类数量过多。');
+  if (!Array.isArray(value) || value.length < 1) throw createPublicError('请至少选择一个词库分类。');
+  if (value.length > 16) throw createPublicError('词库分类数量过多。');
   const categoryIds = [
     ...new Set(
       value.map((item) =>
@@ -241,9 +243,9 @@ function normalizeCategoryIds(value, words) {
       ),
     ),
   ];
-  if (categoryIds.some((id) => !/^[a-z0-9-]{1,32}$/.test(id))) throw new Error('词库分类无效。');
+  if (categoryIds.some((id) => !/^[a-z0-9-]{1,32}$/.test(id))) throw createPublicError('词库分类无效。');
   const available = new Set(words.map((entry) => entry.categoryId).filter(Boolean));
-  if (categoryIds.some((id) => !available.has(id))) throw new Error('词库分类无效。');
+  if (categoryIds.some((id) => !available.has(id))) throw createPublicError('词库分类无效。');
   return categoryIds;
 }
 

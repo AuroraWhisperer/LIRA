@@ -3,9 +3,11 @@ import { isComponentPreview } from './component-preview-client.js';
 export function createGameResult({ onAction, resolveAvatarUrl }) {
   let profileRequest = 0;
   let restartBlocked = false;
+  let actionsPending = false;
 
   function show({ winner, identity = {}, title, avatarLabel, blockRestart = false }) {
     restartBlocked = blockRestart;
+    syncRestartAvailability();
     const result = byId('gameResult');
     const winnerUid = String(identity.uid || '').trim();
     if (!result.hidden && result.dataset.winner === winner && result.dataset.winnerUid === winnerUid) return;
@@ -73,13 +75,19 @@ export function createGameResult({ onAction, resolveAvatarUrl }) {
   }
 
   function setActionsPending(pending, action = '') {
+    actionsPending = pending;
     const exitButton = byId('gameResultExit');
     const nextButton = byId('gameResultNext');
     exitButton.disabled = pending;
-    nextButton.disabled = pending || restartBlocked === true;
-    nextButton.title = restartBlocked ? '请先结束投票或评分' : '';
+    syncRestartAvailability();
     exitButton.textContent = pending && action === 'stop' ? '正在结束…' : '结束游戏';
     nextButton.textContent = pending && action === 'restart' ? '开局中…' : '下一局';
+  }
+
+  function syncRestartAvailability() {
+    const nextButton = byId('gameResultNext');
+    nextButton.disabled = actionsPending || restartBlocked === true;
+    nextButton.title = restartBlocked ? '请先结束投票或评分' : '';
   }
 
   function setActionStatus(message) {

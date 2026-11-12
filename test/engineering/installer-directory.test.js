@@ -8,7 +8,7 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { resolveInstallerTools } = require('../helpers/installer-tools');
 
-const { compiler } = resolveInstallerTools();
+const { compiler, plugins } = resolveInstallerTools();
 
 test(
   'installer defaults respect existing paths, explicit paths and computers without D',
@@ -86,3 +86,78 @@ test(
     }
   },
 );
+
+test('installer accepts only ordinary-user writable targets before touching an old installation', {
+  skip: process.platform !== 'win32' || !compiler || !plugins,
+}, () => {
+  const scratch = path.resolve(__dirname, '../../tmp');
+  fs.mkdirSync(scratch, { recursive: true });
+  const root = fs.mkdtempSync(path.join(scratch, 'lira-install-permissions-'));
+  const source = fs.readFileSync(path.join(__dirname, '../../build/installer-per-user.nsh'), 'utf8');
+  const templates = path.join(path.dirname(require.resolve('app-builder-lib/package.json')), 'templates/nsis');
+  const quote = (value) => value.replaceAll('$', () => '$$');
+  const identity = spawnSync('whoami', ['/user', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true });
+  assert.equal(identity.status, 0, identity.stderr);
+  const sid = identity.stdout.match(/S-1-5-[\d-]+/)?.[0];
+  assert.ok(sid);
+  let denied;
+  try {
+    for (const scenario of ['fresh', 'update', 'mixed-context-update', 'protected-target', 'protected-data', 'all-users', 'elevated']) {
+      const target = path.join(root, scenario, 'LIRA');
+      const executable = path.join(root, scenario + '.exe');
+      const script = path.join(root, scenario + '.nsi');
+      const passed = path.join(root, scenario + '-passed.txt');
+      fs.mkdirSync(target, { recursive: true });
+      fs.writeFileSync(path.join(target, 'old-program.txt'), 'old program');
+      if (scenario !== 'fresh') fs.mkdirSync(path.join(target, 'data'));
+      if (scenario.startsWith('protected-')) {
+        denied = scenario === 'protected-data' ? path.join(target, 'data') : target;
+        const acl = spawnSync('icacls', [denied, '/deny', `*${sid}:(W)`], { encoding: 'utf8', windowsHide: true });
+        assert.equal(acl.status, 0, acl.stdout + acl.stderr);
+      }
+      fs.writeFileSync(script, [
+        'Unicode true', 'Name "LIRA permission fixture"', 'RequestExecutionLevel user',
+        `OutFile "${quote(executable)}"`,
+        `!addplugindir /x86-unicode "${quote(plugins)}"`,
+        `!addincludedir "${quote(path.join(templates, 'include'))}"`,
+        '!include LogicLib.nsh', '!include UAC.nsh', 'Var installMode',
+        'Var hasPerMachineInstallation', 'Var hasPerUserInstallation',
+        ...(scenario === 'elevated' ? ['!undef UAC_IsAdmin', '!define UAC_IsAdmin "1 = 1"'] : []),
+        source,
+        'Function .onInit',
+        `StrCpy $installMode "${scenario === 'all-users' ? 'all' : 'CurrentUser'}"`,
+        `StrCpy $hasPerMachineInstallation "${scenario === 'mixed-context-update' || scenario === 'all-users' ? '1' : '0'}"`,
+        'StrCpy $hasPerUserInstallation "1"',
+        'Call liraRequireUserInstall',
+        'FunctionEnd',
+        'Section',
+        // /S and /D use the same final validation as the production preservation section.
+        'Call liraRequireWritableInstallDirectory',
+        `FileOpen $0 "${quote(passed)}" w`,
+        'FileWrite $0 "$installMode|$hasPerMachineInstallation|$hasPerUserInstallation"', 'FileClose $0',
+        'SectionEnd',
+      ].join('\n'));
+      const build = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], {
+        encoding: 'utf8', windowsHide: true, timeout: 30000,
+      });
+      assert.equal(build.status, 0, build.stdout + build.stderr);
+      const updateArgs = scenario.endsWith('update') ? ['--updated', '--force-run'] : [];
+      const run = spawnSync(executable, [...updateArgs, '/S', `/D=${target}`], { windowsHide: true, timeout: 10000 });
+      const allowed = scenario === 'fresh' || scenario.endsWith('update');
+      assert.equal(run.status, allowed ? 0 : 2, scenario);
+      assert.equal(fs.existsSync(passed), allowed, scenario);
+      if (allowed) assert.equal(fs.readFileSync(passed, 'utf8'), 'CurrentUser|0|1', 'silent updates must not request machine elevation');
+      assert.equal(fs.readFileSync(path.join(target, 'old-program.txt'), 'utf8'), 'old program');
+      if (denied) {
+        const restored = spawnSync('icacls', [denied, '/remove:d', `*${sid}`], { windowsHide: true });
+        assert.equal(restored.status, 0);
+        denied = null;
+      }
+      assert.deepEqual(fs.readdirSync(target).sort(), scenario === 'fresh' ? ['old-program.txt'] : ['data', 'old-program.txt']);
+    }
+  } finally {
+    if (denied) spawnSync('icacls', [denied, '/remove:d', `*${sid}`], { windowsHide: true });
+    assert.equal(path.dirname(fs.realpathSync(root)), fs.realpathSync(scratch));
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});

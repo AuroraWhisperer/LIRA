@@ -9,16 +9,4 @@ function normalizeMentionTarget(input) {
   return { uid, name };
 }
 
-function buildMentionedMessage(message, target) {
-  const text = cleanText(message);
-  if (!text) throw new Error('弹幕内容不能为空。');
-  const mentionTarget = normalizeMentionTarget(target);
-  if (!mentionTarget.name) return { message: text, target: mentionTarget };
-  const prefix = `@${mentionTarget.name}`;
-  return {
-    message: text.startsWith(prefix) ? text : `${prefix} ${text}`,
-    target: mentionTarget,
-  };
-}
-
-module.exports = { normalizeMentionTarget, buildMentionedMessage };
+module.exports = { normalizeMentionTarget };

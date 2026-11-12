@@ -287,7 +287,7 @@ inside the remote client, and the overlay connector stays in its adapter domain;
 neither is a domain-neutral shared utility or a universal sync manager.
 
 These checks strengthen the existing rules without changing their status to
-`Enforced`. Remaining legacy Admin globals, incomplete SQL/dependency detection, empty catches,
+`Enforced`. Legacy Admin globals and known domain SQL exceptions are retired; incomplete semantic SQL/dependency detection, empty catches,
 the shared utility aggregation point, and incomplete public-contract inventory
 remain tracked debt. Passing the current gates does not certify the entire
 repository as free of coupling or asynchronous defects.

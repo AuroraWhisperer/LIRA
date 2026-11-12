@@ -16,6 +16,7 @@ export const ADVANCED_LYRIC_FIELDS = Object.freeze({
   // Retained for saved settings/presets; advanced output only renders the current line.
   advancedLyricShowNextLine: { ...check('显示下一句', false, 'display'), hidden: true },
   advancedLyricHideUnsung: check('隐藏未唱到的字', true, 'display'),
+  advancedLyricWordProgress: { ...check('字内进度', false, 'display'), description: '关闭时唱到即整字填色；开启后按演唱进度在字内连续填色。' },
   advancedLyricShowTranslation: check('显示翻译', false, 'display'),
   advancedLyricHideOnPause: check('暂停时隐藏', false, 'display'),
   advancedLyricFontFamily: { label: '字体', type: 'text', default: 'Lira Maiyuan', maxLength: 256, group: 'font', description: '可选择软件字体库或本机字体。' },

@@ -3,12 +3,9 @@
 'use strict';
 
 import * as PlaybackUtils from '../utils.js';
-import { notifyMediaPlayFailure } from '../../shared/media-playback-feedback.js';
 import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
-import { showError } from '../../shared/utils.js';
 import { initPlayerAppearance } from './appearance.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
-import { preparePlaybackOutput } from '../features/output-device.js';
 
 function renderLyricText(text) {
   // CJK fonts can give curly apostrophes a full-em width inside English words.
@@ -388,7 +385,7 @@ export class FullscreenPlayer {
    * 处理歌词点击事件
    * @param {Event} event - 点击事件
    */
-  handleLyricClick(event) {
+  async handleLyricClick(event) {
     const lineEl = event.target.closest('.player-fs-lyric-line');
     if (!lineEl) return;
 
@@ -400,22 +397,7 @@ export class FullscreenPlayer {
 
     const seekTime = (startMs - this.lyricOffsetMs) / 1000;
     if (seekTime < 0 || (Number.isFinite(audio.duration) && seekTime > audio.duration)) return;
-    audio.currentTime = seekTime;
-    this.setManualBrowsing(false);
-
-    if (audio.paused) {
-      const source = audio.src;
-      preparePlaybackOutput(audio).then(() => {
-        if (audio.src === source && audio.paused) return audio.play();
-      }, showError).catch((error) => {
-        notifyMediaPlayFailure(error, audio);
-      });
-    }
-
-    // 触发进度更新和状态保存（需要通过回调）
-    if (this.onSeek) {
-      this.onSeek();
-    }
+    if (await this.onSeek?.(seekTime)) this.setManualBrowsing(false);
   }
 
   /**

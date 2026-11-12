@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../../shared/public-error');
+
 const { sanitizeAuthState } = require('../auth-state');
 const { decodeXmlEntities } = require('../qrc-xml-entities');
 
@@ -112,7 +114,7 @@ function extractSourceTrackId(track) {
   const sourceTrackId = String((track && (track.sourceTrackId || track.id)) || '')
     .replace(/^qq:/, '')
     .trim();
-  if (!sourceTrackId) throw new Error('缺少 QQ 音乐歌曲 ID。');
+  if (!sourceTrackId) throw createPublicError('缺少 QQ 音乐歌曲 ID。', 501);
   return sourceTrackId;
 }
 
@@ -130,12 +132,14 @@ function decodeQQPlayableLyric(value, encrypted) {
   if (!text) return '';
   if (!encrypted) return decodeQQBase64(text);
   if (text.length > 2 * 1024 * 1024 || text.length % 16 !== 0 || !/^[0-9a-f]+$/i.test(text)) {
-    throw new Error('QQ 音乐返回了无效的加密歌词。');
+    throw createPublicError('QQ 音乐返回了无效的加密歌词。', 501);
   }
   try {
     return extractQrcLyricContent(decryptQrc(text));
   } catch (error) {
-    throw new Error(`QQ 音乐歌词解密失败：${error && error.message ? error.message : String(error)}`);
+    throw Object.assign(new Error(`QQ 音乐歌词解密失败：${error && error.message ? error.message : String(error)}`), {
+      statusCode: 501, publicMessage: 'QQ 音乐歌词解密失败，请稍后重试。',
+    });
   }
 }
 
@@ -199,13 +203,13 @@ function extractQQCoverUrl(song, albumMid) {
 }
 
 function normalizeQQPlaylistWriteTarget(playlist) {
-  if (!playlist || typeof playlist !== 'object') throw new Error('缺少 QQ 音乐歌单信息。');
+  if (!playlist || typeof playlist !== 'object') throw createPublicError('缺少 QQ 音乐歌单信息。', 501);
   const dirId = Number(playlist.dirId);
   const tid = Number(playlist.tid || playlist.id);
   const dirName = String(playlist.title || playlist.dirName || '').trim();
-  if (!Number.isSafeInteger(dirId) || dirId <= 0) throw new Error('QQ 音乐歌单 dirId 无效。');
-  if (!Number.isSafeInteger(tid) || tid <= 0) throw new Error('QQ 音乐歌单 tid 无效。');
-  if (!dirName) throw new Error('QQ 音乐歌单名称不能为空。');
+  if (!Number.isSafeInteger(dirId) || dirId <= 0) throw createPublicError('QQ 音乐歌单 dirId 无效。', 501);
+  if (!Number.isSafeInteger(tid) || tid <= 0) throw createPublicError('QQ 音乐歌单 tid 无效。', 501);
+  if (!dirName) throw createPublicError('QQ 音乐歌单名称不能为空。', 501);
   return { dirId, tid, dirName };
 }
 
@@ -219,7 +223,7 @@ function normalizeQQPlaylistSongInfo(tracks) {
     seen.add(songId);
     songs.push({ songId, songType: 0 });
   }
-  if (songs.length === 0) throw new Error('缺少 QQ 音乐数值 songId，无法修改歌单。');
+  if (songs.length === 0) throw createPublicError('缺少 QQ 音乐数值 songId，无法修改歌单。', 501);
   return songs;
 }
 
@@ -241,7 +245,9 @@ function readQQModuleData(data, callKey, action) {
   const inner = data && data[callKey];
   if (Number(data && data.code) !== 0 || Number(inner && inner.code) !== 0) {
     const code = inner && inner.code != null ? inner.code : data && data.code;
-    throw new Error(`QQ 音乐${action}失败（code=${code == null ? 'unknown' : code}）。`);
+    throw Object.assign(new Error(`QQ 音乐${action}失败（code=${code == null ? 'unknown' : code}）。`), {
+      statusCode: 501, publicMessage: `QQ 音乐${action}失败，请稍后重试。`,
+    });
   }
   return inner && inner.data && typeof inner.data === 'object' ? inner.data : {};
 }

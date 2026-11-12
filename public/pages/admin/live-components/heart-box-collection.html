@@ -3,7 +3,7 @@
     <header class="component-toolbar heart-box-toolbar">
       <div class="heart-box-period">
         <strong id="heartBoxCollectionPeriod">本期收集</strong>
-        <span class="hint">北京时间 · 每周六 00:00 至周四 24:00</span>
+        <lira-help label="收集规则">北京时间每周六 00:00 至周四 24:00 收集，周五保留结果，下周六开始新一期。本期已记录的心动盲盒自动计入，开出城堡不清零；超过 120 个仍显示实际累计。</lira-help>
       </div>
       <div class="heart-box-actions">
         <button id="heartBoxCollectionRefresh" type="button" class="secondary">刷新进度</button>
@@ -20,8 +20,19 @@
         <p id="heartBoxCollectionError" class="heart-box-error" role="alert" hidden></p>
       </section>
       <aside class="heart-box-controls" aria-label="显示与使用设置">
+        <form id="heartBoxCollectionProgressForm" class="heart-box-settings-group">
+          <h3 class="ui-section-title">
+            <span id="heartBoxCollectionCountLabel">本期累计</span>
+            <lira-help label="手动校准进度说明">之前漏记了盲盒时，填入本期实际已收集的总数，再点「校准进度」。之后记录到的数量会继续累加；校准仅对当前主播、本期有效，不改变礼物流水或盈亏。</lira-help>
+          </h3>
+          <div class="heart-box-progress-edit">
+            <input id="heartBoxCollectionCount" type="number" aria-labelledby="heartBoxCollectionCountLabel" min="0" max="999999999" step="1" inputmode="numeric" required disabled />
+            <button id="heartBoxCollectionAdjust" type="submit" class="secondary" disabled>校准进度</button>
+          </div>
+          <p id="heartBoxCollectionAdjustError" class="heart-box-error" role="alert" hidden></p>
+        </form>
         <section class="heart-box-settings-group">
-          <h3 class="ui-section-title">显示设置</h3>
+          <h3 class="ui-section-title">显示设置 <lira-help>自动保存，并与画布及浏览器源同步。</lira-help></h3>
           <div class="heart-box-background-select">
             <label for="heartBoxCollectionBackgroundStyle">背景样式</label>
             <select id="heartBoxCollectionBackgroundStyle" disabled></select>
@@ -31,20 +42,12 @@
             <span class="switch-track" aria-hidden="true"></span>
             <span>显示倍率和限开数量</span>
           </label>
-          <p id="heartBoxCollectionSaveState" class="hint" role="status">显示设置与画布同步。</p>
+          <p id="heartBoxCollectionSaveState" class="hint" role="status" hidden></p>
           <button id="heartBoxCollectionSaveRetry" type="button" class="secondary" hidden>重试保存</button>
         </section>
         <section class="heart-box-settings-group heart-box-source-row">
           <h3 class="ui-section-title">浏览器源地址</h3>
           <button id="heartBoxCollectionUrl" type="button" class="copy-url" aria-label="复制心动盲盒收集任务浏览器源地址" title="点击复制地址"></button>
-        </section>
-        <section class="heart-box-settings-group heart-box-rules-section">
-          <h3 class="ui-section-title">收集规则</h3>
-          <ul class="hint heart-box-rules">
-            <li>开启前，本期收集期间已收到的心动盲盒会自动计入。</li>
-            <li>开出浪漫城堡不会清零。</li>
-            <li>周五保留本期解锁结果，周六 00:00 自动开始新一期。</li>
-          </ul>
         </section>
       </aside>
     </div>

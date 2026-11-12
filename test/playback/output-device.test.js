@@ -127,6 +127,47 @@ test('native output choices reach their backend, persist after success and never
   assert.deepEqual(calls.at(-1), ['dispose']);
 });
 
+for (const interruption of ['a newer synchronized preference', 'disposal']) {
+  test(`ASIO channel enumeration cannot save after ${interruption}`, async (t) => {
+    const enumerating = Promise.withResolvers();
+    const finishEnumeration = Promise.withResolvers();
+    let opened = false;
+    let refreshPending = true;
+    let actualDevice = '';
+    const native = {
+      async enumerate() {
+        if (opened && refreshPending) {
+          refreshPending = false;
+          enumerating.resolve();
+          await finishEnumeration.promise;
+        }
+        return [{ deviceId: 'asio:studio', name: 'Studio', backend: 'asio' }];
+      },
+      async select(id) { actualDevice = id; opened = true; },
+      async browser(id) { actualDevice = id; },
+      async prepare() {},
+      dispose() {},
+    };
+    const f = await fixture(null, native);
+    t.after(() => f.output.dispose());
+    await f.output.prepare();
+    const selection = f.output.select('asio:studio');
+    await enumerating.promise;
+    if (interruption === 'disposal') f.output.dispose();
+    else f.storageEvent({ deviceId: 'b', name: 'Channel b' });
+    finishEnumeration.resolve();
+
+    assert.equal(await selection, false);
+    if (interruption !== 'disposal') {
+      await f.output.prepare();
+      assert.equal(actualDevice, 'b');
+      assert.equal(f.state.deviceId, 'b');
+      assert.equal(f.savedPreference().deviceId, 'b');
+    }
+    assert.equal(f.writes.length, 0);
+  });
+}
+
 test('output selection applies to the media element before saving and restores the saved device', async () => {
   const f = await fixture({ deviceId: 'a', name: 'Channel a' });
   await f.output.prepare();

@@ -6,6 +6,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { createFixture } = require('../helpers/gift-query-fixture');
 const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
+const { createHeartBoxCollectionStore } = require('../../src/storage/heart-box-collection-store');
+const { migrateHeartBoxCollectionAdjustments } = require('../../src/storage/heart-box-collection-migration');
 const { createHeartBoxCollectionService } = require('../../src/bilibili/gift/heart-box-collection');
 
 function setup(t, date = '2026-11-05T15:00:00.000Z') {
@@ -17,8 +19,9 @@ function setup(t, date = '2026-11-05T15:00:00.000Z') {
   const other = fixture.resolveSource('b'.repeat(64)).id;
   fixture.setActiveSource(source, { partial: false });
   let time = Date.parse(date);
-  const service = createHeartBoxCollectionService({
+  const createService = () => createHeartBoxCollectionService({
     store: createGiftWishStore(fixture.giftDb),
+    adjustments: createHeartBoxCollectionStore(fixture.giftDb),
     gifts: {
       getActiveSource: fixture.context.getActiveGiftSource,
       getViewRevision: () => `source-${fixture.context.getActiveGiftSource()?.sourceId}`,
@@ -33,8 +36,66 @@ function setup(t, date = '2026-11-05T15:00:00.000Z') {
     });
     fixture.giftDb.prepare('UPDATE gift_events SET blind_box_id=? WHERE id=?').run(boxId, row.lastInsertRowid);
   }
-  return { fixture, source, other, service, box, at: (value) => { time = Date.parse(value); } };
+  return { fixture, source, other, service: createService(), createService, box, at: (value) => { time = Date.parse(value); } };
 }
+
+function adjustment(service, count) {
+  const current = service.getSnapshot();
+  return { count, expectedCount: current.count, startsAt: current.startsAt, viewRevision: current.viewRevision };
+}
+
+test('manual calibration persists without changing gifts and subsequent quantities build on it', (t) => {
+  const { service, createService, box, fixture } = setup(t);
+  box('2026-11-03T12:00:00.000Z', 5);
+  assert.equal(service.adjust(adjustment(service, 12)).count, 12);
+  migrateHeartBoxCollectionAdjustments(fixture.giftDb);
+  assert.equal(createService().getSnapshot().count, 12);
+  box('2026-11-03T12:01:00.000Z', 3);
+  assert.equal(service.getSnapshot().count, 15);
+  assert.equal(service.adjust(adjustment(service, 0)).count, 0);
+  box('2026-11-03T12:02:00.000Z', 2);
+  assert.equal(service.getSnapshot().count, 2);
+  assert.equal(fixture.giftDb.prepare('SELECT SUM(num) AS count FROM gift_events').get().count, 10);
+});
+
+test('calibration belongs to the authorized source and period, including Friday retention', (t) => {
+  const { service, fixture, source, other, at } = setup(t);
+  service.adjust(adjustment(service, 140));
+  fixture.setActiveSource(other);
+  assert.equal(service.getSnapshot().count, 0);
+  service.adjust(adjustment(service, 9));
+  fixture.setActiveSource(source);
+  at('2026-11-05T16:00:00.000Z');
+  const ended = service.getSnapshot();
+  assert.equal(ended.count, 140);
+  assert.equal(ended.completed, true);
+  at('2026-11-06T16:00:00.000Z');
+  assert.equal(service.getSnapshot().count, 0);
+  service.adjust(adjustment(service, 4));
+  assert.equal(service.getSnapshot().count, 4);
+});
+
+test('invalid and stale calibrations cannot overwrite incoming gifts, another source or a new period', (t) => {
+  const { service, fixture, source, other, box, at } = setup(t);
+  for (const value of [-1, 1.5, '12', 1000000000]) {
+    assert.throws(() => service.adjust(adjustment(service, value)), { code: 'INVALID_HEART_BOX_PROGRESS' });
+  }
+  const beforeGift = adjustment(service, 12);
+  box('2026-11-03T12:00:00.000Z', 3);
+  assert.throws(() => service.adjust(beforeGift), { code: 'GIFT_VIEW_STALE' });
+  const beforeEdit = adjustment(service, 12);
+  service.adjust(adjustment(service, 9));
+  assert.throws(() => service.adjust(beforeEdit), { code: 'GIFT_VIEW_STALE' });
+  const beforeSwitch = adjustment(service, 15);
+  fixture.setActiveSource(other);
+  service.adjust(adjustment(service, 9));
+  assert.throws(() => service.adjust(beforeSwitch), { code: 'GIFT_VIEW_STALE' });
+  fixture.setActiveSource(source);
+  at('2026-11-06T16:00:00.000Z');
+  box('2026-11-06T16:00:00.000Z', 9);
+  assert.throws(() => service.adjust(beforeSwitch), { code: 'GIFT_VIEW_STALE' });
+  assert.equal(service.getSnapshot().count, 9);
+});
 
 test('collection includes earlier current-week openings, castles and quantities, using only its active source', (t) => {
   const { service, box, other } = setup(t);

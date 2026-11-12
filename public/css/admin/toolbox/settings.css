@@ -1,3 +1,5 @@
+@import url('../../shared/lira-wordmark.css');
+
 .client-settings {
   display: flex;
   flex: 1 1 auto;

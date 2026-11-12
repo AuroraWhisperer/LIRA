@@ -190,6 +190,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     desktopLyricShadowIntensity: '0.35',
     desktopLyricShadowBlur: '8',
     desktopLyricTranslationScale: '0.65',
+    desktopLyricShowRoma: 'false',
     desktopLyricTextAlign: 'justify',
     desktopLyricEnabled: 'false',
     advancedLyricEnabled: 'true',
@@ -327,6 +328,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
     weSingLyricSource: 'netease',
     weSingSmartLyricMatch: 'true',
   });
+  assert.equal(elements.get('desktopLyricShowRoma').checked, false, 'The saved romanization choice is restored.');
   const fontSizeNumber = elements.get('desktopLyricFontSizeNumber');
   fontSizeNumber.value = '6';
   numberListeners.get('input')();
@@ -357,6 +359,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
 
   elements.get('desktopLyricFontSize').value = '64';
   elements.get('desktopLyricSungColorInherited').checked = true;
+  elements.get('desktopLyricShowRoma').checked = true;
   elements.get('desktopLyricTextColor').value = '#abcdef80';
   listeners.get('change')();
   assert.equal(apiCalls.length, 1, 'a second write waits for the in-flight request');
@@ -367,6 +370,7 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
   assert.equal(apiCalls[0].url, '/api/settings');
   assert.equal(apiCalls[1].body.desktopLyricFontSize, '64');
   assert.equal(apiCalls[1].body.desktopLyricSungColor, '');
+  assert.equal(apiCalls[1].body.desktopLyricShowRoma, 'true');
   assert.equal(apiCalls[1].body.desktopLyricTextColor, '#abcdef80');
   assert.equal(apiCalls[1].body.weSingLyricSource, 'qq');
   assert.equal(apiCalls[1].body.weSingSmartLyricMatch, 'false');

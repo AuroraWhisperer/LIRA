@@ -149,6 +149,9 @@ test('canvas lyric settings save and existing lyric dimensions survive adding an
   const translationScale = page.locator('[data-component-parameter="desktopLyricTranslationScale"]');
   await translationScale.fill('0.75'); await translationScale.press('Tab');
   await page.locator('[data-component-parameter="desktopLyricShowTranslation"]').uncheck();
+  assert.equal(await translationScale.isVisible(), true, 'Romanization still uses the shared size control.');
+  await page.locator('[data-component-parameter="desktopLyricShowRoma"]').uncheck();
+  assert.equal(await translationScale.isVisible(), false);
 
   await size.fill('480'); await size.press('Tab');
   await addLyrics();
@@ -159,6 +162,9 @@ test('canvas lyric settings save and existing lyric dimensions survive adding an
   assert.equal(fixture.runtime.settings.desktopLyricFontSize, '64');
   assert.equal(fixture.runtime.settings.desktopLyricFontFamily, '"Lira Kuaile"');
   assert.equal(fixture.runtime.settings.desktopLyricShowTranslation, 'false');
+  assert.equal(fixture.runtime.settings.desktopLyricShowRoma, 'false');
+  assert.equal(await page.locator('[data-component-parameter="desktopLyricShowRoma"]').isChecked(), false,
+    'A new lyric component restores the saved romanization choice.');
   assert.equal(fixture.runtime.settings.desktopLyricTranslationScale, '0.75', 'Hiding translation controls keeps their saved values.');
   assert.equal(fixture.runtime.settings.desktopLyricVisibleLines, '5', 'Switching back from a preset restores the custom line count.');
   assert.equal(await linePreset.inputValue(), 'custom', 'A newly selected lyric reads the saved custom mode.');

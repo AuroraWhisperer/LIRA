@@ -31,19 +31,6 @@ test('session token cleanup never removes a token file owned by another instance
   }
 });
 
-test('listenWithFallback asks the OS for a free port when startPort is zero', async () => {
-  const server = http.createServer((_req, res) => res.end('ok'));
-  try {
-    const port = await lifecycle.listenWithFallback(server, {
-      startPort: 0,
-      host: '127.0.0.1',
-    });
-    assert.equal(server.address().port, port);
-  } finally {
-    await new Promise((resolve) => server.close(resolve));
-  }
-});
-
 test('listenExactly reports the OS-assigned port when port is zero', async () => {
   const server = http.createServer((_req, res) => res.end('ok'));
   try {

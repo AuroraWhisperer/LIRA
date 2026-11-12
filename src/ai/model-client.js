@@ -177,14 +177,13 @@ function createModelClient(options = {}) {
       fetchImpl,
       signal: request.signal,
     });
-    const models = Array.from(
-      new Set(
-        (Array.isArray(payload?.data) ? payload.data : [])
-          .map((item) => item?.id)
-          .filter((id) => typeof id === 'string' && id.length >= 1 && id.length <= 80),
-      ),
-    ).sort((left, right) => left.localeCompare(right));
-    return { models };
+    const catalog = (Array.isArray(payload?.data) ? payload.data : [])
+      .filter(item => typeof item?.id === 'string' && item.id.length >= 1 && item.id.length <= 80);
+    const models = [...new Set(catalog.map(item => item.id))].sort((left, right) => left.localeCompare(right));
+    const modelNames = Object.fromEntries(catalog
+      .map(item => [item.id, item.display_name || item.name])
+      .filter(([, name]) => typeof name === 'string' && name.trim()));
+    return { models, ...(Object.keys(modelNames).length ? { modelNames } : {}) };
   }
 
   async function testConnection(config = {}, options = {}) {

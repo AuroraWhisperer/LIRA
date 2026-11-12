@@ -373,7 +373,8 @@
   opacity: 0.55;
 }
 
-.desktop-lyric-preview-card.is-translation-hidden .desktop-lyric-preview-row-translation {
+.desktop-lyric-preview-card.is-translation-hidden .desktop-lyric-preview-row-translation,
+.desktop-lyric-preview-card.is-roma-hidden .desktop-lyric-preview-row-roma {
   display: none;
 }
 

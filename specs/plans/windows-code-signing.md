@@ -1,6 +1,6 @@
 # Windows Signing Integration Plan
 
-**Status:** Blocked — 等待发布者、证书来源和执行策略确认。2026-09-28 从旧技术文档收敛未完成范围；本次整理不启动签名、安装或发布。
+**Status:** Deferred — 2026-11-11 用户确认暂无代码签名证书，保留为发布前待办。接入仍需发布者、证书来源和执行策略；本轮不启动签名、安装或发布。2026-09-28 从旧技术文档收敛未完成范围。
 
 ## Goal and current behavior
 

@@ -3,6 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { routes } = require('../../src/server/routes/music-routes');
+const { createPublicError } = require('../../src/shared/public-error');
 
 const TRACK = { id: 'qq:mid', source: 'qq', sourceTrackId: 'mid', title: 'Synthetic Song' };
 
@@ -75,7 +76,7 @@ test('stream resolution forwards only an explicit refresh and the selected quali
   }
 });
 
-test('stream failures map invalid parameters to 400 and provider failures to 501', async () => {
+test('stream failures map invalid parameters to 400 and known provider failures to 501', async () => {
   const invalid = await resolveStream({
     resolvePlayableUrl: () => {
       throw Object.assign(new Error('internal validation detail'), { statusCode: 400 });
@@ -85,7 +86,7 @@ test('stream failures map invalid parameters to 400 and provider failures to 501
   assert.equal(invalid.payload.ok, false);
   assert.doesNotMatch(invalid.payload.error, /internal validation detail/);
 
-  const providerError = new Error('synthetic playback entitlement failure');
+  const providerError = createPublicError('synthetic playback entitlement failure', 501);
   const unavailable = await resolveStream({
     resolvePlayableUrl: () => {
       throw providerError;

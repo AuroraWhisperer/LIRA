@@ -64,8 +64,94 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
     },
     { html, state, overlayHtml: readAdminFragmentHtml('pages/admin/live-components/danmaku.html') },
   );
+  await page.locator('[data-danmaku-tab="send"]').click();
   return page;
 }
+
+async function deferSenderStateReads(page) {
+  await page.evaluate(() => {
+    const read = window.fetch;
+    window.pendingStates = [];
+    window.fetch = (url, options) => {
+      if (url !== '/api/bilibili/danmaku/state') return read(url, options);
+      const state = structuredClone(window.danmakuState);
+      return new Promise((resolve, reject) => window.pendingStates.push({
+        resolve: () => resolve({ ok: true, json: async () => ({ ok: true, data: state }) }),
+        reject: () => reject(new Error('Earlier state read failed')),
+      }));
+    };
+  });
+}
+
+test('sender state keeps the newer logout when an older account response arrives', async t => {
+  const page = await createDanmakuPage(t);
+  await deferSenderStateReads(page);
+  await page.evaluate(() => {
+    window.earlierStateRead = window.danmakuTool.refresh();
+    Object.assign(window.danmakuState, { loggedIn: false, canSend: false, roomId: '' });
+    document.dispatchEvent(new CustomEvent('app:bilibili-auth-changed'));
+    window.pendingStates[1].resolve();
+  });
+  await page.waitForFunction(() => !document.getElementById('danmakuRefreshBtn').disabled);
+  await page.evaluate(async () => {
+    window.pendingStates[0].resolve();
+    await window.earlierStateRead;
+  });
+  assert.equal(await page.locator('#danmakuAccountState').textContent(), '未登录');
+  assert.equal(await page.locator('#danmakuSendBtn').isEnabled(), false);
+});
+
+for (const finishEarlier of ['while-pending', 'after-new-result']) {
+  test(`sender state ignores an obsolete failure ${finishEarlier}`, async t => {
+    const page = await createDanmakuPage(t);
+    await deferSenderStateReads(page);
+    await page.evaluate(() => {
+      window.earlierStateRead = window.danmakuTool.refresh();
+      Object.assign(window.danmakuState, { loggedIn: false, canSend: false });
+      window.latestStateRead = window.danmakuTool.refresh();
+    });
+    if (finishEarlier === 'after-new-result') await page.evaluate(async () => {
+      window.pendingStates[1].resolve();
+      await window.latestStateRead;
+    });
+    await page.evaluate(async () => {
+      window.pendingStates[0].reject();
+      await window.earlierStateRead;
+    });
+    if (finishEarlier === 'while-pending') {
+      assert.equal(await page.locator('#danmakuRefreshBtn').isEnabled(), false);
+      await page.evaluate(async () => {
+        window.pendingStates[1].resolve();
+        await window.latestStateRead;
+      });
+    }
+    assert.equal(await page.locator('#danmakuAccountState').textContent(), '未登录');
+    assert.equal(await page.locator('#danmakuSendBtn').isEnabled(), false);
+    assert.equal(await page.locator('#danmakuRefreshBtn').isEnabled(), true);
+  });
+}
+
+test('sender state ignores a delayed post-reconnect response after logout', async t => {
+  const page = await createDanmakuPage(t, { connected: false });
+  await deferSenderStateReads(page);
+  await page.evaluate(() => {
+    window.earlierStateRead = window.danmakuTool.refresh({ reconnectIfDisconnected: true });
+    window.pendingStates[0].resolve();
+  });
+  await page.waitForFunction(() => window.pendingStates.length === 2);
+  await page.evaluate(() => {
+    Object.assign(window.danmakuState, { loggedIn: false, canSend: false, roomId: '' });
+    window.latestStateRead = window.danmakuTool.refresh();
+    window.pendingStates[2].resolve();
+  });
+  await page.evaluate(async () => {
+    await window.latestStateRead;
+    window.pendingStates[1].resolve();
+    await window.earlierStateRead;
+  });
+  assert.equal(await page.locator('#danmakuAccountState').textContent(), '未登录');
+  assert.equal(await page.locator('#danmakuSendBtn').isEnabled(), false);
+});
 
 test('sending a danmaku clears only the submitted draft and preserves edits made while sending', async (t) => {
   const page = await createDanmakuPage(t);

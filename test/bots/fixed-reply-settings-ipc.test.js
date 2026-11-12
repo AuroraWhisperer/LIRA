@@ -14,11 +14,30 @@ const values = {
   scheduledDanmaku: { mode: 'fixed', intervalSeconds: 300, minSeconds: 300, maxSeconds: 600, selection: 'sequential', messages: [] },
 };
 
+test('interaction thanks patches are independent and absent old-server fields stay absent', () => {
+  assert.deepEqual(fixedReplyParameters({ likeThanksEnabled: true, shareThanksMessages: [' 分享 {username} '] }),
+    { likeThanksEnabled: true, shareThanksMessages: ['分享 {username}'] });
+  assert.equal(Object.hasOwn(sanitizeFixedReplySettings({ ok: true, ...values }), 'likeThanksEnabled'), false);
+  const interaction = Object.fromEntries(['like', 'share', 'follow'].flatMap(kind =>
+    [[`${kind}ThanksEnabled`, false], [`${kind}ThanksMessages`, [`${kind} {username}`]]]));
+  assert.deepEqual(sanitizeFixedReplySettings({ ok: true, ...values, ...interaction }).shareThanksMessages,
+    ['share {username}']);
+  assert.throws(() => sanitizeFixedReplySettings({ ok: true, ...values, likeThanksEnabled: true }), { code: 'INVALID_RESPONSE' });
+  for (const patch of [{ likeThanksEnabled: 'true' }, { shareThanksMessages: [''] },
+    { followThanksMessages: ['a\nb'] }, { likeThanksMessages: ['😀'.repeat(121)] },
+    { shareThanksMessages: Array(31).fill('谢谢') }]) {
+    assert.throws(() => fixedReplyParameters(patch), { code: 'INVALID_FIXED_REPLY_SETTINGS' });
+  }
+});
+
 test('fixed reply contract validates only the requested fields and strips unsolicited response fields', () => {
   assert.deepEqual(fixedReplyParameters({ customExactReplies: [{ trigger: ' 月卡 ', reply: ' 月卡说明 ' }] }), {
     customExactReplies: [{ trigger: '月卡', reply: '月卡说明' }],
   });
   assert.equal(fixedReplyParameters({ customExactReplies: [{ trigger: '🚀'.repeat(30), reply: '🚀'.repeat(120) }] }).customExactReplies.length, 1);
+  const scheduledDanmaku = { ...values.scheduledDanmaku, messages: Array(300).fill('新增定时文案') };
+  assert.equal(fixedReplyParameters({ scheduledDanmaku }).scheduledDanmaku.messages.length, 300);
+  assert.equal(sanitizeFixedReplySettings({ ok: true, ...values, scheduledDanmaku }).scheduledDanmaku.messages.length, 300);
   for (const input of [
     null, {}, [], { streamerId: 1 }, { customExactReplyEnabled: 'true' }, { scheduledDanmakuEnabled: 1 },
     { customExactReplies: [{ trigger: '菜单', reply: '替代内置菜单' }] },
@@ -29,7 +48,7 @@ test('fixed reply contract validates only the requested fields and strips unsoli
     { customExactReplies: [{ trigger: 'a', reply: 'line\nbreak' }] },
     { customExactReplies: Array.from({ length: 31 }, (_, index) => ({ trigger: String(index), reply: 'a' })) },
     ...[{ intervalSeconds: 9 }, { maxSeconds: 86401 }, { minSeconds: 601 }, { mode: 'once' },
-      { selection: 'shuffle' }, { messages: [''] }, { messages: Array(101).fill('a') }].map((patch) => ({
+      { selection: 'shuffle' }, { messages: [''] }, { messages: Array(301).fill('a') }].map((patch) => ({
       scheduledDanmaku: { ...values.scheduledDanmaku, ...patch },
     })),
   ]) assert.throws(() => fixedReplyParameters(input), { code: 'INVALID_FIXED_REPLY_SETTINGS' });
@@ -70,8 +89,7 @@ test('fixed reply IPC accepts only the main frame and updates the local projecti
       getFixedReplySettings: () => read(),
       updateFixedReplySettings: async (patch) => { writes.push(patch); return read(); },
     },
-    getMainWindow: () => ({ webContents }), getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
-    hasExactOrigin: (url, origin) => new URL(url).origin === origin,
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }), getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
     onFixedReplySettings: (settings, revision) => projections.push({ settings, revision }),
   });
   const get = handlers.get('license:get-fixed-reply-settings'), put = handlers.get('license:update-fixed-reply-settings');

@@ -8,14 +8,21 @@ otherwise. Thanks includes paid and confirmed free gifts, excluding SC; query
 uses the paid ledger. Login never enables either feature. Electron exit does
 not stop the cloud process.
 
-The fixed-reply overview also exposes these same switches: query replies and gift
-thanks occupy the two columns of its final row. Gift thanks opens the shared editor
-with the current gift/free-gift and guard wording. Users edit plain text around
-atomic Chinese blocks for the viewer name, gift names/quantities and amount/cost
-summary. Each block remains once per template; insert buttons recover deleted
-blocks, and native undo, safe text paste and sample previews aid editing. Restoring
-defaults changes only the draft. Explicit save persists the templates without
-enabling thanks. Failed saves retain drafts; account changes clear them.
+The danmaku workspace exposes the same query and gift-thanks switches. Gift thanks
+opens the shared editor with four independent scenes: gift/free/blind-box gifts,
+captain, admiral and governor. Each scene has an enable switch and 1–20 candidates;
+each scene selects plain text or native mention for all its candidates. One candidate
+is randomly selected once per settled group. Fleet purchases use the purchased
+tier, never the giver's current fleet identity, and do not also select a gift reply.
+
+Users edit text around atomic Chinese blocks for the viewer name, gift names and
+quantities, and amount/cost summary. Each block is optional and may occur once.
+Plain replies resolve a saved viewer nickname first, falling back to the current
+Bilibili name; native mentions target the trusted UID and budget the original name.
+Insert buttons, native undo, safe text paste, opt-in examples and sample previews
+aid editing. Restoring defaults changes only the draft. Explicit save persists
+the library without enabling thanks. Failed saves retain drafts; account changes
+clear them.
 
 ## Architecture and compatibility
 
@@ -27,10 +34,19 @@ settings uploads. There is no fourth sync scope or new HTTP endpoint. Whole
 settings writes retain the server's last-successful-write semantics; no version
 conflict merge is promised.
 
-Template saves use the same account queue and optional cloud `giftThanksTemplates`
-setting. Defaults preserve the existing wording and semantic segmentation; free
-gifts omit amounts, while blind-box differences and unknown-cost qualifiers remain
-computed by the server. Queued text is frozen when its settled group is prepared.
+Library saves use the same account queue and optional cloud `giftThanksReplies`
+setting. Each scene contains `{enabled, mode:'plain'|'mention', messages:[{text}]}`.
+Text is single-line, nonempty and at most 120 Unicode code points after trimming;
+unknown/repeated parameters, controls and extra fields are rejected. Optional
+parameters intentionally omit their corresponding content; when present, gift
+amounts and blind-box differences/unknown costs remain server-computed. Queued text
+and sending mode are frozen when the settled group is prepared.
+
+The legacy `giftThanksTemplates:{gift,guard}` contract retains its three required
+parameters. Unsaved libraries derive their first plain candidate from those
+templates. Old clients can edit that first candidate without erasing the rest or changing the scene mode;
+omitted settings are preserved. New clients retain the legacy editor for servers
+without `giftThanksReplies`. No new persistence table or HTTP endpoint is added.
 
 The server remains authoritative for cloud Bilibili login validity and account,
 room and authorization races. Confirmed cloud preferences live only in main
@@ -40,10 +56,11 @@ or room resets both flags server-side; a same-UID refresh may preserve them.
 
 ## Security and IPC
 
-The renderer sends the flag name and exact boolean, or two validated text templates.
+The renderer sends the flag name and exact boolean, validated scene libraries or
+the two legacy templates.
 Main checks the current
 main window, exact main frame and desktop origin. The response and event contain
-two booleans, the template snapshot, `confirmed`/`pending`/`unconfirmed`, an error code and `ok`.
+two booleans, the template/library snapshot, `confirmed`/`pending`/`unconfirmed`, an error code and `ok`.
 No Cookie, CSRF, token, account identity or upstream response body is exposed.
 The canonical IPC registry is [preload](../docs/reference/desktop/preload.md).
 

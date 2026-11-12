@@ -46,7 +46,11 @@ const locations = new Map();
 const populations = new Map();
 let missingZones = 0;
 // Correct erroneous fallback zones in this Natural Earth snapshot using IANA zone1970.tab.
-const correctedZones = new Map([[1159151359, 'Europe/Prague'], [1159149085, 'Asia/Macau']]);
+const correctedZones = new Map([
+  [1159151359, 'Europe/Prague'],
+  [1159149085, 'Asia/Macau'],
+  [1159151737, 'Pacific/Chatham'],
+]);
 
 // Choose a stable ID for source duplicates before sorting the results by population.
 places.sort((a, b) => Number(existingIds.has(b.NE_ID)) - Number(existingIds.has(a.NE_ID)) || a.NE_ID - b.NE_ID);

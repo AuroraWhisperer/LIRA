@@ -15,7 +15,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
   const accounts = new Map();
   const cancelledLogin = () => ({ cancelled: true, snapshot: null, state: { loggedIn: false } });
 
-  function runAccountOperation(key, operation, isLogin = false, isCurrent = null) {
+  function runAccountOperation(key, operation, isLogin = false, isCurrent = null, externalSignal = null) {
     if (disposed) return Promise.reject(new Error('AUTH_OPERATION_CANCELLED'));
     if (!accounts.has(key)) accounts.set(key, { generation: 0, localOperations: 0, tail: Promise.resolve(), login: null });
     const account = accounts.get(key);
@@ -30,6 +30,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
       // A closed window may still be encrypting a captured Cookie snapshot.
       await account.login?.completion.catch(() => {});
       account.login = null;
+      if (externalSignal?.aborted) return isLogin ? { completion: Promise.resolve(cancelledLogin()) } : null;
       if (isCurrent) {
         if (disposed || generation !== account.generation || !isCurrent()) return null;
         account.generation += 1;
@@ -37,10 +38,11 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
       if (isLogin) {
         if (disposed || generation !== account.generation) return { completion: Promise.resolve(cancelledLogin()) };
         const abortController = new AbortController();
-        const completion = operation(abortController.signal).then(
-          (result) => (generation === account.generation && !disposed ? result : cancelledLogin()),
+        const signal = externalSignal ? AbortSignal.any([abortController.signal, externalSignal]) : abortController.signal;
+        const completion = operation(signal).then(
+          (result) => (generation === account.generation && !disposed && !signal.aborted ? result : cancelledLogin()),
           (error) => {
-            if (generation !== account.generation || disposed) return cancelledLogin();
+            if (generation !== account.generation || disposed || signal.aborted) return cancelledLogin();
             throw error;
           },
         );
@@ -191,7 +193,7 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
     }
   }
 
-  async function loginBilibiliAccount() {
+  async function loginBilibiliAccount({ signal: ownerSignal } = {}) {
     writeLog('window', { event: 'create', window: 'bilibili-login' });
     try {
       return await runAccountOperation(
@@ -218,22 +220,26 @@ function createDesktopAuthController({ BrowserWindow, shell, getMainWindow, getD
             writeLog,
             signal,
           });
+          if (ownerSignal?.aborted) {
+            // The shared live-account partition cannot retain a cancelled owner's partial login.
+            observeBilibiliIdentity(await bilibiliAuth.logoutBilibiliAccount(getDataDir()));
+          }
           if (!signal.aborted) observeBilibiliIdentity(result.state);
           return result;
         },
-        true,
+        true, null, ownerSignal,
       );
     } finally {
       writeLog('window', { event: 'closed', window: 'bilibili-login' });
     }
   }
 
-  async function logoutBilibiliAccount({ isCurrent } = {}) {
+  async function logoutBilibiliAccount({ isCurrent, signal } = {}) {
     logBilibiliDiagnostic('logout-start');
     try {
       const state = await runAccountOperation('bilibili', async () =>
         observeBilibiliIdentity(await bilibiliAuth.logoutBilibiliAccount(getDataDir())),
-        false, isCurrent,
+        false, isCurrent, signal,
       );
       if (state === null) return null;
       logBilibiliDiagnostic('logout-complete', summarizeAuthState(state));

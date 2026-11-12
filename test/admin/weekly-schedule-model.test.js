@@ -24,10 +24,16 @@ test('week dates begin on Monday and preserve real dates across month and leap-y
 test('copying a template retains images and creates independently editable days, modules and transforms', () => {
   const original = model.createWeeklyScheduleTemplate({ id: 'original', name: '原模板', monday: '2026-11-09' });
   original.assets.portrait = PNG;
+  original.layout = 'gallery';
+  original.palette = 'lilac';
+  original.decorations.pattern = 'wash';
   original.days[1].time1 = '8:00–12:00';
   original.modules.rank.names[0] = '小月亮';
   const copy = model.cloneWeeklyScheduleTemplate(original, { id: 'copy', name: '第二位主播' });
   assert.equal(copy.id, 'copy');
+  assert.equal(copy.layout, 'gallery');
+  assert.equal(copy.palette, 'lilac');
+  assert.equal(copy.decorations.pattern, 'wash');
   assert.equal(copy.assets.portrait, PNG);
   assert.equal(copy.days[1].time1, '8:00–12:00');
   copy.days[1].time1 = '22:00';
@@ -82,23 +88,37 @@ test('restored input preserves valid edits while constraining unsafe URLs, fonts
 test('legacy templates retain their appearance and expanded controls survive independent copies', () => {
   const legacy = model.normalizeWeeklyScheduleTemplate({ id: 'legacy', portrait: { scale: 200, x: 10, y: -20 } });
   assert.equal(legacy.portrait.scale, 200);
+  assert.equal(legacy.portrait.outlineWidth, 7);
   assert.equal(legacy.portrait.rotation, 0);
   assert.equal(legacy.portrait.opacity, 100);
   assert.equal(legacy.background.fit, 'cover');
   assert.equal(legacy.background.x, 50);
   assert.equal(legacy.typography.theme, 100);
   const edited = model.normalizeWeeklyScheduleTemplate({
-    ...legacy, logo: { scale: 350, x: -1200, rotation: 45, opacity: 55, flip: true },
-    background: { fit: 'contain', x: 80, y: 0, blur: 8, opacity: 35 },
+    ...legacy, portrait: { ...legacy.portrait, outline: false, outlineWidth: 12 },
+    logo: { scale: 350, x: -1200, rotation: 45, opacity: 55, flip: true, brightness: 130, shadow: 40 },
+    background: { fit: 'contain', x: 80, y: 0, blur: 8, opacity: 35, offsetX: 80, scale: 150 },
+    rank1: { scale: 125, x: 12, glow: 60 }, customIcon: { rotation: 30, saturation: 70 },
     typography: { theme: 135, note: 80 }, decorations: { pattern: 'stripes', intensity: 25 },
   });
   const copy = model.cloneWeeklyScheduleTemplate(edited);
+  assert.equal(copy.portrait.outline, false);
+  assert.equal(copy.portrait.outlineWidth, 12);
   assert.equal(copy.logo.scale, 350);
   assert.equal(copy.logo.x, -1200);
   assert.equal(copy.logo.rotation, 45);
   assert.equal(copy.logo.flip, true);
   assert.equal(copy.background.fit, 'contain');
   assert.equal(copy.background.opacity, 35);
+  assert.equal(copy.background.offsetX, 80);
+  assert.equal(copy.background.scale, 150);
+  assert.equal(copy.logo.brightness, 130);
+  assert.equal(copy.logo.shadow, 40);
+  assert.equal(copy.rank1.glow, 60);
+  assert.equal(copy.customIcon.rotation, 30);
+  copy.rank1.glow = 10;
+  assert.equal(edited.rank1.glow, 60);
+  assert.equal(edited.rank2.glow, 0);
   assert.equal(copy.typography.theme, 135);
   assert.equal(copy.decorations.pattern, 'stripes');
   copy.background.x = 10;

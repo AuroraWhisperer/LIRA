@@ -161,65 +161,71 @@ test('conversation idle minutes preserve an existing 61s setting and autosave ed
   assert.equal(f.saves().at(-1).contextTtlSeconds, 900);
 });
 
-test('AI off saves independently of invalid form drafts', async () => {
-  const f = await createAiSettingsFixture({ config: { enabled: true } });
-  f.elements.get('xiaomiAiForm').checkValidity = () => false;
-  f.input('xiaomiAiModel', 'unfinished draft');
-  f.elements.get('xiaomiAiEnabled').checked = false;
-  f.fire('xiaomiAiEnabled', 'change');
-  await flushAiTasks();
-  assert.deepEqual(f.saves(), [{ enabled: false }]);
-  assert.equal(f.elements.get('xiaomiAiModel').value, 'unfinished draft');
-});
+for (const [key, id] of [['enabled', 'xiaomiAiEnabled'], ['autoReplyEnabled', 'xiaomiAiAutoReplyEnabled']]) {
+  test(`${key} off saves independently of invalid form drafts`, async () => {
+    const f = await createAiSettingsFixture({ config: { [key]: true } });
+    f.elements.get('xiaomiAiForm').checkValidity = () => false;
+    f.input('xiaomiAiModel', 'unfinished draft');
+    const input = f.elements.get(id);
+    assert.equal(input.checked, true);
+    input.checked = false;
+    f.fire(id, 'change');
+    f.fire('xiaomiAiForm', 'change', { target: input });
+    await flushAiTasks();
+    assert.deepEqual(f.saves(), [{ [key]: false }]);
+    assert.equal(f.elements.get('xiaomiAiModel').value, 'unfinished draft');
+  });
 
-test('AI off then on preserves both saves while older form saves cannot restore the switch', async () => {
-  const formSave = Promise.withResolvers();
-  const offSave = Promise.withResolvers();
-  const f = await createAiSettingsFixture({ config: { enabled: true }, request: (_url, options) => {
-    if (options.method !== 'PUT') return;
-    const value = JSON.parse(options.body);
-    if (value.enabled === false) return offSave.promise;
-    if (value.model) return formSave.promise;
-  } });
-  f.input('xiaomiAiModel', 'new-model');
-  await f.advance(700);
-  f.elements.get('xiaomiAiEnabled').checked = false;
-  f.fire('xiaomiAiEnabled', 'change');
-  f.elements.get('xiaomiAiEnabled').checked = true;
-  f.fire('xiaomiAiEnabled', 'change');
-  await flushAiTasks();
-  assert.equal(f.saves().length, 2);
-  assert.equal(Object.hasOwn(f.saves()[0], 'enabled'), false);
-  assert.deepEqual(f.saves()[1], { enabled: false });
-  offSave.resolve(aiResponse({ ...f.publicConfig, enabled: false }));
-  await flushAiTasks();
-  assert.deepEqual(f.saves()[2], { enabled: true });
-  formSave.resolve(aiResponse(f.publicConfig));
-  await flushAiTasks();
-  assert.equal(f.elements.get('xiaomiAiEnabled').checked, true);
-});
+  test(`${key} off then on preserves both saves while older form saves cannot restore the switch`, async () => {
+    const formSave = Promise.withResolvers();
+    const offSave = Promise.withResolvers();
+    const f = await createAiSettingsFixture({ config: { [key]: true }, request: (_url, options) => {
+      if (options.method !== 'PUT') return;
+      const value = JSON.parse(options.body);
+      if (value[key] === false) return offSave.promise;
+      if (value.model) return formSave.promise;
+    } });
+    f.input('xiaomiAiModel', 'new-model');
+    await f.advance(700);
+    f.elements.get(id).checked = false;
+    f.fire(id, 'change');
+    f.elements.get(id).checked = true;
+    f.fire(id, 'change');
+    await flushAiTasks();
+    assert.equal(f.saves().length, 2);
+    assert.equal(Object.hasOwn(f.saves()[0], key), false);
+    assert.deepEqual(f.saves()[1], { [key]: false });
+    offSave.resolve(aiResponse({ ...f.publicConfig, [key]: false }));
+    await flushAiTasks();
+    assert.deepEqual(f.saves()[2], { [key]: true });
+    formSave.resolve(aiResponse(f.publicConfig));
+    await flushAiTasks();
+    assert.equal(f.elements.get(id).checked, true);
+  });
+}
 
-test('role selection saves its identity without overwriting the custom prompt', async () => {
+test('selecting the whale persona saves its identity without overwriting the custom prompt', async () => {
   const f = await createAiSettingsFixture({ config: { modelProvider: 'deepseek' } });
   const select = f.elements.get('xiaomiAiPersona');
-  select.value = 'cat';
+  assert.ok(select.children.some((option) => option.value === 'whale'));
+  select.value = 'whale';
   f.fire('xiaomiAiPersonaManage', 'click');
   f.fire('xiaomiAiForm', 'change', { target: select });
   await flushAiTasks();
-  assert.equal(f.saves()[0].personaId, 'cat');
+  assert.equal(f.saves()[0].personaId, 'whale');
   assert.equal(f.saves()[0].systemPrompt, undefined);
 });
 
-test('changing platform restores its previous selection without deleting cat edits or saved roles', async (t) => {
+test('changing platform restores the whale selection without deleting its edits or saved roles', async (t) => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
   const store = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
-  const prompt = '你是一只安静的橘猫，认真听观众说话，用简洁自然的语气陪聊。';
-  store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat' });
-  store.updatePersona({ id: 'cat', description: '安静的橘猫', prompt });
+  const prompt = '你是安静陪聊的鲸鱼娘，认真听观众说话，用简洁自然的语气回应。';
+  store.updateConfig({ modelProvider: 'deepseek', personaId: 'whale' });
+  store.updatePersona({ id: 'whale', description: '安静陪聊', prompt });
   const saved = store.createPersona({ name: '我的人格', prompt });
-  store.updateConfig({ personaId: 'cat' });
+  store.updateConfig({ personaId: 'whale' });
   const f = await createAiSettingsFixture({
     config: store.getPublicConfig(),
     request: (url, options) => url === '/api/ai/config' && options.method === 'PUT'
@@ -230,7 +236,7 @@ test('changing platform restores its previous selection without deleting cat edi
   provider.value = 'openai';
   f.fire(provider.id, 'change');
   assert.equal(select.value, 'general');
-  assert.equal(select.children.some((option) => option.value === 'cat'), false);
+  assert.equal(select.children.some((option) => option.value === 'whale'), false);
   f.fire('xiaomiAiForm', 'change', { target: provider });
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
@@ -245,8 +251,8 @@ test('changing platform restores its previous selection without deleting cat edi
   f.fire(provider.id, 'change');
   f.fire('xiaomiAiForm', 'change', { target: provider });
   await flushAiTasks();
-  assert.equal(select.value, 'cat');
-  assert.ok(select.children.some((option) => option.value === 'cat'));
+  assert.equal(select.value, 'whale');
+  assert.ok(select.children.some((option) => option.value === 'whale'));
   f.fire('xiaomiAiPersonaManage', 'click');
   assert.equal(f.elements.get('xiaomiAiPersonaPrompt').value, prompt);
 
@@ -257,13 +263,13 @@ test('changing platform restores its previous selection without deleting cat edi
   assert.equal(select.value, saved.personaId);
 });
 
-test('DeepSeek persona and saved key survive Doubao and a fresh settings load', async (t) => {
+test('the whale persona and saved key survive Doubao and a fresh settings load', async (t) => {
   const db = new DatabaseSync(':memory:');
   t.after(() => db.close());
   db.exec(SONG_SCHEMA);
   const codec = { isAvailable: () => true, encrypt: value => `encrypted:${value}`, decrypt: value => value.slice(10) };
   let store = createAiConfigStore(createAiStateStore(db), codec);
-  store.updateConfig({ modelProvider: 'deepseek', personaId: 'cat', deepseekApiKey: 'sk-synthetic-test-key' });
+  store.updateConfig({ modelProvider: 'deepseek', personaId: 'whale', deepseekApiKey: 'sk-synthetic-test-key' });
   const openSettings = () => createAiSettingsFixture({
     config: store.getPublicConfig(),
     request: (url, options) => url === '/api/ai/config' && options.method === 'PUT'
@@ -282,7 +288,7 @@ test('DeepSeek persona and saved key survive Doubao and a fresh settings load', 
   store = createAiConfigStore(createAiStateStore(db), codec);
   f = await openSettings();
   await switchProvider('deepseek');
-  assert.equal(f.elements.get('xiaomiAiPersona').value, 'cat');
+  assert.equal(f.elements.get('xiaomiAiPersona').value, 'whale');
   assert.equal(f.elements.get('xiaomiAiDeepSeekKey').value, '');
   assert.equal(f.saves()[0].deepseekApiKey, undefined);
   assert.equal(store.getConfig().deepseekApiKey, 'sk-synthetic-test-key');
@@ -585,6 +591,38 @@ test('AI refresh cannot replace edits protected by a newer pending save', async 
   assert.equal(f.elements.get('xiaomiAiModel').value, 'later-server-model');
 });
 
+test('AI config reads started before a completed save cannot roll back the next save', async () => {
+  const pendingRead = Promise.withResolvers();
+  let delayRead = false;
+  const f = await createAiSettingsFixture({
+    request(url, options) {
+      if (url !== '/api/ai/config') return;
+      if (!options.method && delayRead) return pendingRead.promise;
+      if (options.method === 'PUT') {
+        Object.assign(f.publicConfig, JSON.parse(options.body));
+        return aiResponse({ ...f.publicConfig });
+      }
+    },
+  });
+  const oldConfig = { ...f.publicConfig };
+  delayRead = true;
+  const refreshing = f.api.refresh();
+  f.input('xiaomiAiModel', 'saved-model');
+  await f.advance(700);
+  pendingRead.resolve(aiResponse(oldConfig));
+  await refreshing;
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'saved-model');
+
+  f.input('xiaomiAiTrigger', 'new-trigger');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).model, 'saved-model');
+  assert.equal(f.publicConfig.model, 'saved-model');
+  delayRead = false;
+  f.publicConfig.model = 'updated-elsewhere';
+  await f.api.refresh();
+  assert.equal(f.elements.get('xiaomiAiModel').value, 'updated-elsewhere');
+});
+
 test('model lookup results and callbacks belong to the current provider request', async () => {
   const first = Promise.withResolvers();
   const second = Promise.withResolvers();
@@ -642,7 +680,10 @@ test('committing the same credential preserves an in-flight model lookup', async
 });
 
 test('AI model listing uses draft credentials and saves a selected model after reopening the menu', async () => {
-  const f = await createAiSettingsFixture();
+  const models = ['deepseek-flash', 'deepseek-v4-pro'];
+  const modelNames = { 'deepseek-flash': 'DeepSeek-V4.1-Flash', 'deepseek-v4-pro': 'DeepSeek-V4-Pro' };
+  const f = await createAiSettingsFixture({ request: url => url === '/api/ai/models'
+    ? aiResponse({ models, modelNames }) : undefined });
   f.input('xiaomiAiDeepSeekKey', 'deepseek-secret');
   f.input('xiaomiAiDeepSeekUrl', 'https://api.deepseek.com/responses');
   await f.fire('xiaomiAiFetchModelsBtn', 'click');
@@ -650,6 +691,8 @@ test('AI model listing uses draft credentials and saves a selected model after r
   assert.equal(modelRequest.apiKey, 'deepseek-secret');
   assert.equal(modelRequest.apiUrl, 'https://api.deepseek.com/responses');
   const menu = f.elements.get('xiaomiAiModelMenu');
+  assert.ok(menu.children[0].textContent.includes(modelNames[models[0]]));
+  assert.ok(menu.children[1].textContent.includes(modelNames[models[1]]));
   menu.children[1].listeners.click();
   assert.equal(f.elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');
   await f.fire('xiaomiAiFetchModelsBtn', 'click');

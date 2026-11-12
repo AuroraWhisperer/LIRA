@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { createMusicProviderRegistry } = require('../music/provider-registry');
 const { createMusicCatalogService } = require('../music/music-catalog-service');
 const { createLyricsService } = require('../music/lyrics-service');
@@ -164,8 +166,8 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
   }
 
   async function selectLyricSource(source) {
-    if (source !== 'auto' && !LYRIC_SOURCES.includes(source)) throw new Error('歌词来源无效。');
-    if (captures[source]?.getStatus().supported === false) throw new Error('外部播放器采集仅支持 Windows。');
+    if (source !== 'auto' && !LYRIC_SOURCES.includes(source)) throw createPublicError('歌词来源无效。');
+    if (captures[source]?.getStatus().supported === false) throw createPublicError('外部播放器采集仅支持 Windows。');
     selection = source;
     updateSource();
     return getLyricSource();
@@ -190,7 +192,7 @@ function buildMusicRuntime({ dataDir, runtimeOptions = {}, settingsStore, webSoc
     getLyricSource,
     selectLyricSource,
     async refreshLyricSource(source) {
-      if (source !== undefined && !captures[source]) throw new Error('外部播放器来源无效。');
+      if (source !== undefined && !captures[source]) throw createPublicError('外部播放器来源无效。');
       const targets = source ? [captures[source]] : captures[lyricSource] ? [captures[lyricSource]] : Object.values(captures);
       await Promise.all(targets.filter((capture) => capture.getStatus().supported).map((capture) => capture.refresh()));
       return getLyricSource();

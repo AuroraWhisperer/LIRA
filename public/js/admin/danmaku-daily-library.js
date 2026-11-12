@@ -13,7 +13,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   const element = (suffix) => documentRef.getElementById(`dailyLibrary${suffix}`);
   const panel = documentRef.getElementById('danmakuDailyLibraryPanel');
   if (!panel) return null;
-  const root = panel.closest('.danmaku-fixed-reply-section');
+  const root = panel.closest('#otherDanmakuFeature');
   let states = { checkin: fresh(), fortune: fresh() };
   let kind = 'checkin', enabled = false, busy = false, generation = 0;
   const state = () => states[kind];

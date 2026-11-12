@@ -44,6 +44,7 @@ test('PK IPC rejects foreign windows/invalid inputs and strips unsolicited serve
     writes = [],
     webContents = {};
   const event = { sender: webContents, senderFrame: { url: 'http://127.0.0.1:3000/admin' } };
+  webContents.mainFrame = event.senderFrame;
   let response = { ...fixture.response, cookie: 'private', streamerId: 2 };
   registerLicenseIpc({
     ipcMain: { handle: (key, handler) => handlers.set(key, handler) },
@@ -56,9 +57,8 @@ test('PK IPC rejects foreign windows/invalid inputs and strips unsolicited serve
         return response;
       },
     },
-    getMainWindow: () => ({ webContents }),
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
     getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
-    hasExactOrigin: (url, origin) => new URL(url).origin === origin,
   });
   const read = handlers.get('license:get-pk-report-settings'),
     write = handlers.get('license:update-pk-report-settings');

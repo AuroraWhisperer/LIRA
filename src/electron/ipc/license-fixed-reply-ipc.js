@@ -13,11 +13,11 @@ function registerLicenseFixedReplyIpc({ safeHandle, licenseManager, onFixedReply
     onFixedReplySettings?.(settings, result.revision);
     return settings;
   }
-  safeHandle('license:get-fixed-reply-settings', () => readSettings(() => licenseManager.getFixedReplySettings()), true);
+  safeHandle('license:get-fixed-reply-settings', () => readSettings(() => licenseManager.getFixedReplySettings()));
   safeHandle('license:update-fixed-reply-settings', (settings) => {
     const patch = fixedReplyParameters(settings);
     return readSettings(() => licenseManager.updateFixedReplySettings(patch));
-  }, true);
+  });
 }
 
 module.exports = { registerLicenseFixedReplyIpc };

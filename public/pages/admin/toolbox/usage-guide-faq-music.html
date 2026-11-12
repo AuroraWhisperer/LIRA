@@ -1,14 +1,15 @@
 <h4 class="usage-guide-subsection-title">8.2 直播连接与发送异常</h4>
 <div class="usage-guide-faq-grid"><details class="usage-guide-faq">
 <summary>
-<strong>8.2.1 弹幕姬地址一直是灰色</strong>
+<strong>8.2.1 弹幕姬地址无法使用</strong>
 <svg aria-hidden="true" class="usage-guide-faq-chevron" fill="none" viewBox="0 0 20 20">
 <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8"></path>
 </svg>
 </summary>
 <ol class="usage-guide-checks">
-<li>等 LIRA 授权有效、读到服务器配置后，链接才能复制。先检查 LIRA 和服务器连上没有，等地址出来再复制。</li>
-<li>没登录 B 站会影响收直播消息，但链接读不出来不一定是这个原因。还是灰的，记下页面提示发给管理员。</li>
+<li>旧服务器 HTTPS 弹幕画面已停用。到「点歌 → 浏览器源」复制「弹幕姬 · 本机组件」地址，或在场景中添加弹幕、保存并应用后复制场景地址。</li>
+<li>本机地址须在运行 LIRA 的同一台电脑上加载，并保持客户端运行。换过电脑或端口时，请重新复制地址。</li>
+<li>画面能打开但没有消息时，检查 LIRA 授权、B 站账号、直播间连接和弹幕监控。仍有问题时，记下页面提示发给管理员。</li>
 </ol>
 </details>
 <details class="usage-guide-faq">
@@ -19,7 +20,7 @@
 </svg>
 </summary>
 <ol class="usage-guide-checks">
-<li>到「百宝箱 → 弹幕互动」看发送账号、目标直播间和发送结果。只显示「本机已登录」不代表能正常发送。</li>
+<li>到「百宝箱 → 弹幕互动」看顶部发送账号、目标直播间，再切换「弹幕发送」查看发送结果。只显示「本机已登录」不代表能正常发送。</li>
 <li>登录过期：到「点歌 → 账号登录」重新扫码登录并保存，等账号同步成功。连接异常就点「重新连接直播间」再试。</li>
 <li>还发不出去，把发送结果和目标直播间发给管理员。先别反复批量发送。</li>
 </ol>
@@ -48,7 +49,7 @@
 </summary>
 <ol class="usage-guide-checks">
 <li>显示「请先登录直播账号后再随机点歌。」：到「点歌 → 账号登录」登录 B 站账号。其他情况，先检查歌库里的歌能不能点。</li>
-<li>语言、曲风、标签这些条件要同时满足。先少设几个条件试试。在「百宝箱 → 弹幕互动」打开「点歌回复」后，找不到符合条件的歌会提醒观众。</li>
+<li>语言、曲风、标签这些条件要同时满足。先少设几个条件试试。在「百宝箱 → 弹幕互动 → 互动回复」的「点歌与查询」中打开「点歌回复」后，找不到符合条件的歌会提醒观众。</li>
 <li>歌已经进队列但版本不对：到「播放」页按歌名和歌手搜索。「点歌匹配诊断」没结果，不代表歌库里没有这首歌。</li>
 </ol>
 </details>

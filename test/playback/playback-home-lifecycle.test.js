@@ -13,6 +13,40 @@ const { createPlaybackApp, flushAsyncWork, closestTarget } = require('../helpers
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
+test('playlist details expose navigation back to the list and reset it when opening a root', async () => {
+  const app = await createPlaybackApp({ current: null, selectedSource: 'qq' }, {
+    homeAction: 'created-playlists', authState: { platform: 'qq', loggedIn: true },
+    loadHome: async ({ action }) => action === 'playlist-tracks'
+      ? { tracks: [{ id: 'navigation-track', title: 'Navigation track', source: 'qq' }] }
+      : { playlists: [{ id: 'navigation-playlist', title: 'Navigation playlist' }] },
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  const body = app.element('playbackDrawerBody');
+  const back = app.element('playbackDrawerBack');
+  const openPlaylist = async () => {
+    await app.emit('playbackDrawerBody', 'click', {
+      target: closestTarget({ playbackPlaylistIndex: '0' }, 'playback-playlist-index'),
+    });
+    await flushAsyncWork();
+  };
+
+  await openPlaylist();
+  assert.match(body.innerHTML, /Navigation track/);
+  assert.notEqual(back.style.display, 'none', 'the playlist detail must offer a way back to its list');
+  await app.emit('playbackDrawerBack', 'click');
+  assert.match(body.innerHTML, /Navigation playlist/);
+  assert.equal(back.style.display, 'none');
+
+  await openPlaylist();
+  await app.emitHomeAction();
+  await flushAsyncWork();
+  assert.match(body.innerHTML, /Navigation playlist/);
+  assert.equal(back.style.display, 'none', 'opening a root does not retain the previous detail history');
+});
+
 test('recent local playback remains available without signing in to the selected music platform', async () => {
   const local = { id: 'local:history', source: 'local', title: '本地历史歌曲', artists: [],
     filePath: 'D:\\music-fixture\\history.mp3', objectUrl: 'local-media://media/history' };
@@ -120,6 +154,7 @@ test('track menus release their outside listener on button, keyboard and drawer 
   const menu = document.createElement('div');
   const button = document.createElement('button');
   const item = document.createElement('button');
+  menu.classList.toggle = (name, enabled) => enabled ? menu.classList.add(name) : menu.classList.remove(name);
   menu.id = 'track-menu';
   menu.hasAttribute = name => menu.attributes.has(name);
   menu.setAttribute('hidden', '');

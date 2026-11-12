@@ -589,6 +589,202 @@ html[data-client-theme='dusty-rose'],
   --client-player-bg-base: var(--color-bg-page);
 }
 
+html[data-client-theme='moss-linen'],
+[data-client-theme-preview='moss-linen'] {
+  color-scheme: light;
+  --scrollbar-thumb: #a5ae98;
+  --scrollbar-thumb-hover: #7a856d;
+  --scrollbar-thumb-active: #5d6c44;
+  --color-primary: #5d6c44;
+  --color-primary-strong: #4e5d37;
+  --color-primary-active: #3f4d2d;
+  --color-primary-text: #4c5e37;
+  --color-primary-light: #e0e7d4;
+  --color-accent: #5d6c44;
+  --color-accent-light: #e0e7d4;
+  --color-success: #36664c;
+  --color-success-light: #e7f0e7;
+  --color-success-dark: #36664c;
+  --color-warning: #805d24;
+  --color-warning-light: #f5edd9;
+  --color-warning-medium: #805d24;
+  --color-danger: #a34644;
+  --color-danger-light: #f8e9e5;
+  --color-danger-medium: #923b39;
+  --color-danger-active: #f2dcd7;
+  --color-danger-border: #c38e86;
+  --color-info: #466777;
+  --color-info-light: #e8eff1;
+  --color-text-primary: #2f352c;
+  --color-text-secondary: #515b4a;
+  --color-text-muted: #5e6854;
+  --color-bg-page: #f0f1e9;
+  --color-bg-primary: #fcfcf7;
+  --color-bg-secondary: #e7eadf;
+  --color-bg-tertiary: #eef0e6;
+  --color-bg-chrome: #f7f8f1;
+  --color-bg-nav: #e5e8dc;
+  --color-bg-settings: #e7eadf;
+  --color-bg-hover: #e5e8da;
+  --client-main-nav-bg: #e7eadf;
+  --client-main-nav-shadow: none;
+  --client-main-nav-active-bg: #fcfcf7;
+  --client-main-nav-active-shadow: 0 1px 3px #2f352c12;
+  --color-border-default: #d2d8c8;
+  --color-border-light: #e2e6da;
+  --color-border-strong: #b7c0ab;
+  --color-button-border: #b7c0ab;
+  --color-button-border-hover: #7a856d;
+  --color-control-surface: #fffffa;
+  --color-control-border: #7a856d;
+  --color-control-border-hover: #5d6c44;
+  --color-disabled-bg: #e3e6db;
+  --color-disabled-text: #818a75;
+  --color-help-accent: #466777;
+  --color-help-surface: #e8eff1;
+  --color-help-border: #a2b9bf;
+  --color-help-text: #375764;
+  --color-quick-panel-surface: #e7eadf;
+  --color-toast-start: #f2f4eb;
+  --color-toast-mid: #f2f4eb;
+  --color-toast-end: #f2f4eb;
+  --color-toast-text: #2f352c;
+  --color-toast-secondary: #515b4a;
+  --color-toast-accent: #4c5e37;
+  --color-toast-success: #36664c;
+  --color-toast-warning: #805d24;
+  --color-toast-error: #a34644;
+  --color-primary-fill: #5d6c44;
+  --color-primary-fill-hover: #4e5d37;
+  --color-primary-fill-active: #3f4d2d;
+  --color-on-primary: #ffffff;
+  --color-selection-marker: #5d6c44;
+  --color-selection-text: #4c5e37;
+  --color-selection-fill: #e0e7d4;
+  --color-text-selection-bg: #5d6c44;
+  --color-text-selection-text: #ffffff;
+  --color-range-track: #b7c0ab;
+  --color-range-thumb: #fcfcf7;
+  --color-floating-surface: #fffffa;
+  --shadow-sm: 0 1px 2px #2f352c0d;
+  --shadow-md: 0 3px 9px #2f352c10;
+  --shadow-floating: 0 10px 28px #2f352c20;
+  --shadow-dialog: 0 24px 60px #2f352c2e;
+  --client-player-bg-1: var(--color-bg-primary);
+  --client-player-bg-2: var(--color-bg-secondary);
+  --client-player-bg-3: var(--color-bg-tertiary);
+  --client-player-bg-4: var(--color-bg-secondary);
+  --client-player-bg-5: var(--color-bg-page);
+  --client-player-bg-base: var(--color-bg-page);
+}
+
+html[data-client-theme='cocoa-champagne'],
+[data-client-theme-preview='cocoa-champagne'] {
+  color-scheme: dark;
+  --scrollbar-thumb: #706452;
+  --scrollbar-thumb-hover: #a6967f;
+  --scrollbar-thumb-active: #d7bd91;
+  --color-primary: #d7bd91;
+  --color-primary-strong: #e8cfa5;
+  --color-primary-active: #c6a776;
+  --color-primary-text: #e4cca5;
+  --color-primary-light: #453828;
+  --color-accent: #d7bd91;
+  --color-accent-light: #453828;
+  --color-success: #a7c69b;
+  --color-success-light: #2b3828;
+  --color-success-dark: #a7c69b;
+  --color-warning: #f0b66b;
+  --color-warning-light: #3c3020;
+  --color-warning-medium: #f0b66b;
+  --color-danger: #e89a8e;
+  --color-danger-light: #402a26;
+  --color-danger-medium: #e89a8e;
+  --color-danger-active: #49302a;
+  --color-danger-border: #a46a5d;
+  --color-info: #a6c3ce;
+  --color-info-light: #29363b;
+  --color-text-primary: #eee6d9;
+  --color-text-secondary: #c7bbaa;
+  --color-text-muted: #b2a28e;
+  --color-bg-page: #1c1916;
+  --color-bg-primary: #27231f;
+  --color-bg-secondary: #312b25;
+  --color-bg-tertiary: #211d19;
+  --color-bg-chrome: #211d19;
+  --color-bg-nav: #24201c;
+  --color-bg-settings: #312b25;
+  --color-bg-hover: #393129;
+  --client-main-nav-bg: #312b25;
+  --client-main-nav-shadow: none;
+  --client-main-nav-active-bg: #494031;
+  --client-main-nav-active-shadow: 0 1px 3px #00000033;
+  --color-border-default: #494035;
+  --color-border-light: #393229;
+  --color-border-strong: #706452;
+  --color-button-border: #706452;
+  --color-button-border-hover: #a6967f;
+  --color-control-surface: #211d19;
+  --color-control-border: #91816b;
+  --color-control-border-hover: #b2a28e;
+  --color-disabled-bg: #342d25;
+  --color-disabled-text: #8f816d;
+  --color-help-accent: #a6c3ce;
+  --color-help-surface: #29363b;
+  --color-help-border: #687f85;
+  --color-help-text: #c4d7dc;
+  --color-quick-panel-surface: #312b25;
+  --color-toast-start: #312b25;
+  --color-toast-mid: #312b25;
+  --color-toast-end: #312b25;
+  --color-toast-text: #eee6d9;
+  --color-toast-secondary: #c7bbaa;
+  --color-toast-accent: #e4cca5;
+  --color-toast-success: #a7c69b;
+  --color-toast-warning: #f0b66b;
+  --color-toast-error: #e89a8e;
+  --color-toast-on-accent: #292117;
+  --color-toast-on-success: #292117;
+  --color-toast-on-warning: #292117;
+  --color-toast-on-error: #292117;
+  --color-primary-fill: #d7bd91;
+  --color-primary-fill-hover: #e8cfa5;
+  --color-primary-fill-active: #c6a776;
+  --color-on-primary: #292117;
+  --color-on-control-accent: #292117;
+  --color-on-help-accent: #292117;
+  --color-on-success: #292117;
+  --color-on-warning: #292117;
+  --color-on-danger: #292117;
+  --color-on-info: #292117;
+  --color-selection-marker: #d7bd91;
+  --color-selection-text: #e4cca5;
+  --color-selection-fill: #453828;
+  --color-text-selection-bg: #d7bd91;
+  --color-text-selection-text: #292117;
+  --color-range-track: #706452;
+  --color-range-thumb: #d7bd91;
+  --color-floating-surface: #383027;
+  --color-bg-overlay-light: #000000ad;
+  --shadow-sm: 0 1px 2px #00000033;
+  --shadow-md: 0 3px 9px #00000047;
+  --shadow-floating: 0 10px 28px #00000070;
+  --shadow-dialog: 0 24px 60px #00000080;
+  --client-gift-guard-tint: 14%;
+  --client-gift-premium-background: linear-gradient(90deg, color-mix(in srgb, #c99a3d 28%, var(--surface)), var(--surface));
+  --client-gift-premium-shadow: inset 0 1px 0 color-mix(in srgb, #e8c972 28%, transparent);
+  --client-gift-premium-text: color-mix(in srgb, #e8c972 30%, var(--text));
+  --client-fan-guard-1: #f18d9d;
+  --client-fan-guard-2: #c29aed;
+  --client-fan-guard-3: #83baf1;
+  --client-player-bg-1: var(--color-bg-primary);
+  --client-player-bg-2: var(--color-bg-secondary);
+  --client-player-bg-3: var(--color-bg-tertiary);
+  --client-player-bg-4: var(--color-bg-secondary);
+  --client-player-bg-5: var(--color-bg-page);
+  --client-player-bg-base: var(--color-bg-page);
+}
+
 /* Shared option colors; variants and later page tokens retain their overrides. */
 :where(html[data-client-theme='neutral']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
   --select-selected-fill: color-mix(in srgb, var(--color-primary) 9%, var(--select-surface));
@@ -638,4 +834,16 @@ html[data-client-theme='dusty-rose'],
 :where(html[data-client-theme='dusty-rose']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
   --select-selected-fill: var(--color-selection-fill);
   --select-selected-edge: #c993a5;
+}
+
+:where(html[data-client-theme='moss-linen']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-selected-fill: var(--color-selection-fill);
+  --select-selected-edge: var(--color-border-strong);
+}
+
+:where(html[data-client-theme='cocoa-champagne']) :is(.lira-select, .lira-multiselect, .lira-select-menu:not(.lira-select *), .lira-select-panel) {
+  --select-selected-fill: var(--color-selection-fill);
+  --select-selected-edge: var(--color-border-strong);
+  --select-highlight: rgba(255, 255, 255, 0.05);
+  --select-menu-shadow: var(--shadow-floating);
 }

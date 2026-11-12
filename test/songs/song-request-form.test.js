@@ -52,6 +52,7 @@ async function createForm() {
   };
   const document = {
     getElementById: element,
+    querySelector: selector => selector === '#songForm button[type="submit"]' ? element('songSubmit') : null,
     querySelectorAll: () => [],
     addEventListener() {},
   };

@@ -77,3 +77,25 @@ test('post-commit capture failures propagate without pretending to roll back per
   assert.deepEqual(events, ['save']);
   assert.equal(dependencies.settings.get().paused, 'true');
 });
+
+test('authorization changes during capture apply preserve the commit without notifying the next account', async () => {
+  const { dependencies, events } = fixture();
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  let authorized = true;
+  dependencies.authorize = () => {
+    if (!authorized) throw Object.assign(new Error('authorization changed'), { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+  };
+  dependencies.weSing.prepareConfiguration = async () => ({ async apply() {
+    events.push('apply');
+    entered.resolve();
+    await release.promise;
+  } });
+  const pending = applySettingsPatch(dependencies, { paused: true, weSingLyricOffsetMs: 200 });
+  await entered.promise;
+  authorized = false;
+  release.resolve();
+  await assert.rejects(pending, { code: 'REQUEST_AUTHORIZATION_CHANGED' });
+  assert.equal(dependencies.settings.get().paused, 'true');
+  assert.deepEqual(events, ['save', 'apply']);
+});

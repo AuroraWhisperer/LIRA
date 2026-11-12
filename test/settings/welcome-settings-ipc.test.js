@@ -30,15 +30,14 @@ const versions = [
 
 function registerWelcomeIpc(licenseManager) {
   const handlers = new Map();
-  const webContents = {};
+  const webContents = { mainFrame: { url: 'http://127.0.0.1:3000/admin' } };
   registerLicenseIpc({
     ipcMain: { handle: (key, handler) => handlers.set(key, handler) },
     licenseManager: { getState: () => 'authorized', onStateChanged: () => () => {}, ...licenseManager },
-    getMainWindow: () => ({ webContents }),
+    getMainWindow: () => ({ webContents, isDestroyed: () => false }),
     getDesktopBaseUrl: () => 'http://127.0.0.1:3000',
-    hasExactOrigin: (url, origin) => new URL(url).origin === origin,
   });
-  return { handlers, event: { sender: webContents, senderFrame: { url: 'http://127.0.0.1:3000/admin' } } };
+  return { handlers, event: { sender: webContents, senderFrame: webContents.mainFrame } };
 }
 
 for (const version of versions) {
@@ -247,6 +246,79 @@ test('V2 user welcome IPC preserves capability absence and validates exact UID p
   assert.deepEqual(writes[1], { userWelcomeMessages: [] });
   await write(event, { enabled: true });
   assert.deepEqual(writes[2], { enabled: true });
+});
+
+test('own-room medal IPC accepts booleans and preserves old capability absence', async () => {
+  let reply = { ...v2Settings };
+  const writes = [];
+  const { handlers, event } = registerWelcomeIpc({
+    getWelcomeSettingsV2: async () => reply,
+    updateWelcomeSettingsV2: async (patch) => { writes.push(patch); return { ...reply, ...patch }; },
+  });
+  const read = handlers.get('license:get-welcome-settings-v2');
+  const write = handlers.get('license:update-welcome-settings-v2');
+  assert.equal(Object.hasOwn(await read(event), 'welcomeOwnMedalOnly'), false);
+  reply.welcomeOwnMedalOnly = false;
+  assert.equal((await write(event, { welcomeOwnMedalOnly: true })).welcomeOwnMedalOnly, true);
+  assert.equal((await write(event, { welcomeOwnMedalOnly: 1 })).error, 'INVALID_WELCOME_SETTINGS');
+  assert.equal(writes.length, 1);
+  reply.welcomeOwnMedalOnly = 'true';
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+});
+
+test('welcome audience IPC bounds exact UID lists and requires the complete capability pair', async () => {
+  let reply = { ...v2Settings };
+  const writes = [];
+  const { handlers, event } = registerWelcomeIpc({
+    getWelcomeSettingsV2: async () => reply,
+    updateWelcomeSettingsV2: async (patch) => { writes.push(patch); return { ...reply, ...patch }; },
+  });
+  const read = handlers.get('license:get-welcome-settings-v2');
+  const write = handlers.get('license:update-welcome-settings-v2');
+  assert.equal(Object.hasOwn(await read(event), 'welcomeWhitelist'), false);
+  reply = { ...v2Settings, welcomeWhitelist: [], welcomeBlacklist: [] };
+  const uid = '18446744073709551615';
+  assert.deepEqual((await write(event, { welcomeWhitelist: [uid] })).welcomeWhitelist, [uid]);
+  for (const welcomeWhitelist of [[42], ['42', '42'], ['042'], Array.from({ length: 101 }, (_, i) => String(i + 1))]) {
+    const rejected = await write(event, { welcomeWhitelist });
+    assert.equal(rejected.error, 'INVALID_WELCOME_SETTINGS');
+    assert.deepEqual(rejected.fieldErrors, [{ field: 'welcomeWhitelist', reason: 'INVALID_USERS' }]);
+  }
+  assert.equal(writes.length, 1);
+  assert.deepEqual((await write(event, { welcomeBlacklist: [] })).welcomeBlacklist, []);
+  reply = { ...reply, welcomeWhitelist: [uid], welcomeBlacklist: [uid] };
+  assert.deepEqual((await read(event)).welcomeBlacklist, [uid]);
+  reply = { ...v2Settings, welcomeWhitelist: [] };
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  reply = { ...v2Settings, welcomeWhitelist: [], welcomeBlacklist: ['bad'] };
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+});
+
+test('time welcome IPC validates the complete library and preserves old server capability absence', async () => {
+  const { WELCOME_TIME_PERIODS } = require('../../public/js/shared/welcome-time-periods.js');
+  const timeWelcomeMessages = Object.fromEntries(WELCOME_TIME_PERIODS.map(({ id }) => [id, [' 欢迎 {username} ']]));
+  const writes = [];
+  let reply = { ...v2Settings, timeWelcomeEnabled: false, timeWelcomeMessages };
+  const { handlers, event } = registerWelcomeIpc({
+    getWelcomeSettingsV2: async () => reply,
+    updateWelcomeSettingsV2: async (patch) => { writes.push(patch); return { ...reply, ...patch }; },
+  });
+  const read = handlers.get('license:get-welcome-settings-v2');
+  const write = handlers.get('license:update-welcome-settings-v2');
+  assert.equal((await write(event, { timeWelcomeEnabled: true })).timeWelcomeEnabled, true);
+  assert.equal((await write(event, { timeWelcomeMessages })).timeWelcomeMessages.afternoon[0], '欢迎 {username}');
+  reply = { ...v2Settings, timeWelcomeEnabled: false, timeWelcomeMessages: { afternoon: ['下午'] } };
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  for (const patch of [
+    { timeWelcomeEnabled: 'true' }, { timeWelcomeMessages: {} },
+    { timeWelcomeMessages: { ...timeWelcomeMessages, afternoon: ['x\ny'] } },
+    { timeWelcomeMessages: { ...timeWelcomeMessages, unknown: ['额外字段'] } },
+  ]) assert.match((await write(event, patch)).error, /^INVALID_WELCOME_/);
+  assert.equal(writes.length, 2);
+  reply = { ...v2Settings, timeWelcomeEnabled: false };
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+  reply = { ...v2Settings };
+  assert.equal(Object.hasOwn(await read(event), 'timeWelcomeEnabled'), false);
 });
 
 test('returning welcome IPC preserves old capability absence and validates the new pair', async () => {

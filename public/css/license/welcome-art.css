@@ -2,11 +2,11 @@
   display: grid;
   flex: 1;
   place-items: center;
-  min-height: 244px;
+  min-height: clamp(200px, 27cqw, 300px);
 }
 .license-echo {
   grid-area: 1 / 1;
-  width: 244px;
+  width: clamp(200px, 27cqw, 300px);
   aspect-ratio: 1;
   border: 1px solid var(--license-echo);
   border-radius: 50%;
@@ -17,7 +17,7 @@
   position: relative;
   display: grid;
   grid-area: 1 / 1;
-  width: 244px;
+  width: clamp(200px, 27cqw, 300px);
   aspect-ratio: 1;
   place-items: center;
   border-radius: 50%;
@@ -62,7 +62,7 @@
   justify-content: space-between;
   width: 36%;
   aspect-ratio: 1;
-  padding: 16px 0 14px;
+  padding: clamp(14px, 1.65cqw, 20px) 0 clamp(12px, 1.45cqw, 17px);
   border-radius: 50%;
   background: var(--license-record-label);
   color: var(--license-record-ink);
@@ -79,17 +79,14 @@
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6);
   transform: translate(-50%, -50%);
 }
-.license-record-wordmark {
-  padding-left: 0.18em;
-  font-family: var(--license-display-font);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-  letter-spacing: 0.18em;
+.license-record-wordmark.lira-wordmark {
+  width: 41%;
+  height: auto;
+  color: var(--license-record-ink);
 }
 .license-record-wave {
-  width: 24px;
-  height: 12px;
+  width: 28%;
+  height: auto;
   fill: none;
   stroke: currentColor;
   stroke-width: 1;
@@ -107,7 +104,7 @@
   min-height: 28px;
   margin: 0;
   color: var(--license-muted);
-  font-size: 12px;
+  font-size: clamp(12px, 1.15cqw, 14px);
   line-height: 1.9;
 }
 .license-signal {

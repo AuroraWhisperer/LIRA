@@ -3,7 +3,7 @@
 const { normalizeSettingsPatch, hasCloudSettingChanges } = require('./settings-contract');
 const { needsClockStyleOptionsUpdate, mergeClockStyleOptions } = require('./clock-contract');
 
-async function applySettingsPatch({ settings, weSing, bilibili, broadcastSnapshot, cloudSync }, patch) {
+async function applySettingsPatch({ settings, weSing, bilibili, broadcastSnapshot, cloudSync, authorize = () => {} }, patch) {
   const result = normalizeSettingsPatch(patch, settings.defaults);
   if (result.error) return result;
 
@@ -21,10 +21,12 @@ async function applySettingsPatch({ settings, weSing, bilibili, broadcastSnapsho
     }
   }
 
+  authorize();
   const values = needsClockStyleOptionsUpdate(result.values)
     ? mergeClockStyleOptions(settings.get(), result.values) : result.values;
   const changedKeys = settings.setMany(values);
   if (preparedWeSing) await preparedWeSing.apply();
+  authorize();
   bilibili.configure();
   broadcastSnapshot('settings');
   if (hasCloudSettingChanges(changedKeys)) cloudSync?.request?.('settings');

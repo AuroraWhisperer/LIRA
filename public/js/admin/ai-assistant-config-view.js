@@ -3,6 +3,7 @@ import { isSubscriptionSelected, renderSubscriptionStatus } from './ai-assistant
 
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
+  autoReplyEnabled: ['xiaomiAiAutoReplyEnabled', 'checked'],
   trigger: ['xiaomiAiTrigger', 'value'],
   modelProvider: ['xiaomiAiModelProvider', 'value'],
   modelAuthMode: ['xiaomiAiModelAuthMode', 'value'],

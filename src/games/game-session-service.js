@@ -1,5 +1,7 @@
 'use strict';
 
+const { createPublicError } = require('../shared/public-error');
+
 const { randomUUID } = require('node:crypto');
 const { performance } = require('node:perf_hooks');
 const numberBomb = require('./number-bomb');
@@ -55,7 +57,7 @@ function createGameSessionService(options = {}) {
 
   function assertCanCollect() {
     if (options.isInteractionCollecting?.()) {
-      throw Object.assign(new Error('请先结束类别 3 的投票或评分。'), { statusCode: 409 });
+      throw createPublicError('请先结束类别 3 的投票或评分。', 409);
     }
   }
 
@@ -69,9 +71,7 @@ function createGameSessionService(options = {}) {
   function start(input = {}) {
     assertCanCollect();
     if (session) {
-      const error = new Error('已有游戏正在进行，请先结束当前游戏。');
-      error.statusCode = 409;
-      throw error;
+      throw createPublicError('已有游戏正在进行，请先结束当前游戏。', 409);
     }
     const game = input.game === 'gomoku' ? 'gomoku' : input.game === 'draw-guess' ? 'draw-guess' : 'number-bomb';
     const mode = game === 'draw-guess' || input.mode === 'multi' ? 'multi' : 'single';
@@ -118,9 +118,7 @@ function createGameSessionService(options = {}) {
   function restart() {
     assertCanCollect();
     if (!session || session.game === 'draw-guess' || !session.state.winner) {
-      const error = new Error('当前游戏尚未结算。');
-      error.statusCode = 409;
-      throw error;
+      throw createPublicError('当前游戏尚未结算。', 409);
     }
     const input = {
       game: session.game,

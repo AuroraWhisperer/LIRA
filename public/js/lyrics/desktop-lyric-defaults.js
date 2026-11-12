@@ -20,6 +20,7 @@ export const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
   desktopLyricShadowOffsetX: '0',
   desktopLyricShadowOffsetY: '3',
   desktopLyricShowTranslation: 'true',
+  desktopLyricShowRoma: 'true',
   desktopLyricTranslationScale: '0.65',
   desktopLyricKaraokeEnabled: 'true',
   desktopLyricKaraokeMode: 'continuous',

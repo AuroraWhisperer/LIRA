@@ -74,6 +74,19 @@ test('browser and privileged display contracts stay identical', () => {
   assert.deepEqual(common.normalizeStyleParameters('danmaku', input), parameters.normalizeStyleParameters('danmaku', input));
 });
 
+test('coffee and sea breeze effects survive browser edits and privileged validation', () => {
+  const common = require('../../src/shared/component-style-parameters');
+  for (const style of ['coffee', 'sea-breeze', 'sea-breeze-random']) {
+    let config = { style };
+    config = { ...config, ...parameters.editStyleParameter(config, 'shadow', { blur: 16 }) };
+    config = { ...config, ...parameters.editStyleParameter(config, 'showEntryMessages', false) };
+    const saved = common.normalizeStyleParameters('danmaku', config.styleParameters);
+    const restored = parameters.normalizeStyleParameters('danmaku', saved)[style];
+    assert.equal(restored.shadow.blur, 16);
+    assert.equal(restored.showEntryMessages, false);
+  }
+});
+
 test('preview relay accepts validated optional effects on old clock and danmaku drafts only', () => {
   const { createComponentPreviewSessions } = require('../../src/server/component-preview-sessions');
   const sessions = createComponentPreviewSessions();

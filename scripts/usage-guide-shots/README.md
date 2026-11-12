@@ -1,6 +1,6 @@
 # 使用文档截图管线（usage-guide-shots）
 
-在隔离环境中为客户端正式使用手册生成截图。当前采用的图片由 `public/pages/admin/toolbox/usage-guide*.html` 的引用确定，文件位于 `public/img/usage-guide/`；`docs/images/usage-guide/` 是历史候选图库。剩余操作证据见[手册验收清单](../../specs/plans/2026-09-22-usage-guide-supplement.md)。
+在隔离环境中为客户端正式使用手册生成截图。当前采用的图片由 `public/pages/admin/toolbox/usage-guide*.html` 的引用确定，文件位于 `public/img/usage-guide/`；`docs/images/usage-guide/` 是历史候选图库。旧镜头范围与未执行验收的边界见[手册维护收口记录](../../specs/plans/archive/2026-09-22-usage-guide-supplement.md)。
 
 ## 用法
 
@@ -12,14 +12,16 @@ node scripts/usage-guide-shots/seed-data.cjs
 node scripts/usage-guide-shots/supplement.cjs
 node scripts/usage-guide-shots/supplement.cjs --only=A1,B1
 
-# 网页端补图：样式、完整直播画面地址、展开的歌单外观
-node scripts/usage-guide-shots/web-supplement.cjs --only=S6,S6b,F3b
+# 网页端补图：歌单外观设置
+node scripts/usage-guide-shots/web-supplement.cjs --only=F3b
 
 # PNG → WebP（≤200 KB 目标自检）
 node scripts/usage-guide-shots/to-webp.cjs
 ```
 
 `supplement.cjs` 使用 `electron-fixture.cjs`，不启动生产 `main.js`，也不要求关闭用户正在运行的 LIRA。不要同时运行两个使用同一示例数据库的截图进程。
+
+历史镜头 `S6`、`S6b` 对应已退役的服务器弹幕页，已从执行清单移除。网页脚本默认只拍摄当前歌单外观设置 `F3b`，不再点击旧的折叠面板。该镜头使用 1440 × 1320 视口完整展示外观表单，并检查标题与恢复默认按钮是否在画面内。
 
 早期浏览器样张工具仍可按以下方式使用，但客户端截图以 Electron 路径为准：
 
@@ -55,8 +57,8 @@ tmp/screenshots/usage-guide/
 - `supplement.cjs`：客户端各镜头的导航、裁切、标题与编号；输出 `supplement-results.json`，记录实际像素尺寸。长面板按滚动位置拆图，带 `mustShow` 的镜头检查关键控件是否完整处于窗口和滚动容器内；仍需目视核对文字与页面定位。
 - `electron-fixture.cjs`：真实 Electron/preload 与本机运行时；授权、更新、云端设置等响应使用合成数据，外部渲染请求被拦截。
 - `web-fixture.cjs`：导出 `start(serverRoot?)`，返回 `{ server, baseUrl }`。默认读取相邻 `lira-server/public/` 的实际前端，用内存数据提供 GET 接口；不启动服务器应用、不读取其配置或真实数据。网页端图片通过 Playwright 访问该临时服务拍摄。
-- `web-supplement.cjs`：提供 S6 / S6b / F3b 的网页端镜头，以及 F7 / F8 的本机投屏镜头；输出 `web-supplement-results.json`。CLI 只运行网页端镜头，本机投屏按下方示例复用隔离 Electron 的地址。
-- 浏览器源：在 Electron 示例运行时提供的本机地址打开 `/queue`、`/songlist`、`/blindbox`、`/gift-wishes`；`/danmaku?preview=1&style=signal` 为产品内置静态预览。
+- `web-supplement.cjs`：提供 F3b 的网页端镜头，以及 F7 / F8 的本机投屏镜头；输出 `web-supplement-results.json`。CLI 只运行网页端镜头，本机投屏按下方示例复用隔离 Electron 的地址。
+- 浏览器源：在 Electron 示例运行时提供的本机地址打开 `/queue`、`/songlist`、`/blindbox`、`/gift-wishes`；`/danmaku?preview=1&style=signal` 为产品内置布局预览，循环显示本地示例消息，不代表实际直播事件。
 
 F7 / F8 需要已就绪的隔离 Electron 实例 `electronApp`，以及本次任务创建的 Chromium 页面 `page`。在使用项目作用域 `createRequire` 初始化的 Playwright REPL 中调用：
 
@@ -72,7 +74,7 @@ for (const shot of webShots.SHOTS.filter((item) => item.local)) {
 
 网页截图结束后关闭浏览器上下文，再对示例 HTTP 服务调用 `server.closeAllConnections()` 和 `server.close()`；Electron 使用 Playwright 的 `app.close()` 退出。所有本地页面先检查具体路由的 HTTP 状态。
 
-这些图片展示界面位置，不验证远程服务、真实登录、发送弹幕或文件导出。B12b 是在隔离歌库执行导入后的计数反馈；F2b 的同步成功提示来自合成接口，C8 的音乐平台登录状态也为演示，不能证明真实账号或线上同步成功。D6 使用示例导出快照，因为拍摄时真实运行时的 `getGlobalSnapshot` 调用报错；歌词播放、开奖、AI 测试、真实登录与连接、备份恢复、OBS 添加源等剩余验收见方案 D.2。
+这些图片展示界面位置，不验证远程服务、真实登录、发送弹幕或文件导出。B12b 是在隔离歌库执行导入后的计数反馈；F2b 的同步成功提示来自合成接口，C8 的音乐平台登录状态也为演示，不能证明真实账号或线上同步成功。D6 使用示例导出快照，因为拍摄时真实运行时的 `getGlobalSnapshot` 调用报错；这不是当前产品故障的证据。原 D.2 的歌词、开奖、AI、登录、同步、备份及直播软件镜头已在收口记录逐项裁决，不作为现行必须补图清单。
 
 ## 早期工具的三条截图路径
 

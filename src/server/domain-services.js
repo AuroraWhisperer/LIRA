@@ -28,6 +28,7 @@ const queueService = require('../music/queue-service');
 const giftService = require('../bilibili/gift');
 const { createGiftWishService } = require('../bilibili/gift/wish-service');
 const { createHeartBoxCollectionService } = require('../bilibili/gift/heart-box-collection');
+const { createHeartBoxCollectionStore } = require('../storage/heart-box-collection-store');
 const { createGiftWishStore } = require('../storage/gift-wish-store');
 const superChatService = require('../bilibili/superchat-service');
 const { createSuperChatUndo } = require('../bilibili/superchat-undo');
@@ -186,7 +187,9 @@ function createDomainServices(options) {
     };
 
     const giftWishStore = createGiftWishStore(db.giftDb);
-    const heartBoxCollection = createHeartBoxCollectionService({ store: giftWishStore, gifts, catalog: overtimeGiftCatalog });
+    const heartBoxCollection = createHeartBoxCollectionService({
+      store: giftWishStore, adjustments: createHeartBoxCollectionStore(db.giftDb), gifts, catalog: overtimeGiftCatalog,
+    });
     const giftWishes = createGiftWishService({
       store: giftWishStore,
       gifts,
@@ -200,6 +203,7 @@ function createDomainServices(options) {
     const superChats = {
       getSnapshot: () => superChatService.getSuperChatSnapshot(superChatContext),
       add: (input) => superChatService.addSuperChatItem(superChatContext, input),
+      isDeleted: (platformId) => superChatService.isSuperChatDeleted(superChatContext, platformId),
       retract(platformIds) {
         const result = superChatService.retractSuperChatItems(superChatContext, platformIds);
         if (Array.isArray(platformIds)) superChatUndo.retract(platformIds);
@@ -229,6 +233,7 @@ function createDomainServices(options) {
       ensureUnifiedQueue: () => queue.ensureUnified(),
       clearSuperChatUndo: () => superChatUndo.clear(),
       getActiveGiftSource: () => gifts.getActiveSource?.(),
+      runGiftMaintenance: options.runGiftMaintenance,
       reloadOvertimeState: () => overtime.reloadState(),
       resetUserCooldowns: () => userRequestCooldown.reset(),
     });

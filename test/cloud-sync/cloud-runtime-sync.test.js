@@ -7,7 +7,6 @@ const path = require('node:path');
 const test = require('node:test');
 const songService = require('../../src/music/song-service');
 const { createServerRuntime } = require('../../src/server');
-const { createDesktopRuntime } = require('../../src/electron/desktop-runtime');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
 const { createQueueStore } = require('../../src/storage/queue-store');
 const { createSongStore } = require('../../src/storage/song-store');
@@ -16,19 +15,12 @@ const { createScratchDirectory, removeScratchDirectory } = require('../helpers/s
 test('account recovery gates song edits and current-library reads until the replacement reaches storage', async () => {
   const dataDir = createScratchDirectory('cloud-song-account-runtime-');
   const runtime = createServerRuntime({ dataDir, licenseGate: { isAuthorized: () => true } });
-  const adapter = createDesktopRuntime({
-    startServer() {},
-    shutdownApplication() {},
-    prepareCloudRoomAccount: runtime.prepareCloudRoomAccount,
-    getCloudSongsSnapshot: runtime.getCloudSongsSnapshot,
-    replaceCloudSongsSnapshot: runtime.replaceCloudSongsSnapshot,
-  });
   try {
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
-    adapter.prepareCloudRoomAccount('first');
-    adapter.replaceCloudSongsSnapshot([{ title: 'First library' }], 'first');
-    adapter.prepareCloudRoomAccount('second');
-    assert.throws(() => adapter.getCloudSongsSnapshot('second'), { code: 'CLOUD_SONGS_NOT_READY' });
+    runtime.prepareCloudRoomAccount('first');
+    runtime.replaceCloudSongsSnapshot([{ title: 'First library' }], 'first');
+    runtime.prepareCloudRoomAccount('second');
+    assert.throws(() => runtime.getCloudSongsSnapshot('second'), { code: 'CLOUD_SONGS_NOT_READY' });
     const save = () => fetch(`${server.baseUrl}/api/songs/save`, {
       method: 'POST',
       headers: { authorization: `Bearer ${runtime.getApiToken()}`, 'content-type': 'application/json', origin: server.baseUrl },
@@ -42,10 +34,10 @@ test('account recovery gates song edits and current-library reads until the repl
     assert.equal(runtime.getCloudSongsSnapshot()[0].name, 'First library');
     assert.equal(runtime.hasPendingCloudSongs('second'), false);
 
-    adapter.replaceCloudSongsSnapshot([{ title: 'Second library' }], 'second');
+    runtime.replaceCloudSongsSnapshot([{ title: 'Second library' }], 'second');
     const saved = await save();
     assert.equal(saved.status, 200);
-    assert.deepEqual(adapter.getCloudSongsSnapshot('second').map((song) => song.name).sort(), ['Second edit', 'Second library']);
+    assert.deepEqual(runtime.getCloudSongsSnapshot('second').map((song) => song.name).sort(), ['Second edit', 'Second library']);
     assert.ok(runtime.hasPendingCloudSongs('second'));
   } finally {
     await runtime.stop({ exitProcess: false });
@@ -63,12 +55,7 @@ test('room account preparation reaches the runtime without dirty echo or metadat
   const unsubscribe = runtime.onCloudSyncRequested((scope) => dirty.push(scope));
   try {
     await runtime.start({ host: '127.0.0.1', startPort: 0 });
-    const adapter = createDesktopRuntime({
-      startServer() {},
-      shutdownApplication() {},
-      prepareCloudRoomAccount: (key) => runtime.prepareCloudRoomAccount(key),
-    });
-    assert.equal(adapter.prepareCloudRoomAccount('first'), true);
+    assert.equal(runtime.prepareCloudRoomAccount('first'), true);
     runtime.applyCloudSettingsSnapshot({
       ...runtime.getCloudSettingsSnapshot(),
       roomId: '111',
@@ -76,9 +63,9 @@ test('room account preparation reaches the runtime without dirty echo or metadat
       danmakuMonitoringEnabled: false,
       giftMonitoringEnabled: false,
     });
-    assert.equal(adapter.prepareCloudRoomAccount('first'), false);
+    assert.equal(runtime.prepareCloudRoomAccount('first'), false);
     assert.equal(runtime.getCloudSettingsSnapshot().roomId, '111');
-    assert.equal(adapter.prepareCloudRoomAccount('second'), true);
+    assert.equal(runtime.prepareCloudRoomAccount('second'), true);
     assert.equal(runtime.getCloudSettingsSnapshot().roomId, '');
     assert.equal(runtime.getSetting('cloudRoomAccountKey'), undefined);
     assert.equal(runtime.getCloudSettingsSnapshot().cloudRoomAccountKey, undefined);
@@ -104,15 +91,8 @@ test('previewed song updates run through the API facade and request one complete
     const server = await runtime.start({ host: '127.0.0.1', startPort: 0 });
     const accountKey = JSON.stringify(['https://api.example.test', 'fixture', 1]);
     runtime.prepareCloudRoomAccount(accountKey);
-    const adapter = createDesktopRuntime({
-      startServer() {},
-      shutdownApplication() {},
-      hasPendingCloudSongs: runtime.hasPendingCloudSongs,
-      getPendingCloudSongs: runtime.getPendingCloudSongs,
-      acknowledgePendingCloudSongs: runtime.acknowledgePendingCloudSongs,
-    });
-    assert.equal(adapter.hasPendingCloudSongs(accountKey), false);
-    assert.equal(adapter.getPendingCloudSongs(accountKey), null);
+    assert.equal(runtime.hasPendingCloudSongs(accountKey), false);
+    assert.equal(runtime.getPendingCloudSongs(accountKey), null);
     const headers = {
       authorization: `Bearer ${runtime.getApiToken()}`,
       'content-type': 'application/json',
@@ -158,9 +138,9 @@ test('previewed song updates run through the API facade and request one complete
     assert.equal(snapshots[0].length, 2);
     assert.equal(snapshots[0].find((song) => song.name === '本地原曲').request_price, '30元SC');
     assert.equal(snapshots[0].find((song) => song.name === '本地原曲').source_platform, 'QQ音乐');
-    assert.equal(adapter.hasPendingCloudSongs(accountKey), true);
-    assert.equal(adapter.hasPendingCloudSongs('other-account'), false);
-    const pending = adapter.getPendingCloudSongs(accountKey);
+    assert.equal(runtime.hasPendingCloudSongs(accountKey), true);
+    assert.equal(runtime.hasPendingCloudSongs('other-account'), false);
+    const pending = runtime.getPendingCloudSongs(accountKey);
     assert.equal(pending.songs.length, 2);
     assert.equal(pending.songs.find((song) => song.name === '本地原曲').request_price, '30元SC');
     const response = await fetch(`${server.baseUrl}/api/state`, { headers });
@@ -170,9 +150,9 @@ test('previewed song updates run through the API facade and request one complete
       Object.keys(settings).some((key) => key.startsWith('cloudSongSyncPending:')),
       false,
     );
-    assert.equal(adapter.acknowledgePendingCloudSongs(accountKey, pending.mutationId), true);
-    assert.equal(adapter.hasPendingCloudSongs(accountKey), false);
-    assert.equal(adapter.getPendingCloudSongs(accountKey), null);
+    assert.equal(runtime.acknowledgePendingCloudSongs(accountKey, pending.mutationId), true);
+    assert.equal(runtime.hasPendingCloudSongs(accountKey), false);
+    assert.equal(runtime.getPendingCloudSongs(accountKey), null);
     assert.equal(snapshots.length, 1, 'acknowledgement does not emit a dirty echo');
   } finally {
     unsubscribe();

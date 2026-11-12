@@ -46,6 +46,8 @@ function createTestService(overrides = {}) {
     now: overrides.now,
     delay: overrides.delay || (async () => {}),
     random: overrides.random,
+    setTimer: overrides.setTimer,
+    clearTimer: overrides.clearTimer,
     log: { warn: () => {} },
   });
   return { ...service, handleDanmaku: danmaku => service.handleDanmaku({ roomId: 'test-room', ...danmaku }) };

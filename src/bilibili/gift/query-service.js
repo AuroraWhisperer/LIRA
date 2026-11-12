@@ -106,7 +106,8 @@ function getGiftHistory(context, options = {}) {
   return {
     viewRevision,
     ...(contentRevision ? { contentRevision } : {}),
-    retention: queryStore.getRetention?.(activeSource.sourceId) || null,
+    retention: queryStore.getRetention?.(activeSource.sourceId, { ...historyOptions,
+      complete: !buildSyncMetadata(activeSource).partial }) || null,
     ...filters,
     asOf,
     range,
@@ -481,5 +482,9 @@ function getGiftSelection(context, options = {}) {
   if (ids && items.length !== new Set(ids).size) {
     throw queryError('GIFT_VIEW_STALE', '部分礼物记录已不可用，请重新选择。');
   }
-  return { viewRevision, asOf, items, ...buildSyncMetadata(source) };
+  return { viewRevision, asOf, items, ...buildSyncMetadata(source),
+    retention: context.queryStore.getRetention?.(source.sourceId, {
+      ...historyBounds(filters, resolveRangeStart(normalizeLedgerRange(options.range || 'all'), asOf), asOf),
+      asOf, complete: !buildSyncMetadata(source).partial,
+    }) || null };
 }

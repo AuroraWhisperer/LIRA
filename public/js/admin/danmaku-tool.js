@@ -9,7 +9,9 @@ import { initDanmakuOverlayFilters } from './danmaku-overlay-filters.js';
 import { initDanmakuWelcome } from './danmaku-welcome.js';
 import { initDanmakuPkReport } from './danmaku-pk-report.js';
 import { initFixedReplyEditor } from './danmaku-fixed-replies.js';
+import { initDanmakuTabs } from './danmaku-tabs.js';
 import { initDanmakuCloudReplies } from './danmaku-cloud-replies.js';
+import { initDanmakuViewerNames } from './danmaku-viewer-names.js';
 import { initDanmakuQueryReplies } from './danmaku-query-replies.js';
 import { initGiftInteractionControls } from './gifts/interaction-controls.js';
 import { initDanmakuGiftThanks } from './danmaku-gift-thanks.js';
@@ -58,6 +60,7 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
   const welcome = initDanmakuWelcome({ toast });
   const pk = initDanmakuPkReport({ toast });
   const cloudReplies = initDanmakuCloudReplies({ toast });
+  const viewerNames = initDanmakuViewerNames();
   initDanmakuQueryReplies();
   const thanks = initDanmakuGiftThanks({ toast });
   initGiftInteractionControls({ surface: 'danmaku', notify: toast, onState: thanks?.updateState });
@@ -65,7 +68,9 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     void welcome?.refresh();
     void pk?.refresh();
     void cloudReplies?.refresh();
+    void viewerNames?.refresh();
   });
+  initDanmakuTabs();
   initFixedReplyEditor();
   initialized = true;
 
@@ -82,31 +87,37 @@ function init({ toast = defaultToast, reconnectBilibili } = {}) {
     setResult('直播账号或房间已变更，已停止剩余自动发送，请确认目标后重试。', 'warn');
   };
 
+  let stateRevision = 0;
   refreshState = async ({ reconnectIfDisconnected = false } = {}) => {
+    const revision = ++stateRevision;
     elements.refreshButton.disabled = true;
     try {
       const response = await fetch('/api/bilibili/danmaku/state');
       const payload = await readApiResponse(response, '获取发送状态失败');
+      if (revision !== stateRevision) return;
       let state = payload.data || {};
       if (autoBotContext && state.sendSession !== autoBotContext.sendSession) stopObsoleteBatch();
       const monitoringEnabled = document.getElementById('danmakuMonitoringEnabled')?.checked;
       if (reconnectIfDisconnected && !state.connected && state.roomId && monitoringEnabled !== false) {
         await reconnectBilibili?.({ silent: true });
+        if (revision !== stateRevision) return;
         const refreshedResponse = await fetch('/api/bilibili/danmaku/state');
         const refreshedPayload = await readApiResponse(refreshedResponse, '获取刷新后的发送状态失败');
         state = refreshedPayload.data || {};
       }
+      if (revision !== stateRevision) return;
       renderState(elements, state, {
         customReplyEditor,
       });
     } catch (error) {
+      if (revision !== stateRevision) return;
       elements.accountState.textContent = '状态未知';
       elements.roomState.textContent = '状态未知';
       elements.status.textContent = error.message || '无法获取发送状态';
       elements.status.className = 'warn';
       elements.sendButton.disabled = true;
     } finally {
-      elements.refreshButton.disabled = false;
+      if (revision === stateRevision) elements.refreshButton.disabled = false;
     }
   };
 

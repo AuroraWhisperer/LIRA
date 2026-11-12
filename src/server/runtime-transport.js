@@ -15,6 +15,7 @@ const GIFT_SCENE_TYPES = ['overtime', 'gift-feed', 'gift-wishes', 'heart-box-col
 function snapshotSceneTypes(reason) {
   if (reason === 'settings' || reason === 'component:styles' || reason === 'bilibili:room-guard') return undefined;
   if (reason === 'gift:wishes') return ['gift-wishes'];
+  if (reason === 'gift:heart-box-collection') return ['heart-box-collection'];
   if (/^(?:gift:|bilibili:gift$|database:clear-gifts$)/.test(reason)) return GIFT_SCENE_TYPES;
   if (/^(?:queue:|superchat:|bilibili:(?:danmaku|superchat)$|database:clear-superchats$)/.test(reason)) return ['queue'];
   if (/^(?:songs:|cloud:songs$|database:clear$)/.test(reason)) return ['queue', 'songlist'];
@@ -55,6 +56,7 @@ function createRuntimeTransport({
     getWebSocketHub()?.broadcastSnapshot(getWebSocketContext(baseUrl), reason);
     notifySceneOutput?.({ types: snapshotSceneTypes(reason),
       ...(reason === 'gift:wishes' ? { invalidateTypes: ['gift-wishes'] }
+        : reason === 'gift:heart-box-collection' ? { invalidateTypes: ['heart-box-collection'] }
         : reason === 'settings' ? { invalidateTypes: ['blindbox'] } : {}) });
   }
 

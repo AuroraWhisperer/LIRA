@@ -1,5 +1,6 @@
-export function createScheduledLibraryEditor({ documentRef, changed }) {
-  const element = (suffix) => documentRef.getElementById(`danmakuScheduledLibrary${suffix}`);
+export function createScheduledLibraryEditor({ documentRef, changed,
+  prefix = 'danmakuScheduledLibrary', label = '定时弹幕', maxItems = 300 }) {
+  const element = (suffix) => documentRef.getElementById(`${prefix}${suffix}`);
   const list = element('List');
   let items = [], page = 0, search = '';
 
@@ -15,7 +16,7 @@ export function createScheduledLibraryEditor({ documentRef, changed }) {
       const input = documentRef.createElement('input');
       input.type = 'text';
       input.value = text;
-      input.setAttribute('aria-label', `定时弹幕第 ${index + 1} 条`);
+      input.setAttribute('aria-label', `${label}第 ${index + 1} 条`);
       input.addEventListener('input', () => {
         items[index] = input.value;
         input.setCustomValidity('');
@@ -25,7 +26,7 @@ export function createScheduledLibraryEditor({ documentRef, changed }) {
       remove.type = 'button';
       remove.className = 'danmaku-text-action daily-library-delete';
       remove.textContent = '删除';
-      remove.setAttribute('aria-label', `删除第 ${index + 1} 条定时弹幕`);
+      remove.setAttribute('aria-label', `删除第 ${index + 1} 条${label}`);
       remove.addEventListener('click', () => {
         items.splice(index, 1);
         changed();
@@ -46,7 +47,7 @@ export function createScheduledLibraryEditor({ documentRef, changed }) {
     element('Page').textContent = `第 ${page + 1} / ${pages} 页`;
     element('Previous').disabled = page === 0;
     element('Next').disabled = page === pages - 1;
-    element('Add').disabled = items.length >= 100;
+    element('Add').disabled = items.length >= maxItems;
   }
 
   element('Search').addEventListener('input', () => {

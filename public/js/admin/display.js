@@ -13,7 +13,6 @@ import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { bindSongBoardSettings, collectSongBoardSettings, songBoardConfigFromSettings, songBoardSettingsPayload } from './song-board-settings.js';
 import { updateBlindboxOverlayUrl } from './settings.js';
-import { observeServerOverlayUrl } from './server-overlay-url.js';
 import { initCanvasOverlaySource } from './canvas-overlay-source.js';
 import { readComponentOutputSize } from './scene-api.js';
 
@@ -66,10 +65,6 @@ export const display = (() => {
     document.getElementById('songsUrl').textContent = `${origin}/songlist`;
     document.getElementById('lyricsUrl').textContent = `${origin}/lyrics`;
     document.getElementById('nowPlayingUrl').textContent = `${origin}/now-playing`;
-    observeServerOverlayUrl((url) => {
-      document.getElementById('liveDanmakuUrl').textContent = url || '连接 LIRA 账号后显示服务器地址';
-      document.querySelector('[data-copy-url="liveDanmakuUrl"]').disabled = !url;
-    });
     document.getElementById('liveBlindboxUrl').textContent = `${origin}/blindbox`;
     document.getElementById('liveGamesUrl').textContent = `${origin}/games`;
     document.getElementById('liveWheelUrl').textContent = `${origin}/wheel`;

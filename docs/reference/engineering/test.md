@@ -24,7 +24,7 @@
 
 ### 按运行依赖选择
 
-周表模型/本机存储由 [weekly-schedule-model.test.js](../../../test/admin/weekly-schedule-model.test.js)、[weekly-schedule-storage.test.js](../../../test/admin/weekly-schedule-storage.test.js) 覆盖日期、模板隔离、清周保时、旧外观字段补齐、读取失败保护与写入顺序；[weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js) 覆盖导出来源、限额、外观参数验证、特定合成错误的有限重试、取消及文件/窗口责任。[weekly-schedule-electron.test.js](../../../test/desktop/weekly-schedule-electron.test.js) 登记desktop组，使用实际preload、百宝箱导航、IndexedDB和导出controller，在隔离目录验证素材/模板重载、精确数值与恢复参数、切周/统一时间、新参数进入真实PNG渲染及导出点击快照；四角像素检查覆盖初始小窗口和完整窗口，输出固定1920×1080。不启动业务主程序，不访问用户账号或数据。版式与完整操作的人工检查仍需在桌面完成，不能用尺寸断言代替可读性。
+周表模型/本机存储由 [weekly-schedule-model.test.js](../../../test/admin/weekly-schedule-model.test.js)、[weekly-schedule-storage.test.js](../../../test/admin/weekly-schedule-storage.test.js) 覆盖日期、模板隔离、清周保时、旧外观字段补齐、逐图效果复制隔离、读取失败保护与写入顺序；[weekly-schedule-export.test.js](../../../test/desktop/weekly-schedule-export.test.js) 覆盖导出来源、限额、外观及图像效果参数验证、特定合成错误的有限重试、取消及文件/窗口责任。[weekly-schedule-electron.test.js](../../../test/desktop/weekly-schedule-electron.test.js) 登记desktop组，使用实际preload、百宝箱导航、IndexedDB和导出controller，在隔离目录验证素材/模板重载、精确数值与恢复参数、切周/统一时间、新参数进入真实PNG渲染及导出点击快照；直接图片编辑流程覆盖缩放画布的拖动坐标、键盘微调、缩放/旋转与退出大屏后自动保存重载、不同图片效果隔离。四角像素检查覆盖初始小窗口和完整窗口，输出固定1920×1080。不启动业务主程序，不访问用户账号或数据。版式与完整操作的人工检查仍需在桌面完成，不能用尺寸断言代替可读性。
 
 | 命令 | 实际依赖与边界 |
 | --- | --- |
@@ -34,7 +34,7 @@
 | `npm run test:installer` | Windows/NSIS 安装器；保留已有工具检测，缺失导致的 skip 必须单列 |
 | `npm run test:contracts` | 从锁定服务器检出读取 fixture 的消费者；包括完整密码兼容样例，UI/协议/HTTP 本地测试另留自主输入 |
 
-五组互不重叠且合计等于 `npm test`。用 `node scripts/run-tests.js <组名或all> --list` 查看实际文件；新增使用浏览器、桌面或服务器 fixture 的测试需在执行器中登记，普通 Node 测试自动进入离线组。`run-tests.test.js` 还沿测试与共享 helper 的静态 `require` 检查 Playwright 依赖归组，使用 `shared-electron` 的用例归 desktop，防止遗漏登记后静默落入 offline。日常运行所属组和直接消费者；完整验证仍用 `npm run verify`。管理页定向入口包含浏览器组件，须先安装 Chromium：`npx playwright install chromium`。
+五组互不重叠且合计等于 `npm test`。用 `node scripts/run-tests.js <组名或all> --list` 查看实际文件；新增使用浏览器、桌面或服务器 fixture 的测试需在执行器中登记，普通 Node 测试自动进入离线组。`run-tests.test.js` 还沿测试与共享 helper 的静态 `require` 检查 Playwright 和 Electron 依赖归组，直接依赖 `electron` 或使用 `shared-electron` 的用例归 desktop，防止遗漏登记后静默落入 offline。日常运行所属组和直接消费者；完整验证仍用 `npm run verify`。管理页定向入口包含浏览器组件，须先安装 Chromium：`npx playwright install chromium`。
 
 林间花信外置包由 [woodland-style-package.test.js](../../../test/scenes/woodland-style-package.test.js) 覆盖真实 ZIP 检查/导入、原始素材哈希、重复导入及旧媒体 URL 的 Range/HEAD/移除兼容；[woodland-style-import-electron.test.js](../../../test/desktop/woodland-style-import-electron.test.js) 登记在 desktop 组，使用隔离 Electron 与真实文件导入链验证客户端设置、画布项默认 1920×1080、画布保存和重载。打包过滤仍由 [packaging-scope.test.js](../../../test/engineering/packaging-scope.test.js) 检查，并以实际构建 ASAR 确认依赖映射和制作素材确实排除。
 
@@ -292,7 +292,7 @@ npm run verify
 | [websocket-transport.test.js](../../../test/transport/websocket-transport.test.js)                                     | `server/ws`(WS 传输)                                                                            | [backend/ws.md](../backend/ws.md)                                                                 |
 | **桌面层**                                                                                                   |                                                                                                 | 见各列                                                                                            |
 | [bilibili-login-window.test.js](../../../test/bilibili/bilibili-login-window.test.js)                                 | `electron/bilibili-login-window`(登录窗口)                                                      | [desktop/auth.md](../desktop/auth.md)                                                             |
-| [bilibili-startup-wiring.test.js](../../../test/bilibili/bilibili-startup-wiring.test.js)                             | `server.js`+`electron/main.js`(启动装配断言)                                                    | [backend/server-core.md](../backend/server-core.md) + [desktop/main.md](../desktop/main.md)       |
+| [bilibili-startup-wiring.test.js](../../../test/bilibili/bilibili-startup-wiring.test.js)                             | `electron/cloud-sync-controller`(取消登录不上传，登录成功上传凭据)                              | [desktop/main.md](../desktop/main.md)                                                         |
 | [desktop-lyrics.test.js](../../../test/lyrics/desktop-lyrics.test.js)                                               | 桌面歌词浏览器源状态与时间轴规范化                                                              | [frontend/playback.md](../frontend/playback.md) + [frontend/overlays.md](../frontend/overlays.md) |
 | [desktop-lyric-settings.test.js](../../../test/lyrics/desktop-lyric-settings.test.js)                               | 歌词比例控件换算与颜色透明度应用                                                                | [frontend/app.md](../frontend/app.md) + [frontend/overlays.md](../frontend/overlays.md)           |
 | [desktop-lyric-settings-runtime.test.js](../../../test/lyrics/desktop-lyric-settings-runtime.test.js)               | 字体权限、设置预览与自动保存                                                                    | 同上                                                                                              |
@@ -360,7 +360,7 @@ npm run verify
 ## 3. 静态检查:npm run check
 
 - 命令:`npm run check` → `node scripts/check-js.js`（[package.json](../../../package.json) 的 `scripts.check`）。
-- 行为:[check-js.js](../../../scripts/check-js.js) 递归收集 `src/`、`public/`、`scripts/`、`test/` 下全部 `.js` 文件，逐文件比较内容、最近包的模块解析配置、实际 Node 和 checker 实现，仅对缺少有效证明的文件执行原生 `node --check`。最多 4 个子进程，并发数同时受可用 CPU 数和文件数限制。应用版本号变化不单独使语法结果失效；模块类型、包边界或文件变化仍重查。失败后停止分配新文件并等待已启动检查，返回非零；输入在检查期间变化不登记成功。
+- 行为:[check-js.js](../../../scripts/check-js.js) 递归收集 `src/`、`public/`、`scripts/`、`test/`、`tools/` 下全部 `.js`、`.cjs`、`.mjs` 文件，逐文件比较内容、最近包的模块解析配置、实际 Node 和 checker 实现，仅对缺少有效证明的文件执行原生 `node --check`。最多 4 个子进程，并发数同时受可用 CPU 数和文件数限制。应用版本号变化不单独使语法结果失效；模块类型、包边界或文件变化仍重查。失败后停止分配新文件并等待已启动检查，返回非零；输入在检查期间变化不登记成功。
 - `npm run check -- --plan` 只列出待运行文件，`npm run check -- --force` 强制重查并先撤销旧记录。执行输出运行、复用与总文件数，新增文件自动纳入，已删除文件不再计入覆盖。记录和互斥锁位于仓库 `tmp/verification/`，损坏记录按未验证处理；拒绝 `NODE_OPTIONS` 和父进程 Node flags。异常退出后先确认锁中 PID 已停止，再移除该锁。
 - 边界:**仅查语法**,不做类型检查、模块导入一致性或风格检查(旧文档的描述不准确)。
 - 日常按根 [AGENTS.md](../../../AGENTS.md) 的风险分级选择验证：小改动只检查相关文件或运行一次针对性界面验证；单个功能运行自身及直接受影响的测试；跨领域或关键边界变化运行相关完整门禁。`npm run verify:quick` 和 `npm run verify` 仍执行各自完整范围，发布遵循 [RELEASE_GUIDE.md](../../../RELEASE_GUIDE.md)。输入和相关环境未变时，不重复运行已通过的同一检查。

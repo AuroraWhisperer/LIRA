@@ -174,7 +174,7 @@ export function createRenderer(deps) {
 
   function renderPlaybackHomeResults(action = '', title = '') {
     const homeState = homeService.getHomeState();
-    uiRenderer.getDrawer().renderContent(homeState.items, homeState.itemType, action, title, homeState.page);
+    uiRenderer.getDrawer().renderContent(homeState.items, homeState.itemType, action, title, homeService.canGoBack());
   }
 
   function renderPlaybackMatchResults(data) {

@@ -35,13 +35,13 @@ export function createPlaybackQueueCoordinator({
     return queueManager.rebuildShuffleOrder();
   }
 
-  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '') {
+  async function startPlaybackCollection(tracks, selectedIndex, queueType, queueTitle = '', queueSourceKey = '', radioOffset) {
     if (!Array.isArray(tracks) || !tracks.some(Boolean)) return;
     invalidateImports?.();
     resetAudio();
     stateActions.clearCurrent();
     stateActions.clearPending();
-    const track = queueManager.startCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey);
+    const track = queueManager.startCollection(tracks, selectedIndex, queueType, queueTitle, queueSourceKey, radioOffset);
     rebuildPlaybackShuffleOrder();
     savePlaybackState();
     await playPlaybackTrack(track, { origin: queueType === 'radio' ? 'radio' : 'normal' });

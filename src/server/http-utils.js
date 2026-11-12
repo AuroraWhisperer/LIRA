@@ -152,6 +152,14 @@ function validateOrigin(req, allowedOrigins) {
  * @param {Error} error - Error to map
  */
 function sendStableError(res, error) {
+  if (error?.code === 'REQUEST_AUTHORIZATION_CHANGED') {
+    sendJson(res, error.statusCode, {
+      ok: false,
+      code: error.code,
+      error: error.statusCode === 423 ? 'LICENSE_REQUIRED' : '账号授权已变化，请重新打开页面后重试。',
+    });
+    return;
+  }
   if (error?.code === 'CLOUD_SETTINGS_NOT_READY') {
     sendJson(res, 503, {
       ok: false,
@@ -193,6 +201,11 @@ function sendStableError(res, error) {
       ok: false,
       error: 'Request body exceeds size limit.',
     });
+    return;
+  }
+
+  if (typeof error?.publicMessage === 'string' && Number.isInteger(error.statusCode) && error.statusCode >= 400 && error.statusCode < 600) {
+    sendJson(res, error.statusCode, { ok: false, error: error.publicMessage });
     return;
   }
 

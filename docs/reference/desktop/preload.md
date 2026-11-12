@@ -38,7 +38,7 @@
 
 ## 1. 安全模型
 
-所有桥仅暴露固定方法，不暴露 `ipcRenderer`、任意 URL 请求、Device token、Cookie 或租户选择器。窗口保持 `contextIsolation: true`、`nodeIntegration: false`。下表记录实际来源检查，不能把一种 registrar 的规则套给所有 IPC。
+所有桥仅暴露固定方法，不暴露 `ipcRenderer`、任意 URL 请求、Device token、Cookie 或租户选择器。主窗口保持 `sandbox: true`、`contextIsolation: true`、`nodeIntegration: false`。下表记录实际来源检查，不能把一种 registrar 的规则套给所有 IPC。
 
 | handler owner | 当前主窗口 webContents / 精确 desktop origin | 主 frame 对象 | pathname 范围 |
 | --- | --- | --- | --- |
@@ -51,11 +51,9 @@
 | [weekly-schedule-ipc.js](../../../src/electron/ipc/weekly-schedule-ipc.js)：周表PNG导出，复用main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [fan-profile-ipc.js](../../../src/electron/ipc/fan-profile-ipc.js)、[gift-export-ipc.js](../../../src/electron/ipc/gift-export-ipc.js)：复用 main-window registrar | 必须 | 必须 | `/`、`/admin`、`/settings`、`/songs` |
 | [dynamic-lottery-auth-ipc.js](../../../src/electron/ipc/dynamic-lottery-auth-ipc.js)、[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) | 必须 | 必须 | 不另检查路径，包含同 origin 的 `/license` |
-| [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：overlay-filters GET/PUT、overlay-viewers GET、fixed-reply-settings GET/PUT | 必须 | 必须 | 不另检查路径 |
-| [font-library-ipc.js](../../../src/electron/ipc/font-library-ipc.js)：retry-font-library | 必须 | 必须 | 不另检查路径；另要求 authorized |
-| 同上：其余 license | 必须 | **不要求** mainFrame 对象 | 不另检查路径；同 origin 子 frame 也通过该来源检查 |
+| [license-ipc.js](../../../src/electron/ipc/license-ipc.js)：统一 `safeHandle`，含 [font-library-ipc.js](../../../src/electron/ipc/font-library-ipc.js) | 必须 | 必须 | 复用 main-window registrar：`/`、`/admin`、`/settings`、`/songs`、`/license`；字体重试另要求 authorized |
 
-非法来源返回 `{ok:false,error:'IPC_SOURCE_INVALID'}`；license registrar 另带脱敏 `state`。此检查不是远端授权，具体操作仍受 LicenseManager 的授权及代次约束。当前主窗口匹配同时限定实际 Chromium session；renderer 不能指定分区。不要将未实施的路径/frame 限制写成已有保护。
+非法来源返回 `{ok:false,error:'IPC_SOURCE_INVALID'}`；license registrar 通过共享 registrar 的拒绝响应回调保留脱敏 `state`。`/license` 继续用于首次激活、状态与初始化进度读取；同源子 frame 和其他同源页面不能通过 license 来源检查。此检查不是远端授权，具体操作仍受 LicenseManager 的授权及代次约束。当前主窗口匹配同时限定实际 Chromium session；renderer 不能指定分区。
 
 ## 2. renderer → main（invoke）
 
@@ -153,8 +151,11 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:update-welcome-settings-v2` | `updateWelcomeSettingsV2(patch)` | 完整 V2 配置，不降级重放；可带 fieldErrors | 同上 |
 | `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled,reportEnabled,visitorWelcomeEnabled,visitorWelcomeDelaySeconds,visitorWelcomeMessages}`；旧服务器只返回 enabled | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
 | `license:update-pk-report-settings` | `updatePkReportSettings(patch)`，仅允许 PK 总开关、两项子开关、欢迎延时和词库的非空 patch | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
-| `license:get-fixed-reply-settings` | `getFixedReplySettings()` | `{ok:true,customExactReplyEnabled,customExactReplies,scheduledDanmakuEnabled,scheduledDanmaku}`；FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 弹幕互动固定回复 |
-| `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅上述四个配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
+| `license:get-fixed-reply-settings` | `getFixedReplySettings()` | `{ok:true,customExactReplyEnabled,customExactReplies,scheduledDanmakuEnabled,scheduledDanmaku}`，可附完整的点赞/分享/关注感谢六字段，见 [固定回复契约](main.md#服务器固定回复设置)；FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 弹幕互动固定回复 |
+| `license:get-viewer-name-settings` / `license:update-viewer-name-settings` | `getViewerNameSettings()` / `updateViewerNameSettings({enabled})` | `{ok:true,enabled}`；服务端总开关缺省 true；关闭保留名单 | 昵称管理 |
+| `license:list-viewer-names` | `listViewerNames({page})`，正整数 1–999999999 | `{ok:true,items:[{uid,name}],page,pageSize:20,total}`；仅当前页，页码由服务器校正 | [danmaku-viewer-names.js](../../../public/js/admin/danmaku-viewer-names.js) |
+| `license:update-viewer-name` / `license:delete-viewer-name` | `updateViewerName({uid,name})` / `deleteViewerName(uid)` | 更新返回 `{ok:true,uid,name}`；删除 `{ok:true}`；INVALID_VIEWER_NAME_REQUEST / VIEWER_NAME_NOT_FOUND / VIEWER_NAMES_UNSUPPORTED | 同上 |
+| `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅精确/定时回复及互动感谢配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
 | `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000；与自动同步串行，保留传入快照语义。统一在授权歌库 owner 按归一化后的完整 `{songs}` JSON 的 UTF-8 字节检查 ≤5 MiB | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / PAYLOAD_TOO_LARGE | 兼容入口 |
 | `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；主进程完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
 | `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数；与兼容入口和自动上传共享归一化后的 5 MiB UTF-8 请求预算 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY，超限报 PAYLOAD_TOO_LARGE；失败走公共错误脱敏 | 同上 |
@@ -168,15 +169,20 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:get-gift-interaction-state` | `getGiftInteractionState()` | GiftInteractionSnapshot | [interaction-controls.js](../../../public/js/admin/gifts/interaction-controls.js) |
 | `license:set-gift-interaction` | `setGiftInteraction(key,enabled)` → `{key,enabled}`，拒绝额外字段 | GiftInteractionSnapshot；INVALID_GIFT_INTERACTION / GIFT_INTERACTION_PENDING / CLOUD_SYNC_FAILED | 同上 |
 | `license:set-gift-thanks-templates` | `setGiftThanksTemplates({gift,guard})`，只接受两份受限纯文本模板 | GiftInteractionSnapshot；INVALID_GIFT_THANKS_TEMPLATES / GIFT_THANKS_UNSUPPORTED / GIFT_INTERACTION_PENDING / CLOUD_SYNC_FAILED | [danmaku-gift-thanks.js](../../../public/js/admin/danmaku-gift-thanks.js) |
+| `license:set-gift-thanks-replies` | `setGiftThanksReplies({gift,captain,admiral,governor})`，只接受四组受限候选文案 | GiftInteractionSnapshot；INVALID_GIFT_THANKS_REPLIES / GIFT_THANKS_UNSUPPORTED / GIFT_INTERACTION_PENDING / CLOUD_SYNC_FAILED | 同上 |
 
 共享 DTO 与约束：
+
+昵称管理由 [license-viewer-name-ipc.js](../../../src/electron/ipc/license-viewer-name-ipc.js) 注册，沿用主窗口来源验证与授权账号世代检查；[viewer-names-contract.js](../../../src/shared/viewer-names-contract.js) 严格校验窄参数、投影公开字段，UID 为精确正十进制字符串，昵称为单行 1–10 个 Unicode 字素簇。服务器独立保存昵称和开关，桌面不保留名单副本。旧服务器 404/405 显示升级提示；缺失 UID 的 404 保留 VIEWER_NAME_NOT_FOUND。账号切换丢弃迟到结果。完整远端契约由 Server 的 Device OpenAPI 和 viewer-welcome 协议拥有。
 
 固定回复处理器由 [license-fixed-reply-ipc.js](../../../src/electron/ipc/license-fixed-reply-ipc.js)
 注册，成功仅投影四个配置字段及 `ok`；云端 revision 只用于主进程即时更新内存去重投影，
 不进入 renderer。未知回包字段（含每条规则与定时配置内部字段）均不透传。
 账号代次变化后不提交投影、不接受迟到结果，沿用 `LICENSE_NOT_AUTHORIZED`。
 
-久别重逢扩展沿用 V2 welcome IPC：`returningEnabled` 为 boolean，`returningMessages` 为独立客套话词库，沿用 1–30 条/每条 80 字校验。新服务器必须成对返回；旧 V2 同时缺失时不补默认值，只禁用新控件，半缺失回包拒绝。主欢迎关闭时不能启用重逢；独立保存和失败草稿规则保持。时间计算与进场记录由服务器拥有，客户端不接收观众记录。
+多天未到欢迎扩展沿用 V2 welcome IPC：`returningEnabled` 为 boolean，`returningMessages` 为统一完整文案词库，变量由服务器展开，沿用 1–30 条/每条 80 字校验。新服务器必须成对返回；旧 V2 同时缺失时不补默认值，只禁用新控件，半缺失回包拒绝。主欢迎关闭时不能启用多天未到欢迎；独立保存和失败草稿规则保持。时间计算与进场记录由服务器拥有，客户端不接收观众记录。
+
+时段欢迎扩展沿用 V2 welcome IPC：`timeWelcomeEnabled` 为 boolean，`timeWelcomeMessages` 是 5 个固定时段键对应的词库，每段沿用 1–30 条/每条 80 字校验。请求可提交非空时段子集，服务端在事务内合并；响应必须包含完整五段。默认关闭；主欢迎关闭时仍可设置模式。两项必须在新服务响应中成对出现，旧 V2 同时缺失时只禁用时段能力，半缺失拒绝。模式切换与词库保存独立；完整行为见 [进场欢迎设置](main.md#服务器进场欢迎设置)。
 
 个人欢迎词扩展沿用 V2 welcome IPC：`userWelcomeMessages` 为 0–100 条 `{uid,message}`，
 UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 沿用欢迎词库的单条校验。
@@ -192,7 +198,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 - **欢迎配置**：V1 非空 patch 只含 enabled(boolean)/messages；词库 1–30 条，每条非空且 ≤80 Unicode code point，禁止控制字符，随后 trim。V2 的 enabled/greetingEnabled/attentionEnabled/rareNamePinyinEnabled 为 boolean；welcomeDelaySeconds=0–300、greetingDelaySeconds=1–600、welcomeMinHonorLevel/greetingMinHonorLevel=0–999、attentionMinHonorLevel=1–999，均为整数；messages/greetingMessages/attentionWelcomeMessages/attentionGreetingMessages 沿用词库规则。完整响应要求所有字段，关闭 welcome 时不能开启 greeting/attention，greeting 开启时 delay 必须大于 welcome delay。校验和 fieldErrors 白名单见 [welcome-settings-contract.js](../../../src/shared/welcome-settings-contract.js)，并发草稿见 [main.md](main.md#服务器进场欢迎设置)。
 - **SongPublic**：只复制 [license-songs-ipc.js](../../../src/electron/ipc/license-songs-ipc.js) 的 `SONG_PUBLIC_FIELDS`（ID、标题/名称、歌手、曲风、tags、语言、来源、备注、价格、片段、启用、排序、时间及其兼容别名）；值仅 null/string/boolean/有限 number，字符串截断 4096，不透传对象或数组。
 - **BackgroundResponse**：`{ok,background:null或{url?,previewUrl?,bytes?,updatedAt?}}`；相对 url 与可信 HTTPS previewUrl 均经过清洗，不返回凭据 query。previewUrl 由 main 基于可信服务 origin 解析，renderer 不指定远端地址。
-- **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},templates,status,error}`，两个开关均 boolean；templates 为 `{gift,guard}` 或 null（尚未确认或旧服务不支持）；status=confirmed/pending/unconfirmed，error 为代码或 null。开关 key 仅这两个名称，enabled 严格 boolean。模板各为单行非空纯文本、最多 120 Unicode 字符，`{称呼}`、`{礼物}`、`{金额}` 各一次，禁止未知或残缺标记、额外字段及控制字符，校验由 [gift-thanks-templates.js](../../../public/js/shared/gift-thanks-templates.js) 统一实现。[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 注册桥，状态及公开结果由 [gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有；意图并入 cloud-sync-controller 的已有同步队列，省略未修改字段以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
+- **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},templates,replies,status,error}`，两个开关均 boolean；templates 为旧 `{gift,guard}`，replies 为 `{gift,captain,admiral,governor}`，尚未确认或服务不支持时对应字段为 null。status=confirmed/pending/unconfirmed，error 为代码或 null。开关 key 仅这两个名称，enabled 严格 boolean。每个 replies 场景为 `{enabled,mode:'plain'|'mention',messages}`，含 1–20 条 `{text}`；发送方式按礼物／舰长／提督／总督分别选择，同场景全部候选共用；文本为单行非空纯文本、去除首尾空白后最多 120 Unicode 字符，`{称呼}`、`{礼物}`、`{金额}` 可省略、各至多一次。旧 templates 仍要求三个参数各一次。两种格式均拒绝未知或残缺标记、额外字段及控制字符，校验由 [gift-thanks-templates.js](../../../public/js/shared/gift-thanks-templates.js) 统一实现。[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 注册桥，状态及公开结果由 [gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有；意图并入 cloud-sync-controller 的已有同步队列，省略未修改字段以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
 
 ### 2.5 dailyBots、fanProfiles 与 giftExport
 
@@ -212,7 +218,7 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 | `gift-export:open-folder` | `giftExport.openFolder(id)` → `{id}` | `{ok:true,data:{ok:true}}`，要求该任务已保存≥1张 | 同上 |
 | `weekly-schedule:export-png` | `weeklySchedule.exportPng(template)`，一个完整周表模板对象 | `{ok:true,saved:true,filePath}`、原生取消 `{ok:true,cancelled:true}` 或 `{ok:false,error}`；参数个数错误 `IPC_ARGUMENTS_INVALID` | [weekly-schedule-ipc.js](../../../src/electron/ipc/weekly-schedule-ipc.js) / [weekly-schedule/editor.js](../../../public/js/admin/weekly-schedule/editor.js) |
 
-周表导出复用主窗口 registrar，要求主窗口、主frame、实际主session、精确本地origin及管理页面路径；非法来源为 `IPC_SOURCE_INVALID`。renderer只提交模板数据，不提交任意输出路径、页面URL、HTML或脚本。主进程校验固定六版式、七天、四模块与前三名、字段安全上限和PNG/JPEG/WebP dataURL；单图12MiB、合计48MiB、最大边8192且总像素32Mi。传入原始SVG、远程URL或超量内容失败。保存路径只来自原生PNG对话框，文件覆盖由原生确认；无额外订阅事件。详细窗口、取消及写入责任见[周表导出生命周期](main.md#周表-png-导出)。
+周表导出复用主窗口 registrar，要求主窗口、主frame、实际主session、精确本地origin及管理页面路径；非法来源为 `IPC_SOURCE_INVALID`。renderer只提交模板数据，不提交任意输出路径、页面URL、HTML或脚本。主进程校验固定十版式、七天、四模块与前三名、字段安全上限和PNG/JPEG/WebP dataURL；单图12MiB、合计48MiB、最大边8192且总像素32Mi。传入原始SVG、远程URL或超量内容失败。保存路径只来自原生PNG对话框，文件覆盖由原生确认；无额外订阅事件。详细窗口、取消及写入责任见[周表导出生命周期](main.md#周表-png-导出)。
 
 礼物导出其他方法失败统一 `{ok:false,error}`，保留中文错误，否则“礼物导出失败，请重新打开预览。”；来源非法仍用 IPC_SOURCE_INVALID。参数与任务时序见 §6。
 
@@ -321,7 +327,7 @@ ProfilePatch 校验 owner 为 [validation.js](../../../src/fans/validation.js)�
 
 identity 可 null，否则 `{platform:'bilibili',type:'uid'或'open_id',value}`；value≤128、无空白/控制符，UID 为1–25位非零开头数字，不把 open_id 转 UID。birthday 可 null，否则 monthDay、calendar=solar/lunar、year(null或1900至当前年)、leapMonth、leapDay=feb28/mar01、thisYearDate、advance；日期校验由 validation/dates 拥有。
 
-ProfileDetail 包含保存后的档案（id/revision/时间/identity/资料）及 formerNames、zodiacHint、records、songs、preferences、membership、guardRoster、guardAccompany、currentGuardLevel、musicSummary、musicStats（90天 count/categories）、reminders。guardAccompany 为 null 或平台观察加派生 stale/inactive；列表也携带该字段，定义见[粉丝档案规格](../../../specs/fan-profiles.md#平台陪伴天数与日历纪念日2026-10-09)。列表还附 medalLevel、lastInteraction、nextReminder；列表不是详情记录的替代。
+ProfileDetail 包含保存后的档案（id/revision/时间/identity/资料）及 formerNames、zodiacHint、records、songs、preferences、membership、guardRoster、guardAccompany、currentGuardLevel、musicSummary、musicStats（近 30 天 count/categories，窗口口径见[粉丝档案规格](../../../specs/fan-profiles.md)）、reminders。guardAccompany 为 null 或平台观察加派生 stale/inactive；列表也携带该字段，定义见[粉丝档案规格](../../../specs/fan-profiles.md#平台陪伴天数与日历纪念日2026-10-09)。列表还附 medalLevel、lastInteraction、nextReminder；列表不是详情记录的替代。
 
 到期标记独立于 ProfileDetail/备份/日历，由 `src/fans/guard-expiry.js` 投影；规则见[到期提示规格](../../../specs/fan-profiles.md#b-站到期提示2026-10-12)。controller 合并同上下文/房间的并发读取，旧授权代次、换房及 dispose 拒绝迟到返回；whenIdle 包含这些读取任务。
 

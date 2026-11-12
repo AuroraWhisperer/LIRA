@@ -43,7 +43,7 @@ async function readUpdateInput(request) {
 }
 
 function sendImportError(res, error) {
-  if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+  if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
   sendJson(res, error.statusCode || 500, {
     ok: false,
     error: error.statusCode ? error.code : 'SONG_IMPORT_FAILED',

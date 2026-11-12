@@ -8,6 +8,7 @@ const { DEFAULT_SETTINGS } = require('./settings-defaults');
 const settingsMigrations = require('./settings-migrations');
 const { CLOUD_SONG_ACCOUNT_KEY, CLOUD_SONG_SYNC_PENDING_PREFIX, createCloudSongSyncStore } = require('./cloud-song-sync-store');
 const { CLOUD_SETTINGS_ACCOUNT_KEY, CLOUD_SETTINGS_SYNC_PENDING_PREFIX, createCloudSettingsSyncStore } = require('./cloud-settings-sync-store');
+const { CLOUD_BILIBILI_LOGOUT_PENDING_PREFIX, createCloudBilibiliSyncStore } = require('./cloud-bilibili-sync-store');
 const { CLOUD_SYNC_KEYS, hasCloudSettingChanges } = require('../shared/cloud-settings');
 const CLOUD_ROOM_ACCOUNT_KEY = 'cloudRoomAccountKey';
 const MONITORING_KEYS = ['danmakuMonitoringEnabled', 'giftMonitoringEnabled'];
@@ -92,6 +93,7 @@ function createSettingsStore(db) {
   let roomRevision = 0;
   const cloudSync = createCloudSettingsSyncStore(db);
   const cloudSongs = createCloudSongSyncStore(db);
+  const cloudBilibili = createCloudBilibiliSyncStore(db);
   const writeSetting = db.prepare(`
     INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?)
     ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
@@ -108,7 +110,7 @@ function createSettingsStore(db) {
       cache = { ...DEFAULT_SETTINGS };
       for (const row of rows) {
         if (row.key === CLOUD_ROOM_ACCOUNT_KEY || row.key === CLOUD_SONG_ACCOUNT_KEY || row.key === CLOUD_SETTINGS_ACCOUNT_KEY || row.key.startsWith(CLOUD_SONG_SYNC_PENDING_PREFIX)
-          || row.key.startsWith(CLOUD_SETTINGS_SYNC_PENDING_PREFIX)) continue;
+          || row.key.startsWith(CLOUD_SETTINGS_SYNC_PENDING_PREFIX) || row.key.startsWith(CLOUD_BILIBILI_LOGOUT_PENDING_PREFIX)) continue;
         cache[row.key] = row.value;
       }
     }
@@ -157,6 +159,9 @@ function createSettingsStore(db) {
     acknowledgePendingCloudSettings: cloudSync.acknowledge,
     assertCloudSettingsAccount: cloudSync.assertAccount,
     acceptCloudSettingsAccount: cloudSync.acceptAccount,
+    capturePendingCloudBilibiliLogout: cloudBilibili.captureLogout,
+    getPendingCloudBilibiliLogout: cloudBilibili.readLogout,
+    acknowledgePendingCloudBilibiliLogout: cloudBilibili.acknowledgeLogout,
 
     prepareCloudRoomAccount(accountKey) {
       const owner = db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_ROOM_ACCOUNT_KEY)?.value;

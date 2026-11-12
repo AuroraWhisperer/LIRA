@@ -1,6 +1,5 @@
 import { toast } from '../../shared/toast.js';
 
-const KEYS = ['giftAutoThanksEnabled', 'giftStatsQueryEnabled'];
 const ERRORS = {
   BILIBILI_LOGIN_REQUIRED: '请先登录 B 站，再同步到服务器。',
   BILIBILI_CREDENTIALS_INVALID: 'B 站登录已失效，请重新登录并同步。',
@@ -22,7 +21,7 @@ export function initGiftInteractionControls({
   onState = () => {},
 } = {}) {
   const queryView = surface === 'danmaku';
-  const keys = queryView ? ['giftStatsQueryEnabled', 'giftAutoThanksEnabled'] : KEYS;
+  const keys = queryView ? ['giftStatsQueryEnabled', 'giftAutoThanksEnabled'] : ['giftStatsQueryEnabled'];
   const panel = documentRef?.getElementById(queryView ? 'danmakuQueryControls' : 'giftInteractionControls');
   if (!panel || !bridge?.getGiftInteractionState || !bridge?.setGiftInteraction) return () => {};
   const inputs = keys.map((key) => documentRef.getElementById(queryView

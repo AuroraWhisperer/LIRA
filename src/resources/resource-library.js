@@ -10,9 +10,12 @@ const { resolveCdnOrigin, readManifest, validateManifest, objectName, downloadRe
 const { extractResourcePackage } = require('./resource-archive');
 const { isLegacyResource } = require('./resource-packages');
 const catalog = require('./catalog.json');
+const RESOURCE_ERRORS = new Set(['RESOURCE_MANIFEST_UNAVAILABLE', 'RESOURCE_MANIFEST_INVALID',
+  'RESOURCE_DOWNLOAD_FAILED', 'RESOURCE_SIZE_INVALID', 'RESOURCE_HASH_INVALID', 'RESOURCE_ARCHIVE_INVALID']);
+const FILE_ERRORS = new Set(['EACCES', 'EPERM', 'ENOSPC', 'EIO', 'EROFS', 'EBUSY', 'ENOENT']);
 
 function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetch = globalThis.fetch,
-  cdnBaseUrl, timeoutMs, manifestTimeoutMs } = {}) {
+  cdnBaseUrl, timeoutMs, manifestTimeoutMs, logger = console } = {}) {
   const origin = resolveCdnOrigin(cdnBaseUrl);
   const directory = path.join(resolveDataPaths(dataDir).cacheDir, 'resources');
   const indexPath = path.join(directory, 'index.json');
@@ -31,6 +34,16 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     totalBytes: 0, downloadedBytes: 0, completedAt: '' };
 
   const getState = () => ({ ...state });
+  function reportFailure(error, phase, resourceId) {
+    const code = RESOURCE_ERRORS.has(error?.message) ? error.message
+      : FILE_ERRORS.has(error?.code) ? error.code
+        : error?.name === 'TimeoutError' ? 'RESOURCE_TIMEOUT'
+          : phase === 'manifest' && error instanceof SyntaxError ? 'RESOURCE_MANIFEST_INVALID'
+            : 'RESOURCE_OPERATION_FAILED';
+    logger.warn('[Resources] preparation failed', { phase, code,
+      ...(resourceId ? { resourceId: resourceId.slice(0, 200) } : {}) });
+  }
+
   function publish(patch) {
     state = { ...state, ...patch };
     if (!closed) for (const listener of listeners) {
@@ -111,6 +124,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
     checked = true;
     controller = new AbortController();
     const signal = controller.signal;
+    let phase = 'cache';
     pending = (async () => {
       publish({ status: 'checking', total: 0, completed: 0, failed: 0, currentFont: '',
         totalBytes: 0, downloadedBytes: 0, completedAt: '' });
@@ -118,8 +132,10 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
         /^[a-f0-9]{64}\.zip$/.test(name) ||
         /^(?:index\.json|[a-f0-9]{64}\.[a-z0-9]+)\.[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}\.tmp$/.test(name) });
       await scan(signal);
+      phase = 'manifest';
       const manifest = await readManifest({ origin, fetch: fetchWithRateLimit, signal, timeoutMs: manifestTimeoutMs });
       const { downloads } = validateManifest(manifest, sharedFiles);
+      phase = 'publish';
       const needsFile = file => {
         const ready = available.get(file.path)?.file;
         return !ready || ready.sha256 !== file.sha256 || ready.size !== file.size;
@@ -148,6 +164,7 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
           const file = missing[next++];
           publish({ currentFont: file.label || path.posix.basename(file.path) });
           let failed = 0;
+          let resourcePhase = 'download';
           try {
             const downloaded = await downloadResource(file, { origin, directory, fetch: fetchWithRateLimit, signal, timeoutMs,
               onProgress(bytes) {
@@ -159,14 +176,19 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
               } });
             try {
               signal.throwIfAborted();
+              resourcePhase = 'extract';
               if (file.archive) await extractResourcePackage(downloaded, file, { directory, signal });
               signal.throwIfAborted();
+              resourcePhase = 'publish';
               await commit(file.files);
             } finally {
               if (file.archive) await fs.promises.rm(downloaded, { force: true });
             }
             finishedBytes += file.size;
-          } catch { failed = 1; }
+          } catch (error) {
+            failed = 1;
+            if (!signal.aborted) reportFailure(error, resourcePhase, file.id);
+          }
           activeBytes.delete(file.id);
           publish({ completed: state.completed + 1, failed: state.failed + failed, downloadedBytes: byteProgress() });
         }
@@ -174,8 +196,9 @@ function createResourceLibrary({ dataDir, publicDir, files = catalog.files, fetc
       await Promise.all([worker(), worker()]);
       signal.throwIfAborted();
       return publish({ status: state.failed ? 'error' : 'ready', currentFont: '', completedAt: new Date().toISOString() });
-    })().catch(() => {
+    })().catch(error => {
       const missing = sharedFiles.filter(file => !available.has(file.path)).length;
+      if (!signal.aborted && (missing || state.total)) reportFailure(error, phase);
       return publish({ status: closed ? 'idle' : missing || state.total ? 'error' : 'ready', currentFont: '',
         ...(state.total ? {} : { total: missing, completed: missing, failed: missing }),
         completedAt: state.total || missing ? new Date().toISOString() : '' });

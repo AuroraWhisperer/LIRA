@@ -8,6 +8,7 @@ const vm = require('node:vm');
 const { createRequire } = require('node:module');
 const { DatabaseSync } = require('node:sqlite');
 const test = require('node:test');
+const { createScratchDirectory, removeScratchDirectory } = require('../helpers/scratch-directory');
 
 function loadModule(relativePath, overrides = {}, warnings = []) {
   const filename = path.join(__dirname, '../..', relativePath);
@@ -57,10 +58,11 @@ function fixture({ phase, index = 0, closeFails = false } = {}) {
   const database = loadModule(
     'src/storage/database.js',
     {
-      'node:fs': { mkdirSync() {} },
+      'node:fs': { mkdirSync() {}, existsSync() { return false; } },
       'node:sqlite': { DatabaseSync: Database },
       './database-maintenance': maintenance,
       './database-migrations': {
+        getMigrationPlan: () => [],
         runAllMigrations() {
           if (phase === 'migration') throw originalError;
         },
@@ -72,6 +74,7 @@ function fixture({ phase, index = 0, closeFails = false } = {}) {
         },
       },
       './dynamic-lottery-migrations': {
+        migrationPlan: { key: 'lottery_db', steps: [] },
         runDynamicLotteryMigrations() {
           if (phase === 'lottery-migration') throw originalError;
         },
@@ -197,4 +200,47 @@ test('real databases close after a PRAGMA failure and reopen with data and migra
     assert.equal(fs.realpathSync(root), realRoot);
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('a future required schema refuses startup before any database is created or changed', (t) => {
+  const root = createScratchDirectory('lira-db-future-');
+  const database = require('../../src/storage/database');
+  const songPath = path.join(root, database.DB_FILE_NAMES.songDb);
+  const futurePath = path.join(root, database.DB_FILE_NAMES.checkinDb);
+  for (const filePath of [songPath, futurePath]) {
+    const db = new DatabaseSync(filePath);
+    db.exec('CREATE TABLE preserved (value TEXT); INSERT INTO preserved VALUES (\'kept\');');
+    if (filePath === futurePath) {
+      db.exec("CREATE TABLE schema_version (key TEXT PRIMARY KEY, version INTEGER NOT NULL); INSERT INTO schema_version VALUES ('checkin_db', 999);");
+    }
+    db.close();
+  }
+  const before = new Map([songPath, futurePath].map((filePath) => [filePath, fs.readFileSync(filePath)]));
+  let opened;
+  t.after(() => {
+    if (opened) database.closeDatabases(opened);
+    removeScratchDirectory(root);
+  });
+  assert.throws(() => { opened = database.createDatabases({ dataDir: root }); }, { code: 'DATABASE_SCHEMA_TOO_NEW' });
+  assert.deepEqual(fs.readdirSync(root).sort(), [path.basename(songPath), path.basename(futurePath)].sort());
+  for (const [filePath, bytes] of before) assert.deepEqual(fs.readFileSync(filePath), bytes);
+});
+
+test('a future lottery schema stays unchanged while the required databases remain usable', (t) => {
+  const root = createScratchDirectory('lira-lottery-future-');
+  const database = require('../../src/storage/database');
+  const futurePath = path.join(root, database.DB_FILE_NAMES.lotteryDb);
+  const future = new DatabaseSync(futurePath);
+  future.exec("CREATE TABLE schema_version (key TEXT PRIMARY KEY, version INTEGER NOT NULL); INSERT INTO schema_version VALUES ('lottery_db', 999);");
+  future.close();
+  const before = fs.readFileSync(futurePath);
+  t.mock.method(console, 'warn', () => {});
+  const opened = database.createDatabases({ dataDir: root });
+  t.after(() => {
+    database.closeDatabases(opened);
+    removeScratchDirectory(root);
+  });
+  assert.equal(opened.lotteryDb, null);
+  assert.equal(opened.songDb.prepare('SELECT COUNT(*) count FROM songs').get().count, 0);
+  assert.deepEqual(fs.readFileSync(futurePath), before);
 });

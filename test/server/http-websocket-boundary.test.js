@@ -57,6 +57,9 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
     { name: 'canonical Host and Origin', origin, status: 101 },
     { name: 'valid Host does not bypass Origin', origin: 'http://foreign.invalid', status: 403 },
     { name: 'valid Host does not bypass token', token: 'wrong-token', status: 401 },
+    { name: 'POST cannot upgrade', method: 'POST', status: 400, hubRejects: true },
+    { name: 'unsupported WebSocket version', headers: { 'Sec-WebSocket-Version': '12' }, status: 400, hubRejects: true },
+    { name: 'malformed WebSocket nonce', headers: { 'Sec-WebSocket-Key': 'bad-key' }, status: 400, hubRejects: true },
     { name: 'valid Host does not bypass license', authorized: false, status: 423 },
     { name: 'starting runtime refuses upgrade', phase: 'starting', status: 503 },
     { name: 'quiescing runtime refuses upgrade', phase: 'quiescing', status: 503 },
@@ -73,12 +76,14 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
         Upgrade: 'websocket',
         'Sec-WebSocket-Version': '13',
         'Sec-WebSocket-Key': 'dGhlIHNhbXBsZSBub25jZQ==',
+        ...scenario.headers,
       };
       if (scenario.origin) headers.Origin = scenario.origin;
       const status = await new Promise((resolve, reject) => {
         const req = http.request({
           hostname: '127.0.0.1',
           port,
+          method: scenario.method || 'GET',
           headers,
           path: `/ws?token=${scenario.token || token}`,
         });
@@ -97,7 +102,7 @@ test('HTTP upgrade enforces the runtime Host before independent WS authorization
       });
       assert.equal(status, scenario.status);
       assert.equal(snapshots - previousSnapshots, scenario.status === 101 ? 1 : 0);
-      if ([400, 423, 503].includes(scenario.status)) {
+      if ([400, 423, 503].includes(scenario.status) && !scenario.hubRejects) {
         assert.equal(upgrades, previousUpgrades, 'rejection must happen before the hub');
       }
     });

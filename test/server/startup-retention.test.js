@@ -32,7 +32,8 @@ test('automatic retention checks existing policies at startup and hourly, respec
     seen.push({ ...f.settings });
     return f.result;
   });
-  const stop = startRetentionMaintenance(f.settingsStore, f.dataService);
+  const requestGifts = t.mock.fn();
+  const stop = startRetentionMaintenance(f.settingsStore, f.dataService, requestGifts);
   assert.equal(f.dataService.runRetention.mock.callCount(), 1);
   assert.equal(f.schedule.mock.callCount(), 1);
   const [tick, intervalMs] = f.schedule.mock.calls[0].arguments;
@@ -57,6 +58,7 @@ test('automatic retention checks existing policies at startup and hourly, respec
   assert.equal(f.clear.mock.calls[0].arguments[0], f.timer);
   tick();
   assert.equal(seen.length, 3, 'an already queued callback cannot access disposed storage');
+  assert.equal(requestGifts.mock.callCount(), 3, 'gift work shares enabled startup/hourly wakeups');
 });
 
 test('disabled automatic retention performs no work until enabled during the same runtime', (t) => {

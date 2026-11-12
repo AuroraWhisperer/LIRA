@@ -10,7 +10,7 @@
     </div>
     <div class="danmaku-welcome-rule">
       <div class="danmaku-welcome-rule-heading">
-        <strong id="danmakuPkReportVisitorTitle">对面观众进场欢迎<lira-help label="对面观众进场欢迎说明">仅在 PK 期间，按对手在线榜中已取得的 UID 或观众佩戴的对手粉丝牌识别，收到进入本直播间的事件后欢迎。属于归属推断，可能漏报或误判。独立于普通进场欢迎的开关和荣耀门槛，同一次进场不会重复欢迎；延时不能证明观众仍在房间。</lira-help></strong>
+        <strong id="danmakuPkReportVisitorTitle">对面观众进场欢迎<lira-help label="对面观众进场欢迎说明">仅在 PK 期间，按对手在线榜中已取得的 UID 或观众佩戴的对手粉丝牌识别，收到进入本直播间的事件后欢迎。属于归属推断，可能漏报或误判。独立于普通进场欢迎的开关、荣耀门槛和本房间粉丝牌筛选，仍遵守欢迎黑名单，同一次进场不会重复欢迎；延时不能证明观众仍在房间。</lira-help></strong>
         <label class="switch-control"><input id="danmakuPkReportVisitorToggle" type="checkbox" aria-labelledby="danmakuPkReportVisitorTitle" disabled /><span class="switch-track"></span></label>
       </div>
       <label class="danmaku-welcome-field"><span>进场后</span><input id="danmakuPkReportDelay" type="number" min="0" max="300" step="1" value="5" aria-label="串门欢迎延时秒数" aria-describedby="danmakuPkReportDelayError" disabled /><span>秒</span><span id="danmakuPkReportDelayError" class="danmaku-field-error" role="alert" hidden></span></label>
@@ -18,7 +18,7 @@
     </div>
   </div>
   <div class="danmaku-welcome-library-heading">
-    <span class="danmaku-welcome-library-label"><strong>串门欢迎词库</strong><lira-help label="串门欢迎词库说明">随机选用一条，{username} 代表观众昵称，未填写时也会补上。支持 1～30 条，每条 1～80 字且不能换行。默认：欢迎 {username} 从对面来串门～。</lira-help></span>
+    <span class="danmaku-welcome-library-label"><strong>串门欢迎词库</strong><lira-help label="串门欢迎词库说明">随机选用一条，{username} 代表观众昵称，未填写时也会补上。内置 8 条欢迎词，可自由增删改；词库支持 1～30 条，每条 1～80 字且不能换行。</lira-help></span>
     <span id="danmakuPkReportCount" class="hint">未读取</span>
   </div>
   <div id="danmakuPkReportList" class="danmaku-blessing-list" aria-live="polite"></div>

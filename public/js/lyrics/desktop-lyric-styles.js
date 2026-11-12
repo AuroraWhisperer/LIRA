@@ -69,6 +69,7 @@ export function applyDesktopLyricStyles(card, values) {
   card.style.setProperty('--preview-contrast', String(values.contrast));
   card.style.setProperty('--preview-saturation', String(values.saturation));
   card.classList.toggle('is-translation-hidden', !values.showTranslation);
+  card.classList.toggle('is-roma-hidden', !values.showRoma);
   card.classList.toggle('is-text-justify', values.textAlign === 'justify');
   card.classList.toggle('is-text-center', values.textAlign === 'center');
   card.classList.toggle('is-hide-passed', values.hidePassedLines);

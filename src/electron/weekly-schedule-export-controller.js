@@ -10,7 +10,8 @@ const MAX_IMAGE_BYTES = 12 * 1024 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 48 * 1024 * 1024;
 const MAX_TEMPLATE_BYTES = 68 * 1024 * 1024;
 const ASSET_KEYS = new Set(['portrait', 'chibi', 'logo', 'background', 'qrcode', 'rank1', 'rank2', 'rank3', 'icon']);
-const LAYOUTS = new Set(['scrapbook', 'celestial', 'broadcast', 'week-grid', 'magazine', 'scroll']);
+const LAYOUTS = new Set(['scrapbook', 'celestial', 'broadcast', 'week-grid', 'magazine', 'scroll',
+  'editorial', 'letterpress', 'nocturne', 'gallery']);
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 function invalid(message = '周表内容无效，请重新打开周表生成器。') {
@@ -82,18 +83,20 @@ function validateWeeklyScheduleExportTemplate(input, nativeImage) {
   if (!Array.isArray(names) || names.length !== 3 || names.some(name => typeof name !== 'string' || name.length > 120)) {
     invalid('周表榜单应包含三个昵称，请重新填写。');
   }
-  for (const key of ['portrait', 'logo', 'chibi']) {
+  for (const key of ['portrait', 'logo', 'chibi', 'qrcode', 'rank1', 'rank2', 'rank3', 'customIcon']) {
     const transform = template[key];
+    if (!['portrait', 'logo', 'chibi'].includes(key) && transform === undefined) continue;
     if (!record(transform) || ['scale', 'x', 'y'].some(field => !Number.isFinite(transform[field])
       || Math.abs(transform[field]) > 10000)) invalid();
     for (const [field, min, max] of [['rotation', -180, 180], ['opacity', 0, 100]]) {
       if (transform[field] !== undefined && (!Number.isFinite(transform[field]) || transform[field] < min || transform[field] > max)) invalid();
     }
-    if (transform.flip !== undefined && typeof transform.flip !== 'boolean') invalid();
   }
+  const outlineWidth = template.portrait.outlineWidth;
+  if (outlineWidth !== undefined && (!Number.isFinite(outlineWidth) || outlineWidth < 1 || outlineWidth > 30)) invalid();
   // Optional appearance fields keep previously saved templates exportable.
   for (const [key, limits] of [
-    ['background', { x: [0, 100], y: [0, 100], opacity: [0, 100], blur: [0, 24] }],
+    ['background', { x: [0, 100], y: [0, 100], opacity: [0, 100], blur: [0, 24], scale: [10, 400], offsetX: [-1920, 1920], offsetY: [-1080, 1080], rotation: [-180, 180] }],
     ['typography', { title: [50, 150], theme: [70, 160], note: [70, 160], time: [70, 160] }],
   ]) {
     if (template[key] === undefined) continue;
@@ -102,6 +105,16 @@ function validateWeeklyScheduleExportTemplate(input, nativeImage) {
       const value = template[key][field];
       if (value !== undefined && (!Number.isFinite(value) || value < min || value > max)) invalid();
     }
+  }
+  for (const key of ['portrait', 'logo', 'chibi', 'background', 'qrcode', 'rank1', 'rank2', 'rank3', 'customIcon']) {
+    const settings = template[key];
+    if (!settings) continue;
+    for (const field of ['brightness', 'contrast', 'saturation', 'shadow', 'glow']) {
+      const value = settings[field];
+      const max = field === 'shadow' || field === 'glow' ? 100 : 200;
+      if (value !== undefined && (!Number.isFinite(value) || value < 0 || value > max)) invalid();
+    }
+    if (settings.flip !== undefined && typeof settings.flip !== 'boolean') invalid();
   }
   if (template.background?.fit !== undefined && !['cover', 'contain'].includes(template.background.fit)) invalid();
   const intensity = template.decorations.intensity;

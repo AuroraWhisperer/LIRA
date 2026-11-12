@@ -140,7 +140,6 @@ function createShutdownHarness(options = {}) {
   }
 
   const runtime = {
-    hasActiveOverlayConnections: () => options.hasActiveOverlayConnections?.() || false,
     start() {
       calls.push('runtime:start');
       runtimeOpen = true;

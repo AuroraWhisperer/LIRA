@@ -151,9 +151,20 @@ test('disabling between actual sender chunks keeps the sent part and cancels the
 test('unrelated config updates and failed disabling do not cancel an accepted reply', async (t) => {
   const pending = Promise.withResolvers();
   const sent = [];
+  const config = {
+    ...AI_CONFIG_DEFAULTS,
+    enabled: true, trigger: '小米', model: 'test-model',
+    deepseekResponsesUrl: 'https://model.test/responses', deepseekApiKey: 'test-key',
+  };
   let signal;
   const service = createTestService({
-    store: { updateConfig(changes) { if (changes.enabled === false) throw new Error('Synthetic save failure'); return changes; } },
+    store: {
+      getConfig: () => ({ ...config }),
+      updateConfig(changes) {
+        if (changes.enabled === false) throw new Error('Synthetic save failure');
+        return Object.assign(config, changes);
+      },
+    },
     modelClient: { async createResponse(request) {
       signal = request.signal;
       if (request.purpose === 'generation') await pending.promise;
@@ -164,13 +175,51 @@ test('unrelated config updates and failed disabling do not cancel an accepted re
   t.after(async () => { pending.resolve(); await service.shutdown(); });
   service.handleDanmaku({ uid: 'one', userName: '观众', message: '小米 测试' });
   await waitUntil(() => signal);
-  service.updateConfig({ model: 'another-model' });
+  service.updateConfig({ sendIntervalMs: 2000 });
   assert.equal(signal.aborted, false);
   assert.throws(() => service.updateConfig({ enabled: false }), /Synthetic save failure/);
   assert.equal(signal.aborted, false);
   pending.resolve();
   await waitUntil(() => sent.length === 1);
 });
+
+for (const changes of [{ model: 'replacement-model' }, { personaId: 'cat' }]) {
+  test(`changing ${Object.keys(changes)[0]} cancels a running reply before the next question`, async (t) => {
+    const pending = Promise.withResolvers();
+    const requests = [];
+    const sent = [];
+    const remembered = [];
+    const cached = [];
+    const service = createTestService({
+      store: {
+        setContext: (uid) => remembered.push(uid),
+        setCache: (_key, result) => cached.push(result.text),
+      },
+      modelClient: { async createResponse(request) {
+        if (request.purpose !== 'generation') return { text: '{"allowed":true}', functionCalls: [], usage: {} };
+        requests.push(request);
+        const text = requests.length === 1 ? '旧回答' : '新回答';
+        if (requests.length === 1) await pending.promise;
+        return { text, functionCalls: [], usage: {} };
+      } },
+      sendReply: async (reply) => sent.push(reply.message),
+    });
+    t.after(async () => { pending.resolve(); await service.shutdown(); });
+    service.handleDanmaku({ uid: 'old', userName: '旧观众', message: '小米 你好' });
+    await waitUntil(() => requests.length === 1);
+    service.updateConfig(changes);
+    assert.equal(requests[0].signal.aborted, true);
+    assert.equal(service.handleDanmaku({ uid: 'new', userName: '新观众', message: '小米 你好' }).accepted, true);
+    await waitUntil(() => remembered.length === 1);
+    if (changes.model) assert.equal(requests[1].config.model, changes.model);
+    if (changes.personaId) assert.match(requests[1].instructions, /橘猫/);
+    pending.resolve();
+    await service.shutdown();
+    assert.deepEqual(sent, ['新回答']);
+    assert.deepEqual(cached, ['新回答']);
+    assert.deepEqual(remembered, ['new']);
+  });
+}
 
 test('shutdown aborts and drains active generation without writes or delivery', async () => {
   const writes = [];

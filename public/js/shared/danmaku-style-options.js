@@ -282,17 +282,17 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#1d1d1f',
   },
   comic: {
-    layout: 'fullscreen-random', label: '漫画对白',
+    layout: 'fullscreen-random', label: '漫画对白', fullscreenSuperchat: true,
     minFontSize: 18, maxFontSize: 42, defaultFontSize: 26, defaultFontFamily: 'serif',
     background: true, giftImage: false, comicOptions: true, defaultTextColor: '#292626',
   },
   window: {
-    layout: 'fullscreen-random', label: '散落小窗',
+    layout: 'fullscreen-random', label: '散落小窗', fullscreenSuperchat: true,
     minFontSize: 18, maxFontSize: 40, defaultFontSize: 26,
     background: true, giftImage: false, ambientMotion: true, windowOptions: true, defaultTextColor: '#344650',
   },
   stardust: {
-    layout: 'fullscreen-random', label: '星尘 2.0',
+    layout: 'fullscreen-random', label: '星尘 2.0', fullscreenSuperchat: true,
     minFontSize: 18, maxFontSize: 48, defaultFontSize: 28, defaultFontFamily: 'serif',
     defaultDurationSeconds: 12, defaultExitMs: 1000,
     background: false, giftImage: false, ambientMotion: true, stardustOptions: true, defaultTextColor: '#f2f5f7',
@@ -305,6 +305,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   },
   mist: {
     layout: 'fullscreen-random',
+    fullscreenSuperchat: true,
     entranceAnimation: true,
     defaultEntranceMs: 280,
     label: '青雾',
@@ -372,7 +373,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
     defaultTextColor: '#f1f6ff',
   },
   sinking: {
-    layout: 'floating', label: '沉笺',
+    layout: 'floating', label: '沉笺', fullscreenSuperchat: true,
     minFontSize: 18, maxFontSize: 40, defaultFontSize: 30, defaultFontFamily: 'serif',
     background: true, giftImage: false, sinkingOptions: true, defaultTextColor: '#274b4b',
   },
@@ -718,6 +719,10 @@ export function isRandomDanmakuStyle(style) {
 
 export function isFloatingDanmakuStyle(style) {
   return DANMAKU_STYLE_OPTIONS[style]?.layout === 'floating';
+}
+
+export function supportsDanmakuSuperchat(style, fullscreen = isRandomDanmakuStyle(style) || isFloatingDanmakuStyle(style)) {
+  return !fullscreen || DANMAKU_STYLE_OPTIONS[style]?.fullscreenSuperchat === true;
 }
 
 export function parseStyleOptions(value) {

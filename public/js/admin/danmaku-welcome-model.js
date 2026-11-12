@@ -1,16 +1,19 @@
+import { WELCOME_TIME_PERIODS, normalizeTimeWelcomeMessages } from '../shared/welcome-time-periods.js';
+
 export const PARAMETER_FIELDS = {
   welcomeDelaySeconds: { label: '首次欢迎时间', min: 0, max: 300, empty: 0 },
   welcomeMinHonorLevel: { label: '首次欢迎荣耀等级', min: 0, max: 999, empty: 0 },
   greetingDelaySeconds: { label: '二次问候时间', min: 1, max: 600 },
   greetingMinHonorLevel: { label: '二次问候荣耀等级', min: 0, max: 999, empty: 0 },
-  attentionMinHonorLevel: { label: '重点关注荣耀等级', min: 1, max: 999 },
+  attentionMinHonorLevel: { label: '高荣耀文案等级', min: 1, max: 999 },
 };
 export const LIBRARIES = {
   messages: '欢迎词库',
   greetingMessages: '问候词库',
   attentionWelcomeMessages: '高荣耀欢迎词库',
   attentionGreetingMessages: '高荣耀问候词库',
-  returningMessages: '重逢客套话词库',
+  returningMessages: '多天未到词库',
+  ...Object.fromEntries(WELCOME_TIME_PERIODS.map(({ id, label }) => [`time:${id}`, `${label}欢迎词库`])),
 };
 export const SWITCHES = {
   enabled: 'Toggle',
@@ -18,7 +21,23 @@ export const SWITCHES = {
   attentionEnabled: 'AttentionToggle',
   rareNamePinyinEnabled: 'PinyinToggle',
   returningEnabled: 'ReturningToggle',
+  timeWelcomeEnabled: 'TimeToggle',
+  welcomeOwnMedalOnly: 'OwnMedalToggle',
 };
+export const AUDIENCE_LISTS = {
+  welcomeWhitelist: { suffix: 'Whitelist', label: '白名单' },
+  welcomeBlacklist: { suffix: 'Blacklist', label: '黑名单' },
+};
+
+export function libraryMessages(settings, key) {
+  return key.startsWith('time:') ? settings?.timeWelcomeMessages?.[key.slice(5)] : settings?.[key];
+}
+
+export function libraryPatch(key, messages) {
+  return key.startsWith('time:')
+    ? { timeWelcomeMessages: { [key.slice(5)]: messages } }
+    : { [key]: messages };
+}
 export const SUGGESTED = {
   welcomeDelaySeconds: 5,
   welcomeMinHonorLevel: 10,
@@ -63,14 +82,25 @@ export function confirmedSettings(result) {
   if (!result?.ok || typeof result.enabled !== 'boolean' || !validMessages(result.messages))
     throw new Error('尚未确认服务器设置，请检查连接后重试。');
   if (result.schemaVersion === 1) return result;
+  if (result.timeWelcomeEnabled !== undefined || result.timeWelcomeMessages !== undefined) {
+    if (typeof result.timeWelcomeEnabled !== 'boolean') throw new Error('服务器设置回包无效，请刷新核对。');
+    normalizeTimeWelcomeMessages(result.timeWelcomeMessages, (messages) => {
+      if (!validMessages(messages)) throw new Error('服务器设置回包无效，请刷新核对。');
+      return messages;
+    });
+  }
   if (
     result.schemaVersion !== 2 ||
-    Object.keys(SWITCHES).some((key) => key !== 'returningEnabled' && typeof result[key] !== 'boolean') ||
-    Object.keys(LIBRARIES).some((key) => key !== 'returningMessages' && !validMessages(result[key])) ||
+    Object.keys(SWITCHES).some((key) => !['returningEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'].includes(key) && typeof result[key] !== 'boolean') ||
+    (result.welcomeOwnMedalOnly !== undefined && typeof result.welcomeOwnMedalOnly !== 'boolean') ||
+    Object.keys(LIBRARIES).some((key) => key !== 'returningMessages' && !key.startsWith('time:') && !validMessages(result[key])) ||
     ((result.returningEnabled !== undefined || result.returningMessages !== undefined) &&
       (typeof result.returningEnabled !== 'boolean' || !validMessages(result.returningMessages))) ||
     Object.keys(PARAMETER_FIELDS).some((key) => !Number.isInteger(result[key])) ||
     Object.keys(parameterValues(result, result).errors).length ||
+    ((result.welcomeWhitelist !== undefined) !== (result.welcomeBlacklist !== undefined)) ||
+    Object.keys(AUDIENCE_LISTS).some((key) => result[key] !== undefined &&
+      (!Array.isArray(result[key]) || result[key].some((uid) => typeof uid !== 'string'))) ||
     (!result.enabled && (result.greetingEnabled || result.attentionEnabled || result.returningEnabled)) ||
     (result.userWelcomeMessages !== undefined &&
       (!Array.isArray(result.userWelcomeMessages) ||

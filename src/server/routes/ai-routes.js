@@ -35,7 +35,7 @@ const routes = {
       if (body?.newAccount !== undefined && typeof body.newAccount !== 'boolean') throw new Error('账号选择无效。');
       sendJson(res, 200, { ok: true, data: await context.ai.openChatGptLogin({ profileId: body?.profileId, newAccount: body?.newAccount }) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, { ok: false, code: error.code, error: error.message });
     }
   },
@@ -48,7 +48,7 @@ const routes = {
       if (typeof body?.profileId !== 'string' || body.profileId.length > 80) throw new Error('账号标识无效。');
       sendJson(res, 200, { ok: true, data: context.ai.selectChatGptAccount(body.profileId) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, { ok: false, code: error.code, error: error.message });
     }
   },
@@ -80,7 +80,7 @@ const routes = {
     try {
       sendJson(res, 200, { ok: true, data: context.ai.updatePersona(await request.body()) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, { ok: false, error: error.message || '预设更新失败。' });
     }
   },
@@ -88,7 +88,7 @@ const routes = {
     try {
       sendJson(res, 200, { ok: true, data: context.ai.createPersona(await request.body()) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, { ok: false, error: error.message || '角色包保存失败。' });
     }
   },
@@ -96,7 +96,7 @@ const routes = {
     try {
       sendJson(res, 200, { ok: true, data: context.ai.importPersona(await request.body()) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, { ok: false, error: error.message || '角色包导入失败。' });
     }
   },
@@ -105,7 +105,7 @@ const routes = {
       const input = await request.body();
       sendJson(res, 200, { ok: true, data: context.ai.deletePersona(input?.id) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, { ok: false, error: error.message || '角色包删除失败。' });
     }
   },
@@ -126,7 +126,7 @@ const routes = {
       }
       sendJson(res, 200, { ok: true, data: context.ai.updateConfig(changes) });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, {
         ok: false,
         error: error.message || 'AI 配置无效。',
@@ -168,7 +168,7 @@ const routes = {
         data: await context.ai.listModels(input),
       });
     } catch (error) {
-      if (error.code === 'REQUEST_BODY_TOO_LARGE') throw error;
+      if (error.code === 'REQUEST_BODY_TOO_LARGE' || error.code === 'REQUEST_AUTHORIZATION_CHANGED') throw error;
       sendJson(res, 400, {
         ok: false,
         error: error.message || '无法获取模型列表。',

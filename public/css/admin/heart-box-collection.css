@@ -1,7 +1,7 @@
 .heart-box-settings { display: grid; gap: var(--spacing-lg); container: heart-box-settings / inline-size; }
 .heart-box-toolbar, .heart-box-workspace { width: 100%; }
 .heart-box-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-.heart-box-period { display: grid; gap: 4px; }
+.heart-box-period { display: flex; align-items: center; gap: 6px; }
 .heart-box-period strong { color: var(--color-text-primary); font-size: var(--type-size-section-title); font-weight: 600; }
 .heart-box-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .heart-box-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; gap: var(--spacing-xl); }
@@ -12,16 +12,17 @@
 .heart-box-live-preview:has(> [hidden]) { display: none; }
 .heart-box-controls { display: grid; gap: var(--spacing-lg); min-width: 0; padding-left: var(--spacing-lg); border-left: 1px solid var(--color-border-light); }
 .heart-box-background-select { display: grid; gap: 8px; }
+.heart-box-progress-edit { display: flex; gap: 8px; }
+.heart-box-progress-edit input { flex: 1; width: 0; min-width: 0; }
+.heart-box-progress-edit button { flex: 0 0 auto; }
+.heart-box-settings-group > .hint { margin: 0; }
 .heart-box-controls .heart-box-rewards-toggle { font-size: var(--type-size-control); font-weight: var(--type-weight-regular); line-height: 20px; }
 .heart-box-source-row .copy-url { height: auto; min-height: var(--component-control-height); padding: 8px 12px; overflow-wrap: anywhere; white-space: normal; font-size: var(--type-size-caption); line-height: 20px; }
-.heart-box-rules { margin: 0; padding-left: 1.25em; line-height: 1.8; }
-.heart-box-rules > li + li { margin-top: 8px; }
 .heart-box-error { margin: 0; color: var(--color-danger); }
 
 @container heart-box-settings (max-width: 840px) {
   .heart-box-workspace { grid-template-columns: minmax(0, 1fr); }
   .heart-box-controls { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: var(--spacing-lg) 0 0; border-left: 0; border-top: 1px solid var(--color-border-light); }
-  .heart-box-rules-section { grid-column: 1 / -1; }
 }
 
 @container heart-box-settings (max-width: 480px) {

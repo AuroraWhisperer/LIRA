@@ -7,7 +7,7 @@ const test = require('node:test');
 const vm = require('node:vm');
 const { createCloudSyncController } = require('../../src/electron/cloud-sync-controller');
 const { registerGiftInteractionIpc } = require('../../src/electron/ipc/gift-interaction-ipc');
-const { DEFAULT_GIFT_THANKS_TEMPLATES } = require('../../public/js/shared/gift-thanks-templates.js');
+const { DEFAULT_GIFT_THANKS_TEMPLATES, createGiftThanksReplies } = require('../../public/js/shared/gift-thanks-templates.js');
 
 const KEYS = ['giftAutoThanksEnabled', 'giftStatsQueryEnabled'];
 const flags = (thanks = false, query = false) => ({ giftAutoThanksEnabled: thanks, giftStatsQueryEnabled: query });
@@ -263,6 +263,25 @@ test('thanks templates share the account queue without changing either switch an
   assert.equal(f.controller.getGiftInteractionState().templates, null);
 });
 
+test('reply libraries use the same account queue, validate modes and isolate nested snapshots', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  await assert.rejects(f.controller.setGiftThanksReplies(createGiftThanksReplies()), { code: 'GIFT_THANKS_UNSUPPORTED' });
+  f.setCloud({ giftThanksTemplates: DEFAULT_GIFT_THANKS_TEMPLATES, giftThanksReplies: createGiftThanksReplies() });
+  await f.controller.refreshGiftInteractionState();
+  const replies = createGiftThanksReplies();
+  replies.captain.mode = 'mention';
+  replies.captain.messages.push({ text: '欢迎你上船！' });
+  const result = await f.controller.setGiftThanksReplies(replies);
+  assert.equal(result.ok, true);
+  assert.deepEqual(result.replies.captain.messages, replies.captain.messages);
+  assert.equal(result.replies.captain.mode, 'mention');
+  assert.equal(Object.hasOwn(f.calls.at(-1), 'giftAutoThanksEnabled'), false);
+  result.replies.captain.messages[1].text = 'mutated';
+  assert.equal(f.controller.getGiftInteractionState().replies.captain.messages[1].text, '欢迎你上船！');
+  await assert.rejects(f.controller.setGiftThanksReplies({ ...replies, streamerId: 2 }), { code: 'INVALID_GIFT_THANKS_REPLIES' });
+});
+
 test('IPC checks exact frame and origin, sanitizes responses/events and removes handlers', async () => {
   const handlers = new Map();
   const frame = { url: 'http://127.0.0.1:3000/admin' };
@@ -350,7 +369,7 @@ async function uiFixture() {
       removeEventListener: (name) => listeners.delete(name),
     };
   }
-  const ids = [...KEYS, 'giftInteractionControls', 'giftInteractionStatus', 'giftInteractionRefresh'];
+  const ids = ['giftStatsQueryEnabled', 'giftInteractionControls', 'giftInteractionStatus', 'giftInteractionRefresh'];
   const elements = Object.fromEntries(ids.map((id) => [id, element()]));
   const windowRef = element();
   const toasts = [];
@@ -409,20 +428,20 @@ async function uiFixture() {
 
 test('renderer keeps logged-out control clickable, rolls back failed changes and warns when turning off is unconfirmed', async () => {
   const ui = await uiFixture();
-  assert.equal(ui.elements[KEYS[0]].disabled, false);
-  await ui.click(KEYS[0], true);
-  assert.equal(ui.elements[KEYS[0]].checked, false);
+  assert.equal(ui.elements.giftStatsQueryEnabled.disabled, false);
+  await ui.click('giftStatsQueryEnabled', true);
+  assert.equal(ui.elements.giftStatsQueryEnabled.checked, false);
   ui.emit({ status: 'confirmed', values: flags(true, true) });
   const pending = deferred();
   ui.bridge.setGiftInteraction = () => pending.promise;
-  await ui.click(KEYS[0], false);
-  assert.equal(ui.elements[KEYS[0]].checked, true);
-  assert.equal(ui.elements[KEYS[1]].disabled, true);
+  await ui.click('giftStatsQueryEnabled', false);
+  assert.equal(ui.elements.giftStatsQueryEnabled.checked, true);
+  assert.equal(ui.elements.giftStatsQueryEnabled.disabled, true);
   pending.resolve({ ok: false, status: 'unconfirmed', values: flags(true, true) });
   await new Promise(setImmediate);
   assert.equal(ui.toasts.at(-1), '关闭还没同步，服务器可能仍在运行。');
   ui.emit({ status: 'confirmed', values: flags() });
-  assert.equal(ui.elements[KEYS[0]].checked, false);
+  assert.equal(ui.elements.giftStatsQueryEnabled.checked, false);
   ui.dispose();
 });
 
@@ -430,12 +449,12 @@ test('renderer preserves a newer account snapshot when an older change response 
   const ui = await uiFixture();
   const pending = deferred();
   ui.bridge.setGiftInteraction = () => pending.promise;
-  await ui.click(KEYS[0], true);
+  await ui.click('giftStatsQueryEnabled', true);
   ui.emit({ status: 'confirmed', values: flags(), error: null });
-  pending.resolve({ ok: true, status: 'confirmed', values: flags(true), error: null });
+  pending.resolve({ ok: true, status: 'confirmed', values: flags(false, true), error: null });
   await new Promise(setImmediate);
-  assert.equal(ui.elements[KEYS[0]].checked, false);
-  assert.equal(ui.elements[KEYS[0]].disabled, false);
+  assert.equal(ui.elements.giftStatsQueryEnabled.checked, false);
+  assert.equal(ui.elements.giftStatsQueryEnabled.disabled, false);
   assert.equal(ui.toasts.length, 0);
   ui.dispose();
 });

@@ -82,7 +82,13 @@ test('games viewer refresh failure preserves known candidates but does not hide 
   });
   assert.equal(payload.data[0].uid, '123');
   context.games.listViewers = () => [];
-  await assert.rejects(routes['GET /api/games/viewers'](context, {}, {}), failure);
+  await assert.rejects(routes['GET /api/games/viewers'](context, {}, {}), error => {
+    assert.equal(error.statusCode, 503);
+    assert.ok(error.publicMessage);
+    assert.equal(error.publicMessage.includes(failure.message), false);
+    assert.equal(error.cause, failure);
+    return true;
+  });
 });
 
 test('game runtime discards viewer candidates from a previous room or connection', (t) => {

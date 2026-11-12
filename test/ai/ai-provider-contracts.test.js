@@ -246,9 +246,11 @@ test('model client derives and sanitizes model listings from the configured API'
       captured = { url: String(url), options };
       return jsonResponse({
         data: [
+          { id: 'deepseek-v4-pro', name: 'DeepSeek-V4-Pro' },
+          { id: 'deepseek-flash', name: 'DeepSeek-V4.1-Flash' },
           { id: 'deepseek-v4-pro' },
-          { id: 'deepseek-v4-flash' },
-          { id: 'deepseek-v4-pro' },
+          { id: 'claude-opus-5-5', display_name: 'Claude Opus 5.5' },
+          { id: 'custom-model' },
           { id: '' },
           { id: 'x'.repeat(81) },
           { id: 42 },
@@ -266,7 +268,12 @@ test('model client derives and sanitizes model listings from the configured API'
   assert.equal(captured.url, 'https://gateway.example.test/openai/v1/models');
   assert.equal(captured.options.headers.Authorization, 'Bearer temporary-secret');
   assert.doesNotMatch(captured.url, /temporary-secret/);
-  assert.deepEqual(result.models, ['deepseek-v4-flash', 'deepseek-v4-pro']);
+  assert.deepEqual(result.models, ['claude-opus-5-5', 'custom-model', 'deepseek-flash', 'deepseek-v4-pro']);
+  assert.deepEqual(result.modelNames, {
+    'deepseek-v4-pro': 'DeepSeek-V4-Pro',
+    'deepseek-flash': 'DeepSeek-V4.1-Flash',
+    'claude-opus-5-5': 'Claude Opus 5.5',
+  });
 });
 
 test('provider connection tests distinguish missing fields and rejected keys', async () => {

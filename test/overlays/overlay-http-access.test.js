@@ -6,6 +6,7 @@ const test = require('node:test');
 const { createHttpServer } = require('../../src/server/http-server');
 const { servePageOrAsset } = require('../../src/server/page-assets');
 const { OVERLAY_PAGES, createOverlayToken, resolveRequestPrincipal } = require('../../src/server/access-policy');
+const { createGameSessionService } = require('../../src/games/game-session-service');
 
 const ADMIN = 'synthetic-private-management-credential';
 const SECRET = 'PRIVATE-SENTINEL';
@@ -404,6 +405,46 @@ test('danmaku overlay reads only the current room profile without client-selecte
   });
   assert.equal((await f.request('/api/bilibili/room/profile', createOverlayToken(ADMIN, 'queue'))).status, 403);
   assert.equal((await f.request('/api/bilibili/room/profile', token, { method: 'POST', body: '{}' })).status, 403);
+});
+
+test('game overlay rejects drawing after its round or session is replaced', async (t) => {
+  const f = await fixture(t);
+  const games = createGameSessionService({
+    drawGuessWords: [{ word: '苹果', category: '食物' }],
+    monotonicNow: () => 0,
+    setTimeout: () => 1,
+    clearTimeout() {},
+  });
+  t.after(() => games.dispose());
+  f.context.games = games;
+  const choose = () => {
+    const session = games.getSession();
+    return games.move({ value: { action: 'choose-word', word: '苹果', sessionId: session.sessionId, round: session.state.round } });
+  };
+  games.start({ game: 'draw-guess', totalRounds: 2 });
+  assert.equal(choose().accepted, true);
+  const initial = games.getSession();
+  const delayed = {
+    action: 'append', clientId: 'canvas', strokeId: 'old-stroke', color: '#222034', width: 4,
+    points: [{ x: 0.2, y: 0.2 }], sessionId: initial.sessionId, round: initial.state.round,
+  };
+  const post = (body) => f.request('/api/games/session/draw', createOverlayToken(ADMIN, 'games'), {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Origin: 'null' }, body: JSON.stringify(body),
+  });
+  for (const action of ['finish-round', 'reveal-answer', 'next-round']) {
+    assert.equal(games.move({ value: { action } }).accepted, true);
+  }
+  assert.equal(choose().accepted, true);
+  assert.equal((await post(delayed)).status, 400);
+  assert.equal(games.getSession().state.canvas.strokes.length, 0);
+
+  games.stop();
+  games.start({ game: 'draw-guess', totalRounds: 2 });
+  assert.equal(choose().accepted, true);
+  assert.equal((await post(delayed)).status, 400);
+  const current = games.getSession();
+  assert.equal((await post({ ...delayed, sessionId: current.sessionId, round: current.state.round })).status, 200);
+  assert.equal(games.getSession().state.canvas.strokes[0].id, delayed.strokeId);
 });
 
 test('game and wheel display controls cannot start/configure games or invoke host answer actions', async (t) => {

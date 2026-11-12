@@ -112,7 +112,9 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 - URL:`wss://{host}:{wss_port || 443}/sub`([danmaku-client.js:181](../../../../src/bilibili/danmaku-client.js#L181)),`binaryType = 'arraybuffer'`([websocket-connection.js:25](../../../../src/bilibili/danmaku/websocket-connection.js#L25))。
 - 连接成功(`open`)后立即发送认证包,`sendPacket(7, 1, authPayload)`([websocket-connection.js:28-29](../../../../src/bilibili/danmaku/websocket-connection.js#L28-L29)):
 
-```json
+认证包结构示意（花括号中的占位值不属于 JSON 语法）：
+
+```text
 { "uid": {uid || 0}, "roomid": {标准长房号}, "protover": 3,
   "platform": "web", "type": 2, "key": "{danmuInfo.token}" }
 ```
@@ -253,7 +255,7 @@ info[0][15]       → danmakuOptions（对象或 JSON 字符串）,可内含 use
 
 `isPinned = price >= SUPER_CHAT_PIN_THRESHOLD`(`= 2` RMB,[superchat-service.js:14](../../../../src/bilibili/superchat-service.js#L14)),由分发层计算([message-handlers.js:173](../../../../src/bilibili/danmaku/message-handlers.js#L173))。SC 命令文本会二次触发 `onMessage(source:'superchat')`([message-handlers.js:151-175](../../../../src/bilibili/danmaku/message-handlers.js#L151-L175));入库门槛与状态机见 [gift.md](gift.md) §7。
 
-`extractBilibiliSuperChatDeleteIds` 只读取删除包的 `data.ids` 数组，接受非空且长度不超过 128 字符的字符串或正安全整数，转字符串后去重；非法项忽略。删除不触发 `onSuperChat` 或 `onMessage`，按平台 ID 的逻辑删除及金额保留规则见 [gift.md](gift.md) §7。
+`extractBilibiliSuperChatDeleteIds` 只读取删除包的 `data.ids` 数组，接受非空且长度不超过 128 字符的字符串或正安全整数，转字符串后去重；非法项忽略。删除不触发 `onSuperChat` 或 `onMessage`，平台撤回按 ID 写入最小防重放 receipt 并物理删除 SC 正文和金额；公开 feed 及展示同步撤下对应消息。持久化与展示顺序见 [gift.md](gift.md) §7。
 
 ### 6.3 礼物类命令路由
 

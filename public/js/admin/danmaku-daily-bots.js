@@ -121,7 +121,7 @@ export function initDanmakuDailyBots({
     busy = false;
     stale = true;
     render();
-    overall.textContent = bridge ? '连接 LIRA 账号后可设置' : '请升级桌面客户端';
+    overall.textContent = !bridge ? '请升级桌面客户端' : owner ? '' : '连接 LIRA 账号后可设置';
     if (owner) void refresh();
   }
   refreshButton.addEventListener('click', refresh);

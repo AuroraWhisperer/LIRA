@@ -49,9 +49,15 @@ test('subscription uses the public Responses endpoint and completes the existing
 test('subscription discovers only visible account models preserving catalog order', async () => {
   const { client } = fixture(async url => {
     assert.equal(url, 'https://api.openai.com/v1/models');
-    return new Response(JSON.stringify({ models: [{ slug: 'z-first', visibility: 'list' }, { slug: 'hidden' }, { slug: 'a-second', visibility: 'list' }] }));
+    return new Response(JSON.stringify({ models: [
+      { slug: 'z-first', display_name: 'Official subscription model', visibility: 'list' },
+      { slug: 'hidden', display_name: 'Hidden model' },
+      { slug: 'a-second', visibility: 'list' },
+    ] }));
   });
-  assert.deepEqual(await client.listModels(config), { models: ['z-first', 'a-second'] });
+  const result = await client.listModels(config);
+  assert.deepEqual(result.models, ['z-first', 'a-second']);
+  assert.deepEqual(result.modelNames, { 'z-first': 'Official subscription model' });
 });
 
 test('subscription model discovery does not expose malformed upstream response content', async () => {

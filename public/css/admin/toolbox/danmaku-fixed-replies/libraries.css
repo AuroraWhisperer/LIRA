@@ -45,6 +45,30 @@
   align-items: center;
   gap: 8px;
 }
+.danmaku-fixed-reply-section .danmaku-viewer-name-row {
+  grid-template-columns: minmax(150px, 0.8fr) minmax(120px, 1fr) auto;
+  gap: 12px;
+  padding: 10px 12px;
+}
+.danmaku-viewer-name-uid {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.danmaku-viewer-name-value {
+  overflow-wrap: anywhere;
+}
+.danmaku-viewer-name-actions {
+  display: flex;
+  gap: 16px;
+  white-space: nowrap;
+}
+@container fixed-replies (width < 560px) {
+  .danmaku-fixed-reply-section .danmaku-viewer-name-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .danmaku-viewer-name-uid { grid-column: 1 / -1; }
+}
 .daily-library-list-actions {
   display: flex;
   align-items: center;
@@ -52,7 +76,7 @@
   flex-wrap: wrap;
   gap: 12px 24px;
 }
-:is(#danmakuDailyLibraryPanel, #danmakuScheduledPanel) .danmaku-blessing-row {
+:is(#danmakuDailyLibraryPanel, #danmakuScheduledPanel, .danmaku-interaction-thanks-panel) .danmaku-blessing-row {
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
   padding: 8px 12px;

@@ -181,7 +181,7 @@ function computeStateKey(nextState) {
       return (item.price || 0) + '|' + (item.message || '');
     }),
     settings.overlayQueueStyle,
-    settings.resourceStyle?.preset,
+    settings.resourceStyle,
     settings.themePrimary,
     settings.themeAccent,
     settings.themeText,

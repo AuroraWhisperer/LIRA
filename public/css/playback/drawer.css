@@ -21,7 +21,7 @@
   right: 0;
   z-index: 31;
   width: min(520px, 92vw);
-  height: 100vh;
+  height: calc(100vh - var(--player-dock-height, 0px));
   display: flex;
   flex-direction: column;
   background: var(--surface);
@@ -40,7 +40,7 @@
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
-  padding: 14px 16px;
+  padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
 }
@@ -48,10 +48,14 @@
 .playback-drawer-title {
   flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .playback-drawer-title strong {
   display: block;
+  min-width: 0;
   font-size: var(--type-size-section-title);
   line-height: 1.25;
   white-space: nowrap;
@@ -61,9 +65,10 @@
 
 .playback-drawer-title span {
   display: block;
+  flex-shrink: 0;
   color: var(--muted);
   font-size: var(--type-size-caption);
-  margin-top: 2px;
+  white-space: nowrap;
 }
 
 .playback-drawer-body {
@@ -71,7 +76,7 @@
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 14px 16px 120px;
+  padding: 8px;
   display: grid;
   gap: 8px;
   align-content: start;
@@ -142,7 +147,7 @@
   flex-shrink: 0;
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border);
   background: var(--surface-2);
 }

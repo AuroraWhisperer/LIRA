@@ -114,26 +114,41 @@ function createBilibiliRuntime(options) {
     return profile?.avatarUrl || '';
   }
 
-  async function getRoomProfile({ expectedRoomId } = {}) {
+  async function getRoomProfile({ expectedRoomId, includeDetails = false } = {}) {
     const roomId = getConfiguredRoomId();
     if (!roomId) return { roomId: '', uid: '', name: '', avatarUrl: '' };
     await refreshAuthCache();
-    const room = await new BilibiliApiClient(roomId, authCache).resolveRoomInfo();
+    const apiClient = new BilibiliApiClient(roomId, authCache);
+    const room = await apiClient.resolveRoomInfo({ includeOwner: !includeDetails });
     // The expected display room must belong to this configured room's trusted resolution.
     if (expectedRoomId !== undefined &&
       ![roomId, String(room.roomId), String(room.shortId || '')].includes(String(expectedRoomId))) return null;
-    const profile = await userInfoService.ensure(room.uid, {
+    const [owner, details] = includeDetails ? await Promise.all([
+      apiClient.fetchOwnerProfile(room.uid).catch(() => null),
+      apiClient.fetchRoomDetails(room.roomId).catch(() => null),
+    ]) : [null, null];
+    const profile = owner?.name && owner.avatarUrl ? owner : await userInfoService.ensure(room.uid, {
       fields: ['name', 'avatarUrl'],
     });
     return {
       roomId: String(room.roomId),
       uid: String(room.uid || ''),
-      name: profile?.name || room.ownerName || '',
-      avatarUrl: profile?.avatarUrl || '',
+      name: owner?.name || profile?.name || room.ownerName || '',
+      avatarUrl: owner?.avatarUrl || profile?.avatarUrl || '',
+      ...(includeDetails ? {
+        title: details?.title || '',
+        liveStatus: details?.liveStatus ?? ([0, 1, 2].includes(room.liveStatus) ? room.liveStatus : null),
+        parentAreaName: details?.parentAreaName || '',
+        areaName: details?.areaName || '',
+        level: owner?.level ?? null,
+        followers: owner?.followers ?? null,
+        medalName: owner?.medalName ?? null,
+        announcement: owner?.announcement ?? null,
+      } : {}),
     };
   }
 
-  async function requestRandomSong() {
+  async function requestRandomSong({ authorize = () => {} } = {}) {
     const requestAuthProvider = authProvider;
     const identityRevision = requestAuthProvider?.getIdentityRevision?.();
     const roomId = getConfiguredRoomId();
@@ -158,9 +173,10 @@ function createBilibiliRuntime(options) {
     if (!isCurrent() || !currentAccount?.loggedIn || Number(currentAccount.uid) !== uid) return cancelled;
     const identity = userInfoService.peek(uid, {
       fields: ['guard', 'fansMedal'],
-      roomId,
+      roomId: client?.roomId === roomId ? client.roomRunContext?.roomId || roomId : roomId,
     });
     // The message handler inserts synchronously; a later switch must not undo an accepted song.
+    authorize();
     return domainServices.messages.handleDanmaku({
       message: '随机点歌',
       userName: profile?.name || `UID ${uid}`,
@@ -265,6 +281,8 @@ function createBilibiliRuntime(options) {
       });
       const nextClient = buildClient(roomId, {
         isShuttingDown: () => !isCurrent(),
+        getReplySessionKey: () => JSON.stringify([generation, clientGeneration, getConfiguredRoomId(),
+          authFailureRevision, authProvider?.getSessionRevision?.()]),
         async captureReplySession() {
           const sessionAuthProvider = authProvider;
           const authSessionRevision = authProvider?.getSessionRevision?.();

@@ -13,6 +13,8 @@
 
 专用目录保存 `setCachePath` 按接收顺序串行完成实际缓存校验、持久化和运行态应用，避免较慢的旧选择在新选择之后覆盖配置；失败会向调用方返回错误，保留旧有效配置，且不阻塞后续保存。自动识别复用此保存队列，手动配置和启停代次会使未完成的旧识别结果失效；并发重新检测共用一次发现请求。此顺序由采集器拥有，与前端信源启停的 `activationQueue` 分开。
 
+专用缓存路径和偏移 setter 接受可选的 `authorize` 断言，由 HTTP 传入本次请求的账号归属校验；排队/异步准备完成后、保存前，以及保存完成后应用运行时前复核。失效请求停止后续操作，已完成的保存不回滚；未传断言的内部调用维持原行为。路径和偏移仍是本机设置，不增加账号分区或云同步。错误合同见 [API 通用约定](../api.md#0-路由机制与通用约定)；`wesing-capture.test.js` 和 `wesing-routes.test.js` 覆盖排队、异步目录读取、偏移及保存后的授权变化。
+
 ## 1. 概述
 
 Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**正在播放**的歌曲,把本地缓存的逐字歌词(QRC)或在线匹配歌词叠加为实时桌面歌词。能力边界:
@@ -274,12 +276,12 @@ resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓
 
 装配([music-runtime.js](../../../../src/server/music-runtime.js)):
 
-| 回调                   | 广播                                                                                                                                                                                |
+| 回调                   | 候选更新与广播                                                                                                                                                                                |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `onState(state)`       | `{type:'wesing-state', state}`;且 active 且有 `lyricState` 时同步为全局 `lyricState` 并广播 `{type:'lyric-state', state}`([music-runtime.js](../../../../src/server/music-runtime.js)) |
-| `onTimeline(timeline)` | `timeline.active` 时经 `publishLyricTimeline` 归一化后广播 `{type:'lyric-timeline', timeline}`([music-runtime.js](../../../../src/server/music-runtime.js))                            |
+| `onState(state)` | 广播管理采集状态 `{type:'wesing-state', state}`，并经 `acceptExternalState('wesing', state, state.lyricState)` 更新 WeSing 候选 |
+| `onTimeline(timeline)` | 经 `acceptExternalTimeline('wesing', timeline)` 归一化并缓存 WeSing 候选时间轴 |
 
-消息契约归属 [ws.md](../ws.md) §3;管理快照中的 `weSing` 取 `weSingCapture.getStatus()`([music-runtime.js](../../../../src/server/music-runtime.js))。
+候选更新后由 `music-runtime` 统一仲裁，只有切换输出来源或更新当前输出来源时发布歌词；完整选择与版本规则见 [音乐服务 §13](services.md#13-歌词状态与时间轴lyric-statejs--lyric-timelinejs)。本地 QRC 和在线兜底只决定 WeSing 候选内容，不绕过来源选择。消息契约归属 [ws.md](../ws.md) §3;管理快照中的 `weSing` 取 `weSingCapture.getStatus()`([music-runtime.js](../../../../src/server/music-runtime.js))。
 
 本地端点前缀为 `/api/music/wesing/*`(端点清单与请求体见 [api.md](../api.md) 的 wesing-routes 节,此处不枚举):全部路由转发到 `context.weSing` 门面([api-context.js](../../../../src/server/api-context.js)),统一 `{ok, data}` 包装、业务失败回 400;`configure`/`offset` 在门面内完成设置持久化(§9.1 的 save 回调),`active`/`refresh` 直接透传采集器。
 

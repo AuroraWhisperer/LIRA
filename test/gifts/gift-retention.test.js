@@ -19,12 +19,14 @@ const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
 const schema = require('../../src/storage/schema');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
 const { getBlindBoxAnalysis } = require('../../src/bilibili/gift/blind-box-analysis');
+const { getGiftHistory, getGiftSelection } = require('../../src/bilibili/gift/query-service');
+const { DAY_MS, dayStart } = require('../../src/shared/gift-summary-contract');
 
 const NOW = '2026-10-12T04:00:00.000Z';
 const BEFORE = '2026-10-11T16:00:00.000Z';
 const DETAIL = '2026-07-13T16:00:00.000Z';
-const OLD = '2026-01-01T02:00:00.000Z';
-const DAY = '2025-12-31T16:00:00.000Z';
+const OLD = '2025-01-01T02:00:00.000Z';
+const DAY = '2024-12-31T16:00:00.000Z';
 const RECENT = '2026-10-12T01:00:00.000Z';
 
 function fixture(t, projectionOptions) {
@@ -71,43 +73,143 @@ function stage(f, summaryPage = summary(), records) {
   f.retention.historyPage({ ...f.scope(), pageToken: summaryPage.historyPageToken, page: history(records) });
 }
 
-test('local blind-box archives preserve each local date before and after pruning and timezone changes', (t) => {
+function publishExisting(f) {
+  const id = Number(f.giftDb.prepare(`INSERT INTO gift_retention_snapshots
+    (source_id,projection_generation,sync_epoch,revision,base_revision,summarized_before,covered_cursor,
+      detail_start,phase,updated_at) VALUES (?,1,'epoch-1',0,0,?,0,?,'active',?)`)
+    .run(f.source.id,DAY,DAY,OLD).lastInsertRowid);
+  f.giftDb.prepare('UPDATE gift_retention_snapshots SET member_snapshot_id=? WHERE id=?').run(id,id);
+  f.giftDb.prepare('INSERT INTO gift_retention_state(source_id,active_snapshot_id) VALUES (?,?)').run(f.source.id,id);
+  f.giftDb.prepare('INSERT INTO gift_retention_members SELECT ?,id FROM gift_events WHERE source_id=?').run(id,f.source.id);
+  f.giftDb.prepare('UPDATE gift_events SET remote_final_cursor=id WHERE source_id=?').run(f.source.id);
+  f.giftDb.prepare("UPDATE gift_sync_state SET sync_epoch='epoch-1',final_cursor=2,bootstrap_complete=1 WHERE source_id=?").run(f.source.id);
+}
+
+test('a same-epoch rebuild preserves 200-day details and export selection without double-counting', (t) => {
+  const f = fixture(t);
+  f.context.now = () => NOW;
+  f.setActiveSource(f.source.id, { syncState: 'LIVE', partial: false, dirty: false, epochValidated: true });
+  const oldDay = new Date(Date.parse(BEFORE) - 200 * DAY_MS).toISOString();
+  const oldBefore = new Date(Date.parse(BEFORE) - 190 * DAY_MS).toISOString();
+  const oldDetail = new Date(Date.parse(oldBefore) - 90 * DAY_MS).toISOString();
+  const contribution = { ...row(1), dayStart: oldDay };
+  f.retention.summaryPage({ ...f.scope(), full: true, page: summary({
+    summarizedBefore: oldBefore, detailStart: oldDetail, rows: [contribution] }) });
+  f.retention.historyPage({ ...f.scope(), pageToken: 'history-1', page: history([record('kept', 1, oldDay)],
+    { detailStart: oldDetail, recoveryCursor: 2 }) });
+  f.retention.activate(f.scope());
+  f.giftDb.prepare('UPDATE gift_sync_state SET final_cursor=3 WHERE source_id=?').run(f.source.id);
+  for (let rebuild = 0; rebuild < 2; rebuild++) {
+    stage(f, summary({ rows: [contribution] }));
+    f.retention.activate(f.scope());
+    while (cleanupGiftRetentionBatch(f.giftDb, f.source.id, 1)) {}
+  }
+  const date = new Date(Date.parse(oldDay) + 8 * 3600000).toISOString().slice(0,10);
+  const filtered = { range: 'all', startDate: date, endDate: date };
+  const page = getGiftHistory(f.context, filtered);
+  assert.equal(page.total, 1);
+  assert.deepEqual(page.items.map(item => item.eventId), ['kept']);
+  assert.equal(page.retention.availability, 'retained');
+  assert.equal(getGiftSelection(f.context, { ...filtered, viewRevision: page.viewRevision,
+    eventIds: ['kept'] }).items.length, 1);
+  assert.equal(f.statistics().summaryRow.eventCount, 2);
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 0);
+
+  const newMachine = fixture(t);
+  stage(newMachine, summary({ rows: [contribution] }));
+  newMachine.retention.activate(newMachine.scope());
+  const oldRange = { rangeStart: oldDay, rangeEnd: new Date(Date.parse(oldDay)+DAY_MS).toISOString() };
+  assert.equal(newMachine.context.queryStore.getRetention(newMachine.source.id, oldRange).availability, 'partial');
+  assert.equal(newMachine.context.queryStore.countHistory({ sourceId: newMachine.source.id, asOf: NOW, ...oldRange }), 0);
+
+  // A missed late final can belong to this same old day, outside server recovery.
+  f.retention.summaryPage({ ...f.scope(), full: true, page: summary({ revision: 2,
+    coveredThroughCursor: 4, rows: [{ ...row(2), dayStart: oldDay }] }) });
+  f.retention.historyPage({ ...f.scope(), pageToken: 'history-1', page: history([], { summaryRevision: 2, recoveryCursor: 4 }) });
+  f.retention.activate(f.scope());
+  const partial = getGiftHistory(f.context, filtered);
+  assert.equal(partial.total, 1, 'the received detail remains readable');
+  assert.equal(partial.retention.availability, 'partial', 'summary two / detail one cannot retain a complete proof');
+  assert.equal(f.statistics().summaryRow.eventCount, 3);
+  f.setActiveSource(f.other.id);
+  assert.equal(getGiftHistory(f.context, filtered).total, 0);
+});
+
+test('local deletion uses the trusted 365-day boundary, commits checkpoints atomically and revisits late arrivals next day', (t) => {
+  const f = fixture(t);
+  const cutoff = new Date(Date.parse(BEFORE) - 365 * DAY_MS).toISOString();
+  const dates = [366, 365, 364, 200, 91, 90, 89, 0].map(days => new Date(Date.parse(BEFORE) - days * DAY_MS).toISOString());
+  dates.forEach((createdAt, i) => f.insertGift(f.source.id, `age-${i}`, { createdAt }));
+  f.giftDb.prepare('UPDATE gift_events SET gift_stats_delivered=1 WHERE source_id=?').run(f.source.id);
+  publishExisting(f);
+  const rows = dates.slice(0,-1).map(date => ({ ...row(1), dayStart: new Date(dayStart(date)).toISOString() }));
+  f.retention.summaryPage({ ...f.scope(), full: true, page: summary({ rows, coveredThroughCursor: 8 }) });
+  f.retention.historyPage({ ...f.scope(), pageToken: 'history-1', page: history([], { recoveryCursor: 8 }) });
+  f.retention.activate(f.scope());
+  t.mock.method(Date, 'now', () => Date.parse('2040-01-01T00:00:00.000Z'));
+  f.giftDb.exec(`CREATE TRIGGER fail_retention_checkpoint BEFORE UPDATE ON gift_retention_work
+    BEGIN SELECT RAISE(ABORT,'checkpoint failed'); END`);
+  assert.throws(() => pruneLocalGiftBatch(f.giftDb, f.source.id, 1), /checkpoint failed/);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_retention_receipts').get().n, 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_events').get().n, 8);
+  f.giftDb.exec('DROP TRIGGER fail_retention_checkpoint');
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id, 1).deleted, 1);
+  const late = f.insertGift(f.source.id, 'late-old', { createdAt: dates[0] });
+  f.giftDb.prepare('UPDATE gift_events SET remote_final_cursor=9,gift_stats_delivered=1 WHERE id=?').run(late.lastInsertRowid);
+  let result;
+  do { result = pruneLocalGiftBatch(f.giftDb, f.source.id, 2); assert.ok(result.scanned <= 2); } while (result.hasMore);
+  assert.equal(f.giftDb.prepare('SELECT cutoff FROM gift_retention_work').get().cutoff, cutoff);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_events').get().n, 8, 'fixed scan horizon excludes the late arrival');
+  f.giftDb.prepare('UPDATE gift_sync_state SET final_cursor=9 WHERE source_id=?').run(f.source.id);
+  f.retention.summaryPage({ ...f.scope(), page: summary({ revision: 2, baseRevision: 1,
+    summarizedBefore: new Date(Date.parse(BEFORE) + DAY_MS).toISOString(), coveredThroughCursor: 9,
+    rows: [{ ...row(2), dayStart: dates[0] }, { ...row(1), dayStart: BEFORE }] }) });
+  f.retention.activate(f.scope());
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 2, 'new day revisits both the old boundary and the late final');
+  assert.equal(f.statistics().summaryRow.eventCount, 9);
+  assert.equal(f.context.queryStore.getRetention(f.source.id, { rangeStart: dates[0], rangeEnd: cutoff }).availability, 'expired');
+});
+
+test('year-old blind-box records compact into daily groups with explicit timezone precision', (t) => {
   const originalTimezone = process.env.TZ;
+  const resolvedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   t.after(() => {
+    process.env.TZ = originalTimezone || resolvedTimezone;
     if (originalTimezone === undefined) delete process.env.TZ;
-    else process.env.TZ = originalTimezone;
   });
   const f = fixture(t);
+  process.env.TZ = 'Asia/Shanghai';
   f.setActiveSource(f.source.id);
-  for (const [index, createdAt] of ['2026-01-01T20:00:00.000Z', '2026-01-02T08:00:00.000Z'].entries()) {
+  for (const [index, createdAt] of ['2025-01-01T20:00:00.000Z', '2025-01-02T08:00:00.000Z'].entries()) {
     f.insertGift(f.source.id, `timezone-${index}`, {
       createdAt, isBlindBox: true, blindBoxName: '测试盒', blindBoxPrice: 0.5,
     });
   }
   f.giftDb.prepare('UPDATE gift_events SET gift_stats_delivered=1 WHERE source_id=?').run(f.source.id);
-  const timezones = ['UTC', 'America/New_York', 'Asia/Shanghai'];
-  const readDays = () => ['2026-01-01', '2026-01-02'].map((date) =>
+  const readDays = () => ['2025-01-01', '2025-01-02'].map((date) =>
     getBlindBoxAnalysis(f.context, { startDate: date, endDate: date }).summary);
-  const before = timezones.map((timezone) => {
-    process.env.TZ = timezone;
-    return readDays();
-  });
-  const archivedDay = { ...row(), dayStart: '2026-01-01T16:00:00.000Z' };
+  const before = readDays();
+  const archivedDay = { ...row(), dayStart: '2025-01-01T16:00:00.000Z' };
   Object.assign(archivedDay.dimensions, { isBlindBox: true, blindBoxName: '测试盒', blindBoxUnitPriceCents: 50 });
   archivedDay.groupKey = groupKey(archivedDay.dimensions);
   Object.assign(archivedDay.metrics, { blindBoxEventCount: 2, blindBoxPriceCents: 100, blindBoxValueCents: 200,
     blindProfitCents: 100, blindItemCount: 2, knownCostValueCents: 200 });
+  publishExisting(f);
   stage(f, summary({ rows: [archivedDay] }));
   f.retention.activate(f.scope());
   assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 2);
-  for (const [index, timezone] of timezones.entries()) {
-    process.env.TZ = timezone;
-    assert.deepEqual(readDays(), before[index], timezone);
-  }
+  assert.deepEqual(readDays(), before);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_local_archives').get().n, 1);
+  assert.equal(f.giftDb.prepare('SELECT occurred_at FROM gift_local_archives').get().occurred_at, null);
+  process.env.TZ = 'America/New_York';
+  const shifted = getBlindBoxAnalysis(f.context, { startDate: '2025-01-01', endDate: '2025-01-02' });
+  assert.equal(shifted.summary.boxCount, 2);
+  assert.equal(shifted.hasArchivedTimezoneMismatch, true);
+  assert.deepEqual(shifted.archiveTimeZones, ['Asia/Shanghai']);
   assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 0);
 });
 
-test('the exact archive migration preserves old day buckets and reports their date precision limitation', (t) => {
+test('the pre-release reset drops incompatible projections once and preserves unrelated state', (t) => {
   const run = schema.runMigrations;
   const legacy = t.mock.method(schema, 'runMigrations', (db, key, steps) =>
     run(db, key, key === 'gift_db' ? steps.slice(0, 20) : steps));
@@ -119,14 +221,42 @@ test('the exact archive migration preserves old day buckets and reports their da
     blind_box_id: null, blind_box_name: '测试盒', unit_price: 1, known_cost: true });
   f.giftDb.prepare('INSERT INTO gift_local_archives VALUES (?,?,?,?,?,?,?,?,?)')
     .run(f.source.id, DAY, 'legacy-bucket', dimensions, 2, 2, 200, 100, OLD);
+  f.insertGift(f.source.id, 'obsolete');
+  f.insertGift(null, 'unidentified', { cmd: 'SEND_GIFT' });
+  addWish(f, 'keep-configuration', 'long', OLD);
   runAllMigrations(f.databases);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_local_archives').get().n, 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_events WHERE source_id=?').get(f.source.id).n, 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_events WHERE source_id IS NULL').get().n, 1);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wishes').get().n, 1);
+  f.insertGift(f.source.id, 'new-baseline');
   runAllMigrations(f.databases);
-  const saved = f.giftDb.prepare('SELECT * FROM gift_local_archives').get();
-  assert.equal(saved.occurred_at, null);
-  assert.equal(saved.event_count, 2);
-  const result = getBlindBoxAnalysis(f.context, { startDate: '2025-12-31', endDate: '2026-01-02' });
-  assert.equal(result.summary.boxCount, 2);
-  assert.equal(result.hasLegacyArchivedDates, true);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_events WHERE source_id=?').get(f.source.id).n, 1);
+});
+
+test('a reopened database resumes a committed retention checkpoint without repeating sprint carry', (t) => {
+  const f = fixture(t);
+  for (let i=0; i<10; i++) f.insertGift(f.source.id, `reopen-${i}`, { createdAt: OLD, countedInSprint: 1 });
+  f.giftDb.prepare('UPDATE gift_events SET gift_stats_delivered=1').run();
+  publishExisting(f);
+  f.retention.summaryPage({ ...f.scope(), full: true, page: summary({ rows: [row(10)], coveredThroughCursor: 10 }) });
+  f.retention.historyPage({ ...f.scope(), pageToken: 'history-1', page: history([], { recoveryCursor: 10 }) });
+  f.retention.activate(f.scope());
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id, 2).deleted, 2);
+  const filename = f.giftDb.prepare('PRAGMA database_list').all().find(entry => entry.name === 'main').file;
+  f.giftDb.close();
+  const db = f.databases.giftDb = new DatabaseSync(filename);
+  db.exec('PRAGMA foreign_keys=ON');
+  let result;
+  do { result = pruneLocalGiftBatch(db,f.source.id,2); } while (result.hasMore);
+  while (cleanupGiftRetentionBatch(db,f.source.id,2)) {}
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM gift_events').get().n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) n FROM gift_retention_receipts').get().n, 10);
+  const carry = db.prepare('SELECT * FROM gift_sprint_carry').get();
+  assert.equal(carry.value_cents, 1000);
+  assert.equal(carry.event_count, 10);
+  assert.equal(db.prepare('SELECT phase FROM gift_retention_work').get().phase, 'done');
+  assert.equal(pruneLocalGiftBatch(db,f.source.id).deleted, 0);
 });
 
 function addWish(f, id, period, createdAt) {
@@ -142,8 +272,9 @@ test('wishes combine active history and summaries while preserving exact creatio
   const long = addWish(f, 'long', 'long', OLD);
   const all = addWish(f, 'all', 'long', DAY);
   const daily = addWish(f, 'day', 'day', NOW);
-  f.insertGift(f.source.id, 'before-wish', { createdAt: '2026-01-01T01:00:00.000Z', giftStatsEligible: 0 });
-  f.insertGift(f.source.id, 'after-wish', { createdAt: '2026-01-01T03:00:00.000Z', giftStatsEligible: 0 });
+  f.insertGift(f.source.id, 'before-wish', { createdAt: '2025-01-01T01:00:00.000Z', giftStatsEligible: 0 });
+  f.insertGift(f.source.id, 'after-wish', { createdAt: '2025-01-01T03:00:00.000Z', giftStatsEligible: 0 });
+  publishExisting(f);
   const count = (wish, start = wish.created_at) => store.count(f.source.id, wish, start, NOW);
   stage(f);
   assert.equal(count(daily, BEFORE), 0, 'staging stays hidden');
@@ -158,7 +289,7 @@ test('wishes combine active history and summaries while preserving exact creatio
     if (sql.includes('SUM(')) {
       if (sql.includes('FROM gift_events g WHERE')) reads.detail++;
       if (sql.includes('FROM gift_retention_days s')) reads.summary++;
-      if (sql.includes('FROM gift_wish_contributions c')) reads.contribution++;
+      if (sql.includes('FROM gift_wish_boundary_totals c')) reads.contribution++;
     }
     return prepare.call(this, sql);
   });
@@ -166,7 +297,7 @@ test('wishes combine active history and summaries while preserving exact creatio
     { wish: long, start: OLD, end: NOW },
     { wish: all, start: DAY, end: NOW },
     { wish: daily, start: BEFORE, end: NOW },
-    { wish: long, start: OLD, end: '2026-01-01T02:30:00.000Z' },
+    { wish: long, start: OLD, end: '2025-01-01T02:30:00.000Z' },
   ];
   assert.deepEqual(store.countMany(f.source.id, windows), [2, 3, 1, 0]);
   observe.mock.restore();
@@ -193,41 +324,46 @@ test('wishes retain late creation-day finals when pruning and respect a stale se
   const store = createGiftWishStore(f.giftDb);
   const long = addWish(f, 'long', 'long', OLD);
   const session = addWish(f, 'session', 'session', OLD);
-  store.saveSession(f.source.id, '123', { started_at: OLD, checked_at: '2026-01-01T02:30:00.000Z', ended_at: null });
-  f.insertGift(f.source.id, 'early', { createdAt: '2026-01-01T02:15:00.000Z', giftStatsEligible: 0 });
-  f.insertGift(f.source.id, 'later', { createdAt: '2026-01-01T03:00:00.000Z', giftStatsEligible: 0 });
+  store.saveSession(f.source.id, '123', { started_at: OLD, checked_at: '2025-01-01T02:30:00.000Z', ended_at: null });
+  f.insertGift(f.source.id, 'early', { createdAt: '2025-01-01T02:15:00.000Z', giftStatsEligible: 0 });
+  f.insertGift(f.source.id, 'later', { createdAt: '2025-01-01T03:00:00.000Z', giftStatsEligible: 0 });
+  publishExisting(f);
   stage(f);
   f.retention.activate(f.scope());
-  const late = record('late-boundary', 4, '2026-01-01T04:00:00.000Z');
+  const late = record('late-boundary', 4, '2025-01-01T04:00:00.000Z');
   f.projection.importProcessedHistoryRecord(late, f.source.id);
   f.giftDb.prepare('UPDATE gift_events SET remote_final_cursor=4 WHERE platform_id=?').run('lira-server:late-boundary');
   f.giftDb.prepare('UPDATE gift_sync_state SET final_cursor=4 WHERE source_id=?').run(f.source.id);
   f.retention.summaryPage({ ...f.scope(), page: summary({ revision: 2, baseRevision: 1, coveredThroughCursor: 4, rows: [row(3)] }) });
   f.retention.activate(f.scope());
   assert.equal(store.count(f.source.id, long, OLD, NOW), 4);
-  assert.equal(store.count(f.source.id, session, OLD, '2026-01-01T02:30:00.000Z'), 1);
+  assert.equal(store.count(f.source.id, session, OLD, '2025-01-01T02:30:00.000Z'), 1);
   assert.deepEqual(store.countMany(f.source.id, [
     { wish: long, start: OLD, end: NOW },
-    { wish: session, start: OLD, end: '2026-01-01T02:30:00.000Z' },
+    { wish: session, start: OLD, end: '2025-01-01T02:30:00.000Z' },
     { wish: long, start: BEFORE, end: NOW },
   ]), [4, 1, 1]);
-  f.giftDb.exec(`CREATE TRIGGER reject_wish_archive BEFORE INSERT ON gift_wish_contributions
-    WHEN NEW.platform_id='lira-server:late-boundary' BEGIN SELECT RAISE(ABORT,'wish archive failed'); END;`);
+  // The unfinished session's trailing day must remain exact until its boundary moves.
+  assert.equal(pruneLocalGiftBatch(f.giftDb, f.source.id).deleted, 0);
+  store.saveSession(f.source.id, '123', { started_at: OLD, checked_at: NOW, ended_at: null });
+  f.giftDb.prepare('DELETE FROM gift_retention_work WHERE source_id=?').run(f.source.id);
+  f.giftDb.exec(`CREATE TRIGGER reject_wish_archive BEFORE INSERT ON gift_wish_boundary_totals
+    BEGIN SELECT RAISE(ABORT,'wish archive failed'); END;`);
   assert.throws(() => pruneLocalGiftBatch(f.giftDb, f.source.id), /wish archive failed/);
   assert.equal(store.count(f.source.id, long, OLD, NOW), 4, 'archive failure cannot delete the raw contribution');
   f.giftDb.exec('DROP TRIGGER reject_wish_archive');
   pruneLocalGiftBatch(f.giftDb, f.source.id);
   assert.equal(store.count(f.source.id, long, OLD, NOW), 4);
-  assert.equal(store.count(f.source.id, session, OLD, '2026-01-01T02:30:00.000Z'), 1);
+  assert.equal(store.count(f.source.id, session, OLD, NOW), 4);
   assert.equal(store.count(f.source.id, long, BEFORE, NOW), 1, 'todayCount ignores archived start-day contributions');
-  assert.ok(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions WHERE wish_id=?').get(long.id).n > 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_boundary_totals WHERE wish_id=?').get(long.id).n, 1);
   store.remove(f.source.id, long.id);
-  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions WHERE wish_id=?').get(long.id).n, 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_boundary_totals WHERE wish_id=?').get(long.id).n, 0);
   f.giftDb.exec('BEGIN IMMEDIATE');
   clearGiftScopeInTransaction(f.giftDb, f.source.id, NOW);
   f.giftDb.exec('COMMIT');
   assert.equal(store.count(f.source.id, session, OLD, NOW), 0);
-  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_contributions').get().n, 0);
+  assert.equal(f.giftDb.prepare('SELECT COUNT(*) n FROM gift_wish_boundary_totals').get().n, 0);
 });
 
 test('summary wish quantities preserve guard aliases and separate box and output identities', (t) => {
@@ -307,24 +443,26 @@ test('bounded deletion keeps sprint carry and local blind-box eligibility, pins 
   f.giftDb.prepare(`INSERT INTO overtime_settlements(gift_event_id,status,created_at,updated_at) VALUES (?,'pending',?,?)`).run(second.lastInsertRowid,OLD,OLD);
   const sourceScope = { kind: 'source', sourceId: f.source.id };
   const before = f.context.queryStore.readSprint(sourceScope);
+  publishExisting(f);
   stage(f);
   f.retention.activate(f.scope());
   assert.equal(pruneLocalGiftBatch(f.giftDb,f.source.id,1).deleted, 1);
   assert.equal(pruneLocalGiftBatch(f.giftDb,f.source.id,1).deleted, 0);
   assert.deepEqual(f.context.queryStore.readSprint(sourceScope), before);
-  const archived = f.context.queryStore.listBlindBoxRows({ sourceScope, from: DAY, to: '2026-01-02T16:00:00.000Z' });
+  const archived = f.context.queryStore.listBlindBoxRows({ sourceScope, from: DAY, to: '2025-01-02T16:00:00.000Z' });
   assert.equal(archived.length,1);
   assert.equal(archived[0].archived,true);
   assert.equal(archived[0].blind_profit,0.5);
   f.setActiveSource(f.source.id);
   const analysis = require('../../src/bilibili/gift/blind-box-analysis').getBlindBoxAnalysis(f.context,
-    { startDate: '2026-01-01', endDate: '2026-01-01', view: 'records' });
+    { startDate: '2025-01-01', endDate: '2025-01-01', view: 'records' });
   assert.equal(analysis.summary.totalProfit,0.5);
   assert.equal(analysis.hasArchivedDetails,true);
   assert.deepEqual(analysis.items,[]);
   assert.equal(f.giftDb.prepare('SELECT 1 FROM gift_events WHERE id=?').get(first.lastInsertRowid),undefined);
   assert.equal(f.projection.importProcessedEvent({ ...record('old-1',1,OLD), phase: 'final', cursor: 1 },f.source.id),null);
   f.giftDb.prepare("UPDATE overtime_settlements SET status='applied' WHERE gift_event_id=?").run(second.lastInsertRowid);
+  f.giftDb.prepare('DELETE FROM gift_retention_work WHERE source_id=?').run(f.source.id);
   assert.equal(pruneLocalGiftBatch(f.giftDb,f.source.id).deleted,1);
   assert.deepEqual(f.context.queryStore.readSprint(sourceScope),before);
   assert.equal(f.statistics().summaryRow.totalPriceCents,300);
@@ -440,11 +578,12 @@ test('persisted staging resumes after database reopen and obsolete snapshots are
     const before = changes();
     const n = cleanupGiftRetentionBatch(reopened,f.source.id,1);
     assert.ok(n<=1);
-    assert.ok(changes()-before<=1,'abandoned pending finals must not cascade outside the batch limit');
+    assert.ok(changes()-before<=3,'one candidate plus its proof move or bounded scan checkpoints');
     if (!n) break;
   }
   assert.equal(reopened.prepare('SELECT COUNT(*) n FROM gift_retention_snapshots').get().n,1);
-  assert.equal(reopened.prepare('SELECT COUNT(*) n FROM gift_retention_members').get().n,1);
+  assert.equal(reopened.prepare('SELECT COUNT(*) n FROM gift_retention_members').get().n,2,
+    'the previously published progress group keeps its proof after a same-epoch rebuild');
   assert.equal(reopened.prepare('SELECT COUNT(*) n FROM gift_retention_pending_finals').get().n,0);
 });
 

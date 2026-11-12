@@ -510,6 +510,7 @@ class BilibiliDanmakuClient {
       if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       console.warn(`[Bilibili] reconnect after live start failed: ${error.message}`);
       this.reconnecting = true;
+      if (this.roomRunContext) this.historyPoller.start(this.roomRunContext);
       this.report({
         connected: Boolean(this.historyPoller.timer),
         enabled: true,

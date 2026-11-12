@@ -6,6 +6,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { safeStorage, session } = require('electron');
 const { toSerializableCookie, toElectronCookieDetails } = require('./cookie-details');
+const { writeAtomicFile } = require('./atomic-file');
 
 const MUSIC_LOGIN_CONFIG = {
   qq: {
@@ -83,24 +84,6 @@ function isAllowedMusicCookie(platform, cookie) {
   });
 }
 
-function isAllowedMusicLoginUrl(platform, rawUrl) {
-  let parsed;
-  try {
-    parsed = new URL(rawUrl);
-  } catch (_) {
-    return false;
-  }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-  const host = parsed.hostname.toLowerCase();
-  if (!Object.hasOwn(MUSIC_LOGIN_CONFIG, platform)) return false;
-  const config = MUSIC_LOGIN_CONFIG[platform];
-  if (!config) return false;
-  return config.allowedHosts.some((allowed) => {
-    const cleanAllowed = allowed.toLowerCase();
-    return host === cleanAllowed || host.endsWith(`.${cleanAllowed}`);
-  });
-}
-
 async function getAllowedMusicCookies(platform) {
   platform = normalizeMusicPlatform(platform);
   const loginSession = session.fromPartition(MUSIC_LOGIN_CONFIG[platform].partition);
@@ -124,7 +107,7 @@ async function persistMusicCookieSnapshot(platform, dataDir) {
   const authDir = getMusicAuthDir(dataDir);
   fs.mkdirSync(authDir, { recursive: true });
   const encrypted = safeStorage.encryptString(JSON.stringify(payload));
-  fs.writeFileSync(getMusicCookieSnapshotPath(dataDir, platform), encrypted.toString('base64'), 'utf8');
+  writeAtomicFile(getMusicCookieSnapshotPath(dataDir, platform), encrypted.toString('base64'));
   return { savedAt: payload.savedAt, cookieCount: payload.cookies.length };
 }
 
@@ -223,7 +206,6 @@ async function clearMusicBrowserCache(platforms = Object.keys(MUSIC_LOGIN_CONFIG
 module.exports = {
   MUSIC_LOGIN_CONFIG,
   normalizeMusicPlatform,
-  isAllowedMusicLoginUrl,
   getMusicAuthState,
   getMusicSessionState,
   getMusicCookieHeader,

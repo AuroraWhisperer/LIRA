@@ -50,6 +50,7 @@ async function clearGiftDatabases(context, request, res) {
     return;
   }
 
+  request.authorize?.();
   let result;
   try {
     result = context.data.clearGifts();
@@ -142,6 +143,7 @@ const routes = {
     while (result.hasMoreGiftEvents) {
       await new Promise((resolve) => setImmediate(resolve));
       if (res.destroyed) return;
+      request.authorize?.();
       const batch = context.data.runRetention({ policy: result.policy, ranAt: result.ranAt, giftEventsOnly: true });
       for (const key of ['giftRawJsonCleared', 'giftEventsDeleted', 'requestsDeleted', 'superChatsDeleted',
         'aiRequestLogsDeleted', 'cooldownsDeleted', 'songCooldownsDeleted', 'importBatchesDeleted']) {

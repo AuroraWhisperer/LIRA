@@ -32,8 +32,8 @@ _请求方式：GET_
 | 字段 | 类型 | 内容       | 备注 |
 | ---- | ---- | ---------- | ---- |
 | id   | num  | 父分区id   |      |
-| name | name | 父分区名   |      |
-| list | list | 子分区列表 |      |
+| name | str  | 父分区名   |      |
+| list | array | 子分区列表 |      |
 
 `data`数组中的对象中的`list`数组：
 
@@ -68,9 +68,9 @@ curl 'https://api.live.bilibili.com/room/v1/Area/getList'
 ```
 
 <details>
-<summary>查看响应示例：</summary>
+<summary>查看省略部分条目的结构示意（不是完整 JSON）：</summary>
 
-```json
+```text
 {
     "code": 0,
     "msg": "success",
