@@ -5,6 +5,8 @@ const os = require('node:os');
 const path = require('node:path');
 const { execFile } = require('node:child_process');
 const { promisify } = require('node:util');
+const { pipeline } = require('node:stream/promises');
+const { getPath7za } = require('app-builder-lib/out/toolsets/7zip');
 const { verifyPackagedDependencies } = require('./verify-packaged-dependencies');
 const {
   MANIFEST_NAME,
@@ -51,8 +53,29 @@ function validateArchiveEntries(names, listing) {
   return [...selected.values()];
 }
 
+async function copyEmbeddedArchive(filename, directory, options) {
+  // libarchive only scans a bounded SFX prefix. Use the builder's existing
+  // archiver to locate a later payload, then apply the same tar checks to it.
+  const { stdout } = await execFileAsync(await getPath7za(), ['l', '-slt', '--', filename], options);
+  const header = stdout.split(/\r?\n----------\r?\n/, 1)[0];
+  const offset = Number(header.match(/^Offset = (\d+)\r?$/m)?.[1]);
+  const size = Number(header.match(/^Physical Size = (\d+)\r?$/m)?.[1]);
+  const end = offset + size;
+  if (
+    !/^Type = 7z\r?$/m.test(header) ||
+    !Number.isSafeInteger(offset) || offset <= 0 ||
+    !Number.isSafeInteger(size) || size < 32 ||
+    !Number.isSafeInteger(end) || end > (await fs.promises.stat(filename)).size
+  ) throw failure('INSTALLER_LAYOUT_INVALID');
+  const archive = path.join(directory, 'payload.7z');
+  await pipeline(
+    fs.createReadStream(filename, { start: offset, end: end - 1 }),
+    fs.createWriteStream(archive, { flags: 'wx' }),
+  );
+  return archive;
+}
+
 async function verifyInstaller(filename, metadata) {
-  // Windows' libarchive tar reads the embedded 7z payload of our NSIS installer.
   // No installer, application executable or archived JavaScript is executed.
   const tar =
     process.platform === 'win32' ? path.join(process.env.SystemRoot || 'C:/Windows', 'System32/tar.exe') : 'bsdtar';
@@ -64,15 +87,22 @@ async function verifyInstaller(filename, metadata) {
     while (result.at(-1) === '') result.pop();
     return result;
   };
-  const names = lines((await execFileAsync(tar, ['-tf', filename], options)).stdout);
-  const listing = lines((await execFileAsync(tar, ['-tvf', filename], options)).stdout);
-  const entries = validateArchiveEntries(names, listing);
   const directory = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'lira-installer-integrity-'));
   try {
+    let archive = filename;
+    let names;
+    try {
+      names = lines((await execFileAsync(tar, ['-tf', archive], options)).stdout);
+    } catch {
+      archive = await copyEmbeddedArchive(filename, directory, options);
+      names = lines((await execFileAsync(tar, ['-tf', archive], options)).stdout);
+    }
+    const listing = lines((await execFileAsync(tar, ['-tvf', archive], options)).stdout);
+    const entries = validateArchiveEntries(names, listing);
     const selected = [`resources/${MANIFEST_NAME}`, 'resources/app.asar'];
     if (entries.some((entry) => entry.name.startsWith('resources/app.asar.unpacked/')))
       selected.push('resources/app.asar.unpacked');
-    await execFileAsync(tar, ['-xf', filename, '-C', directory, '--', ...selected], options);
+    await execFileAsync(tar, ['-xf', archive, '-C', directory, '--', ...selected], options);
     const resourcesDir = path.join(directory, 'resources');
     const manifest = await readManifest(fs, resourcesDir, metadata);
     const actual = entries
