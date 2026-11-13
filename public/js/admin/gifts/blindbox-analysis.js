@@ -110,7 +110,18 @@ export const giftAnalysis = (() => {
     if (restoreFocus) state.returnFocus?.focus?.();
   }
 
-  function refreshIfOpen() {
+  function refreshIfOpen({ reason } = {}) {
+    if (reason === 'gift:source' || reason === 'connect') {
+      state.viewer = '';
+      state.viewerLabel = '';
+      state.box = '';
+      state.dateRange = null;
+      state.page = 1;
+      datePicker.setSelection(null);
+      render({});
+      if (state.open) void load();
+      return;
+    }
     if (!state.open) return;
     state.refreshPending = true;
     scheduleRefresh();

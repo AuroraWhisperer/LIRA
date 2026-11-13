@@ -30,6 +30,29 @@ function oldRequest(f, input = {}, scope = null) {
   );
 }
 
+test('complete backup export admits restorable UTF-8 files and rejects over-budget data', (t) => {
+  const f = fanFixture(t);
+  const notes = '档'.repeat(20000);
+  for (let index = 0; index < 260; index++) f.create({ identity: null, notes });
+  const backup = f.run('backup');
+  assert.ok(Buffer.byteLength(JSON.stringify(backup, null, 2), 'utf8') < 16 * 1024 * 1024);
+  const plan = f.run('preview-restore', { backup });
+  const restored = f.run('restore', {
+    backup, digest: plan.digest, currentDigest: plan.currentDigest, conflicts: 'replace',
+  });
+  assert.equal(restored.updated, 260);
+  for (let index = 0; index < 40; index++) f.create({ identity: null, notes });
+  assert.throws(() => f.run('backup'), /备份.*16/);
+});
+
+test('complete export rejects profile counts which restore cannot accept', t => {
+  const f = fanFixture(t);
+  const profile = f.create({ identity: null });
+  const exported = f.store.exportScope(SCOPE);
+  f.store.exportScope = () => ({ ...exported, profiles: Array(10001).fill(profile) });
+  assert.throws(() => f.run('backup'), /备份.*10000/);
+});
+
 test('replacing a complete backup restores swapped identities without depending on profile order', (t) => {
   const f = fanFixture(t);
   const a = f.create({ notes: '原始甲' });

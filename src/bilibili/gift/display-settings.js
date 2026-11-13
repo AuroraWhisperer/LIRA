@@ -48,12 +48,17 @@ function validateGiftDisplaySettings(value) {
   const { tailStyle = DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle, textureStyle = DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle } = value;
   if (typeof tailStyle !== 'string' || typeof textureStyle !== 'string' ||
       !Object.hasOwn(GIFT_BANNER_TAILS, tailStyle) || !Object.hasOwn(GIFT_BANNER_TEXTURES, textureStyle)) {
-    throw new Error('请选择有效的礼物卡片尾部和条带内部样式。');
+    throw new Error('请选择有效的礼物条带外形和内部样式。');
+  }
+  const sheen = value.sheen === undefined ? DEFAULT_GIFT_BANNER_APPEARANCE.sheen : value.sheen;
+  if (typeof sheen !== 'boolean') {
+    throw new Error('白色扫光须为开启或关闭。');
   }
   return {
     palette: 'bilibili-four',
     tailStyle,
     textureStyle,
+    sheen,
     thresholds: [...value.thresholds],
     visibleRows: value.visibleRows,
     scrollSpeed,

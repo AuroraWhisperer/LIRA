@@ -13,6 +13,111 @@ const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { compiler, plugins } = resolveInstallerTools();
 const quote = (value) => value.replaceAll('$', () => '$$');
 
+test('builder upgrade runs the current safe uninstaller instead of a destructive legacy executable', {
+  skip: process.platform !== 'win32' || !compiler || !plugins,
+}, async (t) => {
+  const root = createScratchDirectory('installer-safe-upgrade-', t);
+  const templates = path.dirname(require.resolve('app-builder-lib/templates/nsis/installer.nsi'));
+  const buildDir = path.resolve(__dirname, '../../build');
+  const installDir = path.join(root, 'Old LIRA');
+  const legacy = path.join(installDir, 'Uninstall LIRA.exe');
+  const personal = path.join(installDir, 'personal.txt');
+  const calledLegacy = path.join(root, 'legacy-called');
+  const safe = path.join(root, 'safe-uninstaller.exe');
+  const writer = path.join(root, 'writer.exe');
+  const base = [
+    'Unicode true', 'Name "LIRA isolated safe upgrade"', 'RequestExecutionLevel user',
+    '!include LogicLib.nsh', '!include FileFunc.nsh',
+    `!addincludedir "${quote(path.join(templates, 'include'))}"`,
+    `!addplugindir /x86-unicode "${quote(plugins)}"`,
+    '!include StdUtils.nsh',
+  ];
+  const compile = (name, lines) => {
+    const script = path.join(root, name + '.nsi');
+    fs.writeFileSync(script, [...base, ...lines].join('\n'));
+    const result = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+  };
+  const flags = new NsisScriptGenerator();
+  flags.flags(['updated', 'delete-app-data']);
+  const removal = fs.readFileSync(path.join(buildDir, 'installer-uninstall.nsh'), 'utf8')
+    .replaceAll('$APPDATA', '${FIXTURE_APPDATA}').replaceAll('$TEMP', '${FIXTURE_TEMP}')
+    .replace(/MessageBox MB_OK\|MB_ICONSTOP ("[^\n]+") \/SD IDOK/g, 'DetailPrint $1');
+  compile('safe', [
+    `OutFile "${quote(writer)}"`, '!define BUILD_UNINSTALLER',
+    '!define APP_EXECUTABLE_FILENAME "LIRA.exe"', '!define UNINSTALL_FILENAME "Uninstall LIRA.exe"',
+    '!define APP_PACKAGE_NAME "lira"', `!define FIXTURE_APPDATA "${quote(path.join(root, 'roaming'))}"`,
+    `!define FIXTURE_TEMP "${quote(root)}"`, 'Var installMode', flags.build(), removal,
+    'Function .onInit', `WriteUninstaller "${quote(safe)}"`, 'SetErrorLevel 0', 'Quit', 'FunctionEnd',
+    'Section', 'SectionEnd', 'Section "Uninstall"',
+    'StrCpy $installMode CurrentUser', '!insertmacro customUnInit', '!insertmacro customRemoveFiles', 'SectionEnd',
+  ]);
+  assert.equal(spawnSync(writer, ['/S'], { windowsHide: true, timeout: 10000 }).status, 0);
+  const installer = fs.readFileSync(path.join(buildDir, 'installer.nsh'), 'utf8');
+  const customCheck = installer.match(/!macro customCheckAppRunning\b[\s\S]*?!macroend/)[0];
+  const check = fs.readFileSync(path.join(templates, 'include/allowOnlyOneInstallerInstance.nsh'), 'utf8')
+    .match(/!macro CHECK_APP_RUNNING\b[\s\S]*?!macroend/)[0];
+  // Keep the builder's actual call order. Only registry reads, app waiting and
+  // error dialogs use fixture boundaries; neither real registration nor apps run.
+  const section = fs.readFileSync(path.join(templates, 'installSection.nsh'), 'utf8');
+  const upgradeCalls = section.slice(section.indexOf('!ifdef ONE_CLICK'), section.indexOf('SetOutPath $INSTDIR'))
+    .replace('ReadRegStr $R1 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" KeepShortcuts', 'StrCpy $R1 ""');
+  const util = fs.readFileSync(path.join(templates, 'include/installUtil.nsh'), 'utf8')
+    .replace(/!macro readReg\b[\s\S]*?!macroend/, [
+      '!macro readReg VAR ROOT_KEY SUB_KEY NAME',
+      '${If} "${NAME}" == "UninstallString"', `StrCpy "${'${VAR}'}" '\"${quote(legacy)}\" /currentuser'`,
+      '${ElseIf} "${NAME}" == "InstallLocation"', 'StrCpy "${VAR}" "${FIXTURE_REGISTERED}"',
+      '${Else}', 'StrCpy "${VAR}" ""', '${EndIf}', '!macroend',
+    ].join('\n'));
+  assert.doesNotMatch(util, /ReadRegStr|WriteReg|DeleteReg/);
+  const fixtureUtil = path.join(root, 'node_modules/app-builder-lib/templates/nsis/include/installUtil.nsh');
+  fs.mkdirSync(path.dirname(fixtureUtil), { recursive: true });
+  fs.writeFileSync(fixtureUtil, util);
+  for (const scenario of ['same-directory', 'change-directory', 'changed-registration', 'failed-launch']) {
+    await t.test(scenario, () => {
+      fs.mkdirSync(installDir, { recursive: true });
+      fs.writeFileSync(personal, 'unrelated user file');
+      fs.writeFileSync(path.join(installDir, 'LIRA.exe'), 'old app');
+      compile('legacy', [
+        `OutFile "${quote(legacy)}"`, 'Section',
+        `FileOpen $0 "${quote(calledLegacy)}" w`, 'FileClose $0',
+        `Delete "${quote(personal)}"`, 'SectionEnd',
+      ]);
+      const original = fs.readFileSync(legacy);
+      const bad = path.join(root, 'invalid-uninstaller.exe');
+      fs.writeFileSync(bad, 'not executable');
+      const executable = path.join(root, scenario + '.exe');
+      const selected = scenario === 'change-directory' ? path.join(root, 'New LIRA') : installDir;
+      fs.mkdirSync(selected, { recursive: true });
+      compile(scenario, [
+        `OutFile "${quote(executable)}"`,
+        `!define PROJECT_DIR "${quote(root)}"`, `!define BUILD_RESOURCES_DIR "${quote(buildDir)}"`,
+        `!define FIXTURE_REGISTERED "${quote(scenario === 'changed-registration' ? selected + '-changed' : installDir)}"`,
+        `!define UNINSTALLER_OUT_FILE "${quote(scenario === 'failed-launch' ? bad : safe)}"`,
+        '!define UNINSTALL_REGISTRY_KEY "fixture"', '!define INSTALL_REGISTRY_KEY "fixture"',
+        '!define UAC_IsInnerInstance "0 = 1"', '!define allowToChangeInstallationDirectory',
+        'Var installMode', 'Var liraPreviousInstallDir', 'Var appExe',
+        flags.build(),
+        '!macro customUnInstallCheck', '${If} $R0 != 0', 'SetErrorLevel 2', 'Quit', '${EndIf}', '!macroend',
+        installer.match(/!cd[^\r\n]+/)[0],
+        '!include installUtil.nsh', customCheck,
+        check,
+        'Function liraWaitForAppExit', 'FunctionEnd',
+        'Section', 'StrCpy $installMode CurrentUser',
+        `StrCpy $liraPreviousInstallDir "${quote(installDir)}"`, `StrCpy $INSTDIR "${quote(selected)}"`,
+        `StrCpy $appExe "${quote(path.join(selected, 'LIRA.exe'))}"`, upgradeCalls, 'SectionEnd',
+      ]);
+      const result = spawnSync(executable, ['/S', '--updated'], { windowsHide: true, timeout: 15000 });
+      const fails = scenario === 'changed-registration' || scenario === 'failed-launch';
+      assert.equal(result.status, fails ? 2 : 0, String(result.error || scenario));
+      assert.equal(fs.existsSync(calledLegacy), false, 'the destructive old uninstaller must never execute');
+      assert.equal(fs.readFileSync(personal, 'utf8'), 'unrelated user file');
+      assert.equal(fs.existsSync(path.join(installDir, 'LIRA.exe')), fails);
+      if (fails) assert.deepEqual(fs.readFileSync(legacy), original, 'a failed launch must leave the old uninstaller intact');
+    });
+  }
+});
+
 test('NSIS configured include graph preprocesses without macro collisions', {
   skip: process.platform !== 'win32' || !compiler ? 'Requires Windows and cached NSIS compiler' : false,
 }, (t) => {

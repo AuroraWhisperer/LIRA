@@ -8,6 +8,7 @@ Var liraPreviousUninstaller
 
 ; Bind the capability to the installed uninstaller, not a version or stale flag.
 Function liraRecordDataPreservation
+  WriteINIStr "$INSTDIR\lira-installation.ini" "installation" "appId" "com.aurorawhisperer.lira"
   Push "SHA2-256"
   Push "$INSTDIR\${UNINSTALL_FILENAME}"
   StdUtils::HashFile /NOUNLOAD

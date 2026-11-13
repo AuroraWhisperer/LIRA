@@ -160,8 +160,8 @@ export function updateGiftBanner(root, item, config, catalog = [], retryAvatar =
 }
 
 function applyGiftBannerAppearance(root, config) {
-  for (const key of ['tailStyle', 'textureStyle']) {
-    const value = config[key] ?? DEFAULT_GIFT_BANNER_APPEARANCE[key];
+  for (const key of ['tailStyle', 'textureStyle', 'sheen']) {
+    const value = String(config[key] ?? DEFAULT_GIFT_BANNER_APPEARANCE[key]);
     if (root.dataset[key] !== value) root.dataset[key] = value;
   }
 }

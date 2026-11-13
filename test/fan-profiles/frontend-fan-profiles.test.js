@@ -135,6 +135,31 @@ test('a current restore preview opens the existing confirmation form', async t =
   assert.equal(ui.editor.open, true);
 });
 
+test('merge preview ignores a newer editor intent, including late failures', async t => {
+  const ui = await editorUi(t);
+  const { createFanTransferUi } = await loadModuleExports(path.join(ROOT, 'public/js/admin/fans/transfer-ui.js'));
+  let pending;
+  const transfer = createFanTransferUi({
+    openForm: ui.controller.open,
+    beginIntent: ui.controller.beginIntent,
+    request: () => pending.promise,
+  });
+  for (const failure of [false, true]) {
+    pending = Promise.withResolvers();
+    const merging = transfer.mergeDraft({ id: 'old', revision: 1 }, 'target');
+    ui.controller.open({ title: '新建档案', fields: '<textarea>尚未保存的备注</textarea>' }, async () => {});
+    if (failure) pending.reject(new Error('old preview failed'));
+    else pending.resolve({ source: {}, target: {}, recordCount: 0 });
+    await merging;
+    assert.match(ui.nodes.get('fanEditorFields').innerHTML, /尚未保存的备注/);
+  }
+  pending = Promise.withResolvers();
+  const current = transfer.mergeDraft({ id: 'current', revision: 1 }, 'target');
+  pending.resolve({ source: { alias: 'source' }, target: { alias: 'target' }, recordCount: 0 });
+  await current;
+  assert.match(ui.nodes.get('fanEditorFields').innerHTML, /source/);
+});
+
 for (const { action, response, marker } of [
   { action: 'snapshots', response: [{ id: 'snapshot-a', createdAt: '2026-11-12T00:00:00Z', reason: 'merge' }], marker: 'snapshot-a' },
   { action: 'suppressions', response: [{ name: 'Example', identity: ['bilibili', 'uid', '12345'] }], marker: '12345' },

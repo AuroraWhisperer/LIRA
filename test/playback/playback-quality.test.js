@@ -4,6 +4,32 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { closestTarget, createPlaybackApp, flushAsyncWork, track } = require('../helpers/playback-app');
 
+test('quality switching preserves a seek made while its stream URL is pending', async () => {
+  const pending = Promise.withResolvers();
+  const app = await createPlaybackApp({
+    current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,
+  }, {
+    resolveStream: count => count === 1 ? { url: 'https://example.test/original.mp3' } : pending.promise,
+  });
+  await app.init();
+  await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
+  const audio = app.element('music-player');
+  audio.duration = 180;
+  audio.currentTime = 47;
+  const changing = app.emit('playbackQualityPanel', 'click', {
+    stopPropagation() {}, target: closestTarget({ playbackQuality: 'high' }, 'data-playback-quality'),
+  });
+  await flushAsyncWork();
+  app.element('playbackSeek').value = '80';
+  await app.emit('playbackSeek', 'input', { target: app.element('playbackSeek') });
+  assert.equal(audio.currentTime, 80);
+  pending.resolve({ url: 'https://example.test/high.mp3', quality: 'high' });
+  await changing;
+  await app.emit('music-player', 'loadedmetadata');
+  assert.equal(audio.currentTime, 80);
+});
+
 test('quality options survive background updates and still reflect a successful selection', async () => {
   const app = await createPlaybackApp({
     current: track('song', '歌曲'), selectedSource: 'qq', mode: 'sequence', volume: 0.75,

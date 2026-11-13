@@ -87,7 +87,7 @@ test('long gift counts expand exported PNG dimensions', async (t) => {
     }));
     let catalogReads = 0;
     window.initializeGiftExport({
-      config: { thresholds: [10000, 50000, 100000], tailStyle: 'ribbon', textureStyle: 'argyle' },
+      config: { thresholds: [10000, 50000, 100000], tailStyle: 'capsule', textureStyle: 'petals', sheen: true },
       catalog: { [Symbol.iterator]() { catalogReads++; return [][Symbol.iterator](); } },
     });
     const singles = [];
@@ -106,6 +106,9 @@ test('long gift counts expand exported PNG dimensions', async (t) => {
         return {
           width: bounds.width,
           height: bounds.height,
+          backgroundRight: row.querySelector('.gift-banner-background').getBoundingClientRect().right - bounds.left,
+          countRight: row.querySelector('.gift-banner-count').getBoundingClientRect().right - bounds.left,
+          sheen: row.dataset.sheen,
         };
       }),
     };
@@ -115,6 +118,8 @@ test('long gift counts expand exported PNG dimensions', async (t) => {
     const row = result.rows[index];
     assert.equal(result.singles[index].width, Math.ceil(row.width * 2));
     assert.equal(result.singles[index].height, Math.ceil(row.height * 2));
+    assert.ok(row.backgroundRight >= row.countRight, 'the capsule must contain the complete quantity');
+    assert.equal(row.sheen, 'false', 'export must exclude the enabled live sheen');
     if (index) assert.ok(row.width > result.rows[index - 1].width);
   }
   assert.equal(result.combined.width, result.singles.at(-1).width);

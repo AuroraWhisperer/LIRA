@@ -221,7 +221,7 @@ class MessageHandlers {
       ),
     );
 
-    this.handlers.onSuperChat({
+    const accepted = this.handlers.onSuperChat({
       id: superChat.id,
       message: text,
       price: superChat.price,
@@ -236,6 +236,7 @@ class MessageHandlers {
       messageTimestamp: superChat.messageTimestamp,
       ...trace,
     });
+    if (accepted === false) return;
 
     if (!this.isCommandText(text)) {
       return;

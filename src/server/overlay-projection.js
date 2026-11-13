@@ -191,7 +191,7 @@ const RESPONSE_SCHEMAS = {
   },
   'gift-feed': {
     '/api/gifts/display-settings': {
-      ...fields('palette tailStyle textureStyle visibleRows scrollSpeed minGiftAmountCents'),
+      ...fields('palette tailStyle textureStyle sheen visibleRows scrollSpeed minGiftAmountCents'),
       thresholds: [true],
     },
     '/api/gifts/history': {

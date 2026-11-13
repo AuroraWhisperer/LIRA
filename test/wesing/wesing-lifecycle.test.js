@@ -7,6 +7,9 @@ const path = require('node:path');
 const os = require('node:os');
 const vm = require('node:vm');
 const { createRequire } = require('node:module');
+const { EventEmitter } = require('node:events');
+const { PassThrough } = require('node:stream');
+const { createPowerShellWeSingMonitor } = require('../../src/music/wesing-monitor');
 
 function deferred() {
   let resolve;
@@ -65,6 +68,69 @@ function captureFixture(t, overrides = {}, options = {}) {
   });
   t.after(() => capture.stop());
   return { capture, samples, states, timelines };
+}
+
+function monitorChild() {
+  const child = new EventEmitter();
+  child.stdout = new PassThrough();
+  child.stderr = new PassThrough();
+  child.kill = () => child.emit('exit', null);
+  return child;
+}
+
+test('WeSing manual detection restarts an exited monitor once and ignores old process callbacks', async (t) => {
+  const children = [];
+  const f = captureFixture(t, {}, {
+    monitorFactory: (callback) => createPowerShellWeSingMonitor(callback, {
+      spawn() { const child = monitorChild(); children.push(child); return child; },
+    }),
+  });
+  await f.capture.setActive(true);
+  children[0].stdout.write('{"detected":');
+  children[0].stderr.write('old process failure');
+  children[0].emit('exit', 1);
+  assert.equal(f.capture.getStatus().status, 'error');
+  await Promise.all([f.capture.refresh(), f.capture.setActive(true)]);
+  assert.equal(children.length, 2, 'concurrent manual detection shares the running replacement');
+  children[0].emit('error', new Error('late old error'));
+  children[0].emit('exit', 1);
+  children[0].stdout.write('true,"title":"旧进程"}\n');
+  children[1].stdout.write('{"detected":true,"title":"","currentSec":0}\n');
+  assert.equal(f.capture.getStatus().platformDetected, true);
+  assert.equal(f.capture.getStatus().trackTitle, '');
+  assert.equal(f.capture.getStatus().status, 'waiting');
+  await f.capture.refresh();
+  assert.equal(children.length, 2, 'a late old exit must not clear the replacement process');
+  f.capture.stop();
+  children[1].stdout.write('{"detected":true,"title":"停止后的样本"}\n');
+  await f.capture.refresh();
+  assert.equal(children.length, 2, 'refresh after stop must not restart monitoring');
+  assert.equal(f.capture.getStatus().active, false);
+  assert.equal(f.capture.getStatus().trackTitle, '');
+});
+
+for (const failure of ['throw', 'error']) {
+  test(`WeSing manual detection recovers from a monitor spawn ${failure}`, async (t) => {
+    let spawns = 0;
+    const children = [];
+    const f = captureFixture(t, {}, {
+      monitorFactory: (callback) => createPowerShellWeSingMonitor(callback, {
+        spawn() {
+          spawns += 1;
+          if (spawns === 1 && failure === 'throw') throw new Error('temporary spawn failure');
+          const child = monitorChild(); children.push(child); return child;
+        },
+      }),
+    });
+    await f.capture.setActive(true);
+    if (failure === 'error') children[0].emit('error', new Error('temporary spawn failure'));
+    assert.equal(spawns, 1, 'one manual action makes at most one process launch attempt');
+    assert.equal(f.capture.getStatus().status, 'error');
+    await f.capture.refresh();
+    assert.equal(spawns, 2);
+    children.at(-1).stdout.write('{"detected":true,"title":""}\n');
+    assert.equal(f.capture.getStatus().platformDetected, true);
+  });
 }
 
 for (const fails of [false, true]) {

@@ -298,6 +298,102 @@ test('registered restart IPC drains both controllers before stopping and relaunc
   assert.ok(h.calls.indexOf('app:relaunch') < h.calls.indexOf('app:exit'));
 });
 
+test('ordinary restart installs a ready update after draining, including a download completed during shutdown', async t => {
+  for (const completion of ['before restart', 'during shutdown']) await t.test(completion, async () => {
+    const h = createShutdownHarness();
+    await h.start();
+    if (completion === 'before restart') h.publishUpdate({ status: 'downloaded', canInstall: true });
+    const restart = h.restart();
+    if (completion === 'during shutdown') h.publishUpdate({ status: 'downloaded', canInstall: true });
+    assert.equal(h.count('update:install'), 0);
+    assert.equal(h.count('app:relaunch'), 0);
+    h.remoteIdle.resolve(); h.cloudIdle.resolve();
+    await h.settle();
+    assert.equal(h.count('update:install'), 0, 'installation waits for runtime shutdown');
+    h.backendStop.resolve();
+    await restart;
+    assert.equal(h.count('playback:flush'), 1);
+    assert.equal(h.count('update:install'), 1);
+    assert.equal(h.count('app:relaunch'), 0);
+    assert.equal(h.count('app:release-lock'), 1);
+    assert.equal(h.count('app:exit'), 1);
+    assert.ok(h.calls.indexOf('runtime:stopped') < h.calls.indexOf('update:install'));
+    assert.ok(h.calls.indexOf('update:install') < h.calls.indexOf('app:exit'));
+    await h.restart();
+    assert.equal(h.count('update:install'), 1);
+  });
+});
+
+test('update restart lets the real NSIS elevation fallback and updater quit run before final exit', async t => {
+  const { NsisUpdater } = require('electron-updater');
+  const Module = require('node:module');
+  const originalLoad = Module._load;
+  const resourcesPath = Object.getOwnPropertyDescriptor(process, 'resourcesPath');
+  process.resourcesPath = 'C:\\synthetic-lira-shutdown\\resources';
+  t.after(() => {
+    if (resourcesPath) Object.defineProperty(process, 'resourcesPath', resourcesPath);
+    else delete process.resourcesPath;
+  });
+  let nativeUpdater;
+  t.mock.method(Module, '_load', function (request, parent, isMain) {
+    if (request === 'electron') return { autoUpdater: nativeUpdater };
+    return originalLoad.call(this, request, parent, isMain);
+  });
+
+  for (const finish of ['drained', 'deadline']) await t.test(finish, async () => {
+    const updater = Object.create(NsisUpdater.prototype);
+    updater._logger = { info() {}, warn() {} };
+    updater.downloadedUpdateHelper = { file: 'fake-installer.exe', downloadedFileInfo: {} };
+    const h = createShutdownHarness({
+      installUpdate({ app, autoUpdater, calls }) {
+        nativeUpdater = autoUpdater;
+        autoUpdater.once('before-quit-for-update', () => calls.push('update:before-quit'));
+        updater.app = { quit() { calls.push('update:quit'); app.quit(); } };
+        updater.spawnLog = async file => {
+          if (file === 'fake-installer.exe') {
+            calls.push('update:spawn');
+            throw Object.assign(new Error('synthetic permission failure'), { code: 'EACCES' });
+          }
+          assert.equal(require('node:path').basename(file), 'elevate.exe');
+          calls.push('update:elevate');
+          return true;
+        };
+        updater.dispatchError = error => assert.fail(error);
+        updater.quitAndInstall(true, true);
+      },
+    });
+    await h.start();
+    h.publishUpdate({ status: 'downloaded', canInstall: true });
+    const restart = h.restart();
+    const duplicate = h.restart();
+    if (finish === 'drained') {
+      h.remoteIdle.resolve(); h.cloudIdle.resolve(); h.backendStop.resolve();
+    } else {
+      h.clock.advance(5000);
+    }
+    await restart;
+    await duplicate;
+    await h.settle();
+    const exit = h.calls.indexOf('app:exit');
+    for (const call of ['update:spawn', 'update:elevate', 'update:before-quit', 'update:quit']) {
+      assert.equal(h.count(call), 1, call);
+      assert.ok(h.calls.indexOf(call) < exit, call + ' precedes final exit');
+    }
+    assert.equal(h.count('update:install'), 1);
+    assert.equal(h.count('app:relaunch'), 0);
+    assert.equal(h.count('app:release-lock'), 1);
+    assert.equal(h.count('app:exit'), 1);
+    assert.equal(h.count('cloud:dispose'), 1);
+    assert.equal(h.count('app:default-quit'), 0);
+    assert.equal(h.count('runtime:stop'), finish === 'drained' ? 1 : 0);
+    assert.deepEqual(h.clock.delays, [5000]);
+    assert.equal(h.clock.pending, 0);
+    h.remoteIdle.resolve(); h.cloudIdle.resolve(); h.backendStop.resolve();
+    await h.settle();
+    assert.equal(h.count('app:exit'), 1);
+  });
+});
+
 for (const firstIntent of ['quit', 'restart']) {
   test(`${firstIntent} owns the final action across repeated restart and quit requests`, async () => {
     const h = createShutdownHarness();

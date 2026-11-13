@@ -193,6 +193,14 @@ const desktopWindow = createDesktopMainWindow({
 const desktopLifecycle = createDesktopLifecycle({
   app,
   hasRuntime: () => runtime !== null,
+  restartApp: () => {
+    if (desktopUpdate.getState().canInstall) {
+      updateMgr.installUpdate();
+      return 'update';
+    }
+    app.releaseSingleInstanceLock();
+    app.relaunch();
+  },
   stopResourceIntegrity: () => resourceIntegrity.stop(),
   drainBeforeRuntimeStop,
   stopRuntime: () => runtime?.stop({ exitProcess: false }),

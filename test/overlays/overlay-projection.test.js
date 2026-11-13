@@ -392,7 +392,8 @@ test('REST projections retain display fields, strip nested ledger/config metadat
     [
       'gift-feed',
       '/api/gifts/display-settings',
-      { thresholds: [100, 200, 300], visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: true, secret },
+      { thresholds: [100, 200, 300], visibleRows: 3, intervalSeconds: 4, paused: false, lowPower: true,
+        tailStyle: 'capsule', textureStyle: 'polka', sheen: true, secret },
     ],
     [
       'gift-feed',
@@ -449,6 +450,11 @@ test('REST projections retain display fields, strip nested ledger/config metadat
       assert.deepEqual(projected.removedEventIds, ['old']);
       assert.equal(projected.items[0].sortId, 42);
       assert.equal(projected.items[0].sortTime, '2026-09-01T17:00:00.000Z');
+    }
+    if (pathname === '/api/gifts/display-settings') {
+      assert.equal(projected.tailStyle, 'capsule');
+      assert.equal(projected.textureStyle, 'polka');
+      assert.equal(projected.sheen, true);
     }
     for (const scope of scopes.filter((scope) => scope !== owner))
       assert.equal(projectOverlayResponse(scope, pathname, data), null, `${scope} ${pathname}`);

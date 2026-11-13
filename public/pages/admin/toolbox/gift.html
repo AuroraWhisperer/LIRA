@@ -233,8 +233,13 @@
           <div class="gift-display-preview">
             <div class="gift-display-group-head"><h4>卡片外观</h4></div>
             <div class="gift-appearance-controls">
-              <label>尾部样式<select id="giftTailStyle" required></select></label>
+              <label>条带外形<select id="giftTailStyle" required></select></label>
               <label>条带内部<select id="giftTextureStyle" required></select></label>
+              <label class="switch-control gift-sheen-control">
+                <input id="giftSheen" type="checkbox" />
+                <span class="switch-track" aria-hidden="true"></span>
+                <span>白色扫光 <lira-help label="白色扫光说明">所有外形和纹理均可开启，从左向右扫过。仅用于动态展示，导出预览和 PNG 不带扫光。</lira-help></span>
+              </label>
             </div>
             <div class="gift-style-preview-scroll">
               <div id="giftStylePreview" class="gift-banner-stage" role="img" aria-label="礼物卡片四色样式预览"></div>

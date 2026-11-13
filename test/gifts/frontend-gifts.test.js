@@ -181,3 +181,26 @@ test('a failed blind box read waits for the next invalidation before retrying', 
   await f.finish(1, statsFor('Recovered viewer'));
   assert.match(f.body.innerHTML, /Recovered viewer/);
 });
+
+test('blind box summary discards old source reads and reloads a hidden reconnect when shown', async () => {
+  const f = await createStatsHarness();
+  await f.finish(0, statsFor('Old source viewer'));
+  f.eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  f.eventBus.emit('gift:received', { reason: 'gift:source' });
+  assert.equal(f.requests[1].signal.aborted, true);
+  assert.equal(f.requests.length, 3);
+  assert.doesNotMatch(f.body.innerHTML, /Old source viewer/);
+  await f.finish(2, statsFor('New source viewer'));
+  await f.finish(1, statsFor('Late old source viewer'));
+  assert.match(f.body.innerHTML, /New source viewer/);
+  assert.doesNotMatch(f.body.innerHTML, /Late old source viewer/);
+  f.setActive(false);
+  f.eventBus.emit('gift:received', { reason: 'connect' });
+  assert.equal(f.requests.length, 3);
+  assert.doesNotMatch(f.body.innerHTML, /New source viewer/);
+  f.setActive(true);
+  assert.equal(f.requests.length, 4);
+  await f.finish(3, statsFor('Reconnected viewer'));
+  assert.match(f.body.innerHTML, /Reconnected viewer/);
+  f.close();
+});

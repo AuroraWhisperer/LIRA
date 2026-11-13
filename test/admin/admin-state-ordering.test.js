@@ -225,11 +225,11 @@ test('gift events are forwarded only for gift snapshot reasons', async () => {
   eventBus.on('gift:received', (payload) => reasons.push(payload.reason));
   for (const reason of [
     'bilibili:gift', 'gift:clear-recent', 'database:clear-gifts', 'database:clear-all',
-    'connect', 'cloud:songs', 'settings:update', 'gift:unknown', undefined,
+    'gift:source', 'connect', 'cloud:songs', 'settings:update', 'gift:unknown', undefined,
   ]) {
     service.ws.receive({ type: 'snapshot', reason, state: { gifts: { recent: [] } } });
   }
-  assert.deepEqual(reasons, ['bilibili:gift', 'gift:clear-recent', 'database:clear-gifts', 'database:clear-all']);
+  assert.deepEqual(reasons, ['bilibili:gift', 'gift:clear-recent', 'database:clear-gifts', 'database:clear-all', 'gift:source', 'connect']);
 });
 
 test('catalog changes forward new asset revisions once and reject unversioned frames', async () => {

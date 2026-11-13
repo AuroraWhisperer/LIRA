@@ -308,10 +308,6 @@ function createShutdownHarness(options = {}) {
         return require('../../src/electron/desktop-update-controller').createDesktopUpdateController({
           ...options,
           timers: clock,
-          updateManager: {
-            configureAutoUpdater({ onStateChange }) { publishUpdate = onStateChange; },
-            installUpdate: () => calls.push('update:install'),
-          },
         });
       },
     },
@@ -441,7 +437,14 @@ function createShutdownHarness(options = {}) {
         return auth;
       },
     },
-    './update-manager': {},
+    './update-manager': {
+      configureAutoUpdater({ onStateChange }) { publishUpdate = onStateChange; },
+      installUpdate() {
+        app.releaseSingleInstanceLock();
+        calls.push('update:install');
+        options.installUpdate?.({ app, autoUpdater, calls });
+      },
+    },
     './playback-flush': options.realPlaybackFlush ? require('../../src/electron/playback-flush') : {
       async requestPlaybackFlush() {
         assert.equal(runtimeOpen, true, 'playback flush precedes resource close');

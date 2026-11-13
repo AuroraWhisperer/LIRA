@@ -419,6 +419,8 @@ function dispatchRealtimeState(eventName, state, allowEmpty = false) {
 function isGiftSnapshotReason(reason) {
   return (
     reason === 'bilibili:gift' ||
+    reason === 'gift:source' ||
+    reason === 'connect' ||
     reason === 'gift:clear-recent' ||
     reason === 'database:clear-gifts' ||
     reason === 'database:clear-all'

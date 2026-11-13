@@ -184,6 +184,11 @@ export function openColorPicker(input, hex, alpha, onEdit, alphaStep = 1) {
     current.input.setAttribute('aria-expanded', 'false');
     current.input.dispatchEvent(new Event('lira-color-edit-end', { bubbles: true }));
   }
+  const parent = input.closest('dialog:modal') || input.ownerDocument.body;
+  if (picker.panel.parentElement !== parent) {
+    picker.panel.hidePopover();
+    parent.append(picker.panel);
+  }
   const alphaEnabled = input.dataset.colorAlpha !== 'false';
   current = { input, hex, alpha: alphaEnabled ? alpha : 1, onEdit, alphaEnabled };
   picker.panel.setAttribute('aria-label', alphaEnabled ? '颜色与不透明度' : '颜色');

@@ -80,7 +80,8 @@ Windows 独有(仅 `platform === 'win32'` 支持):采集全民 K 歌客户端**�
 
 - 启动参数:`powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command <command>`,`windowsHide: true`
 - **脚本注入方式(v3.3.13 起)**:脚本 UTF-8 编码 → Base64 → `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('<b64>')) | Invoke-Expression`([wesing-monitor.js](../../../../src/music/wesing-monitor.js));替换了旧版 UTF-16 `-EncodedCommand`(解决中文编码问题)
-- stdout 按行解析:每行非空即 `JSON.parse` 成样本喂 `onSample`,半行残留攒到下一块;stderr 保留最近 2000 字符;非主动停止的退出(exit 非 0)上报 `{error}`
+- stdout 按行解析:每行非空即 `JSON.parse` 成样本喂 `onSample`,半行残留攒到下一块;stderr 保留最近 2000 字符;启动错误和非主动停止的退出上报 `{error}`，同时释放当前进程记录。
+- `start()` 在已有进程时不重复启动，`isRunning()` 反映当前进程记录。已启用采集器的手动重新检测可重新启动退出的监视器，每次操作最多尝试一次，不新增后台重启循环；并发重检复用已启动进程。每个进程独立保存 stdout 半行和 stderr，旧进程的迟到事件不能清除新进程或发布样本。`stop()` 先撤销当前进程身份再终止进程，停用后的刷新不会启动监视器。
 - `buildPowerShellMonitorScript(options)`([wesing-monitor.js](../../../../src/music/wesing-monitor.js)):内嵌 C# 源码 `Add-Type -TypeDefinition … -ReferencedAssemblies Accessibility` 编译;每轮:找进程 → 音频快照 → 找播放窗口 → MSAA 进度 → UIA 兜底 → `ConvertTo-Json -Compress` 输出 + `Start-Sleep`
 
 ### 4.2 C# 原生监视源(WESING_NATIVE_MONITOR_SOURCE,[wesing-native-monitor-source.js:3-351](../../../../src/music/wesing-native-monitor-source.js#L3-L351))
@@ -209,6 +210,8 @@ resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓
 
 目录发现按路径和标题共用在途请求；自动刷新每次只运行一个，检查生命周期、配置代际和标题后才保存/应用路径。停用、切歌或手动选择使旧结果失效；保存失败保留原路径并在后续样本重试。定期复查依赖既有监视样本，无新增后台计时器；停用后不再触发。`waitForRefresh()` 同时等待当前自动复查和歌词加载。
 
+当前歌曲没有有效歌词时，自动复查会继续进入歌词解析，即使本地缓存尚未生成或当前目录不可用；在线请求次数仍由 §8 的在途合并和 30/60 秒退避控制，不按每个监视样本重新发起搜索。
+
 ## 8. 在线兜底(wesing-online-lyrics.js)
 
 `createWeSingOnlineLyricResolver({ getRegistry, catalogService, lyricsService, platforms, getPreferences, preferredPlatform, smartMatch, now? })`([wesing-online-lyrics.js](../../../../src/music/wesing-online-lyrics.js))返回 `resolveWeSingOnlineLyrics({title, artist?, artists?, durationMs}, {songMid?, force?})`，另有 `clear()` 清理当前请求状态，由 [music-runtime.js](../../../../src/server/music-runtime.js) 注入 weSingCapture 的 `resolveFallbackLyrics`。目录查询使用 `catalogService.searchMusicTracks`，歌词获取使用 `lyricsService.getMusicTrackLyrics`。第二参数仅传递内部版本和刷新上下文；采集器从匹配标题的最新 `StartKSong` 日志记录提取 `artist`/`singer` 等歌手字段；在线搜索关键词为“歌名 歌手”，搜索时去掉歌手的括号别名，匹配时保留别名，例如 `en (王翊恩)` 可匹配 `en` 或 `王翊恩`。
@@ -266,7 +269,7 @@ resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓
 | `setCachePath(input)`     | 校验 + 停 watcher + 持久化 + `resetLyrics` + `refresh`;返回新状态                                                        |
 | `setLyricOffsetMs(input)` | ±3000 校验 + 持久化 + 立即重算 lyricState 并 emit                                                                        |
 | `setActive(active)`       | 启停总开关:停 = 停监视/watcher/时钟;启 = supported 检查 → `monitor.start()` → `refresh`                                  |
-| `refresh()`               | 校验目录，无效时尝试自动发现，再同步 watcher；有标题则刷新歌词（`waitForRefresh` 等待在途歌词刷新）                      |
+| `refresh()`               | 已启用且支持时确保监视进程启动；启动失败保留错误状态。校验目录，无效时尝试自动发现，再同步 watcher；有标题则刷新歌词（`waitForRefresh` 等待在途歌词刷新） |
 | `diagnose()`              | 已启用的 Windows 采集器开始或复用按需诊断；返回报告 Promise（§11）                                                        |
 | `exportDiagnostics(startedAt)` | 将最近一份时间匹配的诊断报告写入日志目录；返回 `{path}`，不重新采样（§11） |
 | `cancelDiagnostics()`     | 结束当前诊断并返回中断报告；服务关闭时在等待在途请求之前调用，不改变播放器状态                                             |

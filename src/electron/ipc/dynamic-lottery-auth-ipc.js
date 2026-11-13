@@ -9,6 +9,7 @@ const PUBLIC_ERRORS = new Set([
   'LOTTERY_AUTH_BUSY',
   'LOTTERY_AUTH_ENCRYPTION_UNAVAILABLE',
   'LOTTERY_AUTH_RESTORE_FAILED',
+  'LOTTERY_AUTH_RELOGIN_REQUIRED',
 ]);
 
 function registerDynamicLotteryAuthIpc({ ipcMain, auth, getMainWindow, getDesktopBaseUrl }) {

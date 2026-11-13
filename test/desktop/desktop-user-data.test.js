@@ -166,6 +166,48 @@ test('a failed copy does not publish a partial durable destination', () => {
   }
 });
 
+for (const scenario of ['temporary', 'target-race', 'persistent', 'other-error']) {
+  test(`legacy data publish handles ${scenario} while holding the source identity`, (t) => {
+    const root = createScratchDirectory('legacy-data-publish-lock-', t);
+    const sourceDir = path.join(root, 'legacy');
+    const targetDir = path.join(root, 'install', 'data');
+    fs.mkdirSync(sourceDir);
+    fs.writeFileSync(path.join(sourceDir, 'settings'), 'legacy');
+    const app = migrationApp();
+    const failure = Object.assign(new Error('injected directory publish failure'), {
+      code: scenario === 'other-error' ? 'EIO' : scenario === 'persistent' ? 'EBUSY' : 'EPERM',
+    });
+    let copies = 0;
+    let publishes = 0;
+    const migrate = () => migrateLegacyUserData({ app, sourceDir, targetDir, fileSystem: {
+      ...fs,
+      cpSync(...args) { copies++; fs.cpSync(...args); },
+      renameSync(...args) {
+        assert.equal(app.hasSingleInstanceLock(), true, 'source identity stays locked through publication');
+        publishes++;
+        if (scenario === 'temporary' && publishes > 1) return fs.renameSync(...args);
+        if (scenario === 'target-race') {
+          fs.mkdirSync(targetDir);
+          fs.writeFileSync(path.join(targetDir, 'settings'), 'current');
+        }
+        throw failure;
+      },
+    } });
+    if (scenario === 'temporary' || scenario === 'target-race') {
+      assert.equal(migrate().status, scenario === 'temporary' ? 'migrated' : 'target-exists');
+      assert.equal(fs.readFileSync(path.join(targetDir, 'settings'), 'utf8'), scenario === 'temporary' ? 'legacy' : 'current');
+    } else {
+      assert.throws(migrate, error => error === failure);
+      assert.equal(fs.existsSync(targetDir), false);
+    }
+    assert.equal(publishes, scenario === 'temporary' ? 2 : scenario === 'persistent' ? 5 : 1);
+    assert.equal(copies, 1);
+    assert.equal(fs.readFileSync(path.join(sourceDir, 'settings'), 'utf8'), 'legacy');
+    assert.equal(app.hasSingleInstanceLock(), false);
+    assert.equal(fs.readdirSync(path.dirname(targetDir)).some(name => name.startsWith('.data.migration-')), false);
+  });
+}
+
 test('a running legacy instance blocks migration without creating the target', (t) => {
   const root = createScratchDirectory('legacy-data-locked-', t);
   const sourceDir = path.join(root, 'legacy');

@@ -6,6 +6,9 @@ const { DAY_MS, dateValue, dayStart } = require('./dates');
 const { normalizeGuardAccompany, accompanySettings } = require('./guard-accompany');
 const { validateSongSummary } = require('./song-summary');
 
+const MAX_BACKUP_BYTES = 16 * 1024 * 1024;
+const MAX_BACKUP_PROFILES = 10000;
+
 function digest(value) {
   return createHash('sha256').update(JSON.stringify(value)).digest('hex');
 }
@@ -29,7 +32,7 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
       ![1, 2].includes(input.version) ||
       input.scope !== scope ||
       !Array.isArray(input.profiles) ||
-      input.profiles.length > 10000 ||
+      input.profiles.length > MAX_BACKUP_PROFILES ||
       !Array.isArray(input.suppressions)
     ) {
       throw new Error('备份格式无效或归属不匹配。请切换到备份所属服务器和主播账号后恢复。');
@@ -292,9 +295,19 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   }
 
   function execute(scope, action, input) {
+    if ((action === 'preview-restore' || action === 'restore') && input.backup &&
+        Buffer.byteLength(JSON.stringify(input.backup), 'utf8') > MAX_BACKUP_BYTES) {
+      throw new Error('完整档案备份超过 16 MB，无法恢复。');
+    }
     switch (action) {
-      case 'backup':
-        return backup(scope);
+      case 'backup': {
+        const value = backup(scope);
+        if (value.profiles.length > MAX_BACKUP_PROFILES)
+          throw new Error('完整档案备份最多支持 10000 份档案，本次未导出。');
+        if (Buffer.byteLength(JSON.stringify(value, null, 2), 'utf8') > MAX_BACKUP_BYTES)
+          throw new Error('完整档案备份超过 16 MB，本次未导出，以免生成无法恢复的文件。');
+        return value;
+      }
       case 'preview-restore':
         return preview(scope, input);
       case 'restore':
@@ -320,4 +333,4 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
   return { execute };
 }
 
-module.exports = { createFanBackupService };
+module.exports = { createFanBackupService, MAX_BACKUP_BYTES };

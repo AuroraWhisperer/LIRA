@@ -266,8 +266,6 @@ export function createPlaybackControls(deps) {
     const previousQuality = PlaybackUtils.normalizeQuality(
       source, track.playbackQuality || playbackState.qualityPreferences?.[source],
     );
-    const songPosition = (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
-      PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
     const requestGeneration = invalidatePlaybackRequests(undefined, { keepLyrics: true });
     pendingQualityRequest = { generation: requestGeneration, track };
     playRequestSource = track.source;
@@ -288,6 +286,8 @@ export function createPlaybackControls(deps) {
       }
       // A lyric refresh may have completed while the stream snapshot was resolving.
       delete streamTrack.lyrics;
+      const songPosition = (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
+        PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
       Object.assign(track, streamTrack);
       const resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000);
 

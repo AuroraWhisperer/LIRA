@@ -36,7 +36,7 @@ const PARAMETER_GROUPS = {
       'interactionBarColor', 'interactionTrackColor', 'interactionCornerRadius']],
   ],
   'gift-feed': [
-    ['appearance', '卡片外观', ['tailStyle', 'textureStyle']],
+    ['appearance', '卡片外观', ['tailStyle', 'textureStyle', 'sheen']],
     ['display', '显示设置', ['visibleRows', 'scrollSpeed', 'minGiftAmountCents']],
     ['amounts', '金额分档', ['threshold1', 'threshold2', 'threshold3']],
   ],

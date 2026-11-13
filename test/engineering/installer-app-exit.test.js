@@ -100,9 +100,9 @@ test(
           assert.equal(result.error, undefined);
           assert.equal(result.status, 0, result.stdout + result.stderr);
         };
-        const record = (file, value) =>
+        const record = (file, value, suffix = '') =>
           [
-            `FileOpen $9 "${quote(file)}" a`,
+            `FileOpen $9 "${quote(file)}${suffix}" a`,
             'FileSeek $9 0 END',
             `FileWrite $9 "${value}$\\r$\\n"`,
             'FileClose $9',
@@ -222,9 +222,11 @@ test(
             'Name "LIRA isolated application fixture"',
             'RequestExecutionLevel user',
             `OutFile "${quote(appFile)}"`,
+            'Var fixtureProcessId',
             'Function .onInit',
             ...(audio ? [
               "System::Call 'kernel32::GetCurrentProcessId() i.r0'",
+              'StrCpy $fixtureProcessId $0',
               legacyAudio ? 'StrCpy $0 0'
                 : "System::Call 'kernel32::CreateEventW(p 0, i 1, i 0, w \"Local\\LiraAudioAssistant-Install-$0\") p.r0'",
               record(ready, 'ready'),
@@ -233,7 +235,8 @@ test(
               'StrCmp $0 0 fixtureAudioWait',
               "System::Call 'kernel32::WaitForSingleObject(p r0, i 0) i.r1'",
               'StrCmp $1 0 0 fixtureAudioWait',
-              record(requests, 'close'),
+              // FileOpen + seek-to-end is not an atomic append across processes.
+              record(requests, 'close', '.$fixtureProcessId'),
               "System::Call 'kernel32::CloseHandle(p r0)'",
               'Goto fixtureExit',
             ] : [
@@ -346,11 +349,17 @@ test(
                 ? ['confirm']
                 : ['confirm', 'retry'],
           );
+          const requestFiles = audio
+            ? [holder, secondHolder].filter(Boolean).map(process => `${requests}.${process.pid}`)
+            : [requests];
           if (scenario === 'cancelled' || unrelated || noApp || ((silent || visibleUpdate) && !audio) || windowless || checkFails || legacyAudio) {
-            assert.equal(fs.existsSync(requests), false, 'no close request should be sent');
+            for (const file of requestFiles)
+              assert.equal(fs.existsSync(file), false, 'no close request should be sent');
           } else {
-            const received = fs.readFileSync(requests, 'utf8').trim().split('\r\n');
-            assert.equal(received.length, audio ? multipleAudio ? 2 : 1 : scenario === 'retry' ? 4 : 2);
+            for (const file of requestFiles) {
+              const received = fs.readFileSync(file, 'utf8').trim().split('\r\n');
+              assert.equal(received.length, audio ? 1 : scenario === 'retry' ? 4 : 2, file);
+            }
           }
         } finally {
           for (const process of [holder, secondHolder]) {

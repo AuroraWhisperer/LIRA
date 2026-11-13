@@ -136,9 +136,9 @@ function createBilibiliClient(roomId, context) {
         }
       },
       onSuperChat: (superChat) => {
-        if (isShuttingDown()) return;
+        if (isShuttingDown()) return false;
         try {
-          if (domainServices.superChats.isDeleted(superChat.id)) return;
+          if (domainServices.superChats.isDeleted(superChat.id)) return false;
           publishDanmaku?.(superChat);
           const item = domainServices.superChats.add({
             platformId: superChat.id,

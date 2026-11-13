@@ -50,6 +50,43 @@ Function ${LIRA_UNINSTALL_PREFIX}liraRemoveTree
     Pop $R3
 FunctionEnd
 
+; Delete only a named package file. Unknown directories and linked parents are
+; not package ownership evidence, even when their names resemble package files.
+Function ${LIRA_UNINSTALL_PREFIX}liraRemoveApplicationFile
+  Exch $R3
+  Push $R4
+  Push $R5
+  ClearErrors
+  System::Call 'kernel32::GetFileAttributesW(w "$R3") i .R4'
+  IntCmp $R4 -1 liraApplicationFileDone
+  IntOp $R4 $R4 & 0x10
+  StrCmp $R4 0 0 liraApplicationFileDone
+  GetFullPathName $R5 "$R3\.."
+  liraApplicationParent:
+    StrCmp $R5 $INSTDIR liraApplicationFileDelete
+    System::Call 'kernel32::GetFileAttributesW(w "$R5") i .R4'
+    IntCmp $R4 -1 liraApplicationFileDone
+    IntOp $R4 $R4 & 0x400
+    StrCmp $R4 0 0 liraApplicationFileDone
+    GetFullPathName $R4 "$R5\.."
+    StrCmp $R4 $R5 liraApplicationFileDone
+    StrCpy $R5 $R4
+    Goto liraApplicationParent
+  liraApplicationFileDelete:
+    Delete "$R3"
+  liraApplicationFileDone:
+    Pop $R5
+    Pop $R4
+    Pop $R3
+FunctionEnd
+
+!macro liraRemoveApplicationFile RELATIVE_PATH
+  StrCpy $R6 "$INSTDIR\${RELATIVE_PATH}"
+  Push "$R6"
+  Call ${LIRA_UNINSTALL_PREFIX}liraRemoveApplicationFile
+  IfErrors liraRemoveFailed
+!macroend
+
 !macro customUnInit
   StrCpy $liraDeleteDataRequested "0"
   StrCpy $liraDeleteDataConfirmed "0"
@@ -134,12 +171,59 @@ FunctionEnd
     StrCpy $liraDeleteDataConfirmed "0"
   ${EndIf}
   SetOutPath $TEMP
+  ; Exact package paths, never a wildcard or recursive application directory.
+  ; Unrecognized legacy package files are deliberately left for manual cleanup.
+  StrCpy $R0 ""
+  !insertmacro liraRemoveApplicationFile "${APP_EXECUTABLE_FILENAME}"
+  !insertmacro liraRemoveApplicationFile "chrome_100_percent.pak"
+  !insertmacro liraRemoveApplicationFile "chrome_200_percent.pak"
+  !insertmacro liraRemoveApplicationFile "d3dcompiler_47.dll"
+  !insertmacro liraRemoveApplicationFile "dxcompiler.dll"
+  !insertmacro liraRemoveApplicationFile "dxil.dll"
+  !insertmacro liraRemoveApplicationFile "ffmpeg.dll"
+  !insertmacro liraRemoveApplicationFile "icudtl.dat"
+  !insertmacro liraRemoveApplicationFile "libEGL.dll"
+  !insertmacro liraRemoveApplicationFile "libGLESv2.dll"
+  !insertmacro liraRemoveApplicationFile "LICENSE.electron.txt"
+  !insertmacro liraRemoveApplicationFile "LICENSES.chromium.html"
+  !insertmacro liraRemoveApplicationFile "resources.pak"
+  !insertmacro liraRemoveApplicationFile "snapshot_blob.bin"
+  !insertmacro liraRemoveApplicationFile "v8_context_snapshot.bin"
+  !insertmacro liraRemoveApplicationFile "version"
+  !insertmacro liraRemoveApplicationFile "vk_swiftshader_icd.json"
+  !insertmacro liraRemoveApplicationFile "vk_swiftshader.dll"
+  !insertmacro liraRemoveApplicationFile "vulkan-1.dll"
+  !insertmacro liraRemoveApplicationFile "uninstallerIcon.ico"
+  !insertmacro liraRemoveApplicationFile "uninstall-data-preservation.ini"
+  !insertmacro liraRemoveApplicationFile "locales\en-US.pak"
+  !insertmacro liraRemoveApplicationFile "locales\zh-CN.pak"
+  !insertmacro liraRemoveApplicationFile "resources\app.asar"
+  !insertmacro liraRemoveApplicationFile "resources\app-update.yml"
+  !insertmacro liraRemoveApplicationFile "resources\client-integrity-manifest.json"
+  !insertmacro liraRemoveApplicationFile "resources\elevate.exe"
+  !insertmacro liraRemoveApplicationFile "resources\audio-assistant\LiraAudioAssistant.exe"
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR\resources") i .R3'
+  IntOp $R3 $R3 & 0x400
+  ${If} $R3 == 0
+    RMDir "$INSTDIR\resources\audio-assistant"
+    RMDir "$INSTDIR\resources"
+  ${EndIf}
+  System::Call 'kernel32::GetFileAttributesW(w "$INSTDIR\locales") i .R3'
+  IntOp $R3 $R3 & 0x400
+  ${If} $R3 == 0
+    RMDir "$INSTDIR\locales"
+  ${EndIf}
+  ClearErrors
   FindFirst $R0 $R1 "$INSTDIR\*"
   liraRemoveNext:
     StrCmp $R1 "" liraRemoveDone
     StrCmp $R1 "." liraRemoveSkip
     StrCmp $R1 ".." liraRemoveSkip
-    StrCmp $R1 "${UNINSTALL_FILENAME}" liraRemoveSkip
+    ; Runtime directories have an explicit owner and separate deletion consent.
+    StrCmp $R1 "data" liraRemoveRuntimeDirectory
+    StrCmp $R1 "logs" liraRemoveRuntimeDirectory
+    StrCmp $R1 "updates" liraRemoveRuntimeDirectory liraRemoveSkip
+    liraRemoveRuntimeDirectory:
     ${If} $liraDeleteDataConfirmed != "1"
       StrCmp $R1 "data" liraRemoveSkip
     ${EndIf}
@@ -158,6 +242,7 @@ FunctionEnd
     FindClose $R0
     StrCpy $R0 ""
     ${If} $liraDeleteDataConfirmed == "1"
+      !insertmacro liraRemoveApplicationFile "lira-installation.ini"
       ; These are the desktop's known migration sources, not arbitrary AppData.
       SetShellVarContext current
       StrCpy $R6 "$APPDATA\com.aurorawhisperer.lira"

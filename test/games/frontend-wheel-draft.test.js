@@ -77,6 +77,34 @@ test('wheel drafts compare against the latest saved options after a background u
   assert.equal(await page.locator('#wheelSpinBtn').isDisabled(), true);
 });
 
+test('a late spin acknowledgement cannot overwrite its completion broadcast', async t => {
+  const page = await fixture(t, 'wheel');
+  await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));
+  await page.evaluate(async () => {
+    document.getElementById('otherGamesFeature').hidden = false;
+    window.wheelData = {
+      entries: [{ label: '唱歌', weight: 1 }, { label: '跳舞', weight: 1 }],
+      limits: { minEntries: 2, maxEntries: 10, minWeight: 1, maxWeight: 100, maxLabelLength: 20 }, spin: null,
+    };
+    window.fetch = async () => ({ json: async () => ({ ok: true, data: window.wheelData }) });
+    const { initWheelAdmin } = await import('/js/admin/games-wheel.js');
+    await initWheelAdmin();
+  });
+  await page.locator('#wheelCardTrigger').click();
+  await page.locator('#wheelSpinBtn').click();
+  await page.evaluate(() => {
+    const initial = { ...window.wheelData, spin: { id: 'finished-spin' } };
+    window.dispatchEvent(new CustomEvent('app:wheel-update', { detail: initial }));
+    window.dispatchEvent(new CustomEvent('app:wheel-update', {
+      detail: { ...window.wheelData, lastResult: { label: '唱歌' } },
+    }));
+    window.pendingSaves.shift().resolve({ data: initial });
+  });
+  assert.equal(await page.locator('#wheelSpinBtn').isEnabled(), true);
+  assert.equal(await page.locator('.wheel-label-input').first().isEnabled(), true);
+  assert.match(await page.locator('#wheelCardResult').textContent(), /唱歌/);
+});
+
 test('wheel reconnect recovers a missed finish, preserves drafts and ignores older reads', async (t) => {
   const page = await fixture(t, 'wheel');
   await page.setContent(readAdminFragmentHtml('pages/admin/toolbox/games.html'));

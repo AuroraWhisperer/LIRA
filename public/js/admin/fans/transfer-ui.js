@@ -4,8 +4,16 @@ import { legacyForm, exportForm } from './forms.js';
 
 export function createFanTransferUi({ request, openForm, beginIntent, getProfile, onProfile, onReset }) {
   async function mergeDraft(patch, targetId) {
+    const isCurrent = beginIntent();
     const input = { id: patch.id, revision: patch.revision, targetId, patch };
-    const preview = await request('preview-merge', input);
+    let preview;
+    try {
+      preview = await request('preview-merge', input);
+    } catch (error) {
+      if (isCurrent()) throw error;
+      return;
+    }
+    if (!isCurrent()) return;
     const summary = (p) => {
       const birthday = p.birthday;
       const fields = [

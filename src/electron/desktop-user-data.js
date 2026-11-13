@@ -61,7 +61,7 @@ function migrateLegacyUserData(options) {
       recursive: true,
       filter: (entry) => !singletonFiles.has(entry),
     });
-    fileSystem.renameSync(stagingDir, targetDir);
+    publishMigrationDirectory(fileSystem, stagingDir, targetDir);
   } catch (error) {
     if (fileSystem.existsSync(targetDir)) {
       removeStagingDirectory(fileSystem, stagingDir);
@@ -87,6 +87,17 @@ function removeStagingDirectory(fileSystem, stagingDir) {
   }
 }
 
+function publishMigrationDirectory(fileSystem, stagingDir, targetDir) {
+  for (let attempt = 0; ; attempt++) {
+    try { fileSystem.renameSync(stagingDir, targetDir); return; }
+    catch (error) {
+      if (attempt >= 4 || fileSystem.existsSync(targetDir) || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
+      // Windows can briefly hold the completed copy; never repeat the copy.
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
+    }
+  }
+}
+
 function migrateLegacyPartitions({ app, writeLog, fileSystem = fs }) {
   const oldUserData = path.join(app.getPath('appData'), app.getName());
   const newUserData = app.getPath('userData');
@@ -97,14 +108,7 @@ function migrateLegacyPartitions({ app, writeLog, fileSystem = fs }) {
     const stagingDir = path.join(newUserData, `.Partitions.migration-${crypto.randomUUID()}`);
     try {
       fileSystem.cpSync(oldPartitions, stagingDir, { recursive: true });
-      for (let attempt = 0; ; attempt++) {
-        try { fileSystem.renameSync(stagingDir, newPartitions); break; }
-        catch (error) {
-          if (attempt >= 4 || fileSystem.existsSync(newPartitions) || !['EPERM', 'EBUSY'].includes(error.code)) throw error;
-          // Windows can briefly hold the completed copy; never repeat the copy.
-          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 50 * (attempt + 1));
-        }
-      }
+      publishMigrationDirectory(fileSystem, stagingDir, newPartitions);
     } catch (error) {
       removeStagingDirectory(fileSystem, stagingDir);
       writeLog('migration-error', error);

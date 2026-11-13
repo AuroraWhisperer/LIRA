@@ -5,6 +5,7 @@ const test = require('node:test');
 const { extractBilibiliSuperChatMessage } = require('../../src/bilibili/parsers/superchat-parser');
 const { MessageHandlers, formatBilibiliSuperChatLog } = require('../../src/bilibili/danmaku/message-handlers');
 const { MessageDeduplicator } = require('../../src/bilibili/danmaku/message-deduplicator');
+const { createBilibiliClient } = require('../../src/server/bilibili-client');
 
 function packet(payload) {
   const body = Buffer.from(JSON.stringify(payload));
@@ -70,6 +71,52 @@ test('SC accepts known creation variants and preserves the exact upstream string
   await f.handler.handlePackets(packet({ ...superChat(1, 123, '支持', 30, 1800000000,
     { id_str: '9007199254740993' }), cmd: 'SUPER_CHAT_MESSAGE_JPN:1' }));
   assert.equal(f.superChats[0].id, '9007199254740993');
+});
+
+test('a retracted SC cannot submit a late command while accepted SC commands keep their existing deduplication', async (t) => {
+  const removed = new Set();
+  const displayed = new Map();
+  const commands = [];
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  t.mock.method(console, 'log', () => {});
+  t.mock.method(console, 'info', () => {});
+  const client = createBilibiliClient('100', {
+    isShuttingDown: () => false,
+    aiDanmakuDeliveryVerifier: { observe() {} },
+    domainServices: {
+      customReplies: { isCommandText: () => false },
+      messages: { handleDanmaku(item) { commands.push(item); return { accepted: false }; }, logDanmaku() {} },
+      superChats: {
+        isDeleted: (id) => removed.has(id),
+        add(item) { displayed.set(item.platformId, item); return item; },
+        retract(ids) {
+          let changed = 0;
+          for (const id of ids) { removed.add(id); changed += Number(displayed.delete(id)); }
+          return changed;
+        },
+      },
+    },
+    aiAssistant: { handleDanmaku() {} },
+    danmakuSender: { send: async () => {} },
+    broadcastSnapshot() {}, updateLiveStatus() {},
+    bilibiliDiagnostics: { commandCounts: {}, recentCommands: [], recentGiftLikeCommands: [] },
+    bilibiliAuthCache: { cookieHeader: '', uid: 0 },
+  });
+  t.after(() => client.stop());
+  client.messageHandlers.startedAtMs = (nowSeconds - 60) * 1000;
+  const accepted = superChat('accepted', 123, '点歌 晴天', 30, nowSeconds);
+  await client.messageHandlers.handlePackets(Buffer.concat([
+    packet({ cmd: 'SUPER_CHAT_MESSAGE_DELETE', data: { ids: ['withdrawn'] } }),
+    packet(superChat('withdrawn', 123, '点歌 晴天', 30, nowSeconds)),
+  ]));
+  assert.equal(displayed.size, 0);
+  assert.equal(commands.length, 0, 'the existing withdrawal receipt rejects the new command too');
+
+  await client.messageHandlers.handlePackets(Buffer.concat([packet(accepted), packet(accepted)]));
+  assert.equal(commands.length, 1, 'rejection must not consume the deduplication key of a later accepted SC');
+  assert.equal(commands[0].isPinned, true);
+  await client.messageHandlers.handlePackets(packet({ cmd: 'SUPER_CHAT_MESSAGE_DELETE', data: { ids: ['accepted'] } }));
+  assert.equal(commands.length, 1, 'a later withdrawal does not undo an already admitted command');
 });
 
 test('every SuperChat packet reaches the SC consumer; only fresh, unique commands are queued and pinned by price', async (t) => {

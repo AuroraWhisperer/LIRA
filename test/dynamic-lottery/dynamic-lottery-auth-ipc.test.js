@@ -76,6 +76,10 @@ test('IPC serializes only public state and hides raw errors and cookie data', as
     ok: true,
     state: { loggedIn: true, uid: '9007199254740993123', warning: '' },
   });
+  f.auth.getAuthState = async () => ({ loggedIn: false, warning: 'LOTTERY_AUTH_RELOGIN_REQUIRED' });
+  const legacyState = await f.handlers.get('dynamic-lottery-auth:get-state')(f.event);
+  assert.equal(legacyState.state.loggedIn, false);
+  assert.equal(legacyState.state.warning, 'LOTTERY_AUTH_RELOGIN_REQUIRED');
   f.auth.login = async () => {
     throw new Error('Cookie=secret&token=secret');
   };

@@ -39,6 +39,26 @@ async function pageFor(t, html) {
   return page;
 }
 
+test('the shared picker edits colors inside a native modal and returns to the page after it closes', async t => {
+  const page = await pageFor(t, '<input id="pageColor" type="color" value="#112233"><dialog><input id="modalColor" type="color" value="#445566"></dialog>');
+  await page.evaluate(() => document.querySelector('dialog').showModal());
+  await page.locator('#modalColor').click();
+  const hex = page.getByRole('dialog', { name: '颜色与不透明度' }).getByLabel('十六进制颜色');
+  await hex.click({ timeout: 1500 });
+  await hex.fill('#aabbcc');
+  await hex.press('Tab');
+  assert.equal(await page.locator('#modalColor').inputValue(), '#aabbcc');
+  await page.evaluate(() => document.querySelector('dialog').close());
+  await page.locator('#pageColor').click();
+  await hex.click();
+  await hex.fill('#778899');
+  await hex.press('Tab');
+  assert.equal(await page.locator('#pageColor').inputValue(), '#778899');
+  assert.equal(await page.locator('#modalColor').getAttribute('aria-expanded'), 'false');
+  await page.getByRole('button', { name: '完成', exact: true }).click();
+  await page.waitForFunction(() => document.querySelector('#pageColor').getAttribute('aria-expanded') === 'false');
+});
+
 test('color controls retain native values, form submission and events without double enhancement', async t => {
   const page = await pageFor(t, '<form><label for="color">文字颜色</label><input id="color" type="color" name="textColor" value="#eaf2ff"></form>');
   const input = page.locator('#color');

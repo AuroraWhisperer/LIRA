@@ -204,10 +204,11 @@ async function saveWheel() {
 async function spinWheel() {
   if (hasWheelDraft() || pending || wheelState?.spin) return;
   pending = true;
+  const request = ++wheelRequest;
   updateWheelControls();
   try {
     const result = await api('/api/wheel/spin');
-    renderWheelState(result.data);
+    if (request === wheelRequest) renderWheelState(result.data);
   } finally {
     pending = false;
     updateWheelControls();

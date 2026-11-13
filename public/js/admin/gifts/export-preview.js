@@ -53,7 +53,7 @@ export function createGiftExportPreview({ showPane }) {
     const preview = get('giftExportPreview');
     preview.style.background = task.background === 'white' ? '#fff' : 'transparent';
     preview.replaceChildren(
-      ...items.map((item) => createGiftBanner(item, task.snapshot.config, artwork)),
+      ...items.map((item) => createGiftBanner(item, { ...task.snapshot.config, sheen: false }, artwork)),
     );
     const width = Math.max(BANNER_WIDTH * 2, Math.ceil(preview.getBoundingClientRect().width * 2));
     get('giftExportFiles').textContent =

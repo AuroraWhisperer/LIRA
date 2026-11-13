@@ -163,8 +163,9 @@ export const SCENE_EXTRA_COMPONENTS = Object.freeze({
     title: '滚动礼物', size: [428, 232], path: '/gift-feed',
     variants: [variant('default', '滚动礼物', '感谢投喂')],
     fields: {
-      tailStyle: select('尾部样式', DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle, GIFT_BANNER_TAILS),
+      tailStyle: select('条带外形', DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle, GIFT_BANNER_TAILS),
       textureStyle: select('条带内部', DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle, GIFT_BANNER_TEXTURES),
+      sheen: check('白色扫光', DEFAULT_GIFT_BANNER_APPEARANCE.sheen),
       visibleRows: number('显示行数', 3, 1, 10), scrollSpeed: number('滚动速度', 12, 1, 50),
       minGiftAmountCents: number('最低礼物金额（元）', 0, 0, 100000000, 10),
       threshold1: number('第二档金额（元）', 3000, 1, 100000000),

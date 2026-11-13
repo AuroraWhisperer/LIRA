@@ -15,6 +15,52 @@ Function liraRequireUserInstall
   Quit
 FunctionEnd
 
+; Retained package directories must not redirect the next archive extraction.
+; Inspect every descendant before following it, including unpacked dependencies.
+Function liraCheckPackageLinks
+  Exch $R1
+  Push $R2
+  Push $R3
+  Push $R4
+  StrCpy $R0 0
+  System::Call 'kernel32::GetFileAttributesW(w "$R1") i .R4 ?e'
+  Pop $R3
+  IntCmp $R4 -1 liraPackageAttributesMissing liraPackageAttributesReady liraPackageAttributesReady
+  liraPackageAttributesMissing:
+    StrCmp $R3 2 liraPackageLinksDone
+    StrCmp $R3 3 liraPackageLinksDone liraPackageLinksUnsafe
+  liraPackageAttributesReady:
+  IntOp $R2 $R4 & 0x400
+  StrCmp $R2 0 0 liraPackageLinksUnsafe
+  IntOp $R2 $R4 & 0x10
+  StrCmp $R2 0 liraPackageLinksDone
+  ClearErrors
+  FindFirst $R2 $R3 "$R1\*"
+  IfErrors liraPackageLinksUnsafe
+  liraPackageLinkNext:
+    StrCmp $R3 "" liraPackageLinksClosed
+    StrCmp $R3 "." liraPackageLinkSkip
+    StrCmp $R3 ".." liraPackageLinkSkip
+    Push "$R1\$R3"
+    Call liraCheckPackageLinks
+    StrCmp $R0 0 liraPackageLinkSkip
+    FindClose $R2
+    Goto liraPackageLinksUnsafe
+  liraPackageLinkSkip:
+    FindNext $R2 $R3
+    Goto liraPackageLinkNext
+  liraPackageLinksClosed:
+    FindClose $R2
+    Goto liraPackageLinksDone
+  liraPackageLinksUnsafe:
+    StrCpy $R0 1
+  liraPackageLinksDone:
+    Pop $R4
+    Pop $R3
+    Pop $R2
+    Pop $R1
+FunctionEnd
+
 Function liraCheckDirectoryWrite
   StrCpy $R0 0
   IfFileExists "$R1\*.*" liraProbeDirectory
@@ -43,6 +89,12 @@ Function liraRequireWritableInstallDirectory
   StrCpy $R1 "$INSTDIR"
   Call liraCheckDirectoryWrite
   StrCmp $R0 0 0 liraInstallDirectoryDenied
+  Push "$INSTDIR\resources"
+  Call liraCheckPackageLinks
+  StrCmp $R0 0 0 liraInstallDirectoryLinked
+  Push "$INSTDIR\locales"
+  Call liraCheckPackageLinks
+  StrCmp $R0 0 0 liraInstallDirectoryLinked
   StrCpy $R1 "$INSTDIR\data"
   Call liraCheckDirectoryWrite
   StrCmp $R0 0 0 liraInstallDirectoryDenied
@@ -52,13 +104,40 @@ Function liraRequireWritableInstallDirectory
   StrCpy $R1 "$INSTDIR\updates"
   Call liraCheckDirectoryWrite
   StrCmp $R0 0 0 liraInstallDirectoryDenied
+  ; A remembered default is not ownership: only the actual registration or our
+  ; retained-data marker permits installing into a nonempty directory.
+  ReadRegStr $R3 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"
+  StrCmp $R3 "" liraCheckRetainedInstallation
+  GetFullPathName $R3 "$R3"
+  GetFullPathName $R4 "$INSTDIR"
+  StrCmp $R3 $R4 liraInstallDirectoryAccepted
+  liraCheckRetainedInstallation:
+    ReadINIStr $R3 "$INSTDIR\lira-installation.ini" "installation" "appId"
+    StrCmp $R3 "com.aurorawhisperer.lira" liraInstallDirectoryAccepted
+    ClearErrors
+    FindFirst $R3 $R4 "$INSTDIR\*"
+    IfErrors liraInstallDirectoryDenied
+    liraCheckInstallEntry:
+      StrCmp $R4 "" liraInstallDirectoryEmpty
+      StrCmp $R4 "." liraNextInstallEntry
+      StrCmp $R4 ".." liraNextInstallEntry
+      FindClose $R3
+      SetErrorLevel 2
+      MessageBox MB_OK|MB_ICONSTOP "安装已停止，所选目录含有无法确认归属的文件。原有文件未改动。$\r$\n请选择一个空文件夹；更新已有 LIRA 时请使用原安装目录。$\r$\n$\r$\n$INSTDIR" /SD IDOK
+      Quit
+    liraNextInstallEntry:
+      FindNext $R3 $R4
+      Goto liraCheckInstallEntry
+    liraInstallDirectoryEmpty:
+      FindClose $R3
+  liraInstallDirectoryAccepted:
   Return
   liraInstallDirectoryLinked:
     SetErrorLevel 2
-    MessageBox MB_OK|MB_ICONSTOP "安装已停止，旧程序和数据未改动。$\r$\n所选安装目录是目录链接或重解析点。请重新运行安装程序并选择普通目录。$\r$\n$\r$\n$INSTDIR" /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "安装已停止，旧程序和数据未改动。$\r$\n所选安装目录或其中的 resources、locales 含有链接，或无法安全检查。请使用可访问的普通目录，先备份并移走相关链接后重试。$\r$\n$\r$\n$INSTDIR" /SD IDOK
     Quit
   liraInstallDirectoryDenied:
     SetErrorLevel 2
-    MessageBox MB_OK|MB_ICONSTOP "安装已停止，旧程序和数据未改动。$\r$\n当前用户无法写入所选目录或其中的 data、logs、updates。请重新运行安装程序并选择当前用户可写的位置。$\r$\n$\r$\n$INSTDIR" /SD IDOK
+    MessageBox MB_OK|MB_ICONSTOP "安装已停止，旧程序和数据未改动。$\r$\n当前用户无法检查所选目录，或无法写入目录及其中的 data、logs、updates。请重新运行安装程序并选择当前用户可访问、可写的位置。$\r$\n$\r$\n$INSTDIR" /SD IDOK
     Quit
 FunctionEnd

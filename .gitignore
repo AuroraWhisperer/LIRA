@@ -16,6 +16,7 @@ build/*
 !build/installer-ui.nsh
 !build/installer-wordmark.bmp
 !build/installer-uninstall.nsh
+!build/nsis/
 !build/user-agreement.txt
 scripts/capture-ui.js
 .claude/

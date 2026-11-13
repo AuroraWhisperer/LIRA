@@ -33,8 +33,17 @@ export function initBlindBoxStats() {
   /**
    * 加载盲盒统计数据
    */
-  function loadBlindBoxStats() {
+  function loadBlindBoxStats({ reason } = {}) {
     blindBoxStatsDirty = true;
+    if (reason === 'gift:source' || reason === 'connect') {
+      blindBoxStatsController?.abort();
+      blindBoxStatsController = null;
+      if (section) section.dataset.state = 'loading';
+      const summary = document.getElementById('blindBoxStatsSummary');
+      if (summary) summary.innerHTML = '<div class="blind-stats-status" role="status">正在加载统计…</div>';
+      const body = document.getElementById('blindBoxStatsBody');
+      if (body) body.innerHTML = '';
+    }
     return refreshBlindBoxStats();
   }
 

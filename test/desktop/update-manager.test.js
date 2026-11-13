@@ -93,13 +93,33 @@ test('download failure and retry discard the previous progress before accepting 
   assert.equal(state.progress, null);
 });
 
+test('automatic download rejection is handled after the update check has returned', async t => {
+  const { manager, updater, logs } = loadUpdateManager(t);
+  const download = Promise.withResolvers();
+  const error = new Error('automatic download network timeout');
+  updater.checkForUpdates = async () => {
+    updater.emit('update-available', { version: '5.2.8' });
+    return { downloadPromise: download.promise };
+  };
+  assert.equal((await manager.checkForUpdates()).status, 'available');
+  updater.emit('error', error);
+  download.reject(error);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(manager.getUpdateState().status, 'error');
+  const failures = logs.filter(([scope]) => scope === 'update-error');
+  assert.equal(failures.length, 1);
+  assert.equal(failures[0][1], error);
+});
+
 test('installation clears downloaded progress while preserving the update version', (t) => {
   const { manager, updater } = loadUpdateManager(t);
+  const install = t.mock.method(updater, 'quitAndInstall');
   updater.emit('update-downloaded', { version: '5.2.8' });
   const state = manager.installUpdate();
   assert.equal(state.status, 'installing');
   assert.equal(state.progress, null);
   assert.equal(state.updateVersion, '5.2.8');
+  assert.deepEqual(install.mock.calls[0].arguments, [true, true]);
 });
 
 test('NSIS downloads reuse local blocks and retain full-download and integrity fallbacks', async t => {

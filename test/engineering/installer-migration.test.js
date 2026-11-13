@@ -86,7 +86,7 @@ test(
         };
         try {
           for (const directory of [appData, reportDir, oldInstall]) fs.mkdirSync(directory);
-          fs.writeFileSync(path.join(oldInstall, 'old-program.txt'), 'program fixture');
+          fs.writeFileSync(path.join(oldInstall, 'LIRA.exe'), 'program fixture');
           fs.writeFileSync(uninstaller, 'preserving uninstaller fixture');
           if (scenario === 'appdata-return') putData(legacyAppData);
           else if (scenario === 'recover-backup') putData(backup);
@@ -115,7 +115,7 @@ test(
           if (scenario === 'upgrade-preserves-data-and-downloads') {
             for (const name of ['logs', 'updates', 'resources']) {
               fs.mkdirSync(path.join(oldInstall, name));
-              fs.writeFileSync(path.join(oldInstall, name, 'fixture.txt'), name);
+              fs.writeFileSync(path.join(oldInstall, name, name === 'resources' ? 'app.asar' : 'fixture.txt'), name);
             }
           }
           if (scenario === 'locked-data') {
@@ -177,7 +177,7 @@ test(
             'Var installMode',
             '!define VERSION "fixture"',
             `!addplugindir /x86-unicode "${definePath(plugins)}"`,
-            `!define APP_EXECUTABLE_FILENAME "${scenario === 'installer-same-name' ? 'fixture.exe' : path.basename(root) + '-absent.exe'}"`,
+            `!define APP_EXECUTABLE_FILENAME "${scenario === 'installer-same-name' ? 'fixture.exe' : 'LIRA.exe'}"`,
             `OutFile "${definePath(path.join(root, 'fixture.exe'))}"`,
             `!define FIXTURE_APPDATA "${definePath(appData)}"`,
             `!define FIXTURE_TEMP "${definePath(reportDir)}"`,
@@ -269,7 +269,7 @@ test(
                 scenario === 'preserved-audio-upgrade' ? '0123456789abcdef01234567' : 'legacy');
               assert.equal(fs.readFileSync(path.join(component, 'LiraAudioAssistant.exe'), 'utf8'), 'audio program fixture');
               assert.equal(fs.readFileSync(path.join(component, 'vendor/lira.onnx'), 'utf8'), 'audio model fixture');
-              assert.equal(fs.existsSync(path.join(newInstall, 'resources/audio-assistant')), false);
+              assert.equal(fs.existsSync(path.join(newInstall, 'resources/audio-assistant/LiraAudioAssistant.exe')), false);
             }
           } else if (scenario === 'restore-failure') {
             assert.equal(fs.readFileSync(path.join(backup, 'fixture.txt'), 'utf8'), 'legacy fixture');
@@ -309,7 +309,7 @@ test(
             for (const name of ['logs', 'updates'])
               assert.equal(fs.readFileSync(path.join(newInstall, name, 'fixture.txt'), 'utf8'), name);
             assert.equal(fs.existsSync(path.join(newInstall, 'resources')), false);
-            assert.equal(fs.existsSync(path.join(newInstall, 'old-program.txt')), false);
+            assert.equal(fs.existsSync(path.join(newInstall, 'LIRA.exe')), false);
           }
         } finally {
           if (holder && holder.exitCode === null) {

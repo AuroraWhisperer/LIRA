@@ -44,7 +44,7 @@ async function openExport(t) {
           ...window.exportDefaults,
           id: String(++batch),
           directory: window.exportDefaults.root + '/batch',
-          snapshot: { items, config: { thresholds: [3000, 10000, 100000] }, catalog: [] },
+          snapshot: { items, config: { thresholds: [3000, 10000, 100000], sheen: true }, catalog: [] },
         };
         return { ok: true, data: describe() };
       },
@@ -98,6 +98,7 @@ test('history export settings update the current preview and remember the next e
     nodes => nodes.map(node => node.dataset.eventId),
   );
   assert.deepEqual(await visibleCards(), ['1', '2']);
+  assert.equal(await page.locator('#giftExportPreview .gift-banner').first().getAttribute('data-sheen'), 'false');
   await page.locator('#giftExportMode').selectOption('separate');
   await page.waitForFunction(() => !document.getElementById('giftExportSettingsFields').disabled);
   assert.deepEqual(await visibleCards(), ['1']);

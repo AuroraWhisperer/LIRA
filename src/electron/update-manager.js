@@ -181,7 +181,9 @@ async function checkForUpdates() {
   }
   lastUpdateError = null;
   try {
-    await getAutoUpdater().checkForUpdates();
+    const result = await getAutoUpdater().checkForUpdates();
+    // Automatic downloads outlive the metadata check and reject independently.
+    void result?.downloadPromise?.catch(handleUpdateError);
   } catch (error) {
     handleUpdateError(error);
   }

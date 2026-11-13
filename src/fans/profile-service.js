@@ -5,7 +5,7 @@ const { text, timestamp, identity, identityKey, profilePatch, recordData, recent
 const { DAY_MS, dayOf, addDays, zodiacFor } = require('./dates');
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
 const { createFanProfileProjection } = require('./profile-projection');
-const { createFanBackupService } = require('./profile-transfer');
+const { createFanBackupService, MAX_BACKUP_BYTES } = require('./profile-transfer');
 const { createFanFactConsumer } = require('./profile-facts');
 const { createFanMergeService } = require('./profile-merge');
 const { createGuardRosterImporter, getGuardRoster, getLatestGuardRosterObservation } = require('./guard-roster-import');
@@ -302,7 +302,9 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
 
   function execute(scope, action, input = {}) {
     if (typeof scope !== 'string' || !scope) throw new Error('请先登录主播账号。');
-    if (!input || typeof input !== 'object' || Array.isArray(input) || JSON.stringify(input).length > 16 * 1024 * 1024)
+    // A full-size backup still needs room for its restore digests and conflict choice.
+    const maxInputBytes = MAX_BACKUP_BYTES + (action === 'preview-restore' || action === 'restore' ? 1024 : 0);
+    if (!input || typeof input !== 'object' || Array.isArray(input) || Buffer.byteLength(JSON.stringify(input), 'utf8') > maxInputBytes)
       throw new Error('档案请求格式无效或过大。');
     return store.transaction(() => {
       switch (action) {

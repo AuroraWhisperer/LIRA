@@ -78,6 +78,7 @@ test(
       ['silent-rejects-deletion', true, true, false],
       ['interactive-upgrade', true, false, true],
       ['silent-upgrade', true, true, true],
+      ['mixed-files-upgrade', false, true, true],
       ['linked-data', true, false, false],
       ['linked-data-root', true, false, false],
       ['linked-legacy-data', true, false, false],
@@ -100,10 +101,22 @@ test(
           for (const directory of [...directories, legacyData, legacyBrowser, outside, backup, tempDir]) {
             assert.ok(path.resolve(directory).startsWith(root + path.sep));
             fs.mkdirSync(directory, { recursive: true });
-            fs.writeFileSync(path.join(directory, 'fixture.txt'), directory);
+            fs.writeFileSync(path.join(directory, directory === directories[3] ? 'app.asar' : 'fixture.txt'), directory);
           }
           fs.writeFileSync(path.join(installDir, 'LIRA.exe'), 'program fixture');
           fs.writeFileSync(path.join(installDir, 'Uninstall LIRA.exe'), 'uninstaller fixture');
+          const marker = path.join(installDir, 'lira-installation.ini');
+          fs.writeFileSync(marker, '[installation]\r\nappId=com.aurorawhisperer.lira\r\n');
+          const mixed = name === 'default-retention' || name === 'mixed-files-upgrade';
+          const unrelated = [path.join(installDir, 'personal-document.txt'), path.join(installDir, 'resources', 'personal-backup.txt')];
+          if (mixed) for (const file of unrelated) fs.writeFileSync(file, 'unrelated user file');
+          // Vendor distribution is independent evidence for the package list.
+          // A new Electron root file must be considered when updating cleanup.
+          const packageFiles = name === 'default-retention'
+            ? fs.readdirSync(path.join(path.dirname(require.resolve('electron/package.json')), 'dist'), { withFileTypes: true }).filter(entry => entry.isFile())
+              .map(entry => entry.name === 'electron.exe' ? 'LIRA.exe' : entry.name === 'LICENSE' ? 'LICENSE.electron.txt' : entry.name)
+            : [];
+          for (const file of packageFiles) fs.writeFileSync(path.join(installDir, file), 'package file');
           if (name === 'linked-data') {
             fs.symlinkSync(outside, path.join(installDir, 'data', 'external'), 'junction');
           }
@@ -145,6 +158,7 @@ test(
               `!define FIXTURE_APPDATA "${quote(appData)}"`,
               `!define FIXTURE_TEMP "${quote(tempDir)}"`,
               '!define APP_PACKAGE_NAME "lira"',
+              '!define APP_EXECUTABLE_FILENAME "LIRA.exe"',
               '!define UNINSTALL_FILENAME "Uninstall LIRA.exe"',
               'Var installMode',
               flags.build(),
@@ -199,6 +213,7 @@ test(
           const failed = invalidRoot || name === 'locked-logs';
           assert.equal(status, failed ? 2 : 0, name);
           const retainsData = !approved || silent || updated;
+          assert.equal(fs.existsSync(marker), retainsData);
           for (const directory of [directories[0], legacyData, legacyBrowser]) {
             assert.equal(fs.existsSync(directory), retainsData, directory);
             if (retainsData) assert.equal(fs.readFileSync(path.join(directory, 'fixture.txt'), 'utf8'), directory);
@@ -207,9 +222,11 @@ test(
             for (const directory of directories.slice(1, 3)) {
               assert.equal(fs.existsSync(directory), updated, directory);
             }
-            assert.equal(fs.existsSync(directories[3]), false);
+            assert.equal(fs.existsSync(directories[3]), mixed);
             assert.equal(fs.existsSync(path.join(installDir, 'LIRA.exe')), false);
             assert.equal(fs.existsSync(installDir), retainsData);
+            if (mixed) for (const file of unrelated) assert.equal(fs.readFileSync(file, 'utf8'), 'unrelated user file');
+            for (const file of packageFiles) assert.equal(fs.existsSync(path.join(installDir, file)), false, file);
           } else {
             assert.equal(fs.readFileSync(path.join(directories[1], 'fixture.txt'), 'utf8'), directories[1]);
           }

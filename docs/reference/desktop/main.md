@@ -393,7 +393,7 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 兼容路径在程序替换完成后、启动新版前，将备份恢复为 `<新安装目录>/data`；快路径直接使用原数据。升级调用新版卸载器时保留 `data/`、`logs/`、`updates/`；普通卸载清理日志和更新文件，默认保留数据，只有勾选并确认后才删除用户数据，详见 [卸载策略](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。恢复失败保留备份并报告具体位置。Electron 发现未完成恢复的同级备份时拒绝启动后端，避免生成空库。
 
-只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移在复制前持有来源旧版单实例锁，并检查 `.server-runtime.json`；来源实例仍在运行、runtime 标记损坏或无法确认进程已退出时停止启动，不发布目标。来源锁一直保持到唯一 staging 目录完成复制和重命名，防止检查后旧客户端重新启动造成主库/WAL 不一致；进程锁文件不复制，成功与失败均释放来源锁，之后才申请安装目录的运行期锁。复制失败清理本次 staging、保留来源供重试；已有目标不获取来源锁，也不会被历史副本覆盖。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
+只有本地 `data/` 不存在时，安装器和 `desktop-user-data.js` 才把 `%APPDATA%/com.aurorawhisperer.lira/data` 作为兼容来源，完整复制后发布到安装目录；已有本地目录优先，历史 AppData 副本保留，不再作为活动写入目标。启动侧迁移在复制前持有来源旧版单实例锁，并检查 `.server-runtime.json`；来源实例仍在运行、runtime 标记损坏或无法确认进程已退出时停止启动，不发布目标。来源锁一直保持到唯一 staging 目录完成复制和重命名，防止检查后旧客户端重新启动造成主库/WAL 不一致；发布与下述旧 Chromium 分区迁移共用私有重命名策略，仅对 `EPERM`、`EBUSY` 最多尝试五次，以 50/100/150/200ms 退避，不重复复制，重试期间继续持有来源锁。发现目标已经存在或遇到其他错误时停止重试，持续失败仍保留来源并报告原错误。进程锁文件不复制，成功与失败均释放来源锁，之后才申请安装目录的运行期锁。复制或发布失败清理本次 staging、保留来源供重试；已有目标不获取来源锁，也不会被历史副本覆盖。授权私钥继续使用 `safeStorage`，文件位置改变不改变机器绑定或加密边界。决策见 ADR [0015](../../architecture/adr/0015-install-local-desktop-data.md)。Windows 注册表及安装解压使用的系统临时目录不属于客户端持久数据目录。
 
 更早期 `%APPDATA%/LIRA/Partitions/` 仅在当前 browser profile 的 `Partitions/` 不存在时兼容迁移：先复制到同级唯一 `.Partitions.migration-*` 目录，完整成功后重命名发布。复制或发布失败时尽力清理本次暂存目录，保留旧来源并中止启动；不会继续恢复音乐、Bilibili 或豆包账号会话，以免创建空目标阻断下一次重试。现有目标始终保留，不自动覆盖或补并旧分区；旧版本已经留下的残缺目标没有可靠完成标记，无法与迁移后新增状态安全区分，应在应用关闭、来源与当前目标均已备份后单独评估恢复，不能直接删除目标重跑。回归见 [分区迁移测试](../../../test/desktop/desktop-user-data.test.js)、[启动失败隔离](../../../test/desktop/electron-startup-data.test.js)及[隔离 Electron 恢复](../../../test/desktop/desktop-user-data-electron.test.js)。
 
@@ -488,7 +488,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 4. dispose 动态抽奖授权；保存当前 remoteGift、cloudSync、fanProfile、desktopAuth controller 集合并逐个 dispose，再置空 main 的前三个 controller 引用。取消/代次失效使晚结果不能继续提交；客户端退出不表示云端业务关闭，也不保证撤回已发出的上游请求
 5. `await Promise.all([integrityStopped, dynamicLotteryAuth.whenIdle(), ...controllersToDrain.map(c => c.whenIdle())])`。此时 runtime/SQLite 保持可用；等待完成且未被 5 秒终结抢先结束后，才进入后端关闭
 6. `stopRuntime()` 委托 `runtime.stop({exitProcess:false})` → [server-core.md](../backend/server-core.md) §6.2，其中 `preShutdownHook` 为 `requestPlaybackFlush`，正常路径等待 renderer 冲刷与后端资源/数据库关闭
-7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、分别移除媒体请求监听、dispose 管理请求认证与 license manager（单项失败记录后继续）、释放单实例锁，按首次请求决定是否 `app.relaunch()`，最后 `app.exit(exitCode)`。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
+7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、分别移除媒体请求监听、dispose 管理请求认证与 license manager（单项失败记录后继续）。普通退出释放单实例锁；首次意图为重启时，调用 main 注入的 `restartApp`，根据此时更新是否就绪选择安装并重启或释放锁后 `app.relaunch()`。安装动作返回 `update` 时，固定通过一轮 `setImmediate` 交接后再 `app.exit(exitCode)`，让 NSIS 启动失败回退和更新器退出事件先执行；普通退出和 relaunch 仍直接 exit。截止触发的安装也只交接这一轮，不增加定时器或等待外部 Promise，重入仍复用原关闭任务。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
 
 | 资源与创建 owner | 取消入口 / 排空 | 数据依赖与晚完成保护 |
 | --- | --- | --- |
@@ -522,7 +522,8 @@ sequenceDiagram
   else 失败或总期限已到
     Note over Main,DB: 终结退出，不宣称已完成所有持久化
   end
-  Main->>Main: finish 一次；可选 relaunch，exit
+  Main->>Main: finish 一次；重启时选择安装或 relaunch
+  Note over Main: 安装交接一轮事件循环后 exit；其他路径直接 exit
 ```
 
 若同步等待失败，直接进入失败终结，不把失败当作成功排空继续停止后端。超时后的同步晚完成不会再进入后端关闭阶段；已开始的后端关闭不能物理撤回，其晚完成或晚失败也不会再次释放、重启或退出。启动中的 Cookie 恢复、runtime.start 和授权 bootstrap 在 await 后检查关闭状态，避免关闭已开始后继续创建下一阶段资源。
@@ -539,7 +540,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 `requestPlaybackFlush`([playback-flush.js:5-27](../../../src/electron/playback-flush.js#L5-L27))为单飞握手:存在 pending flush 时新请求立即完成;主窗口已销毁则 `{status:'skipped'}`;`acknowledgePlaybackFlush`([playback-flush.js:29-33](../../../src/electron/playback-flush.js#L29-L33))由 `playback:flush-ack` handler 调用。渲染进程侧行为见 [preload.md](preload.md) §3。
 
-`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/desktop-shell-ipc.js) 只记录请求并 `await requestRestart()`，回调由 main 注入；通道无参数、成功结果为 `undefined`。连续重启至多安排一次 relaunch；退出先到则后续重启仍只退出，重启先到则后续退出仍按重启终结。安装更新继续委托 updater，不走此重启 IPC：`desktop-update-controller.installUpdate` 在 canInstall 时先等待 `resourceIntegrity.stop('UPDATE_INSTALLING')`，再由 `update-manager` 释放单实例锁并调用 `quitAndInstall(true,true)`；触发的应用 before-quit 仍走上述受控关闭。退出后由 NSIS 显示安装进度并按原有启动意图自动结束，详见[自动更新运行时](update.md#4-ipc-与-ui-同步)。此路径不能写成手工 app.relaunch，也不能把资源检查停止等同于全部数据库已排空。证据入口：[desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)（安装前先停止资源检查）、[electron-shutdown.test.js](../../../test/desktop/electron-shutdown.test.js)（受控关闭顺序）、[resource-lifecycle-electron.test.js](../../../test/desktop/resource-lifecycle-electron.test.js)。
+`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/desktop-shell-ipc.js) 只记录请求并 `await requestRestart()`，回调由 main 注入；通道无参数、成功结果为 `undefined`。连续重启只安排一次最终动作；退出先到则后续重启仍只退出，重启先到则后续退出仍按重启终结。重启在上述关闭序列终结时读取最新 `canInstall`，包括排空期间刚完成的下载：更新已就绪则由 `update-manager.installUpdate()` 释放单实例锁并调用 `quitAndInstall(true,true)`，不再同时 `app.relaunch()`；没有可安装更新时沿用普通 relaunch。显式「安装并重启」入口仍由 `desktop-update-controller.installUpdate` 先等待 `resourceIntegrity.stop('UPDATE_INSTALLING')`，再委托同一 update-manager；触发的应用 before-quit 仍走上述受控关闭。退出后由 NSIS 显示安装进度并按原有启动意图自动结束，详见[自动更新运行时](update.md#4-ipc-与-ui-同步)。不能把资源检查停止等同于全部数据库已排空。证据入口：[desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)（安装前先停止资源检查）、[electron-shutdown.test.js](../../../test/desktop/electron-shutdown.test.js)（受控关闭顺序及普通重启与更新组合）、[resource-lifecycle-electron.test.js](../../../test/desktop/resource-lifecycle-electron.test.js)。
 
 ## 8. 日志
 

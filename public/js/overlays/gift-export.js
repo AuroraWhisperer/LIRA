@@ -4,7 +4,7 @@ let config;
 let artwork;
 
 window.initializeGiftExport = (snapshot) => {
-  config = snapshot.config;
+  config = { ...snapshot.config, sheen: false };
   artwork = createGiftArtworkResolver(snapshot.catalog);
 };
 

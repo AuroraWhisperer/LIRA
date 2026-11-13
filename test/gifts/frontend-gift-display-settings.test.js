@@ -69,18 +69,23 @@ test('gift appearance choices preview independently, save, and restore without l
   });
   const tail = page.locator('#giftTailStyle');
   const texture = page.locator('#giftTextureStyle');
+  const sheen = page.locator('#giftSheen');
   assert.equal(await tail.inputValue(), 'slant');
   assert.equal(await texture.inputValue(), 'solid');
-  await page.getByRole('button', { name: '尾部样式', exact: true }).click();
-  await page.getByRole('option', { name: '折叠飘带', exact: true }).click();
-  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-tail-style'), 'ribbon');
+  await page.getByRole('button', { name: '条带外形', exact: true }).click();
+  await page.getByRole('option', { name: '圆角胶囊', exact: true }).click();
+  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-tail-style'), 'capsule');
   await page.getByRole('button', { name: '条带内部', exact: true }).click();
-  await page.getByRole('option', { name: '菱格织纹', exact: true }).click();
-  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-texture-style'), 'argyle');
+  await page.getByRole('option', { name: '蕾丝花边', exact: true }).click();
+  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-texture-style'), 'lace');
+  await sheen.check();
+  assert.equal(await page.locator('#giftStylePreview .gift-banner').first().getAttribute('data-sheen'), 'true');
   await page.getByRole('button', { name: '保存滚动与样式设置', exact: true }).click();
   await page.waitForFunction(() => window.displaySaves.length === 1 && !document.getElementById('giftDisplayFields').disabled);
-  assert.equal(await page.evaluate(() => window.savedDisplay.tailStyle), 'ribbon');
-  assert.equal(await page.evaluate(() => window.savedDisplay.textureStyle), 'argyle');
+  assert.equal(await page.evaluate(() => window.savedDisplay.tailStyle), 'capsule');
+  assert.equal(await page.evaluate(() => window.savedDisplay.textureStyle), 'lace');
+  assert.equal(await page.evaluate(() => window.savedDisplay.sheen), true);
+  await sheen.uncheck();
   await page.getByRole('button', { name: '条带内部', exact: true }).click();
   await page.getByRole('option', { name: '丝缎流光', exact: true }).click();
   await page.evaluate(() => window.dispatchEvent(new CustomEvent('app:settings-state', {
@@ -89,7 +94,8 @@ test('gift appearance choices preview independently, save, and restore without l
   assert.equal(await tail.inputValue(), 'slant');
   assert.equal(await texture.inputValue(), 'satin');
   await page.locator('#giftDisplayCancel').click();
-  assert.equal(await texture.inputValue(), 'argyle');
+  assert.equal(await texture.inputValue(), 'lace');
+  assert.equal(await sheen.isChecked(), true);
   assert.equal(await page.locator('#giftFeedRows').inputValue(), '5');
   await page.evaluate(() => {
     const fetchConfig = window.fetch;
@@ -117,6 +123,7 @@ test('gift appearance choices preview independently, save, and restore without l
   await page.locator('#giftDisplayDefaults').click();
   assert.equal(await tail.inputValue(), 'slant');
   assert.equal(await texture.inputValue(), 'solid');
+  assert.equal(await sheen.isChecked(), false);
 });
 
 test('feed minimum accepts one decimal place and saves cents', async (t) => {

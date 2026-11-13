@@ -77,6 +77,7 @@ export function createGiftDisplaySettings() {
       palette: 'bilibili-four',
       tailStyle: get('giftTailStyle').value,
       textureStyle: get('giftTextureStyle').value,
+      sheen: get('giftSheen').checked,
       thresholds: [1, 2, 3].map((n) => Number(get(`giftTier${n}`).value) * 100),
       visibleRows: Number(get('giftFeedRows').value),
       scrollSpeed: Number(get('giftFeedSpeed').value),
@@ -111,12 +112,14 @@ export function createGiftDisplaySettings() {
     get('giftDisplayCancel').hidden = savedValues.every(([id, value]) => {
       const input = get(id);
       return input.value !== '' && Number(input.value) === value;
-    }) && get('giftTailStyle').value === config.tailStyle && get('giftTextureStyle').value === config.textureStyle;
+    }) && get('giftTailStyle').value === config.tailStyle && get('giftTextureStyle').value === config.textureStyle
+      && get('giftSheen').checked === config.sheen;
   }
 
   function fill(value) {
     get('giftTailStyle').value = value.tailStyle ?? DEFAULT_GIFT_BANNER_APPEARANCE.tailStyle;
     get('giftTextureStyle').value = value.textureStyle ?? DEFAULT_GIFT_BANNER_APPEARANCE.textureStyle;
+    get('giftSheen').checked = value.sheen ?? DEFAULT_GIFT_BANNER_APPEARANCE.sheen;
     [1, 2, 3].forEach((n) => {
       get(`giftTier${n}`).value = value.thresholds[n - 1] / 100;
       get(`giftTierEnd${n - 1}`).value = value.thresholds[n - 1] / 100;

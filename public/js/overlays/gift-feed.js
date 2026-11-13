@@ -73,12 +73,13 @@ async function request(url, signal) {
 }
 
 function render(retryAvatars = false) {
+  stage.classList.toggle('is-playing', !disposed && !document.hidden);
   const height = `${config.visibleRows * BANNER_HEIGHT + (config.visibleRows - 1) * BANNER_GAP}px`;
   if (viewport.style.height !== height) viewport.style.height = height;
   const next = new Map();
   const fit = [];
   for (const item of state.visible(config.visibleRows, true)) {
-    const signature = JSON.stringify([item, config.thresholds, config.tailStyle, config.textureStyle, catalogVersion]);
+    const signature = JSON.stringify([item, config.thresholds, config.tailStyle, config.textureStyle, config.sheen, catalogVersion]);
     let row = rendered.get(item.eventId);
     const avatar = retryAvatars ? row?.node.querySelector('.gift-banner-avatar') : null;
     const retryAvatar = Boolean(avatar && item.gift.avatarUrl && avatar.getAttribute('src') !== avatar.dataset.source);
@@ -310,7 +311,7 @@ const component = mountSceneExtraClient('gift-feed', {
     catalog = nextCatalog;
     renderComponent();
   },
-  onDispose() { disposed = true; stopScrolling(); componentResize?.disconnect(); },
+  onDispose() { disposed = true; stage.classList.remove('is-playing'); stopScrolling(); componentResize?.disconnect(); },
 });
 if (component) {
   const fit = () => { viewport.style.transform = `scale(${window.innerWidth / viewport.offsetWidth})`; };
@@ -328,8 +329,10 @@ const dayTimer = component ? null : setInterval(() => {
   }
 }, 1000);
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden) stopScrolling();
-  else {
+  if (document.hidden) {
+    stage.classList.remove('is-playing');
+    stopScrolling();
+  } else {
     render();
     scheduleRefresh({ settings: true, catalog: true });
   }

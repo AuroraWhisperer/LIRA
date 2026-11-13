@@ -1,7 +1,7 @@
 'use strict';
 
 function createDesktopLifecycle({
-  app, hasRuntime,
+  app, hasRuntime, restartApp,
   stopResourceIntegrity, drainBeforeRuntimeStop, stopRuntime,
   disposeRequestAuth, disposeLicense, disposeDiagnostics, writeLog,
   timers = { setTimeout, clearTimeout },
@@ -33,15 +33,21 @@ function createDesktopLifecycle({
       writeLog('lifecycle', { event });
       try { disposeRequestAuth(); } catch (error) { logError(error); }
       try { disposeLicense(); } catch (error) { logError(error); }
+      let updateStarted = false;
       try {
-        app.releaseSingleInstanceLock();
-        if (restart) app.relaunch();
+        if (restart) updateStarted = restartApp() === 'update';
+        else app.releaseSingleInstanceLock();
       } catch (error) {
         logError(error);
       } finally {
-        disposeDiagnostics();
-        app.exit(exitCode);
-        resolve();
+        const exit = () => {
+          disposeDiagnostics();
+          app.exit(exitCode);
+          resolve();
+        };
+        // NSIS spawn fallbacks and before-quit-for-update run asynchronously.
+        if (updateStarted) setImmediate(exit);
+        else exit();
       }
     }
 

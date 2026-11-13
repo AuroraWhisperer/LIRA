@@ -288,7 +288,7 @@ songDb v13 由 [fan-song-migration.js](../../../src/storage/fan-song-migration.j
 
 `fan-record-store` 在写入、档案读取、完整备份导出及启动/每小时 retention 时清理早于上海当天及前 29 天的 `dailyCounts`，保留累计次数和最近三个日期；时钟回退产生的未来日期桶暂存，但不计入当前展示。档案表不参与 clear-all。自动恢复点按 `created_at DESC, rowid DESC` 每个 scope 保留两份，由 [fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js) 清理。新快照插入、旧快照清理及恢复/合并处于同一事务，失败时原档案和恢复点均回滚。
 
-完整备份 `lira-fan-profiles` 导出 v2，接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。完整替换在同一事务内先验证导入集合与保留档案的最终身份唯一性，通过 `removeMany(scope, ids)` 分批释放明确批准替换的档案，仅清理一次无引用名单模板后再恢复，支持档案间 UID 互换；失败连同恢复点一起回滚。保留档案、其他账号和当前抑制标记不参与批量删除。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
+完整备份 `lira-fan-profiles` 导出 v2，外部文件导出先核对[恢复容量与数量预算](../desktop/preload.md#5-粉丝档案-action-与-dto)，超限不生成文件；内部自动恢复点仍使用完整本机资料，不受外部文件大小预检影响。接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。完整替换在同一事务内先验证导入集合与保留档案的最终身份唯一性，通过 `removeMany(scope, ids)` 分批释放明确批准替换的档案，仅清理一次无引用名单模板后再恢复，支持档案间 UID 互换；失败连同恢复点一起回滚。保留档案、其他账号和当前抑制标记不参与批量删除。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
 
 songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-roster-observation-migration.js) 为 `fan_records` 增加可空的 `roster_template_id` 外键。只压缩从未修订、仍被采用且未排除的纯自动名单观察，将除 `observedAt` 外的重复 JSON 保存一次；读取按记录时间完整还原，ID、sourceKey、历史判断和备份格式不变。编辑时在事务中展开原始依据并解除引用；删除、恢复与合并后回收无引用模板。人工记录、手动同步和真实购买事实不参与压缩。每个真实观察日期仍有一条小记录，因此这是无损去重，不是历史数量上限。
 
@@ -623,7 +623,7 @@ settings 表通常存字符串：boolean 使用 `'true'/'false'`，数字使用�
 
 ### 7.2 defaults 外的领域设置与公开投影
 
-`giftDisplayConfig` 是 [display-settings.js](../../../src/bilibili/gift/display-settings.js) 拥有的 JSON 文本，经专属礼物展示 GET/POST 修改，不经普通 settings 默认键白名单。缺失/无效时默认 `{palette:'bilibili-four',thresholds:[3000,10000,100000],visibleRows:3,scrollSpeed:12,minGiftAmountCents:0}`：金额为整数分；三阈值须正安全整数且递增，visibleRows=1–10、scrollSpeed=1–50整数，最小金额为非负安全整数且是10的倍数。旧 intervalSeconds/paused/lowPower 形状兼容为 scrollSpeed=1，不同步到云端。
+`giftDisplayConfig` 是 [display-settings.js](../../../src/bilibili/gift/display-settings.js) 拥有的 JSON 文本，经专属礼物展示 GET/POST 修改，不经普通 settings 默认键白名单。外形、纹理和独立扫光开关保存在同一 JSON，旧配置缺少外观字段时补原样默认；完整字段、默认值与校验规则见 [礼物展示 API](api.md)。旧 intervalSeconds/paused/lowPower 形状兼容为 scrollSpeed=1，不同步到云端，不新增设置键或数据库迁移。
 
 `giftExportMode`、`giftExportBackground`、`giftExportDirectory` 同样不在 DEFAULT_SETTINGS：缺失时 controller 分别使用 combined、transparent、系统图片目录下 LIRA/礼物导出；空目录字符串代表使用系统默认。仅 giftExport IPC 写入（参数/任务规则见 [preload.md](../desktop/preload.md)），保存绝对自定义路径时含本机信息。这些领域键仍由 getSettings 返回，可进入管理 HTTP/WS；不能把“未在 defaults”误当作私有过滤。overlay settings 由 [overlay-projection.js](../../../src/server/overlay-projection.js) 按 scope 白名单选字段，不下发整个管理 settings。真正过滤的 cloudRoomAccountKey/cloudSongSyncPending 规则见 §8。
 

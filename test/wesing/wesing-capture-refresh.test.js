@@ -10,6 +10,51 @@ const { createWeSingCapture } = require('../../src/music/wesing-capture');
 const { createFixture, qrcXml } = require('../helpers/wesing-capture-fixture');
 const { discoverWeSingCachePath, getWeSingCacheCandidates } = require('../../src/music/wesing-cache-discovery');
 const { createWeSingOnlineLyricResolver } = require('../../src/music/wesing-online-lyrics');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
+
+test('WeSing retries online lyrics without a cache after the existing backoff and stops retrying when disabled', async (t) => {
+  const root = createScratchDirectory('wesing-online-retry-');
+  let timestamp = 0;
+  let sample;
+  let searches = 0;
+  const capture = createWeSingCapture({
+    cachePath: path.join(root, 'WeSingCache'), platform: 'win32', now: () => timestamp,
+    monitorFactory(callback) { sample = callback; return { start() {}, stop() {} }; },
+    setTimer: () => ({ unref() {} }), clearTimer() {},
+    discoverCachePath: async () => '',
+    resolveFallbackLyrics: createWeSingOnlineLyricResolver({
+      registry: {}, platforms: ['qq'], now: () => timestamp,
+      catalogService: {
+        async searchMusicTracks() {
+          if (++searches === 1) throw new Error('temporary network failure');
+          return { tracks: [{ source: 'qq', sourceTrackId: 'recovered', title: '测试歌曲', artists: [], durationMs: 240000 }] };
+        },
+      },
+      lyricsService: {
+        async getMusicTrackLyrics() { return { source: 'qq', lines: [{ text: '恢复的歌词', startMs: 0, endMs: 240000 }] }; },
+      },
+    }),
+  });
+  t.after(() => { capture.stop(); fs.rmSync(root, { recursive: true, force: true }); });
+  const tick = async (at) => {
+    timestamp = at;
+    sample({ detected: true, title: '测试歌曲', currentSec: at / 1000 + 1, totalSec: 240 });
+    await capture.waitForRefresh();
+  };
+  await capture.setActive(true);
+  await tick(0);
+  assert.equal(capture.getStatus().cacheReady, false);
+  assert.equal(searches, 1);
+  await tick(4000);
+  await tick(28000);
+  assert.equal(searches, 1, 'automatic discovery must not bypass the online retry delay');
+  await tick(32000);
+  assert.equal(searches, 2);
+  assert.equal(capture.getStatus().lyricState.lineText, '恢复的歌词');
+  await capture.setActive(false);
+  await tick(64000);
+  assert.equal(searches, 2, 'stale monitor samples cannot restart online requests after disable');
+});
 
 test('WeSing keeps local download discovery responsive during online backoff and forwards manual retries', async (t) => {
   const fixture = createFixture();

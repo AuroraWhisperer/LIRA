@@ -322,6 +322,7 @@ test('merge preview uses readable escaped fields and preserves the selected merg
   let savedProfile;
   const transfer = createFanTransferUi({
     request: async (action, input) => f.run(action, input),
+    beginIntent: () => () => true,
     openForm: (form, submit) => {
       description = form;
       save = submit;

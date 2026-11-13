@@ -96,6 +96,8 @@ generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的
 `before-quit-for-update`。主进程监听此事件，直接进入已有的受控关闭流程；即使本机来源
 仍连接，也不会在安装已启动后再询问是否继续使用。普通关窗不凭下载完成状态跳过确认。
 
+普通重启在排空结束时发现已下载更新，也通过同一 `installUpdate()` 安装。此路径的最终退出保留一轮事件循环，让 NSIS 的异步启动失败回退（`UNKNOWN`/`EACCES` 提权，`ENOENT` 交给 `shell.openPath`）及更新器的 `before-quit-for-update` / `app.quit()` 先发起；重入不会再次安装、排空或 relaunch。它不等待安装完成，也不重置统一关闭截止，具体顺序及回归见 [主进程关闭序列](main.md#7-关闭序列与播放状态冲刷)。
+
 ## 5. friendlyUpdateError 映射
 
 `friendlyUpdateError(error)`（[update-manager.js](../../../src/electron/update-manager.js)）按错误文本正则归类（唯一成表处）：
@@ -110,7 +112,7 @@ generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的
 
 消费点：[update-manager.js](../../../src/electron/update-manager.js) 的 `handleUpdateError` 统一处理 autoUpdater `error` 事件与 `checkForUpdates`/`downloadUpdate` 的 catch；[桌面控制器](../../../src/electron/desktop-update-controller.js)的 `setUpdateError` 同样调用该映射并下推状态。
 
-更新器的 error 事件与操作 Promise 的拒绝统一记录错误并下推状态；同一次操作中同一错误对象只记录一次，重新检查或下载时重新计数。只拒绝 Promise、未发出 error 事件的失败也会记录。错误详情通过桌面日志器写入 `logs/errors/desktop.log`，保留原始错误及堆栈；页面提示该相对位置，「日志目录」按钮仍打开 `logs/`。失败和安装状态清空旧下载进度。聚焦回归见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
+更新器的 error 事件与操作 Promise 的拒绝统一记录错误并下推状态；同一次操作中同一错误对象只记录一次，重新检查或下载时重新计数。`checkForUpdates()` 在清单检查后返回，独立自动下载的 `downloadPromise` 立即绑定同一错误处理，不等待下载结束才返回检查结果，也不让下载拒绝逃逸。只拒绝 Promise、未发出 error 事件的失败也会记录。错误详情通过桌面日志器写入 `logs/errors/desktop.log`，保留原始错误及堆栈；页面提示该相对位置，「日志目录」按钮仍打开 `logs/`。失败和安装状态清空旧下载进度。聚焦回归见 [update-manager.test.js](../../../test/desktop/update-manager.test.js) 与 [desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)。
 
 ## 6. 完整性验证与代码签名
 

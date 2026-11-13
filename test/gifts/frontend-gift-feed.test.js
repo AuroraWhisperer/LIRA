@@ -141,7 +141,7 @@ test('a settings change arriving during a gift refresh is applied in the next ba
   await page.waitForFunction(() => typeof window.resumeHistory === 'function');
   await page.evaluate(() => {
     window.feedConfig.thresholds = [100, 300, 500];
-    window.feedConfig.tailStyle = 'swallowtail';
+    window.feedConfig.tailStyle = 'capsule';
     window.feedConfig.textureStyle = 'starlight';
     window.socketOptions.onMessage({ type: 'snapshot', reason: 'settings' });
     window.resumeHistory();
@@ -155,8 +155,12 @@ test('a settings change arriving during a gift refresh is applied in the next ba
       sameRow: document.getElementById('giftFeedStage').firstElementChild === window.originalFeedRow,
       resources: window.feedRequests.filter((url) => /display-settings|catalog/.test(url)),
     })),
-    { color: GIFT_PALETTE[1][0], tail: 'swallowtail', texture: 'starlight', sameRow: true, resources: ['/api/gifts/display-settings'] },
+    { color: GIFT_PALETTE[1][0], tail: 'capsule', texture: 'starlight', sameRow: true, resources: ['/api/gifts/display-settings'] },
   );
+  await page.evaluate(() => { window.feedConfig.sheen = true; });
+  await refreshFeed(page);
+  assert.equal(await page.locator('#giftFeedStage .gift-banner').first().getAttribute('data-sheen'), 'true');
+  assert.equal(await page.evaluate(() => document.getElementById('giftFeedStage').firstElementChild === window.originalFeedRow), true);
 });
 
 test('feed stays static at capacity, starts above it and stops when refreshed below it', async (t) => {

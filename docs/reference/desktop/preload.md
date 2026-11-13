@@ -275,7 +275,7 @@ prepare 冻结本机来源摘要及 SHA256 digest；canonical UTF-8 数据预算
 
 Owner：[fan-profile-controller.js](../../../src/electron/fan-profile-controller.js)、[profile-service.js](../../../src/fans/profile-service.js)、[profile-transfer.js](../../../src/fans/profile-transfer.js)。scope 由已认证的 `[normalized server origin,streamerId]` 决定，roomId 只是名单来源。open/calendar/auto-update-status 可不带 contextId，其余必须匹配当前上下文。相同 scope 续期保留 contextId，但切换授权 epoch 会取消旧请求；换账号或失去授权后 ID 失效。异步工作同时核对 ID/epoch，名单还核对 roomId。dispose 清 timer/请求/订阅，whenIdle 等同步、名单及自动任务，先于 DB 关闭。
 
-成功外层见 §2.5，syncStatus 为 offline/pending/syncing/ready/unsupported；下表只列 data。失败 `{ok:false,error,existingId?}`：保留中文错误，否则“档案操作失败，输入尚未保存，请重试。”；身份冲突可附 existingId，非法来源为 IPC_SOURCE_INVALID。它不是统一枚举错误码接口。领域 payload 必须对象、非数组，JSON.stringify.length≤16×1024×1024（UTF-16 单元）。
+成功外层见 §2.5，syncStatus 为 offline/pending/syncing/ready/unsupported；下表只列 data。失败 `{ok:false,error,existingId?}`：保留中文错误，否则“档案操作失败，输入尚未保存，请重试。”；身份冲突可附 existingId，非法来源为 IPC_SOURCE_INVALID。它不是统一枚举错误码接口。领域 payload 必须对象、非数组，按 JSON 的 UTF-8 字节限制为 16 MiB；`preview-restore` / `restore` 额外允许 1 KiB 的摘要与冲突选项封套，备份本体仍不超过 16 MiB。完整备份最多 10000 份档案；导出按实际两空格缩进 JSON 的 UTF-8 字节预检容量及数量，超限报错且不生成下载文件，保证成功导出的文件可原样进入恢复流程。
 
 | action | payload | data |
 | --- | --- | --- |

@@ -6,23 +6,23 @@ const { WESING_NATIVE_MONITOR_SOURCE } = require('./wesing-native-monitor-source
 function createPowerShellWeSingMonitor(onSample, options = {}) {
   const spawn = options.spawn || childProcess.spawn;
   let child = null;
-  let stopping = false;
-  let stdoutBuffer = '';
-  let stderrTail = '';
 
   function start() {
     if (child) return;
-    stopping = false;
+    let stdoutBuffer = '';
+    let stderrTail = '';
     const script = buildPowerShellMonitorScript(options);
     const encoded = Buffer.from(script, 'utf8').toString('base64');
     const command = `[Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${encoded}')) | Invoke-Expression`;
-    child = spawn(
+    const currentChild = spawn(
       'powershell.exe',
       ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', command],
       { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] },
     );
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk) => {
+    child = currentChild;
+    currentChild.stdout.setEncoding('utf8');
+    currentChild.stdout.on('data', (chunk) => {
+      if (child !== currentChild) return;
       stdoutBuffer += chunk;
       const rows = stdoutBuffer.split(/\r?\n/);
       stdoutBuffer = rows.pop() || '';
@@ -33,34 +33,35 @@ function createPowerShellWeSingMonitor(onSample, options = {}) {
         } catch (_) {}
       }
     });
-    child.stderr.setEncoding('utf8');
-    child.stderr.on('data', (chunk) => {
+    currentChild.stderr.setEncoding('utf8');
+    currentChild.stderr.on('data', (chunk) => {
+      if (child !== currentChild) return;
       stderrTail = `${stderrTail}${chunk}`.slice(-2000);
     });
-    child.on('error', (error) => {
-      if (!stopping) onSample({ error: error.message || String(error) });
-    });
-    child.on('exit', (code) => {
+    currentChild.on('error', (error) => {
+      if (child !== currentChild) return;
       child = null;
-      if (!stopping && code !== 0) {
-        const detail = stderrTail.trim();
-        onSample({ error: detail || `监视进程已退出（${code}）` });
-      }
-      stderrTail = '';
+      onSample({ error: error.message || String(error) });
+    });
+    currentChild.on('exit', (code) => {
+      if (child !== currentChild) return;
+      child = null;
+      const detail = stderrTail.trim();
+      onSample({ error: detail || `监视进程已退出（${code}）` });
     });
   }
 
   function stop() {
-    stopping = true;
-    if (child) {
+    const currentChild = child;
+    child = null;
+    if (currentChild) {
       try {
-        child.kill();
+        currentChild.kill();
       } catch (_) {}
-      child = null;
     }
   }
 
-  return { start, stop };
+  return { start, stop, isRunning: () => Boolean(child) };
 }
 
 function buildPowerShellMonitorScript(options = {}) {

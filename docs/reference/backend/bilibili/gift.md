@@ -245,6 +245,8 @@ live 事件严格为 `{eventId,cursor,phase,gift}`；eventId 为1–64字符，�
 
 手动删除、平台下线和清空均不保留金额、正文、昵称或用户资料；只留下平台消息 ID 用于防重。没有平台 ID 的已删留言不留记录。`active/assisted` 仍可正常显示和标记处理；移除后的同平台 ID 新增消息及迟到的 assist/unassist 均不会复活留言。平台下线回调仅在实际删除显示项时发布快照；消息识别与 ID 优先级归 [protocol.md](protocol.md) §6.2。
 
+SC 桥接入口对已有删除/撤回 receipt 的平台 ID 明确返回 `false`；[message-handlers.js](../../../../src/bilibili/danmaku/message-handlers.js) 收到该拒绝后停止后续命令分发，也不占用命令去重键。因此撤回先到的迟到原包不能再发起点歌或获得置顶。普通重复显示项仍交给既有命令去重规则处理，平台撤回不撤销此前已经接纳的歌曲。
+
 ## 8. 参数归属
 
 消费者重试由 §2 的投影服务持有；冲刺计算见 §5，SC 阈值见 §7。查询参数默认值及上限统一见 [HTTP 礼物契约](../api.md#10-礼物域gifts)。

@@ -195,6 +195,40 @@ test('gift refreshes finish slow analysis reads while newer filters and closing 
   assert.equal(element('blindBoxAnalysisCount').textContent, '9');
 });
 
+test('source changes reset blind box analysis filters and reject old reads while reconnect consumes queued refreshes', async () => {
+  const { giftAnalysis, eventBus, clock, requests, element, finish } = await createAnalysisHarness();
+  const oldFilters = { selectedViewer: 'uid:old', viewers: [{ value: 'uid:old', label: 'Old viewer' }],
+    selectedBox: 'Old box', boxes: ['Old box'] };
+  giftAnalysis.open({ viewer: 'uid:old', box: 'Old box' });
+  await finish(0, 5, oldFilters);
+  element('blindBoxAnalysisNext').emit('click');
+  eventBus.emit('gift:received', { reason: 'gift:source' });
+  assert.equal(requests[1].signal.aborted, true);
+  assert.equal(requests.length, 3);
+  const sourceQuery = new URL(requests[2].url, 'http://localhost').searchParams;
+  assert.equal(sourceQuery.get('page'), '1');
+  assert.equal(sourceQuery.has('viewer'), false);
+  assert.equal(sourceQuery.has('box'), false);
+  assert.equal(element('blindBoxAnalysisViewer').children.length, 1);
+  assert.equal(element('blindBoxAnalysisBox').children.length, 1);
+  assert.equal(element('blindBoxAnalysisCount').textContent, '0');
+  await finish(2, 10);
+  await finish(1, 99, oldFilters);
+  assert.equal(element('blindBoxAnalysisCount').textContent, '10');
+  assert.equal(element('blindBoxAnalysisViewer').value, '');
+  eventBus.emit('gift:received', { reason: 'bilibili:gift' });
+  eventBus.emit('gift:received', { reason: 'connect' });
+  assert.equal(requests.length, 4);
+  clock.tick(1000);
+  assert.equal(requests.length, 4, 'reconnect consumes the queued ordinary gift refresh');
+  await finish(3, 8);
+  assert.equal(element('blindBoxAnalysisCount').textContent, '8');
+  giftAnalysis.close();
+  eventBus.emit('gift:received', { reason: 'gift:source' });
+  assert.equal(requests.length, 4, 'closed workspaces clear old data without reading');
+  assert.equal(element('blindBoxAnalysisCount').textContent, '0');
+});
+
 test('blindbox controls keep a stable IPv4 source URL that follows saved settings', async () => {
   const elements = {
     blindboxOverlayTop: { value: '' },

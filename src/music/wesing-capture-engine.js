@@ -189,21 +189,30 @@ function createWeSingCapture(options = {}) {
       return getStatus();
     }
     if (version !== lifecycleVersion || !state.active) return getStatus();
-    try {
-      monitor = monitorFactory((sample) => {
-        if (version !== lifecycleVersion) return;
-        handleMonitorSample(sample);
-        diagnostics.record(sample, !sample.error && isWeSingAudioAudible(sample));
-      });
-      monitor.start();
-      state.status = 'waiting';
-      state.message = '正在检测全民 K 歌客户端…';
-    } catch (error) {
-      state.status = 'error';
-      state.message = `无法启动全民 K 歌检测：${error.message || String(error)}`;
-    }
     await refresh();
     return getStatus();
+  }
+
+  function startMonitor() {
+    if (monitor && monitor.isRunning?.() !== false) return true;
+    try {
+      if (!monitor) {
+        const version = lifecycleVersion;
+        monitor = monitorFactory((sample) => {
+          if (version !== lifecycleVersion) return;
+          handleMonitorSample(sample);
+          diagnostics.record(sample, !sample.error && isWeSingAudioAudible(sample));
+        });
+      }
+      monitor.start();
+      return true;
+    } catch (error) {
+      stopMonitor();
+      state.status = 'error';
+      state.message = `无法启动全民 K 歌检测：${error.message || String(error)}`;
+      emit();
+      return false;
+    }
   }
 
   function discoverCachePath(readCache) {
@@ -222,6 +231,7 @@ function createWeSingCapture(options = {}) {
   }
 
   async function refresh({ discover = true, automatic = false } = {}) {
+    if (!automatic && state.active && state.supported && !startMonitor()) return getStatus();
     const version = lifecycleVersion;
     const requestedTitle = state.trackTitle;
     const previousCachePath = cachePath;
@@ -267,10 +277,11 @@ function createWeSingCapture(options = {}) {
     state.cacheReady = cacheReady;
     await syncQrcWatcher();
     if (!isCurrent()) return getStatus();
+    if (state.active && monitor?.isRunning?.() === false) return getStatus();
     const matchingSnapshot = requestedTitle === state.trackTitle ? snapshot : undefined;
     if (automatic && previousCachePath === cachePath && previousCacheReady === cacheReady) {
       if (state.status !== 'loading') {
-        if (cacheReady && state.trackTitle && !state.qrcReady) {
+        if (state.trackTitle && !state.qrcReady) {
           pendingRefresh = refreshLyrics(state.trackTitle, matchingSnapshot);
           await pendingRefresh;
         } else {

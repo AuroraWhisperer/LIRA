@@ -93,7 +93,9 @@ test('installer accepts only ordinary-user writable targets before touching an o
   const scratch = path.resolve(__dirname, '../../tmp');
   fs.mkdirSync(scratch, { recursive: true });
   const root = fs.mkdtempSync(path.join(scratch, 'lira-install-permissions-'));
-  const source = fs.readFileSync(path.join(__dirname, '../../build/installer-per-user.nsh'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, '../../build/installer-per-user.nsh'), 'utf8')
+    .replace('ReadRegStr $R3 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" "InstallLocation"', 'StrCpy $R3 "${FIXTURE_REGISTERED}"');
+  assert.doesNotMatch(source, /ReadReg|WriteReg|DeleteReg/);
   const templates = path.join(path.dirname(require.resolve('app-builder-lib/package.json')), 'templates/nsis');
   const quote = (value) => value.replaceAll('$', () => '$$');
   const identity = spawnSync('whoami', ['/user', '/fo', 'csv', '/nh'], { encoding: 'utf8', windowsHide: true });
@@ -101,9 +103,9 @@ test('installer accepts only ordinary-user writable targets before touching an o
   const sid = identity.stdout.match(/S-1-5-[\d-]+/)?.[0];
   assert.ok(sid);
   let denied;
-  let junction;
+  const junctions = [];
   try {
-    for (const scenario of ['fresh', 'update', 'mixed-context-update', 'junction-target', 'protected-target', 'protected-data', 'all-users', 'elevated']) {
+    for (const scenario of ['fresh', 'unknown-directory', 'data-only-directory', 'retained-data', 'update', 'mixed-context-update', 'junction-target', 'junction-resources-update', 'junction-unpacked-update', 'protected-target', 'protected-data', 'protected-list', 'protected-resources', 'all-users', 'elevated']) {
       const target = path.join(root, scenario, 'LIRA');
       const executable = path.join(root, scenario + '.exe');
       const script = path.join(root, scenario + '.nsi');
@@ -112,22 +114,36 @@ test('installer accepts only ordinary-user writable targets before touching an o
         const linkedDirectory = path.join(root, scenario, 'actual-LIRA');
         fs.mkdirSync(linkedDirectory, { recursive: true });
         fs.symlinkSync(linkedDirectory, target, 'junction');
-        junction = target;
+        junctions.push(target);
       } else if (scenario !== 'fresh') {
         fs.mkdirSync(target, { recursive: true });
       }
       if (scenario !== 'fresh') {
-        fs.writeFileSync(path.join(target, 'old-program.txt'), 'old program');
+        if (scenario !== 'data-only-directory') fs.writeFileSync(path.join(target, 'old-program.txt'), 'old program');
         fs.mkdirSync(path.join(target, 'data'));
       }
+      if (scenario === 'retained-data') fs.writeFileSync(path.join(target, 'lira-installation.ini'), '[installation]\r\nappId=com.aurorawhisperer.lira\r\n');
+      if (scenario === 'update') fs.mkdirSync(path.join(target, 'resources'));
+      let outside;
+      if (scenario === 'junction-resources-update' || scenario === 'junction-unpacked-update') {
+        outside = path.join(root, scenario, 'outside');
+        fs.mkdirSync(outside);
+        fs.writeFileSync(path.join(outside, 'app.asar'), 'unrelated external file');
+        const link = path.join(target, scenario === 'junction-resources-update' ? 'resources' : 'resources/app.asar.unpacked/node_modules/linked');
+        fs.mkdirSync(path.dirname(link), { recursive: true });
+        fs.symlinkSync(outside, link, 'junction');
+        junctions.push(link);
+      }
       if (scenario.startsWith('protected-')) {
-        denied = scenario === 'protected-data' ? path.join(target, 'data') : target;
-        const acl = spawnSync('icacls', [denied, '/deny', `*${sid}:(W)`], { encoding: 'utf8', windowsHide: true });
+        denied = scenario === 'protected-resources' ? path.join(target, 'resources') : scenario === 'protected-data' ? path.join(target, 'data') : target;
+        if (scenario === 'protected-resources') fs.mkdirSync(denied);
+        const acl = spawnSync('icacls', [denied, '/deny', `*${sid}:(${scenario === 'protected-resources' || scenario === 'protected-list' ? 'RD' : 'W'})`], { encoding: 'utf8', windowsHide: true });
         assert.equal(acl.status, 0, acl.stdout + acl.stderr);
       }
       fs.writeFileSync(script, [
         'Unicode true', 'Name "LIRA permission fixture"', 'RequestExecutionLevel user',
         `OutFile "${quote(executable)}"`,
+        `!define FIXTURE_REGISTERED "${scenario.endsWith('update') || scenario === 'protected-resources' ? quote(target) : ''}"`,
         `!addplugindir /x86-unicode "${quote(plugins)}"`,
         `!addincludedir "${quote(path.join(templates, 'include'))}"`,
         '!include LogicLib.nsh', '!include UAC.nsh', 'Var installMode',
@@ -153,22 +169,29 @@ test('installer accepts only ordinary-user writable targets before touching an o
       assert.equal(build.status, 0, build.stdout + build.stderr);
       const updateArgs = scenario.endsWith('update') ? ['--updated', '--force-run'] : [];
       const run = spawnSync(executable, [...updateArgs, '/S', `/D=${target}`], { windowsHide: true, timeout: 10000 });
-      const allowed = scenario === 'fresh' || scenario.endsWith('update');
+      const allowed = scenario === 'fresh' || scenario === 'retained-data' || (scenario.endsWith('update') && !scenario.startsWith('junction-'));
       assert.equal(run.status, allowed ? 0 : 2, scenario);
       assert.equal(fs.existsSync(passed), allowed, scenario);
       if (allowed) assert.equal(fs.readFileSync(passed, 'utf8'), 'CurrentUser|0|1', 'silent updates must not request machine elevation');
-      if (scenario !== 'fresh') assert.equal(fs.readFileSync(path.join(target, 'old-program.txt'), 'utf8'), 'old program');
+      if (scenario !== 'fresh' && scenario !== 'data-only-directory') assert.equal(fs.readFileSync(path.join(target, 'old-program.txt'), 'utf8'), 'old program');
       if (denied) {
         const restored = spawnSync('icacls', [denied, '/remove:d', `*${sid}`], { windowsHide: true });
         assert.equal(restored.status, 0);
         denied = null;
       }
-      assert.deepEqual(fs.readdirSync(target).sort(), scenario === 'fresh' ? [] : ['data', 'old-program.txt']);
+      const expected = scenario === 'fresh' ? [] : ['data', ...(scenario === 'data-only-directory' ? [] : ['old-program.txt'])];
+      if (scenario === 'retained-data') expected.push('lira-installation.ini');
+      if (scenario === 'protected-resources' || scenario === 'update') expected.push('resources');
+      if (outside) {
+        expected.push('resources');
+        assert.equal(fs.readFileSync(path.join(outside, 'app.asar'), 'utf8'), 'unrelated external file');
+      }
+      assert.deepEqual(fs.readdirSync(target).sort(), expected.sort());
     }
   } finally {
     if (denied) spawnSync('icacls', [denied, '/remove:d', `*${sid}`], { windowsHide: true });
     assert.equal(path.dirname(fs.realpathSync(root)), fs.realpathSync(scratch));
-    if (junction) fs.unlinkSync(junction);
+    for (const junction of junctions) fs.unlinkSync(junction);
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
