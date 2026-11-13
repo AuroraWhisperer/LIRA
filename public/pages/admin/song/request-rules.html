@@ -45,10 +45,10 @@
               </select>
             </label>
             <label class="song-request-row">
-              允许重复点歌
-              <select id="allowDuplicate" data-dropdown-variant="settings">
-                <option value="true">允许</option>
-                <option value="false">不允许</option>
+              <span>禁止同名点歌 <lira-help label="禁止同名点歌说明">默认关闭，允许同名点歌。开启后，点歌板上已有相同歌名时，新的点歌会失败并显示红色提示，随机点歌、SC 点歌和手动点歌也受限制；同名不同歌手仍算重复。歌曲离开点歌板后可再次点歌，仍须满足歌曲冷却。开启不会移除已排队的歌曲。</lira-help></span>
+              <select id="allowDuplicate" data-dropdown-variant="settings" aria-label="禁止同名点歌">
+                <option value="true">关闭 · 允许同名</option>
+                <option value="false">开启 · 禁止同名</option>
               </select>
             </label>
             <div class="song-request-row song-cooldown-setting">

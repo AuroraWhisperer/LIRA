@@ -167,6 +167,24 @@ function requestCooldownKey(uid, identityType = 'uid', fanScope = null) {
   return `v2:${JSON.stringify([fanScope, identityType, uid])}`;
 }
 
+test('duplicate blocking compares active title text regardless of artist and releases songs that leave the board', (t) => {
+  const f = historyFixture(t);
+  const first = f.add({ songName: '同名歌曲', artist: '歌手甲' });
+  const second = f.add({ songName: '同名歌曲', artist: '歌手乙' });
+  assert.equal(getQueueSnapshot(f.context).waiting.length, 2);
+
+  f.settings.allowDuplicate = 'false';
+  handleQueueAction(f.context, 'live', first.id);
+  assert.throws(() => f.add({ songName: ' 同名歌曲 ', artist: '歌手丙' }), { code: 'SONG_ALREADY_QUEUED' });
+  assert.equal(getQueueSnapshot(f.context).waiting.length, 2, 'enabling the rule preserves existing requests');
+  assert.equal(f.count('requests'), 2, 'rejection must not persist a request');
+
+  handleQueueAction(f.context, 'done', first.id);
+  handleQueueAction(f.context, 'delete', second.id);
+  const accepted = f.add({ songName: '同名歌曲', artist: '歌手丙' });
+  assert.equal(accepted.song_name, '同名歌曲');
+});
+
 function requestFixture(t, settings = {}) {
   const f = historyFixture(t);
   const { createCooldownStore } = require('../../src/storage/cooldown-store');

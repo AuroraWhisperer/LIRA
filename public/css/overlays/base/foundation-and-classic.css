@@ -37,15 +37,16 @@
   position: absolute;
   z-index: 5;
   inset: 0.4em 0.4em auto;
-  padding: 0.35em 0.7em;
+  box-sizing: border-box;
+  padding: 0.2em 0.6em;
   border-left: 0.2em solid #20a781;
   border-radius: 0.2em;
   background: #e6f8f0;
   color: #167858;
   font-family: inherit;
-  font-size: var(--identity-queue-font-size, 28px);
+  font-size: calc(var(--identity-queue-font-size, 28px) * 0.85);
   font-weight: 500;
-  line-height: 1.4;
+  line-height: 1.2;
   pointer-events: none;
 }
 
@@ -72,7 +73,12 @@
 }
 
 .queue-classic .queue-request-notice {
-  font-size: var(--overlay-waiting-font-size, 18px);
+  min-height: var(--classic-row-height, 35px);
+  font-size: calc(var(--overlay-waiting-font-size, 18px) * 0.85);
+}
+
+.queue-identity .queue-request-notice {
+  min-height: var(--identity-row-height, 45px);
 }
 
 .illustrated-custom-font .queue-request-notice {

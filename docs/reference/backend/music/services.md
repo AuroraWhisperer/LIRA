@@ -256,7 +256,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 3. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
 4. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
 5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
-6. **重复检查**:`allowDuplicate !== 'true'` 时,活跃队列内同名(仅 song_name)即抛"队列里已经有这首歌。"
+6. **重复检查**：沿用 `allowDuplicate`（默认 `'true'`），界面以「禁止同名点歌」呈现，默认关闭；开启时保存 `'false'`。`allowDuplicate !== 'true'` 时，活跃队列内歌名文本相同（仅比较 `song_name`，不区分歌手）即抛 `SONG_ALREADY_QUEUED`。普通点歌、随机抽中的歌曲、SC 和手动入队均经过此检查；拒绝沿用点歌板红色失败提示，随机点歌不会另抽一首规避拒绝。完成、跳过、删除或清空后不再占用同名名额，歌曲冷却仍独立生效；开启规则不会移除已有重复项。
 
 每人同时排队上限在 `queue-store.insertRequest` 的 `BEGIN IMMEDIATE` 事务内检查，以 `requests.identity_type` 与 `queue.requester_uid` 统计活跃队列，包含 LIVE；改昵称不释放配额，完成、删除、跳过与清空后释放，重启仍从已存队列统计。超限抛 `USER_QUEUE_FULL`，不写入流水、歌曲冷却或队列。资格与配额同样约束普通弹幕、随机点歌（含桌面随机按钮）及 SC；SC 置顶不豁免，歌库手动入队保留管理员能力。保存新规则不删除已有队列。
 
