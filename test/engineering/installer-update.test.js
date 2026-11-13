@@ -35,7 +35,7 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
   const compile = (name, lines) => {
     const script = path.join(root, name + '.nsi');
     fs.writeFileSync(script, [...base, ...lines].join('\n'));
-    const result = spawnSync(compiler, ['/V2', '-INPUTCHARSET', 'UTF8', script], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
+    const result = spawnSync(compiler, ['/V2', '/WX', '-INPUTCHARSET', 'UTF8', script], { encoding: 'utf8', windowsHide: true, timeout: 30000 });
     assert.equal(result.status, 0, result.stdout + result.stderr);
   };
   const flags = new NsisScriptGenerator();
@@ -62,7 +62,7 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
   const section = fs.readFileSync(path.join(templates, 'installSection.nsh'), 'utf8');
   const upgradeCalls = section.slice(section.indexOf('!ifdef ONE_CLICK'), section.indexOf('SetOutPath $INSTDIR'))
     .replace('ReadRegStr $R1 SHELL_CONTEXT "${INSTALL_REGISTRY_KEY}" KeepShortcuts', 'StrCpy $R1 ""');
-  const util = fs.readFileSync(path.join(templates, 'include/installUtil.nsh'), 'utf8')
+  const util = fs.readFileSync(path.join(buildDir, 'nsis/installUtil.nsh'), 'utf8')
     .replace(/!macro readReg\b[\s\S]*?!macroend/, [
       '!macro readReg VAR ROOT_KEY SUB_KEY NAME',
       '${If} "${NAME}" == "UninstallString"', `StrCpy "${'${VAR}'}" '\"${quote(legacy)}\" /currentuser'`,
@@ -70,7 +70,8 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
       '${Else}', 'StrCpy "${VAR}" ""', '${EndIf}', '!macroend',
     ].join('\n'));
   assert.doesNotMatch(util, /ReadRegStr|WriteReg|DeleteReg/);
-  const fixtureUtil = path.join(root, 'node_modules/app-builder-lib/templates/nsis/include/installUtil.nsh');
+  const fixtureBuildDir = path.join(root, 'build');
+  const fixtureUtil = path.join(fixtureBuildDir, 'nsis/installUtil.nsh');
   fs.mkdirSync(path.dirname(fixtureUtil), { recursive: true });
   fs.writeFileSync(fixtureUtil, util);
   for (const scenario of ['same-directory', 'change-directory', 'changed-registration', 'failed-launch']) {
@@ -91,10 +92,11 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
       fs.mkdirSync(selected, { recursive: true });
       compile(scenario, [
         `OutFile "${quote(executable)}"`,
-        `!define PROJECT_DIR "${quote(root)}"`, `!define BUILD_RESOURCES_DIR "${quote(buildDir)}"`,
+        `!define PROJECT_DIR "${quote(path.dirname(buildDir))}"`, `!define BUILD_RESOURCES_DIR "${quote(fixtureBuildDir)}"`,
         `!define FIXTURE_REGISTERED "${quote(scenario === 'changed-registration' ? selected + '-changed' : installDir)}"`,
         `!define UNINSTALLER_OUT_FILE "${quote(scenario === 'failed-launch' ? bad : safe)}"`,
         '!define UNINSTALL_REGISTRY_KEY "fixture"', '!define INSTALL_REGISTRY_KEY "fixture"',
+        'LangString uninstallFailed 1033 "Uninstall failed"',
         '!define UAC_IsInnerInstance "0 = 1"', '!define allowToChangeInstallationDirectory',
         'Var installMode', 'Var liraPreviousInstallDir', 'Var appExe',
         flags.build(),
@@ -104,7 +106,9 @@ test('builder upgrade runs the current safe uninstaller instead of a destructive
         check,
         'Function liraWaitForAppExit', 'FunctionEnd',
         'Section', 'StrCpy $installMode CurrentUser',
-        `StrCpy $liraPreviousInstallDir "${quote(installDir)}"`, `StrCpy $INSTDIR "${quote(selected)}"`,
+        // Exercise the path helpers used by production initialization and caching.
+        `Push '"${quote(legacy)}" /currentuser'`, 'Call GetInQuotes', 'Call GetFileParent', 'Pop $liraPreviousInstallDir',
+        `StrCpy $INSTDIR "${quote(selected)}"`,
         `StrCpy $appExe "${quote(path.join(selected, 'LIRA.exe'))}"`, upgradeCalls, 'SectionEnd',
       ]);
       const result = spawnSync(executable, ['/S', '--updated'], { windowsHide: true, timeout: 15000 });

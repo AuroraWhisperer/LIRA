@@ -231,7 +231,7 @@ ManifestDPIAware true
       liraPreservationDeferred:
     SectionEnd
     ; NSIS 3.0.4 searches the working directory before its include directories.
-    ; The wrapper restores the builder directory after its one include override.
+    ; Our install utilities restore the builder directory after this include override.
     !cd "${BUILD_RESOURCES_DIR}\nsis"
   !endif
 !macroend
