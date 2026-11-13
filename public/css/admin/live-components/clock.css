@@ -1,4 +1,32 @@
 /* Clock settings and preview layout, including its container response. */
+.live-components-page .clock-toolbar-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.live-components-page .clock-toolbar-heading :is(h3, p) {
+  margin: 0;
+}
+
+.live-components-page .has-resource-style #clockSaveState {
+  display: none;
+}
+
+.live-components-page .clock-copy-control {
+  position: relative;
+  display: inline-flex;
+}
+
+.live-components-page #clockCopyFixed {
+  padding-inline-end: 40px;
+}
+
+.live-components-page .clock-copy-control > lira-help {
+  position: absolute;
+  right: 12px;
+  margin-inline-start: 0;
+}
+
 .live-components-page .clock-tool-layout {
   grid-template-columns: minmax(0, 1fr) 320px;
   gap: 24px;

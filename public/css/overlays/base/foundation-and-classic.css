@@ -65,6 +65,13 @@
   white-space: nowrap;
 }
 
+.queue-request-message > strong {
+  color: inherit;
+  -webkit-text-fill-color: currentColor;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
+}
+
 .queue-request-outcome {
   flex: none;
   margin-left: auto;

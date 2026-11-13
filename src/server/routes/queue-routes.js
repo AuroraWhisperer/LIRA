@@ -44,7 +44,8 @@ const routes = {
       });
     } catch (error) {
       if (!isQueueRequestRejection(error)) throw error;
-      context.queue.recordRequestResult({ accepted: false, requesterName: body.requesterName || '主播', songName: body.songName });
+      context.queue.recordRequestResult({ accepted: false, requesterName: body.requesterName || '主播',
+        songName: body.songName, reason: error.message });
       context.broadcastSnapshot('queue:request-result');
       sendJson(res, 400, { ok: false, error: error.message, code: error.code });
       return;

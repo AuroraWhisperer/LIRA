@@ -385,26 +385,27 @@ function createGiftQueryStore(giftDb) {
 
   function listBlindBoxRows({ sourceScope, from, to, boxName, includeUnknownProfit = false }) {
     const scope = normalizeSourceScope(sourceScope);
-    const params = [from, to, ...scope.params];
-    let sql = `
-      SELECT id, gift_id, gift_name, user_name, uid, blind_box_id, blind_box_name, blind_box_price,
-             total_price, blind_profit, num, created_at
-      FROM gift_events
-      WHERE status = 'active'
-        AND detection_status = 'final'
-        AND gift_stats_eligible = 1
-        AND is_blind_box = 1
-        AND created_at >= ?
-        AND created_at < ?
-        AND ${scope.sql}
-    `;
-    if (!includeUnknownProfit) sql += ' AND blind_profit IS NOT NULL';
-    if (boxName) {
-      sql += ' AND blind_box_name = ?';
-      params.push(boxName);
+    const filter = {
+      sql: `g.status = 'active' AND g.detection_status = 'final'
+        AND g.is_blind_box = 1 AND g.created_at >= ? AND g.created_at < ? AND ${scope.sql}`,
+      params: [from, to, ...scope.params],
+    };
+    if (sourceScope?.kind === 'source') {
+      retentionLedgerFilter(giftDb, { sourceId: sourceScope.sourceId }, filter, { statistics: true });
+    } else {
+      filter.sql += ' AND g.gift_stats_eligible = 1';
     }
-    sql += ' ORDER BY datetime(created_at) DESC, id DESC';
-    return [...giftDb.prepare(sql).all(...params), ...readLocalBlindArchives(giftDb, {
+    if (!includeUnknownProfit) filter.sql += ' AND g.blind_profit IS NOT NULL';
+    if (boxName) {
+      filter.sql += ' AND g.blind_box_name = ?';
+      filter.params.push(boxName);
+    }
+    const sql = `SELECT g.id, g.gift_id, g.gift_name, g.user_name, g.uid,
+      g.blind_box_id, g.blind_box_name, g.blind_box_price,
+      g.total_price, g.blind_profit, g.num, g.created_at
+      FROM gift_events g WHERE ${filter.sql}
+      ORDER BY datetime(g.created_at) DESC, g.id DESC`;
+    return [...giftDb.prepare(sql).all(...filter.params), ...readLocalBlindArchives(giftDb, {
       sourceScope, from, to, boxName, includeUnknownProfit,
     })];
   }

@@ -14,13 +14,16 @@ const inputs = [
   },
   {
     table: 'gift_events', domain: 'blindBox',
-    eligible: (row) => `${eligible(row)} AND ${row}.is_blind_box = 1`,
+    eligible: (row) => `${row}.detection_status = 'final' AND ${row}.is_blind_box = 1 AND (
+      (${row}.source_id IS NULL AND ${row}.status = 'active' AND ${row}.gift_stats_eligible = 1)
+      OR (${row}.source_id IS NOT NULL AND ${row}.status IN ('active','retention-staged')))`,
     fields: [...eligibilityFields, 'is_blind_box', 'source_id', 'id', 'gift_id', 'gift_name',
       'user_name', 'uid', 'blind_box_id', 'blind_box_name', 'blind_box_price',
       'total_price', 'blind_profit', 'num', 'created_at'],
   },
   { table: 'gift_sprint_carry', domain: 'sprint' },
   { table: 'gift_local_archives', domain: 'blindBox' },
+  { table: 'gift_retention_state', domain: 'blindBox', fields: ['active_snapshot_id'] },
 ];
 
 function createGiftAggregateChanges(db) {

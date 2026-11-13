@@ -16,6 +16,8 @@ import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
   const DEBUG = params.get('debug') === '1';
   const PREVIEW_MODE = params.get('preview') === '1';
   const GUARD_PREVIEW_TIER = params.get('guardPreview');
+  const motionStyle = params.get('giftStyle');
+  const motionOnly = ['gift-drop', 'gift-swing'].includes(motionStyle);
   const frameRoot = document.getElementById('giftFrame');
   const status = document.getElementById('giftEffectStatus');
   const frameQueue = createGiftFrameQueue({
@@ -54,8 +56,7 @@ import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
       },
       { once: true },
     );
-    const motionStyle = params.get('giftStyle');
-    if (PREVIEW_MODE && ['gift-drop', 'gift-swing'].includes(motionStyle)) {
+    if (PREVIEW_MODE && motionOnly) {
       const startedAt = Date.now();
       for (const sample of createGiftMotionSamples(motionStyle)) motionPlayer.enqueue({ ...sample, startedAt });
     } else if (PREVIEW_MODE && GUARD_PREVIEW_TIER) {
@@ -78,6 +79,7 @@ import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
           effectPlayer.setEnabled(payload.state?.settings?.giftEffectDanmakuEnabled === 'true');
           return;
         }
+        if (motionOnly && (payload.type !== 'gift:frame' || payload.themeId !== motionStyle)) return;
         if (payload.type === 'gift:frame' && !motionPlayer.enqueue(payload)) frameQueue.enqueue(payload);
         if (payload.type === 'gift:effect') effectPlayer.enqueue(payload);
         if (payload.type === 'gift:guard-thanks') guardThanks.enqueue(payload);

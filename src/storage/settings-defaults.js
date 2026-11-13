@@ -215,6 +215,7 @@ const DEFAULT_SETTINGS = {
   desktopLyricBgOpacity: '0.15',
   desktopLyricScale: '1',
   desktopLyricLineHeight: '1.4',
+  desktopLyricLineGap: '24',
   desktopLyricShadowIntensity: '0.35',
   desktopLyricTranslationScale: '0.65',
   desktopLyricFallbackFontFamily: 'Microsoft JhengHei',

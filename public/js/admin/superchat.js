@@ -88,7 +88,9 @@ export function renderSuperChatQueue(items) {
       </div>
       <div class="queue-actions">
         <button class="icon" title="${item.status === 'assisted' ? '取消处理' : '标记已处理'}" type="button" data-sc-action="${item.status === 'assisted' ? 'unassist' : 'assist'}" data-id="${item.id}">${item.status === 'assisted' ? '↺' : '✓'}</button>
-        <button class="icon" title="复制 SC" type="button" data-copy="${escapeAttr(item.message || '')}">⧉</button>
+        <button class="icon" title="复制 SC" aria-label="复制 SC" type="button" data-copy="${escapeAttr(item.message || '')}">
+          <svg class="queue-action-icon" aria-hidden="true"><use href="/img/admin/workbench-icons.svg#copy"></use></svg>
+        </button>
         <button class="icon" title="删除 SC" type="button" data-sc-action="delete" data-id="${item.id}">×</button>
       </div>
     </div>

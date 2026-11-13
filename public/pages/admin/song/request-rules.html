@@ -22,6 +22,13 @@
               </select>
             </label>
             <label class="song-request-row">
+              <span>点歌指令必须带空格 <lira-help label="点歌指令必须带空格说明">默认关闭。开启后，普通弹幕和 SC 点歌须使用「点歌 歌名」，例如「点歌 晴天」；「点歌晴天」不触发，避免误触发。随机点歌和取消点歌沿用原格式。</lira-help></span>
+              <select id="songRequestRequireSpace" data-dropdown-variant="settings" aria-label="点歌指令必须带空格">
+                <option value="false">关闭</option>
+                <option value="true">开启</option>
+              </select>
+            </label>
+            <label class="song-request-row">
               <span>允许观众取消点歌 <lira-help label="允许观众取消点歌说明">默认开启。观众发送「取消点歌」可取消本人最后一首仍在点歌板上的歌，发送「取消点歌 歌名」可按完整歌名取消本人的歌。关闭后两种取消指令均不生效，主播仍可手动删除队列歌曲。</lira-help></span>
               <select id="songRequestCancelEnabled" data-dropdown-variant="settings" aria-label="允许观众取消点歌">
                 <option value="true">开启 · 允许取消</option>

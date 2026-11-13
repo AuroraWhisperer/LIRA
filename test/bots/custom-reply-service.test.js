@@ -57,6 +57,20 @@ test('custom replies preserve special symbols when applying the length limit', (
   assert.equal(normalized.reply.includes('\uFFFD'), false);
 });
 
+test('keyword replies match both Chinese scripts and preserve configured text and viewer names', () => {
+  for (const [keyword, message] of [['菜单', '菜單在哪'], ['歡迎', '欢迎回来']]) {
+    const service = createCustomReplyService({
+      settings: () => ({ enableCustomReplyBot: 'true', customReplyRules: [{ keyword, reply: '請看說明' }] }),
+    });
+    const result = service.handleDanmaku({ message, uid: '123', userName: '觀眾' });
+    assert.equal(result.accepted, true);
+    assert.equal(result.command.keyword, keyword);
+    assert.equal(result.autoReply.message, '請看說明');
+    assert.equal(result.autoReply.target.name, '觀眾');
+    assert.equal(isBilibiliCommandText(message, service.isCommandText), true);
+  }
+});
+
 test('custom reply service reuses stored rules and keeps returned rules isolated from live settings', (t) => {
   const settings = {
     enableCustomReplyBot: 'true',
@@ -109,10 +123,11 @@ test('custom reply service observes in-place edits to array rules', () => {
 
 test('cloud exact commands use trimmed equality and ignore stale projections until account reset', () => {
   const service = createCustomReplyService();
-  service.setCloudExactReplySettings({ customExactReplyEnabled: true, customExactReplies: [{ trigger: '月卡', reply: '说明' }] }, 5);
-  for (const message of ['菜单', ' 菜单 ', '月卡']) assert.equal(service.isCloudOwnedCommand(message), true);
+  service.setCloudExactReplySettings({ customExactReplyEnabled: true, customExactReplies: [{ trigger: '月卡', reply: '说明' }, { trigger: '歡迎', reply: '你好' }] }, 5);
+  for (const message of ['菜单', ' 菜单 ', '菜單', '月卡', '欢迎']) assert.equal(service.isCloudOwnedCommand(message), true);
   assert.equal(service.isCloudOwnedCommand('看看菜单'), false);
   assert.equal(service.isCommandText('月卡'), true);
+  assert.equal(service.isCommandText('歡迎'), true);
   service.setCloudExactReplySettings({ customExactReplyEnabled: false, customExactReplies: [] }, 4);
   assert.equal(service.isCloudOwnedCommand('菜单'), true);
   service.setCloudExactReplySettings(null);
@@ -172,7 +187,9 @@ test('domain services attach a custom reply after built-in commands decline', as
       settingsStore.setSetting('enableFortuneBot', enabled);
       for (const [message, type, reply] of [
         [' 签到 ', 'checkin', 'checkinReply'],
+        [' 簽到 ', 'checkin', 'checkinReply'],
         ['抽签', 'fortune', 'fortuneReply'],
+        ['抽籤', 'fortune', 'fortuneReply'],
       ]) {
         const result = services.messages.handleDanmaku({ message, uid: '456', userName: 'Bob' });
         assert.equal(result.accepted, false);

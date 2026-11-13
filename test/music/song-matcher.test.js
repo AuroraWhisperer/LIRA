@@ -8,6 +8,15 @@ const { QQMusicProvider } = require('../../src/music/providers/qq-provider');
 const { matchMusicTrackCandidates, scoreTrackMatch } = require('../../src/music/song-matcher');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+test('provider title, artist and version matching treats script variants equally without rewriting tracks', () => {
+  const result = scoreTrackMatch({ songName: '听海（现场）', artist: '张惠妹' }, {
+    title: '聽海（現場）', artists: ['張惠妹'], album: '演唱會',
+  });
+  assert.equal(result.autoAccept, true);
+  assert.equal(result.track.title, '聽海（現場）');
+  assert.equal(result.track.artists[0], '張惠妹');
+});
+
 test('a one-letter title typo selects the related song instead of an unrelated prefixed title', () => {
   const { results } = matchMusicTrackCandidates({
     songName: 'born me down',

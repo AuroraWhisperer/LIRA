@@ -51,6 +51,7 @@ export function applyDesktopLyricStyles(card, values) {
   card.style.setProperty('--preview-bg-opacity', String(values.backgroundOpacity));
   card.style.setProperty('--preview-scale', String(values.scale));
   card.style.setProperty('--preview-line-height', String(values.lineHeight));
+  card.style.setProperty('--preview-line-gap', `${values.lineGap}px`);
   card.style.setProperty(
     '--preview-shadow-color',
     values.shadowEnabled ? hexWithAlpha(values.shadowColor, values.shadowIntensity) : 'transparent',

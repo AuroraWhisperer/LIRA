@@ -131,6 +131,7 @@ export function createSettingsForm({
         paused: value('paused'),
         scSongRequestEnabled: value('scSongRequestEnabled'),
         songRequestCancelEnabled: value('songRequestCancelEnabled'),
+        songRequestRequireSpace: value('songRequestRequireSpace'),
         songRequestMatchMode: value('songRequestMatchMode'),
         queueLimit: value('queueLimit'),
         userCooldownSeconds: value('userCooldownSeconds'),

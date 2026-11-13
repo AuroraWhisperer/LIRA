@@ -27,6 +27,7 @@ function init(form, options = {}) {
   const appState = stateService.getAppState();
   const events = new AbortController();
   const { signal } = events;
+  initPreviewSize(signal);
   const positionStage = document.getElementById('advancedLyricPreviewStage');
   let positionDrag = null;
   const finishPositionDrag = event => {
@@ -74,6 +75,47 @@ function init(form, options = {}) {
   if (appState?.lyricTimeline) desktopLyricRenderer.updateLyricTimeline(appState.lyricTimeline);
   if (appState?.lyricState) desktopLyricRenderer.updateLyricState(appState.lyricState);
   applyStylesFromForm();
+}
+
+function initPreviewSize(signal) {
+  const stage = document.getElementById('desktopLyricPreviewStage');
+  const canvas = document.getElementById('desktopLyricPreviewCanvas');
+  if (!canvas) return;
+  const inputs = ['Width', 'Height'].map(axis => document.getElementById(`desktopLyricPreview${axis}`));
+  const storageKey = 'desktopLyricPreviewSize';
+  try {
+    const saved = JSON.parse(localStorage.getItem(storageKey));
+    inputs.forEach((input, index) => {
+      const value = saved?.[index];
+      if (Number.isInteger(value) && value >= Number(input.min) && value <= Number(input.max)) input.value = String(value);
+    });
+  } catch (error) {
+    console.warn('无法读取歌词预览尺寸，使用默认尺寸。', error);
+  }
+  const resize = () => {
+    if (inputs.some(input => !input.checkValidity())) return;
+    const [width, height] = inputs.map(input => Number(input.value));
+    if (!width || !height || !stage.clientWidth || !stage.clientHeight) return;
+    const scale = Math.min(stage.clientWidth / width, stage.clientHeight / height, 1);
+    canvas.style.width = `${width}px`;
+    canvas.style.height = `${height}px`;
+    canvas.style.setProperty('--lyric-preview-fit', String(scale));
+  };
+  for (const input of inputs) {
+    input.addEventListener('input', resize, { signal });
+    input.addEventListener('change', () => {
+      resize();
+      if (inputs.some(input => !input.checkValidity())) return;
+      try { localStorage.setItem(storageKey, JSON.stringify(inputs.map(input => Number(input.value)))); }
+      catch (error) {
+        console.warn('无法保存歌词预览尺寸，当前预览仍然有效。', error);
+      }
+    }, { signal });
+  }
+  const observer = new ResizeObserver(resize);
+  observer.observe(stage);
+  signal.addEventListener('abort', () => observer.disconnect(), { once: true });
+  resize();
 }
 
 function applyStylesFromForm() {

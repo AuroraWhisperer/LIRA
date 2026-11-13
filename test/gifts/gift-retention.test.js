@@ -18,7 +18,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { createGiftWishStore } = require('../../src/storage/gift-wish-store');
 const schema = require('../../src/storage/schema');
 const { runAllMigrations } = require('../../src/storage/database-migrations');
-const { getBlindBoxAnalysis } = require('../../src/bilibili/gift/blind-box-analysis');
+const { getBlindBoxAnalysis, getBlindBoxStats } = require('../../src/bilibili/gift/blind-box-analysis');
 const { getGiftHistory, getGiftSelection } = require('../../src/bilibili/gift/query-service');
 const { DAY_MS, dayStart } = require('../../src/shared/gift-summary-contract');
 
@@ -84,6 +84,61 @@ function publishExisting(f) {
   f.giftDb.prepare('UPDATE gift_events SET remote_final_cursor=id WHERE source_id=?').run(f.source.id);
   f.giftDb.prepare("UPDATE gift_sync_state SET sync_epoch='epoch-1',final_cursor=2,bootstrap_complete=1 WHERE source_id=?").run(f.source.id);
 }
+
+test('synced blind boxes update cached daily totals without replaying live consumers', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(NOW) });
+  const delivered = [];
+  const finalized = [];
+  const f = fixture(t, {
+    consumerRegistry: { dispatch: event => { delivered.push(event); return { delivered: [], failed: [] }; } },
+    onGiftFinalized: event => finalized.push(event),
+  });
+  f.setActiveSource(f.source.id);
+  const stats = () => getBlindBoxStats(f.context);
+  assert.equal(stats().summary.boxCount, 0);
+  const offline = record('offline-box', 1, NOW);
+  Object.assign(offline.gift, { isBlindBox: true, blindBoxId: '32251', blindBoxName: '心动盲盒',
+    num: 2, unitPrice: 16, totalPrice: 32, blindBoxPrice: 30, blindProfit: 2 });
+  const imported = f.projection.importProcessedHistoryRecord(offline, f.source.id);
+  assert.equal(imported.gift_stats_eligible, 0);
+  assert.equal(stats().summary.boxCount, 2);
+  assert.equal(stats().summary.totalCost, 30);
+  assert.equal(stats().summary.totalValue, 32);
+  assert.equal(stats().summary.totalProfit, 2);
+  assert.equal(stats().perUser[0].boxCount, 2);
+  f.projection.importProcessedHistoryRecord(offline, f.source.id);
+  f.projection.importProcessedEvent({ ...offline, phase: 'final', cursor: 1 }, f.source.id);
+  assert.equal(stats().summary.boxCount, 2, 'history and live replay share one ledger identity');
+  assert.equal(getBlindBoxAnalysis(f.context).items[0].profit, 2);
+  const saved = f.giftDb.prepare('SELECT counted_in_sprint,overtime_epoch FROM gift_events WHERE id=?').get(imported.id);
+  assert.equal(saved.counted_in_sprint, 0);
+  assert.equal(saved.overtime_epoch, 0);
+  assert.equal(delivered.length, 0);
+  assert.equal(finalized.length, 0);
+});
+
+test('retained blind boxes enter cached daily totals only when their snapshot is activated', (t) => {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date(NOW) });
+  const f = fixture(t);
+  f.setActiveSource(f.source.id);
+  const stats = () => getBlindBoxStats(f.context, { boxName: '心动盲盒' });
+  const offline = record('retained-box', 3, NOW);
+  Object.assign(offline.gift, { isBlindBox: true, blindBoxId: '32251', blindBoxName: '心动盲盒',
+    unitPrice: 16, totalPrice: 16, blindBoxPrice: 15, blindProfit: 1 });
+  assert.equal(stats().summary.boxCount, 0);
+  stage(f, summary(), [offline]);
+  assert.equal(stats().summary.boxCount, 0, 'downloaded pages stay hidden before activation');
+  assert.equal(getBlindBoxAnalysis(f.context).summary.boxCount, 0);
+  f.retention.activate(f.scope());
+  assert.equal(stats().summary.totalProfit, 1);
+  assert.equal(stats().heartBoxProgress.openedSinceCastle, 1);
+  assert.equal(getBlindBoxAnalysis(f.context).summary.boxCount, 1);
+  stage(f, summary(), [offline]);
+  f.retention.activate(f.scope());
+  assert.equal(stats().summary.boxCount, 1, 'rebuilding the same snapshot must not double count');
+  f.setActiveSource(f.other.id);
+  assert.equal(stats().summary.boxCount, 0);
+});
 
 test('a same-epoch rebuild preserves 200-day details and export selection without double-counting', (t) => {
   const f = fixture(t);

@@ -68,6 +68,32 @@ async function createDanmakuPage(t, state = {}, html = readAdminFragmentHtml('pa
   return page;
 }
 
+test('local reply preferences can be saved before a room is configured', async t => {
+  const page = await createDanmakuPage(t, {
+    roomId: '',
+    canSend: false,
+    connected: false,
+    autoReplyEnabled: true,
+    customReplyBotEnabled: true,
+  });
+  await page.evaluate(() => {
+    const read = window.fetch;
+    window.replySettings = [];
+    window.fetch = async (url, options) => {
+      if (url !== '/api/settings') return read(url, options);
+      window.replySettings.push(JSON.parse(options.body));
+      return { ok: true, json: async () => ({ ok: true, data: {} }) };
+    };
+  });
+  await page.locator('[data-danmaku-tab="replies"]').click();
+  await page.locator('#danmakuReplyToggle').uncheck({ timeout: 1000 });
+  await page.locator('#danmakuCustomReplyToggle').uncheck({ timeout: 1000 });
+  const settings = await page.evaluate(() => window.replySettings);
+  assert.equal(settings.length, 2);
+  assert.equal(settings[0].enableRandomTagReply, 'false');
+  assert.equal(settings[1].enableCustomReplyBot, 'false');
+});
+
 async function deferSenderStateReads(page) {
   await page.evaluate(() => {
     const read = window.fetch;

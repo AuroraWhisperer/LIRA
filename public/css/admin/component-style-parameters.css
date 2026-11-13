@@ -14,5 +14,15 @@
 .component-parameter-fields:disabled { opacity: .55; }
 .component-parameter-advanced { margin-bottom: 12px; border-top: 1px solid var(--color-border-light); }
 .component-parameter-advanced > summary { font-weight: 600; }
+.component-style-parameters:not([data-style-parameters-panel='danmaku']) .component-parameter-group {
+  margin-bottom: 8px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
+}
+.component-style-parameters:not([data-style-parameters-panel='danmaku']) .component-parameter-fields { margin-bottom: 12px; }
+.component-style-parameters:not([data-style-parameters-panel='danmaku']) .component-parameter-advanced { border: 0; }
+.component-style-parameters:not([data-style-parameters-panel='danmaku']) .component-parameter-advanced > summary { margin-bottom: 8px; }
 .component-style-parameter-error { color: var(--color-danger); font-size: 12px; line-height: 1.5; }
 .component-style-parameters summary:focus-visible { outline: 2px solid var(--color-border-focus); outline-offset: 2px; }

@@ -145,6 +145,38 @@ test('song library artist filter matches an individual artist in a collaboration
   );
 });
 
+test('song library search matches Chinese variants across titles, artists, categories and tags', (t) => {
+  const songStore = createTestSongStore(t);
+  const songs = [
+    { name: '音乐心情' },
+    { name: '作品乙', artist: '音樂人' },
+    { name: '作品丙', categoryName: '音乐剧' },
+    { name: '作品丁', tags: '音樂' },
+  ].map((song) => songService.saveSong(songStore, song));
+
+  assert.deepEqual(
+    songService.listSongs(songStore, { query: '音樂' }).map((song) => song.id).sort((a, b) => a - b),
+    songs.map((song) => song.id),
+  );
+  assert.deepEqual(songService.listSongs(songStore, { query: '音%情' }).map((song) => song.name), ['音乐心情']);
+});
+
+test('song library combines Chinese variant filters without rewriting song metadata', (t) => {
+  const songStore = createTestSongStore(t);
+  songService.saveSong(songStore, {
+    name: '聽說你', artist: '張學友 / 陈奕迅', categoryName: '搖滾 / 民谣', language: '國語/英语', tags: '怀旧,國風',
+  });
+  const [song] = songService.listSongs(songStore, {
+    query: '听说', categories: ['摇滚'], language: '国语', artist: '张学友', tags: ['国风'],
+  });
+  assert.ok(song);
+  assert.equal(song.name, '聽說你');
+  assert.equal(song.artist, '張學友 / 陈奕迅');
+  assert.equal(song.category_name, '搖滾 / 民谣');
+  assert.equal(song.language, '國語/英语');
+  assert.equal(song.tags, '怀旧,國風');
+});
+
 test('song library language filter matches an individual language in a combined field', (t) => {
   const songStore = createTestSongStore(t);
 

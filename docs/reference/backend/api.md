@@ -351,7 +351,8 @@ Electron main process 通过 [remote-license-client.js](../../../src/electron/li
 
 | 键/组 | 接受输入与存储形态 |
 | --- | --- |
-| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`scSongRequestEnabled`、`songRequestCancelEnabled`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
+| `danmakuMonitoringEnabled`、`giftMonitoringEnabled`、`enableBilibili`、`paused`、`scSongRequestEnabled`、`songRequestCancelEnabled`、`songRequestRequireSpace`、`onlyFromLibrary`、`allowDuplicate`、`guardPriorityEnabled`、`giftEffectDanmakuEnabled` | 仅 boolean、数字 0/1、精确字符串 `'true'/'false'/'0'/'1'`；存为 `'true'/'false'`，不接受任意 truthy 值 |
+| `songRequestRequireSpace` | 默认关闭；按账号同步的可选 boolean 字段，旧快照省略保留本地值。开启后普通弹幕和已启用的 SC 点歌仅接受「点歌 歌名」，沿用既有空白归一化；紧连格式按非命令忽略，不记录点歌结果、不入队、不消耗冷却。随机点歌和取消点歌格式不变 |
 | `queueLimit` / `userCooldownSeconds` | number 或十进制数字字符串（可首尾空白）；整数分别 1–300 / 0–3600，存规范十进制字符串；不接受指数/小数/符号形式的字符串 |
 | `songCooldownMode` / `songCooldownValue` | 模式严格为 `off/hours/days`；数值接受 1–999 的整数或十进制整数字符串，存规范字符串；非法批次不写入。云端同步新增可选字段，旧快照省略时保留本地值 |
 | `guardPriorityEnabled` | 默认关闭；按账号同步的可选字段，旧快照省略保留本地值；保存后重排现有等待队列，具体顺序见 [音乐服务](music/services.md#83-handlequeueactioncontext-action-rawidqueue-servicejs) |

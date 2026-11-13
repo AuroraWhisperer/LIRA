@@ -10,25 +10,32 @@ const { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, giftMotionSettingKeys } = req
 async function fixture() {
   const requests = [];
   const confirmations = [];
+  const copied = [];
+  const toasts = [];
+  const timers = new Map();
+  let timerId = 0;
   const listeners = new Map();
   const nodes = new Map();
   function node(id) {
     if (!nodes.has(id)) nodes.set(id, {
-      value: '', checked: false, disabled: false, dataset: {}, textContent: '',
+      value: '', checked: false, disabled: false, valid: true, dataset: {}, textContent: '',
       type: id.endsWith('Enabled') ? 'checkbox' : id.endsWith('TextMode') ? 'hidden' : 'number',
       handlers: new Map(),
       addEventListener(type, handler) { this.handlers.set(type, handler); },
+      checkValidity() { return this.valid; },
       reportValidity: () => true,
     });
     return nodes.get(id);
   }
   function save(patch) {
     const pending = Promise.withResolvers();
-    requests.push({ patch, resolve: pending.resolve });
+    requests.push({ patch, resolve: pending.resolve, reject: pending.reject });
     return pending.promise;
   }
   const context = vm.createContext({
     console,
+    setTimeout(callback) { const id = ++timerId; timers.set(id, callback); return id; },
+    clearTimeout(id) { timers.delete(id); },
     document: { getElementById: node },
     window: {
       addEventListener(type, listener) { listeners.set(type, listener); },
@@ -36,7 +43,8 @@ async function fixture() {
     },
   });
   const dependencies = {
-    '../shared/utils.js': { toast() {} },
+    '../shared/utils.js': { toast: (message, options) => toasts.push({ message, options }), copyText: async text => copied.push(text),
+      localOverlayOrigin: () => 'http://127.0.0.1:3000' },
     '../shared/gift-motion-settings.js': { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, giftMotionSettingKeys },
     '../shared/gift-motion-samples.js': { createGiftMotionSamples() {} },
     '../shared/scene-extra-components.js': require('../../public/js/shared/scene-extra-components.js'),
@@ -45,6 +53,10 @@ async function fixture() {
         const key = `${effect.prefix}${name}`;
         const input = node(key);
         input.addEventListener('input', () => onEdit({ [key]: input.value }));
+        input.addEventListener('change', () => {
+          onEdit({ [key]: input.value });
+          _host.handlers.get('change')();
+        });
         return [key, input];
       }));
       return { inputs, sync() {}, dispose() {} };
@@ -76,34 +88,88 @@ async function fixture() {
   await entry.evaluate();
   entry.namespace.initGiftMotionSettings();
   return {
-    requests, confirmations, node,
+    requests, confirmations, copied, toasts, node,
     edit(key, value) { node(key).value = value; node(key).handlers.get('input')(); },
     receive(settings) { listeners.get('app:settings-state')({ detail: { ...GIFT_MOTION_DEFAULTS, ...settings } }); },
-    save: () => node('giftDropSaveBtn').handlers.get('click')(),
+    flush() { const callbacks = [...timers.values()]; timers.clear(); callbacks.forEach(callback => callback()); },
+    change: key => node(key).handlers.get('change')(),
+    settle: () => new Promise(resolve => setImmediate(resolve)),
   };
 }
 
-test('gift motion card reconciles a late save with canvas updates and preserves subsequent edits', async () => {
+test('gift motion autosave reconciles canvas updates and drains subsequent edits', async () => {
   const f = await fixture();
   f.edit('giftDropSpeed', '120');
-  const saving = f.save();
+  f.flush();
   f.receive({ giftDropSpeed: '120' });
   f.receive({ giftDropSpeed: '160', giftDropSize: '130' });
   f.requests[0].resolve({ ...GIFT_MOTION_DEFAULTS, giftDropSpeed: '120' });
   await new Promise(resolve => setImmediate(resolve));
   f.confirmations[0]?.resolve({ ...GIFT_MOTION_DEFAULTS, giftDropSpeed: '160', giftDropSize: '130' });
-  await saving;
+  await f.settle();
   assert.equal(f.node('giftDropSpeed').value, '160');
   assert.equal(f.node('giftDropSpeed').dataset.dirty, 'false');
   assert.equal(f.node('giftDropSize').value, '130');
 
   f.edit('giftDropSpeed', '180');
-  const retry = f.save();
+  f.flush();
   assert.equal(f.requests[1].patch.giftDropSpeed, '180');
   assert.equal(Object.hasOwn(f.requests[1].patch, 'giftDropSize'), false);
   f.edit('giftDropSpeed', '200');
+  f.flush();
   f.requests[1].resolve({ ...GIFT_MOTION_DEFAULTS, giftDropSpeed: '180', giftDropSize: '130' });
-  await retry;
+  await f.settle();
   assert.equal(f.node('giftDropSpeed').value, '200');
   assert.equal(f.node('giftDropSpeed').dataset.dirty, 'true');
+  assert.equal(f.requests[2].patch.giftDropSpeed, '200');
+  f.requests[2].resolve({ ...GIFT_MOTION_DEFAULTS, giftDropSpeed: '200', giftDropSize: '130' });
+  await f.settle();
+  assert.equal(f.node('giftDropSpeed').dataset.dirty, 'false');
+});
+
+test('motion cards copy separate live sources without forcing a pending autosave', async () => {
+  const f = await fixture();
+  f.edit('giftDropSpeed', '120');
+  await f.node('giftDropCopyBtn').handlers.get('click')();
+  await f.node('giftSwingCopyBtn').handlers.get('click')();
+  assert.deepEqual(f.copied, ['http://127.0.0.1:3000/gift-effects?giftStyle=gift-drop',
+    'http://127.0.0.1:3000/gift-effects?giftStyle=gift-swing']);
+  assert.equal(f.requests.length, 0);
+  assert.equal(f.node('giftDropSpeed').dataset.dirty, 'true');
+});
+
+test('motion autosave waits for a valid threshold and batches continuous edits', async () => {
+  const f = await fixture();
+  f.node('giftDropThresholdRmb').valid = false;
+  f.edit('giftDropThresholdRmb', '-1');
+  f.edit('giftDropSpeed', '120');
+  f.edit('giftDropSpeed', '140');
+  f.flush();
+  await f.settle();
+  assert.equal(f.requests.length, 0);
+  f.node('giftDropThresholdRmb').valid = true;
+  f.edit('giftDropThresholdRmb', '1');
+  f.flush();
+  assert.equal(f.requests.length, 1);
+  assert.equal(f.requests[0].patch.giftDropThresholdRmb, '1');
+  assert.equal(f.requests[0].patch.giftDropSpeed, '140');
+  f.requests[0].resolve({ ...GIFT_MOTION_DEFAULTS, giftDropThresholdRmb: '1', giftDropSpeed: '140' });
+  await f.settle();
+});
+
+test('failed motion autosave retains the edit and retries on the next committed change', async () => {
+  const f = await fixture();
+  f.edit('giftDropSpeed', '120');
+  f.flush();
+  f.requests[0].reject(new Error('offline'));
+  await f.settle();
+  assert.equal(f.node('giftDropSpeed').dataset.dirty, 'true');
+  assert.equal(f.toasts.at(-1).options.type, 'error');
+  assert.equal(f.requests.length, 1);
+  f.edit('giftDropSpeed', '160');
+  f.change('giftDropSpeed');
+  assert.equal(f.requests[1].patch.giftDropSpeed, '160');
+  f.requests[1].resolve({ ...GIFT_MOTION_DEFAULTS, giftDropSpeed: '160' });
+  await f.settle();
+  assert.equal(f.node('giftDropSpeed').dataset.dirty, 'false');
 });

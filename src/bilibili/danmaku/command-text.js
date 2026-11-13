@@ -3,17 +3,19 @@
 'use strict';
 
 const { cleanText } = require('../../shared/utils');
+const { toSimplifiedChinese } = require('../../shared/chinese-text');
 function dailyBotCommand(message) {
-  const text = cleanText(message);
+  const text = toSimplifiedChinese(cleanText(message));
   return text === '签到' ? 'checkin' : text === '抽签' ? 'fortune' : null;
 }
 
 function isBilibiliCommandText(message, customMatcher = null) {
   const text = cleanText(message);
+  const commandText = toSimplifiedChinese(text);
   return (
-    text.startsWith('点歌') ||
-    text.startsWith('随机点歌') ||
-    text.startsWith('取消点歌') ||
+    commandText.startsWith('点歌') ||
+    commandText.startsWith('随机点歌') ||
+    commandText.startsWith('取消点歌') ||
     Boolean(dailyBotCommand(text)) ||
     (typeof customMatcher === 'function' && customMatcher(text) === true)
   );

@@ -1,13 +1,13 @@
 // Client settings and canvas parameters share grouping and disclosure rules.
 const GROUPS = [
   ['basic', '文字排版', [
-    'style', 'desktopLyricFontFamily', 'desktopLyricFontSize', 'desktopLyricFontWeight',
-    'desktopLyricTextAlign', 'desktopLyricLineHeight',
+    'style', 'desktopLyricFontFamily', 'desktopLyricFontSize', 'desktopLyricTranslationScale', 'desktopLyricFontWeight',
+    'desktopLyricTextAlign', 'desktopLyricLineHeight', 'desktopLyricLineGap',
     ['更多排版', 'desktopLyricLetterSpacing', 'desktopLyricTraditionalMode'],
   ], true],
   ['content', '显示内容', [
     'desktopLyricVisibleLines', 'desktopLyricHidePassedLines', 'desktopLyricShowTranslation', 'desktopLyricShowRoma',
-    'desktopLyricTranslationScale', 'desktopLyricTranslationOpacity',
+    'desktopLyricTranslationOpacity',
   ], true],
   ['highlight', '高亮与配色', [
     'desktopLyricKaraokeMode', 'desktopLyricTextColor', 'desktopLyricSungColor',

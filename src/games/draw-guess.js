@@ -1,6 +1,7 @@
 'use strict';
 
 const { createPublicError } = require('../shared/public-error');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 
 const { DEFAULT_WORDS, getWordCategorySummaries } = require('./draw-guess-words');
 const { createCanvasState, cloneCanvasState, applyCanvasOperation } = require('./draw-guess-canvas');
@@ -289,8 +290,7 @@ function compareScores(a, b) {
 }
 
 function normalizeGuessText(value) {
-  return String(value || '')
-    .normalize('NFKC')
+  return toSimplifiedChinese(String(value || '').normalize('NFKC'))
     .trim()
     .toLowerCase()
     .replace(/^(?:答案(?:是)?|我猜)(?:\s*[:：]\s*|\s*)/, '')

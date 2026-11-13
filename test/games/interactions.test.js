@@ -128,6 +128,29 @@ test('poll accepts the first complete valid choice per reliable viewer and prese
   f.service.dispose();
 });
 
+test('poll matches Chinese script variants while preserving options and one vote per viewer', (t) => {
+  const f = fixture();
+  t.after(() => f.service.dispose());
+  f.service.start({ ...poll, options: ['音乐', '電影'] });
+  f.send('1', '音樂');
+  f.send('1', '音乐');
+  f.send('2', '电影');
+  const options = f.service.getState().session.options;
+  assert.deepEqual(options.map((option) => option.text), ['音乐', '電影']);
+  assert.deepEqual(options.map((option) => option.votes), [1, 1]);
+});
+
+test('poll prefers exact options and rejects ambiguous Chinese script variants without consuming a vote', (t) => {
+  const f = fixture();
+  t.after(() => f.service.dispose());
+  f.service.start({ ...poll, options: ['头发', '頭髮'] });
+  f.send('1', '頭发');
+  assert.equal(f.service.getState().session.participants, 0);
+  f.send('1', '頭髮');
+  f.send('2', '头发');
+  assert.deepEqual(f.service.getState().session.options.map((option) => option.votes), [1, 1]);
+});
+
 test('rating keeps final valid score, rejects stale timestamps/replays and hides all aggregate inputs until finish', () => {
   const f = fixture();
   const id = f.service.start({ kind: 'rating' }).session.sessionId;

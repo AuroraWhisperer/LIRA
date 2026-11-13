@@ -1,6 +1,7 @@
 'use strict';
 
 const { cleanText, splitTextIntoCharacters } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { DANMAKU_MESSAGE_LIMIT } = require('../bilibili/danmaku/contract');
 const { ANSWER_QUALITY_POLICY, buildTools } = require('./prompt');
 const { normalizeConversationContext } = require('./conversation-context');
@@ -27,10 +28,14 @@ function buildAvailableTools(config, excludedToolNames) {
 
 function extractTriggeredQuestion(message, trigger) {
   const text = cleanText(message);
-  const keyword = cleanText(trigger);
-  const index = keyword ? text.indexOf(keyword) : -1;
+  const characters = Array.from(text);
+  const comparable = Array.from(toSimplifiedChinese(text));
+  const keyword = Array.from(toSimplifiedChinese(cleanText(trigger)));
+  const index = keyword.length
+    ? comparable.findIndex((_, start) => keyword.every((character, offset) => comparable[start + offset] === character))
+    : -1;
   if (index < 0) return null;
-  const question = cleanText(`${text.slice(0, index)} ${text.slice(index + keyword.length)}`).replace(
+  const question = cleanText(`${characters.slice(0, index).join('')} ${characters.slice(index + keyword.length).join('')}`).replace(
     /^[，,。.!！?？:：、\s]+|[\s]+$/g,
     '',
   );

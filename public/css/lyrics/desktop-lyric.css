@@ -6,6 +6,7 @@
   --preview-size: 42px;
   --preview-translation-size: 27px;
   --preview-line-height: 1.4;
+  --preview-line-gap: 24px;
   --preview-color: #000000;
   --preview-stroke: #ffffff;
   --preview-stroke-width: 0px;
@@ -180,11 +181,11 @@
 .desktop-lyric-preview-timeline {
   display: flex;
   flex-direction: column;
-  gap: clamp(15px, 2.4vh, 28px);
-  width: min(100%, 980px);
+  gap: var(--preview-line-gap);
+  width: 100%;
   min-height: 100%;
   margin: 0 auto;
-  padding: clamp(72px, 16vh, 148px) clamp(24px, 6vw, 82px) clamp(180px, 38vh, 340px);
+  padding: 72px clamp(24px, 6%, 82px) 180px;
   align-items: var(--preview-row-align);
   transform: translate3d(var(--preview-translate-x), var(--preview-translate-y), 0) rotateX(var(--preview-rotate-x))
     rotateY(var(--preview-rotate-y)) scale(var(--preview-scale, 1));
@@ -196,7 +197,7 @@
   position: relative;
   width: fit-content;
   max-width: 100%;
-  padding: 6px 12px;
+  padding: 0 12px;
   border-radius: 13px;
   color: var(--preview-color);
   font-family: var(--preview-font);

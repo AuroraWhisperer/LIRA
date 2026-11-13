@@ -21,11 +21,13 @@ test('request feedback retains a bounded delivery window without changing the qu
   recordQueueRequestResult(context, { accepted: true, requesterName: '观众', songName: '歌曲' });
   const first = getQueueSnapshot(context).requestResult;
   assert.equal(first.accepted, true);
-  recordQueueRequestResult(context, { accepted: false, requesterName: '观众', songName: '歌曲' });
+  const reason = '点歌规则暂不允许本次请求';
+  recordQueueRequestResult(context, { accepted: false, requesterName: '观众', songName: '歌曲', reason });
   const snapshot = getQueueSnapshot(context);
   assert.equal(snapshot.requestResult.accepted, false);
   assert.notEqual(snapshot.requestResult.id, first.id);
   assert.equal(snapshot.requestResult.songName, '歌曲');
+  assert.equal(snapshot.requestResult.reason, reason);
   assert.deepEqual(snapshot.requestResults.map((result) => result.id), [first.id, snapshot.requestResult.id]);
   assert.equal(snapshot.waiting.length, 0);
   snapshot.requestResult.songName = '不能改写 owner';
@@ -76,6 +78,7 @@ test('queue rejection codes reach HTTP and the existing optional danmaku reply',
   }
   assert.equal(notices.length, 1);
   assert.equal(notices[0].accepted, false);
+  assert.equal(notices[0].reason, '预期拒绝');
   assert.deepEqual(broadcasts, ['queue:request-result']);
   for (const enabled of ['true', 'false']) {
     const result = handleDanmakuMessage({
@@ -205,6 +208,18 @@ function requestFixture(t, settings = {}) {
   }) };
 }
 
+test('script variants cannot duplicate queued titles and cancellation still requires the same requester', (t) => {
+  const f = requestFixture(t, { allowDuplicate: 'false' });
+  const first = f.request({ message: '點歌 聽海' });
+  assert.equal(first.accepted, true);
+  assert.equal(first.queueItem.song_name, '聽海');
+  const repeated = f.request({ message: '点歌 听海', uid: '43' });
+  assert.equal(repeated.code, 'SONG_ALREADY_QUEUED');
+  assert.equal(f.request({ message: '取消點歌 听海', uid: '43' }).accepted, false);
+  assert.equal(f.request({ message: '取消點歌 听海' }).accepted, true);
+  assert.equal(f.count('queue'), 0);
+});
+
 test('cancelling without a title removes the latest own active request by request time, regardless of queue order', (t) => {
   const f = requestFixture(t);
   const at = Date.parse('2026-10-27T04:00:00Z');
@@ -323,6 +338,7 @@ test('request results reach display snapshots once while ordinary messages and c
     assert.equal(snapshots.length, 2);
     assert.equal(snapshots[1].reason, 'queue:request-result');
     assert.equal(snapshots[1].queue.requestResult.accepted, false);
+    assert.ok(snapshots[1].queue.requestResult.reason, 'the message entry preserves its public rejection reason');
     assert.equal(snapshots[1].queue.waiting.length, 1, 'rejected requests do not enter the queue');
     const rejectedId = snapshots[1].queue.requestResult.id;
     client.handlers.onMessage({ ...event, message: '普通聊天' });
@@ -406,6 +422,32 @@ test('request controls default to unrestricted and manual library insertion keep
   Object.assign(f.settings, { userQueueLimit: '1', songRequestGuardLevel: '1', songRequestMinMedalLevel: '30',
     songRequestUserBlacklist: JSON.stringify([{ uid: '42', expiresAt: 0 }]) });
   assert.ok(f.add({ requesterUid: '42', requesterName: '主播手动点入', requesterIdentityType: 'uid' }));
+});
+
+test('requiring a separating space ignores accidental requests without side effects and can be disabled', (t) => {
+  for (const source of ['danmaku', 'superchat']) {
+    const f = requestFixture(t, {
+      songRequestRequireSpace: 'true', userCooldownSeconds: '60',
+      songCooldownMode: 'hours', songCooldownValue: '1',
+    });
+    const ignored = f.request({ message: '点歌测试歌曲', source });
+    assert.equal(ignored.accepted, false, source);
+    assert.equal(ignored.command, undefined);
+    assert.equal(ignored.autoReply, undefined);
+    for (const table of ['queue', 'requests', 'user_cooldowns', 'song_cooldowns']) {
+      assert.equal(f.count(table), 0, `${source}: ${table}`);
+    }
+    const accepted = f.request({ message: '点歌 测试歌曲', source });
+    assert.equal(accepted.accepted, true, source);
+    assert.equal(accepted.queueItem.song_name, '测试歌曲');
+    for (const table of ['queue', 'requests', 'user_cooldowns', 'song_cooldowns']) {
+      assert.equal(f.count(table), 1, `${source}: ${table}`);
+    }
+    assert.equal(f.request({ message: '取消点歌测试歌曲', source }).accepted, true);
+    assert.equal(f.request({ message: '随机点歌', uid: '43', source }).accepted, true);
+    f.settings.songRequestRequireSpace = 'false';
+    assert.equal(f.request({ message: '点歌另一首', uid: '44', source }).accepted, true);
+  }
 });
 
 test('disabling SC song requests keeps existing songs and ignores new SC commands without consuming cooldowns', (t) => {

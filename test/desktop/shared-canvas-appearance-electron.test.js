@@ -318,6 +318,8 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
         section.style.height = 'calc(100vh - 48px)';
       }
     }
+    const toast = document.createElement('div'); toast.id = 'toast'; toast.className = 'toast-stack';
+    document.body.append(toast);
     const status = document.createElement('span'); status.id = 'wsStatus'; document.body.append(status);
     const { createAdminStateRenderer } = await import('/js/admin/state-renderer.js');
     const { eventBus, Events } = await import('/js/shared/event-bus.js');
@@ -351,26 +353,26 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   await desktop.waitForFunction(() => document.getElementById('giftDropSize').value === '134');
   const refresh = canvas.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
     && response.ok() && (await response.text()).includes('"giftDropSize":"152"'));
-  await desktop.locator('#giftDropSize').fill('152'); await desktop.locator('#giftDropSize').dispatchEvent('input');
+  const submitted = desktop.waitForRequest(request => request.url().endsWith('/api/settings')
+    && request.method() === 'POST' && request.postDataJSON()?.giftDropSize === '152');
+  await desktop.locator('#giftDropSize').fill('152');
   const bounce = canvas.locator('[data-component-parameter="giftDropBounce"]');
   await bounce.fill('60'); await bounce.dispatchEvent('input'); await bounce.blur();
   await desktop.waitForFunction(() => document.getElementById('giftDropBounce').value === '60');
-  const submitted = desktop.waitForRequest(request => request.url().endsWith('/api/settings')
-    && request.method() === 'POST' && request.postDataJSON()?.giftDropSize === '152');
   await size.focus();
-  await desktop.locator('#giftDropSaveBtn').click();
   assert.deepEqual((await submitted).postDataJSON(), { giftDropSize: '152' }, 'saving a desktop draft preserves other canvas changes');
   await refresh;
   await size.blur();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '152');
   await desktop.route('**/api/settings', route => route.fulfill({ status: 500,
     json: { ok: false, error: 'Synthetic local write failure' } }), { times: 1 });
-  await desktop.locator('#giftDropSize').fill('160'); await desktop.locator('#giftDropSize').dispatchEvent('input');
-  await desktop.locator('#giftDropSaveBtn').click();
-  await desktop.locator('#giftDropSaveState[data-state="error"]').waitFor();
+  const failedWrite = desktop.waitForResponse(response => response.url().endsWith('/api/settings') && response.status() === 500);
+  await desktop.locator('#giftDropSize').fill('160');
+  await failedWrite;
+  await desktop.locator('.toast-error').last().waitFor();
   assert.equal(await desktop.locator('#giftDropSize').inputValue(), '160');
   assert.equal(await size.inputValue(), '152');
-  await desktop.locator('#giftDropSaveBtn').click();
+  await desktop.locator('#giftDropSize').dispatchEvent('change');
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '160');
   await add('gift-frame', '礼物摇摇乐');
   await canvas.locator('.gift-motion-canvas-settings:not([hidden])').getByRole('checkbox', { name: '礼物名', exact: true }).uncheck();

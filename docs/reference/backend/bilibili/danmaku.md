@@ -130,6 +130,10 @@ unsubscribe();
 
 ### 5.1 命令识别(入口统一)
 
+文字判定使用 [chinese-text.js](../../../../src/shared/chinese-text.js) 的 `toSimplifiedChinese`，对输入与配置关键词做简繁字形等价比较；字表固定为 OpenCC 1.1.9 的 TSCharacters 首选映射并展平连续映射，随客户端内置，无联网转换或新增运行依赖。该工具只生成比较副本，不改写弹幕、昵称、歌库字段或身份键，也不扩展地区词汇同义词。
+
+点歌、随机点歌、取消点歌、签到、抽签和云端完整匹配命令占用都支持繁体，例如 `點歌 後來`、`隨機點歌 國語＋懷舊`、`取消點歌`、`簽到`、`抽籤`。实时入口、历史轮询与诊断采用一致的命令判断；完整匹配、菜单和礼物相关指令仍由对应 Server owner 执行，必须更新配套服务端代码。
+
 `isBilibiliCommandText`([command-text.js:9-14](../../../../src/bilibili/danmaku/command-text.js#L9-L14))是 WebSocket / 历史轮询 / SC 二次分发的统一名单:
 
 ```
@@ -158,10 +162,10 @@ text.startsWith('点歌') || text.startsWith('随机点歌') || text.startsWith(
 
 `handleDanmakuMessage(context, danmaku)`([bilibili-message-handler.js:11-101](../../../../src/bilibili/bilibili-message-handler.js#L11-L101)):
 
-1. `source === 'superchat'` 且 `scSongRequestEnabled === 'false'` 时在解析前返回 `{accepted:false, reason:'SC 点歌已关闭。'}`，诊断为 `sc-song-requests-disabled`；不生成点歌回复、不写入队列或冷却。SC 留言由独立的 `onSuperChat` 路径照常接收。其他情况解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`
+1. `source === 'superchat'` 且 `scSongRequestEnabled === 'false'` 时在解析前返回 `{accepted:false, reason:'SC 点歌已关闭。'}`，诊断为 `sc-song-requests-disabled`；不生成点歌回复、不写入队列或冷却。SC 留言由独立的 `onSuperChat` 路径照常接收。其他情况解析命令 → 非命令 `{accepted:false, reason:'不是点歌指令。'}`。解析为 `request` 后，若 `songRequestRequireSpace === 'true'`，则归一化文本必须以「点歌 」开头；紧连格式按相同非命令结果忽略，不带 `command`，不产生点歌结果提示、入队或冷却。开关默认关闭，沿用 `cleanText` 空白归一化；随机和取消指令不受此格式限制。
 2. `cancel` 先检查 `songRequestCancelEnabled`（默认开启），为 `'false'` 时返回 `{accepted:false, reason:'观众取消点歌已关闭。', command}`，诊断为 `song-request-cancel-disabled`；不删除、不广播、不生成回复、不改变冷却。开启时在暂停、黑名单、资格和冷却检查前调用队列 `cancelQueueItem`，归属、歌名与选择规则见 [services.md](../music/services.md#85-cancelqueueitemcontext-input)。成功返回 `{accepted:true, command, queueItem}` 并沿用现有点歌快照广播；无法匹配本人活跃点歌时返回 `{accepted:false, reason:'没有找到你点的待处理歌曲。', command}`，不广播、不生成自动回复、不写入或重置冷却。命令识别沿用实时/历史统一的过期检查和去重，避免一条取消弹幕被重复执行。
    其余命令 `settings.paused === 'true'` → 拒绝
-   普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
+   普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 在简繁等价后区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
 3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。`src/music/user-request-cooldown.js` 由 `domainServices` 创建并持有，集中管理内存记录、24 小时过期清理、启动恢复及成功接纳后的 `cooldownStore.touch` 持久化（DB 失败保留内存记录并告警，不阻断本次点歌）；Bilibili 重连不重建冷却。消息处理器以 `v2:` + JSON `[fanScope || null, identity.type, identity.uid]` 构键，UID 与 `open_id`、不同主播作用域均独立；只有冷却大于 0 且稳定身份存在的成功接纳才写入，0 秒或无身份请求不生成昵称/匿名键。旧裸 UID、`open_id:` 或昵称记录不映射到新键、不对任何租户生效，保留至正常清理。启用间隔但缺少稳定身份时拒绝。完整清库在数据库全部提交成功后，依原运行状态重置顺序清空内存；数据库阶段部分失败不重置。
 4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的歌曲冷却、配额、用户黑名单及身份资格拒绝转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。队列已满、非歌库歌曲、重复歌曲、个人配额及身份确认的直播措辞在桥接层按错误码映射，不改变 `result.reason`、HTTP 响应或诊断使用的领域原文。
 5. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/曲风,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))

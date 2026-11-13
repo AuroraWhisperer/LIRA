@@ -24,10 +24,10 @@
 
 .desktop-lyric-karaoke-choice {
   display: grid;
-  min-height: 48px;
+  min-height: 42px;
   align-content: center;
   gap: 3px;
-  padding: 7px 8px;
+  padding: 2px 8px;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   color: var(--muted);
@@ -48,6 +48,7 @@
 
 .desktop-lyric-karaoke-choice small {
   color: inherit;
+  font-size: 0.75em;
   line-height: 1.2;
   opacity: 0.78;
 }

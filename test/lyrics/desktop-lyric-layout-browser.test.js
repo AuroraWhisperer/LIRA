@@ -91,19 +91,31 @@ async function render(page, text, tokens, settings) {
   }, { text, tokens, settings });
 }
 
-test('configured lyric sizes remain exact in the output and scale to 65% in the client preview', async t => {
+async function useAdminPreview(page, width, height) {
+  const markup = fs.readFileSync(path.join(__dirname, '../../public/pages/admin/song/desktop-lyric-preview.html'), 'utf8');
+  await page.addStyleTag({ url: `${fixture.origin}/css/admin/desktop-lyric-preview.css` });
+  await page.evaluate(async markup => {
+    window.testLyricRenderer.dispose();
+    document.body.className = 'desktop-lyric-workspace';
+    document.body.innerHTML = markup;
+    document.getElementById('desktopLyricLivePreview').style.width = '480px';
+    const { desktopLyricPreview } = await import('/js/admin/desktop-lyric-preview.js');
+    desktopLyricPreview.init(null, { readSettings: () => ({}) });
+    window.testLyricRenderer = desktopLyricPreview;
+  }, markup);
+  for (const [axis, value] of [['Width', width], ['Height', height]]) {
+    await page.locator(`#desktopLyricPreview${axis}`).fill(String(value));
+    await page.locator(`#desktopLyricPreview${axis}`).dispatchEvent('change');
+  }
+}
+
+test('preview scales the whole output canvas without changing configured sizes or long-line wrapping', async t => {
   const page = await openRenderer(t);
-  await page.setViewportSize({ width: 720, height: 800 });
+  await page.setViewportSize({ width: 1800, height: 360 });
+  const outputLayouts = new Map();
   for (const surface of ['output', 'preview']) {
     if (surface === 'preview') {
-      await page.addStyleTag({ url: `${fixture.origin}/css/admin/desktop-lyric-preview.css` });
-      await page.evaluate(() => {
-        document.body.className = 'desktop-lyric-workspace';
-        const card = document.getElementById('desktopLyricSurface');
-        card.classList.remove('lyric-window-card');
-        card.style.width = '480px';
-        document.getElementById('desktopLyricPreviewStage').classList.remove('lyric-window-stage');
-      });
+      await useAdminPreview(page, 1800, 360);
     }
     for (const fontSize of [24, 56, 72]) {
       const actual = await page.evaluate(async fontSize => {
@@ -111,19 +123,65 @@ test('configured lyric sizes remain exact in the output and scale to 65% in the 
         renderer.applySettings({ desktopLyricFontSize: String(fontSize), desktopLyricTranslationScale: '0.5',
           desktopLyricHideOnPause: 'false', desktopLyricShowRoma: 'true' });
         renderer.updateLyricTimeline({ status: 'ready', lines: [{ startMs: 0,
-          text: '字号来自设置', translation: 'The selected size', roma: 'Selected size' }] });
+          text: 'When the night is long I will keep singing these words until the morning comes',
+          translation: '长句按实际画面宽度换行', roma: 'Selected size' }] });
         await document.fonts.ready;
-        return ['text', 'translation', 'roma'].map(kind => parseFloat(getComputedStyle(
-          document.querySelector(`.desktop-lyric-preview-row-${kind}`),
-        ).fontSize));
+        const text = document.querySelector('.desktop-lyric-preview-row-text');
+        return {
+          sizes: ['text', 'translation', 'roma'].map(kind => parseFloat(getComputedStyle(
+            document.querySelector(`.desktop-lyric-preview-row-${kind}`),
+          ).fontSize)),
+          width: text.clientWidth, height: text.clientHeight,
+          viewportWidth: document.getElementById('desktopLyricPreviewViewport').clientWidth,
+          renderedWidth: text.getBoundingClientRect().width,
+        };
       }, fontSize);
-      const expectedSize = fontSize * (surface === 'preview' ? 0.65 : 1);
-      for (const [index, expected] of [expectedSize, expectedSize * 0.5, expectedSize * 0.5 * 0.86].entries()) {
-        assert.ok(Math.abs(actual[index] - expected) < 0.01,
-          `${surface}/${fontSize}px: text ${index} rendered at ${actual[index]}px instead of ${expected}px`);
+      for (const [index, expected] of [fontSize, fontSize * 0.5, fontSize * 0.5 * 0.86].entries()) {
+        assert.ok(Math.abs(actual.sizes[index] - expected) < 0.01,
+          `${surface}/${fontSize}px: text ${index} rendered at ${actual.sizes[index]}px instead of ${expected}px`);
+      }
+      assert.equal(actual.viewportWidth, 1800);
+      if (surface === 'output') outputLayouts.set(fontSize, actual);
+      else {
+        const output = outputLayouts.get(fontSize);
+        assert.equal(actual.width, output.width, 'Preview uses the same logical text width as output.');
+        assert.equal(actual.height, output.height, 'Long lyrics wrap identically in preview and output.');
+        assert.ok(actual.renderedWidth < actual.width / 2, 'The whole preview canvas fits inside the panel.');
       }
     }
   }
+});
+
+test('wide browser sources use their full width instead of wrapping at a fixed content limit', async t => {
+  const page = await openRenderer(t);
+  const text = 'When the night is long I will keep singing these words until the morning comes';
+  const heights = [];
+  for (const width of [960, 1800]) {
+    await page.setViewportSize({ width, height: 540 });
+    await render(page, text, [], { desktopLyricKaraokeMode: 'off', desktopLyricLineHeight: '1.4' });
+    heights.push(await page.locator('.desktop-lyric-preview-row-text').first().evaluate(element => element.offsetHeight));
+  }
+  assert.ok(heights[1] < heights[0], 'Increasing the browser source to 1800px must reduce premature wrapping.');
+});
+
+test('sentence spacing stays independent of wrapped-line spacing', async t => {
+  const page = await openRenderer(t);
+  const text = 'When the night is long I will keep singing these words until the morning comes';
+  await page.setViewportSize({ width: 480, height: 540 });
+  const layouts = [];
+  for (const gap of [0, 80]) {
+    await render(page, text, [], { desktopLyricKaraokeMode: 'off', desktopLyricLineGap: String(gap) });
+    layouts.push(await page.locator('.desktop-lyric-preview-row').evaluateAll(rows => ({
+      gap: rows[1].offsetTop - rows[0].offsetTop - rows[0].offsetHeight,
+      height: rows[0].offsetHeight,
+    })));
+  }
+  assert.equal(layouts[0].gap, 0);
+  assert.equal(layouts[1].gap, 80);
+  assert.equal(layouts[0].height, layouts[1].height, 'Sentence gaps must not change wrapped line height.');
+  await render(page, text, [], { desktopLyricKaraokeMode: 'off', desktopLyricLineHeight: '2' });
+  assert.ok(await page.locator('.desktop-lyric-preview-row').first().evaluate(row => row.offsetHeight) > layouts[1].height,
+    'Wrapped-line spacing must still adjust the height within each sentence.');
 });
 
 test('translation and romanization can be shown independently without changing the original lyric', async t => {

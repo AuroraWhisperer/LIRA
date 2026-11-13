@@ -53,6 +53,10 @@ function normalizeSettingValue(key, rawValue) {
     catch (_) { return null; }
   }
   if (Object.hasOwn(LYRIC_VISUAL_DEFAULTS, key)) return normalizeLyricVisualSetting(key, rawValue);
+  if (key === 'desktopLyricLineGap') {
+    try { return normalizeSceneExtraConfig('lyrics', { [key]: rawValue })[key]; }
+    catch (_) { return null; }
+  }
   if (key === ADVANCED_LYRIC_PRESETS_SETTING) return normalizeAdvancedLyricPresets(rawValue);
   if (Object.hasOwn(GIFT_MOTION_DEFAULTS, key)) return normalizeGiftMotionSetting(key, rawValue);
   if (key === NOW_PLAYING_SETTING) return normalizeNowPlayingSetting(rawValue);

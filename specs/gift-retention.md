@@ -81,8 +81,11 @@ Preserving local detail evidence does not pin obsolete statistical revisions.
 
 Server-private UID and room scope must not enter the device statistical DTO.
 The server merges those dimensions before export. Local live-consumer statistics
-are retained separately: `gift_stats_eligible`, sprint resets, user/box analysis
-and pending overtime retain their existing semantics. Importing or archiving must
+are retained separately: `gift_stats_eligible`, sprint resets and pending overtime
+retain their existing semantics. Blind-box totals and user/box analysis include
+visible final history details from the active source, independently of live-consumer
+eligibility; retained pages become visible only after snapshot activation. Event
+time, rather than import time, determines the local calendar day. Importing or archiving must
 not trigger gifts, thanks, overtime, wishes or other live actions for historical-only records. A locally accepted progress group is completed by the existing final importer only after activation, retaining its original eligibility.
 
 Within 365 days, original gift rows preserve exact event instants for local-day

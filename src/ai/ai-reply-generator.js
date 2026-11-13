@@ -2,6 +2,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { cleanText, splitTextIntoCharacters } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { SAFE_REFUSAL, DOUBAO_CHAT_POLICY, checkLocalInput, buildInputReviewPrompt,
   buildOutputReviewPrompt, parseSafetyReview } = require('./safety');
 const { getQuotaToolNames } = require('./api-quota-store');
@@ -106,7 +107,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
 
   function createTurn({ uid, roomId, userName, question, localRefusal, modelSessionRevision }) {
     const canRemember = Boolean(roomId && uid && !uid.startsWith('name:'));
-    const endConversation = /^(?:结束对话|清空对话)[。！!？?\s]*$/u.test(question);
+    const endConversation = /^(?:结束对话|清空对话)[。！!？?\s]*$/u.test(toSimplifiedChinese(question));
     let persona;
     let personaScope;
     let conversationInitialized = false;

@@ -22,7 +22,7 @@ function createMessageApplication({ getSettings, getDefaultSettings, userRequest
     const result = handleDanmakuMessage(songRequests, danmaku);
     if (result.command?.type === 'request' || result.command?.type === 'random') {
       recordRequestResult({ accepted: result.accepted, requesterName: danmaku.userName,
-        songName: result.queueItem?.song_name || result.command.songName });
+        songName: result.queueItem?.song_name || result.command.songName, reason: result.reason });
     }
     if (result.command) return result;
     if (customReplies.isCloudOwnedCommand(danmaku.message)) {

@@ -51,6 +51,7 @@ export function createDesktopLyric({
     ['desktopLyricFontSize', 24, 72, 56],
     ['desktopLyricLetterSpacing', -0.1, 2, 0],
     ['desktopLyricLineHeight', 1, 2, 1.4, 100],
+    ['desktopLyricLineGap', 0, 120, 24],
     ['desktopLyricStrokeWidth', 0, 6, 3],
     ['desktopLyricShadowIntensity', 0, 1, 0.35, 100],
     ['desktopLyricShadowBlur', 0, 30, 8],

@@ -36,6 +36,46 @@ function closeTestDatabases(testContext) {
   fs.rmSync(testContext.dataDir, { recursive: true, force: true });
 }
 
+test('song matching folds both scripts, preserves exact priority and counts variant ambiguities', (t) => {
+  const store = createTestSongStore(t);
+  const simplified = songService.saveSong(store, { name: '后来', artist: '刘若英' });
+  const traditional = songService.saveSong(store, { name: '聽海', artist: '張惠妹' });
+  assert.equal(songService.findSong(store, '後來', '劉若英').id, simplified.id);
+  assert.equal(songService.findSong(store, '听海', '张惠妹').id, traditional.id);
+  songService.saveSong(store, { name: '後來', artist: '另一位歌手' });
+  assert.equal(songService.findUniqueSongNameMatch(store, '后来').id, simplified.id);
+  songService.saveSong(store, { name: '聽說你' });
+  assert.equal(songService.findUniqueSongNameMatch(store, '听说', 'prefix').name, '聽說你');
+  songService.saveSong(store, { name: '听说爱情回来过' });
+  assert.equal(songService.findUniqueSongNameMatch(store, '聽說', 'prefix'), null);
+  songService.saveSong(store, { name: '如果你也听说' });
+  assert.equal(songService.findUniqueSongNameMatch(store, '也聽說').name, '如果你也听说');
+  songService.saveSong(store, { name: '也聽說過' });
+  assert.equal(songService.findUniqueSongNameMatch(store, '也听说'), null);
+});
+
+test('traditional danmaku resolves library titles while retaining raw requests and blacklist rules', () => {
+  const f = createTestDatabases('traditional-danmaku-');
+  try {
+    const settingsStore = createSettingsStore(f.databases.songDb);
+    settingsStore.setSettings({ onlyFromLibrary: 'true', songRequestRequireSpace: 'true', songRequestBlacklist: '廣島之戀' });
+    const services = createDomainServices({ db: f.databases, settingsStore });
+    services.songs.save({ name: '后来', artist: '刘若英' });
+    const message = '點歌 後來';
+    const accepted = services.messages.handleDanmaku({ message, userName: '觀眾', uid: '123' });
+    assert.equal(accepted.accepted, true);
+    assert.equal(accepted.queueItem.song_name, '后来');
+    assert.equal(accepted.queueItem.requester_name, '觀眾');
+    assert.equal(f.databases.songDb.prepare('SELECT message FROM requests WHERE queue_id = ?')
+      .get(accepted.queueItem.id).message, message);
+    assert.equal(services.messages.handleDanmaku({ message: '點歌後來', uid: '123' }).accepted, false);
+    const blocked = services.messages.handleDanmaku({ message: '點歌 广岛之恋', uid: '123' });
+    assert.equal(songRequestReason(blocked.reason), 'song-request-blacklisted');
+  } finally {
+    closeTestDatabases(f);
+  }
+});
+
 test('unique song-name matching prefers exact names and ignores disabled or ambiguous matches', (t) => {
   const songStore = createTestSongStore(t);
 

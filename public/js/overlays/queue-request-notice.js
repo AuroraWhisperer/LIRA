@@ -51,7 +51,8 @@ export function createQueueRequestNotice(element) {
     layoutKey = '';
     const requester = ownerDocument.createElement('strong');
     requester.textContent = active.requesterName;
-    message.replaceChildren(requester, ownerDocument.createTextNode(` 点歌 ${active.songName}`));
+    const reason = !active.accepted && active.reason ? `：${active.reason}` : '';
+    message.replaceChildren(requester, ownerDocument.createTextNode(` 点歌 ${active.songName}${reason}`));
     outcome.textContent = active.accepted ? '成功' : '失败';
     element.dataset.result = active.accepted ? 'success' : 'failure';
     element.hidden = false;

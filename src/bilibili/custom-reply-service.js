@@ -3,6 +3,7 @@
 'use strict';
 
 const { cleanText, truncateText } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { fixedReplyParameters } = require('../shared/fixed-reply-contract');
 
 const MAX_CUSTOM_REPLY_RULES = 30;
@@ -48,11 +49,11 @@ function createCustomReplyService(dependencies = {}) {
       }
       cloudRevision = revision;
       cloudTriggers = new Set(projected.customExactReplyEnabled
-        ? ['菜单', ...projected.customExactReplies.map((rule) => rule.trigger)] : []);
+        ? ['菜单', ...projected.customExactReplies.map((rule) => toSimplifiedChinese(rule.trigger))] : []);
     },
 
     isCloudOwnedCommand(message) {
-      return cloudTriggers.has(String(message || '').trim());
+      return cloudTriggers.has(toSimplifiedChinese(String(message || '').trim()));
     },
 
     handleDanmaku(danmaku = {}) {
@@ -75,7 +76,7 @@ function createCustomReplyService(dependencies = {}) {
     },
 
     isCommandText(message) {
-      return cloudTriggers.has(String(message || '').trim()) || Boolean(findCurrentRule(message));
+      return cloudTriggers.has(toSimplifiedChinese(String(message || '').trim())) || Boolean(findCurrentRule(message));
     },
   };
 }
@@ -87,10 +88,10 @@ function findCustomReplyRule(message, settings = {}) {
 }
 
 function matchCustomReplyRule(text, rules) {
-  const normalizedText = text.toLocaleLowerCase();
+  const normalizedText = toSimplifiedChinese(text).toLocaleLowerCase();
   return (
     rules.find(
-      (rule) => rule.enabled !== false && normalizedText.includes(rule.keyword.toLocaleLowerCase()),
+      (rule) => rule.enabled !== false && normalizedText.includes(toSimplifiedChinese(rule.keyword).toLocaleLowerCase()),
     ) || null
   );
 }

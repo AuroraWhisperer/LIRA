@@ -123,9 +123,9 @@
 }
 
 .dynamic-lottery-panel [data-lottery-fields] {
-  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr);
-  align-items: start;
-  gap: var(--spacing-md) var(--spacing-xl);
+  grid-template-columns: minmax(140px, 1fr) minmax(0, 2fr);
+  align-items: stretch;
+  gap: 12px;
 }
 
 .dynamic-lottery-content {
@@ -134,8 +134,13 @@
 
 .dynamic-lottery-field {
   display: grid;
+  align-content: start;
   gap: var(--spacing-sm);
   min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
 }
 
 .dynamic-lottery-field > label,

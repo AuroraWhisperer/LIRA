@@ -158,14 +158,18 @@
 
 .blindbox-appearance-fields {
   display: grid;
-  gap: 14px;
+  gap: 10px;
 }
 
 .blindbox-appearance-row {
   display: grid;
   grid-template-columns: 56px minmax(0, 1fr);
   align-items: end;
-  gap: 16px;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
 }
 
 .blindbox-row-title {

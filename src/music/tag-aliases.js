@@ -1,6 +1,8 @@
 // 观众叫法到歌库标准标签的单向映射，不依赖点歌、数据库或队列状态。
 'use strict';
 
+const { toSimplifiedChinese } = require('../shared/chinese-text');
+
 const LIBRARY_TAG_ALIASES = {
   抒情: ['情歌', '抒情歌', '抒情歌曲', '慢情歌'],
   治愈: ['治愈系', '治愈向', '治愈歌曲', '暖心'],
@@ -40,7 +42,7 @@ function matchesNormalizedTags(libraryTag, viewerTerm, standardTag) {
 }
 
 function normalizeTag(value) {
-  return String(value || '')
+  return toSimplifiedChinese(value || '')
     .replace(/\s+/g, ' ')
     .trim()
     .toLocaleLowerCase('zh-Hans-CN');

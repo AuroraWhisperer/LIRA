@@ -45,8 +45,8 @@ body.player-dock-expanded .song-workspace {
 .queues-row .queue-panel .panel-header {
   flex: 0 0 auto;
   flex-wrap: wrap;
-  min-height: 64px;
-  padding: 12px 16px;
+  min-height: 56px;
+  padding: 8px 12px;
   gap: 12px;
   border-bottom: 1px solid var(--color-border-light);
   background: var(--surface);
@@ -128,6 +128,11 @@ body.player-dock-expanded .song-workspace {
   stroke-linejoin: round;
 }
 
+.queues-row .queue-actions button[data-copy] {
+  display: grid;
+  place-items: center;
+}
+
 .queues-row .queue-panel .panel-header button.secondary:not(:disabled) {
   border-color: var(--border);
   background: var(--surface);
@@ -203,7 +208,7 @@ body.player-dock-expanded .song-workspace {
   overflow: hidden;
   display: flex;
   max-height: none;
-  padding: 14px 16px 16px;
+  padding: 12px 0 12px 12px;
   background: color-mix(in srgb, var(--surface) 72%, var(--color-bg-tertiary));
 }
 
@@ -225,19 +230,29 @@ body.player-dock-expanded .song-workspace {
   flex: 1 1 auto;
   width: 100%;
   max-height: none;
-  grid-auto-rows: 76px;
+  grid-auto-rows: max-content;
   align-content: start;
   overflow-y: auto;
+  padding-right: 0;
+  /* 将滚动条固定预留在右侧留白内，避免条目随溢出状态横移。 */
+  scrollbar-gutter: stable;
 }
 
-.queues-row .queue-panel .sc-list {
-  grid-auto-rows: 82px;
+.queues-row .queue-panel .queue-list::-webkit-scrollbar {
+  width: var(--scrollbar-size);
 }
 
 .queues-row .queue-panel .queue-row {
-  min-height: 0;
+  min-height: 65px;
+  padding-top: 9px;
+  padding-bottom: 9px;
   overflow: hidden;
   border-color: var(--color-border-light);
+}
+
+.queues-row .queue-panel .queue-row .song {
+  display: block;
+  -webkit-line-clamp: unset;
 }
 
 .queues-row .queue-panel .queue-row:hover {

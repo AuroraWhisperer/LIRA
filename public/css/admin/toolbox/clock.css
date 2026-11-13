@@ -80,9 +80,6 @@
   padding-left: 20px;
   border-left: 1px solid var(--color-border-light);
 }
-.clock-settings-card #clockSaveState {
-  margin: 0;
-}
 .clock-parameter-section {
   display: grid;
   gap: 12px;

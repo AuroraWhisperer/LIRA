@@ -201,6 +201,25 @@
   max-width: 75ch;
 }
 
+#settingsNotificationsPanel .client-notification-group {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
+}
+
+#settingsNotificationsPanel .client-notification-group + .client-notification-group {
+  margin-top: 8px;
+}
+
+#settingsNotificationsPanel .client-notification-group > .client-settings-row {
+  padding: 0;
+}
+
+#settingsNotificationsPanel .client-notification-threshold {
+  padding-block: 12px 0;
+}
+
 #desktopNotificationsFeedback:empty {
   display: none;
 }
@@ -287,6 +306,23 @@
 
 .client-update-column {
   min-width: 0;
+}
+
+#otherDesktopUpdateFeature .desktop-update-card,
+#otherDesktopUpdateFeature .desktop-support-card,
+#otherDesktopUpdateFeature #resourceDownloads {
+  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
+}
+
+#otherDesktopUpdateFeature #resourceDownloads {
+  margin-top: 12px;
+}
+
+#otherDesktopUpdateFeature .desktop-support-row {
+  padding-block: 12px;
 }
 
 .client-about-name h3 {
@@ -401,10 +437,8 @@
 }
 
 @container client-settings (max-width: 839px) {
-  .client-update-column + .desktop-support-card {
-    margin-top: var(--spacing-xl);
-    padding-top: var(--spacing-lg);
-    border-top: 1px solid var(--color-border-light);
+  #otherDesktopUpdateFeature .client-update-column + .desktop-support-card {
+    margin-top: 12px;
   }
 }
 

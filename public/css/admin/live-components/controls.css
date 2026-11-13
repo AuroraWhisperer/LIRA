@@ -171,6 +171,10 @@
   transform: translateY(1px) rotate(225deg);
 }
 
+.live-components-page .component-style-parameters:not([data-style-parameters-panel='danmaku']) .component-parameter-advanced > summary {
+  margin-inline: 0;
+}
+
 /* Effect values read as compact property rows (label | slider | number), like the effect panels
    in Figma or Photoshop, instead of page-wide sliders under stacked labels. */
 .live-components-page .component-parameter-fields {

@@ -3,6 +3,7 @@
 const SONG_REQUEST_CONTROL_DEFAULTS = Object.freeze({
   scSongRequestEnabled: 'true',
   songRequestCancelEnabled: 'true',
+  songRequestRequireSpace: 'false',
   songRequestMatchMode: 'unique',
   userQueueLimit: '0',
   userCooldownCaptainSeconds: '',
@@ -46,7 +47,7 @@ function normalizeSongRequestSettingValue(key, rawValue) {
     }
     return entries === null ? null : JSON.stringify(entries);
   }
-  if (['scSongRequestEnabled', 'songRequestCancelEnabled', 'songRequestGuardMedalBypass'].includes(key)) {
+  if (['scSongRequestEnabled', 'songRequestCancelEnabled', 'songRequestRequireSpace', 'songRequestGuardMedalBypass'].includes(key)) {
     if ([true, 1, 'true', '1'].includes(rawValue)) return 'true';
     if ([false, 0, 'false', '0'].includes(rawValue)) return 'false';
     return null;
@@ -65,7 +66,7 @@ function serializeSongRequestSettings(settings) {
     const value = settings[key] ?? SONG_REQUEST_CONTROL_DEFAULTS[key];
     if (key === 'songRequestMatchMode') return [key, value];
     if (key === 'songRequestUserBlacklist') return [key, JSON.parse(value)];
-    if (['scSongRequestEnabled', 'songRequestCancelEnabled', 'songRequestGuardMedalBypass'].includes(key)) return [key, value === 'true'];
+    if (['scSongRequestEnabled', 'songRequestCancelEnabled', 'songRequestRequireSpace', 'songRequestGuardMedalBypass'].includes(key)) return [key, value === 'true'];
     return [key, value === '' ? '' : Number(value)];
   }));
 }

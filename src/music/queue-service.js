@@ -4,6 +4,7 @@
 
 const { randomUUID } = require('node:crypto');
 const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
 const { requestRejection, requesterIdentity, assertSongRequesterAllowed } = require('./song-request-policy');
@@ -80,19 +81,24 @@ function addQueueItem(context, input) {
 function filterSongsByCooldown(context, songs) {
   const settings = context.settings();
   if (!settings.songCooldownMode || settings.songCooldownMode === 'off') return songs;
-  const previous = new Map(context.store.listSongCooldowns().map((row) => [row.song_key, row.accepted_at_ms]));
+  const previous = new Map();
+  for (const row of context.store.listSongCooldowns()) {
+    const key = toSimplifiedChinese(row.song_key);
+    previous.set(key, Math.max(previous.get(key) || 0, row.accepted_at_ms));
+  }
   const at = Date.now();
-  return songs.filter((song) => songCooldownUntil(settings, previous.get(songCooldownKey(song.name, song.artist))) <= at);
+  return songs.filter((song) => songCooldownUntil(settings,
+    previous.get(toSimplifiedChinese(songCooldownKey(song.name, song.artist)))) <= at);
 }
 
 function cancelQueueItem(context, input) {
   const identity = requesterIdentity(input);
   if (!identity) return null;
 
-  const songName = cleanText(input.songName);
+  const songName = toSimplifiedChinese(cleanText(input.songName));
   const item = context.store.listActive()
     .filter((row) => row.requester_uid === identity.uid && row.requester_identity_type === identity.type
-      && (!songName || row.song_name === songName))
+      && (!songName || toSimplifiedChinese(row.song_name) === songName))
     .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at) || b.id - a.id)[0];
   if (!item) return null;
 
@@ -144,13 +150,15 @@ function getQueueSnapshot(context) {
     ...(requestResults.length ? { requestResults: requestResults.map((result) => ({ ...result })) } : {}) };
 }
 
-function recordQueueRequestResult(context, { accepted, requesterName, songName }) {
+function recordQueueRequestResult(context, { accepted, requesterName, songName, reason }) {
   const timestamp = Date.now();
+  const failureReason = accepted === true ? '' : cleanText(reason);
   context.requestResult = {
     id: randomUUID(),
     accepted: accepted === true,
     requesterName: cleanText(requesterName) || '观众',
     songName: cleanText(songName) || '随机歌曲',
+    ...(failureReason ? { reason: failureReason } : {}),
     expiresAt: timestamp + 4000,
   };
   context.requestResults = (context.requestResults || []).filter((result) => result.expiresAt > timestamp);

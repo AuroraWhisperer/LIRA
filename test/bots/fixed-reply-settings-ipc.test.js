@@ -41,6 +41,7 @@ test('fixed reply contract validates only the requested fields and strips unsoli
   for (const input of [
     null, {}, [], { streamerId: 1 }, { customExactReplyEnabled: 'true' }, { scheduledDanmakuEnabled: 1 },
     { customExactReplies: [{ trigger: '菜单', reply: '替代内置菜单' }] },
+    { customExactReplies: [{ trigger: '菜單', reply: '替代内置菜单' }] },
     { customExactReplies: [{ trigger: 'a', reply: 'a' }, { trigger: ' a ', reply: 'b' }] },
     { customExactReplies: [{ trigger: 'a', reply: 'a', enabled: true }] },
     { customExactReplies: [{ trigger: 'a'.repeat(31), reply: 'a' }] },

@@ -148,12 +148,14 @@ test('new request controls default to no additional restrictions and synchronize
   const { serializeCloudSettings, normalizeCloudSettingsSnapshot } = require('../../src/server/settings-contract');
   assert.equal(f.store.getSettings().scSongRequestEnabled, 'true');
   assert.equal(f.store.getSettings().songRequestCancelEnabled, 'true');
+  assert.equal(f.store.getSettings().songRequestRequireSpace, 'false');
   for (const [key, value] of Object.entries(SONG_REQUEST_CONTROL_DEFAULTS)) {
     assert.equal(f.store.getSettings()[key], value);
   }
   const patch = {
     scSongRequestEnabled: false,
     songRequestCancelEnabled: false,
+    songRequestRequireSpace: true,
     songRequestMatchMode: 'prefix',
     userQueueLimit: ' 02 ', userCooldownCaptainSeconds: '', userCooldownAdmiralSeconds: 0,
     userCooldownGovernorSeconds: '0030', songRequestMinMedalLevel: 5, songRequestGuardLevel: 3,
@@ -172,6 +174,7 @@ test('new request controls default to no additional restrictions and synchronize
   assert.equal(normalizeCloudSettingsSnapshot(cloud).userCooldownAdmiralSeconds, '0');
   assert.equal(saved.scSongRequestEnabled, 'false');
   assert.equal(saved.songRequestCancelEnabled, 'false');
+  assert.equal(saved.songRequestRequireSpace, 'true');
   assert.equal(saved.songRequestMatchMode, 'prefix');
   assert.equal(normalizeCloudSettingsSnapshot(cloud).songRequestMatchMode, 'prefix');
   assert.equal(normalizeCloudSettingsSnapshot(cloud).songRequestCancelEnabled, 'false');
@@ -188,6 +191,7 @@ test('request control limits reject invalid batches without saving or requesting
   const cases = {
     scSongRequestEnabled: [null, [], {}, 'TRUE', ' false ', 2],
     songRequestCancelEnabled: [null, [], {}, 'TRUE', ' false ', 2],
+    songRequestRequireSpace: [null, [], {}, 'TRUE', ' false ', 2],
     songRequestMatchMode: [null, [], {}, true, 1, '', ' prefix ', 'PREFIX', 'contains'],
     userQueueLimit: [-1, 301, '', ' ', true, null, [], {}, 1.5, '1e2'],
     userCooldownCaptainSeconds: [-1, 3601, ' ', null, [], false, 0.5],

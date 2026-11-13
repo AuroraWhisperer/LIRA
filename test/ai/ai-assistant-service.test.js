@@ -19,6 +19,13 @@ test('trigger extraction removes 小米 and preserves the question', () => {
   assert.equal(Array.from(truncateReply('猫'.repeat(70), 50)).length, 50);
 });
 
+test('trigger extraction matches Chinese variants while preserving original character boundaries', () => {
+  assert.equal(extractTriggeredQuestion('音樂 臺北天氣怎麼樣？', '音乐'), '臺北天氣怎麼樣？');
+  assert.equal(extractTriggeredQuestion('音乐 今天想聽什麼？', '音樂'), '今天想聽什麼？');
+  assert.equal(extractTriggeredQuestion('㓄音樂 臺北天氣？', '音乐'), '㓄 臺北天氣？');
+  assert.equal(extractTriggeredQuestion('𪠟音乐 臺北天氣？', '㓄音樂'), '臺北天氣？');
+});
+
 test('tool availability follows protocol, explicit opt-in and provider credentials', () => {
   const config = {
     ...AI_CONFIG_DEFAULTS,

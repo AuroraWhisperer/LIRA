@@ -13,6 +13,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
     paused: 'true',
     scSongRequestEnabled: 'false',
     songRequestCancelEnabled: 'false',
+    songRequestRequireSpace: 'true',
     songRequestMatchMode: 'prefix',
     queueLimit: '30',
     userCooldownSeconds: '60',
@@ -102,6 +103,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
   assert.equal(requests.length, 2);
   assert.equal(requests[1].payload.queueLimit, '40');
   assert.equal(requests[1].payload.songRequestCancelEnabled, 'false');
+  assert.equal(requests[1].payload.songRequestRequireSpace, 'true');
   assert.equal(requests[1].payload.songRequestMatchMode, 'prefix');
   assert.equal(Object.hasOwn(requests[1].payload, 'roomId'), false);
   assert.equal(reloads, 2);

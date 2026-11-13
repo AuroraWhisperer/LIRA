@@ -1,5 +1,7 @@
 'use strict';
 
+const { toSimplifiedChinese } = require('../shared/chinese-text');
+
 const AUTO_ACCEPT_SCORE = 70;
 const VERSION_RULES = [
   { pattern: /\blive\b|现场|演唱会/i, value: -15, label: 'Live / 现场' },
@@ -146,7 +148,7 @@ function normalizeSongKey(value) {
 }
 
 function normalizeComparableText(value) {
-  return cleanText(value).normalize('NFKC').toLowerCase();
+  return toSimplifiedChinese(cleanText(value).normalize('NFKC')).toLowerCase();
 }
 
 function hasSingleLetterTypo(requestedTitle = '', candidateTitle = '') {

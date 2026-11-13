@@ -50,7 +50,7 @@ test('each new result gets a full turn without initial replay, replacement or du
   const f = await noticeFixture(t);
   const initial = result('初始结果');
   const first = result('<img src=x>');
-  const second = result('第二位观众', { accepted: false, expiresAt: 1010 });
+  const second = result('第二位观众', { accepted: false, expiresAt: 1010, reason: '<img src=x> 冷却尚未结束' });
   f.controller.update({ requestResults: [initial] });
   assert.equal(f.element.hidden, true);
   f.controller.update({ requestResults: [initial, first, second] });
@@ -65,6 +65,7 @@ test('each new result gets a full turn without initial replay, replacement or du
   t.mock.timers.tick(1);
   await f.settle();
   assert.ok(f.element.textContent.includes(second.requesterName), 'an already delivered result remains playable after its delivery deadline');
+  assert.ok(f.element.textContent.includes(second.reason), 'the public reason is rendered as literal text');
   assert.notEqual(f.element.children[1].textContent, successOutcome, 'the fixed outcome reflects the current result');
   t.mock.timers.tick(3600);
   await f.settle();
@@ -77,7 +78,7 @@ test('each new result gets a full turn without initial replay, replacement or du
 test('overflow finishes reading before the next result and a narrower layout replaces the old reading timer', async (t) => {
   const f = await noticeFixture(t, { width: 120 });
   f.controller.update({});
-  f.controller.update({ requestResults: [result('长歌名观众', { songName: '需要完整读完的长歌名'.repeat(8) }), result('下一位')] });
+  f.controller.update({ requestResults: [result('长歌名观众', { accepted: false, reason: '需要完整读完的失败原因'.repeat(8) }), result('下一位')] });
   await f.settle();
   const scroll = f.motions.find((motion) => motion.node !== f.element);
   assert.ok(scroll, 'overflow has its own text movement');

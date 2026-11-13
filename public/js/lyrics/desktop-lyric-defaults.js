@@ -10,6 +10,7 @@ export const DESKTOP_LYRIC_DEFAULTS = Object.freeze({
   desktopLyricLetterSpacing: '0',
   desktopLyricFontSize: '56',
   desktopLyricLineHeight: '1.4',
+  desktopLyricLineGap: '24',
   desktopLyricStrokeEnabled: 'false',
   desktopLyricStrokeColor: '#ffffff',
   desktopLyricStrokeWidth: '3',

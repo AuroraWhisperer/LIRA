@@ -159,7 +159,13 @@
 #openingAnimationForm {
   grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
   align-items: start;
-  gap: 24px 32px;
+  gap: 12px 16px;
+}
+#openingAnimationForm > section {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--surface-2) 45%, var(--surface));
 }
 #openingAnimationForm:has(#openingCopyFields[hidden]) .opening-editor-section {
   grid-column: 1 / -1;
@@ -261,8 +267,6 @@
   display: grid;
   gap: 12px;
   min-width: 0;
-  padding-top: 24px;
-  border-top: 1px solid var(--border);
 }
 .opening-music-heading {
   display: flex;

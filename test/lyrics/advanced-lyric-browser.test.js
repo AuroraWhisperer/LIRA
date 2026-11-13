@@ -590,8 +590,7 @@ test('marker material and typography changes refit long lyrics without clipping 
 test('advanced preview dragging edits bounded positions and commits on release or restores on cancellation', async t => {
   const page = await openRenderer(t);
   await page.setViewportSize({ width: 1100, height: 700 });
-  await page.addStyleTag({ url: `${fixture.origin}/css/lyrics/desktop-lyric.css` });
-  await page.addStyleTag({ url: `${fixture.origin}/css/admin/desktop-lyric/advanced.css` });
+  await page.addStyleTag({ url: `${fixture.origin}/css/admin/desktop-lyric-preview.css` });
   await page.evaluate(async markup => {
     window.renderer.dispose();
     const surface = document.createElement('div');
@@ -621,10 +620,12 @@ test('advanced preview dragging edits bounded positions and commits on release o
   })));
   const stage = page.locator('#advancedLyricPreviewStage');
   const rect = await stage.boundingBox();
+  const logicalWidth = await page.locator('#desktopLyricPreviewCanvas').evaluate(node => node.clientWidth);
+  assert.ok(rect.width < logicalWidth, 'dragging uses the scaled preview canvas');
   const start = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
-  await page.mouse.move(start.x + 75, start.y + 19.2, { steps: 3 });
+  await page.mouse.move(start.x + rect.width * 0.125, start.y + rect.height * 0.08, { steps: 3 });
   assert.equal(await page.evaluate(() => window.positionCommits.length), 0, 'moving updates the preview without a change commit');
   await page.mouse.up();
   const released = await page.evaluate(() => window.positionCommits);

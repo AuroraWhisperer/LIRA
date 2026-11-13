@@ -69,6 +69,26 @@ test('cooldown starts at acceptance, is shared by viewers, and rejects without e
   assert.equal(f.message('点歌晴天').accepted, true);
 });
 
+test('cooldown reads existing script variants, keeps stored keys and applies to random candidates', (t) => {
+  const f = fixture(t);
+  const traditional = f.add({ songName: '後來', artist: '劉若英' });
+  f.scope('streamer-b');
+  f.add({ songName: '后来', artist: '刘若英' });
+  t.mock.timers.tick(60 * 60 * 1000);
+  f.scope('streamer-a');
+  f.db.songDb.prepare('INSERT INTO song_cooldowns (owner_scope, song_key, accepted_at_ms) VALUES (?, ?, ?)')
+    .run('streamer-a', JSON.stringify(['后来', '刘若英']), Date.now());
+  assert.throws(() => f.add({ songName: '后来', artist: '刘若英' }), { code: 'SONG_COOLDOWN' });
+  assert.equal(f.context.store.getSongCooldown(JSON.stringify(['後來', '劉若英'])), Date.now());
+  const song = { name: '后来', artist: '刘若英' };
+  assert.deepEqual(queue.filterSongsByCooldown(f.context, [song]), []);
+  assert.equal(f.db.songDb.prepare('SELECT accepted_at_ms FROM song_cooldowns WHERE owner_scope = ? AND song_key = ?')
+    .get('streamer-a', JSON.stringify(['後來', '劉若英'])).accepted_at_ms, Date.now() - 60 * 60 * 1000);
+  queue.handleQueueAction(f.context, 'delete', traditional.id);
+  f.reopen();
+  assert.throws(() => f.add({ songName: song.name, artist: song.artist }), { code: 'SONG_COOLDOWN' });
+});
+
 for (const days of [1, 2]) {
   test(`${days} natural days expire at the correct Beijing midnight`, (t) => {
     const f = fixture(t, { songCooldownMode: 'days', songCooldownValue: String(days) });
@@ -166,6 +186,7 @@ test('manual admission rejects a cooling song without broadcasting another queue
   const rejected = await request();
   assert.equal(rejected.status, 400);
   assert.equal(rejected.body.code, 'SONG_COOLDOWN');
+  assert.equal(queue.getQueueSnapshot(f.context).requestResult.reason, rejected.body.error);
   assert.deepEqual(broadcasts, ['queue:add', 'queue:request-result']);
   assert.equal(f.context.store.countActive(), 1);
 });

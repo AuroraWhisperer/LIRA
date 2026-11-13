@@ -41,7 +41,7 @@ const SETTING_KEYS = {
     desktopLyricBrightness desktopLyricContrast desktopLyricCurrentLineEnhanced desktopLyricFallbackFontFamily
     desktopLyricFontFamily desktopLyricFontSize desktopLyricFontWeight desktopLyricGlobalOpacity
     desktopLyricHideOnPause desktopLyricHidePassedLines desktopLyricInterludeOffsetEm desktopLyricKaraokeEnabled
-    desktopLyricKaraokeMode desktopLyricLetterSpacing desktopLyricLineHeight desktopLyricNoLyricText
+    desktopLyricKaraokeMode desktopLyricLetterSpacing desktopLyricLineHeight desktopLyricLineGap desktopLyricNoLyricText
     desktopLyricOpacity desktopLyricPerspective desktopLyricRotateX desktopLyricRotateY desktopLyricSaturation
     desktopLyricScale desktopLyricScaleEffect desktopLyricShadowBlur desktopLyricShadowColor
     desktopLyricShadowEnabled desktopLyricShadowIntensity desktopLyricShadowOffsetX desktopLyricShadowOffsetY
@@ -92,7 +92,7 @@ const DANMAKU_ITEM = {
 const QUEUE_ITEM = fields(
   'song_name requester_name is_pinned is_live requester_guard_level requester_medal_level requester_medal_name',
 );
-const QUEUE_REQUEST_RESULT = fields('id accepted requesterName songName expiresAt');
+const QUEUE_REQUEST_RESULT = fields('id accepted requesterName songName reason expiresAt');
 const OVERTIME = {
   ...fields('revision status serverNowMs effectiveRemainingMs'),
   background: fields('path fit'),

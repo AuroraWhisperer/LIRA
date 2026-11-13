@@ -1,4 +1,4 @@
-import { toast } from '../shared/utils.js';
+import { copyText, localOverlayOrigin, toast } from '../shared/utils.js';
 import { GIFT_MOTION_EFFECTS, GIFT_MOTION_DEFAULTS, giftMotionSettingKeys } from '../shared/gift-motion-settings.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
@@ -29,16 +29,43 @@ export function initGiftMotionSettings() {
       confirm: async () => fromSettings(await confirmComponentSettings()),
     });
     controllers.set(effect.prefix, controller);
-    const view = mountGiftMotionParameters(node(`${effect.prefix}Fields`), effect, { onEdit: patch => controller.edit(patch) });
+    let saveTimer;
+    let pendingSave;
+    const autoSave = () => {
+      clearTimeout(saveTimer);
+      if (pendingSave) return pendingSave;
+      pendingSave = (async () => {
+        while (controller.getStatus().dirty) {
+          if (!keys(effect).every(key => node(key).checkValidity())) return false;
+          if (!await controller.save()) {
+            toast(`${effect.label}设置未保存：${controller.getStatus().error || '请调整后重试。'}`, { type: 'error' });
+            return false;
+          }
+        }
+        return true;
+      })().finally(() => { pendingSave = null; });
+      return pendingSave;
+    };
+    const edit = patch => {
+      controller.edit(patch);
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(() => { void autoSave(); }, 180);
+    };
+    const fields = node(`${effect.prefix}Fields`);
+    const view = mountGiftMotionParameters(fields, effect, { onEdit: edit });
+    fields.addEventListener('change', () => { void autoSave(); });
     parameterViews.set(effect.prefix, view);
     for (const key of keys(effect)) {
       const input = node(key); input.dataset.preserveDirty = 'true';
       if (view.inputs.has(key)) continue;
-      const edit = () => controller.edit({ [key]: value(key) });
-      input.addEventListener('input', edit); input.addEventListener('change', edit);
+      input.addEventListener('input', () => edit({ [key]: value(key) }));
+      input.addEventListener('change', () => { edit({ [key]: value(key) }); void autoSave(); });
     }
-    node(`${effect.prefix}SaveBtn`).addEventListener('click', () => save(effect));
     node(`${effect.prefix}PreviewBtn`).addEventListener('click', () => preview(effect));
+    const source = node(`${effect.prefix}CopyBtn`);
+    source.textContent = `${localOverlayOrigin()}/gift-effects?giftStyle=${effect.style}`;
+    source.addEventListener('click', () => copySource(effect));
+    subscriptions.push(() => clearTimeout(saveTimer));
     subscriptions.push(controller.subscribe(state => renderEffect(effect, state)));
   }
   const receiveSettings = event => {
@@ -64,16 +91,6 @@ function renderEffect(effect, state) {
     input.dataset.dirty = String(state.draft[key] !== state.saved[key]);
     syncControl(key);
   }
-  node(`${effect.prefix}SaveBtn`).disabled = state.saving;
-  status(effect);
-}
-
-function status(effect, message = '', state = '') {
-  const current = controllers.get(effect.prefix).getStatus();
-  const target = node(`${effect.prefix}SaveState`);
-  target.textContent = message || current.error || (current.saving ? '正在保存…'
-    : current.dirty ? '有未保存修改，点击“保存设置”后生效。' : '');
-  target.dataset.state = state || (current.error ? 'error' : current.dirty ? 'pending' : '');
 }
 
 function valid(effect) {
@@ -81,15 +98,19 @@ function valid(effect) {
   return true;
 }
 
-async function save(effect) {
-  const button = node(`${effect.prefix}SaveBtn`);
-  if (button.disabled || !valid(effect)) return;
-  const controller = controllers.get(effect.prefix);
-  if (!controller.getStatus().dirty) return;
-  if (await controller.save()) {
-    const unsaved = controller.getStatus().dirty;
-    status(effect, unsaved ? '设置已保存，刚才的新修改还没保存。' : '设置已保存。', 'success');
-  }
+async function copySource(effect) {
+  const button = node(`${effect.prefix}CopyBtn`);
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    await copyText(button.textContent);
+    const component = SCENE_EXTRA_COMPONENTS['gift-frame'];
+    const variant = component.variants.find(variant => variant.value === effect.style);
+    const [width, height] = variant.size || component.size;
+    toast(`${effect.label}浏览器源地址已复制；来源尺寸设为 ${width} × ${height}。`);
+  } catch (error) {
+    toast(error.message || '地址复制失败，请重试。', { type: 'error' });
+  } finally { button.disabled = false; }
 }
 
 async function preview(effect) {
@@ -117,6 +138,6 @@ async function preview(effect) {
     openComponentPreview({ id: 'gift-frame', selectedItemId: item.id,
       previewData: { preview: true, events: createGiftMotionSamples(effect.style, settings) } });
   } catch (error) {
-    status(effect, error.message || '无法打开预览，请重试。', 'error'); toast(error.message, { type: 'error' });
+    toast(error.message || '无法打开预览，请重试。', { type: 'error' });
   } finally { button.disabled = false; }
 }

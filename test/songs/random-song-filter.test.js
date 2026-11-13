@@ -58,6 +58,13 @@ test('requires every random song term to match the same song', () => {
   assert.deepEqual(filterRandomSongCandidates(SONGS, '国语+周杰伦+摇滚'), []);
 });
 
+test('random requests fold conditions and library metadata in both scripts', () => {
+  assert.deepEqual(filterRandomSongCandidates(SONGS, '國語+周杰倫+懷舊').map((song) => song.name), ['晴天', '七里香']);
+  const traditional = [{ name: '情書', artist: '張學友', language: '粵語', category_name: '搖滾', tags: '國風,懷舊' }];
+  assert.equal(filterRandomSongCandidates(traditional, '粤语+张学友+摇滚+中国风').length, 1);
+  assert.deepEqual(parseDanmakuCommand('隨機點歌 國語＋懷舊'), { type: 'random', scopeText: '國語＋懷舊' });
+});
+
 test('accepts spaces between random song conditions while preserving complete spaced values', () => {
   assert.deepEqual(
     filterRandomSongCandidates(SONGS, '流行 抒情').map((song) => song.name),

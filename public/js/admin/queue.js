@@ -111,7 +111,9 @@ function renderQueueState(queue = {}, settings = {}) {
             <div class="queue-actions">
               ${liveButton}
               ${pinButton}
-              <button class="icon" title="复制歌名" type="button" data-copy="${escapeAttr(item.song_name)}">⧉</button>
+              <button class="icon" title="复制歌名" aria-label="复制歌名" type="button" data-copy="${escapeAttr(item.song_name)}">
+                <svg class="queue-action-icon" aria-hidden="true"><use href="/img/admin/workbench-icons.svg#copy"></use></svg>
+              </button>
               <button class="icon" title="删除" type="button" data-action="delete" data-id="${item.id}">×</button>
             </div>
           </div>

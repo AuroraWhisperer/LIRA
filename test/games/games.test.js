@@ -238,6 +238,16 @@ test('draw guess accepts bounded round and duration settings', () => {
   assert.equal(fallback.roundDurationMs, 90000);
 });
 
+test('draw guess matches both Chinese scripts without aliases and preserves revealed answers and viewer names', () => {
+  for (const [word, message] of [['苹果', '答案是蘋果！'], ['電腦', '我猜电脑']]) {
+    const state = createDrawingState({ words: [{ word, category: '物品' }], nowMs: 0 });
+    const result = submitGuess(state, { uid: '1', userName: '觀眾', message }, 1);
+    assert.equal(result.accepted, true);
+    assert.equal(result.award.name, '觀眾');
+    assert.equal(finishRound(result.state, 2).revealedAnswer, word);
+  }
+});
+
 test('draw guess only selects words from requested categories and rejects invalid selections', () => {
   const state = createDrawGuessState({
     categoryIds: ['animals', 'food-drink'],

@@ -132,6 +132,41 @@ test('toolbox gift effect controls copy the source URL and open its preview', as
   assert.deepEqual(opened, [['http://127.0.0.1:3000/gift-effects?preview=1', 'liraGiftEffectPreview']]);
 });
 
+test('standalone motion links filter other gift effects while the combined source keeps all effects', async () => {
+  for (const style of ['gift-drop', 'gift-swing', '']) {
+    const played = [];
+    let receive;
+    const modules = new Map(Object.entries({
+      'gift-effects-component.js': { mountGiftEffectComponent: () => false },
+      'gift-frame-player.js': { createGiftFramePlayer: () => ({}) },
+      'gift-frame-queue.js': { createGiftFrameQueue: () => ({ enqueue: event => played.push(event.eventId) }) },
+      'gift-effect-player.js': { createGiftEffectPlayer: () => ({
+        enqueue: event => played.push(event.eventId), setEnabled() {},
+      }) },
+      'gift-effects-guard.js': { createGuardThanksQueue: () => ({ enqueue: event => played.push(event.eventId) }) },
+      'gift-motion-player.js': { createGiftMotionPlayer: () => ({ enqueue(event) {
+        if (!['gift-drop', 'gift-swing'].includes(event.themeId)) return false;
+        played.push(event.eventId); return true;
+      } }) },
+      'socket-client.js': { createOverlaySocket: options => {
+        receive = options.onMessage; return { start() {} };
+      } },
+    }).map(([file, exports]) => [path.join(ROOT_DIR, 'public/js/overlays', file), exports]));
+    await loadModuleExports(path.join(ROOT_DIR, 'public/js/overlays/gift-effects.js'), {
+      URLSearchParams, location: { search: style ? `?giftStyle=${style}` : '' },
+      document: { readyState: 'complete', getElementById: () => ({}), addEventListener() {} },
+      window: { addEventListener() {} },
+    }, { moduleFixtures: modules });
+    receive({ type: 'snapshot', state: { settings: { giftEffectDanmakuEnabled: 'true' } } });
+    for (const themeId of ['gift-drop', 'gift-swing', 'woodland-bloom']) {
+      receive({ type: 'gift:frame', themeId, eventId: themeId });
+    }
+    receive({ type: 'gift:effect', eventId: 'official' });
+    receive({ type: 'gift:guard-thanks', eventId: 'guard' });
+    assert.deepEqual(played, style ? [style] : ['gift-drop', 'gift-swing', 'woodland-bloom', 'official', 'guard']);
+  }
+});
+
 test('gift effects overlay keeps its own reconnect policy and stops the connection on pagehide', async () => {
   function createOverlayNode(id = '') {
     const node = {

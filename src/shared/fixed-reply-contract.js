@@ -1,5 +1,7 @@
 'use strict';
 
+const { toSimplifiedChinese } = require('./chinese-text');
+
 const BASE_REPLY_KEYS = [
   'customExactReplyEnabled', 'customExactReplies', 'scheduledDanmakuEnabled', 'scheduledDanmaku',
 ];
@@ -44,7 +46,7 @@ function fixedReplyParameters(value) {
     result.customExactReplies = value.customExactReplies.map((rule) => {
       if (!object(rule) || Object.keys(rule).length !== 2 || !Object.hasOwn(rule, 'trigger') || !Object.hasOwn(rule, 'reply')) invalid();
       const trigger = text(rule.trigger, 30);
-      if (triggers.has(trigger)) invalid();
+      if (triggers.has(trigger) || toSimplifiedChinese(trigger) === '菜单') invalid();
       triggers.add(trigger);
       return { trigger, reply: text(rule.reply, 120) };
     });

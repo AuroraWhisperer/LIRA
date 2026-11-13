@@ -12,7 +12,7 @@
 
 .desktop-lyric-workspace {
   display: grid;
-  grid-template-columns: minmax(420px, 1fr) minmax(280px, 396px);
+  grid-template-columns: minmax(420px, 1fr) minmax(280px, 436px);
   align-items: start;
   gap: 12px;
 }

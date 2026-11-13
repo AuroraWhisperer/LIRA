@@ -4,6 +4,7 @@
 'use strict';
 
 const { cleanText, formatLogTimestamp } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { parseRandomSongTerms } = require('../music/random-song-filter');
 const { normalizeRandomScopeText, randomSourceValue } = require('../music/song-field-utils');
 const { logSongRequest, songRequestReason } = require('./diagnostics');
@@ -41,6 +42,9 @@ function handleDanmakuMessage(
     return { accepted: false, reason: '不是点歌指令。' };
   }
   settings ??= context.settings();
+  if (command.type === 'request' && settings.songRequestRequireSpace === 'true' && !toSimplifiedChinese(text).startsWith('点歌 ')) {
+    return { accepted: false, reason: '不是点歌指令。' };
+  }
 
   const requesterIdentityType = identityType || (/^[1-9]\d{0,24}$/.test(cleanText(uid)) ? 'uid' : undefined);
   if (command.type === 'cancel') {
@@ -63,7 +67,8 @@ function handleDanmakuMessage(
 
   if (
     command.type === 'request' &&
-    (settings.songRequestBlacklist || '').split('\n').some((word) => cleanText(word) === command.songName)
+    (settings.songRequestBlacklist || '').split('\n').some((word) =>
+      toSimplifiedChinese(cleanText(word)) === toSimplifiedChinese(command.songName))
   ) {
     return { accepted: false, reason: '点歌内容命中黑名单。', command };
   }
@@ -162,19 +167,20 @@ function handleDanmakuMessage(
 function parseDanmakuCommand(message, settings) {
   const text = cleanText(message);
   if (!text) return null;
+  const commandText = toSimplifiedChinese(text);
 
-  if (text.startsWith('取消点歌')) {
+  if (commandText.startsWith('取消点歌')) {
     return { type: 'cancel', songName: cleanText(text.slice('取消点歌'.length)) };
   }
 
-  if (text.startsWith('随机点歌')) {
+  if (commandText.startsWith('随机点歌')) {
     return {
       type: 'random',
       scopeText: normalizeRandomScopeText(text.slice('随机点歌'.length)),
     };
   }
 
-  if (!text.startsWith('点歌')) {
+  if (!commandText.startsWith('点歌')) {
     return null;
   }
 
@@ -186,7 +192,7 @@ function parseDanmakuCommand(message, settings) {
 // ── 日志 ──
 
 function logDanmakuCommand(danmaku, result) {
-  const message = cleanText(danmaku.message);
+  const message = toSimplifiedChinese(cleanText(danmaku.message));
   if (!message.startsWith('点歌') && !message.startsWith('随机点歌') && !message.startsWith('取消点歌')) return;
   logSongRequest('command-result', danmaku, {
     status: result?.accepted ? 'accepted' : 'ignored',

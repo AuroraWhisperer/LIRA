@@ -53,14 +53,15 @@
 }
 
 .gift-notify-toast {
-  padding-left: 72px;
+  padding: 10px 16px 10px 60px;
 }
 .gift-notify-artwork {
   position: absolute;
-  left: 20px;
-  top: 18px;
-  width: 40px;
-  height: 40px;
+  left: 16px;
+  top: 50%;
+  width: 32px;
+  height: 32px;
+  transform: translateY(-50%);
   background: url('../../../img/admin/gifts/gift-toast-fallback.svg') center / contain no-repeat;
   pointer-events: none;
 }
@@ -82,12 +83,16 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px 8px;
+  font-size: var(--type-size-card-title);
 }
 .gift-notify-name {
   min-width: 0;
 }
 .gift-notify-toast .toast-content > span {
-  font-size: calc(var(--type-size-control) + 2px);
+  font-size: var(--type-size-control);
+}
+.gift-notify-toast .toast-content > strong + span {
+  margin-top: 2px;
 }
 .gift-notify-toast .gift-price-badge {
   display: inline-block;
@@ -95,7 +100,7 @@
   border-radius: 5px;
   background: color-mix(in srgb, var(--toast-accent) 10%, transparent);
   color: var(--toast-text);
-  font-size: calc(var(--type-size-control) + 2px);
+  font-size: var(--type-size-caption);
   font-weight: var(--type-weight-semibold);
   font-variant-numeric: tabular-nums;
   line-height: var(--type-leading-body);

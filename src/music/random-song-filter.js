@@ -3,6 +3,7 @@
 'use strict';
 
 const { cleanText } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { createLibraryTagMatcher } = require('./tag-aliases');
 const { splitSongArtists, splitSongLanguages, splitSongTags } = require('./song-field-utils');
 
@@ -136,7 +137,7 @@ function randomCategoryAliases(scopeText) {
 }
 
 function normalizeComparable(value) {
-  return cleanText(value).toLocaleLowerCase('zh-Hans-CN');
+  return toSimplifiedChinese(cleanText(value)).toLocaleLowerCase('zh-Hans-CN');
 }
 
 module.exports = {

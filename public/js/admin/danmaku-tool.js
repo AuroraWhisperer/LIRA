@@ -264,9 +264,7 @@ function renderState(elements, state, editors) {
   elements.roomState.textContent = state.roomId ? state.roomName || `房间 ${state.roomId}` : '未设置';
   elements.roomState.title = state.roomId ? `房间 ${state.roomId}` : '';
   elements.replyToggle.checked = state.autoReplyEnabled === true;
-  elements.replyToggle.disabled = !state.canSend;
   elements.customReplyToggle.checked = state.customReplyBotEnabled === true;
-  elements.customReplyToggle.disabled = !state.canSend;
   editors.customReplyEditor.load(state.customReplyRules);
   const degraded = state.connected && isLiveStatusDegraded({ message: state.liveMessage });
   elements.status.textContent = state.canSend

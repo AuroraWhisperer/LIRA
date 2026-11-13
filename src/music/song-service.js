@@ -4,6 +4,7 @@
 'use strict';
 
 const { now, cleanText, cleanTextPreserveLines, getInitial } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { SONG_EXPORT_HEADERS, SONG_IMPORT_ALIASES, normalizeImportedSongRow } = require('./song-import-schema');
 const songInitialCollator = new Intl.Collator('zh-Hans-CN');
 const songNameCollator = new Intl.Collator('zh-Hans-CN-u-co-pinyin');
@@ -54,10 +55,10 @@ function listSongs(
   const cleanQuery = cleanText(query);
   const categoryValues = Array.isArray(categories) ? categories : [categories];
   const categoryFilters = (categoryValues.length ? categoryValues : [category]).map(cleanText).filter(Boolean);
-  const languageFilter = cleanText(language);
-  const artistFilter = cleanText(artist);
+  const languageFilter = toSimplifiedChinese(cleanText(language));
+  const artistFilter = toSimplifiedChinese(cleanText(artist));
   const tagValues = Array.isArray(tags) ? tags : [tags];
-  const tagFilters = tagValues.map(cleanText).filter(Boolean);
+  const tagFilters = tagValues.map((tag) => toSimplifiedChinese(cleanText(tag)).toLocaleLowerCase()).filter(Boolean);
 
   const rows = store.listRows({
     query: cleanQuery,
@@ -68,15 +69,15 @@ function listSongs(
   });
   return rows
     .filter((row) => {
-      if (languageFilter && !splitSongLanguages(row.language).some((value) => value === languageFilter)) {
+      if (languageFilter && !splitSongLanguages(row.language).some((value) => toSimplifiedChinese(value) === languageFilter)) {
         return false;
       }
-      if (artistFilter && !splitSongArtists(row.artist).some((value) => value === artistFilter)) {
+      if (artistFilter && !splitSongArtists(row.artist).some((value) => toSimplifiedChinese(value) === artistFilter)) {
         return false;
       }
       if (tagFilters.length === 0) return true;
-      const songTags = new Set(splitSongTags(row.tags).map((tag) => tag.toLocaleLowerCase()));
-      return tagFilters.some((tag) => songTags.has(tag.toLocaleLowerCase()));
+      const songTags = new Set(splitSongTags(row.tags).map((tag) => toSimplifiedChinese(tag).toLocaleLowerCase()));
+      return tagFilters.some((tag) => songTags.has(tag));
     })
     .sort((a, b) => {
       const initialCompare = songInitialCollator.compare(String(a.name_initial), String(b.name_initial));

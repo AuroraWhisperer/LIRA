@@ -38,6 +38,7 @@ export function normalizeDesktopLyricSettings(settings = {}, defaults = {}) {
     letterSpacing: clamp(numberSetting(values.desktopLyricLetterSpacing, 0), -0.1, 2),
     fontSize: clamp(numberSetting(values.desktopLyricFontSize, 56), 24, 72),
     lineHeight: clamp(numberSetting(values.desktopLyricLineHeight, 1.4), 1, 2),
+    lineGap: clamp(numberSetting(values.desktopLyricLineGap, 24), 0, 120),
     strokeEnabled: boolSetting(values.desktopLyricStrokeEnabled, false),
     strokeColor: String(values.desktopLyricStrokeColor || defaults.desktopLyricStrokeColor),
     strokeWidth: clamp(numberSetting(values.desktopLyricStrokeWidth, 3), 0, 6),

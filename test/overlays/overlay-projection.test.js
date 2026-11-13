@@ -85,7 +85,7 @@ const state = {
   queue: {
     current: { song_name: '歌', requester_name: '观众', is_live: true, requester_uid: secret, secret },
     waiting: [],
-    requestResult: { id: 'request', accepted: false, requesterName: '观众', songName: '歌', expiresAt: 123, requesterUid: secret, secret },
+    requestResult: { id: 'request', accepted: false, requesterName: '观众', songName: '歌', reason: '用户点歌间隔尚未结束', expiresAt: 123, requesterUid: secret, secret },
     requestResults: [{ id: 'buffered', accepted: true, requesterName: '另一位观众', songName: '另一首歌', expiresAt: 456, requesterUid: secret, secret }],
     history: secret,
   },
@@ -161,6 +161,7 @@ test('every scope receives only its own snapshot fields and unknown principals f
       assert.equal(result.state.queue.current.is_live, true);
       assert.equal(result.state.queue.requestResult.id, 'request');
       assert.equal(result.state.queue.requestResult.accepted, false);
+      assert.equal(result.state.queue.requestResult.reason, state.queue.requestResult.reason);
       assert.equal(result.state.queue.requestResults[0].id, 'buffered');
     }
     if (scope === 'lyrics') assert.deepEqual(result.state.lyricTimeline.lines[0].words,

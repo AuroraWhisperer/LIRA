@@ -91,6 +91,24 @@ test('end command clears in queue order even when its confirmation never arrives
   assert.equal(f.delivered.filter(text => text.startsWith('这段对话结束啦')).length, 3);
 });
 
+test('traditional conversation commands reset only the current viewer without generating a reply', async t => {
+  const f = fixture(t);
+  f.ask('開始聊天');
+  f.ask('別人的問題', { uid: 'viewer-b' });
+  await f.idle();
+  for (const [index, command] of ['結束對話！', '清空對話'].entries()) {
+    const before = f.requests.length;
+    f.ask(command);
+    f.ask(`重新開始${index + 1}`);
+    await f.idle();
+    assert.equal(f.requests.length, before + 1);
+    assert.equal(JSON.parse(f.requests.at(-1).input).previousExchange, null);
+  }
+  f.ask('繼續', { uid: 'viewer-b' });
+  await f.idle();
+  assert.equal(JSON.parse(f.requests.at(-1).input).previousExchange.question, '別人的問題');
+});
+
 test('unidentified messages cannot share persistent memory through a nickname', async t => {
   const f = fixture(t);
   for (const extra of [{ uid: '' }, { uid: '' }, { roomId: '' }, { roomId: '' }]) {

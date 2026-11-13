@@ -99,17 +99,19 @@
             <p>通过 Windows 通知提醒你，修改后自动保存到本机。</p>
           </div>
         </header>
-        <div class="client-settings-row">
+        <div class="client-settings-row client-notification-group">
           <div class="client-settings-row-copy"><h4 id="plannerNotificationsTitle">工作台日程提醒</h4><p id="plannerNotificationsHint">提醒已勾选「系统通知提醒」的日程；关闭后保留日程，再次开启不补发已过期的提醒。</p></div>
           <label class="switch-control"><input id="plannerNotificationsEnabled" type="checkbox" aria-labelledby="plannerNotificationsTitle" aria-describedby="plannerNotificationsHint" checked disabled /><span class="switch-track"></span></label>
         </div>
-        <div class="client-settings-row">
-          <div class="client-settings-row-copy"><h4 id="largeGiftNotificationsTitle">大额礼物通知</h4><p id="largeGiftNotificationsHint">单次礼物结算总额大于下方金额时提醒。默认关闭。</p></div>
-          <label class="switch-control"><input id="largeGiftNotificationsEnabled" type="checkbox" aria-labelledby="largeGiftNotificationsTitle" aria-describedby="largeGiftNotificationsHint" disabled /><span class="switch-track"></span></label>
-        </div>
-        <div class="client-notification-threshold">
-          <label for="largeGiftNotificationThreshold">通知金额</label>
-          <div><input id="largeGiftNotificationThreshold" type="number" min="0" step="0.01" value="1000" required aria-describedby="largeGiftNotificationsHint" disabled /><span>元</span></div>
+        <div class="client-notification-group">
+          <div class="client-settings-row">
+            <div class="client-settings-row-copy"><h4 id="largeGiftNotificationsTitle">大额礼物通知</h4><p id="largeGiftNotificationsHint">单次礼物结算总额大于下方金额时提醒。默认关闭。</p></div>
+            <label class="switch-control"><input id="largeGiftNotificationsEnabled" type="checkbox" aria-labelledby="largeGiftNotificationsTitle" aria-describedby="largeGiftNotificationsHint" disabled /><span class="switch-track"></span></label>
+          </div>
+          <div class="client-notification-threshold">
+            <label for="largeGiftNotificationThreshold">通知金额</label>
+            <div><input id="largeGiftNotificationThreshold" type="number" min="0" step="0.01" value="1000" required aria-describedby="largeGiftNotificationsHint" disabled /><span>元</span></div>
+          </div>
         </div>
         <p class="hint">LIRA 需保持运行，最小化或切换页面仍可提醒。若没有弹出通知，请检查 Windows 中的 LIRA 通知权限与勿扰设置。</p>
         <p id="desktopNotificationsFeedback" class="hint" role="status" aria-live="polite">正在读取通知设置…</p>

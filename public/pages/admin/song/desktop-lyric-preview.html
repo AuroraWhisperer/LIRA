@@ -2,29 +2,36 @@
   <header class="desktop-lyric-preview-header">
     <strong class="ui-section-title">歌词预览</strong>
     <span id="desktopLyricPreviewStatus" class="pill warn">等待播放</span>
+    <div class="desktop-lyric-preview-source">
+      <button id="desktopLyricCopyUrlBtn" type="button">复制基础歌词地址</button>
+      <lira-help label="歌词预览说明">复制地址，添加到 OBS / 哔哩哔哩直播姬的浏览器源。预览底色仅辅助查看，直播背景透明。高级样式可拖动预览调整位置，松开后自动保存；精确调整见「编排」。</lira-help>
+    </div>
   </header>
   <div id="desktopLyricPreviewStage" class="desktop-lyric-preview-stage is-solid">
-    <div
-      id="desktopLyricPreviewViewport"
-      class="desktop-lyric-preview-viewport"
-      tabindex="0"
-      aria-label="完整歌词，可上下滚动查看"
-    >
-      <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list">
-        <div class="desktop-lyric-preview-empty">等待播放 · 歌词将在载入后完整显示</div>
+    <div id="desktopLyricPreviewCanvas" class="desktop-lyric-preview-canvas">
+      <div
+        id="desktopLyricPreviewViewport"
+        class="desktop-lyric-preview-viewport"
+        tabindex="0"
+        aria-label="完整歌词，可上下滚动查看"
+      >
+        <div id="desktopLyricPreviewTimeline" class="desktop-lyric-preview-timeline" role="list">
+          <div class="desktop-lyric-preview-empty">等待播放 · 歌词将在载入后完整显示</div>
+        </div>
       </div>
+      <div id="advancedLyricPreviewStage" class="advanced-lyric-preview-stage" hidden></div>
+      <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
     </div>
-    <div id="advancedLyricPreviewStage" class="advanced-lyric-preview-stage" hidden></div>
-    <div id="desktopLyricPreviewPlayback" class="desktop-lyric-preview-playback" aria-live="polite"></div>
   </div>
   <footer class="desktop-lyric-preview-footer">
     <div class="desktop-lyric-preview-backgrounds" role="group" aria-label="预览背景">
       <button class="active" type="button" data-lyric-preview-background="solid" aria-pressed="true">纯色</button>
       <button type="button" data-lyric-preview-background="grid" aria-pressed="false">网格</button>
     </div>
-    <div class="desktop-lyric-preview-source">
-      <button id="desktopLyricCopyUrlBtn" type="button">复制基础歌词地址</button>
-      <lira-help label="歌词预览说明">复制地址，添加到 OBS / 哔哩哔哩直播姬的浏览器源。预览底色仅辅助查看，直播背景透明。高级样式可拖动预览调整位置，松开后自动保存；精确调整见「编排」。</lira-help>
+    <div class="desktop-lyric-preview-size" role="group" aria-label="预览画面尺寸">
+      <label>宽 <input id="desktopLyricPreviewWidth" type="number" min="160" max="7680" step="1" value="960" /> px</label>
+      <label>高 <input id="desktopLyricPreviewHeight" type="number" min="90" max="4320" step="1" value="360" /> px</label>
+      <lira-help label="预览尺寸说明">基础与高级样式共用此预览尺寸。填入直播姬 / OBS 浏览器源的宽高，预览将按相同比例缩小。实际输出随浏览器源或画布图层尺寸排版。</lira-help>
     </div>
   </footer>
 </section>

@@ -2,10 +2,6 @@
   #openingAnimationForm {
     grid-template-columns: minmax(0, 1fr);
   }
-  .opening-editor-section {
-    padding-top: 24px;
-    border-top: 1px solid var(--border);
-  }
 }
 
 @container opening-settings (max-width: 620px) {

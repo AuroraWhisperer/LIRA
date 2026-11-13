@@ -182,6 +182,8 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 
 ## 7. 曲库服务(song-service.js)
 
+手输搜索及歌名、歌手、语言、曲风、标签的文本匹配对双方采用简繁等价比较，结果继续返回歌库原文。完整歌名保留原文精确命中优先；没有原文精确值时，仅使用唯一的简繁等价候选。前缀与包含候选在相同比较规则下计数，多候选仍不自动任选。`song-store.js` 使用连接内的确定性 SQLite 函数 `lira_simplified_text` 做比较，保留原有搜索 LIKE 语义，不改写歌曲或新增持久索引/字段。
+
 ### 7.1 歌曲 CRUD
 
 | 函数                                       | 行为                                                                                                                                                                                                                                                                                    | 出处                                                                       |
@@ -241,11 +243,11 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 `current` 是历史遗留态,`ensureUnifiedQueue`([queue-service.js](../../../../src/music/queue-service.js))在启动/清库修复时把它归位为 `waiting`。
 
-`recordQueueRequestResult(context, {accepted, requesterName, songName})` 在当前队列 context 中保留临时点歌结果，不写入数据库。单条形状为 `{id, accepted, requesterName, songName, expiresAt}`：`id` 为每次尝试独立生成的 UUID。成功使用已匹配歌名，拒绝使用请求歌名，随机失败没有实际歌名时使用「随机歌曲」。不包含 UID、拒绝原因或其他私有元数据。
+`recordQueueRequestResult(context, {accepted, requesterName, songName, reason})` 在当前队列 context 中保留临时点歌结果，不写入数据库。单条形状为 `{id, accepted, requesterName, songName, reason?, expiresAt}`：`id` 为每次尝试独立生成的 UUID。成功使用已匹配歌名，拒绝使用请求歌名，随机失败没有实际歌名时使用「随机歌曲」。仅失败且有非空说明时附带 `reason`，内容复用已有业务拒绝的用户可读原因，包括个人冷却剩余秒数、歌曲冷却剩余时长或恢复时间，以及其他点歌规则。不包含 UID、意外异常或其他私有元数据；旧结果省略 `reason` 仍可显示失败。
 
 快照的可选 `requestResults` 按发生顺序提供最近一分钟、最多 200 条仍有效的结果，`expiresAt` 是接收期限，不是前端显示时长。该窗口补足同一 microtask 合并的广播与短暂场景补读；读取返回独立副本，过期不投影。兼容字段 `requestResult` 继续只保留最后一条和原四秒期限。新展示端在首次快照建立基线，之后按 ID 接收并逐条播放；已经收到并排队的结果不因接收期限到达而取消，实际阅读时间由[点歌板](../../frontend/overlays.md#2-队列叠加层queue)拥有。该缓冲不是持久日志，页面重开不追播旧结果，长时间离线不补发。
 
-观众弹幕、SC 和已登录账号的随机点歌由 `domain-services.js` 在消息入口记录结果；普通聊天、取消点歌及关闭 SC 点歌后的 SC 不产生结果。手动添加由 `queue-routes.js` 在领域服务成功或预期拒绝后记录。失败不新增队列项、请求历史或冷却；通知沿现有快照与场景链路发送，前端展示与去重规则见[点歌板](../../frontend/overlays.md#2-队列叠加层queue)。
+观众弹幕、SC 和已登录账号的随机点歌由 `message-application.js` 在消息入口记录结果及已有拒绝原因；普通聊天、取消点歌及关闭 SC 点歌后的 SC 不产生结果。手动添加由 `queue-routes.js` 在领域服务成功或预期拒绝后记录，拒绝说明取已知业务错误的 message。失败不新增队列项、请求历史或冷却；通知沿现有快照与场景链路发送，前端展示与去重规则见[点歌板](../../frontend/overlays.md#2-队列叠加层queue)。
 
 ### 8.2 addQueueItem(context, input)([queue-service.js](../../../../src/music/queue-service.js))
 
@@ -255,7 +257,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 2. **观众资格**：仅内部入口标记 `viewerRequest: true` 时由 [song-request-policy.js](../../../../src/music/song-request-policy.js) 检查有效 UID 黑名单、配额所需身份、大航海与粉丝牌门槛。默认均不限，已过期名单忽略；名单启用但无法核验 UID 时拒绝，不能把 `open_id` 当 UID。粉丝牌与大航海分别依赖当前房间已核验证据；免牌只豁免粉丝牌，不豁免大航海门槛。
 3. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
 4. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
-5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
+5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；比较时简繁等价，历史 `song_key` 格式和原值不变，同一作用域的等价记录取最近接受时间。事务内复查及随机候选过滤沿用相同规则。小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
 6. **重复检查**：沿用 `allowDuplicate`（默认 `'true'`），界面以「禁止同名点歌」呈现，默认关闭；开启时保存 `'false'`。`allowDuplicate !== 'true'` 时，活跃队列内歌名文本相同（仅比较 `song_name`，不区分歌手）即抛 `SONG_ALREADY_QUEUED`。普通点歌、随机抽中的歌曲、SC 和手动入队均经过此检查；拒绝沿用点歌板红色失败提示，随机点歌不会另抽一首规避拒绝。完成、跳过、删除或清空后不再占用同名名额，歌曲冷却仍独立生效；开启规则不会移除已有重复项。
 
 每人同时排队上限在 `queue-store.insertRequest` 的 `BEGIN IMMEDIATE` 事务内检查，以 `requests.identity_type` 与 `queue.requester_uid` 统计活跃队列，包含 LIVE；改昵称不释放配额，完成、删除、跳过与清空后释放，重启仍从已存队列统计。超限抛 `USER_QUEUE_FULL`，不写入流水、歌曲冷却或队列。资格与配额同样约束普通弹幕、随机点歌（含桌面随机按钮）及 SC；SC 置顶不豁免，歌库手动入队保留管理员能力。保存新规则不删除已有队列。
@@ -290,11 +292,15 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ### 8.5 cancelQueueItem(context, input)
 
+取消时歌名按简繁等价比较；仍严格使用请求人的稳定身份归属，不按昵称判断。禁止重复歌曲时，活跃队列中的简繁歌名也视为相同歌曲。
+
 观众取消点歌复用 [song-request-policy.js](../../../../src/music/song-request-policy.js) 的稳定身份校验，同时匹配队列的 `requester_uid` 与 `requester_identity_type`；UID 与 `open_id` 分开，昵称不能证明归属，缺少可识别身份或未找到本人活跃项时返回 `null`。只处理 `current` / `waiting`，包含本人置顶和 LIVE 项。
 
 `songName` 为空时选择本人点歌时间（`created_at`）最新的一首；指定歌名时按清洗后的完整歌名精确匹配，只在本人同名歌曲中选择最新一首，同一时间以较大 ID 优先，不受置顶或身份排序影响。成功复用 `setStatus(id, 'deleted', now())` 原子移除队列与原始点歌记录，返回被移除的项；释放排队名额，保留已有观众间隔、歌曲冷却、随机避重历史与粉丝档案累计结果。不新增数据库字段或 HTTP 入口；弹幕桥接行为见 [danmaku.md](../bilibili/danmaku.md#53-handledanmakumessage-处理链)。
 
 ## 9. 歌曲匹配(song-matcher.js)
+
+候选评分的歌名、歌手及现场/伴奏等版本判定支持简繁等价；返回的曲目元数据保留 Provider 原文。
 
 `matchMusicTrackCandidates(body)` 负责匹配请求输入：`songName/title` 截 120 字符且必填、`artist` 截 80 字符、`durationMs` 非负、`candidates` 最多 50 项；调用 `rankTrackCandidates`，返回 `{request, threshold: AUTO_ACCEPT_SCORE, results}`。HTTP `/api/music/match-track` 直接使用该入口。
 
@@ -329,9 +335,11 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 自动接受除总分达到 `AUTO_ACCEPT_SCORE` 外，还要求：填写的歌手命中；双方均有时长时误差不超过 5 秒；候选未被平台标记 `playable: false`。冲突候选保留待确认并给出原因，不能靠其他加分抵消这些限制。仅填写歌名、未提供歌手或时长时，普通完整匹配最高 65 分，仍需确认；不要求用户补填歌手才能获得相关候选。
 
-`rankTrackCandidates` 排除 `null` 后按分数降序，同分优先未标记不可播的歌曲，其余保留 Provider 搜索返回的相关性顺序；全部不相关时返回空数组。`normalizeSongKey` 做 NFKC、大小写及标点空白归一化；`stripVersionAnnotations` 只删除包含已知版本类型的括号内容，保留 `Run (To You)` 等有意义的歌名部分。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
+`rankTrackCandidates` 排除 `null` 后按分数降序，同分优先未标记不可播的歌曲，其余保留 Provider 搜索返回的相关性顺序；全部不相关时返回空数组。`normalizeSongKey` 做 NFKC、简繁字形、大小写及标点空白归一化；`stripVersionAnnotations` 只删除包含已知版本类型的括号内容，保留 `Run (To You)` 等有意义的歌名部分。`normalizeCandidate` 兼容 `artists[]` 与 `artist` 按 `/` 切分，并保留同一候选的 Provider 标识、封面及权益字段；评分不会丢失 QQ 的 `sourceSongId/sourceMediaId/sourceSongType` 等播放与歌单元数据。
 
 ## 10. 随机点歌筛选(random-song-filter.js + tag-aliases.js)
+
+筛选输入与歌库的歌手、语言、曲风和标签两侧都按简繁等价比较，例如 `國語＋周杰倫＋懷舊`；组合、别名方向和完整词匹配规则不变，来源标记及用户可见条件保留原文。
 
 每次筛选先编译完整条件和空格子条件，语言/曲风别名组只在模块初始化时归一化；标签查询词的归一化和单向别名查询也在条件编译时完成，由该次扫描复用。每首歌曲的歌手、语言、曲风字段只准备一次，再与所有条件比对；标签仍在前面维度未命中时按需比对。`describeRandomSongScope` 在同次扫描中累计各条件是否出现及是否由同一首歌满足全部条件，不再次筛选整份歌曲。匹配结果、顺序、曲风停用和标签单向别名语义不变；不跨请求保存歌曲缓存。
 
@@ -357,7 +365,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 ### 10.3 标签别名(tag-aliases.js)
 
-`LIBRARY_TAG_ALIASES`([tag-aliases.js](../../../../src/music/tag-aliases.js)):观众叫法 → 歌库标准标签单向映射(抒情/治愈/怀旧/国风/小甜歌/影视OST/K-Pop)。`matchesLibraryTag(libraryTag, viewerTerm)` 与批量筛选使用的 `createLibraryTagMatcher(viewerTerm)` 共用比较规则：归一化后相等，或歌库标签等于 `LIBRARY_TAG_BY_VIEWER_ALIAS` 对应的标准标签(构建时把每个别名归一化映射到标准标签)；**不反向展开**——歌库里的非标准标签不会因观众输入标准词而被扩展命中。归一化 = 压缩空白 + `toLocaleLowerCase('zh-Hans-CN')`。
+`LIBRARY_TAG_ALIASES`([tag-aliases.js](../../../../src/music/tag-aliases.js)):观众叫法 → 歌库标准标签单向映射(抒情/治愈/怀旧/国风/小甜歌/影视OST/K-Pop)。`matchesLibraryTag(libraryTag, viewerTerm)` 与批量筛选使用的 `createLibraryTagMatcher(viewerTerm)` 共用比较规则：归一化后相等，或歌库标签等于 `LIBRARY_TAG_BY_VIEWER_ALIAS` 对应的标准标签(构建时把每个别名归一化映射到标准标签)；**不反向展开**——歌库里的非标准标签不会因观众输入标准词而被扩展命中。归一化 = 压缩空白 + 简繁字形等价 + `toLocaleLowerCase('zh-Hans-CN')`。
 
 ## 11. 导入导出契约(song-import-schema.js + song-file-codec.js)
 

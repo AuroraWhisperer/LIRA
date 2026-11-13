@@ -1,6 +1,7 @@
 'use strict';
 
 const { getInitial, now } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
 
 function assertSongImportLimit(count) {
@@ -15,6 +16,7 @@ function createSongStore(songDb) {
   if (!songDb || typeof songDb.prepare !== 'function') {
     throw new Error('songDb is required to create SongStore.');
   }
+  songDb.function('lira_simplified_text', { deterministic: true }, toSimplifiedChinese);
   // Connection-local triggers observe every song writer without persisting schema changes.
   songDb.exec(`
     CREATE TEMP TABLE IF NOT EXISTS lira_song_revision (revision INTEGER NOT NULL);
@@ -219,21 +221,21 @@ function createSongStore(songDb) {
       const args = [];
       if (query) {
         conditions.push(
-          '(songs.name LIKE ? OR songs.artist LIKE ? OR songs.tags LIKE ? OR song_categories.name LIKE ?)',
+          '(lira_simplified_text(songs.name) LIKE ? OR lira_simplified_text(songs.artist) LIKE ? OR lira_simplified_text(songs.tags) LIKE ? OR lira_simplified_text(song_categories.name) LIKE ?)',
         );
-        args.push(...Array(4).fill(`%${query}%`));
+        args.push(...Array(4).fill(`%${toSimplifiedChinese(query)}%`));
       }
       if (categories.length) {
-        conditions.push(`(${categories.map(() => 'song_categories.name LIKE ?').join(' OR ')})`);
-        args.push(...categories.map((category) => `%${category}%`));
+        conditions.push(`(song_categories.name IS NOT NULL AND (${categories.map(() => 'lira_simplified_text(song_categories.name) LIKE ?').join(' OR ')}))`);
+        args.push(...categories.map((category) => `%${toSimplifiedChinese(category)}%`));
       }
       if (language) {
-        conditions.push('(songs.language = ? OR songs.language LIKE ?)');
-        args.push(language, `%${language}%`);
+        conditions.push('(lira_simplified_text(songs.language) = ? OR lira_simplified_text(songs.language) LIKE ?)');
+        args.push(toSimplifiedChinese(language), `%${toSimplifiedChinese(language)}%`);
       }
       if (artist) {
-        conditions.push('(songs.artist = ? OR songs.artist LIKE ?)');
-        args.push(artist, `%${artist}%`);
+        conditions.push('(lira_simplified_text(songs.artist) = ? OR lira_simplified_text(songs.artist) LIKE ?)');
+        args.push(toSimplifiedChinese(artist), `%${toSimplifiedChinese(artist)}%`);
       }
       if (enabledOnly) conditions.push('songs.is_enabled = 1');
       const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -251,7 +253,7 @@ function createSongStore(songDb) {
     },
 
     findByNameArtist(name, artist) {
-      return (
+      const exact = (
         songDb
           .prepare(
             `
@@ -264,10 +266,20 @@ function createSongStore(songDb) {
           )
           .get(name, artist) || null
       );
+      if (exact) return exact;
+      const matches = songDb.prepare(`
+        SELECT songs.*, song_categories.name AS category_name
+        FROM songs
+        LEFT JOIN song_categories ON song_categories.id = songs.category_id
+        WHERE lira_simplified_text(songs.name) = ? AND lira_simplified_text(songs.artist) = ?
+          AND songs.is_enabled = 1
+        LIMIT 2
+      `).all(toSimplifiedChinese(name), toSimplifiedChinese(artist));
+      return matches.length === 1 ? matches[0] : null;
     },
 
     findByName(name) {
-      return (
+      const exact = (
         songDb
           .prepare(
             `
@@ -281,17 +293,26 @@ function createSongStore(songDb) {
           )
           .get(name) || null
       );
+      if (exact) return exact;
+      const matches = songDb.prepare(`
+        SELECT songs.*, song_categories.name AS category_name
+        FROM songs
+        LEFT JOIN song_categories ON song_categories.id = songs.category_id
+        WHERE lira_simplified_text(songs.name) = ? AND songs.is_enabled = 1
+        LIMIT 2
+      `).all(toSimplifiedChinese(name));
+      return matches.length === 1 ? matches[0] : null;
     },
 
     findEnabledByNameContains(pattern, prefixOnly = false) {
-      const escaped = String(pattern).replace(/[\\%_]/g, (value) => `\\${value}`);
+      const escaped = toSimplifiedChinese(pattern).replace(/[\\%_]/g, (value) => `\\${value}`);
       return songDb
         .prepare(
           `
         SELECT songs.*, song_categories.name AS category_name
         FROM songs
         LEFT JOIN song_categories ON song_categories.id = songs.category_id
-        WHERE songs.name LIKE ? ESCAPE '\\' AND songs.is_enabled = 1
+        WHERE lira_simplified_text(songs.name) LIKE ? ESCAPE '\\' AND songs.is_enabled = 1
         LIMIT 2
       `,
         )

@@ -86,7 +86,7 @@
   >
 </label>
 <label class="desktop-lyric-control desktop-lyric-range-control">
-  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricLineHeightLabel">行高</span></strong></span>
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricLineHeightLabel">换行行距</span> <lira-help>调整同一句歌词换行后的行距。</lira-help></strong></span>
   <span class="range-row"
     ><input
       aria-labelledby="desktopLyricLineHeightLabel" id="desktopLyricLineHeight"
@@ -99,6 +99,23 @@
     /><input aria-labelledby="desktopLyricLineHeightLabel" id="desktopLyricLineHeightNumber" type="number" min="100" max="200" step="10" value="140" /><span
       class="desktop-lyric-unit"
       >%</span
+    ></span
+  >
+</label>
+<label class="desktop-lyric-control desktop-lyric-range-control">
+  <span class="desktop-lyric-control-copy"><strong><span id="desktopLyricLineGapLabel">句间距</span> <lira-help>调整相邻两句歌词之间的留白。</lira-help></strong></span>
+  <span class="range-row"
+    ><input
+      aria-labelledby="desktopLyricLineGapLabel" id="desktopLyricLineGap"
+      class="parameter-range parameter-range--scale"
+      type="range"
+      min="0"
+      max="120"
+      step="1"
+      value="24"
+    /><input aria-labelledby="desktopLyricLineGapLabel" id="desktopLyricLineGapNumber" type="number" min="0" max="120" step="1" value="24" /><span
+      class="desktop-lyric-unit"
+      >px</span
     ></span
   >
 </label>

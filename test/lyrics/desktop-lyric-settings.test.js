@@ -4,9 +4,24 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
 const { DEFAULT_SETTINGS } = require('../../src/storage/settings-store');
+const { normalizeSettingsPatch } = require('../../src/server/settings-contract');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.resolve(__dirname, '../..');
+
+test('sentence spacing accepts zero independently of wrapped line height and rejects invalid saved values', async () => {
+  const { normalizeDesktopLyricSettings } = await loadModuleExports(
+    path.join(ROOT_DIR, 'public', 'js', 'lyrics', 'desktop-lyric-settings.js'),
+  );
+  const patch = normalizeSettingsPatch({ desktopLyricLineGap: 0, desktopLyricLineHeight: '1.8' }, DEFAULT_SETTINGS);
+  assert.equal(patch.values.desktopLyricLineGap, '0');
+  const settings = normalizeDesktopLyricSettings(patch.values, DEFAULT_SETTINGS);
+  assert.equal(settings.lineGap, 0);
+  assert.equal(settings.lineHeight, 1.8);
+  for (const desktopLyricLineGap of [121, 'wide']) {
+    assert.ok(normalizeSettingsPatch({ desktopLyricLineGap }, DEFAULT_SETTINGS).error);
+  }
+});
 
 test('desktop lyric relative controls display percentages without changing stored values', async () => {
   const listeners = new Map();

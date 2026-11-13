@@ -543,6 +543,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | 观众取消点歌 | `songRequestCancelEnabled=true`，沿用 settings 文本存储和账号同步；旧快照省略保留已存值。关闭只禁止观众取消点歌，不移除已有队列，不影响主播手动删除 |
 | 歌名匹配方式 | `songRequestMatchMode=unique`，可选 `prefix`；沿用 settings 文本存储和账号同步，旧快照省略保留已存值。匹配行为见 [音乐服务](music/services.md#71-歌曲-crud)，不新增 schema 或更改已有队列 |
 | 观众点歌限制 | `userQueueLimit=0`、`userCooldownCaptainSeconds/userCooldownAdmiralSeconds/userCooldownGovernorSeconds` 为空串、`songRequestMinMedalLevel=0`、`songRequestGuardLevel=0`、`songRequestGuardMedalBypass=false`、`songRequestUserBlacklist=[]`；均按账号同步，默认不附加限制。名单用 JSON 文本存于 settings，不增加表；字段范围见 [设置 API](api.md)，准入与事务计数见 [音乐服务](music/services.md) |
+| 点歌指令格式 | `songRequestRequireSpace=false`；按账号同步，存储为布尔字符串，云端为 boolean；开启后要求指令与歌名间有空格，字段与兼容规则见 [设置 API](api.md) |
 | 单曲冷却 | `songCooldownMode=off`（`off/hours/days`）、`songCooldownValue=1`（1–999），同步到云端账号设置；入队时间仅存本机，按账号 scope 隔离；语义见 [音乐服务](music/services.md) |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
 | 弹幕机器人   | `enableRandomTagReply`、`enableCheckinBot`、`enableFortuneBot`、`enableCustomReplyBot`、`checkinBlessings`、`fortunePool`、`customReplyRules`                                                                                                                                                                                                                                                                        |
@@ -571,6 +572,8 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 #### 歌词视觉设置
 
 基础歌词的 `desktopLyricShowTranslation` 与 `desktopLyricShowRoma` 分别控制译文和罗马音，均为布尔字符串，默认 `'true'`。新增罗马音键沿现有缺失默认值补齐，旧配置保持原显示行为，不改写译文选择或歌词内容，无 schema 迁移；保存为本机外观，同步到同样式画布与歌词输出，不加入云设置同步。
+
+基础排版的 `desktopLyricLineHeight` 默认 `'1.4'`，范围 1–2，调整同一句换行后的行距；界面显示为百分数，存储仍使用小数。新增 `desktopLyricLineGap` 默认 `'24'`，接受 0–120 的整数像素，单独控制相邻句之间的间距，0 表示不额外留白；设置写入与画布配置复用 `scene-extra-components.js` 的字段范围校验。翻译与罗马音继续共用 `desktopLyricTranslationScale`，默认 `'0.65'`、范围 0.4–1，界面改在「文字排版」中显示为字号百分比，不改变原保存值。上述字段均为本机外观字符串，同步到同样式画布与歌词输出，不加入云设置同步；旧库只补充缺失的句间距默认值，无数据库 schema 迁移。管理页的预览宽高另存本机 localStorage，不属于这些 settings，也不覆盖图层尺寸，见 [歌词输出与预览](../frontend/overlays.md#6-直播歌词页lyrics)。
 
 高级输出只显示当前句。`advancedLyricHideUnsung='true'` 默认隐藏未唱到的字，可关闭并随命名搭配保存，桌面和画布共用。`advancedLyricWordProgress='false'` 默认在唱到时整字填色，开启后在字内连续填色；与隐藏未唱字独立，也随命名搭配保存。旧 `advancedLyricShowNextLine` 继续接受布尔值，供已有设置和预设读取兼容；默认值为 `'false'`，编辑器不提供该控制，渲染不使用它显示下一句。旧设置和预设缺少上述字段时分别补齐各自默认值。
 
@@ -655,6 +658,8 @@ Bilibili 退出意图由 [cloud-bilibili-sync-store.js](../../../src/storage/clo
 
 SongStore 的缓存变更令牌使用连接级 TEMP 触发器观测歌曲/曲风表，外部连接提交以 `data_version` 兜底；不会给持久数据库新增表或触发器。清空、替换均沿用表内写操作，照常推进令牌；连接关闭时 TEMP 状态销毁，重开后重新建立。事务内读取不复用缓存，详见 [音乐服务](music/services.md)。
 
+SongStore 与 QueueStore 注册连接内确定性函数 `lira_simplified_text`，仅供搜索、歌名匹配、队列去重及歌曲冷却的简繁等价比较。`song_cooldowns.song_key` 继续保存既有 JSON 歌名/歌手键；同账号等价记录读取最大 `accepted_at_ms`，事务内复查使用相同规则。没有数据库迁移、持久索引或身份键变更，原始歌曲和点歌文字保留。
+
 SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新建与合并导入计入已有停用歌曲，并对新行按 `(name,artist)` 去重；替换检查替换后的数量。超限不改歌曲、曲风、历史引用或导入批次；已有超限库仍可读取、编辑、删除，但不能继续新增，不会自动删歌。失败由调用方返回 `SONG_IMPORT_LIMIT_EXCEEDED`，成功路径沿用原有广播和同步。显式替换为上限内的完整快照仍可用于整理历史超量库。云端上传前对完整数组独立校验，历史超量返回 `TOO_MANY_SONGS`，不会截断上传；非数组仍为 `SONG_LIST_INVALID`。
 
 房间归属由 `settings-store.prepareCloudRoomAccount(accountKey)` 保存于现有 `settings` 表的内部 `cloudRoomAccountKey`，值为 `JSON.stringify([origin, accountName, streamerId])`，来自 main process 的设备身份。首次缺失或身份不同（含同名重建的新 streamerId）时，以一个 `BEGIN IMMEDIATE` 事务同时清空 `roomId` 并保存新标记；失败整体回滚，同一 owner 重复调用不写库。标记不进入 `getSettings()`、可编辑 defaults、WS/HTTP settings 或 Device 快照，也不作为服务端授权依据。它不是云端 revision，不新增表或更改 schema 版本。其他设置和歌库的初次播种规则不变；已有云端房间可在随后同步时恢复。
@@ -700,7 +705,7 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，数量、总价、单价和已知盲盒成本各归一化一次，供总计、礼物身份和北京时间分桶聚合复用。金额精度、数量安全整数及汇总溢出校验保持不变；非盲盒行不归一化无用途的盲盒成本。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
 
-冲刺与当天盲盒缓存的修订由 `gift-aggregate-changes.js` 按数据库连接共享：TEMP 单行计数与触发器分别跟踪冲刺、盲盒的实际输入。礼物更新只在原行或新行满足该统计资格、且查询输入字段改变时推进相应计数；冲刺结转和本机盲盒归档分别推进所属计数。同步校验时间、投递标记等无关写入不使聚合失效，普通礼物不使盲盒缓存失效。计数随事务回滚；事务内读取不安装追踪或复用缓存，首次事务外读取才初始化。令牌含连接追踪实例身份，并以 `data_version` 对其他连接提交保守失效；连接关闭即销毁 TEMP 状态，不新增持久 schema 或迁移。
+冲刺与当天盲盒缓存的修订由 `gift-aggregate-changes.js` 按数据库连接共享：TEMP 单行计数与触发器分别跟踪冲刺、盲盒的实际输入。礼物更新只在原行或新行满足该统计资格、且查询输入字段改变时推进相应计数；盲盒跟踪包含有来源的历史 final 与 `retention-staged` 行，不依赖其实时消费者资格，并在 `gift_retention_state.active_snapshot_id` 切换时失效，使历史在活动快照发布后可见。冲刺结转和本机盲盒归档分别推进所属计数。同步校验时间、投递标记等无关写入不使聚合失效，普通礼物不使盲盒缓存失效。计数随事务回滚；事务内读取不安装追踪或复用缓存，首次事务外读取才初始化。令牌含连接追踪实例身份，并以 `data_version` 对其他连接提交保守失效；连接关闭即销毁 TEMP 状态，不新增持久 schema 或迁移。
 
 条件式历史扫描在同一读事务内核对 `contentRevision`，命中时不读总数或分页明细；可见时间边界使用与历史一致的 final、状态和时间索引取最新记录，避免只按 source 排序全库。`gift-history-changes.js` 拥有连接内 TEMP 修订与有界行 ID 日志，追踪 `gift_events` 和保留快照成员写入；普通同步状态更新不使记录版本失效。外部提交、schema、活动快照及可见时间边界同时参与版本。每个 store 有独立实例标识，最多保留 64 个成功读取的版本；调用时已有事务会拒绝，只在读事务提交后发布版本。
 

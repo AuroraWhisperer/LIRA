@@ -2,6 +2,7 @@
 
 const { createHmac, randomBytes } = require('node:crypto');
 const { redactCredentials } = require('../shared/log-redaction');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 
 // References only correlate commands within this process; never persist the key.
 const commandReferenceKey = randomBytes(32);
@@ -32,13 +33,14 @@ function summarizeConnectionAuth(auth = {}) {
 
 function songRequestSummary(danmaku = {}) {
   const message = String(danmaku.message || '').trim();
-  if (!message.startsWith('点歌') && !message.startsWith('随机点歌') && !message.startsWith('取消点歌')) return null;
+  const commandText = toSimplifiedChinese(message);
+  if (!commandText.startsWith('点歌') && !commandText.startsWith('随机点歌') && !commandText.startsWith('取消点歌')) return null;
   return {
     commandRef: createHmac('sha256', commandReferenceKey)
       .update(JSON.stringify([String(danmaku.uid || ''), message, danmaku.messageTimestamp || 0]))
       .digest('hex')
       .slice(0, 16),
-    commandType: message.startsWith('取消点歌') ? 'cancel' : message.startsWith('点歌') ? 'request' : 'random',
+    commandType: commandText.startsWith('取消点歌') ? 'cancel' : commandText.startsWith('点歌') ? 'request' : 'random',
     source: ['danmaku', 'history', 'superchat', 'client'].includes(danmaku.source) ? danmaku.source : 'danmaku',
     messageTimestamp: Number(danmaku.messageTimestamp) || 0,
     messageLength: message.length,

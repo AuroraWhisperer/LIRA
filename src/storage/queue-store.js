@@ -3,6 +3,7 @@
 const { randomUUID } = require('node:crypto');
 
 const { cleanText, normalizePositiveInteger } = require('../shared/utils');
+const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { rememberRandomRequest } = require('./queue-history-store');
 
@@ -17,6 +18,13 @@ function createQueueStore(
   songDb,
   { getFanScope = () => null, archiveAccepted = () => {} } = {},
 ) {
+  songDb.function('lira_simplified_text', { deterministic: true }, toSimplifiedChinese);
+  function getSongCooldown(songKey, ownerScope = getFanScope() || '') {
+    return songDb.prepare(`SELECT MAX(accepted_at_ms) AS accepted_at_ms FROM song_cooldowns
+      WHERE owner_scope = ? AND lira_simplified_text(song_key) = ?`)
+      .get(ownerScope, toSimplifiedChinese(songKey))?.accepted_at_ms ?? undefined;
+  }
+
   function updateStatus(where, values, status, updatedAt) {
     songDb.exec('SAVEPOINT queue_status');
     try {
@@ -39,8 +47,7 @@ function createQueueStore(
   }
   return {
     getSongCooldown(songKey) {
-      return songDb.prepare('SELECT accepted_at_ms FROM song_cooldowns WHERE owner_scope = ? AND song_key = ?')
-        .get(getFanScope() || '', songKey)?.accepted_at_ms;
+      return getSongCooldown(songKey);
     },
     listSongCooldowns() {
       return songDb.prepare('SELECT song_key, accepted_at_ms FROM song_cooldowns WHERE owner_scope = ?')
@@ -64,11 +71,11 @@ function createQueueStore(
           .prepare(
             `
         SELECT id FROM queue
-        WHERE status IN ('current', 'waiting') AND song_name = ?
+        WHERE status IN ('current', 'waiting') AND lira_simplified_text(song_name) = ?
         LIMIT 1
       `,
           )
-          .get(songName) || null
+          .get(toSimplifiedChinese(songName)) || null
       );
     },
 
@@ -88,9 +95,7 @@ function createQueueStore(
         }
         const cooldownScope = currentScope || '';
         if (input.cooldownKey) {
-          const previous = songDb.prepare('SELECT accepted_at_ms FROM song_cooldowns WHERE owner_scope = ? AND song_key = ?')
-            .get(cooldownScope, input.cooldownKey);
-          checkCooldown?.(previous?.accepted_at_ms);
+          checkCooldown?.(getSongCooldown(input.cooldownKey, cooldownScope));
           songDb.prepare(`INSERT INTO song_cooldowns (owner_scope, song_key, accepted_at_ms) VALUES (?, ?, ?)
             ON CONFLICT (owner_scope, song_key) DO UPDATE SET accepted_at_ms = excluded.accepted_at_ms`)
             .run(cooldownScope, input.cooldownKey, input.acceptedAt);
