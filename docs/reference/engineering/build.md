@@ -156,6 +156,8 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 ## 6. NSIS 安装脚本(build/installer.nsh)
 
+安装器和卸载器分两次编译；`liraRemoveApplicationFile` 仅在 `BUILD_UNINSTALLER` 阶段生成，安装器继续复用 `liraRemoveTree` 清理迁移备份，避免普通安装器产生未引用函数警告。
+
 被 `nsis.include` 引用([package.json](../../../package.json)),在标准 NSIS 流程上追加:
 
 当前用户模式校验成功后，同时归一 builder 的 per-user/per-machine 内存标记，避免 HKCU/HKLM 均有历史安装项时，静默安装 section 仍因旧 machine 标记触发提权；不删除另一上下文的注册表记录或安装。

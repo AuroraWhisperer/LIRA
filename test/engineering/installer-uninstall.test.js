@@ -9,6 +9,7 @@ const { spawn, spawnSync } = require('node:child_process');
 const { NsisScriptGenerator } = require('app-builder-lib/out/targets/nsis/nsisScriptGenerator');
 
 const { resolveInstallerTools } = require('../helpers/installer-tools');
+const { createScratchDirectory } = require('../helpers/scratch-directory');
 const { compiler, plugins } = resolveInstallerTools();
 const quote = (value) => value.replaceAll('$', () => '$$');
 const installerPath = path.join(__dirname, '../../build/installer.nsh');
@@ -57,6 +58,30 @@ test('uninstall data removal requires an unchecked option and a default-no confi
   );
   assert.match(source, /StrCpy \$liraDeleteDataConfirmed "0"/);
   assert.equal(require('../../package.json').build.nsis.oneClick, false);
+});
+
+test('installer cleanup compiles with warnings treated as errors', {
+  skip: process.platform !== 'win32' || !compiler,
+}, (t) => {
+  const root = createScratchDirectory('installer-cleanup-compile-', t);
+  const script = path.join(root, 'fixture.nsi');
+  fs.writeFileSync(script, [
+    'Unicode true',
+    'Name "LIRA isolated installer cleanup"',
+    'RequestExecutionLevel user',
+    `OutFile "${quote(path.join(root, 'fixture.exe'))}"`,
+    '!include LogicLib.nsh',
+    `!include "${quote(path.resolve(__dirname, '../../build/installer-uninstall.nsh'))}"`,
+    'Section',
+    'Push "$INSTDIR\\backup.partial"',
+    'Call liraRemoveTree',
+    'SectionEnd',
+  ].join('\n'));
+  const result = spawnSync(compiler, ['/V2', '/WX', '-INPUTCHARSET', 'UTF8', script], {
+    encoding: 'utf8', windowsHide: true, timeout: 30000,
+  });
+  assert.equal(result.error, undefined);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
 });
 
 test(

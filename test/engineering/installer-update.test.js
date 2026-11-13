@@ -142,6 +142,10 @@ test('NSIS updates show progress and close automatically while preserving restar
     : false,
 }, async (t) => {
   const root = createScratchDirectory('installer-update-', t);
+  // Native NSIS plugins unpack beside each isolated fixture, not in shared TEMP.
+  const nativeTemp = path.join(root, 'native-temp');
+  fs.mkdirSync(nativeTemp);
+  const nativeEnv = { ...process.env, TEMP: nativeTemp, TMP: nativeTemp };
   const executable = path.join(root, 'fixture.exe');
   const progress = path.join(root, 'progress.txt');
   const finish = path.join(root, 'finish.txt');
@@ -267,7 +271,7 @@ test('NSIS updates show progress and close automatically while preserving restar
   ]) {
     await t.test(name, () => {
       for (const file of [progress, finish, launch, mode, selection]) fs.rmSync(file, { force: true });
-      const run = spawnSync(executable, args, { windowsHide: true, timeout: 10000 });
+      const run = spawnSync(executable, args, { windowsHide: true, timeout: 10000, env: nativeEnv });
       assert.equal(run.error, undefined, 'installer must finish without user interaction');
       assert.equal(run.status, status);
       assert.equal(fs.readFileSync(progress, 'utf8').trim(), visible ? '1' : '0');
@@ -319,7 +323,7 @@ test('NSIS updates show progress and close automatically while preserving restar
     assert.equal(build.status, 0, build.stdout + build.stderr);
     for (const file of [progress, finish, launch]) fs.rmSync(file, { force: true });
     const run = spawnSync(executable, ['/S', '--updated', '--force-run'], {
-      windowsHide: true, timeout: 10000,
+      windowsHide: true, timeout: 10000, env: nativeEnv,
     });
     assert.equal(run.error, undefined);
     assert.equal(run.status, 0);
