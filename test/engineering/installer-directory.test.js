@@ -87,7 +87,7 @@ test(
   },
 );
 
-test('installer accepts only ordinary-user writable targets before touching an old installation', {
+test('installer accepts current-user installs and validates targets before touching an old installation', {
   skip: process.platform !== 'win32' || !compiler || !plugins,
 }, () => {
   const scratch = path.resolve(__dirname, '../../tmp');
@@ -105,7 +105,7 @@ test('installer accepts only ordinary-user writable targets before touching an o
   let denied;
   const junctions = [];
   try {
-    for (const scenario of ['fresh', 'unknown-directory', 'data-only-directory', 'retained-data', 'update', 'mixed-context-update', 'junction-target', 'junction-resources-update', 'junction-unpacked-update', 'protected-target', 'protected-data', 'protected-list', 'protected-resources', 'all-users', 'elevated']) {
+    for (const scenario of ['fresh', 'unknown-directory', 'data-only-directory', 'retained-data', 'update', 'mixed-context-update', 'junction-target', 'junction-resources-update', 'junction-unpacked-update', 'protected-target', 'protected-data', 'protected-list', 'protected-resources', 'all-users', 'elevated-update']) {
       const target = path.join(root, scenario, 'LIRA');
       const executable = path.join(root, scenario + '.exe');
       const script = path.join(root, scenario + '.nsi');
@@ -148,7 +148,7 @@ test('installer accepts only ordinary-user writable targets before touching an o
         `!addincludedir "${quote(path.join(templates, 'include'))}"`,
         '!include LogicLib.nsh', '!include UAC.nsh', 'Var installMode',
         'Var hasPerMachineInstallation', 'Var hasPerUserInstallation',
-        ...(scenario === 'elevated' ? ['!undef UAC_IsAdmin', '!define UAC_IsAdmin "1 = 1"'] : []),
+        ...(scenario === 'elevated-update' ? ['!undef UAC_IsAdmin', '!define UAC_IsAdmin "1 = 1"'] : []),
         source,
         'Function .onInit',
         `StrCpy $installMode "${scenario === 'all-users' ? 'all' : 'CurrentUser'}"`,

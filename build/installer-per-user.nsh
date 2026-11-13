@@ -1,9 +1,7 @@
-; Runtime data lives beside the executable, so the install must work without elevation.
+; Runtime data lives beside the executable; keep installation scoped to the current user.
 Function liraRequireUserInstall
-  ${If} ${UAC_IsAdmin}
-    StrCpy $R5 "请关闭安装程序后直接双击运行，不要选择“以管理员身份运行”。LIRA 需要以当前用户权限保存安装目录中的数据。"
-  ${ElseIf} $installMode != "CurrentUser"
-    StrCpy $R5 "LIRA 仅支持当前用户安装。旧的全用户安装及数据未改动；请先备份 data，卸载旧版时保留用户数据，再以普通权限安装到可写目录。"
+  ${If} $installMode != "CurrentUser"
+    StrCpy $R5 "LIRA 仅支持当前用户安装。旧的全用户安装及数据未改动；请先备份 data，卸载旧版时保留用户数据，再以当前用户模式安装到可写目录。"
   ${Else}
     ; The builder's silent section checks these flags even when CurrentUser is selected.
     StrCpy $hasPerMachineInstallation "0"
