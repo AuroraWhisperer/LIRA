@@ -7,7 +7,8 @@ const WAIT_MS = 2500;
 const EVALUATION_INTERVAL_MS = 5000;
 const REPLY_INTERVAL_MS = 15000;
 
-function createAutoReplyController({ now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout, canRun, enqueue }) {
+function createAutoReplyController({ now = Date.now, setTimer = setTimeout, clearTimer = clearTimeout,
+  random = Math.random, getReplyProbabilityPercent = () => 100, canRun, enqueue }) {
   let roomId = '';
   let sessionKey;
   let hasSession = false;
@@ -64,22 +65,24 @@ function createAutoReplyController({ now = Date.now, setTimer = setTimeout, clea
     seen.delete(key);
     seen.set(key, { receivedAt: now() });
     if (seen.size > 200) seen.delete(seen.keys().next().value);
+    const probability = getReplyProbabilityPercent();
+    const eligible = probability >= 100 || (probability > 0 && random() * 100 < probability);
     const message = {
       id: String(nextId++), uid, userName: [...String(event.userName || '观众').trim()].slice(0, 80).join(''),
-      text: [...text].slice(0, 200).join(''), receivedAt: now(), event,
+      text: [...text].slice(0, 200).join(''), receivedAt: now(), event, eligible,
     };
     messages.push(message);
     if (messages.length > 40) messages.shift();
     if (pending?.participants.has(uid)) pending.latestByUid.set(uid, Number(message.id));
     if (!pending) startNext();
     else if (pending.waitUid === uid) schedule(now());
-    return { accepted: true, reason: 'auto_buffered' };
+    return { accepted: eligible, reason: eligible ? 'auto_buffered' : 'auto_probability_skipped' };
   }
 
   function startNext() {
     if (disposed || pending) return;
     prune();
-    let available = messages.filter(message => Number(message.id) > consumedThrough);
+    let available = messages.filter(message => message.eligible && Number(message.id) > consumedThrough);
     if (!available.length) return;
     const readyAt = Math.max(lastEvaluationAt + EVALUATION_INTERVAL_MS, lastSubmittedAt + REPLY_INTERVAL_MS);
     if (now() < readyAt) { schedule(readyAt); return; }
@@ -150,13 +153,13 @@ function createAutoReplyController({ now = Date.now, setTimer = setTimeout, clea
       return;
     }
     prune();
-    const selected = messages.filter(message => Number(message.id) >= candidate.startId && Number(message.id) > consumedThrough);
+    const selected = messages.filter(message => message.eligible && Number(message.id) >= candidate.startId && Number(message.id) > consumedThrough);
     if (!selected.length) { finish(candidate); return; }
     const snapshot = {
       roomId,
-      messages: selected.map(({ event, ...message }) => message),
+      messages: selected.map(({ event, eligible, ...message }) => message),
       contextMessages: messages.filter(message => Number(message.id) < Number(selected[0].id))
-        .map(({ event, ...message }) => message),
+        .map(({ event, eligible, ...message }) => message),
       botReplies: botReplies.map(reply => ({ ...reply })),
       waitAllowed: candidate.attempts === 0 && now() < candidate.firstAt + WAIT_MS,
     };

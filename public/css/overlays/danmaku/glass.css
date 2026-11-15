@@ -118,3 +118,46 @@ body[data-style='glass'][data-ambient-motion='off'] .glass-glints { display: non
   body[data-style='glass'] .glass-item[data-live-entry] { animation: none; }
   body[data-style='glass'] .glass-glints { display: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='glass'] .draw-danmaku-item .glass-copy {
+  line-height: 1.4;
+}
+body[data-style='glass'] .draw-danmaku-item .draw-danmaku-identity.glass-heading > strong {
+  font-size: 30.455px;
+  line-height: 1.25;
+}
+body[data-style='glass'] .draw-danmaku-item .glass-time {
+  font-size: 20.305px;
+  line-height: 1.25;
+}
+body[data-style='glass']:not([data-glass-density='compact']) .glass-panel {
+  padding: 24px 36px;
+}
+body[data-style='glass']:not([data-glass-density='compact']) .glass-item .glass-content {
+  gap: 10px;
+}
+body[data-style='glass'] .glass-item .glass-content .glass-copy {
+  line-height: 1.3;
+}
+body[data-style='glass'] .glass-item .glass-heading {
+  gap: 6px;
+  line-height: 1.2;
+}
+body[data-style='glass']:not([data-glass-density='compact']) .glass-item:not([data-glass-kind='chat']) .glass-panel {
+  grid-template-columns: 48px 3px minmax(0px, 1fr);
+  gap: 16px;
+  padding: 16px 28px;
+}
+body[data-style='glass']:not([data-glass-density='compact']) .glass-item:not([data-glass-kind='chat']) .glass-content {
+  gap: 10px;
+  padding: 4px 0px;
+}
+body[data-style='glass']:not([data-glass-density='compact']) .glass-event-icon {
+  width: 48px;
+  height: 48px;
+}
+body[data-style='glass']:not([data-glass-density='compact']) .glass-divider {
+  width: 3px;
+  min-height: 64px;
+}

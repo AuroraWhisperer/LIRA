@@ -154,3 +154,12 @@ body[data-custom-background='true'][data-style='outline'] .draw-danmaku-item.is-
     rgb(255 230 238 / var(--danmaku-background-opacity))
   );
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='outline'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='outline'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 20px;
+  line-height: 1.25;
+}

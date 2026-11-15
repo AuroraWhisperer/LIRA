@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
 const { describeModelEndpoint, resolveModelEndpoint, resolveModelsEndpoint } = require('./model-endpoint');
 const { applyModelProviderPreset, usesSubscription } = require('./config');
+const { getModelReasoning } = require('./model-reasoning');
 const { createDoubaoClient } = require('./doubao-client');
 const { buildResponsesBody, buildChatBody, normalizeResponse, normalizeChatResponse,
   toAssistantHistoryMessage } = require('./model-protocol');
@@ -12,6 +13,7 @@ function createModelClient(options = {}) {
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const logEvent = options.logEvent;
   const chatHistory = new Map();
+  const modelCatalogs = new Map();
   const doubao = options.doubao || createDoubaoClient();
   const chatgpt = options.chatgpt;
 
@@ -26,6 +28,7 @@ function createModelClient(options = {}) {
     if (!config.deepseekResponsesUrl || !config.deepseekApiKey) {
       throw createPublicError('AI_NOT_CONFIGURED', '模型服务尚未配置。');
     }
+    config.modelReasoning = getReasoningProfile(config);
     const endpoint = resolveModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol);
     if (endpoint.protocol === 'chat_completions') {
       return createChatResponse(request, config, endpoint);
@@ -156,6 +159,20 @@ function createModelClient(options = {}) {
     chatHistory.delete(chatHistory.keys().next().value);
   }
 
+  function modelCatalogKey(config) {
+    return JSON.stringify([config.modelProvider || 'auto',
+      resolveModelsEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol),
+      crypto.createHash('sha256').update(config.deepseekApiKey).digest('hex')]);
+  }
+
+  function getReasoningProfile(input) {
+    const config = applyModelProviderPreset(input);
+    if (usesSubscription(config)) return chatgpt?.getModelReasoning?.(config) || getModelReasoning(config);
+    const catalog = config.deepseekResponsesUrl && config.deepseekApiKey
+      ? modelCatalogs.get(modelCatalogKey(config)) : null;
+    return catalog && Object.hasOwn(catalog, config.model) ? catalog[config.model] : getModelReasoning(config);
+  }
+
   async function listModels(request = {}) {
     if (request.modelProvider === 'doubao') return { models: ['doubao'] };
     if (usesSubscription(request)) {
@@ -183,7 +200,13 @@ function createModelClient(options = {}) {
     const modelNames = Object.fromEntries(catalog
       .map(item => [item.id, item.display_name || item.name])
       .filter(([, name]) => typeof name === 'string' && name.trim()));
-    return { models, ...(Object.keys(modelNames).length ? { modelNames } : {}) };
+    const modelReasoning = Object.fromEntries(catalog
+      .map(item => [item.id, getModelReasoning({ ...providerConfig, model: item.id }, item)])
+      .filter(([, profile]) => profile));
+    modelCatalogs.set(modelCatalogKey({ ...providerConfig, deepseekApiKey: apiKey }), modelReasoning);
+    if (modelCatalogs.size > 20) modelCatalogs.delete(modelCatalogs.keys().next().value);
+    return { models, ...(Object.keys(modelNames).length ? { modelNames } : {}),
+      ...(Object.keys(modelReasoning).length ? { modelReasoning } : {}) };
   }
 
   async function testConnection(config = {}, options = {}) {
@@ -232,6 +255,7 @@ function createModelClient(options = {}) {
 
   return {
     createResponse, listModels, testConnection,
+    getModelReasoning: getReasoningProfile,
     getAccountStatus: () => doubao.getStatus(),
     getSubscriptionStatus: () => chatgpt?.getStatus(),
     getSessionRevision: (config) => usesSubscription(config) ? chatgpt?.getSessionRevision() : doubao.getSessionRevision(),

@@ -64,6 +64,16 @@
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
+
+.danmaku-viewer-name-blocklist {
+  display: grid;
+  gap: 8px;
+}
+.danmaku-viewer-name-blocklist textarea {
+  min-height: 72px;
+  height: 96px;
+  max-height: 160px;
+}
 .danmaku-viewer-name-value {
   overflow-wrap: anywhere;
 }

@@ -222,3 +222,12 @@ body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item.is-gif
       )
       border-box;
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='glow'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='glow'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 26px;
+  line-height: 1.25;
+}

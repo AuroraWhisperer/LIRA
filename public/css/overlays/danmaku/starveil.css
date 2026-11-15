@@ -139,3 +139,12 @@ body[data-style='starveil'] .draw-danmaku-gift-copy {
   flex-wrap: wrap;
   justify-content: center;
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='starveil'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 24.01px;
+  line-height: 1.25;
+}

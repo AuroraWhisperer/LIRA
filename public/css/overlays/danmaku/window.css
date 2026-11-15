@@ -281,3 +281,40 @@ body[data-style='window'][data-ambient-motion='off'] .window-frame::after { anim
   body[data-style='window'] .window-item *,
   body[data-style='window'] .window-frame::after { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='window'] .draw-danmaku-item .window-copy {
+  line-height: 1.4;
+}
+body[data-style='window'] .draw-danmaku-item .window-nameplate > strong {
+  font-size: 20px;
+  line-height: 1.25;
+}
+body[data-style='window'] .draw-danmaku-item .window-medal-name {
+  font-size: 14px;
+  line-height: 1.25;
+}
+body[data-style='window'] .draw-danmaku-item .window-medal-level {
+  font-size: 14px;
+  line-height: 1.25;
+}
+body[data-style='window'] .window-event {
+  font-size: 14px;
+  line-height: 1.3;
+}
+body[data-style='window'] .window-sender {
+  flex-wrap: wrap;
+}
+body[data-style='window'] .window-medal {
+  flex-shrink: 0;
+}
+.window-badges {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 100%;
+}
+body[data-style='window'] .window-controls {
+  align-self: flex-start;
+  margin-top: 11px;
+}

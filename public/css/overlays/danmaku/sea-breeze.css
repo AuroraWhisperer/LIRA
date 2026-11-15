@@ -201,3 +201,35 @@ body[data-style] .sea-breeze-item[data-live-entry][data-entrance-animation='none
   .sea-breeze-item[data-live-entry],
   .sea-breeze-item[data-live-entry] :is(.sea-breeze-tags, .sea-breeze-name, .sea-breeze-copy, .sea-breeze-amount) { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='sea-breeze'] .draw-danmaku-item .sea-breeze-copy {
+  line-height: 1.4;
+}
+body[data-style='sea-breeze'] .draw-danmaku-item .sea-breeze-medal {
+  font-size: 16px;
+  line-height: 1.25;
+}
+body[data-style='sea-breeze'] .draw-danmaku-item .sea-breeze-role {
+  font-size: 16px;
+  line-height: 1.25;
+}
+body[data-style='sea-breeze'] .draw-danmaku-item .draw-danmaku-identity.sea-breeze-name > strong {
+  font-size: 26px;
+  line-height: 1.25;
+}
+body[data-style='sea-breeze-random'] .draw-danmaku-item .sea-breeze-copy {
+  line-height: 1.4;
+}
+body[data-style='sea-breeze-random'] .draw-danmaku-item .sea-breeze-medal {
+  font-size: 16px;
+  line-height: 1.25;
+}
+body[data-style='sea-breeze-random'] .draw-danmaku-item .sea-breeze-role {
+  font-size: 16px;
+  line-height: 1.25;
+}
+body[data-style='sea-breeze-random'] .draw-danmaku-item .draw-danmaku-identity.sea-breeze-name > strong {
+  font-size: 26px;
+  line-height: 1.25;
+}

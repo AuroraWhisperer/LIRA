@@ -50,6 +50,28 @@ for (const change of ['room', 'disconnect', 'account', 'same-account-login']) {
   });
 }
 
+test('AI ingress excludes the authenticated sending account and marked welcomes while keeping viewer greetings', async (t) => {
+  let timerId = 0;
+  const timers = new Map();
+  const fixture = await createSessionFixture(t, undefined, false, {
+    config: { autoReplyEnabled: true },
+    setTimer(callback) { const id = ++timerId; timers.set(id, callback); return id; },
+    clearTimer: id => timers.delete(id),
+  });
+  fixture.ask('欢迎新观众', '9');
+  fixture.ask('欢迎老观众', 9);
+  fixture.ask('欢迎小米回来', 'other-bot', { isWelcome: true });
+  assert.equal(timers.size, 0);
+  fixture.account.uid = 10;
+  fixture.account.revision += 1;
+  fixture.ask('小米 你好');
+  await fixture.waitForIdle();
+  fixture.ask('欢迎新的观众', '10');
+  assert.equal(timers.size, 0);
+  fixture.ask('欢迎新朋友', '42');
+  assert.equal(timers.size, 1);
+});
+
 test('AI ingress preserves normal same-session delivery and conversation context', async (t) => {
   const fixture = await createSessionFixture(t);
   fixture.ask();
@@ -303,8 +325,8 @@ async function createSessionFixture(t, modelClient, waitForDelivery, serviceOpti
     contexts,
     generations,
     identityReads,
-    ask: (message = '小米 你好', uid = '42') => clients.at(-1).handlers.onMessage({ uid, userName: '观众', message,
-      source: 'danmaku', messageTimestamp: Date.now() }),
+    ask: (message = '小米 你好', uid = '42', input = {}) => clients.at(-1).handlers.onMessage({ uid, userName: '观众', message,
+      source: 'danmaku', messageTimestamp: Date.now(), ...input }),
     waitForIdle: () =>
       waitUntil(() => {
         const status = service.getStatus();

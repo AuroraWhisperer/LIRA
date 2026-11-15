@@ -234,3 +234,12 @@ body[data-style='startrail'][data-ambient-motion='off'] .startrail-dust { animat
   body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .draw-danmaku-body,
   body[data-style='startrail'] [data-live-entry][data-startrail-entrance] .startrail-tail { animation: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='startrail'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='startrail'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 21px;
+  line-height: 1.25;
+}

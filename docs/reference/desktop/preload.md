@@ -152,9 +152,9 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled,reportEnabled,visitorWelcomeEnabled,visitorWelcomeDelaySeconds,visitorWelcomeMessages}`；旧服务器只返回 enabled | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
 | `license:update-pk-report-settings` | `updatePkReportSettings(patch)`，仅允许 PK 总开关、两项子开关、欢迎延时和词库的非空 patch | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
 | `license:get-fixed-reply-settings` | `getFixedReplySettings()` | `{ok:true,customExactReplyEnabled,customExactReplies,scheduledDanmakuEnabled,scheduledDanmaku}`，可附完整的点赞/分享/关注感谢六字段，见 [固定回复契约](main.md#服务器固定回复设置)；FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 弹幕互动固定回复 |
-| `license:get-viewer-name-settings` / `license:update-viewer-name-settings` | `getViewerNameSettings()` / `updateViewerNameSettings({enabled})` | `{ok:true,enabled}`；服务端总开关缺省 true；关闭保留名单 | 昵称管理 |
+| `license:get-viewer-name-settings` / `license:update-viewer-name-settings` | `getViewerNameSettings()` / `updateViewerNameSettings({enabled?,blockedWords?})`，至少一项 | `{ok:true,enabled,blockedWords}`；总开关缺省 true，关闭保留名单；词库缺省服务端默认值，显式空数组保留；旧服务器缺少词库字段时禁用该编辑器 | 昵称管理 |
 | `license:list-viewer-names` | `listViewerNames({page})`，正整数 1–999999999 | `{ok:true,items:[{uid,name}],page,pageSize:20,total}`；仅当前页，页码由服务器校正 | [danmaku-viewer-names.js](../../../public/js/admin/danmaku-viewer-names.js) |
-| `license:update-viewer-name` / `license:delete-viewer-name` | `updateViewerName({uid,name})` / `deleteViewerName(uid)` | 更新返回 `{ok:true,uid,name}`；删除 `{ok:true}`；INVALID_VIEWER_NAME_REQUEST / VIEWER_NAME_NOT_FOUND / VIEWER_NAMES_UNSUPPORTED | 同上 |
+| `license:update-viewer-name` / `license:delete-viewer-name` | `updateViewerName({uid,name})` / `deleteViewerName(uid)` | 更新返回 `{ok:true,uid,name}`；删除 `{ok:true}`；INVALID_VIEWER_NAME_REQUEST / VIEWER_NAME_BLOCKED / VIEWER_NAME_NOT_FOUND / VIEWER_NAMES_UNSUPPORTED；设置另返回 INVALID_VIEWER_NAME_SETTINGS | 同上 |
 | `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅精确/定时回复及互动感谢配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
 | `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000；与自动同步串行，保留传入快照语义。统一在授权歌库 owner 按归一化后的完整 `{songs}` JSON 的 UTF-8 字节检查 ≤5 MiB | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / PAYLOAD_TOO_LARGE | 兼容入口 |
 | `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；主进程完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
@@ -173,7 +173,7 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 
 共享 DTO 与约束：
 
-昵称管理由 [license-viewer-name-ipc.js](../../../src/electron/ipc/license-viewer-name-ipc.js) 注册，沿用主窗口来源验证与授权账号世代检查；[viewer-names-contract.js](../../../src/shared/viewer-names-contract.js) 严格校验窄参数、投影公开字段，UID 为精确正十进制字符串，昵称为单行 1–10 个 Unicode 字素簇。服务器独立保存昵称和开关，桌面不保留名单副本。旧服务器 404/405 显示升级提示；缺失 UID 的 404 保留 VIEWER_NAME_NOT_FOUND。账号切换丢弃迟到结果。完整远端契约由 Server 的 Device OpenAPI 和 viewer-welcome 协议拥有。
+昵称管理由 [license-viewer-name-ipc.js](../../../src/electron/ipc/license-viewer-name-ipc.js) 注册，沿用主窗口来源验证与授权账号世代检查；[viewer-names-contract.js](../../../src/shared/viewer-names-contract.js) 严格校验窄参数、投影公开字段，UID 为精确正十进制字符串，昵称为单行 1–10 个 Unicode 字素簇。黑名单设置只允许最多 200 个非空单行词，每词不超过 40 个 UTF-16 单元；匹配与默认词库归服务器，桌面不复制业务判断。服务器独立保存昵称、开关和黑名单，桌面不保留名单副本。旧服务器 404/405 显示升级提示；缺失 UID 的 404 保留 VIEWER_NAME_NOT_FOUND。账号切换丢弃迟到结果。完整远端契约由 Server 的 Device OpenAPI 和 viewer-welcome 协议拥有。
 
 固定回复处理器由 [license-fixed-reply-ipc.js](../../../src/electron/ipc/license-fixed-reply-ipc.js)
 注册，成功仅投影四个配置字段及 `ok`；云端 revision 只用于主进程即时更新内存去重投影，

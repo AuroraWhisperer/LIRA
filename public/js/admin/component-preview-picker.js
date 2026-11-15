@@ -61,10 +61,10 @@ const CATEGORY_ICONS = {
 };
 
 const PICKER_NAVIGATION = [
-  'live-rankings',
   'danmaku',
   { id: 'gifts', title: '礼物姬', categories: ['gift-frame', 'gift-feed', 'gift-wishes', 'heart-box-collection', 'gift-sprint', 'blindbox', 'guard-thanks'] },
   { id: 'music-display', title: '音乐展示', categories: ['lyrics', 'now-playing'] },
+  'live-rankings',
   'text-box', 'overtime', 'clock', 'opening', 'interactions-poll', 'interactions-rating',
   { id: 'music', title: '点歌', categories: ['queue', 'songlist'] },
   '直播小游戏', 'background',

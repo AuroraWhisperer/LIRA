@@ -68,7 +68,8 @@ function createAiAssistantService(dependencies) {
     onError: error => { lastError = publicError(error); } });
   let coordinator = createCoordinator();
   const autoReplies = createAutoReplyController({
-    now, setTimer, clearTimer,
+    now, setTimer, clearTimer, random,
+    getReplyProbabilityPercent: () => store.getConfig().autoReplyProbabilityPercent,
     canRun() {
       synchronizeConfig();
       const config = store.getConfig();
@@ -142,7 +143,8 @@ function createAiAssistantService(dependencies) {
       drain.then(() => replyDrains.delete(drain));
       replyController = new AbortController();
       coordinator = createCoordinator();
-    } else if (currentConfig.autoReplyEnabled && !config.autoReplyEnabled) {
+    } else if ((currentConfig.autoReplyEnabled && !config.autoReplyEnabled)
+      || (currentConfig.autoReplyProbabilityPercent !== 0 && config.autoReplyProbabilityPercent === 0)) {
       autoReplies.reset();
     }
     currentConfig = config;
@@ -155,6 +157,7 @@ function createAiAssistantService(dependencies) {
     if (!isAiReady(config) || modelClient.isReady?.(config) === false) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
     const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;
+    if (danmaku.isWelcome === true) return { accepted: false, reason: 'auto_ineligible' };
     pruneReplyEchoes();
     if (replyEchoes.some((reply) => reply.uid === uid && reply.messages.includes(message))) {
       return { accepted: false, reason: 'self_reply' };

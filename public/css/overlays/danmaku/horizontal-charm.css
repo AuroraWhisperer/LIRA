@@ -97,3 +97,65 @@ body[data-style='horizontal-charm'] .draw-danmaku-empty { width: 100%; padding: 
 @media (prefers-reduced-motion: reduce) {
   body[data-style='horizontal-charm'] :is(.charm-badge, .charm-identity, .charm-content) { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='horizontal-charm'] .draw-danmaku-item .charm-copy {
+  line-height: 1.4;
+}
+body[data-style='horizontal-charm'] .draw-danmaku-item .charm-name {
+  font-size: 19px;
+  line-height: 1.25;
+}
+body[data-style='horizontal-charm'] .draw-danmaku-item .charm-role {
+  font-size: 14px;
+  line-height: 1.25;
+}
+body[data-style='horizontal-charm'] .draw-danmaku-feed {
+  padding-block: 12px;
+}
+body[data-style='horizontal-charm'] .charm-message {
+  gap: 11px;
+}
+body[data-style='horizontal-charm'] .charm-badge {
+  width: 30px;
+  height: 30px;
+}
+body[data-style='horizontal-charm'] .charm-badge svg {
+  width: 17px;
+  height: 17px;
+}
+body[data-style='horizontal-charm'] .charm-badge::after {
+  left: calc(100% + 4px);
+}
+body[data-style='horizontal-charm'] .charm-name {
+  padding: 3px 10px;
+  line-height: 23px;
+}
+body[data-style='horizontal-charm'] .charm-role {
+  line-height: 18px;
+  padding-right: 6px;
+}
+body[data-style='horizontal-charm'] .charm-content {
+  padding: 8px 14px;
+}
+body[data-style='horizontal-charm'] .charm-copy {
+  line-height: 1.3;
+}
+body[data-style='horizontal-charm'] .charm-item:not([data-charm-kind='chat']) .charm-content {
+  padding: 0px 6px 0px 0px;
+}
+body[data-style='horizontal-charm'] .charm-event-heading {
+  line-height: 1.25;
+  gap: 4px 7px;
+}
+body[data-style='horizontal-charm'] .charm-event-heading + .charm-copy {
+  line-height: 1.3;
+}
+body[data-style='horizontal-charm'] .charm-event-label {
+  font-size: 14px;
+  line-height: 1.25;
+}
+body[data-style='horizontal-charm'] .charm-event-heading .charm-amount {
+  font-size: 16px;
+  line-height: 1.25;
+}

@@ -292,3 +292,12 @@ body[data-style='mist'] .sc-copy { padding: 0.6em 0.7em; color: var(--mist-deep)
 @media (prefers-reduced-motion: reduce) {
   body[data-style='mist'] .draw-danmaku-item { animation: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='mist'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='mist'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 24px;
+  line-height: 1.25;
+}

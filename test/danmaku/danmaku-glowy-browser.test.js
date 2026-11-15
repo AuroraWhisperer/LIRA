@@ -7,6 +7,77 @@ const { startComponentPreviewServer } = require('../helpers/component-preview-se
 
 const openBrowserSession = useSharedBrowser();
 
+test('Glowy horizontal chat keeps flank icons clear of complete text and paid totals appear once', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <div class="danmaku-signal-stage" style="width:1320px;height:200px">
+      <div id="danmakuFeed" class="draw-danmaku-feed"></div>
+    </div>` });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage({ viewport: { width: 1440, height: 300 }, reducedMotion: 'reduce' });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const results = await page.evaluate(async () => {
+    const { createDanmakuFeed } = await import('/js/overlays/danmaku-feed.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    const root = document.getElementById('danmakuFeed');
+    document.body.dataset.style = 'glowy';
+    const results = [];
+    for (const fixture of [
+      { kind: 'danmaku', avatar: 'show', guard: 3 },
+      { kind: 'danmaku', avatar: 'hide', guard: 0 },
+      { kind: 'superchat', avatar: 'hide', guard: 0 },
+      { kind: 'gift', avatar: 'show', guard: 3 },
+      { kind: 'gift', avatar: 'show', guard: 3, giftGuardLevel: 2 },
+    ]) {
+      applyStyleOptions(document, 'glowy', { glowy: { glowyLayout: 'horizontal', glowyAvatar: fixture.avatar } });
+      const feed = createDanmakuFeed(root, { style: 'glowy', flowAxis: 'horizontal', autoScroll: false,
+        expireItems: false, showAvatar: true, showGiftTotal: true });
+      const message = '谢谢每次在夜里陪大家唱歌。\n也记得照顾好自己。';
+      feed.render([{ id: 'sample', kind: fixture.kind, name: '在星河边听歌的小猫', message,
+        roomGuardLevel: fixture.guard, price: 200, giftName: '星河八音盒', giftCount: 1888,
+        giftTotalPrice: 1888, giftGuardLevel: fixture.giftGuardLevel }]);
+      await document.fonts.ready;
+      for (let frame = 0; frame < 3; frame++) await new Promise(requestAnimationFrame);
+      const card = root.firstElementChild;
+      const bounds = card.getBoundingClientRect();
+      const copy = card.querySelector('.glowy-copy');
+      const heading = card.querySelector('.glowy-heading');
+      const avatar = card.querySelector('.glowy-avatar')?.getBoundingClientRect();
+      const guard = card.querySelector('.glowy-guard')?.getBoundingClientRect();
+      const copyBounds = copy.getBoundingClientRect();
+      results.push({ ...fixture, message, text: copy.textContent, total: card.querySelector('.glowy-amount')?.textContent,
+        totalCopies: (card.textContent.match(/¥/g) || []).length,
+        copyWidth: copyBounds.width / bounds.width,
+        headingWidth: heading.getBoundingClientRect().width / bounds.width,
+        flankClearance: avatar && guard ? Math.min(copyBounds.left - avatar.right, guard.left - copyBounds.right) : null,
+        avatarCenterOffset: avatar ? Math.abs(avatar.top + avatar.height / 2 - bounds.top - bounds.height / 2) : null,
+        fits: bounds.height <= root.clientHeight && card.scrollWidth <= card.clientWidth + 1 });
+      feed.destroy();
+    }
+    return results;
+  });
+  for (const result of results) {
+    assert.ok(result.fits, `${result.kind} fits the unchanged horizontal region`);
+    if (result.kind !== 'gift') {
+      assert.equal(result.text, result.message, 'full original message survives fitting');
+      if (result.kind === 'superchat') assert.ok(result.copyWidth > .9, 'SC uses the width below its identity row');
+    } else {
+      assert.equal(result.total, '¥1,888', 'the settled total is not multiplied by quantity');
+    }
+    assert.equal(result.totalCopies, result.kind === 'danmaku' ? 0 : 1);
+    if (result.kind === 'danmaku' && result.avatar === 'show') {
+      assert.ok(result.flankClearance > 0, 'chat text stays between the avatar and guard');
+      assert.ok(result.avatarCenterOffset < 1, 'chat avatar remains vertically centered beside the content');
+    }
+    if (result.kind === 'danmaku' && result.avatar === 'hide') {
+      assert.ok(result.headingWidth > .9 && result.copyWidth > .9, 'hidden avatar and absent guard release their space to text');
+    }
+  }
+});
+
 test('Glowy retains shared perspective through layered arrival and both ordered flow axes', { timeout: 15000 }, async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">

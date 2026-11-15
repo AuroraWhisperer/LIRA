@@ -27,9 +27,11 @@ test('automatic replies require a saved opt-in and retain their preference while
   const { db, store } = createStore();
   t.after(() => db.close());
   assert.equal(store.getPublicConfig().autoReplyEnabled, false);
-  store.updateConfig({ autoReplyEnabled: true, enabled: false });
+  store.updateConfig({ autoReplyEnabled: true, autoReplyProbabilityPercent: 45, enabled: false });
   const reopened = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
   assert.equal(reopened.getPublicConfig().autoReplyEnabled, true);
+  assert.equal(reopened.getPublicConfig().autoReplyProbabilityPercent, 45);
+  assert.throws(() => reopened.updateConfig({ autoReplyProbabilityPercent: 101 }), /autoReplyProbabilityPercent/);
   assert.equal(reopened.getConfig().enabled, false);
   reopened.updateConfig({ autoReplyEnabled: false });
   assert.equal(reopened.getConfig().autoReplyEnabled, false);
@@ -268,6 +270,7 @@ test('AI config persists protocol choices and projects secret-free endpoint capa
   const chatConfig = store.updateConfig({
     deepseekResponsesUrl: 'https://api.deepseek.com',
     modelApiProtocol: 'chat_completions',
+    model: 'deepseek-flash',
     reasoningEffort: 'max',
   });
   assert.equal(chatConfig.reasoningEffort, 'max');
@@ -276,6 +279,8 @@ test('AI config persists protocol choices and projects secret-free endpoint capa
     provider: 'deepseek',
     webSearchMode: 'local_function',
     reasoningMode: 'deepseek_effort',
+    reasoningEfforts: ['low', 'high', 'max'],
+    defaultReasoningEffort: 'high',
   });
 });
 

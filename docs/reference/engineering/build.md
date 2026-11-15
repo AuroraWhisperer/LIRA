@@ -144,6 +144,8 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 | `latest.yml`                        | 更新清单,electron-updater 的版本比对依据 |
 | `win-unpacked/`                     | 未打包目录(本地运行/调试)                |
 
+构建只在 `release/` 生成一份 `latest.yml`。GitHub 发布配置设置 `publishAutoUpdate: false`，不再生成 `release/github/latest.yml`；发布脚本仍将外层清单与安装包、块映射一起上传 GitHub，CDN 同步也使用同一份清单。
+
 ## 5. 图标生成(scripts/create-icon.js)
 
 **零第三方依赖**的纯 Node 实现(`node:zlib` 之外不 import 任何包),**不使用 node-canvas**,无需任何系统级图形库(与旧文档相反)。

@@ -1469,3 +1469,136 @@ body[data-style='ripploid'] .ripploid-superchat[data-live-entry] .ripploid-sc-se
   }
   body[data-style='ripploid'] :is(.ripploid-wipe, .ripploid-sweep-rule, .ripploid-event-wipe, .ripploid-sc-transition, .ripploid-sc-sender-wipe) { display: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='ripploid'] .draw-danmaku-item .ripploid-copy-wrap > p {
+  line-height: 1.4;
+}
+body[data-style='ripploid'] .draw-danmaku-item .draw-danmaku-medal-name {
+  font-size: 15.176px;
+  line-height: 1.25;
+}
+body[data-style='ripploid'] .draw-danmaku-item .draw-danmaku-medal-level {
+  font-size: 15.176px;
+  line-height: 1.25;
+}
+body[data-style='ripploid'] .draw-danmaku-item .ripploid-honor-label {
+  font-size: 15.176px;
+  line-height: 1.25;
+}
+body[data-style='ripploid'] .draw-danmaku-item .ripploid-guard-label {
+  font-size: 15.173px;
+  line-height: 1.25;
+}
+body[data-style='ripploid'] .draw-danmaku-item .ripploid-username.ripploid-username-base {
+  font-size: 19.502px;
+  line-height: 1.25;
+}
+body[data-style='ripploid'] .draw-danmaku-item .ripploid-username.ripploid-username-reveal {
+  font-size: 19.502px;
+  line-height: 1.25;
+}
+body[data-style='ripploid'] .ripploid-chat .draw-danmaku-body {
+  padding: 12px 16px;
+  gap: 6px;
+}
+body[data-style='ripploid'] .ripploid-copy-wrap,
+body[data-style='ripploid'] .ripploid-copy-wrap > p {
+  line-height: 1.1;
+}
+body[data-style='ripploid'] .ripploid-chat .draw-danmaku-identity {
+  min-height: 23px;
+  gap: 3px 5px;
+}
+body[data-style='ripploid'] .ripploid-chat .ripploid-badges {
+  max-width: 100%;
+  flex-wrap: wrap;
+  height: auto;
+}
+body[data-style='ripploid'] .ripploid-chat .draw-danmaku-badge {
+  max-width: 100%;
+  min-height: 21px;
+  height: auto;
+  font-size: 15.17px;
+  line-height: 19px;
+  white-space: normal;
+}
+body[data-style='ripploid'] .ripploid-chat .ripploid-guard-label {
+  font-size: inherit;
+}
+body[data-style='ripploid'] .ripploid-chat .ripploid-anchor {
+  width: 11px;
+  height: 11px;
+}
+body[data-style='ripploid'] .ripploid-chat .ripploid-username-stack {
+  flex: 0 1 auto;
+  height: auto;
+  min-height: 23px;
+}
+body[data-style='ripploid'] .ripploid-chat .draw-danmaku-identity strong.ripploid-username {
+  font-size: 19.5px;
+  line-height: 23px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body[data-style='ripploid'] .ripploid-ticket-signature {
+  padding: 3px 4px;
+  font-size: 19.5px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  clip-path: none;
+}
+body[data-style='ripploid'] .ripploid-gift-price {
+  font-size: 17.334px;
+  line-height: 1.2;
+}
+body[data-style='ripploid'] .draw-danmaku-item .ripploid-member-stage {
+  padding: 127px 189px 27px 42px;
+}
+body[data-style='ripploid'] .ripploid-member-sender {
+  position: relative;
+  inset: auto;
+  width: 100%;
+  min-height: 30px;
+}
+body[data-style='ripploid'] .ripploid-member-name {
+  display: block;
+  font-size: 19.5px;
+  line-height: 1.25;
+  overflow: visible;
+  text-overflow: clip;
+  -webkit-line-clamp: unset;
+}
+body[data-style='ripploid'] .ripploid-member-tag {
+  font-size: 15.167px;
+  line-height: 1.1;
+}
+body[data-style='ripploid'] .ripploid-sc-sender-line {
+  height: auto;
+  min-height: 25px;
+}
+body[data-style='ripploid'] .ripploid-sc-sender {
+  min-width: 0px;
+  max-width: calc(100% - 44px);
+  padding-right: 8px;
+  font-size: 19.5px;
+  line-height: 1.25;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  overflow: visible;
+  text-overflow: clip;
+  clip-path: none;
+}
+body[data-style='ripploid'] :is(.ripploid-sc-sender-check, .ripploid-sc-sender-mark) {
+  flex-shrink: 0;
+}
+body[data-style='ripploid'] .ripploid-sc-footer .sc-money {
+  font-size: 17.334px;
+  line-height: 1.2;
+}
+body[data-style='ripploid'] .ripploid-sc-amount-ring {
+  height: calc(100% + 10px);
+}

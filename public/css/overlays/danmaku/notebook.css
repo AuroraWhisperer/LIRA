@@ -220,3 +220,72 @@ body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='
   body[data-style='notebook'] .notebook-item,
   body[data-style='notebook'] .notebook-item * { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='notebook'] .draw-danmaku-item .notebook-copy {
+  line-height: 1.4;
+}
+body[data-style='notebook'] .draw-danmaku-item .notebook-name {
+  font-size: 23.999px;
+  line-height: 1.25;
+}
+body[data-style='notebook'] .draw-danmaku-item .draw-danmaku-medal-name {
+  font-size: 18.67px;
+  line-height: 1.25;
+}
+body[data-style='notebook'] .draw-danmaku-item .draw-danmaku-medal-level {
+  font-size: 18.67px;
+  line-height: 1.25;
+}
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] {
+  gap: 6px;
+}
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] .notebook-content {
+  padding: 12px 18px 14px;
+}
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'] .notebook-portrait-float {
+  width: 44px;
+  height: 44px;
+}
+body[data-style='notebook'] .notebook-item .notebook-heading {
+  flex-wrap: wrap;
+  min-height: 28px;
+  gap: 3px 6px;
+  font-size: 24px;
+  line-height: 1.2;
+}
+body[data-style='notebook'] .notebook-item .notebook-heading .notebook-name {
+  transform: none;
+}
+body[data-style='notebook'] .notebook-item .draw-danmaku-medal {
+  max-width: 100%;
+  flex: 0 1 auto;
+  font-size: 18.67px;
+  line-height: 1.2;
+  transform: none;
+}
+body[data-style='notebook'] .notebook-item .notebook-content .notebook-copy {
+  padding-top: 6px;
+  line-height: 1.3;
+}
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'], [data-notebook-kind='sc']) .notebook-heading {
+  min-height: 60px;
+  padding: 8px 12px 8px 66px;
+  font-size: 24px;
+}
+body[data-style='notebook'] .notebook-item:is([data-notebook-kind='gift'], [data-notebook-kind='sc']) .notebook-copy {
+  padding: 8px 14px 0px;
+}
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'] .notebook-content {
+  min-height: 78px;
+  padding: 10px 14px 11px 82px;
+}
+body[data-style='notebook'] .notebook-item.notebook-no-avatar .notebook-heading {
+  padding-left: 12px;
+}
+body[data-style='notebook'] .notebook-item[data-notebook-kind='chat'].notebook-no-avatar .notebook-heading {
+  padding-left: 0px;
+}
+body[data-style='notebook'] .notebook-item[data-notebook-kind='member'].notebook-no-avatar .notebook-content {
+  padding-left: 14px;
+}

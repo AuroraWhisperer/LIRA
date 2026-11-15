@@ -14,6 +14,7 @@ const aiResponse = (data) => ({
 async function createAiSettingsFixture({ config = {}, deferInitialConfig = false, request, confirm = async () => true, visible = true } = {}) {
   const publicConfig = {
     enabled: false,
+    autoReplyProbabilityPercent: 100,
     trigger: '小米',
     deepseekResponsesUrl: 'https://api.example.com/responses',
     modelProvider: 'custom',

@@ -781,3 +781,63 @@ body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-particle
     display: none;
   }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='twitter'] .draw-danmaku-item .twitter-post-content {
+  line-height: 1.4;
+}
+body[data-style='twitter'] .draw-danmaku-item .twitter-name {
+  font-size: 28.703px;
+  line-height: 1.25;
+}
+body[data-style='twitter'] .draw-danmaku-item .twitter-meta {
+  font-size: 18.773px;
+  line-height: 1.25;
+}
+body[data-style='twitter'] .draw-danmaku-item.twitter-post {
+  grid-template-columns: 94px minmax(0px, 1fr);
+  padding: 14px 20px 16px 16px;
+}
+body[data-style='twitter'] .twitter-post .draw-danmaku-avatar {
+  width: 76px;
+  height: 76px;
+}
+body[data-style='twitter'] .twitter-post .twitter-name-line {
+  min-height: 32px;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  align-items: baseline;
+}
+.twitter-author {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+}
+.twitter-author .twitter-verified {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+body[data-style='twitter'] .twitter-post .twitter-post-content {
+  line-height: 1.3;
+}
+body[data-style='twitter'] .twitter-guard-label {
+  font-size: 17.667px;
+  line-height: 1.25;
+}
+body[data-style='twitter'] .draw-danmaku-body p.twitter-guard-companion {
+  font-size: 15.459px;
+  line-height: 1.3;
+}
+body[data-style='twitter'] .twitter-post strong.twitter-name {
+  line-height: 1.25;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+  font-size: 28.7px;
+}
+body[data-style='twitter'] .draw-danmaku-body p.twitter-post-content {
+  line-height: 1.3;
+}

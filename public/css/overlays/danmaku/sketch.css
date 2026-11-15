@@ -289,3 +289,36 @@ body[data-style='sketch'] {
   from { --danmaku-enter-opacity: 0; }
   to { --danmaku-enter-opacity: 1; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='sketch'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='sketch'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 31.17px;
+  line-height: 1.25;
+}
+body[data-style='sketch'] .sc-sketch .sc-name {
+  font-size: 29.75px;
+  line-height: 1.25;
+}
+body[data-style='sketch'] .draw-danmaku-feed .draw-danmaku-item {
+  padding: 10px 16px 26px;
+}
+body[data-style='sketch'] .draw-danmaku-item .draw-danmaku-identity {
+  padding: 0 18px 10px;
+}
+body[data-style='sketch'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body > p,
+body[data-style='sketch'] .draw-danmaku-item .sc-copy {
+  min-height: 88px;
+  padding: 20px 57px;
+  line-height: 1.35;
+  letter-spacing: 0.03em;
+}
+body[data-style='sketch'] [data-sketch-variant='1']:not(.is-gift) .draw-danmaku-body > p {
+  padding-bottom: 26px;
+}
+body[data-style='sketch'] [data-sketch-variant='1']:not(.is-gift) .sketch-right {
+  width: 4.6em;
+  height: 3.1em;
+}

@@ -1,4 +1,4 @@
-import { setState } from './ai-assistant-config-view.js';
+import { renderModelCatalog, renderModelSelection, setState } from './ai-assistant-config-view.js';
 
 export function createAiModelPicker({ readApi, onSelect }) {
   const fetchModelsButton = document.getElementById('xiaomiAiFetchModelsBtn');
@@ -22,9 +22,10 @@ export function createAiModelPicker({ readApi, onSelect }) {
     };
   }
 
-  function invalidateModelLookup() {
+  function invalidateModelLookup({ preserveConfig = false } = {}) {
     modelRequestGeneration += 1;
     modelMenu.replaceChildren();
+    renderModelCatalog({}, { preserveConfig });
     closeModelMenu();
     setState(modelFetchState, '');
     fetchModelsButton.disabled = providerInput?.value === 'doubao';
@@ -48,6 +49,7 @@ export function createAiModelPicker({ readApi, onSelect }) {
       });
       if (!isCurrent()) return;
       const models = Array.isArray(result.models) ? result.models : [];
+      renderModelCatalog(result);
       const menuItems = models.map((model) => {
         const item = document.createElement('button');
         item.type = 'button';
@@ -56,10 +58,11 @@ export function createAiModelPicker({ readApi, onSelect }) {
         item.tabIndex = -1;
         item.setAttribute('aria-selected', String(model === modelInput.value));
         const name = result.modelNames?.[model];
-        item.textContent = typeof name === 'string' && name && name !== model ? `${name} (${model})` : model;
+        item.textContent = typeof name === 'string' && name ? name : model;
         item.addEventListener('click', () => {
           if (!isCurrent()) return;
           modelInput.value = model;
+          renderModelSelection();
           closeModelMenu();
           onSelect(modelInput.id);
         });
@@ -163,6 +166,7 @@ export function createAiModelPicker({ readApi, onSelect }) {
     invalidate: invalidateModelLookup,
     invalidateField(id) {
       if (modelServiceFields.has(id)) invalidateModelLookup();
+      else if (id === modelInput.id) renderModelSelection();
     },
   };
 }

@@ -38,13 +38,13 @@ AI 互动助手应允许用户显式选择模型服务使用的 wire protocol，
 - 新增 `modelProvider` 配置，允许 `auto`、`deepseek`、`openai`、`anthropic`、`gemini`、`custom`，默认 `auto` 以兼容旧设置。
 - 官方供应商预设固定有效地址与推荐协议：DeepSeek Chat、OpenAI Responses、Claude 官方 OpenAI 兼容 Chat、Gemini 官方 OpenAI 兼容 Chat；不新增原生 Claude/Gemini 适配器。
 - 新增 `modelApiProtocol` 配置，允许 `auto`、`responses`、`chat_completions`，默认 `auto`。
-- 新增 `reasoningEffort` 配置，允许 `auto`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max`，默认 `auto`。
+- 新增 `reasoningEffort` 配置，允许 `auto`、`none`、`minimal`、`low`、`medium`、`high`、`xhigh`、`max`，默认 `auto`。
 - 将模型端点解析集中到 `src/ai/model-endpoint.js`，供模型客户端和公开配置投影共同使用。
 - 显式 `responses` 将第三方服务根地址或 `/v1` 基础地址补全为 `/v1/responses`；DeepSeek 官方根地址补全为 `/responses`；完整 `/responses` 原样使用。
 - 显式 `chat_completions` 将服务根地址或 `/v1` 基础地址补全为 `/v1/chat/completions`；DeepSeek 官方根地址继续使用 `/chat/completions`；完整 `/chat/completions` 原样使用。
 - `auto` 保留当前规则：完整协议路径优先，根地址与 `/v1` 默认使用 Chat Completions，无法明确识别的完整自定义路径按 Responses API 使用。
-- Responses 请求在 `reasoningEnabled = false` 时发送 `reasoning.effort = "none"`；启用且强度不是 `auto` 时发送所选强度；启用且为 `auto` 时沿用服务默认。
-- DeepSeek 官方 Responses 将公共强度映射为 `reasoning.effort` 的 `low`、`high` 或 `max`。DeepSeek 官方 Chat 关闭时发送 `thinking: {type: "disabled"}`；启用时发送 `thinking: {type: "enabled"}`，并将强度映射为 `reasoning_effort`。普通第三方 Chat 不发送推理控制字段。
+- Responses 请求按官方模型目录或官方文档的能力发送推理参数；启用时发送合法所选档或已确认的模型官方默认。支持 `none` 才能关闭，始终思考的模型关闭选项时使用官方最低可用强度；未确认能力的官方模型省略推理参数。第三方服务保留既有显式参数透传和关闭时 `none` 的兼容。
+- DeepSeek 官方目录提供 `low/high/max` 与默认 `high`，不近似映射。DeepSeek 官方 Chat 关闭时发送 `thinking: {type: "disabled"}`；启用时发送 `thinking: {type: "enabled"}`，并发送官方 `reasoning_effort`。普通第三方 Chat 不发送推理控制字段。
 
 ### Public config projection
 
@@ -70,11 +70,12 @@ AI 互动助手应允许用户显式选择模型服务使用的 wire protocol，
 - 模型服务区域首先显示供应商选择器；官方预设锁定地址和协议，自定义/自动模式允许编辑。
 - 模型服务区域新增“接口协议”选择器。
 - 回复规则区域新增“协议 / 联网 / 推理”能力轨道，使用文本和状态而不是仅靠颜色表达。
-- Responses API 显示“启用模型推理”和推理强度选择器。
-- DeepSeek 官方 Chat 显示“启用 DeepSeek 思考”和推理强度；非官方档位映射到最接近的 `low`、`high` 或 `max`。
+- Responses API 显示思考开关；仅确认官方能力的模型显示强度选择器，默认档标注“默认”，不提供独立“服务默认”。
+- DeepSeek 官方 Chat 只显示官方目录确认的强度与默认值；不适用的旧档位使用模型官方默认。
 - 普通第三方 Chat 隐藏不可用的思考开关，显示“由模型或供应商决定”。
 - Web Search 始终保留用户开关，但文案随协议显示“服务端 Web Search”或“LIRA Web Search”，并说明相应兼容要求。
-- 能力展示由服务端返回的 `modelEndpoint` 驱动；前端不复制协议判定规则。
+- 能力展示由服务端返回的 `modelEndpoint` 可选 `reasoningEfforts/defaultReasoningEffort` 与模型目录可选 `modelReasoning` 驱动；前端不复制协议判定规则。配置投影与请求共用模型客户端的能力读取，读取配置不增加上游请求。目录已返回的等级列表（包括空列表）优先，默认档可缺省且不回填猜测值；无确认默认且旧值不合法时保持未选择。重新获取目录覆盖旧能力，切换模型显示对应等级，切换服务或凭据清除旧能力。目录未提供等级时只使用有官方依据的精确模型及快照 ID，未知后缀不猜测。
+- ChatGPT 订阅只采用当前账号目录确认的能力，不以 API 模型文档推断订阅档位；未获取或账号切换后不发送推理参数。
 
 ## Security
 
@@ -88,7 +89,7 @@ AI 互动助手应允许用户显式选择模型服务使用的 wire protocol，
 ## Compatibility
 
 - 未保存 `modelProvider` 的现有配置使用 `auto`，继续按现有 URL/协议规则运行。
-- 未保存新键的现有用户得到 `modelApiProtocol = "auto"` 和 `reasoningEffort = "auto"`，运行行为保持不变。
+- 未保存新键的现有用户得到 `modelApiProtocol = "auto"` 和 `reasoningEffort = "auto"`，`auto` 对已确认模型使用官方默认，对未知模型沿用上游设置。
 - 已保存的 `reasoningEnabled` 布尔值保持原义。
 - 现有完整 `/responses`、完整 `/chat/completions`、DeepSeek 官方地址以及第三方 `/v1` 地址继续可用。
 - HTTP 路径、响应包络和密钥遮罩保持不变；只向公开配置对象增加字段。
@@ -98,10 +99,10 @@ AI 互动助手应允许用户显式选择模型服务使用的 wire protocol，
 1. 当协议为 `responses` 且地址为第三方根地址时，模型请求发送到 `/v1/responses` 并使用 Responses 请求/响应格式。
 2. 当协议为 `chat_completions` 且地址为第三方根地址时，模型请求发送到 `/v1/chat/completions` 并使用 Chat 请求/响应格式。
 3. 当协议为 `auto` 时，现有 DeepSeek、第三方 Chat 和完整 Responses 地址的测试继续通过。
-4. Responses 推理启用且强度为 `high` 时，请求包含 `reasoning: {effort: "high"}`；`auto` 不覆盖服务默认。
+4. Responses 推理启用且模型确认支持 `high` 时，请求包含 `reasoning: {effort: "high"}`；`auto` 使用已确认的官方默认，未知官方模型不传推理参数；第三方保持既有兼容。
 5. 普通第三方 Chat 请求永远不包含 `reasoning` 或 `thinking`。
 6. DeepSeek 官方 Chat 启用思考且强度为 `max` 时，请求包含 `thinking: {type: "enabled"}` 与 `reasoning_effort: "max"`。
-7. DeepSeek 官方根地址显式选择 Responses 时使用 `/responses`，并发送映射后的 `reasoning.effort`。
+7. DeepSeek 官方根地址显式选择 Responses 时使用 `/responses`，并发送官方支持的 `reasoning.effort`。
 8. 管理页根据公开 `modelEndpoint` 显示正确的协议、联网和推理控件及说明。
 9. 新配置经过服务端枚举验证、持久化并从 GET/PUT 配置接口返回，密钥仍不回显。
 10. 页面可键盘操作，隐藏控件不进入交互流程，窄屏布局不溢出。

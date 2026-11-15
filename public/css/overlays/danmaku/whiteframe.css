@@ -114,3 +114,12 @@ body[data-style='whiteframe'] .is-gift .draw-danmaku-gift-amount {
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='whiteframe'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='whiteframe'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 25.5px;
+  line-height: 1.25;
+}

@@ -192,3 +192,98 @@ body[data-style='stargazer'][data-stargazer-layout='horizontal'][data-edge-fade=
 @media (prefers-reduced-motion: reduce) {
   body[data-style='stargazer'] :is(.stargazer-item,.stargazer-meteor,.stargazer-particle) { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='stargazer'] .draw-danmaku-item .stargazer-copy {
+  line-height: 1.4;
+}
+body[data-style='stargazer'] .draw-danmaku-item .stargazer-name {
+  font-size: 25.663px;
+  line-height: 1.25;
+}
+body[data-style='stargazer'] .draw-danmaku-item .stargazer-role {
+  font-size: 17.493px;
+  line-height: 1.25;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-item .stargazer-copy {
+  line-height: 1.4;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-item .stargazer-name {
+  font-size: 22px;
+  line-height: 1.25;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-item .stargazer-role {
+  font-size: 15px;
+  line-height: 1.25;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-card {
+  padding: 12px 14px 13px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-heading {
+  margin-bottom: 4px;
+  line-height: 1.2;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-heading .draw-danmaku-avatar {
+  width: 26px;
+  height: 26px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-role {
+  padding: 2px 5px;
+  line-height: 1.2;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-copy {
+  line-height: 1.3;
+}
+body[data-style='stargazer'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-heading .stargazer-sender {
+  font-size: 23.334px;
+  line-height: 1.25;
+}
+body[data-style='stargazer'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-heading .stargazer-amount {
+  font-size: 18.667px;
+  line-height: 1.25;
+}
+body[data-style='stargazer'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-icon {
+  font-size: 16.334px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-heading .stargazer-sender {
+  font-size: 20px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-heading .stargazer-amount {
+  font-size: 20px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-title {
+  font-size: 24px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-copy {
+  font-size: calc(var(--danmaku-font-size) * .9);
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-icon {
+  font-size: 14px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .danmaku-signal-stage {
+  padding-block: 6px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .draw-danmaku-feed {
+  padding-block: 20px 6px;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item .stargazer-copy {
+  line-height: 1.25;
+}
+body[data-style='stargazer'][data-stargazer-layout='horizontal'] .stargazer-item .stargazer-heading {
+  gap: 3px 5px;
+  line-height: 1.2;
+}
+body[data-style='stargazer']:not([data-stargazer-layout='horizontal']) .stargazer-item:is([data-stargazer-kind='gift'], [data-stargazer-kind='member']) .stargazer-card {
+  padding: 12px 14px 13px;
+}
+body[data-style='stargazer']:not([data-stargazer-layout='horizontal']) .stargazer-item:is([data-stargazer-kind='gift'], [data-stargazer-kind='member']) .stargazer-copy {
+  gap: 2px 8px;
+  font-size: calc(var(--danmaku-font-size) * .9);
+  line-height: 1.25;
+}
+body[data-style='stargazer'] .stargazer-item .stargazer-copy .stargazer-amount {
+  font-size: 18px;
+}
+body[data-style='stargazer'] .stargazer-item[data-stargazer-kind='superchat'] .stargazer-heading {
+  column-gap: 10px;
+}

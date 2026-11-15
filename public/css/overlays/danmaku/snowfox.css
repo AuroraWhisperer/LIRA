@@ -451,3 +451,49 @@ body[data-style='snowfox'] .snowfox-member-name {
 @media (prefers-reduced-motion: reduce) {
   body[data-style='snowfox'] *, body[data-style='snowfox'] *::before, body[data-style='snowfox'] *::after { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='snowfox'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 32px;
+  line-height: 1.25;
+}
+body[data-style='snowfox'] .draw-danmaku-item .snowfox-medal {
+  font-size: 21.333px;
+  line-height: 1.25;
+}
+body[data-style='snowfox'] .sc-snowfox .sc-name {
+  font-size: .9778em;
+  line-height: 1.25;
+}
+body[data-style='snowfox'] .draw-danmaku-item {
+  padding-top: 6px;
+}
+body[data-style='snowfox'] .draw-danmaku-item:not(.is-gift):not(.is-superchat) .draw-danmaku-identity {
+  min-height: 32px;
+  margin-left: 88px;
+  padding: 2px 8px;
+  gap: 6px;
+  max-width: calc(100% - 92px);
+}
+body[data-style='snowfox'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.3;
+  padding: 6px 20px 8px 88px;
+}
+body[data-style='snowfox'] .draw-danmaku-item:not(.is-gift):not(.is-superchat) .draw-danmaku-avatar {
+  width: 64px;
+  height: 64px;
+  left: 12px;
+}
+body[data-style='snowfox'] .draw-danmaku-item[data-room-guard]:not([data-room-guard='0']):not(.is-emote-only):not(.is-gift) .draw-danmaku-body > p::before {
+  width: 20px;
+  height: 24px;
+  margin-right: 5px;
+}
+body[data-style='snowfox'] .sc-snowfox .sc-copy {
+  font-size: calc(var(--danmaku-font-size) * .9375);
+  padding-right: 48px;
+  line-height: 1.2;
+}
+body[data-style='snowfox'] .draw-danmaku-item.is-gift .draw-danmaku-identity strong {
+  font-size: 29.334px;
+}

@@ -47,3 +47,25 @@ test('nickname transport uses the authorized Device resources and rejects accoun
   remote.updateViewerName = async () => { throw Object.assign(new Error(), { status: 404, code: 'VIEWER_NAME_NOT_FOUND' }); };
   await assert.rejects(operations.updateViewerName({ uid: '42', name: '灰灰' }), { code: 'VIEWER_NAME_NOT_FOUND' });
 });
+
+test('nickname settings IPC preserves partial updates and rejects unbounded or foreign fields', async () => {
+  const writes = [];
+  const f = createLicenseIpcFixture({ licenseManager: {
+    updateViewerNameSettings: async (patch) => {
+      writes.push(patch);
+      return { enabled: false, blockedWords: ['广告'], token: 'private' };
+    },
+  } });
+  const result = await f.invoke('license:update-viewer-name-settings', { blockedWords: [' 广告 '] });
+  assert.deepEqual(writes, [{ blockedWords: ['广告'] }]);
+  assert.equal(result.enabled, false);
+  assert.deepEqual(result.blockedWords, ['广告']);
+  assert.equal(Object.hasOwn(result, 'token'), false);
+  assert.equal((await f.invoke('license:update-viewer-name-settings', { blockedWords: ['广告'], streamerId: 2 })).error,
+    'INVALID_VIEWER_NAME_REQUEST');
+  assert.equal((await f.invoke('license:update-viewer-name-settings', { blockedWords: Array(201).fill('广告') })).error,
+    'INVALID_VIEWER_NAME_SETTINGS');
+  assert.equal(writes.length, 1);
+  await f.invoke('license:update-viewer-name-settings', { blockedWords: [] });
+  assert.deepEqual(writes.at(-1), { blockedWords: [] });
+});

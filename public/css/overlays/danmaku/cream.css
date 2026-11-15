@@ -142,7 +142,7 @@ body[data-style='cream'] .draw-danmaku-body p {
   line-height: 1.4;
   letter-spacing: 0;
   text-shadow: none;
-  text-wrap: balance;
+  text-wrap: wrap;
 }
 body[data-style='cream'] .draw-danmaku-emote {
   filter: none;
@@ -234,4 +234,13 @@ body[data-custom-background='true'][data-style='cream'] .draw-danmaku-item.is-gi
     rgb(254 240 239 / var(--danmaku-background-opacity)) 92px,
     rgb(255 248 244 / var(--danmaku-background-opacity))
   );
+}
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='cream'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='cream'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 20px;
+  line-height: 1.25;
 }

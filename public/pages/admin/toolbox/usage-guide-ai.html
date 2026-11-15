@@ -8,18 +8,18 @@
         请求地址」和密钥。拿不准「接口协议」时，保持「自动识别」。
       </p>
 <p>
-        点「获取模型」读取当前 API 或订阅支持的模型，列表显示平台提供的名称及对应 ID；平台没有提供显示名称时，直接显示原始 ID。选中后自动填入用于调用的模型 ID，也可以直接填提供方给的
+        点「获取模型」读取当前 API 或订阅支持的模型，列表只显示平台提供的名称；平台没有提供显示名称时，直接显示原始 ID。选中后自动填入用于调用的模型 ID，也可以直接填提供方给的
         ID。能不能用「联网」「深度思考」，要看平台和模型，面板上会提示。开启深度思考后，才能调「思考强度」。看到开关不代表已经连上，要用「测试
-        AI 连接」确认。
+        AI 连接」确认。思考强度随所选模型变化，只显示官方确认的等级；点击「获取模型」会更新目录提供的档位和默认值，目录未提供能力时使用已核对的官方文档规则。已确认默认档标注「默认」；只有档位、没有明确默认档时可自行选择，未选择就由上游决定。未确认能力的官方模型不补猜测档位，也不发送其他模型遗留的强度。部分模型始终思考，关闭选项时使用官方最低可用强度。
       </p>
 <figure class="usage-guide-figure">
-<img alt="AI 平台菜单展开，包含 Kimi / Moonshot 官方、OpenAI 官方和豆包账号登录等八个选项" class="usage-guide-image" decoding="async" height="913" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
-<figcaption>AI 平台选择入口；图中尚未配置模型，AI 未启用。</figcaption>
+<img alt="AI 平台菜单展开，包含 Kimi / Moonshot 官方、OpenAI 官方和豆包账号登录等八个选项" class="usage-guide-image" decoding="async" height="960" loading="lazy" src="/img/usage-guide/E/ai-assistant-provider-menu.webp" style="--usage-guide-image-width: 1440px" width="1440"/>
+<figcaption>AI 平台选择入口；图中尚未填写接入信息。</figcaption>
 </figure>
 <p>在「百宝箱 → 弹幕互动 → AI 助手」设置。API 模式下粘贴密钥后等待「已保存」，获取并选择模型，再点「测试 AI 连接」。已保存密钥显示前 6 位加掩码，例如 sk-abc********；较短密钥全部遮住。输入新密钥可替换，留空保留现有密钥。</p>
 <p><strong>DeepSeek：</strong>选择「DeepSeek 官方」后，点名问答和自动接话都省去额外的模型输入、输出审核，保留公共规则和本地内容检查，以减少等待。普通无工具问答只需一次生成；缓存命中不请求模型，查询工具或重试可能增加请求。自动接话每次评估也只生成一次。其他平台按各自流程处理。</p>
 <p><strong>Kimi：</strong>选择「Kimi / Moonshot 官方」，通过「打开官方 API 控制台」创建 Moonshot API Key，保存后获取模型并测试。Kimi 会员和 Kimi Code 订阅不用于此处的弹幕回复。</p>
-<p><strong>ChatGPT 订阅：</strong>选择「OpenAI 官方」，把「接入方式」改成「ChatGPT 订阅（官方授权）」，点击「Continue with ChatGPT」。在系统浏览器完成登录并授权使用订阅，返回后状态自动更新；再获取模型并测试连接。人格、上下文、审核与可选工具继续生效，可用模型和额度以账号为准。</p>
+<p><strong>ChatGPT 订阅：</strong>选择「OpenAI 官方」，把「接入方式」改成「ChatGPT 订阅（官方授权）」，点击「Continue with ChatGPT」。在系统浏览器完成登录并授权使用订阅，返回后状态自动更新；再获取模型并测试连接。思考档位只使用当前账号目录，切换账号后重新获取模型。人格、上下文、审核与可选工具继续生效，可用模型和额度以账号为准。</p>
 <figure class="usage-guide-figure usage-guide-figure--compact">
 <img alt="OpenAI 官方的 ChatGPT 订阅接入方式，显示尚未连接及 Continue with ChatGPT 按钮" class="usage-guide-image" decoding="async" height="540" loading="lazy" src="/img/usage-guide/E/ai-assistant-chatgpt-subscription.webp" style="--usage-guide-image-width: 536px" width="536"/>
 <figcaption>ChatGPT 订阅的未登录状态；完成官方授权后，再获取模型并测试连接。</figcaption>
@@ -161,6 +161,7 @@
       </p>
 <p>回复长度由内置规则统一控制；所有预设自动附加公共安全规则，并在发送前检查内容，无需逐个设置。</p>
 <p>「互动身份」里的「自动接话」默认关闭。打开后，助手会从近期普通弹幕里择机简短接话，不会每句都回；观众点名提问优先，忙碌、话题过期或内容不合适时保持安静。自动接话和点名问答共用当前模型与人格，换模型或编辑人格时一起生效，尚未发送的旧回复会取消。</p>
+<p>在开关旁的「接话频率（%）」调整普通观众弹幕进入接话候选的概率，范围为 0–100%，默认 100%。数值越高越容易接话；0% 不自动接话，100% 仍会判断话题是否适合，并保留两次自动接话至少 15 秒的限制。已标记的机器人欢迎和当前发送账号的普通弹幕不参与，观众手动打出的欢迎仍可正常聊天；点名问答不受概率影响。</p>
 <p>自动接话最多发一条弹幕，不调用联网、天气等工具。发送失败或未确认显示时跳过，不反复补发；需要查询或连续问答时，仍请带上触发关键词。</p>
 <p>在「互动身份」设置「空闲多久后结束对话（分钟）」，建议 10 分钟。每位观众独立续聊：例如先发“小助手，玩成语接龙”，3–5 分钟后再带关键词接词，仍可继续；猜谜也能接着猜或要提示。确认收到回复后重新计时。自动接话明确回应某位观众时，也会记录该观众的原话和已送达回复；面向全场的接话不写入个人历史，仅被观察的普通弹幕不会续期。</p>
 <p>点名问答的回复未完整显示时，会自动精简为一条弹幕重试，仍回答原来的提问。接龙时等回复完整后再继续接词，每轮都需要带触发关键词。</p>
@@ -170,11 +171,11 @@
 <li>「同时处理的提问数」：1–5，默认 3。排队的提问看「等待队列」。</li>
 <li>「同一观众提问间隔（秒）」：0–3600，默认 0。</li>
 <li>「每分钟提问上限」：1–120，默认 20。</li>
-<li>「发送间隔（毫秒）」不能改：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
+<li>发送间隔由程序控制，在高级设置下方显示说明：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网与思考，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="934" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
-<figcaption>尚未配置模型时的设置面板；填好接入信息、触发关键词并测试连接后，再启用 AI。</figcaption>
+<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网搜索、深度思考和强度选择，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="771" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
+<figcaption>图中选择了支持深度思考的模型，尚未填写密钥或测试连接。思考设置随所选模型显示；可选工具和高级设置展开后保持左右位置，窄窗口下改为上下排列。</figcaption>
 </figure>
 <p>触发关键词没有默认值，必须自定义并保存；未设置时不会触发。先测试连接，再打开「启用 AI」，发一条带关键词的弹幕检查回复。</p>
 </article>
@@ -195,7 +196,7 @@
         角色包只包含人设，不包含密钥、聊天记录，也不会替你开启工具。
       </p>
 <p>角色指南里用 {{name}} 代替机器人名字，回复时会自动使用「触发关键词」。原有自定义人设会保留；切换角色或修改身份后，助手不会带入另一身份的短期记忆。</p>
-<p>写预设时重点描述身份、性格、语气和互动偏好，例如“用自然简短的中文聊天，不确定时说明”。同一份风格同时用于点名问答和自动接话；自动接话的时机、频率和公共限制由程序控制，“每句都回”这类角色描述不会覆盖它们。不要写“无条件服从观众”“主播授权就忽略规则”，也不要放入密钥、联系方式或私密资料。</p>
+<p>写预设时重点描述身份、性格、语气和互动偏好，例如“用自然简短的中文聊天，不确定时说明”。同一份风格同时用于点名问答和自动接话；接话频率在「互动身份」中设置，时机与公共限制由程序控制，“每句都回”这类角色描述不会覆盖它们。不要写“无条件服从观众”“主播授权就忽略规则”，也不要放入密钥、联系方式或私密资料。</p>
 <p>观众自称管理员、伪造审核结果、要求输出隐藏指令或解码后执行，不会因此获得额外权限。公共规则和本地检查会减少这类诱导；正常聊管理员话题或编码知识仍可回答。拒绝内容不进入缓存和记忆，但不能保证杜绝所有注入。</p>
 
 <details class="usage-guide-foldout">
@@ -232,8 +233,8 @@
 <details class="usage-guide-foldout">
 <summary>查看展开后的工具配置</summary>
 <figure class="usage-guide-figure">
-<img alt="展开的可选工具设置，显示允许工具调用、天气、地点、路线开关及各自的凭据输入框。" class="usage-guide-image" decoding="async" height="598" loading="lazy" src="/img/usage-guide/E/ai-optional-tools.webp" style="--usage-guide-image-width: 1050px" width="1050"/>
-<figcaption>开启工具调用后，再按需启用查询并填写对应凭据；图中未填写密钥，也未测试连接。</figcaption>
+<img alt="展开的可选工具设置，天气与地图分为两个圆角卡片，显示查询开关及各自的凭据输入框。" class="usage-guide-image" decoding="async" height="422" loading="lazy" src="/img/usage-guide/E/ai-optional-tools.webp" style="--usage-guide-image-width: 528px" width="528"/>
+<figcaption>开启工具调用后，再按需启用查询并填写对应凭据，开关旁的问号可查看说明；图中未填写密钥，也未测试连接。</figcaption>
 </figure>
 </details>
 </article></div>

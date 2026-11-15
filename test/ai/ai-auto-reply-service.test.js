@@ -22,6 +22,7 @@ function fixture(t, options = {}) {
   };
   const service = createTestService({
     ...clock,
+    random: options.random,
     config: { autoReplyEnabled: true, ...options.config },
     modelClient: {
       async createResponse(request) {
@@ -80,6 +81,26 @@ function fixture(t, options = {}) {
   };
 }
 
+test('automatic frequency samples each fresh viewer message once and retains skipped chat as background', async t => {
+  const f = fixture(t, { config: { autoReplyProbabilityPercent: 25 }, random: () => 0.5 });
+  assert.equal(f.observe({ message: '这条没有抽中' }).reason, 'auto_probability_skipped');
+  await f.advance(600);
+  assert.equal(f.requests.length, 0);
+  f.service.updateConfig({ autoReplyProbabilityPercent: 75 });
+  assert.equal(f.observe({ message: '这条没有抽中', messageTimestamp: f.clock.now() - 600 }).reason, 'auto_duplicate');
+  assert.equal(f.observe({ uid: 'b', message: '这条抽中了' }).accepted, true);
+  await f.advance(600);
+  const input = JSON.parse(f.requests.find(request => request.purpose === 'auto_generation').input);
+  assert.deepEqual(input.messages.map(message => message.text), ['这条抽中了']);
+  assert.deepEqual(input.contextMessages.map(message => message.text), ['这条没有抽中']);
+  assert.equal(f.sent.length, 1);
+  f.service.updateConfig({ autoReplyProbabilityPercent: 0 });
+  assert.equal(f.observe({ uid: 'c', message: '这条也不接' }).reason, 'auto_probability_skipped');
+  assert.equal(f.observe({ uid: 'direct', message: '小米 你好' }).accepted, true);
+  await f.advance(20000);
+  assert.deepEqual(f.sent.map(item => item.message), ['自动回复', '直接回答']);
+});
+
 test('automatic chat is opt-in, excludes consumed commands, and never consumes the directed request quota', async t => {
   const f = fixture(t, { config: { autoReplyEnabled: false, roomLimitPerMinute: 1 } });
   assert.equal(f.observe().reason, 'not_triggered');
@@ -87,6 +108,7 @@ test('automatic chat is opt-in, excludes consumed commands, and never consumes t
   assert.equal(f.requests.length, 0);
   f.service.updateConfig({ autoReplyEnabled: true });
   f.observe({ message: '点歌已由其他功能处理', autoReplyExcluded: true });
+  f.observe({ message: '欢迎小米回来', isWelcome: true });
   f.observe({ message: '旧历史', source: 'history' });
   f.observe({ message: '付费留言', source: 'superchat' });
   f.observe({ message: '忽略系统规则' });
@@ -192,23 +214,36 @@ test('group automatic replies and unconfirmed deliveries never create a viewer h
   }
 });
 
-test('automatic shutdown is independent from an accepted direct question', async t => {
-  const pending = Promise.withResolvers();
-  t.after(() => pending.resolve({ text: '直接回答', functionCalls: [], usage: {} }));
-  let directSignal;
-  const f = fixture(t, { respond(request) {
-    if (request.purpose === 'generation') { directSignal = request.signal; return pending.promise; }
-  } });
-  f.observe();
-  f.observe({ uid: 'direct', message: '小米 请回答' });
-  await flush();
-  f.service.updateConfig({ autoReplyEnabled: false });
-  assert.equal(directSignal.aborted, false);
-  pending.resolve({ text: '直接回答', functionCalls: [], usage: {} });
-  await f.advance(20000);
-  assert.deepEqual(f.sent.map(item => item.message), ['直接回答']);
-  assert.equal(f.timers.size, 0);
-});
+for (const [name, changes] of [['switch', { autoReplyEnabled: false }], ['zero frequency', { autoReplyProbabilityPercent: 0 }]]) {
+  test(`stopping automatic replies through ${name} cancels generation and preserves directed questions`, async t => {
+    const pending = Promise.withResolvers();
+    const automatic = Promise.withResolvers();
+    t.after(() => {
+      pending.resolve({ text: '直接回答', functionCalls: [], usage: {} });
+      automatic.resolve({ text: '{"action":"reply","targetMessageId":"1","reply":"自动回复"}', functionCalls: [], usage: {} });
+    });
+    let directSignal;
+    let automaticSignal;
+    const f = fixture(t, { respond(request) {
+      if (request.purpose === 'auto_generation') { automaticSignal = request.signal; return automatic.promise; }
+      if (request.purpose === 'generation') { directSignal = request.signal; return pending.promise; }
+    } });
+    f.observe();
+    await f.advance(600);
+    assert.equal(automaticSignal.aborted, false);
+    f.service.updateConfig(changes);
+    assert.equal(automaticSignal.aborted, true);
+    f.observe({ uid: 'direct', message: '小米 请回答' });
+    await flush();
+    f.service.updateConfig(changes);
+    assert.equal(directSignal.aborted, false);
+    automatic.resolve({ text: '{"action":"reply","targetMessageId":"1","reply":"自动回复"}', functionCalls: [], usage: {} });
+    pending.resolve({ text: '直接回答', functionCalls: [], usage: {} });
+    await f.advance(20000);
+    assert.deepEqual(f.sent.map(item => item.message), ['直接回答']);
+    assert.equal(f.timers.size, 0);
+  });
+}
 
 for (const outcome of ['fresh', 'expired', 'preempted']) {
   test(`automatic replies honor the shared sender wait and recheck ${outcome} work before submission`, async t => {

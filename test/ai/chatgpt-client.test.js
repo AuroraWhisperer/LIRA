@@ -69,6 +69,26 @@ test('subscription model discovery does not expose malformed upstream response c
   });
 });
 
+test('subscription reasoning follows catalog levels and defaults without crossing account sessions', async () => {
+  const bodies = [];
+  const { client, session } = fixture(async (_url, options) => {
+    if (!options.body) return new Response(JSON.stringify({ models: [{ slug: config.model, visibility: 'list',
+      supported_reasoning_levels: [{ effort: 'low' }, { effort: 'medium' }, { effort: 'high' }],
+      default_reasoning_level: 'high' }] }));
+    bodies.push(JSON.parse(options.body));
+    return stream([completed([message])]);
+  });
+  const catalog = await client.listModels(config);
+  assert.deepEqual(catalog.modelReasoning[config.model], { efforts: ['low', 'medium', 'high'], defaultEffort: 'high' });
+  await client.createResponse({ config: { ...config, reasoningEnabled: true, reasoningEffort: 'xhigh' }, input: '你好' });
+  await client.createResponse({ config: { ...config, reasoningEnabled: false }, input: '你好' });
+  session.getSessionRevision = () => 'another-session';
+  await client.createResponse({ config: { ...config, reasoningEnabled: true, reasoningEffort: 'high' }, input: '你好' });
+  assert.equal(bodies[0].reasoning.effort, 'high');
+  assert.equal(bodies[1].reasoning.effort, 'low');
+  assert.equal(bodies[2].reasoning, undefined);
+});
+
 test('subscription wraps functions and replays reasoning and tool history without previous_response_id', async () => {
   const bodies = [];
   const output = [{ type: 'reasoning', id: 'reasoning-1', encrypted_content: 'opaque' },

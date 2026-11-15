@@ -247,3 +247,20 @@ body[data-style='bubble'] .draw-danmaku-item[data-live-entry] { translate: var(-
   from { --danmaku-enter-opacity: 0; --danmaku-enter-x: -8px; }
   to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='bubble'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='bubble'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 30px;
+  line-height: 1.25;
+}
+body[data-style='bubble'] .draw-danmaku-item .draw-danmaku-medal-name {
+  font-size: 16px;
+  line-height: 1.25;
+}
+body[data-style='bubble'] .draw-danmaku-item .draw-danmaku-medal-level {
+  font-size: 16px;
+  line-height: 1.25;
+}

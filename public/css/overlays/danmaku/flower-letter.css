@@ -116,27 +116,34 @@ body[data-style='flower-letter'] .flower-content .draw-danmaku-emote {
 body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-copy { min-height: 150px; }
 body[data-style='flower-letter'] .is-emote-only:not(.is-superchat) .flower-content .draw-danmaku-emote { width: 150px; height: 150px; }
 .flower-letter.is-emote-only .flower-content { min-height: 242px; }
-body[data-style='flower-letter'] .flower-gift .flower-content { padding: 55px 95px 145.4px 85px; }
+body[data-style='flower-letter'] :is(.flower-gift, .flower-superchat) .flower-content {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 96px minmax(0, 1fr);
+  gap: 36px 22px;
+  padding: 55px 95px 40px 85px;
+}
+body[data-style='flower-letter'] :is(.flower-gift, .flower-superchat) .flower-copy { grid-area: 1 / 1 / auto / -1; }
+body[data-style='flower-letter'] .flower-gift .flower-content { padding-bottom: 56px; }
 .flower-gift .flower-copy { text-align: center; }
-.flower-from { position: absolute; bottom: 43px; left: 61px; display: flex; gap: 6px; max-width: 410px; font-size: 31px; white-space: nowrap; }
-.flower-from .flower-nickname { font-weight: 500; }
-.flower-price { position: absolute; bottom: 36px; right: 105px; max-width: 420px; overflow: hidden; font-size: 43px; font-weight: 500; white-space: nowrap; }
-body[data-style='flower-letter'] .flower-superchat .flower-content { padding: 35px 80px 120.4px; }
-.flower-superchat .flower-from { bottom: 47px; }
-.flower-superchat .flower-price { right: 98px; bottom: 39px; }
+.flower-from { grid-area: 2 / 1; align-self: end; display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 31px; overflow-wrap: anywhere; }
+.flower-from > :first-child { flex: none; }
+.flower-from .flower-nickname { overflow: visible; text-overflow: clip; white-space: normal; font-weight: 500; }
+.flower-price { grid-area: 2 / 3; align-self: end; justify-self: end; max-width: 100%; font-size: 43px; font-weight: 500; overflow-wrap: anywhere; }
+body[data-style='flower-letter'] .flower-superchat .flower-content { padding: 35px 80px 40px; }
 .flower-superchat .flower-crest-avatar { left: 504px; bottom: 27px; width: 74px; height: 58px; }
 body[data-style='flower-letter'] .flower-superchat:has(.flower-copy:empty) .flower-content { min-height: 207px; }
-body[data-style='flower-letter'] .flower-superchat:not(:has(.flower-copy:empty)) .flower-content { padding-bottom: 165.4px; }
-body[data-style='flower-letter'] .flower-join .flower-content { padding: 105px 125px 109.4px 115px; }
-body[data-style='flower-letter'] .flower-join .flower-copy { text-align: center; font-size: calc(var(--flower-type) * 1.930232558); }
-.flower-member-name { position: absolute; top: 50px; left: 372px; width: 326px; height: 51px; display: flex; gap: 5px; align-items: center; justify-content: center; padding: 0 10px; background: #796746; color: white; border-radius: 26px; font: 500 43px/1 var(--flower-font); white-space: nowrap; }
+body[data-style='flower-letter'] .flower-join .flower-content { padding: 50px 125px 109.4px 115px; }
+body[data-style='flower-letter'] .flower-join .flower-copy { text-align: center; font-size: calc(var(--flower-type) * 1.55);
+  line-height: 1.2; }
+.flower-member-name { position: relative; width: fit-content; max-width: 100%; min-height: 51px; margin: 0 auto 12px; display: flex; flex-wrap: wrap; gap: 5px; align-items: center; justify-content: center; padding: 4px 18px; background: #796746; color: white; border-radius: 26px; font: 500 43px/1.2 var(--flower-font); }
+.flower-member-name .flower-nickname { overflow: visible; white-space: normal; overflow-wrap: anywhere; }
 .flower-member-name .flower-guard-icon { width: 35px; height: 35px; }
 .flower-join .flower-crest-avatar { left: 500px; bottom: 29px; width: 74px; height: 60px; }
-body[data-style='flower-letter'] .flower-join[data-flower-role='admiral'] .flower-content { padding-top: 106px; padding-bottom: 108.4px; }
+body[data-style='flower-letter'] .flower-join[data-flower-role='admiral'] .flower-content { padding-top: 50px; padding-bottom: 108.4px; }
 .flower-join[data-flower-role='governor'] .flower-content { translate: 6px; }
-body[data-style='flower-letter'] .flower-join[data-flower-role='captain'] .flower-content { padding: 118px 120px 130px; }
-.flower-join[data-flower-role='captain'] .flower-member-name { top: 47px; left: 292px; width: 488px; height: 64px; font-size: 52px; }
-body[data-style='flower-letter'] .flower-join[data-flower-role='captain'] .flower-copy { font-size: calc(var(--flower-type) * 2.558139535); }
+body[data-style='flower-letter'] .flower-join[data-flower-role='captain'] .flower-content { padding: 47px 120px 130px; }
+.flower-join[data-flower-role='captain'] .flower-member-name { min-height: 64px; font-size: 52px; }
+body[data-style='flower-letter'] .flower-join[data-flower-role='captain'] .flower-copy { font-size: calc(var(--flower-type) * 2.05); }
 .flower-join[data-flower-role='captain'] .flower-crest-avatar { left: 477px; bottom: 29px; width: 122px; height: 84px; }
 body[data-style='flower-letter'] .flower-small-gift .flower-content { padding: 29px 80px 25.4px 206px; }
 body[data-style='flower-letter'] .flower-small-gift .flower-copy { display: flex; align-items: baseline; font-size: var(--flower-type); white-space: nowrap; -webkit-text-stroke: 0; }
@@ -145,4 +152,89 @@ body[data-style='flower-letter'] .flower-small-gift .flower-copy { display: flex
 @keyframes flower-letter-entry { from { --danmaku-enter-opacity: .8; } to { --danmaku-enter-opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='flower-letter'] .flower-letter-item { animation: none !important; }
+}
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='flower-letter'] .draw-danmaku-item:not(.flower-join) .flower-copy {
+  line-height: 1.4;
+}
+body[data-style='flower-letter'] .draw-danmaku-item .flower-greeting {
+  font-size: 28.782px;
+  line-height: 1.25;
+}
+body[data-style='flower-letter'] .draw-danmaku-item .flower-time {
+  font-size: 28.797px;
+  line-height: 1.25;
+}
+body[data-style='flower-letter'] .draw-danmaku-item .flower-salutation {
+  font-size: 28.782px;
+  line-height: 1.25;
+}
+body[data-style='flower-letter'] .draw-danmaku-item .flower-nickname {
+  font-size: 42.089px;
+  line-height: 1.25;
+}
+body[data-style='flower-letter'] .draw-danmaku-item .flower-medal {
+  font-size: 33.215px;
+  line-height: 1.25;
+}
+body[data-style='flower-letter'] .flower-letter .flower-greeting,
+body[data-style='flower-letter'] .flower-letter .flower-signature {
+  position: static;
+  inset: auto;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  white-space: normal;
+}
+body[data-style='flower-letter'] .flower-letter .flower-greeting {
+  grid-row: 1;
+}
+body[data-style='flower-letter'] .flower-letter .flower-signature {
+  grid-row: 3;
+  justify-self: end;
+}
+body[data-style='flower-letter'] .flower-letter .flower-nickname {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body[data-style='flower-letter'] .flower-letter .flower-medal {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body[data-style='flower-letter'] .flower-small-gift .flower-copy {
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  white-space: normal;
+}
+body[data-style='flower-letter'] .flower-small-gift .flower-nickname {
+  max-width: 100%;
+  overflow: visible;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+body[data-style='flower-letter'] .flower-small-gift .flower-gift-description {
+  flex: 0 1 auto;
+  min-width: 0px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+body[data-style='flower-letter'] .flower-letter .flower-content {
+  display: grid;
+  grid-template-columns: minmax(0px, 1fr);
+  row-gap: 12px;
+  padding: 32px 194px 94px 84px;
+}
+body[data-style='flower-letter'] .flower-letter .flower-copy {
+  grid-row: 2;
+  line-height: 1.25;
+}
+body[data-style='flower-letter'] .flower-letter .flower-brush {
+  position: absolute;
+  top: 125px;
+  right: 96px;
+  margin: 0px;
 }

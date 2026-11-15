@@ -25,7 +25,7 @@ test('Kimi preset discovers official models and keeps thinking content across to
   assert.equal(requests[2].body.messages.at(-2).reasoning_content, 'fixture thinking');
 });
 
-test('Kimi K3 review and connection requests use low thinking with enough generation budget', async () => {
+test('Kimi K3 uses low thinking for disabled requests and its official max default when enabled', async () => {
   let body;
   const client = createModelClient({ fetchImpl: async (_url, options) => {
     body = JSON.parse(options.body);
@@ -36,6 +36,31 @@ test('Kimi K3 review and connection requests use low thinking with enough genera
   assert.equal(body.thinking, undefined);
   assert.equal(body.reasoning_effort, 'low');
   assert.equal(body.max_completion_tokens, 4096);
+  await client.createResponse({ config: { modelProvider: 'kimi', model: 'kimi-k3', deepseekApiKey: 'fixture-key',
+    reasoningEnabled: true, reasoningEffort: 'auto' }, input: '你好' });
+  assert.equal(body.reasoning_effort, 'max');
+});
+
+test('official catalog effort metadata controls requests only for the matching service and credential', async () => {
+  const bodies = [];
+  let effort = { supported_levels: ['high', 'max'], default_level: 'max' };
+  const client = createModelClient({ fetchImpl: async (_url, options) => {
+    if (!options.body) return jsonResponse({ data: [{ id: 'deepseek-v4-pro', effort }] });
+    bodies.push(JSON.parse(options.body));
+    return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+  } });
+  const config = { modelProvider: 'deepseek', model: 'deepseek-v4-pro', deepseekApiKey: 'catalog-key',
+    reasoningEnabled: true, reasoningEffort: 'low' };
+  const catalog = await client.listModels({ ...config, apiKey: config.deepseekApiKey });
+  assert.deepEqual(catalog.modelReasoning['deepseek-v4-pro'], { efforts: ['high', 'max'], defaultEffort: 'max' });
+  await client.createResponse({ config, input: 'hello' });
+  effort = { supported_levels: ['high'], default_level: 'high' };
+  await client.listModels({ ...config, apiKey: config.deepseekApiKey });
+  await client.createResponse({ config, input: 'hello' });
+  await client.createResponse({ config: { ...config, deepseekApiKey: 'other-key' }, input: 'hello' });
+  assert.equal(bodies[0].reasoning_effort, 'max');
+  assert.equal(bodies[1].reasoning_effort, 'high');
+  assert.equal(bodies[2].reasoning_effort, 'low');
 });
 
 for (const { name, modelProvider, responsesUrl, provider } of [
@@ -335,7 +360,7 @@ test('DeepSeek official Chat enables thinking and sends the selected reasoning e
   assert.equal(capturedBody.reasoning_effort, 'max');
 });
 
-test('DeepSeek official Responses API uses its root path and mapped reasoning effort', async () => {
+test('DeepSeek official Responses API uses its root path and the official default for a legacy effort', async () => {
   let captured;
   const client = createModelClient({
     fetchImpl: async (url, options) => {
@@ -363,17 +388,32 @@ test('DeepSeek official Responses API uses its root path and mapped reasoning ef
 
 for (const scenario of [
   {
+    name: 'DeepSeek Responses non-thinking',
+    config: { modelProvider: 'auto', model: 'deepseek-flash', deepseekResponsesUrl: 'https://api.deepseek.com',
+      modelApiProtocol: 'responses', reasoningEnabled: false },
+    response: { id: 'resp_ds_none', output_text: 'ok' },
+    url: 'https://api.deepseek.com/responses',
+    assertBody: (body) => assert.deepEqual(body.reasoning, { effort: 'none' }),
+  },
+  {
     name: 'OpenAI',
     config: {
       modelProvider: 'openai',
       deepseekResponsesUrl: 'https://untrusted.example.test',
       modelApiProtocol: 'chat_completions',
-      model: 'gpt-test',
-      reasoningEffort: 'high',
+      model: 'gpt-6.1-sol',
+      reasoningEffort: 'auto',
     },
     response: { id: 'resp_openai', output_text: 'ok' },
     url: 'https://api.openai.com/v1/responses',
-    assertBody: (body) => assert.deepEqual(body.reasoning, { effort: 'high' }),
+    assertBody: (body) => assert.deepEqual(body.reasoning, { effort: 'medium' }),
+  },
+  {
+    name: 'OpenAI non-thinking',
+    config: { modelProvider: 'openai', model: 'gpt-5.4', reasoningEnabled: false },
+    response: { id: 'resp_openai_none', output_text: 'ok' },
+    url: 'https://api.openai.com/v1/responses',
+    assertBody: (body) => assert.deepEqual(body.reasoning, { effort: 'none' }),
   },
   {
     name: 'Claude',
@@ -388,16 +428,23 @@ for (const scenario of [
   },
   {
     name: 'Gemini',
-    config: { modelProvider: 'gemini', model: 'gemini-test', reasoningEffort: 'xhigh' },
+    config: { modelProvider: 'gemini', model: 'gemini-4-hydrogen', reasoningEffort: 'xhigh' },
     response: { choices: [{ message: { content: 'ok' } }] },
     url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
     assertBody(body) {
-      assert.equal(body.reasoning_effort, 'high');
+      assert.equal(body.reasoning_effort, 'xhigh');
       assert.equal(body.thinking, undefined);
     },
   },
+  {
+    name: 'Gemini 2.5 Flash non-thinking',
+    config: { modelProvider: 'gemini', model: 'gemini-2.5-flash', reasoningEnabled: false },
+    response: { choices: [{ message: { content: 'ok' } }] },
+    url: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
+    assertBody: (body) => assert.equal(body.reasoning_effort, 'none'),
+  },
 ]) {
-  test(`${scenario.name} provider preset fixes its official endpoint and reasoning mapping`, async () => {
+  test(`${scenario.name} provider preset fixes its official endpoint and uses supported reasoning`, async () => {
     let captured;
     const client = createModelClient({
       fetchImpl: async (url, options) => {

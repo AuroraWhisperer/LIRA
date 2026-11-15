@@ -87,3 +87,12 @@ body[data-style='comet'] .draw-danmaku-body p {
   -webkit-text-stroke: 1.5px rgb(255 255 250 / 92%);
   text-shadow: 0 0 3px #fffdf0, 0 0 6px #fffdf0;
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='comet'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='comet'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 25px;
+  line-height: 1.25;
+}

@@ -85,16 +85,20 @@ function createBilibiliClient(roomId, context) {
           stage = 'after-request';
           if (result.reason === 'cloud-owned') return;
           const replySessionKey = context.getReplySessionKey?.();
+          const sendingAccountUid = context.getSendingAccountUid?.() ?? bilibiliAuthCache.uid;
           aiAssistant.handleDanmaku({
             roomId: String(roomId),
             message: danmaku.message,
             userName: danmaku.userName,
             uid: String(danmaku.uid || ''),
             source: danmaku.source,
+            isWelcome: danmaku.isWelcome === true,
             messageTimestamp: danmaku.messageTimestamp,
             sessionKey: replySessionKey,
             isSessionCurrent: () => !isShuttingDown() && replySessionKey === context.getReplySessionKey?.(),
-            autoReplyExcluded: Boolean(result.accepted || result.command || result.customReply?.command || result.autoReply || result.customReplyReply || gameResult?.game),
+            autoReplyExcluded: Boolean(danmaku.isWelcome === true
+              || (sendingAccountUid && String(danmaku.uid) === String(sendingAccountUid))
+              || result.accepted || result.command || result.customReply?.command || result.autoReply || result.customReplyReply || gameResult?.game),
             captureReplySession: context.captureReplySession,
           });
           if (result.autoReply) {

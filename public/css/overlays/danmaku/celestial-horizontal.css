@@ -83,3 +83,29 @@ body[data-style='celestial-horizontal'][data-ambient-motion='off'] :is(.celestia
 @media (prefers-reduced-motion: reduce) {
   body[data-style='celestial-horizontal'] :is(.celestial-nebula,.celestial-star,.celestial-message) { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='celestial-horizontal'] .draw-danmaku-item .celestial-copy {
+  line-height: 1.3;
+}
+body[data-style='celestial-horizontal'] .draw-danmaku-item .celestial-name {
+  font-size: 23px;
+  line-height: 1.25;
+}
+body[data-style='celestial-horizontal'] .celestial-item .celestial-message {
+  align-items: baseline;
+  gap: 14px;
+}
+body[data-style='celestial-horizontal'] .celestial-copy {
+  line-height: 1.3;
+  letter-spacing: 0.015em;
+}
+body[data-style='celestial-horizontal'] .celestial-user-star {
+  align-self: center;
+  width: 27px;
+  height: 27px;
+}
+body[data-style='celestial-horizontal'] .draw-danmaku-feed > .draw-danmaku-item.celestial-item::after {
+  height: 30px;
+  margin-inline: 14px;
+}

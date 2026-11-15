@@ -22,8 +22,8 @@ export const GIFT_MOTION_EFFECTS = Object.freeze([
   { style: 'gift-swing', prefix: 'giftSwing', label: '礼物摇摇乐', fields: {
     Size: { label: '立牌大小', unit: 'px', default: 150, min: 64, max: 280 },
     DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 3, max: 120 },
-    Speed: { label: '摇摆速度', unit: '%', default: 100, min: 50, max: 200 },
-    Angle: { label: '摆动幅度', unit: '度', default: 36, min: 5, max: 45 },
+    Speed: { label: '运动速度', unit: '%', default: 100, min: 50, max: 200 },
+    Angle: { label: '左右摆幅', unit: '度', default: 36, min: 5, max: 45 },
     TextMode: { label: '显示文字', default: 'full', options: Object.entries(GIFT_SWING_TEXT_MODES)
       .map(([mode, parts]) => [mode, parts.map(part => GIFT_SWING_TEXT_PARTS[part]).join('、') || '仅礼物图片']) },
   } },

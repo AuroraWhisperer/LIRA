@@ -222,6 +222,18 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   await page.getByRole('button', { name: '管理观众昵称', exact: true }).click();
   await page.locator('#danmakuViewerNamesList > div').nth(19).waitFor({ state: 'attached' });
   assert.equal(await page.locator('#danmakuViewerNamesToggle').isChecked(), true);
+  const blockedWords = page.getByLabel('昵称黑名单', { exact: true });
+  await blockedWords.fill('自定义屏蔽词\n广告');
+  await app.evaluate(() => { global.dailyLibraryTest.failNext = true; });
+  await page.locator('#danmakuViewerNamesBlockedWordsSave').click();
+  await page.locator('#danmakuViewerNamesNotice').filter({ hasText: '未保存' }).waitFor();
+  assert.equal(await blockedWords.inputValue(), '自定义屏蔽词\n广告');
+  await page.locator('#danmakuViewerNamesRefresh').click();
+  await page.waitForFunction(() => !document.getElementById('danmakuViewerNamesBlockedWordsSave').disabled);
+  assert.equal(await blockedWords.inputValue(), '自定义屏蔽词\n广告');
+  await page.locator('#danmakuViewerNamesBlockedWordsSave').click();
+  await page.locator('#danmakuViewerNamesNotice').filter({ hasText: '已保存' }).waitFor();
+  assert.deepEqual(await app.evaluate(() => global.dailyLibraryTest.viewerNames.blockedWords), ['自定义屏蔽词', '广告']);
   const lastRow = page.locator('#danmakuViewerNamesList > div').filter({ hasText: 'UID 120' });
   for (let count = 0; count < 21 && !await lastRow.isVisible(); count++) {
     await page.locator('#danmakuViewerNamesNext').click();
@@ -248,6 +260,13 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   });
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.viewerNames.items.length), 20);
   await page.getByRole('button', { name: '管理观众昵称', exact: true }).click();
+  assert.equal(await blockedWords.inputValue(), '自定义屏蔽词\n广告');
+  await blockedWords.fill('');
+  await page.locator('#danmakuViewerNamesBlockedWordsSave').click();
+  await page.locator('#danmakuViewerNamesNotice').filter({ hasText: '已保存' }).waitFor();
+  assert.deepEqual(await app.evaluate(() => global.dailyLibraryTest.viewerNames.blockedWords), []);
+  assert.equal(await app.evaluate(() => global.dailyLibraryTest.viewerNames.enabled), false);
+  await blockedWords.fill('旧账号草稿');
   await app.evaluate(() => { global.dailyLibraryTest.holdNamesRead = true; });
   await page.locator('#danmakuViewerNamesRefresh').click();
   await page.waitForFunction(() => document.getElementById('danmakuViewerNamesPanel').getAttribute('aria-busy') === 'true');
@@ -256,6 +275,12 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   await app.evaluate(() => global.dailyLibraryTest.releaseNamesRead());
   assert.equal(await page.locator('#danmakuViewerNamesList > div').count(), 1);
   assert.equal(await page.locator('#danmakuViewerNamesList').textContent().then(text => text.includes('UID 100')), false);
+  assert.equal(await blockedWords.inputValue(), '另一账号屏蔽词');
+  await app.evaluate(() => { delete global.dailyLibraryTest.viewerNames.blockedWords; });
+  await page.locator('#danmakuViewerNamesRefresh').click();
+  await page.locator('#danmakuViewerNamesBlockedWordsCapability').waitFor();
+  assert.equal(await blockedWords.isDisabled(), true);
+  assert.equal(await page.locator('#danmakuViewerNamesBlockedWordsSave').isDisabled(), true);
 });
 
 test('fixed reply editors save through authorized desktop IPC and preserve failed drafts', { timeout: 45000 }, async (t) => {

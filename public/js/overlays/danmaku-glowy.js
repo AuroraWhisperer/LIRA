@@ -67,6 +67,7 @@ export function createGlowyMessageRenderer({ document, classNames }, render) {
     }
     if (gift) {
       copy.querySelector('.draw-danmaku-gift-art')?.remove();
+      copy.querySelector('.draw-danmaku-gift-amount')?.remove();
       if (member) {
         copy.querySelector('.draw-danmaku-gift-action').textContent =
           ({ open: '开通', renew: '续费' })[item.guardAction] || '支持';

@@ -32,6 +32,7 @@ const MODEL_PROVIDER_PRESETS = Object.freeze({
 const AI_CONFIG_DEFAULTS = Object.freeze({
   enabled: true,
   autoReplyEnabled: false,
+  autoReplyProbabilityPercent: 100,
   trigger: '',
   modelProvider: 'auto',
   modelAuthMode: 'api',
@@ -81,10 +82,11 @@ const ENUM_VALUES = Object.freeze({
   modelProvider: new Set(['auto', 'deepseek', 'kimi', 'openai', 'anthropic', 'gemini', 'custom', 'doubao']),
   modelAuthMode: new Set(['api', 'subscription']),
   modelApiProtocol: new Set(['auto', 'responses', 'chat_completions']),
-  reasoningEffort: new Set(['auto', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
+  reasoningEffort: new Set(['auto', 'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max']),
 });
 
 const NUMBER_LIMITS = Object.freeze({
+  autoReplyProbabilityPercent: [0, 100],
   replyMaxChars: [10, 50],
   generationConcurrency: [1, 5],
   queueLimit: [1, 100],

@@ -195,3 +195,46 @@ body[data-style='dark-moon']:not([data-ambient-motion='off']) .dark-moon-dot { a
 @media (prefers-reduced-motion: reduce) {
   body[data-style='dark-moon'] .dark-moon-item, body[data-style='dark-moon'] .dark-moon-item *, body[data-style='dark-moon'] .dark-moon-item *::before { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='dark-moon'] .draw-danmaku-item .dark-moon-copy {
+  line-height: 1.4;
+}
+body[data-style='dark-moon'] .draw-danmaku-item .dark-moon-name {
+  font-size: 28px;
+  line-height: 1.25;
+}
+body[data-style='dark-moon'] .draw-danmaku-item .dark-moon-role {
+  font-size: 20.015px;
+  line-height: 1.25;
+}
+body[data-style='dark-moon'] .dark-moon-item[data-moon-kind='chat'] .dark-moon-heading {
+  min-height: 40px;
+  margin-bottom: 11px;
+  gap: 5px 7px;
+}
+body[data-style='dark-moon'] .dark-moon-item[data-moon-kind='chat'] .dark-moon-panel {
+  padding: 22px 33px 23px;
+}
+body[data-style='dark-moon'] .dark-moon-name {
+  overflow: visible;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+body[data-style='dark-moon'] .dark-moon-item[data-moon-kind='chat'] .dark-moon-copy {
+  line-height: 1.25;
+  letter-spacing: 0.04em;
+}
+body[data-style='dark-moon'] .dark-moon-item:is(.is-gift, .is-superchat) .dark-moon-panel:not(.dark-moon-sc-message) {
+  padding: 14px 20px;
+}
+body[data-style='dark-moon'] .dark-moon-event-heading {
+  gap: 4px 8px;
+  line-height: 1.25;
+  letter-spacing: 0.025em;
+}
+body[data-style='dark-moon'] .dark-moon-item .dark-moon-event-heading .dark-moon-name {
+  line-height: 1.25;
+}

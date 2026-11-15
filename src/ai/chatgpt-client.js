@@ -3,7 +3,8 @@
 const { randomUUID } = require('node:crypto');
 const { createPublicError, createRequestSignal } = require('./http-client');
 const { readResponseText } = require('../shared/response-body');
-const { normalizeResponse } = require('./model-protocol');
+const { normalizeResponse, resolveReasoningEffort } = require('./model-protocol');
+const { getModelReasoning } = require('./model-reasoning');
 
 const BASE_URL = 'https://api.openai.com/v1';
 const MAX_BYTES = 2 * 1024 * 1024;
@@ -11,9 +12,17 @@ const MAX_BYTES = 2 * 1024 * 1024;
 function createChatGptClient({ session, fetchImpl = globalThis.fetch, logEvent }) {
   const histories = new Map();
   let historyRevision;
+  let modelReasoning = {};
+  let catalogRevision;
+
+  function getReasoningProfile(config) {
+    return catalogRevision === session.getSessionRevision() && Object.hasOwn(modelReasoning, config.model)
+      ? modelReasoning[config.model] : getModelReasoning({ ...config, modelProvider: 'openai' });
+  }
 
   async function listModels(request = {}) {
     return session.withAccessToken(async (token, signal) => {
+      const revision = session.getSessionRevision();
       const response = await fetchImpl(`${BASE_URL}/models`, {
         headers: { Authorization: `Bearer ${token}` }, redirect: 'error',
         signal: createRequestSignal(signal, request.requestTimeoutMs),
@@ -26,7 +35,12 @@ function createChatGptClient({ session, fetchImpl = globalThis.fetch, logEvent }
       const modelNames = Object.fromEntries(catalog
         .filter(model => typeof model.display_name === 'string' && model.display_name.trim())
         .map(model => [model.slug, model.display_name]));
-      return { models, ...(Object.keys(modelNames).length ? { modelNames } : {}) };
+      modelReasoning = Object.fromEntries(catalog
+        .map(model => [model.slug, getModelReasoning({ ...request, modelProvider: 'openai', model: model.slug }, model)])
+        .filter(([, profile]) => profile));
+      catalogRevision = revision;
+      return { models, ...(Object.keys(modelNames).length ? { modelNames } : {}),
+        ...(Object.keys(modelReasoning).length ? { modelReasoning } : {}) };
     }, request.signal).catch(error => { throw publicError(error); });
   }
 
@@ -37,6 +51,7 @@ function createChatGptClient({ session, fetchImpl = globalThis.fetch, logEvent }
       const result = await session.withAccessToken(async (token, sessionSignal) => {
         const revision = session.getSessionRevision();
         if (historyRevision !== revision) { histories.clear(); historyRevision = revision; }
+        if (catalogRevision !== revision) { modelReasoning = {}; catalogRevision = revision; }
         const previous = request.previousResponseId ? histories.get(request.previousResponseId) : [];
         if (!previous) throw createPublicError('CHATGPT_CONTEXT_EXPIRED', '工具对话已过期，请重新提问。');
         const input = [...previous, ...(Array.isArray(request.input) ? request.input : [{ role: 'user', content: String(request.input || '') }])];
@@ -48,10 +63,9 @@ function createChatGptClient({ session, fetchImpl = globalThis.fetch, logEvent }
           store: false, stream: true, include: ['reasoning.encrypted_content'],
         };
         if (tools.length) body.tools = tools;
-        // Subscription catalogs may not offer a non-reasoning mode.
-        if (request.config.reasoningEnabled && request.config.reasoningEffort !== 'auto') {
-          body.reasoning = { effort: request.config.reasoningEffort };
-        } else if (!request.config.reasoningEnabled) body.reasoning = { effort: 'low' };
+        const effort = resolveReasoningEffort({ ...request.config,
+          modelReasoning: getReasoningProfile(request.config) });
+        if (effort) body.reasoning = { effort };
         const signal = createRequestSignal(sessionSignal, request.config.requestTimeoutMs);
         const response = await fetchImpl(`${BASE_URL}/responses`, {
           method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -83,7 +97,8 @@ function createChatGptClient({ session, fetchImpl = globalThis.fetch, logEvent }
     try { await logEvent?.(event); }
     catch { console.warn('[AI] ChatGPT request logging failed'); }
   }
-  return { createResponse, listModels, getStatus: session.getStatus, getSessionRevision: session.getSessionRevision };
+  return { createResponse, listModels, getModelReasoning: getReasoningProfile,
+    getStatus: session.getStatus, getSessionRevision: session.getSessionRevision };
 }
 
 function publicError(error) {

@@ -426,3 +426,50 @@ body[data-style='moonlit'] .draw-danmaku-empty { display: none; }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='moonlit'] *, body[data-style='moonlit'] *::before, body[data-style='moonlit'] *::after { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='moonlit'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='moonlit'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 26.667px;
+  line-height: 1.25;
+}
+body[data-style='moonlit'] .draw-danmaku-item .draw-danmaku-medal-level {
+  font-size: 21.355px;
+  line-height: 1.25;
+}
+body[data-style='moonlit'] .draw-danmaku-item:not(.is-gift):not(.is-superchat):not(.moonlit-guard) {
+  padding: 5px 42px 9px 30px;
+  gap: 12px;
+}
+body[data-style='moonlit'] .draw-danmaku-item:not(.is-gift):not(.is-superchat):not(.moonlit-guard) .draw-danmaku-identity {
+  padding: 1px 10px;
+  margin-bottom: 2px;
+}
+body[data-style='moonlit'] .draw-danmaku-item:not(.is-gift):not(.is-superchat):not(.moonlit-guard) .draw-danmaku-body p {
+  line-height: 1.25;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-identity strong, .sc-name) {
+  font-size: 26.667px;
+  line-height: 1.25;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift-amount, .sc-money) {
+  font-size: 21.334px;
+  line-height: 1.25;
+}
+body[data-style='moonlit'] .moonlit-guard-name {
+  font-size: 26.667px;
+}
+body[data-style='moonlit'] .moonlit-scroll-paper {
+  grid-template-columns: 56px minmax(0px, 1fr);
+  gap: 10px;
+  padding: 30px 16px 32px;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-avatar, .sc-avatar) {
+  width: 56px;
+  height: 60px;
+}
+body[data-style='moonlit'] .moonlit-scroll :is(.draw-danmaku-gift, .sc-copy) {
+  line-height: 1.25;
+}

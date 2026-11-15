@@ -186,3 +186,31 @@ body[data-style='christmas'] .draw-danmaku-item.christmas-item[data-live-entry] 
 @media (prefers-reduced-motion: reduce) {
   body[data-style='christmas'] .christmas-item, body[data-style='christmas'] .christmas-item * { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='christmas'] .draw-danmaku-item .christmas-copy {
+  line-height: 1.4;
+}
+body[data-style='christmas'] .draw-danmaku-item .christmas-name {
+  font-size: 23.341px;
+  line-height: 1.25;
+}
+body[data-style='christmas'] .draw-danmaku-item .christmas-role {
+  font-size: 17.506px;
+  line-height: 1.25;
+}
+body[data-style='christmas'] .christmas-item.is-gift .christmas-name {
+  font-size: 23.334px;
+  line-height: 1.25;
+}
+body[data-style='christmas'] .christmas-gift-copy :is(.christmas-gift-count, .christmas-amount) {
+  font-size: 18.667px;
+  line-height: 1.25;
+}
+body[data-style='christmas'] :is(.christmas-thanks, .christmas-gift-action, .christmas-event-label) {
+  font-size: 16.334px;
+  line-height: 1.25;
+}
+body[data-style='christmas'] .christmas-gift-count {
+  vertical-align: baseline;
+}

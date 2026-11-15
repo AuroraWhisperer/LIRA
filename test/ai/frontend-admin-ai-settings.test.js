@@ -161,6 +161,102 @@ test('conversation idle minutes preserve an existing 61s setting and autosave ed
   assert.equal(f.saves().at(-1).contextTtlSeconds, 900);
 });
 
+test('automatic reply probability loads the saved value and persists edits independently of the switch', async () => {
+  const f = await createAiSettingsFixture({ config: { autoReplyEnabled: false, autoReplyProbabilityPercent: 45 } });
+  assert.equal(f.elements.get('xiaomiAiAutoReplyProbability').value, '45');
+  f.input('xiaomiAiAutoReplyProbability', '30');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).autoReplyProbabilityPercent, 30);
+  assert.equal(f.publicConfig.autoReplyEnabled, false);
+});
+
+test('official reasoning levels select the official default and save the actual selected level', async () => {
+  const f = await createAiSettingsFixture({ config: {
+    modelProvider: 'deepseek', model: 'deepseek-flash', reasoningEnabled: true, reasoningEffort: 'auto',
+    modelEndpoint: { reasoningMode: 'deepseek_effort', reasoningEfforts: ['low', 'high', 'max'], defaultReasoningEffort: 'high' },
+  } });
+  const input = f.elements.get('xiaomiAiReasoningEffort');
+  assert.deepEqual(input.children.map(option => option.value), ['low', 'high', 'max']);
+  assert.equal(input.value, 'high');
+  f.input('xiaomiAiTrigger', '助手');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).reasoningEffort, 'high');
+  input.value = 'low';
+  f.fire('xiaomiAiForm', 'change', { target: input });
+  await flushAiTasks();
+  assert.equal(f.saves().at(-1).reasoningEffort, 'low');
+});
+
+test('model selection uses its upstream reasoning catalog and unknown models expose no invented levels', async () => {
+  let secondProfile = { efforts: ['low', 'medium'], defaultEffort: 'medium' };
+  const f = await createAiSettingsFixture({ config: { reasoningEnabled: true, reasoningEffort: 'auto' },
+    request: url => url === '/api/ai/models' ? aiResponse({
+      models: ['first', 'second', 'unknown'],
+      modelReasoning: {
+        first: { efforts: ['low', 'high', 'max'], defaultEffort: 'high' },
+        second: secondProfile,
+      },
+    }) : undefined,
+  });
+  await f.fire('xiaomiAiFetchModelsBtn', 'click');
+  const menu = f.elements.get('xiaomiAiModelMenu');
+  const input = f.elements.get('xiaomiAiReasoningEffort');
+  menu.children[0].listeners.click();
+  assert.equal(input.value, 'high');
+  menu.children[1].listeners.click();
+  assert.deepEqual(input.children.map(option => option.value), ['low', 'medium']);
+  assert.equal(input.value, 'medium');
+  await f.advance(700);
+  secondProfile = { efforts: ['high', 'max'], defaultEffort: 'max' };
+  await f.fire('xiaomiAiFetchModelsBtn', 'click');
+  assert.deepEqual(input.children.map(option => option.value), ['high', 'max']);
+  assert.equal(input.value, 'max');
+  f.input('xiaomiAiTrigger', '助手');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).reasoningEffort, 'max');
+  menu.children[2].listeners.click();
+  assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, true);
+  assert.equal(input.children.length, 0);
+});
+
+test('catalog levels without a confirmed default require a selection before saving an effort', async () => {
+  const f = await createAiSettingsFixture({ config: { model: 'current', reasoningEnabled: true, reasoningEffort: 'high',
+    modelEndpoint: { reasoningMode: 'effort', reasoningEfforts: ['high'], defaultReasoningEffort: 'high' } },
+    request: url => url === '/api/ai/models' ? aiResponse({ models: ['current'],
+      modelReasoning: { current: { efforts: ['low', 'max'] } } }) : undefined,
+  });
+  await f.fire('xiaomiAiFetchModelsBtn', 'click');
+  const input = f.elements.get('xiaomiAiReasoningEffort');
+  f.input('xiaomiAiTrigger', '助手');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).reasoningEffort, undefined);
+  input.value = 'max';
+  await f.fire('xiaomiAiForm', 'change', { target: input });
+  await flushAiTasks();
+  assert.equal(f.saves().at(-1).reasoningEffort, 'max');
+});
+
+test('editing credentials discards the old account reasoning capabilities before saving', async () => {
+  const f = await createAiSettingsFixture({ config: { model: 'current', reasoningEnabled: true, reasoningEffort: 'auto',
+    modelEndpoint: { reasoningMode: 'effort', reasoningEfforts: ['high'], defaultReasoningEffort: 'high' } },
+  });
+  f.input('xiaomiAiDeepSeekKey', 'new-account-key');
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).reasoningEffort, undefined);
+});
+
+test('editing a custom endpoint drops the previous service reasoning capabilities before saving', async () => {
+  const f = await createAiSettingsFixture({ config: {
+    modelProvider: 'auto', model: 'deepseek-flash', reasoningEnabled: true, reasoningEffort: 'auto',
+    deepseekResponsesUrl: 'https://api.deepseek.com', modelApiProtocol: 'auto',
+    modelEndpoint: { reasoningMode: 'deepseek_effort', reasoningEfforts: ['low', 'high', 'max'], defaultReasoningEffort: 'high' },
+  } });
+  f.input('xiaomiAiDeepSeekUrl', 'https://other.example/responses');
+  assert.equal(f.elements.get('xiaomiAiReasoningEffortControl').hidden, true);
+  await f.advance(700);
+  assert.equal(f.saves().at(-1).reasoningEffort, undefined);
+});
+
 for (const [key, id] of [['enabled', 'xiaomiAiEnabled'], ['autoReplyEnabled', 'xiaomiAiAutoReplyEnabled']]) {
   test(`${key} off saves independently of invalid form drafts`, async () => {
     const f = await createAiSettingsFixture({ config: { [key]: true } });
@@ -691,8 +787,8 @@ test('AI model listing uses draft credentials and saves a selected model after r
   assert.equal(modelRequest.apiKey, 'deepseek-secret');
   assert.equal(modelRequest.apiUrl, 'https://api.deepseek.com/responses');
   const menu = f.elements.get('xiaomiAiModelMenu');
-  assert.ok(menu.children[0].textContent.includes(modelNames[models[0]]));
-  assert.ok(menu.children[1].textContent.includes(modelNames[models[1]]));
+  assert.equal(menu.children[0].textContent, modelNames[models[0]]);
+  assert.equal(menu.children[1].textContent, modelNames[models[1]]);
   menu.children[1].listeners.click();
   assert.equal(f.elements.get('xiaomiAiModel').value, 'deepseek-v4-pro');
   await f.fire('xiaomiAiFetchModelsBtn', 'click');

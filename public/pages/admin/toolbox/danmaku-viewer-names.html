@@ -1,4 +1,13 @@
 <section id="danmakuViewerNamesPanel" data-fixed-editor="names" hidden>
+  <div class="danmaku-viewer-name-blocklist">
+    <label for="danmakuViewerNamesBlockedWords">昵称黑名单</label>
+    <p id="danmakuViewerNamesBlockedWordsHint" class="hint">每行一个词，昵称包含任一词就不能使用。已预置常见不当词，可自行增删；清空并保存可取消词语拦截。最多 200 条。</p>
+    <textarea id="danmakuViewerNamesBlockedWords" rows="4" aria-describedby="danmakuViewerNamesBlockedWordsHint" spellcheck="false" disabled></textarea>
+    <p id="danmakuViewerNamesBlockedWordsCapability" class="hint" role="status" hidden>当前服务器暂不支持昵称黑名单，请更新服务器后刷新。</p>
+    <div class="danmaku-blessing-actions">
+      <button id="danmakuViewerNamesBlockedWordsSave" class="primary" type="button" disabled>保存黑名单</button>
+    </div>
+  </div>
   <div class="daily-library-list-actions">
     <p class="hint">每个 UID 只保留一个昵称，再次改名会替换原昵称。</p>
     <span id="danmakuViewerNamesCount" class="hint"></span>

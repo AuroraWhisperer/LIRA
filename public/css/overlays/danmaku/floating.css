@@ -78,3 +78,12 @@ body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-emote {
   vertical-align: middle;
 }
 body:is([data-style='floating'], [data-style='comet']) .is-emote-only .draw-danmaku-emote { height: 76px; }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='floating'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='floating'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 22px;
+  line-height: 1.25;
+}

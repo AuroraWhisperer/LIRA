@@ -124,3 +124,12 @@ body[data-style='minimal'] .draw-danmaku-gift-count {
   from { --danmaku-enter-opacity: 0; }
   to { --danmaku-enter-opacity: 1; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='minimal'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='minimal'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 20px;
+  line-height: 1.25;
+}

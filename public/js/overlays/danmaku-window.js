@@ -41,11 +41,12 @@ export function createWindowMessageRenderer({ document, classNames }, render) {
     nameplate.append(heading.children[0]);
     const sender = element('div', 'window-sender');
     sender.append(nameplate);
+    const badges = element('span', 'window-badges');
     if (guard) {
       const icon = element('img', 'window-guard');
       icon.alt = GUARDS[guard];
       setGuardIcon(icon, guard);
-      sender.append(icon);
+      badges.append(icon);
     }
     const medal = item.roomMedal;
     if (medal?.name && Number.isSafeInteger(medal.level) && medal.level > 0) {
@@ -58,8 +59,9 @@ export function createWindowMessageRenderer({ document, classNames }, render) {
         }
       }
       badge.append(element('span', 'window-medal-name', medal.name), element('b', 'window-medal-level', String(medal.level)));
-      sender.append(badge);
+      badges.append(badge);
     }
+    if (badges.children.length) sender.append(badges);
     const controls = element('span', 'window-controls');
     controls.setAttribute('aria-hidden', 'true');
     controls.append(element('i', 'window-minimize'), element('i', 'window-close'));

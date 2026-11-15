@@ -182,3 +182,29 @@ body[data-style='christmas-letter'] .christmas-letter-item[data-live-entry] { an
   body[data-style='christmas-letter'] .christmas-letter-item[data-live-entry], .christmas-letter-item[data-live-entry] *, .christmas-letter-item[data-live-entry] *::after { animation: none !important; }
   .christmas-letter-item :is(.xletter-trace,.xletter-particle,.xletter-glint::after,.xletter-ribbon) { opacity: 0; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='christmas-letter'] .draw-danmaku-item .xletter-copy {
+  line-height: 1.4;
+}
+body[data-style='christmas-letter'] .draw-danmaku-item .xletter-name {
+  font-size: 23.341px;
+  line-height: 1.25;
+}
+body[data-style='christmas-letter'] .draw-danmaku-item .xletter-role-label.xletter-guard-label.xletter-medal {
+  font-size: 16.331px;
+  line-height: 1.25;
+}
+body[data-style='christmas-letter'] .xletter-event-title {
+  font-size: 16.334px;
+  line-height: 1.3;
+}
+body[data-style='christmas-letter'] .xletter-identity .xletter-name {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  overflow-wrap: anywhere;
+}
+body[data-style='christmas-letter'] .christmas-letter-item .xletter-identity {
+  flex-wrap: wrap;
+}

@@ -50,9 +50,13 @@ export function createQueueRequestNotice(element) {
     phase = 'entering';
     layoutKey = '';
     const requester = ownerDocument.createElement('strong');
+    requester.className = 'queue-request-requester';
     requester.textContent = active.requesterName;
+    const song = ownerDocument.createElement('strong');
+    song.className = 'queue-request-song';
+    song.textContent = active.songName;
     const reason = !active.accepted && active.reason ? `：${active.reason}` : '';
-    message.replaceChildren(requester, ownerDocument.createTextNode(` 点歌 ${active.songName}${reason}`));
+    message.replaceChildren(requester, ownerDocument.createTextNode(' 点歌 '), song, ownerDocument.createTextNode(reason));
     outcome.textContent = active.accepted ? '成功' : '失败';
     element.dataset.result = active.accepted ? 'success' : 'failure';
     element.hidden = false;

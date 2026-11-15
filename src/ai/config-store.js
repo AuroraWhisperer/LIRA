@@ -11,12 +11,14 @@ const {
 } = require('./config');
 const { GENERAL_PROMPT, BUILT_IN_PERSONAS, normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
 const { describeModelEndpoint } = require('./model-endpoint');
+const { getModelReasoning } = require('./model-reasoning');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
 const EXPIRED_PRUNE_INTERVAL_MS = 60 * 1000;
 
 function createAiConfigStore(persistence, secretCodec, options = {}) {
   const now = options.now || Date.now;
+  const resolveModelReasoning = options.getModelReasoning || getModelReasoning;
   let cached = null;
   let lastPrunedAt = null;
   const configListeners = new Set();
@@ -88,6 +90,11 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
       config.modelApiProtocol,
       config.modelProvider,
     );
+    const modelReasoning = resolveModelReasoning(config);
+    if (modelReasoning) {
+      result.modelEndpoint.reasoningEfforts = modelReasoning.efforts;
+      if (modelReasoning.defaultEffort) result.modelEndpoint.defaultReasoningEffort = modelReasoning.defaultEffort;
+    }
     return result;
   }
 

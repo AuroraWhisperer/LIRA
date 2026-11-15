@@ -39,3 +39,37 @@ test('runtime notifies configuration changes only after a successful update', as
   assert.deepEqual(changedTriggers, ['小梨']);
   assert.equal(runtime.configStore.getConfig().trigger, '小梨');
 });
+
+test('reopened configuration uses the same refreshed model capabilities as requests', async t => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(SONG_SCHEMA);
+  let sentEffort;
+  let effort = { supported_levels: ['low', 'max'], default_level: 'max' };
+  let catalogRequests = 0;
+  const runtime = buildAiRuntime({ songDb: db, aiLogPath: 'unused', danmakuSender: {},
+    runtimeOptions: {
+      aiSecretCodec: { encrypt: value => value, decrypt: value => value, isAvailable: () => true },
+      aiRequestLogger: { log() {}, flush() {} },
+      fetchImpl: async (_url, options) => {
+        if (!options.body) {
+          catalogRequests += 1;
+          return new Response(JSON.stringify({ data: [{ id: 'deepseek-flash', effort }] }));
+        }
+        sentEffort = JSON.parse(options.body).reasoning_effort;
+        return new Response(JSON.stringify({ choices: [{ message: { content: 'ok' } }] }));
+      },
+    },
+  });
+  t.after(async () => { await runtime.shutdown(); db.close(); });
+  runtime.updateConfig({ modelProvider: 'deepseek', model: 'deepseek-flash', deepseekApiKey: 'fixture-key',
+    reasoningEnabled: true, reasoningEffort: 'auto' });
+  await runtime.service.listModels();
+  assert.equal(runtime.configStore.getPublicConfig().modelEndpoint.defaultReasoningEffort, 'max');
+  effort = { supported_levels: ['low'], default_level: 'low' };
+  await runtime.service.listModels();
+  const reopened = runtime.configStore.getPublicConfig();
+  await runtime.service.testConfiguration();
+  assert.equal(reopened.modelEndpoint.defaultReasoningEffort, 'low');
+  assert.equal(sentEffort, reopened.modelEndpoint.defaultReasoningEffort);
+  assert.equal(catalogRequests, 2);
+});

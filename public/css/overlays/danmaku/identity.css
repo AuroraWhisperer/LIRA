@@ -78,14 +78,15 @@ body[data-style='identity']
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 body[data-style='identity'] .draw-danmaku-avatar {
-  /* 头像保持默认尺寸，正文增高时仍停留在右上角。 */
+  /* 头像铺满卡片高度，保留右侧列宽，不参与正文高度计算。 */
   position: absolute;
   grid-area: avatar;
   top: 0;
   right: 0;
   width: auto;
-  height: var(--identity-card-min-height);
-  max-height: var(--identity-avatar-max-size);
+  height: 100%;
+  max-height: none;
+  max-width: var(--identity-avatar-max-size);
   aspect-ratio: 1;
   min-width: 0;
   border: 0;
@@ -213,4 +214,13 @@ body[data-style='identity'] .draw-danmaku-item[data-live-entry] { translate: var
 @keyframes identityMessageIn {
   from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 10px; }
   to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
+}
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='identity'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='identity'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 20px;
+  line-height: 1.25;
 }

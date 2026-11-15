@@ -14,6 +14,8 @@ export function initDanmakuViewerNames({
     'updateViewerName', 'deleteViewerName'].every((key) => typeof bridge?.[key] === 'function');
   let owner = '', generation = 0, disposed = false, busy = false, active = false;
   let settings = null, items = [], page = 1, total = 0, loaded = false, editing = null, notice = '', stateNotice = '';
+  const blockedWordsInput = get('BlockedWords');
+  let blockedWordsDirty = false;
 
   function controls() {
     toggle.checked = settings?.enabled === true;
@@ -23,6 +25,10 @@ export function initDanmakuViewerNames({
       stateNotice || (!settings ? notice || '正在读取云端状态…' : '');
     get('Notice').textContent = notice;
     get('Refresh').disabled = !owner || !available || busy || Boolean(editing);
+    const supportsBlockedWords = Array.isArray(settings?.blockedWords);
+    blockedWordsInput.disabled = !owner || !supportsBlockedWords || busy;
+    get('BlockedWordsSave').disabled = blockedWordsInput.disabled || !blockedWordsDirty;
+    get('BlockedWordsCapability').hidden = !settings || supportsBlockedWords;
     get('Count').textContent = loaded ? `共 ${total} 人` : '';
     get('Empty').hidden = !loaded || items.length > 0;
     setEditorPageContext(list, { offset: (page - 1) * 20, total,
@@ -113,6 +119,8 @@ export function initDanmakuViewerNames({
     } catch (error) {
       if (disposed || requested !== generation) return false;
       notice = error.code === 'VIEWER_NAMES_UNSUPPORTED' ? '当前服务器暂不支持昵称管理，请更新服务器后重试。' :
+        error.code === 'INVALID_VIEWER_NAME_SETTINGS' ? '黑名单最多 200 条，每条最多 40 个字符，不能包含换行、控制字符或只有符号。' :
+        error.code === 'VIEWER_NAME_BLOCKED' ? '该昵称命中了黑名单，请换一个昵称，或先修改黑名单。' :
         error.code === 'INVALID_VIEWER_NAME_REQUEST' ? '昵称需为 1～10 个字，不能换行；完整 emoji 按一个字计算。' :
           error.code === 'VIEWER_NAME_NOT_FOUND' ? '该昵称已被删除，请取消编辑并刷新名单。' :
             stateOperation ? '昵称开关状态未确认，请刷新核对；服务器可能仍按原设置运行。' :
@@ -121,6 +129,13 @@ export function initDanmakuViewerNames({
       return false;
     } finally {
       if (!disposed && requested === generation) { busy = false; controls(); }
+    }
+  }
+  function acceptSettings(result, resetDraft = false) {
+    settings = result;
+    if (!blockedWordsDirty || resetDraft) {
+      blockedWordsInput.value = result.blockedWords?.join('\n') || '';
+      blockedWordsDirty = false;
     }
   }
   function load(nextPage = page) {
@@ -133,7 +148,7 @@ export function initDanmakuViewerNames({
   }
   async function refresh() {
     const requested = generation;
-    const success = await perform(() => bridge.getViewerNameSettings(), (result) => { settings = result; }, '', true);
+    const success = await perform(() => bridge.getViewerNameSettings(), acceptSettings, '', true);
     if (success && generation === requested && active) await load();
   }
   async function save() {
@@ -162,6 +177,8 @@ export function initDanmakuViewerNames({
     owner = next;
     generation++;
     settings = null;
+    blockedWordsInput.value = '';
+    blockedWordsDirty = false;
     items = [];
     page = 1;
     total = 0;
@@ -180,8 +197,16 @@ export function initDanmakuViewerNames({
   toggle.addEventListener('change', () => {
     if (!settings) return controls();
     const enabled = toggle.checked;
-    void perform(() => bridge.updateViewerNameSettings({ enabled }), (result) => { settings = result; },
+    void perform(() => bridge.updateViewerNameSettings({ enabled }), acceptSettings,
       enabled ? '已开启昵称功能' : '已关闭昵称功能，已存昵称保留', true);
+  });
+  blockedWordsInput.addEventListener('input', () => { blockedWordsDirty = true; controls(); });
+  get('BlockedWordsSave').addEventListener('click', () => {
+    if (!Array.isArray(settings?.blockedWords) || !blockedWordsDirty) return;
+    const blockedWords = blockedWordsInput.value.split(/\r?\n/u).map((word) => word.trim()).filter(Boolean);
+    void perform(() => bridge.updateViewerNameSettings({ blockedWords }), (result) => {
+      acceptSettings(result, true);
+    }, '昵称黑名单已保存到云端');
   });
   get('Refresh').addEventListener('click', refresh);
   root.addEventListener('fixed-reply:select', select);

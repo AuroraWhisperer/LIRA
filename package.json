@@ -1,6 +1,6 @@
 {
   "name": "lira",
-  "version": "6.2.8",
+  "version": "6.3.0",
   "private": true,
   "license": "UNLICENSED",
   "description": "LIRA - Live Interactive Room Assistant",
@@ -169,6 +169,7 @@
         "provider": "github",
         "owner": "AuroraWhisperer",
         "repo": "LIRA",
+        "publishAutoUpdate": false,
         "releaseType": "release"
       }
     ]

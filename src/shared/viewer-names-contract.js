@@ -24,9 +24,19 @@ function viewerNameValue(name, code) {
 }
 
 function viewerNameSettingsParameters(value) {
-  fields(value, ['enabled']);
-  if (typeof value.enabled !== 'boolean') fail();
-  return { enabled: value.enabled };
+  if (!value || typeof value !== 'object' || Array.isArray(value) || !Object.keys(value).length ||
+    Object.keys(value).some((key) => !['enabled', 'blockedWords'].includes(key)) ||
+    (Object.hasOwn(value, 'enabled') && typeof value.enabled !== 'boolean')) fail();
+  const patch = {};
+  if (Object.hasOwn(value, 'enabled')) patch.enabled = value.enabled;
+  if (Object.hasOwn(value, 'blockedWords')) patch.blockedWords = blockedWordsValue(value.blockedWords);
+  return patch;
+}
+
+function blockedWordsValue(value, code = 'INVALID_VIEWER_NAME_SETTINGS') {
+  if (!Array.isArray(value) || value.length > 200 || value.some((word) =>
+    typeof word !== 'string' || !word.trim() || word.trim().length > 40 || /[\x00-\x1f\x7f]/u.test(word))) fail(code);
+  return value.map((word) => word.trim());
 }
 
 function viewerNamesPageParameters(value) {
@@ -42,7 +52,9 @@ function viewerNameParameters(value) {
 
 function sanitizeViewerNameSettings(value) {
   if (typeof value?.enabled !== 'boolean') fail('INVALID_RESPONSE');
-  return { ok: true, enabled: value.enabled };
+  const settings = { ok: true, enabled: value.enabled };
+  if (Object.hasOwn(value, 'blockedWords')) settings.blockedWords = blockedWordsValue(value.blockedWords, 'INVALID_RESPONSE');
+  return settings;
 }
 
 function sanitizeViewerName(value) {

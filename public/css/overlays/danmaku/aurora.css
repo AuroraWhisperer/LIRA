@@ -279,3 +279,12 @@ body[data-style='aurora'][data-ambient-motion='off'] .aurora-paper::after { anim
     animation: none;
   }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='aurora'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='aurora'] .draw-danmaku-item .draw-danmaku-identity > strong {
+  font-size: 21px;
+  line-height: 1.25;
+}

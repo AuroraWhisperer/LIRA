@@ -281,6 +281,7 @@ function createBilibiliRuntime(options) {
       });
       const nextClient = buildClient(roomId, {
         isShuttingDown: () => !isCurrent(),
+        getSendingAccountUid: () => authCache.uid,
         getReplySessionKey: () => JSON.stringify([generation, clientGeneration, getConfiguredRoomId(),
           authFailureRevision, authProvider?.getSessionRevision?.()]),
         async captureReplySession() {

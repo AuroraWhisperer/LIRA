@@ -167,3 +167,27 @@ body[data-style='coffee'][data-ambient-motion='off'] .coffee-steam { animation: 
   body[data-style='coffee'] .coffee-item, body[data-style='coffee'] .coffee-item::after,
   body[data-style='coffee'] .coffee-item * { animation: none !important; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='coffee'] .draw-danmaku-item .coffee-copy {
+  line-height: 1.4;
+}
+body[data-style='coffee'] .draw-danmaku-item .draw-danmaku-identity.coffee-heading > strong {
+  font-size: 20px;
+  line-height: 1.25;
+}
+body[data-style='coffee'] .draw-danmaku-item .coffee-time {
+  font-size: 13px;
+  line-height: 1.25;
+}
+body[data-style='coffee'] .coffee-event .coffee-price {
+  font-size: 16px;
+  line-height: 1.25;
+}
+body[data-style='coffee'] .coffee-item.coffee-event[data-coffee-kind='sc'] .coffee-heading strong {
+  font-size: calc(20px / var(--danmaku-superchat-scale, 1));
+  line-height: 1.25;
+}
+body[data-style='coffee'] .coffee-event[data-coffee-kind='sc'] .coffee-price {
+  font-size: calc(16px / var(--danmaku-superchat-scale, 1));
+}

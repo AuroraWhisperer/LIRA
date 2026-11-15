@@ -90,7 +90,9 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 ### 3.4 自动接话
 
-`autoReplyEnabled` 默认 `false`，开启后仍受总开关、名字和模型就绪条件控制。只有带真实 UID、房间和 `source: 'danmaku'` 的普通消息进入候选；黑名单、本地安全拒绝、小游戏/命令/其他回复已经处理的事件由入口排除。普通弹幕不保证在上游去重，控制器按 `[uid,text,规范化的平台时间戳]` 保存事件键，同一事件只接纳一次，不因后来同文事件覆盖旧键；没有时间戳时抑制 2 秒内同 UID/文本。去重键最多 200 个、保留 30 秒。已有时间戳无效、早于窗口或超前本机 5 秒以上也不接纳。
+`autoReplyEnabled` 默认 `false`，开启后仍受总开关、名字和模型就绪条件控制。只有带真实 UID、房间和 `source: 'danmaku'` 的普通消息进入候选；黑名单、本地安全拒绝、小游戏/命令/其他回复已经处理的事件由入口排除。可信 `isWelcome` 标记与当前已认证发送账号 UID 的弹幕不参与自动接话；不按昵称或欢迎文案判断机器人。普通弹幕不保证在上游去重，控制器按 `[uid,text,规范化的平台时间戳]` 保存事件键，同一事件只接纳一次，不因后来同文事件覆盖旧键；没有时间戳时抑制 2 秒内同 UID/文本。去重键最多 200 个、保留 30 秒。已有时间戳无效、早于窗口或超前本机 5 秒以上也不接纳。
+
+`autoReplyProbabilityPercent` 范围 0–100、默认 100，表示每条合格新弹幕进入接话候选的概率。去重后只抽样一次，数值越高越容易进入候选，改为 0 时取消未送达的自动接话；未抽中的消息保留为公开背景，不能成为回复目标。100 仍受话题判断、静默和节流约束，不保证每条都回；点名问答不抽样。原始 B 站消息没有统一机器人来源标记，其他账号且无可信欢迎标记的消息无法据此识别。
 
 | 边界 | 固定行为 |
 | --- | --- |
@@ -99,10 +101,10 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 | 候选有效期 | 固定 `firstAt + 12 秒`；普通候选以首条收到时间为 `firstAt`，冷却后新候选以确立时间为 `firstAt`。包括审核、生成、排队和发送前等待，已有候选不随新消息延长，不是模型性能承诺 |
 | 等待补充 | `wait` 固定截止为候选 `firstAt + 2500 ms`，仅目标作者的新补充可唤醒；无关消息不延长期限，无补充则结束 |
 | 评估预算 | 普通新候选核心评估间隔至少 5 秒；每候选最多两次评估，第二次仅用于有界补充或过时快照重评 |
-| 发言预算 | 自动消息提交间隔至少 15 秒；观察、丢弃和自动评估均不消费定向问答的用户/房间请求额度 |
+| 发言预算 | 自动消息提交间隔至少 15 秒；观察、概率跳过和自动评估均不消费定向问答的用户/房间请求额度 |
 | 已说内容 | `botReplies` 仅保留确认送达的聊天回复，最近 30 秒、最多 8 条；附 `targetUid/targetUserName/question`，原话限 200 个码点，全场回复目标为空；供模型理解反馈与避免重复 |
 
-冷却到期后，仅在存在最近 12 秒内的未消费消息时建立新候选，以最新消息向前 600 ms 选取当前批次并消费更旧话题；没有新近内容就结束等待。这样不会在 15 秒提交冷却尚未结束时先耗尽 12 秒候选寿命，也不会一直靠新消息延长已有候选。
+冷却到期后，仅在存在最近 12 秒内的未消费消息时建立新候选，以最新消息向前 600 ms 选取当前批次并消费更旧话题；没有新近内容就结束等待。这样不会在提交冷却尚未结束时先耗尽 12 秒候选寿命，也不会一直靠新消息延长已有候选。
 
 定向队列和发送都空闲时才将自动任务交给同一协调器。新点名请求取消未提交的自动任务并消费当前旧候选；自动生成阶段取消可释放 FIFO 序号，迟到结果不能交付。adapter 忽略取消时，真实模型请求仍保留排空跟踪并占用并发槽；并发为 1 时定向请求仍须等待它结束，不能把取消描述为保证立即执行。单纯等待身份读取不占模型槽，不因此阻塞定向请求。已经进入共享 sender 的排队或限流等待不支持立即中断，等待返回后在发送前检查阻止旧消息提交。已提交的自动消息不因普通候选到期或新点名取消送达确认；同一目标观众的后续定向问答等待该确认结束后再读历史。关闭、配置或房间/账号失效仍按各自取消范围处理。
 
@@ -137,8 +139,8 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 | 协议                 | 条件                                                                                                                                                                | 请求体要点                                                                                                                                                                                                           | 出处                                                                                                                           |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| **Responses API**    | 完整 `/responses` 原样使用；显式选择时第三方根地址补 `/v1/responses`，DeepSeek 官方根地址补 `/responses`；`auto` 下无法安全判定为基础地址的完整自定义路径仍原样使用 | `{model, instructions, input, tools?, max_output_tokens(≥64), previous_response_id?}`；关闭推理附 `reasoning: {effort: 'none'}`，启用且强度非 `auto` 时附所选强度；DeepSeek 官方映射为 `low/high/max`                 | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[model-client.js](../../../src/ai/model-client.js) |
-| **Chat Completions** | 完整 `/chat/completions` 原样使用；显式选择或 `auto` 识别根地址、`/v1` 后补全；第三方根地址用 `/v1/chat/completions`，DeepSeek 官方根地址用 `/chat/completions`     | `{model, messages, max_tokens, stream: false}`；DeepSeek 官方发送 `thinking.enabled/disabled`，启用时把公共强度映射为 `reasoning_effort: low/high/max`；普通第三方 Chat 不发送这些专用字段；工具转 `tools`(function) | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[model-client.js](../../../src/ai/model-client.js) |
+| **Responses API**    | 完整 `/responses` 原样使用；显式选择时第三方根地址补 `/v1/responses`，DeepSeek 官方根地址补 `/responses`；`auto` 下无法安全判定为基础地址的完整自定义路径仍原样使用 | `{model, instructions, input, tools?, max_output_tokens(≥64), previous_response_id?}`；按 §4.2 官方模型能力发送 `reasoning.effort`；启用时使用合法所选档或官方默认，关闭时使用 `none` 或官方最低可用档                 | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[model-client.js](../../../src/ai/model-client.js) |
+| **Chat Completions** | 完整 `/chat/completions` 原样使用；显式选择或 `auto` 识别根地址、`/v1` 后补全；第三方根地址用 `/v1/chat/completions`，DeepSeek 官方根地址用 `/chat/completions`     | `{model, messages, max_tokens, stream: false}`；DeepSeek 官方发送 `thinking.enabled/disabled`，启用时发送模型官方支持的 `reasoning_effort`；普通第三方 Chat 不发送这些专用字段；工具转 `tools`(function) | [model-endpoint.js](../../../src/ai/model-endpoint.js)、[model-client.js](../../../src/ai/model-client.js) |
 
 `modelApiProtocol` 默认 `auto`，用于保持旧配置的 URL 自动识别行为。完整 `/responses` 或 `/chat/completions` 路径优先于选择器，避免把已明确的端点改写成另一种协议。无工具时，两种协议都不发送 `tools` 字段。联网能力也分协议：Responses 的 `web_search` 由上游托管，只受联网开关控制；Chat Completions 转为 LIRA 本地函数工具，须同时开启联网和 `functionCallingEnabled`，并要求模型支持 `tool_calls`。接口协议可承载工具不代表具体模型支持。
 
@@ -154,7 +156,15 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 辅助接口:`listModels` 根据配置地址推导同级 `/models`；第三方服务根地址默认使用 `/v1/models`，DeepSeek 官方根地址保持 `/models`，结果去重排序([model-client.js](../../../src/ai/model-client.js));`testConnection`(发"你好"取 200 字回复,401/403/AUTH 类错误码 → `DEEPSEEK_AUTH_FAILED`,[model-client.js](../../../src/ai/model-client.js))。 API 连接测试回执的 `provider` 复用 `describeModelEndpoint` 的结果：显式供应商按预设，`auto` 的官方 DeepSeek 地址为 `deepseek`、其他地址为 `custom`；豆包账号和 ChatGPT 订阅分别返回 `doubao` 与 `openai`。兼容路径 `/api/ai/test/deepseek` 仍测试当前模型配置。
 
-模型列表保留 `models: string[]`，有上游显示名时附加 `modelNames: Record<string, string>`，键为对应调用 ID。API 名称读取 `display_name` 或 `name`；订阅名称读取 `display_name`。选择器以文本显示上游名称及 ID，缺少名称时仅显示原始 ID，不根据 ID 拼写名称或维护静态版本表；选中、保存及请求始终使用 ID。配置读入／保存时，仅官方 DeepSeek 有效地址将旧 `ds-v4-flash`、`deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 归一为 `deepseek-flash`，第三方地址的标识原样保留；Pro 使用目录返回的 `deepseek-v4-pro`。依据：[DeepSeek 模型目录](https://api-docs.deepseek.com/api/list-models/)与[当前 API 名称](https://api-docs.deepseek.com/quick_start/pricing/)。
+模型列表保留 `models: string[]`，有上游显示名时附加 `modelNames: Record<string, string>`，键为对应调用 ID。API 名称读取 `display_name` 或 `name`；订阅名称读取 `display_name`。选择器只显示上游名称，不附加括号或 ID；缺少名称时仅显示原始 ID，不根据 ID 拼写名称；选中、保存及请求始终使用 ID。配置读入／保存时，仅官方 DeepSeek 有效地址将旧 `ds-v4-flash`、`deepseek-v4-flash`、`deepseek-v4-flash-vision-exp` 归一为 `deepseek-flash`，第三方地址的标识原样保留；Pro 使用目录返回的 `deepseek-v4-pro`。依据：[DeepSeek 模型目录](https://api-docs.deepseek.com/api/list-models/)与[当前 API 名称](https://api-docs.deepseek.com/quick_start/pricing/)。
+
+目录可选返回 `modelReasoning: Record<string, {efforts: string[], defaultEffort?: string}>`。归一化由 [model-reasoning.js](../../../src/ai/model-reasoning.js) 拥有：优先读取 DeepSeek 的 `effort.supported_levels/default_level` 和订阅目录可选的 `supported_reasoning_levels/default_reasoning_level`。已返回的等级列表（包括空列表）优先于文档规则；缺少或不适用的默认值不猜测、不回填。仅在目录未提供等级时，才使用有官方文档依据的精确模型及快照 ID，未知后缀不按前缀推测。前端随所选模型和重新获取的目录更新原始等级；只给已确认默认档标注“默认”，无默认档且旧值不适用时保留未选择状态，不自动选第一档。官方依据包括 [OpenAI 模型页](https://developers.openai.com/api/docs/models)、[Gemini 思考等级](https://ai.google.dev/gemini-api/docs/thinking)、[Gemini 兼容参数](https://aistudio.google.com/docs/openai#thinking)和 [Kimi 推理强度](https://platform.kimi.com/docs/guide/use-reasoning-effort)。
+
+公开配置的 `modelEndpoint` 可附 `reasoningEfforts/defaultReasoningEffort`。组合根 [ai-runtime.js](../../../src/server/ai-runtime.js) 将模型客户端的同步 `getModelReasoning(config)` 注入配置投影，使重新打开设置、保存回执和实际请求使用同一份能力，不增加上游请求。目录能力只缓存在模型客户端内存：API 按平台、有效目录 URL 和 Key 的 SHA-256 隔离，最多保留 20 组；订阅按账号会话代次隔离。重新获取目录会替换旧能力；前端切换服务、接入方式、账号或编辑密钥时清除旧目录和旧配置能力，切换模型则读取对应条目。
+
+ChatGPT 订阅的思考能力只使用当前账号目录，不回落 API 模型页；未获取目录或账号会话变化后，省略推理参数并提示重新获取模型，避免把 API 档位套入订阅。
+
+请求启用思考时仅传合法所选档或已确认的官方默认；未确认能力、未确认默认且没有合法选择时省略参数，OpenAI API／订阅均不透传遗留强度，也不强行发送 `none`。关闭选项时，已确认支持 `none` 的模型使用 `none`，始终思考的模型使用官方最低可用档。DeepSeek Chat 和 Kimi K2.5/K2.6 保留独立 `thinking` 开关；DeepSeek Responses 的 `none` 关闭思考，不受目录中仅列思考开启档位的限制，见[官方 schema](https://api-docs.deepseek.com/api/create-response/)。Gemini 2.5 列出兼容协议明确支持的等级，Flash / Flash Lite 包含 `none`；未公布固定命名默认档时不标记默认。第三方 Responses 保留旧显式强度及关闭时 `none` 的兼容行为，普通第三方 Chat 不发送专用思考字段。
 
 ### 4.3 模型调用诊断
 
@@ -189,11 +199,11 @@ SSE 解析保留文字块的初始内容与增量片段，忽略思考、语音�
 [chatgpt-session.js](../../../src/ai/chatgpt-session.js) 拥有多账号、授权范围、串行刷新、退出和会话代次。
 复用 `ai_configuration`：`chatgptHostId` 保存稳定本机标识，`chatgptAccounts` 保存经 safeStorage codec 加密的账号/注册/令牌记录（is_secret=1）；两者都不在公开配置白名单内。无可用加密或桌面打开浏览器能力时拒绝登录，不做明文回退。只有授权 `chatgpt.tokens.use.direct` 才能推理；过期前串行刷新并替换凭据。退出先删除当前账号令牌、取消在途请求，再请求官方撤销；撤销未确认时提示用户，保留注册映射供复登，不影响其他账号及 API Key。切换和退出使旧请求失效，迟到刷新不能恢复已退出凭据。shutdown 关闭回调并等待在途工作。
 
-[chatgpt-client.js](../../../src/ai/chatgpt-client.js) 仅向固定公开 `https://api.openai.com/v1` 发送订阅 token。模型目录读取 `models[]` 中 visibility=list 的 slug 及 display_name 并保持官方顺序；名称用于展示，slug 用于请求，遵循[官方订阅目录契约](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)。推理使用 Responses 的 `store:false`、`stream:true` 和数组 input，不传订阅不支持的 max_output_tokens/previous_response_id；函数工具放入 lira namespace，工具续接在本地回放输入、函数调用和加密 reasoning，账号代次改变时清空。SSE 限 2 MiB，只有 response.completed 才返回完整结果；失败、额度不足或中断不发送部分回答，不自动回退到 API。人格、上下文、审核、工具与最终投递继续由原 service 执行；关闭思考使用 low，而非声称所有订阅模型可完全关闭推理。
+[chatgpt-client.js](../../../src/ai/chatgpt-client.js) 仅向固定公开 `https://api.openai.com/v1` 发送订阅 token。模型目录读取 `models[]` 中 visibility=list 的 slug 及 display_name 并保持官方顺序；名称用于展示，slug 用于请求，遵循[官方订阅目录契约](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)。推理使用 Responses 的 `store:false`、`stream:true` 和数组 input，不传订阅不支持的 max_output_tokens/previous_response_id；函数工具放入 lira namespace，工具续接在本地回放输入、函数调用和加密 reasoning，账号代次改变时清空。SSE 限 2 MiB，只有 response.completed 才返回完整结果；失败、额度不足或中断不发送部分回答，不自动回退到 API。人格、上下文、审核、工具与最终投递继续由原 service 执行；思考参数遵循 §4.2 的官方能力；没有官方档位信息时不猜测关闭等级。
 
 浏览器入口由 Electron main 注入 `openAiLoginBrowser`，runtime 负责组装和清理，无新增 renderer IPC。账号接口沿用 AI 管理授权，公开状态仅含可用性、登录/授权状态、账号标签与安全错误，见 [api.md](api.md#13-ai-域ai)。API 与订阅可同时保存，每次只调用显式所选模式；原 API Key 的 origin 继续通过私有 `doubaoPreviousKeyOrigin` 保护，跨账号模式切换不会覆盖原来源。
 
-Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /models。adapter 使用 max_completion_tokens；K2.5/K2.6 通过 thinking.type 开关思考，K3 始终思考、关闭时设 low 且输出预算至少 4096；工具历史保留 assistant reasoning_content。Kimi Code 订阅不用于弹幕产品调用，其他未提供此用途授权的厂商继续 API Key 接入。
+Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /models。adapter 使用 max_completion_tokens；K2.5/K2.6 通过 thinking.type 开关思考，K3 / K3.1 Pro 使用官方 low/high/max、默认 max，始终思考、关闭选项时设 low 且输出预算至少 4096；工具历史保留 assistant reasoning_content。Kimi Code 订阅不用于弹幕产品调用，其他未提供此用途授权的厂商继续 API Key 接入。
 
 官方依据：[本地授权](https://developers.openai.com/siwc/token-sharing-open-source/sign-in)、[模型与推理](https://developers.openai.com/siwc/token-sharing-open-source/models-and-inference)、[订阅限制](https://developers.openai.com/siwc/token-sharing-open-source/preview-limitations)、[Kimi 产品集成说明](https://www.kimi.com/en/help/kimi-code/membership-guide)。回归见 `chatgpt-session.test.js`、`chatgpt-client.test.js`、`ai-provider-adapters.test.js` 与原有配置/生命周期套件。
 
@@ -234,12 +244,12 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | 分组           | 键                                                                                             | 默认                              | 说明                                                                                                                                                                           |
 | -------------- | ---------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 总开关         | `enabled`                                                                                      | `true`                            | 布尔                                                                                                                                                                           |
-| 自动接话 | `autoReplyEnabled` | `false` | 共用当前模型和人格；仅控制自动任务，固定时序和候选规则见 §3.4 |
+| 自动接话 | `autoReplyEnabled` / `autoReplyProbabilityPercent` | `false` / `100` | 共用当前模型和人格；合格普通弹幕的候选概率 0–100%，评估时序和候选规则见 §3.4 |
 | 触发           | `trigger`                                                                                      | 空                                | 空或 1–12 字符；为空时尚未就绪                                                                                                                                                 |
 | 供应商         | `modelProvider`                                                                                | `auto`                            | 枚举：`auto, deepseek, kimi, openai, anthropic, gemini, custom, doubao`；五个官方 API 预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖                                                     |
 | 接入方式 | `modelAuthMode` | `api` | `api` / `subscription`；只有 OpenAI 接受 subscription，其他平台归一化为 api；旧配置默认 api |
 | 模型服务       | `deepseekResponsesUrl` / `deepseekApiKey` / `model`                                            | 全空                              | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点；model 为空或 ≤ 80 字符                                                                             |
-| 协议与推理强度 | `modelApiProtocol` / `reasoningEffort`                                                         | `auto` / `auto`                   | 协议枚举:`auto, responses, chat_completions`；强度枚举:`auto, minimal, low, medium, high, xhigh, max`；DeepSeek 官方把 `minimal→low`、`medium/high/xhigh→high`，保留 `low/max` |
+| 协议与推理强度 | `modelApiProtocol` / `reasoningEffort`                                                         | `auto` / `auto`                   | 协议枚举:`auto, responses, chat_completions`；存储兼容枚举:`auto, none, minimal, low, medium, high, xhigh, max`；实际可选档和默认值按 §4.2 的官方模型能力确定 |
 | 行为开关 | `webSearchEnabled` / `functionCallingEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | 全为 `false` | 新配置默认普通问答；工具和联网按 §5 显式启用，关闭总开关保留各工具配置 |
 | 第三方凭证     | `qweatherApiHost` / `qweatherApiKey` / `amapApiHost` / `amapApiKey`                            | 全空                              | Host 缺协议自动补 `https://`                                                                                                                                                   |
 | 兼容数值       | `replyMaxChars` | 50 | 保留 10–50 校验供旧调用方读写，界面不展示，运行时不采用此偏好 |
@@ -263,7 +273,7 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | 存储标记     | 密钥以 `is_secret=1` 存 `ai_configuration`,写入时 `secretCodec.encrypt`                                                                                                                                                                                                       | [config-store.js](../../../src/ai/config-store.js)                                                                                                        |
 | 加密实现     | `createElectronSecretCodec` 包装 Electron `safeStorage`(`isEncryptionAvailable()` 为真才可加密),值经 `encryptString` 后 Base64 落库;**刻意不提供明文回退**;非 Electron 独立模式 `isAvailable()` 为 false,写入密钥直接抛错"当前系统无法安全加密 API Key"                       | [secret-codec.js:3-31](../../../src/ai/secret-codec.js#L3-L31)                                                                                                          |
 | 读取降级     | 解密失败时该键置空并 `console.warn`(日志脱敏),不阻断其他配置读取                                                                                                                                                                                                              | [config-store.js](../../../src/ai/config-store.js)                                                                                                        |
-| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段及原始 `personaPacks`，改为返回含内置和已保存角色的 `personas` 列表,替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js)                                                                                                                      |
+| 公开视图边界 | `getPublicConfig` 过滤 `AI_SECRET_KEYS` 全部密钥字段及原始 `personaPacks`，改为返回含内置和已保存角色的 `personas` 列表,替换为 `hasDeepSeekApiKey/hasQWeatherApiKey/hasAmapApiKey`、`secretEncryptionAvailable` 与无密钥 `modelEndpoint {protocol, provider, webSearchMode, reasoningMode, reasoningEfforts?, defaultReasoningEffort?}`；`updateConfig` 返回相同公开视图 | [config-store.js](../../../src/ai/config-store.js)                                                                                                                      |
 | 前端遮罩     | 管理页密钥输入框类型为 `password`；公开配置的 `deepseekApiKeyPreview`、`qweatherApiKeyPreview`、`amapApiKeyPreview` 仅返回前 6 位加 `********`，长度不超过 12 的密钥全部遮罩，未配置返回空串。预览仅放在 placeholder，完整密钥不回填 `value`；成功保存后清空已提交的密钥草稿，较新的输入保留。空值跳过该字段，保留现值；提示文案为“已加密保存；输入新密钥可替换，留空保留现有密钥” | [config-store.js](../../../src/ai/config-store.js)、[ai-assistant-config-view.js](../../../public/js/admin/ai-assistant-config-view.js)、[ai-assistant-settings.js](../../../public/js/admin/ai-assistant-settings.js) |
 
 管理端编辑经 `/api/ai/config`(`PUT`,密钥传 `''` 跳过、传 `null` 置空,见 [api.md](api.md) §13);连接测试/模型列表端点:`/api/ai/status`、`/api/ai/models`、`/api/ai/test`、`/api/ai/test/{deepseek,qweather,amap}`。

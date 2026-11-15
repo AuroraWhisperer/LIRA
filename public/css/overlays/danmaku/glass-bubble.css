@@ -213,3 +213,16 @@ body[data-style='glass-bubble'][data-glass-bubble-sweep='off'] .glass-bubble-she
 @media (prefers-reduced-motion: reduce) {
   body[data-style='glass-bubble'] .glass-bubble-item * { animation: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='glass-bubble'] .draw-danmaku-item .glass-bubble-copy {
+  line-height: 1.4;
+}
+body[data-style='glass-bubble'] .draw-danmaku-item .glass-bubble-name {
+  font-size: 23px;
+  line-height: 1.25;
+}
+body[data-style='glass-bubble'] .glass-bubble-item .glass-bubble-header .glass-bubble-name {
+  font-size: 23px;
+  line-height: 1.25;
+}

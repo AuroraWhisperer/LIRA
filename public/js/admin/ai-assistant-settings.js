@@ -12,6 +12,7 @@ import {
   renderProviderSelection,
   renderToolSettings,
   syncReasoningEffortAvailability,
+  selectReasoningEffort,
   renderStatus,
   renderDoubaoStatus,
   setState,
@@ -71,7 +72,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
       if (requestRevision !== configRevision) return;
       const previousService = JSON.stringify(modelPicker.readService());
       renderConfig(config, editedFieldIds);
-      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate();
+      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate({ preserveConfig: true });
       personaControls.render(config, editedFieldIds);
       renderStatus(status);
       if (!configLoaded) {
@@ -195,7 +196,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
       configRevision += 1;
       const previousService = JSON.stringify(modelPicker.readService());
       renderConfig(config, editedFieldIds);
-      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate();
+      if (previousService !== JSON.stringify(modelPicker.readService())) modelPicker.invalidate({ preserveConfig: true });
       personaControls.render(config, editedFieldIds);
     },
   });
@@ -229,6 +230,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   form.addEventListener('change', (event) => {
     if (event.target.id === 'xiaomiAiChatGptProfiles' || replySwitchIds.has(event.target.id)) return;
     modelPicker.invalidateField(event.target.id);
+    if (event.target.id === 'xiaomiAiReasoningEffort') selectReasoningEffort();
     if (event.target.matches('input[type="checkbox"], input[type="number"], select')) {
       if (event.target.id === 'xiaomiAiPersona' && !personaControls.changeSelection()) return;
       if (event.target.id) editedFieldIds.add(event.target.id);

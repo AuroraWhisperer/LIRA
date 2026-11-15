@@ -11,14 +11,6 @@ function element(tag, className, text) {
   return node;
 }
 
-function advanceSwingAxis(axis, elapsed) {
-  const offset = axis.value - axis.target;
-  const carry = axis.velocity + offset * 11;
-  const damping = Math.exp(-11 * elapsed);
-  axis.value = axis.target + (offset + carry * elapsed) * damping;
-  axis.velocity = (axis.velocity - carry * 11 * elapsed) * damping;
-}
-
 export function createGiftMotionPlayer({ root }) {
   const stage = element('div', 'gift-motion-stage');
   const swingStage = element('div', 'gift-motion-stage gift-swing-stage'); root.append(stage, swingStage);
@@ -70,20 +62,13 @@ export function createGiftMotionPlayer({ root }) {
       if (now >= swing.expiresAt) { swing.node.remove(); swings.delete(id); continue; }
       let angle = 0; let lift = 0;
       if (!reduced.matches) {
-        const delta = elapsed * swing.motionSpeed;
-        swing.targetIn -= delta;
-        if (swing.targetIn <= 0) {
-          const direction = Math.random() * Math.PI * 2; const distance = 0.6 + Math.random() * 0.4;
-          swing.horizontal.target = Math.cos(direction) * distance;
-          swing.vertical.target = Math.sin(direction) * distance;
-          swing.targetIn += 0.28 + Math.random() * 0.32;
-        }
-        advanceSwingAxis(swing.horizontal, delta); advanceSwingAxis(swing.vertical, delta);
-        const tipX = swing.horizontal.value * swing.bounds.width;
-        const tipHeight = swing.bounds.low + (swing.vertical.value + 1) / 2 * (swing.bounds.high - swing.bounds.low);
-        // One moving tip drives the whole stick, so rotation and extension cannot fight each other.
-        angle = Math.atan2(tipX, tipHeight) * 180 / Math.PI;
-        lift = Math.hypot(tipX, tipHeight) - swing.rodLength;
+        const step = elapsed * swing.motionSpeed * Math.PI * 2;
+        swing.phase = (swing.phase + step / 0.96) % (Math.PI * 2);
+        swing.bobPhase = (swing.bobPhase + step / 0.74) % (Math.PI * 2);
+        const { tilt, low, high } = swing.bounds;
+        // Rocking and extension have separate phases, so each pass rises and falls differently.
+        angle = Math.sin(swing.phase) * tilt * swing.amplitude * 180 / Math.PI;
+        lift = low + (high - low) * (1 + Math.sin(swing.bobPhase)) / 2 - swing.rodLength;
       }
       swing.node.style.transform = `rotate(${angle}deg)`;
       swing.svg.style.transform = `scaleY(${1 + lift / swing.rodLength})`;
@@ -97,19 +82,18 @@ export function createGiftMotionPlayer({ root }) {
     const half = swing.size / 2;
     const travel = Math.min(swing.rodLength * 0.3, Math.max(0, swingHeight - swing.size - swing.captionHeight) / 4);
     let tilt = swing.angle * Math.PI / 180;
-    let low; let high; let width;
+    let low; let high;
     for (let attempt = 0; attempt < 12; attempt++) {
       const imageReach = half * (Math.cos(tilt) + Math.sin(tilt));
       const captionTilt = Math.min(tilt, Math.atan2(95, half + swing.captionHeight));
       const top = swing.captionHeight ? Math.max(imageReach,
         (half + swing.captionHeight) * Math.cos(captionTilt) + 95 * Math.sin(captionTilt)) : imageReach;
-      low = Math.max(swing.rodLength * 0.8, imageReach + 2);
-      width = low * Math.tan(tilt);
-      high = Math.min(swingHeight - top - 2, Math.sqrt((swing.rodLength * 1.4) ** 2 - width ** 2));
+      low = Math.max(swing.rodLength * 0.8, (imageReach + 2) / Math.cos(tilt));
+      high = Math.min(swingHeight - top - 2, swing.rodLength * 1.8);
       if (high - low >= travel || attempt === 11) break;
       tilt *= 0.8;
     }
-    return { width, low, high: Math.max(low, high) };
+    return { tilt, low, high: Math.max(low, high) };
   }
 
   function swingPosition(margin, now) {
@@ -172,7 +156,7 @@ export function createGiftMotionPlayer({ root }) {
       const textParts = GIFT_SWING_TEXT_MODES[motion.textMode];
       const rodLength = size / 2 + 60;
       const margin = Math.max(size, textParts.length ? 190 : 0) / 2
-        + (size + 60 + (textParts.length ? 65 : 0) + rodLength * 0.4) * Math.sin(motion.angle * Math.PI / 180);
+        + (size + 60 + (textParts.length ? 65 : 0) + rodLength * 0.8) * Math.sin(motion.angle * Math.PI / 180);
       const x = swingPosition(margin, now);
       const node = element('div', 'gift-swing-item');
       node.dataset.motionId = payload.eventId; node.dataset.expiresAt = String(expiresAt);
@@ -198,8 +182,8 @@ export function createGiftMotionPlayer({ root }) {
       const swing = { node, svg, card, x, margin, rodLength, size,
         captionHeight: caption ? caption.offsetHeight + 11 : 0, expiresAt, startedAt,
         angle: motion.angle, motionSpeed: motion.speed / 100 * (0.85 + Math.random() * 0.3),
-        horizontal: { value: Math.random() * 1.2 - 0.6, velocity: 0, target: 0 },
-        vertical: { value: Math.random() * 1.2 - 0.6, velocity: 0, target: 0 }, targetIn: 0 };
+        phase: Math.random() * Math.PI * 2, bobPhase: Math.random() * Math.PI * 2,
+        amplitude: 0.78 + Math.random() * 0.22 };
       swing.bounds = swingBounds(swing); swings.set(payload.eventId, swing);
     }
     start(); return true;

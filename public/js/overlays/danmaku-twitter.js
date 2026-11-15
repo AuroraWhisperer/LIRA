@@ -134,10 +134,12 @@ function preparePost(root, item) {
 function fillIdentity(document, identity, item, name) {
   identity.replaceChildren();
   identity.classList.add('twitter-name-line');
-  identity.append(node(document, 'strong', 'twitter-name', name));
+  const author = node(document, 'span', 'twitter-author');
+  author.append(node(document, 'strong', 'twitter-name', name));
   const guardLevel = normalizeGuardLevel(item.giftGuardLevel)
     || normalizeGuardLevel(item.roomGuardLevel ?? item.guardLevel);
-  if (guardLevel) identity.append(createVerified(document));
+  if (guardLevel) author.append(createVerified(document));
+  identity.append(author);
   identity.append(node(document, 'span', 'twitter-meta', identityMeta(item, guardLevel)));
 }
 

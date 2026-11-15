@@ -20,7 +20,6 @@ const { createDanmakuDeliveryVerifier } = require('../ai/danmaku-delivery-verifi
 function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender, onConfigUpdated = () => {} }) {
   const persistence = createAiStateStore(songDb);
   const secretCodec = runtimeOptions.aiSecretCodec || createElectronSecretCodec(runtimeOptions.safeStorage);
-  const configStore = createAiConfigStore(persistence, secretCodec);
   const chatgptSession = createChatGptSession({ persistence, secretCodec,
     openBrowser: runtimeOptions.openAiLoginBrowser, fetchImpl: runtimeOptions.fetchImpl });
   const quotaStore = createAiApiQuotaStore(createAiApiUsageStore(songDb));
@@ -30,16 +29,18 @@ function buildAiRuntime({ songDb, runtimeOptions = {}, aiLogPath, danmakuSender,
     session: runtimeOptions.doubaoSession,
     logEvent: (event) => requestLogger.log(event),
   });
+  const modelClient = createModelClient({
+    doubao,
+    chatgpt: createChatGptClient({ session: chatgptSession, fetchImpl: runtimeOptions.fetchImpl,
+      logEvent: (event) => requestLogger.log(event) }),
+    fetchImpl: runtimeOptions.fetchImpl,
+    logEvent: (event, options) => requestLogger.log(event, options),
+  });
+  const configStore = createAiConfigStore(persistence, secretCodec, { getModelReasoning: modelClient.getModelReasoning });
   const service = createAiAssistantService({
     store: configStore,
     quotaStore,
-    modelClient: createModelClient({
-      doubao,
-      chatgpt: createChatGptClient({ session: chatgptSession, fetchImpl: runtimeOptions.fetchImpl,
-        logEvent: (event) => requestLogger.log(event) }),
-      fetchImpl: runtimeOptions.fetchImpl,
-      logEvent: (event, options) => requestLogger.log(event, options),
-    }),
+    modelClient,
     tools: {
       qweather: createQWeatherTool({
         fetchImpl: runtimeOptions.fetchImpl,

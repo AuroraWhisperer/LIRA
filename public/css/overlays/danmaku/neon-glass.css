@@ -86,3 +86,12 @@ body[data-style='neon-glass'][data-neon-glass-entrance='none'] .neon-glass-item[
 @media (prefers-reduced-motion: reduce) {
   body[data-style='neon-glass'] .neon-glass-item :is(.neon-glass-panel, .neon-glass-content) { animation: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='neon-glass'] .draw-danmaku-item .neon-glass-copy {
+  line-height: 1.4;
+}
+body[data-style='neon-glass'] .draw-danmaku-item .neon-glass-name {
+  font-size: 24px;
+  line-height: 1.25;
+}

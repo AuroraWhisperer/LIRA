@@ -42,11 +42,14 @@
   border-left: 0.2em solid #20a781;
   border-radius: 0.2em;
   background: #e6f8f0;
-  color: #167858;
+  color: #125c43;
   font-family: inherit;
   font-size: calc(var(--identity-queue-font-size, 28px) * 0.85);
-  font-weight: 500;
+  font-weight: 600;
   line-height: 1.2;
+  -webkit-text-fill-color: currentColor;
+  -webkit-text-stroke: 0;
+  text-shadow: none;
   pointer-events: none;
 }
 
@@ -65,11 +68,22 @@
   white-space: nowrap;
 }
 
-.queue-request-message > strong {
+.queue-request-viewport,
+.queue-request-message,
+.queue-request-message > strong,
+.queue-request-outcome {
   color: inherit;
   -webkit-text-fill-color: currentColor;
   -webkit-text-stroke: 0;
   text-shadow: none;
+}
+
+.queue-request-message > .queue-request-requester {
+  color: #1d4f91;
+}
+
+.queue-request-message > .queue-request-song {
+  color: #743b8e;
 }
 
 .queue-request-outcome {
@@ -95,7 +109,7 @@
 .queue-request-notice[data-result='failure'] {
   border-left-color: #e25c69;
   background: #fff0f0;
-  color: #b83244;
+  color: #962538;
 }
 
 .overlay-panel.has-backdrop-blur {

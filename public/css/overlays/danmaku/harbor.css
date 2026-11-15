@@ -195,3 +195,18 @@ body[data-style='harbor'] .draw-danmaku-item[data-live-entry] { translate: var(-
   from { --danmaku-enter-opacity: 0; --danmaku-enter-x: -8px; }
   to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='harbor'] .draw-danmaku-item .draw-danmaku-body > p {
+  line-height: 1.4;
+}
+body[data-style='harbor'] .draw-danmaku-item:not(.is-gift):not(.is-superchat) {
+  padding-inline: 4px;
+  gap: 8px;
+}
+body[data-style='harbor'] .draw-danmaku-item:not(.is-gift):not(.is-superchat) .draw-danmaku-body {
+  padding: 9px 21px;
+}
+body[data-style='harbor'] .draw-danmaku-item:not(.is-gift):not(.is-superchat) .draw-danmaku-body > p {
+  line-height: 1.3;
+}

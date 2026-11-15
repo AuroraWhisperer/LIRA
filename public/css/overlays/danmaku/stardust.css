@@ -177,3 +177,21 @@ body[data-style='stardust'][data-ambient-motion='off'] :is(.stardust-star, .star
 @media (prefers-reduced-motion: reduce) {
   body[data-style='stardust'] .stardust-item[data-live-entry] :is(.stardust-copy, .stardust-name, .stardust-ornament, .stardust-event, .stardust-tail, .stardust-star, .stardust-orbit) { animation: none; }
 }
+
+/* Keep readable type inside the existing card and region dimensions. */
+body[data-style='stardust'] .draw-danmaku-item .stardust-copy {
+  line-height: 1.4;
+}
+body[data-style='stardust'] .draw-danmaku-item .draw-danmaku-identity.stardust-name > strong {
+  font-size: 21px;
+  line-height: 1.25;
+}
+body[data-style='stardust'] .stardust-item .stardust-event {
+  margin-top: 10px;
+  max-width: 100%;
+  font-size: 16px;
+  line-height: 1.35;
+  letter-spacing: 0.16em;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}

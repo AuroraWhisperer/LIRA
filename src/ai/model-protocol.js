@@ -1,6 +1,18 @@
 'use strict';
 
 const { createPublicError } = require('./http-client');
+const { getModelReasoning } = require('./model-reasoning');
+
+function resolveReasoningEffort(config) {
+  const profile = Object.hasOwn(config, 'modelReasoning') ? config.modelReasoning : getModelReasoning(config);
+  if (profile) {
+    if (!config.reasoningEnabled) {
+      return ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'].find(effort => profile.efforts.includes(effort));
+    }
+    return profile.efforts.includes(config.reasoningEffort) ? config.reasoningEffort : profile.defaultEffort;
+  }
+  return undefined;
+}
 
 function buildResponsesBody(request, config, endpoint) {
   const responsesBody = {
@@ -11,19 +23,21 @@ function buildResponsesBody(request, config, endpoint) {
   };
   if (request.tools?.length) responsesBody.tools = request.tools;
   if (request.previousResponseId) responsesBody.previous_response_id = request.previousResponseId;
-  if (!config.reasoningEnabled) {
-    responsesBody.reasoning = { effort: 'none' };
-  } else if (config.reasoningEffort && config.reasoningEffort !== 'auto') {
-    const reasoningEffort = endpoint.officialDeepSeek
-      ? toDeepSeekReasoningEffort(config.reasoningEffort)
-      : config.reasoningEffort;
-    if (reasoningEffort) responsesBody.reasoning = { effort: reasoningEffort };
+  let reasoningEffort = resolveReasoningEffort(config);
+  if (endpoint.officialDeepSeek && !config.reasoningEnabled) {
+    reasoningEffort = 'none';
+  } else if (!reasoningEffort && !endpoint.officialDeepSeek && ['auto', 'custom'].includes(config.modelProvider || 'auto')) {
+    // Third-party Responses integrations retain their explicit parameter compatibility.
+    reasoningEffort = !config.reasoningEnabled ? 'none'
+      : config.reasoningEffort !== 'auto' ? config.reasoningEffort : undefined;
   }
+  if (reasoningEffort) responsesBody.reasoning = { effort: reasoningEffort };
 
   return responsesBody;
 }
 
 function buildChatBody(request, config, endpoint, previousMessages) {
+  const reasoningProfile = Object.hasOwn(config, 'modelReasoning') ? config.modelReasoning : getModelReasoning(config);
   const instructions = String(request.instructions || '').trim();
   const messages = previousMessages
     ? [...previousMessages, ...toChatInputMessages(request.input)]
@@ -38,17 +52,16 @@ function buildChatBody(request, config, endpoint, previousMessages) {
     body.thinking = {
       type: config.reasoningEnabled ? 'enabled' : 'disabled',
     };
-    const reasoningEffort = toDeepSeekReasoningEffort(config.reasoningEffort);
+    const reasoningEffort = reasoningProfile ? resolveReasoningEffort(config) : undefined;
     if (config.reasoningEnabled && reasoningEffort) body.reasoning_effort = reasoningEffort;
   } else if (config.modelProvider === 'gemini') {
-    const reasoningEffort = toGeminiReasoningEffort(config.reasoningEffort);
-    if (!config.reasoningEnabled) body.reasoning_effort = 'none';
-    else if (reasoningEffort) body.reasoning_effort = reasoningEffort;
+    if (reasoningProfile) body.reasoning_effort = resolveReasoningEffort(config);
   } else if (config.modelProvider === 'kimi') {
     body.max_completion_tokens = body.max_tokens;
     delete body.max_tokens;
     if (/^kimi-k3(?:[.-]|$)/i.test(config.model)) {
-      body.reasoning_effort = config.reasoningEnabled ? toDeepSeekReasoningEffort(config.reasoningEffort) || 'low' : 'low';
+      const reasoningEffort = reasoningProfile ? resolveReasoningEffort(config) : undefined;
+      if (reasoningEffort) body.reasoning_effort = reasoningEffort;
       body.max_completion_tokens = Math.max(4096, body.max_completion_tokens);
     } else if (/^kimi-k2\.[56](?:[.-]|$)/i.test(config.model)) {
       body.thinking = { type: config.reasoningEnabled ? 'enabled' : 'disabled' };
@@ -88,28 +101,6 @@ function normalizeChatResponse(payload) {
     },
     rawMessage: message,
   };
-}
-
-function toDeepSeekReasoningEffort(value) {
-  const effort = String(value || 'auto')
-    .trim()
-    .toLowerCase();
-  if (effort === 'auto') return '';
-  if (effort === 'low' || effort === 'max') return effort;
-  if (['minimal', 'medium', 'high', 'xhigh'].includes(effort)) {
-    return effort === 'minimal' ? 'low' : 'high';
-  }
-  return '';
-}
-
-function toGeminiReasoningEffort(value) {
-  const effort = String(value || 'auto')
-    .trim()
-    .toLowerCase();
-  if (effort === 'auto') return '';
-  if (['minimal', 'low', 'medium', 'high'].includes(effort)) return effort;
-  if (effort === 'xhigh' || effort === 'max') return 'high';
-  return '';
 }
 
 function buildInitialChatMessages(instructions, input) {
@@ -227,4 +218,5 @@ function parseArguments(value, finishReason = '') {
   }
 }
 
-module.exports = { buildResponsesBody, buildChatBody, normalizeResponse, normalizeChatResponse, toAssistantHistoryMessage };
+module.exports = { buildResponsesBody, buildChatBody, normalizeResponse, normalizeChatResponse,
+  toAssistantHistoryMessage, resolveReasoningEffort };

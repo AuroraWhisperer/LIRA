@@ -55,12 +55,13 @@ async function run() {
     for (const kind of ['like', 'share', 'follow']) fixedReplies[`${kind}ThanksMessages`] = Array.from({ length: 30 }, (_, index) => `谢谢 {username} 的支持 ${index + 1}`);
   }
   global.dailyLibraryTest = { requests: [], libraries, failNext: false, fixedReplies };
-  const viewerNames = { enabled: true,
+  const viewerNames = { enabled: true, blockedWords: ['合成屏蔽词'],
     items: Array.from({ length: 21 }, (_, index) => ({ uid: String(100 + index), name: `观众${index + 1}` })) };
   global.dailyLibraryTest.viewerNames = viewerNames;
   global.dailyLibraryTest.switchNamesAccount = () => {
     snapshot.streamer.accountName = 'other-names-test';
     viewerNames.items = [{ uid: '900', name: '另一账号' }];
+    viewerNames.blockedWords = ['另一账号屏蔽词'];
     listeners.forEach(listener => listener(structuredClone(snapshot)));
   };
   const welcomeSettings = {
@@ -120,14 +121,17 @@ async function run() {
     async getFixedReplySettings() { return structuredClone(fixedReplies); },
     async getPkReportSettings() { return structuredClone(pkSettings); },
     async updatePkReportSettings(patch) { Object.assign(pkSettings, patch); return structuredClone(pkSettings); },
-    async getViewerNameSettings() { return { enabled: viewerNames.enabled }; },
-    async updateViewerNameSettings({ enabled }) {
+    async getViewerNameSettings() {
+      return { enabled: viewerNames.enabled, ...(viewerNames.blockedWords
+        ? { blockedWords: [...viewerNames.blockedWords] } : {}) };
+    },
+    async updateViewerNameSettings(patch) {
       if (global.dailyLibraryTest.failNext) {
         global.dailyLibraryTest.failNext = false;
         throw Object.assign(new Error('UNAVAILABLE'), { code: 'UNAVAILABLE' });
       }
-      viewerNames.enabled = enabled;
-      return { enabled };
+      Object.assign(viewerNames, structuredClone(patch));
+      return this.getViewerNameSettings();
     },
     async listViewerNames({ page }) {
       global.dailyLibraryTest.requests.push({ operation: 'viewer-names-read', input: { page } });

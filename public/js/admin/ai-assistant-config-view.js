@@ -4,6 +4,7 @@ import { isSubscriptionSelected, renderSubscriptionStatus } from './ai-assistant
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
   autoReplyEnabled: ['xiaomiAiAutoReplyEnabled', 'checked'],
+  autoReplyProbabilityPercent: ['xiaomiAiAutoReplyProbability', 'number'],
   trigger: ['xiaomiAiTrigger', 'value'],
   modelProvider: ['xiaomiAiModelProvider', 'value'],
   modelAuthMode: ['xiaomiAiModelAuthMode', 'value'],
@@ -31,6 +32,9 @@ const FIELD_MAP = Object.freeze({
 });
 let doubaoStatus = null;
 const secretPlaceholders = new Map();
+let modelConfig = {};
+let modelCatalog = {};
+let selectedReasoningEffort = 'auto';
 
 export async function readApi(url, options = {}) {
   const response = await fetch(url, {
@@ -51,6 +55,7 @@ export function collectConfig() {
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element) continue;
+    if (key === 'reasoningEffort' && (document.getElementById('xiaomiAiReasoningEffortControl')?.hidden || !element.value)) continue;
     if (key === 'systemPrompt' && document.getElementById('xiaomiAiPersona')?.value !== 'custom') continue;
     if (element.disabled && ['deepseekResponsesUrl', 'deepseekApiKey', 'model', 'modelApiProtocol', 'qweatherApiHost', 'qweatherApiKey', 'amapApiHost', 'amapApiKey'].includes(key)) continue;
     if (kind === 'checked') {
@@ -71,6 +76,7 @@ export function collectConfig() {
 
 export function renderConfig(config, preservedFieldIds = new Set()) {
   config = { modelAuthMode: 'api', ...config };
+  if (!preservedFieldIds.has('xiaomiAiReasoningEffort')) selectedReasoningEffort = config.reasoningEffort || 'auto';
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
     if (!element || preservedFieldIds.has(id)) continue;
@@ -89,6 +95,7 @@ export function renderConfig(config, preservedFieldIds = new Set()) {
 }
 
 export function renderConfigSummary(config, savedConfig = {}) {
+  modelConfig = config;
   renderToolSettings();
   for (const [key, [id, kind, savedFlag]] of Object.entries(FIELD_MAP)) {
     if (kind === 'secret') renderSecretHint(id, config[savedFlag], config[`${key}Preview`], Object.hasOwn(savedConfig, key));
@@ -97,7 +104,7 @@ export function renderConfigSummary(config, savedConfig = {}) {
     config.hasDeepSeekApiKey && config.deepseekResponsesUrl && config.trigger ? '可运行' : '等待配置';
   document.getElementById('xiaomiAiModelState').textContent = config.model || '未配置';
   renderProviderSelection(config);
-  renderModelCapabilities(config.modelEndpoint);
+  renderModelSelection();
   if (config.modelProvider === 'doubao') {
     document.getElementById('xiaomiAiModelState').textContent = '豆包';
     renderDoubaoStatus(doubaoStatus);
@@ -196,7 +203,61 @@ function renderProviderAccess(provider, subscription) {
   info.href = entry[1];
 }
 
-function renderModelCapabilities(endpoint = {}) {
+export function renderModelCatalog(catalog = {}, { preserveConfig = true } = {}) {
+  modelCatalog = catalog;
+  if (!preserveConfig && modelConfig.modelEndpoint) {
+    modelConfig = { ...modelConfig, modelEndpoint: { ...modelConfig.modelEndpoint } };
+    delete modelConfig.modelEndpoint.reasoningEfforts;
+    delete modelConfig.modelEndpoint.defaultReasoningEffort;
+  }
+  renderModelSelection();
+}
+
+export function renderModelSelection() {
+  const provider = document.getElementById('xiaomiAiModelProvider')?.value || 'auto';
+  const authMode = document.getElementById('xiaomiAiModelAuthMode')?.value || 'api';
+  const model = document.getElementById('xiaomiAiModel')?.value || '';
+  const endpointUrl = document.getElementById('xiaomiAiDeepSeekUrl')?.value.trim() || '';
+  const protocol = document.getElementById('xiaomiAiModelApiProtocol')?.value || 'auto';
+  const keyInput = document.getElementById('xiaomiAiDeepSeekKey');
+  const hasKeyDraft = !keyInput?.disabled && keyInput?.value.trim() && keyInput.value !== '********';
+  const sameService = !hasKeyDraft && provider === modelConfig.modelProvider && authMode === (modelConfig.modelAuthMode || 'api')
+    && endpointUrl === (modelConfig.deepseekResponsesUrl || '') && protocol === (modelConfig.modelApiProtocol || 'auto');
+  const endpoint = sameService ? modelConfig.modelEndpoint || {} : {};
+  const reasoning = modelCatalog.models?.includes(model)
+    ? modelCatalog.modelReasoning?.[model]
+    : sameService && model === modelConfig.model
+      ? { efforts: endpoint.reasoningEfforts || [], defaultEffort: endpoint.defaultReasoningEffort }
+      : null;
+  const effortInput = document.getElementById('xiaomiAiReasoningEffort');
+  const efforts = reasoning?.efforts || [];
+  if (effortInput) {
+    const value = efforts.includes(selectedReasoningEffort) ? selectedReasoningEffort : reasoning?.defaultEffort;
+    const options = efforts.map(effort => {
+      const option = document.createElement('option');
+      option.value = effort;
+      option.textContent = effort === reasoning.defaultEffort ? `${effort}（默认）` : effort;
+      return option;
+    });
+    if (efforts.length && !reasoning.defaultEffort) {
+      const placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.disabled = true;
+      placeholder.textContent = '请选择强度';
+      options.unshift(placeholder);
+    }
+    effortInput.replaceChildren(...options);
+    effortInput.value = value || '';
+  }
+  renderModelCapabilities(endpoint, efforts);
+}
+
+export function selectReasoningEffort() {
+  selectedReasoningEffort = document.getElementById('xiaomiAiReasoningEffort')?.value || 'auto';
+}
+
+function renderModelCapabilities(endpoint = {}, efforts = []) {
+  const hasEfforts = efforts.length > 0;
   const webSearchMode = endpoint.webSearchMode || 'unconfigured';
   const reasoningMode = endpoint.reasoningMode || 'unconfigured';
 
@@ -216,19 +277,27 @@ function renderModelCapabilities(endpoint = {}) {
   const providerManaged = document.getElementById('xiaomiAiProviderManagedReasoning');
   const configurableReasoning = ['effort', 'deepseek_effort', 'gemini_effort', 'kimi_thinking'].includes(reasoningMode);
   if (reasoningControl) reasoningControl.hidden = !configurableReasoning;
-  if (effortControl) effortControl.hidden = !configurableReasoning || reasoningMode === 'kimi_thinking';
-  if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed';
+  if (effortControl) effortControl.hidden = !configurableReasoning || !hasEfforts;
+  if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed' && (configurableReasoning || hasEfforts);
+  setText('xiaomiAiProviderManagedReasoning', reasoningMode === 'unconfigured'
+    ? '尚未配置模型服务，深度思考设置暂不可用。'
+    : '思考由平台和模型自动控制。');
   setText('xiaomiAiReasoningLabel', '深度思考');
   if (reasoningMode === 'effort') {
-    setText('xiaomiAiReasoningHelp', '开启后可选强度；「服务默认」沿用平台设置。');
+    setText('xiaomiAiReasoningHelp', hasEfforts ? '强度与默认档按所选模型的官方定义显示。' : '未获取到该模型的官方强度信息，沿用上游设置。');
   } else if (reasoningMode === 'deepseek_effort') {
-    setText('xiaomiAiReasoningHelp', '开启后可选强度。DeepSeek 支持「低」「高」「最高」，选择其他等级时会自动匹配到最接近的等级。');
+    setText('xiaomiAiReasoningHelp', '强度与默认档来自 DeepSeek 官方模型目录或官方文档。');
   } else if (reasoningMode === 'gemini_effort') {
-    setText('xiaomiAiReasoningHelp', '开启后可选择「最低」至「高」的思考强度；能否关闭思考取决于 Gemini 模型。');
+    setText('xiaomiAiReasoningHelp', '只显示所选 Gemini 模型官方支持的强度；部分模型始终思考。');
   } else if (reasoningMode === 'kimi_thinking') {
-    setText('xiaomiAiReasoningHelp', 'K2.5 / K2.6 可开关思考；K3 始终思考，关闭此选项时使用低强度。其他模型沿用平台默认。');
+    setText('xiaomiAiReasoningHelp', '按所选 Kimi 模型的官方定义显示；部分模型始终思考。');
   }
-  if (isSubscriptionSelected()) setText('xiaomiAiReasoningHelp', 'ChatGPT 订阅关闭此选项时使用低强度；可用强度取决于所选模型。');
+  if (isSubscriptionSelected()) setText('xiaomiAiReasoningHelp', hasEfforts
+    ? '强度与默认档来自当前账号的官方模型目录；部分模型始终思考。'
+    : '请获取当前账号的模型目录；未确认思考强度时沿用上游设置。');
+  if (hasEfforts && !efforts.includes('none') && reasoningMode !== 'deepseek_effort') {
+    setText('xiaomiAiReasoningHelp', '该模型始终思考；开启时使用所选强度，关闭此选项时使用模型官方支持的最低强度。');
+  }
   syncReasoningEffortAvailability();
 }
 
