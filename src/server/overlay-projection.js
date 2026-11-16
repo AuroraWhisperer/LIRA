@@ -14,7 +14,7 @@ const SETTING_KEYS = {
     overlayRule1 overlayRule2 overlayRule3 overlayRule4 overlayRule5 overlayRule6
     overlayRuleColor1 overlayRuleColor2 overlayRuleColor3 overlayRuleColor4 overlayRuleColor5 overlayRuleColor6
     overlayRuleFontSize overlayShowIndex overlaySongColor overlayTitle
-    queueScrollMode queueScrollSpeed queueSongFontSize queueTitleFontSize
+    queueScrollMode queueScrollSpeed queueSongFontSize queueTitleFontSize queueRequestRequesterColor queueRequestSongColor
     identityQueueFontSize identityQueueFontFamily identityQueueScrollMode identityQueueScrollSpeed
     illustratedQueueFontFamily illustratedQueueFontWeight illustratedQueueTextColor illustratedQueueUseCustomTextColor
     storybookQueueFontFamily storybookQueueFontSize storybookQueueFontWeight storybookQueueScrollMode
@@ -237,7 +237,7 @@ const EVENT_SCHEMAS = {
   'gift:frame': {
     scope: 'gift-effects',
     schema: { ...fields('eventId giftName userName avatarUrl num totalPriceCents themeId preview artworkPath startedAt'),
-      motion: fields('size durationSeconds angle speed bounce textMode quantityMultiplier'), styleIds: [true] },
+      motion: fields('size durationSeconds angle speed bounce textMode count quantityMultiplier'), styleIds: [true] },
   },
   'gift:guard-thanks': {
     scope: 'gift-effects',

@@ -339,7 +339,7 @@ async function mountPreview(t) {
   return page;
 }
 
-test('scroll switches are exclusive and preserve long editable text', async (t) => {
+test('scroll switches and background changes preserve long editable text and undo', async (t) => {
   const page = await mountPreview(t);
   const editor = page.getByRole('textbox', { name: '文本框内容' });
   const horizontal = page.getByRole('switch', { name: '横向滚动' });
@@ -363,6 +363,12 @@ test('scroll switches are exclusive and preserve long editable text', async (t) 
     'switching playback preserves every line in the editable configuration');
   await vertical.uncheck();
   assert.equal(await page.evaluate(() => window.controller.getState().draft.scrollMode), 'none');
+  await page.evaluate(() => window.controller.edit({ backgroundColor: '#24314dcc' }));
+  await editor.focus();
+  await page.keyboard.press('Control+z');
+  assert.equal(await editor.textContent(), '在这里输入文字');
+  await page.keyboard.press('Control+Shift+z');
+  assert.equal(await editor.textContent(), text);
 });
 
 test('rapid format toggles preserve content and undo without accumulating markup', async (t) => {

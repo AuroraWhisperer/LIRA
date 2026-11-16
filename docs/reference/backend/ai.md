@@ -94,6 +94,8 @@ API 模式主生成及工具后续请求的输出 token 上限按是否开启思
 
 `autoReplyProbabilityPercent` 范围 0–100、默认 100，表示每条合格新弹幕进入接话候选的概率。去重后只抽样一次，数值越高越容易进入候选，改为 0 时取消未送达的自动接话；未抽中的消息保留为公开背景，不能成为回复目标。100 仍受话题判断、静默和节流约束，不保证每条都回；点名问答不抽样。原始 B 站消息没有统一机器人来源标记，其他账号且无可信欢迎标记的消息无法据此识别。
 
+`autoReplyMentionEnabled` 默认 `false`，旧配置缺少该键时也不提及。开启后仅单人自动接话带原生 @；群聊始终不提及，定向问答仍按原规则提及。单条正文预算仅在开启时扣除目标昵称的 @ 前缀；是否提及不改变模型选定的回复目标或送达后个人记忆。切换此选项取消未发送的自动任务，不取消定向问答。
+
 | 边界 | 固定行为 |
 | --- | --- |
 | 公开消息窗口 | 最近 30 秒、最多 40 条；每条正文最多 200 个 Unicode 码点、昵称最多 80 个；仅内存 |
@@ -209,7 +211,9 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 
 ## 5. 工具集
 
-`buildTools(config)`（[prompt.js](../../../src/ai/prompt.js)）默认返回空数组。`functionCallingEnabled` 是 LIRA 函数工具的总开关；天气须再开启 `weatherEnabled` 并有和风 Host/Key，地点和路线须分别开启 `placesEnabled/routesEnabled` 并有高德 Host/Key。地理编码随地点或路线启用。联网规则见 §4.1；`FUNCTION_TOOLS` 包含以下四个天气/地图函数。
+`buildTools(config)`（[prompt.js](../../../src/ai/prompt.js)）默认返回空数组。`functionCallingEnabled` 保留为兼容门控字段；管理页不提供独立总开关，保存时根据联网、天气、地点、路线开关计算该字段，任一开启即为 `true`。天气须开启 `weatherEnabled` 并有和风 Host/Key，地点和路线须分别开启 `placesEnabled/routesEnabled` 并有高德 Host/Key。地理编码随地点或路线启用。联网规则见 §4.1；`FUNCTION_TOOLS` 包含以下四个天气/地图函数。
+
+管理页读取旧配置时，若 `functionCallingEnabled` 为 `false`，将原本被其抑制的天气、地点、路线和 LIRA 联网搜索显示为关闭，防止后续保存意外启用；平台原生搜索的状态与已保存凭据不受影响。HTTP 配置接口及存储字段保持兼容。
 
 | 工具名             | 提供者            | 上游接口/行为                                                                                                                                                                                    | 出处                                                                                                                      |
 | ------------------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------- |
@@ -245,12 +249,13 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | -------------- | ---------------------------------------------------------------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 总开关         | `enabled`                                                                                      | `true`                            | 布尔                                                                                                                                                                           |
 | 自动接话 | `autoReplyEnabled` / `autoReplyProbabilityPercent` | `false` / `100` | 共用当前模型和人格；合格普通弹幕的候选概率 0–100%，评估时序和候选规则见 §3.4 |
+| 接话提及 | `autoReplyMentionEnabled` | `false` | 仅控制单人自动接话是否 @ 观众；定向问答保持提及 |
 | 触发           | `trigger`                                                                                      | 空                                | 空或 1–12 字符；为空时尚未就绪                                                                                                                                                 |
 | 供应商         | `modelProvider`                                                                                | `auto`                            | 枚举：`auto, deepseek, kimi, openai, anthropic, gemini, custom, doubao`；五个官方 API 预设由服务端固定地址和推荐协议，忽略客户端 URL/协议覆盖                                                     |
 | 接入方式 | `modelAuthMode` | `api` | `api` / `subscription`；只有 OpenAI 接受 subscription，其他平台归一化为 api；旧配置默认 api |
 | 模型服务       | `deepseekResponsesUrl` / `deepseekApiKey` / `model`                                            | 全空                              | URL 须为无账号信息的 HTTP(S)，可为服务根地址、`/v1` 基础地址或完整模型端点；model 为空或 ≤ 80 字符                                                                             |
 | 协议与推理强度 | `modelApiProtocol` / `reasoningEffort`                                                         | `auto` / `auto`                   | 协议枚举:`auto, responses, chat_completions`；存储兼容枚举:`auto, none, minimal, low, medium, high, xhigh, max`；实际可选档和默认值按 §4.2 的官方模型能力确定 |
-| 行为开关 | `webSearchEnabled` / `functionCallingEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | 全为 `false` | 新配置默认普通问答；工具和联网按 §5 显式启用，关闭总开关保留各工具配置 |
+| 行为开关 | `webSearchEnabled` / `functionCallingEnabled` / `reasoningEnabled` / `weatherEnabled` / `placesEnabled` / `routesEnabled` | 全为 `false` | 新配置默认普通问答；管理页逐项启用联网和查询，兼容字段由单项开关计算，关闭查询保留凭据，见 §5 |
 | 第三方凭证     | `qweatherApiHost` / `qweatherApiKey` / `amapApiHost` / `amapApiKey`                            | 全空                              | Host 缺协议自动补 `https://`                                                                                                                                                   |
 | 兼容数值       | `replyMaxChars` | 50 | 保留 10–50 校验供旧调用方读写，界面不展示，运行时不采用此偏好 |
 | 数值           | `generationConcurrency`                                                                        | 3                                 | 生成并发,1–5                                                                                                                                                                   |
@@ -353,7 +358,7 @@ Kimi 预设为 `https://api.moonshot.cn/v1` + Chat Completions，模型来自 /m
 | 分段间隔 | 每条分块 200–600 ms 随机,`intervalMs`                                                                                              | [ai-assistant-service.js:20-21](../../../src/ai/ai-assistant-service.js#L20-L21)、[233-239](../../../src/ai/ai-assistant-service.js#L233-L239) |
 | 发送参数 | `mentionEveryChunk: true`(每段都带 @用户名)、`rateLimitIntervalMs: 0`(绕过发送器全局限速,由 AI 自行控速)、`waitForRateLimit: true` | [server.js:260](../../../src/server.js#L260)、[ai-assistant-service.js:233-239](../../../src/ai/ai-assistant-service.js#L233-L239)             |
 
-自动接话只发一条，同样考虑最近 AI 回复间隔，但不传 `rateLimitIntervalMs: 0`，继续遵守共用 sender 默认 1500 ms 节流；自动自身评估/提交上限见 §3.4。单人回复使用提及，群聊回复 `mentionTarget: null`，不得伪造请求者。`onBeforeSend` 最终检查后标记已提交；送达确认前不会写记忆或 `botReplies`。
+自动接话只发一条，同样考虑最近 AI 回复间隔，但不传 `rateLimitIntervalMs: 0`，继续遵守共用 sender 默认 1500 ms 节流；自动自身评估/提交上限见 §3.4。单人回复仅在 `autoReplyMentionEnabled` 为 `true` 时使用提及，否则与群聊一样传 `mentionTarget: null`，不得伪造请求者。`onBeforeSend` 最终检查后标记已提交；送达确认前不会写记忆或 `botReplies`。
 
 ### 9.2 送达验证(danmaku-delivery-verifier)
 

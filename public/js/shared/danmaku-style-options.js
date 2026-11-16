@@ -1,4 +1,5 @@
 // Edit this contract; sync-danmaku-style-options.cjs generates the local Node mirror.
+import { DANMAKU_TEXT_GROUPS, DANMAKU_TEXT_TARGETS, danmakuTextFields } from './danmaku-text-options.js';
 // RIPPLOID uses the existing SC price bands for its six gift/SC color tiers.
 const RIPPLOID_COLOR_DEFAULTS = Object.freeze({
   giftColor0: '#f39749', giftColor50: '#f39749', giftColor100: '#f39749',
@@ -165,7 +166,7 @@ const DANMAKU_STYLE_OPTIONS = Object.freeze({
   christmas: {
     scrollDirection: true, defaultEdgeFade: 'none', label: '圣诞绮笺',
     minFontSize: 18, maxFontSize: 40, defaultFontSize: 28,
-    background: true, giftImage: false, bubbleColor: true, ambientMotion: true,
+    background: true, giftImage: false, bubbleColor: true, ambientMotion: true, christmasOptions: true,
     defaultBubbleColor: '#782632', defaultTextColor: '#fff1d8',
   },
   stargazer: {
@@ -413,6 +414,7 @@ const DANMAKU_FONTS = Object.freeze({
 
 // One field contract feeds validation and every parameter editor. Groups only change presentation.
 const DANMAKU_OPTION_FIELDS = Object.freeze({
+  ...danmakuTextFields(),
   neonGlassNameColors: { label: '昵称配色', type: 'select', default: 'original', capability: 'neonGlassOptions', group: 'neonGlass',
     choices: [['original', '原作彩色'], ['identity', '按房间身份'], ['text', '跟随正文']] },
   neonGlassHighlight: { label: '玻璃高光', type: 'number', input: 'range', min: 0, max: 100, default: 100, unit: '%', capability: 'neonGlassOptions', group: 'neonGlass' },
@@ -420,9 +422,11 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
   neonGlassEntrance: { label: '入场方式', type: 'select', default: 'layered', capability: 'neonGlassOptions', group: 'neonGlass', choices: [['layered', '玻璃与文字分层渐显'], ['none', '直接显示']] },
   neonGlassEntranceMs: { label: '入场时长', type: 'number', input: 'range', min: 200, max: 1000, default: 480, unit: 'ms', capability: 'neonGlassOptions', group: 'neonGlass', disabledWhen: ['neonGlassEntrance', 'none'] },
   fontFamily: { label: '字体', type: 'font', default: 'default', defaultKey: 'defaultFontFamily' },
-  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize', help: '调整正文和行内表情；昵称、灯牌与装饰按各款比例排布，卡片优先利用内部空间，长文会换行增高。横向区域放不下时会自动缩小卡片。检查直播大小请按实际输出尺寸查看，并让网页源宽高与画布一致。' },
+  fontSize: { label: '正文字号', type: 'number', default: 30, defaultKey: 'defaultFontSize', minKey: 'minFontSize', maxKey: 'maxFontSize', help: '调整正文和行内表情；昵称、灯牌、金额等可在「非正文文字」中分别调整。卡片优先利用内部空间，长文会换行增高。横向区域放不下时会自动缩小卡片。检查直播大小请按实际输出尺寸查看，并让网页源宽高与画布一致。' },
   textColor: { label: '正文颜色', type: 'color', alpha: true, default: '#eaf2ff', defaultKey: 'defaultTextColor' },
   backgroundOpacity: { label: '背景不透明度', type: 'number', input: 'range', min: 0, max: 100, default: 100, defaultKey: 'defaultBackgroundOpacity', capability: 'background', unit: '%' },
+  christmasBackground: { label: '卡片背景', type: 'select', default: 'card', capability: 'christmasOptions',
+    choices: [['card', '正常卡片'], ['transparent', '仅文字与挂饰']], help: '仅文字与挂饰会隐藏卡片底色、底纹和金色外框，保留文字、蝴蝶结与挂饰。' },
   scrollDirection: { label: '滚动方向', type: 'select', default: 'up', defaultKey: 'defaultScrollDirection', capability: 'scrollDirection', choices: [['up', '从下向上（新弹幕在底部）'], ['down', '从上向下（新弹幕在顶部）']] },
   edgeFade: { label: '边缘处理', type: 'select', default: 'single', defaultKey: 'defaultEdgeFade', capability: 'scrollDirection', legacy: ['single'],
     help: '可选择上下两端、仅上边或仅下边渐隐；选定的边缘不随滚动方向改变。',
@@ -623,7 +627,8 @@ const DANMAKU_OPTION_FIELDS = Object.freeze({
 const REAL_GIFT_STYLES = Object.freeze(['identity', 'transparent', 'outline', 'bubble', 'cream', 'twitter', 'glass', 'startrail', 'sinking']);
 const STYLE_OPTION_FIELDS = Object.fromEntries(Object.entries(DANMAKU_STYLE_OPTIONS).map(([style, limits]) => [style,
   Object.fromEntries(Object.entries(DANMAKU_OPTION_FIELDS)
-    .filter(([, field]) => (!field.capability || limits[field.capability]) && (!field.layout || limits.layout === field.layout))
+    .filter(([, field]) => (!field.capability || limits[field.capability]) && (!field.layout || limits.layout === field.layout)
+      && (!field.textRole || DANMAKU_TEXT_TARGETS[style]?.[field.textRole]))
     .map(([key, field]) => [key, Object.freeze({ ...field,
       default: limits[field.defaultKey] ?? field.default,
       ...(field.minKey ? { min: limits[field.minKey], max: limits[field.maxKey] } : {}),
@@ -716,7 +721,7 @@ function styleOptionsFor(style, options = {}, legacyDurationSeconds = 6) {
   return resolved;
 }
 
-export { DANMAKU_OPTION_FIELDS, REAL_GIFT_STYLES, styleOptionFields, DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_DEFAULT, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, normalizeStyleOptions, styleOptionsFor };
+export { DANMAKU_TEXT_GROUPS, DANMAKU_TEXT_TARGETS, DANMAKU_OPTION_FIELDS, REAL_GIFT_STYLES, styleOptionFields, DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, RIPPLOID_COLOR_DEFAULTS, SPOOKY_THEME_COLORS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, TWITTER_COMPOSER_TEXT_DEFAULT, TWITTER_COMPOSER_TEXT_MAX_LENGTH, TWITTER_LAYOUT_DEFAULTS, TWITTER_COLOR_DEFAULTS, inspectComposerText, normalizeStyleOptions, styleOptionsFor };
 
 export function isRandomDanmakuStyle(style) {
   return DANMAKU_STYLE_OPTIONS[style]?.layout === 'fullscreen-random';

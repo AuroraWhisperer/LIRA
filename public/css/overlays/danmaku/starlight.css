@@ -189,7 +189,7 @@ body[data-style='starlight'] :is(.draw-danmaku-gift-amount, .sc-money)::before {
   content: '';
   pointer-events: none;
   opacity: var(--danmaku-enter-opacity);
-  transform: var(--danmaku-enter-transform);
+  transform: translateY(var(--danmaku-enter-y)) rotate(var(--danmaku-enter-angle)) scale(var(--danmaku-enter-scale-x), var(--danmaku-enter-scale-y));
   animation: var(--starlight-decoration-animation) var(--starlight-decoration-duration) var(--starlight-decoration-easing) infinite;
 }
 body[data-style='starlight'] :is(.draw-danmaku-identity, .sc-name)::before {
@@ -308,40 +308,40 @@ body[data-style='starlight'][data-custom-font='true'] :is(.draw-danmaku-identity
   font-family: var(--danmaku-custom-font);
 }
 @keyframes starlightTwinkle {
-  0%, 100% { --danmaku-enter-opacity: .95; --danmaku-enter-transform: scale(1); }
-  40% { --danmaku-enter-opacity: .2; --danmaku-enter-transform: scale(.45); }
-  65% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.12); }
+  0%, 100% { --danmaku-enter-opacity: .95; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; }
+  40% { --danmaku-enter-opacity: .2; --danmaku-enter-scale-x: .45; --danmaku-enter-scale-y: .45; }
+  65% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1.12; --danmaku-enter-scale-y: 1.12; }
 }
 @keyframes starlightHeartbeat {
-  0%, 38%, 100% { --danmaku-enter-opacity: .9; --danmaku-enter-transform: scale(1); }
-  10% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.14); }
-  20% { --danmaku-enter-opacity: .95; --danmaku-enter-transform: scale(.98); }
-  28% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.08); }
+  0%, 38%, 100% { --danmaku-enter-opacity: .9; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; }
+  10% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1.14; --danmaku-enter-scale-y: 1.14; }
+  20% { --danmaku-enter-opacity: .95; --danmaku-enter-scale-x: .98; --danmaku-enter-scale-y: .98; }
+  28% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1.08; --danmaku-enter-scale-y: 1.08; }
 }
 @keyframes starlightJelly {
-  0%, 60%, 100% { --danmaku-enter-transform: translateY(0) rotate(0deg) scale(1); }
-  15% { --danmaku-enter-transform: translateY(-2px) rotate(8deg) scale(.96, 1.04); }
-  28% { --danmaku-enter-transform: translateY(0) rotate(-5deg) scale(1.08, .94); }
-  42% { --danmaku-enter-transform: translateY(-1px) rotate(3deg) scale(1); }
+  0%, 60%, 100% { --danmaku-enter-y: 0px; --danmaku-enter-angle: 0deg; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; }
+  15% { --danmaku-enter-y: -2px; --danmaku-enter-angle: 8deg; --danmaku-enter-scale-x: .96; --danmaku-enter-scale-y: 1.04; }
+  28% { --danmaku-enter-y: 0px; --danmaku-enter-angle: -5deg; --danmaku-enter-scale-x: 1.08; --danmaku-enter-scale-y: .94; }
+  42% { --danmaku-enter-y: -1px; --danmaku-enter-angle: 3deg; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; }
 }
 @keyframes starlightSpin {
-  0% { --danmaku-enter-opacity: .8; --danmaku-enter-transform: rotate(0deg) scale(.94); }
-  50% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: rotate(180deg) scale(1.06); }
-  100% { --danmaku-enter-opacity: .8; --danmaku-enter-transform: rotate(360deg) scale(.94); }
+  0% { --danmaku-enter-opacity: .8; --danmaku-enter-angle: 0deg; --danmaku-enter-scale-x: .94; --danmaku-enter-scale-y: .94; }
+  50% { --danmaku-enter-opacity: 1; --danmaku-enter-angle: 180deg; --danmaku-enter-scale-x: 1.06; --danmaku-enter-scale-y: 1.06; }
+  100% { --danmaku-enter-opacity: .8; --danmaku-enter-angle: 360deg; --danmaku-enter-scale-x: .94; --danmaku-enter-scale-y: .94; }
 }
 @keyframes starlightBloom {
-  0%, 100% { --danmaku-enter-opacity: .78; --danmaku-enter-transform: rotate(-8deg) scale(.88); }
-  50% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: rotate(8deg) scale(1.08); }
+  0%, 100% { --danmaku-enter-opacity: .78; --danmaku-enter-angle: -8deg; --danmaku-enter-scale-x: .88; --danmaku-enter-scale-y: .88; }
+  50% { --danmaku-enter-opacity: 1; --danmaku-enter-angle: 8deg; --danmaku-enter-scale-x: 1.08; --danmaku-enter-scale-y: 1.08; }
 }
 @keyframes starlightMoonFloat {
-  0%, 100% { --danmaku-enter-opacity: .9; --danmaku-enter-transform: translateY(0) rotate(-8deg); }
-  50% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateY(-2px) rotate(8deg); }
+  0%, 100% { --danmaku-enter-opacity: .9; --danmaku-enter-y: 0px; --danmaku-enter-angle: -8deg; }
+  50% { --danmaku-enter-opacity: 1; --danmaku-enter-y: -2px; --danmaku-enter-angle: 8deg; }
 }
 @keyframes starlightBowSway {
-  0%, 100% { --danmaku-enter-transform: rotate(-10deg) scaleX(1); }
-  25% { --danmaku-enter-transform: rotate(6deg) scaleX(.94); }
-  50% { --danmaku-enter-transform: rotate(10deg) scaleX(1); }
-  75% { --danmaku-enter-transform: rotate(-6deg) scaleX(.94); }
+  0%, 100% { --danmaku-enter-angle: -10deg; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; }
+  25% { --danmaku-enter-angle: 6deg; --danmaku-enter-scale-x: .94; --danmaku-enter-scale-y: 1; }
+  50% { --danmaku-enter-angle: 10deg; --danmaku-enter-scale-x: 1; --danmaku-enter-scale-y: 1; }
+  75% { --danmaku-enter-angle: -6deg; --danmaku-enter-scale-x: .94; --danmaku-enter-scale-y: 1; }
 }
 body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name, .draw-danmaku-gift-amount, .sc-money)::before,
 body[data-style='starlight'][data-ambient-motion='off'] :is(.draw-danmaku-identity, .sc-name)::after { animation: none; }

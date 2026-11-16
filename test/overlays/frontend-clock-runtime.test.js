@@ -171,7 +171,7 @@ function createClockDom() {
     AbortController, Event: window.Event, setTimeout: window.setTimeout, clearTimeout: window.clearTimeout };
 }
 
-test('clock preview loads once, shares drafts and only writes on explicit save', async () => {
+test('clock preview loads once, shares drafts and automatically persists changes', async () => {
   const dom = createClockDom();
   const preview = dom.document.getElementById('clockPreview');
   const messages = [];
@@ -239,9 +239,10 @@ test('clock preview loads once, shares drafts and only writes on explicit save',
   assert.equal(latest.message.config.style, 'soda');
   assert.equal(latest.message.config.label, '预览文字');
   assert.equal(latest.message.config.showSeconds, false);
-  assert.equal(dom.timers.size, 0);
+  assert.equal(dom.timers.size, 1);
   assert.equal(writes.length, 0);
-  await dom.document.getElementById('clockSave').listeners.get('click')();
+  [...dom.timers.values()][0]();
+  await flush();
   assert.equal(writes.length, 1);
   assert.equal(writes[0].clockStyle, 'soda');
   assert.equal(writes[0].clockShowSeconds, 'false');
@@ -421,9 +422,10 @@ test('flip custom colors update and save without reloading the preview', async (
   textColor.listeners.get('input')();
   assert.equal(messages.at(-1).config.flipTextColor, '#113355');
   assert.equal(preview.src, source);
-  assert.equal(dom.timers.size, 0);
+  assert.equal(dom.timers.size, 1);
   assert.equal(writes.length, 0);
-  await dom.document.getElementById('clockSave').listeners.get('click')();
+  [...dom.timers.values()][0]();
+  await flush();
   assert.equal(writes[0].clockFlipTextColor, '#113355');
 });
 

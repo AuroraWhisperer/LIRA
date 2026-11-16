@@ -3,12 +3,22 @@
   --signal-ink: #101522;
   --signal-ice: #eaf2ff;
   --signal-cyan: #49d6c8;
+  --signal-cyan-rgb: 73 214 200;
   --signal-gold: #f3c76b;
+  --signal-gold-rgb: 243 199 107;
   --signal-violet: #8a7dff;
+  --signal-violet-rgb: 138 125 255;
   --signal-berry: #f17a9a;
+  --signal-berry-rgb: 241 122 154;
   --guard-captain: #2f9bff;
+  --guard-captain-seal-border: rgb(209.24 233 255 / 1);
+  --guard-captain-seal-surface: rgb(234.2 245 255 / 1);
   --guard-admiral: #a45cff;
+  --guard-admiral-seal-border: rgb(234.98 219.14 255 / 1);
+  --guard-admiral-seal-surface: rgb(245.9 238.7 255 / 1);
   --guard-governor: #f0445a;
+  --guard-governor-seal-border: rgb(251.7 213.86 218.7 / 1);
+  --guard-governor-seal-surface: rgb(253.5 236.3 238.5 / 1);
   --danmaku-font-size: 30px;
   --ranked-scale: 1;
   --ranked-bubble-max-width: 600px;
@@ -182,6 +192,7 @@ body[data-scroll-direction='down'] .draw-danmaku-feed {
 
 .draw-danmaku-item {
   --signal-accent: var(--signal-cyan);
+  --signal-accent-rgb: var(--signal-cyan-rgb);
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/viewer.webp');
   position: relative;
   display: grid;
@@ -196,7 +207,7 @@ body[data-scroll-direction='down'] .draw-danmaku-feed {
   padding: 8px 18px 8px 9px;
   border-left: 3px solid var(--signal-accent);
   background:
-    linear-gradient(90deg, color-mix(in srgb, var(--signal-accent) 13%, transparent), transparent 52%),
+    linear-gradient(90deg, rgb(var(--signal-accent-rgb) / 13%), transparent 52%),
     linear-gradient(90deg, rgba(16, 21, 34, 0.96), rgba(16, 21, 34, 0.82));
   box-shadow:
     0 10px 24px rgba(2, 6, 16, 0.22),
@@ -208,12 +219,15 @@ body[data-scroll-direction='down'] .draw-danmaku-feed {
 }
 .draw-danmaku-item[data-tone='1'] {
   --signal-accent: var(--signal-gold);
+  --signal-accent-rgb: var(--signal-gold-rgb);
 }
 .draw-danmaku-item[data-tone='2'] {
   --signal-accent: var(--signal-violet);
+  --signal-accent-rgb: var(--signal-violet-rgb);
 }
 .draw-danmaku-item[data-tone='3'] {
   --signal-accent: var(--signal-berry);
+  --signal-accent-rgb: var(--signal-berry-rgb);
 }
 .draw-danmaku-item[data-identity='captain'] {
   --danmaku-avatar-art: url('/img/overlays/danmaku-ranked/captain.webp');

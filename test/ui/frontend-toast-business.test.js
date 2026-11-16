@@ -212,7 +212,12 @@ test('an immediate settings toggle reports one contextual failure and restores t
   const lookup = documentRef.getElementById;
   documentRef.getElementById = (id) => {
     if (id === 'toast') return lookup(id);
-    if (!elements.has(id)) elements.set(id, documentRef.createElement('input'));
+    if (!elements.has(id)) {
+      const node = documentRef.createElement('input');
+      node.dataset = {};
+      node.querySelector = () => ({});
+      elements.set(id, node);
+    }
     return elements.get(id);
   };
   const utils = await loadModuleExports(path.resolve('public/js/shared/utils.js'), {

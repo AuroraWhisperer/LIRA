@@ -3,6 +3,8 @@ body[data-style='aurora'] {
   --aurora-paper-top: #f5efff;
   --aurora-paper-bottom: #e2e7fb;
   --aurora-accent: #8570b7;
+  --aurora-accent-rgb: 133 112 183;
+  --aurora-accent-highlight: rgb(194 183.5 219);
   --aurora-accent-deep: #62518f;
   --aurora-tint: #e3c6f6;
   --aurora-cool: #b5e5e5;
@@ -11,6 +13,8 @@ body[data-style='aurora'][data-aurora-palette='glacier'] {
   --aurora-paper-top: #f0fbfc;
   --aurora-paper-bottom: #ddebf5;
   --aurora-accent: #669cae;
+  --aurora-accent-rgb: 102 156 174;
+  --aurora-accent-highlight: rgb(178.5 205.5 214.5);
   --aurora-accent-deep: #45788c;
   --aurora-tint: #c0dcf5;
   --aurora-cool: #bcf1e1;
@@ -19,6 +23,8 @@ body[data-style='aurora'][data-aurora-palette='rose'] {
   --aurora-paper-top: #fff3f7;
   --aurora-paper-bottom: #f1e2ed;
   --aurora-accent: #bc8b9f;
+  --aurora-accent-rgb: 188 139 159;
+  --aurora-accent-highlight: rgb(221.5 197 207);
   --aurora-accent-deep: #98667d;
   --aurora-tint: #f4c1de;
   --aurora-cool: #f8e8bd;
@@ -27,6 +33,8 @@ body[data-style='aurora'][data-aurora-palette='champagne'] {
   --aurora-paper-top: #fffaf0;
   --aurora-paper-bottom: #eee8db;
   --aurora-accent: #ad9870;
+  --aurora-accent-rgb: 173 152 112;
+  --aurora-accent-highlight: rgb(214 203.5 183.5);
   --aurora-accent-deep: #85724f;
   --aurora-tint: #f2d6ab;
   --aurora-cool: #e1d8f4;
@@ -73,8 +81,7 @@ body[data-style='aurora'] .draw-danmaku-item::after { content: none; }
   z-index: -1;
   inset: 18px 0 14px;
   overflow: hidden;
-  border: 1px solid var(--aurora-accent);
-  border-color: color-mix(in srgb, var(--aurora-accent) 50%, white);
+  border: 1px solid var(--aurora-accent-highlight);
   border-radius: 12px 0 22px 12px;
   background: linear-gradient(122deg, var(--aurora-paper-top), var(--aurora-paper-bottom));
   clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% calc(100% - 22px), calc(100% - 22px) 100%, 0 100%);
@@ -88,8 +95,7 @@ body[data-style='aurora'] .draw-danmaku-item::after { content: none; }
 }
 .aurora-paper::before {
   inset: 5px;
-  border: 1px solid rgb(133 112 183 / 27%);
-  border-color: color-mix(in srgb, var(--aurora-accent) 27%, transparent);
+  border: 1px solid rgb(var(--aurora-accent-rgb) / 27%);
   border-radius: 7px 0 16px 7px;
   background:
     radial-gradient(ellipse at 12% 0, var(--aurora-tint), transparent 52%),
@@ -158,12 +164,12 @@ body[data-style='aurora'] .draw-danmaku-body p {
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .aurora-arrival {
   opacity: var(--danmaku-enter-opacity);
-  transform: var(--danmaku-enter-transform);
+  transform: translate(var(--danmaku-enter-x), var(--danmaku-enter-y));
   animation: auroraArrive var(--aurora-entry-duration) cubic-bezier(.2, .75, .25, 1) both;
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-identity {
   opacity: var(--danmaku-enter-opacity);
-  transform: var(--danmaku-enter-transform);
+  transform: translateY(var(--danmaku-enter-y));
   animation: auroraName calc(var(--aurora-entry-duration) * 21 / 26) cubic-bezier(.2, .75, .25, 1) calc(var(--aurora-entry-duration) * 2 / 13) both;
 }
 body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .draw-danmaku-body p {
@@ -212,6 +218,7 @@ body[data-style='aurora'] [data-live-entry][data-aurora-entrance='layered'] .dra
 body[data-aurora-charm='moon'] .aurora-charm::after {
   border-radius: 50%;
   clip-path: none;
+  -webkit-mask: radial-gradient(circle at 72% 30%, transparent 0 42%, #000 44%);
   mask: radial-gradient(circle at 72% 30%, transparent 0 42%, #000 44%);
 }
 body[data-aurora-charm='none'] .aurora-charm { visibility: hidden; }
@@ -256,12 +263,12 @@ body[data-style='aurora'] .is-emote-only .draw-danmaku-emote { height: 76px; }
 body[data-style='aurora'][data-ambient-motion='off'] .aurora-charm,
 body[data-style='aurora'][data-ambient-motion='off'] .aurora-paper::after { animation: none; }
 @keyframes auroraArrive {
-  from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translate(14px, 4px); }
-  to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translate(0, 0); }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 14px; --danmaku-enter-y: 4px; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; --danmaku-enter-y: 0px; }
 }
 @keyframes auroraName {
-  from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateY(-5px); }
-  to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateY(0); }
+  from { --danmaku-enter-opacity: 0; --danmaku-enter-y: -5px; }
+  to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0px; }
 }
 @keyframes auroraText { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 @keyframes auroraPearl {

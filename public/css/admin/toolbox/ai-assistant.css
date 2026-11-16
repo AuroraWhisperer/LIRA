@@ -376,7 +376,6 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px;
-  padding-top: 0;
 }
 .xiaomi-ai-integration-grid > section {
   display: grid;

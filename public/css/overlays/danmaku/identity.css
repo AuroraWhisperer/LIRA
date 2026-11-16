@@ -17,6 +17,8 @@ body[data-style='identity'] .draw-danmaku-feed {
 }
 body[data-style='identity'] .draw-danmaku-item {
   --identity-surface: rgba(52, 59, 69, 0.84);
+  --identity-surface-rgb: 52 59 69;
+  --identity-surface-alpha: .84;
   grid-template-areas: 'content avatar';
   grid-template-columns: minmax(0, 1fr) var(--identity-avatar-max-size);
   gap: 0;
@@ -44,15 +46,23 @@ body[data-style='identity'] .draw-danmaku-item::after {
 body[data-style='identity'] .draw-danmaku-item[data-identity='viewer'],
 body[data-style='identity'] .draw-danmaku-item[data-identity='fan'] {
   --identity-surface: rgba(52, 59, 69, 0.84);
+  --identity-surface-rgb: 52 59 69;
+  --identity-surface-alpha: .84;
 }
 body[data-style='identity'] .draw-danmaku-item[data-identity='captain'] {
   --identity-surface: rgba(24, 105, 171, 0.9);
+  --identity-surface-rgb: 24 105 171;
+  --identity-surface-alpha: .9;
 }
 body[data-style='identity'] .draw-danmaku-item[data-identity='admiral'] {
   --identity-surface: rgba(104, 48, 156, 0.9);
+  --identity-surface-rgb: 104 48 156;
+  --identity-surface-alpha: .9;
 }
 body[data-style='identity'] .draw-danmaku-item[data-identity='governor'] {
   --identity-surface: rgba(171, 37, 61, 0.92);
+  --identity-surface-rgb: 171 37 61;
+  --identity-surface-alpha: .92;
 }
 /* 把头像的色彩延展到普通观众卡片，保留原图的深浅与色彩分布。 */
 body[data-style='identity']
@@ -157,7 +167,9 @@ body[data-style='identity'] .draw-danmaku-item.is-gift {
   --gift-name: #7a5530;
   --gift-action: #a35f1c;
   --gift-accent: #a35f1c;
+  --gift-border: rgb(218.2 191 164.2);
   --gift-surface: #fff0cf;
+  --gift-surface-rgb: 255 240 207;
   --gift-sheen: rgb(255 250 230 / 75%);
   border: 1px solid #d6ad62;
   border-radius: 6px;
@@ -196,7 +208,7 @@ body[data-style='identity'] .is-gift .draw-danmaku-gift-amount {
 body[data-custom-background='true'][data-style='identity'] .draw-danmaku-item:not(.is-gift) {
   background:
     linear-gradient(100deg, rgb(255 255 255 / calc(0.09 * var(--danmaku-background-opacity))), transparent 42%),
-    color-mix(in srgb, var(--identity-surface) var(--danmaku-background-weight), transparent);
+    rgb(var(--identity-surface-rgb) / calc(var(--identity-surface-alpha) * var(--danmaku-background-opacity)));
 }
 body[data-custom-background='true'][data-style='identity'] .draw-danmaku-item.is-gift {
   background: linear-gradient(

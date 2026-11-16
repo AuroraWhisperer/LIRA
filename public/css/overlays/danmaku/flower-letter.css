@@ -94,7 +94,7 @@ body[data-style='flower-letter'] .flower-ordinary .flower-content { padding: 76p
 .flower-avatar-image, .flower-avatar-fallback { position: absolute; inset: 0; width: 100%; height: 100%; }
 .flower-avatar-image { object-fit: cover; }
 .flower-avatar-fallback { display: grid; place-items: center; font-size: 35px; color: #929690; }
-.flower-crest-avatar { bottom: 26px; left: 498px; width: 76px; height: 60px; mask: url('/img/overlays/danmaku-flower-letter/heart-mask.svg') center / 100% 100% no-repeat; }
+.flower-crest-avatar { bottom: 26px; left: 498px; width: 76px; height: 60px; -webkit-mask: url('/img/overlays/danmaku-flower-letter/heart-mask.svg') center / 100% 100% no-repeat; mask: url('/img/overlays/danmaku-flower-letter/heart-mask.svg') center / 100% 100% no-repeat; }
 .flower-brush {
   display: inline-block;
   width: 55px;

@@ -6,6 +6,7 @@ const { DatabaseSync } = require('node:sqlite');
 const { SONG_SCHEMA } = require('../../src/storage/schema');
 const { createAiStateStore } = require('../../src/storage/ai-state-store');
 const { createAiConfigStore } = require('../../src/ai/config-store');
+const { buildTools } = require('../../src/ai/prompt');
 const { createAiSettingsFixture, flushAiTasks, aiResponse } = require('../helpers/ai-settings-fixture');
 
 test('subscription keeps API secrets separate and uses account status, model lookup and login actions', async () => {
@@ -168,6 +169,16 @@ test('automatic reply probability loads the saved value and persists edits indep
   await f.advance(700);
   assert.equal(f.saves().at(-1).autoReplyProbabilityPercent, 30);
   assert.equal(f.publicConfig.autoReplyEnabled, false);
+});
+
+test('automatic mention preference loads the saved opt-in and saves turning it off', async () => {
+  const f = await createAiSettingsFixture({ config: { autoReplyMentionEnabled: true } });
+  const input = f.elements.get('xiaomiAiAutoReplyMentionEnabled');
+  assert.equal(input.checked, true);
+  input.checked = false;
+  f.fire('xiaomiAiForm', 'change', { target: input });
+  await flushAiTasks();
+  assert.equal(f.saves().at(-1).autoReplyMentionEnabled, false);
 });
 
 test('official reasoning levels select the official default and save the actual selected level', async () => {
@@ -522,22 +533,67 @@ test('saved legacy custom role remains selectable after choosing a built-in', as
   assert.equal(f.elements.get('xiaomiAiPersonaDelete').disabled, true);
 });
 
-test('turning off tools can save even when a hidden provider address draft is invalid', async () => {
-  const f = await createAiSettingsFixture({ config: { functionCallingEnabled: true, placesEnabled: true } });
+test('turning off a query can save even when its hidden provider address draft is invalid', async () => {
+  const f = await createAiSettingsFixture({ config: { functionCallingEnabled: true, placesEnabled: true, webSearchEnabled: false } });
   const host = f.elements.get('xiaomiAiAmapHost');
   f.elements.get('xiaomiAiForm').checkValidity = () => host.disabled || host.value !== 'invalid-url';
   f.input(host.id, 'invalid-url');
   await f.advance(700);
   assert.equal(f.saves().length, 0);
-  const toggle = f.elements.get('xiaomiAiFunctionCalling');
+  const toggle = f.elements.get('xiaomiAiPlacesEnabled');
   toggle.checked = false;
   f.fire('xiaomiAiForm', 'change', { target: toggle });
   await flushAiTasks();
   assert.equal(f.saves().length, 1);
-  assert.equal(f.saves()[0].functionCallingEnabled, false);
+  assert.equal(f.saves()[0].placesEnabled, false);
   assert.equal(f.saves()[0].amapApiHost, undefined);
   assert.equal(host.value, 'invalid-url');
 });
+
+test('individual search and query switches save usable tools without a master switch', async (t) => {
+  const db = new DatabaseSync(':memory:');
+  t.after(() => db.close());
+  db.exec(SONG_SCHEMA);
+  const codec = { isAvailable: () => true, encrypt: value => `encrypted:${value}`, decrypt: value => value.slice(10) };
+  const store = createAiConfigStore(createAiStateStore(db), codec);
+  store.updateConfig({ modelProvider: 'deepseek', qweatherApiHost: 'https://weather.test', qweatherApiKey: 'test-weather-key' });
+  const openSettings = () => createAiSettingsFixture({
+    config: store.getPublicConfig(),
+    request: (url, options) => url === '/api/ai/config' && options.method === 'PUT'
+      ? aiResponse(store.updateConfig(JSON.parse(options.body))) : undefined,
+  });
+  let f = await openSettings();
+  const toggle = async (id, checked) => {
+    const input = f.elements.get(id);
+    input.checked = checked;
+    f.fire('xiaomiAiForm', 'change', { target: input });
+    await flushAiTasks();
+  };
+  await toggle('xiaomiAiWebSearch', true);
+  assert.ok(buildTools(store.getConfig()).some(tool => tool.type === 'web_search'));
+  await toggle('xiaomiAiWebSearch', false);
+  await toggle('xiaomiAiWeatherEnabled', true);
+  assert.ok(buildTools(store.getConfig()).some(tool => tool.name === 'get_weather'));
+  await toggle('xiaomiAiWeatherEnabled', false);
+  assert.equal(buildTools(store.getConfig()).length, 0);
+  f = await openSettings();
+  assert.equal(f.elements.get('xiaomiAiWeatherEnabled').checked, false);
+  assert.equal(store.getConfig().qweatherApiKey, 'test-weather-key');
+});
+
+for (const [webSearchMode, searchEnabled] of [['hosted', true], ['local_function', false]]) {
+  test(`disabled legacy queries stay off when settings save with ${webSearchMode} search`, async () => {
+    const f = await createAiSettingsFixture({ config: {
+      functionCallingEnabled: false, weatherEnabled: true, placesEnabled: true, routesEnabled: true,
+      modelEndpoint: { webSearchMode },
+    } });
+    f.input('xiaomiAiTrigger', '助手');
+    await f.advance(700);
+    const saved = f.saves()[0];
+    for (const key of ['weatherEnabled', 'placesEnabled', 'routesEnabled']) assert.equal(saved[key], false, key);
+    assert.equal(saved.webSearchEnabled, searchEnabled);
+  });
+}
 
 test('invalid persona file leaves current role untouched', async () => {
   const f = await createAiSettingsFixture({ config: { personaId: 'cat' } });

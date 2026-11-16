@@ -144,7 +144,8 @@ function createAiAssistantService(dependencies) {
       replyController = new AbortController();
       coordinator = createCoordinator();
     } else if ((currentConfig.autoReplyEnabled && !config.autoReplyEnabled)
-      || (currentConfig.autoReplyProbabilityPercent !== 0 && config.autoReplyProbabilityPercent === 0)) {
+      || (currentConfig.autoReplyProbabilityPercent !== 0 && config.autoReplyProbabilityPercent === 0)
+      || currentConfig.autoReplyMentionEnabled !== config.autoReplyMentionEnabled) {
       autoReplies.reset();
     }
     currentConfig = config;
@@ -292,7 +293,8 @@ function createAiAssistantService(dependencies) {
       return;
     }
     const target = task.snapshot.messages.find(message => message.id === result.targetMessageId);
-    const mentionTarget = target ? { uid: target.uid, name: target.userName, source: 'ai-assistant' } : null;
+    const mentionTarget = target && store.getConfig().autoReplyMentionEnabled
+      ? { uid: target.uid, name: target.userName, source: 'ai-assistant' } : null;
     const completion = Promise.withResolvers();
     const assertSessionCurrent = auth => {
       throwIfReplyCancelled(item);

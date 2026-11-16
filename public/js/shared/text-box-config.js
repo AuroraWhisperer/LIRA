@@ -4,7 +4,7 @@ export const TEXT_BOX_SIZE = Object.freeze([640, 180]);
 export const TEXT_BOX_SCROLL_SPEED = Object.freeze({ min: 10, max: 200, default: 40 });
 
 export function createTextBoxDefaults() {
-  return { version: 1, fontSize: 32, color: '#ffffff', align: 'left', lineHeight: 1.4, scrollMode: 'none', scrollSpeed: TEXT_BOX_SCROLL_SPEED.default,
+  return { version: 1, fontSize: 32, color: '#ffffff', backgroundColor: '#00000000', align: 'left', lineHeight: 1.4, scrollMode: 'none', scrollSpeed: TEXT_BOX_SCROLL_SPEED.default,
     nodes: [{ type: 'text', text: '在这里输入文字' }] };
 }
 
@@ -46,7 +46,7 @@ export function normalizeTextBoxImageSource(value, type = 'image') {
 }
 
 export function normalizeTextBoxConfig(config) {
-  record(config, ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes', 'scrollMode', 'scrollSpeed'],
+  record(config, ['version', 'fontSize', 'color', 'backgroundColor', 'align', 'lineHeight', 'nodes', 'scrollMode', 'scrollSpeed'],
     ['version', 'fontSize', 'color', 'align', 'lineHeight', 'nodes']);
   const scrollMode = Object.hasOwn(config, 'scrollMode') ? config.scrollMode : 'none';
   if (!['none', 'horizontal', 'vertical'].includes(scrollMode)) throw invalid();
@@ -80,5 +80,6 @@ export function normalizeTextBoxConfig(config) {
     return result;
   });
   return { version: 1, fontSize: fontSize(config.fontSize), color: color(config.color),
+    backgroundColor: Object.hasOwn(config, 'backgroundColor') ? color(config.backgroundColor) : '#00000000',
     align: config.align, lineHeight: config.lineHeight, scrollMode, scrollSpeed, nodes };
 }

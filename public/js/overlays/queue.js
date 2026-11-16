@@ -196,6 +196,8 @@ function computeStateKey(nextState) {
     settings.overlayFontWeight,
     settings.overlaySongColor,
     settings.overlayRequesterColor,
+    settings.queueRequestRequesterColor,
+    settings.queueRequestSongColor,
     settings.overlayIndexColor,
     settings.illustratedQueueFontFamily,
     settings.illustratedQueueFontWeight,

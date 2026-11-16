@@ -62,10 +62,11 @@ export function createScheduledLibraryEditor({ documentRef, changed,
   return {
     load(value) { items = [...value]; render(); },
     reset() { items = []; search = ''; render(); },
-    read() {
+    read({ reportValidity = true } = {}) {
       const result = items.map((text) => text.trim());
       const invalid = result.findIndex((text) => !text || Array.from(text).length > 120);
       if (invalid >= 0) {
+        if (!reportValidity) return null;
         search = '';
         render();
         revealEditorItem(list, invalid);

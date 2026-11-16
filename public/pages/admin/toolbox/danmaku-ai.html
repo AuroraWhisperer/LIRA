@@ -177,7 +177,7 @@
             >触发关键词
             <lira-help>也用作机器人名字。填写并在客户端启用 AI 后，弹幕包含该名字时触发回复；留空时不触发。</lira-help></span
           ><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="给机器人起个名字，例如：小米"
-          /><small>留空时不响应弹幕。</small></label>
+          /></label>
         <div class="xiaomi-ai-persona-field">
           <div class="xiaomi-ai-persona-label">
             <label for="xiaomiAiPersona">人格预设</label>
@@ -192,6 +192,11 @@
             <input id="xiaomiAiAutoReplyEnabled" type="checkbox" role="switch" aria-describedby="xiaomiAiAutoReplyHelp" />
             <span class="switch-track" aria-hidden="true"></span>
             <span>自动接话<lira-help><span id="xiaomiAiAutoReplyHelp">默认关闭。开启后从近期普通弹幕中择机接一句，点名问题优先；两种方式共用上方模型和当前人格。</span></lira-help></span>
+          </label>
+          <label class="switch-control">
+            <input id="xiaomiAiAutoReplyMentionEnabled" type="checkbox" role="switch" aria-describedby="xiaomiAiAutoReplyMentionHelp" />
+            <span class="switch-track" aria-hidden="true"></span>
+            <span>接话时 @ 观众<lira-help><span id="xiaomiAiAutoReplyMentionHelp">默认不 @。开启后，单人自动接话会 @ 对应观众；面向全场的接话不 @，点名问答仍按原规则回复。</span></lira-help></span>
           </label>
           <label class="xiaomi-ai-number-field">
             <span>接话频率（%）<lira-help><span id="xiaomiAiAutoReplyProbabilityHelp">数值越高，普通观众弹幕进入接话候选的概率越高；0% 不自动接话，100% 仍会判断话题是否适合。已标记的机器人欢迎和当前发送账号的弹幕不参与，点名问答不受影响。</span></lira-help></span>
@@ -253,10 +258,7 @@
           />
         </svg>
       </summary>
-      <div class="xiaomi-ai-collapsible-body">
-        <label class="switch-control"><input id="xiaomiAiFunctionCalling" type="checkbox" role="switch" /><span class="switch-track" aria-hidden="true"></span><span>允许工具调用<lira-help label="工具调用说明">需模型支持工具调用。关闭后保留配置；平台自带搜索由「联网搜索」单独控制。</lira-help></span></label>
-      </div>
-      <div id="xiaomiAiLocalTools" class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid" hidden>
+      <div class="xiaomi-ai-collapsible-body xiaomi-ai-integration-grid">
         <section aria-labelledby="xiaomiAiWeatherTitle">
           <div class="xiaomi-ai-subheading">
             <h4 id="xiaomiAiWeatherTitle">和风天气</h4>
@@ -340,12 +342,12 @@
         <p class="wide hint">发送间隔由程序控制：不同回复随机 500–2000 毫秒；同一回复分段随机 200–600 毫秒。</p>
       </div>
     </details>
-    <div class="xiaomi-ai-actions">
+    <div id="xiaomiAiActions" class="xiaomi-ai-actions" hidden>
       <span id="xiaomiAiSaveState" class="hint" role="status" aria-live="polite"
-        >修改后自动保存，也可以点击「保存设置」。密钥保存后不会完整显示。</span
+        >修改后自动保存。密钥保存后不会完整显示。</span
       >
       <div class="xiaomi-ai-test-actions">
-        <button id="xiaomiAiSaveBtn" class="primary" type="submit">保存设置</button>
+        <button id="xiaomiAiSaveBtn" class="primary" type="submit" hidden>重试保存</button>
       </div>
     </div>
   </form>

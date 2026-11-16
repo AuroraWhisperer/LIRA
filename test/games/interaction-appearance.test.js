@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createClock } = require('../helpers/toast-dom');
 const {
   INTERACTION_APPEARANCE_DEFAULTS,
   normalizeInteractionAppearanceValue,
@@ -16,6 +17,7 @@ const { DEFAULT_SETTINGS } = require('../../src/storage/settings-defaults');
 
 test('appearance applies drafts against saved settings and reconciles concurrent canvas updates', async () => {
   const document = createParameterDocument();
+  const clock = createClock();
   const window = new EventTarget();
   const defaults = INTERACTION_APPEARANCE_DEFAULTS;
   let saved = { ...defaults, interactionTextColor: '#ff0000', interactionFontSize: '24' };
@@ -31,6 +33,7 @@ test('appearance applies drafts against saved settings and reconciles concurrent
   const { initInteractionAppearance } = await loadModuleExports(
     path.resolve(__dirname, '../../public/js/admin/interaction-appearance.js'), {
       document, window, CustomEvent,
+      setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
       MutationObserver: class { observe() {} disconnect() {} },
       fetch: async (_url, options = {}) => {
         if (options.method === 'POST') {

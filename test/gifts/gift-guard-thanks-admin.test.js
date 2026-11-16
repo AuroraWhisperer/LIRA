@@ -19,6 +19,7 @@ async function createFixture() {
   const nodes = new Map();
   function node(id) {
     if (!nodes.has(id)) nodes.set(id, { id, value: '', checked: false, disabled: false, dataset: {},
+      closest: () => null, querySelectorAll: () => [],
       handlers: new Map(), addEventListener(name, fn) { this.handlers.set(name, fn); } });
     return nodes.get(id);
   }

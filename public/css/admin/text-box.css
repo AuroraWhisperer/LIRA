@@ -2,17 +2,20 @@
 @import url('../shared/text-box.css');
 
 .text-box-page { width: 100%; }
+#textBoxPage :is(button.primary, button.secondary, button.ghost), .text-box-gift-picker button.secondary { min-height: 32px; padding-block: 5px; }
+#textBoxPage .lira-select-trigger { min-height: 32px; padding-block: 4px; }
 .text-box-page-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; }
 .text-box-heading-actions { display: flex; align-items: center; margin-left: auto; flex-wrap: wrap; gap: 8px; }
 .text-box-scene-context p { margin: 0; }
-.text-box-scene-context { display: grid; gap: 4px; margin-bottom: 16px; font-size: 13px; }
+.text-box-scene-context { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 16px; margin-bottom: 16px; font-size: 13px; }
 .text-box-workspace { display: grid; gap: 24px; min-width: 0; }
 .text-box-library { display: flex; flex: 1 1 180px; align-items: center; gap: 16px; min-width: 0; padding-inline: 16px; border-inline: 1px solid var(--border); }
 .text-box-live-heading h3 { margin: 0; font-size: 15px; font-weight: 650; }
-.text-box-list { display: flex; flex: 1; gap: 4px; min-width: 0; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-.text-box-list .text-box-list-item { flex-shrink: 0; max-width: 220px; border: 0; border-bottom: 2px solid transparent; padding: 7px 12px; border-radius: 0; background: transparent; color: var(--muted); text-align: left; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none; }
-.text-box-list-item:hover { background: var(--surface-2); }
-.text-box-list .text-box-list-item[aria-pressed='true'] { border-bottom-color: var(--primary-strong); color: var(--primary-strong); font-weight: 650; }
+.text-box-list { display: flex; gap: 8px; width: max-content; max-width: 100%; padding: 2px; overflow-x: auto; scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+.text-box-list .text-box-list-item { flex-shrink: 0; max-width: 220px; min-height: 30px; border: 1px solid var(--border); padding: 4px 16px; border-radius: var(--radius-md); background: var(--surface); color: var(--muted); text-align: left; font-size: var(--type-size-body); font-weight: var(--type-weight-semibold); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; box-shadow: none; }
+.text-box-list .text-box-list-item:hover { background: var(--surface-2); border-color: var(--color-border-strong); color: var(--text); }
+.text-box-list .text-box-list-item[aria-pressed='true'] { background: var(--color-selection-fill, var(--color-primary-light)); border-color: var(--color-selection-marker); color: var(--color-selection-text, var(--primary-strong)); }
+.text-box-list .text-box-list-item:focus-visible { outline: 2px solid var(--color-selection-marker); outline-offset: 1px; }
 .text-box-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 340px; padding: 32px; text-align: center; }
 .text-box-empty svg { width: 48px; height: 48px; color: var(--primary-strong); }
 .text-box-empty h3 { font-size: 20px; margin: 20px 0 8px; }
@@ -47,6 +50,10 @@
 .text-box-layout-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .text-box-layout-fields label { display: grid; gap: 8px; font-size: 13px; color: var(--text); }
 .text-box-layout-fields select { width: 100%; }
+.text-box-background { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+.text-box-background-label { display: inline-flex; align-items: center; margin-right: auto; font-size: 13px; }
+.text-box-background .lira-color-control { width: 148px; flex: 0 0 148px; }
+.text-box-background button { padding: 6px 10px; font-size: 12px; }
 .text-box-scroll-options { display: flex; align-items: center; gap: 10px; }
 .text-box-scroll-option { display: flex; align-items: center; gap: 8px; min-height: 36px; font-size: 13px; color: var(--text); white-space: nowrap; cursor: pointer; }
 .text-box-scroll-option + .text-box-scroll-option { padding-inline-start: 10px; border-inline-start: 1px solid var(--border); }
@@ -68,10 +75,14 @@
 .text-box-live-heading { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0; }
 .text-box-live-heading button { font-size: 13px; }
 .text-box-live, .text-box-live .component-preview-display { display: contents; }
-.text-box-live .component-preview-stage { grid-column: 1 / -1; grid-row: 2; height: 210px; min-height: 160px; max-height: 260px; }
+.text-box-live .component-preview-stage { grid-column: 1 / -1; grid-row: 2; height: 210px; min-height: 160px; max-height: 260px; border: 1px solid var(--border); border-radius: var(--radius-md); }
+.text-box-live .component-preview-stage[data-background='checker'] { background-image: conic-gradient(#ffffff07 25%, transparent 0 50%, #ffffff07 0 75%, transparent 0); background-size: 20px 20px; }
+.text-box-live .component-preview-frame { outline: 1px dashed #ffffff59; }
+.text-box-live .component-preview-stage[data-background='light'] .component-preview-frame { outline-color: #27394c66; }
 .text-box-live .component-preview-toolbar { grid-column: 1; grid-row: 3; justify-content: flex-start; margin: 0; padding: 0; font-size: 12px; }
-.text-box-live .component-preview-data-label, .text-box-live .component-preview-output, .text-box-live .component-preview-dimensions { display: none; }
-.text-box-live-actions { grid-column: 2; grid-row: 3; display: flex; justify-content: flex-end; }
+.text-box-live .component-preview-toolbar label:last-child { margin-left: 0; }
+.text-box-live .component-preview-output { grid-column: 1 / -1; grid-row: 4; margin: -2px 0 0; font-size: 12px; }
+.text-box-live .component-preview-data-label, .text-box-live .component-preview-dimensions { display: none; }
 .text-box-page-status { display: flex; align-items: center; justify-content: flex-end; gap: 12px; }
 .text-box-page-status p { margin: 0; font-size: 13px; color: var(--muted); }
 .text-box-error, .text-box-page-status .text-box-error { color: var(--danger); font-size: 13px; line-height: 1.6; }

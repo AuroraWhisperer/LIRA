@@ -312,7 +312,7 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
 }
 .is-superchat .sc-transparent .sc-main {
   padding-left: 18px;
-  border-left: 1px solid color-mix(in srgb, var(--sc-price) 55%, transparent);
+  border-left: 1px solid rgb(var(--sc-price-rgb) / calc(var(--sc-price-alpha, 1) * 0.55));
 }
 .is-superchat .sc-transparent .sc-name {
   padding-top: 4px;
@@ -385,7 +385,7 @@ body[data-style='minimal'] .draw-danmaku-item.is-superchat {
   display: block;
   margin-bottom: 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid color-mix(in srgb, var(--sc-price) 45%, transparent);
+  border-bottom: 1px solid rgb(var(--sc-price-rgb) / calc(var(--sc-price-alpha, 1) * 0.45));
   font-size: 15px;
   color: rgb(255 255 255 / 74%);
 }

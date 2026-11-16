@@ -115,7 +115,9 @@ body[data-style='outline'] .draw-danmaku-item.is-gift {
   --gift-name: #8a5a6e;
   --gift-action: #a1325e;
   --gift-accent: #a1325e;
+  --gift-border: rgb(217.4 173 190.6);
   --gift-surface: #ffe9f0;
+  --gift-surface-rgb: 255 233 240;
   --gift-sheen: rgb(255 255 255 / 70%);
   grid-template-areas: 'content';
   grid-template-columns: minmax(0, 1fr);

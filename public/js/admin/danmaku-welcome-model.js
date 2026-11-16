@@ -17,6 +17,7 @@ export const LIBRARIES = {
 };
 export const SWITCHES = {
   enabled: 'Toggle',
+  liveGreetingEnabled: 'LiveGreetingToggle',
   greetingEnabled: 'GreetingToggle',
   attentionEnabled: 'AttentionToggle',
   rareNamePinyinEnabled: 'PinyinToggle',
@@ -91,7 +92,8 @@ export function confirmedSettings(result) {
   }
   if (
     result.schemaVersion !== 2 ||
-    Object.keys(SWITCHES).some((key) => !['returningEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'].includes(key) && typeof result[key] !== 'boolean') ||
+    Object.keys(SWITCHES).some((key) => !['returningEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly', 'liveGreetingEnabled'].includes(key) && typeof result[key] !== 'boolean') ||
+    (result.liveGreetingEnabled !== undefined && typeof result.liveGreetingEnabled !== 'boolean') ||
     (result.welcomeOwnMedalOnly !== undefined && typeof result.welcomeOwnMedalOnly !== 'boolean') ||
     Object.keys(LIBRARIES).some((key) => key !== 'returningMessages' && !key.startsWith('time:') && !validMessages(result[key])) ||
     ((result.returningEnabled !== undefined || result.returningMessages !== undefined) &&

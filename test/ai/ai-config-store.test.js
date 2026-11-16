@@ -27,9 +27,11 @@ test('automatic replies require a saved opt-in and retain their preference while
   const { db, store } = createStore();
   t.after(() => db.close());
   assert.equal(store.getPublicConfig().autoReplyEnabled, false);
-  store.updateConfig({ autoReplyEnabled: true, autoReplyProbabilityPercent: 45, enabled: false });
+  assert.equal(store.getPublicConfig().autoReplyMentionEnabled, false);
+  store.updateConfig({ autoReplyEnabled: true, autoReplyMentionEnabled: true, autoReplyProbabilityPercent: 45, enabled: false });
   const reopened = createAiConfigStore(createAiStateStore(db), { isAvailable: () => true });
   assert.equal(reopened.getPublicConfig().autoReplyEnabled, true);
+  assert.equal(reopened.getPublicConfig().autoReplyMentionEnabled, true);
   assert.equal(reopened.getPublicConfig().autoReplyProbabilityPercent, 45);
   assert.throws(() => reopened.updateConfig({ autoReplyProbabilityPercent: 101 }), /autoReplyProbabilityPercent/);
   assert.equal(reopened.getConfig().enabled, false);

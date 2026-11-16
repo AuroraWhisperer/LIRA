@@ -160,12 +160,14 @@ test('every queue theme renders all queued songs and escapes viewer text', async
   }
 });
 
-test('queue overlay applies the saved song font size', async () => {
+test('queue overlay applies the saved song font size and notice colors', async () => {
   const dom = createQueueDom();
   const namespace = await loadQueueOverlay(dom);
 
-  namespace.applyTheme(BASE_SETTINGS, 'classic');
+  namespace.applyTheme({ ...BASE_SETTINGS, queueRequestRequesterColor: '#2468ac', queueRequestSongColor: '#703050' }, 'classic');
   assert.equal(dom.rootVars.get('--overlay-song-font-size'), '40px');
+  assert.equal(dom.rootVars.get('--queue-request-requester-color'), '#2468ac');
+  assert.equal(dom.rootVars.get('--queue-request-song-color'), '#703050');
 });
 
 test('queue style changes are detected so the overlay can reload the authoritative queue', async () => {

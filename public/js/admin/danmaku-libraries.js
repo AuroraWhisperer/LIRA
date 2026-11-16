@@ -2,6 +2,7 @@
 
 import { showFieldError } from '../shared/field-feedback.js';
 import { revealEditorItem } from './danmaku-editor-pagination.js';
+import { createAutosave } from './settings-autosave.js';
 
 const DELETE_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M9 7V4h6v3m-8 0 1 13h8l1-13M10 11v5m4-5v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -28,17 +29,22 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
   let saving = false;
   let generation = 0;
   let loadedValue;
+  const autosave = createAutosave({ root: elements.list.closest('[data-fixed-editor]') || elements.list,
+    windowRef: document.defaultView || globalThis, canSave: () => dirty && !saving,
+    save: () => saveRules(true) });
 
   const setStatus = (text, kind = '') => {
     elements.status.textContent = text;
     elements.status.className = `hint${kind ? ` ${kind}` : ''}`;
+    elements.status.parentElement.hidden = kind !== 'warn';
   };
   const markDirty = () => {
     loadedValue = undefined;
     editRevision += 1;
     dirty = true;
     elements.saveButton.disabled = saving;
-    setStatus('有尚未保存的更改', 'warn');
+    setStatus('');
+    autosave.schedule();
   };
   const createField = (rule, index, field, labelText, maxLength) => {
     const label = document.createElement('label');
@@ -108,8 +114,9 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
       add();
     });
   });
-  elements.saveButton.addEventListener('click', async () => {
+  async function saveRules(automatic = false) {
     if (saving) return;
+    if (items.some(item => !String(item.keyword || '').trim() || !String(item.reply || '').trim())) return;
     const cleaned = exact
       ? items.map((item) => ({ keyword: item.keyword.trim(), reply: item.reply.trim() }))
       : items.map(normalizeCustomReply).filter((item) => item.keyword && item.reply);
@@ -124,14 +131,14 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
       if (editRevision === submittedRevision) {
         items = cleaned;
         dirty = false;
-        render();
+        if (!automatic) render();
         setStatus(`已保存 ${items.length} 条`, 'good');
       } else {
         setStatus('本次已保存，仍有未保存的更改', 'warn');
       }
     } catch (error) {
       if (generation !== requested) return;
-      setStatus('保存失败', 'warn');
+      setStatus('自动保存失败，修改已保留，请重试。', 'warn');
       toast(error.message || `保存${name}失败`);
     } finally {
       if (generation === requested) {
@@ -139,11 +146,14 @@ export function createCustomReplyEditor({ document, saveSetting, toast, kind = '
         elements.saveButton.disabled = !dirty;
       }
     }
-  });
+  }
+  elements.saveButton.textContent = '重试保存';
+  elements.saveButton.addEventListener('click', () => saveRules(true));
 
   return {
     reset() {
       generation += 1;
+      autosave.cancel();
       loadedValue = undefined;
       items = [];
       dirty = saving = false;

@@ -277,16 +277,18 @@ test('gift settings open separate canvas layers that save, preview and receive o
   await desktop.locator('#guardThanksClassicPreviewTier').selectOption('admiral');
   await desktop.locator('#guardThanksClassicPreviewUser').fill('上舰观众');
   await desktop.locator('#guardThanksClassicPreviewMonths').fill('6');
+  const classicSaved = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/settings'
+    && response.request().postDataJSON()?.guardThanksClassicTextMode === 'zh' && response.ok());
   await desktop.locator('#guardThanksClassicTextMode').selectOption('zh');
-  await desktop.locator('#guardThanksClassicSaveBtn').click();
-  await desktop.locator('#guardThanksClassicSaveState').filter({ hasText: '设置已保存' }).waitFor();
+  await classicSaved;
   await open('#guardThanksClassicPlayBtn');
   assert.equal(await page.locator('.scene-editor-item').count(), 2);
   const guardPreview = page.frameLocator('.scene-editor-item.is-selected iframe');
   await guardPreview.locator('.gt-card[data-tier="admiral"].is-live').waitFor({ state: 'visible' });
+  const auroraSaved = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/settings'
+    && response.request().postDataJSON()?.guardThanksAuroraTextMode === 'en' && response.ok());
   await desktop.locator('#guardThanksAuroraTextMode').selectOption('en');
-  await desktop.locator('#guardThanksAuroraSaveBtn').click();
-  await desktop.locator('#guardThanksAuroraSaveState').filter({ hasText: '设置已保存' }).waitFor();
+  await auroraSaved;
   await desktop.locator('#guardThanksAuroraPreviewTier').selectOption('governor');
   await desktop.locator('#guardThanksAuroraPreviewMonths').fill('9');
   await open('#guardThanksAuroraPlayBtn');

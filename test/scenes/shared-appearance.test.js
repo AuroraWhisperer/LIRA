@@ -60,21 +60,22 @@ test('canvas motion edits use each effect owner and reach settlement without cop
   const swing = normalizeSceneConfig('gift-frame', { style: 'gift-swing' });
   const owner = createSceneSharedAppearance(ctx);
   owner.patch('gift-frame', drop, { giftDropEnabled: 'true', giftDropThresholdRmb: '1.25', giftDropSize: '128',
-    giftDropDurationSeconds: '12', giftDropQuantityMultiplier: '3', giftDropSpeed: '75', giftDropBounce: '40' });
+    giftDropDurationSeconds: '12', giftDropCount: '101', giftDropSpeed: '75', giftDropBounce: '40' });
   owner.patch('gift-frame', swing, { giftSwingEnabled: 'true', giftSwingTextMode: 'name-quantity', giftSwingAngle: '24' });
   const current = createSceneSharedAppearance(ctx);
   assert.equal(current.read('gift-frame', drop).giftDropSize, '128');
+  assert.equal(current.read('gift-frame', drop).giftDropCount, '100');
   assert.equal(Object.hasOwn(current.read('gift-frame', drop), 'giftSwingAngle'), false);
   const [dropEvent, swingEvent] = buildGiftMotionEvents({ id: 19, detection_status: 'final', total_price: 2, num: 4 }, ctx.values);
   assert.equal(dropEvent.motion.size, 128);
-  assert.equal(dropEvent.motion.quantityMultiplier, 3);
+  assert.equal(dropEvent.motion.count, 100);
   assert.equal(dropEvent.motion.durationSeconds, 12);
   assert.equal(swingEvent.motion.textMode, 'name-quantity');
   ctx.values.giftDropSize = '160';
   assert.equal(createSceneSharedAppearance(ctx).read('gift-frame', drop).giftDropSize, '160');
   assert.equal(Object.hasOwn(drop, 'giftDropSize'), false);
   assert.throws(() => current.patch('gift-frame', drop, { giftSwingAngle: '30' }));
-  assert.throws(() => current.patch('gift-frame', drop, { giftDropSize: '180', giftDropQuantityMultiplier: '21' }));
+  assert.throws(() => current.patch('gift-frame', drop, { giftDropSize: '180', giftDropCount: 'invalid' }));
   assert.equal(ctx.values.giftDropSize, '160', 'an invalid multi-field edit must not partially save');
 });
 
@@ -236,6 +237,28 @@ test('desktop precision and select values remain editable through shared canvas 
   createSceneSharedAppearance(ctx).patch('lyrics', lyrics, { desktopLyricTimeOffsetMs: '250', desktopLyricTextAlign: 'justify' });
   assert.equal(ctx.values.desktopLyricTimeOffsetMs, '250');
   assert.equal(ctx.values.desktopLyricTextAlign, 'justify');
+});
+
+test('queue notice colors follow local rules for built-in and resource appearances', t => {
+  const ctx = context(t);
+  const store = createComponentStyleStore(ctx.system.dataDir);
+  const pack = randomUUID();
+  const preset = COMPONENT_RESOURCE_PRESETS['moonlit-queue'];
+  const source = `/component-media/${pack}/${'a'.repeat(64)}`;
+  const resourceStyle = { id: randomUUID(), preset: 'moonlit-queue', preview: `${source}.webp`, width: 391, height: 600,
+    resources: Object.fromEntries(preset.resources.map(key => [key, `${source}${key.slice(key.lastIndexOf('.'))}`])) };
+  const config = normalizeSceneConfig('queue', { ...preset.config, resourceStyle });
+  store.stage({ id: pack, styles: [{ id: resourceStyle.id, type: 'queue', name: '点歌板', config }] });
+  store.install(pack);
+  ctx.values.queueRequestRequesterColor = '#2468ac';
+  ctx.values.queueRequestSongColor = '#703050';
+  const owner = createSceneSharedAppearance(ctx);
+  for (const appearance of [owner.read('queue', { overlayQueueStyle: 'classic' }), owner.read('queue', config)]) {
+    assert.equal(appearance.queueRequestRequesterColor, '#2468ac');
+    assert.equal(appearance.queueRequestSongColor, '#703050');
+  }
+  assert.throws(() => owner.patch('queue', config, { queueRequestSongColor: '#112233' }),
+    'global notice colors are saved by song request settings, not a resource library patch');
 });
 
 test('installed style parameters follow the library, survive removal and never replace resource identities', t => {

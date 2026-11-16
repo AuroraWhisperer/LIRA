@@ -5,14 +5,18 @@ body[data-style='harbor'] {
   --danmaku-move-curve: .24, .12, .22, 1;
   --danmaku-enter-animation: harborMessageIn 240ms cubic-bezier(.16, 1, .3, 1) backwards;
   --harbor-captain: #4055ad;
+  --harbor-captain-rgb: 64 85 173;
   --harbor-admiral: #8b5d99;
+  --harbor-admiral-rgb: 139 93 153;
   --harbor-governor: #b72e2e;
+  --harbor-governor-rgb: 183 46 46;
 }
 body[data-style='harbor'] .danmaku-signal-header { display: none; }
 body[data-style='harbor'] .draw-danmaku-feed { gap: 0; }
 
 body[data-style='harbor'] .draw-danmaku-item {
   --harbor-color: #4c4c54;
+  --harbor-color-rgb: 76 76 84;
   --harbor-avatar-size: 2.45em;
   display: flex;
   align-items: flex-start;
@@ -32,16 +36,19 @@ body[data-style='harbor'] .draw-danmaku-item {
 body[data-style='harbor'] .draw-danmaku-item::after { display: none; }
 body[data-style='harbor'] [data-room-guard='3'] {
   --harbor-color: var(--harbor-captain);
+  --harbor-color-rgb: var(--harbor-captain-rgb);
   --harbor-frame: var(--bilibili-guard-captain-frame, url('/img/overlays/danmaku-guard/bubble-captain-frame.webp'));
   --harbor-emblem: var(--bilibili-guard-captain, url('/img/admin/gifts/bilibili-guard-captain.webp'));
 }
 body[data-style='harbor'] [data-room-guard='2'] {
   --harbor-color: var(--harbor-admiral);
+  --harbor-color-rgb: var(--harbor-admiral-rgb);
   --harbor-frame: var(--bilibili-guard-prefect-frame, url('/img/overlays/danmaku-guard/bubble-admiral-frame.webp'));
   --harbor-emblem: var(--bilibili-guard-prefect, url('/img/admin/gifts/bilibili-guard-prefect.webp'));
 }
 body[data-style='harbor'] [data-room-guard='1'] {
   --harbor-color: var(--harbor-governor);
+  --harbor-color-rgb: var(--harbor-governor-rgb);
   --harbor-frame: var(--bilibili-guard-governor-frame, url('/img/overlays/danmaku-guard/bubble-governor-frame.webp'));
   --harbor-emblem: var(--bilibili-guard-governor, url('/img/admin/gifts/bilibili-guard-governor.webp'));
 }
@@ -76,7 +83,7 @@ body[data-style='harbor'] .draw-danmaku-body {
   min-width: 0;
   padding: .2em .7em;
   border-radius: 0 .95em .95em;
-  background: color-mix(in srgb, var(--harbor-color) var(--danmaku-background-weight, 100%), transparent);
+  background: rgb(var(--harbor-color-rgb) / var(--danmaku-background-opacity, 1));
   font-size: 30px;
 }
 body[data-style='harbor'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body {
@@ -127,8 +134,10 @@ body[data-style='harbor'] .harbor-rank[data-rank='2'] { background: #dbe5f3; col
 body[data-style='harbor'] .harbor-rank[data-rank='3'] { background: #eec3a1; color: #6e4025; }
 body[data-style='harbor'] .draw-danmaku-item.is-gift {
   --gift-surface: var(--harbor-color);
+  --gift-surface-rgb: var(--harbor-color-rgb);
   --gift-ink: #fff;
   --gift-accent: #fff;
+  --gift-border: #fff;
   display: flex;
   align-items: center;
   width: min(100%, 24em);
@@ -137,7 +146,7 @@ body[data-style='harbor'] .draw-danmaku-item.is-gift {
   min-height: 0;
   padding: .42em .6em;
   border-radius: .28em;
-  background: color-mix(in srgb, var(--harbor-color) var(--danmaku-background-weight, 100%), transparent);
+  background: rgb(var(--harbor-color-rgb) / var(--danmaku-background-opacity, 1));
   font-size: 30px;
   zoom: 1;
   box-shadow: none;
@@ -159,9 +168,9 @@ body[data-style='harbor'] .is-gift .draw-danmaku-gift-count { font-size: 1em; }
 body[data-style='harbor'] .is-gift .draw-danmaku-gift-amount { font-size: .85em; }
 body[data-style='harbor'] .is-gift .draw-danmaku-gift-count { display: inline-block; margin-left: .2em; font-family: inherit; line-height: 1.3; white-space: nowrap; }
 body[data-style='harbor'] .is-guard-thanks { --harbor-avatar-size: 2.59em; gap: .75em; }
-body[data-style='harbor'] .is-guard-thanks[data-room-guard='3'] { --harbor-color: #0067d5; }
-body[data-style='harbor'] .is-guard-thanks[data-room-guard='2'] { --harbor-color: #6f3ec0; }
-body[data-style='harbor'] .is-guard-thanks[data-room-guard='1'] { --harbor-color: #b72e2e; }
+body[data-style='harbor'] .is-guard-thanks[data-room-guard='3'] { --harbor-color: #0067d5; --harbor-color-rgb: 0 103 213; }
+body[data-style='harbor'] .is-guard-thanks[data-room-guard='2'] { --harbor-color: #6f3ec0; --harbor-color-rgb: 111 62 192; }
+body[data-style='harbor'] .is-guard-thanks[data-room-guard='1'] { --harbor-color: #b72e2e; --harbor-color-rgb: 183 46 46; }
 body[data-style='harbor'] .draw-danmaku-item.is-guard-thanks {
   background-image: linear-gradient(120deg, transparent 34%, #001e6a20 34% 56%, transparent 56% 63%, #001e6a30 63%);
 }

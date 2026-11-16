@@ -5,6 +5,7 @@ import { mountComponentPreview } from './component-preview-surface.js';
 import { previewElement, previewToolbarIcon } from './component-preview-elements.js';
 import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
 import { mountNauticalGuardToggle } from './gift-guard-thanks.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 
 // The installed style owns parameters shared by the feature page and its scenes.
 export function mountResourceStyleSettings(host, { style, request, onUse, onPreview, compactGuardThanks = false }) {
@@ -23,7 +24,7 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   for (const button of [save, previewButton, use, discard]) button.type = 'button';
   actions.append(save, ...(onPreview ? [] : [previewButton, use]), discard);
   const status = previewElement('p', 'hint'); status.setAttribute('role', 'status');
-  const hint = previewElement('p', 'hint', '保存后同步到画布中的所有同样式组件；位置和尺寸由各画布单独设置。');
+  const hint = previewElement('p', 'hint', '修改后自动保存，同步到画布中的所有同样式组件；位置和尺寸由各画布单独设置。');
   const surface = previewElement('div', 'resource-style-preview'); surface.hidden = true;
   root.append(heading, hint, parameters, actions, status, surface); host.append(root);
   const requests = new AbortController();
@@ -76,6 +77,7 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
     updatePagePreview(state.draft);
   });
   save.addEventListener('click', () => { void controller.save(); });
+  const autosave = bindComponentAutosave(controller, { root, saveButton: save, discardButton: discard, status });
   discard.addEventListener('click', () => controller.discard());
   use.addEventListener('click', async () => {
     use.disabled = true;
@@ -88,7 +90,7 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
   });
   let preview;
   const timer = setInterval(() => {
-    if (!document.hidden && root.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
+    if (!document.hidden && !controller.getStatus().error && root.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
   }, 1000);
   function closePreview() {
     preview?.dispose(); preview = null;
@@ -110,6 +112,6 @@ export function mountResourceStyleSettings(host, { style, request, onUse, onPrev
       if (visible) updatePagePreview(controller.getState().draft);
       else { closePreview(); previewedConfig = undefined; }
     },
-    dispose() { clearInterval(timer); requests.abort(); closePreview(); stopPreviewData?.(); stop(); panel.dispose(); toggle?.dispose(); root.remove(); },
+    dispose() { clearInterval(timer); autosave.dispose(); requests.abort(); closePreview(); stopPreviewData?.(); stop(); panel.dispose(); toggle?.dispose(); root.remove(); },
   };
 }

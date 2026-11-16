@@ -2,6 +2,7 @@ import { localOverlayOrigin, toast } from '../../shared/utils.js';
 import { bindCopyUrl } from '../../shared/copy-url.js';
 import { openComponentPreview } from '../component-preview-dialog.js';
 import { createComponentConfigController } from '../component-config-controller.js';
+import { bindComponentAutosave } from '../settings-autosave.js';
 import { GIFT_BANNER_TAILS, GIFT_BANNER_TEXTURES, DEFAULT_GIFT_BANNER_APPEARANCE } from '../../shared/gift-banner-styles.js';
 import {
   createGiftBanner,
@@ -78,10 +79,10 @@ export function createGiftDisplaySettings() {
       tailStyle: get('giftTailStyle').value,
       textureStyle: get('giftTextureStyle').value,
       sheen: get('giftSheen').checked,
-      thresholds: [1, 2, 3].map((n) => Number(get(`giftTier${n}`).value) * 100),
+      thresholds: [1, 2, 3].map((n) => Math.round(Number(get(`giftTier${n}`).value) * 100)),
       visibleRows: Number(get('giftFeedRows').value),
       scrollSpeed: Number(get('giftFeedSpeed').value),
-      minGiftAmountCents: Number(get('giftFeedMinAmount').value) * 100,
+      minGiftAmountCents: Math.round(Number(get('giftFeedMinAmount').value) * 100),
     };
   }
 
@@ -102,18 +103,8 @@ export function createGiftDisplaySettings() {
   }
 
   function updateCancelVisibility() {
-    const config = controller.getState().saved;
-    const savedValues = [
-      ...[1, 2, 3].map((n) => [`giftTier${n}`, config.thresholds[n - 1] / 100]),
-      ['giftFeedRows', config.visibleRows],
-      ['giftFeedSpeed', config.scrollSpeed],
-      ['giftFeedMinAmount', (config.minGiftAmountCents ?? 0) / 100],
-    ];
-    get('giftDisplayCancel').hidden = savedValues.every(([id, value]) => {
-      const input = get(id);
-      return input.value !== '' && Number(input.value) === value;
-    }) && get('giftTailStyle').value === config.tailStyle && get('giftTextureStyle').value === config.textureStyle
-      && get('giftSheen').checked === config.sheen;
+    const state = controller.getStatus();
+    get('giftDisplayCancel').hidden = !state.error && !state.conflict;
   }
 
   function fill(value) {
@@ -163,9 +154,6 @@ export function createGiftDisplaySettings() {
     run(async () => {
       if (!controller.getStatus().loaded || controller.getStatus().saving) return;
       const draft = values();
-      // Decimal input precision is checked by the native form; remove floating point noise in cents.
-      draft.thresholds = draft.thresholds.map(Math.round);
-      draft.minGiftAmountCents = Math.round(draft.minGiftAmountCents);
       controller.edit(draft);
       if (!controller.getStatus().dirty) return;
       get('giftDisplayFields').disabled = true;
@@ -194,6 +182,14 @@ export function createGiftDisplaySettings() {
     fill(controller.getState().draft);
   };
   window.addEventListener('app:settings-state', receiveSettings);
+  let wasSaving = false;
+  controller.subscribe(state => {
+    if (wasSaving && !state.saving && !state.dirty) fill(state.draft);
+    wasSaving = state.saving;
+  });
+  bindComponentAutosave(controller, { root: get('giftDisplayForm'),
+    saveButton: get('giftDisplayForm').querySelector('button[type="submit"]'),
+    discardButton: get('giftDisplayCancel'), status: get('giftDisplayError') });
   window.addEventListener('pagehide', () => window.removeEventListener('app:settings-state', receiveSettings), { once: true });
 
   return {

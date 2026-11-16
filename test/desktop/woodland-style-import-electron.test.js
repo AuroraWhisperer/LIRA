@@ -69,10 +69,11 @@ test('woodland ZIP imports through desktop styles and retains native layout, set
   await importArchive();
   assert.equal(await page.locator('#giftFrameThresholdRmb').inputValue(), '20');
   assert.equal(await page.locator('#giftFrameEnabled').isChecked(), false);
+  const effectSaved = page.waitForResponse(response => new URL(response.url()).pathname === '/api/settings'
+    && response.request().postDataJSON()?.giftFrameEnabled === 'true' && response.ok());
   await page.locator('#giftFrameThresholdRmb').fill('35');
   await page.locator('label').filter({ has: page.locator('#giftFrameEnabled') }).click();
-  await page.locator('#giftFrameSaveBtn').click();
-  await page.waitForFunction(() => document.getElementById('giftFrameSaveState').textContent.includes('已保存'));
+  await effectSaved;
   await importArchive();
   assert.equal(Number(await page.locator('#giftFrameThresholdRmb').inputValue()), 35);
   assert.equal(await page.locator('#giftFrameEnabled').isChecked(), true);

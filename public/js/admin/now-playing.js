@@ -9,6 +9,7 @@ import { createComponentConfigController, componentSaveMessage } from './compone
 import { createSceneExtraPreview } from './scene-extra-preview.js';
 import { addStyleToCanvas } from './component-style-client.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 
 const SOURCE_LABELS = { internal: '内置播放器', 'qq-client': 'QQ 音乐', 'netease-client': '网易云音乐', wesing: '全民 K 歌' };
 const SAMPLE = { source: 'internal', trackTitle: '把此刻唱成一首歌', artists: ['示例歌手'], coverUrl: '', playing: true };
@@ -163,7 +164,11 @@ export function initNowPlaying() {
     controller.reset();
     if (account) void controller.reload();
   });
+  const autosave = bindComponentAutosave(controller, { root,
+    saveButton: elements.Save, discardButton: elements.Discard, status: elements.SaveState,
+    actions: root.querySelector('.now-playing-savebar') });
   window.addEventListener('pagehide', () => {
+    autosave.dispose();
     requests.abort();
     stopAccount();
     stopController();

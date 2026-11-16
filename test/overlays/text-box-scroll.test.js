@@ -116,6 +116,28 @@ test('scroll speed updates both directions without rebuilding content, resetting
   }
 });
 
+test('background updates cover the viewport without rebuilding or restarting scrolling text', async t => {
+  const page = await mount(t);
+  const result = await page.evaluate(() => {
+    config = { ...config, scrollMode: 'horizontal', nodes: [{ type: 'text', text: '滚动公告' }] };
+    playback.update(config);
+    advance(0); advance(1000);
+    const content = host.querySelector('.text-box-content');
+    const position = host.scrollLeft;
+    playback.update({ ...config, backgroundColor: '#24314dcc' });
+    const background = getComputedStyle(host).backgroundColor;
+    const continuous = host.querySelector('.text-box-content') === content && host.scrollLeft === position;
+    const contentBackground = getComputedStyle(content).backgroundColor;
+    playback.update({ ...config, backgroundColor: '#00000000' });
+    return { background, contentBackground, continuous, cleared: getComputedStyle(host).backgroundColor, frames: pendingFrames.size };
+  });
+  assert.equal(result.background, 'rgba(36, 49, 77, 0.8)');
+  assert.equal(result.contentBackground, 'rgba(0, 0, 0, 0)');
+  assert.equal(result.continuous, true);
+  assert.equal(result.cleared, 'rgba(0, 0, 0, 0)');
+  assert.equal(result.frames, 1);
+});
+
 test('short content moves, hidden playback pauses, and empty or disposed playback schedules no frames', async t => {
   const page = await mount(t);
   const result = await page.evaluate(() => {

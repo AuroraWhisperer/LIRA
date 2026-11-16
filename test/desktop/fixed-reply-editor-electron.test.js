@@ -130,12 +130,12 @@ test('three interaction thanks switches and libraries save independently through
     await input.fill(`${label}测试 {username}`);
     if (kind === 'like') {
       await app.evaluate(() => { global.dailyLibraryTest.failNext = true; });
-      await page.locator(`${prefix}Save`).click();
       await page.locator(`${prefix}SaveState`).filter({ hasText: '草稿已保留' }).waitFor();
       assert.equal(await input.inputValue(), `${label}测试 {username}`);
     }
-    await page.locator(`${prefix}Save`).click();
-    await page.locator(`${prefix}SaveState`).filter({ hasText: '已保存到云端' }).waitFor();
+    if (kind === 'like') await page.locator(`${prefix}Save`).click();
+    await page.waitForFunction(prefix => document.getElementById(`${prefix}Save`).disabled
+      && !document.getElementById(`${prefix}Toggle`).disabled, `danmaku${kind}Thanks`);
     await page.keyboard.press('Escape');
   }
   await page.locator('#danmakulikeThanksToggle + .switch-track').click();
@@ -180,8 +180,7 @@ test('gift reply libraries save all four scenes through the real preload and IPC
     await library.getByRole('textbox', { name: `${label}答谢第 1 条`, exact: true }).fill(`欢迎{称呼}成为${label}！`);
     await library.getByLabel(`${label}答谢发送方式`, { exact: true }).selectOption(kind === 'admiral' ? 'plain' : 'mention');
   }
-  await page.locator('#danmakuGiftThanksSave').click();
-  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '已保存到云端' }).waitFor();
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '已保存到云端' }).waitFor({ state: 'attached' });
   const saved = await app.evaluate(() => global.dailyLibraryTest.giftState.replies);
   assert.equal(saved.gift.messages.length, 2);
   assert.equal(saved.gift.mode, 'mention');
@@ -225,12 +224,12 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   const blockedWords = page.getByLabel('昵称黑名单', { exact: true });
   await blockedWords.fill('自定义屏蔽词\n广告');
   await app.evaluate(() => { global.dailyLibraryTest.failNext = true; });
-  await page.locator('#danmakuViewerNamesBlockedWordsSave').click();
   await page.locator('#danmakuViewerNamesNotice').filter({ hasText: '未保存' }).waitFor();
   assert.equal(await blockedWords.inputValue(), '自定义屏蔽词\n广告');
   await page.locator('#danmakuViewerNamesRefresh').click();
   await page.waitForFunction(() => !document.getElementById('danmakuViewerNamesBlockedWordsSave').disabled);
   assert.equal(await blockedWords.inputValue(), '自定义屏蔽词\n广告');
+  await page.locator('#danmakuViewerNamesBlockedWordsSave').waitFor();
   await page.locator('#danmakuViewerNamesBlockedWordsSave').click();
   await page.locator('#danmakuViewerNamesNotice').filter({ hasText: '已保存' }).waitFor();
   assert.deepEqual(await app.evaluate(() => global.dailyLibraryTest.viewerNames.blockedWords), ['自定义屏蔽词', '广告']);
@@ -262,7 +261,6 @@ test('nickname management uses the shared editor, pages, preserves failed edits 
   await page.getByRole('button', { name: '管理观众昵称', exact: true }).click();
   assert.equal(await blockedWords.inputValue(), '自定义屏蔽词\n广告');
   await blockedWords.fill('');
-  await page.locator('#danmakuViewerNamesBlockedWordsSave').click();
   await page.locator('#danmakuViewerNamesNotice').filter({ hasText: '已保存' }).waitFor();
   assert.deepEqual(await app.evaluate(() => global.dailyLibraryTest.viewerNames.blockedWords), []);
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.viewerNames.enabled), false);
@@ -312,8 +310,7 @@ test('fixed reply editors save through authorized desktop IPC and preserve faile
   assert.equal(await page.locator('#danmakuExactKeywordInput').inputValue(), '月卡');
   assert.equal(await page.locator('#danmakuExactReplyInput').inputValue(), '上舰解锁点歌月卡');
   await page.locator('#danmakuExactReplyAddBtn').click();
-  await page.locator('#danmakuExactReplySaveBtn').click();
-  await page.locator('#danmakuExactReplyStatus').filter({ hasText: '已保存 1 条' }).waitFor();
+  await page.locator('#danmakuExactReplyStatus').filter({ hasText: '已保存 1 条' }).waitFor({ state: 'attached' });
   assert.deepEqual(await app.evaluate(() => global.dailyLibraryTest.fixedReplies.customExactReplies),
     [{ trigger: '月卡', reply: '上舰解锁点歌月卡' }]);
   await page.keyboard.press('Escape');
@@ -324,8 +321,7 @@ test('fixed reply editors save through authorized desktop IPC and preserve faile
   await page.locator('#danmakuScheduledMax').fill('240');
   await page.locator('#danmakuScheduledLibraryAdd').click();
   await page.getByLabel('定时弹幕第 1 条', { exact: true }).fill('上舰解锁点歌月卡');
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '已保存到云端' }).waitFor();
+  await page.waitForFunction(() => document.getElementById('danmakuScheduledSaveState').textContent.includes('已自动保存'));
   await page.keyboard.press('Escape');
   await page.locator('#danmakuScheduledToggle + .switch-track').click();
   await page.waitForFunction(() => {
@@ -336,8 +332,7 @@ test('fixed reply editors save through authorized desktop IPC and preserve faile
   await page.getByRole('button', { name: '设置定时随机弹幕' }).click();
   await app.evaluate(() => { global.dailyLibraryTest.failNext = true; });
   await page.getByLabel('定时弹幕第 1 条', { exact: true }).fill('修改未保存的词条');
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '草稿已保留' }).waitFor();
+  await page.waitForFunction(() => document.getElementById('danmakuScheduledSaveState').textContent.includes('草稿已保留'));
   assert.equal(await page.getByLabel('定时弹幕第 1 条', { exact: true }).inputValue(), '修改未保存的词条');
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.fixedReplies.scheduledDanmaku.messages[0]), '上舰解锁点歌月卡');
   const invalid = await page.evaluate(() => window.liraLicense.updateFixedReplySettings({ streamerId: 2 }));
@@ -354,8 +349,7 @@ test('fixed reply editors save through authorized desktop IPC and preserve faile
   await page.getByRole('button', { name: '编辑礼物答谢文案', exact: true }).click();
   const editor = page.getByRole('textbox', { name: '礼物答谢', exact: true });
   await editor.fill('谢谢{称呼}支持{礼物}；{金额}');
-  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
-  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor();
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor({ state: 'attached' });
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.giftState.templates.gift), '谢谢{称呼}支持{礼物}；{金额}');
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.giftState.values.giftAutoThanksEnabled), true);
   const rejected = await page.evaluate(() => window.liraLicense.setGiftThanksTemplates({ streamerId: 2 }));

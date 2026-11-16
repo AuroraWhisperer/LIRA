@@ -30,7 +30,11 @@ function settingsKeys(type) {
   return type === 'lyrics' ? [...fields, ADVANCED_LYRIC_PRESETS_SETTING] : fields;
 }
 
-function sharedResourceAppearance(type, config = {}) {
+function sharedResourceAppearance(type, config = {}, settings = {}) {
+  if (type === 'queue') return { ...config,
+    queueRequestRequesterColor: settings.queueRequestRequesterColor,
+    queueRequestSongColor: settings.queueRequestSongColor,
+  };
   if (type !== 'lyrics') return config;
   const { lyricLayer: _layer, ...appearance } = config;
   return appearance;
@@ -47,7 +51,7 @@ function createSceneSharedAppearance(context) {
     return readStyle(config.resourceStyle.id, type);
   }
   function read(type, config, defaults) {
-    if (config.resourceStyle) return sharedResourceAppearance(type, resource(config, type)?.config);
+    if (config.resourceStyle) return sharedResourceAppearance(type, resource(config, type)?.config, settings);
     if (hasInstalledAppearance(config)) return {};
     if (Object.hasOwn(SHARED_SCENE_SETTING_FIELDS, type)) return sceneAppearanceFromSettings(type, settings);
     if (type === 'gift-frame') {
@@ -97,8 +101,9 @@ function createSceneSharedAppearance(context) {
       || !Object.keys(patch).length || Object.keys(patch).some(key => !Object.hasOwn(current, key)
         || ['resourceStyle', 'cssStyle', 'mediaStyle', 'backgroundDefaults'].includes(key))) throw invalid();
     if (config.resourceStyle) {
+      if (type === 'queue' && ['queueRequestRequesterColor', 'queueRequestSongColor'].some(key => Object.hasOwn(patch, key))) throw invalid();
       return sharedResourceAppearance(type,
-        createComponentStyleLibrary(context.system.dataDir).config({ id: config.resourceStyle.id, patch }).config);
+        createComponentStyleLibrary(context.system.dataDir).config({ id: config.resourceStyle.id, patch }).config, settings);
     }
     // The desktop relay remains the only writer of clock/queue/overtime drafts
     // and remote danmaku settings. This capability never acquires their authority.

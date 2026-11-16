@@ -15,6 +15,8 @@ test('song request edits autosave independently, serialize newer drafts and reta
     songRequestCancelEnabled: 'false',
     songRequestRequireSpace: 'true',
     songRequestMatchMode: 'prefix',
+    queueRequestRequesterColor: '#2468ac',
+    queueRequestSongColor: '#703050',
     queueLimit: '30',
     userCooldownSeconds: '60',
     userQueueLimit: '2',
@@ -34,6 +36,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
   };
   const listeners = new Map();
   const elements = new Map();
+  const sprintSaveButton = {};
   const requests = [];
   const notices = [];
   const renderedBlacklists = [];
@@ -51,6 +54,7 @@ test('song request edits autosave independently, serialize newer drafts and reta
           elements.set(id, {
             id,
             dataset: {},
+            querySelector: () => sprintSaveButton,
             checkValidity: () => valid,
             addEventListener(event, handler) {
               const key = `${id}:${event}`;
@@ -105,6 +109,8 @@ test('song request edits autosave independently, serialize newer drafts and reta
   assert.equal(requests[1].payload.songRequestCancelEnabled, 'false');
   assert.equal(requests[1].payload.songRequestRequireSpace, 'true');
   assert.equal(requests[1].payload.songRequestMatchMode, 'prefix');
+  assert.equal(requests[1].payload.queueRequestRequesterColor, '#2468ac');
+  assert.equal(requests[1].payload.queueRequestSongColor, '#703050');
   assert.equal(Object.hasOwn(requests[1].payload, 'roomId'), false);
   assert.equal(reloads, 2);
   assert.deepEqual(notices, ['设置已保存'], 'autosaves do not interrupt editing with success toasts');

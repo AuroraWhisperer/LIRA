@@ -2,6 +2,7 @@ import { api } from '../shared/utils.js';
 import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 import { bindOvertimeAppearance, createOvertimePreview, projectOvertimePreviewState } from './overtime-preview-factory.js';
 export { createOvertimePreview, projectOvertimePreviewState } from './overtime-preview-factory.js';
 
@@ -41,6 +42,8 @@ export function createOvertimeAppearance({ initial = {}, onSavedState }) {
       ? componentSaveMessage(state)
       : '';
   });
+  bindComponentAutosave(controller, { root: save.closest('section'), saveButton: save,
+    discardButton: discard, status: saveState });
   function receive(state, { allowRevisionReset = false } = {}) {
     if (!state) return;
     if (allowRevisionReset && Number(state.revision) < Number(current.revision)) revisionGeneration += 1;

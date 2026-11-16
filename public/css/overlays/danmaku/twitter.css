@@ -4,10 +4,20 @@
   inherits: false;
   initial-value: 1;
 }
-@property --twitter-layer-transform {
-  syntax: '<transform-list>';
+@property --twitter-layer-y {
+  syntax: '<length-percentage>';
   inherits: false;
-  initial-value: translate(0);
+  initial-value: 0px;
+}
+@property --twitter-layer-angle {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+@property --twitter-layer-scale {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 1;
 }
 
 .twitter-profile,
@@ -218,6 +228,7 @@ body[data-style='twitter'] .twitter-post .draw-danmaku-avatar {
   color: #9b9f9e;
   background: #edf0ef;
   clip-path: none;
+  -webkit-mask: none;
   mask: none;
   font-size: 27px;
   font-weight: 700;
@@ -488,9 +499,9 @@ body[data-style='twitter'] .twitter-guard .draw-danmaku-gift-amount {
   width: 38px;
   height: 38px;
   padding: 10px;
-  border: 5px double color-mix(in srgb, currentColor 22%, white);
+  border: 5px double var(--twitter-guard-seal-border);
   border-radius: 50%;
-  background: color-mix(in srgb, currentColor 10%, white);
+  background: var(--twitter-guard-seal-surface);
 }
 body[data-style='twitter'] .draw-danmaku-body p.twitter-guard-companion {
   margin: 7px 0 0;
@@ -708,65 +719,65 @@ body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-loading-spinn
   border: 2px solid #e7eff0;
   border-top-color: #399ab4;
   border-radius: 50%;
-  transform: var(--twitter-layer-transform);
+  transform: rotate(var(--twitter-layer-angle));
   animation: twitterLoadingTurn 700ms linear infinite;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action {
   opacity: var(--twitter-layer-opacity);
-  transform: var(--twitter-layer-transform);
+  transform: translateY(var(--twitter-layer-y));
   animation: twitterActionIn 200ms 333ms cubic-bezier(.18, .7, .2, 1) both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(2) { animation-delay: 400ms; }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(3) { animation-delay: 467ms; }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action:nth-child(4) { animation-delay: 533ms; }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-action-heart .twitter-action-icon {
-  transform: var(--twitter-layer-transform);
+  transform: scale(var(--twitter-layer-scale));
   animation: twitterHeartIn 1200ms linear both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-burst {
   opacity: var(--twitter-layer-opacity);
-  transform: var(--twitter-layer-transform);
+  transform: scale(var(--twitter-layer-scale));
   animation: twitterLikeBurst 100ms 833ms linear both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-ring {
   opacity: var(--twitter-layer-opacity);
-  transform: var(--twitter-layer-transform);
+  transform: scale(var(--twitter-layer-scale));
   animation: twitterLikeRing 200ms 900ms ease-out both;
 }
 body[data-style='twitter'] .twitter-post[data-live-entry] .twitter-like-particles {
   opacity: var(--twitter-layer-opacity);
-  transform: var(--twitter-layer-transform);
+  transform: scale(var(--twitter-layer-scale));
   animation: twitterLikeParticles 233ms 967ms ease-out both;
 }
 
 @keyframes twitterPostShell { from, to { --twitter-timeline: 1; } }
 @keyframes twitterContentIn { from { --twitter-layer-opacity: 0; } to { --twitter-layer-opacity: 1; } }
 @keyframes twitterSkeletonOut { from { --twitter-layer-opacity: 1; } to { --twitter-layer-opacity: 0; } }
-@keyframes twitterLoadingTurn { from { --twitter-layer-transform: rotate(0deg); } to { --twitter-layer-transform: rotate(360deg); } }
+@keyframes twitterLoadingTurn { from { --twitter-layer-angle: 0deg; } to { --twitter-layer-angle: 360deg; } }
 @keyframes twitterActionIn {
-  from { --twitter-layer-opacity: 0; --twitter-layer-transform: translateY(34px); }
-  to { --twitter-layer-opacity: 1; --twitter-layer-transform: translateY(0); }
+  from { --twitter-layer-opacity: 0; --twitter-layer-y: 34px; }
+  to { --twitter-layer-opacity: 1; --twitter-layer-y: 0px; }
 }
 @keyframes twitterHeartIn {
-  0%, 80.5% { color: var(--twitter-action); fill: transparent; stroke: currentColor; --twitter-layer-transform: scale(1); }
-  80.6% { color: var(--twitter-action); fill: transparent; stroke: currentColor; --twitter-layer-transform: scale(.6); }
-  83.3%, 100% { color: var(--twitter-like); fill: currentColor; stroke: transparent; --twitter-layer-transform: scale(1); }
+  0%, 80.5% { color: var(--twitter-action); fill: transparent; stroke: currentColor; --twitter-layer-scale: 1; }
+  80.6% { color: var(--twitter-action); fill: transparent; stroke: currentColor; --twitter-layer-scale: .6; }
+  83.3%, 100% { color: var(--twitter-like); fill: currentColor; stroke: transparent; --twitter-layer-scale: 1; }
 }
 @keyframes twitterLikeBurst {
-  0% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(.3); }
-  33% { --twitter-layer-opacity: 1; --twitter-layer-transform: scale(1); }
-  67% { --twitter-layer-opacity: 1; --twitter-layer-transform: scale(1.15); }
-  100% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(1.35); }
+  0% { --twitter-layer-opacity: 0; --twitter-layer-scale: .3; }
+  33% { --twitter-layer-opacity: 1; --twitter-layer-scale: 1; }
+  67% { --twitter-layer-opacity: 1; --twitter-layer-scale: 1.15; }
+  100% { --twitter-layer-opacity: 0; --twitter-layer-scale: 1.35; }
 }
 @keyframes twitterLikeRing {
-  0% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(.65); }
+  0% { --twitter-layer-opacity: 0; --twitter-layer-scale: .65; }
   5% { --twitter-layer-opacity: .8; }
-  100% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(1.55); }
+  100% { --twitter-layer-opacity: 0; --twitter-layer-scale: 1.55; }
 }
 @keyframes twitterLikeParticles {
-  0% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(.65); }
+  0% { --twitter-layer-opacity: 0; --twitter-layer-scale: .65; }
   25% { --twitter-layer-opacity: .8; }
-  100% { --twitter-layer-opacity: 0; --twitter-layer-transform: scale(1.3); }
+  100% { --twitter-layer-opacity: 0; --twitter-layer-scale: 1.3; }
 }
 
 @media (prefers-reduced-motion: reduce) {

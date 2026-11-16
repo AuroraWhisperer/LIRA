@@ -29,10 +29,11 @@
             <input id="giftSprintTargetRmb" type="number" min="0" step="0.01" placeholder="例如：10000" />
           </label>
           <div class="gift-form-actions">
-            <button class="primary" type="submit">保存</button>
+            <button class="primary" type="submit" hidden>重试保存</button>
             <button id="giftSprintResetBtn" type="button">重置本轮</button>
           </div>
         </form>
+        <p id="giftSprintSaveState" class="hint" role="status" hidden></p>
       </div>
     </section>
 

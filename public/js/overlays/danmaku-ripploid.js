@@ -152,6 +152,9 @@ function setEventAccent(element, kind, item) {
     ? `--ripploid-guard-color-${GUARD_COLOR[Number(item.giftGuardLevel)]}`
     : `--ripploid-${kind}-color${priceTier(kind === 'superchat' ? item.price : item.giftTotalPrice)}`;
   element.style.setProperty('--ripploid-event-accent', `var(${variable})`);
+  for (const suffix of ['ticket', 'member-middle', 'member-end']) {
+    element.style.setProperty(`--ripploid-event-${suffix}`, `var(${variable}-${suffix})`);
+  }
 }
 
 function formatAmount(value) {
@@ -390,13 +393,23 @@ export function createRipploidSuperChat(document, root, card, { item, name, pric
   );
   definitions.append(titleClip, titleMask);
   artwork.append(definitions);
+  // SVG masking also clips the HTML title on older Chromium browser sources.
+  const titleArt = svgNode(document, 'svg', {
+    class: 'ripploid-sc-tear-art ripploid-sc-title-art',
+    'aria-hidden': 'true',
+    focusable: 'false',
+  });
+  const titleViewport = svgNode(document, 'foreignObject', {
+    width: '100%', height: '100%',
+    'clip-path': `url(#${titleClipId})`, mask: `url(#${titleMaskId})`,
+  });
   const title = node(document, 'div', 'ripploid-sc-transition-title');
-  title.style.clipPath = `url(#${titleClipId})`;
-  title.style.mask = `url(#${titleMaskId})`;
   title.append(
     node(document, 'span', 'ripploid-sc-title-outline', `SC ${price}RMB`),
     node(document, 'span', 'ripploid-sc-title-fill', `SC ${price}RMB`),
   );
-  transition.append(artwork, title);
+  titleViewport.append(title);
+  titleArt.append(titleViewport);
+  transition.append(artwork, titleArt);
   card.append(stable, transition);
 }

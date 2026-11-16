@@ -32,6 +32,7 @@ const MODEL_PROVIDER_PRESETS = Object.freeze({
 const AI_CONFIG_DEFAULTS = Object.freeze({
   enabled: true,
   autoReplyEnabled: false,
+  autoReplyMentionEnabled: false,
   autoReplyProbabilityPercent: 100,
   trigger: '',
   modelProvider: 'auto',
@@ -70,6 +71,7 @@ const AI_CONFIG_DEFAULTS = Object.freeze({
 const BOOLEAN_KEYS = new Set([
   'enabled',
   'autoReplyEnabled',
+  'autoReplyMentionEnabled',
   'webSearchEnabled',
   'functionCallingEnabled',
   'reasoningEnabled',

@@ -8,6 +8,23 @@ const { createFakeDocument } = require('../helpers/fake-dom');
 
 const TWITTER_LAYOUT_KEYS = ['twitterHeader', 'twitterComposer', 'twitterActions'];
 
+test('non-body text overrides validate by style and clearing a size restores the authored value', async () => {
+  const { editStyleOption, readAppearanceValue, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
+  const options = { coffee: { nicknameFontSize: 24, nicknameFontFamily: '"Georgia"', amountColor: '#aabbcc80' },
+    twitter: { footerFontSize: 19 } };
+  assert.deepEqual(contract.normalizeStyleOptions(options), options);
+  for (const invalid of [{ floating: { amountFontSize: 20 } }, { coffee: { nicknameFontSize: 0 } },
+    { coffee: { nicknameFontSize: 97 } }, { coffee: { nicknameFontFamily: 'serif; color:red' } },
+    { coffee: { nicknameColor: 'red' } }]) {
+    assert.throws(() => contract.normalizeStyleOptions(invalid), { code: 'INVALID_OVERLAY_OPTIONS' });
+  }
+  const draft = { style: 'coffee', styleOptions: options };
+  const cleared = editStyleOption(draft, 'nicknameFontSize', readAppearanceValue('nicknameFontSize', '', 8, 96));
+  assert.equal(Object.hasOwn(cleared.styleOptions.coffee, 'nicknameFontSize'), false);
+  assert.equal(cleared.styleOptions.coffee.nicknameFontFamily, '"Georgia"');
+  assert.equal(resetStyleOptions(draft).styleOptions.twitter.footerFontSize, 19);
+});
+
 test('style fields validate shared numeric, enum and color rules without accepting unsupported controls', () => {
   const options = { glowy: { glowyLight: 0, glowyLayout: 'horizontal' },
     whiteframe: { bubbleColor: 'default' } };
@@ -87,6 +104,25 @@ test('Twitter layout and event palette apply to existing content and clear outsi
   browser.applyStyleOptions(document, 'signal', {});
   for (const key of TWITTER_LAYOUT_KEYS) assert.equal(document.body.dataset[key], 'show');
   for (const tier of [0, 50, 100, 1000]) assert.equal(document.documentElement.style[`--twitter-event-color-${tier}`], '');
+});
+
+test('translucent theme colors keep alpha in legacy paint values and reset to the role palette', async () => {
+  const { applyStyleOptions } = await import('../../public/js/overlays/danmaku-style-application.js');
+  const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
+  const root = document.documentElement.style;
+  applyStyleOptions(document, 'snowfox', { snowfox: { bubbleColor: '#ff000080' } });
+  assert.equal(root['--danmaku-bubble-color-rgb'], '255 0 0');
+  assert.equal(Number(root['--danmaku-bubble-color-alpha']), 128 / 255);
+  const light = root['--danmaku-bubble-color-snowfox-light-rgb'].split(' ').map(Number);
+  assert.equal(light[0], 255);
+  assert.ok(Math.abs(light[1] - 238.663) < .001 && light[1] === light[2], 'a translucent tint mixes using premultiplied alpha');
+  assert.ok(Math.abs(Number(root['--danmaku-bubble-color-snowfox-light-alpha']) - .9402353) < .000001);
+  applyStyleOptions(document, 'snowfox', {});
+  assert.equal(root['--danmaku-bubble-color-rgb'], '');
+  assert.equal(root['--danmaku-bubble-color-snowfox-light'], '', 'clearing the override restores the per-message role color');
+  applyStyleOptions(document, 'glass', { glass: { bubbleColor: '#12345680', backgroundOpacity: 35 } });
+  assert.equal(Number(root['--danmaku-bubble-color-alpha']), 128 / 255, 'background opacity must not overwrite the chosen color alpha');
+  assert.equal(root['--danmaku-background-opacity'], '0.35');
 });
 
 test('Twitter composer text counts visible characters, normalizes Unicode and restores its default when blank', async () => {
@@ -228,6 +264,19 @@ test('border color and ambient motion retain per-style drafts and clear on switc
   assert.equal(document.body.dataset.ambientMotion, 'on');
   applyStyleOptions(document, 'whiteframe', resetStyleOptions(draft).styleOptions);
   assert.equal(document.documentElement.style['--danmaku-bubble-color'], '');
+});
+
+test('Christmas background choice preserves saved appearance and restores the normal card on reset', async () => {
+  const { editStyleOption, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
+  const legacy = { style: 'christmas', styleOptions: { christmas: { bubbleColor: '#12345680' }, notebook: { ambientMotion: 'off' } } };
+  assert.equal(contract.styleOptionsFor('christmas', legacy.styleOptions).christmasBackground, 'card');
+  const edited = editStyleOption(legacy, 'christmasBackground', 'transparent');
+  const saved = contract.normalizeStyleOptions(JSON.parse(JSON.stringify(edited.styleOptions)));
+  assert.equal(contract.styleOptionsFor('christmas', saved).christmasBackground, 'transparent');
+  assert.equal(saved.christmas.bubbleColor, '#12345680');
+  const reset = resetStyleOptions({ ...edited, styleOptions: saved });
+  assert.equal(contract.styleOptionsFor('christmas', reset.styleOptions).christmasBackground, 'card');
+  assert.equal(reset.styleOptions.notebook.ambientMotion, 'off');
 });
 
 test('gift images load only resolver-approved URLs without a referrer', async () => {

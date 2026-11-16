@@ -1,3 +1,5 @@
+import { setColorProperties } from '../shared/color-value.js';
+
 const GUARDS = { 1: '总督', 2: '提督', 3: '舰长' };
 const NAME_COLORS = ['#ffa58d', '#f09bc9', '#8dd9ef', '#b4df75', '#c2adff'];
 const ICONS = {
@@ -53,7 +55,9 @@ export function createNeonGlassMessageRenderer({ document, classNames }, render)
       ? ({ 1: 'governor', 2: 'admiral', 3: 'captain' })[guard] : item.roomMedal?.name ? 'fan' : 'viewer';
     let hash = 0;
     for (const character of name) hash = Math.imul(hash, 31) + character.codePointAt(0) | 0;
-    root.style.setProperty('--neon-glass-original-name-color', NAME_COLORS[(hash >>> 0) % NAME_COLORS.length]);
+    setColorProperties(root.style, '--neon-glass-original-name-color', NAME_COLORS[(hash >>> 0) % NAME_COLORS.length], {
+      light: ['#ffffff', .65],
+    });
     const identity = element('strong', 'neon-glass-name', name);
     const separator = element('span', 'neon-glass-separator', gift || sc ? ' ' : ' : ');
     if (gift) {

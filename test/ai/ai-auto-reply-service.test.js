@@ -165,7 +165,7 @@ test('a cancelled adapter keeps its physical slot when concurrency is one', asyn
   assert.deepEqual(f.sent.map(item => item.message), ['直接回答']);
 });
 
-test('targeted automatic delivery confirms before a same-viewer follow-up reads and extends memory', async t => {
+test('targeted automatic delivery without a mention confirms before a same-viewer follow-up extends memory', async t => {
   const confirmation = Promise.withResolvers();
   t.after(() => confirmation.resolve(true));
   let confirmations = 0;
@@ -173,7 +173,7 @@ test('targeted automatic delivery confirms before a same-viewer follow-up reads 
   f.observe({ uid: 'a', userName: '同名', message: '甲的话' });
   f.observe({ uid: 'b', userName: '同名', message: '乙的话' });
   await f.advance(600);
-  assert.equal(f.sent[0].mentionTarget.uid, 'b', 'target maps to its actual author, not the display name');
+  assert.equal(f.sent[0].mentionTarget, null);
   await f.advance(13000);
   f.observe({ uid: 'b', userName: '同名', message: '小米 然后呢' });
   await flush();
@@ -185,6 +185,7 @@ test('targeted automatic delivery confirms before a same-viewer follow-up reads 
   assert.deepEqual(f.writes.map(entry => entry.uid), ['b', 'b']);
   assert.equal(f.writes[1].payload.exchanges.length, 2);
   assert.equal(f.sent.length, 2, 'expiry and new direct requests cannot invalidate an already submitted message');
+  assert.equal(f.sent[1].mentionTarget.uid, 'b', 'directed replies still mention their actual author');
   await f.advance(2000);
   f.observe({ uid: 'a', message: '看看后来的新话题' });
   await f.advance(600);
@@ -193,9 +194,22 @@ test('targeted automatic delivery confirms before a same-viewer follow-up reads 
   assert.deepEqual(publicInput.botReplies.map(reply => reply.question), ['乙的话', '然后呢']);
 });
 
+test('automatic mentions are opt-in and can be disabled between replies', async t => {
+  const f = fixture(t, { config: { autoReplyMentionEnabled: true } });
+  f.observe();
+  await f.advance(600);
+  assert.equal(f.sent[0].mentionTarget.uid, 'a');
+  f.service.updateConfig({ autoReplyMentionEnabled: false });
+  await f.advance(15000);
+  f.observe({ uid: 'b', userName: '乙', message: '这是后来的新话题' });
+  await f.advance(600);
+  assert.equal(f.sent.length, 2);
+  assert.equal(f.sent[1].mentionTarget, null);
+});
+
 test('group automatic replies and unconfirmed deliveries never create a viewer history or retry', async t => {
   for (const group of [false, true]) {
-    const f = fixture(t, { group, waitForDelivery: () => group });
+    const f = fixture(t, { config: { autoReplyMentionEnabled: true }, group, waitForDelivery: () => group });
     f.observe();
     await f.advance(20000);
     assert.equal(f.sent.length, 1);
@@ -214,8 +228,9 @@ test('group automatic replies and unconfirmed deliveries never create a viewer h
   }
 });
 
-for (const [name, changes] of [['switch', { autoReplyEnabled: false }], ['zero frequency', { autoReplyProbabilityPercent: 0 }]]) {
-  test(`stopping automatic replies through ${name} cancels generation and preserves directed questions`, async t => {
+for (const [name, changes] of [['switch', { autoReplyEnabled: false }], ['zero frequency', { autoReplyProbabilityPercent: 0 }],
+  ['mention preference', { autoReplyMentionEnabled: true }]]) {
+  test(`changing automatic ${name} cancels generation and preserves directed questions`, async t => {
     const pending = Promise.withResolvers();
     const automatic = Promise.withResolvers();
     t.after(() => {

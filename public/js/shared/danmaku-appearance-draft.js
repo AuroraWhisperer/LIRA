@@ -1,6 +1,7 @@
 import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, isRandomDanmakuStyle } from './danmaku-style-options.js';
 
 export function readAppearanceValue(key, rawValue, min, max) {
+  if (DANMAKU_OPTION_FIELDS[key]?.optional && !rawValue.trim()) return undefined;
   if (key === 'composerText') {
     const { text, error } = inspectComposerText(rawValue);
     if (error) throw new Error(error);

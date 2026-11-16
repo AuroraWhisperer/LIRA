@@ -17,6 +17,7 @@ test('room drafts survive unrelated snapshots and saves until the submitted edit
       if (!elements.has(id)) elements.set(id, {
         id, value: '', dataset: {}, listeners: {}, validity: { valid: true },
         closest: () => null,
+        querySelector: () => ({}),
         setAttribute() {},
         addEventListener(type, listener) { this.listeners[type] = listener; },
       });

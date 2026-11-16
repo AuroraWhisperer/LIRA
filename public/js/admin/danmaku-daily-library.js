@@ -1,4 +1,5 @@
 import { revealEditorItem } from './danmaku-editor-pagination.js';
+import { createAutosave } from './settings-autosave.js';
 
 const NAMES = { checkin: '签到词库', fortune: '抽签词库' };
 const FIELDS = { level: '签级', name: '签名', text: '签文', advice: '建议' };
@@ -9,7 +10,7 @@ const ERRORS = {
   DAILY_BOT_TAKEOVER_REQUIRED: '旧数据正在导入，完成后可编辑词库。',
   DAILY_BOT_BUSY: '上一项操作尚未完成，请稍后重试。',
 };
-const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', conflict: false });
+const fresh = () => ({ items: null, confirmed: null, version: '', dirty: false, edit: 0, search: '', notice: '', conflict: false, failed: false });
 
 export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   const element = (suffix) => documentRef.getElementById(`dailyLibrary${suffix}`);
@@ -19,6 +20,9 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   let states = { checkin: fresh(), fortune: fresh() };
   let kind = 'checkin', enabled = false, busy = false, generation = 0;
   const state = () => states[kind];
+  const autosaves = Object.fromEntries(Object.keys(NAMES).map(key => [key, createAutosave({ root: panel, windowRef,
+    canSave: () => enabled && !busy && states[key].dirty && !states[key].conflict,
+    save: () => save(key, true) })]));
   function controls() {
     const data = state();
     for (const key of Object.keys(NAMES)) {
@@ -31,15 +35,19 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     element('Reload').hidden = !data.conflict;
     element('Add').disabled = !data.items || data.items.length >= 1000;
     element('Status').textContent = data.notice || (data.dirty ? '有未保存的修改' : data.items ? '已与云端确认' : '展开时读取词库');
+    element('Status').parentElement.hidden = Boolean(data.items && !data.failed && !data.conflict);
   }
   function changed(data) {
     data.edit++;
     data.dirty = true;
+    data.failed = false;
     if (!data.conflict) data.notice = '';
     controls();
+    autosaves[data === states.checkin ? 'checkin' : 'fortune'].schedule();
   }
   function render() {
     const data = state();
+    element('FortuneSettings').hidden = kind !== 'fortune';
     const list = element('List');
     list.classList.toggle('danmaku-blessing-list', kind === 'checkin');
     list.classList.toggle('danmaku-fortune-list', kind === 'fortune');
@@ -95,7 +103,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     element('Search').value = data.search;
     element('Count').textContent = data.items ? `${data.items.length} 条${data.search ? ` · 找到 ${matches.length} 条` : ''}` : '尚未读取';
     element('Add').textContent = kind === 'checkin' ? '添加祝福语' : '添加签文';
-    element('Save').textContent = `保存${NAMES[kind]}`;
+    element('Save').textContent = '重试保存';
     controls();
   }
   async function read() {
@@ -120,8 +128,8 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     } else data.notice = ERRORS[response?.error] || '读取失败，已有文案和草稿已保留。请刷新重试。';
     if (kind === key) render();
   }
-  async function save() {
-    const requested = generation, key = kind, data = state(), edit = data.edit;
+  async function save(key = kind, automatic = false) {
+    const requested = generation, data = states[key], edit = data.edit;
     if (!enabled || busy || !data.dirty || data.conflict) return;
     const library = data.items.map((item) => typeof item === 'string' ? item.trim()
       : Object.fromEntries(Object.entries(item).map(([field, value]) => [field, value.trim()])));
@@ -135,20 +143,22 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
     const response = await request('library-save', { kind: key, expectedVersion: data.version, library });
     if (generation !== requested) return;
     if (response?.ok) {
+      data.failed = false;
       data.confirmed = response.library;
       data.version = response.library.version;
       data.dirty = data.edit !== edit;
       if (!data.dirty) data.items = structuredClone(response.library.library);
       data.notice = data.dirty ? '已保存提交的内容；后续修改仍未保存。' : '词库已保存到云端。';
     } else {
+      data.failed = true;
       data.conflict = response?.error === 'DAILY_BOT_LIBRARY_CONFLICT';
       if (data.conflict) data.confirmed = null;
       data.notice = ERRORS[response?.error] || '保存尚未确认，草稿已保留。请刷新核对后重试。';
     }
-    if (kind === key) data.edit === edit ? render() : controls();
+    if (kind === key) !automatic && data.edit === edit ? render() : controls();
   }
   element('Refresh').addEventListener('click', read);
-  element('Save').addEventListener('click', save);
+  element('Save').addEventListener('click', () => save(kind, true));
   element('Reload').addEventListener('click', async () => {
     const data = state();
     const edit = data.edit;
@@ -189,7 +199,7 @@ export function createDailyLibraryEditor({ documentRef, windowRef, request }) {
   root.addEventListener('fixed-reply:select', select);
   windowRef.addEventListener('pagehide', () => { generation++; root.removeEventListener('fixed-reply:select', select); }, { once: true });
   return {
-    availability(next) { enabled = next.enabled; busy = next.busy; controls(); },
-    reset() { generation++; states = { checkin: fresh(), fortune: fresh() }; render(); },
+    availability(next) { enabled = next.enabled; busy = next.busy; controls(); Object.values(autosaves).forEach(save => save.resume()); },
+    reset() { generation++; Object.values(autosaves).forEach(save => save.cancel()); states = { checkin: fresh(), fortune: fresh() }; render(); },
   };
 }

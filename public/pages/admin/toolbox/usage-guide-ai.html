@@ -1,6 +1,6 @@
 <h4 class="usage-guide-subsection-title" id="ug-deepseek">3.3 AI 互动助手</h4>
 <div class="usage-guide-feature-list"><article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.3.1 接入模型与测试</strong></h5></div>
-<p>顶部的「配置状态」「等待队列」「运行模型」显示当前情况。改完等它显示「已保存」，也可以点「保存设置」。</p>
+<p>顶部的「配置状态」「等待队列」「运行模型」显示当前情况。修改后自动保存，正常状态不占用底部空间，失败时显示「重试保存」。</p>
 
 <p>
         「AI 平台」有八个选项：自动识别（兼容旧设置）、DeepSeek 官方、Kimi / Moonshot 官方、OpenAI 官方、Claude 官方兼容、Gemini
@@ -105,7 +105,7 @@
 <strong>7. 粘贴密钥（API Key）</strong>
 </p>
 <p>
-        把密钥粘贴到<strong class="usage-guide-keyword">「密钥（API Key）」</strong>输入框，等它显示<strong class="usage-guide-success">「已保存」</strong>，也可以点<strong class="usage-guide-keyword">「保存设置」</strong>。保存后，密钥不会完整显示。
+        把密钥粘贴到<strong class="usage-guide-keyword">「密钥（API Key）」</strong>输入框，配置会自动保存；失败时可点<strong class="usage-guide-keyword">「重试保存」</strong>。保存后，密钥不会完整显示。
       </p>
 </div>
 <div class="usage-guide-example-step">
@@ -162,6 +162,7 @@
 <p>回复长度由内置规则统一控制；所有预设自动附加公共安全规则，并在发送前检查内容，无需逐个设置。</p>
 <p>「互动身份」里的「自动接话」默认关闭。打开后，助手会从近期普通弹幕里择机简短接话，不会每句都回；观众点名提问优先，忙碌、话题过期或内容不合适时保持安静。自动接话和点名问答共用当前模型与人格，换模型或编辑人格时一起生效，尚未发送的旧回复会取消。</p>
 <p>在开关旁的「接话频率（%）」调整普通观众弹幕进入接话候选的概率，范围为 0–100%，默认 100%。数值越高越容易接话；0% 不自动接话，100% 仍会判断话题是否适合，并保留两次自动接话至少 15 秒的限制。已标记的机器人欢迎和当前发送账号的普通弹幕不参与，观众手动打出的欢迎仍可正常聊天；点名问答不受概率影响。</p>
+<p>同一区域的「接话时 @ 观众」默认关闭，自动接话直接发送正文；需要提及对方时打开，单人接话就会 @ 对应观众，面向全场的接话仍不 @。切换时取消尚未发送的旧接话。无论是否 @，单人接话确认送达后都会记录对话；点名问答仍按原规则 @ 提问者。</p>
 <p>自动接话最多发一条弹幕，不调用联网、天气等工具。发送失败或未确认显示时跳过，不反复补发；需要查询或连续问答时，仍请带上触发关键词。</p>
 <p>在「互动身份」设置「空闲多久后结束对话（分钟）」，建议 10 分钟。每位观众独立续聊：例如先发“小助手，玩成语接龙”，3–5 分钟后再带关键词接词，仍可继续；猜谜也能接着猜或要提示。确认收到回复后重新计时。自动接话明确回应某位观众时，也会记录该观众的原话和已送达回复；面向全场的接话不写入个人历史，仅被观察的普通弹幕不会续期。</p>
 <p>点名问答的回复未完整显示时，会自动精简为一条弹幕重试，仍回答原来的提问。接龙时等回复完整后再继续接词，每轮都需要带触发关键词。</p>
@@ -174,7 +175,7 @@
 <li>发送间隔由程序控制，在高级设置下方显示说明：不同回复之间随机隔 500–2000 毫秒，同一回复的分段之间随机隔 200–600 毫秒。</li>
 </ul>
 <figure class="usage-guide-figure">
-<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网搜索、深度思考和强度选择，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="771" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
+<img alt="AI 互动助手设置面板：左侧为模型服务，右侧为互动身份、联网搜索、深度思考和强度选择，下方可展开工具和高级设置" class="usage-guide-image" decoding="async" height="772" loading="lazy" src="/img/usage-guide/E/ai-assistant-config.webp" style="--usage-guide-image-width: 1114px" width="1114"/>
 <figcaption>图中选择了支持深度思考的模型，尚未填写密钥或测试连接。思考设置随所选模型显示；可选工具和高级设置展开后保持左右位置，窄窗口下改为上下排列。</figcaption>
 </figure>
 <p>触发关键词没有默认值，必须自定义并保存；未设置时不会触发。先测试连接，再打开「启用 AI」，发一条带关键词的弹幕检查回复。</p>
@@ -210,8 +211,8 @@
 <article class="usage-guide-feature"><div class="usage-guide-feature-head"><h5 class="usage-guide-task-title"><strong>3.3.4 联网与工具</strong></h5></div>
 
 <p>
-        只做普通问答，可以关闭联网和工具调用，不需要天气或地图账号。新配置默认关闭这些能力，已有设置会保留。
-        需要天气、地点或路线时，展开「可选工具」，先开启「允许模型调用工具」，再启用对应查询。
+        只做普通问答，可以关闭联网和各项查询，不需要天气或地图账号。新配置默认关闭这些能力，已有设置的实际启停状态会保留。
+        需要天气、地点或路线时，展开「可选工具」，直接启用对应查询。
       </p>
 <p>
         和风天气填专属 API Host 和密钥；高德地图填 Web 服务 API Host 和 Web 服务 Key。
@@ -222,7 +223,7 @@
         达到上限后暂停对应工具，下月自动恢复。这个计数用于限制调用，实际用量与费用以平台为准。
       </p>
 <p>
-        平台原生搜索由「联网搜索」控制；显示「LIRA 联网搜索」时，还需要开启工具调用。
+        平台原生搜索和 LIRA 搜索均由「联网搜索」控制。
         是否支持搜索或工具，以实际模型为准。无法核实时，会要求助手说明无法确认，不要编造实时结果。
       </p>
 <p>
@@ -233,8 +234,8 @@
 <details class="usage-guide-foldout">
 <summary>查看展开后的工具配置</summary>
 <figure class="usage-guide-figure">
-<img alt="展开的可选工具设置，天气与地图分为两个圆角卡片，显示查询开关及各自的凭据输入框。" class="usage-guide-image" decoding="async" height="422" loading="lazy" src="/img/usage-guide/E/ai-optional-tools.webp" style="--usage-guide-image-width: 528px" width="528"/>
-<figcaption>开启工具调用后，再按需启用查询并填写对应凭据，开关旁的问号可查看说明；图中未填写密钥，也未测试连接。</figcaption>
+<img alt="展开的可选工具设置，天气与地图分为两个圆角卡片，显示查询开关及各自的凭据输入框。" class="usage-guide-image" decoding="async" height="373" loading="lazy" src="/img/usage-guide/E/ai-optional-tools.webp" style="--usage-guide-image-width: 527px" width="527"/>
+<figcaption>按需启用天气、地点或路线查询，再填写对应凭据；图中未填写密钥，也未测试连接。</figcaption>
 </figure>
 </details>
 </article></div>

@@ -1,16 +1,7 @@
-import { parseHexColor } from '../shared/color-value.js';
+import { mixColor, parseHexColor } from '../shared/color-value.js';
 
 const ART = '/img/overlays/danmaku-spooky/';
 const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
-
-// Match color-mix(in srgb), including premultiplied alpha for translucent colors.
-function mixColor(first, second, weight) {
-  const firstAlpha = first.alpha * weight;
-  const secondAlpha = second.alpha * (1 - weight);
-  const alpha = firstAlpha + secondAlpha;
-  const channel = key => alpha ? (first[key] * firstAlpha + second[key] * secondAlpha) / alpha : 0;
-  return { r: channel('r'), g: channel('g'), b: channel('b'), alpha };
-}
 
 export function applySpookyColorFallback(document) {
   const view = document.defaultView;
@@ -133,6 +124,7 @@ export function createSpookyMessageRenderer(options, render) {
     root.replaceChildren();
     if (gift) {
       if (boughtGuard) {
+        copy.classList.add('spooky-member-copy');
         const count = Number(item.giftCount);
         const suffix = count > 1 ? ` ×${count}` : '';
         const total = Number(item.giftTotalPrice);

@@ -7,6 +7,85 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
+test('each built-in style edits non-body text independently and restores its authored typography', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
+    <link rel="stylesheet" href="/css/overlays/danmaku.css">
+    <style>*, *::before, *::after { transition: none !important; }</style>
+    <div class="danmaku-signal-stage"><div id="feed" class="draw-danmaku-feed"></div></div>` });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage({ viewport: { width: 900, height: 1000 }, reducedMotion: 'reduce' });
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const results = await page.evaluate(async () => {
+    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS, supportsDanmakuSuperchat } = await import('/js/shared/danmaku-style-options.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
+    const response = await fetch('/danmaku?preview=1&componentPreview=1');
+    if (!response.ok) throw new Error(`Overlay markup unavailable: ${response.status}`);
+    const markup = new DOMParser().parseFromString(await response.text(), 'text/html');
+    for (const selector of ['.twitter-profile', '.twitter-tabs', '.twitter-composer', '.spooky-frame']) {
+      document.querySelector('.danmaku-signal-stage').append(markup.querySelector(selector));
+    }
+    const root = document.getElementById('feed');
+    const sender = { name: '测试观众', timestamp: 1794750000000, roomGuardLevel: 3, guardLevel: 3,
+      roomMedal: { name: '粉丝牌', level: 12 }, medalName: '粉丝牌', medalLevel: 12, honorLevel: 20, onlineRank: 1 };
+    const messages = [
+      { ...sender, message: '正文保持原样' },
+      { ...sender, roomGuardLevel: 0, guardLevel: 0, roomMedal: null, medalName: '', message: '普通观众正文' },
+      { ...sender, roomGuardLevel: 0, isStreamer: true, message: '主播正文' },
+      { ...sender, kind: 'system', message: '系统提示' },
+      { ...sender, kind: 'gift', giftName: '星愿', giftCount: 2, giftTotalPrice: 30 },
+      ...[1, 2, 3].map(giftGuardLevel => ({ ...sender, kind: 'gift', giftGuardLevel, guardAction: 'renew',
+        giftName: '大航海', giftCount: 1, giftTotalPrice: 1998, guardAccompanyDays: 365 })),
+      { ...sender, kind: 'superchat', message: '留言保持原样', price: 50 },
+    ];
+    const typography = node => {
+      const css = getComputedStyle(node);
+      return [css.fontSize, css.fontFamily, css.color, css.webkitTextFillColor].join('|');
+    };
+    const settle = async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); };
+    const results = [];
+    for (const [style, limits] of Object.entries(DANMAKU_STYLE_OPTIONS)) {
+      document.body.dataset.style = style;
+      applyStyleOptions(document, style, {});
+      const render = createDanmakuMessageRenderer({ document, style, classNames: DEFAULT_DANMAKU_CLASSES,
+        fullscreen: Boolean(limits.layout && limits.layout !== 'horizontal'), showGiftTotal: true,
+        getGuardLabel: level => level ? '舰长' : '' });
+      root.replaceChildren(...messages.filter(item => item.kind !== 'superchat' || supportsDanmakuSuperchat(style)).map(render));
+      await settle();
+      const body = [...root.querySelectorAll('p')].find(node => node.textContent === '正文保持原样');
+      if (!body) throw new Error(`${style}: missing chat body`);
+      const bodyBefore = typography(body);
+      const groups = DANMAKU_TEXT_TARGETS[style];
+      if (!groups) throw new Error(`${style}: missing text groups`);
+      for (const [role, selector] of Object.entries(groups)) {
+        const targets = [...document.querySelectorAll(selector)];
+        if (!targets.length) { results.push({ style, role, missing: true }); continue; }
+        const before = targets.map(typography);
+        const others = Object.entries(groups).filter(([key]) => key !== role)
+          .flatMap(([, other]) => [...document.querySelectorAll(other)]);
+        const otherBefore = others.map(typography);
+        applyStyleOptions(document, style, { [style]: {
+          [`${role}FontSize`]: 25, [`${role}FontFamily`]: '"Georgia"', [`${role}Color`]: '#123abc',
+        } });
+        results.push({ style, role, changed: targets.every(node => {
+          const css = getComputedStyle(node);
+          return css.fontSize === '25px' && css.fontFamily.includes('Georgia') && css.color === 'rgb(18, 58, 188)';
+        }), independent: typography(body) === bodyBefore && others.every((node, index) => typography(node) === otherBefore[index]),
+        actual: typography(targets[0]) });
+        applyStyleOptions(document, style, {});
+        results.at(-1).restored = targets.every((node, index) => typography(node) === before[index]);
+      }
+    }
+    return results;
+  });
+  assert.equal(results.filter(result => !result.changed || !result.independent || !result.restored)
+    .slice(0, 8).map(result => `${result.style}/${result.role}: ${JSON.stringify(result)}`).join('\n'), '',
+  'Every group must reach real text, remain independent and restore its authored typography.');
+});
+
 test('coffee writing preserves complete text, emoji and failed emotes through entry and reduced motion', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">

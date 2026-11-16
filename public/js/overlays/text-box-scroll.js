@@ -66,8 +66,9 @@ export function createTextBoxPlayback(host) {
     update(input) {
       if (disposed) return;
       const config = normalizeTextBoxConfig(input);
-      const { scrollSpeed, ...appearance } = config;
+      const { scrollSpeed, backgroundColor, ...appearance } = config;
       speed = scrollSpeed;
+      host.style.backgroundColor = backgroundColor;
       const next = JSON.stringify(appearance);
       if (next === signature) return;
       signature = next;

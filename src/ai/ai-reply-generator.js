@@ -44,7 +44,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
             .some(message => !checkLocalInput(message.text).allowed)
             || snapshot.botReplies.some(reply => !checkLocalInput(reply.text).allowed
               || !checkLocalInput(reply.question || '').allowed)) return skip('AI_AUTO_INPUT_BLOCKED');
-          const input = buildAutoReplyInput(snapshot);
+          const input = buildAutoReplyInput(snapshot, config.autoReplyMentionEnabled);
           if (remoteReview) {
             const review = await runSafetyReview(config, buildAutoInputReviewPrompt(input), usage, 'input_review', signal);
             assertCurrent();
@@ -70,7 +70,7 @@ function createAiReplyGenerator({ store, modelClient, tools, quotaStore, now, on
             return { ...silent(''), action: decision.action, targetMessageId: decision.targetMessageId };
           }
           const target = snapshot.messages.find(message => message.id === decision.targetMessageId);
-          const replyLimit = getReplyLengthBudget(target?.userName || '').oneMessage;
+          const replyLimit = getReplyLengthBudget(config.autoReplyMentionEnabled && target ? target.userName : '').oneMessage;
           let text = decision.reply;
           if (!checkLocalInput(text).allowed || text === SAFE_REFUSAL) return skip('AI_AUTO_OUTPUT_BLOCKED');
           if (remoteReview) {

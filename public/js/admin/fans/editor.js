@@ -24,7 +24,9 @@ export function createFanEditor({ editor, form, onError }) {
     get('fanEditorError').hidden = true;
     get('fanSaveButton').textContent = description.saveLabel || '保存';
     get('fanSaveButton').disabled = false;
+    get('fanSaveButton').hidden = Boolean(description.autosave);
     form.querySelector('[data-fan-action="cancel-edit"]').disabled = false;
+    form.querySelector('[data-fan-action="cancel-edit"]').textContent = description.autosave ? '关闭' : '取消';
     form.removeAttribute('aria-busy');
     description.bind?.(form);
     if (!editor.open) editor.showModal();

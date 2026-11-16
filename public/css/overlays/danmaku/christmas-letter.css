@@ -18,7 +18,9 @@ body[data-style='christmas-letter'] .danmaku-signal-stage { padding: 0; }
 body[data-style='christmas-letter'] .draw-danmaku-feed { gap: 30px; padding: 36px 30px 26px; }
 body[data-style='christmas-letter'] .draw-danmaku-item.christmas-letter-item {
   --xletter-paper: #fff8e4;
+  --xletter-paper-highlight: rgb(255 249.05 232.05);
   --xletter-outline: #ec8590;
+  --xletter-outline-rgb: 236 133 144;
   --xletter-label: #ef6b80;
   --xletter-label-ink: #3e252b;
   --xletter-star: #f9df84;
@@ -32,17 +34,17 @@ body[data-style='christmas-letter'] .draw-danmaku-item.christmas-letter-item {
   animation: none; zoom: 1;
 }
 body[data-style='christmas-letter'] .christmas-letter-item::after { display: none; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-role='streamer'] { --xletter-label: #64b59a; --xletter-label-ink: #163e33; --xletter-outline: #6cb896; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-role='fan'] { --xletter-paper: #f8d9bb; --xletter-label: #ed6e81; --xletter-outline: #dc9c7b; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-role='captain'] { --xletter-paper: #f2cfae; --xletter-label: #c5977a; --xletter-label-ink: #432c23; --xletter-outline: #db9397; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-role='streamer'] { --xletter-label: #64b59a; --xletter-label-ink: #163e33; --xletter-outline: #6cb896; --xletter-outline-rgb: 108 184 150; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-role='fan'] { --xletter-paper: #f8d9bb; --xletter-paper-highlight: rgb(249.05 222.7 197.2); --xletter-label: #ed6e81; --xletter-outline: #dc9c7b; --xletter-outline-rgb: 220 156 123; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-role='captain'] { --xletter-paper: #f2cfae; --xletter-paper-highlight: rgb(243.95 214.2 186.15); --xletter-label: #c5977a; --xletter-label-ink: #432c23; --xletter-outline: #db9397; --xletter-outline-rgb: 219 147 151; }
 body[data-style='christmas-letter'] .christmas-letter-item[data-role='admiral'] { --xletter-label: #e6b999; --xletter-label-ink: #614237; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-role='governor'] { --xletter-label: #7bc6aa; --xletter-label-ink: #1c4a3b; --xletter-outline: #e68b97; --xletter-paper: #fff4dc; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-role='governor'] { --xletter-label: #7bc6aa; --xletter-label-ink: #1c4a3b; --xletter-outline: #e68b97; --xletter-outline-rgb: 230 139 151; --xletter-paper: #fff4dc; --xletter-paper-highlight: rgb(255 245.65 225.25); }
 .xletter-bubble { position: relative; min-height: 56px; isolation: isolate; }
 .xletter-surface, .xletter-trace, .xletter-glint { position: absolute; inset: 0; pointer-events: none; border-radius: 12px; }
 .xletter-surface {
   z-index: -2; border: 1.5px solid var(--xletter-outline);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--xletter-paper) 85%, white), var(--xletter-paper) 65%);
-  box-shadow: 0 3px 7px rgb(30 10 22 / 16%), 0 0 4px color-mix(in srgb, var(--xletter-outline) 40%, transparent), inset 0 1px 0 rgb(255 255 255 / 72%);
+  background: linear-gradient(180deg, var(--xletter-paper-highlight), var(--xletter-paper) 65%);
+  box-shadow: 0 3px 7px rgb(30 10 22 / 16%), 0 0 4px rgb(var(--xletter-outline-rgb) / 40%), inset 0 1px 0 rgb(255 255 255 / 72%);
   opacity: var(--danmaku-background-opacity, 1);
   clip-path: inset(-8px var(--xletter-open) -8px -8px round 12px);
 }
@@ -98,11 +100,11 @@ body[data-style='christmas-letter'] [data-letter-kind='gift'] .xletter-copy { pa
 .xletter-gift-name { font: inherit; font-weight: 800; }
 .xletter-gift-count { font: inherit; white-space: nowrap; }
 .xletter-gift-amount { display: block; margin-top: 2px; text-align: right; font: inherit; font-weight: 700; font-variant-numeric: tabular-nums; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-letter-kind='superchat'] { --xletter-paper: #fff0cf; --xletter-outline: #c99a57; --xletter-label: #f4d995; --xletter-label-ink: #614025; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-letter-kind='member'] { --xletter-paper: #e6f1d9; --xletter-outline: #81b59a; --xletter-label: #afd4b7; --xletter-label-ink: #264b3d; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='captain'] { --xletter-paper: #edf4fd; --xletter-outline: #a8bfd8; --xletter-label: #c5d9ef; --xletter-label-ink: #355773; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='admiral'] { --xletter-paper: #f3eefb; --xletter-outline: #b5a6ce; --xletter-label: #d9cdef; --xletter-label-ink: #57426c; }
-body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='governor'] { --xletter-paper: #fff1e2; --xletter-outline: #d4ae7d; --xletter-label: #eed4a6; --xletter-label-ink: #705035; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-letter-kind='superchat'] { --xletter-paper: #fff0cf; --xletter-paper-highlight: rgb(255 242.25 214.2); --xletter-outline: #c99a57; --xletter-outline-rgb: 201 154 87; --xletter-label: #f4d995; --xletter-label-ink: #614025; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-letter-kind='member'] { --xletter-paper: #e6f1d9; --xletter-paper-highlight: rgb(233.75 243.1 222.7); --xletter-outline: #81b59a; --xletter-outline-rgb: 129 181 154; --xletter-label: #afd4b7; --xletter-label-ink: #264b3d; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='captain'] { --xletter-paper: #edf4fd; --xletter-paper-highlight: rgb(239.7 245.65 253.3); --xletter-outline: #a8bfd8; --xletter-outline-rgb: 168 191 216; --xletter-label: #c5d9ef; --xletter-label-ink: #355773; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='admiral'] { --xletter-paper: #f3eefb; --xletter-paper-highlight: rgb(244.8 240.55 251.6); --xletter-outline: #b5a6ce; --xletter-outline-rgb: 181 166 206; --xletter-label: #d9cdef; --xletter-label-ink: #57426c; }
+body[data-style='christmas-letter'] .christmas-letter-item[data-letter-tier='governor'] { --xletter-paper: #fff1e2; --xletter-paper-highlight: rgb(255 243.1 230.35); --xletter-outline: #d4ae7d; --xletter-outline-rgb: 212 174 125; --xletter-label: #eed4a6; --xletter-label-ink: #705035; }
 .xletter-event-heading { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 14px; padding: 15px 24px 8px 42px; opacity: var(--xletter-alpha); }
 .xletter-event-title { color: var(--xletter-label-ink); font: 800 14px/1.4 var(--xletter-font); letter-spacing: .12em; }
 .xletter-amount { max-width: 100%; color: var(--xletter-label-ink); font: 800 28px/1.2 var(--xletter-font); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
@@ -115,7 +117,7 @@ body[data-style='christmas-letter'] [data-letter-kind='member'] .xletter-bubble 
 body[data-style='christmas-letter'] [data-letter-kind='member'] .xletter-identity { width: 62%; max-width: 100%; margin: 0; }
 body[data-style='christmas-letter'] [data-letter-kind='member'] .xletter-copy { width: 62%; padding: 15px 0 0; }
 body[data-style='christmas-letter'] [data-letter-kind='member'] .xletter-member-amount { display: block; position: relative; width: 62%; margin-top: 8px; font: inherit; font-weight: 700; opacity: var(--xletter-alpha); }
-.xletter-member-scene { position: absolute; z-index: -1; right: -5px; bottom: -8px; width: 54%; height: calc(100% + 8px); object-fit: contain; object-position: right bottom; opacity: .9; pointer-events: none; mask-image: linear-gradient(90deg, transparent, #000 22%); }
+.xletter-member-scene { position: absolute; z-index: -1; right: -5px; bottom: -8px; width: 54%; height: calc(100% + 8px); object-fit: contain; object-position: right bottom; opacity: .9; pointer-events: none; -webkit-mask-image: linear-gradient(90deg, transparent, #000 22%); mask-image: linear-gradient(90deg, transparent, #000 22%); }
 .christmas-letter-item[data-live-entry] .xletter-member-scene { animation: xletterScene calc(820ms * var(--motion-speed, 1)) ease-out calc(180ms * var(--motion-speed, 1)) both; }
 .christmas-letter-item[data-live-entry] .xletter-member-amount { animation: xletterInk calc(300ms * var(--motion-speed, 1)) ease-out calc(260ms * var(--motion-speed, 1)) both; }
 body[data-style='christmas-letter'] [data-letter-kind='notice'] .xletter-copy { padding: 12px 22px; font-size: .82em; }

@@ -1,4 +1,4 @@
-import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, REAL_GIFT_STYLES, SPOOKY_THEME_COLORS,
+import { DANMAKU_TEXT_GROUPS, DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, DANMAKU_FONTS, REAL_GIFT_STYLES, SPOOKY_THEME_COLORS,
   SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, styleOptionFields, styleOptionsFor } from './danmaku-style-options.js';
 import { readAppearanceValue, editStyleOption, resetStyleOptions, resetSpookyColors,
   floatingSpeedFromPixelsPerSecond, floatingSpeedToPixelsPerSecond, floatingSpeedLabel } from './danmaku-appearance-draft.js';
@@ -95,6 +95,18 @@ export function mountDanmakuParameters(host, controller, {
   fixed.append(fixedTitle);
   advancedBody.append(fixed);
   const groups = new Map();
+  const textSection = element('section', 'danmaku-advanced-section component-style-parameters', '', 'TextOptions');
+  textSection.append(element(desktop ? 'h6' : 'h3', '', '非正文文字'),
+    element('p', 'hint', '按用途分别调整。字号留空、字体与颜色选原样式时，保留这款原有设计。'));
+  for (const [role, title] of Object.entries(DANMAKU_TEXT_GROUPS)) {
+    const section = element('details', 'component-parameter-group');
+    section.dataset.textGroup = role;
+    const grid = element('div', gridClass);
+    section.append(element('summary', '', title), grid);
+    textSection.append(section);
+    groups.set(`text:${role}`, { section, grid });
+  }
+  host.append(textSection);
   const ripploid = element('section', 'danmaku-advanced-section', '', 'RipploidColors');
   const ripploidTitle = element(desktop ? 'h6' : 'h3', '', 'RIPPLOID 事件配色', 'RipploidColorsTitle');
   ripploid.setAttribute('aria-labelledby', ripploidTitle.id);
@@ -144,7 +156,7 @@ export function mountDanmakuParameters(host, controller, {
     const mode = definition.allowDefault || key === 'textColor' ? element('select', '', '', `${name}Mode`) : null;
     let modeView;
     if (mode) {
-      for (const [value, title] of [['default', key === 'bubbleColor' ? '默认配色' : '跟随主题'], ['custom', '自定义']]) {
+      for (const [value, title] of [['default', definition.textRole ? '原样式' : key === 'bubbleColor' ? '默认配色' : '跟随主题'], ['custom', '自定义']]) {
         const option = element('option', '', title); option.value = value; mode.append(option);
       }
       modeView = label(definition.label, `${name}ModeField`, mode, container);
@@ -170,7 +182,7 @@ export function mountDanmakuParameters(host, controller, {
       output.htmlFor = input.id; view.heading.append(output);
     }
     if (definition.type === 'select' || definition.type === 'font') {
-      const choices = definition.choices || [['default', '默认字体'], ['sans', '微软雅黑'], ['serif', '宋体'], ['kai', '楷体']];
+      const choices = definition.choices || [['default', definition.textRole ? '原样式' : '默认字体'], ['sans', '微软雅黑'], ['serif', '宋体'], ['kai', '楷体']];
       for (const [value, text] of choices) {
         const option = element('option', '', text); option.value = value; input.append(option);
         if (definition.type === 'font' && DANMAKU_FONTS[value]) option.dataset.fontFamily = DANMAKU_FONTS[value];
@@ -179,6 +191,10 @@ export function mountDanmakuParameters(host, controller, {
       input.type = definition.input || definition.type;
       if (definition.type === 'number') {
         input.step = String(definition.step || 1);
+        if (definition.optional) {
+          input.placeholder = '原样式';
+          input.dataset.autosaveOptional = 'true';
+        }
         if (definition.input === 'range') input.className = 'parameter-range';
       }
       if (definition.type === 'text') input.placeholder = definition.default;
@@ -202,7 +218,7 @@ export function mountDanmakuParameters(host, controller, {
       if (!loaded || !Object.hasOwn(draft, 'styleOptions')) return;
       try {
         let value = readAppearanceValue(definition.control === 'floatingSpeed' ? 'floatingSpeed' : key, input.value, input.min, input.max);
-        if (key === 'fontSize') value = Math.round(value / fontScale(draft));
+        if (value !== undefined && (key === 'fontSize' || definition.textRole && definition.type === 'number')) value = Math.round(value / fontScale(draft));
         controller.edit({ styleOptions: editStyleOption(draft, key === 'speedPixelsPerSecond' ? 'floatingSpeed' : key, value).styleOptions });
       } catch (error) { onError(error.message, input); render(controller.getState(), true); }
     });
@@ -226,7 +242,8 @@ export function mountDanmakuParameters(host, controller, {
     getTransformHost: draft => isFixedStyle(draft.style) ? fixed : null,
   });
   const fontInput = views.get('fontFamily').input;
-  const unregisterFont = registerFontSelect(fontInput);
+  const unregisterFonts = [...views].filter(([key]) => DANMAKU_OPTION_FIELDS[key].type === 'font')
+    .map(([, view]) => registerFontSelect(view.input));
   const defaultFontOption = Array.from(fontInput.options).find(option => option.value === 'default');
   const reset = () => {
     const { draft, loaded } = controller.getState();
@@ -266,16 +283,17 @@ export function mountDanmakuParameters(host, controller, {
         view.title.textContent = draft.style === 'whiteframe' ? '自定义边框颜色' : `自定义${definition.label}`;
       }
       if (key === 'textColor') view.title.textContent = draft.style === 'sketch' ? '主题颜色' : spooky ? '自定义正文颜色' : definition.label;
-      let value = options[key] ?? definition.default;
+      let value = options[key] ?? definition.default ?? '';
       if (definition.type === 'color' && !custom && hasMode) value = spooky
-        ? SPOOKY_THEME_COLORS[options.spookyTheme][key]
+        && !definition.textRole ? SPOOKY_THEME_COLORS[options.spookyTheme][key]
         : DANMAKU_STYLE_OPTIONS[draft.style].defaultBubbleColor || options.textColor;
-      if (key === 'fontFamily') ensureSavedFontOption(fontInput, value);
+      if (definition.type === 'font') ensureSavedFontOption(view.input, value);
       if (definition.type === 'number') {
         const min = field?.min ?? definition.min ?? 18;
-        view.input.min = String(key === 'speedPixelsPerSecond' ? 1 : key === 'fontSize' ? Math.ceil(min * scale) : min);
-        view.input.max = String(key === 'speedPixelsPerSecond' ? 100 : Math.floor((field?.max ?? definition.max ?? 48) * (key === 'fontSize' ? scale : 1)));
-        if (key === 'fontSize') value = Math.round(value * scale);
+        const textSize = key === 'fontSize' || Boolean(definition.textRole);
+        view.input.min = String(key === 'speedPixelsPerSecond' ? 1 : textSize ? Math.ceil(min * scale) : min);
+        view.input.max = String(key === 'speedPixelsPerSecond' ? 100 : Math.floor((field?.max ?? definition.max ?? 48) * (textSize ? scale : 1)));
+        if (textSize && value !== '') value = Math.round(value * scale);
         if (key === 'speedPixelsPerSecond') value = floatingSpeedFromPixelsPerSecond(value);
       }
       // Focus can remain here after an edit in the other window; only unfinished input needs protection.
@@ -289,6 +307,7 @@ export function mountDanmakuParameters(host, controller, {
       if (definition.input === 'range') refreshParameterRange(view.input);
     }
     for (const [key, { section }] of groups) section.hidden = !visibleGroups.has(key);
+    textSection.hidden = ![...visibleGroups].some(key => key.startsWith('text:'));
     ripploid.hidden = !DANMAKU_STYLE_OPTIONS[draft.style]?.ripploidColors;
     spookyReset.disabled = !loaded || !supported || ![...SPOOKY_COLOR_KEYS, ...SPOOKY_OPACITY_KEYS].some(key => Object.hasOwn(saved, key));
     const canReset = Object.keys(saved).some(key => key !== 'durationSeconds' || saved[key] !== 6)
@@ -299,7 +318,7 @@ export function mountDanmakuParameters(host, controller, {
   initParameterRanges(host);
   const unsubscribe = subscribeComponentFields(host, controller, render);
   return { render, dispose() {
-    unsubscribe(); effects.dispose(); unregisterFont?.(); resetButton.removeEventListener('click', reset);
+    unsubscribe(); effects.dispose(); unregisterFonts.forEach(unregister => unregister?.()); resetButton.removeEventListener('click', reset);
     disposeParameterRanges(host); host.replaceChildren();
   } };
 }

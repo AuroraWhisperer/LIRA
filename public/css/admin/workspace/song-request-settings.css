@@ -110,14 +110,12 @@
   font-size: var(--type-size-card-title);
 }
 
-.song-request-card-header > button {
-  flex: none;
+:is(.song-request-card-queue, .song-request-card-interval, .song-request-card-eligibility) .song-board-section-heading {
+  font-size: calc(var(--type-size-card-title) + 1.5px);
 }
 
-/* Settings rows: label left, one fixed-width control column right. */
-.song-request-row-group + .song-request-row-group {
-  margin-top: var(--spacing-sm);
-  border-top: 1px solid var(--border);
+.song-request-card-header > button {
+  flex: none;
 }
 
 /* Card scope outranks the shell's semibold label default. */
@@ -127,14 +125,38 @@
   align-items: center;
   column-gap: var(--spacing-md);
   min-height: 52px;
-  padding: 7px 0;
+  margin-inline: -22px;
+  padding: 8px 22px;
   color: var(--text);
   font-size: var(--type-size-body);
   font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-body);
 }
 
-.song-request-row + .song-request-row {
-  border-top: 1px solid var(--color-border-light);
+:is(.song-request-card-queue, .song-request-card-interval, .song-request-card-eligibility) .song-request-row {
+  font-size: calc(var(--type-size-body) + 1px);
+}
+
+:is(.song-request-card-queue, .song-request-card-interval, .song-request-card-eligibility) .song-request-row > :is(select, .lira-select, .song-request-number, .song-cooldown-controls) {
+  font-size: var(--type-size-body);
+}
+
+.song-request-row:nth-child(even) {
+  background: color-mix(in srgb, var(--surface-2) 55%, var(--surface));
+}
+
+.song-request-row > span:has(> lira-help) {
+  display: flex;
+  align-items: center;
+}
+
+.song-request-row > span > lira-help {
+  margin-inline-start: 6px;
+}
+
+.song-request-row :is(input:not([type='color']), .lira-select-trigger) {
+  height: 36px;
+  min-height: 36px;
 }
 
 .song-request-row :is(input, .lira-select-value) {

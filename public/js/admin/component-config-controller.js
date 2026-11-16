@@ -23,6 +23,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
   let authorityRevision = 0;
   let editRevision = 0;
   let fieldRevisions = {};
+  let editSource = 'local';
   let submission = null;
   let submissionRevisions = null;
   let pendingSave = null;
@@ -42,7 +43,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     for (const listener of changeListeners) listener();
   }
 
-  function edit(change) {
+  function edit(change, { source = 'local' } = {}) {
     let changed = Boolean(error);
     for (const [key, value] of Object.entries(change)) {
       if (equal(draft[key], value)) continue;
@@ -51,7 +52,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
       changed = true;
     }
     error = '';
-    if (changed) notify();
+    if (changed) { editSource = source; notify(); }
   }
 
   function receive(next) {
@@ -213,6 +214,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     saved = clone(next);
     draft = clone(next);
     fieldRevisions = {};
+    editSource = 'local';
     loaded = false;
     loading = saving = conflict = applied = false;
     error = '';
@@ -232,7 +234,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     return () => changeListeners.delete(listener);
   }
 
-  return { getState, getStatus, edit, prepareSave, save, discard, subscribe, subscribeChanges, receive, reload, reset };
+  return { getState, getStatus, getEditSource: () => editSource, edit, prepareSave, save, discard, subscribe, subscribeChanges, receive, reload, reset };
 }
 
 export function componentSaveMessage(state) {

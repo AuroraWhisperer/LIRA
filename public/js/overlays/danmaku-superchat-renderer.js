@@ -3,6 +3,7 @@ import { createRipploidSuperChat } from './danmaku-ripploid.js';
 import { createTwitterSuperChat } from './danmaku-twitter.js';
 import { createChristmasLetterSuperChat } from './danmaku-christmas-letter.js';
 import { createWireframeSuperChat } from './danmaku-wireframe.js';
+import { setColorProperties } from '../shared/color-value.js';
 
 // Bilibili price_configs: background_color / background_bottom_color / background_price_color.
 // Live packet colors take precedence; 2-yuan messages share the 30-yuan fallback.
@@ -44,7 +45,7 @@ export function createSuperChatCard(document, item, style, resolveAvatarUrl, cla
   root.style.setProperty('--danmaku-delay', '0ms');
   root.style.setProperty('--sc-surface', colors.backgroundColor);
   root.style.setProperty('--sc-accent', colors.accentColor);
-  root.style.setProperty('--sc-price', colors.priceColor);
+  setColorProperties(root.style, '--sc-price', colors.priceColor);
   root.style.setProperty('--sc-on-surface', superChatForeground(colors.backgroundColor));
   root.style.setProperty('--sc-on-accent', superChatForeground(colors.accentColor));
   const card = node('div', `sc-message sc-${style}`);

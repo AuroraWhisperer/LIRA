@@ -42,17 +42,22 @@ export function createGiftMotionPlayer({ root }) {
     previous = performance.now(); frame = requestAnimationFrame(tick);
   }
 
+  function pruneDrops() {
+    const alive = new Set(dropWorld.bodies.map(body => body.id));
+    for (const [id, drop] of drops) if (!alive.has(id)) { drop.node.remove(); drops.delete(id); }
+  }
+
   function tick(time) {
     frame = null;
     const now = Date.now(); const elapsed = Math.max(0, Math.min((time - previous) / 1000, 0.05)); previous = time;
     dropWorld.step(elapsed, now);
-    const alive = new Set(dropWorld.bodies.map(body => body.id));
-    for (const [id, node] of drops) if (!alive.has(id)) { node.remove(); drops.delete(id); }
+    pruneDrops();
     for (const body of dropWorld.bodies) {
       if (reduced.matches) { body.angle = 0; body.spin = 0; body.vx = 0; }
-      const node = drops.get(body.id);
-      node.hidden = now < body.spawnAt;
+      const drop = drops.get(body.id); const { node, artwork } = drop;
+      node.hidden = !body.spawned || now >= body.expiresAt && !drop.shown;
       if (node.hidden) continue;
+      if (body.entered && !artwork.hidden && artwork.complete && artwork.naturalWidth) drop.shown = true;
       if (!reduced.matches || now < body.expiresAt) {
         node.style.transform = `translate(${body.x - body.size / 2}px, ${body.y - body.size / 2}px) rotate(${body.angle}rad)`;
       }
@@ -132,13 +137,18 @@ export function createGiftMotionPlayer({ root }) {
     const settings = Object.fromEntries(Object.keys(effect.fields).map(name =>
       [`${effect.prefix}${name}`, payload.motion?.[name[0].toLowerCase() + name.slice(1)]]));
     const motion = readGiftMotionSettings(settings, effect);
+    if (effect.style === 'gift-drop' && payload.motion?.count == null && payload.motion?.quantityMultiplier != null) {
+      delete motion.count;
+      motion.quantityMultiplier = payload.motion.quantityMultiplier;
+    }
     const expiresAt = startedAt + motion.durationSeconds * 1000;
-    if (effect.style !== 'gift-drop' && expiresAt <= now) return false;
+    if (expiresAt <= now) return false;
     seen.add(payload.eventId);
     if (seen.size > 2048) seen.delete(seen.values().next().value);
     const event = { ...payload, startedAt, motion, num: Math.max(1, Number(payload.num) || 1) };
     if (effect.style === 'gift-drop') {
       const added = dropWorld.addGift(event, now);
+      pruneDrops();
       if (!added.length) return false;
       for (const body of added) {
         if (reduced.matches) { body.angle = 0; body.spin = 0; body.vx = 0; }
@@ -146,9 +156,9 @@ export function createGiftMotionPlayer({ root }) {
         node.hidden = true;
         node.dataset.motionId = body.id; node.dataset.expiresAt = String(body.expiresAt);
         node.style.width = node.style.height = `${body.size}px`;
-        node.append(image(payload, 'gift-motion-image'));
+        const artwork = image(payload, 'gift-motion-image'); node.append(artwork);
         if (body.quantity > 1) node.append(element('span', 'gift-motion-count', `×${body.quantity}`));
-        stage.append(node); drops.set(body.id, node);
+        stage.append(node); drops.set(body.id, { node, artwork, shown: false });
       }
     } else {
       if (swings.size >= 80) return false;
@@ -191,7 +201,7 @@ export function createGiftMotionPlayer({ root }) {
 
   function clear() {
     cancelAnimationFrame(frame); frame = null;
-    for (const node of drops.values()) node.remove();
+    for (const { node } of drops.values()) node.remove();
     for (const swing of swings.values()) swing.node.remove();
     drops.clear(); swings.clear(); dropWorld.clear();
   }

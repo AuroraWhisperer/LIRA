@@ -5,24 +5,30 @@ body[data-style='window'] {
   --window-border: #7b97a8;
   --window-ink: #344650;
   --window-muted: #506a79;
-  --window-chip: #eaf0f2;
+  --window-chip-rgb: 234 240 242;
   --window-event: #8b653c;
+  --window-event-rgb: 139 101 60;
+  --window-avatar-surface: rgb(228.6 232.6 232);
 }
 body[data-style='window'][data-window-palette='sakura'] {
   --window-paper: #fff7f8;
   --window-border: #be8f9d;
   --window-ink: #634650;
   --window-muted: #875967;
-  --window-chip: #f6e5eb;
+  --window-chip-rgb: 246 229 235;
   --window-event: #965c45;
+  --window-event-rgb: 150 92 69;
+  --window-avatar-surface: rgb(242 226.2 229.8);
 }
 body[data-style='window'][data-window-palette='night'] {
   --window-paper: #222f46;
   --window-border: #8cabc8;
   --window-ink: #ecf2fa;
   --window-muted: #c0d2e7;
-  --window-chip: #34455e;
+  --window-chip-rgb: 52 69 94;
   --window-event: #efd0a0;
+  --window-event-rgb: 239 208 160;
+  --window-avatar-surface: rgb(55.2 71.8 96);
 }
 body[data-style='window'] .danmaku-signal-header { display: none; }
 body[data-style='window'] :is(.danmaku-signal-stage, .draw-danmaku-feed) {
@@ -123,7 +129,7 @@ body[data-style='window'] .window-content .draw-danmaku-identity {
   min-width: 56px;
   padding: 4px 9px 4px 5px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--window-chip) var(--danmaku-background-weight, 100%), transparent);
+  background: rgb(var(--window-chip-rgb) / var(--danmaku-background-opacity, 1));
   color: var(--window-muted);
 }
 body[data-style='window'] .window-item .window-nameplate strong {
@@ -147,7 +153,7 @@ body[data-style='window'] .window-nameplate .draw-danmaku-avatar {
   border-radius: 50%;
   clip-path: none;
   color: var(--window-muted);
-  background: color-mix(in srgb, var(--window-border) 20%, var(--window-paper));
+  background: var(--window-avatar-surface);
   font: 600 12px/1 var(--danmaku-ui-font);
 }
 .window-guard { flex: 0 0 24px; width: 24px; height: 24px; object-fit: contain; }
@@ -238,7 +244,7 @@ body[data-style='window'] .is-emote-only .window-copy .draw-danmaku-emote { heig
 .window-amount {
   max-width: 100%;
   padding: 2px 9px;
-  border: 1px solid color-mix(in srgb, var(--window-event) 35%, transparent);
+  border: 1px solid rgb(var(--window-event-rgb) / 35%);
   border-radius: 20px;
   font: 600 16px/1.3 var(--danmaku-num-font);
   font-variant-numeric: tabular-nums;
@@ -250,7 +256,7 @@ body[data-style='window'] .is-emote-only .window-copy .draw-danmaku-emote { heig
 
 .window-item[data-live-entry] .window-frame {
   opacity: var(--danmaku-enter-opacity);
-  transform: var(--danmaku-enter-transform);
+  transform: scale(var(--danmaku-enter-scale-x));
   translate: 0 var(--danmaku-enter-y);
 }
 .window-item[data-live-entry][data-window-entrance='pop'] .window-frame { animation: windowPop var(--window-entry-duration) cubic-bezier(.16,1,.3,1) backwards; }
@@ -260,10 +266,10 @@ body[data-style='window'] .is-emote-only .window-copy .draw-danmaku-emote { heig
 .window-item[data-live-entry]:not([data-window-entrance='none']) :is(.window-copy, .window-footer) { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: windowCopyIn var(--window-entry-duration) ease-out backwards; }
 body[data-style='window'][data-ambient-motion='off'] .window-frame::after { animation: none; }
 @keyframes windowPop {
-  0% { --danmaku-enter-opacity: 0; --danmaku-enter-transform: scale(.88); }
-  65% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1); }
-  82% { --danmaku-enter-transform: scale(.992); }
-  100% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1); }
+  0% { --danmaku-enter-opacity: 0; --danmaku-enter-scale-x: .88; }
+  65% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1; }
+  82% { --danmaku-enter-scale-x: .992; }
+  100% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1; }
 }
 @keyframes windowUnfold {
   0% { --danmaku-enter-opacity: 0; clip-path: inset(0 0 72% 0 round var(--window-radius, 22px)); }

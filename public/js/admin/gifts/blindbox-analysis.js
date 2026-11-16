@@ -10,11 +10,7 @@ import { createBlindBoxDatePicker } from './blindbox-analysis-dates.js';
 export const giftAnalysis = (() => {
   const PAGE_SIZE = 25;
   const REFRESH_DELAY_MS = 500;
-  const VIEW_META = {
-    users: { title: '观众排行', unit: '人' },
-    boxes: { title: '盲盒汇总', unit: '种' },
-    records: { title: '开盒记录', unit: '条' },
-  };
+  const VIEWS = ['users', 'boxes', 'records'];
   const state = {
     open: false,
     viewer: '',
@@ -84,7 +80,7 @@ export const giftAnalysis = (() => {
     state.viewer = typeof filters.viewer === 'string' ? filters.viewer : '';
     state.viewerLabel = '';
     state.box = typeof filters.box === 'string' ? filters.box : '';
-    state.view = Object.hasOwn(VIEW_META, filters.view) ? filters.view : 'users';
+    state.view = VIEWS.includes(filters.view) ? filters.view : 'users';
     state.page = 1;
     state.dateRange = null;
     datePicker.setSelection(null);
@@ -183,7 +179,7 @@ export const giftAnalysis = (() => {
     renderFilters(data.filters || {});
     renderSummary(data.summary || {});
     renderViewControls();
-    renderTable(data.items || [], data.hasArchivedDetails === true);
+    renderTable(data.items || [], data.hasArchivedDetails === true, Number(data.pagination?.total || 0));
     renderPagination(data.pagination || {});
     renderContext(data.hasArchivedDetails === true, data.hasLegacyArchivedDates === true, data.archiveTimeZones, data.hasArchivedTimezoneMismatch);
     const results = document.querySelector('.blind-analysis-results');
@@ -246,14 +242,13 @@ export const giftAnalysis = (() => {
       button.classList.toggle('active', active);
       button.setAttribute('aria-pressed', String(active));
     });
-    setText('blindBoxAnalysisViewTitle', VIEW_META[state.view].title);
   }
 
-  function renderTable(items, hasArchivedDetails) {
+  function renderTable(items, hasArchivedDetails, total) {
     const head = get('blindBoxAnalysisHead');
     const body = get('blindBoxAnalysisBody');
     if (!head || !body) return;
-    const columns = getColumns(state.view);
+    const columns = getColumns(state.view, total);
     head.innerHTML = `<tr>${columns.map((column) => `<th>${column.label}</th>`).join('')}</tr>`;
     if (items.length === 0) {
       body.innerHTML = `<tr><td colspan="${columns.length}" class="blind-analysis-empty">${hasArchivedDetails && state.view === 'records' ? '该范围的逐笔开盒记录已过保留期，汇总仍可查' : '当前选择下还没有盲盒数据'}</td></tr>`;
@@ -267,12 +262,12 @@ export const giftAnalysis = (() => {
       .join('');
   }
 
-  function getColumns(view) {
+  function getColumns(view, total) {
     const profit = (item) => formatProfit(item.profit);
     if (view === 'boxes')
       return [
         {
-          label: '盲盒',
+          label: `盲盒（${total} 种）`,
           render: (item) => `<strong>${escapeHtml(item.boxName)}</strong>`,
         },
         { label: '盒数', render: (item) => String(item.boxCount) },
@@ -297,7 +292,7 @@ export const giftAnalysis = (() => {
       ];
     return [
       {
-        label: '观众',
+        label: `观众（${total} 人）`,
         render: (item) => `<strong>${escapeHtml(item.userName)}</strong>`,
       },
       { label: '盒数', render: (item) => String(item.boxCount) },
@@ -309,10 +304,8 @@ export const giftAnalysis = (() => {
   }
 
   function renderPagination(pagination) {
-    const total = Number(pagination.total || 0);
     const totalPages = Number(pagination.totalPages || 1);
     const page = Number(pagination.page || 1);
-    setText('blindBoxAnalysisResultCount', `共 ${total} ${VIEW_META[state.view].unit}`);
     setText('blindBoxAnalysisPageInfo', `第 ${page} 页，共 ${totalPages} 页`);
     const container = get('blindBoxAnalysisPagination');
     if (container) container.hidden = totalPages <= 1;
@@ -322,11 +315,14 @@ export const giftAnalysis = (() => {
 
   function renderContext(hasArchivedDetails, hasLegacyArchivedDates, archiveTimeZones, timezoneMismatch) {
     setText('blindBoxAnalysisTitle', state.dateRange ? '盲盒分析' : '今日盲盒分析');
-    setText('blindBoxAnalysisUpdated', archiveTimeZones?.length
+    const notice = get('blindBoxAnalysisNotice');
+    if (!notice) return;
+    notice.textContent = archiveTimeZones?.length
       ? `一年外记录按归档日汇总（${archiveTimeZones.join('、')}）${timezoneMismatch ? '，无法精确换算为当前时区的自然日' : ''}`
       : hasLegacyArchivedDates
       ? '含旧版历史汇总，单日统计可能存在时区偏差'
-      : hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '刚刚更新');
+      : hasArchivedDetails ? '含历史汇总，过期逐笔记录不可用' : '';
+    notice.hidden = !notice.textContent;
   }
 
   function renderLoading() {

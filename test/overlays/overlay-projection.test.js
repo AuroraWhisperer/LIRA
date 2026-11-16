@@ -466,7 +466,8 @@ test('REST projections retain display fields, strip nested ledger/config metadat
 
 test('dynamic queue styles, songboard theme fallback and lyric settings survive explicit key projection', async () => {
   const { readQueueStyleSettings } = await loadModuleExports(path.join(__dirname, '../../public/js/shared/queue-style-settings.js'));
-  const input = { unknown: secret, roomId: secret, overlayRuleColor6: '#abcdef', identityQueueScrollMode: 'loop' };
+  const input = { unknown: secret, roomId: secret, overlayRuleColor6: '#abcdef', identityQueueScrollMode: 'loop',
+    queueRequestRequesterColor: '#2468ac', queueRequestSongColor: '#703050' };
   for (const prefix of ['storybook', 'neonVinyl', 'cherryRibbon', 'goldenLily']) {
     Object.assign(input, {
       [`${prefix}QueueFontSize`]: '39',
@@ -483,6 +484,8 @@ test('dynamic queue styles, songboard theme fallback and lyric settings survive 
     assert.deepEqual(readQueueStyleSettings(projected, style), readQueueStyleSettings(input, style));
   }
   assert.equal(projected.overlayRuleColor6, '#abcdef');
+  assert.equal(projected.queueRequestRequesterColor, '#2468ac');
+  assert.equal(projected.queueRequestSongColor, '#703050');
   assert.equal(projected.unknown, undefined);
   // 点歌板读取的主键与板级覆盖键由共享映射拥有；这里按 owner 取键，不再扫描源码字面量。
   const { SONG_BOARD_THEME_FIELDS } = require('../../public/js/shared/song-board-theme-fields.js');

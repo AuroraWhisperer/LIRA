@@ -4,9 +4,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const GUARD_NAMES = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
 const GUARD_HANDLES = Object.freeze({ 1: 'Governor', 2: 'Admiral', 3: 'Captain' });
 const GUARD_COLORS = Object.freeze({
-  1: 'var(--guard-governor)',
-  2: 'var(--guard-admiral)',
-  3: 'var(--guard-captain)',
+  1: '--guard-governor',
+  2: '--guard-admiral',
+  3: '--guard-captain',
 });
 
 const ICON_PATHS = Object.freeze({
@@ -128,7 +128,12 @@ function preparePost(root, item) {
   const roomGuardLevel = normalizeGuardLevel(item.roomGuardLevel ?? item.guardLevel);
   const guardLevel = normalizeGuardLevel(item.giftGuardLevel) || roomGuardLevel;
   root.dataset.roomGuard = String(roomGuardLevel);
-  if (guardLevel) root.style.setProperty('--twitter-guard-color', GUARD_COLORS[guardLevel]);
+  if (guardLevel) {
+    const color = GUARD_COLORS[guardLevel];
+    root.style.setProperty('--twitter-guard-color', `var(${color})`);
+    root.style.setProperty('--twitter-guard-seal-border', `var(${color}-seal-border)`);
+    root.style.setProperty('--twitter-guard-seal-surface', `var(${color}-seal-surface)`);
+  }
 }
 
 function fillIdentity(document, identity, item, name) {

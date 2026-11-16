@@ -8,6 +8,7 @@ import { isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js
 import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 import { bindDanmakuStyleLibrary } from './danmaku-style-library.js';
 
 export function initDanmakuOverlaySettings(elements, toast) {
@@ -75,5 +76,8 @@ export function initDanmakuOverlaySettings(elements, toast) {
     controller.reset();
     if (account) void controller.reload();
   });
+  bindComponentAutosave(controller, { root: document.getElementById('liveDanmakuFeature'),
+    saveButton: applyButton, discardButton, status: elements.styleSaveState,
+    actions: applyButton.closest('.danmaku-style-footer') });
   return controller;
 }

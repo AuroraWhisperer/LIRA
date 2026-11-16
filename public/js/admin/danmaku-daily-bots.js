@@ -26,6 +26,8 @@ export function initDanmakuDailyBots({
 } = {}) {
   const refreshButton = documentRef.getElementById('dailyBotRefresh');
   const overall = documentRef.getElementById('dailyBotStatus');
+  const fortuneMode = documentRef.getElementById('dailyBotFortuneDrawMode');
+  const fortuneModeHint = documentRef.getElementById('dailyBotFortuneDrawModeHint');
   const toggles = Object.fromEntries(
     ['checkin', 'fortune'].map((kind) => [
       kind,
@@ -52,6 +54,14 @@ export function initDanmakuDailyBots({
           ? '云端状态待刷新'
           : REASONS[saved[kind].reason]
         : '尚未确认云端状态';
+    }
+    if (fortuneMode) {
+      const supported = ['daily', 'random'].includes(saved?.fortune.drawMode);
+      fortuneMode.value = saved?.fortune.drawMode || 'daily';
+      fortuneMode.disabled = toggles.fortune.disabled || !supported;
+      fortuneModeHint.textContent = stale || !saved ? '尚未确认云端设置，请刷新状态。'
+        : !supported ? '修改抽签方式需要先更新 LIRA Server。'
+          : busy ? '正在与云端同步…' : '切换后自动保存';
     }
     refreshButton.disabled = !owner || !bridge || busy;
   }
@@ -86,7 +96,9 @@ export function initDanmakuDailyBots({
       }
       stale = true;
       const message =
-        action === 'update' && payload.enabled === false
+        action === 'update' && Object.hasOwn(payload, 'drawMode')
+          ? ERRORS[error.code] || '抽签方式尚未保存，请刷新确认后重试。'
+          : action === 'update' && payload.enabled === false
           ? '关闭尚未同步，机器人可能还在回复。请刷新确认。'
           : ERRORS[error.code] || '状态读取或保存失败，请检查连接并重试。';
       if (action === 'update') toast(message, { type: 'error' });
@@ -106,6 +118,13 @@ export function initDanmakuDailyBots({
       const enabled = toggles[kind].checked;
       void invoke('update', { kind, enabled, expectedRevision: saved[kind].revision });
     });
+  fortuneMode?.addEventListener('change', () => {
+    if (fortuneMode.disabled || !saved) return;
+    void invoke('update', {
+      kind: 'fortune', enabled: saved.fortune.enabled,
+      expectedRevision: saved.fortune.revision, drawMode: fortuneMode.value,
+    });
+  });
   function account(snapshot) {
     const streamer = snapshot?.streamer;
     const next =

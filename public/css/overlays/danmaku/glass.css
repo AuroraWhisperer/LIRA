@@ -1,3 +1,6 @@
+/* Paint glints without changing the text's compositing surface in scaled canvases. */
+@property --glass-glint-opacity { syntax: '<number>'; inherits: false; initial-value: 0; }
+
 body[data-style='glass'] {
   --glass-font: 'Lira Quicksand', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
   --danmaku-enter-animation: glassEntry 1100ms linear both;
@@ -24,7 +27,7 @@ body[data-style='glass'] .glass-item[data-live-entry] { translate: var(--danmaku
 body[data-style='glass'] .glass-panel {
   position: relative; display: block; padding: 28px 38px 26px;
   border: 1px solid rgb(255 255 255 / 30%); border-radius: inherit; overflow: hidden;
-  background: color-mix(in srgb, var(--danmaku-bubble-color, #70c2fe) var(--danmaku-background-weight, 20%), transparent);
+  background: rgb(var(--danmaku-bubble-color-rgb, 112 194 254) / calc(var(--danmaku-bubble-color-alpha, 1) * var(--danmaku-background-weight, 20%)));
   box-shadow: 0 6px 16px rgb(20 48 70 / 12%), inset 0 1px rgb(255 255 255 / 8%);
   backdrop-filter: blur(10px);
 }
@@ -98,7 +101,7 @@ body[data-style='glass'][data-glass-density='compact'] .glass-divider { width: 3
 
 body[data-style='glass'] .glass-glints { position: absolute; inset: 0; opacity: var(--glass-glint-intensity, 1); pointer-events: none; }
 body[data-style='glass'] .glass-glint {
-  position: absolute; top: 22%; left: 76%; width: 9px; height: 9px; color: #fff; opacity: 0;
+  position: absolute; top: 22%; left: 76%; width: 9px; height: 9px; color: #fff; opacity: var(--glass-glint-opacity);
   animation: glassGlint 8s ease-in-out var(--glass-phase, 0s) infinite;
 }
 body[data-style='glass'] .glass-glint:nth-child(2) {
@@ -111,8 +114,8 @@ body[data-style='glass'][data-ambient-motion='off'] .glass-glints { display: non
   100% { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; }
 }
 @keyframes glassGlint {
-  0%, 40%, 64%, 100% { opacity: 0; }
-  52% { opacity: .45; }
+  0%, 40%, 64%, 100% { --glass-glint-opacity: 0; }
+  52% { --glass-glint-opacity: .45; }
 }
 @media (prefers-reduced-motion: reduce) {
   body[data-style='glass'] .glass-item[data-live-entry] { animation: none; }

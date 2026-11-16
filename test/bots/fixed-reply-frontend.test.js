@@ -79,8 +79,16 @@ async function editorFixture(t, category = 'replies', library = false) {
     initFixedReplyEditor();
   }, { html: readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'), library });
   await page.waitForFunction(() => !document.getElementById('danmakuExactReplyToggle').disabled);
+  page.setDefaultTimeout(7000);
+  await page.clock.install();
   await page.locator(`[data-danmaku-tab="${category}"]`).click();
   return page;
+}
+
+async function saveEdits(page, selector) {
+  const button = page.locator(selector);
+  if (await button.isVisible()) await button.click();
+  else await page.clock.runFor(600);
 }
 
 test('the shared editor saves only full-match rules and keeps built-in commands read-only', async (t) => {
@@ -94,8 +102,8 @@ test('the shared editor saves only full-match rules and keeps built-in commands 
   await page.locator('#danmakuExactReplyInput').fill('上舰解锁点歌月卡');
   await page.locator('#danmakuExactReplyAddBtn').click();
   assert.equal(await page.evaluate(() => window.writes.length), 0);
-  await page.locator('#danmakuExactReplySaveBtn').click();
-  await page.locator('#danmakuExactReplyStatus').filter({ hasText: '已保存 2 条' }).waitFor();
+  await saveEdits(page, '#danmakuExactReplySaveBtn');
+  await page.locator('#danmakuExactReplyStatus').filter({ hasText: '已保存 2 条' }).waitFor({ state: 'attached' });
   assert.deepEqual(await page.evaluate(() => window.writes[0]), { customExactReplies: [
     { trigger: '歌单', reply: '发送 点歌 歌名' }, { trigger: '月卡', reply: '上舰解锁点歌月卡' },
   ] });
@@ -163,8 +171,8 @@ test('thanks edits keep parameters atomic, support native undo and paste untrust
   await page.keyboard.insertText('呀');
   assert.equal(await editor.locator('[data-thanks-token="{称呼}"]').textContent(), tokenLabel);
   await editor.press('Control+z');
-  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
-  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor();
+  await saveEdits(page, '#danmakuGiftThanksSave');
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor({ state: 'attached' });
   assert.equal((await page.evaluate(() => window.templateWrites[0])).gift, '谢谢{称呼}投喂{礼物}；{金额}');
   assert.equal(await page.evaluate(() => window.queryState.values.giftAutoThanksEnabled), true);
   assert.deepEqual(await page.evaluate(() => window.queryWrites), []);
@@ -195,11 +203,11 @@ test('thanks drafts survive a failed save and account changes discard the prior 
   const editor = page.getByRole('textbox', { name: '礼物答谢', exact: true });
   await editor.fill('谢谢{称呼}支持{礼物}；{金额}');
   await page.evaluate(() => { window.failThanksSave = true; });
-  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
-  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '草稿已保留' }).waitFor();
+  await saveEdits(page, '#danmakuGiftThanksSave');
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '草稿已保留' }).waitFor({ state: 'attached' });
   assert.equal(await editor.textContent(), '谢谢{称呼}支持{礼物}；{金额}');
   await page.evaluate(() => { window.failThanksSave = false; window.holdThanksSave = true; });
-  await page.getByRole('button', { name: '保存答谢文案', exact: true }).click();
+  await saveEdits(page, '#danmakuGiftThanksSave');
   await page.waitForFunction(() => typeof window.finishThanksSave === 'function');
   await page.evaluate(() => { window.changeAccount({ state: 'unauthorized' }); window.finishThanksSave(); });
   assert.doesNotMatch(await editor.textContent(), /谢谢|支持/);
@@ -226,14 +234,14 @@ test('gift and three guard libraries keep independent modes and drafts through s
   }
   await panel.locator('[data-thanks-enabled]').uncheck();
   await page.evaluate(() => { window.failThanksSave = true; });
-  await page.locator('#danmakuGiftThanksSave').click();
-  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '草稿已保留' }).waitFor();
+  await saveEdits(page, '#danmakuGiftThanksSave');
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '草稿已保留' }).waitFor({ state: 'attached' });
   await panel.locator('[data-thanks-scene]').selectOption('gift');
   assert.equal(await panel.getByLabel('礼物答谢发送方式', { exact: true }).inputValue(), 'plain');
   assert.equal(await panel.getByRole('textbox', { name: '礼物答谢第 2 条', exact: true }).textContent(), '谢谢你送的礼物和数量！');
   await page.evaluate(() => { window.failThanksSave = false; });
-  await page.locator('#danmakuGiftThanksSave').click();
-  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor();
+  await saveEdits(page, '#danmakuGiftThanksSave');
+  await page.locator('#danmakuGiftThanksSaveState').filter({ hasText: '文案已保存到云端' }).waitFor({ state: 'attached' });
   const saved = await page.evaluate(() => window.queryState.replies);
   assert.deepEqual(saved.gift.messages, [{ text: '谢谢{称呼}的支持！' }, { text: '谢谢你送的{礼物}！' }]);
   assert.equal(saved.gift.mode, 'plain');
@@ -249,7 +257,7 @@ test('gift and three guard libraries keep independent modes and drafts through s
   assert.equal(await page.locator('#danmakuGiftThanksSave').isDisabled(), true);
 });
 
-test('timer interval and selection modes save together; invalid ranges and failures retain the draft', async (t) => {
+test('timer edits auto-save together; invalid ranges and failures retain the draft', async (t) => {
   const page = await editorFixture(t, 'send');
   await page.getByRole('button', { name: '设置定时随机弹幕' }).click();
   await page.locator('#danmakuScheduledMode').selectOption('random');
@@ -259,21 +267,22 @@ test('timer interval and selection modes save together; invalid ranges and failu
   await page.getByLabel('定时弹幕第 1 条', { exact: true }).fill('上舰解锁点歌月卡');
   await page.locator('#danmakuScheduledLibraryAdd').click();
   await page.getByLabel('定时弹幕第 2 条', { exact: true }).fill('欢迎发送菜单查看互动');
-  await page.locator('#danmakuScheduledSave').click();
+  await page.clock.runFor(600);
   assert.equal(await page.evaluate(() => window.writes.length), 0);
   await page.locator('#danmakuScheduledMax').fill('90');
   await page.locator('#danmakuScheduledSelection').selectOption('random');
   await page.evaluate(() => { window.failSave = true; });
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '草稿已保留' }).waitFor();
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => window.writes.length === 1 && !document.getElementById('danmakuScheduledToggle').disabled);
+  assert.equal(await page.evaluate(() => window.remote.scheduledDanmaku.mode), 'fixed');
   await page.evaluate(() => window.fixed.refresh());
   assert.equal(await page.locator('#danmakuScheduledMin').inputValue(), '70');
   assert.deepEqual(await page.locator('#danmakuScheduledLibraryList input').evaluateAll(
     (inputs) => inputs.map((input) => input.value),
   ), ['上舰解锁点歌月卡', '欢迎发送菜单查看互动']);
-  await page.evaluate(() => { window.failSave = false; });
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '已保存到云端' }).waitFor();
+  await page.evaluate(async () => { window.failSave = false; await window.fixed.refresh(); });
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => window.remote.scheduledDanmaku.mode === 'random');
   assert.deepEqual(await page.evaluate(() => window.remote.scheduledDanmaku), {
     mode: 'random', intervalSeconds: 300, minSeconds: 70, maxSeconds: 90, selection: 'random',
     messages: ['上舰解锁点歌月卡', '欢迎发送菜单查看互动'],
@@ -281,7 +290,7 @@ test('timer interval and selection modes save together; invalid ranges and failu
   assert.equal(await page.locator('#danmakuScheduledToggle').isChecked(), false);
 });
 
-test('scheduled library keeps distant edits and searches up to capacity without auto-saving', async (t) => {
+test('scheduled library auto-saves distant edits up to capacity while searches do not write', async (t) => {
   const page = await editorFixture(t, 'send');
   const original = Array.from({ length: 299 }, (_, index) => `文案 ${index + 1}`);
   await page.evaluate(async (messages) => {
@@ -292,7 +301,8 @@ test('scheduled library keeps distant edits and searches up to capacity without 
   const list = page.locator('#danmakuScheduledLibraryList');
   await page.locator('#danmakuScheduledLibrarySearch').fill('文案 299');
   assert.equal(await list.locator('input').count(), 1);
-  assert.equal(await page.locator('#danmakuScheduledSave').isDisabled(), true);
+  await page.clock.runFor(600);
+  assert.equal(await page.evaluate(() => window.writes.length), 0);
   await page.getByLabel('定时弹幕第 299 条', { exact: true }).fill('末条已编辑');
   await page.locator('#danmakuScheduledLibrarySearch').fill('文案 7');
   await page.getByLabel('定时弹幕第 7 条', { exact: true }).fill('第二页已编辑');
@@ -303,36 +313,36 @@ test('scheduled library keeps distant edits and searches up to capacity without 
   await page.locator('#danmakuScheduledLibraryAdd').click();
   await page.getByLabel('定时弹幕第 300 条', { exact: true }).fill('最后一个空位');
   assert.equal(await page.locator('#danmakuScheduledLibraryAdd').isDisabled(), true);
-  assert.equal(await page.evaluate(() => window.writes.length), 0);
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '已保存到云端' }).waitFor();
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => window.remote.scheduledDanmaku.messages.length === 300);
   const expected = [...original];
   expected[6] = '第二页已编辑';
   expected[298] = '末条已编辑';
   expected.splice(7, 1);
   expected.push('新增文案');
   expected.push('最后一个空位');
-  assert.deepEqual(await page.evaluate(() => window.writes[0].scheduledDanmaku.messages), expected);
+  assert.deepEqual(await page.evaluate(() => window.remote.scheduledDanmaku.messages), expected);
   assert.equal(await page.locator('#danmakuScheduledToggle').isChecked(), false);
 });
 
-test('scheduled library validates off-page drafts and clears them when the account changes during save', async (t) => {
+test('scheduled auto-save rejects invalid off-page drafts and clears them when the account changes', async (t) => {
   const page = await editorFixture(t, 'send');
   await page.getByRole('button', { name: '设置定时随机弹幕' }).click();
-  for (let index = 1; index <= 7; index++) {
+  for (let index = 1; index <= 30; index++) {
     await page.locator('#danmakuScheduledLibraryAdd').click();
     if (index !== 1) await page.getByLabel(`定时弹幕第 ${index} 条`, { exact: true }).fill(`文案 ${index}`);
   }
-  await page.locator('#danmakuScheduledSave').click();
+  await page.clock.runFor(600);
   assert.equal(await page.evaluate(() => window.writes.length), 0);
+  await page.locator('#danmakuScheduledLibrarySearch').fill('');
   const first = page.getByLabel('定时弹幕第 1 条', { exact: true });
   assert.equal(await first.isVisible(), true);
   await first.fill('字'.repeat(121));
-  await page.locator('#danmakuScheduledSave').click();
+  await page.clock.runFor(600);
   assert.equal(await page.evaluate(() => window.writes.length), 0);
   await first.fill('😀'.repeat(120));
   await page.evaluate(() => { window.holdSave = true; });
-  await page.locator('#danmakuScheduledSave').click();
+  await page.clock.runFor(600);
   await page.waitForFunction(() => typeof window.finishSave === 'function');
   await page.evaluate(() => { window.changeAccount({ state: 'unauthorized' }); window.finishSave(); });
   assert.equal(await page.locator('#danmakuScheduledLibraryList input').count(), 0);
@@ -344,12 +354,12 @@ test('exact rule drafts survive failed saves and are cleared when the account ch
   const field = page.getByLabel('第 1 条完整匹配回复的回复内容', { exact: true });
   await field.fill('保留我的草稿');
   await page.evaluate(() => { window.failSave = true; });
-  await page.locator('#danmakuExactReplySaveBtn').click();
-  await page.locator('#danmakuExactReplyStatus').filter({ hasText: '保存失败' }).waitFor();
+  await saveEdits(page, '#danmakuExactReplySaveBtn');
+  await page.locator('#danmakuExactReplyStatus').filter({ hasText: '保存失败' }).waitFor({ state: 'attached' });
   await page.evaluate(() => window.fixed.refresh());
   assert.equal(await field.inputValue(), '保留我的草稿');
   await page.evaluate(() => { window.failSave = false; window.holdSave = true; });
-  await page.locator('#danmakuExactReplySaveBtn').click();
+  await saveEdits(page, '#danmakuExactReplySaveBtn');
   await page.waitForFunction(() => typeof window.finishSave === 'function');
   await page.evaluate(() => { window.changeAccount({ state: 'unauthorized' }); window.finishSave(); });
   assert.equal(await page.locator('#danmakuExactReplyList input:not([readonly])').count(), 0);
@@ -363,16 +373,40 @@ test('switching timer modes preserves saved values for inactive interval fields'
   await page.locator('#danmakuScheduledMode').selectOption('random');
   await page.locator('#danmakuScheduledMin').fill('30');
   await page.locator('#danmakuScheduledMax').fill('60');
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '已保存到云端' }).waitFor();
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => window.remote.scheduledDanmaku.mode === 'random');
   assert.equal(await page.evaluate(() => window.remote.scheduledDanmaku.intervalSeconds), 300);
   await page.locator('#danmakuScheduledMin').fill('');
   await page.locator('#danmakuScheduledMax').fill('1');
   await page.locator('#danmakuScheduledMode').selectOption('fixed');
   await page.locator('#danmakuScheduledInterval').fill('120');
-  await page.locator('#danmakuScheduledSave').click();
-  await page.locator('#danmakuScheduledSaveState').filter({ hasText: '已保存到云端' }).waitFor();
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => window.remote.scheduledDanmaku.mode === 'fixed');
   assert.deepEqual(await page.evaluate(() => window.remote.scheduledDanmaku), {
     mode: 'fixed', intervalSeconds: 120, minSeconds: 30, maxSeconds: 60, selection: 'sequential', messages: [],
   });
+});
+
+test('scheduled auto-save preserves edits made during a request and cancels queued writes on account change', async (t) => {
+  const page = await editorFixture(t, 'send');
+  await page.getByRole('button', { name: '设置定时随机弹幕' }).click();
+  await page.locator('#danmakuScheduledLibraryAdd').click();
+  const input = page.getByLabel('定时弹幕第 1 条', { exact: true });
+  await page.evaluate(() => { window.holdSave = true; });
+  await input.fill('第一次修改');
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => typeof window.finishSave === 'function');
+  await input.fill('保存期间继续修改');
+  await page.clock.runFor(600);
+  await page.evaluate(() => { window.holdSave = false; window.finishSave(); });
+  await page.clock.runFor(600);
+  await page.waitForFunction(() => window.remote.scheduledDanmaku.messages[0] === '保存期间继续修改');
+  assert.equal(await input.inputValue(), '保存期间继续修改');
+  assert.equal(await input.evaluate(node => node === document.activeElement), true);
+  assert.equal(await page.evaluate(() => window.writes.length), 2);
+  await input.fill('旧账号待保存内容');
+  await page.evaluate(() => window.changeAccount({ state: 'unauthorized' }));
+  await page.clock.runFor(600);
+  assert.equal(await page.evaluate(() => window.writes.length), 2);
+  assert.equal(await page.locator('#danmakuScheduledLibraryList input').count(), 0);
 });

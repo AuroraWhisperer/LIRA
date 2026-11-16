@@ -2,6 +2,7 @@
 
 import { eventBus, Events } from '../shared/event-bus.js';
 import { renderSongCooldownControls, renderSongCooldownValidity } from './song-cooldown-settings.js';
+import { createAutosave } from './settings-autosave.js';
 
 export function createSettingsForm({
   documentRef,
@@ -133,6 +134,8 @@ export function createSettingsForm({
         songRequestCancelEnabled: value('songRequestCancelEnabled'),
         songRequestRequireSpace: value('songRequestRequireSpace'),
         songRequestMatchMode: value('songRequestMatchMode'),
+        queueRequestRequesterColor: value('queueRequestRequesterColor'),
+        queueRequestSongColor: value('queueRequestSongColor'),
         queueLimit: value('queueLimit'),
         userCooldownSeconds: value('userCooldownSeconds'),
         userQueueLimit: value('userQueueLimit'),
@@ -188,14 +191,37 @@ export function createSettingsForm({
       return saveRequestSettings();
     });
     requestSaveButton?.addEventListener('click', saveRequestSettings);
-    documentRef.getElementById('giftSprintForm').addEventListener('submit', async (event) => {
-      event.preventDefault();
-      await api('/api/settings', {
-        giftSprintTargetRmb: value('giftSprintTargetRmb'),
-      });
-      toast('冲刺目标已保存');
-      await reloadState();
+    const sprintForm = documentRef.getElementById('giftSprintForm');
+    const sprintTarget = documentRef.getElementById('giftSprintTargetRmb');
+    const sprintSave = sprintForm.querySelector('button[type="submit"]');
+    const sprintStatus = documentRef.getElementById('giftSprintSaveState');
+    sprintTarget.dataset.preserveDirty = 'true';
+    let sprintRevision = 0;
+    const sprintAutosave = createAutosave({ root: sprintForm,
+      canSave: () => Boolean(sprintTarget.value) && sprintForm.checkValidity(),
+      save: async () => {
+        const revision = sprintRevision, target = value('giftSprintTargetRmb');
+        try {
+          await api('/api/settings', { giftSprintTargetRmb: target });
+          if (revision === sprintRevision) {
+            sprintSave.hidden = true;
+            sprintStatus.hidden = true;
+            await reloadState();
+            if (revision === sprintRevision) sprintTarget.dataset.dirty = 'false';
+          }
+        } catch (error) {
+          sprintStatus.textContent = '目标自动保存失败，修改已保留，请重试。';
+          sprintStatus.hidden = sprintSave.hidden = false;
+        }
+      } });
+    sprintSave.hidden = true;
+    sprintSave.textContent = '重试保存';
+    sprintTarget.addEventListener('input', () => {
+      sprintTarget.dataset.dirty = 'true';
+      sprintRevision++;
+      sprintAutosave.schedule();
     });
+    sprintForm.addEventListener('submit', event => { event.preventDefault(); sprintAutosave.schedule(); void sprintAutosave.flush(); });
 
     initImmediateToggle('danmakuMonitoringEnabled', 'danmakuMonitoringEnabled', '已关闭弹幕监控，观众点歌、进场欢迎和自动回复已暂停');
     initImmediateToggle('giftMonitoringEnabled', 'giftMonitoringEnabled');

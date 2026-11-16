@@ -12,7 +12,7 @@
     </header>
     <div class="text-box-scene-context">
       <p data-text-box="scene">正在读取场景…</p>
-      <p class="hint">保存并应用会更新整个场景，包含已保存但尚未应用的内容；放弃修改只还原该场景未保存的修改。</p>
+      <p class="hint">保存和放弃修改均作用于整个场景。<lira-help label="保存范围说明">保存并应用会发布整个场景，包含已保存但尚未应用的内容；放弃修改会还原该场景所有未保存的修改。</lira-help></p>
     </div>
     <div class="text-box-workspace">
       <div class="text-box-empty" data-text-box="empty">
@@ -22,14 +22,14 @@
       <section class="text-box-detail" data-text-box="detail" aria-label="文本框详情" hidden>
         <div class="text-box-detail-heading">
           <input data-text-box="name" aria-label="文本框名称" maxlength="80" required />
+          <button class="secondary" type="button" data-text-box="copy" disabled>复制链接</button>
           <button class="secondary" type="button" data-text-box="duplicate">创建副本</button>
           <button class="secondary" type="button" data-text-box="remove">删除</button>
         </div>
         <div data-text-box="editor"></div>
         <section class="text-box-live-section">
-          <div class="text-box-live-heading"><h3>预览</h3><button class="secondary" type="button" data-text-box="canvas">在画布中调整</button></div>
+          <div class="text-box-live-heading"><h3>实时预览</h3><button class="secondary" type="button" data-text-box="canvas">在画布中调整</button></div>
           <div class="text-box-live" data-text-box="preview"></div>
-          <div class="text-box-live-actions"><button class="secondary" type="button" data-text-box="copy">复制直播地址</button></div>
         </section>
         <div class="text-box-detail-settings" data-text-box="settings"></div>
       </section>

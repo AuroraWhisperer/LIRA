@@ -28,6 +28,8 @@ export function applyTheme(settings, style) {
   // Transparent artwork must not inherit the classic panel's frosted backdrop.
   if (style !== 'classic') panel.classList.remove('has-backdrop-blur');
   root.style.setProperty('--overlay-index-color', settings.overlayIndexColor || '');
+  root.style.setProperty('--queue-request-requester-color', settings.queueRequestRequesterColor || '');
+  root.style.setProperty('--queue-request-song-color', settings.queueRequestSongColor || '');
   setIdentityRuleThemeVars(root, settings);
 
   const titleEl = panel.querySelector('.overlay-title');

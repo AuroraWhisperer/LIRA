@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createClock } = require('../helpers/toast-dom');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const saved = (enabled) => ({ ok: true, enabled });
@@ -15,6 +16,7 @@ const account = (name) => ({
 });
 
 async function fixture(profile = account('one')) {
+  const clock = createClock();
   const nodes = new Map(),
     reads = [],
     writes = [],
@@ -27,6 +29,7 @@ async function fixture(profile = account('one')) {
     children: [],
     events: {},
     attributes: {},
+    parentElement: {},
     addEventListener(name, fn) { this.events[name] = fn; },
     removeEventListener(name) { delete this.events[name]; },
     setAttribute(name, value) { this.attributes[name] = value; },
@@ -46,7 +49,7 @@ async function fixture(profile = account('one')) {
   const controller = initDanmakuPkReport({
     toast: (message, options) => toasts.push({ message, options }),
     documentRef: { getElementById: (id) => get(id.replace('danmakuPkReport', '')), createElement: node },
-    windowRef: get('window'),
+    windowRef: Object.assign(get('window'), clock),
     bridge: {
       getState: async () => profile,
       onStateChanged: (fn) => {
@@ -66,6 +69,7 @@ async function fixture(profile = account('one')) {
     reads,
     writes,
     toasts,
+    clock,
     refresh: controller.refresh,
     account: (name) => listener(account(name)),
     toggle: (value, suffix = 'Toggle') => {
@@ -167,7 +171,7 @@ test('extended switches save independently and master close preserves selections
   await flush();
   assert.equal(f.get('ReportToggle').checked, true);
   assert.equal(f.get('VisitorToggle').checked, true);
-  f.get('SaveBtn').events.click();
+  f.clock.tick(600);
   assert.deepEqual(f.writes[2].patch, {
     visitorWelcomeDelaySeconds: 12, visitorWelcomeMessages: ['未保存的串门欢迎 {username}'],
   });

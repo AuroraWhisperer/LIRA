@@ -173,7 +173,7 @@ body.blind-analysis-open .playback-player-panel {
   display: flex;
   align-items: center;
   gap: 16px;
-  padding: 8px 14px;
+  padding: 6px 14px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface);
@@ -205,7 +205,8 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-filter .lira-select-trigger {
-  min-height: 38px;
+  min-height: 34px;
+  padding: 4px 6px 4px 12px;
 }
 
 /* Viewer names can be long: let the shared menu grow past the trigger. */
@@ -217,7 +218,7 @@ body.blind-analysis-open .playback-player-panel {
 }
 
 .blind-analysis-clear {
-  min-height: 38px;
+  min-height: 34px;
   padding: 0 13px;
   border-radius: 7px;
   color: var(--muted);
@@ -233,14 +234,14 @@ body.blind-analysis-open .playback-player-panel {
   gap: 4px;
   min-width: 320px;
   margin-left: auto;
-  padding: 4px;
+  padding: 2px;
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-2);
 }
 
 .blind-analysis-view-tabs button {
-  min-height: 36px;
+  min-height: 28px;
   padding: 0 12px;
   border: 0;
   border-radius: 6px;
@@ -269,33 +270,14 @@ body.blind-analysis-open .playback-player-panel {
   background: var(--surface);
 }
 
-.blind-analysis-results-head {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 9px 14px;
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.blind-analysis-results-head h3 {
+.blind-analysis-notice {
   margin: 0;
-  color: var(--text);
-  font-size: var(--type-size-card-title);
-  font-weight: var(--type-weight-semibold);
-  line-height: var(--type-leading-card-title);
-}
-
-.blind-analysis-results-head div span,
-.blind-analysis-updated {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--color-border-light);
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
-}
-
-.blind-analysis-updated {
-  margin-left: auto;
 }
 
 .blind-analysis-table-wrap {
@@ -310,6 +292,14 @@ body.blind-analysis-open .playback-player-panel {
   border-collapse: collapse;
   font-size: var(--type-size-control);
   line-height: var(--type-leading-control);
+}
+
+.blind-analysis-table:has(.blind-analysis-empty) {
+  height: 100%;
+}
+
+.blind-analysis-table:has(.blind-analysis-empty) thead {
+  height: 1px;
 }
 
 .blind-analysis-table th {
@@ -341,7 +331,7 @@ body.blind-analysis-open .playback-player-panel {
   text-align: left;
 }
 
-.blind-analysis-table tbody tr:hover {
+.blind-analysis-table tbody tr:not(:has(.blind-analysis-empty)):hover {
   background: var(--color-bg-tertiary);
 }
 
@@ -355,9 +345,10 @@ body.blind-analysis-open .playback-player-panel {
   font-weight: var(--type-weight-bold);
 }
 
-.blind-analysis-table .blind-analysis-empty {
+.blind-analysis-table td.blind-analysis-empty {
   height: 180px;
   padding: 30px;
+  border-bottom: 0;
   color: var(--muted);
   text-align: center;
   white-space: normal;

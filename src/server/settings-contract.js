@@ -61,6 +61,9 @@ function normalizeSettingValue(key, rawValue) {
   if (Object.hasOwn(GIFT_MOTION_DEFAULTS, key)) return normalizeGiftMotionSetting(key, rawValue);
   if (key === NOW_PLAYING_SETTING) return normalizeNowPlayingSetting(rawValue);
   if (SONG_REQUEST_CONTROL_KEYS.includes(key)) return normalizeSongRequestSettingValue(key, rawValue);
+  if (key === 'queueRequestRequesterColor' || key === 'queueRequestSongColor') {
+    return typeof rawValue === 'string' && /^#[0-9a-f]{6}$/i.test(rawValue) ? rawValue.toLowerCase() : null;
+  }
   if (['blindboxWinnersOnly', 'blindboxHeartBoxOnly', 'blindboxCompact', 'blindboxAutoPages', 'blindboxShowCastlesRemaining', 'blindboxShowOpenedSinceCastle'].includes(key)) {
     return [true, false, 'true', 'false'].includes(rawValue) ? String(rawValue) : null;
   }

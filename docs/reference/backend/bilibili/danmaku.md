@@ -182,7 +182,7 @@ Server 的 `monitor-manager → daily-bot-service → daily-bot-store` 在认证
 
 ### 6.2 云端抽签与默认词库
 
-Server 保存每日抽签结果快照，同日重复命令、重启和词库更新均读取该快照。客户端 [bot-defaults.js](../../../../src/shared/bot-defaults.js) 保留 30 条祝福和 20 条签文，供设置默认值及旧数据兼容读取使用；本地签到、抽签服务及签到写入 store 已退役。旧库读取边界见 [storage.md](../storage.md)。
+Server 按主播保存抽签方式。默认「每日固定」保存每日结果快照，同日重复命令、重启和词库更新均读取该快照；「每次随机」从当前词库重新抽取，允许重复、不限每日次数，不写每日固定表。切回固定模式保留已有日快照。客户端在「抽签机器人 → 设置」中自动保存方式，并编辑词库；旧服务器不支持时禁用方式选择并提示更新。完整协议见 [云端规格](../../../../specs/cloud-daily-bots.md)。客户端 [bot-defaults.js](../../../../src/shared/bot-defaults.js) 保留 30 条祝福和 20 条签文，供设置默认值及旧数据兼容读取使用；本地签到、抽签服务及签到写入 store 已退役。旧库读取边界见 [storage.md](../storage.md)。
 
 ### 6.3 自定义回复(custom-reply-service)
 

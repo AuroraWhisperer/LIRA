@@ -1,5 +1,17 @@
+import { mixColor, parseHexColor } from '../shared/color-value.js';
+
 const ART = '/img/overlays/danmaku-christmas/';
 const GUARDS = Object.freeze({ 1: '总督', 2: '提督', 3: '舰长' });
+
+export function applyChristmasColors(document, options) {
+  const wine = parseHexColor(options.bubbleColor === 'default' ? '#782632' : options.bubbleColor);
+  for (const [name, color, weight] of [
+    ['low', '#1f111c', .88], ['high', '#d8b77c', .95], ['shade', '#1f111c', .76],
+  ]) {
+    const mixed = mixColor(wine, parseHexColor(color), weight);
+    document.documentElement.style.setProperty(`--christmas-${name}`, `rgba(${mixed.r}, ${mixed.g}, ${mixed.b}, ${mixed.alpha})`);
+  }
+}
 
 function node(document, tag, className, text) {
   const element = document.createElement(tag);

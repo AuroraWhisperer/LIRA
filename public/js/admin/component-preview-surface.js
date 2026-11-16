@@ -3,7 +3,7 @@ import { getRoomGuardState, subscribeRoomGuardState } from '../shared/bilibili-g
 import { previewElement } from './component-preview-elements.js';
 
 export function mountComponentPreview(host, { title, controller, url, projectConfig = (draft) => draft,
-  size, bounds, onEdit, onResize, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
+  size, bounds, onEdit, onResize, framed = false, dataLabel = '示例数据 · 不影响直播', dataModes, startData, onOpen, onClose }) {
   onOpen?.();
   const display = previewElement('section', 'component-preview-display');
   const toolbar = previewElement('div', 'component-preview-toolbar');
@@ -44,11 +44,17 @@ export function mountComponentPreview(host, { title, controller, url, projectCon
   function fit() {
     const state = controller.getState();
     const [width, height] = size(state.draft);
-    const scale = Math.min(stage.clientWidth / width, stage.clientHeight / height, 1);
+    const inset = framed ? 20 : 0;
+    const scale = Math.max(0, Math.min((stage.clientWidth - inset * 2) / width, (stage.clientHeight - inset * 2) / height, 1));
     frame.style.width = `${width}px`;
     frame.style.height = `${height}px`;
     frame.style.transform = `scale(${scale})`;
-    output.textContent = `输出视口 ${width} × ${height} · 适应窗口 ${Math.round(scale * 100)}%`;
+    if (framed) {
+      frame.style.left = `${(stage.clientWidth - width * scale) / 2}px`;
+      frame.style.top = `${(stage.clientHeight - height * scale) / 2}px`;
+    }
+    output.textContent = framed ? `画面尺寸 ${width} × ${height} · 预览 ${Math.round(scale * 100)}%`
+      : `输出视口 ${width} × ${height} · 适应窗口 ${Math.round(scale * 100)}%`;
     const region = bounds?.(state.draft) || { x: 0, y: 0, width, height };
     dimensions.textContent = `${region.width} × ${region.height} px`;
     dimensions.setAttribute('aria-label', `${title}尺寸：宽 ${region.width} 像素，高 ${region.height} 像素`);

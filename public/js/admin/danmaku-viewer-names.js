@@ -1,4 +1,5 @@
 import { setEditorPageContext } from './danmaku-editor-pagination.js';
+import { createAutosave } from './settings-autosave.js';
 
 export function initDanmakuViewerNames({
   documentRef = globalThis.document,
@@ -16,6 +17,9 @@ export function initDanmakuViewerNames({
   let settings = null, items = [], page = 1, total = 0, loaded = false, editing = null, notice = '', stateNotice = '';
   const blockedWordsInput = get('BlockedWords');
   let blockedWordsDirty = false;
+  let blockedWordsRevision = 0, blockedWordsFailed = false;
+  const autosave = createAutosave({ root: blockedWordsInput.parentElement, windowRef,
+    canSave: () => Boolean(owner && Array.isArray(settings?.blockedWords) && blockedWordsDirty && !busy), save: saveBlockedWords });
 
   function controls() {
     toggle.checked = settings?.enabled === true;
@@ -26,8 +30,10 @@ export function initDanmakuViewerNames({
     get('Notice').textContent = notice;
     get('Refresh').disabled = !owner || !available || busy || Boolean(editing);
     const supportsBlockedWords = Array.isArray(settings?.blockedWords);
-    blockedWordsInput.disabled = !owner || !supportsBlockedWords || busy;
-    get('BlockedWordsSave').disabled = blockedWordsInput.disabled || !blockedWordsDirty;
+    blockedWordsInput.disabled = !owner || !supportsBlockedWords;
+    get('BlockedWordsSave').disabled = blockedWordsInput.disabled || busy || !blockedWordsDirty;
+    get('BlockedWordsSave').textContent = '重试保存';
+    get('BlockedWordsSave').parentElement.hidden = !blockedWordsFailed;
     get('BlockedWordsCapability').hidden = !settings || supportsBlockedWords;
     get('Count').textContent = loaded ? `共 ${total} 人` : '';
     get('Empty').hidden = !loaded || items.length > 0;
@@ -128,7 +134,7 @@ export function initDanmakuViewerNames({
       if (stateOperation) stateNotice = notice;
       return false;
     } finally {
-      if (!disposed && requested === generation) { busy = false; controls(); }
+      if (!disposed && requested === generation) { busy = false; controls(); autosave.resume(); }
     }
   }
   function acceptSettings(result, resetDraft = false) {
@@ -176,6 +182,9 @@ export function initDanmakuViewerNames({
     if (disposed || next === owner) return;
     owner = next;
     generation++;
+    autosave.cancel();
+    blockedWordsRevision++;
+    blockedWordsFailed = false;
     settings = null;
     blockedWordsInput.value = '';
     blockedWordsDirty = false;
@@ -200,14 +209,22 @@ export function initDanmakuViewerNames({
     void perform(() => bridge.updateViewerNameSettings({ enabled }), acceptSettings,
       enabled ? '已开启昵称功能' : '已关闭昵称功能，已存昵称保留', true);
   });
-  blockedWordsInput.addEventListener('input', () => { blockedWordsDirty = true; controls(); });
-  get('BlockedWordsSave').addEventListener('click', () => {
-    if (!Array.isArray(settings?.blockedWords) || !blockedWordsDirty) return;
-    const blockedWords = blockedWordsInput.value.split(/\r?\n/u).map((word) => word.trim()).filter(Boolean);
-    void perform(() => bridge.updateViewerNameSettings({ blockedWords }), (result) => {
-      acceptSettings(result, true);
-    }, '昵称黑名单已保存到云端');
+  blockedWordsInput.addEventListener('input', () => {
+    blockedWordsDirty = true; blockedWordsRevision++; blockedWordsFailed = false; controls(); autosave.schedule();
   });
+  async function saveBlockedWords() {
+    if (!Array.isArray(settings?.blockedWords) || !blockedWordsDirty) return;
+    const requested = generation, revision = blockedWordsRevision;
+    const blockedWords = blockedWordsInput.value.split(/\r?\n/u).map((word) => word.trim()).filter(Boolean);
+    const ok = await perform(() => bridge.updateViewerNameSettings({ blockedWords }), (result) => {
+      settings = result;
+      if (revision === blockedWordsRevision) blockedWordsDirty = false;
+    }, '昵称黑名单已保存到云端');
+    if (requested !== generation || disposed) return;
+    blockedWordsFailed = !ok;
+    controls();
+  }
+  get('BlockedWordsSave').addEventListener('click', saveBlockedWords);
   get('Refresh').addEventListener('click', refresh);
   root.addEventListener('fixed-reply:select', select);
   const unsubscribe = bridge?.onStateChanged?.(account);
@@ -218,6 +235,7 @@ export function initDanmakuViewerNames({
   controls();
   function dispose() {
     disposed = true;
+    autosave.dispose();
     generation++;
     unsubscribe?.();
     root.removeEventListener('fixed-reply:select', select);

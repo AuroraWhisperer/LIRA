@@ -39,7 +39,7 @@ async function run() {
     executionOwner: 'server', observedAt: '2026-10-10T00:00:00Z',
     takeover: { state: 'ready', decision: 'fresh-start', revision: 1 },
     checkin: { enabled: false, revision: 0, reason: 'disabled' },
-    fortune: { enabled: false, revision: 0, reason: 'disabled' },
+    fortune: { enabled: false, revision: 0, reason: 'disabled', drawMode: 'daily' },
   };
   const libraries = { checkin: structuredClone(CHECKIN_BLESSINGS), fortune: structuredClone(FORTUNES) };
   const fixedReplies = {
@@ -66,6 +66,7 @@ async function run() {
   };
   const welcomeSettings = {
     schemaVersion: 2, enabled: true, welcomeDelaySeconds: 0, welcomeMinHonorLevel: 0,
+    liveGreetingEnabled: true,
     greetingEnabled: false, greetingDelaySeconds: 10, greetingMinHonorLevel: 0,
     attentionEnabled: false, attentionMinHonorLevel: 31, rareNamePinyinEnabled: false,
     returningEnabled: false, returningMessages: ['最近过得怎么样呀？', '很高兴又见到你～'],
@@ -170,6 +171,13 @@ async function run() {
       }
       if (operation === 'read') return structuredClone(saved);
       const kind = input.kind;
+      if (operation === 'update') {
+        if (input.body.expectedRevision !== saved[kind].revision)
+          throw Object.assign(new Error('DAILY_BOT_REVISION_CONFLICT'), { code: 'DAILY_BOT_REVISION_CONFLICT' });
+        saved[kind] = { ...saved[kind], enabled: input.body.enabled, revision: saved[kind].revision + 1,
+          ...(input.body.drawMode ? { drawMode: input.body.drawMode } : {}) };
+        return structuredClone(saved);
+      }
       if (operation === 'updateLibrary') {
         if (input.body.expectedVersion !== digest(libraries[kind]))
           throw Object.assign(new Error('DAILY_BOT_LIBRARY_CONFLICT'), { code: 'DAILY_BOT_LIBRARY_CONFLICT' });

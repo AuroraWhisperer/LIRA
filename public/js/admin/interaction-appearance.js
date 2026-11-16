@@ -7,6 +7,7 @@ import { renderPollRows } from '../shared/interaction-view.js';
 import { initParameterRanges, refreshParameterRange } from '../shared/parameter-range.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 
 export function initInteractionAppearance() {
   const get = (id) => document.getElementById(id);
@@ -145,10 +146,12 @@ export function initInteractionAppearance() {
     fill(state.draft);
   };
   window.addEventListener('app:settings-state', receive);
+  const autosave = bindComponentAutosave(controller, { root: form, saveButton: apply, status });
   window.addEventListener(
     'app:shutdown',
     () => {
       disposed = true;
+      autosave.dispose();
       observer.disconnect();
       window.removeEventListener('app:settings-state', receive);
     },

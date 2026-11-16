@@ -77,6 +77,10 @@ function sanitizeSettings(value) {
     )
       invalid('DAILY_BOT_INVALID_RESPONSE');
     result[kind] = { enabled: item.enabled, revision: item.revision, reason: item.reason };
+    if (kind === 'fortune' && Object.hasOwn(item, 'drawMode')) {
+      if (!['daily', 'random'].includes(item.drawMode)) invalid('DAILY_BOT_INVALID_RESPONSE');
+      result[kind].drawMode = item.drawMode;
+    }
   }
   return result;
 }

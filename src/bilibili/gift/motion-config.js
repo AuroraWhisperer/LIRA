@@ -11,8 +11,9 @@ function normalizeGiftMotionSetting(key, raw) {
   const field = effect.fields[key.slice(effect.prefix.length)];
   if (field.options) return field.options.some(([value]) => value === raw) ? raw : null;
   const value = Number(raw);
-  return ['string', 'number'].includes(typeof raw) && String(raw).trim() !== '' && Number.isInteger(value)
-    && value >= field.min && value <= field.max ? String(value) : null;
+  if (!['string', 'number'].includes(typeof raw) || String(raw).trim() === '' || !Number.isFinite(value)) return null;
+  const bounded = Math.min(field.max, Math.max(field.min, value));
+  return Number.isInteger(bounded) ? String(bounded) : null;
 }
 
 function buildGiftMotionEvents(item, settings = {}, { startedAt = Date.now(), artworkPath = '' } = {}) {

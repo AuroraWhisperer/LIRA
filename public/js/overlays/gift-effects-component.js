@@ -10,7 +10,7 @@ import { resolveComponentResource } from './component-resources.js';
 import { WOODLAND_GIFT_VIDEO } from '../shared/component-resource-style.js';
 import { createGiftMotionPlayer } from './gift-motion-player.js';
 import { createGiftMotionSamples } from '../shared/gift-motion-samples.js';
-import { GIFT_DROP_SPAWN_DELAY_MS, GIFT_DROP_EXIT_MS } from '../shared/gift-drop-physics.js';
+import { GIFT_DROP_EXIT_MS } from '../shared/gift-drop-physics.js';
 import { isGiftFrameEventForLayer } from '../shared/gift-frame-style-triggers.js';
 
 export function mountGiftEffectComponent() {
@@ -101,7 +101,7 @@ export function mountGiftEffectComponent() {
       if (current !== generation) return;
       const interval = mediaPlayer ? Math.max(3000, mediaPlayer.durationMs * sample.events.length + 1000)
         : motion ? Math.max(...events.map(event => (event.motion?.durationSeconds || 20) * 1000))
-          + (drop ? GIFT_DROP_SPAWN_DELAY_MS + GIFT_DROP_EXIT_MS : events.length * 1500) + 1000
+          + (drop ? GIFT_DROP_EXIT_MS : events.length * 1500) + 1000
           : frame ? FRAME_DURATION_MS * sample.events.length + 1500 : 8000;
       timer = setTimeout(preview, interval);
     }).catch(() => {});

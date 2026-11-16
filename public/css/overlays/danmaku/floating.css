@@ -16,7 +16,7 @@ body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-feed {
   overflow: hidden;
 }
 body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item {
-  --floating-background: #707070;
+  --floating-background-rgb: 112 112 112;
   position: absolute;
   display: block;
   width: max-content;
@@ -27,14 +27,14 @@ body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item {
   border: 3px solid #ededed;
   border-radius: 22px;
   color: #fff;
-  background: color-mix(in srgb, var(--floating-background) var(--danmaku-background-weight, 100%), transparent);
+  background: rgb(var(--floating-background-rgb) / var(--danmaku-background-weight, 100%));
   box-shadow: 0 4px 9px rgb(0 0 0 / 40%), inset 0 0 0 1px rgb(0 0 0 / 35%);
   font-family: var(--danmaku-custom-font, var(--danmaku-ui-font));
   clip-path: none;
   animation: none;
 }
 body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item:is([data-identity='captain'], [data-identity='admiral'], [data-identity='governor']) {
-  --floating-background: #353535;
+  --floating-background-rgb: 53 53 53;
 }
 body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-item::after { display: none; }
 body:is([data-style='floating'], [data-style='comet']) .draw-danmaku-body {

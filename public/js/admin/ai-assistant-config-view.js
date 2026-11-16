@@ -4,6 +4,7 @@ import { isSubscriptionSelected, renderSubscriptionStatus } from './ai-assistant
 const FIELD_MAP = Object.freeze({
   enabled: ['xiaomiAiEnabled', 'checked'],
   autoReplyEnabled: ['xiaomiAiAutoReplyEnabled', 'checked'],
+  autoReplyMentionEnabled: ['xiaomiAiAutoReplyMentionEnabled', 'checked'],
   autoReplyProbabilityPercent: ['xiaomiAiAutoReplyProbability', 'number'],
   trigger: ['xiaomiAiTrigger', 'value'],
   modelProvider: ['xiaomiAiModelProvider', 'value'],
@@ -13,7 +14,6 @@ const FIELD_MAP = Object.freeze({
   deepseekApiKey: ['xiaomiAiDeepSeekKey', 'secret', 'hasDeepSeekApiKey'],
   model: ['xiaomiAiModel', 'value'],
   webSearchEnabled: ['xiaomiAiWebSearch', 'checked'],
-  functionCallingEnabled: ['xiaomiAiFunctionCalling', 'checked'],
   reasoningEnabled: ['xiaomiAiReasoning', 'checked'],
   reasoningEffort: ['xiaomiAiReasoningEffort', 'value'],
   qweatherApiHost: ['xiaomiAiQWeatherHost', 'value'],
@@ -71,11 +71,17 @@ export function collectConfig() {
       }
     }
   }
+  config.functionCallingEnabled = Boolean(config.webSearchEnabled || config.weatherEnabled || config.placesEnabled || config.routesEnabled);
   return config;
 }
 
 export function renderConfig(config, preservedFieldIds = new Set()) {
   config = { modelAuthMode: 'api', ...config };
+  // Keep queries disabled when loading settings saved with the former master switch off.
+  if (config.functionCallingEnabled === false) {
+    config = { ...config, weatherEnabled: false, placesEnabled: false, routesEnabled: false };
+    if (config.modelEndpoint?.webSearchMode === 'local_function') config.webSearchEnabled = false;
+  }
   if (!preservedFieldIds.has('xiaomiAiReasoningEffort')) selectedReasoningEffort = config.reasoningEffort || 'auto';
   for (const [key, [id, kind]] of Object.entries(FIELD_MAP)) {
     const element = document.getElementById(id);
@@ -113,14 +119,11 @@ export function renderConfigSummary(config, savedConfig = {}) {
 }
 
 export function renderToolSettings() {
-  const functionsEnabled = Boolean(document.getElementById('xiaomiAiFunctionCalling')?.checked);
-  const localTools = document.getElementById('xiaomiAiLocalTools');
-  if (localTools) localTools.hidden = !functionsEnabled;
   const weather = document.getElementById('xiaomiAiWeatherCredentials');
   const map = document.getElementById('xiaomiAiMapCredentials');
   if (weather) weather.hidden = !document.getElementById('xiaomiAiWeatherEnabled')?.checked;
   if (map) map.hidden = !(document.getElementById('xiaomiAiPlacesEnabled')?.checked || document.getElementById('xiaomiAiRoutesEnabled')?.checked);
-  for (const [prefix, active] of [['QWeather', functionsEnabled && !weather?.hidden], ['Amap', functionsEnabled && !map?.hidden]]) {
+  for (const [prefix, active] of [['QWeather', !weather?.hidden], ['Amap', !map?.hidden]]) {
     for (const suffix of ['Host', 'Key']) {
       const input = document.getElementById(`xiaomiAi${prefix}${suffix}`);
       if (input) input.disabled = !active;
@@ -185,7 +188,7 @@ export function renderProviderSelection(value, options = {}) {
 
 function renderProviderAccess(provider, subscription) {
   const links = {
-    deepseek: ['https://platform.deepseek.com/api_keys', '', '使用开放平台 API Key；网页登录不会自动连接 LIRA。'],
+    deepseek: ['https://platform.deepseek.com/api_keys', '', ''],
     kimi: ['https://platform.moonshot.cn/console/api-keys', 'https://www.kimi.com/en/help/kimi-code/membership-guide', '使用 Moonshot 开放平台密钥。Kimi 会员 / Kimi Code 订阅不用于这里的弹幕自动回复。'],
     openai: ['https://platform.openai.com/api-keys', 'https://learn.chatgpt.com/docs/sign-in-with-chatgpt', '可选择 API 或 ChatGPT 订阅；订阅接入是否可用以官方授权结果为准。'],
     anthropic: ['https://platform.claude.com/settings/keys', 'https://code.claude.com/docs/en/legal-and-compliance', 'Claude 订阅未开放此类应用内授权；这里使用 Claude API Key。'],
@@ -197,6 +200,7 @@ function renderProviderAccess(provider, subscription) {
   panel.hidden = !entry || subscription;
   if (!entry) return;
   setText('xiaomiAiProviderAccessNote', entry[2]);
+  document.getElementById('xiaomiAiProviderAccessNote').hidden = !entry[2];
   document.getElementById('xiaomiAiApiConsole').href = entry[0];
   const info = document.getElementById('xiaomiAiSubscriptionInfo');
   info.hidden = !entry[1];
@@ -266,7 +270,7 @@ function renderModelCapabilities(endpoint = {}, efforts = []) {
     setText('xiaomiAiWebSearchHelp', '使用平台原生搜索，需模型支持。');
   } else if (webSearchMode === 'local_function') {
     setText('xiaomiAiWebSearchLabel', 'LIRA 联网搜索');
-    setText('xiaomiAiWebSearchHelp', '需模型支持工具调用，并开启「可选工具 → 允许模型调用工具」。');
+    setText('xiaomiAiWebSearchHelp', '需模型支持工具调用。');
   } else {
     setText('xiaomiAiWebSearchLabel', '联网搜索');
     setText('xiaomiAiWebSearchHelp', '保存模型服务后确定搜索方式。');

@@ -3,6 +3,7 @@ import { COMPONENT_PREVIEW_DEFINITIONS } from './component-preview-definitions.j
 import { previewElement } from './component-preview-elements.js';
 import { requestComponentStyles } from './component-style-api.js';
 import { COMPONENT_RESOURCE_PRESETS } from '../shared/component-resource-style.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 
 // The package provides values; the installed native renderer owns its controls.
 export function createResourceStyleSettings(style, { request = requestComponentStyles, signal } = {}) {
@@ -23,19 +24,26 @@ export function createResourceStyleSettings(style, { request = requestComponentS
   return {
     controller,
     mount(host) {
-      const panel = COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview({ embedded: true }).createPanel(host, controller);
+      const root = previewElement('div');
+      host.append(root);
+      const panel = COMPONENT_PREVIEW_DEFINITIONS[style.type].createPreview({ embedded: true }).createPanel(root, controller);
       const save = previewElement('button', 'secondary', '保存此样式'); save.type = 'button';
       const status = previewElement('p', 'hint'); status.setAttribute('role', 'status');
       save.addEventListener('click', () => { void controller.save(); });
-      host.append(save, status);
+      root.append(save, status);
       const stop = controller.subscribe(state => {
         save.disabled = !state.dirty || state.saving;
         status.textContent = state.error || (state.saving ? '正在保存…' : state.dirty ? '有未保存的修改' : '已保存，与画布中的同样式组件同步。');
       });
+      const autosave = bindComponentAutosave(controller, { root, saveButton: save, status });
       const timer = setInterval(() => {
-        if (!document.hidden && host.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
+        if (!document.hidden && !controller.getStatus().error && host.checkVisibility({ checkVisibilityCSS: true })) void controller.reload();
       }, 1000);
-      return { dispose() { clearInterval(timer); stop(); panel?.dispose(); host.replaceChildren(); } };
+      return { dispose() {
+        clearInterval(timer);
+        root.remove();
+        void autosave.flush().finally(() => { autosave.dispose(); stop(); panel?.dispose(); });
+      } };
     },
     async savedStyle() {
       if (controller.getState().dirty && !await controller.save()) throw new Error(controller.getState().error || '样式保存失败，请重试。');

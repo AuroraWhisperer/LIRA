@@ -131,7 +131,7 @@ body[data-style='startrail'] .startrail-star {
   background: currentColor;
   clip-path: polygon(50% 0, 60% 37%, 100% 50%, 60% 60%, 50% 100%, 40% 60%, 0 50%, 40% 37%);
   opacity: var(--danmaku-enter-opacity);
-  transform: var(--danmaku-enter-transform);
+  transform: scale(var(--danmaku-enter-scale-x));
   animation: startrailTwinkle 4.8s ease-in-out infinite;
 }
 body[data-style='startrail'] .startrail-star::after {
@@ -139,7 +139,7 @@ body[data-style='startrail'] .startrail-star::after {
   position: absolute;
   inset: 37%;
   border-radius: 50%;
-  background: rgb(from currentColor 255 255 255 / alpha);
+  background: rgb(255 255 255 / var(--startrail-color-alpha, 1));
 }
 body[data-style='startrail'] .startrail-halo {
   position: absolute;
@@ -192,7 +192,7 @@ body[data-style='startrail'] .startrail-dust i:nth-child(3) { top: 15px; left: 6
 body[data-style='startrail'][data-startrail-dust='off'] .startrail-dust { display: none; }
 body[data-style='startrail'] [data-live-entry][data-startrail-entrance='spark'] .startrail-head {
   opacity: var(--danmaku-enter-opacity);
-  transform: var(--danmaku-enter-transform);
+  transform: scale(var(--danmaku-enter-scale-x));
   animation: startrailHeadIn var(--startrail-entry-duration, 680ms) ease-out both;
 }
 body[data-style='startrail'] [data-live-entry][data-startrail-entrance='spark'] .draw-danmaku-body {
@@ -206,9 +206,9 @@ body[data-style='startrail'] [data-live-entry][data-startrail-entrance='spark'] 
 body[data-style='startrail'][data-ambient-motion='off'] .startrail-star,
 body[data-style='startrail'][data-ambient-motion='off'] .startrail-dust { animation: none; }
 @keyframes startrailHeadIn {
-  0% { --danmaku-enter-opacity: 0; --danmaku-enter-transform: scale(.65); }
-  28% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.18); }
-  100% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1); }
+  0% { --danmaku-enter-opacity: 0; --danmaku-enter-scale-x: .65; }
+  28% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1.18; }
+  100% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1; }
 }
 @keyframes startrailTextIn {
   0%, 18% { --danmaku-enter-opacity: 0; }
@@ -219,8 +219,8 @@ body[data-style='startrail'][data-ambient-motion='off'] .startrail-dust { animat
   100% { --danmaku-enter-opacity: 1; }
 }
 @keyframes startrailTwinkle {
-  0%, 100% { --danmaku-enter-opacity: .82; --danmaku-enter-transform: scale(.94); }
-  46% { --danmaku-enter-opacity: 1; --danmaku-enter-transform: scale(1.06); }
+  0%, 100% { --danmaku-enter-opacity: .82; --danmaku-enter-scale-x: .94; }
+  46% { --danmaku-enter-opacity: 1; --danmaku-enter-scale-x: 1.06; }
 }
 @keyframes startrailDust {
   0%, 100% { --danmaku-enter-opacity: .55; }

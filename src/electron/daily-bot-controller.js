@@ -189,7 +189,7 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
           result = { summary: summary() };
           break;
         case 'update': {
-          exact(input, ['kind', 'enabled', 'expectedRevision']);
+          exact(input, ['kind', 'enabled', 'expectedRevision', 'drawMode'], ['kind', 'enabled', 'expectedRevision']);
           if (
             !['checkin', 'fortune'].includes(input.kind) ||
             typeof input.enabled !== 'boolean' ||
@@ -197,11 +197,14 @@ function createDailyBotController({ licenseManager, getLegacyReader, sourceLabel
             input.expectedRevision < 0
           )
             invalid();
+          const hasDrawMode = Object.hasOwn(input, 'drawMode');
+          if (hasDrawMode && (input.kind !== 'fortune' || !['daily', 'random'].includes(input.drawMode))) invalid();
           result = {
             data: sanitizeSettings(
               await call(captured, 'update', {
                 kind: input.kind,
-                body: { enabled: input.enabled, expectedRevision: input.expectedRevision },
+                body: { enabled: input.enabled, expectedRevision: input.expectedRevision,
+                  ...(hasDrawMode ? { drawMode: input.drawMode } : {}) },
               }),
             ),
           };

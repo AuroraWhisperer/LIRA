@@ -64,11 +64,10 @@ test('client imports nautical style, applies it and renders tier, live identity,
   await settings.getByRole('button', { name: '在画布中预览', exact: true }).click();
   await desktop.waitForFunction(() => window.controllers.canvas.getState().draft.document.items.length === 1);
   await settings.locator('[data-parameter-group="appearance"] > summary').click();
+  const styleSaved = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/component-styles/config');
   await settings.locator('[data-component-parameter="nameFontSize"]').fill('52');
   await settings.locator('[data-component-parameter="nameFontSize"]').blur();
   await desktop.evaluate(() => window.dispatchEvent(new Event('focus')));
-  const styleSaved = desktop.waitForResponse(response => new URL(response.url()).pathname === '/api/component-styles/config');
-  await settings.getByRole('button', { name: '保存设置', exact: true }).click();
   assert.equal((await styleSaved).status(), 200);
   await settings.locator('[data-preview-parameter="tier"]').selectOption('admiral');
   await settings.locator('[data-preview-parameter="userName"]').fill('预览观众');

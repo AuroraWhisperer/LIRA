@@ -1,3 +1,5 @@
+import { GIFT_MOTION_DEFAULTS } from './gift-motion-settings.js';
+
 // A bounded rigid-body world for gift artwork. Wall-clock expiry is independent
 // of simulation steps, so removing a support always releases the stack above it.
 export const MAX_GIFT_DROP_BODIES = 400;
@@ -79,41 +81,79 @@ function pairs(bodies, size) {
   return result;
 }
 
+function entryPosition(body, active, width) {
+  let spaces = [[body.size / 2, width - body.size / 2]];
+  for (const other of active) {
+    if (other.y - other.extent >= body.size) continue;
+    const left = other.x - other.extent - body.extent;
+    const right = other.x + other.extent + body.extent;
+    spaces = spaces.flatMap(([start, end]) => {
+      if (right <= start || left >= end) return [[start, end]];
+      return [[start, Math.min(end, left)], [Math.max(start, right), end]]
+        .filter(([from, to]) => to > from);
+    });
+  }
+  let position = null; let distance = Infinity;
+  for (const [start, end] of spaces) {
+    const x = Math.max(start, Math.min(end, body.x));
+    if (Math.abs(x - body.x) < distance) { position = x; distance = Math.abs(x - body.x); }
+  }
+  return position;
+}
+
 export function createGiftDropWorld({ width = 1920, height = 1080, random = Math.random } = {}) {
   let bodies = []; let remainder = 0;
+  function removeExpired(now) {
+    bodies = bodies.filter(body => body.expiresAt > now || body.entered && body.expiresAt + GIFT_DROP_EXIT_MS > now);
+  }
   return {
     get bodies() { return bodies; },
     addGift(event, now) {
+      removeExpired(now);
       const size = event.motion.size;
       const collisionSize = size * 0.8;
       const motionSpeed = (event.motion.speed ?? 100) / 100;
       const bounce = (event.motion.bounce ?? 18) / 100;
-      const multiplier = event.motion.quantityMultiplier ?? 8;
-      const expiresAt = event.startedAt + event.motion.durationSeconds * 1000;
-      if (expiresAt + GIFT_DROP_SPAWN_DELAY_MS <= now) return [];
+      // Explicit multipliers are only read from events created by older clients.
+      const legacyMultiplier = event.motion.count == null ? event.motion.quantityMultiplier : null;
+      const requestedCount = legacyMultiplier == null
+        ? event.motion.count ?? Number(GIFT_MOTION_DEFAULTS.giftDropCount)
+        : Math.min(event.num, 60) * legacyMultiplier;
+      const durationMs = event.motion.durationSeconds * 1000;
+      const expiresAt = event.startedAt + durationMs;
+      if (expiresAt <= now) return [];
+      const spawnWindowMs = Math.min(GIFT_DROP_SPAWN_DELAY_MS, durationMs / 2);
       // Large combos keep their true quantity on the last representative image.
       // Existing gifts are never evicted early to make room for a newer gift.
-      const count = Math.min(event.num * multiplier, 60 * multiplier, MAX_GIFT_DROP_BODIES - bodies.length);
+      const count = Math.min(requestedCount, MAX_GIFT_DROP_BODIES - bodies.length);
+      const representedCount = legacyMultiplier == null ? count : Math.ceil(count / legacyMultiplier);
       const added = [];
       for (let index = 0; index < count; index++) {
-        const delay = random() * GIFT_DROP_SPAWN_DELAY_MS;
-        if (expiresAt + delay <= now) continue;
+        const delay = random() * spawnWindowMs;
         const body = { id: `${event.eventId}:${index}`, eventId: event.eventId,
-          quantity: index === count - 1 ? Math.max(1, event.num - Math.ceil(count / multiplier) + 1) : 1,
+          quantity: index === count - 1 ? Math.max(1, event.num - representedCount + 1) : 1,
           size, half: collisionSize / 2, invInertia: 6 / (collisionSize * collisionSize), motionSpeed, bounce,
-          spawnAt: event.startedAt + delay, expiresAt: expiresAt + delay,
+          spawnAt: event.startedAt + delay, expiresAt, spawned: false, entered: false,
           x: size + random() * (width - size * 2), y: -size / 2,
           vx: (random() - 0.5) * 160 * motionSpeed, vy: (80 + random() * 80) * motionSpeed,
           angle: (random() - 0.5) * Math.PI, spin: (random() - 0.5) * 3 * motionSpeed };
+        body.extent = body.half * (Math.abs(Math.cos(body.angle)) + Math.abs(Math.sin(body.angle)));
         bodies.push(body); added.push(body);
       }
       return added;
     },
     step(elapsed, now) {
-      bodies = bodies.filter(body => body.expiresAt + GIFT_DROP_EXIT_MS > now);
-      const active = bodies.filter(body => body.spawnAt <= now);
+      removeExpired(now);
+      const active = bodies.filter(body => body.spawned);
       // Expired gifts fall through the floor and release the stack while fading.
       const collidable = active.filter(body => body.expiresAt > now);
+      for (const body of bodies) {
+        if (body.spawned || body.spawnAt > now) continue;
+        const x = entryPosition(body, collidable, width);
+        if (x === null) continue;
+        body.x = x; body.spawned = true;
+        active.push(body); collidable.push(body);
+      }
       remainder += Math.max(0, Math.min(elapsed, 1 / 15));
       while (remainder >= FIXED_STEP) {
         remainder -= FIXED_STEP;
@@ -127,6 +167,7 @@ export function createGiftDropWorld({ width = 1920, height = 1080, random = Math
           body.cosine = Math.cos(body.angle);
           body.sine = Math.sin(body.angle);
           body.extent = body.half * (Math.abs(body.cosine) + Math.abs(body.sine));
+          if (body.y + body.extent > 0) body.entered = true;
         }
         for (let iteration = 0; iteration < 5; iteration++) {
           const candidates = pairs(collidable, 240);

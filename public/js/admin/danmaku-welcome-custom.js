@@ -40,7 +40,7 @@ export function createWelcomeCustom({ documentRef, element, state, changed }) {
           input.placeholder = '例如：欢迎 {username}，老朋友来啦～';
         }
         input.addEventListener('input', () => {
-          item[key] = input.value;
+          state.items[index][key] = input.value;
           edit();
         });
         fields.push(input);

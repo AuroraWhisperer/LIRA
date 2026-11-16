@@ -11,6 +11,7 @@ import { getActiveComponentPreview } from './component-preview-session.js';
 import { SCENE_EXTRA_COMPONENTS, createSceneExtraDefaults } from '../shared/scene-extra-components.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 
 const settingIds = GUARD_THANKS_EFFECTS.flatMap(({ prefix }) => [`${prefix}Enabled`, `${prefix}TextMode`]);
 const controllers = new Map();
@@ -50,6 +51,9 @@ export function initGuardThanks() {
     field(effect, 'SaveBtn').addEventListener('click', () => saveSettings(effect));
     field(effect, 'PlayBtn').addEventListener('click', () => playPreview(effect));
     subscriptions.push(controller.subscribe(state => renderEffect(effect, state)));
+    const autosave = bindComponentAutosave(controller, { root: field(effect, 'SaveBtn').closest('.guard-thanks-heading') || panel,
+      saveButton: field(effect, 'SaveBtn'), status: field(effect, 'SaveState') });
+    subscriptions.push(() => autosave.dispose());
   }
   const receiveSettings = event => renderGuardThanks(event.detail || {});
   window.addEventListener('app:settings-state', receiveSettings);

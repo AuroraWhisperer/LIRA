@@ -38,7 +38,7 @@ body[data-style='ranked'] .draw-danmaku-avatar {
   width: var(--ranked-avatar-size);
   height: var(--ranked-avatar-size);
   min-width: var(--ranked-avatar-size);
-  border: 3px solid color-mix(in srgb, var(--ranked-accent) 72%, white);
+  border: 3px solid var(--ranked-border);
   border-radius: 50%;
   color: transparent;
   background: var(--danmaku-avatar-art) center / cover no-repeat;
@@ -71,7 +71,7 @@ body[data-style='ranked'] .draw-danmaku-identity {
   padding: 3px 8px;
   border-radius: 999px 999px 999px 0;
   color: #fff;
-  background: color-mix(in srgb, var(--ranked-accent) 55%, black);
+  background: var(--ranked-name-surface);
   box-shadow:
     inset 0 1px rgb(255 255 255 / 14%),
     0 2px 5px rgb(12 18 30 / 18%);
@@ -98,7 +98,7 @@ body[data-style='ranked']
   bottom: 2px;
   width: 24px;
   height: 30px;
-  background: color-mix(in srgb, var(--ranked-accent) 82%, white);
+  background: var(--ranked-badge-surface);
   -webkit-mask: url('/img/overlays/danmaku-ranked/anchor.svg') center / contain no-repeat;
   mask: url('/img/overlays/danmaku-ranked/anchor.svg') center / contain no-repeat;
   content: '';
@@ -174,24 +174,6 @@ body[data-style='ranked'] .draw-danmaku-empty {
   clip-path: none;
 }
 
-/* 旧版 OBS 内核不支持 color-mix，用特性检测避免变量求值后底色变透明。 */
-@supports not (color: color-mix(in srgb, black, white)) {
-  body[data-style='ranked'] .draw-danmaku-avatar {
-    border: 3px solid var(--ranked-accent);
-  }
-  body[data-style='ranked'] .draw-danmaku-identity {
-    background: linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.45)), var(--ranked-accent);
-  }
-  body[data-style='ranked']
-    .draw-danmaku-item:not(.is-gift):not([data-streamer='true']):is(
-      [data-identity='captain'],
-      [data-identity='admiral'],
-      [data-identity='governor']
-    )
-    .draw-danmaku-identity::before {
-    background: linear-gradient(rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.18)), var(--ranked-accent);
-  }
-}
 
 /* 礼物沿用 SC 的彩色头部与浅色正文卡片。 */
 body[data-style='ranked'] .draw-danmaku-item.is-gift {
@@ -200,8 +182,10 @@ body[data-style='ranked'] .draw-danmaku-item.is-gift {
   --gift-name: #4e2d5c;
   --gift-action: #783e84;
   --gift-accent: #8e2f86;
+  --gift-border: rgb(209.8 171.8 206.6);
   --gift-header: #e6bdf3;
   --gift-surface: #f8eaff;
+  --gift-surface-rgb: 248 234 255;
   --gift-sheen: rgb(255 255 255 / 65%);
   grid-template-areas: 'avatar identity' 'gift gift';
   grid-template-columns: 54px minmax(0, 1fr);
@@ -254,10 +238,10 @@ body[data-style='ranked'] .is-gift .draw-danmaku-gift-copy {
 body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
   background:
     linear-gradient(
-      color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent),
-      color-mix(in srgb, rgba(0, 0, 0, 0.28) var(--danmaku-background-weight), transparent)
+      rgb(0 0 0 / calc(.28 * var(--danmaku-background-opacity))),
+      rgb(0 0 0 / calc(.28 * var(--danmaku-background-opacity)))
     ),
-    color-mix(in srgb, var(--ranked-accent) var(--danmaku-background-weight), transparent);
+    rgb(var(--ranked-accent-rgb) / var(--danmaku-background-opacity));
 }
 body[data-custom-background='true'][data-style='ranked'] .draw-danmaku-item.is-gift {
   background:

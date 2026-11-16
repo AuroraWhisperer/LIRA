@@ -4,10 +4,11 @@ const gifts = [['小花花', 'flower'], ['牛哇牛哇', 'cheer'], ['打call', '
 
 export function createGiftMotionSamples(style, settings = {}) {
   const effect = GIFT_MOTION_EFFECTS.find(effect => effect.style === style);
-  return gifts.map(([giftName, image], index) => ({
+  const samples = style === 'gift-drop' ? gifts.slice(0, 1) : gifts;
+  return samples.map(([giftName, image], index) => ({
     type: 'gift:frame', themeId: style, eventId: `motion-preview-${style}-${index}`,
     userName: ['观众A', '观众B', '观众C'][index], giftName,
-    num: style === 'gift-drop' ? 5 : index + 1, totalPriceCents: 100,
+    num: index + 1, totalPriceCents: 100,
     artworkPath: `/img/overlays/gift-feed/${image}.webp`,
     motion: readGiftMotionSettings(settings, effect), preview: true,
   }));

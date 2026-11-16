@@ -44,7 +44,7 @@ test('published motion layers isolate styles, retain settlement expiry through d
   const event = { type: 'gift:frame', eventId: 'drop-live', themeId: 'gift-drop',
     userName: '<观众>', giftName: '小花花', num: 4, totalPriceCents: 500,
     artworkPath: '/img/overlays/gift-feed/flower.webp', startedAt,
-    motion: { size: 88, durationSeconds: 3, quantityMultiplier: 3 } };
+    motion: { size: 88, durationSeconds: 3, count: 12 } };
   let releaseImage;
   const imageGate = new Promise(resolve => { releaseImage = resolve; });
   await context.route('**/img/overlays/gift-feed/flower.webp', async route => {
@@ -63,6 +63,9 @@ test('published motion layers isolate styles, retain settlement expiry through d
   assert.equal(await swing.locator('.gift-drop-item').count(), 0);
   assert.equal(await swing.locator('.gift-swing-name').textContent(), '<观众>');
   const dropDeadline = Number(await drop.locator('.gift-drop-item').first().getAttribute('data-expires-at'));
+  assert.equal(dropDeadline, startedAt + 3000);
+  assert.ok(await drop.locator('.gift-drop-item').evaluateAll((nodes, deadline) =>
+    nodes.every(node => Number(node.dataset.expiresAt) === deadline), dropDeadline));
   assert.equal(await drop.locator('.gift-drop-item').first().evaluate(node => node.style.width), '88px');
   fixture.receiveGift(event);
   assert.equal(await drop.locator('.gift-drop-item').count(), 12);
@@ -84,6 +87,7 @@ test('published motion layers isolate styles, retain settlement expiry through d
   await page.clock.setFixedTime(endedAt);
   await drop.waitForFunction(() => !document.querySelector('.gift-drop-item'), null, { timeout: 5000 });
   await swing.locator('.gift-swing-item').waitFor({ state: 'detached', timeout: 5000 });
+  fixture.receiveGift({ ...event, eventId: 'drop-too-late' });
   for (const [textMode, text] of [['gift', '小花花 ×4'], ['none', ''], ['name-quantity', '<观众>×4']]) {
     fixture.receiveGift({ ...event, eventId: `swing-${textMode}`, themeId: 'gift-swing', startedAt: endedAt,
       motion: { size: 120, durationSeconds: 3, angle: 30, speed: 150, textMode } });
@@ -92,6 +96,47 @@ test('published motion layers isolate styles, retain settlement expiry through d
     assert.equal(await card.textContent(), text);
     assert.equal(await card.locator('img').count(), 1);
   }
+  assert.equal(await drop.locator('.gift-drop-item').count(), 0);
+
+  let releaseLateImage;
+  const lateImageGate = new Promise(resolve => { releaseLateImage = resolve; });
+  await context.route('**/img/overlays/gift-feed/cheer.webp', async route => {
+    await lateImageGate;
+    await route.fulfill({ contentType: 'image/svg+xml', headers: { 'Access-Control-Allow-Origin': '*' },
+      body: '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="8"><rect width="8" height="8" fill="red"/></svg>' });
+  });
+  fixture.receiveGift({ ...event, eventId: 'late-artwork', startedAt: endedAt,
+    artworkPath: '/img/overlays/gift-feed/cheer.webp', motion: { size: 88, durationSeconds: 3, count: 1 } });
+  const lateDrop = drop.locator('[data-motion-id="late-artwork:0"]');
+  await lateDrop.waitFor({ state: 'attached', timeout: 5000 });
+  await page.clock.setFixedTime(endedAt + GIFT_DROP_SPAWN_DELAY_MS);
+  await drop.waitForFunction(() => {
+    const node = document.querySelector('[data-motion-id="late-artwork:0"]');
+    return node && Number(node.style.transform.match(/translate\([^,]+,\s*([^p]+)px\)/)?.[1]) > 0;
+  }, null, { timeout: 5000 });
+  assert.equal(await lateDrop.locator('img').evaluate(image => image.hidden), true);
+  await page.clock.setFixedTime(endedAt + 3000);
+  await lateDrop.waitFor({ state: 'hidden', timeout: 5000 });
+  releaseLateImage();
+  await drop.waitForFunction(() => {
+    const node = document.querySelector('[data-motion-id="late-artwork:0"]');
+    return !node || node.querySelector('img').src.startsWith('data:image/webp');
+  }, null, { timeout: 5000 });
+  assert.equal(await lateDrop.isVisible(), false, 'artwork first loaded after expiry must not appear during fade-out');
+
+  await drop.evaluate(() => {
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+  const hiddenAt = endedAt + 3000;
+  const pending = { ...event, startedAt: hiddenAt, motion: { ...event.motion, count: 100 } };
+  fixture.receiveGift({ ...pending, eventId: 'hidden-old' });
+  await drop.locator('[data-motion-id="hidden-old:0"]').waitFor({ state: 'attached', timeout: 5000 });
+  await page.clock.setFixedTime(hiddenAt + 3000);
+  fixture.receiveGift({ ...pending, eventId: 'hidden-new', startedAt: hiddenAt + 3000 });
+  await drop.locator('[data-motion-id="hidden-new:0"]').waitFor({ state: 'attached', timeout: 5000 });
+  assert.equal(await drop.locator('.gift-drop-item').count(), 100,
+    'new arrivals reclaim expired nodes while animation is paused in a hidden page');
   await page.reload();
   await page.locator('.scene-version:not(.is-staging) iframe').first().waitFor();
   for (const child of page.frames().filter(frame => frame.parentFrame())) {

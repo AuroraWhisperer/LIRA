@@ -4,6 +4,38 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const { launchElectron } = require('../helpers/shared-electron');
 
+test('live greeting switch persists through desktop IPC and page reload', { timeout: 45000 }, async (t) => {
+  const root = path.resolve(__dirname, '../../tmp');
+  await fs.mkdir(root, { recursive: true });
+  const directory = await fs.mkdtemp(path.join(root, 'live-greeting-editor-'));
+  let app;
+  t.after(async () => {
+    await app?.close();
+    assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(root));
+    await fs.rm(directory, { recursive: true, force: true });
+  });
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/daily-bot-editor.cjs', directory], timeout: 15000 });
+  const page = await app.firstWindow();
+  page.setDefaultTimeout(7000);
+  await page.waitForURL('**/admin');
+  await page.locator('[data-danmaku-tab="welcome"]').click();
+  const toggle = page.locator('#danmakuWelcomeLiveGreetingToggle');
+  await page.waitForFunction(() => !document.getElementById('danmakuWelcomeLiveGreetingToggle').disabled);
+  assert.equal(await toggle.isChecked(), true);
+  await page.locator('#danmakuWelcomeLiveGreetingToggle + .switch-track').click();
+  await page.waitForFunction(() => {
+    const field = document.getElementById('danmakuWelcomeLiveGreetingToggle');
+    return !field.checked && !field.disabled;
+  });
+  const writes = await app.evaluate(() => global.dailyLibraryTest.requests.filter(item => item.operation === 'welcome-update'));
+  assert.deepEqual(writes.map(item => item.input), [{ liveGreetingEnabled: false }]);
+  await page.reload();
+  await page.locator('[data-danmaku-tab="welcome"]').click();
+  await page.waitForFunction(() => !document.getElementById('danmakuWelcomeLiveGreetingToggle').disabled);
+  assert.equal(await toggle.isChecked(), false);
+});
+
 test('welcome audience and medal edits persist through the authorized desktop editor and reload', { timeout: 45000 }, async (t) => {
   const root = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(root, { recursive: true });
@@ -32,11 +64,9 @@ test('welcome audience and medal edits persist through the authorized desktop ed
   });
   await page.locator('#danmakuWelcomeWhitelistAddBtn').click();
   await page.getByLabel('白名单第 1 位观众的 B 站 UID').fill('18446744073709551615');
-  await page.locator('#danmakuWelcomeWhitelistSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeWhitelistSaveBtn').disabled);
   await page.locator('#danmakuWelcomeBlacklistAddBtn').click();
   await page.getByLabel('黑名单第 1 位观众的 B 站 UID').fill('42');
-  await page.locator('#danmakuWelcomeBlacklistSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeBlacklistSaveBtn').disabled);
   await page.reload();
   await open();
@@ -44,7 +74,6 @@ test('welcome audience and medal edits persist through the authorized desktop ed
   assert.equal(await page.getByLabel('白名单第 1 位观众的 B 站 UID').inputValue(), '18446744073709551615');
   assert.equal(await page.getByLabel('黑名单第 1 位观众的 B 站 UID').inputValue(), '42');
   await page.getByRole('button', { name: '从黑名单删除第 1 位观众', exact: true }).click();
-  await page.locator('#danmakuWelcomeBlacklistSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeBlacklistSaveBtn').disabled);
   await page.reload();
   await open();
@@ -74,13 +103,11 @@ test('time welcome changes the displayed library and persists edits through desk
   };
   await open();
   await page.getByLabel('欢迎词库第 1 条').fill('普通欢迎保留');
-  await page.locator('#danmakuWelcomeSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeSaveBtn').disabled);
   await page.locator('#danmakuWelcomeTimeToggle + .switch-track').click();
   await page.locator('#danmakuWelcomeTimePeriodRow').waitFor();
   await page.locator('#danmakuWelcomeTimePeriod').selectOption('afternoon');
   await page.getByLabel('下午欢迎词库第 1 条').fill('下午来听歌 {username}');
-  await page.locator('#danmakuWelcomeSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeSaveBtn').disabled);
   await page.reload();
   await open();
@@ -118,14 +145,12 @@ test('returning welcome saves independent libraries through authorized desktop I
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeReturningToggle').checked);
   await page.locator('#danmakuWelcomeReturningLibraryBtn').click();
   await page.getByLabel('多天未到词库第 1 条').fill('{username}，{days}天不见，来听首歌吧～');
-  await page.locator('#danmakuWelcomeSaveBtn').click();
   await page.waitForFunction(() => document.getElementById('danmakuWelcomeSaveBtn').disabled);
   assert.deepEqual(await app.evaluate(() => global.dailyLibraryTest.requests.filter((item) => item.operation === 'welcome-update')),
     [{ operation: 'welcome-update', input: { returningEnabled: true } },
       { operation: 'welcome-update', input: { returningMessages: ['{username}，{days}天不见，来听首歌吧～', '很高兴又见到你～'] } }]);
   await app.evaluate(() => { global.dailyLibraryTest.failNext = true; });
   await page.getByLabel('多天未到词库第 1 条').fill('未保存的问候');
-  await page.locator('#danmakuWelcomeSaveBtn').click();
   await page.locator('#danmakuWelcomeStatus').filter({ hasText: '保存未确认' }).waitFor({ state: 'attached' });
   assert.equal(await page.getByLabel('多天未到词库第 1 条').inputValue(), '未保存的问候');
   assert.equal(await app.evaluate(() => global.dailyLibraryTest.welcomeSettings.returningMessages[0]), '{username}，{days}天不见，来听首歌吧～');

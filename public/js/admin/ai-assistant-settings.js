@@ -15,7 +15,7 @@ import {
   selectReasoningEffort,
   renderStatus,
   renderDoubaoStatus,
-  setState,
+  setState as renderSaveState,
   providerLabel,
   providerErrorMessage,
   codedClientError,
@@ -24,6 +24,14 @@ import {
 let initialized = false;
 let refreshConfig = null;
 const AUTOSAVE_DELAY_MS = 700;
+
+function setState(node, message, kind) {
+  renderSaveState(node, message, kind);
+  if (node?.id !== 'xiaomiAiSaveState') return;
+  const failed = kind === 'warn';
+  document.getElementById('xiaomiAiSaveBtn').hidden = !failed;
+  document.getElementById('xiaomiAiActions').hidden = !failed;
+}
 
 function init({ notify = showStackedToast, confirm } = {}) {
   if (initialized) return;

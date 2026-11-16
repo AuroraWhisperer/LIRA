@@ -87,6 +87,18 @@ test('text box scrolling defaults off for old scenes and survives scene and temp
   }
 });
 
+test('text box backgrounds stay transparent for old scenes and round trip with alpha', () => {
+  const { backgroundColor, ...legacy } = createTextBoxDefaults();
+  assert.equal(normalizeSceneConfig('text-box', legacy).backgroundColor, '#00000000');
+  const document = { schemaVersion: 1, id: randomUUID(), title: 'background', canvas: { width: 1920, height: 1080 },
+    items: [item({ ...legacy, backgroundColor: '#24314DCC' })] };
+  const normalized = normalizeSceneDocument(document, { normalizeConfig: normalizeSceneConfig });
+  const imported = importSceneTemplate(exportSceneTemplate(normalized), { createId: randomUUID }).resolve({});
+  assert.equal(imported.items[0].appearance.config.backgroundColor, '#24314dcc');
+  assert.throws(() => normalizeSceneConfig('text-box', { ...legacy, backgroundColor: 'url(https://example.test)' }),
+    { code: 'INVALID_SCENE_CONFIG' });
+});
+
 test('frontend and backend allow more than 32 text boxes while retaining other component and UTF-8 byte limits', () => {
   const document = { schemaVersion: 1, id: randomUUID(), title: 'many text boxes', canvas: { width: 1920, height: 1080 },
     items: Array.from({ length: 40 }, () => item(createTextBoxDefaults())) };

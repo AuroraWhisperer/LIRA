@@ -81,11 +81,11 @@ body[data-style='glow'] .draw-danmaku-body p {
   color: #fff;
   background:
     linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 60%),
-    color-mix(in srgb, var(--ranked-accent) 12%, rgb(12 18 30 / 78%));
+    rgb(var(--glow-surface-rgb) / var(--glow-surface-alpha));
   box-shadow:
-    0 0 10px color-mix(in srgb, var(--ranked-accent) 55%, transparent),
-    0 0 26px color-mix(in srgb, var(--ranked-accent) 22%, transparent),
-    inset 0 0 8px color-mix(in srgb, var(--ranked-accent) 22%, transparent);
+    0 0 10px rgb(var(--ranked-accent-rgb) / 55%),
+    0 0 26px rgb(var(--ranked-accent-rgb) / 22%),
+    inset 0 0 8px rgb(var(--ranked-accent-rgb) / 22%);
   font-size: var(--danmaku-font-size);
   font-weight: 600;
   line-height: 1.4;
@@ -123,7 +123,8 @@ body[data-style='glow'] .draw-danmaku-emote {
 body[data-style='glow'] .draw-danmaku-item.is-gift {
   --gift-ink: #fff;
   --gift-name: rgb(255 255 255 / 80%);
-  --gift-accent: color-mix(in srgb, var(--ranked-accent) 60%, white);
+  --gift-accent: var(--glow-gift-accent);
+  --gift-border: var(--glow-gift-border);
   --gift-sheen: rgb(255 255 255 / 28%);
   display: block;
   width: max-content;
@@ -135,8 +136,8 @@ body[data-style='glow'] .draw-danmaku-item.is-gift {
   background:
     linear-gradient(180deg, rgb(255 255 255 / 7%), transparent 60%) padding-box,
     linear-gradient(
-        color-mix(in srgb, var(--ranked-accent) 18%, #101522),
-        color-mix(in srgb, var(--ranked-accent) 18%, #101522)
+        rgb(var(--glow-gift-surface-rgb)),
+        rgb(var(--glow-gift-surface-rgb))
       )
       padding-box,
     conic-gradient(
@@ -148,8 +149,8 @@ body[data-style='glow'] .draw-danmaku-item.is-gift {
       )
       border-box;
   box-shadow:
-    0 0 10px color-mix(in srgb, var(--ranked-accent) 45%, transparent),
-    0 0 26px color-mix(in srgb, var(--ranked-accent) 18%, transparent);
+    0 0 10px rgb(var(--ranked-accent-rgb) / 45%),
+    0 0 26px rgb(var(--ranked-accent-rgb) / 18%);
 }
 body[data-style='glow'] .is-gift .draw-danmaku-body {
   gap: 4px;
@@ -173,44 +174,18 @@ body[data-style='glow'] .is-gift .draw-danmaku-gift-count {
   text-shadow: 0 0 10px var(--ranked-accent);
 }
 
-/* 旧版 OBS 内核不支持 color-mix：保留可读的深色底和身份色光晕。 */
-@supports not (color: color-mix(in srgb, black, white)) {
-  body[data-style='glow'] .draw-danmaku-body p {
-    background: rgb(12 18 30 / 80%);
-    box-shadow: 0 0 10px var(--ranked-accent);
-  }
-  body[data-style='glow'] .draw-danmaku-item.is-gift {
-    --gift-accent: #fff;
-    background:
-      linear-gradient(rgb(16 21 34 / 94%), rgb(16 21 34 / 94%)) padding-box,
-      linear-gradient(var(--ranked-accent), var(--ranked-accent)) border-box;
-    box-shadow: 0 0 10px var(--ranked-accent);
-  }
-}
 
 /* Custom background strength leaves text and images opaque. */
 body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item:not(.is-gift) .draw-danmaku-body p {
   background:
     linear-gradient(180deg, rgb(255 255 255 / calc(0.07 * var(--danmaku-background-opacity))), transparent 60%),
-    color-mix(
-      in srgb,
-      color-mix(in srgb, var(--ranked-accent) 12%, rgb(12 18 30 / 78%)) var(--danmaku-background-weight),
-      transparent
-    );
+    rgb(var(--glow-surface-rgb) / calc(var(--glow-surface-alpha) * var(--danmaku-background-opacity)));
 }
 body[data-custom-background='true'][data-style='glow'] .draw-danmaku-item.is-gift {
   background:
     linear-gradient(
-        color-mix(
-          in srgb,
-          color-mix(in srgb, var(--ranked-accent) 18%, #101522) var(--danmaku-background-weight),
-          transparent
-        ),
-        color-mix(
-          in srgb,
-          color-mix(in srgb, var(--ranked-accent) 18%, #101522) var(--danmaku-background-weight),
-          transparent
-        )
+        rgb(var(--glow-gift-surface-rgb) / var(--danmaku-background-opacity)),
+        rgb(var(--glow-gift-surface-rgb) / var(--danmaku-background-opacity))
       )
       padding-box,
     conic-gradient(

@@ -2,7 +2,10 @@
 @property --danmaku-enter-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
 @property --danmaku-enter-x { syntax: '<length-percentage>'; inherits: false; initial-value: 0px; }
 @property --danmaku-enter-y { syntax: '<length-percentage>'; inherits: false; initial-value: 0px; }
-@property --danmaku-enter-transform { syntax: '<transform-list>'; inherits: false; initial-value: translate(0px, 0px); }
+/* Older browser sources interpolate scalar properties, but not <transform-list>. */
+@property --danmaku-enter-scale-x { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --danmaku-enter-scale-y { syntax: '<number>'; inherits: false; initial-value: 1; }
+@property --danmaku-enter-angle { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
 @property --danmaku-exit-opacity { syntax: '<number>'; inherits: false; initial-value: 1; }
 @property --danmaku-gift-sheen-opacity { syntax: '<number>'; inherits: false; initial-value: 0; }
 
@@ -21,24 +24,30 @@
 
 /* Fixed feeds keep their original exit fade unless another edge mode is selected. */
 .draw-danmaku-feed[data-smooth-layout='true'] {
+  -webkit-mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
   mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
 }
 
 body[data-scroll-direction='down'] .draw-danmaku-feed[data-smooth-layout='true'],
 body[data-edge-fade='bottom'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  -webkit-mask: linear-gradient(#000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
   mask: linear-gradient(#000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
 }
 
 body[data-edge-fade='top'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  -webkit-mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
   mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px));
 }
 
 body[data-edge-fade='both'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  -webkit-mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px),
+    #000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
   mask: linear-gradient(transparent, #000 var(--danmaku-edge-fade-size, 32px),
     #000 calc(100% - var(--danmaku-edge-fade-size, 32px)), transparent);
 }
 
 body[data-edge-fade='none'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  -webkit-mask: none;
   mask: none;
 }
 

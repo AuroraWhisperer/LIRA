@@ -7,6 +7,7 @@ import { renderPeople, renderDetail, renderReminders, rosterUpdateNotices } from
 import { getBilibiliRoomProfileSnapshot } from '../settings-room-profile.js';
 import { settingsForm, guardRosterForm } from './forms.js';
 import { createFormerNameBatch } from './former-name-batch.js';
+import { createAutosave } from '../settings-autosave.js';
 
 let initialized = false;
 const REMINDER_SUMMARY_HIDDEN_KEY = 'liraFanReminderSummaryHidden';
@@ -370,10 +371,55 @@ function createFanUi() {
   }
 
   function settings() {
-    openForm(settingsForm(state.settings), async (payload) => {
+    const description = settingsForm(state.settings);
+    description.autosave = true;
+    description.saveLabel = '重试保存';
+    description.hint = `修改后自动保存。${description.hint}`;
+    let retry;
+    const persist = async payload => {
       state.settings = await request('configure', payload);
       await load();
-    });
+    };
+    description.bind = form => {
+      const context = state.contextId;
+      let draft = description.read(form), valid = true, closed = false;
+      const autosave = createAutosave({ root: form,
+        canSave: () => valid && context === state.contextId,
+        save: async () => {
+          const submitted = draft;
+          try {
+            await persist(submitted);
+            if (!closed) { get('fanSaveButton').hidden = true; get('fanEditorError').hidden = true; }
+            return true;
+          } catch (error) {
+            if (context !== state.contextId) return;
+            if (!closed) {
+              get('fanSaveButton').hidden = false;
+              get('fanSaveButton').textContent = '重试保存';
+              showError(error, true);
+            } else toast('粉丝档案偏好未保存，请重新打开设置后重试。', { type: 'error' });
+            return false;
+          }
+        } });
+      const changed = () => { valid = form.checkValidity(); if (valid) draft = description.read(form); autosave.schedule(); };
+      const commit = () => { changed(); void autosave.flush(); };
+      retry = async payload => {
+        draft = payload;
+        valid = form.checkValidity();
+        autosave.schedule();
+        await autosave.flush();
+        return { keepOpen: true };
+      };
+      form.addEventListener('input', changed);
+      form.addEventListener('change', commit);
+      editor.addEventListener('close', () => {
+        closed = true;
+        form.removeEventListener('input', changed);
+        form.removeEventListener('change', commit);
+        void autosave.flush().finally(() => autosave.dispose());
+      }, { once: true });
+    };
+    openForm(description, payload => retry(payload));
   }
 
   async function action(name, element) {

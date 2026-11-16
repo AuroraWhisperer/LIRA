@@ -2,7 +2,7 @@
 body[data-style='mist'] {
   --mist-ink: #557e76;
   --mist-deep: #315f57;
-  --mist-surface: color-mix(in srgb, #e3f0ec var(--danmaku-background-weight, 100%), transparent);
+  --mist-surface: rgb(227 240 236 / var(--danmaku-background-opacity, 1));
 }
 body[data-style='mist'] .danmaku-signal-stage {
   display: block;
@@ -82,6 +82,7 @@ body[data-style='mist'] .sc-avatar {
   font: inherit;
   line-height: 1;
   text-shadow: none;
+  -webkit-mask: none;
   mask: none;
   clip-path: none;
 }
@@ -102,6 +103,7 @@ body[data-style='mist'] .draw-danmaku-identity::before {
   width: 1em;
   height: 1em;
   background: currentColor;
+  -webkit-mask: url('/img/overlays/danmaku-mist/paw.svg') center / contain no-repeat;
   mask: url('/img/overlays/danmaku-mist/paw.svg') center / contain no-repeat;
   content: '';
 }
@@ -128,8 +130,8 @@ body[data-style='mist'] .draw-danmaku-body > p {
 body[data-style='mist'] .draw-danmaku-item:not(.is-gift):not([data-room-guard='0']) .draw-danmaku-body {
   border-color: transparent;
   background: linear-gradient(180deg,
-    color-mix(in srgb, #cce4dd var(--danmaku-background-weight, 100%), transparent),
-    color-mix(in srgb, #fcfefd var(--danmaku-background-weight, 100%), transparent));
+    rgb(204 228 221 / var(--danmaku-background-opacity, 1)),
+    rgb(252 254 253 / var(--danmaku-background-opacity, 1)));
   color: var(--mist-ink);
   text-shadow: none;
 }

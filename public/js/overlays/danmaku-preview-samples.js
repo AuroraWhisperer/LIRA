@@ -131,7 +131,7 @@ export function createDanmakuPreviewItems(style = 'signal') {
     return {
       ...item,
       honorLevel: [70, 45, 32, 19, 28][index % 5], roomGuardLevel,
-      ...(item.medalLevel || christmasMember ? { roomMedal: { name: christmasMember ? item.medalName || '小铃铛' : item.medalName, level, guardLevel: roomGuardLevel, isLight: true,
+      ...(item.medalLevel || christmasMember ? { roomMedal: { name: christmasMember ? item.medalName || '粉丝团灯牌' : item.medalName, level, guardLevel: roomGuardLevel, isLight: true,
         colorStart: color, colorEnd: color, colorBorder: border, colorText: '#FFFFFF' } } : {}),
     };
   });

@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
+const { createClock } = require('../helpers/toast-dom');
 const vm = require('node:vm');
 const { createParameterDocument } = require('../helpers/parameter-dom');
 
@@ -66,6 +67,7 @@ async function fixture() {
       ).then(localResponse),
   };
   const context = vm.createContext({
+    ...createClock(),
     URL,
     URLSearchParams,
     document,

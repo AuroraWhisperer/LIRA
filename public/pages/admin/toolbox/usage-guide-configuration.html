@@ -4,7 +4,7 @@
 <ol class="usage-guide-checks">
 <li>打开<strong class="usage-guide-keyword">「点歌 → 点歌板」</strong>，先选风格。共有六种，例如「点歌板风格 1（经典队列展示）」。</li>
 <li>调整歌名、标题和点歌人的字号，再调颜色、背景不透明度、毛玻璃、发光和渐变。可以先从「配色方案」挑一套，再微调；每种风格能调的参数不一样。</li>
-<li>点<strong class="usage-guide-keyword">「保存点歌板主题」</strong>应用修改。</li>
+<li>有效修改会<strong class="usage-guide-keyword">自动保存并应用</strong>，失败时保留输入并提供重试入口。</li>
 <li>在「点歌板」或「点歌 → 浏览器源」复制地址，加到 OBS 或直播姬的浏览器源，宽高按所选风格的说明设置。</li>
 </ol>
 <figure class="usage-guide-figure">
@@ -14,7 +14,7 @@
 <p>到 OBS 或直播姬确认点歌板已经出现，显示的是当前等待演唱的歌曲和点歌人。这里不会播放歌曲；观众点歌规则和点歌屏蔽词见<a data-usage-guide-link href="#ug-song-rules">点歌规则</a>。</p>
 <details class="usage-guide-foldout">
 <summary>文字、滚动和屏幕取色</summary>
-<p>歌名、标题和点歌人可以设置字号、字体与字重。风格 1、2 在「字体设置」中分别选择自己的字体，可选「软件字体库」和「系统字体库」，默认均为微软雅黑；切换风格不会改变另一种风格的字体。队列滚动模式可选「循环滚动（首尾相接）」或「往返滚动（到底后返回）」，滚动速度 1 最慢、100 最快。改好后点「保存点歌板主题」。</p>
+<p>歌名、标题和点歌人可以设置字号、字体与字重。风格 1、2 在「字体设置」中分别选择自己的字体，可选「软件字体库」和「系统字体库」，默认均为微软雅黑；切换风格不会改变另一种风格的字体。队列滚动模式可选「循环滚动（首尾相接）」或「往返滚动（到底后返回）」，滚动速度 1 最慢、100 最快。改好后自动保存。</p>
 <figure class="usage-guide-figure">
 <img alt="点歌板风格 1 设置：队列滚动模式和速率、配色方案、字重和字号、背景不透明度和毛玻璃" class="usage-guide-image" decoding="async" height="943" loading="lazy" src="/img/usage-guide/B/song-theme-detail.webp" style="--usage-guide-image-width: 1320px" width="1320"/>
 <figcaption>风格 1 的队列布局、文字设置和面板外观。</figcaption>
@@ -31,12 +31,12 @@
 <ol class="usage-guide-checks">
 <li>打开<strong class="usage-guide-keyword">「点歌 → 展示板」</strong>，设置歌曲排序方式、字号和滚动速度。速率范围为 1–100，数值越大越快，不随展示板高度变化。</li>
 <li>想沿用点歌板的主题，开启「同步点歌板主题」，标题也会同步。展示板外观与画布中同样式的组件共用。</li>
-<li>修改后会<strong class="usage-guide-keyword">自动保存并应用</strong>；也可点「保存展示板」手动保存，或在失败后重试。</li>
+<li>修改后会<strong class="usage-guide-keyword">自动保存并应用</strong>；正常保存栏隐藏，失败时显示「重试保存」。</li>
 <li>在「展示板」或「点歌 → 浏览器源」复制地址，加到 OBS 或直播姬的浏览器源，宽高按面板说明设置。</li>
 </ol>
 <figure class="usage-guide-figure">
-<img alt="展示板设置：歌单滚动速率、歌曲排序方式、字体大小、同步点歌板主题开关和保存展示板按钮" class="usage-guide-image" decoding="async" height="429" loading="lazy" src="/img/usage-guide/B/song-board-settings.webp" style="--usage-guide-image-width: 1394px" width="1394"/>
-<figcaption>展示板的滚动、排序和字体设置；「保存展示板」也可用于手动保存或重试。图中「滚动速率」现为「滚动速度」。</figcaption>
+<img alt="展示板设置：歌单滚动速率、歌曲排序方式、字体大小、同步点歌板主题开关，修改后自动保存" class="usage-guide-image" decoding="async" height="259" loading="lazy" src="/img/usage-guide/B/song-board-settings.webp" style="--usage-guide-image-width: 1377px" width="1377"/>
+<figcaption>展示板的滚动、排序和字体设置；参数自动保存，失败时保留输入并显示重试入口。图中「滚动速率」现为「滚动速度」。</figcaption>
 </figure>
 <p>到直播软件里确认画面在循环展示歌库，而不是等待演唱的点歌队列。这里的排序只影响展示画面，不会改动播放队列的顺序。</p>
 <figure class="usage-guide-figure usage-guide-figure--portrait">
@@ -88,12 +88,12 @@
 <ol class="usage-guide-checks">
 <li>打开<strong class="usage-guide-keyword">「组件 → 音乐展示 → 歌曲信息」</strong>。它与同组的「直播歌词」共用音乐来源；点「调整音乐来源」可查看跟随设置。</li>
 <li>同一页分别设置「唱片」与「歌名 / 歌手」。唱片可选择黑胶、圆形封面或唱片机，调整大小与转速；文字可调整字体、字号、颜色及歌名／歌手显示开关。</li>
-<li>两块预览默认跟随当前歌曲；没有播放时，可在顶部切到「示例歌曲」调试样式。示例只出现在预览里。点<strong class="usage-guide-keyword">「保存外观」</strong>应用设置。</li>
+<li>两块预览默认跟随当前歌曲；没有播放时，可在顶部切到「示例歌曲」调试样式。示例只出现在预览里。有效外观修改会<strong class="usage-guide-keyword">自动保存并应用</strong>。</li>
 <li>分别点各组件的「在画布中调整」，独立设置位置、宽高和显隐，再保存并应用；也可分别「复制浏览器源」，直接加入 OBS 或哔哩哔哩直播姬，按复制提示设置来源尺寸。旧组合地址和旧画布组件继续可用。</li>
 </ol>
 <p>歌曲实际播放时唱片旋转，暂停时停在当前角度。纯音乐或暂时没有匹配歌词仍能显示歌名、歌手；封面取不到时使用默认唱片。是否在暂停或没有歌曲时隐藏、整体不透明度，可在「共同显示规则」设置。</p>
 <figure class="usage-guide-figure">
-<img alt="歌曲信息页中的独立唱片、歌名与歌手组件，各有预览和画布入口" class="usage-guide-image" decoding="async" height="1126" loading="lazy" src="/img/usage-guide/B/now-playing.webp" style="--usage-guide-image-width: 1425px" width="1425"/>
+<img alt="歌曲信息页中的独立唱片、歌名与歌手组件，各有预览和画布入口" class="usage-guide-image" decoding="async" height="1084" loading="lazy" src="/img/usage-guide/B/now-playing.webp" style="--usage-guide-image-width: 1377px" width="1377"/>
 <figcaption>歌曲信息同页提供唱片、歌名／歌手两个组件，各有预览和画布入口；示例歌曲仅用于调试外观。</figcaption>
 </figure>
 </article></div>

@@ -54,7 +54,8 @@ test('guard roster resolves short room ID and owner, merges top3 and all pages w
   );
 });
 
-test('guard roster handles zero members and skips hidden identities', async () => {
+test('guard roster handles zero members and skips hidden identities', async t => {
+  t.mock.timers.enable({ apis: ['Date'], now: Date.parse('2026-11-16T05:11:42.777Z') });
   const empty = fixture([{ info: { num: 0 }, top3: [], list: [] }]);
   assert.equal((await fetchGuardRoster('42', empty)).members.length, 0);
   const hidden = member(0, { rank: 1, uinfo: { uid: 777, base: { is_mystery: true, name: '不可公开身份' } } });
@@ -66,7 +67,7 @@ test('guard roster handles zero members and skips hidden identities', async () =
     { rank: '1', reason: 'hidden-identity' },
     { rank: '3', reason: 'invalid-uid' },
   ]);
-  assert.doesNotMatch(JSON.stringify(result), /777|不可公开身份/);
+  assert.doesNotMatch(JSON.stringify({ members: result.members, skippedDetails: result.skippedDetails }), /777|不可公开身份/);
   assert.deepEqual(
     result.members.map((m) => m.uid),
     ['2'],

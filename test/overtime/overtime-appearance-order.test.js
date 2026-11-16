@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createClock } = require('../helpers/toast-dom');
 
 const entry = (name) => path.join(__dirname, '../../public/js/admin', name);
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -13,9 +14,11 @@ const snapshot = (revision, backgroundPath, effectiveRemainingMs = 60000) => ({
 });
 
 async function fixture() {
+  const clock = createClock();
   const nodes = new Map();
   const byId = (id) => {
-    if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', addEventListener() {}, classList: { toggle() {} } });
+    if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', addEventListener() {}, classList: { toggle() {} },
+      closest() { return this; }, querySelectorAll() { return []; } });
     return nodes.get(id);
   };
   const requests = [];
@@ -27,6 +30,7 @@ async function fixture() {
     getGiftDetection: () => ({}), getRuleEditor: () => null, isRulesDirty: () => false, onLimits() {} });
   const { createOvertimeAppearance } = await loadModuleExports(entry('overtime-preview.js'), {
     document,
+    setTimeout: clock.setTimeout, clearTimeout: clock.clearTimeout,
     fetch(url, options) {
       const request = Promise.withResolvers();
       requests.push({ url, options, ...request });

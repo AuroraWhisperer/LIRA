@@ -44,6 +44,17 @@ function fixture(t) {
   return { db, store, context, dirtyScopes, post };
 }
 
+test('queue notice colors persist locally and invalid colors reject the whole update', async t => {
+  const f = fixture(t);
+  assert.equal((await f.post({ queueRequestRequesterColor: '#2468AC', queueRequestSongColor: '#703050' })).status, 200);
+  const restored = createSettingsStore(f.db).getSettings();
+  assert.equal(restored.queueRequestRequesterColor, '#2468ac');
+  assert.equal(restored.queueRequestSongColor, '#703050');
+  assert.deepEqual(f.dirtyScopes, [], 'notice appearance stays local');
+  assert.equal((await f.post({ queueRequestRequesterColor: '#112233', queueRequestSongColor: 'url(https://invalid.test)' })).status, 400);
+  assert.equal(f.store.getSettings().queueRequestRequesterColor, '#2468ac', 'an invalid color must not partly save the patch');
+});
+
 test('shared canvas viewing settings persist locally and reject invalid batches without changing the other entry point', async t => {
   const f = fixture(t);
   assert.equal(f.store.getSettings().heartBoxCollectionBackgroundStyle, 'white');

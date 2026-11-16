@@ -146,6 +146,7 @@ export function createSceneExtraPreview(type, { controller, startPreviewData, op
           input.max = String(field.max * scale / (cents ? 100 : 1));
           input.step = String(field.step * scale / (cents ? 100 : 1));
           input.required = !field.optional;
+          input.dataset.autosaveOptional = String(Boolean(field.optional));
         }
         if (field.maxLength) input.maxLength = field.maxLength;
         input.addEventListener('blur', () => render(target.getState()));

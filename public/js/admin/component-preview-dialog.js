@@ -172,7 +172,7 @@ export function openComponentPreview(selected = null) {
             change = { ...change, document: { ...change.document,
               items: [...change.document.items, ...current.items.filter(item => !known.has(item.id))] } };
           }
-          controller.edit(change);
+          controller.edit(change, { source: 'preview' });
         }
         else if (command.action === 'discard') controller.discard();
         else if (command.action === 'save') void controller.save().finally(() => syncResult(connection));

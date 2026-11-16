@@ -62,7 +62,7 @@
       </div>
       <div class="danmaku-cloud-toolbar">
         <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
-        <lira-help label="自动互动使用说明">开关即时保存；修改参数或词库后，需点击对应的保存按钮。签到、抽签、昵称管理和礼物答谢全天可用，其余项目仅直播中生效。关键词与点歌回复需客户端在线，其余在云端运行。</lira-help>
+        <lira-help label="自动互动使用说明">开关即时保存；完整参数、规则和词库修改后自动保存，失败时保留草稿并提供重试。签到、抽签、昵称管理和礼物答谢全天可用，其余项目仅直播中生效。关键词与点歌回复需客户端在线，其余在云端运行。</lira-help>
         <button id="dailyBotRefresh" type="button" class="ghost" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
       </div>
     </div>
@@ -85,7 +85,7 @@
           <div class="danmaku-fixed-item" data-fixed-item="diy">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。修改后请保存；需客户端保持运行并连接直播间。</lira-help>
+                <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。完整修改自动保存；需客户端保持运行并连接直播间。</lira-help>
               </div
               ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
               ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
@@ -123,14 +123,14 @@
           <div class="danmaku-fixed-item" data-fixed-item="fortune">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”时，当天重复抽取结果不变，次日可重新抽取。开启后在云端运行，关闭客户端也不影响。</lira-help>
+                <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”时获取签文，默认每日固定，可在设置中改为每次随机。开启后在云端运行，关闭客户端也不影响。</lira-help>
               </div
-              ><span class="danmaku-fixed-summary">发送“抽签”，获取今日签文</span
+              ><span class="danmaku-fixed-summary">发送“抽签”，获取签文</span
               ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
             </div>
             <button class="danmaku-fixed-open" type="button" data-fixed-open="fortune" disabled
-              aria-label="编辑抽签词库" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
-              词库<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
+              aria-label="编辑抽签设置" aria-controls="danmakuDailyLibraryPanel" aria-expanded="false">
+              设置<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m6 8 4 4 4-4" /></svg>
             </button>
             <label class="switch-control"><input id="danmakuFortuneToggle" type="checkbox" aria-labelledby="danmakuFortuneTitle" disabled /><span class="switch-track"></span></label>
           </div>
@@ -167,19 +167,19 @@
         </div>
       </div>
     </section>
-    <section id="danmakuWelcomeCategoryPanel" class="danmaku-feature-section danmaku-fixed-reply-section danmaku-category-panel" role="tabpanel" aria-labelledby="danmakuWelcomeTab" hidden>
-      <div class="danmaku-function-group">
+    <section id="danmakuWelcomeCategoryPanel" class="danmaku-fixed-reply-section danmaku-category-panel danmaku-function-groups" role="tabpanel" aria-labelledby="danmakuWelcomeTab" hidden>
+      <div class="danmaku-function-group" role="group" aria-label="欢迎与播报">
         <div class="danmaku-fixed-overview">
           <!-- admin-fragment: pages/admin/toolbox/danmaku-welcome-switch.html -->
           <!-- admin-fragment: pages/admin/toolbox/danmaku-pk-report-switch.html -->
         </div>
       </div>
-      <div class="danmaku-function-group">
+      <div class="danmaku-function-group" role="group" aria-label="自动答谢">
         <div class="danmaku-fixed-overview">
           <div id="danmakuGiftThanksControls" class="danmaku-fixed-item" data-fixed-item="thanks">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuGiftThanksTitle">礼物答谢</strong><lira-help label="礼物答谢说明">收到付费礼物、已确认的免费礼物或大航海后，自动发送感谢弹幕，不含醒目留言。登录 B 站并同步后可开启，关闭客户端后仍在云端运行。修改文案后需保存，不会自动开启答谢。</lira-help>
+                <strong id="danmakuGiftThanksTitle">礼物答谢</strong><lira-help label="礼物答谢说明">收到付费礼物、已确认的免费礼物或大航海后，自动发送感谢弹幕，不含醒目留言。登录 B 站并同步后可开启，关闭客户端后仍在云端运行。完整文案修改后自动保存，不会自动开启答谢。</lira-help>
               </div>
               <span class="danmaku-fixed-summary">收到礼物或开通大航海时发送答谢</span>
               <span id="danmakuGiftThanksStatus" class="danmaku-fixed-note" role="status"></span>
@@ -189,14 +189,10 @@
             </button>
             <label class="switch-control"><input id="danmakuGiftThanksToggle" type="checkbox" aria-labelledby="danmakuGiftThanksTitle" aria-describedby="danmakuGiftThanksStatus" disabled /><span class="switch-track"></span></label>
           </div>
-        </div>
-      </div>
-      <div class="danmaku-function-group">
-        <div class="danmaku-fixed-overview">
           <!-- admin-fragment: pages/admin/toolbox/danmaku-interaction-thanks-switch.html -->
         </div>
       </div>
-      <div class="danmaku-function-group">
+      <div class="danmaku-function-group" role="group" aria-label="昵称管理">
         <div class="danmaku-fixed-overview">
           <!-- admin-fragment: pages/admin/toolbox/danmaku-viewer-names-switch.html -->
         </div>
@@ -379,7 +375,7 @@
               <div class="danmaku-welcome-library-heading">
                 <label class="daily-library-search">搜索词库<input id="danmakuScheduledLibrarySearch" type="search" placeholder="查找文案" /></label>
                 <span id="danmakuScheduledLibraryCount" class="hint">0 条</span>
-                <lira-help label="定时弹幕词库说明">初始词库有 199 句文案，包含关注、粉丝团、大航海和互动暖场，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 300 条，每条最多 120 字；保存后用于后续发送，空词库不会发送。已有词库保持不变。</lira-help>
+                <lira-help label="定时弹幕词库说明">初始词库有 199 句文案，包含关注、粉丝团、大航海和互动暖场，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 300 条，每条最多 120 字；修改后自动保存，用于后续发送，空词库不会发送。已有词库保持不变。</lira-help>
               </div>
               <div id="danmakuScheduledLibraryList" class="danmaku-blessing-list"></div>
               <div class="daily-library-list-actions">
@@ -391,10 +387,7 @@
                 </div>
               </div>
             </div>
-            <div class="danmaku-blessing-actions">
-              <span id="danmakuScheduledSaveState" class="hint" role="status" aria-live="polite">修改后请保存设置</span>
-              <button id="danmakuScheduledSave" class="primary" type="submit" disabled>保存设置</button>
-            </div>
+            <span id="danmakuScheduledSaveState" class="sr-only" role="status" aria-live="polite"></span>
           </fieldset>
         </form>
         <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>

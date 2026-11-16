@@ -8,9 +8,15 @@ import {
   TWITTER_COLOR_DEFAULTS,
   styleOptionsFor,
 } from '../shared/danmaku-style-options.js';
+import { applyDanmakuTextOptions } from './danmaku-text-application.js';
+import { applyChristmasColors } from './danmaku-christmas.js';
+import { setColorProperties } from '../shared/color-value.js';
 
 export function applyStyleOptions(document, style, allOptions, legacyDurationSeconds) {
   const options = styleOptionsFor(style, allOptions, legacyDurationSeconds);
+  applyDanmakuTextOptions(document, style, options);
+  document.body.dataset.christmasBackground = options.christmasBackground || 'card';
+  if (style === 'christmas') applyChristmasColors(document, options);
   for (const key of ['neonGlassNameColors', 'neonGlassIcons', 'neonGlassEntrance']) document.body.dataset[key] = options[key] || '';
   document.documentElement.style.setProperty('--neon-glass-highlight', String((options.neonGlassHighlight ?? 100) / 100));
   document.documentElement.style.setProperty('--neon-glass-entry-duration', `${options.neonGlassEntranceMs ?? 480}ms`);
@@ -72,7 +78,7 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   document.body.dataset.seaBreezeReflection = options.seaBreezeReflectionOpacity === 0 || options.seaBreezeReflectionLength === 0 ? 'off' : 'on';
   document.body.dataset.glassBubbleTypingSpeed = String(options.glassBubbleTypingSpeed ?? 26);
   document.body.dataset.wireframeEntranceMs = String(options.wireframeEntranceMs ?? 700);
-  root.setProperty('--stargazer-color', options.stargazerColor || '#c04efe');
+  setColorProperties(root, '--stargazer-color', options.stargazerColor || '#c04efe');
   root.setProperty('--stargazer-width', `${options.stargazerWidth ?? 320}px`);
   root.setProperty('--stargazer-gap', `${options.stargazerGap ?? 24}px`);
   root.setProperty('--stargazer-angle', `${(options.stargazerPerspective === 'left' ? -1 : 1) * (options.stargazerAngle ?? 6)}deg`);
@@ -84,7 +90,7 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   root.setProperty('--aurora-entry-duration', `${options.auroraEntranceMs ?? 520}ms`);
   root.setProperty('--comic-stroke-width', `${options.comicStrokeWidth ?? 2}px`);
   root.setProperty('--comic-texture', String((options.comicTexture ?? 8) / 100));
-  root.setProperty('--startrail-color', options.startrailColor || '#b9dfff');
+  setColorProperties(root, '--startrail-color', options.startrailColor || '#b9dfff');
   root.setProperty('--startrail-star-size', `${options.startrailStarSize ?? 24}px`);
   root.setProperty('--startrail-tail-length', `${options.startrailTailLength ?? 180}px`);
   root.setProperty('--startrail-glow', String((options.startrailGlow ?? 45) / 100));
@@ -95,11 +101,20 @@ export function applyStyleOptions(document, style, allOptions, legacyDurationSec
   for (const key of Object.keys(TWITTER_COLOR_DEFAULTS)) {
     root.setProperty(`--twitter-event-color-${key.replace('twitterColor', '')}`, options[key] || '');
   }
-  root.setProperty('--danmaku-bubble-color', options.bubbleColor && options.bubbleColor !== 'default' ? options.bubbleColor : '');
-  root.setProperty('--danmaku-text-color', options.textColor);
+  setColorProperties(root, '--danmaku-bubble-color', options.bubbleColor, {
+    'snowfox-light': ['#ffffff', .12], 'snowfox-end': ['#ffffff', .38],
+    'charm-role': ['#ffffff', .65],
+    'charm-pill-94': ['#000000', .94], 'charm-pill-92': ['#000000', .92],
+    'charm-pill-82': ['#000000', .82], 'charm-pill-100': ['#000000', 1], 'charm-pill-90': ['#000000', .9],
+  });
+  setColorProperties(root, '--danmaku-text-color', options.textColor, {
+    'sketch-line': ['#f5fff9', .15], 'sketch-paper': ['#fffdeb', .09], 'sketch-gift': ['#d0f4dd', .4],
+  });
   for (const key of Object.keys(RIPPLOID_COLOR_DEFAULTS)) {
     const suffix = key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-    root.setProperty(`--ripploid-${suffix}`, options[key] || '');
+    setColorProperties(root, `--ripploid-${suffix}`, options[key], {
+      ticket: ['#fff7ed', .48], 'member-middle': ['#fff4e8', .72], 'member-end': ['#fff4e8', .34],
+    });
   }
   for (const key of SPOOKY_COLOR_KEYS.filter(key => key !== 'textColor')) {
     const suffix = key.slice(6).replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);

@@ -14,7 +14,7 @@ test('monitoring switches save one field, prevent overlapping clicks and restore
   const documentRef = {
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, {
-        checked: true, disabled: false, listeners: {},
+        checked: true, disabled: false, listeners: {}, dataset: {}, querySelector: () => ({}),
         addEventListener(type, listener) {
           assert.equal(this.listeners[type], undefined);
           this.listeners[type] = listener;

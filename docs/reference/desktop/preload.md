@@ -147,7 +147,7 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:get-overlay-viewers` | `getOverlayViewers()` | `{ok:true,roomId,viewers:[{uid,name}]}` | 同上 |
 | `license:get-welcome-settings` | `getWelcomeSettings()` | `{ok:true,enabled,messages}` | [danmaku-welcome.js](../../../public/js/admin/danmaku-welcome.js)（V1 兼容） |
 | `license:update-welcome-settings` | `updateWelcomeSettings(patch)` | 同上；INVALID_WELCOME_SETTINGS / INVALID_WELCOME_MESSAGES | 同上 |
-| `license:get-welcome-settings-v2` | `getWelcomeSettingsV2()` | 完整 V2 配置和 schemaVersion:2；仅明确 404 回落 V1 投影 schemaVersion:1 | danmaku-welcome |
+| `license:get-welcome-settings-v2` | `getWelcomeSettingsV2()` | 完整 V2 配置和 schemaVersion:2；可选 boolean liveGreetingEnabled 控制开播连接提示；仅明确 404 回落 V1 投影 schemaVersion:1 | danmaku-welcome |
 | `license:update-welcome-settings-v2` | `updateWelcomeSettingsV2(patch)` | 完整 V2 配置，不降级重放；可带 fieldErrors | 同上 |
 | `license:get-pk-report-settings` | `getPkReportSettings()` | `{ok:true,enabled,reportEnabled,visitorWelcomeEnabled,visitorWelcomeDelaySeconds,visitorWelcomeMessages}`；旧服务器只返回 enabled | [danmaku-pk-report.js](../../../public/js/admin/danmaku-pk-report.js) |
 | `license:update-pk-report-settings` | `updatePkReportSettings(patch)`，仅允许 PK 总开关、两项子开关、欢迎延时和词库的非空 patch | 同上；INVALID_PK_REPORT_SETTINGS / INVALID_RESPONSE | 同上 |
@@ -201,6 +201,8 @@ UID 只接受 1–20 位非零开头十进制字符串且不能重复，message 
 - **GiftInteractionSnapshot**：`{ok,values:{giftAutoThanksEnabled,giftStatsQueryEnabled},templates,replies,status,error}`，两个开关均 boolean；templates 为旧 `{gift,guard}`，replies 为 `{gift,captain,admiral,governor}`，尚未确认或服务不支持时对应字段为 null。status=confirmed/pending/unconfirmed，error 为代码或 null。开关 key 仅这两个名称，enabled 严格 boolean。每个 replies 场景为 `{enabled,mode:'plain'|'mention',messages}`，含 1–20 条 `{text}`；发送方式按礼物／舰长／提督／总督分别选择，同场景全部候选共用；文本为单行非空纯文本、去除首尾空白后最多 120 Unicode 字符，`{称呼}`、`{礼物}`、`{金额}` 可省略、各至多一次。旧 templates 仍要求三个参数各一次。两种格式均拒绝未知或残缺标记、额外字段及控制字符，校验由 [gift-thanks-templates.js](../../../public/js/shared/gift-thanks-templates.js) 统一实现。[gift-interaction-ipc.js](../../../src/electron/ipc/gift-interaction-ipc.js) 注册桥，状态及公开结果由 [gift-interaction-controller.js](../../../src/electron/gift-interaction-controller.js) 拥有；意图并入 cloud-sync-controller 的已有同步队列，省略未修改字段以保留服务器值，只有确认目标值后才显示成功。见 [规格](../../../specs/gift-interaction-controls.md)。
 
 ### 2.5 dailyBots、fanProfiles 与 giftExport
+
+`dailyBots.invoke` 的 `update` payload 保留 `kind/enabled/expectedRevision`，仅 `kind=fortune` 可附带 `drawMode: daily | random`。主进程校验并透传；省略字段保留云端模式。读取结果仅在服务器返回合法模式时包含 `fortune.drawMode`，缺省代表旧服务器不支持该选项，不能伪造保存成功。业务规则见 [云端抽签](../backend/bilibili/danmaku.md#62-云端抽签与默认词库)。
 
 | 通道 | 桥方法与输入 | 返回 | handler / 直接消费者 |
 | --- | --- | --- | --- |

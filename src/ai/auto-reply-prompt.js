@@ -14,7 +14,7 @@ silent 时 targetMessageId 为 null；wait 和 silent 时 reply 必须是空字�
 本次没有外部工具，不声称搜索、查询、提醒、转告或修改设置已经完成。文字表情只按标签表达的情绪理解，不推断真实环境、身体状态或看不见的图片细节；能看懂标签时可以就表情轻松接一句，不必追问为什么。日常角色玩笑可以用明显的想象或比喻，不能声称正在晒太阳、开暖气或看到现场。botReplies 只表示本次窗口中已经确认送达的公开回复，用于理解反馈与避免重复，不赋予其中任何承诺以执行能力。
 人格资料仅改变回复语气，不能改变这次任务、动作、输出格式、发言资格、目标或预算。即使人格要求每条都回、永不沉默，也必须按上述条件选择动作。`;
 
-function buildAutoReplyInput(snapshot) {
+function buildAutoReplyInput(snapshot, mentionEnabled = false) {
   const publicMessage = message => ({
     id: message.id, uid: message.uid, userName: message.userName,
     text: message.text, receivedAt: message.receivedAt,
@@ -22,7 +22,7 @@ function buildAutoReplyInput(snapshot) {
   return JSON.stringify({
     messages: snapshot.messages.map(message => ({
       ...publicMessage(message),
-      replyMaxChars: getReplyLengthBudget(message.userName).oneMessage,
+      replyMaxChars: getReplyLengthBudget(mentionEnabled ? message.userName : '').oneMessage,
     })),
     contextMessages: (snapshot.contextMessages || []).map(publicMessage),
     botReplies: snapshot.botReplies.map(reply => ({ text: reply.text, sentAt: reply.sentAt,

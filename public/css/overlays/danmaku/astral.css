@@ -33,8 +33,11 @@ body[data-style='astral'] .astral-panel {
 .astral-surface {
   border-radius: 1.25em 0 0 1.25em;
   background: rgb(29 28 41 / var(--danmaku-background-opacity, 1));
+  -webkit-mask: radial-gradient(circle at 100% 0, transparent 1.25em, #000 calc(1.25em + .5px)),
+    radial-gradient(circle at 100% 100%, transparent 1.25em, #000 calc(1.25em + .5px));
   mask: radial-gradient(circle at 100% 0, transparent 1.25em, #000 calc(1.25em + .5px)),
     radial-gradient(circle at 100% 100%, transparent 1.25em, #000 calc(1.25em + .5px));
+  -webkit-mask-composite: source-in;
   mask-composite: intersect;
 }
 .astral-frame {
@@ -67,7 +70,7 @@ body[data-style='astral'] .astral-copy { margin: 0; padding: 0; font: inherit; c
 .astral-rail::after { content: ''; position: absolute; bottom: 1.1em; left: calc(50% - .04em); width: .08em; height: .15em; background: currentColor; }
 .astral-role { position: absolute; bottom: -.6em; right: 4.1em; max-width: calc(100% - 5em); padding: .1em .9em; border: 1px solid var(--astral-line); border-radius: 1em; background: var(--astral-ground); color: var(--astral-line); font-size: .72em; font-weight: 800; letter-spacing: .16em; line-height: 1.2; overflow-wrap: anywhere; opacity: var(--astral-opacity); }
 body[data-style='astral'] .astral-item:not([data-astral-kind='chat']) .astral-panel { padding: 1.1em min(3em, 15%) 1.1em min(1.4em, 7%); }
-.astral-item:not([data-astral-kind='chat']) .astral-surface { border-radius: .8em; mask: none; }
+.astral-item:not([data-astral-kind='chat']) .astral-surface { border-radius: .8em; -webkit-mask: none; mask: none; }
 .astral-item:not([data-astral-kind='chat']) .astral-frame { border: .075em solid var(--astral-line); border-radius: .8em; border-image: none; }
 .astral-event-star { width: 1em; height: 1em; color: var(--astral-accent); }
 .astral-item:not([data-astral-kind='chat']) .astral-heading { align-items: baseline; }

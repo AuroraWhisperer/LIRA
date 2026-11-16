@@ -100,12 +100,12 @@ export function bindSongBoardSettings(form, controller) {
     render(controller.getState(), true);
     await save();
   });
-  function render({ draft, dirty, saving, error, applied }, force = false) {
+  function render({ draft, error }, force = false) {
     ensureSavedFontOption(node('songBoardFontFamily'), draft.songBoardFontFamily);
     const saveState = node('songBoardSaveState');
-    saveState.textContent = error ? '保存失败，修改已保留，可点击“保存展示板”重试。'
-      : saving ? '正在保存…' : dirty ? '等待自动保存…' : applied ? '已保存并应用到直播画面' : '';
+    saveState.textContent = error ? '自动保存失败，修改已保留，请重试。' : '';
     saveState.hidden = !saveState.textContent;
+    form.querySelector('button[type="submit"]').hidden = !error;
     for (const key of Object.keys(DEFAULTS)) {
       if (key === 'songBoardSyncTheme' || key === 'songBoardSongColor') continue;
       syncComponentFieldValue(node(key), draft[key], force);

@@ -1,5 +1,15 @@
-<section id="danmakuDailyLibraryPanel" data-fixed-editor="checkin fortune" hidden aria-label="签到与抽签词库">
+<section id="danmakuDailyLibraryPanel" data-fixed-editor="checkin fortune" hidden aria-label="签到词库与抽签设置">
   <div class="danmaku-blessings-body">
+    <div id="dailyLibraryFortuneSettings" class="danmaku-welcome-library-heading" hidden>
+      <label class="daily-library-search" for="dailyBotFortuneDrawMode">抽签方式
+        <select id="dailyBotFortuneDrawMode" data-dropdown-variant="toolbox" aria-describedby="dailyBotFortuneDrawModeHint" disabled>
+          <option value="daily">每日固定</option>
+          <option value="random">每次随机</option>
+        </select>
+      </label>
+      <lira-help label="抽签方式说明">每日固定：同一观众当天抽到的签文不变。每次随机：每次重新抽取，允许重复，不限每日次数。切换后自动保存。</lira-help>
+      <span id="dailyBotFortuneDrawModeHint" class="hint" role="status">尚未确认云端设置</span>
+    </div>
     <div class="danmaku-welcome-library-heading">
       <label class="daily-library-search">搜索词库<input id="dailyLibrarySearch" type="search" placeholder="查找文案" /></label>
       <span id="dailyLibraryCount" class="hint">尚未读取</span>
@@ -16,7 +26,7 @@
     </div>
     <div class="danmaku-blessing-actions">
       <span id="dailyLibraryStatus" class="hint" role="status">展开时读取词库</span>
-      <lira-help label="词库保存说明">保存后用于新的签到或抽签结果，当天已生成的结果保持不变。草稿仅保留在当前页面，请及时保存。</lira-help>
+      <lira-help label="词库保存说明">完整词库修改后自动保存，用于新的签到或抽签结果。每日固定模式保留当天已有签文；每次随机模式从下一次抽签起使用新词库。失败保留草稿，可重试或核对云端版本。</lira-help>
       <button id="dailyLibraryReload" class="secondary" type="button" hidden>放弃草稿并载入云端</button>
       <button id="dailyLibrarySave" class="primary" type="button" disabled>保存签到词库</button>
     </div>

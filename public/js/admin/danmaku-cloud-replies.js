@@ -1,6 +1,7 @@
 import { createCustomReplyEditor } from './danmaku-libraries.js';
 import { createScheduledLibraryEditor } from './danmaku-scheduled-library.js';
 import { initDanmakuInteractionThanks } from './danmaku-interaction-thanks.js';
+import { createAutosave } from './settings-autosave.js';
 
 export function initDanmakuCloudReplies({
   documentRef = globalThis.document,
@@ -16,7 +17,6 @@ export function initDanmakuCloudReplies({
   const exactState = get('danmakuExactState');
   const scheduledState = get('danmakuScheduledState');
   const saveState = get('danmakuScheduledSaveState');
-  const save = get('danmakuScheduledSave');
   const mode = get('danmakuScheduledMode');
   const interval = get('danmakuScheduledInterval');
   const min = get('danmakuScheduledMin');
@@ -25,6 +25,10 @@ export function initDanmakuCloudReplies({
   const library = createScheduledLibraryEditor({ documentRef, changed: () => markDirty() });
   const available = Boolean(bridge?.getFixedReplySettings && bridge?.updateFixedReplySettings);
   let owner = '', generation = 0, saved = null, pending = false, dirty = false, disposed = false;
+  let draftRevision = 0;
+  let syncQueue = Promise.resolve();
+  const scheduledAutosave = createAutosave({ root: form, windowRef,
+    canSave: () => Boolean(dirty && owner && available && saved && !pending && !disposed), save: saveScheduled });
   const interactionThanks = initDanmakuInteractionThanks({ documentRef, windowRef, saveSettings: sync });
   const exactEditor = createCustomReplyEditor({
     document: documentRef, kind: 'exact', toast,
@@ -38,11 +42,10 @@ export function initDanmakuCloudReplies({
     exactToggle.checked = saved?.customExactReplyEnabled === true;
     scheduledToggle.checked = saved?.scheduledDanmakuEnabled === true;
     exactToggle.disabled = scheduledToggle.disabled = disabled;
-    get('danmakuExactFields').disabled = get('danmakuScheduledFields').disabled = disabled;
+    get('danmakuExactFields').disabled = get('danmakuScheduledFields').disabled = !owner || !available || !saved;
     for (const kind of ['exact', 'scheduled']) {
       documentRef.querySelector(`[data-fixed-open="${kind}"]`).disabled = !owner || !available || !saved;
     }
-    save.disabled = disabled || !dirty;
     interactionThanks.updateState({ saved, owner, available, pending, message: exactState.textContent });
   }
 
@@ -80,7 +83,17 @@ export function initDanmakuCloudReplies({
     return result?.message || '云端设置未确认，请检查连接并刷新。';
   }
 
-  async function sync(patch) {
+  function sync(patch) {
+    const requested = generation;
+    const operation = syncQueue.then(() => {
+      if (disposed || requested !== generation) throw new Error('账号已变化，请重新读取设置。');
+      return syncNow(patch);
+    });
+    syncQueue = operation.catch(() => {});
+    return operation;
+  }
+
+  async function syncNow(patch) {
     const writing = Boolean(patch);
     if (!owner || !available || disposed || pending || (writing && !saved)) {
       if (writing) throw new Error('当前不能保存，请刷新云端状态后重试。');
@@ -108,6 +121,7 @@ export function initDanmakuCloudReplies({
       if (!disposed && generation === requested) {
         pending = false;
         controls();
+        scheduledAutosave.resume();
       }
     }
   }
@@ -127,28 +141,30 @@ export function initDanmakuCloudReplies({
     });
   }
 
-  const markDirty = () => {
+  function markDirty() {
     dirty = true;
-    saveState.textContent = '有尚未保存的更改';
+    draftRevision += 1;
+    saveState.textContent = '等待自动保存…';
     max.setCustomValidity('');
-    controls();
-  };
+    scheduledAutosave.schedule();
+  }
   for (const field of [mode, interval, min, max, selection]) {
     field.addEventListener('input', markDirty);
     field.addEventListener('change', markDirty);
   }
   mode.addEventListener('change', timingFields);
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
+  async function saveScheduled(reportValidity = false) {
+    if (!dirty || pending || !owner || !available || !saved || disposed) return;
     if (mode.value === 'random' && Number(min.value) > Number(max.value)) {
       max.setCustomValidity('最长间隔不能小于最短间隔。');
-      max.reportValidity();
+      if (reportValidity) max.reportValidity();
       return;
     }
-    if (!form.reportValidity()) return;
-    const messages = library.read();
+    if (!(reportValidity ? form.reportValidity() : form.checkValidity())) return;
+    const messages = library.read({ reportValidity });
     if (!messages) return;
     const requested = generation;
+    const revision = draftRevision;
     const previous = saved.scheduledDanmaku;
     const scheduledDanmaku = {
       mode: mode.value,
@@ -162,13 +178,21 @@ export function initDanmakuCloudReplies({
     try {
       await sync({ scheduledDanmaku });
       if (generation !== requested || disposed) return;
-      dirty = false;
-      render();
-      controls();
-      saveState.textContent = '已保存到云端';
+      if (revision === draftRevision) {
+        dirty = false;
+        saveState.textContent = '已自动保存到云端';
+      }
     } catch (error) {
-      if (generation === requested && !disposed) saveState.textContent = `保存失败，草稿已保留。${error.message}`;
+      if (generation === requested && !disposed) {
+        saveState.textContent = `自动保存失败，草稿已保留。${error.message}`;
+        toast('自动保存失败，修改已保留。请检查连接，重新编辑或刷新云端状态后重试。', { type: 'error' });
+      }
     }
+  }
+
+  form.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void saveScheduled(true);
   });
 
   function account(snapshot) {
@@ -182,20 +206,22 @@ export function initDanmakuCloudReplies({
     }
     owner = next;
     generation += 1;
+    syncQueue = Promise.resolve();
     saved = null;
     pending = dirty = false;
+    scheduledAutosave.cancel();
     exactEditor.reset();
     form.reset();
     library.reset();
     max.setCustomValidity('');
-    saveState.textContent = '修改后请保存设置';
+    saveState.textContent = '';
     get('danmakuScheduledSummary').textContent = '直播中按间隔发送词库';
     exactState.textContent = scheduledState.textContent = available ? '连接 LIRA 账号后可设置' : '请升级桌面客户端后设置';
     timingFields();
     controls();
     void sync();
   }
-  const refresh = () => sync();
+  const refresh = () => { if (dirty) scheduledAutosave.schedule(); return sync(); };
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initial = generation;
   Promise.resolve(bridge?.getState?.()).then((snapshot) => {
@@ -207,6 +233,7 @@ export function initDanmakuCloudReplies({
   windowRef.addEventListener('pagehide', () => {
     disposed = true;
     generation += 1;
+    scheduledAutosave.dispose();
     exactEditor.reset();
     unsubscribe?.();
     windowRef.removeEventListener('online', refresh);

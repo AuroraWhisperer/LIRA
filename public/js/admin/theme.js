@@ -13,6 +13,7 @@ import { openComponentPreview } from './component-preview-dialog.js';
 import { registerComponentPreview } from './component-preview-registry.js';
 import { createQueuePreview } from './queue-preview.js';
 import { bindQueueTheme } from './queue-theme-view.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 import { collectQueueTheme, queueConfigFromSettings, queueSettingsPayload, pickQueueSettings } from './queue-theme-config.js';
 
 export const theme = (() => {
@@ -37,6 +38,8 @@ export const theme = (() => {
     const getQueuePreview = () => createQueuePreview({ controller });
     registerComponentPreview('queue', getQueuePreview);
     document.getElementById('queueThemePreview').addEventListener('click', () => openComponentPreview(getQueuePreview()));
+    bindComponentAutosave(controller, { root: form, saveButton: document.getElementById('queueThemeSave'),
+      discardButton: document.getElementById('queueThemeDiscard'), status: document.getElementById('queueThemeSaveState') });
     return controller;
   }
 

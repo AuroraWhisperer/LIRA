@@ -97,10 +97,10 @@ export function initTextBoxes() {
     };
     panel = definition.createPanel(get('editor'), target, { settingsHost: get('settings') });
     preview = mountComponentPreview(get('preview'), { ...definition, controller: target,
-      dataLabel: '',
+      dataLabel: '', framed: true,
       size: () => { const item = current(); return item ? [item.width, item.height] : TEXT_BOX_SIZE; } });
     const background = get('preview').querySelector('select');
-    background.value = 'dark'; background.dispatchEvent(new Event('change'));
+    background.value = 'checker'; background.dispatchEvent(new Event('change'));
     render();
     get('list').querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
@@ -109,7 +109,9 @@ export function initTextBoxes() {
     const items = state.draft.document.items.filter(item => item.type === 'text-box');
     const textBoxesChanged = state.dirty && JSON.stringify(items)
       !== JSON.stringify(state.saved.document.items.filter(item => item.type === 'text-box'));
-    get('scene').textContent = `正在编辑：${state.presets.length ? state.draft.document.title : '暂无场景'} / 当前输出：${state.activeSceneId ? state.activeSceneTitle : '尚未应用'}`;
+    const sceneTitle = state.presets.length ? state.draft.document.title : '暂无场景';
+    get('scene').textContent = state.activeSceneId === state.draft.document.id ? `场景：${sceneTitle}`
+      : `编辑：${sceneTitle} · 当前输出：${state.activeSceneId ? state.activeSceneTitle : '尚未应用'}`;
     get('library').hidden = !items.length;
     if (!items.some(item => item.id === selected)) { select(items[0]?.id); }
     const signature = JSON.stringify(items.map(item => [item.id, item.name, item.visible, item.locked]));
@@ -123,7 +125,7 @@ export function initTextBoxes() {
         list.append(button);
       }
     }
-    for (const button of get('list').children) button.setAttribute('aria-pressed', String(button.dataset.itemId === selected));
+    for (const button of get('list').querySelectorAll('.text-box-list-item')) button.setAttribute('aria-pressed', String(button.dataset.itemId === selected));
     const item = current();
     if (item && document.activeElement !== get('name')) get('name').value = item.name;
     get('name').disabled = !item || item.locked;
@@ -168,6 +170,7 @@ export function initTextBoxes() {
     edit(document => { document.items = document.items.filter(item => item.id !== selected); });
   });
   get('canvas').addEventListener('click', () => openComponentPreview({ ...definition, selectedItemId: selected }));
+  get('copy').addEventListener('click', () => copySource(selected));
   get('discard').addEventListener('click', async () => {
     if (!canvas || busy) return;
     busy = true; busyMessage = '正在放弃修改…'; render();
@@ -192,10 +195,11 @@ export function initTextBoxes() {
     catch (error) { fail(error); }
     finally { busy = false; render(); }
   });
-  get('copy').addEventListener('click', async () => {
-    if (!canvas || !current()) return;
-    const itemId = selected;
-    const name = current().name;
+  async function copySource(itemId) {
+    if (!canvas || busy) return;
+    const item = canvas.controller.getState().draft.document.items.find(entry => entry.id === itemId);
+    if (!item) return;
+    const name = item.name;
     try {
       const source = await canvas.source();
       if (!source.itemIds?.includes(itemId)) throw new Error('请先保存并应用这个文本框，再复制地址。');
@@ -203,7 +207,7 @@ export function initTextBoxes() {
       await copyText(sceneSourceUrl({ ...source, item: itemId }));
       status.classList.remove('text-box-error'); status.textContent = `已复制「${name}」的直播地址${size ? `；浏览器源尺寸设为 ${size.width} × ${size.height}` : ''}`;
     } catch (error) { fail(error); }
-  });
+  }
   async function load() {
     try {
       status.textContent = '正在读取文本框…';

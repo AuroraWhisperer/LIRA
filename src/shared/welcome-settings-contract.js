@@ -9,11 +9,11 @@ const NUMBER_RANGES = {
   greetingMinHonorLevel: [0, 999],
   attentionMinHonorLevel: [1, 999],
 };
-const BOOLEAN_FIELDS = ['enabled', 'greetingEnabled', 'attentionEnabled', 'rareNamePinyinEnabled', 'returningEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'];
+const BOOLEAN_FIELDS = ['enabled', 'liveGreetingEnabled', 'greetingEnabled', 'attentionEnabled', 'rareNamePinyinEnabled', 'returningEnabled', 'timeWelcomeEnabled', 'welcomeOwnMedalOnly'];
 const LIBRARY_FIELDS = ['messages', 'greetingMessages', 'attentionWelcomeMessages', 'attentionGreetingMessages', 'returningMessages'];
 const AUDIENCE_FIELDS = ['welcomeWhitelist', 'welcomeBlacklist'];
 const WELCOME_FIELDS = [...BOOLEAN_FIELDS, ...Object.keys(NUMBER_RANGES), ...LIBRARY_FIELDS, ...AUDIENCE_FIELDS, 'userWelcomeMessages', 'timeWelcomeMessages'];
-const REQUIRED_FIELDS = WELCOME_FIELDS.filter((key) => ![...AUDIENCE_FIELDS, 'userWelcomeMessages', 'returningEnabled', 'returningMessages', 'timeWelcomeEnabled', 'timeWelcomeMessages', 'welcomeOwnMedalOnly'].includes(key));
+const REQUIRED_FIELDS = WELCOME_FIELDS.filter((key) => ![...AUDIENCE_FIELDS, 'userWelcomeMessages', 'returningEnabled', 'returningMessages', 'timeWelcomeEnabled', 'timeWelcomeMessages', 'welcomeOwnMedalOnly', 'liveGreetingEnabled'].includes(key));
 const ERROR_REASONS = [
   'BOOLEAN_REQUIRED',
   'OUT_OF_RANGE',

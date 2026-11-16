@@ -10,6 +10,7 @@ import { registerComponentSettings } from './component-settings-sync.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
 import { saveComponentWithFeedback } from './component-save-feedback.js';
 import { readComponentOutputSize } from './scene-api.js';
+import { bindComponentAutosave } from './settings-autosave.js';
 export { buildClockUrl, clockStyleChange, createClockPreview, usesDefaultClockLabel };
 
 let initialized = false;
@@ -78,6 +79,9 @@ function initClockCard() {
   const getClockPreview = () => createClockPreview({ controller });
   registerComponentPreview('clock', getClockPreview);
   document.getElementById('clockOpenPreview').addEventListener('click', () => openComponentPreview(getClockPreview()));
+  bindComponentAutosave(controller, { root: document.getElementById('otherClockFeature'),
+    saveButton: document.getElementById('clockSave'), discardButton: document.getElementById('clockDiscard'),
+    status: document.getElementById('clockSaveState') });
   void controller.reload();
   return controller;
 }

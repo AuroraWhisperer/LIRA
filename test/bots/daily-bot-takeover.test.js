@@ -120,6 +120,27 @@ test('library IPC caches conditional reads, checks replies and isolates authoriz
   assert.equal(Object.hasOwn(calls.at(-1).input, 'version'), false);
 });
 
+test('fortune mode crosses the restricted bridge without changing the switch and rejects invalid modes', async (t) => {
+  const response = structuredClone(fixture.defaultResponse);
+  response.fortune.drawMode = 'daily';
+  const env = setup(t, async (operation, input) => {
+    if (operation === 'update') {
+      assert.equal(input.body.enabled, false);
+      response.fortune.drawMode = input.body.drawMode;
+      response.fortune.revision++;
+    }
+    return response;
+  });
+  const opened = await env.controller.invoke({ action: 'open' });
+  const update = (payload) => env.controller.invoke({ action: 'update', contextId: opened.contextId, payload });
+  const saved = await update({ kind: 'fortune', enabled: false, expectedRevision: 0, drawMode: 'random' });
+  assert.equal(saved.data.fortune.drawMode, 'random');
+  await assert.rejects(update({ kind: 'checkin', enabled: false, expectedRevision: 0, drawMode: 'random' }), /INVALID_REQUEST/);
+  await assert.rejects(update({ kind: 'fortune', enabled: false, expectedRevision: 1, drawMode: 'invalid' }), /INVALID_REQUEST/);
+  response.fortune.drawMode = 'invalid';
+  await assert.rejects(env.controller.invoke({ action: 'open' }), /INVALID_RESPONSE/);
+});
+
 test('library requests reject incorrect digests and discard late account responses', async (t) => {
   let resolveRead;
   const env = setup(t, async (operation) => operation === 'read' ? fixture.defaultResponse

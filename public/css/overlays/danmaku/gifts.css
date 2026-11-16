@@ -69,9 +69,10 @@ body:not([data-style='minimal']) .is-gift .draw-danmaku-avatar {
   min-width: 0;
   height: 40px;
   margin: 0;
-  border: 2px solid color-mix(in srgb, var(--gift-accent) 40%, white);
+  border: 2px solid var(--gift-border);
   border-radius: 50%;
   clip-path: none;
+  -webkit-mask: none;
   mask: none;
 }
 body:not([data-style='minimal']) .is-gift .draw-danmaku-body {
@@ -168,7 +169,7 @@ body:is([data-style='bubble'], [data-style='signal'], [data-style='ranked'], [da
 
 /* Custom background strength leaves text and images opaque. */
 body[data-custom-background='true']:not([data-style='minimal']) .draw-danmaku-item.is-gift {
-  background: color-mix(in srgb, var(--gift-surface) var(--danmaku-background-weight), transparent);
+  background: rgb(var(--gift-surface-rgb) / calc(var(--gift-surface-alpha, 1) * var(--danmaku-background-opacity)));
 }
 
 /* A loaded gift image replaces the style artwork, including masked or tinted art. */

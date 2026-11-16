@@ -7,6 +7,7 @@ const vm = require('node:vm');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { SCENE_TYPES } = require('../../src/shared/scene-component-types');
+const { createClock } = require('../helpers/toast-dom');
 
 const adminPath = path.join(__dirname, '../../public/js/admin');
 const plain = (value) => JSON.parse(JSON.stringify(value));
@@ -69,7 +70,7 @@ async function loadOwner(filename, overrides = {}) {
     ...overrides,
   };
   const stubs = new Map(Object.entries(replacements).map(([name, exports]) => [path.resolve(adminPath, name), exports]));
-  const context = vm.createContext({ console, document, URL, AbortController, TextEncoder, structuredClone,
+  const context = vm.createContext({ ...createClock(), console, document, URL, AbortController, TextEncoder, structuredClone,
     crypto: require('node:crypto'), location: new URL('http://127.0.0.1:3000/admin'),
     window: { addEventListener() {}, liraLicense: {} },
     fetch: async () => ({ ok: true, json: async () => ({ ok: true, data: {} }) }) });

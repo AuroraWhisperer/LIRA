@@ -1,6 +1,7 @@
 body[data-style='neon-glass'] {
   --neon-glass-font: 'Spooky Nunito', 'Microsoft YaHei UI', 'Microsoft YaHei', sans-serif;
-  --neon-glass-tint: var(--danmaku-bubble-color, #b5b8ec);
+  --neon-glass-tint-rgb: var(--danmaku-bubble-color-rgb, 181 184 236);
+  --neon-glass-tint-alpha: var(--danmaku-bubble-color-alpha, 1);
   --danmaku-enter-animation: neonGlassEntry var(--neon-glass-entry-duration, 480ms) linear;
   --danmaku-enter-offset: 0;
   --danmaku-move-base-ms: 360;
@@ -17,6 +18,7 @@ body[data-style='neon-glass'] .draw-danmaku-feed {
 }
 body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item {
   --neon-glass-name-color: var(--neon-glass-original-name-color);
+  --neon-glass-name-light: var(--neon-glass-original-name-color-light);
   position: relative; display: block; flex: none; width: max-content;
   max-width: min(640px, 100%); min-width: 0; min-height: 0;
   margin: 0; padding: 10px 22px; border: 0; border-radius: 30px; background: none;
@@ -28,9 +30,9 @@ body[data-style='neon-glass'] .neon-glass-item::before,
 body[data-style='neon-glass'] .neon-glass-item::after { display: none; }
 .neon-glass-panel {
   position: absolute; inset: 0; display: block; border-radius: inherit; pointer-events: none;
-  border: 1px solid color-mix(in srgb, #e3e9ff 24%, transparent);
-  background: linear-gradient(176deg, color-mix(in srgb, var(--neon-glass-tint) 45%, transparent),
-    color-mix(in srgb, var(--neon-glass-tint) 18%, transparent) 52%, rgb(130 116 190 / 23%)),
+  border: 1px solid rgb(227 233 255 / 24%);
+  background: linear-gradient(176deg, rgb(var(--neon-glass-tint-rgb) / calc(var(--neon-glass-tint-alpha) * 0.45)),
+    rgb(var(--neon-glass-tint-rgb) / calc(var(--neon-glass-tint-alpha) * 0.18)) 52%, rgb(130 116 190 / 23%)),
     rgb(34 39 61 / 76%);
   box-shadow: inset 0 1px 2px rgb(255 255 255 / calc(.45 * var(--neon-glass-highlight, 1))),
     inset 0 -1px 4px rgb(179 174 243 / calc(.24 * var(--neon-glass-highlight, 1))),
@@ -43,7 +45,7 @@ body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item .neon-glass-con
   font: inherit; color: inherit; white-space: pre-wrap; overflow-wrap: anywhere;
 }
 body[data-style='neon-glass'] .neon-glass-name {
-  font: 700 24px/1.45 var(--neon-glass-font); color: color-mix(in srgb, var(--neon-glass-name-color) 65%, #fff); white-space: normal;
+  font: 700 24px/1.45 var(--neon-glass-font); color: var(--neon-glass-name-light); white-space: normal;
   overflow-wrap: anywhere; letter-spacing: 0;
 }
 body[data-style='neon-glass'] .draw-danmaku-item.neon-glass-item .neon-glass-copy {
@@ -63,12 +65,13 @@ body[data-style='neon-glass'][data-neon-glass-icons='hide'] .neon-glass-icon { d
 body[data-style='neon-glass'][data-neon-glass-name-colors='text'] .neon-glass-name { color: inherit; }
 body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item {
   --neon-glass-name-color: #c2adff;
+  --neon-glass-name-light: rgb(215.35 201.7 255 / 1);
 }
-body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='fan'] { --neon-glass-name-color: #b4df75; }
-body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='captain'] { --neon-glass-name-color: #8dd9ef; }
-body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='admiral'] { --neon-glass-name-color: #c2adff; }
-body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='governor'] { --neon-glass-name-color: #f09bc9; }
-body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='streamer'] { --neon-glass-name-color: #ffa58d; }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='fan'] { --neon-glass-name-color: #b4df75; --neon-glass-name-light: rgb(206.25 234.2 165.3 / 1); }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='captain'] { --neon-glass-name-color: #8dd9ef; --neon-glass-name-light: rgb(180.9 230.3 244.6 / 1); }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='admiral'] { --neon-glass-name-color: #c2adff; --neon-glass-name-light: rgb(215.35 201.7 255 / 1); }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='governor'] { --neon-glass-name-color: #f09bc9; --neon-glass-name-light: rgb(245.25 190 219.9 / 1); }
+body[data-style='neon-glass'][data-neon-glass-name-colors='identity'] .neon-glass-item[data-neon-glass-role='streamer'] { --neon-glass-name-color: #ffa58d; --neon-glass-name-light: rgb(255 196.5 180.9 / 1); }
 body[data-style='neon-glass'] .draw-danmaku-emote {
   display: inline-block; width: auto; max-width: 100%; height: 1.45em; object-fit: contain; vertical-align: -.25em;
 }

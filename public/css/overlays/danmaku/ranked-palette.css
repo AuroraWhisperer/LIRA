@@ -4,20 +4,65 @@ body[data-style='glow'] .draw-danmaku-item,
 body[data-style='ranked'] .draw-danmaku-item[data-identity='viewer'],
 body[data-style='ranked'] .draw-danmaku-item[data-identity='fan'] {
   --ranked-accent: #6ed6dc;
+  --ranked-accent-rgb: 110 214 220;
+  --ranked-border: rgb(150.6 225.48 229.8 / 1);
+  --ranked-name-surface: rgb(60.5 117.7 121 / 1);
+  --ranked-badge-surface: rgb(136.1 221.38 226.3 / 1);
+  --glow-surface-rgb: 26.583333 47.166667 58.27381;
+  --glow-surface-alpha: 0.8064;
+  --glow-gift-surface-rgb: 32.92 55.74 67.48;
+  --glow-gift-accent: rgb(168 230.4 234 / 1);
+  --glow-gift-border: rgb(220.2 245.16 246.6 / 1);
 }
 body[data-style='ranked'] .draw-danmaku-item[data-identity='captain'],
 body[data-style='glow'] .draw-danmaku-item[data-identity='captain'] {
   --ranked-accent: var(--guard-captain);
+  --ranked-accent-rgb: 47 155 255;
+  --ranked-border: rgb(105.24 183 255 / 1);
+  --ranked-name-surface: rgb(25.85 85.25 140.25 / 1);
+  --ranked-badge-surface: rgb(84.44 173 255 / 1);
+  --glow-surface-rgb: 17.208333 38.386905 63.482143;
+  --glow-surface-alpha: 0.8064;
+  --glow-gift-surface-rgb: 21.58 45.12 73.78;
+  --glow-gift-accent: rgb(130.2 195 255 / 1);
+  --glow-gift-border: rgb(205.08 231 255 / 1);
 }
 body[data-style='ranked'] .draw-danmaku-item[data-identity='admiral'],
 body[data-style='glow'] .draw-danmaku-item[data-identity='admiral'] {
   --ranked-accent: var(--guard-admiral);
+  --ranked-accent-rgb: 164 92 255;
+  --ranked-border: rgb(189.48 137.64 255 / 1);
+  --ranked-name-surface: rgb(90.2 50.6 140.25 / 1);
+  --ranked-badge-surface: rgb(180.38 121.34 255 / 1);
+  --glow-surface-rgb: 34.619048 29.011905 63.482143;
+  --glow-surface-alpha: 0.8064;
+  --glow-gift-surface-rgb: 42.64 33.78 73.78;
+  --glow-gift-accent: rgb(200.4 157.2 255 / 1);
+  --glow-gift-border: rgb(233.16 215.88 255 / 1);
 }
 body[data-style='ranked'] .draw-danmaku-item[data-identity='governor'],
 body[data-style='glow'] .draw-danmaku-item[data-identity='governor'] {
   --ranked-accent: var(--guard-governor);
+  --ranked-accent-rgb: 240 68 90;
+  --ranked-border: rgb(244.2 120.36 136.2 / 1);
+  --ranked-name-surface: rgb(132 37.4 49.5 / 1);
+  --ranked-badge-surface: rgb(242.7 101.66 119.7 / 1);
+  --glow-surface-rgb: 45.928571 25.440476 38.928571;
+  --glow-surface-alpha: 0.8064;
+  --glow-gift-surface-rgb: 56.32 29.46 44.08;
+  --glow-gift-accent: rgb(246 142.8 156 / 1);
+  --glow-gift-border: rgb(251.4 210.12 215.4 / 1);
 }
 body[data-style='ranked'] .draw-danmaku-item[data-streamer='true'],
 body[data-style='glow'] .draw-danmaku-item[data-streamer='true'] {
   --ranked-accent: #67c479;
+  --ranked-accent-rgb: 103 196 121;
+  --ranked-border: rgb(145.56 212.52 158.52 / 1);
+  --ranked-name-surface: rgb(56.65 107.8 66.55 / 1);
+  --ranked-badge-surface: rgb(130.36 206.62 145.12 / 1);
+  --glow-surface-rgb: 25.541667 44.488095 43.541667;
+  --glow-surface-alpha: 0.8064;
+  --glow-gift-surface-rgb: 31.66 52.5 49.66;
+  --glow-gift-accent: rgb(163.8 219.6 174.6 / 1);
+  --glow-gift-border: rgb(218.52 240.84 222.84 / 1);
 }

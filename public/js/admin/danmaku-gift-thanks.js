@@ -1,5 +1,6 @@
 import { createGiftThanksTextEditor } from './gift-thanks-text-editor.js';
 import { createGiftThanksLibrary } from './gift-thanks-library.js';
+import { createAutosave } from './settings-autosave.js';
 import { DEFAULT_GIFT_THANKS_TEMPLATES, normalizeGiftThanksTemplates, renderGiftThanksTemplate,
   createGiftThanksReplies, normalizeGiftThanksReplies } from '../shared/gift-thanks-templates.js';
 
@@ -25,16 +26,19 @@ export function initDanmakuGiftThanks({
   const lifetime = new AbortController();
   let snapshot = {}, saved = null, owner = '', generation = 0, pending = false, dirty = false, valid = false, disposed = false, accountKnown = false;
   let advanced = false;
+  let revision = 0, failed = false;
   const libraryRoot = get('danmakuGiftThanksLibrary');
   const library = createGiftThanksLibrary(libraryRoot, changed);
   const editors = Object.fromEntries(['gift', 'guard'].map(kind => [kind,
     createGiftThanksTextEditor(get(`danmakuThanks${kind}Editor`), changed)]));
   const values = () => advanced ? library.read() : Object.fromEntries(Object.entries(editors).map(([kind, editor]) => [kind, editor.read()]));
   const listen = (element, type, handler) => element.addEventListener(type, handler, { signal: lifetime.signal });
+  const autosave = createAutosave({ root: form, windowRef,
+    canSave: () => Boolean(owner && saved && valid && dirty && !pending), save: saveTemplates });
 
   function controls() {
     const supported = advanced ? snapshot.replies && bridge?.setGiftThanksReplies : snapshot.templates && bridge?.setGiftThanksTemplates;
-    const disabled = !owner || !supported || snapshot.status !== 'confirmed' || pending;
+    const disabled = !owner || !supported || snapshot.status !== 'confirmed';
     fields.disabled = disabled;
     Object.values(editors).forEach(editor => editor.setDisabled(disabled));
     library.setDisabled(disabled);
@@ -46,7 +50,9 @@ export function initDanmakuGiftThanks({
       button.title = exists ? '文案中已有此参数块，可选中后剪切并粘贴到新位置。' : '补回此参数块';
     }
     open.disabled = !owner;
-    save.disabled = disabled || !dirty || !valid;
+    save.disabled = disabled || pending || !dirty || !valid;
+    save.textContent = '重试保存';
+    status.parentElement.hidden = !failed && Boolean(owner && saved);
   }
   function preview() {
     if (advanced) {
@@ -79,8 +85,11 @@ export function initDanmakuGiftThanks({
   }
   function changed() {
     dirty = !saved || JSON.stringify(values()) !== JSON.stringify(saved);
-    status.textContent = dirty ? '有未保存的更改' : '';
+    revision++;
+    failed = false;
+    status.textContent = '';
     preview();
+    autosave.schedule();
   }
   function updateState(value) {
     if (disposed || (accountKnown && !owner)) return;
@@ -110,6 +119,8 @@ export function initDanmakuGiftThanks({
     const reset = Boolean(owner) || !next;
     owner = next;
     generation++;
+    autosave.cancel();
+    failed = false;
     if (reset) {
       snapshot = {};
       saved = null;
@@ -129,11 +140,11 @@ export function initDanmakuGiftThanks({
     load(advanced ? createGiftThanksReplies() : DEFAULT_GIFT_THANKS_TEMPLATES);
     changed();
   });
-  listen(form, 'submit', async event => {
-    event.preventDefault();
+  async function saveTemplates() {
     if (save.disabled) return;
     const templates = advanced ? normalizeGiftThanksReplies(values()) : normalizeGiftThanksTemplates(values());
     const requested = generation;
+    const submitted = revision;
     pending = true;
     status.textContent = '正在保存文案…';
     controls();
@@ -145,10 +156,12 @@ export function initDanmakuGiftThanks({
         throw new Error('保存尚未确认，请刷新云端状态后重试；草稿已保留。');
       }
       saved = structuredClone(templates);
-      dirty = false;
+      dirty = submitted !== revision;
+      failed = false;
       status.textContent = '文案已保存到云端';
     } catch (error) {
       if (!disposed && requested === generation) {
+        failed = true;
         status.textContent = error.message || '保存失败，草稿已保留。';
         toast(status.textContent, { type: 'error' });
       }
@@ -158,7 +171,8 @@ export function initDanmakuGiftThanks({
         controls();
       }
     }
-  });
+  }
+  listen(form, 'submit', event => { event.preventDefault(); void saveTemplates(); });
   load(DEFAULT_GIFT_THANKS_TEMPLATES);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initial = generation;

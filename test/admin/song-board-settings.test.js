@@ -95,7 +95,7 @@ test('standalone theme preserves inheritance, custom black, percentage opacity a
   await page.waitForFunction(() => window.controller.getState().error);
   await page.evaluate(() => window.emitSettings(window.savedSettings));
   assert.equal(await page.locator('#songBoardTitle').inputValue(), '测试标题');
-  await page.getByRole('button', { name: '保存展示板', exact: true }).click();
+  await page.getByRole('button', { name: '重试保存', exact: true }).click();
   await page.waitForFunction(() => window.writes.length === 2);
   await page.evaluate(() => window.writes[1].finish());
   await page.waitForFunction(() => !window.controller.getState().dirty);
@@ -150,7 +150,6 @@ test('immediate theme sync saves independent edits, including a cleared title, f
     await page.evaluate(() => window.writes.at(-1).finish());
     await page.waitForFunction(() => !window.controller.getState().dirty);
     await page.locator('#songBoardSyncTheme').uncheck();
-    await page.getByRole('button', { name: '保存展示板', exact: true }).click();
     await page.waitForFunction(() => window.writes.at(-1).body.songBoardSyncTheme === 'false');
     await page.evaluate(() => window.writes.at(-1).finish());
     await page.waitForFunction(() => !window.controller.getState().dirty);

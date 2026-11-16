@@ -45,9 +45,9 @@ body[data-style='christmas'] .christmas-item .christmas-card::before {
   display: block;
   content: ''; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
   background:
-    radial-gradient(ellipse 72% 22px at 8% 100%, color-mix(in srgb, var(--christmas-wine) 88%, #1f111c) 98%, transparent),
-    radial-gradient(ellipse 80% 24px at 100% 106%, color-mix(in srgb, var(--christmas-wine) 95%, #d8b77c) 98%, transparent),
-    linear-gradient(115deg, var(--christmas-wine), color-mix(in srgb, var(--christmas-wine) 76%, #1f111c));
+    radial-gradient(ellipse 72% 22px at 8% 100%, var(--christmas-low, rgb(109.32 35.48 47.36)) 98%, transparent),
+    radial-gradient(ellipse 80% 24px at 100% 106%, var(--christmas-high, rgb(124.8 45.25 53.7)) 98%, transparent),
+    linear-gradient(115deg, var(--christmas-wine), var(--christmas-shade, rgb(98.64 32.96 44.72)));
   box-shadow: inset 0 0 0 3px #ffffff04, 0 4px 12px #1f0a151a;
   opacity: var(--danmaku-background-opacity, 1);
   clip-path: inset(0 var(--christmas-reveal) 0 0 round 12px);
@@ -58,13 +58,13 @@ body[data-style='christmas'] .christmas-item .christmas-card::before {
 }
 .christmas-frame rect {
   width: calc(100% - 1px); height: calc(100% - 1px); fill: none;
-  stroke: color-mix(in srgb, var(--christmas-gold) 68%, transparent); stroke-width: 1px;
+  stroke: rgb(216 183 124 / 68%); stroke-width: 1px;
   stroke-dasharray: 1; stroke-dashoffset: var(--christmas-trace);
 }
 body[data-style='christmas'] .christmas-heading {
   position: relative; z-index: 1; display: flex; align-items: baseline; flex-wrap: wrap;
   gap: 5px 10px; min-width: 0; margin: 0 0 5px; padding: 0 42px 0 0;
-  color: color-mix(in srgb, var(--christmas-gold) 86%, var(--christmas-cream));
+  color: rgb(221.46 191.12 136.88);
   font: 600 16px/1.4 var(--christmas-font); letter-spacing: .035em;
 }
 body[data-style='christmas'] .christmas-heading .christmas-name {
@@ -97,17 +97,21 @@ body[data-style='christmas'] .christmas-copy {
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) { --danmaku-enter-animation: christmasEntry 1180ms linear; }
 body[data-style='christmas'] .christmas-item[data-christmas-kind='gift'] {
   --christmas-wine: #204b41;
+  --christmas-shade: rgb(27.52 61.56 56.88);
   --christmas-pattern: url('../../../img/overlays/danmaku-christmas/gift-foil.svg');
 }
 body[data-style='christmas'] .christmas-item[data-christmas-kind='member'] {
   --christmas-wine: #253c59;
+  --christmas-shade: rgb(31.12 50.76 74.16);
   --christmas-pattern: url('../../../img/overlays/danmaku-christmas/member-foil.svg');
 }
 body[data-style='christmas'] .christmas-item.is-gift .christmas-card::before {
   background:
     var(--christmas-pattern) right bottom / auto 100% no-repeat,
-    linear-gradient(115deg, var(--christmas-wine), color-mix(in srgb, var(--christmas-wine) 72%, #101b24));
+    linear-gradient(115deg, var(--christmas-wine), var(--christmas-shade));
 }
+body[data-style='christmas'][data-christmas-background='transparent'] .christmas-card::before,
+body[data-style='christmas'][data-christmas-background='transparent'] .christmas-frame { display: none; }
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-card { padding: 30px 24px 20px; }
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-heading { padding-right: 0; }
 body[data-style='christmas'] .christmas-item:is(.is-gift,.is-superchat) .christmas-name { flex: 1 1 50%; }

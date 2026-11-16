@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createClock } = require('../helpers/toast-dom');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const saved = (enabled = false, messages = ['欢迎 {username}', '{username} 来啦']) => ({ ok: true, enabled, messages });
@@ -22,6 +23,8 @@ async function fixture(initialProfile = account('one'), v2 = false) {
       events: {},
       dataset: {},
       hidden: false,
+      parentElement: {},
+      querySelectorAll() { return this.children.flatMap(child => [child, ...child.querySelectorAll()]); },
       append(...items) {
         this.children.push(...items);
       },
@@ -61,8 +64,12 @@ async function fixture(initialProfile = account('one'), v2 = false) {
     control['aria-label'] === `第 ${index + 1} 位用户的${key === 'uid' ? 'B 站 UID' : '欢迎词'}`);
   let listener;
   const windowRef = node();
+  const clock = createClock();
+  windowRef.setTimeout = clock.setTimeout;
+  windowRef.clearTimeout = clock.clearTimeout;
   for (const [suffix, title] of Object.entries({
     Title: '进场欢迎',
+    LiveGreetingTitle: '开播连接提示',
     GreetingTitle: '二次问候',
     AttentionTitle: '高荣耀文案',
     OwnMedalTitle: '只欢迎佩戴本直播间粉丝牌的观众',
@@ -105,6 +112,7 @@ async function fixture(initialProfile = account('one'), v2 = false) {
   });
   await flush();
   return {
+    clock,
     get,
     reads,
     writes,
@@ -245,6 +253,7 @@ const savedV2 = (patch = {}) => ({
   ok: true,
   schemaVersion: 2,
   enabled: false,
+  liveGreetingEnabled: true,
   welcomeDelaySeconds: 0,
   welcomeMinHonorLevel: 0,
   welcomeOwnMedalOnly: false,
@@ -264,6 +273,34 @@ const savedV2 = (patch = {}) => ({
   returningEnabled: false,
   returningMessages: ['最近好吗？'],
   ...patch,
+});
+
+test('live greeting switch saves alone and rejects missing confirmation or unsupported servers', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2());
+  await flush();
+  f.parameter('welcomeDelaySeconds', '999');
+  f.edit(0, '欢迎草稿');
+  f.get('LiveGreetingToggle').checked = false;
+  f.change('LiveGreetingToggle');
+  assert.deepEqual(f.writes[0].patch, { liveGreetingEnabled: false });
+  f.writes[0].resolve(savedV2({ liveGreetingEnabled: false }));
+  await flush();
+  assert.equal(f.get('LiveGreetingToggle').checked, false);
+  assert.equal(f.get('welcomeDelaySeconds').value, '999');
+  assert.equal(f.message(0).value, '欢迎草稿');
+  f.get('LiveGreetingToggle').checked = true;
+  f.change('LiveGreetingToggle');
+  f.writes[1].resolve(savedV2({ liveGreetingEnabled: undefined }));
+  await flush();
+  assert.equal(f.get('LiveGreetingToggle').checked, false);
+  assert.equal(f.toastOptions.at(-1).type, 'error');
+  f.click('RefreshBtn');
+  f.reads[1].resolve(savedV2({ liveGreetingEnabled: undefined }));
+  await flush();
+  f.get('LiveGreetingToggle').checked = true;
+  f.change('LiveGreetingToggle');
+  assert.equal(f.writes.length, 2);
 });
 
 test('own-room medal toggle saves independently and requires acknowledgment without losing drafts', async () => {
@@ -480,6 +517,53 @@ test('parameter and four library domains preserve edits while writes serialize',
   assert.equal(f.get('ParameterSaveBtn').disabled, false);
   f.library('greetingMessages');
   assert.equal(f.get('SaveBtn').disabled, true);
+});
+
+test('welcome autosave drains independent valid drafts without clicks and preserves newer edits', async () => {
+  const f = await fixture(account('one'), true);
+  let remote = savedV2({ enabled: true });
+  f.reads[0].resolve(remote);
+  await flush();
+  f.parameter('welcomeDelaySeconds', '5');
+  f.edit(0, '首次自动保存');
+  f.library('greetingMessages');
+  f.edit(0, '问候自动保存');
+  f.clock.tick(600);
+  assert.equal(f.writes.length, 1);
+  f.parameter('welcomeDelaySeconds', '6');
+  for (let index = 0; index < 3; index++) {
+    const write = f.writes[index];
+    remote = { ...remote, ...write.patch };
+    write.resolve(remote);
+    await flush();
+  }
+  assert.equal(remote.messages[0], '首次自动保存');
+  assert.equal(remote.greetingMessages[0], '问候自动保存');
+  f.clock.tick(600);
+  assert.equal(f.writes[3].patch.welcomeDelaySeconds, 6);
+  f.writes[3].resolve({ ...remote, ...f.writes[3].patch });
+  await flush();
+  f.edit(0, '旧账号待保存');
+  f.account('two');
+  f.clock.tick(600);
+  assert.equal(f.writes.length, 4);
+});
+
+test('custom welcome keeps saving edits in the same input after an automatic acknowledgment', async () => {
+  const f = await fixture(account('one'), true);
+  f.reads[0].resolve(savedV2({ userWelcomeMessages: [{ uid: '42', message: '欢迎' }] }));
+  await flush();
+  const input = f.customField(0, 'message');
+  f.customEdit(0, 'message', '第一次编辑');
+  f.clock.tick(600);
+  f.writes[0].resolve(savedV2(f.writes[0].patch));
+  await flush();
+  assert.equal(f.customField(0, 'message'), input);
+  f.customEdit(0, 'message', '继续编辑');
+  f.clock.tick(600);
+  assert.equal(f.writes[1].patch.userWelcomeMessages[0].message, '继续编辑');
+  f.writes[1].resolve(savedV2(f.writes[1].patch));
+  await flush();
 });
 
 test('invalid greeting delay blocks enabling/saving but pure disable still submits', async () => {

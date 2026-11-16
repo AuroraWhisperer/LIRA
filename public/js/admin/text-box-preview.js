@@ -1,5 +1,6 @@
 import { createTextBoxDefaults, TEXT_BOX_SIZE, TEXT_BOX_SCROLL_SPEED } from '../shared/text-box-config.js';
 import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
+import { enhanceColorControls } from '../shared/color-control.js';
 import { previewElement } from './component-preview-elements.js';
 import { mountTextBoxEditor } from './text-box-editor.js';
 import { mountTextBoxMedia } from './text-box-media.js';
@@ -38,6 +39,20 @@ export function createTextBoxPreview({ media } = {}) {
         input.addEventListener('change', () => target.edit({ [key]: key === 'lineHeight' ? Number(input.value) : input.value }));
         label.append(input); layout.append(label); fields.set(key, input);
       }
+      const background = previewElement('div', 'text-box-background');
+      const backgroundLabel = previewElement('span', 'text-box-background-label', '背景颜色');
+      const backgroundHelp = previewElement('lira-help', '', '颜色与不透明度会用于直播画面。设为 0% 或点击“恢复透明”可去掉背景；预览的检查底色不会输出。');
+      backgroundHelp.setAttribute('label', '背景颜色说明');
+      backgroundLabel.append(backgroundHelp);
+      const backgroundColor = previewElement('input');
+      backgroundColor.type = 'color'; backgroundColor.setAttribute('aria-label', '文本框背景颜色');
+      backgroundColor.setAttribute('value', '#00000000');
+      backgroundColor.addEventListener('input', () => target.edit({ backgroundColor: backgroundColor.value }));
+      const clearBackground = previewElement('button', 'secondary', '恢复透明');
+      clearBackground.type = 'button';
+      clearBackground.addEventListener('click', () => target.edit({ backgroundColor: '#00000000' }));
+      background.append(backgroundLabel, backgroundColor, clearBackground);
+      typography.append(background);
       const scrolling = previewElement('section', 'text-box-settings-group text-box-scroll-settings');
       const scrollTitle = previewElement('h4', 'text-box-section-title', '自动滚动');
       const scrollHelp = previewElement('lira-help', '', '横向滚动为单行向左，纵向滚动保留换行并向上；两个方向只能启用一个。都关闭时，文字保持静止。');
@@ -75,6 +90,7 @@ export function createTextBoxPreview({ media } = {}) {
       (settingsHost || content).append(settings);
       content.append(error);
       host.append(content);
+      enhanceColorControls(settings);
       initParameterRanges(settings);
       const stop = target.subscribe(({ draft, loaded }) => {
         const disabled = !loaded || host.closest('fieldset:disabled') !== null;
@@ -82,7 +98,11 @@ export function createTextBoxPreview({ media } = {}) {
         assets.setDisabled(disabled);
         for (const [key, input] of fields) { input.value = String(draft[key]); input.disabled = disabled; }
         for (const [mode, input] of switches) { input.checked = draft.scrollMode === mode; input.disabled = disabled; }
+        backgroundColor.value = draft.backgroundColor || '#00000000';
+        backgroundColor.disabled = disabled;
+        clearBackground.disabled = disabled || backgroundColor.value.length === 9 && backgroundColor.value.endsWith('00');
         slider.value = draft.scrollSpeed ?? TEXT_BOX_SCROLL_SPEED.default;
+        speed.hidden = !draft.scrollMode || draft.scrollMode === 'none';
         slider.disabled = disabled || draft.scrollMode === 'none';
         speedValue.value = `${slider.value} 像素/秒`;
         slider.setAttribute('aria-valuetext', speedValue.value);

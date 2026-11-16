@@ -26,7 +26,8 @@ test('legacy settings initialize once; local profiles survive repeated migration
   assert.equal(initial.config.styleOptions.bubble.fontSize, 32);
   assert.doesNotMatch(JSON.stringify(initial), /PRIVATE/);
   const next = { ...initial, config: { ...initial.config, style: 'spooky',
-    styleOptions: { ...initial.config.styleOptions, spooky: { fontSize: 36 }, outline: { durationSeconds: 12 },
+    styleOptions: { ...initial.config.styleOptions, spooky: { fontSize: 36, nicknameFontSize: 24, nicknameFontFamily: '"Georgia"',
+      nicknameColor: '#cceeff', frameTitleFontSize: 16 }, outline: { durationSeconds: 12 },
       'animated-gradient': { gradientPalette: 'ocean', gradientCycleSeconds: 24, gradientUnderline: 'hide' },
       'glass-bubble': { glassBubbleReveal: 'instant', glassBubbleTypingSpeed: 60, glassBubbleSweep: 'off', glassBubbleHighlight: 0 },
       'celestial-horizontal': { celestialNebulaOpacity: 80, celestialStarDensity: 'dense', celestialStarShape: 'star', celestialSeparator: 'hide' },

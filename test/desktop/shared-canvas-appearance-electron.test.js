@@ -87,7 +87,7 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
   assert.equal(await desktop.locator('#overtimeBackgroundFit').inputValue(), 'fill');
   await desktop.getByRole('button', { name: '适配', exact: true }).click();
   await desktop.getByRole('option', { name: '完整显示', exact: true }).click();
-  await desktop.locator('#overtimeSaveBackgroundBtn').click();
+  await desktop.waitForResponse(response => response.url().endsWith('/api/overtime/config') && response.ok());
   await canvas.waitForFunction(() => document.querySelector('[data-preview-field="overtimeBackgroundFit"]').value === 'contain');
   const output = await app.evaluate(() => global.canvasTest.output());
   const item = output.document.items.find(item => item.type === 'overtime');
@@ -181,7 +181,6 @@ test('desktop and canvas share local settings and imported resources across inst
   const desktopTitleSize = desktop.locator('#nowPlayingParameters [data-component-parameter="nowPlayingTitleFontSize"]');
   await desktopTitleSize.fill('64'); await desktopTitleSize.dispatchEvent('change');
   await desktop.getByRole('checkbox', { name: '显示歌手', exact: true }).uncheck();
-  await desktop.locator('#nowPlayingSave').click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nowPlayingTitleFontSize"]').value === '64'
     && !document.querySelector('[data-component-parameter="nowPlayingShowArtist"]').checked);
   assert.equal(await canvas.locator('[data-component-parameter="style"]').isVisible(), false);
@@ -190,8 +189,7 @@ test('desktop and canvas share local settings and imported resources across inst
   await resource.getByText('外观设置', { exact: true }).click();
   const desktopSize = resource.locator('[data-component-parameter="nameFontSize"]');
   await desktopSize.fill('54'); await desktopSize.dispatchEvent('change');
-  await resource.getByRole('button', { name: '保存设置', exact: true }).click();
-  await resource.getByRole('status').filter({ hasText: '已保存并同步' }).waitFor();
+  await desktop.waitForResponse(response => response.url().endsWith('/api/component-styles/config') && response.ok());
   await canvas.getByRole('button', { name: '添加组件', exact: true }).click();
   await canvas.locator('[data-category="guard-thanks"]').click();
   await canvas.getByRole('button', { name: '添加到画布：航海旗帜', exact: true }).click();
@@ -201,7 +199,6 @@ test('desktop and canvas share local settings and imported resources across inst
   await canvasSize.blur();
   await desktop.waitForFunction(() => document.querySelector('[data-resource-style-settings]:not([hidden]) [data-component-parameter="nameFontSize"]').value === '62');
   await desktopSize.fill('70'); await desktopSize.dispatchEvent('change');
-  await resource.getByRole('button', { name: '保存设置', exact: true }).click();
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');
   await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
   await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
@@ -348,32 +345,32 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
     else await canvas.locator('.preview-picker-style').first().click();
   }
   await add('gift-frame', '礼物掉落');
-  const size = canvas.locator('[data-component-parameter="giftDropSize"]');
-  await size.fill('134'); await size.dispatchEvent('input');
-  await desktop.waitForFunction(() => document.getElementById('giftDropSize').value === '134');
+  const count = canvas.locator('[data-component-parameter="giftDropCount"]');
+  await count.fill('34'); await count.dispatchEvent('input');
+  await desktop.waitForFunction(() => document.getElementById('giftDropCount').value === '34');
   const refresh = canvas.waitForResponse(async response => response.url().includes('/api/component-preview/appearance')
-    && response.ok() && (await response.text()).includes('"giftDropSize":"152"'));
+    && response.ok() && (await response.text()).includes('"giftDropCount":"52"'));
   const submitted = desktop.waitForRequest(request => request.url().endsWith('/api/settings')
-    && request.method() === 'POST' && request.postDataJSON()?.giftDropSize === '152');
-  await desktop.locator('#giftDropSize').fill('152');
+    && request.method() === 'POST' && request.postDataJSON()?.giftDropCount === '52');
+  await desktop.locator('#giftDropCount').fill('52');
   const bounce = canvas.locator('[data-component-parameter="giftDropBounce"]');
   await bounce.fill('60'); await bounce.dispatchEvent('input'); await bounce.blur();
   await desktop.waitForFunction(() => document.getElementById('giftDropBounce').value === '60');
-  await size.focus();
-  assert.deepEqual((await submitted).postDataJSON(), { giftDropSize: '152' }, 'saving a desktop draft preserves other canvas changes');
+  await count.focus();
+  assert.deepEqual((await submitted).postDataJSON(), { giftDropCount: '52' }, 'saving a desktop draft preserves other canvas changes');
   await refresh;
-  await size.blur();
-  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '152');
+  await count.blur();
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropCount"]').value === '52');
   await desktop.route('**/api/settings', route => route.fulfill({ status: 500,
     json: { ok: false, error: 'Synthetic local write failure' } }), { times: 1 });
   const failedWrite = desktop.waitForResponse(response => response.url().endsWith('/api/settings') && response.status() === 500);
-  await desktop.locator('#giftDropSize').fill('160');
+  await desktop.locator('#giftDropCount').fill('60');
   await failedWrite;
   await desktop.locator('.toast-error').last().waitFor();
-  assert.equal(await desktop.locator('#giftDropSize').inputValue(), '160');
-  assert.equal(await size.inputValue(), '152');
-  await desktop.locator('#giftDropSize').dispatchEvent('change');
-  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '160');
+  assert.equal(await desktop.locator('#giftDropCount').inputValue(), '60');
+  assert.equal(await count.inputValue(), '52');
+  await desktop.locator('#giftDropCount').dispatchEvent('change');
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropCount"]').value === '60');
   await add('gift-frame', '礼物摇摇乐');
   await canvas.locator('.gift-motion-canvas-settings:not([hidden])').getByRole('checkbox', { name: '礼物名', exact: true }).uncheck();
   await desktop.waitForFunction(() => document.getElementById('giftSwingTextMode').value === 'name-quantity');
@@ -444,9 +441,9 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   assert.equal(appearance('heart-box-collection').showRewards, true);
   assert.equal(appearance('live-rankings').range, 'nearby');
   const motionLayer = output.document.items.find(item => item.type === 'gift-frame');
-  assert.equal(Object.hasOwn(motionLayer.appearance.config, 'giftDropSize'), false);
+  assert.equal(Object.hasOwn(motionLayer.appearance.config, 'giftDropCount'), false);
   await canvas.reload();
   await canvas.locator('.preview-canvas-layer-select').filter({ hasText: '礼物掉落' }).click();
-  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropSize"]').value === '160');
+  await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="giftDropCount"]').value === '60');
   assert.deepEqual(errors, []);
 });

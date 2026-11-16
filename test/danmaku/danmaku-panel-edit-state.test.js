@@ -198,7 +198,7 @@ test('danmaku fields retain pending input and synchronize committed values while
   await page.evaluate(() => window.parameterBinding.dispose());
 });
 
-test('danmaku panel saves toggles, previews a selected style and discards or reloads appearance', async (t) => {
+test('danmaku panel saves toggles, previews a selected style and discards failed appearance edits', async (t) => {
   const page = await fixture(t, 'danmaku');
   await page.evaluate(async (html) => {
     const parsed = new DOMParser().parseFromString(html, 'text/html');
@@ -311,13 +311,11 @@ test('danmaku panel saves toggles, previews a selected style and discards or rel
     const { closeComponentPreview } = await import('/js/admin/component-preview-session.js');
     closeComponentPreview();
   });
+  await page.waitForFunction(() => window.pendingSaves.some(request => request.url === '/api/danmaku/appearance'));
+  await page.evaluate(() => window.pendingSaves.find(request => request.url === '/api/danmaku/appearance')
+    .reject(new Error('Synthetic appearance failure')));
   await page.locator('#danmakuDiscardOverlayBtn').click();
   assert.equal(await page.locator('[data-recent-danmaku-style="signal"]').getAttribute('aria-pressed'), 'true');
-  await page.evaluate(() => {
-    window.appearanceConfig = { style: 'cream', fullscreenDurationSeconds: 6, styleOptions: {} };
-  });
-  await page.locator('#danmakuReloadOverlayBtn').click();
-  await page.waitForFunction(() => document.querySelector('[data-recent-danmaku-style="cream"]')?.getAttribute('aria-pressed') === 'true');
 });
 
 test('style library combines filters and keeps only confirmed recent styles for each account', async (t) => {
@@ -387,7 +385,7 @@ test('style library combines filters and keeps only confirmed recent styles for 
   assert.equal(await library.isVisible(), false);
   assert.deepEqual(await history('first'), [], 'Browsing and selecting do not record usage.');
 
-  await save.click();
+  await page.waitForFunction(() => window.appearanceController.getState().saving);
   await page.evaluate(() => window.pendingSaves.at(-1).reject(new Error('Synthetic save failure')));
   await page.waitForFunction(() => !window.appearanceController.getState().saving);
   assert.deepEqual(await history('first'), [], 'A failed save does not record usage.');
@@ -403,7 +401,7 @@ test('style library combines filters and keeps only confirmed recent styles for 
   assert.equal(await page.evaluate(() => window.appearanceController.getState().saved.styleOptions.signal.fontSize), 34);
   assert.deepEqual(await history('first'), ['cream'], 'Record the saved style, not the newer draft.');
 
-  await save.click();
+  await page.waitForFunction(() => window.appearanceController.getState().saving);
   await page.evaluate(() => {
     window.previousAccountSave = window.appearanceController.save();
     window.activeAppearanceAccount = 'second';
@@ -541,7 +539,7 @@ for (const library of libraries) {
       assert.equal(await page.evaluate(() => window.saveButton.disabled), !dirty);
       assert.equal(
         await page.evaluate(() => window.list.querySelector('input').value),
-        result.endsWith('-edit') ? 'B' : result === 'success-unchanged' ? 'A' : ' A ',
+        result.endsWith('-edit') ? 'B' : ' A ',
       );
       assert.equal(
         await page.evaluate(() => window.list.children.length),

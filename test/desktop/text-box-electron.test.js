@@ -60,6 +60,10 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
   await desktop.locator('.lira-confirm-backdrop').waitFor({ state: 'detached' });
   assert.equal(await desktop.evaluate(() => textBoxCanvas.controller.getState().dirty), false);
   await desktop.locator('[data-text-box="add"]').click({ force: true });
+  await desktop.getByLabel('文本框背景颜色', { exact: true }).click({ force: true });
+  await desktop.getByRole('textbox', { name: '十六进制颜色', exact: true }).fill('#24314d');
+  await desktop.getByRole('spinbutton', { name: '不透明度（%）', exact: true }).fill('80');
+  await desktop.getByRole('button', { name: '完成', exact: true }).click({ force: true });
   const speed = desktop.getByRole('slider', { name: '滚动速度', exact: true });
   await desktop.getByRole('switch', { name: '横向滚动', exact: true }).check({ force: true });
   await speed.fill('85');
@@ -111,6 +115,7 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
   assert.equal(saved.document.items[0].appearance.config.nodes[0].underline, true);
   assert.equal(saved.document.items[0].appearance.config.nodes[0].fontFamily, '"Lira Xiaolai"');
   assert.equal(saved.document.items[0].appearance.config.scrollSpeed, 85);
+  assert.equal(saved.document.items[0].appearance.config.backgroundColor, '#24314dcc');
   assert.ok(saved.publishedVersion > 0);
   const source = await desktop.evaluate(() => textBoxCanvas.source());
   const readPublished = async () => {
@@ -120,6 +125,7 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
     return (await response.json()).data.document;
   };
   const published = await readPublished();
+  assert.equal(published.items[0].appearance.config.backgroundColor, '#24314dcc');
   await desktop.evaluate(async () => {
     const { document } = textBoxCanvas.controller.getState().draft;
     document.canvas.width += 100;
@@ -139,8 +145,9 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
   await desktop.waitForFunction(hasTextBox);
   assert.equal((await desktop.reload({ waitUntil: 'domcontentloaded' })).status(), 200);
   await openTextBoxes();
-  assert.equal(await speed.inputValue(), '85');
+  assert.equal(await desktop.locator('.text-box-scroll-speed input').inputValue(), '85');
   await desktop.frameLocator('.component-preview-frame').locator('#textBox > span').first().waitFor();
+  assert.equal(await desktop.frameLocator('.component-preview-frame').locator('#textBox').evaluate(element => getComputedStyle(element).backgroundColor), 'rgba(36, 49, 77, 0.8)');
   assert.equal(await editor.locator('[data-text-box-node]').count(), 2);
   assert.equal(await desktop.frameLocator('.component-preview-frame').locator('#textBox').evaluate(async () => {
     await document.fonts.ready;
@@ -152,7 +159,7 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
     await canvas.preset({ action: 'delete', id: canvas.controller.getState().draft.document.id });
   });
   await desktop.locator('[data-text-box="add"]').click({ force: true });
-  await desktop.waitForFunction(() => document.querySelectorAll('[data-text-box="list"] button').length === 1);
+  await desktop.waitForFunction(() => document.querySelectorAll('[data-text-box="list"] [aria-pressed]').length === 1);
   await desktop.locator('[data-text-box="save"]').click({ force: true });
   await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
   assert.equal((await app.evaluate(() => global.canvasTest.scene())).document.items.length, 1);
@@ -169,6 +176,27 @@ test('desktop text formatting survives undo, publication and reopening', { timeo
   await desktop.locator('[data-text-box="save"]').click({ force: true });
   await desktop.locator('.lira-confirm-confirm').click({ force: true });
   await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
-  assert.match(await desktop.locator('[data-text-box="scene"]').textContent(), /当前输出：备用场景/);
+  assert.equal(await desktop.evaluate(async () => {
+    const { prepareComponentPreviews } = await import('/js/admin/component-preview-registry.js');
+    const state = (await prepareComponentPreviews()).find(component => component.id === 'canvas').controller.getState();
+    return state.activeSceneId === state.draft.document.id;
+  }), true, 'confirming applies the edited scene');
+  const originalId = await desktop.locator('.text-box-list-item[aria-pressed="true"]').getAttribute('data-item-id');
+  const originalText = await editor.textContent();
+  await desktop.locator('[data-text-box="duplicate"]').click({ force: true });
+  const duplicateId = await desktop.locator('.text-box-list-item[aria-pressed="true"]').getAttribute('data-item-id');
+  await editor.fill('副本的独立内容');
+  await desktop.locator('[data-text-box="save"]').click({ force: true });
+  await desktop.waitForFunction(() => document.querySelector('[data-text-box="status"]').textContent === '已保存');
+  await desktop.evaluate(() => Object.defineProperty(navigator, 'clipboard', {
+    configurable: true, value: { async writeText(value) { window.copiedTextBoxSource = value; } },
+  }));
+  for (const [id, text] of [[originalId, originalText], [duplicateId, '副本的独立内容']]) {
+    await desktop.locator(`.text-box-list-item[data-item-id="${id}"]`).click({ force: true });
+    assert.equal(await editor.textContent(), text, 'switching text boxes restores their independent contents');
+    await desktop.locator('[data-text-box="copy"]').click({ force: true });
+    await desktop.waitForFunction(itemId => window.copiedTextBoxSource
+      && new URL(window.copiedTextBoxSource).searchParams.get('item') === itemId, id);
+  }
   assert.deepEqual(errors, []);
 });

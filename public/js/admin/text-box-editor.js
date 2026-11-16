@@ -4,7 +4,7 @@ import { previewElement } from './component-preview-elements.js';
 import { mountRichTextToolbar } from './rich-text-toolbar.js';
 import { readTextStyle } from '../shared/text-style.js';
 
-function contentSignature({ scrollMode, scrollSpeed, ...content }) {
+function contentSignature({ scrollMode, scrollSpeed, backgroundColor, ...content }) {
   return JSON.stringify(content);
 }
 

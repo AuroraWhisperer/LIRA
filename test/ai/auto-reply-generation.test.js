@@ -126,6 +126,19 @@ test('group replies do not read or fabricate a viewer conversation', async () =>
   assert.deepEqual(f.reads, []);
 });
 
+test('automatic single-message budgets reserve a mention only when it is enabled', async () => {
+  const userName = '这是一位昵称很长的观众';
+  const reply = '字'.repeat(getReplyLengthBudget('').oneMessage);
+  for (const autoReplyMentionEnabled of [false, true]) {
+    const f = fixture({ config: { autoReplyMentionEnabled }, respond: request =>
+      request.purpose === 'auto_generation' ? decision({ reply }) : undefined });
+    const result = await f.generate(snapshot({ messages: [{ id: 'm1', uid: '101', userName, text: '终于忙完啦', receivedAt: 1000 }] }));
+    const input = JSON.parse(f.requests.find(request => request.purpose === 'auto_generation').input);
+    assert.equal(input.messages[0].replyMaxChars, getReplyLengthBudget(autoReplyMentionEnabled ? userName : '').oneMessage);
+    assert.equal(result.action, autoReplyMentionEnabled ? 'silent' : 'reply');
+  }
+});
+
 test('wait and silent consume no output review, cache or private history', async () => {
   for (const action of ['wait', 'silent']) {
     const f = fixture({ respond: request => request.purpose === 'auto_generation'

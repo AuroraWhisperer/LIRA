@@ -1,5 +1,6 @@
 import { validMessages } from './danmaku-welcome-model.js';
 import { revealEditorItem } from './danmaku-editor-pagination.js';
+import { createAutosave } from './settings-autosave.js';
 
 const SWITCHES = { enabled: 'Toggle', reportEnabled: 'ReportToggle', visitorWelcomeEnabled: 'VisitorToggle' };
 const EXTENSION_FIELDS = ['reportEnabled', 'visitorWelcomeEnabled', 'visitorWelcomeDelaySeconds', 'visitorWelcomeMessages'];
@@ -26,6 +27,9 @@ export function initDanmakuPkReport({
   const available = Boolean(bridge?.getPkReportSettings && bridge?.updatePkReportSettings);
   const draft = { delay: '', messages: [], addition: '', dirty: false, revision: 0 };
   let owner = '', generation = 0, settings = null, pending = false, saving = false, disposed = false, notice = '';
+  let failed = false;
+  const autosave = createAutosave({ root: element('Panel'), windowRef,
+    canSave: () => Boolean(settings && !pending && draft.dirty), save: () => saveDraft(true) });
   const supported = () => Boolean(settings && Object.hasOwn(settings, 'reportEnabled'));
   function controls() {
     element('Panel').setAttribute('aria-busy', String(pending));
@@ -44,6 +48,8 @@ export function initDanmakuPkReport({
     element('AddBtn').disabled = !supported() || draft.messages.length >= 30;
     element('DiscardBtn').disabled = !supported() || !draft.dirty || pending;
     element('SaveBtn').disabled = !supported() || !draft.dirty || pending;
+    element('SaveBtn').textContent = '重试保存';
+    element('SaveBtn').parentElement.hidden = Boolean(settings && !failed);
     element('Count').textContent = supported() ? draft.messages.length + ' 条' : '未读取';
     element('SaveStatus').textContent = saving ? '正在同步服务器设置…' : draft.dirty ? '欢迎设置有未保存修改' :
       draft.addition ? '输入尚未添加，不会随设置保存' : supported() ? '欢迎设置已确认' : '欢迎设置尚未确认';
@@ -54,7 +60,9 @@ export function initDanmakuPkReport({
   function changed() {
     draft.dirty = true;
     draft.revision++;
+    failed = false;
     controls();
+    autosave.schedule();
   }
   function renderLibrary() {
     list.replaceChildren();
@@ -81,7 +89,7 @@ export function initDanmakuPkReport({
     });
     input.value = draft.addition;
   }
-  function accept(result, submitted) {
+  function accept(result, submitted, automatic = false) {
     settings = confirmed(result);
     if (!draft.dirty || submitted === draft.revision) {
       draft.delay = String(settings.visitorWelcomeDelaySeconds ?? '');
@@ -90,10 +98,10 @@ export function initDanmakuPkReport({
       element('Delay').value = draft.delay;
       element('DelayError').hidden = true;
       element('Delay').setAttribute('aria-invalid', 'false');
-      renderLibrary();
+      if (!automatic) renderLibrary();
     }
   }
-  async function sync(patch, submitted) {
+  async function sync(patch, submitted, automatic = false) {
     const writing = Boolean(patch);
     if (!owner || !available || disposed || pending || (writing && !settings)) { controls(); return; }
     const requested = generation;
@@ -107,14 +115,16 @@ export function initDanmakuPkReport({
       if (disposed || generation !== requested) return;
       if (writing && Object.keys(patch).some((key) => key !== 'enabled') && !Object.hasOwn(result, 'reportEnabled'))
         throw new Error();
-      accept(result, submitted);
+      accept(result, submitted, automatic);
+      if (writing || !draft.dirty) failed = false;
       notice = '';
       if (writing) {
         const key = Object.keys(SWITCHES).find((field) => field in patch);
-        if (!key) toast('串门欢迎设置已保存');
+        if (!key && !automatic) toast('串门欢迎设置已保存');
       }
     } catch {
       if (disposed || generation !== requested) return;
+      if (writing) failed = true;
       const closing = writing && Object.keys(SWITCHES).some((key) => patch[key] === false);
       const message = closing ? '关闭尚未同步，服务器可能仍在播报；请刷新核对。' : writing ?
         'PK 设置保存未确认，请检查连接与输入后重试；草稿已保留。' :
@@ -122,7 +132,7 @@ export function initDanmakuPkReport({
       if (writing) toast(message, { type: 'error' });
       else notice = message;
     } finally {
-      if (!disposed && generation === requested) { pending = false; saving = false; controls(); }
+      if (!disposed && generation === requested) { pending = false; saving = false; controls(); autosave.resume(); }
     }
   }
   const reload = () => sync();
@@ -133,6 +143,8 @@ export function initDanmakuPkReport({
     if (next === owner) { controls(); return; }
     owner = next;
     generation++;
+    autosave.cancel();
+    failed = false;
     settings = null;
     pending = false;
     saving = false;
@@ -172,18 +184,19 @@ export function initDanmakuPkReport({
     accept(settings);
     controls();
   });
-  element('SaveBtn').addEventListener('click', () => {
+  async function saveDraft(automatic = false) {
     if (!supported()) return;
     const raw = draft.delay.trim(), delay = /^\d+$/.test(raw) ? Number(raw) : NaN;
     const error = !Number.isInteger(delay) || delay < 0 || delay > 300 ? '欢迎延时需为 0～300 的整数' : '';
     element('DelayError').textContent = error;
     element('DelayError').hidden = !error;
     element('Delay').setAttribute('aria-invalid', String(Boolean(error)));
-    if (error) { element('Delay').focus(); return; }
+    if (error) { if (!automatic) element('Delay').focus(); return; }
     const messages = draft.messages.map((text) => text.trim());
-    if (!validMessages(messages)) { toast('请保留 1～30 条文案，每条 1～80 字且不能换行', { type: 'error' }); return; }
-    void sync({ visitorWelcomeDelaySeconds: delay, visitorWelcomeMessages: messages }, draft.revision);
-  });
+    if (!validMessages(messages)) { if (!automatic) toast('请保留 1～30 条文案，每条 1～80 字且不能换行', { type: 'error' }); return; }
+    await sync({ visitorWelcomeDelaySeconds: delay, visitorWelcomeMessages: messages }, draft.revision, automatic);
+  }
+  element('SaveBtn').addEventListener('click', () => saveDraft());
   windowRef.addEventListener('online', reload);
   const unsubscribe = bridge?.onStateChanged?.(account);
   const initial = generation;

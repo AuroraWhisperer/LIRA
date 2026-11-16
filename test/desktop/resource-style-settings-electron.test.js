@@ -36,8 +36,7 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   await guard.getByLabel('显示观众头像', { exact: true }).uncheck();
   await guard.getByLabel('昵称字号', { exact: true }).fill('60');
   await guard.getByLabel('昵称字号', { exact: true }).dispatchEvent('change');
-  await guard.getByRole('button', { name: '保存设置', exact: true }).click();
-  await guard.getByRole('status').filter({ hasText: '已保存并同步到画布' }).waitFor();
+  await page.waitForResponse(response => response.url().endsWith('/api/component-styles/config') && response.ok());
   const library = createComponentStyleLibrary(directory);
   const saved = type => library.list().flatMap(pack => pack.styles).find(style => style.type === type).config;
   assert.equal(saved('guard-thanks').showAvatar, false);
@@ -46,8 +45,7 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
   const clock = await open('配套时钟');
   const seconds = clock.locator('[data-preview-field="clockShowSeconds"]');
   await seconds.uncheck();
-  await clock.getByRole('button', { name: '保存设置', exact: true }).click();
-  await clock.getByRole('status').filter({ hasText: '已保存并同步到画布' }).waitFor();
+  await page.waitForResponse(response => response.url().endsWith('/api/component-styles/config') && response.ok());
   assert.equal(saved('clock').showSeconds, false);
   await page.locator('#otherClockFeature > div [data-clock-style-option="peach"]').first().click();
   await open('配套时钟');
@@ -61,20 +59,20 @@ test('desktop resource styles edit native parameters, retain drafts and save ind
     if (rejectSave) return route.fulfill({ status: 503, json: { ok: false, error: '模拟保存失败' } });
     return route.continue();
   });
-  await wishes.getByRole('button', { name: '保存设置', exact: true }).click();
-  await wishes.getByRole('status').filter({ hasText: '草稿已保留' }).waitFor();
+  await wishes.getByRole('status').filter({ hasText: '修改已保留' }).waitFor();
   assert.equal(await wishes.getByLabel('显示条数', { exact: true }).inputValue(), '4');
   assert.equal(saved('gift-wishes').limit, 1);
   rejectSave = false;
-  await wishes.getByRole('button', { name: '保存设置', exact: true }).click();
-  await wishes.getByRole('status').filter({ hasText: '已保存并同步到画布' }).waitFor();
+  await Promise.all([
+    page.waitForResponse(response => response.url().endsWith('/api/component-styles/config') && response.ok()),
+    wishes.getByRole('button', { name: '重试保存', exact: true }).click(),
+  ]);
   assert.equal(saved('gift-wishes').limit, 4);
 
   const queue = await open('配套点歌板');
   const queueSize = queue.locator('[data-preview-field="identityQueueFontSizeNumber"]');
   await queueSize.fill('54'); await queueSize.dispatchEvent('change');
-  await queue.getByRole('button', { name: '保存设置', exact: true }).click();
-  await queue.getByRole('status').filter({ hasText: '已保存并同步到画布' }).waitFor();
+  await page.waitForResponse(response => response.url().endsWith('/api/component-styles/config') && response.ok());
   assert.equal(saved('queue').identityQueueFontSize, '54');
   for (const style of styles) assert.deepEqual(saved(style.type).resourceStyle, style.config.resourceStyle);
   await page.reload(); await mountResourceStylePage(page);
@@ -104,7 +102,11 @@ test('resource settings pause polling under hidden pages and resume without losi
       const host = document.createElement('div'); host.id = 'resource-polling-test';
       subpage.append(host); ancestor.append(subpage); document.body.append(ancestor);
       const state = window.resourcePollingTest = { ancestor, subpage, reads: 0 };
-      const request = async action => {
+      const request = async (action, payload) => {
+        if (action === 'config') {
+          Object.assign(style.config, payload.patch);
+          return { config: style.config };
+        }
         if (action !== 'list') throw new Error(`Unexpected action: ${action}`);
         state.reads++;
         return [{ styles: [style] }];
@@ -128,7 +130,7 @@ test('resource settings pause polling under hidden pages and resume without losi
     await page.evaluate(() => { window.resourcePollingTest.subpage.hidden = false; });
     await page.clock.fastForward(1000);
     assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 2);
-    assert.equal(await fontSize.inputValue(), '54', 'Resuming polling must preserve unsaved edits.');
+    assert.equal(await fontSize.inputValue(), '54', 'Resuming polling must preserve the edited value.');
     await page.evaluate(() => { window.resourcePollingTest.panel.dispose(); window.resourcePollingTest.ancestor.remove(); });
     await page.clock.fastForward(2000);
     assert.equal(await page.evaluate(() => window.resourcePollingTest.reads), 2, 'Disposed panels must stop polling.');

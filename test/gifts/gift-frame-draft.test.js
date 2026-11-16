@@ -10,6 +10,7 @@ const { createDom, createClock } = require('../helpers/toast-dom');
 
 async function createFixture() {
   const { documentRef, windowRef } = createDom();
+  const clock = createClock();
   const toasts = documentRef.createElement('div');
   documentRef.body.append(toasts);
   const nodes = new Map();
@@ -19,6 +20,7 @@ async function createFixture() {
         id,
         value: '',
         checked: false,
+        checkValidity: () => true,
         dataset: {},
         handlers: new Map(),
         addEventListener(name, fn) {
@@ -30,6 +32,8 @@ async function createFixture() {
   const handlers = new Map();
   const requests = [];
   const module = await loadModuleExports(path.resolve('public/js/admin/gift-frame.js'), {
+    setTimeout: clock.setTimeout,
+    clearTimeout: clock.clearTimeout,
     document: Object.assign(documentRef, { getElementById: (id) => id === 'toast' ? toasts : node(id) }),
     window: Object.assign(windowRef, { addEventListener: (name, fn) => handlers.set(name, fn) }),
     ...createClock(),

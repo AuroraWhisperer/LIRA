@@ -302,6 +302,7 @@ test('window controls and local settings work while account initialization is st
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, {
         id, value: '', dataset: {}, checkValidity: () => true,
+        querySelector: () => ({}),
         addEventListener: (event, listener) => listeners.set(`${id}:${event}`, listener),
       });
       return elements.get(id);

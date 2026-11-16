@@ -325,6 +325,42 @@ async function archiveUi(t, storage = new Map()) {
   return ui;
 }
 
+test('automatic-update preferences serialize edits and flush the latest snapshot when the dialog closes', async t => {
+  const ui = await archiveUi(t);
+  const form = ui.nodes.get('fanEditorForm'), editor = ui.nodes.get('fanEditor');
+  const cancel = ui.documentRef.createElement('button');
+  form.querySelector = selector => selector === '[data-fan-action="cancel-edit"]' ? cancel : null;
+  form.checkValidity = () => true;
+  form.elements = {
+    autoUpdate: { checked: true }, autoCreate: { checked: true }, autoSyncGuardRoster: { checked: false },
+    accompanyMilestones: { value: '100, 365' }, showAccompanyInCalendar: { checked: true },
+  };
+  editor.showModal = () => { editor.open = true; };
+  editor.close = () => { editor.open = false; editor.fire('close'); };
+  const first = deferred();
+  let writes = 0;
+  ui.handlers.set('configure', input => ++writes === 1 ? first.promise : ui.respond(input));
+  await ui.click({ fanAction: 'settings' });
+  assert.equal(ui.nodes.get('fanSaveButton').hidden, true);
+  form.elements.autoUpdate.checked = false;
+  form.fire('input');
+  ui.clock.tick(600);
+  await ui.flush();
+  form.elements.autoCreate.checked = false;
+  form.fire('change');
+  assert.equal(writes, 1);
+  editor.close();
+  form.elements.autoCreate.checked = true;
+  first.resolve(ui.respond(ui.calls.find(call => call.action === 'configure')));
+  await ui.flush();
+  await ui.flush();
+  const preferences = ui.calls.filter(call => call.action === 'configure');
+  assert.equal(preferences.length, 2);
+  assert.equal(preferences[0].payload.autoCreate, true);
+  assert.equal(preferences[1].payload.autoCreate, false);
+  assert.equal(preferences[1].payload.autoUpdate, false);
+});
+
 test('stopping former-name supplementation during the interval prevents the next profile request', async t => {
   const ui = await archiveUi(t);
   const response = data => ({ ok: true, contextId: ui.contextId, syncStatus: 'offline', data });

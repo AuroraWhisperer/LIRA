@@ -2,6 +2,8 @@ body[data-style='celestial-horizontal'] {
   --celestial-font: 'Celestial Montserrat', 'Microsoft YaHei UI', sans-serif;
   --celestial-name-font: 'Celestial Cinzel', 'SimSun', serif;
   --celestial-gold: var(--danmaku-bubble-color, #ffd700);
+  --celestial-gold-rgb: var(--danmaku-bubble-color-rgb, 255 215 0);
+  --celestial-gold-alpha: var(--danmaku-bubble-color-alpha, 1);
   --danmaku-enter-animation: celestialEntry 500ms linear;
   --danmaku-enter-offset: 0;
   --danmaku-move-base-ms: 300;
@@ -16,8 +18,8 @@ body[data-style='celestial-horizontal'] .danmaku-signal-header { display: none; 
 body[data-style='celestial-horizontal'] .danmaku-signal-stage {
   position: relative; display: flex; align-items: center; padding: 0; gap: 0; isolation: isolate;
   height: 80px; margin-top: auto; overflow: hidden;
-  border-block: 1px solid color-mix(in srgb, var(--celestial-gold) 50%, transparent);
-  box-shadow: 0 0 30px color-mix(in srgb, var(--celestial-gold) 20%, transparent);
+  border-block: 1px solid rgb(var(--celestial-gold-rgb) / calc(.5 * var(--celestial-gold-alpha)));
+  box-shadow: 0 0 30px rgb(var(--celestial-gold-rgb) / calc(.2 * var(--celestial-gold-alpha)));
 }
 body[data-style='celestial-horizontal'].has-layout .danmaku-signal-stage { height: var(--region-content-height); }
 body[data-style='celestial-horizontal']:not(.has-layout) .danmaku-region { display: flex; flex-direction: column; }
@@ -37,10 +39,11 @@ body[data-style='celestial-horizontal'][data-celestial-star-density='sparse'] .c
 body[data-style='celestial-horizontal'][data-celestial-star-density='off'] .celestial-stars { display: none; }
 body[data-style='celestial-horizontal'] .draw-danmaku-feed {
   position: relative; display: flex; flex-direction: row; align-items: center; justify-content: flex-end;
-  width: 100%; height: 100%; padding: 0 32px; gap: 0; overflow: hidden; mask: none;
+  width: 100%; height: 100%; padding: 0 32px; gap: 0; overflow: hidden; -webkit-mask: none; mask: none;
 }
 body[data-style='celestial-horizontal'] .draw-danmaku-feed:not([data-flow-overflow='true']) { justify-content: flex-start; }
 body[data-style='celestial-horizontal'] .draw-danmaku-feed[data-smooth-layout='true'] {
+  -webkit-mask: linear-gradient(90deg, transparent, #000 min(24px, 4%), #000 calc(100% - min(24px, 4%)), transparent);
   mask: linear-gradient(90deg, transparent, #000 min(24px, 4%), #000 calc(100% - min(24px, 4%)), transparent);
 }
 body[data-style='celestial-horizontal'] .draw-danmaku-item.celestial-item {
@@ -74,9 +77,9 @@ body[data-style='celestial-horizontal'] .celestial-copy { display: block; margin
 .celestial-copy .draw-danmaku-emote { display: inline-block; height: 1.5em; width: auto; vertical-align: middle; object-fit: contain; }
 .celestial-amount { font: inherit; color: var(--celestial-gold); white-space: nowrap; }
 body[data-style='celestial-horizontal'] .draw-danmaku-empty { width: 100%; margin: 0; padding: 0; font: italic 300 14px/20px var(--celestial-font); color: #f0f8ff; opacity: .4; letter-spacing: .1em; text-align: center; background: none; border: 0; }
-.celestial-item[data-live-entry] .celestial-message { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); animation: celestialReveal 500ms cubic-bezier(.23, 1, .32, 1) both; }
+.celestial-item[data-live-entry] .celestial-message { opacity: var(--danmaku-enter-opacity); transform: translateX(var(--danmaku-enter-x)); animation: celestialReveal 500ms cubic-bezier(.23, 1, .32, 1) both; }
 @keyframes celestialEntry { from { --danmaku-entry-clock: 0; } to { --danmaku-entry-clock: 1; } }
-@keyframes celestialReveal { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(30px); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0); } }
+@keyframes celestialReveal { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: 30px; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; } }
 @keyframes celestialNebula { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(-50%); } }
 @keyframes celestialTwinkle { 0%, 100% { opacity: .2; transform: scale(1); } 50% { opacity: 1; transform: scale(1.2); } }
 body[data-style='celestial-horizontal'][data-ambient-motion='off'] :is(.celestial-nebula,.celestial-star) { animation: none; }

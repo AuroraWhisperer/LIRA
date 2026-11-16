@@ -248,6 +248,24 @@ test('V2 user welcome IPC preserves capability absence and validates exact UID p
   assert.deepEqual(writes[2], { enabled: true });
 });
 
+test('live greeting IPC preserves optional capability and validates boolean writes and replies', async () => {
+  let reply = { ...v2Settings };
+  const writes = [];
+  const { handlers, event } = registerWelcomeIpc({
+    getWelcomeSettingsV2: async () => reply,
+    updateWelcomeSettingsV2: async (patch) => { writes.push(patch); return { ...reply, ...patch }; },
+  });
+  const read = handlers.get('license:get-welcome-settings-v2');
+  const write = handlers.get('license:update-welcome-settings-v2');
+  assert.equal(Object.hasOwn(await read(event), 'liveGreetingEnabled'), false);
+  reply.liveGreetingEnabled = true;
+  assert.equal((await write(event, { liveGreetingEnabled: false })).liveGreetingEnabled, false);
+  assert.equal((await write(event, { liveGreetingEnabled: 1 })).error, 'INVALID_WELCOME_SETTINGS');
+  assert.equal(writes.length, 1);
+  reply.liveGreetingEnabled = 'true';
+  assert.equal((await read(event)).error, 'INVALID_RESPONSE');
+});
+
 test('own-room medal IPC accepts booleans and preserves old capability absence', async () => {
   let reply = { ...v2Settings };
   const writes = [];

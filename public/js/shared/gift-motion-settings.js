@@ -13,15 +13,15 @@ export const GIFT_SWING_TEXT_MODES = Object.freeze({
 
 export const GIFT_MOTION_EFFECTS = Object.freeze([
   { style: 'gift-drop', prefix: 'giftDrop', label: '礼物掉落', fields: {
-    QuantityMultiplier: { label: '数量倍率', unit: '倍', default: 8, min: 3, max: 20 },
+    Count: { label: '掉落数量', unit: '个', default: 30, min: 1, max: 100 },
     Size: { label: '礼物大小', unit: 'px', default: 72, min: 24, max: 180 },
-    DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 3, max: 120 },
+    DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 1, max: 30 },
     Speed: { label: '掉落速度', unit: '%', default: 100, min: 50, max: 200 },
     Bounce: { label: '弹跳力度', unit: '%', default: 18, min: 0, max: 80 },
   } },
   { style: 'gift-swing', prefix: 'giftSwing', label: '礼物摇摇乐', fields: {
     Size: { label: '立牌大小', unit: 'px', default: 150, min: 64, max: 280 },
-    DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 3, max: 120 },
+    DurationSeconds: { label: '停留时长', unit: '秒', default: 20, min: 1, max: 30 },
     Speed: { label: '运动速度', unit: '%', default: 100, min: 50, max: 200 },
     Angle: { label: '左右摆幅', unit: '度', default: 36, min: 5, max: 45 },
     TextMode: { label: '显示文字', default: 'full', options: Object.entries(GIFT_SWING_TEXT_MODES)

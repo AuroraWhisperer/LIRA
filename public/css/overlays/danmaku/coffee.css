@@ -96,15 +96,16 @@ body[data-style='coffee'] .coffee-copy :is(.draw-danmaku-gift-copy, .draw-danmak
 body[data-style='coffee'] .draw-danmaku-gift-count { margin-left: .3em; }
 body[data-style='coffee'] .draw-danmaku-item.coffee-event {
   --coffee-accent: #dfca91;
+  --coffee-accent-rgb: 223 202 145;
   --coffee-name: var(--coffee-accent);
   min-height: 108px;
   padding: 16px 20px 30px 10px;
   overflow: hidden;
 }
-body[data-style='coffee'] .coffee-event[data-coffee-membership='3'] { --coffee-accent: #acd0d9; }
-body[data-style='coffee'] .coffee-event[data-coffee-membership='2'] { --coffee-accent: #d5bde2; }
-body[data-style='coffee'] .coffee-event[data-coffee-membership='1'] { --coffee-accent: #edc3a2; }
-body[data-style='coffee'] .coffee-event[data-coffee-kind='sc'] { --coffee-accent: #e8baad; }
+body[data-style='coffee'] .coffee-event[data-coffee-membership='3'] { --coffee-accent: #acd0d9; --coffee-accent-rgb: 172 208 217; }
+body[data-style='coffee'] .coffee-event[data-coffee-membership='2'] { --coffee-accent: #d5bde2; --coffee-accent-rgb: 213 189 226; }
+body[data-style='coffee'] .coffee-event[data-coffee-membership='1'] { --coffee-accent: #edc3a2; --coffee-accent-rgb: 237 195 162; }
+body[data-style='coffee'] .coffee-event[data-coffee-kind='sc'] { --coffee-accent: #e8baad; --coffee-accent-rgb: 232 186 173; }
 body[data-style='coffee'] .coffee-event .coffee-heading { flex-wrap: wrap; height: auto; min-height: 24px; }
 body[data-style='coffee'] .coffee-event .coffee-heading strong {
   max-width: 100%;
@@ -118,7 +119,7 @@ body[data-style='coffee'] .coffee-event .coffee-leader { color: var(--coffee-acc
   max-width: 100%;
   margin-left: auto;
   padding: 1px 6px;
-  border: 1px solid color-mix(in srgb, var(--coffee-accent) 60%, transparent);
+  border: 1px solid rgb(var(--coffee-accent-rgb) / 60%);
   border-radius: 50% 42% 46% 38% / 46% 52% 42% 50%;
   color: var(--coffee-accent);
   font: 400 15px/1.4 var(--danmaku-num-font);

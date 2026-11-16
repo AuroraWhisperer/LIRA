@@ -99,12 +99,13 @@ body[data-style='notebook'] .notebook-item :is(.notebook-portrait-sway,.notebook
 body[data-style='notebook'] .draw-danmaku-item.notebook-item .notebook-avatar {
   position: absolute; inset: .129808em; display: block;
   width: calc(100% - .259616em); height: calc(100% - .259616em); min-width: 0; min-height: 0; align-self: stretch;
-  margin: 0; padding: 0; border: 0; border-radius: .29em; color: transparent; font: inherit; overflow: hidden; box-shadow: none; clip-path: none; mask: none;
+  margin: 0; padding: 0; border: 0; border-radius: .29em; color: transparent; font: inherit; overflow: hidden; box-shadow: none; clip-path: none; -webkit-mask: none; mask: none;
   background: #e4e8ef url('/img/overlays/danmaku-notebook/bilibili-noface.jpg') center/cover no-repeat;
 }
 body[data-style='notebook'] .notebook-item .notebook-avatar img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
 body[data-style='notebook'] .notebook-item .notebook-avatar-frame {
   position: absolute; inset: -.069231em; background: var(--nb-portrait) center/100% 100% no-repeat;
+  -webkit-mask: url('/img/overlays/danmaku-notebook/avatar-border-mask.svg') center/100% 100% no-repeat;
   mask: url('/img/overlays/danmaku-notebook/avatar-border-mask.svg') center/100% 100% no-repeat;
   pointer-events: none;
 }
@@ -145,7 +146,7 @@ body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.not
 body[data-style='notebook'] .notebook-item:not([data-notebook-kind='chat'])>.notebook-portrait-float .notebook-portrait-pulse { animation: none; scale: 1; }
 body[data-style='notebook'][data-ambient-motion='off'] .notebook-item :is(.notebook-paper-float,.notebook-portrait-float,.notebook-portrait-sway,.notebook-portrait-pulse) { animation: none; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-portrait-enter { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); rotate: var(--notebook-angle); animation: notebookAvatarFade 500ms linear both, notebookAvatarRise 600ms ease-out both, notebookAvatarReturn 420ms linear both; }
-body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { opacity: var(--danmaku-enter-opacity); transform: var(--danmaku-enter-transform); animation: notebookPaperEnter 450ms cubic-bezier(.22,1,.36,1) 150ms both; }
+body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-paper { opacity: var(--danmaku-enter-opacity); transform: translateX(var(--danmaku-enter-x)) rotate(var(--danmaku-enter-angle)) scale(var(--danmaku-enter-scale-x)); animation: notebookPaperEnter 450ms cubic-bezier(.22,1,.36,1) 150ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-heading { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: notebookTextEnter 300ms ease-out 320ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry] .notebook-copy { opacity: var(--danmaku-enter-opacity); translate: 0 var(--danmaku-enter-y); animation: notebookTextEnter 320ms ease-out 420ms both; }
 body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='gift'] .notebook-paper,
@@ -156,7 +157,7 @@ body[data-style='notebook'] .notebook-item[data-live-entry][data-notebook-kind='
 @keyframes notebookAvatarFade { 0% { --danmaku-enter-opacity: 0; } 20% { --danmaku-enter-opacity: .746; } 40% { --danmaku-enter-opacity: .949; } 60% { --danmaku-enter-opacity: .99; } 100% { --danmaku-enter-opacity: 1; } }
 @keyframes notebookAvatarRise { from { --danmaku-enter-y: .173077em; } to { --danmaku-enter-y: 0; } }
 @keyframes notebookAvatarReturn { 0% { --notebook-angle: -3.05deg; } 25% { --notebook-angle: -1.831deg; } 50% { --notebook-angle: -.893deg; } 75% { --notebook-angle: -.262deg; } 100% { --notebook-angle: 0deg; } }
-@keyframes notebookPaperEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-transform: translateX(.432692em) rotate(3deg) scale(.975); } to { --danmaku-enter-opacity: 1; --danmaku-enter-transform: translateX(0) rotate(0deg) scale(1); } }
+@keyframes notebookPaperEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-x: .432692em; --danmaku-enter-angle: 3deg; --danmaku-enter-scale-x: .975; } to { --danmaku-enter-opacity: 1; --danmaku-enter-x: 0px; --danmaku-enter-angle: 0deg; --danmaku-enter-scale-x: 1; } }
 @keyframes notebookTextEnter { from { --danmaku-enter-opacity: 0; --danmaku-enter-y: .259615em; } to { --danmaku-enter-opacity: 1; --danmaku-enter-y: 0; } }
 @keyframes notebookEventEnter { from { --danmaku-enter-opacity: 0; } to { --danmaku-enter-opacity: 1; } }
 

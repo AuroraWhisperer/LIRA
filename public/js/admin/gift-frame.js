@@ -5,6 +5,7 @@ import { api, toast } from '../shared/utils.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { sceneExtraPreviewData } from './scene-extra-preview-data.js';
 import { requestComponentStyles } from './component-style-api.js';
+import { createAutosave } from './settings-autosave.js';
 
 const MISSING_STYLE_MESSAGE = '请先在本页最下方「＋ 添加样式」导入林间花信样式包。';
 const WOODLAND_PACKAGE = 'lira.woodland-gift-frame';
@@ -37,6 +38,7 @@ let currentSettings = {};
 let woodland = { checked: false, installed: false, failed: false };
 const draftFields = new Set();
 const savingFields = new Set();
+const autosaves = new Map();
 const settingIds = EFFECTS.flatMap((effect) => [effect.enabledKey, effect.thresholdKey]);
 
 export function initGiftFrame() {
@@ -49,6 +51,7 @@ export function initGiftFrame() {
       const effect = EFFECTS.find(effect => [effect.enabledKey, effect.thresholdKey].includes(event.target.id));
       syncDraftField(event.target, effect);
       setStatus(effect.ids.status, '', '');
+      autosaves.get(effect.enabledKey)?.schedule();
     }
   };
   for (const id of settingIds) document.getElementById(id).dataset.preserveDirty = 'true';
@@ -56,6 +59,14 @@ export function initGiftFrame() {
   root.addEventListener('change', markDraft);
 
   for (const effect of EFFECTS) {
+    autosaves.set(effect.enabledKey, createAutosave({ root,
+      canSave: () => !savingFields.has(effect.enabledKey)
+        && [effect.enabledKey, effect.thresholdKey].some(key => draftFields.has(key))
+        && Boolean(document.getElementById(effect.ids.threshold).value)
+        && document.getElementById(effect.ids.threshold).checkValidity(),
+      save: () => saveSettings(effect) }));
+    document.getElementById(effect.ids.save).hidden = true;
+    document.getElementById(effect.ids.save).textContent = '重试保存';
     document.getElementById(effect.ids.save).addEventListener('click', () => saveSettings(effect));
     document.getElementById(effect.ids.previewBtn).addEventListener('click', () => playPreview(effect));
   }
@@ -147,7 +158,6 @@ async function saveSettings(effect) {
       ? `${effect.label}设置已保存，刚才的新修改还没保存。`
       : `${effect.label}设置已保存。`;
     setStatus(status, message, 'success');
-    if (draftFields.size) toast(message, { type: 'success' });
   } catch (_) {
     const message = `${effect.label}设置没保存成功，修改还在，请再试一次。`;
     setStatus(status, message, 'error');
@@ -193,7 +203,9 @@ function setStatus(id, message, state) {
   const node = document.getElementById(id);
   if (!node) return;
   const dirty = draftFields.size > 0;
-  node.textContent = dirty && !message.includes('保存')
-    ? `${message}${message ? ' ' : ''}有未保存修改，点击“保存设置”后生效。` : message;
+  node.textContent = state === 'error' ? message : '';
+  node.hidden = !node.textContent;
   node.dataset.state = state || (dirty ? 'pending' : '');
+  const effect = EFFECTS.find(effect => effect.ids.status === id);
+  if (effect) document.getElementById(effect.ids.save).hidden = state !== 'error';
 }
