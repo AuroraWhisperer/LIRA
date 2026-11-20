@@ -5,10 +5,12 @@ const { prepareMembership } = require('./membership');
 const { MEMBERSHIP_MILESTONES } = require('./membership-milestones');
 const { accompanySettings, getGuardAccompany } = require('./guard-accompany');
 
+const REMINDER_HISTORY_DAYS = 7;
+
 function buildReminders(profile, records, states, now = Date.now(), settings = {}, options = {}) {
   if (profile.archived) return [];
   const today = dayOf(now);
-  const earliest = addDays(today, -7);
+  const earliest = addDays(today, -REMINDER_HISTORY_DAYS);
   const horizon = addDays(today, 366);
   const latest = addDays(today, options.daysAhead ?? 366);
   const year = Number(today.slice(0, 4));
@@ -210,4 +212,4 @@ function buildReminders(profile, records, states, now = Date.now(), settings = {
   return result.sort((a, b) => String(a.date || '').localeCompare(String(b.date || '')) || a.key.localeCompare(b.key));
 }
 
-module.exports = { buildReminders };
+module.exports = { buildReminders, REMINDER_HISTORY_DAYS };

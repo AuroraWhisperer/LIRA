@@ -4,24 +4,21 @@
 
 const { performance } = require('node:perf_hooks');
 
+const OPEN_TIMEOUT_MS = 8000;
+const AUTH_TIMEOUT_MS = 10000;
 const HEARTBEAT_INTERVAL_MS = 30000;
 
 class WebSocketConnection {
   constructor(options = {}) {
     this.ws = null;
+    this.finishHandshake = null;
     this.heartbeatTimer = null;
     this.heartbeatIntervalMs = options.heartbeatIntervalMs || HEARTBEAT_INTERVAL_MS;
     this.awaitingHeartbeatReply = false;
-    this.eventHandlers = {
-      open: [],
-      message: [],
-      close: [],
-      error: [],
-      diagnostic: [],
-    };
+    this.clearHandlers();
   }
 
-  async connect(wsUrl, authPayload, options = {}) {
+  async connect(wsUrl, authPayload, { waitForAuthentication = false } = {}) {
     this.close();
 
     const ws = new WebSocket(wsUrl);
@@ -36,17 +33,31 @@ class WebSocketConnection {
     const report = (event, details = {}) => this.emit('diagnostic', { event, ...details });
     this.connectionTrace = trace;
 
+    const ready = waitForAuthentication ? Promise.withResolvers() : null;
+    const failHandshake = (message) => this.failConnection(ws, { code: 0, reason: message, wasClean: false }, message);
+    let deadline = ready ? setTimeout(() => failHandshake('弹幕 WebSocket 连接超时，请稍后重试。'), OPEN_TIMEOUT_MS) : null;
+    this.finishHandshake = (error) => {
+      clearTimeout(deadline);
+      this.finishHandshake = null;
+      if (error) ready?.reject(error);
+      else ready?.resolve();
+    };
+
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
+      clearTimeout(deadline);
+      deadline = setTimeout(() => {
+        if (this.ws !== ws) return;
+        trace.authStatus = 'no-reply';
+        report('auth-no-reply', { waitedMs: AUTH_TIMEOUT_MS });
+        failHandshake('弹幕服务鉴权超时，请稍后重试。');
+      }, AUTH_TIMEOUT_MS);
       this.sendPacket(7, 1, authPayload);
+      if (this.ws !== ws) return;
       report('auth-sent');
       clearInterval(this.heartbeatTimer);
       this.awaitingHeartbeatReply = false;
       this.heartbeatTimer = setInterval(() => {
-        if (trace.authStatus === 'pending') {
-          trace.authStatus = 'no-reply';
-          report('auth-no-reply', { waitedMs: this.heartbeatIntervalMs });
-        }
         if (this.awaitingHeartbeatReply) {
           this.failConnection(ws, {
             code: 0,
@@ -75,11 +86,20 @@ class WebSocketConnection {
         trace.heartbeatReplies += 1;
         if (trace.heartbeatReplies === 1) report('heartbeat-confirmed');
       }
-      for (const result of authenticationReplies(data)) {
-        trace.authStatus = result.code === null ? 'invalid' : result.code === 0 ? 'accepted' : 'rejected';
-        report('auth-result', { status: trace.authStatus, code: result.code });
+      const reply = trace.authStatus === 'pending' ? authenticationReply(data) : null;
+      if (reply) {
+        const { code } = reply;
+        trace.authStatus = code === null ? 'invalid' : code === 0 ? 'accepted' : 'rejected';
+        report('auth-result', { status: trace.authStatus, code });
+        if (this.ws !== ws) return;
+        if (code !== 0) {
+          failHandshake('弹幕服务鉴权失败，请检查 B 站登录状态。');
+          return;
+        }
+        this.finishHandshake?.();
+        this.emit('authenticated');
       }
-      this.emit('message', data, metadata);
+      if (this.ws === ws) this.emit('message', data, metadata);
     };
     const drain = () => {
       while (!reading && frames.length && this.ws === ws) {
@@ -112,11 +132,8 @@ class WebSocketConnection {
 
     ws.addEventListener('close', (event) => {
       if (this.ws !== ws) return;
+      this.resetConnection('弹幕 WebSocket 连接已关闭。');
       report('socket-summary', trace);
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-      this.awaitingHeartbeatReply = false;
-      this.ws = null;
       this.emit('close', event);
     });
 
@@ -128,21 +145,24 @@ class WebSocketConnection {
         reason: event && event.message ? event.message : 'websocket error',
         wasClean: false,
         connectionError: true,
-      });
+      }, '弹幕 WebSocket 连接失败。');
     });
 
-    if (options.waitForOpen) {
-      await this.waitForSocketOpen(ws);
-    }
+    return ready?.promise;
   }
 
-  close() {
+  resetConnection(message) {
+    this.finishHandshake?.(new Error(message));
     clearInterval(this.heartbeatTimer);
     this.heartbeatTimer = null;
     this.awaitingHeartbeatReply = false;
-    if (this.ws) {
-      const ws = this.ws;
-      this.ws = null;
+    this.ws = null;
+  }
+
+  close(message = '弹幕 WebSocket 连接已关闭。') {
+    const ws = this.ws;
+    this.resetConnection(message);
+    if (ws) {
       try {
         ws.close();
       } catch (_) {
@@ -151,16 +171,11 @@ class WebSocketConnection {
     }
   }
 
-  failConnection(ws, event) {
+  failConnection(ws, event, message) {
     if (this.ws !== ws) return;
-    clearInterval(this.heartbeatTimer);
-    this.heartbeatTimer = null;
-    this.awaitingHeartbeatReply = false;
-    this.emit('diagnostic', { event: 'socket-summary', ...this.connectionTrace });
-    this.ws = null;
-    try {
-      ws.close();
-    } catch (_) {}
+    const trace = this.connectionTrace;
+    this.close(message);
+    this.emit('diagnostic', { event: 'socket-summary', ...trace });
     this.emit('close', event);
   }
 
@@ -185,6 +200,7 @@ class WebSocketConnection {
   clearHandlers() {
     this.eventHandlers = {
       open: [],
+      authenticated: [],
       message: [],
       close: [],
       error: [],
@@ -198,45 +214,9 @@ class WebSocketConnection {
       handler(data, metadata);
     }
   }
-
-  waitForSocketOpen(ws) {
-    return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        cleanup();
-        try {
-          ws.close();
-        } catch (_) {}
-        reject(new Error('弹幕 WebSocket 连接超时，请稍后重试。'));
-      }, 8000);
-
-      const cleanup = () => {
-        clearTimeout(timeout);
-        ws.removeEventListener('open', handleOpen);
-        ws.removeEventListener('error', handleError);
-        ws.removeEventListener('close', handleClose);
-      };
-      const handleOpen = () => {
-        cleanup();
-        resolve();
-      };
-      const handleError = () => {
-        cleanup();
-        reject(new Error('弹幕 WebSocket 连接失败。'));
-      };
-      const handleClose = () => {
-        cleanup();
-        reject(new Error('弹幕 WebSocket 连接已关闭。'));
-      };
-
-      ws.addEventListener('open', handleOpen);
-      ws.addEventListener('error', handleError);
-      ws.addEventListener('close', handleClose);
-    });
-  }
 }
 
-function authenticationReplies(buffer) {
-  const replies = [];
+function authenticationReply(buffer) {
   let offset = 0;
   while (offset + 16 <= buffer.length) {
     const length = buffer.readUInt32BE(offset);
@@ -251,11 +231,11 @@ function authenticationReplies(buffer) {
         // The raw authentication response may contain secrets; retain only its validity.
         code = null;
       }
-      replies.push({ code });
+      return { code };
     }
     offset += length;
   }
-  return replies;
+  return null;
 }
 
 function containsOperation(buffer, expectedOperation) {

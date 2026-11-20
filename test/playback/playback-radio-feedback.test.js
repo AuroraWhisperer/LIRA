@@ -72,7 +72,7 @@ test('playback save notifications follow the latest response and allow a new fai
     else if (i === 1) requests.at(-1).resolve({ ok: true, json: async () => ({ ok: true, data: { saved: false } }) });
     else requests.at(-1).resolve({ ok: false });
     await saving;
-    assert.equal(notices.length, i === 0 ? 0 : 1);
+    assert.equal(notices.length, 1);
   }
   assert.equal(notices[0].type, 'warning');
   const late = save();
@@ -84,12 +84,14 @@ test('playback save notifications follow the latest response and allow a new fai
   assert.equal(notices[1].type, 'success');
   lateRequest.resolve({ ok: false });
   await late;
+  assert.equal(notices.length, 2, 'the late failure cannot undo the recovery notice');
   for (let i = 0; i < 2; i++) {
     const saving = save();
     requests.at(-1).resolve({ ok: false });
     await saving;
-    assert.equal(notices.length, i === 0 ? 2 : 3, 'late failure must not count against recovery');
+    assert.equal(notices.length, 3, 'the next episode warns once');
   }
+  assert.equal(notices[2].type, 'warning');
 });
 
 async function createRadioFixture() {

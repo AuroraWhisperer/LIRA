@@ -20,57 +20,79 @@ function buildResponsesBody(request, config, endpoint) {
     instructions: request.instructions,
     input: request.input,
     max_output_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
+    ...buildReasoningParameters(config, { ...endpoint, protocol: 'responses' }),
   };
   if (request.tools?.length) responsesBody.tools = request.tools;
   if (request.previousResponseId) responsesBody.previous_response_id = request.previousResponseId;
-  let reasoningEffort = resolveReasoningEffort(config);
-  if (endpoint.officialDeepSeek && !config.reasoningEnabled) {
-    reasoningEffort = 'none';
-  } else if (!reasoningEffort && !endpoint.officialDeepSeek && ['auto', 'custom'].includes(config.modelProvider || 'auto')) {
-    // Third-party Responses integrations retain their explicit parameter compatibility.
-    reasoningEffort = !config.reasoningEnabled ? 'none'
-      : config.reasoningEffort !== 'auto' ? config.reasoningEffort : undefined;
-  }
-  if (reasoningEffort) responsesBody.reasoning = { effort: reasoningEffort };
-
   return responsesBody;
 }
 
 function buildChatBody(request, config, endpoint, previousMessages) {
-  const reasoningProfile = Object.hasOwn(config, 'modelReasoning') ? config.modelReasoning : getModelReasoning(config);
   const instructions = String(request.instructions || '').trim();
-  const messages = previousMessages
-    ? [...previousMessages, ...toChatInputMessages(request.input)]
+  const tools = toChatTools(request.tools);
+  const history = previousMessages && endpoint.officialDeepSeek && (!config.reasoningEnabled || !tools.length)
+    ? previousMessages.map(({ reasoning_content, ...message }) => message)
+    : previousMessages;
+  const messages = history
+    ? [...history, ...toChatInputMessages(request.input)]
     : buildInitialChatMessages(instructions, request.input);
   const body = {
     model: config.model,
     messages,
     max_tokens: Math.max(64, Number(request.maxOutputTokens) || 256),
     stream: false,
+    ...buildReasoningParameters(config, endpoint),
   };
-  if (endpoint.officialDeepSeek) {
-    body.thinking = {
-      type: config.reasoningEnabled ? 'enabled' : 'disabled',
-    };
-    const reasoningEffort = reasoningProfile ? resolveReasoningEffort(config) : undefined;
-    if (config.reasoningEnabled && reasoningEffort) body.reasoning_effort = reasoningEffort;
-  } else if (config.modelProvider === 'gemini') {
-    if (reasoningProfile) body.reasoning_effort = resolveReasoningEffort(config);
-  } else if (config.modelProvider === 'kimi') {
+  if (config.modelProvider === 'kimi') {
     body.max_completion_tokens = body.max_tokens;
     delete body.max_tokens;
     if (/^kimi-k3(?:[.-]|$)/i.test(config.model)) {
-      const reasoningEffort = reasoningProfile ? resolveReasoningEffort(config) : undefined;
-      if (reasoningEffort) body.reasoning_effort = reasoningEffort;
       body.max_completion_tokens = Math.max(4096, body.max_completion_tokens);
-    } else if (/^kimi-k2\.[56](?:[.-]|$)/i.test(config.model)) {
-      body.thinking = { type: config.reasoningEnabled ? 'enabled' : 'disabled' };
     }
   }
-  const tools = toChatTools(request.tools);
   if (tools.length) body.tools = tools;
 
   return body;
+}
+
+function buildReasoningParameters(config, endpoint) {
+  const profile = Object.hasOwn(config, 'modelReasoning') ? config.modelReasoning : getModelReasoning(config);
+  let effort = resolveReasoningEffort({ ...config, modelReasoning: profile });
+  if (endpoint.protocol === 'responses') {
+    if (endpoint.officialDeepSeek && !config.reasoningEnabled) effort = 'none';
+    else if (!profile && !endpoint.officialDeepSeek && ['auto', 'custom'].includes(config.modelProvider || 'auto')) {
+      // Keep explicit legacy Responses settings, but never override an authoritative catalog.
+      effort = !config.reasoningEnabled ? 'none' : config.reasoningEffort !== 'auto' ? config.reasoningEffort : undefined;
+    }
+    return effort ? { reasoning: { effort } } : {};
+  }
+  if (endpoint.officialDeepSeek) {
+    return { thinking: { type: config.reasoningEnabled ? 'enabled' : 'disabled' },
+      ...(config.reasoningEnabled && effort ? { reasoning_effort: effort } : {}) };
+  }
+  if (config.modelProvider === 'kimi') {
+    if (/^kimi-k3(?:[.-]|$)/i.test(config.model)) return effort ? { reasoning_effort: effort } : {};
+    if (/^kimi-k2\.[56](?:[.-]|$)/i.test(config.model)) {
+      return { thinking: { type: config.reasoningEnabled ? 'enabled' : 'disabled' } };
+    }
+    return {};
+  }
+  if (['auto', 'custom', 'gemini'].includes(config.modelProvider || 'auto') && effort) {
+    return { reasoning_effort: effort };
+  }
+  return {};
+}
+
+function describeReasoningState(config, endpoint) {
+  const parameters = buildReasoningParameters(config, endpoint);
+  const effort = parameters.reasoning?.effort || parameters.reasoning_effort;
+  const thinking = parameters.thinking?.type;
+  const profile = Object.hasOwn(config, 'modelReasoning') ? config.modelReasoning : getModelReasoning(config);
+  const toggleSupported = Boolean(thinking) || endpoint.officialDeepSeek;
+  const mode = thinking === 'disabled' || effort === 'none' ? 'disabled'
+    : thinking === 'enabled' || effort ? 'enabled' : 'unknown';
+  return { mode, ...(effort ? { effort } : {}),
+    ...(toggleSupported || profile?.efforts.length ? { canDisable: toggleSupported || profile.efforts.includes('none') } : {}) };
 }
 
 function normalizeChatResponse(payload) {
@@ -219,4 +241,4 @@ function parseArguments(value, finishReason = '') {
 }
 
 module.exports = { buildResponsesBody, buildChatBody, normalizeResponse, normalizeChatResponse,
-  toAssistantHistoryMessage, resolveReasoningEffort };
+  toAssistantHistoryMessage, resolveReasoningEffort, describeReasoningState };

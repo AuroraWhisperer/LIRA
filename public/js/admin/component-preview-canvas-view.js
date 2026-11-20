@@ -195,6 +195,10 @@ export function mountComponentPreviewCanvas(host, { components, canvasController
     setBusy(value) { outputBusy = value; renderStatus(); },
   });
   const picker = mountComponentPreviewPicker({ components, source, add, report,
+    favorites: canvasConnection ? {
+      subscribe: listener => canvasConnection.startActualData(display => listener(display?.previewData?.danmakuStyleFavorites || { available: false, styles: [] })),
+      set: change => canvasConnection.execute('favorite', change),
+    } : undefined,
     requestStyles: canvasConnection?.requestComponentStyles,
     getTextBoxes: () => model.getSnapshot().items.filter(item => item.type === 'text-box') });
   button(library, '添加组件', () => picker.open(), 'secondary component-preview-add');

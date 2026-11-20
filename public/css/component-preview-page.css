@@ -1,3 +1,6 @@
+@import url('./admin/danmaku-style-favorites.css');
+@import url('./components/save-status.css');
+
 .component-preview-page {
   --preview-workspace: var(--color-bg-page, #e9edf2);
   margin: 0;
@@ -212,10 +215,11 @@
 .preview-picker-styles .preview-picker-style:active { background: var(--surface-2); }
 .preview-component-picker button:focus-visible { outline: 2px solid var(--primary-strong); outline-offset: -2px; }
 .preview-picker-image { display: block; width: 100%; height: auto; aspect-ratio: 8 / 5; object-fit: contain; background: var(--surface-2); }
+.preview-picker-style[data-picker-component='danmaku'] .preview-picker-image { aspect-ratio: 3 / 2; object-position: center 60%; }
 .preview-picker-style[data-picker-component='gift-wishes'] .preview-picker-image { aspect-ratio: 2 / 1; }
 .preview-picker-caption { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 12px; }
 .preview-picker-caption strong { min-width: 0; color: var(--text); font-size: var(--type-size-control); font-weight: var(--type-weight-medium); line-height: 1.5; }
-.preview-picker-style[data-picker-component='danmaku'] .preview-picker-caption { padding-block: 8px; }
+.preview-picker-style[data-picker-component='danmaku'] .preview-picker-caption { padding-block: 4px; }
 .preview-picker-style[data-picker-component='danmaku'] .preview-picker-caption strong { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .preview-picker-style-code { flex-shrink: 0; color: var(--muted); font-size: var(--type-size-caption); white-space: nowrap; }
 .preview-picker-add { display: flex; flex: 0 0 auto; align-items: center; gap: 4px; color: var(--picker-accent); font-size: var(--type-size-caption); line-height: 1.5; }

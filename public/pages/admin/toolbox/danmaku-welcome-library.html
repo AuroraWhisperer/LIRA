@@ -7,7 +7,7 @@
     <div id="danmakuWelcomeRules" class="danmaku-welcome-rules">
       <div class="danmaku-welcome-rule">
         <div class="danmaku-welcome-rule-heading">
-          <strong>首次欢迎<lira-help label="首次欢迎规则">0 秒表示进场后立即处理，0 级表示等级不限。与「欢迎对象」中的粉丝牌筛选共同决定发送资格；白名单豁免这两项门槛，黑名单优先。先开启进场欢迎，再按需开启二次问候、高荣耀文案或多天未到欢迎。</lira-help></strong>
+          <strong>首次欢迎<lira-help label="首次欢迎规则">延时填 0 为进场立刻欢迎，荣耀填 0 为不限等级。需同时满足「欢迎对象」里的粉丝牌条件才会发送（白名单无视门槛必欢迎，黑名单一律不欢迎）。</lira-help></strong>
         </div>
         <div class="danmaku-welcome-rule-controls">
           <label class="danmaku-welcome-field"
@@ -43,7 +43,7 @@
       </div>
       <div class="danmaku-welcome-rule">
         <div class="danmaku-welcome-rule-heading">
-          <strong><span id="danmakuWelcomeGreetingTitle">二次问候</span><lira-help label="二次问候规则">两次延时都从进场算起，首次欢迎成功后才会发送二次问候。0 级表示等级不限。实际发送时间受排队和发送频率限制影响，届时观众可能已离开。</lira-help></strong>
+          <strong><span id="danmakuWelcomeGreetingTitle">二次问候</span><lira-help label="二次问候规则">在首次欢迎发出后，再追加一句问候。注意：这里的秒数也是从观众进场那一刻算起（不是首次欢迎后再等几秒），荣耀填 0 为不限等级。</lira-help></strong>
           <label class="switch-control"
             ><input
               id="danmakuWelcomeGreetingToggle"
@@ -87,7 +87,7 @@
       </div>
       <div class="danmaku-welcome-rule danmaku-welcome-rule-attention">
         <div class="danmaku-welcome-rule-heading">
-          <strong><span id="danmakuWelcomeAttentionTitle">高荣耀文案</span><lira-help label="高荣耀文案规则">达到此荣耀等级后，换用高荣耀欢迎词库和问候词库，不增加发送次数，仍需满足对应阶段的条件。首次欢迎优先使用个人文案，其次是符合条件的多天未到欢迎文案。</lira-help></strong>
+          <strong><span id="danmakuWelcomeAttentionTitle">高荣耀文案</span><lira-help label="高荣耀文案规则">观众达到该荣耀等级时，自动换用专门的「高荣耀欢迎词库 / 问候词库」（仅替换文案，不会多发一遍）。</lira-help></strong>
           <label class="switch-control"
             ><input
               id="danmakuWelcomeAttentionToggle"
@@ -120,7 +120,7 @@
       </div>
       <div class="danmaku-welcome-rule">
         <div class="danmaku-welcome-rule-heading">
-          <strong><span id="danmakuWelcomeReturningTitle">多天未到欢迎</span><lira-help label="多天未到欢迎规则">观众距上次进场超过 24 小时时，首次欢迎从同一个词库随机选一句，不按天数分组。{days} 按完整 24 小时计算，首次记录不提示天数。个人欢迎词优先；是否发送沿用首次欢迎条件和欢迎名单，仍遵守延时和发送限制。进场时间仅以服务器监控记录为准。</lira-help></strong>
+          <strong><span id="danmakuWelcomeReturningTitle">多天未到欢迎</span><lira-help label="多天未到欢迎规则">距上次进场满 24 小时算 1 天，可在文案中用 {days} 代入未到天数（第一次被系统记录到的观众不会触发）。进场时间按云端监控记录计算。</lira-help></strong>
           <label class="switch-control">
             <input id="danmakuWelcomeReturningToggle" type="checkbox" disabled aria-labelledby="danmakuWelcomeReturningTitle" aria-describedby="danmakuWelcomeEnableHint" />
             <span class="switch-track"></span>
@@ -142,9 +142,7 @@
         <div class="danmaku-welcome-pinyin-title">
           <strong id="danmakuWelcomePinyinTitle">昵称生僻字自动注音</strong>
           <lira-help label="昵称注音说明">
-            3,500 个一级常用字和补充的常见姓名字（如“婷、梓”）不注音，只标注范围外且字典读音唯一的汉字。
-            同一字在昵称中只注音一次；多音字、未知字保留原样，字典读音仅供参考。
-            读音会随欢迎、问候弹幕公开发送。
+            自动给昵称里的生僻字加上括号注音（会直接发在欢迎弹幕里）。日常通用字、常见人名用字（如“婷、梓”）以及拿不准读音的多音字不会乱标。
           </lira-help>
         </div>
         <label class="switch-control">
@@ -168,7 +166,7 @@
   <div id="danmakuWelcomeLibraries" hidden>
     <div class="danmaku-welcome-time-mode">
       <div>
-        <strong id="danmakuWelcomeTimeTitle">时段欢迎</strong><lira-help label="时段欢迎规则">开启后，普通首次欢迎按进场时的北京时间，从当前时段词库随机选一句。个人欢迎、多天未到欢迎和高荣耀欢迎仍优先，二次问候使用原问候词库。两套词库分别保存，切换不会清空文案；每个时段可保存 1～30 条，每条最多 80 字。</lira-help>
+        <strong id="danmakuWelcomeTimeTitle">时段欢迎</strong><lira-help label="时段欢迎规则">开启后，普通首次欢迎会按当前时间（北京时间）选用早/中/晚等对应时段的词库。开关切换不会弄丢你写好的普通词库；每个时段可存 1–30 条（每条最多 80 字）。</lira-help>
         <p class="hint">开启后编辑分时段词库，关闭后编辑普通欢迎词库。</p>
       </div>
       <label class="switch-control">

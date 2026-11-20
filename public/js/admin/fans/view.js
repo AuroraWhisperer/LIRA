@@ -67,10 +67,10 @@ function button(action, label, extra = '') {
 }
 export function renderPeople(profiles, selected, filtered, archived = false, expiry = { badges: [] }) {
   if (!profiles.length && archived)
-    return `<div class="fan-empty"><h3>${filtered ? '没有找到符合条件的归档档案。' : '暂无已归档档案。'}</h3>
+    return `<div class="fan-empty lira-content-state"><h3 class="lira-content-state-title">${filtered ? '没有找到符合条件的归档档案。' : '暂无已归档档案。'}</h3>
     ${filtered ? button('clear-filter', '清除筛选') : '<p class="fan-muted">归档后的档案会保留在这里，可随时恢复到主列表。</p>'}</div>`;
   if (!profiles.length)
-    return `<div class="fan-empty"><h3>${filtered ? '没有符合条件的档案' : '暂无粉丝档案'}</h3>
+    return `<div class="fan-empty lira-content-state"><h3 class="lira-content-state-title">${filtered ? '没有符合条件的档案' : '暂无粉丝档案'}</h3>
     ${button(filtered ? 'clear-filter' : 'new', filtered ? '清除筛选' : '新建档案')}</div>`;
   const badges = new Map(expiry.badges.map((badge) => [badge.profileId, badge]));
   return profiles
@@ -119,7 +119,7 @@ function journal(profile) {
     .sort((a, b) => Number(Boolean(b.data.pinned)) - Number(Boolean(a.data.pinned)));
   return (
     (active.map(recordRow).join('') ||
-      '<div class="fan-empty"><p>还没有手记，点击“记一笔”记录今天聊过的事。</p></div>') +
+      '<div class="fan-empty lira-content-state"><p>还没有手记，点击“记一笔”记录今天聊过的事。</p></div>') +
     recordHistory(
       notes.filter((r) => r.data.archived),
       '已收起的手记',
@@ -262,6 +262,6 @@ export function renderReminders(items) {
     .join('');
   return (
     groups ||
-    '<div class="fan-empty"><h3>暂时没有待办提醒</h3><p>生日、纪念日与大航海的重要日子会提前 7 天显示在这里。</p></div>'
+    '<div class="fan-empty lira-content-state"><h3 class="lira-content-state-title">暂时没有待办提醒</h3><p class="lira-content-state-description">生日、纪念日与大航海的重要日子会提前 7 天显示在这里。</p></div>'
   );
 }

@@ -66,14 +66,6 @@ test('clock storage, scene instances and public output roundtrip only validated 
     .styleParameters.browser.transform.rotateZ, 15);
 });
 
-test('browser and privileged display contracts stay identical', () => {
-  const common = require('../../src/shared/component-style-parameters');
-  assert.deepEqual(common.STYLE_PARAMETER_GROUPS, parameters.STYLE_PARAMETER_GROUPS);
-  assert.deepEqual(common.STYLE_PARAMETER_CAPABILITIES, parameters.STYLE_PARAMETER_CAPABILITIES);
-  const input = { glow: { shadow: { blur: 20 }, transform: { rotateX: 20 }, showEntryMessages: true } };
-  assert.deepEqual(common.normalizeStyleParameters('danmaku', input), parameters.normalizeStyleParameters('danmaku', input));
-});
-
 test('coffee and sea breeze effects survive browser edits and privileged validation', () => {
   const common = require('../../src/shared/component-style-parameters');
   for (const style of ['coffee', 'sea-breeze', 'sea-breeze-random']) {

@@ -192,6 +192,19 @@ test('cancelled cloud confirmation and validation errors send or store nothing',
   assert.equal(button.disabled, false);
 });
 
+test('a rejected song field identifies the row and the field to correct', async () => {
+  const ui = await fixture();
+  ui.finishCount({ ok: true, count: 0 });
+  await ui.initialized;
+  ui.bridge.syncCurrentSongs = async () => ({ ok: false, error: 'SONG_CLIP_TOO_LONG', index: 2 });
+  const syncing = ui.element('licenseSyncSongsBtn').events.click();
+  await ui.confirm(true);
+  await syncing;
+  const notice = ui.notices.at(-1);
+  assert.match(notice.message, /第 3 首歌曲.*歌切.*1000/);
+  assert.equal(ui.stored.size, 0);
+});
+
 test('cloud sync rejects invalid response counts instead of inventing a filtered fallback', async () => {
   for (const [count, expected] of [
     [undefined, null],

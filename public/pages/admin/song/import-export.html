@@ -71,7 +71,7 @@
         </div>
         <div>
           <dt>文件与表头</dt>
-          <dd>支持 XLSX、CSV、TSV，也可直接粘贴表格。兼容常用表头；无表头时，请保留模板完整十列。</dd>
+          <dd>支持 XLSX、CSV、TSV，也可直接粘贴表格。带表头时请保留歌名列。无表头时请保留模板完整十列，第五列可填“是”或“可点”。</dd>
         </div>
         <div>
           <dt>多个值</dt>
@@ -97,7 +97,7 @@
     <div class="song-cloud-settings">
       <section id="licenseSongSync" class="song-cloud-panel" aria-labelledby="songCloudSyncTitle" hidden>
         <header class="song-cloud-heading">
-          <h3 id="songCloudSyncTitle" class="ui-card-title">网页歌单同步 <lira-help label="网页歌单同步说明">歌库修改会自动同步到云端。手动同步会用本机完整歌库覆盖云端，不受搜索或筛选影响，同账号其他电脑也会更新。请确认本机歌曲齐全，避免多台电脑同时修改。下方仅记录本机手动同步时间，不代表自动同步状态。</lira-help></h3>
+          <h3 id="songCloudSyncTitle" class="ui-card-title">网页歌单同步 <lira-help label="网页歌单同步说明">平时改歌库会自动同步到云端。点击「用本机覆盖网页歌单」则会把这台电脑上的全部歌曲（不受当前搜索筛选影响）强制覆盖到云端和其他电脑，操作前请确认本机歌库齐全。下方时间仅记录手动覆盖时间。</lira-help></h3>
         </header>
         <dl class="song-cloud-facts">
           <div>
@@ -110,7 +110,7 @@
           </div>
         </dl>
         <div class="song-cloud-access">
-          <div><span id="licenseSongPageEnabledLabel">启用网页歌单</span> <lira-help label="启用网页歌单说明">默认关闭。开启后，观众可通过网址或二维码查看网页歌单。关闭后，已有直达链接也无法访问；本地歌库和云端同步不受影响。</lira-help></div>
+          <div><span id="licenseSongPageEnabledLabel">启用网页歌单</span> <lira-help label="启用网页歌单说明">开启后，观众可通过链接或二维码访问你的在线歌单；关闭后链接将无法访问，但不影响本机歌库和云端同步。</lira-help></div>
           <label class="switch-control">
             <input id="licenseSongPageEnabled" type="checkbox" role="switch" aria-labelledby="licenseSongPageEnabledLabel" disabled />
             <span class="switch-track" aria-hidden="true"></span>

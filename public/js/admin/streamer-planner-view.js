@@ -1,6 +1,7 @@
 'use strict';
 
 import { NOTE_LABELS, EVENT_LABELS, getCalendarDays, toDateValue } from './streamer-planner-model.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 
 const byId = (id) => document.getElementById(id);
 const monthFormat = new Intl.DateTimeFormat('zh-CN', { year: 'numeric', month: 'long', timeZone: 'UTC' });
@@ -116,7 +117,7 @@ export function renderTodoAgenda(view) {
           if (!event.readonly) row.append(iconButton('pencil', '编辑日程', 'eventEdit', event.id));
           return row;
         })
-      : [createElement('p', 'planner-empty-state', '这一天暂无安排')]),
+      : [createElement('p', 'planner-empty-state lira-content-state', '这一天暂无安排')]),
   );
 }
 
@@ -151,7 +152,7 @@ export function renderTodoTasks(view) {
           row.append(check, title, iconButton('x', `删除待办：${task.title}`, 'taskDelete', task.id));
           return row;
         })
-      : [createElement('p', 'planner-empty-state', view.taskFilter === 'done' ? '暂无已完成事项' : '暂无待办')]),
+      : [createElement('p', 'planner-empty-state lira-content-state', view.taskFilter === 'done' ? '暂无已完成事项' : '暂无待办')]),
   );
 }
 
@@ -194,7 +195,7 @@ export function renderTodoNotes(view) {
   byId('plannerNoteList').replaceChildren(
     ...(notes.length
       ? notes.map((note) => renderNote(note, taskIds))
-      : [createElement('p', 'planner-empty-state', '暂无备忘')]),
+      : [createElement('p', 'planner-empty-state lira-content-state', '暂无备忘')]),
   );
 }
 
@@ -202,12 +203,12 @@ export function renderTodo(view) {
   if (!byId('streamerPlanner')) return;
   byId('plannerTodayLabel').textContent = formatDate(toDateValue(), todayFormat);
   const status = byId('plannerSaveState');
-  status.textContent = view.readFailed
+  const message = view.readFailed
     ? '本机记录读取失败，已暂停写入'
     : view.saveFailed
       ? '保存失败，请勿关闭页面'
       : '已保存到本机';
-  status.classList.toggle('is-error', view.readFailed || view.saveFailed);
+  renderSaveStatus(status, view.readFailed || view.saveFailed ? 'error' : 'saved', message);
   renderTodoCalendar(view);
   renderTodoAgenda(view);
   renderTodoNotes(view);

@@ -29,28 +29,7 @@
 }
 
 .desktop-lyric-autosave-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--muted);
   white-space: nowrap;
-}
-
-.desktop-lyric-autosave-state::before {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
-  border-radius: 50%;
-  background: var(--muted);
-  content: '';
-}
-
-.desktop-lyric-autosave-state.is-error {
-  color: var(--danger);
-}
-
-.desktop-lyric-autosave-state.is-error::before {
-  background: var(--danger);
 }
 
 .desktop-lyric-settings .theme-section {

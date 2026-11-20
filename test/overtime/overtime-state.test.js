@@ -205,11 +205,11 @@ test('time, background, and rules validation enforce server limits', () => {
     {
       giftId: 'display-gift',
       mode: 'display',
-      displayText: '谢谢支持',
+      displayText: '甲😀乙😃丙😄',
       enabled: true,
     },
   ]);
-  assert.equal(displayRule[0].displayText, '谢谢支持');
+  assert.equal(displayRule[0].displayText, '甲😀乙😃丙😄');
   assert.throws(
     () => validateRules([{ giftId: 'too-long', mode: 'display', displayText: '七个文字超长度' }]),
     /displayText/,

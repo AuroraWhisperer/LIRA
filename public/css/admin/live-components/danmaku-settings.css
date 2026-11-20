@@ -104,11 +104,15 @@
   color: var(--muted);
 }
 
-/* 弹幕外观: section heading carries the draft state and the preview action for the whole area. */
+/* One bounded surface keeps style selection and its parameters aligned. */
 .live-components-page .danmaku-settings-block.danmaku-appearance-block {
-  gap: 12px;
-  padding: 32px 0 0;
-  border-top: 0;
+  container-type: inline-size;
+  gap: 0;
+  margin-top: 24px;
+  padding: 0;
+  border: 1px solid var(--danmaku-card-border);
+  border-radius: var(--radius-md);
+  background: var(--danmaku-card-bg);
 }
 
 .live-components-page .danmaku-appearance-heading {
@@ -116,7 +120,9 @@
   align-items: center;
   flex-wrap: wrap;
   gap: 8px 12px;
-  min-height: 36px;
+  min-height: 60px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--danmaku-card-border);
 }
 
 .live-components-page .danmaku-appearance-heading h3 {
@@ -126,6 +132,7 @@
 
 .live-components-page .danmaku-appearance-heading .danmaku-overlay-actions {
   margin-left: auto;
+  flex-wrap: wrap;
 }
 
 .live-components-page .danmaku-style-chip {
@@ -137,12 +144,6 @@
   background: var(--components-accent-soft);
   color: var(--components-accent-solid);
   font-weight: var(--type-weight-medium);
-}
-
-/* Style picker and parameters are sibling cards with card-level titles. */
-.live-components-page .danmaku-style-picker {
-  border-color: var(--danmaku-card-border);
-  background: var(--danmaku-card-bg);
 }
 
 .live-components-page .danmaku-style-heading {
@@ -158,17 +159,14 @@
   line-height: 20px;
 }
 
-.live-components-page .danmaku-style-heading #danmakuAllStylesBtn {
-  margin-left: auto;
-}
-
 .live-components-page .danmaku-parameters {
   gap: 16px;
   margin-top: 0;
   padding: 16px;
-  border: 1px solid var(--danmaku-card-border);
-  border-radius: var(--radius-md);
-  background: var(--danmaku-card-bg);
+  border: 0;
+  border-top: 1px solid var(--danmaku-card-border);
+  border-radius: 0;
+  background: transparent;
 }
 
 .live-components-page .danmaku-parameters > .danmaku-filter-heading {

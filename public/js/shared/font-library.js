@@ -5,6 +5,32 @@ const registeredSelects = new Set();
 const fontReadiness = new Map();
 const FONT_MODES = new Set(['', 'default', 'system', 'inherit']);
 const legacyFontOptions = new WeakMap();
+const FONT_ALIASES = { 'Christmas Letter Nunito': 'Spooky Nunito', 'Celestial Montserrat': 'Gradient Montserrat', 'Lira Wireframe Serif': 'Lira Sea Breeze Serif' };
+
+function fontName(select, label) {
+  return select.dataset.fontNamesOnly === 'true' ? label.split(' · ')[0] : label;
+}
+
+// Resolve the first available face in the authored stack using the same library inventory.
+export function fontValueForStack(select, stack) {
+  const families = (stack.match(/"(?:[^"\\]|\\.)*"|'[^']*'|[^,]+/g) || [])
+    .map(value => value.trim().replace(/^['"]|['"]$/g, ''));
+  const context = select.ownerDocument.createElement('canvas').getContext('2d');
+  for (const family of families) {
+    const font = findSharedFont(FONT_ALIASES[family] || family);
+    if (font) return font.value;
+    if (['serif', 'sans-serif', 'monospace', 'cursive', 'system-ui', 'inherit'].includes(family)) continue;
+    const value = `"${family.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`;
+    const available = ['monospace', 'serif', 'sans-serif'].some(fallback => {
+      context.font = `72px ${fallback}`;
+      const baseline = context.measureText('AaWm中文汉字123').width;
+      context.font = `72px ${value}, ${fallback}`;
+      return context.measureText('AaWm中文汉字123').width !== baseline;
+    });
+    if (available) return value;
+  }
+  return '"Microsoft YaHei UI"';
+}
 
 function retainLegacyFontOptions(select) {
   if (legacyFontOptions.has(select)) return;
@@ -12,7 +38,7 @@ function retainLegacyFontOptions(select) {
   const legacy = new Map();
   for (const option of Array.from(select.options)) {
     if (FONT_MODES.has(option.value)) continue;
-    legacy.set(option.value, { label: SYSTEM_FONT_OPTIONS[option.value] || option.textContent,
+    legacy.set(option.value, { label: fontName(select, SYSTEM_FONT_OPTIONS[option.value] || option.textContent),
       fontFamily: option.dataset.fontFamily || option.value });
     option.remove();
   }
@@ -77,7 +103,8 @@ export function ensureSavedFontOption(select, value) {
     }
     ensureLocalFontOption(select, value);
     const option = Array.from(select.options).find(item => item.value === value);
-    option.textContent = `${font.label}（未就绪）`;
+    option.textContent = select.dataset.fontNamesOnly === 'true' ? fontName(select, font.label) : `${font.label}（未就绪）`;
+    option.title = '字体资源尚未就绪';
     option.disabled = true;
     option.dataset.sharedFontPending = 'true';
     return;
@@ -103,7 +130,7 @@ export function populateSharedFontOptions(select) {
     if (!isReady(font)) continue;
     const option = document.createElement('option');
     option.value = font.value;
-    option.textContent = font.label;
+    option.textContent = fontName(select, font.label);
     option.dataset.fontId = font.id;
     option.dataset.fontFamily = font.value;
     group.appendChild(option);
@@ -115,8 +142,9 @@ export function populateSharedFontOptions(select) {
   select.value = currentValue;
 }
 
-export function registerFontSelect(select, { maxLength } = {}) {
+export function registerFontSelect(select, { maxLength, namesOnly = false } = {}) {
   if (!select) return;
+  if (namesOnly) select.dataset.fontNamesOnly = 'true';
   if (maxLength) select.dataset.fontMaxLength = String(maxLength);
   retainLegacyFontOptions(select);
   registeredSelects.add(select);

@@ -81,7 +81,7 @@ test('queue rendering follows in-place metadata and match corrections', async ()
   const document = {
     getElementById(id) {
       if (!elements.has(id)) elements.set(id, {
-        innerHTML: '', textContent: '', contains: () => false,
+        innerHTML: '', textContent: '', contains: () => false, addEventListener() {},
         classList: { add() {}, remove() {} },
       });
       return elements.get(id);
@@ -705,7 +705,7 @@ test('previous playback returns to the prior request of the same song without re
   );
 });
 
-test('audio errors refresh the current stream and skip safely after the retry limit', async () => {
+test('exhausting the stream retry limit advances only while playback is requested', async () => {
   const app = await createPlaybackApp({
     current: track('current', 'Current'),
     currentOrigin: 'normal',
@@ -723,21 +723,28 @@ test('audio errors refresh the current stream and skip safely after the retry li
 
   await app.init();
   await flushAsyncWork();
+  await app.emit('playbackPlayPause', 'click');
 
   await assert.doesNotReject(app.emit('music-player', 'error'));
   await flushAsyncWork();
 
   assert.equal(app.savedState().current.id, 'current');
-  assert.equal(app.audioPlayCalls(), 1);
-  assert.equal(app.resolveStreamRequestCount(), 1);
+  assert.equal(app.resolveStreamRequestCount(), 2);
   assert.deepEqual(app.errors(), []);
 
+  await app.emit('playbackPlayPause', 'click');
+  await app.emit('music-player', 'error');
+  assert.equal(app.audioPlayCalls(), 2);
+  assert.equal(app.element('music-player').paused, true);
+  assert.equal(app.savedState().current.id, 'current');
+
+  await app.emit('playbackPlayPause', 'click');
   await assert.doesNotReject(app.emit('music-player', 'error'));
   await flushAsyncWork();
 
   assert.equal(app.savedState().current.id, 'next');
-  assert.equal(app.audioPlayCalls(), 2);
-  assert.equal(app.resolveStreamRequestCount(), 2);
+  assert.equal(app.audioPlayCalls(), 4);
+  assert.equal(app.resolveStreamRequestCount(), 3);
   assert.deepEqual(app.errors(), []);
 });
 

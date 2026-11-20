@@ -18,8 +18,13 @@ function parseSongsFromXlsx(buffer, { preserveMissing = false } = {}) {
   const table = parseWorksheetXml(files.worksheet, sharedStrings);
   if (table.length === 0) return [];
   const header = table[0].map((cell) => cleanText(cell));
-  const allAliases = Object.values(SONG_IMPORT_ALIASES).flat();
-  const hasHeader = header.some((cell) => allAliases.includes(cell));
+  const labels = new Set(Object.values(SONG_IMPORT_ALIASES).flat());
+  const isLabel = (cell) => labels.has(cell);
+  // A ten-column data row can contain labels such as 可点. Keep a full row of
+  // column labels with a missing song-name heading invalid, even on legacy imports.
+  const hasHeader = header.some((cell) => SONG_IMPORT_ALIASES.name.includes(cell)) || (header.length === SONG_EXPORT_HEADERS.length
+    ? Array.from(header.slice(1)).every(isLabel)
+    : header.some(isLabel));
   const bodyRows = hasHeader ? table.slice(1) : table;
   return bodyRows
     .map((row) => {

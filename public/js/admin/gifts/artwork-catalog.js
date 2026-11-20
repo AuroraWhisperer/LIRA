@@ -91,35 +91,52 @@ export function getGiftToastArtwork(item) {
 }
 
 let giftArtworkLoadPromise = null;
-let giftArtworkController = null;
 let giftArtworkRetryAfter = 0;
-let giftArtworkRevision = 0;
+let hasOfficialArtwork = false;
 let onArtworkChange = null;
 let disposeCatalog = null;
 
-export function loadGiftArtworkCatalog() {
-  if (giftArtworkById) return Promise.resolve(giftArtworkById);
-  if (giftArtworkLoadPromise) return giftArtworkLoadPromise;
-  if (Date.now() < giftArtworkRetryAfter || typeof window.fetch !== 'function') return Promise.resolve(new Map());
+let officialCatalogRequest = null;
+let officialCatalogController = null;
 
-  const requestRevision = giftArtworkRevision;
+export function readOfficialGiftCatalog() {
+  if (officialCatalogRequest) return officialCatalogRequest;
   const controller = new AbortController();
-  giftArtworkController = controller;
+  officialCatalogController = controller;
+  const pending = (async () => {
+    const response = await window.fetch('/api/overtime/gifts/catalog', { signal: controller.signal });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const payload = await response.json();
+    if (payload?.ok === false) throw new Error(payload.error || '礼物目录不可用');
+    return payload?.data;
+  })().finally(() => {
+    if (officialCatalogRequest === pending) {
+      officialCatalogRequest = null;
+      officialCatalogController = null;
+    }
+  });
+  officialCatalogRequest = pending;
+  return pending;
+}
+
+export function loadGiftArtworkCatalog() {
+  if (hasOfficialArtwork) return Promise.resolve(giftArtworkById);
+  if (giftArtworkLoadPromise) return giftArtworkLoadPromise;
+  if (Date.now() < giftArtworkRetryAfter || typeof window.fetch !== 'function') {
+    return Promise.resolve(giftArtworkById || new Map());
+  }
+
+  const request = readOfficialGiftCatalog();
   const pending = (async () => {
     try {
-      const response = await window.fetch('/api/overtime/gifts/catalog', { signal: controller.signal });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const payload = await response.json();
-      if (payload?.ok === false) throw new Error(payload.error || '礼物目录不可用');
-      if (!controller.signal.aborted && !giftArtworkById && requestRevision === giftArtworkRevision) {
-        const artworkById = new Map();
-        for (const gift of Array.isArray(payload?.data?.gifts) ? payload.data.gifts : []) addGiftArtwork(artworkById, gift);
-        giftArtworkById = artworkById;
-        giftArtworkByName = buildGiftArtworkNameIndex(artworkById);
-        onArtworkChange?.();
+      const snapshot = await request;
+      if (giftArtworkLoadPromise === pending && !hasOfficialArtwork) {
+        hasOfficialArtwork = true;
+        // A room refresh may already have supplied a newer image for the same variant.
+        mergeGiftArtwork(Array.isArray(snapshot?.gifts) ? snapshot.gifts : [], { fillMissing: true });
       }
     } catch (error) {
-      if (!controller.signal.aborted) {
+      if (giftArtworkLoadPromise === pending && !hasOfficialArtwork) {
         giftArtworkRetryAfter = Date.now() + 5000;
         console.warn('读取礼物图片目录失败：', error);
       }
@@ -130,7 +147,6 @@ export function loadGiftArtworkCatalog() {
   return pending.finally(() => {
     if (giftArtworkLoadPromise === pending) {
       giftArtworkLoadPromise = null;
-      giftArtworkController = null;
     }
   });
 }
@@ -142,24 +158,18 @@ function normalizeGiftArtworkPath(value) {
   return imagePath;
 }
 
-function addGiftArtwork(index, gift) {
-  const id = String(gift?.id ?? '').trim();
-  const name = normalizedGiftName(gift?.name);
-  if (!id || !name) return;
-  const variantId = gift.variantId || gift.giftIdentity?.variantId;
-  const key = variantId || JSON.stringify([id, name, gift.priceRaw ?? gift.rmb, gift.coinType, gift.bagGift]);
-  const imagePath = normalizeGiftArtworkPath(gift.imagePath) || index.get(key)?.imagePath || '';
-  index.set(key, { id, name, imagePath });
-}
-
-function applyGiftArtworkSnapshot(snapshot) {
-  if (!snapshot || typeof snapshot !== 'object') return;
-  if (!Array.isArray(snapshot.gifts)) return;
-
-  giftArtworkRevision += 1;
-  const artworkById = giftArtworkById ? new Map(giftArtworkById) : new Map();
-  for (const gift of snapshot.gifts) {
-    addGiftArtwork(artworkById, gift);
+function mergeGiftArtwork(gifts, { fillMissing = false } = {}) {
+  const artworkById = new Map(giftArtworkById);
+  for (const gift of gifts) {
+    const id = String(gift?.id ?? '').trim();
+    const name = normalizedGiftName(gift?.name);
+    if (!id || !name) continue;
+    const variantId = gift.variantId || gift.giftIdentity?.variantId;
+    const key = variantId || JSON.stringify([id, name, gift.priceRaw ?? gift.rmb, gift.coinType, gift.bagGift]);
+    const previous = artworkById.get(key)?.imagePath;
+    if (fillMissing && previous) continue;
+    const imagePath = normalizeGiftArtworkPath(gift.imagePath) || previous || '';
+    artworkById.set(key, { id, name, imagePath });
   }
   giftArtworkById = artworkById;
   giftArtworkByName = buildGiftArtworkNameIndex(artworkById);
@@ -169,14 +179,19 @@ function applyGiftArtworkSnapshot(snapshot) {
 export function initGiftArtworkCatalog(onChange) {
   if (disposeCatalog) return disposeCatalog;
   onArtworkChange = onChange;
-  const unsubscribe = eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => applyGiftArtworkSnapshot(snapshot));
+  const unsubscribe = eventBus.on(Events.GIFT_CATALOG_UPDATED, ({ snapshot } = {}) => {
+    if (!Array.isArray(snapshot?.gifts)) return;
+    const roomSaleOnly = typeof snapshot.roomId === 'string' && !Array.isArray(snapshot.blindBoxes);
+    if (!roomSaleOnly) hasOfficialArtwork = true;
+    mergeGiftArtwork(snapshot.gifts);
+  });
   const dispose = () => {
     if (disposeCatalog !== dispose) return;
     unsubscribe();
     onArtworkChange = null;
-    giftArtworkRevision += 1;
-    giftArtworkController?.abort();
-    giftArtworkController = null;
+    officialCatalogController?.abort();
+    officialCatalogRequest = null;
+    officialCatalogController = null;
     giftArtworkLoadPromise = null;
     disposeCatalog = null;
   };

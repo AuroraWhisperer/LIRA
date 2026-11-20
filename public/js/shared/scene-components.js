@@ -1,5 +1,11 @@
 import { SCENE_EXTRA_COMPONENTS } from './scene-extra-components.js';
 
+function delayedRankings(snapshot) {
+  if (!snapshot) return null;
+  return { ...snapshot, status: 'stale', boards: snapshot.boards.map(board =>
+    board.status === 'ready' ? { ...board, status: 'stale' } : board) };
+}
+
 // Stable scene capabilities; environment-specific factories and owners live elsewhere.
 export const SCENE_COMPONENTS = Object.freeze({
   danmaku: Object.freeze({
@@ -24,7 +30,7 @@ export const SCENE_COMPONENTS = Object.freeze({
     resizeAxes: ['gift-wishes', 'heart-box-collection'].includes(type) ? 'x' : 'xy',
     contentHeight: ['gift-wishes', 'heart-box-collection'].includes(type), independentOnly: true,
     rendererUrl: `${definition.path}${definition.path.includes('?') ? '&' : '?'}componentPreview=1&sceneComponent=1`, sourceUrl: definition.path,
-    disconnectedData: () => null,
+    disconnectedData: type === 'live-rankings' ? delayedRankings : () => null,
   })])),
   'text-box': Object.freeze({ resizeAxes: 'xy', contentHeight: false, independentOnly: true,
     rendererUrl: '/text-box?componentPreview=1&sceneComponent=1', sourceUrl: '/text-box' }),

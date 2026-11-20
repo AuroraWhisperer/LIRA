@@ -4,7 +4,21 @@
 
 import { PlaybackConfig } from '../config.js';
 
+const MAX_SAVE_RETRIES = 3;
 let nextSenderGeneration = 0;
+
+// 恢复未获确认时，只比较当前曲目、队列成员及顺序。曲目元数据和偏好可以独立变化。
+function queueIdentity(state) {
+  const trackKey = (track) => track
+    ? [track.source, track.id, track.songRequestKey || '', track.playNext === true]
+    : null;
+  return JSON.stringify([
+    trackKey(state.current), state.queueType, state.queueSourceKey, state.playlistIndex,
+    state.requestedQueue.map(trackKey), state.normalQueue.map(trackKey),
+    state.normalQueueTracks.map(trackKey), state.radioQueue.map(trackKey),
+    state.pendingRequests.map((item) => item && [item.id, item.songRequestKey, trackKey(item.track)]),
+  ]);
+}
 
 /**
  * 创建状态持久化操作模块
@@ -17,12 +31,15 @@ export function createStatePersistence(deps) {
   const playbackClientId = PlaybackConfig.CLIENT_ID;
   const playbackStateSaveDebounceMs = PlaybackConfig.STATE_SAVE_DEBOUNCE_MS;
   let playbackStateSaveTimer = null;
+  let maxWaitTimer = null;
   let playbackStateSavePending = null;
   let playbackStateSaveInFlight = null;
   let playbackStateSaveDirty = false;
+  let fallbackQueueIdentity = null;
   let snapshotSequence = 0;
   let completedSaveSequence = 0;
-  let failedSaves = 0;
+  let saveWarning = false;
+  let flushingOnExit = false;
   const bootWriter = deps.snapshotWriter || window.__PLAYBACK_SNAPSHOT_WRITER__;
   if (!bootWriter?.writerId || !Number.isSafeInteger(bootWriter.generation) || bootWriter.generation < 1) {
     throw new Error('播放快照启动信息缺失，请重新加载管理页。');
@@ -68,6 +85,7 @@ export function createStatePersistence(deps) {
    * 在实际发送前捕获最新状态，避免每次进度通知都复制完整队列。
    */
   function capturePlaybackState() {
+    if (fallbackQueueIdentity !== null && queueIdentity(playbackState) === fallbackQueueIdentity) return null;
     const audio = getPlaybackAudio();
     const payload = {
       current: serializeTrack(playbackState.current),
@@ -105,6 +123,7 @@ export function createStatePersistence(deps) {
         .filter(Boolean),
       snapshotVersion: { ...snapshotWriter, sequence: snapshotSequence },
     };
+    fallbackQueueIdentity = null;
     return payload;
   }
 
@@ -116,21 +135,25 @@ export function createStatePersistence(deps) {
     playbackStateSavePending = null;
     snapshotSequence += 1;
     if (playbackStateSaveTimer) clearTimeout(playbackStateSaveTimer);
-    playbackStateSaveTimer = setTimeout(() => {
-      void flushPlaybackStateSave();
-    }, playbackStateSaveDebounceMs);
+    playbackStateSaveTimer = setTimeout(flushPlaybackStateSave, playbackStateSaveDebounceMs);
+    if (maxWaitTimer === null) {
+      maxWaitTimer = setTimeout(flushPlaybackStateSave, PlaybackConfig.STATE_SAVE_MAX_WAIT_MS);
+    }
   }
 
   /**
    * 立即执行状态保存
    */
-  async function flushPlaybackStateSave() {
+  async function flushPlaybackStateSave(retry = 0) {
     const payload = takePendingPayload();
     if (!payload) return;
     if (!playbackStateSaveInFlight ||
       playbackStateSaveInFlight.snapshotVersion.sequence <= payload.snapshotVersion.sequence) {
       playbackStateSaveInFlight = payload;
     }
+    let saved = false;
+    let stale = false;
+    let retryable = false;
     try {
       const response = await fetch('/api/playback/queue-state', {
         method: 'POST',
@@ -138,15 +161,19 @@ export function createStatePersistence(deps) {
         body: JSON.stringify({ clientId: playbackClientId, payload }),
       });
       const result = response.ok ? await response.json() : null;
-      const saved = result?.ok === true && result.data?.saved === true;
-      if (!saved) retainPendingPayload(payload);
-      reportSaveResult(payload, saved);
+      saved = result?.ok === true && result.data?.saved === true;
+      stale = result?.data?.reason === 'stale-snapshot';
+      retryable = response.status >= 500;
     } catch (_) {
-      retainPendingPayload(payload);
-      reportSaveResult(payload, false);
+      retryable = true;
     } finally {
       if (playbackStateSaveInFlight === payload) playbackStateSaveInFlight = null;
     }
+    if (stale) return;
+    if (!saved && retainPendingPayload(payload) && retryable && retry < MAX_SAVE_RETRIES && !flushingOnExit) {
+      playbackStateSaveTimer = setTimeout(() => flushPlaybackStateSave(retry + 1), playbackStateSaveDebounceMs * 2 ** retry);
+    }
+    reportSaveResult(payload, saved);
   }
 
   function reportSaveResult(payload, saved) {
@@ -155,24 +182,31 @@ export function createStatePersistence(deps) {
     completedSaveSequence = sequence;
     const notice = { key: 'playback-state-save', update: true };
     if (saved) {
-      if (failedSaves >= 2) toast('播放队列和进度已保存。', { ...notice, type: 'success' });
-      failedSaves = 0;
-    } else if (++failedSaves === 2) {
+      if (saveWarning) toast('播放队列和进度已保存。', { ...notice, type: 'success' });
+      saveWarning = false;
+    } else if (!saveWarning) {
+      saveWarning = true;
       toast('播放队列和进度还没保存成功，先别关闭 LIRA。', { ...notice, type: 'warning' });
     }
   }
 
   function retainPendingPayload(payload) {
-    if (payload.snapshotVersion.sequence !== snapshotSequence) return;
+    if (payload.snapshotVersion.sequence !== snapshotSequence) return false;
     if (
       !playbackStateSavePending ||
       playbackStateSavePending.snapshotVersion.sequence < payload.snapshotVersion.sequence
     ) {
       playbackStateSavePending = payload;
+      return true;
     }
+    return false;
   }
 
   function takePendingPayload() {
+    if (maxWaitTimer !== null) {
+      clearTimeout(maxWaitTimer);
+      maxWaitTimer = null;
+    }
     if (playbackStateSaveTimer) {
       clearTimeout(playbackStateSaveTimer);
       playbackStateSaveTimer = null;
@@ -184,6 +218,7 @@ export function createStatePersistence(deps) {
   }
 
   function takeExplicitFlushPayload() {
+    flushingOnExit = true;
     if (!playbackStateSaveDirty && !playbackStateSavePending && playbackState.current) {
       savePlaybackState();
     }
@@ -252,6 +287,9 @@ export function createStatePersistence(deps) {
 
   return {
     savePlaybackState,
+    requireQueueEditBeforeSave() {
+      fallbackQueueIdentity = queueIdentity(playbackState);
+    },
     flushPlaybackStateSave,
     flushPlaybackStateOnUnload,
     flushPlaybackStateForShutdown,

@@ -12,6 +12,27 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 
 const state = (draft = { label: '示例' }) => ({ draft, saved: draft, generation: 0, loaded: true });
 
+test('only an attached canvas can queue a validated style favorite without editing its draft', () => {
+  const sessions = createComponentPreviewSessions();
+  const session = sessions.open({ component: 'canvas', state: state() });
+  const attachmentId = randomUUID();
+  sessions.browser({ id: session.id, action: 'attach', attachmentId, previousAttachmentId: null }, session.token);
+  const favorite = change => sessions.browser({ id: session.id, attachmentId, action: 'favorite', commandId: 1, change }, session.token);
+  const change = { style: 'cream', favorite: true };
+  const accepted = favorite(change);
+  assert.equal(favorite(change).sequence, accepted.sequence, 'A retry must not favorite twice or change its order.');
+  const commands = sessions.exchange({ id: session.id, ack: 0, incremental: true }).commands;
+  assert.equal(commands.length, 1);
+  assert.deepEqual(commands[0].change, change);
+  assert.equal(sessions.browser({ id: session.id, action: 'read', attachmentId }, session.token).state.draft.label, '示例');
+  for (const invalid of [{ style: 'missing', favorite: true }, { style: ['cream'], favorite: true }, { style: 'cream', favorite: 'true' }, { ...change, account: 'other' }]) {
+    assert.throws(() => sessions.browser({ id: session.id, attachmentId, action: 'favorite', change: invalid }, session.token), { statusCode: 400 });
+  }
+  const other = sessions.open({ component: 'danmaku', state: state() });
+  assert.throws(() => sessions.browser({ id: other.id, action: 'favorite', change }, other.token), { statusCode: 400 });
+  sessions.clear();
+});
+
 test('one batch wait wakes for any member without mixing commands, state or focus', async t => {
   t.mock.timers.enable({ apis: ['setTimeout'] });
   const sessions = createComponentPreviewSessions();
@@ -809,9 +830,6 @@ test('browser preview never receives admin authority or bypasses Host/Origin pro
   const preview = await fetch(`${fixture.origin}/component-preview?component=clock`);
   assert.equal(preview.status, 200);
   const html = await preview.text();
-  assert.match(html, /componentPreviewTemplates/);
-  assert.match(html, /class="danmaku-parameters"/);
-  assert.doesNotMatch(html, /id="danmakuSendForm"|id="xiaomiAiForm"/);
   assert.doesNotMatch(html, /__API_TOKEN__|lira-overlay-bootstrap|synthetic-desktop-component-preview-token/);
   assert.equal(preview.headers.get('x-frame-options'), 'DENY');
   const compact = await fetch(`${fixture.origin}/c`);
@@ -820,7 +838,6 @@ test('browser preview never receives admin authority or bypasses Host/Origin pro
   assert.equal(await compact.text(), html);
   const direct = await fetch(`${fixture.origin}/component-preview`);
   assert.equal(direct.status, 200);
-  assert.match(await direct.text(), /data-clock-style-option/);
   const frame = await fetch(`${fixture.origin}/clock?componentPreview=1`);
   assert.equal(frame.status, 200);
   assert.doesNotMatch(await frame.text(), /lira-overlay-bootstrap/);

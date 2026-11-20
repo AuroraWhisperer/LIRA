@@ -475,22 +475,26 @@ test('snapshot pages stay hidden until atomic activation, preserve old values on
 
 test('changed-day replacement includes late finals once and retains the full top/date metrics', (t) => {
   const f = fixture(t);
-  stage(f);
+  const retired = row(1);
+  retired.dimensions.giftName = '上一版本独有';
+  retired.groupKey = groupKey(retired.dimensions);
+  stage(f, summary({ rows: [row(), retired].sort((a, b) => a.groupKey.localeCompare(b.groupKey)) }));
   f.retention.activate(f.scope());
   const first = f.statistics();
   const late = record('late-old',4,OLD);
   f.projection.importProcessedHistoryRecord(late,f.source.id);
   f.giftDb.prepare('UPDATE gift_events SET remote_final_cursor=4 WHERE platform_id=?').run('lira-server:late-old');
   f.giftDb.prepare('UPDATE gift_sync_state SET final_cursor=4 WHERE source_id=?').run(f.source.id);
-  assert.equal(f.statistics().summaryRow.eventCount, 4);
+  assert.equal(f.statistics().summaryRow.eventCount, 5);
   f.retention.summaryPage({ ...f.scope(), page: summary({ revision: 2, baseRevision: 1, coveredThroughCursor: 4, rows: [row(3)] }) });
-  assert.equal(f.statistics().summaryRow.eventCount, 4);
+  assert.equal(f.statistics().summaryRow.eventCount, 5);
   f.retention.activate(f.scope());
   assert.equal(f.statistics().summaryRow.eventCount, 4);
   assert.equal(f.statistics().topRows[0].itemCount, 4);
-  assert.equal(f.statistics({ query: '缺席' }).summaryRow.eventCount, 0);
+  assert.equal(f.statistics({ query: '上一版本独有' }).summaryRow.eventCount, 0);
   assert.equal(f.statistics({ rangeStart: '2026-02-01T00:00:00.000Z' }).summaryRow.eventCount, 1);
-  assert.equal(first.summaryRow.eventCount, 3);
+  assert.deepEqual(f.statistics().bucketRows.map(bucket => bucket.eventCount), [3, 1]);
+  assert.equal(first.summaryRow.eventCount, 4);
 });
 
 test('bounded deletion keeps sprint carry and local blind-box eligibility, pins pending settlements and clears together', (t) => {

@@ -81,9 +81,13 @@ test('a large song library renders every song and keeps delegated actions and fi
   ]);
   await page.evaluate(() => {
     window.pendingSaves[0].resolve({ ok: true });
+    window.library[100].name = '已改名的歌曲';
     window.renderSongs(window.library);
   });
   assert.equal(await page.locator('#songsTable tr').count(), 5000, 'refresh keeps the complete library');
+  assert.equal(await page.locator('#songsTable tr').nth(100).locator('strong').textContent(), '已改名的歌曲');
+  assert.equal(await page.evaluate(() => window.firstSongRow === document.querySelector('#songsTable tr')), true,
+    'editing one song keeps unaffected rows mounted');
 });
 
 test('deleting the last song refreshes the complete library', async (t) => {

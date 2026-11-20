@@ -26,7 +26,7 @@ function createDesktopLifecycle({
       console.warn('Shutdown failed:', error.message);
     }
 
-    function finish(event) {
+    async function finish(event) {
       if (finished) return;
       finished = true;
       timers.clearTimeout(deadline);
@@ -35,8 +35,10 @@ function createDesktopLifecycle({
       try { disposeLicense(); } catch (error) { logError(error); }
       let updateStarted = false;
       try {
-        if (restart) updateStarted = restartApp() === 'update';
-        else app.releaseSingleInstanceLock();
+        if (restart) {
+          const handoff = restartApp();
+          if (handoff) updateStarted = (await handoff) === 'update';
+        } else app.releaseSingleInstanceLock();
       } catch (error) {
         logError(error);
       } finally {
@@ -45,7 +47,7 @@ function createDesktopLifecycle({
           app.exit(exitCode);
           resolve();
         };
-        // NSIS spawn fallbacks and before-quit-for-update run asynchronously.
+        // Let the updater finish its quit notification before the final exit.
         if (updateStarted) setImmediate(exit);
         else exit();
       }

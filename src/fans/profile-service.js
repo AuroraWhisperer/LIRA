@@ -2,7 +2,8 @@
 
 const { randomUUID } = require('node:crypto');
 const { text, timestamp, identity, identityKey, profilePatch, recordData, recentNameHistory } = require('./validation');
-const { DAY_MS, dayOf, addDays, zodiacFor } = require('./dates');
+const { DAY_MS, dayOf, dayStart, addDays, zodiacFor } = require('./dates');
+const { REMINDER_HISTORY_DAYS } = require('./reminders');
 const { membershipConflicts, cycleForNewRecord } = require('./membership');
 const { createFanProfileProjection } = require('./profile-projection');
 const { createFanBackupService, MAX_BACKUP_BYTES } = require('./profile-transfer');
@@ -224,6 +225,21 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
   const facts = createFanFactConsumer({ store, now, create });
   const merge = createFanMergeService({ store, now, detail, requireProfile });
 
+  function readProjectionBatch(scope, profiles, at) {
+    const ids = profiles.map(profile => profile.id);
+    // Milestones also compare the day before the first visible reminder. A restored
+    // roster snapshot can need an even earlier observation to verify its bound UID.
+    const historyStart = new Date(dayStart(dayOf(at)) - (REMINDER_HISTORY_DAYS + 1) * DAY_MS).toISOString();
+    const before = new Map(profiles.map(({ id, guardRoster }) => {
+      const rosterAt = guardRoster?.level != null ? guardRoster.observedAt : undefined;
+      return [id, rosterAt && rosterAt < historyStart ? rosterAt : historyStart];
+    }));
+    return {
+      records: store.records.listProjectionInputs(scope, ids, before),
+      states: store.statesForProfiles(scope, ids),
+    };
+  }
+
   function list(scope, input) {
     const settings = store.getScope(scope);
     const query = text(input.query, '搜索', 300).toLocaleLowerCase();
@@ -252,9 +268,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           (!filters.includes('incomplete') || !profile.birthday || !profile.summary)
         );
       });
-    const ids = candidates.map((profile) => profile.id);
-    const recordsByProfile = store.records.listProjectionInputs(scope, ids);
-    const statesByProfile = store.statesForProfiles(scope, ids);
+    const { records: recordsByProfile, states: statesByProfile } = readProjectionBatch(scope, candidates, at);
     return candidates
       .map((profile) => {
         const records = recordsByProfile.get(profile.id) || [];
@@ -413,9 +427,7 @@ function createFanProfileService({ store, now = () => new Date().toISOString() }
           const allProfiles = store.list(scope);
           project.retain(scope, allProfiles);
           const profiles = allProfiles.filter((profile) => !profile.archived);
-          const ids = profiles.map((profile) => profile.id);
-          const records = store.records.listProjectionInputs(scope, ids);
-          const states = store.statesForProfiles(scope, ids);
+          const { records, states } = readProjectionBatch(scope, profiles, at);
           const reminders = profiles.flatMap((profile) => project(
             scope, profile, records.get(profile.id) || [], states.get(profile.id) || [], at, settings,
           ).reminders);

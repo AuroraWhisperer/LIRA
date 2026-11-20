@@ -121,7 +121,7 @@ function createWeSingCacheReader() {
     qrcEntries.delete(filePath);
   }
 
-  async function readQrc(filePath) {
+  async function readQrc(filePath, wantedTitle) {
     const version = generation;
     const stat = await fs.promises.stat(filePath).catch(() => null);
     if (!stat?.isFile() || stat.size <= 0 || stat.size > MAX_QRC_BYTES) {
@@ -134,19 +134,28 @@ function createWeSingCacheReader() {
     if (entry?.fingerprint === fingerprint) {
       qrcEntries.delete(filePath);
       qrcEntries.set(filePath, entry);
-      return entry.promise;
+      if (wantedTitle && entry.title && entry.title !== wantedTitle) return null;
+      if (entry.promise) return entry.promise;
     }
     removeQrc(filePath);
-    entry = { fingerprint, bytes: 0, promise: null };
+    entry = { fingerprint, title: '', bytes: 0, promise: null };
     entry.promise = tryReadQrc(filePath, stat).then((parsed) => {
       if (qrcEntries.get(filePath) !== entry) return parsed;
       // Partial downloads and transient read failures must be retried next time.
       if (!parsed?.lines.length) {
         removeQrc(filePath);
       } else {
+        entry.title = normalizeTitle(parsed.title);
         entry.bytes = JSON.stringify(parsed).length * 2;
         qrcBytes += entry.bytes;
-        while (qrcBytes > MAX_QRC_CACHE_BYTES) removeQrc(qrcEntries.keys().next().value);
+        // Keep the verified title after its word timings leave the content budget.
+        for (const cached of qrcEntries.values()) {
+          if (qrcBytes <= MAX_QRC_CACHE_BYTES) break;
+          if (!cached.bytes) continue;
+          qrcBytes -= cached.bytes;
+          cached.bytes = 0;
+          cached.promise = null;
+        }
       }
       return parsed;
     });
@@ -231,7 +240,7 @@ async function readSongEntry(latest) {
   return null;
 }
 
-async function loadWeSingLyrics(options = {}, readQrc = tryReadQrc) {
+async function loadWeSingLyrics(options = {}, readQrc = (filePath) => tryReadQrc(filePath)) {
   const cachePath = normalizeWeSingCachePath(options.cachePath);
   const title = stripWeSingWindowTitle(options.title);
   const resDir = path.join(cachePath, 'WeSingDL', 'Res');
@@ -252,7 +261,7 @@ async function loadWeSingLyrics(options = {}, readQrc = tryReadQrc) {
   const wantedTitle = normalizeTitle(title);
   let matchingResult = null;
   for (const candidate of candidates) {
-    const parsed = await readQrc(candidate.filePath);
+    const parsed = await readQrc(candidate.filePath, wantedTitle);
     if (!parsed) continue;
     if (wantedTitle && normalizeTitle(parsed.title || title) !== wantedTitle) continue;
     if (matchingResult) return null;

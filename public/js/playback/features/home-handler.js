@@ -253,13 +253,6 @@ export function createHomeHandler(deps) {
     const isHidden = menu.hasAttribute('hidden');
     closeTrackMenu();
 
-    document.querySelectorAll('.track-menu').forEach((m) => {
-      if (m !== menu) {
-        m.setAttribute('hidden', '');
-        document.querySelector(`[aria-controls="${m.id}"]`)?.setAttribute('aria-expanded', 'false');
-      }
-    });
-
     if (isHidden) {
       menu.classList.remove('opens-up');
       menu.removeAttribute('hidden');

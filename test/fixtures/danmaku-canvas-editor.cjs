@@ -133,7 +133,10 @@ async function run() {
           const panel = document.getElementById('liveDanmakuFeature');
           const sources = document.getElementById('overlayPage');
           const sourceTab = document.querySelector('[data-tab="overlayPage"]');
-          document.body.replaceChildren(panel, sourceTab, sources);
+          const componentPage = document.getElementById('liveComponentsPage');
+          componentPage.replaceChildren(panel);
+          componentPage.className = 'live-components-page';
+          document.body.replaceChildren(componentPage, sourceTab, sources);
           panel.hidden = sources.hidden = false; panel.style.display = sources.style.display = "block";
           document.body.style.cssText = 'display:block;overflow:auto;padding:24px';
           const ids = { overlayUrl:'danmakuOverlayUrl', styleChip:'danmakuStyleChip', styleSaveState:'danmakuStyleSaveState',

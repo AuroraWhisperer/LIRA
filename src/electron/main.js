@@ -130,7 +130,7 @@ const resourceIntegrity = createDesktopResourceIntegrity({
 const desktopUpdate = createDesktopUpdateController({
   app,
   updateManager: updateMgr,
-  beforeInstall: () => resourceIntegrity.stop('UPDATE_INSTALLING'),
+  beforeInstall: () => resourceIntegrity.cancel(),
   getAutoUpdateSetting: () => runtime?.getSetting?.('enableAutoUpdate'),
   getMainWindow: () => desktopWindow.getWindow(),
   writeLog,
@@ -194,12 +194,15 @@ const desktopLifecycle = createDesktopLifecycle({
   app,
   hasRuntime: () => runtime !== null,
   restartApp: () => {
-    if (desktopUpdate.getState().canInstall) {
-      updateMgr.installUpdate();
-      return 'update';
+    const relaunch = () => {
+      app.releaseSingleInstanceLock();
+      app.relaunch();
+    };
+    const state = desktopUpdate.getState();
+    if (state.canInstall || state.status === 'installing') {
+      return updateMgr.installUpdate().then(result => result.status === 'installing' ? 'update' : relaunch());
     }
-    app.releaseSingleInstanceLock();
-    app.relaunch();
+    relaunch();
   },
   stopResourceIntegrity: () => resourceIntegrity.stop(),
   drainBeforeRuntimeStop,
@@ -526,6 +529,10 @@ async function startDesktopApp() {
       cardProfiles: (request) => {
         if (!licenseManager?.isAuthorized()) throw new Error('LICENSE_NOT_AUTHORIZED');
         return licenseManager.getGiftCardProfilesInternal(request);
+      },
+      cardAvatars: (request) => {
+        if (!licenseManager?.isAuthorized()) throw new Error('LICENSE_NOT_AUTHORIZED');
+        return licenseManager.getGiftCardAvatarsInternal(request);
       },
       rebuild: () => remoteGiftController?.start() ?? false,
       clearRemote: () => {

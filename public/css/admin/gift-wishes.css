@@ -422,13 +422,13 @@
   max-height: 82vh;
   padding: 24px;
   color: var(--text);
-  background: var(--surface);
+  background: var(--color-floating-surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-dialog);
 }
 .gift-wish-picker::backdrop {
-  background: rgba(24, 24, 22, 0.4);
+  background: var(--color-bg-overlay-light);
 }
 .gift-wish-picker header {
   display: flex;

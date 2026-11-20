@@ -28,6 +28,7 @@ import { createNeonGlassMessageRenderer } from './danmaku-neon-glass.js';
 import { createHorizontalCharmMessageRenderer } from './danmaku-horizontal-charm.js';
 import { createAstralMessageRenderer } from './danmaku-astral.js';
 import { createCoffeeMessageRenderer } from './danmaku-coffee.js';
+import { getSuperChatTier } from './danmaku-superchat-renderer.js';
 import { isHarborGiftVisible } from './danmaku-harbor.js';
 
 export { DEFAULT_DANMAKU_CLASSES, measureDanmakuText };
@@ -45,7 +46,9 @@ export function createDanmakuMessageRenderer(options) {
     if (item.kind === 'gift' && [1, 2, 3].includes(Number(item.giftGuardLevel))) {
       item = { ...item, giftImageUrl: options.style === 'twitter' ? '' : resolveGiftImageSource('', item.giftGuardLevel) };
     }
-    return render(item, index);
+    const node = render(item, index);
+    if (item.kind === 'superchat') node.dataset.scTier = String(getSuperChatTier(item.price));
+    return node;
   };
 }
 

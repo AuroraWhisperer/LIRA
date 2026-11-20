@@ -72,20 +72,19 @@ const OPTIONAL_REGIONS = ['coffee', 'horizontal-charm', 'neon-glass', 'astral', 
 
 test('older layouts gain each missing newer region at its default without moving saved regions', () => {
   const original = layout.createLayout();
-  for (const missing of [...OPTIONAL_REGIONS.map((style) => [style]), OPTIONAL_REGIONS]) {
-    const legacy = structuredClone(original);
-    missing.forEach((style) => delete legacy.regions[style]);
-    legacy.regions.signal.x = 123;
-    legacy.regions.glow.x = 100;
-    legacy.regions.glow.width -= 100;
-    const upgraded = layout.normalizeLayout(legacy);
-    for (const style of missing) {
-      assert.deepEqual(upgraded.regions[style], layout.defaultRegion(style, original.canvas, original.contentScale), style);
-    }
-    assert.deepEqual(upgraded.regions.signal, legacy.regions.signal);
-    assert.deepEqual(upgraded.regions.glow, legacy.regions.glow);
-    assert.equal(missing.some((style) => Object.hasOwn(legacy.regions, style)), false, 'input is not mutated');
+  const oldest = structuredClone(original);
+  for (const style of OPTIONAL_REGIONS) delete oldest.regions[style];
+  oldest.regions.signal.x = 123;
+  oldest.regions.glow.x = 100;
+  oldest.regions.glow.width -= 100;
+  const restored = layout.normalizeLayout(oldest);
+  for (const style of OPTIONAL_REGIONS) {
+    assert.deepEqual(restored.regions[style], layout.defaultRegion(style, original.canvas, original.contentScale), style);
   }
+  assert.deepEqual(restored.regions.signal, oldest.regions.signal);
+  assert.deepEqual(restored.regions.glow, oldest.regions.glow);
+  assert.ok(OPTIONAL_REGIONS.every(style => !Object.hasOwn(oldest.regions, style)), 'input is not mutated');
+
   for (const canvas of [{ width: 1280, height: 720 }, { width: 1080, height: 1920 }]) {
     const legacy = layout.resizeCanvas(original, canvas);
     OPTIONAL_REGIONS.forEach(style => delete legacy.regions[style]);
@@ -100,29 +99,20 @@ test('older layouts gain each missing newer region at its default without moving
     delete invalid.regions[style];
     assert.throws(() => layout.normalizeLayout(invalid), { code: 'INVALID_OVERLAY_LAYOUT' }, style);
   }
-  const upgraded = layout.normalizeLayout(Object.assign(layout.createLayout(), {
-    regions: Object.fromEntries(Object.entries(layout.createLayout().regions).filter(([style]) => !['floating', 'comet'].includes(style))),
-  }));
+  const partial = layout.createLayout();
+  delete partial.regions.floating;
+  delete partial.regions.comet;
+  partial.regions.sketch = { x: 123, y: 84, width: 300, height: 200 };
+  const upgraded = layout.normalizeLayout(partial);
+  assert.deepEqual(upgraded.regions.sketch, partial.regions.sketch);
   assert.deepEqual(layout.resizeCanvas(upgraded, { width: 1080, height: 1920 }).regions.floating, { x: 0, y: 0, width: 1080, height: 1920 },
     'restored random regions keep filling the canvas after resizing');
 });
 
-test('Node and browser layout contracts stay identical', () => {
-  const browser = require('../../public/js/shared/danmaku-layout.js');
-  assert.deepEqual(browser.CANVAS_PRESETS, layout.CANVAS_PRESETS);
-  assert.deepEqual(browser.REGION_DEFAULTS, layout.REGION_DEFAULTS);
-  const original = layout.createLayout();
-  assert.deepEqual(browser.createLayout(), original);
-  for (const canvas of [{ width: 3840, height: 2160 }, { width: 1080, height: 1920 }]) {
-    assert.deepEqual(browser.resizeCanvas(original, canvas), layout.resizeCanvas(original, canvas));
-  }
-  const legacy = structuredClone(original);
-  OPTIONAL_REGIONS.forEach(style => delete legacy.regions[style]);
-  assert.deepEqual(browser.normalizeLayout(legacy), layout.normalizeLayout(legacy));
-  assert.throws(() => browser.normalizeLayout({ ...original, extra: true }), { code: 'INVALID_OVERLAY_LAYOUT' });
-  const region = { x: 200, y: 300, width: 500, height: 400 };
-  assert.deepEqual(browser.fitRegion({ ...region, x: 1900 }, original.canvas), layout.fitRegion({ ...region, x: 1900 }, original.canvas));
-  for (const handle of ['', 'nw', 'se']) {
-    assert.deepEqual(browser.moveRegion(region, handle, 9000, -9000, original.canvas), layout.moveRegion(region, handle, 9000, -9000, original.canvas));
-  }
+test('the CommonJS layout and resolution entries use the browser contracts', async () => {
+  const browser = await import('../../public/js/shared/danmaku-layout.js');
+  const { CANVAS_PRESETS } = await import('../../public/js/shared/canvas-presets.js');
+  assert.equal(layout.normalizeLayout, browser.normalizeLayout);
+  assert.equal(layout.CANVAS_PRESETS, CANVAS_PRESETS);
+  assert.equal(require('../../src/shared/canvas-presets').CANVAS_PRESETS, CANVAS_PRESETS);
 });

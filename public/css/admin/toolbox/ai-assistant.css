@@ -209,7 +209,7 @@
   gap: var(--spacing-sm) 12px;
 }
 .xiaomi-ai-auto-reply > .xiaomi-ai-number-field {
-  margin-left: auto;
+  flex: 1 0 100%;
 }
 .xiaomi-ai-field-grid input,
 .xiaomi-ai-field-grid textarea,
@@ -502,6 +502,7 @@
 }
 
 .hint[id^='aiTestDetail-'] {
+  margin: 0;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }

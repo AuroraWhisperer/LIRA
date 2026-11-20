@@ -179,7 +179,4 @@
 .planner-empty-state {
   margin: 0;
   padding: 22px 0;
-  color: var(--muted);
-  font-size: var(--type-size-control);
-  text-align: center;
 }

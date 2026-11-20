@@ -8,7 +8,7 @@ const { createPlaybackApp, flushAsyncWork, track } = require('../helpers/playbac
 for (const autoAccept of [true, false]) {
   test(`clearing during an ${autoAccept ? 'accepted' : 'pending'} import prevents stale queue writes`, async () => {
     const match = Promise.withResolvers();
-    const app = await createPlaybackApp({ selectedSource: 'qq' }, {
+    const app = await createPlaybackApp(null, {
       songQueue: { waiting: [{ id: 1, created_at: '2026-10-12T00:00:00Z', song_name: '歌曲' }] },
       matchTrack: () => match.promise,
     });
@@ -93,13 +93,13 @@ test('local fallback preserves imported request history and pending entries duri
     mode: 'sequence', volume: 0.75, selectedSource: 'qq',
   };
   const storage = new Map();
-  const first = await createPlaybackApp(saved, { serverState: {}, storage });
+  const first = await createPlaybackApp(null, { localState: saved, storage });
   await first.init();
   await flushAsyncWork();
   const migrated = JSON.parse(storage.get('playbackState:v2'));
   assert.deepEqual(migrated.importedSongRequestKeys, saved.importedSongRequestKeys);
   assert.equal(migrated.pendingRequests.length, 1);
-  const restored = await createPlaybackApp({}, { serverState: {}, localState: null, storage });
+  const restored = await createPlaybackApp(null, { localState: null, storage });
   await restored.init();
   await flushAsyncWork();
   await restored.emitWindow('pagehide');
@@ -128,8 +128,7 @@ for (const [mode, source] of [['repeat-one', 'server'], ['single', 'v2'], ['sing
     };
     const storage = new Map();
     if (source === 'v2') storage.set('playbackState:v2', JSON.stringify(saved));
-    const app = await createPlaybackApp(saved, {
-      serverState: source === 'server' ? saved : {},
+    const app = await createPlaybackApp(source === 'server' ? saved : null, {
       localState: source === 'v1' ? saved : null,
       storage,
     });

@@ -12,6 +12,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
   let staging = null;
   let disposed = false;
   let latestData = {};
+  let rankingsBeforeDisconnect;
   let pendingDanmaku = null;
   let dataSequence = 1;
   let latestAppearances = {};
@@ -214,6 +215,9 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       appearance(active);
       appearance(staging);
       const values = giftDisplay.update(response.data || {}, active?.entries.map((entry) => entry.item.type) || [], response.dataVersions);
+      // A successful conditional read can omit the still-current board.
+      if (rankingsBeforeDisconnect && !Object.hasOwn(values, 'live-rankings')) values['live-rankings'] = rankingsBeforeDisconnect;
+      rankingsBeforeDisconnect = undefined;
       const cloud = values.danmaku;
       data(active, values);
       if (cloud && !active?.entries.some((entry) => entry.item.type === 'danmaku')) {
@@ -237,9 +241,10 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       giftDisplay.clear();
       dataSequence += 1;
       pendingDanmaku = null;
+      rankingsBeforeDisconnect ??= latestData['live-rankings'];
       const resets = Object.fromEntries(Object.entries(SCENE_COMPONENTS)
         .filter(([, component]) => component.disconnectedData)
-        .map(([type, component]) => [type, component.disconnectedData()]));
+        .map(([type, component]) => [type, component.disconnectedData(latestData[type])]));
       if (latestData.danmaku?.epoch) {
         resets.danmaku = { ...latestData.danmaku, status: 'offline', reset: false, events: [] };
       }
@@ -253,6 +258,7 @@ export function createSceneRenderer(host, { onStatus = () => {}, timeoutMs = 120
       staging = null;
       active = null;
       latestData = {};
+      rankingsBeforeDisconnect = undefined;
       pendingDanmaku = null;
       dataSequence += 1;
     },

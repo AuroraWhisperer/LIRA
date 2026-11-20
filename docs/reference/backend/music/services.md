@@ -211,7 +211,7 @@ Provider 内部实现见各 Provider 文档 §7.2;这里只记录编排层语义
 - 逐行:价格别名冲突或名空计 failed，`failures` 返回数据行序号与原因 → `(name, artist)` 重复计 duplicate 跳过（不更新已有价格/歌切） → 新曲风计数 → INSERT;`store.replaceAll` 负责清空并解除历史引用后原子写入云快照
 - 返回 `{total, inserted, duplicate, failed, createdCategories, failures}`；导入计数只通过当次响应返回，不在结束时写入批次记录
 
-云端快照与表格导入是不同契约：上传边界 [mapSongForSync](../../../../src/electron/license/license-response-utils.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载由 `replaceCloudSongs` 将 canonical 字段映射回本地模型。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 的表格导入别名继续使用各自契约。跨端字段与配套升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)。
+云端快照与表格导入是不同契约：上传边界 [mapSongForSync](../../../../src/shared/cloud-song-snapshot.js) 将本地 `name`/`is_enabled` 等字段映射为唯一的网络 `title`/`enabled` 等 camelCase 字段；下载由 `replaceCloudSongs` 将 canonical 字段映射回本地模型。同账号拉取相同歌曲内容时保留 SQLite 歌曲 ID 及队列、点歌历史关联。切换账号拉取云端歌库时，即使歌曲内容相同，也按新账号快照重建。网络不发送重复别名，本地 SQLite 列名、CRUD 输入及 §11 的表格导入别名继续使用各自契约。跨端字段与配套升级要求见 [歌曲同步规格](../../../../specs/cloud-authoritative-streamer-sync_design.md)。
 
 表格预览和应用由 [song-import-update.js](../../../../src/music/song-import-update.js) 的 `previewSongImport(store,input)` / `applySongImport(store,input)` 拥有。按清洗后的歌名加歌手精确匹配，包含停用歌曲。管理页固定传 `replaceAll: true`，完整覆盖匹配歌曲的所有导入字段并删除表格中未列出的旧歌曲；文本空白/缺列清空、曲风默认为「默认」、是否可点默认为是。不传替换选项的旧调用仅新增和更新，不删除无关记录。兼容更新的缺列保留、空默认保留；显式 `allowEmptyClear` 仅清空存在列的文本，曲风空变默认，启用空保留。非空启用值必须明确，价格新值超过 1000 UTF-16 code unit 无效。
 
@@ -257,18 +257,20 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 2. **观众资格**：仅内部入口标记 `viewerRequest: true` 时由 [song-request-policy.js](../../../../src/music/song-request-policy.js) 检查有效 UID 黑名单、配额所需身份、大航海与粉丝牌门槛。默认均不限，已过期名单忽略；名单启用但无法核验 UID 时拒绝，不能把 `open_id` 当 UID。粉丝牌与大航海分别依赖当前房间已核验证据；免牌只豁免粉丝牌，不豁免大航海门槛。
 3. **队列上限**:`queueLimit` 设置(defaults 兜底),统计 `status IN ('current','waiting')` 的活跃数,满则抛"点歌队列已达到上限。"
 4. **曲库校验**:`onlyFromLibrary === 'true'` 且 `findSong` 未命中 → 抛"歌库里没有这首歌。"
-5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与当前账号 scope 检查最近成功入队时间；比较时简繁等价，历史 `song_key` 格式和原值不变，同一作用域的等价记录取最近接受时间。事务内复查及随机候选过滤沿用相同规则。小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
+5. **单首歌曲冷却**：按匹配后的规范歌名＋歌手（NFKC、小写、空白清洗）与请求归属检查最近成功入队时间；比较时简繁等价，历史 `song_key` 格式和原值不变，同一作用域的等价记录取最近接受时间。事务内复查及随机候选过滤沿用相同规则。小时为滚动时长，自然日按北京时间零点加设定天数计算。未到期抛 `SONG_COOLDOWN`，带用户可读原因和 `availableAt`。
 6. **重复检查**：沿用 `allowDuplicate`（默认 `'true'`），界面以「禁止同名点歌」呈现，默认关闭；开启时保存 `'false'`。`allowDuplicate !== 'true'` 时，活跃队列内歌名文本相同（仅比较 `song_name`，不区分歌手）即抛 `SONG_ALREADY_QUEUED`。普通点歌、随机抽中的歌曲、SC 和手动入队均经过此检查；拒绝沿用点歌板红色失败提示，随机点歌不会另抽一首规避拒绝。完成、跳过、删除或清空后不再占用同名名额，歌曲冷却仍独立生效；开启规则不会移除已有重复项。
 
 每人同时排队上限在 `queue-store.insertRequest` 的 `BEGIN IMMEDIATE` 事务内检查，以 `requests.identity_type` 与 `queue.requester_uid` 统计活跃队列，包含 LIVE；改昵称不释放配额，完成、删除、跳过与清空后释放，重启仍从已存队列统计。超限抛 `USER_QUEUE_FULL`，不写入流水、歌曲冷却或队列。资格与配额同样约束普通弹幕、随机点歌（含桌面随机按钮）及 SC；SC 置顶不豁免，歌库手动入队保留管理员能力。保存新规则不删除已有队列。
 
-分身份用户间隔由同一 policy 根据本直播间已核验的大航海身份选择；空串沿用 `userCooldownSeconds`，0 明确不限制。弹幕桥在入队前检查、成功后记录既有冷却 store；普通 UID 与 `open_id` 使用独立键，开启间隔却缺稳定身份时拒绝。
+每日上限由同一 policy 按本直播间已核验身份选取 `userDailyLimit` 或对应大航海上限，空串及 0 均不限，各身份互不继承。监听器把捕获的 LIRA 账号传给随机候选过滤、单曲预查和入队事务。捕获账号与当前账号一致时，事务以账号、北京时间日期、身份类型和稳定 UID 检查并递增成功次数。切号后到达的旧请求仍受共享队列规则约束，跳过每日次数、歌曲冷却和粉丝归档。正常无账号运行使用既有本地账目。普通、随机和 SC 共用当日次数，切换身份不重置，手动入队不计入。超限抛 `USER_DAILY_LIMIT` 并给出次日零点提示；失败回滚不扣次数，唱完、取消、删除、清空队列及重启不返还。日期使用实际接纳时间。关闭上限期间仍记录有稳定身份的成功点歌；升级前不回填历史，计数不跨设备同步。
+
+分身份用户间隔由同一 policy 根据本直播间已核验的大航海身份选择；空串及 0 均不限制，不继承非大航海间隔。弹幕桥在入队前检查、成功后记录既有冷却 store；普通 UID 与 `open_id` 使用独立键，开启间隔却缺稳定身份时拒绝。
 
 冷却使用实际入队时刻，不能使用上游消息时间。存储事务内再次检查，并将最近成功入队时间与队列、流水原子写入；失败或冷却拦截不更新时间。关闭规则期间也记录成功时间，改规则据此重新计算。完成、跳过、删除、清空队列及重启保留记录；升级前流水不回填冷却。账号 scope 来自组合根，客户端输入不能选择冷却归属。
 
 空歌名、队列满、仅歌库拒绝、重复与冷却由队列 owner 标记稳定业务 code（见 [HTTP 队列契约](../api.md)）。手动与随机入口统一映射为 400；弹幕桥返回 `accepted:false`、`code`、`reason`，仅在既有 `enableRandomTagReply` 开启时生成 @ 原请求者的提示，不更新成功点歌冷却、不写入请求。
 
-入队(与 `requests` 流水及 `song_cooldowns` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned` / `is_live`、归一 guard/medal)。
+入队(与 `requests` 流水、`song_cooldowns` 及 `song_request_daily_counts` **同事务**):`song_id`/`song_name`/`artist`/`category_name` 在命中曲库时用曲库规范值;`requester_name` 缺省"观众";`source` 缺省 `admin`;`status = 'waiting'`;`is_pinned` 时 `pinned_at = createdAt`。返回 `normalizeQueueRow`(布尔化 `is_pinned` / `is_live`、归一 guard/medal)。
 
 ### 8.3 handleQueueAction(context, action, rawId)([queue-service.js](../../../../src/music/queue-service.js))
 
@@ -283,7 +285,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 | `skip`          | → `skipped`                                                                                                |
 | 其他            | 抛"未知队列操作。"                                                                                         |
 
-排序统一为：LIVE → 手动置顶（最近置顶优先）→ 开启 `guardPriorityEnabled` 时按点歌入队携带的总督(1)、提督(2)、舰长(3)、非大航海(0) → 原创建时间和 ID。默认关闭身份优先；开关保存立即作用于已有队列。LIVE 是手动标记，最多一首，独立于 `status`；不触发播放器。完成、删除、跳过、清空移除该项，不自动标记下一首。
+排序统一为：LIVE → 手动置顶（最近置顶优先）→ 开启 `guardPriorityEnabled` 时按点歌入队携带的总督(1)、提督(2)、舰长(3)、非大航海(0) → 原创建时间升序（精确到毫秒），同毫秒按队列 ID 升序。默认关闭身份优先；开关保存立即作用于已有队列。LIVE 是手动标记，最多一首，独立于 `status`；不触发播放器。完成、删除、跳过、清空移除该项，不自动标记下一首。
 
 ### 8.4 快照与重启恢复
 
@@ -385,7 +387,7 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 
 | 函数                         | 行为                                                                                                                                                                                                                                                                    |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`；表头检测为任一行单元格命中别名，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
+| `parseSongsFromXlsx(buffer, options?)` | 零依赖 ZIP 解析：有工作簿元数据时按 `workbook.xml` 首个 sheet 与对应关系读取工作表，不依赖 ZIP 条目顺序；拒绝外部、越界或缺失引用。无元数据的兼容输入沿用首个 `xl/worksheets/sheet\d+.xml`。读取该表与 `sharedStrings.xml` 后执行 `parseWorksheetXml`；优先按歌名列及其别名识别表头，完整十列的无表头歌单中第五列的“可点”“启用”按歌曲数据读取，默认新增模式无表头按导出列序解析并丢弃空歌名行；`preserveMissing:true` 保留无歌名的非空行供预览报错、保留缺列语义，无表头要求完整十列。 |
 | `buildSongsCsv(rows, options?)` | 表头 + `csvCell` 转义逐行；`template:true` 使用模板表头，下载模板传入空 rows |
 | `buildSongsWorkbook(rows, options?)` | 手工拼 xlsx(inlineStr 单元格 + 6 个 zip 条目,含 workbook/styles/rels)；`template:true` 使用模板表头及标签列宽，下载模板传入空 rows |
 | `songToExportRow(song)`      | 行映射(曲风缺省"默认"、`is_enabled` → 是/否、`request_price` → 点歌价格、`song_clip` → 歌切，`source_platform` → 核对平台保存值；阶段 4 显式替代空值规则) |
@@ -393,6 +395,8 @@ waiting ──(消费方取首项播放,快照 current 恒为 null)
 `parseSongsFromXlsx(buffer,{preserveMissing:true})` 用于替换及兼容更新预览：保留无歌名的非空数据行供预览报无效，表头缺列不补为默认字段，无表头必须完整十列；默认新增解析行为不变。
 
 前端 [song-import-parser.js](../../../../public/js/admin/song-import-parser.js) 按首条有内容的逻辑记录中引号外的 Tab 识别 TSV，否则按 CSV 解析；引号内的 Tab、换行和转义双引号不改变格式判断，支持本程序导出的价格与歌切文本重新导入。
+
+读到文本末尾时若双引号仍未闭合，解析器会拒绝整份输入，包括此前读到的完整行。管理页在每次检查开始时清除上次预览及其 token，整份文本解析成功后才发送预览请求。
 
 ## 12. 请求者定位(storage/requester-target-store.js)
 
@@ -516,7 +520,7 @@ UIA 将整数秒读数视为一秒时间区间：连续播放、同一时钟且�
 | 层级                 | 正则                             | 说明                        |
 | -------------------- | -------------------------------- | --------------------------- |
 | 行                   | `/\[(\d+),(\d+)\]([/s/S]*)/`     | `[startMs,durationMs,body]` |
-| 前缀词（优先）       | `/\((\d+),(\d+),\d*\)([^()]+)/g` | `(start,duration,?)text`    |
+| 前缀词（优先）       | `/\((\d+),(\d+),\d*\)/g` | 从时间标记末尾读取到下一个标记或行尾，保留词中文字和括号 |
 | 后缀词（仅无前缀时） | `/\((\d+),(\d+)\)\|[()]/g`     | 单向扫描时间标记/括号，截取标记前文本；缺少或截断标记时不反复扫描尾部 |
 
 每词输出 `{ startMs, endMs: startMs + max(0, durationMs), text }`，保留有效词文本中的空格，避免 YRC 英文词连写；无词的行整体丢弃；行 `text` = 所有词文本拼接后 `trim()`。

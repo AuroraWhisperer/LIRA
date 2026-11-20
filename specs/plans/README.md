@@ -8,6 +8,7 @@
 
 | 计划 | 状态 | 尚需处理 |
 | --- | --- | --- |
+| [2026-11-19-gift-export-avatars](2026-11-19-gift-export-avatars.md) | Awaiting Verification | 源码测试及隔离 PNG 验证通过。两端更新后复核原账号同一批历史流水。 |
 | [2026-11-12-gift-restore-validation](2026-11-12-gift-restore-validation.md) | Awaiting Verification | 已修历史页重复 wire 校验、恢复后的首页展示和刷新；64 项相关回归、文档与语法检查通过。当前运行安装版未替换，待新安装版及原账号恢复验收。 |
 | [2026-11-11-known-qa-fixes](2026-11-11-known-qa-fixes.md) | Awaiting Verification | 已修本机任务栏身份冲突和真实空观众名单，按用户要求去掉退出确认；114项定向检查通过。待源码交付、系统通知最终验收及历史首次故障证据；全面测试仍暂停。 |
 | [2026-11-11-gift-retention-tiers](2026-11-11-gift-retention-tiers.md) | Awaiting Verification | 服务器90天/凌晨窗口、本地365天、旧投影一次性重置与后台批处理已实现；Server144项、隔离桌面200天查询/导出通过。百万条提交延迟仍超50ms调优门槛，完整规模/发布验收待补；未启用生产删除。 |

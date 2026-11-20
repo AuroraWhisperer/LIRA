@@ -42,6 +42,8 @@ describe('clearAllData Matrix', () => {
     const { songDb, superChatDb, giftDb, musicDb, checkinDb } = databases;
     seedClearAllConfiguration(databases);
     const giftSourceId = seedClearAllBusinessData(databases);
+    songDb.prepare('INSERT INTO song_request_daily_counts VALUES (?, ?, ?, ?, ?)')
+      .run('account', '2026-11-16', 'uid', '42', 2);
 
     // Execute clear-all
     const result = clearAllData(songDb, superChatDb, giftDb, musicDb, checkinDb, { sourceId: Number(giftSourceId) });
@@ -51,6 +53,7 @@ describe('clearAllData Matrix', () => {
     assertBusinessCleared(databases);
     assertDefaultsRecreated(giftDb);
     assertDeletedCounts(result);
+    assert.equal(songDb.prepare('SELECT COUNT(*) AS count FROM song_request_daily_counts').get().count, 0);
   });
 
   it('should handle empty databases', () => {

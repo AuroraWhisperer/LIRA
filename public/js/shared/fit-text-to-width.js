@@ -1,5 +1,5 @@
 // 文本自适应：按元素可用宽度收缩字号，避免长名称被裁切或溢出。
-// 调用方负责提供需要处理的元素集合，DOM 查询与选择器留在各自视图。
+// 各视图自行查询元素，并将待处理的元素传给此函数。
 export function fitTextToWidth(elements) {
   for (const element of elements) {
     element.style.fontSize = '';

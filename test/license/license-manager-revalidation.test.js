@@ -20,54 +20,27 @@ test('cloud songs are read through the authorized device token', async () => {
   manager.dispose();
 });
 
-test('current invalid session performs one shared reverify and retries once', async () => {
-  const { manager, remote, calls } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
+for (const code of ['DEVICE_SESSION_INVALID', 'DEVICE_SESSION_NOT_FOUND']) {
+  test(`${code} renews the device session once and retries with the new token`, async (t) => {
+    const { manager, remote, calls } = createHarness({
+      identity: { deviceId: 'd', publicKeyPem: 'public' },
+    });
+    t.after(() => manager.dispose());
+    await manager.bootstrap();
+    remote.syncSongs = async (songs, token) => {
+      calls.syncTokens.push(token);
+      if (calls.syncTokens.length === 1) throw new RemoteLicenseError(code, 'session rejected', { status: 401 });
+      return { ok: true, count: songs.length };
+    };
+
+    await manager.syncSongs([]);
+
+    assert.deepEqual(calls.syncTokens, ['token', 'token-2']);
+    assert.equal(calls.challenges, 2);
+    assert.equal(calls.verifies, 2);
+    assert.equal(manager.getState(), LicenseState.AUTHORIZED);
   });
-  await manager.bootstrap();
-  let syncAttempts = 0;
-  remote.syncSongs = async (_songs, token) => {
-    calls.syncTokens.push(token);
-    syncAttempts += 1;
-    if (syncAttempts === 1)
-      throw new RemoteLicenseError('DEVICE_SESSION_INVALID', 'invalid', {
-        status: 401,
-      });
-    return { ok: true, count: _songs.length };
-  };
-
-  await manager.syncSongs([]);
-
-  assert.deepEqual(calls.syncTokens, ['token', 'token-2']);
-  assert.equal(calls.challenges, 2);
-  assert.equal(calls.verifies, 2);
-  assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-  manager.dispose();
-});
-
-test('missing device session performs one reverify and retries once', async () => {
-  const { manager, remote, calls } = createHarness({
-    identity: { deviceId: 'd', publicKeyPem: 'public' },
-  });
-  await manager.bootstrap();
-  let syncAttempts = 0;
-  remote.syncSongs = async (_songs, token) => {
-    calls.syncTokens.push(token);
-    syncAttempts += 1;
-    if (syncAttempts === 1)
-      throw new RemoteLicenseError('DEVICE_SESSION_NOT_FOUND', 'missing', {
-        status: 401,
-      });
-    return { ok: true, count: _songs.length };
-  };
-
-  await manager.syncSongs([]);
-
-  assert.deepEqual(calls.syncTokens, ['token', 'token-2']);
-  assert.equal(calls.verifies, 2);
-  assert.equal(manager.getState(), LicenseState.AUTHORIZED);
-  manager.dispose();
-});
+}
 
 test('device auth epoch change blocks without silently reauthorizing', async () => {
   const { manager, remote, calls } = createHarness({

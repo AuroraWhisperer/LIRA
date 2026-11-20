@@ -137,15 +137,23 @@ test('song sync measures the normalized complete JSON request in UTF-8 bytes', a
     return { ok: true, count: songs.length };
   };
   for (const text of ['x', '歌', '😀', '\"\\\u0000\n']) {
-    const song = { name: 'Budget', note: text.repeat(100) + 'end', private: 'ignored'.repeat(800_000) };
-    const normalizedBytes = Buffer.byteLength(JSON.stringify({ songs: [mapSongForSync(song)] }), 'utf8');
-    song.note += 'x'.repeat(maxBytes - normalizedBytes);
-    await manager.syncSongs([song]);
+    const songs = Array.from({ length: 5000 }, (_, index) => ({ name: `Budget ${index}`, note: '' }));
+    songs[0].note = text.repeat(100) + 'end';
+    songs[0].private = 'ignored'.repeat(800_000);
+    let remaining = maxBytes - Buffer.byteLength(JSON.stringify({ songs: songs.map(mapSongForSync) }), 'utf8');
+    for (const song of songs) {
+      const added = Math.min(remaining, 1000 - song.note.length);
+      song.note += 'x'.repeat(added);
+      remaining -= added;
+      if (!remaining) break;
+    }
+    assert.equal(remaining, 0);
+    await manager.syncSongs(songs);
     assert.equal(Buffer.byteLength(requests.at(-1), 'utf8'), maxBytes);
     assert.equal(JSON.parse(requests.at(-1)).songs[0].private, undefined);
     const calls = requests.length;
-    song.note += 'x';
-    await assert.rejects(manager.syncSongs([song]), { code: 'PAYLOAD_TOO_LARGE', retryable: false });
+    songs.at(-1).note += 'x';
+    await assert.rejects(manager.syncSongs(songs), { code: 'PAYLOAD_TOO_LARGE', retryable: false });
     assert.equal(requests.length, calls);
   }
 });

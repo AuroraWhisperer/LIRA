@@ -34,7 +34,7 @@
 | 方法        | 语义                                                                                                                                | 出处                                                                              |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | `start()`   | `stopped=false`、递增 `connectionGeneration`、重置 `startedAtMs`;**不等待握手**即返回;首连失败 → 启动历史轮询 + `scheduleReconnect` | [danmaku-client.js:69-92](../../../../src/bilibili/danmaku-client.js#L69-L92)     |
-| `restart()` | 同 start,但 `connect({waitForOpen: true})` **等待握手完成**才 resolve;失败仍安排重连后 rethrow                                      | [danmaku-client.js:94-120](../../../../src/bilibili/danmaku-client.js#L94-L120)   |
+| `restart()` | 重建连接并等待 B 站鉴权通过。失败时安排重连，再向调用方返回错误 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | `stop()`    | `stopped=true`、递增 generation(使在途异步失效)、清重连定时器、关 WS、停全部轮询器、销毁 MessageHandlers                            | [danmaku-client.js:122-134](../../../../src/bilibili/danmaku-client.js#L122-L134) |
 
 `connectionGeneration` 是 start/restart/stop 的**代际屏障**；同一代内还以 `connectionAttempt` 标识当前尝试。连接 HTTP 返回、socket 状态与消息事件、失败回调同时核对 generation 和 attempt，被后续尝试取代的结果不能覆盖状态、替换新 socket 或安排重连（[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)）。
@@ -44,10 +44,10 @@
 `connect(options, generation)`([danmaku-client.js:150-285](../../../../src/bilibili/danmaku-client.js#L150-L285)):
 
 1. `resolveRoomInfo()`(room_init + master_info,见 [protocol.md](protocol.md) §2) → 记录 `ownerName`,通知 MessageHandlers 主播 uid([danmaku-client.js:162-166](../../../../src/bilibili/danmaku-client.js#L162-L166))。
-2. 未开播或 `alwaysHistory` → 启动 HistoryPoller;随后启动 OnlineRankPoller、FansMedalPoller 与 LiveStatusMonitor([danmaku-client.js:168-174](../../../../src/bilibili/danmaku-client.js#L168-L174))。
-3. `resolveDanmuInfo()`(WBI 签名)取 host + `wss_port||443` + token,组装 wsUrl 与认证包([danmaku-client.js:174-189](../../../../src/bilibili/danmaku-client.js#L174-L189),见 [protocol.md](protocol.md) §4.1)。
-4. `clearHandlers()` 后挂 open/message/close/error 处理器([danmaku-client.js:201-282](../../../../src/bilibili/danmaku-client.js#L201-L282));open 时若直播中停掉历史轮询([danmaku-client.js:213-215](../../../../src/bilibili/danmaku-client.js#L213-L215));close 时重启历史轮询并安排重连([danmaku-client.js:240-263](../../../../src/bilibili/danmaku-client.js#L240-L263))。
-5. `wsConnection.connect(wsUrl, authPayload, { ...options, waitForOpen: true })`：初次启动、自动重试和手动刷新均启用既有的 8 秒 WebSocket 建立连接超时；未收到 open/error/close 也会退出当前尝试并进入现有退避恢复。`start()` 本身仍立即返回（[danmaku-client.js](../../../../src/bilibili/danmaku-client.js)、[websocket-connection.js](../../../../src/bilibili/danmaku/websocket-connection.js)）。
+2. 未开播或启用 `alwaysHistory` 时启动 HistoryPoller。启动 OnlineRankPoller、FansMedalPoller 和 LiveStatusMonitor。
+3. `resolveDanmuInfo()` 经 WBI 签名读取候选 `host_list` 和 token，按连接尝试序号轮换有效候选，使用该地址的 `wss_port`（缺省为 443）。轮换独立于退避计数，退避封顶后仍会切换地址。认证包见 [协议 §4.1](protocol.md#41-连接与认证包op-7)。
+4. `clearHandlers()` 后注册 open、authenticated、message、close 和 error 处理器。直播中按需保留已有的历史轮询，直到 B 站鉴权通过。断开时启动历史轮询并安排重连。
+5. `wsConnection.connect(wsUrl, authPayload, { waitForAuthentication: true })` 在 8 秒内等待 WebSocket 打开，再等最多 10 秒接收 B 站认证回包。超时、拒绝或无效回包会关闭当前连接并进入退避。`start()` 立即返回。实现见 [WebSocket 连接模块](../../../../src/bilibili/danmaku/websocket-connection.js)。
 
 ### 2.3 断线重连与退避
 
@@ -55,7 +55,7 @@
 | ----------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
 | WS close 或连接失败后自动恢复                 | **1/2/4/8/16/30 秒**指数退避，达到 30 秒后封顶；同一次失败只保留首个重连 timer | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 | 退避清零                                     | 显式 start/restart；或断开前已连续连接至少 60 秒且有成功认证及心跳回复证据；仅 open 不清零 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
-| 开播检测触发的重连(`reconnectAfterLiveStarted`) | 取消既有重连定时器、停历史轮询、重置 `startedAtMs` 后**立即**走完整 connect；当前尝试失败时恢复已建立房间的历史轮询 | [danmaku-client.js:331-372](../../../../src/bilibili/danmaku-client.js#L331-L372) |
+| 开播检测触发的重连（`reconnectAfterLiveStarted`） | 取消既有重连定时器，重置 `startedAtMs` 并立即走完整连接流程。保留历史轮询直至通过鉴权 | [danmaku-client.js](../../../../src/bilibili/danmaku-client.js) |
 
 重连失败路径:报告状态(`connected: historyFallbackActive`)→ 再次 `scheduleReconnect` 无限循环,直到 `stop()`([danmaku-client.js:376-396](../../../../src/bilibili/danmaku-client.js#L376-L396))。
 
@@ -70,7 +70,11 @@
 | FansMedalPoller | 完整刷新目标 **5min**，pageSize **30** | 同房间/generation/runToken 的 start 幂等；每批最多 30 页或 10 秒，暂停 1 秒续下一页。失败重试 5/10/20/30min，增加最多 10% 抖动但总等待不超过 30min；完成全量后恢复五分钟节奏。最多 10000 页为异常上限，触及上限报错。写入 UserInfoService，不更新过期证据有效期；切房/停止丢弃旧结果。完整轮次记录页数、条数、耗时。 | [fans-medal-poller.js](../../../../src/bilibili/danmaku/fans-medal-poller.js) |
 | LiveStatusMonitor                       | **10min**,`timer.unref()`                                                                     | 开播与下播时都保持轮询;检测到非直播→直播触发 `reconnectAfterLiveStarted`;实时 `LIVE/PREPARING` 更新同一状态并使迟到轮询失效;`checkInFlight/reconnectInFlight` 防重入                               | [live-status-monitor.js:5](../../../../src/bilibili/danmaku/live-status-monitor.js#L5)、[live-status-monitor.js:27-37](../../../../src/bilibili/danmaku/live-status-monitor.js#L27-L37)、[live-status-monitor.js:49-93](../../../../src/bilibili/danmaku/live-status-monitor.js#L49-L93)              |
 | UserInfoService + IdentityCache adapter | service 内存 TTL **10min**; cache 只保存 service 已合并的最终状态和 audience index            | `DANMU_MSG`/SC/历史消息/礼物/榜单统一提交 `IdentityHint`; service 按字段质量/验证/authority/freshness 合并、投影和订阅；cache 不再决定覆盖策略      | [user-info-service.js](../../../../src/bilibili/users/user-info-service.js)、[identity-cache.js](../../../../src/bilibili/danmaku/identity-cache.js)                                                                                                                                                  |
-| MessageDeduplicator                     | key = `uid\|秒桶\|文本`;跨源匹配窗 **1.5s**;过期 **30min**;key 容量超 **1000** 触发修剪至 **500**，跨源候选最多 **500** 条 | 重复 key 拒绝(记录 rejectedSources 日志);跨源仅查同文本候选，保持同一人及一对一匹配顺序。年龄清理根据已知最早接收时间跳过尚不可能过期的扫描；超容量按插入顺序淘汰，并同步文本索引。 | [message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js) |
+| MessageDeduplicator                     | 精确键包含发送者线索、秒桶和清洗后的文本。跨源匹配窗 **1.5s**，候选保留 **30min**，最多 **500** 条。精确键超过 **1000** 个时修剪至最多 **500** 个。 | 同源重放只记录一次拒绝日志。跨源只查同文本候选，每条消息与每个来源最多配对一次，精确命中也占用这次配对。年龄清理根据已知最早接收时间跳过尚不可能过期的扫描，超容量按插入顺序淘汰并同步文本索引。 | [message-deduplicator.js](../../../../src/bilibili/danmaku/message-deduplicator.js) |
+
+**精确键。** 有可靠 UID 时按 UID 去重，改昵称仍使用同一键。UID 缺失、为 `0` 或 `'0'` 时，使用平台传入的原样昵称，保留大小写和掩码中的每个字符。空白昵称和占位名 `观众` 都按空昵称处理。同源同秒同文的 `Alpha` 和 `alpha` 各派发一次，各自原包重放时均被过滤。`has(uid, message, timestampMs, { userName })` 与 `remember()` 使用同一精确键，缺少可靠 UID 且省略昵称时查询空昵称的记录。
+
+**跨源匹配。** 双方都有可靠 UID 时只比较 UID。任一方缺少 UID 时，先清洗昵称并转为小写，再比较全名或掩码两端的可见字符。缺少可用昵称时沿用窗口内的一对一匿名匹配。昵称仅用于去重，点歌权限、冷却和队列归属仍按各自的身份规则判定。
 
 **消息可捕获窗口** `isCapturableBilibiliTimestamp(ts, startedAtMs)`([helpers.js:41-50](../../../../src/bilibili/helpers.js#L41-L50)):
 
@@ -85,7 +89,7 @@ ts <= now + 5*60*1000                              // 不超过未来 5 分钟 (
 
 `handlePackets(buffer)` 更新 `lastPacketAt` → 逐条 `parseBilibiliPackets` → 按命令分发弹幕、SC 新增/下线、礼物身份、点赞状态或红包/天选事件；精确命令与冒号后缀规则见 [protocol.md](protocol.md) §6。命令消费使用可捕获窗口和去重，具体路径如下：
 
-**弹幕**(`handleDanmaku`,[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)):仅命令文本参与窗口校验与去重;`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`([message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247))。
+**弹幕**(`handleDanmaku`,[message-handlers.js:75-114](../../../../src/bilibili/danmaku/message-handlers.js#L75-L114)):仅命令文本参与窗口校验与去重;`onMessage` 载荷含 `source:'danmaku'`、归一化 cmd 和发送者 `avatarUrl`。头像优先取该条 `DANMU_MSG` 的用户扩展资料，缺失时按 uid 复用在线榜/历史身份缓存；`DANMU_MSG` 前缀统一为 `DANMU_MSG`([message-handlers.js:242-247](../../../../src/bilibili/danmaku/message-handlers.js#L242-L247))。实时弹幕和历史回补命令的发送者 UID 等于当前房主 UID 时，`onMessage` 均携带 `isStreamer: true`。
 
 **SC**(`handleSuperChat`,[message-handlers.js:115-176](../../../../src/bilibili/danmaku/message-handlers.js#L115-L176)):每条 SC 都先 `onSuperChat`(入库,见 [gift.md](gift.md) §7);若文本是命令,再过窗口 + 去重后二次 `onMessage(source:'superchat', isPinned: price>=2)`,命令拒绝仅发生在 `onMessage` 一路,不影响 SC 入账。
 
@@ -166,9 +170,9 @@ text.startsWith('点歌') || text.startsWith('随机点歌') || text.startsWith(
 2. `cancel` 先检查 `songRequestCancelEnabled`（默认开启），为 `'false'` 时返回 `{accepted:false, reason:'观众取消点歌已关闭。', command}`，诊断为 `song-request-cancel-disabled`；不删除、不广播、不生成回复、不改变冷却。开启时在暂停、黑名单、资格和冷却检查前调用队列 `cancelQueueItem`，归属、歌名与选择规则见 [services.md](../music/services.md#85-cancelqueueitemcontext-input)。成功返回 `{accepted:true, command, queueItem}` 并沿用现有点歌快照广播；无法匹配本人活跃点歌时返回 `{accepted:false, reason:'没有找到你点的待处理歌曲。', command}`，不广播、不生成自动回复、不写入或重置冷却。命令识别沿用实时/历史统一的过期检查和去重，避免一条取消弹幕被重复执行。
    其余命令 `settings.paused === 'true'` → 拒绝
    普通 request 随后对 `songRequestBlacklist` 每行应用 `cleanText`，与解析后的 `songName` 在简繁等价后区分大小写完整比较；命中返回 `点歌内容命中黑名单。`，不进入冷却、歌库自动补全或入队。`78` 拦截 `点歌78` / `点歌 78`，不拦截 `点歌78号公路`。空名单不拦截；随机指令、手动入队及已有队列不受影响。
-3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串沿用 `userCooldownSeconds`，0 不限；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。`src/music/user-request-cooldown.js` 由 `domainServices` 创建并持有，集中管理内存记录、24 小时过期清理、启动恢复及成功接纳后的 `cooldownStore.touch` 持久化（DB 失败保留内存记录并告警，不阻断本次点歌）；Bilibili 重连不重建冷却。消息处理器以 `v2:` + JSON `[fanScope || null, identity.type, identity.uid]` 构键，UID 与 `open_id`、不同主播作用域均独立；只有冷却大于 0 且稳定身份存在的成功接纳才写入，0 秒或无身份请求不生成昵称/匿名键。旧裸 UID、`open_id:` 或昵称记录不映射到新键、不对任何租户生效，保留至正常清理。启用间隔但缺少稳定身份时拒绝。完整清库在数据库全部提交成功后，依原运行状态重置顺序清空内存；数据库阶段部分失败不重置。
+3. 用户冷却：按本直播间已核验大航海选择对应身份间隔，空串或 0 均不限，各身份互不沿用；非大航海使用 `userCooldownSeconds`；UI 明确为「非大航海点歌间隔」，所有身份均按每位观众分别计时。`src/music/user-request-cooldown.js` 由 `domainServices` 创建并持有，集中管理内存记录、24 小时过期清理、启动恢复及成功接纳后的 `cooldownStore.touch` 持久化（DB 失败保留内存记录并告警，不阻断本次点歌）；Bilibili 重连不重建冷却。消息处理器以 `v2:` + JSON `[fanScope || null, identity.type, identity.uid]` 构键，UID 与 `open_id`、不同主播作用域均独立；只有冷却大于 0 且稳定身份存在的成功接纳才写入，0 秒或无身份请求不生成昵称/匿名键。旧裸 UID、`open_id:` 或昵称记录不映射到新键、不对任何租户生效，保留至正常清理。启用间隔但缺少稳定身份时拒绝。完整清库在数据库全部提交成功后，依原运行状态重置顺序清空内存；数据库阶段部分失败不重置。
 4. `enableRandomTagReply` 保留原设置键，对应 UI“点歌回复”；单曲和随机的歌曲冷却、配额、用户黑名单及身份资格拒绝转为未接受结果及自动 @ 回复（开关关闭则无回复），不推进观众冷却。内容由系统生成，无需词库；发送仍由客户端执行。队列已满、非歌库歌曲、重复歌曲、个人配额及身份确认的直播措辞在桥接层按错误码映射，不改变 `result.reason`、HTTP 响应或诊断使用的领域原文。
-5. random:`context.pickRandomSong(scopeText)`(歌库随机,scope 匹配标签/曲风,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
+5. random:`context.pickRandomSong(scopeText, fanScope)`(歌库随机,scope 匹配标签/曲风,见 [services.md](../music/services.md));无歌时若 `enableRandomTagReply==='true'` 生成 autoReply([bilibili-message-handler.js:42-57](../../../../src/bilibili/bilibili-message-handler.js#L42-L57)、[bilibili-message-handler.js:156-173](../../../../src/bilibili/bilibili-message-handler.js#L156-L173))
 6. request:`resolveSongRequest(songName)` 唯一名匹配后 `addQueueItem`([bilibili-message-handler.js:72-88](../../../../src/bilibili/bilibili-message-handler.js#L72-L88))
 7. 入队输入携带 `requesterName/requesterUid/requesterIdentityType/requesterGuardLevel/requesterMedalName/requesterMedalLevel/isPinned/messageTimestamp`，以及内部 `viewerRequest` 与独立的 `requesterGuardVerified/requesterMedalVerified`。实时弹幕、SC、历史消息及桌面随机入口都转发 user-info 的当前房间证据；未知或外间身份不能满足资格。统一准入、事务配额及默认值见 [services.md](../music/services.md) §8.2 与 [storage.md](../storage.md) §7。
 
@@ -189,11 +193,11 @@ Server 按主播保存抽签方式。默认「每日固定」保存每日结果�
 | 事实     | 值                                                                                        | 出处                                                                                      |
 | -------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | 开关     | `enableCustomReplyBot === 'true'`,否则不匹配                                              | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)        |
-| 匹配     | 消息小写后 `includes(rule.keyword 小写)`,`enabled !== false`;命中即回复(**无需点歌前缀**) | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js) |
+| 匹配     | 消息与启用的关键词按简体、小写做子串匹配，按配置顺序取首条命中(**无需点歌前缀**) | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js) |
 | 规则上限 | `MAX_CUSTOM_REPLY_RULES = 30`                                                             | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)          |
 | 字段上限 | 关键词 `30` 字符、回复 `120` 字符(`truncateText`)                                         | [custom-reply-service.js](../../../../src/bilibili/custom-reply-service.js)     |
 
-`customReplyRules` 以 JSON 字符串保存规则数组；`isCommandText(message)` 暴露给入口识别，使自定义关键词也能参与去重窗口。同一条实时弹幕复用一次命令判定，服务实例在规则字符串不变时复用解析与规范化结果；开关和规则更新在下一次调用立即生效。关键词适配器只投影 `enableCustomReplyBot` 与 `customReplyRules`；普通非点歌弹幕在桥接层取得完整点歌设置前返回，SC 仍先应用原有关闭规则。直接传入数组的调用仍逐次读取，命中规则对外返回副本，调用方修改结果不会影响后续匹配。
+`customReplyRules` 以 JSON 字符串保存规则数组；`isCommandText(message)` 暴露给入口识别，使自定义关键词也能参与去重窗口。同一条实时弹幕复用一次命令判定，服务实例按规则字符串复用启用规则的匹配词，仅在字符串变化时重新折叠关键词的简繁和大小写。开关和规则更新在下一次调用立即生效。关键词适配器只投影 `enableCustomReplyBot` 与 `customReplyRules`；普通非点歌弹幕在桥接层取得完整点歌设置前返回，SC 仍先应用原有关闭规则。直接传入数组的调用仍逐次读取，命中规则对外返回副本，调用方修改结果不会影响后续匹配。
 
 ### 6.4 云端菜单的桌面命令投影
 
@@ -247,7 +251,7 @@ AI 自动接话通过同一 sender 的等待限流、授权与会话断言发送
 | `credentials-restore` / `credentials-import-*` / `logout-*` | 启动恢复、云端凭据导入、退出登录的开始/完成/失败；不输出凭据值 |
 | `refresh-requested` / `auth-cache-changed` / `auth-read-failed` / `listener-created` | 手动刷新、运行时读取凭据变化或失败、使用这些凭据创建的监听实例；`clientGeneration` 区分实例 |
 | `socket-connecting` / `socket-open` / `auth-sent` / `auth-result` | 连接与认证阶段；认证 `code=0/status=accepted` 表示收到成功回包，非零为 rejected，缺少合法整数 code 为 invalid |
-| `auth-no-reply` | 首次心跳时仍未收到认证回包，默认等待 30 秒；仅记录一次，不自行重连或改变页面状态 |
+| `auth-no-reply` | WebSocket 打开后 10 秒内未收到认证回包。记录事件并关闭当前连接，进入退避重连 |
 | `socket-first-packet` / `heartbeat-confirmed` / `danmaku-first-received` | 每条连接首次收到数据、心跳回复、可解析弹幕；帮助区分传输存活和实际收到弹幕，不逐条保存普通聊天 |
 | `socket-summary` / `listener-stopped` / `socket-closed` / `socket-error` | 断开/停止时的认证状态、包数、弹幕数、心跳回复数及最后收包时间，或连接错误 |
 | `history-start` / `history-stop` / `history-sample` | 历史补偿启停，以及首次成功拉取/有新命令时的总数、过期数、重复数和处理数；空闲轮询不重复写样本 |

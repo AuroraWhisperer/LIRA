@@ -15,6 +15,7 @@ test('an unlisted model snapshot requires upstream reasoning metadata', () => {
   });
   assert.deepEqual(reasoning.efforts, ['low', 'high']);
   assert.equal(reasoning.defaultEffort, 'high');
+  assert.equal(getModelReasoning({ ...config, modelProvider: 'custom' }), null);
 });
 
 test('unknown official models omit inherited and forced reasoning parameters', () => {

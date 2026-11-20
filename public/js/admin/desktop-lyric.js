@@ -15,6 +15,7 @@ import { groupDesktopLyricParameters } from './desktop-lyric-parameter-layout.js
 import { createAdvancedLyricEditor } from './advanced-lyric-editor.js';
 import { createComponentConfigController } from './component-config-controller.js';
 import { saveComponentSettings, confirmComponentSettings } from './component-settings-save.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 
 export function createDesktopLyric({
   utils = sharedUtils,
@@ -157,20 +158,14 @@ export function createDesktopLyric({
       confirm: confirmSettings,
     });
 
-    const setAutosaveState = (text, state = '') => {
-      if (!autosaveState) return;
-      autosaveState.textContent = text;
-      autosaveState.className = `desktop-lyric-autosave-state${state ? ` ${state}` : ''}`;
-    };
-
     const stopController = controller.subscribe(config => {
       if (!settingsLoaded) return;
       if (!editingForm) loadDesktopLyricSettings(config.draft);
       renderedValues = collectDesktopLyric();
-      if (config.error) setAutosaveState(config.error, 'is-error');
-      else if (config.saving) setAutosaveState('正在自动保存…', 'is-saving');
-      else if (config.dirty) setAutosaveState('等待自动保存…', 'is-saving');
-      else setAutosaveState(config.applied ? '已自动保存' : '修改后自动保存', config.applied ? 'is-saved' : '');
+      if (config.error) renderSaveStatus(autosaveState, 'error', config.error);
+      else if (config.saving) renderSaveStatus(autosaveState, 'saving');
+      else if (config.dirty) renderSaveStatus(autosaveState, 'pending');
+      else renderSaveStatus(autosaveState, config.applied ? 'saved' : 'idle');
     });
 
     const editForm = () => {
@@ -203,7 +198,7 @@ export function createDesktopLyric({
       clearTimeout(autosaveTimer);
       if (!settingsLoaded) {
         pendingInput = true;
-        setAutosaveState('正在读取设置…', 'is-saving');
+        renderSaveStatus(autosaveState, 'loading');
         return;
       }
       editForm();

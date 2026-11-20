@@ -17,7 +17,7 @@ async function createBlindboxFixture({
   loggedIn = false,
   authAvailable = true,
   mappingState = { mode: 'v2', applied: true, customCount: 1 },
-  includePanel = false,
+  catalogResponse,
 } = {}) {
   const container = { innerHTML: '', querySelectorAll: () => [] };
   const textarea = { value: '[]' };
@@ -40,6 +40,7 @@ async function createBlindboxFixture({
 
   const document = {
     readyState: 'loading',
+    querySelector: () => null,
     addEventListener(type, handler) {
       documentListeners.set(type, handler);
     },
@@ -61,6 +62,7 @@ async function createBlindboxFixture({
     },
   };
   const window = {
+    clearTimeout,
     addEventListener(type, handler) {
       windowListeners.set(type, handler);
     },
@@ -92,6 +94,7 @@ async function createBlindboxFixture({
       });
     }
     if (url === '/api/overtime/gifts/catalog') {
+      if (catalogResponse) return catalogResponse.then(response);
       return Promise.resolve(
         response({
           ok: true,
@@ -105,13 +108,14 @@ async function createBlindboxFixture({
     return Promise.resolve(response({ ok: true, data: {} }));
   };
 
-  if (includePanel) window.fetch = fetch;
-  const { giftBlindbox, giftNotification, renderGiftPanel, stateService, eventBus, initGiftArtworkCatalog, giftRecent } = await loadModuleExports(
+  window.fetch = fetch;
+  const { giftBlindbox, giftNotification, initGiftPanel, renderGiftPanel, stateService, eventBus, findGiftArtwork } = await loadModuleExports(
     path.join(__dirname, 'gift-admin-graph.js'),
     {
       document,
       window,
       AbortController,
+      MutationObserver: class { disconnect() {} },
       fetch,
       CustomEvent: class {
         constructor(type, { detail }) {
@@ -121,8 +125,7 @@ async function createBlindboxFixture({
       },
     },
   );
-  initGiftArtworkCatalog(giftRecent.refreshArtwork);
-  giftBlindbox.init();
+  initGiftPanel();
   await stateService.reloadState();
   await flushBlindboxTasks();
   giftBlindbox.renderBlindBoxList();
@@ -141,6 +144,7 @@ async function createBlindboxFixture({
     window,
     document,
     fetchCalls,
+    findGiftArtwork,
     refreshRequests,
     dispatchSettings(nextRoomId) {
       currentRoomId = nextRoomId;

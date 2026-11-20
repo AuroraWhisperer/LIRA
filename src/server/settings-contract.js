@@ -98,6 +98,7 @@ function normalizeSettingValue(key, rawValue) {
   }
   if (key === 'songCooldownMode') return ['off', 'hours', 'days'].includes(rawValue) ? rawValue : null;
   if (key === 'queueLimit' || key === 'userCooldownSeconds' || key === 'songCooldownValue') {
+    if (key === 'userCooldownSeconds' && rawValue === '') return '0';
     if (typeof rawValue !== 'number' && typeof rawValue !== 'string') return null;
     if (typeof rawValue === 'string' && !/^\s*[0-9]+\s*$/u.test(rawValue)) return null;
     const number = Number(rawValue);

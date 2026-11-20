@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createClock } = require('../helpers/toast-dom');
 
 const entry = (name) => path.join(__dirname, '../../public/js/admin', name);
@@ -15,7 +16,7 @@ const snapshot = (revision, backgroundPath, effectiveRemainingMs = 60000) => ({
 
 async function fixture() {
   const clock = createClock();
-  const nodes = new Map();
+  const nodes = new Map([['overtimeBackgroundSaveState', createParameterDocument().createElement('p')]]);
   const byId = (id) => {
     if (!nodes.has(id)) nodes.set(id, { value: '', textContent: '', addEventListener() {}, classList: { toggle() {} },
       closest() { return this; }, querySelectorAll() { return []; } });

@@ -9,13 +9,14 @@ import {
   collectConfig,
   renderConfig,
   renderConfigSummary,
+  renderReasoningState,
   renderProviderSelection,
   renderToolSettings,
   syncReasoningEffortAvailability,
   selectReasoningEffort,
   renderStatus,
   renderDoubaoStatus,
-  setState as renderSaveState,
+  setState,
   providerLabel,
   providerErrorMessage,
   codedClientError,
@@ -25,14 +26,6 @@ let initialized = false;
 let refreshConfig = null;
 const AUTOSAVE_DELAY_MS = 700;
 
-function setState(node, message, kind) {
-  renderSaveState(node, message, kind);
-  if (node?.id !== 'xiaomiAiSaveState') return;
-  const failed = kind === 'warn';
-  document.getElementById('xiaomiAiSaveBtn').hidden = !failed;
-  document.getElementById('xiaomiAiActions').hidden = !failed;
-}
-
 function init({ notify = showStackedToast, confirm } = {}) {
   if (initialized) return;
   const form = document.getElementById('xiaomiAiForm');
@@ -41,9 +34,16 @@ function init({ notify = showStackedToast, confirm } = {}) {
   const replySwitches = [
     { key: 'enabled', input: document.getElementById('xiaomiAiEnabled') },
     { key: 'autoReplyEnabled', input: document.getElementById('xiaomiAiAutoReplyEnabled') },
-  ].map((entry) => ({ ...entry, promise: null, version: 0 }));
+  ].map((entry) => ({ ...entry, promise: null, version: 0, error: '' }));
   const replySwitchIds = new Set(replySwitches.map(({ input }) => input.id));
   const saveState = document.getElementById('xiaomiAiSaveState');
+  function setSaveState(message, kind) {
+    const failure = replySwitches.find(state => state.error)?.error;
+    const failed = Boolean(failure) || kind === 'warn';
+    setState(saveState, failure || message, failed ? 'warn' : kind);
+    document.getElementById('xiaomiAiSaveBtn').hidden = !failed;
+    document.getElementById('xiaomiAiActions').hidden = !failed;
+  }
   const providerTestButtons = [
     ['deepseek', document.getElementById('xiaomiAiTestBtn')],
     ['qweather', document.getElementById('xiaomiAiQWeatherTestBtn')],
@@ -66,6 +66,11 @@ function init({ notify = showStackedToast, confirm } = {}) {
   let personaControls;
   const modelPicker = createAiModelPicker({
     readApi,
+    async onCatalog() {
+      const revision = configRevision;
+      const config = await readApi('/api/ai/config');
+      if (revision === configRevision && !saving && !dirty) renderReasoningState(config);
+    },
     onSelect(id) {
       editedFieldIds.add(id);
       scheduleSave();
@@ -87,12 +92,12 @@ function init({ notify = showStackedToast, confirm } = {}) {
         configLoaded = true;
         if (dirty && form.checkValidity()) {
           clearTimeout(autosaveTimer);
-          setState(saveState, '等待自动保存…');
+          setSaveState('等待自动保存…');
           autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
         }
       }
     } catch (error) {
-      if (requestRevision === configRevision) setState(saveState, error.message || '无法读取 AI 配置', 'warn');
+      if (requestRevision === configRevision) setSaveState(error.message || '无法读取 AI 配置', 'warn');
     } finally {
       pendingConfigRefreshes -= 1;
     }
@@ -101,7 +106,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
   const saveConfig = async () => {
     if (!dirty) return true;
     if (!configLoaded) {
-      setState(saveState, '配置尚未加载，暂时无法保存；请等待或刷新页面重试。', 'warn');
+      setSaveState('配置尚未加载，暂时无法保存；请等待或刷新页面重试。', 'warn');
       return false;
     }
     if (!form.checkValidity()) return false;
@@ -116,7 +121,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
     // Each reply switch owns its saves; late form saves cannot turn it back on.
     for (const { key } of replySwitches) delete submittedConfig[key];
     const submittedEditVersion = editVersion;
-    setState(saveState, '正在保存…');
+    setSaveState('正在保存…');
     savingPromise = (async () => {
       try {
         const config = await readApi('/api/ai/config', {
@@ -136,7 +141,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
         renderConfigSummary(config, submittedConfig);
         personaControls.render(config);
         for (const id of editedFieldIds) if (!replySwitchIds.has(id)) editedFieldIds.delete(id);
-        setState(saveState, '已保存，后续新弹幕立即生效。', 'good');
+        setSaveState('已保存，后续新弹幕立即生效。', 'good');
         return true;
       } catch (error) {
         dirty = true;
@@ -144,7 +149,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
           restoreManualEndpointAfterProviderSave = false;
           renderProviderSelection(providerInput?.value);
         }
-        setState(saveState, error.message || '保存 AI 配置失败', 'warn');
+        setSaveState(error.message || '保存 AI 配置失败', 'warn');
         return false;
       } finally {
         saving = false;
@@ -164,10 +169,10 @@ function init({ notify = showStackedToast, confirm } = {}) {
     dirty = true;
     clearTimeout(autosaveTimer);
     if (!form.checkValidity()) {
-      setState(saveState, '请先完成或修正当前输入，随后会自动保存。', 'warn');
+      setSaveState('请先完成或修正当前输入，随后会自动保存。', 'warn');
       return;
     }
-    setState(saveState, immediate ? '正在保存…' : '等待自动保存…');
+    setSaveState(immediate ? '正在保存…' : '等待自动保存…');
     if (immediate) void saveConfig();
     else autosaveTimer = setTimeout(() => void saveConfig(), AUTOSAVE_DELAY_MS);
   };
@@ -178,6 +183,7 @@ function init({ notify = showStackedToast, confirm } = {}) {
       const saved = await Promise.all(replySwitches.map((state) => state.promise || true));
       if (saved.some((result) => !result)) return false;
     }
+    if (replySwitches.some(state => state.error)) return false;
     while (savingPromise || saving || dirty || pendingSave) {
       if (savingPromise) {
         if (!(await savingPromise)) return false;
@@ -256,20 +262,24 @@ function init({ notify = showStackedToast, confirm } = {}) {
       try {
         await initialLoadPromise;
         if (!configLoaded) throw new Error('配置尚未加载，暂时无法保存；请等待或刷新页面重试。');
-        if (version === state.version) setState(saveState, '正在保存…');
+        if (version === state.version) setSaveState('正在保存…');
         await readApi('/api/ai/config', { method: 'PUT', body: JSON.stringify({ [state.key]: enabled }) });
         configRevision += 1;
         if (version === state.version) {
+          state.error = '';
           editedFieldIds.delete(state.input.id);
           if (state.key === 'enabled' && !enabled) renderStatus({ queued: 0 });
           const message = state.key === 'enabled'
             ? (enabled ? '已开启，只处理新弹幕。' : '已关闭，未完成的回复已取消；已发出的弹幕无法撤回。')
             : (enabled ? '自动接话已开启；启用 AI 后对新弹幕生效。' : '自动接话已关闭，尚未发送的接话已取消。');
-          setState(saveState, message, 'good');
+          setSaveState(message, 'good');
         }
         return true;
       } catch (error) {
-        if (version === state.version) setState(saveState, error.message || '保存 AI 开关失败', 'warn');
+        if (version === state.version) {
+          state.error = error.message || '保存 AI 开关失败';
+          setSaveState(state.error, 'warn');
+        }
         return false;
       }
     });

@@ -7,10 +7,10 @@ const { cleanText, now, timestampToIso, normalizePositiveInteger } = require('..
 const { toSimplifiedChinese } = require('../shared/chinese-text');
 const { normalizeGuardLevel } = require('../shared/bilibili-value-contract');
 const { songCooldownKey, songCooldownUntil, assertSongAvailable } = require('./song-cooldown');
-const { requestRejection, requesterIdentity, assertSongRequesterAllowed } = require('./song-request-policy');
+const { requestRejection, requesterIdentity, userDailyLimit, assertSongRequesterAllowed } = require('./song-request-policy');
 
 const REQUEST_REJECTION_CODES = new Set(['SONG_NAME_REQUIRED', 'QUEUE_FULL', 'SONG_NOT_IN_LIBRARY', 'SONG_ALREADY_QUEUED', 'SONG_COOLDOWN',
-  'REQUESTER_IDENTITY_REQUIRED', 'REQUESTER_BLACKLISTED', 'REQUESTER_GUARD_REQUIRED', 'REQUESTER_MEDAL_REQUIRED', 'USER_QUEUE_FULL']);
+  'REQUESTER_IDENTITY_REQUIRED', 'REQUESTER_BLACKLISTED', 'REQUESTER_GUARD_REQUIRED', 'REQUESTER_MEDAL_REQUIRED', 'USER_QUEUE_FULL', 'USER_DAILY_LIMIT']);
 const REQUEST_RESULT_RETENTION_MS = 60000;
 const REQUEST_RESULT_LIMIT = 200;
 
@@ -29,6 +29,7 @@ function addQueueItem(context, input) {
   if (input.viewerRequest === true) assertSongRequesterAllowed(settings, input, acceptedAt);
   const identity = requesterIdentity(input);
   const userQueueLimit = input.viewerRequest === true ? Number(settings.userQueueLimit) || 0 : 0;
+  const dailyLimit = input.viewerRequest === true ? userDailyLimit(settings, input) : 0;
   const queueLimit = Number(settings.queueLimit || defaults.queueLimit);
   if (Number.isFinite(queueLimit) && queueLimit > 0 && store.countActive() >= queueLimit) {
     throw requestRejection('QUEUE_FULL', '点歌队列已达到上限。');
@@ -44,7 +45,7 @@ function addQueueItem(context, input) {
   const canonicalArtist = matchedSong ? matchedSong.artist : input.artist;
   const cooldownKey = songCooldownKey(canonicalName, canonicalArtist);
   if (settings.songCooldownMode && settings.songCooldownMode !== 'off') {
-    assertSongAvailable(settings, store.getSongCooldown(cooldownKey), canonicalName, acceptedAt);
+    assertSongAvailable(settings, store.getSongCooldown(cooldownKey, input.fanScope), canonicalName, acceptedAt);
   }
   if (settings.allowDuplicate !== 'true' && store.findActiveBySongName(songName)) {
     throw requestRejection('SONG_ALREADY_QUEUED', '队列里已经有这首歌。');
@@ -53,6 +54,8 @@ function addQueueItem(context, input) {
   return store.insertRequest({
     cooldownKey,
     acceptedAt,
+    requestDay: input.viewerRequest === true && identity
+      ? new Date(acceptedAt + 8 * 60 * 60 * 1000).toISOString().slice(0, 10) : null,
     songId: matchedSong ? matchedSong.id : null,
     songName: matchedSong ? matchedSong.name : songName,
     artist: cleanText(input.artist) || (matchedSong ? matchedSong.artist : ''),
@@ -75,14 +78,17 @@ function addQueueItem(context, input) {
     checkRequesterCount: userQueueLimit > 0 ? (count) => {
       if (count >= userQueueLimit) throw requestRejection('USER_QUEUE_FULL', `每人最多同时排队 ${userQueueLimit} 首，请等待已点歌曲完成后再点歌。`);
     } : undefined,
+    checkDailyCount: dailyLimit > 0 ? (count) => {
+      if (count >= dailyLimit) throw requestRejection('USER_DAILY_LIMIT', `你今天的点歌已达到 ${dailyLimit} 首上限，北京时间明天 00:00 后可再点。`);
+    } : undefined,
   });
 }
 
-function filterSongsByCooldown(context, songs) {
+function filterSongsByCooldown(context, songs, fanScope) {
   const settings = context.settings();
   if (!settings.songCooldownMode || settings.songCooldownMode === 'off') return songs;
   const previous = new Map();
-  for (const row of context.store.listSongCooldowns()) {
+  for (const row of context.store.listSongCooldowns(fanScope)) {
     const key = toSimplifiedChinese(row.song_key);
     previous.set(key, Math.max(previous.get(key) || 0, row.accepted_at_ms));
   }

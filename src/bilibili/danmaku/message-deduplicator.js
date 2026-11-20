@@ -19,7 +19,7 @@ class MessageDeduplicator {
   }
 
   remember(uid, message, timestampMs, options = {}) {
-    const key = bilibiliHelpers.buildBilibiliCommandKey(uid, message, timestampMs);
+    const key = buildCommandKey(uid, message, timestampMs, options.userName);
     if (!key) {
       logDeduplicationDecision('invalid-key', uid, message, timestampMs, options);
       return false;
@@ -27,10 +27,13 @@ class MessageDeduplicator {
 
     const source = cleanText(options.source);
     const seenCommand = this.seenCommandKeys.get(key);
-    if (seenCommand) {
+    // A source already paired via another key must try the remaining candidates.
+    const matchedAnotherKey = seenCommand?.matchedSources.has(source) && !seenCommand.sources.has(source);
+    if (seenCommand && !matchedAnotherKey) {
       const sourceToken = source || '(unknown)';
       if (!seenCommand.rejectedSources.has(sourceToken)) {
         const reason = source && !seenCommand.sources.has(source) ? 'cross-source' : 'seen-key';
+        if (source) seenCommand.matchedSources.add(source);
         seenCommand.sources.add(sourceToken);
         seenCommand.rejectedSources.add(sourceToken);
         logDeduplicationDecision(reason, uid, message, timestampMs, options, seenCommand.sources);
@@ -41,18 +44,15 @@ class MessageDeduplicator {
     const receivedAt = Date.now();
     const command = {
       uid: normalizeUid(uid),
-      userName: normalizeUserName(options.userName),
+      userName: cleanText(getDisplayNameHint(options.userName)).toLowerCase(),
       message: cleanText(message),
       timestampMs: normalizeTimestampMs(timestampMs) || receivedAt,
       source,
       matchedSources: new Set(),
       receivedAt,
     };
-    const seenEntry = {
-      receivedAt,
-      sources: new Set(source ? [source] : []),
-      rejectedSources: new Set(),
-    };
+    const seenEntry = seenCommand || { receivedAt, sources: new Set(), rejectedSources: new Set() };
+    if (source) seenEntry.sources.add(source);
     this.seenCommandKeys.set(key, seenEntry);
 
     let crossSourceMatch;
@@ -62,18 +62,15 @@ class MessageDeduplicator {
         break;
       }
     }
+    seenEntry.matchedSources = (crossSourceMatch || command).matchedSources;
+    if (source) seenEntry.matchedSources.add(source);
     if (crossSourceMatch) {
-      crossSourceMatch.matchedSources.add(command.source);
       seenEntry.rejectedSources.add(command.source || '(unknown)');
-      logDeduplicationDecision('cross-source', uid, message, timestampMs, options, [
-        ...crossSourceMatch.matchedSources,
-        command.source,
-      ]);
+      logDeduplicationDecision('cross-source', uid, message, timestampMs, options, seenEntry.matchedSources);
       this.prune(receivedAt);
       return false;
     }
 
-    if (command.source) command.matchedSources.add(command.source);
     this.recentCommands.add(command);
     if (!this.commandsByMessage.has(command.message)) this.commandsByMessage.set(command.message, new Set());
     this.commandsByMessage.get(command.message).add(command);
@@ -113,10 +110,18 @@ class MessageDeduplicator {
     if (!candidates.size) this.commandsByMessage.delete(command.message);
   }
 
-  has(uid, message, timestampMs) {
-    const key = bilibiliHelpers.buildBilibiliCommandKey(uid, message, timestampMs);
+  has(uid, message, timestampMs, options = {}) {
+    const key = buildCommandKey(uid, message, timestampMs, options.userName);
     return key && this.seenCommandKeys.has(key);
   }
+}
+
+function buildCommandKey(uid, message, timestampMs, userName) {
+  const reliableUid = normalizeUid(uid);
+  const key = bilibiliHelpers.buildBilibiliCommandKey(reliableUid, message, timestampMs);
+  if (!key) return '';
+  const nameHint = reliableUid ? '' : getDisplayNameHint(userName);
+  return JSON.stringify([key, nameHint]);
 }
 
 function isCrossSourceDuplicate(left, right) {
@@ -151,9 +156,10 @@ function normalizeUid(value) {
   return uid === '0' ? '' : uid;
 }
 
-function normalizeUserName(value) {
-  const userName = cleanText(value).toLowerCase();
-  return userName === '观众' ? '' : userName;
+function getDisplayNameHint(value) {
+  const name = String(value || '');
+  const trimmed = name.trim();
+  return trimmed && trimmed !== '观众' ? name : '';
 }
 
 function logDeduplicationDecision(reason, uid, message, timestampMs, options = {}, sources = []) {

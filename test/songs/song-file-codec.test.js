@@ -67,6 +67,22 @@ test('song workbook codec uses the default column order and exports the stored s
   });
 });
 
+test('a full set of column labels without a recognized song-name heading cannot import songs', () => {
+  const songs = [{ name: '甲', artist: '演唱者', is_enabled: true }];
+  const omitName = (text) => text.replace('歌曲名字', '自定义编号').replace('是否可点', '可点');
+  const csv = omitName(buildSongsCsv(songs));
+  const parts = readZipFiles(buildSongsWorkbook(songs));
+  const sheet = 'xl/worksheets/sheet1.xml';
+  parts.set(sheet, omitName(parts.get(sheet)));
+  const workbook = createZip([...parts]);
+  for (const parse of [(options) => parser.parseTable(csv, options), (options) => parseSongsFromXlsx(workbook, options)]) {
+    assert.equal(parse().length, 0);
+    const rows = parse({ preserveMissing: true });
+    assert.equal(rows.length, 1);
+    assert.equal(normalizeImportedSongRow(rows[0]).name, '');
+  }
+});
+
 test('song service persists workbook metadata columns and preserves them on edit', () => {
   const db = new DatabaseSync(':memory:');
   db.exec(SONG_SCHEMA);

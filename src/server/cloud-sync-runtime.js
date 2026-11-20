@@ -112,8 +112,9 @@ function createCloudSyncRuntime({
   function replaceCloudSongsSnapshot(input, accountKey) {
     const songs = getSongs();
     if (!songs) throw new Error('Song library not ready.');
+    const before = songs.getChangeToken();
     const result = songs.replaceCloud(input, accountKey);
-    broadcastSnapshot('cloud:songs');
+    if (songs.getChangeToken() !== before) broadcastSnapshot('cloud:songs');
     return result;
   }
 

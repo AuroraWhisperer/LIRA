@@ -48,7 +48,8 @@ function createFanProfileProjection() {
       expiryReminders: profile.expiryReminders, milestoneReminders: profile.milestoneReminders,
       guardAccompany: profile.guardAccompany,
       guardRoster: profile.guardRoster && { roomId: profile.guardRoster.roomId,
-        level: profile.guardRoster.level, observedAt: profile.guardRoster.observedAt },
+        level: profile.guardRoster.level, observedAt: profile.guardRoster.observedAt,
+        lastAbsentAt: profile.guardRoster.lastAbsentAt },
     };
     // Compare actual inputs: restore, rollback and imported revisions may reuse
     // a revision or timestamp. Identity observation times and note bodies do not

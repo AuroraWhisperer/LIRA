@@ -29,15 +29,21 @@ test('runtime notifies configuration changes only after a successful update', as
   db.exec(SONG_SCHEMA);
   const changedTriggers = [];
   const runtime = buildAiRuntime({ songDb: db, aiLogPath: 'unused', danmakuSender: {},
-    runtimeOptions: { aiSecretCodec: {}, aiRequestLogger: { log() {}, flush() {} } },
+    runtimeOptions: { aiSecretCodec: { encrypt: value => value, decrypt: value => value }, aiRequestLogger: { log() {}, flush() {} } },
     onConfigUpdated: () => changedTriggers.push(runtime.configStore.getConfig().trigger),
   });
   t.after(async () => { await runtime.shutdown(); db.close(); });
+  const reads = t.mock.method(runtime.configStore, 'getConfig');
+  const ingress = () => runtime.service.handleDanmaku({ uid: '1', message: '你好' });
+  assert.equal(ingress().reason, 'disabled_or_unconfigured');
+  assert.equal(reads.mock.callCount(), 0);
   assert.equal(runtime.updateConfig({ trigger: '小梨' }).trigger, '小梨');
   assert.deepEqual(changedTriggers, ['小梨']);
   assert.throws(() => runtime.updateConfig({ trigger: 'x'.repeat(13) }));
   assert.deepEqual(changedTriggers, ['小梨']);
   assert.equal(runtime.configStore.getConfig().trigger, '小梨');
+  runtime.configStore.updateConfig({ modelProvider: 'deepseek', model: 'fixture', deepseekApiKey: 'synthetic' });
+  assert.equal(ingress().reason, 'not_triggered');
 });
 
 test('reopened configuration uses the same refreshed model capabilities as requests', async t => {

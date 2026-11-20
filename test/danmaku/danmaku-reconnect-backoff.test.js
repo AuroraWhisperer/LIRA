@@ -6,13 +6,14 @@ const { BilibiliDanmakuClient } = require('../../src/bilibili/danmaku-client');
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 
-async function fixture(t, { liveStatus = 1 } = {}) {
+async function fixture(t, { liveStatus = 1, hosts = ['synthetic.invalid'], autoAuthenticate = true } = {}) {
   t.mock.timers.enable({ apis: ['setTimeout', 'setInterval', 'Date'], now: Date.parse('2026-11-12T00:00:00Z') });
   const sockets = [];
   const control = { autoOpen: true };
   class Socket {
     static OPEN = 1;
-    constructor() {
+    constructor(url) {
+      this.host = new URL(url).hostname;
       this.listeners = new Map();
       this.readyState = 0;
       sockets.push(this);
@@ -33,6 +34,7 @@ async function fixture(t, { liveStatus = 1 } = {}) {
     open() {
       this.readyState = 1;
       this.emit('open', {});
+      if (autoAuthenticate) this.packet(8, { code: 0 });
     }
     send() {}
     close() {
@@ -70,7 +72,7 @@ async function fixture(t, { liveStatus = 1 } = {}) {
   });
   for (const method of ['info', 'warn', 'log']) t.mock.method(console, method, () => {});
   client.apiClient.resolveRoomInfo = async () => ({ roomId: 123, uid: 456, liveStatus });
-  client.apiClient.resolveDanmuInfo = async () => ({ token: 'synthetic', host_list: [{ host: 'synthetic.invalid' }] });
+  client.apiClient.resolveDanmuInfo = async () => ({ token: 'synthetic', host_list: hosts.map((host) => ({ host })) });
   client.apiClient.fetchHistory = async () => ({ room: historyMessages, admin: [] });
   for (const poller of [client.onlineRankPoller, client.fansMedalPoller]) {
     poller.start = () => {};
@@ -79,6 +81,40 @@ async function fixture(t, { liveStatus = 1 } = {}) {
   await flush();
   return { client, sockets, control, statuses, messages, historyMessages };
 }
+
+for (const [failure, fail] of [
+  ['rejected', (socket) => socket.packet(8, { code: -101 })],
+  ['unanswered', (_socket, timers) => timers.tick(10_000)],
+]) {
+  test(`${failure} Bilibili authentication resumes history until a retry is authenticated`, async (t) => {
+    const { client, sockets, statuses } = await fixture(t, { autoAuthenticate: false });
+    const first = sockets[0];
+    assert.equal(statuses.at(-1).connected, false);
+    first.packet(3, {});
+    fail(first, t.mock.timers);
+    await flush();
+    assert.equal(first.readyState, 3);
+    assert.ok(client.historyPoller.timer);
+
+    t.mock.timers.tick(1000);
+    await flush();
+    assert.equal(sockets.length, 2);
+    assert.ok(client.historyPoller.timer);
+    sockets[1].packet(8, { code: 0 });
+    await flush();
+    assert.equal(client.historyPoller.timer, null);
+    assert.equal(statuses.at(-1).connected, true);
+  });
+}
+
+test('connection recovery tries the next available Bilibili host', async (t) => {
+  const { client, sockets } = await fixture(t, { hosts: ['first.invalid', 'second.invalid'] });
+  sockets[0].disconnect();
+  t.mock.timers.tick(1000);
+  await flush();
+  assert.deepEqual(sockets.map((socket) => socket.host), ['first.invalid', 'second.invalid']);
+  assert.equal(client.ws, sockets[1]);
+});
 
 test('open-close failures back off 1/2/4/8/16/30 seconds and remain capped', async (t) => {
   const { client, sockets } = await fixture(t);

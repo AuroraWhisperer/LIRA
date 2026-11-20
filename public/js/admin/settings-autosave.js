@@ -1,3 +1,5 @@
+import { renderSaveStatus } from '../shared/save-status.js';
+
 export function createAutosave({ save, canSave = () => true, root, windowRef = globalThis }) {
   let timer = null, pending = null, wanted = false, composing = false, disposed = false, generation = 0;
   const clear = () => { windowRef.clearTimeout(timer); timer = null; };
@@ -43,26 +45,27 @@ export function validAutosaveFields(root) {
 }
 
 export function bindComponentAutosave(controller, { root, saveButton, discardButton, status, actions, windowRef } = {}) {
-  let signature, generation, dirty = false, retryError = '';
+  let signature, generation, retryError = '';
   const autosave = createAutosave({ root, windowRef,
     canSave: () => {
       const state = controller.getStatus();
       return state.loaded && !state.loading && !state.saving && state.dirty && !state.conflict
         && validAutosaveFields(root);
     },
-    save: () => controller.save(),
+    save: () => controller.save({ source: 'local' }),
   });
   const stop = controller.subscribe(state => {
-    const next = JSON.stringify(state.draft);
+    const localChanges = controller.getChanges('local');
+    const hasLocalChanges = Object.keys(localChanges).length > 0;
+    const next = JSON.stringify(localChanges);
     if (generation !== state.generation) { autosave.cancel(); signature = undefined; retryError = ''; }
-    if (!state.dirty || controller.getEditSource?.() === 'preview') autosave.cancel();
-    else if (!dirty || next !== signature) autosave.schedule();
+    if (!hasLocalChanges) autosave.cancel();
+    else if (next !== signature) autosave.schedule();
     else if (!state.saving && !state.loading && !state.error && !state.conflict) autosave.resume();
     signature = next;
     generation = state.generation;
-    dirty = state.dirty;
     if (state.error || state.conflict) retryError = state.error || '请核对其他入口的修改。';
-    else if (!state.dirty) retryError = '';
+    else if (!hasLocalChanges) retryError = '';
     const failed = Boolean(retryError);
     if (saveButton) {
       saveButton.hidden = !failed;
@@ -71,8 +74,9 @@ export function bindComponentAutosave(controller, { root, saveButton, discardBut
     if (discardButton) discardButton.hidden = !failed;
     if (actions) actions.hidden = !failed && state.loaded;
     if (status) {
-      if (failed) status.textContent = `自动保存未完成，修改已保留。${retryError}`;
-      else if (state.loaded) status.textContent = '';
+      const message = failed ? `自动保存未完成，修改已保留。${retryError}`
+        : state.loaded ? '' : status.textContent;
+      renderSaveStatus(status, failed ? 'error' : state.loading ? 'loading' : 'idle', message);
       status.hidden = !status.textContent;
     }
   });

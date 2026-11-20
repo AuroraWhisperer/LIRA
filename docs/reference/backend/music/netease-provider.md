@@ -91,7 +91,7 @@ User-Agent: Mozilla/5.0 SongAssistant/1.0
 
 | 方法                                  | 用途                | 要点                                                                                                                                                                                      |
 | ------------------------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `requestJson(pathname, params)`       | GET 明文接口        | `new URL(pathname, NETEASE_BASE_URL)` 拼参;共享响应体读取器限制 16 MiB，空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js](../../../../src/music/providers/netease-provider.js)) |
+| `requestJson(pathname, params, expectedCookie?)`       | GET 明文接口        | `new URL(pathname, NETEASE_BASE_URL)` 拼参;共享响应体读取器限制 16 MiB，空响应体返回 `{}`;非 JSON 抛"返回了非 JSON 响应"([netease-provider.js](../../../../src/music/providers/netease-provider.js)) |
 | `requestWeapiJson(pathname, payload)` | POST weapi 加密接口 | payload 注入 `csrf_token` 后走 §3 加密,`URLSearchParams` 编码,URL 带 `csrf_token` 查询参数；响应体同样限制 16 MiB([netease-provider.js](../../../../src/music/providers/netease-provider.js))  |
 
 ## 7. 上游端点详解(12 个)
@@ -137,7 +137,7 @@ GET https://music.163.com/api/search/get/web?s=<关键词>&type=1&limit=<1-30 �
 GET https://music.163.com/api/song/lyric/v1?id=<歌曲ID>&cp=false&lv=0&kv=0&tv=0&rv=0&yv=0&ytv=0&yrv=0
 ```
 
-同时请求普通歌词与 YRC 逐字歌词及其翻译、罗马音。有效 `yrc.lyric` 优先，并直接以 YRC 的行时间构建歌词；对应翻译优先 `ytlrc.lyric`、罗马音优先 `yromalrc.lyric`，缺失时分别使用 `tlyric.lyric`、`romalrc.lyric`。这样 LRC 与 YRC 行时间不一致时不会丢失逐字数据。
+同时请求普通歌词与 YRC 逐字歌词及其翻译、罗马音。有效 `yrc.lyric` 优先，并直接以 YRC 的行时间构建歌词；对应翻译优先 `ytlrc.lyric`、罗马音优先 `yromalrc.lyric`，缺失时分别使用 `tlyric.lyric`、`romalrc.lyric`。即使 LRC 与 YRC 的行时间不同，仍保留 YRC 的逐字时间。相邻 YRC 词时间标记之间的文本按原样进入该词，包括空格、字面括号和括号中的歌词。
 
 没有有效 YRC 时解析 `lrc.lyric` 及普通翻译、罗马音，再调用 `estimateWordTimings(lines, track.durationMs)` 生成估算逐字时间，供内置和外置播放器共用。估算不替换真实逐字数据，也不保证逐字贴合演唱；算法见 [音乐服务 §14](services.md#14-歌词解析器srcmusiclyric-parserjs)。
 
@@ -176,11 +176,9 @@ GET https://music.163.com/api/personalized/newsong?limit=100
 
 组合流程:
 
-1. `requireLogin('我喜欢需要先登录网易云音乐。')`
-2. `getUserProfile()`(§7.12)→ userId
-3. `getUserPlaylists(userId, { limit: 50 })` → 全量歌单
-4. `getLikedPlaylistId()` 定位标题含“喜欢”的歌单，找不到时抛出需要重新登录的错误，不回退到任意歌单。
-5. 取得真实 ID 后调用 `getPlaylistTracks(playlistId, { limit, offset })`。
+1. 读取当前完整 Cookie，用它选择本次加载会话，再通过 `requireLogin` 检查登录状态。即使调用未带 `loadingSession`，观察到不同 Cookie 也会清除旧账号的分页快照。
+2. `getLikedPlaylistId()` 用起始凭据经 `getUserProfile()`（§7.12）取得 userId，再用 `getUserPlaylists(userId, { limit: 50 })` 定位标题含“喜欢”的歌单。找不到时提示重新登录。
+3. `getPlaylistTracks` 沿用同一凭据读取索引、分页详情和缺失封面。每次发出请求前和读取响应后均核对凭据，交付缓存页前同样核对。换号或退出后丢弃迟到结果。并发读取一旦观察到其他凭据，即使随后恢复原 Cookie，旧调用也会结束。
 
 `limit` clamp 1-5000 默认 200;`offset` clamp 0-200000。
 
@@ -208,9 +206,12 @@ GET https://music.163.com/api/v6/playlist/detail?id=<歌单ID>&n=0&s=0
 GET https://music.163.com/api/song/detail?ids=<当前页曲目ID JSON数组，每批最多100个>
 ```
 
-- 按 `data.playlist.trackIds[]` 的顺序切片 `offset/limit`，每批最多 100 个 ID 读取详情，再按原 ID 顺序组装；无需登录即可读取公开歌单。`limit` clamp 1–5000 默认1000，`offset` clamp 0–200000。
+- 播放器打开普通歌单时，以 `action=playlist-tracks` 向 `POST /api/music/home` 请求最多 5000 首。Provider 按 `trackIds[]` 的顺序切片，`limit` 为 1–5000（默认 1000），`offset` 为 0–200000。公开歌单支持匿名读取。
+- 每 100 个不同 ID 读取一批 `/api/song/detail`，末批可少于 100 个。详情只在这次读取中复用，输出恢复原索引顺序和重复位置。有索引时，同一响应内附的 `tracks[]` 可能只是摘要。歌曲名称、可播放状态、VIP 标记和封面取自详情，封面仍按专辑图、歌手图的顺序回退。
+- 普通歌单一次最多并行两批，仅有空闲名额时启动第二批。每个 Provider 实例的歌单索引、详情和无索引时的封面补查共用 6 个请求名额，与目录服务的成员检测并发数一致。已缓存完整曲目和封面的「我喜欢」页可直接返回。「我喜欢」分页和成员检测回退按单批串行读取。每批详情都核对所需 ID，并在该批结束时归还名额，供其他歌单立即使用。任一批请求失败或缺歌时，本次打开等另一批在途请求结束后返回错误。
+- 普通歌单在确定 ID 后记录当前完整 Cookie，「我喜欢」沿用 §7.7 开始时的 Cookie。索引、详情和补图请求在获得名额后、发出前核对当前 Cookie，交付结果前再次核对。即使账号相同，Cookie 变化也会结束本次读取并提示重新打开歌单。
 - 若没有曲目 ID 数组，仅在返回的 `tracks[]` 已覆盖声明总数时按完整列表本地切片；索引不足、ID 无效或所需详情缺失会报错，不把不完整页写成正常完成结果。
-- **成员检测** `playlistContainsTrack(playlistId, track)`([netease-provider.js](../../../../src/music/providers/netease-provider.js)):同端点 `n=0&s=0` 拉**轻量列表** `data.playlist.trackIds[]`(每项 `item.id || item`),存在 `trackIds` 数组即线性比较;接口不返回 `trackIds` 时回退全量拉 5000 首再比对——这是"歌单是否已含此歌"的唯一判定点,供收藏/去重标注用
+- **成员检测** `playlistContainsTrack(playlistId, track)`([netease-provider.js](../../../../src/music/providers/netease-provider.js)):同端点 `n=0&s=0` 拉**轻量列表** `data.playlist.trackIds[]`(每项 `item.id || item`),存在 `trackIds` 数组即比较 ID。缺少索引时，若同一响应的 `tracks` 已覆盖明确返回的非负整数总数，直接在前 5000 首中检查，省去详情和封面请求。总数未知、列表缺少或截断时用本次读取的凭证重新读取歌单并检查完整性。此结果供收藏和去重标注用
 
 ### 7.10 最近播放([netease-provider.js](../../../../src/music/providers/netease-provider.js))
 

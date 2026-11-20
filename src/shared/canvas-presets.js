@@ -1,5 +1,3 @@
-const CANVAS_PRESETS = Object.freeze([
-  [1280, 720], [1920, 1080], [2560, 1440], [3840, 2160], [1080, 1920],
-]);
+'use strict';
 
-module.exports = { CANVAS_PRESETS };
+module.exports = require('../../public/js/shared/canvas-presets.js');

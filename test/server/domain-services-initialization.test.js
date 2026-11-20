@@ -364,17 +364,17 @@ test('runtime state selection skips unrelated domains and preserves the complete
     await runtime.start({ startPort: 0, remoteGiftCatalog: f.remoteOptions });
     reads.length = 0;
     const lyrics = getState(['lyricState', 'lyricTimeline']);
-    assert.deepEqual(Object.keys(lyrics), ['lyricState', 'lyricTimeline']);
+    assert.deepEqual(Object.keys(lyrics).sort(), ['lyricState', 'lyricTimeline']);
     assert.deepEqual(reads, []);
     getState(['queue', 'superChats']);
-    assert.deepEqual(reads, ['queue.getSnapshot', 'superChats.getSnapshot']);
+    assert.deepEqual(reads.toSorted(), ['queue.getSnapshot', 'superChats.getSnapshot']);
     reads.length = 0;
     const state = getState();
-    assert.deepEqual(Object.keys(state), ['queue', 'superChats', 'gifts', 'giftSprint', 'giftDetection',
+    assert.deepEqual(Object.keys(state).sort(), ['queue', 'superChats', 'gifts', 'giftSprint', 'giftDetection',
       'blindBoxMapping', 'overtime', 'settings', 'categories', 'tags', 'songCount', 'liveStatus', 'roomGuard',
-      'bilibiliDiagnostics', 'lyricState', 'lyricTimeline', 'nowPlaying', 'nowPlayingConfig', 'lyricSource', 'weSing', 'danmakuFeed']);
-    assert.deepEqual(reads, ['queue.getSnapshot', 'superChats.getSnapshot', 'gifts.getSnapshot',
-      'gifts.getSprintSnapshot', 'songs.getMetadata']);
+      'bilibiliDiagnostics', 'lyricState', 'lyricTimeline', 'nowPlaying', 'nowPlayingConfig', 'lyricSource', 'weSing', 'danmakuFeed'].sort());
+    assert.deepEqual(reads.toSorted(), ['gifts.getSnapshot', 'gifts.getSprintSnapshot', 'queue.getSnapshot',
+      'songs.getMetadata', 'superChats.getSnapshot']);
     assert.deepEqual(state.lyricState, lyrics.lyricState);
   } finally {
     await runtime.stop();

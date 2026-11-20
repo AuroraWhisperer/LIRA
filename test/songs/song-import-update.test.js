@@ -149,6 +149,23 @@ test('empty, invalid and conflicting replacement tables leave the old library in
   }
 });
 
+test('CSV replacement preserves multiline quoted fields and rejects the whole file on an unclosed quote', (t) => {
+  const { store, preview, apply } = fixture(t);
+  function replace(csv) {
+    const input = { rows: textParser()(csv, { preserveMissing: true }), replaceAll: true };
+    return apply(input, preview(input));
+  }
+
+  const price = '免费,\n注明"现场版"';
+  replace(buildSongsCsv([{ name: '原歌', request_price: price }]));
+  const [original] = store.listRows();
+  assert.equal(original.request_price, price);
+
+  const incomplete = '歌曲名字,点歌价格\n完整行,免费\n新歌,"第一行\n原歌,舰长';
+  assert.throws(() => replace(incomplete), /引号/);
+  assert.deepEqual(store.listRows().map((song) => song.id), [original.id]);
+});
+
 test('replacement rolls back deleted songs, references and prior updates when a later insert fails', (t) => {
   const { db, store, save, preview, apply } = fixture(t);
   const original = save({ name: '删除项' });
@@ -419,6 +436,29 @@ test('write failure rolls back updates, inserted categories, rows and import bat
   assert.deepEqual(store.listCategories(), categories);
   assert.equal(db.prepare('SELECT COUNT(*) AS count FROM import_batches').get().count, 0);
 });
+
+for (const format of ['CSV', 'XLSX']) {
+  test(`${format} replacement keeps the first headerless song when its enabled value is 可点`, (t) => {
+    const { store, preview, apply } = fixture(t);
+    const songs = [{ name: '甲', is_enabled: true }, { name: '乙', is_enabled: false }];
+    const options = { preserveMissing: true };
+    let rows;
+    if (format === 'CSV') {
+      const csv = buildSongsCsv(songs).split('\n').slice(1).join('\n').replace(',是,', ',可点,');
+      rows = textParser()(csv, options);
+    } else {
+      const files = readZipFiles(buildSongsWorkbook(songs));
+      const sheet = 'xl/worksheets/sheet1.xml';
+      files.set(sheet, files.get(sheet).replace(/<row r="1">.*?<\/row>/s, '').replace('<t>是</t>', '<t>可点</t>'));
+      rows = parseSongsFromXlsx(createZip([...files]), options);
+    }
+    const input = { rows, replaceAll: true };
+    const plan = preview(input);
+    assert.deepEqual([plan.counts.inserted, plan.counts.invalid, plan.canApply], [2, 0, true]);
+    apply(input, plan);
+    assert.deepEqual(store.listRows().map(({ name, is_enabled }) => [name, Boolean(is_enabled)]), [['甲', true], ['乙', false]]);
+  });
+}
 
 test('update parsing preserves missing columns and empty-name data rows across text and XLSX', (t) => {
   const { preview } = fixture(t);

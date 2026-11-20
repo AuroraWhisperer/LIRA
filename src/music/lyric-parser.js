@@ -170,7 +170,7 @@ function parseWordLyric(rawText) {
   let textLength = 0;
   const text = String(rawText || '');
   const linePattern = /\[(\d+),(\d+)\]([\s\S]*)/;
-  const prefixWordPattern = /\((\d+),(\d+),\d*\)([^()]+)/g;
+  const prefixWordPattern = /\((\d+),(\d+),\d*\)/g;
   // Scan markers and delimiters once; a missing timestamp must not rescan the text tail.
   const suffixWordPattern = /\((\d+),(\d+)\)|[()]/g;
 
@@ -181,12 +181,14 @@ function parseWordLyric(rawText) {
     const lineDurationMs = Number(lineMatch[2]);
     const body = lineMatch[3] || '';
     const words = [];
-    let match;
     prefixWordPattern.lastIndex = 0;
-    while ((match = prefixWordPattern.exec(body)) !== null) {
+    let match = prefixWordPattern.exec(body);
+    while (match) {
       const startMs = Number(match[1]);
       const durationMs = Number(match[2]);
-      const textValue = String(match[3] || '');
+      const textStart = prefixWordPattern.lastIndex;
+      match = prefixWordPattern.exec(body);
+      const textValue = body.slice(textStart, match?.index ?? body.length);
       if (!textValue.trim()) continue;
       textLength += textValue.length;
       assertLyricBudget(result.length + 1, textLength);

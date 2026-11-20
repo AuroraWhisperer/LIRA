@@ -36,42 +36,119 @@
 .playback-home-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
+}
+
+/* Wide layout: 3 recommendation entries, then 4 personal-library entries, with no empty cell. */
+@media (min-width: 1181px) {
+  .playback-home-grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .playback-home-card:nth-child(-n + 3) {
+    grid-column: span 4;
+  }
+
+  .playback-home-card:nth-child(n + 4) {
+    grid-column: span 3;
+  }
 }
 
 .playback-home-card {
   position: relative;
-  min-height: 72px;
-  display: flex;
-  flex-direction: column;
+  min-height: 84px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
   align-items: center;
-  justify-content: center;
-  gap: 4px;
+  column-gap: 14px;
+  row-gap: 2px;
   overflow: visible;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-  padding: 12px 10px;
-  text-align: center;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--text) 3%, var(--surface));
+  padding: 14px 16px;
+  text-align: left;
   transition:
-    border-color 180ms ease,
-    background 180ms ease;
+    transform 200ms ease,
+    box-shadow 200ms ease,
+    background 200ms ease;
   cursor: pointer;
 }
 
+.playback-home-card:has([data-playback-home-glyph='qq']),
+.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-card:has([data-playback-home-glyph='netease']) {
+  grid-template-columns: 32px minmax(0, 1fr);
+}
+
+.playback-home-icon {
+  position: relative;
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #31c27c;
+}
+
+.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-icon {
+  color: #ec4141;
+}
+
+.playback-home-icon svg {
+  width: 32px;
+  height: 32px;
+}
+
+/* Only show function icons verified in the corresponding desktop client. */
+.playback-home-icon--netease,
+.playback-home-icon [data-playback-home-glyph='netease'],
+.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-icon [data-playback-home-glyph='qq'] {
+  display: none;
+}
+
+.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-icon [data-playback-home-glyph='netease'] {
+  display: block;
+}
+
+.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-icon--netease {
+  display: grid;
+}
+
+/* NetEase's daily recommendation calendar includes today's date. */
+.playback-home-day {
+  display: none;
+  position: absolute;
+  inset: 16px 0 auto;
+  font-family: var(--font-display);
+  font-size: 10px;
+  font-weight: var(--type-weight-bold);
+  font-variant-numeric: tabular-nums;
+  line-height: 11px;
+  text-align: center;
+}
+
+.playback-page:has(#playbackSourceNeteaseTab.active) .playback-home-day {
+  display: block;
+  color: var(--surface);
+}
+
 .playback-home-card strong {
+  grid-column: -2 / -1;
+  align-self: end;
   font-size: var(--type-size-card-title);
   line-height: var(--type-leading-card-title);
   font-weight: var(--type-weight-semibold);
   color: var(--text);
 }
 
-.playback-home-card span {
+.playback-home-card .ui-caption {
+  grid-column: -2 / -1;
+  align-self: start;
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
   line-height: var(--type-leading-caption);
-  max-width: 100%;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -79,20 +156,8 @@
 }
 
 .playback-home-card strong,
-.playback-home-card span {
+.playback-home-card .ui-caption {
   max-width: 100%;
-}
-
-.playback-home-card::before {
-  content: '♫';
-  font-size: var(--type-size-metric-sm);
-  color: var(--muted);
-  opacity: 0.55;
-  line-height: 1;
-  margin-bottom: 2px;
-  transition:
-    color 160ms ease,
-    opacity 160ms ease;
 }
 
 .playback-home-card::after {
@@ -100,23 +165,30 @@
 }
 
 .playback-home-card:hover {
-  border-color: var(--color-border-strong);
-  background: var(--color-bg-hover, var(--color-bg-tertiary));
-}
-
-.playback-home-card:hover::before,
-.playback-home-card.active::before {
-  color: var(--primary);
-  opacity: 1;
+  background: var(--surface);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--text) 6%, transparent),
+    0 10px 26px color-mix(in srgb, var(--text) 8%, transparent);
+  transform: translateY(-2px);
 }
 
 .playback-home-card.active {
-  border-color: var(--color-selection-marker, var(--primary));
   background: var(--color-primary-light);
+  box-shadow: 0 0 0 1.5px var(--color-selection-marker, var(--primary));
 }
 
 .playback-home-card.active strong {
   color: var(--color-selection-text, var(--primary-strong));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .playback-home-card {
+    transition: none;
+  }
+
+  .playback-home-card:hover {
+    transform: none;
+  }
 }
 
 .playback-home-results {

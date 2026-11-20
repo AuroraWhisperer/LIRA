@@ -7,6 +7,7 @@ const { SONG_SCHEMA, runMigrations, getSchemaVersion } = require('../../src/stor
 const { migrateFanProfiles } = require('../../src/storage/fan-profile-migration');
 const { migrateFanRosterObservations } = require('../../src/storage/fan-roster-observation-migration');
 const { createFanRecordStore } = require('../../src/storage/fan-record-store');
+const { createFanProfileService } = require('../../src/fans/profile-service');
 const { recordData } = require('../../src/fans/validation');
 const { prepareMembership } = require('../../src/fans/membership');
 const { buildReminders } = require('../../src/fans/reminders');
@@ -97,6 +98,48 @@ test('full and projection reads reject roster evidence owned by another account'
   f.db.songDb.prepare('UPDATE fan_roster_templates SET scope = ? WHERE scope = ?').run('other', SCOPE);
   assert.throws(() => f.store.records.listForProfiles(SCOPE, [p.id]), /原始依据缺失/);
   assert.throws(() => f.store.records.listProjectionInputs(SCOPE, [p.id]), /原始依据缺失/);
+  assert.throws(() => f.run('list'), /原始依据缺失/);
+});
+
+test('dated lists resolve restored roster provenance and membership at their distinct observation times', (t) => {
+  const f = fanFixture(t);
+  const p = f.create({ birthday: { monthDay: '09-19' } });
+  const backup = f.run('backup');
+  const rebound = { ...IDENTITY, value: '900000002' };
+  const saved = backup.profiles[0];
+  saved.identity = rebound;
+  saved.guardRoster = { roomId: '1234', ownerUid: '99', level: 3, observedAt: '2026-08-06T04:00:00.000Z' };
+  function add(id, observedAt, level, person = IDENTITY) {
+    const record = observation(observedAt, level);
+    record.original.identity = person;
+    record.sourceKey = record.sourceKey.replace(IDENTITY.value, person.value);
+    saved.records.push({ ...record, id, revision: 1, revisions: [] });
+  }
+  for (const day of ['01', '04', '13']) add(`old-${day}`, `2026-08-${day}T04:00:00.000Z`, 3);
+  add('current-identity', '2026-08-02T04:00:00.000Z', 2, rebound);
+  add('same-time-a', '2026-09-01T04:00:00.000Z', 2);
+  add('same-time-z', '2026-09-01T04:00:00.000Z', 1);
+  const future = '2026-09-18T05:00:00.000Z';
+  add('future', future, 1);
+  f.run('restore', { backup, ...f.run('preview-restore', { backup }), conflicts: 'replace' });
+
+  function compare(at) {
+    f.setNow(at);
+    const complete = createFanProfileService({ now: () => at, store: { ...f.store, records: {
+      ...f.store.records, listProjectionInputs: f.store.records.listForProfiles,
+    } } });
+    const list = f.run('list');
+    assert.deepEqual(list, complete.execute(SCOPE, 'list'));
+    for (const view of ['reminders', 'calendar']) assert.deepEqual(f.run(view), complete.execute(SCOPE, view));
+    return list.profiles[0];
+  }
+  const current = compare(NOW);
+  assert.equal(current.currentGuardLevel, 2, 'the old UID invalidates the restored snapshot');
+  assert.equal(current.membership.observedLevel, 2, 'equal instants retain the first record by ID');
+  assert.equal(compare(future).membership.observedLevel, 1);
+  assert.equal(compare('2026-09-18T16:00:00.000Z').nextReminder.group, 'today');
+  assert.equal(compare(NOW).membership.observedLevel, 2);
+  assert.equal(f.detail(p.id).records.length, saved.records.length);
 });
 
 test('only pristine automatic observations compact; decisions, revisions, manual facts and purchases stay intact', (t) => {

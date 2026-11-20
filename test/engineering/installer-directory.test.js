@@ -76,7 +76,7 @@ test(
           .readFileSync(output, 'utf16le')
           .replace(/^\uFEFF/, '')
           .split('\r\n');
-        assert.deepEqual(actual, [expected, previous || expected], name);
+        assert.deepEqual(actual, [expected, previous], name);
       }
     } finally {
       const resolved = fs.realpathSync(root);
@@ -86,6 +86,51 @@ test(
     }
   },
 );
+
+test('the final directory is compared to a registered installation, not the fresh page default', {
+  skip: process.platform !== 'win32' || !compiler,
+}, t => {
+  const { createScratchDirectory } = require('../helpers/scratch-directory');
+  const root = createScratchDirectory('install-final-directory-', t);
+  const installer = fs.readFileSync(path.join(__dirname, '../../build/installer.nsh'), 'utf8');
+  const data = fs.readFileSync(path.join(__dirname, '../../build/installer-data.nsh'), 'utf8');
+  const choose = installer.match(/Function liraSelectDefaultDirectory\b[\s\S]*?FunctionEnd/)[0]
+    .replace(/ReadRegStr[^\r\n]+/, 'ReadEnvStr $liraPreviousInstallDir FIXTURE_PREVIOUS')
+    .replace('!insertmacro GetDParameter $R0', 'StrCpy $R0 ""')
+    .replace('"D:\\*.*"', '"$disk\\*.*"').replace('"D:\\LIRA"', '"$disk\\LIRA"');
+  const sectionEntry = installer.match(/Section "-LIRA Preserve Data"([\s\S]*?)\$\{If\} \$installMode/)[1]
+    .replace('Call liraRequireWritableInstallDirectory', '; all fixture targets are writable');
+  const freshCheck = data.match(/Function liraPreserveInstallData\b[\s\S]*?\n  Return\b/)[0]
+    .replace('$APPDATA', '$disk\\fake-appdata');
+  assert.doesNotMatch(choose + sectionEntry + freshCheck, /ReadReg|WriteReg|DeleteReg|ExecWait|RMDir|D:\\LIRA/);
+  const script = path.join(root, 'paths.nsi');
+  const exe = path.join(root, 'paths.exe');
+  fs.writeFileSync(script, [
+    'Unicode true', 'SilentInstall silent', 'Name "Directory decision"', 'RequestExecutionLevel user',
+    `OutFile "${exe.replaceAll('$', () => '$$')}"`,
+    'Var disk', 'Var liraPreviousInstallDir', 'Var liraDataStage', 'Var liraDataBackup', 'Var liraDataSource',
+    choose, freshCheck, '  liraPrepareFailed:', '    SetErrorLevel 2', '    Quit',
+    '  liraCheckDestination:', '  liraCheckBackup:', '  liraRecoverBackup:', '  liraAudioOnlyBackup:',
+    '    SetErrorLevel 91', '    Quit', 'FunctionEnd', 'Section', 'ReadEnvStr $disk FIXTURE_DISK',
+    'StrCpy $INSTDIR "$disk\\LIRA"', 'Call liraSelectDefaultDirectory', 'ReadEnvStr $INSTDIR FIXTURE_SELECTED',
+    sectionEntry, 'Call liraPreserveInstallData', 'SetErrorLevel 0', 'SectionEnd',
+  ].join('\n'));
+  const build = spawnSync(compiler, ['/NOCONFIG', '/V2', '-INPUTCHARSET', 'UTF8', script], { cwd: root, encoding: 'utf8', windowsHide: true });
+  assert.equal(build.status, 0, build.stdout + build.stderr);
+  const codes = [];
+  for (const [name, target, registered] of [['original', 'LIRA'], ['neighbor', 'LIRA2'],
+    ['nested', 'LIRA/Studio/LIRA'], ['registered-nested', 'LIRA/Studio/LIRA', true]]) {
+    const disk = path.join(root, name);
+    fs.mkdirSync(disk);
+    const previous = path.join(disk, 'LIRA');
+    if (registered) fs.mkdirSync(previous);
+    const run = spawnSync(exe, [], { cwd: disk, timeout: 10000, windowsHide: true,
+      env: { ...process.env, FIXTURE_DISK: disk, FIXTURE_SELECTED: path.join(disk, target), FIXTURE_PREVIOUS: registered ? previous : '' } });
+    codes.push(run.status);
+  }
+  t.diagnostic(`NSIS exits (default, neighbor, fresh nested, registered nested): ${codes.join(', ')}`);
+  assert.deepEqual(codes, [0, 0, 0, 2]);
+});
 
 test('installer accepts current-user installs and validates targets before touching an old installation', {
   skip: process.platform !== 'win32' || !compiler || !plugins,

@@ -93,6 +93,7 @@ async function fixture({ scene = false } = {}) {
   await loadModuleExports(path.resolve(__dirname, '../../public/js/overlays/danmaku.js'), {
     document: {
       defaultView: window,
+      head: new Node('head'),
       body,
       documentElement,
       getElementById: element,

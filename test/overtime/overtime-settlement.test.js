@@ -41,6 +41,32 @@ test('progress creates pending, disable ignores it, and old epochs never reopen 
   }
 });
 
+test('running gift settlement counts the time spent writing the adjustment', (t) => {
+  const fixture = createFixture();
+  const store = createOvertimeStore(fixture.db.giftDb);
+  const settleFinal = store.settleFinal;
+  store.settleFinal = (id, state, at, resolve) => settleFinal(id, state, at, input => {
+    fixture.clock.advance(40);
+    return resolve(input);
+  });
+  let service = fixture.createService({ store });
+  t.after(() => { service.dispose(); fixture.close(); });
+  const gift = makeProcessedGiftEvent().gift;
+  const giftIdentity = { priceRaw: 100, coinType: gift.coinType, bagGift: false };
+  giftIdentity.variantId = giftVariantId({ ...giftIdentity, giftId: gift.giftId, name: gift.giftName });
+  service.act('enable');
+  service.setTime({ remainingSeconds: 60 });
+  service.replaceRules([{ ...fixedRule(gift.giftId, 10), giftName: gift.giftName, giftIdentity }]);
+  service.act('start');
+  const event = fixture.insertFinalGift({ ...gift, giftVariantId: giftIdentity.variantId, overtimeEpoch: service.getCurrentEpoch() });
+  assert.equal(service.finalizeGift(event), true);
+  assert.equal(fixture.getSettlement(event.giftEventId).applied_delta_seconds, 10);
+  const liveMs = service.getSnapshot().effectiveRemainingMs;
+  service.dispose();
+  service = fixture.createService();
+  assert.deepEqual([liveMs, service.getSnapshot().effectiveRemainingMs], [69_960, 69_960]);
+});
+
 test('startup compensation settles an eligible final event missing its checkpoint', () => {
   const fixture = createFixture();
   let service = fixture.createService();

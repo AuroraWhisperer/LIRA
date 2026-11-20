@@ -1,6 +1,6 @@
 import { CANVAS_PRESETS } from './canvas-presets.js';
 
-// Display contract mirrored by the desktop main process and the server.
+// Logical canvas regions shared by the browser editor and local scene validation.
 const REGION_DEFAULTS = Object.freeze({
   coffee: [400, 640],
   'neon-glass': [480, 700],

@@ -47,7 +47,7 @@
           <label for="audioAssistantInputChannels">输入声道</label>
           <select id="audioAssistantInputChannels" data-audio-setting="inputChannels"><option value="auto">自动</option></select>
           <span id="audioAssistantInputFormat" class="hint"></span>
-          <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="inputMusic" /><span>音乐处理</span><lira-help label="音乐处理说明">输入内容为歌曲时再开启；开启后可调整人声 / 伴奏比例。麦克风默认保留人声；升降调和输出音量仍可使用。切换前先停止处理。</lira-help></label>
+          <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="inputMusic" /><span>音乐处理</span><lira-help label="音乐处理说明">只有当输入源是歌曲伴奏时才需要勾选（勾选后可分离人声/伴奏）。平时接麦克风说话唱歌请勿勾选；切换前需先关闭右侧「当前歌曲」开关。</lira-help></label>
         </div>
         <div class="audio-assistant-now-playing">
           <span class="hint" data-audio-source-label>当前歌曲</span>
@@ -55,11 +55,11 @@
           <span id="audioAssistantSourceDevice" class="hint"></span>
         </div>
         <div id="audioAssistantIsolation" class="audio-assistant-field">
-          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明" tooltip-id="audioAssistantCableHint">与音乐播放器的输出通道保持一致。使用 LIRA 内置播放器时，在「百宝箱 → 设置 → 外观与声音 → 内置播放器输出」中选择同一通道。这里会接收并静音播放器原声，须使用能独立静音的播放输出（Out），不能与最终输出相同。</lira-help></div>
+          <div class="audio-assistant-label"><label for="audioAssistantCable">原声通道</label><lira-help label="原声通道说明" tooltip-id="audioAssistantCableHint">选一个独立的虚拟音频通道（不能和下面的「最终输出」选同一个），并把你的音乐播放器输出也设到这个通道（若用 LIRA 内置播放器，可在「设置 → 外观与声音 → 内置播放器输出」里选同一个）。电音助手会从这里接走原声并自动静音原通道。</lira-help></div>
           <select id="audioAssistantCable" data-audio-setting="cableId" aria-describedby="audioAssistantCableHint"><option value="" disabled selected>请选择独立通道</option></select>
         </div>
         <div class="audio-assistant-field">
-          <div class="audio-assistant-label"><label for="audioAssistantOutput">最终输出</label><lira-help label="最终输出说明" tooltip-id="audioAssistantOutputHint">处理后的声音从这里输出，选择实际监听或送入直播的通道。采集播放器或播放设备时，最终输出须与原声通道或被采集设备不同。播放器已经设为原声通道时，请手动选择另一个设备。</lira-help></div>
+          <div class="audio-assistant-label"><label for="audioAssistantOutput">最终输出</label><lira-help label="最终输出说明" tooltip-id="audioAssistantOutputHint">升降调/消音处理后的声音从这里发出来。请选择你实际戴的耳机、音箱或推流采集通道（注意：绝对不能和上面的「原声通道」或被采集的播放设备选同一个，否则会串音或回声）。</lira-help></div>
           <select id="audioAssistantOutput" data-audio-setting="outputId" aria-describedby="audioAssistantOutputHint"><option value="">自动跟随播放器原输出</option></select>
         </div>
         <div class="audio-assistant-device-actions">
@@ -84,7 +84,7 @@
           </div>
         </div>
         <div data-audio-controls="full"></div>
-        <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="original" /><span>原声对比</span><lira-help label="原声对比说明">临时跳过声伴处理、变速与升降调；输出音量仍生效。</lira-help></label>
+        <label class="audio-assistant-original"><input type="checkbox" data-audio-setting="original" /><span>原声对比</span><lira-help label="原声对比说明">勾选后临时听一下未处理的原声（跳过消人声、变速和升降调，仅保留输出音量），方便对比效果。</lira-help></label>
       </section>
     </div>
   </div>

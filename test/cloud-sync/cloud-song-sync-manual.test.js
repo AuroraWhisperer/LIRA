@@ -5,6 +5,7 @@ const assert = require('node:assert/strict');
 const { createFixture } = require('../helpers/cloud-sync-controller-fixture');
 const { createHarness } = require('../helpers/license-manager-harness');
 const { createLicenseIpcFixture } = require('../helpers/license-ipc-fixture');
+const { mapSongForSync } = require('../../src/shared/cloud-song-snapshot');
 
 test('current and legacy IPC uploads share the automatic song byte budget', async (t) => {
   const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
@@ -28,6 +29,52 @@ test('current and legacy IPC uploads share the automatic song byte budget', asyn
   f.emitLocal('songs');
   await f.controller.whenIdle();
   assert.equal(uploads, 0);
+});
+
+test('songs that exceed cloud field limits remain pending until an intact snapshot can upload', async (t) => {
+  const { manager, remote } = createHarness({ identity: { deviceId: 'd', publicKeyPem: 'public' } });
+  t.after(() => manager.dispose());
+  await manager.bootstrap();
+  const prefix = '歌'.repeat(200);
+  let pending = { mutationId: 'one', songs: [
+    { name: '普通歌名', song_clip: '片'.repeat(999) + '🎵' },
+    { name: prefix + '甲', artist: '同一歌手' }, { name: prefix + '乙', artist: '同一歌手' },
+  ] };
+  const uploads = [];
+  remote.syncSongs = async (songs) => {
+    uploads.push(songs);
+    return { ok: true, count: songs.length, revision: 6 };
+  };
+  const f = createFixture({
+    licenseManager: { syncSongs: manager.syncSongs },
+    runtime: {
+      getCloudSongsSnapshot: () => pending.songs,
+      hasPendingCloudSongs: () => Boolean(pending),
+      getPendingCloudSongs: () => pending,
+      replaceCloudSongsSnapshot: (songs) => assert.deepEqual(songs, pending?.songs.map(mapSongForSync)),
+      acknowledgePendingCloudSongs: (_account, id) => { assert.equal(id, pending.mutationId); pending = null; },
+    },
+  });
+  t.after(() => f.controller.dispose());
+  const ipc = createLicenseIpcFixture({ licenseManager: manager, cloudSyncController: f.controller });
+  const generation = f.controller.getLocalSongCount().generation;
+  const upload = () => ipc.invoke('license:sync-current-songs', generation);
+  const clipIssue = await upload();
+  assert.equal(clipIssue.error, 'SONG_CLIP_TOO_LONG');
+  assert.equal(clipIssue.index, 0);
+  assert.equal(pending.songs[0].song_clip.length, 1001);
+  pending.songs[0].song_clip = '片'.repeat(998) + '🎵';
+  const titleIssue = await upload();
+  assert.equal(titleIssue.error, 'SONG_TITLE_TOO_LONG');
+  assert.equal(titleIssue.index, 1);
+  await f.controller.syncNow();
+  assert.equal(uploads.length, 0);
+  pending.songs[1].name = '甲';
+  pending.songs[2].name = '乙';
+  assert.equal((await upload()).count, 3);
+  assert.equal(pending, null);
+  assert.deepEqual(uploads[0].map((song) => song.title), ['普通歌名', '甲', '乙']);
+  assert.equal(uploads[0][0].songClip, '片'.repeat(998) + '🎵');
 });
 
 test('manual sync fences an in-flight pull and uploads the complete current library', async (t) => {
@@ -89,13 +136,14 @@ test('failed manual sync preserves pending songs for an automatic retry and ackn
       syncSongs: async (songs) => {
         assert.equal(songs, pending.songs);
         if (++attempts === 1) throw Object.assign(new Error(), { code: 'NETWORK_UNAVAILABLE' });
-        return { count: songs.length, revision: 6 };
+        return f.commitSongs(songs);
       },
     },
     runtime: {
       getCloudSongsSnapshot: () => pending?.songs || [{ name: 'Pending local edit' }],
       hasPendingCloudSongs: () => Boolean(pending),
       getPendingCloudSongs: () => pending,
+      replaceCloudSongsSnapshot: (songs) => assert.deepEqual(songs, pending?.songs.map(mapSongForSync)),
       acknowledgePendingCloudSongs: (_account, id) => { acknowledgements.push(id); pending = null; },
     },
   });
@@ -105,7 +153,6 @@ test('failed manual sync preserves pending songs for an automatic retry and ackn
   await f.controller.syncNow();
   assert.equal(attempts, 2);
   assert.deepEqual(acknowledgements, [7]);
-  assert.equal(f.calls.some(([op]) => op === 'apply-songs'), false);
 });
 
 test('stopped manual work rejects and cannot acknowledge pending songs', async (t) => {
@@ -139,7 +186,7 @@ test('manual sync respects Retry-After before the queued automatic retry', async
     licenseManager: {
       syncSongs: async (songs) => {
         if (++attempts === 1) throw error;
-        return { ok: true, count: songs.length, revision: 6 };
+        return f.commitSongs(songs);
       },
     },
   });

@@ -10,6 +10,12 @@ const styles = ['stardust', 'window', 'comic', 'bubble', 'signal', 'minimal', 'r
 
 async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   const document = createParameterDocument();
+  const createElement = document.createElement;
+  document.createElement = tag => {
+    const node = createElement(tag);
+    if (tag === 'canvas') node.getContext = () => ({ font: '', measureText() { return { width: this.font.includes(',') ? 20 : 10 }; } });
+    return node;
+  };
   const node = document.getElementById;
   document.querySelector = selector => selector === '.danmaku-signal-stage' ? node('stage') : null;
   const buttons = [...styles, 'floating', 'comet'].map((style) => {
@@ -112,6 +118,9 @@ async function fixture(search = '?preview=1', savedStyle, localFonts = []) {
   const module = new vm.SourceTextModule(read('danmaku.js'), { context, identifier: path.resolve(__dirname, '../../public/js/overlays/danmaku.js') });
   const cache = new Map();
   await module.link((specifier, parent) => {
+    if (specifier === './danmaku-appearance-values.js') return new vm.SyntheticModule(['acquireDanmakuAppearanceValues'], function () {
+      this.setExport('acquireDanmakuAppearanceValues', () => ({ read: async () => ({}), dispose() {} }));
+    }, { context });
     if (specifier !== './danmaku-feed.js') {
       const file = path.resolve(path.dirname(parent.identifier), specifier);
       if (!cache.has(file)) cache.set(file, new vm.SourceTextModule(fs.readFileSync(file, 'utf8'), { context, identifier: file }));
@@ -287,7 +296,7 @@ test('local preview applies per-style parameters without external image requests
   assert.equal(f.node('root').style['--danmaku-font-size'], '42px');
   assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), options);
   const font = f.node('previewFontFamily');
-  assert.equal(font.value, 'serif');
+  assert.equal(font.value, '"SimSun"');
   const selected = font.options.find(option => option.value === '"Preview Local Font"');
   assert.ok(selected, 'the preview must allow a font discovered by the shared library');
   font.value = selected.value;
@@ -324,6 +333,16 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
   fontSize.value = '80';
   fontSize.events.change();
   assert.equal(f.history.state.danmakuStyleOptions.signal.fontSize, 40);
+  const nicknameSize = f.node('previewNicknameFontSize');
+  assert.equal(nicknameSize.value, '60', 'the numeric nickname default remains independent of body size');
+  nicknameSize.value = '39.5';
+  nicknameSize.events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.signal.nicknameFontSize, 19.75);
+  const amountSize = f.node('previewAmountFontSize');
+  amountSize.value = '40';
+  amountSize.events.change();
+  assert.equal(f.history.state.danmakuStyleOptions.signal.amountFontSize, 20);
+  assert.equal(f.history.state.danmakuStyleOptions.signal.amountSuperchatFontSize, 18.67);
 
   f.node('bubble').events.click();
   const color = f.node('previewTextColor');
@@ -332,12 +351,14 @@ test('scaled appearance edits keep logical font sizes and reset only the selecte
   assert.equal(f.history.state.danmakuStyleOptions.bubble.textColor, '#abcdef');
   f.node('previewAppearanceReset').events.click();
   assert.deepEqual(JSON.parse(JSON.stringify(f.history.state.danmakuStyleOptions)), {
-    signal: { fontSize: 40 },
+    signal: { fontSize: 40, nicknameFontSize: 19.75, amountFontSize: 20, amountSuperchatFontSize: 18.67 },
     bubble: {},
   });
 
   f.node('signal').events.click();
   assert.equal(fontSize.value, '80');
+  assert.equal(nicknameSize.value, '39.5', 'scaled fractional sizes round-trip without integer rounding');
+  assert.equal(amountSize.value, '40');
   fontSize.value = '97';
   fontSize.events.change();
   assert.equal(fontSize.value, '80');

@@ -5,6 +5,69 @@ const path = require('node:path');
 const { chromium } = require('playwright');
 const { launchElectron } = require('../helpers/shared-electron');
 
+async function setFontSize(input, value) {
+  await input.focus();
+  await input.evaluate((node, value) => {
+    node.value = String(value);
+    node.dispatchEvent(new Event('input', { bubbles: true }));
+    node.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
+
+test('danmaku favorites synchronize between the desktop and external canvas without saving appearance', { timeout: 45000 }, async (t) => {
+  const scratchRoot = path.resolve(__dirname, '../../tmp');
+  await fs.mkdir(scratchRoot, { recursive: true });
+  const directory = await fs.mkdtemp(path.join(scratchRoot, 'lira-favorites-electron-'));
+  let app;
+  let browser;
+  t.after(async () => {
+    await browser?.close();
+    await app?.close();
+    assert.equal(path.dirname(await fs.realpath(directory)), await fs.realpath(scratchRoot));
+    await fs.rm(directory, { recursive: true, force: true });
+  });
+  app = await launchElectron({ cwd: path.resolve(__dirname, '../..'),
+    args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
+  const desktop = await app.firstWindow();
+  desktop.setDefaultTimeout(5000);
+  await desktop.waitForURL('**/admin', { waitUntil: 'domcontentloaded', timeout: 15000 });
+  await desktop.locator('#danmakuFontSize:enabled').waitFor({ state: 'attached' });
+  await desktop.locator('#danmakuPreviewOverlayBtn').click();
+  const deadline = Date.now() + 5000;
+  let url;
+  while (!url && Date.now() < deadline) {
+    url = await app.evaluate(() => global.canvasTest.externalUrls.at(-1));
+    if (!url) await new Promise(resolve => setTimeout(resolve, 25));
+  }
+  assert.ok(url, 'The desktop opens the authorized editor.');
+  assert.equal((await fetch(url)).status, 200);
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+  page.setDefaultTimeout(5000);
+  await page.goto(url, { waitUntil: 'domcontentloaded' });
+  await page.locator('.component-preview-frame').waitFor();
+  const appearanceWrites = await app.evaluate(() => global.canvasTest.attempts);
+  await desktop.locator('#danmakuAllStylesBtn').click();
+  await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="cream"]').click();
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  const picker = page.locator('.preview-component-picker');
+  const canvasOrder = () => picker.locator('[data-picker-component="danmaku"]').evaluateAll(cards => cards.map(card => card.dataset.pickerStyle));
+  await picker.locator('[data-danmaku-favorite="cream"][aria-pressed="true"]').waitFor();
+  assert.equal((await canvasOrder())[0], 'cream', 'The external browser reads desktop favorites.');
+  await picker.locator('[data-danmaku-favorite="signal"]').click();
+  await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="signal"][aria-pressed="true"]').waitFor();
+  assert.deepEqual((await canvasOrder()).slice(0, 2), ['signal', 'cream']);
+  await picker.locator('[data-danmaku-favorite="signal"]').click();
+  await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="signal"][aria-pressed="false"]').waitFor();
+  assert.equal((await canvasOrder())[0], 'signal', 'Unfavoriting in the canvas holds its current slot.');
+  await picker.getByRole('button', { name: '关闭', exact: true }).click();
+  await page.getByRole('button', { name: '添加组件', exact: true }).click();
+  assert.equal((await canvasOrder())[0], 'cream', 'Reopening rebuilds the canvas order.');
+  await desktop.locator('#danmakuStyleLibrary [data-danmaku-favorite="cream"]').click();
+  await picker.locator('[data-danmaku-favorite="cream"][aria-pressed="false"]').waitFor();
+  assert.equal(await app.evaluate(() => global.canvasTest.attempts), appearanceWrites, 'Favorites do not save the appearance.');
+});
+
 test('browser canvas keeps sandbox isolation and saves through the real desktop bridge', { timeout: 90000 }, async (t) => {
   const scratchRoot = path.resolve(__dirname, '../../tmp');
   await fs.mkdir(scratchRoot, { recursive: true });
@@ -24,7 +87,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   desktop.setDefaultTimeout(5000);
   const errors = [];
   desktop.on('pageerror', (error) => errors.push(error.message));
-  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  await desktop.locator('#danmakuFontSize:enabled').waitFor({ state: 'attached' });
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   const openPreview = async (count) => {
@@ -88,7 +151,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.ok(await number('X') > previousX);
   await change('宽度', 740);
   const fontSize = page.locator('[data-preview-field="danmakuFontSize"]');
-  await fontSize.fill('36');
+  await setFontSize(fontSize, 36);
   await fontSize.press('Tab');
   await page.getByRole('button', { name: '画布设置', exact: true }).click();
   await page.getByRole('button', { name: '公共画布分辨率', exact: true }).click();
@@ -108,16 +171,15 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   await fontSize.waitFor();
   assert.equal(await number('宽度'), 987);
   assert.equal(await fontSize.inputValue(), '36');
-  await fontSize.fill('38');
+  await setFontSize(fontSize, 38);
   await fontSize.press('Tab');
-  await fontSize.fill('36');
+  await setFontSize(fontSize, 36);
   await fontSize.press('Tab');
   assert.equal(await app.evaluate(() => global.canvasTest.attempts), 0, 'Refresh must retain an unsaved draft.');
   await app.evaluate(() => { global.canvasTest.failNext = true; });
   const save = page.getByRole('button', { name: '保存并应用', exact: true });
-  const saveState = page.locator('.preview-canvas-status');
   await save.click();
-  await saveState.filter({ hasText: '弹幕外观暂时无法读取或保存' }).waitFor();
+  await page.locator('.preview-canvas-status.has-error').waitFor();
   assert.equal(await number('宽度'), 987);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
   assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 0);
@@ -125,9 +187,7 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   assert.equal(await app.evaluate(() => global.canvasTest.componentSize()), null);
   assert.equal(await desktop.locator('#copyLiveCanvasUrl').isDisabled(), true);
   await save.click();
-  await saveState.filter({ hasText: '已保存并应用到直播源' }).waitFor().catch(async (error) => {
-    throw new Error(`Publication status: ${await saveState.textContent()}`, { cause: error });
-  });
+  await save.click({ trial: true });
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.signal.fontSize), 36);
   const savedScene = await app.evaluate(() => global.canvasTest.scene());
   assert.equal(savedScene.document.canvas.width, 2560);
@@ -161,12 +221,15 @@ test('browser canvas keeps sandbox isolation and saves through the real desktop 
   await reopened.locator(`[data-picker-style="${style}"]`).click();
   assert.equal(await reopened.getByRole('spinbutton', { name: '宽度', exact: true }).inputValue(), '2560');
   assert.equal(await reopened.getByRole('spinbutton', { name: '高度', exact: true }).inputValue(), '1440');
+  await reopened.locator('[data-preview-field="danmakuMotionOptions"] > summary').click();
   const speed = reopened.locator('[data-preview-field="danmakuFloatingSpeed"]');
   const dispersion = reopened.locator('[data-preview-field="danmakuFloatingDispersion"]');
   await speed.press('End');
   await dispersion.press('End');
-  await reopened.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await reopened.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const reopenedSave = reopened.getByRole('button', { name: '保存并应用', exact: true });
+  await reopenedSave.click();
+  await reopenedSave.click({ trial: true });
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 2);
   const floating = await app.evaluate((_, style) => global.canvasTest.scene().document.items.find(item => item.appearance.config?.style === style), style);
   assert.deepEqual([floating.x, floating.y, floating.width, floating.height], [0, 0, 2560, 1440]);
   assert.equal(await app.evaluate((_, style) => global.canvasTest.saved().styleOptions[style].speedPixelsPerSecond, style), 360);
@@ -193,7 +256,7 @@ test('effect controls retain each component style, save through desktop IPC, pub
   });
   const desktop = await app.firstWindow();
   await desktop.waitForURL('**/admin', { waitUntil: 'load', timeout: 15000 });
-  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  await desktop.locator('#danmakuFontSize:enabled').waitFor({ state: 'attached' });
   await desktop.locator('#danmakuPreviewOverlayBtn').click();
   let url;
   for (let attempt = 0; attempt < 100 && !url; attempt++) {
@@ -206,12 +269,11 @@ test('effect controls retain each component style, save through desktop IPC, pub
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(url);
-  await page.locator('[data-text-group="nickname"] > summary').click();
   const nicknameSize = page.locator('[data-preview-field="danmakuNicknameFontSize"]');
-  await nicknameSize.fill('24');
+  await setFontSize(nicknameSize, 24);
   await nicknameSize.press('Tab');
-  await page.locator('[data-text-group="amount"] > summary').click();
-  await page.locator('[data-preview-field="danmakuAmountFontSize"]').fill('18');
+  await setFontSize(page.locator('[data-preview-field="danmakuAmountFontSize"]'), 18);
+  assert.equal(await page.locator('[data-preview-field="danmakuAmountSuperchatFontSize"]').isVisible(), false);
   await page.locator('[data-preview-field="danmakuAmountFontSize"]').press('Tab');
   const previewElement = await page.locator('.component-preview-frame').elementHandle();
   const previewDocument = await previewElement.contentFrame();
@@ -221,40 +283,45 @@ test('effect controls retain each component style, save through desktop IPC, pub
   }, null, { timeout: 7000 });
   await previewElement.dispose();
   const shadow = page.locator('[data-effect-enabled="shadow"]');
-  await page.locator('.danmaku-advanced > summary').waitFor();
-  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-preview-field="danmakuTextOptions"] > summary').click();
+  await page.locator('[data-preview-field="danmakuTextOptions"] > summary').click();
+  assert.equal(await nicknameSize.inputValue(), '24', 'Collapsing text settings retains the draft.');
+  await page.locator('[data-preview-field="danmakuAppearanceOptions"] > summary').click();
   await page.locator('[data-effect-group="shadow"] > summary').click();
   await shadow.check();
   await page.locator('[data-effect-field="shadow.blur"]').fill('24');
   await page.locator('[data-effect-field="shadow.blur"]').press('Tab');
+  await page.locator('[data-preview-field="danmakuMotionOptions"] > summary').click();
   assert.equal(await page.getByLabel('显示机器人欢迎弹幕', { exact: true }).isChecked(), true);
   await page.getByLabel('显示机器人欢迎弹幕', { exact: true }).uncheck();
-  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-preview-field="danmakuAppearanceOptions"] > summary').click();
   assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
   assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), false);
   assert.equal(await app.evaluate(() => global.canvasTest.writes.length), 0);
   await page.getByRole('button', { name: '添加组件', exact: true }).click();
   await page.locator('[data-category="danmaku"]').click();
   await page.locator('[data-picker-style="bubble"]').click();
-  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-preview-field="danmakuAppearanceOptions"] > summary').click();
   await page.locator('[data-effect-group="shadow"] > summary').click();
   assert.equal(await shadow.isChecked(), false);
   assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), true);
-  assert.equal(await nicknameSize.inputValue(), '', 'Another style retains its authored nickname size.');
+  assert.equal(await nicknameSize.inputValue(), '30', 'Another style displays its own numeric nickname size.');
   await page.locator('.preview-canvas-layer-select').last().click();
-  await page.locator('.danmaku-advanced > summary').click();
+  await page.locator('[data-preview-field="danmakuAppearanceOptions"] > summary').click();
   await page.locator('[data-effect-group="shadow"] > summary').click();
   assert.equal(await shadow.isChecked(), true);
   assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
   assert.equal(await nicknameSize.inputValue(), '24');
-  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.waitForFunction(() => document.body.textContent.includes('已保存并应用到直播源'));
+  const save = page.getByRole('button', { name: '保存并应用', exact: true });
+  await save.click();
+  await save.click({ trial: true });
   const saved = await app.evaluate(() => global.canvasTest.saved().styleParameters);
   assert.equal(saved.signal.shadow.blur, 24);
   assert.equal(saved.signal.showEntryMessages, false);
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.signal.nicknameFontSize), 24);
   assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.signal.amountFontSize), 18);
-  assert.ok((await app.evaluate(() => global.canvasTest.scene())).publishedVersion > 0);
+  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.signal.amountSuperchatFontSize), 16.8);
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
   await page.reload();
   await page.locator('.preview-canvas-layer-select').last().click();
   await shadow.waitFor({ state: 'attached' });
@@ -262,12 +329,15 @@ test('effect controls retain each component style, save through desktop IPC, pub
   assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), false);
   assert.equal(await page.locator('[data-effect-field="shadow.blur"]').inputValue(), '24');
   assert.equal(await nicknameSize.inputValue(), '24', 'Reopening retains the saved non-body group.');
-  await page.locator('.danmaku-advanced > summary').click();
+  assert.equal(await page.locator('[data-preview-field="danmakuAmountFontSize"]').inputValue(), '18');
+  assert.equal(await page.locator('[data-preview-field="danmakuAmountSuperchatFontSize"]').inputValue(), '16.8');
+  await page.locator('[data-preview-field="danmakuAppearanceOptions"] > summary').click();
   await page.getByRole('button', { name: '恢复当前样式效果', exact: true }).click();
   assert.equal(await shadow.isChecked(), false);
   assert.equal(await page.locator('[data-show-entry-messages]').isChecked(), true);
-  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.waitForFunction(() => document.body.textContent.includes('已保存并应用到直播源'));
+  await save.click();
+  await save.click({ trial: true });
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 2);
   assert.deepEqual(await app.evaluate(() => global.canvasTest.saved().styleParameters.signal), {});
   assert.deepEqual(errors, []);
 });

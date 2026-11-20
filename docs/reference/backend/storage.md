@@ -280,13 +280,13 @@ songDb v15 为 `fan_records` 和 `fan_reminder_states` 分别增加 `idx_fan_rec
 
 `fan-profile-store.list(scope)` 默认排除黑名单，不额外读取每份档案的抑制状态；完整备份导出显式传入 `{includeSuppressed:true}`。`get` / `byIdentity` 供内部身份匹配及备份使用，应用服务对详情、手动写入与自动写入执行黑名单规则。完整备份保留黑名单及被屏蔽的原资料，恢复时合并当前黑名单，仅 `unsuppress` 明确解除；黑名单不新增 schema。完整本机恢复点在原恢复事务内通过 `removeAll(scope)` 一次删除当前 scope 的档案及级联明细，并仅清理一次无引用名单模板；其他 scope、当前抑制标记及恢复失败回滚规则保持不变。
 
-列表、提醒和日历通过 `fan-record-store.listProjectionInputs` 分批读取日期、提醒数据和名单依据，不加载修订历史、手记正文或歌曲计数桶；原始依据仅省略这些视图不使用的 `body`，其余字段及名单模板的观察时间仍参与投影。详情、修改、合并和完整备份继续使用完整记录读取，不复用此投影，也不删改持久数据。
+列表、提醒和日历通过 `records.listProjectionInputs` 分批读取日期、提醒数据和名单依据，省去修订历史、手记正文和歌曲计数桶。每份档案的读取边界取提醒历史所需的最早一天（含里程碑比较的前一天）与有效名单快照时间中的较早者。边界之前，同一档案、同一自动名单模板只需最近一次标准 UTC 观测。选中时间的并列证据按原顺序返回，其他时间格式、手改记录和边界之后的观测逐条读取。详情、修改、合并和备份使用完整历史。
 
-`requests` 保存 `stable_id`（唯一 UUID）、`owner_scope`、`identity_type` 和 v13 新增的 `fan_recorded`。普通点歌入队、更新档案歌曲汇总与标记已归档在同一事务提交；仍在队列中的请求通过稳定标识和标记避免重复计数。旧流水不猜归属，也不补记以前遗漏的档案记录。`done`、`deleted`、`skipped` 及清空队列会物理删除对应的 `queue` / `requests` 行，已计入档案的次数不扣除；`done` 只表示队列已处理。
+`requests` 保存 `stable_id`（唯一 UUID）、`owner_scope`、`identity_type` 和 v13 新增的 `fan_recorded`。普通点歌入队、更新档案歌曲汇总与标记已归档在同一事务提交；仍在队列中的请求通过稳定标识和标记避免重复计数。QueueStore 在事务内核对监听器捕获的账号。切号后的延迟请求将 `requests.owner_scope` 留空，跳过粉丝归档、`song_request_daily_counts` 和 `song_cooldowns`。正常无账号运行继续以空字符串保存本地次数与歌曲冷却。旧流水不猜归属，也不补记以前遗漏的档案记录。`done`、`deleted`、`skipped` 及清空队列会物理删除对应的 `queue` / `requests` 行，已计入档案的次数不扣除；`done` 只表示队列已处理。
 
 songDb v13 由 [fan-song-migration.js](../../../src/storage/fan-song-migration.js) 将每份档案中规范化歌名与歌手相同的 `song` 合为一条：`data` 保存 `songName`、`artist`、累计 `count`、最新三个不同上海日期 `recentDates`、按日期/曲风计数的 `dailyCounts` 和合并的手写 `note`，`original` 为 `{}`、`revisions` 为 `[]`。不保留逐次原始记录或歌曲修订；其他记录类型保持原始依据与修订。旧 `excluded` 和随机点歌不贡献汇总；旧 `excludeFromStats` 仅排除近 30 天计数，仍贡献累计次数和最近日期。汇总和校验规则由 [song-summary.js](../../../src/fans/song-summary.js) 持有。
 
-`fan-record-store` 在写入、档案读取、完整备份导出及启动/每小时 retention 时清理早于上海当天及前 29 天的 `dailyCounts`，保留累计次数和最近三个日期；时钟回退产生的未来日期桶暂存，但不计入当前展示。档案表不参与 clear-all。自动恢复点按 `created_at DESC, rowid DESC` 每个 scope 保留两份，由 [fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js) 清理。新快照插入、旧快照清理及恢复/合并处于同一事务，失败时原档案和恢复点均回滚。
+`fan-record-store` 在写入、档案读取、完整备份导出及启动/每小时 retention 时清理早于上海当天及前 29 天的 `dailyCounts`，保留累计次数和最近三个日期；时钟回退产生的未来日期桶暂存，但不计入当前展示。批量清理只计算一次上海日期边界，一条 `UPDATE` 仅重写含过期桶的歌曲，保留其余桶的顺序。批量恢复普通记录时，同一 store 复用插入和回读语句。档案表不参与 clear-all。自动恢复点按 `created_at DESC, rowid DESC` 每个 scope 保留两份，由 [fan-snapshot-retention.js](../../../src/storage/fan-snapshot-retention.js) 清理。新快照插入、旧快照清理及恢复/合并处于同一事务，失败时原档案和恢复点均回滚。
 
 完整备份 `lira-fan-profiles` 导出 v2，外部文件导出先核对[恢复容量与数量预算](../desktop/preload.md#5-粉丝档案-action-与-dto)，超限不生成文件；内部自动恢复点仍使用完整本机资料，不受外部文件大小预检影响。接受 v1 并将逐次歌曲转换为汇总；其他类型的原始依据、修订、提醒和抑制保持不变。恢复前校验数据与预览摘要并保存恢复点。完整替换在同一事务内先验证导入集合与保留档案的最终身份唯一性，通过 `removeMany(scope, ids)` 分批释放明确批准替换的档案，仅清理一次无引用名单模板后再恢复，支持档案间 UID 互换；失败连同恢复点一起回滚。保留档案、其他账号和当前抑制标记不参与批量删除。v13 同事务转换并精简既有恢复点，也建立 [queue-history-store.js](../../../src/storage/queue-history-store.js) 的有限随机点歌缓存后删除旧终态队列与流水；不从这些旧流水补记档案。具体用户行为见 [粉丝档案规格](../../../specs/fan-profiles.md#点歌汇总展示2026-10-12)。
 
@@ -318,6 +318,7 @@ songDb v14 由 [fan-roster-observation-migration.js](../../../src/storage/fan-ro
 | `random_request_history` | 随机点歌最近 10 首避重及最近可识别点歌人，最多 11 行 | request_id PK、song_name、requester_uid/requester_name、source、created_at；与随机入队同事务更新 |
 | `import_batches`    | 兼容旧库的批量导入摘要                                       | 不再新增，已有行由保留期维护清空；导入结果仍正常返回 |
 | `theme_presets`     | 主题预设(外观键收成一行一套)                                 | name UNIQUE、scope、payload、is_builtin;idx(scope, sort_order, id)                                                                                                                                                                                                    |
+| `song_request_daily_counts` | 观众每日成功点歌次数 | `(owner_scope, request_day, identity_type, requester_uid)` 复合主键、`accepted_count`；`request_day` 为北京时间日期。队列事务内校验与递增，每次成功点歌清理同账号过去日期；完成、取消、清空队列及歌库保留，清空全部数据删除；不跨设备同步、不回填升级前历史 |
 | `song_cooldowns` | 单首歌曲冷却，独立于队列与歌库 ID | `(owner_scope, song_key)` 复合主键、`accepted_at_ms`；与入队同事务写入，清空队列和歌库保留，清空全部数据删除；维护只删除严格早于最长支持期限 999 天的记录，保留边界和未来时间 |
 | `user_cooldowns`    | 用户点歌冷却(**重启后从 DB 恢复**,防绕过)                    | user_key PK（v2 键含可信 fanScope、身份类型和稳定 ID）、last_request_at、request_count；旧无 scope 键不由消息处理器消费；恢复只接受最近 24 小时且不晚于当前时间的行，未来行在读取/清理时丢弃                                                                                                                                                                                                                           |
 | `component_scenes` | 本地场景草稿、发布快照及来源凭据 | owner_scope 隔离、乐观 revision、加密 capability；完整列及删除语义见[本地场景持久化](#本地场景持久化) |
@@ -411,7 +412,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 | 库          | key             | 版本  | 步骤内容                                                                                                                                                                                                                                                                                                                      |
 | ----------- | --------------- | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| songDb      | `song_db`       | v1-v18 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引；v16 无损追加 queue.is_live 和 idx_queue_single_live 部分唯一索引；v17 新增 danmaku_appearances，按授权账号在本机保存完整弹幕外观；v18 使用修正后的拼音界标重算歌曲 name_pinyin/name_initial，仅更新不一致的派生字段，保留 ID、业务内容、时间戳与待同步任务 |
+| songDb      | `song_db`       | v1-v19 | v1 列补全(tags/language/source_platform/original_group、pinned_at、requester_* 元数据);v2 `seedThemePresets`;v3 清理重复 (name, artist) 后建唯一索引;v4 幂等补充 `songs.request_price`;v5 幂等补充 `songs.song_clip`，旧歌曲的新字段均默认空字符串；v6 新增六张私密粉丝档案表及 requests 的稳定标识、归属和身份类型，旧流水归属保持空值；v7 新增 idx_requests_queue_id(queue_id)，用于队列关联查询；v8 新增 component_scenes 本地场景草稿、发布快照与加密来源；v9 新增 component_output_sizes 按账号保存默认组件输出宽高；v10 新增 component_canvas 固定直播源及最近应用预设；v11 区分预设与保留输出行，活动预设可空；v12 新增账号隔离的 song_cooldowns 最近入队时间，不回填旧流水；v13 将档案歌曲和保留的两份恢复点转换为汇总，新增 requests.fan_recorded 与 random_request_history，保留随机功能需要的最近记录后清理旧终态队列和流水；v14 新增 fan_roster_templates 与记录引用，无损去重自动名单的重复依据；v15 新增粉丝记录及提醒的 profile_id 外键索引；v16 无损追加 queue.is_live 和 idx_queue_single_live 部分唯一索引；v17 新增 danmaku_appearances，按授权账号在本机保存完整弹幕外观；v18 使用修正后的拼音界标重算歌曲 name_pinyin/name_initial，仅更新不一致的派生字段，保留 ID、业务内容、时间戳与待同步任务；v19 新增 song_request_daily_counts，既有队列与记录保持原样 |
 | superChatDb | `super_chat_db` | v1-v2 | v1 基线；v2 新增最小防重 ID，删除旧 deleted 内容并覆盖后续删除路径 |
 | giftDb      | `gift_db`       | v1-v24 | v1 `ensureGiftColumns`(cmd/blind_box/raw_json 等);v2 platform_id 索引;v3 `collapseDuplicateGiftIdentities` + 唯一索引 (platform_id, uid);v4 **检测账本升级**(`ensureGiftDetectionColumns`,历史记录标记 final 且仅归属礼物统计);v5 插入加班机单例行(id=1);v6 扩展加班机倒计时安全上限;v7 放开加班机 `display` 文字展板规则模式;v8 增加来源分区、同步状态、远程来源约束与索引；v9 幂等增加可空 `gift_events.blind_box_id`，旧行保持 `NULL`；v10 增加冻结事件身份列并将规则主键升级为 ID + 身份，旧规则设置原样保留；v11 幂等增加可空 avatar_url/guard_level，旧记录保持 NULL，等级约束为 0–3；v12 新增 source_recent 表达式部分索引及 source_time_asc 索引；v13 新增来源隔离的 gift_wishes / gift_wish_sessions；v14 增加许愿展示样式和文字模板；v15 增加文字版图片位置与格式；v16 增加文字版未收/已收颜色，旧行为空，保留所有定义与进度；v17 增加礼物保留快照、日汇总、准确去重键、本机归档及冲刺结转（见上文）；v18 新增保留快照双状态的时间升序/降序部分索引；v19 幂等增加许愿 `text_runs`，旧模板、图片位置、身份与进度保持不变；v20 增加许愿非整日精确贡献（见上文）；v21 为本机盲盒归档追加可空 occurred_at 及精确时间部分索引，保留旧日桶；v22 礼物保留分层与旧投影重置（见上文）；v23 新增来源/周期隔离的心动盲盒校准差额表，不改写礼物事件；v24 新增远端最近记录的 remote_recent 表达式部分索引，仅加索引，不改写礼物、快照、成员或同步状态 |
 | musicDb     | `music_db`      | v1    | 基线                                                                                                                                                                                                                                                                                                                          |
@@ -471,7 +472,7 @@ v13 由 `gift-wish-migration.js` 幂等建表，v14 追加每条许愿的展示�
 
 **删除(Delete)**:全部业务数据
 
-- 点歌业务:`songs`、`song_categories`(清空后重建默认曲风)、`queue`、`requests`、`random_request_history`、`import_batches`、`user_cooldowns`、`song_cooldowns`
+- 点歌业务:`songs`、`song_categories`(清空后重建默认曲风)、`queue`、`requests`、`random_request_history`、`import_batches`、`user_cooldowns`、`song_cooldowns`、`song_request_daily_counts`
 - AI 运行时:`ai_request_logs`、`ai_api_usage`、`ai_viewer_context`、`ai_query_cache`、`ai_blacklist`
 - 直播数据:`super_chats`、当前 source 的 `gift_events` 与关联 `overtime_settlements`、`checkin_users`
 - 播放器数据:`play_history`、`play_queue_state` 的业务快照；后者保留并推进 writer 撤销元数据，阻止清空前的迟到保存恢复旧内容。
@@ -542,7 +543,7 @@ Phase 1 失败且全部事务已回滚时，只解除本次请求取得的暂停
 | SC 点歌 | `scSongRequestEnabled=true`，沿用 settings 文本存储和账号同步；旧快照省略保留已存值。关闭只停止 SC 点歌指令，留言显示与已有队列保留 |
 | 观众取消点歌 | `songRequestCancelEnabled=true`，沿用 settings 文本存储和账号同步；旧快照省略保留已存值。关闭只禁止观众取消点歌，不移除已有队列，不影响主播手动删除 |
 | 歌名匹配方式 | `songRequestMatchMode=unique`，可选 `prefix`；沿用 settings 文本存储和账号同步，旧快照省略保留已存值。匹配行为见 [音乐服务](music/services.md#71-歌曲-crud)，不新增 schema 或更改已有队列 |
-| 观众点歌限制 | `userQueueLimit=0`、`userCooldownCaptainSeconds/userCooldownAdmiralSeconds/userCooldownGovernorSeconds` 为空串、`songRequestMinMedalLevel=0`、`songRequestGuardLevel=0`、`songRequestGuardMedalBypass=false`、`songRequestUserBlacklist=[]`；均按账号同步，默认不附加限制。名单用 JSON 文本存于 settings，不增加表；字段范围见 [设置 API](api.md)，准入与事务计数见 [音乐服务](music/services.md) |
+| 观众点歌限制 | `userQueueLimit=0`、`userCooldownCaptainSeconds/userCooldownAdmiralSeconds/userCooldownGovernorSeconds` 与 `userDailyLimit/userDailyCaptainLimit/userDailyAdmiralLimit/userDailyGovernorLimit` 均默认空串（不限、互不继承）、`songRequestMinMedalLevel=0`、`songRequestGuardLevel=0`、`songRequestGuardMedalBypass=false`、`songRequestUserBlacklist=[]`；均按账号同步，默认不附加限制。名单用 JSON 文本存于 settings，不增加表；字段范围见 [设置 API](api.md)，准入与事务计数见 [音乐服务](music/services.md) |
 | 点歌指令格式 | `songRequestRequireSpace=false`；按账号同步，存储为布尔字符串，云端为 boolean；开启后要求指令与歌名间有空格，字段与兼容规则见 [设置 API](api.md) |
 | 单曲冷却 | `songCooldownMode=off`（`off/hours/days`）、`songCooldownValue=1`（1–999），同步到云端账号设置；入队时间仅存本机，按账号 scope 隔离；语义见 [音乐服务](music/services.md) |
 | 点歌行为     | `onlyFromLibrary`、`allowDuplicate`、`allowCompactRequest`                                                                                                                                                                                                                                                                                                                                                           |
@@ -671,7 +672,7 @@ SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新�
 
 应用云端歌库时，`song-service.replaceCloudSongs` 先完成规范化、校验和最后一项获胜的身份去重，再调用 [song-store.js](../../../src/storage/song-store.js) 的 `replaceAll`。Store 拥有一个 `BEGIN` / `COMMIT` 事务：先把 `queue.song_id` 与 `requests.song_id` 全部置空，保留 `song_name`、artist、requester、message 等文字历史；再删除旧歌曲和曲风、重建默认曲风并插入新快照。任何一步失败都会 `ROLLBACK`，不会暴露半替换歌库。单曲保存/删除与批量导入的事务同样归 SongStore，领域层不再接收 SQLite 句柄。
 
-云端或待传快照替换时，同一歌曲事务还更新私有 `cloudSongAccountKey`，记录磁盘歌库实际归属。账号准备仅在该键缺失时初始化：优先使用已有 `cloudRoomAccountKey`，否则采用首次账号；后续切换房间归属不会提前改变歌库归属。待传快照与当前内容相同时只接纳归属，保留歌曲 ID；云端明确未初始化的歌库沿用首次播种规则。
+云端或待传快照替换时，同一歌曲事务还更新私有 `cloudSongAccountKey`，记录磁盘歌库实际归属。账号准备仅在该键缺失时初始化：优先使用已有 `cloudRoomAccountKey`，否则采用首次账号；后续切换房间归属不会提前改变歌库归属。待传恢复也要核对磁盘归属与内容，两者均一致时保留歌曲 ID；云端明确未初始化的歌库沿用首次播种规则。
 
 歌曲待上传状态由 [cloud-song-sync-store.js](../../../src/storage/cloud-song-sync-store.js) 持久化在现有 `settings` 表的私有 `cloudSongSyncPending:<accountKey SHA-256>` 行；值包含唯一 `mutationId` 与完整歌曲快照。捕获前核对磁盘歌库归属与当前 `cloudRoomAccountKey`：不一致时抛出 `CLOUD_SONGS_NOT_READY`，原歌曲修改与待传写入一同回滚，保留原歌库。归属一致时仍允许离线编辑；尚无 owner 时保留原初次播种规则。保存、删除、启停、导入和清空路径在歌曲事务提交前捕获快照，写入失败整体回滚；空数组表示明确清空。其他账号的待上传快照不随当前歌库替换或清空而删除。待传行及 `cloudSongAccountKey` 不进入普通设置、可编辑 defaults、HTTP/WS 或 Device 设置快照，不新增表或 schema 版本。同步与拉取保护通过 `hasPendingCloudSongs` 使用同账号的 `SELECT 1` 检查存在性，不读取或解析整份歌库；恢复和实际上传仍通过 `readPending` 获取当时最新快照，不跨检查缓存内容。
 
@@ -683,7 +684,7 @@ SongStore 在事务写入前校验最终完整歌库最多 5000 首：手动新�
 
 跨账号接纳旧监控快照时，缺失的 `danmakuMonitoringEnabled` / `giftMonitoringEnabled` 从传入的 `enableBilibili` 补齐，显式通道值优先；旧总开关关闭不会因默认值而重新开启监控。
 
-本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。设置与歌曲上传确认只删除同账号、同 `mutationId` 的记录；上传期间的新修改、过期生命周期的响应和网络失败均保留待上传内容。重启或切回账号时优先恢复并上传该账号的待传快照，当前歌库内容一致时不重复替换，以保留队列和历史的歌曲引用。每轮同步及拉取落盘前也检查持久记录，保护通知遗漏的提交。设置上传的规范化返回值也须确认没有较新的待传记录后才能应用。云端应用和待传恢复路径均不捕获新待传记录或发 dirty 通知；Bilibili 凭据仍使用原进程内 dirty 重试机制。
+本地 settings、歌曲保存/删除/启停/导入和清空歌库成功后才请求对应 scope 上传。设置与歌曲上传确认只删除同账号、同 `mutationId` 的记录；上传期间的新修改、过期生命周期的响应和网络失败均保留待上传内容。重启或切回账号时优先恢复并上传该账号的待传快照，待传恢复和常规云端下载都在 SongStore 事务内核对磁盘归属与同步字段。同账号且内容相同就保留队列及历史的歌曲引用。跨账号应用已初始化或待传的歌库时，即使内容相同也会解除旧引用。每轮同步及拉取落盘前也检查持久记录，保护通知遗漏的提交。设置上传的规范化返回值也须确认没有较新的待传记录后才能应用。云端应用和待传恢复路径均不捕获新待传记录或发 dirty 通知；Bilibili 凭据仍使用原进程内 dirty 重试机制。
 
 ## 9. 礼物账本完整投影（Implemented）
 
@@ -704,7 +705,7 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `gift-query-store.js` 的 `readHistoryPage` 在同一事务内读取总数和页面，按连接保留最多 64 个筛选计数。缓存包含来源、全部筛选/时间参数，并以 `total_changes()`、`data_version`、`schema_version` 失效；任何同连接写入或外部提交均需重新计数，只在成功提交后发布缓存。`asOf` 不承诺排除回填，跨页版本改变时返回当前读快照的新总数。缓存随数据库连接释放，不跨连接复用。
 
-`readStatistics` 在同一读事务内使用请求内 `MATERIALIZED` CTE 读取一次匹配的礼物明细，数量、总价、单价和已知盲盒成本各归一化一次，供总计、礼物身份和北京时间分桶聚合复用。金额精度、数量安全整数及汇总溢出校验保持不变；非盲盒行不归一化无用途的盲盒成本。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
+`readStatistics` 在同一读事务内按原始礼物 ID、名称、北京时间桶和盲盒成本状态预汇总明细。每条匹配记录的数量、总价、单价和已知成本各校验一次，总计、规范化身份排行和时间序列复用这些分组。保留日汇总先按来源、epoch 和日期选定活动版本可见的最新修订，再筛选礼物并按身份与时间桶合计，一次读取供三种结果使用。金额精度、数量安全整数及汇总溢出校验保持不变；非盲盒行不归一化无用途的盲盒成本。结果继续合并 retention 日汇总，并按原规则排序和限制条数；不新增持久表或跨请求统计缓存。
 
 冲刺与当天盲盒缓存的修订由 `gift-aggregate-changes.js` 按数据库连接共享：TEMP 单行计数与触发器分别跟踪冲刺、盲盒的实际输入。礼物更新只在原行或新行满足该统计资格、且查询输入字段改变时推进相应计数；盲盒跟踪包含有来源的历史 final 与 `retention-staged` 行，不依赖其实时消费者资格，并在 `gift_retention_state.active_snapshot_id` 切换时失效，使历史在活动快照发布后可见。冲刺结转和本机盲盒归档分别推进所属计数。同步校验时间、投递标记等无关写入不使聚合失效，普通礼物不使盲盒缓存失效。计数随事务回滚；事务内读取不安装追踪或复用缓存，首次事务外读取才初始化。令牌含连接追踪实例身份，并以 `data_version` 对其他连接提交保守失效；连接关闭即销毁 TEMP 状态，不新增持久 schema 或迁移。
 
@@ -712,7 +713,7 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 选择 `delta=1` 的时间升序读取，可从最近 1000 次变更找出行 ID，并通过原时间索引补入刚到可见时间的记录；候选不超过请求页大小时按主键读取当前可见行及需替换的身份，不重复 COUNT 或重读整天。回滚同时回滚 TEMP 日志；日志缺口、过多候选、物理删除、身份变化、连接/来源/快照/外部版本变化均退回完整分页。临时追踪不改变持久 schema 或迁移版本，详细兼容响应见 [礼物查询](bilibili/gift.md#5-礼物冲刺与查询)。
 
-粉丝列表在已有 scope 事务内先筛选档案文本、归档、收藏与资料缺失，再通过 `records.listForProfiles` / `statesForProfiles` 每批最多 500 个 ID 读取候选明细。返回按 profileId 分组的 Map，记录仍按 occurred_at DESC、id 排序；单次列表固定当前时间，会员过滤与灯牌全局排序在计算后执行。完整备份的 `exportScope` 复用这两个批量 reader，读取包含被屏蔽档案的全部记录和提醒，不逐档案查询，不截断备份内容。
+粉丝列表在当前 scope 事务内先按文本、归档、收藏和资料缺失筛选档案，再按每批最多 500 个 ID 调用 `records.listProjectionInputs` 和 `statesForProfiles`。每次列表使用同一时刻，按档案分组的记录以 `occurred_at DESC, id` 排序，会员过滤和灯牌全局排序在投影后执行。完整备份 `exportScope` 调用 `records.listForProfiles` 和 `statesForProfiles`，包含被屏蔽档案的全部记录及提醒。投影的选行规则见[粉丝档案](#粉丝档案songdb-v6-新增六表)。
 
 ## 礼物身份迁移 v10
 
@@ -728,7 +729,11 @@ gift v18 的 `idx_gift_events_retained_time` / `idx_gift_events_retained_time_as
 
 `resource-packages.js` 声明当前共享图片与旧客户端兼容图片，共享字体来自字体目录。当前启动下载、更新比较和缺失统计只针对共享资源；航海旗帜的三张兼容图片继续校验并提供已有缓存，但不因缺失或 CDN 版本变化发起下载。当前旗帜样式完整读取导入 ZIP 的 `component-media` 资源。导出仍保留旧客户端所需的清单与文件，准入和防回归见 [CDN 分发指南](../../guides/cdn-resources.md#资源准入与防回归)。
 
-启动先校验缓存大小和摘要，再检查远程清单；缺失或损坏的索引可从当前清单对应的完整哈希文件恢复。下载写入同目录独占 `.tmp` 文件，流式校验大小和摘要。完整字体按实际字体名称合并同款分片、字重及语种分支后以 ZIP 下载，标题小字库留在安装包；字体包完整验证后按条目校验并恢复所需原文件，再串行原子提交索引。只允许清单列出的条目，未知客户端资源可忽略但不写盘；拒绝重复、加密、意外路径、大小或摘要不符。临时 ZIP 在解包成功、失败或取消后删除。失败保留旧索引和旧资源，不启用半文件；下一次只补齐未完成的字体包或图片，不提供单文件字节断点续传。旧摘要文件保留供已打开的版本化资源 URL 使用。
+启动先校验当前缓存的大小和摘要，再检查远程清单。字体 ZIP 和图片下载到同目录的独占 `.tmp` 文件，流式核对大小和摘要。完整字体按名称归并分片、字重和语种，标题小字库随安装包提供。ZIP 校验通过后检查全部条目，只解出本机所需文件，并校验其大小和摘要。重复、加密或意外条目会使整包失败，已解出的临时成员一并丢弃。
+
+包验证完成后，待发布的完整字节暂存为 `<摘要>.<扩展名>.pending`。资源库按包原子替换 v1 索引，再把这些文件改为公开对象名。写索引失败时原版本继续可读，下次取得可信清单后可复用校验通过的待发布文件。索引已提交而改名中断时，新客户端启动会按索引校验并补完改名，离线也能恢复。如果此时直接降级，旧客户端仍能读取以前已发布的摘要，新对象要等新版完成改名或旧版按清单补齐。超过 24 小时且未被索引引用的待发布文件沿用临时文件回收规则。
+
+已发布对象按摘要和扩展名保留，供旧版本 URL 继续读取。索引只记录每个资源的当前版本。索引缺失或损坏时，可从可信清单和匹配的本地完整文件重建。
 
 清单 v2 为 `{version:2,files:[{path,size,sha256,label}],packages:[{id,size,sha256,files:[path]}]}`。原文件只接受客户端批准的字体和栅格图片路径；下载包的归组与名称由 `resource-packages.js` 定义，原文件和下载包分别最多 512 项、单项 128 MiB、声明总量 512 MiB，清单整体最大 1 MiB。CDN 根 origin 来自可信启动配置，远程 URL 由批准的字体/图片名称、包摘要前 12 位和扩展名计算，位于 `resources/fonts/` 或 `resources/images/`；不接受远程 URL、脚本或磁盘路径。仍兼容 v1 清单的 `resources/objects/<SHA-256>.<扩展名>` 下载，本地索引格式保持 v1。旧的仅 v1 客户端不能读取 v2 清单。上传步骤见[CDN 分发指南](../../guides/cdn-resources.md)。
 

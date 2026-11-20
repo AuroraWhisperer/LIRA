@@ -26,7 +26,6 @@ test('frontend capabilities and preview definitions agree on production scene ty
   const shared = await load('shared/scene-components.js');
   const { COMPONENT_PREVIEW_DEFINITIONS: definitions } = await load('admin/component-preview-definitions.js');
   assert.deepEqual(plain(shared.SCENE_TYPES), SCENE_TYPES);
-  assert.deepEqual(Object.keys(shared.SCENE_COMPONENTS), SCENE_TYPES);
   assert.deepEqual(Object.keys(definitions), SCENE_TYPES);
 });
 
@@ -37,7 +36,7 @@ test('frontend document validation and draft recovery keep render and control ty
     components: Object.fromEntries(types.map(type => [type, { saved: {}, draft: { label: 'draft' } }])) });
   const read = (types) => readPreviewDraft('a'.repeat(64), { getItem: () => snapshot(types) });
   for (const type of SCENE_TYPES) assert.equal(validateSceneDocument(scene(type)).items[0].type, type);
-  assert.deepEqual(Object.keys(read(PREVIEW_SESSION_TYPES).components), PREVIEW_SESSION_TYPES);
+  assert.deepEqual(Object.keys(read(PREVIEW_SESSION_TYPES).components).sort(), [...PREVIEW_SESSION_TYPES].sort());
   for (const type of ['canvas', 'unknown', 'constructor', '__proto__']) {
     assert.throws(() => validateSceneDocument(scene(type)));
     if (type !== 'canvas') assert.equal(read([type]), null);

@@ -26,6 +26,7 @@ function createCloudSyncController(options = {}) {
   };
   const intervalMs = Math.max(5_000, Number(options.intervalMs) || DEFAULT_INTERVAL_MS);
   const revisions = { settings: null, songs: null, bilibili: null };
+  let songUpdatedAt = null;
   const dirty = new Set();
   const dirtyGenerations = { settings: 0, songs: 0, bilibili: 0 };
   const settingsSync = createCloudSettingsSyncController({
@@ -65,7 +66,6 @@ function createCloudSyncController(options = {}) {
   const streamReconnect = createCancellableDelay(timers);
   let streamRetryMs = STREAM_RETRY_MIN_MS;
   let streamRetryNotBefore = 0;
-  let streamConnections = 0;
   let retryNotBefore = 0;
   let retryError = null;
   const giftInteraction = createGiftInteractionController({
@@ -171,6 +171,7 @@ function createCloudSyncController(options = {}) {
     if (accountKey !== null) {
       dirty.clear();
       for (const scope of VALID_SCOPES) revisions[scope] = null;
+      songUpdatedAt = null;
     } else if (roomChanged) {
       dirty.delete('settings');
     }
@@ -245,11 +246,11 @@ function createCloudSyncController(options = {}) {
     streamRetryMs = Math.min(STREAM_RETRY_MAX_MS, streamRetryMs * 2);
     streamReconnect.schedule(() => {
       streamRetryNotBefore = 0;
-      startEventStream();
+      startEventStream({ reconnect: true });
     }, delay);
   }
 
-  function startEventStream() {
+  function startEventStream({ reconnect = false } = {}) {
     if (
       streamAbortController ||
       streamReconnect.isPending() ||
@@ -272,8 +273,7 @@ function createCloudSyncController(options = {}) {
         onOpen() {
           if (streamAbortController !== controller || controller.signal.aborted) return;
           streamRetryMs = STREAM_RETRY_MIN_MS;
-          streamConnections += 1;
-          if (streamConnections > 1) {
+          if (reconnect) {
             syncNow().catch((error) => {
               void error;
             });
@@ -306,7 +306,6 @@ function createCloudSyncController(options = {}) {
     streamAbortController?.abort();
     streamAbortController = null;
     streamRetryMs = STREAM_RETRY_MIN_MS;
-    streamConnections = 0;
   }
 
   async function flushScope(scope, work) {
@@ -329,7 +328,11 @@ function createCloudSyncController(options = {}) {
       if (!isCurrent(work)) return false;
       if (applied) runtime.setBlindBoxMappingState?.(result?.blindBoxMapping || null);
     }
-    revisions[scope] = Number(result?.revision) || revisions[scope];
+    if (scope === 'songs' && Number.isSafeInteger(result?.revision) && result.revision >= 0) {
+      recordSongSnapshot(result);
+    } else {
+      revisions[scope] = Number(result?.revision) || revisions[scope];
+    }
     if (dirtyGenerations[scope] === dirtyGeneration
       && (scope !== 'settings' || !settingsSync.getPending(work.accountKey))
       && (scope !== 'songs' || !songSync.hasPending(work.accountKey))
@@ -369,14 +372,23 @@ function createCloudSyncController(options = {}) {
     }
   }
 
-  function shouldApply(scope, cloudRevision, work) {
+  function recordSongSnapshot({ revision, updatedAt }) {
+    revisions.songs = revision;
+    songUpdatedAt = typeof updatedAt === 'string' ? updatedAt : null;
+  }
+
+  function shouldApply(scope, cloudRevision, work, updatedAt) {
     if (!isCurrent(work) || dirty.has(scope)) return false;
     if (scope === 'settings' && settingsSync.getPending(work.accountKey)) return false;
     if (scope === 'songs' && songSync.hasPending(work.accountKey)) return false;
     if (scope === 'bilibili' && bilibiliSync.getPendingLogout(work.accountKey)) return false;
-    const incoming = Number(cloudRevision) || 0;
     const current = revisions[scope];
-    return current === null || incoming > current;
+    if (scope === 'songs') {
+      // A restored library can have an older revision or a different timestamp, including null for legacy databases.
+      const hasUpdatedAt = updatedAt === null || typeof updatedAt === 'string';
+      return cloudRevision !== current || (hasUpdatedAt && updatedAt !== songUpdatedAt);
+    }
+    return current === null || Number(cloudRevision) > current;
   }
 
   function markScopeDirty(scope) {
@@ -415,9 +427,17 @@ function createCloudSyncController(options = {}) {
         }
       }
       await settingsSync.reconcile(state?.settings, work);
-      const songsRevision = await songSync.reconcile(state?.songs, work);
-      if (songsRevision !== null) revisions.songs = songsRevision;
-      await bilibiliSync.reconcile(state?.bilibili, work);
+      let songError;
+      try {
+        const songSnapshot = await songSync.reconcile(state.songs, work);
+        if (songSnapshot) recordSongSnapshot(songSnapshot);
+      } catch (error) {
+        if (!isCurrent(work) || error?.retryAfterMs > 0) throw error;
+        // Report the song failure after the independent Bilibili scope has had its turn.
+        songError = error;
+      }
+      await bilibiliSync.reconcile(state.bilibili, work);
+      if (songError) throw songError;
       return isCurrent(work);
     } catch (error) {
       if (isCurrent(work)) rememberRetry(error);

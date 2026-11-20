@@ -184,7 +184,7 @@ export function openComponentPreview(selected = null) {
             connection.operation = { sequence: command.sequence, error: error.message };
           }
         }
-        else if (connection.options.id === 'canvas' && ['publish', 'source', 'preset'].includes(command.action)) {
+        else if (connection.options.id === 'canvas' && ['publish', 'source', 'preset', 'favorite'].includes(command.action)) {
           connection.display = { sequence: command.sequence, busy: true };
           void (async () => {
             try {

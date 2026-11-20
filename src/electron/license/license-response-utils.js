@@ -1,5 +1,6 @@
 'use strict';
 
+const { mapSongForSync } = require('../../shared/cloud-song-snapshot');
 const { isSensitiveFieldName: isSensitiveResponseKey } = require('../../shared/sensitive-field-name');
 
 const { RemoteLicenseError, normalizeErrorCode } = require('./remote-license-error');
@@ -85,30 +86,6 @@ function sanitizeDevice(value) {
     name: String(value.name || '').slice(0, 100),
     status: String(value.status || '').slice(0, 32),
     licenseId: String(value.licenseId || '').slice(0, 128),
-  };
-}
-
-function mapSongForSync(song = {}) {
-  const enabled = song.enabled ?? song.isEnabled ?? song.is_enabled ?? true;
-  const rawRequestPrice = song.requestPrice !== undefined ? song.requestPrice : song.request_price;
-  const requestPrice =
-    rawRequestPrice === undefined || rawRequestPrice === null
-      ? null
-      : typeof rawRequestPrice === 'string'
-        ? rawRequestPrice.trim() || null
-        : rawRequestPrice;
-  return {
-    title: String(song.title ?? song.name ?? '').trim(),
-    artist: String(song.artist ?? '').trim(),
-    categoryName: String(song.categoryName ?? song.category_name ?? '').trim(),
-    tags: String(song.tags ?? '').trim(),
-    language: String(song.language ?? '').trim(),
-    sourcePlatform: String(song.sourcePlatform ?? song.source_platform ?? '').trim(),
-    note: String(song.note ?? '').trim(),
-    requestPrice,
-    songClip: String(song.songClip ?? song.song_clip ?? '').trim(),
-    enabled: !(enabled === false || enabled === 0 || String(enabled).toLowerCase() === 'false'),
-    sortOrder: Number(song.sortOrder ?? song.sort_order ?? 0) || 0,
   };
 }
 

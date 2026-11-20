@@ -19,9 +19,12 @@ function loadUpdateManager(t, suppliedUpdater) {
     getPath: () => path.resolve('tmp/updater-test/LIRA.exe'),
     isPackaged: true,
     releaseSingleInstanceLock() {},
+    quit() {},
   };
+  const nativeUpdater = new EventEmitter();
+  const shell = { openPath: async () => 'fixture installer missing' };
   t.mock.method(Module, '_load', function (request, parent, isMain) {
-    if (request === 'electron') return { app };
+    if (request === 'electron') return { app, autoUpdater: nativeUpdater, shell };
     if (request === 'electron-updater') return { autoUpdater: updater };
     if (request === '../../package.json' && parent.filename === modulePath) return packagedMetadata;
     return originalLoad.call(this, request, parent, isMain);
@@ -35,7 +38,7 @@ function loadUpdateManager(t, suppliedUpdater) {
   const states = [];
   const logs = [];
   manager.configureAutoUpdater({ updater: suppliedUpdater, onStateChange: (state) => states.push(state), writeLog: (...args) => logs.push(args) });
-  return { manager, updater, states, logs };
+  return { manager, updater, states, logs, app, nativeUpdater };
 }
 
 test('packaged startup leaves the update feed to app-update.yml and enables automatic differential downloads', t => {
@@ -111,15 +114,103 @@ test('automatic download rejection is handled after the update check has returne
   assert.equal(failures[0][1], error);
 });
 
-test('installation clears downloaded progress while preserving the update version', (t) => {
-  const { manager, updater } = loadUpdateManager(t);
+test('installation clears downloaded progress and quits only after the OS accepts the handoff', async t => {
+  const { manager, updater, app, nativeUpdater } = loadUpdateManager(t);
   const install = t.mock.method(updater, 'quitAndInstall');
-  updater.emit('update-downloaded', { version: '5.2.8' });
-  const state = manager.installUpdate();
+  const quit = t.mock.method(app, 'quit');
+  const release = t.mock.method(app, 'releaseSingleInstanceLock');
+  const accepted = Promise.withResolvers();
+  const notified = t.mock.fn();
+  nativeUpdater.on('before-quit-for-update', notified);
+  const file = path.join(createScratchDirectory('install-update-', t), 'fixture.exe');
+  fs.writeFileSync(file, 'fixture');
+  updater.installerPath = file;
+  updater.downloadedUpdateHelper = { downloadedFileInfo: {} };
+  updater.spawnLog = t.mock.fn(() => accepted.promise);
+  updater.emit('update-downloaded', { version: '5.2.8', downloadedFile: file });
+  const installing = manager.installUpdate();
+  const duplicate = manager.installUpdate();
+  if (process.platform === 'win32') {
+    assert.equal(quit.mock.callCount(), 0);
+    assert.equal(release.mock.callCount(), 0);
+    assert.deepEqual(updater.spawnLog.mock.calls.map(c => c.arguments), [[file, ['--updated', '/S', '--force-run']]]);
+  }
+  accepted.resolve(true);
+  const [state] = await Promise.all([installing, duplicate]);
   assert.equal(state.status, 'installing');
   assert.equal(state.progress, null);
   assert.equal(state.updateVersion, '5.2.8');
-  assert.deepEqual(install.mock.calls[0].arguments, [true, true]);
+  assert.equal(release.mock.callCount(), 1);
+  if (process.platform === 'win32') {
+    assert.equal(quit.mock.callCount(), 1);
+    assert.equal(notified.mock.callCount(), 1);
+    assert.equal(updater.autoInstallOnAppQuit, false);
+  } else assert.deepEqual(install.mock.calls[0].arguments, [true, true]);
+});
+
+test('a vanished NSIS package keeps the desktop running and can be downloaded again', { skip: process.platform !== 'win32' }, async t => {
+  const { NsisUpdater } = require('electron-updater');
+  const updater = Object.create(NsisUpdater.prototype);
+  const file = path.join(createScratchDirectory('vanished-update-', t), 'fixture.exe');
+  updater.downloadedUpdateHelper = { file, downloadedFileInfo: {} };
+  updater.app = { quit: t.mock.fn() };
+  updater._logger = { info() {}, warn() {} };
+  const { manager, app, nativeUpdater } = loadUpdateManager(t, updater);
+  const release = t.mock.method(app, 'releaseSingleInstanceLock');
+  const quit = t.mock.method(app, 'quit');
+  const beforeQuit = t.mock.fn();
+  nativeUpdater.on('before-quit-for-update', beforeQuit);
+  const spawn = t.mock.method(updater, 'spawnLog', async () => {
+    throw Object.assign(new Error('file disappeared'), { code: 'ENOENT' });
+  });
+  fs.writeFileSync(file, 'fixture');
+  updater.emit('update-downloaded', { version: '5.2.8', downloadedFile: file });
+  fs.unlinkSync(file);
+  const result = await manager.installUpdate();
+  await new Promise(resolve => setImmediate(resolve));
+  const observed = [result.status, result.canDownload, result.canInstall, spawn.mock.callCount(),
+    release.mock.callCount(), beforeQuit.mock.callCount(), updater.app.quit.mock.callCount() + quit.mock.callCount()];
+  assert.deepEqual(observed, ['error', true, false, 0, 0, 0, 0], 'state, retry download, install, spawn, unlock, quit event, quit');
+  updater.downloadUpdate = async () => {
+    fs.writeFileSync(file, 'fresh fixture');
+    updater.emit('update-downloaded', { version: '5.2.8', downloadedFile: file });
+  };
+  assert.equal((await manager.downloadUpdate()).canInstall, true);
+  assert.equal(updater.autoInstallOnAppQuit, true);
+});
+
+test('changes after preflight and failed elevation keep the lock and expose the appropriate retry', { skip: process.platform !== 'win32' }, async t => {
+  const { manager, updater, app } = loadUpdateManager(t);
+  const saved = Object.getOwnPropertyDescriptor(process, 'resourcesPath');
+  process.resourcesPath = createScratchDirectory('update-handoff-', t);
+  t.after(() => {
+    if (saved) Object.defineProperty(process, 'resourcesPath', saved);
+    else delete process.resourcesPath;
+  });
+  const file = path.join(process.resourcesPath, 'fixture.exe');
+  fs.writeFileSync(file, 'fixture');
+  updater.installerPath = file;
+  updater.downloadedUpdateHelper = { downloadedFileInfo: {} };
+  const quit = t.mock.method(app, 'quit');
+  const release = t.mock.method(app, 'releaseSingleInstanceLock');
+  updater.emit('update-downloaded', { version: '5.2.8', downloadedFile: file });
+  updater.spawnLog = t.mock.fn(async name => {
+    throw Object.assign(new Error('synthetic launch failure'), { code: name === file ? 'EACCES' : 'EPERM' });
+  });
+  const denied = await manager.installUpdate();
+  assert.equal(denied.status, 'error');
+  assert.equal(denied.canInstall, true);
+  assert.deepEqual(updater.spawnLog.mock.calls.map(c => c.arguments[0]), [file, path.join(process.resourcesPath, 'elevate.exe')]);
+  updater.spawnLog = async () => {
+    fs.unlinkSync(file);
+    throw Object.assign(new Error('disappeared between stat and spawn'), { code: 'ENOENT' });
+  };
+  const missing = await manager.installUpdate();
+  assert.equal(missing.status, 'error');
+  assert.equal(missing.canDownload, true);
+  assert.equal(missing.canInstall, false);
+  assert.equal(quit.mock.callCount(), 0);
+  assert.equal(release.mock.callCount(), 0);
 });
 
 test('NSIS downloads reuse local blocks and retain full-download and integrity fallbacks', async t => {

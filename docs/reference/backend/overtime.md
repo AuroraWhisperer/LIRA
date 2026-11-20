@@ -35,7 +35,7 @@
 2. `overtimeConsumer = createOvertimeConsumer({ service: overtime })` — 消费者 `name: 'overtime'`,`isEnabled()` 即 `getCurrentEpoch() > 0`([overtime-consumer.js:8-17](../../../src/overtime/overtime-consumer.js#L8-L17))。
 3. `giftService.createGiftService({ queryStore, maintenanceStore, projectionStore, statisticsStore, settings }, { consumers: [overtimeConsumer], getOvertimeEpoch: overtime.getCurrentEpoch })` — 消费者注册进服务器结果投影器；四个存储能力均由组合根创建，`getOvertimeEpoch` 决定首次收到事件时冻结的加班 epoch。
 
-结算算法仍在 `store.settleFinal` 的原事务回调中执行；服务在提交成功后更新内存状态和单调时钟锚点，并继续独占归零计时、失败记账及恢复调度。算法模块不读取 service 的可变状态，也不提前在事务外抽取随机结果。
+结算算法在 `store.settleFinal` 的事务回调中执行。服务在物化剩余时间时采样单调时钟，提交成功后用这次采样作为新内存状态的锚点，运行中的倒计时继续扣除事务耗时。归零计时、失败记账及恢复调度仍由服务负责。算法模块不读取 service 的可变状态，也不提前在事务外抽取随机结果。
 
 状态是**单例行** `overtime_machine_state.id = 1`(DDL `CHECK (id = 1)`,[schema.js:315-327](../../../src/storage/schema.js#L315-L327));服务启动时 `getState() || ensureState()` 惰性插入安全默认行(`enabled=0/epoch=0/remaining_ms=0/status='paused'/revision=0`,[overtime-store.js](../../../src/storage/overtime-store.js))。迁移版本 giftDb v5 负责为旧库插入该行(见 [storage.md](storage.md) §4)。
 

@@ -4,6 +4,7 @@
 
 import * as PlaybackUtils from '../utils.js';
 import { escapeAttr, escapeHtml } from '../../shared/html-escape.js';
+import { findLyricLineIndex } from '../../shared/lyric-line-index.js';
 import { initPlayerAppearance } from './appearance.js';
 import { scrollActiveLyricIntoView } from './lyric-layout.js';
 
@@ -303,14 +304,7 @@ export class FullscreenPlayer {
    * @returns {number} 当前行索引
    */
   findCurrentLyricIndex(lines, currentMs) {
-    let low = 0;
-    let high = lines.length;
-    while (low < high) {
-      const middle = (low + high) >>> 1;
-      if (lines[middle].startMs <= currentMs) low = middle + 1;
-      else high = middle;
-    }
-    return low - 1;
+    return findLyricLineIndex(lines, currentMs, line => line.startMs);
   }
 
   /**

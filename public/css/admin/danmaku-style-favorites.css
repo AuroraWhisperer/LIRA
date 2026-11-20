@@ -1,0 +1,58 @@
+.danmaku-style-card {
+  position: relative;
+  min-width: 0;
+}
+
+.danmaku-style-card:has(> [hidden]) {
+  display: none;
+}
+
+.danmaku-style-card > :is(.danmaku-style-option, .preview-picker-style) {
+  width: 100%;
+}
+
+.danmaku-style-card > button.danmaku-style-favorite {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  min-height: 30px;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.danmaku-style-card > .danmaku-style-favorite:hover:not(:disabled),
+.danmaku-style-card > .danmaku-style-favorite[aria-pressed='true'] {
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.danmaku-style-favorite svg {
+  width: 18px;
+  height: 18px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+
+.danmaku-style-favorite[aria-pressed='true'] svg {
+  fill: currentColor;
+}
+
+.danmaku-style-card > .danmaku-style-favorite:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.danmaku-style-card > .danmaku-style-favorite:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -112,7 +112,7 @@ export class StreamService {
    * @returns {Promise<void>}
    */
   async handlePlaybackError(track, audio, onRetrySuccess, onRetryFailed, isCurrent = () => true) {
-    if (!track || !isCurrent()) return;
+    if (!track || !isCurrent({ requirePlayIntent: true })) return;
 
     // 本地音频播放失败
     if (isLocalTrack(track)) {
@@ -150,7 +150,7 @@ export class StreamService {
         throw new Error('无法获取新的播放地址');
       }
     } catch (error) {
-      if (!isCurrent()) return;
+      if (!isCurrent({ requirePlayIntent: true })) return;
       this.onError(error);
       if (onRetryFailed) await onRetryFailed();
     }

@@ -19,6 +19,7 @@ export function clearStoredPlaybackState(storage = localStorage) {
  */
 export class StorageManager {
   constructor() {
+    this.serverSnapshotStatus = 'unavailable';
     this.saveTimer = null;
     this.savePending = null;
   }
@@ -133,11 +134,20 @@ export class StorageManager {
    * @returns {Promise<Object|null>}
    */
   async _restoreFromServer() {
+    this.serverSnapshotStatus = 'unavailable';
     try {
       const response = await fetch(`/api/playback/queue-state?clientId=${encodeURIComponent(CLIENT_ID)}`);
       if (!response.ok) return null;
       const result = await response.json();
-      return this._normalizeRestoredState(result?.data?.payload);
+      if (result?.ok !== true) return null;
+      const payload = result.data?.payload;
+      if (payload === null) {
+        this.serverSnapshotStatus = 'empty';
+        return null;
+      }
+      const restored = this._normalizeRestoredState(payload);
+      if (restored) this.serverSnapshotStatus = 'restored';
+      return restored;
     } catch (_) {
       return null;
     }

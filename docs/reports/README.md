@@ -8,6 +8,7 @@
 
 ## 历史报告
 
+- [客户端与服务端模块化及重复实现审计（2026-11-18）](2026-11-18-workspace-modularity-audit.md)
 - [客户端职责归属与拆分粒度审查（2026-11-10）](2026-11-10-module-responsibility-review.md)
 - [客户端代码职责与拆分粒度复核](2026-11-09-module-granularity-review.md)
 - [客户端职责与模块拆分三轮审计](2026-11-09-client-responsibility-audit.md)

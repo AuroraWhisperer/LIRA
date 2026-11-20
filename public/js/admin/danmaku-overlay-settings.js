@@ -5,9 +5,10 @@ import { observeAuthorizedAccount } from './authorized-account.js';
 import { readDanmakuAppearance, saveDanmakuAppearance } from './danmaku-appearance-api.js';
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import { isValidFullscreenDuration } from '../shared/danmaku-appearance-draft.js';
-import { createComponentConfigController, componentSaveMessage } from './component-config-controller.js';
+import { createComponentConfigController } from './component-config-controller.js';
 import { bindDanmakuParameters } from './danmaku-parameter-view.js';
-import { saveComponentWithFeedback } from './component-save-feedback.js';
+import { renderComponentSaveStatus, saveComponentWithFeedback } from './component-save-feedback.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 import { bindComponentAutosave } from './settings-autosave.js';
 import { bindDanmakuStyleLibrary } from './danmaku-style-library.js';
 
@@ -52,14 +53,14 @@ export function initDanmakuOverlaySettings(elements, toast) {
     elements.styleChip.textContent = loaded
       ? `${dirty ? '待应用' : '已应用样式'} · ${DANMAKU_STYLE_OPTIONS[draft.style].label}`
       : loading ? '正在读取样式' : '尚未读取样式';
-    elements.styleSaveState.textContent = !account ? '请先连接已授权的 LIRA 账号。' : componentSaveMessage(state);
+    renderComponentSaveStatus(elements.styleSaveState, state, account ? undefined : '请先连接已授权的 LIRA 账号。');
     elements.previewOverlayButton.disabled = false;
     applyButton.disabled = !loaded || !dirty || saving;
     applyButton.textContent = saving ? '正在保存…' : '保存外观';
     reloadButton.disabled = !account || loading || saving;
     if (discardButton) discardButton.disabled = !dirty || saving;
   });
-  bindDanmakuParameters(document, controller, (message) => { elements.styleSaveState.textContent = message; });
+  bindDanmakuParameters(document, controller, (message) => renderSaveStatus(elements.styleSaveState, 'error', message));
   applyButton.addEventListener('click', () => saveComponentWithFeedback(controller, '弹幕姬样式', toast));
   discardButton?.addEventListener('click', () => controller.discard());
   reloadButton.addEventListener('click', () => { if (account) return controller.reload(); });

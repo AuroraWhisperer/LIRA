@@ -184,14 +184,14 @@ ManifestDPIAware true
       IfFileExists "D:\*.*" 0 liraDirectorySelected
       StrCpy $INSTDIR "D:\LIRA"
       liraDirectorySelected:
-        StrCmp $liraPreviousInstallDir "" 0 liraDirectoryReady
-        StrCpy $liraPreviousInstallDir "$INSTDIR"
-      liraDirectoryReady:
     FunctionEnd
     ; This section runs after directory selection and before the builder's install
     ; section. An unelevated all-users instance leaves preservation to its child.
     Section "-LIRA Preserve Data"
       Call liraRequireWritableInstallDirectory
+      ; Without a registered install, only the final selection can own retained data.
+      StrCmp $liraPreviousInstallDir "" 0 +2
+        StrCpy $liraPreviousInstallDir "$INSTDIR"
       ${If} $installMode == "all"
       ${AndIfNot} ${UAC_IsAdmin}
         Goto liraPreservationDeferred

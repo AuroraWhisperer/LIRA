@@ -1,0 +1,49 @@
+{
+  "description": "Function glyphs visually checked in the installed QQ Music and NetEase Cloud Music desktop clients on 2026-11-16. Bundled locally as vectors, using QQ green (#31c27c) and NetEase red (#ec4141) from LIRA's existing platform palette without colored tiles; these are not original PNG assets.",
+  "qq": {
+    "version": "22.41",
+    "source": "QQMusicUI.ttf",
+    "glyphs": {
+      "personalized": "U+5244",
+      "radio": "U+5256",
+      "liked": "U+524A",
+      "recent": "U+524E"
+    },
+    "verifiedLocations": {
+      "personalized": "Top-left recommendation navigation button, house outline when not hovered",
+      "radio": "Left navigation radio button, broadcast waves",
+      "liked": "Left navigation likes entry, heart outline",
+      "recent": "Left navigation recent playback entry, clock outline"
+    },
+    "textOnly": {
+      "daily": "The homepage daily recommendation uses changing track artwork, not a standalone function glyph",
+      "created-playlists": "Text heading for self-created playlists",
+      "collected-playlists": "Text heading for collected playlists"
+    },
+    "adaptations": "Verified font outlines converted to SVG paths with original geometry preserved. No substitute glyph is assigned to text-only entries."
+  },
+  "netease": {
+    "version": "3.1.4.203507",
+    "source": "package/orpheus.ntpk",
+    "iconsModule": "pub/hybrid/app~subApp.chunk.37df409.js, module 17",
+    "glyphs": {
+      "personalized": "home (Ab)",
+      "daily": "pub/hybrid/46.chunk.37df409.js, Re calendar outline",
+      "radio": "heartbeat",
+      "liked": "like (Nb)",
+      "recent": "history (zb)"
+    },
+    "verifiedLocations": {
+      "personalized": "Left navigation recommendation entry, filled house",
+      "daily": "Calendar badge on the homepage daily recommendation card",
+      "radio": "Heartbeat control beside the liked-music navigation entry",
+      "liked": "Left navigation liked-music entry, filled heart",
+      "recent": "Left navigation recent playback entry, filled clock"
+    },
+    "textOnly": {
+      "created-playlists": "Text heading for created playlists",
+      "collected-playlists": "Text heading for collected playlists"
+    },
+    "adaptations": "Original SVG geometry preserved. Calendar date cutout separated from the calendar shell so the existing local date label can update at midnight. Fill follows currentColor; clip IDs namespaced. No substitute glyph is assigned to text-only entries."
+  }
+}

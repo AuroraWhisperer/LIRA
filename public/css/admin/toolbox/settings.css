@@ -187,12 +187,6 @@
   padding-block: var(--spacing-sm) var(--spacing-md);
 }
 
-.client-notification-threshold > div {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
 .client-notification-threshold input {
   width: 140px;
 }

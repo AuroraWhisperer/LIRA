@@ -7,7 +7,10 @@ const { createToolboxRuntime } = require('../helpers/toolbox-runtime');
 test('toolbox navigation and feature capabilities work without the legacy registry', async () => {
   const runtime = await createToolboxRuntime();
   runtime.sandbox.window.AdminApp = {};
-  const calls = [];
+  const navigation = [];
+  const reconnects = [];
+  let aiInits = 0;
+  let aiRefreshes = 0;
   let navigate;
   const querySelectorAll = runtime.root.querySelectorAll;
   runtime.root.querySelectorAll = (selector) =>
@@ -24,23 +27,26 @@ test('toolbox navigation and feature capabilities work without the legacy regist
   const reconnectBilibili = () => {};
   runtime.sandbox.document.querySelector = (selector) => {
     assert.equal(selector, '[data-tab="settingsPage"]');
-    return { click: () => calls.push('settingsPage') };
+    return { click: () => navigation.push('settingsPage') };
   };
   runtime.other.initOtherPage({
     reconnectBilibili,
-    onNavigate: (page) => calls.push(page),
+    onNavigate: (page) => navigation.push(page),
     danmakuTool: {
       init: (options) => assert.equal(options.reconnectBilibili, reconnectBilibili),
-      refresh: (options) => calls.push(options.reconnectIfDisconnected),
+      refresh: (options) => reconnects.push(options.reconnectIfDisconnected),
     },
     aiAssistantSettings: {
-      init: () => calls.push('ai:init'),
-      refresh: () => calls.push('ai:refresh'),
+      init: () => aiInits++,
+      refresh: () => aiRefreshes++,
     },
   });
   navigate();
   runtime.other.selectFeatureById('otherDanmakuFeature');
-  assert.deepEqual(calls, ['ai:init', 'songAssistantPage', 'settingsPage', true, 'ai:refresh']);
+  assert.deepEqual(navigation, ['songAssistantPage', 'settingsPage']);
+  assert.deepEqual(reconnects, [true]);
+  assert.equal(aiInits, 1);
+  assert.equal(aiRefreshes, 1);
 });
 
 test('explicit toolbox feature selection reopens and persists its collapsed group', async () => {

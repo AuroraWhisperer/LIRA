@@ -8,7 +8,10 @@ function styleOptionsNodeSource() {
   const textOptions = fs.readFileSync(path.join(root, 'public/js/shared/danmaku-text-options.js'), 'utf8')
     .replace(/\r\n/g, '\n').replace(/^export \{[^\n]+\};\s*$/m, '');
   const source = fs.readFileSync(path.join(root, 'public/js/shared/danmaku-style-options.js'), 'utf8').replace(/\r\n/g, '\n')
-    .replace(/^import \{[^\n]+\} from '\.\/danmaku-text-options.js';/m, textOptions);
+    .replace(/^import \{[^\n]+\} from '\.\/danmaku-text-options.js';/m, textOptions)
+    .replace(/^import \{[^\n]+\} from '\.\/danmaku-text-appearance.js';/m,
+      fs.readFileSync(path.join(root, 'public/js/shared/danmaku-text-appearance.js'), 'utf8')
+        .replace(/\r\n/g, '\n').replace(/^export \{[^\n]+\};\s*$/m, ''));
   const contract = source.match(/^[\s\S]*?^export \{[^\n]+\};/m);
   if (!contract) throw new Error('Missing shared danmaku option exports.');
   return `${contract[0].replace(/^export \{/m, 'module.exports = {')}\n`;

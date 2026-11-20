@@ -15,8 +15,8 @@
       <div class="overtime-start-controls">
         <fieldset class="overtime-duration-selectors">
           <legend>初始时长</legend>
-          <label><input id="overtimeInitialHours" type="number" min="0" step="1" value="0" aria-label="初始时长的小时数" disabled /> 小时</label>
-          <label><input id="overtimeInitialMinutes" type="number" min="0" max="59" step="1" value="0" aria-label="初始时长的分钟数" disabled /> 分钟</label>
+          <label class="lira-number-field"><input id="overtimeInitialHours" type="number" min="0" step="1" value="0" aria-label="初始时长的小时数" disabled /><span class="lira-number-field-unit" aria-hidden="true">小时</span></label>
+          <label class="lira-number-field"><input id="overtimeInitialMinutes" type="number" min="0" max="59" step="1" value="0" aria-label="初始时长的分钟数" disabled /><span class="lira-number-field-unit" aria-hidden="true">分钟</span></label>
         </fieldset>
         <div class="overtime-actions">
           <button id="overtimeStartBtn" type="button" disabled>开始加班</button>
@@ -28,7 +28,7 @@
           <button id="overtimeApplyTimeBtn" class="secondary" type="button" disabled>应用时长并暂停</button>
           <button id="overtimeResetBtn" class="secondary" type="button" disabled>重置倒计时</button>
           <button id="overtimeEnableBtn" class="secondary" type="button" disabled>只启用收礼</button>
-          <lira-help label="时间操作说明">应用时长或重置会替换剩余时间并暂停。只启用收礼可让礼物调整时间；关闭加班机会停止计时和收礼，保留剩余时间。</lira-help>
+          <lira-help label="时间操作说明">「应用时长并暂停」或「重置倒计时」会把剩余时间直接改成上方的初始时长并暂停；「只启用收礼」会暂停倒计时，但观众送礼依然能加减时间；「关闭加班机」则会同时停止倒计时和收礼，并保留当前剩余时间。</lira-help>
         </div>
         <div class="overtime-consumer-status" aria-label="收礼服务状态">
           <span id="overtimeCoreStatus" class="pill warn">礼物处理：未运行</span>

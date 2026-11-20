@@ -581,7 +581,7 @@ test('all guard thresholds accept their tier and stronger tiers only', (t) => {
   }
 });
 
-test('each verified guard tier has an independent cooldown with empty inheritance and explicit zero', (t) => {
+test('each verified guard tier has an independent cooldown and empty or zero means unlimited', (t) => {
   const f = requestFixture(t, { userCooldownSeconds: '60' });
   const at = Date.now();
   t.mock.method(Date, 'now', () => at);
@@ -589,8 +589,9 @@ test('each verified guard tier has an independent cooldown with empty inheritanc
     const event = { uid: String(level), requesterGuardLevel: level, requesterGuardVerified: true };
     f.settings[key] = '';
     assert.equal(f.request(event).accepted, true);
-    assert.match(f.request(event).reason, /还需 60 秒/);
+    assert.equal(f.request(event).accepted, true);
     f.settings[key] = '10';
+    assert.equal(f.request(event).accepted, true);
     assert.match(f.request(event).reason, /还需 10 秒/);
     f.settings[key] = '0';
     assert.equal(f.request(event).accepted, true);
@@ -605,6 +606,113 @@ test('each verified guard tier has an independent cooldown with empty inheritanc
   f.userRequestCooldown.restore();
   assert.match(f.request(event).reason, /还需 60 秒/);
   assert.match(f.request({ ...event, identityType: 'open_id' }).reason, /还需 60 秒/);
+});
+
+test('daily request limits select verified tiers and share counts across commands and tier changes', (t) => {
+  const f = requestFixture(t, { userDailyLimit: '1', userDailyCaptainLimit: '2',
+    userDailyAdmiralLimit: '3', userDailyGovernorLimit: '4' });
+  for (const [level, limit] of [[0, 1], [3, 2], [2, 3], [1, 4]]) {
+    const input = { uid: String(100 + level), requesterGuardLevel: level, requesterGuardVerified: true };
+    for (let i = 0; i < limit; i++) {
+      assert.equal(f.request({ ...input, message: i % 2 ? '随机点歌' : '点歌测试', source: i ? 'superchat' : 'danmaku' }).accepted, true);
+    }
+    const rejected = f.request(input);
+    assert.equal(rejected.code, 'USER_DAILY_LIMIT');
+    assert.ok(rejected.autoReply);
+  }
+  assert.equal(f.request({ uid: '100', requesterGuardLevel: 1, requesterGuardVerified: false }).code, 'USER_DAILY_LIMIT');
+  assert.equal(f.request({ uid: '100', requesterGuardLevel: 3, requesterGuardVerified: true }).accepted, true);
+  assert.equal(f.request({ uid: '100', requesterGuardLevel: 3, requesterGuardVerified: true }).code, 'USER_DAILY_LIMIT');
+  f.settings.userDailyCaptainLimit = '';
+  assert.equal(f.request({ uid: '103', requesterGuardLevel: 3, requesterGuardVerified: true }).accepted, true);
+  assert.equal(f.request({ uid: '', identityType: 'uid' }).code, 'REQUESTER_IDENTITY_REQUIRED');
+});
+
+test('daily counts persist after queue removal and restart, then reset at Beijing midnight', (t) => {
+  let at = Date.parse('2026-11-16T15:59:59Z');
+  t.mock.method(Date, 'now', () => at);
+  const f = requestFixture(t);
+  const first = f.request().queueItem;
+  f.settings.userDailyLimit = '5';
+  const items = [first, ...Array.from({ length: 4 }, () => f.request().queueItem)];
+  handleQueueAction(f.context, 'done', items[0].id);
+  handleQueueAction(f.context, 'delete', items[1].id);
+  handleQueueAction(f.context, 'skip', items[2].id);
+  assert.equal(f.request({ message: '取消点歌' }).accepted, true);
+  handleQueueAction(f.context, 'clear');
+  closeDatabases(f.db);
+  Object.assign(f.db, createDatabases({ dataDir: f.dataDir }));
+  f.context.store = createQueueStore(f.db.songDb);
+  assert.equal(f.request().code, 'USER_DAILY_LIMIT');
+  at += 1000;
+  assert.equal(f.request({ messageTimestamp: at - 1000 }).accepted, true, 'acceptance time owns the day, not the message timestamp');
+  assert.equal(f.count('song_request_daily_counts'), 1, 'past days are pruned for this account');
+});
+
+test('daily quota writes roll back with failed requests and isolate stable identities and accounts', (t) => {
+  const f = requestFixture(t, { userDailyLimit: '1' });
+  let scope = 'account-a';
+  f.context.store = createQueueStore(f.db.songDb, { getFanScope: () => scope });
+  f.db.songDb.exec(`CREATE TRIGGER reject_daily_test BEFORE INSERT ON requests
+    BEGIN SELECT RAISE(ABORT, 'forced daily failure'); END;`);
+  assert.throws(() => f.request(), /forced daily failure/);
+  assert.equal(f.count('song_request_daily_counts'), 0);
+  assert.equal(f.count('queue'), 0);
+  f.db.songDb.exec('DROP TRIGGER reject_daily_test');
+  f.add({ requesterUid: '42', requesterIdentityType: 'uid' });
+  assert.equal(f.count('song_request_daily_counts'), 0, 'manual admin requests do not consume viewer quota');
+  assert.equal(f.request().accepted, true);
+  assert.equal(f.request({ userName: '新昵称' }).code, 'USER_DAILY_LIMIT');
+  assert.equal(f.request({ identityType: 'open_id' }).accepted, true);
+  scope = 'account-b';
+  assert.equal(f.request().accepted, true);
+  scope = 'account-a';
+  assert.equal(f.request().code, 'USER_DAILY_LIMIT');
+});
+
+test('late song requests stay on the shared queue without reading or charging the next account', (t) => {
+  const { createSettingsStore } = require('../../src/storage/settings-store');
+  const { createDomainServices } = require('../../src/server/domain-services');
+  const f = historyFixture(t);
+  const settingsStore = createSettingsStore(f.db.songDb);
+  settingsStore.setSettings({ allowDuplicate: 'true', onlyFromLibrary: 'false', userCooldownSeconds: '0',
+    userDailyLimit: '1', songCooldownMode: 'hours', songCooldownValue: '1' });
+  let activeScope = 'account-a';
+  const services = createDomainServices({ db: f.db, settingsStore, getFanScope: () => activeScope });
+  t.after(() => { services.gifts.dispose(); services.overtime.dispose(); services.superChats.dispose(); });
+  const request = (message, fanScope) => services.messages.handleDanmaku({ message, uid: '42', userName: '观众', fanScope });
+  const capturedScope = activeScope;
+  activeScope = 'account-b';
+  assert.equal(request('点歌 延迟曲目', capturedScope).accepted, true);
+  assert.equal(f.count('song_request_daily_counts'), 0);
+  assert.equal(f.count('song_cooldowns'), 0);
+
+  services.songs.save({ name: '库内曲目', artist: '歌手' });
+  services.queue.add({ songName: '库内曲目' });
+  assert.equal(request('点歌 库内曲目', capturedScope).accepted, true);
+  assert.equal(request('随机点歌', capturedScope).accepted, true, 'the only random candidate is cooling for B');
+  assert.equal(request('点歌 库内曲目', activeScope).code, 'SONG_COOLDOWN');
+  assert.equal(request('点歌 延迟曲目', activeScope).accepted, true, 'B can use its first daily request');
+  assert.equal(request('点歌 另一首', activeScope).code, 'USER_DAILY_LIMIT');
+  assert.equal(request('点歌 登录前收到', null).accepted, true, 'an explicitly unsigned event does not acquire B');
+
+  activeScope = null;
+  assert.equal(request('点歌 退出后到达', capturedScope).accepted, true);
+  assert.equal(request('点歌 退出后到达', null).accepted, true, 'the local ledger still has its first request');
+});
+
+test('same-second requests use message milliseconds before ID in the queue and next action', (t) => {
+  const f = requestFixture(t);
+  const at = Date.parse('2026-11-18T04:00:00Z');
+  const request = (name, ms) => f.request({ message: `点歌 ${name}`, messageTimestamp: at + ms }).queueItem.id;
+  const later = request('先到', 900);
+  const earlier = request('后到', 100);
+  const tied = request('同时', 100);
+  const ids = () => getQueueSnapshot(f.context).waiting.map(item => item.id);
+  const before = ids();
+  handleQueueAction(f.context, 'next');
+  assert.deepEqual(before, [earlier, tied, later]);
+  assert.deepEqual(ids(), [tied, later]);
 });
 
 test('guard priority orders all four identities stably and can be disabled for the existing queue', (t) => {

@@ -23,14 +23,17 @@ test('notebook selects, saves, reopens and shares the real renderer with the des
   desktop.setDefaultTimeout(6000);
   const errors = [];
   desktop.on('pageerror', error => errors.push(error.message));
-  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用' }).waitFor();
+  await desktop.locator('#danmakuFontSize:enabled').waitFor({ state: 'attached' });
   await desktop.getByRole('button', { name: '全部样式', exact: true }).click();
   await desktop.locator('[data-danmaku-style="notebook"]').click();
-  await desktop.locator('#danmakuFontSize').fill('24');
+  await desktop.locator('#danmakuFontSize').evaluate(input => {
+    input.value = '24';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
   await desktop.locator('#danmakuFontSize').press('Tab');
-  await desktop.locator('#danmakuStyleChip').filter({ hasText: '已应用样式 · 手账风' }).waitFor();
-  assert.equal(await app.evaluate(() => global.canvasTest.saved().style), 'notebook');
-  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.notebook.fontSize), 24);
+  const savedFontSize = () => app.evaluate(() => global.canvasTest.saved().styleOptions.notebook?.fontSize);
+  await t.waitFor(async () => assert.equal(await savedFontSize(), 24), { timeout: 6000 });
   await desktop.reload({ waitUntil: 'domcontentloaded' });
   await desktop.locator('[data-recent-danmaku-style="notebook"][aria-pressed="true"]').waitFor();
   assert.equal(await desktop.locator('#danmakuFontSize').inputValue(), '24');
@@ -51,14 +54,16 @@ test('notebook selects, saves, reopens and shares the real renderer with the des
   await frame.locator('body[data-style="notebook"] .notebook-item').first().waitFor();
   const font = page.locator('[data-preview-field="danmakuFontSize"]');
   assert.equal(await font.inputValue(), '24');
-  await font.fill('26');
+  await font.press('ArrowRight');
+  await font.press('ArrowRight');
   await font.press('Tab');
-  await frame.locator('html').evaluate(() => new Promise(resolve => requestAnimationFrame(resolve)));
-  assert.equal(await frame.locator('html').evaluate(n => getComputedStyle(n).getPropertyValue('--danmaku-font-size').trim()), '26px');
-  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.notebook.fontSize), 24);
+  await t.waitFor(async () => {
+    const previewSize = await frame.locator('html').evaluate(root => getComputedStyle(root).getPropertyValue('--danmaku-font-size').trim());
+    assert.equal(previewSize, '26px');
+  }, { timeout: 6000 });
+  assert.equal(await savedFontSize(), 24, 'Previewing the new size must leave the saved desktop size alone.');
   await page.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
-  assert.equal(await app.evaluate(() => global.canvasTest.saved().styleOptions.notebook.fontSize), 26);
+  await t.waitFor(async () => assert.ok(await app.evaluate(() => global.canvasTest.scene().publishedVersion > 0)), { timeout: 6000 });
   await desktop.reload({ waitUntil: 'domcontentloaded' });
   await desktop.locator('[data-recent-danmaku-style="notebook"][aria-pressed="true"]').waitFor();
   assert.equal(await desktop.locator('#danmakuFontSize').inputValue(), '26');

@@ -1,5 +1,6 @@
 import { mountDanmakuParameters } from '../shared/danmaku-parameter-controls.js';
 import { canvasContentScale } from './danmaku-canvas.js';
+import { acquireDanmakuAppearanceValues } from './danmaku-appearance-values.js';
 
 export function initPreviewAppearance({ getDraft, change, error }) {
   const listeners = new Set();
@@ -12,11 +13,13 @@ export function initPreviewAppearance({ getDraft, change, error }) {
       return () => listeners.delete(listener);
     },
   };
+  const values = acquireDanmakuAppearanceValues(document);
   const controls = mountDanmakuParameters(document.getElementById('previewParameterFields'), controller, {
     prefix: 'preview', desktop: false, onError: error,
     resetButton: document.getElementById('previewAppearanceReset'),
     fontScale: draft => canvasContentScale(draft.layout, draft.style, draft.styleOptions),
+    appearanceValues: values,
   });
   return { render: () => listeners.forEach(listener => listener(controller.getState())),
-    dispose: controls.dispose };
+    dispose() { controls.dispose(); values.dispose(); } };
 }

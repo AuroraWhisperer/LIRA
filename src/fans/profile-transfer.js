@@ -53,15 +53,10 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
         if (!Array.isArray(profile.excludedFormerNames)) throw new Error('备份中的曾用名排除记录无效。');
         excludedFormerNames = [...new Set(profile.excludedFormerNames.map(name => text(name, '曾用名', 200)).filter(Boolean))];
       }
-      profiles.push({ ...profile, identity: patch.identity,
-        ...(profile.lastEntry !== undefined ? { lastEntry } : {}),
-        ...(profile.preferredFormerName !== undefined ? { preferredFormerName: patch.preferredFormerName } : {}),
-        ...(excludedFormerNames ? { excludedFormerNames } : {}),
-      });
       if (profile.guardAccompany != null && !normalizeGuardAccompany(profile.guardAccompany))
         throw new Error('备份中的平台陪伴天数无效。');
-      if (profile.guardRoster !== undefined && profile.guardRoster !== null) {
-        const roster = profile.guardRoster;
+      let roster = profile.guardRoster;
+      if (roster !== undefined && roster !== null) {
         if (
           !roster ||
           typeof roster !== 'object' ||
@@ -73,8 +68,19 @@ function createFanBackupService({ store, now, detail, requireProfile }) {
           ![null, 1, 2, 3].includes(roster.level)
         )
           throw new Error('备份中的大航海名单状态无效。');
-        timestamp(roster.observedAt, '大航海名单同步时间');
+        const observedAt = timestamp(roster.observedAt, '大航海名单同步时间');
+        roster = { ...roster, observedAt };
+        if (roster.lastAbsentAt !== undefined) {
+          roster.lastAbsentAt = timestamp(roster.lastAbsentAt, '上次确认缺席时间');
+          if (roster.lastAbsentAt > observedAt) throw new Error('上次确认缺席时间晚于名单同步时间。');
+        }
       }
+      profiles.push({ ...profile, identity: patch.identity,
+        ...(roster ? { guardRoster: roster } : {}),
+        ...(profile.lastEntry !== undefined ? { lastEntry } : {}),
+        ...(profile.preferredFormerName !== undefined ? { preferredFormerName: patch.preferredFormerName } : {}),
+        ...(excludedFormerNames ? { excludedFormerNames } : {}),
+      });
       const key = identityKey(patch.identity);
       if (key && identityKeys.has(key)) throw new Error('备份中同一身份重复。');
       if (key) identityKeys.add(key);

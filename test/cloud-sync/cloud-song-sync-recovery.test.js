@@ -126,14 +126,53 @@ function fixture(t) {
   };
 }
 
-test('failed uploads retain song edits across controller restarts until upload succeeds', async (t) => {
+test('an unchanged cloud pull preserves queue and history song IDs only for the same account', async (t) => {
   const f = fixture(t);
+  const snapshot = { songs: [{ title: 'Shared title' }], revision: 3 };
+  f.cloud.set(f.key(), snapshot);
+  await f.controller.start();
+  const id = f.songs.listRows()[0].id;
+  f.db.prepare("INSERT INTO queue(song_id,song_name,created_at,updated_at) VALUES (?, 'Shared title','','')").run(id);
+  f.db.prepare("INSERT INTO requests(song_id,song_name,created_at) VALUES (?, 'Shared title','')").run(id);
+  const links = () => ['queue', 'requests'].map(table => f.db.prepare(`SELECT song_id FROM ${table}`).get().song_id);
+  await f.restart().start();
+  assert.deepEqual(links(), [id, id]);
+  f.setAccount('second');
+  f.cloud.set(f.key(), snapshot);
+  await f.restart().start();
+  assert.deepEqual(links(), [null, null]);
+});
+
+test('restoring pending songs detaches the previous account rows even when the two libraries look identical', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  f.setUpload(async () => { throw new Error('OFFLINE'); });
+  f.edit('Pending edit');
+  await f.controller.whenIdle();
+  const sameSongs = f.songs.listRows().map(mapSongForSync);
+  f.setAccount('second');
+  f.cloud.set(f.key(), { songs: sameSongs, revision: 1 });
+  await f.restart().start();
+  const id = f.songs.listRows()[0].id;
+  f.db.prepare("INSERT INTO queue(song_id,song_name,created_at,updated_at) VALUES (?, 'Queued by B','','')").run(id);
+
+  f.setAccount('first', 1);
+  await f.restart().start();
+  assert.equal(f.db.prepare('SELECT song_id FROM queue').get().song_id, null);
+});
+
+test('failed uploads retain song edits across a cloud rollback and controller restart', async (t) => {
+  const f = fixture(t);
+  f.cloud.set(f.key(), { songs: [{ title: 'Cloud first' }], revision: 12 });
   await f.controller.start();
   f.setUpload(async () => {
     throw new Error('OFFLINE');
   });
+  f.cloud.set(f.key(), { songs: [{ title: 'Old backup' }], revision: 4 });
   f.edit('Offline edit');
   await f.controller.whenIdle();
+  assert.deepEqual(f.names(), ['Cloud first', 'Offline edit']);
+  assert.ok(f.pending.readPending(f.key()));
   const id = f.songs.listRows().find((song) => song.name === 'Offline edit').id;
   await f.restart().start();
   assert.deepEqual(f.names(), ['Cloud first', 'Offline edit']);
@@ -315,4 +354,46 @@ test('an intentional empty library remains empty after an offline clear and rest
   await f.controller.syncNow();
   assert.deepEqual(f.cloud.get(f.key()).songs, []);
   assert.equal(f.pending.readPending(f.key()), null);
+});
+
+test('upgrade preserves an intact same-account original when an old device upload already acknowledged truncation', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  const key = f.key();
+  const longTitle = '曲'.repeat(200);
+  const clipPrefix = '片'.repeat(999);
+  for (const name of [longTitle + '甲', longTitle + '乙']) songService.saveSong(f.songs, { name, artist: '歌手' });
+  songService.saveSong(f.songs, { name: '晴天', songClip: clipPrefix + '🎵' });
+  const original = f.pending.readPending(key);
+  const oldCloud = original.songs.map(mapSongForSync).map((song) => ({ ...song,
+    title: song.title.slice(0, 200), songClip: song.title === '晴天' ? clipPrefix : song.songClip }));
+  f.cloud.set(key, { songs: oldCloud, revision: 2 });
+  f.pending.acknowledge(key, original.mutationId);
+  await f.restart().start();
+  assert.ok(f.names().includes(longTitle + '甲') && f.names().includes(longTitle + '乙'));
+  assert.equal(f.pending.readPending(key)?.songs.find((song) => song.name === '晴天')?.song_clip, clipPrefix + '🎵');
+  assert.equal(f.uploads.length, 0);
+  f.setAccount('another');
+  f.cloud.set(f.key(), { songs: oldCloud, revision: 2 });
+  await f.restart().start();
+  assert.ok(!f.names().includes(longTitle + '甲'));
+  assert.equal(f.pending.hasPending(f.key()), false);
+  assert.equal(f.pending.hasPending(key), true);
+});
+
+test('a distinct device edit still restores the authoritative cloud song on upgrade', async (t) => {
+  const f = fixture(t);
+  await f.controller.start();
+  const key = f.key();
+  songService.saveSong(f.songs, { name: '晴天', songClip: '片'.repeat(1001) });
+  const original = f.pending.readPending(key);
+  const rows = original.songs.map(mapSongForSync);
+  const cloudSong = rows.find((song) => song.title === '晴天');
+  cloudSong.songClip = cloudSong.songClip.slice(0, 1000);
+  cloudSong.note = '另一台设备编辑的备注';
+  f.cloud.set(key, { songs: rows, revision: 2 });
+  f.pending.acknowledge(key, original.mutationId);
+  await f.restart().start();
+  assert.equal(f.songs.listRows().find((song) => song.name === '晴天').note, cloudSong.note);
+  assert.equal(f.pending.hasPending(key), false);
 });

@@ -666,13 +666,8 @@
 }
 .fan-empty {
   padding: var(--spacing-lg) var(--spacing-md);
-  color: var(--muted);
-  text-align: center;
-  line-height: 1.7;
 }
 .fan-empty h3 {
-  color: var(--text);
-  font-size: 17px;
   margin-bottom: 10px;
 }
 .fan-more {

@@ -3,13 +3,11 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const path = require('node:path');
-const vm = require('node:vm');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const modulePath = (file) => path.resolve(__dirname, '../../public/js', file);
 
 test('pure entry points and playback helpers load as real ESM without publishing or accessing UI globals', async () => {
-  assert.equal(typeof vm.SourceTextModule, 'function', 'Run with --experimental-vm-modules to test the real import graph.');
   const window = {};
   const forbiddenGlobal = new Proxy(window, {
     get(_target, property) { assert.fail(`Pure modules must not read UI global ${String(property)}`); },

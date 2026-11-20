@@ -152,6 +152,7 @@ function setEventAccent(element, kind, item) {
     ? `--ripploid-guard-color-${GUARD_COLOR[Number(item.giftGuardLevel)]}`
     : `--ripploid-${kind}-color${priceTier(kind === 'superchat' ? item.price : item.giftTotalPrice)}`;
   element.style.setProperty('--ripploid-event-accent', `var(${variable})`);
+  element.dataset.ripploidPalette = variable.slice('--ripploid-'.length);
   for (const suffix of ['ticket', 'member-middle', 'member-end']) {
     element.style.setProperty(`--ripploid-event-${suffix}`, `var(${variable}-${suffix})`);
   }

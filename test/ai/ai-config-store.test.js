@@ -23,6 +23,22 @@ function createStore(options = {}) {
   return { db, persistence, store: createAiConfigStore(persistence, codec, options) };
 }
 
+test('public reasoning state describes the outgoing custom Chat request without changing legacy preferences', (t) => {
+  const { db, store } = createStore();
+  t.after(() => db.close());
+  const config = store.updateConfig({ modelProvider: 'custom', deepseekResponsesUrl: 'https://gateway.example.test',
+    modelApiProtocol: 'auto', model: 'gpt-6.1-sol', reasoningEnabled: false, reasoningEffort: 'high' });
+  assert.equal(config.modelEndpoint.reasoningMode, 'effort');
+  assert.equal(config.modelEndpoint.reasoningState.mode, 'enabled');
+  assert.equal(config.modelEndpoint.reasoningState.effort, 'low');
+  assert.equal(config.modelEndpoint.reasoningState.canDisable, false);
+  assert.equal(store.getConfig().reasoningEnabled, false);
+  const off = store.updateConfig({ model: 'gpt-6-sol' });
+  assert.equal(off.modelEndpoint.reasoningState.mode, 'disabled');
+  assert.equal(off.modelEndpoint.reasoningState.canDisable, true);
+  assert.equal(store.updateConfig({ reasoningEnabled: true }).modelEndpoint.reasoningState.effort, 'high');
+});
+
 test('automatic replies require a saved opt-in and retain their preference while AI is off', (t) => {
   const { db, store } = createStore();
   t.after(() => db.close());
@@ -261,6 +277,7 @@ test('AI config persists protocol choices and projects secret-free endpoint capa
     provider: 'custom',
     webSearchMode: 'hosted',
     reasoningMode: 'effort',
+    reasoningState: { mode: 'disabled', effort: 'none' },
   });
   assert.equal(
     db.prepare("SELECT value FROM ai_configuration WHERE key = 'modelApiProtocol'").get().value,
@@ -283,6 +300,7 @@ test('AI config persists protocol choices and projects secret-free endpoint capa
     reasoningMode: 'deepseek_effort',
     reasoningEfforts: ['low', 'high', 'max'],
     defaultReasoningEffort: 'high',
+    reasoningState: { mode: 'disabled', canDisable: true },
   });
 });
 

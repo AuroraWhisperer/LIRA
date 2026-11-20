@@ -3,11 +3,58 @@
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const test = require('node:test');
-const { createBlindboxFixture } = require('../helpers/frontend-blindbox-fixture');
+const { createBlindboxFixture, flushBlindboxTasks } = require('../helpers/frontend-blindbox-fixture');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
+test('official catalog push wins over the shared cold-start read', async () => {
+  const pending = Promise.withResolvers();
+  const f = await createBlindboxFixture({ catalogResponse: pending.promise });
+  const snapshot = {
+    gifts: [{ id: '1', name: 'New box', giftCategory: 'blindBox' }],
+    blindBoxes: [{ giftId: '1', outputGiftIds: ['2'] }],
+  };
+  f.eventBus.emit('gift:catalog_updated', { snapshot });
+  assert.match(f.container.innerHTML, /New box/);
+  pending.resolve({ ok: true, data: { gifts: [], blindBoxes: [] } });
+  await flushBlindboxTasks();
+  assert.deepEqual({ reads: f.fetchCalls.filter(call => call.url.endsWith('/catalog')).length,
+    hasNewBox: f.container.innerHTML.includes('New box') }, { reads: 1, hasNewBox: true });
+});
+
+test('room sale arriving before the official read preserves both catalog projections', async () => {
+  const pending = Promise.withResolvers();
+  const f = await createBlindboxFixture({ roomId: '123', catalogResponse: pending.promise });
+  const roomBox = { id: '101', variantId: 'box-a', name: 'Room box', giftCategory: 'blindBox' };
+  const otherBox = { id: '102', variantId: 'box-b', name: 'Catalog box', giftCategory: 'blindBox' };
+  const roomImage = '/overtime-gift-images/room-new.webp';
+  const otherImage = '/overtime-gift-images/full-only.webp';
+  await f.resolveRefresh({ roomId: '123', gifts: [{ ...roomBox, imagePath: roomImage }] });
+  assert.equal(f.findGiftArtwork(roomBox.id, roomBox.name, roomBox.variantId), roomImage);
+
+  pending.resolve({ ok: true, data: {
+    schemaVersion: 3, roomId: '', blindBoxes: [],
+    gifts: [
+      { ...roomBox, imagePath: '/overtime-gift-images/room-old.webp' },
+      { ...otherBox, imagePath: otherImage },
+      { id: '103', variantId: 'prize', name: 'Prize' },
+    ],
+    variantBlindBoxes: [roomBox, otherBox].map(({ variantId }) => ({ variantId, outputVariantIds: ['prize'] })),
+  } });
+  await flushBlindboxTasks();
+  assert.deepEqual({
+    availableBoxes: f.visibleNames(),
+    containsOtherBox: f.container.innerHTML.includes(otherBox.name),
+    roomArtwork: f.findGiftArtwork(roomBox.id, roomBox.name, roomBox.variantId),
+    otherArtwork: f.findGiftArtwork(otherBox.id, otherBox.name, otherBox.variantId),
+  }, { availableBoxes: [roomBox.name], containsOtherBox: true, roomArtwork: roomImage, otherArtwork: otherImage });
+  const requests = f.fetchCalls.filter(({ url }) => url.startsWith('/api/overtime/gifts/'));
+  assert.deepEqual(requests.map(({ url, options }) => `${options.method || 'GET'} ${url}`).sort(), [
+    'GET /api/overtime/gifts/catalog', 'POST /api/overtime/gifts/refresh',
+  ]);
+});
+
 test('gift subviews skip unrelated state updates while corrections, catalogs and drafts still render', async () => {
-  const f = await createBlindboxFixture({ includePanel: true });
+  const f = await createBlindboxFixture();
   const recent = { classList: { toggle() {} }, querySelectorAll: () => [] };
   const writes = { recent: 0, blindbox: 0 };
   for (const [name, node] of [['recent', recent], ['blindbox', f.container]]) {

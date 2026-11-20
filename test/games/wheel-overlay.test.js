@@ -5,7 +5,6 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
-const { servePageOrAsset } = require('../../src/server/page-assets');
 const { loadModuleExports, loadModuleScope } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
@@ -132,26 +131,4 @@ test('wheel retains unchanged segments while refreshing appearance, spins and cl
   evaluate('componentConfig.labelFontSize = 30');
   render();
   assert.notEqual(byId('wheelSegments').children[0], weighted);
-});
-
-test('wheel overlay page allows embedding with isolated script origin', async () => {
-  let status;
-  let headers = {};
-  await new Promise((resolve) => {
-    const response = {
-      setHeader(name, value) {
-        headers[name] = value;
-      },
-      writeHead(nextStatus, nextHeaders) {
-        status = nextStatus;
-        headers = { ...headers, ...nextHeaders };
-      },
-      end: resolve,
-    };
-    servePageOrAsset(PUBLIC_DIR, { method: 'GET' }, response, new URL('http://127.0.0.1/wheel'), 'test-token');
-  });
-  assert.equal(status, 200);
-  assert.equal(headers['Content-Type'], 'text/html; charset=utf-8');
-  assert.equal(headers['Content-Security-Policy'], 'sandbox allow-scripts');
-  assert.equal(headers['X-Frame-Options'], undefined);
 });

@@ -10,6 +10,7 @@ export const PlaybackConfig = {
   STORAGE_KEY: 'songAssistantPlaybackState:v1',
   CLIENT_ID: 'default',
   STATE_SAVE_DEBOUNCE_MS: 1500,
+  STATE_SAVE_MAX_WAIT_MS: 10000,
 
   // 流媒体相关
   STREAM_REFRESH_MARGIN_MS: 30 * 1000,

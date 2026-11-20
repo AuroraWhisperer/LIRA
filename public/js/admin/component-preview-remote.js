@@ -216,9 +216,9 @@ export function createBrowserPreviewConnection({ id, token, component, pollBatch
   }
 
   async function run(action, change) {
-    if (!(component === 'canvas' && ['publish', 'source', 'preset'].includes(action))
+    if (!(component === 'canvas' && ['publish', 'source', 'preset', 'favorite'].includes(action))
       && !(component === 'overtime' && action === 'control')) throw new Error('不支持的场景操作。');
-    await controller.flush();
+    if (action !== 'favorite') await controller.flush();
     const { sequence } = await send({ action, ...(change ? { change } : {}) });
     return new Promise((resolve, reject) => {
       const finish = (error, result) => {

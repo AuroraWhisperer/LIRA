@@ -2,6 +2,7 @@
 
 const { getInitial, now } = require('../shared/utils');
 const { toSimplifiedChinese } = require('../shared/chinese-text');
+const { sameCloudSongs, matchesLegacyTruncatedUpload } = require('../shared/cloud-song-snapshot');
 const { createCloudSongSyncStore } = require('./cloud-song-sync-store');
 
 function assertSongImportLimit(count) {
@@ -430,9 +431,18 @@ function createSongStore(songDb) {
       );
     },
 
-    replaceAll(rows, { accountKey } = {}) {
+    replaceAll(rows, { accountKey, rawSnapshot } = {}) {
       return withTransaction(() => {
         assertSongImportLimit(rows.length);
+        if (accountKey && accountKey === cloudSync.getAccount()) {
+          const current = store.listRows();
+          if (sameCloudSongs(current, rows)) return { count: rows.length };
+          if (rawSnapshot && matchesLegacyTruncatedUpload(current, rawSnapshot) && !cloudSync.hasPending(accountKey)) {
+            // Older devices acknowledged clipped rows. Keep this account's intact originals for correction.
+            cloudSync.capturePending(accountKey);
+            return { count: current.length };
+          }
+        }
         songDb.prepare('UPDATE queue SET song_id = NULL WHERE song_id IS NOT NULL').run();
         songDb.prepare('UPDATE requests SET song_id = NULL WHERE song_id IS NOT NULL').run();
         songDb.prepare('DELETE FROM songs').run();

@@ -5,7 +5,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 
-async function fixture({ reloadError } = {}) {
+async function fixture({ reloadError, request } = {}) {
   const elements = new Map();
   function node() {
     const classes = new Set();
@@ -80,7 +80,8 @@ async function fixture({ reloadError } = {}) {
       reloadCount += 1;
       if (reloadError) throw reloadError;
     },
-    request: (url, payload) => new Promise((resolve, reject) => calls.push({ url, payload, resolve, reject })),
+    request: request ?? ((url, payload) =>
+      new Promise((resolve, reject) => calls.push({ url, payload, resolve, reject }))),
   });
 
   function input(rows) {
@@ -182,6 +183,28 @@ test('text and file changes invalidate previews and discard in-flight old respon
   await ui.preview([{ name: '新' }], previewData());
   ui.element('importFile').events.change();
   assert.equal(ui.element('songImportApplyBtn').disabled, true);
+});
+
+test('an unclosed quote in a CSV file clears the previous replacement preview and blocks confirmation', async (t) => {
+  const request = t.mock.fn(async () => ({ data: previewData() }));
+  const ui = await fixture({ request });
+  const check = ui.element('songImportPreviewBtn');
+  const apply = ui.element('songImportApplyBtn');
+  const csv = { name: '歌单.csv', text: '歌名,歌手\n已预览的歌,甲' };
+  const file = ui.element('importFile');
+  file.files = [csv];
+  file.events.change();
+  await check.events.click();
+  assert.equal(apply.disabled, false);
+
+  // A recheck reads the selected file again, without another selection event.
+  csv.text = '歌名,歌手\n完整行,甲\n新歌,"乙\n原歌,丙';
+  await check.events.click();
+  await apply.events.click();
+  assert.deepEqual(request.mock.calls.map((call) => call.arguments[0]), ['/api/songs/import-preview']);
+  assert.equal(ui.element('songImportPreview').hidden, true);
+  assert.equal(apply.disabled, true);
+  assert.match(ui.element('importResult').textContent, /引号/);
 });
 
 test('choosing a file and pasting text replace the other input', async () => {

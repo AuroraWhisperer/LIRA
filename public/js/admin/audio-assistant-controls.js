@@ -2,12 +2,13 @@
 
 import { createAudioFeedback, formatAudioStatus } from './audio-assistant-feedback.js';
 import { withPlaybackOutputLocked } from '../playback/features/output-device.js';
+import { initParameterRanges, refreshParameterRange, disposeParameterRanges } from '../shared/parameter-range.js';
 
 const FIELDS = [
   { key: 'strength', label: '人声 / 伴奏比例', min: -100, max: 100, value: 80, presets: [[-100, '人声'], [0, '原唱'], [100, '伴奏']], help: '调整歌声与伴奏的比例，去人声后仍可能残留少量歌声。如果全民 K 歌播放的已经是伴奏，无需再去人声，选择「原唱」即可；仍可单独升降调。' },
-  { key: 'speedPercent', label: '变速', min: 50, max: 200, value: 100, unit: '%', presets: [[50, '0.5×'], [100, '正常'], [150, '1.5×'], [200, '2.0×']], help: '100% 为正常速度。LIRA 内置播放和本地歌曲可调 0.5–2 倍，保持调性；开启「当前歌曲」后生效。实时采集外部播放器时固定为原速。' },
+  { key: 'speedPercent', label: '变速', min: 50, max: 200, value: 100, unit: '%', presets: [[50, '0.5×'], [100, '正常'], [150, '1.5×'], [200, '2.0×']], help: '100% 为原速。使用内置播放器或本地音频文件时，可在 0.5–2 倍速之间变速不变调（开启「当前歌曲」后生效）；实时采集外部播放器时不支持变速。' },
   { key: 'semitones', label: '升降调', min: -12, max: 12, value: 0, presets: [[-12, '−12'], [-6, '−6'], [0, '原调'], [6, '+6'], [12, '+12']], help: '每调整 1 格就改变 1 个半音；只改变音高，不影响速度。' },
-  { key: 'volume', label: '输出音量', min: 0, max: 200, value: 70, presets: [], help: '0% 为静音，100% 为原音量，最高 200%。超过 100% 会放大，较响的歌曲可能失真。' },
+  { key: 'volume', label: '输出音量', min: 0, max: 200, value: 70, presets: [], help: '0% 为静音，100% 为原音量，超过 100% 会继续放大音量（原曲本身很响时拉太高可能会爆音）。' },
 ];
 
 export function formatAudioParameter(key, value) {
@@ -33,7 +34,7 @@ function createControls(root) {
     const id = `audio-${compact ? 'quick' : 'full'}-${field.key}`;
     // Only fixed, application-owned field metadata is used in this template.
     group.innerHTML = `<div class="audio-assistant-slider-heading"><div class="audio-assistant-label"><label for="${id}">${field.label}</label></div><output data-audio-value="${field.key}" for="${id}"></output></div>
-      <div class="audio-assistant-slider-track"><input id="${id}" type="range" min="${field.min}" max="${field.max}" step="1" value="${field.value}" data-audio-setting="${field.key}" /></div>
+      <div class="audio-assistant-slider-track"><input id="${id}" class="parameter-range" type="range" min="${field.min}" max="${field.max}" step="1" value="${field.value}" data-audio-setting="${field.key}" /></div>
       <div class="audio-assistant-presets"></div>`;
     if (!compact && field.help) {
       const help = document.createElement('lira-help');
@@ -46,12 +47,17 @@ function createControls(root) {
       Object.assign(numeric, { type: 'number', min: String(field.min), max: String(field.max), step: '1', value: String(field.value) });
       numeric.setAttribute('aria-label', `${field.label}数值${field.unit || ''}`);
       numeric.dataset.audioSetting = field.key;
-      group.querySelector('.audio-assistant-slider-track').append(numeric);
+      const track = group.querySelector('.audio-assistant-slider-track');
       if (field.unit) {
+        const numberField = document.createElement('span');
+        numberField.className = 'lira-number-field';
         const unit = document.createElement('span');
+        unit.className = 'lira-number-field-unit';
+        unit.setAttribute('aria-hidden', 'true');
         unit.textContent = field.unit;
-        group.querySelector('.audio-assistant-slider-track').append(unit);
-      }
+        numberField.append(numeric, unit);
+        track.append(numberField);
+      } else track.append(numeric);
     }
     for (const [value, label] of field.presets) {
       const button = document.createElement('button');
@@ -63,6 +69,7 @@ function createControls(root) {
     }
     root.append(group);
   }
+  initParameterRanges(root);
 }
 
 export function getAudioSourceOptions(apps = [], selected = 'auto') {
@@ -220,6 +227,7 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
         else if (input.tagName !== 'SELECT') {
           const value = String(key === 'strength' && !musicAvailable ? 0 : key === 'speedPercent' && !speedAvailable ? 100 : settings[key] ?? '');
           if (input.value !== value) input.value = value;
+          if (input.type === 'range') refreshParameterRange(input);
         }
         const title = preparing || (key === 'strength' && !musicAvailable ? '当前保留输入人声。需要处理音乐时，先停止，再启用「音乐处理」。' : '')
           || (key === 'speedPercent' ? speedHint : '') || (busy ? routingHints[key] || '' : '');
@@ -392,7 +400,10 @@ export function initAudioAssistantControls({ enabled, signal, bridge = window.au
       observer.disconnect();
       unsubscribe?.();
       feedback.dispose();
-      for (const root of controls) root.replaceChildren();
+      for (const root of controls) {
+        disposeParameterRanges(root);
+        root.replaceChildren();
+      }
     },
   };
 }

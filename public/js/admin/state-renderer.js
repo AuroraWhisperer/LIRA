@@ -61,7 +61,9 @@ export function fillSettings(settings, projected = settings) {
     // These forms own their drafts and hydrate through their component controller.
     if (!element || element.closest('#openingAnimationForm, #displayForm, #themeForm, #guardThanksPanel, #desktopLyricForm')) continue;
     if (element.dataset.preserveDirty === 'true' && element.dataset.dirty === 'true') continue;
-    if (!isComponentFieldEditing(element)) element.value = inputValue;
+    if (!isComponentFieldEditing(element)) {
+      element.value = element.dataset.emptyUnlimited === 'true' && Number(inputValue) === 0 ? '' : inputValue;
+    }
   }
   initParameterRanges();
   renderSongCooldownControls();

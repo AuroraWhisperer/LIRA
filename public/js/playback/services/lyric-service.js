@@ -2,6 +2,7 @@
 // 歌词服务 - 负责歌词加载和浏览器源同步
 'use strict';
 
+import { findLyricLineIndex } from '../../shared/lyric-line-index.js';
 import { getPlaybackLyricOffsetMs } from '../utils.js';
 
 const MAX_PENDING_FORCED_STATES = 64;
@@ -77,25 +78,9 @@ export class LyricService {
 
     if (!lines.length) return null;
 
-    // 二分查找当前时间对应的歌词行
-    let low = 0;
-    let high = lines.length - 1;
-    let result = null;
     const target = Math.max(0, Number(currentMs) || 0);
-
-    while (low <= high) {
-      const mid = Math.floor((low + high) / 2);
-      const line = lines[mid];
-
-      if (Number(line.startMs) <= target) {
-        result = line;
-        low = mid + 1;
-      } else {
-        high = mid - 1;
-      }
-    }
-
-    return result;
+    const index = findLyricLineIndex(lines, target, line => Number(line.startMs));
+    return index < 0 ? null : lines[index];
   }
 
   suspendWindow() {

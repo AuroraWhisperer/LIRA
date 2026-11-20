@@ -132,6 +132,17 @@ export function createEventHandlers(deps) {
         loadPlaybackHomeContent(button.dataset.playbackHomeAction || 'personalized');
       });
     });
+    syncHomeDay();
+  }
+
+  // 每日推荐 shows today's date inside its calendar icon and rolls over at local midnight.
+  function syncHomeDay() {
+    const day = document.querySelector('[data-playback-home-day]');
+    if (!day) return;
+    const now = new Date();
+    day.textContent = String(now.getDate());
+    const nextDay = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
+    setTimeout(syncHomeDay, nextDay - now + 1000);
   }
 
   function setupQueuePopupButtons() {

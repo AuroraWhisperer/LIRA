@@ -5,7 +5,7 @@
 
 .client-appearance-choices {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
   padding: 0;
@@ -148,12 +148,6 @@
 .client-appearance-feedback {
   color: var(--muted);
   font-size: var(--type-size-caption);
-}
-
-@container client-appearance (max-width: 580px) {
-  .client-appearance-choices {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
 }
 
 @container client-appearance (max-width: 380px) {

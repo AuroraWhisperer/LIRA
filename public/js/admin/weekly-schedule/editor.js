@@ -11,6 +11,7 @@ import { enhanceSelects } from '../../shared/select-menu.js';
 import { enhanceColorControls } from '../../shared/color-control.js';
 import { showConfirmationDialog } from '../../shared/confirmation-dialog.js';
 import { toast } from '../../shared/toast.js';
+import { renderSaveStatus } from '../../shared/save-status.js';
 
 export async function createWeeklyScheduleEditor(root, { storage = createWeeklyScheduleStorage(), bridge = window.weeklySchedule } = {}) {
   const fields = root.querySelector('[data-weekly-fields]');
@@ -51,11 +52,10 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     onCommit: flush,
   });
 
-  function status(text, error = false) {
+  function status(state, text) {
     if (disposed) return;
-    saveState.textContent = text;
-    saveState.classList.toggle('is-error', error);
-    retry.hidden = !error;
+    renderSaveStatus(saveState, state, text);
+    retry.hidden = state !== 'error';
   }
   function showError(error) {
     if (disposed) return;
@@ -105,17 +105,17 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
     clearTimeout(saveTimer);
     if (!state || disposed) return Promise.resolve(false);
     const requestedRevision = revision;
-    status('正在保存…');
+    status('saving');
     const pending = storage.save(state).then(() => {
       savedRevision = Math.max(savedRevision, requestedRevision);
       if (savedRevision === revision) {
-        status('已保存到本机');
+        status('saved', '已保存到本机');
         if (lastSaveError && errorLine.textContent === lastSaveError.message) showError(null);
         lastSaveError = null;
       }
       return true;
     }, error => {
-      if (requestedRevision >= savedRevision) status('保存失败，点击重试', true);
+      if (requestedRevision >= savedRevision) status('error', '保存失败，点击重试');
       lastSaveError = error;
       showError(error);
       return false;
@@ -125,7 +125,7 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
   }
   function changed(render = true) {
     revision += 1;
-    status('尚未保存');
+    status('pending');
     showError(null);
     clearTimeout(saveTimer);
     saveTimer = setTimeout(persist, 300);
@@ -258,11 +258,11 @@ export async function createWeeklyScheduleEditor(root, { storage = createWeeklyS
       exportButton.disabled = !bridge?.exportPng;
       if (!bridge?.exportPng) exportButton.title = '请在 LIRA 桌面应用中导出图片';
       renderFields();
-      status('已保存到本机');
+      status('saved', '已保存到本机');
       showError(null);
     } catch (error) {
       showError(error);
-      status('模板读取失败，点击重试', true);
+      status('error', '模板读取失败，点击重试');
     } finally {
       loading = false;
     }

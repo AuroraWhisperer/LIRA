@@ -2,7 +2,8 @@
 
 const { randomUUID, createHash } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
-const { songIdentity, summarizeSongs, recentSongCounts } = require('../fans/song-summary');
+const { songIdentity, summarizeSongs, SONG_STATS_DAYS } = require('../fans/song-summary');
+const { dayOf, addDays } = require('../fans/dates');
 const { compactRosterObservation, pruneRosterTemplates, rosterTransaction } = require('./fan-roster-observation-storage');
 
 function decodeRecord(row) {
@@ -58,19 +59,30 @@ function createFanRecordStore(db) {
       .map(decodeRecord);
   }
 
-  function readForProfiles(scope, profileIds, select, decode) {
+  function readForProfiles(scope, profileIds, select, decode, beforeByProfile) {
     const grouped = new Map();
     for (let offset = 0; offset < profileIds.length; offset += 500) {
       const batch = profileIds.slice(offset, offset + 500);
-      const rows = db
-        .prepare(
-          `
-        ${select} WHERE r.scope = ?
-          AND r.profile_id IN (${batch.map(() => '?').join(', ')})
-        ORDER BY r.profile_id, r.occurred_at DESC, r.id
-      `,
-        )
-        .all(scope, ...batch);
+      let filter = `r.profile_id IN (${batch.map(() => '?').join(', ')})`;
+      let params = batch;
+      if (hasRosterTemplates && beforeByProfile) {
+        // Only pristine automatic observations share a template. Before the earliest
+        // time the projection can ask about, its latest sample covers the earlier ones.
+        // Read all rows tied at a retained time in the original order. Legacy timestamps
+        // that do not round-trip as UTC remain individual samples. CROSS JOIN drives
+        // the (scope, profile_id) index from the selected profiles.
+        filter += ` AND (r.roster_template_id IS NULL OR (r.profile_id, r.occurred_at) IN (
+          WITH bounds(profile_id, cutoff) AS (VALUES ${batch.map(() => '(?, ?)').join(', ')})
+          SELECT f.profile_id, MAX(f.occurred_at) FROM bounds b
+          CROSS JOIN fan_records f ON f.scope = ? AND f.profile_id = b.profile_id
+          WHERE f.roster_template_id IS NOT NULL
+          GROUP BY f.profile_id, f.roster_template_id, CASE WHEN f.occurred_at < b.cutoff
+            AND f.occurred_at = strftime('%Y-%m-%dT%H:%M:%fZ', f.occurred_at, '+0 seconds')
+            THEN NULL ELSE f.rowid END))`;
+        params = [...batch, ...batch.flatMap(id => [id, beforeByProfile.get(id)]), scope];
+      }
+      const rows = db.prepare(`${select} WHERE r.scope = ? AND ${filter}
+        ORDER BY r.profile_id, r.occurred_at DESC, r.id`).all(scope, ...params);
       for (const row of rows) {
         if (!grouped.has(row.profile_id)) grouped.set(row.profile_id, []);
         grouped.get(row.profile_id).push(decode(row));
@@ -79,6 +91,9 @@ function createFanRecordStore(db) {
     return grouped;
   }
 
+  // Also constructed by maintenance on databases without fan tables. Prepare on first write.
+  let insertRecord;
+  let recordById;
   function insert(scope, profileId, record, at = new Date().toISOString()) {
     if (record.kind === 'song') return addSong(scope, profileId, record, at);
     if (record.sourceKey) {
@@ -97,10 +112,10 @@ function createFanRecordStore(db) {
       source: record.source || 'manual',
     };
     const write = () => {
-      db.prepare(
-        `INSERT INTO fan_records (id, scope, profile_id, kind, source_key, occurred_at, data, original, revisions, revision)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      ).run(
+      insertRecord ??= db.prepare(`INSERT INTO fan_records
+        (id, scope, profile_id, kind, source_key, occurred_at, data, original, revisions, revision)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`);
+      insertRecord.run(
         id,
         scope,
         profileId,
@@ -115,7 +130,8 @@ function createFanRecordStore(db) {
       if (hasRosterTemplates) compactRosterObservation(db, scope, {
         ...record, id, original, revisions: record.revisions || [], revision: record.revision || 1,
       });
-      return decodeRecord(db.prepare(`${selectRecords} WHERE r.scope = ? AND r.id = ?`).get(scope, id));
+      recordById ??= db.prepare(`${selectRecords} WHERE r.scope = ? AND r.id = ?`);
+      return decodeRecord(recordById.get(scope, id));
     };
     return hasRosterTemplates ? rosterTransaction(db, write) : write();
   }
@@ -136,15 +152,14 @@ function createFanRecordStore(db) {
 
   function pruneSongCounts(at, scope, profileId) {
     if (!db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'fan_records'").get()) return;
-    const rows = db.prepare(`SELECT id, data FROM fan_records WHERE kind = 'song'
-      ${scope === undefined ? '' : 'AND scope = ?'} ${profileId === undefined ? '' : 'AND profile_id = ?'}`)
-      .all(...[scope, profileId].filter((value) => value !== undefined));
-    const update = db.prepare('UPDATE fan_records SET data = ? WHERE id = ?');
-    for (const row of rows) {
-      const data = JSON.parse(row.data);
-      const counts = recentSongCounts(data.dailyCounts, at, true);
-      if (counts.length !== data.dailyCounts.length) update.run(JSON.stringify({ ...data, dailyCounts: counts }), row.id);
-    }
+    const start = addDays(dayOf(at), 1 - SONG_STATS_DAYS);
+    db.prepare(`UPDATE fan_records SET data = json_set(data, '$.dailyCounts', (
+        SELECT json_group_array(json(bucket.value) ORDER BY bucket.key) FROM json_each(data, '$.dailyCounts') bucket
+        WHERE bucket.value ->> '$.date' >= ?
+      )) WHERE kind = 'song'
+      ${scope === undefined ? '' : 'AND scope = ?'} ${profileId === undefined ? '' : 'AND profile_id = ?'}
+      AND EXISTS (SELECT 1 FROM json_each(data, '$.dailyCounts') bucket WHERE bucket.value ->> '$.date' < ?)`)
+      .run(start, ...[scope, profileId].filter((value) => value !== undefined), start);
   }
 
   function update(scope, profileId, record, changedAt, source = 'manual') {
@@ -189,7 +204,8 @@ function createFanRecordStore(db) {
   return {
     list,
     listForProfiles: (scope, ids) => readForProfiles(scope, ids, selectRecords, decodeRecord),
-    listProjectionInputs: (scope, ids) => readForProfiles(scope, ids, selectProjectionInputs, decodeProjectionInput),
+    listProjectionInputs: (scope, ids, beforeByProfile) =>
+      readForProfiles(scope, ids, selectProjectionInputs, decodeProjectionInput, beforeByProfile),
     insert,
     update,
     pruneSongCounts,

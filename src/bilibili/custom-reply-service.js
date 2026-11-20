@@ -22,9 +22,9 @@ function createCustomReplyService(dependencies = {}) {
     const text = cleanText(message);
     if (!text || current.enableCustomReplyBot !== 'true') return null;
     const value = current.customReplyRules;
-    if (typeof value !== 'string') return matchCustomReplyRule(text, parseCustomReplyRules(value));
+    if (typeof value !== 'string') return matchCustomReplyRule(text, compileCustomReplyRules(value));
     if (value !== cachedRuleText) {
-      cachedRules = parseCustomReplyRules(value);
+      cachedRules = compileCustomReplyRules(value);
       cachedRuleText = value;
     }
     return matchCustomReplyRule(text, cachedRules);
@@ -84,16 +84,18 @@ function createCustomReplyService(dependencies = {}) {
 function findCustomReplyRule(message, settings = {}) {
   const text = cleanText(message);
   if (!text || settings.enableCustomReplyBot !== 'true') return null;
-  return matchCustomReplyRule(text, parseCustomReplyRules(settings.customReplyRules));
+  return matchCustomReplyRule(text, compileCustomReplyRules(settings.customReplyRules));
+}
+
+function compileCustomReplyRules(value) {
+  return parseCustomReplyRules(value)
+    .filter((rule) => rule.enabled)
+    .map((rule) => ({ rule, keyword: toSimplifiedChinese(rule.keyword).toLocaleLowerCase() }));
 }
 
 function matchCustomReplyRule(text, rules) {
   const normalizedText = toSimplifiedChinese(text).toLocaleLowerCase();
-  return (
-    rules.find(
-      (rule) => rule.enabled !== false && normalizedText.includes(toSimplifiedChinese(rule.keyword).toLocaleLowerCase()),
-    ) || null
-  );
+  return rules.find(({ keyword }) => normalizedText.includes(keyword))?.rule || null;
 }
 
 function parseCustomReplyRules(value) {

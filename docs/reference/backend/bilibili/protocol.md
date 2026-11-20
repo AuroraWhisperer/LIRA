@@ -59,7 +59,7 @@ Cookie 的来源与加密存储(login 分区/`bilibili-auth/cookies.enc`)见 [de
 | `room_init`         | `https://api.live.bilibili.com/room/v1/Room/room_init?id={roomId}`                                            | 解析房间:`data.room_id`(标准长房号,必需)、`short_id`、`uid`(主播)、`live_status`(1=开播);随后拉 `master_info` 补 `ownerName`                                           | [api-client.js:26-29](../../../../src/bilibili/danmaku/api-client.js#L26-L29)、[api-client.js:33-41](../../../../src/bilibili/danmaku/api-client.js#L33-L41) |
 | `master_info`       | `https://api.live.bilibili.com/live_user/v1/Master/info?uid={uid}`                                            | `data.info.uname` → 主播名称,失败仅告警不阻断                                                                                                                          | [api-client.js:52-61](../../../../src/bilibili/danmaku/api-client.js#L52-L61)                                                                                |
 | `nav`               | `https://api.bilibili.com/x/web-interface/nav`                                                                | 当前登录账号名(`data.uname`)；桌面账号资料读取还核对 `data.isLogin` / `data.mid` 并提取头像 `data.face`，失败回退见[桌面认证](../../desktop/auth.md#10-cookie--api-请求头)；同时是 WBI img/sub 密钥来源(见 §3) | [api-client.js](../../../../src/bilibili/danmaku/api-client.js)、[wbi-signer.js](../../../../src/bilibili/wbi-signer.js) |
-| `getDanmuInfo`      | `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{WBI签名}`                                | 参数 `{id: roomId, type: 0}` 经 WBI 签名;返回 `data.host_list[0].host` / `wss_port`(默认 443)/ `data.token`                                                            | [api-client.js:72-82](../../../../src/bilibili/danmaku/api-client.js#L72-L82)                                                                                |
+| `getDanmuInfo` | `https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo?{WBI签名}` | 参数 `{id: roomId, type: 0}` 经 WBI 签名，返回 `data.host_list` 和 `data.token`。连接尝试轮换候选地址及对应的 `wss_port` | [api-client.js](../../../../src/bilibili/danmaku/api-client.js) |
 | `gethistory`        | `https://api.live.bilibili.com/xlive/web-room/v1/dM/gethistory?roomid={roomId}`                               | 历史弹幕降级监听:`data.admin[]` + `data.room[]`,每条约 `uid/nickname/text/timeline`;间隔 2.5s 见 [danmaku.md](danmaku.md) §3                                           | [api-client.js:93-102](../../../../src/bilibili/danmaku/api-client.js#L93-L102)                                                                              |
 | `online_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?room_id&ruid&page&page_size&type&switch&platform&web_location` | 网页在线榜身份补全，合并贡献值与进房时间排序的 `data.item`。参数、失败处理及名单上限见 [danmaku.md](danmaku.md) §3 | [api-client.js](../../../../src/bilibili/danmaku/api-client.js) |
 | `fans_members_rank` | `https://api.live.bilibili.com/xlive/general-interface/v1/rank/getFansMembersRank?roomId&ruid&page&page_size` | 全量本房粉丝牌成员快照;响应 `data.item[]`、`data.num`;分页/轮询策略见 [danmaku.md](danmaku.md) §3                                                                      | [api-client.js:93-103](../../../../src/bilibili/danmaku/api-client.js#L93-L103)                                                                              |
@@ -150,12 +150,11 @@ sequence:     发送固定 1
 | 3   | S→C  | 心跳回包 | 复位 `awaitingHeartbeatReply`;不做消息解析 |
 | 5   | S→C  | 推送消息 | 唯一进入消息解析的操作                     |
 | 7   | C→S  | 认证     | 连接后立即发送                             |
-| 8   | S→C  | 认证回包 | WebSocketConnection 记录有效整数 code 的成功/拒绝或无效回包；不进入业务消息解析 |
+| 8   | S→C  | 认证回包 | `code=0` 完成鉴权，非零或无效 code 关闭连接 |
 
 解析器只处理 `operation === 5` 的包,其余跳过([packet-decoder.js:58](../../../../src/bilibili/parsers/packet-decoder.js#L58))。
 
-认证观察不改变现有 open/重连逻辑；首次心跳仍未收到认证回包时，记录一次
-`auth-no-reply`，默认 30 秒。诊断字段、落盘与复现方式见 [danmaku.md §8.1](danmaku.md#81-登录到点歌的本地日志)。
+WebSocket 打开后最多等 10 秒接收认证回包。整数 `code=0` 确认连接可用，拒绝或无效回包会关闭连接。等待超时时记录 `auth-no-reply`，心跳回包与鉴权分别处理。关闭后走既有历史轮询和退避重连。诊断字段见 [弹幕日志 §8.1](danmaku.md#81-登录到点歌的本地日志)。
 
 ### 4.5 帧解析与解压
 

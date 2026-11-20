@@ -19,7 +19,12 @@ const { createGiftExportRuntime } = require('../src/server/gift-export-runtime')
 const scratch = path.resolve(__dirname, '../tmp');
 fs.mkdirSync(scratch, { recursive: true });
 const root = fs.mkdtempSync(path.join(scratch, 'lira-gift-export-check-'));
-app.setPath('userData', path.join(root, 'user-data'));
+const profilePath = path.join(root, 'user-data');
+const crashPath = path.join(profilePath, 'crash-dumps');
+fs.mkdirSync(crashPath, { recursive: true });
+app.setPath('userData', profilePath);
+app.setPath('sessionData', profilePath);
+app.setPath('crashDumps', crashPath);
 app.on('window-all-closed', () => {});
 app.commandLine.appendSwitch('force-device-scale-factor', process.env.GIFT_TEST_DPI || '1');
 const publicDir = path.resolve(__dirname, '../public');
@@ -57,6 +62,11 @@ const server = http.createServer((req, res) => {
 (async () => {
   await app.whenReady();
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const baseUrl = `http://127.0.0.1:${server.address().port}`;
+  const pageResponse = await fetch(`${baseUrl}/gift-export`);
+  assert.equal(pageResponse.status, 200);
+  await pageResponse.body.cancel();
+  const avatarUrl = 'https://i0.hdslb.com/bfs/face/synthetic.webp';
   const cardItems = [2, 3].map((num, index) => ({
     eventId: `merged-${index}`,
     gift: {
@@ -69,9 +79,22 @@ const server = http.createServer((req, res) => {
       createdAt: '2026-09-19T01:00:00Z',
     },
   }));
+  const historicalItems = cardItems.map((item, index) => ({
+    eventId: index === 0 ? 'historical-guard' : 'historical-ticket',
+    gift: {
+      ...item.gift,
+      giftId: index === 0 ? 'guard-3' : 'popularity-ticket',
+      giftName: index === 0 ? '舰长' : '人气票',
+      avatarUrl: index === 0 ? null : avatarUrl,
+      createdAt: '2026-09-18T01:00:00Z',
+    },
+  }));
   const cardRuntime = createGiftExportRuntime({
     getServices: () => ({
-      gifts: { getSelection: () => ({ viewRevision: 'fixture', items: cardItems }), getViewRevision: () => 'fixture' },
+      gifts: {
+        getSelection: ({ historical }) => ({ viewRevision: 'fixture', items: historical ? historicalItems : cardItems }),
+        getViewRevision: () => 'fixture',
+      },
       overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) },
     }),
     getSettingsStore: () => ({ getSettings: () => ({}) }),
@@ -83,25 +106,29 @@ const server = http.createServer((req, res) => {
           eventId: item.eventId,
           senderId: '123',
           userName: '新昵称',
-          avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic.webp',
+          avatarUrl,
           guardLevel: 1,
           createdAt: item.gift.createdAt,
         })),
       }),
     },
   });
+  cardRuntime.configureGiftSync({ cardAvatars: async ({ eventIds }) => {
+    assert.deepEqual(eventIds, ['historical-guard']);
+    return { ok: true, items: [{ eventId: 'historical-guard', avatarUrl }] };
+  } });
   const controller = createGiftExportController({
     app: { getPath: () => root },
     BrowserWindow,
     dialog: {},
     shell: {},
-    getBaseUrl: () => `http://127.0.0.1:${server.address().port}`,
+    getBaseUrl: () => baseUrl,
     getMainWindow: () => null,
     runtime: {
       getSetting: () => '',
       getGiftViewRevision: () => 'fixture',
       prepareGiftExport: (selection) =>
-        selection.merge
+        selection.merge || selection.historical
           ? cardRuntime.prepareGiftExport(selection)
           : {
               viewRevision: 'fixture',
@@ -117,14 +144,14 @@ const server = http.createServer((req, res) => {
                   unitPrice: 1,
                   num: 3000,
                   guardLevel: [3, 2, 1, 0][(id - 1) % 4],
-                  avatarUrl: 'https://i0.hdslb.com/bfs/face/synthetic.webp',
+                  avatarUrl,
                 },
               })),
             },
     },
   });
   try {
-    const task = await controller.prepare({});
+    const task = await controller.prepare({ historical: true });
     const result = await controller.save({ id: task.id });
     assert.equal(result.ok, true, result.error);
     const file = path.join(result.directory, '礼物_001.png');
@@ -136,12 +163,11 @@ const server = http.createServer((req, res) => {
     assert.equal(pixels[3], 0, 'transparent corner');
     assert.ok(requestedAssets.has('/api/bilibili/avatar'), 'avatar uses the local proxy');
     assert.ok(requestedAssets.has('/img/overlays/danmaku-guard/bubble-captain-frame.webp'), 'captain frame is loaded');
-    const avatarPixel = (72 * width + 72) * 4;
-    assert.deepEqual(
-      [...pixels.subarray(avatarPixel, avatarPixel + 4)],
-      [200, 100, 50, 255],
-      'sender avatar is visible in the PNG',
-    );
+    for (const y of [72, 232]) {
+      const avatarPixel = (y * width + 72) * 4;
+      assert.deepEqual([...pixels.subarray(avatarPixel, avatarPixel + 4)], [200, 100, 50, 255]);
+    }
+    console.log('PASS: the historical guard and popularity ticket show the same sender avatar');
     assert.ok(
       pixels.some((value, index) => index % 4 === 3 && value > 0),
       'nonempty picture',

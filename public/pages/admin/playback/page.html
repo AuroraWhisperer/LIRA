@@ -45,18 +45,34 @@
       <div class="panel-body">
         <div class="playback-home-grid">
           <button class="playback-home-card" type="button" data-playback-home-action="personalized">
+            <span class="playback-home-icon" aria-hidden="true">
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="qq"><use href="/img/playback/home-icons.svg#qq-personalized" /></svg>
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="netease"><use href="/img/playback/home-icons.svg#netease-personalized" /></svg>
+            </span>
             <strong class="ui-card-title">为你推荐</strong>
             <span class="ui-caption">根据听歌偏好智能推荐</span>
           </button>
           <button class="playback-home-card" type="button" data-playback-home-action="daily">
+            <span class="playback-home-icon playback-home-icon--netease" aria-hidden="true">
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="netease"><use href="/img/playback/home-icons.svg#netease-daily" /></svg>
+              <b class="playback-home-day" data-playback-home-day></b>
+            </span>
             <strong class="ui-card-title">每日推荐</strong>
             <span class="ui-caption">每天刷新，100 首基于听歌偏好的推荐</span>
           </button>
           <button class="playback-home-card" type="button" data-playback-home-action="radio">
+            <span class="playback-home-icon" aria-hidden="true">
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="qq"><use href="/img/playback/home-icons.svg#qq-radio" /></svg>
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="netease"><use href="/img/playback/home-icons.svg#netease-radio" /></svg>
+            </span>
             <strong class="ui-card-title">心动 / 电台</strong>
             <span class="ui-caption">快放完时自动添加 10 首，继续播放</span>
           </button>
           <button class="playback-home-card" type="button" data-playback-home-action="liked">
+            <span class="playback-home-icon" aria-hidden="true">
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="qq"><use href="/img/playback/home-icons.svg#qq-liked" /></svg>
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="netease"><use href="/img/playback/home-icons.svg#netease-liked" /></svg>
+            </span>
             <strong class="ui-card-title">我喜欢</strong>
             <span class="ui-caption">已点亮红心的歌曲</span>
           </button>
@@ -69,6 +85,10 @@
             <span class="ui-caption">收藏的其他用户歌单</span>
           </button>
           <button class="playback-home-card" type="button" data-playback-home-action="recent">
+            <span class="playback-home-icon" aria-hidden="true">
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="qq"><use href="/img/playback/home-icons.svg#qq-recent" /></svg>
+              <svg aria-hidden="true" focusable="false" data-playback-home-glyph="netease"><use href="/img/playback/home-icons.svg#netease-recent" /></svg>
+            </span>
             <strong class="ui-card-title">最近播放</strong>
             <span class="ui-caption">近期播放过的歌曲</span>
           </button>
@@ -165,7 +185,7 @@
         </div>
         <div class="wesing-offset-field">
           <div class="wesing-field-heading">
-            <span>全民 K 歌歌词时间调整 <lira-help>只调整全民 K 歌的歌词时间；浏览器源还会叠加“点歌 → 直播歌词”的画面时间偏移。首选歌词源和智能匹配歌词需在该页选择“全民 K 歌”后设置。</lira-help></span>
+            <span>全民 K 歌歌词时间调整 <lira-help>专门微调全民 K 歌的歌词快慢（浏览器源上会和「直播歌词」里的时间偏移叠加）。首选歌词源和智能匹配请到「直播歌词 → 音乐跟随」里选择全民 K 歌后设置。</lira-help></span>
           </div>
           <div class="wesing-offset-control">
             <input
@@ -214,10 +234,6 @@
   <section class="panel playback-search-panel" data-online-source-view>
     <div class="panel-header">
       <h2 class="ui-section-title">在线搜索</h2>
-      <div class="actions">
-        <button id="playbackSearchBtn" type="button">搜索</button>
-        <button id="playbackSearchClearBtn" type="button">清除</button>
-      </div>
     </div>
     <div class="panel-body stack">
       <div class="form-grid three">
@@ -233,6 +249,10 @@
           数量
           <input id="playbackSearchLimit" type="number" min="1" max="30" step="1" value="9" />
         </label>
+        <div class="actions playback-search-actions">
+          <button id="playbackSearchBtn" type="button">搜索</button>
+          <button id="playbackSearchClearBtn" type="button">清除</button>
+        </div>
       </div>
       <div id="playbackSearchResults" class="playback-search-results hint ui-caption"></div>
     </div>

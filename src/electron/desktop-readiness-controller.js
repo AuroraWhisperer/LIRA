@@ -18,7 +18,6 @@ function createDesktopReadinessController({
   const initialRoute =
     licenseManager.getState() === LicenseState.AUTHORIZED && runtime.isGiftCatalogInitialized() ? 'admin' : 'license';
   const navigation = createMainNavigation({
-    initialRoute,
     getMainWindow,
     baseUrl,
     writeLog,
@@ -92,6 +91,7 @@ function createDesktopReadinessController({
     active = true;
     unsubscribeCatalog = runtime.onGiftCatalogInitializationStateChanged(onCatalogChanged);
     unsubscribeLicense = licenseManager.onStateChanged(onLicenseChanged);
+    navigateMain(initialRoute);
     if (licenseManager.getState() === LicenseState.AUTHORIZED) {
       resumeAuthorizedWork(true);
       refreshGiftCatalog(
@@ -122,9 +122,9 @@ function refreshGiftCatalog(runtime, reason, writeLog) {
 }
 
 // Navigation owns route deduplication and loadURL completion generations.
-function createMainNavigation({ initialRoute, getMainWindow, baseUrl, writeLog }) {
+function createMainNavigation({ getMainWindow, baseUrl, writeLog }) {
   let active = true;
-  let mainRoute = initialRoute;
+  let mainRoute = '';
   let navigationGeneration = 0;
   function navigateMain(route) {
     const window = getMainWindow();

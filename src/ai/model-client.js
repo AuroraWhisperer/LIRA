@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('node:crypto');
+const { addAbortListener } = require('node:events');
 const { fetchJson, createPublicError, throwIfAborted } = require('./http-client');
 const { describeModelEndpoint, resolveModelEndpoint, resolveModelsEndpoint } = require('./model-endpoint');
 const { applyModelProviderPreset, usesSubscription } = require('./config');
@@ -45,12 +46,16 @@ function createModelClient(options = {}) {
   }
 
   async function createChatResponse(request, config, endpoint) {
-    const previousId = String(request.previousResponseId || '');
-    const previousMessages = previousId ? chatHistory.get(previousId) : null;
-    const body = buildChatBody(request, config, endpoint, previousMessages);
-    const messages = body.messages;
+    const credential = hashApiKey(config.deepseekApiKey);
+    const historyKey = id => JSON.stringify([endpoint.url, config.model, credential, String(id)]);
+    const previousKey = request.previousResponseId && historyKey(request.previousResponseId);
+    const previous = chatHistory.get(previousKey);
+    const body = buildChatBody(request, config, endpoint, previous?.messages);
+    const thinkingWithTools = endpoint.officialDeepSeek && body.thinking?.type === 'enabled' && Boolean(body.tools);
+    // A DeepSeek tool chain belongs to this generation, including when its follow-up fails.
+    if (previous?.thinkingWithTools) forgetChatHistory(previousKey);
 
-    const result = await sendModelRequest({
+    const { rawMessage, ...result } = await sendModelRequest({
       url: endpoint.url,
       config,
       purpose: request.purpose,
@@ -59,11 +64,16 @@ function createModelClient(options = {}) {
       normalize: normalizeChatResponse,
       signal: request.signal,
     });
-    const assistantMessage = toAssistantHistoryMessage(result.rawMessage, config.modelProvider === 'kimi');
-    const responseId = result.id || `chat_${crypto.randomUUID()}`;
-    if (assistantMessage) rememberChatHistory(responseId, [...messages, assistantMessage]);
-    if (previousId) chatHistory.delete(previousId);
-    return { ...result, id: responseId, rawMessage: undefined };
+    if (previous && !previous.thinkingWithTools) forgetChatHistory(previousKey);
+    const id = result.id || `chat_${crypto.randomUUID()}`;
+    const thinkingToolChain = thinkingWithTools || previous?.thinkingWithTools;
+    if (!thinkingToolChain || result.functionCalls.length) {
+      const assistant = toAssistantHistoryMessage(rawMessage, thinkingWithTools || config.modelProvider === 'kimi');
+      if (assistant) {
+        rememberChatHistory(historyKey(id), { messages: [...body.messages, assistant], thinkingWithTools }, request.signal);
+      }
+    }
+    return { ...result, id };
   }
 
   async function sendModelRequest({ url, config, purpose, protocol, body, normalize, signal }) {
@@ -153,16 +163,25 @@ function createModelClient(options = {}) {
     } catch {}
   }
 
-  function rememberChatHistory(id, messages) {
-    chatHistory.set(id, messages);
-    if (chatHistory.size <= 100) return;
-    chatHistory.delete(chatHistory.keys().next().value);
+  function forgetChatHistory(key) {
+    chatHistory.get(key)?.abortListener?.[Symbol.dispose]();
+    chatHistory.delete(key);
+  }
+
+  function rememberChatHistory(key, history, signal) {
+    forgetChatHistory(key);
+    if (history.thinkingWithTools && signal) {
+      if (signal.aborted) return;
+      history.abortListener = addAbortListener(signal, () => forgetChatHistory(key));
+    }
+    chatHistory.set(key, history);
+    if (chatHistory.size > 100) forgetChatHistory(chatHistory.keys().next().value);
   }
 
   function modelCatalogKey(config) {
     return JSON.stringify([config.modelProvider || 'auto',
       resolveModelsEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol),
-      crypto.createHash('sha256').update(config.deepseekApiKey).digest('hex')]);
+      hashApiKey(config.deepseekApiKey)]);
   }
 
   function getReasoningProfile(input) {
@@ -266,6 +285,10 @@ function createModelClient(options = {}) {
       return status.available && status.loggedIn && !status.needsVerification;
     },
   };
+}
+
+function hashApiKey(apiKey) {
+  return crypto.createHash('sha256').update(apiKey).digest('hex');
 }
 
 function isAuthenticationError(error) {

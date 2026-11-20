@@ -56,31 +56,14 @@
 }
 
 .planner-count,
-.planner-save-state,
 .planner-month-count {
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-variant-numeric: tabular-nums;
 }
 
-.planner-save-state {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.planner-save-state::before {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent);
-  content: '';
-}
-.planner-save-state.is-error,
 .planner-form-error {
   color: var(--danger);
-}
-.planner-save-state.is-error::before {
-  background: var(--danger);
 }
 
 .streamer-planner .planner-icon {

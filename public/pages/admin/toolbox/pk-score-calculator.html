@@ -10,35 +10,65 @@
     <div class="pk-score-calculator">
       <div class="pk-score-main">
         <div class="pk-score-controls">
-          <label class="pk-score-target-label" for="pkScoreTarget">需要的 PK 加分</label>
-          <input id="pkScoreTarget" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 1000" aria-describedby="pkScoreError" />
-          <p id="pkScoreError" class="pk-score-error" role="alert" hidden></p>
-          <fieldset class="pk-score-win">
-            <legend class="sr-only">首胜加成</legend>
-            <label><input type="radio" name="pkScoreWin" value="normal" checked />非首胜</label>
-            <label><input id="pkScoreFirstWin" type="radio" name="pkScoreWin" value="first" />首胜 ×2</label>
+          <fieldset class="pk-score-mode">
+            <legend class="sr-only">计算方式</legend>
+            <label><input class="sr-only" type="radio" name="pkScoreMode" value="score" checked />按 PK 分</label>
+            <label><input id="pkScoreByAmount" class="sr-only" type="radio" name="pkScoreMode" value="amount" />按金额</label>
           </fieldset>
-          <label class="switch-control">
-            <input id="pkScoreDouble" type="checkbox" role="switch" checked />
-            <span class="switch-track" aria-hidden="true"></span>
-            <span>双倍时段 ×2</span>
-          </label>
+          <div>
+            <label class="pk-score-field" for="pkScoreTarget">
+              目标 PK 加分
+              <span class="pk-score-entry">
+                <input id="pkScoreTarget" type="number" min="0" step="1" inputmode="numeric" placeholder="例如 1000" aria-describedby="pkScoreError" />
+                <span aria-hidden="true">分</span>
+              </span>
+            </label>
+            <label class="pk-score-field" for="pkScoreAmount" hidden>
+              人民币预算
+              <span class="pk-score-entry">
+                <input id="pkScoreAmount" type="text" inputmode="decimal" placeholder="例如 100.00" aria-describedby="pkScoreError" />
+                <span aria-hidden="true">元</span>
+              </span>
+            </label>
+            <p id="pkScoreError" class="pk-score-error" role="alert" hidden></p>
+          </div>
+          <fieldset class="pk-score-conditions">
+            <legend class="sr-only">本场加成</legend>
+            <label class="switch-control">
+              <span>本场首胜</span><span class="pk-score-factor">×2</span>
+              <input id="pkScoreFirstWin" type="checkbox" role="switch" />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <label class="switch-control">
+              <span>双倍时段</span><span class="pk-score-factor">×2</span>
+              <input id="pkScoreDouble" type="checkbox" role="switch" checked />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+            <label class="switch-control pk-score-event">
+              <span>逐胜加冕<small>每日前 3 场获胜 PK</small></span><span class="pk-score-factor">+10%</span>
+              <input id="pkScoreEventBonus" type="checkbox" role="switch" />
+              <span class="switch-track" aria-hidden="true"></span>
+            </label>
+          </fieldset>
         </div>
         <div class="pk-score-results" aria-live="polite" aria-atomic="true">
-          <dl class="pk-score-totals">
-            <div><dt>所需电池</dt><dd id="pkScoreBatteries">—</dd></div>
-            <div><dt>折合人民币</dt><dd id="pkScoreRmb">—</dd></div>
+          <dl class="pk-score-primary">
+            <dt id="pkScorePrimaryLabel">所需金额</dt>
+            <dd><span id="pkScorePrimary">—</span><small id="pkScorePrimaryUnit" hidden>元</small></dd>
           </dl>
-          <p class="pk-score-awarded">可得加分 <strong id="pkScoreAwarded">—</strong></p>
+          <dl class="pk-score-totals">
+            <div><dt id="pkScoreBatteriesLabel">所需电池</dt><dd id="pkScoreBatteries">—</dd></div>
+            <div><dt id="pkScoreDetailLabel">实际可得加分</dt><dd id="pkScoreDetail">—</dd></div>
+          </dl>
         </div>
       </div>
     </div>
     <section class="pk-score-rules" aria-labelledby="pkScoreRulesTitle">
       <h3 id="pkScoreRulesTitle">换算规则</h3>
       <dl class="pk-score-conversions">
+        <div><dt>金额换算</dt><dd id="pkScoreRmbConversion">10 电池 = 1 元</dd></div>
         <div><dt>PK 条得分</dt><dd id="pkScoreBarConversion">1 电池 × 2（双倍）= 2 分</dd></div>
-        <div><dt>主播加分</dt><dd id="pkScoreAwardConversion">PK 条得分 ÷ 50，向下取整</dd></div>
-        <div><dt>人民币</dt><dd id="pkScoreRmbConversion">10 电池 = 1 元</dd></div>
+        <div><dt>主播加分</dt><dd id="pkScoreAwardConversion">PK 条得分 ÷ 50，只计整分</dd></div>
       </dl>
     </section>
   </div>

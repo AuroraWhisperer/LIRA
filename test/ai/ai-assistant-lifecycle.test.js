@@ -10,17 +10,18 @@ for (const config of [{ modelProvider: 'doubao' }, { modelProvider: 'openai', mo
 test(`${config.modelProvider} account changes discard accepted replies and prevent new admissions`, async t => {
   let revision = 1;
   let ready = true;
-  let generating = false;
+  let generationSignal;
   const pending = Promise.withResolvers();
   const sent = [];
   const service = createTestService({
     config,
+    store: { subscribe: () => () => {} },
     modelClient: {
       isReady: () => ready,
       getSessionRevision: () => revision,
       async createResponse(request) {
         if (request.purpose !== 'generation') return { text: '{"allowed":true}', functionCalls: [], usage: {} };
-        generating = true;
+        generationSignal = request.signal;
         await pending.promise;
         return { text: '旧会话的答案', functionCalls: [], usage: {} };
       },
@@ -29,10 +30,11 @@ test(`${config.modelProvider} account changes discard accepted replies and preve
   });
   t.after(async () => { pending.resolve(); await service.shutdown(); });
   assert.equal(service.handleDanmaku({ uid: 'old', message: '小米 你好' }).accepted, true);
-  await waitUntil(() => generating);
+  await waitUntil(() => generationSignal);
   revision++;
   ready = false;
   assert.equal(service.handleDanmaku({ uid: 'paused', message: '小米 你好' }).accepted, false);
+  assert.ok(generationSignal.aborted);
   pending.resolve();
   await waitUntil(() => service.getStatus().queued === 0);
   assert.deepEqual(sent, []);

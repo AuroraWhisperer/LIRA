@@ -3,7 +3,7 @@
     ><strong
       ><span id="desktopLyricSpringAnimationLabel">弹性动画</span>
       <lira-help
-        ><span id="desktopLyricSpringHint">切换歌词时会有回弹动画；该效果会持续计算位置，建议在性能充足时开启。</span></lira-help
+        ><span id="desktopLyricSpringHint">切行时带有回弹过渡；比较吃性能，电脑配置吃紧时建议关掉。</span></lira-help
       ></strong
     ></span
   ><label class="switch-control"
@@ -15,7 +15,7 @@
     ><strong
       ><span id="desktopLyricBlurEffectLabel">模糊非当前行</span>
       <lira-help
-        ><span id="desktopLyricBlurHint">模糊当前行以外的歌词；会增加合成压力，建议在性能充足时开启。</span></lira-help
+        ><span id="desktopLyricBlurHint">把还没唱到和已经唱完的歌词虚化，突出当前句；比较吃显卡，电脑卡顿时建议关掉。</span></lira-help
       ></strong
     ></span
   ><label class="switch-control"
@@ -39,15 +39,12 @@
       max="2"
       step="0.1"
       value="1"
-    /><input aria-labelledby="desktopLyricScaleLabel" id="desktopLyricScaleNumber" type="number" min="50" max="200" step="10" value="100" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricScaleLabel" id="desktopLyricScaleNumber" type="number" min="50" max="200" step="10" value="100" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
   ><span class="desktop-lyric-control-copy"
-    ><strong><span id="desktopLyricAlignPositionLabel">当前行垂直位置</span> <lira-help>控制当前歌词行的垂直位置。</lira-help></strong></span
+    ><strong><span id="desktopLyricAlignPositionLabel">当前行垂直位置</span></strong></span
   ><span class="range-row"
     ><input
       aria-labelledby="desktopLyricAlignPositionLabel" id="desktopLyricAlignPosition"
@@ -57,10 +54,7 @@
       max="1"
       step="0.05"
       value="0.5"
-    /><input aria-labelledby="desktopLyricAlignPositionLabel" id="desktopLyricAlignPositionNumber" type="number" min="0" max="100" step="5" value="50" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricAlignPositionLabel" id="desktopLyricAlignPositionNumber" type="number" min="0" max="100" step="5" value="50" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control"
@@ -83,10 +77,7 @@
       max="500"
       step="5"
       value="0"
-    /><input aria-labelledby="desktopLyricTranslateXLabel" id="desktopLyricTranslateXNumber" type="number" min="-500" max="500" step="5" value="0" /><span
-      class="desktop-lyric-unit"
-      >px</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricTranslateXLabel" id="desktopLyricTranslateXNumber" type="number" min="-500" max="500" step="5" value="0" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -100,10 +91,7 @@
       max="500"
       step="5"
       value="0"
-    /><input aria-labelledby="desktopLyricTranslateYLabel" id="desktopLyricTranslateYNumber" type="number" min="-500" max="500" step="5" value="0" /><span
-      class="desktop-lyric-unit"
-      >px</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricTranslateYLabel" id="desktopLyricTranslateYNumber" type="number" min="-500" max="500" step="5" value="0" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -117,10 +105,7 @@
       max="2000"
       step="50"
       value="800"
-    /><input aria-labelledby="desktopLyricPerspectiveLabel" id="desktopLyricPerspectiveNumber" type="number" min="200" max="2000" step="50" value="800" /><span
-      class="desktop-lyric-unit"
-      >px</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricPerspectiveLabel" id="desktopLyricPerspectiveNumber" type="number" min="200" max="2000" step="50" value="800" /><span class="lira-number-field-unit" aria-hidden="true">px</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -134,10 +119,7 @@
       max="45"
       step="1"
       value="0"
-    /><input aria-labelledby="desktopLyricRotateXLabel" id="desktopLyricRotateXNumber" type="number" min="-45" max="45" step="1" value="0" /><span
-      class="desktop-lyric-unit"
-      >deg</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricRotateXLabel" id="desktopLyricRotateXNumber" type="number" min="-45" max="45" step="1" value="0" /><span class="lira-number-field-unit" aria-hidden="true">deg</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -151,9 +133,6 @@
       max="45"
       step="1"
       value="0"
-    /><input aria-labelledby="desktopLyricRotateYLabel" id="desktopLyricRotateYNumber" type="number" min="-45" max="45" step="1" value="0" /><span
-      class="desktop-lyric-unit"
-      >deg</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricRotateYLabel" id="desktopLyricRotateYNumber" type="number" min="-45" max="45" step="1" value="0" /><span class="lira-number-field-unit" aria-hidden="true">deg</span></span></span
   ></label
 >

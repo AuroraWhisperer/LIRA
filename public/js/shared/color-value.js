@@ -1,4 +1,4 @@
-/** Read CSS hexadecimal colors without discarding their alpha channel. */
+/** Parse CSS hex colors while preserving an explicit alpha channel. */
 export function parseHexColor(value) {
   const match = /^#([\da-f]{3,4}|[\da-f]{6}|[\da-f]{8})$/i.exec(String(value || ''));
   if (!match) return null;

@@ -5,6 +5,7 @@ import { createTextBoxDefaults } from '../shared/text-box-config.js';
 import { mountComponentStyleLibrary } from './component-style-library.js';
 import { componentStyleMedia } from '../shared/component-resource-style.js';
 import { bindDanmakuStyleFilters } from './danmaku-style-library.js';
+import { bindDanmakuStyleFavorites } from './danmaku-style-favorites.js';
 
 // Content bounds in the existing 640 × 400 thumbnails; retain room for shadows.
 const PREVIEW_IMAGE_BOUNDS = {
@@ -82,7 +83,7 @@ function pickerIcon(path) {
   return icon;
 }
 
-export function mountComponentPreviewPicker({ components, source, add, report, getTextBoxes = () => [], requestStyles }) {
+export function mountComponentPreviewPicker({ components, source, add, report, getTextBoxes = () => [], requestStyles, favorites }) {
   const dialog = previewElement('dialog', 'preview-component-picker');
   dialog.setAttribute('aria-labelledby', 'componentPickerTitle');
   const header = previewElement('header', 'preview-picker-heading');
@@ -104,6 +105,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   const styles = previewElement('div');
   const browserForm = previewElement('form', 'preview-browser-form');
   let styleLibrary;
+  let styleFavorites;
   browserForm.hidden = true;
   content.append(subcategories, styles, browserForm);
   body.append(categories, content);
@@ -112,7 +114,7 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
   const choices = new Map();
   const groups = new Map();
   const navigationGroups = new Map();
-  dialog.addEventListener('close', () => { styleLibrary?.dispose(); });
+  dialog.addEventListener('close', () => { styleLibrary?.dispose(); styleFavorites?.dispose(); });
   const pickerComponents = components.flatMap(component => component.id === 'interactions'
     ? COMPONENT_PREVIEW_DEFINITIONS.interactions.variants.map(variant => ({ ...component,
       title: variant.label, pickerCategory: `interactions-${variant.value}`, pickerVariant: variant.value,
@@ -174,6 +176,8 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
 
   function show(component, initialFile, updatePack) {
     styleLibrary?.dispose();
+    styleFavorites?.dispose();
+    styleFavorites = null;
     content.classList.add('has-style-grid');
     const category = categoryOf(component);
     for (const [id, button] of choices) button.setAttribute('aria-pressed', String(id === category));
@@ -250,7 +254,12 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
       list.classList.add('preview-picker-styles');
       // The initial render runs before the library request has succeeded.
       if (importEmpty) importEmpty.hidden = firstRender || cards.length > 0;
-      list.replaceChildren(...(empty ? [empty] : []), ...(importEmpty ? [importEmpty] : []), ...builtinCards, ...cards.map(({ card }) => card));
+      const builtinElements = danmaku && styleFavorites ? styleFavorites.elements : builtinCards;
+      list.replaceChildren(...(empty ? [empty] : []), ...(importEmpty ? [importEmpty] : []), ...builtinElements, ...cards.map(({ card }) => card));
+      if (danmaku && !styleFavorites) {
+        styleFavorites = bindDanmakuStyleFavorites({ root: list,
+          cards: new Map(builtinCards.map(card => [card.dataset.pickerStyle, card])), favorites, report });
+      }
       if (add) {
         add.className = 'secondary preview-picker-import';
         add.replaceChildren(pickerIcon('M12 5v14M5 12h14'), previewElement('span', '', '添加样式'));
@@ -316,6 +325,8 @@ export function mountComponentPreviewPicker({ components, source, add, report, g
 
   function showSuites(initialFile, updatePack) {
     styleLibrary?.dispose();
+    styleFavorites?.dispose();
+    styleFavorites = null;
     content.classList.remove('has-style-grid');
     styleLibrary = mountComponentStyleLibrary(styles, { request: requestStyles, suitesOnly: true,
       onImportTarget: importAtTarget, initialFile, updatePack,

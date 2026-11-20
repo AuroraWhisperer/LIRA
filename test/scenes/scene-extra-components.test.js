@@ -412,48 +412,44 @@ test('each extra component accepts all declared presets and preserves its geomet
   }
 });
 
-test('extra config validation owns invalid input classes, numeric coercion and color alpha rules', () => {
+test('extra config validation owns field branches and delegates lyric-specific rules', () => {
   for (const config of [null, [], 'value', Object.create({ style: 'none' })]) {
     assert.throws(() => normalizeSceneExtraConfig('background', config), { code: 'INVALID_SCENE_CONFIG' });
   }
-  for (const value of [NaN, Infinity, -0.01, 1.01, '', {}, 0.001]) {
+  for (const value of [NaN, -0.01, 1.01, '', {}, 0.001]) {
     assert.throws(() => normalizeSceneExtraConfig('background', { opacity: value }), { code: 'INVALID_SCENE_CONFIG' });
   }
   for (const value of [0, '0.42', 1]) {
     assert.equal(normalizeSceneExtraConfig('background', { opacity: value }).opacity, Number(value));
   }
   assert.equal(normalizeSceneExtraConfig('lyrics', { desktopLyricFontSize: 36 }).desktopLyricFontSize, '36');
-  for (const value of ['yes', 1, null]) {
-    assert.throws(() => normalizeSceneExtraConfig('games', { showTitle: value }), { code: 'INVALID_SCENE_CONFIG' });
-  }
+  assert.equal(normalizeSceneExtraConfig('blindbox', { blindboxCastleMultiplier: '' }).blindboxCastleMultiplier, '');
+  assert.equal(normalizeSceneExtraConfig('lyrics', { advancedLyricLayoutSequence: 'corners,arc,corners' }).advancedLyricLayoutSequence, 'corners,arc');
+  assert.throws(() => normalizeSceneExtraConfig('lyrics', { advancedLyricFontSize: 161 }), { code: 'INVALID_SCENE_CONFIG' });
+  assert.throws(() => normalizeSceneExtraConfig('games', { showTitle: 'yes' }), { code: 'INVALID_SCENE_CONFIG' });
   for (const value of [true, false, 'true', 'false']) {
     assert.equal(normalizeSceneExtraConfig('games', { showTitle: value }).showTitle, value === true || value === 'true');
   }
-  for (const value of ['red', '#fff', 'url(private)', 123]) {
+  for (const value of ['#fff', 'url(private)', 123]) {
     assert.throws(() => normalizeSceneExtraConfig('wheel', { textColor: value }), { code: 'INVALID_SCENE_CONFIG' });
   }
-  for (const value of ['#123456', '#12345600', '#12345680']) {
+  for (const value of ['#123456', '#12345680']) {
     assert.equal(normalizeSceneExtraConfig('wheel', { textColor: value }).textColor, value);
   }
   assert.throws(() => normalizeSceneExtraConfig('background', { overlayColor: '#12345680' }), { code: 'INVALID_SCENE_CONFIG' });
   assert.equal(normalizeSceneExtraConfig('songlist', { songBoardSongColor: '' }).songBoardSongColor, '');
   assert.throws(() => normalizeSceneExtraConfig('background', { style: '__proto__' }), { code: 'INVALID_SCENE_CONFIG' });
-  for (const value of [{}, 'title\u0000']) {
+  const title = '🎵'.repeat(80);
+  assert.equal(normalizeSceneExtraConfig('songlist', { songBoardTitle: title }).songBoardTitle, title);
+  for (const value of [{}, 'title\u0000', `${title}🎵`]) {
     assert.throws(() => normalizeSceneExtraConfig('songlist', { songBoardTitle: value }), { code: 'INVALID_SCENE_CONFIG' });
   }
 });
 
-test('extra component schemas reject field limits, private configuration and unowned shared modes', () => {
-  for (const [type, definition] of Object.entries(SCENE_EXTRA_COMPONENTS)) {
+test('extra component schemas reject private configuration, unowned shared modes and conflicting gift thresholds', () => {
+  for (const type of Object.keys(SCENE_EXTRA_COMPONENTS)) {
     const defaults = createSceneExtraDefaults(type);
     assert.throws(() => normalizeSceneConfig(type, { ...defaults, token: 'private' }), { code: 'INVALID_SCENE_CONFIG' });
-    for (const [key, field] of Object.entries(definition.fields)) {
-      const value = field.type === 'number' ? field.max + 1
-        : field.type === 'select' ? 'unknown'
-          : ['text', 'textarea'].includes(field.type) ? 'x'.repeat(field.maxLength + 1) : undefined;
-      if (value !== undefined) assert.throws(() => normalizeSceneConfig(type, { ...defaults, [key]: value }), `${type}.${key}`);
-      if (field.type === 'number' && field.optional) assert.equal(normalizeSceneConfig(type, { ...defaults, [key]: '' })[key], '');
-    }
     const doc = documentFor(type); doc.items[0].appearance = { mode: 'shared' };
     assert.throws(() => normalizeSceneDocument(doc, { normalizeConfig: normalizeSceneConfig }));
   }

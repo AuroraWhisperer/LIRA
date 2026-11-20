@@ -195,11 +195,17 @@ test('overlay IPC gates sender, validates parameters and allowlists the server r
   assert.deepEqual(await update(event, reply), { ...expected, style: 'cream', styleOptions });
   assert.deepEqual(writes.at(-1), { style: 'cream', fullscreenDurationSeconds: 12, styleOptions });
   const layout = require('../../src/shared/danmaku-layout').createLayout();
-  reply = { ...reply, layout };
-  assert.deepEqual((await update(event, reply)).layout, layout);
+  const styleParameters = { cream: { showEntryMessages: false } };
+  reply = { ...reply, layout, styleParameters };
+  const updated = await update(event, reply);
+  assert.deepEqual(updated.layout, layout);
   assert.deepEqual(writes.at(-1).layout, layout);
-  assert.equal((await update(event, { ...reply, layout: { ...layout, contentScale: '1' } })).error, 'INVALID_OVERLAY_LAYOUT');
+  assert.deepEqual(updated.styleParameters, styleParameters);
+  assert.deepEqual(writes.at(-1).styleParameters, styleParameters);
   const count = writes.length;
+  assert.equal((await update(event, { ...reply, layout: { ...layout, contentScale: '1' } })).error, 'INVALID_OVERLAY_LAYOUT');
+  assert.equal((await update(event, { ...reply, styleParameters: { cream: { showEntryMessages: 'false' } } })).error,
+    'INVALID_STYLE_PARAMETERS');
   assert.equal(
     (await update(event, { ...reply, styleOptions: { cream: { fontSize: 41 } } })).error,
     'INVALID_OVERLAY_OPTIONS',

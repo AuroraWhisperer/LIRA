@@ -156,9 +156,9 @@ uid 仅接受非零开头十进制字符串 1–64 位；未登录返回空字�
 | `license:list-viewer-names` | `listViewerNames({page})`，正整数 1–999999999 | `{ok:true,items:[{uid,name}],page,pageSize:20,total}`；仅当前页，页码由服务器校正 | [danmaku-viewer-names.js](../../../public/js/admin/danmaku-viewer-names.js) |
 | `license:update-viewer-name` / `license:delete-viewer-name` | `updateViewerName({uid,name})` / `deleteViewerName(uid)` | 更新返回 `{ok:true,uid,name}`；删除 `{ok:true}`；INVALID_VIEWER_NAME_REQUEST / VIEWER_NAME_BLOCKED / VIEWER_NAME_NOT_FOUND / VIEWER_NAMES_UNSUPPORTED；设置另返回 INVALID_VIEWER_NAME_SETTINGS | 同上 |
 | `license:update-fixed-reply-settings` | `updateFixedReplySettings(patch)`，仅精确/定时回复及互动感谢配置字段、至少一个；约束见 [固定回复契约](main.md#服务器固定回复设置) | 同上；INVALID_FIXED_REPLY_SETTINGS / FIXED_REPLY_UNSUPPORTED / INVALID_RESPONSE | 同上 |
-| `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000；与自动同步串行，保留传入快照语义。统一在授权歌库 owner 按归一化后的完整 `{songs}` JSON 的 UTF-8 字节检查 ≤5 MiB | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / PAYLOAD_TOO_LARGE | 兼容入口 |
+| `license:sync-songs` | `syncSongs(songs)`，数组 ≤5000；与自动同步串行，保留传入快照语义。统一在授权歌库 owner 按归一化后的完整 `{songs}` JSON 的 UTF-8 字节检查 ≤5 MiB | `{ok,count?,index?,songPageUrl?}`；SONG_LIST_INVALID / PAYLOAD_TOO_LARGE / `SONG_*_TOO_LONG`（单曲文本超限，含零基 `index`） | 兼容入口 |
 | `license:get-local-song-count` | `getLocalSongCount()` | `{ok:true,count,generation}`；主进程完整歌库数量及确认代次 | [cloud-song-sync.js](../../../public/js/admin/cloud-song-sync.js) |
-| `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数；与兼容入口和自动上传共享归一化后的 5 MiB UTF-8 请求预算 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY，超限报 PAYLOAD_TOO_LARGE；失败走公共错误脱敏 | 同上 |
+| `license:sync-current-songs` | `syncCurrentSongs(generation)`；非负安全整数；与兼容入口和自动上传共享归一化后的 5 MiB UTF-8 请求预算 | `{ok,count,index?,songPageUrl?}`；确认代次过期报 CLOUD_SONGS_CHANGED，未就绪报 CLOUD_SYNC_NOT_READY，整包超限报 PAYLOAD_TOO_LARGE，单曲文本超限报对应 `SONG_*_TOO_LONG` 及零基 `index`；失败走公共错误脱敏 | 同上 |
 | `license:get-cloud-songs` | `getCloudSongs()` | `{songs:[SongPublic]}`，没有统一 ok 外层 | 同上 |
 | `license:get-cloud-song-count` | `getCloudSongCount()` | `{ok:true,count}`；优先读取 cloud-state.songs.count，旧服务器缺字段时才回退完整歌库；非法数量报 INVALID_RESPONSE | cloud-song-sync |
 | `license:get-song-page-access` | `getSongPageAccess()` | `{ok:true,enabled:boolean}`；读取授权账号的网页访问开关 | 同上 |

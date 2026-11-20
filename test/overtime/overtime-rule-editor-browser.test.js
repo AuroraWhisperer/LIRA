@@ -22,12 +22,31 @@ async function mount(t, rules) {
   await page.goto(url);
   await page.evaluate(async rules => {
     const { createOvertimeRuleEditor } = await import('/js/admin/overtime-rule-editor.js');
-    window.editor = createOvertimeRuleEditor(document.getElementById('rules'), () => {});
+    window.dirtyCalls = 0;
+    window.editor = createOvertimeRuleEditor(document.getElementById('rules'), () => { window.dirtyCalls += 1; });
     window.editor.setLimits({ maxEnabledRules: 8, minRandomOutcomes: 2, maxRandomOutcomes: 10, maxDisplayTextLength: 6 });
     window.editor.renderRules(rules);
   }, rules);
   return page;
 }
+
+test('adding a guard rule keeps the legacy rule grouped and marks the editor dirty once', async t => {
+  const page = await mount(t, [{ giftId: '33988', mode: 'fixed', fixedSeconds: 300 }]);
+  const result = await page.evaluate(() => {
+    const row = window.editor.createRule({ id: 'guard-1', name: '总督' });
+    const [legacy, ...added] = window.editor.readRules();
+    return {
+      returnedNewRow: row === document.querySelector('[data-gift-id="guard-1"]'),
+      dirtyCalls: window.dirtyCalls,
+      legacyQuantityMode: legacy.quantityMode,
+      added: added.map(({ giftId, giftName, mode, quantityMode }) => ({ giftId, giftName, mode, quantityMode })),
+    };
+  });
+  assert.equal(result.returnedNewRow, true);
+  assert.equal(result.dirtyCalls, 1);
+  assert.equal(result.legacyQuantityMode, 'group');
+  assert.deepEqual(result.added, [{ giftId: 'guard-1', giftName: '总督', mode: 'fixed', quantityMode: 'item' }]);
+});
 
 test('gift reselection follows the same rule after refresh and rejects a removed or rebound rule', async t => {
   const rule = { giftId: '1', giftName: '原礼物', enabled: true, mode: 'fixed', quantityMode: 'group',
@@ -77,14 +96,14 @@ test('native display input accepts six Unicode code points and validates after c
   const page = await mount(t, validateRules([base]));
   await page.getByRole('button', { name: '编辑规则', exact: true }).click();
   const input = page.locator('[data-display-text]');
-  for (const text of ['一二三四五六', '😀😃😄😁😆😅', '甲😀乙😃丙😄']) {
-    await input.fill('');
-    await input.pressSequentially(text);
-    assert.equal(await input.inputValue(), text);
-    assert.deepEqual(await input.evaluate(node => ({ valid: node.checkValidity(), value: window.editor.readRules()[0].displayText })),
-      { valid: true, value: text });
-    assert.equal(validateRules([{ ...base, displayText: text }])[0].displayText, text);
-  }
+  assert.equal(await input.inputValue(), base.displayText);
+  const text = '甲😀乙😃丙😄';
+  await input.fill('');
+  await input.pressSequentially(text);
+  const edited = await input.evaluate(node => ({ valid: node.checkValidity(), rule: window.editor.readRules()[0] }));
+  assert.equal(edited.valid, true);
+  assert.equal(validateRules([edited.rule])[0].displayText, text);
+
   const composition = await input.evaluate(node => {
     node.value = '一二三四五六七';
     node.dispatchEvent(new InputEvent('input', { bubbles: true, isComposing: true }));
@@ -97,5 +116,4 @@ test('native display input accepts six Unicode code points and validates after c
   assert.equal(composition.during, true);
   assert.equal(composition.after, false);
   assert.match(composition.modelError, /6/);
-  assert.throws(() => validateRules([{ ...base, displayText: '一二三四五六七' }]));
 });

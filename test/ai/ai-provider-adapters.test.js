@@ -258,82 +258,115 @@ test('DeepSeek official base uses Chat Completions for connection tests and norm
   assert.deepEqual(response.usage, { inputTokens: 12, outputTokens: 8 });
 });
 
-test('DeepSeek official Chat Completions URL remains usable and carries tool results forward', async () => {
-  const requests = [];
-  const client = createModelClient({
-    fetchImpl: async (url, options) => {
-      requests.push({ url: String(url), body: JSON.parse(options.body) });
-      if (requests.length === 1) {
-        return jsonResponse({
-          id: 'chat_tool',
-          choices: [
-            {
-              message: {
-                content: null,
-                tool_calls: [
-                  {
-                    id: 'call_1',
-                    type: 'function',
-                    function: {
-                      name: 'get_weather',
-                      arguments: '{"location":"苏州"}',
-                    },
-                  },
-                ],
-              },
-            },
-          ],
-        });
-      }
-      return jsonResponse({
-        id: 'chat_answer',
-        choices: [{ message: { content: '苏州今天晴' } }],
-      });
-    },
-  });
-  const config = {
-    deepseekResponsesUrl: 'https://api.deepseek.com/v1/chat/completions',
-    deepseekApiKey: 'secret',
-    model: 'deepseek-chat',
-    requestTimeoutMs: 3000,
-  };
-
-  const first = await client.createResponse({
-    config,
-    instructions: 'system',
-    input: '苏州天气',
-    tools: [],
-  });
-  const second = await client.createResponse({
-    config,
-    previousResponseId: first.id,
-    input: [
-      {
-        type: 'function_call_output',
-        call_id: 'call_1',
-        output: '{"temp":"25"}',
+for (const [name, provider, url, thinking, replayReasoning] of [
+  ['DeepSeek preset', 'deepseek', 'https://api.deepseek.com/chat/completions', true, true],
+  ['auto-detected DeepSeek', 'auto', 'https://api.deepseek.com/v1/chat/completions', true, true],
+  ['non-thinking DeepSeek', 'deepseek', 'https://api.deepseek.com/chat/completions', false, false],
+  ['third-party DeepSeek model', 'auto', 'https://gateway.example.test/v1/chat/completions', true, false],
+]) {
+  test(`${name} replays the expected assistant fields with the Chat tool result`, async () => {
+    const requests = [];
+    const events = [];
+    const reasoning = '  private fixture thought\nsecond line  ';
+    const call = { id: 'call_1', type: 'function', function: { name: 'get_weather', arguments: '{"location":"苏州"}' } };
+    const tools = [{ type: 'function', name: 'get_weather', parameters: { type: 'object' } }];
+    const client = createModelClient({
+      logEvent: event => events.push(event),
+      fetchImpl: async (target, options) => {
+        requests.push({ url: String(target), body: JSON.parse(options.body) });
+        const message = requests.length === 1
+          ? { content: null, tool_calls: [call], reasoning_content: reasoning }
+          : { content: '苏州今天晴' };
+        return jsonResponse({ id: `chat_${requests.length}`, choices: [{ message }] });
       },
-    ],
-    tools: [],
-  });
+    });
+    const config = { modelProvider: provider, deepseekResponsesUrl: url, deepseekApiKey: 'fixture-key',
+      model: 'deepseek-flash', reasoningEnabled: thinking };
+    const first = await client.createResponse({ config, instructions: 'system', input: '苏州天气', tools });
+    const second = await client.createResponse({
+      config, tools, previousResponseId: first.id,
+      input: [{ type: 'function_call_output', call_id: first.functionCalls[0].callId, output: '{"temp":"25"}' }],
+    });
 
-  assert.ok(requests.every(({ url }) => url === 'https://api.deepseek.com/v1/chat/completions'));
-  assert.deepEqual(requests[1].body.messages.slice(-2), [
-    {
-      role: 'assistant',
-      content: null,
-      tool_calls: [
-        {
-          id: 'call_1',
-          type: 'function',
-          function: { name: 'get_weather', arguments: '{"location":"苏州"}' },
-        },
-      ],
+    assert.ok(requests.every(request => request.url === url));
+    assert.deepEqual(requests[1].body.messages.slice(-2), [
+      { role: 'assistant', content: null, tool_calls: [call], ...(replayReasoning ? { reasoning_content: reasoning } : {}) },
+      { role: 'tool', tool_call_id: call.id, content: '{"temp":"25"}' },
+    ]);
+    assert.equal(second.text, '苏州今天晴');
+    assert.doesNotMatch(JSON.stringify([first, second, events]), /private fixture thought/);
+  });
+}
+
+test('DeepSeek keeps each pending tool step private to the service and releases the completed chain', async () => {
+  const config = { modelProvider: 'auto', deepseekResponsesUrl: 'https://api.deepseek.com',
+    deepseekApiKey: 'fixture-key', model: 'deepseek-flash', reasoningEnabled: true };
+  const tools = [{ type: 'function', name: 'get_time', parameters: { type: 'object' } }];
+  const requests = [];
+  const events = [];
+  let step = 0;
+  const client = createModelClient({
+    logEvent: event => events.push(event),
+    fetchImpl: async (url, options) => {
+      requests.push(JSON.parse(options.body));
+      if (new URL(url).hostname !== 'api.deepseek.com') return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+      step++;
+      const message = { content: `answer ${step}`, reasoning_content: `private step ${step}` };
+      if (step <= 2) message.tool_calls = [{ id: `call_${step}`, type: 'function', function: { name: 'get_time', arguments: '{}' } }];
+      return jsonResponse({ id: `step_${step}`, choices: [{ message }] });
     },
-    { role: 'tool', tool_call_id: 'call_1', content: '{"temp":"25"}' },
-  ]);
-  assert.equal(second.text, '苏州今天晴');
+  });
+  const first = await client.createResponse({ config, tools, input: 'time?' });
+  await client.createResponse({ config: { ...config, deepseekResponsesUrl: 'https://gateway.example.test/v1' },
+    tools, input: 'new question', previousResponseId: first.id });
+  assert.deepEqual(requests.at(-1).messages, [{ role: 'user', content: 'new question' }]);
+
+  const followup = response => client.createResponse({ config, tools, previousResponseId: response.id,
+    input: [{ type: 'function_call_output', call_id: response.functionCalls[0].callId, output: '10:00' }] });
+  const second = await followup(first);
+  const final = await followup(second);
+  assert.deepEqual(requests.at(-1).messages.filter(message => message.role === 'assistant')
+    .map(message => message.reasoning_content), ['private step 1', 'private step 2']);
+  assert.equal(final.text, 'answer 3');
+  await client.createResponse({ config, tools, input: 'next question', previousResponseId: final.id });
+  assert.doesNotMatch(JSON.stringify([first, second, final, events, requests.at(-1)]), /private step/);
 });
+
+for (const ending of ['cancelled', 'failed']) {
+  test(`a ${ending} DeepSeek tool chain releases its private history`, async () => {
+    const controller = new AbortController();
+    const config = { modelProvider: 'deepseek', deepseekApiKey: 'fixture-key', model: 'deepseek-flash', reasoningEnabled: true };
+    const tools = [{ type: 'function', name: 'get_time', parameters: { type: 'object' } }];
+    const messages = [];
+    const events = [];
+    const client = createModelClient({
+      logEvent: event => events.push(event),
+      fetchImpl: async (_url, options) => {
+        const body = JSON.parse(options.body);
+        messages.push(body.messages);
+        if (messages.length === 1) return jsonResponse({ id: 'pending', choices: [{ message: {
+          content: null, reasoning_content: 'private fixture thought',
+          tool_calls: [{ id: 'call_time', type: 'function', function: { name: 'get_time', arguments: '{}' } }],
+        } }] });
+        if (body.messages.at(-1).role === 'tool') return jsonResponse({ error: { message: 'private fixture thought' } }, 400);
+        return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+      },
+    });
+    const first = await client.createResponse({ config, tools, input: 'time?', signal: controller.signal });
+    if (ending === 'cancelled') {
+      controller.abort();
+    } else {
+      await assert.rejects(client.createResponse({ config, tools: [], previousResponseId: first.id,
+        input: [{ type: 'function_call_output', call_id: first.functionCalls[0].callId, output: '10:00' }],
+      }), { code: 'HTTP_400' });
+      const assistant = messages.at(-1).at(-2);
+      assert.equal(assistant.tool_calls[0].id, 'call_time');
+      assert.equal(assistant.reasoning_content, undefined);
+    }
+    await client.createResponse({ config, tools, input: 'new question', previousResponseId: first.id });
+    assert.doesNotMatch(JSON.stringify([messages.at(-1), events]), /private fixture thought/);
+  });
+}
 
 test('DeepSeek official Chat enables thinking and sends the selected reasoning effort', async () => {
   let capturedBody;

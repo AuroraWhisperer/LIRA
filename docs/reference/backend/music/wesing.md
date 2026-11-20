@@ -116,7 +116,7 @@ PowerShell 侧兜底:**MSAA 未给出进度时**,UIAutomation 从窗口句柄 `A
 
 resolver 优先使用引擎传入的 `logEntry`；未传入时通过引擎的缓存读取器取得，独立调用则默认读取最新歌曲日志。显式传入 null 表示没有匹配记录，不再次扫描日志。通过 `loadWeSingLyrics({cachePath, title, logEntry})` 将同一条记录用于本地定位和在线歌手匹配。QRC 缺少歌手元数据时采用该日志的歌手；记录的 mid 单独返回引擎作为版本标识，不与在线平台的 track id 混用。
 
-引擎通过同一个 `createWeSingCacheReader().loadLyrics()` 复用成功解析的 QRC。每次仍检查文件的 `dev/ino/birthtimeMs/ctimeMs/mtimeMs/size`；指纹不变时共享读取 Promise 和解析结果，文件改变后重新解密。仅缓存含有效行的结果，失败或未完成的下载下轮可重试；按最近使用淘汰，最多保留 80 个文件，另以 JSON 字符串 UTF-16 长度估算的 16 MiB 内容预算限制保留量。未命中的候选不拷贝歌词，最终选中时才复制歌手和深拷贝歌词行，避免下游修改缓存。启停、`stop()` 和缓存路径变化清理缓存，在途旧读取不能回填。
+引擎通过同一个 `createWeSingCacheReader().loadLyrics()` 复用成功解析的 QRC。每次仍检查文件的 `dev/ino/birthtimeMs/ctimeMs/mtimeMs/size`；指纹不变时共享读取 Promise 和解析结果，文件改变后重新解密。仅缓存含有效行的结果，失败或未完成的下载下轮可重试；按最近使用淘汰，最多保留 80 个文件，另以 JSON 字符串 UTF-16 长度估算的 16 MiB 内容预算限制保留量。逐字内容超出预算时可保留该文件的指纹和已验证歌名。按歌名兜底查找时，只有匹配、缺少歌名或指纹变化的候选需要重新解密。同名多版本仍参与歧义判断。未命中的候选不拷贝歌词，最终选中时才复制歌手和深拷贝歌词行，避免下游修改缓存。启停、`stop()` 和缓存路径变化清理缓存，在途旧读取不能回填。
 
 ### 5.3 QRC 解密与解析(tryReadQrc / parseQrcDocument,[wesing-cache.js](../../../../src/music/wesing-cache.js))
 

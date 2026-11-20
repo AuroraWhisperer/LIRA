@@ -17,7 +17,7 @@
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
   ><span class="desktop-lyric-control-copy"
-    ><strong><span id="desktopLyricBgOpacityLabel">背景不透明度</span> <lira-help>控制背景图层的不透明度。</lira-help></strong></span
+    ><strong><span id="desktopLyricBgOpacityLabel">背景不透明度</span></strong></span
   ><span class="range-row"
     ><input
       aria-labelledby="desktopLyricBgOpacityLabel" id="desktopLyricBgOpacity"
@@ -27,15 +27,12 @@
       max="1"
       step="0.05"
       value="0.15"
-    /><input aria-labelledby="desktopLyricBgOpacityLabel" id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricBgOpacityLabel" id="desktopLyricBgOpacityNumber" type="number" min="0" max="100" step="5" value="15" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
   ><span class="desktop-lyric-control-copy"
-    ><strong><span id="desktopLyricGlobalOpacityLabel">全局不透明度</span> <lira-help>控制整个歌词画面的不透明度。</lira-help></strong></span
+    ><strong><span id="desktopLyricGlobalOpacityLabel">全局不透明度</span> <lira-help>同时控制歌词文字和背景的整体透明度。</lira-help></strong></span
   ><span class="range-row"
     ><input
       aria-labelledby="desktopLyricGlobalOpacityLabel" id="desktopLyricGlobalOpacity"
@@ -45,10 +42,7 @@
       max="1"
       step="0.05"
       value="1"
-    /><input aria-labelledby="desktopLyricGlobalOpacityLabel" id="desktopLyricGlobalOpacityNumber" type="number" min="0" max="100" step="5" value="100" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricGlobalOpacityLabel" id="desktopLyricGlobalOpacityNumber" type="number" min="0" max="100" step="5" value="100" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -62,10 +56,7 @@
       max="2"
       step="0.05"
       value="1"
-    /><input aria-labelledby="desktopLyricBrightnessLabel" id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricBrightnessLabel" id="desktopLyricBrightnessNumber" type="number" min="20" max="200" step="5" value="100" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -79,10 +70,7 @@
       max="2"
       step="0.05"
       value="1"
-    /><input aria-labelledby="desktopLyricContrastLabel" id="desktopLyricContrastNumber" type="number" min="20" max="200" step="5" value="100" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricContrastLabel" id="desktopLyricContrastNumber" type="number" min="20" max="200" step="5" value="100" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -96,17 +84,14 @@
       max="2"
       step="0.05"
       value="1"
-    /><input aria-labelledby="desktopLyricSaturationLabel" id="desktopLyricSaturationNumber" type="number" min="0" max="200" step="5" value="100" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricSaturationLabel" id="desktopLyricSaturationNumber" type="number" min="0" max="200" step="5" value="100" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 
 <section class="desktop-lyric-settings-group desktop-lyric-reset-group">
   <header>
     <span
-      ><strong>操作 <lira-help>恢复基础歌词外观与播放设置；高级歌词外观、两种显示开关和音乐来源设置会保留。</lira-help></strong></span
+      ><strong>操作 <lira-help>只把基础歌词的外观和播放参数恢复成默认，不影响高级歌词样式和音乐跟随设置。</lira-help></strong></span
     >
   </header>
   <button id="desktopLyricResetBtn" class="desktop-lyric-reset-button" type="button">恢复基础歌词默认设置</button>

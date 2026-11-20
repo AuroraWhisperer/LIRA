@@ -219,6 +219,34 @@ test('pausing during automatic advancement stops a failed lookup from starting a
   assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['c']);
 });
 
+for (const outcome of ['refreshed', 'unavailable']) {
+  test(`pausing during stream recovery keeps the current track paused when the stream is ${outcome}`, async () => {
+    const refresh = Promise.withResolvers();
+    const { app, audio } = await createPlayingApp((_count, request) =>
+      request.forceRefresh ? refresh.promise : streamFor(request));
+    const recovery = app.emit('music-player', 'error');
+    await flushAsyncWork();
+    await app.emit('playbackPlayPause', 'click');
+    assert.equal(audio.paused, true);
+
+    if (outcome === 'refreshed') refresh.resolve({ url: 'https://example.test/a-retry.mp3' });
+    else refresh.reject(new Error('refresh unavailable'));
+    await recovery;
+    await flushAsyncWork();
+    assert.equal(audio.dataset.trackId, 'a');
+    assert.equal(app.audioPlayCalls(), 1);
+    assert.equal(audio.paused, true);
+    assert.deepEqual(app.savedState().normalQueue.map(item => item.id), ['b', 'c']);
+    if (outcome === 'refreshed') {
+      await app.emit('playbackPlayPause', 'click');
+      assert.equal(audio.src, 'https://example.test/a-retry.mp3');
+      assert.equal(audio.currentTime, 42);
+      assert.equal(audio.paused, false);
+      assert.equal(app.resolveStreamRequestCount(), 2);
+    }
+  });
+}
+
 test('current stream recovery resumes the track and still skips after its retry is exhausted', async () => {
   const { app, audio } = await createPlayingApp((_count, request) =>
     request.forceRefresh ? { url: 'https://example.test/a-refreshed.mp3' } : streamFor(request),

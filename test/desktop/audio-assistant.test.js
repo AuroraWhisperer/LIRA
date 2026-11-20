@@ -65,6 +65,56 @@ test('audio helper exit rejects outstanding work and permits a clean later launc
   await assistant.dispose();
 });
 
+for (const action of ['resume', 'stop', 'unresponsive']) {
+  test(`a paused player's pending audio start handles ${action} after its command timeout`, async t => {
+    t.mock.timers.enable({ apis: ['setTimeout'] });
+    const child = worker();
+    const turns = () => new Promise(resolve => setImmediate(resolve));
+    const publish = state => child.stdout.write(JSON.stringify({ type: 'state', state: { ready: true, ...state } }) + '\n');
+    const reply = id => child.stdout.write(JSON.stringify({ id, ok: true }) + '\n');
+    let startId;
+    let checks = 0;
+    child.stdin.on('data', bytes => {
+      const { op, id } = JSON.parse(bytes);
+      if (op === 'start') {
+        startId = id;
+        publish({ starting: true, source: 'auto', sourceProcessId: 73 });
+      } else if (op === 'get') {
+        checks++;
+        if (action !== 'unresponsive') reply(id);
+      } else if (op === 'stop') {
+        publish({ starting: false, running: false });
+        reply(startId);
+        reply(id);
+      }
+    });
+    const assistant = createAudioAssistant({ executable: 'worker', dataDir: 'isolated', exists: () => true,
+      spawnProcess: () => { queueMicrotask(() => publish({})); return child; },
+    });
+    t.after(() => assistant.dispose());
+    const start = assistant.invoke('start');
+    await turns();
+    t.mock.timers.tick(45000);
+    await turns();
+    assert.equal(child.stdin.writableEnded, false, 'reaching 45s must allow the worker to answer a liveness query');
+    assert.equal(checks, 1);
+    t.mock.timers.tick(45000);
+    await turns();
+    if (action === 'unresponsive') {
+      assert.equal((await start).ok, false);
+      assert.equal(child.stdin.writableEnded, true);
+    } else {
+      assert.equal(checks, 2);
+      assert.equal(child.stdin.writableEnded, false);
+      if (action === 'stop') assert.equal((await assistant.invoke('stop')).ok, true);
+      else { publish({ starting: false, running: true }); reply(startId); }
+      const result = await start;
+      assert.equal(result.ok, true);
+      assert.equal(result.state.running, action === 'resume');
+    }
+  });
+}
+
 test('missing audio resources report recovery instructions without launching anything', async () => {
   const assistant = createAudioAssistant({ executable: 'missing.exe', dataDir: 'isolated', exists: () => false });
   const result = await assistant.invoke('get');

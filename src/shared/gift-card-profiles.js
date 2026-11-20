@@ -2,6 +2,7 @@
 
 const { normalizeGiftDisplayProfile } = require('./processed-gift-contract');
 const eventIdPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,63}$/;
+const GIFT_CARD_AVATAR_BATCH_SIZE = 200;
 const invalid = () => new Error('INVALID_GIFT_CARD_PROFILES');
 
 function normalizeGiftCardProfilePage(value) {
@@ -53,4 +54,17 @@ function normalizeGiftCardProfilePage(value) {
     ...(value.incremental ? { incremental: true } : {}), ...(value.append ? { append: true } : {}) };
 }
 
-module.exports = { normalizeGiftCardProfilePage };
+function normalizeGiftCardAvatarResult(value, eventIds) {
+  const invalidAvatars = () => new Error('INVALID_GIFT_CARD_AVATARS');
+  const remaining = new Set(eventIds);
+  if (value?.ok !== true || !Array.isArray(value.items) || value.items.length > remaining.size) {
+    throw invalidAvatars();
+  }
+  return value.items.map((item) => {
+    if (!item || !remaining.delete(item.eventId) || typeof item.avatarUrl !== 'string') throw invalidAvatars();
+    const { avatarUrl } = normalizeGiftDisplayProfile({ version: 1, avatarUrl: item.avatarUrl, guardLevel: null }, invalidAvatars);
+    return { eventId: item.eventId, avatarUrl };
+  });
+}
+
+module.exports = { normalizeGiftCardProfilePage, normalizeGiftCardAvatarResult, GIFT_CARD_AVATAR_BATCH_SIZE };

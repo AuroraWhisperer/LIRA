@@ -190,14 +190,8 @@
 
 .queue-theme-save-state {
   margin: 0;
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: var(--type-leading-caption);
+  justify-content: flex-end;
   text-align: right;
-}
-
-.queue-theme-save-state:empty {
-  display: none;
 }
 
 .identity-rule-panel {

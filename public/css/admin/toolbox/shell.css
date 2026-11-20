@@ -543,3 +543,58 @@ body.player-dock-expanded .other-workspace {
   color: var(--muted);
   font-size: var(--type-size-caption);
 }
+
+/* Toolbox navigation sits on the page background; only the selected row is a raised surface.
+   Group headings keep their type size; spacing replaces the dividers between groups. */
+@media (min-width: 901px) {
+  .other-page:not(.live-components-page) .other-feature-sidebar {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .other-page:not(.live-components-page) .other-feature-panel {
+    border-color: transparent;
+    border-top-left-radius: var(--radius-xl);
+    border-top-right-radius: var(--radius-xl);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent),
+      0 10px 30px color-mix(in srgb, var(--text) 6%, transparent);
+  }
+
+  .other-page:not(.live-components-page, .sidebar-collapsed) .other-feature-group-heading {
+    border-top-color: transparent;
+  }
+
+  .other-page:not(.live-components-page) .other-feature-button {
+    grid-template-columns: 38px minmax(0, 1fr);
+    border-radius: var(--radius-lg);
+  }
+
+  .other-page:not(.live-components-page) .other-feature-arrow {
+    display: none;
+  }
+
+  .other-page:not(.live-components-page) .other-feature-button:hover:not(.active) {
+    background: color-mix(in srgb, var(--text) 5%, transparent);
+  }
+
+  .other-page:not(.live-components-page) .other-feature-button.active {
+    background: var(--client-main-nav-active-bg, var(--surface));
+    box-shadow: var(
+      --client-main-nav-active-shadow,
+      0 1px 2px color-mix(in srgb, var(--text) 10%, transparent),
+      0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent)
+    );
+    color: var(--text);
+  }
+
+  .other-page:not(.live-components-page) .other-feature-icon {
+    background: transparent;
+  }
+
+  .other-page:not(.live-components-page) .other-feature-button.active .other-feature-icon {
+    background: color-mix(in srgb, var(--color-selection-marker, var(--primary)) 13%, transparent);
+    color: var(--color-selection-text, var(--primary-strong));
+  }
+}

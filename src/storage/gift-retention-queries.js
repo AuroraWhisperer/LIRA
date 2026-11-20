@@ -46,17 +46,21 @@ function mergeSummaryStatistics(db, options, plan, raw) {
   const { snapshot, window } = plan;
   if (!window) return raw;
   const params = [options.sourceId, snapshot.sync_epoch, snapshot.revision, window.end];
-  let condition = `s.source_id=? AND s.sync_epoch=? AND s.revision<=? AND s.day_start<?`;
-  if (window.start) { condition += ' AND s.day_start>=?'; params.push(window.start); }
-  if (options.query) {
-    condition += ` AND (instr(json_extract(s.dimensions_json,'$.giftName'),?)>0 OR
-      instr(json_extract(s.dimensions_json,'$.blindBoxName'),?)>0)`;
-    params.push(options.query, options.query);
-  }
-  condition += ` AND s.revision=(SELECT MAX(d.revision) FROM gift_retention_days d
-    WHERE d.source_id=s.source_id AND d.sync_epoch=s.sync_epoch AND d.day_start=s.day_start AND d.revision<=?)`;
-  params.push(snapshot.revision);
-  const sums = METRIC_KEYS.map((key) => `COALESCE(SUM(json_extract(s.metrics_json,'$.${key}')),0) AS ${key}`).join(',');
+  if (window.start) params.push(window.start);
+  if (options.query) params.push(options.query, options.query);
+  const bucketFormat = options.range === 'all' ? '%Y-%m' : '%Y-%m-%d';
+  const sums = METRIC_KEYS.map((key) => `SUM(json_extract(s.metrics_json,'$.${key}')) AS ${key}`).join(',');
+  // A revision replaces the entire day. Select it before filtering individual gifts.
+  const groups = db.prepare(`WITH latest_days AS (
+      SELECT source_id, sync_epoch, day_start, MAX(revision) AS revision FROM gift_retention_days
+      WHERE source_id=? AND sync_epoch=? AND revision<=? AND day_start<? ${window.start ? 'AND day_start>=?' : ''}
+      GROUP BY day_start
+    ) SELECT strftime('${bucketFormat}',s.day_start,'+8 hours') AS bucketKey,
+      json_extract(s.dimensions_json,'$.giftId') AS giftId, json_extract(s.dimensions_json,'$.giftName') AS giftName,
+      ${sums} FROM latest_days JOIN gift_retention_days s USING (source_id,sync_epoch,day_start,revision)
+      ${options.query ? `WHERE instr(json_extract(s.dimensions_json,'$.giftName'),?)>0 OR
+        instr(json_extract(s.dimensions_json,'$.blindBoxName'),?)>0` : ''}
+      GROUP BY bucketKey,giftId,giftName`).iterate(...params);
   function merge(target, row) {
     for (const key of METRIC_KEYS) {
       const next = (target[key] || 0) + (row[key] || 0);
@@ -65,22 +69,18 @@ function mergeSummaryStatistics(db, options, plan, raw) {
     }
     return target;
   }
-  merge(raw.summaryRow, db.prepare(`SELECT ${sums} FROM gift_retention_days s WHERE ${condition}`).get(...params));
+  const totals = {};
   const top = new Map(raw.topRows.map((row) => [JSON.stringify([row.giftId,row.giftName]), row]));
-  const topRows = db.prepare(`SELECT json_extract(s.dimensions_json,'$.giftId') AS giftId,
-    json_extract(s.dimensions_json,'$.giftName') AS giftName,${sums} FROM gift_retention_days s
-    WHERE ${condition} GROUP BY giftId,giftName`).all(...params);
-  for (const row of topRows) {
+  const buckets = new Map(raw.bucketRows.map((row) => [row.bucketStart,row]));
+  for (const row of groups) {
+    merge(totals, row);
     const key = JSON.stringify([row.giftId,row.giftName]);
     top.set(key, merge(top.get(key) || { giftId: row.giftId, giftName: row.giftName }, row));
-  }
-  const bucket = options.range === 'all' ? "strftime('%Y-%m',s.day_start,'+8 hours')" : "strftime('%Y-%m-%d',s.day_start,'+8 hours')";
-  const buckets = new Map(raw.bucketRows.map((row) => [row.bucketStart,row]));
-  for (const { bucketKey, ...row } of db.prepare(`SELECT ${bucket} AS bucketKey,${sums}
-    FROM gift_retention_days s WHERE ${condition} GROUP BY bucketKey`).all(...params)) {
-    const bucketStart = new Date(`${bucketKey.length === 7 ? `${bucketKey}-01` : bucketKey}T00:00:00+08:00`).toISOString();
+    const date = row.bucketKey.length === 7 ? `${row.bucketKey}-01` : row.bucketKey;
+    const bucketStart = new Date(`${date}T00:00:00+08:00`).toISOString();
     buckets.set(bucketStart, merge(buckets.get(bucketStart) || { bucketStart }, row));
   }
+  merge(raw.summaryRow, totals);
   return { summaryRow: raw.summaryRow, topRows: [...top.values()], bucketRows: [...buckets.values()].sort((a,b) => a.bucketStart.localeCompare(b.bucketStart)) };
 }
 

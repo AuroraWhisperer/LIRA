@@ -1,4 +1,4 @@
-import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, isRandomDanmakuStyle } from './danmaku-style-options.js';
+import { DANMAKU_OPTION_FIELDS, DANMAKU_STYLE_OPTIONS, SPOOKY_COLOR_KEYS, SPOOKY_OPACITY_KEYS, inspectComposerText, isRandomDanmakuStyle, styleOptionFields, styleOptionsFor } from './danmaku-style-options.js';
 
 export function readAppearanceValue(key, rawValue, min, max) {
   if (DANMAKU_OPTION_FIELDS[key]?.optional && !rawValue.trim()) return undefined;
@@ -10,7 +10,7 @@ export function readAppearanceValue(key, rawValue, min, max) {
   if (DANMAKU_OPTION_FIELDS[key]?.step === .01) {
     const value = Number(rawValue);
     if (!rawValue.trim() || !Number.isFinite(value) || value < Number(min) || value > Number(max)
-      || Number(value.toFixed(2)) !== value) throw new Error(`请输入 ${min}～${max} 元，最多两位小数。`);
+      || Number(value.toFixed(2)) !== value) throw new Error(`请输入 ${min}～${max} ${DANMAKU_OPTION_FIELDS[key].textRole ? 'px' : '元'}，最多两位小数。`);
     return value;
   }
   if (key !== 'floatingSpeed' && DANMAKU_OPTION_FIELDS[key]?.type !== 'number') return rawValue;
@@ -31,6 +31,19 @@ export function editStyleOption(draft, key, value) {
     value = floatingSpeedToPixelsPerSecond(value);
   }
   const options = { ...draft.styleOptions[draft.style] };
+  // Use authored proportions on every edit so rounded values do not accumulate drift.
+  if (DANMAKU_OPTION_FIELDS[key]?.textRole && DANMAKU_OPTION_FIELDS[key].type === 'number') {
+    const fields = styleOptionFields(draft.style);
+    const resolved = styleOptionsFor(draft.style, draft.styleOptions);
+    for (const [sibling, field] of Object.entries(fields)) {
+      if (field.legacySizeKey === key && field.linkedSizeKey !== key && !Object.hasOwn(options, sibling)) {
+        options[sibling] = resolved[sibling];
+      }
+      if (field.linkedSizeKey !== key) continue;
+      if (value === undefined) delete options[sibling];
+      else options[sibling] = Number((value * field.default / fields[key].default).toFixed(2));
+    }
+  }
   if (value === undefined) delete options[key];
   else options[key] = value;
   return replaceStyleOptions(draft, options);

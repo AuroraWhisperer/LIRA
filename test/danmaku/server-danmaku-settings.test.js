@@ -19,6 +19,12 @@ const saved = (style = 'signal', duration = 6, overlayUrl = url) => ({
 
 async function fixture() {
   const document = createParameterDocument();
+  const createElement = document.createElement;
+  document.createElement = tag => {
+    const element = createElement(tag);
+    if (tag === 'canvas') element.getContext = () => ({ font: '', measureText() { return { width: this.font.includes(',') ? 20 : 10 }; } });
+    return element;
+  };
   const node = key => document.getElementById({
     fullscreenDuration: 'danmakuFullscreenDurationSeconds', fullscreenDurationField: 'danmakuFullscreenDurationField',
   }[key] || key);
@@ -88,13 +94,14 @@ async function fixture() {
       modules.set(filename, api);
       return api;
     }
-    if (filename === path.resolve(__dirname, '../../public/js/shared/font-library.js')) {
-      const fonts = new vm.SyntheticModule(['registerFontSelect', 'ensureSavedFontOption'], function () {
-        this.setExport('registerFontSelect', () => () => {});
-        this.setExport('ensureSavedFontOption', () => {});
+    if (filename.endsWith('danmaku-appearance-values.js')) {
+      const values = new vm.SyntheticModule(['acquireDanmakuAppearanceValues'], function () {
+        // The browser measures style defaults. Use a known default face in this controller fixture.
+        this.setExport('acquireDanmakuAppearanceValues', () => ({ dispose() {}, read: async draft =>
+          draft.styleOptions?.[draft.style]?.fontFamily ? {} : { fontFamily: '"Microsoft YaHei UI"' } }));
       }, { context });
-      modules.set(filename, fonts);
-      return fonts;
+      modules.set(filename, values);
+      return values;
     }
     if (filename === path.resolve(__dirname, '../../public/js/shared/component-style-parameter-view.js')) {
       const effects = new vm.SyntheticModule(['mountStyleParameters'], function () {
@@ -153,7 +160,7 @@ async function fixture() {
     return dependency;
   });
   await module.evaluate();
-  module.namespace.initDanmakuOverlaySettings(elements, (message, options) => notifications.push({ message, options }));
+  const controller = module.namespace.initDanmakuOverlaySettings(elements, (message, options) => notifications.push({ message, options }));
   elements.fullscreenDuration = node('fullscreenDuration');
   elements.fullscreenDurationField = node('fullscreenDurationField');
   const click = (key) => node(key).events.click();
@@ -161,7 +168,7 @@ async function fixture() {
     elements.fullscreenDuration.value = value;
     elements.fullscreenDuration.events.change();
   };
-  return { elements, node, reads, writes, opened, editors, notifications, click, duration, account: (value) => observer(value) };
+  return { controller, elements, node, reads, writes, opened, editors, notifications, click, duration, account: (value) => observer(value) };
 }
 
 test('server link uses the authorized configured public origin, including its port', async () => {
@@ -250,10 +257,13 @@ test('appearance drafts belong to each style and apply together without leaking 
     f.node(id).value = value;
     f.node(id).events[event]();
   };
-  change('danmakuFontFamily', 'serif');
-  assert.equal(f.node('danmakuFontFamily').value, 'serif', 'Keep the selected font mode after rendering the draft.');
-  change('danmakuFontFamily', 'default');
-  assert.equal(f.node('danmakuFontFamily').value, 'default', 'Following the style must remain selectable after a custom font.');
+  change('danmakuFontFamily', '"SimSun"');
+  await flush();
+  assert.equal(f.node('danmakuFontFamily').value, '"SimSun"', 'Keep the selected font after rendering the draft.');
+  f.click('danmakuResetParameters');
+  await flush();
+  assert.equal(f.node('danmakuFontFamily').value, '"Microsoft YaHei UI"', 'Reset restores the resolved style font.');
+  assert.equal(f.controller.getState().draft.styleOptions.signal?.fontFamily, undefined, 'The displayed default is not stored as an override.');
   change('danmakuFontSize', '42');
   change('danmakuFontFamily', '"Cascadia Code"');
   change('danmakuTextColor', '#aabbcc');

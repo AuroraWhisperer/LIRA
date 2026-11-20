@@ -75,7 +75,7 @@
       <div class="fan-split" id="fanSplit">
         <div class="fan-people" id="fanPeople" aria-label="粉丝列表"></div>
         <aside class="fan-detail" id="fanDetail" aria-label="粉丝详情">
-          <div class="fan-empty">
+          <div class="fan-empty lira-content-state">
             <p>选择一份档案查看详情</p>
           </div>
         </aside>
@@ -153,7 +153,7 @@
         <h3 id="fanSettingsProfilesTitle">档案管理</h3>
         <div class="fan-setting-row">
           <div>
-            <h4>粉丝黑名单 <lira-help label="粉丝黑名单说明">按绑定的 B 站账号屏蔽，昵称变化仍生效。该粉丝的档案、手记、点歌与上舰记录、提醒和日历提示都会隐藏，表格导出也会排除该粉丝；同时停止自动建档和记录更新。资料保留在本机与完整备份中，解除屏蔽后按原状态回到当前或已归档列表。仅作用于当前账号的粉丝档案，不影响原始礼物账本和点歌队列。</lira-help></h4>
+            <h4>粉丝黑名单 <lira-help label="粉丝黑名单说明">按 B 站 UID 屏蔽（对方改名也生效）。拉黑后会自动隐藏该粉丝的档案、记录与日历提醒，导出表格时也会剔除，且不再自动为他更新档案。原本的资料不会删，移出黑名单后即可恢复（仅作用于粉丝档案，不影响礼物账本和点歌）。</lira-help></h4>
             <p class="fan-muted">在档案「更多」中加入黑名单；在这里解除屏蔽。</p>
           </div>
           <button type="button" data-fan-action="suppressions">管理黑名单</button>

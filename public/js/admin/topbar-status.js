@@ -58,6 +58,12 @@ export function initTopbarStatus({ showToast } = {}) {
     button.setAttribute('aria-expanded', String(details.matches(':popover-open')));
     placeDetails();
   }, { signal });
+  document.addEventListener('pointerdown', (event) => {
+    if (details.matches(':popover-open') && !button.contains(event.target) && !details.contains(event.target)) {
+      details.hidePopover();
+    }
+  }, { capture: true, signal });
+  window.addEventListener('blur', () => details.hidePopover(), { signal });
   window.addEventListener('resize', placeDetails, { signal });
   render();
   disposeCurrent = () => {

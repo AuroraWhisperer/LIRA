@@ -23,15 +23,16 @@ export function createComponentConfigController({ initial = {}, read, persist, c
   let authorityRevision = 0;
   let editRevision = 0;
   let fieldRevisions = {};
-  let editSource = 'local';
+  let fieldSources = {};
   let submission = null;
   let submissionRevisions = null;
   let pendingSave = null;
   const listeners = new Set();
   const changeListeners = new Set();
 
-  function changes() {
-    return Object.fromEntries(Object.entries(draft).filter(([key, value]) => !equal(value, saved[key])));
+  function changes(source) {
+    return Object.fromEntries(Object.entries(draft).filter(([key, value]) =>
+      (!source || fieldSources[key] === source) && !equal(value, saved[key])));
   }
 
   const getStatus = () => ({ dirty, loaded, loading, saving, error, conflict, applied, generation });
@@ -49,10 +50,11 @@ export function createComponentConfigController({ initial = {}, read, persist, c
       if (equal(draft[key], value)) continue;
       draft[key] = clone(value);
       fieldRevisions[key] = ++editRevision;
+      fieldSources[key] = source;
       changed = true;
     }
     error = '';
-    if (changed) { editSource = source; notify(); }
+    if (changed) notify();
   }
 
   function receive(next) {
@@ -109,9 +111,9 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     }
   }
 
-  function prepareSave() {
-    const submitted = clone(draft);
-    const changed = clone(changes());
+  function prepareSave({ source } = {}) {
+    const changed = clone(changes(source));
+    const submitted = source ? { ...clone(saved), ...changed } : clone(draft);
     const submittedRevisions = { ...fieldRevisions };
     const submittedGeneration = generation;
     const hasChanges = Object.keys(changed).length > 0;
@@ -159,6 +161,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
           }
           for (const key of new Set([...Object.keys(saved), ...Object.keys(next)])) {
             if (fieldRevisions[key] !== submittedRevisions[key]) continue;
+            if (source && !Object.hasOwn(changed, key) && !equal(draft[key], saved[key])) continue;
             if (Object.hasOwn(next, key)) draft[key] = clone(next[key]);
             else delete draft[key];
           }
@@ -188,9 +191,9 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     return { valid: true, changed: true, error: '', commit };
   }
 
-  function save() {
+  function save(options) {
     if (saving) return pendingSave;
-    const prepared = prepareSave();
+    const prepared = prepareSave(options);
     if (!prepared.valid) {
       error = prepared.error;
       notify();
@@ -214,7 +217,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     saved = clone(next);
     draft = clone(next);
     fieldRevisions = {};
-    editSource = 'local';
+    fieldSources = {};
     loaded = false;
     loading = saving = conflict = applied = false;
     error = '';
@@ -234,7 +237,7 @@ export function createComponentConfigController({ initial = {}, read, persist, c
     return () => changeListeners.delete(listener);
   }
 
-  return { getState, getStatus, getEditSource: () => editSource, edit, prepareSave, save, discard, subscribe, subscribeChanges, receive, reload, reset };
+  return { getState, getStatus, getChanges: source => clone(changes(source)), edit, prepareSave, save, discard, subscribe, subscribeChanges, receive, reload, reset };
 }
 
 export function componentSaveMessage(state) {

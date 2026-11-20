@@ -38,6 +38,38 @@ test('an extraction failure preserves the original diagnostic for the next maint
   assert.equal(fs.readFileSync(normal, 'utf8'), error);
 });
 
+test('a short write followed by disk failure retires only complete errors and retries the original suffix', (t) => {
+  const directory = createScratchDirectory('log-retention-', t);
+  const source = path.join(directory, 'terminal.log');
+  const target = path.join(directory, 'errors', 'terminal.log');
+  const now = Date.parse('2026-10-13T00:00:00Z');
+  const prefix = '[2026-10-01T00:00:00Z] [terminal:error] ';
+  const first = `${prefix}first Authorization: Bearer fixture-token\n`;
+  const safeFirst = `${prefix}first Authorization: Bearer [REDACTED]\n`;
+  const second = `${prefix}错误二\n`;
+  const third = `${prefix}third\n`;
+  const oldInfo = '[2026-10-01T00:00:00Z] [terminal:info] old success\n';
+  fs.writeFileSync(source, first + oldInfo + second + third);
+
+  // Stop inside the first multi-byte character of the second error.
+  const write = fs.writeSync;
+  let remaining = Buffer.byteLength(safeFirst + prefix) + 1;
+  const fault = t.mock.method(fs, 'writeSync', (fd, buffer, offset, length) => {
+    if (!remaining) throw Object.assign(new Error('disk full'), { code: 'ENOSPC' });
+    const written = write(fd, buffer, offset, Math.min(length, remaining));
+    remaining -= written;
+    return written;
+  });
+  maintainDesktopLogs(directory, now);
+  fault.mock.restore();
+  assert.equal(fs.readFileSync(target, 'utf8'), safeFirst);
+  assert.equal(fs.readFileSync(source, 'utf8'), oldInfo + second + third);
+
+  maintainDesktopLogs(directory, now);
+  assert.equal(fs.readFileSync(target, 'utf8'), safeFirst + second + third);
+  assert.equal(fs.existsSync(source), false);
+});
+
 test('legacy AI failures keep only their error core before the mixed legacy file is retired', (t) => {
   const directory = createScratchDirectory('log-retention-', t);
   fs.writeFileSync(path.join(directory, 'ai.log'), JSON.stringify({

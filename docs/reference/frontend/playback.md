@@ -72,7 +72,7 @@ playbackControls → audio.load()/play()
 | `seekPlayback` | 接受全屏歌词的跳转请求，更新进度、歌词同步与保存；全民 K 歌被选中时拒绝操作，恢复音频前复核请求代际、曲目及音源 |
 | `playbackPrevious` | 回退可用播放历史或歌单上一首；没有可用前曲时回到当前歌曲开头（详见 §5） |
 | `playbackNext` | 自然结束时执行单曲循环并有界跳过不可播曲目；手动下一首与失败跳过推进队列，保留列表回绕及电台补量 |
-| `changePlaybackQuality` | 确认目标音质可用后切换并保存选择；不可用时保留原音质与音频。只有请求仍有效时才替换音频；恢复位置和暂停状态在 URL 返回后、替换 src 前读取，保留等待期间的播放推进和用户跳转 |
+| `changePlaybackQuality` | 确认目标音质可用后切换并保存选择；不可用时保留原音质与音频。只有请求仍有效时才替换音频；恢复位置和暂停状态在 URL 返回后、替换 src 前读取，保留等待期间的播放推进和用户跳转。冷启动首次播放前，使用快照中的续播位置，切换后保持暂停 |
 
 切歌、音质切换、清空队列与平台退出共用播放控制器拥有的请求代际。队列通过内部 `invalidatePlaybackRequests` 回调使全部在途操作失效；播放页切入全民 K 歌标签也使旧请求失效并暂停本页音频，QQ/网易云标签互切保持原播放行为。Provider 在成功退出后传入平台，仅取消该平台发起的播放请求，包括当前曲目尚属于另一平台的情况。另一个平台的在途请求可继续，保留音频也可继续错误恢复。流解析使用曲目副本，只有当前请求才能合并流元数据、替换音频或恢复进度，迟到成功与失败不能覆盖新状态或在退出后恢复播放。
 
@@ -82,7 +82,7 @@ playbackControls → audio.load()/play()
 
 歌单跳转与上一首在解析音源前捕获所选队列条目，在接受结果时按该条目的当前位置提交游标和剩余队列。解析期间插入下一首不会让旧下标指向其他歌曲；同曲重复条目也不会按歌曲 ID 合并。清空、替换或平台退出仍由现有请求代次使迟到结果失效，不改变持久化队列格式。
 
-错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本、原始来源及 `requestedPlaybackQuality`，刷新后复用该品质的结果，避免先降到标准音质再重复解析；入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。全民 K 歌被选中时，保留音频也不能触发在线重试；退出该信源后，显式恢复的音频仍可正常重试。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。手动切歌无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
+错误重试通过 `createPlaybackRequestGuard` 捕获当前音频的有效代际，经 `stream-handler` 注入 `StreamService`。重试使用曲目副本、原始来源及 `requestedPlaybackQuality`，刷新后复用该品质的结果，避免先降到标准音质再重复解析。刷新期间点击暂停，成功返回的地址会保留原曲位置供下次继续播放，失败时停在当前曲目并保留剩余队列。入口、URL 解析结果与失败分支均校验播放权，过时任务不能重播、跳过新曲或提示旧错误。全民 K 歌被选中时，保留音频也不能触发在线重试；退出该信源后，显式恢复的音频仍可正常重试。新曲仍在解析时，旧音频新触发的错误也不再拥有播放权；切换失败后，为保留的原音频建立新的有效代际，允许其后续错误恢复，旧任务仍失效。手动切歌无可用 URL 时保留当前曲目、来源与音频，并沿用地址解析服务的不可播放提示。
 
 自然结束事件先核对当前音频的播放代际；手动切歌尚在解析时，旧音频的 ended 不得推进队列或使手动选曲失效。同曲音质替换仍在解析时，当前音频的自然结束保留原有连播行为，并先撤销在途音质请求；即使没有下一首，迟到音质结果也不能重新装载已结束的歌曲。此例外仅用于自然结束，旧音源 error 仍不能抢占音质请求。自然结束后的连播及音频错误恢复后的自动跳歌，在 URL 解析失败或为空时继续取下一首；单曲循环的当前曲目不可播时也可推进。一次自动推进最多检查当时的剩余队列和一轮完整歌单，电台允许再检查一批补歌；同一曲目键只尝试一次，全部不可播时停止音频。每次异步播放尝试完成后复核请求代际，用户切歌、清空队列、切音质或退出平台后，旧推进任务不能继续取歌。
 
@@ -97,7 +97,7 @@ playbackControls → audio.load()/play()
 | 环节             | 实现                                                                                                                                                                                                                                                                                                                                                               |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 获取             | `LyricService.loadLyrics(track)` → `POST /api/music/lyrics`(按 source 走 QQ/网易云解析,本地与已缓存跳过)                                                                                                                                                                                                                                                           |
-| 行定位           | `findLyricLine` 对 `lines[]` 做二分查找([lyric-service.js:62-88](../../../public/js/playback/services/lyric-service.js#L62-L88))                                                                                                                                                                                                                                   |
+| 行定位           | 在按 `startMs` 升序排列的歌词中定位最后一条已开始的行，同毫秒取末行。桌面时间轴用本地歌词时钟加显示偏移，全屏播放器和播放服务用音频时间加试听起点。桌面与全屏返回索引，空列表或首行前为 `-1`。播放服务返回原行对象，未命中为 `null`。见[共享行查找](../../../public/js/shared/lyric-line-index.js)。 |
 | 逐字进度         | `shared/lyric-clock.js` 按 `performance.now()` 计算本地位置;`LyricWordRenderer` 使用 `LyricFrameScheduler` 的 rAF+33.3ms 门控;当前行 `LyricWordAnimator` 优先 WAAPI reveal；慢帧只减少装饰效果，能力回退及减少动态效果约定由 [overlay 性能策略](overlays.md#7-数据消费一览)维护 |
 | **上报**         | `publishBrowserState`:`POST /api/playback/lyric-state`(保留毫秒精度 + 180ms 节流 + latest-wins 队列);每条状态兼容携带 `generation`/`sequence`,切歌/seek/时间线变化切 generation;`publishBrowserTimeline`:`POST /api/playback/lyric-timeline`(trackKey+歌词引用去重,只发一次)——服务端缓存内置候选，仅实际输出来源为 internal 时转 WS 广播(见 [ws.md](../backend/ws.md) §3) |
 | 直播歌词浏览器源 | `syncWindow` 仅通过 HTTP 发布状态与完整时间轴;`/lyrics` 经 WebSocket 消费 `lyric-state`/`lyric-timeline`并复用管理页实时预览渲染                                                                                                                                                                                                                                   |
@@ -140,6 +140,8 @@ playbackControls → audio.load()/play()
 
 七个首页快捷入口中的曲目列表共用 `renderHomeTrackRow`，本机播放历史也复用此组件；三点触发按钮及菜单项统一由 [ui/track-menu.js](../../../public/js/playback/ui/track-menu.js) 的 `renderTrackMenu` 渲染。按内容保留电台、添加到歌单和删除的适用范围；本地歌曲不提供线上歌单操作。触发按钮带边框，菜单按文字内容及内边距确定宽度，各操作居中并由分隔线区分。菜单依据抽屉内可用空间向下或向上展开，聚焦首项时不滚动列表。抽屉标题与数量同行，列表只保留常规内边距；抽屉按当前播放器底栏高度确定可用高度，批量操作由独立底栏承载。
 
+快捷入口使用已对照真实桌面客户端界面核对的功能图形，随所选平台切换；QQ 音乐图标使用绿色 `#31c27c`，网易云音乐图标使用红色 `#ec4141`，不附加红绿底块或图标阴影。QQ 音乐的推荐、电台、喜欢、最近播放图形提取自客户端图标字体；网易云音乐的推荐、每日推荐、心动、喜欢、最近播放图形提取自客户端 SVG。两端「我的歌单」「收藏歌单」对应文字分组，不补配图标；QQ 音乐的每日推荐入口使用动态歌曲封面，没有独立功能图标，因此也保留文字。所需轮廓随客户端本地打包在 [home-icons.svg](../../../public/img/playback/home-icons.svg)，版本、实际界面对应位置和适配说明记录在 [home-icons.sources.json](../../../public/img/playback/home-icons.sources.json)，不加载完整图标字体或新增启动下载。网易云音乐「每日推荐」保留原生日历外形，内嵌本机当天日期，由 [core/event-handlers.js](../../../public/js/playback/core/event-handlers.js) 在初始化时写入，并在本地零点后更新。
+
 `CacheManager` 内存层最多 64 项，按序列化字符串 UTF-16 长度估算的合计预算为 8 MiB（不是 V8 实际堆大小保证）。读取提升最近使用顺序，写入/回填时回收超过默认 24 小时的内存条目，按最近使用顺序淘汰至预算内。超大单项跳过缓存而不截断歌单数据。持久层仅管理 `playbackCache:v2:` 前缀：构造及写入时清理过期项，最多 64 项、合计 2 MiB（键和值的 UTF-16 估算），超预算按缓存时间回收；配额失败只回收自身缓存并重试一次，不清除其他同源偏好或草稿。登录/退出还会使对应平台未完成内容请求失去缓存写入权，防止旧账号响应重新填回缓存。
 
 ## 5. 队列、电台与歌单
@@ -162,11 +164,11 @@ playbackControls → audio.load()/play()
 
 ## 6. 状态持久化(play_queue_state)
 
-`state-persistence.js` 在任何 await 之前读取管理页 HTML 的启动代次，并为本次 factory 分配页内 senderGeneration；每次保存通知只标记待保存并递增 sequence，完整曲目与队列快照在防抖发送或显式 flush 时捕获最新值。1500ms 防抖时机保持不变，不承诺持续事件期间的最长保存间隔。普通 HTTP 发送在 settle 前保留最新 in-flight payload；若此时 current 为空且没有更新一轮 dirty/pending，卸载/关机显式 flush 仍可直接重发这份快照，不等待原普通请求。定时 HTTP 和卸载 IPC/beacon 携带相同 `snapshotVersion`，卸载直接发出快照，不等待网络握手。失败请求只可保留当前发送端最新序号的 pending，不能在较新保存后重新排入旧快照；旧请求的 settle 只能清理自己的 in-flight 引用。旧发送端不会自动提代夺回写入权；独立调用须显式提供 `deps.snapshotWriter`，缺少启动信息时明确提示重新加载。服务端去重/拒绝及重启语义见 [API 合同](../backend/api.md) §5 和 [存储合同](../backend/storage.md) §3.4。
+`state-persistence.js` 在任何 await 之前读取管理页 HTML 的启动代次，并为本次 factory 分配页内 senderGeneration；每次保存通知只标记待保存并递增 sequence，完整曲目与队列快照在防抖发送或显式 flush 时捕获最新值。短时变更沿用 1500ms 防抖。每轮首次待保存还会启动 10 秒计时器，两者先到即尝试保存一次。定时发送或显式 flush 都会取消该轮的两个计时器。普通 HTTP 发送在 settle 前保留最新 in-flight payload；若此时 current 为空且没有更新一轮 dirty/pending，卸载/关机显式 flush 仍可直接重发这份快照，不等待原普通请求。定时 HTTP 和卸载 IPC/beacon 携带相同 `snapshotVersion`，卸载直接发出快照，不等待网络握手。失败请求只可保留当前发送端最新序号的 pending，不能在较新保存后重新排入旧快照；旧请求的 settle 只能清理自己的 in-flight 引用。旧发送端不会自动提代夺回写入权；独立调用须显式提供 `deps.snapshotWriter`，缺少启动信息时明确提示重新加载。服务端去重/拒绝及重启语义见 [API 合同](../backend/api.md) §5 和 [存储合同](../backend/storage.md) §3.4。
 
 | 通道                                  | 触发点                                                                       | 说明                                                                                                                                                                                                                                 |
 | ------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| HTTP `POST /api/playback/queue-state` | 常规保存(1500ms 防抖)、卸载 `sendBeacon`(带 token)、关机前 `keepalive` fetch | 服务端写 `musicDb.play_queue_state`(client_id PK,见 [storage.md](../backend/storage.md) §3.4)                                                                                                                                        |
+| HTTP `POST /api/playback/queue-state` | 常规保存（静默 1500ms 或本轮满 10 秒）、卸载 `sendBeacon`(带 token)、关机前 `keepalive` fetch | 服务端写 `musicDb.play_queue_state`(client_id PK,见 [storage.md](../backend/storage.md) §3.4)                                                                                                                                        |
 | IPC `musicAPI.savePlaybackState`      | 卸载时与 HTTP 同发；关机刷新优先 IPC、失败回退 HTTP                                    | 通道见 [desktop/preload.md](../desktop/preload.md);Electron 关机钩子 `onPrepareShutdown → flushPlaybackStateForShutdown → confirmShutdownFlush`([initializer.js:117-129](../../../public/js/playback/core/initializer.js#L117-L129)) |
 | localStorage `playbackState:v2`       | 读取旧数据；v1 迁移时写入 v2，当前未接入常规保存                                         | 兼容 v1(`songAssistantPlaybackState:v1`)与旧 v2 数据，不能作为持续更新的本地备份承诺                                                                                                                                                    |
 
@@ -174,11 +176,15 @@ playbackControls → audio.load()/play()
 
 **恢复顺序**:`restoreState()` 优先 `GET /api/playback/queue-state?clientId=default` → localStorage v2 → v1 迁移（[state/storage.js](../../../public/js/playback/state/storage.js)）。HTTP/IPC 快照保存音频的 `currentTime`，恢复时归一到 `restoredTime`；只有 `StorageManager._doSave` 的 localStorage 写入把 `restoredTime` 置为 0，不能据此认为服务端快照不保存播放位置。恢复的本地曲目经 `restoreLocalFileUrls()` 用 `musicAPI.resolveLocalMediaUrls(paths)` 批量解析成 `local-media://` URL,失败标记 `fileMissing`。
 
+成功响应明确返回 `ok: true`、`data.payload: null` 表示 SQLite 已确认无快照。此时读到的旧本地副本将进入常规保存，即使只有待播歌曲也可以在关机时完成迁移。启动读取失败、响应格式异常或存档无法校验时，播放器展示可用的本地副本，缺少副本则展示初始状态。此时持久化模块记录当前曲目和各队列的成员与顺序，定时保存、页面卸载和正常关机在捕获快照时都与这份记录比较。只调音量、拖动进度、切换播放模式或收到媒体通知时，设置在本次会话生效，SQLite 保留原快照。入队、移除或切歌实际改变队列或当前曲目后，即可保存编辑后的完整快照，失败时沿用下文的重试规则。启动时成功读取 SQLite 的会话照常保存音量、进度和模式。
+
 电台读取位置 `radioOffset` 随现有 HTTP/IPC/beacon 快照及 localStorage 写入保存，重启后继续读取后续窗口；旧快照缺少该字段时归零。开始新的电台重设读取位置，清空队列或开始其他集合时归零，不新增存档键、数据库表或常驻曲目缓存。
 
-常规 HTTP 保存失败保留当前发送端的最新待存快照；连续两次失败显示一次「播放队列和进度还没保存成功，先别关闭 LIRA。」，随后成功显示「播放队列和进度已保存。」并重置失败计数。旧序号的晚到结果不能覆盖新保存结果或重复提示。普通请求尚未 settle 时，最新 in-flight 快照也可由显式 flush 复用；卸载时 IPC 与 beacon/keepalive 同时提交同一版本，正常桌面关闭先等待 IPC，失败才回退 keepalive HTTP。
+常规保存遇到请求异常或 HTTP 5xx 时，按 1.5、3、6 秒间隔重试同一快照版本，最多三次。首次失败提示「播放队列和进度还没保存成功，先别关闭 LIRA。」，恢复后提示「播放队列和进度已保存。」。重试耗尽时保留待存快照供显式刷新使用，新编辑会替换待重试版本。服务端返回 `stale-snapshot` 时丢弃该版本。旧序号的晚到结果无法覆盖更新的已完成结果。
 
-可等待的 HTTP 保存必须同时满足 HTTP 成功、`ok:true` 和 `data.saved:true`；关机 IPC 必须返回 `saved:true`。业务拒绝也按保存失败保留最新 pending，不能仅凭 HTTP 200 或 IPC resolve 清除。卸载时的即发请求仍不等待确认。
+普通请求尚未完成时，显式刷新可复用最新在途快照。卸载时 IPC 与 beacon 或 keepalive 同时提交同一版本，正常桌面关闭先等待 IPC，失败时改用 keepalive HTTP。
+
+可等待的 HTTP 保存必须同时满足 HTTP 成功、`ok:true` 和 `data.saved:true`，关机 IPC 则须返回 `saved:true`。除 `stale-snapshot` 外，最新版本被业务拒绝时仍保留为待存快照。卸载时的即发请求仍无需等待确认。
 
 设置中的「清空歌曲和使用记录」成功后清理播放内容缓存及旧 localStorage v1/v2 状态，再重载页面、停止当前音频并领取新的启动 writer。部分失败仅在 `musicDb` 已提交时清理本地播放副本，未提交时保留回退数据。服务端全清空保留并推进 writer 撤销元数据，清空前迟到的 HTTP、IPC 和卸载保存均不能复活旧队列。
 
@@ -200,7 +206,9 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 
 ## 8. UI 与事件
 
-搜索结果由搜索完成、清空和切换音源入口更新，不随普通播放状态刷新重复构造。队列弹窗关闭时暂缓列表渲染，打开时读取最新状态；可见时只在实际展示字段变化后重建列表，包含数组或曲目原地修改。
+搜索结果由搜索完成、清空和切换音源入口更新，不随普通播放状态刷新重复构造。队列弹窗关闭时暂缓列表渲染，打开时读取最新状态；可见时比较实际展示字段，也能识别数组或曲目的原地修改。完整歌单仅切换播放位置时更新前后两首的行，重复曲目按当前歌单位置标记。这时仍在队列中的失败封面也会重试一次。歌单抽屉的「更多操作」直接收起上次打开的菜单，再聚焦新菜单。
+
+队列空态复用 `lira-content-state` 的标题与说明层级；队列和播放抽屉的遮罩、表面及阴影跟随客户端主题，保留各自遮罩强度与交互。播放器外观的带单位数值框复用 `lira-number-field`，原输入范围和保存流程不变。公共样式归[共享控件](pages.md#5-css-清单)。
 
 音质菜单仅在所属音源或该音源的偏好音质变化时重建选项；暂停、后台状态等无关更新保留按钮节点、焦点和点击目标。手动切换等待解析时保留原选中项。播放条的音质标签仍独立反映实际音源品质，包括普通播放时服务端降级返回的实际档位。
 
@@ -213,7 +221,7 @@ QQ 轨道持久化保留 `sourceMediaId`、`sourceSongId`、`sourceSongType`;最
 - **工作区集成**:[admin/player-workspace.js](../../../public/js/admin/player-workspace.js) 的 `PlayerWorkspace` 管理全屏开关、ESC/空格快捷键、全屏焦点及 dock 展开/收起。播放器 dock 默认收起(`player-dock-collapsed`,避免遮挡点歌工作区),`setPlayerDockCollapsed` 在收起时联动关闭全屏播放器/队列弹窗/音量面板。
 - `core/event-handlers.js` 绑定播放页 DOM 事件(搜索框、队列操作、抽屉、全屏按钮、媒体会话按键),控制器显式注入其所需回调;`core/renderer.js` 输出渲染函数(进度/全屏/待确认弹窗/搜索结果/首页结果/匹配结果)供控制器组合。
 - 播放器状态变化统一走 `onStateChange → renderPlayback() + savePlaybackState()`;MediaSession(系统媒体控制)由 `updatePlaybackMediaSession(togglePlayback, playbackPrevious, playbackNext)` 更新([controller.js](../../../public/js/playback/controller.js) 的 `updatePlaybackMediaSession`)。
-- 音频事件链([initializer.js:67-113](../../../public/js/playback/core/initializer.js#L67-L113)):`loadedmetadata` 回写 `durationMs` → `timeupdate` 推进进度条并落盘 → `play/pause` 同步 MediaSession 与歌词窗口 → `seeking/seeked` 强刷歌词与状态 → `ended` 触发 `playbackNext(true)` → `error` 走流刷新重试;`pagehide` 时 `flushPlaybackStateOnUnload`(sendBeacon/IPC 双通道,见 §6)。
+- 音频事件链([initializer.js:67-113](../../../public/js/playback/core/initializer.js#L67-L113)):`loadedmetadata` 回写 `durationMs` → `timeupdate` 推进进度条并调度保存 → `play/pause` 同步 MediaSession 与歌词窗口 → `seeking/seeked` 强刷歌词与状态 → `ended` 触发 `playbackNext(true)` → `error` 走流刷新重试;`pagehide` 时 `flushPlaybackStateOnUnload`(sendBeacon/IPC 双通道,见 §6)。
 
 ### 8.1 大播放器外观
 

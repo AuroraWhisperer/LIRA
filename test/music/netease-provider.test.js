@@ -4,6 +4,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { NeteaseMusicProvider } = require('../../src/music/providers/netease-provider');
 const { getMusicHomeContent, writeMusicPlaylistTracks } = require('../../src/music/music-catalog-service');
+const { createMusicProviderRegistry } = require('../../src/music/provider-registry');
 const path = require('node:path');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 
@@ -14,18 +15,108 @@ function createProvider() {
   });
 }
 
-test('NetEase liked pagination resolves its playlist once per load while retaining real pages', async () => {
-  const provider = createProvider();
-  let lookups = 0;
-  const offsets = [];
-  provider.getLikedPlaylistId = async () => { lookups++; return '123'; };
-  provider.getPlaylistTracks = async (_id, options) => { offsets.push(options.offset); return []; };
-  await provider.getLikedTracks({ offset: 0, loadingSession: 'load' });
-  await provider.getLikedTracks({ offset: 100, loadingSession: 'load' });
-  assert.equal(lookups, 1);
-  assert.deepEqual(offsets, [0, 100]);
-  await provider.getLikedTracks({ offset: 0, loadingSession: 'refresh' });
-  assert.equal(lookups, 2);
+const profilePath = '/api/nuser/account/get';
+const listsPath = '/api/user/playlist';
+const indexPath = '/api/v6/playlist/detail';
+const detailsPath = '/api/song/detail';
+const coldLikedPage = [profilePath, listsPath, indexPath, detailsPath];
+
+function createLikedCaller(t, pauseAt = async () => {}) {
+  let account = 'A';
+  const sent = [];
+  const registry = createMusicProviderRegistry({
+    getCookieHeader: async () => {
+      const cookie = account ? `MUSIC_U=${account}` : '';
+      await pauseAt('cookie');
+      return cookie;
+    },
+    getAuthState: async () => {
+      const loggedIn = Boolean(account);
+      await pauseAt('login');
+      return { loggedIn };
+    },
+  });
+  t.mock.method(globalThis, 'fetch', async ({ pathname, searchParams }, { headers }) => {
+    const cookie = headers.Cookie || '';
+    sent.push([pathname, cookie]);
+    await pauseAt(pathname);
+    if (pathname === profilePath) return Response.json({ profile: { userId: cookie === 'MUSIC_U=A' ? 1 : 2 } });
+    if (pathname === listsPath) return Response.json({ playlist: [{ id: searchParams.get('uid'), name: '我喜欢的音乐' }] });
+    if (pathname === indexPath) return Response.json({ playlist: { trackIds: searchParams.get('id') === '1' ? [11, 12] : [21, 22] } });
+    assert.equal(pathname, detailsPath);
+    return Response.json({ songs: JSON.parse(searchParams.get('ids')).map(id => ({ id, name: `Song ${id}` })) });
+  });
+  async function page(offset, loadingSession = 'same') {
+    const { tracks } = await getMusicHomeContent(registry, { platform: 'netease', action: 'liked', limit: 1, offset, loadingSession });
+    return tracks.map(track => track.sourceTrackId);
+  }
+  return { page, sent, switchTo(next) { account = next; } };
+}
+
+test('NetEase liked pages reuse discovery and index per load, including after refresh', async t => {
+  const { page, sent } = createLikedCaller(t);
+  assert.deepEqual(await page(0), ['11']);
+  assert.deepEqual(await page(1), ['12']);
+  assert.deepEqual(await page(2), []);
+  assert.deepEqual(await page(0, 'refresh'), ['11']);
+  assert.deepEqual(sent, [...coldLikedPage, detailsPath, ...coldLikedPage].map(path => [path, 'MUSIC_U=A']));
+});
+
+test('NetEase sessionless liked reads keep a matching cached page and evict it after a switch', async t => {
+  const { page, sent, switchTo } = createLikedCaller(t);
+  await page(0);
+  await page(0, '');
+  let start = sent.length;
+  assert.deepEqual(await page(1), ['12']);
+  assert.deepEqual(sent.slice(start), [[detailsPath, 'MUSIC_U=A']]);
+  switchTo('B');
+  assert.deepEqual(await page(0, ''), ['21']);
+  switchTo('A');
+  start = sent.length;
+  assert.deepEqual(await page(1), ['12']);
+  assert.deepEqual(sent.slice(start), coldLikedPage.map(path => [path, 'MUSIC_U=A']));
+});
+
+test('NetEase liked reads keep their initial account across login and playlist discovery', async t => {
+  for (const [stage, next, restore] of [['cookie', 'B'], ['login', 'B'], [profilePath, 'B'], [listsPath, ''], [profilePath, 'B', true]]) {
+    await t.test(`${stage} -> ${next || 'logout'}${restore ? ' -> A' : ''}`, async t => {
+      const started = Promise.withResolvers();
+      const release = Promise.withResolvers();
+      let paused = false;
+      const { page, sent, switchTo } = createLikedCaller(t, async point => {
+        if (!paused && point === stage) {
+          paused = true;
+          started.resolve();
+          await release.promise;
+        }
+      });
+      const oldPage = page(0);
+      await started.promise;
+      const initial = stage === listsPath ? [profilePath, listsPath] : stage === profilePath ? [profilePath] : [];
+      assert.deepEqual(sent, initial.map(path => [path, 'MUSIC_U=A']));
+      switchTo(next);
+      if (next) {
+        assert.deepEqual(await page(0), ['21']);
+        assert.deepEqual(sent.slice(initial.length), coldLikedPage.map(path => [path, 'MUSIC_U=B']));
+      } else {
+        await assert.rejects(page(0));
+        assert.equal(sent.length, initial.length);
+      }
+      if (restore) {
+        switchTo('A');
+        assert.deepEqual(await page(0), ['11']);
+        assert.deepEqual(sent.slice(-4), coldLikedPage.map(path => [path, 'MUSIC_U=A']));
+      }
+      const beforeRelease = sent.length;
+      release.resolve();
+      await assert.rejects(oldPage, error => error.code === 'NETEASE_PLAYLIST_ACCOUNT_CHANGED');
+      assert.equal(sent.length, beforeRelease);
+      if (next) {
+        assert.deepEqual(await page(1), [restore ? '12' : '22']);
+        assert.deepEqual(sent.slice(beforeRelease), [[detailsPath, `MUSIC_U=${restore ? 'A' : next}`]]);
+      }
+    });
+  }
 });
 
 test('NetEase stream requests read the current account cookie each time and honor upstream rights', async (t) => {
@@ -71,19 +162,56 @@ test('NetEase liked pages slice one track-ID snapshot and read details in its or
         tracks: [{ id: 1, name: 'Repeated first page' }] } };
     }
     assert.equal(pathname, '/api/song/detail');
-    return { songs: JSON.parse(params.ids).reverse().map(id => ({ id, name: `Song ${id}`, album: { picUrl: 'https://example.test/art.jpg' } })) };
+    return { songs: JSON.parse(params.ids).reverse().map(id => ({
+      id, name: `Song ${id}`, artists: [{ img1v1Url: 'https://example.test/artist.jpg' }],
+    })) };
   };
   const pages = [];
   for (const offset of [0, 100, 200, 300]) {
     pages.push(await provider.getLikedTracks({ limit: 100, offset, loadingSession: 'current-load' }));
   }
   assert.deepEqual(pages.map(page => page.length), [100, 100, 5, 0]);
+  assert.equal(pages[0][0].coverUrl, 'https://example.test/artist.jpg');
   assert.deepEqual(pages.flat().map(track => track.sourceTrackId), Array.from({ length: 205 }, (_, index) => String(index + 1)));
   assert.equal(requests.filter(request => request.pathname === '/api/v6/playlist/detail').length, 1);
   assert.deepEqual(requests[0].params, { id: '123', n: '0', s: '0' });
   assert.equal(requests.filter(request => request.pathname === '/api/song/detail').length, 3);
   await provider.getLikedTracks({ limit: 100, loadingSession: 'fresh-load' });
   assert.equal(requests.filter(request => request.pathname === '/api/v6/playlist/detail').length, 2);
+});
+
+test('NetEase embedded liked pages only wait for a network slot when they need artwork', async () => {
+  const provider = createProvider();
+  provider.getLikedPlaylistId = async () => '1';
+  const held = Promise.withResolvers();
+  const cover = 'https://example.test/album';
+  let coverReads = 0;
+  provider.requestJson = async (pathname, { id }) => {
+    if (pathname === '/api/song/detail') {
+      coverReads++;
+      return { songs: [{ id: 3, al: { picUrl: cover } }] };
+    }
+    if (id === '1') return { playlist: { tracks: [
+      { id: 1, name: 'First', al: { picUrl: cover } }, { id: 2, name: 'Second', al: { picUrl: cover } },
+      { id: 3, name: 'Third' },
+    ] } };
+    await held.promise;
+    return { playlist: { trackIds: [] } };
+  };
+  const page = offset => provider.getLikedTracks({ loadingSession: 'one', limit: 1, offset });
+  await page(0);
+  const busy = Promise.all(['2', '3', '4', '5', '6', '7'].map(id => provider.getPlaylistTracks(id)));
+  let cachedId;
+  const cached = page(1).then(([track]) => { cachedId = track.sourceTrackId; });
+  const missingCover = page(2);
+  await new Promise(resolve => setImmediate(resolve));
+  const idWhileBusy = cachedId;
+  const coverReadsWhileBusy = coverReads;
+  held.resolve();
+  const [, , [enriched]] = await Promise.all([busy, cached, missingCover]);
+  assert.equal(idWhileBusy, '2');
+  assert.equal(coverReadsWhileBusy, 0);
+  assert.equal(enriched.coverUrl, cover);
 });
 
 test('NetEase playlist loading rejects incomplete indices and missing song details', async () => {
@@ -96,6 +224,127 @@ test('NetEase playlist loading rejects incomplete indices and missing song detai
     ? { playlist: { trackCount: 2, trackIds: [{ id: 1 }, { id: 2 }] } }
     : { songs: [{ id: 1, name: 'First' }] };
   await assert.rejects(provider.getPlaylistTracks('123'), /加载未完成/);
+});
+
+test('NetEase playlist opens fetch each distinct detail ID once and restore duplicate positions', async () => {
+  const provider = createProvider();
+  const unique = Array.from({ length: 100 }, (_, i) => i + 1);
+  const ids = [...unique, 1, 99];
+  const batches = [];
+  provider.requestJson = async (pathname, params) => {
+    if (pathname === '/api/v6/playlist/detail') {
+      return { playlist: { trackIds: ids, tracks: [{ id: 1, name: 'Old title', fee: 0, status: 0 }] } };
+    }
+    const batch = JSON.parse(params.ids);
+    batches.push(batch);
+    return { songs: batch.toReversed().map(id => ({ id, name: `Current ${id}`, fee: 4, status: -1 })) };
+  };
+  const tracks = await provider.getPlaylistTracks('123');
+  assert.deepEqual(tracks.map(track => track.sourceTrackId), ids.map(String));
+  assert.equal(tracks[100].title, 'Current 1');
+  assert.equal(tracks[100].vip, true);
+  assert.equal(tracks[100].playable, false);
+  assert.deepEqual(batches, [unique.map(String)]);
+});
+
+test('NetEase concurrent playlist opens share the upstream read limit', async () => {
+  const provider = createProvider();
+  const ids = Array.from({ length: 301 }, (_, index) => index + 1);
+  let active = 0;
+  let peak = 0;
+  provider.requestJson = async (pathname, params) => {
+    peak = Math.max(peak, ++active);
+    await new Promise(resolve => setImmediate(resolve));
+    active--;
+    if (pathname === '/api/v6/playlist/detail') return { playlist: { trackIds: ids } };
+    return { songs: JSON.parse(params.ids).map(id => ({ id, name: `Song ${id}` })) };
+  };
+  await provider.getPlaylistTracks('1');
+  assert.equal(peak, 2);
+  await Promise.all(Array.from({ length: 9 }, (_, i) => provider.getPlaylistTracks(String(i + 1))));
+  assert.ok(peak <= 6, `peak upstream reads: ${peak}`);
+});
+
+test('NetEase drops queued and in-flight playlist reads when the account switches', async (t) => {
+  let cookie = 'MUSIC_U=synthetic-A';
+  const provider = new NeteaseMusicProvider({ getCookieHeader: () => cookie });
+  const gate = Promise.withResolvers();
+  const sent = [];
+  t.mock.method(globalThis, 'fetch', async (url, options) => {
+    sent.push(url.searchParams.get('id'));
+    await gate.promise;
+    return Response.json({ playlist: { tracks: [{
+      id: 42, name: options.headers.Cookie === 'MUSIC_U=synthetic-B' ? 'For B' : 'For A',
+      album: { picUrl: 'https://example.test/art' },
+    }] } });
+  });
+  const reads = Promise.allSettled(Array.from({ length: 7 }, (_, i) => provider.getPlaylistTracks(String(i + 1))));
+  await new Promise(resolve => setImmediate(resolve));
+  cookie = 'MUSIC_U=synthetic-B';
+  gate.resolve();
+  const results = await reads;
+  assert.ok(results.every(result => result.status === 'rejected' && result.reason.code === 'NETEASE_PLAYLIST_ACCOUNT_CHANGED'));
+  assert.equal(sent.length, 6);
+  assert.ok(!sent.includes('7'));
+  const tracks = await provider.getPlaylistTracks('7');
+  assert.equal(tracks[0].title, 'For B');
+});
+
+test('NetEase stops an indexed read at a failed or incomplete pair of detail batches', async () => {
+  const provider = createProvider();
+  const ids = Array.from({ length: 401 }, (_, index) => index + 1);
+  const upstreamError = new Error('HTTP 503');
+  for (const missing of [false, true]) {
+    let reads = 0;
+    let inFlight = 0;
+    provider.requestJson = async (pathname, params) => {
+      if (pathname === '/api/v6/playlist/detail') return { playlist: { trackIds: ids } };
+      const batch = JSON.parse(params.ids);
+      reads++;
+      if (batch[0] === '1') {
+        if (!missing) throw upstreamError;
+        return { songs: batch.slice(1).map(id => ({ id, name: `Song ${id}` })) };
+      }
+      inFlight++;
+      await new Promise(resolve => setImmediate(resolve));
+      inFlight--;
+      return { songs: batch.map(id => ({ id, name: `Song ${id}` })) };
+    };
+    await assert.rejects(provider.getPlaylistTracks('1'), error => missing ? error.statusCode === 501 : error === upstreamError);
+    assert.equal(reads, 2);
+    assert.equal(inFlight, 0);
+  }
+});
+
+test('NetEase admits a queued playlist when the first detail batch fails and its sibling is still pending', async () => {
+  const provider = createProvider();
+  const first = Promise.withResolvers();
+  const others = Promise.withResolvers();
+  const tick = () => new Promise(resolve => setImmediate(resolve));
+  let queuedIndexRead = false;
+  provider.requestJson = async (pathname, params) => {
+    if (pathname === '/api/song/detail') {
+      const ids = JSON.parse(params.ids);
+      if (ids[0] === '1') return first.promise;
+      await others.promise;
+      return { songs: ids.map(id => ({ id, name: `Song ${id}` })) };
+    }
+    if (params.id === '1') return { playlist: { trackIds: Array.from({ length: 200 }, (_, i) => i + 1) } };
+    if (params.id === '6') queuedIndexRead = true;
+    else await others.promise;
+    return { playlist: { trackIds: [] } };
+  };
+  const failed = assert.rejects(provider.getPlaylistTracks('1'), /upstream failure/);
+  await tick(); // Both detail batches are in flight before the other opens.
+  const opens = Promise.all(['2', '3', '4', '5', '6'].map(id => provider.getPlaylistTracks(id)));
+  await tick();
+  const wasQueued = !queuedIndexRead;
+  first.reject(new Error('upstream failure'));
+  await tick();
+  const admitted = queuedIndexRead;
+  others.resolve();
+  await Promise.all([failed, opens]);
+  assert.ok(wasQueued && admitted, 'the next index should use the freed slot before the sibling finishes');
 });
 
 test('NetEase full liked loading displays and caches every page beyond the repeated upstream first page', async () => {
@@ -153,23 +402,23 @@ test('Netease provider requests and aligns translated and romanized lyrics', asy
   assert.equal(result.lines[1].words.at(-1).endMs, 29000);
 });
 
-test('Netease lyrics retain YRC timing and spaces when LRC timestamps differ', async () => {
+test('Netease lyrics retain YRC timing, spaces and literal parentheses when LRC timestamps differ', async () => {
   const provider = createProvider();
   provider.requestJson = async () => ({
     lrc: { lyric: '[00:01.40]Hello world\n[00:04.50]下一句' },
     tlyric: { lyric: '[00:01.40]旧译文' },
-    yrc: { lyric: '[1000,2000](1000,700,0)Hello (1700,1300,0)world\n[4000,1000](4000,1000,0)下一句' },
+    yrc: { lyric: '[1000,2000](1000,700,0)Hello (echo) (1700,1300,0)(world)\n[4000,1000](4000,1000,0)下一句' },
     ytlrc: { lyric: '[00:01.00]你好世界' },
     yromalrc: { lyric: '[00:04.00]xia yi ju' },
   });
   const result = await provider.getLyrics({ sourceTrackId: '123', durationMs: 10000 });
   assert.equal(result.lines[0].startMs, 1000);
   assert.equal(result.lines[0].endMs, 3000);
-  assert.equal(result.lines[0].text, 'Hello world');
+  assert.equal(result.lines[0].text, 'Hello (echo) (world)');
   assert.equal(result.lines[0].translation, '你好世界');
   assert.deepEqual(result.lines[0].words, [
-    { startMs: 1000, endMs: 1700, text: 'Hello ' },
-    { startMs: 1700, endMs: 3000, text: 'world' },
+    { startMs: 1000, endMs: 1700, text: 'Hello (echo) ' },
+    { startMs: 1700, endMs: 3000, text: '(world)' },
   ]);
   assert.equal(result.lines[1].roma, 'xia yi ju');
 });
@@ -549,6 +798,22 @@ test('Netease provider checks the complete playlist track id list', async () => 
 
   assert.equal(await provider.playlistContainsTrack('123456', { sourceTrackId: '789012' }), true);
   assert.equal(await provider.playlistContainsTrack('123456', { sourceTrackId: '345678' }), false);
+});
+
+test('NetEase membership uses complete embedded tracks and retries a truncated playlist', async () => {
+  const provider = createProvider();
+  const tracks = [{ id: 1, name: 'First' }, { id: 2, name: 'Second' }];
+  let reads = 0;
+  provider.requestJson = async (pathname) => {
+    assert.equal(pathname, '/api/v6/playlist/detail');
+    reads++;
+    return { playlist: { trackCount: 2, tracks } };
+  };
+  assert.equal(await provider.playlistContainsTrack('1', { id: 'netease:2' }), true);
+  assert.equal(reads, 1);
+  tracks.pop();
+  await assert.rejects(provider.playlistContainsTrack('1', { id: 'netease:2' }), /完整曲目索引/);
+  assert.equal(reads, 3);
 });
 
 test('playlist write service routes Netease writes to its provider', async () => {

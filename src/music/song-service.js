@@ -198,11 +198,11 @@ function replaceCloudSongs(store, rows, accountKey) {
   }
 
   const songs = [...songsByIdentity.values()];
-  store.replaceAll(songs, { accountKey });
+  const { count } = store.replaceAll(songs, { accountKey, rawSnapshot: rows });
   return {
     total: rows.length,
-    count: songs.length,
-    duplicate: rows.length - songs.length,
+    count,
+    duplicate: rows.length - count,
   };
 }
 

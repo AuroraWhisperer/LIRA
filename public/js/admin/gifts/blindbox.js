@@ -1,4 +1,4 @@
-import { getBlindBoxIcon, loadGiftArtworkCatalog } from './artwork-catalog.js';
+import { getBlindBoxIcon, readOfficialGiftCatalog } from './artwork-catalog.js';
 // 编写人：Aurora
 // 盲盒映射编辑、官方奖池与房间在售目录。
 ('use strict');
@@ -12,7 +12,7 @@ import { GIFT_PLACEHOLDER, setGiftArtworkFallbacks } from '../../shared/gift-ima
 
 export const giftBlindbox = (() => {
   let disposeMapping = null;
-  let lifecycleRevision = 0;
+  let officialCatalogRevision = 0;
   let officialBlindBoxes = [];
   let officialCatalogLoadPromise = null;
   let saleGiftIds = new Set();
@@ -142,10 +142,11 @@ export const giftBlindbox = (() => {
 
   function applyOfficialCatalogSnapshot(snapshot) {
     // Catalog updates also carry room sale snapshots without official relations.
-    if (typeof snapshot?.roomId === 'string' && !Array.isArray(snapshot?.blindBoxes)) {
+    if (!Array.isArray(snapshot?.blindBoxes)) {
       applySaleCatalogSnapshot(snapshot);
       return;
     }
+    officialCatalogRevision += 1;
     const gifts = Array.isArray(snapshot?.gifts) ? snapshot.gifts : [];
     const identityMode = snapshot.schemaVersion === 3;
     const giftById = new Map(gifts.map((gift) => [String(identityMode ? gift.variantId : gift.id), gift]));
@@ -221,7 +222,6 @@ export const giftBlindbox = (() => {
           if (requestRevision !== saleCatalogRevision) return;
           // The overtime picker may already be refreshing a different room.
           if (String(payload?.data?.roomId || '') !== saleRoomId) continue;
-          applySaleCatalogSnapshot(payload.data);
           eventBus.emit(Events.GIFT_CATALOG_UPDATED, {
             snapshot: payload.data,
           });
@@ -243,18 +243,15 @@ export const giftBlindbox = (() => {
 
   function loadOfficialCatalog() {
     if (officialCatalogLoadPromise) return officialCatalogLoadPromise;
-    const requestLifecycle = lifecycleRevision;
-    const pending = fetch('/api/overtime/gifts/catalog')
-      .then((response) => readJsonResponse(response, '礼物目录加载失败'))
-      .then(async (payload) => {
-        if (payload?.ok === false) throw new Error(payload.error);
-        // Initial icons must refresh without waiting for unrelated state pushes.
-        if (requestLifecycle !== lifecycleRevision) return;
-        await loadGiftArtworkCatalog();
-        if (requestLifecycle === lifecycleRevision) applyOfficialCatalogSnapshot(payload?.data);
+    const requestRevision = officialCatalogRevision;
+    const pending = readOfficialGiftCatalog()
+      .then((snapshot) => {
+        if (requestRevision === officialCatalogRevision && Array.isArray(snapshot?.gifts)) applyOfficialCatalogSnapshot(snapshot);
       })
       .catch((error) => {
-        console.warn('[BlindBox] catalog refresh failed:', error.message || error);
+        if (requestRevision === officialCatalogRevision) {
+          console.warn('[BlindBox] catalog refresh failed:', error.message || error);
+        }
       })
       .finally(() => {
         if (officialCatalogLoadPromise === pending) officialCatalogLoadPromise = null;
@@ -279,7 +276,7 @@ export const giftBlindbox = (() => {
       window.removeEventListener('app:settings-state', onSettings);
       document.removeEventListener('app:bilibili-auth-changed', loadSaleCatalog);
       saleCatalogRevision += 1;
-      lifecycleRevision += 1;
+      officialCatalogRevision += 1;
       officialCatalogLoadPromise = null;
       saleRoomId = '';
       disposeMapping = null;

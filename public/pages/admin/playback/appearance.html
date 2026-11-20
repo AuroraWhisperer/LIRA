@@ -63,7 +63,7 @@
           <div class="player-appearance-range">
             <label for="playerArtworkSize">唱片／封面大小</label>
             <input id="playerArtworkSize" class="parameter-range" type="range" min="60" max="110" value="100" data-appearance-key="artworkSize" />
-            <label class="player-appearance-number"><input type="number" min="60" max="110" value="100" required aria-label="唱片／封面大小百分比" data-appearance-key="artworkSize" /><span>%</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="60" max="110" value="100" required aria-label="唱片／封面大小百分比" data-appearance-key="artworkSize" /><span class="lira-number-field-unit" aria-hidden="true">%</span></label>
           </div>
           <label class="player-appearance-check"><input type="checkbox" checked data-appearance-key="rotation" />播放时旋转唱片</label>
         </section>
@@ -94,7 +94,7 @@
           <div class="player-appearance-range">
             <label for="playerBackgroundOpacity">背景不透明度</label>
             <input id="playerBackgroundOpacity" class="parameter-range" type="range" min="0" max="100" value="100" data-appearance-key="backgroundOpacity" />
-            <label class="player-appearance-number"><input type="number" min="0" max="100" value="100" required aria-label="背景不透明度百分比" data-appearance-key="backgroundOpacity" /><span>%</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="0" max="100" value="100" required aria-label="背景不透明度百分比" data-appearance-key="backgroundOpacity" /><span class="lira-number-field-unit" aria-hidden="true">%</span></label>
           </div>
         </section>
         <section class="player-appearance-section" aria-labelledby="playerTextColorHeading">
@@ -131,12 +131,12 @@
           <div class="player-appearance-range">
             <label for="playerTitleSize">歌名字号</label>
             <input id="playerTitleSize" class="parameter-range" type="range" min="8" max="200" value="42" data-appearance-key="titleSize" />
-            <label class="player-appearance-number"><input type="number" min="8" max="200" value="42" required aria-label="歌名字号像素" data-appearance-key="titleSize" /><span>px</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="8" max="200" value="42" required aria-label="歌名字号像素" data-appearance-key="titleSize" /><span class="lira-number-field-unit" aria-hidden="true">px</span></label>
           </div>
           <div class="player-appearance-range">
             <label for="playerArtistSize">歌手字号</label>
             <input id="playerArtistSize" class="parameter-range" type="range" min="8" max="120" value="20" data-appearance-key="artistSize" />
-            <label class="player-appearance-number"><input type="number" min="8" max="120" value="20" required aria-label="歌手字号像素" data-appearance-key="artistSize" /><span>px</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="8" max="120" value="20" required aria-label="歌手字号像素" data-appearance-key="artistSize" /><span class="lira-number-field-unit" aria-hidden="true">px</span></label>
           </div>
         </section>
       </fieldset>
@@ -157,7 +157,7 @@
           <div class="player-appearance-range">
             <label for="playerLyricSize">歌词字号</label>
             <input id="playerLyricSize" class="parameter-range" type="range" min="8" max="160" value="32" data-appearance-key="lyricSize" />
-            <label class="player-appearance-number"><input type="number" min="8" max="160" value="32" required aria-label="歌词字号像素" data-appearance-key="lyricSize" /><span>px</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="8" max="160" value="32" required aria-label="歌词字号像素" data-appearance-key="lyricSize" /><span class="lira-number-field-unit" aria-hidden="true">px</span></label>
           </div>
         </section>
         <section class="player-appearance-section" aria-labelledby="playerLyricSpacingHeading">
@@ -165,12 +165,12 @@
           <div class="player-appearance-range">
             <label for="playerLyricLineHeight">歌词行高</label>
             <input id="playerLyricLineHeight" class="parameter-range" type="range" min="0.8" max="4" step="0.1" value="1.4" data-appearance-key="lyricLineHeight" />
-            <label class="player-appearance-number"><input type="number" min="0.8" max="4" step="0.1" value="1.4" required aria-label="歌词行高倍数" data-appearance-key="lyricLineHeight" /><span>倍</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="0.8" max="4" step="0.1" value="1.4" required aria-label="歌词行高倍数" data-appearance-key="lyricLineHeight" /><span class="lira-number-field-unit" aria-hidden="true">倍</span></label>
           </div>
           <div class="player-appearance-range">
             <label for="playerLyricLineGap">每句歌词间距</label>
             <input id="playerLyricLineGap" class="parameter-range" type="range" min="0" max="200" value="28" data-appearance-key="lyricLineGap" />
-            <label class="player-appearance-number"><input type="number" min="0" max="200" value="28" required aria-label="每句歌词间距像素" data-appearance-key="lyricLineGap" /><span>px</span></label>
+            <label class="player-appearance-number lira-number-field"><input type="number" min="0" max="200" value="28" required aria-label="每句歌词间距像素" data-appearance-key="lyricLineGap" /><span class="lira-number-field-unit" aria-hidden="true">px</span></label>
           </div>
         </section>
         <details class="player-appearance-advanced">
@@ -187,12 +187,12 @@
             <div class="player-appearance-range">
               <label for="playerLyricLetterSpacing">歌词字间距</label>
               <input id="playerLyricLetterSpacing" class="parameter-range" type="range" min="-2" max="24" step="0.5" value="0" data-appearance-key="lyricLetterSpacing" />
-              <label class="player-appearance-number"><input type="number" min="-2" max="24" step="0.5" value="0" required aria-label="歌词字间距像素" data-appearance-key="lyricLetterSpacing" /><span>px</span></label>
+              <label class="player-appearance-number lira-number-field"><input type="number" min="-2" max="24" step="0.5" value="0" required aria-label="歌词字间距像素" data-appearance-key="lyricLetterSpacing" /><span class="lira-number-field-unit" aria-hidden="true">px</span></label>
             </div>
             <div class="player-appearance-range">
               <label for="playerActiveLyricScale">当前歌词放大</label>
               <input id="playerActiveLyricScale" class="parameter-range" type="range" min="100" max="300" step="0.5" value="112.5" data-appearance-key="activeLyricScale" />
-              <label class="player-appearance-number"><input type="number" min="100" max="300" step="0.5" value="112.5" required aria-label="当前歌词放大百分比" data-appearance-key="activeLyricScale" /><span>%</span></label>
+              <label class="player-appearance-number lira-number-field"><input type="number" min="100" max="300" step="0.5" value="112.5" required aria-label="当前歌词放大百分比" data-appearance-key="activeLyricScale" /><span class="lira-number-field-unit" aria-hidden="true">%</span></label>
             </div>
           </div>
         </details>

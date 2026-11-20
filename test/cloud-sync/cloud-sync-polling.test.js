@@ -6,6 +6,62 @@ const { createHook } = require('node:async_hooks');
 const { createRemoteLicenseClient } = require('../../src/electron/license/remote-license-client');
 const { createFixture, CLOUD_BLIND_BOX_CONFIG } = require('../helpers/cloud-sync-controller-fixture');
 
+test('the authoritative song snapshot recovers from a restored backup and a reused revision', async (t) => {
+  let summary = { initialized: true, revision: 42, updatedAt: '2026-11-18 03:00:00' };
+  let snapshot = { ...summary, songs: [{ title: 'Before recovery' }] };
+  let reads = 0;
+  const fixture = createFixture({ licenseManager: {
+    getCloudState: async () => ({
+      settings: { initialized: true, revision: 2, values: { giftBlindBoxConfig: [] } },
+      songs: summary,
+      bilibili: { initialized: false, revision: 0 },
+    }),
+    async getCloudSongs() { reads += 1; return snapshot; },
+  } });
+  t.after(() => fixture.controller.dispose());
+  await fixture.controller.start();
+  await fixture.controller.syncNow();
+  assert.equal(reads, 1);
+
+  // A restore and new edits can reuse a revision between the summary reads.
+  summary = { ...summary, updatedAt: '2026-11-18 04:00:00' };
+  snapshot = { ...summary, songs: [{ title: 'Reused revision' }] };
+  await fixture.controller.syncNow();
+  assert.equal(reads, 2);
+
+  summary = { ...summary, revision: 8, updatedAt: '2026-11-17 03:00:00' };
+  // Another write between reads makes the complete response the applied version.
+  snapshot = { ...summary, revision: 9, updatedAt: '2026-11-18 05:00:00', songs: [{ title: 'Restored library' }] };
+  fixture.controller.stop();
+  await fixture.controller.start();
+  summary = { initialized: true, revision: snapshot.revision, updatedAt: snapshot.updatedAt };
+  await fixture.controller.syncNow();
+  assert.equal(reads, 3);
+  assert.deepEqual(fixture.calls.filter(([kind]) => kind === 'apply-songs').map(([, songs]) => songs[0].title),
+    ['Before recovery', 'Reused revision', 'Restored library']);
+  assert.equal(fixture.calls.some(([kind]) => kind === 'push-songs'), false);
+});
+
+test('restoring a legacy song database can remove the timestamp at the same revision', async (t) => {
+  let summary = { initialized: true, revision: 1, updatedAt: '2026-11-18 03:00:00' };
+  let songs = [{ title: 'Current library' }];
+  const fixture = createFixture({ licenseManager: {
+    getCloudState: async () => ({
+      settings: { initialized: true, revision: 2, values: { giftBlindBoxConfig: [] } },
+      songs: summary,
+      bilibili: { initialized: false, revision: 0 },
+    }),
+    getCloudSongs: async () => ({ ...summary, songs }),
+  } });
+  t.after(() => fixture.controller.dispose());
+  await fixture.controller.start();
+  summary = { ...summary, updatedAt: null };
+  songs = [{ title: 'Legacy backup' }];
+  await fixture.controller.syncNow();
+  assert.deepEqual(fixture.calls.filter(([kind]) => kind === 'apply-songs').map(([, rows]) => rows[0].title),
+    ['Current library', 'Legacy backup']);
+});
+
 test('an upload SSE echo before its response does not cause a redundant trailing read', async (t) => {
   let reads = 0;
   let revision = 2;
@@ -285,42 +341,41 @@ test('an online cloud revision event immediately reconciles without waiting for 
   fixture.controller.dispose();
 });
 
-test('a closed event stream reconnects with bounded backoff and reconciles on reopen', async () => {
-  let attempts = 0;
-  let cloudReads = 0;
-  let keepSecondOpen;
-  const fixture = createFixture({
-    licenseManager: {
-      getCloudState: async () => {
+for (const firstStatus of [200, 503]) {
+  test(`SSE reconnect reconciles a missed revision after an initial HTTP ${firstStatus}`, async (t) => {
+    let attempts = 0;
+    let cloudReads = 0;
+    let revision = 1;
+    const client = createRemoteLicenseClient({ fetchImpl: async () => {
+      attempts += 1;
+      if (attempts === 1 && firstStatus === 503) return new Response(null, { status: 503 });
+      return new Response(attempts === 1 ? '' : new ReadableStream(), {
+        headers: { 'Content-Type': 'text/event-stream' },
+      });
+    } });
+    const fixture = createFixture({ licenseManager: {
+      watchCloudStateChangesInternal: (options) => client.watchCloudStateChanges('fixture', options),
+      async getCloudState() {
         cloudReads += 1;
         return {
-          settings: { initialized: true, revision: 2, values: {} },
+          settings: { initialized: true, revision, values: { roomId: String(revision), giftBlindBoxConfig: [] } },
           songs: { initialized: true, revision: 3 },
-          bilibili: { initialized: true, revision: 4, loggedIn: true },
+          bilibili: { initialized: false, revision: 0 },
         };
       },
-      watchCloudStateChangesInternal: async (options = {}) => {
-        attempts += 1;
-        options.onOpen?.();
-        if (attempts === 1) return;
-        await new Promise((resolve) => {
-          keepSecondOpen = resolve;
-          options.signal?.addEventListener('abort', resolve, { once: true });
-        });
-      },
-    },
+    } });
+    t.after(() => fixture.controller.dispose());
+    await fixture.controller.start();
+    await new Promise(setImmediate);
+    assert.equal(cloudReads, 1);
+    const reconnect = [...fixture.timers.values()].find((timer) => timer.delay === 1_000);
+    assert.ok(reconnect);
+    revision = 2;
+    reconnect.callback();
+    await new Promise(setImmediate);
+    await fixture.controller.whenIdle();
+    assert.equal(attempts, 2);
+    const rooms = fixture.calls.filter(([kind]) => kind === 'apply-settings').map(([, values]) => values.roomId);
+    assert.deepEqual({ cloudReads, rooms }, { cloudReads: 2, rooms: ['1', '2'] });
   });
-
-  await fixture.controller.start();
-  await new Promise((resolve) => setImmediate(resolve));
-  const reconnect = [...fixture.timers.values()].find((timer) => timer.delay === 1_000);
-  assert.ok(reconnect);
-  reconnect.callback();
-  await new Promise((resolve) => setImmediate(resolve));
-  await fixture.controller.whenIdle();
-
-  assert.equal(attempts, 2);
-  assert.equal(cloudReads, 2);
-  fixture.controller.dispose();
-  keepSecondOpen?.();
-});
+}

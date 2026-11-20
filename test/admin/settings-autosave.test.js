@@ -122,3 +122,52 @@ test('canvas edits remain drafts until publication while desktop edits still aut
   assert.equal(writes[1].size, 50);
   binding.dispose();
 });
+
+for (const previewFirst of [true, false]) {
+  test(`mixed clock edits autosave only desktop fields (${previewFirst ? 'canvas' : 'desktop'} first)`, async () => {
+    const { bindComponentAutosave } = await loadModuleExports(entry);
+    const { createComponentConfigController } = await loadModuleExports(path.resolve(__dirname, '../../public/js/admin/component-config-controller.js'));
+    const clock = createClock(), writes = [];
+    const controller = createComponentConfigController({ initial: { label: 'Clock', showSeconds: true },
+      persist: async (value, changed) => { writes.push({ value, changed }); return value; } });
+    const binding = bindComponentAutosave(controller, { windowRef: clock });
+    const preview = () => controller.edit({ showSeconds: false }, { source: 'preview' });
+    const desktop = () => controller.edit({ label: 'Desk' });
+    if (previewFirst) { preview(); desktop(); } else { desktop(); preview(); }
+    clock.tick(600);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(writes.length, 1);
+    assert.deepEqual({ ...writes[0].changed }, { label: 'Desk' });
+    assert.deepEqual({ ...writes[0].value }, { label: 'Desk', showSeconds: true });
+    assert.equal(controller.getState().draft.showSeconds, false);
+    assert.equal(controller.getStatus().dirty, true);
+    assert.equal(await controller.save(), true);
+    assert.deepEqual({ ...writes[1].changed }, { showSeconds: false });
+    assert.equal(controller.getStatus().dirty, false);
+    binding.dispose();
+  });
+}
+
+test('retrying a failed desktop clock save leaves the unpublished canvas edit available', async () => {
+  const { bindComponentAutosave } = await loadModuleExports(entry);
+  const load = file => loadModuleExports(path.resolve(__dirname, '../../public/js/admin', file));
+  const { createComponentConfigController } = await load('component-config-controller.js');
+  const { saveComponentWithFeedback } = await load('component-save-feedback.js');
+  const clock = createClock(), retry = {};
+  let online = false;
+  const controller = createComponentConfigController({ initial: { label: 'Clock', showSeconds: true },
+    persist: async value => { if (!online) throw new Error('offline'); return value; } });
+  const binding = bindComponentAutosave(controller, { windowRef: clock, saveButton: retry });
+  controller.edit({ showSeconds: false }, { source: 'preview' });
+  controller.edit({ label: 'Desk' });
+  clock.tick(600);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(retry.hidden, false);
+  online = true;
+  await saveComponentWithFeedback(controller, '时钟', () => {});
+  assert.equal(controller.getState().saved.label, 'Desk');
+  assert.equal(controller.getState().saved.showSeconds, true);
+  assert.equal(controller.getState().draft.showSeconds, false);
+  assert.equal(retry.hidden, true);
+  binding.dispose();
+});

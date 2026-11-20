@@ -110,7 +110,7 @@
           </div>
           <div class="client-notification-threshold">
             <label for="largeGiftNotificationThreshold">通知金额</label>
-            <div><input id="largeGiftNotificationThreshold" type="number" min="0" step="0.01" value="1000" required aria-describedby="largeGiftNotificationsHint" disabled /><span>元</span></div>
+            <span class="lira-number-field"><input id="largeGiftNotificationThreshold" type="number" min="0" step="0.01" value="1000" required aria-label="通知金额（元）" aria-describedby="largeGiftNotificationsHint" disabled /><span class="lira-number-field-unit" aria-hidden="true">元</span></span>
           </div>
         </div>
         <p class="hint">LIRA 需保持运行，最小化或切换页面仍可提醒。若没有弹出通知，请检查 Windows 中的 LIRA 通知权限与勿扰设置。</p>

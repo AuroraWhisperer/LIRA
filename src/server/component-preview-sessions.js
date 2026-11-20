@@ -4,6 +4,7 @@ const crypto = require('node:crypto');
 const { MAX_SCENE_BYTES } = require('../scenes/scene-contract');
 const { SCENE_TYPES, SHARED_SCENE_TYPES } = require('../shared/scene-component-types');
 const { normalizeStyleParameters } = require('../shared/component-style-parameters');
+const { DANMAKU_STYLE_OPTIONS } = require('../shared/danmaku-style-options');
 
 const PREVIEW_SESSION_TYPES = Object.freeze([...SHARED_SCENE_TYPES, 'canvas']);
 const SESSION_TTL_MS = 2 * 60 * 1000;
@@ -355,7 +356,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       return { ...publicState(session, { stateRevision, displayRevision }), ...(waitMs ? { waitMs } : {}) };
     }
     if (!['edit', 'save', 'discard'].includes(action)
-      && !(session.component === 'canvas' && ['publish', 'source', 'preset'].includes(action))
+      && !(session.component === 'canvas' && ['publish', 'source', 'preset', 'favorite'].includes(action))
       && !(session.component === 'overtime' && action === 'control')) fail(400, '不支持的预览操作。');
     if (commandId !== undefined) {
       if (!Number.isSafeInteger(commandId) || commandId < 1) fail(400, '预览操作编号无效。');
@@ -373,6 +374,10 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
       fail(400, '预览参数无效。');
     }
     if (action === 'edit') checkConfig(change, session.component);
+    if (action === 'favorite' && (!record(change) || Object.keys(change).some(key => !['style', 'favorite'].includes(key))
+      || typeof change.style !== 'string' || !Object.hasOwn(DANMAKU_STYLE_OPTIONS, change.style) || typeof change.favorite !== 'boolean')) {
+      fail(400, '收藏样式无效。');
+    }
     if (action === 'control' && (!record(change)
       || (change.action === 'time'
         ? Object.keys(change).some(key => !['action', 'seconds'].includes(key)) || !Number.isSafeInteger(change.seconds)
@@ -399,7 +404,7 @@ function createComponentPreviewSessions({ now = Date.now, getOwner = () => null 
           || typeof change.title !== 'string' || !change.title.trim() || change.title.length > 80
           || typeof change.duplicate !== 'boolean' : true))) fail(400, '场景预设参数无效。');
     const sequence = ++session.sequence;
-    session.commands.push({ sequence, action, ...(['edit', 'preset', 'control'].includes(action) ? { change: copy(change) } : {}),
+    session.commands.push({ sequence, action, ...(['edit', 'preset', 'control', 'favorite'].includes(action) ? { change: copy(change) } : {}),
       ...(baseItemIds === undefined ? {} : { baseItemIds: [...baseItemIds] }) });
     if (commandId !== undefined) session.lastCommand = { id: commandId, sequence };
     session.touched = now();

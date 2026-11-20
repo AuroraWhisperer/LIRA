@@ -25,7 +25,7 @@
     </div>
     <label class="switch-control"
       ><input id="xiaomiAiEnabled" type="checkbox" checked /><span class="switch-track"></span
-      ><span>启用 AI</span><lira-help>同时控制点名问答和自动接话。关闭并保存后，立即取消正在排队、正在生成和尚未发送的回复；已发出的弹幕无法撤回。再次开启只处理新弹幕，不补发旧回复。</lira-help></label
+      ><span>启用 AI</span><lira-help>总开关，同时控制「点名问答」和「自动接话」。关闭后会立刻清空还在排队或生成中的回复；重新开启后只回复新弹幕。</lira-help></label
     >
   </div>
   <div class="xiaomi-ai-status-grid" aria-label="AI 互动助手状态">
@@ -40,7 +40,7 @@
       <div class="xiaomi-ai-field-grid">
         <div class="xiaomi-ai-provider-row">
           <label
-            ><span>AI 平台 <lira-help>选择官方平台后，地址会自动填好。</lira-help></span>
+            ><span>AI 平台 <lira-help>选择你的 AI 服务商；选官方平台会自动填好接口地址。</lira-help></span>
             <select id="xiaomiAiModelProvider" data-dropdown-variant="toolbox">
               <option value="auto">自动识别</option>
               <option value="deepseek">DeepSeek 官方</option>
@@ -148,6 +148,7 @@
                 class="xiaomi-ai-model-menu lira-select-menu"
                 role="listbox"
                 aria-label="可用模型"
+                popover="manual"
                 hidden
               ></span>
             </span>
@@ -175,7 +176,7 @@
         <label class="wide"
           ><span
             >触发关键词
-            <lira-help>也用作机器人名字。填写并在客户端启用 AI 后，弹幕包含该名字时触发回复；留空时不触发。</lira-help></span
+            <lira-help>相当于给 AI 机器人起个名字（如“小米”）。观众发弹幕只要提到这个名字就会触发回答；留空则不会触发点名问答。</lira-help></span
           ><input id="xiaomiAiTrigger" type="text" maxlength="12" placeholder="给机器人起个名字，例如：小米"
           /></label>
         <div class="xiaomi-ai-persona-field">
@@ -191,15 +192,15 @@
           <label class="switch-control">
             <input id="xiaomiAiAutoReplyEnabled" type="checkbox" role="switch" aria-describedby="xiaomiAiAutoReplyHelp" />
             <span class="switch-track" aria-hidden="true"></span>
-            <span>自动接话<lira-help><span id="xiaomiAiAutoReplyHelp">默认关闭。开启后从近期普通弹幕中择机接一句，点名问题优先；两种方式共用上方模型和当前人格。</span></lira-help></span>
+            <span>自动接话<lira-help><span id="xiaomiAiAutoReplyHelp">开启后，就算观众没喊机器人名字，AI 也会时不时从大家的聊天弹幕里挑话茬接一句（有人点名提问时仍优先答复点名）。</span></lira-help></span>
           </label>
           <label class="switch-control">
             <input id="xiaomiAiAutoReplyMentionEnabled" type="checkbox" role="switch" aria-describedby="xiaomiAiAutoReplyMentionHelp" />
             <span class="switch-track" aria-hidden="true"></span>
-            <span>接话时 @ 观众<lira-help><span id="xiaomiAiAutoReplyMentionHelp">默认不 @。开启后，单人自动接话会 @ 对应观众；面向全场的接话不 @，点名问答仍按原规则回复。</span></lira-help></span>
+            <span>接话时 @ 观众<lira-help><span id="xiaomiAiAutoReplyMentionHelp">开启后，针对某位观众的自动接话会带上 @昵称；如果是面向全场接话则不 @（不影响点名问答）。</span></lira-help></span>
           </label>
           <label class="xiaomi-ai-number-field">
-            <span>接话频率（%）<lira-help><span id="xiaomiAiAutoReplyProbabilityHelp">数值越高，普通观众弹幕进入接话候选的概率越高；0% 不自动接话，100% 仍会判断话题是否适合。已标记的机器人欢迎和当前发送账号的弹幕不参与，点名问答不受影响。</span></lira-help></span>
+            <span>接话频率（%）<lira-help><span id="xiaomiAiAutoReplyProbabilityHelp">数值越高，AI 主动插话越积极（0% 为不接话；设为 100% 也会先判断话茬合不合适，不会每句都硬接）。机器人自己发的欢迎语和当前账号发的弹幕不会被接话。</span></lira-help></span>
             <input id="xiaomiAiAutoReplyProbability" type="number" min="0" max="100" step="1" value="100" aria-describedby="xiaomiAiAutoReplyProbabilityHelp" />
           </label>
         </div>
@@ -207,7 +208,7 @@
           <textarea id="xiaomiAiSystemPrompt" hidden></textarea>
         </label>
         <label class="wide xiaomi-ai-number-field">
-          <span>空闲多久后结束对话（分钟）<lira-help><span id="xiaomiAiContextHelp">每位观众独立续聊，确认收到回复后重新计时，超过时长自动清空。主动提问请带关键词；发送「关键词 + 结束对话」可提前结束。</span></lira-help></span>
+          <span>空闲多久后结束对话（分钟）<lira-help><span id="xiaomiAiContextHelp">AI 会记住每位观众刚才聊了什么（各自独立记忆）。超过设定分钟数没再互动，就会自动忘掉上文重新开始；观众发「机器人名字 + 结束对话」也能随时重置。</span></lira-help></span>
           <input id="xiaomiAiContextMinutes" type="number" min="1" max="1440" step="any" value="10" aria-describedby="xiaomiAiContextHelp" />
         </label>
       </div>
@@ -238,8 +239,8 @@
         <div id="xiaomiAiReasoningEffortControl" class="xiaomi-ai-effort-control" hidden>
           <select id="xiaomiAiReasoningEffort" aria-label="思考强度" data-dropdown-variant="toolbox"></select>
         </div>
-        <p id="xiaomiAiProviderManagedReasoning" class="xiaomi-ai-provider-managed" hidden>
-          思考由平台和模型自动控制。
+        <p id="xiaomiAiProviderManagedReasoning" class="xiaomi-ai-provider-managed" role="status" aria-live="polite" hidden>
+          尚未确认当前思考模式。
         </p>
       </div>
     </fieldset>

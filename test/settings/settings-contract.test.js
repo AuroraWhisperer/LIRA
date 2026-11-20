@@ -169,6 +169,7 @@ test('new request controls default to no additional restrictions and synchronize
     songRequestRequireSpace: true,
     songRequestMatchMode: 'prefix',
     userQueueLimit: ' 02 ', userCooldownCaptainSeconds: '', userCooldownAdmiralSeconds: 0,
+    userDailyLimit: '', userDailyCaptainLimit: 3, userDailyAdmiralLimit: 5, userDailyGovernorLimit: 10,
     userCooldownGovernorSeconds: '0030', songRequestMinMedalLevel: 5, songRequestGuardLevel: 3,
     songRequestGuardMedalBypass: true,
     songRequestUserBlacklist: [{ uid: '123', name: ' 测试用户 ', expiresAt: 0 }],
@@ -208,6 +209,7 @@ test('request control limits reject invalid batches without saving or requesting
     userCooldownCaptainSeconds: [-1, 3601, ' ', null, [], false, 0.5],
     userCooldownAdmiralSeconds: [-1, 'NaN'],
     userCooldownGovernorSeconds: [3601, '1e2'],
+    userDailyLimit: [-1, 301, ' ', null, true, [], 1.5, '1e2'],
     songRequestMinMedalLevel: [-1, 101, '', true],
     songRequestGuardLevel: [-1, 4, 'captain', true],
     songRequestGuardMedalBypass: [null, [], {}, 'TRUE', ' false ', 2],
@@ -219,6 +221,17 @@ test('request control limits reject invalid batches without saving or requesting
     }
   }
   assert.deepEqual(f.dirtyScopes, []);
+});
+
+test('clearing request intervals and daily limits saves unlimited values and survives cloud round trips', async (t) => {
+  const f = fixture(t);
+  const { serializeCloudSettings, normalizeCloudSettingsSnapshot } = require('../../src/server/settings-contract');
+  const keys = ['userCooldownSeconds', 'userCooldownCaptainSeconds', 'userCooldownAdmiralSeconds', 'userCooldownGovernorSeconds',
+    'userDailyLimit', 'userDailyCaptainLimit', 'userDailyAdmiralLimit', 'userDailyGovernorLimit'];
+  assert.equal((await f.post(Object.fromEntries(keys.map((key) => [key, 3])))).status, 200);
+  assert.equal((await f.post(Object.fromEntries(keys.map((key) => [key, ''])))).status, 200);
+  const restored = normalizeCloudSettingsSnapshot(serializeCloudSettings(createSettingsStore(f.db).getSettings()));
+  for (const key of keys) assert.equal(restored[key], key === 'userCooldownSeconds' ? '0' : '');
 });
 
 test('user blacklist validates stable IDs and deadlines', async (t) => {

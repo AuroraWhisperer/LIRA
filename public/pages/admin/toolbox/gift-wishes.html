@@ -65,11 +65,9 @@
             <div class="gift-wish-field-label">
               <span id="giftWishTextLabel">展示文字</span>
               <lira-help label="文字版使用说明">
-                输入想说的话，把光标放到要插入的位置，再点下方按钮加入礼物图片、名称或数量。<br />
-                选中文字或彩色块后，可在上方工具栏选择字体、字号、颜色和文字效果，编辑区与实时预览会同步变化；点击彩色块可整块选中，再删除、复制，或通过剪切和粘贴移动位置。<br />
-                新插入的彩色块和粘贴文字会沿用光标处的格式。<br />
-                彩色块中「·」后的礼物或数量会自动更新，不能直接改写；礼物和目标数量在上方设置。右侧「实时预览」可查看实际效果。<br />
-                Ctrl+C 复制，Ctrl+X 剪切，Ctrl+V 粘贴；Ctrl+Z 撤销，Ctrl+Y 重做。确认后点「添加许愿」或「保存修改」。
+                输入心愿文案，点击下方按钮可在光标处插入「礼物图片、名称、已收/目标数量」标签块。<br />
+                选中文字或标签块后，可用上方工具栏单独改字体、字号、颜色和特效。<br />
+                标签块里的礼物名和数量会自动跟随上方设置更新，无需手改；点击标签块可整块拖动、复制或删除。
               </lira-help>
             </div>
             <input id="giftWishTextTemplate" name="textTemplate" type="hidden" />
@@ -106,7 +104,7 @@
           <fieldset id="giftWishColorFields" class="gift-wish-style-field" hidden>
             <legend>
               文字颜色
-              <lira-help label="文字颜色说明">点击颜色框选色。今天收到过这份礼物，就使用「今天已收到」的颜色；北京时间零点重新判断。手动为所选文字设置的颜色会覆盖状态色；在文字工具栏选「默认颜色」即可恢复。预览只模拟颜色，不改变真实收礼状态。</lira-help>
+              <lira-help label="文字颜色说明">今天收到过该礼物时自动变为「今天已收到」的颜色（每天 00:00 重置）。如果在上方工具栏给某段字单独设了颜色，会优先显示单独设的颜色（选「默认颜色」可恢复跟随收礼状态）。</lira-help>
             </legend>
             <div class="gift-wish-colors">
               <div class="gift-wish-field">

@@ -3,8 +3,7 @@ import { normalizeRangeValue } from '../shared/utils.js';
 import { readQueueStyleSettings } from '../shared/queue-style-settings.js';
 import { initParameterRanges, disposeParameterRanges } from '../shared/parameter-range.js';
 import { componentField, syncComponentFieldValue, subscribeComponentFields } from './component-preview-panel.js';
-import { componentSaveMessage } from './component-config-controller.js';
-import { saveComponentWithFeedback } from './component-save-feedback.js';
+import { renderComponentSaveStatus, saveComponentWithFeedback } from './component-save-feedback.js';
 import { setOverlayStyle } from './theme-style-view.js';
 import { ensureSavedFontOption, registerFontSelect } from '../shared/font-library.js';
 import { collectQueueTheme, pickQueueSettings, queueThemeControlValues } from './queue-theme-config.js';
@@ -85,7 +84,7 @@ export function bindQueueTheme(root, controller) {
     const discard = node('queueThemeDiscard');
     if (discard) discard.disabled = !state.dirty || state.saving;
     const status = node('queueThemeSaveState');
-    if (status) status.textContent = componentSaveMessage(state);
+    renderComponentSaveStatus(status, state);
   }
   const unsubscribe = subscribeComponentFields(root, controller, render);
   return { dispose() { unsubscribe(); unregisterFonts.forEach(dispose => dispose?.()); disposeParameterRanges(root); } };

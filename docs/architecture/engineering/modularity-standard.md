@@ -138,7 +138,7 @@ Status meanings:
 
 | Rule ID               | Rule                                                          | Status                 | Enforcement                                                                                                                                                                      |
 | --------------------- | ------------------------------------------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle          | Incrementally Enforced | Selected composition-root assertions plus review                                                                                                                                 |
+| `MOD-COMPOSITION-001` | Composition roots only wire components and lifecycle          | Incrementally Enforced | Lifecycle behavior tests, composition-entry import guards and ownership review |
 | `MOD-STORAGE-001`     | Domain services do not issue SQL                              | Incrementally Enforced | Receiver-aware no-SQL scan outside storage (no allowlist), directory-wide domain-to-storage/transport/desktop import guards |
 | `MOD-STORAGE-002`     | Stores own transaction boundaries                             | Incrementally Enforced | Selected store atomicity tests plus review                                                                                                                                       |
 | `MOD-ADMIN-001`       | New Admin code does not add global-state access               | Incrementally Enforced | All frontend modules are checked for direct Admin registry reads/publication; the former debt budget is removed |
@@ -176,23 +176,23 @@ Current fitness functions block or freeze selected regressions, including:
 - Domain imports of storage/transport/desktop implementations, shared imports of
   upper-layer owners, or cycles in the product JavaScript module dependency graph.
 - Empty or comment-only catch debt expanding in `src/` or `public/js/`.
-- Playback composition reintroducing generic dependencies or mutable forward
-  declarations.
-- Spreadsheet or ZIP codecs returning to the generic shared utility module.
-- Selected server and desktop composition roots regaining mutable subsystem
-  behavior.
+- Known spreadsheet or ZIP codec entrypoints returning to the generic shared
+  utility module.
 - Public ESM modules referencing identifiers they neither declare nor import.
 - Literal CommonJS imports of backend composition entrypoints from internal
   modules, checked by enumerating the backend directory.
 - Storage adapters importing server, Electron, or browser modules.
 - The reviewed queue, song, overtime, and blind-box overlays constructing their
   own sockets instead of using their owned transport adapter.
-- Removal of wheel cleanup or reintroduction of the obsolete playback class.
+- Removal of wheel cleanup.
 
 Internal modules importing composition entrypoints remain prohibited. The
-directory-wide gate checks literal CommonJS require paths; computed/dynamic
-imports and frontend composition directions still require review. This is not
-full dependency-graph enforcement.
+directory-wide gate checks static ESM declarations and executable literal
+require/import paths; computed paths, injected callbacks and frontend
+composition directions still require review. Composition dependency granularity
+and mutable subsystem ownership need semantic review, supported by runtime and
+shutdown behavior tests; factory names, local variable names and comments do not
+establish those boundaries.
 
 ### File Size Review
 

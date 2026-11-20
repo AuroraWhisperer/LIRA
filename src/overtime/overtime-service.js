@@ -222,7 +222,8 @@ function createOvertimeService(options = {}) {
         return false;
       }
 
-      const materializedState = materialize();
+      const settlementAnchorMs = monotonicNow();
+      const materializedState = materialize(settlementAnchorMs);
       const updatedAt = toIso(now());
       const result = store.settleFinal(giftEventId, materializedState, updatedAt, ({ gift, rule }) =>
         resolveGiftSettlement({
@@ -240,7 +241,7 @@ function createOvertimeService(options = {}) {
       }
 
       state = result.state;
-      monotonicAnchorMs = monotonicNow();
+      monotonicAnchorMs = settlementAnchorMs;
       scheduleZeroTimer();
       scheduleNextRecovery();
       onUpdate({
@@ -303,17 +304,17 @@ function createOvertimeService(options = {}) {
     recoverSettlements();
   }
 
-  function getEffectiveRemainingMs() {
+  function getEffectiveRemainingMs(monotonicMs = monotonicNow()) {
     if (state.status !== 'running') return clampMs(state.remainingMs);
-    const elapsedMs = Math.max(0, Math.floor(monotonicNow() - monotonicAnchorMs));
+    const elapsedMs = Math.max(0, Math.floor(monotonicMs - monotonicAnchorMs));
     return clampMs(state.remainingMs - elapsedMs);
   }
 
-  function materialize() {
+  function materialize(monotonicMs) {
     const currentWallMs = Math.floor(now());
     const nextState = {
       ...state,
-      remainingMs: getEffectiveRemainingMs(),
+      remainingMs: getEffectiveRemainingMs(monotonicMs),
       anchorAtMs: Math.max(0, currentWallMs),
     };
     if (nextState.status === 'running' && nextState.remainingMs === 0) nextState.status = 'finished';

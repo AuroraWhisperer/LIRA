@@ -6,6 +6,7 @@ const path = require('node:path');
 const test = require('node:test');
 const { readAdminFragmentHtml } = require('../helpers/admin-html');
 const { loadModuleExports } = require('../helpers/frontend-modules');
+const { createParameterDocument } = require('../helpers/parameter-dom');
 const { createDom, createClock } = require('../helpers/toast-dom');
 const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 const { useSharedBrowser } = require('../helpers/shared-browser');
@@ -16,7 +17,8 @@ async function createFixture() {
   const { documentRef, windowRef } = createDom();
   const toasts = documentRef.createElement('div');
   documentRef.body.append(toasts);
-  const nodes = new Map();
+  const statusDocument = createParameterDocument();
+  const nodes = new Map(['Aurora', 'Classic'].map(style => [`guardThanks${style}SaveState`, statusDocument.createElement('p')]));
   function node(id) {
     if (!nodes.has(id)) nodes.set(id, { id, value: '', checked: false, disabled: false, dataset: {},
       closest: () => null, querySelectorAll: () => [],

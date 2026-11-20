@@ -4,7 +4,7 @@
 
 import * as UIComponents from './components.js';
 import { escapeHtml } from '../../shared/html-escape.js';
-import { getQueueTrackKey } from '../utils.js';
+import { getQueueTrackKey, renderArtwork } from '../utils.js';
 
 // Copy the row templates' primitive inputs: queue arrays and tracks can mutate in place.
 function appendTrackValues(values, track) {
@@ -13,9 +13,20 @@ function appendTrackValues(values, track) {
     track.vip, track.playable, track.source === 'local', Boolean(track.objectUrl), track.fileMissing);
 }
 
-function readQueueViewValues(state, tracks) {
-  const values = [state.queueType, state.queueTitle, state.playlistIndex, state.currentOrigin,
-    Boolean(state.current), state.current ? getQueueTrackKey(state.current) : '', tracks.length];
+function currentPlaylistIndex(state) {
+  const tracks = state.normalQueueTracks || [];
+  const currentKey = state.current ? getQueueTrackKey(state.current) : '';
+  const cursorTrack = tracks[state.playlistIndex];
+  return cursorTrack && getQueueTrackKey(cursorTrack) === currentKey
+    ? state.playlistIndex
+    : tracks.findIndex((track) => getQueueTrackKey(track) === currentKey);
+}
+
+function readQueueViewValues(state, tracks, fullPlaylist) {
+  const values = [state.queueType, state.queueTitle, fullPlaylist, tracks.length];
+  if (!fullPlaylist) {
+    values.push(state.currentOrigin, Boolean(state.current), state.current ? getQueueTrackKey(state.current) : '');
+  }
   for (const track of tracks) appendTrackValues(values, track);
   const pending = state.pendingRequests || [];
   values.push(pending.length);
@@ -37,6 +48,8 @@ export class QueuePopup {
     this.queueBtn = null;
     this.listContainer = null;
     this.renderedValues = null;
+    this.renderedPlaylistIndex = -1;
+    this.failedCovers = new Map();
   }
 
   /**
@@ -47,6 +60,12 @@ export class QueuePopup {
     this.backdrop = document.getElementById('queuePopupBackdrop');
     this.queueBtn = document.getElementById('playbackQueueBtn');
     this.listContainer = document.getElementById('playbackQueueList');
+    // Capture the URL before the artwork fallback removes the failed image.
+    this.listContainer?.addEventListener('error', ({ target }) => {
+      if (target.matches('.playback-artwork > img')) {
+        this.failedCovers.set(target.parentElement, target.getAttribute('src'));
+      }
+    }, true);
   }
 
   /**
@@ -89,11 +108,29 @@ export class QueuePopup {
   render(state) {
     // Both opening paths render the latest state before scrolling to the current track.
     if (!this.listContainer || !this.isOpen) return;
-    const tracks = state.queueType === 'playlist' && state.normalQueueTracks.length
-      ? state.normalQueueTracks : this.getActiveQueue(state);
-    const values = readQueueViewValues(state, tracks);
+    const fullPlaylist = state.queueType === 'playlist' && state.normalQueueTracks.length > 0;
+    const tracks = fullPlaylist ? state.normalQueueTracks : this.getActiveQueue(state);
+    const currentIndex = fullPlaylist ? currentPlaylistIndex(state) : -1;
+    const previousIndex = this.renderedPlaylistIndex;
+    this.renderedPlaylistIndex = currentIndex;
+    const values = readQueueViewValues(state, tracks, fullPlaylist);
     if (this.renderedValues?.length === values.length
-      && values.every((value, index) => value === this.renderedValues[index])) return;
+      && values.every((value, index) => value === this.renderedValues[index])) {
+      if (previousIndex !== currentIndex) {
+        for (const index of [previousIndex, currentIndex]) {
+          if (index < 0) continue;
+          const button = this.listContainer.querySelector(`[data-playback-playlist-jump="${index}"]`);
+          const row = button.closest('.playback-queue-row');
+          row.outerHTML = UIComponents.renderPlaylistRow(tracks[index], index, index === currentIndex).trim();
+        }
+        for (const [artwork, coverUrl] of this.failedCovers) {
+          if (this.listContainer.contains(artwork)) artwork.outerHTML = renderArtwork({ coverUrl }).trim();
+        }
+        this.failedCovers.clear();
+      }
+      return;
+    }
+    this.failedCovers.clear();
     this.renderedValues = values;
 
     // 更新队列大小
@@ -111,7 +148,7 @@ export class QueuePopup {
     // 空队列
     if (this.getTotalCount(state) === 0 && !state.current && !state.pendingRequests?.length) {
       this.listContainer.innerHTML =
-        '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
+        '<div class="queue-empty-state lira-content-state"><div class="queue-empty-icon">♫</div><p class="lira-content-state-title">播放队列为空</p><span class="lira-content-state-description">搜索歌曲或从首页添加音乐</span></div>';
       return;
     }
 
@@ -122,8 +159,8 @@ export class QueuePopup {
     sections.push(this.renderPendingSection(state));
 
     // 2. 主队列
-    if (state.queueType === 'playlist' && state.normalQueueTracks.length > 0) {
-      sections.push(this.renderFullPlaylistSection(state));
+    if (fullPlaylist) {
+      sections.push(this.renderFullPlaylistSection(state, currentIndex));
     } else {
       const queue = this.getActiveQueue(state);
       const origin = this.getActiveOrigin(state);
@@ -133,7 +170,7 @@ export class QueuePopup {
     const html = sections.filter(Boolean).join('');
     this.listContainer.innerHTML =
       html ||
-      '<div class="queue-empty-state"><div class="queue-empty-icon">♫</div><p>播放队列为空</p><span>搜索歌曲或从首页添加音乐</span></div>';
+      '<div class="queue-empty-state lira-content-state"><div class="queue-empty-icon">♫</div><p class="lira-content-state-title">播放队列为空</p><span class="lira-content-state-description">搜索歌曲或从首页添加音乐</span></div>';
   }
 
   /**
@@ -201,17 +238,12 @@ export class QueuePopup {
   /**
    * 渲染完整歌单部分
    * @param {Object} state - 播放状态
+   * @param {number} currentIndex - 歌单中正在播放的位置
    * @returns {string}
    */
-  renderFullPlaylistSection(state) {
+  renderFullPlaylistSection(state, currentIndex = currentPlaylistIndex(state)) {
     const tracks = state.normalQueueTracks;
     if (!tracks || !tracks.length) return '';
-
-    const currentKey = state.current ? getQueueTrackKey(state.current) : '';
-    const cursorTrack = tracks[state.playlistIndex];
-    const currentIndex = cursorTrack && getQueueTrackKey(cursorTrack) === currentKey
-      ? state.playlistIndex
-      : tracks.findIndex((track) => getQueueTrackKey(track) === currentKey);
 
     const rows = tracks
       .map((track, index) => {

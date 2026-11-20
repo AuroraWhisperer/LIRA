@@ -187,6 +187,7 @@ function createShutdownHarness(options = {}) {
   const modules = {
     './desktop-resource-integrity': {
       createDesktopResourceIntegrity: () => ({
+        cancel() { calls.push('integrity:cancel'); return options.integrityIdle?.promise || Promise.resolve(); },
         stop() {
           calls.push('integrity:stop');
           return options.integrityIdle?.promise || Promise.resolve();
@@ -439,10 +440,11 @@ function createShutdownHarness(options = {}) {
     },
     './update-manager': {
       configureAutoUpdater({ onStateChange }) { publishUpdate = onStateChange; },
-      installUpdate() {
-        app.releaseSingleInstanceLock();
+      async installUpdate() {
         calls.push('update:install');
-        options.installUpdate?.({ app, autoUpdater, calls });
+        if (options.installUpdate) return options.installUpdate({ app, autoUpdater, calls });
+        app.releaseSingleInstanceLock();
+        return { status: 'installing' };
       },
     },
     './playback-flush': options.realPlaybackFlush ? require('../../src/electron/playback-flush') : {

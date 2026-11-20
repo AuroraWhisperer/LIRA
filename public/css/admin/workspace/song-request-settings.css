@@ -137,7 +137,7 @@
   font-size: calc(var(--type-size-body) + 1px);
 }
 
-:is(.song-request-card-queue, .song-request-card-interval, .song-request-card-eligibility) .song-request-row > :is(select, .lira-select, .song-request-number, .song-cooldown-controls) {
+:is(.song-request-card-queue, .song-request-card-interval, .song-request-card-eligibility) .song-request-row > :is(select, .lira-select, .lira-number-field, .song-cooldown-controls) {
   font-size: var(--type-size-body);
 }
 
@@ -163,21 +163,6 @@
   font-weight: var(--type-weight-regular);
 }
 
-.song-request-row input::placeholder {
-  color: var(--color-text-muted);
-  opacity: 1;
-}
-
-.song-request-number {
-  position: relative;
-  display: block;
-  min-width: 0;
-}
-
-.song-request-number input {
-  padding-right: 36px;
-}
-
 .song-request-row input[aria-invalid='true'] {
   border-color: var(--danger);
 }
@@ -189,14 +174,38 @@
   font-size: var(--type-size-caption);
 }
 
-.song-request-unit {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  translate: 0 -50%;
+.song-request-card-interval .song-request-row {
+  grid-template-columns: minmax(max-content, 1fr) minmax(0, 280px);
+}
+
+.song-request-limits,
+.song-request-limit-head {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-sm);
+  min-width: 0;
+  font-size: var(--type-size-body);
+}
+
+.song-request-limits {
+  --number-field-unit-space: 28px;
+  --number-field-unit-inset: 8px;
+}
+
+.song-request-limit-head {
+  width: min(100%, 280px);
+  margin-left: auto;
   color: var(--muted);
   font-size: var(--type-size-caption);
-  pointer-events: none;
+  text-align: center;
+}
+
+.song-request-limits input {
+  padding-left: var(--spacing-sm);
+}
+
+.song-request-limits input::placeholder {
+  font-size: var(--type-size-caption);
 }
 
 .song-request-tier {
@@ -234,19 +243,9 @@ span.song-request-tier-mark::before {
 }
 
 #songCooldownAmount {
+  --number-field-unit-space: 40px;
+  --number-field-unit-inset: 10px;
   flex: 0 0 84px;
-}
-
-#songCooldownAmount[hidden] {
-  display: none;
-}
-
-#songCooldownAmount input {
-  padding-right: 40px;
-}
-
-#songCooldownAmount .song-request-unit {
-  right: 10px;
 }
 
 .song-user-blacklist-table {
@@ -387,5 +386,9 @@ span.song-request-tier-mark::before {
 
   .song-blacklist-words {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .song-request-limit-head {
+    width: 100%;
   }
 }

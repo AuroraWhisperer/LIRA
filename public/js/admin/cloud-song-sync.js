@@ -1,6 +1,17 @@
 'use strict';
 
 const LAST_SYNC_KEY = 'lira:license:lastCloudSync';
+const SONG_LENGTH_HINTS = new Map([
+  ['SONG_TITLE_TOO_LONG', '歌曲名字（上限 200）'],
+  ['SONG_ARTIST_TOO_LONG', '歌手（上限 200）'],
+  ['SONG_CATEGORY_TOO_LONG', '曲风（上限 120）'],
+  ['SONG_TAGS_TOO_LONG', '歌曲标签（上限 500）'],
+  ['SONG_LANGUAGE_TOO_LONG', '语言（上限 80）'],
+  ['SONG_PLATFORM_TOO_LONG', '核对平台（上限 80）'],
+  ['SONG_NOTE_TOO_LONG', '核对备注（上限 1000）'],
+  ['SONG_PRICE_TOO_LONG', '点歌价格（上限 1000）'],
+  ['SONG_CLIP_TOO_LONG', '歌切（上限 1000）'],
+]);
 
 function safeSongIndex(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : undefined;
@@ -17,6 +28,12 @@ function createSongSyncError(response) {
 
 function songSyncErrorMessage(error) {
   const code = String(error?.code || error?.message || '');
+  const lengthHint = SONG_LENGTH_HINTS.get(code);
+  if (lengthHint) {
+    const index = safeSongIndex(error?.index);
+    const song = index === undefined ? '歌曲' : `第 ${index + 1} 首歌曲`;
+    return `${song}的${lengthHint}过长。本机原文已保留，请备份后缩短该字段，再重新同步。`;
+  }
   if (code === 'INVALID_SONG') {
     const index = safeSongIndex(error?.index);
     return index === undefined

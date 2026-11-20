@@ -20,8 +20,13 @@ test('a resource restart reclaims abandoned download files offline while retaini
   for (const name of [expired, zip, recent, previous, 'unrelated.tmp']) await fs.writeFile(path.join(directory, name), 'fixture');
   const old = new Date(Date.now() - 2 * 86400000);
   for (const name of [expired, zip, previous, 'unrelated.tmp']) await fs.utimes(path.join(directory, name), old, old);
+  const candidate = path.join(directory, `${'5'.repeat(64)}.woff2.pending`);
+  await fs.writeFile(candidate, 'abandoned private bytes');
+  await fs.utimes(candidate, old, old);
   f.offline(); const before = f.requests.length;
-  const reopened = f.create(); await reopened.initialize();
+  const reopened = f.create();
+  assert.equal((await reopened.initialize()).status, 'ready');
+  await assert.rejects(fs.access(candidate), { code: 'ENOENT' });
   for (const name of [expired, zip]) await assert.rejects(fs.access(path.join(directory, name)), { code: 'ENOENT' });
   for (const name of [recent, previous, 'unrelated.tmp']) await fs.access(path.join(directory, name));
   assert.equal((await fs.readFile(reopened.resolveAsset('fonts/one.woff2'))).toString(), 'current font');
@@ -207,11 +212,21 @@ test('a bad ZIP member preserves the old font versions and a retry repairs the p
   const contents = { 'fonts/one.woff2': Buffer.from('old first'), 'fonts/two.woff2': Buffer.from('old second') };
   const f = await fixture(t, contents);
   await f.create().initialize();
-  f.update('fonts/one.woff2', Buffer.from('new first'));
+  const first = 'fonts/one.woff2';
+  const newHash = digest(Buffer.from('new first'));
+  f.update(first, Buffer.from('new first'));
   f.update('fonts/two.woff2', Buffer.from('new second'));
   f.publishPackages({ corruptMember: 'fonts/two.woff2' });
   const library = f.create();
-  assert.equal((await library.initialize()).status, 'error');
+  const checking = library.initialize();
+  const waiting = library.waitForAsset(first, newHash);
+  assert.equal((await checking).status, 'error');
+  assert.equal(await waiting, null, 'A verified member of a rejected ZIP was never published.');
+  f.offline();
+  const reopened = f.create();
+  await reopened.initialize();
+  assert.equal(await reopened.waitForAsset(first, newHash), null);
+  f.offline(false);
   for (const [name, bytes] of Object.entries(contents)) assert.deepEqual(await fs.readFile(library.resolveAsset(name)), bytes);
   assert.equal((await library.initialize({ force: true })).status, 'error');
   for (const [name, bytes] of Object.entries(contents)) assert.deepEqual(await fs.readFile(library.resolveAsset(name)), bytes);
@@ -226,6 +241,7 @@ test('unexpected ZIP paths never become local resources', async t => {
   const library = f.create();
   assert.equal((await library.initialize()).status, 'error');
   assert.equal(library.resolveAsset('fonts/one.woff2'), null);
+  assert.equal((await library.initialize({ force: true })).status, 'error', 'Cached members cannot approve a rejected ZIP on retry.');
   await assert.rejects(fs.access(path.join(f.dataDir, 'cache/escape.woff2')), { code: 'ENOENT' });
   assert.equal((await fs.readdir(path.join(f.dataDir, 'cache/resources'))).some(name => /\.(tmp|zip)$/.test(name)), false);
 });
@@ -239,7 +255,10 @@ test('changed files replace atomically; failed hash checks keep the previous ver
   f.update(name, next);
   f.corrupt();
   const library = f.create();
-  const failed = await library.initialize();
+  const updating = library.initialize();
+  const replacementRequest = library.waitForAsset(name, digest(next));
+  const failed = await updating;
+  assert.equal(await replacementRequest, null, 'The previous cached version cannot satisfy the new hash.');
   assert.equal(failed.status, 'error');
   assert.equal(failed.failed, 1);
   assert.equal(f.diagnostics.length, 1);
@@ -251,6 +270,117 @@ test('changed files replace atomically; failed hash checks keep the previous ver
   f.corrupt(false);
   assert.equal((await library.initialize({ force: true })).status, 'ready');
   assert.deepEqual(await fs.readFile(library.resolveAsset(name)), next);
+});
+
+test('versioned reads keep serving published revisions while an index replacement is blocked or fails', async t => {
+  const name = 'fonts/one.woff2';
+  const old = Buffer.from('first revision');
+  const current = Buffer.from('second revision');
+  const next = Buffer.from('third revision');
+  const f = await fixture(t, { [name]: old });
+  const library = f.create();
+  await library.initialize();
+  f.update(name, current);
+  await library.initialize({ force: true });
+  f.update(name, next);
+  const index = path.join(f.dataDir, 'cache/resources/index.json');
+  const entered = Promise.withResolvers();
+  const release = Promise.withResolvers();
+  const rename = fs.rename;
+  const gate = t.mock.method(fs, 'rename', async (from, to) => {
+    if (to !== index) return rename(from, to);
+    entered.resolve();
+    await release.promise;
+    throw Object.assign(new Error('fixture'), { code: 'ENOSPC' });
+  });
+  const checking = library.initialize({ force: true });
+  const before = library.waitForAsset(name, digest(next));
+  await entered.promise;
+  const during = library.waitForAsset(name, digest(next));
+  let early;
+  try {
+    early = await Promise.race([during, new Promise(resolve => setImmediate(() => resolve('waiting')))]);
+    assert.deepEqual(await fs.readFile(await library.waitForAsset(name, digest(old))), old);
+    assert.deepEqual(await fs.readFile(await library.waitForAsset(name)), current);
+  } finally { release.resolve(); }
+  assert.equal((await checking).status, 'error');
+  assert.equal(early, 'waiting');
+  assert.deepEqual(await Promise.all([before, during]), [null, null]);
+  assert.equal((await library.initialize({ force: true })).status, 'error', 'Failure to publish a verified cache still needs a retry.');
+  gate.mock.restore();
+  f.offline();
+  const reopened = f.create();
+  await reopened.initialize();
+  assert.equal(await reopened.waitForAsset(name, digest(next)), null);
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name, digest(old))), old);
+  f.offline(false);
+  const requests = f.requests.length;
+  assert.equal((await reopened.initialize({ force: true })).status, 'ready');
+  assert.equal(f.requests.length - requests, 1, 'Verified objects can retry the index without another download.');
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name, digest(next))), next);
+});
+
+test('a locked promotion can resume offline without blocking other cached assets', async t => {
+  const name = 'img/map.png';
+  const other = 'fonts/other.woff2';
+  const previous = Buffer.from('previous map');
+  const next = Buffer.from('new map');
+  const font = Buffer.from('unaffected font');
+  const f = await fixture(t, { [name]: previous, [other]: font });
+  const library = f.create();
+  await library.initialize();
+  f.update(name, next);
+  const target = path.join(f.dataDir, 'cache/resources', `${digest(next)}.png`);
+  const rename = fs.rename;
+  const lock = t.mock.method(fs, 'rename', (from, to) => from === `${target}.pending` && to === target
+    ? Promise.reject(Object.assign(new Error('fixture'), { code: 'EBUSY' })) : rename(from, to));
+  assert.equal((await library.initialize({ force: true })).status, 'error');
+  f.offline();
+  const reopened = f.create();
+  assert.equal((await reopened.initialize()).status, 'error');
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(other)), font);
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name, digest(previous))), previous);
+  lock.mock.restore();
+  const requests = f.requests.length;
+  assert.equal((await reopened.initialize({ force: true })).status, 'ready');
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(name)), next);
+  assert.equal(f.requests.length - requests, 1);
+});
+
+test('a published digest stays readable across matching extensions even if the other package fails', async t => {
+  const a = 'fonts/player/smiley.woff2';
+  const b = 'fonts/other.woff2';
+  const sibling = 'fonts/last.woff2';
+  const shared = Buffer.from('shared revision');
+  const contents = { [a]: Buffer.from('first a'), [b]: Buffer.from('first b'), [sibling]: Buffer.from('first sibling') };
+  const f = await fixture(t, contents);
+  const library = f.create();
+  await library.initialize();
+  for (const name of [a, b]) f.update(name, shared);
+  f.update(sibling, Buffer.from('updated sibling'));
+  f.publishPackages({ corruptMember: sibling });
+  const checking = library.initialize({ force: true });
+  const accepted = library.waitForAsset(a, digest(shared));
+  const sameObject = library.waitForAsset(b, digest(shared));
+  assert.equal((await checking).status, 'error');
+  assert.deepEqual(await fs.readFile(await accepted), shared);
+  assert.deepEqual(await fs.readFile(await sameObject), shared);
+  assert.deepEqual(await fs.readFile(await library.waitForAsset(b)), contents[b]);
+  f.offline();
+  const reopened = f.create();
+  await reopened.initialize();
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(b, digest(shared))), shared);
+  f.offline(false);
+  f.publishPackages();
+  await reopened.initialize({ force: true });
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(b, digest(shared))), shared);
+  f.update(b, contents[b]);
+  f.publishPackages();
+  const requests = f.requests.length;
+  assert.equal((await reopened.initialize({ force: true })).status, 'ready');
+  assert.equal(f.requests.length - requests, 1);
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(b)), contents[b]);
+  assert.deepEqual(await fs.readFile(await reopened.waitForAsset(b, digest(shared))), shared);
 });
 
 test('an offline check retains a complete cache without a download notification', async t => {
@@ -266,6 +396,40 @@ test('an offline check retains a complete cache without a download notification'
   assert.equal(states.some(state => state.status === 'downloading'), false);
   assert.ok(library.resolveAsset('fonts/one.woff2'));
   assert.equal(f.diagnostics.length, 0, 'A usable offline cache needs no failure warning.');
+});
+
+test('a digest request during offline startup cannot read a damaged current object', async t => {
+  const name = 'img/map.png';
+  const bytes = Buffer.from('valid map');
+  const f = await fixture(t, { [name]: bytes });
+  const first = f.create();
+  await first.initialize();
+  await fs.writeFile(first.resolveAsset(name), Buffer.alloc(bytes.length));
+  f.offline();
+  const retry = first.initialize({ force: true });
+  const duringRetry = first.waitForAsset(name, digest(bytes));
+  await retry;
+  assert.equal(await duringRetry, null);
+  const reopened = f.create();
+  const checking = reopened.initialize();
+  const request = reopened.waitForAsset(name, digest(bytes));
+  assert.equal((await checking).status, 'error');
+  assert.equal(await request, null);
+  assert.equal(reopened.resolveAsset(name, digest(bytes)), null);
+});
+
+test('a historical digest URL checks legacy bytes even when the current revision is healthy', async t => {
+  const name = 'fonts/one.woff2';
+  const current = Buffer.from('current font');
+  const old = Buffer.from('previous font');
+  const f = await fixture(t, { [name]: current });
+  const library = f.create();
+  await library.initialize();
+  const filename = path.join(f.dataDir, 'cache/resources', `${digest(old)}.woff2`);
+  await fs.writeFile(filename, Buffer.alloc(old.length));
+  assert.equal(await library.waitForAsset(name, digest(old)), null);
+  await fs.writeFile(filename, old);
+  assert.deepEqual(await fs.readFile(await library.waitForAsset(name, digest(old))), old);
 });
 
 test('an unavailable manifest records a bounded cause without the raw network error', async t => {
@@ -360,9 +524,16 @@ test('closing removes partial files while keeping committed resources for the ne
     if (state.completed === 1 && state.downloadedBytes > fontPackage.length) partial.resolve();
   });
   const pending = resources.initialize();
+  const fontRequest = resources.waitForAsset('fonts/one.woff2');
+  const mapRequest = resources.waitForAsset('img/map.png');
   await partial.promise;
+  // The font package has committed while the unrelated map stream is still open.
+  const readyFont = await Promise.race([fontRequest, new Promise(resolve => setImmediate(() => resolve(null)))]);
   await resources.close();
   await pending;
+  assert.ok(readyFont, 'The waiting request must receive its committed font before shutdown.');
+  assert.deepEqual(await fs.readFile(readyFont), first);
+  assert.equal(await mapRequest, null);
   assert.equal(diagnostics.length, 0, 'Closing the library is not a failed download.');
   assert.equal((await fs.readdir(path.join(f.dataDir, 'cache/resources'))).some(name => name.endsWith('.tmp')), false);
   const restored = f.create();

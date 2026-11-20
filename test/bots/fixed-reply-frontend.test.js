@@ -113,6 +113,87 @@ test('the shared editor saves only full-match rules and keeps built-in commands 
   assert.deepEqual(await page.evaluate(() => window.writes[1]), { customExactReplyEnabled: true });
 });
 
+async function keywordEditor(t) {
+  const page = await fixture(t, 'fixed-replies');
+  await page.clock.install();
+  await page.clock.pauseAt(new Date(Date.now() + 1000));
+  await page.evaluate(async html => {
+    const panel = new DOMParser().parseFromString(html, 'text/html').getElementById('danmakuCustomRepliesPanel');
+    document.body.append(panel);
+    panel.hidden = false;
+    panel.open = true;
+    const { createCustomReplyEditor } = await import('/js/admin/danmaku-libraries.js');
+    window.keywordEditor = createCustomReplyEditor({ document, saveSetting: window.saveSetting, toast: message => window.messages.push(message) });
+    const initial = JSON.stringify([{ keyword: 'A', reply: 'first reply' }, { keyword: 'second', reply: 'second reply' }]);
+    window.reloadKeywords = () => window.keywordEditor.load(initial);
+    window.reloadKeywords();
+  }, readAdminFragmentHtml('pages/admin/toolbox/danmaku.html'));
+  const list = page.locator('#danmakuCustomReplyList');
+  return { page, list, keyword: list.getByRole('textbox').first(), retry: page.locator('#danmakuCustomReplySaveBtn') };
+}
+
+test('keyword replies keep focus on unchanged refresh and reload clean data after save or reset', async (t) => {
+  const { page, list, keyword, retry } = await keywordEditor(t);
+  await keyword.focus();
+  await page.evaluate(() => window.reloadKeywords());
+  assert.equal(await keyword.evaluate(input => input === document.activeElement), true);
+  await keyword.fill(' B ');
+  await page.clock.fastForward(1000);
+  assert.equal(await retry.isDisabled(), true);
+  await retry.dispatchEvent('click');
+  assert.deepEqual(await page.evaluate(() => window.pendingSaves.map(({ key, value }) => [key, JSON.parse(value)[0].keyword])),
+    [['customReplyRules', 'B']], 'A second save while the first is pending must not write twice.');
+  await page.evaluate(() => window.pendingSaves[0].resolve());
+  assert.equal(await retry.isDisabled(), true);
+  assert.equal(await keyword.inputValue(), ' B ');
+  await page.evaluate(() => window.reloadKeywords());
+  assert.equal(await keyword.inputValue(), 'A');
+  await page.evaluate(() => window.keywordEditor.reset());
+  assert.equal(await list.getByRole('textbox').count(), 0);
+  await page.evaluate(() => window.reloadKeywords());
+  assert.equal(await keyword.inputValue(), 'A');
+});
+
+const submittedRule = ['submitted', 'first reply'];
+const editedRule = ['newer', 'first reply'];
+const secondRule = ['second', 'second reply'];
+const changeKeyword = ({ keyword }) => keyword.fill('newer');
+for (const { name, fail, change, expected } of [
+  { name: 'an edit after submission', change: changeKeyword, expected: [editedRule, secondRule] },
+  { name: 'an edit after a submission that fails', fail: true, change: changeKeyword, expected: [editedRule, secondRule] },
+  { name: 'the original draft after a failed save', fail: true, expected: [submittedRule, secondRule] },
+  { name: 'an edit reverted to the submitted value', change: async editor => {
+    await changeKeyword(editor);
+    await editor.keyword.fill('submitted');
+  }, expected: [submittedRule, secondRule] },
+  { name: 'a rule added during a save', change: async ({ page }) => {
+    await page.locator('#danmakuCustomKeywordInput').fill('new');
+    await page.locator('#danmakuCustomReplyInput').fill('new reply');
+    await page.locator('#danmakuCustomReplyAddBtn').click();
+  }, expected: [submittedRule, secondRule, ['new', 'new reply']] },
+  { name: 'a deletion during a save', change: ({ list }) => list.getByRole('button').last().click(), expected: [submittedRule] },
+]) {
+  test(`keyword replies retain ${name} through refresh and retry`, async (t) => {
+    const editor = await keywordEditor(t);
+    const { page, list, keyword, retry } = editor;
+    await keyword.fill('submitted');
+    await page.clock.fastForward(1000);
+    if (change) await change(editor);
+    await page.evaluate(fail => {
+      const save = window.pendingSaves[0];
+      if (fail) save.reject(new Error('synthetic failure'));
+      else save.resolve();
+    }, fail);
+    await page.evaluate(() => window.reloadKeywords());
+    assert.deepEqual(await list.getByRole('textbox').evaluateAll(fields => fields.map(field => field.value)), expected.flat());
+    await retry.click();
+    const saved = await page.evaluate(() => JSON.parse(window.pendingSaves[1].value).map(({ keyword, reply }) => [keyword, reply]));
+    assert.deepEqual(saved, expected);
+    await page.evaluate(() => window.pendingSaves[1].resolve());
+    assert.equal(await retry.isDisabled(), true);
+  });
+}
+
 test('query and thanks switches stay in sync with the shared gift-interaction setting', async (t) => {
   const page = await editorFixture(t);
   await page.evaluate(async (html) => {

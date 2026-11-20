@@ -103,12 +103,13 @@ async function downloadResource(file, { origin, directory, fetch, signal, onProg
     await response.body?.cancel();
     throw new Error('RESOURCE_DOWNLOAD_FAILED');
   }
-  return writeResource(file, response.body, { directory, signal: attempt, onProgress });
+  return writeResource(file, response.body, { directory, signal: attempt, onProgress, temporaryOnly: true });
 }
 
-async function writeResource(file, stream, { directory, signal, onProgress = () => {} }) {
+async function writeResource(file, stream, { directory, signal, onProgress = () => {}, temporaryOnly = false }) {
   const temporary = path.join(directory, `${objectName(file)}.${randomUUID()}.tmp`);
   let handle;
+  let keepTemporary = false;
   try {
     handle = await fs.open(temporary, 'wx');
     const hash = createHash('sha256');
@@ -125,13 +126,17 @@ async function writeResource(file, stream, { directory, signal, onProgress = () 
     if (size !== file.size || hash.digest('hex') !== file.sha256) throw new Error('RESOURCE_HASH_INVALID');
     await handle.close();
     handle = null;
+    if (temporaryOnly) {
+      keepTemporary = true;
+      return temporary;
+    }
     const filename = path.join(directory, objectName(file));
     await fs.rename(temporary, filename);
     return filename;
   } finally {
     await handle?.close();
-    await fs.rm(temporary, { force: true });
+    if (!keepTemporary) await fs.rm(temporary, { force: true });
   }
 }
 
-module.exports = { resolveCdnOrigin, readManifest, validateManifest, objectName, downloadResource, writeResource };
+module.exports = { MAX_ASSET_BYTES, resolveCdnOrigin, readManifest, validateManifest, objectName, downloadResource, writeResource };

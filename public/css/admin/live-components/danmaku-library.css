@@ -1,9 +1,14 @@
+@import url('../danmaku-style-favorites.css');
+
 /* Danmaku style cards, display filters and library dialog. */
 .live-components-page .danmaku-style-picker {
-  --danmaku-sample-height: 104px;
-  padding: var(--spacing-md);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  --danmaku-sample-height: 112px;
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: 0;
+  border-radius: 0;
 }
 
 .live-components-page .danmaku-style-picker .danmaku-style-options {
@@ -22,7 +27,8 @@
 /* The badge moves onto the thumbnail so it stops sharing the caption line with the name. */
 .live-components-page .danmaku-style-picker .danmaku-style-option[aria-pressed='true']::after {
   top: 16px;
-  right: 16px;
+  right: auto;
+  left: 16px;
   bottom: auto;
   padding: 2px 8px;
   border-radius: 999px;
@@ -72,7 +78,17 @@
 }
 
 .live-components-page .danmaku-style-picker .danmaku-recent-styles {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  --danmaku-sample-height: 52px;
+  grid-template-columns: none;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: var(--spacing-sm);
+}
+
+.live-components-page .danmaku-style-picker .danmaku-style-sample {
+  margin-bottom: 0;
+  padding: 8px;
+  object-position: center 60%;
 }
 
 .live-components-page .danmaku-style-caption {
@@ -100,8 +116,54 @@
 }
 
 .live-components-page .danmaku-style-picker .danmaku-style-option {
+  gap: 2px;
   min-height: 0;
   padding-bottom: 4px;
+}
+
+.live-components-page .danmaku-recent-styles .danmaku-style-option {
+  display: grid;
+  grid-template-columns: 80px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+}
+
+.live-components-page .danmaku-recent-styles > :only-child {
+  max-width: 320px;
+}
+
+.live-components-page .danmaku-recent-styles .danmaku-style-sample {
+  width: 80px;
+  margin: 0;
+  padding: 4px;
+}
+
+.live-components-page .danmaku-recent-styles .danmaku-style-caption {
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 0;
+}
+
+.live-components-page .danmaku-recent-styles :is(.danmaku-style-name, .danmaku-style-code) {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.live-components-page .danmaku-recent-styles .danmaku-style-caption .danmaku-style-name {
+  padding: 0;
+  white-space: nowrap;
+}
+
+.live-components-page .danmaku-recent-styles .danmaku-style-option[aria-pressed='true'] {
+  background: var(--components-accent-soft);
+}
+
+.live-components-page .danmaku-recent-styles .danmaku-style-option::after {
+  content: none;
 }
 
 .live-components-page .danmaku-style-library {
@@ -237,11 +299,12 @@
   margin-top: 20px;
 }
 
-@media (max-width: 760px) {
+@container (max-width: 960px) {
   .live-components-page .danmaku-style-picker .danmaku-recent-styles {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-flow: row;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .live-components-page .danmaku-recent-styles > :nth-child(n + 4) {
-    display: none;
+  .live-components-page .danmaku-recent-styles > :only-child {
+    grid-column: 1 / -1;
   }
 }

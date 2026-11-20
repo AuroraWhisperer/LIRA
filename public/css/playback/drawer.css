@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 30;
-  background: rgba(24, 24, 22, 0.3);
+  background: color-mix(in srgb, var(--color-bg-overlay-light) 75%, transparent);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -24,14 +24,14 @@
   height: calc(100vh - var(--player-dock-height, 0px));
   display: flex;
   flex-direction: column;
-  background: var(--surface);
+  background: var(--color-floating-surface);
   border-left: 1px solid var(--border);
   transform: translateX(102%);
   transition: transform 320ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .playback-drawer.open {
-  box-shadow: -8px 0 32px rgba(24, 24, 22, 0.12);
+  box-shadow: var(--shadow-floating);
   transform: translateX(0);
 }
 
@@ -42,7 +42,7 @@
   flex-shrink: 0;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--color-floating-surface);
 }
 
 .playback-drawer-title {

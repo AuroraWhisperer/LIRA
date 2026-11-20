@@ -93,6 +93,22 @@ test('obsolete autoplay failures cannot mute a replacement decoration or access 
   assert.equal(videos[1].dataset.playbackFailed, undefined);
 });
 
+test('an unchanged ranking acknowledgement restores board statuses after repeated read failures', async t => {
+  const f = await rendererFixture(); t.after(() => f.renderer.dispose());
+  const snapshot = { boards: [{ status: 'ready' }, { status: 'unavailable' }] };
+  f.renderer.update({ version: 1, document: documentOf([item('live-rankings', 'independent', {})]), data: { 'live-rankings': snapshot } });
+  const frame = f.host.children[0].children[0];
+  f.complete(frame);
+  const last = () => f.messages.get(frame).filter(message => message.type === 'component-preview:data').at(-1).data;
+  f.renderer.disconnect(); f.renderer.disconnect();
+  assert.deepEqual(last().boards.map(board => board.status), ['stale', 'unavailable']);
+  f.renderer.update({ version: 1, data: {} });
+  assert.deepEqual(last().boards.map(board => board.status), ['ready', 'unavailable']);
+  f.renderer.disconnect();
+  f.renderer.update({ version: 1, data: { 'live-rankings': null } });
+  assert.equal(last(), null, 'An explicit empty result supersedes the cached snapshot.');
+});
+
 test('partial lyric ticks retain static data for new frames without resending it to active frames', async t => {
   const f = await rendererFixture(); t.after(() => f.renderer.dispose());
   const doc = documentOf([item('songlist', 'independent', {}), item('lyrics', 'independent', {})]);

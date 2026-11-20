@@ -8,7 +8,15 @@ const { createFakeDocument } = require('../helpers/fake-dom');
 
 const TWITTER_LAYOUT_KEYS = ['twitterHeader', 'twitterComposer', 'twitterActions'];
 
-test('non-body text overrides validate by style and clearing a size restores the authored value', async () => {
+function createAppearanceDocument() {
+  const document = createFakeDocument();
+  document.documentElement = document.createElement('html');
+  document.body = document.createElement('body');
+  document.head = document.createElement('head');
+  return document;
+}
+
+test('text sizes preserve saved values and adjust only each style-specific cluster', async () => {
   const { editStyleOption, readAppearanceValue, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
   const options = { coffee: { nicknameFontSize: 24, nicknameFontFamily: '"Georgia"', amountColor: '#aabbcc80' },
     twitter: { footerFontSize: 19 } };
@@ -23,6 +31,33 @@ test('non-body text overrides validate by style and clearing a size restores the
   assert.equal(Object.hasOwn(cleared.styleOptions.coffee, 'nicknameFontSize'), false);
   assert.equal(cleared.styleOptions.coffee.nicknameFontFamily, '"Georgia"');
   assert.equal(resetStyleOptions(draft).styleOptions.twitter.footerFontSize, 19);
+  const legacy = { style: 'ripploid', styleOptions: { ripploid: { titleFontSize: 24 } } };
+  assert.equal(contract.styleOptionsFor('ripploid', legacy.styleOptions).titleSuperchatFontSize, 24);
+  const edited = editStyleOption(legacy, 'titleFontSize', 27.5);
+  assert.equal(contract.styleOptionsFor('ripploid', edited.styleOptions).titleTicketFontSize, 22);
+  assert.equal(contract.styleOptionsFor('ripploid', edited.styleOptions).titleSuperchatFontSize, 24);
+  assert.equal(contract.styleOptionsFor('ripploid', edited.styleOptions).titleGuardFontSize, 24);
+  assert.equal(contract.styleOptionsFor('ripploid', edited.styleOptions).titleFontSize, 27.5);
+  const superchat = editStyleOption(edited, 'titleSuperchatFontSize', 42);
+  assert.equal(superchat.styleOptions.ripploid.titleSuperchatOutlineFontSize, 61.89);
+  assert.equal(superchat.styleOptions.ripploid.titleFontSize, 27.5);
+  assert.equal(superchat.styleOptions.ripploid.titleGuardFontSize, 24);
+  const again = editStyleOption(editStyleOption(superchat, 'titleSuperchatFontSize', 42.01), 'titleSuperchatFontSize', 42);
+  assert.equal(again.styleOptions.ripploid.titleSuperchatOutlineFontSize, 61.89, 'Repeated edits use the original ratio without rounding drift.');
+  const large = editStyleOption(edited, 'titleSuperchatFontSize', 96);
+  assert.equal(contract.normalizeStyleOptions(large.styleOptions).ripploid.titleSuperchatOutlineFontSize, 141.47);
+  const small = editStyleOption(edited, 'amountFontSize', 8);
+  assert.equal(contract.normalizeStyleOptions(small.styleOptions).ripploid.amountCurrencyFontSize, 4.16);
+  const clearedGroup = editStyleOption(edited, 'titleFontSize', undefined);
+  assert.equal(contract.styleOptionsFor('ripploid', clearedGroup.styleOptions).titleTicketFontSize, 20);
+  assert.equal(contract.styleOptionsFor('ripploid', clearedGroup.styleOptions).titleSuperchatFontSize, 24);
+  const separateAmounts = editStyleOption({ style: 'transparent', styleOptions: {} }, 'amountFontSize', 34);
+  assert.equal(contract.styleOptionsFor('transparent', separateAmounts.styleOptions).amountSuperchatFontSize, 44);
+  const reset = resetStyleOptions(edited);
+  assert.deepEqual(contract.styleOptionsFor('ripploid', reset.styleOptions), contract.styleOptionsFor('ripploid'));
+  assert.equal(readAppearanceValue('captionFontSize', '5.5', 5, 96), 5.5);
+  assert.equal(contract.normalizeStyleOptions({ ripploid: { captionFontSize: 5.5, titleSuperchatFontSize: 24.25 } }).ripploid.titleSuperchatFontSize, 24.25);
+  assert.throws(() => contract.normalizeStyleOptions({ signal: { titleSuperchatFontSize: 20 } }), { code: 'INVALID_OVERLAY_OPTIONS' });
 });
 
 test('style fields validate shared numeric, enum and color rules without accepting unsupported controls', () => {
@@ -77,10 +112,7 @@ test('RIPPLOID applies independent event color variables and clears them outside
     ripploid: { giftColor50: '#aabbcc' },
   });
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = {
-    documentElement: { style: { setProperty(key, value) { this[key] = value; } } },
-    body: { dataset: {} },
-  };
+  const document = createAppearanceDocument();
   const saved = { ripploid: { giftColor50: '#123456', guardColorAdmiral: '#654321', superchatColor2000: '#abcdef' } };
   browser.applyStyleOptions(document, 'ripploid', saved);
   const root = document.documentElement.style;
@@ -95,7 +127,7 @@ test('RIPPLOID applies independent event color variables and clears them outside
 
 test('Twitter layout and event palette apply to existing content and clear outside the style', async () => {
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
+  const document = createAppearanceDocument();
   const options = { twitterHeader: 'hide', twitterComposer: 'hide', twitterActions: 'hide', twitterColor50: '#ABCDEF80' };
   assert.deepEqual(contract.normalizeStyleOptions({ twitter: options }), { twitter: { ...options, twitterColor50: '#abcdef80' } });
   browser.applyStyleOptions(document, 'twitter', { twitter: options });
@@ -108,7 +140,7 @@ test('Twitter layout and event palette apply to existing content and clear outsi
 
 test('translucent theme colors keep alpha in legacy paint values and reset to the role palette', async () => {
   const { applyStyleOptions } = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
+  const document = createAppearanceDocument();
   const root = document.documentElement.style;
   applyStyleOptions(document, 'snowfox', { snowfox: { bubbleColor: '#ff000080' } });
   assert.equal(root['--danmaku-bubble-color-rgb'], '255 0 0');
@@ -139,7 +171,8 @@ test('Twitter composer text counts visible characters, normalizes Unicode and re
   assert.equal(contract.styleOptionsFor('twitter', { twitter: { composerText: '' } }).composerText, contract.TWITTER_COMPOSER_TEXT_DEFAULT);
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
   const node = { textContent: '', children: [] };
-  const document = { body: { dataset: {} }, documentElement: { style: { setProperty() {} } }, getElementById: () => node };
+  const document = createAppearanceDocument();
+  document.getElementById = () => node;
   browser.applyStyleOptions(document, 'twitter', { twitter: { composerText: '<b>你好</b>' } });
   assert.equal(node.textContent, '<b>你好</b>');
   assert.equal(node.children.length, 0);
@@ -149,7 +182,7 @@ test('Twitter composer text counts visible characters, normalizes Unicode and re
 
 test('spooky follows theme ink, preserves explicit overrides and clears renderer variables outside the style', async () => {
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
+  const document = createAppearanceDocument();
   const root = document.documentElement.style;
   for (const [theme, { textColor: ink }] of Object.entries(contract.SPOOKY_THEME_COLORS)) {
     browser.applyStyleOptions(document, 'spooky', { spooky: { spookyTheme: theme } });
@@ -184,10 +217,7 @@ test('styles without gift artwork always use real gift images while accepting le
 
 test('scroll direction applies to fixed styles and restores each default', async () => {
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = {
-    documentElement: { style: { setProperty() {} } },
-    body: { dataset: {} },
-  };
+  const document = createAppearanceDocument();
   for (const style of ['signal', 'glass']) {
     for (const scrollDirection of ['up', 'down']) {
       const options = { [style]: { scrollDirection } };
@@ -206,7 +236,7 @@ test('scroll direction applies to fixed styles and restores each default', async
 
 test('edge fading keeps theme defaults, applies overrides and clears on other layouts', async () => {
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
+  const document = createAppearanceDocument();
   for (const [scrollDirection, edgeFade, expected] of [
     ['up', 'single', 'top'], ['down', 'single', 'bottom'], ['down', 'top', 'top'],
   ]) {
@@ -227,7 +257,7 @@ test('entrance animation stays per style and resets on empty options or unsuppor
     'saved rise choices retain the legacy duration until explicitly edited');
   assert.equal(contract.styleOptionsFor('whiteframe', { whiteframe: { entranceAnimation: 'rise', entranceDurationMs: 800 } }).entranceDurationMs, 800);
   const browser = await import('../../public/js/overlays/danmaku-style-application.js');
-  const document = { documentElement: { style: { setProperty() {} } }, body: { dataset: {} } };
+  const document = createAppearanceDocument();
   const saved = contract.normalizeStyleOptions({
     whiteframe: { entranceAnimation: 'rise' },
     glow: { entranceAnimation: 'fade' },
@@ -244,7 +274,7 @@ test('entrance animation stays per style and resets on empty options or unsuppor
 test('border color and ambient motion retain per-style drafts and clear on switch or reset', async () => {
   const { applyStyleOptions } = await import('../../public/js/overlays/danmaku-style-application.js');
   const { editStyleOption, resetStyleOptions } = await import('../../public/js/shared/danmaku-appearance-draft.js');
-  const document = { body: { dataset: {} }, documentElement: { style: { setProperty(key, value) { this[key] = value; } } } };
+  const document = createAppearanceDocument();
   const draft = { style: 'whiteframe', styleOptions: contract.normalizeStyleOptions({
     whiteframe: { bubbleColor: '#ABCDEF80' }, notebook: { ambientMotion: 'off' }, starlight: { ambientMotion: 'on' },
   }) };
@@ -359,16 +389,7 @@ test('local font families round-trip safely and render as a single quoted family
   ]) {
     const input = { signal: { fontFamily } };
     assert.deepEqual(contract.normalizeStyleOptions(input), input);
-    const document = {
-      documentElement: {
-        style: {
-          setProperty(key, value) {
-            this[key] = value;
-          },
-        },
-      },
-      body: { dataset: {} },
-    };
+    const document = createAppearanceDocument();
     browser.applyStyleOptions(document, 'signal', input);
     assert.equal(
       document.documentElement.style['--danmaku-custom-font'],
@@ -408,7 +429,7 @@ test('text colors are validated, applied and restored to the theme default', asy
       code: 'INVALID_OVERLAY_OPTIONS',
     });
   }
-  const document = { documentElement: { style: { setProperty(key, value) { this[key] = value; } } }, body: { dataset: {} } };
+  const document = createAppearanceDocument();
   browser.applyStyleOptions(document, 'signal', { signal: { textColor: '#aabbcc' } });
   assert.equal(document.documentElement.style['--danmaku-text-color'], '#aabbcc');
   browser.applyStyleOptions(document, 'signal', {});

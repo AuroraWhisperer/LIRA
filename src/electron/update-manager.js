@@ -2,7 +2,8 @@
 // CDN 自动更新管理。
 'use strict';
 
-const { app } = require('electron');
+const { app, autoUpdater: nativeUpdater } = require('electron');
+const fs = require('node:fs');
 const path = require('node:path');
 const { resolveDesktopUserDataPaths } = require('./desktop-user-data');
 
@@ -42,6 +43,7 @@ let lastTransferred = 0;
 let _onStateChange = null;
 let _writeLog = () => {};
 let lastUpdateError = null;
+let pendingInstall = null;
 
 function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   _onStateChange = onStateChange || null;
@@ -127,6 +129,7 @@ function configureAutoUpdater({ onStateChange, writeLog, updater }) {
   });
 
   configuredUpdater.on('update-downloaded', (info) => {
+    configuredUpdater.autoInstallOnAppQuit = true;
     log('update', {
       event: 'downloaded',
       version: info.version || updateState.updateVersion || '',
@@ -211,7 +214,25 @@ async function downloadUpdate() {
   return updateState;
 }
 
-function installUpdate() {
+async function launchDownloadedNsis(updater) {
+  const file = updater.installerPath;
+  const helper = updater.downloadedUpdateHelper;
+  if (!helper?.downloadedFileInfo || !file || !fs.statSync(file, { throwIfNoEntry: false })?.isFile()) {
+    throw Object.assign(new Error('Downloaded installer is missing.'), { code: 'ENOENT' });
+  }
+  const args = ['--updated', '/S', '--force-run'];
+  if (updater.installDirectory) args.push(`/D=${updater.installDirectory}`);
+  if (helper.packageFile) args.push(`--package-file=${helper.packageFile}`);
+  // NsisUpdater.doInstall reports success before spawn settles. Await its OS launcher directly.
+  if (!helper.downloadedFileInfo.isAdminRightsRequired) {
+    try { return await updater.spawnLog(file, args); }
+    catch (error) { if (error.code !== 'EACCES' && error.code !== 'UNKNOWN') throw error; }
+  }
+  return updater.spawnLog(path.join(process.resourcesPath, 'elevate.exe'), [file, ...args]);
+}
+
+async function installUpdate() {
+  if (pendingInstall) return pendingInstall;
   if (!updateState.canInstall) return updateState;
   setUpdateState({
     status: 'installing',
@@ -219,9 +240,31 @@ function installUpdate() {
     canDownload: false,
     canInstall: false,
   });
-  app.releaseSingleInstanceLock();
-  getAutoUpdater().quitAndInstall(true, true);
-  return updateState;
+  const updater = getAutoUpdater();
+  if (process.platform !== 'win32') {
+    app.releaseSingleInstanceLock();
+    updater.quitAndInstall(true, true);
+    return updateState;
+  }
+  // The explicit handoff owns this package. A later download rearms ordinary quit installation.
+  updater.autoInstallOnAppQuit = false;
+  pendingInstall = launchDownloadedNsis(updater).then(() => {
+    app.releaseSingleInstanceLock();
+    nativeUpdater.emit('before-quit-for-update');
+    app.quit();
+    return updateState;
+  }, error => {
+    _writeLog('update-error', error);
+    const missing = error.code === 'ENOENT' || error.code === 'ENOTDIR';
+    setUpdateState({
+      status: 'error',
+      message: missing ? '已下载的更新包不可用，请重新下载。' : '无法启动更新安装程序，请重试安装或查看错误日志。',
+      canDownload: missing,
+      canInstall: !missing,
+    });
+    return updateState;
+  }).finally(() => { pendingInstall = null; });
+  return pendingInstall;
 }
 
 function friendlyUpdateError(error) {

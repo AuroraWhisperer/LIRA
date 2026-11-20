@@ -62,7 +62,7 @@
       </div>
       <div class="danmaku-cloud-toolbar">
         <p id="dailyBotStatus" class="hint" role="status">连接 LIRA 账号后可设置</p>
-        <lira-help label="自动互动使用说明">开关即时保存；完整参数、规则和词库修改后自动保存，失败时保留草稿并提供重试。签到、抽签、昵称管理和礼物答谢全天可用，其余项目仅直播中生效。关键词与点歌回复需客户端在线，其余在云端运行。</lira-help>
+        <lira-help label="自动互动使用说明">开关与词库修改后都会自动保存。签到、抽签、昵称管理和礼物答谢全天 24 小时可用，其余功能仅在开播时生效；除「关键词回复」和「点歌回复」需保持客户端在线外，其余均在云端运行，关掉软件也能用。</lira-help>
         <button id="dailyBotRefresh" type="button" class="ghost" aria-label="刷新固定回复云端状态" disabled>刷新云端状态</button>
       </div>
     </div>
@@ -72,7 +72,7 @@
           <div class="danmaku-fixed-item" data-fixed-item="exact">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">观众发送的弹幕与触发词完全一致时，回复固定文案，例如“歌单”；忽略首尾空格，英文字母区分大小写。内置“菜单”的回复见下方列表；与系统指令重名时，系统指令优先。开启后在云端运行，每条回复都会 @ 触发观众。</lira-help>
+                <strong id="danmakuExactReplyTitle">完整匹配回复</strong><lira-help label="完整匹配回复说明">观众弹幕与触发词完全一致时自动 @ 回复（忽略首尾空格，英文区分大小写；若与系统指令重名则系统指令优先）。点「编辑」可查看内置“菜单”指令或添加自定义词条。云端运行，关掉软件也生效。</lira-help>
               </div>
               <span class="danmaku-fixed-summary">弹幕与触发词完全一致时回复</span>
               <span id="danmakuExactState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
@@ -85,7 +85,7 @@
           <div class="danmaku-fixed-item" data-fixed-item="diy">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">弹幕包含关键词就回复固定文案，英文字母不区分大小写；多条命中时只回复列表中第一条启用规则。完整修改自动保存；需客户端保持运行并连接直播间。</lira-help>
+                <strong id="danmakuCustomReplyTitle">关键词回复</strong><lira-help label="关键词回复说明">只要弹幕里包含关键词就自动回复（英文不区分大小写；同时命中多条时只触发排在最前面的规则）。需保持客户端运行。</lira-help>
               </div
               ><span class="danmaku-fixed-summary" data-fixed-count="danmakuCustomReplyCount">正在读取规则</span
               ><span class="danmaku-fixed-note" data-fixed-note="diy"></span>
@@ -109,7 +109,7 @@
           <div class="danmaku-fixed-item" data-fixed-item="checkin">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuCheckinTitle">签到机器人</strong><lira-help label="签到机器人说明">观众单独发送“签到”，每天记录一次，回复累计天数和祝福语。开启后在云端运行，关闭客户端也不影响。</lira-help>
+                <strong id="danmakuCheckinTitle">签到机器人</strong><lira-help label="签到机器人说明">观众发“签到”即可打卡（每人每天一次），自动回复累计签到天数和随机祝福语。云端运行，关掉软件也生效。</lira-help>
               </div
               ><span class="danmaku-fixed-summary">发送“签到”，记录天数并送上祝福</span
               ><span id="dailyBotcheckinStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
@@ -123,7 +123,7 @@
           <div class="danmaku-fixed-item" data-fixed-item="fortune">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众单独发送“抽签”时获取签文，默认每日固定，可在设置中改为每次随机。开启后在云端运行，关闭客户端也不影响。</lira-help>
+                <strong id="danmakuFortuneTitle">抽签机器人</strong><lira-help label="抽签机器人说明">观众发“抽签”即可抽取运势签文（默认每人每天固定一签，可在设置里改为每次随机）。云端运行，关掉软件也生效。</lira-help>
               </div
               ><span class="danmaku-fixed-summary">发送“抽签”，获取签文</span
               ><span id="dailyBotfortuneStatus" class="danmaku-fixed-note" role="status">尚未确认云端状态</span>
@@ -141,7 +141,7 @@
           <div class="danmaku-fixed-item" data-fixed-item="random">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">随机点歌没有匹配结果、歌曲仍在冷却、队列已满、歌曲重复，或点歌仅被歌库规则拦截时，自动 @ 回复观众。内容由系统生成，无需设置词库；点击“说明”查看触发场景与示例。关闭回复不影响点歌限制。</lira-help>
+                <strong id="danmakuReplyTitle">点歌回复</strong><lira-help label="点歌回复说明">当观众点歌遇到「没搜到歌、正在冷却、队列满了、重复点歌、不在歌库内」等情况时，自动发弹幕 @ 告诉对方原因。文案由系统自动生成，点右侧「说明」可查看示例；关闭后只不再发弹幕提醒，不影响点歌规则本身。</lira-help>
               </div
               ><span class="danmaku-fixed-summary">点歌未通过规则时，回复原因</span
               ><span class="danmaku-fixed-note" data-fixed-note="random"></span>
@@ -154,7 +154,7 @@
           <div id="danmakuQueryControls" class="danmaku-fixed-item" data-fixed-item="query">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">通过弹幕查询礼物或盲盒统计，也可按指定礼物单独查询。观众查询本人，主播查询全房；回复按账本动态生成。支持上月、去年和指定年月，开关与「礼物 → 弹幕查询」同步，关闭客户端后仍在云端运行。</lira-help>
+                <strong id="danmakuQueryTitle">查询回复</strong><lira-help label="查询回复说明">观众发弹幕查自己的送礼/盲盒统计，主播发弹幕查全房汇总（支持按日/周/月/年或指定礼物名称查询）。与「礼物 → 弹幕查询」开关同步，云端运行。</lira-help>
               </div>
               <span class="danmaku-fixed-summary">通过弹幕查询礼物和盲盒统计</span>
               <span id="danmakuQueryStatus" class="danmaku-fixed-note" role="status">正在读取云端状态…</span>
@@ -179,7 +179,7 @@
           <div id="danmakuGiftThanksControls" class="danmaku-fixed-item" data-fixed-item="thanks">
             <div class="danmaku-fixed-copy">
               <div class="danmaku-fixed-item-heading">
-                <strong id="danmakuGiftThanksTitle">礼物答谢</strong><lira-help label="礼物答谢说明">收到付费礼物、已确认的免费礼物或大航海后，自动发送感谢弹幕，不含醒目留言。登录 B 站并同步后可开启，关闭客户端后仍在云端运行。完整文案修改后自动保存，不会自动开启答谢。</lira-help>
+                <strong id="danmakuGiftThanksTitle">礼物答谢</strong><lira-help label="礼物答谢说明">收到礼物或有人上舰时自动发弹幕感谢（醒目留言 SC 不在此列）。登录 B 站并同步后可开启，云端运行，关掉软件也生效。</lira-help>
               </div>
               <span class="danmaku-fixed-summary">收到礼物或开通大航海时发送答谢</span>
               <span id="danmakuGiftThanksStatus" class="danmaku-fixed-note" role="status"></span>
@@ -240,7 +240,7 @@
             <div class="danmaku-fixed-item" data-fixed-item="scheduled">
               <div class="danmaku-fixed-copy">
                 <div class="danmaku-fixed-item-heading">
-                  <strong id="danmakuScheduledTitle">定时／随机弹幕</strong><lira-help label="定时随机弹幕说明">开启后在云端运行，直播中可按固定或随机时间间隔，从词库中按顺序或随机发送一条。首次发送前会先等待一个间隔；停播、断线或关闭功能后停止，恢复时重新计时，不补发。</lira-help>
+                  <strong id="danmakuScheduledTitle">定时／随机弹幕</strong><lira-help label="定时随机弹幕说明">开播期间按设定的时间间隔，自动从词库里挑一条发到直播间（开启或开播后会先等一个间隔再发第一条；下播自动停止）。云端运行，关掉软件也生效。</lira-help>
                 </div>
                 <span id="danmakuScheduledSummary" class="danmaku-fixed-summary">直播中按间隔发送词库</span>
                 <span id="danmakuScheduledState" class="danmaku-fixed-note" role="status">正在读取云端设置…</span>
@@ -322,7 +322,7 @@
           <fieldset id="danmakuGiftThanksFields" class="danmaku-reply-fields" disabled>
             <legend class="sr-only">礼物答谢文案</legend>
             <div class="danmaku-thanks-toolbar">
-              <p class="hint">修改文字或插入参数，发送时自动填入真实内容。<lira-help label="答谢文案参数说明">普通回复中的观众称呼优先使用已保存的昵称，没有时用 B 站昵称，并保留航海等级。@ 使用观众真实身份，正文无需重复昵称。礼物参数包含合并数量；金额参数以电池显示，盲盒附上差额或成本未知说明，免费礼物不显示金额。每条最多 120 字，实际发送按平台长度限制分段，无法完整表达时不发送。各场景开关还受上方礼物答谢总开关控制。</lira-help></p>
+              <p class="hint">修改文字或插入参数，发送时自动填入真实内容。<lira-help label="答谢文案参数说明">{称呼} 优先用观众登记过的自定义昵称（并保留舰长/提督/总督头衔）；若开启了 @ 回复，系统会直接 @ 对方，正文中无需再放 {称呼}。{礼物} 自动带上礼物名与合并后的数量；{金额} 按电池数显示，盲盒会自动附上盈亏差额（免费礼物不显示金额）。每条模板最多 120 字，发送时超长会自动分段。</lira-help></p>
               <button id="danmakuGiftThanksReset" type="button" class="secondary">恢复默认文案</button>
             </div>
             <div id="danmakuGiftThanksLibrary" hidden></div>
@@ -375,7 +375,7 @@
               <div class="danmaku-welcome-library-heading">
                 <label class="daily-library-search">搜索词库<input id="danmakuScheduledLibrarySearch" type="search" placeholder="查找文案" /></label>
                 <span id="danmakuScheduledLibraryCount" class="hint">0 条</span>
-                <lira-help label="定时弹幕词库说明">初始词库有 199 句文案，包含关注、粉丝团、大航海和互动暖场，可逐条修改、添加或删除。点歌月卡、舰礼等内容请按本房间实际规则调整。最多 300 条，每条最多 120 字；修改后自动保存，用于后续发送，空词库不会发送。已有词库保持不变。</lira-help>
+                <lira-help label="定时弹幕词库说明">内置了 199 条常用的求关注、加粉丝团、上舰引导和暖场文案（涉及舰礼、点歌规则的句子记得改成你房间的实际情况）。最多可存 300 条，每条最多 120 字，修改后自动保存。</lira-help>
               </div>
               <div id="danmakuScheduledLibraryList" class="danmaku-blessing-list"></div>
               <div class="daily-library-list-actions">
@@ -393,7 +393,7 @@
         <details id="danmakuCustomRepliesPanel" class="danmaku-blessings-section" data-fixed-editor="diy" hidden>
           <summary>
             <div>
-              <h3>关键词回复 <lira-help>弹幕包含关键词就回复固定文案；英文字母不区分大小写，多条命中时只回复第一条启用规则。</lira-help></h3>
+              <h3>关键词回复</h3>
               <p><span id="danmakuCustomReplyCount">0 条</span></p>
             </div>
             <svg class="danmaku-details-chevron" viewBox="0 0 20 20" fill="none" aria-hidden="true">

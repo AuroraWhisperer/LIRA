@@ -1,0 +1,24 @@
+/* Content placeholders share typography; their owner keeps layout and actions. */
+.lira-content-state {
+  color: var(--color-text-secondary);
+  font-size: var(--type-size-control);
+  line-height: 1.6;
+  text-align: center;
+}
+
+.lira-content-state-title {
+  margin: 0;
+  color: var(--color-text-primary);
+  font-size: var(--type-size-card-title);
+  font-weight: var(--type-weight-bold);
+}
+
+.lira-content-state-description {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--type-size-caption);
+}
+
+.lira-content-state[data-state='error'] {
+  color: var(--color-danger);
+}

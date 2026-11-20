@@ -48,8 +48,7 @@ test('nested admin fragments reject circular includes', (t) => {
   );
 });
 
-test('admin routes recognize the supported page aliases', () => {
-  assert.deepEqual(['/', '/admin', '/settings', '/songs'].map(isAdminPageRoute), [true, true, true, true]);
+test('the queue overlay is outside the admin routes', () => {
   assert.equal(isAdminPageRoute('/queue'), false);
 });
 
@@ -68,7 +67,7 @@ test('composed admin page is complete and has unique ids', () => {
   assert.doesNotMatch(html, /<!-- admin-fragment:/);
 });
 
-test('authenticated admin routes never expose credentials to the composed document', () => {
+test('authenticated admin aliases serve a frame-protected document without exposing credentials', () => {
   for (const pathname of ['/', '/admin', '/settings', '/songs']) {
     let status;
     let headers = {};
@@ -97,33 +96,9 @@ test('authenticated admin routes never expose credentials to the composed docume
     const html = body.toString('utf8');
     assert.equal(status, 200);
     assert.equal(headers['Content-Type'], 'text/html; charset=utf-8');
-    assert.doesNotMatch(html, /window\.__API_TOKEN__|test-token|lira-overlay-bootstrap/);
-    assert.match(html, /<script type="module" src="\/js\/admin\/index\.js/);
-  }
-});
-
-test('admin pages include frame protection headers', () => {
-  for (const pathname of ['/', '/admin', '/settings', '/songs']) {
-    let headers = {};
-    const response = {
-      setHeader(name, value) {
-        headers[name] = value;
-      },
-      writeHead(status, nextHeaders) {
-        headers = { ...headers, ...nextHeaders };
-      },
-      end() {},
-    };
-
-    servePageOrAsset(
-      PUBLIC_DIR,
-      { method: 'GET', headers: { authorization: 'Bearer test-token' } },
-      response,
-      new URL(`http://127.0.0.1${pathname}`),
-      'test-token',
-    );
-
     assert.equal(headers['Content-Security-Policy'], "frame-ancestors 'none'; worker-src 'none'");
     assert.equal(headers['X-Frame-Options'], 'DENY');
+    assert.doesNotMatch(html, /window\.__API_TOKEN__|test-token|lira-overlay-bootstrap/);
+    assert.match(html, /<script type="module" src="\/js\/admin\/index\.js/);
   }
 });

@@ -173,9 +173,13 @@ for (const late of [false, true]) {
       await hold;
     });
     try {
-      const app = await runtime.start({ startPort: 0 });
+      const starting = runtime.start({ startPort: 0 });
+      assert.equal(runtime.start(), starting);
+      const app = await starting;
+      assert.equal(runtime.start(), starting);
       const stopping = runtime.stop();
       await enteredHook;
+      const duringStop = await runtime.start().then(() => 'resolved', error => error.message);
       assert.equal(retentionStops, 1, 'periodic cleanup stops before waiting for renderer shutdown');
       assert.equal(app.server.listening, true);
       if (late) {
@@ -193,6 +197,8 @@ for (const late of [false, true]) {
       assert.equal(hooks, 1);
       assert.equal(retentionStops, 1);
       assert.equal(app.server.listening, false);
+      const afterStop = await runtime.start().then(() => 'resolved', error => error.message);
+      assert.deepEqual([duringStop, afterStop], Array(2).fill('Server runtime is shutting down.'));
     } finally {
       release();
       await runtime.stop();

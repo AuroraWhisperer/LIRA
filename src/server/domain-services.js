@@ -90,8 +90,8 @@ function createDomainServices(options) {
     count: () => songService.countSongs(songStore),
     delete: (id) => songService.deleteSong(songStore, id),
     toggle: (id) => songService.toggleSong(songStore, id),
-    pickRandom: (scopeText) => songService.pickRandomSong(songStore, scopeText,
-      (candidates) => queueService.filterSongsByCooldown(queueContext, candidates)),
+    pickRandom: (scopeText, fanScope) => songService.pickRandomSong(songStore, scopeText,
+      (candidates) => queueService.filterSongsByCooldown(queueContext, candidates, fanScope)),
   };
 
   const queueContext = {
@@ -222,7 +222,7 @@ function createDomainServices(options) {
       addQueueItem: input => queue.add(input),
       cancelQueueItem: input => queue.cancel(input),
       resolveSongRequest: name => songs.findUniqueNameMatch(name),
-      pickRandomSong: scope => songs.pickRandom(scope),
+      pickRandomSong: songs.pickRandom,
       recordRequestResult: input => queue.recordRequestResult(input),
       customReplies,
     });

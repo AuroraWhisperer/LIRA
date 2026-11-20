@@ -261,7 +261,6 @@ test('shared local font library retries a security error after the first user ge
   library.registerLocalFontSelect(select);
   await new Promise((resolve) => setImmediate(resolve));
   assert.equal(queryCount, 1);
-  assert.equal(typeof listeners.get('pointerdown'), 'function');
 
   listeners.get('pointerdown')();
   await new Promise((resolve) => setImmediate(resolve));

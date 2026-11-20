@@ -12,14 +12,22 @@ const ACTIVE_QUEUE_ORDER = `queue.is_live DESC, queue.is_pinned DESC,
   julianday(NULLIF(queue.pinned_at, '')) DESC,
   CASE WHEN ? = 1 AND queue.requester_guard_level IN (1, 2, 3)
     THEN queue.requester_guard_level ELSE 4 END ASC,
-  datetime(queue.created_at) ASC, queue.id ASC`;
+  julianday(queue.created_at) ASC, queue.id ASC`;
 
 function createQueueStore(
   songDb,
   { getFanScope = () => null, archiveAccepted = () => {} } = {},
 ) {
   songDb.function('lira_simplified_text', { deterministic: true }, toSimplifiedChinese);
-  function getSongCooldown(songKey, ownerScope = getFanScope() || '') {
+
+  function resolveRequestScope(capturedScope) {
+    const currentScope = getFanScope() || null;
+    if (capturedScope !== undefined && capturedScope !== currentScope) return null;
+    // The empty string owns local cooldowns and quotas when there is no signed-in account.
+    return currentScope || '';
+  }
+
+  function readSongCooldown(songKey, ownerScope) {
     return songDb.prepare(`SELECT MAX(accepted_at_ms) AS accepted_at_ms FROM song_cooldowns
       WHERE owner_scope = ? AND lira_simplified_text(song_key) = ?`)
       .get(ownerScope, toSimplifiedChinese(songKey))?.accepted_at_ms ?? undefined;
@@ -46,12 +54,14 @@ function createQueueStore(
     }
   }
   return {
-    getSongCooldown(songKey) {
-      return getSongCooldown(songKey);
+    getSongCooldown(songKey, capturedScope) {
+      const scope = resolveRequestScope(capturedScope);
+      return scope === null ? undefined : readSongCooldown(songKey, scope);
     },
-    listSongCooldowns() {
-      return songDb.prepare('SELECT song_key, accepted_at_ms FROM song_cooldowns WHERE owner_scope = ?')
-        .all(getFanScope() || '');
+    listSongCooldowns(capturedScope) {
+      const scope = resolveRequestScope(capturedScope);
+      if (scope === null) return [];
+      return songDb.prepare('SELECT song_key, accepted_at_ms FROM song_cooldowns WHERE owner_scope = ?').all(scope);
     },
 
     countActive() {
@@ -79,12 +89,11 @@ function createQueueStore(
       );
     },
 
-    insertRequest(input, { checkCooldown, checkRequesterCount } = {}) {
-      const currentScope = getFanScope();
-      const ownerScope = input.fanScope === undefined || input.fanScope === currentScope ? currentScope : null;
+    insertRequest(input, { checkCooldown, checkRequesterCount, checkDailyCount } = {}) {
       const stableId = randomUUID();
       songDb.exec('BEGIN IMMEDIATE');
       try {
+        const scope = resolveRequestScope(input.fanScope);
         if (checkRequesterCount) {
           const { count } = songDb.prepare(`SELECT COUNT(*) AS count FROM queue
             JOIN requests ON requests.queue_id = queue.id
@@ -93,12 +102,24 @@ function createQueueStore(
             .get(input.requesterUid, input.identityType);
           checkRequesterCount(count);
         }
-        const cooldownScope = currentScope || '';
-        if (input.cooldownKey) {
-          checkCooldown?.(getSongCooldown(input.cooldownKey, cooldownScope));
+        if (scope !== null && input.requestDay) {
+          const key = [scope, input.requestDay, input.identityType, input.requesterUid];
+          const count = songDb.prepare(`SELECT accepted_count FROM song_request_daily_counts
+            WHERE owner_scope = ? AND request_day = ? AND identity_type = ? AND requester_uid = ?`)
+            .get(...key)?.accepted_count || 0;
+          checkDailyCount?.(count);
+          songDb.prepare('DELETE FROM song_request_daily_counts WHERE owner_scope = ? AND request_day < ?')
+            .run(scope, input.requestDay);
+          songDb.prepare(`INSERT INTO song_request_daily_counts
+            (owner_scope, request_day, identity_type, requester_uid, accepted_count) VALUES (?, ?, ?, ?, 1)
+            ON CONFLICT (owner_scope, request_day, identity_type, requester_uid)
+            DO UPDATE SET accepted_count = accepted_count + 1`).run(...key);
+        }
+        if (scope !== null && input.cooldownKey) {
+          checkCooldown?.(readSongCooldown(input.cooldownKey, scope));
           songDb.prepare(`INSERT INTO song_cooldowns (owner_scope, song_key, accepted_at_ms) VALUES (?, ?, ?)
             ON CONFLICT (owner_scope, song_key) DO UPDATE SET accepted_at_ms = excluded.accepted_at_ms`)
-            .run(cooldownScope, input.cooldownKey, input.acceptedAt);
+            .run(scope, input.cooldownKey, input.acceptedAt);
         }
         const result = songDb
           .prepare(
@@ -157,12 +178,12 @@ function createQueueStore(
             input.source,
             input.createdAt,
             stableId,
-            ownerScope,
+            scope || null,
             input.identityType || null,
           );
 
         const requestId = Number(request.lastInsertRowid);
-        archiveAccepted(ownerScope, { ...input, stableId, queueId, requestId });
+        archiveAccepted(scope || null, { ...input, stableId, queueId, requestId });
         rememberRandomRequest(songDb, requestId, input);
 
         const item = normalizeQueueRow(songDb.prepare('SELECT * FROM queue WHERE id = ?').get(queueId));

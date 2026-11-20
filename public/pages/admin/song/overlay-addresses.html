@@ -7,8 +7,7 @@
             <h3 id="canvasOverlayGroupTitle" class="ui-section-title">
               直播场景
               <lira-help label="直播场景使用说明"
-                >在画布中摆放多个组件，保存并应用后导入直播软件。更换组件或样式后沿用同一地址；浏览器源宽高与画布分辨率保持一致。
-                下方固定地址使用组件默认设置和真实数据。要单独显示画布中的某个图层、导入样式或文本框，请选中它，保存并应用后点击「复制组件地址」。同一组件已包含在场景中时，无需再添加一份单独浏览器源。</lira-help
+                >可在画布里自由组合多个组件，保存并应用后把地址加到直播软件即可（浏览器源宽高请与画布分辨率保持一致，后续换样式也不用换地址）。如果组件已经放进场景，就不用再单独添加下方的组件地址；想单独拆分画布里的某个图层，可在画布中选中它并点击「复制组件地址」。</lira-help
               >
             </h3>
           </div>
@@ -36,7 +35,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >点歌板 <lira-help>样式、字号和滚动方式在「点歌板」中配置。</lira-help></strong
+                >点歌板 <lira-help>在「点歌板」标签页中调整样式、字号和滚动方式。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="queueUrl" title="复制浏览器源地址">
@@ -47,7 +46,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >展示板 <lira-help>曲风、排序和主题在「展示板」中配置。</lira-help></strong
+                >展示板 <lira-help>在「展示板」标签页中调整排序和外观主题。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="songsUrl" title="复制浏览器源地址">
@@ -58,7 +57,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >直播歌词 <lira-help>字体、颜色和逐字效果在「组件 → 音乐展示 → 直播歌词」中配置。</lira-help></strong
+                >直播歌词 <lira-help>在「组件 → 音乐展示 → 直播歌词」中设置。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="lyricsUrl" title="复制浏览器源地址" aria-label="复制直播歌词浏览器源地址">
@@ -68,7 +67,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >歌曲信息 <lira-help>唱片、歌名、歌手及显示规则在「组件 → 音乐展示 → 歌曲信息」中配置，与直播歌词跟随同一音乐来源。</lira-help></strong
+                >歌曲信息 <lira-help>在「组件 → 音乐展示 → 歌曲信息」中设置，与直播歌词共用音乐来源。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="nowPlayingUrl" title="复制浏览器源地址" aria-label="复制歌曲信息浏览器源地址">
@@ -87,7 +86,7 @@
         <div class="overlay-address-grid">
           <section class="overlay-address-item">
             <div>
-              <strong class="ui-card-title">弹幕姬 · 本机组件 <lira-help>使用已保存的样式，保持 LIRA 运行。</lira-help></strong>
+              <strong class="ui-card-title">弹幕姬 · 本机组件 <lira-help>使用本机保存的弹幕样式，需保持 LIRA 运行。</lira-help></strong>
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="localDanmakuUrl" title="复制浏览器源地址">
               <code id="localDanmakuUrl" class="ui-caption"></code>
@@ -108,7 +107,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >抽奖转盘 <lira-help>转盘内容和抽取操作在「小游戏」的转盘区域中配置。</lira-help></strong
+                >抽奖转盘 <lira-help>在「组件 → 小游戏」的转盘区域中设置选项并开抽。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveWheelUrl" title="复制浏览器源地址">
@@ -119,7 +118,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >弹幕投票与观众评分 <lira-help>在「组件 → 弹幕投票」或「组件 → 观众评分」中配置并开始活动。</lira-help></strong
+                >弹幕投票与观众评分 <lira-help>投票和评分共用此地址，在「组件 → 弹幕投票 / 观众评分」中发起。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveInteractionsUrl" title="复制浏览器源地址">
@@ -139,7 +138,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >滚动礼物 <lira-help>显示内容和样式在「组件 → 礼物姬」的滚动礼物区域中配置。</lira-help></strong
+                >滚动礼物 <lira-help>在「组件 → 礼物姬 → 滚动礼物」中设置。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveGiftFeedUrl" title="复制浏览器源地址">
@@ -150,7 +149,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >盲盒盈亏榜 <lira-help>排行数量、赢家筛选和标题在「组件 → 礼物姬 → 盲盒盈亏榜」中调整，修改后自动保存。</lira-help></strong
+                >盲盒盈亏榜 <lira-help>在「组件 → 礼物姬 → 盲盒盈亏榜」中设置。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveBlindboxUrl" title="复制浏览器源地址">
@@ -161,7 +160,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >礼物许愿 <lira-help>在「礼物姬」→「礼物许愿」中按周期添加目标；统一展示长效、本日和本场直播许愿。</lira-help></strong
+                >礼物许愿 <lira-help>在「组件 → 礼物姬 → 礼物许愿」中设置，会汇总展示长效、今日和本场心愿。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveGiftWishUrl" title="复制浏览器源地址">
@@ -174,7 +173,7 @@
               <strong class="ui-card-title"
                 >礼物特效与全屏礼物感谢
                 <lira-help
-                  >动画特效在「礼物特效」中配置，全屏礼物感谢在「礼物姬」中配置；两者共用此地址。</lira-help
+                  >礼物掉落、摇摇乐和全屏礼物感谢共用此地址，在「组件 → 礼物姬 → 礼物特效」中设置。</lira-help
                 ></strong
               >
             </div>
@@ -183,7 +182,7 @@
             </button>
           </section>
           <section class="overlay-address-item">
-            <strong class="ui-card-title">月底冲刺 <lira-help>目标与外观在「组件 → 礼物姬 → 月底冲刺」中配置。</lira-help></strong>
+            <strong class="ui-card-title">月底冲刺 <lira-help>在「组件 → 礼物姬 → 月底冲刺」中设置。</lira-help></strong>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveGiftSprintUrl" title="复制浏览器源地址">
               <code id="liveGiftSprintUrl" class="ui-caption"></code>
             </button>
@@ -201,7 +200,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >加班机 <lira-help>初始时长、礼物规则和背景在「加班机」中配置。</lira-help></strong
+                >加班机 <lira-help>在「组件 → 加班机」中设置时长、礼物规则和画面。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveOvertimeUrl" title="复制浏览器源地址">
@@ -212,7 +211,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >开播动画 <lira-help>文案、动画和音乐在「开播动画」中配置。</lira-help></strong
+                >开播动画 <lira-help>在「组件 → 开播动画」中设置文案、画面和背景音乐。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveOpeningUrl" title="复制浏览器源地址">
@@ -223,7 +222,7 @@
           <section class="overlay-address-item">
             <div>
               <strong class="ui-card-title"
-                >时钟 <lira-help>风格、日期、秒数和小时制在「组件 → 时钟」中配置。</lira-help></strong
+                >时钟 <lira-help>在「组件 → 时钟」中设置样式和时间格式。</lira-help></strong
               >
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="liveClockUrl" title="复制浏览器源地址">
@@ -242,7 +241,7 @@
         <div class="overlay-address-grid">
           <section class="overlay-address-item">
             <div>
-              <strong class="ui-card-title">我的网页歌单 <lira-help>歌曲在「歌单导入导出」中同步。</lira-help></strong>
+              <strong class="ui-card-title">我的网页歌单 <lira-help>在「歌单导入导出」中开启并同步歌库。</lira-help></strong>
             </div>
             <button type="button" class="copy-url overlay-address-copy" data-copy-url="webSongPageUrl" title="复制网页歌单地址" disabled>
               <code id="webSongPageUrl" class="ui-caption">连接 LIRA 账号后显示网页歌单地址</code>

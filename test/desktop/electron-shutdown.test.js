@@ -324,7 +324,7 @@ test('ordinary restart installs a ready update after draining, including a downl
   });
 });
 
-test('update restart lets the real NSIS elevation fallback and updater quit run before final exit', async t => {
+test('update restart waits for the managed NSIS elevation handoff and quit notification before final exit', { skip: process.platform !== 'win32' }, async t => {
   const { NsisUpdater } = require('electron-updater');
   const Module = require('node:module');
   const originalLoad = Module._load;
@@ -334,32 +334,43 @@ test('update restart lets the real NSIS elevation fallback and updater quit run 
     if (resourcesPath) Object.defineProperty(process, 'resourcesPath', resourcesPath);
     else delete process.resourcesPath;
   });
-  let nativeUpdater;
+  const path = require('node:path');
+  const file = path.join(require('../helpers/scratch-directory').createScratchDirectory('restart-update-', t), 'fixture.exe');
+  require('node:fs').writeFileSync(file, 'fixture');
+  const managerPath = require.resolve('../../src/electron/update-manager');
+  const saved = require.cache[managerPath];
+  t.after(() => { delete require.cache[managerPath]; if (saved) require.cache[managerPath] = saved; });
+  let electron, updater;
   t.mock.method(Module, '_load', function (request, parent, isMain) {
-    if (request === 'electron') return { autoUpdater: nativeUpdater };
+    if (request === 'electron') return electron;
+    if (request === 'electron-updater') return { autoUpdater: updater };
     return originalLoad.call(this, request, parent, isMain);
   });
 
   for (const finish of ['drained', 'deadline']) await t.test(finish, async () => {
-    const updater = Object.create(NsisUpdater.prototype);
+    updater = Object.create(NsisUpdater.prototype);
     updater._logger = { info() {}, warn() {} };
-    updater.downloadedUpdateHelper = { file: 'fake-installer.exe', downloadedFileInfo: {} };
+    updater.downloadedUpdateHelper = { file, downloadedFileInfo: {} };
     const h = createShutdownHarness({
       installUpdate({ app, autoUpdater, calls }) {
-        nativeUpdater = autoUpdater;
+        electron = { autoUpdater, app: { ...app, quit() { calls.push('update:quit'); app.quit(); } } };
         autoUpdater.once('before-quit-for-update', () => calls.push('update:before-quit'));
-        updater.app = { quit() { calls.push('update:quit'); app.quit(); } };
-        updater.spawnLog = async file => {
-          if (file === 'fake-installer.exe') {
+        updater.app = {};
+        updater.spawnLog = async (executable, args) => {
+          if (executable === file) {
             calls.push('update:spawn');
             throw Object.assign(new Error('synthetic permission failure'), { code: 'EACCES' });
           }
-          assert.equal(require('node:path').basename(file), 'elevate.exe');
+          assert.equal(path.basename(executable), 'elevate.exe');
+          assert.deepEqual(args, [file, '--updated', '/S', '--force-run']);
           calls.push('update:elevate');
           return true;
         };
-        updater.dispatchError = error => assert.fail(error);
-        updater.quitAndInstall(true, true);
+        delete require.cache[managerPath];
+        const manager = require(managerPath);
+        manager.configureAutoUpdater({ updater });
+        updater.emit('update-downloaded', { version: '5.2.8', downloadedFile: file });
+        return manager.installUpdate();
       },
     });
     await h.start();
@@ -392,6 +403,30 @@ test('update restart lets the real NSIS elevation fallback and updater quit run 
     await h.settle();
     assert.equal(h.count('app:exit'), 1);
   });
+});
+
+test('a failed explicit install returns a retry without shutting down the desktop or disabling future resource checks', async () => {
+  const h = createShutdownHarness({ installUpdate: () => ({ status: 'error', canDownload: true }) });
+  await h.start();
+  h.publishUpdate({ status: 'downloaded', canInstall: true });
+  const result = await h.handlers.get('desktop:install-update')();
+  assert.equal(result.canDownload, true);
+  assert.equal(h.count('integrity:cancel'), 1);
+  assert.equal(h.count('integrity:stop'), 0);
+  assert.equal(h.count('runtime:stop'), 0);
+  assert.equal(h.count('app:release-lock'), 0);
+  assert.equal(h.count('app:exit'), 0);
+});
+
+test('an ordinary restart relaunches the existing client if its pending update has disappeared', async () => {
+  const h = createShutdownHarness({ installUpdate: () => ({ status: 'error', canDownload: true }) });
+  await h.start();
+  h.publishUpdate({ status: 'downloaded', canInstall: true });
+  const restart = h.restart();
+  h.remoteIdle.resolve(); h.cloudIdle.resolve(); h.backendStop.resolve();
+  await restart;
+  assert.equal(h.count('update:install'), 1);
+  assertFinalized(h, true);
 });
 
 for (const firstIntent of ['quit', 'restart']) {

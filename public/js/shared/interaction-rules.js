@@ -1,6 +1,6 @@
 // Pure rules shared by the desktop form and the Node session owner (Node 24).
-export const POLL_RULE = '发送任一完整选项，每个账号首次有效选择计票；以客户端截止前收到并处理为准。';
-export const RATING_RULE = '发送整数 1–10，每个账号只计结束前最后一次有效评分。';
+export const POLL_RULE = '观众发送与选项完全一致的弹幕即可投票；以倒计时结束前客户端收到的弹幕为准。';
+export const RATING_RULE = '仅识别纯数字 1–10（带其他文字或小数不算）；在主播点击结束前，观众可以随时发新分数覆盖旧分数。';
 export const POLL_MIN_OPTIONS = 1;
 export const POLL_MAX_OPTIONS = 6;
 

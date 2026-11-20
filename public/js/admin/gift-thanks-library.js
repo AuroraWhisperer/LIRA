@@ -26,7 +26,7 @@ export function createGiftThanksLibrary(root, changed) {
     <label data-thanks-sample-label>预览礼物<select data-thanks-sample><option value="paid">普通礼物</option><option value="blind">盲盒礼物</option><option value="free">免费礼物</option></select></label>
   </div>
   <div class="danmaku-thanks-library-description"><p class="hint" data-thanks-description></p>
-    <lira-help label="场景文案说明">每个场景独立选择普通或 @，该场景下所有文案共用，每次随机选一条。普通回复优先使用已保存的昵称；@ 直接提及观众，正文可写“谢谢你”。</lira-help>
+    <lira-help label="场景文案说明">每个分类可单独选「普通回复」或「@ 回复」，每次随机挑一条发送。选「@ 回复」时会自动 @ 送礼观众，正文直接写“谢谢你的{礼物}”即可，不用再加 {称呼}。</lira-help>
   </div>
   <div id="danmakuGiftThanksList" data-thanks-rows></div>
   <div class="danmaku-thanks-library-actions">

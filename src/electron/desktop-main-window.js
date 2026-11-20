@@ -35,7 +35,6 @@ function createDesktopMainWindow({
     bindClientAppearanceWindow(window, url, getThemeId);
     bindRequestAuth(window);
     writeLog('window', { event: 'create', window: 'main' });
-    window.loadURL(url + (authorized ? '/admin?desktop=1' : '/license'));
 
     function ready() {
       writeLog('window', { event: 'ready', window: 'main' });

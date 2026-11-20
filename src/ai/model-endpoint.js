@@ -114,7 +114,7 @@ function describeModelEndpoint(value, protocolPreference = 'auto', providerPrefe
           ? 'kimi_thinking'
         : provider === 'gemini'
           ? 'gemini_effort'
-          : endpoint.protocol === 'responses'
+          : endpoint.protocol === 'responses' || provider === 'custom'
             ? 'effort'
             : 'provider_managed',
   };

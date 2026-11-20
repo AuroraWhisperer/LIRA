@@ -16,9 +16,12 @@ const SUPERCHAT_PALETTES = [
   [2000, '#FFD8D8', '#AB1A32', '#C86A7A'],
 ];
 
+export function getSuperChatTier(price) {
+  return (SUPERCHAT_PALETTES.findLast(([minimum]) => Number(price) >= minimum) || SUPERCHAT_PALETTES[0])[0];
+}
+
 export function getSuperChatColors(item, style) {
-  const tier = SUPERCHAT_PALETTES.findLast(([minimum]) => Number(item.price) >= minimum)
-    || SUPERCHAT_PALETTES[0];
+  const tier = SUPERCHAT_PALETTES.find(([minimum]) => minimum === getSuperChatTier(item.price));
   const fallback = style === 'harbor' && tier[0] === 0 ? [0, '#EDF5FF', '#11468A', '#70829C'] : tier;
   const colors = {};
   ['backgroundColor', 'accentColor', 'priceColor'].forEach((key, index) => {

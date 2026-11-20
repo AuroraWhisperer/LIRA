@@ -86,14 +86,24 @@ function createAudioAssistant({ executable, getExecutable, dataDir, spawnProcess
       await launch();
       const id = ++sequence;
       const { promise, resolve, reject } = Promise.withResolvers();
-      const timer = setTimeout(() => {
+      const worker = child;
+      const pending = { resolve, reject, timer: setTimeout(onTimeout, 45000) };
+      async function onTimeout() {
+        // A paused player can leave Start awaiting a stream. The bridge still answers Get.
+        if (op === 'start' && state.starting && state.sourceProcessId && child === worker && !closed) {
+          const health = await invoke('get');
+          if (!requests.has(id)) return;
+          if (health.ok && health.state.starting) {
+            pending.timer = setTimeout(onTimeout, 45000);
+            return;
+          }
+        }
         requests.delete(id);
         reject(new Error('音频操作超时，可关闭当前歌曲处理后重试。'));
-        // Closing stdin also reaches the existing route guard if the worker stalls.
-        if (child) child.stdin.end();
-      }, 45000);
-      requests.set(id, { resolve, reject, timer });
-      child.stdin.write(JSON.stringify({ id, op, value, playbackProcessId: getPlaybackProcessId() }) + '\n');
+        if (child === worker && !worker.stdin.writableEnded) worker.stdin.end();
+      }
+      requests.set(id, pending);
+      worker.stdin.write(JSON.stringify({ id, op, value, playbackProcessId: getPlaybackProcessId() }) + '\n');
       return await promise;
     } catch (error) {
       return { ok: false, error: error.message, state };

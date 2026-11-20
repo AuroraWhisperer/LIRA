@@ -495,10 +495,13 @@ export function createPlaybackController(initialOptions = {}) {
 
   async function restorePlaybackState() {
     const restored = await storageManager.restoreState();
-    if (restored) {
-      stateActions.restore(restored);
-      await playbackInitializer.restoreLocalFileUrls();
+    if (restored) stateActions.restore(restored);
+    if (storageManager.serverSnapshotStatus === 'unavailable') {
+      statePersistence.requireQueueEditBeforeSave();
+    } else if (restored && storageManager.serverSnapshotStatus === 'empty') {
+      savePlaybackState();
     }
+    if (restored) await playbackInitializer.restoreLocalFileUrls();
   }
 
   // ══════════════════════════════════════════════════════════════

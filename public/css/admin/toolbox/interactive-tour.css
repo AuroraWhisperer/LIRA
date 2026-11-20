@@ -22,7 +22,7 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(24, 24, 22, 0.38);
+  background: color-mix(in srgb, var(--color-bg-overlay-light) 95%, transparent);
   pointer-events: none;
 }
 
@@ -34,7 +34,7 @@ html.lira-tour-active .other-feature-panel {
 .lira-tour-shade {
   position: absolute;
   display: none;
-  background: rgba(24, 24, 22, 0.38);
+  background: color-mix(in srgb, var(--color-bg-overlay-light) 95%, transparent);
   pointer-events: none;
 }
 
@@ -310,7 +310,7 @@ html.lira-tour-active .other-feature-panel {
   display: grid;
   place-items: center;
   padding: 16px;
-  background: rgba(24, 24, 22, 0.48);
+  background: color-mix(in srgb, var(--color-bg-overlay-light) 87%, var(--color-bg-overlay));
   pointer-events: auto;
 }
 

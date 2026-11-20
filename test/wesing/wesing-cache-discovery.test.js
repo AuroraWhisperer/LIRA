@@ -5,7 +5,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { createScratchDirectory } = require('../helpers/scratch-directory');
-const { createFixture } = require('../helpers/wesing-capture-fixture');
+const { encryptQrc } = require('qrc-decoder');
+const { createFixture, qrcXml } = require('../helpers/wesing-capture-fixture');
 const { createWeSingCacheReader, hasWeSingCacheData, ensureWeSingCacheDirectory } = require('../../src/music/wesing-cache');
 const { discoverWeSingCachePath, getWeSingCacheCandidates } = require('../../src/music/wesing-cache-discovery');
 
@@ -167,6 +168,12 @@ test('WeSing reuses parsed QRC files without sharing mutable results and detects
   reader.clear();
   await reader.loadLyrics(options);
   assert.equal(reads, 3, 'a new capture lifecycle reloads the QRC');
+
+  const newTitle = '更新的歌名';
+  const query = { ...options, title: newTitle };
+  assert.equal(await reader.loadLyrics(query), null);
+  fs.writeFileSync(filePath, Buffer.from(encryptQrc(qrcXml(`[ti:${newTitle}]\n[0,1000]新(0,1000)`)), 'hex'));
+  assert.equal((await reader.loadLyrics(query)).title, newTitle, 'a changed file may match a previously excluded title');
 });
 
 test('WeSing retries failed QRC reads and does not refill a cleared cache from an old read', async (t) => {

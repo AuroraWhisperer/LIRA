@@ -1,6 +1,7 @@
 'use strict';
 
 const { RemoteLicenseError } = require('./remote-license-error');
+const { SONG_TEXT_LIMITS } = require('../../shared/cloud-song-snapshot');
 const { SONG_BACKGROUND_MAX_BYTES, SONG_BACKGROUND_TYPES, addSongBackgroundPreviewUrl, mapSongForSync } = require('./license-response-utils');
 
 const MAX_SONG_SYNC_REQUEST_BYTES = 5 * 1024 * 1024;
@@ -50,6 +51,14 @@ function createSongOperations({ remote, withAuthorizedToken }) {
     const snapshot = songs.map(mapSongForSync);
     if (Buffer.byteLength(JSON.stringify({ songs: snapshot }), 'utf8') > MAX_SONG_SYNC_REQUEST_BYTES) {
       throw new RemoteLicenseError('PAYLOAD_TOO_LARGE', '歌库数据超过同步大小限制，请减少歌曲或缩短备注、点歌价格和歌切后重新同步。');
+    }
+    // A count-only acknowledgement cannot detect a truncated title or clip.
+    for (const [index, song] of snapshot.entries()) {
+      for (const [field, limit, code] of SONG_TEXT_LIMITS) {
+        if (typeof song[field] === 'string' && song[field].length > limit) {
+          throw new RemoteLicenseError(code, undefined, { index });
+        }
+      }
     }
     return withAuthorizedToken(
       (token) => remote.syncSongs(snapshot, token, requestOptions),

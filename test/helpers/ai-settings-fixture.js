@@ -66,6 +66,12 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       focus() {},
       showModal() { this.open = true; },
       close() { this.open = false; },
+      showPopover() { this.popoverOpen = true; },
+      hidePopover() { this.popoverOpen = false; },
+      style: { setProperty() {} },
+      offsetWidth: 300,
+      offsetHeight: 220,
+      getBoundingClientRect: () => ({ top: 100, bottom: 136, left: 24, width: 300 }),
       click() {
         if (tagName === 'a') downloads.push({ href: this.href, name: this.download });
       },
@@ -86,9 +92,11 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
       checkValidity: () => true,
       reportValidity: () => true,
       matches(selector) {
+        if (selector === ':popover-open') return this.popoverOpen === true;
         return selector.includes(`input[type="${this.type}"]`) || (tagName === 'select' && selector.includes('select'));
       },
       parentElement: {
+        classList: { toggle() {}, remove() {} },
         after(node) {
           elements.set(node.id, node);
         },
@@ -124,6 +132,8 @@ async function createAiSettingsFixture({ config = {}, deferInitialConfig = false
   elements.set('otherDanmakuFeature', panel);
   elements.get('xiaomiAiForm').closest = (selector) => selector === '[hidden]' && panel.hidden ? panel : null;
   const window = {
+    innerWidth: 1440,
+    innerHeight: 900,
     addEventListener: (type, handler) => windowEvents.set(type, handler),
   };
   const documentRef = {

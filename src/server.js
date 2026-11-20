@@ -412,8 +412,8 @@ function createServerRuntime(runtimeOptions = {}) {
   }
 
   function startServer(options = {}) {
-    if (startPromise) return startPromise;
     if (isShuttingDown) return Promise.reject(new Error('Server runtime is shutting down.'));
+    if (startPromise) return startPromise;
 
     const startPort = options.startPort === undefined ? START_PORT : Number(options.startPort);
     const host = validateServerHost(options.host || HOST);

@@ -1,0 +1,34 @@
+/* Native numeric inputs keep their form events, validation and accessible names. */
+.lira-number-field {
+  position: relative;
+  display: block;
+  min-width: 0;
+}
+
+.lira-number-field[hidden] {
+  display: none;
+}
+
+.lira-number-field > input {
+  padding-inline-end: var(--number-field-unit-space, 36px);
+}
+
+.lira-number-field > input::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.lira-number-field-unit {
+  position: absolute;
+  inset-inline-end: var(--number-field-unit-inset, 12px);
+  top: 50%;
+  translate: 0 -50%;
+  color: var(--color-primary-text, var(--primary-strong));
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-medium);
+  pointer-events: none;
+}
+
+.lira-number-field > input:disabled + .lira-number-field-unit {
+  color: var(--color-disabled-text, var(--color-text-muted));
+}

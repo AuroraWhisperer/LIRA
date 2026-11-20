@@ -1,6 +1,7 @@
 'use strict';
 
 import { showFieldError } from '../shared/field-feedback.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { SCENE_EXTRA_COMPONENTS } from '../shared/scene-extra-components.js';
 import { showConfirmationDialog } from '../shared/confirmation-dialog.js';
@@ -17,18 +18,6 @@ const APPEARANCE_ROWS = [
     ['themeText', 'themeText', '文字'], ['themePrimary', 'themePrimary'], ['themeAccent', 'themeAccent']]],
   ['布局', [['compact', 'blindboxCompact'], ['noScroll', 'blindboxAutoPages']]],
 ];
-
-function parseBlindboxConfig(textarea) {
-  const raw = (textarea.value || '').trim();
-  if (!raw) return [];
-  try {
-    const config = JSON.parse(raw);
-    return Array.isArray(config) ? config : [];
-  } catch (error) {
-    void error;
-    return [];
-  }
-}
 
 function parseBlindboxOutputs(value) {
   const outputs = String(value || '')
@@ -127,6 +116,23 @@ export function createBlindboxSettings({
     getGifts()?.renderBlindBoxList?.();
   }
 
+  function setAdvancedOpen(open) {
+    documentRef.getElementById('blindBoxAdvanced').hidden = !open;
+    documentRef.getElementById('blindBoxAdvancedToggle').textContent = open ? '高级 ▴' : '高级 ▾';
+  }
+
+  function readCustomConfig(textarea) {
+    try {
+      const config = JSON.parse(textarea.value.trim() || '[]');
+      if (!Array.isArray(config)) throw new Error('配置必须是 JSON 数组');
+      return config;
+    } catch (error) {
+      setAdvancedOpen(true);
+      invalid('giftBlindBoxCustomConfigV2', '盲盒配置 JSON 格式错误：' + error.message);
+      return null;
+    }
+  }
+
   function updateHeartBoxSettings() {
     const settings = documentRef.getElementById('blindboxHeartBoxSettings');
     if (settings) settings.hidden = !documentRef.getElementById('blindboxHeartBoxOnly').checked;
@@ -150,7 +156,8 @@ export function createBlindboxSettings({
       if (!outputs?.length) return invalid('blindBoxOutputs', '请按“产物 ID:名称:价格”填写礼物');
 
       const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
-      const config = parseBlindboxConfig(textarea);
+      const config = readCustomConfig(textarea);
+      if (!config) return;
       config.push({ giftId: giftId || null, name, price, outputs });
       const newRaw = JSON.stringify(config, null, 2);
       textarea.value = newRaw;
@@ -171,7 +178,8 @@ export function createBlindboxSettings({
       const index = parseInt(btn.dataset.blindIndex, 10);
       if (isNaN(index)) return;
       const textarea = documentRef.getElementById('giftBlindBoxCustomConfigV2');
-      const config = parseBlindboxConfig(textarea);
+      const config = readCustomConfig(textarea);
+      if (!config) return;
       if (index < 0 || index >= config.length) return;
       const before = textarea.value;
       const confirmed = await showConfirmationDialog({
@@ -200,9 +208,7 @@ export function createBlindboxSettings({
 
     documentRef.getElementById('blindBoxAdvancedToggle').addEventListener('click', () => {
       const advanced = documentRef.getElementById('blindBoxAdvanced');
-      const button = documentRef.getElementById('blindBoxAdvancedToggle');
-      advanced.hidden = !advanced.hidden;
-      button.textContent = advanced.hidden ? '高级 ▾' : '高级 ▴';
+      setAdvancedOpen(advanced.hidden);
     });
 
     documentRef.getElementById('giftBlindBoxSaveBtn').addEventListener('click', async () => {
@@ -211,18 +217,11 @@ export function createBlindboxSettings({
         toast('暂无自定义配置，可在上方添加盲盒');
         return;
       }
-      let raw = textarea.value.trim() || '[]';
-      try {
-        const parsed = JSON.parse(raw);
-        if (!Array.isArray(parsed)) throw new Error('配置必须是 JSON 数组');
-        raw = JSON.stringify(parsed);
-      } catch (error) {
-        invalid('giftBlindBoxCustomConfigV2', '盲盒配置 JSON 格式错误：' + error.message);
-        return;
-      }
+      const config = readCustomConfig(textarea);
+      if (!config) return;
       const submittedText = textarea.value;
       textarea.dataset.dirty = 'true';
-      await saveSettings({ giftBlindBoxCustomConfigV2: raw });
+      await saveSettings({ giftBlindBoxCustomConfigV2: JSON.stringify(config) });
       if (textarea.value === submittedText) textarea.dataset.dirty = 'false';
       toast('自定义盲盒已保存，等待服务器确认');
       renderBlindboxList();
@@ -241,14 +240,14 @@ export function createBlindboxSettings({
         if (!element.checkValidity()) { element.reportValidity(); return; }
         const status = documentRef.getElementById('blindboxSaveState');
         pendingAppearanceSaves += 1;
-        if (status) status.textContent = '正在保存…';
+        renderSaveStatus(status, 'saving');
         saveSettings({ [setting]: element.type === 'checkbox' ? String(element.checked) : element.value.trim() })
           .then(() => { failedAppearanceFields.delete(setting); })
           .catch(() => { failedAppearanceFields.add(setting); })
           .finally(() => {
             pendingAppearanceSaves -= 1;
-            if (status && !pendingAppearanceSaves) status.textContent = failedAppearanceFields.size
-              ? '部分设置保存失败，请重新修改后重试。' : '已保存';
+            if (!pendingAppearanceSaves) renderSaveStatus(status, failedAppearanceFields.size ? 'error' : 'saved',
+              failedAppearanceFields.size ? '部分设置保存失败，请重新修改后重试。' : undefined);
           });
       });
     }

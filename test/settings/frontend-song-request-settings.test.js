@@ -23,6 +23,10 @@ test('song request edits autosave independently, serialize newer drafts and reta
     userCooldownCaptainSeconds: '',
     userCooldownAdmiralSeconds: '30',
     userCooldownGovernorSeconds: '0',
+    userDailyLimit: '',
+    userDailyCaptainLimit: '3',
+    userDailyAdmiralLimit: '5',
+    userDailyGovernorLimit: '',
     songRequestMinMedalLevel: '5',
     songRequestGuardLevel: '3',
     songRequestGuardMedalBypass: 'false',
@@ -106,6 +110,8 @@ test('song request edits autosave independently, serialize newer drafts and reta
   await settle();
   assert.equal(requests.length, 2);
   assert.equal(requests[1].payload.queueLimit, '40');
+  assert.equal(requests[1].payload.userDailyCaptainLimit, '3');
+  assert.equal(requests[1].payload.userDailyLimit, '');
   assert.equal(requests[1].payload.songRequestCancelEnabled, 'false');
   assert.equal(requests[1].payload.songRequestRequireSpace, 'true');
   assert.equal(requests[1].payload.songRequestMatchMode, 'prefix');

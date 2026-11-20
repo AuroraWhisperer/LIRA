@@ -21,9 +21,13 @@ export function parseTable(text, { preserveMissing = false } = {}) {
   if (rows.length === 0) return [];
 
   const header = rows[0].map((cell) => cell.trim());
-  const hasHeader = Object.values(aliases)
-    .flat()
-    .some((name) => header.includes(name));
+  const labels = new Set(Object.values(aliases).flat());
+  const isLabel = (cell) => labels.has(cell);
+  // A ten-column data row can contain labels such as 可点. Keep a full row of
+  // column labels with a missing song-name heading invalid, even on legacy imports.
+  const hasHeader = findHeader(header, aliases.name) !== -1 || (header.length === 10
+    ? Array.from(header.slice(1)).every(isLabel)
+    : header.some(isLabel));
   const bodyRows = hasHeader ? rows.slice(1) : rows;
 
   const indexes = {
@@ -143,6 +147,7 @@ export function parseDelimited(text, delimiter) {
       cell += char;
     }
   }
+  if (inQuote) throw new Error('表格中的双引号未闭合，请检查文件是否完整，修正后重新检查歌单。');
   row.push(cell.trim());
   rows.push(row);
   return rows.filter((item) => item.some(Boolean));

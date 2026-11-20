@@ -15,8 +15,7 @@
   gap: 4px 10px;
 }
 
-.blindbox-broadcast-caption,
-.blindbox-save-state {
+.blindbox-broadcast-caption {
   color: var(--muted);
   font-size: var(--type-size-caption);
   font-weight: var(--type-weight-regular);
@@ -25,6 +24,7 @@
 
 .blindbox-save-state {
   margin: 0;
+  justify-content: flex-end;
   text-align: right;
 }
 

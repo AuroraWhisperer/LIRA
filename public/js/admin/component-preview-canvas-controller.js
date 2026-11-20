@@ -8,6 +8,7 @@ import { startGiftWishesCanvasData } from './gift-wishes-canvas-data.js';
 import { startNowPlayingCanvasData } from './now-playing-canvas-data.js';
 import { startGiftMotionCanvasData } from './gift-motion-canvas-data.js';
 import { startLiveRankingsCanvasData } from './live-rankings-client.js';
+import { danmakuStyleFavorites } from './danmaku-style-favorites.js';
 
 let cached;
 
@@ -253,10 +254,12 @@ export async function prepareComponentPreviewCanvas(components, request = reques
         const stopNowPlaying = startNowPlayingCanvasData(controller, receive);
         const stopGiftMotion = startGiftMotionCanvasData(controller, receive);
         const stopRankings = startLiveRankingsCanvasData(controller, receive);
-        return Object.assign(() => { stopOpening(); stopGames(); stopWishes(); stopNowPlaying(); stopGiftMotion(); stopRankings(); },
+        const stopFavorites = danmakuStyleFavorites.subscribe(state => receive({ previewData: { danmakuStyleFavorites: state } }));
+        return Object.assign(() => { stopOpening(); stopGames(); stopWishes(); stopNowPlaying(); stopGiftMotion(); stopRankings(); stopFavorites(); },
           { setActive: stopRankings.setActive });
       },
       getComponentSize: (...args) => active?.getComponentSize(...args),
+      favorite(change) { assertCurrent(); return danmakuStyleFavorites.set(change); },
       source: () => {
         if (!active) throw new Error('请先新建场景并保存应用。');
         return active.source();

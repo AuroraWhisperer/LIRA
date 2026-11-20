@@ -8,18 +8,24 @@ const { loadModuleExports } = require('../helpers/frontend-modules');
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('blind-box mapping releases room listeners and ignores pending reads after disposal', async () => {
-  const fixture = await createBlindboxFixture({ roomId: '123' });
-  const dispose = fixture.module.init();
+test('pagehide releases catalog listeners and ignores both pending room and official reads', async () => {
+  const pending = Promise.withResolvers();
+  const fixture = await createBlindboxFixture({ roomId: '123', catalogResponse: pending.promise });
+  fixture.module.init();
   assert.equal(fixture.refreshRequests.length, 1, 'repeated initialization shares the current lifecycle');
   const rendered = fixture.container.innerHTML;
-  dispose();
+  fixture.window.dispatchEvent({ type: 'pagehide' });
+  assert.equal(fixture.fetchCalls.find(({ url }) => url.endsWith('/catalog')).options.signal.aborted, true);
+  assert.equal(fixture.eventBus.listenerCount('gift:catalog_updated'), 0);
   assert.equal(fixture.eventBus.listenerCount('state:saved'), 0);
   fixture.dispatchSettings('456');
   fixture.dispatchAuthChanged();
   fixture.dispatchSavedSettings('789');
+  const lateBox = { id: 'old', name: 'Old box', giftCategory: 'blindBox', imagePath: '/overtime-gift-images/old.webp' };
+  pending.resolve({ ok: true, data: { gifts: [lateBox], blindBoxes: [{ giftId: 'old', outputGiftIds: ['1'] }] } });
   await fixture.resolveRefresh({ roomId: '123', gifts: [{ id: 'old', name: '旧房间盲盒' }] });
   assert.equal(fixture.container.innerHTML, rendered);
+  assert.equal(fixture.findGiftArtwork(lateBox.id, lateBox.name), '');
   assert.equal(fixture.refreshRequests.length, 0);
 });
 
@@ -211,6 +217,45 @@ test('blind-box advanced editor replaces saved null with an empty state while pr
   textarea.value = '{';
   renderBlindBoxList();
   assert.equal(textarea.value, '{');
+});
+
+test('adding a blind box preserves a malformed advanced draft until it is corrected', async () => {
+  const { createParameterDocument } = require('../helpers/parameter-dom');
+  const document = createParameterDocument();
+  const field = (id) => document.getElementById(id);
+  const { createBlindboxSettings } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/admin/settings-blindbox.js'), { document });
+  const writes = [];
+  createBlindboxSettings({
+    documentRef: document, value: (id) => field(id).value, toast() {}, getGifts: () => null, getState: () => null,
+    localOverlayOrigin: () => 'http://127.0.0.1',
+    saveSettings: async ({ giftBlindBoxCustomConfigV2 }) => writes.push(JSON.parse(giftBlindBoxCustomConfigV2)),
+  }).init();
+  const draft = field('giftBlindBoxCustomConfigV2');
+  draft.after = (node) => document.body.append(node);
+  draft.focus = () => { document.activeElement = draft; };
+  const original = { name: 'A', price: 2, outputs: [{ giftId: '1', name: '礼物' }] };
+  const saved = JSON.stringify([original]);
+  field('blindBoxName').value = 'B';
+  field('blindBoxPrice').value = '3';
+  field('blindBoxOutputs').value = '2:奖品:1';
+  draft.value = saved.slice(0, -1);
+  draft.listeners.input();
+  const add = () => field('blindBoxAddBtn').listeners.click();
+  for (const invalid of [draft.value, '{"name":"A"}', 'null']) {
+    draft.value = invalid;
+    field('blindBoxAdvanced').hidden = true;
+    await add();
+    assert.deepEqual(writes, []);
+    assert.equal(draft.value, invalid);
+    assert.equal(draft.dataset.dirty, 'true');
+    assert.equal(field('blindBoxName').value, 'B');
+    assert.equal(field('blindBoxAdvanced').hidden, false);
+    assert.equal(draft.getAttribute('aria-invalid'), 'true');
+    assert.equal(document.activeElement, draft);
+  }
+  draft.value = saved;
+  await add();
+  assert.deepEqual(writes, [[original, { giftId: null, name: 'B', price: 3, outputs: [{ giftId: '2', name: '奖品', price: 1 }] }]]);
 });
 
 test('blind-box JSON draft survives state refresh and a failed save', async () => {

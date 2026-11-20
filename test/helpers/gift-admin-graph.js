@@ -6,8 +6,7 @@
 // （vm.SourceTextModule 路径），以保留再导出绑定与模块作用域。
 export { giftBlindbox } from '../../public/js/admin/gifts/blindbox.js';
 export { giftNotification } from '../../public/js/admin/gifts/notification.js';
-export { renderGiftPanel } from '../../public/js/admin/gifts/index.js';
+export { initGiftPanel, renderGiftPanel } from '../../public/js/admin/gifts/index.js';
 export { stateService } from '../../public/js/admin/state.js';
 export { eventBus } from '../../public/js/shared/event-bus.js';
-export { initGiftArtworkCatalog } from '../../public/js/admin/gifts/artwork-catalog.js';
-export { giftRecent } from '../../public/js/admin/gifts/recent.js';
+export { findGiftArtwork } from '../../public/js/admin/gifts/artwork-catalog.js';

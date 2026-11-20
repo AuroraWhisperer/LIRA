@@ -457,6 +457,24 @@ test('gift card profiles use a fixed authenticated endpoint and encode the curso
   }
 });
 
+test('export avatar lookup sends only the selected event IDs to the fixed Device route', async () => {
+  const requests = [];
+  const client = createRemoteLicenseClient({
+    baseUrl: 'https://review.example.test',
+    fetchImpl: async (url, init) => {
+      requests.push({ url, init });
+      return Response.json({ ok: true, items: [] });
+    },
+  });
+  await client.getGiftCardAvatars(['guard-1'], 'device-token');
+  assert.equal(requests.length, 1);
+  const [{ url, init }] = requests;
+  assert.equal(url, 'https://review.example.test/api/device/gift-card-avatars');
+  assert.equal(init.method, 'POST');
+  assert.equal(init.headers.Authorization, 'Bearer device-token');
+  assert.deepEqual(JSON.parse(init.body), { eventIds: ['guard-1'] });
+});
+
 test('external abort is not misreported as a request timeout', async () => {
   const client = createRemoteLicenseClient({
     baseUrl: 'https://api.lirahub.cn',

@@ -172,7 +172,14 @@ test('desktop lyric settings debounce input and serialize the latest automatic s
       listeners.set(type, handler);
     },
   };
-  const autosaveState = { textContent: '', className: '' };
+  const autosaveState = {
+    textContent: '', className: '', dataset: {}, setAttribute() {},
+    classList: { toggle(name, enabled) {
+      const names = new Set(autosaveState.className.split(' ').filter(Boolean));
+      if (enabled) names.add(name); else names.delete(name);
+      autosaveState.className = [...names].join(' ');
+    } },
+  };
   const resetListeners = new Map();
   let confirmReset = false;
   const values = {

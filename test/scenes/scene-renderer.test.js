@@ -12,11 +12,91 @@ const { createLayout } = require('../../src/shared/danmaku-layout');
 const { createSceneComponentPorts } = require('../../src/server/scene-components');
 const { startCanvasOutputFixture } = require('../helpers/canvas-output-fixture');
 const { createTextBoxDefaults } = require('../../public/js/shared/text-box-config.js');
+const { createSceneExtraDefaults } = require('../../public/js/shared/scene-extra-components.js');
 const { randomUUID } = require('node:crypto');
 
 const openBrowserSession = useSharedBrowser();
 const textBoxItem = (config, x = 0) => ({ id: randomUUID(), type: 'text-box', name: '文本框', x, y: 0, width: 640, height: 180,
   visible: true, locked: false, appearance: { mode: 'independent', config } });
+
+function publishLayer(fixture, type, config) {
+  const created = fixture.service.create({ title: type, canvas: { width: 800, height: 600 } });
+  const layer = { id: randomUUID(), type, name: type, x: 0, y: 0, width: 800, height: 600,
+    visible: true, locked: false, appearance: { mode: 'independent', config } };
+  const saved = fixture.service.save({ id: created.document.id, expectedRevision: created.revision,
+    document: { ...created.document, items: [layer] } });
+  fixture.service.publish({ id: saved.document.id, expectedRevision: saved.revision });
+  const { id, token } = fixture.service.getSource(saved.document.id);
+  return `${fixture.origin}/scene?id=${id}#token=${token}`;
+}
+
+test('ranking output keeps its room and rows during 503 and drops them on revocation', { timeout: 15000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const now = Date.now();
+  const row = { roomId: '88', rank: 1, score: 42, name: '榜单房间' };
+  const snapshot = { version: 'rank-1', room: { roomId: row.roomId }, boards: [{ id: 'hot', title: '热门',
+    status: 'ready', updatedAt: now, unit: '热度', rows: [row], current: row }] };
+  t.mock.method(fixture.liveRankings, 'getSnapshot', () => snapshot);
+  const url = publishLayer(fixture, 'live-rankings', createSceneExtraDefaults('live-rankings'));
+  const page = await browser.newPage();
+  await page.clock.setFixedTime(now);
+  let status = 200;
+  await page.route('**/api/scene/output?*', route => status === 200 ? route.continue() : route.fulfill({ status, json: { ok: false } }));
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const board = page.frameLocator('iframe[data-component="live-rankings"]');
+  const room = board.locator('.ranking-list .ranking-row.is-current');
+  await room.getByText(row.name).waitFor();
+  const unchanged = await page.waitForResponse(async response => response.url().includes('/api/scene/output?')
+    && !Object.hasOwn((await response.json()).data.data, 'live-rankings'));
+  assert.equal(unchanged.status(), 200);
+  status = 503;
+  await board.locator('.ranking-freshness.is-delayed:visible, #rankingStatus:visible:not(:empty)').first().waitFor({ timeout: 4000 });
+  assert.equal(await room.isVisible(), true, 'A failed read keeps the last highlighted room visible.');
+  assert.match(await board.locator('.ranking-freshness').textContent(), /更新延迟/);
+  status = 200;
+  await board.locator('.ranking-freshness.is-delayed').waitFor({ state: 'hidden' });
+  assert.equal(await room.locator('.ranking-score').textContent(), '42');
+  status = 403;
+  await page.locator('iframe[data-component="live-rankings"]').waitFor({ state: 'detached' });
+});
+
+test('batched cloud event times reach Twitter scene labels and standalone Glass time elements', { timeout: 20000 }, async t => {
+  const fixture = await startCanvasOutputFixture();
+  const browser = openBrowserSession();
+  t.after(async () => { await browser.close(); await fixture.close(); });
+  const saved = await fixture.appearance.read();
+  fixture.appearance.save({ ...saved, config: { ...saved.config, style: 'glass' } });
+  const sceneUrl = publishLayer(fixture, 'danmaku', { ...fixture.configs.danmaku, style: 'twitter' });
+  const scene = await browser.newPage({ timezoneId: 'Asia/Shanghai' });
+  const standalone = await browser.newPage({ timezoneId: 'Asia/Shanghai' });
+  const received = '2026-11-18T12:45:00.000Z';
+  const times = ['2026-11-18T20:41:59.600+08:00', '2026-11-18T12:42:01.500Z'];
+  for (const [page, url] of [[scene, sceneUrl], [standalone, `${fixture.origin}/danmaku?source=component`]]) {
+    page.setDefaultTimeout(4500);
+    await page.clock.setFixedTime(new Date(received));
+    assert.equal((await fetch(url)).status, 200);
+    await page.goto(url);
+  }
+  const twitter = scene.frameLocator('iframe[data-component="danmaku"]');
+  await twitter.getByText('合成开播确认').first().waitFor();
+  await standalone.getByText('合成开播确认').first().waitFor();
+  for (const [index, timestamp] of times.entries()) fixture.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live',
+    name: '观众', message: `批次消息${index}`, timestamp });
+  for (const [index, timestamp] of times.entries()) {
+    const text = `批次消息${index}`;
+    const tweet = twitter.locator('.twitter-post').filter({ hasText: text });
+    const glass = standalone.locator('.glass-item').filter({ hasText: text });
+    await tweet.waitFor(); await glass.waitFor();
+    assert.deepEqual([await tweet.locator('.twitter-meta').textContent(), await glass.locator('time').getAttribute('datetime')],
+      [`@Spectator · ${['20:41', '20:42'][index]}`, new Date(timestamp).toISOString()]);
+  }
+  fixture.updateCloud({ type: 'danmaku', liveSessionId: 'synthetic-live', name: '观众', message: '无时间消息' });
+  const fallback = standalone.locator('.glass-item').filter({ hasText: '无时间消息' }).locator('time');
+  assert.equal(await fallback.getAttribute('datetime'), received);
+});
 
 test('scene output becomes ready when hidden child animation frames are paused', { timeout: 15000 }, async t => {
   const fixture = await startCanvasOutputFixture();

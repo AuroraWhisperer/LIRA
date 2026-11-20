@@ -356,6 +356,59 @@ test('export derives the merged snapshot before pagination while leaving selecte
   assert.deepEqual(items, before);
 });
 
+test('export fills historical selected avatars without changing the gift rows or grouping', async () => {
+  const createdAt = new Date(time - 86400000).toISOString();
+  const gift = { userName: '同一观众', unitPrice: 1, num: 1, createdAt };
+  const items = [
+    { eventId: 'guard', gift: { ...gift, giftId: 'guard-3', giftName: '舰长', avatarUrl: null } },
+    { eventId: 'ticket', gift: { ...gift, giftId: 'ticket', giftName: '人气票', avatarUrl: avatar } },
+    { eventId: 'unknown', gift: { ...gift, giftId: 'ticket', giftName: '人气票', avatarUrl: null } },
+  ];
+  const runtime = createGiftExportRuntime({
+    getServices: () => ({
+      gifts: { getSelection: () => ({ viewRevision: 'a', items }), getViewRevision: () => 'a' },
+      overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) },
+    }),
+    getSettingsStore: () => ({ getSettings: () => ({}) }),
+    giftCards: { getProfiles: async () => ({ day, items: [] }) },
+  });
+  const calls = [];
+  let unavailable = false;
+  runtime.configureGiftSync({ cardAvatars: async ({ eventIds }) => {
+    calls.push(eventIds);
+    if (unavailable) throw new Error('old server');
+    return { ok: true, items: [{ eventId: 'guard', avatarUrl: avatar }] };
+  } });
+  const repaired = await runtime.prepareGiftExport({});
+  assert.deepEqual(calls, [['guard', 'unknown']]);
+  assert.deepEqual(repaired.items.map((item) => [item.eventId, item.gift.avatarUrl]), [
+    ['guard', avatar], ['ticket', avatar], ['unknown', null],
+  ]);
+  assert.equal(items[0].gift.avatarUrl, null);
+  unavailable = true;
+  assert.deepEqual((await runtime.prepareGiftExport({})).items, items);
+});
+
+test('export discards a delayed avatar response if the gift source changes', async () => {
+  let revision = 'a';
+  const runtime = createGiftExportRuntime({
+    getServices: () => ({
+      gifts: {
+        getViewRevision: () => revision,
+        getSelection: () => ({ viewRevision: 'a', items: [{ eventId: 'guard', gift: { avatarUrl: null } }] }),
+      },
+      overtimeGiftCatalog: { getGlobalSnapshot: () => ({ gifts: [] }) },
+    }),
+    giftCards: { getProfiles: async () => ({ day, items: [] }) },
+    getSettingsStore: () => ({ getSettings: () => ({}) }),
+  });
+  runtime.configureGiftSync({ cardAvatars: async () => {
+    revision = 'b';
+    return { ok: true, items: [{ eventId: 'guard', avatarUrl: avatar }] };
+  } });
+  await assert.rejects(runtime.prepareGiftExport({}), { code: 'GIFT_VIEW_STALE' });
+});
+
 test('unchanged profile revisions transfer a 5000-row day once across twenty refreshes and retry missing avatars', async () => {
   let revision = 'a'.repeat(64);
   let transferred = 0;

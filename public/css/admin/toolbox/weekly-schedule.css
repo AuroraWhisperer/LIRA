@@ -3,8 +3,7 @@
 .other-feature-panel-body.weekly-schedule-editor { padding: 12px; color: var(--text); scrollbar-width: none; scrollbar-gutter: auto; }
 .weekly-schedule-editor::-webkit-scrollbar { display: none; }
 .weekly-editor-actions, .weekly-template-toolbar, .weekly-preview-heading, .weekly-preview-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.weekly-editor-actions [data-weekly-save-state] { font-size: var(--type-size-caption); color: var(--muted); }
-.weekly-editor-actions .is-error, .weekly-editor-error { color: var(--danger); }
+.weekly-editor-error { color: var(--danger); }
 .weekly-template-toolbar { padding: 0 0 12px; }
 .weekly-template-toolbar label { display: grid; gap: 5px; min-width: 150px; font-size: var(--type-size-caption); }
 .weekly-template-name { flex: 0 1 280px; }

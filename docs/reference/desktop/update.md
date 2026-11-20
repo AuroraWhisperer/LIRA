@@ -38,7 +38,7 @@ checking ──无新版本──▶ not-available
 | `downloading`   | 下载中       | false / false            | `download-progress` 事件 / `downloadUpdate()`  | [update-manager.js](../../../src/electron/update-manager.js)     |
 | `downloaded`    | 下载完成     | false / **true**         | `update-downloaded` 事件                       | [update-manager.js](../../../src/electron/update-manager.js)     |
 | `installing`    | 安装中(重启) | false / false            | `installUpdate()`                              | [update-manager.js](../../../src/electron/update-manager.js) |
-| `error`         | 失败         | false / false            | autoUpdater `error` 事件 / 各函数 catch        | [update-manager.js](../../../src/electron/update-manager.js)   |
+| `error`         | 失败         | 更新包消失时 true / false，启动安装程序失败时 false / true，其他错误 false / false | 更新或安装失败        | [update-manager.js](../../../src/electron/update-manager.js)   |
 | `dev-disabled`  | 开发模式禁用 | false / false            | `checkForUpdates()` 且未打包 / 启动即置位      | [update-manager.js](../../../src/electron/update-manager.js) |
 
 > 状态名以代码为准:`available` / `not-available`(旧文档写的 `update-available` / `no-update` 已纠正);`progress` 仅在 downloading / downloaded 非空。
@@ -90,13 +90,11 @@ generic provider 配置 `useMultipleRangeRequest: false`，逐段请求变化的
 
 更新状态只通过 `desktop:update-state` 投递，不再要求用户切换页面；发现新版本与下载完成仍显示可点击前往更新页的通知。界面「启动时自动检查更新」对应已有 `enableAutoUpdate`，只控制启动检查；手动「检查并下载更新」同样沿用自动下载。`available` 阶段显示准备下载，不展示需要用户点击才下载的假象；下载完成提示退出安装，应用内使用指南提供 `https://lirahub.cn/download/client` 官方下载入口，由服务器按同一清单跳转，资源检查保留官方项目页面入口。
 
-`installUpdate()`([update-manager.js](../../../src/electron/update-manager.js)):仅 `canInstall` 放行；置 `installing` → `app.releaseSingleInstanceLock()`（允许新实例启动）→ `autoUpdater.quitAndInstall(true, true)`。updater 仍传递 `/S --updated --force-run`；新版 NSIS 安装器识别 `--updated` 后切换为可见的自动安装，直接显示真实进度与等待退出、备份、安装、恢复等阶段，不再要求选择安装范围、目录或点击完成。成功后窗口自动关闭，沿用普通用户启动与 `--updated` 参数；仅带 `--force-run` 时重新启动 LIRA。普通退出触发的自动安装也显示进度，但完成后保持应用关闭。安装器细节见 [build.md §6](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。
+Windows 上，`installUpdate()` 使用 electron-updater 下载并校验的待安装文件。显式安装先排空正在运行的资源检查，再确认安装包仍是普通文件。文件消失时，窗口保留单实例锁并显示「重新下载」。安装器启动失败时可以重试安装，资源检查也可以再次发起。
 
-`electron-updater` 启动安装程序后、调用 `app.quit()` 前发出 Electron 原生
-`before-quit-for-update`。主进程监听此事件，直接进入已有的受控关闭流程；即使本机来源
-仍连接，也不会在安装已启动后再询问是否继续使用。普通关窗不凭下载完成状态跳过确认。
+启动命令沿用 `--updated /S --force-run`。管理器等待系统确认已创建安装进程，`EACCES` / `UNKNOWN` 走随包的提权助手。并发安装请求共用一次启动。成功后才释放单实例锁，发出 `before-quit-for-update` 并调用 `app.quit()` 进入受控关闭。此时显式安装已经接管当前包，退出时只启动一次安装程序。下一次下载完成后重新启用普通退出自动安装。普通退出自动安装显示进度，完成后保持应用关闭。安装向导的行为见[构建参考](../engineering/build.md#6-nsis-安装脚本buildinstallernsh)。
 
-普通重启在排空结束时发现已下载更新，也通过同一 `installUpdate()` 安装。此路径的最终退出保留一轮事件循环，让 NSIS 的异步启动失败回退（`UNKNOWN`/`EACCES` 提权，`ENOENT` 交给 `shell.openPath`）及更新器的 `before-quit-for-update` / `app.quit()` 先发起；重入不会再次安装、排空或 relaunch。它不等待安装完成，也不重置统一关闭截止，具体顺序及回归见 [主进程关闭序列](main.md#7-关闭序列与播放状态冲刷)。
+普通重启在排空结束后检查待安装更新。更新启动成功时交给安装器重启，安装包已消失或启动失败时通过 `app.relaunch()` 重新打开当前版本，满足用户的重启请求。排空和播放状态冲刷顺序见[主进程关闭序列](main.md#7-关闭序列与播放状态冲刷)。
 
 ## 5. friendlyUpdateError 映射
 

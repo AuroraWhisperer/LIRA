@@ -194,8 +194,8 @@ export function createOvertimeRuleEditor(root, markDirty, dependencies = {}) {
     quantityOptions.append(quantityLegend);
     const quantityName = `overtime-rule-quantity-${++ruleControlSequence}`;
     quantityOptions.append(
-      createQuantityOption(quantityName, 'group', '按连击组', '同一次连击只结算一次', rule.quantityMode !== 'item'),
-      createQuantityOption(quantityName, 'item', '按具体数量', '礼物数量为 N 时，就结算 N 次', rule.quantityMode === 'item'),
+      createQuantityOption(quantityName, 'group', '按连击组', '不管观众一次连击送了几个，一整组连击只触发 1 次', rule.quantityMode !== 'item'),
+      createQuantityOption(quantityName, 'item', '按具体数量', '送了几个就触发几次（例如一次送 10 个，效果就叠加 10 次）', rule.quantityMode === 'item'),
     );
     modeSection.append(modeOptions, quantityOptions);
     body.append(modeSection);

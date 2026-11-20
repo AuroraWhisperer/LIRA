@@ -34,7 +34,9 @@ export function createSceneDanmakuDisplay({ clear, append, remove = () => {}, st
       if (!['danmaku', 'gift', 'superchat'].includes(event.type)) continue;
       if (event.type === 'danmaku' && event.isWelcome === true && !showWelcomeMessages()) continue;
       if (event.type === 'superchat' && !supportsDanmakuSuperchat(getStyle())) continue;
-      append({ ...event, id: `scene-event-${++sequence}`, kind: event.type, timestamp: Date.now(),
+      const sentAt = typeof event.timestamp === 'string' || typeof event.timestamp === 'number'
+        ? new Date(event.timestamp).getTime() : NaN;
+      append({ ...event, id: `scene-event-${++sequence}`, kind: event.type, timestamp: sentAt > 0 ? sentAt : Date.now(),
         message: event.type === 'gift' ? `送出 ${event.giftName} × ${event.giftCount}` : event.message });
     }
   }

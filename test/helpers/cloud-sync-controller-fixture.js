@@ -1,6 +1,7 @@
 'use strict';
 
 const { createCloudSyncController } = require('../../src/electron/cloud-sync-controller');
+const { mapSongForSync } = require('../../src/shared/cloud-song-snapshot');
 
 const LOCAL_BLIND_BOX_CONFIG = [
   {
@@ -24,6 +25,14 @@ function createFixture(overrides = {}) {
   let timerId = 0;
   let cloudWatch = null;
   const timers = new Map();
+  let cloudSongs = [{ title: 'Cloud song', artist: 'Singer' }];
+  let songState = { initialized: true, revision: 3, updatedAt: '2026-11-18 00:00:00' };
+  function commitSongs(songs) {
+    calls.push(['push-songs', songs]);
+    cloudSongs = songs.map(mapSongForSync);
+    songState = { ...songState, revision: songState.revision + 1, updatedAt: '2026-11-18 00:00:01' };
+    return { ok: true, count: songs.length, ...songState };
+  }
   const licenseManager = {
     LicenseState: { AUTHORIZED: 'authorized' },
     getState: () => 'authorized',
@@ -51,7 +60,7 @@ function createFixture(overrides = {}) {
           giftBlindBoxConfig: CLOUD_BLIND_BOX_CONFIG,
         },
       },
-      songs: { initialized: true, revision: 3 },
+      songs: songState,
       bilibili: {
         initialized: true,
         revision: 4,
@@ -63,15 +72,8 @@ function createFixture(overrides = {}) {
       calls.push(['push-settings', settings]);
       return { initialized: true, revision: 5, values: settings };
     },
-    getCloudSongs: async () => ({
-      songs: [{ title: 'Cloud song', artist: 'Singer' }],
-      initialized: true,
-      revision: 3,
-    }),
-    syncSongs: async (songs) => {
-      calls.push(['push-songs', songs]);
-      return { ok: true, count: songs.length, initialized: true, revision: 6 };
-    },
+    getCloudSongs: async () => ({ songs: cloudSongs, ...songState }),
+    syncSongs: async (songs) => commitSongs(songs),
     getBilibiliCredentialsInternal: async () => ({
       initialized: true,
       revision: 4,
@@ -153,6 +155,7 @@ function createFixture(overrides = {}) {
   });
   return {
     calls,
+    commitSongs,
     controller,
     emitLocal: (scope) => localListener?.(scope),
     emitCloud: (event) => cloudWatch?.onChange?.(event),

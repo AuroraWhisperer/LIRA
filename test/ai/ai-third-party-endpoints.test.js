@@ -4,6 +4,51 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { createModelClient } = require('../../src/ai/model-client');
 
+test('third-party GPT reasoning uses known tiers and sends the selected mode in either protocol', async () => {
+  const requests = [];
+  const client = createModelClient({ fetchImpl: async (url, options) => {
+    if (!options.body) return jsonResponse({ data: [{ id: 'gpt-6.1-sol' }] });
+    requests.push({ url: String(url), body: JSON.parse(options.body) });
+    return jsonResponse({ output_text: 'ok', choices: [{ message: { content: 'ok' } }] });
+  } });
+  const config = { modelProvider: 'custom', deepseekResponsesUrl: 'https://gateway.example.test/',
+    modelApiProtocol: 'auto', deepseekApiKey: 'fixture-key', model: 'gpt-6.1-sol',
+    reasoningEnabled: true, reasoningEffort: 'high' };
+  const catalog = await client.listModels({ modelProvider: config.modelProvider,
+    responsesUrl: config.deepseekResponsesUrl, apiKey: config.deepseekApiKey });
+  assert.ok(catalog.modelReasoning?.[config.model]?.efforts.includes('high'));
+  await client.createResponse({ config, input: 'hello' });
+  assert.equal(requests.at(-1).body.reasoning_effort, 'high');
+  await client.createResponse({ config: { ...config, reasoningEnabled: false }, input: 'hello' });
+  assert.equal(requests.at(-1).body.reasoning_effort, 'low');
+  await client.createResponse({ config: { ...config, modelProvider: 'auto', model: 'gpt-6-sol', reasoningEnabled: false }, input: 'hello' });
+  assert.equal(requests.at(-1).body.reasoning_effort, 'none');
+  await client.createResponse({ config: { ...config, modelApiProtocol: 'responses' }, input: 'hello' });
+  assert.equal(requests.at(-1).body.reasoning.effort, 'high');
+});
+
+test('third-party catalog overrides known GPT tiers, including explicit removal of effort control', async () => {
+  let levels = ['none', 'high'];
+  let body;
+  const client = createModelClient({ fetchImpl: async (_url, options) => {
+    if (!options.body) return jsonResponse({ data: [{ id: 'gpt-6.1-sol', supported_reasoning_levels: levels,
+      default_reasoning_level: 'high' }] });
+    body = JSON.parse(options.body);
+    return jsonResponse({ choices: [{ message: { content: 'ok' } }] });
+  } });
+  const config = { modelProvider: 'custom', deepseekResponsesUrl: 'https://gateway.example.test/',
+    deepseekApiKey: 'fixture-key', model: 'gpt-6.1-sol', reasoningEnabled: false, reasoningEffort: 'high' };
+  const refresh = () => client.listModels({ modelProvider: config.modelProvider,
+    responsesUrl: config.deepseekResponsesUrl, apiKey: config.deepseekApiKey });
+  await refresh();
+  await client.createResponse({ config, input: 'hello' });
+  assert.equal(body.reasoning_effort, 'none');
+  levels = [];
+  await refresh();
+  await client.createResponse({ config, input: 'hello' });
+  assert.equal(body.reasoning_effort, undefined);
+});
+
 function jsonResponse(payload, status = 200) {
   return {
     ok: status >= 200 && status < 300,
@@ -129,7 +174,7 @@ test('explicit Responses protocol adapts a third-party root and sends reasoning 
   assert.equal(captured.body.messages, undefined);
 });
 
-test('explicit Chat Completions protocol adapts a third-party root without reasoning fields', async () => {
+test('unrecognized third-party Chat models retain parameter omission', async () => {
   let captured;
   const client = createModelClient({
     fetchImpl: async (url, options) => {
@@ -154,5 +199,6 @@ test('explicit Chat Completions protocol adapts a third-party root without reaso
 
   assert.equal(captured.url, 'https://gateway.example.test/v1/chat/completions');
   assert.equal(captured.body.reasoning, undefined);
+  assert.equal(captured.body.reasoning_effort, undefined);
   assert.equal(captured.body.thinking, undefined);
 });

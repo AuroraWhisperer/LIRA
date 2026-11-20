@@ -12,6 +12,7 @@ const path = require('node:path');
 const { createDesktopRequestAuth } = require('../../src/electron/desktop-request-auth');
 const { configureMediaRequestHeaders } = require('../../src/electron/media-request-headers');
 const { createDesktopMainWindow } = require('../../src/electron/desktop-main-window');
+const { createDesktopReadinessController } = require('../../src/electron/desktop-readiness-controller');
 const { registerLicenseIpc } = require('../../src/electron/ipc/license-ipc');
 
 const directory = process.argv[2];
@@ -174,10 +175,21 @@ app
       }),
       onCloseRequest() {}, onReady() {}, writeLog() {},
     });
+    const navigationFailure = Promise.withResolvers();
+    const readiness = createDesktopReadinessController({
+      licenseManager: { getState: () => licenseState, onStateChanged: () => () => {} },
+      runtime: { onGiftCatalogInitializationStateChanged: () => () => {} },
+      getMainWindow: desktop.getWindow,
+      baseUrl,
+      writeLog: (_category, error) => navigationFailure.reject(error),
+    });
     assert.equal((await fetch(`${baseUrl}/license`)).status, 200);
-    mainWindow = desktop.create(baseUrl);
+    mainWindow = desktop.create(baseUrl, readiness.initialRoute === 'admin');
     windows.push(mainWindow);
-    await once(mainWindow.webContents, 'did-finish-load');
+    const firstLoad = Promise.race([once(mainWindow.webContents, 'did-finish-load'), navigationFailure.promise]);
+    readiness.start();
+    await firstLoad;
+    readiness.dispose();
     assert.equal(mainWindow.webContents.getLastWebPreferences().sandbox, true);
     assert.equal(await mainWindow.webContents.executeJavaScript('typeof require'), 'undefined');
     assert.equal((await mainWindow.webContents.executeJavaScript('window.liraLicense.getState()')).state, 'needs_activation');

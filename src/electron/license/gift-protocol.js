@@ -86,6 +86,9 @@ function createGiftEndpoints({ request, readEventStream }) {
         options.signal,
       );
     },
+    getGiftCardAvatars(eventIds, token, signal) {
+      return request('POST', '/api/device/gift-card-avatars', { eventIds }, token, { maxResponseBytes: 512 * 1024, signal });
+    },
     clearGiftHistory,
     watchGiftEvents,
     getGiftCatalog: etag => requestGiftCatalog(etag),
@@ -235,6 +238,9 @@ function createGiftOperations({ remote, withAuthorizedToken }) {
 
   return {
     getGiftEventsInternal, getGiftHistoryInternal, getGiftSummariesInternal, clearGiftHistoryInternal, watchGiftEventsInternal, getGiftCatalog,
+    getGiftCardAvatarsInternal: ({ eventIds, signal }) => withAuthorizedToken(
+      (token) => remote.getGiftCardAvatars(eventIds, token, signal), { signal },
+    ),
     getGiftCardProfilesInternal: (input = {}) =>
       withAuthorizedToken(
         (token) => remote.getGiftCardProfiles(input.cursor, token, { signal: input.signal,

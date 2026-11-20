@@ -20,9 +20,13 @@ function verifiedGuardLevel(input) {
 }
 
 function userCooldownSeconds(settings, input) {
-  const keys = { 1: 'userCooldownGovernorSeconds', 2: 'userCooldownAdmiralSeconds', 3: 'userCooldownCaptainSeconds' };
-  const override = settings[keys[verifiedGuardLevel(input)]];
-  return Number(override === undefined || override === '' ? settings.userCooldownSeconds : override) || 0;
+  const keys = { 0: 'userCooldownSeconds', 1: 'userCooldownGovernorSeconds', 2: 'userCooldownAdmiralSeconds', 3: 'userCooldownCaptainSeconds' };
+  return Number(settings[keys[verifiedGuardLevel(input)]]) || 0;
+}
+
+function userDailyLimit(settings, input) {
+  const keys = { 0: 'userDailyLimit', 1: 'userDailyGovernorLimit', 2: 'userDailyAdmiralLimit', 3: 'userDailyCaptainLimit' };
+  return Number(settings[keys[verifiedGuardLevel(input)]]) || 0;
 }
 
 function assertSongRequesterAllowed(settings, input, at = Date.now()) {
@@ -37,7 +41,7 @@ function assertSongRequesterAllowed(settings, input, at = Date.now()) {
       throw requestRejection('REQUESTER_BLACKLISTED', '你目前已被限制点歌。');
     }
   }
-  if (Number(settings.userQueueLimit) > 0 && !identity) {
+  if ((Number(settings.userQueueLimit) > 0 || userDailyLimit(settings, input) > 0) && !identity) {
     throw requestRejection('REQUESTER_IDENTITY_REQUIRED', '暂时无法确认你的点歌身份，请稍后再点歌。');
   }
 
@@ -55,4 +59,4 @@ function assertSongRequesterAllowed(settings, input, at = Date.now()) {
   }
 }
 
-module.exports = { requestRejection, requesterIdentity, userCooldownSeconds, assertSongRequesterAllowed };
+module.exports = { requestRejection, requesterIdentity, userCooldownSeconds, userDailyLimit, assertSongRequesterAllowed };

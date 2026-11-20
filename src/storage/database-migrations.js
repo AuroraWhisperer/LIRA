@@ -133,6 +133,17 @@ function getMigrationPlan(options = {}) {
           if (song.name_pinyin !== initial || song.name_initial !== initial) update.run(initial, initial, song.id);
         }
       },
+      // v19：观众每日成功点歌次数独立于队列和可编辑粉丝汇总。
+      (db) => {
+        db.exec(`CREATE TABLE IF NOT EXISTS song_request_daily_counts (
+          owner_scope TEXT NOT NULL,
+          request_day TEXT NOT NULL,
+          identity_type TEXT NOT NULL,
+          requester_uid TEXT NOT NULL,
+          accepted_count INTEGER NOT NULL,
+          PRIMARY KEY (owner_scope, request_day, identity_type, requester_uid)
+        )`);
+      },
     ] },
 
     // 醒目留言库此前完全没有迁移入口，v1 建立基线以便后续加列

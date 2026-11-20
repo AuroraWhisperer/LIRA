@@ -1,5 +1,6 @@
 import { DANMAKU_STYLE_OPTIONS } from '../shared/danmaku-style-options.js';
 import { DANMAKU_STYLE_TAGS } from './danmaku-style-catalog.js';
+import { bindDanmakuStyleFavorites, setDanmakuStyleFavoritesAccount } from './danmaku-style-favorites.js';
 
 const HISTORY_PREFIX = 'lira.danmaku-recent-styles.v1.';
 const RECENT_LIMIT = 4;
@@ -95,6 +96,7 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
         const card = source.cloneNode(true);
         card.removeAttribute('data-danmaku-style');
         card.dataset.recentDanmakuStyle = style;
+        card.title = `${source.querySelector('.danmaku-style-name').textContent} · ${source.title}`;
         card.hidden = false;
         // Keep the original selection path, including imported-style parameter cleanup.
         card.addEventListener('click', () => {
@@ -127,6 +129,8 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
     });
   }
 
+  const favorites = bindDanmakuStyleFavorites({ root: dialog.querySelector('.danmaku-library-results'), cards,
+    report: message => { count.textContent = message || `${[...cards.values()].filter(card => !card.hidden).length} 款内置样式`; } });
   bindDanmakuStyleFilters({ root: dialog, clearButton, render(matches) {
     let visible = 0;
     for (const [style, card] of cards) {
@@ -138,6 +142,7 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
   } });
   openButton.addEventListener('click', () => {
     if (dialog.open) return;
+    favorites.reset();
     dialog.showModal();
     document.getElementById('danmakuCloseStyleLibraryBtn').focus({ preventScroll: true });
     dialog.querySelector('.danmaku-library-scroll').scrollTop = 0;
@@ -151,6 +156,7 @@ export function bindDanmakuStyleLibrary({ buttons, controller, getAccount }) {
     const nextAccount = getAccount();
     if (account !== nextAccount) {
       account = nextAccount;
+      setDanmakuStyleFavoritesAccount(account);
       history = readHistory();
       previous = null;
       if (dialog.open) dialog.close();

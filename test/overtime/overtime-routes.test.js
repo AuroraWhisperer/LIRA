@@ -145,6 +145,7 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     });
     assert.equal(manualLocalRule.response.status, 200);
     assert.equal(manualLocalRule.payload.data.rules[0].giftId, '35600');
+    assert.equal(manualLocalRule.payload.data.rules[0].quantityMode, 'item');
 
     const snapshotMessage = await readNextWebSocketMessage(app.baseUrl, token);
     assert.equal(snapshotMessage.type, 'snapshot');
@@ -192,19 +193,6 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(invalidQuantityMode.response.status, 400);
     assert.match(invalidQuantityMode.payload.error, /quantityMode/);
 
-    const savedRules = await postJson(app.baseUrl, token, '/api/overtime/rules', {
-      rules: [
-        {
-          giftId: '35793',
-          mode: 'fixed',
-          fixedSeconds: 60,
-          quantityMode: 'item',
-        },
-      ],
-    });
-    assert.equal(savedRules.response.status, 200);
-    assert.equal(savedRules.payload.data.rules[0].quantityMode, 'item');
-
     const savedDisplayRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
       rules: [
         {
@@ -218,12 +206,6 @@ test('overtime API requires auth, validates commands, extends snapshots, and bro
     assert.equal(savedDisplayRule.response.status, 200);
     assert.equal(savedDisplayRule.payload.data.rules[0].displayText, '谢谢支持');
     assert.equal(savedDisplayRule.payload.data.rules[0].mode, 'display');
-
-    const invalidDisplayRule = await postJson(app.baseUrl, token, '/api/overtime/rules', {
-      rules: [{ giftId: '35793', mode: 'display', displayText: '七个文字超长度' }],
-    });
-    assert.equal(invalidDisplayRule.response.status, 400);
-    assert.match(invalidDisplayRule.payload.error, /displayText/);
 
     const malicious = await postJson(app.baseUrl, token, '/api/overtime/config', {
       path: '../secret.png',

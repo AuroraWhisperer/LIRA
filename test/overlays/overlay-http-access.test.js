@@ -240,7 +240,9 @@ test('anonymous canonical and raw overlay HTML contains only its own capability 
       const response = await f.request(pathname);
       const html = await response.text();
       assert.equal(response.status, 200, pathname);
+      assert.equal(response.headers.get('content-type'), 'text/html; charset=utf-8', pathname);
       assert.equal(response.headers.get('content-security-policy'), 'sandbox allow-scripts', pathname);
+      assert.equal(response.headers.get('x-frame-options'), null, pathname);
       assert.equal(response.headers.get('access-control-allow-origin'), null);
       assert.equal(html.includes(ADMIN), false);
       assert.ok(html.includes(createOverlayToken(ADMIN, scope)), pathname);

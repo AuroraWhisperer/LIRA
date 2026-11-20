@@ -285,7 +285,7 @@ for (const operation of ['play', 'quality']) {
   }
 }
 
-test('quality selection refreshes the current stream and persists the provider preference', async () => {
+test('quality selection before first play preserves the saved position and provider preference across restart', async () => {
   const current = {
     ...track('quality-song', '音质测试'),
     sourceSongType: 1,
@@ -305,6 +305,7 @@ test('quality selection refreshes the current stream and persists the provider p
       selectedSource: 'qq',
       queueType: 'playlist',
       queueTitle: '音质测试',
+      currentTime: 47,
       playlistIndex: 0,
       volume: 0.75,
     },
@@ -322,12 +323,15 @@ test('quality selection refreshes the current stream and persists the provider p
 
   await app.init();
   await flushAsyncWork();
-  app.element('music-player').currentTime = 47;
+  const audio = app.element('music-player');
+  audio.readyState = 0;
+  assert.equal(audio.src, '');
 
   await app.emit('playbackQualityPanel', 'click', {
     stopPropagation() {},
     target: closestTarget({ playbackQuality: 'lossless' }, 'data-playback-quality'),
   });
+  audio.readyState = 1;
   await app.emit('music-player', 'loadedmetadata');
   await app.emitWindow('pagehide');
 
@@ -335,8 +339,18 @@ test('quality selection refreshes the current stream and persists the provider p
   assert.equal(requestBody.track.sourceTrackId, 'quality-song');
   assert.equal(requestBody.track.sourceSongType, 1);
   assert.equal(app.element('music-player').src, 'https://example.test/lossless.flac');
-  assert.equal(app.element('music-player').currentTime, 47);
-  assert.equal(app.ipcSavedState().qualityPreferences.qq, 'lossless');
+  const saved = app.ipcSavedState();
+  assert.equal(saved.currentTime, 47);
+  assert.equal(audio.currentTime, 47);
+  assert.equal(app.audioPlayCalls(), 0);
+  assert.equal(saved.qualityPreferences.qq, 'lossless');
+
+  const restarted = await createPlaybackApp(saved);
+  await restarted.init();
+  await flushAsyncWork();
+  await restarted.emit('playbackPlayPause', 'click');
+  assert.equal(restarted.element('music-player').currentTime, 47);
+  assert.equal(restarted.element('music-player').paused, false);
 });
 
 test('a stale quality stream cannot replace a newer quality selection', async () => {

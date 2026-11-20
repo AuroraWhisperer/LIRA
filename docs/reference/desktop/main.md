@@ -335,7 +335,7 @@ IPC 通道定义见 [preload.md](preload.md)。
 
 账号边界使用 `licenseManager.getCloudSyncIdentity()` 返回的已保存 `accountName` 和 `streamerId`，与认证服务器 origin 一起构成同步 owner；该方法仅供 main process 内部使用，不新增 IPC。控制器在首轮同步及身份变化时，先通过 runtime 的 `prepareCloudRoomAccount` 同步完成[房间归属事务](../backend/storage.md#8-云端-scope-的本地落盘)，再允许 HTTP/SSE。无有效身份或事务失败时不发请求；房间变化后配置本地 runtime 并广播 `cloud:settings`，不发 dirty 回声。同一 owner 的重启或临时授权中断保留房间，其他/未知 owner 的旧房间不能进入新账号的首次播种或 dirty 上传。没有已建立账号边界时的 settings mutation 不取得待上传归属。
 
-磁盘歌库另以私有 `cloudSongAccountKey` 记录实际归属；切换账号后，待传恢复或云端拉取成功之前，不将旧歌库视为新账号内容。`getCloudSongsSnapshot(accountKey)` 在当前库上传与手动数量确认前检查归属，未就绪返回 `CLOUD_SONGS_NOT_READY`，不标记 songs dirty。`replaceCloudSongsSnapshot(input, accountKey)` 原子替换歌曲与归属；内容相同的待传恢复及云端明确未初始化时由 `acceptCloudSongsAccount(accountKey)` 接纳归属，后者继续原有首次播种。同账号离线编辑仍可保存并产生待传快照。
+磁盘歌库另以私有 `cloudSongAccountKey` 记录实际归属；切换账号后，待传恢复或云端拉取成功之前，不将旧歌库视为新账号内容。`getCloudSongsSnapshot(accountKey)` 在当前库上传与手动数量确认前检查归属，未就绪返回 `CLOUD_SONGS_NOT_READY`，不标记 songs dirty。待传恢复与普通拉取都经 `replaceCloudSongsSnapshot(input, accountKey)`，在同一 SQLite 事务内核对磁盘归属与规范化歌曲内容。同账号、同内容时保留歌曲 ID 和队列关联。其他账号的已初始化歌库或有内容变化的歌库按原流程整体替换。只有云端明确未初始化时，才由 `acceptCloudSongsAccount(accountKey)` 接纳本地库作首次播种。同账号离线编辑仍可保存并产生待传快照。
 
 每轮同步在入队时捕获生命周期代际和取消信号；停止时递增代际并取消在途 HTTP/SSE，请求返回及每次本地写入前再次检查代际。旧轮次不能因新的 `start()` 恢复为有效，也不能在 `dispose()` 后发起下一 scope 或修改本地状态。云端与礼物控制器保持独立，共用远端 SSE 读取/reader 清理和 [cancellable-delay.js](../../../src/shared/cancellable-delay.js) 的可取消长延迟调度；各自维护业务恢复与退避状态。
 
@@ -345,9 +345,11 @@ Device SSE 使用 15 秒连接期限和 60 秒完整事件块空闲期限；注�
 
 [cloud-settings-sync-controller.js](../../../src/electron/cloud-settings-sync-controller.js) 拥有设置快照的待传读取、当前菜单投影、上传确认、失效盲盒身份修复和拉取应用；菜单上传签名随父控制器停止而重置。[cloud-bilibili-sync-controller.js](../../../src/electron/cloud-bilibili-sync-controller.js) 拥有凭据上传与拉取应用，复用本地认证 owner 的 session revision 栅栏。两者不创建队列、订阅或 timer，始终使用父控制器注入的账号有效性、dirty/revision 判定和取消信号；revision 由父控制器的窄回调记录，保持设置应用后先记录 revision、再按需播种的次序。
 
-三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传；上传只在完成时代次仍未变化的情况下清除 dirty，因此上传期间出现的新修改会再上传一次。失败保留 dirty，下一轮重试，且 dirty 上传成功前不应用该 scope 的云端快照。songs/Bilibili 在等待远端内容后、写入本地 owner 前再次检查 dirty 与 revision，避免首次判断后发生的本地修改被旧拉取覆盖。未初始化的云端 settings/songs 由首台授权客户端上传本地快照；未初始化的 Bilibili scope 清除本地登录态，不从旧本地 Cookie 自动播种云端凭据。云端 revision 较新时，settings 与 songs 通过本地 runtime owner 应用，Bilibili 凭据只通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。离线期间服务端不排设备事件；启动、resume、SSE 重连与低频兜底直接比较云端当前 revision。
+三个 scope 各自跟踪 revision、dirty 和本地 mutation 代次。成功的本地 mutation 先递增代次、标记 dirty 并立即串行上传。上传只在完成时代次仍未变化的情况下清除 dirty，期间发生的新修改会再上传一次。失败保留 dirty，下一轮重试。songs 和 Bilibili 在拿到远端内容后、写入本地 owner 前再次核对账号、生命周期和待传状态。未初始化的云端 settings 和 songs 由首台授权客户端上传本地快照。未初始化的 Bilibili scope 清除本地登录态，云端凭据由当前账号显式登录后建立。settings 与 Bilibili 仅应用更新的 revision，Bilibili 凭据通过 [auth.md](auth.md) §13 的 main-process 内部方法导入。启动、恢复运行、SSE 重连和兜底轮询都读取当前云端摘要。
 
-歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，内容相同时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
+歌库摘要的 `revision` 或 `updatedAt` 发生变化时重新下载完整快照，覆盖服务端从备份回档及复用修订号的情况。旧库没有时间戳时，服务端可明确返回 `updatedAt: null`。应用后记录完整响应的版本与时间，本机待传编辑优先于远端替换。`updatedAt` 精确到秒。两项标记恰好都相同时，客户端在标记下次变化或重新启动后读取完整歌库。
+
+歌曲库的新增、编辑、删除和清空由 Electron 客户端本地管理页完成；每次成功 mutation 都在本地事务中保存账号所属的待传快照，并立即触发 songs scope 的完整快照上传。[cloud-song-sync-controller.js](../../../src/electron/cloud-song-sync-controller.js) 负责歌曲恢复、上传和拉取；父控制器保留授权、调度、revision 与 dirty 代次。账号准备阶段同步恢复该账号的待传快照，磁盘归属和内容均一致时保留原歌曲 ID；每轮及拉取落盘前重新检查待传状态。成功且生命周期仍有效的上传只确认其发送的 `mutationId`，较新的修改与其他账号的快照继续保留，停止或退出不删除待传数据。详见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。Streamer `/manage` 只展示最新同步歌单，不提供歌曲新增、编辑、启用切换、保存或删除控件。服务端既有歌曲 CRUD API 继续保留以兼容既有调用方，初次播种、云端 revision 和完整快照契约不变。
 
 settings 也保留账号所属的持久待传快照：启动或切回账号先恢复，再上传；存在待传记录时拒绝云端拉取覆盖。上传确认同时检查生命周期、修改代次和 `mutationId`，包括携带普通设置的礼物互动提交；迟到响应不能清除更新的修改。原子写入与私有记录格式见[本地落盘契约](../backend/storage.md#8-云端-scope-的本地落盘)。
 
@@ -356,6 +358,10 @@ Bilibili 交互登录/退出也从操作开始绑定同一同步 owner，旧窗�
 上传遇到 `INVALID_GIFT_BLIND_BOX_CONFIG` 时，只按服务器当前有效自定义身份移除已被接管/删除的旧 `customId`，保留其他本地设置、有效项的编辑和未分配身份的新草稿，再尝试一次。读取期间发生新编辑或换账号则放弃该次修复，成功回执之前保留持久待传记录；没有可确定移除的旧身份时报告冲突并保留原记录，不放宽服务端校验。普通网络失败沿用原重试行为。
 
 手动歌库同步先由主进程核对歌库归属并返回完整数量与确认代次，确认后进入同一串行队列，在执行时读取完整本地/待传快照。界面筛选不参与上传；确认期间的修改会进入最新快照，账号或授权生命周期变化则要求重新确认。归属检查通过后、请求入队前标记 songs dirty，阻止已在途云端拉取覆盖；成功、失败与较新修改的确认沿用自动路径。兼容 `syncSongs(songs)` 仍上传显式 payload，但也进入这条队列，不确认其他本地 pending。
+
+桌面在发送前按 Device 歌曲协议检查每一行归一化后的文本。上限以 UTF-16 code unit 计，歌名和歌手各 200，曲风 120，标签 500，语言和核对平台各 80，备注、点歌价格及歌切各 1000。超限返回对应字段的长度错误与零基歌曲索引，保留完整本机歌库及待传快照。手动同步提示显示一基序号、字段及上限。
+
+旧版 Device 上传可能在服务端截短字段后按条数确认成功。设备下载接口返回歌库及同步版本。恢复时，若当前账号没有待传记录，且本机原稿按旧规则截短后与下载的整份歌库逐首一致（含相同身份的条数），桌面在替换事务中把原稿重新记为该账号的待传快照，供导出或修正。
 
 `song-protocol.js` 的 `syncSongs` 授权操作在授权生命周期复核后验证服务器上传确认：`ok` 必须为 true，`count` 必须与提交快照长度一致。缺失、非法或不匹配的确认返回 `INVALID_RESPONSE`，不确认 pending、不清除 dirty，也不把本地数量作为服务器成功数量。
 
@@ -412,7 +418,7 @@ NSIS 在选定目录后的首个隐藏安装 section 中确认对应安装路径
 
 隐藏沙箱窗口固定加载 `/gift-export`，无 Node/preload，拒绝导航及新窗口，顺序 capturePage。每次保存先向该窗口传递一次冻结配置与礼物目录，并建立一次图片索引；逐图只传当前条目和背景，复用同一索引直到窗口销毁。横幅基础为 428×72、间隔 8px；2× PNG 每行基础为 856×144、间隔 16px，每图最多 39 条（基础 856×6224），数量文字可向右扩宽，同页取最宽横幅。支持透明/白色及合图/逐条。捕获后核验实际 PNG 尺寸并统一 2× 输出。取消、来源失效、导航和应用关闭释放窗口；失败保留成功文件并报告真实数量。截图验证脚本 `scripts/verify-gift-export.cjs`、`scripts/verify-gift-history.cjs` 使用隔离合成数据。
 
-[desktop-main-window.js](../../../src/electron/desktop-main-window.js) 的 `create(baseUrl, authorized)` 创建并持有唯一主窗口；初次 URL 使用 main 注入的就绪结果，后续 `/license` 与 `/admin?desktop=1` 切换由 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 的授权和礼物初始化状态监听器驱动：
+[desktop-main-window.js](../../../src/electron/desktop-main-window.js) 的 `create(baseUrl, authorized)` 创建主窗口并绑定请求鉴权。其后 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 的 `start()` 发起首次导航，由同一控制器监听授权与礼物初始化状态并切换后续路由。当前加载失败时释放导航目标，下次就绪通知可重试同一页面。失败结果按导航代次生效。
 
 | 事实           | 值                                                                                                                 | 出处                                                       |
 | -------------- | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------- |
@@ -495,7 +501,7 @@ Chromium `session.defaultSession.webRequest.onBeforeSendHeaders` 由一个合并
 4. dispose 动态抽奖授权；保存当前 remoteGift、cloudSync、fanProfile、desktopAuth controller 集合并逐个 dispose，再置空 main 的前三个 controller 引用。取消/代次失效使晚结果不能继续提交；客户端退出不表示云端业务关闭，也不保证撤回已发出的上游请求
 5. `await Promise.all([integrityStopped, dynamicLotteryAuth.whenIdle(), ...controllersToDrain.map(c => c.whenIdle())])`。此时 runtime/SQLite 保持可用；等待完成且未被 5 秒终结抢先结束后，才进入后端关闭
 6. `stopRuntime()` 委托 `runtime.stop({exitProcess:false})` → [server-core.md](../backend/server-core.md) §6.2，其中 `preShutdownHook` 为 `requestPlaybackFlush`，正常路径等待 renderer 冲刷与后端资源/数据库关闭
-7. 完成、清理失败或超时均进入同一幂等 finish：清 timer、分别移除媒体请求监听、dispose 管理请求认证与 license manager（单项失败记录后继续）。普通退出释放单实例锁；首次意图为重启时，调用 main 注入的 `restartApp`，根据此时更新是否就绪选择安装并重启或释放锁后 `app.relaunch()`。安装动作返回 `update` 时，固定通过一轮 `setImmediate` 交接后再 `app.exit(exitCode)`，让 NSIS 启动失败回退和更新器退出事件先执行；普通退出和 relaunch 仍直接 exit。截止触发的安装也只交接这一轮，不增加定时器或等待外部 Promise，重入仍复用原关闭任务。失败记录 shutdown-error；超时记录 QUIT_TIMEOUT，其他终结记录 QUIT_DONE
+7. 清理完成、失败或超时都由同一个 `finish` 收尾。它清除定时器，分别注销媒体请求监听、管理请求认证与 license manager，记录单项错误后继续。普通退出释放单实例锁并退出。首次请求为重启时，`finish` 等待 `restartApp` 完成交接。如果系统已启动安装器，再经一轮 `setImmediate` 处理更新器退出事件并调用 `app.exit(exitCode)`。普通 relaunch 直接退出。关闭期间的重复请求共用同一任务。清理失败记录 `shutdown-error`，到期记录 `QUIT_TIMEOUT`，其余情况记录 `QUIT_DONE`。
 
 | 资源与创建 owner | 取消入口 / 排空 | 数据依赖与晚完成保护 |
 | --- | --- | --- |
@@ -547,7 +553,7 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 
 `requestPlaybackFlush`([playback-flush.js:5-27](../../../src/electron/playback-flush.js#L5-L27))为单飞握手:存在 pending flush 时新请求立即完成;主窗口已销毁则 `{status:'skipped'}`;`acknowledgePlaybackFlush`([playback-flush.js:29-33](../../../src/electron/playback-flush.js#L29-L33))由 `playback:flush-ack` handler 调用。渲染进程侧行为见 [preload.md](preload.md) §3。
 
-`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/desktop-shell-ipc.js) 只记录请求并 `await requestRestart()`，回调由 main 注入；通道无参数、成功结果为 `undefined`。连续重启只安排一次最终动作；退出先到则后续重启仍只退出，重启先到则后续退出仍按重启终结。重启在上述关闭序列终结时读取最新 `canInstall`，包括排空期间刚完成的下载：更新已就绪则由 `update-manager.installUpdate()` 释放单实例锁并调用 `quitAndInstall(true,true)`，不再同时 `app.relaunch()`；没有可安装更新时沿用普通 relaunch。显式「安装并重启」入口仍由 `desktop-update-controller.installUpdate` 先等待 `resourceIntegrity.stop('UPDATE_INSTALLING')`，再委托同一 update-manager；触发的应用 before-quit 仍走上述受控关闭。退出后由 NSIS 显示安装进度并按原有启动意图自动结束，详见[自动更新运行时](update.md#4-ipc-与-ui-同步)。不能把资源检查停止等同于全部数据库已排空。证据入口：[desktop-update-controller.test.js](../../../test/desktop/desktop-update-controller.test.js)（安装前先停止资源检查）、[electron-shutdown.test.js](../../../test/desktop/electron-shutdown.test.js)（受控关闭顺序及普通重启与更新组合）、[resource-lifecycle-electron.test.js](../../../test/desktop/resource-lifecycle-electron.test.js)。
+`desktop:restart` 的 [IPC 适配器](../../../src/electron/ipc/desktop-shell-ipc.js) 记录请求并等待 `requestRestart()`。通道无参数，成功结果为 `undefined`。首个退出或重启请求决定最终动作。普通重启在排空结束后检查更新，包括此时刚完成的下载。有可安装更新时，`update-manager.installUpdate()` 等待系统确认安装器已启动，再释放单实例锁并调用 `app.quit()`。没有可用安装包或启动失败时，普通重启释放锁并用 `app.relaunch()` 打开当前版本。显式「安装并重启」先用 `resourceIntegrity.cancel()` 排空本次资源检查，再委托同一管理器。安装包消失或启动失败时，应用保留窗口和锁，仍可发起资源检查。安装器启动后的 `before-quit` 进入受控关闭，数据库按上述流程排空。[自动更新运行时](update.md#4-ipc-与-ui-同步) · [安装前资源检查测试](../../../test/desktop/desktop-update-controller.test.js) · [关闭和重启测试](../../../test/desktop/electron-shutdown.test.js) · [桌面资源生命周期测试](../../../test/desktop/resource-lifecycle-electron.test.js)。
 
 ## 8. 日志
 
@@ -563,6 +569,8 @@ Main: requestPlaybackFlush(mainWindow, 2000)
 行格式 `formatLogLine`([terminal-log.js](../../../src/electron/terminal-log.js)) 保留时间、runId、序号、PID、进程类型和 source，消息内换行转义；普通记录最终 UTF-8 最多 2 KiB、ERROR 最多 16 KiB。正常日志每文件 1 MiB，错误日志每文件 3 MiB，各保留活动文件和 `.1`、`.2` 两份归档；包含 AI 的六组受管理日志合计最多 36 MiB。满额轮转后继续写入，超大旧文件仅保留完整行尾部，拒绝符号链接或非普通文件目标，写入失败不干扰业务。
 
 [log-maintenance.js](../../../src/electron/log-maintenance.js) 在桌面启动及每小时维护：正常记录最多保留 3 天，错误/警告最多 14 天；时间和容量上限以先到者为准，不保证完整保留这段时间的全部记录。旧混合 desktop/terminal 日志先在容量范围内提取有效错误；旧 ai.log 只提取安全错误核心，不复制请求或响应正文，其待淘汰文件及两份归档额外最多 3 MiB。提取失败保留源记录待重试。无关文件不删除。六组日志的写入入口也按小时执行过期检查；退出释放维护定时器。
+
+旧日志迁移按目标文件的剩余空间成批追加，每条记录独立脱敏、截断。若中途写满磁盘，只从源文件移除已经完整追加的记录，其余留待下次维护。轮转已有 `.1` 时先对活动文件做同名改名检查。Windows 上若它已被禁止改名，写入返回失败，活动文件和两份归档均保留原内容。检查通过后，`.1` 改名替换 `.2`，活动文件再移到 `.1`。若两步之间进程退出或活动文件才被锁住，原有的 `.2` 已在替换时淘汰。重试会保留此时的 `.2`，把原活动文件移到空出的 `.1` 后继续追加。
 
 每个桌面/终端 writer 的普通与错误预算分开：每分钟各最多 120 条，同一消息最多 5 条，下一个窗口出现记录时输出抑制数量。主进程致命错误不受普通预算阻挡。[desktop-diagnostics.js](../../../src/electron/desktop-diagnostics.js) 观察 `uncaughtExceptionMonitor`，不替换默认异常处理；只从精确本地应用 Origin 的 webContents/frame 收集 console warning/error（包括脚本异常和未处理 Promise）、预加载及页面加载失败。远程登录窗口只记录进程退出原因/退出码，不收集页面内容；webContents 销毁或应用退出释放监听。入口加载失败仍显示原提示，并尽力同步保存启动错误。原生崩溃、断电、磁盘写入失败仍不保证日志完整。真实 Electron 验证见 [desktop-diagnostics-electron.test.js](../../../test/desktop/desktop-diagnostics-electron.test.js)。
 
@@ -600,4 +608,4 @@ ADR [0011](../../architecture/adr/0011-source-partitioned-gift-ledger-projection
 
 [desktop-readiness-controller.js](../../../src/electron/desktop-readiness-controller.js) 在首次授权与已授权启动时沿用 runtime 的 `initializeFontLibrary()` 入口，启动公共资源检查，与礼物目录初始化并行。每个 runtime 只检查一次 CDN 清单，授权状态重复通知不重复检查；明确重试可再次检查。启动补齐共享完整字体与世界地图；三张航海旗帜只保留旧 CDN 清单及缓存读取兼容，当前样式从导入 ZIP 读取，不再公共预下载。共享完整字体和地图不随安装包分发，首次补齐需要联网；两个微型标题裁剪字库仍随安装包提供。只有实际缺失或变化的共享资源才显示下载进度，检查及零下载结果静默；资源失败不阻塞桌面就绪条件，也不重新统计礼物进度。
 
-公共资源 owner 为 [resource-library.js](../../../src/resources/resource-library.js)，字体库负责字体 CSS 与旧字体缓存兼容。`src/server.js` 装配 owner；Electron `main.js` 在构造 `createDesktopRuntime` 时注入 `resourceFetch`，由该依赖使用 `net.fetch` 下载；CDN origin 由可信配置确定，无凭据、禁止重定向、清单 15 秒超时、字体包/图片 5 分钟超时，两路并发并限制每秒最多 8 次请求。更新清单 v2 声明原文件及字体包的大小、摘要和条目；下载按本机批准的字体归组和具名图片计算地址，不可指定任意 URL 或磁盘路径。字体包先整体校验，再验证所需文件并自动解包，同一包的新缓存索引一起发布，临时 ZIP 用后删除；仍可读取旧 v1 清单。首次准备页和 Admin 共用进度控制器，下载按字节显示；原目录 HTTP URL 读取已校验缓存，首次图像请求可等待当前下载，不发起额外资源同步。关闭在 HTTP drain 前取消任务并等待临时文件与索引写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。
+公共资源 owner 为 [resource-library.js](../../../src/resources/resource-library.js)，字体库负责字体 CSS 与旧字体缓存兼容。`src/server.js` 装配 owner；Electron `main.js` 在构造 `createDesktopRuntime` 时注入 `resourceFetch`，由该依赖使用 `net.fetch` 下载；CDN origin 由可信配置确定，无凭据、禁止重定向、清单 15 秒超时、字体包/图片 5 分钟超时，两路并发并限制每秒最多 8 次请求。更新清单 v2 声明原文件及字体包的大小、摘要和条目；下载按本机批准的字体归组和具名图片计算地址，不可指定任意 URL 或磁盘路径。字体包先整体校验，再验证所需文件并自动解包，同一包的新缓存索引一起发布，临时 ZIP 用后删除；仍可读取旧 v1 清单。首次准备页和 Admin 共用进度控制器，下载按字节显示；原目录 HTTP URL 读取已校验缓存，启动时已发出的资源请求在目标文件通过本机校验或其下载包完成索引提交后即可返回。索引提交后才公开下载的新对象，进程中断后可从本机已校验的待发布文件继续。历史摘要请求校验本地对象，并发读取共用一次摘要检查。关闭在 HTTP drain 前取消任务并等待临时文件与索引写入收尾。存储及来源见[字体说明](../../../public/fonts/README.md)；公开桥字段见 [preload](preload.md)。

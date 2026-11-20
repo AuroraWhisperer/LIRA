@@ -56,6 +56,8 @@ function createGuardRosterImporter({ store, create, observe }) {
           days: accompanyDays, roomId: snapshot.roomId, observedAt, source: 'guard-roster',
         });
         if (accompanyDays !== undefined && !accompany) throw new Error('平台陪伴天数无效。');
+        const lastAbsentAt = previous && (previous.level === null || previous.roomId !== snapshot.roomId)
+          ? previous.observedAt : previous?.lastAbsentAt;
         store.save(
           scope,
           {
@@ -66,6 +68,7 @@ function createGuardRosterImporter({ store, create, observe }) {
               ownerUid: snapshot.ownerUid,
               observedAt,
               level,
+              ...(level !== null && !accompany && lastAbsentAt ? { lastAbsentAt } : {}),
             },
           },
           identityKey(profile.identity),

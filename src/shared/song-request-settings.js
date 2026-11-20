@@ -9,6 +9,10 @@ const SONG_REQUEST_CONTROL_DEFAULTS = Object.freeze({
   userCooldownCaptainSeconds: '',
   userCooldownAdmiralSeconds: '',
   userCooldownGovernorSeconds: '',
+  userDailyLimit: '',
+  userDailyCaptainLimit: '',
+  userDailyAdmiralLimit: '',
+  userDailyGovernorLimit: '',
   songRequestMinMedalLevel: '0',
   songRequestGuardLevel: '0',
   songRequestGuardMedalBypass: 'false',
@@ -17,6 +21,9 @@ const SONG_REQUEST_CONTROL_DEFAULTS = Object.freeze({
 const SONG_REQUEST_CONTROL_KEYS = Object.freeze(Object.keys(SONG_REQUEST_CONTROL_DEFAULTS));
 const IDENTITY_COOLDOWN_KEYS = Object.freeze([
   'userCooldownCaptainSeconds', 'userCooldownAdmiralSeconds', 'userCooldownGovernorSeconds',
+]);
+const DAILY_LIMIT_KEYS = Object.freeze([
+  'userDailyLimit', 'userDailyCaptainLimit', 'userDailyAdmiralLimit', 'userDailyGovernorLimit',
 ]);
 
 function normalizeSongRequestUserBlacklist(input) {
@@ -53,11 +60,12 @@ function normalizeSongRequestSettingValue(key, rawValue) {
     return null;
   }
   const identityCooldown = IDENTITY_COOLDOWN_KEYS.includes(key);
-  if (identityCooldown && rawValue === '') return '';
+  const dailyLimit = DAILY_LIMIT_KEYS.includes(key);
+  if ((identityCooldown || dailyLimit) && rawValue === '') return '';
   if (!['number', 'string'].includes(typeof rawValue)
     || (typeof rawValue === 'string' && !/^\s*[0-9]+\s*$/u.test(rawValue))) return null;
   const value = Number(rawValue);
-  const max = identityCooldown ? 3600 : key === 'userQueueLimit' ? 300 : key === 'songRequestMinMedalLevel' ? 100 : 3;
+  const max = identityCooldown ? 3600 : dailyLimit || key === 'userQueueLimit' ? 300 : key === 'songRequestMinMedalLevel' ? 100 : 3;
   return Number.isInteger(value) && value >= 0 && value <= max ? String(value) : null;
 }
 

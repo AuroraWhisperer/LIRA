@@ -69,17 +69,16 @@ function createAiAssistantService(dependencies) {
   let coordinator = createCoordinator();
   const autoReplies = createAutoReplyController({
     now, setTimer, clearTimer, random,
-    getReplyProbabilityPercent: () => store.getConfig().autoReplyProbabilityPercent,
+    getReplyProbabilityPercent: () => currentConfig.autoReplyProbabilityPercent,
     canRun() {
-      synchronizeConfig();
-      const config = store.getConfig();
+      const config = getIngressConfig();
       const status = coordinator.getStatus();
       return !shuttingDown && config.autoReplyEnabled && isAiReady(config)
         && modelClient.isReady?.(config) !== false && !autoGeneration && status.queued === 0 && !status.delivering;
     },
     enqueue: enqueueAutoReply,
   });
-  const unsubscribeConfig = store.subscribe?.(synchronizeConfig);
+  const unsubscribeConfig = store.subscribe?.(() => synchronizeConfig());
 
   function createCoordinator() {
     return createOrderedAsyncCoordinator({
@@ -126,9 +125,9 @@ function createAiAssistantService(dependencies) {
       usesAccountModel(config) ? modelClient.getSessionRevision?.(config) : null]);
   }
 
-  function synchronizeConfig() {
+  function synchronizeConfig(snapshot) {
     if (shuttingDown) return;
-    const config = store.getConfig();
+    const config = snapshot ?? store.getConfig();
     const nextKey = getReplyConfigKey(config);
     if (replyConfigKey !== nextKey) {
       const accountProviderChanged = (currentConfig.modelProvider !== config.modelProvider || currentConfig.modelAuthMode !== config.modelAuthMode)
@@ -151,10 +150,16 @@ function createAiAssistantService(dependencies) {
     currentConfig = config;
   }
 
+  function getIngressConfig() {
+    // The store publishes committed settings synchronously. Account sessions can also change independently.
+    if (!unsubscribeConfig) synchronizeConfig();
+    else if (usesAccountModel(currentConfig)) synchronizeConfig(currentConfig);
+    return currentConfig;
+  }
+
   function handleDanmaku(danmaku = {}) {
     if (shuttingDown) return { accepted: false, reason: 'stopped' };
-    synchronizeConfig();
-    const config = store.getConfig();
+    const config = getIngressConfig();
     if (!isAiReady(config) || modelClient.isReady?.(config) === false) return { accepted: false, reason: 'disabled_or_unconfigured' };
     const message = cleanText(danmaku.message);
     const uid = cleanText(danmaku.uid) || `name:${cleanText(danmaku.userName)}`;

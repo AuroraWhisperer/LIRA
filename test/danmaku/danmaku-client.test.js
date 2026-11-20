@@ -35,6 +35,7 @@ class FakeWebSocket {
     queueMicrotask(() => {
       this.readyState = FakeWebSocket.OPEN;
       this.emit('open', {});
+      this.emit('message', { data: messagePacket({ code: 0 }, 8) });
     });
   }
 
@@ -87,13 +88,13 @@ function bilibiliFetch(input) {
   return Promise.reject(new Error(`Unexpected URL: ${url}`));
 }
 
-function messagePacket(message) {
+function messagePacket(message, operation = 5) {
   const body = Buffer.from(JSON.stringify(message));
   const packet = Buffer.alloc(16 + body.length);
   packet.writeUInt32BE(packet.length, 0);
   packet.writeUInt16BE(16, 4);
   packet.writeUInt16BE(0, 6);
-  packet.writeUInt32BE(5, 8);
+  packet.writeUInt32BE(operation, 8);
   packet.writeUInt32BE(1, 12);
   body.copy(packet, 16);
   return packet.buffer.slice(packet.byteOffset, packet.byteOffset + packet.byteLength);
@@ -322,7 +323,7 @@ test('stalled automatic connections time out and retry until the socket opens', 
   FakeWebSocket.autoOpen = true;
   t.mock.timers.tick(1999);
   await new Promise(setImmediate);
-  assert.equal(client.ws, secondSocket);
+  assert.equal(client.ws, null);
   t.mock.timers.tick(1);
   await new Promise(setImmediate);
   assert.notEqual(client.ws, secondSocket);
@@ -331,6 +332,26 @@ test('stalled automatic connections time out and retry until the socket opens', 
   assert.equal(client.historyPoller.timer, null);
   assert.equal(statuses.at(-1).connected, true);
 });
+
+for (const names of [['Alpha', 'alpha'], ['A***e', 'a***e'], ['A**e', 'A***e']]) {
+  test(`realtime song requests with UID 0 distinguish ${names.join(' / ')} and suppress replays`, async (t) => {
+    const timestampSeconds = 1_800_000_000;
+    t.mock.method(Date, 'now', () => timestampSeconds * 1000);
+    const delivered = [];
+    const client = new BilibiliDanmakuClient('123', { onMessage: ({ userName }) => delivered.push(userName) });
+    t.after(() => client.stop());
+
+    const packets = names.map((userName) => Buffer.from(messagePacket({
+      cmd: 'DANMU_MSG',
+      info: [[0, 0, 0, 0, timestampSeconds], '点歌 合成曲', [0, userName]],
+    })));
+    for (const packet of packets) await client.messageHandlers.handlePackets(packet);
+    assert.deepEqual(delivered, names);
+
+    for (const replay of packets) await client.messageHandlers.handlePackets(replay);
+    assert.equal(delivered.length, 2);
+  });
+}
 
 test('danmaku marks only the current room owner as the streamer', (t) => {
   const delivered = [];
@@ -358,6 +379,32 @@ test('danmaku marks only the current room owner as the streamer', (t) => {
     });
     assert.equal(delivered.at(-1).isStreamer === true, expected);
   }
+});
+
+test('history commands from the room owner leave the viewer turn for a real viewer', async (t) => {
+  const { createGameSessionService } = require('../../src/games/game-session-service');
+  t.mock.method(Math, 'random', () => 0.69);
+  const games = createGameSessionService();
+  const client = new BilibiliDanmakuClient('123', { onMessage: message => games.handleDanmaku(message), onStatus() {} });
+  t.after(() => { client.stop(); games.dispose(); });
+  client.stopped = false;
+  client.ownerUid = '456';
+  client.userInfoService.setRoom({ roomId: '123', ownerUid: client.ownerUid });
+  client.roomRunContext = client.userInfoService.beginRoomRun();
+  client.historyPoller.updateRoomOwnerUid(client.ownerUid);
+  games.start({ game: 'number-bomb', mode: 'multi' });
+  games.move({ value: 10 }, 'host');
+  const row = { uid: 456, nickname: '同名', text: '点歌 17', timeline: new Date().toISOString() };
+  client.apiClient.fetchHistory = async () => ({ room: [row] });
+  await client.historyPoller.pollHistory(client.roomRunContext);
+  assert.equal(games.getSession().state.turn, 'viewer');
+  assert.deepEqual(games.listViewers(), []);
+
+  row.uid = 42;
+  await client.historyPoller.pollHistory(client.roomRunContext);
+  assert.equal(games.getSession().state.lastGuess, 17);
+  assert.equal(games.getSession().state.turn, 'host');
+  assert.deepEqual(games.listViewers().map(viewer => viewer.uid), ['42']);
 });
 
 test('onMessage return values do not fetch profiles and explicit ensure reuses the avatar', async () => {

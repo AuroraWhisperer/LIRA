@@ -91,7 +91,7 @@ function createFanUi() {
     reload: load,
     async onDeleted() {
       state.profile = null;
-      updateMarkup(detailNode, '<p class="fan-empty">档案已删除。</p>');
+      updateMarkup(detailNode, '<p class="fan-empty lira-content-state">档案已删除。</p>');
       await load();
     },
   });
@@ -103,7 +103,7 @@ function createFanUi() {
     onProfile: receiveProfile,
     onReset: async () => {
       state.profile = null;
-      updateMarkup(detailNode, '<p class="fan-empty">恢复完成，请重新选择档案。</p>');
+      updateMarkup(detailNode, '<p class="fan-empty lira-content-state">恢复完成，请重新选择档案。</p>');
       await load();
     },
   });
@@ -131,7 +131,7 @@ function createFanUi() {
       get('fanRosterHelp').hideTooltip?.();
       get('fanRosterHelp').hidden = true;
       get('fanRosterResult').textContent = '';
-      updateMarkup(detailNode, '<p class="fan-empty">登录状态已变化，请重新选择档案。</p>');
+      updateMarkup(detailNode, '<p class="fan-empty lira-content-state">登录状态已变化，请重新选择档案。</p>');
     }
     if (state.contextId !== result.contextId || state.roomId !== (result.roomId || '')) state.expiry = { badges: [] };
     state.contextId = result.contextId;
@@ -233,9 +233,9 @@ function createFanUi() {
     const changed = updateMarkup(
       list,
       state.listStatus === 'loading'
-        ? '<p class="fan-empty" role="status">正在加载档案…</p>'
+        ? '<p class="fan-empty lira-content-state" role="status">正在加载档案…</p>'
         : state.listStatus === 'error'
-          ? '<p class="fan-empty">档案加载失败，请在设置中重新加载。</p>'
+          ? '<p class="fan-empty lira-content-state" data-state="error">档案加载失败，请在设置中重新加载。</p>'
           : renderPeople(
               state.profiles,
               state.profile?.id,
@@ -346,7 +346,7 @@ function createFanUi() {
     }
     state.tab = 'overview';
     state.expanded = false;
-    updateMarkup(detailNode, '<p class="fan-empty">选择一份档案查看详情</p>');
+    updateMarkup(detailNode, '<p class="fan-empty lira-content-state">选择一份档案查看详情</p>');
     renderList();
   }
 
@@ -529,7 +529,7 @@ function createFanUi() {
       state.archived = false;
       state.expanded = false;
       state.selection++;
-      detailNode.innerHTML = '<p class="fan-empty">档案已全部清除。</p>';
+      detailNode.innerHTML = '<p class="fan-empty lira-content-state">档案已全部清除。</p>';
       showPage();
       await load();
       toast(`已清除 ${result.deletedCount} 份档案`);

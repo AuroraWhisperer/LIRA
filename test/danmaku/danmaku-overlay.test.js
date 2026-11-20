@@ -38,6 +38,7 @@ test('fixed danmaku overlay subscribes with the encoded token and renders snapsh
   await loadModuleExports(path.join(ROOT_DIR, 'public', 'js', 'overlays', 'danmaku.js'), {
     document: {
       defaultView: window,
+      head: new FakeNode('head'),
       body: Object.assign(new FakeNode('body'), { classList }),
       documentElement: new FakeNode('html'),
       getElementById: element,

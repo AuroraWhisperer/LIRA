@@ -38,9 +38,26 @@ test('song initial upgrade repairs only derived columns and is idempotent', () =
     assert.equal(db.prepare('SELECT value FROM settings WHERE key = ?').get('cloudSongSyncPending:fixture').value,
       '{"mutationId":"original","songs":[]}');
     const writes = db.prepare('SELECT total_changes() AS count').get().count;
-    steps.at(-1)(db);
+    steps[17](db);
     assert.equal(db.prepare('SELECT total_changes() AS count').get().count, writes);
     assert.equal(runMigrations(db, 'song_db', steps).applied, 0);
+  } finally { db.close(); }
+});
+
+test('daily request counter migration preserves prior schema and counters on repeated execution', () => {
+  const { getMigrationPlan } = require('../../src/storage/database-migrations');
+  const { runMigrations, SONG_SCHEMA } = require('../../src/storage/schema');
+  const db = new DatabaseSync(':memory:');
+  try {
+    db.exec(SONG_SCHEMA);
+    const steps = getMigrationPlan().find(plan => plan.key === 'song_db').steps;
+    runMigrations(db, 'song_db', steps.slice(0, 18));
+    runMigrations(db, 'song_db', steps);
+    db.prepare('INSERT INTO song_request_daily_counts VALUES (?, ?, ?, ?, ?)')
+      .run('account', '2026-11-16', 'uid', '42', 2);
+    steps[18](db);
+    assert.equal(runMigrations(db, 'song_db', steps).applied, 0);
+    assert.equal(db.prepare('SELECT accepted_count FROM song_request_daily_counts').get().accepted_count, 2);
   } finally { db.close(); }
 });
 
@@ -176,7 +193,7 @@ test('createDatabases upgrades genuine pre-v1 song and gift databases idempotent
       databases = createDatabases({ dataDir });
 
       assert.deepEqual(getSchemaVersions(databases), {
-        songDb: 18,
+        songDb: 19,
         superChatDb: 2,
         giftDb: 24,
         musicDb: 1,

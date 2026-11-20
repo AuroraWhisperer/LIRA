@@ -107,7 +107,7 @@ function handleDanmakuMessage(
     }
     if (command.type === 'random') {
       // 通过 context.pickRandomSong 调用，不直接持有 DB 句柄
-      const song = context.pickRandomSong(command.scopeText);
+      const song = context.pickRandomSong(command.scopeText, fanScope);
       if (!song) {
         const reason = command.scopeText
           ? `歌库里没有同时满足全部条件「${command.scopeText}」的可随机歌曲。`

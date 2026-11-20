@@ -4,27 +4,27 @@ const assert = require('node:assert/strict');
 const test = require('node:test');
 const { MessageDeduplicator } = require('../../src/bilibili/danmaku/message-deduplicator');
 
-test('deduplicates one command across masked danmaku and full history identities', () => {
+test('deduplicates a masked live name and full history name with different casing', () => {
   const deduplicator = new MessageDeduplicator();
   const timestamp = Date.now();
 
   assert.equal(
     deduplicator.remember(0, '点歌1', timestamp, {
-      userName: '哈***',
+      userName: 'A***E',
       source: 'danmaku',
     }),
     true,
   );
   assert.equal(
     deduplicator.remember(12345, '点歌1', timestamp, {
-      userName: '哈极光dd_',
+      userName: 'alice',
       source: 'history',
     }),
     false,
   );
   assert.equal(
     deduplicator.remember(12345, '点歌1', timestamp, {
-      userName: '哈极光dd_',
+      userName: 'alice',
       source: 'history',
     }),
     false,
@@ -102,6 +102,23 @@ test('deduplicates anonymous commands across live and history sources', () => {
   );
 });
 
+test('has uses the anonymous nickname hint only when the UID is missing', () => {
+  const deduplicator = new MessageDeduplicator();
+  const timestamp = 1_800_000_000_000;
+  const message = '点歌 合成曲';
+  deduplicator.remember(0, message, timestamp, { userName: 'Alpha', source: 'danmaku' });
+
+  assert.equal(deduplicator.has('0', message, timestamp, { userName: 'Alpha' }), true);
+  assert.equal(deduplicator.has(0, message, timestamp, { userName: 'alpha' }), false);
+  assert.equal(deduplicator.has(0, message, timestamp), false);
+
+  deduplicator.remember(0, message, timestamp, { userName: '123', source: 'danmaku' });
+  assert.equal(deduplicator.has(123, message, timestamp), false);
+
+  deduplicator.remember(123, message, timestamp, { userName: '合成甲', source: 'danmaku' });
+  assert.equal(deduplicator.has(123, message, timestamp), true);
+});
+
 test('matches repeated cross-source commands one to one', () => {
   const deduplicator = new MessageDeduplicator();
   const timestamp = Date.now();
@@ -112,6 +129,19 @@ test('matches repeated cross-source commands one to one', () => {
   assert.equal(deduplicator.remember(0, '点歌1', timestamp + 1000, danmaku), true);
   assert.equal(deduplicator.remember(12345, '点歌1', timestamp, history), false);
   assert.equal(deduplicator.remember(12345, '点歌1', timestamp + 1000, history), false);
+  assert.equal(deduplicator.remember(12345, '点歌1', timestamp + 2000, history), true);
+});
+
+test('one anonymous realtime command matches only one of two adjacent history entries', () => {
+  const timestamp = 1_800_000_000_000;
+  const live = { source: 'danmaku', userName: '合成观众' };
+  const history = { source: 'history', userName: '合成观众' };
+  for (const firstHistoryTime of [timestamp, timestamp - 1000]) {
+    const deduplicator = new MessageDeduplicator();
+    deduplicator.remember(0, '点歌 合成曲', timestamp, live);
+    assert.equal(deduplicator.remember('0', '点歌 合成曲', firstHistoryTime, history), false);
+    assert.equal(deduplicator.remember('0', '点歌 合成曲', firstHistoryTime + 1000, history), true);
+  }
 });
 
 test('unrelated commands do not rescan retained candidates and evicted text cannot suppress a command', (t) => {

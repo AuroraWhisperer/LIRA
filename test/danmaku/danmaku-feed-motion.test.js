@@ -314,6 +314,7 @@ for (const [direction, scale] of [['up', 1], ['down', 0.63]]) {
       freezeMoves(0);
       return {
         deltas: nodes.map((node, index) => node.getBoundingClientRect().top - tops[index]),
+        rowGap: parseFloat(getComputedStyle(root).rowGap) || 0,
         boxes: Array.from(root.children).map(node => {
           const rect = node.getBoundingClientRect();
           return { top: rect.top, bottom: rect.bottom };
@@ -322,7 +323,7 @@ for (const [direction, scale] of [['up', 1], ['down', 0.63]]) {
     });
     assert.ok(interrupted.deltas.every(delta => Math.abs(delta) < 0.1), 'retarget without snapping to the destination');
     for (let index = 1; index < interrupted.boxes.length; index += 1) {
-      assert.ok(interrupted.boxes[index].top - interrupted.boxes[index - 1].bottom >= 14 * scale - 0.1,
+      assert.ok(interrupted.boxes[index].top - interrupted.boxes[index - 1].bottom >= interrupted.rowGap * scale - 0.1,
         'incoming rows follow the moving tail without overlapping');
     }
     await page.evaluate(() => Array.from(root.children).forEach(node => node.getAnimations().forEach(animation => animation.finish())));

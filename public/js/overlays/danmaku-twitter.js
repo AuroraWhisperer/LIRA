@@ -120,6 +120,7 @@ function wrapContent(document, body, identity, loading = false) {
 function setEventColor(root, price) {
   const value = Number(price) || 0;
   const tier = value >= 1000 ? 1000 : value >= 100 ? 100 : value >= 50 ? 50 : 0;
+  root.dataset.twitterTier = String(tier);
   root.style.setProperty('--twitter-event-color', `var(--twitter-event-color-${tier}, ${TWITTER_COLOR_DEFAULTS[`twitterColor${tier}`]})`);
 }
 

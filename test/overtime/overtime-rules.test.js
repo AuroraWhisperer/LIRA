@@ -5,70 +5,36 @@ const test = require('node:test');
 const { MAX_OVERTIME_SECONDS, createOvertimeConsumer } = require('../../src/overtime');
 const { createFixture, effectRule, fixedRule } = require('../helpers/overtime-service-fixture');
 
-test('group quantity mode applies a fixed rule once for the finalized combo', () => {
-  const fixture = createFixture();
-  const updates = [];
-  const service = fixture.createService({
-    onUpdate: (update) => updates.push(update),
+for (const [quantityMode, deltaSeconds] of [['group', 300], ['item', 30_000]]) {
+  test(`fixed rules settle a 100-gift combo once in ${quantityMode} mode`, () => {
+    const fixture = createFixture();
+    const updates = [];
+    const service = fixture.createService({ onUpdate: (update) => updates.push(update) });
+    const consumer = createOvertimeConsumer({ service });
+
+    try {
+      service.act('enable');
+      service.setTime({ remainingSeconds: 120 });
+      service.replaceRules([fixedRule('gift-a', 300, 0, quantityMode)]);
+      const event = fixture.insertFinalGift({ giftId: 'gift-a', num: 100, overtimeEpoch: 1 });
+
+      consumer.handle(event);
+      consumer.handle(event);
+
+      assert.equal(service.getSnapshot().effectiveRemainingMs, (120 + deltaSeconds) * 1000);
+      const settlement = fixture.getSettlement(event.giftEventId);
+      assert.equal(settlement.status, 'applied');
+      assert.equal(settlement.quantity, 100);
+      assert.equal(settlement.requested_delta_seconds, deltaSeconds);
+      assert.equal(settlement.applied_delta_seconds, deltaSeconds);
+      assert.equal(fixture.countSettlements(event.giftEventId), 1);
+      assert.equal(updates.filter((update) => update.reason === 'gift').length, 1);
+    } finally {
+      service.dispose();
+      fixture.close();
+    }
   });
-  const consumer = createOvertimeConsumer({ service });
-
-  try {
-    service.act('enable');
-    service.setTime({ remainingSeconds: 120 });
-    service.replaceRules([fixedRule('gift-a', 300)]);
-    const event = fixture.insertFinalGift({
-      giftId: 'gift-a',
-      num: 100,
-      overtimeEpoch: 1,
-    });
-
-    consumer.handle(event);
-    consumer.handle(event);
-
-    assert.equal(service.getSnapshot().effectiveRemainingMs, 420_000);
-    const settlement = fixture.getSettlement(event.giftEventId);
-    assert.equal(settlement.status, 'applied');
-    assert.equal(settlement.quantity, 100);
-    assert.equal(settlement.requested_delta_seconds, 300);
-    assert.equal(settlement.applied_delta_seconds, 300);
-    assert.equal(fixture.countSettlements(event.giftEventId), 1);
-    assert.equal(updates.filter((update) => update.reason === 'gift').length, 1);
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
-
-test('item quantity mode applies a fixed rule once per gift in the finalized combo', () => {
-  const fixture = createFixture();
-  const service = fixture.createService();
-  const consumer = createOvertimeConsumer({ service });
-
-  try {
-    service.act('enable');
-    service.setTime({ remainingSeconds: 120 });
-    service.replaceRules([fixedRule('gift-a', 300, 0, 'item')]);
-    const event = fixture.insertFinalGift({
-      giftId: 'gift-a',
-      num: 100,
-      overtimeEpoch: 1,
-    });
-
-    consumer.handle(event);
-    consumer.handle(event);
-
-    assert.equal(service.getSnapshot().effectiveRemainingMs, 30_120_000);
-    const settlement = fixture.getSettlement(event.giftEventId);
-    assert.equal(settlement.quantity, 100);
-    assert.equal(settlement.requested_delta_seconds, 30_000);
-    assert.equal(settlement.applied_delta_seconds, 30_000);
-    assert.equal(fixture.countSettlements(event.giftEventId), 1);
-  } finally {
-    service.dispose();
-    fixture.close();
-  }
-});
+}
 
 test('display gift settlement keeps time unchanged and remains idempotent', () => {
   const fixture = createFixture();

@@ -1,9 +1,11 @@
 import { renderModelCatalog, renderModelSelection, setState } from './ai-assistant-config-view.js';
+import { positionSelectMenu } from '../shared/select-menu-position.js';
 
-export function createAiModelPicker({ readApi, onSelect }) {
+export function createAiModelPicker({ readApi, onSelect, onCatalog }) {
   const fetchModelsButton = document.getElementById('xiaomiAiFetchModelsBtn');
   const modelInput = document.getElementById('xiaomiAiModel');
   const modelMenu = document.getElementById('xiaomiAiModelMenu');
+  const menuState = { trigger: modelInput, menu: modelMenu, wrapper: modelInput.parentElement };
   const modelFetchState = document.getElementById('xiaomiAiModelFetchState');
   const providerInput = document.getElementById('xiaomiAiModelProvider');
   let modelRequestGeneration = 0;
@@ -74,9 +76,9 @@ export function createAiModelPicker({ readApi, onSelect }) {
         `已获取 ${menuItems.length} 个可用模型；可选择或直接输入。`,
         menuItems.length ? 'good' : 'warn',
       );
-      modelMenu.hidden = menuItems.length === 0;
-      modelInput.setAttribute('aria-expanded', String(menuItems.length > 0));
-      fetchModelsButton.setAttribute('aria-expanded', String(menuItems.length > 0));
+      if (menuItems.length) openModelMenu();
+      else closeModelMenu();
+      await onCatalog?.();
     } catch (error) {
       if (isCurrent()) setState(modelFetchState, error.message || '无法获取当前服务的模型列表。', 'warn');
     } finally {
@@ -140,11 +142,19 @@ export function createAiModelPicker({ readApi, onSelect }) {
     document.addEventListener('click', (event) => {
       if (!event.target.closest('.xiaomi-ai-model-picker')) closeModelMenu();
     });
+    document.addEventListener('scroll', (event) => {
+      if (modelMenu.hidden || modelMenu.contains(event.target) || !menuState.anchorRect) return;
+      const rect = modelInput.getBoundingClientRect();
+      if (rect.top !== menuState.anchorRect.top || rect.left !== menuState.anchorRect.left) closeModelMenu();
+    }, true);
   }
+  window.addEventListener('resize', closeModelMenu);
 
   function openModelMenu() {
     if (!modelMenu.children.length) return;
     modelMenu.hidden = false;
+    if (!modelMenu.matches(':popover-open')) modelMenu.showPopover({ source: modelInput });
+    positionSelectMenu(menuState);
     modelInput.setAttribute('aria-expanded', 'true');
     fetchModelsButton.setAttribute('aria-expanded', 'true');
   }
@@ -156,7 +166,9 @@ export function createAiModelPicker({ readApi, onSelect }) {
   }
 
   function closeModelMenu() {
+    if (modelMenu.matches(':popover-open')) modelMenu.hidePopover();
     modelMenu.hidden = true;
+    menuState.wrapper.classList.remove('is-above');
     modelInput.setAttribute('aria-expanded', 'false');
     fetchModelsButton.setAttribute('aria-expanded', 'false');
   }

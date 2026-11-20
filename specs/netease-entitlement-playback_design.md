@@ -5,7 +5,10 @@
 - While a NetEase account is logged in, when a song is played, the system shall request a stream using that account's saved Cookie and use the full or trial URL granted by NetEase.
 - While an account lacks full-track rights, when NetEase grants a trial clip, the system shall play that official clip instead of rejecting the song solely because it is marked VIP.
 - When NetEase grants neither full nor trial playback, the system shall show a clear account-rights error instead of loading an HTML fallback page as audio.
-- When browser audio loading fails, the system shall refresh once and retry, then advance safely after the configured retry limit.
+- When browser audio loading fails during playback, the system shall refresh once and retry, then advance safely after the configured retry limit while playback is still requested.
+- When the listener pauses during a stream refresh, a successful refresh shall leave the current track paused at its resume position for the next explicit play. A failed refresh shall keep the current track and the remaining queue.
+- When the listener changes quality before first play after a restart, the player shall retain the saved position when loading the new stream. Closing and reopening the player shall resume at that position on explicit play.
+- For NetEase YRC lyrics, each timed word shall retain the text up to the next word timestamp or the end of the line, including spaces and literal parentheses.
 
 ## Architecture
 

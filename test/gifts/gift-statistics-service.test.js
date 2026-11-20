@@ -44,8 +44,8 @@ test('statistics normalize matched values once and preserve cents, source and co
       blindBoxPrice: 1.2,
     });
     fixture.insertGift(sourceA.id, 'unknown-box', {
-      giftId: 'unknown',
-      giftName: '未知成本礼物',
+      giftId: 'known',
+      giftName: '盲盒礼物',
       blindBoxName: '星光盒',
       isBlindBox: true,
       totalPrice: 3,

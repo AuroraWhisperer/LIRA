@@ -10,8 +10,9 @@ const {
   usesAccountModel,
 } = require('./config');
 const { GENERAL_PROMPT, BUILT_IN_PERSONAS, normalizePersonaPack, listPersonas, exportPersona } = require('./personas');
-const { describeModelEndpoint } = require('./model-endpoint');
+const { describeModelEndpoint, resolveModelEndpoint } = require('./model-endpoint');
 const { getModelReasoning } = require('./model-reasoning');
+const { describeReasoningState } = require('./model-protocol');
 
 const SECRET_SET = new Set(AI_SECRET_KEYS);
 const EXPIRED_PRUNE_INTERVAL_MS = 60 * 1000;
@@ -94,6 +95,10 @@ function createAiConfigStore(persistence, secretCodec, options = {}) {
     if (modelReasoning) {
       result.modelEndpoint.reasoningEfforts = modelReasoning.efforts;
       if (modelReasoning.defaultEffort) result.modelEndpoint.defaultReasoningEffort = modelReasoning.defaultEffort;
+    }
+    if (config.deepseekResponsesUrl && config.modelProvider !== 'doubao') {
+      result.modelEndpoint.reasoningState = describeReasoningState({ ...config, modelReasoning },
+        resolveModelEndpoint(config.deepseekResponsesUrl, config.modelApiProtocol));
     }
     return result;
   }

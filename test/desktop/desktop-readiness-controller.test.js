@@ -135,6 +135,19 @@ for (const action of ['revoke', 'dispose', 'rotate']) {
   });
 }
 
+test('a failed first management navigation can retry on the next readiness event', async () => {
+  const h = createHarness();
+  try {
+    h.controller.start();
+    h.navigations[0]?.reject(new Error('first navigation failed'));
+    await Promise.resolve();
+    h.ready();
+    assert.deepEqual(h.navigations.map(({ url }) => new URL(url).pathname), ['/admin', '/admin']);
+  } finally {
+    h.controller.dispose();
+  }
+});
+
 test('catalog readiness gates navigation and stale load rejection cannot reset the newer route', async () => {
   const h = createHarness({ ready: false });
   assert.equal(h.controller.initialRoute, 'license');
@@ -142,15 +155,15 @@ test('catalog readiness gates navigation and stale load rejection cannot reset t
   assert.ok(h.calls.some((call) => call[1] === 'first-authorized-startup'));
   h.ready();
   h.change(LicenseState.BLOCKED);
-  h.navigations[0].reject(new Error('old navigation'));
+  h.navigations[1].reject(new Error('old navigation'));
   await Promise.resolve();
   h.change(LicenseState.BLOCKED);
   assert.deepEqual(
     h.navigations.map((navigation) => navigation.url),
-    ['http://127.0.0.1:3000/admin?desktop=1', 'http://127.0.0.1:3000/license'],
+    ['http://127.0.0.1:3000/license', 'http://127.0.0.1:3000/admin?desktop=1', 'http://127.0.0.1:3000/license'],
   );
   h.ready();
-  assert.equal(h.navigations.length, 2);
+  assert.equal(h.navigations.length, 3);
   h.controller.dispose();
 });
 
@@ -165,7 +178,7 @@ test('dispose removes both listeners and rejects queued callbacks and repeated s
   assert.equal(h.licenseListeners.size, 0);
   assert.equal(h.catalogListeners.size, 0);
   assert.equal(h.calls.length, before);
-  assert.equal(h.navigations.length, 0);
+  assert.equal(h.navigations.length, 1);
 });
 
 test('font and audio preparation start only after authorization and never delay gifts or navigation', async () => {

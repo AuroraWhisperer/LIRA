@@ -26,8 +26,10 @@ function getGuardAccompany(profile, now = Date.now()) {
   const age = observedDate < '1900-01-01' || observedDate > '2200-12-31'
     ? Infinity : daysBetween(observedDate, dayOf(now));
   const roster = profile.guardRoster;
-  const inactive = Boolean(roster && roster.observedAt >= value.observedAt &&
-    (roster.roomId !== value.roomId || roster.level === null));
+  const inactive = Boolean(roster && (
+    roster.lastAbsentAt >= value.observedAt ||
+    (roster.observedAt >= value.observedAt && (roster.roomId !== value.roomId || roster.level === null))
+  ));
   return { ...value, stale: age > 7 || age < 0, inactive };
 }
 

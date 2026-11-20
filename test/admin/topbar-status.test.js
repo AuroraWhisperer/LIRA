@@ -38,7 +38,7 @@ test('one status survives live snapshots during disconnect, deduplicates toast a
     return nodes.get(id);
   }
   const { initTopbarStatus, renderLiveStatus, renderConnectionStatus } = await loadModuleExports(path.resolve('public/js/admin/topbar-status.js'), {
-    AbortController, document: { getElementById: node }, window: { addEventListener() {} },
+    AbortController, document: { getElementById: node, addEventListener() {} }, window: { addEventListener() {} },
   });
   const toasts = [];
   const dispose = initTopbarStatus({ showToast: (toast) => toasts.push(toast) });

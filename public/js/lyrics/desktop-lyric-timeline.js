@@ -1,3 +1,5 @@
+import { findLyricLineIndex } from '../shared/lyric-line-index.js';
+
 const COUNTDOWN_WINDOW_MS = 3000;
 const COUNTDOWN_MIN_GAP_MS = 6000;
 const SPRING_STIFFNESS = 170;
@@ -32,19 +34,7 @@ export function stepSpringScroll(position, velocity, target, elapsedMs) {
 export function findActiveLyricIndex(lines, currentMs) {
   if (!Array.isArray(lines) || !lines.length) return -1;
   const target = Math.max(0, finiteNumber(currentMs, 0));
-  let low = 0;
-  let high = lines.length - 1;
-  let result = -1;
-  while (low <= high) {
-    const middle = Math.floor((low + high) / 2);
-    if (finiteNumber(lines[middle]?.startMs, 0) <= target) {
-      result = middle;
-      low = middle + 1;
-    } else {
-      high = middle - 1;
-    }
-  }
-  return result;
+  return findLyricLineIndex(lines, target, line => finiteNumber(line?.startMs, 0));
 }
 
 export function getLyricCountdown(lines, currentIndex, currentMs) {

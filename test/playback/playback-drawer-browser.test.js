@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const { useSharedBrowser } = require('../helpers/shared-browser');
+const { startComponentPreviewServer } = require('../helpers/component-preview-server');
 
 const openBrowser = useSharedBrowser();
 const publicRoot = path.resolve(__dirname, '../../public');
@@ -69,4 +70,44 @@ test('closed playback drawer leaves Tab order and restores its trigger', async (
     await checkClosedTabOrder();
   }
   assert.deepEqual(errors, []);
+});
+
+test('advancing between duplicate playlist entries keeps focus and recovers a failed cover on an unrelated track', async t => {
+  const browser = openBrowser();
+  t.after(() => browser.close());
+  const html = fs.readFileSync(path.join(publicRoot, 'pages/admin/playback/queue-popup.html'), 'utf8');
+  const fixture = await startComponentPreviewServer({ parentHtml: html });
+  t.after(() => fixture.close());
+  const page = await browser.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  let coverRequests = 0;
+  await page.route(`${fixture.origin}/cover.svg`, route => {
+    coverRequests++;
+    if (coverRequests === 1) return route.fulfill({ status: 503, body: '' });
+    return route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"/>' });
+  });
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const advance = await page.evaluateHandle(async () => {
+    const { QueuePopup } = await import('/js/playback/ui/queue-popup.js');
+    const popup = new QueuePopup();
+    popup.init();
+    popup.open();
+    const tracks = ['a', 'b', 'b'].map(id => ({ id, title: id }));
+    tracks[0].coverUrl = '/cover.svg';
+    const state = { queueType: 'playlist', normalQueueTracks: tracks, playlistIndex: 1, current: tracks[1] };
+    popup.render(state);
+    document.querySelector('[data-playback-playlist-jump="0"]').focus();
+    return () => popup.render({ ...state, playlistIndex: 2, current: tracks[2] });
+  });
+  const cover = page.locator('.playback-queue-row').first().locator('img');
+  await cover.waitFor({ state: 'detached' });
+  assert.equal(coverRequests, 1);
+  await advance.evaluate(render => render());
+  assert.deepEqual(await page.locator('.playlist-current button').evaluateAll(buttons =>
+    buttons.map(button => button.dataset.playbackPlaylistJump)), ['2']);
+  assert.equal(await page.evaluate(() => document.activeElement.dataset.playbackPlaylistJump), '0');
+  assert.equal(await cover.count(), 1, 'the unaffected row can recover its cover');
+  await cover.evaluate(img => img.decode());
+  assert.equal(coverRequests, 2);
 });

@@ -3,7 +3,7 @@
     <section id="songBoardAppearance" class="song-board-section" aria-labelledby="songBoardAppearanceTitle">
       <h3 id="songBoardAppearanceTitle" class="song-board-section-heading">
         点歌板样式
-        <lira-help>共享主题参数（含标题）也会应用到已开启主题跟随的展示板。</lira-help>
+        <lira-help>开启了「同步点歌板主题」的展示板，也会自动共用这里的标题、字体和配色。</lira-help>
       </h3>
       <form id="themeForm" class="stack song-board-section-body">
         <!-- 风格选择器 — 始终可见 -->
@@ -38,7 +38,7 @@
         <fieldset id="queueFontArea" class="theme-section">
           <legend>字体设置</legend>
           <label>
-            <span>字体 <lira-help>仅应用于当前风格。可选择软件字体库中的字体或系统字体库中的本机字体，默认使用微软雅黑。</lira-help></span>
+            <span>字体 <lira-help>仅对当前风格生效。可选内置字体或电脑里已安装的字体，默认微软雅黑。</lira-help></span>
             <select id="overlayFontFamily" data-select-search data-select-font-preview data-dropdown-variant="settings">
               <option
                 value="Microsoft YaHei, Microsoft JhengHei, PingFang SC, Hiragino Sans GB, Yu Gothic, Meiryo, Malgun Gothic, Apple SD Gothic Neo, Noto Sans CJK SC, Noto Sans JP, Noto Sans KR, Segoe UI, Arial, sans-serif"
@@ -66,7 +66,7 @@
           <legend>标题设置</legend>
           <div class="grid-2">
             <label style="grid-column: 1 / -1">
-              <span>面板标题 <lira-help>修改点歌板顶部标题，也会影响启用“同步点歌板主题”的展示板；留空时各自使用默认标题。</lira-help></span>
+              <span>面板标题 <lira-help>留空则显示默认标题；若展示板开启了「同步点歌板主题」，标题也会一起变。</lira-help></span>
               <input id="overlayTitle" placeholder="留空显示默认：可点歌单 / 点歌队列" />
             </label>
             <label>
@@ -107,11 +107,11 @@
               </select>
             </label>
             <label>
-              <span>序号颜色 <lira-help>留空时使用辅助色。</lira-help></span>
+              <span>序号颜色 <lira-help>未单独设置时默认使用辅助色。</lira-help></span>
               <input id="overlayIndexColor" type="color" value="" />
             </label>
             <label style="grid-column: 1 / -1">
-              <span>仅在歌曲超过此数量时显示 <lira-help>选择“始终显示”时不受歌曲数量限制。</lira-help></span>
+              <span>仅在歌曲超过此数量时显示</span>
               <select id="overlayIndexThreshold" data-dropdown-variant="settings">
                 <option value="0">始终显示</option>
                 <option value="2">超过 2 首</option>
@@ -136,7 +136,7 @@
                 </select>
               </label>
               <label>
-                <span>点歌板滚动速度 <lira-help>1 最慢，100 最快。</lira-help></span>
+                <span>点歌板滚动速度</span>
                 <span class="range-row">
                   <span class="range-track">
                     <input
@@ -215,7 +215,7 @@
                 </span>
               </label>
               <label>
-                <span>歌名颜色 <lira-help>跟随文字色，或设置自定义颜色。</lira-help></span>
+                <span>歌名颜色</span>
                 <select id="overlaySongColorMode" aria-label="歌名颜色来源" data-dropdown-variant="settings">
                   <option value="inherit">跟随文字色</option>
                   <option value="custom">自定义颜色</option>
@@ -223,7 +223,7 @@
                 <input id="overlaySongColor" type="color" aria-label="自定义歌名颜色" disabled />
               </label>
               <label>
-                <span>点歌人颜色 <lira-help>跟随较淡的文字色，或设置自定义颜色。</lira-help></span>
+                <span>点歌人颜色</span>
                 <select id="overlayRequesterColorMode" aria-label="点歌人颜色来源" data-dropdown-variant="settings">
                   <option value="inherit">跟随文字色（较淡）</option>
                   <option value="custom">自定义颜色</option>
@@ -238,7 +238,7 @@
             <legend>面板外观</legend>
             <div class="grid-2">
               <label>
-                <span>前台低占用模式 <lira-help>关闭毛玻璃、发光和重阴影，保留滚动效果。</lira-help></span>
+                <span>前台低占用模式 <lira-help>关闭毛玻璃、发光和阴影以降低显卡占用，保留正常滚动。</lira-help></span>
                 <select id="overlayLowPowerMode" data-dropdown-variant="settings">
                   <option value="false">关闭（默认，保留原效果）</option>
                   <option value="true">开启（关闭毛玻璃和发光）</option>
@@ -395,7 +395,7 @@
                 </select>
               </label>
               <label>
-                <span>上下滚动速度 <lira-help>1 最慢，100 最快；仅影响当前风格。</lira-help></span>
+                <span>上下滚动速度 <lira-help>仅对当前点歌板风格生效。</lira-help></span>
                 <span class="range-row">
                   <span class="range-track">
                     <input

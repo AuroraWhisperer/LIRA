@@ -1,4 +1,4 @@
-// Display-only contract, mirrored by the server. No DOM or runtime dependencies.
+// Display parameters shared by the browser editor and local scene validation.
 const number = (label, value, min, max, step = 1, unit = '') => ({ label, default: value, min, max, step, unit });
 const color = (value) => ({ label: '颜色', default: value, type: 'color' });
 const opacity = () => number('不透明度', 35, 0, 100, 1, '%');

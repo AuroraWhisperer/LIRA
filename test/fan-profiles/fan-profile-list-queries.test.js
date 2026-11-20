@@ -6,17 +6,17 @@ const { fanFixture, interval, SCOPE, NOW } = require('../helpers/fan-profile-fix
 const { recordData } = require('../../src/fans/validation');
 const { buildReminders } = require('../../src/fans/reminders');
 
-// Records SELECT statements so the list path can be checked for N+1 record reads.
+// Observe batch reads and the song-bucket cleanup that precedes a backup.
 function observe(db) {
   const queries = [];
   const prepare = db.prepare.bind(db);
   db.prepare = (sql) => {
     const statement = prepare(sql);
-    for (const method of ['all', 'get']) {
+    for (const method of ['all', 'get', 'run']) {
       const execute = statement[method].bind(statement);
       statement[method] = (...params) => {
         const result = execute(...params);
-        if (/^\s*SELECT/iu.test(sql)) queries.push({ sql, params, result });
+        if (/^\s*(?:SELECT|UPDATE fan_records)/iu.test(sql)) queries.push({ sql, params, result });
         return result;
       };
     }
@@ -73,7 +73,8 @@ test('fan list and backup batch record reads without changing record order or sc
   assert.equal(queries.filter(({ sql }) => /FROM fan_reminder_states/u.test(sql)).length, 2);
   queries.length = 0;
   assert.equal(f.run('backup').profiles.length, 503);
-  assert.equal(recordsQueries().length, 3, 'backup also prunes expired song-count buckets once');
+  assert.equal(recordsQueries().length, 2);
+  assert.equal(queries.filter(({ sql }) => /UPDATE fan_records/u.test(sql)).length, 1, 'backup prunes song buckets once');
   assert.equal(queries.filter(({ sql }) => /FROM fan_reminder_states/u.test(sql)).length, 2);
   const batch = f.store.records.listForProfiles(SCOPE, ids);
   assert.deepEqual(batch.get(ids[0]), f.store.records.list(SCOPE, ids[0]));

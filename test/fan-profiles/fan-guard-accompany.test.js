@@ -181,6 +181,35 @@ test('automatic roster sync pauses pending milestones on departure and recalcula
   assert.equal(f.run('reminders').find((item) => item.key === 'accompany:1234:100').group, 'history');
 });
 
+for (const interruption of ['absence', 'room change']) {
+  test(`return without a new companion count keeps milestones paused after ${interruption}`, (t) => {
+    const f = fanFixture(t);
+    const p = f.create();
+    f.service.importGuardRoster(SCOPE, roster(96));
+    const awayAt = '2026-09-19T04:00:00.000Z';
+    f.setNow(awayAt);
+    const away = interruption === 'absence' ? roster(undefined, awayAt, false)
+      : { ...roster(undefined, awayAt), roomId: '5678', ownerUid: '98' };
+    f.service.importGuardRoster(SCOPE, away);
+    const reminderDates = () => f.run('reminders').filter(item => item.threshold === 100).map(item => item.date);
+    assert.deepEqual(reminderDates(), []);
+
+    const returnedAt = '2026-09-20T04:00:00.000Z';
+    f.setNow(returnedAt);
+    f.service.importGuardRoster(SCOPE, roster(undefined, returnedAt));
+    f.restart();
+    assert.equal(f.detail(p.id).currentGuardLevel, 3);
+    assert.equal(f.detail(p.id).guardAccompany.days, 96);
+    assert.deepEqual(reminderDates(), []);
+    assert.deepEqual(f.run('calendar').map(item => item.date), []);
+
+    if (interruption === 'absence') f.consume([fact(97, returnedAt)]);
+    else f.service.importGuardRoster(SCOPE, roster(97, returnedAt));
+    assert.deepEqual(reminderDates(), ['2026-09-23']);
+    assert.deepEqual(f.run('calendar').map(item => item.date), ['2026-09-23']);
+  });
+}
+
 test('settings and scope govern calendar projections, with Beijing dates and no projection stored in backups', (t) => {
   const f = fanFixture(t);
   f.service.importGuardRoster(SCOPE, roster(499, '2026-09-17T16:01:00.000Z'));

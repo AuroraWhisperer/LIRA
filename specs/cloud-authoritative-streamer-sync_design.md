@@ -24,6 +24,12 @@ synchronization.
 - A cloud songs response must contain an array-valued `songs` before replacing
   the local library or advancing its revision. Missing, null or object values
   are invalid responses; an explicit empty array remains a valid empty snapshot.
+- Before uploading songs, the desktop checks that every text field fits the
+  Device protocol. It identifies the offending song and field and retains its
+  pending local snapshot when a value would be truncated. During upgrade, a
+  same-account device snapshot that exactly matches the legacy truncation of
+  the local library restores those intact local originals to the account's
+  pending queue for correction.
 - Transient REST and SSE failures preserve valid identity, dirty writes and
   revisions. Recovery honors a valid Retry-After delta-seconds or HTTP date as
   a minimum delay in addition to the bounded local backoff; invalid headers
@@ -223,7 +229,8 @@ write. This limitation is visible in the specification and tests.
 8. An online Streamer web write emits only the changed scope revision and causes
    Electron to reconcile without waiting for fallback polling. Offline Devices
    have no server-side notification queue and reconcile current revisions after
-   startup or reconnection.
+   startup or reconnection. If the first SSE handshake fails, the first successful
+   retry reads the current revisions immediately, even if no event arrives.
 9. A's login/logout changes only A's cloud credentials and monitor. A pending
    upload cannot be retried under B, a late A response cannot replace B's local
    Cookie, and switching back to A restores A's saved state independently of B's
@@ -240,7 +247,9 @@ write. This limitation is visible in the specification and tests.
     and permits no cloud writes. No marker appears in settings/Device snapshots.
 11. Invalid song snapshots do not clear the last good library or advance its
     revision. A subsequent valid response at the same revision is applied,
-    including an explicit `songs: []`.
+    including an explicit `songs: []`. After a valid metadata read, a song
+    snapshot failure still allows the current account's Bilibili revision to
+    be applied in that pass. A shared `Retry-After` pauses subsequent requests.
 12. A `Retry-After: 60` SSE rejection cannot reconnect after only one second;
     a wait longer than the local backoff cap is retained. A throttled dirty
     upload remains dirty, and queued sync requests cannot bypass its wait.

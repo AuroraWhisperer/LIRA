@@ -17,7 +17,7 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
   let initialized = false;
   let songTableBound = false;
   let pendingSongs = null;
-  let renderedMarkup;
+  let renderedRows = [];
   // 行内操作按最近一次渲染的歌库快照解析目标，与逐行绑定时的闭包一致。
   let renderedSongs = [];
 
@@ -152,14 +152,14 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
     for (const header of document.querySelectorAll('#songsPage th[data-song-column]')) {
       header.hidden = !visibleColumns.has(header.dataset.songColumn);
     }
-    let markup;
+    let rows;
     if (songs.length === 0) {
       const currentFilters = filters.readSongFilters();
       const filtered = currentFilters.query || currentFilters.categories.length || currentFilters.language || currentFilters.artist || currentFilters.tags.length || currentFilters.enabledOnly;
-      markup = filtered
+      rows = [filtered
         ? '<tr><td colspan="8">没有符合筛选条件的歌曲，请调整或清除筛选。</td></tr>'
-        : '<tr><td colspan="8">歌库还没有歌曲。可在上方添加，或到“歌单导入导出”批量导入。</td></tr>';
-    } else markup = songs
+        : '<tr><td colspan="8">歌库还没有歌曲。可在上方添加，或到“歌单导入导出”批量导入。</td></tr>'];
+    } else rows = songs
       .map(
         (song) => `
       <tr>
@@ -189,13 +189,34 @@ export function createSongs({ state = stateService, utils = songUtils } = {}) {
         </td>
       </tr>
     `,
-      )
-      .join('');
-    if (markup !== renderedMarkup) {
-      closeSongActionsMenus();
-      table.innerHTML = markup;
-      renderedMarkup = markup;
+      );
+    updateTableRows(table, rows);
+  }
+
+  function updateTableRows(table, rows) {
+    let first = 0;
+    let oldEnd = renderedRows.length;
+    let newEnd = rows.length;
+    while (first < oldEnd && first < newEnd && renderedRows[first] === rows[first]) first++;
+    if (first === oldEnd && first === newEnd) return;
+    while (oldEnd > first && newEnd > first && renderedRows[oldEnd - 1] === rows[newEnd - 1]) {
+      oldEnd--;
+      newEnd--;
     }
+
+    closeSongActionsMenus();
+    if (first === 0 && oldEnd === renderedRows.length) {
+      table.innerHTML = rows.join('');
+    } else {
+      // 用实际行定位边界，模板中的空白文本节点也随变更区间一起替换。
+      const range = document.createRange();
+      range.selectNodeContents(table);
+      if (first > 0) range.setStartAfter(table.rows[first - 1]);
+      if (oldEnd < renderedRows.length) range.setEndBefore(table.rows[oldEnd]);
+      range.deleteContents();
+      if (newEnd > first) range.insertNode(range.createContextualFragment(rows.slice(first, newEnd).join('')));
+    }
+    renderedRows = rows;
   }
 
   // 行内操作统一由表格接收点击，避免每次重画后逐行重新绑定。

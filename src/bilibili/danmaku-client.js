@@ -128,7 +128,7 @@ class BilibiliDanmakuClient {
 
     const connectionAttempt = this.connectionAttempt + 1;
     try {
-      await this.connect({ waitForOpen: true }, generation);
+      await this.connect({}, generation);
     } catch (error) {
       if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       console.warn(`[Bilibili] reconnect failed: ${error.message}`);
@@ -270,7 +270,8 @@ class BilibiliDanmakuClient {
     this.messageHandlers.updateRoomRunContext(this.roomRunContext);
     this.historyPoller.updateRoomOwnerUid(roomInfo.uid);
 
-    if (!isLive || options.alwaysHistory) {
+    const keepHistory = !isLive || this.options.alwaysHistory || options.alwaysHistory;
+    if (keepHistory) {
       this.historyPoller.start(this.roomRunContext);
     }
     this.onlineRankPoller.start(this.roomRunContext);
@@ -279,7 +280,8 @@ class BilibiliDanmakuClient {
 
     const danmuInfo = await this.apiClient.resolveDanmuInfo(roomInfo.roomId);
     if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
-    const host = (danmuInfo.host_list || [])[0];
+    const hosts = Array.isArray(danmuInfo.host_list) ? danmuInfo.host_list.filter((entry) => entry?.host) : [];
+    const host = hosts[(connectionAttempt - 1) % hosts.length];
     if (!host) {
       throw new Error('没有可用的弹幕服务器。');
     }
@@ -341,8 +343,12 @@ class BilibiliDanmakuClient {
           roomId: roomInfo.roomId,
         })}`,
       );
+    });
+
+    this.wsConnection.on('authenticated', () => {
+      if (!this.isConnectionCurrent(generation, connectionAttempt)) return;
       this.reconnecting = false;
-      if (isLive && !this.options.alwaysHistory) {
+      if (!keepHistory) {
         this.historyPoller.stop();
       }
       this.report({
@@ -437,7 +443,7 @@ class BilibiliDanmakuClient {
       });
     });
 
-    await this.wsConnection.connect(wsUrl, authPayload, { ...options, waitForOpen: true });
+    await this.wsConnection.connect(wsUrl, authPayload, { waitForAuthentication: true });
   }
 
   handleHistoryMessage(messageData) {
@@ -450,6 +456,7 @@ class BilibiliDanmakuClient {
     this.deliverDanmaku({
       message: messageData.message,
       uid: requester.uid,
+      ...(this.ownerUid && requester.uid === this.ownerUid ? { isStreamer: true } : {}),
       identityType: 'uid',
       userName: requester.userName,
       avatarUrl: requester.avatarUrl,
@@ -489,7 +496,6 @@ class BilibiliDanmakuClient {
     this.liveStatusMonitor.setReconnectInFlight(true);
     clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
-    this.historyPoller.stop();
 
     this.report({
       connected: false,

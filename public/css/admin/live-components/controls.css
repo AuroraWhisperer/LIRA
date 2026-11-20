@@ -101,6 +101,10 @@
   line-height: 20px;
 }
 
+.live-components-page .other-feature-panel .lira-number-field > input {
+  padding-inline-end: var(--number-field-unit-space, 36px);
+}
+
 /* The shared trigger already reserves its chevron with flex, so an extra end inset only
    squeezed the value text and pushed the chevron off the control's optical edge. */
 .live-components-page .other-feature-panel .lira-select-trigger {

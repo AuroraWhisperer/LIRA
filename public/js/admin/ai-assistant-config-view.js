@@ -172,7 +172,7 @@ export function renderProviderSelection(value, options = {}) {
     openai: ['OpenAI 官方', '使用 OpenAI 官方服务，地址会自动填好。'],
     anthropic: ['Claude 官方兼容', '使用 Claude 官方兼容服务，部分功能不可用。'],
     gemini: ['Gemini 官方兼容', '使用 Gemini 官方兼容服务，可以调整思考强度。'],
-    doubao: ['个人账号·实验性', '使用豆包个人账号文字对话；服务可能要求人工验证，不保证无人值守。'],
+    doubao: ['个人账号·实验性', '使用豆包个人账号对话（实验性）；遇到平台弹窗验证时需手动点一下，无法保证全程免打理。'],
     custom: ['自定义兼容', '按所用平台的说明填写地址，连接方式不确定时保持自动。'],
   };
   const [badge, note] = labels[provider] || labels.auto;
@@ -209,11 +209,25 @@ function renderProviderAccess(provider, subscription) {
 
 export function renderModelCatalog(catalog = {}, { preserveConfig = true } = {}) {
   modelCatalog = catalog;
-  if (!preserveConfig && modelConfig.modelEndpoint) {
+  if (modelConfig.modelEndpoint && (!preserveConfig || Array.isArray(catalog.models))) {
     modelConfig = { ...modelConfig, modelEndpoint: { ...modelConfig.modelEndpoint } };
-    delete modelConfig.modelEndpoint.reasoningEfforts;
-    delete modelConfig.modelEndpoint.defaultReasoningEffort;
+    if (!preserveConfig) {
+      delete modelConfig.modelEndpoint.reasoningEfforts;
+      delete modelConfig.modelEndpoint.defaultReasoningEffort;
+    }
+    delete modelConfig.modelEndpoint.reasoningState;
   }
+  renderModelSelection();
+}
+
+export function renderReasoningState(config) {
+  const current = { modelAuthMode: 'api', ...config };
+  if (['modelProvider', 'modelAuthMode', 'deepseekResponsesUrl', 'modelApiProtocol', 'model',
+    'reasoningEnabled', 'reasoningEffort'].some(key => current[key] !== modelConfig[key])) return;
+  modelConfig = { ...modelConfig, modelEndpoint: current.modelEndpoint };
+  const state = current.modelEndpoint?.reasoningState;
+  const input = document.getElementById('xiaomiAiReasoning');
+  if (input && state && state.mode !== 'unknown') input.checked = state.mode === 'enabled';
   renderModelSelection();
 }
 
@@ -234,9 +248,14 @@ export function renderModelSelection() {
       ? { efforts: endpoint.reasoningEfforts || [], defaultEffort: endpoint.defaultReasoningEffort }
       : null;
   const effortInput = document.getElementById('xiaomiAiReasoningEffort');
-  const efforts = reasoning?.efforts || [];
+  const reasoningState = sameService && model === modelConfig.model ? endpoint.reasoningState : undefined;
+  // The switch owns "none"; the selector contains the available enabled modes.
+  const efforts = (reasoning?.efforts || []).filter(effort => effort !== 'none');
   if (effortInput) {
-    const value = efforts.includes(selectedReasoningEffort) ? selectedReasoningEffort : reasoning?.defaultEffort;
+    const effectiveEffort = reasoningState?.canDisable === false && !modelConfig.reasoningEnabled
+      ? reasoningState.effort : selectedReasoningEffort;
+    const defaultEffort = reasoning?.defaultEffort === 'none' ? efforts[0] : reasoning?.defaultEffort;
+    const value = efforts.includes(effectiveEffort) ? effectiveEffort : defaultEffort;
     const options = efforts.map(effort => {
       const option = document.createElement('option');
       option.value = effort;
@@ -253,14 +272,14 @@ export function renderModelSelection() {
     effortInput.replaceChildren(...options);
     effortInput.value = value || '';
   }
-  renderModelCapabilities(endpoint, efforts);
+  renderModelCapabilities(endpoint, efforts, reasoningState);
 }
 
 export function selectReasoningEffort() {
   selectedReasoningEffort = document.getElementById('xiaomiAiReasoningEffort')?.value || 'auto';
 }
 
-function renderModelCapabilities(endpoint = {}, efforts = []) {
+function renderModelCapabilities(endpoint = {}, efforts = [], reasoningState) {
   const hasEfforts = efforts.length > 0;
   const webSearchMode = endpoint.webSearchMode || 'unconfigured';
   const reasoningMode = endpoint.reasoningMode || 'unconfigured';
@@ -280,15 +299,31 @@ function renderModelCapabilities(endpoint = {}, efforts = []) {
   const effortControl = document.getElementById('xiaomiAiReasoningEffortControl');
   const providerManaged = document.getElementById('xiaomiAiProviderManagedReasoning');
   const configurableReasoning = ['effort', 'deepseek_effort', 'gemini_effort', 'kimi_thinking'].includes(reasoningMode);
+  const alwaysThinking = configurableReasoning && reasoningState?.canDisable === false;
+  const reasoningInput = document.getElementById('xiaomiAiReasoning');
+  if (reasoningInput) {
+    reasoningInput.disabled = alwaysThinking || (endpoint.provider === 'custom'
+      && endpoint.protocol === 'chat_completions' && !hasEfforts);
+    if (alwaysThinking) reasoningInput.checked = true;
+    else if (reasoningState?.mode === 'disabled' && modelConfig.reasoningEnabled && selectedReasoningEffort === 'none') {
+      reasoningInput.checked = false;
+    }
+  }
   if (reasoningControl) reasoningControl.hidden = !configurableReasoning;
   if (effortControl) effortControl.hidden = !configurableReasoning || !hasEfforts;
-  if (providerManaged) providerManaged.hidden = reasoningMode !== 'provider_managed' && (configurableReasoning || hasEfforts);
-  setText('xiaomiAiProviderManagedReasoning', reasoningMode === 'unconfigured'
-    ? '尚未配置模型服务，深度思考设置暂不可用。'
-    : '思考由平台和模型自动控制。');
-  setText('xiaomiAiReasoningLabel', '深度思考');
+  if (providerManaged) providerManaged.hidden = false;
+  const status = reasoningState?.mode === 'enabled'
+    ? `已保存：思考开启${reasoningState.effort ? ` · ${reasoningState.effort}` : ''}${alwaysThinking ? '（该模型不支持关闭）' : ''}`
+    : reasoningState?.mode === 'disabled' ? '已保存：思考关闭'
+      : reasoningMode === 'unconfigured' ? '尚未配置模型服务，深度思考设置暂不可用。'
+        : reasoningMode === 'provider_managed' ? '当前接入未提供思考控制，无法确认平台实际使用的模式。'
+        : '未确认当前思考模式；请获取模型并选择，或核对服务支持的模型 ID。';
+  setText('xiaomiAiProviderManagedReasoning', status);
+  setText('xiaomiAiReasoningLabel', alwaysThinking ? '思考始终开启' : '深度思考');
   if (reasoningMode === 'effort') {
     setText('xiaomiAiReasoningHelp', hasEfforts ? '强度与默认档按所选模型的官方定义显示。' : '未获取到该模型的官方强度信息，沿用上游设置。');
+    if (endpoint.provider === 'custom') setText('xiaomiAiReasoningHelp',
+      '优先采用服务商返回的思考档位，未返回时按同名官方模型匹配（需中转服务商支持透传思考参数）。');
   } else if (reasoningMode === 'deepseek_effort') {
     setText('xiaomiAiReasoningHelp', '强度与默认档来自 DeepSeek 官方模型目录或官方文档。');
   } else if (reasoningMode === 'gemini_effort') {
@@ -299,8 +334,8 @@ function renderModelCapabilities(endpoint = {}, efforts = []) {
   if (isSubscriptionSelected()) setText('xiaomiAiReasoningHelp', hasEfforts
     ? '强度与默认档来自当前账号的官方模型目录；部分模型始终思考。'
     : '请获取当前账号的模型目录；未确认思考强度时沿用上游设置。');
-  if (hasEfforts && !efforts.includes('none') && reasoningMode !== 'deepseek_effort') {
-    setText('xiaomiAiReasoningHelp', '该模型始终思考；开启时使用所选强度，关闭此选项时使用模型官方支持的最低强度。');
+  if (alwaysThinking) {
+    setText('xiaomiAiReasoningHelp', '该模型不支持关闭思考，可直接选择强度；最低强度仍会思考。');
   }
   syncReasoningEffortAvailability();
 }

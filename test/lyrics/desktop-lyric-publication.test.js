@@ -39,6 +39,24 @@ test('official trial playback publishes song-relative lyric time and returns to 
   assert.equal(state.lineText, '开头');
 });
 
+test('client lyric lookup preserves consumer-specific timestamp handling', async () => {
+  const { findActiveLyricIndex } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/lyrics/desktop-lyric-timeline.js'));
+  const { LyricService } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/services/lyric-service.js'));
+  const { FullscreenPlayer } = await loadModuleExports(path.join(ROOT_DIR, 'public/js/playback/ui/fullscreen.js'));
+  const service = new LyricService();
+  const player = new FullscreenPlayer();
+  const lines = [{ startMs: 0 }, { startMs: '1000' }];
+  const track = { lyrics: { lines } };
+
+  assert.equal(findActiveLyricIndex(lines, Infinity), 0);
+  assert.equal(service.findLyricLine(track, Infinity), lines[1]);
+  assert.equal(player.findCurrentLyricIndex(lines, -1), -1);
+
+  const untimed = [{}];
+  assert.equal(findActiveLyricIndex(untimed, 0), 0);
+  assert.equal(service.findLyricLine({ lyrics: { lines: untimed } }, 0), null);
+});
+
 test('playback publishes a complete timeline only when the lyric identity changes', async () => {
   const requests = [];
   const playback = await loadModuleExports(

@@ -18,7 +18,7 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
   t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory, '--overtime'], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
-  await desktop.waitForFunction(() => document.getElementById('liveDanmakuFeature')?.parentElement === document.body);
+  await desktop.locator('#liveComponentsPage #danmakuParameterFields > .danmaku-parameter-section').first().waitFor({ state: 'attached' });
   const errors = []; desktop.on('pageerror', error => errors.push(error.message));
   const initial = await app.evaluate(() => {
     const overtime = global.canvasTest.overtime;
@@ -82,8 +82,10 @@ test('overtime canvas changes the real desktop countdown and saved output in bot
   await canvas.getByRole('option', { name: '深夜票券', exact: true }).click();
   await canvas.getByRole('button', { name: '适配', exact: true }).click();
   await canvas.getByRole('option', { name: '拉伸', exact: true }).click();
-  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await canvas.locator('.preview-canvas-status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const save = canvas.getByRole('button', { name: '保存并应用', exact: true });
+  await save.click();
+  await save.click({ trial: true });
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
   assert.equal(await desktop.locator('#overtimeBackgroundFit').inputValue(), 'fill');
   await desktop.getByRole('button', { name: '适配', exact: true }).click();
   await desktop.getByRole('option', { name: '完整显示', exact: true }).click();
@@ -200,8 +202,10 @@ test('desktop and canvas share local settings and imported resources across inst
   await desktop.waitForFunction(() => document.querySelector('[data-resource-style-settings]:not([hidden]) [data-component-parameter="nameFontSize"]').value === '62');
   await desktopSize.fill('70'); await desktopSize.dispatchEvent('change');
   await canvas.waitForFunction(() => document.querySelector('[data-component-parameter="nameFontSize"]').value === '70');
-  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const save = canvas.getByRole('button', { name: '保存并应用', exact: true });
+  await save.click();
+  await save.click({ trial: true });
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
   const songWidgets = await app.evaluate(() => global.canvasTest.output().document.items.filter(item => item.type === 'now-playing'));
   const recordWidget = songWidgets.find(item => item.appearance.config.nowPlayingPart === 'record');
   const textWidget = songWidgets.find(item => item.appearance.config.nowPlayingPart === 'text');
@@ -239,7 +243,7 @@ test('heart box backgrounds save from desktop and canvas into the published appe
   t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
-  await desktop.waitForFunction(() => document.getElementById('liveDanmakuFeature')?.parentElement === document.body);
+  await desktop.locator('#liveComponentsPage #danmakuParameterFields > .danmaku-parameter-section').first().waitFor({ state: 'attached' });
   const errors = []; desktop.on('pageerror', error => errors.push(error.message));
   await desktop.evaluate(async markup => {
     const source = new DOMParser().parseFromString(markup, 'text/html');
@@ -277,8 +281,10 @@ test('heart box backgrounds save from desktop and canvas into the published appe
   await canvasSaved;
   await desktop.waitForFunction(() => document.getElementById('heartBoxCollectionBackgroundStyle').value === 'midnight');
   await preview.locator('.heart-collection[data-background="midnight"]').waitFor();
-  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const save = canvas.getByRole('button', { name: '保存并应用', exact: true });
+  await save.click();
+  await save.click({ trial: true });
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
   const output = await app.evaluate(() => global.canvasTest.output());
   const item = output.document.items.find(item => item.type === 'heart-box-collection');
   assert.equal(output.appearances[item.id].backgroundStyle, 'midnight');
@@ -295,7 +301,7 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   t.after(async () => { await browser?.close(); await app?.close(); removeScratchDirectory(directory); });
   app = await launchElectron({ cwd: root, args: ['test/fixtures/danmaku-canvas-editor.cjs', directory], timeout: 15000 });
   const desktop = await app.firstWindow(); desktop.setDefaultTimeout(8000);
-  await desktop.waitForFunction(() => document.getElementById('liveDanmakuFeature')?.parentElement === document.body);
+  await desktop.locator('#liveComponentsPage #danmakuParameterFields > .danmaku-parameter-section').first().waitFor({ state: 'attached' });
   const errors = []; desktop.on('pageerror', error => errors.push(error.message));
   const rows = Array.from({ length: 50 }, (_, index) => ({ rank: index + 1, roomId: String(index + 1), name: `主播 ${index + 1}`, score: 10000 - index }));
   await desktop.route('**/api/bilibili/live-rankings*', route => route.fulfill({ json: {
@@ -426,8 +432,10 @@ test('motion, advanced lyrics and shared viewing controls save through desktop a
   assert.equal(await rankingList.locator('.ranking-place').first().textContent(), '1', 'desktop keeps the complete list when canvas follows the current room');
   assert.equal(await rankingList.locator('.ranking-place').last().textContent(), String(rows.length));
   assert.equal(await rankingList.locator('.is-current').count(), 1);
-  await canvas.getByRole('button', { name: '保存并应用', exact: true }).click();
-  await canvas.getByRole('status').filter({ hasText: '已保存并应用到直播源' }).waitFor();
+  const save = canvas.getByRole('button', { name: '保存并应用', exact: true });
+  await save.click();
+  await save.click({ trial: true });
+  assert.equal(await app.evaluate(() => global.canvasTest.scene().publishedVersion), 1);
   const output = await app.evaluate(() => global.canvasTest.output());
   const appearance = type => output.appearances[output.document.items.find(item => item.type === type).id];
   assert.equal(appearance('lyrics').advancedLyricLayout, 'adaptive');

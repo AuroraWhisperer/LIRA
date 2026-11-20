@@ -35,6 +35,7 @@ const CLEAR_ALL_MATRIX = {
     'import_batches',
     'user_cooldowns',
     'song_cooldowns',
+    'song_request_daily_counts',
     'ai_request_logs',
     'ai_api_usage',
     'ai_viewer_context',
@@ -78,6 +79,7 @@ function clearSongDataInTransaction(songDb, counts) {
   counts.importBatches = countRows(songDb, 'import_batches');
   counts.userCooldowns = countRows(songDb, 'user_cooldowns');
   counts.songCooldowns = countRows(songDb, 'song_cooldowns');
+  counts.songRequestDailyCounts = countRows(songDb, 'song_request_daily_counts');
   counts.aiRequestLogs = countRows(songDb, 'ai_request_logs');
   counts.aiApiUsage = countRows(songDb, 'ai_api_usage');
   counts.aiViewerContext = countRows(songDb, 'ai_viewer_context');
@@ -92,6 +94,7 @@ function clearSongDataInTransaction(songDb, counts) {
   songDb.prepare('DELETE FROM import_batches').run();
   songDb.prepare('DELETE FROM user_cooldowns').run();
   songDb.prepare('DELETE FROM song_cooldowns').run();
+  songDb.prepare('DELETE FROM song_request_daily_counts').run();
   songDb.prepare('DELETE FROM ai_request_logs').run();
   songDb.prepare('DELETE FROM ai_api_usage').run();
   songDb.prepare('DELETE FROM ai_viewer_context').run();

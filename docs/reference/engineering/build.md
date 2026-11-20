@@ -57,7 +57,7 @@ Windows 发布验证使用 Node.js 24 LTS 最新补丁版（至少 24.16.0）。
 
 模型资源统一使用 `vendor/lira.onnx`。构建只复制运行所需文件，不打包开发转换记录或本机路径，并清理旧构建中残留的记录及旧模型文件名。
 
-`npm run build:audio-assistant -- <vendor目录>` 使用根 `global.json` 固定的 .NET 10.0.402 SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，目标为 `net10.0-windows10.0.19041.0`，生成含 .NET 10 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。两个项目分别提交 `packages.lock.json`；构建入口先执行 `dotnet restore -r win-x64 --locked-mode`，再以 `--no-restore` publish，保证传递图可复核。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
+`npm run build:audio-assistant -- <vendor目录>` 使用根 `global.json` 固定的 .NET 10.0.404 SDK 发布 `native/audio-assistant/AudioAssistant.csproj`，目标为 `net10.0-windows10.0.19041.0`，生成含 .NET 10 运行库的 Windows x64 工作程序；未提供目录时复用本机 `tmp/audio-assistant-demo/vendor`。原生项目使用 NAudio 2.2.1、ONNX Runtime 1.26.0，复用 Rubber Band 3.3.0 的既有 DLL 与已校验模型。两个项目均声明 `win-x64` 还原目标，使 VS Code 还原时保留各自 `packages.lock.json` 中的 Windows 依赖。命令行构建和原生检查在 `tmp/` 生成中间文件，并排除项目内的 `obj/`，避免重复编译编辑器生成的程序集属性。构建入口先执行 `dotnet restore -r win-x64 --locked-mode`，再以 `--no-restore` publish，保证传递图可复核。没有新增 npm 运行时依赖；客户端使用 Electron 自带 Node，终端用户无需安装 Node、Python 或 .NET。
 
 输出位于忽略的 `build/audio-assistant/`，构建中间产物位于 `tmp/audio-assistant-build/`。客户端安装包不再通过 `extraResources` 携带音频目录。`npm run export:audio` 从已有构建输出生成独立压缩 ZIP（排除 PDB），并更新客户端内置的 `src/electron/audio-component-manifest.json`；音频未变时无需重编译。导出物、上传顺序和缓存规则见 [CDN 音频组件交付](../../guides/cdn-resources.md#音频组件独立交付)。构建前须准备完整 vendor 文件；核心职责见[原生核心说明](../../../native/audio-assistant/README.md)。原生代码变化时先构建并聚焦验证，再导出并按[发布指南](../../../RELEASE_GUIDE.md)执行客户端验证。
 

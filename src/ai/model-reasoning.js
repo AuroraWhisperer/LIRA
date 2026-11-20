@@ -22,7 +22,8 @@ function getModelReasoning(config = {}, modelInfo = {}) {
     return profile(['low', 'high', 'max'], 'max');
   }
   if (provider === 'gemini') return getGeminiReasoning(model);
-  if (provider === 'openai') return getOpenAiReasoning(model);
+  // OpenAI-compatible relays often return IDs only; explicit catalog levels still win above.
+  if (['openai', 'custom', ''].includes(provider)) return getOpenAiReasoning(model);
   return null;
 }
 

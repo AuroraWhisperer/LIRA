@@ -41,7 +41,7 @@ export function createTextBoxPreview({ media } = {}) {
       }
       const background = previewElement('div', 'text-box-background');
       const backgroundLabel = previewElement('span', 'text-box-background-label', '背景颜色');
-      const backgroundHelp = previewElement('lira-help', '', '颜色与不透明度会用于直播画面。设为 0% 或点击“恢复透明”可去掉背景；预览的检查底色不会输出。');
+      const backgroundHelp = previewElement('lira-help', '', '设置文本框底色和透明度（调到 0% 或点「恢复透明」即无底色）。预览区的底色仅方便看清文字，不会出现在直播画面里。');
       backgroundHelp.setAttribute('label', '背景颜色说明');
       backgroundLabel.append(backgroundHelp);
       const backgroundColor = previewElement('input');
@@ -73,7 +73,7 @@ export function createTextBoxPreview({ media } = {}) {
       const speed = previewElement('div', 'text-box-scroll-speed');
       const speedHeading = previewElement('div', 'text-box-speed-heading');
       const speedLabel = previewElement('span', '', '滚动速度');
-      const speedHelp = previewElement('lira-help', '', '开启任一滚动方向后可调节。横向和纵向共用此速率，数值越大滚动越快；只影响预览和直播画面。');
+      const speedHelp = previewElement('lira-help', '', '开启横向或纵向滚动后可调，数值越大滚得越快。');
       speedHelp.setAttribute('label', '滚动速度说明');
       speedLabel.append(speedHelp);
       const speedValue = previewElement('output', 'text-box-speed-value');

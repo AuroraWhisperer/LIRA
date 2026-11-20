@@ -88,11 +88,19 @@ test('canvas invalid parameters block publishing and survive unrelated scene upd
 
   await width.fill(original);
   await width.press('Tab');
-  const fontSize = page.locator('[data-preview-field="danmakuFontSize"]');
-  await fontSize.fill('999');
-  await fontSize.press('Tab');
+  await page.getByRole('button', { name: '保存并应用', exact: true }).click();
+  await page.locator('.preview-canvas-status').filter({ hasText: '已保存并应用' }).waitFor();
+  assert.equal(publications, 1, 'Correcting the width permits one publication.');
+
+  await desktop.evaluate(() => window.controllers.danmaku.edit({ style: 'stardust' }));
+  await page.locator('[data-preview-field="danmakuMotionOptions"] > summary').click();
+  const duration = page.getByRole('spinbutton', { name: '停留（秒）', exact: true });
+  const previousDuration = await duration.inputValue();
+  await duration.fill('999');
+  await duration.press('Tab');
   await page.locator('#toast .toast-error').filter({ hasText: '之间的整数' }).waitFor();
-  assert.notEqual(await fontSize.inputValue(), '999', 'The existing parameter owner still rejects invalid values.');
+  assert.equal(await duration.inputValue(), previousDuration, 'The shared parameter owner restores the last valid value.');
+  assert.notEqual(await desktop.evaluate(() => window.controllers.danmaku.getState().draft.styleOptions.stardust?.durationSeconds), 999);
 });
 
 test('canvas deselection commits the focused input without changing other scene data', { timeout: 30000 }, async t => {
@@ -173,9 +181,8 @@ test('canvas lyric settings save and existing lyric dimensions survive adding an
 test('canvas inputs keep typing and native selection across preview updates', { timeout: 30000 }, async (t) => {
   const { page, desktop } = await editor(t);
   const font = page.locator('[data-preview-field="danmakuFontSize"]');
-  await font.click();
-  await font.press('Control+a');
-  await page.keyboard.type('36', { delay: 300 });
+  await font.fill('35');
+  await font.press('ArrowRight');
   await receiveDisplayUpdate(page, desktop);
   assert.equal(await font.inputValue(), '36');
   await font.press('Tab');

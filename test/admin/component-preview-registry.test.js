@@ -15,7 +15,7 @@ const plain = (value) => JSON.parse(JSON.stringify(value));
 function createNode() {
   const fields = new Map();
   const handlers = new Map();
-  return { fields, handlers, children: [], dataset: {}, value: '',
+  return { fields, handlers, children: [], dataset: {}, value: '', classList: { toggle() {} },
     getElementById(id) {
       if (!fields.has(id)) fields.set(id, createNode());
       return fields.get(id);

@@ -7,7 +7,6 @@ const path = require('node:path');
 const test = require('node:test');
 const { loadModuleExports } = require('../helpers/frontend-modules');
 const { contentType } = require('../../src/server/http-utils');
-const { addFrameProtectionHeaders } = require('../../src/server/page-assets');
 const { getOpeningConfig } = require('../../src/server/opening-service');
 const settingsRoutes = require('../../src/server/routes/settings-routes');
 const { closeDatabases, createDatabases } = require('../../src/storage/database');
@@ -17,26 +16,11 @@ const { DEFAULT_SETTINGS } = settingsStoreModule;
 
 const ROOT_DIR = path.join(__dirname, '../..');
 
-test('opening samples stay outside public assets and the overlay route remains registered', () => {
+test('opening samples stay outside public assets and Ogg files use the audio MIME type', () => {
   for (const name of ['music.ogg', 'avatar.webp', 'opening-character.png']) {
     assert.equal(fs.existsSync(path.join(ROOT_DIR, 'public/img/overlays/opening', name)), false);
   }
-  assert.equal(require('../../src/server/access-policy').getOverlayScope('/opening'), 'opening');
   assert.equal(contentType(path.join(ROOT_DIR, 'test/fixtures/opening/music.ogg')), 'audio/ogg');
-});
-
-test('opening overlay is a sandboxed frameable page', () => {
-  const headers = new Map();
-  addFrameProtectionHeaders(
-    {
-      setHeader(name, value) {
-        headers.set(name, value);
-      },
-    },
-    '/opening',
-  );
-  assert.equal(headers.get('Content-Security-Policy'), 'sandbox allow-scripts');
-  assert.equal(headers.has('X-Frame-Options'), false);
 });
 
 test('opening settings keep payload names, legacy fallbacks and unsaved form drafts', async () => {

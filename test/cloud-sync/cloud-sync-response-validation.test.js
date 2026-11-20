@@ -98,3 +98,65 @@ test('invalid cloud songs preserve the snapshot and revision until a valid retry
     }
   }
 });
+
+test('an oversized song snapshot leaves its revision retryable while Bilibili restores and follows SSE', async (t) => {
+  let oversized = true;
+  let bilibiliRevision = 4;
+  let songReads = 0;
+  const credentialReads = [];
+  const fixture = createFixture({ licenseManager: {
+    getCloudState: async () => ({
+      settings: { initialized: true, revision: 2, values: { giftBlindBoxConfig: [] } },
+      songs: { initialized: true, revision: 3 },
+      bilibili: { initialized: true, revision: bilibiliRevision },
+    }),
+    async getCloudSongs() {
+      songReads += 1;
+      if (oversized) throw Object.assign(new Error(), { code: 'RESPONSE_TOO_LARGE' });
+      return { initialized: true, revision: 3, songs: [] };
+    },
+    async getBilibiliCredentialsInternal() {
+      credentialReads.push(bilibiliRevision);
+      return { loggedIn: bilibiliRevision === 4, revision: bilibiliRevision, cookie: 'fixture' };
+    },
+  } });
+  t.after(() => fixture.controller.dispose());
+  await assert.rejects(fixture.controller.start(), { code: 'RESPONSE_TOO_LARGE' });
+  bilibiliRevision = 5;
+  fixture.emitCloud({ scopes: { bilibili: bilibiliRevision } });
+  await fixture.controller.whenIdle();
+  assert.deepEqual(credentialReads, [4, 5]);
+  assert.deepEqual(fixture.calls.map(([kind]) => kind), ['apply-settings', 'apply-bilibili', 'apply-bilibili-logout']);
+
+  oversized = false;
+  await fixture.controller.syncNow();
+  assert.equal(songReads, 3);
+  assert.deepEqual(fixture.calls.at(-1), ['apply-songs', []]);
+  assert.deepEqual(credentialReads, [4, 5]);
+});
+
+test('a Retry-After on the song read still pauses subsequent scope requests', async (t) => {
+  let now = 0;
+  const error = Object.assign(new Error(), { code: 'RATE_LIMITED', retryAfterMs: 60_000 });
+  let songReads = 0;
+  const fixture = createFixture({ now: () => now, licenseManager: {
+    async getCloudSongs() {
+      songReads += 1;
+      if (songReads === 1) throw error;
+      return { initialized: true, revision: 3, songs: [] };
+    },
+    async getBilibiliCredentialsInternal() {
+      assert.ok(now >= 60_000, 'the shared retry deadline must expire first');
+      return { loggedIn: false, revision: 4 };
+    },
+  } });
+  t.after(() => fixture.controller.dispose());
+  await assert.rejects(fixture.controller.start(), error);
+  now = 59_999;
+  await fixture.controller.syncNow();
+  assert.equal(songReads, 1);
+  now = 60_000;
+  await fixture.controller.syncNow();
+  assert.equal(songReads, 2);
+  assert.equal(fixture.calls.at(-1)[0], 'apply-bilibili-logout');
+});

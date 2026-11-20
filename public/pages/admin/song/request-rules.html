@@ -15,21 +15,21 @@
               </select>
             </label>
             <label class="song-request-row">
-              <span>接受 SC 点歌 <lira-help label="接受 SC 点歌说明">开启后，SC 中的点歌和随机点歌指令按点歌规则加入队列。关闭后，SC 仅作为留言显示，不进入点歌队列和点歌板；已排队的歌曲不受影响。</lira-help></span>
+              <span>接受 SC 点歌 <lira-help label="接受 SC 点歌说明">开启后，醒目留言（SC）里的点歌和随机点歌也会按规则进入队列；关闭后仅作普通 SC 显示，不影响已排队的歌。</lira-help></span>
               <select id="scSongRequestEnabled" data-dropdown-variant="settings" aria-label="接受 SC 点歌">
                 <option value="true">开启 · 接受点歌</option>
                 <option value="false">关闭 · 仅显示留言</option>
               </select>
             </label>
             <label class="song-request-row">
-              <span>点歌指令必须带空格 <lira-help label="点歌指令必须带空格说明">默认关闭。开启后，普通弹幕和 SC 点歌须使用「点歌 歌名」，例如「点歌 晴天」；「点歌晴天」不触发，避免误触发。随机点歌和取消点歌沿用原格式。</lira-help></span>
+              <span>点歌指令必须带空格 <lira-help label="点歌指令必须带空格说明">开启后，必须发「点歌 歌名」（中间带空格，如「点歌 晴天」）才会点歌，发「点歌晴天」不触发，防止观众聊天误触。随机点歌和取消点歌不受影响。</lira-help></span>
               <select id="songRequestRequireSpace" data-dropdown-variant="settings" aria-label="点歌指令必须带空格">
                 <option value="false">关闭</option>
                 <option value="true">开启</option>
               </select>
             </label>
             <label class="song-request-row">
-              <span>允许观众取消点歌 <lira-help label="允许观众取消点歌说明">默认开启。观众发送「取消点歌」可取消本人最后一首仍在点歌板上的歌，发送「取消点歌 歌名」可按完整歌名取消本人的歌。关闭后两种取消指令均不生效，主播仍可手动删除队列歌曲。</lira-help></span>
+              <span>允许观众取消点歌 <lira-help label="允许观众取消点歌说明">开启后，观众发「取消点歌」可撤回自己最后点的一首歌，发「取消点歌 歌名」可撤回指定歌曲。关闭后观众无法自行取消，主播仍可手动删除。</lira-help></span>
               <select id="songRequestCancelEnabled" data-dropdown-variant="settings" aria-label="允许观众取消点歌">
                 <option value="true">开启 · 允许取消</option>
                 <option value="false">关闭 · 禁止取消</option>
@@ -38,7 +38,7 @@
           </div>
           <div class="song-request-row-group">
             <label class="song-request-row">
-              <span>歌名匹配方式 <lira-help label="歌名匹配方式说明">两种方式都优先匹配完整歌名。「唯一匹配」仅在包含关键词的可点歌曲只有一首时补全；「前缀优先」先匹配以关键词开头的唯一歌曲，没有前缀候选时再尝试唯一包含匹配。例如歌库有《如果你也听说》和《听说你》，前缀优先会将「点歌 听说」补全为《听说你》。多个候选仍不自动选择，沿用「只允许歌库歌曲」的处理。</lira-help></span>
+              <span>歌名匹配方式 <lira-help label="歌名匹配方式说明">两种方式都会优先匹配完整歌名。没写全时：「唯一匹配」只在歌库里仅有一首歌包含该词时才自动补全；「前缀优先」会优先补全以该词开头的唯一歌曲（比如歌库有《如果你也听说》和《听说你》，发「点歌 听说」会点中《听说你》）。如果还是匹配到多首歌，则不会自动帮观众乱选。</lira-help></span>
               <select id="songRequestMatchMode" data-dropdown-variant="settings" aria-label="歌名匹配方式">
                 <option value="unique">唯一匹配（默认）</option>
                 <option value="prefix">前缀优先</option>
@@ -52,21 +52,21 @@
               </select>
             </label>
             <label class="song-request-row">
-              <span>禁止同名点歌 <lira-help label="禁止同名点歌说明">默认关闭，允许同名点歌。开启后，点歌板上已有相同歌名时，新的点歌会失败并显示红色提示，随机点歌、SC 点歌和手动点歌也受限制；同名不同歌手仍算重复。歌曲离开点歌板后可再次点歌，仍须满足歌曲冷却。开启不会移除已排队的歌曲。</lira-help></span>
+              <span>禁止同名点歌 <lira-help label="禁止同名点歌说明">开启后，只要队列里已经有同名歌曲（不同歌手也算同名），就不能再点，直到这首歌唱完或移出队列。不影响开启前已排队的歌。</lira-help></span>
               <select id="allowDuplicate" data-dropdown-variant="settings" aria-label="禁止同名点歌">
                 <option value="true">关闭 · 允许同名</option>
                 <option value="false">开启 · 禁止同名</option>
               </select>
             </label>
             <div class="song-request-row song-cooldown-setting">
-              <span id="songCooldownLabel">单首歌曲冷却 <lira-help label="单首歌曲冷却说明">歌曲成功加入点歌队列后，所有观众再次点同一首歌都会被拦截。唱完、删除或清空队列不解除冷却，重启后仍有效。自然日按北京时间计算，1 自然日表示次日 00:00 恢复；时长可填 1–999。</lira-help></span>
+              <span id="songCooldownLabel">单首歌曲冷却 <lira-help label="单首歌曲冷却说明">一首歌被点中后，冷却期内所有人都不能再点（唱完、删除或重启软件都不会提前解除）。按自然日计算时，1 天代表次日 00:00（北京时间）解封。</lira-help></span>
               <div class="song-cooldown-controls">
                 <select id="songCooldownMode" data-dropdown-variant="settings" aria-label="单首歌曲冷却模式">
                   <option value="off">不限制</option>
                   <option value="hours">按小时</option>
                   <option value="days">按自然日</option>
                 </select>
-                <span id="songCooldownAmount" class="song-request-number" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" aria-describedby="songCooldownError" /><span id="songCooldownUnit" class="song-request-unit" aria-hidden="true">小时</span></span>
+                <span id="songCooldownAmount" class="lira-number-field" hidden><input id="songCooldownValue" type="number" min="1" max="999" step="1" value="1" required disabled aria-label="冷却小时数" aria-describedby="songCooldownError" /><span id="songCooldownUnit" class="lira-number-field-unit" aria-hidden="true">小时</span></span>
               </div>
               <small id="songCooldownError" class="song-request-field-error" role="status" hidden></small>
             </div>
@@ -74,14 +74,14 @@
           <div class="song-request-row-group">
             <label class="song-request-row">
               最多排队歌曲数
-              <span class="song-request-number"><input id="queueLimit" type="number" min="1" max="300" /><span class="song-request-unit" aria-hidden="true">首</span></span>
+              <span class="lira-number-field"><input id="queueLimit" type="number" min="1" max="300" /><span class="lira-number-field-unit" aria-hidden="true">首</span></span>
             </label>
             <label class="song-request-row">
-              <span>每人同时排队上限 <lira-help label="每人同时排队上限说明">0 表示不限制。分别统计每位观众等待中的歌曲和 LIVE 歌曲，唱完或删除后释放名额。修改规则不会移除已排队的歌曲。</lira-help></span>
-              <span class="song-request-number"><input id="userQueueLimit" type="number" min="0" max="300" step="1" value="0" required /><span class="song-request-unit" aria-hidden="true">首</span></span>
+              <span>每人同时排队上限 <lira-help label="每人同时排队上限说明">填 0 表示不限制。统计每位观众当前在队列中（含正在唱）的歌曲总数，唱完或删除后空出名额。修改后不影响已排队的歌。</lira-help></span>
+              <span class="lira-number-field"><input id="userQueueLimit" type="number" min="0" max="300" step="1" value="0" required /><span class="lira-number-field-unit" aria-hidden="true">首</span></span>
             </label>
             <label class="song-request-row">
-              <span>大航海优先插队 <lira-help label="大航海优先插队说明">开启后按总督、提督、舰长、非大航海排序，同身份先来后到。手动置顶优先于身份排序，LIVE 歌曲始终保留在第 1 位。保存后对当前队列生效。</lira-help></span>
+              <span>大航海优先插队 <lira-help label="大航海优先插队说明">开启后按「总督 → 提督 → 舰长 → 普通观众」自动排位，同等级按先来后到。正在唱（LIVE）和主播手动置顶的歌始终在最前面。</lira-help></span>
               <select id="guardPriorityEnabled" data-dropdown-variant="settings" aria-label="大航海优先插队">
                 <option value="false">关闭 · 按点歌顺序</option>
                 <option value="true">开启 · 按身份排序</option>
@@ -92,25 +92,38 @@
       </section>
       <section class="song-request-card song-request-card-interval" aria-labelledby="songRequestIntervalTitle">
         <div class="song-request-card-header">
-          <h3 id="songRequestIntervalTitle" class="song-board-section-heading">点歌间隔</h3>
+          <h3 id="songRequestIntervalTitle" class="song-board-section-heading">点歌间隔与每日上限 <lira-help label="点歌间隔与每日上限说明">按观众在本直播间的大航海身份分别限制（留空或填 0 为不限，各档位独立设置）。每日上限统计当天成功点歌的次数，取消或删除不退回次数，每天 00:00（北京时间）重置；主播手动加歌不占额度。</lira-help></h3>
         </div>
+        <div class="song-request-limit-head" aria-hidden="true"><span>间隔</span><span>每日上限</span></div>
         <div class="song-request-rows">
-          <label class="song-request-row">
-            <span class="song-request-tier"><span class="song-request-tier-mark" aria-hidden="true"></span>非大航海 <lira-help label="非大航海点歌间隔说明">每位观众单独计时：成功点歌后，需等待设定秒数才能再次点歌，其他观众不受影响。填 0 表示不设间隔；大航海对应间隔留空时也沿用此值。</lira-help></span>
-            <span class="song-request-number"><input id="userCooldownSeconds" type="number" min="0" max="3600" aria-label="非大航海点歌间隔（秒）" /><span class="song-request-unit" aria-hidden="true">秒</span></span>
-          </label>
-          <label class="song-request-row">
-            <span class="song-request-tier"><img class="song-request-tier-mark" src="/img/admin/gifts/bilibili-guard-captain.webp" alt="" width="22" height="22" />舰长 <lira-help label="大航海点歌间隔说明">每位观众分别计时。留空沿用「非大航海点歌间隔」，填 0 表示该身份不设间隔。身份按本直播间核验。</lira-help></span>
-            <span class="song-request-number"><input id="userCooldownCaptainSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用非大航海间隔" aria-label="舰长点歌间隔（秒）" /><span class="song-request-unit" aria-hidden="true">秒</span></span>
-          </label>
-          <label class="song-request-row">
+          <div class="song-request-row">
+            <span class="song-request-tier"><span class="song-request-tier-mark" aria-hidden="true"></span>非大航海</span>
+            <div class="song-request-limits">
+              <span class="lira-number-field"><input id="userCooldownSeconds" type="number" min="0" max="3600" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="非大航海点歌间隔（秒）" /><span class="lira-number-field-unit" aria-hidden="true">秒</span></span>
+              <span class="lira-number-field"><input id="userDailyLimit" type="number" min="0" max="300" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="非大航海每日点歌上限（首）" /><span class="lira-number-field-unit" aria-hidden="true">首</span></span>
+            </div>
+          </div>
+          <div class="song-request-row">
+            <span class="song-request-tier"><img class="song-request-tier-mark" src="/img/admin/gifts/bilibili-guard-captain.webp" alt="" width="22" height="22" />舰长</span>
+            <div class="song-request-limits">
+              <span class="lira-number-field"><input id="userCooldownCaptainSeconds" type="number" min="0" max="3600" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="舰长点歌间隔（秒）" /><span class="lira-number-field-unit" aria-hidden="true">秒</span></span>
+              <span class="lira-number-field"><input id="userDailyCaptainLimit" type="number" min="0" max="300" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="舰长每日点歌上限（首）" /><span class="lira-number-field-unit" aria-hidden="true">首</span></span>
+            </div>
+          </div>
+          <div class="song-request-row">
             <span class="song-request-tier"><img class="song-request-tier-mark" src="/img/admin/gifts/bilibili-guard-prefect.webp" alt="" width="22" height="22" />提督</span>
-            <span class="song-request-number"><input id="userCooldownAdmiralSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用非大航海间隔" aria-label="提督点歌间隔（秒）" /><span class="song-request-unit" aria-hidden="true">秒</span></span>
-          </label>
-          <label class="song-request-row">
+            <div class="song-request-limits">
+              <span class="lira-number-field"><input id="userCooldownAdmiralSeconds" type="number" min="0" max="3600" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="提督点歌间隔（秒）" /><span class="lira-number-field-unit" aria-hidden="true">秒</span></span>
+              <span class="lira-number-field"><input id="userDailyAdmiralLimit" type="number" min="0" max="300" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="提督每日点歌上限（首）" /><span class="lira-number-field-unit" aria-hidden="true">首</span></span>
+            </div>
+          </div>
+          <div class="song-request-row">
             <span class="song-request-tier"><img class="song-request-tier-mark" src="/img/admin/gifts/bilibili-guard-governor.webp" alt="" width="22" height="22" />总督</span>
-            <span class="song-request-number"><input id="userCooldownGovernorSeconds" type="number" min="0" max="3600" step="1" placeholder="沿用非大航海间隔" aria-label="总督点歌间隔（秒）" /><span class="song-request-unit" aria-hidden="true">秒</span></span>
-          </label>
+            <div class="song-request-limits">
+              <span class="lira-number-field"><input id="userCooldownGovernorSeconds" type="number" min="0" max="3600" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="总督点歌间隔（秒）" /><span class="lira-number-field-unit" aria-hidden="true">秒</span></span>
+              <span class="lira-number-field"><input id="userDailyGovernorLimit" type="number" min="0" max="300" step="1" data-empty-unlimited="true" placeholder="不填即不限" aria-label="总督每日点歌上限（首）" /><span class="lira-number-field-unit" aria-hidden="true">首</span></span>
+            </div>
+          </div>
         </div>
       </section>
       <section class="song-request-card song-request-card-eligibility" aria-labelledby="songRequestIdentityTitle">
@@ -119,8 +132,8 @@
         </div>
         <div class="song-request-rows">
           <label class="song-request-row">
-            <span>本直播间粉丝牌最低等级 <lira-help label="粉丝牌资格说明">0 表示不要求粉丝牌。设置后，观众须拥有本直播间的粉丝牌并达到所选等级；其他直播间的粉丝牌不计入。粉丝牌与大航海等级要求须同时满足。</lira-help></span>
-            <span class="song-request-number"><input id="songRequestMinMedalLevel" type="number" min="0" max="100" step="1" value="0" required /><span class="song-request-unit" aria-hidden="true">级</span></span>
+            <span>本直播间粉丝牌最低等级 <lira-help label="粉丝牌资格说明">填 0 表示不限。设置后需拥有本直播间粉丝牌且达到对应等级（别的房间粉丝牌不算）。如果同时设了大航海要求，两项需同时满足。</lira-help></span>
+            <span class="lira-number-field"><input id="songRequestMinMedalLevel" type="number" min="0" max="100" step="1" value="0" required /><span class="lira-number-field-unit" aria-hidden="true">级</span></span>
           </label>
           <label class="song-request-row">
             本直播间大航海要求
@@ -132,7 +145,7 @@
             </select>
           </label>
           <label class="song-request-row">
-            <span>大航海免粉丝牌要求 <lira-help label="大航海免牌说明">开启后，本直播间的有效大航海用户无需满足粉丝牌等级要求，仍须满足「大航海要求」。默认关闭。</lira-help></span>
+            <span>大航海免粉丝牌要求 <lira-help label="大航海免牌说明">开启后，本直播间的大航海观众可免去上面的粉丝牌等级限制（但仍需满足「大航海要求」）。</lira-help></span>
             <select id="songRequestGuardMedalBypass" data-dropdown-variant="settings">
               <option value="false">关闭</option>
               <option value="true">开启</option>
@@ -142,7 +155,7 @@
       </section>
       <section class="song-request-card song-request-card-wide" aria-labelledby="songRequestNoticeTitle">
         <div class="song-request-card-header">
-          <h3 id="songRequestNoticeTitle" class="song-board-section-heading">点歌结果提示 <lira-help label="点歌结果提示配色说明">设置点歌板顶部结果提示中的点歌人和歌名颜色，修改后自动保存。成功和失败提示共用这两种文字颜色。</lira-help></h3>
+          <h3 id="songRequestNoticeTitle" class="song-board-section-heading">点歌结果提示 <lira-help label="点歌结果提示配色说明">设置点歌板顶部弹窗提示里的「点歌人」和「歌名」颜色（点歌成功与失败共用），修改后自动保存。</lira-help></h3>
         </div>
         <div class="song-request-rows">
           <label class="song-request-row">
@@ -177,7 +190,7 @@
           <div class="song-board-section-title">
             <h3 id="songRequestUserBlacklistTitle" class="song-board-section-heading">
               点歌用户黑名单
-              <lira-help label="点歌用户黑名单说明">按 B 站 UID 拦截点歌，改昵称也不影响。备注昵称仅供辨认。到期时间按本机时区填写，留空表示永久；到期后自动失效。最多 200 人，填写完整后，添加、修改或删除会自动保存。</lira-help>
+              <lira-help label="点歌用户黑名单说明">按 B 站 UID 屏蔽点歌，对方改名也照样拦截。备注昵称仅方便自己辨认；到期时间留空代表永久屏蔽，最多可加 200 人，修改后自动保存。</lira-help>
             </h3>
             <span id="songRequestUserBlacklistCount" class="song-board-section-meta">0 人</span>
           </div>

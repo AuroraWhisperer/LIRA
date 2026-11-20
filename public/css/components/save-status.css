@@ -1,0 +1,36 @@
+.lira-save-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-text-secondary);
+  font-size: var(--type-size-caption);
+  font-weight: var(--type-weight-regular);
+  line-height: var(--type-leading-caption);
+}
+
+.lira-save-status::before {
+  content: '';
+  flex: 0 0 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.lira-save-status[data-state='pending'],
+.lira-save-status[data-state='saving'] {
+  color: var(--color-primary-text, var(--color-primary-strong));
+}
+
+.lira-save-status[data-state='saved'] {
+  color: var(--color-success-dark);
+}
+
+.lira-save-status[data-state='error'] {
+  color: var(--color-danger);
+}
+
+.lira-save-status[hidden],
+.lira-save-status:empty {
+  display: none;
+}

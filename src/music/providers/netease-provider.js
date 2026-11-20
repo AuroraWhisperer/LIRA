@@ -27,7 +27,16 @@ const {
 
 const NETEASE_BASE_URL = 'https://music.163.com';
 const REQUEST_TIMEOUT_MS = 10000;
+const PLAYLIST_DETAIL_BATCH_SIZE = 100;
+const MAX_PLAYLIST_READS = 6; // Match the catalog's existing membership fan-out.
 const STREAM_TTL_MS = 5 * 60 * 1000;
+
+function assertPlaylistAccount(expected, currentCookie) {
+  const cookie = typeof expected === 'object' && expected !== null ? expected.cookie : expected;
+  if (cookie !== undefined && cookie !== currentCookie) {
+    throw Object.assign(createPublicError('网易云音乐的会话信息已变化，请重新打开歌单。', 501), { code: 'NETEASE_PLAYLIST_ACCOUNT_CHANGED' });
+  }
+}
 
 function readSearchSongs(data) {
   const code = Number(data?.code);
@@ -43,6 +52,10 @@ function readSearchSongs(data) {
 }
 
 class NeteaseMusicProvider {
+  #activePlaylistReads = 0;
+  #playlistReadWaiters = [];
+  #activeLikedReads = new Set();
+
   constructor(options = {}) {
     this.source = 'netease';
     this.name = '网易云音乐';
@@ -98,13 +111,13 @@ class NeteaseMusicProvider {
     return this.mapTracksWithArtwork(readSearchSongs(data));
   }
 
-  async mapTracksWithArtwork(songs) {
+  async mapTracksWithArtwork(songs, expectedCookie) {
     const list = Array.isArray(songs) ? songs : [];
-    const coverUrls = await this.getMissingCoverUrls(list);
+    const coverUrls = await this.getMissingCoverUrls(list, expectedCookie);
     return list.map((song) => mapNeteaseSong(song, coverUrls.get(String(song && song.id)))).filter(Boolean);
   }
 
-  async getMissingCoverUrls(songs) {
+  async getMissingCoverUrls(songs, expectedCookie) {
     const ids = [
       ...new Set(
         (Array.isArray(songs) ? songs : [])
@@ -120,16 +133,16 @@ class NeteaseMusicProvider {
     for (let index = 0; index < ids.length; index += 100) {
       const batch = ids.slice(index, index + 100);
       try {
-        const data = await this.requestJson('/api/song/detail', {
-          ids: JSON.stringify(batch),
-        });
+        const readCoverBatch = () => this.requestJson('/api/song/detail', { ids: JSON.stringify(batch) }, expectedCookie);
+        const data = expectedCookie === undefined ? await readCoverBatch() : await this.#withPlaylistReadSlot(readCoverBatch);
         const detailSongs = data && Array.isArray(data.songs) ? data.songs : [];
         for (const song of detailSongs) {
           const album = song && (song.album || song.al);
           const coverUrl = String((album && (album.picUrl || album.pic_url)) || '').trim();
           if (song && song.id && coverUrl) coverUrls.set(String(song.id), coverUrl);
         }
-      } catch (_) {
+      } catch (error) {
+        if (error?.code === 'NETEASE_PLAYLIST_ACCOUNT_CHANGED') throw error;
         // Preserve list results when one detail batch is unavailable.
       }
     }
@@ -168,19 +181,33 @@ class NeteaseMusicProvider {
   }
 
   async getLikedTracks(options = {}) {
-    await this.requireLogin('我喜欢需要先登录网易云音乐。');
-    const limit = clampInteger(options.limit, 1, 5000, 200);
-    const offset = clampInteger(options.offset, 0, 200000, 0);
-    const session = await getLikedTracksSession(this, options.loadingSession);
-    const playlistId = session ? await (session.playlist ||= this.getLikedPlaylistId()) : await this.getLikedPlaylistId();
-    return this.getPlaylistTracks(playlistId, { limit, offset, session });
+    const scope = { cookie: undefined };
+    this.#activeLikedReads.add(scope);
+    try {
+      const cookie = await this.getSafeCookieHeader();
+      assertPlaylistAccount(scope, cookie);
+      // Notify older reads, including those still awaiting their first cookie. null stays invalid across A → B → A.
+      for (const read of this.#activeLikedReads) {
+        if (read.cookie === undefined) read.cookie = cookie;
+        else if (read.cookie !== cookie) read.cookie = null;
+        if (read === scope) break;
+      }
+      const session = await getLikedTracksSession(this, options.loadingSession, cookie);
+      await this.requireLogin('我喜欢需要先登录网易云音乐。', scope);
+      const playlistId = session ? await (session.playlist ||= this.getLikedPlaylistId(scope)) : await this.getLikedPlaylistId(scope);
+      const limit = clampInteger(options.limit, 1, 5000, 200);
+      const offset = clampInteger(options.offset, 0, 200000, 0);
+      return await this.getPlaylistTracks(playlistId, { limit, offset, session, serialDetails: true }, scope);
+    } finally {
+      this.#activeLikedReads.delete(scope);
+    }
   }
 
-  async getLikedPlaylistId() {
-    const profile = await this.getUserProfile();
+  async getLikedPlaylistId(expectedCookie) {
+    const profile = await this.getUserProfile(expectedCookie);
     const playlists = await this.getUserPlaylists(profile.userId, {
       limit: 50,
-    });
+    }, expectedCookie);
     const likedPlaylist = playlists.find((playlist) => /喜欢/.test(playlist.title));
     if (!likedPlaylist) {
       throw createPublicError('没有从网易云音乐读取到“我喜欢”，当前登录凭证不完整或已失效，请重新登录网易云音乐。', 501);
@@ -222,51 +249,102 @@ class NeteaseMusicProvider {
     );
   }
 
-  async getPlaylistTracks(playlistId, options = {}) {
+  async #withPlaylistReadSlot(read) {
+    if (this.#activePlaylistReads < MAX_PLAYLIST_READS) {
+      this.#activePlaylistReads++;
+    } else {
+      await new Promise(resolve => this.#playlistReadWaiters.push(resolve));
+    }
+    try {
+      return await read();
+    } finally {
+      const next = this.#playlistReadWaiters.shift();
+      if (next) next(); // Transfer this slot directly to the oldest waiter.
+      else this.#activePlaylistReads--;
+    }
+  }
+
+  async #withPlaylistAccount(read, expectedCookie) {
+    const cookie = expectedCookie ?? await this.getSafeCookieHeader();
+    const result = await read(cookie);
+    assertPlaylistAccount(cookie, await this.getSafeCookieHeader());
+    return result;
+  }
+
+  #readPlaylistIndex(id, cookie) {
+    return this.#withPlaylistReadSlot(() => this.requestJson('/api/v6/playlist/detail', { id, n: '0', s: '0' }, cookie));
+  }
+
+  async getPlaylistTracks(playlistId, options = {}, expectedCookie) {
     const id = String(playlistId || '').trim();
     if (!id) throw createPublicError('缺少网易云歌单 ID。', 501);
+    return this.#withPlaylistAccount(cookie => this.#readPlaylistTracks(id, options, cookie), expectedCookie);
+  }
+
+  async #readPlaylistTracks(id, options, cookie) {
     const limit = clampInteger(options.limit, 1, 5000, 1000);
     const offset = clampInteger(options.offset, 0, 200000, 0);
-    const readPlaylist = () => this.requestJson('/api/v6/playlist/detail', { id, n: '0', s: '0' });
     const data = options.session
-      ? await (options.session.playlistDetails ||= readPlaylist())
-      : await readPlaylist();
+      ? await (options.session.playlistDetails ||= this.#readPlaylistIndex(id, cookie))
+      : await this.#readPlaylistIndex(id, cookie);
     const playlist = data?.playlist || {};
     if (!Array.isArray(playlist.trackIds)) {
       const tracks = Array.isArray(playlist.tracks) ? playlist.tracks : [];
       if (Number(playlist.trackCount) > tracks.length) throw createPublicError('网易云歌单未返回完整曲目索引，请重试。', 501);
-      return this.mapTracksWithArtwork(tracks.slice(offset, offset + limit));
+      return this.mapTracksWithArtwork(tracks.slice(offset, offset + limit), cookie);
     }
     if (Number(playlist.trackCount) > playlist.trackIds.length) throw createPublicError('网易云歌单未返回完整曲目索引，请重试。', 501);
     const ids = playlist.trackIds.slice(offset, offset + limit).map((item) => String(item?.id ?? item));
     if (ids.some((trackId) => !/^\d+$/.test(trackId))) throw createPublicError('网易云歌单曲目 ID 无效。', 501);
+    const uniqueIds = [...new Set(ids)];
     const songs = new Map();
-    for (let index = 0; index < ids.length; index += 100) {
-      const detail = await this.requestJson('/api/song/detail', { ids: JSON.stringify(ids.slice(index, index + 100)) });
-      for (const song of Array.isArray(detail?.songs) ? detail.songs : []) songs.set(String(song.id), song);
+    let index = 0;
+    const readNextBatch = async () => {
+      const batch = uniqueIds.slice(index, index + PLAYLIST_DETAIL_BATCH_SIZE);
+      index += batch.length;
+      const detail = await this.requestJson('/api/song/detail', { ids: JSON.stringify(batch) }, cookie);
+      const byId = new Map((Array.isArray(detail?.songs) ? detail.songs : []).map(song => [String(song.id), song]));
+      for (const trackId of batch) {
+        if (!byId.has(trackId)) throw createPublicError('网易云歌单部分曲目未返回，加载未完成，请重试。', 501);
+        songs.set(trackId, byId.get(trackId));
+      }
+    };
+    while (index < uniqueIds.length) {
+      const first = this.#withPlaylistReadSlot(readNextBatch);
+      if (options.serialDetails || index === uniqueIds.length || this.#activePlaylistReads === MAX_PLAYLIST_READS) {
+        await first;
+        continue;
+      }
+      // Each batch releases its own slot. This open waits for both before starting another pair.
+      const pair = await Promise.allSettled([first, this.#withPlaylistReadSlot(readNextBatch)]);
+      const failed = pair.find(result => result.status === 'rejected');
+      if (failed) throw failed.reason;
     }
-    if (ids.some((trackId) => !songs.has(trackId))) throw createPublicError('网易云歌单部分曲目未返回，加载未完成，请重试。', 501);
-    return this.mapTracksWithArtwork(ids.map((trackId) => songs.get(trackId)));
+    // These songs already came from /api/song/detail, including its best available artwork.
+    return ids.map((trackId) => mapNeteaseSong(songs.get(trackId))).filter(Boolean);
   }
 
   async playlistContainsTrack(playlistId, track) {
     const id = String(playlistId || '').trim();
     if (!/^\d+$/.test(id)) throw createPublicError('缺少网易云歌单 ID。', 501);
     const trackId = extractSourceTrackId(track);
-    const data = await this.requestJson('/api/v6/playlist/detail', {
-      id,
-      n: '0',
-      s: '0',
-    });
-    const trackIds = data && data.playlist && Array.isArray(data.playlist.trackIds) ? data.playlist.trackIds : null;
-    if (trackIds) {
-      return trackIds.some((item) => String(item && (item.id || item)) === trackId);
-    }
-    const tracks = await this.getPlaylistTracks(id, { limit: 5000 });
-    return tracks.some((item) => extractSourceTrackId(item) === trackId);
+    return this.#withPlaylistAccount(cookie => this.#playlistContainsTrack(id, trackId, cookie));
   }
 
-  async getUserPlaylists(userId, options = {}) {
+  async #playlistContainsTrack(id, trackId, cookie) {
+    const data = await this.#readPlaylistIndex(id, cookie);
+    const { trackIds, tracks, trackCount } = data?.playlist || {};
+    if (Array.isArray(trackIds)) {
+      return trackIds.some((item) => String(item && (item.id || item)) === trackId);
+    }
+    if (Array.isArray(tracks) && Number.isSafeInteger(trackCount) && trackCount >= 0 && tracks.length >= trackCount) {
+      return tracks.slice(0, 5000).some((song) => song?.name && String(song.id || '').trim() === trackId);
+    }
+    const recoveredTracks = await this.#readPlaylistTracks(id, { limit: 5000, serialDetails: true }, cookie);
+    return recoveredTracks.some((item) => extractSourceTrackId(item) === trackId);
+  }
+
+  async getUserPlaylists(userId, options = {}, expectedCookie) {
     const uid = String(userId || '').trim();
     if (!uid) throw createPublicError('缺少网易云用户 ID。', 501);
     const limit = clampInteger(options.limit, 1, 500, 200);
@@ -274,7 +352,7 @@ class NeteaseMusicProvider {
       uid,
       limit: String(limit),
       offset: '0',
-    });
+    }, expectedCookie);
     const playlists = data && Array.isArray(data.playlist) ? data.playlist : [];
     return playlists.map(mapNeteasePlaylist).filter(Boolean);
   }
@@ -394,7 +472,7 @@ class NeteaseMusicProvider {
     };
   }
 
-  async requestJson(pathname, params = {}) {
+  async requestJson(pathname, params = {}, expectedCookie) {
     const url = new URL(pathname, NETEASE_BASE_URL);
     for (const [key, value] of Object.entries(params)) {
       url.searchParams.set(key, value);
@@ -406,6 +484,7 @@ class NeteaseMusicProvider {
       'User-Agent': 'Mozilla/5.0 SongAssistant/1.0',
     };
     const cookieHeader = await this.getSafeCookieHeader();
+    assertPlaylistAccount(expectedCookie, cookieHeader);
     if (cookieHeader) headers.Cookie = cookieHeader;
 
     const response = await fetch(url, {
@@ -415,6 +494,7 @@ class NeteaseMusicProvider {
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
     });
     const text = await readResponseText(response, MAX_RESPONSE_BYTES, responseLimitError);
+    if (typeof expectedCookie === 'object') assertPlaylistAccount(expectedCookie, await this.getSafeCookieHeader());
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
@@ -473,16 +553,17 @@ class NeteaseMusicProvider {
     }
   }
 
-  async requireLogin(message) {
+  async requireLogin(message, expectedCookie) {
     const auth = await this.getSafeAuthState();
+    if (expectedCookie !== undefined) assertPlaylistAccount(expectedCookie, await this.getSafeCookieHeader());
     if (!auth || !auth.loggedIn) {
       throw createPublicError(message || '需要先登录网易云音乐。', 501);
     }
     return auth;
   }
 
-  async getUserProfile() {
-    const data = await this.requestJson('/api/nuser/account/get');
+  async getUserProfile(expectedCookie) {
+    const data = await this.requestJson('/api/nuser/account/get', {}, expectedCookie);
     const profile = data && data.profile ? data.profile : null;
     const userId = profile && profile.userId ? String(profile.userId) : '';
     if (!userId) throw createPublicError('未能读取网易云用户资料，请重新登录后再试。', 501);

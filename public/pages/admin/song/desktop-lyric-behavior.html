@@ -3,7 +3,7 @@
     <strong id="desktopLyricKaraokeTitle"
       >逐字高亮方式
       <lira-help
-        ><span id="desktopLyricKaraokeHint">连续填充更细腻；逐字点亮按时间点切换，更省资源。已唱颜色用于当前句的逐字高亮；未唱颜色也用于普通整句、翻译及关闭逐字时的歌词。</span></lira-help
+        ><span id="desktopLyricKaraokeHint">「连续填充」像 KTV 一样平滑扫过每个字；「逐字点亮」按节拍整字变色，更省显卡。</span></lira-help
       ></strong
     >
   </div>
@@ -62,7 +62,7 @@
   ></label>
 </div>
 <label class="desktop-lyric-control desktop-lyric-range-control"
-  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslationScaleLabel">翻译 / 罗马音字号</span> <lira-help>相对正文字号的比例。例如正文 56px、比例 65% 时，翻译约 36px；罗马音再缩小为翻译的 86%。</lira-help></strong></span
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricTranslationScaleLabel">翻译 / 罗马音字号</span> <lira-help>按正文字号的比例缩放（例如设为 65%，翻译字号就是正文的 65%，罗马音会在此基础上再略小一点）。</lira-help></strong></span
   ><span class="range-row"
     ><input
       aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScale"
@@ -72,10 +72,7 @@
       max="1"
       step="0.05"
       value="0.65"
-    /><input aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScaleNumber" type="number" min="40" max="100" step="5" value="65" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricTranslationScaleLabel" id="desktopLyricTranslationScaleNumber" type="number" min="40" max="100" step="5" value="65" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <div class="desktop-lyric-control">
@@ -86,7 +83,7 @@
 </div>
 <div class="desktop-lyric-control">
   <span class="desktop-lyric-control-copy"
-    ><strong><span id="desktopLyricTraditionalModeLabel">优先使用繁体字形</span> <lira-help>使用字体提供的繁体字形，不转换歌词文本；效果取决于所选字体。</lira-help></strong></span
+    ><strong><span id="desktopLyricTraditionalModeLabel">优先使用繁体字形</span> <lira-help>调用字体自带的繁体字形显示（需所选字体本身支持），不会改写原歌词文字。</lira-help></strong></span
   ><label class="switch-control"
     ><input aria-labelledby="desktopLyricTraditionalModeLabel" id="desktopLyricTraditionalMode" type="checkbox" /><span class="switch-track" aria-hidden="true"></span
   ></label>
@@ -102,10 +99,7 @@
       max="10"
       step="0.5"
       value="0"
-    /><input aria-labelledby="desktopLyricInterludeOffsetEmLabel" id="desktopLyricInterludeOffsetEmNumber" type="number" min="-10" max="10" step="0.5" value="0" /><span
-      class="desktop-lyric-unit"
-      >em</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricInterludeOffsetEmLabel" id="desktopLyricInterludeOffsetEmNumber" type="number" min="-10" max="10" step="0.5" value="0" /><span class="lira-number-field-unit" aria-hidden="true">em</span></span></span
   ></label
 >
 
@@ -125,7 +119,7 @@
   ></label>
 </div>
 <label class="desktop-lyric-control desktop-lyric-range-control"
-  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricOpacityLabel">歌词文字不透明度</span> <lira-help>统一影响已唱与未唱文字；两个颜色按钮中的不透明度分别作用于各自颜色。</lira-help></strong></span
+  ><span class="desktop-lyric-control-copy"><strong><span id="desktopLyricOpacityLabel">歌词文字不透明度</span> <lira-help>统一控制所有歌词文字的透明度；如果还想单独调已唱或未唱的透明度，可在上方颜色选择器里分别设置。</lira-help></strong></span
   ><span class="range-row"
     ><input
       aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacity"
@@ -135,10 +129,7 @@
       max="1"
       step="0.05"
       value="0.95"
-    /><input aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacityNumber" type="number" min="0" max="100" step="5" value="95" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricOpacityLabel" id="desktopLyricOpacityNumber" type="number" min="0" max="100" step="5" value="95" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -152,10 +143,7 @@
       max="1"
       step="0.05"
       value="0.38"
-    /><input aria-labelledby="desktopLyricBaseOpacityLabel" id="desktopLyricBaseOpacityNumber" type="number" min="0" max="100" step="5" value="38" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricBaseOpacityLabel" id="desktopLyricBaseOpacityNumber" type="number" min="0" max="100" step="5" value="38" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
@@ -169,15 +157,12 @@
       max="1"
       step="0.05"
       value="0.72"
-    /><input aria-labelledby="desktopLyricTranslationOpacityLabel" id="desktopLyricTranslationOpacityNumber" type="number" min="0" max="100" step="5" value="72" /><span
-      class="desktop-lyric-unit"
-      >%</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricTranslationOpacityLabel" id="desktopLyricTranslationOpacityNumber" type="number" min="0" max="100" step="5" value="72" /><span class="lira-number-field-unit" aria-hidden="true">%</span></span></span
   ></label
 >
 <label class="desktop-lyric-control desktop-lyric-range-control"
   ><span class="desktop-lyric-control-copy"
-    ><strong><span id="desktopLyricTimeOffsetMsLabel">歌词画面时间偏移</span> <lira-help>调整浏览器源歌词画面；正值提前，负值延后。使用全民 K 歌时，会叠加“播放 → 全民 K 歌”中的歌词时间调整。</lira-help></strong></span
+    ><strong><span id="desktopLyricTimeOffsetMsLabel">歌词画面时间偏移</span> <lira-help>正数让歌词提前出现，负数让歌词延后。用全民 K 歌时，会与「播放 → 全民 K 歌」里的时间调整叠加。</lira-help></strong></span
   ><span class="range-row"
     ><input
       aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMs"
@@ -187,10 +172,7 @@
       max="5000"
       step="50"
       value="0"
-    /><input aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMsNumber" type="number" min="-5000" max="5000" step="50" value="0" /><span
-      class="desktop-lyric-unit"
-      >ms</span
-    ></span
+    /><span class="lira-number-field"><input aria-labelledby="desktopLyricTimeOffsetMsLabel" id="desktopLyricTimeOffsetMsNumber" type="number" min="-5000" max="5000" step="50" value="0" /><span class="lira-number-field-unit" aria-hidden="true">ms</span></span></span
   ></label
 >
 <div class="desktop-lyric-control">
@@ -204,6 +186,6 @@
 </div>
 <label class="desktop-lyric-control"
   ><span class="desktop-lyric-control-copy"
-    ><strong>无歌词提示文字 <lira-help>没有歌词和歌名时显示。</lira-help></strong></span
+    ><strong>无歌词提示文字 <lira-help>纯音乐或搜不到歌词（且未开启「无歌词时显示歌名」）时显示的兜底文字。</lira-help></strong></span
   ><input id="desktopLyricNoLyricText" type="text" value="纯音乐，请欣赏" maxlength="80"
 /></label>

@@ -181,9 +181,7 @@
 
 .audio-assistant-slider-track input[type='range'] {
   flex: 1;
-  width: 100%;
   min-width: 0;
-  accent-color: var(--primary);
 }
 
 .audio-assistant-slider-track input[type='number'] {
@@ -229,9 +227,15 @@
   font-size: var(--type-size-control);
 }
 
-.audio-assistant-sound .audio-assistant-slider-track > span {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
+.audio-assistant-slider-track .lira-number-field {
+  grid-column: 2 / span 2;
+  --number-field-unit-space: 24px;
+  --number-field-unit-inset: 8px;
+}
+
+.audio-assistant-slider-track .lira-number-field input[type='number'] {
+  width: 100%;
+  padding-inline-end: var(--number-field-unit-space);
 }
 
 .audio-assistant-sound .audio-assistant-presets:empty {

@@ -55,7 +55,9 @@ export function createNeonGlassMessageRenderer({ document, classNames }, render)
       ? ({ 1: 'governor', 2: 'admiral', 3: 'captain' })[guard] : item.roomMedal?.name ? 'fan' : 'viewer';
     let hash = 0;
     for (const character of name) hash = Math.imul(hash, 31) + character.codePointAt(0) | 0;
-    setColorProperties(root.style, '--neon-glass-original-name-color', NAME_COLORS[(hash >>> 0) % NAME_COLORS.length], {
+    const palette = (hash >>> 0) % NAME_COLORS.length;
+    root.dataset.neonGlassPalette = String(palette);
+    setColorProperties(root.style, '--neon-glass-original-name-color', NAME_COLORS[palette], {
       light: ['#ffffff', .65],
     });
     const identity = element('strong', 'neon-glass-name', name);

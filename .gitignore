@@ -6,6 +6,8 @@ screenshots/
 release/
 /output/
 tmp/
+/native/audio-assistant/obj/
+/test/desktop/audio-assistant-native/obj/
 .tmp*/
 build/*
 !build/installer.nsh

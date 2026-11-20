@@ -7,7 +7,7 @@ const { useSharedBrowser } = require('../helpers/shared-browser');
 
 const openBrowserSession = useSharedBrowser();
 
-test('each built-in style edits non-body text independently and restores its authored typography', async t => {
+test('each built-in style applies its text clusters to real messages and restores their typography', async t => {
   const fixture = await startComponentPreviewServer({ parentHtml: `<!doctype html>
     <link rel="stylesheet" href="/css/overlays/danmaku.css">
     <style>*, *::before, *::after { transition: none !important; }</style>
@@ -19,7 +19,8 @@ test('each built-in style edits non-body text independently and restores its aut
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const results = await page.evaluate(async () => {
-    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS, supportsDanmakuSuperchat } = await import('/js/shared/danmaku-style-options.js');
+    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS, supportsDanmakuSuperchat, styleOptionFields, styleOptionsFor } = await import('/js/shared/danmaku-style-options.js');
+    const { editStyleOption } = await import('/js/shared/danmaku-appearance-draft.js');
     const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
     const { createDanmakuMessageRenderer, DEFAULT_DANMAKU_CLASSES } = await import('/js/overlays/danmaku-message-renderer.js');
     const response = await fetch('/danmaku?preview=1&componentPreview=1');
@@ -34,6 +35,8 @@ test('each built-in style edits non-body text independently and restores its aut
     const messages = [
       { ...sender, message: '正文保持原样' },
       { ...sender, roomGuardLevel: 0, guardLevel: 0, roomMedal: null, medalName: '', message: '普通观众正文' },
+      { ...sender, roomMedal: null, medalName: '', medalLevel: 0, message: '无灯牌大航海正文' },
+      { ...sender, roomGuardLevel: 0, guardLevel: 0, message: '粉丝正文' },
       { ...sender, roomGuardLevel: 0, isStreamer: true, message: '主播正文' },
       { ...sender, kind: 'system', message: '系统提示' },
       { ...sender, kind: 'gift', giftName: '星愿', giftCount: 2, giftTotalPrice: 30 },
@@ -60,6 +63,35 @@ test('each built-in style edits non-body text independently and restores its aut
       const bodyBefore = typography(body);
       const groups = DANMAKU_TEXT_TARGETS[style];
       if (!groups) throw new Error(`${style}: missing text groups`);
+      const fields = Object.entries(styleOptionFields(style)).filter(([, field]) => field.textRole && field.type === 'number');
+      const defaultOptions = styleOptionsFor(style);
+      const allTargets = [...document.querySelectorAll(Object.values(groups).join(','))];
+      const fieldTargets = new Map(fields.map(([key, field]) => {
+        const siblings = fields.filter(([, other]) => other.legacySizeKey === key).map(([, other]) => other.sizeSelector);
+        const targets = [...document.querySelectorAll(groups[field.textRole])].filter(node => field.sizeSelector
+          ? node.matches(field.sizeSelector) : !siblings.some(selector => node.matches(selector)));
+        return [key, targets];
+      }));
+      for (const [key, field] of fields.filter(([, field]) => !field.linkedSizeKey)) {
+        const cluster = fields.filter(([member, other]) => member === key || other.linkedSizeKey === key);
+        if (cluster.some(([member]) => !fieldTargets.get(member).length)) {
+          results.push({ style, role: key, missing: true }); continue;
+        }
+        const targets = cluster.flatMap(([member]) => fieldTargets.get(member));
+        const others = allTargets.filter(node => !targets.includes(node));
+        const before = targets.map(typography);
+        const otherBefore = others.map(typography);
+        const defaultsMatch = cluster.every(([member]) => fieldTargets.get(member)
+          .every(node => Math.abs(parseFloat(getComputedStyle(node).fontSize) - defaultOptions[member]) < .006));
+        const edited = editStyleOption({ style, styleOptions: {} }, key, 25.25);
+        applyStyleOptions(document, style, edited.styleOptions);
+        results.push({ style, role: key, defaultsMatch,
+          changed: cluster.every(([member, other]) => fieldTargets.get(member).every(node =>
+            getComputedStyle(node).fontSize === `${Number((25.25 * other.default / field.default).toFixed(2))}px`)),
+          independent: typography(body) === bodyBefore && others.every((node, index) => typography(node) === otherBefore[index]) });
+        applyStyleOptions(document, style, {});
+        results.at(-1).restored = targets.every((node, index) => typography(node) === before[index]);
+      }
       for (const [role, selector] of Object.entries(groups)) {
         const targets = [...document.querySelectorAll(selector)];
         if (!targets.length) { results.push({ style, role, missing: true }); continue; }
@@ -81,9 +113,105 @@ test('each built-in style edits non-body text independently and restores its aut
     }
     return results;
   });
-  assert.equal(results.filter(result => !result.changed || !result.independent || !result.restored)
+  assert.equal(results.filter(result => result.defaultsMatch === false || !result.changed || !result.independent || !result.restored)
     .slice(0, 8).map(result => `${result.style}/${result.role}: ${JSON.stringify(result)}`).join('\n'), '',
   'Every group must reach real text, remain independent and restore its authored typography.');
+});
+
+test('font and color parts retain legacy overrides, edit independently and restore actual paint', async t => {
+  const fixture = await startComponentPreviewServer({ parentHtml: '<!doctype html><link rel="stylesheet" href="/css/overlays/danmaku.css"><div class="danmaku-signal-stage"><div id="feed" class="draw-danmaku-feed"></div></div>' });
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage();
+  const url = `${fixture.origin}/preview-test-host`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  const failures = await page.evaluate(async () => {
+    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS, styleOptionFields, styleOptionsFor, normalizeStyleOptions } = await import('/js/shared/danmaku-style-options.js');
+    const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
+    const { renderAppearanceSamples, acquireDanmakuAppearanceValues } = await import('/js/overlays/danmaku-appearance-values.js');
+    const reader = acquireDanmakuAppearanceValues(document);
+    const markup = new DOMParser().parseFromString(await (await fetch('/danmaku?preview=1&componentPreview=1')).text(), 'text/html');
+    for (const selector of ['.twitter-profile', '.twitter-tabs', '.twitter-composer', '.spooky-frame']) document.body.append(markup.querySelector(selector));
+    const paint = node => {
+      const css = getComputedStyle(node);
+      return [css.fontFamily, css.color, css.webkitTextFillColor, css.webkitTextStrokeColor].join('|');
+    };
+    const failures = [];
+    try {
+      for (const style of Object.keys(DANMAKU_STYLE_OPTIONS)) {
+        for (const mode of style === 'neon-glass' ? ['original', 'identity', 'text'] : [null]) {
+          const base = mode ? { neonGlassNameColors: mode } : {};
+          const styleOptions = { [style]: base };
+          const resolved = styleOptionsFor(style, styleOptions);
+          const isActive = field => !field.appearanceWhen || resolved[field.appearanceWhen[0]] === field.appearanceWhen[1];
+          document.body.dataset.style = style;
+          applyStyleOptions(document, style, styleOptions);
+          renderAppearanceSamples(document, style);
+          const fields = styleOptionFields(style);
+          const visibleValues = await reader.read({ style, styleOptions });
+          for (const [key, field] of Object.entries(fields)) {
+            if (!['font', 'color'].includes(field.type) || field.appearanceParts || !isActive(field)) continue;
+            if ((field.textRole || key === 'fontFamily' || key === 'bubbleColor') && !visibleValues[key]) failures.push(`${style}/${key}: missing displayed value`);
+          }
+          const allTargets = [...document.querySelectorAll([...Object.values(DANMAKU_TEXT_TARGETS[style]),
+            ...Object.values(fields).map(field => field.appearanceTarget).filter(Boolean)].join(','))];
+          for (const [key, field] of Object.entries(fields).filter(([, f]) => f.appearanceParent && isActive(f))) {
+            const targets = allTargets.filter(node => node.matches(field.appearanceTarget || DANMAKU_TEXT_TARGETS[style][field.textRole]) && node.matches(field.appearanceSelector));
+            if (!targets.length) { failures.push(`${style}/${key}: missing target`); continue; }
+            const before = allTargets.map(paint);
+            const value = field.type === 'font' ? '"Georgia"' : '#123abc';
+            const options = normalizeStyleOptions({ [style]: { ...base, [key]: value } });
+            applyStyleOptions(document, style, options);
+            for (const node of targets) {
+              const css = getComputedStyle(node);
+              const changed = field.type === 'font' ? css.fontFamily.startsWith('Georgia')
+                : (field.colorProperty === 'stroke' ? css.webkitTextStrokeColor : css.color) === 'rgb(18, 58, 188)';
+              if (!changed) { failures.push(`${style}/${key}: edit missed target`); break; }
+            }
+            if (allTargets.some((node, index) => !targets.includes(node) && paint(node) !== before[index])) failures.push(`${style}/${key}: edit leaked to another part`);
+            applyStyleOptions(document, style, styleOptions);
+            if (allTargets.some((node, index) => paint(node) !== before[index])) failures.push(`${style}/${key}: reset failed`);
+          }
+        }
+      }
+      const legacy = { ripploid: { titleColor: '#654321', titlePart2Color: '#123abc', nicknameFontFamily: '"Georgia"' } };
+      const values = await reader.read({ style: 'ripploid', styleOptions: legacy });
+      if (values.titlePart3Color !== '#654321' || values.titlePart2Color !== '#123abc'
+        || !values.nicknamePart3FontFamily.startsWith('Georgia')) failures.push('Legacy role values must remain effective alongside part overrides.');
+      for (const mode of ['identity', 'text']) {
+        const base = { neonGlassNameColors: mode };
+        const before = await reader.read({ style: 'neon-glass', styleOptions: { 'neon-glass': base } });
+        const after = await reader.read({ style: 'neon-glass', styleOptions: { 'neon-glass': { ...base, nicknamePart7Color: '#123abc' } } });
+        if (Object.keys(before).some(key => before[key] !== after[key])) failures.push(`Neon Glass original palette leaked into ${mode} mode.`);
+      }
+    } finally { reader.dispose(); }
+    return failures;
+  });
+  assert.deepEqual(failures, []);
+});
+
+test('standalone text controls resolve and reset colors while keeping the opaque overlay origin', async t => {
+  const fixture = await startComponentPreviewServer();
+  const session = openBrowserSession();
+  t.after(async () => { await session.close(); await fixture.close(); });
+  const page = await session.newPage();
+  const url = `${fixture.origin}/danmaku?preview=1&style=neon-glass`;
+  assert.equal((await fetch(url)).status, 200);
+  await page.goto(url);
+  await page.waitForFunction(() => !document.getElementById('previewNicknamePart7Color')?.disabled);
+  assert.equal(await page.evaluate(() => window.origin), 'null');
+  const color = page.locator('#previewNicknamePart7Color');
+  const initial = await color.evaluate(input => input.value);
+  const initialRules = await page.locator('style[data-danmaku-text-options]').textContent();
+  await color.evaluate(input => {
+    input.value = '#123abc';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForFunction(() => document.querySelector('style[data-danmaku-text-options]').textContent.includes('#123abc'));
+  await page.locator('#previewAppearanceReset').click();
+  assert.equal(await color.evaluate(input => input.value), initial);
+  assert.equal(await page.locator('style[data-danmaku-text-options]').textContent(), initialRules);
 });
 
 test('coffee writing preserves complete text, emoji and failed emotes through entry and reduced motion', async t => {
@@ -392,7 +520,7 @@ test('style text responds to chosen fonts and sizes; representative layouts reta
   assert.equal((await fetch(url)).status, 200);
   await page.goto(url);
   const measurements = await page.evaluate(async () => {
-    const { DANMAKU_STYLE_OPTIONS } = await import('/js/shared/danmaku-style-options.js');
+    const { DANMAKU_STYLE_OPTIONS, DANMAKU_TEXT_TARGETS } = await import('/js/shared/danmaku-style-options.js');
     const { applyStyleOptions } = await import('/js/overlays/danmaku-style-application.js');
     const { createLayout } = await import('/js/shared/danmaku-layout.js');
     const { applyCanvas, canvasContentScale } = await import('/js/overlays/danmaku-canvas.js');
@@ -449,6 +577,8 @@ test('style text responds to chosen fonts and sizes; representative layouts reta
             results.push({ style, fontSize, scale, kind, width: probe.getBoundingClientRect().width,
               contentScale: canvasContentScale(layout, style),
               family: getComputedStyle(node).fontFamily,
+              independentSize: Object.values(DANMAKU_TEXT_TARGETS[style]).some(selector => node.closest(selector)),
+              logicalSize: getComputedStyle(node).fontSize,
               ...(senderStyle ? { nameFamily: senderStyle.fontFamily } : {}),
               ...(kind === 'superchat' && ['snowfox', 'moonlit'].includes(style)
                 ? { nameFamily: getComputedStyle(cards[2].querySelector('.sc-name')).fontFamily } : {}),
@@ -473,9 +603,9 @@ test('style text responds to chosen fonts and sizes; representative layouts reta
     }
     if (!baselines.has(key)) baselines.set(key, result);
     const baseline = baselines.get(key);
-    // Event lettering may own its proportions; changing that design must not break this settings check.
-    if (fontSize > baseline.fontSize && (style !== 'ripploid' || kind !== 'gift')) {
-      assert.ok(width / scale > baseline.width, `${key} grows when the chosen font size increases`);
+    if (fontSize > baseline.fontSize) {
+      if (result.independentSize) assert.equal(result.logicalSize, baseline.logicalSize, `${key} keeps its separately editable size`);
+      else assert.ok(width / scale > baseline.width, `${key} grows when the chosen font size increases`);
     }
     const sizeKey = `${key}:${fontSize}`;
     if (scale === 1) baselines.set(sizeKey, result);

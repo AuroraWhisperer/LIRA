@@ -72,7 +72,8 @@ export function createPlaybackControls(deps) {
   function createPlaybackRequestGuard(track) {
     // 错误属于当前音频；新曲尚在解析时也不能让旧音频抢回播放权。
     const requestGeneration = audioRequestGeneration;
-    return () => isCurrentPlaybackRequest(requestGeneration, track);
+    return ({ requirePlayIntent = false } = {}) =>
+      isCurrentPlaybackRequest(requestGeneration, track) && (!requirePlayIntent || playRequested);
   }
 
   async function resumePlayback(audio, track) {
@@ -148,7 +149,7 @@ export function createPlaybackControls(deps) {
       ? playbackState.normalQueueTracks[options.playlistIndex] : null;
     const requestGeneration = invalidatePlaybackRequests();
     playRequestSource = track.source;
-    playRequested = true;
+    if (!options.isRetry) playRequested = true;
 
     // For local tracks, ensure the file is accessible before trying to play
     if (PlaybackUtils.isLocalTrack(track)) {
@@ -286,10 +287,13 @@ export function createPlaybackControls(deps) {
       }
       // A lyric refresh may have completed while the stream snapshot was resolving.
       delete streamTrack.lyrics;
-      const songPosition = (Number.isFinite(audio.currentTime) ? audio.currentTime : 0) +
-        PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
+      // Before first play the saved cursor is the only position for this track.
+      let resumeAt = playbackState.restoredTime;
+      if (audio.src && audio.dataset.trackId === track.id && Number.isFinite(audio.currentTime)) {
+        const songPosition = audio.currentTime + PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000;
+        resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(streamTrack) / 1000);
+      }
       Object.assign(track, streamTrack);
-      const resumeAt = Math.max(0, songPosition - PlaybackUtils.getPlaybackLyricOffsetMs(track) / 1000);
 
       const shouldResume = !audio.paused;
       audio.src = streamUrl;

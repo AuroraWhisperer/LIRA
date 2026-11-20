@@ -2,7 +2,7 @@
   position: fixed;
   inset: 0;
   z-index: 33;
-  background: rgba(24, 24, 22, 0.16);
+  background: color-mix(in srgb, var(--color-bg-overlay-light) 40%, transparent);
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -109,7 +109,6 @@
   align-items: center;
   justify-content: center;
   padding: 48px 24px;
-  text-align: center;
   gap: 12px;
 }
 
@@ -124,19 +123,6 @@
   color: var(--muted);
   font-size: var(--type-size-metric-md);
   font-weight: var(--type-weight-bold);
-}
-
-.queue-empty-state p {
-  margin: 0;
-  color: var(--text);
-  font-size: var(--type-size-card-title);
-  font-weight: 700;
-}
-
-.queue-empty-state span {
-  color: var(--muted);
-  font-size: var(--type-size-caption);
-  line-height: 1.5;
 }
 
 /* ===== 全屏播放器 ===== */

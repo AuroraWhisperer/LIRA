@@ -70,10 +70,10 @@ test('manual gift retention runs shared maintenance once while draining all boun
   databases.giftDb.exec(`WITH RECURSIVE rows(id) AS (SELECT 1 UNION ALL SELECT id + 1 FROM rows WHERE id < 2500)
     INSERT INTO gift_events (platform_id, gift_name, total_price, raw_json, created_at, updated_at)
     SELECT 'expired-' || id, 'gift', 1, '{}', '2020-01-01', '2020-01-01' FROM rows`);
-  let songMaintenanceReads = 0;
+  let songMaintenanceUpdates = 0;
   const songDb = new Proxy(databases.songDb, { get(target, key) {
     if (key === 'prepare') return sql => {
-      if (/SELECT id, data FROM fan_records WHERE kind = 'song'/u.test(sql)) songMaintenanceReads++;
+      if (/UPDATE fan_records SET data/u.test(sql)) songMaintenanceUpdates++;
       return target.prepare(sql);
     };
     const value = target[key];
@@ -94,7 +94,7 @@ test('manual gift retention runs shared maintenance once while draining all boun
   assert.equal(response.body.data.superChatsDeleted, 1);
   assert.equal(response.body.data.hasMoreGiftEvents, false);
   assert.equal(databases.giftDb.prepare('SELECT COUNT(*) AS count FROM gift_events').get().count, 1);
-  assert.equal(songMaintenanceReads, 1, 'gift continuation must not rescan unrelated song summaries');
+  assert.equal(songMaintenanceUpdates, 1, 'gift continuation must not rescan unrelated song summaries');
   assert.equal(clearUndo.mock.callCount(), 1);
 });
 

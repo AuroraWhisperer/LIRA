@@ -11,8 +11,12 @@ function pendingKey(accountKey) {
 }
 
 function createCloudSongSyncStore(db) {
+  function getAccount() {
+    return db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_SONG_ACCOUNT_KEY)?.value;
+  }
+
   function assertAccount(accountKey) {
-    const owner = db.prepare('SELECT value FROM settings WHERE key = ?').get(CLOUD_SONG_ACCOUNT_KEY)?.value;
+    const owner = getAccount();
     if (owner && owner !== accountKey) {
       throw Object.assign(new Error('当前账号的歌库尚未恢复，请联网后稍候重试。'), {
         code: 'CLOUD_SONGS_NOT_READY', statusCode: 503,
@@ -21,6 +25,7 @@ function createCloudSongSyncStore(db) {
   }
 
   return {
+    getAccount,
     assertAccount,
 
     initializeAccount(accountKey) {
@@ -35,8 +40,11 @@ function createCloudSongSyncStore(db) {
     },
 
     // The song mutation owns this transaction, so neither write can commit alone.
-    capturePending() {
+    capturePending(expectedAccountKey) {
       const accountKey = db.prepare('SELECT value FROM settings WHERE key = ?').get('cloudRoomAccountKey')?.value;
+      if (expectedAccountKey && accountKey !== expectedAccountKey) {
+        throw Object.assign(new Error('歌库同步账号已变化。'), { code: 'CLOUD_SONGS_CHANGED' });
+      }
       if (!accountKey) return;
       assertAccount(accountKey);
       const songs = db

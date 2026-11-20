@@ -16,7 +16,6 @@ const EMPTY_CATCH_LIMITS = {
   'src/electron/local-media-access.js': 1,
   'src/electron/terminal-log.js': 2,
   'src/music/music-cache.js': 2,
-  'src/music/providers/netease-provider.js': 1,
   'src/music/providers/qq-provider.js': 1,
   'src/music/wesing-cache.js': 1,
   'src/music/wesing-capture-engine.js': 3,
@@ -238,49 +237,31 @@ test('empty catch text debt is frozen and can only decrease', () => {
   }
 });
 
-test('playback composition uses explicit factory dependencies', () => {
-  const controller = read('public/js/playback/controller.js');
-
-  assert.doesNotMatch(controller, /\bsharedDeps\b/);
-  assert.doesNotMatch(controller, /前向声明（解决循环依赖）/);
-});
-
 test('generic shared utilities exclude codecs and Bilibili rules', () => {
-  const utilities = read('src/shared/utils.js');
+  const utilities = sanitizeSource(read('src/shared/utils.js'));
 
   assert.doesNotMatch(utilities, /\b(?:createZip|readZipFiles|parseSharedStrings|parseWorksheetXml)\b/);
   assert.doesNotMatch(utilities, /\b(?:normalizeSuperChatPrice|normalizeGuardLevel|normalizeRoomInput|publicBilibiliErrorMessage)\b/);
 });
 
 test('HTTP primitives do not aggregate page composition or domain media handlers', () => {
-  const utilities = read('src/server/http-utils.js');
-  assert.doesNotMatch(utilities, /\b(?:servePageOrAsset|serveOpeningMedia|serveOpeningCharacter|serveOvertimeGiftImage|addFrameProtectionHeaders)\b/);
-  assert.doesNotMatch(utilities, /require\(['"][^'"]*(?:bilibili\/|page-assets|opening-|gift-image|admin-page|component-preview-page)/);
+  for (const dependency of productGraph.get('src/server/http-utils.js')) {
+    assert.doesNotMatch(dependency, /(?:bilibili\/|page-assets|opening-|gift-image|admin-page|component-preview-page)/);
+  }
 });
 
 test('opening consumers and settings operations stay independent of their HTTP routes', () => {
   for (const file of ['scene-extra-display', 'scene-shared-appearance', 'overlay-http', 'opening-service']) {
-    assert.doesNotMatch(read(`src/server/${file}.js`), /require\(['"][^'"]*routes\/opening-routes/, file);
+    assert.equal(productGraph.get(`src/server/${file}.js`).includes('src/server/routes/opening-routes.js'), false, file);
   }
-  for (const file of ['opening-service', 'opening-media-store']) {
-    assert.doesNotMatch(read(`src/server/${file}.js`), /require\(['"][^'"]*(?:http-utils|routes\/)/, file);
+  for (const file of ['opening-service', 'opening-media-store', 'settings-service']) {
+    for (const dependency of productGraph.get(`src/server/${file}.js`)) {
+      assert.doesNotMatch(dependency, /^src\/server\/(?:http-utils\.js|routes\/)/, file);
+    }
   }
-  assert.doesNotMatch(read('src/server/routes/opening-preview-routes.js'), /require\(['"]\.\/opening-routes['"]\)/);
-  assert.doesNotMatch(read('src/server/settings-service.js'), /require\(['"][^'"]*(?:http-utils|routes\/)/);
-  assert.doesNotMatch(read('src/server/routes/settings-routes.js'), /\b(?:prepareConfiguration|setMany|CLOCK_APPEARANCE_KEYS)\b/);
+  assert.equal(productGraph.get('src/server/routes/opening-preview-routes.js').includes('src/server/routes/opening-routes.js'), false);
 });
 
 test('Admin state owns state ordering without reading or rendering controls', () => {
-  assert.doesNotMatch(read('public/js/admin/state.js'), /\bdocument\b|querySelector|getElementById/);
-});
-
-test('composition roots delegate mutable subsystem state to runtimes', () => {
-  const server = read('src/server.js');
-  const desktop = read('src/electron/main.js');
-
-  assert.match(server, /createBilibiliRuntime/);
-  assert.doesNotMatch(server, /function (?:configure|reconnect|replace)Bilibili/);
-  assert.match(desktop, /createDesktopLifecycle/);
-  assert.match(desktop, /createDesktopMainWindow/);
-  assert.doesNotMatch(desktop, /createDesktopState|\b(?:shutdownPromise|closePromptPromise)\b/);
+  assert.doesNotMatch(sanitizeSource(read('public/js/admin/state.js')), /\bdocument\b|querySelector|getElementById/);
 });

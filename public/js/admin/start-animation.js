@@ -2,6 +2,7 @@
 
 import { localOverlayOrigin, toast } from '../shared/utils.js';
 import { bindCopyUrl } from '../shared/copy-url.js';
+import { renderSaveStatus } from '../shared/save-status.js';
 import { openComponentPreview } from './component-preview-dialog.js';
 import { mountOpeningStylePicker } from './opening-style-picker.js';
 import { stateService } from './state.js';
@@ -130,16 +131,7 @@ function initStartAnimation() {
   let picker;
 
   const setSaveState = (state) => {
-    if (saveStatus) {
-      saveStatus.dataset.state = state;
-      saveStatus.textContent = {
-        auto: '修改自动保存',
-        pending: '有修改，等待自动保存…',
-        saving: '保存中…',
-        saved: '已保存 · 修改自动保存',
-        error: '保存失败，修改未保存',
-      }[state];
-    }
+    renderSaveStatus(saveStatus, state === 'auto' ? 'idle' : state);
     if (retrySaveButton) {
       retrySaveButton.hidden = state !== 'error';
       retrySaveButton.disabled = state !== 'error';

@@ -29,13 +29,14 @@ test('early theme preset references receive asynchronously loaded data', async (
 test('admin form refresh preserves the active edit and updates inactive fields', async () => {
   const edited = { value: '正在输入', dataset: {}, closest: () => null };
   const inactive = { value: '旧值', dataset: {}, closest: () => null };
+  const userCooldownSeconds = { value: '60', dataset: { emptyUnlimited: 'true' }, closest: () => null };
   const guardThanksAuroraTextMode = { value: 'en', dataset: {},
     closest: selector => selector.split(',').some(part => part.trim() === '#guardThanksPanel') ? {} : null };
   const desktopLyricFontSize = { value: '64', dataset: {},
     closest: selector => selector.split(',').some(part => part.trim() === '#desktopLyricForm') ? {} : null };
   const document = {
     activeElement: edited,
-    getElementById: (id) => ({ edited, inactive, guardThanksAuroraTextMode, desktopLyricFontSize })[id] || null,
+    getElementById: (id) => ({ edited, inactive, userCooldownSeconds, guardThanksAuroraTextMode, desktopLyricFontSize })[id] || null,
     querySelectorAll: () => [],
     querySelector: () => null,
   };
@@ -48,4 +49,8 @@ test('admin form refresh preserves the active edit and updates inactive fields',
   assert.equal(inactive.value, '新值');
   assert.equal(guardThanksAuroraTextMode.value, 'en', 'generic hydration cannot replace resolved legacy guard settings with empty storage values');
   assert.equal(desktopLyricFontSize.value, '64', 'generic hydration cannot overwrite the lyric owner draft after a settings broadcast');
+  fillSettings({ userCooldownSeconds: '0' });
+  assert.equal(userCooldownSeconds.value, '', 'unlimited intervals display the empty hint');
+  fillSettings({ userCooldownSeconds: '60' });
+  assert.equal(userCooldownSeconds.value, '60', 'saved positive intervals are preserved');
 });
